@@ -55,6 +55,7 @@ string   CollideIon::config0  = "CollideIon.config";
 
 CollideIon::ElectronScatter
 CollideIon::esType            = CollideIon::always;
+bool CollideIon::ElectronEPSM = false;
 
 CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 					    {"always",    always},
@@ -8816,6 +8817,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   // Do electron interactions separately
   //======================================================================
   //
+
   if ( (aType == Direct or aType == Weight or aType == Hybrid)
        and use_elec>=0 and esType != always and esType != none) {
 
@@ -8825,10 +8827,18 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     std::vector<unsigned long> bods;
 
     // Eta will be the true # of electrons
+    // Eetot will be the total energy
     //
-    double eta = 0.0, crsvel = 0.0;
+    double eta = 0.0, crsvel = 0.0, Eetot = 0.0;
     double volc = cell->Volume();
     double me   = atomic_weights[0]*amu;
+
+    // For EPSM only
+    std::vector<double> Emom, Emom2;
+    if (ElectronEPSM) {
+      Emom. resize(3, 0.0);
+      Emom2.resize(3, 0.0);
+    }
 
     // Momentum diagnostic distribution
     //
@@ -8839,22 +8849,40 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     for (auto i : cell->bods) {
       Particle *p = cell->Body(i);
       KeyConvert k(p->iattrib[use_key]);
+
 				// Ionization-fraction-weighted charge
+      double eta1 = 0.0;
       if (aType == Hybrid) {
 	bods.push_back(i);
 	for (unsigned short C=1; C<=k.Z(); C++) {
-	  eta += ZMList[k.Z()]/atomic_weights[k.Z()] *
+	  eta1 += ZMList[k.Z()]/atomic_weights[k.Z()] *
 	    (*Fn)[k.getKey()] * p->dattrib[hybrid_pos+C]*C;
 	}
+	
 				// Mean charge
       } else {
 	if (k.C()>1) {
 	  bods.push_back(i);
-	  eta += ZMList[k.Z()]/atomic_weights[k.Z()] *
+	  eta1 += ZMList[k.Z()]/atomic_weights[k.Z()] *
 	    (*Fn)[k.getKey()] * (k.C()-1);
 	}
       }
-    }
+				// KE per particle
+      double ee = 0.0;
+      for (size_t j=0; j<3; j++) {
+	double v = p->dattrib[use_elec+j];
+	if (ElectronEPSM) {
+	  Emom[j]  += eta1 * v;
+	  Emom2[j] += eta1 * v*v;
+	}
+	ee += 0.5*eta1*v*v;
+      }
+
+				// Accumulate true number and energy
+      eta += eta1;
+      Eetot += ee;
+    } // end: body loop
+
 
     // Sample cell
     //
@@ -8873,6 +8901,36 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     double   selcM = 0.5 * nbods * (nbods-1) *  Prob;
     unsigned nselM = static_cast<unsigned>(floor(selcM+0.5));
 
+    //======================================================================
+    // EPSM
+    //======================================================================
+    //
+    bool noEPSM = true;
+
+    if (ElectronEPSM) {
+
+      if (selcM > esNum) {
+
+	// Compute RMS
+	std::vector<double> Sigm(3);
+	for (size_t j=0; j<3; j++) {
+	  Emom[j] /= eta;
+	  Sigm[j] = sqrt(fabs(Emom2[j]/eta - Emom[j]*Emom[j]));
+	}
+	
+	for (auto i : cell->bods) {
+	  Particle *p = cell->Body(i);
+	  
+	  for (size_t j=0; j<3; j++)
+	    p->dattrib[use_elec+j] = Emom[j] + Sigm[j]*(*norm)();
+	}
+	
+	noEPSM = false;
+      }
+
+    } // end: equilibrium particle simulation method (EPSM)
+
+
     if (esType == limited or esType == fixed) {
       if (debugFC and outdbg) {
 	outdbg << "nselM="     << std::setw(10) << nselM
@@ -8881,570 +8939,577 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       nselM = std::min<unsigned>(nselM, esNum);
     }
 
-    for (unsigned n=0; n<nselM; n++) {
+    //
+    // Electron pair interaction selection
+    //
+    if (noEPSM) {
 
-      // Pick two particles with electrons at random out of this cell.
-      //
-      size_t l1, l2;
+      for (unsigned n=0; n<nselM; n++) {
 
-      l1 = static_cast<size_t>(floor((*unit)()*nbods));
-      l1 = std::min<size_t>(l1, nbods-1);
-
-      l2 = static_cast<size_t>(floor((*unit)()*(nbods-1)));
-      l2 = std::min<size_t>(l2, nbods-2);
-
-      if (l2 >= l1) l2++;
-
-      // Get index from body map for the cell
-      //
-      Particle* p1 = cell->Body(bods[l1]);
-      Particle* p2 = cell->Body(bods[l2]);
-
-      KeyConvert k1(p1->iattrib[use_key]);
-      KeyConvert k2(p2->iattrib[use_key]);
-
-      if (SAME_ELEC_SCAT) if (k1.Z() != k2.Z()) continue;
-      if (DIFF_ELEC_SCAT) if (k1.Z() == k2.Z()) continue;
-
-      // Find the trace ratio
-      //
-      double W1 = p1->mass / atomic_weights[k1.Z()];
-      double W2 = p2->mass / atomic_weights[k2.Z()];
-
-      // Default (not valid for Hybrid method)
-      //
-      double ne1 = k1.C() - 1;
-      double ne2 = k2.C() - 1;
-
-      // Compute species-weighted electron number for Hybrid method
-      //
-      if (aType == Hybrid) {
-	ne1 = ne2 = 0.0;
-
-	for (unsigned short C=1; C<=k1.Z(); C++)
-	  ne1 += p1->dattrib[hybrid_pos+C]*C;
-
-	for (unsigned short C=1; C<=k2.Z(); C++)
-	  ne2 += p2->dattrib[hybrid_pos+C]*C;
-
-	W1 *= ne1;
-	W2 *= ne2;
-      }
-
-      // Swap particles so that p2 is the trace element
-      //
-      if (W1 < W2) {
-	// Swap the particle pointers
+	// Pick two particles with electrons at random out of this cell.
 	//
-	zswap(p1, p2);
-
-	// Reassign the keys and species indices
+	size_t l1, l2;
+	
+	l1 = static_cast<size_t>(floor((*unit)()*nbods));
+	l1 = std::min<size_t>(l1, nbods-1);
+	
+	l2 = static_cast<size_t>(floor((*unit)()*(nbods-1)));
+	l2 = std::min<size_t>(l2, nbods-2);
+	
+	if (l2 >= l1) l2++;
+	
+	// Get index from body map for the cell
 	//
-	zswap(k1, k2);
-
-	// Swap electron fraction and particle count
+	Particle* p1 = cell->Body(bods[l1]);
+	Particle* p2 = cell->Body(bods[l2]);
+	
+	KeyConvert k1(p1->iattrib[use_key]);
+	KeyConvert k2(p2->iattrib[use_key]);
+	
+	if (SAME_ELEC_SCAT) if (k1.Z() != k2.Z()) continue;
+	if (DIFF_ELEC_SCAT) if (k1.Z() == k2.Z()) continue;
+	
+	// Find the trace ratio
 	//
-	zswap(ne1, ne2);
-	zswap(W1, W2);
-      }
+	double W1 = p1->mass / atomic_weights[k1.Z()];
+	double W2 = p2->mass / atomic_weights[k2.Z()];
 
-      if (esThr > 0.0) {
-	if (W2/W1 > esThr) W1 = W2 = 1.0;
-	else continue;
-      }
+	// Default (not valid for Hybrid method)
+	//
+	double ne1 = k1.C() - 1;
+	double ne2 = k2.C() - 1;
+	
+	// Compute species-weighted electron number for Hybrid method
+	//
+	if (aType == Hybrid) {
+	  ne1 = ne2 = 0.0;
+	  
+	  for (unsigned short C=1; C<=k1.Z(); C++)
+	    ne1 += p1->dattrib[hybrid_pos+C]*C;
+	  
+	  for (unsigned short C=1; C<=k2.Z(); C++)
+	    ne2 += p2->dattrib[hybrid_pos+C]*C;
 
-      double  q = W2 / W1;
-      double m1 = atomic_weights[0];
-      double m2 = atomic_weights[0];
-      double mt = m1 + m2;
-
-      // Calculate pair's relative speed (pre-collision)
-      //
-      vector<double> vcom(3), vrel(3), v1(3), v2(3);
-      for (int k=0; k<3; k++) {
-	v1[k] = p1->dattrib[use_elec+k];
-	v2[k] = p2->dattrib[use_elec+k];
-	vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
-	vrel[k] = v1[k] - v2[k];
-      }
-
-      // Compute relative speed
-      //
-      double vi = 0.0;
-      for (auto v : vrel) vi += v*v;
-
-      // No point in inelastic collsion for zero velocity . . .
-      //
-      if (vi == 0.0) continue;
-
-      // Relative speed
-      //
-      vi = sqrt(vi);
-
-      double cr = vi * UserTreeDSMC::Vunit;
-
-      // Kinetic energy in eV
-      //
-      double kEee = 0.25 * me * cr * cr / eV;
-
-      // Compute the cross section
-      //
-      double scrs = 0.0;
-
-      // Mean interparticle spacing
-      //
-      double ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
-
-      // Collision flag
-      //
-      bool ok = true;
-
-      if (esType == classical or esType == limited) {
-
-	if (use_elec >=0 and ne1 > 0 and ne2 > 0) {
-	  double b = 0.5*esu*esu /
-	    std::max<double>(kEee*eV, FloorEv*eV) * 1.0e7; // nm
-	  b = std::min<double>(b, ips);
-	  scrs = M_PI*b*b * ne1 * ne2 * logL;
+	  W1 *= ne1;
+	  W2 *= ne2;
 	}
 
-	// Accept or reject candidate pair according to relative speed
+	// Swap particles so that p2 is the trace element
 	//
-	double prod = vi * scrs;
-	double targ = prod/ntcdb[samp->mykey].CrsVel(electronKey, elecElec, ntcThresh);
-
-	ok = (targ > (*unit)() );
-
-	// Over NTC max average
-	//
-	if (targ >= 1.0) elecOvr[id]++;
-
-	// Used / Total
-	//
-	if (ok) elecAcc[id]++; elecTot[id]++;
-
-	// Update v_max and cross_max for NTC
-	//
-#pragma omp critical
-	ntcdb[samp->mykey].Add(electronKey, elecElec, prod);
-      }
-
-
-      double deltaKE = 0.0, dKE = 0.0;
-      double KEi1 = 0.0, KEi2 = 0.0; // For debugging
-
-      if (KE_DEBUG) {
-
-	for (auto v : v1) KEi1 += v*v;
-	for (auto v : v2) KEi2 += v*v;
-
-	KEi1 *= 0.5*W1*m1;
-	KEi2 *= 0.5*W2*m2;
-      }
-
-      // For normalizing orthogonal direction unit vector
-      //
-      double wnrm = 0.0;
-
-      // Scatter electrons
-      //
-      if (ok) {
-
-	double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
-	double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
-	double phi    = 2.0*M_PI*(*unit)();        // Collision angle phi
-
-	vrel[0] = vi * cos_th;	        // Compute post-collision
-	vrel[1] = vi * sin_th*cos(phi);	// relative velocity for an
-	vrel[2] = vi * sin_th*sin(phi);	// elastic interaction
-
-	// Explicit energy conservation using splitting
-	//
-	if (ExactE and q < 1.0) {
-
-	  bool  algok = false;
-	  double vrat = 1.0;
-	  double gamm = 0.0;
-
-	  std::vector<double> uu(3), vv(3), w1(v1);
-	  for (size_t k=0; k<3; k++) {
-				// New velocities in COM
-	    uu[k] = vcom[k] + 0.5*vrel[k];
-	    vv[k] = vcom[k] - 0.5*vrel[k];
-	  }
-
-	  double v1i2 = 0.0, b1f2 = 0.0, v2i2 = 0.0, b2f2 = 0.0;
-	  double udif = 0.0, vcm2 = 0.0, v1u1 = 0.0;
-
-	  for (size_t k=0; k<3; k++) {
-				// Difference in Particle 1
-	    udif += (v1[k] - uu[k]) * (v1[k] - uu[k]);
-				// COM norm
-	    vcm2 += vcom[k] * vcom[k];
-				// Normalizations
-	    v1i2 += v1[k]*v1[k];
-	    v2i2 += v2[k]*v2[k];
-	    b1f2 += uu[k]*uu[k];
-	    b2f2 += vv[k]*vv[k];
-	    v1u1 += v1[k]*uu[k];
-	  }
-
-	  if (AlgOrth) {
-
-	    // Cross product to determine orthgonal direction
-	    //
-	    w1[0] = uu[1]*v1[2] - uu[2]*v1[1];
-	    w1[1] = uu[2]*v1[0] - uu[0]*v1[2];
-	    w1[2] = uu[0]*v1[1] - uu[1]*v1[0];
-
-	    // Normalize
-	    //
-	    wnrm = 0.0;
-	    for (auto v : w1) wnrm += v*v;
-
-	    const double tol = 1.0e-12;
-	    // Generate random vector if |u|~0 or |v1|~0
-	    if (v1i2 < tol*b1f2 or b1f2 < tol*v1i2) {
-	      for (auto & v : w1) v = (*norm)();
-	    }
-	    // Choose random orthogonal vector if uu || v1
-	    else if (wnrm < tol*v1i2) {
-	      auto t3 = zorder(v1);
-	      int i0 = std::get<0>(t3), i1 = std::get<1>(t3), i2 = std::get<2>(t3);
-	      w1[i0] = (*norm)();
-	      w1[i1] = (*norm)();
-	      w1[i2] = -(w1[i0]*v1[i0] + w1[i1]*v1[i1])/v1[i2];
-	      wnrm = 0.0; for (auto v : w1) wnrm += v*v;
-	    }
-
-	    // Sanity check on norm |w|
-	    if (wnrm > tol*sqrt(vcm2)) {
-	      for (auto & v : w1) v *= 1.0/sqrt(wnrm);
-	      gamm = sqrt(q*(1.0 - q)*udif);
-	      algok = true;
-	    }
-	  }
-
-	  if (AlgWght) {
-	    // Compute initial and final energy after combination to get
-	    // energy excess
-	    //
-	    double KEi1 = 0.0, KEi2 = 0.0, KEf1 = 0.0, KEf2 = 0.0;
-	    for (size_t k=0; k<3; k++) {
-	      KEi1 += v1[k]*v1[k];
-	      KEi2 += v2[k]*v2[k];
-	      double ww = (1.0 - q)*v1[k] + q*uu[k];
-	      KEf1 += ww*ww;
-	      KEf2 += vv[k]*vv[k];
-	    }
-	    
-	    KEi1 *= 0.5*W1*m1;
-	    KEi2 *= 0.5*W2*m2;
-	    KEf1 *= 0.5*W1*m1;
-	    KEf2 *= 0.5*W2*m2;
-
-	    double R1    = W1*Fwght;
-	    double R2    = W2*(1.0 - Fwght);
-	    double R12   = R1 + R2;
-
-	    double difE  = KEi1 + KEi2 - KEf1 - KEf2;
-	    double difE1 = difE * R1/R12;
-	    double difE2 = difE * R2/R12;
-	    double totEf = KEf1 + KEf2;
-	    
-	    if (ALG_WGHT_MASS) {
-	      double ms1 = p1->mass, ms2 = p2->mass;
-	      difE1 = difE * ms1/(ms1 + ms2);
-	      difE2 = difE * ms2/(ms1 + ms2);
-	    }
-
-	    algok = true;
-
-	    if (totEf + difE < 0.0) {
-	      algok = false;
-	    } else if (difE1 + KEf1 < 0.0) {
-	      vrat = 0.0;
-	      double vfac = sqrt((totEf + difE)/KEf2);
-	      for (auto & v : vv) v *= vfac;
-	    } else if (difE2 + KEf2 < 0.0) {
-	      vrat = sqrt((totEf + difE)/KEf1);
-	      for (auto & v : uu) v *= vrat;
-	      for (auto & v : vv) v  = 0.0;
-	    } else {
-	      vrat = sqrt(1.0 + difE1/KEf1);
-	      for (auto & v : uu) v *= vrat;
-	      double vfac = sqrt(1.0 + difE2/KEf2);
-	      for (auto & v : vv) v *= vfac;
-	    }
-
-	    // Temporary deep debug
-	    //
-	    if (algok) {
-	      
-	      double M1 = 0.5 * W1 * m1;
-	      double M2 = 0.5 * W2 * m2;
-	      // Initial KE
-	      double KE1i = 0.0, KE2i = 0.0;
-	      double KE1f = 0.0, KE2f = 0.0;
-	      for (auto v : v1) KE1i += v*v;
-	      for (auto v : v2) KE2i += v*v;
-	      for (size_t k=0; k<3; k++) {
-		double w  = (1.0 - q)*v1[k]*vrat + q*uu[k];
-		KE1f += w*w;
-	      }
-	      for (auto v : vv) KE2f += v*v;
-	      
-	      KE1i *= M1;
-	      KE2i *= M2;
-	      KE1f *= M1;
-	      KE2f *= M2;
-	      
-	      // KE differences
-	      double KEi   = KE1i + KE2i;
-	      double KEf   = KE1f + KE2f;
-	      double delEt = KEi  - KEf;
-	      
-	      if ( fabs(delEt)/std::min<double>(KEi, KEf) > tolE) {
-		std::cout << "Elec-elec error: delEt = " << delEt << std::endl;
-	      }
-	    }
-
-	  } // end: AlgWght
-
-	  if (!algok or (!AlgOrth and !AlgWght)) {
-	    double qT = v1u1 * q;
-	    if (v1i2 > 0.0) qT /= v1i2;
-	    // Disable Taylor expansion.  Something is not working
-	    // correctly with expansion.  Convergence?
-	    //
-	    // if (q<0.999) {
-	    if (q<1.1) {
-	      vrat = ( -qT + std::copysign(1.0, qT) *
-		  sqrt(qT*qT + (1.0 - q)*(q*b1f2/v1i2 + 1.0) ) )/(1.0 - q);
-	    } else {		// Taylor expansion
-	      double x = v1u1, y = b1f2, ep = 1.0 - q;
-	      if (v1i2 > 0.0) { x /= v1i2; y /= v1i2; }
-	      double x2 = x  * x,   y2 = y  * y,    ep2 = ep * ep;
-	      double x3 = x2 * x,   x4 = x2 * x2,    y3 = y2 * y;
-	      double x5 = x2 * x3,  x6 = x3 * x3,    y4 = y2 * y2;
-	      double x7 = x3 * x4, ep3 = ep * ep2;
-
-	      vrat = 0.5*(1.0 + y)/x -
-		0.125*(1.0 - 4.0*x2 + 2.0*y + y2)*ep/x3 +
-		0.0625*(1.0 - 6.0*x2 + 8.0*x4 + (3.0 - 8.0*x2)*y +
-			(3.0 - 2*x2)*y2 + y3)*ep2/x5 -
-		0.0078125*(5.0 - 40.0*x2 + 96.0*x4 - 64.0*x6 +
-			   (96.0*x4 - 96.0*x2 + 20.0)*y +
-			   (16.0*x4 - 72.0*x2 + 30.0)*y2 +
-			   (20.0 - 16.0*x2)*y3 + 5.0*y4)*ep3/x7;
-	    }
-	  }
-
-	  // New velocities in inertial frame
+	if (W1 < W2) {
+	  // Swap the particle pointers
 	  //
-	  std::vector<double> u1(3), u2(3);
-	  for (size_t k=0; k<3; k++) {
-	    u1[k] = (1.0 - q)*v1[k]*vrat + w1[k]*gamm + q*uu[k];
-	    u2[k] = vv[k];
-	  }
+	  zswap(p1, p2);
 
-	  // These are all for diagnostics
+	  // Reassign the keys and species indices
 	  //
-	  double pi2 = 0.0, dp2 = 0.0, Ebeg = 0.0, Efin = 0.0;
-
-	  // DIAGNOSTIC: energies
-	  for (int k=0; k<3; k++) {
-	    Ebeg += 0.5*W1*m1*v1[k]*v1[k] + 0.5*W2*m2*v2[k]*v2[k];
-	    Efin += 0.5*W1*m1*u1[k]*u1[k] + 0.5*W2*m2*u2[k]*u2[k];
-	  }
-
-	  // Assign new electron velocities
+	  zswap(k1, k2);
+	  
+	  // Swap electron fraction and particle count
 	  //
-	  for (int k=0; k<3; k++) {
-	    p1->dattrib[use_elec+k] = u1[k];
-	    p2->dattrib[use_elec+k] = u2[k];
+	  zswap(ne1, ne2);
+	  zswap(W1, W2);
+	}
 
-	    // DIAGNOSTIC: initial and final momenta
-	    double dpi = W1*m1*v1[k] + W2*m2*v2[k];
-	    double dpf = W1*m1*u1[k] + W2*m2*u2[k];
+	if (esThr > 0.0) {
+	  if (W2/W1 > esThr) W1 = W2 = 1.0;
+	  else continue;
+	}
 
-	    // DIAGNOSTIC: rms momentum difference
-	    dp2  += (dpi - dpf)*(dpi - dpf);
-	    pi2  += dpi*dpi;
-	  }
-
-	  // Check for energy conservation
-	  //
-	  if (DebugE) momD[id].push_back(sqrt(dp2/pi2));
-
-	  double deltaEn = Efin - Ebeg;
-
-	  if (debugFC) {
-	    EconsV.push_back(std::pair<double, double>(deltaEn, Ebeg));
-	    EconsQ.push_back(q);
-	  }
-
-	  if ( fabs(deltaEn) > 1.0e-8*(Ebeg) ) {
-	    std::cout << "Broken energy conservation,"
-		      << " Ebeg="  << Ebeg
-		      << " Efin="  << Efin
-		      << " Edif="  << Efin/Ebeg - 1.0
-		      << " pcons=" << sqrt(dp2/pi2)
-		      << "     q=" << q
-		      << " wnorm=" << wnrm
-		      << "  b1f2=" << b1f2/v1i2
-		      << "  v1u1=" << v1u1/v1i2
-		      << "  vrat=" << vrat
-		      << " costh=" << cos_th
-		      << "   phi=" << phi
-		      << " AlgOr=" << std::boolalpha << AlgOrth
-		      << " AlgWg=" << std::boolalpha << AlgWght
-		      << " algok=" << std::boolalpha << algok
-		      << std::endl;
-	  }
-
-	  // Upscale electron energy
-	  //
-	  //  +------Turn off energy conservation correction, for now
-	  //  |
-	  //  v
-	  if (false and k1.Z() == k2.Z()) {
-
-	    double m1    = p1->mass*atomic_weights[0]/atomic_weights[k1.Z()] * ne1;
-	    double m2    = p2->mass*atomic_weights[0]/atomic_weights[k2.Z()] * ne2;
-	    double mt    = m1 + m2;
-	    double mu    = m1 * m2 / mt;
-	    double KEcom = 0.0;
-
-	    for (int k=0; k<3; k++) {
-	      vcom[k] = (m1*u1[k] + m2*u2[k])/mt;
-	      vrel[k] = u1[k] - u2[k];
-	      KEcom  += vrel[k] * vrel[k];
-	    }
-	    KEcom *= 0.5*mu;
-
-	    double delE = p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
-	    double vfac = 0.0;
-	    if (KEcom>delE) {
-	      vfac = sqrt(1.0 - delE/KEcom);
-	      p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.0;
-	    } else {
-	      p1->dattrib[use_elec+3] =	p2->dattrib[use_elec+3] = 0.5*(delE - KEcom);
-	    }
-
-	    for (int k=0; k<3; k++) {
-	      p1->dattrib[use_elec+k] = vcom[k] + m2/mt*vrel[k]*vfac;
-	      p2->dattrib[use_elec+k] = vcom[k] - m1/mt*vrel[k]*vfac;
-	    }
-	    
-	  } // end: Z1 == Z1
-
-	} // end: ExactE
-
-	// Explicit momentum conservation
+	double  q = W2 / W1;
+	double m1 = atomic_weights[0];
+	double m2 = atomic_weights[0];
+	double mt = m1 + m2;
+	
+	// Calculate pair's relative speed (pre-collision)
 	//
-	else {
+	vector<double> vcom(3), vrel(3), v1(3), v2(3);
+	for (int k=0; k<3; k++) {
+	  v1[k] = p1->dattrib[use_elec+k];
+	  v2[k] = p2->dattrib[use_elec+k];
+	  vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
+	  vrel[k] = v1[k] - v2[k];
+	}
 
-	  bool equal = fabs(q - 1.0) < 1.0e-14;
+	// Compute relative speed
+	//
+	double vi = 0.0;
+	for (auto v : vrel) vi += v*v;
+	
+	// No point in inelastic collsion for zero velocity . . .
+	//
+	if (vi == 0.0) continue;
+	
+	// Relative speed
+	//
+	vi = sqrt(vi);
+	
+	double cr = vi * UserTreeDSMC::Vunit;
 
-	  double vfac = 1.0;
-	  if (equal) {
-	    const double tol = 0.95; // eps = 0.05, tol = 1 - eps
-	    double KE0 = 0.5*W1*m1*m2/mt * vi*vi;
-	    dKE = p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
-	    // Too much KE to be removed, clamp to tol*KE0
-	    // 
-	    if (dKE/KE0 > tol) {
-	      // Therefore, remaining excess is:
-	      // dKE' = dKE - tol*KE0 = dKE*(1 - tol*KE0/dKE);
-	      //
-	      double ratk = tol*KE0/dKE;
-	      p1->dattrib[use_elec+3] *= (1.0 - ratk);
-	      p2->dattrib[use_elec+3] *= (1.0 - ratk);
+	// Kinetic energy in eV
+	//
+	double kEee = 0.25 * me * cr * cr / eV;
+	
+	// Compute the cross section
+	//
+	double scrs = 0.0;
+	
+	// Mean interparticle spacing
+	//
+	double ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
+	
+	// Collision flag
+	//
+	bool ok = true;
+	
+	if (esType == classical or esType == limited) {
 
-	      // Sanity check
-	      double test = 0.0;
-	      {
-		double orig = dKE;
-		double finl = tol*KE0 + p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
-		test = orig - finl;
-	      }
-	      
-	      if (fabs(test/KE0) > 1.0e-10) {
-		std::cout << std::setw(20) << "Energy excess error: "
-			  << std::setw(12) << test/KE0
-			  << std::setw(12) << ", " << ratk
-			  << std::setw(12) << ", " << KE0
-			  << std::setw(12) << ", " << test
-			  << std::endl;
-	      }
-	      dKE = tol*KE0;
-	    } else {
-	      p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.0;
-	    }
-	    
-	    vfac = sqrt(1.0 - dKE/KE0);
+	  if (use_elec >=0 and ne1 > 0 and ne2 > 0) {
+	    double b = 0.5*esu*esu /
+	      std::max<double>(kEee*eV, FloorEv*eV) * 1.0e7; // nm
+	    b = std::min<double>(b, ips);
+	    scrs = M_PI*b*b * ne1 * ne2 * logL;
 	  }
 	  
-	  double qKEfac = 0.5*W1*m1*q*(1.0 - q);
-	  deltaKE = 0.0;
-	  for (int k=0; k<3; k++) {
-	    double v0 = vcom[k] + m2/mt*vrel[k]*vfac;
-	    deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
-	    p1->dattrib[use_elec+k] = (1.0 - q)*v1[k] + q*v0;
-	    p2->dattrib[use_elec+k] = vcom[k] - m1/mt*vrel[k]*vfac;
-	  }
-				// Correct energy for conservation
-	  if (!equal) p1->dattrib[use_elec+3] -= deltaKE;
+	  // Accept or reject candidate pair according to relative speed
+	  //
+	  double prod = vi * scrs;
+	  double targ = prod/ntcdb[samp->mykey].CrsVel(electronKey, elecElec, ntcThresh);
 
-	} // END: momentum conservation
+	  ok = (targ > (*unit)() );
 
-	// For debugging
+	  // Over NTC max average
+	  //
+	  if (targ >= 1.0) elecOvr[id]++;
+	  
+	  // Used / Total
+	  //
+	  if (ok) elecAcc[id]++; elecTot[id]++;
+	  
+	  // Update v_max and cross_max for NTC
+	  //
+#pragma omp critical
+	  ntcdb[samp->mykey].Add(electronKey, elecElec, prod);
+	}
+
+
+	double deltaKE = 0.0, dKE = 0.0;
+	double KEi1 = 0.0, KEi2 = 0.0; // For debugging
+
+	if (KE_DEBUG) {
+	  
+	  for (auto v : v1) KEi1 += v*v;
+	  for (auto v : v2) KEi2 += v*v;
+	  
+	  KEi1 *= 0.5*W1*m1;
+	  KEi2 *= 0.5*W2*m2;
+	}
+	
+	// For normalizing orthogonal direction unit vector
 	//
-	if (debugFC) {
-	  countE[k1.getKey()]++;
-	  countE[k2.getKey()]++;
-	}
+	double wnrm = 0.0;
 
-      } // END: scatter
+	// Scatter electrons
+	//
+	if (ok) {
+	  
+	  double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
+	  double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
+	  double phi    = 2.0*M_PI*(*unit)();        // Collision angle phi
+	  
+	  vrel[0] = vi * cos_th;	        // Compute post-collision
+	  vrel[1] = vi * sin_th*cos(phi);	// relative velocity for an
+	  vrel[2] = vi * sin_th*sin(phi);	// elastic interaction
+	  
+	  // Explicit energy conservation using splitting
+	  //
+	  if (ExactE and q < 1.0) {
+	    
+	    bool  algok = false;
+	    double vrat = 1.0;
+	    double gamm = 0.0;
+
+	    std::vector<double> uu(3), vv(3), w1(v1);
+	    for (size_t k=0; k<3; k++) {
+				// New velocities in COM
+	      uu[k] = vcom[k] + 0.5*vrel[k];
+	      vv[k] = vcom[k] - 0.5*vrel[k];
+	    }
+	    
+	    double v1i2 = 0.0, b1f2 = 0.0, v2i2 = 0.0, b2f2 = 0.0;
+	    double udif = 0.0, vcm2 = 0.0, v1u1 = 0.0;
+
+	    for (size_t k=0; k<3; k++) {
+				// Difference in Particle 1
+	      udif += (v1[k] - uu[k]) * (v1[k] - uu[k]);
+				// COM norm
+	      vcm2 += vcom[k] * vcom[k];
+				// Normalizations
+	      v1i2 += v1[k]*v1[k];
+	      v2i2 += v2[k]*v2[k];
+	      b1f2 += uu[k]*uu[k];
+	      b2f2 += vv[k]*vv[k];
+	      v1u1 += v1[k]*uu[k];
+	    }
+	    
+	    if (AlgOrth) {
+	      
+	      // Cross product to determine orthgonal direction
+	      //
+	      w1[0] = uu[1]*v1[2] - uu[2]*v1[1];
+	      w1[1] = uu[2]*v1[0] - uu[0]*v1[2];
+	      w1[2] = uu[0]*v1[1] - uu[1]*v1[0];
+	      
+	      // Normalize
+	      //
+	      wnrm = 0.0;
+	      for (auto v : w1) wnrm += v*v;
+
+	      const double tol = 1.0e-12;
+	      // Generate random vector if |u|~0 or |v1|~0
+	      if (v1i2 < tol*b1f2 or b1f2 < tol*v1i2) {
+		for (auto & v : w1) v = (*norm)();
+	      }
+	      // Choose random orthogonal vector if uu || v1
+	      else if (wnrm < tol*v1i2) {
+		auto t3 = zorder(v1);
+		int i0 = std::get<0>(t3), i1 = std::get<1>(t3), i2 = std::get<2>(t3);
+		w1[i0] = (*norm)();
+		w1[i1] = (*norm)();
+		w1[i2] = -(w1[i0]*v1[i0] + w1[i1]*v1[i1])/v1[i2];
+		wnrm = 0.0; for (auto v : w1) wnrm += v*v;
+	      }
+
+	      // Sanity check on norm |w|
+	      if (wnrm > tol*sqrt(vcm2)) {
+		for (auto & v : w1) v *= 1.0/sqrt(wnrm);
+		gamm = sqrt(q*(1.0 - q)*udif);
+		algok = true;
+	      }
+	    }
+
+	    if (AlgWght) {
+	      // Compute initial and final energy after combination to get
+	      // energy excess
+	      //
+	      double KEi1 = 0.0, KEi2 = 0.0, KEf1 = 0.0, KEf2 = 0.0;
+	      for (size_t k=0; k<3; k++) {
+		KEi1 += v1[k]*v1[k];
+		KEi2 += v2[k]*v2[k];
+		double ww = (1.0 - q)*v1[k] + q*uu[k];
+		KEf1 += ww*ww;
+		KEf2 += vv[k]*vv[k];
+	      }
+	      
+	      KEi1 *= 0.5*W1*m1;
+	      KEi2 *= 0.5*W2*m2;
+	      KEf1 *= 0.5*W1*m1;
+	      KEf2 *= 0.5*W2*m2;
+	      
+	      double R1    = W1*Fwght;
+	      double R2    = W2*(1.0 - Fwght);
+	      double R12   = R1 + R2;
+
+	      double difE  = KEi1 + KEi2 - KEf1 - KEf2;
+	      double difE1 = difE * R1/R12;
+	      double difE2 = difE * R2/R12;
+	      double totEf = KEf1 + KEf2;
+	      
+	      if (ALG_WGHT_MASS) {
+		double ms1 = p1->mass, ms2 = p2->mass;
+		difE1 = difE * ms1/(ms1 + ms2);
+		difE2 = difE * ms2/(ms1 + ms2);
+	      }
+	      
+	      algok = true;
+
+	      if (totEf + difE < 0.0) {
+		algok = false;
+	      } else if (difE1 + KEf1 < 0.0) {
+		vrat = 0.0;
+		double vfac = sqrt((totEf + difE)/KEf2);
+		for (auto & v : vv) v *= vfac;
+	      } else if (difE2 + KEf2 < 0.0) {
+		vrat = sqrt((totEf + difE)/KEf1);
+		for (auto & v : uu) v *= vrat;
+		for (auto & v : vv) v  = 0.0;
+	      } else {
+		vrat = sqrt(1.0 + difE1/KEf1);
+		for (auto & v : uu) v *= vrat;
+		double vfac = sqrt(1.0 + difE2/KEf2);
+		for (auto & v : vv) v *= vfac;
+	      }
+	      
+	      // Temporary deep debug
+	      //
+	      if (algok) {
+	      
+		double M1 = 0.5 * W1 * m1;
+		double M2 = 0.5 * W2 * m2;
+		// Initial KE
+		double KE1i = 0.0, KE2i = 0.0;
+		double KE1f = 0.0, KE2f = 0.0;
+		for (auto v : v1) KE1i += v*v;
+		for (auto v : v2) KE2i += v*v;
+		for (size_t k=0; k<3; k++) {
+		  double w  = (1.0 - q)*v1[k]*vrat + q*uu[k];
+		  KE1f += w*w;
+		}
+		for (auto v : vv) KE2f += v*v;
+	      
+		KE1i *= M1;
+		KE2i *= M2;
+		KE1f *= M1;
+		KE2f *= M2;
+	      
+		// KE differences
+		double KEi   = KE1i + KE2i;
+		double KEf   = KE1f + KE2f;
+		double delEt = KEi  - KEf;
+		
+		if ( fabs(delEt)/std::min<double>(KEi, KEf) > tolE) {
+		  std::cout << "Elec-elec error: delEt = " << delEt << std::endl;
+		}
+	      }
+	      
+	    } // end: AlgWght
+	    
+	    if (!algok or (!AlgOrth and !AlgWght)) {
+	      double qT = v1u1 * q;
+	      if (v1i2 > 0.0) qT /= v1i2;
+	      // Disable Taylor expansion.  Something is not working
+	      // correctly with expansion.  Convergence?
+	      //
+	      // if (q<0.999) {
+	      if (q<1.1) {
+		vrat = ( -qT + std::copysign(1.0, qT) *
+			 sqrt(qT*qT + (1.0 - q)*(q*b1f2/v1i2 + 1.0) ) )/(1.0 - q);
+	      } else {		// Taylor expansion
+		double x = v1u1, y = b1f2, ep = 1.0 - q;
+		if (v1i2 > 0.0) { x /= v1i2; y /= v1i2; }
+		double x2 = x  * x,   y2 = y  * y,    ep2 = ep * ep;
+		double x3 = x2 * x,   x4 = x2 * x2,    y3 = y2 * y;
+		double x5 = x2 * x3,  x6 = x3 * x3,    y4 = y2 * y2;
+		double x7 = x3 * x4, ep3 = ep * ep2;
+		
+		vrat = 0.5*(1.0 + y)/x -
+		  0.125*(1.0 - 4.0*x2 + 2.0*y + y2)*ep/x3 +
+		  0.0625*(1.0 - 6.0*x2 + 8.0*x4 + (3.0 - 8.0*x2)*y +
+			  (3.0 - 2*x2)*y2 + y3)*ep2/x5 -
+		  0.0078125*(5.0 - 40.0*x2 + 96.0*x4 - 64.0*x6 +
+			     (96.0*x4 - 96.0*x2 + 20.0)*y +
+			     (16.0*x4 - 72.0*x2 + 30.0)*y2 +
+			     (20.0 - 16.0*x2)*y3 + 5.0*y4)*ep3/x7;
+	      }
+	    }
+
+	    // New velocities in inertial frame
+	    //
+	    std::vector<double> u1(3), u2(3);
+	    for (size_t k=0; k<3; k++) {
+	      u1[k] = (1.0 - q)*v1[k]*vrat + w1[k]*gamm + q*uu[k];
+	      u2[k] = vv[k];
+	    }
+	    
+	    // These are all for diagnostics
+	    //
+	    double pi2 = 0.0, dp2 = 0.0, Ebeg = 0.0, Efin = 0.0;
+	    
+	    // DIAGNOSTIC: energies
+	    for (int k=0; k<3; k++) {
+	      Ebeg += 0.5*W1*m1*v1[k]*v1[k] + 0.5*W2*m2*v2[k]*v2[k];
+	      Efin += 0.5*W1*m1*u1[k]*u1[k] + 0.5*W2*m2*u2[k]*u2[k];
+	    }
+	    
+	    // Assign new electron velocities
+	    //
+	    for (int k=0; k<3; k++) {
+	      p1->dattrib[use_elec+k] = u1[k];
+	      p2->dattrib[use_elec+k] = u2[k];
+	      
+	      // DIAGNOSTIC: initial and final momenta
+	      double dpi = W1*m1*v1[k] + W2*m2*v2[k];
+	      double dpf = W1*m1*u1[k] + W2*m2*u2[k];
+	      
+	      // DIAGNOSTIC: rms momentum difference
+	      dp2  += (dpi - dpf)*(dpi - dpf);
+	      pi2  += dpi*dpi;
+	    }
+	    
+	    // Check for energy conservation
+	    //
+	    if (DebugE) momD[id].push_back(sqrt(dp2/pi2));
+	    
+	    double deltaEn = Efin - Ebeg;
+
+	    if (debugFC) {
+	      EconsV.push_back(std::pair<double, double>(deltaEn, Ebeg));
+	      EconsQ.push_back(q);
+	    }
+
+	    if ( fabs(deltaEn) > 1.0e-8*(Ebeg) ) {
+	      std::cout << "Broken energy conservation,"
+			<< " Ebeg="  << Ebeg
+			<< " Efin="  << Efin
+			<< " Edif="  << Efin/Ebeg - 1.0
+			<< " pcons=" << sqrt(dp2/pi2)
+			<< "     q=" << q
+			<< " wnorm=" << wnrm
+			<< "  b1f2=" << b1f2/v1i2
+			<< "  v1u1=" << v1u1/v1i2
+			<< "  vrat=" << vrat
+			<< " costh=" << cos_th
+			<< "   phi=" << phi
+			<< " AlgOr=" << std::boolalpha << AlgOrth
+			<< " AlgWg=" << std::boolalpha << AlgWght
+			<< " algok=" << std::boolalpha << algok
+			<< std::endl;
+	    }
+
+	    // Upscale electron energy
+	    //
+	    //  +------Turn off energy conservation correction, for now
+	    //  |
+	    //  v
+	    if (false and k1.Z() == k2.Z()) {
+	      
+	      double m1    = p1->mass*atomic_weights[0]/atomic_weights[k1.Z()] * ne1;
+	      double m2    = p2->mass*atomic_weights[0]/atomic_weights[k2.Z()] * ne2;
+	      double mt    = m1 + m2;
+	      double mu    = m1 * m2 / mt;
+	      double KEcom = 0.0;
+
+	      for (int k=0; k<3; k++) {
+		vcom[k] = (m1*u1[k] + m2*u2[k])/mt;
+		vrel[k] = u1[k] - u2[k];
+		KEcom  += vrel[k] * vrel[k];
+	      }
+	      KEcom *= 0.5*mu;
+
+	      double delE = p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
+	      double vfac = 0.0;
+	      if (KEcom>delE) {
+		vfac = sqrt(1.0 - delE/KEcom);
+		p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.0;
+	      } else {
+		p1->dattrib[use_elec+3] =	p2->dattrib[use_elec+3] = 0.5*(delE - KEcom);
+	      }
+
+	      for (int k=0; k<3; k++) {
+		p1->dattrib[use_elec+k] = vcom[k] + m2/mt*vrel[k]*vfac;
+		p2->dattrib[use_elec+k] = vcom[k] - m1/mt*vrel[k]*vfac;
+	      }
+	      
+	    } // end: Z1 == Z1
+	    
+	  } // end: ExactE
+	  
+	  // Explicit momentum conservation
+	  //
+	  else {
+	    
+	    bool equal = fabs(q - 1.0) < 1.0e-14;
+	    
+	    double vfac = 1.0;
+	    if (equal) {
+	      const double tol = 0.95; // eps = 0.05, tol = 1 - eps
+	      double KE0 = 0.5*W1*m1*m2/mt * vi*vi;
+	      dKE = p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
+	      // Too much KE to be removed, clamp to tol*KE0
+	      // 
+	      if (dKE/KE0 > tol) {
+		// Therefore, remaining excess is:
+		// dKE' = dKE - tol*KE0 = dKE*(1 - tol*KE0/dKE);
+		//
+		double ratk = tol*KE0/dKE;
+		p1->dattrib[use_elec+3] *= (1.0 - ratk);
+		p2->dattrib[use_elec+3] *= (1.0 - ratk);
+		
+		// Sanity check
+		double test = 0.0;
+		{
+		  double orig = dKE;
+		  double finl = tol*KE0 + p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
+		  test = orig - finl;
+		}
+		
+		if (fabs(test/KE0) > 1.0e-10) {
+		  std::cout << std::setw(20) << "Energy excess error: "
+			    << std::setw(12) << test/KE0
+			    << std::setw(12) << ", " << ratk
+			    << std::setw(12) << ", " << KE0
+			    << std::setw(12) << ", " << test
+			    << std::endl;
+		}
+		dKE = tol*KE0;
+	      } else {
+		p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.0;
+	      }
+	      
+	      vfac = sqrt(1.0 - dKE/KE0);
+	    }
+	    
+	    double qKEfac = 0.5*W1*m1*q*(1.0 - q);
+	    deltaKE = 0.0;
+	    for (int k=0; k<3; k++) {
+	      double v0 = vcom[k] + m2/mt*vrel[k]*vfac;
+	      deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
+	      p1->dattrib[use_elec+k] = (1.0 - q)*v1[k] + q*v0;
+	      p2->dattrib[use_elec+k] = vcom[k] - m1/mt*vrel[k]*vfac;
+	    }
+				// Correct energy for conservation
+	    if (!equal) p1->dattrib[use_elec+3] -= deltaKE;
+
+	  } // END: momentum conservation
+
+	  // For debugging
+	  //
+	  if (debugFC) {
+	    countE[k1.getKey()]++;
+	    countE[k2.getKey()]++;
+	  }
+	  
+	} // END: scattering stanza
       
-      if (KE_DEBUG) {
 
-	double KEf1 = 0.0;
-	double KEf2 = 0.0;
+	if (KE_DEBUG) {
 
-	for (int k=0; k<3; k++) {
-	  double v1 = p1->dattrib[use_elec+k];
-	  double v2 = p2->dattrib[use_elec+k];
-	  KEf1 += v1*v1;
-	  KEf2 += v2*v2;
-	}
+	  double KEf1 = 0.0;
+	  double KEf2 = 0.0;
 
-	KEf1 *= 0.5*W1*m1;
-	KEf2 *= 0.5*W2*m2;
+	  for (int k=0; k<3; k++) {
+	    double v1 = p1->dattrib[use_elec+k];
+	    double v2 = p2->dattrib[use_elec+k];
+	    KEf1 += v1*v1;
+	    KEf2 += v2*v2;
+	  }
+	  
+	  KEf1 *= 0.5*W1*m1;
+	  KEf2 *= 0.5*W2*m2;
+	  
+	  double KEi = KEi1 + KEi2;
+	  double KEf = KEf1 + KEf2;
+	  
+	  double testE = KEi - KEf - deltaKE - dKE;
+	  
+	  if (fabs(testE) > DEBUG_THRESH*KEi) {
+	    std::cout << std::endl << std::string(70, '-') << std::endl
+		      << "Total elec ("
+		      << k1.Z() << ","
+		      << k2.Z() << ") = "
+		      << std::setw(14) << testE
+		      << ", KEi=" << std::setw(14) << KEi
+		      << ", KEf=" << std::setw(14) << KEf
+		      << ", exs=" << std::setw(14) << deltaKE
+		      << ", dKE=" << std::setw(14) << dKE
+		      << std::endl;
+	  }
+	  
+	} // end: KE_DEBUG
 
-	double KEi = KEi1 + KEi2;
-	double KEf = KEf1 + KEf2;
+      } // end: pair selection loop
 
-	double testE = KEi - KEf - deltaKE - dKE;
-
-	if (fabs(testE) > DEBUG_THRESH*KEi) {
-	  std::cout << std::endl << std::string(70, '-') << std::endl
-		    << "Total elec ("
-		    << k1.Z() << ","
-		    << k2.Z() << ") = "
-		    << std::setw(14) << testE
-		    << ", KEi=" << std::setw(14) << KEi
-		    << ", KEf=" << std::setw(14) << KEf
-		    << ", exs=" << std::setw(14) << deltaKE
-		    << ", dKE=" << std::setw(14) << dKE
-		    << std::endl;
-	}
-
-      }
-
-    } // loop over particles
-
+    } // end: pair selection stanza
 
   } // end: electron interactions for Direct, Weight, or Hybrid for use_elec>=0
 
