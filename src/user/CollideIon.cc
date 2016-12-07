@@ -4094,16 +4094,13 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
     }
   }
 
-  double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
-  double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
-  double phi    = 2.0*M_PI*(*unit)();	     // Collision angle phi
-
-  vrel[0] = vi * cos_th;	  // Compute post-collision relative
-  vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic
-  vrel[2] = vi * sin_th*sin(phi); // interaction
-  //        ^
-  //        |
-  //        +---- velocity in center of mass, computed from v1, v2
+  // Compute post-collision relative velocity for an elastic interaction
+  //
+  vrel = unit_vector();
+  for (auto & v : vrel) v *= vi;
+  //                         ^
+  //                         |
+  // Velocity in center of mass, computed from v1, v2
   //
 
   // Compute the change of energy in the collision frame by computing
@@ -4268,23 +4265,13 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
       if (VC2>0.0) {
 	for (size_t k=0; k<3; k++) vcom[k] /= sqrt(VC2);
       } else {
-	double cos_th = 1.0 - 2.0*(*unit)();
-	double sin_th = sqrt(1.0 - cos_th*cos_th);
-	double phi    = 2.0*M_PI*(*unit)();
-	vcom[0] = cos_th;
-	vcom[1] = sin_th*cos(phi);
-	vcom[2] = sin_th*sin(phi);
+	vcom = unit_vector();
       }
 
       if (VR2>0.0) {
 	for (size_t k=0; k<3; k++) vrel[k] /= sqrt(VR2);
       } else {
-	double cos_th = 1.0 - 2.0*(*unit)();
-	double sin_th = sqrt(1.0 - cos_th*cos_th);
-	double phi    = 2.0*M_PI*(*unit)();
-	vrel[0] = cos_th;
-	vrel[1] = sin_th*cos(phi);
-	vrel[2] = sin_th*sin(phi);
+	vrel = unit_vector();
       }
 
       for (size_t k=0; k<3; k++) {
@@ -4369,23 +4356,13 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
       if (VC2>0.0) {
 	for (size_t k=0; k<3; k++) vcom[k] /= sqrt(VC2);
       } else {
-	double cos_th = 1.0 - 2.0*(*unit)();
-	double sin_th = sqrt(1.0 - cos_th*cos_th);
-	double phi    = 2.0*M_PI*(*unit)();
-	vcom[0] = cos_th;
-	vcom[1] = sin_th*cos(phi);
-	vcom[2] = sin_th*sin(phi);
+	vcom = unit_vector();
       }
 
       if (VR2>0.0) {
 	for (size_t k=0; k<3; k++) vrel[k] /= sqrt(VR2);
       } else {
-	double cos_th = 1.0 - 2.0*(*unit)();
-	double sin_th = sqrt(1.0 - cos_th*cos_th);
-	double phi    = 2.0*M_PI*(*unit)();
-	vrel[0] = cos_th;
-	vrel[1] = sin_th*cos(phi);
-	vrel[2] = sin_th*sin(phi);
+	vrel = unit_vector();
       }
 
       for (size_t k=0; k<3; k++) {
@@ -4430,13 +4407,8 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
     }
     vi = sqrt(vi);
 
-    double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
-    double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
-    double phi    = 2.0*M_PI*(*unit)();	     // Collision angle phi
-
-    vrel[0] = vi * cos_th;	  // Compute post-collision relative
-    vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic
-    vrel[2] = vi * sin_th*sin(phi); // interaction
+    vrel = unit_vector();
+    for (auto & v : vrel) v *= vi;
 
     for (int k=0; k<3; k++) {
       p1->dattrib[use_elec+k] = vcom[k] + 0.5*vrel[k];
@@ -5242,16 +5214,11 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
   } // end: trace-particle energy loss assignment
 
 
-  double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
-  double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
-  double phi    = 2.0*M_PI*(*unit)();	     // Collision angle phi
-
-  vrel[0] = vi * cos_th;	  // Compute post-collision relative
-  vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic
-  vrel[2] = vi * sin_th*sin(phi); // interaction
-  //        ^
-  //        |
-  //        +---- velocity in center of mass, computed from v1, v2
+  vrel = unit_vector();
+  for (auto & v : vrel) v *= vi;
+  //                         ^
+  //                         |
+  // Velocity in center of mass, computed from v1, v2
   //
 
   // Attempt to defer negative energy adjustment
@@ -5794,23 +5761,13 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
       if (VC2>0.0) {
 	for (size_t k=0; k<3; k++) vcom[k] /= sqrt(VC2);
       } else {
-	double cos_th = 1.0 - 2.0*(*unit)();
-	double sin_th = sqrt(1.0 - cos_th*cos_th);
-	double phi    = 2.0*M_PI*(*unit)();
-	vcom[0] = cos_th;
-	vcom[1] = sin_th*cos(phi);
-	vcom[2] = sin_th*sin(phi);
+	vcom = unit_vector();
       }
 
       if (VR2>0.0) {
 	for (size_t k=0; k<3; k++) vrel[k] /= sqrt(VR2);
       } else {
-	double cos_th = 1.0 - 2.0*(*unit)();
-	double sin_th = sqrt(1.0 - cos_th*cos_th);
-	double phi    = 2.0*M_PI*(*unit)();
-	vrel[0] = cos_th;
-	vrel[1] = sin_th*cos(phi);
-	vrel[2] = sin_th*sin(phi);
+	vrel = unit_vector();
       }
 
       for (size_t k=0; k<3; k++) {
@@ -5899,23 +5856,13 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
       if (VC2>0.0) {
 	for (size_t k=0; k<3; k++) vcom[k] /= sqrt(VC2);
       } else {
-	double cos_th = 1.0 - 2.0*(*unit)();
-	double sin_th = sqrt(1.0 - cos_th*cos_th);
-	double phi    = 2.0*M_PI*(*unit)();
-	vcom[0] = cos_th;
-	vcom[1] = sin_th*cos(phi);
-	vcom[2] = sin_th*sin(phi);
+	vcom = unit_vector();
       }
 
       if (VR2>0.0) {
 	for (size_t k=0; k<3; k++) vrel[k] /= sqrt(VR2);
       } else {
-	double cos_th = 1.0 - 2.0*(*unit)();
-	double sin_th = sqrt(1.0 - cos_th*cos_th);
-	double phi    = 2.0*M_PI*(*unit)();
-	vrel[0] = cos_th;
-	vrel[1] = sin_th*cos(phi);
-	vrel[2] = sin_th*sin(phi);
+	vrel = unit_vector();
       }
 
       for (size_t k=0; k<3; k++) {
@@ -5962,13 +5909,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
     }
     vi = sqrt(vi);
 
-    double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
-    double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
-    double phi    = 2.0*M_PI*(*unit)();	     // Collision angle phi
-
-    vrel[0] = vi * cos_th;	  // Compute post-collision relative
-    vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic
-    vrel[2] = vi * sin_th*sin(phi); // interaction
+    vrel = unit_vector();
 
     for (int k=0; k<3; k++) {
       p1->dattrib[use_elec+k] = vcom[k] + 0.5*vrel[k];
@@ -6084,13 +6025,8 @@ void CollideIon::secondaryScatter(Particle *p)
   }
   vEI = sqrt(vEI);
 
-  double cos_th = 1.0 - 2.0*(*unit)();
-  double sin_th = sqrt(1.0 - cos_th*cos_th);
-  double phi    = 2.0*M_PI*(*unit)();
-
-  vrel[0] = vEI*cos_th;
-  vrel[1] = vEI*sin_th*cos(phi);
-  vrel[2] = vEI*sin_th*sin(phi);
+  vrel = unit_vector();
+  for (auto & v : vrel) v *= vEI;
 
   for (int k=0; k<3; k++) {
     p->vel[k] = vcom[k] + M2/MT*vrel[k];
@@ -7269,18 +7205,12 @@ void CollideIon::scatterHybrid
 
   // Assign interaction energy variables
   //
-  double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
-  double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
-  double phi    = 2.0*M_PI*(*unit)();	     // Collision angle phi
-
+  vrel = unit_vector();
   vi = sqrt(vi);
-
-  vrel[0] = vi * cos_th;	  // Compute post-collision relative
-  vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic
-  vrel[2] = vi * sin_th*sin(phi); // interaction
-  //        ^
-  //        |
-  //        +---- velocity in center of mass, computed from v1, v2
+  for (auto & v : vrel) v *= vi;
+  //                         ^
+  //                         |
+  // Velocity in center of mass, computed from v1, v2
   //
 
   // Use explicit energy conservation algorithm
@@ -7469,13 +7399,7 @@ void CollideIon::scatterHybrid
 
       // Pick random direction
       //
-      double cos_th = 1.0 - 2.0*(*unit)();
-      double sin_th = sqrt(1.0 - cos_th*cos_th);
-      double phi    = 2.0*M_PI*(*unit)();
-
-      w1[0] = cos_th;
-      w1[1] = sin_th*cos(phi);
-      w1[2] = sin_th*sin(phi);
+      w1 = unit_vector();
 
       double kF = 0.5*d.W1*d.q*mu;
       gamm  = sqrt(totE/kF);
@@ -8230,13 +8154,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   for(unsigned k=0; k<3; k++)
     vcm[k] = (m1*p1->vel[k] + m2*p2->vel[k]) / Mt;
 
-  double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
-  double sin_th = sqrt(1.0 - cos_th*cos_th); // collision angle theta
-  double phi    = 2.0*M_PI*(*unit)();	     // Collision angle phi
-
-  vrel_f[0] = (*cr)*cos_th;	     // Compute post-collision
-  vrel_f[1] = (*cr)*sin_th*cos(phi); // relative velocity
-  vrel_f[2] = (*cr)*sin_th*sin(phi);
+  vrel_f = unit_vector();
+  for (auto & v : vrel_f) v *= (*cr);
 
   // Update post-collision velocities
   //
@@ -9050,13 +8969,8 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       //
       if (ok) {
 
-	double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
-	double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
-	double phi    = 2.0*M_PI*(*unit)();        // Collision angle phi
-
-	vrel[0] = vi * cos_th;	        // Compute post-collision
-	vrel[1] = vi * sin_th*cos(phi);	// relative velocity for an
-	vrel[2] = vi * sin_th*sin(phi);	// elastic interaction
+	vrel = unit_vector();
+	for (auto & v : vrel) v *= vi;
 
 	// Explicit energy conservation using splitting
 	//
@@ -9295,8 +9209,6 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 		      << "  b1f2=" << b1f2/v1i2
 		      << "  v1u1=" << v1u1/v1i2
 		      << "  vrat=" << vrat
-		      << " costh=" << cos_th
-		      << "   phi=" << phi
 		      << " AlgOr=" << std::boolalpha << AlgOrth
 		      << " AlgWg=" << std::boolalpha << AlgWght
 		      << " algok=" << std::boolalpha << algok

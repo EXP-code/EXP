@@ -512,6 +512,9 @@ protected:
   std::vector<double> wgtSum, ntcSum;
   //@}
 
+  //! Return random 3d unit vector
+  std::vector<double> unit_vector();
+
 public:
   
   //! Integrate the cooling solution
