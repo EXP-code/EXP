@@ -474,7 +474,7 @@ private:
 
   //@{
   //! Specify the electron scattering algorithm
-  enum ElectronScatter {none=0, always=1, classical=2, limited=3, fixed=4};
+  enum ElectronScatter {none, always, classical, limited, fixed};
   typedef std::map<std::string, ElectronScatter> esMapType;
   static ElectronScatter esType;
   static esMapType esMap;
@@ -590,6 +590,9 @@ public:
 
   //! Floor KE/deltaE for choosing cooling time step (default: 0.001)
   static double TSFLOOR;
+
+  //! Use EPSM algorithm for electron scattering (default: false)
+  static bool ElectronEPSM;
 
 
 protected:

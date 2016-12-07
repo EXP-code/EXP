@@ -709,6 +709,8 @@ void UserTreeDSMC::initialize()
     if (get_value("esthr",   val))        CollideIon::esThr   = atof(val);
     if (get_value("logL",    val))        CollideIon::logL    = atof(val);
     if (get_value("config",  val))        CollideIon::config0 = val;
+    if (get_value("eEPSM",   val))        CollideIon::ElectronEPSM
+					                      = atol(val);
   }
   
 }

@@ -3753,3 +3753,30 @@ void Collide::mfpCLPrint(std::ostream& out)
   }
 }
 
+
+// Return random 3d unit vector
+std::vector<double> Collide::unit_vector()
+{
+  enum UV {trig, gaus};		// Method choice
+  static const UV uv(gaus);	// Pick the method
+  std::vector<double> ret(3);	// Return vector
+
+  if (uv == trig) {
+    double cos_th = 1.0 - 2.0*(*unit)();
+    double sin_th = sqrt(fabs(1.0 - cos_th*cos_th));
+    double phi    = 2.0*M_PI*(*unit)();
+    ret[0] = sin_th*cos(phi);
+    ret[1] = sin_th*sin(phi);
+    ret[2] = cos_th;
+  } else {
+    double nrm = 0.0;
+    for (auto & v : ret) {
+      v = (*norm)();
+      nrm += v*v;
+    }
+    nrm = sqrt(nrm);
+    for (auto & v : ret) v /= nrm;
+  } 
+
+  return ret;
+}
