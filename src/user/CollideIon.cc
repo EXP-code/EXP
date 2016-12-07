@@ -9123,7 +9123,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	      }
 	    }
 
-	  } // END: AlgWght
+	  } // end: AlgWght
 
 	  if (!algok or (!AlgOrth and !AlgWght)) {
 	    double qT = v1u1 * q;
