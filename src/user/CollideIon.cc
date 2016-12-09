@@ -8761,6 +8761,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     // Momentum diagnostic distribution
     //
     std::vector<double> pdif;
+    std::map<int, double> Eta;
 
     // Compute list of particles in cell with electrons
     //
@@ -8772,14 +8773,14 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       if (aType == Hybrid) {
 	bods.push_back(i);
 	for (unsigned short C=1; C<=k.Z(); C++) {
-	  eta1 += ZMList[k.Z()]/atomic_weights[k.Z()] *
+	  eta1 += p->mass/atomic_weights[k.Z()] *
 	    (*Fn)[k.getKey()] * p->dattrib[hybrid_pos+C]*C;
 	}
 				// Mean charge
       } else {
 	if (k.C()>1) {
 	  bods.push_back(i);
-	  eta1 = ZMList[k.Z()]/atomic_weights[k.Z()] *
+	  eta1 = p->mass/atomic_weights[k.Z()] *
 	    (*Fn)[k.getKey()] * (k.C()-1);
 	}
       }
@@ -8794,6 +8795,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	}
       }
 				// Accumulate true number
+      Eta[i] = eta1;
       eta += eta1;
 
     } // end: body loop
@@ -8824,19 +8826,48 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       if (nselM > esNum) {
 
 	// Compute RMS
-	std::vector<double> Sigm(3);
+	//
+	double sigma = 0.0;
 	for (size_t j=0; j<3; j++) {
 	  Emom[j] /= eta;
-	  Sigm[j] = sqrt(fabs(Emom2[j]/eta - Emom[j]*Emom[j]));
+	  sigma +=  Emom2[j]/eta - Emom[j]*Emom[j];
 	}
+	sigma = sqrt(fabs(sigma)); // This is now the full 3d RMS
 	
+	// Pass through to get normal random variables with zero mean
+	// and unit mean-squared amplitude.  These will be used to 
+	// generate new electron velocities
+	//
+	double gamma = 0.0;
+	std::vector<double> mu(3, 0.0);
 	for (auto i : cell->bods) {
 	  Particle *p = cell->Body(i);
-	  
-	  for (size_t j=0; j<3; j++)
-	    p->dattrib[use_elec+j] = Emom[j] + Sigm[j]*(*norm)();
+	  double eta1 = Eta[i];
+	  for (size_t j=0; j<3; j++) {
+	    p->dattrib[use_elec+j] = (*norm)();
+	    mu[j] += eta1/eta * p->dattrib[use_elec+j];
+	    gamma += eta1/eta * p->dattrib[use_elec+j] * p->dattrib[use_elec+j];
+	  }
 	}
-	
+
+	// Normalization for normal variates current stored in the particle
+	// structure: p->dattrib[use_elect+j], j=0,1,2
+	//
+	double mu2 = 0.0;
+	for (auto v : mu) mu2 += v*v;
+	gamma = sqrt(1.0/(gamma - mu2));
+
+	// Update electron velocities conserving momentum and energy
+	//
+	for (auto i : cell->bods) {
+	  Particle *p = cell->Body(i);
+
+	  for (size_t j=0; j<3; j++) {
+	    double v = gamma*(p->dattrib[use_elec+j] - mu[j]);
+	    p->dattrib[use_elec+j] = Emom[j] + sigma*v;
+	  }
+	}
+
 	nselM = 0;
       }
 
