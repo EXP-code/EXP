@@ -468,6 +468,10 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   ionCHK   .resize(nthrds);
   recombCHK.resize(nthrds);
   clampdat .resize(nthrds);
+  epsmES   .resize(nthrds, 0);
+  totlES   .resize(nthrds, 0);
+  epsmIE   .resize(nthrds, 0);
+  totlIE   .resize(nthrds, 0);
 
   for (auto &v : velER) v.set_capacity(bufCap);
   for (auto &v : momD ) v.set_capacity(bufCap);
@@ -8823,6 +8827,8 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     //
     if (ElectronEPSM) {
 
+      totlES[id]++;
+
       if (nselM > esNum) {
 
 	// Compute RMS
@@ -8869,6 +8875,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	}
 
 	nselM = 0;
+	epsmES[id]++;
       }
 
     } // end: equilibrium particle simulation method (EPSM)
@@ -11444,9 +11451,12 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	for (auto w : v.second.v) {
 	  // Look for Coulombic interactions only
 	  if (std::get<0>(w.first) == ion_elec or
-	      std::get<0>(w.first) == ion_ion  ) 
-	    selcM[u.first][v.first][w.first] = std::min<unsigned>
-	      (maxCoul, static_cast<unsigned>(floor(w.second+0.5)));
+	      std::get<0>(w.first) == ion_ion  ) {
+	    unsigned nIE = static_cast<unsigned>(floor(w.second+0.5));
+	    if (nIE > maxCoul) epsmIE[id]++;
+	    totlIE[id]++;
+	    selcM[u.first][v.first][w.first] = std::min<unsigned>(maxCoul, nIE);
+	  }
 	}
       }
     }
@@ -12237,6 +12247,26 @@ void CollideIon::gatherSpecies()
     } // end: cell loop
 
 
+    if (ElectronEPSM) {
+				// Get combined counts from all threads
+      unsigned totl = 0, epsm = 0;
+      for (auto & v : totlES) { totl += v; v = 0; }
+      for (auto & v : epsmES) { epsm += v; v = 0; }
+				// Accumulate at root
+      MPI_Reduce(&totl, &totlES0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(&epsm, &epsmES0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    }
+
+    if (aType==Hybrid and maxCoul < UINT_MAX) {
+				// Get combined counts from all threads
+      unsigned totl = 0, epsm = 0;
+      for (auto & v : totlIE) { totl += v; v = 0; }
+      for (auto & v : epsmIE) { epsm += v; v = 0; }
+				// Accumulate at root
+      MPI_Reduce(&totl, &totlIE0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(&epsm, &epsmIE0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    }
+
     // Send values to root
     //
     double val1, val2, val3 = 0.0, val4 = 0.0, val5 = 0.0;
@@ -12583,8 +12613,19 @@ void CollideIon::gatherSpecies()
     if (myid==0) {
       std::cout << std::endl
 		<< std::string(4+10+10+12, '-')   << std::endl
-		<< "Scatter check: time=" << tnow << std::endl
-		<< std::string(4+10+10+12, '-')   << std::endl
+		<< "Scatter check: time=" << tnow << std::endl;
+      if (ElectronEPSM) {
+	std::cout << "Electron EPSM: " << epsmES0 << "/" << totlES0 << " [="
+		  << static_cast<double>(epsmES0)/totlES0 << "]"
+		  << std::endl;
+      }
+      if (aType==Hybrid and maxCoul < UINT_MAX) {
+	std::cout << "Ion-Elec EPSM: " << epsmIE0 << "/" << totlIE0 << " [="
+		  << static_cast<double>(epsmIE0)/totlIE0 << "]"
+		  << std::endl;
+      }
+
+      std::cout << std::string(4+10+10+12, '-')   << std::endl
 		<< std::right
 		<< std::setw(4)  << "Elem"
 		<< std::setw(10) << "Scatter"

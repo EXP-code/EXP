@@ -543,6 +543,18 @@ private:
   //@}
 
   //@{
+  //! Count electron scattering in EPSM limit for each cell
+  std::vector<unsigned> totlES, epsmES;
+  unsigned totlES0, epsmES0;
+  //@}
+
+  //@{
+  //! Count ion-electron scattering in EPSM limit for each cell
+  std::vector<unsigned> totlIE, epsmIE;
+  unsigned totlIE0, epsmIE0;
+  //@}
+
+  //@{
   //! Photon spectrum
   bool use_spectrum, logSpect, wvlSpect;
   double flrSpect, minSpect, maxSpect, delSpect;
