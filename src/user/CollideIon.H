@@ -543,9 +543,10 @@ private:
   //@}
 
   //@{
-  //! Count electron scattering in EPSM limit for each cell
-  std::vector<unsigned> totlES, epsmES;
-  unsigned totlES0, epsmES0;
+  //! Count electron-electron and ion-electron scattering in EPSM
+  //! limit for each cell
+  std::vector<unsigned> totlES, epsmES, totlIE, epsmIE;
+  unsigned totlES0, epsmES0, totlEI0, epsmEI0;
   //@}
 
   //@{

@@ -399,6 +399,10 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << hybrid_pos                             << std::endl
 	      <<  " " << std::setw(20) << std::left << "use_elec"
 	      << use_elec                               << std::endl
+	      <<  " " << std::setw(20) << std::left << "maxCoul"
+	      << maxCoul                                << std::endl
+	      <<  " " << std::setw(20) << std::left << "logL"
+	      << logL                                   << std::endl
 	      <<  " " << std::setw(20) << std::left << "Spectrum"
 	      << (use_spectrum ? (wvlSpect ? "in wavelength" : "in eV")
 		  : "off")                              << std::endl
@@ -14259,6 +14263,9 @@ void CollideIon::processConfig()
 
     maxCoul = 
       cfg.entry<unsigned>("maxCoul", "Maximum number of elastic Coulombic collisions per step", UINT_MAX);
+
+    logL = 
+      cfg.entry<double>("logL", "Coulombic log(Lambda) value", 24.0);
 
     Collide::collTnum = 
       cfg.entry<unsigned>("collTnum", "Target number of accepted collisions per cell for assigning time step", UINT_MAX);
