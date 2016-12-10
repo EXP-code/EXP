@@ -92,6 +92,7 @@ def plot_data(argv):
                 print "Error opening file <{}>".format(argv[-1] + ".species")
                 return
         data = []
+        labs = []
         nvec = 0
         for line in file:
                 if line.find('#') < 0:
@@ -103,6 +104,8 @@ def plot_data(argv):
                         # Enforce equal size vectors; data line integrity
                         #
                         if nvec == lvec: data.append(pvec)
+                elif len(labs) <= 0:
+                        labs = [v for v in line[1:].split()]
         a = np.array(data).transpose()
         #
         # Search for appended sequence(s)
@@ -146,19 +149,19 @@ def plot_data(argv):
         x = a[0] * Tscl
         if Temp: x = a[1]
         if logT:
-                plt.semilogx(x, a[2], fmt, label='H')
-                plt.semilogx(x, a[3], fmt, label='H+')
-                plt.semilogx(x, a[4], fmt, label='He')
-                plt.semilogx(x, a[5], fmt, label='He+')
-                plt.semilogx(x, a[6], fmt, label='He++')
+                plt.semilogx(x, a[labs.index('(1,1)')], fmt, label='H')
+                plt.semilogx(x, a[labs.index('(1,2)')], fmt, label='H+')
+                plt.semilogx(x, a[labs.index('(2,1)')], fmt, label='He')
+                plt.semilogx(x, a[labs.index('(2,2)')], fmt, label='He+')
+                plt.semilogx(x, a[labs.index('(2,3)')], fmt, label='He++')
                 if pc_len:
                         plt.semilogx(pc_time*Tscl, pc_frac, fmt, label='e')
         else:
-                plt.plot(x, a[2], fmt, label='H')
-                plt.plot(x, a[3], fmt, label='H+')
-                plt.plot(x, a[4], fmt, label='He')
-                plt.plot(x, a[5], fmt, label='He+')
-                plt.plot(x, a[6], fmt, label='He++')
+                plt.plot(x, a[labs.index('(1,1)')], fmt, label='H')
+                plt.plot(x, a[labs.index('(1,2)')], fmt, label='H+')
+                plt.plot(x, a[labs.index('(2,1)')], fmt, label='He')
+                plt.plot(x, a[labs.index('(2,2)')], fmt, label='He+')
+                plt.plot(x, a[labs.index('(2,3)')], fmt, label='He++')
                 if pc_len:
                         plt.plot(pc_time*Tscl, pc_frac, fmt, label='e')
         plt.legend().draggable()
@@ -174,19 +177,19 @@ def plot_data(argv):
         # Species plot
         #
         if logT:
-                plt.loglog(x, a[2], fmt, label='H')
-                plt.loglog(x, a[3], fmt, label='H+')
-                plt.loglog(x, a[4], fmt, label='He')
-                plt.loglog(x, a[5], fmt, label='He+')
-                plt.loglog(x, a[6], fmt, label='He++')
+                plt.loglog(x, a[labs.index('(1,1)')], fmt, label='H')
+                plt.loglog(x, a[labs.index('(1,2)')], fmt, label='H+')
+                plt.loglog(x, a[labs.index('(2,1)')], fmt, label='He')
+                plt.loglog(x, a[labs.index('(2,2)')], fmt, label='He+')
+                plt.loglog(x, a[labs.index('(2,3)')], fmt, label='He++')
                 if pc_len:
                         plt.loglog(pc_time*Tscl, pc_frac, fmt, label='e')
         else:
-                plt.semilogy(x, a[2], fmt, label='H')
-                plt.semilogy(x, a[3], fmt, label='H+')
-                plt.semilogy(x, a[4], fmt, label='He')
-                plt.semilogy(x, a[5], fmt, label='He+')
-                plt.semilogy(x, a[6], fmt, label='He++')
+                plt.semilogy(x, a[labs.index('(1,1)')], fmt, label='H')
+                plt.semilogy(x, a[labs.index('(1,2)')], fmt, label='H+')
+                plt.semilogy(x, a[labs.index('(2,1)')], fmt, label='He')
+                plt.semilogy(x, a[labs.index('(2,2)')], fmt, label='He+')
+                plt.semilogy(x, a[labs.index('(2,3)')], fmt, label='He++')
                 if pc_len:
                         plt.semilogy(pc_time*Tscl, pc_frac, fmt, label='e')
         #
@@ -204,19 +207,19 @@ def plot_data(argv):
         # Temperature plot
         #
         if logT:
-                plt.semilogx(x, a[1 ], fmt, label='Temp')
-                plt.semilogx(x, a[10], fmt, label='Temp_e')
-                plt.semilogx(x, a[16], fmt, label='Temp(1)_i')
-                plt.semilogx(x, a[22], fmt, label='Temp(1)_e')
-                plt.semilogx(x, a[28], fmt, label='Temp(2)_i')
-                plt.semilogx(x, a[34], fmt, label='Temp(2)_e')
+                plt.semilogx(x, a[labs.index('Temp')],    fmt, label='Temp')
+                plt.semilogx(x, a[labs.index('Temp_E')],  fmt, label='Temp_e')
+                plt.semilogx(x, a[labs.index('Tion(1)')], fmt, label='Temp(1)_i')
+                plt.semilogx(x, a[labs.index('Telc(1)')], fmt, label='Temp(1)_e')
+                plt.semilogx(x, a[labs.index('Tion(2)')], fmt, label='Temp(2)_i')
+                plt.semilogx(x, a[labs.index('Telc(2)')], fmt, label='Temp(2)_e')
         else:
-                plt.plot(x, a[1 ], fmt, label='Temp')
-                plt.plot(x, a[10], fmt, label='Temp_e')
-                plt.plot(x, a[16], fmt, label='Temp(1)_i')
-                plt.plot(x, a[22], fmt, label='Temp(1)_e')
-                plt.plot(x, a[28], fmt, label='Temp(2)_i')
-                plt.plot(x, a[34], fmt, label='Temp(2)_e')
+                plt.plot(x, a[labs.index('Temp')],    fmt, label='Temp')
+                plt.plot(x, a[labs.index('Temp_E')],  fmt, label='Temp_e')
+                plt.plot(x, a[labs.index('Tion(1)')], fmt, label='Temp(1)_i')
+                plt.plot(x, a[labs.index('Telc(1)')], fmt, label='Temp(1)_e')
+                plt.plot(x, a[labs.index('Tion(2)')], fmt, label='Temp(2)_i')
+                plt.plot(x, a[labs.index('Telc(2)')], fmt, label='Temp(2)_e')
         #
         plt.legend().draggable()
         if Temp: plt.xlabel('Temperature')
