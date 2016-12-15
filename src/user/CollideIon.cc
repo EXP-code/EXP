@@ -6219,7 +6219,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // Find the trace ratio
   //
   double  q = W2 / W1;
-  double q0 = q;
 
   // Number interacting atoms
   //
@@ -6265,7 +6264,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   bool ok = false;		// Reject all interactions by default
 
   int maxInterFlag = -1;
-  double maxXS     = 0.0;
+  double maxCF     = 0.0;
   
   // Run through all interactions in the cross-section map
   //
@@ -6279,11 +6278,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     double Prob   = XS/totalXS;
 
     if (Prob < 1.0e-14) continue;
-
-    if (XS > maxXS) {
-      maxInterFlag = interFlag;
-      maxXS = XS;
-    }
 
     if (NoDelC)  {
       ok = true;
@@ -6354,7 +6348,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	if (swapped) cF = p2->dattrib[hybrid_pos+P2] * Prob;
 	else         cF = p1->dattrib[hybrid_pos+P1] * Prob;
       }
-	
+
+      if (cF > maxCF) {
+	maxInterFlag = interFlag;
+	maxCF = cF;
+      }
+
       double NN = N0 * cF;
 
       //* BEGIN DEEP DEBUG *//
@@ -6501,7 +6500,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	
 	  if (energy_scale > 0.0) dE *= energy_scale;
 
-	  ctd2->CE[id][0] += cF * q0;
+	  ctd2->CE[id][0] += cF * q;
 	  ctd2->CE[id][1] += NN;
 	  if (not NOCOOL) ctd2->CE[id][2] += N0 * dE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
@@ -6513,7 +6512,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  
-	  ctd1->CE[id][0] += cF * q0;
+	  ctd1->CE[id][0] += cF * q;
 	  ctd1->CE[id][1] += NN;
 	  if (not NOCOOL) ctd1->CE[id][2] += N0 * dE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
@@ -6528,7 +6527,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	if (swapped) {
 	  // Ion is p2
 	  //
-	  dE = (tmpE = IS.DIInterLoss(ch.IonList[Q2])) * cF * q0;
+	  dE = (tmpE = IS.DIInterLoss(ch.IonList[Q2])) * cF * q;
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
 	  delE += dE;
@@ -6563,7 +6562,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    normTest(p1, sout.str());
 	  }
 	  
-	  ctd2->CI[id][0] += cF * q0;
+	  ctd2->CI[id][0] += cF * q;
 	  ctd2->CI[id][1] += NN;
 	  if (not NOCOOL) ctd2->CI[id][2] += N0 * dE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
@@ -6579,7 +6578,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	else {
 	  // Ion is p1
 	  //
-	  dE = (tmpE = IS.DIInterLoss(ch.IonList[Q1])) * cF * q0;
+	  dE = (tmpE = IS.DIInterLoss(ch.IonList[Q1])) * cF * q;
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
 	  delE += dE;
@@ -6613,7 +6612,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    normTest(p1, sout.str());
 	  }
 
-	  ctd1->CI[id][0] += cF * q0;
+	  ctd1->CI[id][0] += cF * q;
 	  ctd1->CI[id][1] += NN;
 	  if (not NOCOOL) ctd1->CI[id][2] += N0 * dE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
@@ -6662,12 +6661,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    normTest(p1, sout.str());
 	  }
 	  
-	  dE = kEe2[id] * wght * q0;
+	  dE = kEe2[id] * wght * q;
 	  if (energy_scale > 0.0) dE *= energy_scale;
-	  if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * cF * q0;
+	  if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * cF * q;
 	  delE += dE;
 
-	  ctd2->RR[id][0] += cF * q0;
+	  ctd2->RR[id][0] += cF * q;
 	  if (prob >= 0.0) {
 	    ctd2->RR[id][1] += N0 * cF;
 	    if (not NOCOOL) ctd2->RR[id][2] += N0 * dE;
@@ -6736,12 +6735,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    normTest(p1, sout.str());
 	  }
 
-	  dE = kEe1[id] * wght * q0;
+	  dE = kEe1[id] * wght * q;
 	  if (energy_scale > 0.0) dE *= energy_scale;
-	  if (RECOMB_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * cF * q0;
+	  if (RECOMB_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * cF * q;
 	  delE += dE;
 
-	  ctd1->RR[id][0] += cF * q0;
+	  ctd1->RR[id][0] += cF * q;
 	  ctd1->RR[id][1] += NN;
 	  if (not NOCOOL) ctd1->RR[id][2] += N0 * dE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, kEe1[id], NN);
@@ -6810,13 +6809,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
       if (Ion1Frac>0.0) {
 	ctd1->dv[id][0] += cF;
-	if (prob >= 0.0) {
-	  ctd1->dv[id][1] += W2 * cF;
-	  if (not NOCOOL) ctd1->dv[id][2] += W2 * dE;
-	} else {
-	  ctd1->dv[id][1] += W2 * cF;
-	  if (not NOCOOL) ctd1->dv[id][2] += W2 * dE;
-	}
+	ctd1->dv[id][1] += W2 * cF;
+	if (not NOCOOL) ctd1->dv[id][2] += W2 * dE;
       }
       
       if (Ion2Frac>0.0) {
@@ -6831,9 +6825,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
   // Convert to super particle (current in eV)
   //
-  if (prob >= 0.0) {
-    delE *= N0;
-  }
+  delE *= N0;
 
   // Convert back to cgs
   //
