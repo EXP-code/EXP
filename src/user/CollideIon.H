@@ -407,10 +407,11 @@ private:
   typedef Icont<std::map, speciesKey, double>        keyWghts;
   typedef std::pair< std::array<double, 3>,
 		     std::array<double, 3> >         CVels;
-  
+  typedef std::map<Interact::T, double>              InterXS;
 
   std::vector< std::vector<dKey>   >                 kInter;
   std::vector< std::vector<double> >                 dCross;
+  std::vector< InterXS >                             hCross;
   std::vector< std::vector<double> >                 dCfrac;
   std::vector< std::vector<int>    >                 dInter;
   std::vector< keyCross >                            sCross; 
@@ -545,8 +546,8 @@ private:
   //@{
   //! Count electron-electron and ion-electron scattering in EPSM
   //! limit for each cell
-  std::vector<unsigned> totlES, epsmES, totlIE, epsmIE;
-  unsigned totlES0, epsmES0, totlEI0, epsmEI0;
+  std::vector<unsigned> totlES, epsmES;
+  unsigned totlES0, epsmES0;
   //@}
 
   //@{
@@ -614,7 +615,7 @@ protected:
   void processConfig();
 
   //! List of cross sections (separate for each thread)
-  std::vector<sKey2Amap> csections;
+  std::vector<sKey2Amap> csections, csectionsH;
 
   boost::shared_ptr<collDiag> collD;
 
@@ -1075,7 +1076,7 @@ public:
   //! only implemented for hybrid method)
   virtual bool selectSub() 
   { 
-    if (aType == Hybrid) return true;
+    // if (aType == Hybrid) return true;
     return false; 
   }
 
