@@ -6264,6 +6264,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
   bool ok = false;		// Reject all interactions by default
 
+  int maxInterFlag = -1;
+  double maxXS     = 0.0;
   
   // Run through all interactions in the cross-section map
   //
@@ -6275,6 +6277,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     int interFlag = std::get<0>(I.first);
     double XS     = I.second;
     double Prob   = XS/totalXS;
+
+    if (Prob < 1.0e-14) continue;
+
+    if (XS > maxXS) {
+      maxInterFlag = interFlag;
+      maxXS = XS;
+    }
 
     if (NoDelC)  {
       ok = true;
@@ -6945,109 +6954,109 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       }
     }
     // END: NeutFrac>0
-    else {
 
-      if (Ion1Frac>0.0) {
+    if (Ion1Frac>0.0) {
 
-	InteractData d(m1, atomic_weights[0], W1, W2, q, Z1, Z2, p1, p2);
+      InteractData d(m1, atomic_weights[0], W1, W2, q, Z1, Z2, p1, p2);
 
-	double ke1 = 0.0, ke2 = 0.0;
-
-	for (int k=0; k<3; k++) {
-	  v1[k]  = p1->vel[k];	// Particle 1 is the ion
+      double ke1 = 0.0, ke2 = 0.0;
+      
+      for (int k=0; k<3; k++) {
+	v1[k]  = p1->vel[k];	// Particle 1 is the ion
 				// Particle 2 is the electron
-	  v2[k]  = p2->dattrib[use_elec+k];
-
-	  ke1   += v1[k] * v1[k];
-	  ke2   += v2[k] * v2[k];
-	}
-
-	if (ke1 > 0.0 and ke2 > 0.0) {
-
-	  if (Z1 == Z2 or ALWAYS_APPLY) {
-	    double dE = p1->dattrib[use_cons] + p2->dattrib[use_elec+3];
-	    p1->dattrib[use_cons] = p2->dattrib[use_elec+3] = 0.0;
-	    clrE[id] += dE;
-	    delE     += dE;
-	  } else {
-	    if (W1 < W2)
-	      p2->dattrib[use_cons] += delE;
-	    else
-	      p1->dattrib[use_cons] += delE;
-
-	    delE = 0.0;
-	  }
-
-	  KE_ KE(delE);
-
-	  scatterHybrid(d, KE, v1, v2);
-	  checkEnergyHybrid(d, KE, v1, v2, Ion1, id);
-	  if (NOCOOL and KE_NOCOOL_CHECK) testCnt[id]++;
-
-	  // if (scatter_check) Italy[id][Z1*100+Z2][interFlag]++;
-
-	  for (int k=0; k<3; k++) {
-	    p1->vel[k] = v1[k];	// Particle 1 is the ion
-				// Particle 2 is the elctron
-	    p2->dattrib[use_elec+k] = v2[k];
-	  }
-	}
-
-	// Secondary electron-ion scattering
-	//
-	for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p1);
+	v2[k]  = p2->dattrib[use_elec+k];
+	
+	ke1   += v1[k] * v1[k];
+	ke2   += v2[k] * v2[k];
       }
-
-      if (Ion2Frac>0.0) {
-
-	InteractData d(atomic_weights[0], m2, W1, W2, q, Z1, Z2, p1, p2);
-
-	double ke1 = 0.0, ke2 = 0.0;
-
+      
+      if (ke1 > 0.0 and ke2 > 0.0) {
+	
+	if (Z1 == Z2 or ALWAYS_APPLY) {
+	  double dE = p1->dattrib[use_cons] + p2->dattrib[use_elec+3];
+	  p1->dattrib[use_cons] = p2->dattrib[use_elec+3] = 0.0;
+	  clrE[id] += dE;
+	  delE     += dE;
+	} else {
+	  if (W1 < W2)
+	    p2->dattrib[use_cons] += delE;
+	  else
+	    p1->dattrib[use_cons] += delE;
+	  
+	  delE = 0.0;
+	}
+	
+	KE_ KE(delE);
+	
+	scatterHybrid(d, KE, v1, v2);
+	checkEnergyHybrid(d, KE, v1, v2, Ion1, id);
+	if (NOCOOL and KE_NOCOOL_CHECK) testCnt[id]++;
+	
+	if (scatter_check and maxInterFlag>=0)
+	  Italy[id][Z1*100+Z2][maxInterFlag]++;
+	
 	for (int k=0; k<3; k++) {
-				// Particle 1 is the elctron
-	  v1[k]  = p1->dattrib[use_elec+k];
-	  v2[k]  = p2->vel[k];	// Particle 2 is the ion
-
-	  ke1   += v1[k] * v1[k];
-	  ke2   += v2[k] * v2[k];
+	  p1->vel[k] = v1[k];	// Particle 1 is the ion
+				// Particle 2 is the elctron
+	  p2->dattrib[use_elec+k] = v2[k];
 	}
-
-	if (ke1 > 0.0 and ke2 > 0.0) {
-
-	  if (Z1 == Z2 or ALWAYS_APPLY) {
-	    double dE = p1->dattrib[use_elec+3] + p2->dattrib[use_cons];
-	    clrE[id] += dE;
-	    delE     += dE;
-	    p1->dattrib[use_elec+3] = p2->dattrib[use_cons] = 0.0;
-	  } else {
-	    if (atomic_weights[Z1] < atomic_weights[Z2])
-	      p2->dattrib[use_cons] += delE;
-	    else
-	      p1->dattrib[use_cons] += delE;
-
-	    delE = 0.0;
-	  }
-
-	  KE_ KE(delE);
-
-	  scatterHybrid(d, KE, v1, v2);
-	  checkEnergyHybrid(d, KE, v1, v2, Ion2, id);
-	  if (NOCOOL and KE_NOCOOL_CHECK) testCnt[id]++;
-
-	  // if (scatter_check) Italy[id][Z2*100+Z1][interFlag]++;
-
-	  for (int k=0; k<3; k++) {
-				// Particle 1 is the electron
-	    p1->dattrib[use_elec+k] = v1[k];
-	    p2->vel[k] = v2[k];	// Particle 2 is the ion
-	  }
-	}
-
-	// Secondary electron-ion scattering
-	//
-	for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p2);
       }
+      
+      // Secondary electron-ion scattering
+      //
+      for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p1);
+    } // END: Ion1Frac
+      
+    if (Ion2Frac>0.0) {
+
+      InteractData d(atomic_weights[0], m2, W1, W2, q, Z1, Z2, p1, p2);
+
+      double ke1 = 0.0, ke2 = 0.0;
+
+      for (int k=0; k<3; k++) {
+				// Particle 1 is the elctron
+	v1[k]  = p1->dattrib[use_elec+k];
+	v2[k]  = p2->vel[k];	// Particle 2 is the ion
+
+	ke1   += v1[k] * v1[k];
+	ke2   += v2[k] * v2[k];
+      }
+
+      if (ke1 > 0.0 and ke2 > 0.0) {
+	
+	if (Z1 == Z2 or ALWAYS_APPLY) {
+	  double dE = p1->dattrib[use_elec+3] + p2->dattrib[use_cons];
+	  clrE[id] += dE;
+	  delE     += dE;
+	  p1->dattrib[use_elec+3] = p2->dattrib[use_cons] = 0.0;
+	} else {
+	  if (atomic_weights[Z1] < atomic_weights[Z2])
+	    p2->dattrib[use_cons] += delE;
+	  else
+	    p1->dattrib[use_cons] += delE;
+	  
+	  delE = 0.0;
+	}
+	
+	KE_ KE(delE);
+
+	scatterHybrid(d, KE, v1, v2);
+	checkEnergyHybrid(d, KE, v1, v2, Ion2, id);
+	if (NOCOOL and KE_NOCOOL_CHECK) testCnt[id]++;
+	
+	if (scatter_check and maxInterFlag>=0)
+	  Italy[id][Z2*100+Z1][maxInterFlag]++;
+	
+	for (int k=0; k<3; k++) {
+	  // Particle 1 is the electron
+	  p1->dattrib[use_elec+k] = v1[k];
+	  p2->vel[k] = v2[k];	// Particle 2 is the ion
+	}
+      }
+      
+      // Secondary electron-ion scattering
+      //
+      for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p2);
     }
   }
 
@@ -11169,7 +11178,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
   if (CROSS_DBG && id==0) {
     if (nextTime_dbg <= tnow && nCnt_dbg < nCel_dbg) {
       speciesKey i = c->count.begin()->first;
-      for (auto v : csections[id][i][i].v)
+      for (auto v : csectionsH[id][i][i].v)
 	cross1_dbg.push_back(v.second);
     }
   }
@@ -11262,7 +11271,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
 	speciesKey k2 = it2->first;
 
-	for (auto v : csections[id][k1][k2].v) {
+	for (auto v : csectionsH[id][k1][k2].v) {
 
 	  if (std::isnan(v.second))
 	    {
@@ -11317,13 +11326,13 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
 	  sKeyPair k(i1, i2);
 
-	  for (auto & v : csections[id][k.first][k.second].v) {
+	  for (auto & v : csectionsH[id][k.first][k.second].v) {
 
-	    if (csections[id][k.first][k.second][v.first] <= 0.0) {
+	    if (csectionsH[id][k.first][k.second][v.first] <= 0.0) {
 	      continue;
 	    }
 
-	    double crs0 = csections[id][k.first][k.second][v.first];
+	    double crs0 = csectionsH[id][k.first][k.second][v.first];
 
 	    crsvel = crs0/cunit * 3.0 * crm;
 
@@ -11366,7 +11375,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	    if (DEBUG_SL) {
 	      if (selcM[i1][i2][v.first] > 10000.0) {
 		double crsdef =
-		  csections[id][k.first][k.second][v.first]/cunit
+		  csectionsH[id][k.first][k.second][v.first]/cunit
 		  *  3.0 * crm;
 		double cv1=crsdef, cv2=crsdef, cv3=crsdef;
 		if (samp) {
@@ -11523,7 +11532,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	    for (auto v : selcM[i1][i2].v) {
 
 	      double crsvel =
-		csections[id][k.first][k.second][v.first]/cunit
+		csectionsH[id][k.first][k.second][v.first]/cunit
 		* 3.0 * crm;
 
 	      if (allow_ntcdb) {
@@ -11631,7 +11640,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 		csections[id][k.first][k.second][v.first]/cunit
 		* 3.0 * crm;
 
-	      double crsvel0 = csections[id][k.first][k.second][v.first];
+	      double crsvel0 = csectionsH[id][k.first][k.second][v.first];
 
 	      double crsvel = crsvel1;
 
