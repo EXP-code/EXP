@@ -6267,10 +6267,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   int maxInterFlag = -1;
   double maxCF     = 0.0;
   
-  // Run through all interactions in the cross-section map
+  // Run through all interactions in the cross-section map to include
+  // ionization-state weightings.  Recall, the map contains values of
+  // v*sigma.
   //
-  double totalXS = 0.0;
-  for (auto I : hCross[id]) {
+  double totalXS = 0.0;		// Normalization
+  for (auto & I : hCross[id]) {
 
     int interFlag = std::get<0>(I.first);
 
@@ -6297,6 +6299,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     totalXS += I.second;
   }
 
+  // Now, determine energy contribution for each interaction process.
+  //
   for (auto I : hCross[id]) {
     
     int interFlag = std::get<0>(I.first);
@@ -6305,6 +6309,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
     if (Prob < 1.0e-14) continue;
 
+    // Logic for selecting allowed interaction types
+    //
     if (NoDelC)  {
       ok = true;
 				// Pass events that are NOT ionization
@@ -6363,11 +6369,15 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       //
       double cF = I.second;
 
+      // Select the maximum probability channel
+      //
       if (cF > maxCF) {
 	maxInterFlag = interFlag;
 	maxCF = cF;
       }
 
+      // Number of real atoms in this interaction
+      //
       double NN = N0 * cF;
 
       //* BEGIN DEEP DEBUG *//
@@ -6438,6 +6448,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  ctd1->ie[id][1] += NN;
 	  Ion1Frac += cF;
 	}
+
 	//* BEGIN DEEP DEBUG *//
 	if (init_dbg and myid==0 and tnow > init_dbg_time and Z1 == init_dbg_Z and prob < 0.0) {
 	  std::ofstream out(runtag + ".heplus_test_cross", ios::out | ios::app);
@@ -6875,23 +6886,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     spEdel[id] += delE;		// HYBRID
   }
 
-  // If this is a subspecies interaction, record the energy loss and
-  // return to caller
-  //
-  if (prob >= 0.0) {
-
-    if (W1 == W2) {
-      p1->dattrib[use_cons] += 0.5*delE;
-      p2->dattrib[use_cons] += 0.5*delE;
-    }
-    else if (W1 < W2)
-      p2->dattrib[use_cons] += delE;
-    else
-      p1->dattrib[use_cons] += delE;
-
-    return ret;
-  }
-
   //
   // Perform energy adjustment in ion, system COM frame with system
   // mass units
@@ -7066,11 +7060,26 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       //
       for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p2);
     }
+    // Sanity check
+    else {
+      std::cout << "CollideIon::inelasticHybrid: IMPOSSIBLE ERROR" << std::endl;
+    }
 
-    /*
-    std::cout << labs.at(curT) << ": ratio="
-	      << 2.0*delE/(p1->mass*ke1 + p2->mass*ke2) << std::endl;
-    */
+    // Deep debug
+    //
+    if (false) {
+      std::cout << "Dominant " << labs.at(curT) << ": "
+		<< 2.0*delE/(p1->mass*ke1 + p2->mass*ke2) << std::endl;
+	      
+      unsigned short n=0;
+      for (auto v : Ilist) {
+	std::cout << std::setw( 5) << std::right << ++n << ". "
+		  << std::setw(10) << std::left  << labs.at(v.second) << ": "
+		  << std::setw(18) << std::left  << v.first
+		  << std::endl;
+      }
+    } // END: deep debug
+    
   }
 
   if (use_normtest) {
