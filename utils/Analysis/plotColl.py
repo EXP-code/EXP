@@ -165,8 +165,8 @@ def plotEnergy(Log=False, lw=2, xcol='Time', scale=1000.0, maxT=1.0e+20, tag='')
                 break
     if Log:
         plt.semilogy(x[0:k], db['Etotl'][0:k], '-o', linewidth=lw, label='E total')
-        plt.semilogy(x[0:k], db['ElosC'][0:k], '-', linewidth=lw, label='E lost')
-        plt.semilogy(x[0:k], db['Elost'][0:k], '-', linewidth=lw, label='dE lost')
+        plt.semilogy(x[0:k], db['ElosC'][0:k], '-o', linewidth=lw, label='E lost')
+        plt.semilogy(x[0:k], db['Elost'][0:k], '-o', linewidth=lw, label='dE lost')
         plt.semilogy(x[0:k], db['PotI'][0:k],  '-', linewidth=lw, label='Ion pot')
         plt.semilogy(x[0:k], db['EkeI'][0:k] + db['EkeE'][0:k], '-', linewidth=lw, label='Tot KE')
         plt.semilogy(x[0:k], db['EkeI'][0:k], '-', linewidth=lw, label='Ion KE')
