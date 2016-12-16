@@ -6581,26 +6581,32 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  // Ion is p2
 	  //
 	  dE = (tmpE = IS.selectCEInteract(ch.IonList[Q2], CE1[id])) * cF * q;
-	
-	  if (energy_scale > 0.0) dE *= energy_scale;
 
-	  ctd2->CE[id][0] += cF * q;
-	  ctd2->CE[id][1] += NN;
-	  if (not NOCOOL) ctd2->CE[id][2] += N0 * dE;
-	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
-	  Ion2Frac += cF;
+	  // Sufficient energy?
+	  if (tmpE>0.0) {
+	    if (energy_scale > 0.0) dE *= energy_scale;
+	    
+	    ctd2->CE[id][0] += cF * q;
+	    ctd2->CE[id][1] += NN;
+	    if (not NOCOOL) ctd2->CE[id][2] += N0 * dE;
+	    if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
+	    Ion2Frac += cF;
+	  }
 	} else {
 	  // Ion is p1
 	  //
 	  dE = (tmpE = IS.selectCEInteract(ch.IonList[Q1], CE1[id])) * cF * q;
 
-	  if (energy_scale > 0.0) dE *= energy_scale;
+	  // Sufficient energy?
+	  if (tmpE>0.0) {
+	    if (energy_scale > 0.0) dE *= energy_scale;
 	  
-	  ctd1->CE[id][0] += cF * q;
-	  ctd1->CE[id][1] += NN;
-	  if (not NOCOOL) ctd1->CE[id][2] += N0 * dE;
-	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
-	  Ion1Frac += cF;
+	    ctd1->CE[id][0] += cF * q;
+	    ctd1->CE[id][1] += NN;
+	    if (not NOCOOL) ctd1->CE[id][2] += N0 * dE;
+	    if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
+	    Ion1Frac += cF;
+	  }
 	}
 
 	delE += dE;
@@ -6612,50 +6618,55 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  // Ion is p2
 	  //
 	  dE = (tmpE = IS.DIInterLoss(ch.IonList[Q2])) * cF * q;
-	  if (energy_scale > 0.0) dE *= energy_scale;
-	  if (NO_ION_E) dE = 0.0;
-	  delE += dE;
-	  
-	  double wght = cF;
 
-	  if (use_normtest) {
-	    std::ostringstream sout;
-	    sout << "[Before ionize]: C2=" << C2-1
-		 << ", wght=" << wght;
-	    normTest(p1, sout.str());
-				// Sanity check
-	    if (C2<1 or C2>Z2) {
-	      std::cout << "[ionize] bad C2=" << C2
-			<< ", C1=" << C1 << std::endl;
+	  // Sufficient energy?
+	  if (tmpE>0.0) {
+	    if (energy_scale > 0.0) dE *= energy_scale;
+	    if (NO_ION_E) dE = 0.0;
+	    delE += dE;
+	    
+	    double wght = cF;
+	    
+	    if (use_normtest) {
+	      std::ostringstream sout;
+	      sout << "[Before ionize]: C2=" << C2-1
+		   << ", wght=" << wght;
+	      normTest(p1, sout.str());
+	      // Sanity check
+	      if (C2<1 or C2>Z2) {
+		std::cout << "[ionize] bad C2=" << C2
+			  << ", C1=" << C1 << std::endl;
+	      }
 	    }
-	  }
-
-	  if (wght < p2->dattrib[hybrid_pos+C2-1]) {
-	    p2->dattrib[hybrid_pos+C2-1] -= wght;
-	    p2->dattrib[hybrid_pos+C2+0] += wght;
-	  } else {
-	    wght = p2->dattrib[hybrid_pos+C2-1];
-	    p2->dattrib[hybrid_pos+C2+0] += wght;
-	    p2->dattrib[hybrid_pos+C2-1]  = 0.0;
-	  }
+	    
+	    if (wght < p2->dattrib[hybrid_pos+C2-1]) {
+	      p2->dattrib[hybrid_pos+C2-1] -= wght;
+	      p2->dattrib[hybrid_pos+C2+0] += wght;
+	    } else {
+	      wght = p2->dattrib[hybrid_pos+C2-1];
+	      p2->dattrib[hybrid_pos+C2+0] += wght;
+	      p2->dattrib[hybrid_pos+C2-1]  = 0.0;
+	    }
 	  
-	  if (use_normtest) {
-	    std::ostringstream sout;
-	    sout << "[After ionize]: C2=" << C2-1
-		 << ", wght=" << wght;
-	    normTest(p1, sout.str());
-	  }
+	    if (use_normtest) {
+	      std::ostringstream sout;
+	      sout << "[After ionize]: C2=" << C2-1
+		   << ", wght=" << wght;
+	      normTest(p1, sout.str());
+	    }
+	    
 	  
-	  ctd2->CI[id][0] += cF * q;
-	  ctd2->CI[id][1] += NN;
-	  if (not NOCOOL) ctd2->CI[id][2] += N0 * dE;
-	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
-
-	  Ion2Frac += cF;
-
-	  if (IonRecombChk) {
-	    if (ionCHK[id].find(k2) == ionCHK[id].end()) ionCHK[id][k2] = 0.0;
-	    ionCHK[id][k2] += XS * (*cr);
+	    ctd2->CI[id][0] += cF * q;
+	    ctd2->CI[id][1] += NN;
+	    if (not NOCOOL) ctd2->CI[id][2] += N0 * dE;
+	    if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
+	    
+	    Ion2Frac += cF;
+	    
+	    if (IonRecombChk) {
+	      if (ionCHK[id].find(k2) == ionCHK[id].end()) ionCHK[id][k2] = 0.0;
+	      ionCHK[id][k2] += XS * (*cr);
+	    }
 	  }
 	    
 	} // END: swapped
@@ -6663,51 +6674,55 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  // Ion is p1
 	  //
 	  dE = (tmpE = IS.DIInterLoss(ch.IonList[Q1])) * cF * q;
-	  if (energy_scale > 0.0) dE *= energy_scale;
-	  if (NO_ION_E) dE = 0.0;
-	  delE += dE;
 
-	  double wght = cF;
-	  
-	  if (use_normtest) {
-	    std::ostringstream sout;
-	    sout << "[Before ionize]: C1=" << C1-1
-		 << ", wght=" << wght;
-	    normTest(p1, sout.str());
-	    if (C1<1 or C1>Z1) {
-	      std::cout << "[ionize] bad C1=" << C1
-			<< " or C2=" << C2 << std::endl;
+	  // Sufficient energy?
+	  if (tmpE>0.0) {
+
+	    if (energy_scale > 0.0) dE *= energy_scale;
+	    if (NO_ION_E) dE = 0.0;
+	    delE += dE;
+	    
+	    double wght = cF;
+	    
+	    if (use_normtest) {
+	      std::ostringstream sout;
+	      sout << "[Before ionize]: C1=" << C1-1
+		   << ", wght=" << wght;
+	      normTest(p1, sout.str());
+	      if (C1<1 or C1>Z1) {
+		std::cout << "[ionize] bad C1=" << C1
+			  << " or C2=" << C2 << std::endl;
+	      }
+	    }
+	    
+	    if (wght < p1->dattrib[hybrid_pos+C1-1]) {
+	      p1->dattrib[hybrid_pos+C1-1] -= wght;
+	      p1->dattrib[hybrid_pos+C1+0] += wght;
+	    } else {
+	      wght = p1->dattrib[hybrid_pos+C1-1];
+	      p1->dattrib[hybrid_pos+C1+0] += wght;
+	      p1->dattrib[hybrid_pos+C1-1]  = 0.0;
+	    }
+	    
+	    if (use_normtest) {
+	      std::ostringstream sout;
+	      sout << "[After ionize]: C1=" << C1-1
+		   << ", wght=" << wght;
+	      normTest(p1, sout.str());
+	    }
+	    
+	    ctd1->CI[id][0] += cF * q;
+	    ctd1->CI[id][1] += NN;
+	    if (not NOCOOL) ctd1->CI[id][2] += N0 * dE;
+	    if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
+	    
+	    Ion1Frac += cF;
+	    
+	    if (IonRecombChk) {
+	      if (ionCHK[id].find(k1) == ionCHK[id].end()) ionCHK[id][k1] = 0.0;
+	      ionCHK[id][k1] += XS * (*cr);
 	    }
 	  }
-	  
-	  if (wght < p1->dattrib[hybrid_pos+C1-1]) {
-	    p1->dattrib[hybrid_pos+C1-1] -= wght;
-	    p1->dattrib[hybrid_pos+C1+0] += wght;
-	  } else {
-	    wght = p1->dattrib[hybrid_pos+C1-1];
-	    p1->dattrib[hybrid_pos+C1+0] += wght;
-	    p1->dattrib[hybrid_pos+C1-1]  = 0.0;
-	  }
-	  
-	  if (use_normtest) {
-	    std::ostringstream sout;
-	    sout << "[After ionize]: C1=" << C1-1
-		 << ", wght=" << wght;
-	    normTest(p1, sout.str());
-	  }
-
-	  ctd1->CI[id][0] += cF * q;
-	  ctd1->CI[id][1] += NN;
-	  if (not NOCOOL) ctd1->CI[id][2] += N0 * dE;
-	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
-	  
-	  Ion1Frac += cF;
-	
-	  if (IonRecombChk) {
-	    if (ionCHK[id].find(k1) == ionCHK[id].end()) ionCHK[id][k1] = 0.0;
-	    ionCHK[id][k1] += XS * (*cr);
-	  }
-	  
 	}
       }
 	
