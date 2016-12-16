@@ -6272,6 +6272,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // v*sigma.
   //
   double totalXS = 0.0;		// Normalization
+
   for (auto & I : hCross[id]) {
 
     int interFlag = std::get<0>(I.first);
