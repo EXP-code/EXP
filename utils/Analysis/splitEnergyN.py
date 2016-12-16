@@ -3,29 +3,19 @@
 # -*- Python -*-
 # -*- coding: utf-8 -*-
 
-import sys, os
+import sys, os, argparse
 import numpy as np
 import matplotlib.pyplot as plt
 import getSpecies as gs
 
-def is_number(s):
-        try:
-                float(s)
-                return True
-        except ValueError:
-                return False
+parser = argparse.ArgumentParser(description='Read DSMC species file and plot energies per particle for each species')
+parser.add_argument('-t', '--tscale', default=1000.0,  help='System time units in years')
+parser.add_argument('-T', '--Tmax', default=1000000.0, help='Maximum time in years')
+parser.add_argument('tags', nargs='*', help='Files to process')
 
-tmax   = 1000000.0
-if len(sys.argv)==1:
-        print "Usage: ", sys.argv[0], " tag1 tag2 . . . [Tmax]"
-        os.exit(-1)
+args = parser.parse_args()
 
-labs = []
-if is_number(sys.argv[-1]):
-        tmax = float(sys.argv[-1])
-        labs = sys.argv[1:-1]
-else:
-        labs = sys.argv[1:]
+labs = args.tags
         
 fields = [ ['Eelc(1)', 'Eion(1)'], \
            ['Eelc(2)', 'Eion(2)'] ]
@@ -51,7 +41,7 @@ for i in range(2):
             f = fields[i][j]
             b = nfield[i][j]
             if f in d[v]:
-                indx = np.searchsorted(d[v]['Time'], tmax)
+                indx = np.searchsorted(d[v]['Time'], args.Tmax/args.tscale)
                 fv = d[v][f][0:indx]
                 bf = d[v][b][0:indx]
                 if f.find('elc')>=0:
@@ -61,7 +51,7 @@ for i in range(2):
                         bf /= atomic_masses[1]
                     if f.find('2')>=0:
                         bf /= atomic_masses[2]
-                ax[i].plot(d[v]['Time'][0:indx], fv/bf, '-', label=v+':'+f)
+                ax[i].plot(d[v]['Time'][0:indx]*args.tscale, fv/bf, '-', label=v+':'+f)
     if i>0: ax[i].set_xlabel('Time')
     ax[i].set_ylabel('Energy')
     ax[i].set_title(labels[i])

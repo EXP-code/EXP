@@ -3,29 +3,19 @@
 # -*- Python -*-
 # -*- coding: utf-8 -*-
 
-import sys, os
+import sys, os, argparse
 import numpy as np
 import matplotlib.pyplot as plt
 import getSpecies as gs
 
-def is_number(s):
-        try:
-                float(s)
-                return True
-        except ValueError:
-                return False
+parser = argparse.ArgumentParser(description='Read DSMC species file and plot energies for each species')
+parser.add_argument('-t', '--tscale', default=1000.0,  help='System time units in years')
+parser.add_argument('-T', '--Tmax', default=1000000.0, help='Maximum time in years')
+parser.add_argument('tags', nargs='*', help='Files to process')
 
-tmax   = 1000000.0
-if len(sys.argv)==1:
-        print "Usage: ", sys.argv[0], " tag1 tag2 . . . [Tmax]"
-        os.exit(-1)
+args = parser.parse_args()
 
-labs = []
-if is_number(sys.argv[-1]):
-        tmax = float(sys.argv[-1])
-        labs = sys.argv[1:-1]
-else:
-        labs = sys.argv[1:]
+labs = args.tags
         
 fields = [ ['Eelc(1)', 'Eion(1)', 'Selc(1)', 'Sion(1)'], \
            ['Eelc(2)', 'Eion(2)', 'Selc(2)', 'Sion(2)'] ]
@@ -45,8 +35,8 @@ for n in range(2):
         for v in labs:
                 for f in fields[n]:
                         if f in d[v]:
-                                indx = np.searchsorted(d[v]['Time'], tmax)
-                                ax[n].plot(d[v]['Time'][0:indx], d[v][f][0:indx], '-', label=v+':'+f)
+                                indx = np.searchsorted(d[v]['Time'], args.Tmax/args.tscale)
+                                ax[n].plot(d[v]['Time'][0:indx]*args.tscale, d[v][f][0:indx], '-', label=v+':'+f)
 
         ax[n].legend(prop={'size':8}, bbox_to_anchor=(1.02, 1), loc=2, borderaxespad=0.0)
         if n==len(labels)-1: ax[n].set_xlabel('Time')
