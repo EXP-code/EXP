@@ -445,7 +445,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   Ein1     .resize(nthrds);
   Ein2     .resize(nthrds);
   Evel     .resize(nthrds);
-  Vrel     .resize(nthrds);
   spTau    .resize(nthrds);
   spCrm    .resize(nthrds);
   spNsel   .resize(nthrds);
@@ -1218,6 +1217,26 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  }
 	  elec2 /= tot;
 
+	  if (false) {
+	    std::cout << std::string(40, '-') << std::endl << std::right;
+	      std::cout << std::setw( 4) << "Z"
+			<< std::setw( 4) << "C"
+			<< std::setw(14) << "F"
+			<< std::endl;
+	    for (auto v : meanF[id]) {
+	      std::cout << std::setw( 4) << v.first.first
+			<< std::setw( 4) << v.first.second
+			<< std::setw(14) << v.second/tot
+			<< std::endl;
+	    }
+	    std::cout << std::endl
+		      << "Neut1 = " << neut1  << std::endl
+		      << "Neut2 = " << neut2  << std::endl
+		      << "Elec1 = " << elec1  << std::endl
+		      << "Elec2 = " << elec2  << std::endl
+		      << std::string(40, '-') << std::endl;
+	  }
+
 	  CrossG *= neut1 + neut2;
 
 	  double mu0 = atomic_weights[i1.first]*atomic_weights[i2.first] /
@@ -1293,17 +1312,14 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    
 	    // Neutral-proton cross section
 	    //
-	    if (i1.second==1 and i2.first==1 and i2.second==2) {
+	    if (i1.first==1 or i2.first==1) {
 	      
-	      csectionsH[id][i1][i2][Interact::T(neut_prot, 0, i2.second-1)] =
+	      csectionsH[id][i1][i2][Interact::T(neut_prot, 0, i2.second+1)] =
 		elastic(i1.first, Eii[1], Elastic::proton) *
 		iVels[1] / rvmax * neut1 * elec2 *
 		crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
-	    }
-
-	    if (i2.second==1 and i1.first==1 and i1.second==2) {
-
-	      csectionsH[id][i2][i1][Interact::T(neut_prot, 0, i1.second-1)] =
+	      
+	      csectionsH[id][i2][i1][Interact::T(neut_prot, 0, i1.second+1)] =
 		elastic(i2.first, Eii[1], Elastic::proton) * iVels[1] / rvmax *
 		neut2 * elec1 *
 		crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
@@ -1539,20 +1555,17 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    
 	    // Neutral-proton cross section
 	    //
-	    if (i1.second==1 and i2.first==1 and i2.second==2) {
+	    if (i1.second==1 or i2.first==1) {
 	      
-	      csectionsH[id][i1][i2][Interact::T(neut_prot, 0, i2.second-1)] =
+	      csectionsH[id][i1][i2][Interact::T(neut_prot, 0, i2.first+1)] =
 		std::max<double>(
 		  { elastic(i1.first, Eii[0], Elastic::proton) * iVels[0],
 		    elastic(i1.first, Eii[1], Elastic::proton) * iVels[1],
 		    elastic(i1.first, Eii[2], Elastic::proton) * iVels[2] }
 		  ) / rvmax * neut1 * elec2 *
 		crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
-	    }
-	    
-	    if (i2.second==1 and i1.first==1 and i1.second==2) {
 	      
-	      csectionsH[id][i2][i1][Interact::T(neut_prot, 0, i1.second-1)] =
+	      csectionsH[id][i2][i1][Interact::T(neut_prot, 0, i1.first+1)] =
 		std::max<double>(
 		  { elastic(i2.first, Eii[0], Elastic::proton) * iVels[0],
 		    elastic(i2.first, Eii[1], Elastic::proton) * iVels[1],
@@ -1863,6 +1876,19 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
   // Temporary cross section assignment for new Hybrid method
   //
   if (aType == Hybrid) {
+    bool debug_dump = false;
+    if (debug_dump) {
+      std::cout << std::string(40, '-') << std::endl
+		<< "Cell XS"            << std::endl
+		<< std::string(40, '-') << std::endl
+		<< std::setw( 4) << "Z1"
+		<< std::setw( 4) << "Z2"
+		<< std::setw(20) << "Interaction"
+		<< std::setw( 4) << "C1"
+		<< std::setw( 4) << "C2"
+		<< std::setw(20) << "XS"
+		<< std::endl;
+    }
     for (auto it1 : cell->count) {
       speciesKey i1  = it1.first;
       for (auto it2 : cell->count) {
@@ -1870,6 +1896,17 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	double total = 0.0;
 	for (auto i : csectionsH[id][i1][i2].v) total += i.second;
 	csections[id][i1][i2]() = total;
+	if (debug_dump) {
+	  for (auto i : csectionsH[id][i1][i2].v) {
+	    std::cout << std::setw( 4) << i1.first
+		      << std::setw( 4) << i2.first
+		      << std::setw(20) << interLabels[std::get<0>(i.first)]
+		      << std::setw( 4) << std::get<1>(i.first)
+		      << std::setw( 4) << std::get<2>(i.first)
+		      << std::setw(20) << i.second
+		      << std::endl;
+	  }
+	}
       }
     }
   }
@@ -3099,7 +3136,6 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
     double rvel = p1->vel[i] - p2->vel[i];
     eVelI += rvel * rvel;
   }
-  Vrel[id] = sqrt(eVelI)/cr;
 
   if (NO_VEL) {
     eVel0 = eVel1 = eVel2 = 1.0;
@@ -3129,6 +3165,11 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
   kEe2[id] = 0.5  * mu2 * vel*vel * eVel1*eVel1/dof1;
   kEee[id] = 0.25 * me  * vel*vel * eVel0*eVel0;
 
+  // Electron fractions
+  //
+  double eta1 = 0.0, eta2 = 0.0;
+  for (unsigned short C=1; C<=Z1; C++) eta1 += p1->dattrib[hybrid_pos+C]*C;
+  for (unsigned short C=1; C<=Z2; C++) eta2 += p2->dattrib[hybrid_pos+C]*C;
 
   // Internal energy per particle
   //
@@ -3184,7 +3225,9 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
       // Particle 1 interacts with Particle 2
       //--------------------------------------------------
       
-      double cfac = p1->dattrib[hybrid_pos+C1] * p2->dattrib[hybrid_pos+C2];
+      double fac1 = p1->dattrib[hybrid_pos+C1];
+      double fac2 = p2->dattrib[hybrid_pos+C2];
+      double cfac = fac1 * fac2;
 
       //===================================================================
       //  ___      _                                      _   _    _
@@ -3212,7 +3255,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	double crs1 = geometric(Z1) * cfac;
 	
 	if (DEBUG_CRS) trap_crs(crs1*crossfac*cscl_[Z1]);
-
+	
 	cross += crs1*crossfac*cscl_[Z1];
 
 	double crs2 = geometric(Z2) * cfac;
@@ -3234,7 +3277,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 
 	double crs1 =
 	  elastic(Z1, kEe1[id]) * eVel2 * C2 * crossfac * cscl_[Z1] * cfac;
-
+	
 	if (DEBUG_CRS) trap_crs(crs1);
 
 	hCross[id][Interact::T(neut_elec, C1, C2)] = crs1;
@@ -3244,7 +3287,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 
 
       // --------------------------------------
-      // *** Ion-electron  scattering
+      // *** Ion-electron scattering
       // --------------------------------------
       
       if (C1>0 and C2>0) {
@@ -3271,7 +3314,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 
       if (C1==0 and Z2==1 and C2==1) {
 	double crs1 = elastic(Z1, kEi[id], Elastic::proton) *
-	  vel * crossfac * cscl_[Z1] * cfac;
+	  crossfac * cscl_[Z1] * cfac;
 	
 	if (DEBUG_CRS) trap_crs(crs1);
 	
@@ -3349,6 +3392,21 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
     } // end: inner particle loop
 
   } // end: outer particle loop
+
+  if (false) {
+    std::cout << std::string(40, '-') << std::endl;
+    std::cout << "hCross"             << std::endl;
+    std::cout << std::string(40, '-') << std::endl;
+    for (auto I : hCross[id]) {
+      int interFlag = std::get<0>(I.first);
+      double XS     = I.second;
+      double Prob   = XS/totalXS;
+      std::cout << std::setw(20) << std::left << interLabels[interFlag]
+		<< std::setw(20) << std::left << Prob
+		<< std::endl;
+    }
+    std::cout << std::string(40, '-') << std::endl;
+  }
 
   return totalXS;
 }
@@ -6848,6 +6906,21 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     } // END: compute this interaction [ok]
 
   } // END: interaction loop [hCross]
+
+  // Deep debug
+  //
+  if (false and maxInterFlag == neut_prot) {
+    std::cout << std::string(40, '-') << std::endl;
+    for (auto I : hCross[id]) {
+      int interFlag = std::get<0>(I.first);
+      double XS     = I.second;
+      double Prob   = XS/totalXS;
+      std::cout << std::setw(20) << std::left << interLabels[interFlag]
+		<< std::setw(20) << std::left << Prob
+		<< std::endl;
+    }
+    std::cout << std::string(40, '-') << std::endl;
+  }
 
   // Convert to super particle (current in eV)
   //
