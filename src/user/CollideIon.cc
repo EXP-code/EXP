@@ -6270,7 +6270,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // Run through all interactions in the cross-section map
   //
   double totalXS = 0.0;
-  for (auto I : hCross[id]) {
+  for (auto & I : hCross[id]) {
 
     int interFlag = std::get<0>(I.first);
 
