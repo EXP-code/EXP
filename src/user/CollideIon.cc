@@ -6121,6 +6121,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       }
     }
   }
+
   //
   //======================================================================
 
@@ -6269,7 +6270,32 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // Run through all interactions in the cross-section map
   //
   double totalXS = 0.0;
-  for (auto I : hCross[id]) totalXS += I.second;
+  for (auto I : hCross[id]) {
+
+    int interFlag = std::get<0>(I.first);
+
+    unsigned short P1 = swapped ? std::get<2>(I.first) : std::get<1>(I.first);
+    unsigned short P2 = swapped ? std::get<1>(I.first) : std::get<2>(I.first);
+    
+    // The subspecies weighting
+    //
+    double cF =
+      p1->dattrib[hybrid_pos+P1] *
+      p2->dattrib[hybrid_pos+P2] ;
+      
+    // Update the subspecies weight by the probability of interaction
+    //
+    // Ion is the original p1.  So p1 if swapped == false, otherwise
+    // p2.
+    //
+    if (interFlag != neut_neut and interFlag != neut_prot) {
+      if (swapped) cF = p2->dattrib[hybrid_pos+P2] * eta1;
+      else         cF = p1->dattrib[hybrid_pos+P1] * eta2;
+    }
+    
+    I.second *= cF;
+    totalXS += I.second;
+  }
 
   for (auto I : hCross[id]) {
     
@@ -6335,19 +6361,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       
       // The subspecies weighting
       //
-      double cF =
-	p1->dattrib[hybrid_pos+P1] *
-	p2->dattrib[hybrid_pos+P2] * Prob;
-      
-      // Update the subspecies weight by the probability of interaction
-      //
-      // Ion is the original p1.  So p1 if swapped == false, otherwise
-      // p2.
-      //
-      if (interFlag != neut_neut and interFlag != neut_prot) {
-	if (swapped) cF = p2->dattrib[hybrid_pos+P2] * Prob;
-	else         cF = p1->dattrib[hybrid_pos+P1] * Prob;
-      }
+      double cF = I.second;
 
       if (cF > maxCF) {
 	maxInterFlag = interFlag;
@@ -6821,7 +6835,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       
     } // END: compute this interaction [ok]
 
-  } // END: interaction loop
+  } // END: interaction loop [hCross]
 
   // Convert to super particle (current in eV)
   //
@@ -6900,11 +6914,19 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
   if (use_elec) {
 
-    if (NeutFrac>0.0) {
+    enum IType {neut, ion1, ion2};
+    std::vector< std::pair<double, IType> > Ilist =
+      { {NeutFrac, neut}, {Ion1Frac, ion1}, {Ion2Frac, ion2} };
+    std::sort(Ilist.begin(), Ilist.end());
+    static const std::map<IType, std::string> labs =
+      { {neut, "Neut"}, {ion1, "Ion1"}, {ion2, "Ion2"} };
+
+    double ke1 = 0.0, ke2 = 0.0;
+    IType curT = Ilist.back().second;
+
+    if (curT == neut) {
 
       InteractData d(m1, m2, W1, W2, q, Z1, Z2, p1, p2);
-
-      double ke1 = 0.0, ke2 = 0.0;
 
       for (int k=0; k<3; k++) {
 	v1[k]  = p1->vel[k];	// Both particles are neutrals or ions
@@ -6946,13 +6968,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       }
     }
     // END: NeutFrac>0
-
-    if (Ion1Frac>0.0) {
+    else if (curT == ion1) {
 
       InteractData d(m1, atomic_weights[0], W1, W2, q, Z1, Z2, p1, p2);
 
-      double ke1 = 0.0, ke2 = 0.0;
-      
       for (int k=0; k<3; k++) {
 	v1[k]  = p1->vel[k];	// Particle 1 is the ion
 				// Particle 2 is the electron
@@ -6998,12 +7017,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       //
       for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p1);
     } // END: Ion1Frac
-      
-    if (Ion2Frac>0.0) {
+    else if (curT == ion2) {
 
       InteractData d(atomic_weights[0], m2, W1, W2, q, Z1, Z2, p1, p2);
-
-      double ke1 = 0.0, ke2 = 0.0;
 
       for (int k=0; k<3; k++) {
 				// Particle 1 is the elctron
@@ -7050,6 +7066,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       //
       for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p2);
     }
+
+    /*
+    std::cout << labs.at(curT) << ": ratio="
+	      << 2.0*delE/(p1->mass*ke1 + p2->mass*ke2) << std::endl;
+    */
   }
 
   if (use_normtest) {
