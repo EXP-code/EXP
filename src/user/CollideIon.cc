@@ -3264,7 +3264,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	
 	cross += crs2*crossfac*cscl_[Z2];
 	
-	hCross[id][Interact::T(neut_neut, 0, 0)] = cross;
+	std::get<0>(hCross[id][Interact::T(neut_neut, 0, 0)]) = cross;
 	
 	totalXS += cross * crs_units;
       }
@@ -3280,7 +3280,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	
 	if (DEBUG_CRS) trap_crs(crs1);
 
-	hCross[id][Interact::T(neut_elec, C1, C2)] = crs1;
+	std::get<0>(hCross[id][Interact::T(neut_elec, C1, C2)]) = crs1;
 
 	totalXS += crs1 * crs_units;
       }
@@ -3303,7 +3303,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	
 	if (DEBUG_CRS) trap_crs(crs1);
 	
-	hCross[id][Interact::T(ion_elec, C1, C2)] = crs1;
+	std::get<0>(hCross[id][Interact::T(ion_elec, C1, C2)]) = crs1;
 	
 	totalXS += crs1 * crs_units;
       }
@@ -3318,7 +3318,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	
 	if (DEBUG_CRS) trap_crs(crs1);
 	
-	hCross[id][Interact::T(neut_prot, C1, C2)] = crs1;
+	std::get<0>(hCross[id][Interact::T(neut_prot, C1, C2)]) = crs1;
 	
 	totalXS += crs1 * crs_units;
       }
@@ -3335,9 +3335,11 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	
 	if (std::isinf(crs)) crs = 0.0; // Sanity check
 	
-	hCross[id][Interact::T(ion_ion, C1, C2)] = crs;
-	
-	totalXS += crs * crs_units;
+	if (crs>0.0) {
+	  std::get<0>(hCross[id][Interact::T(ion_ion, C1, C2)]) = crs;
+	  std::get<2>(hCross[id][Interact::T(ion_ion, C1, C2)]) = FF1[id];
+	  totalXS += crs * crs_units;
+	}
       }
 
       //-------------------------------
@@ -3351,9 +3353,11 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
-	hCross[id][Interact::T(colexcite, C1, C2)] = crs;
-	
-	totalXS += crs * crs_units;
+	if (crs > 0.0) {
+	  std::get<0>(hCross[id][Interact::T(colexcite, C1, C2)]) = crs;
+	  std::get<1>(hCross[id][Interact::T(colexcite, C1, C2)]) = CE1[id];
+	  totalXS += crs * crs_units;
+	}
       }
 
       //-------------------------------
@@ -3368,9 +3372,10 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
-	hCross[id][Interact::T(ionize, C1, C2)] = crs;
-	
-	totalXS += crs * crs_units;
+	if (crs > 0.0) {
+	  std::get<0>(hCross[id][Interact::T(ionize, C1, C2)]) = crs;
+	  totalXS += crs * crs_units;
+	}
       }
 
       //-------------------------------
@@ -3384,9 +3389,10 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
-	hCross[id][Interact::T(recomb, C1, C2)] = crs;
-	
-	totalXS += crs * crs_units;
+	if (crs > 0.0) {
+	  std::get<0>(hCross[id][Interact::T(recomb, C1, C2)]) = crs;
+	  totalXS += crs * crs_units;
+	}
       }
 
     } // end: inner particle loop
@@ -3399,7 +3405,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
     std::cout << std::string(40, '-') << std::endl;
     for (auto I : hCross[id]) {
       int interFlag = std::get<0>(I.first);
-      double XS     = I.second;
+      double XS     = std::get<0>(I.second);
       double Prob   = XS/totalXS;
       std::cout << std::setw(20) << std::left << interLabels[interFlag]
 		<< std::setw(20) << std::left << Prob
@@ -6354,8 +6360,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       else         cF = p1->dattrib[hybrid_pos+P1] * eta2;
     }
     
-    I.second *= cF;
-    totalXS += I.second;
+    std::get<0>(I.second) *= cF;
+    totalXS += std::get<0>(I.second);
   }
 
   // Now, determine energy contribution for each interaction process.
@@ -6363,7 +6369,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   for (auto I : hCross[id]) {
     
     int interFlag = std::get<0>(I.first);
-    double XS     = I.second;
+    double XS     = std::get<0>(I.second);
     double Prob   = XS/totalXS;
 
     if (Prob < 1.0e-14) continue;
@@ -6426,7 +6432,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       
       // The subspecies weighting
       //
-      double cF = I.second;
+      double cF = std::get<0>(I.second);
 
       // Select the maximum probability channel
       //
@@ -6535,7 +6541,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	if (swapped) {
 	  // Ion is p2
 	  //
-	  dE = (tmpE = IS.selectFFInteract(FF2[id])) * cF * q;
+	  dE = (tmpE = IS.selectFFInteract(std::get<2>(I.second))) * cF * q;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 
@@ -6553,7 +6559,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	} else {
 	  // Ion is p1
 	  //
-	  dE = (tmpE = IS.selectFFInteract(FF1[id])) * cF * q;
+	  dE = (tmpE = IS.selectFFInteract(std::get<2>(I.second))) * cF * q;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 
@@ -6580,33 +6586,27 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	if (swapped) {
 	  // Ion is p2
 	  //
-	  dE = (tmpE = IS.selectCEInteract(ch.IonList[Q2], CE1[id])) * cF * q;
+	  dE = (tmpE = IS.selectCEInteract(ch.IonList[Q2], std::get<1>(I.second))) * cF * q;
 
-	  // Sufficient energy?
-	  if (tmpE>0.0) {
-	    if (energy_scale > 0.0) dE *= energy_scale;
+	  if (energy_scale > 0.0) dE *= energy_scale;
 	    
-	    ctd2->CE[id][0] += cF * q;
-	    ctd2->CE[id][1] += NN;
-	    if (not NOCOOL) ctd2->CE[id][2] += N0 * dE;
-	    if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
-	    Ion2Frac += cF;
-	  }
+	  ctd2->CE[id][0] += cF * q;
+	  ctd2->CE[id][1] += NN;
+	  if (not NOCOOL) ctd2->CE[id][2] += N0 * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
+	  Ion2Frac += cF;
 	} else {
 	  // Ion is p1
 	  //
-	  dE = (tmpE = IS.selectCEInteract(ch.IonList[Q1], CE1[id])) * cF * q;
+	  dE = (tmpE = IS.selectCEInteract(ch.IonList[Q1], std::get<1>(I.second))) * cF * q;
 
-	  // Sufficient energy?
-	  if (tmpE>0.0) {
-	    if (energy_scale > 0.0) dE *= energy_scale;
+	  if (energy_scale > 0.0) dE *= energy_scale;
 	  
-	    ctd1->CE[id][0] += cF * q;
-	    ctd1->CE[id][1] += NN;
-	    if (not NOCOOL) ctd1->CE[id][2] += N0 * dE;
-	    if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
-	    Ion1Frac += cF;
-	  }
+	  ctd1->CE[id][0] += cF * q;
+	  ctd1->CE[id][1] += NN;
+	  if (not NOCOOL) ctd1->CE[id][2] += N0 * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
+	  Ion1Frac += cF;
 	}
 
 	delE += dE;
@@ -6928,7 +6928,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     std::cout << std::string(40, '-') << std::endl;
     for (auto I : hCross[id]) {
       int interFlag = std::get<0>(I.first);
-      double XS     = I.second;
+      double XS     = std::get<0>(I.second);
       double Prob   = XS/totalXS;
       std::cout << std::setw(20) << std::left << interLabels[interFlag]
 		<< std::setw(20) << std::left << Prob

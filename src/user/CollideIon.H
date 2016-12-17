@@ -407,7 +407,8 @@ private:
   typedef Icont<std::map, speciesKey, double>        keyWghts;
   typedef std::pair< std::array<double, 3>,
 		     std::array<double, 3> >         CVels;
-  typedef std::map<Interact::T, double>              InterXS;
+  typedef std::tuple<double, CEvector, CFreturn>     XStup;
+  typedef std::map<Interact::T, XStup>               InterXS;
 
   std::vector< std::vector<dKey>   >                 kInter;
   std::vector< std::vector<double> >                 dCross;

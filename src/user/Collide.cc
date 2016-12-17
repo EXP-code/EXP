@@ -22,104 +22,134 @@ using namespace std;
 static bool CDEBUG     = false;	// Thread diagnostics, false for
 				// production
 
-				// Use the original Pullin velocity 
+bool Collide::PULLIN   = false;	// Use the original Pullin velocity 
 				// selection algorithm
-bool Collide::PULLIN   = false;
 
-// Default NTC quantile thresholdn
+
+// Default NTC quantile threshold
+//
 double Collide::ntcThreshDef = 0.95;
 
 
 // Debugging cell length--MFP ratio
+//
 bool Collide::MFPCL    = true;
 
 // Use the explicit energy solution
+//
 bool Collide::ESOL     = false;
 
 // Print out sorted cell parameters
+//
 bool Collide::SORTED   = false;
 
 // Print out T-rho plane for cells 
 // with mass weighting
+//
 bool Collide::PHASE    = false;
 
 // Extra debugging output
+//
 bool Collide::EXTRA    = false;
 
 // Turn off collisions for testing
+//
 bool Collide::DRYRUN   = false;
 
 // Turn off cooling for testing
+//
 bool Collide::NOCOOL   = false;
 
 // Ensemble-based excess cooling
+//
 bool Collide::ENSEXES  = true;
 
 // Time step diagnostics
+//
 bool Collide::TSDIAG   = false;
 
 // Cell-volume diagnostics
+//
 bool Collide::VOLDIAG  = false;
 
 // Mean free path diagnostics
+//
 bool Collide::MFPDIAG  = false;
 
 // Sample based on maximum (true) or estimate
 // from variance (false);
+//
 bool Collide::NTC      = true;
 
 // Use cpu work to augment per particle effort
+//
 bool Collide::EFFORT   = true;	
 
 // Verbose timing
+//
 bool Collide::TIMING   = true;
 
 // Temperature floor in EPSM
+//
 double Collide::TFLOOR = 1000.0;
 
 // Enable mean-free-path time step estimation
+//
 bool Collide::MFPTS    = false;
 
 double 				// Enhance (or suppress) fiducial cooling rate
 Collide::ENHANCE       = 1.0;	// Currently, only used in LTE method
 
 // Target number of collisions per cell
+//
 unsigned Collide::collTnum = UINT_MAX;
 
 // Power of two interval for KE/cool histogram
+//
 int Collide::TSPOW     = 4;
 
 // Proton mass (g)
+//
 const double mp        = 1.67262158e-24;
 
 // Boltzmann constant (cgs)
+//
 const double boltz     = 1.3810e-16;
 
 // Allow counter to stop job
+//
 bool Collide::numSanityStop     = false;
 
 // Maximum number per step
+//
 unsigned Collide::numSanityMax  = 100000000u;
 
 // Verbose messaging
+//
 bool Collide::numSanityMsg      = false;
 
 // Lower thresh for reporting
+//
 unsigned Collide::numSanityVal  = 10000000u;
 
 // Upper thresh for reporting
+//
 unsigned Collide::numSanityFreq = 2000000u;
 
 // Default interation type
+//
 std::string Collide::Labels::def = "default";
 
 // Electron type tag
+//
 const unsigned short Collide::electronTyp = 0;
 
 // Enable NTC diagnostics
+//
 bool Collide::DEBUG_NTC         = false;
 
 // Enable NTC full distribution
+//
 bool Collide::NTC_DIST          = false;
 
 
@@ -1321,10 +1351,10 @@ void * Collide::collide_thread(void * arg)
 	  const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 	  double Cross = crossSection(id, c, p1, p2, cr, maxT);
 	  bool ok = false;
-
+	  
 	  double scrs = Cross / cunit;
-	  double prod = cr   * scrs;
-	  double targ = prod/ntcdb[samp->mykey].CrsVel(k, maxT, ntcThresh);
+	  double prod = cr * scrs;
+	  double targ = prod / ntcdb[samp->mykey].CrsVel(k, maxT, ntcThresh);
 	  
 	  if (NTC)
 	    ok = ( targ > (*unit)() );
