@@ -597,6 +597,9 @@ public:
   //! Coulombic log Lambda value
   static double logL;
 
+  //! Artificially bost inelastic scattering cross section by factor
+  static double ieBoost;
+
   //! Relative error tolerance for warnings (default: 1.0e-6)
   static double tolE;
 

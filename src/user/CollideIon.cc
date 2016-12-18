@@ -48,6 +48,7 @@ double   CollideIon::esThr    = 0.0;
 unsigned CollideIon::NoDelC   = 0;
 unsigned CollideIon::maxCoul  = UINT_MAX;
 double   CollideIon::logL     = 24.0;
+double   CollideIon::ieBoost  = 1.0;
 double   CollideIon::tolE     = 1.0e-6;
 double   CollideIon::TSCOOL   = 0.05;
 double   CollideIon::TSFLOOR  = 0.001;
@@ -404,6 +405,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << maxCoul                                << std::endl
 	      <<  " " << std::setw(20) << std::left << "logL"
 	      << logL                                   << std::endl
+	      <<  " " << std::setw(20) << std::left << "ieBoost"
+	      << ieBoost                                << std::endl
 	      <<  " " << std::setw(20) << std::left << "Spectrum"
 	      << (use_spectrum ? (wvlSpect ? "in wavelength" : "in eV")
 		  : "off")                              << std::endl
@@ -3328,7 +3331,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
       {
 	double ke   = std::max<double>(kEe1[id], FloorEv);
 	FF1[id]  = ch.IonList[Q1]->freeFreeCross(ke, id);
-	double crs  = eVel2 * C2 * FF1[id].first * cfac;
+	double crs  = eVel2 * C2 * FF1[id].first * cfac * ieBoost;
 	
 	if (std::isinf(crs)) crs = 0.0; // Sanity check
 	
@@ -3346,7 +3349,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
       {
 	double ke   = std::max<double>(kEe1[id], FloorEv);
 	CE1[id]     = ch.IonList[Q1]->collExciteCross(ke, id); //
-	double crs  = eVel2 * C2 * CE1[id].back().first * cfac;
+	double crs  = eVel2 * C2 * CE1[id].back().first * cfac * ieBoost;
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
@@ -3365,7 +3368,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	
 	double ke   = std::max<double>(kEe1[id], FloorEv);
 	double DI1  = ch.IonList[Q1]->directIonCross(ke, id);
-	double crs  = eVel2 * C2 * DI1 * cfac;
+	double crs  = eVel2 * C2 * DI1 * cfac * ieBoost;
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
@@ -3382,7 +3385,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
       {
 	double ke               = std::max<double>(kEe1[id], FloorEv);
 	std::vector<double> RE1 = ch.IonList[Q1]->radRecombCross(ke, id);
-	double crs = eVel2 * C2 * RE1.back() * cfac;
+	double crs = eVel2 * C2 * RE1.back() * cfac * ieBoost;
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
@@ -6305,16 +6308,16 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
   // Energy change
   //
-  double dE = 0.0, tmpE = 0.0;
+  double dE = 0.0;
 
   bool ok = false;		// Reject all interactions by default
 
   int maxInterFlag = -1;
-  double maxCF     = 0.0;
+  double maxP      = 0.0;
   
   // Run through all interactions in the cross-section map to include
   // ionization-state weightings.  Recall, the map contains values of
-  // v*sigma.
+  // vrel*sigma*weight/cr.
   //
   double totalXS = 0.0;
   std::vector<Interact::T> order;
@@ -6334,9 +6337,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     auto I        = hCross[id][O];
     int interFlag = std::get<0>(O);
     double XS     = std::get<0>(I);
-    double cF     = XS/totalXS;
+    double Prob   = XS/totalXS;
 
-    if (cF < 1.0e-14) continue;
+    if (Prob < 1.0e-14) continue;
 
     // Logic for selecting allowed interaction types
     //
@@ -6394,20 +6397,16 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       collTDPtr ctd1 = (*collD)[k1];
       collTDPtr ctd2 = (*collD)[k2];
       
-      // The subspecies weighting
-      //
-      double cF = std::get<0>(I);
-
       // Select the maximum probability channel
       //
-      if (cF > maxCF) {
+      if (Prob > maxP) {
 	maxInterFlag = interFlag;
-	maxCF = cF;
+	maxP = Prob;
       }
 
       // Number of real atoms in this interaction
       //
-      double NN = N0 * cF;
+      double NN = N0 * Prob;
 
       //* BEGIN DEEP DEBUG *//
       if (init_dbg and myid==0 and tnow > init_dbg_time and Z1 == init_dbg_Z and prob < 0.0) {
@@ -6424,7 +6423,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	
 	out << "Time = " << std::setw(10) << tnow
 	    << sout.str()
-	    << ", prob = " << std::setw(10) << cF
+	    << ", prob = " << std::setw(10) << Prob
 	    << ", NN = " << NN
 	    << std::endl;
       }
@@ -6434,25 +6433,25 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       //-----------------------------
 
       if (interFlag == neut_neut) {
-	ctd1->nn[id][0] += cF;
+	ctd1->nn[id][0] += Prob * q;
 	ctd1->nn[id][1] += NN;
 	
-	ctd2->nn[id][0] += cF;
+	ctd2->nn[id][0] += Prob * q;
 	ctd2->nn[id][1] += NN;
 	
-	NeutFrac += cF;
+	NeutFrac += Prob;
       }
 
       if (interFlag == neut_elec) {
 
 	if (swapped) {
-	  ctd2->ne[id][0] += cF;
+	  ctd2->ne[id][0] += Prob * q;
 	  ctd2->ne[id][1] += NN;
-	  Ion2Frac += cF;
+	  Ion2Frac += Prob;
 	} else {
-	  ctd1->ne[id][0] += cF;
+	  ctd1->ne[id][0] += Prob * q;
 	  ctd1->ne[id][1] += NN;
-	  Ion1Frac += cF;
+	  Ion1Frac += Prob;
 	}
 
       }
@@ -6460,26 +6459,26 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       if (interFlag == neut_prot) {
 	
 	if (swapped) {
-	  ctd2->np[id][0] += cF;
+	  ctd2->np[id][0] += Prob * q;
 	  ctd2->np[id][1] += NN;
-	  Ion2Frac += cF;
+	  Ion2Frac += Prob;
 	} else {
-	  ctd1->np[id][0] += cF;
+	  ctd1->np[id][0] += Prob * q;
 	  ctd1->np[id][1] += NN;
-	  Ion1Frac += cF;
+	  Ion1Frac += Prob;
 	}
 	
       }
 
       if (interFlag == ion_elec) {
 	if (swapped) {
-	  ctd2->ie[id][0] += cF;
+	  ctd2->ie[id][0] += Prob * q;
 	  ctd2->ie[id][1] += NN;
-	  Ion2Frac += cF;
+	  Ion2Frac += Prob;
 	} else {
-	  ctd1->ie[id][0] += cF;
+	  ctd1->ie[id][0] += Prob * q;
 	  ctd1->ie[id][1] += NN;
-	  Ion1Frac += cF;
+	  Ion1Frac += Prob;
 	}
 
 	//* BEGIN DEEP DEBUG *//
@@ -6496,7 +6495,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  
 	  out << "Time = " << std::setw(10) << tnow
 	      << sout.str()
-	      << ", cF = " << std::setw(10) << cF
+	      << ", Prob = " << std::setw(10) << Prob
 	      << ", NN = " << NN
 	      << ", #1 = " << ctd1->ie[id][0]
 	      << ", #2 = " << ctd2->ie[id][0]
@@ -6509,40 +6508,42 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	if (swapped) {
 	  // Ion is p2
 	  //
-	  dE = (tmpE = IS.selectFFInteract(std::get<2>(I))) * cF * q;
+	  double tmpE = IS.selectFFInteract(std::get<2>(I));
+	  dE = tmpE * Prob;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 
-	  ctd2->ff[id][0] += cF;
+	  ctd2->ff[id][0] += Prob * q;
 	  if (prob >= 0.0) {
-	    ctd2->ff[id][1] += N0 * cF;
-	    if (not NOCOOL) ctd2->ff[id][2] += N0 * dE;
-	    if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0 * cF);
+	    ctd2->ff[id][1] += NN;
+	    if (not NOCOOL) ctd2->ff[id][2] += N0 * tmpE;
+	    if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	  } else {
 	    ctd2->ff[id][1] += NN;
-	    if (not NOCOOL) ctd2->ff[id][2] += N0 * dE;
+	    if (not NOCOOL) ctd2->ff[id][2] += N0 * tmpE;
 	    if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	  }
-	  Ion2Frac += cF;
+	  Ion2Frac += Prob;
 	} else {
 	  // Ion is p1
 	  //
-	  dE = (tmpE = IS.selectFFInteract(std::get<2>(I))) * cF * q;
+	  double tmpE = IS.selectFFInteract(std::get<2>(I));
+	  dE = tmpE * Prob;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 
-	  ctd1->ff[id][0] += cF;
+	  ctd1->ff[id][0] += Prob * q;
 
 	  if (prob >= 0.0) {
-	    ctd1->ff[id][1] += N0 * cF;
-	    if (not NOCOOL) ctd1->ff[id][2] += N0 * dE;
-	    if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0 * cF);
+	    ctd1->ff[id][1] += NN;
+	    if (not NOCOOL) ctd1->ff[id][2] += NN * tmpE;
+	    if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	  } else {
 	    ctd1->ff[id][1] += NN;
-	    if (not NOCOOL) ctd1->ff[id][2] += N0 * dE;
+	    if (not NOCOOL) ctd1->ff[id][2] += NN * tmpE;
 	    if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	  }
-	  Ion1Frac += cF;
+	  Ion1Frac += Prob;
 	}
 
 	if (NO_FF_E) dE = 0.0;
@@ -6554,27 +6555,29 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	if (swapped) {
 	  // Ion is p2
 	  //
-	  dE = (tmpE = IS.selectCEInteract(ch.IonList[Q2], std::get<1>(I))) * cF * q;
+	  double tmpE = IS.selectCEInteract(ch.IonList[Q2], std::get<1>(I));
+	  dE = tmpE * Prob;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	    
-	  ctd2->CE[id][0] += cF * q;
+	  ctd2->CE[id][0] += Prob * q;
 	  ctd2->CE[id][1] += NN;
-	  if (not NOCOOL) ctd2->CE[id][2] += N0 * dE;
+	  if (not NOCOOL) ctd2->CE[id][2] += NN * tmpE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
-	  Ion2Frac += cF;
+	  Ion2Frac += Prob;
 	} else {
 	  // Ion is p1
 	  //
-	  dE = (tmpE = IS.selectCEInteract(ch.IonList[Q1], std::get<1>(I))) * cF * q;
+	  double tmpE = IS.selectCEInteract(ch.IonList[Q1], std::get<1>(I));
+	  dE = tmpE * Prob;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  
-	  ctd1->CE[id][0] += cF * q;
+	  ctd1->CE[id][0] += Prob * q;
 	  ctd1->CE[id][1] += NN;
-	  if (not NOCOOL) ctd1->CE[id][2] += N0 * dE;
+	  if (not NOCOOL) ctd1->CE[id][2] += NN * tmpE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
-	  Ion1Frac += cF;
+	  Ion1Frac += Prob;
 	}
 
 	delE += dE;
@@ -6585,111 +6588,102 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	if (swapped) {
 	  // Ion is p2
 	  //
-	  dE = (tmpE = IS.DIInterLoss(ch.IonList[Q2])) * cF * q;
+	  double tmpE = IS.DIInterLoss(ch.IonList[Q2]);
+	  dE = tmpE * Prob;
 
-	  // Sufficient energy?
-	  if (tmpE>0.0) {
-	    if (energy_scale > 0.0) dE *= energy_scale;
-	    if (NO_ION_E) dE = 0.0;
-	    delE += dE;
+	  if (energy_scale > 0.0) dE *= energy_scale;
+	  if (NO_ION_E) dE = 0.0;
+	  delE += dE;
 	    
-	    double wght = cF;
-	    
-	    if (use_normtest) {
-	      std::ostringstream sout;
-	      sout << "[Before ionize]: C2=" << C2-1
-		   << ", wght=" << wght;
-	      normTest(p1, sout.str());
-	      // Sanity check
-	      if (C2<1 or C2>Z2) {
-		std::cout << "[ionize] bad C2=" << C2
-			  << ", C1=" << C1 << std::endl;
-	      }
-	    }
-	    
-	    if (wght < p2->dattrib[hybrid_pos+C2-1]) {
-	      p2->dattrib[hybrid_pos+C2-1] -= wght;
-	      p2->dattrib[hybrid_pos+C2+0] += wght;
-	    } else {
-	      wght = p2->dattrib[hybrid_pos+C2-1];
-	      p2->dattrib[hybrid_pos+C2+0] += wght;
-	      p2->dattrib[hybrid_pos+C2-1]  = 0.0;
-	    }
-	  
-	    if (use_normtest) {
-	      std::ostringstream sout;
-	      sout << "[After ionize]: C2=" << C2-1
-		   << ", wght=" << wght;
-	      normTest(p1, sout.str());
-	    }
-	    
-	  
-	    ctd2->CI[id][0] += cF * q;
-	    ctd2->CI[id][1] += NN;
-	    if (not NOCOOL) ctd2->CI[id][2] += N0 * dE;
-	    if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
-	    
-	    Ion2Frac += cF;
-	    
-	    if (IonRecombChk) {
-	      if (ionCHK[id].find(k2) == ionCHK[id].end()) ionCHK[id][k2] = 0.0;
-	      ionCHK[id][k2] += XS * (*cr);
+	  if (use_normtest) {
+	    std::ostringstream sout;
+	    sout << "[Before ionize]: C2=" << C2-1
+		 << ", Prob=" << Prob;
+	    normTest(p1, sout.str());
+	    // Sanity check
+	    if (C2<1 or C2>Z2) {
+	      std::cout << "[ionize] bad C2=" << C2
+			<< ", C1=" << C1 << std::endl;
 	    }
 	  }
 	    
+	  if (Prob < p2->dattrib[hybrid_pos+C2-1]) {
+	    p2->dattrib[hybrid_pos+C2-1] -= Prob;
+	    p2->dattrib[hybrid_pos+C2+0] += Prob;
+	  } else {
+	    Prob = p2->dattrib[hybrid_pos+C2-1];
+	    p2->dattrib[hybrid_pos+C2+0] += Prob;
+	    p2->dattrib[hybrid_pos+C2-1]  = 0.0;
+	  }
+	  
+	  if (use_normtest) {
+	    std::ostringstream sout;
+	    sout << "[After ionize]: C2=" << C2-1
+		 << ", Prob=" << Prob;
+	    normTest(p1, sout.str());
+	  }
+	    
+	  
+	  ctd2->CI[id][0] += Prob * q;
+	  ctd2->CI[id][1] += NN;
+	  if (not NOCOOL) ctd2->CI[id][2] += NN * tmpE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
+	    
+	  Ion2Frac += Prob;
+	    
+	  if (IonRecombChk) {
+	    if (ionCHK[id].find(k2) == ionCHK[id].end()) ionCHK[id][k2] = 0.0;
+	    ionCHK[id][k2] += XS * (*cr);
+	  }
+	  
 	} // END: swapped
 	else {
 	  // Ion is p1
 	  //
-	  dE = (tmpE = IS.DIInterLoss(ch.IonList[Q1])) * cF * q;
-
-	  // Sufficient energy?
-	  if (tmpE>0.0) {
-
-	    if (energy_scale > 0.0) dE *= energy_scale;
-	    if (NO_ION_E) dE = 0.0;
-	    delE += dE;
+	  double tmpE = IS.DIInterLoss(ch.IonList[Q1]);
+	  dE = tmpE * Prob;
+	  
+	  if (energy_scale > 0.0) dE *= energy_scale;
+	  if (NO_ION_E) dE = 0.0;
+	  delE += dE;
 	    
-	    double wght = cF;
-	    
-	    if (use_normtest) {
-	      std::ostringstream sout;
-	      sout << "[Before ionize]: C1=" << C1-1
-		   << ", wght=" << wght;
-	      normTest(p1, sout.str());
-	      if (C1<1 or C1>Z1) {
-		std::cout << "[ionize] bad C1=" << C1
-			  << " or C2=" << C2 << std::endl;
-	      }
+	  if (use_normtest) {
+	    std::ostringstream sout;
+	    sout << "[Before ionize]: C1=" << C1-1
+		 << ", Prob=" << Prob;
+	    normTest(p1, sout.str());
+	    if (C1<1 or C1>Z1) {
+	      std::cout << "[ionize] bad C1=" << C1
+			<< " or C2=" << C2 << std::endl;
 	    }
+	  }
 	    
-	    if (wght < p1->dattrib[hybrid_pos+C1-1]) {
-	      p1->dattrib[hybrid_pos+C1-1] -= wght;
-	      p1->dattrib[hybrid_pos+C1+0] += wght;
-	    } else {
-	      wght = p1->dattrib[hybrid_pos+C1-1];
-	      p1->dattrib[hybrid_pos+C1+0] += wght;
-	      p1->dattrib[hybrid_pos+C1-1]  = 0.0;
-	    }
+	  if (Prob < p1->dattrib[hybrid_pos+C1-1]) {
+	    p1->dattrib[hybrid_pos+C1-1] -= Prob;
+	    p1->dattrib[hybrid_pos+C1+0] += Prob;
+	  } else {
+	    Prob = p1->dattrib[hybrid_pos+C1-1];
+	    p1->dattrib[hybrid_pos+C1+0] += Prob;
+	    p1->dattrib[hybrid_pos+C1-1]  = 0.0;
+	  }
 	    
-	    if (use_normtest) {
-	      std::ostringstream sout;
-	      sout << "[After ionize]: C1=" << C1-1
-		   << ", wght=" << wght;
-	      normTest(p1, sout.str());
-	    }
+	  if (use_normtest) {
+	    std::ostringstream sout;
+	    sout << "[After ionize]: C1=" << C1-1
+		 << ", Prob=" << Prob;
+	    normTest(p1, sout.str());
+	  }
 	    
-	    ctd1->CI[id][0] += cF * q;
-	    ctd1->CI[id][1] += NN;
-	    if (not NOCOOL) ctd1->CI[id][2] += N0 * dE;
-	    if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
-	    
-	    Ion1Frac += cF;
-	    
-	    if (IonRecombChk) {
-	      if (ionCHK[id].find(k1) == ionCHK[id].end()) ionCHK[id][k1] = 0.0;
-	      ionCHK[id][k1] += XS * (*cr);
-	    }
+	  ctd1->CI[id][0] += Prob * q;
+	  ctd1->CI[id][1] += NN;
+	  if (not NOCOOL) ctd1->CI[id][2] += NN * tmpE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
+	  
+	  Ion1Frac += Prob;
+	  
+	  if (IonRecombChk) {
+	    if (ionCHK[id].find(k1) == ionCHK[id].end()) ionCHK[id][k1] = 0.0;
+	    ionCHK[id][k1] += XS * (*cr);
 	  }
 	}
       }
@@ -6699,12 +6693,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	if (swapped) {
 	  // Ion is p2
 	  //
-	  double wght = cF;
-	  double w0   = p2->dattrib[hybrid_pos+C2-1];
+	  double w0 = p2->dattrib[hybrid_pos+C2-1];
 	  if (use_normtest) {
 	    std::ostringstream sout;
 	    sout << "[Before recomb]: C2=" << C2-1
-		 << ", wght=" << wght << ", w=" << w0;
+		 << ", Prob=" << Prob << ", w=" << w0;
 	    normTest(p1, sout.str());
 	    // Sanity check
 	    if (C2<2 or C2>Z2+1) {
@@ -6712,38 +6705,38 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    }
 	  }
 	  
-	  if (wght < p2->dattrib[hybrid_pos+C2-1]) {
-	    p2->dattrib[hybrid_pos+C2-1] -= wght;
-	    p2->dattrib[hybrid_pos+C2-2] += wght;
+	  if (Prob < p2->dattrib[hybrid_pos+C2-1]) {
+	    p2->dattrib[hybrid_pos+C2-1] -= Prob;
+	    p2->dattrib[hybrid_pos+C2-2] += Prob;
 	  } else {
-	    wght = p2->dattrib[hybrid_pos+C2-1];
-	    p2->dattrib[hybrid_pos+C2-2] += wght;
+	    Prob = p2->dattrib[hybrid_pos+C2-1];
+	    p2->dattrib[hybrid_pos+C2-2] += Prob;
 	    p2->dattrib[hybrid_pos+C2-1]  = 0.0;
 	  }
 	  
 	  if (use_normtest) {
 	    std::ostringstream sout;
 	    sout << "[After recomb]: C2=" << C2-1
-		 << ", wght=" << wght << ", w=" << w0;
+		 << ", Prob=" << Prob << ", w=" << w0;
 	    normTest(p1, sout.str());
 	  }
 	  
-	  dE = kEe2[id] * wght * q;
+	  dE = kEe2[id] * Prob;
 	  if (energy_scale > 0.0) dE *= energy_scale;
-	  if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * cF * q;
+	  if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * Prob * q;
 	  delE += dE;
 
-	  ctd2->RR[id][0] += cF * q;
+	  ctd2->RR[id][0] += Prob * q;
 	  if (prob >= 0.0) {
-	    ctd2->RR[id][1] += N0 * cF;
-	    if (not NOCOOL) ctd2->RR[id][2] += N0 * dE;
-	    if (use_spectrum) spectrumAdd(id, interFlag, kEe2[id], N0 * cF);
+	    ctd2->RR[id][1] += NN;
+	    if (not NOCOOL) ctd2->RR[id][2] += NN * kEe2[id];
+	    if (use_spectrum) spectrumAdd(id, interFlag, kEe2[id], NN);
 	  } else {
 	    ctd2->RR[id][1] += NN;
-	    if (not NOCOOL) ctd2->RR[id][2] += N0 * dE;
+	    if (not NOCOOL) ctd2->RR[id][2] += NN * kEe2[id];
 	    if (use_spectrum) spectrumAdd(id, interFlag, kEe2[id], NN);
 	  }
-	  Ion2Frac += cF;
+	  Ion2Frac += Prob;
 	  
 	  // Add the KE from the recombined electron back to the free pool
 	  //
@@ -6753,7 +6746,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	      double t = p2->dattrib[use_elec+k];
 	      lKE += fE*t*t;
 	    }
-	    lKE *= wght;
+	    lKE *= Prob;
 	    
 	    NCXTRA += lKE;
 	    
@@ -6774,45 +6767,44 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	else {
 	  // Ion is p1
 	  //
-	  double wght = cF;
-	  double w0   = p1->dattrib[hybrid_pos+P1];
+	  double w0 = p1->dattrib[hybrid_pos+P1];
 	  if (use_normtest) {
 	    std::ostringstream sout;
 	    sout << "[Before recomb]: C1=" << C1-1
-		 << ", wght=" << wght << ", w=" << w0;
+		 << ", Prob=" << Prob << ", w=" << w0;
 	    normTest(p1, sout.str());
 	    if (C1<2 or C1>Z1+1) {
 	      std::cout << "[recomb] bad C1=" << C1 << std::endl;
 	    }
 	  }
 
-	  if (wght < p1->dattrib[hybrid_pos+P1]) {
-	    p1->dattrib[hybrid_pos+C1-1] -= wght;
-	    p1->dattrib[hybrid_pos+C1-2] += wght;
+	  if (Prob < p1->dattrib[hybrid_pos+P1]) {
+	    p1->dattrib[hybrid_pos+C1-1] -= Prob;
+	    p1->dattrib[hybrid_pos+C1-2] += Prob;
 	  } else {
-	    wght = p1->dattrib[hybrid_pos+P1];
-	    p1->dattrib[hybrid_pos+C1-2] += wght;
+	    Prob = p1->dattrib[hybrid_pos+P1];
+	    p1->dattrib[hybrid_pos+C1-2] += Prob;
 	    p1->dattrib[hybrid_pos+C1-1]  = 0.0;
 	  }
 	  
 	  if (use_normtest) {
 	    std::ostringstream sout;
 	    sout << "[After recomb_1]: C1=" << C1-1
-		 << ", wght=" << wght << ", w=" << w0;
+		 << ", Prob=" << Prob << ", w=" << w0;
 	    normTest(p1, sout.str());
 	  }
 
-	  dE = kEe1[id] * wght * q;
+	  dE = kEe1[id] * Prob;
 	  if (energy_scale > 0.0) dE *= energy_scale;
-	  if (RECOMB_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * cF * q;
+	  if (RECOMB_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * Prob * q;
 	  delE += dE;
 
-	  ctd1->RR[id][0] += cF * q;
+	  ctd1->RR[id][0] += Prob * q;
 	  ctd1->RR[id][1] += NN;
-	  if (not NOCOOL) ctd1->RR[id][2] += N0 * dE;
+	  if (not NOCOOL) ctd1->RR[id][2] += NN * kEe1[id];
 	  if (use_spectrum) spectrumAdd(id, interFlag, kEe1[id], NN);
 
-	  Ion1Frac += cF;
+	  Ion1Frac += Prob;
 
 	  // Add the KE from the recombined electron back to the free pool
 	  //
@@ -6822,7 +6814,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	      double t = p1->dattrib[use_elec+k];
 	      lKE += fE*t*t;
 	    }
-	    lKE *= wght;
+	    lKE *= Prob;
 	    
 	    NCXTRA += lKE;
 
@@ -6848,41 +6840,41 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       
       if (swapped) {
 	bool prior = std::isnan(ctd2->eV_av[id]);
-	ctd2->eV_av[id] += kEe2[id]*cF;
+	ctd2->eV_av[id] += kEe2[id] * Prob * q;
 	if (std::isnan(ctd2->eV_av[id])) {
 	  std::cout << "NAN eV_N[2]=" << ctd2->eV_N[id]
 		    << ", prior=" << std::boolalpha << prior << std::endl;
 	}
-	ctd2->eV_N[id] += cF;
+	ctd2->eV_N[id] += Prob;
 	ctd2->eV_min[id] = std::min(ctd2->eV_min[id], kEe2[id]);
 	ctd2->eV_max[id] = std::max(ctd2->eV_max[id], kEe2[id]);
 	
-	if (kEe2[id] > 10.2) { ctd2->eV_10[id] += cF; }
+	if (kEe2[id] > 10.2) { ctd2->eV_10[id] += Prob * q; }
 	
       } else {
 	
 	bool prior = std::isnan(ctd1->eV_av[id]);
-	ctd1->eV_av[id] += kEe1[id]*cF;
+	ctd1->eV_av[id] += kEe1[id] * Prob * q;
 	if (std::isnan(ctd1->eV_av[id])) {
 	  std::cout << "NAN eV_N[1]=" << ctd1->eV_N[id]
 		    << ", prior=" << std::boolalpha << prior << std::endl;
 	}
-	ctd1->eV_N[id] += cF;
+	ctd1->eV_N[id] += Prob;
 	ctd1->eV_min[id] = std::min(ctd1->eV_min[id], kEe1[id]);
 	ctd1->eV_max[id] = std::max(ctd1->eV_max[id], kEe1[id]);
 	
-	if (kEe1[id] > 10.2) { ctd1->eV_10[id]++;}
+	if (kEe1[id] > 10.2) { ctd1->eV_10[id] += Prob * q;}
       }
 
       if (Ion1Frac>0.0) {
-	ctd1->dv[id][0] += cF;
-	ctd1->dv[id][1] += W2 * cF;
+	ctd1->dv[id][0] += Prob * q;
+	ctd1->dv[id][1] += W2 * Prob;
 	if (not NOCOOL) ctd1->dv[id][2] += W2 * dE;
       }
       
       if (Ion2Frac>0.0) {
-	ctd2->dv[id][0] += cF;
-	ctd2->dv[id][1] += W2 * cF;
+	ctd2->dv[id][0] += Prob;
+	ctd2->dv[id][1] += W2 * Prob;
 	if (not NOCOOL) ctd2->dv[id][2] += W2 * dE;
       }
       
@@ -6892,7 +6884,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
   // Deep debug
   //
-  if (false and maxInterFlag == neut_prot) {
+  if (false) {
     std::cout << std::string(40, '-') << std::endl;
     for (auto I : hCross[id]) {
       int interFlag = std::get<0>(I.first);
@@ -11234,7 +11226,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
  double& meanLambda, double& meanCollP, double& totalNsel)
 {
   sKeyDmap            eta, densM, densN, collP, nsigmaM, ncrossM;
-  sKey2Amap           selcM, selcMH;
+  sKey2Amap           selcM;
 
   // For debugging
   //
@@ -11401,7 +11393,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
 	  speciesKey i2 = it2->first;
 
-	  double crsvel = 0.0;
+	  double crsvel = 0.0, sumNsel = 0.0;
 
 	  sKeyPair k(i1, i2);
 
@@ -11412,6 +11404,8 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	    }
 
 	    double crs0 = csectionsH[id][k.first][k.second][v.first];
+
+	    double curNsel = 0.0;
 
 	    crsvel = crs0/cunit * 3.0 * crm;
 
@@ -11445,14 +11439,26 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	    //                                   |
 	    //                                   v
 	    if (i1==i2 and std::get<0>(v.first)==neut_neut)
-	      selcM[i1][i2][v.first] = 0.5 * it1->second * (it2->second-1) *  Prob;
+	      curNsel = 0.5 * it1->second * (it2->second-1) *  Prob;
 	    else
-	      selcM[i1][i2][v.first] = it1->second * it2->second * Prob;
+	      curNsel = it1->second * it2->second * Prob;
 
+	    if (maxCoul<UINT_MAX) {
+	      // Look for Coulombic interactions only
+	      if (std::get<0>(v.first) == ion_elec or
+		  std::get<0>(v.first) == ion_ion  ) {
+		if (curNsel > maxCoul) {
+		  epsmIE[id]++;
+		  curNsel = maxCoul;
+		}
+		totlIE[id]++;
+	      }
+	    }
+	    
 	    // For debugging only
 	    //
 	    if (DEBUG_SL) {
-	      if (selcM[i1][i2][v.first] > 10000.0) {
+	      if (curNsel > 10000.0) {
 		double crsdef =
 		  csectionsH[id][k.first][k.second][v.first]/cunit
 		  *  3.0 * crm;
@@ -11481,7 +11487,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 			  << ", MFP=" << meanLambda << ", P=" << Prob
 			  << ", <sigma*vel>=" << crsvel
 			  << ", I=" << sout.str()
-			  << ", N=" << selcM[i1][i2][v.first]
+			  << ", N=" << curNsel
 			  << ", q(0.5, 0.9, 0.95) = (" << cv1 << ", "
 			  << cv2 << ", " << cv3 << "), iVels=("
 			  << cVels[id].first[0] << ", "
@@ -11493,13 +11499,15 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	      }
 	    } // END: debugging output
 
-	    //
-	    // For double-summing of species A,B and B,A interactions
-	    // when A != B is list orders A<B and therefore does not double
-	    // count (see line 951 in Collide.cc)
-
-	    totalNsel += selcM[i1][i2][v.first];
+	    sumNsel += curNsel;
 	  }
+
+	  // For double-summing of species A,B and B,A interactions
+	  // when A != B is list orders A<B and therefore does not
+	  // double count (see line 951 in Collide.cc)
+	  //
+	  selcM[i1][i2]() = sumNsel;
+	  totalNsel += sumNsel;
 	}
       }
     }
@@ -11521,22 +11529,6 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
     }
   }
 
-  if (maxCoul<UINT_MAX) {
-    for (auto u : selcM) {
-      for (auto v : u.second) {
-	for (auto w : v.second.v) {
-	  // Look for Coulombic interactions only
-	  if (std::get<0>(w.first) == ion_elec or
-	      std::get<0>(w.first) == ion_ion  ) {
-	    unsigned nIE = static_cast<unsigned>(floor(w.second+0.5));
-	    if (nIE > maxCoul) epsmIE[id]++;
-	    totlIE[id]++;
-	    selcM[u.first][v.first][w.first] = std::min<unsigned>(maxCoul, nIE);
-	  }
-	}
-      }
-    }
-  }
 
   if (collLim) {		// Sanity clamp
 
@@ -11553,19 +11545,11 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
       colSc[id] = std::min<double>(maxSelA/totalNsel, maxSelB/cpbod);
 
       totalNsel = 0;
-      for (auto u : selcM) {
-	for (auto v : u.second) {
-	  for (auto w : v.second.v) {
-	    // Old algorithm: scale to threshold for all interaction types
-	    /*
-	    w.second *= colSc[id];
-	    selcM[u.first][v.first][w.first] = static_cast<unsigned>(floor(w.second+0.5));
-	    */
-	    // Clamp to threshold for each interaction type
-	    selcM[u.first][v.first][w.first] = std::min<unsigned>
-	      (maxSelA, static_cast<unsigned>(floor(w.second+0.5)));
-	    totalNsel += selcM[u.first][v.first][w.first];
-	  }
+      for (auto & u : selcM) {
+	for (auto & v : u.second) {
+	  // Clamp to threshold for each interaction type
+	  v.second.d = std::min<double>(maxSelA, v.second.d);
+	  totalNsel += v.second.d;
 	}
       }
     }
@@ -11803,19 +11787,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
   }
   //* END DEEP DEBUG *//
 
-  // Temporary assignment for new Hybrid method
-  //
-  for (auto it1 : c->count) {
-    speciesKey i1  = it1.first;
-    for (auto it2 : c->count) {
-      speciesKey i2  = it2.first;
-      double total = 0.0;
-      for (auto i : selcM[i1][i2].v) total += i.second;
-      selcMH[i1][i2]() = total;
-    }
-  }
-
-  return selcMH;
+  return selcM;
 }
 
 
@@ -14350,6 +14322,9 @@ void CollideIon::processConfig()
 
     logL = 
       cfg.entry<double>("logL", "Coulombic log(Lambda) value", 24.0);
+
+    ieBoost = 
+      cfg.entry<double>("ieBoost", "Boost factor for inelastic collisions", 1.0);
 
     Collide::collTnum = 
       cfg.entry<unsigned>("collTnum", "Target number of accepted collisions per cell for assigning time step", UINT_MAX);
