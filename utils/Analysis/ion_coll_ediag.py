@@ -62,6 +62,10 @@ def plot_data(filename, eloss, msz, logY, dot):
     edsp  = []
     ekeE  = []
     ekeI  = []
+    emis  = []
+    eclr  = []
+    delI  = []
+    delE  = []
     potI  = []
     elsC  = []
     elos  = []
@@ -106,11 +110,15 @@ def plot_data(filename, eloss, msz, logY, dot):
                     etot.append(float(toks[-1]))
                     erat.append(float(toks[-2]))
                     edsp.append(float(toks[-3]))
-                    potI.append(float(toks[-4]))
-                    ekeE.append(float(toks[-5]))
-                    ekeI.append(float(toks[-6]))
-                    elsC.append(float(toks[-7]))
-                    elos.append(float(toks[-8]))
+                    emis.append(float(toks[-4]))
+                    eclr.append(float(toks[-5]))
+                    delE.append(float(toks[-6]))
+                    delI.append(float(toks[-7]))
+                    potI.append(float(toks[-8]))
+                    ekeE.append(float(toks[-9]))
+                    ekeI.append(float(toks[-10]))
+                    elsC.append(float(toks[-11]))
+                    elos.append(float(toks[-12]))
                     for i in range(lead,len(toks)-tail):
                         idx = (i-tail) / ncol
                         data[spec[idx]][labels[i]].append(float(toks[i]))
