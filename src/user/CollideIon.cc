@@ -443,6 +443,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   kEe2     .resize(nthrds);
   kEee     .resize(nthrds);
   testKE   .resize(nthrds);
+  nselRat  .resize(nthrds);
   clrE     .resize(nthrds);
   misE     .resize(nthrds);
   Ein1     .resize(nthrds);
@@ -3331,7 +3332,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
       {
 	double ke   = std::max<double>(kEe1[id], FloorEv);
 	FF1[id]  = ch.IonList[Q1]->freeFreeCross(ke, id);
-	double crs  = eVel2 * C2 * FF1[id].first * cfac * ieBoost;
+	double crs  = eVel2 * C2 * FF1[id].first * cfac * ieBoost * nselRat[id];
 	
 	if (std::isinf(crs)) crs = 0.0; // Sanity check
 	
@@ -3349,7 +3350,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
       {
 	double ke   = std::max<double>(kEe1[id], FloorEv);
 	CE1[id]     = ch.IonList[Q1]->collExciteCross(ke, id); //
-	double crs  = eVel2 * C2 * CE1[id].back().first * cfac * ieBoost;
+	double crs  = eVel2 * C2 * CE1[id].back().first * cfac * ieBoost * nselRat[id];
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
@@ -3368,7 +3369,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	
 	double ke   = std::max<double>(kEe1[id], FloorEv);
 	double DI1  = ch.IonList[Q1]->directIonCross(ke, id);
-	double crs  = eVel2 * C2 * DI1 * cfac * ieBoost;
+	double crs  = eVel2 * C2 * DI1 * cfac * ieBoost * nselRat[id];
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
@@ -3385,7 +3386,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
       {
 	double ke               = std::max<double>(kEe1[id], FloorEv);
 	std::vector<double> RE1 = ch.IonList[Q1]->radRecombCross(ke, id);
-	double crs = eVel2 * C2 * RE1.back() * cfac * ieBoost;
+	double crs = eVel2 * C2 * RE1.back() * cfac * ieBoost * nselRat[id];
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
@@ -11372,6 +11373,11 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
   //
   totalNsel  = 0.0;
 
+  // This is the per-species N_{coll} _without_ any applied collision
+  // limitation.  Used to compute inelastic rate correction.
+  //
+  double uncutNsel = 0.0;
+
   // Diagnostics to be returned
   //
   meanLambda = 0.0;
@@ -11393,7 +11399,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
 	  speciesKey i2 = it2->first;
 
-	  double crsvel = 0.0, sumNsel = 0.0;
+	  double crsvel = 0.0, sumNsel = 0.0, fulNsel = 0.0;
 
 	  sKeyPair k(i1, i2);
 
@@ -11406,6 +11412,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	    double crs0 = csectionsH[id][k.first][k.second][v.first];
 
 	    double curNsel = 0.0;
+	    double iniNsel = 0.0;
 
 	    crsvel = crs0/cunit * 3.0 * crm;
 
@@ -11442,6 +11449,8 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	      curNsel = 0.5 * it1->second * (it2->second-1) *  Prob;
 	    else
 	      curNsel = it1->second * it2->second * Prob;
+
+	    iniNsel = curNsel;
 
 	    if (maxCoul<UINT_MAX) {
 	      // Look for Coulombic interactions only
@@ -11500,6 +11509,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	    } // END: debugging output
 
 	    sumNsel += curNsel;
+	    fulNsel += iniNsel;
 	  }
 
 	  // For double-summing of species A,B and B,A interactions
@@ -11508,6 +11518,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	  //
 	  selcM[i1][i2]() = sumNsel;
 	  totalNsel += sumNsel;
+	  uncutNsel += fulNsel;
 	}
       }
     }
@@ -11786,6 +11797,11 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
     out << std::string(72, '-') <<  std::endl;
   }
   //* END DEEP DEBUG *//
+
+  nselRat[id] = uncutNsel/totalNsel;
+  //
+  // std::cout << std::setw(10) << c->mykey << ": " << nselRat[id] << std::endl;
+  //
 
   return selcM;
 }
