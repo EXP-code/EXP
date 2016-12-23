@@ -42,9 +42,14 @@ void PP1_record::parse(const PP1_record *p, const string& s)
   }
   else if (type.compare("double")==0) {
     double *i = new double;
-    if (p) *i = *(static_cast <double *> (p->value));
-    else if (s.size()) istr >> *i;
-    else throw "Illegal parse <float>";
+    if (p) {
+      *i = *(static_cast <double *> (p->value));
+    } else if (s.size()) {
+      istr >> *i;
+    }
+    else {
+      throw "Illegal parse <double>";
+    }
     value = i;
   }
   else if (type.compare("string")==0) {
@@ -82,7 +87,7 @@ void ParamDatabase::add_entry(const string &name, const string& type,
 			      const string &deflt)
 {
 				// Look for duplicate entry
-  for (auto j : database2)
+  for (auto & j : database2)
     {
       if (j.name.compare(name)==0) 
 	{
@@ -109,7 +114,7 @@ void ParamDatabase::add_entry(const string &name, const string& type,
 
 void ParamDatabase::set_entry(const string &name, const string& value)
 {
-  for (auto j : database2)
+  for (auto & j : database2)
     {
       if (j.name.compare(name)==0) { // Found it!
 
