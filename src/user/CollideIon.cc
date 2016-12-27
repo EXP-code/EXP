@@ -22,6 +22,7 @@
 #include "InitContainer.H"
 
 using namespace std;
+using namespace NTC;
 
 double   CollideIon::Nmin     = 1.0e-08;
 double   CollideIon::Nmax     = 1.0e+25;
@@ -64,7 +65,7 @@ CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 					    {"limited",   limited},
 					    {"fixed",     fixed} };
 
-Collide::Interact::T CollideIon::elecElec;
+Interact::T CollideIon::elecElec;
 
 // Kinetic energy conservation check for NOCOOL
 //
@@ -237,6 +238,17 @@ static std::string interLabels[] =
     "Electron-electron"		// 10
   };
 
+
+// STL container pretty-print for std::array
+//
+std::ostream& operator<<(std::ostream& o, const NTC::Interact::T& t)
+{
+  o << "("  << interLabels[std::get<0>(t)]
+    << ", " << Interact::label(std::get<1>(t))
+    << ", " << Interact::label(std::get<2>(t))
+    << ")";
+  return o;
+}
 
 CollideIon::CollideIon(ExternalForce *force, Component *comp,
 		       double hD, double sD,
@@ -565,7 +577,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 
   labels[elec_elec  ] = "el collisions ";
 
-  elecElec = Interact::T(CollideIon::elec_elec, 0, 0);
+  elecElec = Interact::T(CollideIon::elec_elec,
+			      Interact::edef,
+			      Interact::edef);
 
   spectrumSetup();
 }
@@ -1292,8 +1306,14 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
 	  // Neutral-Neutral cross section
 	  //
-	  csectionsH[id][i1][i2][Interact::T(neut_neut, 0, 0)] = CrossG *
-	    crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
+	  {
+	    Interact::T t(neut_neut,
+			  {Interact::neutral, 0},
+			  {Interact::neutral, 0});
+
+	    csectionsH[id][i1][i2][t] = CrossG *
+	      crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
+	  }
 
 	  if (temp_debug) meanFdump(id);
 
@@ -1303,32 +1323,50 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    //
 	    for (unsigned short C2=1; C2<=Z2; C2++) {
 
-	      csectionsH[id][i1][i2][Interact::T(neut_elec, 0, C2)] =
+	      Interact::T t(neut_elec,
+			    {Interact::neutral,  0},
+			    {Interact::electron, C2});
+
+	      csectionsH[id][i1][i2][t] =
 		elastic(i1.first, E1s[1]) * eVels[1] / rvmax * neut1 * elec2 *
 		crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
 	    }
 
-	    for (unsigned short C1=1; C1<=Z1; C1++)
+	    for (unsigned short C1=1; C1<=Z1; C1++) {
 
-	      csectionsH[id][i2][i1][Interact::T(neut_elec, 0, C1)] =
+	      Interact::T t(neut_elec,
+			    {Interact::neutral,  0},
+			    {Interact::electron, C1});
+
+	      csectionsH[id][i2][i1][t] =
 		elastic(i2.first, E2s[1]) * eVels[1] / rvmax * neut2 * elec1 *
 		crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
+	    }
 	    
 	    // Neutral-proton cross section
 	    //
-	    if (i1.first==1 or i2.first==1) {
-	      
-	      csectionsH[id][i1][i2][Interact::T(neut_prot, 0, i2.second+1)] =
+	    if (i2.first==1) {
+	      Interact::T t(neut_prot, 
+			    {Interact::neutral,  0},
+			    {Interact::ion, 1});
+
+	      csectionsH[id][i1][i2][t] =
 		elastic(i1.first, Eii[1], Elastic::proton) *
 		iVels[1] / rvmax * neut1 * elec2 *
 		crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
+	    }
 	      
-	      csectionsH[id][i2][i1][Interact::T(neut_prot, 0, i1.second+1)] =
-		elastic(i2.first, Eii[1], Elastic::proton) * iVels[1] / rvmax *
-		neut2 * elec1 *
+	    if (i1.first==1) {
+	      Interact::T t(neut_prot, 
+			    {Interact::ion, 1},
+			    {Interact::neutral, 0});
+
+	      csectionsH[id][i1][i2][t] =
+		elastic(i2.first, Eii[1], Elastic::proton) *
+		iVels[1] / rvmax * neut2 * elec1 *
 		crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
 	    }
-
+	      
 	    // Coulombic (Rutherford) cross section (ion-electron)
 	    //
 	    for (unsigned short C1=1; C1<=Z1; C1++) {
@@ -1343,7 +1381,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      for (unsigned short C2=1; C2<=Z2; C2++) {
 		k2.second = C2 + 1;
 		
-		csectionsH[id][i1][i2][Interact::T(ion_elec, C1, C2)] =
+		Interact::T t(ion_elec,
+			      {Interact::ion, C1},
+			      {Interact::electron, C2});
+
+		csectionsH[id][i1][i2][t] =
 		  cc3 * C2 * mfac *
 		  meanF[id][k1] * meanF[id][k2] / (tot*tot) *
 		  crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
@@ -1358,7 +1400,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		       << "("  << C1 << ", " << C2 << ") = ";
 		  
 		  out << "Time = " << std::setw(10) << tnow
-		      << sout.str() << csectionsH[id][i1][i2][Interact::T(ion_elec, C1, C2)] << std::endl;
+		      << sout.str() << csectionsH[id][i1][i2][t] << std::endl;
 		}
 		// End Test
 
@@ -1377,7 +1419,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      for (unsigned short C1=1; C1<=Z1; C1++) {
 		k1.second = C1 + 1;
 
-		csectionsH[id][i2][i1][Interact::T(ion_elec, C2, C1)] =
+		Interact::T t(ion_elec,
+			      {Interact::ion,  C2},
+			      {Interact::electron, C1});
+
+		csectionsH[id][i2][i1][t] =
 		  cc3 * C1 * mfac *
 		  meanF[id][k1] * meanF[id][k2] / (tot*tot) *
 		  crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
@@ -1392,7 +1438,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		       << "("  << C1 << ", " << C2 << ") = ";
 		  
 		  out << "Time = " << std::setw(10) << tnow
-		      << sout.str() << csectionsH[id][i2][i1][Interact::T(ion_elec, C2, C1)] << std::endl;
+		      << sout.str() << csectionsH[id][i2][i1][t] << std::endl;
 		}
 		// End Test
 		
@@ -1414,7 +1460,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      
 		double mfac = 4.0 * logL;
 
-		csectionsH[id][i1][i2][Interact::T(ion_ion, C1, C2)] =
+		Interact::T t(ion_ion,
+			      {Interact::ion, C1},
+			      {Interact::ion, C2});
+
+		csectionsH[id][i1][i2][t] =
 		  cc3 * mfac *
 		  meanF[id][k1] * meanF[id][k2] / (tot*tot) *
 		  crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
@@ -1432,7 +1482,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		  CFreturn ff3 = ch.IonList[lQ(Z1, C1+1)]->freeFreeCross(E1s[1], id);
 		  ff3.first *= eVels[1];
 	      
-		  csectionsH[id][i1][i2][Interact::T(free_free, C1, C2)] =
+		  Interact::T t(free_free,
+				{Interact::ion,  C1},
+				{Interact::electron, C2});
+
+		  csectionsH[id][i1][i2][t] =
 		    ff3.first / rvmax * C2 * crs_units *
 		    meanF[id][k1] * meanF[id][k2] / (tot*tot);
 		}
@@ -1441,7 +1495,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		  CFreturn ff3 = ch.IonList[lQ(Z2, C2+1)]->freeFreeCross(E2s[1], id);
 		  ff3.first *= eVels[1];
 
-		  csectionsH[id][i2][i1][Interact::T(free_free, C2, C1)] =
+		  Interact::T t(free_free,
+				{Interact::ion,  C2},
+				{Interact::electron, C1});
+
+		  csectionsH[id][i2][i1][t] =
 		    ff3.first / rvmax * C1 * crs_units *
 		    meanF[id][k1] * meanF[id][k2] / (tot*tot);
 		}
@@ -1458,7 +1516,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		double cc3 = 
 		  ch.IonList[lQ(Z1, C1+1)]->collExciteCross(E1s[1], id).back().first * eVels[1];
 
-		csectionsH[id][i1][i2][Interact::T(colexcite, C1, C2)] =
+		Interact::T t(colexcite,
+			      {Interact::ion,  C1},
+			      {Interact::electron, C2});
+
+		csectionsH[id][i1][i2][t] =
 		  cc3 / rvmax * C2 * crs_units *
 		  meanF[id][k1] * meanF[id][k2] / (tot*tot);
 	      }
@@ -1471,8 +1533,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		
 		double cc3 = ch.IonList[lQ(Z2, C2+1)]->collExciteCross(E2s[1], id).back().first * eVels[1];
 	      
-		csectionsH[id][i2][i1][Interact::T(colexcite, C2, C1)] =
-		  cc3 / rvmax * C1 * crs_units *
+		Interact::T t(colexcite,
+			      {Interact::ion,  C2},
+			      {Interact::electron, C1});
+
+		csectionsH[id][i2][i1][t] = cc3 / rvmax * C1 * crs_units *
 		  meanF[id][k1] * meanF[id][k2] / (tot*tot);
 	      }
 	    }
@@ -1488,7 +1553,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      double ic3 =
 		ch.IonList[lQ(Z1, C1+1)]->directIonCross(E1s[1], id) * eVels[1];
 
-	      csectionsH[id][i1][i2][Interact::T(ionize, C1, C2)] =
+	      Interact::T t(ionize,
+			    {Interact::ion,  C1},
+			    {Interact::electron, C2});
+
+	      csectionsH[id][i1][i2][t] =
 		ic3 / rvmax *  C2 * crs_units *
 		meanF[id][k1] * meanF[id][k2] / (tot*tot);
 	      }
@@ -1502,8 +1571,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		double ic3 =
 		  ch.IonList[lQ(Z2, C2+1)]->directIonCross(E2s[1], id) * eVels[1];
 
-		csectionsH[id][i2][i1][Interact::T(ionize, C2, C1)] =
-		  ic3 / rvmax *  C1 * crs_units *
+		Interact::T t(ionize,
+			      {Interact::ion,  C2},
+			      {Interact::electron, C1});
+
+		csectionsH[id][i2][i1][t] = ic3 / rvmax *  C1 * crs_units *
 		  meanF[id][k1] * meanF[id][k2] / (tot*tot);
 	      }
 	    }
@@ -1519,14 +1591,19 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		double rc3 =
 		  ch.IonList[lQ(Z1, C1+1)]->radRecombCross(E1s[1], id).back() * eVels[1];
 	      
-		csectionsH[id][i1][i2][Interact::T(recomb, C1, C2)] =
-		  rc3 / rvmax * C2  * crs_units *
+		Interact::T t(recomb,
+			      {Interact::ion,      C1},
+			      {Interact::electron, C2});
+
+		csectionsH[id][i1][i2][t] = rc3 / rvmax * C2  * crs_units *
 		  meanF[id][k1] * meanF[id][k2] / (tot*tot);
 
 		rc3 = ch.IonList[lQ(Z2, C2+1)]->radRecombCross(E2s[1], id).back() * eVels[1];
 		
-		csectionsH[id][i2][i1][Interact::T(recomb, C2, C1)] =
-		  rc3 / rvmax * C1  * crs_units *
+		std::get<1>(t) = {Interact::electron, C1};
+		std::get<2>(t) = {Interact::ion,      C2};
+
+		csectionsH[id][i2][i1][t] = rc3 / rvmax * C1  * crs_units *
 		  meanF[id][k1] * meanF[id][k2] / (tot*tot);
 	      }
 	    }
@@ -1538,7 +1615,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    //
 	    for (unsigned short C2=1; C2<=Z2; C2++) {
 	      
-	      csectionsH[id][i1][i2][Interact::T(neut_elec, 0, C2)] =
+	      Interact::T t(neut_elec,
+			    {Interact::neutral,  0},
+			    {Interact::electron, C2});
+
+	      csectionsH[id][i1][i2][t] =
 		std::max<double>(
 		  { elastic(i1.first, E1s[0]) * eVels[0],
 		    elastic(i1.first, E1s[1]) * eVels[1],
@@ -1547,29 +1628,45 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
 	    }
 
-	    for (unsigned short C1=1; C1<=Z1; C1++)
+	    for (unsigned short C1=1; C1<=Z1; C1++) {
 
-	      csectionsH[id][i2][i1][Interact::T(neut_elec, 0, C1)] =
+	      Interact::T t(neut_elec,
+			    {Interact::neutral,  0},
+			    {Interact::electron, C1});
+
+	      csectionsH[id][i2][i1][t] =
 		std::max<double>(
 		  { elastic(i2.first, E2s[0]) * eVels[0],
 		    elastic(i2.first, E2s[1]) * eVels[1],
 		    elastic(i2.first, E2s[2]) * eVels[2] }
 		  ) / rvmax * neut2 * elec1 *
 		crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
+	    }
 	    
 	    // Neutral-proton cross section
 	    //
-	    if (i1.second==1 or i2.first==1) {
+	    if (i1.second==1 and i2.first==1) {
 	      
-	      csectionsH[id][i1][i2][Interact::T(neut_prot, 0, i2.first+1)] =
+	      Interact::T t(neut_prot,
+			    {Interact::neutral, 0},
+			    {Interact::ion,     1});
+
+	      csectionsH[id][i1][i2][t] =
 		std::max<double>(
 		  { elastic(i1.first, Eii[0], Elastic::proton) * iVels[0],
 		    elastic(i1.first, Eii[1], Elastic::proton) * iVels[1],
 		    elastic(i1.first, Eii[2], Elastic::proton) * iVels[2] }
 		  ) / rvmax * neut1 * elec2 *
 		crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
+	    }
 	      
-	      csectionsH[id][i2][i1][Interact::T(neut_prot, 0, i1.first+1)] =
+	    if (i2.second==1 and i1.first==1) {
+	      
+	      Interact::T t(neut_prot,
+			    {Interact::ion,     1},
+			    {Interact::neutral, 0});
+
+	      csectionsH[id][i1][i2][t] =
 		std::max<double>(
 		  { elastic(i2.first, Eii[0], Elastic::proton) * iVels[0],
 		    elastic(i2.first, Eii[1], Elastic::proton) * iVels[1],
@@ -1577,6 +1674,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		  ) / rvmax * neut2 * elec1 *
 		crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
 	    }
+	      
 	    
 	    // Coulombic (Rutherford) cross section (ion-electron)
 	    //
@@ -1596,8 +1694,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      for (unsigned short C2=1; C2<=Z2; C2++) {
 		k2.second = C2 + 1;
 		
-		csectionsH[id][i1][i2][Interact::T(ion_elec, C1, C2)] =
-		  cc3[1] * C2 * mfac *
+		Interact::T t(ion_elec,
+			      {Interact::ion, C1},
+			      {Interact::electron, C2});
+
+		csectionsH[id][i1][i2][t] = cc3[1] * C2 * mfac *
 		  meanF[id][k1] * meanF[id][k2] / (tot*tot) *
 		  crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
 		
@@ -1611,7 +1712,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		       << "("  << C1 << ", " << C2 << ") = ";
 		  
 		  out << "Time = " << std::setw(10) << tnow
-		      << sout.str() << csectionsH[id][i1][i2][Interact::T(ion_elec, C1, C2)] << std::endl;
+		      << sout.str() << csectionsH[id][i1][i2][t] << std::endl;
 		}
 		// End Test
 
@@ -1634,8 +1735,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      for (unsigned short C1=1; C1<=Z1; C1++) {
 		k1.second = C1 + 1;
 		
-		csectionsH[id][i2][i1][Interact::T(ion_elec, C2, C1)] =
-		  cc3[1] * C1 * mfac *
+		Interact::T t(ion_elec,
+			      {Interact::ion, C2},
+			      {Interact::electron, C1});
+
+		csectionsH[id][i2][i1][t] = cc3[1] * C1 * mfac *
 		  meanF[id][k1] * meanF[id][k2] / (tot*tot) *
 		  crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
 
@@ -1649,7 +1753,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		       << "("  << C1 << ", " << C2 << ") = ";
 		  
 		  out << "Time = " << std::setw(10) << tnow
-		      << sout.str() << csectionsH[id][i2][i1][Interact::T(ion_elec, C2, C1)] << std::endl;
+		      << sout.str() << csectionsH[id][i2][i1][t] << std::endl;
 		}
 		// End Test
 		
@@ -1675,8 +1779,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		
 		double mfac = 4.0 * logL;
 		
-		csectionsH[id][i1][i2][Interact::T(ion_ion, C1, C2)] =
-		  cc3[1] * mfac *
+		Interact::T t(ion_ion,
+			      {Interact::ion, C1},
+			      {Interact::ion, C2});
+
+		csectionsH[id][i1][i2][t] = cc3[1] * mfac *
 		  meanF[id][k1] * meanF[id][k2] / (tot*tot) *
 		  crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
 	      }
@@ -1699,7 +1806,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		std::sort(ff3.begin(), ff3.end(),
 			  [](CFreturn d1, CFreturn d2){return d1.first < d2.first;});
 		
-		csectionsH[id][i1][i2][Interact::T(free_free, C1, C2)] =
+		Interact::T t(free_free,
+			      {Interact::ion, C1},
+			      {Interact::electron, C2});
+
+		csectionsH[id][i1][i2][t] =
 		  ff3[1].first / rvmax * C2 * crs_units *
 		  meanF[id][k1] * meanF[id][k2] / (tot*tot);
 		
@@ -1713,8 +1824,10 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		std::sort(ff3.begin(), ff3.end(),
 			  [](CFreturn d1, CFreturn d2){return d1.first < d2.first;});
 		
-		csectionsH[id][i2][i1][Interact::T(free_free, C2, C1)] =
-		  ff3[1].first / rvmax * C1 * crs_units *
+		std::get<1>(t) = {Interact::electron, C1};
+		std::get<2>(t) = {Interact::ion, C2};
+
+		csectionsH[id][i1][i2][t] = ff3[1].first / rvmax * C1 * crs_units *
 		  meanF[id][k1] * meanF[id][k2] / (tot*tot);
 	      }
 	    }
@@ -1733,8 +1846,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		};
 		std::sort(cc3.begin(), cc3.end());
 		
-		csectionsH[id][i1][i2][Interact::T(colexcite, C1, C2)] =
-		  cc3[1] / rvmax * C2 * crs_units *
+		Interact::T t(colexcite,
+			      {Interact::ion, C1},
+			      {Interact::electron, C2});
+
+		csectionsH[id][i1][i2][t] = cc3[1] / rvmax * C2 * crs_units *
 		  meanF[id][k1] * meanF[id][k2] / (tot*tot);
 	      }
 	    }
@@ -1752,8 +1868,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		  };
 		std::sort(cc3.begin(), cc3.end());
 	      
-		csectionsH[id][i2][i1][Interact::T(colexcite, C2, C1)] =
-		  cc3[1] / rvmax * C1 * crs_units *
+		Interact::T t(colexcite,
+			      {Interact::electron, C1},
+			      {Interact::ion, C2});
+
+		csectionsH[id][i1][i2][t] = cc3[1] / rvmax * C1 * crs_units *
 		  meanF[id][k1] * meanF[id][k2] / (tot*tot);
 	      }
 	    }
@@ -1773,8 +1892,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		  };
 		std::sort(ic3.begin(), ic3.end());
 		
-		csectionsH[id][i1][i2][Interact::T(ionize, C1, C2)] =
-		  ic3[1] / rvmax *  C2 * crs_units *
+		Interact::T t(ionize,
+			      {Interact::ion, C1},
+			      {Interact::electron, C2});
+
+		csectionsH[id][i1][i2][t] = ic3[1] / rvmax *  C2 * crs_units *
 		  meanF[id][k1] * meanF[id][k2] / (tot*tot);
 	      }
 	    }
@@ -1792,8 +1914,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		  };
 		std::sort(ic3.begin(), ic3.end());
 		
-		csectionsH[id][i2][i1][Interact::T(ionize, C2, C1)] =
-		  ic3[1] / rvmax *  C1 * crs_units *
+		Interact::T t(ionize,
+			      {Interact::electron, C1},
+			      {Interact::ion,      C2});
+
+		csectionsH[id][i1][i2][t] = ic3[1] / rvmax *  C1 * crs_units *
 		  meanF[id][k1] * meanF[id][k2] / (tot*tot);
 	      }
 	    }
@@ -1814,8 +1939,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		  };
 		std::sort(rc3.begin(), rc3.end());
 		
-		csectionsH[id][i1][i2][Interact::T(recomb, C1, C2)] =
-		  rc3[1] / rvmax * C2  * crs_units *
+		Interact::T t(recomb,
+			      {Interact::ion, C1},
+			      {Interact::electron, C2});
+
+		csectionsH[id][i1][i2][t] = rc3[1] / rvmax * C2  * crs_units *
 		  meanF[id][k1] * meanF[id][k2] / (tot*tot);
 
 		rc3 = 
@@ -1826,8 +1954,10 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		  };
 		std::sort(rc3.begin(), rc3.end());
 		
-		csectionsH[id][i2][i1][Interact::T(recomb, C2, C1)] =
-		  rc3[1] / rvmax * C1  * crs_units *
+		std::get<1>(t) = {Interact::electron, C1};
+		std::get<2>(t) = {Interact::ion,      C2};
+
+		csectionsH[id][i1][i2][t] = rc3[1] / rvmax * C1  * crs_units *
 		  meanF[id][k1] * meanF[id][k2] / (tot*tot);
 	      }
 	    }
@@ -1904,9 +2034,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  for (auto i : csectionsH[id][i1][i2].v) {
 	    std::cout << std::setw( 4) << i1.first
 		      << std::setw( 4) << i2.first
-		      << std::setw(20) << interLabels[std::get<0>(i.first)]
-		      << std::setw( 4) << std::get<1>(i.first)
-		      << std::setw( 4) << std::get<2>(i.first)
+		      << std::setw(40) << i.first
 		      << std::setw(20) << i.second
 		      << std::endl;
 	  }
@@ -3146,6 +3274,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
       double rvel0 = p1->dattrib[use_elec+i] - p2->dattrib[use_elec+i];
       double rvel1 = p1->dattrib[use_elec+i] - p2->vel[i];
       double rvel2 = p2->dattrib[use_elec+i] - p1->vel[i];
+
       eVel0 += rvel0*rvel0;
       eVel1 += rvel1*rvel1;
       eVel2 += rvel2*rvel2;
@@ -3211,6 +3340,9 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
   hCross[id].clear();
 
   // Joint species probability
+  // -------------------------
+  // NB: The first particle (outer loop) is the neutral or ion.  The
+  // second particle (outerloop) is the electron or neutral.
   //
   for (unsigned short C1=0; C1<=Z1; C1++) {
 
@@ -3243,12 +3375,13 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
       //
       //===================================================================
 
+      Interact::T t;
 
       //-------------------------------
       // *** Both particles neutral
       //-------------------------------
 
-      if (C1>0 and C2>0) {
+      if (C1==0 and C2==0) {
 
 	double cross = 0.0;
 				// Geometric cross sections based on
@@ -3265,7 +3398,11 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	
 	cross += crs2*crossfac*cscl_[Z2];
 	
-	std::get<0>(hCross[id][Interact::T(neut_neut, 0, 0)]) = cross;
+	std::get<0>(t) = neut_neut;
+	std::get<1>(t) = {Interact::neutral, 0};
+	std::get<2>(t) = {Interact::neutral, 0};
+
+	std::get<0>(hCross[id][t]) = cross;
 	
 	totalXS += cross * crs_units;
       }
@@ -3276,16 +3413,35 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
       
       if (C1==0 and C2>0) {
 
-	double crs1 =
+	double crs =
 	  elastic(Z1, kEe1[id]) * eVel2 * C2 * crossfac * cscl_[Z1] * cfac;
 	
-	if (DEBUG_CRS) trap_crs(crs1);
+	if (DEBUG_CRS) trap_crs(crs);
 
-	std::get<0>(hCross[id][Interact::T(neut_elec, C1, C2)]) = crs1;
+	std::get<0>(t) = neut_elec;
+	std::get<1>(t) = {Interact::ion, C1};
+	std::get<2>(t) = {Interact::electron, C2};
 
-	totalXS += crs1 * crs_units;
+	std::get<0>(hCross[id][t]) = crs;
+
+	totalXS += crs * crs_units;
       }
 
+      if (C2==0 and C1>0) {
+
+	double crs =
+	  elastic(Z2, kEe2[id]) * eVel1 * C1 * crossfac * cscl_[Z2] * cfac;
+	
+	if (DEBUG_CRS) trap_crs(crs);
+
+	std::get<0>(t) = neut_elec;
+	std::get<1>(t) = {Interact::electron, C1};
+	std::get<2>(t) = {Interact::ion, C2};
+
+	std::get<0>(hCross[id][t]) = crs;
+
+	totalXS += crs * crs_units;
+      }
 
       // --------------------------------------
       // *** Ion-electron scattering
@@ -3293,20 +3449,49 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
       
       if (C1>0 and C2>0) {
 
-	double b = 0.5*esu*esu*C1 /
-	  std::max<double>(kEe1[id]*eV, FloorEv*eV) * 1.0e7; // nm
-	b = std::min<double>(b, ips);
+	// p1 is ion, p2 is electron
+	{
+	  double b = 0.5*esu*esu*C1 /
+	    std::max<double>(kEe1[id]*eV, FloorEv*eV) * 1.0e7; // nm
+	  b = std::min<double>(b, ips);
 	
-	double mfac = 4.0 * logL;
+	  double mfac = 4.0 * logL;
 	
-	double crs1 =
-	  M_PI*b*b * eVel2 * C2 * crossfac * cscl_[Z1] * mfac * cfac;
+	  double crs =
+	    M_PI*b*b * eVel2 * C2 * crossfac * cscl_[Z1] * mfac * cfac;
 	
-	if (DEBUG_CRS) trap_crs(crs1);
+	  if (DEBUG_CRS) trap_crs(crs);
 	
-	std::get<0>(hCross[id][Interact::T(ion_elec, C1, C2)]) = crs1;
+	  std::get<0>(t) = ion_elec;
+	  std::get<1>(t) = {Interact::ion, C1};
+	  std::get<2>(t) = {Interact::electron, C2};
+	  
+	  std::get<0>(hCross[id][t]) = crs;
+	  
+	  totalXS += crs * crs_units;
+	}
+	  
+	// p1 is electron, p2 is ion
+	{
+	  double b = 0.5*esu*esu*C2 /
+	  std::max<double>(kEe2[id]*eV, FloorEv*eV) * 1.0e7; // nm
+	  b = std::min<double>(b, ips);
 	
-	totalXS += crs1 * crs_units;
+	  double mfac = 4.0 * logL;
+	
+	  double crs =
+	    M_PI*b*b * eVel2 * C1 * crossfac * cscl_[Z1] * mfac * cfac;
+	
+	  if (DEBUG_CRS) trap_crs(crs);
+	
+	  std::get<0>(t) = ion_elec;
+	  std::get<1>(t) = {Interact::electron, C1};
+	  std::get<2>(t) = {Interact::ion, C2};
+	  
+	  std::get<0>(hCross[id][t]) = crs;
+	  
+	  totalXS += crs * crs_units;
+	}
       }
 
       // --------------------------------------
@@ -3319,7 +3504,26 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	
 	if (DEBUG_CRS) trap_crs(crs1);
 	
-	std::get<0>(hCross[id][Interact::T(neut_prot, C1, C2)]) = crs1;
+	std::get<0>(t) = neut_prot;
+	std::get<1>(t) = {Interact::neutral, C1};
+	std::get<2>(t) = {Interact::ion, C2};
+
+	std::get<0>(hCross[id][t]) = crs1;
+	
+	totalXS += crs1 * crs_units;
+      }
+
+      if (C2==0 and Z1==1 and C1==1) {
+	double crs1 = elastic(Z2, kEi[id], Elastic::proton) *
+	  crossfac * cscl_[Z2] * cfac;
+	
+	if (DEBUG_CRS) trap_crs(crs1);
+	
+	std::get<0>(t) = neut_prot;
+	std::get<1>(t) = {Interact::ion, C1};
+	std::get<2>(t) = {Interact::neutral, C2};
+
+	std::get<0>(hCross[id][t]) = crs1;
 	
 	totalXS += crs1 * crs_units;
       }
@@ -3327,18 +3531,41 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
       //-------------------------------
       // *** Free-free
       //-------------------------------
-      // Ion and Ion only
       
-      {
+      if (C1>0 and C2>0) {
 	double ke   = std::max<double>(kEe1[id], FloorEv);
-	FF1[id]  = ch.IonList[Q1]->freeFreeCross(ke, id);
-	double crs  = eVel2 * C2 * FF1[id].first * cfac * ieBoost * nselRat[id];
+	CFreturn ff = ch.IonList[Q1]->freeFreeCross(ke, id);
+	double crs  = eVel2 * C2 * ff.first * cfac * ieBoost * nselRat[id];
 	
 	if (std::isinf(crs)) crs = 0.0; // Sanity check
 	
 	if (crs>0.0) {
-	  std::get<0>(hCross[id][Interact::T(ion_ion, C1, C2)]) = crs;
-	  std::get<2>(hCross[id][Interact::T(ion_ion, C1, C2)]) = FF1[id];
+
+	  std::get<0>(t) = ion_elec;
+	  std::get<1>(t) = {Interact::ion, C1};
+	  std::get<2>(t) = {Interact::electron, C2};
+
+	  std::get<0>(hCross[id][t]) = crs;
+	  std::get<2>(hCross[id][t]) = ff;
+	  totalXS += crs * crs_units;
+	}
+      }
+
+      if (C1>0 and C2>0) {
+	double ke   = std::max<double>(kEe2[id], FloorEv);
+	CFreturn ff = ch.IonList[Q2]->freeFreeCross(ke, id);
+	double crs  = eVel1 * C1 * ff.first * cfac * ieBoost * nselRat[id];
+	
+	if (std::isinf(crs)) crs = 0.0; // Sanity check
+	
+	if (crs>0.0) {
+
+	  std::get<0>(t) = ion_elec;
+	  std::get<1>(t) = {Interact::electron, C1};
+	  std::get<2>(t) = {Interact::ion, C2};
+
+	  std::get<0>(hCross[id][t]) = crs;
+	  std::get<2>(hCross[id][t]) = ff;
 	  totalXS += crs * crs_units;
 	}
       }
@@ -3347,16 +3574,38 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
       // *** Collisional excitation
       //-------------------------------
       
-      {
+      if (C1<Z1 and C2>0) {
 	double ke   = std::max<double>(kEe1[id], FloorEv);
-	CE1[id]     = ch.IonList[Q1]->collExciteCross(ke, id); //
-	double crs  = eVel2 * C2 * CE1[id].back().first * cfac * ieBoost * nselRat[id];
+	CEvector CE = ch.IonList[Q1]->collExciteCross(ke, id);
+	double crs  = eVel2 * C2 * CE.back().first * cfac * ieBoost * nselRat[id];
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
 	if (crs > 0.0) {
-	  std::get<0>(hCross[id][Interact::T(colexcite, C1, C2)]) = crs;
-	  std::get<1>(hCross[id][Interact::T(colexcite, C1, C2)]) = CE1[id];
+	  std::get<0>(t) = colexcite;
+	  std::get<1>(t) = {Interact::ion, C1};
+	  std::get<2>(t) = {Interact::electron, C2};
+
+	  std::get<0>(hCross[id][t]) = crs;
+	  std::get<1>(hCross[id][t]) = CE;
+	  totalXS += crs * crs_units;
+	}
+      }
+
+      if (C2<Z2 and C1>0) {
+	double ke   = std::max<double>(kEe2[id], FloorEv);
+	CEvector CE = ch.IonList[Q2]->collExciteCross(ke, id);
+	double crs  = eVel1 * C1 * CE.back().first * cfac * ieBoost * nselRat[id];
+	
+	if (DEBUG_CRS) trap_crs(crs);
+	
+	if (crs > 0.0) {
+	  std::get<0>(t) = colexcite;
+	  std::get<1>(t) = {Interact::electron, C1};
+	  std::get<2>(t) = {Interact::ion, C2};
+
+	  std::get<0>(hCross[id][t]) = crs;
+	  std::get<1>(hCross[id][t]) = CE;
 	  totalXS += crs * crs_units;
 	}
       }
@@ -3365,7 +3614,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
       // *** Ionization cross section
       //-------------------------------
       
-      if (std::get<0>(itype) == ionize) {
+      if (C1<Z1 and C2>0) {
 	
 	double ke   = std::max<double>(kEe1[id], FloorEv);
 	double DI1  = ch.IonList[Q1]->directIonCross(ke, id);
@@ -3374,7 +3623,29 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	if (DEBUG_CRS) trap_crs(crs);
 	
 	if (crs > 0.0) {
-	  std::get<0>(hCross[id][Interact::T(ionize, C1, C2)]) = crs;
+	  std::get<0>(t) = ionize;
+	  std::get<1>(t) = {Interact::ion, C1};
+	  std::get<2>(t) = {Interact::electron, C2};
+
+	  std::get<0>(hCross[id][t]) = crs;
+	  totalXS += crs * crs_units;
+	}
+      }
+
+      if (C2<Z2 and C1>0) {
+	
+	double ke   = std::max<double>(kEe2[id], FloorEv);
+	double DI1  = ch.IonList[Q2]->directIonCross(ke, id);
+	double crs  = eVel1 * C1 * DI1 * cfac * ieBoost * nselRat[id];
+	
+	if (DEBUG_CRS) trap_crs(crs);
+	
+	if (crs > 0.0) {
+	  std::get<0>(t) = ionize;
+	  std::get<1>(t) = {Interact::electron, C1};
+	  std::get<2>(t) = {Interact::ion, C2};
+
+	  std::get<0>(hCross[id][t]) = crs;
 	  totalXS += crs * crs_units;
 	}
       }
@@ -3383,7 +3654,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
       // *** Radiative recombination
       //-------------------------------
 
-      {
+      if (C1==Z1 and C2>0) {
 	double ke               = std::max<double>(kEe1[id], FloorEv);
 	std::vector<double> RE1 = ch.IonList[Q1]->radRecombCross(ke, id);
 	double crs = eVel2 * C2 * RE1.back() * cfac * ieBoost * nselRat[id];
@@ -3391,7 +3662,28 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	if (DEBUG_CRS) trap_crs(crs);
 	
 	if (crs > 0.0) {
-	  std::get<0>(hCross[id][Interact::T(recomb, C1, C2)]) = crs;
+	  std::get<0>(t) = recomb;
+	  std::get<1>(t) = {Interact::ion, C1};
+	  std::get<2>(t) = {Interact::electron, C2};
+
+	  std::get<0>(hCross[id][t]) = crs;
+	  totalXS += crs * crs_units;
+	}
+      }
+
+      if (C2==Z2 and C1>0) {
+	double ke               = std::max<double>(kEe2[id], FloorEv);
+	std::vector<double> RE1 = ch.IonList[Q2]->radRecombCross(ke, id);
+	double crs = eVel1 * C1 * RE1.back() * cfac * ieBoost * nselRat[id];
+	
+	if (DEBUG_CRS) trap_crs(crs);
+	
+	if (crs > 0.0) {
+	  std::get<0>(t) = recomb;
+	  std::get<1>(t) = {Interact::electron, C1};
+	  std::get<2>(t) = {Interact::ion, C2};
+
+	  std::get<0>(hCross[id][t]) = crs;
 	  totalXS += crs * crs_units;
 	}
       }
@@ -6234,11 +6526,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // is assumed to be the "trace" species (or another "dominant").
   // We will swap particle pointers to make this so.
   //
-  // However, for neutral-electron and ion-electron interactions, the
-  // first particle is the atom/ion, so this swap must be tracked to
-  // maintain this identification.
-  //
   if (W1 < W2) {
+    
     // Swap the particle pointers
     //
     zswap(p1, p2);
@@ -6335,10 +6624,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   //
   for (auto O : order) {
     
-    auto I        = hCross[id][O];
-    int interFlag = std::get<0>(O);
-    double XS     = std::get<0>(I);
-    double Prob   = XS/totalXS;
+    auto I             = hCross[id][O];
+    int interFlag      = std::get<0>(O);
+    double XS          = std::get<0>(I);
+    double Prob        = XS/totalXS;
 
     if (Prob < 1.0e-14) continue;
 
@@ -6364,17 +6653,20 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     //
     if (ok) {
 
-
       // Zx is the atomic number (charge), Px is the offset in
       // ionization state from 0, Cx is the _usual_ ionization level
       // (e.g. C=1 is neutral).
       //
-      unsigned short Z1 = k1.first;
-      unsigned short Z2 = k2.first;
-      unsigned short P1 = swapped ? std::get<2>(O) : std::get<1>(O);
-      unsigned short P2 = swapped ? std::get<1>(O) : std::get<2>(O);
-      unsigned short C1 = P1 + 1;
-      unsigned short C2 = P2 + 1;
+      unsigned short  Z1 = k1.first;
+      unsigned short  Z2 = k2.first;
+
+      Interact::pElem I1 = swapped ? std::get<2>(O) : std::get<1>(O);
+      Interact::pElem I2 = swapped ? std::get<1>(O) : std::get<2>(O);
+      
+      unsigned short  P1 = I1.second;
+      unsigned short  P2 = I2.second;
+      unsigned short  C1 = P1 + 1;
+      unsigned short  C2 = P2 + 1;
       
       // Temporary debugging
       //
@@ -6416,11 +6708,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	std::ostringstream sout;
 	
-	sout << ", [" << Z1 << ", " << Z2 << "] "
-	     << "("  << labels[std::get<0>(O)]
-	     << ", " << std::get<1>(O)
-	     << ", " << std::get<2>(O)
-	     << ")";
+	sout << ", [" << Z1 << ", " << Z2 << "] " << O;
 	
 	out << "Time = " << std::setw(10) << tnow
 	    << sout.str()
@@ -6488,11 +6776,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  
 	  std::ostringstream sout;
 	  
-	  sout << ", [" << Z1 << ", " << Z2 << "] "
-	       << "("  << labels[std::get<0>(O)]
-	       << ", " << std::get<1>(O)
-	       << ", " << std::get<2>(O)
-	       << ")";
+	  sout << ", [" << Z1 << ", " << Z2 << "] " << O;
 	  
 	  out << "Time = " << std::setw(10) << tnow
 	      << sout.str()
@@ -6506,7 +6790,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       
       if (interFlag == free_free) {
 
-	if (swapped) {
+	if (I1.first == Interact::electron) {
+	  //
 	  // Ion is p2
 	  //
 	  double tmpE = IS.selectFFInteract(std::get<2>(I));
@@ -6525,7 +6810,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	  }
 	  Ion2Frac += Prob;
+
 	} else {
+	  //
 	  // Ion is p1
 	  //
 	  double tmpE = IS.selectFFInteract(std::get<2>(I));
@@ -6553,7 +6840,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
       if (interFlag == colexcite) {
 
-	if (swapped) {
+	if (I1.first == Interact::electron) {
+	  //
 	  // Ion is p2
 	  //
 	  double tmpE = IS.selectCEInteract(ch.IonList[Q2], std::get<1>(I));
@@ -6567,6 +6855,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	  Ion2Frac += Prob;
 	} else {
+	  //
 	  // Ion is p1
 	  //
 	  double tmpE = IS.selectCEInteract(ch.IonList[Q1], std::get<1>(I));
@@ -6586,7 +6875,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
       if (interFlag == ionize) {
 
-	if (swapped) {
+	if (I1.first == Interact::electron) {
+	  //
 	  // Ion is p2
 	  //
 	  double tmpE = IS.DIInterLoss(ch.IonList[Q2]);
@@ -6639,6 +6929,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  
 	} // END: swapped
 	else {
+	  //
 	  // Ion is p1
 	  //
 	  double tmpE = IS.DIInterLoss(ch.IonList[Q1]);
@@ -6691,7 +6982,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	
       if (interFlag == recomb) {
 
-	if (swapped) {
+	if (I1.first == Interact::electron) {
+	  //
 	  // Ion is p2
 	  //
 	  double w0 = p2->dattrib[hybrid_pos+C2-1];
@@ -6766,6 +7058,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  
 	} // END: swapped
 	else {
+	  //
 	  // Ion is p1
 	  //
 	  double w0 = p1->dattrib[hybrid_pos+P1];
@@ -10597,7 +10890,7 @@ Collide::sKey2Amap CollideIon::generateSelection
 				  meanLambda, meanCollP, totalNsel);
 }
 
-Collide::Interact
+Interact
 CollideIon::generateSelectionSub(int id, Particle* const p1, Particle* const p2,
 				 Interact::T& maxT, sKeyDmap* const Fn,
 				 double *cr, double tau)
@@ -10605,7 +10898,7 @@ CollideIon::generateSelectionSub(int id, Particle* const p1, Particle* const p2,
   if (aType == Hybrid)
     return generateSelectionHybridSub(id, p1, p2, maxT, Fn, cr, tau);
   else
-    return Interact();		// Empty map
+    return Interact();	// Empty map
 }
 
 Collide::sKey2Amap CollideIon::generateSelectionDirect
@@ -11353,9 +11646,8 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	  std::ostringstream sout;
 	  sout << "<"
 	       << k1.first << "|" << k2.first << ">"
-	       << " : (" << labels[std::get<0>(v.first)]
-	       << ',' << std::get<1>(v.first)
-	       << ',' << std::get<2>(v.first) << ") ";
+	       << " : " << v.first;
+
 	  std::cout << std::setw(30) << sout.str()
 		    << std::setw(16) << v.second / cunit
 		    << std::endl;
@@ -11428,19 +11720,15 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	    }
 
 	    // Probability of an interaction of between particles of type 1
-	    // and 2 for a given particle of type 2
+	    // and 2 for a given particle of type 1
 	    //
-	    double Prob = 0.0;
+	    double Prob = (*Fn)[i2] * eta[i2] * cunit * crsvel * tau / volc;
 
-	    if (densM[i1]>=densM[i2]) {
-	      Prob = (*Fn)[i2] * eta[i2] * cunit * crsvel * tau / volc;
-	      speciesKey t1(i1); t1.second = std::get<1>(v.first) + 1;
-	      meanCollP += meanF[id][t1] * densM[i2] * (*Fn)[i2] * crs0;
-	    } else {
-	      Prob = (*Fn)[i1] * eta[i1] * cunit * crsvel * tau / volc;
-	      speciesKey t2(i2); t2.second = std::get<2>(v.first) + 1;
-	      meanCollP += meanF[id][t2] * densM[i1] * (*Fn)[i1] * crs0;
-	    }
+	    speciesKey t1(i1);
+	    t1.second = std::get<1>(v.first).second + 1;
+
+	    meanCollP += meanF[id][t1] * densM[i2] * (*Fn)[i2] * crs0;
+
 
 	    // Count _pairs_ of identical particles only
 	    //                                   |
@@ -11487,9 +11775,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 		}
 
 		std::ostringstream sout;
-		sout << '(' << labels[std::get<0>(v.first)]
-		     << ',' << std::get<1>(v.first)
-		     << ',' << std::get<2>(v.first) << ')';
+		sout << v.first;
 
 		std::cout << std::endl
 			  << "Too many collisions: collP=" << meanCollP
@@ -11635,10 +11921,9 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	      sout1 << '(' << std::setw(2)  << i1.first
 		    << '|' << std::setw(2)  << i2.first
 		    << ')';
+
 	      std::ostringstream sout2;
-	      sout2 << '[' << labels[std::get<0>(v.first)]
-		    << ',' << std::get<1>(v.first)
-		    << ',' << std::get<2>(v.first) << ']';
+	      sout2 << v.first;
 
 	      std::cout << std::setw(20) << sout1.str()
 			<< std::setw(20) << sout2.str()
@@ -11744,9 +12029,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 		    << '|' << std::setw(2)  << i2.first
 		    << ')';
 	      std::ostringstream sout2;
-	      sout2 << '[' << labels[std::get<0>(v.first)]
-		    << ',' << std::get<1>(v.first)
-		    << ',' << std::get<2>(v.first) << ']';
+	      sout2 << v.first;
 
 	      out << std::setw(20) << sout1.str()
 		  << std::setw(20) << sout2.str()
@@ -11811,7 +12094,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 // Return map of accessible inelastic interations for substates of
 // particles p1 and p2
 //
-Collide::Interact CollideIon::generateSelectionHybridSub
+Interact CollideIon::generateSelectionHybridSub
 (int id, Particle* const p1, Particle* const p2, Interact::T& maxT,
  sKeyDmap* const Fn, double *cr, double tau)
 {
@@ -11876,12 +12159,15 @@ Collide::Interact CollideIon::generateSelectionHybridSub
       FFm[id][Q]  = ch.IonList[Q]->freeFreeCross(ke, id);
       double Prob = densE[id][k2] * FFm[id][Q].first * cunit * eVel * tau;
 
-      if (suppress_maxT and std::get<0>(maxT) == free_free and std::get<1>(maxT) == Q1)
+      if (suppress_maxT and std::get<0>(maxT) == free_free and std::get<1>(maxT).second == Q1)
 	{
-	  Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT)];
+	  Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT).second];
 	}
 
-      if (Prob > 0.0) ret[Interact::T(free_free, Q1, 0)] = Prob;
+      if (Prob > 0.0) {
+	Interact::T t(free_free, {Interact::ion, Q1}, {Interact::electron, 0});
+	ret[t] = Prob;
+      }
     }
 
     //-------------------------------
@@ -11893,12 +12179,15 @@ Collide::Interact CollideIon::generateSelectionHybridSub
       double crs  = CEm[id][Q].back().first;
       double Prob = densE[id][k2] * crs * cunit * eVel * tau;
 
-      if (suppress_maxT and std::get<0>(maxT) == colexcite and std::get<1>(maxT) == Q1)
+      if (suppress_maxT and std::get<0>(maxT) == colexcite and std::get<1>(maxT).second == Q1)
 	{
-	  Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT)];
+	  Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT).second];
 	}
 
-      if (Prob > 0.0) ret[Interact::T(colexcite, Q1, 0)] = Prob;
+      if (Prob > 0.0) {
+	Interact::T t(colexcite, {Interact::ion, Q1}, {Interact::electron, 0});
+	ret[t] = Prob;
+      }
     }
 
     //-------------------------------
@@ -11909,12 +12198,15 @@ Collide::Interact CollideIon::generateSelectionHybridSub
       double crs  = ch.IonList[Q]->directIonCross(ke, id);
       double Prob = densE[id][k2] * crs * cunit * eVel * tau;
 
-      if (suppress_maxT and std::get<0>(maxT) == ionize and std::get<1>(maxT) == Q1)
+      if (suppress_maxT and std::get<0>(maxT) == ionize and std::get<1>(maxT).second == Q1)
 	{
-	  Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT)];
+	  Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT).second];
 	}
 
-      if (Prob > 0.0) ret[Interact::T(ionize, Q1, 0)] = Prob;
+      if (Prob > 0.0) {
+	Interact::T t(ionize, {Interact::ion, Q1}, {Interact::electron, 0});
+	ret[t] = Prob;
+      }
     }
 
     //-------------------------------
@@ -11926,12 +12218,15 @@ Collide::Interact CollideIon::generateSelectionHybridSub
       double crs = RE1.back();
       double Prob = densE[id][k2] * crs * cunit * eVel * tau;
 
-      if (suppress_maxT and std::get<0>(maxT) == recomb and std::get<1>(maxT) == Q1)
+      if (suppress_maxT and std::get<0>(maxT) == recomb and std::get<1>(maxT).second == Q1)
 	{
-	  Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT)];
+	  Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT).second];
 	}
 
-      if (Prob > 0.0) ret[Interact::T(recomb, Q1, 0)] = Prob;
+      if (Prob > 0.0) {
+	Interact::T t(recomb, {Interact::ion, Q1}, {Interact::electron, 0});
+	ret[t] = Prob;
+      }
     }
   }
 

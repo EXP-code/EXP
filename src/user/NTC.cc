@@ -32,12 +32,39 @@ double   NTCitem::Def = 10.0;
 // Count live instances
 unsigned NTCitem::instance  = 0;
 
+// Label database
+std::map<Interact::pType, std::string>
+Interact::pLabs = {
+  {Interact::simple,   "Simple"},
+  {Interact::neutral,  "Neutral"},
+  {Interact::ion,      "Ion"},
+  {Interact::electron, "Electron"}
+};
+
+// Default null pElem
+constexpr Interact::pElem const Interact::pdef {Interact::simple, 0};
+
+// Default electron pElem
+constexpr Interact::pElem const Interact::edef {Interact::electron, 0};
+
+// Default interaction key for singleton
+Interact::T Interact::single(0, Interact::pdef, Interact::pdef);
+
 // Default interaction key for singleton
 constexpr static unsigned short singleVal = std::numeric_limits<unsigned short>::max();
-NTC::T NTCitem::single {singleVal, singleVal, singleVal};
+Interact::T NTCitem::single {singleVal, Interact::pdef, Interact::pdef};
 
-template<typename T>
-std::ostream& operator<< (std::ostream& out, const std::tuple<T, T, T>& t)
+std::ostream& operator<< (std::ostream& out, const Interact::pElem& e)
+{
+  std::ostringstream sout;
+  sout << Interact::label(e)
+       << " [" << e.second << "]";
+  out << sout.str();
+  return out;
+}
+
+template<typename T, typename U, typename V>
+std::ostream& operator<< (std::ostream& out, const std::tuple<T, U, V>& t)
 {
   std::ostringstream sout;
   sout << '(' << std::get<0>(t)
