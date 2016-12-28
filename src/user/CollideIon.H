@@ -402,7 +402,9 @@ private:
   typedef std::list<dKeyD>                           keyWexsList;
   typedef std::map<lQ, CEvector>                     CEmap;
   typedef std::map<lQ, CFreturn>                     CFmap;
-  typedef Icont<std::map, unsigned short, unsigned>  TypeMap;
+  typedef Icont<std::map, int, std::pair<double, unsigned> >
+                                                     TypeMap2;
+  typedef Icont<std::map, unsigned short, double>    TypeMap;
   typedef Icont<std::map, speciesKey, double>        keyWghts;
   typedef std::pair< std::array<double, 3>,
 		     std::array<double, 3> >         CVels;
@@ -432,7 +434,7 @@ private:
   std::vector< unsigned >                            spNsel, elecCnt, spNcol;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot, testCnt;
   std::vector< TypeMap >                             Escat, Etotl;
-  std::vector< std::map<unsigned short, TypeMap> >   Italy;
+  std::vector< std::map<unsigned, TypeMap2> >        Italy;
   std::vector< CVels >                               cVels;
   //@}
 

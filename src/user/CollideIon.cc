@@ -250,6 +250,14 @@ std::ostream& operator<<(std::ostream& o, const NTC::Interact::T& t)
   return o;
 }
 
+// Specialization for container initialization (Icont)
+//
+typedef std::pair<double, unsigned> pairDU;
+template<> pairDU Icont<std::map, int, pairDU>::Default()
+{
+  return pairDU(0.0, 0);
+}
+
 CollideIon::CollideIon(ExternalForce *force, Component *comp,
 		       double hD, double sD,
 		       const std::string& smap, int Nth) :
@@ -6671,9 +6679,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       // Temporary debugging
       //
       if (scatter_check) {
-	unsigned short ZZ = (swapped ? Z2 : Z1);
-	if (interFlag == ion_elec) Escat[id][ZZ]++;
-	Etotl[id][ZZ]++;
+	unsigned short ZZ = (I1.first==Interact::electron ? Z2 : Z1);
+	if (interFlag == ion_elec) Escat[id][ZZ] += Prob;
+	Etotl[id][ZZ] += Prob;
       }
     
       // For hybrid method, the speciesKey level is set to zero.
@@ -6733,7 +6741,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
       if (interFlag == neut_elec) {
 
-	if (swapped) {
+	if (I1.first == Interact::electron) {
 	  ctd2->ne[id][0] += Prob * q;
 	  ctd2->ne[id][1] += NN;
 	  Ion2Frac += Prob;
@@ -6747,7 +6755,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
       if (interFlag == neut_prot) {
 	
-	if (swapped) {
+	if (I1.first == Interact::neutral) {
 	  ctd2->np[id][0] += Prob * q;
 	  ctd2->np[id][1] += NN;
 	  Ion2Frac += Prob;
@@ -6760,7 +6768,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       }
 
       if (interFlag == ion_elec) {
-	if (swapped) {
+	if (I1.first == Interact::electron) {
 	  ctd2->ie[id][0] += Prob * q;
 	  ctd2->ie[id][1] += NN;
 	  Ion2Frac += Prob;
@@ -7298,6 +7306,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	checkEnergyHybrid(d, KE, v1, v2, Neutral, id);
 	if (NOCOOL and KE_NOCOOL_CHECK) testCnt[id]++;
 
+	if (scatter_check and maxInterFlag>=0) {
+	  Italy[id][Z1*100+Z2][maxInterFlag].first += maxP;
+	  Italy[id][Z1*100+Z2][maxInterFlag].second++;
+	}
+
 	for (int k=0; k<3; k++) {
 	  p1->vel[k] = v1[k];
 	  p2->vel[k] = v2[k];
@@ -7340,8 +7353,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	checkEnergyHybrid(d, KE, v1, v2, Ion1, id);
 	if (NOCOOL and KE_NOCOOL_CHECK) testCnt[id]++;
 	
-	if (scatter_check and maxInterFlag>=0)
-	  Italy[id][Z1*100+Z2][maxInterFlag]++;
+	if (scatter_check and maxInterFlag>=0) {
+	  Italy[id][Z1*100+Z2][maxInterFlag].first += maxP;
+	  Italy[id][Z1*100+Z2][maxInterFlag].second++;
+	}
 	
 	for (int k=0; k<3; k++) {
 	  p1->vel[k] = v1[k];	// Particle 1 is the ion
@@ -7389,8 +7404,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	checkEnergyHybrid(d, KE, v1, v2, Ion2, id);
 	if (NOCOOL and KE_NOCOOL_CHECK) testCnt[id]++;
 	
-	if (scatter_check and maxInterFlag>=0)
-	  Italy[id][Z2*100+Z1][maxInterFlag]++;
+	if (scatter_check and maxInterFlag>=0) {
+	  Italy[id][Z2*100+Z1][maxInterFlag].first += maxP;
+	  Italy[id][Z2*100+Z1][maxInterFlag].second++;
+	}
 	
 	for (int k=0; k<3; k++) {
 	  // Particle 1 is the electron
@@ -12913,14 +12930,17 @@ void CollideIon::gatherSpecies()
   if (scatter_check and aType==Hybrid) {
 
     // Sum over all threads
-    std::map<unsigned short, unsigned> scat, totl;
-    std::map<unsigned short, TypeMap> taly;
+    TypeMap scat, totl;
+    std::map<int, TypeMap2> taly;
 
     for (int t=0; t<nthrds; t++) {
       for (auto v : Escat[t]) scat[v.first] += v.second;
       for (auto v : Etotl[t]) totl[v.first] += v.second;
       for (auto v : Italy[t]) {
-	for (auto u : v.second) taly[v.first][u.first] += u.second;
+	for (auto u : v.second) {
+	  taly[v.first][u.first].first  += u.second.first;
+	  taly[v.first][u.first].second += u.second.second;
+	}
       }
     }
     
@@ -12928,25 +12948,30 @@ void CollideIon::gatherSpecies()
     //
     for (int i=1; i<numprocs; i++) {
       unsigned numZ, numU, ZZ, UU, NN;
+      double DD;
+
       if (myid==i) {
-	MPI_Send(&(numZ=scat.size()), 1, MPI_UNSIGNED, 0, 554, MPI_COMM_WORLD);
+	MPI_Send(&(numZ=scat.size()),  1, MPI_UNSIGNED, 0, 554, MPI_COMM_WORLD);
 	for (auto v : scat) {	
-	  MPI_Send(&(ZZ=v.first),     1, MPI_UNSIGNED, 0, 555, MPI_COMM_WORLD);
-	  MPI_Send(&(NN=v.second),    1, MPI_UNSIGNED, 0, 556, MPI_COMM_WORLD);
+	  MPI_Send(&(ZZ=v.first),      1, MPI_UNSIGNED, 0, 555, MPI_COMM_WORLD);
+	  MPI_Send(&(DD=v.second),     1, MPI_DOUBLE,   0, 556, MPI_COMM_WORLD);
 	}
-	MPI_Send(&(numZ=totl.size()), 1, MPI_UNSIGNED, 0, 557, MPI_COMM_WORLD);
+	MPI_Send(&(numZ=totl.size()),  1, MPI_UNSIGNED, 0, 557, MPI_COMM_WORLD);
 	for (auto v : totl) {	
-	  MPI_Send(&(ZZ=v.first),     1, MPI_UNSIGNED, 0, 558, MPI_COMM_WORLD);
-	  MPI_Send(&(NN=v.second),    1, MPI_UNSIGNED, 0, 559, MPI_COMM_WORLD);
+	  MPI_Send(&(ZZ=v.first),      1, MPI_UNSIGNED, 0, 558, MPI_COMM_WORLD);
+	  MPI_Send(&(DD=v.second),     1, MPI_DOUBLE,   0, 559, MPI_COMM_WORLD);
 	}
-	MPI_Send(&(numZ=taly.size()), 1, MPI_UNSIGNED, 0, 560, MPI_COMM_WORLD);
+	MPI_Send(&(numZ=taly.size()),  1, MPI_UNSIGNED, 0, 560, MPI_COMM_WORLD);
 	for (auto v : taly) {	
-	  MPI_Send(&(ZZ=v.first),     1, MPI_UNSIGNED, 0, 561, MPI_COMM_WORLD);
+	  MPI_Send(&(ZZ=v.first),      1, MPI_UNSIGNED, 0, 561, MPI_COMM_WORLD);
 	  numU = v.second.size();
-	  MPI_Send(&numU,             1, MPI_UNSIGNED, 0, 562, MPI_COMM_WORLD);
+	  MPI_Send(&numU,              1, MPI_UNSIGNED, 0, 562, MPI_COMM_WORLD);
 	  for (auto u : v.second) {
-	    MPI_Send(&(UU=u.first),   1, MPI_UNSIGNED, 0, 563, MPI_COMM_WORLD);
-	    MPI_Send(&(NN=u.second),  1, MPI_UNSIGNED, 0, 564, MPI_COMM_WORLD);
+	    MPI_Send(&(UU=u.first),    1, MPI_UNSIGNED, 0, 563, MPI_COMM_WORLD);
+	    DD = u.second.first;
+	    NN = u.second.second;
+	    MPI_Send(&DD,              1, MPI_DOUBLE,   0, 564, MPI_COMM_WORLD);
+	    MPI_Send(&NN,              1, MPI_UNSIGNED, 0, 565, MPI_COMM_WORLD);
 	  }
 	}
       }
@@ -12955,16 +12980,14 @@ void CollideIon::gatherSpecies()
 	MPI_Recv(&numZ, 1, MPI_UNSIGNED, i, 554, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	for (unsigned z=0; z<numZ; z++) {
 	  MPI_Recv(&ZZ, 1, MPI_UNSIGNED, i, 555, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  MPI_Recv(&NN, 1, MPI_UNSIGNED, i, 556, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  if (scat.find(ZZ) == scat.end()) scat[ZZ] = 0;
-	  scat[ZZ] += NN;
+	  MPI_Recv(&DD, 1, MPI_DOUBLE,   i, 556, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  scat[ZZ] += DD;
 	}
 	MPI_Recv(&numZ, 1, MPI_UNSIGNED, i, 557, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	for (unsigned z=0; z<numZ; z++) {
 	  MPI_Recv(&ZZ, 1, MPI_UNSIGNED, i, 558, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  MPI_Recv(&NN, 1, MPI_UNSIGNED, i, 559, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  if (totl.find(ZZ) == totl.end()) totl[ZZ] = 0;
-	  totl[ZZ] += NN;
+	  MPI_Recv(&DD, 1, MPI_DOUBLE,   i, 559, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  totl[ZZ] += DD;
 	}
 	MPI_Recv(&numZ, 1, MPI_UNSIGNED, i, 560, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	for (unsigned z=0; z<numZ; z++) {
@@ -12972,8 +12995,10 @@ void CollideIon::gatherSpecies()
 	  MPI_Recv(&numU, 1, MPI_UNSIGNED, i, 562, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  for (unsigned u=0; u<numU; u++) {
 	    MPI_Recv(&UU, 1, MPI_UNSIGNED, i, 563, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	    MPI_Recv(&NN, 1, MPI_UNSIGNED, i, 564, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	    taly[ZZ][UU] += NN;
+	    MPI_Recv(&DD, 1, MPI_DOUBLE,   i, 564, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    MPI_Recv(&NN, 1, MPI_UNSIGNED, i, 565, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    taly[ZZ][UU].first  += DD;
+	    taly[ZZ][UU].second += NN;
 	  }
 	}
       }
@@ -13034,6 +13059,9 @@ void CollideIon::gatherSpecies()
 		<< std::setw(10) << "--------"
 		<< std::endl;
 
+      double   dSum = 0.0;
+      unsigned uSum = 0;
+
       for (auto v : taly) {
 	if (v.second.size()) {
 	  unsigned short Z1 = v.first / 100;
@@ -13045,17 +13073,25 @@ void CollideIon::gatherSpecies()
 			<< std::setw( 4) << Z2
 			<< std::setw(20) << interLabels[u.first]
 			<< std::setw( 4) << u.first
-			<< std::setw(10) << u.second << std::endl;
+			<< std::setw(14) << u.second.first
+			<< std::setw(10) << u.second.second << std::endl;
 	      first = false;
 	    } else {
 	      std::cout << std::setw(28) << interLabels[u.first]
 			<< std::setw( 4) << u.first
-			<< std::setw(10) << u.second << std::endl;
+			<< std::setw(14) << u.second.first
+			<< std::setw(10) << u.second.second << std::endl;
 	    }
+	    dSum += u.second.first;
+	    uSum += u.second.second;
 	  }
 	}
       }
-      std::cout << std::string(28+4+10, '-') << std::endl;
+      std::cout << std::string(28+4+14+10, '-') << std::endl;
+      std::cout << std::setw(28+4) << ' '
+		<< std::setw(14)   << dSum
+		<< std::setw(10)   << uSum      << std::endl;
+      std::cout << std::string(28+4+14+10, '-') << std::endl;
     }
 
     // Clear the counters
