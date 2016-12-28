@@ -13050,12 +13050,14 @@ void CollideIon::gatherSpecies()
 		<< std::setw( 4) << "Z2"
 		<< std::setw(20) << "Type"
 		<< std::setw( 4) << "#"
+		<< std::setw(14) << "Prob"
 		<< std::setw(10) << "Count"
 		<< std::endl
 		<< std::setw( 4) << "--"
 		<< std::setw( 4) << "--"
 		<< std::setw(20) << "--------"
 		<< std::setw( 4) << "--"
+		<< std::setw(14) << "--------"
 		<< std::setw(10) << "--------"
 		<< std::endl;
 
@@ -13088,7 +13090,8 @@ void CollideIon::gatherSpecies()
 	}
       }
       std::cout << std::string(28+4+14+10, '-') << std::endl;
-      std::cout << std::setw(28+4) << ' '
+      std::cout << std::setw(8)    << "Totals"
+		<< std::setw(24)   << ' '
 		<< std::setw(14)   << dSum
 		<< std::setw(10)   << uSum      << std::endl;
       std::cout << std::string(28+4+14+10, '-') << std::endl;
