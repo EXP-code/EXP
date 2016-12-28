@@ -13021,17 +13021,17 @@ void CollideIon::gatherSpecies()
 		  << std::endl;
       }
 
-      std::cout << std::string(4+10+10+12, '-')   << std::endl
+      std::cout << std::string(4+10+16+16, '-')   << std::endl
 		<< std::right
 		<< std::setw(4)  << "Elem"
 		<< std::setw(10) << "Scatter"
-		<< std::setw(10) << "Total"
-		<< std::setw(12) << "Fraction"
+		<< std::setw(16) << "Total"
+		<< std::setw(16) << "Fraction"
 		<< std::endl
 		<< std::setw(4)  << "----"
 		<< std::setw(10) << "--------"
-		<< std::setw(10) << "--------"
-		<< std::setw(12) << "--------"
+		<< std::setw(16) << "--------"
+		<< std::setw(16) << "--------"
 		<< std::endl;
       // One line for each element
       for (auto v : totl) {
@@ -13042,10 +13042,11 @@ void CollideIon::gatherSpecies()
 	}
 	std::cout << std::setw( 4) << v.first
 		  << std::setw(10) << NS
-		  << std::setw(10) << v.second
-		  << std::setw(12) << frac << std::endl;
+		  << std::setw(16) << v.second
+		  << std::setw(16) << frac << std::endl;
       }
-      std::cout << std::endl
+
+      std::cout << std::string(4+10+16+16, '-') << std::endl << std::endl
 		<< std::setw( 4) << "Z1"
 		<< std::setw( 4) << "Z2"
 		<< std::setw(20) << "Type"
