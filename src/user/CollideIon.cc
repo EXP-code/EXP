@@ -7585,6 +7585,7 @@ void CollideIon::scatterHybrid
     // Defer all energy loss
     //
     deferredEnergyHybrid(d, KE.delE);
+    KE.delE = 0.0;
   }
 
   // Assign interaction energy variables

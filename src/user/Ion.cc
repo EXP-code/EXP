@@ -771,7 +771,8 @@ Ion::collExciteCross(double E, int id)
       //
       if ( x <= 0 or x >= 1.0) {
 	std::cout << "ERROR IN EXCITATION CROSS: Ej = " << Ej
-	     << " Eij = " << EijEv << " x = " << x <<std::endl;
+		  << " Eij = " << EijEv << " x = " << x
+		  << " [Node ID=" << myid << "]" << std::endl;
 	exit(-1);
       }
 

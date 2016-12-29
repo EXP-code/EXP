@@ -59,7 +59,8 @@ def plot_data(argv):
         # Check for point type and log time
         #
         fmt  = '-'
-        logT = False
+        logX = False
+        logY = False
         Temp = False
         Tscl = 1
         Tbeg = 0.0
@@ -70,8 +71,10 @@ def plot_data(argv):
         for i in range(1,argc):
                 if argv[i] == '-p' or argv[i] == '--points':
                         fmt = '-o'
-                if argv[i] == '-l' or argv[i] == '--log':
-                        logT = True
+                if argv[i] == '--logX':
+                        logX = True
+                if argv[i] == '--logY':
+                        logY = True
                 if argv[i] == '-T' or argv[i] == '--temp':
                         Temp = True
                 if argv[i] == '-t' or argv[i] == '--timescale':
@@ -148,7 +151,7 @@ def plot_data(argv):
         #
         x = a[0] * Tscl
         if Temp: x = a[1]
-        if logT:
+        if logX and not logY:
                 plt.semilogx(x, a[labs.index('(1,1)')], fmt, label='H')
                 plt.semilogx(x, a[labs.index('(1,2)')], fmt, label='H+')
                 plt.semilogx(x, a[labs.index('(2,1)')], fmt, label='He')
@@ -156,6 +159,22 @@ def plot_data(argv):
                 plt.semilogx(x, a[labs.index('(2,3)')], fmt, label='He++')
                 if pc_len:
                         plt.semilogx(pc_time*Tscl, pc_frac, fmt, label='e')
+        elif logY and not logX:
+                plt.semilogy(x, a[labs.index('(1,1)')], fmt, label='H')
+                plt.semilogy(x, a[labs.index('(1,2)')], fmt, label='H+')
+                plt.semilogy(x, a[labs.index('(2,1)')], fmt, label='He')
+                plt.semilogy(x, a[labs.index('(2,2)')], fmt, label='He+')
+                plt.semilogy(x, a[labs.index('(2,3)')], fmt, label='He++')
+                if pc_len:
+                        plt.semilogy(pc_time*Tscl, pc_frac, fmt, label='e')
+        elif logX and logY:
+                plt.loglog(x, a[labs.index('(1,1)')], fmt, label='H')
+                plt.loglog(x, a[labs.index('(1,2)')], fmt, label='H+')
+                plt.loglog(x, a[labs.index('(2,1)')], fmt, label='He')
+                plt.loglog(x, a[labs.index('(2,2)')], fmt, label='He+')
+                plt.loglog(x, a[labs.index('(2,3)')], fmt, label='He++')
+                if pc_len:
+                        plt.loglog(pc_time*Tscl, pc_frac, fmt, label='e')
         else:
                 plt.plot(x, a[labs.index('(1,1)')], fmt, label='H')
                 plt.plot(x, a[labs.index('(1,2)')], fmt, label='H+')
@@ -176,7 +195,23 @@ def plot_data(argv):
         #
         # Species plot
         #
-        if logT:
+        if logX and not logY:
+                plt.semilogx(x, a[labs.index('(1,1)')], fmt, label='H')
+                plt.semilogx(x, a[labs.index('(1,2)')], fmt, label='H+')
+                plt.semilogx(x, a[labs.index('(2,1)')], fmt, label='He')
+                plt.semilogx(x, a[labs.index('(2,2)')], fmt, label='He+')
+                plt.semilogx(x, a[labs.index('(2,3)')], fmt, label='He++')
+                if pc_len:
+                        plt.semilogx(pc_time*Tscl, pc_frac, fmt, label='e')
+        elif logY and not logX:
+                plt.semilogy(x, a[labs.index('(1,1)')], fmt, label='H')
+                plt.semilogy(x, a[labs.index('(1,2)')], fmt, label='H+')
+                plt.semilogy(x, a[labs.index('(2,1)')], fmt, label='He')
+                plt.semilogy(x, a[labs.index('(2,2)')], fmt, label='He+')
+                plt.semilogy(x, a[labs.index('(2,3)')], fmt, label='He++')
+                if pc_len:
+                        plt.semilogy(pc_time*Tscl, pc_frac, fmt, label='e')
+        elif logY and logX:
                 plt.loglog(x, a[labs.index('(1,1)')], fmt, label='H')
                 plt.loglog(x, a[labs.index('(1,2)')], fmt, label='H+')
                 plt.loglog(x, a[labs.index('(2,1)')], fmt, label='He')
@@ -185,13 +220,13 @@ def plot_data(argv):
                 if pc_len:
                         plt.loglog(pc_time*Tscl, pc_frac, fmt, label='e')
         else:
-                plt.semilogy(x, a[labs.index('(1,1)')], fmt, label='H')
-                plt.semilogy(x, a[labs.index('(1,2)')], fmt, label='H+')
-                plt.semilogy(x, a[labs.index('(2,1)')], fmt, label='He')
-                plt.semilogy(x, a[labs.index('(2,2)')], fmt, label='He+')
-                plt.semilogy(x, a[labs.index('(2,3)')], fmt, label='He++')
+                plt.plot(x, a[labs.index('(1,1)')], fmt, label='H')
+                plt.plot(x, a[labs.index('(1,2)')], fmt, label='H+')
+                plt.plot(x, a[labs.index('(2,1)')], fmt, label='He')
+                plt.plot(x, a[labs.index('(2,2)')], fmt, label='He+')
+                plt.plot(x, a[labs.index('(2,3)')], fmt, label='He++')
                 if pc_len:
-                        plt.semilogy(pc_time*Tscl, pc_frac, fmt, label='e')
+                        plt.plot(pc_time*Tscl, pc_frac, fmt, label='e')
         #
         plt.legend().draggable()
         if Temp: plt.xlabel('Temperature')
@@ -206,13 +241,27 @@ def plot_data(argv):
         #
         # Temperature plot
         #
-        if logT:
+        if logX and not logY:
                 plt.semilogx(x, a[labs.index('Temp')],    fmt, label='Temp')
                 plt.semilogx(x, a[labs.index('Temp_E')],  fmt, label='Temp_e')
                 plt.semilogx(x, a[labs.index('Tion(1)')], fmt, label='Temp(1)_i')
                 plt.semilogx(x, a[labs.index('Telc(1)')], fmt, label='Temp(1)_e')
                 plt.semilogx(x, a[labs.index('Tion(2)')], fmt, label='Temp(2)_i')
                 plt.semilogx(x, a[labs.index('Telc(2)')], fmt, label='Temp(2)_e')
+        elif logY and not logX:
+                plt.semilogy(x, a[labs.index('Temp')],    fmt, label='Temp')
+                plt.semilogy(x, a[labs.index('Temp_E')],  fmt, label='Temp_e')
+                plt.semilogy(x, a[labs.index('Tion(1)')], fmt, label='Temp(1)_i')
+                plt.semilogy(x, a[labs.index('Telc(1)')], fmt, label='Temp(1)_e')
+                plt.semilogy(x, a[labs.index('Tion(2)')], fmt, label='Temp(2)_i')
+                plt.semilogy(x, a[labs.index('Telc(2)')], fmt, label='Temp(2)_e')
+        elif logX and logY:
+                plt.loglog(x, a[labs.index('Temp')],    fmt, label='Temp')
+                plt.loglog(x, a[labs.index('Temp_E')],  fmt, label='Temp_e')
+                plt.loglog(x, a[labs.index('Tion(1)')], fmt, label='Temp(1)_i')
+                plt.loglog(x, a[labs.index('Telc(1)')], fmt, label='Temp(1)_e')
+                plt.loglog(x, a[labs.index('Tion(2)')], fmt, label='Temp(2)_i')
+                plt.loglog(x, a[labs.index('Telc(2)')], fmt, label='Temp(2)_e')
         else:
                 plt.plot(x, a[labs.index('Temp')],    fmt, label='Temp')
                 plt.plot(x, a[labs.index('Temp_E')],  fmt, label='Temp_e')
