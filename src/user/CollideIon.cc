@@ -7336,7 +7336,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	if (NOCOOL and KE_NOCOOL_CHECK) testCnt[id]++;
 
 	if (scatter_check and maxInterFlag>=0) {
-	  Italy[id][Z1*100+Z2][maxInterFlag].first += maxP;
+	  Italy[id][Z1*100+Z2][maxInterFlag].first += PE[0].first;
 	  Italy[id][Z1*100+Z2][maxInterFlag].second++;
 	  TotlU[id][Z1*100+Z2][0]++;
 	}
@@ -7387,7 +7387,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	if (NOCOOL and KE_NOCOOL_CHECK) testCnt[id]++;
 	
 	if (scatter_check and maxInterFlag>=0) {
-	  Italy[id][Z1*100+Z2][maxInterFlag].first += maxP;
+	  Italy[id][Z1*100+Z2][maxInterFlag].first += PE[1].first;
 	  Italy[id][Z1*100+Z2][maxInterFlag].second++;
 	  TotlU[id][Z1*100+Z2][1]++;
 	}
@@ -7443,7 +7443,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	if (NOCOOL and KE_NOCOOL_CHECK) testCnt[id]++;
 	
 	if (scatter_check and maxInterFlag>=0) {
-	  Italy[id][Z2*100+Z1][maxInterFlag].first += maxP;
+	  Italy[id][Z2*100+Z1][maxInterFlag].first += PE[2].first;
 	  Italy[id][Z2*100+Z1][maxInterFlag].second++;
 	  TotlU[id][Z1*100+Z2][2]++;
 	}
