@@ -6781,11 +6781,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  ctd1->np[id][0] += Prob * q;
 	  ctd1->np[id][1] += NN;
 	}
-<<<<<<< HEAD
-	NeutFrac += Prob;
-=======
 	PE[0].first += Prob;
->>>>>>> ce2278bb5d8fb1e7c02fb48c3686b03f02ca1bef
       }
 
       if (interFlag == ion_elec) {
@@ -7464,34 +7460,14 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p2);
     }
 
-<<<<<<< HEAD
-    // Deep debug
-    //
-    if (false) {
-      std::cout << "Dominant " << labs.at(curT) << ": "
-		<< 2.0*delE/(p1->mass*ke1 + p2->mass*ke2) << std::endl;
-	      
-      unsigned short n=0;
-      for (auto v : Ilist) {
-	std::cout << std::setw( 5) << std::right << ++n << ". "
-		  << std::setw(10) << std::left  << labs.at(v.second) << ": "
-		  << std::setw(18) << std::left  << v.first
-		  << std::endl;
-      }
-    } // END: deep debug
-    
     // Scatter tally for debugging
     //
     if (scatter_check) {
-      TotlD[id][Z1*100+Z2][0] += NeutFrac;
-      TotlD[id][Z1*100+Z2][1] += Ion1Frac;
-      TotlD[id][Z1*100+Z2][2] += Ion2Frac;
+      for (size_t k=0; k<3; k++) TotlD[id][Z1*100+Z2][k] += PE[k].first;
     }
 
-  }
-=======
   } // END: interactions with atoms AND electrons
->>>>>>> ce2278bb5d8fb1e7c02fb48c3686b03f02ca1bef
+
 
   if (use_normtest) {
     normTest(p1, "p1 [After]");
