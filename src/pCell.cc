@@ -970,7 +970,7 @@ pCell* pCell::findSampleCell(const std::string & msg)
     }
   }
   unsigned dbl = 0;		// Count the number of levels upwards
-  while(cur->ctotal < Bucket) {
+  while (cur->ctotal < Bucket) {
 				// Maximum expansion reached or we are
 				// at the root
     if (cur->parent==0 || dbl==deltaL) break;
