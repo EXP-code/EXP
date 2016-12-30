@@ -1010,6 +1010,7 @@ pCell* pCell::findSampleCell(const std::string & msg)
 		<< ", target lev=" << this->level
 		<< ", found key="  << tkey
 		<< ", " << bcount << "/" << tcount
+		<< ", nbods=" << this->bods.size()
 		<< ", N=" << ctotal << ", (x, y, z)="
 		<< "(" << minpos[0]
 		<< "," << minpos[1]

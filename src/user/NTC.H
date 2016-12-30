@@ -42,8 +42,8 @@ namespace boost {
     }
 #endif
   
-    template<typename Archive, typename T>
-    void serialize(Archive & ar, std::tuple<T, T, T> & t, 
+    template<typename Archive, typename T, typename U, typename V>
+    void serialize(Archive & ar, std::tuple<T, U, V> & t, 
 		   const unsigned int version) 
     {
       ar & boost::serialization::make_nvp("tup0", std::get<0>(t));
@@ -56,16 +56,67 @@ namespace boost {
 } // namespace boost
 
 
-template<typename T>
-std::ostream& operator<< (std::ostream& out, const std::tuple<T, T, T>& t);
+template<typename T, typename U, typename V>
+std::ostream& operator<< (std::ostream& out, const std::tuple<T, U, V>& t);
 
 std::ostream& operator<< (std::ostream& out, const sKeyPair& t);
 
 
 namespace NTC {
 
-  //! Interaction type
-  typedef std::tuple<unsigned short, unsigned short, unsigned short> T;
+  //! Container for interaction list to add UI to data types
+  class Interact
+  {
+
+  public:
+
+    //! Type of particle in interaction
+    enum pType {simple, neutral, ion, electron};
+
+    //! Interaction element: interaction species and charge
+    typedef std::pair<pType, unsigned short> pElem;
+
+    //! Interaction type with interaction elements
+    typedef std::tuple<unsigned short, pElem, pElem> T;
+
+    //! Default null pElem
+    static pElem const pdef;
+
+    //! Default electron pElem
+    static pElem const edef;
+
+    //! Default interaction key for singleton
+    static T single;
+
+  private:
+
+    //! For labeling output
+    static std::map<pType, std::string> pLabs;
+
+  public:
+
+    //! Array-like data implemented by a map
+    std::map<T, double> v;
+
+    //! Single double value
+    double d;
+
+    //! Constructor (for initialization)
+    Interact() : d(0) {}
+
+    //! Is map empty?
+    bool operator!() { return v.size() == 0; }
+
+    //! Get double from the map
+    double& operator[](T t) { return v[t]; }
+
+    //! Get single double
+    double& operator()() { return d; }
+
+    //! Return interaction label
+    static const std::string& label(const pElem& t) { return pLabs[t.first]; }
+
+  };
 
   class NTCitem
   {
@@ -73,6 +124,8 @@ namespace NTC {
     friend class NTCdb;
     
   public:
+
+    typedef NTC::Interact::T T;
 
     //! Default interaction key for singleton
     static T single;
@@ -191,7 +244,8 @@ namespace NTC {
 	  (k1.first != 0 or k1.second != 0 or
 	   k2.first != 0 or k2.second != 0) and intr == single) 
 	{
-	  std::cout << "Odd ball: " << indx << " : " << intr << std::endl;
+	  std::cout << "Odd ball: " << indx
+		    << " : " << std::get<0>(intr) << std::endl;
 	}
     }
 
@@ -312,8 +366,11 @@ namespace NTC {
 
 	for (auto &q : p.second) {
 	  MPI_Send(&(u=std::get<0>(q.first)), 1, MPI_UNSIGNED_SHORT, 0, 1117, MPI_COMM_WORLD);
-	  MPI_Send(&(u=std::get<1>(q.first)), 1, MPI_UNSIGNED_SHORT, 0, 1118, MPI_COMM_WORLD);
-	  MPI_Send(&(u=std::get<2>(q.first)), 1, MPI_UNSIGNED_SHORT, 0, 1119, MPI_COMM_WORLD);
+	  MPI_Send(&(u=std::get<1>(q.first).first),  1, MPI_UNSIGNED_SHORT, 0, 1118, MPI_COMM_WORLD);
+	  MPI_Send(&(u=std::get<1>(q.first).second), 1, MPI_UNSIGNED_SHORT, 0, 1119, MPI_COMM_WORLD);
+	  MPI_Send(&(u=std::get<2>(q.first).first),  1, MPI_UNSIGNED_SHORT, 0, 1120, MPI_COMM_WORLD);
+	  MPI_Send(&(u=std::get<2>(q.first).second), 1, MPI_UNSIGNED_SHORT, 0, 1121, MPI_COMM_WORLD);
+
 	  q.second.send();
 	}
       }
@@ -336,6 +393,7 @@ namespace NTC {
 	
 	MPI_Recv(&p1.first,  1, MPI_UNSIGNED_SHORT, id, 1112, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	MPI_Recv(&p1.second, 1, MPI_UNSIGNED_SHORT, id, 1113, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
 	MPI_Recv(&p2.first,  1, MPI_UNSIGNED_SHORT, id, 1114, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	MPI_Recv(&p2.second, 1, MPI_UNSIGNED_SHORT, id, 1115, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	
@@ -347,16 +405,21 @@ namespace NTC {
 
 	for (unsigned j=0; j<siz2; j++) {
 	  T t;
-	  MPI_Recv(&(get<0>(t)), 1, MPI_UNSIGNED_SHORT, id, 1117, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  MPI_Recv(&(get<1>(t)), 1, MPI_UNSIGNED_SHORT, id, 1118, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  MPI_Recv(&(get<2>(t)), 1, MPI_UNSIGNED_SHORT, id, 1119, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&(get<0>(t)),        1, MPI_UNSIGNED_SHORT, id, 1117, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	  MPI_Recv(&(get<1>(t).first),  1, MPI_UNSIGNED_SHORT, id, 1118, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&(get<1>(t).second), 1, MPI_UNSIGNED_SHORT, id, 1119, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	  MPI_Recv(&(get<2>(t).first),  1, MPI_UNSIGNED_SHORT, id, 1120, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&(get<2>(t).second), 1, MPI_UNSIGNED_SHORT, id, 1121, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
 	  db[key][t].recv(id);
 
 	} // db2 size loop
 
       } // db1 size loop
 
-    } // function end
+} // function end
 
     static unsigned live() { return instance; }
     

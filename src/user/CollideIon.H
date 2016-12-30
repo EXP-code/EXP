@@ -44,7 +44,6 @@ std::ostream& operator<<(std::ostream& o, const std::array<T, N>& arr)
   return o;
 }
 
-
 // Swap values
 //
 template <class T>
@@ -403,12 +402,14 @@ private:
   typedef std::list<dKeyD>                           keyWexsList;
   typedef std::map<lQ, CEvector>                     CEmap;
   typedef std::map<lQ, CFreturn>                     CFmap;
-  typedef Icont<std::map, unsigned short, unsigned>  TypeMap;
+  typedef Icont<std::map, int, std::pair<double, unsigned> >
+                                                     TypeMap2;
+  typedef Icont<std::map, unsigned short, double>    TypeMap;
   typedef Icont<std::map, speciesKey, double>        keyWghts;
   typedef std::pair< std::array<double, 3>,
 		     std::array<double, 3> >         CVels;
   typedef std::tuple<double, CEvector, CFreturn>     XStup;
-  typedef std::map<Interact::T, XStup>               InterXS;
+  typedef std::map<NTC::Interact::T, XStup>          InterXS;
 
   std::vector< std::vector<dKey>   >                 kInter;
   std::vector< std::vector<double> >                 dCross;
@@ -433,7 +434,7 @@ private:
   std::vector< unsigned >                            spNsel, elecCnt, spNcol;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot, testCnt;
   std::vector< TypeMap >                             Escat, Etotl;
-  std::vector< std::map<unsigned short, TypeMap> >   Italy;
+  std::vector< std::map<unsigned, TypeMap2> >        Italy;
   std::vector< CVels >                               cVels;
   //@}
 
@@ -472,7 +473,7 @@ private:
   };    
 
   //! Default electron-electron interaction type
-  static Interact::T elecElec;
+  static NTC::Interact::T elecElec;
 
   //@{
   //! Specify the electron scattering algorithm
@@ -719,15 +720,15 @@ protected:
 
   double crossSectionHybrid(int id, pCell* const c, 
 			    Particle* const p1, Particle* const p2, 
-			    double crm, const Interact::T& ityp);
+			    double crm, const NTC::Interact::T& ityp);
 
   int inelasticHybrid(int id, pCell* const c, 
 		      Particle* const p1, Particle* const p2, 
-		      double *crm, const Interact::T& itype, double weight);
+		      double *crm, const NTC::Interact::T& itype, double weight);
 
   virtual double crossSection(int id, pCell* const c, 
-			       Particle* const p1, Particle* const p2, 
-			       double crm, const Interact::T& itype)
+			      Particle* const p1, Particle* const p2, 
+			      double crm, const NTC::Interact::T& itype)
   {
     if (aType == Direct)
       return crossSectionDirect(id, c, p1, p2, crm);
@@ -747,7 +748,7 @@ protected:
 
   virtual int 
   inelastic(int id, pCell* const c, Particle* const p1, Particle* const p2, 
-	    double *crm, const Interact::T& itype, double prob)
+	    double *crm, const NTC::Interact::T& itype, double prob)
   {
     if (aType == Direct)
       return inelasticDirect(id, c, p1, p2, crm);
@@ -822,9 +823,9 @@ protected:
 					    double& meanLambda, double& meanCollP, 
 					    double& totalNsel);
 
-  virtual Interact  generateSelectionHybridSub(int id, Particle* const p1, Particle* const p2, 
-					       Interact::T& maxT, sKeyDmap* const Fn,
-					       double *cr, double tau);
+  virtual NTC::Interact generateSelectionHybridSub(int id, Particle* const p1, Particle* const p2, 
+						   NTC::Interact::T& maxT, sKeyDmap* const Fn,
+						   double *cr, double tau);
 
   //! Cache instance of current tree
   pHOT* curTree;
@@ -1072,7 +1073,7 @@ public:
 				      double& totalNsel);
 
   //! Generate subdominate interaction rates
-  virtual Interact generateSelectionSub(int id, Particle* const p1, Particle* const p2, Interact::T& maxT,
+  virtual NTC::Interact generateSelectionSub(int id, Particle* const p1, Particle* const p2, NTC::Interact::T& maxT,
 					sKeyDmap* const Fn, double *cr, double tau);
 
 

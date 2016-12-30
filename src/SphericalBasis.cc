@@ -1184,7 +1184,7 @@ void SphericalBasis::dump_coefs(ostream& out)
   char buf[64];
   for (int i=0; i<64; i++) {
     if (i<sout.str().length())  buf[i] = sout.str().c_str()[i];
-    else                        buf[i] = ' ';
+    else                        buf[i] = '\0';
   }
 
   out.write((char *)&buf, 64*sizeof(char));

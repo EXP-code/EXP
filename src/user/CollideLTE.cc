@@ -418,7 +418,7 @@ void CollideLTE::initialize_cell_dsmc
 
 double CollideLTE::crossSection(int id, pCell* const tree, 
 				Particle* const p1, Particle* const p2, double cr,
-				const Interact::T& ityp)
+				const NTC::Interact::T& ityp)
 {
   // Species keys
   //
@@ -431,7 +431,7 @@ double CollideLTE::crossSection(int id, pCell* const tree,
 
 int CollideLTE::inelastic(int id, pCell* const cell, 
 			  Particle* const p1, Particle* const p2, 
-			  double *cr, const Interact::T& ityp, double weight)
+			  double *cr, const NTC::Interact::T& ityp, double weight)
 
 {
   int ret = 0;			// No error (flag)

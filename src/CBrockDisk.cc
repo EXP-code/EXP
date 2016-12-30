@@ -727,7 +727,7 @@ void CBrockDisk::dump_coefs(ostream& out)
     if (i<sout.str().length()) 
       buf[i] = sout.str().c_str()[i];
     else 
-      buf[i] = ' ';
+      buf[i] = '\0';
   }
   
   out.write((char *)&buf, 64*sizeof(char));
