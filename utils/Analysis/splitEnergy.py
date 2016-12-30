@@ -11,6 +11,7 @@ import getSpecies as gs
 parser = argparse.ArgumentParser(description='Read DSMC species file and plot energies for each species')
 parser.add_argument('-t', '--tscale', default=1000.0,  type=float, help='System time units in years')
 parser.add_argument('-T', '--Tmax', default=1000000.0, type=float, help='Maximum time in years')
+parser.add_argument('-l', '--log', default=False, action="store_true", help='Logarithmic energy scale')
 parser.add_argument('tags', nargs='*', help='Files to process')
 
 args = parser.parse_args()
@@ -36,7 +37,10 @@ for n in range(2):
                 for f in fields[n]:
                         if f in d[v]:
                                 indx = np.searchsorted(d[v]['Time'], args.Tmax/args.tscale)
-                                ax[n].plot(d[v]['Time'][0:indx]*args.tscale, d[v][f][0:indx], '-', label=v+':'+f)
+                                if args.log:
+                                        ax[n].semilogy(d[v]['Time'][0:indx]*args.tscale, d[v][f][0:indx], '-', label=v+':'+f)
+                                else:
+                                        ax[n].plot(d[v]['Time'][0:indx]*args.tscale, d[v][f][0:indx], '-', label=v+':'+f)
 
         ax[n].legend(prop={'size':8}, bbox_to_anchor=(1.02, 1), loc=2, borderaxespad=0.0)
         if n==len(labels)-1: ax[n].set_xlabel('Time')

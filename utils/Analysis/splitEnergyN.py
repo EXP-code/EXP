@@ -11,6 +11,7 @@ import getSpecies as gs
 parser = argparse.ArgumentParser(description='Read DSMC species file and plot energies per particle for each species')
 parser.add_argument('-t', '--tscale', default=1000.0,  type=float, help='System time units in years')
 parser.add_argument('-T', '--Tmax', default=1000000.0, type=float, help='Maximum time in years')
+parser.add_argument('-l', '--log', default=False, action="store_true", help='Logarithmic energy scale')
 parser.add_argument('tags', nargs='*', help='Files to process')
 
 args = parser.parse_args()
@@ -51,7 +52,10 @@ for i in range(2):
                         bf /= atomic_masses[1]
                     if f.find('2')>=0:
                         bf /= atomic_masses[2]
-                ax[i].plot(d[v]['Time'][0:indx]*args.tscale, fv/bf, '-', label=v+':'+f)
+                if args.log:
+                        ax[i].semilogy(d[v]['Time'][0:indx]*args.tscale, fv/bf, '-', label=v+':'+f)
+                else:
+                        ax[i].plot(d[v]['Time'][0:indx]*args.tscale, fv/bf, '-', label=v+':'+f)
     if i>0: ax[i].set_xlabel('Time')
     ax[i].set_ylabel('Energy')
     ax[i].set_title(labels[i])

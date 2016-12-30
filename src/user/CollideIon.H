@@ -33,6 +33,26 @@ namespace std {
   } 
 }
 
+// Binary copy add overload for std::array
+//
+template <class T, std::size_t N>
+std::array<T, N> operator+(const std::array<T, N> & a,
+			   const std::array<T, N> & b)
+{
+  std::array<T, N> c;
+  for (size_t k=0; k<N; k++) c[k] = a[k] + b[k];
+  return c;
+}
+
+// Reference add overload for std::array
+//
+template <class T, std::size_t N>
+std::array<T, N>& operator+=(std::array<T, N> & a, const std::array<T, N> & b)
+{
+  for (size_t k=0; k<N; k++) a[k] += b[k];
+  return a;
+}
+
 // STL container pretty-print for std::array
 //
 template <class T, std::size_t N>
@@ -402,9 +422,13 @@ private:
   typedef std::list<dKeyD>                           keyWexsList;
   typedef std::map<lQ, CEvector>                     CEmap;
   typedef std::map<lQ, CFreturn>                     CFmap;
-  typedef Icont<std::map, int, std::pair<double, unsigned> >
+  typedef Icont<std::map, unsigned short, double>    TypeMap0;
+  typedef Icont<std::map, unsigned, std::array<unsigned, 3> >
+                                                     TypeMap1;
+  typedef Icont<std::map, unsigned, std::array<double, 3> >
                                                      TypeMap2;
-  typedef Icont<std::map, unsigned short, double>    TypeMap;
+  typedef Icont<std::map, unsigned, std::pair<double, unsigned> >
+                                                     TypeMap3;
   typedef Icont<std::map, speciesKey, double>        keyWghts;
   typedef std::pair< std::array<double, 3>,
 		     std::array<double, 3> >         CVels;
@@ -433,8 +457,10 @@ private:
   std::vector< double >                              spCrm, spTau, spProb, spEdel;
   std::vector< unsigned >                            spNsel, elecCnt, spNcol;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot, testCnt;
-  std::vector< TypeMap >                             Escat, Etotl;
-  std::vector< std::map<unsigned, TypeMap2> >        Italy;
+  std::vector< TypeMap0 >                            Escat, Etotl;
+  std::vector< TypeMap1 >                            TotlU;
+  std::vector< TypeMap2 >                            TotlD;
+  std::vector< std::map<unsigned, TypeMap3> >        Italy;
   std::vector< CVels >                               cVels;
   //@}
 
