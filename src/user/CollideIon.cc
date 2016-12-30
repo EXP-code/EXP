@@ -258,6 +258,16 @@ template<> pairDU Icont<std::map, int, pairDU>::Default()
   return pairDU(0.0, 0);
 }
 
+// Define reference add operator for std::pair
+//
+template<typename T, typename U>
+std::pair<T, U> & operator+=(std::pair<T, U> & a, const std::pair<T, U> & b)
+{
+  a.first  += b.first;
+  a.second += b.second;
+  return a;
+}
+
 CollideIon::CollideIon(ExternalForce *force, Component *comp,
 		       double hD, double sD,
 		       const std::string& smap, int Nth) :
@@ -6440,9 +6450,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   Particle* p1    = _p1;	// Copy pointers for swapping, if
   Particle* p2    = _p2;	// necessary
 
-  double NeutFrac = 0.0;
-  double Ion1Frac = 0.0;
-  double Ion2Frac = 0.0;
+  typedef std::pair<double, double> Telem;
+  std::array<Telem, 3> PE;
 
   //======================================================================
   // For end-to-end debugging only
@@ -6570,10 +6579,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // Number interacting atoms
   //
   double N0 = W2 * UserTreeDSMC::Munit / amu;
-
-  // For tracking energy conservation (system units)
-  //
-  double delE = 0.0;
 
   // Collision count debugging
   //
@@ -6736,7 +6741,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	ctd2->nn[id][0] += Prob * q;
 	ctd2->nn[id][1] += NN;
 	
-	NeutFrac += Prob;
+	PE[0].first += Prob;
       }
 
       if (interFlag == neut_elec) {
@@ -6744,11 +6749,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	if (I1.first == Interact::electron) {
 	  ctd2->ne[id][0] += Prob * q;
 	  ctd2->ne[id][1] += NN;
-	  Ion2Frac += Prob;
+	  PE[2].first += Prob;
 	} else {
 	  ctd1->ne[id][0] += Prob * q;
 	  ctd1->ne[id][1] += NN;
-	  Ion1Frac += Prob;
+	  PE[1].first += Prob;
 	}
 
       }
@@ -6758,24 +6763,22 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	if (I1.first == Interact::neutral) {
 	  ctd2->np[id][0] += Prob * q;
 	  ctd2->np[id][1] += NN;
-	  Ion2Frac += Prob;
 	} else {
 	  ctd1->np[id][0] += Prob * q;
 	  ctd1->np[id][1] += NN;
-	  Ion1Frac += Prob;
 	}
-	
+	PE[0].first += Prob;
       }
 
       if (interFlag == ion_elec) {
 	if (I1.first == Interact::electron) {
 	  ctd2->ie[id][0] += Prob * q;
 	  ctd2->ie[id][1] += NN;
-	  Ion2Frac += Prob;
+	  PE[2].first += Prob;
 	} else {
 	  ctd1->ie[id][0] += Prob * q;
 	  ctd1->ie[id][1] += NN;
-	  Ion1Frac += Prob;
+	  PE[1].first += Prob;
 	}
 
 	//* BEGIN DEEP DEBUG *//
@@ -6817,7 +6820,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    if (not NOCOOL) ctd2->ff[id][2] += N0 * tmpE;
 	    if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	  }
-	  Ion2Frac += Prob;
+	  if (NO_FF_E) dE = 0.0;
+	  PE[2] += {Prob, dE};
 
 	} else {
 	  //
@@ -6839,11 +6843,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    if (not NOCOOL) ctd1->ff[id][2] += NN * tmpE;
 	    if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	  }
-	  Ion1Frac += Prob;
+	  if (NO_FF_E) dE = 0.0;
+	  PE[1] += {Prob, dE};
 	}
 
-	if (NO_FF_E) dE = 0.0;
-	delE += dE;
       }
 
       if (interFlag == colexcite) {
@@ -6861,7 +6864,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  ctd2->CE[id][1] += NN;
 	  if (not NOCOOL) ctd2->CE[id][2] += NN * tmpE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
-	  Ion2Frac += Prob;
+	  PE[2] += {Prob, dE};
 	} else {
 	  //
 	  // Ion is p1
@@ -6875,10 +6878,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  ctd1->CE[id][1] += NN;
 	  if (not NOCOOL) ctd1->CE[id][2] += NN * tmpE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
-	  Ion1Frac += Prob;
+	  PE[1] += {Prob, dE};
 	}
-
-	delE += dE;
       }
 
       if (interFlag == ionize) {
@@ -6892,7 +6893,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
-	  delE += dE;
 	    
 	  if (use_normtest) {
 	    std::ostringstream sout;
@@ -6928,7 +6928,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  if (not NOCOOL) ctd2->CI[id][2] += NN * tmpE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	    
-	  Ion2Frac += Prob;
+	  PE[2] += {Prob, dE};
 	    
 	  if (IonRecombChk) {
 	    if (ionCHK[id].find(k2) == ionCHK[id].end()) ionCHK[id][k2] = 0.0;
@@ -6945,7 +6945,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
-	  delE += dE;
 	    
 	  if (use_normtest) {
 	    std::ostringstream sout;
@@ -6979,7 +6978,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  if (not NOCOOL) ctd1->CI[id][2] += NN * tmpE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	  
-	  Ion1Frac += Prob;
+	  PE[1] += {Prob, dE};
 	  
 	  if (IonRecombChk) {
 	    if (ionCHK[id].find(k1) == ionCHK[id].end()) ionCHK[id][k1] = 0.0;
@@ -7025,7 +7024,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  dE = kEe2[id] * Prob;
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * Prob * q;
-	  delE += dE;
 
 	  ctd2->RR[id][0] += Prob * q;
 	  if (prob >= 0.0) {
@@ -7037,7 +7035,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    if (not NOCOOL) ctd2->RR[id][2] += NN * kEe2[id];
 	    if (use_spectrum) spectrumAdd(id, interFlag, kEe2[id], NN);
 	  }
-	  Ion2Frac += Prob;
+	  PE[2] += {Prob, dE};
 	  
 	  // Add the KE from the recombined electron back to the free pool
 	  //
@@ -7099,14 +7097,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  dE = kEe1[id] * Prob;
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (RECOMB_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * Prob * q;
-	  delE += dE;
 
 	  ctd1->RR[id][0] += Prob * q;
 	  ctd1->RR[id][1] += NN;
 	  if (not NOCOOL) ctd1->RR[id][2] += NN * kEe1[id];
 	  if (use_spectrum) spectrumAdd(id, interFlag, kEe1[id], NN);
 
-	  Ion1Frac += Prob;
+	  PE[1] += {Prob, dE};
 
 	  // Add the KE from the recombined electron back to the free pool
 	  //
@@ -7168,13 +7165,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	if (kEe1[id] > 10.2) { ctd1->eV_10[id] += Prob * q;}
       }
 
-      if (Ion1Frac>0.0) {
+      if (PE[1].first>0.0) {
 	ctd1->dv[id][0] += Prob * q;
 	ctd1->dv[id][1] += W2 * Prob;
 	if (not NOCOOL) ctd1->dv[id][2] += W2 * dE;
       }
       
-      if (Ion2Frac>0.0) {
+      if (PE[2].first>0.0) {
 	ctd2->dv[id][0] += Prob;
 	ctd2->dv[id][1] += W2 * Prob;
 	if (not NOCOOL) ctd2->dv[id][2] += W2 * dE;
@@ -7201,11 +7198,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
   // Convert to super particle (current in eV)
   //
-  delE *= N0;
+  for (auto & v : PE) v.second *= N0;
 
   // Convert back to cgs
   //
-  delE *= eV;
+  for (auto & v : PE) v.second *= eV;
 
   // Debugging test
   //
@@ -7215,26 +7212,50 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   //
   std::vector<double> vrel(3), vcom(3), v1(3), v2(3);
 
-  // For elastic interactions, delE == 0
+  // For elastic interactions, delta E == 0
   //
-  if (delE < 0.0) {
-    std::cout << "Crazy delE = " << delE << std::endl;
-    assert(delE >= 0.0);
+  if (PE[0].second < 0.0) {
+    std::cout << "[Neutral] Crazy delE = " << PE[0].second << std::endl;
+    assert(PE[0].second >= 0.0);
+  }
+
+  if (PE[1].second < 0.0) {
+    std::cout << "[Ion 1] Crazy delE = " << PE[1].second << std::endl;
+    assert(PE[1].second >= 0.0);
+  }
+
+  if (PE[2].second < 0.0) {
+    std::cout << "[Ion 2] Crazy delE = " << PE[2].second << std::endl;
+    assert(PE[2].second >= 0.0);
   }
 
   // Artifically prevent cooling by setting the energy removed from
   // the COM frame to zero
   //
-  if (NOCOOL) delE = 0.0;
+  if (NOCOOL) {
+    for (auto & v : PE) v.second = 0.0;
+  }
 
   // Convert energy loss to system units
   //
-  delE  /= UserTreeDSMC::Eunit;
+  for (auto & v : PE) v.second /= UserTreeDSMC::Eunit;
+
+  // Normalize probabilities and sum inelastic energy changes
+  //
+  double probTot = 0.0, delEtot = 0.0;
+  for (auto & v : PE) probTot += v.first;
+
+  if (probTot > 0.0) {
+    for (auto & v : PE) {
+      v.first /= probTot;
+      delEtot += v.first;
+    }
+  }
 
   // Accumulate energy for time step cooling computation
   //
-  if (use_delt>=0 && delE>0.0) {
-    spEdel[id] += delE;		// HYBRID
+  if (use_delt>=0 && delEtot>0.0) {
+    spEdel[id] += delEtot;	// HYBRID
   }
 
   //
@@ -7259,19 +7280,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
   if (use_elec) {
 
-    enum IType {neut, ion1, ion2};
-    std::vector< std::pair<double, IType> > Ilist =
-      { {NeutFrac, neut}, {Ion1Frac, ion1}, {Ion2Frac, ion2} };
-    std::sort(Ilist.begin(), Ilist.end());
-    static const std::map<IType, std::string> labs =
-      { {neut, "Neut"}, {ion1, "Ion1"}, {ion2, "Ion2"} };
-
     double ke1 = 0.0, ke2 = 0.0;
-    IType curT = Ilist.back().second;
 
-    if (curT == neut) {
+    if (PE[0].first > 0.0) {
 
-      InteractData d(m1, m2, W1, W2, q, Z1, Z2, p1, p2);
+      double qcur = q * PE[0].first;
+
+      InteractData d(m1, m2, W1, W1*qcur, qcur, Z1, Z2, p1, p2);
 
       for (int k=0; k<3; k++) {
 	v1[k]  = p1->vel[k];	// Both particles are neutrals or ions
@@ -7290,17 +7305,17 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  double dE = p1->dattrib[use_cons] + p2->dattrib[use_cons];
 	  p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
 	  clrE[id] += dE;
-	  delE     += dE;
+	  PE[0].second += dE;
 	} else {
 	  if (W1 < W2)
-	    p2->dattrib[use_cons] += delE;
+	    p2->dattrib[use_cons] += PE[0].second;
 	  else
-	    p1->dattrib[use_cons] += delE;
+	    p1->dattrib[use_cons] += PE[0].second;
 
-	  delE = 0.0;
+	  PE[0].second = 0.0;
 	}
 
-	KE_ KE(delE);
+	KE_ KE(PE[0].second);
 
 	scatterHybrid(d, KE, v1, v2);
 	checkEnergyHybrid(d, KE, v1, v2, Neutral, id);
@@ -7318,9 +7333,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       }
     }
     // END: NeutFrac>0
-    else if (curT == ion1) {
 
-      InteractData d(m1, atomic_weights[0], W1, W2, q, Z1, Z2, p1, p2);
+    if (PE[1].first > 0.0) {
+
+      double qcur = q * PE[1].first;
+
+      InteractData d(m1, atomic_weights[0], W1, W1*qcur, qcur, Z1, Z2, p1, p2);
 
       for (int k=0; k<3; k++) {
 	v1[k]  = p1->vel[k];	// Particle 1 is the ion
@@ -7337,17 +7355,17 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  double dE = p1->dattrib[use_cons] + p2->dattrib[use_elec+3];
 	  p1->dattrib[use_cons] = p2->dattrib[use_elec+3] = 0.0;
 	  clrE[id] += dE;
-	  delE     += dE;
+	  PE[1].second += dE;
 	} else {
 	  if (W1 < W2)
-	    p2->dattrib[use_cons] += delE;
+	    p2->dattrib[use_cons] += PE[1].second;
 	  else
-	    p1->dattrib[use_cons] += delE;
+	    p1->dattrib[use_cons] += PE[1].second;
 	  
-	  delE = 0.0;
+	  PE[1].second = 0.0;
 	}
 	
-	KE_ KE(delE);
+	KE_ KE(PE[1].second);
 	
 	scatterHybrid(d, KE, v1, v2);
 	checkEnergyHybrid(d, KE, v1, v2, Ion1, id);
@@ -7368,10 +7386,14 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       // Secondary electron-ion scattering
       //
       for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p1);
-    } // END: Ion1Frac
-    else if (curT == ion2) {
 
-      InteractData d(atomic_weights[0], m2, W1, W2, q, Z1, Z2, p1, p2);
+    } // END: PE[1]
+
+    if (PE[2].first > 0.0) {
+
+      double qcur = q * PE[2].first;
+
+      InteractData d(atomic_weights[0], m2, W1, W1*qcur, qcur, Z1, Z2, p1, p2);
 
       for (int k=0; k<3; k++) {
 				// Particle 1 is the elctron
@@ -7387,18 +7409,18 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	if (Z1 == Z2 or ALWAYS_APPLY) {
 	  double dE = p1->dattrib[use_elec+3] + p2->dattrib[use_cons];
 	  clrE[id] += dE;
-	  delE     += dE;
+	  PE[2].second += dE;
 	  p1->dattrib[use_elec+3] = p2->dattrib[use_cons] = 0.0;
 	} else {
 	  if (atomic_weights[Z1] < atomic_weights[Z2])
-	    p2->dattrib[use_cons] += delE;
+	    p2->dattrib[use_cons] += PE[2].second;
 	  else
-	    p1->dattrib[use_cons] += delE;
+	    p1->dattrib[use_cons] += PE[2].second;
 	  
-	  delE = 0.0;
+	  PE[2].second = 0.0;
 	}
 	
-	KE_ KE(delE);
+	KE_ KE(PE[2].second);
 
 	scatterHybrid(d, KE, v1, v2);
 	checkEnergyHybrid(d, KE, v1, v2, Ion2, id);
@@ -7420,27 +7442,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       //
       for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p2);
     }
-    // Sanity check
-    else {
-      std::cout << "CollideIon::inelasticHybrid: IMPOSSIBLE ERROR" << std::endl;
-    }
 
-    // Deep debug
-    //
-    if (false) {
-      std::cout << "Dominant " << labs.at(curT) << ": "
-		<< 2.0*delE/(p1->mass*ke1 + p2->mass*ke2) << std::endl;
-	      
-      unsigned short n=0;
-      for (auto v : Ilist) {
-	std::cout << std::setw( 5) << std::right << ++n << ". "
-		  << std::setw(10) << std::left  << labs.at(v.second) << ": "
-		  << std::setw(18) << std::left  << v.first
-		  << std::endl;
-      }
-    } // END: deep debug
-    
-  }
+  } // END: interactions with atoms AND electrons
 
   if (use_normtest) {
     normTest(p1, "p1 [After]");
