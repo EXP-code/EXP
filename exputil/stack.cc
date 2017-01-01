@@ -155,12 +155,14 @@ void mpi_print_trace(const std::string& routine, const std::string& msg,
 }
 
 
-std::string exec(const char* cmd)
+std::string exec(const std::string& cmd)
 {
+  std::shared_ptr<FILE> pipe(popen(cmd.c_str(), "r"), pclose);
+
+  if (!pipe) throw std::runtime_error("popen() failed!");
+
   char buffer[128];
   std::string result = "";
-  std::shared_ptr<FILE> pipe(popen(cmd, "r"), pclose);
-  if (!pipe) throw std::runtime_error("popen() failed!");
   while (!feof(pipe.get())) {
     if (fgets(buffer, 128, pipe.get()) != NULL)
       result += buffer;
@@ -176,9 +178,8 @@ void print_gdb_backtrace(std::ostream & out)
   
   std::ostringstream command;
   command << "gdb --batch -nx -ex thread -ex bt -p " << pid << " " <<  name;
-  // std::cout << "Command: " << command.str() << std::endl;
   
-  std::string result = exec(command.str().c_str());
+  std::string result = exec(command.str());
   
   out << result;
 }
