@@ -30,10 +30,32 @@ extern void mpi_gdb_print_trace(int sig);
 
 void set_fpu_trace_handler(void)
 {
-  // Find invalid FP results, such as 0/0 or infinity - infinity or
-  // sqrt(-1).
+  // Flag all FP errors except inexact
+  //
+  // fedisableexcept(FE_ALL_EXCEPT & ~FE_INEXACT);
+
+  // Flag invalid FP results only, such as 0/0 or infinity - infinity
+  // or sqrt(-1).
   //
   feenableexcept(FE_INVALID);
+  //
+  // Print enabled flags to root node
+  //
+  if (myid==0) {
+    const std::list<std::pair<int, std::string>> flags =
+      {	{FE_DIVBYZERO, "divide-by-zero"},
+	{FE_INEXACT,   "inexact"},
+	{FE_INVALID,   "invalid"},
+	{FE_OVERFLOW,  "overflow"},
+	{FE_UNDERFLOW, "underflow"} };
+    
+    int _flags = fegetexcept();
+    std::cout << "Enabled FE flags: <";
+    for (auto v : flags) {
+      if (v.first & _flags) std::cout << v.second << ' ';
+    }
+    std::cout << "\b>" << std::endl;
+  }
   signal(SIGFPE, mpi_gdb_print_trace);
 }
 
