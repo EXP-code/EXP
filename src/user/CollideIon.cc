@@ -7997,7 +7997,7 @@ void CollideIon::checkEnergyHybrid
     //
     double testE = dKE - KE.delta;
 
-    bool equal = fabs(d.q - 1.0) < 1.0e-14;
+    bool equal = (d.Z1 == d.Z2);
 
     if (equal or ALWAYS_APPLY) testE -= KE.delE + KE.miss;
 
