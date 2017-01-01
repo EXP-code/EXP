@@ -25,6 +25,9 @@ using namespace std;
 //! Install error handler for fpe debugging
 extern bool fpe_trap;
 
+//! Install error handler for fpe backtrace
+extern bool fpe_trace;
+
 //! Maximum number of bodies per process
 extern unsigned nbodmax;
 

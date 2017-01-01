@@ -1,6 +1,9 @@
 #include <execinfo.h>
+#include <unistd.h>
 #include <cxxabi.h>
 #include <malloc.h>
+#include <signal.h>
+#include <fenv.h>
 
 // For debugging . . . unwinds stack and writes to output stream with
 // symbols if available
@@ -13,6 +16,9 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <memory>
+#include <cstdlib>
+#include <stdexcept>
 
 //! Directory for output
 extern std::string outdir;
@@ -28,7 +34,7 @@ void print_trace(std::ostream& out, const char *file, int line)
   char       **stack_strings;
 
   //
-  // These arge GNU C extensions and therefore are not going to be
+  // These are GNU C extensions and therefore are not going to be
   // portable, alas.
   //
   stack_depth   = backtrace        (stack_addrs, max_depth  );
@@ -54,22 +60,27 @@ void print_trace(std::ostream& out, const char *file, int line)
 				// We need to use malloc/free for
 				// these functions, sigh . . .
     char *function = static_cast<char *>(malloc(sz));
-    char *begin = 0, *end = 0;
+    char *begin = 0, *offset = 0, *end = 0;
     //
     // Find the parentheses and address offset surrounding the mangled
     // name
     //
     for (char *j = stack_strings[i]; *j; ++j) {
-      if (*j == '(') {
+      if (*j == '(')
 	begin = j;
-      }
-      else if (*j == '+') {
+      else if (*j == '+')
+	offset = j;
+      else if (*j == ')' && offset) {
 	end = j;
       }
     }
-    if (begin && end) {
-      *begin++ = '\0';
-      *end     = '\0';
+    if (begin && offset && end && begin < offset) {
+      *begin++  = '\0';
+      *offset++ = '\0';
+      *end      = '\0';
+
+      std::ostringstream sout;
+
       //
       // Found the mangled name, now in [begin, end)
       //	
@@ -80,17 +91,19 @@ void print_trace(std::ostream& out, const char *file, int line)
 	// Return value may be a realloc() of the input
 	//
 	function = ret;
+
+	sout << "  " << stack_strings[i] << " : "
+	     << ret << "()+" << offset << std::endl;
       }
       else {
 	//
 	// Demangling failed, format it as a C function with no args
 	//
-	std::strncpy(function, begin, sz);
-	std::strncat(function, "()",  sz);
-				// Null termination
-	function[sz-1] = '\0';
+
+	sout << "  " << stack_strings[i] << " : "
+	     << begin << "()+" << offset << std::endl;
       }
-      out << "    " << stack_strings[i] << ":" << function << std::endl;
+      out << sout.str();
     } else {
 				// Didn't find the mangled name, just
 				// print the whole line
@@ -139,4 +152,73 @@ void mpi_print_trace(const std::string& routine, const std::string& msg,
   } else {
     print_trace(std::cerr, 0, 0);
   }
+}
+
+
+std::string exec(const char* cmd)
+{
+  char buffer[128];
+  std::string result = "";
+  std::shared_ptr<FILE> pipe(popen(cmd, "r"), pclose);
+  if (!pipe) throw std::runtime_error("popen() failed!");
+  while (!feof(pipe.get())) {
+    if (fgets(buffer, 128, pipe.get()) != NULL)
+      result += buffer;
+  }
+  return result;
+}
+
+void print_gdb_backtrace(std::ostream & out)
+{
+  pid_t pid = getpid();
+  char name[512];
+  ssize_t nlen = readlink("/proc/self/exe", name, 511);
+  
+  std::ostringstream command;
+  command << "gdb --batch -nx -ex thread -ex bt -p " << pid << " " <<  name;
+  // std::cout << "Command: " << command.str() << std::endl;
+  
+  std::string result = exec(command.str().c_str());
+  
+  out << result;
+}
+
+void mpi_gdb_print_trace(int sig)
+{
+  //
+  // Look for active MPI environment
+  //
+  int numprocs, myid;
+  MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+  MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+
+  std::ostringstream sout;
+  sout << "FPE error, node=" << myid << ": signal " << sig;
+
+  std::cerr << sout.str();
+  if (numprocs>1) std::cerr << " [mpi_id=" << myid << "]";
+  std::cerr << std::endl;
+  
+  std::ostringstream ostr;
+  ostr << outdir << runtag << "." << "traceback.";
+  if (numprocs>1) ostr << myid;
+  else            ostr << "info";
+  
+  std::ofstream tb(ostr.str().c_str());
+
+  //
+  // Print out all the frames
+  //
+  if (tb.good()) {
+    if (numprocs>1) std::cerr << " [mpi_id=" << myid << "]";
+    std::cerr << ": see <" << ostr.str() << "> for more info" << std::endl;
+    tb << sout.str() << std::endl;
+    print_gdb_backtrace(tb       );
+  } else {
+    print_gdb_backtrace(std::cerr);
+  }
+
+  tb.close();
+
+  exit(1);
 }

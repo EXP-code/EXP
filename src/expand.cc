@@ -21,6 +21,23 @@ void clean_up(void);
 extern void mpi_print_trace(const string& routine, const string& msg,
 			    const char *file, int line);
 
+extern void mpi_gdb_print_trace(int sig);
+
+
+//===========================================
+// A signal handler to produce a traceback
+//===========================================
+
+void set_fpu_trace_handler(void)
+{
+  // Find invalid FP results, such as 0/0 or infinity - infinity or
+  // sqrt(-1).
+  //
+  feenableexcept(FE_INVALID);
+  signal(SIGFPE, mpi_gdb_print_trace);
+}
+
+
 //===========================================
 // Clean stop on a SIGTERM or SIGHUP
 //===========================================
@@ -306,7 +323,8 @@ main(int argc, char** argv)
   // by installing user handler
   //============================
 
-  if (fpe_trap) set_fpu_handler();
+  if (fpe_trap ) set_fpu_handler();
+  if (fpe_trace) set_fpu_trace_handler();
 
   //========================
   // Change to desired home 
