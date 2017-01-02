@@ -136,6 +136,7 @@ void initialize(void)
     if (atoi(val.c_str())) {
       fpe_trap  = true;
       fpe_trace = false;
+      fpe_wait  = false;
     } else fpe_trap = false;
     if (myid==0) 
       std::cout << "Found <fpe_trap=" << val << ", " << std::boolalpha
@@ -146,10 +147,22 @@ void initialize(void)
     if (atoi(val.c_str())) {
       fpe_trap  = false;
       fpe_trace = true;
+      fpe_wait  = false;
     } else fpe_trace = false;
     if (myid==0) 
       std::cout << "Found <fpe_trace=" << val << ", " << std::boolalpha
 		<< fpe_trace << ">" << std::endl;
+  }
+
+  if (parse->find_item("fpe_wait", val)) {
+    if (atoi(val.c_str())) {
+      fpe_trap  = false;
+      fpe_trace = false;
+      fpe_wait  = true;
+    } else fpe_wait = false;
+    if (myid==0) 
+      std::cout << "Found <fpe_wait=" << val << ", " << std::boolalpha
+		<< fpe_wait << ">" << std::endl;
   }
 
   if (parse->find_item("homedir", val)) {

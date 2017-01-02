@@ -28,6 +28,9 @@ extern bool fpe_trap;
 //! Install error handler for fpe backtrace
 extern bool fpe_trace;
 
+//! Install error handler for fpe wait
+extern bool fpe_wait;
+
 //! Maximum number of bodies per process
 extern unsigned nbodmax;
 

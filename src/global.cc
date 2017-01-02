@@ -124,6 +124,7 @@ bool barrier_quiet = true;
 bool debug_wait    = false;
 bool fpe_trap      = false;
 bool fpe_trace     = false;
+bool fpe_wait      = false;
 
 int  rlimit_val    = 0;
 

@@ -223,3 +223,45 @@ void mpi_gdb_print_trace(int sig)
 
   exit(1);
 }
+
+void mpi_gdb_wait_trace(int sig)
+{
+  //
+  // Look for active MPI environment
+  //
+  int numprocs, myid;
+  MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+  MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+
+  //
+  // Get host name and pid
+  //
+  const size_t maxlen = 128;
+  char hostname[maxlen];
+  int hsiz = gethostname(hostname, maxlen);
+  pid_t pid = getpid();
+
+  std::ostringstream sout;
+  sout << "FPE error, name=" << hostname
+       << ", pid=" << pid
+       << ", node=" << myid << ": signal " << sig;
+
+  std::cerr << sout.str();
+  if (numprocs>1) std::cerr << " [mpi_id=" << myid << "]";
+  std::cerr << std::endl;
+
+  //
+  // Enter sleep loop
+  //
+  const unsigned int waittime = 2;
+  unsigned int sofar = 0;
+  bool go = true;
+  while (go) {
+    sleep(waittime);
+    sofar += waittime;
+    if (sofar % 600) {
+      std::cerr << hostname << "[pid=" << pid << "] waiting "
+		<< sofar/60 << " minutes" << std::endl;
+    }
+  }
+}
