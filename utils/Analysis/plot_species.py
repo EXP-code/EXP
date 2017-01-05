@@ -193,52 +193,6 @@ def plot_data(argv):
         plt.ylabel('Species')
         plt.show()
         #
-        # Species plot
-        #
-        if logX and not logY:
-                plt.semilogx(x, a[labs.index('(1,1)')], fmt, label='H')
-                plt.semilogx(x, a[labs.index('(1,2)')], fmt, label='H+')
-                plt.semilogx(x, a[labs.index('(2,1)')], fmt, label='He')
-                plt.semilogx(x, a[labs.index('(2,2)')], fmt, label='He+')
-                plt.semilogx(x, a[labs.index('(2,3)')], fmt, label='He++')
-                if pc_len:
-                        plt.semilogx(pc_time*Tscl, pc_frac, fmt, label='e')
-        elif logY and not logX:
-                plt.semilogy(x, a[labs.index('(1,1)')], fmt, label='H')
-                plt.semilogy(x, a[labs.index('(1,2)')], fmt, label='H+')
-                plt.semilogy(x, a[labs.index('(2,1)')], fmt, label='He')
-                plt.semilogy(x, a[labs.index('(2,2)')], fmt, label='He+')
-                plt.semilogy(x, a[labs.index('(2,3)')], fmt, label='He++')
-                if pc_len:
-                        plt.semilogy(pc_time*Tscl, pc_frac, fmt, label='e')
-        elif logY and logX:
-                plt.loglog(x, a[labs.index('(1,1)')], fmt, label='H')
-                plt.loglog(x, a[labs.index('(1,2)')], fmt, label='H+')
-                plt.loglog(x, a[labs.index('(2,1)')], fmt, label='He')
-                plt.loglog(x, a[labs.index('(2,2)')], fmt, label='He+')
-                plt.loglog(x, a[labs.index('(2,3)')], fmt, label='He++')
-                if pc_len:
-                        plt.loglog(pc_time*Tscl, pc_frac, fmt, label='e')
-        else:
-                plt.plot(x, a[labs.index('(1,1)')], fmt, label='H')
-                plt.plot(x, a[labs.index('(1,2)')], fmt, label='H+')
-                plt.plot(x, a[labs.index('(2,1)')], fmt, label='He')
-                plt.plot(x, a[labs.index('(2,2)')], fmt, label='He+')
-                plt.plot(x, a[labs.index('(2,3)')], fmt, label='He++')
-                if pc_len:
-                        plt.plot(pc_time*Tscl, pc_frac, fmt, label='e')
-        #
-        plt.legend().draggable()
-        if Temp: plt.xlabel('Temperature')
-        else:
-                if Tscl == 1:
-                        plt.xlabel('Time')
-                else:
-                        plt.xlabel('Time (years)')
-
-        plt.ylabel('Species')
-        plt.show()
-        #
         # Temperature plot
         #
         if logX and not logY:
