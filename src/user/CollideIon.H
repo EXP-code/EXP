@@ -427,8 +427,6 @@ private:
                                                      TypeMap1;
   typedef Icont<std::map, unsigned, std::array<double, 3> >
                                                      TypeMap2;
-  typedef Icont<std::map, unsigned, std::pair<double, unsigned> >
-                                                     TypeMap3;
   typedef Icont<std::map, speciesKey, double>        keyWghts;
   typedef std::pair< std::array<double, 3>,
 		     std::array<double, 3> >         CVels;
@@ -460,7 +458,8 @@ private:
   std::vector< TypeMap0 >                            Escat, Etotl;
   std::vector< TypeMap1 >                            TotlU;
   std::vector< TypeMap2 >                            TotlD;
-  std::vector< std::map<unsigned, TypeMap3> >        Italy;
+  std::vector< std::map<int, TypeMap2 > >            Italy;
+  std::vector< std::array<double, 3> >               Ediag;
   std::vector< CVels >                               cVels;
   //@}
 
