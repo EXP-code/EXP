@@ -319,10 +319,10 @@ protected:
 
   //@{
   //! Species lists
-  std::map<speciesKey, unsigned long> spec, spec1;
-  std::map<speciesKey, double> collFrac;
-  std::set<speciesKey> spec_list;
-  double TempTot;
+  std::map<speciesKey,  unsigned long> spec, spec1;
+  std::map<speciesKey,  double> collFrac;
+  std::set<speciesKey>  spec_list;
+  double                TempTot;
   //@}
 
   //! Valid collisions types

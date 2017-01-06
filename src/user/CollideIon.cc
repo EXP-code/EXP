@@ -10085,10 +10085,17 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
   double massC = cell->Mass();	// Mass in cell
 
-				// Used for diagnostics only
-  totalSoFar += massC * KEdspC;
-  massSoFar  += massC;
+				// Update temperature field, if
+				// specified
+  if (use_temp>=0) {
+				// Energy to temperature
+    const double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * amu  /
+      UserTreeDSMC::Munit/boltz;
 
+    double Temp = KEdspC * Tfac * molWeight(cell->sample);
+
+    for (auto b : cell->bods) c0->Tree()->Body(b)->dattrib[use_temp] = Temp;
+  }
 				// Add cell energy to diagnostic
 				// handler.  Only do this at top level
 				// time step
@@ -10439,7 +10446,8 @@ void collDiag::initialize()
 	//
 	out << "#"
 	    << std::setw(11) << "Time |"
-	    << std::setw(12) << "Temp |" << " | ";
+	    << std::setw(12) << "Temp |"
+	    << std::setw(12) << "Disp |" << " | ";
 	for (auto it : *this) {
 	  out << std::setw(12) << "N(nn) |"
 	      << std::setw(12) << "N(ne) |"
@@ -10614,7 +10622,8 @@ void collDiag::print()
       double cvrt   = eV/UserTreeDSMC::Eunit;
 
       out << std::setw(12) << tnow
-	  << std::setw(12) << p->tempM << " | ";
+	  << std::setw(12) << p->tM[0]
+	  << std::setw(12) << p->tM[1] << " | ";
       for (auto it : *this) {
 	collTDPtr ctd = it.second;
 	out << std::setw(12) << ctd->nn_s[0]
@@ -12545,7 +12554,7 @@ void CollideIon::gatherSpecies()
     consE = 0.0;
     consG = 0.0;
     totlE = 0.0;
-    tempM = 0.0;
+    tM    = {0.0, 0.0};
     tempE = 0.0;
     massE = 0.0;
     elecE = 0.0;
@@ -12582,11 +12591,13 @@ void CollideIon::gatherSpecies()
       double KEtot, KEdsp;
       cell->sample->KE(KEtot, KEdsp);
 
-      double Tion = KEdsp * Tfac * molWeight(cell->sample);
+      double Tion = KEtot * Tfac * molWeight(cell->sample);
+      double Sion = KEdsp * Tfac * molWeight(cell->sample);
       double Telc = 0.0;
 
       mass  += cell->Mass();
-      tempM += cell->Mass() * Tion;
+      tM[0] += cell->Mass() * Tion;
+      tM[1] += cell->Mass() * Sion;
       totlE += cell->Mass() * KEtot;
 
       if (std::isnan(KEtot)) {	// For debugging, obviously
@@ -12808,8 +12819,9 @@ void CollideIon::gatherSpecies()
 
     // Send values to root
     //
-    double val1, val2, val3 = 0.0, val4 = 0.0, val5 = 0.0;
+    double val1, val3 = 0.0, val4 = 0.0, val5 = 0.0;
     double val6 = 0.0, val7 = 0.0, val8 = 0.0;
+    std::array<double, 2> v;
 
     if (aType!=Hybrid and COLL_SPECIES) {
       for (int t=1; t<nthrds; t++) {
@@ -12830,7 +12842,7 @@ void CollideIon::gatherSpecies()
 				// Mass
 	MPI_Send(&mass,  1, MPI_DOUBLE, 0, 331, MPI_COMM_WORLD);
 				// Temp
-	MPI_Send(&tempM, 1, MPI_DOUBLE, 0, 332, MPI_COMM_WORLD);
+	MPI_Send(&tM[0], 2, MPI_DOUBLE, 0, 332, MPI_COMM_WORLD);
 
 	MPI_Send(&consE, 1, MPI_DOUBLE, 0, 333, MPI_COMM_WORLD);
 	MPI_Send(&consG, 1, MPI_DOUBLE, 0, 334, MPI_COMM_WORLD);
@@ -12929,7 +12941,7 @@ void CollideIon::gatherSpecies()
 
 	MPI_Recv(&val1, 1, MPI_DOUBLE, i, 331, MPI_COMM_WORLD,
 		 MPI_STATUS_IGNORE);
-	MPI_Recv(&val2, 1, MPI_DOUBLE, i, 332, MPI_COMM_WORLD,
+	MPI_Recv(&v[0], 2, MPI_DOUBLE, i, 332, MPI_COMM_WORLD,
 		 MPI_STATUS_IGNORE);
 
 	MPI_Recv(&val3, 1, MPI_DOUBLE, i, 333, MPI_COMM_WORLD,
@@ -13054,7 +13066,8 @@ void CollideIon::gatherSpecies()
 	}
 
 	mass  += val1;
-	tempM += val2;
+	tM[0] += v[0];
+	tM[1] += v[1];
 	consE += val3;
 	consG += val4;
 	totlE += val5;
@@ -13067,7 +13080,8 @@ void CollideIon::gatherSpecies()
     } // end: numprocs
 
     if (mass>0.0) {
-      tempM /= mass;
+      tM[0] /= mass;
+      tM[1] /= mass;
       if (aType == Hybrid)
 	for (auto & e : specM) e.second /= mass;
     }
@@ -13404,13 +13418,13 @@ void CollideIon::printSpecies
   if (myid) return;
 
   if (aType == Direct) {	// Call the generic printSpecies member
-    if (use_elec<0) Collide::printSpecies(spec, tempM);
-    else printSpeciesElectrons(spec, tempM);
+    if (use_elec<0) Collide::printSpecies(spec, tM[0]);
+    else printSpeciesElectrons(spec, tM);
   } else if (aType == Weight) {	// Call the weighted printSpecies version
-    printSpeciesElectrons(spec, tempM);
+    printSpeciesElectrons(spec, tM);
     printSpeciesColl();
   } else if (aType == Hybrid) {	// For hybrid, skip collision counting
-    printSpeciesElectrons(spec, tempM);
+    printSpeciesElectrons(spec, tM);
   } else {			// Call the trace fraction version
     printSpeciesTrace();
   }
@@ -13436,7 +13450,8 @@ void CollideIon::printSpeciesColl()
       //
       mout << std::left
 	   << std::setw(12) << "Time"      << std::setw(19) << tnow  << std::endl
-	   << std::setw(12) << "Temp(ion)" << std::setw(18) << tempM << std::endl
+	   << std::setw(12) << "Temp(ion)" << std::setw(18) << tM[0] << std::endl
+	   << std::setw(12) << "Disp(ion)" << std::setw(18) << tM[1] << std::endl
 	   << std::setw(12) << "Temp(elc)" << std::setw(18) << tempE << std::endl
 	   << std::endl << std::right
 	   << std::setw(20) << "<Sp 1|Sp 2> "
@@ -14461,7 +14476,8 @@ void CollideIon::printSpeciesTrace()
       //
       dout << "# "
 	   << std::setw(12) << std::right << "Time  "
-	   << std::setw(12) << std::right << "Temp  ";
+	   << std::setw(12) << std::right << "Temp  "
+	   << std::setw(12) << std::right << "Disp  ";
       for (spDItr it=specM.begin(); it != specM.end(); it++) {
 	std::ostringstream sout;
 	sout << "(" << it->first.first << "," << it->first.second << ") ";
@@ -14479,6 +14495,7 @@ void CollideIon::printSpeciesTrace()
 
       dout << "# "
 	   << std::setw(12) << std::right << "--------"
+	   << std::setw(12) << std::right << "--------"
 	   << std::setw(12) << std::right << "--------";
       for (spDItr it=specM.begin(); it != specM.end(); it++)
 	dout << std::setw(12) << std::right << "--------";
@@ -14494,7 +14511,8 @@ void CollideIon::printSpeciesTrace()
   dout << std::setprecision(5);
   dout << "  "
        << std::setw(12) << std::right << tnow
-       << std::setw(12) << std::right << tempM;
+       << std::setw(12) << std::right << t[0]
+       << std::setw(12) << std::right << t[1];
   for (spDItr it=specM.begin(); it != specM.end(); it++)
     dout << std::setw(12) << std::right << it->second;
   dout << std::endl;
@@ -14536,7 +14554,7 @@ double CollideIon::molWeight(sCell *cell)
 
 
 void CollideIon::printSpeciesElectrons
-(std::map<speciesKey, unsigned long>& spec, double temp)
+(std::map<speciesKey, unsigned long>& spec, const std::array<double, 2>& T)
 {
   if (myid) return;
 
@@ -14574,7 +14592,8 @@ void CollideIon::printSpeciesElectrons
       //
       dout << "# "
 	   << std::setw(wid) << std::right << "Time "
-	   << std::setw(wid) << std::right << "Temp ";
+	   << std::setw(wid) << std::right << "Temp "
+	   << std::setw(wid) << std::right << "Disp ";
       if (aType == Hybrid) {
 	for (spDMap::iterator it=specM.begin(); it != specM.end(); it++) {
 	  std::ostringstream sout;
@@ -14597,29 +14616,33 @@ void CollideIon::printSpeciesElectrons
 	     << std::setw(wid) << std::right << "Cons_G"
 	     << std::setw(wid) << std::right << "Totl_E";
 	for (auto Z : specZ) {
-	  std::ostringstream sout1, sout2, sout3, sout4, sout5, sout6;
-	  std::ostringstream sout7, sout8;
+	  std::ostringstream sout1, sout2, sout3, sout4, sout5;
+	  std::ostringstream sout6, sout7, sout8, sout9, sout0;
 	  sout1 << "Eion(" << Z << ")";
 	  sout2 << "Nion(" << Z << ")";
 	  sout3 << "Tion(" << Z << ")";
 	  sout4 << "Sion(" << Z << ")";
-	  sout5 << "Eelc(" << Z << ")";
-	  sout6 << "Nelc(" << Z << ")";
-	  sout7 << "Telc(" << Z << ")";
-	  sout8 << "Selc(" << Z << ")";
+	  sout5 << "Rion(" << Z << ")";
+	  sout6 << "Eelc(" << Z << ")";
+	  sout7 << "Nelc(" << Z << ")";
+	  sout8 << "Telc(" << Z << ")";
+	  sout9 << "Selc(" << Z << ")";
+	  sout0 << "Relc(" << Z << ")";
 	  dout << std::setw(wid) << std::right << sout1.str()
 	       << std::setw(wid) << std::right << sout2.str()
 	       << std::setw(wid) << std::right << sout3.str()
-	       << std::setw(wid) << std::right << sout4.str();
+	       << std::setw(wid) << std::right << sout4.str()
+	       << std::setw(wid) << std::right << sout5.str();
 	  for (int j=0; j<3; j++) {
 	    std::ostringstream sout;
 	    sout << "Vi[" << j << "](" << Z << ")";
 	    dout << std::setw(wid) << std::right << sout.str();
 	  }
-	  dout << std::setw(wid) << std::right << sout5.str()
-	       << std::setw(wid) << std::right << sout6.str()
+	  dout << std::setw(wid) << std::right << sout6.str()
 	       << std::setw(wid) << std::right << sout7.str()
-	       << std::setw(wid) << std::right << sout8.str();
+	       << std::setw(wid) << std::right << sout8.str()
+	       << std::setw(wid) << std::right << sout9.str()
+	       << std::setw(wid) << std::right << sout0.str();
 	  for (int j=0; j<3; j++) {
 	    std::ostringstream sout;
 	    sout << "Ve[" << j << "](" << Z << ")";
@@ -14630,6 +14653,7 @@ void CollideIon::printSpeciesElectrons
       dout << std::endl;
 
       dout << "# "
+	   << std::setw(wid) << std::right << "--------"
 	   << std::setw(wid) << std::right << "--------"
 	   << std::setw(wid) << std::right << "--------";
       if (aType == Hybrid) {
@@ -14645,7 +14669,7 @@ void CollideIon::printSpeciesElectrons
 	for (int j=0; j<4; j++)
 	  dout << std::setw(wid) << std::right << "--------";
 	for (size_t z=0; z<specZ.size(); z++) {
-	  for (int j=0; j<8+6; j++)
+	  for (int j=0; j<10+6; j++)
 	    dout << std::setw(wid) << std::right << "--------";
 	}
       }
@@ -14670,7 +14694,8 @@ void CollideIon::printSpeciesElectrons
 				// fraction
   dout << "  "
        << std::setw(wid) << std::right << tnow
-       << std::setw(wid) << std::right << temp;
+       << std::setw(wid) << std::right << T[0]
+       << std::setw(wid) << std::right << T[1];
 
 
   if (aType == Hybrid) {
@@ -14705,7 +14730,7 @@ void CollideIon::printSpeciesElectrons
   for (auto Z : specZ) {
 
     if (specI.find(Z) != specI.end()) {
-      double E = 0.0, S = 0.0, T = 0.0, N = std::get<1>(specI[Z]);
+      double E = 0.0, S = 0.0, T = 0.0, R = 0.0, N = std::get<1>(specI[Z]);
       std::array<double, 3> V;
       if (N > 0.0) {
 	for (int j=0; j<3; j++) {
@@ -14716,25 +14741,24 @@ void CollideIon::printSpeciesElectrons
 	  V[j] = v1;
 	}
 	T = E * Tfac * atomic_weights[Z] / N;
+	R = S * Tfac * atomic_weights[Z] / N;
       }
 
       dout << std::setw(wid) << std::right << E
 	   << std::setw(wid) << std::right << N
 	   << std::setw(wid) << std::right << T
+	   << std::setw(wid) << std::right << R
 	   << std::setw(wid) << std::right << S;
       for (int j=0; j<3; j++)
 	dout << std::setw(wid) << std::right << V[j];
     } else {
-      dout << std::setw(wid) << std::right << 0.0
-	   << std::setw(wid) << std::right << 0.0
-	   << std::setw(wid) << std::right << 0.0;
-      for (int j=0; j<3; j++)
+      for (int j=0; j<8; j++)
 	dout << std::setw(wid) << std::right << 0.0;
     }
 
     if (specE.find(Z) != specE.end()) {
 
-      double E = 0.0, S = 0.0, T = 0.0, N = std::get<1>(specE[Z]);
+      double E = 0.0, S = 0.0, T = 0.0, R = 0.0, N = std::get<1>(specE[Z]);
       std::array<double, 3> V;
       if (N > 0.0) {
 	for (int j=0; j<3; j++) {
@@ -14745,17 +14769,19 @@ void CollideIon::printSpeciesElectrons
 	  V[j] = v1;
 	}
 	T = E * Tfac * atomic_weights[0] / N;
+	R = S * Tfac * atomic_weights[0] / N;
       }
 
 
       dout << std::setw(wid) << std::right << E
 	   << std::setw(wid) << std::right << N
 	   << std::setw(wid) << std::right << T
-	   << std::setw(wid) << std::right << S;
+	   << std::setw(wid) << std::right << S
+	   << std::setw(wid) << std::right << R;
       for (int j=0; j<3; j++)
 	dout << std::setw(wid) << std::right << V[j];
     } else {
-      for (int j=0; j<6; j++)
+      for (int j=0; j<8; j++)
 	dout << std::setw(wid) << std::right << 0.0;
     }
   }

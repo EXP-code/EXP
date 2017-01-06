@@ -2078,6 +2078,7 @@ void UserTreeDSMC::makeSpeciesMap()
   MPI_Allreduce(&T1[0], &T0[0], 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   
   if (T0[0] > 0.0) TempTot = T0[1]/T0[0];
+  else TempTot = 0.0;
 }
 
 void UserTreeDSMC::finish()

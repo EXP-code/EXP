@@ -766,14 +766,14 @@ Ion::collExciteCross(double E, int id)
 	x = (Ej/EijEv)/((Ej/EijEv) + Const);
       }
 				// BT eq. 11
+
       // xmin is 0 and xmax is 1, so this if statement is to make sure
       // x is within the bounds of interpolation
       //
-      if ( x <= 0 or x >= 1.0) {
+      if ( x < 0 or x > 1.0) {
 	std::cout << "ERROR IN EXCITATION CROSS: Ej = " << Ej
 		  << " Eij = " << EijEv << " x = " << x
 		  << " [Node ID=" << myid << "]" << std::endl;
-	exit(-1);
       }
 
       // An extra couple of sanity checks for the interpolation
