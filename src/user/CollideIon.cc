@@ -24,40 +24,41 @@
 using namespace std;
 using namespace NTC;
 
-double   CollideIon::Nmin     = 1.0e-08;
-double   CollideIon::Nmax     = 1.0e+25;
-double   CollideIon::Tmin     = 1.0e+03;
-double   CollideIon::Tmax     = 1.0e+08;
-unsigned CollideIon::Nnum     = 400;
-unsigned CollideIon::Tnum     = 200;
-string   CollideIon::cache    = ".HeatCool";
-bool     CollideIon::equiptn  = false;
-bool     CollideIon::scatter  = false;
-bool     CollideIon::ExactE   = false;
-bool     CollideIon::AlgOrth  = false;
-bool     CollideIon::AlgWght  = false;
-bool     CollideIon::DebugE   = false;
-bool     CollideIon::collLim  = false;
-unsigned CollideIon::maxSelA  = 1000;
-unsigned CollideIon::maxSelB  = 1000;
-bool     CollideIon::E_split  = false;
-bool     CollideIon::distDiag = false;
-bool     CollideIon::elecDist = false;
-bool     CollideIon::ntcDist  = false;
-unsigned CollideIon::esNum    = 100;
-double   CollideIon::esThr    = 0.0;
-unsigned CollideIon::NoDelC   = 0;
-unsigned CollideIon::maxCoul  = UINT_MAX;
-double   CollideIon::logL     = 24.0;
-double   CollideIon::ieBoost  = 1.0;
-double   CollideIon::tolE     = 1.0e-6;
-double   CollideIon::TSCOOL   = 0.05;
-double   CollideIon::TSFLOOR  = 0.001;
-string   CollideIon::config0  = "CollideIon.config";
+double   CollideIon::Nmin       = 1.0e-08;
+double   CollideIon::Nmax       = 1.0e+25;
+double   CollideIon::Tmin       = 1.0e+03;
+double   CollideIon::Tmax       = 1.0e+08;
+unsigned CollideIon::Nnum       = 400;
+unsigned CollideIon::Tnum       = 200;
+string   CollideIon::cache      = ".HeatCool";
+bool     CollideIon::equiptn    = false;
+bool     CollideIon::scatter    = false;
+bool     CollideIon::ExactE     = false;
+bool     CollideIon::AlgOrth    = false;
+bool     CollideIon::AlgWght    = false;
+bool     CollideIon::DebugE     = false;
+bool     CollideIon::collLim    = false;
+unsigned CollideIon::maxSelA    = 1000;
+unsigned CollideIon::maxSelB    = 1000;
+bool     CollideIon::E_split    = false;
+bool     CollideIon::distDiag   = false;
+bool     CollideIon::elecDist   = false;
+bool     CollideIon::ntcDist    = false;
+bool     CollideIon::enforceCOM = false;
+unsigned CollideIon::esNum      = 100;
+double   CollideIon::esThr      = 0.0;
+unsigned CollideIon::NoDelC     = 0;
+unsigned CollideIon::maxCoul    = UINT_MAX;
+double   CollideIon::logL       = 24.0;
+double   CollideIon::ieBoost    = 1.0;
+double   CollideIon::tolE       = 1.0e-6;
+double   CollideIon::TSCOOL     = 0.05;
+double   CollideIon::TSFLOOR    = 0.001;
+string   CollideIon::config0    = "CollideIon.config";
 
-bool CollideIon::ElectronEPSM = false;
+bool CollideIon::ElectronEPSM   = false;
 CollideIon::ElectronScatter
-CollideIon::esType            = CollideIon::always;
+CollideIon::esType              = CollideIon::always;
 
 CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 					    {"always",    always},
@@ -69,11 +70,11 @@ Interact::T CollideIon::elecElec;
 
 // Kinetic energy conservation check for NOCOOL
 //
-static bool KE_NOCOOL_CHECK   = true;
+static bool KE_NOCOOL_CHECK     = true;
 
 // Add trace energy excess to electron distribution
 //
-static bool TRACE_ELEC        = false;
+static bool TRACE_ELEC          = false;
 
 // Enable ion-electron secondary scattering where count is the value
 //
@@ -81,138 +82,138 @@ static unsigned SECONDARY_SCATTER = 0;
 
 // Fraction of excess energy loss to give to the electrons
 //
-static double TRACE_FRAC      = 1.0;
+static double TRACE_FRAC        = 1.0;
 
 // Attempt to remove pending excess lost energy for equal and trace
 // interactions
 //
-static bool ALWAYS_APPLY      = false;
+static bool ALWAYS_APPLY        = false;
 
 // Print collisions by species for debugging
 //
-static bool COLL_SPECIES      = false;
+static bool COLL_SPECIES        = false;
 
 // Same species tests (for debugging only)
 //
-static bool SAME_ELEC_SCAT    = false;
-static bool DIFF_ELEC_SCAT    = false;
-static bool SAME_IONS_SCAT    = false;
-static bool SAME_INTERACT     = false;
-static bool DIFF_INTERACT     = false;
-static bool SAME_TRACE_SUPP   = false;
+static bool SAME_ELEC_SCAT      = false;
+static bool DIFF_ELEC_SCAT      = false;
+static bool SAME_IONS_SCAT      = false;
+static bool SAME_INTERACT       = false;
+static bool DIFF_INTERACT       = false;
+static bool SAME_TRACE_SUPP     = false;
 
 // Suppress distribution of energy to electrons when using NOCOOL
 //
-static bool NOCOOL_ELEC       = false;
+static bool NOCOOL_ELEC         = false;
 
 // Suppress distribution of ionization energy between electrons
 //
-static bool NOSHARE_ELEC      = false;
+static bool NOSHARE_ELEC        = false;
 
 // Clone temperature of ionizing electron
 //
-static bool CLONE_ELEC        = false;
+static bool CLONE_ELEC          = false;
 
 // Warn if energy lost is smaller than COM energy available.  For
 // debugging.  Set to false for production.
 //
-static bool frost_warning     = false;
+static bool frost_warning       = false;
 
 // Very verbose selection debugging. Set to false for production.
 //
-static bool DEBUG_SL          = false;
+static bool DEBUG_SL            = false;
 
 // Verbose cross-section debugging. Set to false for production.
 //
-static bool DEBUG_CR          = false;
+static bool DEBUG_CR            = false;
 
 // Verbose cross-section debugging for unequal species only. Set to
 // false for production.
 //
-static bool DEBUG_NQ          = false;
+static bool DEBUG_NQ            = false;
 
 // Artifically suppress electron equipartition speed
 //
-static bool NO_DOF            = true;
+static bool NO_DOF              = true;
 
 // Artifically suppress electron equilibrium velocity
 //
-static bool NO_VEL            = false;
+static bool NO_VEL              = false;
 
 // Artifically suppress energy loss due to ionization
 //
-static bool NO_ION_E          = false;
+static bool NO_ION_E            = false;
 
 // Artifically suppress energy loss due to free-free
 //
-static bool NO_FF_E          = false;
+static bool NO_FF_E            = false;
 
 // KE debugging: checks energy bookkeeping for weighted algorithm. Set
 // to false for production
 //
-static bool KE_DEBUG          = true;
+static bool KE_DEBUG            = true;
 
 // KE debugging threshold for triggering diagnostic output
 //
-static double DEBUG_THRESH    = 1.0e-08;
+static double DEBUG_THRESH      = 1.0e-08;
 
 // Finalize cell debug diagnostics
 //
-static bool debugFC = false;
+static bool debugFC   = false;
 
 // Tally ionization potential with energy loss during recombination
 //
-static bool RECOMB_IP         = false;
+static bool RECOMB_IP           = false;
 
 // Cross-section debugging; set to false for production
 //
-static bool CROSS_DBG         = false;
+static bool CROSS_DBG           = false;
 
 // Excess trace map debugging; set to false for production
 //
-static bool EXCESS_DBG        = false;
+static bool EXCESS_DBG          = false;
 
 // Minimum energy for Rutherford scattering of ions used to estimate
 // the elastic scattering cross section
 //
-static double FloorEv         = 0.05;
+static double FloorEv           = 0.05;
 
 // Minimum relative fraction for allowing a collisional excitation
 //
-static double minCollFrac     = -1.0;
+static double minCollFrac       = -1.0;
 
-static bool temp_debug        = false;
+static bool temp_debug          = false;
 
-static bool scatter_check     = true;
+static bool scatter_check       = true;
 
 // Decrease the interacton probability by electron fraction used for
 // dominant subspcies for the NTC rate
 //
-static bool suppress_maxT     = false;
+static bool suppress_maxT       = false;
 
 // Use only a fraction of inelastic energy for testing equipartition
 //
-static double energy_scale    = -1.0;
+static double energy_scale      = -1.0;
 
 // Use median energy/velocity value for computing cross section
 //
-static bool MEDIAN_E          = true;
+static bool MEDIAN_E            = true;
 
 // Use particle collision counter for debugging
 //
-static int DEBUG_CNT          = -1;
+static int DEBUG_CNT            = -1;
 
 // Deep debug check
 //
-static bool PRE_POST_COLL_KE  = false;
+static bool PRE_POST_COLL_KE    = false;
   
 // Use mass weighting rather than number weigting for AlgWght
 //
-static bool ALG_WGHT_MASS     = false;
+static bool ALG_WGHT_MASS       = false;
 
 // Use mass weighting rather than number weigting for AlgWght
 //
-static double Fwght           = 0.5;
+static double Fwght             = 0.5;
 
 // Convert energy in eV to wavelength in angstroms
 //
@@ -441,6 +442,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (KE_DEBUG ? "on" : "off" )             << std::endl
 	      <<  " " << std::setw(20) << std::left << "ntcDist"
 	      << (ntcDist ? "on" : "off" )             << std::endl
+	      <<  " " << std::setw(20) << std::left << "enforceCOM"
+	      << (enforceCOM ? "on" : "off" )             << std::endl
 	      <<  " " << std::setw(20) << std::left << "use_cons"
 	      << use_cons                               << std::endl
 	      <<  " " << std::setw(20) << std::left << "MFPtype"
@@ -524,6 +527,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   TotlD    .resize(nthrds);
   Ediag    .resize(nthrds);
   cVels    .resize(nthrds);
+  cMoms    .resize(nthrds);
   collCount.resize(nthrds);
   ionCHK   .resize(nthrds);
   recombCHK.resize(nthrds);
@@ -814,6 +818,9 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
   testKE [id] = 0;
   testCnt[id] = 0;
 
+  // Zero momentum computation
+  if (enforceCOM) cMoms[id] = {0, 0, 0, 0};
+
   // Loop through all bodies in cell
   //
   for (auto b : cell->bods) {
@@ -837,6 +844,23 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
       numEf[id]    += p->mass * (1.0 + ee) / atomic_weights[Z];
       densE[id][k] += p->mass * ee / atomic_weights[Z];
       densEtot     += p->mass * ee / atomic_weights[Z];
+
+      if (enforceCOM) {
+	cMoms[id][3] += p->mass;
+	for (size_t k=0; k<3; k++)
+	  cMoms[id][k] += p->mass*p->vel[k];
+	
+	if (use_elec >= 0 and ExactE) {
+	  double cnt = 0.0;
+	  for (unsigned short C=0; C<=Z; C++)
+	    cnt += p->dattrib[hybrid_pos + C] * C;
+
+	  double eta = p->mass*atomic_weights[0]/atomic_weights[Z] * cnt;
+	  cMoms[id][3] += eta;
+	  for (size_t k=0; k<3; k++)
+	    cMoms[id][k] += eta * p->dattrib[use_elec+k];
+	}
+      }
 
       if (NOCOOL and KE_NOCOOL_CHECK) {
 	double ke = 0.0, eta = atomic_weights[0]/atomic_weights[Z];
@@ -9981,6 +10005,53 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 
   //======================================================================
+  // Momentum adjustment
+  //======================================================================
+  //
+
+  if (aType == Hybrid and enforceCOM) {
+    CellMom fMoms = {0, 0, 0, 0};
+
+    for (auto b : cell->bods) {
+      Particle *p = tree->Body(b);
+      fMoms[3] += p->mass;
+      for (size_t k=0; k<3; k++)
+	fMoms[k] += p->mass*p->vel[k];
+	
+      if (use_elec >= 0 and ExactE) {
+	unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
+
+	double cnt = 0.0;
+	for (unsigned short C=0; C<=Z; C++)
+	  cnt += p->dattrib[hybrid_pos + C] * C;
+
+	double eta = p->mass * atomic_weights[0]/atomic_weights[Z] * cnt;
+	fMoms[3] += eta;
+	for (size_t k=0; k<3; k++)
+	  fMoms[k] += eta * p->dattrib[use_elec+k];
+      }
+    }
+    
+    if (cMoms[id][3]>0.0) {
+      for (size_t k=0; k<3; k++) cMoms[id][k] /= cMoms[id][3];
+    }
+    
+    if (fMoms[3]>0.0) {
+      for (size_t k=0; k<3; k++) fMoms[k] /= fMoms[3];
+    }
+    
+    for (auto b : cell->bods) {
+      Particle *p = tree->Body(b);
+      for (size_t k=0; k<3; k++) {
+	p->vel[k] += cMoms[id][k] - fMoms[k];
+	if (use_elec) p->dattrib[use_elec+k] += cMoms[id][k] - fMoms[k];
+      }
+    }
+
+  }
+  
+
+  //======================================================================
   // For debugging
   //======================================================================
   //
@@ -10421,7 +10492,7 @@ void collDiag::initialize()
 
 	// Species labels
 	//
-	out << "#" << std::setw(11+12) << std::right << "Species==>" << " | ";
+	out << "#" << std::setw(11+12*2) << std::right << "Species==>" << " | ";
 	for (auto it : *this) {
 	  ostringstream sout, sout2;
 	  sout  << "(" << it.first.first << ", " << it.first.second << ")";
@@ -10434,7 +10505,8 @@ void collDiag::initialize()
 	// Header line
 	//
 	out << std::setfill('-') << std::right;
-	out << "#" << std::setw(11+12) << '+' << " | ";
+	out << "#" << std::setw(11) << '+'
+	    << std::setw(12) << '+' << std::setw(12) << '+' << " | ";
 	for (auto it : *this) {
 	  for (int i=0; i<17; i++) out << std::setw(12) << '+';
 	  out << " | ";
@@ -10490,7 +10562,10 @@ void collDiag::initialize()
 	out << "#" << std::setw(11) << st.str();
 	st.str("");
 	st << "[" << ++cnt << "] |";
-out << std::setw(12) << st.str() << " | ";
+	out << std::setw(12) << st.str();
+	st.str("");
+	st << "[" << ++cnt << "] |";
+	out << std::setw(12) << st.str() << " | ";
 	for (auto it : *this) {
 	  for (size_t l=0; l<17; l++) {
 	    st.str("");
@@ -10509,7 +10584,7 @@ out << std::setw(12) << st.str() << " | ";
 	// Header line
 	//
 	out << std::setfill('-') << std::right;
-	out << "#" << std::setw(11+12) << '+' << " | ";
+	out << "#" << std::setw(11+12+12) << '+' << " | ";
 	for (auto it : *this) {
 	  for (int i=0; i<17; i++) out << std::setw(12) << '+';
 	  out << " | ";
@@ -14747,8 +14822,8 @@ void CollideIon::printSpeciesElectrons
       dout << std::setw(wid) << std::right << E
 	   << std::setw(wid) << std::right << N
 	   << std::setw(wid) << std::right << T
-	   << std::setw(wid) << std::right << R
-	   << std::setw(wid) << std::right << S;
+	   << std::setw(wid) << std::right << S
+	   << std::setw(wid) << std::right << R;
       for (int j=0; j<3; j++)
 	dout << std::setw(wid) << std::right << V[j];
     } else {
@@ -14998,6 +15073,9 @@ void CollideIon::processConfig()
 
     ntcDist =
       cfg.entry<bool>("ntcDist", "Enable NTC full distribution for electrons", false);
+
+    enforceCOM =
+      cfg.entry<bool>("enforceCOM", "Enforce momentum conservation per cell (for ExactE and Hybrid)", false);
 
     debugFC =
       cfg.entry<bool>("debugFC", "Enable finalize-cell electron scattering diagnostics", false);

@@ -432,6 +432,7 @@ private:
 		     std::array<double, 3> >         CVels;
   typedef std::tuple<double, CEvector, CFreturn>     XStup;
   typedef std::map<NTC::Interact::T, XStup>          InterXS;
+  typedef std::array<double, 4>                      CellMom;
 
   std::vector< std::vector<dKey>   >                 kInter;
   std::vector< std::vector<double> >                 dCross;
@@ -461,6 +462,7 @@ private:
   std::vector< std::map<int, TypeMap2 > >            Italy;
   std::vector< std::array<double, 3> >               Ediag;
   std::vector< CVels >                               cVels;
+  std::vector< CellMom >                             cMoms;
   //@}
 
   //! This defines the various types of interactions used to tag
@@ -637,6 +639,10 @@ public:
 
   //! Use EPSM algorithm for electron scattering (default: false)
   static bool ElectronEPSM;
+
+  //! Enforce COM in each cell when using ExactE and Hybrid method
+  //! (default: false)
+  static bool enforceCOM;
 
 
 protected:
