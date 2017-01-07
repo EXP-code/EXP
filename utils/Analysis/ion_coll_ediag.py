@@ -57,6 +57,7 @@ def plot_data(filename, eloss, msz, logY, dot, tscale):
     tabl  = {}
     time  = []
     temp  = []
+    disp  = []
     etot  = []
     erat  = []
     edsp  = []
@@ -69,7 +70,7 @@ def plot_data(filename, eloss, msz, logY, dot, tscale):
     potI  = []
     elsC  = []
     elos  = []
-    ncol  = 16
+    ncol  = 17
     lead  = 2
     tail  = 12
     data  = {}
@@ -89,9 +90,11 @@ def plot_data(filename, eloss, msz, logY, dot, tscale):
             nlabs  = len(labels)
             tindx  = labels.index('Elost')
             tail   = nlabs - tindx
+            if 'Disp' in labels: lead = 3
             ncol   = (tindx-lead)/5
         if line.find('[1]')>=0:     # Get the column indices
             toks = line.translate(trans).split()
+            print "lead={} toks={}".format(lead, len(toks))
             for i in range(lead, len(toks)-tail):
                 j = int(toks[i][1:-1]) - 1
                 tabl[labels[j]] = i
@@ -111,6 +114,7 @@ def plot_data(filename, eloss, msz, logY, dot, tscale):
                 if len(toks) == len(labels):
                     time.append(float(toks[0]))
                     temp.append(float(toks[1]))
+                    if 'Disp' in labels: disp.append(float(toks[2]))
                     etot.append(float(toks[-1]))
                     erat.append(float(toks[-2]))
                     edsp.append(float(toks[-3]))
