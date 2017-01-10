@@ -460,7 +460,7 @@ private:
   std::vector< TypeMap1 >                            TotlU;
   std::vector< TypeMap2 >                            TotlD;
   std::vector< std::map<int, TypeMap2 > >            Italy;
-  std::vector< std::array<double, 3> >               Ediag;
+  std::vector< std::array<double, 3> >               Ediag, Vdiag;
   std::vector< CVels >                               cVels;
   std::vector< CellMom >                             cMoms;
   //@}
@@ -637,12 +637,18 @@ public:
   //! Floor KE/deltaE for choosing cooling time step (default: 0.001)
   static double TSFLOOR;
 
+  //@{
+  //! Split in ExactE energy between dominant and trace particle (default: 0.5)
+  static double scatFac1;
+  static double scatFac2;
+  //@}
+
   //! Use EPSM algorithm for electron scattering (default: false)
   static bool ElectronEPSM;
 
-  //! Enforce COM in each cell when using ExactE and Hybrid method
-  //! (default: false)
-  static bool enforceCOM;
+  //! Enforce momentum conservation in each cell when using ExactE and
+  //! Hybrid method (default: false)
+  static bool enforceMOM;
 
 
 protected:
@@ -756,6 +762,72 @@ protected:
   int inelasticHybrid(int id, pCell* const c, 
 		      Particle* const p1, Particle* const p2, 
 		      double *crm, const NTC::Interact::T& itype, double weight);
+
+  class Porder
+  {
+  public:
+    static int key;
+
+    enum pType {ion_ion, ion_electron, electron_ion};
+
+    Particle *     p1;
+    Particle *     p2;
+    double         W1, w1;
+    double         W2, w2;
+    double         eta1;
+    double         eta2;
+    pType          P;
+    bool           swap;
+    speciesKey     k1, k2;
+    double         q;
+
+    Porder(Particle *p1, Particle *p2, double w1, double w2,
+	   double eta1, double eta2, pType p) :
+      p1(p1), p2(p2), w1(w1), w2(W2),
+      eta1(eta1), eta2(eta2), P(p), swap(false)
+    {
+      W1 = w1;
+      W2 = w2;
+
+      switch (P) {
+      case ion_ion:
+	break;
+      case ion_electron:
+	W2 *= eta2;
+	break;
+      case electron_ion:
+	W1 *= eta1;
+	break;
+      }
+
+      if (W1 < W2) {
+	// Swap the particle pointers
+	//
+	zswap(p1, p2);
+
+	// Swap electron number fraction
+	//
+	zswap(eta1, eta2);
+	
+	// Swap true particle numbers
+	//
+	zswap(W1, W2);
+
+	q  = w2/w1;
+
+	swap = true;
+      }
+
+      k1 = KeyConvert(p1->iattrib[key]).getKey();
+      k2 = KeyConvert(p2->iattrib[key]).getKey();
+
+      if (P == ion_electron) W2 *= eta2;
+      if (P == ion_electron) W1 *= eta1;
+    }
+
+  };
+
+  typedef std::shared_ptr<Porder> PorderPtr;
 
   virtual double crossSection(int id, pCell* const c, 
 			      Particle* const p1, Particle* const p2, 
@@ -1011,21 +1083,26 @@ protected:
   //! Interaction data structure for simplifying variable passing
   struct InteractData 
   {
-    double m1, m2, W1, W2, q, vi2;
+    double m1, m2, W1, W2, q, P, vi2;
     unsigned short Z1, Z2;
     Particle *p1, *p2;
 
-    InteractData(double m1, double m2, double W1, double W2, double q, 
+    InteractData(double m1, double m2, double W1, double W2, double q, double P,
 		 unsigned short Z1, unsigned short Z2, Particle* p1, Particle* p2) :
       
-      m1(m1), m2(m2), W1(W1), W2(W2), q(q), vi2(0.0), Z1(Z1), Z2(Z2), p1(p1), p2(p2) {}
+      m1(m1), m2(m2), W1(W1), W2(W2), q(q), P(P), vi2(0.0), Z1(Z1), Z2(Z2), p1(p1), p2(p2) {}
 
   };
 
+  //@{
   //! Compute the interaction for the hybrid weighted method
   void scatterHybrid
   (const InteractData& d, KE_& KE,
-   std::vector<double>& v1, std::vector<double>& v2);
+   std::vector<double>& v1, std::vector<double>& v2, int id);
+  void scatterHybridOrig
+  (const InteractData& d, KE_& KE,
+   std::vector<double>& v1, std::vector<double>& v2, int id);
+  //@}
 
   //! Add excess energy to conservation counter
   void deferredEnergyHybrid(const InteractData& d, const double E);
