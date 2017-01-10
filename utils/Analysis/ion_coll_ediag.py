@@ -94,7 +94,7 @@ def plot_data(filename, eloss, msz, logY, dot, tscale):
             ncol   = (tindx-lead)/5
         if line.find('[1]')>=0:     # Get the column indices
             toks = line.translate(trans).split()
-            print "lead={} toks={}".format(lead, len(toks))
+            # print "lead={} toks={}".format(lead, len(toks))
             for i in range(lead, len(toks)-tail):
                 j = int(toks[i][1:-1]) - 1
                 tabl[labels[j]] = i
@@ -162,11 +162,18 @@ def plot_data(filename, eloss, msz, logY, dot, tscale):
     pl.plot(time, erat, '-')
     #
     ax = pl.subplot(2,2,3)
-    # ax.plot(time, etot, '-', label="total")
-    ax.plot(time, ekeI, '-', label="ion")
-    ax.plot(time, ekeE, '-', label="electron")
-    ax.plot(time, potI, '-', label="ion pot")
-    ax.plot(time, edsp, '-', label="e-disp")
+    if logY:
+        # ax.semilogy(time, etot, '-', label="total")
+        ax.semilogy(time, ekeI, '-', label="ion")
+        ax.semilogy(time, ekeE, '-', label="electron")
+        ax.semilogy(time, potI, '-', label="ion pot")
+        ax.semilogy(time, edsp, '-', label="e-disp")
+    else:
+        # ax.plot(time, etot, '-', label="total")
+        ax.plot(time, ekeI, '-', label="ion")
+        ax.plot(time, ekeE, '-', label="electron")
+        ax.plot(time, potI, '-', label="ion pot")
+        ax.plot(time, edsp, '-', label="e-disp")
     # Shrink current axis by 20%
     # box = ax.get_position()
     # ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
