@@ -52,7 +52,7 @@ unsigned CollideIon::NoDelC     = 0;
 unsigned CollideIon::maxCoul    = UINT_MAX;
 double   CollideIon::logL       = 24.0;
 double   CollideIon::ieBoost    = 1.0;
-double   CollideIon::tolE       = 1.0e-8;
+double   CollideIon::tolE       = 1.0e-6;
 double   CollideIon::TSCOOL     = 0.05;
 double   CollideIon::TSFLOOR    = 0.001;
 double   CollideIon::scatFac1   = 1.0;
@@ -73,7 +73,7 @@ Interact::T CollideIon::elecElec;
 
 // Stash key position in particle attribute array
 //
-int CollideIon::Porder::key     = -1;
+int CollideIon::Pord::key       = -1;
 
 // Kinetic energy conservation check for NOCOOL
 //
@@ -300,7 +300,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 
   // Key position for Hybrid method helper
   //
-  CollideIon::Porder::key = use_key;
+  CollideIon::Pord::key = use_key;
 
   // Process the feature config file
   //
@@ -6532,10 +6532,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   double W1 = p1->mass/atomic_weights[Z1];
   double W2 = p2->mass/atomic_weights[Z2];
 
-  std::array<PorderPtr, 3> PP =
-    { PorderPtr(new Porder(p1, p2, W1,      W2,      eta1, eta2, Porder::ion_ion)),
-      PorderPtr(new Porder(p1, p2, W1,      W2*eta2, eta1, eta2, Porder::ion_electron)),
-      PorderPtr(new Porder(p1, p2, W1*eta1, W2,      eta1, eta2, Porder::electron_ion)) };
+  std::array<PordPtr, 3> PP =
+    { PordPtr(new Pord(p1, p2, W1, W2, eta1, eta2, Pord::ion_ion     )),
+      PordPtr(new Pord(p1, p2, W1, W2, eta1, eta2, Pord::ion_electron)),
+      PordPtr(new Pord(p1, p2, W1, W2, eta1, eta2, Pord::electron_ion)) };
 
   // Sanity check
   //
@@ -6716,11 +6716,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    << ", NN = " << NN
 	    << std::endl;
       }
-
-      // Compute trace ratio
-      //
-      double  q = (PP[cid]->swap ? W1/W2 : W2/W1);
-
 
       //-----------------------------
       // Parse each interaction type
@@ -7032,7 +7027,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    
 	    NCXTRA += lKE;
 	    
-	    if (q<1)
+	    if (PP[cid]->q<1)
 	      p2->dattrib[use_cons] += lKE;
 	    else {
 	      p1->dattrib[use_cons] += lKE * 0.5;
@@ -7100,7 +7095,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    
 	    NCXTRA += lKE;
 
-	    if (q<1)
+	    if (PP[1]->q<1)
 	      p1->dattrib[use_cons] += lKE;
 	    else {
 	      p1->dattrib[use_cons] += lKE * 0.5;
@@ -7152,8 +7147,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
       if (PE[1].first>0.0) {
 	ctd1->dv[id][0] += Prob;
-	ctd1->dv[id][1] += PP[cid]->W2 * Prob;
-	if (not NOCOOL) ctd1->dv[id][2] += PP[cid]->W2 * PE[1].second;
+	ctd1->dv[id][1] += PP[1]->W2 * Prob;
+	if (not NOCOOL) ctd1->dv[id][2] += PP[1]->W2 * PE[1].second;
 	if (scatter_check) {
 	  double m1 = atomic_weights[Z1];
 	  double m2 = atomic_weights[ 0];
@@ -7163,7 +7158,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    double vr = p2->dattrib[use_elec + k] - p1->vel[k];
 	    tK += vr * vr;
 	  }
-	  tK *= 0.5*PP[cid]->W1*q*mu;
+	  tK *= 0.5*PP[1]->W1*PP[1]->q*mu;
 
 	  Italy[id][Z1*100+Z2][interFlag][0] += Prob;
 	  Italy[id][Z1*100+Z2][interFlag][1] += dE * Escl;
@@ -7181,7 +7176,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    double vr = p2->vel[k] - p1->vel[k];
 	    tK += vr * vr;
 	  }
-	  tK *= 0.5*W1*q*mu;
+	  tK *= 0.5*PP[0]->W1*PP[0]->q*mu;
 
 	  Italy[id][Z1*100+Z2][interFlag][0] += Prob;
 	  Italy[id][Z1*100+Z2][interFlag][1] += dE * Escl;
@@ -7191,8 +7186,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       
       if (PE[2].first>0.0) {
 	ctd2->dv[id][0] += Prob;
-	ctd2->dv[id][1] += PP[cid]->W2 * Prob;
-	if (not NOCOOL) ctd2->dv[id][2] += PP[cid]->W2 * PE[2].second;
+	ctd2->dv[id][1] += PP[2]->W2 * Prob;
+	if (not NOCOOL) ctd2->dv[id][2] += PP[2]->W2 * PE[2].second;
 	if (scatter_check) {
 	  double m1 = atomic_weights[0];
 	  double m2 = atomic_weights[Z2];
@@ -7202,7 +7197,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    double vr = p1->dattrib[use_elec + k] - p2->vel[k];
 	    tK += vr * vr;
 	  }
-	  tK *= 0.5*W1*q*mu;
+	  tK *= 0.5*PP[2]->W1*PP[2]->q*mu;
 
 	  Italy[id][Z1*100+Z2][interFlag][0] += Prob;
 	  Italy[id][Z1*100+Z2][interFlag][1] += dE * Escl;
@@ -7303,11 +7298,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // mass units
   //
 
-  // Mass per particle in amu for this interaction
-  //
-  double m1 = atomic_weights[Z1];
-  double m2 = atomic_weights[Z2];
-
   // Divide everything into three cases:
   // Ion(1)     and Electron(2)
   // Ion(2)     and Electron(1)
@@ -7327,8 +7317,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     //
     if (PE[0].first > 0.0) {
 
-      InteractData d(m1, m2, PP[0]->W1, PP[0]->W2, PP[0]->q, PE[0].first,
-		     PP[0]->k1.first, PP[0]->k2.first, PP[0]->p1, PP[0]->p2);
+      InteractData d(PE[0].first, PP[0]);
 
       for (int k=0; k<3; k++) {
 	v1[k]  = p1->vel[k];	// Both particles are neutrals or ions
@@ -7381,8 +7370,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     //
     if (PE[1].first > 0.0) {
 
-      InteractData d(m1, atomic_weights[0], PP[1]->W1, PP[1]->W2, PP[1]->q, PE[1].first,
-		     PP[1]->k1.first, PP[1]->k2.first, PP[1]->p1, PP[1]->p2);
+      InteractData d(PE[1].first, PP[1]);
 
       for (int k=0; k<3; k++) {
 	v1[k]  = p1->vel[k];	// Particle 1 is the ion
@@ -7420,7 +7408,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	
 	for (int k=0; k<3; k++) {
-	  p1->vel[k] = v1[k];	// Particle 1 is the ion
+				// Particle 1 is the ion
+	  p1->vel[k] = v1[k];
 				// Particle 2 is the elctron
 	  p2->dattrib[use_elec+k] = v2[k];
 	}
@@ -7442,7 +7431,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  if (fabs(delE) > DEBUG_THRESH*(ke1 + ke2)) {
 	    std::cout << "**ERROR post scatter: relE = " << delE/(ke1+ke2)
 		      << " del = "  << delE
-		      << " KEi = "  << ke1 + ke2
+		      << " KEi = "  << ke1  + ke2
 		      << " KEf = "  << ke1f + ke2f
 		      << " eta2 = " << eta2
 		      << std::endl;
@@ -7463,8 +7452,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     //
     if (PE[2].first > 0.0) {
 
-      InteractData d(atomic_weights[0], m2, PP[2]->W1, PP[2]->W1, PP[2]->q, PE[2].first,
-		     PP[2]->k1.first, PP[2]->k2.first, p1, p2);
+      InteractData d(PE[2].first, PP[2]);
 
       for (int k=0; k<3; k++) {
 				// Particle 1 is the elctron
@@ -7502,11 +7490,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	
 	for (int k=0; k<3; k++) {
-	  // Particle 1 is the electron
+				// Particle 1 is the electron
 	  p1->dattrib[use_elec+k] = v1[k];
-	  p2->vel[k] = v2[k];	// Particle 2 is the ion
+				// Particle 2 is the ion
+	  p2->vel[k] = v2[k];
 	}
-      }
       
 	if (NOCOOL and KE_NOCOOL_CHECK) {
 	  double ke1f = 0.0, ke2f =0.0;
@@ -7531,6 +7519,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 		      << std::endl;
 	  }
 	}
+      }
 
       // Secondary electron-ion scattering
       //
@@ -7608,359 +7597,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   return ret;
 }
 
-void CollideIon::scatterHybridOrig
-(const InteractData& d, KE_& KE,
- std::vector<double>& v1, std::vector<double>& v2, int id)
-{
-  if (KE_DEBUG) {
-    KE.i(1) = KE.i(2) = 0.0;
-    for (auto v : v1) KE.i(1) += v*v;
-    for (auto v : v2) KE.i(2) += v*v;
-  }
-  KE.bs.reset();
-
-  // Total effective mass in the collision (atomic mass units)
-  //
-  double mt = d.m1 + d.m2;
-
-  // Reduced mass (atomic mass units)
-  //
-  double mu = d.m1 * d.m2 / mt;
-
-  // Set COM frame
-  //
-  std::vector<double> vcom(3), vrel(3);
-  double vi = 0.0;
-
-  for (size_t k=0; k<3; k++) {
-    vcom[k] = (d.m1*v1[k] + d.m2*v2[k])/mt;
-    vrel[k] = v1[k] - v2[k];
-    vi += vrel[k] * vrel[k];
-  }
-
-  // Compute the change of energy in the collision frame by computing
-  // the velocity reduction factor
-  //
-  double kE   = 0.5*d.W1*d.q*mu*vi;
-  double totE = kE - KE.delE;
-  double vfac = 1.0;
-
-  // KE is positive
-  //
-  if (kE>0.0) {
-    // More loss energy requested than available?
-    //
-    if (totE < 0.0) {
-      KE.miss = totE;
-      deferredEnergyHybrid(d, -totE);
-      totE = 0.0;
-    }
-    // Update the outgoing energy in COM
-    //
-    KE.vfac = vfac = sqrt(totE/kE);
-    KE.kE   = kE;
-    KE.totE = totE;
-    KE.bs.set(KE_Flags::Vfac);
-  }
-  // KE is zero (limiting case)
-  //
-  else {
-    KE.vfac = 1.0;
-    KE.kE   = kE;
-    KE.totE = totE;
-    //
-    // Defer all energy loss
-    //
-    deferredEnergyHybrid(d, KE.delE);
-    KE.delE = 0.0;
-  }
-
-  // Assign interaction energy variables
-  //
-  vrel = unit_vector();
-  vi = sqrt(vi);
-  for (auto & v : vrel) v *= vi;
-  //                         ^
-  //                         |
-  // Velocity in center of mass, computed from v1, v2
-  //
-
-  // Use explicit energy conservation algorithm
-  //
-  double vrat = 1.0;
-  double gamm = 0.0;
-  std::vector<double> w1(3, 0.0);
-
-  bool algok = false;
-  std::vector<double> uu(3), vv(3);
-
-  double v1i2 = 0.0, b1f2 = 0.0, v2i2 = 0.0, b2f2 = 0.0;
-  double udif = 0.0, vcm2 = 0.0, v1u1 = 0.0, wnrm = 0.0;
-
-  for (size_t k=0; k<3; k++) {
-				// From momentum conservation
-    uu[k] = vcom[k] + d.m2/mt*vrel[k]*vfac;
-    vv[k] = vcom[k] - d.m1/mt*vrel[k]*vfac;
-				// Difference in Particle 1
-    udif += (v1[k] - uu[k]) * (v1[k] - uu[k]);
-				// Normalizations
-    v1i2 += v1[k] * v1[k];
-    v2i2 += v2[k] * v2[k];
-    b1f2 += uu[k] * uu[k];
-    b2f2 += vv[k] * vv[k];
-    v1u1 += v1[k] * uu[k];
-				// COM norm
-    vcm2 += vcom[k] * vcom[k];
-  }
-
-  if (ExactE and d.q < 1.0) {
-
-    KE.bs.set(KE_Flags::ExQ);
-
-    if (vi > 0.0) {
-
-      if (AlgOrth) {
-
-	// Cross product to determine orthgonal direction
-	//
-	w1[0] = uu[1]*v1[2] - uu[2]*v1[1];
-	w1[1] = uu[2]*v1[0] - uu[0]*v1[2];
-	w1[2] = uu[0]*v1[1] - uu[1]*v1[0];
-
-	// Normalize
-	//
-	double wnrm = 0.0;
-	for (auto   v : w1) wnrm += v*v;
-
-	const double tol = 1.0e-12;
-	// Generate random vector if |u|~0 or |v1|~0
-	if (v1i2 < tol*b1f2 or b1f2 < tol*v1i2) {
-	  for (auto & v : w1) v = (*norm)();
-	}
-	// Choose random orthogonal vector if uu || v1
-	else if (wnrm < tol*v1i2) {
-	  auto t3 = zorder(v1);
-	  int i0 = std::get<0>(t3), i1 = std::get<1>(t3), i2 = std::get<2>(t3);
-	  w1[i0] = (*norm)();
-	  w1[i1] = (*norm)();
-	  w1[i2] = -(w1[i0]*v1[i0] + w1[i1]*v1[i1])/v1[i2];
-	  wnrm = 0.0; for (auto v : w1) wnrm += v*v;
-	}
-	// Sanity check on norm |w|
-	if (wnrm > tol*vcm2) {
-	  for (auto & v : w1) v *= 1.0/sqrt(wnrm);
-	  KE.o1 = KE.o2 = 0.0;
-	  for (size_t k=0; k<3; k++) {
-	    KE.o1 += w1[k]*v1[k];
-	    KE.o2 += w1[k]*uu[k];
-	  }
-	  KE.o1 /= sqrt(v1i2*b1f2);
-	  KE.o2 /= sqrt(v1i2*b1f2);
-	  gamm  = sqrt( (1.0 - d.q)*d.q*udif );
-	  algok = true;
-	}
-
-      }
-
-
-      if (AlgWght) {
-	
-	KE.bs.set(KE_Flags::AlgW);
-
-	// Compute initial and final energy after combination to get
-	// energy excess
-	//
-	double KEi1 = 0.0, KEi2 = 0.0, KEf1 = 0.0, KEf2 = 0.0;
-	for (size_t k=0; k<3; k++) {
-	  KEi1 += v1[k]*v1[k];
-	  KEi2 += v2[k]*v2[k];
-	  double ww = (1.0 - d.q)*v1[k] + d.q*uu[k];
-	  KEf1 += ww*ww;
-	  KEf2 += vv[k]*vv[k];
-	}
-	
-	KEi1 *= 0.5*d.W1*d.m1;
-	KEi2 *= 0.5*d.W2*d.m2;
-	KEf1 *= 0.5*d.W1*d.m1;
-	KEf2 *= 0.5*d.W2*d.m2;
-
-	double R1    = d.W1*Fwght;
-	double R2    = d.W2*(1.0 - Fwght);
-	double R12   = R1 + R2;
-
-	double delE  = kE - totE;
-	double difE  = KEi1 + KEi2 - delE - KEf1 - KEf2;
-	double difE1 = difE * R1/R12;
-	double difE2 = difE * R2/R12;
-	double totEf = KEf1 + KEf2;
-	
-	if (ALG_WGHT_MASS) {
-	  double ms1 = d.p1->mass, ms2 = d.p2->mass;
-	  difE1 = difE * ms1/(ms1 + ms2);
-	  difE2 = difE * ms2/(ms1 + ms2);
-	}
-
-	algok = true;
-
-	if (totEf + difE < 0.0) {
-	  algok = false;
-	} else if (difE1 + KEf1 < 0.0) {
-	  vrat = 0.0;
-	  double vfac = sqrt((totEf + difE)/KEf2);
-	  for (auto & v : vv) v *= vfac;
-	} else if (difE2 + KEf2 < 0.0) {
-	  vrat = sqrt((totEf + difE)/KEf1);
-	  for (auto & v : uu) v *= vrat;
-	  for (auto & v : vv) v  = 0.0;
-	} else {
-	  vrat = sqrt(1.0 + difE1/KEf1);
-	  for (auto & v : uu) v *= vrat;
-	  double vfac = sqrt(1.0 + difE2/KEf2);
-	  for (auto & v : vv) v *= vfac;
-	}
-
-	// Temporary deep debug
-	//
-	if (algok) {
-
-	  double M1 = 0.5 * d.W1 * d.m1;
-	  double M2 = 0.5 * d.W2 * d.m2;
-	  // Initial KE
-	  double KE1i = 0.0, KE2i = 0.0;
-	  double KE1f = 0.0, KE2f = 0.0;
-	  for (auto v : v1) KE1i += v*v;
-	  for (auto v : v2) KE2i += v*v;
-	  for (size_t k=0; k<3; k++) {
-	    double w  = (1.0 - d.q)*v1[k]*vrat + d.q*uu[k];
-	    KE1f += w*w;
-	  }
-	  for (auto v : vv) KE2f += v*v;
-
-	  KE1i *= M1;
-	  KE2i *= M2;
-	  KE1f *= M1;
-	  KE2f *= M2;
-
-	  // KE differences
-	  double KEi   = KE1i + KE2i;
-	  double KEf   = KE1f + KE2f;
-	  double delEt = KEi - delE  - KEf;
-
-	  if ( fabs(delEt)/std::min<double>(KEi, KEf) > tolE) {
-	    std::cout << "**ERROR electron-ion: delEt = " << delEt << std::endl;
-	  }
-	}
-      }
-
-      if (!algok or (!AlgOrth and !AlgWght)) {
-
-	KE.bs.set(KE_Flags::StdE);
-
-	double qT = d.q * v1u1;
-	if (v1i2 > 0.0) {
-	  qT /= v1i2;
-	  vrat =
-	    ( -qT + std::copysign(1.0, qT)*sqrt(qT*qT + (1.0 - d.q)*(d.q*b1f2/v1i2 + 1.0) ) )/(1.0 - d.q);
-	  w1 = v1;
-	}
-      }
-
-    } else {
-
-      KE.bs.set(KE_Flags::zeroKE);
-
-      // Pick random direction
-      //
-      w1 = unit_vector();
-
-      double kF = 0.5*d.W1*d.q*mu;
-      gamm  = sqrt(totE/kF);
-      algok = true;
-    }
-
-    // Update post-collision velocities
-    // --------------------------------
-    //
-    // Compute new energy conservation updates
-    //
-    for (size_t k=0; k<3; k++) {
-      v1[k] = (1.0 - d.q)*v1[k]*vrat + w1[k]*gamm + d.q*uu[k];
-      v2[k] = vv[k];
-    }
-
-    // Temporary deep debug
-    //
-    if (1) {
-
-      double M1 = 0.5 * d.W1 * d.m1;
-      double M2 = 0.5 * d.W2 * d.m2;
-      // Initial KE
-      double KE1i = M1 * KE.i(1);
-      double KE2i = M2 * KE.i(2);
-
-      double KE1f = 0.0, KE2f = 0.0;
-      for (auto v : v1) KE1f += v*v;
-      for (auto v : v2) KE2f += v*v;
-				// Final KE
-      KE1f *= M1;
-      KE2f *= M2;
-
-				// KE differences
-      double KEi   = KE1i + KE2i;
-      double KEf   = KE1f + KE2f;
-      double delEt = KEi  - KEf - std::min<double>(kE, KE.delE);
-
-      if ( fabs(delEt)/std::min<double>(KEi, KEf) > tolE) {
-	std::cout << "**ERROR scatter: delEt = " << delEt
-		  << " rel = " << delEt/KEi
-		  << " KEi = " << KEi
-		  << " KEf = " << KEf
-		  << " dif = " << KEi - KEf
-		  << "  kE = " << kE
-		  << "  dE = " << KE.delE
-		  << " dvf = " << KE.delE/kE
-		  << " tot = " << totE
-		  << " fac1 = " << KE.vfac
-		  << " fac2 = " << vfac
-		  << " wnrm = " << wnrm
-		  << " b1f2 = " << b1f2/v1i2
-		  << " v1u1 = " << v1u1/v1i2
-		  << " alg = " << (algok ? (AlgWght ? "wght" : "orth"): "std")
-		  << " flg = " << KE.decode()
-		  << std::endl;
-      }
-    }
-
-  }
-  // END: ExactE algorithms
-  // BEGIN: Momentum conservation
-  else {
-
-    KE.bs.set(KE_Flags::momC);
-
-    double qKEfac = 0.5*d.W1*d.m1*d.q*(1.0 - d.q);
-
-    KE.bs.set(KE_Flags::KEpos);
-
-    // Update post-collision velocities.  In the electron version, the
-    // momentum is assumed to be coupled to the ions, so the ion
-    // momentum must be conserved.  Particle 2 is trace by construction.
-    //
-    KE.delta = 0.0;
-    for (size_t k=0; k<3; k++) {
-      double v0 = vcom[k] + d.m2/mt*vrel[k]*vfac;
-
-      KE.delta += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
-
-      v1[k] = (1.0 - d.q)*v1[k] + d.q*v0;
-      v2[k] = vcom[k] - d.m1/mt*vrel[k]*vfac;
-    }
-
-  } // END: momentum conservation algorithm
-
-} // END: CollideIon::scatterHybrid
-
-
 void CollideIon::scatterHybrid
 (const InteractData& d, KE_& KE,
  std::vector<double>& v1, std::vector<double>& v2, int id)
@@ -7999,12 +7635,12 @@ void CollideIon::scatterHybrid
   // Compute the change of energy in the collision frame by computing
   // the velocity reduction factor
   //
-  double qB = d.q * d.P;
+  double qB = d.pp->q * d.P;
   double qP = d.P;
   double cB = 1.0 - qB;
   double cP = 1.0 - d.P;
 
-  double kE   = 0.5*d.W1*qB*mu*vi;
+  double kE   = 0.5*d.pp->W1*qB*mu*vi;
   double totE = kE - KE.delE;
   double vfac = 1.0;
 
@@ -8052,7 +7688,6 @@ void CollideIon::scatterHybrid
   //
   double vrat = 1.0;
 
-  bool algok = false;
   std::vector<double> uu(3), vv(3);
 
   double v1i2 = 0.0, v2i2 = 0.0, vdif = 0.0, v2u2 = 0.0;
@@ -8077,7 +7712,7 @@ void CollideIon::scatterHybrid
 
     KE.bs.set(KE_Flags::ExQ);
 
-    double A = alph*alph*d.m1*cB*cB*v1i2 + beta*beta*d.m2*d.q*cP*cP*v2i2;
+    double A = alph*alph*d.m1*cB*cB*v1i2 + beta*beta*d.m2*d.pp->q*cP*cP*v2i2;
 
     if (A > 0.0) {
 
@@ -8085,9 +7720,9 @@ void CollideIon::scatterHybrid
 
       double B  =
 	2.0*d.m1*alph*cB*(cB*v1i2 + qB*v1u1) +
-	2.0*d.m2*beta*cP*(cP*v2i2 + qP*v2u2) * d.q;
+	2.0*d.m2*beta*cP*(cP*v2i2 + qP*v2u2) * d.pp->q;
       
-      double C  = d.m1*qB*cB*udif + d.m2*d.q*qP*cP*vdif;
+      double C  = d.m1*qB*cB*udif + d.m2*d.pp->q*qP*cP*vdif;
 
       vrat = (-B + sqrt(B*B + 4*A*C))/(2.0*A);
       
@@ -8115,8 +7750,9 @@ void CollideIon::scatterHybrid
     //
     if (1) {
 
-      double M1 = 0.5 * d.W1 * d.m1;
-      double M2 = 0.5 * d.W2 * d.m2;
+      double M1 = 0.5 * d.pp->W1 * d.m1;
+      double M2 = 0.5 * d.pp->W2 * d.m2;
+
       // Initial KE
       double KE1i = M1 * KE.i(1);
       double KE2i = M2 * KE.i(2);
@@ -8135,6 +7771,7 @@ void CollideIon::scatterHybrid
 
       if ( fabs(delEt)/std::min<double>(KEi, KEf) > tolE) {
 	std::cout << "**ERROR scatter: delEt = " << delEt
+		  << " rel = " << delEt/KEi
 		  << " KEi = " << KEi
 		  << " KEf = " << KEf
 		  << " dif = " << KEi - KEf
@@ -8147,12 +7784,13 @@ void CollideIon::scatterHybrid
 		  << " wnrm = " << wnrm
 		  << " v1u1 = " << v1u1/v1i2
 		  << " v2u2 = " << v2u2/v2i2
-		  << " alg = " << (algok ? (AlgWght ? "wght" : "orth"): "std")
+		  << "    q = " << d.pp->q
+		  << "   w1 = " << d.pp->w1
+		  << "   w2 = " << d.pp->w2
+		  << "   W1 = " << d.pp->W1
+		  << "   W2 = " << d.pp->W2
 		  << " flg = " << KE.decode()
 		  << std::endl;
-      } else {
-	std::cout << "**GOOD scatter: delEt = " << delEt
-		  << ", rel = " << delEt/KEi << std::endl;
       }
     }
 
@@ -8163,8 +7801,8 @@ void CollideIon::scatterHybrid
 
     KE.bs.set(KE_Flags::momC);
 
-    double qKEfac1 = 0.5*d.W1*d.m1*qB*cB;
-    double qKEfac2 = 0.5*d.W2*d.m2*qP*cP;
+    double qKEfac1 = 0.5*d.pp->W1*d.m1*qB*cB;
+    double qKEfac2 = 0.5*d.pp->W2*d.m2*qP*cP;
 
     KE.bs.set(KE_Flags::KEpos);
 
@@ -8205,42 +7843,42 @@ void CollideIon::deferredEnergyHybrid(const InteractData& d, const double E)
   if (use_cons >= 0) {
 
     if (use_elec<0) {
-      if (fabs(d.q-1.0) < 1.0e-16) {
-	d.p1->dattrib[use_cons] += 0.5*E;
-	d.p2->dattrib[use_cons] += 0.5*E;
+      if (fabs(d.pp->q-1.0) < 1.0e-16) {
+	d.pp->p1->dattrib[use_cons] += 0.5*E;
+	d.pp->p2->dattrib[use_cons] += 0.5*E;
       } else {
-	if (d.W1 > d.W2) d.p1->dattrib[use_cons] += E;
-	else             d.p2->dattrib[use_cons] += E;
+	if (d.pp->W1 > d.pp->W2) d.pp->p1->dattrib[use_cons] += E;
+	else                     d.pp->p2->dattrib[use_cons] += E;
       }
     }
     else {
       // Same weight
-      if (fabs(d.q-1.0) < 1.0e-16) {
+      if (fabs(d.pp->q-1.0) < 1.0e-16) {
 	if (E_split and d.m1 < 1.0)
-	  d.p1->dattrib[use_elec+3] += 0.5*E;
+	  d.pp->p1->dattrib[use_elec+3] += 0.5*E;
 	else
-	  d.p1->dattrib[use_cons  ] += 0.5*E;
+	  d.pp->p1->dattrib[use_cons  ] += 0.5*E;
 	if (E_split and d.m2 < 1.0)
-	  d.p2->dattrib[use_elec+3] += 0.5*E;
+	  d.pp->p2->dattrib[use_elec+3] += 0.5*E;
 	else
-	  d.p2->dattrib[use_cons  ] += 0.5*E;
+	  d.pp->p2->dattrib[use_cons  ] += 0.5*E;
       }
       // Trace with p1 dominant
-      else if (d.W1 > d.W2) {
+      else if (d.pp->W1 > d.pp->W2) {
 	if (E_split and (d.m1 < 1.0 or d.m2 < 1.0)) {
-	  d.p1->dattrib[use_cons  ] += 0.5*E;
-	  d.p1->dattrib[use_elec+3] += 0.5*E;
+	  d.pp->p1->dattrib[use_cons  ] += 0.5*E;
+	  d.pp->p1->dattrib[use_elec+3] += 0.5*E;
 	} else {
-	  d.p1->dattrib[use_cons  ] += E;
+	  d.pp->p1->dattrib[use_cons  ] += E;
 	}
       }
       // Trace with p2 dominant
       else {
 	if (E_split and (d.m1 < 1.0 or d.m2 < 1.0)) {
-	  d.p2->dattrib[use_cons  ] += 0.5*E;
-	  d.p2->dattrib[use_elec+3] += 0.5*E;
+	  d.pp->p2->dattrib[use_cons  ] += 0.5*E;
+	  d.pp->p2->dattrib[use_elec+3] += 0.5*E;
 	} else {
-	  d.p2->dattrib[use_cons  ] += E;
+	  d.pp->p2->dattrib[use_cons  ] += E;
 	}
       }
     }
@@ -8263,11 +7901,11 @@ void CollideIon::checkEnergyHybrid
     for (auto v : v2) KE.f(2) += v*v;
 
 				// Pre collision KE
-    KE.i(1) *= 0.5*d.W1*d.m1;
-    KE.i(2) *= 0.5*d.W2*d.m2;
+    KE.i(1) *= 0.5*d.pp->W1*d.m1;
+    KE.i(2) *= 0.5*d.pp->W2*d.m2;
 				// Post collision KE
-    KE.f(1) *= 0.5*d.W1*d.m1;
-    KE.f(2) *= 0.5*d.W2*d.m2;
+    KE.f(1) *= 0.5*d.pp->W1*d.m1;
+    KE.f(2) *= 0.5*d.pp->W2*d.m2;
 
     double tKEi = KE.i(1) + KE.i(2);	// Total pre collision KE
     double tKEf = KE.f(1) + KE.f(2);	// Total post collision KE
@@ -8287,14 +7925,14 @@ void CollideIon::checkEnergyHybrid
     //
     double testE = dKE - KE.delta;
 
-    bool equal = (d.Z1 == d.Z2);
+    bool equal = (d.pp->Z1 == d.pp->Z2);
 
     if (equal or ALWAYS_APPLY) testE -= KE.delE + KE.miss;
 
     if (not equal) {
       if (TRACE_ELEC) {
-	d.p1->dattrib[use_elec+3] -= KE.delta * TRACE_FRAC;
-	d.p2->dattrib[use_cons]   -= KE.delta * (1.0 - TRACE_FRAC);
+	d.pp->p1->dattrib[use_elec+3] -= KE.delta * TRACE_FRAC;
+	d.pp->p2->dattrib[use_cons]   -= KE.delta * (1.0 - TRACE_FRAC);
       }
     }
 
@@ -8315,7 +7953,7 @@ void CollideIon::checkEnergyHybrid
 		<< ", wv2=" << std::setw(14) << KE.o2
 		<< ",  vf=" << std::setw(14) << KE.vfac
 		<< ", "     << (equal ? "q=1" : "q<1")
-		<< ",   q=" << std::setw(14) << d.q
+		<< ",   q=" << std::setw(14) << d.pp->q
 		<< ", flg=" << KE.decode()
 		<< std::endl;
 

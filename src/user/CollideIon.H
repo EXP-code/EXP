@@ -763,7 +763,7 @@ protected:
 		      Particle* const p1, Particle* const p2, 
 		      double *crm, const NTC::Interact::T& itype, double weight);
 
-  class Porder
+  class Pord
   {
   public:
     static int key;
@@ -779,12 +779,12 @@ protected:
     pType          P;
     bool           swap;
     speciesKey     k1, k2;
-    double         q;
+    unsigned short Z1, Z2;
+    double         q, m1, m2;
 
-    Porder(Particle *p1, Particle *p2, double w1, double w2,
-	   double eta1, double eta2, pType p) :
-      p1(p1), p2(p2), w1(w1), w2(W2),
-      eta1(eta1), eta2(eta2), P(p), swap(false)
+    Pord(Particle *p1, Particle *p2, double w1, double w2,
+	 double eta1, double eta2, pType p) :
+      p1(p1), p2(p2), w1(w1), w2(w2), eta1(eta1), eta2(eta2), P(p), swap(false)
     {
       W1 = w1;
       W2 = w2;
@@ -811,23 +811,43 @@ protected:
 	
 	// Swap true particle numbers
 	//
+	zswap(w1, w2);
 	zswap(W1, W2);
-
-	q  = w2/w1;
 
 	swap = true;
       }
 
+      // Trace ratio
+      //
+      q  = w2/w1;
+
+      // Cache species keys
+      //
       k1 = KeyConvert(p1->iattrib[key]).getKey();
       k2 = KeyConvert(p2->iattrib[key]).getKey();
 
-      if (P == ion_electron) W2 *= eta2;
-      if (P == ion_electron) W1 *= eta1;
+      Z1 = k1.first;
+      Z2 = k2.first;
+
+      m1 = atomic_weights[Z1];
+      m2 = atomic_weights[Z2];
+
+      // Convert to electron count
+      //
+      if (P == ion_electron) {
+	m2  = atomic_weights[0];
+	W2 *= eta2;
+      }
+
+      if (P == electron_ion) {
+	m1  = atomic_weights[0];
+	W1 *= eta1;
+      }
     }
 
   };
 
-  typedef std::shared_ptr<Porder> PorderPtr;
+  typedef std::shared_ptr<Pord> PordPtr;
 
   virtual double crossSection(int id, pCell* const c, 
 			      Particle* const p1, Particle* const p2, 
@@ -1083,26 +1103,21 @@ protected:
   //! Interaction data structure for simplifying variable passing
   struct InteractData 
   {
-    double m1, m2, W1, W2, q, P, vi2;
-    unsigned short Z1, Z2;
-    Particle *p1, *p2;
+    double P, vi2, m1, m2;
+    PordPtr pp;
 
-    InteractData(double m1, double m2, double W1, double W2, double q, double P,
-		 unsigned short Z1, unsigned short Z2, Particle* p1, Particle* p2) :
-      
-      m1(m1), m2(m2), W1(W1), W2(W2), q(q), P(P), vi2(0.0), Z1(Z1), Z2(Z2), p1(p1), p2(p2) {}
+    InteractData(double P, PordPtr pp) : P(P), vi2(0.0), pp(pp)
+    {
+      m1 = pp->m1;
+      m2 = pp->m2;
+    }
 
   };
 
-  //@{
   //! Compute the interaction for the hybrid weighted method
   void scatterHybrid
   (const InteractData& d, KE_& KE,
    std::vector<double>& v1, std::vector<double>& v2, int id);
-  void scatterHybridOrig
-  (const InteractData& d, KE_& KE,
-   std::vector<double>& v1, std::vector<double>& v2, int id);
-  //@}
 
   //! Add excess energy to conservation counter
   void deferredEnergyHybrid(const InteractData& d, const double E);
