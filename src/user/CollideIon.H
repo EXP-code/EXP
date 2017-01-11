@@ -628,7 +628,7 @@ public:
   //! Artificially bost inelastic scattering cross section by factor
   static double ieBoost;
 
-  //! Relative error tolerance for warnings (default: 1.0e-6)
+  //! Relative error tolerance for warnings (default: 1.0e-5)
   static double tolE;
 
   //! Multiplicative factor for choosing cooling time step (default: 0.05)
@@ -782,21 +782,34 @@ protected:
     unsigned short Z1, Z2;
     double         q, m1, m2;
 
-    Pord(Particle *p1, Particle *p2, double w1, double w2,
-	 double eta1, double eta2, pType p) :
-      p1(p1), p2(p2), w1(w1), w2(w2), eta1(eta1), eta2(eta2), P(p), swap(false)
+    Pord(Particle *P1, Particle *P2, double WW1, double WW2,
+	 double Eta1, double Eta2, pType p) :
+      p1(P1), p2(P2), w1(WW1), w2(WW2), eta1(Eta1), eta2(Eta2), P(p), swap(false)
     {
       W1 = w1;
       W2 = w2;
+
+      // Cache species keys
+      //
+      k1 = KeyConvert(p1->iattrib[key]).getKey();
+      k2 = KeyConvert(p2->iattrib[key]).getKey();
+
+      Z1 = k1.first;
+      Z2 = k2.first;
+
+      m1 = atomic_weights[Z1];
+      m2 = atomic_weights[Z2];
 
       switch (P) {
       case ion_ion:
 	break;
       case ion_electron:
 	W2 *= eta2;
+	m2  = atomic_weights[0];
 	break;
       case electron_ion:
 	W1 *= eta1;
+	m1  = atomic_weights[0];
 	break;
       }
 
@@ -814,35 +827,23 @@ protected:
 	zswap(w1, w2);
 	zswap(W1, W2);
 
+	// Swap particle masses
+	//
+	zswap(m1, m2);
+
+	// Swap species and masses
+	//
+	zswap(k1, k2);
+	zswap(Z1, Z2);
+
 	swap = true;
       }
 
       // Trace ratio
       //
-      q  = w2/w1;
+      q  = W2/W1;
 
-      // Cache species keys
-      //
-      k1 = KeyConvert(p1->iattrib[key]).getKey();
-      k2 = KeyConvert(p2->iattrib[key]).getKey();
 
-      Z1 = k1.first;
-      Z2 = k2.first;
-
-      m1 = atomic_weights[Z1];
-      m2 = atomic_weights[Z2];
-
-      // Convert to electron count
-      //
-      if (P == ion_electron) {
-	m2  = atomic_weights[0];
-	W2 *= eta2;
-      }
-
-      if (P == electron_ion) {
-	m1  = atomic_weights[0];
-	W1 *= eta1;
-      }
     }
 
   };

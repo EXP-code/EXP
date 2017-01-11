@@ -20,7 +20,6 @@
 #include "Species.H"
 #include "Configuration.H"
 #include "InitContainer.H"
-#include "zip.H"
 
 using namespace std;
 using namespace NTC;
@@ -52,11 +51,12 @@ unsigned CollideIon::NoDelC     = 0;
 unsigned CollideIon::maxCoul    = UINT_MAX;
 double   CollideIon::logL       = 24.0;
 double   CollideIon::ieBoost    = 1.0;
-double   CollideIon::tolE       = 1.0e-6;
 double   CollideIon::TSCOOL     = 0.05;
 double   CollideIon::TSFLOOR    = 0.001;
 double   CollideIon::scatFac1   = 1.0;
 double   CollideIon::scatFac2   = 1.0;
+double   CollideIon::tolE       = 1.0e-05;
+
 string   CollideIon::config0    = "CollideIon.config";
 
 bool CollideIon::ElectronEPSM   = false;
@@ -159,10 +159,6 @@ static bool NO_FF_E            = false;
 // to false for production
 //
 static bool KE_DEBUG            = true;
-
-// KE debugging threshold for triggering diagnostic output
-//
-static double DEBUG_THRESH      = 1.0e-08;
 
 // Finalize cell debug diagnostics
 //
@@ -6135,7 +6131,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
     else if ( (C1==1 and C2==1) or electronic  )
       testE -= deltaKE;
 
-    if (fabs(testE) > DEBUG_THRESH*(tKEi+tKEf) )
+    if (fabs(testE) > tolE*(tKEi+tKEf) )
       std::cout << "Total ("<< m1 << "," << m2 << ") = "
 		<< std::setw(14) << testE
 		<< ", dKE=" << std::setw(14) << dKE
@@ -6400,7 +6396,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
     else if ((C1==1 and C2==1) or electronic)
       testE -= deltaKE;
 
-    if (fabs(testE) > DEBUG_THRESH*Einit )
+    if (fabs(testE) > tolE*Einit )
       std::cout << "NC total ("<< m1 << "," << m2 << ") = "
 		<< std::setw(14) << testE
 		<< ", flg=" << std::setw(6)  << interFlag
@@ -7310,8 +7306,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
   if (use_elec) {
 
-    double ke1 = 0.0, ke2 = 0.0;
-
     //
     // Apply neutral-neutral scattering and energy loss
     //
@@ -7319,8 +7313,14 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
       InteractData d(PE[0].first, PP[0]);
 
+      Particle * p1 = PP[0]->p1;
+      Particle * p2 = PP[0]->p2;
+
+      double ke1 = 0.0, ke2 = 0.0;
+
       for (int k=0; k<3; k++) {
-	v1[k]  = p1->vel[k];	// Both particles are neutrals or ions
+				// Both particles are neutrals or ions
+	v1[k]  = p1->vel[k];
 	v2[k]  = p2->vel[k];
 
 	ke1   += v1[k] * v1[k];
@@ -7338,7 +7338,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  clrE[id] += dE;
 	  PE[0].second += dE;
 	} else {
-	  if (W1 < W2)
+	  if (PP[0]->W1 < PP[0]->W2)
 	    p2->dattrib[use_cons] += PE[0].second;
 	  else
 	    p1->dattrib[use_cons] += PE[0].second;
@@ -7372,24 +7372,40 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
       InteractData d(PE[1].first, PP[1]);
 
+      Particle * p1     = PP[1]->p1;
+      Particle * p2     = PP[1]->p2;
+
+      double ke1 = 0.0, ke2 = 0.0;
+
       for (int k=0; k<3; k++) {
-	v1[k]  = p1->vel[k];	// Particle 1 is the ion
+	if (PP[1]->swap) {	// Particle 1 is the electron
+	  v1[k]  = p1->dattrib[use_elec+k];
+				// Particle 2 is the ion
+	  v2[k]  = p2->vel[k];
+	} else {		// Particle 1 is the ion
+	  v1[k]  = p1->vel[k];
 				// Particle 2 is the electron
-	v2[k]  = p2->dattrib[use_elec+k];
-	
+	  v2[k]  = p2->dattrib[use_elec+k];
+	}
 	ke1   += v1[k] * v1[k];
 	ke2   += v2[k] * v2[k];
       }
       
       if (ke1 > 0.0 and ke2 > 0.0) {
 	
-	if (Z1 == Z2 or ALWAYS_APPLY) {
-	  double dE = p1->dattrib[use_cons] + p2->dattrib[use_elec+3];
-	  p1->dattrib[use_cons] = p2->dattrib[use_elec+3] = 0.0;
+	if (PP[1]->Z1 == PP[1]->Z2 or ALWAYS_APPLY) {
+	  double dE = 0.0;
+	  if (PP[1]->swap) {
+	    dE = p2->dattrib[use_cons] + p1->dattrib[use_elec+3];
+	    p2->dattrib[use_cons] = p1->dattrib[use_elec+3] = 0.0;
+	  } else {
+	    dE = p1->dattrib[use_cons] + p2->dattrib[use_elec+3];
+	    p1->dattrib[use_cons] = p2->dattrib[use_elec+3] = 0.0;
+	  }
 	  clrE[id] += dE;
 	  PE[1].second += dE;
 	} else {
-	  if (W1 < W2)
+	  if (PP[1]->W1 < PP[1]->W2)
 	    p2->dattrib[use_cons] += PE[1].second;
 	  else
 	    p1->dattrib[use_cons] += PE[1].second;
@@ -7408,10 +7424,15 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	
 	for (int k=0; k<3; k++) {
-				// Particle 1 is the ion
-	  p1->vel[k] = v1[k];
+	  if (PP[1]->swap) {	// Particle 1 is the elctron
+	    p1->dattrib[use_elec+k] = v1[k];
+				// Particle 2 is the ion
+	    p2->vel[k] = v2[k];
+	  } else {		// Particle 1 is the ion
+	    p1->vel[k] = v1[k];
 				// Particle 2 is the elctron
-	  p2->dattrib[use_elec+k] = v2[k];
+	    p2->dattrib[use_elec+k] = v2[k];
+	  }
 	}
 
 	if (NOCOOL and KE_NOCOOL_CHECK) {
@@ -7421,14 +7442,24 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    ke2f += v2[k] * v2[k];
 	  }
 	  
-	  ke1  *= 0.5*p1->mass;
-	  ke1f *= 0.5*p1->mass;
+	  if (PP[1]->swap) {
+	    ke1  *= 0.5*p1->mass * PP[1]->eta1 * atomic_weights[0]/atomic_weights[PP[1]->Z1];
+	    ke1f *= 0.5*p1->mass * PP[1]->eta1 * atomic_weights[0]/atomic_weights[PP[1]->Z1];
+										  
+	    ke2  *= 0.5*p2->mass;
+	    ke2f *= 0.5*p2->mass;
 	  
-	  ke2  *= 0.5*p2->mass * eta2 * atomic_weights[0]/atomic_weights[Z2];
-	  ke2f *= 0.5*p2->mass * eta2 * atomic_weights[0]/atomic_weights[Z2];
+	  } else {
+
+	    ke1  *= 0.5*p1->mass;
+	    ke1f *= 0.5*p1->mass;
+	  
+	    ke2  *= 0.5*p2->mass * PP[1]->eta2 * atomic_weights[0]/atomic_weights[PP[1]->Z2];
+	    ke2f *= 0.5*p2->mass * PP[1]->eta2 * atomic_weights[0]/atomic_weights[PP[1]->Z2];
+	  }
 
 	  double delE = ke1 + ke2 - ke1f - ke2f;
-	  if (fabs(delE) > DEBUG_THRESH*(ke1 + ke2)) {
+	  if (fabs(delE) > tolE*(ke1 + ke2)) {
 	    std::cout << "**ERROR post scatter: relE = " << delE/(ke1+ke2)
 		      << " del = "  << delE
 		      << " KEi = "  << ke1  + ke2
@@ -7454,11 +7485,21 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
       InteractData d(PE[2].first, PP[2]);
 
-      for (int k=0; k<3; k++) {
-				// Particle 1 is the elctron
-	v1[k]  = p1->dattrib[use_elec+k];
-	v2[k]  = p2->vel[k];	// Particle 2 is the ion
+      Particle * p1     = PP[2]->p1;
+      Particle * p2     = PP[2]->p2;
 
+      double ke1 = 0.0, ke2 = 0.0;
+
+      for (int k=0; k<3; k++) {
+	if (PP[2]->swap) {	// Particle 1 is the ion
+	  v1[k]  = p1->vel[k];
+				// Particle 2 is the elctron
+	  v2[k]  = p2->dattrib[use_elec+k];
+	} else {		// Particle 1 is the elctron
+	  v1[k]  = p1->dattrib[use_elec+k];
+				// Particle 2 is the ion
+	  v2[k]  = p2->vel[k];
+	}
 	ke1   += v1[k] * v1[k];
 	ke2   += v2[k] * v2[k];
       }
@@ -7466,12 +7507,18 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       if (ke1 > 0.0 and ke2 > 0.0) {
 	
 	if (Z1 == Z2 or ALWAYS_APPLY) {
-	  double dE = p1->dattrib[use_elec+3] + p2->dattrib[use_cons];
+	  double dE = 0.0;
+	  if (PP[2]->swap) {
+	    dE = p2->dattrib[use_elec+3] + p1->dattrib[use_cons];
+	    p2->dattrib[use_elec+3] = p1->dattrib[use_cons] = 0.0;
+	  } else {
+	    dE = p1->dattrib[use_elec+3] + p2->dattrib[use_cons];
+	    p1->dattrib[use_elec+3] = p2->dattrib[use_cons] = 0.0;
+	  }
 	  clrE[id] += dE;
 	  PE[2].second += dE;
-	  p1->dattrib[use_elec+3] = p2->dattrib[use_cons] = 0.0;
 	} else {
-	  if (atomic_weights[Z1] < atomic_weights[Z2])
+	  if (PP[2]->W1 < PP[2]->W2)
 	    p2->dattrib[use_cons] += PE[2].second;
 	  else
 	    p1->dattrib[use_cons] += PE[2].second;
@@ -7490,10 +7537,16 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	
 	for (int k=0; k<3; k++) {
-				// Particle 1 is the electron
-	  p1->dattrib[use_elec+k] = v1[k];
+	  if (PP[2]->swap) {	// Particle 1 is the ion
+	    p1->vel[k] = v1[k];
+				// Particle 2 is the electron
+	    p2->dattrib[use_elec+k] = v2[k];
+
+	  } else {		// Particle 1 is the electron
+	    p1->dattrib[use_elec+k] = v1[k];
 				// Particle 2 is the ion
-	  p2->vel[k] = v2[k];
+	    p2->vel[k] = v2[k];
+	  }
 	}
       
 	if (NOCOOL and KE_NOCOOL_CHECK) {
@@ -7503,14 +7556,22 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    ke2f += v2[k] * v2[k];
 	  }
 	  
-	  ke1  *= 0.5*p1->mass * eta1 * atomic_weights[0]/atomic_weights[Z1];
-	  ke1f *= 0.5*p1->mass * eta1 * atomic_weights[0]/atomic_weights[Z1];
+	  if (PP[2]->swap) {
+	    ke1  *= 0.5*p1->mass;
+	    ke1f *= 0.5*p1->mass;
+
+	    ke2  *= 0.5*p2->mass * PP[2]->eta2 * atomic_weights[0]/atomic_weights[PP[2]->Z2];
+	    ke2f *= 0.5*p2->mass * PP[2]->eta2 * atomic_weights[0]/atomic_weights[PP[2]->Z2];
+	  } else {
+	    ke1  *= 0.5*p1->mass * PP[2]->eta1 * atomic_weights[0]/atomic_weights[PP[2]->Z1];
+	    ke1f *= 0.5*p1->mass * PP[2]->eta1 * atomic_weights[0]/atomic_weights[PP[2]->Z1];
 	  
-	  ke2  *= 0.5*p2->mass;
-	  ke2f *= 0.5*p2->mass;
+	    ke2  *= 0.5*p2->mass;
+	    ke2f *= 0.5*p2->mass;
+	  }
 
 	  double delE = ke1 + ke2 - ke1f - ke2f;
-	  if (fabs(delE) > DEBUG_THRESH*(ke1 + ke2)) {
+	  if (fabs(delE) > tolE*(ke1 + ke2)) {
 	    std::cout << "**ERROR post scatter: relE = " << delE/(ke1+ke2)
 		      << " del = "  << delE
 		      << " KEi = "  << ke1 + ke2
@@ -7938,10 +7999,11 @@ void CollideIon::checkEnergyHybrid
 
     misE[id] += KE.miss;
 
-    if (fabs(testE) > DEBUG_THRESH*(tKEi+tKEf) )
+    if (fabs(testE) > tolE*(tKEi+tKEf) )
       std::cout << "**ERROR check deltaE ("<< d.m1 << "," << d.m2 << ") = "
 		<< std::setw(14) << testE
-		<< ": dKE=" << std::setw(14) << dKE
+		<< ": rel=" << std::setw(14) << testE/tKEi
+		<< ", dKE=" << std::setw(14) << dKE
 		<< ", com=" << std::setw(14) << KE.delta
 		<< ", del=" << std::setw(14) << KE.delE
 		<< ", mis=" << std::setw(14) << KE.miss
@@ -9756,7 +9818,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	double testE = KEi - KEf - deltaKE - dKE;
 
-	if (fabs(testE) > DEBUG_THRESH*KEi) {
+	if (fabs(testE) > tolE*KEi) {
 	  std::cout << std::endl << std::string(70, '-') << std::endl
 		    << "**ERROR delta E elec ("
 		    << k1.Z() << ","
@@ -14826,8 +14888,8 @@ void CollideIon::processConfig()
     KE_DEBUG =
       cfg.entry<bool>("KE_DEBUG", "Check energy bookkeeping for weighted algorithm", true);
 
-    DEBUG_THRESH =
-      cfg.entry<double>("DEBUG_THRESH", "Threshold for reporting energy conservation bookkeeping", 1.0e-9);
+    tolE =
+      cfg.entry<double>("tolE", "Threshold for reporting energy conservation bookkeeping", 1.0e-5);
 
     RECOMB_IP =
       cfg.entry<bool>("RECOMB_IP", "Electronic binding energy is lost in recombination", false);
