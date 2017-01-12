@@ -6530,6 +6530,25 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     for (unsigned short C=1; C<=Z2; C++) eta2 += p2->dattrib[hybrid_pos+C]*C;
   }
 
+  // Debug energy conservation
+  //
+  double KE_init_check = 0.0;
+  if (NOCOOL and KE_NOCOOL_CHECK) {
+    for (size_t k =0; k<3; k++) {
+      double v1 = p1->vel[k], v2 = p2->vel[k];
+      KE_init_check +=
+	0.5 * p1->mass * v1 *v1 +
+	0.5 * p2->mass * v2 *v2 ;
+      if (use_elec>=0) {
+	v1 = p1->dattrib[use_elec+k];
+	v2 = p2->dattrib[use_elec+k];
+	KE_init_check +=
+	  0.5 * p1->mass * eta1 * v1 *v1 +
+	  0.5 * p2->mass * eta2 * v2 *v2 ;
+      }
+    }
+  }
+
   // Proportional to number of true particles in each superparticle
   //
   double W1 = p1->mass/atomic_weights[Z1];
@@ -7661,6 +7680,32 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     normTest(p2, "p2 [After]");
   }
 
+  // Debug energy conservation
+  //
+  if (NOCOOL and KE_NOCOOL_CHECK) {
+    double KE_final_check = 0.0;
+
+    for (size_t k =0; k<3; k++) {
+      double v1 = p1->vel[k], v2 = p2->vel[k];
+      KE_final_check +=
+	0.5 * p1->mass * v1 *v1 +
+	0.5 * p2->mass * v2 *v2 ;
+      if (use_elec>=0) {
+	v1 = p1->dattrib[use_elec+k];
+	v2 = p2->dattrib[use_elec+k];
+	KE_final_check +=
+	  0.5 * p1->mass * eta1 * v1 *v1 +
+	  0.5 * p2->mass * eta2 * v2 *v2 ;
+      }
+    }
+
+    double delE = KE_final_check - KE_init_check;
+    if (fabs(delE) > tolE*KE_init_check) {
+      std::cout << "**ERROR inelasticHybrid dE = " << delE
+		<< ", rel = " << delE/KE_init_check << std::endl;
+    }
+  }
+
   return ret;
 }
 
@@ -7791,7 +7836,12 @@ void CollideIon::scatterHybrid
       
       double C  = d.m1*qB*cB*udif + d.m2*d.pp->q*qP*cP*vdif;
 
-      vrat = (-B + sqrt(B*B + 4*A*C))/(2.0*A);
+      if (B > 0.0) {
+	vrat = 2.0*C/(B + sqrt(B*B + 4*A*C));
+      }
+      else {
+	vrat = (-B + sqrt(B*B + 4*A*C))/(2.0*A);
+      }
       
       Vdiag[id][0] += d.P;
       Vdiag[id][1] += d.P * vrat;
@@ -7858,6 +7908,9 @@ void CollideIon::scatterHybrid
 		  << "   W2 = " << d.pp->W2
 		  << " flg = " << KE.decode()
 		  << std::endl;
+      } else {
+	std::cout << "**GOOD scatter: delEt = " << delEt
+		  << " rel = " << delEt/KEi << std::endl;
       }
     }
 
