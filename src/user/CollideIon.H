@@ -843,8 +843,6 @@ protected:
       // Trace ratio
       //
       q  = W2/W1;
-
-
     }
 
   };
@@ -1042,8 +1040,17 @@ protected:
   //! Current MFP type
   MFP_t mfptype;
   
+  //! Collision type
+  enum HybridColl {None=0, Ion1=1, Ion2=2, Neutral=4, Scatter=8};
+
+  //! For labeling collision type
+  static std::map<unsigned, std::string> HClabel;
+
   //@{
   //! Hybrid algorithm support routines
+  double energyInPair(Particle *, Particle *);
+  std::pair<double, double>
+  energyInPairPartial(Particle *, Particle *, HybridColl);
 
   //! Maintain intermediate energy conservation quantities
   class KE_
@@ -1100,8 +1107,6 @@ protected:
     }
   };
   
-  enum HybridColl {Ion1=1, Ion2=2, Neutral=4, Scatter=8};
-
   //! Interaction data structure for simplifying variable passing
   struct InteractData 
   {
