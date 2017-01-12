@@ -527,6 +527,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   testCnt  .resize(nthrds, 0);
   cellEg   .resize(nthrds, 0);
   cellEb   .resize(nthrds, 0);
+  dEratg   .resize(nthrds, 0);
+  dEratb   .resize(nthrds, 0);
   Escat    .resize(nthrds);
   Etotl    .resize(nthrds);
   Italy    .resize(nthrds);
@@ -836,26 +838,27 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
   // Loop through all bodies in cell
   //
   for (auto b : cell->bods) {
-    Particle *p = tree->Body(b);
+
+    Particle *p      = tree->Body(b);
+    speciesKey K     = KeyConvert(p->iattrib[use_key]).getKey();
+    unsigned short Z = K.first;
+
 
     if (aType == Direct or aType == Weight) {
-      speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
-      double ee    = k.second - 1;
+      double ee     = K.second - 1;
 
-      numEf[id]    += p->mass * (1.0 + ee) / atomic_weights[k.first];
-      densE[id][k] += p->mass * ee / atomic_weights[k.first];
-      densEtot     += p->mass * ee / atomic_weights[k.first];
+      numEf[id]    += p->mass * (1.0 + ee) / atomic_weights[Z];
+      densE[id][K] += p->mass * ee / atomic_weights[Z];
+      densEtot     += p->mass * ee / atomic_weights[Z];
     }
 
     if (aType == Hybrid) {
-      speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
-      unsigned short Z = k.first;
 
       double ee = 0.0;
       for (unsigned short C=0; C<=Z; C++) ee += p->dattrib[hybrid_pos + C] * C;
 
       numEf[id]    += p->mass * (1.0 + ee) / atomic_weights[Z];
-      densE[id][k] += p->mass * ee / atomic_weights[Z];
+      densE[id][K] += p->mass * ee / atomic_weights[Z];
       densEtot     += p->mass * ee / atomic_weights[Z];
 
       if (enforceMOM) {
@@ -872,17 +875,21 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
       }
 
       if (NOCOOL and KE_NOCOOL_CHECK) {
-	double ke = 0.0, eta = atomic_weights[0]/atomic_weights[Z] * ee;
+
+	double eta = atomic_weights[0]/atomic_weights[Z] * ee;
 				// Compute kinetic energy
+	double KE  = 0.0;
 	for (unsigned j=0; j<3; j++) {
-	  double vi = p->vel[j];
-	  ke += vi * vi;
+	  double v = p->vel[j];
+	  KE += v * v;
 	  if (use_elec >= 0) {
-	    double ve = p->dattrib[use_elec+j];
-	    ke += eta * ve * ve;
+	    v = p->dattrib[use_elec+j];
+	    KE += eta * v * v;
 	  }
 	}
-	double KE = 0.5 * p->mass * ke;
+
+	KE *= 0.5 * p->mass;
+
 	if (use_cons>=0) KE -= p->dattrib[use_cons];
 	if (use_elec>=0) KE -= p->dattrib[use_elec+3];
 	testKE[id] += KE;
@@ -7450,7 +7457,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    ke2f *= 0.5*p2->mass;
 	  
 	  } else {
-
 	    ke1  *= 0.5*p1->mass;
 	    ke1f *= 0.5*p1->mass;
 	  
@@ -7460,7 +7466,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	  double delE = ke1 + ke2 - ke1f - ke2f;
 	  if (fabs(delE) > tolE*(ke1 + ke2)) {
-	    std::cout << "**ERROR post scatter: relE = " << delE/(ke1+ke2)
+	    std::cout << "**ERROR post scatter: relE = " << delE/(ke1 + ke2)
 		      << " del = "  << delE
 		      << " KEi = "  << ke1  + ke2
 		      << " KEf = "  << ke1f + ke2f
@@ -8842,27 +8848,28 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     double totElc = 0.0;
     
     for (auto b : cell->bods) {
-      Particle *p  = tree->Body(b);
+      Particle *p      = tree->Body(b);
       unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
 
-      double ke = 0.0, eta = 0.0;
 				// Electron fraction per particle
+      double eta = 0.0;
       if (use_elec >= 0) {
 	for (unsigned short C=0; C<=Z; C++)
 	  eta += p->dattrib[hybrid_pos + C] * C;
 	eta *= atomic_weights[0]/atomic_weights[Z];
       }
 				// Compute kinetic energy
+      double KE = 0.0;
       for (unsigned j=0; j<3; j++) {
-	double vi = p->vel[j];
-	ke += vi * vi;
+	double v = p->vel[j];
+	KE += v * v;
 	if (use_elec >= 0) {
-	  double ve = p->dattrib[use_elec+j];
-	  ke += eta * ve * ve;
+	  v = p->dattrib[use_elec+j];
+	  KE += eta * v * v;
 	}
       }
 
-      double KE = 0.5 * p->mass * ke;
+      KE *= 0.5 * p->mass;
 
       if (use_cons>=0) {
 	KE -= p->dattrib[use_cons];
@@ -8876,11 +8883,10 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       totMas += p->mass;
     }
     
-    double delE = 0.0;
     if (testKE[id] > 0.0) {
       if (testCnt[id] > 0) {
-	delE = totKEf/testKE[id] - 1.0;
-	if ( fabs(delE) > 1.0e-6 ) {
+	double delE = totKEf/testKE[id] - 1.0;
+	if ( fabs(delE) > 1.0e-4 ) {
 	  std::cout << "**ERROR KE conservation:" << std::left
 		    << " T="       << std::setw(14) << tnow
 		    << " before="  << std::setw(14) << testKE[id]
@@ -8889,11 +8895,14 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 		    << " cons I="  << std::setw(14) << totIon
 		    << " cons E="  << std::setw(14) << totElc
 		    << " mass="    << std::setw(14) << totMas
+		    << " # coll="  << std::setw(14) << testCnt[id]
 		    << " bodies="  << cell->bods.size()
 		    << std::endl;
 	  cellEb[id]++;
+	  dEratb[id] += fabs(delE);
 	} else {
 	  cellEg[id]++;
+	  dEratg[id] += fabs(delE);
 	}
       }
     }
@@ -13243,7 +13252,8 @@ void CollideIon::gatherSpecies()
 	unsigned Z1 = v.first/100;
 	unsigned Z2 = v.first - Z1*100;
 	std::cout << std::setw( 4) << Z1
-		  << std::setw( 4) << Z2;
+		  << std::setw( 4) << Z2
+		  << std::setprecision(5);
 	for (size_t k=0; k<3; k++)
 	  std::cout << std::setw(14) << v.second[k]/totalII;
 	std::cout << std::endl;
@@ -13269,7 +13279,8 @@ void CollideIon::gatherSpecies()
 		<< std::setw(14) << "--------"
 		<< std::setw(14) << "--------"
 		<< std::setw(14) << "--------"
-		<< std::endl;
+		<< std::endl     << std::setprecision(5);
+
 
       double dSum = 0.0, uSum = 0.0, dTot = 0.0;
 
@@ -13317,9 +13328,13 @@ void CollideIon::gatherSpecies()
 		<< std::setw(24)   << ' '
 		<< std::setw(14)   << dTot
 		<< std::setw(14)   << 1.0
-		<< std::setw(14)   << dSum
-		<< std::setw(14)   << dSum/uSum
-		<< std::setw(14)   << uSum << std::endl;
+		<< std::setw(14)   << dSum;
+      if (uSum > 0.0)
+	std::cout << std::setw(14) << dSum/uSum
+		  << std::setw(14) << uSum << std::endl;
+      else
+	std::cout << std::setw(14) << dSum
+		  << std::setw(14) << 0.0  << std::endl;
       std::cout << std::string(4+4+20+4+5*14, '-') << std::endl;
 
       std::cout << "           " << std::setw(14) << "Tot"
@@ -15288,9 +15303,13 @@ void CollideIon::post_cell_loop(int id)
   if (aType == Hybrid and NOCOOL and KE_NOCOOL_CHECK) {
     unsigned good = 0;
     unsigned bad  = 0;
+    double   dEgd = 0.0;
+    double   dEbd = 0.0;
 
     for (auto & v : cellEg)  { good += v; v = 0; }
     for (auto & v : cellEb)  { bad  += v; v = 0; }
+    for (auto & v : dEratg)  { dEgd += v; v = 0; }
+    for (auto & v : dEratb)  { dEbd += v; v = 0; }
 
     unsigned nC = 0;
     unsigned nP = 0;
@@ -15314,22 +15333,28 @@ void CollideIon::post_cell_loop(int id)
     MPI_Barrier(MPI_COMM_WORLD);
 
     unsigned u;
+    double   d;
     MPI_Reduce(&(u=good), &good, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&(u=bad),  &bad,  1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&(u=nC),   &nC,   1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&(u=nP),   &nP,   1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(d=dEgd), &dEgd, 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(d=dEbd), &dEbd, 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
 
     double z;
     MPI_Reduce(&(z=KE), &KE, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (myid==0 and mlev==0 and nP>0) {
-      if (bad)
+      if (bad) {
 	std::cout << std::endl << "KE cell conservation check, T="
 		  << std::left << std::setw(10) << tnow
 		  << " good="  << std::setw(8)  << good
 		  << " bad="   << std::setw(8)  << bad
 		  << " KE="    << std::setprecision(10) << KE
+		  << " dE(g)=" << std::setprecision(10) << (good ? dEgd/good : 0.0)
+		  << " dE(b)=" << std::setprecision(10) << dEbd/bad
 		  << std::endl;
+      }
       // For debugging . . . 
       /*
       else

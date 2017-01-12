@@ -698,6 +698,7 @@ protected:
   //@{
   //! Diagnostic for entire cell iteration loop
   std::vector<unsigned> cellEg, cellEb;
+  std::vector<double>   dEratg, dEratb;
   virtual void post_cell_loop(int id);
   //@}
 
