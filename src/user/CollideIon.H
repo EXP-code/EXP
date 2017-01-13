@@ -1048,9 +1048,11 @@ protected:
 
   //@{
   //! Hybrid algorithm support routines
+  double energyInPart(Particle *);
   double energyInPair(Particle *, Particle *);
   std::pair<double, double>
-  energyInPairPartial(Particle *, Particle *, HybridColl);
+  energyInPairPartial(Particle *, Particle *, HybridColl,
+		      const std::string& msg="");
 
   //! Maintain intermediate energy conservation quantities
   class KE_
