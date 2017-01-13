@@ -1125,15 +1125,15 @@ protected:
 
   //! Compute the interaction for the hybrid weighted method
   void scatterHybrid
-  (const InteractData& d, KE_& KE,
+  (double P, PordPtr pp, KE_& KE,
    std::vector<double>& v1, std::vector<double>& v2, int id);
 
   //! Add excess energy to conservation counter
-  void deferredEnergyHybrid(const InteractData& d, const double E);
+  void deferredEnergyHybrid(PordPtr pp, const double E);
 
   //! Check energy convervation for hybrid method
   void checkEnergyHybrid
-  (const InteractData& d, KE_& KE,
+  (PordPtr pp, KE_& KE,
    const std::vector<double>& v1, const std::vector<double>& v2,
    unsigned iType, int id);
 
