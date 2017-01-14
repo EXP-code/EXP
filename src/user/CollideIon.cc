@@ -8034,7 +8034,6 @@ void CollideIon::scatterHybrid
 
   double kE   = 0.5*pp->W1*qB*mu*vi;
   double totE = kE - KE.delE;
-  double vfac = 1.0;
 
   // KE is positive
   //
@@ -8048,7 +8047,7 @@ void CollideIon::scatterHybrid
     }
     // Update the outgoing energy in COM
     //
-    KE.vfac = vfac = sqrt(totE/kE);
+    KE.vfac = sqrt(totE/kE);
     KE.kE   = kE;
     KE.totE = totE;
     KE.bs.set(KE_Flags::Vfac);
@@ -8069,11 +8068,12 @@ void CollideIon::scatterHybrid
   // Assign interaction energy variables
   //
   vrel = unit_vector();
-  vi = sqrt(vi);
+  vi = sqrt(vi) * KE.vfac;
   for (auto & v : vrel) v *= vi;
   //                         ^
   //                         |
-  // Velocity in center of mass, computed from v1, v2
+  // Velocity in center of mass, computed from v1, v2 and adjusted
+  // according to the inelastic energy loss
   //
 
   // Use explicit energy conservation algorithm
@@ -8087,8 +8087,8 @@ void CollideIon::scatterHybrid
 
   for (size_t k=0; k<3; k++) {
 				// From momentum conservation
-    uu[k] = vcom[k] + pp->m2/mt*vrel[k]*vfac;
-    vv[k] = vcom[k] - pp->m1/mt*vrel[k]*vfac;
+    uu[k] = vcom[k] + pp->m2/mt*vrel[k];
+    vv[k] = vcom[k] - pp->m1/mt*vrel[k];
 				// Difference in Particle 1
     udif += (v1[k] - uu[k]) * (v1[k] - uu[k]);
 				// Difference in Particle 2
@@ -8176,8 +8176,7 @@ void CollideIon::scatterHybrid
 		  << "  dE = " << KE.delE
 		  << " dvf = " << KE.delE/kE
 		  << " tot = " << totE
-		  << " fac1 = " << KE.vfac
-		  << " fac2 = " << vfac
+		  << " vfac = " << KE.vfac
 		  << " wnrm = " << wnrm
 		  << " v1u1 = " << v1u1/v1i2
 		  << " v2u2 = " << v2u2/v2i2
@@ -8222,8 +8221,8 @@ void CollideIon::scatterHybrid
     //
     KE.delta = 0.0;
     for (size_t k=0; k<3; k++) {
-      double v01 = vcom[k] + pp->m2/mt*vrel[k]*vfac;
-      double v02 = vcom[k] - pp->m1/mt*vrel[k]*vfac;
+      double v01 = vcom[k] + pp->m2/mt*vrel[k];
+      double v02 = vcom[k] - pp->m1/mt*vrel[k];
 
       KE.delta +=
 	(v01 - v1[k])*(v01 - v1[k]) * qKEfac1 +
