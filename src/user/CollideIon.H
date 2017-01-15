@@ -463,6 +463,7 @@ private:
   std::vector< std::array<double, 3> >               Ediag, Vdiag;
   std::vector< CVels >                               cVels;
   std::vector< CellMom >                             cMoms;
+  std::vector< std::pair<double, double> >           testCon;
   //@}
 
   //! This defines the various types of interactions used to tag
@@ -783,9 +784,12 @@ protected:
     unsigned short Z1, Z2;
     double         q, m1, m2;
 
+    std::pair<double, double> E1, E2;
+
     Pord(Particle *P1, Particle *P2, double WW1, double WW2,
 	 double Eta1, double Eta2, pType p) :
-      p1(P1), p2(P2), w1(WW1), w2(WW2), eta1(Eta1), eta2(Eta2), P(p), swap(false)
+      p1(P1), p2(P2), w1(WW1), w2(WW2), eta1(Eta1), eta2(Eta2), P(p),
+      swap(false), E1({0, 0}), E2({0, 0})
     {
       W1 = w1;
       W2 = w2;
@@ -843,6 +847,7 @@ protected:
       // Trace ratio
       //
       q  = W2/W1;
+
     }
 
   };
