@@ -452,7 +452,7 @@ private:
   std::vector< double >                              meanE, neutF, meanR, meanM;
   std::vector< double >                              numEf, colSc, elecDen, elecDn2;
   std::vector< double >                              kEi, kEe1, kEe2, kEee, clrE, misE;
-  std::vector< double >                              Ein1, Ein2, Evel, testKE, nselRat;
+  std::vector< double >                              Ein1, Ein2, Evel, nselRat;
   std::vector< double >                              spCrm, spTau, spProb, spEdel;
   std::vector< unsigned >                            spNsel, elecCnt, spNcol;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot, testCnt;
@@ -463,7 +463,7 @@ private:
   std::vector< std::array<double, 3> >               Ediag, Vdiag;
   std::vector< CVels >                               cVels;
   std::vector< CellMom >                             cMoms;
-  std::vector< std::pair<double, double> >           testCon;
+  std::vector< std::array<double, 3> >               testKE;
   //@}
 
   //! This defines the various types of interactions used to tag
