@@ -7825,8 +7825,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       if (ke1 > 0.0 and ke2 > 0.0) {
 	
 	if (Z1 == Z2 or ALWAYS_APPLY) {
-	  double DE1 = PE[1].first * p1->dattrib[use_elec+3];
-	  double DE2 = PE[1].first * p2->dattrib[use_cons];
+	  double DE1 = PE[2].first * p1->dattrib[use_elec+3];
+	  double DE2 = PE[2].first * p2->dattrib[use_cons];
 	  p1->dattrib[use_elec+3] -= DE1;
 	  p2->dattrib[use_cons]   -= DE2;
 	  clrE[id] -= DE1 + DE2;
