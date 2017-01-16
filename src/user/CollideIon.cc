@@ -7530,9 +7530,14 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
   if (use_elec) {
     //
+    // Temporary change in algorithm for testing
+    //
+    auto biggest = std::max_element(std::begin(PE), std::end(PE));
+
+    //
     // Apply neutral-neutral scattering and energy loss
     //
-    if (PE[0].first > 0.0) {
+    if (PE[0].first/biggest->first >= (*unit)()) {
 
       std::pair<double, double> KEinit = energyInPairPartial(p1, p2, Neutral);
 
@@ -7587,10 +7592,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	KE.delE = PE[0].second;
 
 	if (PP[0]->swap) {
-	  scatterHybrid(PE[0].first, PP[0], KE, v2, v1, id);
+	  scatterHybrid(1, PP[0], KE, v2, v1, id);
 	  checkEnergyHybrid(PP[0], KE, v2, v1, Neutral, id);
 	} else {
-	  scatterHybrid(PE[0].first, PP[0], KE, v1, v2, id);
+	  scatterHybrid(1, PP[0], KE, v1, v2, id);
 	  checkEnergyHybrid(PP[0], KE, v1, v2, Neutral, id);
 	}
 
@@ -7644,7 +7649,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     // Apply ion/neutral-electron scattering and energy loss
     // Ion is Particle 1, Electron is Particle 2
     //
-    if (PE[1].first > 0.0) {
+    if (PE[1].first/biggest->first >= (*unit)()) {
 
       std::pair<double, double> KEinit = energyInPairPartial(p1, p2, Ion1);
 
@@ -7693,10 +7698,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	KE.delE = PE[1].second;
 	
 	if (PP[1]->swap) {
-	  scatterHybrid(PE[1].first, PP[1], KE, v2, v1, id);
+	  scatterHybrid(1, PP[1], KE, v2, v1, id);
 	  checkEnergyHybrid(PP[1], KE, v2, v1, Ion1, id);
 	} else {
-	  scatterHybrid(PE[1].first, PP[1], KE, v1, v2, id);
+	  scatterHybrid(1, PP[1], KE, v1, v2, id);
 	  checkEnergyHybrid(PP[1], KE, v1, v2, Ion1, id);
 	}
 
@@ -7793,7 +7798,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     // Apply ion/neutral-electron scattering and energy loss
     // Ion is Particle 2, Electron is Particle 1
     //
-    if (PE[2].first > 0.0) {
+    if (PE[2].first/biggest->first >= (*unit)()) {
 
       if (DBG_NewHybrid) {
 	if (PP[2]->swap)
@@ -7843,10 +7848,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	KE.delE = PE[2].second;
 	
 	if (PP[2]->swap) {
-	  scatterHybrid(PE[2].first, PP[2], KE, v2, v1, id);
+	  scatterHybrid(1, PP[2], KE, v2, v1, id);
 	  checkEnergyHybrid(PP[2], KE, v2, v1, Ion2, id);
 	} else {
-	  scatterHybrid(PE[2].first, PP[2], KE, v1, v2, id);
+	  scatterHybrid(1, PP[2], KE, v1, v2, id);
 	  checkEnergyHybrid(PP[2], KE, v1, v2, Ion2, id);
 	}
 	
@@ -8116,7 +8121,7 @@ void CollideIon::scatterHybrid
   // Assign interaction energy variables
   //
   vrel = unit_vector();
-  vi = sqrt(vi);
+  vi   = sqrt(vi);
   for (auto & v : vrel) v *= vi;
   //                         ^
   //                         |
@@ -8150,72 +8155,46 @@ void CollideIon::scatterHybrid
 
   if (ExactE and q1 < 1.0) {
 
-    if (AlgOrth) {
+    KE.bs.set(KE_Flags::ExQ);
 
-      KE.bs.set(KE_Flags::AlgO);
+    double A = alph*alph*pp->m1*c1*c1*v1i2 + beta*beta*pp->m2*pp->q*c2*c2*v2i2;
 
-      double ww1 = pp->m1, ww2 = pp->m2 * pp->q;
-      double gamma = sqrt( (ww1*q1*c1*udif + ww2*q2*c2*vdif)/(ww1 + ww2) );
+    if (A > 0.0) {
+
+      KE.bs.set(KE_Flags::StdE);
+
+      double B  =
+	2.0*pp->m1*alph*c1*(c1*v1i2 + q1*v1u1) +
+	2.0*pp->m2*beta*c2*(c2*v2i2 + q2*v2u2) * pp->q;
       
-      std::vector<double> uu1(3), vv1(3);
-      for (size_t k=0; k<3; k++) {
-	uu1[k] = c1*v1[k] + q1*uu[k];
-	vv1[k] = c2*v2[k] + q2*vv[k];
-      }
-      std::vector<double> ww =
-	{ uu1[1]*vv1[2] - uu1[2]*vv1[1],
-	  uu1[2]*vv1[0] - uu1[0]*vv1[2],
-	  uu1[0]*vv1[1] - uu1[1]*vv1[0] };
+      double C  = pp->m1*q1*c1*udif + pp->m2*pp->q*q2*c2*vdif;
 
-      for (size_t k=0; k<3; k++) {
-	v1[k] = uu1[k] + gamma*ww[k];
-	v2[k] = vv1[k] - gamma*ww[k];
-      }
-
-    } // END: AlgOrth
-    else {
-
-      KE.bs.set(KE_Flags::ExQ);
-
-      double A = alph*alph*pp->m1*c1*c1*v1i2 + beta*beta*pp->m2*pp->q*c2*c2*v2i2;
-
-      if (A > 0.0) {
-
-	KE.bs.set(KE_Flags::StdE);
-
-	double B  =
-	  2.0*pp->m1*alph*c1*(c1*v1i2 + q1*v1u1) +
-	  2.0*pp->m2*beta*c2*(c2*v2i2 + q2*v2u2) * pp->q;
-      
-	double C  = pp->m1*q1*c1*udif + pp->m2*pp->q*q2*c2*vdif;
-	
-	// Quadratic solution without subtraction for numerical
-	// precision
-	if (B > 0.0) {
-	  vrat = 2.0*C/(B + sqrt(B*B + 4*A*C));
-	} else {
-	  vrat = (-B + sqrt(B*B + 4*A*C))/(2.0*A);
-	}
-	
-	Vdiag[id][0] += P;
-	Vdiag[id][1] += P * vrat;
-	Vdiag[id][2] += P * vrat*vrat;
-	
+      // Quadratic solution without subtraction for numerical precision
+      if (B > 0.0) {
+	vrat = 2.0*C/(B + sqrt(B*B + 4*A*C));
       } else {
-	KE.bs.set(KE_Flags::zeroKE);
-	
+	vrat = (-B + sqrt(B*B + 4*A*C))/(2.0*A);
       }
+      
+      Vdiag[id][0] += P;
+      Vdiag[id][1] += P * vrat;
+      Vdiag[id][2] += P * vrat*vrat;
 
-      // Update post-collision velocities 
-      // --------------------------------
-      //
-      // Compute new energy conservation updates
-      //
-      for (size_t k=0; k<3; k++) {
-	v1[k] = c1*v1[k]*(1.0 + alph*vrat) + q1*uu[k];
-	v2[k] = c2*v2[k]*(1.0 + beta*vrat) + q2*vv[k];
-      }
-    } // END: Standard
+    } else {
+
+      KE.bs.set(KE_Flags::zeroKE);
+
+    }
+
+    // Update post-collision velocities 
+    // --------------------------------
+    //
+    // Compute new energy conservation updates
+    //
+    for (size_t k=0; k<3; k++) {
+      v1[k] = c1*v1[k]*(1.0 + alph*vrat) + q1*uu[k];
+      v2[k] = c2*v2[k]*(1.0 + beta*vrat) + q2*vv[k];
+    }
 
   }
   // END: ExactE algorithms
