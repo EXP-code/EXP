@@ -8150,46 +8150,72 @@ void CollideIon::scatterHybrid
 
   if (ExactE and q1 < 1.0) {
 
-    KE.bs.set(KE_Flags::ExQ);
+    if (AlgOrth) {
 
-    double A = alph*alph*pp->m1*c1*c1*v1i2 + beta*beta*pp->m2*pp->q*c2*c2*v2i2;
+      KE.bs.set(KE_Flags::AlgO);
 
-    if (A > 0.0) {
-
-      KE.bs.set(KE_Flags::StdE);
-
-      double B  =
-	2.0*pp->m1*alph*c1*(c1*v1i2 + q1*v1u1) +
-	2.0*pp->m2*beta*c2*(c2*v2i2 + q2*v2u2) * pp->q;
+      double ww1 = pp->m1, ww2 = pp->m2 * pp->q;
+      double gamma = sqrt( (ww1*q1*c1*udif + ww2*q2*c2*vdif)/(ww1 + ww2) );
       
-      double C  = pp->m1*q1*c1*udif + pp->m2*pp->q*q2*c2*vdif;
-
-      // Quadratic solution without subtraction for numerical precision
-      if (B > 0.0) {
-	vrat = 2.0*C/(B + sqrt(B*B + 4*A*C));
-      } else {
-	vrat = (-B + sqrt(B*B + 4*A*C))/(2.0*A);
+      std::vector<double> uu1(3), vv1(3);
+      for (size_t k=0; k<3; k++) {
+	uu1[k] = c1*v1[k] + q1*uu[k];
+	vv1[k] = c2*v2[k] + q2*vv[k];
       }
+      std::vector<double> ww =
+	{ uu1[1]*vv1[2] - uu1[2]*vv1[1],
+	  uu1[2]*vv1[0] - uu1[0]*vv1[2],
+	  uu1[0]*vv1[1] - uu1[1]*vv1[0] };
+
+      for (size_t k=0; k<3; k++) {
+	v1[k] = uu1[k] + gamma*ww[k];
+	v2[k] = vv1[k] - gamma*ww[k];
+      }
+
+    } // END: AlgOrth
+    else {
+
+      KE.bs.set(KE_Flags::ExQ);
+
+      double A = alph*alph*pp->m1*c1*c1*v1i2 + beta*beta*pp->m2*pp->q*c2*c2*v2i2;
+
+      if (A > 0.0) {
+
+	KE.bs.set(KE_Flags::StdE);
+
+	double B  =
+	  2.0*pp->m1*alph*c1*(c1*v1i2 + q1*v1u1) +
+	  2.0*pp->m2*beta*c2*(c2*v2i2 + q2*v2u2) * pp->q;
       
-      Vdiag[id][0] += P;
-      Vdiag[id][1] += P * vrat;
-      Vdiag[id][2] += P * vrat*vrat;
+	double C  = pp->m1*q1*c1*udif + pp->m2*pp->q*q2*c2*vdif;
+	
+	// Quadratic solution without subtraction for numerical
+	// precision
+	if (B > 0.0) {
+	  vrat = 2.0*C/(B + sqrt(B*B + 4*A*C));
+	} else {
+	  vrat = (-B + sqrt(B*B + 4*A*C))/(2.0*A);
+	}
+	
+	Vdiag[id][0] += P;
+	Vdiag[id][1] += P * vrat;
+	Vdiag[id][2] += P * vrat*vrat;
+	
+      } else {
+	KE.bs.set(KE_Flags::zeroKE);
+	
+      }
 
-    } else {
-
-      KE.bs.set(KE_Flags::zeroKE);
-
-    }
-
-    // Update post-collision velocities 
-    // --------------------------------
-    //
-    // Compute new energy conservation updates
-    //
-    for (size_t k=0; k<3; k++) {
-      v1[k] = c1*v1[k]*(1.0 + alph*vrat) + q1*uu[k];
-      v2[k] = c2*v2[k]*(1.0 + beta*vrat) + q2*vv[k];
-    }
+      // Update post-collision velocities 
+      // --------------------------------
+      //
+      // Compute new energy conservation updates
+      //
+      for (size_t k=0; k<3; k++) {
+	v1[k] = c1*v1[k]*(1.0 + alph*vrat) + q1*uu[k];
+	v2[k] = c2*v2[k]*(1.0 + beta*vrat) + q2*vv[k];
+      }
+    } // END: Standard
 
   }
   // END: ExactE algorithms
