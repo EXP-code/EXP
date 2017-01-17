@@ -320,6 +320,15 @@ std::pair<T, U> operator-(std::pair<T, U> & a, const std::pair<T, U> & b)
   return std::pair<T, U>(a.first - b.first, a.second - b.second);
 }
 
+// Cross-product operator
+//
+template<typename T>
+std::vector<T> operator^(const std::vector<T>& a, const std::vector<T>& b)
+{
+  assert(a.size()>=3 and b.size()>=3);
+  return {a[1]*b[2] - a[2]*b[1], a[2]*b[0] - a[0]*b[2], a[0]*b[1] - a[1]*b[0]};
+}
+
 CollideIon::CollideIon(ExternalForce *force, Component *comp,
 		       double hD, double sD,
 		       const std::string& smap, int Nth) :
@@ -5749,9 +5758,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
 
       // Cross product to determine orthgonal direction
       //
-      w1[0] = uu[1]*v1[2] - uu[2]*v1[1];
-      w1[1] = uu[2]*v1[0] - uu[0]*v1[2];
-      w1[2] = uu[0]*v1[1] - uu[1]*v1[0];
+      w1 = uu ^ v1;
 
       // Normalize
       //
@@ -9920,9 +9927,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	    // Cross product to determine orthgonal direction
 	    //
-	    w1[0] = uu[1]*v1[2] - uu[2]*v1[1];
-	    w1[1] = uu[2]*v1[0] - uu[0]*v1[2];
-	    w1[2] = uu[0]*v1[1] - uu[1]*v1[0];
+	    w1 = uu ^ v1;
 
 	    // Normalize
 	    //

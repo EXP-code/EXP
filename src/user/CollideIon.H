@@ -809,11 +809,11 @@ protected:
       case ion_ion:
 	break;
       case ion_electron:
-	W2 *= eta2;
+	// W2 *= eta2;
 	m2  = atomic_weights[0];
 	break;
       case electron_ion:
-	W1 *= eta1;
+	// W1 *= eta1;
 	m1  = atomic_weights[0];
 	break;
       }
