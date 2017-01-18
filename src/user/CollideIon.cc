@@ -7537,14 +7537,17 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
   if (use_elec) {
     //
-    // Temporary change in algorithm for testing
+    // Select interaction
     //
-    auto biggest = std::max_element(std::begin(PE), std::end(PE));
+    double Pr = (*unit)();
+    unsigned short J = 2;
+    if      (Pr < PE[0].first) J = 0;
+    else if (Pr < PE[1].first) J = 1;
 
     //
     // Apply neutral-neutral scattering and energy loss
     //
-    if (PE[0].first/biggest->first >= (*unit)()) {
+    if (J==0) {
 
       std::pair<double, double> KEinit = energyInPairPartial(p1, p2, Neutral);
 
@@ -7596,7 +7599,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  PE[0].second = 0.0;
 	}
 
-	KE.delE = PE[0].second;
+	KE.delE = delEtot;
+	collD->addLost(delEtot, id);
 
 	if (PP[0]->swap) {
 	  scatterHybrid(1, PP[0], KE, v2, v1, id);
@@ -7656,7 +7660,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     // Apply ion/neutral-electron scattering and energy loss
     // Ion is Particle 1, Electron is Particle 2
     //
-    if (PE[1].first/biggest->first >= (*unit)()) {
+    if (J==1) {
 
       std::pair<double, double> KEinit = energyInPairPartial(p1, p2, Ion1);
 
@@ -7702,7 +7706,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  PE[1].second = 0.0;
 	}
 	
-	KE.delE = PE[1].second;
+	KE.delE = delEtot;
+	collD->addLost(delEtot, id);
 	
 	if (PP[1]->swap) {
 	  scatterHybrid(1, PP[1], KE, v2, v1, id);
@@ -7805,7 +7810,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     // Apply ion/neutral-electron scattering and energy loss
     // Ion is Particle 2, Electron is Particle 1
     //
-    if (PE[2].first/biggest->first >= (*unit)()) {
+    if (J==2) {
 
       if (DBG_NewHybrid) {
 	if (PP[2]->swap)
@@ -7852,7 +7857,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  PE[2].second = 0.0;
 	}
 	
-	KE.delE = PE[2].second;
+	KE.delE = delEtot;
+	collD->addLost(delEtot, id);
 	
 	if (PP[2]->swap) {
 	  scatterHybrid(1, PP[2], KE, v2, v1, id);
@@ -10561,6 +10567,7 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
   }
 
   Esum.resize(nthrds, 0.0);
+  Elos.resize(nthrds, 0.0);
   Elec.resize(nthrds, 0.0);
   Edsp.resize(nthrds, 0.0);
   Efrc.resize(nthrds, 0.0);
@@ -10667,6 +10674,7 @@ void collDiag::gather()
   }
 
   Esum_s = std::accumulate(Esum.begin(), Esum.end(), 0.0);
+  Elos_s = std::accumulate(Elos.begin(), Elos.end(), 0.0);
   Elec_s = std::accumulate(Elec.begin(), Elec.end(), 0.0);
   Epot_s = std::accumulate(Epot.begin(), Epot.end(), 0.0);
   Edsp_s = std::accumulate(Edsp.begin(), Edsp.end(), 0.0);
@@ -10680,6 +10688,7 @@ void collDiag::gather()
   double z;
 
   MPI_Reduce(&(z=Esum_s), &Esum_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=Elos_s), &Elos_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(z=Elec_s), &Elec_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(z=Epot_s), &Epot_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(z=Edsp_s), &Edsp_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -10703,6 +10712,7 @@ void collDiag::reset()
   for (auto it : *this) it.second->reset();
 				// Reset cumulative values
   std::fill(Esum.begin(), Esum.end(), 0.0);
+  std::fill(Elos.begin(), Elos.end(), 0.0);
   std::fill(Elec.begin(), Elec.end(), 0.0);
   std::fill(Epot.begin(), Epot.end(), 0.0);
   std::fill(Edsp.begin(), Edsp.end(), 0.0);
@@ -11002,8 +11012,8 @@ void collDiag::print()
 	  ctd->ff_s[2] + ctd->CE_s[2] +
 	  ctd->CI_s[2] + ctd->RR_s[2] ;
       }
-      Etot_c += Etot * cvrt;
-      out << std::setw(12) << Etot * cvrt
+      Etot_c += Elos_s;		// Etot_c += Etot * cvrt;
+      out << std::setw(12) << Elos_s
 	  << std::setw(12) << Etot_c
 	  << std::setw(12) << Esum_s
 	  << std::setw(12) << Elec_s
@@ -11014,7 +11024,7 @@ void collDiag::print()
 	  << std::setw(12) << misE_s
 	  << std::setw(12) << Edsp_s
 	  << std::setw(12) << Efrc_s/Emas_s
-	  << std::setw(12) << Etot_c + Esum_s + Elec_s - delI_s - delE_s
+	  << std::setw(12) << Etot_c + Esum_s + Elos_s + Elec_s - delI_s - delE_s
 	  << " |" << std::endl;
     }
   }
