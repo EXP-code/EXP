@@ -275,8 +275,9 @@ public:
 enum KE_Flags {
   KEpos,			//!< [positive KE]
   ExQ,				//!< [Exact q<1]
-  AlgO,				//!< [Orthogonal exact]
-  AlgW,				//!< [Weighted exact]
+  AlgOrth,			//!< [Orthogonal exact]
+  AlgVcom,			//!< [Vcom boost exact]
+  AlgWght,			//!< [Weighted exact]
   StdE,				//!< [Standard exact]
   negE,				//!< [negative KE]
   zeroKE,			//!< [zero COM KE]
@@ -812,11 +813,11 @@ protected:
       case ion_ion:
 	break;
       case ion_electron:
-	// W2 *= eta2;
+	W2 *= eta2;
 	m2  = atomic_weights[0];
 	break;
       case electron_ion:
-	// W1 *= eta1;
+	W1 *= eta1;
 	m1  = atomic_weights[0];
 	break;
       }
@@ -1072,6 +1073,7 @@ protected:
       "[positive KE]",
       "[Exact q<1]",
       "[Orthogonal exact]",
+      "[Vcom boost exact]",
       "[Weighted exact]",
       "[Standard exact]",
       "[negative KE]",
@@ -1170,6 +1172,7 @@ public:
   static bool     scatter;
   static bool     ExactE;
   static bool     AlgOrth;
+  static bool     AlgVcom;
   static bool     AlgWght;
   static bool     DebugE;
   static bool     collLim;

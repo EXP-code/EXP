@@ -35,6 +35,7 @@ bool     CollideIon::equiptn    = false;
 bool     CollideIon::scatter    = false;
 bool     CollideIon::ExactE     = false;
 bool     CollideIon::AlgOrth    = false;
+bool     CollideIon::AlgVcom    = false;
 bool     CollideIon::AlgWght    = false;
 bool     CollideIon::DebugE     = false;
 bool     CollideIon::collLim    = false;
@@ -442,6 +443,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (DebugE ? "on" : "off")                << std::endl
 	      <<  " " << std::setw(20) << std::left << "ENERGY_ORTHO"
 	      << (AlgOrth ? "on" : "off")               << std::endl
+	      <<  " " << std::setw(20) << std::left << "ENERGY_VCOM"
+	      << (AlgVcom ? "on" : "off")               << std::endl
 	      <<  " " << std::setw(20) << std::left << "ENERGY_WEIGHT"
 	      << (AlgWght ? "on" : "off")               << std::endl
 	      <<  " " << std::setw(20) << std::left << "SECONDARY_SCATTER"
@@ -7505,11 +7508,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // Normalize probabilities and sum inelastic energy changes
   //
   double probTot = 0.0, delEtot = 0.0;
-  for (auto & v : PE) probTot += v.first;
+  std::vector<double> cP;
+  for (auto & v : PE) cP.push_back(v.first);
+  std::partial_sum(cP.begin(), cP.end(), cP.begin(), std::plus<double>());
 
   if (probTot > 0.0) {
     for (auto & v : PE) {
-      v.first /= probTot;
+      v.first /= cP.back();
       delEtot += v.second;
     }
   }
@@ -7539,10 +7544,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     //
     // Select interaction
     //
-    double Pr = (*unit)();
+    double Pr = (*unit)() * cP.back();
     unsigned short J = 2;
-    if      (Pr < PE[0].first) J = 0;
-    else if (Pr < PE[1].first) J = 1;
+    if      (Pr < cP[0]) J = 0;
+    else if (Pr < cP[1]) J = 1;
 
     //
     // Apply neutral-neutral scattering and energy loss
@@ -8146,10 +8151,11 @@ void CollideIon::scatterHybrid
   //
   double vrat = 1.0;
 
-  std::vector<double> uu(3), vv(3);
+  std::vector<double> uu(3), vv(3), w1(3), w2(3);
 
   double v1i2 = 0.0, v2i2 = 0.0, vdif = 0.0, v2u2 = 0.0;
-  double udif = 0.0, v1u1 = 0.0;
+  double udif = 0.0, v1u1 = 0.0, vcm2 = 0.0, vcv1 = 0.0;
+  double vcv2 = 0.0;
 
   for (size_t k=0; k<3; k++) {
 				// From momentum conservation
@@ -8160,53 +8166,116 @@ void CollideIon::scatterHybrid
 				// Difference in Particle 2
     vdif += (v2[k] - vv[k]) * (v2[k] - vv[k]);
 				// Normalizations
-    v1i2 += v1[k] * v1[k];
-    v2i2 += v2[k] * v2[k];
-    v1u1 += v1[k] * uu[k];
-    v2u2 += v2[k] * vv[k];
+    v1i2 +=   v1[k] * v1[k];
+    v2i2 +=   v2[k] * v2[k];
+    v1u1 +=   v1[k] * uu[k];
+    v2u2 +=   v2[k] * vv[k];
+    vcv1 += vcom[k] * v1[k];
+    vcv2 += vcom[k] * v2[k];
+    vcm2 += vcom[k] * vcom[k];
+
+    w1[k] = c1*v1[k] + q1*uu[k];
+    w2[k] = c2*v2[k] + q2*vv[k];
   }
 
   if (ExactE and q1 < 1.0) {
 
     KE.bs.set(KE_Flags::ExQ);
 
-    double A = alph*alph*pp->m1*c1*c1*v1i2 + beta*beta*pp->m2*pp->q*c2*c2*v2i2;
-
-    if (A > 0.0) {
-
-      KE.bs.set(KE_Flags::StdE);
-
-      double B  =
-	2.0*pp->m1*alph*c1*(c1*v1i2 + q1*v1u1) +
-	2.0*pp->m2*beta*c2*(c2*v2i2 + q2*v2u2) * pp->q;
+    // Cross product to determine orthgonal direction
+    //
+    std::vector<double> ww = w1 ^ w2;
       
-      double C  = pp->m1*q1*c1*udif + pp->m2*pp->q*q2*c2*vdif;
+    // Normalize
+    //
+    double wnrm = 0.0;
+    for (auto v : ww) wnrm += v*v;
+
+    if (AlgOrth and wnrm > tolE*(v1i2+v2i2)) {
+
+      KE.bs.set(KE_Flags::AlgOrth);
+
+      double gam = sqrt( (pp->m1*q1*c1*udif + pp->m2*pp->q*q2*c2*vdif) / (pp->m1 + pp->m2*pp->q) );
+
+      // Update post-collision velocities 
+      // --------------------------------
+      //
+      // Compute new energy conservation updates
+      //
+      for (size_t k=0; k<3; k++) {
+	v1[k] = w1[k] + gam * ww[k];
+	v2[k] = w2[k] - gam * ww[k];
+      }
+
+    } else if (AlgVcom and vcm2 > tolE*(v1i2 + v2i2)) {
+
+      double A = 0.5*vcm2*(pp->m1*q1*q1 + pp->m2*pp->q*q2*q2);
+      double B = pp->m1*q1 * vcv1 + pp->m2*pp->q*q2 * vcv2;
+      double C = 0.5*(pp->m1*q1*c1*udif + pp->m2*pp->q*q2*c2*vdif);
+
+      KE.bs.set(KE_Flags::AlgVcom);
 
       // Quadratic solution without subtraction for numerical precision
-      if (B > 0.0) {
-	vrat = 2.0*C/(B + sqrt(B*B + 4*A*C));
+      if (B < 0.0) {
+	vrat = 2.0*C/(B - sqrt(B*B + 4*A*C));
       } else {
-	vrat = (-B + sqrt(B*B + 4*A*C))/(2.0*A);
+	vrat = 2.0*C/(B + sqrt(B*B + 4*A*C));
       }
-      
+	
       Vdiag[id][0] += P;
       Vdiag[id][1] += P * vrat;
       Vdiag[id][2] += P * vrat*vrat;
+      
+      // Update post-collision velocities 
+      // --------------------------------
+      //
+      // Compute new energy conservation updates
+      //
+      for (size_t k=0; k<3; k++) {
+	v1[k] = w1[k] + vrat * vcom[k];
+	v2[k] = w2[k] + vrat * vcom[k];
+      }
 
     } else {
 
-      KE.bs.set(KE_Flags::zeroKE);
+      double A = alph*alph*pp->m1*c1*c1*v1i2 + beta*beta*pp->m2*pp->q*c2*c2*v2i2;
 
-    }
+      if (A > 0.0) {
+	
+	KE.bs.set(KE_Flags::StdE);
 
-    // Update post-collision velocities 
-    // --------------------------------
-    //
-    // Compute new energy conservation updates
-    //
-    for (size_t k=0; k<3; k++) {
-      v1[k] = c1*v1[k]*(1.0 + alph*vrat) + q1*uu[k];
-      v2[k] = c2*v2[k]*(1.0 + beta*vrat) + q2*vv[k];
+	double B  =
+	  2.0*pp->m1*alph*c1*(c1*v1i2 + q1*v1u1) +
+	  2.0*pp->m2*beta*c2*(c2*v2i2 + q2*v2u2) * pp->q;
+      
+	double C  = pp->m1*q1*c1*udif + pp->m2*pp->q*q2*c2*vdif;
+	
+	// Quadratic solution without subtraction for numerical precision
+	if (B > 0.0) {
+	  vrat = 2.0*C/(B + sqrt(B*B + 4*A*C));
+	} else {
+	  vrat = (-B + sqrt(B*B + 4*A*C))/(2.0*A);
+	}
+	
+	Vdiag[id][0] += P;
+	Vdiag[id][1] += P * vrat;
+	Vdiag[id][2] += P * vrat*vrat;
+	
+      } else {
+	
+	KE.bs.set(KE_Flags::zeroKE);
+	
+      }
+
+      // Update post-collision velocities 
+      // --------------------------------
+      //
+      // Compute new energy conservation updates
+      //
+      for (size_t k=0; k<3; k++) {
+	v1[k] = c1*v1[k]*(1.0 + alph*vrat) + q1*uu[k];
+	v2[k] = c2*v2[k]*(1.0 + beta*vrat) + q2*vv[k];
+      }
     }
 
   }
@@ -8294,8 +8363,8 @@ void CollideIon::scatterHybrid
 		  << " rel = "  << std::setw(22) << delEt/KEi
 		  << "   W1 = " << std::setw(22) << pp->W1
 		  << "   W2 = " << std::setw(22) << pp->W2
-		  << "   V1 = " << std::setw(22) << KE1f/M1
-		  << "   V2 = " << std::setw(22) << KE2f/M2
+		  << "  KEi = " << std::setw(22) << KEi
+		  << "  KEf = " << std::setw(22) << KEf
 		  << (pp->swap ? " [swapped]" : "")
 		  << std::setprecision(5)  << std::endl;
     }
@@ -10134,6 +10203,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 		      << "  v1u1=" << v1u1/v1i2
 		      << "  vrat=" << vrat
 		      << " AlgOr=" << std::boolalpha << AlgOrth
+		      << " AlgVc=" << std::boolalpha << AlgVcom
 		      << " AlgWg=" << std::boolalpha << AlgWght
 		      << " algok=" << std::boolalpha << algok
 		      << std::endl;
@@ -15256,6 +15326,9 @@ void CollideIon::processConfig()
 
     AlgOrth =
       cfg.entry<bool>("ENERGY_ORTHO", "Add energy in orthogonal direction", false);
+
+    AlgVcom =
+      cfg.entry<bool>("ENERGY_VCOM", "Add energy by boosting the COM velocity", false);
 
     AlgWght =
       cfg.entry<bool>("ENERGY_WEIGHT", "Energy conservation weighted by superparticle number count", false);
