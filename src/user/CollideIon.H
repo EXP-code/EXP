@@ -275,9 +275,8 @@ public:
 enum KE_Flags {
   KEpos,			//!< [positive KE]
   ExQ,				//!< [Exact q<1]
-  AlgOrth,			//!< [Orthogonal exact]
-  AlgVcom,			//!< [Vcom boost exact]
-  AlgWght,			//!< [Weighted exact]
+  AlgO,				//!< [Orthogonal exact]
+  AlgW,				//!< [Weighted exact]
   StdE,				//!< [Standard exact]
   negE,				//!< [negative KE]
   zeroKE,			//!< [zero COM KE]
@@ -394,6 +393,7 @@ struct EnumTraits<KE_Flags>
 class CollideIon : public Collide
 {
   friend class collDiag;
+  friend class Pord;
 
 private:
 
@@ -648,6 +648,9 @@ public:
   static double scatFac2;
   //@}
 
+  //! Critical weight ratio for electron subspecies computation (default: 0.1)
+  static double qCrit;
+
   //! Use EPSM algorithm for electron scattering (default: false)
   static bool ElectronEPSM;
 
@@ -771,6 +774,9 @@ protected:
 
   class Pord
   {
+  protected:
+    CollideIon* caller;
+
   public:
     static int key;
 
@@ -780,80 +786,60 @@ protected:
     Particle *     p2;
     double         W1, w1;
     double         W2, w2;
-    double         eta1;
-    double         eta2;
     pType          P;
+    double         thresh;
     bool           swap;
+    bool           wght;
     speciesKey     k1, k2;
     unsigned short Z1, Z2;
-    double         q, m1, m2;
+    double         q, m1, m2, m10, m20;
+    double         eta1;
+    double         eta2;
 
     std::pair<double, double> E1, E2;
+    std::array<double, 4> Einit, Efinal, Eta;
 
-    Pord(Particle *P1, Particle *P2, double WW1, double WW2,
-	 double Eta1, double Eta2, pType p) :
-      p1(P1), p2(P2), w1(WW1), w2(WW2), eta1(Eta1), eta2(Eta2), P(p),
-      swap(false), E1({0, 0}), E2({0, 0})
-    {
-      W1 = w1;
-      W2 = w2;
+    //! Constructor
+    Pord(CollideIon* c, Particle *P1, Particle *P2, double WW1, double WW2,  pType p, double T);
 
-      // Cache species keys
-      //
-      k1 = KeyConvert(p1->iattrib[key]).getKey();
-      k2 = KeyConvert(p2->iattrib[key]).getKey();
+    //! Update electron fraction
+    void update();
 
-      Z1 = k1.first;
-      Z2 = k2.first;
-
-      m1 = atomic_weights[Z1];
-      m2 = atomic_weights[Z2];
-
-      switch (P) {
-      case ion_ion:
-	break;
-      case ion_electron:
-	W2 *= eta2;
-	m2  = atomic_weights[0];
-	break;
-      case electron_ion:
-	W1 *= eta1;
-	m1  = atomic_weights[0];
-	break;
-      }
-
-      if (W1 < W2) {
-	// Swap the particle pointers
-	//
-	zswap(p1, p2);
-
-	// Swap electron number fraction
-	//
-	zswap(eta1, eta2);
-	
-	// Swap true particle numbers
-	//
-	zswap(w1, w2);
-	zswap(W1, W2);
-
-	// Swap particle masses
-	//
-	zswap(m1, m2);
-
-	// Swap species and masses
-	//
-	zswap(k1, k2);
-	zswap(Z1, Z2);
-
-	swap = true;
-      }
-
-      // Trace ratio
-      //
-      q  = W2/W1;
-
+    //! Compute initial energies
+    void eInitial() {
+      Einit  = compE();
+      Eta[0] = eta1;
+      Eta[1] = eta2;
     }
 
+    //! Compute final energies
+    void eFinal() {
+      Efinal = compE();
+      Eta[2] = eta1;
+      Eta[3] = eta2;
+    }
+
+    //! Switch weighting scheme (true: weighted by eta)
+    void scheme(bool W);
+
+    //! Get eta1
+    double Eta1()
+    {
+      if (swap) return eta2;
+      else return eta1;
+    }
+
+    //! Get eta2
+    double Eta2()
+    {
+      if (swap) return eta1;
+      else return eta2;
+    }
+
+  protected:
+
+    //! Compute energies (ion, electron)
+    std::array<double, 4> compE();
   };
 
   typedef std::shared_ptr<Pord> PordPtr;
@@ -1073,7 +1059,6 @@ protected:
       "[positive KE]",
       "[Exact q<1]",
       "[Orthogonal exact]",
-      "[Vcom boost exact]",
       "[Weighted exact]",
       "[Standard exact]",
       "[negative KE]",
@@ -1084,7 +1069,7 @@ protected:
     };
 
   public:
-    double miss, delta, delE, gamma;
+    double miss, delta, delE, gamma, defer;
     double totE, kE, dKE, vfac, vrat, o1, o2;
 
 
@@ -1094,7 +1079,7 @@ protected:
     {
       for (auto & v : _i) v = 0.0;
       for (auto & v : _f) v = 0.0;
-      miss = delta = delE = gamma = 0.0;
+      miss = delta = delE = gamma = defer = 0.0;
       totE = kE = dKE = vfac = vrat = o1 = o2 = 0.0;
     }
 
@@ -1102,7 +1087,7 @@ protected:
     {
       for (auto & v : _i) v = 0.0;
       for (auto & v : _f) v = 0.0;
-      miss = delta = gamma = 0.0;
+      miss = delta = gamma = defer = 0.0;
       totE = kE = dKE = vfac = vrat = o1 = o2 = 0.0;
     }
     
@@ -1136,7 +1121,7 @@ protected:
   //! Compute the interaction for the hybrid weighted method
   void scatterHybrid
   (double P, PordPtr pp, KE_& KE,
-   std::vector<double>& v1, std::vector<double>& v2, int id);
+   std::vector<double>* v1, std::vector<double>* v2, int id);
 
   //! Add excess energy to conservation counter
   void deferredEnergyHybrid(PordPtr pp, const double E);
@@ -1144,8 +1129,11 @@ protected:
   //! Check energy convervation for hybrid method
   void checkEnergyHybrid
   (PordPtr pp, KE_& KE,
-   const std::vector<double>& v1, const std::vector<double>& v2,
+   const std::vector<double>* v1, const std::vector<double>* v2,
    unsigned iType, int id);
+
+  //! Update deferred electron energy for unweighted approximation
+  void updateEnergyHybrid(PordPtr pp, KE_& KE);
 
   //! Print cross-section weights for debugging
   void meanFdump(int id);
@@ -1172,7 +1160,6 @@ public:
   static bool     scatter;
   static bool     ExactE;
   static bool     AlgOrth;
-  static bool     AlgVcom;
   static bool     AlgWght;
   static bool     DebugE;
   static bool     collLim;
