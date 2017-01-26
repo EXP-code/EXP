@@ -223,7 +223,7 @@ static constexpr double eVtoAng = 12398.41842144513;
 
 // Debugging newHybrid
 //
-static bool DBG_NewHybrid       = false;
+static bool DBG_NewHybrid       = true;
 
 // This is for debugging; set to "false" for production
 //
@@ -6591,23 +6591,23 @@ double CollideIon::energyInPart(Particle *p)
 
   double ee = 0.0;
   for (unsigned short C=1; C<=Z; C++) ee += p->dattrib[hybrid_pos+C]*C;
-
   ee *= atomic_weights[0]/atomic_weights[Z];
 
-  double KE = 0.0;
+  double KEi = 0.0, KEe = 0.0;
   for (size_t k =0; k<3; k++) {
-    double v = p->vel[k];
-    KE += 0.5*p->mass*v*v;
+    KEi += p->vel[k] * p->vel[k];
     if (use_elec>=0) {
-      v = p->dattrib[use_elec+k];
-      KE += 0.5*p->mass*ee*v*v;
+      KEe += p->dattrib[use_elec+k] * p->dattrib[use_elec+k];
     }
   }
 
-  // if (use_cons>=0) KE += p->dattrib[use_cons];
-  // if (use_elec>=0) KE += p->dattrib[use_elec+3];
+  KEi *= 0.5*p->mass;
+  KEe *= 0.5*p->mass*ee;
 
-  return KE;
+  // if (use_cons>=0) KEi += p->dattrib[use_cons];
+  // if (use_elec>=0) KEe += p->dattrib[use_elec+3];
+
+  return KEi + KEe;
 }
 
 
@@ -6784,12 +6784,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // NOCOOL debugging
   //
   double NCXTRA = 0.0;
-
   bool ok = false;		// Reject all interactions by default
 
   int maxInterFlag = -1;
   double maxP      = 0.0;
-  double ionExtra  = 0.0;
+  std::pair<double, double> ionExtra(0, 0);
+  std::pair<double, double> rcbExtra(0, 0);
+
   
   // Run through all interactions in the cross-section map to include
   // ionization-state weightings.  Recall, the map contains values of
@@ -7099,8 +7100,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  double tmpE = IS.DIInterLoss(ch.IonList[Q2]);
 	  dE = tmpE * Prob;
 
-	  // Add the implicit electron KE added during ionization
-	  dE += iE2 * Prob;
+	  // Queue the added electron KE for removal
+	  dE += iE2 * Prob; ionExtra.second += iE2 * Prob;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
@@ -7146,8 +7147,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  double tmpE = IS.DIInterLoss(ch.IonList[Q1]);
 	  dE = tmpE * Prob;
 	  
-	  // Subtract the implicit electron KE added during ionization
-	  dE += iE1 * Prob;
+	  // Queue the added electron KE for removal
+	  dE += iE1 * Prob; ionExtra.first += iE1 * Prob;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
@@ -7220,7 +7221,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  
 	  // Electron KE fraction in recombination
 	  double eE = iE1 * Prob * UserTreeDSMC::Eunit / (N0*eV);
-	  ionExtra += iE1 * Prob;
+	  rcbExtra.first += iE1 * Prob;
 
 	  // if (energy_scale > 0.0) dE *= energy_scale;
 	  if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * Prob;
@@ -7291,7 +7292,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	  // Electron KE fraction in recombination
 	  double eE = iE2 * Prob * UserTreeDSMC::Eunit / (N0*eV);
-	  ionExtra += iE2 * Prob;
+	  rcbExtra.second += iE2 * Prob;
 
 	  // if (energy_scale > 0.0) dE *= energy_scale;
 	  if (RECOMB_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * Prob;
@@ -7536,6 +7537,20 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   }
 
   //
+  // Deep debug
+  //
+  if (KE_DEBUG) {
+    double KE_inter_check = energyInPair(p1, p2);
+    double KDif0 = KE_initl_check - KE_inter_check;
+    double KDif1 = KDif0 + ionExtra.first + ionExtra.second;
+    double KDif2 = KDif1 + rcbExtra.first + rcbExtra.second;
+
+    if (fabs(KDif2) > tolE*KE_initl_check) {
+      std::cout << "Crazy" << std::endl;
+    }
+  }
+
+  //
   // Perform the electronic interactions
   //
   if (use_elec) {
@@ -7753,8 +7768,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  //            initial/swap-------------+               |
 	  //                                     |               |
 	  //                                     v               v
-	  double et2i = PP[1]->swap ? PP[1]->Eta[0] : PP[1]->Eta[2];
-	  double et2f = PP[1]->swap ? PP[1]->Eta[1] : PP[1]->Eta[3];
+	  double et2i = PP[1]->swap ? PP[1]->Eta[0] : PP[1]->Eta[1];
+	  double et2f = PP[1]->swap ? PP[1]->Eta[3] : PP[1]->Eta[2];
 	  //                                     ^               ^
 	  //                                     |               |
 	  //            final/swap---------------+               |
@@ -7910,8 +7925,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  //            initial/swap-------------+               |
 	  //                                     |               |
 	  //                                     v               v
-	  double et1i = PP[2]->swap ? PP[2]->Eta[2] : PP[2]->Eta[0];
-	  double et1f = PP[2]->swap ? PP[2]->Eta[3] : PP[2]->Eta[1];
+	  double et1i = PP[2]->swap ? PP[2]->Eta[1] : PP[2]->Eta[0];
+	  double et1f = PP[2]->swap ? PP[2]->Eta[3] : PP[2]->Eta[2];
 	  //                                     ^               ^
 	  //                                     |               |
 	  // Particle 1/final/swap---------------+               |
