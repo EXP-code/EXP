@@ -48,7 +48,7 @@ double InteractSelect::DIInterLoss(const boost::shared_ptr<Ion> a)
   const lQ Q(Z1, C1);
 
   if (C1 > Z1) {
-    std::cout << "ERROR: IONIZING PAST BARE NUCLEUS" << std::endl;
+    std::cout << "**ERROR: ion has no electrons" << std::endl;
     return 0;
   }
 
