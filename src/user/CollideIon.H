@@ -797,49 +797,84 @@ protected:
     double         eta2;
 
     std::pair<double, double> E1, E2;
-    std::array<double, 4> Einit, Efinal, Eta;
+    std::vector<double>       f1, f2;
+
+    //! Keep particle energies at current time
+    struct Es
+    {
+      //! Ion energy
+      double KEi;
+
+      //! Electron energy
+      double KEe, KEw;
+
+      //! Total energy
+      double ke0, ke1;
+
+      //! Electron fraction
+      double eta;
+
+      //! Constructor
+      Es() : KEi(0), KEe(0), KEw(0), ke0(0), ke1(0), eta(0) {}
+    };
+    
+    typedef std::array<Es, 2> Epair;
+    Epair beg, mid, end;
 
     //! Constructor
     Pord(CollideIon* c, Particle *P1, Particle *P2, double WW1, double WW2,  pType p, double T);
 
-    //! Update electron fraction
+    //! Update ionization state fractions
     void update();
 
     //! Compute initial energies
-    void eInitial() {
-      Einit  = compE();
-      Eta[0] = eta1;
-      Eta[1] = eta2;
-    }
+    void eInitial() { beg = compE(); }
+
+    //! Compute updated energies
+    void eUpdate()  { mid = compE(); }
 
     //! Compute final energies
-    void eFinal() {
-      Efinal = compE();
-      Eta[2] = eta1;
-      Eta[3] = eta2;
-    }
+    void eFinal()   { end = compE(); }
 
     //! Switch weighting scheme (true: weighted by eta)
     void scheme(bool W);
 
-    //! Get eta1
-    double Eta1()
+    //! Access to ionization fraction with swapping (Particle 1)
+    double& F(unsigned short n, int j)
     {
-      if (swap) return eta2;
-      else return eta1;
+      if (swap) n++;
+      if (n%2==1) return f1[j];
+      return f2[j];
     }
 
-    //! Get eta2
-    double Eta2()
+    //! Retrieve ionization fraction
+    double Eta(unsigned short n)
     {
-      if (swap) return eta1;
-      else return eta2;
+      if (swap) n++;
+      if (n%2==1) return eta1;
+      return eta2;
+    }
+
+    //! Access to the species key
+    speciesKey& K(unsigned short n)
+    {
+      if (swap) n++;
+      if (n%2==1) return k1;
+      return k2;
+    }
+
+    //! Retrieve the atomic number
+    unsigned short getZ(unsigned short n)
+    {
+      if (swap) n++;
+      if (n%2==1) return Z1;
+      return Z2;
     }
 
   protected:
 
     //! Compute energies (ion, electron)
-    std::array<double, 4> compE();
+    Epair compE();
   };
 
   typedef std::shared_ptr<Pord> PordPtr;
@@ -1122,6 +1157,10 @@ protected:
   void scatterHybrid
   (double P, PordPtr pp, KE_& KE,
    std::vector<double>* v1, std::vector<double>* v2, int id);
+
+  //! For deep debugging
+  void KEcheck(PordPtr pp, double& KE_initl_check,
+	       std::pair<double, double>& ion, std::pair<double, double>& rcb);
 
   //! Add excess energy to conservation counter
   void deferredEnergyHybrid(PordPtr pp, const double E);

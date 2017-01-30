@@ -223,7 +223,7 @@ static constexpr double eVtoAng = 12398.41842144513;
 
 // Debugging newHybrid
 //
-static bool DBG_NewHybrid       = true;
+static bool DBG_NewHybrid       = false;
 
 // This is for debugging; set to "false" for production
 //
@@ -6591,6 +6591,11 @@ double CollideIon::energyInPart(Particle *p)
 
   double ee = 0.0;
   for (unsigned short C=1; C<=Z; C++) ee += p->dattrib[hybrid_pos+C]*C;
+
+  if (DBG_NewHybrid)
+    std::cout << "energyInPart: eta="
+	      << std::setprecision(14) << std::setw(22) << ee << std::endl;
+
   ee *= atomic_weights[0]/atomic_weights[Z];
 
   double KEi = 0.0, KEe = 0.0;
@@ -6601,12 +6606,22 @@ double CollideIon::energyInPart(Particle *p)
     }
   }
 
+  if (DBG_NewHybrid)
+    std::cout << "energyInPart: vi2="
+	      << std::setprecision(14) << std::setw(22) << KEi
+	      << " ve2=" << std::setw(22) << KEe << std::endl;
+
   KEi *= 0.5*p->mass;
   KEe *= 0.5*p->mass*ee;
 
+  if (DBG_NewHybrid)
+    std::cout << "energyInPart: KEi="
+	      << std::setprecision(14) << std::setw(22) << KEi
+	      << " KEe=" << std::setw(22) << KEe
+	      << " KEt=" << std::setw(22) << KEi + KEe << std::endl;
+
   // if (use_cons>=0) KEi += p->dattrib[use_cons];
   // if (use_elec>=0) KEe += p->dattrib[use_elec+3];
-
   return KEi + KEe;
 }
 
@@ -6724,16 +6739,17 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // by number of atoms/ions in each superparticle.  Compute electron
   // KE at the same time.
   //
-  double et1i = 0.0, et2i = 0.0, iE1 = 0.0, iE2 = 0.0;
+  double iE1 = 0.0, iE2 = 0.0;
   if (use_elec) {
-    for (unsigned short C=1; C<=Z1; C++) et1i += p1->dattrib[hybrid_pos+C]*C;
-    for (unsigned short C=1; C<=Z2; C++) et2i += p2->dattrib[hybrid_pos+C]*C;
+    double eta1 = 0.0, eta2 = 0.0;
+    for (unsigned short C=1; C<=Z1; C++) eta1 += p1->dattrib[hybrid_pos+C]*C;
+    for (unsigned short C=1; C<=Z2; C++) eta2 += p2->dattrib[hybrid_pos+C]*C;
     for (size_t k=0; k<3; k++) {
       iE1 += p1->dattrib[use_elec+k] * p1->dattrib[use_elec+k];
       iE2 += p2->dattrib[use_elec+k] * p2->dattrib[use_elec+k];
     }
-    iE1 *= 0.5*p1->mass * et1i * atomic_weights[0]/atomic_weights[Z1];
-    iE2 *= 0.5*p2->mass * et2i * atomic_weights[0]/atomic_weights[Z2];
+    iE1 *= 0.5*p1->mass * eta1 * atomic_weights[0]/atomic_weights[Z1];
+    iE2 *= 0.5*p2->mass * eta2 * atomic_weights[0]/atomic_weights[Z2];
   }
 
   // Ion KE
@@ -6867,11 +6883,19 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       // ionization state from 0, Cx is the _usual_ ionization level
       // (e.g. C=1 is neutral).
       //
-      unsigned short  Z1 = PP[cid]->k1.first;
-      unsigned short  Z2 = PP[cid]->k2.first;
+      unsigned short Z1 = PP[cid]->getZ(1);
+      unsigned short Z2 = PP[cid]->getZ(2);
 
-      Interact::pElem I1 = PP[cid]->swap ? std::get<2>(O) : std::get<1>(O);
-      Interact::pElem I2 = PP[cid]->swap ? std::get<1>(O) : std::get<2>(O);
+      // Ionization fractions
+      //
+      double eta1i = PP[cid]->Eta(1);
+      double eta2i = PP[cid]->Eta(2);
+
+      speciesKey k1 = PP[cid]->K(1);
+      speciesKey k2 = PP[cid]->K(2);
+
+      Interact::pElem I1 = std::get<1>(O);
+      Interact::pElem I2 = std::get<2>(O);
       
       unsigned short  P1 = I1.second;
       unsigned short  P2 = I2.second;
@@ -6889,16 +6913,16 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       // For hybrid method, the speciesKey level is set to zero.
       // Replace with the correct subspecies value.
       //
-      PP[cid]->k1.second = C1;
-      PP[cid]->k2.second = C2;
+      PP[cid]->K(1).second = C1;
+      PP[cid]->K(2).second = C2;
 
       lQ Q1(Z1, C1), Q2(Z2, C2);
 
       // Retrieve the diagnostic stanza for this species (correctly
       // including the ionization level)
       //
-      collTDPtr ctd1 = (*collD)[PP[cid]->k1];
-      collTDPtr ctd2 = (*collD)[PP[cid]->k2];
+      collTDPtr ctd1 = (*collD)[PP[cid]->K(1)];
+      collTDPtr ctd2 = (*collD)[PP[cid]->K(2)];
       
       // Select the maximum probability channel
       //
@@ -7080,13 +7104,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  //
 	  // Ion is p2
 	  //
-	  if (Prob < p2->dattrib[hybrid_pos+C2-1]) {
-	    p2->dattrib[hybrid_pos+C2-1] -= Prob;
-	    p2->dattrib[hybrid_pos+C2+0] += Prob;
+	  if (Prob < PP[2]->F(2, C2-1)) {
+	    PP[2]->F(2, C2-1) -= Prob;
+	    PP[2]->F(2, C2+0) += Prob;
 	  } else {
-	    Prob = p2->dattrib[hybrid_pos+C2-1];
-	    p2->dattrib[hybrid_pos+C2+0] += Prob;
-	    p2->dattrib[hybrid_pos+C2-1]  = 0.0;
+	    Prob = PP[2]->F(2, C2-1);
+	    PP[2]->F(2, C2+0) += Prob;
+	    PP[2]->F(2, C2-1)  = 0.0;
 	  }
 	  
 	  if (use_normtest) {
@@ -7101,7 +7125,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  dE = tmpE * Prob;
 
 	  // Queue the added electron KE for removal
-	  dE += iE2 * Prob; ionExtra.second += iE2 * Prob;
+	  ionExtra.second += iE2 * Prob / eta2i;
+
+	  // Energy for ionized electron comes from COM
+	  dE += iE2 * Prob / eta2i; 
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
@@ -7135,20 +7162,23 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  //
 	  // Ion is p1
 	  //
-	  if (Prob < p1->dattrib[hybrid_pos+C1-1]) {
-	    p1->dattrib[hybrid_pos+C1-1] -= Prob;
-	    p1->dattrib[hybrid_pos+C1+0] += Prob;
+	  if (Prob < PP[1]->F(1, C1-1)) {
+	    PP[1]->F(1, C1-1) -= Prob;
+	    PP[1]->F(1, C1+0) += Prob;
 	  } else {
-	    Prob = p1->dattrib[hybrid_pos+C1-1];
-	    p1->dattrib[hybrid_pos+C1+0] += Prob;
-	    p1->dattrib[hybrid_pos+C1-1]  = 0.0;
+	    Prob = PP[1]->F(1, C1-1);
+	    PP[1]->F(1, C1+0) += Prob;
+	    PP[1]->F(1, C1-1)  = 0.0;
 	  }
 
 	  double tmpE = IS.DIInterLoss(ch.IonList[Q1]);
 	  dE = tmpE * Prob;
 	  
 	  // Queue the added electron KE for removal
-	  dE += iE1 * Prob; ionExtra.first += iE1 * Prob;
+	  ionExtra.first += iE1 * Prob / eta1i;
+
+	  // Energy for ionized electron comes from COM
+	  dE += iE1 * Prob / eta1i; 
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
@@ -7191,7 +7221,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  //
 	  // Ion is p2
 	  //
-	  double w0 = p2->dattrib[hybrid_pos+C2-1];
+	  double w0 = PP[2]->F(2, C2-1);
 	  if (use_normtest) {
 	    std::ostringstream sout;
 	    sout << "[Before recomb]: C2=" << C2-1
@@ -7203,13 +7233,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    }
 	  }
 	  
-	  if (Prob < p2->dattrib[hybrid_pos+C2-1]) {
-	    p2->dattrib[hybrid_pos+C2-1] -= Prob;
-	    p2->dattrib[hybrid_pos+C2-2] += Prob;
+	  if (Prob < PP[2]->F(2, C2-1)) {
+	    PP[2]->F(2, C2-1) -= Prob;
+	    PP[2]->F(2, C2-2) += Prob;
 	  } else {
-	    Prob = p2->dattrib[hybrid_pos+C2-1];
-	    p2->dattrib[hybrid_pos+C2-2] += Prob;
-	    p2->dattrib[hybrid_pos+C2-1]  = 0.0;
+	    Prob = PP[2]->F(2, C2-1);
+	    PP[2]->F(2, C2-2) += Prob;
+	    PP[2]->F(2, C2-1)  = 0.0;
 	  }
 	  
 	  if (use_normtest) {
@@ -7219,9 +7249,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    normTest(p1, sout.str());
 	  }
 	  
-	  // Electron KE fraction in recombination
+	  // Electron KE lost in recombination
+	  dE += (iE1 - iE2) * Prob / eta2i;
+	  rcbExtra.second += iE2 * Prob / eta2i;
+
+	  // Electron KE radiated in recombination
 	  double eE = iE1 * Prob * UserTreeDSMC::Eunit / (N0*eV);
-	  rcbExtra.first += iE1 * Prob;
 
 	  // if (energy_scale > 0.0) dE *= energy_scale;
 	  if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * Prob;
@@ -7263,7 +7296,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  //
 	  // Ion is p1
 	  //
-	  double w0 = p1->dattrib[hybrid_pos+P1];
+	  double w0 = PP[1]->f1[P1];
 	  if (use_normtest) {
 	    std::ostringstream sout;
 	    sout << "[Before recomb]: C1=" << C1-1
@@ -7274,13 +7307,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    }
 	  }
 
-	  if (Prob < p1->dattrib[hybrid_pos+P1]) {
-	    p1->dattrib[hybrid_pos+C1-1] -= Prob;
-	    p1->dattrib[hybrid_pos+C1-2] += Prob;
+	  if (Prob < PP[1]->F(1, P1)) {
+	    PP[1]->F(1, C1-1) -= Prob;
+	    PP[1]->F(1, C1-2) += Prob;
 	  } else {
-	    Prob = p1->dattrib[hybrid_pos+P1];
-	    p1->dattrib[hybrid_pos+C1-2] += Prob;
-	    p1->dattrib[hybrid_pos+C1-1]  = 0.0;
+	    Prob = PP[1]->F(1, P1);
+	    PP[1]->F(1, C1-2) += Prob;
+	    PP[1]->F(1, C1-1)  = 0.0;
 	  }
 	  
 	  if (use_normtest) {
@@ -7290,9 +7323,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    normTest(p1, sout.str());
 	  }
 
+	  // Electron KE lost in recombination
+	  dE += (iE2 - iE1) * Prob / eta1i;
+	  rcbExtra.first += iE1 * Prob / eta1i;
+
 	  // Electron KE fraction in recombination
 	  double eE = iE2 * Prob * UserTreeDSMC::Eunit / (N0*eV);
-	  rcbExtra.second += iE2 * Prob;
 
 	  // if (energy_scale > 0.0) dE *= energy_scale;
 	  if (RECOMB_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * Prob;
@@ -7464,27 +7500,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   //
   std::vector<double> vrel(3), vcom(3), v1(3), v2(3);
 
-  //------------------------------------------------------------
-  // Sanity check energy loss accumulation.
-  //
-  // NB: For elastic interactions, delta E == 0.
-  //
-  if (PE[0].second < 0.0) {
-    std::cout << "[Neutral] Crazy delE = " << PE[0].second << std::endl;
-    assert(PE[0].second >= 0.0);
-  }
-
-  if (PE[1].second < 0.0) {
-    std::cout << "[Ion 1] Crazy delE = " << PE[1].second << std::endl;
-    assert(PE[1].second >= 0.0);
-  }
-
-  if (PE[2].second < 0.0) {
-    std::cout << "[Ion 2] Crazy delE = " << PE[2].second << std::endl;
-    assert(PE[2].second >= 0.0);
-  }
-  //------------------------------------------------------------
-
   // Artifically prevent cooling by setting the energy removed from
   // the COM frame to zero
   //
@@ -7498,20 +7513,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
   // Normalize probabilities and sum inelastic energy changes
   //
-  double probTot = 0.0, delEtot = 0.0;
+  double probTot = 0.0;
   for (auto & v : PE) probTot += v.first;
 
   if (probTot > 0.0) {
-    for (auto & v : PE) {
-      v.first /= probTot;
-      delEtot += v.second;
-    }
-  }
-
-  // Accumulate energy for time step cooling computation
-  //
-  if (use_delt>=0 && delEtot>0.0) {
-    spEdel[id] += delEtot;	// HYBRID
+    for (auto & v : PE) v.first /= probTot;
   }
 
   //
@@ -7530,27 +7536,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   }
 
   //
-  // Update electron fractions
-  //
-  if (use_elec) {
-    for (auto pp : PP)  pp->update();
-  }
-
-  //
-  // Deep debug
-  //
-  if (KE_DEBUG) {
-    double KE_inter_check = energyInPair(p1, p2);
-    double KDif0 = KE_initl_check - KE_inter_check;
-    double KDif1 = KDif0 + ionExtra.first + ionExtra.second;
-    double KDif2 = KDif1 + rcbExtra.first + rcbExtra.second;
-
-    if (fabs(KDif2) > tolE*KE_initl_check) {
-      std::cout << "Crazy" << std::endl;
-    }
-  }
-
-  //
   // Perform the electronic interactions
   //
   if (use_elec) {
@@ -7566,6 +7551,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     // Apply neutral-neutral scattering and energy loss
     //
     if (J==0) {
+
+      PP[0]->update();
+      PP[0]->eUpdate();
+
+      KEcheck(PP[0], KE_initl_check, ionExtra, rcbExtra);
 
       std::pair<double, double> KEinit = energyInPairPartial(p1, p2, Neutral);
 
@@ -7617,8 +7607,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  PE[0].second = 0.0;
 	}
 
-	KE.delE = delEtot;
-	collD->addLost(delEtot, id);
+	KE.delE = PE[0].second;
+	collD->addLost(KE.delE, id);
+	if (use_delt>=0) spEdel[id] += KE.delE;
 
 	if (PP[0]->wght)
 	  scatterHybrid(PE[0].first, PP[0], KE, &v1, &v2, id);
@@ -7639,13 +7630,23 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
       }
 
+      updateEnergyHybrid(PP[0], KE);
+
       if (KE_DEBUG) {
 	double KE_final_check = energyInPair(p1, p2);
 
-	std::pair<double, double> KEfinal = energyInPairPartial(p1, p2, Neutral, "After neutral");
+	std::pair<double, double> KEfinal;
+	if (DBG_NewHybrid) 
+	  KEfinal = energyInPairPartial(p1, p2, Neutral, "After neutral");
+	else
+	  KEfinal = energyInPairPartial(p1, p2, Neutral);
 
 	double delE = KE_initl_check - KE_final_check
-	  - (deltaSum += KE.delta) - (delEsum += KE.delE) - (delEmis += KE.miss) - (delEdfr += KE.defer);
+	  - (deltaSum += KE.delta)
+	  - (delEsum  += KE.delE)
+	  - (delEmis  += KE.miss)
+	  - (delEdfr  += KE.defer);
+
 	std::pair<double, double> KEdif = KEinit - KEfinal;
 
 	if (fabs(delE) > tolE*KE_initl_check) {
@@ -7658,7 +7659,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 		    << ", pasA = " << KEdif.second
 		    << std::endl;
 	} else {
-	  if (false and DBG_NewHybrid)
+	  if (DBG_NewHybrid)
 	    std::cout << "**GOOD [after neutral] dE = " << delE
 		      << ", rel = " << delE/KE_initl_check
 		      << ", dKE = " << KE.delta
@@ -7678,6 +7679,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     // Ion is Particle 1, Electron is Particle 2
     //
     if (J==1) {
+
+      PP[1]->update();
+      PP[1]->eUpdate();
+
+      KEcheck(PP[1], KE_initl_check, ionExtra, rcbExtra);
 
       std::pair<double, double> KEinit = energyInPairPartial(p1, p2, Ion1);
 
@@ -7723,8 +7729,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  PE[1].second = 0.0;
 	}
 	
-	KE.delE = delEtot;
-	collD->addLost(delEtot, id);
+	KE.delE = PE[1].second;
+	collD->addLost(KE.delE, id);
+	if (use_delt>=0) spEdel[id] += KE.delE;
 	
 	if (PP[1]->wght)
 	  scatterHybrid(PE[1].first, PP[1], KE, &v1, &v2, id);
@@ -7764,19 +7771,19 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  
 	  // Particle 2 electron
 	  // -------------------
-	  //            initial/orig-----------------------------+
-	  //            initial/swap-------------+               |
-	  //                                     |               |
-	  //                                     v               v
-	  double et2i = PP[1]->swap ? PP[1]->Eta[0] : PP[1]->Eta[1];
-	  double et2f = PP[1]->swap ? PP[1]->Eta[3] : PP[1]->Eta[2];
-	  //                                     ^               ^
-	  //                                     |               |
-	  //            final/swap---------------+               |
-	  //            final/orig-------------------------------+
+	  //            initial/orig----------------------------------+
+	  //            initial/swap--------------+                   |
+	  //                                      |                   |
+	  //                                      v                   v
+	  double eta2i = PP[1]->swap ? PP[1]->beg[0].eta : PP[1]->beg[1].eta;
+	  double eta2f = PP[1]->swap ? PP[1]->end[0].eta : PP[1]->end[1].eta;
+	  //                                      ^                   ^
+	  //                                      |                   |
+	  //            final/swap----------------+                   |
+	  //            final/orig------------------------------------+
 
-	  ke2  *= 0.5*p2->mass * et2i * atomic_weights[0]/atomic_weights[Z2];
-	  ke2f *= 0.5*p2->mass * et2f * atomic_weights[0]/atomic_weights[Z2];
+	  ke2  *= 0.5*p2->mass * eta2i * atomic_weights[0]/atomic_weights[Z2];
+	  ke2f *= 0.5*p2->mass * eta2f * atomic_weights[0]/atomic_weights[Z2];
 
 	  double delE = ke1 + ke2 - ke1f - ke2f - KE.delta - KE.delE - KE.miss - KE.defer;
 	  if (fabs(delE) > tolE*(ke1 + ke2)) {
@@ -7787,7 +7794,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 		      << " dfr = "  << KE.defer
 		      << " KEi = "  << ke1  + ke2
 		      << " KEf = "  << ke1f + ke2f
-		      << " et2i = " << et2i << std::endl;
+		      << " et2i = " << eta2i << std::endl;
 	  } else {
 	    if (DBG_NewHybrid)
 	      std::cout << "**GOOD post scatter: relE = " << delE/(ke1 + ke2)
@@ -7802,10 +7809,18 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
       if (KE_DEBUG) {
 	double KE_final_check = energyInPair(p1, p2);
-	std::pair<double, double> KEfinal = energyInPairPartial(p1, p2, Ion1, "After Ion1");
+
+	std::pair<double, double> KEfinal;
+	if (DBG_NewHybrid) 
+	  KEfinal = energyInPairPartial(p1, p2, Ion1, "After Ion1");
+	else
+	  KEfinal = energyInPairPartial(p1, p2, Ion1);
 
 	double delE = KE_initl_check - KE_final_check
-	  - (deltaSum += KE.delta) - (delEsum += KE.delE) - (delEmis += KE.miss) - (delEdfr += KE.defer);
+	  - (deltaSum += KE.delta)
+	  - (delEsum  += KE.delE - ionExtra.first + rcbExtra.first)
+	  - (delEmis  += KE.miss)
+	  - (delEdfr  += KE.defer);
 
 	std::pair<double, double> KEdif = KEinit - KEfinal;
 
@@ -7819,7 +7834,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 		    << ", pasA = " << KEdif.second
 		    << std::endl;
 	} else {
-	  if (false and DBG_NewHybrid)
+	  if (DBG_NewHybrid)
 	    std::cout << "**GOOD [after Ion1] dE = " << delE
 		      << ", rel = "  << delE/KE_initl_check
 		      << ", dKE = "  << deltaSum
@@ -7842,6 +7857,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     // Ion is Particle 2, Electron is Particle 1
     //
     if (J==2) {
+
+      PP[2]->update();
+      PP[2]->eUpdate();
+
+      KEcheck(PP[2], KE_initl_check, ionExtra, rcbExtra);
 
       if (DBG_NewHybrid) {
 	if (PP[2]->swap)
@@ -7888,8 +7908,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  PE[2].second = 0.0;
 	}
 	
-	KE.delE = delEtot;
-	collD->addLost(delEtot, id);
+	KE.delE = PE[2].second;
+	collD->addLost(KE.delE, id);
+	if (use_delt>=0) spEdel[id] += KE.delE;
 	
 	if (PP[2]->wght)
 	  scatterHybrid(PE[2].first, PP[2], KE, &v1, &v2, id);
@@ -7921,20 +7942,20 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  
 	  // Particle 1 electron
 	  // -------------------
-	  //            initial/orig-----------------------------+
-	  //            initial/swap-------------+               |
-	  //                                     |               |
-	  //                                     v               v
-	  double et1i = PP[2]->swap ? PP[2]->Eta[1] : PP[2]->Eta[0];
-	  double et1f = PP[2]->swap ? PP[2]->Eta[3] : PP[2]->Eta[2];
-	  //                                     ^               ^
-	  //                                     |               |
-	  // Particle 1/final/swap---------------+               |
-	  // Particle 1/final/orig-------------------------------+
+	  //            initial/orig----------------------------------+
+	  //            initial/swap--------------+                   |
+	  //                                      |                   |
+	  //                                      v                   v
+	  double eta1i = PP[2]->swap ? PP[2]->beg[1].eta : PP[2]->beg[0].eta;
+	  double eta1f = PP[2]->swap ? PP[2]->end[1].eta : PP[2]->end[0].eta;
+	  //                                      ^                   ^
+	  //                                      |                   |
+	  // Particle 1/final/swap----------------+                   |
+	  // Particle 1/final/orig------------------------------------+
 
 
-	  ke1  *= 0.5*p1->mass * et1i * atomic_weights[0]/atomic_weights[Z1];
-	  ke1f *= 0.5*p1->mass * et1f * atomic_weights[0]/atomic_weights[Z1];
+	  ke1  *= 0.5*p1->mass * eta1i * atomic_weights[0]/atomic_weights[Z1];
+	  ke1f *= 0.5*p1->mass * eta1f * atomic_weights[0]/atomic_weights[Z1];
 	  
 	  ke2  *= 0.5*p2->mass;
 	  ke2f *= 0.5*p2->mass;
@@ -7947,17 +7968,25 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 		      << " dfr = "  << KE.defer
 		      << " KEi = "  << ke1  + ke2
 		      << " KEf = "  << ke1f + ke2f
-		      << " et1i = " << et1i << std::endl;
+		      << " et1i = " << eta1i << std::endl;
 	  }
 	}
       }
 
       if (KE_DEBUG) {
 	double KE_final_check = energyInPair(p1, p2);
-	std::pair<double, double> KEfinal = energyInPairPartial(p1, p2, Ion2, "After Ion2");
+
+	std::pair<double, double> KEfinal;
+	if (DBG_NewHybrid) 
+	  KEfinal = energyInPairPartial(p1, p2, Ion2, "After Ion2");
+	else
+	  KEfinal = energyInPairPartial(p1, p2, Ion2);
 
 	double delE = KE_initl_check - KE_final_check
-	  - (deltaSum += KE.delta) - (delEsum += KE.delE) - (delEmis += KE.miss) - (delEdfr += KE.defer);
+	  - (deltaSum += KE.delta)
+	  - (delEsum  += KE.delE - ionExtra.second + rcbExtra.second)
+	  - (delEmis  += KE.miss)
+	  - (delEdfr  += KE.defer);
 
 	std::pair<double, double> KEdif = KEinit - KEfinal;
 
@@ -7971,7 +8000,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 		    << ", pasA = " << KEdif.second
 		    << std::endl;
 	} else {
-	  if (false and DBG_NewHybrid)
+	  if (DBG_NewHybrid)
 	    std::cout << "**GOOD [after Ion2] dE = " << delE
 		      << ", rel = "  << delE/KE_initl_check
 		      << ", dKE = "  << deltaSum
@@ -8095,6 +8124,25 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   }
 
   return ret;
+}
+
+void CollideIon::KEcheck
+(PordPtr pp, double& KE_initl_check,
+ std::pair<double, double>& ionExtra, std::pair<double, double>& rcbExtra)
+{
+  if (KE_DEBUG) {
+    double KE_inter_check = energyInPair(pp->p1, pp->p2);
+    double KDif = KE_initl_check - KE_inter_check;
+    if (pp->P == Pord::ion_electron) {
+      KDif += ionExtra.first  - rcbExtra.first ;
+    } 
+    if (pp->P == Pord::electron_ion) {
+      KDif += ionExtra.second - rcbExtra.second;
+    } 
+    if (fabs(KDif) > tolE*KE_initl_check) {
+      std::cout << "Crazy" << std::endl;
+    }
+  }
 }
 
 void CollideIon::scatterHybrid
@@ -8559,7 +8607,7 @@ void CollideIon::checkEnergyHybrid
 		<< ", flg=" << KE.decode()
 		<< std::endl;
     else {
-      if (false and DBG_NewHybrid)
+      if (DBG_NewHybrid)
 	std::cout << "**GOOD check deltaE ("<< pp->m1 << "," << pp->m2 << ") = "
 		  << std::setw(14) << testE
 		  << ": rel=" << std::setw(14) << testE/tKEi
@@ -8583,53 +8631,61 @@ void CollideIon::debugDeltaE(double delE, unsigned short Z, unsigned short C,
 
 void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
 {
-  if (pp->wght) return;
-  if (pp->P == Pord::ion_ion) return;
-
   // Compute final energy
   //
   pp->eFinal();
+
+  if (pp->wght) return;
+  if (pp->P == Pord::ion_ion) return;
 
   double rKEi=0.0, tKEi=0.0;	// Total pre collision KE
   double rKEf=0.0, tKEf=0.0;	// Total post collision KE
 
   if (pp->P == Pord::ion_electron) {
     if (pp->swap) {
-      rKEi = pp->Einit [1]              + pp->Einit [2];
-      rKEf = pp->Efinal[1]              + pp->Efinal[2];
-      tKEi = pp->Einit [1] * pp->Eta[0] + pp->Einit [2];
-      tKEf = pp->Efinal[1] * pp->Eta[2] + pp->Efinal[2];
-      //                ^            ^
-      //                |            |
-      // Particle 1/electron---------+
+      rKEi = pp->mid[0].KEe + pp->mid[1].KEi;
+      rKEf = pp->end[0].KEe + pp->end[1].KEi;
+      tKEi = pp->mid[0].KEw + pp->mid[1].KEi;
+      tKEf = pp->end[0].KEw + pp->end[1].KEi;
+      //             ^                ^
+      //             |                |
+      // Particle 1/electron          |
+      //                              |
+      // Particle 2/ion---------------+
     } else {
-      rKEi = pp->Einit [0] + pp->Einit [3] ;
-      rKEf = pp->Efinal[0] + pp->Efinal[3] ;
-      tKEi = pp->Einit [0] + pp->Einit [3] * pp->Eta[1];
-      tKEf = pp->Efinal[0] + pp->Efinal[3] * pp->Eta[3];
-      //                                ^            ^
-      //                                |            |
-      // Particle 2/electron------------+------------+
+      rKEi = pp->mid[0].KEi + pp->mid[1].KEe;
+      rKEf = pp->end[0].KEi + pp->end[1].KEe;
+      tKEi = pp->mid[0].KEi + pp->mid[1].KEw;
+      tKEf = pp->end[0].KEi + pp->end[1].KEw;
+      //             ^                ^
+      //             |                |
+      // Particle 1/ion               |
+      //                              |
+      // Particle 2/electron----------+
     }
   }
 
   if (pp->P == Pord::electron_ion) {
     if (pp->swap) {
-      rKEi = pp->Einit [0] + pp->Einit [3] ;
-      rKEf = pp->Efinal[0] + pp->Efinal[3] ;
-      tKEi = pp->Einit [0] + pp->Einit [3] * pp->Eta[1];
-      tKEf = pp->Efinal[0] + pp->Efinal[3] * pp->Eta[3];
-      //                                ^            ^
-      //                                |            |
-      // Particle 2/electron------------+------------+
+      rKEi = pp->mid[0].KEi + pp->mid[1].KEe;
+      rKEf = pp->end[0].KEi + pp->end[1].KEe;
+      tKEi = pp->mid[0].KEi + pp->mid[1].KEw;
+      tKEf = pp->end[0].KEi + pp->end[1].KEw;
+      //             ^                ^
+      //             |                |
+      // Particle 1/ion               |
+      //                              |
+      // Particle 2/electron- --------+
     } else {
-      rKEi = pp->Einit [1]              + pp->Einit [2];
-      rKEf = pp->Efinal[1]              + pp->Efinal[2];
-      tKEi = pp->Einit [1] * pp->Eta[0] + pp->Einit [2];
-      tKEf = pp->Efinal[1] * pp->Eta[2] + pp->Efinal[2];
-      //                ^            ^
-      //                |            |
-      // Particle 1/electron---------+
+      rKEi = pp->mid[0].KEe + pp->mid[1].KEi;
+      rKEf = pp->end[0].KEe + pp->end[1].KEi;
+      tKEi = pp->mid[0].KEw + pp->mid[1].KEi;
+      tKEf = pp->end[0].KEw + pp->end[1].KEi;
+      //             ^                ^
+      //             |                |
+      // Particle 1/electron          |
+      //                              |
+      // Particle 2/ion---------------+
     }
   }
 
@@ -16018,8 +16074,19 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2, double WW1, do
   // Compute electron fractions
   //
   eta1 = eta2 = 0.0;
-  for (unsigned short C=1; C<=Z1; C++) eta1 += p1->dattrib[caller->hybrid_pos+C]*C;
-  for (unsigned short C=1; C<=Z2; C++) eta2 += p2->dattrib[caller->hybrid_pos+C]*C;
+  if (caller->use_elec>=0) {
+    for (unsigned short C=1; C<=Z1; C++) eta1 += p1->dattrib[caller->hybrid_pos+C]*C;
+    for (unsigned short C=1; C<=Z2; C++) eta2 += p2->dattrib[caller->hybrid_pos+C]*C;
+  }
+
+  // Cache ionization fractions
+  //
+  if (caller->use_elec>=0) {
+    f1.resize(Z1+1);
+    f2.resize(Z2+1);
+    for (unsigned short C=0; C<=Z1; C++) f1[C] = p1->dattrib[caller->hybrid_pos+C];
+    for (unsigned short C=0; C<=Z2; C++) f2[C] = p2->dattrib[caller->hybrid_pos+C];
+  }
 
   switch (P) {
   case ion_ion:
@@ -16056,6 +16123,10 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2, double WW1, do
     zswap(w1, w2);
     zswap(W1, W2);
     
+    // Swap ionization fractions
+    //
+    zswap(f1, f2);
+
     // Swap particle masses
     //
     zswap(m1, m2);
@@ -16080,12 +16151,9 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2, double WW1, do
 
 void CollideIon::Pord::update()
 {
-  for (unsigned short C=1; C<=Z1; C++) eta1 += p1->dattrib[caller->hybrid_pos+C]*C;
-  for (unsigned short C=1; C<=Z2; C++) eta2 += p2->dattrib[caller->hybrid_pos+C]*C;
-  if (wght) {
-    W1 = w1 * eta1;
-    W2 = w2 * eta2;
-  }
+  if (caller->use_elec<0) return;
+  for (unsigned short C=0; C<=Z1; C++) p1->dattrib[caller->hybrid_pos+C] = f1[C];
+  for (unsigned short C=0; C<=Z2; C++) p2->dattrib[caller->hybrid_pos+C] = f2[C];
 }
 
 void CollideIon::Pord::scheme(bool W)
@@ -16102,14 +16170,16 @@ void CollideIon::Pord::scheme(bool W)
   wght = W;
 }
 
-std::array<double, 4> CollideIon::Pord::compE()
+CollideIon::Pord::Epair CollideIon::Pord::compE()
 {
-  std::array<double, 4> ret;	// zero initialized
+  Epair ret;			// zero initialized structure
 
 				// Compute electron fractions
-  eta1 = eta2 = 0.0;
+  eta1 = 0.0;
   for (unsigned short C=1; C<=Z1; C++)
     eta1 += p1->dattrib[caller->hybrid_pos+C]*C;
+
+  eta2 = 0.0;
   for (unsigned short C=1; C<=Z2; C++)
     eta2 += p2->dattrib[caller->hybrid_pos+C]*C;
 
@@ -16118,20 +16188,52 @@ std::array<double, 4> CollideIon::Pord::compE()
     W1 = w1 * eta1;
     W2 = w2 * eta2;
   }
-
 				// Compute KE
   for (size_t k=0; k<3; k++) {
-    ret[0] += p1->vel[k] * p1->vel[k];
-    ret[2] += p2->vel[k] * p2->vel[k];
+    ret[0].KEi += p1->vel[k] * p1->vel[k];
+    ret[1].KEi += p2->vel[k] * p2->vel[k];
     if (caller->use_elec>=0) {
-      ret[1] += p1->dattrib[caller->use_elec+k] * p1->dattrib[caller->use_elec+k];
-      ret[3] += p2->dattrib[caller->use_elec+k] * p2->dattrib[caller->use_elec+k];
+      ret[0].KEe += p1->dattrib[caller->use_elec+k] * p1->dattrib[caller->use_elec+k];
+      ret[1].KEe += p2->dattrib[caller->use_elec+k] * p2->dattrib[caller->use_elec+k];
     }
   }
-  ret[0] *= 0.5 * w1 * m10;
-  ret[1] *= 0.5 * w1 * atomic_weights[0]/m10;
-  ret[2] *= 0.5 * w2 * m20;
-  ret[3] *= 0.5 * w2 * atomic_weights[0]/m20;
+ 
+  if (DBG_NewHybrid)
+    std::cout << std::setprecision(14) << "Pord: "
+	      << " v1i2=" << std::setw(22) << ret[0].KEi
+	      << " v1e2=" << std::setw(22) << ret[0].KEe
+	      << " v2i2=" << std::setw(22) << ret[1].KEi
+	      << " v2e2=" << std::setw(22) << ret[1].KEe
+	      << std::endl;
 
+  // Particle 1
+  //
+  ret[0].KEi *= 0.5 * w1 * m10;
+  ret[0].KEe *= 0.5 * w1 * atomic_weights[0];
+
+  ret[0].KEw = ret[0].KEe * eta1;
+  ret[0].ke0 = ret[0].KEi + ret[0].KEe;
+  ret[0].ke1 = ret[0].KEi + ret[0].KEw;
+  ret[0].eta = eta1;
+
+  // Particle 2
+  //
+  ret[1].KEi *= 0.5 * w2 * m20;
+  ret[1].KEe *= 0.5 * w2 * atomic_weights[0];
+
+  ret[1].KEw = ret[1].KEe * eta2;
+  ret[1].ke0 = ret[1].KEi + ret[1].KEe;
+  ret[1].ke1 = ret[1].KEi + ret[1].KEw;
+  ret[1].eta = eta2;
+
+  if (DBG_NewHybrid)
+    std::cout << std::setprecision(14)
+	      << " KE1i=" << std::setw(22) << ret[0].KEi
+	      << " KE1e=" << std::setw(22) << ret[0].KEw
+	      << " KE2i=" << std::setw(22) << ret[1].KEi
+	      << " KE2e=" << std::setw(22) << ret[1].KEw
+	      << " Eta1=" << std::setw(22) << eta1
+	      << " Eta2=" << std::setw(22) << eta2 << std::endl;
+  
   return ret;
 }
