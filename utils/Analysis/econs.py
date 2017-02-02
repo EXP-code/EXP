@@ -12,6 +12,7 @@ parser = argparse.ArgumentParser(description='Read ION_Coll file and plot energy
 parser.add_argument('-t', '--tscale', default=1000.0,    type=float,   help='System time units in years')
 parser.add_argument('-T', '--Tmax',   default=1000000.0, type=float,   help='Maximum time in years')
 parser.add_argument('-l', '--log',    default=False, action='store_true', help='Logarithmic vertical scale')
+parser.add_argument('-a', '--aux',    default=False, action='store_true', help='Sum energy fields')
 parser.add_argument('tags',           nargs='*',                       help='Files to process')
 
 args = parser.parse_args()
@@ -47,7 +48,9 @@ box = ax.get_position()
 newBox = [box.x0, box.y0, 0.9*box.width, box.height]
 ax.set_position(newBox)
 
-toplot = ['Etotl', 'ElostC', 'Elost', 'EkeE', 'EkeI', 'delI', 'delE']
+toplot = ['Etotl', 'ElosC', 'Elost', 'EkeE', 'EkeI', 'delI', 'delE']
+
+aux = ['ElosC', 'EkeE', 'EkeI', 'delI', 'delE']
 
 for v in labs:
     # Read and parse the file
@@ -81,15 +84,23 @@ for v in labs:
                             d[v][e[0]].append(float(toks[e[1]]))
 
     indx = np.searchsorted(d[v]['Time'], args.Tmax/args.tscale)
+    x = np.array(d[v]['Time'][0:indx])*args.tscale
             
     for f in toplot:
         if f in d[v]:
-            x = np.array(d[v]['Time'][0:indx])*args.tscale
             y = np.abs(np.array(d[v][f][0:indx]))
             if args.log:
                 ax.semilogy(x, y, '-', label=v+':'+f)
             else:
                 ax.plot(x, y, '-', label=v+':'+f)
+
+    if args.aux:
+        y = np.copy(x) * 0.0
+        for f in aux: y += np.array(d[v][f][0:indx])
+        if args.log:
+            ax.semilogy(x, y, '-o', label=v+':Esum')
+        else:
+            ax.plot(x, y, '-o', label=v+':Esum')
 
 ax.legend(prop={'size':8}, bbox_to_anchor=(1.02, 1), loc=2, borderaxespad=0.0)
 ax.set_xlabel('Time')

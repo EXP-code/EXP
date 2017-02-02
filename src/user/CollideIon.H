@@ -59,7 +59,7 @@ template <class T, std::size_t N>
 std::ostream& operator<<(std::ostream& o, const std::array<T, N>& arr)
 {
   o << '(';
-  std::copy(arr.cbegin(), arr.cend(), std::ostream_iterator<T>(o, " "));
+  std::copy(arr.cbegin(), arr.cend(), std::ostream_iterator<T>(o, ", "));
   o << "\b\b)";
   return o;
 }
@@ -464,10 +464,9 @@ private:
   std::vector< TypeMap1 >                            TotlU;
   std::vector< TypeMap2 >                            TotlD;
   std::vector< std::map<int, TypeMap2 > >            Italy;
-  std::vector< std::array<double, 3> >               Ediag, Vdiag;
+  std::vector< std::array<double, 3> >               Ediag, Vdiag, testKE;
   std::vector< CVels >                               cVels;
   std::vector< CellMom >                             cMoms;
-  std::vector< std::array<double, 3> >               testKE;
   //@}
 
   //! This defines the various types of interactions used to tag
