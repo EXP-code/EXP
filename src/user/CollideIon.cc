@@ -6750,6 +6750,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   //
   double KE_initl_check = 0.0, KE_initl_econs = 0.0;
   double deltaSum = 0.0, delEsum = 0.0, delEmis = 0.0, delEdfr = 0.0;
+  double delEloss = 0.0;
   
   if (KE_DEBUG) {
     KE_initl_check = energyInPair(p1, p2);
@@ -7236,7 +7237,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  }
 	  
 	  // Electron KE lost in recombination
-	  dE += (iE1 - iE2) * Prob / eta2i;
+	  // dE += (iE1 - iE2) * Prob / eta2i;
+	  dE += iE2 * Prob / eta2i;
 	  rcbExtra.second += iE2 * Prob / eta2i;
 
 	  // Electron KE radiated in recombination
@@ -7310,7 +7312,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  }
 
 	  // Electron KE lost in recombination
-	  dE += (iE2 - iE1) * Prob / eta1i;
+	  dE += iE1 * Prob / eta1i;
 	  rcbExtra.first += iE1 * Prob / eta1i;
 
 	  // Electron KE fraction in recombination
@@ -7637,6 +7639,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  - (delEmis  += KE.miss)
 	  - (delEdfr  += KE.defer);
 
+	delEloss += KE.delE;
+
 	std::pair<double, double> KEdif = KEinit - KEfinal;
 
 	if (fabs(delE) > tolE*KE_initl_check) {
@@ -7813,6 +7817,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  + (delEmis  += KE.miss)
 	  - (delEdfr  += KE.defer);
 
+	delEloss += KE.delE;
+
 	std::pair<double, double> KEdif = KEinit - KEfinal;
 
 	if (fabs(delE) > tolE*KE_initl_check) {
@@ -7979,6 +7985,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  + (delEmis  += KE.miss)
 	  - (delEdfr  += KE.defer);
 
+	delEloss += KE.delE;
+
 	std::pair<double, double> KEdif = KEinit - KEfinal;
 
 	if (fabs(delE) > tolE*KE_initl_check) {
@@ -8095,20 +8103,23 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   if (KE_DEBUG) {
     double KE_final_check = energyInPair(p1, p2);
     double KE_final_econs = 0.0;
+
     if (use_cons>=0)
       KE_final_econs += p1->dattrib[use_cons  ] + p2->dattrib[use_cons  ];
+
     if (use_elec>=0)
       KE_final_econs += p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
 
     double KEinitl = KE_initl_check;
     double KEfinal = KE_final_check;
     double delE1   = KEinitl - KEfinal - deltaSum - delEsum + delEmis - delEdfr;
-    double delE2   = KEinitl - KEfinal - KE_initl_econs + KE_final_econs;
+    double delE2   = KEinitl - KEfinal - KE_initl_econs + KE_final_econs - delEloss;
     
-    if (fabs(delE2) > tolE*KE_initl_check) {
+    if (fabs(delE1) > tolE*KE_initl_check) {
       std::cout << "**ERROR inelasticHybrid dE = " << delE1 << ", " << delE2
 		<< ", rel1 = " << delE1/KE_initl_check
 		<< ", rel2 = " << delE2/KE_initl_check
+		<< ", Elos = " << delEloss
 		<< ", delS = " << deltaSum
 		<< ", Esum = " << delEsum
 		<< ", miss = " << delEmis
