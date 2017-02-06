@@ -8403,7 +8403,7 @@ void CollideIon::scatterHybrid
     
     // Sanity test
     //
-    double Ii1 = 0.0, Ii2, Ie1 = 0.0, Ie2 = 0.0;
+    double Ii1 = 0.0, Ii2 = 0.0, Ie1 = 0.0, Ie2 = 0.0;
     for (size_t k=0; k<3; k++) {
       Ii1 += pp->p1->vel[k] * pp->p1->vel[k];
       Ii2 += pp->p2->vel[k] * pp->p2->vel[k];
