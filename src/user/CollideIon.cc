@@ -9513,7 +9513,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   // Collision cell energy conservation debugging
   //======================================================================
   //
-  if (aType == Hybrid and NOCOOL and KE_DEBUG) {
+  if (aType == Hybrid and KE_DEBUG) {
 
     double totKEf = 0.0;
     double totMas = 0.0;
