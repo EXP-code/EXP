@@ -464,7 +464,8 @@ private:
   std::vector< TypeMap1 >                            TotlU;
   std::vector< TypeMap2 >                            TotlD;
   std::vector< std::map<int, TypeMap2 > >            Italy;
-  std::vector< std::array<double, 3> >               Ediag, Vdiag, testKE;
+  std::vector< std::array<double, 3> >               Ediag, Vdiag;
+  std::vector< std::array<double, 4> >               testKE;
   std::vector< CVels >                               cVels;
   std::vector< CellMom >                             cMoms;
   //@}
