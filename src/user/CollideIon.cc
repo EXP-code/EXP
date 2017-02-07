@@ -221,6 +221,10 @@ static double Fwght             = 0.5;
 //
 static constexpr double eVtoAng = 12398.41842144513;
 
+// Recombine cross section computing using ion's electron
+//
+static bool newRecombAlg        = false;
+
 // Debugging newHybrid
 //
 static bool DBG_NewHybrid       = false;
@@ -487,6 +491,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (RECOMB_IP ? "on" : "off")             << std::endl
 	      <<  " " << std::setw(20) << std::left << "KE_DEBUG"
 	      << (KE_DEBUG ? "on" : "off" )             << std::endl
+	      <<  " " << std::setw(20) << std::left << "newRecombAlg"
+	      << (newRecombAlg ? "on" : "off" )         << std::endl
 	      <<  " " << std::setw(20) << std::left << "DBG_NewHybrid"
 	      << (DBG_NewHybrid ? "on" : "off" )           << std::endl
 	      <<  " " << std::setw(20) << std::left << "ntcDist"
@@ -542,6 +548,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   kEe1     .resize(nthrds);
   kEe2     .resize(nthrds);
   kEee     .resize(nthrds);
+  kE1s     .resize(nthrds);
+  kE2s     .resize(nthrds);
   testKE   .resize(nthrds);
   nselRat  .resize(nthrds);
   clrE     .resize(nthrds);
@@ -3378,6 +3386,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
   double eVel1 = 0.0;
   double eVel2 = 0.0;
   double eVelI = 0.0;
+  double sVel1 = 0.0;
+  double sVel2 = 0.0;
 
   // Ion-ion
   for (unsigned i=0; i<3; i++) {
@@ -3400,14 +3410,26 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
       eVel0 += rvel0*rvel0;
       eVel1 += rvel1*rvel1;
       eVel2 += rvel2*rvel2;
+
+      // Electron (p1) and Ion (p1)
+      rvel1 = p1->dattrib[use_elec+i] - p1->vel[i];
+      // Electron (p2) and Ion (p1)
+      rvel2 = p1->dattrib[use_elec+i] - p1->vel[i];
+
+      sVel1 += rvel1*rvel1;
+      sVel2 += rvel2*rvel2;
     }
     eVel0 = sqrt(eVel0) * UserTreeDSMC::Vunit;
     eVel1 = sqrt(eVel1) * UserTreeDSMC::Vunit;
     eVel2 = sqrt(eVel2) * UserTreeDSMC::Vunit;
+    sVel1 = sqrt(sVel1) * UserTreeDSMC::Vunit;
+    sVel2 = sqrt(sVel2) * UserTreeDSMC::Vunit;
 
     eVel0   /= vel;		// These are now ratios
     eVel1   /= vel;
     eVel2   /= vel;
+    sVel1   /= vel;
+    sVel2   /= vel;
   }
 
   // Available COM energy
@@ -3416,6 +3438,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
   kEe1[id] = 0.5  * mu1 * vel*vel * eVel2*eVel2;
   kEe2[id] = 0.5  * mu2 * vel*vel * eVel1*eVel1;
   kEee[id] = 0.25 * me  * vel*vel * eVel0*eVel0;
+  kE1s[id] = 0.5  * mu1 * vel*vel * sVel1*sVel1;
+  kE2s[id] = 0.5  * mu2 * vel*vel * sVel2*sVel2;
 
   // Internal energy per particle
   //
@@ -3763,40 +3787,81 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
       // *** Radiative recombination
       //-------------------------------
 
-      if (C1>0 and C2>0) {
-	// p1 ion and p2 electron
-	{
-	  double ke              = std::max<double>(kEe1[id], FloorEv);
-	  std::vector<double> RE = ch.IonList[Q1]->radRecombCross(ke, id);
-	  double crs = eVel2 * C2 * RE.back() * cfac * ieBoost * nselRat[id];
-	
-	  if (DEBUG_CRS) trap_crs(crs);
-	
-	  if (crs > 0.0) {
-	  Interact::T t
-	  { recomb, {Interact::ion, C1}, {Interact::electron, C2} };
-	  
-	  std::get<0>(hCross[id][t]) = crs;
-	  totalXS += crs * crs_units;
-	  }
-	}
+      if (newRecombAlg) {
 
-	// p2 ion and p1 electron
-	{
-	  double ke              = std::max<double>(kEe2[id], FloorEv);
-	  std::vector<double> RE = ch.IonList[Q2]->radRecombCross(ke, id);
-	  double crs = eVel1 * C1 * RE.back() * cfac * ieBoost * nselRat[id];
+	// p1 ion and p1 electron
+	if (C1>0) {
+	  double ke              = std::max<double>(kE1s[id], FloorEv);
+	  std::vector<double> RE = ch.IonList[Q1]->radRecombCross(ke, id);
+	  double crs = sVel1 * C1 * RE.back() * cfac * ieBoost * nselRat[id];
 	
 	  if (DEBUG_CRS) trap_crs(crs);
 	
 	  if (crs > 0.0) {
 	    Interact::T t
-	    { recomb, {Interact::electron, C1}, {Interact::ion, C2} };
-
+	    { recomb, {Interact::ion, C1}, {Interact::electron, C1} };
+	      
 	    std::get<0>(hCross[id][t]) = crs;
 	    totalXS += crs * crs_units;
 	  }
 	}
+	  
+	// p2 ion and p1 electron
+	if (C2>0) {
+	  double ke              = std::max<double>(kE2s[id], FloorEv);
+	  std::vector<double> RE = ch.IonList[Q2]->radRecombCross(ke, id);
+	  double crs = sVel2 * C2 * RE.back() * cfac * ieBoost * nselRat[id];
+	  
+	  if (DEBUG_CRS) trap_crs(crs);
+	  
+	  if (crs > 0.0) {
+	    Interact::T t
+	    { recomb, {Interact::electron, C2}, {Interact::ion, C2} };
+	    
+	    std::get<0>(hCross[id][t]) = crs;
+	    totalXS += crs * crs_units;
+	  }
+	}
+
+      } // end: new recomb algorithm
+      else {
+	if (C1>0 and C2>0) {
+	  // p1 ion and p2 electron
+	  {
+	    double ke              = std::max<double>(kEe1[id], FloorEv);
+	    std::vector<double> RE = ch.IonList[Q1]->radRecombCross(ke, id);
+	    double crs = eVel2 * C2 * RE.back() * cfac * ieBoost * nselRat[id];
+	    
+	    if (DEBUG_CRS) trap_crs(crs);
+	
+	    if (crs > 0.0) {
+	      Interact::T t
+	      { recomb, {Interact::ion, C1}, {Interact::electron, C2} };
+	  
+	      std::get<0>(hCross[id][t]) = crs;
+	      totalXS += crs * crs_units;
+	    }
+	  }
+
+	  // p2 ion and p1 electron
+	  {
+	    double ke              = std::max<double>(kEe2[id], FloorEv);
+	    std::vector<double> RE = ch.IonList[Q2]->radRecombCross(ke, id);
+	    double crs = eVel1 * C1 * RE.back() * cfac * ieBoost * nselRat[id];
+	    
+	    if (DEBUG_CRS) trap_crs(crs);
+	    
+	    if (crs > 0.0) {
+	      Interact::T t
+	      { recomb, {Interact::electron, C1}, {Interact::ion, C2} };
+	      
+	      std::get<0>(hCross[id][t]) = crs;
+	      totalXS += crs * crs_units;
+	    }
+	  }
+
+	} // end: old recomb algorithm
+
       } // end: recomb
 
     } // end: inner particle loop
@@ -7626,9 +7691,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
       }
 
-      updateEnergyHybrid(PP[0], KE);
-
       if (KE_DEBUG) {
+	updateEnergyHybrid(PP[0], KE);
+
 	double KE_final_check = energyInPair(p1, p2);
 
 	std::pair<double, double> KEfinal;
@@ -7752,9 +7817,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  p2->dattrib[use_elec+k] = v2[k];
 	}
 	
-	updateEnergyHybrid(PP[1], KE);
 
 	if (KE_DEBUG) {
+	  updateEnergyHybrid(PP[1], KE);
+
 	  double ke1f = 0.0, ke2f = 0.0;
 	  double k1f0 = 0.0, k2f0 = 0.0;
 
@@ -7935,9 +8001,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  p2->vel[k] = v2[k];
 	}
       
-	updateEnergyHybrid(PP[2], KE);
-
 	if (KE_DEBUG) {
+	  updateEnergyHybrid(PP[2], KE);
+
 	  double ke1f = 0.0, ke2f =0.0;
 	  for (int k=0; k<3; k++) {
 	    ke1f += v1[k] * v1[k];
@@ -8652,6 +8718,8 @@ void CollideIon::debugDeltaE(double delE, unsigned short Z, unsigned short C,
 	      << " :: " << labels[interFlag] << std::endl;
 }
 
+// This is only used for conservation checking with KE_DEBUG
+//
 void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
 {
   // Compute final energy
@@ -8720,22 +8788,7 @@ void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
   //
   KE.defer += testE;
 
-  // Add to electron deferred energy
-  //
-  /*
-  if (pp->P == Pord::ion_electron) {
-    if (pp->swap) {
-      pp->p1->dattrib[use_elec+3] -= testE;
-    } else {
-      pp->p2->dattrib[use_elec+3] -= testE;
-    }
-  }
-
-  if (pp->P == Pord::electron_ion) {
-    if (pp->swap) pp->p2->dattrib[use_elec+3] -= testE;
-    else          pp->p1->dattrib[use_elec+3] -= testE;
-  }
-  */
+  // Done
 }
 
 
@@ -15720,6 +15773,9 @@ void CollideIon::processConfig()
 
     debugFC =
       cfg.entry<bool>("debugFC", "Enable finalize-cell electron scattering diagnostics", false);
+
+    newRecombAlg =
+      cfg.entry<bool>("newRecombAlg", "Compute recombination cross section based on ion's electron", false);
 
     DBG_NewHybrid =
       cfg.entry<bool>("DBG_HYBRID", "Verbose debugging of energy conservation for Hybrid method", false);
