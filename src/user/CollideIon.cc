@@ -8186,8 +8186,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
     double KEinitl = KE_initl_check;
     double KEfinal = KE_final_check;
-    // double delE1   = KEinitl - KEfinal - deltaSum - delEsum + delEmis - delEdfr;
-    double delE1   = KEinitl - KEfinal - deltaSum - delEsum + delEmis;
+    double delE1   = KEinitl - KEfinal - deltaSum - delEsum + delEmis - delEdfr;
+    // double delE1   = KEinitl - KEfinal - deltaSum - delEsum + delEmis;
     double delE2   = KEinitl - KEfinal - KE_initl_econs + KE_final_econs - delEloss - delEfnl;
 
     if (fabs(delE1) > tolE*KE_initl_check) {
@@ -8202,6 +8202,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 		<< ", miss = " << delEmis
 		<< ", defr = " << delEdfr
 		<< ", clrE = " << clrE[id]
+		<< ", q = "    << PP[Jsav]->q
 		<< ", Jsav = " << Jsav
 		<< std::endl;
     } else {
@@ -8718,10 +8719,13 @@ void CollideIon::debugDeltaE(double delE, unsigned short Z, unsigned short C,
 	      << " :: " << labels[interFlag] << std::endl;
 }
 
-// This is only used for conservation checking with KE_DEBUG
+// Compute the electron energy change owing to random channel
+// selection
 //
 void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
 {
+  if (pp->wght) return;
+
   // Compute final energy
   //
   pp->eFinal();
@@ -8787,6 +8791,21 @@ void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
   // For energy conservation checking
   //
   KE.defer += testE;
+
+  // Add to electron deferred energy
+  //
+  if (pp->P == Pord::ion_electron) {
+    if (pp->swap) {
+      pp->p1->dattrib[use_elec+3] -= testE;
+    } else {
+      pp->p2->dattrib[use_elec+3] -= testE;
+    }
+  }
+  
+  if (pp->P == Pord::electron_ion) {
+    if (pp->swap) pp->p2->dattrib[use_elec+3] -= testE;
+    else          pp->p1->dattrib[use_elec+3] -= testE;
+  }
 
   // Done
 }

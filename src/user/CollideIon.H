@@ -822,7 +822,7 @@ protected:
     Epair beg, mid, end;
 
     //! Constructor
-    Pord(CollideIon* c, Particle *P1, Particle *P2, double WW1, double WW2,  pType p, double T);
+    Pord(CollideIon* c, Particle *P1, Particle *P2, double WW1, double WW2,  pType p, double q_threshold);
 
     //! Update ionization state fractions
     void update();
