@@ -8133,7 +8133,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  ke2f *= 0.5*p2->mass;
 
 	  double delE = ke1 + ke2 - ke1f - ke2f - KE.delta - KE.delE + KE.miss + KE.defer;
-	  
+
 	  if (fabs(delE) > tolE*(ke1 + ke2)) {
 	    std::cout << "**ERROR post scatter: relE = " << delE/(ke1+ke2)
 		      << " del = "  << delE

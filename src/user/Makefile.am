@@ -106,6 +106,7 @@ libdsmc_la_SOURCES = UserDSMC.cc
 libdsmc_la_LIBADD = libcommon.a
 
 libtreegas_la_SOURCES = UserTreeDSMC.cc 
+libtreegas_la_LDFLAGS = $(BOOST_LDFLAGS)
 libtreegas_la_LIBADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_SERIALIZATION_LIB) libcommon.a libdsmc.a
 
 libperiodic_la_SOURCES = UserPeriodic.cc 
@@ -135,15 +136,19 @@ libshear_la_SOURCES = UserShear.cc
 libprofile_la_SOURCES = UserProfile.cc
 
 testCrossSection_SOURCES = testCross.cc phfit2.f
+testCrossSection_LDFLAGS = $(BOOST_LDFLAGS)
 testCrossSection_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu -llapack -lblas
 
 testIonRecomb_SOURCES = testIonRecomb.cc phfit2.f
+testIonRecomb_LDFLAGS = $(BOOST_LDFLAGS)
 testIonRecomb_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu -llapack -lblas
 
 genIonRecomb_SOURCES = genIonRecomb.cc phfit2.f
+genIonRecomb_LDFLAGS = $(BOOST_LDFLAGS)
 genIonRecomb_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu -llapack -lblas
 
 testQuantile_SOURCES = testQuantile.cc Quantile.cc
+testQuantile_LDFLAGS = $(BOOST_LDFLAGS)
 testQuantile_LDADD = $(BOOST_PROGRAM_OPTIONS_LIB)
 
 
