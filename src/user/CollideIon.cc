@@ -6774,18 +6774,19 @@ private:
   static double tol;
 
 public:
-  double EkEbeg, EkEend, lastdel, offset;
+  double EkEbeg, EkEend, lastdel, offset, ioffst;
 
   EkEcheck(Particle* p1, Particle *p2, size_t n) :
-    n(n), lastdel(0.0), offset(0.0)
+    n(n), lastdel(0.0), offset(0.0), ioffst(0.0);
   {
     EkEbeg = p1->dattrib[n] + p2->dattrib[n];
     EkEend = 0.0;
   }
 
-  void operator()(Particle* p1, Particle *p2, double del=0.0, double off=0.0)
+  void operator()(Particle* p1, Particle *p2, double del=0.0, double off=0.0, double ioff=0.0)
   {
     offset += off;
+    ioffst += ioff;
     EkEend = p1->dattrib[n] + p2->dattrib[n];
     double Em = std::max<double>(fabs(EkEbeg), fabs(EkEend));
     if (fabs(EkEend + offset - EkEbeg - del) > tol*Em) {
@@ -7707,7 +7708,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  clrE[id] -= DE1 + DE2;
 	  PE[0].second += DE1 + DE2;
 
-	  EkE(p1, p2, KE.defer);
+	  EkE(p1, p2, KE.defer, 0.0, DE1+DE2);
 	} else {
 	  if (W1 < W2) {
 	    p2->dattrib[use_cons] += PE[0].second;
@@ -7858,7 +7859,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  clrE[id] -= DE1 + DE2;
 	  PE[1].second += DE1 + DE2;
 
-	  EkE(p1, p2, KE.defer, DE2);
+	  EkE(p1, p2, KE.defer, DE2, DE1);
 	} else {
 	  if (W1 < W2) {
 	    p2->dattrib[use_cons] += PE[1].second;
@@ -8066,7 +8067,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  clrE[id] -= DE1 + DE2;
 	  PE[2].second += DE1 + DE2;
 
-	  EkE(p1, p2, KE.defer, DE1);
+	  EkE(p1, p2, KE.defer, DE1, DE2);
 
 	} else {
 	  if (W1 < W2) {
