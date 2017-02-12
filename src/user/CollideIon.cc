@@ -7840,7 +7840,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  clrE[id] -= DE1 + DE2;
 	  PE[1].second += DE1 + DE2;
 
-	  EkE(p1, p2, KE.defer, DE1 + DE2);
+	  EkE(p1, p2, KE.defer, DE2);
 	} else {
 	  if (W1 < W2) {
 	    p2->dattrib[use_cons] += PE[1].second;
@@ -8048,7 +8048,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  clrE[id] -= DE1 + DE2;
 	  PE[2].second += DE1 + DE2;
 
-	  EkE(p1, p2, KE.defer, DE1 + DE2);
+	  EkE(p1, p2, KE.defer, DE1);
 
 	} else {
 	  if (W1 < W2) {
