@@ -7659,6 +7659,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       PP[0]->update();
       PP[0]->eUpdate();
 
+      EkE(p1, p2);
+
       KEcheck(PP[0], KE_initl_check, ionExtra, rcbExtra);
 
       std::pair<double, double> KEinit = energyInPairPartial(p1, p2, Neutral);
@@ -7693,6 +7695,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       //
       KE_ KE;
 
+      EkE(p1, p2, KE.defer);
+
       if (ke1 > 0.0 and ke2 > 0.0) {
 
 	if (Z1 == Z2 or ALWAYS_APPLY) {
@@ -7702,6 +7706,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  p2->dattrib[use_cons] -= DE2;
 	  clrE[id] -= DE1 + DE2;
 	  PE[0].second += DE1 + DE2;
+
+	  EkE(p1, p2, KE.defer);
 	} else {
 	  if (W1 < W2) {
 	    p2->dattrib[use_cons] += PE[0].second;
@@ -7712,7 +7718,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  }
 
 	  PE[0].second = 0.0;
+
+	  EkE(p1, p2, KE.defer);
 	}
+
+	EkE(p1, p2, KE.defer);
 
 	KE.delE = PE[0].second;
 	collD->addLost(KE.delE, id);
@@ -7723,7 +7733,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	else
 	  scatterHybrid(1, PP[0], KE, &v1, &v2, id);
 
+	EkE(p1, p2, KE.defer);
+
 	checkEnergyHybrid(PP[0], KE, &v1, &v2, Neutral, id);
+
+	EkE(p1, p2, KE.defer);
 
 	if (KE_DEBUG) testCnt[id]++;
 
@@ -7739,7 +7753,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
       }
 
+      EkE(p1, p2, KE.defer);
+
       updateEnergyHybrid(PP[0], KE);
+
+      EkE(p1, p2, KE.defer);
 
       testKE[id][3] += KE.delE + PPsav1 + PPsav2;
       testKE[id][4] += KE.delE;
