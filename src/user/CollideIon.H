@@ -44,12 +44,32 @@ std::array<T, N> operator+(const std::array<T, N> & a,
   return c;
 }
 
+// Binary copy substract overload for std::array
+//
+template <class T, std::size_t N>
+std::array<T, N> operator-(const std::array<T, N> & a,
+			   const std::array<T, N> & b)
+{
+  std::array<T, N> c;
+  for (size_t k=0; k<N; k++) c[k] = a[k] - b[k];
+  return c;
+}
+
 // Reference add overload for std::array
 //
 template <class T, std::size_t N>
 std::array<T, N>& operator+=(std::array<T, N> & a, const std::array<T, N> & b)
 {
   for (size_t k=0; k<N; k++) a[k] += b[k];
+  return a;
+}
+
+// Reference subtract overload for std::array
+//
+template <class T, std::size_t N>
+std::array<T, N>& operator-=(std::array<T, N> & a, const std::array<T, N> & b)
+{
+  for (size_t k=0; k<N; k++) a[k] -= b[k];
   return a;
 }
 
@@ -465,7 +485,7 @@ private:
   std::vector< TypeMap2 >                            TotlD;
   std::vector< std::map<int, TypeMap2 > >            Italy;
   std::vector< std::array<double, 3> >               Ediag, Vdiag;
-  std::vector< std::array<double, 4> >               testKE;
+  std::vector< std::array<double, 5> >               testKE;
   std::vector< CVels >                               cVels;
   std::vector< CellMom >                             cMoms;
   //@}
@@ -796,8 +816,8 @@ protected:
     double         eta1;
     double         eta2;
 
-    std::pair<double, double> E1, E2;
-    std::vector<double>       f1, f2;
+    std::array<double, 2>  E1, E2;
+    std::vector<double>    f1, f2;
 
     //! Keep particle energies at current time
     struct Es
