@@ -1124,7 +1124,7 @@ protected:
     };
 
   public:
-    double miss, delta, delE, gamma, defer;
+    double miss, delta, delE, delE0, gamma, defer;
     double totE, kE, dKE, vfac, vrat, o1, o2;
 
 
@@ -1134,11 +1134,11 @@ protected:
     {
       for (auto & v : _i) v = 0.0;
       for (auto & v : _f) v = 0.0;
-      miss = delta = delE = gamma = defer = 0.0;
+      miss = delta = delE = delE0 = gamma = defer = 0.0;
       totE = kE = dKE = vfac = vrat = o1 = o2 = 0.0;
     }
 
-    KE_(double dE) : delE(dE)
+    KE_(double dE) : delE(dE), delE0(dE)
     {
       for (auto & v : _i) v = 0.0;
       for (auto & v : _f) v = 0.0;
