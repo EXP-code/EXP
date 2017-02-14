@@ -84,7 +84,7 @@ def plot_data(argv):
                 if argv[i] == '-e' or argv[i] == '--Tend':
                         Tend = float(argv[i+1])
                 if argv[i] == '-h' or argv[i] == '--help':
-                        print "Usage: {} [-p|--points] [-l|--log] [-t scale|--timescale scale] [-b|--Tbeg] [-e|--Tend] [-h|--help] runtag".format(argv[0])
+                        print "Usage: {} [-p|--points] [--logX] [--logY] [-t scale|--timescale scale] [-b|--Tbeg] [-e|--Tend] [-h|--help] runtag".format(argv[0])
                         return
         #
         # Parse data file
