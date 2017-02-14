@@ -8580,7 +8580,7 @@ void CollideIon::scatterHybrid
 
   // Temporary deep debug
   //
-  if (1) {
+  if (KE_DEBUG) {
 
     double M1 = 0.5 * pp->W1 * pp->m1;
     double M2 = 0.5 * pp->W2 * pp->m2;
