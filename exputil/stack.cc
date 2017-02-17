@@ -259,7 +259,11 @@ void mpi_gdb_wait_trace(int sig)
   while (go) {
     sleep(waittime);
     sofar += waittime;
-    if (sofar % 600) {
+    if (sofar < 600 and sofar % 60==0) { // Notify every minute for 10 minutes
+      std::cerr << hostname << "[pid=" << pid << "] waiting "
+		<< sofar/60 << " minutes" << std::endl;
+    }
+    if (sofar > 599 and sofar % 600==0) { // Notify every ten minutes
       std::cerr << hostname << "[pid=" << pid << "] waiting "
 		<< sofar/60 << " minutes" << std::endl;
     }
