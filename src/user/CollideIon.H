@@ -457,6 +457,7 @@ private:
   typedef std::tuple<double, CEvector, CFreturn>     XStup;
   typedef std::map<NTC::Interact::T, XStup>          InterXS;
   typedef std::array<double, 4>                      CellMom;
+  typedef std::array<double, 3>                      ChProb;
 
   std::vector< std::vector<dKey>   >                 kInter;
   std::vector< std::vector<double> >                 dCross;
@@ -469,6 +470,7 @@ private:
   std::vector< keyInter >                            sInter;
   std::vector< CEvector >                            CE1, CE2;
   std::vector< CFreturn >                            FF1, FF2;
+  std::vector< ChProb >                              CProb;
   std::vector< CEmap >                               CEm;
   std::vector< CFmap >                               FFm;
 
@@ -866,6 +868,9 @@ protected:
       if (n%2==1) return f1[j];
       return f2[j];
     }
+
+    //! Check normalization of ionization state vector (for debugging)
+    void normTest(unsigned short n, const std::string& lab);
 
     //! Retrieve ionization fraction
     double Eta(unsigned short n)
