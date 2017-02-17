@@ -7735,7 +7735,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
       EkE(p1, p2);
 
-      KEcheck(PP[0], KE_initl_check, ionExtra, rcbExtra);
+      if (not PP[0]->wght) KEcheck(PP[0], KE_initl_check, ionExtra, rcbExtra);
 
       std::pair<double, double> KEinit = energyInPairPartial(p1, p2, Neutral);
 
@@ -7891,7 +7891,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
       EkE(p1, p2);
 
-      KEcheck(PP[1], KE_initl_check, ionExtra, rcbExtra);
+      if (not PP[1]->wght) KEcheck(PP[1], KE_initl_check, ionExtra, rcbExtra);
 
       std::pair<double, double> KEinit = energyInPairPartial(p1, p2, Ion1);
 
@@ -8090,7 +8090,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       PP[2]->update();
       PP[2]->eUpdate();
 
-      KEcheck(PP[2], KE_initl_check, ionExtra, rcbExtra);
+      if (not PP[2]->wght) KEcheck(PP[2], KE_initl_check, ionExtra, rcbExtra);
 
       EkE(p1, p2);
 
@@ -8603,7 +8603,7 @@ void CollideIon::scatterHybrid
 	2.0*pp->m1*alph*c1*(c1*v1i2 + q1*v1u1) +
 	2.0*pp->m2*beta*c2*(c2*v2i2 + q2*v2u2) * q;
       
-      double C  = pp->m1*q1*c1*udif + pp->m2*q*q2*c2*vdif + chi;
+      double C  = pp->m1*q1*c1*udif + pp->m2*q*q2*c2*vdif - chi;
 
       // Quadratic solution without subtraction for numerical precision
       if (B > 0.0) {
@@ -8651,13 +8651,13 @@ void CollideIon::scatterHybrid
 	
 	if ( fabs(delEt)/std::min<double>(KEi, KEf) > 0.001*tolE) {
 	  std::cout << "**ERROR scatter internal: delEt = " << delEt
-		    << " rel = "  << delEt/KEi
-		    << " KEi = "  << KEi
-		    << " KEf = "  << KEf
-		    << "    P = " << P
-		    << "    q = " << q
-		    << "   q1 = " << q1
-		    << "   q2 = " << q2
+		    << " rel = " << delEt/KEi
+		    << " KEi = " << KEi
+		    << " KEf = " << KEf
+		    << "   P = " << P
+		    << "   q = " << q
+		    << "  q1 = " << q1
+		    << "  q2 = " << q2
 		    << std::endl;
 	} else {
 	  if (DBG_NewHybrid)
@@ -8668,6 +8668,8 @@ void CollideIon::scatterHybrid
 		      << " E2i = "  << KE2i
 		      << " E1f = "  << KE1f
 		      << " E2f = "  << KE2f
+		      << " chi = "  << chi
+		      << "  dE = "  << KE.delE
 		      << "   P = "  << P
 		      << "   q = "  << q
 		      << "  q1 = "  << q1
