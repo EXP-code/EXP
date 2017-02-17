@@ -673,6 +673,9 @@ public:
   //! Critical weight ratio for electron subspecies computation (default: 0.1)
   static double qCrit;
 
+  //! Electron-scatering threshold
+  static double ESthresh;
+
   //! Use EPSM algorithm for electron scattering (default: false)
   static bool ElectronEPSM;
 

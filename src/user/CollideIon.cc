@@ -47,6 +47,7 @@ bool     CollideIon::ntcDist    = false;
 bool     CollideIon::enforceMOM = false;
 unsigned CollideIon::esNum      = 100;
 double   CollideIon::esThr      = 0.0;
+double   CollideIon::ESthresh   = 1.0e-10;
 unsigned CollideIon::NoDelC     = 0;
 unsigned CollideIon::maxCoul    = UINT_MAX;
 double   CollideIon::logL       = 24.0;
@@ -10463,6 +10464,10 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	W2 *= ne2;
       }
 
+      // Threshold for electron-electron scattering
+      //
+      if (ne1 < ESthresh or ne2 < ESthresh) continue;
+
       // Swap particles so that p2 is the trace element
       //
       if (W1 < W2) {
@@ -16133,6 +16138,9 @@ void CollideIon::processConfig()
 
     delSpect =
       cfg.entry<double>("delEvSpect", "Energy or wavelength bin width for tabulated emission spectrum (eV)", 100.0);
+
+    ESthresh =
+      cfg.entry<double>("ESthresh", "Ionization threshold for electron-electron scattering", 1.0e-10);
 
     Collide::DEBUG_NTC =
       cfg.entry<bool>("DEBUG_NTC", "Enable verbose NTC diagnostics", false);
