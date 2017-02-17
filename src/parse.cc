@@ -127,9 +127,14 @@ void initialize(void)
   if (parse->find_item("debug_wait", val)) {
     if (atoi(val.c_str())) debug_wait = true;
     else debug_wait = false;
-    if (myid==0)
+    if (myid==0) {
       std::cout << "Found <debug_wait=" << val << ", " << std::boolalpha
 		<< debug_wait << ">" << std::endl;
+      if (debug_wait)
+	std::cout << "----When an FPE is signalled, process will spin, waiting for a gdb" << std::endl
+		  << "----connection.  Messages describing the affected node and pid will" << std::endl
+		  << "----be written to the standard output." << std::endl;
+    }
   }
 
   if (parse->find_item("fpe_trap", val)) {
