@@ -1563,7 +1563,7 @@ void * Collide::collide_thread(void * arg)
     if (use_Kn>=0 || use_St>=0) {
       double cL = pow(volc, 0.33333333);
       double Kn = meanLambda/cL;
-      double St = cL/fabs(tau*sqrt(kedsp));
+      double St = cL/fabs(tau*sqrt(fabs(kedsp))+1.0e-18);
       for (unsigned j=0; j<number; j++) {
 	Particle* p = tree->Body(c->bods[j]);
 	if (use_Kn>=0) p->dattrib[use_Kn] = Kn;
