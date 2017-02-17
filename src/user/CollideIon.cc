@@ -8561,16 +8561,23 @@ void CollideIon::scatterHybrid
   //
   double vrat = 1.0;
 
+  // Inelastic energy loss
+  //
+  double chi  = 2.0*KE.delE/pp->W1;
+
+  // Velocity working variables
+  //
   std::vector<double> uu(3), vv(3);
 
   double v1i2 = 0.0, v2i2 = 0.0, vdif = 0.0, v2u2 = 0.0;
   double udif = 0.0, v1u1 = 0.0;
 
+
   for (size_t k=0; k<3; k++) {
-				// From momentum conservation with no
-				// inelastic terms
-    uu[k] = vcom[k] + pp->m2/mt*vrel[k];
-    vv[k] = vcom[k] - pp->m1/mt*vrel[k];
+				// From momentum conservation with
+				// inelastic adjustment
+    uu[k] = vcom[k] + pp->m2/mt*vrel[k] * KE.vfac;
+    vv[k] = vcom[k] - pp->m1/mt*vrel[k] * KE.vfac;
 				// Difference in Particle 1
     udif += ((*v1)[k] - uu[k]) * ((*v1)[k] - uu[k]);
 				// Difference in Particle 2
@@ -8596,7 +8603,7 @@ void CollideIon::scatterHybrid
 	2.0*pp->m1*alph*c1*(c1*v1i2 + q1*v1u1) +
 	2.0*pp->m2*beta*c2*(c2*v2i2 + q2*v2u2) * q;
       
-      double C  = pp->m1*q1*c1*udif + pp->m2*q*q2*c2*vdif;
+      double C  = pp->m1*q1*c1*udif + pp->m2*q*q2*c2*vdif + chi;
 
       // Quadratic solution without subtraction for numerical precision
       if (B > 0.0) {
@@ -8640,7 +8647,7 @@ void CollideIon::scatterHybrid
 	//
 	double KEi   = KE1i + KE2i;
 	double KEf   = KE1f + KE2f;
-	double delEt = KEi  - KEf;
+	double delEt = KEi  - KEf - chi;
 	
 	if ( fabs(delEt)/std::min<double>(KEi, KEf) > 0.001*tolE) {
 	  std::cout << "**ERROR scatter internal: delEt = " << delEt
@@ -8693,9 +8700,6 @@ void CollideIon::scatterHybrid
     // Compute new energy conservation updates
     //
     for (size_t k=0; k<3; k++) {
-      // Apply vfac
-      uu[k] = vcom[k] + pp->m2/mt*vrel[k] * KE.vfac;
-      vv[k] = vcom[k] - pp->m1/mt*vrel[k] * KE.vfac;
       //
       (*v1)[k] = c1*(*v1)[k]*(1.0 + alph*vrat) + q1*uu[k];
       (*v2)[k] = c2*(*v2)[k]*(1.0 + beta*vrat) + q2*vv[k];
