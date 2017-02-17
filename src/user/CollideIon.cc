@@ -8451,7 +8451,9 @@ void CollideIon::KEcheck
       KDif += ionExtra.second - rcbExtra.second;
     } 
     if (fabs(KDif) > tolE*KE_initl_check) {
-      std::cout << "Crazy" << std::endl;
+      std::cout << "**ERROR: KE energy check: del=" << KDif
+		<< ", rel=" << KDif/KE_initl_check
+		<< std::endl;
     }
   }
 }
@@ -10369,7 +10371,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	// and unit mean-squared amplitude.  These will be used to 
 	// generate new electron velocities
 	//
-	double gamma = 0.0;
+	double gamma = 0.0, tweight = 0.0;
 	std::vector<double> mu(3, 0.0);
 	for (auto i : cell->bods) {
 	  Particle *p = cell->Body(i);
@@ -10378,6 +10380,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	    p->dattrib[use_elec+j] = (*norm)();
 	    mu[j] += eta1/eta * p->dattrib[use_elec+j];
 	    gamma += eta1/eta * p->dattrib[use_elec+j] * p->dattrib[use_elec+j];
+	    tweight += eta1/eta;
 	  }
 	}
 
@@ -10386,8 +10389,13 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	//
 	double mu2 = 0.0;
 	for (auto v : mu) mu2 += v*v;
-	gamma = sqrt(1.0/(gamma - mu2));
-
+	if (gamma>mu2)
+	  gamma = sqrt(1.0/(gamma - mu2));
+	else {
+	  gamma = 1.0;		// Fall back to sane values
+	  for (auto & v : mu) v = 0.0;
+	}
+	  
 	// Update electron velocities conserving momentum and energy
 	//
 	for (auto i : cell->bods) {
