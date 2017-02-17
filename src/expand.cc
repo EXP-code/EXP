@@ -388,6 +388,7 @@ main(int argc, char** argv)
 
   if (fpe_trap ) set_fpu_handler();
   if (fpe_trace) set_fpu_trace_handler();
+  if (fpe_wait ) set_fpu_gdb_handler();
 
   //========================
   // Change to desired home 
