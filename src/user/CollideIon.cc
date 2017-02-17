@@ -8561,10 +8561,6 @@ void CollideIon::scatterHybrid
   //
   double vrat = 1.0;
 
-  // Inelastic energy loss
-  //
-  double chi  = 2.0*KE.delE/pp->W1;
-
   // Velocity working variables
   //
   std::vector<double> uu(3), vv(3);
@@ -8603,7 +8599,7 @@ void CollideIon::scatterHybrid
 	2.0*pp->m1*alph*c1*(c1*v1i2 + q1*v1u1) +
 	2.0*pp->m2*beta*c2*(c2*v2i2 + q2*v2u2) * q;
       
-      double C  = pp->m1*q1*c1*udif + pp->m2*q*q2*c2*vdif - chi;
+      double C  = pp->m1*q1*c1*udif + pp->m2*q*q2*c2*vdif;
 
       // Quadratic solution without subtraction for numerical precision
       if (B > 0.0) {
@@ -8647,13 +8643,14 @@ void CollideIon::scatterHybrid
 	//
 	double KEi   = KE1i + KE2i;
 	double KEf   = KE1f + KE2f;
-	double delEt = KEi  - KEf - chi;
+	double delEt = KEi  - KEf - KE.delE;
 	
 	if ( fabs(delEt)/std::min<double>(KEi, KEf) > 0.001*tolE) {
 	  std::cout << "**ERROR scatter internal: delEt = " << delEt
 		    << " rel = " << delEt/KEi
 		    << " KEi = " << KEi
 		    << " KEf = " << KEf
+		    << "  dE = " << KE.delE
 		    << "   P = " << P
 		    << "   q = " << q
 		    << "  q1 = " << q1
@@ -8668,7 +8665,6 @@ void CollideIon::scatterHybrid
 		      << " E2i = "  << KE2i
 		      << " E1f = "  << KE1f
 		      << " E2f = "  << KE2f
-		      << " chi = "  << chi
 		      << "  dE = "  << KE.delE
 		      << "   P = "  << P
 		      << "   q = "  << q
