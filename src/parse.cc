@@ -131,9 +131,7 @@ void initialize(void)
       std::cout << "Found <debug_wait=" << val << ", " << std::boolalpha
 		<< debug_wait << ">" << std::endl;
       if (debug_wait)
-	std::cout << "----When an FPE is signalled, process will spin, waiting for a gdb" << std::endl
-		  << "----connection.  Messages describing the affected node and pid will" << std::endl
-		  << "----be written to the standard output." << std::endl;
+	std::cout << "----Processes will wait in a loop until gdb is attached and the loop is freed by setting 'debug_wait = false'" << std::endl;
     }
   }
 
@@ -143,9 +141,11 @@ void initialize(void)
       fpe_trace = false;
       fpe_wait  = false;
     } else fpe_trap = false;
-    if (myid==0) 
+    if (myid==0) {
       std::cout << "Found <fpe_trap=" << val << ", " << std::boolalpha
 		<< fpe_trap << ">" << std::endl;
+      if (fpe_trap) std::cout << "----Set a breakpoint in fpetrap.h:21 to catch the error" << std::endl;
+    }
   }
 
   if (parse->find_item("fpe_trace", val)) {
@@ -154,9 +154,11 @@ void initialize(void)
       fpe_trace = true;
       fpe_wait  = false;
     } else fpe_trace = false;
-    if (myid==0) 
+    if (myid==0) {
       std::cout << "Found <fpe_trace=" << val << ", " << std::boolalpha
 		<< fpe_trace << ">" << std::endl;
+      if (fpe_trace) std::cout << "----Print a backtrace to stderr on detecting an FPE" << std::endl;
+    }
   }
 
   if (parse->find_item("fpe_wait", val)) {
@@ -165,9 +167,14 @@ void initialize(void)
       fpe_trace = false;
       fpe_wait  = true;
     } else fpe_wait = false;
-    if (myid==0) 
+    if (myid==0) {
       std::cout << "Found <fpe_wait=" << val << ", " << std::boolalpha
 		<< fpe_wait << ">" << std::endl;
+      if (fpe_wait)
+	std::cout << "----When an FPE is signalled, process will spin, waiting for a gdb" << std::endl
+		  << "----connection.  Messages describing the affected node and pid will" << std::endl
+		  << "----be written to the standard output." << std::endl;
+    }
   }
 
   if (parse->find_item("homedir", val)) {
