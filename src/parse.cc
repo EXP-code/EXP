@@ -131,7 +131,8 @@ void initialize(void)
       std::cout << "Found <debug_wait=" << val << ", " << std::boolalpha
 		<< debug_wait << ">" << std::endl;
       if (debug_wait)
-	std::cout << "----Processes will wait in a loop until gdb is attached and the loop is freed by setting 'debug_wait = false'" << std::endl;
+	std::cout << "----Processes will wait in a loop until gdb is attached and the loop is freed by setting 'debug_wait = false'" << std::endl
+		  << "----" << std::endl;
     }
   }
 
@@ -144,7 +145,8 @@ void initialize(void)
     if (myid==0) {
       std::cout << "Found <fpe_trap=" << val << ", " << std::boolalpha
 		<< fpe_trap << ">" << std::endl;
-      if (fpe_trap) std::cout << "----Set a breakpoint in fpetrap.h:21 to catch any FP error" << std::endl;
+      if (fpe_trap) std::cout << "----Set a breakpoint in fpetrap.h:21 to catch any FP error" << std::endl
+			      << "----" << std::endl;
     }
   }
 
@@ -157,7 +159,8 @@ void initialize(void)
     if (myid==0) {
       std::cout << "Found <fpe_trace=" << val << ", " << std::boolalpha
 		<< fpe_trace << ">" << std::endl;
-      if (fpe_trace) std::cout << "----Print a backtrace to stderr on detecting an FPE" << std::endl;
+      if (fpe_trace) std::cout << "----Print a backtrace to stderr on detecting an FPE" << std::endl
+			       << "----" << std::endl;
     }
   }
 
@@ -172,7 +175,8 @@ void initialize(void)
 		<< fpe_wait << ">" << std::endl;
       if (fpe_wait)
 	std::cout << "----When an FPE is signalled, process will spin, waiting for a gdb connection.  Messages" << std::endl
-		  << "----describing the affected node and pid will be written to the standard output." << std::endl;
+		  << "----describing the affected node and pid will be written to the standard output." << std::endl
+		  << "----" << std::endl;
     }
   }
 
