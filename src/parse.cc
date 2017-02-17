@@ -144,7 +144,7 @@ void initialize(void)
     if (myid==0) {
       std::cout << "Found <fpe_trap=" << val << ", " << std::boolalpha
 		<< fpe_trap << ">" << std::endl;
-      if (fpe_trap) std::cout << "----Set a breakpoint in fpetrap.h:21 to catch the error" << std::endl;
+      if (fpe_trap) std::cout << "----Set a breakpoint in fpetrap.h:21 to catch any FP error" << std::endl;
     }
   }
 
@@ -171,9 +171,8 @@ void initialize(void)
       std::cout << "Found <fpe_wait=" << val << ", " << std::boolalpha
 		<< fpe_wait << ">" << std::endl;
       if (fpe_wait)
-	std::cout << "----When an FPE is signalled, process will spin, waiting for a gdb" << std::endl
-		  << "----connection.  Messages describing the affected node and pid will" << std::endl
-		  << "----be written to the standard output." << std::endl;
+	std::cout << "----When an FPE is signalled, process will spin, waiting for a gdb connection.  Messages" << std::endl
+		  << "----describing the affected node and pid will be written to the standard output." << std::endl;
     }
   }
 
