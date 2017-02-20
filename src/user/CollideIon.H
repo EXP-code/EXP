@@ -1181,6 +1181,9 @@ protected:
 
   };
 
+  //! Debug routine
+  void checkProb(int id, bool norm=true, double t=0.0);
+
   //! Compute the interaction for the hybrid weighted method
   void scatterHybrid
   (double P, PordPtr pp, KE_& KE,
