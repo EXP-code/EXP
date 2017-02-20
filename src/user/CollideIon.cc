@@ -226,6 +226,10 @@ static constexpr double eVtoAng = 12398.41842144513;
 //
 static bool newRecombAlg        = false;
 
+// Use full trace algorithm for interaction fractions below threshold
+//
+static bool HybridWeightSwitch  = false;
+
 // Debugging newHybrid
 //
 static bool DBG_NewHybrid       = false;
@@ -494,6 +498,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (KE_DEBUG ? "on" : "off" )             << std::endl
 	      <<  " " << std::setw(20) << std::left << "newRecombAlg"
 	      << (newRecombAlg ? "on" : "off" )         << std::endl
+	      <<  " " << std::setw(20) << std::left << "HybridWeightSwitch"
+	      << (HybridWeightSwitch ? "on" : "off" )   << std::endl
 	      <<  " " << std::setw(20) << std::left << "DBG_NewHybrid"
 	      << (DBG_NewHybrid ? "on" : "off" )           << std::endl
 	      <<  " " << std::setw(20) << std::left << "ntcDist"
@@ -3547,8 +3553,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	
 	std::get<0>(hCross[id][t]) = cross;
 	
-	CProb[id][0] += cross * crs_units;
-	totalXS      += cross * crs_units;
+	CProb[id][0] += cross;
+	totalXS      += cross;
       }
 
       // --------------------------------------
@@ -3567,8 +3573,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 
 	std::get<0>(hCross[id][t]) = crs;
 
-	CProb[id][1] += crs * crs_units;
-	totalXS      += crs * crs_units;
+	CProb[id][1] += crs;
+	totalXS      += crs;
       }
 
       if (C2==0 and C1>0) {
@@ -3583,8 +3589,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	
 	std::get<0>(hCross[id][t]) = crs;
 
-	CProb[id][2] += crs * crs_units;
-	totalXS      += crs * crs_units;
+	CProb[id][2] += crs;
+	totalXS      += crs;
       }
 
       // --------------------------------------
@@ -3611,8 +3617,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	  
 	  std::get<0>(hCross[id][t]) = crs;
 	  
-	  CProb[id][1] += crs * crs_units;
-	  totalXS      += crs * crs_units;
+	  CProb[id][1] += crs;
+	  totalXS      += crs;
 	}
 	  
 	// p1 is electron, p2 is ion
@@ -3633,8 +3639,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	  
 	  std::get<0>(hCross[id][t]) = crs;
 	  
-	  CProb[id][2] += crs * crs_units;
-	  totalXS      += crs * crs_units;
+	  CProb[id][2] += crs;
+	  totalXS      += crs;
 	}
 
       } // end: ion-electron scattering
@@ -3654,8 +3660,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 
 	std::get<0>(hCross[id][t]) = crs1;
 	
-	CProb[id][0] += crs1 * crs_units;
-	totalXS      += crs1 * crs_units;
+	CProb[id][0] += crs1;
+	totalXS      += crs1;
       } // end: neutral-proton scattering
 
       if (C2==0 and Z1==1 and C1==1) {
@@ -3669,8 +3675,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 
 	std::get<0>(hCross[id][t]) = crs1;
 	
-	CProb[id][0] += crs1 * crs_units;
-	totalXS      += crs1 * crs_units;
+	CProb[id][0] += crs1;
+	totalXS      += crs1;
       } // end: neutral-proton scattering
 
       //-------------------------------
@@ -3689,13 +3695,13 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	  if (crs>0.0) {
 
 	    Interact::T t
-	    { ion_elec, {Interact::ion, C1}, {Interact::electron, C2} };
+	    { free_free, {Interact::ion, C1}, {Interact::electron, C2} };
 	    
 	    std::get<0>(hCross[id][t]) = crs;
 	    std::get<2>(hCross[id][t]) = ff;
 
-	    CProb[id][1] += crs * crs_units;
-	    totalXS      += crs * crs_units;
+	    CProb[id][1] += crs;
+	    totalXS      += crs;
 	  }
 	}
 	// p2 ion, p1 electron
@@ -3709,13 +3715,13 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	  if (crs>0.0) {
 	    
 	    Interact::T t
-	    { ion_elec, {Interact::electron, C1}, {Interact::ion, C2} };
+	    { free_free, {Interact::electron, C1}, {Interact::ion, C2} };
 	    
 	    std::get<0>(hCross[id][t]) = crs;
 	    std::get<2>(hCross[id][t]) = ff;
 
-	    CProb[id][2] += crs * crs_units;
-	    totalXS      += crs * crs_units;
+	    CProb[id][2] += crs;
+	    totalXS      += crs;
 	  }
 	}
       } // end:ion_elec scattering
@@ -3739,8 +3745,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	  std::get<0>(hCross[id][t]) = crs;
 	  std::get<1>(hCross[id][t]) = CE;
 
-	  CProb[id][1] += crs * crs_units;
-	  totalXS      += crs * crs_units;
+	  CProb[id][1] += crs;
+	  totalXS      += crs;
 	}
       } // end: colexcite
 
@@ -3759,8 +3765,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	  std::get<0>(hCross[id][t]) = crs;
 	  std::get<1>(hCross[id][t]) = CE;
 
-	  CProb[id][2] += crs * crs_units;
-	  totalXS      += crs * crs_units;
+	  CProb[id][2] += crs;
+	  totalXS      += crs;
 	}
       } // end: colexcite
 
@@ -3783,8 +3789,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 
 	  std::get<0>(hCross[id][t]) = crs;
 
-	  CProb[id][1] += crs * crs_units;
-	  totalXS      += crs * crs_units;
+	  CProb[id][1] += crs;
+	  totalXS      += crs;
 	}
       }  // end: ionize
 
@@ -3803,8 +3809,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 
 	  std::get<0>(hCross[id][t]) = crs;
 
-	  CProb[id][2] += crs * crs_units;
-	  totalXS      += crs * crs_units;
+	  CProb[id][2] += crs;
+	  totalXS      += crs;
 	}
       }  // end: ionize
 
@@ -3828,8 +3834,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	      
 	    std::get<0>(hCross[id][t]) = crs;
 
-	    CProb[id][1] += crs * crs_units;
-	    totalXS      += crs * crs_units;
+	    CProb[id][1] += crs;
+	    totalXS      += crs;
 	  }
 	}
 	  
@@ -3847,8 +3853,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	    
 	    std::get<0>(hCross[id][t]) = crs;
 
-	    CProb[id][2] += crs * crs_units;
-	    totalXS      += crs * crs_units;
+	    CProb[id][2] += crs;
+	    totalXS      += crs;
 	  }
 	}
 
@@ -3869,8 +3875,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	  
 	      std::get<0>(hCross[id][t]) = crs;
 
-	      CProb[id][1] += crs * crs_units;
-	      totalXS      += crs * crs_units;
+	      CProb[id][1] += crs;
+	      totalXS      += crs;
 	    }
 	  }
 
@@ -3888,24 +3894,26 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	      
 	      std::get<0>(hCross[id][t]) = crs;
 
-	      CProb[id][2] += crs * crs_units;
-	      totalXS      += crs * crs_units;
+	      CProb[id][2] += crs;
+	      totalXS      += crs;
 	    }
 	  }
 
 	} // end: old recomb algorithm
 
-      } // end: recomb
+      } // end: recombination
 
-    } // end: inner particle loop
+    } // end: inner ionization state loop
  
-  } // end: outer particle loop
+  } // end: outer ionization state loop
+
+  checkProb(id, false, totalXS);
 
   if (totalXS>0.0) {
     for (auto & v : CProb[id]) v /= totalXS;
   }
 
-  return totalXS;
+  return totalXS * crs_units;
 }
 
 
@@ -6844,6 +6852,84 @@ public:
 
 double EkEcheck::tol = 1.0e-12;
 
+void CollideIon::checkProb(int id, bool norm, double tot)
+{
+  std::array<double, 3> DProb;
+
+  double totalXS = 0.0;
+  for (auto I : hCross[id]) {
+    Interact::T O = I.first;
+    Interact::pElem I1 = std::get<1>(O);
+    Interact::pElem I2 = std::get<2>(O);
+    double XS = std::get<0>(I.second);
+    if (I2.first == Interact::electron)
+      DProb[1] += XS;
+    else if (I1.first == Interact::electron)
+      DProb[2] += XS;
+    else
+      DProb[0] += XS;
+
+    totalXS += XS;
+  }
+
+  if (norm) {
+    double sum = 0.0;
+    for (auto   v : DProb) sum += v;
+    for (auto & v : DProb) v /= sum;
+  }
+
+  bool okay = true;
+  for (size_t k=0; k<3; k++) {
+    if (fabs(CProb[id][k] - DProb[k]) > 1.0e-10*DProb[k]+1.0e-16) okay = false;
+  }
+
+  if (not okay) {
+    std::cout << std::setw(18) << "CProb"  << std::setw(18) << "DProb"  << std::endl
+	      << std::setw(18) << "------" << std::setw(18) << "------" << std::endl;
+    for (size_t k=0; k<3; k++) {
+      std::cout << std::setw(18) << CProb[id][k] << std::setw(18) << DProb[k] << std::endl;
+    }
+
+    std::cout << std::endl;
+    for (auto I : hCross[id]) {
+      Interact::T O = I.first;
+      Interact::pElem I1 = std::get<1>(O);
+      Interact::pElem I2 = std::get<2>(O);
+      double XS = std::get<0>(I.second);
+      
+      std::string S1, S2;
+      if      (I1.first == Interact::neutral)   S1 = "neutral";
+      else if (I1.first == Interact::ion)       S1 = "ion";
+      else if (I1.first == Interact::electron)  S1 = "electron";
+
+      if      (I2.first == Interact::neutral)   S2 = "neutral";
+      else if (I2.first == Interact::ion)       S2 = "ion";
+      else if (I2.first == Interact::electron)  S2 = "electron";
+						  
+      std::cout << std::setw(20) << interLabels[std::get<0>(O)]
+		<< std::setw(10) << S1
+		<< std::setw(10) << S2
+		<< std::setw(18) << XS
+		<< std::setw(18) << XS/totalXS
+		<< std::endl;
+    }
+
+    if (norm) {
+      std::cout << std::setw(20) << "TOTALS"
+		<< std::setw(10) << ""
+		<< std::setw(10) << ""
+		<< std::setw(18) << tot
+		<< std::setw(18) << 1.0
+		<< std::endl;
+      std::cout << std::endl << "CProb size=" << CProb[id].size() << std::endl;
+    }
+
+    std::cout << "**ERROR cprob does not match" << std::endl;
+
+  } // end: not okay
+}
+
+
 int CollideIon::inelasticHybrid(int id, pCell* const c,
 				Particle* const _p1, Particle* const _p2,
 				double *cr, const Interact::T& itype, double prob)
@@ -6873,15 +6959,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   //
   double iE1 = 0.0, iE2 = 0.0;
   if (use_elec) {
-    double eta1 = 0.0, eta2 = 0.0;
-    for (unsigned short C=1; C<=Z1; C++) eta1 += p1->dattrib[hybrid_pos+C]*C;
-    for (unsigned short C=1; C<=Z2; C++) eta2 += p2->dattrib[hybrid_pos+C]*C;
     for (size_t k=0; k<3; k++) {
       iE1 += p1->dattrib[use_elec+k] * p1->dattrib[use_elec+k];
       iE2 += p2->dattrib[use_elec+k] * p2->dattrib[use_elec+k];
     }
-    iE1 *= 0.5*p1->mass * eta1 * atomic_weights[0]/atomic_weights[Z1];
-    iE2 *= 0.5*p2->mass * eta2 * atomic_weights[0]/atomic_weights[Z2];
+    iE1 *= 0.5*p1->mass * atomic_weights[0]/atomic_weights[Z1];
+    iE2 *= 0.5*p2->mass * atomic_weights[0]/atomic_weights[Z2];
   }
 
   // Ion KE
@@ -6916,6 +6999,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     { PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_ion,      qCrit) ),
       PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_electron, qCrit) ),
       PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_ion, qCrit) ) };
+
+  bool HWswitch = false;
+  if (HybridWeightSwitch) HWswitch = PP[0]->wght and PP[1]->wght and PP[2]->wght;
 
   // Sanity check
   //
@@ -7019,11 +7105,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       //
       unsigned short Z1 = PP[cid]->getZ(1);
       unsigned short Z2 = PP[cid]->getZ(2);
-
-      // Ionization fractions
-      //
-      double eta1i = PP[cid]->Eta(1);
-      double eta2i = PP[cid]->Eta(2);
 
       speciesKey k1 = PP[cid]->K(1);
       speciesKey k2 = PP[cid]->K(2);
@@ -7166,7 +7247,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  // Ion is p2
 	  //
 	  double tmpE = IS.selectFFInteract(std::get<2>(I));
-	  dE = tmpE * Prob/CProb[id][2];
+
+	  if (HWswitch) dE = tmpE * Prob;
+	  else          dE = tmpE * Prob/CProb[id][2];
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_FF_E) dE = 0.0;
@@ -7183,7 +7266,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  // Ion is p1
 	  //
 	  double tmpE = IS.selectFFInteract(std::get<2>(I));
-	  dE = tmpE * Prob/CProb[id][1];
+
+	  if (HWswitch) dE = tmpE * Prob;
+	  else          dE = tmpE * Prob/CProb[id][1];
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_FF_E) dE = 0.0;
@@ -7205,7 +7290,15 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  // Ion is p2
 	  //
 	  double tmpE = IS.selectCEInteract(ch.IonList[Q2], std::get<1>(I));
-	  dE = tmpE * Prob/CProb[id][2];
+
+	  if (HWswitch) dE = tmpE * Prob;
+	  else          dE = tmpE * Prob/CProb[id][2];
+
+	  if (Prob/CProb[id][2] > 1.0 or Prob/CProb[id][2] < 0.0) {
+	    checkProb(id);
+	    std::cout << "**ERROR: crazy prob <colexcite 2>=" << Prob
+		      << ", Pr=" << CProb[id][2] << std::endl;
+	  }
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	    
@@ -7220,7 +7313,15 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  // Ion is p1
 	  //
 	  double tmpE = IS.selectCEInteract(ch.IonList[Q1], std::get<1>(I));
-	  dE   = tmpE * Prob/CProb[id][1];
+
+	  if (HWswitch) dE = tmpE * Prob;
+	  else          dE = tmpE * Prob/CProb[id][1];
+
+	  if (Prob/CProb[id][1] > 1.0  or Prob/CProb[id][1] < 0.0) {
+	    checkProb(id);
+	    std::cout << "**ERROR: crazy prob <colexcite 1>=" << Prob
+		      << ", Pr=" << CProb[id][1] << std::endl;
+	  }
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  
@@ -7252,7 +7353,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  }
 
 	  // The scaled-up interaction fraction
-	  double Pr = Prob/CProb[id][2];
+	  double Pr = HWswitch ? Prob : Prob/CProb[id][2];
+
+	  if (Pr > 1.0 or Pr < 0.0) {
+	    checkProb(id);
+	    std::cout << "**ERROR: crazy prob <ionize 2>=" << Prob
+		      << ", Pr=" << CProb[id][2] << std::endl;
+	  }
 
 	  if (Pr < PP[2]->F(2, P2)) {
 	    PP[2]->F(2, P2  ) -= Pr;
@@ -7263,7 +7370,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    PP[2]->F(2, P2+1) += Pr;
 	  }
 
-	  Prob = Pr * CProb[id][2];
+	  if (HWswitch) Prob = Pr;
+	  else          Prob = Pr * CProb[id][2];
 	  
 	  if (use_normtest) {
 	    std::ostringstream sout;
@@ -7277,12 +7385,15 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  dE = tmpE * Pr;
 
 	  // Queue the added electron KE for removal
-	  if (eta2i>0.0)
-	    ionExtra.second += iE2 * Pr / eta2i;
+	  ionExtra.second += iE2 * Pr;
 
 	  // Energy for ionized electron comes from COM
-	  if (eta2i>0.0)
-	    dE += iE2 * Pr / eta2i; 
+	  dE += iE2 * Pr;
+
+	  if (std::isinf(iE2 * Pr)) {
+	    std::cout << "**ERROR: crazy ion energy [2]=" << iE2
+		      << ", Pr=" << Pr << std::endl;
+	  }
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
@@ -7317,7 +7428,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  }
 
 	  // The scaled-up interaction fraction
-	  double Pr = Prob/CProb[id][1];
+	  double Pr = HWswitch ? Prob : Prob/CProb[id][1];
+
+	  if (Pr > 1.0 or Pr < 0.0) {
+	    checkProb(id);
+	    std::cout << "**ERROR: crazy prob <ionize 1>=" << Prob
+		      << ", Pr=" << CProb[id][1] << std::endl;
+	  }
 
 	  if (Pr < PP[1]->F(1, P1)) {
 	    PP[1]->F(1, P1  ) -= Pr;
@@ -7328,7 +7445,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    PP[1]->F(1, P1+1) += Pr;
 	  }
 
-	  Prob = Pr * CProb[id][1];
+	  if (HWswitch) Prob = Pr;
+	  else          Prob = Pr * CProb[id][1];
 
 	  if (use_normtest) {
 	    std::ostringstream sout;
@@ -7342,12 +7460,15 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  dE = tmpE * Pr;
 	  
 	  // Queue the added electron KE for removal
-	  if (eta1i>0.0)
-	    ionExtra.first += iE1 * Pr / eta1i;
+	  ionExtra.first += iE1 * Pr;
 
 	  // Energy for ionized electron comes from COM
-	  if (eta1i>0.0)
-	    dE += iE1 * Pr / eta1i; 
+	  dE += iE1 * Pr;
+
+	  if (std::isinf(iE1 * Pr)) {
+	    std::cout << "**ERROR: crazy ion energy [1]=" << iE1
+		      << ", Pr=" << Pr << std::endl;
+	  }
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
@@ -7385,7 +7506,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  }
 	  
 	  // The scaled-up interaction fraction
-	  double Pr = Prob/CProb[id][2];
+	  double Pr = HWswitch ? Prob : Prob/CProb[id][2];
+
+	  if (Pr > 1.0 or Pr < 0.0) {
+	    checkProb(id);
+	    std::cout << "**ERROR: crazy prob <recomb 2>=" << Prob
+		      << ", Pr=" << CProb[id][2] << std::endl;
+	  }
 
 	  if (Pr < PP[2]->F(2, P2)) {
 	    PP[2]->F(2, P2  ) -= Pr;
@@ -7396,7 +7523,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    PP[2]->F(2, P2-1) += Pr;
 	  }
 	  
-	  Prob = Pr * CProb[id][2];
+	  if (HWswitch) Prob = Pr;
+	  else          Prob = Pr * CProb[id][2];
 
 	  if (use_normtest) {
 	    std::ostringstream sout;
@@ -7410,12 +7538,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  // Electron KE lost in recombination is radiated by does not
 	  // change COM energy
 	  //
-	  if (eta2i>0.0)
-	    rcbExtra.second += iE2 * Pr / eta2i;
+	  rcbExtra.second += iE2 * Pr;
 
 	  // Electron KE radiated in recombination
-	  double eE = 0.0;
-	  if (eta2i>0.0) eE = iE2 * Pr / eta2i * UserTreeDSMC::Eunit / (N0*eV);
+	  double eE = iE2 * Pr * UserTreeDSMC::Eunit / (N0*eV);
 
 	  if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * Pr;
 	  if (energy_scale > 0.0) dE *= energy_scale;
@@ -7469,7 +7595,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  }
 
 	  // The scaled-up interaction fraction
-	  double Pr = Prob/CProb[id][1];
+	  double Pr = HWswitch ? Prob : Prob/CProb[id][1];
+
+	  if (Pr > 1.0 or Pr < 0.0) {
+	    checkProb(id);
+	    std::cout << "**ERROR: crazy prob <recomb 1>=" << Prob
+		      << ", Pr=" << CProb[id][1] << std::endl;
+	  }
 
 	  if (Pr < PP[1]->F(1, P1)) {
 	    PP[1]->F(1, P1  ) -= Pr;
@@ -7480,7 +7612,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    PP[1]->F(1, P1-1) += Pr;
 	  }
 	  
-	  Prob = Pr * CProb[id][1];
+	  if (HWswitch) Prob = Pr;
+	  else          Prob = Pr * CProb[id][1];
 
 	  if (use_normtest) {
 	    std::ostringstream sout;
@@ -7493,13 +7626,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  // Electron KE lost in recombination is radiated by does not
 	  // change COM energy
 	  //
-	  if (eta1i>0.0)
-	    rcbExtra.first += iE1 * Pr / eta1i;
+	  rcbExtra.first += iE1 * Pr;
 
 	  // Electron KE fraction in recombination
 	  //
 	  double eE = 0.0;
-	  if (eta1i>0.0) eE = iE1 * Pr / eta1i * UserTreeDSMC::Eunit / (N0*eV);
+	  eE = iE1 * Pr * UserTreeDSMC::Eunit / (N0*eV);
 
 	  if (RECOMB_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * Pr;
 	  if (energy_scale > 0.0) dE *= energy_scale;
@@ -7728,7 +7860,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     //
     // Apply neutral-neutral scattering and energy loss
     //
-    if (J==0) {
+    if (J==0 or HWswitch) {
 
       PP[0]->update();
       PP[0]->eUpdate();
@@ -7884,7 +8016,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     // Apply ion/neutral-electron scattering and energy loss
     // Ion is Particle 1, Electron is Particle 2
     //
-    if (J==1) {
+    if (J==1 or HWswitch) {
 
       PP[1]->update();
       PP[1]->eUpdate();
@@ -8085,7 +8217,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     // Apply ion/neutral-electron scattering and energy loss
     // Ion is Particle 2, Electron is Particle 1
     //
-    if (J==2) {
+    if (J==2 or HWswitch) {
 
       PP[2]->update();
       PP[2]->eUpdate();
@@ -16131,6 +16263,9 @@ void CollideIon::processConfig()
     newRecombAlg =
       cfg.entry<bool>("newRecombAlg", "Compute recombination cross section based on ion's electron", false);
 
+    HybridWeightSwitch =
+      cfg.entry<bool>("HybridWeightSwitch", "Use full trace algorithm for interaction fractions below threshold", false);
+
     DBG_NewHybrid =
       cfg.entry<bool>("DBG_HYBRID", "Verbose debugging of energy conservation for Hybrid method", false);
 
@@ -16568,13 +16703,18 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
   //
   f1.resize(Z1+1);
   f2.resize(Z2+1);
+
   for (unsigned short C=0; C<=Z1; C++)
     f1[C] = p1->dattrib[caller->hybrid_pos+C];
+
   for (unsigned short C=0; C<=Z2; C++)
     f2[C] = p2->dattrib[caller->hybrid_pos+C];
 
   switch (P) {
   case ion_ion:
+    if (w2/w1 < thresh) {
+      wght = true;
+    }
     break;
   case ion_electron:
     m2 = atomic_weights[0];
@@ -16638,8 +16778,9 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
 void CollideIon::Pord::update()
 {
   if (caller->use_elec<0) return;
+
   double sum1 = 1.0, sum2 = 1.0;
-  if (0) {
+  if (1) {
     sum1 = sum2 = 0.0;
     for (auto v : f1) sum1 += v;
     for (auto v : f2) sum2 += v;
@@ -16668,8 +16809,13 @@ void CollideIon::Pord::update()
   }
 
 
-  for (unsigned short C=0; C<=Z1; C++) p1->dattrib[caller->hybrid_pos+C] = f1[C]/sum1;
-  for (unsigned short C=0; C<=Z2; C++) p2->dattrib[caller->hybrid_pos+C] = f2[C]/sum2;
+  for (unsigned short C=0; C<=Z1; C++) {
+    p1->dattrib[caller->hybrid_pos+C] = f1[C]/sum1;
+  }
+
+  for (unsigned short C=0; C<=Z2; C++) {
+    p2->dattrib[caller->hybrid_pos+C] = f2[C]/sum2;
+  }
 
   double tot = 0.0;
   for (unsigned short C=0; C<=Z1; C++) tot += p1->dattrib[caller->hybrid_pos+C];
