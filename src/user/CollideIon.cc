@@ -8671,11 +8671,17 @@ void CollideIon::scatterHybrid
     KE.vfac = 1.0;
     KE.kE   = kE;
     KE.totE = totE;
-    //
-    // Defer all energy loss
-    //
-    deferredEnergyHybrid(pp, KE.delE);
-    KE.delE = 0.0;
+
+    if (KE.delE>0.0) {
+      // Defer all energy loss
+      //
+      deferredEnergyHybrid(pp, KE.delE);
+      KE.delE = 0.0;
+    } else {
+      // Apply delE to COM
+      //
+      vi = -2.0*KE.delE/(pp->W1*q1*mu);
+    }
   }
 
   // Assign interaction energy variables
