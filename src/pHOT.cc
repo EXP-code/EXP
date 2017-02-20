@@ -3379,14 +3379,21 @@ void pHOT::adjustTree(unsigned mlevel)
 #pragma omp parallel for default(shared)
   for (int i=0; i<createL.size(); i++) {
     pCell *c = createL[i];
+    // Only add cells with bodies, otherwise delete
+    if (c->bods.size()) {
 #pragma omp critical
-    {
-      unsigned m = max<unsigned>(c->maxplev, mlevel);
-      clevlst[c] = m;
-      clevels[m].insert(c);
+      {
+	unsigned m = max<unsigned>(c->maxplev, mlevel);
+	clevlst[c] = m;
+	clevels[m].insert(c);
+      }
+
+      // Locate the new sample cell
+      c->findSampleCell("adjustTree<create leaves>");
+
+    } else {
+      delete c;
     }
-    // Locate the new sample cell
-    c->findSampleCell("adjustTree<create leaves>");
   }
 
   //
