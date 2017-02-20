@@ -61,7 +61,7 @@ def plot_data(filename, msz, line, dot, elastic, useTime, fullScreen, stride, ts
     temp  = []
     etot  = []
     ncol  = 9
-    head  = 2
+    lead  = 2
     data  = {}
 
     # Species
@@ -79,19 +79,20 @@ def plot_data(filename, msz, line, dot, elastic, useTime, fullScreen, stride, ts
             nlabs  = len(labels)
             tindx  = labels.index('Elost')
             tail   = nlabs - tindx
-            ncol   = (tindx-head)/5
+            if 'Disp' in labels: lead = 3
+            ncol   = (tindx-lead)/5
 
         if line.find('[1]')>=0:     # Get the column indices
             toks = line.translate(trans).split()
             for i in range(2, len(toks)-tail):
                 j = int(toks[i][1:-1]) - 1
                 tabl[labels[j]] = i
-                idx = (i-head) / ncol
+                idx = (i-lead) / ncol
                 data[spec[idx]][labels[j]] = []
         if line.find('#')<0:        # Read the data lines
             toks = line.translate(trans).split()
             allZ = True             # Skip lines with zeros only
-            for i in range(head, len(toks)):
+            for i in range(lead, len(toks)):
                 if float(toks[i])>0.0: 
                     allZ = False
                     break
@@ -103,8 +104,8 @@ def plot_data(filename, msz, line, dot, elastic, useTime, fullScreen, stride, ts
                     time.append(float(toks[0]))
                     temp.append(float(toks[1]))
                     etot.append(float(toks[-1]))
-                    for i in range(head, len(toks)-tail):
-                        idx = (i-head) / ncol
+                    for i in range(lead, len(toks)-tail):
+                        idx = (i-lead) / ncol
                         data[spec[idx]][labels[i]].append(float(toks[i]))
                 else:
                     print "toks=", len(toks), " labels=", len(labels)
