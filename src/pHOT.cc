@@ -3379,7 +3379,9 @@ void pHOT::adjustTree(unsigned mlevel)
 #pragma omp parallel for default(shared)
   for (int i=0; i<createL.size(); i++) {
     pCell *c = createL[i];
-    // Only add cells with bodies, otherwise delete
+
+    // Only add cells with bodies.  Newly added cells may be branches.
+    //
     if (c->bods.size()) {
 #pragma omp critical
       {
@@ -3392,7 +3394,9 @@ void pHOT::adjustTree(unsigned mlevel)
       c->findSampleCell("adjustTree<create leaves>");
 
     } else {
-      delete c;
+      // For verbose debugging output
+      std::cout << "adjustTree<create leaves> with no bodies and "
+		<< c->children.size() << " children" << std::endl;
     }
   }
 
