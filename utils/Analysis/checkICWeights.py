@@ -1,33 +1,19 @@
 #!/usr/bin/python
 
-import sys
+import sys, os, argparse
 import math
 import numpy as np
+import astroval as C
 
-fname = "gas.bod"
-argc  = len(sys.argv)
-potf  = 7
-T     = 1.0e+05
-L     = 1.0
-M     = 0.1
+parser = argparse.ArgumentParser(description='Evaluate global statistics for body and spec file created by makeIonIC\nwith specific hybrid-method values')
+parser.add_argument('-b', '--body',    default='gas.bod', help='Name of body file')
+parser.add_argument('-s', '--spec',    default='species.spec', help='Name of species map file')
+parser.add_argument('-m', '--msun',    default=1.0, help='Number of M_sun per unit mass')
+parser.add_argument('-l', '--lpc',     default=1.0, help='Name of parsecs per unit length')
 
-for i in range(len(sys.argv)):
-    if sys.argv[i] == '-f' or sys.argv[i] == '--file':
-        fname = sys.argv[i+1]
-        ptof  = 8
-    if sys.argv[i] == '-T' or sys.argv[i] == '--time':
-        T = float(sys.argv[i+1])
-    if sys.argv[i] == '-M' or sys.argv[i] == '--mass':
-        M = float(sys.argv[i+1])
-    if sys.argv[i] == '-L' or sys.argv[i] == '--length':
-        L = float(sys.argv[i+1])
+args = parser.parse_args()
 
-Tunit = 31556925.19 * T
-Lunit = 3.08568025e+18 * L
-Munit = 1.98892e+33 * M
-Dunit = Munit/Lunit**3/1.674927211e-24
-
-file = open("species.spec")
+file = open(args.spec)
 line = file.readline()
 if line[0:6] != 'hybrid':
     print "This only makes sense for a hybrid IC file"
@@ -36,25 +22,40 @@ if line[0:6] != 'hybrid':
 line  = file.readline()
 hpos  = int(line.split()[1])
 
-file  = open(fname)
+file  = open(args.body)
 line  = file.readline()
 toks  = line.split()
 numb  = int(toks[0])
 inatr = int(toks[1])
 dnatr = int(toks[2])
 
-bpos  = potf + inatr + hpos
+bpos  = 7 + inatr + hpos
 maxD  = [0.0, 0.0, 0.0, 0.0]
 masS  = {}
 tots  = 0
-
+engI  = {}
+engE  = {}
 spcS  = {}
+
+atomic_masses = [0.000548579909, 1.00794, 4.002602]
 
 for line in file:
     v = line.split()
     mass = float(v[0])
     maxD[0] += mass
-    ityp = int(v[potf])
+    ityp = int(v[7])
+
+    v2E  = 0.0
+    masE = mass * atomic_masses[0]/atomic_masses[ityp]
+    if ityp not in engI: engI[ityp] = 0.0
+    if ityp not in engE: engE[ityp] = 0.0
+
+    for i in range(3):
+        vI = float(v[4+i])
+        vE = float(v[-4+i])
+        engI[ityp] += 0.5 * mass * vI*vI
+        engE[ityp] += 0.5 * masE * vE*vE
+
     if ityp not in masS: masS[ityp] = (0, 0.0)
     masS[ityp] = (masS[ityp][0] + 1, masS[ityp][1] + mass)
     for i in range(1,4): maxD[i] = max(maxD[i], float(v[i]))
@@ -64,7 +65,9 @@ for line in file:
     if ityp not in spcS: spcS[ityp] = np.zeros(ityp+1)
     for i in range(0,ityp+1): spcS[ityp][i] += float(v[bpos+i])
         
-dens = maxD[0]/(maxD[1]*maxD[2]*maxD[3]) * Dunit
+mfac = args.msun*C.Msun/C.m_p/(args.lpc*C.pc)**3
+dens = maxD[0]/(maxD[1]*maxD[2]*maxD[3]) * mfac
+
 print '-'*60
 print "Total mass:", maxD[0]
 print '-'*60
@@ -94,7 +97,22 @@ for k in spcS:
     for v in spcS[k]: print " {:13.6e}".format(v/sum),
     print ""
 print '-'*60
-print "Maximum pos:", maxD[1:]
-print "Density (n/cc) =", dens
-print "Out of bounds =", tots, "/", numb
+print "Subspecies energies"
+print '-'*60
+print "{:>4s}: {:>13s} {:>13s}".format("Sp", "Ion", "Elec")
+print "{:>4s}: {:>13s} {:>13s}".format("--", "--------", "--------")
+sumI = 0.0
+sumE = 0.0
+for k in engI:
+    print "{:>4d}: {:>13.6e} {:>13.6e}".format(k, engI[k], engE[k])
+    sumI += engI[k]
+    sumE += engE[k]
+print "{:>4s}: {:>13.6e} {:>13.6e}".format("Tot", sumI, sumE)
+print '-'*60
+tmpl0 = "{:<18s} = [{:9.6f} {:9.6f} {:9.6f}]"
+tmpl1 = "{:<18s} = {}"
+tmpl2 = "{:<18s} = {}/{}"
+print tmpl0.format("Maximum pos", maxD[1], maxD[2], maxD[3])
+print tmpl1.format("Density (n/cc)", dens)
+print tmpl2.format("Out of bounds", tots, numb)
 print '-'*60
