@@ -519,19 +519,22 @@ key_type pHOT::getTailKey()
 	  cout << "pHOT::getTailKey, process " << myid << ": tailKey=" 
 	       << tailKey << dec << " not on frontier! [3]" << endl;
 	} else {
-	  // cout << "pHOT::getTailKey, process " << myid << ": tailKey=" 
-	  //      << tailKey << dec << " IS on frontier with frontier size="
-	  //      << frontier.size() << " [3]" << endl;
-	  // cout << std::string(30, '-')    << std::endl << std::setfill('-')
-	  //      << "--- Frontier list ---" << std::endl << std::setfill(' ')
-	  //      << std::string(30, '-')    << std::endl << std::hex;
-	  // for (key_cell::iterator 
-	  // 	 kit=frontier.begin(); kit!=frontier.end(); kit++) 
-	  //   {
-	  //     std::cout << std::setw(15) << kit->first
-	  // 		<< std::endl;
-	  //   }
-	  // std::cout << std::string(30, '-')    << std::endl << std::dec;
+	  // Verbose info
+	  if (false) {
+	    cout << "pHOT::getTailKey, process " << myid << ": tailKey=" 
+		 << tailKey << dec << " IS on frontier with frontier size="
+		 << frontier.size() << " [3]" << endl;
+	    cout << std::string(30, '-')    << std::endl << std::setfill('-')
+		 << "--- Frontier list ---" << std::endl << std::setfill(' ')
+		 << std::string(30, '-')    << std::endl << std::hex;
+	    for (key_cell::iterator 
+		   kit=frontier.begin(); kit!=frontier.end(); kit++) 
+	      {
+		std::cout << std::setw(15) << kit->first
+			  << std::endl;
+	      }
+	    std::cout << std::string(30, '-')    << std::endl << std::dec;
+	  }
 	}
       }
     }
@@ -3334,25 +3337,27 @@ void pHOT::adjustTree(unsigned mlevel)
   
   if (DEBUG_CHECK) {
 
-    /*
-    unsigned preLevlst = 0, preFrontier = 0;
-    for (int i=0; i<removeL.size(); i++) {
-      pCell *c = removeL[i];
-      if (clevlst.find(c) == clevlst.end()) {
-	preLevlst++;
-	if (frontier.find(c->mykey) == frontier.end())
-	  preFrontier++;
+    // Deep check (verbose)
+    //
+    if (false) {
+      unsigned preLevlst = 0, preFrontier = 0;
+      for (int i=0; i<removeL.size(); i++) {
+	pCell *c = removeL[i];
+	if (clevlst.find(c) == clevlst.end()) {
+	  preLevlst++;
+	  if (frontier.find(c->mykey) == frontier.end())
+	    preFrontier++;
+	}
       }
+      
+      if (preLevlst)
+	std::cout << "pHOT::adjustTree, Node " << myid 
+		  << ", before reconstruction: "
+		  << preLevlst << "/" << clevlst.size()
+		  << " cells missing from level list and " << preFrontier
+		  << "/" << frontier.size() << " cells missing from frontier" 
+		  << std::endl;
     }
-
-    if (preLevlst)
-      std::cout << "pHOT::adjustTree, Node " << myid 
-		<< ", before reconstruction: "
-		<< preLevlst << "/" << clevlst.size()
-		<< " cells missing from level list and " << preFrontier
-		<< "/" << frontier.size() << " cells missing from frontier" 
-		<< std::endl;
-    */
     
     std::ostringstream sout;
     sout  << "pHOT::adjustTree, Node " << myid 
