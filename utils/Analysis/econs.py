@@ -10,7 +10,7 @@ import string
 
 parser = argparse.ArgumentParser(description='Read ION_Coll file and plot energy disgnostics')
 parser.add_argument('-t', '--tscale', default=1000.0,    type=float,   help='System time units in years')
-parser.add_argument('-T', '--Tmax',   default=1000000.0, type=float,   help='Maximum time in years')
+parser.add_argument('-T', '--Tmax',   default=1.0e32, type=float,   help='Maximum time in years')
 parser.add_argument('-l', '--log',    default=False, action='store_true', help='Logarithmic vertical scale')
 parser.add_argument('-a', '--aux',    default=False, action='store_true', help='Sum energy fields')
 parser.add_argument('-k', '--ke',    default=False, action='store_true', help='Total kinetic energy')
