@@ -3380,8 +3380,8 @@ void pHOT::adjustTree(unsigned mlevel)
   for (int i=0; i<createL.size(); i++) {
     pCell *c = createL[i];
 
-    // Only add cells with bodies.  Newly added cells may be branches.
-    //
+    // Only add cells with bodies.  Newly added cells may be branches
+    // or scheduled for later deletion.
     if (c->bods.size()) {
 #pragma omp critical
       {
@@ -3393,10 +3393,6 @@ void pHOT::adjustTree(unsigned mlevel)
       // Locate the new sample cell
       c->findSampleCell("adjustTree<create leaves>");
 
-    } else {
-      // For verbose debugging output
-      std::cout << "adjustTree<create leaves> with no bodies and "
-		<< c->children.size() << " children" << std::endl;
     }
   }
 
