@@ -653,6 +653,8 @@ public:
   void CPUHogGather();
   void EPSMtiming(ostream& out);
   void CPUHog(ostream& out);
+  virtual void KElossGather() {}
+  virtual void KEloss(ostream& out) {}
   //@}
   
   //@{

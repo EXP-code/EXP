@@ -604,6 +604,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   totlES   .resize(nthrds, 0);
   epsmIE   .resize(nthrds, 0);
   totlIE   .resize(nthrds, 0);
+  KElost   .resize(nthrds);
 
   for (auto &v : Ediag) {
     for (auto &u : v) u = 0.0;
@@ -10124,25 +10125,54 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
      */
 
     if (testKE[id][0] > 0.0) {
-      if (testCnt[id] > 0) {
-	double Cinit  = testKE[id][1] + testKE[id][2];
-	double Einit  = testKE[id][0] - Cinit;
-	double Cfinal = totIon + totElc;
-	double Efinal = totKEf - Cfinal + testKE[id][3] + clrE[id];
-	double delE   = Efinal/Einit - 1.0;
-	if ( fabs(delE) > 1.0e-4 ) {
-	  std::cout << "**ERROR KE conservation:"
+
+      double Cinit  = testKE[id][1] + testKE[id][2];
+      double Einit  = testKE[id][0] - Cinit;
+      double Cfinal = totIon + totElc;
+      double Efinal = totKEf - Cfinal + testKE[id][3] + clrE[id];
+      double delE   = Efinal/Einit - 1.0;
+      
+      if (false) {		// Include deferred energy
+	KElost[id][0] += Einit;
+	KElost[id][1] += Einit - (Efinal - testKE[id][3]);
+      } else {			// No deferred energy
+	KElost[id][0] += totKEf;
+	KElost[id][1] += testKE[id][0] - totKEf;
+      }
+      
+      if ( fabs(delE) > 1.0e-4 ) {
+	std::cout << "**ERROR KE conservation:"
+		  << std::left << std::setprecision(10)
+		  << " T="        << std::setw(18)  << tnow
+		  << " Einit="    << std::setw(18)  << Einit
+		  << " Efinal="   << std::setw(18)  << Efinal
+		  << " Delta="    << std::setw(18)  << Einit - Efinal
+		  << " DelKE="    << std::setw(18)  << testKE[id][0] - totKEf
+		  << " dCons="    << std::setw(18)  << Cfinal - Cinit
+		  << " before="   << testKE[id]
+		  << " after="    << std::setw(18)  << totKEf
+		  << " rel err="  << std::setw(18)  << delE
+		  << " KE init="  << std::setw(18)  << testKE[id][0]
+		  << " cons I=["  << totIon << ", " << testKE[id][1]
+		  << "] cons E=[" << totElc << ", " << testKE[id][2]
+		  << "] delE="    << std::setw(18)  << testKE[id][3]
+		  << " mass="     << std::setw(18)  << totMas
+		  << " # coll="   << std::setw(18)  << testCnt[id]
+		  << " bodies="   << cell->bods.size()
+		  << std::endl;
+	cellEb[id]++;
+	dEratb[id] += fabs(delE);
+      } else {
+	if (DBG_NewHybrid)
+	  std::cout << "**GOOD KE conservation:"
 		    << std::left << std::setprecision(10)
 		    << " T="        << std::setw(18)  << tnow
 		    << " Einit="    << std::setw(18)  << Einit
 		    << " Efinal="   << std::setw(18)  << Efinal
 		    << " Delta="    << std::setw(18)  << Einit - Efinal
-		    << " DelKE="    << std::setw(18)  << testKE[id][0] - totKEf
-		    << " dCons="    << std::setw(18)  << Cfinal - Cinit
 		    << " before="   << testKE[id]
 		    << " after="    << std::setw(18)  << totKEf
 		    << " rel err="  << std::setw(18)  << delE
-		    << " KE init="  << std::setw(18)  << testKE[id][0]
 		    << " cons I=["  << totIon << ", " << testKE[id][1]
 		    << "] cons E=[" << totElc << ", " << testKE[id][2]
 		    << "] delE="    << std::setw(18)  << testKE[id][3]
@@ -10150,29 +10180,8 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 		    << " # coll="   << std::setw(18)  << testCnt[id]
 		    << " bodies="   << cell->bods.size()
 		    << std::endl;
-	  cellEb[id]++;
-	  dEratb[id] += fabs(delE);
-	} else {
-	  if (DBG_NewHybrid)
-	    std::cout << "**GOOD KE conservation:"
-		      << std::left << std::setprecision(10)
-		      << " T="        << std::setw(18)  << tnow
-		      << " Einit="    << std::setw(18)  << Einit
-		      << " Efinal="   << std::setw(18)  << Efinal
-		      << " Delta="    << std::setw(18)  << Einit - Efinal
-		      << " before="   << testKE[id]
-		      << " after="    << std::setw(18)  << totKEf
-		      << " rel err="  << std::setw(18)  << delE
-		      << " cons I=["  << totIon << ", " << testKE[id][1]
-		      << "] cons E=[" << totElc << ", " << testKE[id][2]
-		      << "] delE="    << std::setw(18)  << testKE[id][3]
-		      << " mass="     << std::setw(18)  << totMas
-		      << " # coll="   << std::setw(18)  << testCnt[id]
-		      << " bodies="   << cell->bods.size()
-		      << std::endl;
-	  cellEg[id]++;
-	  dEratg[id] += fabs(delE);
-	}
+	cellEg[id]++;
+	dEratg[id] += fabs(delE);
       }
     }
   }
@@ -11336,6 +11345,35 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   //======================================================================
 }
 
+void CollideIon::KElossGather()
+{
+  for (int t=1; t<nthrds; t++) KElost[0] += KElost[t];
+
+  std::array<double, 2> total;
+  MPI_Reduce(&KElost[0][0], &total[0], 2, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+  KElossSoFar[0]  = total[0];
+  KElossSoFar[1] += total[1];
+
+  for (auto & v : KElost) v[0] = v[1] = 0.0;
+}
+
+void CollideIon::KEloss(std::ostream& out)
+{
+  if (myid==0) {
+    out << std::string(70, '-') << std::endl
+	<< "Kinetic energy loss from cells" << std::endl
+	<< std::string(70, '-') << std::endl
+	<< "T KE dKE = "
+	<< std::scientific << std::setprecision(8)
+	<< std::setw(16)   << tnow
+	<< std::setw(16)   << KElossSoFar[0]
+	<< std::setw(16)   << KElossSoFar[1]
+	<< std::endl
+	<< std::string(70, '-') << std::endl;
+  }
+}
+
 std::pair<double, double> CollideIon::computeEdsp(pCell* cell)
 {
   std::vector<double> ev1(3, 0.0), ev2(3, 0.0);
@@ -11439,7 +11477,8 @@ double collDiag::addCellElec(pCell* cell, int ue, int id)
       double cnt = 0.0;
       for (unsigned short C=1; C<Z+1; C++)
 	cnt += s->dattrib[p->hybrid_pos+1]*C;
-      Efrc[id] += mass * cnt;
+      mass *= cnt;
+      Efrc[id] += mass;
     } else {
       mass *= static_cast<double>(k.second - 1);
     }

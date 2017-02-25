@@ -490,6 +490,7 @@ private:
   std::vector< std::array<double, 5> >               testKE;
   std::vector< CVels >                               cVels;
   std::vector< CellMom >                             cMoms;
+  std::vector< std::array<double, 2> >               KElost;
   //@}
 
   //! This defines the various types of interactions used to tag
@@ -1261,10 +1262,17 @@ public:
   virtual void printSpecies(std::map<speciesKey, unsigned long>& spec,
 			    double T);
   //@{
-  //! Galther and print collision statistics
-  void printCollGather()  { collD->gather(); }
-  void printCollSummary() { collD->print (); }
-  void resetColls()       { collD->reset (); }
+  //! Gather and print collision statistics
+  virtual void printCollGather()  { collD->gather(); }
+  virtual void printCollSummary() { collD->print (); }
+  virtual void resetColls()       { collD->reset (); }
+  //@}
+
+  //@{
+  //! For recording KE loss per cell
+  std::array<double, 2> KElossSoFar;
+  virtual void KElossGather();
+  virtual void KEloss(ostream& out);
   //@}
 
   //! Select particle numbers for interaction

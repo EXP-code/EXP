@@ -1324,6 +1324,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     
     collide->EPSMtimingGather();
     collide->CPUHogGather();
+    collide->KElossGather();
     
     const int ebins = 1000;
     vector<unsigned> efrt(ebins, 0);
@@ -1602,6 +1603,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       //
       collide->EPSMtiming(mout);
       collide->CPUHog (mout);
+      collide->KEloss (mout);
       
       //
       // Collision effort
