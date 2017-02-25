@@ -10,12 +10,13 @@ import string
 
 parser = argparse.ArgumentParser(description='Read ION_Coll file and plot energy disgnostics')
 parser.add_argument('-t', '--tscale', default=1000.0,    type=float,   help='System time units in years')
-parser.add_argument('-T', '--Tmax',   default=1000000.0, type=float,   help='Maximum time in years')
+parser.add_argument('-T', '--Tmax',   default=1.0e32, type=float,   help='Maximum time in years')
 parser.add_argument('-l', '--log',    default=False, action='store_true', help='Logarithmic vertical scale')
 parser.add_argument('-a', '--aux',    default=False, action='store_true', help='Sum energy fields')
 parser.add_argument('-k', '--ke',    default=False, action='store_true', help='Total kinetic energy')
 parser.add_argument('-d', '--delta',    default=False, action='store_true', help='Plot fraction of deferred energy to total')
 parser.add_argument('-c', '--compare',    default=False, action='store_true', help='Total energy minus kinetic energy')
+parser.add_argument('-b', '--both',    default=False, action='store_true', help='Plot KE and Total E separately')
 parser.add_argument('tags',           nargs='*',                       help='Files to process')
 
 args = parser.parse_args()
@@ -93,7 +94,18 @@ for v in labs:
     indx = np.searchsorted(d[v]['Time'], args.Tmax/args.tscale)
     x = np.array(d[v]['Time'][0:indx])*args.tscale
             
-    if args.compare:
+    if args.both:
+        y = np.copy(x) * 0.0
+        yt = np.array(d[v]['Etotl'][0:indx])
+        for f in kesum: y += np.array(d[v][f][0:indx])
+        if args.log:
+            ax.semilogy(x, y,  '-', label=v+':KE')
+            ax.semilogy(x, yt, '-', label=v+':Total E')
+        else:
+            ax.plot(x, y,  '-', label=v+':KE')
+            ax.plot(x, yt, '-', label=v+':Total E')
+
+    elif args.compare:
         y = np.copy(x) * 0.0
         yt = np.array(d[v]['Etotl'][0:indx])
         for f in kesum: y += np.array(d[v][f][0:indx])

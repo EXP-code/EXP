@@ -10,16 +10,26 @@ import getSpecies as gs
 
 parser = argparse.ArgumentParser(description='Read DSMC species file and plot temperatures for each species')
 parser.add_argument('-t', '--tscale', default=1000.0,    type=float,   help='System time units in years')
-parser.add_argument('-T', '--Tmax',   default=1000000.0, type=float,   help='Maximum time in years')
+parser.add_argument('-T', '--Tmax',   default=1.0e32,    type=float,   help='Maximum time in years')
+parser.add_argument('-D', '--disp', default=False, action='store_true', help='Dispersion-based temperature only')
 parser.add_argument('tags',           nargs='*',                       help='Files to process')
 
 args = parser.parse_args()
 
 labs = args.tags
         
-fields = [ ['Telc(1)', 'Telc(2)', 'Relc(1)', 'Relc(2)'], 
-           ['Tion(1)', 'Tion(2)', 'Rion(1)', 'Rion(2)'] ]
-titles = ['Electrons', 'Ions']
+fieldsAll   = [ ['Telc(1)', 'Telc(2)', 'Relc(1)', 'Relc(2)'], 
+                ['Tion(1)', 'Tion(2)', 'Rion(1)', 'Rion(2)'] ]
+fieldsTonly = [ ['Telc(1)', 'Telc(2)'], 
+                ['Tion(1)', 'Tion(2)'] ]
+titles      = ['Electrons', 'Ions']
+
+fields      = []
+
+if args.disp:
+        fields = fieldsTonly
+else:
+        fields = fieldsAll
 
 d = {}
 for v in labs:

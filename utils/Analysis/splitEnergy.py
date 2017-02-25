@@ -10,7 +10,7 @@ import getSpecies as gs
 
 parser = argparse.ArgumentParser(description='Read DSMC species file and plot energies for each species')
 parser.add_argument('-t', '--tscale', default=1000.0,  type=float, help='System time units in years')
-parser.add_argument('-T', '--Tmax', default=1000000.0, type=float, help='Maximum time in years')
+parser.add_argument('-T', '--Tmax', default=1.0e32, type=float, help='Maximum time in years')
 parser.add_argument('-l', '--log', default=False, action="store_true", help='Logarithmic energy scale')
 parser.add_argument('tags', nargs='*', help='Files to process')
 
