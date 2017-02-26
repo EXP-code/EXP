@@ -8860,12 +8860,15 @@ void CollideIon::scatterHybrid
     //
     KE.delta = 0.0;
     for (size_t k=0; k<3; k++) {
-      double v01 = vcom[k] + pp->m2/mt*vrel[k] * KE.vfac;
-      double v02 = vcom[k] - pp->m1/mt*vrel[k] * KE.vfac;
+      double v01 = vcom[k] + pp->m2/mt*vrel[k];
+      double v02 = vcom[k] - pp->m1/mt*vrel[k];
 
       KE.delta +=
 	(v01 - (*v1)[k])*(v01 - (*v1)[k]) * qKEfac1 +
 	(v02 - (*v2)[k])*(v02 - (*v2)[k]) * qKEfac2 ;
+
+      v01 = vcom[k] + pp->m2/mt*vrel[k] * KE.vfac;
+      v02 = vcom[k] - pp->m1/mt*vrel[k] * KE.vfac;
 
       (*v1)[k] = c1*(*v1)[k] + q1*v01;
       (*v2)[k] = c2*(*v2)[k] + q2*v02;
