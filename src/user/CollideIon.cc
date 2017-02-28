@@ -6900,6 +6900,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
   typedef std::array<double, 3> Telem;
   std::array<Telem, 3> PE;
+  for (auto & v : PE) v = {};	// Zero initialization
+
 
   // Species keys for pointers before swapping
   //
@@ -7879,8 +7881,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  PE[0][2] = 0.0;
 	}
 
-	KE.delE = KE.delE0 = PE[0][2];
-	collD->addLost(KE.delE, 0.0, id);
+	KE.delE0 = PE[0][1];
+	KE.delE  = PE[0][2];
+
+	collD->addLost(KE.delE0, 0.0, id);
 	if (use_delt>=0) spEdel[id] += KE.delE;
 
 	if (PP[0]->wght)
@@ -8011,8 +8015,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  PE[1][2] = 0.0;
 	}
 	
-	KE.delE = KE.delE0 = PE[1][2];
-	collD->addLost(KE.delE, rcbExtra.first - ionExtra.first, id);
+	KE.delE0 = PE[1][1];
+	KE.delE  = PE[1][2];
+
+	collD->addLost(KE.delE0, rcbExtra.first - ionExtra.first, id);
 	if (use_delt>=0) spEdel[id] += KE.delE;
 	
 	if (PP[1]->wght)
@@ -8195,8 +8201,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  PE[2][2] = 0.0;
 	}
 	
-	KE.delE = KE.delE0 = PE[2][2];
-	collD->addLost(KE.delE, rcbExtra.second - ionExtra.second, id);
+	KE.delE0 = PE[2][1];
+	KE.delE  = PE[2][2];
+
+	collD->addLost(KE.delE0, rcbExtra.second - ionExtra.second, id);
 	if (use_delt>=0) spEdel[id] += KE.delE;
 	
 	if (PP[2]->wght)
@@ -9215,6 +9223,8 @@ void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
 	      << ", #2=" << pp->p2->indx
 	      << std::endl;
   
+  // For debugging only . . .
+  /*
   std::cout << "**INFO in update: "
 	    << ": KEi=" << std::setw(14) << tKEi
 	    << ", KEf=" << std::setw(14) << tKEf
@@ -9227,7 +9237,7 @@ void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
 	    << ", E1e=" << std::setw(18) << pp->end[0].KEw
 	    << ", E2e=" << std::setw(18) << pp->end[1].KEw
 	    << std::endl;
-    
+  */
 }
 
 
@@ -10084,11 +10094,11 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
     if (testKE[id][0] > 0.0) {
 
-      double Cinit  = testKE[id][1] + testKE[id][2];
-      double Einit  = testKE[id][0] - Cinit;
-      double Cfinal = totIon + totElc;
-      double Efinal = totKEf - Cfinal + testKE[id][3];
-      double delE   = Efinal/Einit - 1.0;
+      double Cinit  = testKE[id][1] + testKE[id][2];   // Initial conservation deficits
+      double Einit  = testKE[id][0] - Cinit;           // Initial energy minus deficit
+      double Cfinal = totIon + totElc;                 // Final conservation deficits
+      double Efinal = totKEf - Cfinal + testKE[id][3]; // Final energy minus deficit and loss
+      double delE   = Efinal/Einit - 1.0;	       // Ratio
       
       if (false) {		// Include deferred energy
 	KElost[id][0] += Einit;
@@ -11435,7 +11445,7 @@ double collDiag::addCellElec(pCell* cell, int ue, int id)
 
     if (p->aType == CollideIon::Hybrid) {
       double cnt = 0.0;
-      for (unsigned short C=1; C<Z+1; C++)
+      for (unsigned short C=1; C<=Z; C++)
 	cnt += s->dattrib[p->hybrid_pos+1]*C;
       mass *= cnt;
       Efrc[id] += mass;
@@ -11871,7 +11881,7 @@ void collDiag::print()
 	  << std::setw(12) << misE_s
 	  << std::setw(12) << Edsp_s
 	  << std::setw(12) << Efrc_s/Emas_s
-	  << std::setw(12) << Etot_c + Esum_s + Elos_s + Elec_s - delI_s - delE_s
+	  << std::setw(12) << Etot_c + Ktot_c + Esum_s + Elos_s + Elec_s - delI_s - delE_s
 	  << " |" << std::endl;
     }
   }
