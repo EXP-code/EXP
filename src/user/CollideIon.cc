@@ -242,6 +242,10 @@ bool use_normtest = true;
 //
 const double testDE_tol = 1.0e-7;
 
+// Artificially suppress ion-ion scattering in Hybrid method
+//
+static bool NO_ION_ION          = false;
+
 // Per-species cross-section scale factor for testing
 //
 static std::vector<double> cscl_;
@@ -501,7 +505,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "HybridWeightSwitch"
 	      << (HybridWeightSwitch ? "on" : "off" )   << std::endl
 	      <<  " " << std::setw(20) << std::left << "DBG_NewHybrid"
-	      << (DBG_NewHybrid ? "on" : "off" )           << std::endl
+	      << (DBG_NewHybrid ? "on" : "off" )        << std::endl
+	      <<  " " << std::setw(20) << std::left << "NO_ION_ION"
+	      << (NO_ION_ION ? "on" : "off" )           << std::endl
 	      <<  " " << std::setw(20) << std::left << "ntcDist"
 	      << (ntcDist ? "on" : "off" )              << std::endl
 	      <<  " " << std::setw(20) << std::left << "enforceMOM"
@@ -587,6 +593,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   cellEb   .resize(nthrds, 0);
   dEratg   .resize(nthrds, 0);
   dEratb   .resize(nthrds, 0);
+  Nwght    .resize(nthrds, 0);
+  Njsel    .resize(nthrds, 0);
   Escat    .resize(nthrds);
   Etotl    .resize(nthrds);
   Italy    .resize(nthrds);
@@ -6962,7 +6970,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_ion, qCrit) ) };
 
   bool HWswitch = false;
-  if (HybridWeightSwitch) HWswitch = PP[0]->wght and PP[1]->wght and PP[2]->wght;
+  if (HybridWeightSwitch) {
+    HWswitch = PP[0]->wght and PP[1]->wght and PP[2]->wght;
+    Nwght[id]++;
+  } else {
+    Njsel[id]++;
+  }
 
   // Sanity check
   //
@@ -7812,9 +7825,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     //
     double Pr = (*unit)();
     unsigned short J = 2;
-    if      (Pr < PE[0][0]) J = 0;
-    else if (Pr < PE[1][0]) J = 1;
-
+    if (NO_ION_ION) {
+      double tst = PE[1][0]/(PE[1][0]+PE[2][0]);
+      if (Pr < tst) J = 1;
+    } else {
+      if      (Pr < PE[0][0]) J = 0;
+      else if (Pr < PE[1][0]) J = 1;
+    }
     Jsav = J;
 
     //
@@ -14317,8 +14334,9 @@ void CollideIon::gatherSpecies()
     TypeMap1 totu;
     TypeMap2 totd;
     std::map<int, TypeMap2> taly;
-    std::array<double, 3> Etots {0, 0, 0};
-    std::array<double, 3> Vtots {0, 0, 0};
+    std::array<double, 3>   Etots {0, 0, 0};
+    std::array<double, 3>   Vtots {0, 0, 0};
+    std::array<unsigned, 2> Ntot  {0, 0}, NT;
 
     for (int t=0; t<nthrds; t++) {
       for (auto v : Escat[t]) scat[v.first] += v.second;
@@ -14337,6 +14355,7 @@ void CollideIon::gatherSpecies()
       for (auto v : Vdiag) {
 	for (size_t k=0; k<3; k++) Vtots[k] += v[k];
       }
+      Ntot += {Nwght[t], Njsel[t]};
     }
     
     // Send to root node
@@ -14396,6 +14415,8 @@ void CollideIon::gatherSpecies()
 	MPI_Send(&DD,                  1, MPI_DOUBLE,   0, 576, MPI_COMM_WORLD);
 	DD = std::get<2>(Vtots);
 	MPI_Send(&DD,                  1, MPI_DOUBLE,   0, 577, MPI_COMM_WORLD);
+
+	MPI_Send(&Ntot[0],             2, MPI_UNSIGNED, 0, 578, MPI_COMM_WORLD);
       }
 
       if (myid==0) {
@@ -14451,6 +14472,9 @@ void CollideIon::gatherSpecies()
 	std::get<1>(Vtots) += DD;
 	MPI_Recv(&DD,      1, MPI_DOUBLE,   i, 577, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	std::get<2>(Vtots) += DD;
+
+	MPI_Recv(&NT[0],   2, MPI_UNSIGNED, i, 578, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	Ntot += NT;
       }
     }
     
@@ -14657,6 +14681,12 @@ void CollideIon::gatherSpecies()
 		  << std::endl << "Total P  = "
 		  << std::setw(14) << Vtots[0] << std::endl;
       }
+
+      std::cout << "Nwght = " << std::setw(12) << Ntot[0] << std::endl
+		<< "Njsum = " << std::setw(12) << Ntot[1] << std::endl;
+      unsigned Nsum = Ntot[0] + Ntot[1];
+      if (Nsum) std::cout << "Ratio = "	<< std::setw(12)
+			  << static_cast<double>(Ntot[0])/Nsum << std::endl;
     }
 
     // Clear the counters
@@ -14669,6 +14699,7 @@ void CollideIon::gatherSpecies()
       for (auto & v : Italy[t]) v.second.clear();
       for (auto & v : Ediag[t]) v = 0.0;
       for (auto & v : Vdiag[t]) v = 0.0;
+      Nwght[t] = Njsel[t] = 0;
     }
   }
 
@@ -16292,6 +16323,9 @@ void CollideIon::processConfig()
 
     DBG_NewHybrid =
       cfg.entry<bool>("DBG_HYBRID", "Verbose debugging of energy conservation for Hybrid method", false);
+
+    NO_ION_ION =
+      cfg.entry<bool>("NO_ION_ION", "Artificially suppress the ion-ion scattering in the Hybrid method", false);
 
     use_spectrum =
       cfg.entry<bool>("Spectrum", "Tabulate emission spectrum.  Use log scale if min > 0.0 and wvlSpect is false", false);

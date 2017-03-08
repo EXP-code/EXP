@@ -482,6 +482,7 @@ private:
   std::vector< double >                              spCrm, spTau, spProb, spEdel;
   std::vector< unsigned >                            spNsel, elecCnt, spNcol;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot, testCnt;
+  std::vector< unsigned >                            Nwght, Njsel;
   std::vector< TypeMap0 >                            Escat, Etotl;
   std::vector< TypeMap1 >                            TotlU;
   std::vector< TypeMap2 >                            TotlD;
