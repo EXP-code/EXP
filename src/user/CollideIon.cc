@@ -242,6 +242,10 @@ bool use_normtest = true;
 //
 const double testDE_tol = 1.0e-7;
 
+// Artificially suppress ion-ion scattering in Hybrid method
+//
+static bool NO_ION_ION          = false;
+
 // Per-species cross-section scale factor for testing
 //
 static std::vector<double> cscl_;
@@ -501,7 +505,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "HybridWeightSwitch"
 	      << (HybridWeightSwitch ? "on" : "off" )   << std::endl
 	      <<  " " << std::setw(20) << std::left << "DBG_NewHybrid"
-	      << (DBG_NewHybrid ? "on" : "off" )           << std::endl
+	      << (DBG_NewHybrid ? "on" : "off" )        << std::endl
+	      <<  " " << std::setw(20) << std::left << "NO_ION_ION"
+	      << (NO_ION_ION ? "on" : "off" )           << std::endl
 	      <<  " " << std::setw(20) << std::left << "ntcDist"
 	      << (ntcDist ? "on" : "off" )              << std::endl
 	      <<  " " << std::setw(20) << std::left << "enforceMOM"
@@ -587,6 +593,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   cellEb   .resize(nthrds, 0);
   dEratg   .resize(nthrds, 0);
   dEratb   .resize(nthrds, 0);
+  Nwght    .resize(nthrds, 0);
+  Njsel    .resize(nthrds, 0);
   Escat    .resize(nthrds);
   Etotl    .resize(nthrds);
   Italy    .resize(nthrds);
@@ -6811,48 +6819,6 @@ CollideIon::energyInPairPartial(Particle *p1, Particle *p2, HybridColl iType,
   return ret;
 }
 
-// A class for debugging energy conservation
-//
-class EkEcheck
-{
-private:
-  size_t n;
-  static double tol;
-
-public:
-  double EkEbeg, EkEend, lastdel, offset, ioffst;
-
-  EkEcheck(Particle* p1, Particle *p2, size_t n) :
-    n(n), lastdel(0.0), offset(0.0), ioffst(0.0)
-  {
-    EkEbeg = p1->dattrib[n] + p2->dattrib[n];
-    EkEend = 0.0;
-  }
-
-  void operator()(Particle* p1, Particle *p2, double del=0.0, double off=0.0, double ioff=0.0)
-  {
-    offset += off;
-    ioffst += ioff;
-    EkEend = p1->dattrib[n] + p2->dattrib[n];
-    double Em = std::max<double>(fabs(EkEbeg), fabs(EkEend));
-    if (fabs(EkEend + offset - EkEbeg - del) > tol*Em) {
-      std::cout << "**ERROR: KE change: " << EkEbeg - EkEend - del
-		<< " [" << EkEbeg << ", " << EkEend
-		<< ", " << del << ", " << offset << "]"
-		<< std::endl;
-    } else {
-      if (DBG_NewHybrid)
-	std::cout << "**GOOD: KE change: " << EkEbeg - EkEend - del
-		  << " [" << EkEbeg << ", " << EkEend
-		  << ", " << del << ", " << offset << "]"
-		  << std::endl;
-    }
-    lastdel = del;
-  }
-};
-
-double EkEcheck::tol = 1.0e-12;
-
 void CollideIon::checkProb(int id, bool norm, double tot)
 {
   std::array<double, 3> DProb;
@@ -6940,8 +6906,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   Particle* p1    = _p1;	// Copy pointers for swapping, if
   Particle* p2    = _p2;	// necessary
 
-  typedef std::pair<double, double> Telem;
+  typedef std::array<double, 3> Telem;
   std::array<Telem, 3> PE;
+  for (auto & v : PE) v = {};	// Zero initialization
+
 
   // Species keys for pointers before swapping
   //
@@ -7002,7 +6970,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_ion, qCrit) ) };
 
   bool HWswitch = false;
-  if (HybridWeightSwitch) HWswitch = PP[0]->wght and PP[1]->wght and PP[2]->wght;
+  if (HybridWeightSwitch) {
+    HWswitch = PP[0]->wght and PP[1]->wght and PP[2]->wght;
+    Nwght[id]++;
+  } else {
+    Njsel[id]++;
+  }
 
   // Sanity check
   //
@@ -7183,7 +7156,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	ctd2->nn[id][0] += Prob;
 	ctd2->nn[id][1] += NN;
 	
-	PE[0].first += Prob;
+	PE[0][0] += Prob;
       }
 
       if (interFlag == neut_elec) {
@@ -7191,11 +7164,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	if (I1.first == Interact::electron) {
 	  ctd2->ne[id][0] += Prob;
 	  ctd2->ne[id][1] += NN;
-	  PE[2].first += Prob;
+	  PE[2][0] += Prob;
 	} else {
 	  ctd1->ne[id][0] += Prob;
 	  ctd1->ne[id][1] += NN;
-	  PE[1].first += Prob;
+	  PE[1][0] += Prob;
 	}
 
       }
@@ -7209,18 +7182,18 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  ctd1->np[id][0] += Prob;
 	  ctd1->np[id][1] += NN;
 	}
-	PE[0].first += Prob;
+	PE[0][0] += Prob;
       }
 
       if (interFlag == ion_elec) {
 	if (I1.first == Interact::electron) {
 	  ctd2->ie[id][0] += Prob;
 	  ctd2->ie[id][1] += NN;
-	  PE[2].first += Prob;
+	  PE[2][0] += Prob;
 	} else {
 	  ctd1->ie[id][0] += Prob;
 	  ctd1->ie[id][1] += NN;
-	  PE[1].first += Prob;
+	  PE[1][0] += Prob;
 	}
 
 	//* BEGIN DEEP DEBUG *//
@@ -7706,10 +7679,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
       double Escl = N0 * eV/UserTreeDSMC::Eunit;
 
-      if (PE[1].first>0.0) {
+      if (PE[1][0]>0.0) {
 	ctd1->dv[id][0] += Prob;
 	ctd1->dv[id][1] += PP[1]->W2 * Prob;
-	if (not NOCOOL) ctd1->dv[id][2] += PP[1]->W2 * PE[1].second;
+	if (not NOCOOL) ctd1->dv[id][2] += PP[1]->W2 * PE[1][1];
 	if (scatter_check) {
 	  double m1 = atomic_weights[Z1];
 	  double m2 = atomic_weights[ 0];
@@ -7727,7 +7700,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
       }
       
-      if (PE[0].first>0.0) {
+      if (PE[0][0]>0.0) {
 	if (scatter_check) {
 	  double m1 = atomic_weights[Z1];
 	  double m2 = atomic_weights[Z2];
@@ -7745,10 +7718,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
       }
       
-      if (PE[2].first>0.0) {
+      if (PE[2][0]>0.0) {
 	ctd2->dv[id][0] += Prob;
 	ctd2->dv[id][1] += PP[2]->W2 * Prob;
-	if (not NOCOOL) ctd2->dv[id][2] += PP[2]->W2 * PE[2].second;
+	if (not NOCOOL) ctd2->dv[id][2] += PP[2]->W2 * PE[2][1];
 	if (scatter_check) {
 	  double m1 = atomic_weights[0];
 	  double m2 = atomic_weights[Z2];
@@ -7789,12 +7762,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   //
   for (size_t cid=0; cid<3; cid++) {
     double N0 = PP[cid]->W2 * UserTreeDSMC::Munit / amu;
-    PE[cid].second *= N0;
+    PE[cid][1] *= N0;
   }
 
   // Convert back to cgs
   //
-  for (auto & v : PE) v.second *= eV;
+  for (auto & v : PE) v[1] *= eV;
 
   // Debugging test
   //
@@ -7808,20 +7781,20 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // the COM frame to zero
   //
   if (NOCOOL) {
-    for (auto & v : PE) v.second = 0.0;
+    for (auto & v : PE) v[1] = 0.0;
   }
 
   // Convert energy loss to system units
   //
-  for (auto & v : PE) v.second /= UserTreeDSMC::Eunit;
+  for (auto & v : PE) v[1] /= UserTreeDSMC::Eunit;
 
   // Normalize probabilities and sum inelastic energy changes
   //
   double probTot = 0.0;
-  for (auto & v : PE) probTot += v.first;
+  for (auto & v : PE) probTot += v[0];
 
   if (probTot > 0.0) {
-    for (auto & v : PE) v.first /= probTot;
+    for (auto & v : PE) v[0] /= probTot;
   }
 
   //
@@ -7840,9 +7813,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   }
 
   unsigned short Jsav = 255;
-
+  KE_ KE;
   double PPsav1 = 0.0, PPsav2 = 0.0;
-  EkEcheck EkE(p1, p2, use_elec+3);
 
   //
   // Perform the electronic interactions
@@ -7853,9 +7825,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     //
     double Pr = (*unit)();
     unsigned short J = 2;
-    if      (Pr < PE[0].first) J = 0;
-    else if (Pr < PE[1].first) J = 1;
-
+    if (NO_ION_ION) {
+      double tst = PE[1][0]/(PE[1][0]+PE[2][0]);
+      if (Pr < tst) J = 1;
+    } else {
+      if      (Pr < PE[0][0]) J = 0;
+      else if (Pr < PE[1][0]) J = 1;
+    }
     Jsav = J;
 
     //
@@ -7865,8 +7841,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
       PP[0]->update();
       PP[0]->eUpdate();
-
-      EkE(p1, p2);
 
       if (not PP[0]->wght) KEcheck(PP[0], KE_initl_check, ionExtra, rcbExtra);
 
@@ -7900,51 +7874,42 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       // Only do interaction if both particles have pos ke (i.e. they
       // are moving)
       //
-      KE_ KE;
 
-      EkE(p1, p2, KE.defer);
+      PE[0][2] = PE[0][1];
 
       if (ke1 > 0.0 and ke2 > 0.0) {
 
 	if (Z1 == Z2 or ALWAYS_APPLY) {
-	  double DE1 = PE[0].first * p1->dattrib[use_cons];
-	  double DE2 = PE[0].first * p2->dattrib[use_cons];
+	  double DE1 = PE[0][0] * p1->dattrib[use_cons];
+	  double DE2 = PE[0][0] * p2->dattrib[use_cons];
 	  p1->dattrib[use_cons] -= DE1;
 	  p2->dattrib[use_cons] -= DE2;
 	  clrE[id] -= DE1 + DE2;
-	  PE[0].second += DE1 + DE2;
-
-	  EkE(p1, p2, KE.defer, 0.0, DE1+DE2);
+	  PE[0][2] += DE1 + DE2;
 	} else {
 	  if (W1 < W2) {
-	    p2->dattrib[use_cons] += PE[0].second;
-	    PPsav2 += PE[0].second;
+	    p2->dattrib[use_cons] += PE[0][1];
+	    PPsav2 += PE[0][1];
 	  } else {
-	    p1->dattrib[use_cons] += PE[0].second;
-	    PPsav1 += PE[0].second;
+	    p1->dattrib[use_cons] += PE[0][1];
+	    PPsav1 += PE[0][1];
 	  }
 
-	  PE[0].second = 0.0;
-
-	  EkE(p1, p2, KE.defer);
+	  PE[0][2] = 0.0;
 	}
 
-	EkE(p1, p2, KE.defer);
+	KE.delE0 = PE[0][1];
+	KE.delE  = PE[0][2];
 
-	KE.delE = KE.delE0 = PE[0].second;
-	collD->addLost(KE.delE, id);
+	collD->addLost(KE.delE0, 0.0, id);
 	if (use_delt>=0) spEdel[id] += KE.delE;
 
 	if (PP[0]->wght)
-	  scatterHybrid(PE[0].first, PP[0], KE, &v1, &v2, id);
+	  scatterHybrid(PE[0][0], PP[0], KE, &v1, &v2, id);
 	else
 	  scatterHybrid(1, PP[0], KE, &v1, &v2, id);
 
-	EkE(p1, p2, KE.defer);
-
 	checkEnergyHybrid(PP[0], KE, &v1, &v2, Neutral, id);
-
-	EkE(p1, p2, KE.defer);
 
 	if (KE_DEBUG) testCnt[id]++;
 
@@ -7960,14 +7925,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
       }
 
-      EkE(p1, p2, KE.defer);
-
       updateEnergyHybrid(PP[0], KE);
 
-      EkE(p1, p2, KE.defer);
-
-      testKE[id][3] += KE.delE + PPsav1 + PPsav2;
-      testKE[id][4] += KE.delE0;
+      testKE[id][3] += PE[0][1];
+      testKE[id][4] += PE[0][1];
 
       if (KE_DEBUG) {
 
@@ -8022,8 +7983,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       PP[1]->update();
       PP[1]->eUpdate();
 
-      EkE(p1, p2);
-
       if (not PP[1]->wght) KEcheck(PP[1], KE_initl_check, ionExtra, rcbExtra);
 
       std::pair<double, double> KEinit = energyInPairPartial(p1, p2, Ion1);
@@ -8050,51 +8009,41 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  ke2i  += v2[k] * v2[k];
       }
       
-      KE_ KE;
+      PE[1][2] = PE[1][1];
 
       if (ke1i > 0.0 and ke2i > 0.0) {
 	
-	EkE(p1, p2, KE.defer);
-
 	if (Z1 == Z2 or ALWAYS_APPLY) {
-	  double DE1 = PE[1].first * p1->dattrib[use_cons];
-	  double DE2 = PE[1].first * p2->dattrib[use_elec+3];
+	  double DE1 = PE[1][0] * p1->dattrib[use_cons];
+	  double DE2 = PE[1][0] * p2->dattrib[use_elec+3];
 	  p1->dattrib[use_cons]   -= DE1;
 	  p2->dattrib[use_elec+3] -= DE2;
 	  clrE[id] -= DE1 + DE2;
-	  PE[1].second += DE1 + DE2;
-
-	  EkE(p1, p2, KE.defer, DE2, DE1);
+	  PE[1][2] += DE1 + DE2;
 	} else {
 	  if (W1 < W2) {
-	    p2->dattrib[use_cons] += PE[1].second;
-	    PPsav2 += PE[1].second;
+	    p2->dattrib[use_cons] += PE[1][1];
+	    PPsav2 += PE[1][1];
 	  } else {
-	    p1->dattrib[use_cons] += PE[1].second;
-	    PPsav1 += PE[1].second;
+	    p1->dattrib[use_cons] += PE[1][1];
+	    PPsav1 += PE[1][1];
 	  }
 	  
-	  PE[1].second = 0.0;
-
-	  EkE(p1, p2, KE.defer);
+	  PE[1][2] = 0.0;
 	}
 	
-	EkE(p1, p2, KE.defer);
+	KE.delE0 = PE[1][1];
+	KE.delE  = PE[1][2];
 
-	KE.delE = KE.delE0 = PE[1].second;
-	collD->addLost(KE.delE, id);
+	collD->addLost(KE.delE0, rcbExtra.first - ionExtra.first, id);
 	if (use_delt>=0) spEdel[id] += KE.delE;
 	
 	if (PP[1]->wght)
-	  scatterHybrid(PE[1].first, PP[1], KE, &v1, &v2, id);
+	  scatterHybrid(PE[1][0], PP[1], KE, &v1, &v2, id);
 	else
 	  scatterHybrid(1, PP[1], KE, &v1, &v2, id);
 
-	EkE(p1, p2, KE.defer);
-
 	checkEnergyHybrid(PP[1], KE, &v1, &v2, Ion1, id);
-
-	EkE(p1, p2, KE.defer);
 
 	if (KE_DEBUG) testCnt[id]++;
 	
@@ -8109,14 +8058,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  p2->dattrib[use_elec+k] = v2[k];
 	}
 	
-	EkE(p1, p2, KE.defer);
-
 	updateEnergyHybrid(PP[1], KE);
 
-	EkE(p1, p2, KE.defer);
-
-	testKE[id][3] += KE.delE - ionExtra.first + rcbExtra.first + PPsav1 + PPsav2;
-	testKE[id][4] += KE.delE0;
+	testKE[id][3] += PE[1][1] - ionExtra.first + rcbExtra.first;
+	testKE[id][4] += PE[1][1];
 
 	if (KE_DEBUG) {
 
@@ -8225,8 +8170,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
       if (not PP[2]->wght) KEcheck(PP[2], KE_initl_check, ionExtra, rcbExtra);
 
-      EkE(p1, p2);
-
       if (DBG_NewHybrid) {
 	if (PP[2]->swap)
 	  std::cout << std::setprecision(14) << std::scientific
@@ -8252,55 +8195,42 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	ke2i  += v2[k] * v2[k];
       }
 
-      KE_ KE;
+      PE[2][2] = PE[2][1];
 
       if (ke1i > 0.0 and ke2i > 0.0) {
 	
-	EkE(p1, p2, KE.defer);
-
 	if (Z1 == Z2 or ALWAYS_APPLY) {
-	  double DE1 = PE[2].first * p1->dattrib[use_elec+3];
-	  double DE2 = PE[2].first * p2->dattrib[use_cons];
+	  double DE1 = PE[2][0] * p1->dattrib[use_elec+3];
+	  double DE2 = PE[2][0] * p2->dattrib[use_cons];
 	  p1->dattrib[use_elec+3] -= DE1;
 	  p2->dattrib[use_cons]   -= DE2;
 	  clrE[id] -= DE1 + DE2;
-	  PE[2].second += DE1 + DE2;
-
-	  EkE(p1, p2, KE.defer, DE1, DE2);
-
+	  PE[2][2] += DE1 + DE2;
 	} else {
 	  if (W1 < W2) {
-	    p2->dattrib[use_cons] += PE[2].second;
-	    PPsav2 += PE[2].second;
+	    p2->dattrib[use_cons] += PE[2][1];
+	    PPsav2 += PE[2][1];
 	  } else {
-	    p1->dattrib[use_cons] += PE[2].second;
-	    PPsav1 += PE[2].second;
+	    p1->dattrib[use_cons] += PE[2][1];
+	    PPsav1 += PE[2][1];
 	  }
 	  
-	  PE[2].second = 0.0;
-
-	  EkE(p1, p2, KE.defer);
+	  PE[2][2] = 0.0;
 	}
 	
-	EkE(p1, p2, KE.defer);
+	KE.delE0 = PE[2][1];
+	KE.delE  = PE[2][2];
 
-	KE.delE = PE[2].second;
-	collD->addLost(KE.delE, id);
+	collD->addLost(KE.delE0, rcbExtra.second - ionExtra.second, id);
 	if (use_delt>=0) spEdel[id] += KE.delE;
 	
-	EkE(p1, p2, KE.defer);
-
 	if (PP[2]->wght)
-	  scatterHybrid(PE[2].first, PP[2], KE, &v1, &v2, id);
+	  scatterHybrid(PE[2][0], PP[2], KE, &v1, &v2, id);
 	else
 	  scatterHybrid(1, PP[2], KE, &v1, &v2, id);
 
-	EkE(p1, p2, KE.defer);
-
 	checkEnergyHybrid(PP[2], KE, &v1, &v2, Ion2, id);
 	
-	EkE(p1, p2, KE.defer);
-
 	if (KE_DEBUG) testCnt[id]++;
 	
 	if (scatter_check and maxInterFlag>=0) {
@@ -8314,14 +8244,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  p2->vel[k] = v2[k];
 	}
       
-	EkE(p1, p2, KE.defer);
-
 	updateEnergyHybrid(PP[2], KE);
 
-	EkE(p1, p2, KE.defer);
-
-	testKE[id][3] += KE.delE - ionExtra.second + rcbExtra.second + PPsav1 + PPsav2;
-	testKE[id][4] += KE.delE;
+	testKE[id][3] += PE[2][1] - ionExtra.second + rcbExtra.second;
+	testKE[id][4] += PE[2][1];
 
 	if (KE_DEBUG) {
 
@@ -8419,7 +8345,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     // Scatter tally for debugging
     //
     if (scatter_check) {
-      for (size_t k=0; k<3; k++) TotlD[id][Z1*100+Z2][k] += PE[k].first;
+      for (size_t k=0; k<3; k++) TotlD[id][Z1*100+Z2][k] += PE[k][0];
     }
 
   } // END: interactions with atoms AND electrons
@@ -8442,7 +8368,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   }
 
   if (scatter_check) {
-    if (PE[0].first>0.0) {
+    if (PE[0][0]>0.0) {
       double vi = 0.0;
       for (size_t k=0; k<3; k++) {
 	double vrel = p1->vel[k] - p2->vel[k];
@@ -8454,12 +8380,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       double mu = m1 * m2/(m1 + m2);
       double kE = 0.5*W1*PP[0]->q*mu*vi;
 
-      Ediag[id][0] += PE[0].second;
-      Ediag[id][1] += kE * PE[0].first;
-      Ediag[id][2] += PE[0].first;
+      Ediag[id][0] += PE[0][2];
+      Ediag[id][1] += kE * PE[0][0];
+      Ediag[id][2] += PE[0][0];
     }
 
-    if (PE[1].first>0.0) {
+    if (PE[1][0]>0.0) {
       double vi = 0.0;
       for (size_t k=0; k<3; k++) {
 	double vrel = p1->vel[k] - p2->dattrib[use_elec+k];
@@ -8471,12 +8397,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       double mu = m1 * m2/(m1 + m2);
       double kE = 0.5*W1*PP[1]->q*mu*vi;
 
-      Ediag[id][0] += PE[1].second;
-      Ediag[id][1] += kE * PE[1].first;
-      Ediag[id][2] += PE[1].first;
+      Ediag[id][0] += PE[1][2];
+      Ediag[id][1] += kE * PE[1][0];
+      Ediag[id][2] += PE[1][0];
     }
 
-    if (PE[2].first>0.0) {
+    if (PE[2][0]>0.0) {
       double vi = 0.0;
       for (size_t k=0; k<3; k++) {
 	double vrel = p2->vel[k] - p1->dattrib[use_elec+k];
@@ -8488,9 +8414,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       double mu = m1 * m2/(m1 + m2);
       double kE = 0.5*W1*PP[2]->q*mu*vi;
 
-      Ediag[id][0] += PE[2].second;
-      Ediag[id][1] += kE * PE[2].first;
-      Ediag[id][2] += PE[2].first;
+      Ediag[id][0] += PE[2][2];
+      Ediag[id][1] += kE * PE[2][0];
+      Ediag[id][2] += PE[2][0];
     }
 
   }
@@ -8501,6 +8427,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   }
 
   // Debug energy conservation
+  // -------------------------
+  // After the step, the energy of a single pair may have changed in
+  // the following ways:
+  // + Energy lost to the internal state or radiated
+  // + Energy change owing to change in ionization state
+  // + Deferred energy applied to the center-of-mass interaction
   //
   if (KE_DEBUG) {
     double KE_final_check = energyInPair(p1, p2);
@@ -8518,15 +8450,14 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     double KEinitl = KE_initl_check;
     double KEfinal = KE_final_check;
     double delE1   = KEinitl - KEfinal - deltaSum - delEsum + delEmis + delEdfr;
-    double delE2   = KEinitl - KEfinal - dConSum - delEsum
-      - PPsav1 - PPsav2 + EkE.offset + EkE.ioffst - EconsUpI - EconsUpE;
+    double delE2   = KEinitl - KEfinal - deltaSum - dConSum - delEsum - PPsav1 - PPsav2 - EconsUpI - EconsUpE;
+    double delE3   = KEinitl - KEfinal - dConSum - PE[Jsav][1] - delEfnl;
 
-    testKE[id][3] += EconsUpI + EconsUpE;
-
-    if (fabs(delE2) > tolE*KE_initl_check) {
+    if (fabs(delE3) > tolE*KE_initl_check) {
       std::cout << "**ERROR inelasticHybrid dE = " << delE1 << ", " << delE2
 		<< ", rel1 = " << delE1/KE_initl_check
 		<< ", rel2 = " << delE2/KE_initl_check
+		<< ", rel3 = " << delE3/KE_initl_check
 		<< ",  dKE = " << KEinitl - KEfinal
 		<< ", dCn1 = " << dCons[0]
 		<< ", dCn2 = " << dCons[1]
@@ -8860,12 +8791,15 @@ void CollideIon::scatterHybrid
     //
     KE.delta = 0.0;
     for (size_t k=0; k<3; k++) {
-      double v01 = vcom[k] + pp->m2/mt*vrel[k] * KE.vfac;
-      double v02 = vcom[k] - pp->m1/mt*vrel[k] * KE.vfac;
+      double v01 = vcom[k] + pp->m2/mt*vrel[k];
+      double v02 = vcom[k] - pp->m1/mt*vrel[k];
 
       KE.delta +=
 	(v01 - (*v1)[k])*(v01 - (*v1)[k]) * qKEfac1 +
 	(v02 - (*v2)[k])*(v02 - (*v2)[k]) * qKEfac2 ;
+
+      v01 = vcom[k] + pp->m2/mt*vrel[k] * KE.vfac;
+      v02 = vcom[k] - pp->m1/mt*vrel[k] * KE.vfac;
 
       (*v1)[k] = c1*(*v1)[k] + q1*v01;
       (*v2)[k] = c2*(*v2)[k] + q2*v02;
@@ -9056,15 +8990,15 @@ void CollideIon::checkEnergyHybrid
   //
   if (equal and KE.delta>0.0) {
     if (pp->P == Pord::ion_ion) {
-      pp->E1[0] += KE.delta * 0.5;
-      pp->E2[0] += KE.delta * 0.5;
+      pp->E1[0] -= KE.delta * 0.5;
+      pp->E2[0] -= KE.delta * 0.5;
     } else {
       if (swap) {
-	pp->E1[1] += KE.delta * 0.5;
-	pp->E2[0] += KE.delta * 0.5;
+	pp->E1[1] -= KE.delta * 0.5;
+	pp->E2[0] -= KE.delta * 0.5;
       } else {
-	pp->E1[0] += KE.delta * 0.5;
-	pp->E2[1] += KE.delta * 0.5;
+	pp->E1[0] -= KE.delta * 0.5;
+	pp->E2[1] -= KE.delta * 0.5;
       }
     }
   }
@@ -9072,11 +9006,46 @@ void CollideIon::checkEnergyHybrid
   if (not equal) {
     if (TRACE_ELEC) {
       if (swap) {
-	pp->E1[1] += KE.delta * TRACE_FRAC;
-	pp->E2[0] += KE.delta * (1.0 - TRACE_FRAC);
+	pp->E1[1] -= KE.delta * TRACE_FRAC;
+	pp->E2[0] -= KE.delta * (1.0 - TRACE_FRAC);
       } else {
-	pp->E1[0] += KE.delta * (1.0 - TRACE_FRAC);
-	pp->E2[1] += KE.delta * TRACE_FRAC;
+	pp->E1[0] -= KE.delta * (1.0 - TRACE_FRAC);
+	pp->E2[1] -= KE.delta * TRACE_FRAC;
+      }
+    } else {
+
+      if (pp->P == Pord::ion_ion) {
+	if (pp->w1 > pp->w2)
+	  pp->E1[0] -= KE.delta;
+	else
+	  pp->E2[0] -= KE.delta;
+      }
+      else if (pp->P == Pord::ion_electron) {
+	if (pp->swap) {
+	  if (pp->w1 > pp->w2)
+	    pp->E1[1] -= KE.delta;
+	  else
+	    pp->E2[0] -= KE.delta;
+	} else {
+	  if (pp->w1 > pp->w2)
+	    pp->E1[0] -= KE.delta;
+	  else
+	    pp->E2[1] -= KE.delta;
+	}
+
+      }
+      else  {
+	if (pp->swap) {
+	  if (pp->w1 > pp->w2)
+	    pp->E1[0] -= KE.delta;
+	  else
+	    pp->E2[1] -= KE.delta;
+	} else {
+	  if (pp->w1 > pp->w2)
+	    pp->E1[1] -= KE.delta;
+	  else
+	    pp->E2[0] -= KE.delta;
+	}
       }
     }
   }
@@ -9239,7 +9208,7 @@ void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
 
   // Kinetic energy balance
   //
-  double testE = tKEi - tKEf - KE.delE;
+  double testE = tKEi - tKEf - KE.delta - KE.delE;
 
   // For energy conservation checking
   //
@@ -9270,6 +9239,22 @@ void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
 	      << ", #1=" << pp->p1->indx
 	      << ", #2=" << pp->p2->indx
 	      << std::endl;
+  
+  // For debugging only . . .
+  /*
+  std::cout << "**INFO in update: "
+	    << ": KEi=" << std::setw(14) << tKEi
+	    << ", KEf=" << std::setw(14) << tKEf
+	    << ", eta=" << std::setw(14) << eta << std::setprecision(10)
+	    << ", del=" << std::setw(14) << testE
+	    << ", mom=" << std::setw(14) << KE.delta
+	    << ", los=" << std::setw(14) << KE.delE
+	    << ", E1i=" << std::setw(18) << pp->end[0].KEi
+	    << ", E2i=" << std::setw(18) << pp->end[1].KEi
+	    << ", E1e=" << std::setw(18) << pp->end[0].KEw
+	    << ", E2e=" << std::setw(18) << pp->end[1].KEw
+	    << std::endl;
+  */
 }
 
 
@@ -10126,11 +10111,11 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
     if (testKE[id][0] > 0.0) {
 
-      double Cinit  = testKE[id][1] + testKE[id][2];
-      double Einit  = testKE[id][0] - Cinit;
-      double Cfinal = totIon + totElc;
-      double Efinal = totKEf - Cfinal + testKE[id][3] + clrE[id];
-      double delE   = Efinal/Einit - 1.0;
+      double Cinit  = testKE[id][1] + testKE[id][2];   // Initial conservation deficits
+      double Einit  = testKE[id][0] - Cinit;           // Initial energy minus deficit
+      double Cfinal = totIon + totElc;                 // Final conservation deficits
+      double Efinal = totKEf - Cfinal + testKE[id][3]; // Final energy minus deficit and loss
+      double delE   = Efinal/Einit - 1.0;	       // Ratio
       
       if (false) {		// Include deferred energy
 	KElost[id][0] += Einit;
@@ -11445,6 +11430,7 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
 
   Esum.resize(nthrds, 0.0);
   Elos.resize(nthrds, 0.0);
+  Klos.resize(nthrds, 0.0);
   Elec.resize(nthrds, 0.0);
   Edsp.resize(nthrds, 0.0);
   Efrc.resize(nthrds, 0.0);
@@ -11455,6 +11441,7 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
   clrE.resize(nthrds, 0.0);
   misE.resize(nthrds, 0.0);
   Etot_c = 0.0;
+  Ktot_c = 0.0;
 
   // Initialize the output file
   //
@@ -11475,7 +11462,7 @@ double collDiag::addCellElec(pCell* cell, int ue, int id)
 
     if (p->aType == CollideIon::Hybrid) {
       double cnt = 0.0;
-      for (unsigned short C=1; C<Z+1; C++)
+      for (unsigned short C=1; C<=Z; C++)
 	cnt += s->dattrib[p->hybrid_pos+1]*C;
       mass *= cnt;
       Efrc[id] += mass;
@@ -11553,6 +11540,7 @@ void collDiag::gather()
 
   Esum_s = std::accumulate(Esum.begin(), Esum.end(), 0.0);
   Elos_s = std::accumulate(Elos.begin(), Elos.end(), 0.0);
+  Klos_s = std::accumulate(Klos.begin(), Klos.end(), 0.0);
   Elec_s = std::accumulate(Elec.begin(), Elec.end(), 0.0);
   Epot_s = std::accumulate(Epot.begin(), Epot.end(), 0.0);
   Edsp_s = std::accumulate(Edsp.begin(), Edsp.end(), 0.0);
@@ -11567,6 +11555,7 @@ void collDiag::gather()
 
   MPI_Reduce(&(z=Esum_s), &Esum_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(z=Elos_s), &Elos_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=Klos_s), &Klos_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(z=Elec_s), &Elec_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(z=Epot_s), &Epot_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(z=Edsp_s), &Edsp_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -11642,6 +11631,8 @@ void collDiag::initialize()
 	    << "# d(KE)         mean energy change       " << std::endl
 	    << "# Elost         total energy loss        " << std::endl
 	    << "# ElosC         cumulative energy loss   " << std::endl
+	    << "# Klost         kinetic energy (KE) loss " << std::endl
+	    << "# KlosC         cumulative KE loss       " << std::endl
 	    << "# EkeI          ion kinetic energy       " << std::endl
 	    << "# EkeE          electron kinetic energy  " << std::endl
 	    << "# PotI          ion potential energy     " << std::endl
@@ -11664,7 +11655,7 @@ void collDiag::initialize()
 	  sout2 << std::setw((w-l)/2) << ' ' << sout.str();
 	  out   << std::setw(w) << sout2.str() << " | ";
 	}
-	out << std::setw(12*12) << ' ' << " |" << std::endl;
+	out << std::setw(14*12) << ' ' << " |" << std::endl;
 
 	// Header line
 	//
@@ -11675,7 +11666,7 @@ void collDiag::initialize()
 	  for (int i=0; i<17; i++) out << std::setw(12) << '+';
 	  out << " | ";
 	}
-	for (int i=0; i<12; i++)  out << std::setw(12) << '+';
+	for (int i=0; i<14; i++)  out << std::setw(12) << '+';
 	out << " |" << std::setfill(' ') << std::endl;
 
 	// Column labels
@@ -11706,6 +11697,8 @@ void collDiag::initialize()
 	}
 	out << std::setw(12) << "Elost |"
 	    << std::setw(12) << "ElosC |"
+	    << std::setw(12) << "Klost |"
+	    << std::setw(12) << "KlosC |"
 	    << std::setw(12) << "EkeI  |"
 	    << std::setw(12) << "EkeE  |"
 	    << std::setw(12) << "PotI  |"
@@ -11738,7 +11731,7 @@ void collDiag::initialize()
 	  }
 	  out << " | ";
 	}
-	for (size_t l=0; l<12; l++) {
+	for (size_t l=0; l<14; l++) {
 	  st.str("");
 	  st << "[" << ++cnt << "] |";
 	  out << std::setw(12) << std::right << st.str();
@@ -11753,7 +11746,7 @@ void collDiag::initialize()
 	  for (int i=0; i<17; i++) out << std::setw(12) << '+';
 	  out << " | ";
 	}
-	for (int i=0; i<12; i++)  out << std::setw(12) << '+';
+	for (int i=0; i<14; i++)  out << std::setw(12) << '+';
 	out << " |" << std::setfill(' ') << std::endl;
       }
     }
@@ -11890,9 +11883,12 @@ void collDiag::print()
 	  ctd->ff_s[2] + ctd->CE_s[2] +
 	  ctd->CI_s[2] + ctd->RR_s[2] ;
       }
-      Etot_c += Elos_s;		// Etot_c += Etot * cvrt;
+      Etot_c += Elos_s;
+      Ktot_c += Klos_s;
       out << std::setw(12) << Elos_s
 	  << std::setw(12) << Etot_c
+	  << std::setw(12) << Klos_s
+	  << std::setw(12) << Ktot_c
 	  << std::setw(12) << Esum_s
 	  << std::setw(12) << Elec_s
 	  << std::setw(12) << Epot_s
@@ -11902,7 +11898,7 @@ void collDiag::print()
 	  << std::setw(12) << misE_s
 	  << std::setw(12) << Edsp_s
 	  << std::setw(12) << Efrc_s/Emas_s
-	  << std::setw(12) << Etot_c + Esum_s + Elos_s + Elec_s - delI_s - delE_s
+	  << std::setw(12) << Etot_c + Ktot_c + Esum_s + Elos_s + Elec_s - delI_s - delE_s
 	  << " |" << std::endl;
     }
   }
@@ -14338,8 +14334,9 @@ void CollideIon::gatherSpecies()
     TypeMap1 totu;
     TypeMap2 totd;
     std::map<int, TypeMap2> taly;
-    std::array<double, 3> Etots {0, 0, 0};
-    std::array<double, 3> Vtots {0, 0, 0};
+    std::array<double, 3>   Etots {0, 0, 0};
+    std::array<double, 3>   Vtots {0, 0, 0};
+    std::array<unsigned, 2> Ntot  {0, 0}, NT;
 
     for (int t=0; t<nthrds; t++) {
       for (auto v : Escat[t]) scat[v.first] += v.second;
@@ -14358,6 +14355,7 @@ void CollideIon::gatherSpecies()
       for (auto v : Vdiag) {
 	for (size_t k=0; k<3; k++) Vtots[k] += v[k];
       }
+      Ntot += {Nwght[t], Njsel[t]};
     }
     
     // Send to root node
@@ -14417,6 +14415,8 @@ void CollideIon::gatherSpecies()
 	MPI_Send(&DD,                  1, MPI_DOUBLE,   0, 576, MPI_COMM_WORLD);
 	DD = std::get<2>(Vtots);
 	MPI_Send(&DD,                  1, MPI_DOUBLE,   0, 577, MPI_COMM_WORLD);
+
+	MPI_Send(&Ntot[0],             2, MPI_UNSIGNED, 0, 578, MPI_COMM_WORLD);
       }
 
       if (myid==0) {
@@ -14472,6 +14472,9 @@ void CollideIon::gatherSpecies()
 	std::get<1>(Vtots) += DD;
 	MPI_Recv(&DD,      1, MPI_DOUBLE,   i, 577, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	std::get<2>(Vtots) += DD;
+
+	MPI_Recv(&NT[0],   2, MPI_UNSIGNED, i, 578, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	Ntot += NT;
       }
     }
     
@@ -14678,6 +14681,12 @@ void CollideIon::gatherSpecies()
 		  << std::endl << "Total P  = "
 		  << std::setw(14) << Vtots[0] << std::endl;
       }
+
+      std::cout << "Nwght = " << std::setw(12) << Ntot[0] << std::endl
+		<< "Njsum = " << std::setw(12) << Ntot[1] << std::endl;
+      unsigned Nsum = Ntot[0] + Ntot[1];
+      if (Nsum) std::cout << "Ratio = "	<< std::setw(12)
+			  << static_cast<double>(Ntot[0])/Nsum << std::endl;
     }
 
     // Clear the counters
@@ -14690,6 +14699,7 @@ void CollideIon::gatherSpecies()
       for (auto & v : Italy[t]) v.second.clear();
       for (auto & v : Ediag[t]) v = 0.0;
       for (auto & v : Vdiag[t]) v = 0.0;
+      Nwght[t] = Njsel[t] = 0;
     }
   }
 
@@ -16313,6 +16323,9 @@ void CollideIon::processConfig()
 
     DBG_NewHybrid =
       cfg.entry<bool>("DBG_HYBRID", "Verbose debugging of energy conservation for Hybrid method", false);
+
+    NO_ION_ION =
+      cfg.entry<bool>("NO_ION_ION", "Artificially suppress the ion-ion scattering in the Hybrid method", false);
 
     use_spectrum =
       cfg.entry<bool>("Spectrum", "Tabulate emission spectrum.  Use log scale if min > 0.0 and wvlSpect is false", false);

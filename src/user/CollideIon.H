@@ -255,8 +255,8 @@ class collDiag : public sKeyCollTD
 private:
   CollideIon *p;
   std::string coll_file_debug, energy_file_debug;
-  std::vector<double> Esum, Elos, Elec, Edsp, Efrc, Emas, Epot, delI, delE, clrE, misE;
-  double Esum_s, Elos_s, Efrc_s, Emas_s, Elec_s, Edsp_s, Etot_c, Epot_s, delI_s, delE_s, clrE_s, misE_s;
+  std::vector<double> Esum, Elos, Klos, Elec, Edsp, Efrc, Emas, Epot, delI, delE, clrE, misE;
+  double Esum_s, Elos_s, Klos_s, Efrc_s, Emas_s, Elec_s, Edsp_s, Etot_c, Ktot_c, Epot_s, delI_s, delE_s, clrE_s, misE_s;
 
   //! Make the file header the first time
   void initialize();
@@ -288,7 +288,7 @@ public:
   void addCellPotl(pCell* cell, int id);
 
   //! Add lost energy
-  void addLost(double E, int id) { Elos[id] += E; }
+  void addLost(double E, double K, int id) { Elos[id] += E; Klos[id] += K; }
 
 };
 
@@ -482,6 +482,7 @@ private:
   std::vector< double >                              spCrm, spTau, spProb, spEdel;
   std::vector< unsigned >                            spNsel, elecCnt, spNcol;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot, testCnt;
+  std::vector< unsigned >                            Nwght, Njsel;
   std::vector< TypeMap0 >                            Escat, Etotl;
   std::vector< TypeMap1 >                            TotlU;
   std::vector< TypeMap2 >                            TotlD;
