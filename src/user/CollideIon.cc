@@ -248,6 +248,10 @@ const double testDE_tol = 1.0e-7;
 //
 static bool NO_ION_ION          = false;
 
+// Artificially suppress ion-electron scattering in Hybrid method
+//
+static bool NO_ION_ELECTRON     = false;
+
 // Per-species cross-section scale factor for testing
 //
 static std::vector<double> cscl_;
@@ -510,6 +514,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (DBG_NewHybrid ? "on" : "off" )        << std::endl
 	      <<  " " << std::setw(20) << std::left << "NO_ION_ION"
 	      << (NO_ION_ION ? "on" : "off" )           << std::endl
+	      <<  " " << std::setw(20) << std::left << "NO_ION_ELECTRON"
+	      << (NO_ION_ELECTRON ? "on" : "off" )      << std::endl
 	      <<  " " << std::setw(20) << std::left << "ntcDist"
 	      << (ntcDist ? "on" : "off" )              << std::endl
 	      <<  " " << std::setw(20) << std::left << "enforceMOM"
@@ -7830,6 +7836,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     if (NO_ION_ION) {
       double tst = PE[1][0]/(PE[1][0]+PE[2][0]);
       if (Pr < tst) J = 1;
+    } else if (NO_ION_ELECTRON) {
+      J = 0;
     } else {
       if      (Pr < PE[0][0]) J = 0;
       else if (Pr < PE[1][0]) J = 1;
@@ -8921,6 +8929,19 @@ void CollideIon::scatterHybrid
 
   } // END: temporary deep debug
 
+  // Sanity check
+  if (pp->W2 > pp->W1) {
+    std::cout << "Backwards: w1=" << pp->w1
+	      << " w2=" << pp->w2
+	      << " W1=" << pp->W1
+	      << " W2=" << pp->W2
+	      << " m1=" << pp->m1
+	      << " m2=" << pp->m2
+	      << " M1=" << pp->p1->mass
+	      << " M2=" << pp->p2->mass
+	      << std::endl;
+  }
+      
 } // END: CollideIon::scatterHybrid
 
 
@@ -16328,6 +16349,9 @@ void CollideIon::processConfig()
 
     NO_ION_ION =
       cfg.entry<bool>("NO_ION_ION", "Artificially suppress the ion-ion scattering in the Hybrid method", false);
+
+    NO_ION_ELECTRON =
+      cfg.entry<bool>("NO_ION_ELECTRON", "Artificially suppress the ion-electron scattering in the Hybrid method", false);
 
     use_spectrum =
       cfg.entry<bool>("Spectrum", "Tabulate emission spectrum.  Use log scale if min > 0.0 and wvlSpect is false", false);
