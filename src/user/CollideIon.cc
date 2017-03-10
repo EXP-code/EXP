@@ -57,7 +57,9 @@ double   CollideIon::TSFLOOR    = 0.001;
 double   CollideIon::scatFac1   = 1.0;
 double   CollideIon::scatFac2   = 1.0;
 double   CollideIon::tolE       = 1.0e-05;
-double   CollideIon::qCrit      = 0.1;
+// The recommended value for qCrit is now -1 (that is, turn it off).
+// It appears to be unstable based on the TestEquil tests.
+double   CollideIon::qCrit      = -1.0;
 
 string   CollideIon::config0    = "CollideIon.config";
 
@@ -16238,7 +16240,7 @@ void CollideIon::processConfig()
       cfg.entry<double>("tolE", "Threshold for reporting energy conservation bookkeeping", 1.0e-5);
 
     qCrit =
-      cfg.entry<double>("qCrit", "Critical weighting threshold for energy conserving electron interactions", 0.1);
+      cfg.entry<double>("qCrit", "Critical weighting threshold for energy conserving electron interactions", -1.0);
 
     RECOMB_IP =
       cfg.entry<bool>("RECOMB_IP", "Electronic binding energy is lost in recombination", false);
