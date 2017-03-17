@@ -124,7 +124,7 @@ libsatwake_la_SOURCES = UserSatWake.cc invsvd.cc
 libsatwake_la_LIBADD = libswake.a libcommon.a $(LAPACK_LIBS) $(BLAS_LIBS)
 
 libpst_la_SOURCES = UserPST.cc CylindricalDisk.cc EllipsoidForce.cc SLSphere.cc
-libpst_la_CXXFLAGS = -I$(top_srcdir)/utils/SL -I$(top_srcdir)/utils/ICs
+libpst_la_CXXFLAGS = $(AM_CXXFLAGS) -I$(top_srcdir)/utils/SL -I$(top_srcdir)/utils/ICs
 libpst_la_LIBADD = libcommon.a
 
 libuserslab_la_SOURCES = UserSlabHalo.cc 
