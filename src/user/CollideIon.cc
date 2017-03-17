@@ -5842,13 +5842,13 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
 	  if (elc_cons)
 	    p1->dattrib[use_elec+3] += -0.5*delE;
 	  else
-	    p1->dattrib[use_cons] += -0.5*delE;
-	  p2->dattrib[use_cons]   += -0.5*delE;
+	    p1->dattrib[use_cons]   += -0.5*delE;
+	  p2->dattrib[use_cons]     += -0.5*delE;
 	}
 	// Neutral interaction
 	else {
-	  p1->dattrib[use_cons]   += -0.5*delE;
-	  p2->dattrib[use_cons]   += -0.5*delE;
+	  p1->dattrib[use_cons]     += -0.5*delE;
+	  p2->dattrib[use_cons]     += -0.5*delE;
 	}
 
 	// Reset total energy to initial energy, deferring an changes to
@@ -6034,7 +6034,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
 	p2->dattrib[use_cons] += 0.5*del;
       } else {
 	if (C1 == 1 or use_elec<0)
-	  p1->dattrib[use_cons  ] += del;
+	  p1->dattrib[use_cons]     += del;
 	else {
 	  if (elc_cons) 
 	    p1->dattrib[use_elec+3] += del;
@@ -8094,6 +8094,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  if (elc_cons) {
 	    DE2 = PE[1][0] * p2->dattrib[use_elec+3];
 	    p2->dattrib[use_elec+3] -= DE2;
+	  } else {
+	    DE2 = PE[1][0] * p2->dattrib[use_cons];
+	    p2->dattrib[use_cons  ] -= DE2;
 	  }
 	  clrE[id] -= DE1 + DE2;
 	  PE[1][2] += DE1 + DE2;
@@ -8282,6 +8285,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  if (elc_cons) {
 	    DE1 = PE[2][0] * p1->dattrib[use_elec+3];
 	    p1->dattrib[use_elec+3] -= DE1;
+	  } else {
+	    DE1 = PE[2][0] * p1->dattrib[use_cons];
+	    p1->dattrib[use_cons  ] -= DE1;
 	  }
 	  p2->dattrib[use_cons]   -= DE2;
 	  clrE[id] -= DE1 + DE2;
@@ -8443,6 +8449,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     if (use_elec>=0 and elc_cons) {
       PP[k]->p1->dattrib[use_elec+3] += PP[k]->E1[1];
       PP[k]->p2->dattrib[use_elec+3] += PP[k]->E2[1];
+      EconsUpE += PP[k]->E1[1] + PP[k]->E2[1];
+    } else if (use_cons>=0) {
+      PP[k]->p1->dattrib[use_cons  ] += PP[k]->E1[1];
+      PP[k]->p2->dattrib[use_cons  ] += PP[k]->E2[1];
       EconsUpE += PP[k]->E1[1] + PP[k]->E2[1];
     }
   }
@@ -9309,14 +9319,24 @@ void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
 
   // Add to electron deferred energy
   //
-  if (pp->P == Pord::ion_electron and elc_cons) {
-    if (pp->swap) pp->p1->dattrib[use_elec+3] -= testE;
-    else          pp->p2->dattrib[use_elec+3] -= testE;
+  if (pp->P == Pord::ion_electron) {
+    if (elc_cons) {
+      if (pp->swap) pp->p1->dattrib[use_elec+3] -= testE;
+      else          pp->p2->dattrib[use_elec+3] -= testE;
+    } else {
+      if (pp->swap) pp->p1->dattrib[use_cons  ] -= testE;
+      else          pp->p2->dattrib[use_cons  ] -= testE;
+    }
   }
   
-  if (pp->P == Pord::electron_ion and elc_cons) {
-    if (pp->swap) pp->p2->dattrib[use_elec+3] -= testE;
-    else          pp->p1->dattrib[use_elec+3] -= testE;
+  if (pp->P == Pord::electron_ion) {
+    if (elc_cons) {
+      if (pp->swap) pp->p2->dattrib[use_elec+3] -= testE;
+      else          pp->p1->dattrib[use_elec+3] -= testE;
+    } else {
+      if (pp->swap) pp->p2->dattrib[use_cons  ] -= testE;
+      else          pp->p1->dattrib[use_cons  ] -= testE;
+    }
   }
 
   if (DBG_NewHybrid and error)
