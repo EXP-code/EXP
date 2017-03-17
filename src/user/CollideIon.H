@@ -638,6 +638,10 @@ private:
   //! Compute electron dispersion KE per cell
   std::pair<double, double> computeEdsp(pCell* cell);
 
+  //! Use separate conservation of energy for electrons if true
+  //! (default: true)
+  bool elc_cons;
+
 public:
 
   typedef std::set<unsigned short> ZLtype;
