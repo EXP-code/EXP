@@ -2,8 +2,8 @@
 #ifndef Particle_H
 #define Particle_H
 
+#include <unordered_map>
 #include <vector>
-#include <map>
 #ifdef I128
 #include <uint128.H>
 #endif
@@ -108,8 +108,8 @@ public:
 
 };
 
-typedef map<unsigned long, Particle> PartMap;
-typedef map<unsigned long, Particle>::iterator PartMapItr;
+typedef std::unordered_map<unsigned long, Particle> PartMap;
+typedef std::unordered_map<unsigned long, Particle>::iterator PartMapItr;
 
 
 #endif

@@ -1236,18 +1236,19 @@ struct Particle * Component::get_particles(int* number)
   
 #ifdef DEBUG
   if (*number < 0) {
-    if (particles.size())
+    if (particles.size()) {
+      makeKeyList();
+      unsigned long ibeg = *keys.begin(), iend = *keys.rbegin();
       cout << "get_particles: process " << myid 
 	   << " <name=" << name << "> bodies ["
-	   << particles.begin() ->second.indx << ", "
-	   << particles.rbegin()->second.indx << "], ["
-	   << particles.begin() ->first << ", "
-	   << particles.rbegin()->first << "]" 
-	   << " #=" << particles.size() << endl;
+	   << particles[*ibeg].indx << ", "
+	   << particles[*iend].indx << "], ["
+	   << *ibeg << ", " << *iend << "]" 
+	   << " #=" << keys.size() << endl;
     else
       cout << "get_particles: process " << myid 
 	   << " <name=" << name << "> #=" 
-	   << particles.size() << endl;
+	   << keys.size() << endl;
   }
 #endif
 				// Reset
@@ -1263,7 +1264,6 @@ struct Particle * Component::get_particles(int* number)
   }
 
   map<unsigned int,  Particle> tlist;
-  PartMapItr icur, ibeg, iend;
 
   unsigned icount;
   int beg = counter;
@@ -1281,18 +1281,23 @@ struct Particle * Component::get_particles(int* number)
        << endl;
 #endif
 
+  // Make the sorted key list
+  makeKeyList();
+
+  KeyList::iterator icur, ibeg, iend;
+
   for (int node=0; node<numprocs; node++) {
     
     if (myid==0) {
 				// Do root's particle first
       if (node==0) {
       
-	ibeg = particles.lower_bound(beg);
-	iend = particles.lower_bound(end+1);
+	ibeg = std::lower_bound(keys.begin(), keys.end(), beg  );
+	iend = std::lower_bound(keys.begin(), keys.end(), end+1);
 
 	icount = 0;
 	for (icur=ibeg; icur!=iend; icur++)
-	  pbuf[icount++] = icur->second;
+	  pbuf[icount++] = particles[*icur];
 #ifdef DEBUG
 	cout << "get_particles: master loaded " 
 	     << icount << " of its own particles" << endl << flush;
@@ -1301,13 +1306,13 @@ struct Particle * Component::get_particles(int* number)
 #ifdef SANITY
 	cout << "Process " << myid << ": count=" << icount
 	     << ": want [" << beg << ", " << end << "]";
-	if (particles.size()) {
+	if (keys.size()) {
 	  cout << ": have [";
-	  if (ibeg != particles.end()) cout << ibeg->first << ", ";
+	  if (ibeg != keys.end()) cout << *ibeg << ", ";
 	  else cout << "end, ";
-	  if (iend != particles.end()) cout << iend->first << "]";
+	  if (iend != keys.end()) cout << *iend << "]";
 	  else cout << "end)";
-	  cout << ": cnts [" << particles.begin()->first << ", " << particles.rbegin()->first << "]"
+	  cout << ": cnts [" << keys.begin() << ", " << keys.rbegin() << "]"
 	       << endl;
 	} else {
 	  cout << ": have none!" << endl;
@@ -1340,8 +1345,8 @@ struct Particle * Component::get_particles(int* number)
     } else if (myid == node) {
       
 	
-      ibeg = particles.lower_bound(beg);
-      iend = particles.lower_bound(end+1);
+      ibeg = std::lower_bound(keys.begin(), keys.end(), beg  );
+      iend = std::lower_bound(keys.begin(), keys.end(), end+1);
 
       icount = 0;
       for (icur=ibeg; icur!=iend; icur++) icount++;
@@ -1350,13 +1355,13 @@ struct Particle * Component::get_particles(int* number)
 				// Sanity
       cout << "Process " << myid << ": count=" << icount
 	   << ": want [" << beg << ", " << end << "]";
-      if (particles.size()) {
+      if (keys.size()) {
 	cout << ": have [";
-	if (ibeg != particles.end()) cout << ibeg->first << ", ";
+	if (ibeg != keys.end()) cout << *ibeg << ", ";
 	else cout << "end, ";
-	if (iend != particles.end()) cout << iend->first << "]";
+	if (iend != keys.end()) cout << *iend << "]";
 	else cout << "end)";
-	cout << ": cnts [" << particles.begin()->first << ", " << particles.rbegin()->first << "]"
+	cout << ": cnts [" << keys.begin() << ", " << keys.rbegin() << "]"
 	     << endl;
       } else {
 	cout << ": have none!" << endl;
@@ -1370,34 +1375,35 @@ struct Particle * Component::get_particles(int* number)
       for (icur=ibeg; icur!=iend; icur++) {
 #ifdef DEBUG
 	if (icount<2) {
+	  Particle *pp = &particles[*icur];
 	  cout << "Component [" << myid << "]: sending ";
 	  cout << setw(3) << icount
-	       << setw(14) << icur->second.mass
+	       << setw(14) << pp->second.mass
 #ifdef INT128
-	       << setw(18) << icur->second.key.toHex()
+	       << setw(18) << pp->key.toHex()
 #else
-	       << setw(18) << hex << icur->second.key << dec
+	       << setw(18) << hex << pp->key << dec
 #endif
 	    ;
-	  for (int k=0; k<3; k++) cout << setw(14) << icur->second.pos[k];
+	  for (int k=0; k<3; k++) cout << setw(14) << pp->pos[k];
 	  cout << endl;
 	}
 	icount++;
 #endif
-	pf.SendParticle(icur->second);
+	pf.SendParticle(particles[*icur]);
       }
 
 #ifdef DEBUG
       cout << "get_particles: process " << myid 
 	   << ": sent " << icount << " particles to master"
 	   << ", counter value=" << counter;
-      if (particles.size())
+      if (keys.size())
 	cout << ", nbodies_index=" << nbodies_index[node]
-	     << ", seq_beg=" << ibeg->second.indx
-	     << ", seq_end=" << iend->second.indx
+	     << ", seq_beg=" << particles[*ibeg].indx
+	     << ", seq_end=" << particles[*iend].indx
 	     << ", number found =" << icount
-	     << ", first=" << particles.begin()->second.indx
-	     << ", last=" << particles.rbegin()->second.indx;
+	     << ", first=" << particles[*keys.begin()].indx
+	     << ", last=" << particles[*keys.rbegin()].indx;
       cout << endl << flush;
 #endif    
 	
@@ -2343,9 +2349,9 @@ void Component::load_balance(void)
       
       nlist.clear();
 
-      map<unsigned long, Particle>::reverse_iterator it = particles.rbegin();
+      KeyList::reverse_iterator it = keys.rbegin();
       for (int n=0; n<nump; n++) {
-	nlist.push_back(it->first);
+	nlist.push_back(*it);
 	it++;
       }
       

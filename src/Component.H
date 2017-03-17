@@ -275,6 +275,21 @@ protected:
   //! Level occupation output
   int nlevel;
 
+  //! For use with unordered map to order list by key value
+  typedef std::vector<unsigned long> KeyList;
+  KeyList keys;
+
+  //! Sort the key list
+  void makeKeyList()
+  {
+    keys.clear();
+    keys.reserve(particles.size());
+    for (auto it : particles) {
+      keys.push_back(it.first);
+    }
+    std::sort (keys.begin(), keys.end());
+  }
+
 public:
 
   //! Describe the phase space coordinates
