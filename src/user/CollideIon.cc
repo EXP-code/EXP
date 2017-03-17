@@ -512,6 +512,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (NO_ION_ION ? "on" : "off" )           << std::endl
 	      <<  " " << std::setw(20) << std::left << "ntcDist"
 	      << (ntcDist ? "on" : "off" )              << std::endl
+	      <<  " " << std::setw(20) << std::left << "elc_cons"
+	      << (elc_cons ? "on" : "off" )            << std::endl
 	      <<  " " << std::setw(20) << std::left << "enforceMOM"
 	      << (enforceMOM ? "on" : "off" )           << std::endl
 	      <<  " " << std::setw(20) << std::left << "use_cons"
@@ -960,8 +962,10 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
 	testKE[id][0] += 0.5 * p->mass * KE;
 
-	if (use_cons>=0) testKE[id][1] += p->dattrib[use_cons];
-	if (use_elec>=0) testKE[id][2] += p->dattrib[use_elec+3];
+	if (use_cons>=0)
+	  testKE[id][1] += p->dattrib[use_cons];
+	if (use_elec>=0 and elc_cons)
+	  testKE[id][2] += p->dattrib[use_elec+3];
       }
     }
 
@@ -5711,15 +5715,25 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
 	  del += p1->dattrib[use_cons];
 	  p1->dattrib[use_cons] = 0.0;
 
-	  del += p2->dattrib[use_elec+3];
-	  p2->dattrib[use_elec+3] = 0.0;
+	  if (elc_cons) {
+	    del += p2->dattrib[use_elec+3];
+	    p2->dattrib[use_elec+3] = 0.0;
+	  } else {
+	    del += p2->dattrib[use_cons];
+	    p2->dattrib[use_cons]   = 0.0;
+	  }	   
 
 				// Particle 1: electron
 				// Particle 2: ion
 	} else if (interFlag > 200 and interFlag < 300) {
 
-	  del += p1->dattrib[use_elec+3];
-	  p1->dattrib[use_elec+3] = 0.0;
+	  if (elc_cons) {
+	    del += p1->dattrib[use_elec+3];
+	    p1->dattrib[use_elec+3] = 0.0;
+	  } else {
+	    del += p1->dattrib[use_cons];
+	    p1->dattrib[use_cons] = 0.0;
+	  }
 
 	  del += p2->dattrib[use_cons];
 	  p2->dattrib[use_cons] = 0.0;
@@ -5761,15 +5775,25 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
 	    del += p1->dattrib[use_cons];
 	    p1->dattrib[use_cons] = 0.0;
 
-	    del += p2->dattrib[use_elec+3];
-	    p2->dattrib[use_elec+3] = 0.0;
+	    if (elc_cons) {
+	      del += p2->dattrib[use_elec+3];
+	      p2->dattrib[use_elec+3] = 0.0;
+	    } else {
+	      del += p2->dattrib[use_cons];
+	      p2->dattrib[use_cons]   = 0.0;
+	    }
 
 				// Particle 1: electron
 				// Particle 2: ion
 	  } else if (interFlag > 200 and interFlag < 300) {
 
-	    del += p1->dattrib[use_elec+3];
-	    p1->dattrib[use_elec+3] = 0.0;
+	    if (elc_cons) {
+	      del += p1->dattrib[use_elec+3];
+	      p1->dattrib[use_elec+3] = 0.0;
+	    } else {
+	      del += p1->dattrib[use_cons];
+	      p1->dattrib[use_cons] = 0.0;
+	    }
 
 	    del += p2->dattrib[use_cons];
 	    p2->dattrib[use_cons] = 0.0;
@@ -5800,19 +5824,25 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
 	// Particle 1: ion
 	// Particle 2: electron
 	if (interFlag > 100 and interFlag < 200) {
-	  p1->dattrib[use_cons]   += -0.5*delE;
-	  p2->dattrib[use_elec+3] += -0.5*delE;
+	  p1->dattrib[use_cons]     += -0.5*delE;
+	  if (elc_cons)
+	    p2->dattrib[use_elec+3] += -0.5*delE;
+	  else
+	    p2->dattrib[use_cons]   += -0.5*delE;
 	}
 	// Particle 1: electron
 	// Particle 2: ion
 	else if (interFlag > 200 and interFlag < 300) {
-	  p1->dattrib[use_elec+3] += -0.5*delE;
-	  p2->dattrib[use_cons  ] += -0.5*delE;
+	  if (elc_cons)
+	    p1->dattrib[use_elec+3] += -0.5*delE;
+	  else
+	    p1->dattrib[use_cons] += -0.5*delE;
+	  p2->dattrib[use_cons]   += -0.5*delE;
 	}
 	// Neutral interaction
 	else {
-	  p1->dattrib[use_cons  ] += -0.5*delE;
-	  p2->dattrib[use_cons  ] += -0.5*delE;
+	  p1->dattrib[use_cons]   += -0.5*delE;
+	  p2->dattrib[use_cons]   += -0.5*delE;
 	}
 
 	// Reset total energy to initial energy, deferring an changes to
@@ -5971,14 +6001,22 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
       // adjustment between interaction particles
       //
       if (C1 == 1 or use_elec<0)
-	p1->dattrib[use_cons  ] += 0.5*del;
-      else
-	p1->dattrib[use_elec+3] += 0.5*del;
-
+	p1->dattrib[use_cons  ]   += 0.5*del;
+      else {
+	if (elc_cons)
+	  p1->dattrib[use_elec+3] += 0.5*del;
+	else
+	  p1->dattrib[use_cons]   += 0.5*del;
+      }
+      
       if (C1 == 2 or use_elec<0)
-	p2->dattrib[use_cons]   += 0.5*del;
-      else
-	p2->dattrib[use_elec+3] += 0.5*del;
+	p2->dattrib[use_cons]     += 0.5*del;
+      else {
+	if (elc_cons)
+	  p2->dattrib[use_elec+3] += 0.5*del;
+	else
+	  p2->dattrib[use_cons]   += 0.5*del;
+      }
 
     } else {
       //
@@ -5991,8 +6029,12 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
       } else {
 	if (C1 == 1 or use_elec<0)
 	  p1->dattrib[use_cons  ] += del;
-	else
-	  p1->dattrib[use_elec+3] += del;
+	else {
+	  if (elc_cons) 
+	    p1->dattrib[use_elec+3] += del;
+	  else
+	    p1->dattrib[use_cons  ] += del;
+	}	    
       }
     }
   }
@@ -6025,8 +6067,11 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
     double vfac = 1.0;
     if (Z1 != Z2) {
       if (TRACE_ELEC) {
-	p1->dattrib[use_cons  ] -= deltaKE * (1.0 - TRACE_FRAC);
-	p2->dattrib[use_elec+3] -= deltaKE * TRACE_FRAC;
+	p1->dattrib[use_cons]     -= deltaKE * (1.0 - TRACE_FRAC);
+	if (elc_cons)
+	  p2->dattrib[use_elec+3] -= deltaKE * TRACE_FRAC;
+	else
+	  p2->dattrib[use_cons  ] -= deltaKE * TRACE_FRAC;
       } else {
 	double ke2 = 0.0;
 	for (auto v : v2) ke2 += v*v;
@@ -6114,10 +6159,18 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
 
       if (use_cons>=0) {
 	if (q<1.0) {
-	  p1->dattrib[use_elec+3] += deltaE_e;
+	  if (elc_cons)
+	    p1->dattrib[use_elec+3] += deltaE_e;
+	  else
+	    p1->dattrib[use_cons]   += deltaE_e;
 	} else {
-	  p1->dattrib[use_elec+3] += 0.5*deltaE_e;
-	  p2->dattrib[use_elec+3] += 0.5*deltaE_e;
+	  if (elc_cons) {
+	    p1->dattrib[use_elec+3] += 0.5*deltaE_e;
+	    p2->dattrib[use_elec+3] += 0.5*deltaE_e;
+	  } else {
+	    p1->dattrib[use_cons]   += 0.5*deltaE_e;
+	    p2->dattrib[use_cons]   += 0.5*deltaE_e;
+	  }
 	}
       }
     }
@@ -6146,8 +6199,11 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
     double vfac = 1.0;
     if (Z1 != Z2) {
       if (TRACE_ELEC) {
-	p1->dattrib[use_elec+3] -= deltaKE * TRACE_FRAC;
-	p2->dattrib[use_cons]   -= deltaKE * (1.0 - TRACE_FRAC);
+	if (elc_cons)
+	  p1->dattrib[use_elec+3] -= deltaKE * TRACE_FRAC;
+	else
+	  p1->dattrib[use_cons]   -= deltaKE * TRACE_FRAC;
+	p2->dattrib[use_cons]     -= deltaKE * (1.0 - TRACE_FRAC);
       } else {
 	double ke1 = 0.0;
 	for (auto v : v1) ke1 += v*v;
@@ -6237,10 +6293,18 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
 
       if (use_cons>=0) {
 	if (q<1.0) {
-	  p1->dattrib[use_elec+3] += deltaE_e;
+	  if (elc_cons)
+	    p1->dattrib[use_elec+3] += deltaE_e;
+	  else
+	    p1->dattrib[use_cons]   += deltaE_e;
 	} else {
-	  p1->dattrib[use_elec+3] += 0.5*deltaE_e;
-	  p2->dattrib[use_elec+3] += 0.5*deltaE_e;
+	  if (elc_cons) {
+	    p1->dattrib[use_elec+3] += 0.5*deltaE_e;
+	    p2->dattrib[use_elec+3] += 0.5*deltaE_e;
+	  } else {
+	    p1->dattrib[use_cons]   += 0.5*deltaE_e;
+	    p2->dattrib[use_cons]   += 0.5*deltaE_e;
+	  }
 	}
       }
     }
@@ -6957,7 +7021,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     KE_initl_check = energyInPair(p1, p2);
     if (use_cons>=0)
       KE_initl_econs[0] += p1->dattrib[use_cons  ] + p2->dattrib[use_cons  ];
-    if (use_elec>=0)
+    if (use_elec>=0 and elc_cons)
       KE_initl_econs[1] += p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
   }
 
@@ -8017,9 +8081,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	
 	if (Z1 == Z2 or ALWAYS_APPLY) {
 	  double DE1 = PE[1][0] * p1->dattrib[use_cons];
-	  double DE2 = PE[1][0] * p2->dattrib[use_elec+3];
-	  p1->dattrib[use_cons]   -= DE1;
-	  p2->dattrib[use_elec+3] -= DE2;
+	  double DE2 = 0.0;
+	  p1->dattrib[use_cons] -= DE1;
+	  if (elc_cons) {
+	    DE2 = PE[1][0] * p2->dattrib[use_elec+3];
+	    p2->dattrib[use_elec+3] -= DE2;
+	  }
 	  clrE[id] -= DE1 + DE2;
 	  PE[1][2] += DE1 + DE2;
 	} else {
@@ -8202,9 +8269,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       if (ke1i > 0.0 and ke2i > 0.0) {
 	
 	if (Z1 == Z2 or ALWAYS_APPLY) {
-	  double DE1 = PE[2][0] * p1->dattrib[use_elec+3];
+	  double DE1 = 0.0;
 	  double DE2 = PE[2][0] * p2->dattrib[use_cons];
-	  p1->dattrib[use_elec+3] -= DE1;
+	  if (elc_cons) {
+	    DE1 = PE[2][0] * p1->dattrib[use_elec+3];
+	    p1->dattrib[use_elec+3] -= DE1;
+	  }
 	  p2->dattrib[use_cons]   -= DE2;
 	  clrE[id] -= DE1 + DE2;
 	  PE[2][2] += DE1 + DE2;
@@ -8362,7 +8432,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       PP[k]->p2->dattrib[use_cons] += PP[k]->E2[0];
       EconsUpI += PP[k]->E1[0] + PP[k]->E2[0];
     }
-    if (use_elec>=0) {
+    if (use_elec>=0 and elc_cons) {
       PP[k]->p1->dattrib[use_elec+3] += PP[k]->E1[1];
       PP[k]->p2->dattrib[use_elec+3] += PP[k]->E2[1];
       EconsUpE += PP[k]->E1[1] + PP[k]->E2[1];
@@ -8443,7 +8513,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     if (use_cons>=0)
       KE_final_econs[0] += p1->dattrib[use_cons  ] + p2->dattrib[use_cons  ];
 
-    if (use_elec>=0)
+    if (use_elec>=0 and elc_cons)
       KE_final_econs[1] += p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
 
     std::array<double, 2> dCons = KE_initl_econs - KE_final_econs;
@@ -9218,12 +9288,12 @@ void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
 
   // Add to electron deferred energy
   //
-  if (pp->P == Pord::ion_electron) {
+  if (pp->P == Pord::ion_electron and elc_cons) {
     if (pp->swap) pp->p1->dattrib[use_elec+3] -= testE;
     else          pp->p2->dattrib[use_elec+3] -= testE;
   }
   
-  if (pp->P == Pord::electron_ion) {
+  if (pp->P == Pord::electron_ion and elc_cons) {
     if (pp->swap) pp->p2->dattrib[use_elec+3] -= testE;
     else          pp->p1->dattrib[use_elec+3] -= testE;
   }
@@ -10090,8 +10160,10 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       totKEf += 0.5 * p->mass * KE;
       totMas += p->mass;
 
-      if (use_cons>=0) totIon += p->dattrib[use_cons  ];
-      if (use_elec>=0) totElc += p->dattrib[use_elec+3];
+      if (use_cons>=0)
+	totIon += p->dattrib[use_cons  ];
+      if (use_elec>=0 and elc_cons)
+	totElc += p->dattrib[use_elec+3];
     }
 
     /*
@@ -10995,13 +11067,24 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	    }
 	    KEcom *= 0.5*mu;
 
-	    double delE = p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
+	    double delE = 0.0;
+	    if (elc_cons)
+	      delE = p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
+	    else
+	      delE = p1->dattrib[use_cons  ] + p2->dattrib[use_cons  ];
+
 	    double vfac = 0.0;
 	    if (KEcom>delE) {
 	      vfac = sqrt(1.0 - delE/KEcom);
-	      p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.0;
+	      if (elc_cons)
+		p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.0;
+	      else
+		p1->dattrib[use_cons  ] = p2->dattrib[use_cons  ] = 0.0;
 	    } else {
-	      p1->dattrib[use_elec+3] =	p2->dattrib[use_elec+3] = 0.5*(delE - KEcom);
+	      if (elc_cons)
+		p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.5*(delE - KEcom);
+	      else
+		p1->dattrib[use_cons  ] = p2->dattrib[use_cons  ] = 0.5*(delE - KEcom);
 	    }
 
 	    for (int k=0; k<3; k++) {
@@ -11023,7 +11106,10 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	  if (equal) {
 	    const double tol = 0.95; // eps = 0.05, tol = 1 - eps
 	    double KE0 = 0.5*W1*m1*m2/mt * vi*vi;
-	    dKE = p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
+	    if (elc_cons)
+	      dKE = p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
+	    else
+	      dKE = p1->dattrib[use_cons  ] + p2->dattrib[use_cons  ];
 	    // Too much KE to be removed, clamp to tol*KE0
 	    // 
 	    if (dKE/KE0 > tol) {
@@ -11031,14 +11117,24 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	      // dKE' = dKE - tol*KE0 = dKE*(1 - tol*KE0/dKE);
 	      //
 	      double ratk = tol*KE0/dKE;
-	      p1->dattrib[use_elec+3] *= (1.0 - ratk);
-	      p2->dattrib[use_elec+3] *= (1.0 - ratk);
+	      if (elc_cons) {
+		p1->dattrib[use_elec+3] *= (1.0 - ratk);
+		p2->dattrib[use_elec+3] *= (1.0 - ratk);
+	      } else {
+		p1->dattrib[use_cons  ] *= (1.0 - ratk);
+		p2->dattrib[use_cons  ] *= (1.0 - ratk);
+	      }
 
 	      // Sanity check
 	      double test = 0.0;
 	      {
 		double orig = dKE;
-		double finl = tol*KE0 + p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
+
+		double finl = tol*KE0;
+		if (elc_cons)
+		  finl += p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
+		else
+		  finl += p1->dattrib[use_cons  ] + p2->dattrib[use_cons  ];
 		test = orig - finl;
 	      }
 	      
@@ -11052,7 +11148,10 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	      }
 	      dKE = tol*KE0;
 	    } else {
-	      p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.0;
+	      if (elc_cons)
+		p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.0;
+	      else
+		p1->dattrib[use_cons  ] = p2->dattrib[use_cons  ] = 0.0;
 	    }
 	    
 	    vfac = sqrt(1.0 - dKE/KE0);
@@ -11067,7 +11166,12 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	    p2->dattrib[use_elec+k] = vcom[k] - m1/mt*vrel[k]*vfac;
 	  }
 				// Correct energy for conservation
-	  if (!equal) p1->dattrib[use_elec+3] -= deltaKE;
+	  if (!equal) {
+	    if (elc_cons)
+	      p1->dattrib[use_elec+3] -= deltaKE;
+	    else
+	      p1->dattrib[use_cons  ] -= deltaKE;
+	  }
 
 	} // end: momentum conservation
 
@@ -13845,7 +13949,7 @@ void CollideIon::gatherSpecies()
       if (use_cons >= 0) {
 	for (auto b : cell->bods) {
 	  consE += c0->Tree()->Body(b)->dattrib[use_cons];
-	  if (use_elec>=0)
+	  if (use_elec>=0 and elc_cons)
 	    consG += c0->Tree()->Body(b)->dattrib[use_elec+3];
 	}
       }
@@ -16313,6 +16417,9 @@ void CollideIon::processConfig()
 
     enforceMOM =
       cfg.entry<bool>("enforceMOM", "Enforce momentum conservation per cell (for ExactE and Hybrid)", false);
+
+    elc_cons =
+      cfg.entry<bool>("ElcCons", "Use separate electron conservation of energy collection", true);
 
     debugFC =
       cfg.entry<bool>("debugFC", "Enable finalize-cell electron scattering diagnostics", false);
