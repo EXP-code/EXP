@@ -17,7 +17,7 @@ parser.add_argument('-k', '--ke',      default=False, action='store_true', help=
 parser.add_argument('-d', '--delta',   default=False, action='store_true', help='Plot fraction of deferred energy to total')
 parser.add_argument('-c', '--compare', default=False, action='store_true', help='Total energy minus kinetic energy')
 parser.add_argument('-b', '--both',    default=False, action='store_true', help='Plot KE and Total E separately')
-parser.add_argument('-w', '--lwidth',  default=1.0, type=float,            help='linewidth for curves')
+parser.add_argument('-w', '--lwidth',  default=2.0, type=float,            help='linewidth for curves')
 parser.add_argument('tags',            nargs='*',                          help='Files to process')
 
 args = parser.parse_args()
