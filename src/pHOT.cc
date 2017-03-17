@@ -156,7 +156,7 @@ pHOT::pHOT(Component *C, sKeySet spec_list)
 
 				// Register multiple species
   this->spec_list = spec_list;
-  if (spec_list.size() == 0) spec_list.insert(defaultKey);
+  if (spec_list.size() == 0) spec_list.insert(Particle::defaultKey);
 			
   partType = Hilbert;		// Partition type
 

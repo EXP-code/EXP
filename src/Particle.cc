@@ -3,6 +3,8 @@
 #include <Particle.H>
 
 float Particle::effort_default = 1.0e-12;
+const speciesKey Particle::defaultKey {-1, -1};
+
 
 Particle::Particle()
 {
@@ -22,6 +24,7 @@ Particle::Particle()
   indx    = 0;
   tree    = 0u;
   key     = 0u;
+  skey    = defaultKey;
 }
 
 Particle::Particle(unsigned niatr, unsigned ndatr)
@@ -40,6 +43,7 @@ Particle::Particle(unsigned niatr, unsigned ndatr)
   key     = 0u;
   iattrib = vector<int   >(niatr, 0);
   dattrib = vector<double>(ndatr, 0);
+  skey    = defaultKey;
 }
 
 Particle::Particle(const Particle &p)
@@ -61,6 +65,7 @@ Particle::Particle(const Particle &p)
   indx    = p.indx;
   tree    = p.tree;
   key     = p.key;
+  skey    = p.skey;
 }
 
 
