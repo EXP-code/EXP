@@ -397,7 +397,7 @@ main(int argc, char** argv)
 
   if (use_cwd) {
 				// Get Node 0 working directory 
-    if (myid == 0) getcwd(hdbuffer, (size_t)hdbufsize);
+    if (myid == 0) auto ret = getcwd(hdbuffer, (size_t)hdbufsize);
     MPI_Bcast(hdbuffer, hdbufsize, MPI_CHAR, 0, MPI_COMM_WORLD);
 
     homedir.clear();

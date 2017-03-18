@@ -3,16 +3,18 @@
 LIBS = -lpthread -lmpi -lm
 
 if ENABLE_DEBUG
-ADD_CFLAGS2 = -DDEBUG
+ADD_CFLAGS2   = -DDEBUG
 ADD_CXXFLAGS2 = -DDEBUG
 endif
 
 if ENABLE_DMALLOC
-ADD_CFLAGS3 = -DUSE_DMALLOC -g
+ADD_CFLAGS3   = -DUSE_DMALLOC -g
 ADD_CXXFLAGS3 = -DUSE_DMALLOC -g
 endif
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
+AM_CFLAGS   = -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
+AM_CXXFLAGS = -std=c++11 -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
 
 lib_LTLIBRARIES = libexputil.la
 
@@ -61,10 +63,6 @@ libexputil_la_SOURCES = $(ODE_SRC) $(ROOT_SRC) $(QUAD_SRC) \
 	$(QPDISTF_SRC) $(BESSEL_SRC) $(OPTIMIZATION_SRC) \
 	$(SLEDGE_SRC)
 libexputil_la_LIBADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
-
-AM_CFLAGS = -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
-AM_CXXFLAGS = -std=c++11 -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
-
 
 sledge.f:	$(top_srcdir)/src/sledge.f
 	cp $(top_srcdir)/src/$@ .

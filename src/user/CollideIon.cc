@@ -12045,7 +12045,8 @@ void collDiag::print()
 	  << std::setw(12) << misE_s
 	  << std::setw(12) << Edsp_s
 	  << std::setw(12) << Efrc_s/Emas_s
-	  << std::setw(12) << Etot_c + Ktot_c + Esum_s + Elos_s + Elec_s - delI_s - delE_s
+	// << std::setw(12) << Etot_c + Ktot_c + Esum_s + Elos_s + Elec_s - delI_s - delE_s
+	  << std::setw(12) << Etot_c + Esum_s + Elos_s + Elec_s - delI_s - delE_s
 	  << " |" << std::endl;
     }
   }
