@@ -1218,10 +1218,11 @@ void * Collide::collide_thread(void * arg)
 #endif
       for (size_t k=0; k<c->bods.size(); k++) {
 	unsigned long kk = c->bods[k];
-	const Particle* p = tree->Body(kk);
+	Particle* p = tree->Body(kk);
 
-	speciesKey skey = defaultKey;
-	if (use_key>=0) skey = KeyConvert(p->iattrib[use_key]).getKey();
+	speciesKey skey = p->skey;
+	if (use_key>=0 and skey==Particle::defaultKey)
+	  skey = p->skey = KeyConvert(p->iattrib[use_key]).getKey();
 
 	bmap[skey].push_back(kk);
       }

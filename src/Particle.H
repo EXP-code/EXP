@@ -73,6 +73,13 @@ public:
   unsigned long key;
 #endif
   
+  typedef std::pair<unsigned short, unsigned short> speciesKey;
+  static const speciesKey defaultKey;
+
+  //! Species key (this is a cache value to prevent endless on-the-fly
+  //! reconstruction of the species key)
+  speciesKey skey;
+
   //! Constructor
   Particle();
 

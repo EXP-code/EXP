@@ -576,20 +576,20 @@ void pCell::accumState()
 				// March through the body list
   for (auto j: bods) {
     Particle & p = C->Particles()[j];
-    speciesKey spc = defaultKey;
-    if (C->keyPos>=0) {
-      KeyConvert kc(p.iattrib[C->keyPos]);
-      spc = kc.getKey();
+    speciesKey spc = p.skey;
+    if (C->keyPos>=0 and spc==Particle::defaultKey) {
+      spc = p.skey = KeyConvert(p.iattrib[C->keyPos]).getKey();
     }
-
 				// Only do the mapping to vector once
 				// in the loop
     std::vector<double> & s = state[spc];
-    s[0] += p.mass;
+    double ms = p.mass;
+    s[0] += ms;
     for (int k=0; k<3; k++) {
-      s[1+k] += p.mass * p.vel[k]*p.vel[k];
-      s[4+k] += p.mass * p.vel[k];
-      s[7+k] += p.mass * p.pos[k];
+      double pos = p.pos[k], vel = p.vel[k];
+      s[1+k] += ms * vel*vel;
+      s[4+k] += ms * vel;
+      s[7+k] += ms * pos;
     }
     count[spc]++;
   }

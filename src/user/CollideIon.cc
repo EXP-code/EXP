@@ -2205,7 +2205,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
     // but allows us to reuse the code for both the direct and trace
     // computations.
     //
-    csections[id][defaultKey][defaultKey]() = 0.0;
+    csections[id][Particle::defaultKey][Particle::defaultKey]() = 0.0;
 
     // Compute mean weights in the cell
     //
@@ -2314,7 +2314,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
       double tCross = Cross * crossfac * 1e-14 /
 	(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) * cscl_[k.first];
 
-      csections[id][defaultKey][defaultKey]() += tCross * meanF[id][k];
+      csections[id][Particle::defaultKey][Particle::defaultKey]() += tCross * meanF[id][k];
     }
   } // END: "trace"
 
@@ -2540,7 +2540,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 
   if (aType == Trace) {
 
-    csections[id][defaultKey][defaultKey]() = 0.0;
+    csections[id][Particle::defaultKey][Particle::defaultKey]() = 0.0;
 
     // Compute the mean trace weight in the cell
     //
@@ -2585,7 +2585,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
       double tCross = Cross * crossfac * 1e-14 /
 	(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) * cscl_[k.first];
 
-      csections[id][defaultKey][defaultKey]() += tCross * meanF[id][k];
+      csections[id][Particle::defaultKey][Particle::defaultKey]() += tCross * meanF[id][k];
     }
   }
 
@@ -9444,7 +9444,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
   // Test
   //
-  scaleCrossSection /= csections[id][defaultKey][defaultKey]() *
+  scaleCrossSection /= csections[id][Particle::defaultKey][Particle::defaultKey]() *
     1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 
   //-------------------------
@@ -9998,7 +9998,7 @@ void * CollideIon::timestep_thread(void * arg)
 	    speciesKey i2 = it2.first;
 	    double      N = UserTreeDSMC::Munit/amu;
 
-	    if (i2 == defaultKey) N /= atomic_weights[i2.first];
+	    if (i2 == Particle::defaultKey) N /= atomic_weights[i2.first];
 
 	    double crossTot = 0.0;
 
@@ -12045,7 +12045,8 @@ void collDiag::print()
 	  << std::setw(12) << misE_s
 	  << std::setw(12) << Edsp_s
 	  << std::setw(12) << Efrc_s/Emas_s
-	  << std::setw(12) << Etot_c + Ktot_c + Esum_s + Elos_s + Elec_s - delI_s - delE_s
+	// << std::setw(12) << Etot_c + Ktot_c + Esum_s + Elos_s + Elec_s - delI_s - delE_s
+	  << std::setw(12) << Etot_c + Esum_s + Elos_s + Elec_s - delI_s - delE_s
 	  << " |" << std::endl;
     }
   }
@@ -13797,7 +13798,7 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
 (pCell* const c, sKeyDmap* const Fn, double crm, double tau, int id,
  double& meanLambda, double& meanCollP, double& totalNsel)
 {
-  speciesKey key(defaultKey);
+  speciesKey key(Particle::defaultKey);
 
   // Mass density in the cell
   //
@@ -13897,7 +13898,7 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
 
   sKey2Amap ret;
 
-  ret[defaultKey][defaultKey]() = selcM;
+  ret[Particle::defaultKey][Particle::defaultKey]() = selcM;
 
   return ret;
 }

@@ -154,10 +154,12 @@ void * reset_level_lists_thrd(void *ptr)
   
   PartMapItr it = c->Particles().begin();
 
-  for (int n=0; n<nbeg; n++) it++;
-  for (int n=nbeg; n<nend; n++) {
-    (static_cast<thrd_pass_reset*>(ptr)->newlist)[it->second.level].push_back(it->first);
-    it++;
+  std::advance(it, nbeg);
+
+  vector< vector<int> > *v = &static_cast<thrd_pass_reset*>(ptr)->newlist;
+
+  for (int n=nbeg; n<nend; n++, it++) {
+    (*v)[it->second.level].push_back(it->first);
   }
   
   return (NULL);
@@ -256,7 +258,7 @@ void Component::reset_level_lists()
 	  cout << left << setw(4) << myid << setw(4) << j;
 	  if (levlist[j].size())
 	    cout << left
-	       << setw(12) << levlist[j].front()
+		 << setw(12) << levlist[j].front()
 		 << setw(12) << levlist[j].back() 
 		 << setw(12) << levlist[j].size()
 		 << endl;

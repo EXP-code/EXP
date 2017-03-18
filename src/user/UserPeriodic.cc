@@ -254,7 +254,8 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
   double pos, delta;
   PartMapItr it = cC->Particles().begin();
   
-  for (int q=0   ; q<nbeg; q++) it++;
+  std::advance(it, nbeg);
+
   for (int q=nbeg; q<nend; q++) {
     
 				// Index for the current particle
@@ -264,9 +265,9 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
     double   mi = 0.0;
 
     if (thermal) {
-      KeyConvert kc(p->iattrib[cC->keyPos]);
-      speciesKey sKey = kc.getKey();
-      mi = (atomic_weights[sKey.first])*amu;
+      if (p->skey == Particle::defaultKey)
+	p->skey = KeyConvert(p->iattrib[cC->keyPos]).getKey();
+      mi = (atomic_weights[p->skey.first])*amu;
     }
 
     for (int k=0; k<3; k++) {
@@ -287,12 +288,12 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
 	if (pos < 0.0) {
 	  delta = -pos - L[k]*floor(-pos/L[k]);
 	  p->pos[k] = delta - offset[k];
-	  p->vel[k] = -p->vel[k];
+	  p->vel[k] *= -1.0;
 	} 
 	if (pos >= L[k]) {
 	  delta = pos - L[k]*floor(pos/L[k]);
 	  p->pos[k] =  L[k] - delta - offset[k];
-	  p->vel[k] = -p->vel[k];
+	  p->vel[k] *= -1.0;
 	}
       }
 
@@ -301,11 +302,11 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
       //
       if (bc[k] == 'p') {
 	if (pos < 0.0) {
-	  p->pos[k] = p->pos[k] + L[k]*floor(1.0+fabs(pos/L[k]));
+	  p->pos[k] += L[k]*floor(1.0+fabs(pos/L[k]));
 	  
 	}
 	if (pos >= L[k]) {
-	  p->pos[k] = p->pos[k] - L[k]*floor(fabs(pos/L[k]));
+	  p->pos[k] += - L[k]*floor(fabs(pos/L[k]));
 	}
       }
 

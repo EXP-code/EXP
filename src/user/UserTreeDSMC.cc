@@ -393,8 +393,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     }
     
   } else {		   
-    spec_list.insert(defaultKey);
-    collFrac[defaultKey] = 1.0;
+    spec_list.insert(Particle::defaultKey);
+    collFrac[Particle::defaultKey] = 1.0;
   }
   
   // Number of protons per mass unit
@@ -694,7 +694,7 @@ void UserTreeDSMC::initialize()
       it++;
     } else {
       // The default key is defined in pCell.H
-      collFrac[defaultKey] = 1.0;
+      collFrac[Particle::defaultKey] = 1.0;
     }
   }
   
@@ -1844,7 +1844,7 @@ void UserTreeDSMC::assignTempDensVol()
 	  continue;
 	}
 	
-        speciesKey sKey = defaultKey;
+        speciesKey sKey = Particle::defaultKey;
 	if (use_key>=0) {
 	  KeyConvert kc(cell->Body(j)->iattrib[use_key]);
 	  sKey = kc.getKey();
@@ -1854,7 +1854,7 @@ void UserTreeDSMC::assignTempDensVol()
 	double mi = amu;
 	// For non-trace or multiple species
 	// computations
-	if (sKey != defaultKey) mi = mp*atomic_weights[sKey.first];
+	if (sKey != Particle::defaultKey) mi = mp*atomic_weights[sKey.first];
 	
 	Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * mi/UserTreeDSMC::Munit/boltz;
 	T    = KEdsp* Tfac;
