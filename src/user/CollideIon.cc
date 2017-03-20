@@ -113,7 +113,7 @@ static bool DIFF_ELEC_SCAT      = false;
 static bool SAME_IONS_SCAT      = false;
 static bool SAME_INTERACT       = false;
 static bool DIFF_INTERACT       = false;
-static bool SAME_TRACE_SUPP     = false;
+static bool TRACE_OVERRIDE      = false;
 
 // Suppress distribution of energy to electrons when using NOCOOL
 //
@@ -493,7 +493,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "DIFF_INTERACT"
 	      << (DIFF_INTERACT ? "on" : "off")         << std::endl
 	      <<  " " << std::setw(20) << std::left << "INFR_INTERACT"
-	      << (SAME_TRACE_SUPP ? "on" : "off")       << std::endl
+	      << (TRACE_OVERRIDE ? "on" : "off")       << std::endl
 	      <<  " " << std::setw(20) << std::left << "NoDelC"
 	      << NoDelC                                 << std::endl
 	      <<  " " << std::setw(20) << std::left << "NOCOOL_ELEC"
@@ -5706,7 +5706,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
 
   if (use_cons >= 0) {
 
-    if (SAME_TRACE_SUPP) {
+    if (TRACE_OVERRIDE) {
       //
       // Override special trace species treatment
       //
@@ -6001,7 +6001,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
     else if (C1==1 and C2==1)
       del -= deltaKE;
 
-    if (SAME_TRACE_SUPP) {
+    if (TRACE_OVERRIDE) {
       //
       // Override default trace species treatment; split energy
       // adjustment between interaction particles
@@ -6359,7 +6359,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
     if (Z1 == Z2 or !ExactE) testE -= delE + missE;
 
 				// Add in energy loss/gain
-    if (Z1==Z2 or SAME_TRACE_SUPP)
+    if (Z1==Z2 or TRACE_OVERRIDE)
       testE += Exs;
 				// Correct for trace-algorithm excess
     else if ( (C1==1 and C2==1) or electronic  )
@@ -9091,7 +9091,7 @@ void CollideIon::checkEnergyHybrid
 
   // Apply momentum conservation energy offset
   //
-  if (equal and KE.delta>0.0) {
+  if ((equal or TRACE_OVERRIDE) and KE.delta>0.0) {
     if (pp->P == Pord::ion_ion) {
       pp->E1[0] -= KE.delta * 0.5;
       pp->E2[0] -= KE.delta * 0.5;
@@ -9106,7 +9106,7 @@ void CollideIon::checkEnergyHybrid
     }
   }
   
-  if (not equal) {
+  if (not equal and not TRACE_OVERRIDE) {
     if (TRACE_ELEC) {
       if (swap) {
 	pp->E1[1] -= KE.delta * TRACE_FRAC;
@@ -11144,7 +11144,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	  bool equal = fabs(q - 1.0) < 1.0e-14;
 
 	  double vfac = 1.0;
-	  if (equal) {
+	  if (equal or TRACE_OVERRIDE) {
 	    const double tol = 0.95; // eps = 0.05, tol = 1 - eps
 	    double KE0 = 0.5*W1*m1*m2/mt * vi*vi;
 	    if (elc_cons)
@@ -16343,8 +16343,8 @@ void CollideIon::processConfig()
     Fwght =
       cfg.entry<double>("WEIGHT_RATIO", "Weighting ratio for spreading excess energy to components", 0.5);
 
-    SAME_TRACE_SUPP =
-      cfg.entry<bool>("SAME_TRACE_SUPP", "Distribute energy equally to trace species", false);
+    TRACE_OVERRIDE =
+      cfg.entry<bool>("TRACE_OVERRIDE", "Distribute energy equally to trace species", false);
 
     NOCOOL_ELEC =
       cfg.entry<bool>("NOCOOL_ELEC", "Suppress distribution of energy to electrons when using NOCOOL", false);
