@@ -34,6 +34,7 @@ string   CollideIon::cache      = ".HeatCool";
 bool     CollideIon::equiptn    = false;
 bool     CollideIon::scatter    = false;
 bool     CollideIon::ExactE     = false;
+bool     CollideIon::NoExact    = true;
 bool     CollideIon::AlgOrth    = false;
 bool     CollideIon::AlgWght    = false;
 bool     CollideIon::DebugE     = false;
@@ -454,6 +455,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << "************************************" << std::endl
 	      << " " << std::setw(20) << std::left  << "ENERGY_ES"
 	      << (ExactE ? "on" : "off")                << std::endl
+	      <<  " " << std::setw(20) << std::left << "NO_EXACT"
+	      << (NoExact ? "on" : "off")                << std::endl
 	      <<  " " << std::setw(20) << std::left << "ENERGY_DBG"
 	      << (DebugE ? "on" : "off")                << std::endl
 	      <<  " " << std::setw(20) << std::left << "ENERGY_ORTHO"
@@ -7999,12 +8002,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
       }
 
-      updateEnergyHybrid(PP[0], KE);
+      if (not NoExact) updateEnergyHybrid(PP[0], KE);
 
       testKE[id][3] += PE[0][1];
       testKE[id][4] += PE[0][1];
 
-      if (KE_DEBUG) {
+      if (KE_DEBUG and not NoExact) {
 
 	double KE_final_check = energyInPair(p1, p2);
 
@@ -8138,12 +8141,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  p2->dattrib[use_elec+k] = v2[k];
 	}
 	
-	updateEnergyHybrid(PP[1], KE);
+	if (not NoExact) updateEnergyHybrid(PP[1], KE);
 
 	testKE[id][3] += PE[1][1] - ionExtra.first + rcbExtra.first;
 	testKE[id][4] += PE[1][1];
 
-	if (KE_DEBUG) {
+	if (KE_DEBUG and not NoExact) {
 
 	  double ke1f = 0.0, ke2f = 0.0;
 
@@ -8192,7 +8195,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
       }
 
-      if (KE_DEBUG) {
+      if (KE_DEBUG and not NoExact) {
 	double KE_final_check = energyInPair(p1, p2);
 
 	std::pair<double, double> KEfinal;
@@ -8330,12 +8333,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  p2->vel[k] = v2[k];
 	}
       
-	updateEnergyHybrid(PP[2], KE);
+	if (not NoExact) updateEnergyHybrid(PP[2], KE);
 
 	testKE[id][3] += PE[2][1] - ionExtra.second + rcbExtra.second;
 	testKE[id][4] += PE[2][1];
 
-	if (KE_DEBUG) {
+	if (KE_DEBUG and not NoExact) {
 
 	  double ke1f = 0.0, ke2f =0.0;
 	  for (int k=0; k<3; k++) {
@@ -8381,7 +8384,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
       }
 
-      if (KE_DEBUG) {
+      if (KE_DEBUG and not NoExact) {
 	double KE_final_check = energyInPair(p1, p2);
 
 	std::pair<double, double> KEfinal;
@@ -8524,7 +8527,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // + Energy change owing to change in ionization state
   // + Deferred energy applied to the center-of-mass interaction
   //
-  if (KE_DEBUG) {
+  if (KE_DEBUG and not NoExact) {
     double KE_final_check = energyInPair(p1, p2);
     std::array<double, 2> KE_final_econs = {0.0, 0.0};
 
@@ -8717,10 +8720,6 @@ void CollideIon::scatterHybrid
   // according to the inelastic energy loss
   //
 
-  // Use explicit energy conservation algorithm
-  //
-  double vrat = 1.0;
-
   // Velocity working variables
   //
   std::vector<double> uu(3), vv(3);
@@ -8746,6 +8745,8 @@ void CollideIon::scatterHybrid
   }
 
   if (ExactE and q1 < 1.0) {
+
+    double vrat = 1.0;
 
     KE.bs.set(KE_Flags::ExQ);
 
@@ -9360,6 +9361,7 @@ void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
 	    << ", KEf=" << std::setw(14) << tKEf
 	    << ", eta=" << std::setw(14) << eta << std::setprecision(10)
 	    << ", del=" << std::setw(14) << testE
+	    << ", rel=" << std::setw(14) << testE/tKEi
 	    << ", mom=" << std::setw(14) << KE.delta
 	    << ", los=" << std::setw(14) << KE.delE
 	    << ", E1i=" << std::setw(18) << pp->end[0].KEi
@@ -10171,7 +10173,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   // Collision cell energy conservation debugging
   //======================================================================
   //
-  if (aType == Hybrid and KE_DEBUG) {
+  if (aType == Hybrid and KE_DEBUG and not NoExact) {
 
     double totKEf = 0.0;
     double totMas = 0.0;
@@ -16286,6 +16288,9 @@ void CollideIon::processConfig()
 	cfg.property_tree().insert(++it, val);
       }
     }
+
+    NoExact =
+      cfg.entry<bool>("NO_EXACT", "Enable equal electron-ion interactions in Hybrid method", false);
 
     ExactE =
       cfg.entry<bool>("ENERGY_ES", "Enable the explicit energy conservation algorithm", false);

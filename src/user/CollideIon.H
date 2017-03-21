@@ -1235,6 +1235,7 @@ public:
   static bool     equiptn;
   static bool     scatter;
   static bool     ExactE;
+  static bool     NoExact;
   static bool     AlgOrth;
   static bool     AlgWght;
   static bool     DebugE;
