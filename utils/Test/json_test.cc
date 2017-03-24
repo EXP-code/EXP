@@ -1,3 +1,6 @@
+// Compile: g++ -g -o jt json_test.cc
+// Run: ./jt
+
 #include <iostream>
 #include <iomanip>
 #include <boost/property_tree/ptree.hpp>
