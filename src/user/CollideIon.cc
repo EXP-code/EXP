@@ -11247,10 +11247,10 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	      p1->dattrib[use_elec+3] -= deltaKE;
 	    else {
 	      if (TRACE_ELEC) {
-		p1->dattrib[use_cons  ] -= deltaKE * (1.0 - TRACE_FRAC);
-		p2->dattrib[use_cons  ] -= deltaKE * TRACE_FRAC;
+		p1->dattrib[use_cons] -= deltaKE * (1.0 - TRACE_FRAC);
+		p2->dattrib[use_cons] -= deltaKE * TRACE_FRAC;
 	      } else {
-		p1->dattrib[use_cons  ] -= deltaKE;
+		p1->dattrib[use_cons] -= deltaKE;
 	      }
 	    }
 	  }
