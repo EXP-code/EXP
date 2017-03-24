@@ -6052,7 +6052,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
   // -------------------------
   //
   // Electron velocity is computed so that momentum is conserved
-  // ignoring the doner ion
+  // ignoring the donor ion
   //
   bool electronic = false;
 
@@ -9116,6 +9116,7 @@ void CollideIon::checkEnergyHybrid
 	pp->E1[0] -= KE.delta * (1.0 - TRACE_FRAC);
 	pp->E2[1] -= KE.delta * TRACE_FRAC;
       }
+
     } else {
 
       if (pp->P == Pord::ion_ion) {
@@ -9237,6 +9238,8 @@ void CollideIon::debugDeltaE(double delE, unsigned short Z, unsigned short C,
 //
 void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
 {
+  const bool reverse_apply = false;
+
   // Compute final energy
   //
   pp->eFinal();
@@ -9325,8 +9328,23 @@ void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
       if (pp->swap) pp->p1->dattrib[use_elec+3] -= testE;
       else          pp->p2->dattrib[use_elec+3] -= testE;
     } else {
-      if (pp->swap) pp->p1->dattrib[use_cons  ] -= testE;
-      else          pp->p2->dattrib[use_cons  ] -= testE;
+      if (reverse_apply) {
+	if (pp->swap) pp->p2->dattrib[use_cons] -= testE;
+	else          pp->p1->dattrib[use_cons] -= testE;
+      } else {
+	if (TRACE_ELEC) {
+	  if (pp->swap) {
+	    pp->p1->dattrib[use_cons] -= testE*TRACE_FRAC;
+	    pp->p2->dattrib[use_cons] -= testE*(1.0 - TRACE_FRAC);
+	  } else {
+	    pp->p1->dattrib[use_cons] -= testE*(1.0 - TRACE_FRAC);
+	    pp->p2->dattrib[use_cons] -= testE*(TRACE_FRAC);
+	  }
+	} else {
+	  if (pp->swap) pp->p1->dattrib[use_cons] -= testE;
+	  else          pp->p2->dattrib[use_cons] -= testE;
+	}
+      }
     }
   }
   
@@ -9335,8 +9353,23 @@ void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
       if (pp->swap) pp->p2->dattrib[use_elec+3] -= testE;
       else          pp->p1->dattrib[use_elec+3] -= testE;
     } else {
-      if (pp->swap) pp->p2->dattrib[use_cons  ] -= testE;
-      else          pp->p1->dattrib[use_cons  ] -= testE;
+      if (reverse_apply) {
+	if (pp->swap) pp->p1->dattrib[use_cons] -= testE;
+	else          pp->p2->dattrib[use_cons] -= testE;
+      } else {
+	if (TRACE_FRAC) {
+	  if (pp->swap) {
+	    pp->p1->dattrib[use_cons] -= testE*(1.0 - TRACE_FRAC);
+	    pp->p2->dattrib[use_cons] -= testE*TRACE_FRAC;
+	  } else {
+	    pp->p1->dattrib[use_cons] -= testE*TRACE_FRAC;
+	    pp->p2->dattrib[use_cons] -= testE*(1.0 - TRACE_FRAC);
+	  }
+	} else {
+	  if (pp->swap) pp->p2->dattrib[use_cons] -= testE;
+	  else          pp->p1->dattrib[use_cons] -= testE;
+	}
+      }
     }
   }
 
@@ -11212,8 +11245,14 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	  if (!equal) {
 	    if (elc_cons)
 	      p1->dattrib[use_elec+3] -= deltaKE;
-	    else
-	      p1->dattrib[use_cons  ] -= deltaKE;
+	    else {
+	      if (TRACE_ELEC) {
+		p1->dattrib[use_cons  ] -= deltaKE * (1.0 - TRACE_FRAC);
+		p2->dattrib[use_cons  ] -= deltaKE * TRACE_FRAC;
+	      } else {
+		p1->dattrib[use_cons  ] -= deltaKE;
+	      }
+	    }
 	  }
 
 	} // end: momentum conservation
