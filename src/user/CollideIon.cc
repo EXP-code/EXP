@@ -8633,7 +8633,7 @@ void CollideIon::scatterHybrid
   }
   KE.bs.reset();
 
-  // Split between components for testing
+  // Split between components for testing (for ExactE algorithm only)
   //
   double alph = scatFac1;
   double beta = scatFac2;
