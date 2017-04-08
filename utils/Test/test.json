@@ -1,0 +1,7 @@
+{
+    "name"    : "cat",
+    "number"  : 43,
+    "enabled" : "True",
+    "good"    : "No",
+    "value"   : 3.14159
+}
