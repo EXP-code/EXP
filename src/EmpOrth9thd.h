@@ -19,7 +19,7 @@
 #include <global.H>
 #include "expand.h"
 #else
-#include "Particle.H"
+#include "Particle.h"
 extern int this_step;
 extern int Mstep;
 extern int mstep;
