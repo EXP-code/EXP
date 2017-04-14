@@ -13333,7 +13333,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     const double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * amu  /
       UserTreeDSMC::Munit/boltz;
 
-    double Temp = KEdspC * Tfac * molWeight(cell->sample);
+    double Temp = KEdspC * Tfac * molWeight(cell);
 
     for (auto b : cell->bods) c0->Tree()->Body(b)->dattrib[use_temp] = Temp;
   }
@@ -13423,17 +13423,34 @@ std::pair<double, double> CollideIon::computeEdsp(pCell* cell)
 
   for (auto n : bodies) {
     Particle * p = cell->Body(n);
-    speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
-    unsigned short Z = k.first;
-    double mass = p->mass * atomic_weights[0]/atomic_weights[Z];
-      
-    if (aType == CollideIon::Hybrid) {
-      double cnt = 0.0;
-      for (unsigned short C=1; C<Z+1; C++)
-	cnt += p->dattrib[spc_pos+1]*C;
-      mass *= cnt;
+    double mass = 0.0;
+
+    if (aType == CollideIon::Trace) {
+
+      // Compute mean charge and mol weight
+      double cnt = 0.0, mu = 0.0;
+      for (auto s : SpList) {
+	speciesKey k = s.first;
+	cnt += p->dattrib[s.second] * k.second;
+	mu  += p->dattrib[s.second] / atomic_weights[k.first];
+      }
+
+      mass = p->mass * atomic_weights[0] * cnt * mu;
+
     } else {
-      mass *= static_cast<double>(k.second - 1);
+      speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
+      unsigned short Z = k.first;
+
+      mass = p->mass * atomic_weights[0]/atomic_weights[Z];
+      
+      if (aType == CollideIon::Hybrid) {
+	double cnt = 0.0;
+	for (unsigned short C=1; C<Z+1; C++)
+	  cnt += p->dattrib[spc_pos+1]*C;
+	mass *= cnt;
+      } else {
+	mass *= static_cast<double>(k.second - 1);
+      }
     }
     
     m += mass;
@@ -15885,8 +15902,8 @@ void CollideIon::gatherSpecies()
       double KEtot, KEdsp;
       cell->sample->KE(KEtot, KEdsp);
 
-      double Tion = KEtot * Tfac * molWeight(cell->sample);
-      double Sion = KEdsp * Tfac * molWeight(cell->sample);
+      double Tion = KEtot * Tfac * molWeight(cell);
+      double Sion = KEdsp * Tfac * molWeight(cell);
       double Telc = 0.0;
 
       mass  += cell->Mass();
@@ -17877,7 +17894,7 @@ void CollideIon::printSpeciesTrace()
 
 // Compute the mean molecular weight in atomic mass units
 //
-double CollideIon::molWeight(sCell *cell)
+double CollideIon::molWeight(pCell *cell)
 {
   double mol_weight = 1.0;
 
@@ -17891,6 +17908,22 @@ double CollideIon::molWeight(sCell *cell)
     }
 
     mol_weight = massC/numbC;
+  }
+
+  if (aType==Trace) {
+    double numbC = 0.0, massC = 0.0;
+
+    for (auto b : cell->bods) {
+      
+      Particle *p = curTree->Body(b);
+      double m = p->mass;
+
+      for (auto s : SpList) {
+	speciesKey i = s.first;
+	numbC += m * p->dattrib[s.second] / atomic_weights[i.first];
+	massC += m * p->dattrib[s.second] ;
+      }
+    }
   }
 
   if (0) {

@@ -1316,7 +1316,7 @@ public:
   }
 
   //! Compute/retrieve mean molecular weight for this cell
-  virtual double molWeight(sCell *c);
+  virtual double molWeight(pCell *c);
 
   //! Set electron scattering type
   static void setEStype(const std::string& type) 
