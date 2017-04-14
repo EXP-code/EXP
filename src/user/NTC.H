@@ -74,7 +74,7 @@ namespace NTC {
     enum pType {simple, neutral, ion, electron};
 
     //! Interaction element: interaction species and charge
-    typedef std::pair<pType, unsigned short> pElem;
+    typedef std::pair<pType, speciesKey> pElem;
 
     //! Interaction type with interaction elements
     typedef std::tuple<unsigned short, pElem, pElem> T;
@@ -363,13 +363,20 @@ namespace NTC {
 	MPI_Send(&siz2, 1, MPI_UNSIGNED,   0, 1116, MPI_COMM_WORLD);
 
 	unsigned short u;	// temporary
+	speciesKey tk;
 
 	for (auto &q : p.second) {
-	  MPI_Send(&(u=std::get<0>(q.first)), 1, MPI_UNSIGNED_SHORT, 0, 1117, MPI_COMM_WORLD);
-	  MPI_Send(&(u=std::get<1>(q.first).first),  1, MPI_UNSIGNED_SHORT, 0, 1118, MPI_COMM_WORLD);
-	  MPI_Send(&(u=std::get<1>(q.first).second), 1, MPI_UNSIGNED_SHORT, 0, 1119, MPI_COMM_WORLD);
-	  MPI_Send(&(u=std::get<2>(q.first).first),  1, MPI_UNSIGNED_SHORT, 0, 1120, MPI_COMM_WORLD);
-	  MPI_Send(&(u=std::get<2>(q.first).second), 1, MPI_UNSIGNED_SHORT, 0, 1121, MPI_COMM_WORLD);
+	  MPI_Send(&(u=std::get<0>(q.first)),         1, MPI_UNSIGNED_SHORT, 0, 1117, MPI_COMM_WORLD);
+
+	  MPI_Send(&(u=std::get<1>(q.first).first),   1, MPI_UNSIGNED_SHORT, 0, 1118, MPI_COMM_WORLD);
+	  tk = std::get<1>(q.first).second;
+	  MPI_Send(&tk.first,                         1, MPI_UNSIGNED_SHORT, 0, 1119, MPI_COMM_WORLD);
+	  MPI_Send(&tk.second,                        1, MPI_UNSIGNED_SHORT, 0, 1120, MPI_COMM_WORLD);
+
+	  MPI_Send(&(u=std::get<2>(q.first).first),   1, MPI_UNSIGNED_SHORT, 0, 1121, MPI_COMM_WORLD);
+	  tk = std::get<2>(q.first).second;
+	  MPI_Send(&tk.first,                         1, MPI_UNSIGNED_SHORT, 0, 1122, MPI_COMM_WORLD);
+	  MPI_Send(&tk.second,                        1, MPI_UNSIGNED_SHORT, 0, 1123, MPI_COMM_WORLD);
 
 	  q.second.send();
 	}
@@ -404,14 +411,19 @@ namespace NTC {
 	sKeyPair key(p1, p2);
 
 	for (unsigned j=0; j<siz2; j++) {
+	  speciesKey tk;
 	  T t;
 	  MPI_Recv(&(get<0>(t)),        1, MPI_UNSIGNED_SHORT, id, 1117, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
 	  MPI_Recv(&(get<1>(t).first),  1, MPI_UNSIGNED_SHORT, id, 1118, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  MPI_Recv(&(get<1>(t).second), 1, MPI_UNSIGNED_SHORT, id, 1119, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&tk.first,           1, MPI_UNSIGNED_SHORT, id, 1119, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&tk.second,          1, MPI_UNSIGNED_SHORT, id, 1120, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  std::get<1>(t).second = tk;
 
-	  MPI_Recv(&(get<2>(t).first),  1, MPI_UNSIGNED_SHORT, id, 1120, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  MPI_Recv(&(get<2>(t).second), 1, MPI_UNSIGNED_SHORT, id, 1121, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&(get<2>(t).first),  1, MPI_UNSIGNED_SHORT, id, 1121, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&tk.first,           1, MPI_UNSIGNED_SHORT, id, 1122, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&tk.second,          1, MPI_UNSIGNED_SHORT, id, 1123, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  std::get<2>(t).second = tk;
 
 	  db[key][t].recv(id);
 

@@ -42,10 +42,10 @@ Interact::pLabs = {
 };
 
 // Default null pElem
-constexpr Interact::pElem const Interact::pdef {Interact::simple, 0};
+constexpr Interact::pElem const Interact::pdef {Interact::simple, speciesKey(0, 0)};
 
 // Default electron pElem
-constexpr Interact::pElem const Interact::edef {Interact::electron, 0};
+constexpr Interact::pElem const Interact::edef {Interact::electron, speciesKey(0, 0)};
 
 // Default interaction key for singleton
 Interact::T Interact::single(0, Interact::pdef, Interact::pdef);
@@ -58,7 +58,7 @@ std::ostream& operator<< (std::ostream& out, const Interact::pElem& e)
 {
   std::ostringstream sout;
   sout << Interact::label(e)
-       << " [" << e.second << "]";
+       << " [" << e.second.first << ", " << e.second.second << "]";
   out << sout.str();
   return out;
 }

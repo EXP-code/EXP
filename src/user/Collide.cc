@@ -3504,9 +3504,15 @@ void Collide::NTCgather(pHOT* const tree)
 	    for (auto j : i.second) {
 	      NTC::Interact::T val = j.first;
 	      unsigned num = j.second.size();
-	      unsigned short uuu[5] = {std::get<0>(val), std::get<1>(val).first, std::get<1>(val).second, std::get<2>(val).first, std::get<2>(val).second};
+	      unsigned short uuu[7] = {std::get<0>(val),
+				       std::get<1>(val).first,
+				       std::get<1>(val).second.first,
+				       std::get<1>(val).second.second,
+				       std::get<2>(val).first,
+				       std::get<2>(val).second.first,
+				       std::get<2>(val).second.second};
 
-	      MPI_Send(&uuu, 5, MPI_UNSIGNED_SHORT, 0, base+0, MPI_COMM_WORLD);
+	      MPI_Send(&uuu, 7, MPI_UNSIGNED_SHORT, 0, base+0, MPI_COMM_WORLD);
 	      MPI_Send(&num, 1, MPI_UNSIGNED,       0, base+1, MPI_COMM_WORLD);
 
 	      double z;		// temporary
@@ -3527,7 +3533,7 @@ void Collide::NTCgather(pHOT* const tree)
 	if (myid==0) {
 	  
 	  std::vector<double> v;
-	  unsigned short uuu[5];
+	  unsigned short uuu[7];
 	  unsigned sz, num, num2;
 	  double dval;
 	  int i1, i2, i3;
@@ -3563,7 +3569,7 @@ void Collide::NTCgather(pHOT* const tree)
 
 	    for (int w=0; w<i3; w++) {
 
-	      MPI_Recv(&uuu, 5, MPI_UNSIGNED_SHORT, n, base+0, MPI_COMM_WORLD, 
+	      MPI_Recv(&uuu, 7, MPI_UNSIGNED_SHORT, n, base+0, MPI_COMM_WORLD, 
 		       MPI_STATUS_IGNORE);
 
 	      MPI_Recv(&num, 1, MPI_UNSIGNED, n, base+1, MPI_COMM_WORLD, 
@@ -3571,8 +3577,8 @@ void Collide::NTCgather(pHOT* const tree)
 
 	      NTC::Interact::T utup {
 		uuu[0],
-		{static_cast<NTC::Interact::pType>(uuu[1]), uuu[2]},
-		{static_cast<NTC::Interact::pType>(uuu[3]), uuu[4]}
+		{static_cast<NTC::Interact::pType>(uuu[1]), speciesKey(uuu[2], uuu[3])},
+		{static_cast<NTC::Interact::pType>(uuu[4]), speciesKey(uuu[5], uuu[6])}
 	      };
 
 	      if (num) {
