@@ -93,6 +93,8 @@ norm_ptr    Norm;
 // ION collide types
 //
 enum Itype { Hybrid, Trace, Weight, Direct };
+std::map<std::string, Itype> Types
+{ {"Hybrid", Hybrid}, {"Trace", Trace}, {"Weight", Weight}, {"Direct", Direct} };
 
 // Use CHIANTI or ION for ionization-recombination equilibrium
 //
@@ -101,7 +103,7 @@ bool use_chianti = false;
 /**
    Make Uniform temperature box of gas
 */
-void InitializeUniform(std::vector<Particle>& p, double mass,
+void InitializeUniform(std::vector<Particle>& p, double mass, double molW,
                        std::map<unsigned char, double>& T, vector<double> &L,
 		       Itype type, int ne)
 {
@@ -109,7 +111,7 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
   double   rho   = mass/(L[0]*L[1]*L[2]);
   
   std::cout << std::string(70, '-')                 << std::endl;
-  if (T.size()>1) {
+  if (T.size()>1 and type != Trace) {
     for (auto v : T) {
       std::ostringstream sout;
       sout << "Temp " << atomic_specie[v.first] << ":";
@@ -145,7 +147,8 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
       varI[Z] = sqrt((boltz*T[Z])/(atomic_masses[Z]*amu)) / Vunit; // Ion
       varE[Z] = sqrt((boltz*T[Z])/(atomic_masses[0]*amu)) / Vunit; // Electron
     } else {
-      varI[Z] = sqrt((boltz*T[0])/amu) / Vunit; // Mean fiducial particle
+      varI[Z] = sqrt((boltz*T[0])/(molW*amu))             / Vunit; // Fiducial particle
+      varE[Z] = sqrt((boltz*T[0])/(atomic_masses[0]*amu)) / Vunit; // Electrons
     }
   }
   
@@ -179,6 +182,12 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
 	p[i].vel[k] = varI[0]*(*Norm)();
       }
       
+      if (ne>=0) {
+	for (int l=0; l<3; l++) {
+	  p[i].dattrib[ne+l] = varE[0] * (*Norm)();
+	}
+      }
+
     } else {
       
       KeyConvert kc(p[i].iattrib[0]);
@@ -361,7 +370,7 @@ void InitializeSpeciesDirect
  std::vector<unsigned char>& sZ, 
  std::vector<double>& sF, 
  std::vector< std::vector<double> >& sI,
- double M, std::map<unsigned char, double>& T, int ne, int ni=1, int nd=6)
+ double M, std::map<unsigned char, double>& T, int ne, int ni, int nd)
 {
   std::vector< std::vector<double> > frac, cuml;
   
@@ -564,7 +573,7 @@ void InitializeSpeciesWeight
  std::vector<unsigned char>& sZ,
  std::vector<double>& sF,
  std::vector< std::vector<double> >& sI,
- double M, std::map<unsigned char, double>& T, int& ne, int ni=2, int nd=6)
+ double M, std::map<unsigned char, double>& T, int& ne, int ni, int nd)
 {
   std::vector< std::vector<double> > frac, cuml;
   
@@ -762,7 +771,7 @@ void InitializeSpeciesHybrid
  std::vector<unsigned char>& sZ, 
  std::vector<double>& sF, 
  std::vector< std::vector<double> >& sI,
- double M, std::map<unsigned char, double>& T, int& ne, int ni=2, int nd=6)
+ double M, std::map<unsigned char, double>& T, int& ne, int ni, int nd)
 {
   std::map< unsigned short, std::vector<double> > frac;
   std::vector< std::vector<double> > cuml;
@@ -975,7 +984,7 @@ void InitializeSpeciesTrace
 (std::vector<Particle> & particles, 
  std::vector<unsigned char>& sZ, 
  std::vector<double>& sF, double M, double T,
- int ni=0, int nd=6)
+ int& ne, int ni, int nd)
 {
   std::vector< std::vector<double> > frac, cuml;
   
@@ -1122,10 +1131,24 @@ void InitializeSpeciesTrace
       }
     }
     assert ( fabs(test-1.0) < 1.0e-12 );
+
+    // Add the use_elec fields
+    if (ne>=0) {
+      for (int l=0; l<4; l++) particles[i].dattrib.push_back(0.0);
+    }
   }
   
+  if (ne>=0) {
+    ne = nd;
+    for (size_t indx=0; indx<NS; indx++) { 
+      for (size_t j=0; j<sZ[indx]+1; j++) ne++;
+    }
+  }
+
   std::ofstream out("species.spec");
   out << "trace" << std::endl;
+  // Electron position (-1 for none)
+  out << std::setw(6) << ne << std::endl;
   int cntr = nd;
   for (size_t indx=0; indx<NS; indx++) { 
     for (size_t j=0; j<sZ[indx]+1; j++) {
@@ -1135,7 +1158,6 @@ void InitializeSpeciesTrace
 	  << std::endl;
     }
   }
-  
 }
 
 int main (int ac, char **av)
@@ -1145,7 +1167,7 @@ int main (int ac, char **av)
   std::string config;
   std::string oname;
   unsigned seed;
-  int ne = -1;
+  int ne = -1, ni = 2, nd = 6;
   int npart;
   
   std::string cmd_line;
@@ -1157,9 +1179,6 @@ int main (int ac, char **av)
   po::options_description desc("Allowed options");
   desc.add_options()
     ("help,h",		"produce help message")
-    ("trace",           "set up for trace species")
-    ("weight",          "set up for weighted species")
-    ("hybrid",          "set up for hybrid species ")
     ("electrons",       "set up for weighted or hybrid species with electrons")
     ("CHIANTI,C",	po::value<bool>(&use_chianti)->default_value(false),
      "use CHIANTI to set recombination-ionization equilibrium")
@@ -1179,6 +1198,10 @@ int main (int ac, char **av)
      "time scale in years")
     ("Munit,m",		po::value<double>(&Munit)->default_value(0.1),
      "mass scale in solar masses")
+    ("num-int,i",	po::value<int>(&ni)->default_value(2),
+     "number of integer attributes")
+    ("num-double,d",	po::value<int>(&nd)->default_value(6),
+     "number of double attributes")
     ("config,c",	po::value<std::string>(&config)->default_value("makeIon.config"),
      "element config file")
     ("output,o",	po::value<std::string>(&oname)->default_value("out.bods"),
@@ -1267,6 +1290,21 @@ int main (int ac, char **av)
   
     double norm = 0.0;
 
+    std::string st = iroot.get("type", "Direct");
+    if (Types.find(st) == Types.end()) {
+      std::cout << "Type <" << st << "> is not valid" << std::endl
+		<< "Valid types are:";
+      for (auto v : Types) std::cout << " " << v.first;
+      std::cout << std::endl;
+      exit(-1);
+    }
+
+    type = Types[st];
+
+    if (type==Trace) {
+      T[0] = iroot.get("temp", 100000.0);
+    }
+
     for (pt::ptree::value_type &row : iroot.get_child("elements")) {
     
       std::istringstream sin(row.first);
@@ -1276,7 +1314,7 @@ int main (int ac, char **av)
       sZ.push_back(i);
       sF.push_back(row.second.get<double>("mfrac"));
       norm += sF.back();
-      T[i] = row.second.get<double>("temp");
+      if (type!=Trace) T[i] = row.second.get<double>("temp");
     }
 
     if (norm>0.0) {
@@ -1310,26 +1348,32 @@ int main (int ac, char **av)
   
   vector<Particle> particles(npart);
   
+  double molW = 1.0;
+
   // Initialize the Z, C's	
   //
   switch (type) {
   case Hybrid:
-    InitializeSpeciesHybrid(particles, sZ, sF, sI, Mass, T, ne);
+    InitializeSpeciesHybrid(particles, sZ, sF, sI, Mass, T, ne, ni, nd);
     break;
   case Weight:
-    InitializeSpeciesWeight(particles, sZ, sF, sI, Mass, T, ne);
+    InitializeSpeciesWeight(particles, sZ, sF, sI, Mass, T, ne, ni, nd);
     break;
   case Trace:
-    InitializeSpeciesTrace (particles, sZ, sF, Mass, temp);
+    InitializeSpeciesTrace (particles, sZ, sF, Mass, temp, ne, ni, nd);
+    // Compute molecular weight
+    molW = 0.0;
+    for (size_t k=0; k<sZ.size(); k++) molW += sF[k]/atomic_masses[sZ[k]];
+    molW = 1.0/molW;
     break;
   case Direct:
   default:
-    InitializeSpeciesDirect(particles, sZ, sF, sI, Mass, T, ne);
+    InitializeSpeciesDirect(particles, sZ, sF, sI, Mass, T, ne, ni, nd);
   }
   
   // Initialize the phase space vector
   //
-  InitializeUniform(particles, Mass, T, LL, type, ne);
+  InitializeUniform(particles, Mass, molW, T, LL, type, ne);
   
   // Output file
   //
