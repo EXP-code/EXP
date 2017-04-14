@@ -1114,6 +1114,9 @@ void InitializeSpeciesTrace
     for (auto &i : frac[indx]) i /= norm;
   }
   
+  // Increment for use_cons position
+  nd++;
+
   for (size_t i=0; i<N; i++) {
     
     particles[i].mass  = M/N;
@@ -1147,8 +1150,9 @@ void InitializeSpeciesTrace
 
   std::ofstream out("species.spec");
   out << "trace" << std::endl;
-  // Electron position (-1 for none)
-  out << std::setw(6) << ne << std::endl;
+  // Conservation position and electron position (-1 for none)
+  out << std::setw(6) << nd-1
+      << std::setw(6) << ne << std::endl;
   int cntr = nd;
   for (size_t indx=0; indx<NS; indx++) { 
     for (size_t j=0; j<sZ[indx]+1; j++) {
