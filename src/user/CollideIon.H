@@ -480,6 +480,7 @@ private:
   std::vector< double >                              kEi, kEe1, kEe2, kEee, clrE, misE;
   std::vector< double >                              kE1s, kE2s, Ein1, Ein2, Evel, nselRat;
   std::vector< double >                              spCrm, spTau, spProb, spEdel;
+  std::vector< double >                              molP1, molP2, etaP1, etaP2;
   std::vector< unsigned >                            spNsel, elecCnt, spNcol;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot, testCnt;
   std::vector< unsigned >                            Nwght, Njsel;
@@ -724,7 +725,7 @@ protected:
   int use_elec;
 
   //! Initial position in dattrib of ion-species fractions
-  int hybrid_pos;
+  int spc_pos;
 
   //! The algorithm type
   AlgorithmType aType;
@@ -1195,12 +1196,20 @@ protected:
   (double P, PordPtr pp, KE_& KE,
    std::vector<double>* v1, std::vector<double>* v2, int id);
 
+  //! Compute the interaction for the trace method
+  void scatterTrace
+  (PordPtr pp, KE_& KE,
+   std::vector<double>* V1, std::vector<double>* V2, int id);
+
   //! For deep debugging
   void KEcheck(PordPtr pp, double& KE_initl_check,
 	       std::pair<double, double>& ion, std::pair<double, double>& rcb);
 
-  //! Add excess energy to conservation counter
+  //! Add excess energy to conservation counter (Hybrid version)
   void deferredEnergyHybrid(PordPtr pp, const double E);
+
+  //! Add excess energy to conservation counter (Trace version)
+  void deferredEnergyTrace(PordPtr pp, const double E, int id);
 
   //! Check energy convervation for hybrid method
   void checkEnergyHybrid
@@ -1210,6 +1219,9 @@ protected:
 
   //! Update deferred electron energy for unweighted approximation
   void updateEnergyHybrid(PordPtr pp, KE_& KE);
+
+  //! Update deferred electron energy for unweighted trace approximation
+  void updateEnergyTrace(PordPtr pp, KE_& KE);
 
   //! Print cross-section weights for debugging
   void meanFdump(int id);
