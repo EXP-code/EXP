@@ -810,8 +810,10 @@ protected:
     CollideIon* caller;
 
   public:
+    //! Stash of key index in Particle's integer array
     static int key;
 
+    //! Interaction identifier
     enum pType {ion_ion, ion_electron, electron_ion};
 
     Particle *     p1;
@@ -854,7 +856,8 @@ protected:
     Epair beg, mid, end;
 
     //! Constructor
-    Pord(CollideIon* c, Particle *P1, Particle *P2, double WW1, double WW2,  pType p, double q_threshold);
+    Pord(CollideIon* c, Particle *P1, Particle *P2, double WW1, double WW2,
+	 pType p, double q_threshold);
 
     //! Update ionization state fractions
     void update();

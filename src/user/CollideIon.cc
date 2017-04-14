@@ -479,6 +479,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << scatFac1                               << std::endl
 	      <<  " " << std::setw(20) << std::left << "scatFac2"
 	      << scatFac2                               << std::endl
+	      <<  " " << std::setw(20) << std::left << "qCrit"
+	      << qCrit                                  << std::endl
 	      <<  " " << std::setw(20) << std::left << "E_split"
 	      << (E_split ? "on" : "off")               << std::endl
 	      <<  " " << std::setw(20) << std::left << "TRACE_ELEC"
@@ -9037,7 +9039,7 @@ void CollideIon::scatterHybrid
   }
   KE.bs.reset();
 
-  // Split between components for testing
+  // Split between components for testing (for ExactE algorithm only)
   //
   double alph = scatFac1;
   double beta = scatFac2;
