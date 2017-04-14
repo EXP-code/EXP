@@ -161,7 +161,7 @@ void * adjust_multistep_level_thread(void *ptr)
 
     // Smallest time step
     //
-    dt = dseq.begin()->first;
+    dt = std::max<double>(eps, dseq.begin()->first);
 
     if (mstep == 0) {
       //
