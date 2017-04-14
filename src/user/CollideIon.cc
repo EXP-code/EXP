@@ -86,6 +86,10 @@ Interact::T CollideIon::elecElec;
 //
 int CollideIon::Pord::key       = -1;
 
+// Default key for trace species
+//
+speciesKey CollideIon::defKey   = speciesKey(0, 0);
+
 // Add trace energy excess to electron distribution
 //
 static bool TRACE_ELEC          = false;
@@ -7058,21 +7062,36 @@ void CollideIon::normTest(Particle* const p, const std::string& lab)
 
   serialno++;
 
-  KeyConvert k(p->iattrib[use_key]);
-
   double tot = 0.0;
-  for (size_t C=0; C<=k.Z(); C++) tot += p->dattrib[spc_pos+C];
-
   bool posdef = true;
-  for (size_t C=0; C<=k.Z(); C++) if (p->dattrib[spc_pos+C] < 0.0) posdef = false;
+  unsigned short Z = 0;
+
+  if (aType == Trace ) {
+    for (auto s : SpList) {
+      tot += p->dattrib[s.second];
+      if (p->dattrib[s.second] < 0.0) posdef = false;
+    }
+  } else {
+    Z = KeyConvert(p->iattrib[use_key]).Z();
+    
+    for (unsigned short C=0; C<=Z; C++) {
+      tot += p->dattrib[spc_pos+C];
+      if (p->dattrib[spc_pos+C] < 0.0) posdef = false;
+    }
+  }
 
   if (!posdef) {
     std::cout << "[" << myid << "] Values not posdef, norm" << tot << " for " << lab
 	      << ", T=" << tnow  << ", index=" << p->indx
-	      << ", Z=" << k.Z() << ", #=" << serialno;
+	      << ", Z=" << Z << ", #=" << serialno;
     std::cout << ", ";
-    for (size_t C=0; C<=k.Z(); C++)
-      std::cout << std::setw(18) << p->dattrib[spc_pos+C];
+    if (aType == Trace) {
+      for (auto s : SpList)
+	std::cout << std::setw(18) << p->dattrib[s.second];
+    } else {
+      for (size_t C=0; C<=Z; C++)
+	std::cout << std::setw(18) << p->dattrib[spc_pos+C];
+    }
     std::cout << std::endl;
   }
 
@@ -7080,17 +7099,25 @@ void CollideIon::normTest(Particle* const p, const std::string& lab)
     if (fabs(tot-1.0) > 1.0e-6) {
       std::cout << "[" << myid << "] Unexpected norm=" << tot << " for " << lab
 		<< ", T=" << tnow  << ", index=" << p->indx
-		<< ", Z=" << k.Z() << ", #=" << serialno;
+		<< ", Z=" << Z << ", #=" << serialno;
       if (DEBUG_CNT>=0) std::cout << ", Count=" << p->iattrib[DEBUG_CNT];
       std::cout << ", ";
-      for (size_t C=0; C<=k.Z(); C++)
-	std::cout << std::setw(18) << p->dattrib[spc_pos+C];
+      if (aType == Trace) {
+	for (auto s : SpList) {
+	  std::cout << std::setw(18) << p->dattrib[s.second];
+	  p->dattrib[s.second] /= tot;
+	}
+      } else {
+	for (size_t C=0; C<=Z; C++) {
+	  std::cout << std::setw(18) << p->dattrib[spc_pos+C];
+	  p->dattrib[spc_pos+C] /= tot;
+	}
+      }
       std::cout << std::endl;
     }
-    for (size_t C=0; C<=k.Z(); C++) p->dattrib[spc_pos+C] /= tot;
   } else {
     std::cout << "[" << myid << "] Invalid zero norm for " << lab << ", T=" << tnow
-	      << ", index=" << p->indx << ", Z=" << k.Z() << ", #=" << serialno;
+	      << ", index=" << p->indx << ", Z=" << Z << ", #=" << serialno;
     if (DEBUG_CNT>=0) std::cout << ", Count=" << p->iattrib[DEBUG_CNT];
     std::cout << std::endl;
   }
@@ -7186,16 +7213,29 @@ void CollideIon::secondaryScatter(Particle *p)
 
 double CollideIon::energyInPart(Particle *p)
 {
-  unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
-
   double ee = 0.0;
-  for (unsigned short C=1; C<=Z; C++) ee += p->dattrib[spc_pos+C]*C;
+
+  if (aType == Trace) {
+    double mw = 0.0;
+    for (auto s : SpList) {
+      speciesKey k = s.first;
+      unsigned short P = k.second - 1;
+      ee += p->dattrib[s.second]*P;
+      mw += p->dattrib[s.second]/atomic_weights[k.first];
+    }
+    ee *= atomic_weights[0]*mw;
+  } else {
+    unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
+
+    for (unsigned short C=1; C<=Z; C++) ee += p->dattrib[spc_pos+C]*C;
+
+    ee *= atomic_weights[0]/atomic_weights[Z];
+  }
 
   if (false and DBG_NewTest)
     std::cout << "energyInPart: eta="
 	      << std::setprecision(14) << std::setw(22) << ee << std::endl;
 
-  ee *= atomic_weights[0]/atomic_weights[Z];
 
   double KEi = 0.0, KEe = 0.0;
   for (size_t k =0; k<3; k++) {
@@ -7232,12 +7272,38 @@ std::pair<double, double>
 CollideIon::energyInPairPartial(Particle *p1, Particle *p2, HybridColl iType,
 				const std::string& msg)
 {
-  unsigned short Z1 = KeyConvert(p1->iattrib[use_key]).getKey().first;
-  unsigned short Z2 = KeyConvert(p2->iattrib[use_key]).getKey().first;
-
   double e1 = 0.0, e2 = 0.0;
-  for (unsigned short C=1; C<=Z1; C++) e1 += p1->dattrib[spc_pos+C]*C;
-  for (unsigned short C=1; C<=Z2; C++) e2 += p2->dattrib[spc_pos+C]*C;
+  double n1 = 0.0, n2 = 0.0;
+
+  if (aType == Trace) {
+    double m1 = 0.0, m2 = 0.0;
+    for (auto s : SpList) {
+      speciesKey k = s.first;
+      unsigned short Z = k.first;      // Atomic number
+      unsigned short P = k.second - 1; // Charge
+      // Electron fraction
+      n1 += p1->dattrib[s.second]*P;
+      n2 += p2->dattrib[s.second]*P;
+      // Inverse molecular weight
+      m1 += p1->dattrib[s.second]/atomic_weights[Z];
+      m2 += p2->dattrib[s.second]/atomic_weights[Z];
+    }
+    // Molecular weights
+    m1 = 1.0/m1;
+    m2 = 1.0/m2;
+
+    e1 *= atomic_weights[0]/m1;
+    e2 *= atomic_weights[0]/m2;
+  } else {
+    unsigned short Z1 = KeyConvert(p1->iattrib[use_key]).getKey().first;
+    unsigned short Z2 = KeyConvert(p2->iattrib[use_key]).getKey().first;
+
+    for (unsigned short C=1; C<=Z1; C++) n1 += p1->dattrib[spc_pos+C]*C;
+    for (unsigned short C=1; C<=Z2; C++) n2 += p2->dattrib[spc_pos+C]*C;
+
+    e1 *= atomic_weights[0]/atomic_weights[Z1];
+    e2 *= atomic_weights[0]/atomic_weights[Z2];
+  }
 
   double KEi1 = 0.0, KEi2 = 0.0, KEe1 = 0.0, KEe2 = 0.0;
   for (size_t k =0; k<3; k++) {
@@ -7250,32 +7316,27 @@ CollideIon::energyInPairPartial(Particle *p1, Particle *p2, HybridColl iType,
   }
 
   if (false and DBG_NewTest and msg.size()) {
-    double W1 = p1->mass/atomic_weights[Z1];
-    double W2 = p2->mass/atomic_weights[Z2];
     std::cout << std::string(72, '-') << std::endl;
     std::cout << msg << std::endl << std::string(72, '-') << std::endl
 	      << "Neutral" << std::endl
 	      << std::setprecision(14) << std::scientific
-	      << " W1=" << std::setw(22) << W1
-	      << " W2=" << std::setw(22) << W2
+	      << " e1=" << std::setw(22) << n1
+	      << " e2=" << std::setw(22) << n2
 	      << " V1=" << std::setw(22) << KEi1
 	      << " V2=" << std::setw(22) << KEi2
 	      << std::endl << "Ion1" << std::endl
-	      << " W1=" << std::setw(22) << W1
-	      << " W2=" << std::setw(22) << W2*e2
+	      << " e1=" << std::setw(22) << n1
+	      << " e2=" << std::setw(22) << n2
 	      << " V1=" << std::setw(22) << KEi1
 	      << " V2=" << std::setw(22) << KEe2
 	      << std::endl << "Ion2" << std::endl
-	      << " W1=" << std::setw(22) << W1*e1
-	      << " W2=" << std::setw(22) << W2
+	      << " e1=" << std::setw(22) << n1
+	      << " e2=" << std::setw(22) << n2
 	      << " V1=" << std::setw(22) << KEe1
 	      << " V2=" << std::setw(22) << KEi2
 	      << std::endl << std::string(72, '-') << std::endl
 	      << std::setprecision(5);
   }
-
-  e1 *= atomic_weights[0]/atomic_weights[Z1];
-  e2 *= atomic_weights[0]/atomic_weights[Z2];
 
   KEi1 *= 0.5*p1->mass;
   KEi2 *= 0.5*p2->mass;
@@ -8808,12 +8869,18 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	std::pair<double, double> KEdif = KEinit - KEfinal;
 
+	double actR = KEdif.first - KE.delta;
+	actR = KEinit.first > 0.0 ? actR/KEinit.first : actR;
+
+	double pasR = KEdif.second;
+	pasR = KEinit.second > 0.0 ? pasR/KEinit.second : pasR;
+
 	if (fabs(delE) > tolE*KE_initl_check) {
 	  std::cout << "**ERROR [after Ion2] dE = " << delE
 		    << ", rel = "  << delE/KE_initl_check
 		    << ", dKE = "  << deltaSum
-		    << ", actR = " << (KEdif.first - KE.delta)/KEinit.first
-		    << ", pasR = " << KEdif.second/KEinit.second
+		    << ", actR = " << actR
+		    << ", pasR = " << pasR
 		    << ", actA = " << KEdif.first
 		    << ", pasA = " << KEdif.second
 		    << std::endl;
@@ -8822,8 +8889,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    std::cout << "**GOOD [after Ion2] dE = " << delE
 		      << ", rel = "  << delE/KE_initl_check
 		      << ", dKE = "  << deltaSum
-		      << ", actR = " << (KEdif.first - KE.delta)/KEinit.first
-		      << ", pasR = " << KEdif.second/KEinit.second
+		      << ", actR = " << actR
+		      << ", pasR = " << pasR
 		      << ", actA = " << KEdif.first
 		      << ", pasA = " << KEdif.second
 		      << std::endl;
@@ -10033,19 +10100,13 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	Etotl[id][ZZ] += Prob;
       }
     
-      // For hybrid method, the speciesKey level is set to zero.
-      // Replace with the correct subspecies value.
-      //
-      PP[cid]->K(1).second = C1;
-      PP[cid]->K(2).second = C2;
-
       lQ Q1(Z1, C1), Q2(Z2, C2);
 
       // Retrieve the diagnostic stanza for this species (correctly
       // including the ionization level)
       //
-      collTDPtr ctd1 = (*collD)[PP[cid]->K(1)];
-      collTDPtr ctd2 = (*collD)[PP[cid]->K(2)];
+      collTDPtr ctd1 = (*collD)[defKey];
+      collTDPtr ctd2 = (*collD)[defKey];
       
       // Select the maximum probability channel
       //
@@ -10840,7 +10901,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       testKE[id][3] += PE[0][1];
       testKE[id][4] += PE[0][1];
 
-      if (KE_DEBUG and not NoExact) {
+      if (KE_DEBUG) {
 
 	double KE_final_check = energyInPair(p1, p2);
 
@@ -10951,7 +11012,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	testKE[id][3] += PE[1][1] - ionExtra.first + rcbExtra.first;
 	testKE[id][4] += PE[1][1];
       
-	if (KE_DEBUG and not NoExact) {
+	if (KE_DEBUG) {
 
 	  double ke1f = 0.0, ke2f = 0.0;
 
@@ -10962,16 +11023,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	
 	  // Particle 2 electron
 	  // -------------------
-	  //            initial/orig----------------------------------+
-	  //            initial/swap--------------+                   |
-	  //                                      |                   |
-	  //                                      v                   v
-	  double eta2i = PP[1]->swap ? PP[1]->beg[0].eta : PP[1]->beg[1].eta;
-	  double eta2f = PP[1]->swap ? PP[1]->end[0].eta : PP[1]->end[1].eta;
-	  //                                      ^                   ^
-	  //                                      |                   |
-	  //            final/swap----------------+                   |
-	  //            final/orig------------------------------------+
+	  //            initial---+
+	  //                      |
+	  //                      v
+	  double eta2i = PP[1]->beg[1].eta;
+	  double eta2f = PP[1]->end[1].eta;
+	  //                      ^
+	  //                      |
+	  //            final-----+
 	  
 	  ke1i *= 0.5*p1->mass;
 	  ke1f *= 0.5*p1->mass;
@@ -11000,7 +11059,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	}
       }
 
-      if (KE_DEBUG and not NoExact) {
+      if (KE_DEBUG) {
 	double KE_final_check = energyInPair(p1, p2);
 
 	std::pair<double, double> KEfinal;
@@ -11114,7 +11173,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	testKE[id][3] += PE[2][1] - ionExtra.second + rcbExtra.second;
 	testKE[id][4] += PE[2][1];
 
-	if (KE_DEBUG and not NoExact) {
+	if (KE_DEBUG) {
 
 	  double ke1f = 0.0, ke2f =0.0;
 	  for (int k=0; k<3; k++) {
@@ -11126,16 +11185,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // Particle 1 electron
 	  // -------------------
-	  //            initial/orig----------------------------------+
-	  //            initial/swap--------------+                   |
-	  //                                      |                   |
-	  //                                      v                   v
-	  double eta1i = PP[2]->swap ? PP[2]->beg[1].eta : PP[2]->beg[0].eta;
-	  double eta1f = PP[2]->swap ? PP[2]->end[1].eta : PP[2]->end[0].eta;
-	  //                                      ^                   ^
-	  //                                      |                   |
-	  // Particle 1/final/swap----------------+                   |
-	  // Particle 1/final/orig------------------------------------+
+	  //            initial---+
+	  //                      |
+	  //                      v
+	  double eta1i = PP[2]->beg[0].eta;
+	  double eta1f = PP[2]->end[0].eta;
+	  //                      ^
+	  //                      |
+	  //            final-----+
 
 
 	  ke1i *= 0.5*p1->mass * eta1i * atomic_weights[0]/molP1[id];
@@ -11160,7 +11217,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	}
       }
 
-      if (KE_DEBUG and not NoExact) {
+      if (KE_DEBUG) {
 	double KE_final_check = energyInPair(p1, p2);
 
 	std::pair<double, double> KEfinal;
@@ -11178,7 +11235,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	delEloss += KE.delE0;
 
 	std::pair<double, double> KEdif = KEinit - KEfinal;
-
+	
 	if (fabs(delE) > tolE*KE_initl_check) {
 	  std::cout << "**ERROR [after Ion2] dE = " << delE
 		    << ", rel = "  << delE/KE_initl_check
@@ -11303,7 +11360,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   // + Energy change owing to change in ionization state
   // + Deferred energy applied to the center-of-mass interaction
   //
-  if (KE_DEBUG and not NoExact) {
+  if (KE_DEBUG) {
     double KE_final_check = energyInPair(p1, p2);
     std::array<double, 2> KE_final_econs = {0.0, 0.0};
 
@@ -11696,9 +11753,10 @@ void CollideIon::updateEnergyTrace(PordPtr pp, KE_& KE)
     //             |                |
     // Particle 1/ion               |
     //                              |
-      // Particle 2/electron----------+
+    // Particle 2/electron----------+
+
     eta = pp->eta2;
-    if (eta<0.0 or eta > pp->Z2) error = true;
+    if (eta<0.0) error = true;
   }
 
   if (pp->P == Pord::electron_ion) {
@@ -11711,7 +11769,7 @@ void CollideIon::updateEnergyTrace(PordPtr pp, KE_& KE)
     // Particle 2/ion---------------+
     
     eta = pp->eta1;
-    if (eta<0.0 or eta > pp->Z1) error = true;
+    if (eta<0.0) error = true;
   }
 
   // Want energy to be:
@@ -13478,8 +13536,12 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
 {
   // Initialize the map
   //
-  if (p->ZList.size()) {
+  if (p->SpList.size()) {
+				// Trace method
+    (*this)[p->defKey] = collTDPtr(new CollisionTypeDiag());
 
+  } else if (p->ZList.size()) {
+				// All other methods
     for (auto n : p->ZList) {
 
       unsigned short Z = n;
@@ -13488,10 +13550,6 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
 	speciesKey k(Z, C);
 	(*this)[k] = collTDPtr(new CollisionTypeDiag());
       }
-    }
-  } else if (p->SpList.size()) {
-    for (auto n : p->SpList) {
-      (*this)[n.first] = collTDPtr(new CollisionTypeDiag());
     }
   } else {			// Sanity check
     if (myid==0) {
@@ -13529,18 +13587,33 @@ double collDiag::addCellElec(pCell* cell, int ue, int id)
   double m = 0.0, cons = 0.0;
   for (auto n : cell->bods) {
     Particle * s = cell->Body(n);
-    speciesKey k = KeyConvert(s->iattrib[p->use_key]).getKey();
-    unsigned short Z = k.first;
-    double mass = s->mass * p->atomic_weights[0]/p->atomic_weights[Z];
+    double mass = 0.0;
 
-    if (p->aType == CollideIon::Hybrid) {
-      double cnt = 0.0;
-      for (unsigned short C=1; C<=Z; C++)
-	cnt += s->dattrib[p->spc_pos+1]*C;
-      mass *= cnt;
+    if (p->aType == CollideIon::Trace) {
+      for (auto t : p->SpList) {
+	unsigned short Z = t.first.first;
+	unsigned short P = t.first.second - 1;
+	mass += s->mass * p->atomic_weights[0]/p->atomic_weights[Z] *
+	  s->dattrib[t.second] * P;
+      }
+      
       Efrc[id] += mass;
+
     } else {
-      mass *= static_cast<double>(k.second - 1);
+      speciesKey k = KeyConvert(s->iattrib[p->use_key]).getKey();
+      unsigned short Z = k.first;
+
+      mass = s->mass * p->atomic_weights[0]/p->atomic_weights[Z];
+
+      if (p->aType == CollideIon::Hybrid) {
+	double cnt = 0.0;
+	for (unsigned short C=1; C<=Z; C++)
+	  cnt += s->dattrib[p->spc_pos+1]*C;
+	mass *= cnt;
+	Efrc[id] += mass;
+      } else {
+	mass *= static_cast<double>(k.second - 1);
+      }
     }
     
     m += mass;
@@ -13579,18 +13652,28 @@ void collDiag::addCellPotl(pCell* cell, int id)
     if (RECOMB_IP) {
       // Ion electronic potential energy
       //
-      if (p->aType == CollideIon::Hybrid) {
-	speciesKey k = KeyConvert(s->iattrib[p->use_key]).getKey();
+      if (p->aType == CollideIon::Trace) {
+	for (auto t : p->SpList) {
+	  speciesKey     k = t.first;
+	  unsigned short Z = k.first;
+	  unsigned short P = k.second - 1;
+	  double emfac     = s->mass/Collide::atomic_weights[Z] * cvrt;
+	  double IP        = p->ch.IonList[lQ(Z, P)]->ip;
+	  Epot[id]        += emfac * IP * s->dattrib[t.second];
+	}
+      }
+      else if (p->aType == CollideIon::Hybrid) {
+	speciesKey k     = KeyConvert(s->iattrib[p->use_key]).getKey();
 	unsigned short Z = k.first;
-	double emfac = s->mass/Collide::atomic_weights[Z] * cvrt;
+	double emfac     = s->mass/Collide::atomic_weights[Z] * cvrt;
 	for (unsigned short CC=Z+1; CC>1; CC--) {
 	  double IP = p->ch.IonList[lQ(Z, CC-1)]->ip;
 	  Epot[id] += emfac * IP * s->dattrib[p->spc_pos+CC-1] ;
 	}
       } else {
-	speciesKey k = KeyConvert(s->iattrib[p->use_key]).getKey();
+	speciesKey k     = KeyConvert(s->iattrib[p->use_key]).getKey();
 	unsigned short Z = k.first, C = k.second;
-	double emfac = s->mass/Collide::atomic_weights[Z] * cvrt;
+	double emfac     = s->mass/Collide::atomic_weights[Z] * cvrt;
 	for (unsigned short CC=C; CC>1; CC--) {
 	  Epot[id] +=  emfac * p->ch.IonList[lQ(Z, CC-1)]->ip;
 	}
@@ -14214,22 +14297,37 @@ void CollideIon::parseSpecies(const std::string& map)
 
 	aType = Trace;
 
-	speciesKey key;
-	int pos;
-	while (1) {
-	  in.getline(line, nline);
-	  if (in.good()) {
-	    std::istringstream sz(line);
-	    sz >> key.first;
-	    sz >> key.second;
-	    sz >> pos;
-	    // Add to the species list
-	    if (!sz.bad()) {
-	      SpList[key] = pos;
-	      ZList.insert(key.first);
+	in.getline(line, nline);
+
+	if (in.good()) {
+	  std::istringstream sz(line);
+	  sz >> use_cons;
+	  if (sz.good()) {
+	    sz >> use_elec;
+	  }
+	} else {
+	  nOK = 1;		// Can't read electrons or use_cons value, fatal
+	}
+
+	if (nOK == 0) {
+
+	  speciesKey key;
+	  int pos;
+	  while (1) {
+	    in.getline(line, nline);
+	    if (in.good()) {
+	      std::istringstream sz(line);
+	      sz >> key.first;
+	      sz >> key.second;
+	      sz >> pos;
+	      // Add to the species list
+	      if (!sz.bad()) {
+		SpList[key] = pos;
+		ZList.insert(key.first);
+	      }
+	    } else {
+	      break;
 	    }
-	  } else {
-	    break;
 	  }
 	}
 
@@ -18420,7 +18518,7 @@ void CollideIon::processConfig()
       cfg.entry<bool>("HybridWeightSwitch", "Use full trace algorithm for interaction fractions below threshold", false);
 
     DBG_NewTest =
-      cfg.entry<bool>("DBG_HYBRID", "Verbose debugging of energy conservation for Hybrid method", false);
+      cfg.entry<bool>("DBG_TEST", "Verbose debugging of energy conservation", false);
 
     NO_ION_ION =
       cfg.entry<bool>("NO_ION_ION", "Artificially suppress the ion-ion scattering in the Hybrid method", false);
@@ -18833,41 +18931,83 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
   W1 = w1;
   W2 = w2;
 
-  // Cache species keys
-  //
-  k1 = KeyConvert(p1->iattrib[key]).getKey();
-  k2 = KeyConvert(p2->iattrib[key]).getKey();
+  if (c->aType == Trace) {
+
+    k1 = k2 = speciesKey(0, 0);
+    Z1 = Z2 = 0;
+
+    // Compute electron fractions
+    //
+    eta1 = eta2 = 0.0;
+    if (caller->use_elec>=0) {
+      for (auto s : c->SpList) {
+	unsigned P =  s.first.second - 1;
+	eta1 += p1->dattrib[s.second]*P;
+	eta2 += p2->dattrib[s.second]*P;
+      }
+    }
+    
+    // Get molecular weights
+    //
+    double mol1 = 0.0, mol2 = 0.0;
+    for (auto s : c->SpList) {
+      mol1 += p1->dattrib[s.second]/atomic_weights[s.first.first];
+      mol2 += p2->dattrib[s.second]/atomic_weights[s.first.first];
+    }
+    m1 = m10 = 1.0/mol1;
+    m2 = m20 = 1.0/mol2;
+    
+    // Cache ionization fractions
+    //
+    size_t sz = c->SpList.size();
+    f1.resize(sz);
+    f2.resize(sz);
+    
+    auto sp = c->SpList.begin();
+    for (size_t n=0; n<sz; n++) {
+      f1[n] = p1->dattrib[sp->second];
+      f2[n] = p2->dattrib[sp->second];
+      sp++;
+    }
+
+  } else {
+
+    // Cache species keys
+    //
+    k1 = KeyConvert(p1->iattrib[key]).getKey();
+    k2 = KeyConvert(p2->iattrib[key]).getKey();
   
-  // Get atomic numbers
-  //
-  Z1 = k1.first;
-  Z2 = k2.first;
+    // Get atomic numbers
+    //
+    Z1 = k1.first;
+    Z2 = k2.first;
   
-  // Get atomic masses
-  //
-  m1 = m10 = atomic_weights[Z1];
-  m2 = m20 = atomic_weights[Z2];
-  
-  // Compute electron fractions
-  //
-  eta1 = eta2 = 0.0;
-  if (caller->use_elec>=0) {
-    for (unsigned short C=1; C<=Z1; C++)
-      eta1 += p1->dattrib[caller->spc_pos+C]*C;
-    for (unsigned short C=1; C<=Z2; C++)
-      eta2 += p2->dattrib[caller->spc_pos+C]*C;
+    // Get atomic masses
+    //
+    m1 = m10 = atomic_weights[Z1];
+    m2 = m20 = atomic_weights[Z2];
+    
+    // Compute electron fractions
+    //
+    eta1 = eta2 = 0.0;
+    if (caller->use_elec>=0) {
+      for (unsigned short C=1; C<=Z1; C++)
+	eta1 += p1->dattrib[caller->spc_pos+C]*C;
+      for (unsigned short C=1; C<=Z2; C++)
+	eta2 += p2->dattrib[caller->spc_pos+C]*C;
+    }
+    
+    // Cache ionization fractions
+    //
+    f1.resize(Z1+1);
+    f2.resize(Z2+1);
+    
+    for (unsigned short C=0; C<=Z1; C++)
+      f1[C] = p1->dattrib[caller->spc_pos+C];
+
+    for (unsigned short C=0; C<=Z2; C++)
+      f2[C] = p2->dattrib[caller->spc_pos+C];
   }
-
-  // Cache ionization fractions
-  //
-  f1.resize(Z1+1);
-  f2.resize(Z2+1);
-
-  for (unsigned short C=0; C<=Z1; C++)
-    f1[C] = p1->dattrib[caller->spc_pos+C];
-
-  for (unsigned short C=0; C<=Z2; C++)
-    f2[C] = p2->dattrib[caller->spc_pos+C];
 
   switch (P) {
   case ion_ion:
@@ -18949,9 +19089,9 @@ void CollideIon::Pord::update()
     if (fabs(sum1-1.0) > 1.0e-6) {
       std::cout << "**ERROR [" << myid << "] Pord:"
 		<< " Unexpected f1 sum=" << sum1
-		<< ", T=" << tnow
-		<< ", Z=" << Z1 << ", ";
-      for (unsigned short C=0; C<=Z1; C++) std::cout << std::setw(18) << f1[C];
+		<< ", T=" << tnow << ", ";
+      if (caller->aType!= Trace) std::cout << "Z=" << Z1 << ", ";
+      for (auto v : f1) std::cout << std::setw(18) << v;
       std::cout << std::endl;
     }
   }
@@ -18960,51 +19100,86 @@ void CollideIon::Pord::update()
     if (fabs(sum2-1.0) > 1.0e-6) {
       std::cout << "**ERROR [" << myid << "] Pord:"
 		<< " Unexpected f2 sum=" << sum1
-		<< ", T=" << tnow
-		<< ", Z=" << Z1 << ", ";
-      for (unsigned short C=0; C<=Z1; C++) std::cout << std::setw(18) << f2[C];
+		<< ", T=" << tnow << ", ";
+      if (caller->aType != Trace) std::cout << "Z=" << Z1 << ", ";
+      for (auto v : f2 ) std::cout << std::setw(18) << v;
       std::cout << std::endl;
     }
   }
 
 
-  for (unsigned short C=0; C<=Z1; C++) {
-    p1->dattrib[caller->spc_pos+C] = f1[C]/sum1;
-  }
-
-  for (unsigned short C=0; C<=Z2; C++) {
-    p2->dattrib[caller->spc_pos+C] = f2[C]/sum2;
-  }
-
-  double tot = 0.0;
-  for (unsigned short C=0; C<=Z1; C++) tot += p1->dattrib[caller->spc_pos+C];
-
-  if (tot > 0.0) {
-    if (fabs(tot-1.0) > 1.0e-6) {
-      std::cout << "**ERROR [" << myid << "] Pord:"
-		<< " Unexpected p1 norm in update=" << tot
-		<< ", T=" << tnow
-		<< ", index=" << p1->indx
-		<< ", Z=" << Z1 << ", ";
-      for (unsigned short C=0; C<=Z1; C++)
-	std::cout << std::setw(18) << p1->dattrib[caller->spc_pos+C];
-      std::cout << std::endl;
+  if (caller->aType == Trace) {
+    double tot1 = 0.0, tot2 = 0.0;
+    size_t C = 0;
+    for (auto s : caller->SpList) {
+      p1->dattrib[s.second] = f1[C]/sum1;
+      p2->dattrib[s.second] = f2[C]/sum2;
+      tot1 += p1->dattrib[s.second];
+      tot2 += p2->dattrib[s.second];
+      C++;
     }
-  }
 
-  tot = 0.0;
-  for (unsigned short C=0; C<=Z2; C++) tot += p2->dattrib[caller->spc_pos+C];
+    if (tot1 > 0.0) {
+      if (fabs(tot1-1.0) > 1.0e-6) {
+	std::cout << "**ERROR [" << myid << "] Pord:"
+		  << " Unexpected p1 norm in update=" << tot1
+		  << ", T=" << tnow
+		  << ", index=" << p1->indx << ", ";
+	for (auto s : caller->SpList)
+	  std::cout << std::setw(18) << p1->dattrib[s.second];
+	std::cout << std::endl;
+      }
+    }
+    
+    if (tot2 > 0.0) {
+      if (fabs(tot2-1.0) > 1.0e-6) {
+	std::cout << "**ERROR [" << myid << "] Pord:"
+		  << " Unexpected p1 norm in update=" << tot2
+		  << ", T=" << tnow
+		  << ", index=" << p2->indx << ", ";
+	for (auto s : caller->SpList)
+	  std::cout << std::setw(18) << p2->dattrib[s.second];
+	std::cout << std::endl;
+      }
+    }
 
-  if (tot > 0.0) {
-    if (fabs(tot-1.0) > 1.0e-6) {
-      std::cout << "**ERROR [" << myid << "] Pord:"
-		<< " Unexpected p2 norm in update=" << tot
-		<< ", T=" << tnow
-		<< ", index=" << p2->indx
-		<< ", Z=" << Z2 << ", ";
-      for (unsigned short C=0; C<=Z2; C++)
-	std::cout << std::setw(18) << p2->dattrib[caller->spc_pos+C];
-      std::cout << std::endl;
+  } else {
+
+    double tot1 = 0.0, tot2 = 0.0;
+    for (unsigned short C=0; C<=Z1; C++) {
+      p1->dattrib[caller->spc_pos+C] = f1[C]/sum1;
+      tot1 += p1->dattrib[caller->spc_pos+C];
+    }
+
+    for (unsigned short C=0; C<=Z2; C++) {
+      p2->dattrib[caller->spc_pos+C] = f2[C]/sum2;
+      tot2 += p2->dattrib[caller->spc_pos+C];
+    }
+
+    if (tot1 > 0.0) {
+      if (fabs(tot1-1.0) > 1.0e-6) {
+	std::cout << "**ERROR [" << myid << "] Pord:"
+		  << " Unexpected p1 norm in update=" << tot1
+		  << ", T=" << tnow
+		  << ", index=" << p1->indx
+		  << ", Z=" << Z1 << ", ";
+	for (unsigned short C=0; C<=Z1; C++)
+	  std::cout << std::setw(18) << p1->dattrib[caller->spc_pos+C];
+	std::cout << std::endl;
+      }
+    }
+    
+    if (tot2 > 0.0) {
+      if (fabs(tot2-1.0) > 1.0e-6) {
+	std::cout << "**ERROR [" << myid << "] Pord:"
+		  << " Unexpected p2 norm in update=" << tot2
+		  << ", T=" << tnow
+		  << ", index=" << p2->indx
+		  << ", Z=" << Z2 << ", ";
+	for (unsigned short C=0; C<=Z2; C++)
+	  std::cout << std::setw(18) << p2->dattrib[caller->spc_pos+C];
+	std::cout << std::endl;
+      }
     }
   }
 
@@ -19040,13 +19215,24 @@ CollideIon::Pord::Epair CollideIon::Pord::compE()
   Epair ret;			// zero initialized structure
 
 				// Compute electron fractions
-  eta1 = 0.0;
-  for (unsigned short C=1; C<=Z1; C++)
-    eta1 += p1->dattrib[caller->spc_pos+C]*C;
+  if (caller->aType == Trace) {
+    eta1 = eta2 = 0.0;
+    for (auto s : caller->SpList) {
+      unsigned P = s.first.second - 1;
+      eta1 += p1->dattrib[s.second]*P;
+      eta2 += p2->dattrib[s.second]*P;
+    }
 
-  eta2 = 0.0;
-  for (unsigned short C=1; C<=Z2; C++)
-    eta2 += p2->dattrib[caller->spc_pos+C]*C;
+  } else {
+
+    eta1 = 0.0;
+    for (unsigned short C=1; C<=Z1; C++)
+      eta1 += p1->dattrib[caller->spc_pos+C]*C;
+
+    eta2 = 0.0;
+    for (unsigned short C=1; C<=Z2; C++)
+      eta2 += p2->dattrib[caller->spc_pos+C]*C;
+  }
 
 
   if (wght) {
@@ -19138,9 +19324,9 @@ void CollideIon::Pord::normTest(unsigned short n, const std::string& lab)
   double tot = 0.0;
   bool posdef = true;
 
-  for (unsigned short C=0; C<=Z; C++) {
-    tot += (*f)[C];
-    if ((*f)[C] < 0.0) posdef = false;
+  for (auto v : *f) {
+    tot += v;
+    if (v < 0.0) posdef = false;
   }
 
   if (!posdef) {
@@ -19148,10 +19334,10 @@ void CollideIon::Pord::normTest(unsigned short n, const std::string& lab)
 	      << " Values not posdef, norm" << tot
 	      << " for " << lab
 	      << ", T=" << tnow
-	      << ", index=" << p->indx
-	      << ", Z=" << Z << ", ";
-    for (unsigned short C=0; C<=Z; C++)
-      std::cout << std::setw(18) << std::setprecision(8) << (*f)[C];
+	      << ", index=" << p->indx << ", ";
+    if (caller->aType != Trace) std::cout << "Z=" << Z << ", ";
+    for (auto v : *f)
+      std::cout << std::setw(18) << std::setprecision(8) << v;
     std::cout << std::endl;
   }
 
@@ -19161,57 +19347,77 @@ void CollideIon::Pord::normTest(unsigned short n, const std::string& lab)
 		<< " Unexpected norm=" << tot
 		<< " for " << lab
 		<< ", T=" << tnow
-		<< ", index=" << p->indx
-		<< ", Z=" << Z;
+		<< ", index=" << p->indx << ", ";
+      if (caller->aType != Trace) std::cout << ", Z=" << Z;
       if (DEBUG_CNT>=0) std::cout << ", Count=" << p->iattrib[DEBUG_CNT];
       std::cout << ", ";
-      for (unsigned short C=0; C<=Z; C++)
-	std::cout << std::setw(18) << std::setprecision(8) << (*f)[C];
+      for (auto v : *f)
+	std::cout << std::setw(18) << std::setprecision(8) << v;
       std::cout << std::endl;
     }
-    for (unsigned short C=0; C<=Z; C++) (*f)[C] /= tot;
+    for (auto & v : *f) v /= tot;
   } else {
     std::cout << "**ERROR [" << myid << "] Pord:"
 	      << " Invalid zero norm for " << lab
 	      << ", T=" << tnow
-	      << ", index=" << p->indx
-	      << ", Z=" << Z;
+	      << ", index=" << p->indx << ", ";
+    if (caller->aType != Trace) std::cout << "Z=" << Z;
     if (DEBUG_CNT>=0) std::cout << ", Count=" << p->iattrib[DEBUG_CNT];
     std::cout << std::endl;
   }
 
   tot = 0.0;
-  for (unsigned short C=0; C<=Z1; C++) tot += p1->dattrib[caller->spc_pos+C];
-
+  if (caller->aType == Trace) {
+    for (auto s : caller->SpList) tot += p1->dattrib[s.second];
+  } else {
+    for (unsigned short C=0; C<=Z1; C++) tot += p1->dattrib[caller->spc_pos+C];
+  }
+  
   if (tot > 0.0) {
     if (fabs(tot-1.0) > 1.0e-6) {
       std::cout << "**ERROR [" << myid << "] Pord:"
 		<< " Unexpected p1 norm=" << tot
 		<< " for " << lab
 		<< ", T=" << tnow
-		<< ", index=" << p1->indx
-		<< ", Z=" << Z1 << ", ";
-      for (unsigned short C=0; C<=Z1; C++)
-	std::cout << std::setw(18) << std::setprecision(8)
-		  << p1->dattrib[caller->spc_pos+C];
+		<< ", index=" << p1->indx << ", ";
+      if (caller->aType != Trace) {
+	std::cout << "Z=" << Z1 << ", ";
+	for (auto s : caller->SpList) 
+	  std::cout << std::setw(18) << std::setprecision(8)
+		    << p1->dattrib[s.second];
+      } else {
+	for (unsigned short C=0; C<=Z1; C++)
+	  std::cout << std::setw(18) << std::setprecision(8)
+		    << p1->dattrib[caller->spc_pos+C];
+      }
       std::cout << std::endl;
     }
   }
 
   tot = 0.0;
-  for (unsigned short C=0; C<=Z2; C++) tot += p2->dattrib[caller->spc_pos+C];
-
+  if (caller->aType == Trace) {
+    for (auto s : caller->SpList) tot += p2->dattrib[s.second];
+  } else {
+    for (unsigned short C=0; C<=Z2; C++) tot += p2->dattrib[caller->spc_pos+C];
+  }
+  
   if (tot > 0.0) {
     if (fabs(tot-1.0) > 1.0e-6) {
       std::cout << "**ERROR [" << myid << "] Pord:"
 		<< " Unexpected p2 norm=" << tot
 		<< " for " << lab
 		<< ", T=" << tnow
-		<< ", index=" << p2->indx
-		<< ", Z=" << Z2 << ", ";
-      for (unsigned short C=0; C<=Z2; C++)
-	std::cout << std::setw(18) << std::setprecision(8)
-		  << p2->dattrib[caller->spc_pos+C];
+		<< ", index=" << p2->indx << ", ";
+      if (caller->aType != Trace) {
+	std::cout << "Z=" << Z2 << ", ";
+	for (auto s : caller->SpList) 
+	  std::cout << std::setw(18) << std::setprecision(8)
+		    << p2->dattrib[s.second];
+      } else {
+	for (unsigned short C=0; C<=Z2; C++)
+	  std::cout << std::setw(18) << std::setprecision(8)
+		    << p2->dattrib[caller->spc_pos+C];
+      }
       std::cout << std::endl;
     }
   }
