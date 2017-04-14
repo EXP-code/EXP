@@ -9953,8 +9953,15 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   //
   double W1 = p1->mass/molP1[id];
   double W2 = p2->mass/molP2[id];
+  double wavg = 0.5*(W1 + W2);
+  double wdif = (W1 - W2)/wavg;
 
-  assert(W1 == W2);
+  if (fabs(wdif) > 1.0e-6) {
+    std::cout << "**ERROR W1!=W2, W1=" << W1 << ", W2=" << W2
+	      << ", dif=" << wdif << std::endl;
+  }
+
+  W1 = W2 = wavg;
 
   std::array<PordPtr, 3> PP =
     { PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_ion,      0.0) ),
@@ -10920,22 +10927,28 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	std::pair<double, double> KEdif = KEinit - KEfinal;
 
+	double actR = KEdif.first - KE.delta;
+	actR = KEinit.first >0.0 ? actR/KEinit.first : actR;
+
+	double pasR = KEdif.second;
+	pasR = KEinit.second>0.0 ? pasR/KEinit.second : pasR;
+
 	if (fabs(delE) > tolE*KE_initl_check) {
 	  std::cout << "**ERROR [after neutral] dE = " << delE
 		    << ", rel = "  << delE/KE_initl_check
 		    << ", dKE = "  << deltaSum
-		    << ", actR = " << (KEdif.first - KE.delta)/KEinit.first
-		    << ", pasR = " << KEdif.second/KEinit.second
+		    << ", actR = " << actR
+		    << ", pasR = " << pasR
 		    << ", actA = " << KEdif.first
 		    << ", pasA = " << KEdif.second
 		    << std::endl;
 	} else {
 	  if (DBG_NewTest)
 	    std::cout << "**GOOD [after neutral] dE = " << delE
-		      << ", rel = " << delE/KE_initl_check
-		      << ", dKE = " << KE.delta
-		      << ", actR = " << (KEdif.first- KE.delta)/KEinit.first
-		      << ", pasR = " << KEdif.second/KEinit.second
+		      << ", rel = "  << delE/KE_initl_check
+		      << ", dKE = "  << KE.delta
+		      << ", actR = " << actR
+		      << ", pasR = " << pasR
 		      << ", actA = " << KEdif.first
 		      << ", pasA = " << KEdif.second
 		      << std::endl;
@@ -11078,12 +11091,18 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	
 	std::pair<double, double> KEdif = KEinit - KEfinal;
 	
+	double actR = KEdif.first - KE.delta;
+	actR = KEinit.first>0.0 ? actR/KEinit.first : actR;
+
+	double pasR = KEdif.second;
+	pasR = KEinit.second>0.0 ? pasR/KEinit.second : pasR;
+
 	if (fabs(delE) > tolE*KE_initl_check) {
 	  std::cout << "**ERROR [after Ion1] dE = " << delE
 		    << ", rel = "  << delE/KE_initl_check
 		    << ", dKE = "  << deltaSum
-		    << ", actR = " << (KEdif.first - KE.delta)/KEinit.first
-		    << ", pasR = " << KEdif.second/KEinit.second
+		    << ", actR = " << actR
+		    << ", pasR = " << pasR
 		    << ", actA = " << KEdif.first
 		    << ", pasA = " << KEdif.second
 		    << std::endl;
@@ -11092,8 +11111,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    std::cout << "**GOOD [after Ion1] dE = " << delE
 		      << ", rel = "  << delE/KE_initl_check
 		      << ", dKE = "  << deltaSum
-		      << ", actR = " << (KEdif.first - KE.delta)/KEinit.first
-		      << ", pasR = " << KEdif.second/KEinit.second
+		      << ", actR = " << actR
+		      << ", pasR = " << pasR
 		      << ", actA = " << KEdif.first
 		      << ", pasA = " << KEdif.second
 		      << std::endl;
@@ -11236,12 +11255,18 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	std::pair<double, double> KEdif = KEinit - KEfinal;
 	
+	double actR = KEdif.first - KE.delta;
+	actR = KEinit.first>0.0 ? actR/KEinit.first : actR;
+
+	double pasR = KEdif.second;
+	pasR = KEinit.second>0.0 ? pasR/KEinit.second : pasR;
+
 	if (fabs(delE) > tolE*KE_initl_check) {
 	  std::cout << "**ERROR [after Ion2] dE = " << delE
 		    << ", rel = "  << delE/KE_initl_check
 		    << ", dKE = "  << deltaSum
-		    << ", actR = " << (KEdif.first - KE.delta)/KEinit.first
-		    << ", pasR = " << KEdif.second/KEinit.second
+		    << ", actR = " << actR
+		    << ", pasR = " << pasR
 		    << ", actA = " << KEdif.first
 		    << ", pasA = " << KEdif.second
 		    << std::endl;
@@ -11250,8 +11275,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    std::cout << "**GOOD [after Ion2] dE = " << delE
 		      << ", rel = "  << delE/KE_initl_check
 		      << ", dKE = "  << deltaSum
-		      << ", actR = " << (KEdif.first - KE.delta)/KEinit.first
-		      << ", pasR = " << KEdif.second/KEinit.second
+		      << ", actR = " << actR
+		      << ", pasR = " << pasR
 		      << ", actA = " << KEdif.first
 		      << ", pasA = " << KEdif.second
 		      << std::endl;
