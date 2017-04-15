@@ -16521,7 +16521,7 @@ void CollideIon::gatherSpecies()
 	
       }
 
-      if (aType==Hybrid) {
+      if (aType==Hybrid or aType==Trace) {
 	speciesKey k;
 	double V;
 	int siz;
@@ -16536,7 +16536,7 @@ void CollideIon::gatherSpecies()
 		   MPI_STATUS_IGNORE);
 	  MPI_Recv(&V,        1, MPI_DOUBLE,         i, 355, MPI_COMM_WORLD,
 		   MPI_STATUS_IGNORE);
-	  
+
 	  specM[k] += V;
 	}
       }
@@ -16586,8 +16586,9 @@ void CollideIon::gatherSpecies()
   if (mass>0.0) {
     tM[0] /= mass;
     tM[1] /= mass;
-    if (aType == Hybrid or aType == Trace)
+    if (aType == Hybrid or aType == Trace) {
       for (auto & e : specM) e.second /= mass;
+    }
   }
   if (massE>0.0) {
     tempE /= mass;
