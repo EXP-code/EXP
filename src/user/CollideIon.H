@@ -690,9 +690,6 @@ public:
   //! Hybrid method (default: false)
   static bool enforceMOM;
 
-  //! Default key for trace species (default: (0, 0))
-  static speciesKey defKey;
-
 protected:
 
   //! Process config file

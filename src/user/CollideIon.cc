@@ -86,10 +86,6 @@ Interact::T CollideIon::elecElec;
 //
 int CollideIon::Pord::key       = -1;
 
-// Default key for trace species
-//
-speciesKey CollideIon::defKey   = speciesKey(0, 0);
-
 // Add trace energy excess to electron distribution
 //
 static bool TRACE_ELEC          = false;
@@ -10112,8 +10108,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       // Retrieve the diagnostic stanza for this species (correctly
       // including the ionization level)
       //
-      collTDPtr ctd1 = (*collD)[defKey];
-      collTDPtr ctd2 = (*collD)[defKey];
+      collTDPtr ctd1 = (*collD)[Particle::defaultKey];
+      collTDPtr ctd2 = (*collD)[Particle::defaultKey];
       
       // Select the maximum probability channel
       //
@@ -13563,7 +13559,7 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
   //
   if (p->SpList.size()) {
 				// Trace method
-    (*this)[p->defKey] = collTDPtr(new CollisionTypeDiag());
+    (*this)[Particle::defaultKey] = collTDPtr(new CollisionTypeDiag());
 
   } else if (p->ZList.size()) {
 				// All other methods
