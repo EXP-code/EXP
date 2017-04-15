@@ -18130,6 +18130,8 @@ double CollideIon::molWeight(pCell *cell)
 	massC += m * p->dattrib[s.second] ;
       }
     }
+
+    mol_weight = massC/numbC;
   }
 
   if (0) {
