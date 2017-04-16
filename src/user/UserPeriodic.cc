@@ -264,7 +264,7 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
     Particle *p = cC->Part(i);
     double   mi = 0.0;
 
-    if (thermal and use_key>=0) {
+    if (thermal and c0->keyPos>=0) {
       if (p->skey == Particle::defaultKey)
 	p->skey = KeyConvert(p->iattrib[cC->keyPos]).getKey();
       mi = (atomic_weights[p->skey.first])*amu;
