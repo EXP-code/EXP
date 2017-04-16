@@ -4340,7 +4340,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	{
 	  double ke   = std::max<double>(kEe1[id], FloorEv);
 	  CFreturn ff = ch.IonList[Q]->freeFreeCross(ke, id);
-	  double crs  = eVel2 * eta2 * ff.first * fac1 * ieBoost * nselRat[id];
+	  double crs  = eVel2 * eta2 * ff.first * fac1 * ieBoost;
 	
 	  if (std::isinf(crs)) crs = 0.0; // Sanity check
 	
@@ -4359,7 +4359,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	{
 	  double ke   = std::max<double>(kEe2[id], FloorEv);
 	  CFreturn ff = ch.IonList[Q]->freeFreeCross(ke, id);
-	  double crs  = eVel1 * eta1 * ff.first * fac2 * ieBoost * nselRat[id];
+	  double crs  = eVel1 * eta1 * ff.first * fac2 * ieBoost;
 	  
 	  if (std::isinf(crs)) crs = 0.0; // Sanity check
 	  
@@ -4384,7 +4384,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       if (P<Z and eta2>0.0) {
 	double ke   = std::max<double>(kEe1[id], FloorEv);
 	CEvector CE = ch.IonList[Q]->collExciteCross(ke, id);
-	double crs  = eVel2 * eta2 * CE.back().first * fac1 * ieBoost * nselRat[id];
+	double crs  = eVel2 * eta2 * CE.back().first * fac1 * ieBoost;
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
@@ -4403,7 +4403,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       if (P<Z and eta1>0) {
 	double ke   = std::max<double>(kEe2[id], FloorEv);
 	CEvector CE = ch.IonList[Q]->collExciteCross(ke, id);
-	double crs  = eVel1 * eta1 * CE.back().first * fac2 * ieBoost * nselRat[id];
+	double crs  = eVel1 * eta1 * CE.back().first * fac2 * ieBoost;
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
@@ -4427,7 +4427,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	
 	double ke  = std::max<double>(kEe1[id], FloorEv);
 	double DI  = ch.IonList[Q]->directIonCross(ke, id);
-	double crs = eVel2 * eta2 * DI * fac1 * ieBoost * nselRat[id];
+	double crs = eVel2 * eta2 * DI * fac1 * ieBoost;
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
@@ -4446,7 +4446,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	
 	double ke  = std::max<double>(kEe2[id], FloorEv);
 	double DI  = ch.IonList[Q]->directIonCross(ke, id);
-	double crs = eVel1 * eta1 * DI * fac2 * ieBoost * nselRat[id];
+	double crs = eVel1 * eta1 * DI * fac2 * ieBoost;
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
@@ -4470,7 +4470,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	if (P>0) {
 	  double ke              = std::max<double>(kE1s[id], FloorEv);
 	  std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
-	  double crs = sVel1 * eta1 * RE.back() * fac1 * ieBoost * nselRat[id];
+	  double crs = sVel1 * eta1 * RE.back() * fac1 * ieBoost;
 	
 	  if (DEBUG_CRS) trap_crs(crs);
 	
@@ -4488,7 +4488,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	if (P>0) {
 	  double ke              = std::max<double>(kE2s[id], FloorEv);
 	  std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
-	  double crs = sVel2 * eta2 * RE.back() * fac2 * ieBoost * nselRat[id];
+	  double crs = sVel2 * eta2 * RE.back() * fac2 * ieBoost;
 	  
 	  if (DEBUG_CRS) trap_crs(crs);
 	  
@@ -4509,7 +4509,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  {
 	    double ke              = std::max<double>(kEe1[id], FloorEv);
 	    std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
-	    double crs = eVel2 * eta2 * RE.back() * fac1 * ieBoost * nselRat[id];
+	    double crs = eVel2 * eta2 * RE.back() * fac1 * ieBoost;
 	    
 	    if (DEBUG_CRS) trap_crs(crs);
 	
@@ -4527,7 +4527,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  {
 	    double ke              = std::max<double>(kEe2[id], FloorEv);
 	    std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
-	    double crs = eVel1 * eta1 * RE.back() * fac2 * ieBoost * nselRat[id];
+	    double crs = eVel1 * eta1 * RE.back() * fac2 * ieBoost;
 	    
 	    if (DEBUG_CRS) trap_crs(crs);
 	    
@@ -14472,6 +14472,14 @@ void CollideIon::parseSpecies(const std::string& map)
 	SpList[key] = pos;
       }
     }
+  }
+
+  // Record algorithm type in stdout log file
+  if (myid==0) {
+    std::cout << std::string(72, '-') << std::endl
+	      << "CollideIon: collision algorithm type is <"
+	      << AlgorithmLabels[aType] << ">" << std::endl
+	      << std::string(72, '-') << std::endl;
   }
 
   (*barrier)("CollideIon::parseSpecies complete", __FILE__, __LINE__);
