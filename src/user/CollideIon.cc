@@ -10343,7 +10343,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  
 	  if (use_normtest) {
 	    std::ostringstream sout;
-	    sout << "[After ionize]: C2=" << C2-1
+	    sout << "[After ionize]: C2=" << C2-1 << ", Pr=" << Pr
 		 << ", Prob=" << Prob;
 	    PP[2]->normTest(1, sout.str());
 	    PP[2]->normTest(2, sout.str());
@@ -10420,7 +10420,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  if (use_normtest) {
 	    std::ostringstream sout;
-	    sout << "[After ionize]: C1=" << C1-1
+	    sout << "[After ionize]: C1=" << C1-1 << ", Pr=" << Pr
 		 << ", Prob=" << Prob;
 	    PP[1]->normTest(1, sout.str());
 	    PP[1]->normTest(2, sout.str());
@@ -10490,7 +10490,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    PP[2]->F(2, pos  ) -= Pr;
 	    PP[2]->F(2, pos-1) += Pr;
 	  } else {
-	    Pr = PP[2]->F(2, P2);
+	    Pr = PP[2]->F(2, pos);
 	    PP[2]->F(2, pos  )  = 0.0;
 	    PP[2]->F(2, pos-1) += Pr;
 	  }
@@ -10499,7 +10499,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  if (use_normtest) {
 	    std::ostringstream sout;
-	    sout << "[After recomb]: C2=" << C2
+	    sout << "[After recomb]: C2=" << C2 << ", Pr=" << Pr
 		 << ", Prob=" << Prob << ", w=" << PP[2]->F(2, C2);
 
 	    PP[2]->normTest(1, sout.str());
@@ -10589,7 +10589,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  if (use_normtest) {
 	    std::ostringstream sout;
-	    sout << "[After recomb_1]: C1=" << C1
+	    sout << "[After recomb]: C1=" << C1 << ", Pr=" << Pr
 		 << ", Prob=" << Prob << ", w=" << PP[1]->F(1, P1);
 	    PP[1]->normTest(1, sout.str());
 	    PP[1]->normTest(2, sout.str());
