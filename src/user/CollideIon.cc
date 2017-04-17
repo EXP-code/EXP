@@ -7311,8 +7311,8 @@ CollideIon::energyInPairPartial(Particle *p1, Particle *p2, HybridColl iType,
   }
 
   if (false and DBG_NewTest and msg.size()) {
-    std::cout << std::string(72, '-') << std::endl;
-    std::cout << msg << std::endl << std::string(72, '-') << std::endl
+    std::cout << printDivider << std::endl;
+    std::cout << msg << std::endl << printDivider << std::endl
 	      << "Neutral" << std::endl
 	      << std::setprecision(14) << std::scientific
 	      << " e1=" << std::setw(22) << n1
@@ -7329,7 +7329,7 @@ CollideIon::energyInPairPartial(Particle *p1, Particle *p2, HybridColl iType,
 	      << " e2=" << std::setw(22) << n2
 	      << " V1=" << std::setw(22) << KEe1
 	      << " V2=" << std::setw(22) << KEi2
-	      << std::endl << std::string(72, '-') << std::endl
+	      << std::endl << printDivider << std::endl
 	      << std::setprecision(5);
   }
 
@@ -13169,7 +13169,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     }
 
     outdbg << std::endl << "Cell=" << cell->mykey << " electron scattering DONE"
-	   << std::endl << std::string(70, '-') << std::endl;
+	   << std::endl << printDivider << std::endl;
   }
 
   //======================================================================
@@ -13285,16 +13285,16 @@ void CollideIon::KElossGather()
 void CollideIon::KEloss(std::ostream& out)
 {
   if (myid==0) {
-    out << std::string(70, '-') << std::endl
+    out << printDivider << std::endl
 	<< "Kinetic energy loss from cells" << std::endl
-	<< std::string(70, '-') << std::endl
+	<< printDivider << std::endl
 	<< "T KE dKE = "
 	<< std::scientific << std::setprecision(8)
 	<< std::setw(16)   << tnow
 	<< std::setw(16)   << KElossSoFar[0]
 	<< std::setw(16)   << KElossSoFar[1]
 	<< std::endl
-	<< std::string(70, '-') << std::endl;
+	<< printDivider << std::endl;
   }
 }
 
@@ -14279,10 +14279,10 @@ void CollideIon::parseSpecies(const std::string& map)
 
   // Record algorithm type in stdout log file
   if (myid==0) {
-    std::cout << std::string(72, '-') << std::endl
+    std::cout << printDivider << std::endl
 	      << "CollideIon: collision algorithm type is <"
 	      << AlgorithmLabels[aType] << ">" << std::endl
-	      << std::string(72, '-') << std::endl;
+	      << printDivider << std::endl;
   }
 
   (*barrier)("CollideIon::parseSpecies complete", __FILE__, __LINE__);
@@ -14504,10 +14504,10 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
   if (DEBUG_SL) {
 
     std::cout << std::endl
-	      << std::string(70, '-')     << std::endl
+	      << printDivider << std::endl
 	      << "Cell stats"
 	      << ", #=" << c->bods.size() << std::endl
-	      << std::string(70, '-')     << std::endl
+	      << printDivider << std::endl
 	      << std::setw(10) << "Species"
 	      << std::setw(16) << "eta"
 	      << std::setw(16) << "n dens"
@@ -14536,11 +14536,11 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
     }
 
     std::cout << std::endl
-	      << std::string(70, '-')    << std::endl
+	      << printDivider << std::endl
 	      << "Interaction stats"
 	      << ", eVel=" << Evel[id]
-	      << ", crm="  << crm        << std::endl
-	      << std::string(70, '-')    << std::endl
+	      << ", crm="  << crm << std::endl
+	      << printDivider << std::endl
 	      << std::setw(20) << "Species"
 	      << std::setw(16) << "Cross"
 	      << std::endl
@@ -14994,10 +14994,10 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
   if (DEBUG_SL) {
 
     std::cout << std::endl
-	      << std::string(70, '-')     << std::endl
+	      << printDivider  << std::endl
 	      << "Cell stats"
 	      << ", #=" << c->bods.size() << std::endl
-	      << std::string(70, '-')     << std::endl
+	      << printDivider  << std::endl
 	      << std::setw(10) << "Species"
 	      << std::setw(16) << "eta"
 	      << std::setw(16) << "n dens"
@@ -15026,11 +15026,11 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
     }
 
     std::cout << std::endl
-	      << std::string(70, '-')    << std::endl
+	      << printDivider << std::endl
 	      << "Interaction stats"
 	      << ", eVel=" << Evel[id]
-	      << ", crm="  << crm        << std::endl
-	      << std::string(70, '-')    << std::endl
+	      << ", crm="  << crm << std::endl
+	      << printDivider << std::endl
 	      << std::setw(30) << "Species"
 	      << std::setw(16) << "Cross"
 	      << std::endl
@@ -15370,9 +15370,9 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
     std::ofstream out(runtag + ".heplus_test_cross", ios::out | ios::app);
 
     out << std::endl
-	<< std::string(72, '-') <<  std::endl
-	<< "Time = " << tnow    << std::endl
-	<< std::string(72, '-') << std::endl
+	<< printDivider <<  std::endl
+	<< "Time = " << tnow << std::endl
+	<< printDivider << std::endl
 	<< std::right
 	<< std::setw(20) << "Species"
 	<< std::setw(20) << "Interact"
@@ -15467,7 +15467,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	<< "  Mean Lambda = " << meanLambda
 	<< "  MFP/L = "       << meanLambda/pow(volc, 0.333333333)
 	<< "  totalNsel = "   << totalNsel
-	<< std::endl << std::string(72, '-') <<  std::endl
+	<< std::endl << printDivider <<  std::endl
 	<< std::setw(4)  << "Z"
 	<< std::setw(4)  << "C"
 	<< std::setw(12) << "Fraction"
@@ -15493,7 +15493,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	  << std::endl;
     }
 
-    out << std::string(72, '-') <<  std::endl;
+    out << printDivider <<  std::endl;
   }
   //* END DEEP DEBUG *//
 

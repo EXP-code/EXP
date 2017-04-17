@@ -152,6 +152,10 @@ bool Collide::DEBUG_NTC         = false;
 //
 bool Collide::NTC_DIST          = false;
 
+// For logging output
+//
+std::string Collide::printDivider(80, '-');
+
 extern "C"
 void *
 collide_thread_call(void *atp)
@@ -551,9 +555,9 @@ Collide::Collide(ExternalForce *force, Component *comp,
   ntcThresh = ntcThreshDef;
 
   if (myid==0) {
-    std::cout << std::string(70, '-') << std::endl
+    std::cout << printDivider << std::endl
 	      << "--- Tree volume = " << c0->Tree()->Volume() << std::endl
-	      << std::string(70, '-') << std::endl;
+	      << printDivider << std::endl;
   }
 }
 
@@ -662,13 +666,13 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
 		<< " dT = "    << dtime << std::endl
 		<< "***" << std::endl;
 
-      std::cout << std::endl << std::string(60, '-') << std::endl
+      std::cout << std::endl << printDivider << std::endl
 		<< std::left 
 		<< std::setw(8)  << "Node"
 		<< std::setw(6)  << "Level"
 		<< std::setw(10) << "Bodies"
 		<< std::setw(10) << "dT"
-		<< std::endl << std::string(60, '-') << std::endl;
+		<< std::endl << printDivider << std::endl;
     }
 		 
     for (int n=0; n<numprocs; n++) {
@@ -681,7 +685,7 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
       }
       MPI_Barrier(MPI_COMM_WORLD);
     }
-    if (myid==0) std::cout << std::string(60, '-') << std::endl;
+    if (myid==0) std::cout << printDivider << std::endl;
   }
 
   if (CDEBUG) {
@@ -3442,9 +3446,9 @@ void Collide::NTCgather(pHOT* const tree)
 
 				// Too many collisions!!
       if (myid==0 && gbMax>numSanityMax) {
-	std::cerr << std::string(60, '-') << std::endl
+	std::cerr << printDivider << std::endl
 		  << " *** Too many collisions in NTC: " << gbMax << std::endl
-		  << std::string(60, '-') << std::endl;
+		  << printDivider << std::endl;
 	raise(SIGTERM);		// Signal stop, please!
       }
 

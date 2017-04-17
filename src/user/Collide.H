@@ -486,6 +486,9 @@ protected:
   //! Return random 3d unit vector
   std::vector<double> unit_vector();
 
+  //! Print divider
+  static std::string printDivider;
+
 public:
   
   //! Integrate the cooling solution
