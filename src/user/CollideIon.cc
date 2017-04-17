@@ -10328,7 +10328,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		      << ", Pr=" << CProb[id][2] << std::endl;
 	  }
 
-	  int pos = SpList[k2] - spc_pos;
+	  int pos = SpList[k2] - SpList.begin()->second;
 
 	  if (Pr < PP[2]->F(2, pos)) {
 	    PP[2]->F(2, pos  ) -= Pr;
@@ -10405,7 +10405,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 
 
-	  int pos = SpList[k1] - spc_pos;
+	  int pos = SpList[k1] - SpList.begin()->second;
 
 	  if (Pr < PP[1]->F(1, pos)) {
 	    PP[1]->F(1, pos  ) -= Pr;
@@ -10484,7 +10484,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		      << ", Pr=" << CProb[id][2] << std::endl;
 	  }
 
-	  int pos = SpList[k2] - spc_pos;
+	  int pos = SpList[k2] - SpList.begin()->second;
 
 	  if (Pr < PP[2]->F(2, pos)) {
 	    PP[2]->F(2, pos  ) -= Pr;
@@ -10574,7 +10574,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		      << ", Pr=" << CProb[id][1] << std::endl;
 	  }
 
-	  int pos = SpList[k1] - spc_pos;
+	  int pos = SpList[k1] - SpList.begin()->second;
 
 	  if (Pr < PP[1]->F(1, pos)) {
 	    PP[1]->F(1, pos  ) -= Pr;
@@ -11398,7 +11398,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     double KEfinal = KE_final_check;
     double delE1   = KEinitl - KEfinal - deltaSum - delEsum + delEmis + delEdfr;
     double delE2   = KEinitl - KEfinal - deltaSum - dConSum - delEsum - PPsav1 - PPsav2 - EconsUpI - EconsUpE;
-    double delE3   = KEinitl - KEfinal - dConSum - PE[Jsav][1] - delEfnl;
+    double delE3   = KEinitl - KEfinal - dConSum - totalDE - delEfnl;
 
     if (fabs(delE3) > tolE*KE_initl_check) {
       std::cout << "**ERROR inelasticHybrid dE = " << delE1 << ", " << delE2
