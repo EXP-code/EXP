@@ -403,7 +403,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   if (myid==0 && scatter)
     std::cout << std::endl
 	      << "************************************" << std::endl
-	      << "*** No recombination/ionization  ***" << std::endl
+	      << "*** Restrict to elastic scatter  ***" << std::endl
 	      << "************************************" << std::endl;
 
   if (myid==0 && equiptn)
@@ -9893,7 +9893,7 @@ void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
      cross section scaled by electron fraction
 
   This implementation is based on the hybrid algorithm, rather than the original.
- */
+*/
 int CollideIon::inelasticTrace(int id, pCell* const c,
 			       Particle* const _p1, Particle* const _p2,
 			       double *cr)
@@ -10219,7 +10219,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = IS.selectFFInteract(std::get<2>(I));
 
-	  dE = tmpE * Prob/CProb[id][2];
+	  dE = tmpE * Prob;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_FF_E) dE = 0.0;
@@ -10237,7 +10237,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = IS.selectFFInteract(std::get<2>(I));
 
-	  dE = tmpE * Prob/CProb[id][1];
+	  dE = tmpE * Prob;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_FF_E) dE = 0.0;
@@ -10260,13 +10260,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = IS.selectCEInteract(ch.IonList[Q2], std::get<1>(I));
 
-	  dE = tmpE * Prob/CProb[id][2];
-
-	  if (Prob/CProb[id][2] > 1.0 or Prob/CProb[id][2] < 0.0) {
-	    checkProb(id);
-	    std::cout << "**ERROR: crazy prob <colexcite 2>=" << Prob
-		      << ", Pr=" << CProb[id][2] << std::endl;
-	  }
+	  dE = tmpE * Prob;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	    
@@ -10282,13 +10276,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = IS.selectCEInteract(ch.IonList[Q1], std::get<1>(I));
 
-	  dE = tmpE * Prob/CProb[id][1];
-
-	  if (Prob/CProb[id][1] > 1.0  or Prob/CProb[id][1] < 0.0) {
-	    checkProb(id);
-	    std::cout << "**ERROR: crazy prob <colexcite 1>=" << Prob
-		      << ", Pr=" << CProb[id][1] << std::endl;
-	  }
+	  dE = tmpE * Prob;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  
@@ -10319,8 +10307,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 
-	  // The scaled-up interaction fraction
-	  double Pr = Prob/CProb[id][2];
+	  double Pr = Prob;
 
 	  if (Pr > 1.0 or Pr < 0.0) {
 	    checkProb(id);
@@ -10339,7 +10326,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    PP[2]->F(2, pos+1) += Pr;
 	  }
 
-	  Prob = Pr * CProb[id][2];
+	  Prob = Pr;
 	  
 	  if (use_normtest) {
 	    std::ostringstream sout;
@@ -10395,8 +10382,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 
-	  // The scaled-up interaction fraction
-	  double Pr = Prob/CProb[id][1];
+	  double Pr = Prob;
 
 	  if (Pr > 1.0 or Pr < 0.0) {
 	    checkProb(id);
@@ -10416,7 +10402,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    PP[1]->F(1, pos+1) += Pr;
 	  }
 
-	  Prob = Pr * CProb[id][1];
+	  Prob = Pr;
 
 	  if (use_normtest) {
 	    std::ostringstream sout;
@@ -10475,8 +10461,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 	  
-	  // The scaled-up interaction fraction
-	  double Pr = Prob/CProb[id][2];
+	  double Pr = Prob;
 
 	  if (Pr > 1.0 or Pr < 0.0) {
 	    checkProb(id);
@@ -10495,7 +10480,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    PP[2]->F(2, pos-1) += Pr;
 	  }
 	  
-	  Prob = Pr * CProb[id][2];
+	  Prob = Pr;
 
 	  if (use_normtest) {
 	    std::ostringstream sout;
@@ -10565,8 +10550,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 
-	  // The scaled-up interaction fraction
-	  double Pr = Prob/CProb[id][1];
+	  double Pr = Prob;
 
 	  if (Pr > 1.0 or Pr < 0.0) {
 	    checkProb(id);
@@ -10585,7 +10569,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    PP[1]->F(1, pos-1) += Pr;
 	  }
 	  
-	  Prob = Pr * CProb[id][1];
+	  Prob = Pr;
 
 	  if (use_normtest) {
 	    std::ostringstream sout;
@@ -14075,7 +14059,6 @@ void collDiag::print()
 	  << std::setw(12) << misE_s
 	  << std::setw(12) << Edsp_s
 	  << std::setw(12) << (Emas_s>0.0 ? Efrc_s/Emas_s : 0.0)
-	// << std::setw(12) << Etot_c + Ktot_c + Esum_s + Elos_s + Elec_s - delI_s - delE_s
 	  << std::setw(12) << Etot_c + Esum_s + Elos_s + Elec_s - delI_s - delE_s
 	  << " |" << std::endl;
     }
