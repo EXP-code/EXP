@@ -439,11 +439,9 @@ private:
   typedef std::pair<double, double>                  CFreturn;
   typedef std::vector<CFreturn>                      CEvector;
   typedef std::pair<speciesKey, speciesKey>          dKey;
-  typedef std::pair<dKey, double>                    dKeyD;
   typedef std::map<speciesKey, std::vector<double> > keyCross;
   typedef std::map<speciesKey, std::vector<int>    > keyInter;
   typedef std::map<speciesKey, CEvector>             keyColEx;
-  typedef std::list<dKeyD>                           keyWexsList;
   typedef std::map<lQ, CEvector>                     CEmap;
   typedef std::map<lQ, CFreturn>                     CFmap;
   typedef Icont<std::map, unsigned short, double>    TypeMap0;
@@ -466,7 +464,6 @@ private:
   std::vector< std::vector<int>    >                 dInter;
   std::vector< keyCross >                            sCross; 
   std::vector< keyWghts >                            meanF, densE;
-  std::vector< keyWexsList >                         excessW;
   std::vector< keyInter >                            sInter;
   std::vector< CEvector >                            CE1, CE2;
   std::vector< CFreturn >                            FF1, FF2;

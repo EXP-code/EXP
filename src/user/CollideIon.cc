@@ -565,7 +565,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   numEf    .resize(nthrds);
   densE    .resize(nthrds);
   colSc    .resize(nthrds);
-  excessW  .resize(nthrds);
   CE1      .resize(nthrds);
   CE2      .resize(nthrds);
   FF1      .resize(nthrds);
@@ -12252,212 +12251,6 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     }
   }
 
-  //======================================================================
-  // Spread out species change differences
-  //======================================================================
-  //
-  if (aType == Trace) {
-
-    if (excessW[id].size()) {
-
-      std::vector<unsigned long> bods = cell->bods;
-
-      //
-      // Sanity check [prior]
-      //
-      if (EXCESS_DBG) {
-	for (auto b : bods) {
-	  Particle *p = tree->Body(b);
-	  double sum  = 0.0;
-	  for (auto s : SpList) {
-				// Check value and accumulate
-	    if (std::isnan(p->dattrib[s.second]))
-	      std::cout << "[" << myid
-			<< "] body #" << b
-			<< ": NaN weight! (prior)" << std::endl;
-	    if (std::isinf(p->dattrib[s.second]))
-	      std::cout << "[" << myid
-			<< "] body #" << b
-			<< ": inf weight! (prior)" << std::endl;
-	    if (p->dattrib[s.second]<0.0) {
-	      std::cout << "[" << myid
-			<< "] body #" << b
-			<< ": negative weight! (prior)" << std::endl;
-	    } else {
-	      sum += p->dattrib[s.second];
-	    }
-	  }
-				// Check final sum
-	  if (fabs(sum - 1.0) < 1.0e-12) {
-	    std::cout << "[" << myid
-		      << "] body #" << b
-		      << ": normalization error=" << sum << " (prior)" << std::endl;
-	  }
-	}
-
-	for (auto w : excessW[id]) {
-	  if (std::isnan(w.second)) {
-	    speciesKey k1 = w.first.first;
-	    speciesKey k2 = w.first.second;
-	    std::cout << "[" << myid
-		      << "] excess NaN "
-		      << "(" << k1.first << ", " << k1.second << ")"
-		      << "(" << k2.first << ", " << k2.second << ")"
-		      << std::endl;
-	  }
-	}
-
-      } // end: Sanity check
-
-
-      keyWghts totW, sumW;
-      for (auto s : SpList) totW[s.first] = sumW[s.first] = 0.0;
-				// Get the total cell mass in each trace sp
-      for (auto b : bods) {
-	Particle *p = tree->Body(b);
-	for (auto s : SpList)
-	  totW[s.first] += p->mass * p->dattrib[s.second];
-      }
-
-				// Get the transfer excess in each trace sp
-      for (auto w : excessW[id]) sumW[w.first.first] += w.second;
-
-      if (EXCESS_DBG) {
-	for (auto s : SpList) {
-	  if (std::isnan(totW[s.first])) {
-	    std::cout << "[" << myid
-		      << "] totW is NaN "
-		      << "(" << s.first.first << ", " << s.first.second << ")"
-		      << std::endl;
-	  }
-	  if (std::isinf(totW[s.first])) {
-	    std::cout << "[" << myid
-		      << "] totW is Inf "
-		      << "(" << s.first.first << ", " << s.first.second << ")"
-		      << std::endl;
-	  }
-	  if (std::isnan(sumW[s.first])) {
-	    std::cout << "[" << myid
-		      << "] sumW is NaN "
-		      << "(" << s.first.first << ", " << s.first.second
-		      << ")" << std::endl;
-	    for (auto w : excessW[id]) {
-	      speciesKey k1 = w.first.first;
-	      speciesKey k2 = w.first.second;
-	      std::cout << "(" << k1.first << "," << k1.second << "):"
-			<< "(" << k2.first << "," << k2.second << ")"
-			<< "-->" << w.second << std::endl;
-	    }
-	  }
-	  if (std::isinf(sumW[s.first])) {
-	    std::cout << "[" << myid
-		      << "] sumW is Inf "
-		      << "(" << s.first.first << ", " << s.first.second
-		      << ")" << std::endl;
-	    for (auto w : excessW[id]) {
-	      speciesKey k1 = w.first.first;
-	      speciesKey k2 = w.first.second;
-	      std::cout << "(" << k1.first << "," << k1.second << "):"
-			<< "(" << k2.first << "," << k2.second << ")"
-			<< "-->" << w.second << std::endl;
-	    }
-	  }
-	}
-      }
-
-				// Process the excess list
-      for (auto w : excessW[id]) {
-				// Remove FROM this species
-	speciesKey k1 = w.first.first;
-				// Add TO this species
-	speciesKey k2 = w.first.second;
-				// More removals than mass?
-	w.second *= std::min<double>(1.0, totW[k1]/sumW[k1]);
-				// Shuffle the body indices
-	std::random_shuffle(bods.begin(), bods.end());
-				// Loop through the particles
-	for (auto b : bods) {
-	  Particle *p = tree->Body(b);
-
-	  int j1 = SpList[k1];	// <From> species index
-	  int j2 = SpList[k2];	// <To  > species index
-
-	  // Skip if particle doesn't have this trace species
-	  //
-	  if (p->dattrib[j1] > 0.0) {
-	    double ww = w.second/p->mass;
-	    if (EXCESS_DBG) {
-	      if (std::isnan(ww)) {
-		std::cout << "[" << myid
-			  << "] weight is NaN, mass=" << p->mass
-			  << "(" << k1.first << ", " << k1.second << ")"
-			  << "(" << k2.first << ", " << k2.second << ")"
-			  << std::endl;
-	      }
-	      if (std::isinf(ww)) {
-		std::cout << "[" << myid
-			  << "] weight is Inf, mass=" << p->mass
-			  << "(" << k1.first << ", " << k1.second << ")"
-			  << "(" << k2.first << ", " << k2.second << ")"
-			  << std::endl;
-	      }
-	    }
-
-	    if (ww > p->dattrib[j1]) {
-	      w.second -= p->mass * p->dattrib[j1];
-	      p->dattrib[j2] += p->dattrib[j1];
-	      p->dattrib[j1]  = 0.0;
-	    } else {
-	      w.second = 0.0;
-	      p->dattrib[j2] += ww;
-	      p->dattrib[j1] -= ww;
-	    }
-	  }
-
-	  if (w.second<=0) break;
-	}
-      }
-
-      //
-      // Sanity check
-      //
-      if (EXCESS_DBG) {
-	for (auto b : bods) {
-	  Particle *p = tree->Body(b);
-	  double sum  = 0.0;
-	  for (auto s : SpList) {
-				// Check value and accumulate
-	    if (std::isnan(p->dattrib[s.second]))
-	      std::cout << "[" << myid
-			<< "] body #" << b
-			<< ": NaN weight! (posterior)" << std::endl;
-	    if (std::isinf(p->dattrib[s.second]))
-	      std::cout << "[" << myid
-			<< "] body #" << b
-			<< ": inf weight! (posterior)" << std::endl;
-	    if (p->dattrib[s.second]<0.0) {
-	      std::cout << "[" << myid
-			<< "] body #" << b
-			<< ": negative weight! (posterior)" << std::endl;
-	    } else {
-	      sum += p->dattrib[s.second];
-	    }
-	  }
-				// Check final sum
-	  if (fabs(sum - 1.0) < 1.0e-12) {
-	    std::cout << "[" << myid
-		      << "] body #" << b
-		      << ": normalization error=" << sum
-		      << " (posterior)" << std::endl;
-	  }
-	}
-
-      } // end: Sanity check
-
-    }
-
-  } // end: Trace
-
 
   //======================================================================
   // Count scattering interactions for debugging output
@@ -12482,13 +12275,13 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   // Do electron interactions separately
   //======================================================================
   //
-  if ( (aType == Direct or aType == Weight or aType == Hybrid)
-       and use_elec>=0 and esType != always and esType != none) {
+  if (use_elec>=0 and esType != always and esType != none) {
 
     if (outdbg) outdbg << "in electron interaction loop" << std::endl;
 
     const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
     std::vector<unsigned long> bods;
+    std::map<unsigned long, double> molW, Eta1;
 
     // Eta will be the true # of electrons
     //
@@ -12507,7 +12300,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     // Momentum diagnostic distribution
     //
     std::vector<double> pdif;
-    std::map<int, double> Eta;
+    std::map<unsigned long, double> Eta;
 
     // Compute list of particles in cell with electrons
     //
@@ -12522,8 +12315,20 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	  eta1 += p->mass/atomic_weights[k.Z()] *
 	    (*Fn)[k.getKey()] * p->dattrib[spc_pos+C]*C;
 	}
-				// Mean charge
-      } else {
+				// Use SpList to compute eta
+      } else if (aType == Trace) {
+	bods.push_back(i);
+	double wght = 0.0;
+	for (auto s : SpList) {
+	  unsigned short Z = s.first.first, P = s.first.second - 1;
+	  eta1 += p->dattrib[s.second] * P;
+	  wght += p->dattrib[s.second] / atomic_weights[Z];
+	}
+	molW[i] = wght = 1.0/wght;
+	Eta1[i] = eta1;
+	eta1 *= p->mass/wght * (*Fn)[k.getKey()];
+	
+      } else {			// Mean charge
 	if (k.C()>1) {
 	  bods.push_back(i);
 	  eta1 = p->mass/atomic_weights[k.Z()] *
@@ -12653,19 +12458,27 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
       // Get index from body map for the cell
       //
-      Particle* p1 = cell->Body(bods[l1]);
-      Particle* p2 = cell->Body(bods[l2]);
+      unsigned long i1 = bods[l1];
+      unsigned long i2 = bods[l2];
+
+      Particle* p1 = cell->Body(bods[i1]);
+      Particle* p2 = cell->Body(bods[i2]);
 
       KeyConvert k1(p1->iattrib[use_key]);
       KeyConvert k2(p2->iattrib[use_key]);
 
-      if (SAME_ELEC_SCAT) if (k1.Z() != k2.Z()) continue;
-      if (DIFF_ELEC_SCAT) if (k1.Z() == k2.Z()) continue;
-
       // Find the trace ratio
       //
-      double W1 = p1->mass / atomic_weights[k1.Z()];
-      double W2 = p2->mass / atomic_weights[k2.Z()];
+      double W1, W2;
+
+      if (aType == Trace) {
+	W1 = W2 = 0.5*(p1->mass/molW[i1] + p2->mass/molW[i2]);
+      } else {
+	if (SAME_ELEC_SCAT) if (k1.Z() != k2.Z()) continue;
+	if (DIFF_ELEC_SCAT) if (k1.Z() == k2.Z()) continue;
+	W1 = p1->mass / atomic_weights[k1.Z()];
+	W2 = p2->mass / atomic_weights[k2.Z()];
+      }
 
       // Default (not valid for Hybrid method)
       //
@@ -12685,6 +12498,13 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	W1 *= ne1;
 	W2 *= ne2;
+      }
+
+      if (aType == Trace) {
+	ne1 = Eta1[i1];
+	ne2 = Eta1[i2];
+	W1 *= Eta1[i1];
+	W2 *= Eta1[i2];
       }
 
       // Threshold for electron-electron scattering
