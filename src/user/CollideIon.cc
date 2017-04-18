@@ -9982,7 +9982,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   // NOCOOL debugging
   //
   double NCXTRA = 0.0;
-  bool ok = false;		// Reject all interactions by default
 
   int maxInterFlag = -1;
   double maxP      = 0.0;
@@ -10067,6 +10066,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	std::cout << "CRAZY pair: two electrons" << std::endl;
 	cid = 0;
       }
+
+    bool ok = false;		// Reject all interactions by default
 
     // Logic for selecting allowed interaction types
     //
