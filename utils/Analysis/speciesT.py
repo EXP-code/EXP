@@ -22,6 +22,9 @@ lw   = args.lwidth
 
 def readDB(tag):
         data = {}
+        if not os.path.exists(tag+'.species'):
+                print "Path <{}> does not exist".format(tag+'.species')
+                exit(-1)
         file = open(tag+'.species', 'r')
         labs = file.readline()[1:].split() # Labels
         line = file.readline()             # Indices
