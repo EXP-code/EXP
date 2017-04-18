@@ -69,7 +69,11 @@ aux  = {'ElosC':1, 'EkeE':1, 'EkeI':1, 'delI':-1, 'delE':-1}
 for v in labs:
     # Read and parse the file
     #
-    file  = open(v + ".ION_coll")
+    fin = v + '.ION_coll'
+    if not os.path.exists(fin):
+        print 'File <{}> does not exist'.format(fin)
+        exit(-1)
+    file  = open(fin)
     for line in file:
         if line.find('Time')>=0:    # Get the labels
             next = True
