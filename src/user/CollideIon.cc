@@ -10855,64 +10855,60 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	clrE[id] -= DE1 + DE2;
 	PE[0][2]  = totalDE + DE1 + DE2;
 
-      } else {
-	p1->dattrib[use_cons] += totalDE;
-	PPsav1 += totalDE;
-	PE[0][2] = 0.0;
-      }
+	KE.delE0 = totalDE;
+	KE.delE  = PE[0][2];
 
-      KE.delE0 = totalDE;
-      KE.delE  = PE[0][2];
-
-      collD->addLost(KE.delE0, 0.0, id);
-      if (use_delt>=0) spEdel[id] += KE.delE;
+	collD->addLost(KE.delE0, 0.0, id);
+	if (use_delt>=0) spEdel[id] += KE.delE;
 
       
-      scatterTrace(PP[0], KE, &v1, &v2, id);
+	scatterTrace(PP[0], KE, &v1, &v2, id);
 
-      if (KE_DEBUG) testCnt[id]++;
+	if (KE_DEBUG) testCnt[id]++;
 
-      if (scatter_check and maxInterFlag>=0) {
-	TotlU[id][1][0]++;
-      }
+	if (scatter_check and maxInterFlag>=0) {
+	  TotlU[id][1][0]++;
+	}
 
-      for (int k=0; k<3; k++) {
-	// Particle 1 is ion
-	p1->vel[k] = v1[k];
-	// Particle 2 is ion
-	p2->vel[k] = v2[k];
-      }
+	for (int k=0; k<3; k++) {
+	  // Particle 1 is ion
+	  p1->vel[k] = v1[k];
+	  // Particle 2 is ion
+	  p2->vel[k] = v2[k];
+	}
 
-      updateEnergyTrace(PP[0], KE);
+	updateEnergyTrace(PP[0], KE);
 
-      testKE[id][3] += PE[0][1];
-      testKE[id][4] += PE[0][1];
+	testKE[id][3] += PE[0][1];
+	testKE[id][4] += PE[0][1];
+
+      } // END: positive KE
 
       if (KE_DEBUG) {
 
 	double KE_final_check = energyInPair(p1, p2);
-
+	
 	std::pair<double, double> KEfinal;
 	if (DBG_NewTest) 
 	  KEfinal = energyInPairPartial(p1, p2, Neutral, "After neutral");
 	else
 	  KEfinal = energyInPairPartial(p1, p2, Neutral);
-
+	
 	double delE = KE_initl_check - KE_final_check
 	  - (deltaSum += KE.delta)
 	  - (delEsum  += KE.delE)
 	  + (delEdfr  += KE.defer);
-
+	
 	delEloss += KE.delE0;
-
+	
 	std::pair<double, double> KEdif = KEinit - KEfinal;
-
+	
 	double actR = KEdif.first - KE.delta;
 	actR = KEinit.first >0.0 ? actR/KEinit.first : actR;
-
+	
 	double pasR = KEdif.second;
 	pasR = KEinit.second>0.0 ? pasR/KEinit.second : pasR;
-
+	
 	if (fabs(delE) > tolE*KE_initl_check) {
 	  std::cout << "**ERROR [after neutral] dE = " << delE
 		    << ", rel = "  << delE/KE_initl_check
@@ -10933,9 +10929,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		      << ", pasA = " << KEdif.second
 		      << std::endl;
 	}
-      }
-    }
-    // END: NeutFrac>0
+	
+      } // END: KE debug
+      
+    } // END: PE[0] (Atom-atom interaction)
 
     //
     // Apply ion/neutral-electron scattering and energy loss
@@ -10973,9 +10970,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  p2->dattrib[use_elec+3] = 0.0;
 	} else {
 	  DE2 = p2->dattrib[use_cons];
-	  p2->dattrib[use_cons  ] = 0.0;
+	  p2->dattrib[use_cons] = 0.0;
 	}
-
+	
 	clrE[id] -= DE1 + DE2;
 	PE[1][2]  = totalDE + DE1 + DE2;
 	
@@ -11005,54 +11002,53 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	testKE[id][3] += PE[1][1] - ionExtra.first + rcbExtra.first;
 	testKE[id][4] += PE[1][1];
       
-	if (KE_DEBUG) {
-
-	  double ke1f = 0.0, ke2f = 0.0;
-
-	  for (int k=0; k<3; k++) {
-	    ke1f += v1[k] * v1[k];
-	    ke2f += v2[k] * v2[k];
-	  }
-	
-	  // Particle 2 electron
-	  // -------------------
-	  //            initial---+
-	  //                      |
-	  //                      v
-	  double eta2i = PP[1]->beg[1].eta;
-	  double eta2f = PP[1]->end[1].eta;
-	  //                      ^
-	  //                      |
-	  //            final-----+
-	  
-	  ke1i *= 0.5*p1->mass;
-	  ke1f *= 0.5*p1->mass;
-
-	  ke2i *= 0.5*p2->mass * eta2i * atomic_weights[0]/molP2[id];
-	  ke2f *= 0.5*p2->mass * eta2f * atomic_weights[0]/molP2[id];
-
-	  double delE = ke1i + ke2i - ke1f - ke2f - KE.delta - KE.delE + KE.defer;
-	  if (fabs(delE) > tolE*(ke1i + ke2i)) {
-	    std::cout << "**ERROR post scatter: relE = " << delE/(ke1i + ke2i)
-		      << " del = "  << delE
-		      << " dKE = "  << KE.delta
-		      << " delE = " << KE.delE
-		      << " miss = " << KE.miss
-		      << " dfr = "  << KE.defer
-		      << " KEi = "  << ke1i + ke2i
-		      << " KEf = "  << ke1f + ke2f
-		      << " et2i = " << eta2i << std::endl;
-	  } else {
-	    if (DBG_NewTest)
-	      std::cout << "**GOOD post scatter: relE = " << delE/(ke1i + ke2i)
-			<< std::scientific << std::setprecision(14)
-			<< " del = "  << std::setw(14) << delE
-			<< std::endl << std::setprecision(5);
-	  }
-	}
-      }
+      } // END: positive KE
 
       if (KE_DEBUG) {
+
+	double ke1f = 0.0, ke2f = 0.0;
+
+	for (int k=0; k<3; k++) {
+	  ke1f += v1[k] * v1[k];
+	  ke2f += v2[k] * v2[k];
+	}
+	
+	// Particle 2 electron
+	// -------------------
+	//            initial---+
+	//                      |
+	//                      v
+	double eta2i = PP[1]->beg[1].eta;
+	double eta2f = PP[1]->end[1].eta;
+	//                      ^
+	//                      |
+	//            final-----+
+	  
+	ke1i *= 0.5*p1->mass;
+	ke1f *= 0.5*p1->mass;
+
+	ke2i *= 0.5*p2->mass * eta2i * atomic_weights[0]/molP2[id];
+	ke2f *= 0.5*p2->mass * eta2f * atomic_weights[0]/molP2[id];
+	
+	double delE = ke1i + ke2i - ke1f - ke2f - KE.delta - KE.delE + KE.defer;
+	if (fabs(delE) > tolE*(ke1i + ke2i)) {
+	  std::cout << "**ERROR post scatter: relE = " << delE/(ke1i + ke2i)
+		    << " del = "  << delE
+		    << " dKE = "  << KE.delta
+		    << " delE = " << KE.delE
+		    << " miss = " << KE.miss
+		    << " dfr = "  << KE.defer
+		    << " KEi = "  << ke1i + ke2i
+		    << " KEf = "  << ke1f + ke2f
+		    << " et2i = " << eta2i << std::endl;
+	} else {
+	  if (DBG_NewTest)
+	    std::cout << "**GOOD post scatter: relE = " << delE/(ke1i + ke2i)
+		      << std::scientific << std::setprecision(14)
+		      << " del = "  << std::setw(14) << delE
+		      << std::endl << std::setprecision(5);
+	}
+	
 	double KE_final_check = energyInPair(p1, p2);
 
 	std::pair<double, double> KEfinal;
@@ -11061,7 +11057,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	else
 	  KEfinal = energyInPairPartial(p1, p2, Ion1);
       
-	double delE = KE_initl_check - KE_final_check
+	delE = KE_initl_check - KE_final_check
 	  - (deltaSum += KE.delta)
 	  - (delEsum  += KE.delE - ionExtra.first + rcbExtra.first)
 	  + (delEdfr  += KE.defer);
@@ -11097,13 +11093,13 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		      << ", pasA = " << KEdif.second
 		      << std::endl;
 	}
-      }
+      } // END: KE debug
     
       // Secondary electron-ion scattering
       //
       for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p1);
       
-    } // END: PE[1]
+    } // END: PE[1] (Ion-electron interaction)
 
     //
     // Apply ion/neutral-electron scattering and energy loss
@@ -11140,7 +11136,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  p1->dattrib[use_elec+3] = 0.0;
 	} else {
 	  DE1 = p1->dattrib[use_cons];
-	  p1->dattrib[use_cons  ] = 0.0;
+	  p1->dattrib[use_cons] = 0.0;
 	}
 	
 	clrE[id] -= DE1 + DE2;
@@ -11172,51 +11168,50 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	testKE[id][3] += PE[2][1] - ionExtra.second + rcbExtra.second;
 	testKE[id][4] += PE[2][1];
 
-	if (KE_DEBUG) {
-
-	  double ke1f = 0.0, ke2f =0.0;
-	  for (int k=0; k<3; k++) {
-	    ke1f += v1[k] * v1[k];
-	    ke2f += v2[k] * v2[k];
-	  }
-	  
-	  double ke1F = ke1f, ke2F = ke2f;
-
-	  // Particle 1 electron
-	  // -------------------
-	  //            initial---+
-	  //                      |
-	  //                      v
-	  double eta1i = PP[2]->beg[0].eta;
-	  double eta1f = PP[2]->end[0].eta;
-	  //                      ^
-	  //                      |
-	  //            final-----+
-
-
-	  ke1i *= 0.5*p1->mass * eta1i * atomic_weights[0]/molP1[id];
-	  ke1f *= 0.5*p1->mass * eta1f * atomic_weights[0]/molP1[id];
-
-	  ke2i *= 0.5*p2->mass;
-	  ke2f *= 0.5*p2->mass;
-
-	  double delE = ke1i + ke2i - ke1f - ke2f - KE.delta - KE.delE + KE.defer;
-
-	  if (fabs(delE) > tolE*(ke1i + ke2i)) {
-	    std::cout << "**ERROR post scatter: relE = " << delE/(ke1i+ke2i)
-		      << " del = "  << delE
-		      << " dKE = "  << KE.delta
-		      << " dfr = "  << KE.defer
-		      << " KEi = "  << ke1i + ke2i
-		      << " KEf = "  << ke1f + ke2f
-		      << " k1f = "  << ke1F
-		      << " k2f = "  << ke2F
-		      << " et1i = " << eta1i << std::endl;
-	  }
-	}
-      }
+      } // END: positive KE
 
       if (KE_DEBUG) {
+
+	double ke1f = 0.0, ke2f =0.0;
+	for (int k=0; k<3; k++) {
+	  ke1f += v1[k] * v1[k];
+	  ke2f += v2[k] * v2[k];
+	}
+	  
+	double ke1F = ke1f, ke2F = ke2f;
+
+	// Particle 1 electron
+	// -------------------
+	//            initial---+
+	//                      |
+	//                      v
+	double eta1i = PP[2]->beg[0].eta;
+	double eta1f = PP[2]->end[0].eta;
+	//                      ^
+	//                      |
+	//            final-----+
+	
+	
+	ke1i *= 0.5*p1->mass * eta1i * atomic_weights[0]/molP1[id];
+	ke1f *= 0.5*p1->mass * eta1f * atomic_weights[0]/molP1[id];
+
+	ke2i *= 0.5*p2->mass;
+	ke2f *= 0.5*p2->mass;
+
+	double delE = ke1i + ke2i - ke1f - ke2f - KE.delta - KE.delE + KE.defer;
+
+	if (fabs(delE) > tolE*(ke1i + ke2i)) {
+	  std::cout << "**ERROR post scatter: relE = " << delE/(ke1i+ke2i)
+		    << " del = "  << delE
+		    << " dKE = "  << KE.delta
+		    << " dfr = "  << KE.defer
+		    << " KEi = "  << ke1i + ke2i
+		    << " KEf = "  << ke1f + ke2f
+		    << " k1f = "  << ke1F
+		    << " k2f = "  << ke2F
+		    << " et1i = " << eta1i << std::endl;
+	}
+
 	double KE_final_check = energyInPair(p1, p2);
 
 	std::pair<double, double> KEfinal;
@@ -11225,7 +11220,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	else
 	  KEfinal = energyInPairPartial(p1, p2, Ion2);
 
-	double delE = KE_initl_check - KE_final_check
+	delE = KE_initl_check - KE_final_check
 	  - (deltaSum += KE.delta)
 	  - (delEsum  += KE.delE - ionExtra.second + rcbExtra.second)
 	  + (delEdfr  += KE.defer);
@@ -11261,13 +11256,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		      << ", pasA = " << KEdif.second
 		      << std::endl;
 	}
-      }
+
+      } // END: KE debug
       
       // Secondary electron-ion scattering
       //
       for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p2);
 
-    }
+    } // END: Electron-Ion interaction
 
     // Scatter tally for debugging
     //
@@ -11704,7 +11700,7 @@ void CollideIon::deferredEnergyTrace(PordPtr pp, const double E, int id)
   //
   if (use_cons >= 0) {
 
-    if (use_elec<0) {
+    if (use_elec<0 or not elc_cons) {
       pp->E1[0] += 0.5*E;
       pp->E2[0] += 0.5*E;
     } else {
