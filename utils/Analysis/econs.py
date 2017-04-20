@@ -17,6 +17,7 @@ parser.add_argument('-k', '--ke',      default=False, action='store_true', help=
 parser.add_argument('-d', '--delta',   default=False, action='store_true', help='Plot fraction of deferred energy to total')
 parser.add_argument('-c', '--compare', default=False, action='store_true', help='Total energy minus kinetic energy')
 parser.add_argument('-b', '--both',    default=False, action='store_true', help='Plot KE and Total E separately')
+parser.add_argument('-r', '--ratio',   default=False, action='store_true', help='Plot ratio of E(cons)/E(total)')
 parser.add_argument('-w', '--lwidth',  default=2.0, type=float,            help='linewidth for curves')
 parser.add_argument('tags',            nargs='*',                          help='Files to process')
 
@@ -104,7 +105,18 @@ for v in labs:
     indx = np.searchsorted(d[v]['Time'], args.Tmax/args.tscale)
     x = np.array(d[v]['Time'][0:indx])*args.tscale
             
-    if args.both:
+    if args.ratio:
+        y1 = np.array(d[v]['delI'][0:indx])
+        y2 = np.array(d[v]['delE'][0:indx])
+        y3 = np.array(d[v]['Etotl'][0:indx])
+        if args.log:
+            ax.semilogy(x, np.abs(y1/y3),  '-', linewidth=lw, label=v+':I(cons)/Etotl')
+            ax.semilogy(x, np.abs(y2/y3),  '-', linewidth=lw, label=v+':E(cons)/Etotl')
+        else:
+            ax.plot(x, y1/y3,  '-', linewidth=lw, label=v+':I(cons)/Etotl')
+            ax.plot(x, y2/y3,  '-', linewidth=lw, label=v+':E(cons)/Etotl')
+        
+    elif args.both:
         y = np.copy(x) * 0.0
         yt = np.array(d[v]['Etotl'][0:indx])
         for f in kesum: y += np.array(d[v][f][0:indx])
