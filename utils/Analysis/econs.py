@@ -13,7 +13,8 @@ parser.add_argument('-t', '--tscale', default=1000.0,    type=float,   help='Sys
 parser.add_argument('-T', '--Tmax',    default=1.0e32, type=float,         help='Maximum time in years')
 parser.add_argument('-l', '--log',     default=False, action='store_true', help='Logarithmic vertical scale')
 parser.add_argument('-a', '--aux',     default=False, action='store_true', help='Sum energy fields')
-parser.add_argument('-k', '--ke',      default=False, action='store_true', help='Total kinetic energy')
+parser.add_argument('-k', '--keonly',  default=False, action='store_true', help='Plot kinetic energy only')
+parser.add_argument('-K', '--ke',      default=False, action='store_true', help='Total kinetic energy')
 parser.add_argument('-d', '--delta',   default=False, action='store_true', help='Plot fraction of deferred energy to total')
 parser.add_argument('-c', '--compare', default=False, action='store_true', help='Total energy minus kinetic energy')
 parser.add_argument('-b', '--both',    default=False, action='store_true', help='Plot KE and Total E separately')
@@ -145,6 +146,15 @@ for v in labs:
                 ax.semilogy(x, y, '-', linewidth=lw, label=v+':'+f)
             else:
                 ax.plot(x, y, '-', linewidth=lw, label=v+':'+f)
+
+    elif args.keonly:
+        for f in kesum:
+            y = np.array(d[v][f][0:indx])
+            if args.log:
+                ax.semilogy(x, y, '-', linewidth=lw, label=v+':'+f)
+            else:
+                ax.plot(x, y, '-', linewidth=lw, label=v+':'+f)
+
     else:
 
         for f in toplot:
