@@ -38,6 +38,11 @@ Ion::RR_Type Ion::rr_type = Ion::mewe;
 bool Ion::use_VFKY = true;
 bool Ion::gs_only  = true;
 
+// Free-free grid
+double Ion::kmin    = -9.0;
+double Ion::kmax    =  2.0;
+double Ion::kdel    =  1.0;
+
 //
 // Convert the master element name to a (Z, C) pair
 //
@@ -1163,7 +1168,7 @@ std::vector<double> Ion::radRecombCross(double E, int id)
 */
 std::vector<double> Ion::radRecombCrossKramers(double E, int id) 
 {
-  const double nfac   = 64.0*M_PI/pow(3.0, 1.5);
+  const double nfac   = 8.0*M_PI/pow(3.0, 1.5);
 
   const double incmEv = light * planck / eV;
 
@@ -1215,21 +1220,9 @@ std::vector<double> Ion::radRecombCrossKramers(double E, int id)
     // Kramers cross section
     //
     double Erat   = Elv/Enu;
-    double sigmaP = nfac*alpha0*f->lvl*aeff*aeff*Erat*Erat*Erat;
+    double sigmaP = nfac*alpha0*alpha0*alpha0*2.0/f->lvl*aeff*aeff*Erat*Eph/E;
 
-    // Ion statistical weight
-    //
-    double mult0 = (C<=Z ? fblvl[1].mult : 1);
-      
-    // Recombined statistical weight
-    //
-    double mult1 = f->mult;
-      
-    // Milne relation
-    //
-    double sigmaR = 0.5*mult1/mult0 * Enu*Enu / (E*mec2*1.0e6) * sigmaP;
-	  
-    cross += sigmaR;
+    cross += sigmaP;
 
     if (cross == 0) {
       std::cout << "NULL IN RAD RECOMB: Chi=" << ip
@@ -1377,13 +1370,16 @@ std::vector<double> Ion::radRecombCrossSpitzer(double E, int id)
 				// Cross-section prefactor in nm^2
   const double coef   = 2.105310889751809e-08;
 
+				// This is the target neutral
+  Ion* N = ch->IonList[lQ(Z, C-1)].get();
+
 				// Ionization energy in eV
   double ionE         = ch->ipdata[lQ(Z, 1)];
 
   std::vector<double> radRecCum;
   double cross = 0.0;
   if (E > 0) {
-    for (auto j : fblvl) {
+    for (auto j : N->fblvl) {
       fblvl_data* f = &j.second;
 
       double Ej = 0.0;

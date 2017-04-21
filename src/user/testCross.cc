@@ -56,7 +56,7 @@ int main (int ac, char **av)
   }
 
   unsigned short Z, C;
-  double emin, emax, logL = 10.0;
+  double emin, emax, logL = 10.0, kdel;
   std::string RRtype;
   bool eVout = false;
   int num;
@@ -75,6 +75,8 @@ int main (int ac, char **av)
      "maximum energy (Rydbergs)")
     ("Num,N",		po::value<int>(&num)->default_value(200),
      "number of evaluations")
+    ("kdel,k",          po::value<double>(&kdel)->default_value(0.25),
+     "default logarithmic spacing for k grid")
     ("RRtype,R",	po::value<std::string>(&RRtype)->default_value("Verner"),
      "cross-section type")
     ;
@@ -103,6 +105,10 @@ int main (int ac, char **av)
 
   if (vm.count("eV")) {
     eVout = true;
+  }
+
+  if (vm.count("kdel")) {
+    Ion::kdel = kdel;
   }
 
   std::string prefix("crossSection");

@@ -18836,7 +18836,7 @@ void CollideIon::post_cell_loop(int id)
 		  << std::endl;
       */
     }
-  }
+  } // END: Hybrid and NOCOOL
 }
 
 
