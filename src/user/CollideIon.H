@@ -1,6 +1,7 @@
 #ifndef _CollideIon_H
 #define _CollideIon_H
 
+#include <numeric>
 #include <bitset>
 #include <tuple>
 #include <array>
@@ -215,11 +216,11 @@ public:
       std::cout << "Error in sumUp (before), t=" << tnow 
 		<< ", id=" << myid << std::endl;
 
-    eV_av_s  =  std::accumulate (eV_av .begin(), eV_av .end(), 0);
-    eV_N_s   =  std::accumulate (eV_N  .begin(), eV_N  .end(), 0);
-    eV_max_s = *std::max_element(eV_max.begin(), eV_max.end()   );
-    eV_min_s = *std::min_element(eV_min.begin(), eV_min.end()   );
-    eV_10_s  =  std::accumulate (eV_10 .begin(), eV_10 .end(), 0);
+    eV_av_s  =  std::accumulate (eV_av .begin(), eV_av .end(), 0.0);
+    eV_N_s   =  std::accumulate (eV_N  .begin(), eV_N  .end(), 0L );
+    eV_max_s = *std::max_element(eV_max.begin(), eV_max.end()     );
+    eV_min_s = *std::min_element(eV_min.begin(), eV_min.end()     );
+    eV_10_s  =  std::accumulate (eV_10 .begin(), eV_10 .end(), 0L );
   }
 
   void sync()
