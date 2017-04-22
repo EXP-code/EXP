@@ -472,7 +472,7 @@ private:
   std::vector< CFmap >                               FFm;
 
   std::vector< keyColEx >                            kCE;
-  std::vector< double >                              meanE, neutF, meanR, meanM;
+  std::vector< double >                              meanE, neutF, meanR, meanM, cellM;
   std::vector< double >                              numEf, colSc, elecDen, elecDn2;
   std::vector< double >                              kEi, kEe1, kEe2, kEee, clrE, misE;
   std::vector< double >                              kE1s, kE2s, Ein1, Ein2, Evel, nselRat;
