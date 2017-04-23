@@ -10280,13 +10280,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  double Pr = TProb;
 
-	  if (Pr > 1.0 or Pr < 0.0) {
-	    checkProb(id);
-	    std::cout << "**ERROR: crazy prob <ionize 2>=" << Pr
-		      << ", Prob=" << Prob
-		      << ", CProb=" << CProb[id][2] << std::endl;
-	  }
-
 	  int pos = SpList[k2] - SpList.begin()->second;
 
 	  if (Pr < PP[2]->F(2, pos)) {
@@ -10355,14 +10348,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 
 	  double Pr = TProb;
-
-	  if (Pr > 1.0 or Pr < 0.0) {
-	    checkProb(id);
-	    std::cout << "**ERROR: crazy prob <ionize 1>=" << Pr
-		      << ", Prob=" << Prob
-		      << ", CProb=" << CProb[id][1] << std::endl;
-	  }
-
 
 	  int pos = SpList[k1] - SpList.begin()->second;
 
@@ -10435,13 +10420,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 	  
 	  double Pr = TProb;
-
-	  if (Pr > 1.0 or Pr < 0.0) {
-	    checkProb(id);
-	    std::cout << "**ERROR: crazy prob <recomb 2>=" << Pr
-		      << ", Prob=" << Prob
-		      << ", CProb=" << CProb[id][2] << std::endl;
-	  }
 
 	  int pos = SpList[k2] - SpList.begin()->second;
 
@@ -10525,13 +10503,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 
 	  double Pr = TProb;
-
-	  if (Pr > 1.0 or Pr < 0.0) {
-	    checkProb(id);
-	    std::cout << "**ERROR: crazy prob <recomb 1>=" << Pr
-		      << ", Prob=" << Prob
-		      << ", CProb=" << CProb[id][1] << std::endl;
-	  }
 
 	  int pos = SpList[k1] - SpList.begin()->second;
 
