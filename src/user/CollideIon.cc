@@ -11299,6 +11299,12 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     normTest(p2, "p2 [After]");
   }
 
+  // Accumulate energy for time step cooling computation
+  //
+  if (use_delt>=0 && totalDE>0.0) {
+    spEdel[id] += totalDE;	// Trace
+  }
+
   // Debug energy conservation
   // -------------------------
   // After the step, the energy of a single pair may have changed in
@@ -11372,7 +11378,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   }
 
   return ret;
-}
+
+} // END: inelasticTrace
 
 
 
