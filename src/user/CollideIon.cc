@@ -10123,7 +10123,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       //
       // Default: ion-electron
       //
-      double TProb = XS * 1.0e-14 * elecDen[id] * travel;
+      double TProb = XS * 1.0e-14 * elecDen[id] * travel / spProb[id];
       
       //-----------------------------
       // Parse each interaction type
@@ -10131,7 +10131,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
       if (interFlag == neut_neut) {
 
-	TProb = XS * 1.0e-14 * neutF[id] * cellM[id] * dfac * travel;
+	TProb = XS * 1.0e-14 * neutF[id] * cellM[id] * dfac * travel / spProb[id];
 
 	ctd1->nn[id][0] += TProb;
 	ctd1->nn[id][1] += NN;
@@ -10158,7 +10158,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
       if (interFlag == neut_prot) {
 	
-	TProb = XS * 1.0e-14 * meanF[id][proton] * cellM[id] * dfac * travel;
+	TProb = XS * 1.0e-14 * meanF[id][proton] * cellM[id] * dfac * travel / spProb[id];
 
 	if (I1.first == Interact::neutral) {
 	  ctd2->np[id][0] += TProb;
@@ -15669,12 +15669,6 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   //
   double rateF = (*Fn)[key] * crm * tau;
 
-  // Cache probability of an interaction of between the particles pair
-  // for use in inelasticTrace
-  //
-  spProb[id] = dens * rateF * num *
-    1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
-
   // Cache time step for estimating "over" cooling timestep is use_delt>=0
   //
   spTau[id]  = tau;
@@ -15693,12 +15687,14 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   //             +--- Pairs are double counted
   //
 
-  sKey2Umap nselM;
+  // Cache probability of an interaction of between the particles pair
+  // and number of pairs predicted for use in inelasticTrace
+  //
+  spProb[id] = Prob;
   spNsel[id] = selcM;
-  totalNsel = selcM;
+  totalNsel  = selcM;
 
   sKey2Amap ret;
-
   ret[Particle::defaultKey][Particle::defaultKey]() = selcM;
 
   return ret;
@@ -18964,9 +18960,9 @@ void CollideIon::Pord::update()
   if (sum2 > 0.0) {
     if (fabs(sum2-1.0) > 1.0e-6) {
       std::cout << "**ERROR [" << myid << "] Pord:"
-		<< " Unexpected f2 sum=" << sum1
+		<< " Unexpected f2 sum=" << sum2
 		<< ", T=" << tnow << ", ";
-      if (caller->aType != Trace) std::cout << "Z=" << Z1 << ", ";
+      if (caller->aType != Trace) std::cout << "Z=" << Z2 << ", ";
       for (auto v : f2 ) std::cout << std::setw(18) << v;
       std::cout << std::endl;
     }
