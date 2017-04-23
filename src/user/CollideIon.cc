@@ -53,6 +53,7 @@ unsigned CollideIon::NoDelC     = 0;
 unsigned CollideIon::maxCoul    = UINT_MAX;
 double   CollideIon::logL       = 24.0;
 double   CollideIon::ieBoost    = 1.0;
+bool     CollideIon::TSESUM     = true;
 double   CollideIon::TSCOOL     = 0.05;
 double   CollideIon::TSFLOOR    = 0.001;
 double   CollideIon::scatFac1   = 1.0;
@@ -595,6 +596,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   spNsel   .resize(nthrds);
   spProb   .resize(nthrds);
   spEdel   .resize(nthrds);
+  spEmax   .resize(nthrds);
   spNcol   .resize(nthrds);
   velER    .resize(nthrds);
   momD     .resize(nthrds);
@@ -5021,6 +5023,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
   //
   if (use_delt>=0 && delE>0.0) {
     spEdel[id] += delE;		// DIRECT
+    spEmax[id]  = std::max<double>(spEmax[id], delE/totE);
   }
 
   if (use_exes>=0) {
@@ -6058,6 +6061,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
   //
   if (use_delt>=0 && delE>0.0) {
     spEdel[id] += delE;		// WEIGHT
+    spEmax[id]  = std::max<double>(spEmax[id], delE/totE);
   }
 
   if (use_exes>=0 && delE>0.0) {
@@ -8424,7 +8428,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	KE.delE  = PE[0][2];
 
 	collD->addLost(KE.delE0, 0.0, id);
-	if (use_delt>=0) spEdel[id] += KE.delE;
+	if (use_delt>=0) {
+	  spEdel[id] += KE.delE;
+	  spEmax[id]  = std::max<double>(spEmax[id], KE.delE/KE.totE);
+	}
 
 	if (PP[0]->wght)
 	  scatterHybrid(PE[0][0], PP[0], KE, &v1, &v2, id);
@@ -8564,7 +8571,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	KE.delE  = PE[1][2];
 
 	collD->addLost(KE.delE0, rcbExtra.first - ionExtra.first, id);
-	if (use_delt>=0) spEdel[id] += KE.delE;
+	if (use_delt>=0) {
+	  spEdel[id] += KE.delE;
+	  spEmax[id]  = std::max<double>(spEmax[id], KE.delE/KE.totE);
+	}
 	
 	if (PP[1]->wght)
 	  scatterHybrid(PE[1][0], PP[1], KE, &v1, &v2, id);
@@ -8756,7 +8766,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	KE.delE  = PE[2][2];
 
 	collD->addLost(KE.delE0, rcbExtra.second - ionExtra.second, id);
-	if (use_delt>=0) spEdel[id] += KE.delE;
+	if (use_delt>=0) {
+	  spEdel[id] += KE.delE;
+	  spEmax[id]  = std::max<double>(spEmax[id], KE.delE/KE.totE);
+	}
 	
 	if (PP[2]->wght)
 	  scatterHybrid(PE[2][0], PP[2], KE, &v1, &v2, id);
@@ -10805,8 +10818,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	KE.delE  = PE[0][2];
 
 	collD->addLost(KE.delE0, 0.0, id);
-	if (use_delt>=0) spEdel[id] += KE.delE;
-
+	if (use_delt>=0) {
+	  spEdel[id] += KE.delE;
+	  spEmax[id]  = std::max<double>(spEmax[id], KE.delE/KE.totE);
+	}
       
 	scatterTrace(PP[0], KE, &v1, &v2, id);
 
@@ -10926,7 +10941,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	KE.delE  = PE[1][2];
 
 	collD->addLost(KE.delE0, rcbExtra.first - ionExtra.first, id);
-	if (use_delt>=0) spEdel[id] += KE.delE;
+	if (use_delt>=0) {
+	  spEdel[id] += KE.delE;
+	  spEmax[id]  = std::max<double>(spEmax[id], KE.delE/KE.totE);
+	}
 	
 	scatterTrace(PP[1], KE, &v1, &v2, id);
 
@@ -11092,8 +11110,11 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	KE.delE  = PE[2][2];
 
 	collD->addLost(KE.delE0, rcbExtra.second - ionExtra.second, id);
-	if (use_delt>=0) spEdel[id] += KE.delE;
-	
+	if (use_delt>=0) {
+	  spEdel[id] += KE.delE;
+	  spEmax[id]  = std::max<double>(spEmax[id], KE.delE/KE.totE);
+	}
+
 	scatterTrace(PP[2], KE, &v1, &v2, id);
 
 	if (KE_DEBUG) testCnt[id]++;
@@ -11303,6 +11324,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   //
   if (use_delt>=0 && totalDE>0.0) {
     spEdel[id] += totalDE;	// Trace
+    spEmax[id]  = std::max<double>(spEmax[id], totalDE/KE.totE);
   }
 
   // Debug energy conservation
@@ -13208,8 +13230,10 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     double dtE = DBL_MAX;
     if (spEdel[id] > 0.0) {
       dtE = std::max<double>(totalKE/spEdel[id]*TSCOOL, TSFLOOR) * spTau[id];
+      dtE = std::max<double>(TSCOOL/(spEmax[id]+1.0e-8), TSFLOOR) * spTau[id];
     }
     spEdel[id] = 0.0;
+    spEmax[id] = 0.0;
 
     for (auto i : cell->bods) cell->Body(i)->dattrib[use_delt] = dtE;
   }
@@ -18324,6 +18348,9 @@ void CollideIon::processConfig()
 
     energy_scale =
       cfg.entry<double>("COOL_SCALE", "If positive, reduce the inelastic energy by this fraction", -1.0);
+
+    TSESUM =
+      cfg.entry<bool>("TSESUM", "Use sum per cell of TRUE, use max per cell if FALSE for setting time step", true);
 
     TSCOOL =
       cfg.entry<double>("TSCOOL", "Multiplicative factor for choosing cooling time step", 0.05);
