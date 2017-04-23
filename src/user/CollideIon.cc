@@ -13236,7 +13236,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       if (TSESUM) ratio = totalKE/spEdel[id];
       else        ratio = spEmax[id];
       dtE = std::max<double>(ratio*TSCOOL, TSFLOOR) * spTau[id];
-      if (true and ratio>0.01) { // Sanity check for debugging
+      if (false and ratio>0.01) { // Sanity check for debugging
 	std::cout << "[" << std::setw(4) << myid << "] "
 		  << std::hex << std::setw(10) << cell
 		  << ": " << ratio << std::endl << std::dec;
@@ -15785,6 +15785,8 @@ void CollideIon::gatherSpecies()
   std::array<DTup, 3> a_0 = {dtup_0, dtup_0, dtup_0};
   ZTup ztup_0(a_0, 0.0);
 
+  // specM is the mass in each internal state
+  //
   if (aType==Hybrid) {
     specM.clear();
     for (auto Z : ZList) {
@@ -15817,6 +15819,8 @@ void CollideIon::gatherSpecies()
     double KEtot, KEdsp;
     cell->sample->KE(KEtot, KEdsp);
     
+    // Total- and dispersion-based temperature values
+    //
     double Tion = KEtot * Tfac * molWeight(cell);
     double Sion = KEdsp * Tfac * molWeight(cell);
     double Telc = 0.0;
@@ -15860,6 +15864,8 @@ void CollideIon::gatherSpecies()
 
     cType::iterator ft = ETcache.find(cell->sample->mykey);
     
+    // Compute electron temperature
+    //
     if (use_elec >= 0) {
       
       double count = 0.0, meanV = 0.0;
@@ -15994,7 +16000,7 @@ void CollideIon::gatherSpecies()
       //
       elecE += electronEnergy(cell);
       
-      // Compute electron energy per element
+      // Compute ion and electron kinetic energy per element
       //
       for (auto b : cell->bods) {
 	Particle *p = c0->Tree()->Body(b);
