@@ -477,7 +477,7 @@ private:
   std::vector< double >                              numEf, colSc, elecDen, elecDn2;
   std::vector< double >                              kEi, kEe1, kEe2, kEee, clrE, misE;
   std::vector< double >                              kE1s, kE2s, Ein1, Ein2, Evel, nselRat;
-  std::vector< double >                              spCrm, spTau, spProb, spEdel;
+  std::vector< double >                              spCrm, spTau, spProb, spEdel, spEmax;
   std::vector< double >                              molP1, molP2, etaP1, etaP2;
   std::vector< unsigned >                            spNsel, elecCnt, spNcol;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot, testCnt;
@@ -662,6 +662,12 @@ public:
 
   //! Relative error tolerance for warnings (default: 1.0e-5)
   static double tolE;
+
+  /**
+     Compare sum of delE against total KE for setting time step, if TRUE
+     Compare maximum delE per COM KE per interaction, if FALSE
+  */
+  static bool   TSESUM;
 
   //! Multiplicative factor for choosing cooling time step (default: 0.05)
   static double TSCOOL;
