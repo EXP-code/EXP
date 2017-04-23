@@ -596,7 +596,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   spNsel   .resize(nthrds);
   spProb   .resize(nthrds);
   spEdel   .resize(nthrds);
-  spEmax   .resize(nthrds);
+  spEmax   .resize(nthrds, DBL_MAX);
   spNcol   .resize(nthrds);
   velER    .resize(nthrds);
   momD     .resize(nthrds);
