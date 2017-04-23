@@ -596,7 +596,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   spNsel   .resize(nthrds);
   spProb   .resize(nthrds);
   spEdel   .resize(nthrds);
-  spEmax   .resize(nthrds);
+  spEmax   .resize(nthrds, DBL_MAX);
   spNcol   .resize(nthrds);
   velER    .resize(nthrds);
   momD     .resize(nthrds);
@@ -5023,7 +5023,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
   //
   if (use_delt>=0 && delE>0.0) {
     spEdel[id] += delE;		// DIRECT
-    spEmax[id]  = std::max<double>(spEmax[id], delE/totE);
+    spEmax[id]  = std::min<double>(spEmax[id], totE/delE);
   }
 
   if (use_exes>=0) {
@@ -6061,7 +6061,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
   //
   if (use_delt>=0 && delE>0.0) {
     spEdel[id] += delE;		// WEIGHT
-    spEmax[id]  = std::max<double>(spEmax[id], delE/totE);
+    spEmax[id]  = std::min<double>(spEmax[id], totE/delE);
   }
 
   if (use_exes>=0 && delE>0.0) {
@@ -8430,7 +8430,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	collD->addLost(KE.delE0, 0.0, id);
 	if (use_delt>=0) {
 	  spEdel[id] += KE.delE;
-	  spEmax[id]  = std::max<double>(spEmax[id], KE.delE/KE.totE);
+	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE);
 	}
 
 	if (PP[0]->wght)
@@ -8573,7 +8573,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	collD->addLost(KE.delE0, rcbExtra.first - ionExtra.first, id);
 	if (use_delt>=0) {
 	  spEdel[id] += KE.delE;
-	  spEmax[id]  = std::max<double>(spEmax[id], KE.delE/KE.totE);
+	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE);
 	}
 	
 	if (PP[1]->wght)
@@ -8768,7 +8768,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	collD->addLost(KE.delE0, rcbExtra.second - ionExtra.second, id);
 	if (use_delt>=0) {
 	  spEdel[id] += KE.delE;
-	  spEmax[id]  = std::max<double>(spEmax[id], KE.delE/KE.totE);
+	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE);
 	}
 	
 	if (PP[2]->wght)
@@ -10820,7 +10820,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	collD->addLost(KE.delE0, 0.0, id);
 	if (use_delt>=0) {
 	  spEdel[id] += KE.delE;
-	  spEmax[id]  = std::max<double>(spEmax[id], KE.delE/KE.totE);
+	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE);
 	}
       
 	scatterTrace(PP[0], KE, &v1, &v2, id);
@@ -10943,7 +10943,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	collD->addLost(KE.delE0, rcbExtra.first - ionExtra.first, id);
 	if (use_delt>=0) {
 	  spEdel[id] += KE.delE;
-	  spEmax[id]  = std::max<double>(spEmax[id], KE.delE/KE.totE);
+	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE);
 	}
 	
 	scatterTrace(PP[1], KE, &v1, &v2, id);
@@ -11112,7 +11112,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	collD->addLost(KE.delE0, rcbExtra.second - ionExtra.second, id);
 	if (use_delt>=0) {
 	  spEdel[id] += KE.delE;
-	  spEmax[id]  = std::max<double>(spEmax[id], KE.delE/KE.totE);
+	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE);
 	}
 
 	scatterTrace(PP[2], KE, &v1, &v2, id);
@@ -11323,8 +11323,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   // Accumulate energy for time step cooling computation
   //
   if (use_delt>=0 && totalDE>0.0) {
-    spEdel[id] += totalDE;	// Trace
-    spEmax[id]  = std::max<double>(spEmax[id], totalDE/KE.totE);
+    spEdel[id] += totalDE;	// TRACE
+    spEmax[id]  = std::min<double>(spEmax[id], KE.totE/totalDE);
   }
 
   // Debug energy conservation
@@ -13227,13 +13227,14 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   double totalKE = KEdspE + massC*KEdspC;
 
   if (use_delt>=0) {
-    double dtE = DBL_MAX;
+    double dtE = DBL_MAX, ratio;
     if (spEdel[id] > 0.0) {
-      dtE = std::max<double>(totalKE/spEdel[id]*TSCOOL, TSFLOOR) * spTau[id];
-      dtE = std::max<double>(TSCOOL/(spEmax[id]+1.0e-8), TSFLOOR) * spTau[id];
+      if (TSESUM) ratio = totalKE/spEdel[id];
+      else        ratio = spEmax[id];
+      dtE = std::max<double>(ratio*TSCOOL, TSFLOOR) * spTau[id];
     }
     spEdel[id] = 0.0;
-    spEmax[id] = 0.0;
+    spEmax[id] = DBL_MAX;
 
     for (auto i : cell->bods) cell->Body(i)->dattrib[use_delt] = dtE;
   }
