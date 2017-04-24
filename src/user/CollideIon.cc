@@ -10128,10 +10128,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       //
       double N0 = PP[cid]->W2 * UserTreeDSMC::Munit / amu;
 
-      // Number of real atoms in this interaction
-      //
-      double NN = N0 * Prob;
-
       // Compute probability for inelastic scatters with electrons
       //
       // Default: ion-electron
@@ -10147,10 +10143,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	TProb = XS * 1.0e-14 * neutF[id] * cellM[id] * dfac * travel / spProb[id];
 
 	ctd1->nn[id][0] += TProb;
-	ctd1->nn[id][1] += NN;
+	ctd1->nn[id][1] += N0*TProb;
 	
 	ctd2->nn[id][0] += TProb;
-	ctd2->nn[id][1] += NN;
+	ctd2->nn[id][1] += N0*TProb;
 	
 	PE[0][0] += Prob;
       }
@@ -10159,11 +10155,11 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	if (I1.first == Interact::electron) {
 	  ctd2->ne[id][0] += TProb;
-	  ctd2->ne[id][1] += NN;
+	  ctd2->ne[id][1] += N0*TProb;
 	  PE[2][0] += Prob;
 	} else {
 	  ctd1->ne[id][0] += TProb;
-	  ctd1->ne[id][1] += NN;
+	  ctd1->ne[id][1] += N0*TProb;
 	  PE[1][0] += Prob;
 	}
 
@@ -10175,10 +10171,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	if (I1.first == Interact::neutral) {
 	  ctd2->np[id][0] += TProb;
-	  ctd2->np[id][1] += NN;
+	  ctd2->np[id][1] += N0*TProb;
 	} else {
 	  ctd1->np[id][0] += TProb;
-	  ctd1->np[id][1] += NN;
+	  ctd1->np[id][1] += N0*TProb;
 	}
 	PE[0][0] += Prob;
       }
@@ -10186,11 +10182,11 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       if (interFlag == ion_elec) {
 	if (I1.first == Interact::electron) {
 	  ctd2->ie[id][0] += TProb;
-	  ctd2->ie[id][1] += NN;
+	  ctd2->ie[id][1] += N0*TProb;
 	  PE[2][0] += Prob;
 	} else {
 	  ctd1->ie[id][0] += TProb;
-	  ctd1->ie[id][1] += NN;
+	  ctd1->ie[id][1] += N0*TProb;
 	  PE[1][0] += Prob;
 	}
       }
@@ -10209,9 +10205,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (NO_FF_E) dE = 0.0;
 	  
 	  ctd2->ff[id][0] += TProb;
-	  ctd2->ff[id][1] += NN;
+	  ctd2->ff[id][1] += N0*TProb;
 	  if (not NOCOOL) ctd2->ff[id][2] += N0 * dE;
-	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*TProb);
 
 	  PE[2] += {Prob, dE};
 
@@ -10227,9 +10223,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (NO_FF_E) dE = 0.0;
 	  
 	  ctd1->ff[id][0] += TProb;
-	  ctd1->ff[id][1] += NN;
+	  ctd1->ff[id][1] += N0*TProb;
 	  if (not NOCOOL) ctd1->ff[id][2] += N0 * dE;
-	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*TProb);
 
 	  PE[1] += {Prob, dE};
 	}
@@ -10249,9 +10245,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	    
 	  ctd2->CE[id][0] += TProb;
-	  ctd2->CE[id][1] += NN;
+	  ctd2->CE[id][1] += N0*TProb;
 	  if (not NOCOOL) ctd2->CE[id][2] += N0 * dE;
-	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*TProb);
 
 	  PE[2] += {Prob, dE};
 	} else {
@@ -10265,9 +10261,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  
 	  ctd1->CE[id][0] += TProb;
-	  ctd1->CE[id][1] += NN;
+	  ctd1->CE[id][1] += N0*TProb;
 	  if (not NOCOOL) ctd1->CE[id][2] += N0 * dE;
-	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*TProb);
 
 	  PE[1] += {Prob, dE};
 	}
@@ -10332,9 +10328,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (NO_ION_E) dE = 0.0;
 	    
 	  ctd2->CI[id][0] += TProb;
-	  ctd2->CI[id][1] += NN;
+	  ctd2->CI[id][1] += N0*TProb;
 	  if (not NOCOOL) ctd2->CI[id][2] += N0 * dE;
-	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*TProb);
 	    
 	  PE[2] += {Prob, dE};
 	    
@@ -10401,9 +10397,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (NO_ION_E) dE = 0.0;
 	    
 	  ctd1->CI[id][0] += Pr;
-	  ctd1->CI[id][1] += NN;
+	  ctd1->CI[id][1] += N0*TProb;
 	  if (not NOCOOL) ctd1->CI[id][2] += N0 * dE;
-	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*TProb);
 	  
 	  PE[1] += {Prob, dE};
 	  
@@ -10468,9 +10464,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (energy_scale > 0.0) dE *= energy_scale;
 
 	  ctd2->RR[id][0] += Pr;
-	  ctd2->RR[id][1] += NN;
+	  ctd2->RR[id][1] += N0*TProb;
 	  // if (not NOCOOL) ctd2->RR[id][2] += N0 * dE;
-	  if (use_spectrum) spectrumAdd(id, interFlag, eE, NN);
+	  if (use_spectrum) spectrumAdd(id, interFlag, eE, N0*TProb);
 
 	  PE[2] += {Prob, dE};
 	  
@@ -10552,9 +10548,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (energy_scale > 0.0) dE *= energy_scale;
 
 	  ctd1->RR[id][0] += Pr;
-	  ctd1->RR[id][1] += NN;
-	  // if (not NOCOOL) ctd1->RR[id][2] += NN * kEe1[id];
-	  if (use_spectrum) spectrumAdd(id, interFlag, eE, NN);
+	  ctd1->RR[id][1] += N0*TProb;
+	  // if (not NOCOOL) ctd1->RR[id][2] += N0*TProb * kEe1[id];
+	  if (use_spectrum) spectrumAdd(id, interFlag, eE, N0*TProb);
 
 	  PE[1] += {Prob, dE};
 
