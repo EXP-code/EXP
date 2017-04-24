@@ -654,6 +654,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   for (auto &v : keIR ) v.set_capacity(bufCap);
 
   for (auto &v : clampdat) v = clamp0;
+  for (auto &v : spEmax)   v = DBL_MAX;
+
 
   //
   // Cross-section debugging [INIT]
@@ -8429,7 +8431,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	collD->addLost(KE.delE0, 0.0, id);
 	if (use_delt>=0) {
-	  spEdel[id] += KE.delE;
+	  spEdel[id] += KE.delE; // HYBRID
 	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE);
 	}
 
@@ -8572,7 +8574,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	collD->addLost(KE.delE0, rcbExtra.first - ionExtra.first, id);
 	if (use_delt>=0) {
-	  spEdel[id] += KE.delE;
+	  spEdel[id] += KE.delE; // HYBRID
 	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE);
 	}
 	
@@ -8767,7 +8769,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	collD->addLost(KE.delE0, rcbExtra.second - ionExtra.second, id);
 	if (use_delt>=0) {
-	  spEdel[id] += KE.delE;
+	  spEdel[id] += KE.delE; // HYBRID
 	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE);
 	}
 	
@@ -10814,12 +10816,15 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	KE.delE  = PE[0][2];
 
 	collD->addLost(KE.delE0, 0.0, id);
-	if (use_delt>=0) {
-	  spEdel[id] += KE.delE;
-	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE);
-	}
       
 	scatterTrace(PP[0], KE, &v1, &v2, id);
+
+	// Time-step computation
+	//
+	if (use_delt>=0) {	  
+	  spEdel[id] += KE.delE0; // TRACE
+	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE0);
+	}
 
 	if (KE_DEBUG) testCnt[id]++;
 
@@ -10937,12 +10942,15 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	KE.delE  = PE[1][2];
 
 	collD->addLost(KE.delE0, rcbExtra.first - ionExtra.first, id);
-	if (use_delt>=0) {
-	  spEdel[id] += KE.delE;
-	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE);
-	}
 	
 	scatterTrace(PP[1], KE, &v1, &v2, id);
+
+	// Time-step computation
+	//
+	if (use_delt>=0) {	  
+	  spEdel[id] += KE.delE0; // TRACE
+	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE0);
+	}
 
 	if (KE_DEBUG) testCnt[id]++;
 	
@@ -11106,12 +11114,15 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	KE.delE  = PE[2][2];
 
 	collD->addLost(KE.delE0, rcbExtra.second - ionExtra.second, id);
-	if (use_delt>=0) {
-	  spEdel[id] += KE.delE;
-	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE);
-	}
 
 	scatterTrace(PP[2], KE, &v1, &v2, id);
+
+	// Time-step computation
+	//
+	if (use_delt>=0) {	  
+	  spEdel[id] += KE.delE0; // TRACE
+	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE0);
+	}
 
 	if (KE_DEBUG) testCnt[id]++;
 	
@@ -11314,13 +11325,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   if (use_normtest) {
     normTest(p1, "p1 [After]");
     normTest(p2, "p2 [After]");
-  }
-
-  // Accumulate energy for time step cooling computation
-  //
-  if (use_delt>=0 && totalDE>0.0) {
-    spEdel[id] += totalDE;	// TRACE
-    spEmax[id]  = std::min<double>(spEmax[id], KE.totE/totalDE);
   }
 
   // Debug energy conservation
@@ -13223,11 +13227,16 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   double totalKE = KEdspE + massC*KEdspC;
 
   if (use_delt>=0) {
-    double dtE = DBL_MAX, ratio;
+    double dtE = DBL_MAX, ratio = 0.0;
     if (spEdel[id] > 0.0) {
       if (TSESUM) ratio = totalKE/spEdel[id];
       else        ratio = spEmax[id];
       dtE = std::max<double>(ratio*TSCOOL, TSFLOOR) * spTau[id];
+      if (false and ratio>0.01) { // Sanity check for debugging
+	std::cout << "[" << std::setw(4) << myid << "] "
+		  << std::hex << std::setw(10) << cell
+		  << ": " << ratio << std::endl << std::dec;
+      }
     }
     spEdel[id] = 0.0;
     spEmax[id] = DBL_MAX;
@@ -15772,6 +15781,8 @@ void CollideIon::gatherSpecies()
   std::array<DTup, 3> a_0 = {dtup_0, dtup_0, dtup_0};
   ZTup ztup_0(a_0, 0.0);
 
+  // specM is the mass in each internal state
+  //
   if (aType==Hybrid) {
     specM.clear();
     for (auto Z : ZList) {
@@ -15804,6 +15815,8 @@ void CollideIon::gatherSpecies()
     double KEtot, KEdsp;
     cell->sample->KE(KEtot, KEdsp);
     
+    // Total- and dispersion-based temperature values
+    //
     double Tion = KEtot * Tfac * molWeight(cell);
     double Sion = KEdsp * Tfac * molWeight(cell);
     double Telc = 0.0;
@@ -15847,6 +15860,8 @@ void CollideIon::gatherSpecies()
 
     cType::iterator ft = ETcache.find(cell->sample->mykey);
     
+    // Compute electron temperature
+    //
     if (use_elec >= 0) {
       
       double count = 0.0, meanV = 0.0;
@@ -15981,7 +15996,7 @@ void CollideIon::gatherSpecies()
       //
       elecE += electronEnergy(cell);
       
-      // Compute electron energy per element
+      // Compute ion and electron kinetic energy per element
       //
       for (auto b : cell->bods) {
 	Particle *p = c0->Tree()->Body(b);
