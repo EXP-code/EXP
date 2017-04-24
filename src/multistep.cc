@@ -158,21 +158,9 @@ void * adjust_multistep_level_thread(void *ptr)
     }
 
 
-
     // Smallest time step
     //
     dt = std::max<double>(eps, dseq.begin()->first);
-
-    if (mstep == 0) {
-      //
-      // Tally smallest (e.g. controlling) timestep
-      //
-      tmdt[id][level][dseq.begin()->second]++;
-      //
-      // Counter
-      //
-      tmdt[id][level][mdtDim-1]++;
-    }
 
     // Time step wants to be LARGER than the maximum
     if (dt>dtime) {
@@ -193,6 +181,7 @@ void * adjust_multistep_level_thread(void *ptr)
     unsigned nlev = lev;
 
     // Sanity check
+    //
     if (level != plev) {
       cerr << "Process " << myid << " id=" << id 
 	   << ": n=" << n << " level=" << level 
@@ -200,12 +189,24 @@ void * adjust_multistep_level_thread(void *ptr)
 	   << " plevel=" << p->level << endl;
     }
 
+    // Update coefficients
+    //
     if (nlev != level) {
-      //
-      // Update coefficients
-      //
       c->force->multistep_update(plev, nlev, c, n, id);
       p->level = lev;
+    }
+
+    // For reporting level populations
+    //
+    if (mstep == 0) {
+      //
+      // Tally smallest (e.g. controlling) timestep
+      //
+      tmdt[id][p->level][dseq.begin()->second]++;
+      //
+      // Counter
+      //
+      tmdt[id][p->level][mdtDim-1]++;
     }
   }
 
