@@ -5025,7 +5025,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
   //
   if (use_delt>=0 && delE>0.0) {
     spEdel[id] += delE;		// DIRECT
-    spEmax[id]  = std::min<double>(spEmax[id], totE/delE);
+    if (delE>0.0) spEmax[id]  = std::min<double>(spEmax[id], totE/delE);
   }
 
   if (use_exes>=0) {
@@ -6063,7 +6063,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
   //
   if (use_delt>=0 && delE>0.0) {
     spEdel[id] += delE;		// WEIGHT
-    spEmax[id]  = std::min<double>(spEmax[id], totE/delE);
+    if (delE>0.0) spEmax[id]  = std::min<double>(spEmax[id], totE/delE);
   }
 
   if (use_exes>=0 && delE>0.0) {
@@ -8432,7 +8432,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	collD->addLost(KE.delE0, 0.0, id);
 	if (use_delt>=0) {
 	  spEdel[id] += KE.delE; // HYBRID
-	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE);
+	  if (KE.delE>0.0)
+	    spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE);
 	}
 
 	if (PP[0]->wght)
@@ -8575,7 +8576,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	collD->addLost(KE.delE0, rcbExtra.first - ionExtra.first, id);
 	if (use_delt>=0) {
 	  spEdel[id] += KE.delE; // HYBRID
-	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE);
+	  if (KE.delE>0.0)
+	    spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE);
 	}
 	
 	if (PP[1]->wght)
@@ -8770,7 +8772,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	collD->addLost(KE.delE0, rcbExtra.second - ionExtra.second, id);
 	if (use_delt>=0) {
 	  spEdel[id] += KE.delE; // HYBRID
-	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE);
+	  if (KE.delE>0.0)
+	    spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE);
 	}
 	
 	if (PP[2]->wght)
@@ -10823,7 +10826,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	//
 	if (use_delt>=0) {	  
 	  spEdel[id] += KE.delE0; // TRACE
-	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE0);
+	  if (KE.delE0>0.0)
+	    spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE0);
 	}
 
 	if (KE_DEBUG) testCnt[id]++;
@@ -10949,7 +10953,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	//
 	if (use_delt>=0) {	  
 	  spEdel[id] += KE.delE0; // TRACE
-	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE0);
+	  if (KE.delE0>0.0)
+	    spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE0);
 	}
 
 	if (KE_DEBUG) testCnt[id]++;
@@ -11121,7 +11126,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	//
 	if (use_delt>=0) {	  
 	  spEdel[id] += KE.delE0; // TRACE
-	  spEmax[id]  = std::min<double>(spEmax[id], KE.kE/KE.delE0);
+	  if (KE.delE0 > 0.0)
+	    spEmax[id]  = std::min<double>(spEmax[id], KE.kE/KE.delE0);
 	}
 
 	if (KE_DEBUG) testCnt[id]++;
