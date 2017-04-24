@@ -10582,7 +10582,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 	}
 	
-      }
+      } // END: recomb
 
       // -----------------
       // ENERGY DIAGNOSTIC
@@ -11121,7 +11121,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	//
 	if (use_delt>=0) {	  
 	  spEdel[id] += KE.delE0; // TRACE
-	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE0);
+	  spEmax[id]  = std::min<double>(spEmax[id], KE.kE/KE.delE0);
 	}
 
 	if (KE_DEBUG) testCnt[id]++;
@@ -13232,7 +13232,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       if (TSESUM) ratio = totalKE/spEdel[id];
       else        ratio = spEmax[id];
       dtE = std::max<double>(ratio*TSCOOL, TSFLOOR) * spTau[id];
-      if (false and ratio>0.01) { // Sanity check for debugging
+      if (true and ratio<1.0) { // Sanity check for debugging
 	std::cout << "[" << std::setw(4) << myid << "] "
 		  << std::hex << std::setw(10) << cell
 		  << ": " << ratio << std::endl << std::dec;
