@@ -546,12 +546,13 @@ private:
   //! eVEL quantiles
   const std::vector<double> qnt = {0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95};
   std::vector<double> elecV, ionV;
+  std::vector<double> minColE, maxColE;
   const size_t bufCap = 16384;
   std::vector< boost::circular_buffer<double> > velER, keER, keIR, momD, crsD;
-  ahistoDPtr elecT, elecH, ionsT, ionH, lossH, keEH, keIH, momH, crsH;
+  ahistoDPtr elecT, elecH, ionsT, ionH, lossH, keEH, keIH, momH, crsH, Ecoll;
   std::map<unsigned short, ahistoDPtr> elecZH, ionZH;
   unsigned Ovr_s, Acc_s, Tot_s, CntE;
-  double RhoE, Rho2;
+  double RhoE, Rho2, minColET, maxColET;
   //@}
 
   //@{

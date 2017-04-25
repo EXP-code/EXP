@@ -634,6 +634,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   epsmIE   .resize(nthrds, 0);
   totlIE   .resize(nthrds, 0);
   KElost   .resize(nthrds);
+  minColE  .resize(nthrds);
+  maxColE  .resize(nthrds);
 
   for (auto &v : Ediag) {
     for (auto &u : v) u = 0.0;
@@ -655,6 +657,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 
   for (auto &v : clampdat) v = clamp0;
   for (auto &v : spEmax)   v = DBL_MAX;
+  for (auto &v : minColE)  v = DBL_MAX;
+  for (auto &v : maxColE)  v = 0.0;
 
 
   //
@@ -10255,6 +10259,13 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*TProb);
 
 	  PE[2] += {Prob, dE};
+
+	  if (dE>0.0) {
+	    double rat = kEe2[id]/dE;
+	    crsD[id].push_back(rat);
+	    minColE[id] = std::min<double>(minColE[id], rat);
+	    maxColE[id] = std::max<double>(maxColE[id], rat);
+	  }
 	} else {
 	  //
 	  // Ion is p1
@@ -10271,7 +10282,15 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*TProb);
 
 	  PE[1] += {Prob, dE};
+
+	  if (dE>0.0) {
+	    double rat = kEe1[id]/dE;
+	    crsD[id].push_back(rat);
+	    minColE[id] = std::min<double>(minColE[id], rat);
+	    maxColE[id] = std::max<double>(maxColE[id], rat);
+	  }
 	}
+
       }
 
       if (interFlag == ionize) {
@@ -16861,7 +16880,7 @@ void CollideIon::electronGather()
 
   static bool IDBG = false;
 
-  if ((aType==Direct or aType==Weight or aType==Hybrid) && use_elec >= 0) {
+  if (use_elec >= 0) {
 
     std::vector<double> eEeV, eIeV, eVel, iVel;
     std::map<unsigned short, std::vector<double> > eEeVsp, eIeVsp;
@@ -17070,10 +17089,16 @@ void CollideIon::electronGather()
       }
     }
 
-    if (aType==Hybrid) {
+    if (aType==Trace) {
       for (int t=0; t<nthrds; t++) {
 	crs.insert(crs.end(), crsD[t].begin(), crsD[t].end());
       }
+      minColET = minColE[0];
+      maxColET = maxColE[0];
+      for (int t=1; t<nthrds; t++) minColET = std::min<double>(minColET, minColE[t]);
+      for (int t=1; t<nthrds; t++) maxColET = std::max<double>(maxColET, maxColE[t]);
+      for (auto & v : minColE) v = DBL_MAX;
+      for (auto & v : maxColE) v = 0.0;
     }
 
     if (KE_DEBUG) {
@@ -17301,12 +17326,14 @@ void CollideIon::electronGather()
 	  if (IDBG) dbg << " ... mom sent" << std::endl;
 	}
 
-	if (aType==Hybrid) {
+	if (aType==Trace) {
 	  MPI_Send(&(eNum=crs.size()), 1, MPI_UNSIGNED, 0, 446, MPI_COMM_WORLD);
 	  if (IDBG) dbg << std::setw(16) << "crs.size() = " << std::setw(10) << eNum;
 
 	  if (eNum) MPI_Send(&crs[0], eNum, MPI_DOUBLE, 0, 447, MPI_COMM_WORLD);
 	  if (IDBG) dbg << " ... crs sent" << std::endl;
+	  MPI_Send(&minColET, 1, MPI_DOUBLE, 0, 621, MPI_COMM_WORLD);
+	  MPI_Send(&maxColET, 1, MPI_DOUBLE, 0, 622, MPI_COMM_WORLD);
 	}
 
 	unsigned Nspc = eIeVsp.size();
@@ -17447,7 +17474,7 @@ void CollideIon::electronGather()
 	  }
 	}
 
-	if (aType==Hybrid) {
+	if (aType==Trace) {
 	  if (IDBG) dbg << "root in crs stanza" << std::endl;
 	  MPI_Recv(&eNum, 1, MPI_UNSIGNED, i, 446, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
@@ -17465,6 +17492,13 @@ void CollideIon::electronGather()
 	  } else {
 	    if (IDBG) dbg << std::endl;
 	  }
+
+	  double tmpE;
+	  MPI_Recv(&tmpE, 1,  MPI_DOUBLE, i, 621, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  minColET = std::min<double>(minColET, tmpE);
+
+	  MPI_Recv(&tmpE, 1,  MPI_DOUBLE, i, 622, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  maxColET = std::max<double>(maxColET, tmpE);
 	}
 
 	unsigned Nspc;
@@ -17729,14 +17763,16 @@ void CollideIon::electronPrint(std::ostream& out)
   if (crsH.get()) {
     out << std::endl
 	<< std::string(53, '-')  << std::endl
-	<< "-----Hybrid total cross section ratios --------------" << std::endl
+	<< "-----Trace Kinetic/Excite energy ratio --------------" << std::endl
 	<< std::string(53, '-')  << std::endl;
     (*crsH)(out);
+    out << std::setw(14) << " min(E)" << std::setw(16) << minColET << std::endl
+	<< std::setw(14) << " max(E)" << std::setw(16) << maxColET << std::endl;
   }
 
 
   if (aType==Hybrid and collLim) {
-    out << std::string(53, '-') << std::endl
+    out << std::endl << std::string(53, '-') << std::endl
 	<< "-----Collisions per cell over limit------------------" << std::endl
 	<< std::string(53, '-') << std::endl << std::left
 	<< std::setw(14) << " Over"      << std::setw(16) << std::get<0>(clampStat)    << std::endl
@@ -17745,7 +17781,7 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< std::setw(14) << " Total"     << std::setw(16) << c0->Tree()->TotalNumber() << std::endl;
   }
 
-  out << std::string(53, '-') << std::endl
+  out << std::endl << std::string(53, '-') << std::endl
       << "-----Electron NTC diagnostics------------------------" << std::endl
       << std::string(53, '-') << std::endl << std::left
       << std::setw(14) << " Over"      << std::setw(16) << Ovr_s << std::endl
