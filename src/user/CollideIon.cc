@@ -8040,7 +8040,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  }
 	  
 	  // Electron KE lost in recombination is radiated by does not
-	  // change COM energy
+	  // change COM energy, but it reduces the KE in the free pool
 	  //
 	  rcbExtra.second += iE2 * Pr;
 
@@ -8128,7 +8128,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  }
 
 	  // Electron KE lost in recombination is radiated by does not
-	  // change COM energy
+	  // change COM energy, but it reduces the KE in the free pool
 	  //
 	  rcbExtra.first += iE1 * Pr;
 
@@ -9898,6 +9898,7 @@ void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
      cross section scaled by electron fraction
 
   This implementation is based on the hybrid algorithm, rather than the original.
+
 */
 int CollideIon::inelasticTrace(int id, pCell* const c,
 			       Particle* const _p1, Particle* const _p2,
@@ -9950,6 +9951,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   double deltaSum = 0.0, delEsum = 0.0, delEmis = 0.0, delEdfr = 0.0;
   double delEloss = 0.0, delEfnl = 0.0;
   
+  KE_initl_check = energyInPair(p1, p2);
   if (KE_DEBUG) {
     KE_initl_check = energyInPair(p1, p2);
     if (use_cons>=0)
@@ -10000,6 +10002,26 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
   int maxInterFlag = -1;
   double maxP      = 0.0;
+
+
+  /*
+  Notes on the recombination/ionization tracking logic:
+
+  o Ionization increases the electron kinetic energy by the ionization
+    increment times the existing electron KE.  This is a further loss
+    from the COM KE; i.e. in addition to the ionization potential.
+
+  o Recombination removes the ionization fraction times the electron
+    KE.  This is taken from the recombining atom's electron KE.  The
+    total energy is radiated but the ionization potential has no
+    effect on the KE energy balance.
+
+  These are both strictly inconsistent (the electron KE is taken from
+  the ionized or recombined atom's electron).  This could be fixed,
+  perhaps, by then exchanging the velocities of the interacting pair.
+
+  */
+
   std::pair<double, double> ionExtra(0, 0);
   std::pair<double, double> rcbExtra(0, 0);
 
@@ -10260,12 +10282,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  PE[2] += {Prob, dE};
 
-	  if (dE>0.0) {
-	    double rat = kEe2[id]/dE;
-	    crsD[id].push_back(rat);
-	    minColE[id] = std::min<double>(minColE[id], rat);
-	    maxColE[id] = std::max<double>(maxColE[id], rat);
-	  }
 	} else {
 	  //
 	  // Ion is p1
@@ -10283,12 +10299,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  PE[1] += {Prob, dE};
 
-	  if (dE>0.0) {
-	    double rat = kEe1[id]/dE;
-	    crsD[id].push_back(rat);
-	    minColE[id] = std::min<double>(minColE[id], rat);
-	    maxColE[id] = std::max<double>(maxColE[id], rat);
-	  }
 	}
 
       }
@@ -10337,7 +10347,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  double tmpE = IS.DIInterLoss(ch.IonList[Q2]);
 	  dE = tmpE * Pr;
 
-	  // Queue the added electron KE for removal
+	  // The kinetic energy of the ionized electron is lost
+	  // from the COM KE
+	  //
 	  ionExtra.second += iE2 * Pr;
 
 	  // Energy for ionized electron comes from COM
@@ -10406,7 +10418,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  double tmpE = IS.DIInterLoss(ch.IonList[Q1]);
 	  dE = tmpE * Pr;
 	  
-	  // Queue the added electron KE for removal
+	  // The kinetic energy of the ionized electron is lost
+	  // from the COM KE
+	  //
 	  ionExtra.first += iE1 * Pr;
 
 	  // Energy for ionized electron comes from COM
@@ -10719,13 +10733,48 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     std::cout << std::string(40, '-') << std::endl;
   }
 
+  // Update energy ratio diagnostic list for histogram
+  //
+  /*
+  if (PE[0][1]>0.0) {
+    double rat = kEi[id]/PE[0][1];
+    double lfc = 0.43429448190325176*log(rat);
+    if (rat<1.0e4) crsD[id].push_back(lfc);
+    minColE[id] = std::min<double>(minColE[id], rat);
+    maxColE[id] = std::max<double>(maxColE[id], rat);
+  }
+
+  if (PE[1][1]>0.0) {
+    double rat = kEe1[id]/PE[1][1];
+    double lfc = 0.43429448190325176*log(rat);
+    if (rat<1.0e4) crsD[id].push_back(lfc);
+    minColE[id] = std::min<double>(minColE[id], rat);
+    maxColE[id] = std::max<double>(maxColE[id], rat);
+  }
+  
+  if (PE[2][1]>0.0) {
+    double rat = kEe2[id]/PE[2][1];
+    double lfc = 0.43429448190325176*log(rat);
+    if (rat<1.0e4) crsD[id].push_back(lfc);
+    minColE[id] = std::min<double>(minColE[id], rat);
+    maxColE[id] = std::max<double>(maxColE[id], rat);
+  }
+
   // Convert to super particle (current in eV)
   //
   for (size_t cid=0; cid<3; cid++) {
     double N0 = PP[cid]->W2 * UserTreeDSMC::Munit / amu;
     PE[cid][1] *= N0;
   }
-
+  */
+  if (KE_initl_check>0.0) {
+    double rat = (p1->dattrib[use_cons] + p2->dattrib[use_cons])/KE_initl_check + 1.0e-10;
+    double lfc = 0.43429448190325176*log(rat);
+    crsD[id].push_back(lfc);
+    minColE[id] = std::min<double>(minColE[id], rat);
+    maxColE[id] = std::max<double>(maxColE[id], rat);
+  }
+  
   // Convert back to cgs
   //
   for (auto & v : PE) v[1] *= eV;
@@ -10798,6 +10847,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     }
     Jsav = J;
 
+
     //
     // Apply neutral-neutral scattering and energy loss
     //
@@ -10821,53 +10871,46 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	ke2   += v2[k] * v2[k];
       }
 
-      // Only do interaction if both particles have pos ke (i.e. they
-      // are moving)
-      //
-
-      if (ke1 > 0.0 and ke2 > 0.0) {
-
-	double DE1 = p1->dattrib[use_cons];
-	double DE2 = p2->dattrib[use_cons];
-	p1->dattrib[use_cons] = 0.0;
-	p2->dattrib[use_cons] = 0.0;
-	clrE[id] -= DE1 + DE2;
-	PE[0][2]  = totalDE + DE1 + DE2;
-
-	KE.delE0 = totalDE;
-	KE.delE  = PE[0][2];
-
-	collD->addLost(KE.delE0, 0.0, id);
+      double DE1 = p1->dattrib[use_cons];
+      double DE2 = p2->dattrib[use_cons];
+      p1->dattrib[use_cons] = 0.0;
+      p2->dattrib[use_cons] = 0.0;
+      clrE[id] -= DE1 + DE2;
+      PE[0][2]  = totalDE + DE1 + DE2;
       
-	scatterTrace(PP[0], KE, &v1, &v2, id);
+      KE.delE0 = totalDE;
+      KE.delE  = PE[0][2];
+      
+      collD->addLost(KE.delE0, 0.0, id);
+      
+      scatterTrace(PP[0], KE, &v1, &v2, id);
 
-	// Time-step computation
-	//
-	if (use_delt>=0) {	  
-	  spEdel[id] += KE.delE0; // TRACE
-	  if (KE.delE0>0.0)
-	    spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE0);
-	}
+      // Time-step computation
+      //
+      if (use_delt>=0) {	  
+	spEdel[id] += KE.delE0; // TRACE
+	if (KE.delE0>0.0)
+	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE0);
+      }
+      
+      if (KE_DEBUG) testCnt[id]++;
 
-	if (KE_DEBUG) testCnt[id]++;
-
-	if (scatter_check and maxInterFlag>=0) {
-	  TotlU[id][1][0]++;
-	}
-
-	for (int k=0; k<3; k++) {
-	  // Particle 1 is ion
-	  p1->vel[k] = v1[k];
-	  // Particle 2 is ion
-	  p2->vel[k] = v2[k];
-	}
-
-	updateEnergyTrace(PP[0], KE);
-
-	testKE[id][3] += PE[0][1];
-	testKE[id][4] += PE[0][1];
-
-      } // END: positive KE
+      if (scatter_check and maxInterFlag>=0) {
+	TotlU[id][1][0]++;
+      }
+      
+      for (int k=0; k<3; k++) {
+	// Particle 1 is ion
+	p1->vel[k] = v1[k];
+	// Particle 2 is ion
+	p2->vel[k] = v2[k];
+      }
+      
+      updateEnergyTrace(PP[0], KE);
+      
+      testKE[id][3] += PE[0][1];
+      testKE[id][4] += PE[0][1];
+      
 
       if (KE_DEBUG) {
 
@@ -10943,59 +10986,55 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	ke2i  += v2[k] * v2[k];
       }
       
-      if (ke1i > 0.0 and ke2i > 0.0) {
-	
-	double DE1 = p1->dattrib[use_cons];
-	double DE2 = 0.0;
+      double DE1 = p1->dattrib[use_cons];
+      double DE2 = 0.0;
 
-	p1->dattrib[use_cons] = 0.0;
+      p1->dattrib[use_cons] = 0.0;
 
-	if (elc_cons) {
-	  DE2 = p2->dattrib[use_elec+3];
-	  p2->dattrib[use_elec+3] = 0.0;
-	} else {
-	  DE2 = p2->dattrib[use_cons];
-	  p2->dattrib[use_cons] = 0.0;
-	}
-	
-	clrE[id] -= DE1 + DE2;
-	PE[1][2]  = totalDE + DE1 + DE2;
-	
-	KE.delE0 = totalDE;
-	KE.delE  = PE[1][2];
-
-	collD->addLost(KE.delE0, rcbExtra.first - ionExtra.first, id);
-	
-	scatterTrace(PP[1], KE, &v1, &v2, id);
-
-	// Time-step computation
-	//
-	if (use_delt>=0) {	  
-	  spEdel[id] += KE.delE0; // TRACE
-	  if (KE.delE0>0.0)
-	    spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE0);
-	}
-
-	if (KE_DEBUG) testCnt[id]++;
-	
-	if (scatter_check and maxInterFlag>=0) {
-	  TotlU[id][1][1]++;
-	}
-	
-	for (int k=0; k<3; k++) {
-	  // Particle 1 is the ion
-	  p1->vel[k] = v1[k];
-	  // Particle 2 is the elctron
-	  p2->dattrib[use_elec+k] = v2[k];
-	}
-	
-	updateEnergyTrace(PP[1], KE);
-
-	testKE[id][3] += PE[1][1] - ionExtra.first + rcbExtra.first;
-	testKE[id][4] += PE[1][1];
+      if (elc_cons) {
+	DE2 = p2->dattrib[use_elec+3];
+	p2->dattrib[use_elec+3] = 0.0;
+      } else {
+	DE2 = p2->dattrib[use_cons];
+	p2->dattrib[use_cons] = 0.0;
+      }
       
-      } // END: positive KE
+      clrE[id] -= DE1 + DE2;
+      PE[1][2]  = totalDE + DE1 + DE2;
+      
+      KE.delE0 = totalDE;
+      KE.delE  = PE[1][2];
+      
+      collD->addLost(KE.delE0, rcbExtra.first + rcbExtra.second, id);
+	
+      scatterTrace(PP[1], KE, &v1, &v2, id);
 
+      // Time-step computation
+      //
+      if (use_delt>=0) {	  
+	spEdel[id] += KE.delE0; // TRACE
+	if (KE.delE0>0.0)
+	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE0);
+      }
+      
+      if (KE_DEBUG) testCnt[id]++;
+      
+      if (scatter_check and maxInterFlag>=0) {
+	TotlU[id][1][1]++;
+      }
+      
+      for (int k=0; k<3; k++) {
+	// Particle 1 is the ion
+	p1->vel[k] = v1[k];
+	// Particle 2 is the elctron
+	p2->dattrib[use_elec+k] = v2[k];
+      }
+      
+      updateEnergyTrace(PP[1], KE);
+      
+      testKE[id][3] += PE[1][1] - ionExtra.first + rcbExtra.first;
+      testKE[id][4] += PE[1][1];
+      
       if (KE_DEBUG) {
 
 	double ke1f = 0.0, ke2f = 0.0;
@@ -11116,62 +11155,58 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	ke2i  += v2[k] * v2[k];
       }
 
-      if (ke1i > 0.0 and ke2i > 0.0) {
-	
-	double DE1 = 0.0;
-	double DE2 = p2->dattrib[use_cons];
+      double DE1 = 0.0;
+      double DE2 = p2->dattrib[use_cons];
 
-	p2->dattrib[use_cons] = 0.0;
+      p2->dattrib[use_cons] = 0.0;
 
-	if (elc_cons) {
-	  DE1 = p1->dattrib[use_elec+3];
-	  p1->dattrib[use_elec+3] = 0.0;
-	} else {
-	  DE1 = p1->dattrib[use_cons];
-	  p1->dattrib[use_cons] = 0.0;
-	}
-	
-	clrE[id] -= DE1 + DE2;
-	PE[2][2]  = totalDE + DE1 + DE2;
-	
-	KE.delE0 = totalDE;
-	KE.delE  = PE[2][2];
-
-	collD->addLost(KE.delE0, rcbExtra.second - ionExtra.second, id);
-
-	scatterTrace(PP[2], KE, &v1, &v2, id);
-
-	// Time-step computation
-	//
-	if (use_delt>=0) {	  
-	  spEdel[id] += KE.delE0; // TRACE
-	  if (KE.delE0 > 0.0)
-	    spEmax[id]  = std::min<double>(spEmax[id], KE.kE/KE.delE0);
-	}
-
-	if (KE_DEBUG) testCnt[id]++;
-	
-	if (scatter_check and maxInterFlag>=0) {
-	  TotlU[id][1][2]++;
-	}
-	
-	for (int k=0; k<3; k++) {
-				// Particle 1 is the electron
-	  p1->dattrib[use_elec+k] = v1[k];
-				// Particle 2 is the ion
-	  p2->vel[k] = v2[k];
-	}
+      if (elc_cons) {
+	DE1 = p1->dattrib[use_elec+3];
+	p1->dattrib[use_elec+3] = 0.0;
+      } else {
+	DE1 = p1->dattrib[use_cons];
+	p1->dattrib[use_cons] = 0.0;
+      }
       
-	updateEnergyTrace(PP[2], KE);
+      clrE[id] -= DE1 + DE2;
+      PE[2][2]  = totalDE + DE1 + DE2;
+      
+      KE.delE0 = totalDE;
+      KE.delE  = PE[2][2];
+      
+      collD->addLost(KE.delE0, rcbExtra.first + rcbExtra.second, id);
+      
+      scatterTrace(PP[2], KE, &v1, &v2, id);
 
-	testKE[id][3] += PE[2][1] - ionExtra.second + rcbExtra.second;
-	testKE[id][4] += PE[2][1];
+      // Time-step computation
+      //
+      if (use_delt>=0) {	  
+	spEdel[id] += KE.delE0; // TRACE
+	if (KE.delE0 > 0.0)
+	  spEmax[id]  = std::min<double>(spEmax[id], KE.kE/KE.delE0);
+      }
+      
+      if (KE_DEBUG) testCnt[id]++;
+	
+      if (scatter_check and maxInterFlag>=0) {
+	TotlU[id][1][2]++;
+      }
+	
+      for (int k=0; k<3; k++) {
+				// Particle 1 is the electron
+	p1->dattrib[use_elec+k] = v1[k];
+				// Particle 2 is the ion
+	p2->vel[k] = v2[k];
+      }
+      
+      updateEnergyTrace(PP[2], KE);
 
-      } // END: positive KE
+      testKE[id][3] += PE[2][1] - ionExtra.second + rcbExtra.second;
+      testKE[id][4] += PE[2][1];
 
       if (KE_DEBUG) {
 
-	double ke1f = 0.0, ke2f =0.0;
+	double ke1f = 0.0, ke2f = 0.0;
 	for (int k=0; k<3; k++) {
 	  ke1f += v1[k] * v1[k];
 	  ke2f += v2[k] * v2[k];
@@ -11479,6 +11514,8 @@ void CollideIon::scatterTrace
     //
     if (totE < 0.0) {
       KE.miss = -totE;
+      // Add to energy bucket for these particles
+      //
       deferredEnergyTrace(pp, -totE, id);
       KE.delE += totE;
       totE = 0.0;
@@ -11498,6 +11535,7 @@ void CollideIon::scatterTrace
     KE.totE = totE;
 
     if (KE.delE>0.0) {
+      KE.miss = KE.delE;
       // Defer all energy loss
       //
       deferredEnergyTrace(pp, KE.delE, id);
@@ -11520,31 +11558,7 @@ void CollideIon::scatterTrace
   // according to the inelastic energy loss
   //
 
-  // Velocity working variables
-  //
-  std::vector<double> uu(3), vv(3);
-
-  double v1i2 = 0.0, v2i2 = 0.0, vdif = 0.0, v2u2 = 0.0;
-  double udif = 0.0, v1u1 = 0.0;
-
-
-  for (size_t k=0; k<3; k++) {
-				// From momentum conservation with
-				// inelastic adjustment
-    uu[k] = vcom[k] + pp->m2/mt*vrel[k] * KE.vfac;
-    vv[k] = vcom[k] - pp->m1/mt*vrel[k] * KE.vfac;
-				// Difference in Particle 1
-    udif += ((*v1)[k] - uu[k]) * ((*v1)[k] - uu[k]);
-				// Difference in Particle 2
-    vdif += ((*v2)[k] - vv[k]) * ((*v2)[k] - vv[k]);
-				// Normalizations
-    v1i2 += (*v1)[k] * (*v1)[k];
-    v2i2 += (*v2)[k] * (*v2)[k];
-    v1u1 += (*v1)[k] * uu[k];
-    v2u2 += (*v2)[k] * vv[k];
-  }
-
-  // Momentum conservation
+  // Momentum conservation by default
   
   KE.bs.set(KE_Flags::momC);
 
@@ -11562,6 +11576,8 @@ void CollideIon::scatterTrace
   }
     
   // END: momentum conservation algorithm
+
+  misE[id] += KE.miss;
 
   // Temporary deep debug
   //
@@ -13257,7 +13273,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       if (TSESUM) ratio = totalKE/spEdel[id];
       else        ratio = spEmax[id];
       dtE = std::max<double>(ratio*TSCOOL, TSFLOOR) * spTau[id];
-      if (true and ratio<1.0) { // Sanity check for debugging
+      if (false and ratio<1.0) { // Sanity check for debugging
 	std::cout << "[" << std::setw(4) << myid << "] "
 		  << std::hex << std::setw(10) << cell
 		  << ": " << ratio << std::endl << std::dec;
@@ -17596,7 +17612,7 @@ void CollideIon::electronGather()
       }
 
       if (crs.size()) {
-	crsH = ahistoDPtr(new AsciiHisto<double>(crs, 20, 0.01, true));
+	crsH = ahistoDPtr(new AsciiHisto<double>(crs, 20, 0.01));
       }
 
     }
@@ -17763,7 +17779,7 @@ void CollideIon::electronPrint(std::ostream& out)
   if (crsH.get()) {
     out << std::endl
 	<< std::string(53, '-')  << std::endl
-	<< "-----Trace Kinetic/Excite energy ratio --------------" << std::endl
+	<< "-----Trace Kinetic/Inelastic loss ratio -------------" << std::endl
 	<< std::string(53, '-')  << std::endl;
     (*crsH)(out);
     out << std::setw(14) << " min(E)" << std::setw(16) << minColET << std::endl
