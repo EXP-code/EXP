@@ -10132,6 +10132,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       //
       double dE = 0.0;
 
+      // Number interacting atoms
+      //
+      double N0 = PP[cid]->W2 * UserTreeDSMC::Munit / amu;
+
       // Temporary debugging
       //
       if (scatter_check) {
@@ -10154,10 +10158,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	maxInterFlag = interFlag;
 	maxP = Prob;
       }
-
-      // Number interacting atoms
-      //
-      double N0 = PP[cid]->W2 * UserTreeDSMC::Munit / amu;
 
       // Compute probability for inelastic scatters with electrons
       //
@@ -10759,14 +10759,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     minColE[id] = std::min<double>(minColE[id], rat);
     maxColE[id] = std::max<double>(maxColE[id], rat);
   }
-
-  // Convert to super particle (current in eV)
-  //
-  for (size_t cid=0; cid<3; cid++) {
-    double N0 = PP[cid]->W2 * UserTreeDSMC::Munit / amu;
-    PE[cid][1] *= N0;
-  }
   */
+
   if (KE_initl_check>0.0) {
     double rat = (p1->dattrib[use_cons] + p2->dattrib[use_cons])/KE_initl_check + 1.0e-10;
     double lfc = 0.43429448190325176*log(rat);
@@ -10775,9 +10769,16 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     maxColE[id] = std::max<double>(maxColE[id], rat);
   }
   
-  // Convert back to cgs
+  // Convert to super particle (current in eV)
   //
-  for (auto & v : PE) v[1] *= eV;
+  for (size_t cid=0; cid<3; cid++) {
+    double N0 = PP[cid]->W2 * UserTreeDSMC::Munit / amu;
+    PE[cid][1] *= N0;
+  }
+
+  // Convert back to system units
+  //
+  for (auto & v : PE) v[1] *= eV / UserTreeDSMC::Eunit;
 
   // Work vectors
   //
@@ -10789,10 +10790,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   if (NOCOOL) {
     for (auto & v : PE) v[1] = 0.0;
   }
-
-  // Convert energy loss to system units
-  //
-  for (auto & v : PE) v[1] /= UserTreeDSMC::Eunit;
 
   // Normalize probabilities and sum inelastic energy changes
   //
