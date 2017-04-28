@@ -634,8 +634,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   epsmIE   .resize(nthrds, 0);
   totlIE   .resize(nthrds, 0);
   KElost   .resize(nthrds);
-  minColE  .resize(nthrds);
-  maxColE  .resize(nthrds);
+  energyA  .resize(nthrds);
 
   for (auto &v : Ediag) {
     for (auto &u : v) u = 0.0;
@@ -657,9 +656,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 
   for (auto &v : clampdat) v = clamp0;
   for (auto &v : spEmax)   v = DBL_MAX;
-  for (auto &v : minColE)  v = DBL_MAX;
-  for (auto &v : maxColE)  v = 0.0;
-
+  for (auto &v : energyA)  v = {DBL_MAX, 0.0, 0.0, 0.0};
 
   //
   // Cross-section debugging [INIT]
@@ -10735,38 +10732,16 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
   // Update energy ratio diagnostic list for histogram
   //
-  /*
-  if (PE[0][1]>0.0) {
-    double rat = kEi[id]/PE[0][1];
-    double lfc = 0.43429448190325176*log(rat);
-    if (rat<1.0e4) crsD[id].push_back(lfc);
-    minColE[id] = std::min<double>(minColE[id], rat);
-    maxColE[id] = std::max<double>(maxColE[id], rat);
-  }
-
-  if (PE[1][1]>0.0) {
-    double rat = kEe1[id]/PE[1][1];
-    double lfc = 0.43429448190325176*log(rat);
-    if (rat<1.0e4) crsD[id].push_back(lfc);
-    minColE[id] = std::min<double>(minColE[id], rat);
-    maxColE[id] = std::max<double>(maxColE[id], rat);
-  }
-  
-  if (PE[2][1]>0.0) {
-    double rat = kEe2[id]/PE[2][1];
-    double lfc = 0.43429448190325176*log(rat);
-    if (rat<1.0e4) crsD[id].push_back(lfc);
-    minColE[id] = std::min<double>(minColE[id], rat);
-    maxColE[id] = std::max<double>(maxColE[id], rat);
-  }
-  */
-
   if (KE_initl_check>0.0) {
     double rat = (p1->dattrib[use_cons] + p2->dattrib[use_cons])/KE_initl_check + 1.0e-10;
     double lfc = 0.43429448190325176*log(rat);
     crsD[id].push_back(lfc);
-    minColE[id] = std::min<double>(minColE[id], rat);
-    maxColE[id] = std::max<double>(maxColE[id], rat);
+    energyA[id][0] = std::min<double>(energyA[id][0], rat);
+    if (rat>energyA[id][1]) {
+      energyA[id][1] = rat;
+      energyA[id][2] = KE_initl_check;
+      energyA[id][3] = p1->dattrib[use_cons] + p2->dattrib[use_cons];
+    }
   }
   
   // Convert to super particle (current in eV)
@@ -16891,7 +16866,7 @@ void CollideIon::electronGather()
 {
   if (not distDiag) return;
 
-  static bool IDBG = false;
+  static bool IDBG = true;
 
   if (use_elec >= 0) {
 
@@ -17106,12 +17081,16 @@ void CollideIon::electronGather()
       for (int t=0; t<nthrds; t++) {
 	crs.insert(crs.end(), crsD[t].begin(), crsD[t].end());
       }
-      minColET = minColE[0];
-      maxColET = maxColE[0];
-      for (int t=1; t<nthrds; t++) minColET = std::min<double>(minColET, minColE[t]);
-      for (int t=1; t<nthrds; t++) maxColET = std::max<double>(maxColET, maxColE[t]);
-      for (auto & v : minColE) v = DBL_MAX;
-      for (auto & v : maxColE) v = 0.0;
+      energyD = energyA[0];
+      for (int t=1; t<nthrds; t++) {
+	if (energyD[0] > energyA[t][0]) energyD[0] = energyA[t][0];
+	if (energyD[1] < energyA[t][1]) {
+	  energyD[1] = energyA[t][1];
+	  energyD[2] = energyA[t][2];
+	  energyD[3] = energyA[t][3];
+	}
+      }
+      for (auto & v : energyA) v = {DBL_MAX, 0.0, 0.0, 0.0};
     }
 
     if (KE_DEBUG) {
@@ -17345,8 +17324,10 @@ void CollideIon::electronGather()
 
 	  if (eNum) MPI_Send(&crs[0], eNum, MPI_DOUBLE, 0, 447, MPI_COMM_WORLD);
 	  if (IDBG) dbg << " ... crs sent" << std::endl;
-	  MPI_Send(&minColET, 1, MPI_DOUBLE, 0, 621, MPI_COMM_WORLD);
-	  MPI_Send(&maxColET, 1, MPI_DOUBLE, 0, 622, MPI_COMM_WORLD);
+	  if (IDBG) dbg << std::setw(16) << "energyD.size() = "
+			<< std::setw(10) << energyD.size();
+	  MPI_Send(&energyD[0], 4, MPI_DOUBLE, 0, 621, MPI_COMM_WORLD);
+	  if (IDBG) dbg << " ... energyD sent" << std::endl;
 	}
 
 	unsigned Nspc = eIeVsp.size();
@@ -17506,12 +17487,15 @@ void CollideIon::electronGather()
 	    if (IDBG) dbg << std::endl;
 	  }
 
-	  double tmpE;
-	  MPI_Recv(&tmpE, 1,  MPI_DOUBLE, i, 621, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  minColET = std::min<double>(minColET, tmpE);
-
-	  MPI_Recv(&tmpE, 1,  MPI_DOUBLE, i, 622, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  maxColET = std::max<double>(maxColET, tmpE);
+	  energyP tmpE;
+	  MPI_Recv(&tmpE[0], 4,  MPI_DOUBLE, i, 621, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  if (IDBG) dbg << " ... energyD size 4 recvd" << std::endl;
+	  if (tmpE[0] < energyD[0]) energyD[0] = tmpE[0];
+	  if (tmpE[1] > energyD[1]) {
+	    energyD[1] = tmpE[1];
+	    energyD[2] = tmpE[2];
+	    energyD[3] = tmpE[3];
+	  }
 	}
 
 	unsigned Nspc;
@@ -17779,8 +17763,10 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< "-----Trace Kinetic/Inelastic loss ratio -------------" << std::endl
 	<< std::string(53, '-')  << std::endl;
     (*crsH)(out);
-    out << std::setw(14) << " min(E)" << std::setw(16) << minColET << std::endl
-	<< std::setw(14) << " max(E)" << std::setw(16) << maxColET << std::endl;
+    out << std::setw(14) << " min(E)"     << std::setw(16) << energyD[0] << std::endl
+	<< std::setw(14) << " max(E)"     << std::setw(16) << energyD[1] << std::endl
+	<< std::setw(14) << " max(KE)"    << std::setw(16) << energyD[2] << std::endl
+	<< std::setw(14) << " max(consE)" << std::setw(16) << energyD[3] << std::endl;
   }
 
 
