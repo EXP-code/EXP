@@ -16866,7 +16866,7 @@ void CollideIon::electronGather()
 {
   if (not distDiag) return;
 
-  static bool IDBG = true;
+  static bool IDBG = false;
 
   if (use_elec >= 0) {
 
