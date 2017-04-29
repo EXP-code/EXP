@@ -267,7 +267,7 @@ static std::string interLabels[] =
     "Neutral-proton",		// 3
     "Ion-electron",		// 4
     "Ion-ion",			// 5
-    "Free_free",		// 6
+    "Free-free",		// 6
     "Collisional",		// 7
     "Ionization",		// 8
     "Recombination",		// 9
@@ -17816,11 +17816,12 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< "-----Trace Kinetic/Inelastic loss ratio -------------" << std::endl
 	<< std::string(53, '-')  << std::endl;
     (*crsH)(out);
+    int ilab = std::get<1>(energyD);
     out << std::setw(14) << " min(E)"     << std::setw(16) << std::get<0>(energyD)[0] << std::endl
 	<< std::setw(14) << " max(E)"     << std::setw(16) << std::get<0>(energyD)[1] << std::endl
 	<< std::setw(14) << " max(KE)"    << std::setw(16) << std::get<0>(energyD)[2] << std::endl
 	<< std::setw(14) << " max(consE)" << std::setw(16) << std::get<0>(energyD)[3] << std::endl
-	<< std::setw(14) << " max(type)"  << std::setw(16) << interLabels[std::get<1>(energyD) % 100] << std::endl;
+	<< std::setw(14) << " max(type)"  << std::setw(16) << interLabels[ilab % 100] << std::setw(6) << std::right << ilab << std::endl;
   }
 
 
