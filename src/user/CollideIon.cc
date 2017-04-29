@@ -10940,6 +10940,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       testKE[id][3] += PE[0][1];
       testKE[id][4] += PE[0][1];
       
+      dfrE[id] += KE.defer;
 
       if (KE_DEBUG) {
 
@@ -11064,6 +11065,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       testKE[id][3] += PE[1][1] - ionExtra.first + rcbExtra.first;
       testKE[id][4] += PE[1][1];
       
+      dfrE[id] += KE.defer;
+
       if (KE_DEBUG) {
 
 	double ke1f = 0.0, ke2f = 0.0;
@@ -11232,6 +11235,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
       testKE[id][3] += PE[2][1] - ionExtra.second + rcbExtra.second;
       testKE[id][4] += PE[2][1];
+
+      dfrE[id] += KE.defer;
 
       if (KE_DEBUG) {
 
