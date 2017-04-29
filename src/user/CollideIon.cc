@@ -584,6 +584,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   nselRat  .resize(nthrds);
   clrE     .resize(nthrds);
   misE     .resize(nthrds);
+  dfrE     .resize(nthrds);
   Ncol     .resize(nthrds);
   Nmis     .resize(nthrds);
   Ein1     .resize(nthrds);
@@ -907,6 +908,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
   //
   clrE[id] = 0.0;
   misE[id] = 0.0;
+  dfrE[id] = 0.0;
   Ncol[id] = 0;
   Nmis[id] = 0;
 
@@ -8448,6 +8450,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	checkEnergyHybrid(PP[0], KE, &v1, &v2, Neutral, id);
 
+	dfrE[id] += KE.defer;
+
 	if (KE_DEBUG) testCnt[id]++;
 
 	if (scatter_check and maxInterFlag>=0) {
@@ -8591,6 +8595,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  scatterHybrid(1, PP[1], KE, &v1, &v2, id);
 
 	checkEnergyHybrid(PP[1], KE, &v1, &v2, Ion1, id);
+
+	dfrE[id] += KE.defer;
 
 	if (KE_DEBUG) testCnt[id]++;
 	
@@ -8787,6 +8793,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  scatterHybrid(1, PP[2], KE, &v1, &v2, id);
 
 	checkEnergyHybrid(PP[2], KE, &v1, &v2, Ion2, id);
+
+	dfrE[id] += KE.defer;
 	
 	if (KE_DEBUG) testCnt[id]++;
 	
@@ -13273,7 +13281,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       collD->addCell(KEtot*massC, id);
     }
 				// Cleared excess energy tally
-    collD->addCellEclr(clrE[id], misE[id], Ncol[id], Nmis[id], id);
+    collD->addCellEclr(clrE[id], misE[id], dfrE[id], Ncol[id], Nmis[id], id);
 				// Add electron stats to diagnostic
 				// handler
     KEdspE = collD->addCellElec(cell, use_elec, id);
@@ -13440,6 +13448,7 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
   delE.resize(nthrds, 0.0);
   clrE.resize(nthrds, 0.0);
   misE.resize(nthrds, 0.0);
+  dfrE.resize(nthrds, 0.0);
   Ncol.resize(nthrds, 0  );
   Nmis.resize(nthrds, 0  );
   Etot_c = 0.0;
@@ -13580,6 +13589,7 @@ void collDiag::gather()
   delE_s = std::accumulate(delE.begin(), delE.end(), 0.0);
   clrE_s = std::accumulate(clrE.begin(), clrE.end(), 0.0);
   misE_s = std::accumulate(misE.begin(), misE.end(), 0.0);
+  dfrE_s = std::accumulate(dfrE.begin(), dfrE.end(), 0.0);
   Ncol_s = std::accumulate(Ncol.begin(), Ncol.end(), 0  );
   Nmis_s = std::accumulate(Nmis.begin(), Nmis.end(), 0  );
 
@@ -13598,6 +13608,7 @@ void collDiag::gather()
   MPI_Reduce(&(z=delE_s), &delE_s,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(z=clrE_s), &clrE_s,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(z=misE_s), &misE_s,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=dfrE_s), &dfrE_s,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(u=Ncol_s), &Ncol_s,  1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(u=Nmis_s), &Nmis_s,  1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   
@@ -13624,6 +13635,7 @@ void collDiag::reset()
   std::fill(delE.begin(), delE.end(), 0.0);
   std::fill(clrE.begin(), clrE.end(), 0.0);
   std::fill(misE.begin(), misE.end(), 0.0);
+  std::fill(dfrE.begin(), dfrE.end(), 0.0);
 }
 
 void collDiag::initialize()
@@ -13675,6 +13687,7 @@ void collDiag::initialize()
 	    << "# delE          electron excess energy   " << std::endl
 	    << "# clrE          cleared excess energy    " << std::endl
 	    << "# misE          missed excess energy     " << std::endl
+	    << "# dfrE          deferred excess energy   " << std::endl
 	    << "# Ncol          # of collisions          " << std::endl
 	    << "# Nmis          # missed excess energy   " << std::endl
 	    << "# EdspE         electron E dispersion    " << std::endl
@@ -13692,7 +13705,7 @@ void collDiag::initialize()
 	  sout2 << std::setw((w-l)/2) << ' ' << sout.str();
 	  out   << std::setw(w) << sout2.str() << " | ";
 	}
-	out << std::setw(14*12) << ' ' << " |" << std::endl;
+	out << std::setw(17*12) << ' ' << " |" << std::endl;
 
 	// Header line
 	//
@@ -13703,7 +13716,7 @@ void collDiag::initialize()
 	  for (int i=0; i<17; i++) out << std::setw(12) << '+';
 	  out << " | ";
 	}
-	for (int i=0; i<14; i++)  out << std::setw(12) << '+';
+	for (int i=0; i<17; i++)  out << std::setw(12) << '+';
 	out << " |" << std::setfill(' ') << std::endl;
 
 	// Column labels
@@ -13743,6 +13756,7 @@ void collDiag::initialize()
 	    << std::setw(12) << "delE  |"
 	    << std::setw(12) << "clrE  |"
 	    << std::setw(12) << "misE  |"
+	    << std::setw(12) << "dfrE  |"
 	    << std::setw(12) << "Ncol  |"
 	    << std::setw(12) << "Nmis  |"
 	    << std::setw(12) << "EdspE |"
@@ -13770,7 +13784,7 @@ void collDiag::initialize()
 	  }
 	  out << " | ";
 	}
-	for (size_t l=0; l<14; l++) {
+	for (size_t l=0; l<17; l++) {
 	  st.str("");
 	  st << "[" << ++cnt << "] |";
 	  out << std::setw(12) << std::right << st.str();
@@ -13785,7 +13799,7 @@ void collDiag::initialize()
 	  for (int i=0; i<17; i++) out << std::setw(12) << '+';
 	  out << " | ";
 	}
-	for (int i=0; i<14; i++)  out << std::setw(12) << '+';
+	for (int i=0; i<17; i++)  out << std::setw(12) << '+';
 	out << " |" << std::setfill(' ') << std::endl;
       }
     }
@@ -13935,6 +13949,7 @@ void collDiag::print()
 	  << std::setw(12) << delE_s
 	  << std::setw(12) << clrE_s
 	  << std::setw(12) << misE_s
+	  << std::setw(12) << dfrE_s
 	  << std::setw(12) << Ncol_s
 	  << std::setw(12) << Nmis_s
 	  << std::setw(12) << Edsp_s

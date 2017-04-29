@@ -256,8 +256,8 @@ class collDiag : public sKeyCollTD
 private:
   CollideIon *p;
   std::string coll_file_debug, energy_file_debug;
-  std::vector<double>   Esum, Elos, Klos, Elec, Edsp, Efrc, Emas, Epot, delI, delE, clrE, misE;
-  double Esum_s, Elos_s, Klos_s, Efrc_s, Emas_s, Elec_s, Edsp_s, Etot_c, Ktot_c, Epot_s, delI_s, delE_s, clrE_s, misE_s;
+  std::vector<double>   Esum, Elos, Klos, Elec, Edsp, Efrc, Emas, Epot, delI, delE, clrE, misE, dfrE;
+  double Esum_s, Elos_s, Klos_s, Efrc_s, Emas_s, Elec_s, Edsp_s, Etot_c, Ktot_c, Epot_s, delI_s, delE_s, clrE_s, misE_s, dfrE_s;
   std::vector<unsigned> Ncol, Nmis;
   unsigned Ncol_s, Nmis_s;
 
@@ -281,8 +281,8 @@ public:
   void addCell(double E, int id) { Esum[id] += E; }
 
   //! Add cell energy
-  void addCellEclr(double Eclr, double Emis, unsigned ncol, unsigned nmis, int id)
-  { clrE[id] += Eclr; misE[id] += Emis; Ncol[id] += ncol; Nmis[id] = nmis; }
+  void addCellEclr(double Eclr, double Emis, double Edfr, unsigned colN, unsigned misN, int id)
+  { clrE[id] += Eclr; misE[id] += Emis; dfrE[id] += Edfr, Ncol[id] += colN; Nmis[id] = misN; }
 
   //! Electron energy diagnostics (returns electron KE in momentum frame)
   double addCellElec(pCell* cell, int ue, int id);
@@ -477,7 +477,7 @@ private:
   std::vector< keyColEx >                            kCE;
   std::vector< double >                              meanE, neutF, meanR, meanM, cellM;
   std::vector< double >                              numEf, colSc, elecDen, elecDn2;
-  std::vector< double >                              kEi, kEe1, kEe2, kEee, clrE, misE;
+  std::vector< double >                              kEi, kEe1, kEe2, kEee, clrE, misE, dfrE;
   std::vector< double >                              kE1s, kE2s, Ein1, Ein2, Evel, nselRat;
   std::vector< double >                              spCrm, spTau, spProb, spEdel, spEmax;
   std::vector< double >                              molP1, molP2, etaP1, etaP2;
