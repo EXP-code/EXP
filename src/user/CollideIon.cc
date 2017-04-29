@@ -656,7 +656,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 
   for (auto &v : clampdat) v = clamp0;
   for (auto &v : spEmax)   v = DBL_MAX;
-  for (auto &v : energyA)  v = {DBL_MAX, 0.0, 0.0, 0.0};
+  for (auto &v : energyA)  v = energyP({DBL_MAX, 0.0, 0.0, 0.0}, 0);
 
   //
   // Cross-section debugging [INIT]
@@ -10021,7 +10021,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
   std::pair<double, double> ionExtra(0, 0);
   std::pair<double, double> rcbExtra(0, 0);
-
+  std::pair<double, int>    maxC(0.0, 0);
   
   // Run through all interactions in the cross-section map to include
   // ionization-state weightings.  Recall, the map contains values of
@@ -10239,6 +10239,11 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  PE[2] += {Prob, dE};
 
+	  if (maxC.first<dE) {
+	    maxC.first = dE;
+	    maxC.second = interFlag;
+	  }
+
 	} else {
 	  //
 	  // Ion is p1
@@ -10256,6 +10261,12 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*TProb);
 
 	  PE[1] += {Prob, dE};
+
+	  if (maxC.first<dE) {
+	    maxC.first = dE;
+	    maxC.second = interFlag;
+	  }
+
 	}
 
       }
@@ -10279,6 +10290,11 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  PE[2] += {Prob, dE};
 
+	  if (maxC.first<dE) {
+	    maxC.first = dE;
+	    maxC.second = interFlag;
+	  }
+
 	} else {
 	  //
 	  // Ion is p1
@@ -10295,6 +10311,11 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*TProb);
 
 	  PE[1] += {Prob, dE};
+
+	  if (maxC.first<dE) {
+	    maxC.first = dE;
+	    maxC.second = interFlag;
+	  }
 
 	}
 
@@ -10367,6 +10388,11 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    
 	  PE[2] += {Prob, dE};
 	    
+	  if (maxC.first<dE) {
+	    maxC.first = dE;
+	    maxC.second = interFlag;
+	  }
+
 	  if (IonRecombChk) {
 	    if (ionCHK[id].find(k2) == ionCHK[id].end()) ionCHK[id][k2] = 0.0;
 	    ionCHK[id][k2] += XS * (*cr);
@@ -10438,6 +10464,11 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  
 	  PE[1] += {Prob, dE};
 	  
+	  if (maxC.first<dE) {
+	    maxC.first = dE;
+	    maxC.second = interFlag;
+	  }
+
 	  if (IonRecombChk) {
 	    if (ionCHK[id].find(k1) == ionCHK[id].end()) ionCHK[id][k1] = 0.0;
 	    ionCHK[id][k1] += XS * (*cr);
@@ -10505,6 +10536,11 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  PE[2] += {Prob, dE};
 	  
+	  if (maxC.first<dE) {
+	    maxC.first = dE;
+	    maxC.second = interFlag;
+	  }
+
 	  // Add the KE from the recombined electron back to the free pool
 	  //
 	  if (NOCOOL and !NOCOOL_ELEC and C2==1 and use_cons>=0) {
@@ -10588,6 +10624,11 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (use_spectrum) spectrumAdd(id, interFlag, eE, N0*TProb);
 
 	  PE[1] += {Prob, dE};
+
+	  if (maxC.first<dE) {
+	    maxC.first = dE;
+	    maxC.second = interFlag;
+	  }
 
 	  // Add the KE from the recombined electron back to the free pool
 	  //
@@ -10736,11 +10777,13 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     double rat = (p1->dattrib[use_cons] + p2->dattrib[use_cons])/KE_initl_check + 1.0e-10;
     double lfc = 0.43429448190325176*log(rat);
     crsD[id].push_back(lfc);
-    energyA[id][0] = std::min<double>(energyA[id][0], rat);
-    if (rat>energyA[id][1]) {
-      energyA[id][1] = rat;
-      energyA[id][2] = KE_initl_check;
-      energyA[id][3] = p1->dattrib[use_cons] + p2->dattrib[use_cons];
+    std::get<0>(energyA[id])[0] =
+      std::min<double>(std::get<0>(energyA[id])[0], rat);
+    if (rat>std::get<0>(energyA[id])[1]) {
+      std::get<0>(energyA[id])[1] = rat;
+      std::get<0>(energyA[id])[2] = KE_initl_check;
+      std::get<0>(energyA[id])[3] = p1->dattrib[use_cons] + p2->dattrib[use_cons];
+      std::get<1>(energyA[id]) = maxC.second;
     }
   }
   
@@ -17076,21 +17119,27 @@ void CollideIon::electronGather()
 	mom.insert(mom.end(), momD[t].begin(), momD[t].end());
       }
     }
-
+    
     if (aType==Trace) {
       for (int t=0; t<nthrds; t++) {
 	crs.insert(crs.end(), crsD[t].begin(), crsD[t].end());
       }
       energyD = energyA[0];
       for (int t=1; t<nthrds; t++) {
-	if (energyD[0] > energyA[t][0]) energyD[0] = energyA[t][0];
-	if (energyD[1] < energyA[t][1]) {
-	  energyD[1] = energyA[t][1];
-	  energyD[2] = energyA[t][2];
-	  energyD[3] = energyA[t][3];
+	energyP & x = energyA[t];
+	if (std::get<0>(energyD)[0] > std::get<0>(x)[0])
+	  std::get<0>(energyD)[0] = std::get<0>(x)[0];
+	if (std::get<0>(energyD)[1] < std::get<0>(x)[1]) {
+	  std::get<0>(energyD)[1] = std::get<0>(x)[1];
+	  std::get<0>(energyD)[2] = std::get<0>(x)[2];
+	  std::get<0>(energyD)[3] = std::get<0>(x)[3];
+	  std::get<1>(energyD)    = std::get<1>(x);
 	}
       }
-      for (auto & v : energyA) v = {DBL_MAX, 0.0, 0.0, 0.0};
+      for (auto & v : energyA) {
+	std::get<0>(v) = {DBL_MAX, 0.0, 0.0, 0.0};
+	std::get<1>(v) = 0;
+      }
     }
 
     if (KE_DEBUG) {
@@ -17325,8 +17374,9 @@ void CollideIon::electronGather()
 	  if (eNum) MPI_Send(&crs[0], eNum, MPI_DOUBLE, 0, 447, MPI_COMM_WORLD);
 	  if (IDBG) dbg << " ... crs sent" << std::endl;
 	  if (IDBG) dbg << std::setw(16) << "energyD.size() = "
-			<< std::setw(10) << energyD.size();
-	  MPI_Send(&energyD[0], 4, MPI_DOUBLE, 0, 621, MPI_COMM_WORLD);
+			<< std::setw(10) << std::get<0>(energyD).size() + 1;
+	  MPI_Send(&std::get<0>(energyD)[0], 4, MPI_DOUBLE, 0, 621, MPI_COMM_WORLD);
+	  MPI_Send(&std::get<1>(energyD),    1, MPI_INT,    0, 622, MPI_COMM_WORLD);
 	  if (IDBG) dbg << " ... energyD sent" << std::endl;
 	}
 
@@ -17488,13 +17538,16 @@ void CollideIon::electronGather()
 	  }
 
 	  energyP tmpE;
-	  MPI_Recv(&tmpE[0], 4,  MPI_DOUBLE, i, 621, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  if (IDBG) dbg << " ... energyD size 4 recvd" << std::endl;
-	  if (tmpE[0] < energyD[0]) energyD[0] = tmpE[0];
-	  if (tmpE[1] > energyD[1]) {
-	    energyD[1] = tmpE[1];
-	    energyD[2] = tmpE[2];
-	    energyD[3] = tmpE[3];
+	  MPI_Recv(&std::get<0>(tmpE)[0], 4,  MPI_DOUBLE, i, 621, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&std::get<1>(tmpE),    1,  MPI_INT,    i, 622, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  if (IDBG) dbg << " ... energyD size 4+1 recvd" << std::endl;
+	  if (std::get<0>(tmpE)[0] < std::get<0>(energyD)[0])
+	    std::get<0>(energyD)[0] = std::get<0>(tmpE)[0];
+	  if (std::get<0>(tmpE)[1] > std::get<0>(energyD)[1]) {
+	    std::get<0>(energyD)[1] = std::get<0>(tmpE)[1];
+	    std::get<0>(energyD)[2] = std::get<0>(tmpE)[2];
+	    std::get<0>(energyD)[3] = std::get<0>(tmpE)[3];	    
+	    std::get<1>(energyD)    = std::get<1>(tmpE);
 	  }
 	}
 
@@ -17763,10 +17816,11 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< "-----Trace Kinetic/Inelastic loss ratio -------------" << std::endl
 	<< std::string(53, '-')  << std::endl;
     (*crsH)(out);
-    out << std::setw(14) << " min(E)"     << std::setw(16) << energyD[0] << std::endl
-	<< std::setw(14) << " max(E)"     << std::setw(16) << energyD[1] << std::endl
-	<< std::setw(14) << " max(KE)"    << std::setw(16) << energyD[2] << std::endl
-	<< std::setw(14) << " max(consE)" << std::setw(16) << energyD[3] << std::endl;
+    out << std::setw(14) << " min(E)"     << std::setw(16) << std::get<0>(energyD)[0] << std::endl
+	<< std::setw(14) << " max(E)"     << std::setw(16) << std::get<0>(energyD)[1] << std::endl
+	<< std::setw(14) << " max(KE)"    << std::setw(16) << std::get<0>(energyD)[2] << std::endl
+	<< std::setw(14) << " max(consE)" << std::setw(16) << std::get<0>(energyD)[3] << std::endl
+	<< std::setw(14) << " max(type)"  << std::setw(16) << interLabels[std::get<1>(energyD) % 100] << std::endl;
   }
 
 

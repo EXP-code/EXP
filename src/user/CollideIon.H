@@ -552,7 +552,7 @@ private:
   std::map<unsigned short, ahistoDPtr> elecZH, ionZH;
   unsigned Ovr_s, Acc_s, Tot_s, CntE;
   double RhoE, Rho2;
-  typedef std::array<double, 4> energyP;
+  typedef std::tuple<std::array<double, 4>, unsigned short> energyP;
   std::vector<energyP> energyA;
   energyP energyD;
   //@}
