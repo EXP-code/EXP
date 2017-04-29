@@ -584,6 +584,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   nselRat  .resize(nthrds);
   clrE     .resize(nthrds);
   misE     .resize(nthrds);
+  Ncol     .resize(nthrds);
+  Nmis     .resize(nthrds);
   Ein1     .resize(nthrds);
   Ein2     .resize(nthrds);
   Evel     .resize(nthrds);
@@ -905,6 +907,8 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
   //
   clrE[id] = 0.0;
   misE[id] = 0.0;
+  Ncol[id] = 0;
+  Nmis[id] = 0;
 
   // True particle number in cell
   //
@@ -9664,6 +9668,8 @@ void CollideIon::checkEnergyHybrid
     if (equal or ALWAYS_APPLY) testE -= KE.delE;
 
     misE[id] += KE.miss;
+    Ncol[id] ++;
+    if (KE.miss>0.0) Nmis[id] ++;
 
     if (fabs(testE) > tolE*(tKEi+tKEf) )
       std::cout << "**ERROR check deltaE ("<< pp->m1 << "," << pp->m2 << ") = "
@@ -11593,6 +11599,8 @@ void CollideIon::scatterTrace
   // END: momentum conservation algorithm
 
   misE[id] += KE.miss;
+  Ncol[id] ++;
+  if (KE.miss>0.0) Nmis[id] ++;
 
   // Temporary deep debug
   //
@@ -13265,7 +13273,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       collD->addCell(KEtot*massC, id);
     }
 				// Cleared excess energy tally
-    collD->addCellEclr(clrE[id], misE[id], id);
+    collD->addCellEclr(clrE[id], misE[id], Ncol[id], Nmis[id], id);
 				// Add electron stats to diagnostic
 				// handler
     KEdspE = collD->addCellElec(cell, use_elec, id);
@@ -13432,6 +13440,8 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
   delE.resize(nthrds, 0.0);
   clrE.resize(nthrds, 0.0);
   misE.resize(nthrds, 0.0);
+  Ncol.resize(nthrds, 0  );
+  Nmis.resize(nthrds, 0  );
   Etot_c = 0.0;
   Ktot_c = 0.0;
 
@@ -13542,8 +13552,11 @@ void collDiag::addCellPotl(pCell* cell, int id)
     }
 
     if (p->use_cons >= 0) delI[id] += s->dattrib[p->use_cons];
-  }
-}
+
+  } // END: body loop
+
+} // END: addCellPotl
+
 
 // Gather statistics from all processes
 //
@@ -13567,21 +13580,26 @@ void collDiag::gather()
   delE_s = std::accumulate(delE.begin(), delE.end(), 0.0);
   clrE_s = std::accumulate(clrE.begin(), clrE.end(), 0.0);
   misE_s = std::accumulate(misE.begin(), misE.end(), 0.0);
+  Ncol_s = std::accumulate(Ncol.begin(), Ncol.end(), 0  );
+  Nmis_s = std::accumulate(Nmis.begin(), Nmis.end(), 0  );
 
   double z;
+  unsigned u;
 
-  MPI_Reduce(&(z=Esum_s), &Esum_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&(z=Elos_s), &Elos_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&(z=Klos_s), &Klos_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&(z=Elec_s), &Elec_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&(z=Epot_s), &Epot_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&(z=Edsp_s), &Edsp_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&(z=Efrc_s), &Efrc_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&(z=Emas_s), &Emas_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&(z=delI_s), &delI_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&(z=delE_s), &delE_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&(z=clrE_s), &clrE_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&(z=misE_s), &misE_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=Esum_s), &Esum_s,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=Elos_s), &Elos_s,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=Klos_s), &Klos_s,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=Elec_s), &Elec_s,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=Epot_s), &Epot_s,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=Edsp_s), &Edsp_s,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=Efrc_s), &Efrc_s,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=Emas_s), &Emas_s,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=delI_s), &delI_s,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=delE_s), &delE_s,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=clrE_s), &clrE_s,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=misE_s), &misE_s,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(u=Ncol_s), &Ncol_s,  1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(u=Nmis_s), &Nmis_s,  1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   
   MPI_Barrier(MPI_COMM_WORLD);
 
@@ -13657,6 +13675,8 @@ void collDiag::initialize()
 	    << "# delE          electron excess energy   " << std::endl
 	    << "# clrE          cleared excess energy    " << std::endl
 	    << "# misE          missed excess energy     " << std::endl
+	    << "# Ncol          # of collisions          " << std::endl
+	    << "# Nmis          # missed excess energy   " << std::endl
 	    << "# EdspE         electron E dispersion    " << std::endl
 	    << "# Efrac         electron number fraction " << std::endl
 	    << "# Etotl         total kinetic energy     " << std::endl
@@ -13723,6 +13743,8 @@ void collDiag::initialize()
 	    << std::setw(12) << "delE  |"
 	    << std::setw(12) << "clrE  |"
 	    << std::setw(12) << "misE  |"
+	    << std::setw(12) << "Ncol  |"
+	    << std::setw(12) << "Nmis  |"
 	    << std::setw(12) << "EdspE |"
 	    << std::setw(12) << "Efrac |"
 	    << std::setw(12) << "Etotl |"
@@ -13913,6 +13935,8 @@ void collDiag::print()
 	  << std::setw(12) << delE_s
 	  << std::setw(12) << clrE_s
 	  << std::setw(12) << misE_s
+	  << std::setw(12) << Ncol_s
+	  << std::setw(12) << Nmis_s
 	  << std::setw(12) << Edsp_s
 	  << std::setw(12) << (Emas_s>0.0 ? Efrc_s/Emas_s : 0.0)
 	  << std::setw(12) << Etot_c + Esum_s + Elos_s + Elec_s - delI_s - delE_s

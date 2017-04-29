@@ -256,8 +256,10 @@ class collDiag : public sKeyCollTD
 private:
   CollideIon *p;
   std::string coll_file_debug, energy_file_debug;
-  std::vector<double> Esum, Elos, Klos, Elec, Edsp, Efrc, Emas, Epot, delI, delE, clrE, misE;
+  std::vector<double>   Esum, Elos, Klos, Elec, Edsp, Efrc, Emas, Epot, delI, delE, clrE, misE;
   double Esum_s, Elos_s, Klos_s, Efrc_s, Emas_s, Elec_s, Edsp_s, Etot_c, Ktot_c, Epot_s, delI_s, delE_s, clrE_s, misE_s;
+  std::vector<unsigned> Ncol, Nmis;
+  unsigned Ncol_s, Nmis_s;
 
   //! Make the file header the first time
   void initialize();
@@ -279,8 +281,8 @@ public:
   void addCell(double E, int id) { Esum[id] += E; }
 
   //! Add cell energy
-  void addCellEclr(double Eclr, double Emis, int id)
-  { clrE[id] += Eclr; misE[id] += Emis; }
+  void addCellEclr(double Eclr, double Emis, unsigned ncol, unsigned nmis, int id)
+  { clrE[id] += Eclr; misE[id] += Emis; Ncol[id] += ncol; Nmis[id] = nmis; }
 
   //! Electron energy diagnostics (returns electron KE in momentum frame)
   double addCellElec(pCell* cell, int ue, int id);
@@ -481,7 +483,7 @@ private:
   std::vector< double >                              molP1, molP2, etaP1, etaP2;
   std::vector< unsigned >                            spNsel, elecCnt, spNcol;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot, testCnt;
-  std::vector< unsigned >                            Nwght, Njsel;
+  std::vector< unsigned >                            Nwght, Njsel, Ncol, Nmis;
   std::vector< TypeMap0 >                            Escat, Etotl;
   std::vector< TypeMap1 >                            TotlU;
   std::vector< TypeMap2 >                            TotlD;
