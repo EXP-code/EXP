@@ -254,6 +254,10 @@ static bool NO_ION_ION          = false;
 //
 static bool NO_ION_ELECTRON     = false;
 
+// Debugging energy conservation for new Trace method
+//
+static bool DEBUG_ECONS = true;
+
 // Per-species cross-section scale factor for testing
 //
 static std::vector<double> cscl_;
@@ -11606,10 +11610,6 @@ void CollideIon::scatterTrace
   // END: momentum conservation algorithm
 
   misE[id] += KE.miss;
-  /*
-  Ncol[id] ++;
-  if (KE.miss>0.0) Nmis[id] ++;
-  */
 
   // Temporary deep debug
   //
@@ -12163,6 +12163,20 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 {
   if (mlev==0) {		// Add electronic potential energy
     collD->addCellPotl(cell, id);
+  }
+
+  //======================================================================
+  // DEBUG TRACE ECONS
+  //======================================================================
+  //
+
+  double EconsI = 0.0, EconsF = 0.0;
+
+  if (DEBUG_ECONS and use_cons>=0) {
+    for (auto b : cell->bods) {
+      EconsI += tree->Body(b)->dattrib[use_cons];
+      if (use_elec) EconsI += tree->Body(b)->dattrib[use_elec+3];
+    }
   }
 
   //======================================================================
@@ -13270,8 +13284,8 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       collD->addCell(KEtot*massC, id);
     }
 				// Cleared excess energy tally
-    collD->addCellEclr(clrE[id], misE[id], dfrE[id], updE[id],
-		       Ncol[id], Nmis[id], id);
+    collD->addCellEdiag(clrE[id], misE[id], dfrE[id], updE[id],
+			Ncol[id], Nmis[id], id);
 				// Add electron stats to diagnostic
 				// handler
     KEdspE = collD->addCellElec(cell, use_elec, id);
@@ -13304,6 +13318,20 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     spEmax[id] = DBL_MAX;
 
     for (auto i : cell->bods) cell->Body(i)->dattrib[use_delt] = dtE;
+  }
+
+  //======================================================================
+  // DEBUG TRACE ECONS
+  //======================================================================
+  //
+
+  if (DEBUG_ECONS and use_cons>=0) {
+    for (auto b : cell->bods) {
+      EconsF += tree->Body(b)->dattrib[use_cons];
+      if (use_elec) EconsF += tree->Body(b)->dattrib[use_elec+3];
+    }
+
+    assert(EconsI==EconsF);
   }
 
   //======================================================================

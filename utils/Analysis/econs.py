@@ -34,24 +34,25 @@ trans = string.maketrans("#|", "  ")
 
 d = {}
 lead = 2
-
-field = [ ('Time', 0),
-          ('Temp', 1),
-          ('Disp', 2),
-          ('Etotl', -1),
-          ('Efrac', -2),
-          ('EdspE', -3),
-          ('misE', -4),
-          ('clrE', -5),
-          ('delE', -6),
-          ('delI', -7),
-          ('PotI', -8),
-          ('EkeE', -9),
-          ('EkeI', -10),
-          ('KlosC', -11),
-          ('Klost', -12),
-          ('ElosC', -13),
-          ('Elost', -14) ]
+labels = []
+lindex = {}
+field = [ 'Time',
+          'Temp',
+          'Disp',
+          'Etotl',
+          'Efrac',
+          'EdspE',
+          'misE',
+          'clrE',
+          'delE',
+          'delI',
+          'PotI',
+          'EkeE',
+          'EkeI',
+          'KlosC',
+          'Klost',
+          'ElosC',
+          'Elost']
 
 f, ax = plt.subplots(1, 1)
 
@@ -86,7 +87,11 @@ for v in labs:
             if 'Disp' in labels: lead = 3
             ncol   = (tindx-lead)/5
             d[v] = {}
-            for e in field: d[v][e[0]] = []
+            for i in range(len(labels)):
+                e = labels[i]
+                if e in field:
+                    d[v][e] = []
+                    lindex[e] = i
         if line.find('#')<0:        # Read the data lines
             toks = line.translate(trans).split()
             allZ = True             # Skip lines with zeros only
@@ -100,8 +105,8 @@ for v in labs:
                 # output file
                 if len(toks) == len(labels):
                     for e in field:
-                        if e[0] in labels:
-                            d[v][e[0]].append(float(toks[e[1]]))
+                        if e in labels:
+                            d[v][e].append(float(toks[lindex[e]]))
 
     indx = np.searchsorted(d[v]['Time'], args.Tmax/args.tscale)
     x = np.array(d[v]['Time'][0:indx])*args.tscale

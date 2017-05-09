@@ -281,11 +281,14 @@ public:
   void reset();
 
   //! Add cell energy
-  void addCell(double E, int id) { Esum[id] += E; }
+  void addCell(double E, int id)
+  {
+    Esum[id] += E;
+  }
 
   //! Add cell energy and diagnostics
-  void addCellEclr(double Eclr, double Emis, double Edfr, double Eupd,
-		   unsigned colN, unsigned misN, int id)
+  void addCellEdiag(double Eclr, double Emis, double Edfr, double Eupd,
+		    unsigned colN, unsigned misN, int id)
   {
     clrE[id] += Eclr;
     misE[id] += Emis;
