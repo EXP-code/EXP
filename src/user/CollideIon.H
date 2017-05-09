@@ -256,10 +256,13 @@ class collDiag : public sKeyCollTD
 private:
   CollideIon *p;
   std::string coll_file_debug, energy_file_debug;
-  std::vector<double>   Esum, Elos, Klos, Elec, Edsp, Efrc, Emas, Epot, delI, delE, clrE, misE, dfrE;
-  double Esum_s, Elos_s, Klos_s, Efrc_s, Emas_s, Elec_s, Edsp_s, Etot_c, Ktot_c, Epot_s, delI_s, delE_s, clrE_s, misE_s, dfrE_s;
+  std::vector<double> Esum, Elos, Klos, Elec, Edsp, Efrc, Emas, Epot, clrE, misE, dfrE, updE;
+  double Esum_s, Elos_s, Klos_s, Efrc_s, Emas_s, Elec_s, Edsp_s, Etot_c, Ktot_c, Epot_s, delI_s, delE_s, clrE_s, misE_s, dfrE_s, updE_s;
   std::vector<unsigned> Ncol, Nmis;
   unsigned Ncol_s, Nmis_s;
+
+  //! Get the conservation excess
+  void getEcons();
 
   //! Make the file header the first time
   void initialize();
@@ -280,9 +283,17 @@ public:
   //! Add cell energy
   void addCell(double E, int id) { Esum[id] += E; }
 
-  //! Add cell energy
-  void addCellEclr(double Eclr, double Emis, double Edfr, unsigned colN, unsigned misN, int id)
-  { clrE[id] += Eclr; misE[id] += Emis; dfrE[id] += Edfr, Ncol[id] += colN; Nmis[id] = misN; }
+  //! Add cell energy and diagnostics
+  void addCellEclr(double Eclr, double Emis, double Edfr, double Eupd,
+		   unsigned colN, unsigned misN, int id)
+  {
+    clrE[id] += Eclr;
+    misE[id] += Emis;
+    dfrE[id] += Edfr;
+    updE[id] += Eupd;
+    Ncol[id] += colN;
+    Nmis[id] += misN;
+  }
 
   //! Electron energy diagnostics (returns electron KE in momentum frame)
   double addCellElec(pCell* cell, int ue, int id);
@@ -291,7 +302,11 @@ public:
   void addCellPotl(pCell* cell, int id);
 
   //! Add lost energy
-  void addLost(double E, double K, int id) { Elos[id] += E; Klos[id] += K; }
+  void addLost(double E, double K, int id)
+  {
+    Elos[id] += E;
+    Klos[id] += K;
+  }
 
 };
 
@@ -477,7 +492,7 @@ private:
   std::vector< keyColEx >                            kCE;
   std::vector< double >                              meanE, neutF, meanR, meanM, cellM;
   std::vector< double >                              numEf, colSc, elecDen, elecDn2;
-  std::vector< double >                              kEi, kEe1, kEe2, kEee, clrE, misE, dfrE;
+  std::vector< double >                              kEi, kEe1, kEe2, kEee, clrE, misE, dfrE, updE;
   std::vector< double >                              kE1s, kE2s, Ein1, Ein2, Evel, nselRat;
   std::vector< double >                              spCrm, spTau, spProb, spEdel, spEmax;
   std::vector< double >                              molP1, molP2, etaP1, etaP2;
@@ -1214,7 +1229,7 @@ protected:
 
   //! For deep debugging
   void KEcheck(PordPtr pp, double& KE_initl_check,
-	       std::pair<double, double>& ion, std::pair<double, double>& rcb);
+	       std::array<double, 2>& ion, std::array<double, 2>& rcb);
 
   //! Add excess energy to conservation counter (Hybrid version)
   void deferredEnergyHybrid(PordPtr pp, const double E);

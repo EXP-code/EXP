@@ -733,6 +733,9 @@ public:
   //! Cache NTC database for restart
   virtual void finish() { ntcdb.finish(); }
 
+  //! Return particle map from the component
+  PartMap& Particles() { return c0->Particles(); }
+
 protected:
 
   //! Helper function for NTCstats output
