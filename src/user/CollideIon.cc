@@ -10366,10 +10366,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // The kinetic energy of the ionized electron is lost
 	  // from the COM KE
 	  //
-	  ionExtra[1] += iE2 * Pr * N0;
+	  ionExtra[1] += iE2 * Pr;
 
 	  // Energy for ionized electron comes from COM
-	  dE += iE2 * Pr;
+	  dE += iE2 * Pr * UserTreeDSMC::Eunit / (N0*eV);
 
 	  if (std::isinf(iE2 * Pr)) {
 	    std::cout << "**ERROR: crazy ion energy [2]=" << iE2
@@ -10442,10 +10442,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // The kinetic energy of the ionized electron is lost
 	  // from the COM KE
 	  //
-	  ionExtra[0] += iE1 * Pr * N0;
+	  ionExtra[0] += iE1 * Pr;
 
 	  // Energy for ionized electron comes from COM
-	  dE += iE1 * Pr;
+	  dE += iE1 * Pr * UserTreeDSMC::Eunit / (N0*eV);
 
 	  if (std::isinf(iE1 * Pr)) {
 	    std::cout << "**ERROR: crazy ion energy [1]=" << iE1
@@ -10519,7 +10519,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // Electron KE lost in recombination is radiated by does not
 	  // change COM energy
 	  //
-	  rcbExtra[1] += iE2 * Pr * N0;
+	  rcbExtra[1] += iE2 * Pr;
 
 	  // Electron KE radiated in recombination
 	  double eE = iE2 * Pr * UserTreeDSMC::Eunit / (N0*eV);
@@ -10606,7 +10606,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // Electron KE lost in recombination is radiated by does not
 	  // change COM energy
 	  //
-	  rcbExtra[0] += iE1 * Pr * N0;
+	  rcbExtra[0] += iE1 * Pr;
 
 	  // Electron KE fraction in recombination
 	  //
@@ -10797,8 +10797,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   // Convert energy loss from eV to system units
   //
   for (auto & v : PE)    v[1] *= eV / UserTreeDSMC::Eunit;
-  for (auto & v : ionExtra) v *= eV / UserTreeDSMC::Eunit;
-  for (auto & v : rcbExtra) v *= eV / UserTreeDSMC::Eunit;
 
   // Work vectors
   //
@@ -10899,6 +10897,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       KE.delE  = PE[0][2];
       
       collD->addLost(KE.delE0, 0.0, id);
+      dfrE[id] += KE.delE0;
       
       scatterTrace(PP[0], KE, &v1, &v2, id);
 
@@ -10928,7 +10927,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       testKE[id][3] += PE[0][1];
       testKE[id][4] += PE[0][1];
       
-      dfrE[id] += KE.defer;
+      // dfrE[id] += KE.defer;
 
       if (KE_DEBUG) {
 
@@ -11024,6 +11023,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       KE.delE  = PE[1][2];
       
       collD->addLost(KE.delE0, rcbExtra[0] - ionExtra[0], id);
+      dfrE[id] += KE.delE0;
 	
       scatterTrace(PP[1], KE, &v1, &v2, id);
 
@@ -11053,7 +11053,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       testKE[id][3] += PE[1][1] - ionExtra[0] + rcbExtra[0];
       testKE[id][4] += PE[1][1];
       
-      dfrE[id] += KE.defer;
+      // dfrE[id] += KE.defer;
+      // dfrE[id] += KE.delE0;
 
       if (KE_DEBUG) {
 
@@ -11195,6 +11196,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       KE.delE  = PE[2][2];
       
       collD->addLost(KE.delE0, rcbExtra[1] - ionExtra[1], id);
+      dfrE[id] += KE.delE0;
       
       scatterTrace(PP[2], KE, &v1, &v2, id);
 
@@ -11224,7 +11226,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       testKE[id][3] += PE[2][1] - ionExtra[1] + rcbExtra[1];
       testKE[id][4] += PE[2][1];
 
-      dfrE[id] += KE.defer;
+      // dfrE[id] += KE.defer;
+      // dfrE[id] += KE.delE0;
 
       if (KE_DEBUG) {
 
@@ -11340,6 +11343,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   // Update energy conservation
   //
   double EconsUpI = 0.0, EconsUpE = 0.0;
+  std::array<double, 3> saneCheck {0.0, 0.0, 0.0};
   for (size_t k=0; k<3; k++) {
     if (use_cons>=0) {
       PP[k]->p1->dattrib[use_cons] += PP[k]->E1[0];
@@ -11357,6 +11361,19 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       PP[k]->p2->dattrib[use_cons  ] += PP[k]->E2[1];
       EconsUpE += PP[k]->E1[1] + PP[k]->E2[1];
       updE[id] += PP[k]->E1[1] + PP[k]->E2[1];
+    }
+    if (DEBUG_ECONS)
+      saneCheck[k] +=
+	fabs(PP[k]->E1[0]) + fabs(PP[k]->E1[1]) +
+	fabs(PP[k]->E2[0]) + fabs(PP[k]->E2[1]);
+  }
+
+  if (DEBUG_ECONS) {		// Another logic check
+    std::sort(saneCheck.begin(), saneCheck.end());
+    if (saneCheck[0]!=0.0 or saneCheck[1]!=0.0) {
+      std::cout << "**ERROR saneCheck: ";
+      for (auto v : saneCheck) std::cout << " " << v;
+      std::cout << endl;
     }
   }
 
@@ -11743,6 +11760,11 @@ void CollideIon::deferredEnergyTrace(PordPtr pp, const double E, int id)
     return;
   }
 
+  double Einit = 0.0;
+  if (DEBUG_ECONS) {
+    Einit += pp->E1[0] + pp->E1[1] + pp->E2[0] + pp->E2[1];
+  }
+
   // Save energy adjustments for next interation.  Split between like
   // species ONLY.
   //
@@ -11772,6 +11794,16 @@ void CollideIon::deferredEnergyTrace(PordPtr pp, const double E, int id)
     }
 
   } // END: use_cons >= 0
+
+  if (DEBUG_ECONS) {
+    double Efinal = pp->E1[0] + pp->E1[1] + pp->E2[0] + pp->E2[1];
+    if (Einit != 0.0) {
+      std::cout << "**ERROR Einit=" << Einit << ", expected 0" << std::endl;
+    }
+    if (fabs(Efinal - Einit - E) > 1.0e-10*fabs(E)) {
+      std::cout << "**ERROR Echeck=" << Efinal - Einit - E << std::endl;
+    }
+  }
 
 } // END: CollideIon::deferredEnergyTrace
 
@@ -13283,9 +13315,6 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     } else {
       collD->addCell(KEtot*massC, id);
     }
-				// Cleared excess energy tally
-    collD->addCellEdiag(clrE[id], misE[id], dfrE[id], updE[id],
-			Ncol[id], Nmis[id], id);
 				// Add electron stats to diagnostic
 				// handler
     KEdspE = collD->addCellElec(cell, use_elec, id);
@@ -13295,6 +13324,12 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   } else {
     KEdspE = computeEdsp(cell).second;
   }
+
+  // Per cell energy diagnostics that are reset on every cell update
+  // call
+  //
+  collD->addCellEdiag(clrE[id], misE[id], dfrE[id], updE[id],
+		      Ncol[id], Nmis[id], id);
 
   //======================================================================
   // Assign cooling time steps
