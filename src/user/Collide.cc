@@ -552,6 +552,7 @@ Collide::Collide(ExternalForce *force, Component *comp,
   effortNumber .resize(nthrds);
 
   // Set the threshold from the default value
+  //
   ntcThresh = ntcThreshDef;
 
   if (myid==0) {
@@ -559,6 +560,10 @@ Collide::Collide(ExternalForce *force, Component *comp,
 	      << "--- Tree volume = " << c0->Tree()->Volume() << std::endl
 	      << printDivider << std::endl;
   }
+
+  // Initialize diagnostic counters
+  // 
+  pre_collide_diag();
 }
 
 Collide::~Collide()
@@ -607,10 +612,6 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
 
   snglTime.start();
 
-  // Initialize diagnostic counters
-  // 
-  if (diag) pre_collide_diag();
-  
   // Make cellist
   // 
   for (int n=0; n<nthrds; n++) cellist[n].clear();
@@ -726,7 +727,11 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
   forkSoFar = forkTime.stop();
   
   snglTime.start();
-  if (diag) std::get<1>(ret) = post_collide_diag();
+  if (diag) {
+				// Collect
+    std::get<1>(ret) = post_collide_diag();
+    pre_collide_diag();		// Reinitialize
+  }
   snglSoFar = snglTime.stop();
   
   (*barrier)("Collide::collide: AFTER collision fork",
