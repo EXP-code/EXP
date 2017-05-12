@@ -193,9 +193,11 @@ static double FloorEv           = 0.05;
 //
 static double minCollFrac       = -1.0;
 
+// Some deeper checks for debugging
+//
 static bool temp_debug          = false;
 
-static bool scatter_check       = true;
+static bool scatter_check       = false;
 
 // Decrease the interacton probability by electron fraction used for
 // dominant subspcies for the NTC rate
@@ -253,10 +255,6 @@ static bool NO_ION_ION          = false;
 // Artificially suppress ion-electron scattering in Hybrid method
 //
 static bool NO_ION_ELECTRON     = false;
-
-// Debugging energy conservation for new Trace method
-//
-static bool DEBUG_ECONS = true;
 
 // Per-species cross-section scale factor for testing
 //
@@ -7897,10 +7895,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  dE = tmpE * Pr;
 
 	  // Queue the added electron KE for removal
-	  ionExtra[1] += iE2 * Pr * N0;
+	  ionExtra[1] += iE2 * Pr;
 
 	  // Energy for ionized electron comes from COM
-	  dE += iE2 * Pr;
+	  dE += iE2 * Pr * UserTreeDSMC::Eunit / (N0*eV);
 
 	  if (std::isinf(iE2 * Pr)) {
 	    std::cout << "**ERROR: crazy ion energy [2]=" << iE2
@@ -7972,10 +7970,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  dE = tmpE * Pr;
 	  
 	  // Queue the added electron KE for removal
-	  ionExtra[0] += iE1 * Pr * N0;
+	  ionExtra[0] += iE1 * Pr;
 
 	  // Energy for ionized electron comes from COM
-	  dE += iE1 * Pr;
+	  dE += iE1 * Pr * UserTreeDSMC::Eunit / (N0*eV);
 
 	  if (std::isinf(iE1 * Pr)) {
 	    std::cout << "**ERROR: crazy ion energy [1]=" << iE1
@@ -8050,7 +8048,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  // Electron KE lost in recombination is radiated by does not
 	  // change COM energy, but it reduces the KE in the free pool
 	  //
-	  rcbExtra[1] += iE2 * Pr * N0;
+	  rcbExtra[1] += iE2 * Pr;
 
 	  // Electron KE radiated in recombination
 	  double eE = iE2 * Pr * UserTreeDSMC::Eunit / (N0*eV);
@@ -8138,7 +8136,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  // Electron KE lost in recombination is radiated by does not
 	  // change COM energy, but it reduces the KE in the free pool
 	  //
-	  rcbExtra[0] += iE1 * Pr * N0;
+	  rcbExtra[0] += iE1 * Pr;
 
 	  // Electron KE fraction in recombination
 	  //
@@ -8215,6 +8213,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	if (kEe1[id] > 10.2) { ctd1->eV_10[id] += Prob;}
       }
 
+      // Convert from eV per particle to system units per
+      // superparticle
+      //
       double Escl = N0 * eV/UserTreeDSMC::Eunit;
 
       if (PE[1][0]>0.0) {
@@ -8321,8 +8322,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // Convert energy loss from eV to system units
   //
   for (auto & v : PE)    v[1] *= eV / UserTreeDSMC::Eunit;
-  for (auto & v : ionExtra) v *= eV / UserTreeDSMC::Eunit;
-  for (auto & v : rcbExtra) v *= eV / UserTreeDSMC::Eunit;
 
   // Normalize probabilities and sum inelastic energy changes
   //
@@ -8453,7 +8452,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	checkEnergyHybrid(PP[0], KE, &v1, &v2, Neutral, id);
 
-	dfrE[id] += KE.defer;
+	dfrE[id] += KE.defer;	// HYBRID
 
 	if (KE_DEBUG) testCnt[id]++;
 
@@ -8599,7 +8598,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	checkEnergyHybrid(PP[1], KE, &v1, &v2, Ion1, id);
 
-	dfrE[id] += KE.defer;
+	dfrE[id] += KE.defer;	// HYBRID
 
 	if (KE_DEBUG) testCnt[id]++;
 	
@@ -8797,7 +8796,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	checkEnergyHybrid(PP[2], KE, &v1, &v2, Ion2, id);
 
-	dfrE[id] += KE.defer;
+	dfrE[id] += KE.defer;	// HYBRID
 	
 	if (KE_DEBUG) testCnt[id]++;
 	
@@ -9904,11 +9903,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   Particle* p1    = _p1;	// Copy pointers for swapping, if
   Particle* p2    = _p2;	// necessary
 
-				// Flight length in cgs units
-  double travel   = (*cr) * spTau[id] * UserTreeDSMC::Lunit;
-
-				// Convert cell fraction counts to true density
-  double dfac = UserTreeDSMC::Munit/amu / (pow(UserTreeDSMC::Lunit, 3.0)*c->Volume());
 				// For convenience: proton key
   speciesKey proton(1, 2);
 
@@ -9963,6 +9957,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   double wavg = 0.5*(W1 + W2);
   double wdif = (W1 - W2)/wavg;
 
+  // Sanity check
+  //
   if (fabs(wdif) > 1.0e-6) {
     std::cout << "**ERROR W1!=W2, W1=" << W1 << ", W2=" << W2
 	      << ", dif=" << wdif << std::endl;
@@ -10144,8 +10140,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       // Retrieve the diagnostic stanza for this species (correctly
       // including the ionization level)
       //
-      collTDPtr ctd1 = (*collD)[Particle::defaultKey];
-      collTDPtr ctd2 = (*collD)[Particle::defaultKey];
+      collTDPtr ctd = (*collD)[Particle::defaultKey];
       
       // Select the maximum probability channel
       //
@@ -10154,38 +10149,26 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	maxP = Prob;
       }
 
-      // Compute probability for inelastic scatters with electrons
-      //
-      // Default: ion-electron
-      //
-      double TProb = XS * 1.0e-14 * elecDen[id] * travel / spProb[id];
-      
       //-----------------------------
       // Parse each interaction type
       //-----------------------------
 
       if (interFlag == neut_neut) {
 
-	TProb = XS * 1.0e-14 * neutF[id] * cellM[id] * dfac * travel / spProb[id];
-
-	ctd1->nn[id][0] += TProb;
-	ctd1->nn[id][1] += N0*TProb;
-	
-	ctd2->nn[id][0] += TProb;
-	ctd2->nn[id][1] += N0*TProb;
+	ctd->nn[id][0] += Prob;
+	ctd->nn[id][1] += N0*Prob;
 	
 	PE[0][0] += Prob;
       }
 
       if (interFlag == neut_elec) {
 
+	ctd->ne[id][0] += Prob;
+	ctd->ne[id][1] += N0*Prob;
+
 	if (I1.first == Interact::electron) {
-	  ctd2->ne[id][0] += TProb;
-	  ctd2->ne[id][1] += N0*TProb;
 	  PE[2][0] += Prob;
 	} else {
-	  ctd1->ne[id][0] += TProb;
-	  ctd1->ne[id][1] += N0*TProb;
 	  PE[1][0] += Prob;
 	}
 
@@ -10193,26 +10176,20 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
       if (interFlag == neut_prot) {
 	
-	TProb = XS * 1.0e-14 * meanF[id][proton] * cellM[id] * dfac * travel / spProb[id];
+	ctd->np[id][0] += Prob;
+	ctd->np[id][1] += N0*Prob;
 
-	if (I1.first == Interact::neutral) {
-	  ctd2->np[id][0] += TProb;
-	  ctd2->np[id][1] += N0*TProb;
-	} else {
-	  ctd1->np[id][0] += TProb;
-	  ctd1->np[id][1] += N0*TProb;
-	}
 	PE[0][0] += Prob;
       }
 
       if (interFlag == ion_elec) {
+
+	ctd->ie[id][0] += Prob;
+	ctd->ie[id][1] += N0*Prob;
+
 	if (I1.first == Interact::electron) {
-	  ctd2->ie[id][0] += TProb;
-	  ctd2->ie[id][1] += N0*TProb;
 	  PE[2][0] += Prob;
 	} else {
-	  ctd1->ie[id][0] += TProb;
-	  ctd1->ie[id][1] += N0*TProb;
 	  PE[1][0] += Prob;
 	}
       }
@@ -10225,15 +10202,15 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = IS.selectFFInteract(std::get<2>(I));
 
-	  dE = tmpE * TProb;
+	  dE = tmpE * Prob;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_FF_E) dE = 0.0;
 	  
-	  ctd2->ff[id][0] += TProb;
-	  ctd2->ff[id][1] += N0*TProb;
-	  if (not NOCOOL) ctd2->ff[id][2] += N0 * dE;
-	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*TProb);
+	  ctd->ff[id][0] += Prob;
+	  ctd->ff[id][1] += N0*Prob;
+	  if (not NOCOOL) ctd->ff[id][2] += N0 * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*Prob);
 
 	  PE[2] += {Prob, dE};
 
@@ -10248,15 +10225,15 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = IS.selectFFInteract(std::get<2>(I));
 
-	  dE = tmpE * TProb;
+	  dE = tmpE * Prob;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_FF_E) dE = 0.0;
 	  
-	  ctd1->ff[id][0] += TProb;
-	  ctd1->ff[id][1] += N0*TProb;
-	  if (not NOCOOL) ctd1->ff[id][2] += N0 * dE;
-	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*TProb);
+	  ctd->ff[id][0] += Prob;
+	  ctd->ff[id][1] += N0*Prob;
+	  if (not NOCOOL) ctd->ff[id][2] += N0 * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*Prob);
 
 	  PE[1] += {Prob, dE};
 
@@ -10277,14 +10254,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = IS.selectCEInteract(ch.IonList[Q2], std::get<1>(I));
 
-	  dE = tmpE * TProb;
+	  dE = tmpE * Prob;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	    
-	  ctd2->CE[id][0] += TProb;
-	  ctd2->CE[id][1] += N0*TProb;
-	  if (not NOCOOL) ctd2->CE[id][2] += N0 * dE;
-	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*TProb);
+	  ctd->CE[id][0] += Prob;
+	  ctd->CE[id][1] += N0*Prob;
+	  if (not NOCOOL) ctd->CE[id][2] += N0 * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*Prob);
 
 	  PE[2] += {Prob, dE};
 
@@ -10299,14 +10276,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = IS.selectCEInteract(ch.IonList[Q1], std::get<1>(I));
 
-	  dE = tmpE * TProb;
+	  dE = tmpE * Prob;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  
-	  ctd1->CE[id][0] += TProb;
-	  ctd1->CE[id][1] += N0*TProb;
-	  if (not NOCOOL) ctd1->CE[id][2] += N0 * dE;
-	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*TProb);
+	  ctd->CE[id][0] += Prob;
+	  ctd->CE[id][1] += N0*Prob;
+	  if (not NOCOOL) ctd->CE[id][2] += N0 * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*Prob);
 
 	  PE[1] += {Prob, dE};
 
@@ -10328,7 +10305,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (use_normtest) {
 	    std::ostringstream sout;
 	    sout << "[Before ionize]: C2=" << P2
-		 << ", Prob=" << TProb;
+		 << ", Prob=" << Prob;
 	    PP[2]->normTest(1, sout.str());
 	    PP[2]->normTest(2, sout.str());
 	    if (C2<1 or C2>Z2) {
@@ -10337,7 +10314,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 
-	  double Pr = TProb;
+	  double Pr = Prob;
 
 	  int pos = SpList[k2] - SpList.begin()->second;
 
@@ -10353,12 +10330,12 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (use_normtest) {
 	    std::ostringstream sout;
 	    sout << "[After ionize]: C2=" << C2-1 << ", Pr=" << Pr
-		 << ", Prob=" << TProb;
+		 << ", Prob=" << Prob;
 	    PP[2]->normTest(1, sout.str());
 	    PP[2]->normTest(2, sout.str());
 	  }
 	  
-	  TProb = Pr;
+	  Prob = Pr;
 	  
 	  double tmpE = IS.DIInterLoss(ch.IonList[Q2]);
 	  dE = tmpE * Pr;
@@ -10366,10 +10343,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // The kinetic energy of the ionized electron is lost
 	  // from the COM KE
 	  //
-	  ionExtra[1] += iE2 * Pr * N0;
+	  ionExtra[1] += iE2 * Pr;
 
 	  // Energy for ionized electron comes from COM
-	  dE += iE2 * Pr;
+	  dE += iE2 * Pr * UserTreeDSMC::Eunit / (N0*eV);
 
 	  if (std::isinf(iE2 * Pr)) {
 	    std::cout << "**ERROR: crazy ion energy [2]=" << iE2
@@ -10379,10 +10356,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
 	    
-	  ctd2->CI[id][0] += TProb;
-	  ctd2->CI[id][1] += N0*TProb;
-	  if (not NOCOOL) ctd2->CI[id][2] += N0 * dE;
-	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*TProb);
+	  ctd->CI[id][0] += Prob;
+	  ctd->CI[id][1] += N0*Prob;
+	  if (not NOCOOL) ctd->CI[id][2] += N0 * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*Prob);
 	    
 	  PE[2] += {Prob, dE};
 	    
@@ -10404,7 +10381,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (use_normtest) {
 	    std::ostringstream sout;
 	    sout << "[Before ionize]: C1=" << P1
-		 << ", Prob=" << TProb;
+		 << ", Prob=" << Prob;
 	    PP[1]->normTest(1, sout.str());
 	    PP[1]->normTest(2, sout.str());
 	    if (C1<1 or C1>Z1) {
@@ -10413,7 +10390,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 
-	  double Pr = TProb;
+	  double Pr = Prob;
 
 	  int pos = SpList[k1] - SpList.begin()->second;
 
@@ -10429,12 +10406,12 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (use_normtest) {
 	    std::ostringstream sout;
 	    sout << "[After ionize]: C1=" << C1-1 << ", Pr=" << Pr
-		 << ", Prob=" << TProb;
+		 << ", Prob=" << Prob;
 	    PP[1]->normTest(1, sout.str());
 	    PP[1]->normTest(2, sout.str());
 	  }
 	    
-	  TProb = Pr;
+	  Prob = Pr;
 
 	  double tmpE = IS.DIInterLoss(ch.IonList[Q1]);
 	  dE = tmpE * Pr;
@@ -10442,10 +10419,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // The kinetic energy of the ionized electron is lost
 	  // from the COM KE
 	  //
-	  ionExtra[0] += iE1 * Pr * N0;
+	  ionExtra[0] += iE1 * Pr;
 
 	  // Energy for ionized electron comes from COM
-	  dE += iE1 * Pr;
+	  dE += iE1 * Pr * UserTreeDSMC::Eunit / (N0*eV);
 
 	  if (std::isinf(iE1 * Pr)) {
 	    std::cout << "**ERROR: crazy ion energy [1]=" << iE1
@@ -10455,10 +10432,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
 	    
-	  ctd1->CI[id][0] += Pr;
-	  ctd1->CI[id][1] += N0*TProb;
-	  if (not NOCOOL) ctd1->CI[id][2] += N0 * dE;
-	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*TProb);
+	  ctd->CI[id][0] += Pr;
+	  ctd->CI[id][1] += N0*Prob;
+	  if (not NOCOOL) ctd->CI[id][2] += N0 * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0*Prob);
 	  
 	  PE[1] += {Prob, dE};
 	  
@@ -10483,7 +10460,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (use_normtest) {
 	    std::ostringstream sout;
 	    sout << "[Before recomb]: C2=" << C2
-		 << ", Prob=" << TProb << ", w=" << PP[2]->F(2, C2);
+		 << ", Prob=" << Prob << ", w=" << PP[2]->F(2, C2);
 	    PP[2]->normTest(1, sout.str());
 	    PP[2]->normTest(2, sout.str());
 				// Sanity check
@@ -10492,7 +10469,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 	  
-	  double Pr = TProb;
+	  double Pr = Prob;
 
 	  int pos = SpList[k2] - SpList.begin()->second;
 
@@ -10508,18 +10485,18 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (use_normtest) {
 	    std::ostringstream sout;
 	    sout << "[After recomb]: C2=" << C2 << ", Pr=" << Pr
-		 << ", Prob=" << TProb << ", w=" << PP[2]->F(2, C2);
+		 << ", Prob=" << Prob << ", w=" << PP[2]->F(2, C2);
 
 	    PP[2]->normTest(1, sout.str());
 	    PP[2]->normTest(2, sout.str());
 	  }
 	  
-	  TProb = Pr;		// Update to truncated value
+	  Prob = Pr;		// Update to truncated value
 
 	  // Electron KE lost in recombination is radiated by does not
 	  // change COM energy
 	  //
-	  rcbExtra[1] += iE2 * Pr * N0;
+	  rcbExtra[1] += iE2 * Pr;
 
 	  // Electron KE radiated in recombination
 	  double eE = iE2 * Pr * UserTreeDSMC::Eunit / (N0*eV);
@@ -10527,10 +10504,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * Pr;
 	  if (energy_scale > 0.0) dE *= energy_scale;
 
-	  ctd2->RR[id][0] += Pr;
-	  ctd2->RR[id][1] += N0*TProb;
-	  // if (not NOCOOL) ctd2->RR[id][2] += N0 * dE;
-	  if (use_spectrum) spectrumAdd(id, interFlag, eE, N0*TProb);
+	  ctd->RR[id][0] += Pr;
+	  ctd->RR[id][1] += N0*Prob;
+	  // if (not NOCOOL) ctd->RR[id][2] += N0 * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, eE, N0*Prob);
 
 	  PE[2] += {Prob, dE};
 	  
@@ -10572,7 +10549,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (use_normtest) {
 	    std::ostringstream sout;
 	    sout << "[Before recomb]: C1=" << C1
-		 << ", Prob=" << TProb << ", w=" << PP[1]->F(1, C1);
+		 << ", Prob=" << Prob << ", w=" << PP[1]->F(1, C1);
 	    PP[1]->normTest(1, sout.str());
 	    PP[1]->normTest(2, sout.str());
 	    if (C1<2 or C1>Z1+1) {
@@ -10580,7 +10557,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 
-	  double Pr = TProb;
+	  double Pr = Prob;
 
 	  int pos = SpList[k1] - SpList.begin()->second;
 
@@ -10596,17 +10573,17 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (use_normtest) {
 	    std::ostringstream sout;
 	    sout << "[After recomb]: C1=" << C1 << ", Pr=" << Pr
-		 << ", Prob=" << TProb << ", w=" << PP[1]->F(1, P1);
+		 << ", Prob=" << Prob << ", w=" << PP[1]->F(1, P1);
 	    PP[1]->normTest(1, sout.str());
 	    PP[1]->normTest(2, sout.str());
 	  }
 
-	  TProb = Pr;		// Update to truncated value
+	  Prob = Pr;		// Update to truncated value
 
 	  // Electron KE lost in recombination is radiated by does not
 	  // change COM energy
 	  //
-	  rcbExtra[0] += iE1 * Pr * N0;
+	  rcbExtra[0] += iE1 * Pr;
 
 	  // Electron KE fraction in recombination
 	  //
@@ -10616,10 +10593,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (RECOMB_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * Pr;
 	  if (energy_scale > 0.0) dE *= energy_scale;
 
-	  ctd1->RR[id][0] += Pr;
-	  ctd1->RR[id][1] += N0*TProb;
-	  // if (not NOCOOL) ctd1->RR[id][2] += N0*TProb * kEe1[id];
-	  if (use_spectrum) spectrumAdd(id, interFlag, eE, N0*TProb);
+	  ctd->RR[id][0] += Pr;
+	  ctd->RR[id][1] += N0*Prob;
+	  // if (not NOCOOL) ctd->RR[id][2] += N0*Prob * kEe1[id];
+	  if (use_spectrum) spectrumAdd(id, interFlag, eE, N0*Prob);
 
 	  PE[1] += {Prob, dE};
 
@@ -10661,39 +10638,42 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       // -----------------
       
       if (PP[cid]->swap) {
-	bool prior = std::isnan(ctd2->eV_av[id]);
-	ctd2->eV_av[id] += kEe2[id] * TProb;
-	if (std::isnan(ctd2->eV_av[id])) {
-	  std::cout << "NAN eV_N[2]=" << ctd2->eV_N[id]
+	bool prior = std::isnan(ctd->eV_av[id]);
+	ctd->eV_av[id] += kEe2[id] * Prob;
+	if (std::isnan(ctd->eV_av[id])) {
+	  std::cout << "NAN eV_N[2]=" << ctd->eV_N[id]
 		    << ", prior=" << std::boolalpha << prior << std::endl;
 	}
-	ctd2->eV_N[id] += TProb;
-	ctd2->eV_min[id] = std::min(ctd2->eV_min[id], kEe2[id]);
-	ctd2->eV_max[id] = std::max(ctd2->eV_max[id], kEe2[id]);
+	ctd->eV_N[id] += Prob;
+	ctd->eV_min[id] = std::min(ctd->eV_min[id], kEe2[id]);
+	ctd->eV_max[id] = std::max(ctd->eV_max[id], kEe2[id]);
 	
-	if (kEe2[id] > 10.2) { ctd2->eV_10[id] += TProb; }
+	if (kEe2[id] > 10.2) { ctd->eV_10[id] += Prob; }
 	
       } else {
 	
-	bool prior = std::isnan(ctd1->eV_av[id]);
-	ctd1->eV_av[id] += kEe1[id] * TProb;
-	if (std::isnan(ctd1->eV_av[id])) {
-	  std::cout << "NAN eV_N[1]=" << ctd1->eV_N[id]
+	bool prior = std::isnan(ctd->eV_av[id]);
+	ctd->eV_av[id] += kEe1[id] * Prob;
+	if (std::isnan(ctd->eV_av[id])) {
+	  std::cout << "NAN eV_N[1]=" << ctd->eV_N[id]
 		    << ", prior=" << std::boolalpha << prior << std::endl;
 	}
-	ctd1->eV_N[id] += TProb;
-	ctd1->eV_min[id] = std::min(ctd1->eV_min[id], kEe1[id]);
-	ctd1->eV_max[id] = std::max(ctd1->eV_max[id], kEe1[id]);
+	ctd->eV_N[id] += Prob;
+	ctd->eV_min[id] = std::min(ctd->eV_min[id], kEe1[id]);
+	ctd->eV_max[id] = std::max(ctd->eV_max[id], kEe1[id]);
 	
-	if (kEe1[id] > 10.2) { ctd1->eV_10[id] += TProb;}
+	if (kEe1[id] > 10.2) { ctd->eV_10[id] += Prob;}
       }
 
+      // Convert from eV per particle to system units per
+      // superparticle
+      //
       double Escl = N0 * eV/UserTreeDSMC::Eunit;
 
       if (PE[1][0]>0.0) {
-	ctd1->dv[id][0] += TProb;
-	ctd1->dv[id][1] += PP[1]->W2 * TProb;
-	if (not NOCOOL) ctd1->dv[id][2] += PP[1]->W2 * PE[1][1];
+	ctd->dv[id][0] += Prob;
+	ctd->dv[id][1] += PP[1]->W2 * Prob;
+	if (not NOCOOL) ctd->dv[id][2] += PP[1]->W2 * PE[1][1];
 	if (scatter_check) {
 	  double m1 = atomic_weights[Z1];
 	  double m2 = atomic_weights[ 0];
@@ -10705,7 +10685,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 	  tK *= 0.5*PP[1]->W1*PP[1]->q*mu;
 
-	  Italy[id][Z1*100+Z2][interFlag][0] += TProb;
+	  Italy[id][Z1*100+Z2][interFlag][0] += Prob;
 	  Italy[id][Z1*100+Z2][interFlag][1] += dE * Escl;
 	  Italy[id][Z1*100+Z2][interFlag][2] += tK;
 	}
@@ -10723,16 +10703,16 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 	  tK *= 0.5*PP[0]->W1*PP[0]->q*mu;
 
-	  Italy[id][Z1*100+Z2][interFlag][0] += TProb;
+	  Italy[id][Z1*100+Z2][interFlag][0] += Prob;
 	  Italy[id][Z1*100+Z2][interFlag][1] += dE * Escl;
 	  Italy[id][Z1*100+Z2][interFlag][2] += tK;
 	}
       }
       
       if (PE[2][0]>0.0) {
-	ctd2->dv[id][0] += TProb;
-	ctd2->dv[id][1] += PP[2]->W2 * TProb;
-	if (not NOCOOL) ctd2->dv[id][2] += PP[2]->W2 * PE[2][1];
+	ctd->dv[id][0] += Prob;
+	ctd->dv[id][1] += PP[2]->W2 * Prob;
+	if (not NOCOOL) ctd->dv[id][2] += PP[2]->W2 * PE[2][1];
 	if (scatter_check) {
 	  double m1 = atomic_weights[0];
 	  double m2 = atomic_weights[Z2];
@@ -10744,7 +10724,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 	  tK *= 0.5*PP[2]->W1*PP[2]->q*mu;
 
-	  Italy[id][Z1*100+Z2][interFlag][0] += TProb;
+	  Italy[id][Z1*100+Z2][interFlag][0] += Prob;
 	  Italy[id][Z1*100+Z2][interFlag][1] += dE * Escl;
 	  Italy[id][Z1*100+Z2][interFlag][2] += tK;
 	}
@@ -10796,9 +10776,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
   // Convert energy loss from eV to system units
   //
-  for (auto & v : PE)    v[1] *= eV / UserTreeDSMC::Eunit;
-  for (auto & v : ionExtra) v *= eV / UserTreeDSMC::Eunit;
-  for (auto & v : rcbExtra) v *= eV / UserTreeDSMC::Eunit;
+  for (auto & v : PE) v[1] *= eV / UserTreeDSMC::Eunit;
 
   // Work vectors
   //
@@ -10899,13 +10877,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       KE.delE  = PE[0][2];
       
       collD->addLost(KE.delE0, 0.0, id);
+      dfrE[id] += KE.delE0;	// TRACE
       
       scatterTrace(PP[0], KE, &v1, &v2, id);
 
       // Time-step computation
       //
       if (use_delt>=0) {	  
-	spEdel[id] += KE.delE0; // TRACE
+	spEdel[id] += KE.delE0;
 	if (KE.delE0>0.0)
 	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE0);
       }
@@ -10928,8 +10907,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       testKE[id][3] += PE[0][1];
       testKE[id][4] += PE[0][1];
       
-      dfrE[id] += KE.defer;
-
       if (KE_DEBUG) {
 
 	double KE_final_check = energyInPair(p1, p2);
@@ -11024,13 +11001,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       KE.delE  = PE[1][2];
       
       collD->addLost(KE.delE0, rcbExtra[0] - ionExtra[0], id);
+      dfrE[id] += KE.delE0;	// TRACE
 	
       scatterTrace(PP[1], KE, &v1, &v2, id);
 
       // Time-step computation
       //
       if (use_delt>=0) {	  
-	spEdel[id] += KE.delE0; // TRACE
+	spEdel[id] += KE.delE0;
 	if (KE.delE0>0.0)
 	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE0);
       }
@@ -11053,8 +11031,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       testKE[id][3] += PE[1][1] - ionExtra[0] + rcbExtra[0];
       testKE[id][4] += PE[1][1];
       
-      dfrE[id] += KE.defer;
-
       if (KE_DEBUG) {
 
 	double ke1f = 0.0, ke2f = 0.0;
@@ -11195,13 +11171,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       KE.delE  = PE[2][2];
       
       collD->addLost(KE.delE0, rcbExtra[1] - ionExtra[1], id);
+      dfrE[id] += KE.delE0;	// TRACE
       
       scatterTrace(PP[2], KE, &v1, &v2, id);
 
       // Time-step computation
       //
       if (use_delt>=0) {	  
-	spEdel[id] += KE.delE0; // TRACE
+	spEdel[id] += KE.delE0;
 	if (KE.delE0 > 0.0)
 	  spEmax[id]  = std::min<double>(spEmax[id], KE.kE/KE.delE0);
       }
@@ -11223,8 +11200,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
       testKE[id][3] += PE[2][1] - ionExtra[1] + rcbExtra[1];
       testKE[id][4] += PE[2][1];
-
-      dfrE[id] += KE.defer;
 
       if (KE_DEBUG) {
 
@@ -12163,20 +12138,6 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 {
   if (mlev==0) {		// Add electronic potential energy
     collD->addCellPotl(cell, id);
-  }
-
-  //======================================================================
-  // DEBUG TRACE ECONS
-  //======================================================================
-  //
-
-  double EconsI = 0.0, EconsF = 0.0;
-
-  if (DEBUG_ECONS and use_cons>=0) {
-    for (auto b : cell->bods) {
-      EconsI += tree->Body(b)->dattrib[use_cons];
-      if (use_elec) EconsI += tree->Body(b)->dattrib[use_elec+3];
-    }
   }
 
   //======================================================================
@@ -13269,7 +13230,8 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   }
 				// Add cell energy to diagnostic
 				// handler.  Only do this at top level
-				// time step
+				// time step since these values are
+				// not cumulative
   if (mlev==0) {
     if (1) {			// Alternative KE comptuation
       KEtot = 0.0;
@@ -13283,18 +13245,19 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     } else {
       collD->addCell(KEtot*massC, id);
     }
-				// Cleared excess energy tally
-    collD->addCellEdiag(clrE[id], misE[id], dfrE[id], updE[id],
-			Ncol[id], Nmis[id], id);
 				// Add electron stats to diagnostic
 				// handler
     KEdspE = collD->addCellElec(cell, use_elec, id);
-
-				// Add electronic potential energy
-    // collD->addCellPotl(cell, id);
   } else {
     KEdspE = computeEdsp(cell).second;
   }
+
+  // Per cell energy diagnostics that are reset on every cell update
+  // call.  Each of these (clrE, misE, dfrE, updE, Ncol, Nmis) will
+  // be zeroed by initialize_cell()
+  //
+  collD->addCellEdiag(clrE[id], misE[id], dfrE[id], updE[id],
+		      Ncol[id], Nmis[id], id);
 
   //======================================================================
   // Assign cooling time steps
@@ -13318,20 +13281,6 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     spEmax[id] = DBL_MAX;
 
     for (auto i : cell->bods) cell->Body(i)->dattrib[use_delt] = dtE;
-  }
-
-  //======================================================================
-  // DEBUG TRACE ECONS
-  //======================================================================
-  //
-
-  if (DEBUG_ECONS and use_cons>=0) {
-    for (auto b : cell->bods) {
-      EconsF += tree->Body(b)->dattrib[use_cons];
-      if (use_elec) EconsF += tree->Body(b)->dattrib[use_elec+3];
-    }
-
-    assert(EconsI==EconsF);
   }
 
   //======================================================================
@@ -13986,7 +13935,7 @@ void collDiag::print()
 	  << std::setw(12) << Nmis_s
 	  << std::setw(12) << Edsp_s
 	  << std::setw(12) << (Emas_s>0.0 ? Efrc_s/Emas_s : 0.0)
-	  << std::setw(12) << Etot_c + Esum_s + Elec_s - delI_s - delE_s
+	  << std::setw(12) << Etot_c + Ktot_c + Esum_s + Elec_s - delI_s - delE_s
 	  << " |" << std::endl;
     }
   }
