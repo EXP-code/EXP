@@ -86,7 +86,7 @@ std::vector<unsigned> pHOT::qtile;
 // Use computed effort per particle in domain decomposition (default: true)
 bool pHOT::use_weight     = false; // Testing
 
-double   pHOT::hystrs  = 0.25;
+double   pHOT::hystrs  = 0.5;
 
 void pHOT::qtile_initialize()
 {
@@ -2092,10 +2092,15 @@ void pHOT::Repartition(unsigned mlevel)
       oob.insert(it->first);
     } else {
       if (use_weight) {
+	// Floor effort flag to prevent divide-by-zero
+	it->second.effort =
+	  std::max<double>(Particle::effort_default, it->second.effort);
+
+	// Push onto vector
 	keys.push_back(key_wght(it->second.key, it->second.effort));
+
 	// Reset effort value with some hysteresis
-	it->second.effort = 
-	  hystrs*(1.0 - hystrs)*it->second.effort + Particle::effort_default;
+	it->second.effort = hystrs*(1.0 - hystrs)*it->second.effort;
 
       } else {
 	keys.push_back(key_wght(it->second.key, 1.0));
