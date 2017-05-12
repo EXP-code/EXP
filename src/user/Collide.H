@@ -570,7 +570,7 @@ public:
       @param force is the caller
       @param comp is the fiducial component
       @param hsdiam is the hard-sphere diameter in Bohr units
-      @param crossfac is the cross-section scaling
+      @param crossfac is the cross-section scaling for elastic scattering
   */
   Collide(ExternalForce *force, Component *comp, 
 	  double hsdiam, double crossfac, int nth=1);
