@@ -34,7 +34,7 @@ static bool levelst_debug = false;
 //
 // Version string for log file stamping
 //
-const std::string UserTreeDSMC::version = "0.28 [04/14/17 trace test]";
+const std::string UserTreeDSMC::version = "0.29 [05/11/17 trace trial]";
 
 //
 // Simulation units
@@ -1706,7 +1706,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     //
     (*barrier)("TreeDSMC: BEFORE collide counters", __FILE__, __LINE__);
     collide->resetColls();
-    (*barrier)("TreeDSMC: AFTER collide counters", __FILE__, __LINE__);
+    (*barrier)("TreeDSMC: AFTER collide counters",  __FILE__, __LINE__);
     
     //
     // Reset the timers
