@@ -1167,7 +1167,7 @@ void InitializeSpeciesTrace
 int main (int ac, char **av)
 {
   Itype type = Direct;
-  double D, L, temp;
+  double D, L;
   std::string config;
   std::string oname;
   unsigned seed;
@@ -1186,8 +1186,6 @@ int main (int ac, char **av)
     ("electrons",       "set up for weighted or hybrid species with electrons")
     ("CHIANTI,C",	po::value<bool>(&use_chianti)->default_value(false),
      "use CHIANTI to set recombination-ionization equilibrium")
-    ("temp,T",		po::value<double>(&temp)->default_value(25000.0),
-     "set the temperature in K")
     ("dens,D",		po::value<double>(&D)->default_value(1.0),
      "density in particles per cc")
     ("length,L",	po::value<double>(&L)->default_value(1.0),
@@ -1198,9 +1196,9 @@ int main (int ac, char **av)
      "random number seed")
     ("Lunit,l",		po::value<double>(&Lunit)->default_value(1.0),
      "length scale of the system in pc")
-    ("Tunit,t",		po::value<double>(&Tunit)->default_value(1.0e5),
+    ("Tunit,t",		po::value<double>(&Tunit)->default_value(1.0e3),
      "time scale in years")
-    ("Munit,m",		po::value<double>(&Munit)->default_value(0.1),
+    ("Munit,m",		po::value<double>(&Munit)->default_value(1.0),
      "mass scale in solar masses")
     ("num-int,i",	po::value<int>(&ni)->default_value(2),
      "number of integer attributes")
@@ -1227,7 +1225,8 @@ int main (int ac, char **av)
     std::cout << desc << std::endl;
     std::cout << "Example: " << std::endl;
     std::cout << "\t" << av[0]
-	      << " --temp=25000 --number=250000 --output=out.bod" << std::endl;
+	      << "--length=0.0001 --number=1000 --dens=0.01 --electrons -c trace.config --output=out.bod"
+<< std::endl;
     return 1;
   }
   
@@ -1364,7 +1363,7 @@ int main (int ac, char **av)
     InitializeSpeciesWeight(particles, sZ, sF, sI, Mass, T, ne, ni, nd);
     break;
   case Trace:
-    InitializeSpeciesTrace (particles, sZ, sF, Mass, temp, ne, ni, nd);
+    InitializeSpeciesTrace (particles, sZ, sF, Mass, T[0], ne, ni, nd);
     // Compute molecular weight
     molW = 0.0;
     for (size_t k=0; k<sZ.size(); k++) molW += sF[k]/atomic_masses[sZ[k]];
