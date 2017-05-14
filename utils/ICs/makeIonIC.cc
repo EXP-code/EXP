@@ -1167,7 +1167,7 @@ void InitializeSpeciesTrace
 int main (int ac, char **av)
 {
   Itype type = Direct;
-  double D, L;
+  double D, L, Temp;
   std::string config;
   std::string oname;
   unsigned seed;
@@ -1188,6 +1188,8 @@ int main (int ac, char **av)
      "use CHIANTI to set recombination-ionization equilibrium")
     ("dens,D",		po::value<double>(&D)->default_value(1.0),
      "density in particles per cc")
+    ("temp,T",		po::value<double>(&Temp)->default_value(-1.0),
+     "override config file temperature for Trace, if >0")
     ("length,L",	po::value<double>(&L)->default_value(1.0),
      "length in system units")
     ("number,N",	po::value<int>(&npart)->default_value(250000),
@@ -1306,6 +1308,7 @@ int main (int ac, char **av)
 
     if (type==Trace) {
       T[0] = iroot.get("temp", 100000.0);
+      if (Temp > 0.0) T[0] = Temp;
     }
 
     for (pt::ptree::value_type &row : iroot.get_child("elements")) {
