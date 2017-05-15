@@ -468,7 +468,7 @@ private:
   typedef Icont<std::map, unsigned short, double>    TypeMap0;
   typedef Icont<std::map, unsigned, std::array<unsigned, 3> >
                                                      TypeMap1;
-  typedef Icont<std::map, unsigned, std::array<double, 3> >
+  typedef Icont<std::map, unsigned, std::array<double, 4> >
                                                      TypeMap2;
   typedef Icont<std::map, speciesKey, double>        keyWghts;
   typedef std::pair< std::array<double, 3>,
@@ -568,7 +568,7 @@ private:
   std::vector<double> elecV, ionV;
   const size_t bufCap = 16384;
   std::vector< boost::circular_buffer<double> > velER, keER, keIR, momD, crsD;
-  ahistoDPtr elecT, elecH, ionsT, ionH, lossH, keEH, keIH, momH, crsH, Ecoll;
+  ahistoDPtr elecT, elecH, ionsT, ionET, ionH, lossH, keEH, keIH, momH, crsH, Ecoll;
   std::map<unsigned short, ahistoDPtr> elecZH, ionZH;
   unsigned Ovr_s, Acc_s, Tot_s, CntE;
   double RhoE, Rho2;

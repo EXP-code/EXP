@@ -308,10 +308,10 @@ template<> arrayU3 Icont<std::map, unsigned, arrayU3>::Default()
   return {0, 0, 0};
 }
 
-typedef std::array<double, 3> arrayD3;
-template<> arrayD3 Icont<std::map, unsigned, arrayD3>::Default()
+typedef std::array<double, 4> arrayD4;
+template<> arrayD4 Icont<std::map, unsigned, arrayD4>::Default()
 {
-  return {0, 0, 0};
+  return {0, 0, 0, 0};
 }
 
 // Define reference add operator for std::pair
@@ -10688,6 +10688,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  Italy[id][Z1*100+Z2][interFlag][0] += Prob;
 	  Italy[id][Z1*100+Z2][interFlag][1] += dE * Escl;
 	  Italy[id][Z1*100+Z2][interFlag][2] += tK;
+	  Italy[id][Z1*100+Z2][interFlag][3] += 1;
 	}
       }
       
@@ -10706,6 +10707,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  Italy[id][Z1*100+Z2][interFlag][0] += Prob;
 	  Italy[id][Z1*100+Z2][interFlag][1] += dE * Escl;
 	  Italy[id][Z1*100+Z2][interFlag][2] += tK;
+	  Italy[id][Z1*100+Z2][interFlag][3] += 1;
 	}
       }
       
@@ -10727,6 +10729,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  Italy[id][Z1*100+Z2][interFlag][0] += Prob;
 	  Italy[id][Z1*100+Z2][interFlag][1] += dE * Escl;
 	  Italy[id][Z1*100+Z2][interFlag][2] += tK;
+	  Italy[id][Z1*100+Z2][interFlag][3] += 1;
 	}
       }
       
@@ -16483,7 +16486,7 @@ void CollideIon::gatherSpecies()
       for (auto v : TotlD[t]) totd[v.first] += v.second;
       for (auto v : Italy[t]) {
 	for (auto u : v.second) {
-	  for (size_t k=0; k<3; k++)
+	  for (size_t k=0; k<4; k++)
 	    taly[v.first][u.first][k] += u.second[k];
 	}
       }
@@ -16501,7 +16504,7 @@ void CollideIon::gatherSpecies()
     for (int i=1; i<numprocs; i++) {
       unsigned numZ, numU, ZZ, UU, NN;
       arrayU3 AA;
-      arrayD3 FF;
+      arrayD4 FF;
       double  DD;
 
       if (myid==i) {
@@ -16524,7 +16527,7 @@ void CollideIon::gatherSpecies()
 	  MPI_Send(&numU,              1, MPI_UNSIGNED, 0, 562, MPI_COMM_WORLD);
 	  for (auto u : v.second) {
 	    MPI_Send(&(UU=u.first),    1, MPI_UNSIGNED, 0, 563, MPI_COMM_WORLD);
-	    MPI_Send(&u.second[0],     3, MPI_DOUBLE,   0, 564, MPI_COMM_WORLD);
+	    MPI_Send(&u.second[0],     4, MPI_DOUBLE,   0, 564, MPI_COMM_WORLD);
 	  }
 	}
 
@@ -16578,8 +16581,8 @@ void CollideIon::gatherSpecies()
 	  MPI_Recv(&numU, 1, MPI_UNSIGNED, i, 562, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  for (unsigned u=0; u<numU; u++) {
 	    MPI_Recv(&UU, 1, MPI_UNSIGNED, i, 563, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	    MPI_Recv(&FF, 3, MPI_DOUBLE,   i, 564, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	    for (size_t k=0; k<3; k++) taly[ZZ][UU][k] += FF[k];
+	    MPI_Recv(&FF, 4, MPI_DOUBLE,   i, 564, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    for (size_t k=0; k<4; k++) taly[ZZ][UU][k] += FF[k];
 	  }
 	}
 
@@ -16593,7 +16596,7 @@ void CollideIon::gatherSpecies()
 	MPI_Recv(&numZ, 1, MPI_UNSIGNED, i, 569, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	for (unsigned z=0; z<numZ; z++) {
 	  MPI_Recv(&ZZ,    1, MPI_UNSIGNED, i, 570, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  MPI_Recv(&FF[0], 3, MPI_DOUBLE,   i, 571, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&FF[0], 4, MPI_DOUBLE,   i, 571, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  totd[ZZ] += FF;
 	}
 
@@ -16718,11 +16721,13 @@ void CollideIon::gatherSpecies()
 	std::cout << std::endl;
       }
 
-      std::cout << std::string(4+4+20+4+14+14+10, '-') << std::endl << std::endl
+      std::cout << std::string(4+4+20+4+10+14+14+10, '-') << std::endl
+		<< std::endl
 		<< std::setw( 4) << "Z1"
 		<< std::setw( 4) << "Z2"
 		<< std::setw(20) << "Type"
 		<< std::setw( 4) << "#"
+		<< std::setw(14) << "Count"
 		<< std::setw(14) << "Prob"
 		<< std::setw(14) << "Frac"
 		<< std::setw(14) << "Energy"
@@ -16738,10 +16743,11 @@ void CollideIon::gatherSpecies()
 		<< std::setw(14) << "--------"
 		<< std::setw(14) << "--------"
 		<< std::setw(14) << "--------"
+		<< std::setw(14) << "--------"
 		<< std::endl     << std::setprecision(5);
 
 
-      double dSum = 0.0, uSum = 0.0, dTot = 0.0;
+      double dSum = 0.0, uSum = 0.0, dTot = 0.0, nSum = 0.0;
 
       for (auto v : taly) {
 	if (v.second.size()) {
@@ -16750,6 +16756,8 @@ void CollideIon::gatherSpecies()
 	  }
 	}
       }
+
+      std::map<unsigned, double> byType;
 
       for (auto v : taly) {
 	if (v.second.size()) {
@@ -16762,6 +16770,7 @@ void CollideIon::gatherSpecies()
 			<< std::setw( 4) << Z2
 			<< std::setw(20) << interLabels[u.first]
 			<< std::setw( 4) << u.first
+			<< std::setw(14) << u.second[3]
 			<< std::setw(14) << u.second[0]
 			<< std::setw(14) << u.second[0]/dTot
 			<< std::setw(14) << u.second[1]
@@ -16771,6 +16780,7 @@ void CollideIon::gatherSpecies()
 	    } else {
 	      std::cout << std::setw(28) << interLabels[u.first]
 			<< std::setw( 4) << u.first
+			<< std::setw(14) << u.second[3]
 			<< std::setw(14) << u.second[0]
 			<< std::setw(14) << u.second[0]/dTot
 			<< std::setw(14) << u.second[1]
@@ -16779,12 +16789,22 @@ void CollideIon::gatherSpecies()
 	    }
 	    dSum += u.second[1];
 	    uSum += u.second[2];
+	    nSum += u.second[3];
+
+	    if (dTot>0.0) {
+	      if (byType.find(u.first) == byType.end())
+		byType[u.first]  = u.second[0]/dTot;
+	      else
+		byType[u.first] += u.second[0]/dTot;
+	    }
 	  }
 	}
       }
-      std::cout << std::string(4+4+20+4+5*14, '-') << std::endl;
+
+      std::cout << std::string(4+4+20+4+6*14, '-') << std::endl;
       std::cout << std::setw(8)    << "Totals"
 		<< std::setw(24)   << ' '
+		<< std::setw(14)   << nSum
 		<< std::setw(14)   << dTot
 		<< std::setw(14)   << 1.0
 		<< std::setw(14)   << dSum;
@@ -16794,7 +16814,27 @@ void CollideIon::gatherSpecies()
       else
 	std::cout << std::setw(14) << dSum
 		  << std::setw(14) << 0.0  << std::endl;
-      std::cout << std::string(4+4+20+4+5*14, '-') << std::endl;
+      std::cout << std::string(4+4+20+4+6*14, '-') << std::endl;
+
+      if (byType.size() > 0) {
+	std::cout << std::endl
+		  << std::string(20+14, '-' ) << std::endl
+		  << std::setw(20) << "Type"
+		  << std::setw(14) << "Sum"
+		  << std::endl
+		  << std::setw(20) << "------"
+		  << std::setw(14) << "------"
+		  << std::endl;
+	double sumTotal = 0.0;
+	for (auto u : byType) {
+	  std::cout << std::setw(20) << interLabels[u.first]
+		    << std::setw(14) << u.second << std::endl;
+	  sumTotal += u.second;
+	}
+	std::cout << std::string(20+14, '-' ) << std::endl
+		  << std::setw(20) << "Total"
+		  << std::setw(14) << sumTotal << std::endl << std::endl;
+      }
 
       // Prevent divide by zero
       double Ebot = Etots[2]!=0.0 ? Etots[2] : 1.0;
@@ -16933,7 +16973,7 @@ void CollideIon::electronGather()
 
   if (use_elec >= 0) {
 
-    std::vector<double> eEeV, eIeV, eVel, iVel;
+    std::vector<double> eEeV, eIeV, eJeV, eVel, iVel;
     std::map<unsigned short, std::vector<double> > eEeVsp, eIeVsp;
 
     // Interate through all cells
@@ -16945,25 +16985,38 @@ void CollideIon::electronGather()
     while (itree.nextCell()) {
 
       for (auto b : itree.Cell()->bods) {
-	double cri = 0.0, cre = 0.0;
+	double cri = 0.0, cre = 0.0, crj = 0.0;
 	Particle* p = c0->Tree()->Body(b);
 	for (int l=0; l<3; l++) {
 	  double ve = p->dattrib[use_elec+l];
 	  cre += ve*ve;
 	  double vi = p->vel[l];
 	  cri += vi*vi;
+	  crj += (vi - ve)*(vi - ve);
 	}
 
 	unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
 	double mi        = atomic_weights[Z] * amu;
+
+	if (aType==Trace) { // Compute molecular weight for Trace-type
+	  mi = 0.0;	    // particle
+	  for (auto s : SpList)
+	    mi += p->dattrib[s.second] / atomic_weights[s.first.first];
+	  mi = amu/mi;
+	}
+
+	double mu = mi*me/(mi + me);
+
 	double Ee        = 0.5*cre*me*UserTreeDSMC::Vunit*UserTreeDSMC::Vunit/eV;
 	double Ei        = 0.5*cri*mi*UserTreeDSMC::Vunit*UserTreeDSMC::Vunit/eV;
+	double Ej        = 0.5*crj*mu*UserTreeDSMC::Vunit*UserTreeDSMC::Vunit/eV;
 
 	eEeVsp[Z].push_back(Ee);
 	eIeVsp[Z].push_back(Ei);
 
 	eEeV.push_back(Ee);
 	eIeV.push_back(Ei);
+	eJeV.push_back(Ej);
 	eVel.push_back(sqrt(cre));
 	iVel.push_back(sqrt(cri));
       }
@@ -17351,11 +17404,12 @@ void CollideIon::electronGather()
 	if (eNum) {
 	  MPI_Send(&eEeV[0], eNum, MPI_DOUBLE, 0, 434, MPI_COMM_WORLD);
 	  MPI_Send(&eIeV[0], eNum, MPI_DOUBLE, 0, 435, MPI_COMM_WORLD);
+	  MPI_Send(&eJeV[0], eNum, MPI_DOUBLE, 0, 623, MPI_COMM_WORLD);
 	  MPI_Send(&eVel[0], eNum, MPI_DOUBLE, 0, 436, MPI_COMM_WORLD);
 	  MPI_Send(&iVel[0], eNum, MPI_DOUBLE, 0, 437, MPI_COMM_WORLD);
 	}
 
-	if (IDBG) dbg << " ... eEeV, eIeV, eVel and iVel sent" << std::endl;
+	if (IDBG) dbg << " ... eEeV, eIeV, eJeV, eVel and iVel sent" << std::endl;
 
 	MPI_Send(&(eNum=loss.size()), 1, MPI_UNSIGNED, 0, 438, MPI_COMM_WORLD);
 
@@ -17453,6 +17507,11 @@ void CollideIon::electronGather()
 	  eIeV.insert(eIeV.begin(), vTmp.begin(), vTmp.end());
 
 	  if (IDBG) dbg << " ... eIeV recvd";
+
+	  MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE, i, 623, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  eJeV.insert(eJeV.begin(), vTmp.begin(), vTmp.end());
+
+	  if (IDBG) dbg << " ... eJeV recvd";
 
 	  MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE, i, 436, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  eVel.insert(eVel.begin(), vTmp.begin(), vTmp.end());
@@ -17628,6 +17687,7 @@ void CollideIon::electronGather()
 	// Make the histograms
 	elecT = ahistoDPtr(new AsciiHisto<double>(eEeV, 20, 0.01));
 	ionsT = ahistoDPtr(new AsciiHisto<double>(eIeV, 20, 0.01));
+	ionET = ahistoDPtr(new AsciiHisto<double>(eJeV, 20, 0.01));
 	elecH = ahistoDPtr(new AsciiHisto<double>(eVel, 20, 0.01));
 	ionH  = ahistoDPtr(new AsciiHisto<double>(iVel, 20, 0.01));
 
@@ -17773,6 +17833,14 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< "-----Ion energy (in eV) distribution-----------------" << std::endl
 	<< std::string(53, '-')  << std::endl;
     (*ionsT)(out);
+  }
+
+  if (ionET.get()) {
+    out << std::endl
+	<< std::string(53, '-')  << std::endl
+	<< "-----Ion-electron energy (in eV) distribution--------" << std::endl
+	<< std::string(53, '-')  << std::endl;
+    (*ionET)(out);
   }
 
   for (auto v : elecZH) {
@@ -18517,7 +18585,7 @@ void CollideIon::processConfig()
       cfg.entry<unsigned>("collTnum", "Target number of accepted collisions per cell for assigning time step", UINT_MAX);
 
     distDiag =
-      cfg.entry<bool>("distDiag", "Report binned histogram for electron velocities", false);
+      cfg.entry<bool>("distDiag", "Report binned histogram for particle energies", false);
 
     elecDist =
       cfg.entry<bool>("elecDist", "Additional detailed histograms for electron velocities", false);
@@ -18542,6 +18610,9 @@ void CollideIon::processConfig()
 
     DBG_NewTest =
       cfg.entry<bool>("DBG_TEST", "Verbose debugging of energy conservation", false);
+
+    scatter_check =
+      cfg.entry<bool>("scatterCheck", "Print interaction channel diagnostics", false);
 
     NO_ION_ION =
       cfg.entry<bool>("NO_ION_ION", "Artificially suppress the ion-ion scattering in the Hybrid method", false);
