@@ -1308,7 +1308,6 @@ int main (int ac, char **av)
 
     if (type==Trace) {
       T[0] = iroot.get("temp", 100000.0);
-      if (Temp > 0.0) T[0] = Temp;
     }
 
     for (pt::ptree::value_type &row : iroot.get_child("elements")) {
@@ -1366,7 +1365,10 @@ int main (int ac, char **av)
     InitializeSpeciesWeight(particles, sZ, sF, sI, Mass, T, ne, ni, nd);
     break;
   case Trace:
-    InitializeSpeciesTrace (particles, sZ, sF, Mass, T[0], ne, ni, nd);
+    if (Temp>0.0)
+      InitializeSpeciesTrace (particles, sZ, sF, Mass, Temp, ne, ni, nd);
+    else
+      InitializeSpeciesTrace (particles, sZ, sF, Mass, T[0], ne, ni, nd);
     // Compute molecular weight
     molW = 0.0;
     for (size_t k=0; k<sZ.size(); k++) molW += sF[k]/atomic_masses[sZ[k]];
