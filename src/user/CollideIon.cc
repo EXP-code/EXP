@@ -16757,7 +16757,7 @@ void CollideIon::gatherSpecies()
 	}
       }
 
-      std::map<unsigned, double> byType;
+      std::map<unsigned, std::array<double, 2> > byType;
 
       for (auto v : taly) {
 	if (v.second.size()) {
@@ -16792,10 +16792,14 @@ void CollideIon::gatherSpecies()
 	    nSum += u.second[3];
 
 	    if (dTot>0.0) {
-	      if (byType.find(u.first) == byType.end())
-		byType[u.first]  = u.second[0]/dTot;
-	      else
-		byType[u.first] += u.second[0]/dTot;
+	      if (byType.find(u.first) == byType.end()) {
+		byType[u.first][0]  = u.second[0];
+		byType[u.first][1]  = u.second[1];
+	      }
+	      else {
+		byType[u.first][0] += u.second[0];
+		byType[u.first][1] += u.second[1];
+	      }
 	    }
 	  }
 	}
@@ -16817,23 +16821,39 @@ void CollideIon::gatherSpecies()
       std::cout << std::string(4+4+20+4+6*14, '-') << std::endl;
 
       if (byType.size() > 0) {
+	std::array<double, 2> bSum;
+	for (auto v : byType) {
+	  for (size_t i=0; i<bSum.size(); i++)  bSum[i] += v.second[i];
+	}
+	for (auto & v : bSum) {
+	  if (v == 0.0) v = 1.0e-18;
+	}
+
 	std::cout << std::endl
-		  << std::string(20+14, '-' ) << std::endl
+		  << std::string(20+3*14, '-' ) << std::endl
 		  << std::setw(20) << "Type"
 		  << std::setw(14) << "Sum"
+		  << std::setw(14) << "Energy"
+		  << std::setw(14) << "Delta E"
 		  << std::endl
 		  << std::setw(20) << "------"
 		  << std::setw(14) << "------"
+		  << std::setw(14) << "------"
+		  << std::setw(14) << "------"
 		  << std::endl;
-	double sumTotal = 0.0;
+
 	for (auto u : byType) {
 	  std::cout << std::setw(20) << interLabels[u.first]
-		    << std::setw(14) << u.second << std::endl;
-	  sumTotal += u.second;
+		    << std::setw(14) << u.second[0]/bSum[0]
+		    << std::setw(14) << u.second[1]
+		    << std::setw(14) << u.second[1]/bSum[1]
+		    << std::endl;
 	}
-	std::cout << std::string(20+14, '-' ) << std::endl
+	std::cout << std::string(20+3*14, '-' ) << std::endl
 		  << std::setw(20) << "Total"
-		  << std::setw(14) << sumTotal << std::endl << std::endl;
+		  << std::setw(14) << bSum[0]
+		  << std::setw(14) << bSum[1]
+		  << std::setw(14) << 1.0       << std::endl << std::endl;
       }
 
       // Prevent divide by zero
