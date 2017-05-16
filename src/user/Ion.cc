@@ -977,8 +977,7 @@ double Ion::directIonCross(double E, int id)
 	}
 
 	double btcross = (*sp)(bte);
-	double a = 1.0 - diSpline[i].btf + exp(log(diSpline[i].btf)/(1.0 - bte));
-	double cross_i = (log(a) + 1.0)*btcross/(a*diSpline[i].ev*diSpline[i].ev);
+	double cross_i = (log(u1) + 1.0)*btcross/(u1*diSpline[i].ev*diSpline[i].ev);
 				// convert to cross section in nm^2
 	cross += cross_i;
       }
