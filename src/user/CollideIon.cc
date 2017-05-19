@@ -2360,7 +2360,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	Cross += crs * eVel * meanE[id];
 	if (coulScale) {
 	  coulCrs[id][k.second - 1][0] = crs;
-	  coulCrs[id][k.second - 1][1] = Eerg * mu;
+	  coulCrs[id][k.second - 1][1] = EeV * mu;
 	}
       }
 
