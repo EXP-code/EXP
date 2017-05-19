@@ -470,6 +470,8 @@ private:
                                                      TypeMap1;
   typedef Icont<std::map, unsigned, std::array<double, 4> >
                                                      TypeMap2;
+  typedef Icont<std::map, unsigned short, std::array<double, 2> >
+                                                     TypeMap3;
   typedef Icont<std::map, speciesKey, double>        keyWghts;
   typedef std::pair< std::array<double, 3>,
 		     std::array<double, 3> >         CVels;
@@ -506,7 +508,7 @@ private:
   std::vector< TypeMap1 >                            TotlU;
   std::vector< TypeMap2 >                            TotlD;
   std::vector< std::map<int, TypeMap2 > >            Italy;
-  std::vector< std::map<unsigned char, double> >     coulCrs;
+  std::vector< TypeMap3 >                            coulCrs;
   std::vector< std::array<double, 3> >               Ediag, Vdiag;
   std::vector< std::array<double, 5> >               testKE;
   std::vector< CVels >                               cVels;
@@ -718,9 +720,13 @@ public:
   //! Hybrid method (default: false)
   static bool enforceMOM;
 
-  //! Use velocity independent scattering cross section in Trace method
+  //! Use effective Coulombic scattering cross section in Trace method
   //! (default: false)
-  static bool coulNoVel;
+  static bool coulScale;
+
+  //! Power scaling for Coulombic scattering cross section in Trace method
+  //! (default: 2.0)
+  static double coulPow;
 
 protected:
 

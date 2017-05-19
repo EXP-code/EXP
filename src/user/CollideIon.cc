@@ -46,7 +46,8 @@ bool     CollideIon::distDiag   = false;
 bool     CollideIon::elecDist   = false;
 bool     CollideIon::ntcDist    = false;
 bool     CollideIon::enforceMOM = false;
-bool     CollideIon::coulNoVel  = false;
+bool     CollideIon::coulScale  = false;
+double   CollideIon::coulPow    = 2.0;
 unsigned CollideIon::esNum      = 100;
 double   CollideIon::esThr      = 0.0;
 double   CollideIon::ESthresh   = 1.0e-10;
@@ -309,11 +310,18 @@ template<> arrayU3 Icont<std::map, unsigned, arrayU3>::Default()
   return {0, 0, 0};
 }
 
+typedef std::array<double, 2> arrayD2;
+template<> arrayD2 Icont<std::map, unsigned short, arrayD2>::Default()
+{
+  return {0, 1};
+}
+
 typedef std::array<double, 4> arrayD4;
 template<> arrayD4 Icont<std::map, unsigned, arrayD4>::Default()
 {
   return {0, 0, 0, 0};
 }
+
 
 // Define reference add operator for std::pair
 //
@@ -531,8 +539,10 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (elc_cons ? "on" : "off" )            << std::endl
 	      <<  " " << std::setw(20) << std::left << "enforceMOM"
 	      << (enforceMOM ? "on" : "off" )           << std::endl
-	      <<  " " << std::setw(20) << std::left << "coulNoVel"
-	      << (coulNoVel ? "on" : "off" )            << std::endl
+	      <<  " " << std::setw(20) << std::left << "coulScale"
+	      << (coulScale ? "on" : "off" )            << std::endl
+	      <<  " " << std::setw(20) << std::left << "coulPow"
+	      << coulPow                                << std::endl
 	      <<  " " << std::setw(20) << std::left << "use_cons"
 	      << use_cons                               << std::endl
 	      <<  " " << std::setw(20) << std::left << "MFPtype"
@@ -2348,7 +2358,10 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	double crs = M_PI*b*b * mfac;
 
 	Cross += crs * eVel * meanE[id];
-	if (coulNoVel) coulCrs[id][k.second - 1] = crs;
+	if (coulScale) {
+	  coulCrs[id][k.second - 1][0] = crs;
+	  coulCrs[id][k.second - 1][1] = Eerg * mu;
+	}
       }
 
       double tCross = Cross * crossfac * 1e-14 /
@@ -4305,8 +4318,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       {
 	double crs = 0.0;
 
-	if (coulNoVel) {
-	  crs = coulCrs[id][P] *
+	if (coulScale) {
+	  crs = coulCrs[id][P][0] * pow(kEe1[id]/coulCrs[id][P][1], coulPow) *
 	    eVel2 * eta2 * crossfac * cscl_[Z] * fac1;
 	} else {
 
@@ -4333,8 +4346,9 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       {
 	double crs = 0.0;
 
-	if (coulNoVel) {
-	  crs = coulCrs[id][P] * eVel1 * eta1 * crossfac * cscl_[Z] * fac2;
+	if (coulScale) {
+	  crs = coulCrs[id][P][0] * pow(kEe2[id]/coulCrs[id][P][1], coulPow) *
+	    eVel1 * eta1 * crossfac * cscl_[Z] * fac2;
 	} else {
 	
 	  double b = 0.5*esu*esu*P /
@@ -18644,8 +18658,11 @@ void CollideIon::processConfig()
     enforceMOM =
       cfg.entry<bool>("enforceMOM", "Enforce momentum conservation per cell (for ExactE and Hybrid)", false);
 
-    coulNoVel =
-      cfg.entry<bool>("coulNoVel", "Use velocity independent 'effective' ion-electron scattering cross section", false);
+    coulScale =
+      cfg.entry<bool>("coulScale", "Use 'effective' ion-electron scattering cross section", false);
+
+    coulPow =
+      cfg.entry<double>("coulPow", "Energy power scaling for 'effective' ion-electron scattering cross section", false);
 
     elc_cons =
       cfg.entry<bool>("ElcCons", "Use separate electron conservation of energy collection", true);
