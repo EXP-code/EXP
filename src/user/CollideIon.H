@@ -506,6 +506,7 @@ private:
   std::vector< TypeMap1 >                            TotlU;
   std::vector< TypeMap2 >                            TotlD;
   std::vector< std::map<int, TypeMap2 > >            Italy;
+  std::vector< std::map<unsigned char, double> >     coulCrs;
   std::vector< std::array<double, 3> >               Ediag, Vdiag;
   std::vector< std::array<double, 5> >               testKE;
   std::vector< CVels >                               cVels;
@@ -716,6 +717,10 @@ public:
   //! Enforce momentum conservation in each cell when using ExactE and
   //! Hybrid method (default: false)
   static bool enforceMOM;
+
+  //! Use velocity independent scattering cross section in Trace method
+  //! (default: false)
+  static bool coulNoVel;
 
 protected:
 

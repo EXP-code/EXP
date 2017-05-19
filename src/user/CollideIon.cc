@@ -46,6 +46,7 @@ bool     CollideIon::distDiag   = false;
 bool     CollideIon::elecDist   = false;
 bool     CollideIon::ntcDist    = false;
 bool     CollideIon::enforceMOM = false;
+bool     CollideIon::coulNoVel  = false;
 unsigned CollideIon::esNum      = 100;
 double   CollideIon::esThr      = 0.0;
 double   CollideIon::ESthresh   = 1.0e-10;
@@ -530,6 +531,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (elc_cons ? "on" : "off" )            << std::endl
 	      <<  " " << std::setw(20) << std::left << "enforceMOM"
 	      << (enforceMOM ? "on" : "off" )           << std::endl
+	      <<  " " << std::setw(20) << std::left << "coulNoVel"
+	      << (coulNoVel ? "on" : "off" )            << std::endl
 	      <<  " " << std::setw(20) << std::left << "use_cons"
 	      << use_cons                               << std::endl
 	      <<  " " << std::setw(20) << std::left << "MFPtype"
@@ -569,6 +572,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   numEf    .resize(nthrds);
   densE    .resize(nthrds);
   colSc    .resize(nthrds);
+  coulCrs  .resize(nthrds);
   CE1      .resize(nthrds);
   CE2      .resize(nthrds);
   FF1      .resize(nthrds);
@@ -2341,8 +2345,10 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  std::max<double>(Eerg*mu, FloorEv*eV) * 1.0e7; // nm
 	b = std::min<double>(b, ips);
 	double mfac = 4.0 * logL;
+	double crs = M_PI*b*b * mfac;
 
-	Cross += M_PI*b*b * eVel * meanE[id] * mfac;
+	Cross += crs * eVel * meanE[id];
+	if (coulNoVel) coulCrs[id][k.second - 1] = crs;
       }
 
       double tCross = Cross * crossfac * 1e-14 /
@@ -4297,14 +4303,22 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
       // p1 is ion, p2 is electron
       {
-	double b = 0.5*esu*esu*P /
-	  std::max<double>(kEe1[id]*eV, FloorEv*eV) * 1.0e7; // nm
-	b = std::min<double>(b, ips);
+	double crs = 0.0;
+
+	if (coulNoVel) {
+	  crs = coulCrs[id][P] *
+	    eVel2 * eta2 * crossfac * cscl_[Z] * fac1;
+	} else {
+
+	  double b = 0.5*esu*esu*P /
+	    std::max<double>(kEe1[id]*eV, FloorEv*eV) * 1.0e7; // nm
+	  b = std::min<double>(b, ips);
 	
-	double mfac = 4.0 * logL;
+	  double mfac = 4.0 * logL;
 	
-	double crs =
-	  M_PI*b*b * eVel2 * eta2 * crossfac * cscl_[Z] * mfac * fac1;
+	  crs =
+	    M_PI*b*b * eVel2 * eta2 * crossfac * cscl_[Z] * mfac * fac1;
+	}
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
@@ -4317,14 +4331,21 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  
       // p1 is electron, p2 is ion
       {
-	double b = 0.5*esu*esu*P /
-	  std::max<double>(kEe2[id]*eV, FloorEv*eV) * 1.0e7; // nm
-	b = std::min<double>(b, ips);
+	double crs = 0.0;
+
+	if (coulNoVel) {
+	  crs = coulCrs[id][P] * eVel1 * eta1 * crossfac * cscl_[Z] * fac2;
+	} else {
 	
-	double mfac = 4.0 * logL;
+	  double b = 0.5*esu*esu*P /
+	    std::max<double>(kEe2[id]*eV, FloorEv*eV) * 1.0e7; // nm
+	  b = std::min<double>(b, ips);
 	
-	double crs =
-	  M_PI*b*b * eVel2 * eta1 * crossfac * cscl_[Z] * mfac * fac2;
+	  double mfac = 4.0 * logL;
+	
+	  crs =
+	    M_PI*b*b * eVel1 * eta1 * crossfac * cscl_[Z] * mfac * fac2;
+	}
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
@@ -18622,6 +18643,9 @@ void CollideIon::processConfig()
 
     enforceMOM =
       cfg.entry<bool>("enforceMOM", "Enforce momentum conservation per cell (for ExactE and Hybrid)", false);
+
+    coulNoVel =
+      cfg.entry<bool>("coulNoVel", "Use velocity independent 'effective' ion-electron scattering cross section", false);
 
     elc_cons =
       cfg.entry<bool>("ElcCons", "Use separate electron conservation of energy collection", true);
