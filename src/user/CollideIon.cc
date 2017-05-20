@@ -4369,161 +4369,203 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  
 	CProb[id][2] += crs;
       }
+
+    }
+    // end: ion-electron scattering
+
+    //-------------------------------
+    // *** Free-free
+    //-------------------------------
       
-      // end: ion-electron scattering
-
-
-      //-------------------------------
-      // *** Free-free
-      //-------------------------------
-      
-      if (eta1>0.0 and eta2>0.0) {
-	// p1 ion, p2 electron
-	{
-	  double ke   = std::max<double>(kEe1[id], FloorEv);
-	  CFreturn ff = ch.IonList[Q]->freeFreeCross(ke, id);
-	  double crs  = eVel2 * eta2 * ff.first * fac1 * ieBoost;
-	
-	  if (std::isinf(crs)) crs = 0.0; // Sanity check
-	
-	  if (crs>0.0) {
-
-	    Interact::T t { free_free, Ion, Interact::edef };
-	    
-	    std::get<0>(hCross[id][t]) = crs;
-	    std::get<2>(hCross[id][t]) = ff;
-
-	    CProb[id][1] += crs;
-	  }
-	}
-	// p2 ion, p1 electron
-	{
-	  double ke   = std::max<double>(kEe2[id], FloorEv);
-	  CFreturn ff = ch.IonList[Q]->freeFreeCross(ke, id);
-	  double crs  = eVel1 * eta1 * ff.first * fac2 * ieBoost;
-	  
-	  if (std::isinf(crs)) crs = 0.0; // Sanity check
-	  
-	  if (crs>0.0) {
-	    
-	    Interact::T t { free_free, Interact::edef, Ion };
-	    
-	    std::get<0>(hCross[id][t]) = crs;
-	    std::get<2>(hCross[id][t]) = ff;
-
-	    CProb[id][2] += crs;
-	  }
-	}
-      } // end:ion_elec scattering
-
-      //-------------------------------
-      // *** Collisional excitation
-      //-------------------------------
-      
-      // p1 nucleus has bound electron, p2 has a free electron
-      if (P<Z and eta2>0.0) {
+    if (eta1>0.0 and eta2>0.0) {
+      // p1 ion, p2 electron
+      {
 	double ke   = std::max<double>(kEe1[id], FloorEv);
-	CEvector CE = ch.IonList[Q]->collExciteCross(ke, id);
-	double crs  = eVel2 * eta2 * CE.back().first * fac1 * ieBoost;
+	CFreturn ff = ch.IonList[Q]->freeFreeCross(ke, id);
+	double crs  = eVel2 * eta2 * ff.first * fac1 * ieBoost;
 	
-	if (DEBUG_CRS) trap_crs(crs);
+	if (std::isinf(crs)) crs = 0.0; // Sanity check
 	
-	if (crs > 0.0) {
-	  Interact::T t { colexcite, Ion, Interact::edef };
+	if (crs>0.0) {
 
+	  Interact::T t { free_free, Ion, Interact::edef };
+	    
 	  std::get<0>(hCross[id][t]) = crs;
-	  std::get<1>(hCross[id][t]) = CE;
+	  std::get<2>(hCross[id][t]) = ff;
 
 	  CProb[id][1] += crs;
 	}
-      } // end: colexcite
-
-      // p2 nucleus has bound electron, p1 has a free electron
-      if (P<Z and eta1>0) {
+      }
+      // p2 ion, p1 electron
+      {
 	double ke   = std::max<double>(kEe2[id], FloorEv);
-	CEvector CE = ch.IonList[Q]->collExciteCross(ke, id);
-	double crs  = eVel1 * eta1 * CE.back().first * fac2 * ieBoost;
+	CFreturn ff = ch.IonList[Q]->freeFreeCross(ke, id);
+	double crs  = eVel1 * eta1 * ff.first * fac2 * ieBoost;
 	
-	if (DEBUG_CRS) trap_crs(crs);
-	
-	if (crs > 0.0) {
-	  Interact::T t { colexcite, Interact::edef, Ion };
-
+	if (std::isinf(crs)) crs = 0.0; // Sanity check
+	  
+	if (crs>0.0) {
+	  
+	  Interact::T t { free_free, Interact::edef, Ion };
+	    
 	  std::get<0>(hCross[id][t]) = crs;
-	  std::get<1>(hCross[id][t]) = CE;
-
+	  std::get<2>(hCross[id][t]) = ff;
+	  
 	  CProb[id][2] += crs;
 	}
-      } // end: colexcite
+      }
+    }
+    // end:ion_elec scattering
 
-      //-------------------------------
-      // *** Ionization cross section
-      //-------------------------------
+    //-------------------------------
+    // *** Collisional excitation
+    //-------------------------------
+    
+    // p1 nucleus has bound electron, p2 has a free electron
+    if (P<Z and eta2>0.0) {
+      double ke   = std::max<double>(kEe1[id], FloorEv);
+      CEvector CE = ch.IonList[Q]->collExciteCross(ke, id);
+      double crs  = eVel2 * eta2 * CE.back().first * fac1 * ieBoost;
       
-      // p1 nucleus has bound electron, p2 has a free electron
-      if (P<Z and eta2>0) {
+      if (DEBUG_CRS) trap_crs(crs);
+      
+      if (crs > 0.0) {
+	Interact::T t { colexcite, Ion, Interact::edef };
 	
-	double ke  = std::max<double>(kEe1[id], FloorEv);
-	double DI  = ch.IonList[Q]->directIonCross(ke, id);
-	double crs = eVel2 * eta2 * DI * fac1 * ieBoost;
+	std::get<0>(hCross[id][t]) = crs;
+	std::get<1>(hCross[id][t]) = CE;
+	
+	CProb[id][1] += crs;
+      }
+    }
+    // end: colexcite
+    
+    // p2 nucleus has bound electron, p1 has a free electron
+    if (P<Z and eta1>0) {
+      double ke   = std::max<double>(kEe2[id], FloorEv);
+      CEvector CE = ch.IonList[Q]->collExciteCross(ke, id);
+      double crs  = eVel1 * eta1 * CE.back().first * fac2 * ieBoost;
+      
+      if (DEBUG_CRS) trap_crs(crs);
+      
+      if (crs > 0.0) {
+	Interact::T t { colexcite, Interact::edef, Ion };
+	
+	std::get<0>(hCross[id][t]) = crs;
+	std::get<1>(hCross[id][t]) = CE;
+	
+	CProb[id][2] += crs;
+      }
+    }
+    // end: colexcite
+
+    //-------------------------------
+    // *** Ionization cross section
+    //-------------------------------
+      
+    // p1 nucleus has bound electron, p2 has a free electron
+    if (P<Z and eta2>0) {
+      
+      double ke  = std::max<double>(kEe1[id], FloorEv);
+      double DI  = ch.IonList[Q]->directIonCross(ke, id);
+      double crs = eVel2 * eta2 * DI * fac1 * ieBoost;
+      
+      if (DEBUG_CRS) trap_crs(crs);
+      
+      if (crs > 0.0) {
+	Interact::T t { ionize, Ion, Interact::edef };
+	
+	std::get<0>(hCross[id][t]) = crs;
+	
+	CProb[id][1] += crs;
+      }
+    }
+    // end: ionize
+    
+    // p2 nucleus has bound electron, p1 has a free electron
+    if (P<Z and eta1) {
+      
+      double ke  = std::max<double>(kEe2[id], FloorEv);
+      double DI  = ch.IonList[Q]->directIonCross(ke, id);
+      double crs = eVel1 * eta1 * DI * fac2 * ieBoost;
+      
+      if (DEBUG_CRS) trap_crs(crs);
+      
+      if (crs > 0.0) {
+	Interact::T t { ionize, Interact::edef, Ion };
+	
+	std::get<0>(hCross[id][t]) = crs;
+	
+	CProb[id][2] += crs;
+      }
+    }
+    // end: ionize
+
+    //-------------------------------
+    // *** Radiative recombination
+    //-------------------------------
+
+    if (newRecombAlg) {
+
+      // p1 ion and p1 electron
+      if (P>0) {
+	double ke              = std::max<double>(kE1s[id], FloorEv);
+	std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
+	double crs = sVel1 * eta1 * RE.back() * fac1 * ieBoost;
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
 	if (crs > 0.0) {
-	  Interact::T t { ionize, Ion, Interact::edef };
-
+	  Interact::T t { recomb, Ion, Interact::edef };
+	  
 	  std::get<0>(hCross[id][t]) = crs;
-
+	  
 	  CProb[id][1] += crs;
 	}
-      }  // end: ionize
-
-      // p2 nucleus has bound electron, p1 has a free electron
-      if (P<Z and eta1) {
-	
-	double ke  = std::max<double>(kEe2[id], FloorEv);
-	double DI  = ch.IonList[Q]->directIonCross(ke, id);
-	double crs = eVel1 * eta1 * DI * fac2 * ieBoost;
+      }
+      
+      // p2 ion and p1 electron
+      if (P>0) {
+	double ke              = std::max<double>(kE2s[id], FloorEv);
+	std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
+	double crs = sVel2 * eta2 * RE.back() * fac2 * ieBoost;
 	
 	if (DEBUG_CRS) trap_crs(crs);
-	
+	  
 	if (crs > 0.0) {
-	  Interact::T t { ionize, Interact::edef, Ion };
-
+	  Interact::T t { recomb, Interact::edef, Ion };
+	  
 	  std::get<0>(hCross[id][t]) = crs;
-
+	  
 	  CProb[id][2] += crs;
 	}
-      }  // end: ionize
-
-      //-------------------------------
-      // *** Radiative recombination
-      //-------------------------------
-
-      if (newRecombAlg) {
-
-	// p1 ion and p1 electron
-	if (P>0) {
-	  double ke              = std::max<double>(kE1s[id], FloorEv);
+      }
+      
+    } // end: new recomb algorithm
+    else {
+      if (P>0 and eta2>0.0) {
+	// p1 ion and p2 electron
+	{
+	  double ke              = std::max<double>(kEe1[id], FloorEv);
 	  std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
-	  double crs = sVel1 * eta1 * RE.back() * fac1 * ieBoost;
-	
+	  double crs = eVel2 * eta2 * RE.back() * fac1 * ieBoost;
+	  
 	  if (DEBUG_CRS) trap_crs(crs);
-	
+	  
 	  if (crs > 0.0) {
 	    Interact::T t { recomb, Ion, Interact::edef };
 	    
 	    std::get<0>(hCross[id][t]) = crs;
-
+	    
 	    CProb[id][1] += crs;
 	  }
 	}
-	  
+
 	// p2 ion and p1 electron
-	if (P>0) {
-	  double ke              = std::max<double>(kE2s[id], FloorEv);
+	{
+	  double ke              = std::max<double>(kEe2[id], FloorEv);
 	  std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
-	  double crs = sVel2 * eta2 * RE.back() * fac2 * ieBoost;
+	  double crs = eVel1 * eta1 * RE.back() * fac2 * ieBoost;
 	  
 	  if (DEBUG_CRS) trap_crs(crs);
 	  
@@ -4531,54 +4573,15 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	    Interact::T t { recomb, Interact::edef, Ion };
 	    
 	    std::get<0>(hCross[id][t]) = crs;
-
+	    
 	    CProb[id][2] += crs;
 	  }
 	}
-
-      } // end: new recomb algorithm
-      else {
-	if (P>0 and eta2>0.0) {
-	  // p1 ion and p2 electron
-	  {
-	    double ke              = std::max<double>(kEe1[id], FloorEv);
-	    std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
-	    double crs = eVel2 * eta2 * RE.back() * fac1 * ieBoost;
-	    
-	    if (DEBUG_CRS) trap_crs(crs);
 	
-	    if (crs > 0.0) {
-	      Interact::T t { recomb, Ion, Interact::edef };
-	  
-	      std::get<0>(hCross[id][t]) = crs;
+      } // end: old recomb algorithm
+      
+    } // end: recombination
 
-	      CProb[id][1] += crs;
-	    }
-	  }
-
-	  // p2 ion and p1 electron
-	  {
-	    double ke              = std::max<double>(kEe2[id], FloorEv);
-	    std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
-	    double crs = eVel1 * eta1 * RE.back() * fac2 * ieBoost;
-	    
-	    if (DEBUG_CRS) trap_crs(crs);
-	    
-	    if (crs > 0.0) {
-	      Interact::T t { recomb, Interact::edef, Ion };
-	      
-	      std::get<0>(hCross[id][t]) = crs;
-
-	      CProb[id][2] += crs;
-	    }
-	  }
-
-	} // end: old recomb algorithm
-
-      } // end: recombination
-
-    } // end: inner ionization state loop
- 
   } // end: outer ionization state loop
 
   double totalXS = 0.0;
