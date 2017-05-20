@@ -708,7 +708,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 
   if (elecDist) {
     elecEV.resize(nthrds);
-    for (auto &v : elecEV) v.set_capacity(bufCap);
+    for (auto &v : elecEV)    v.set_capacity(bufCap);
     elecEVmin.resize(nthrds);
     for (auto &v : elecEVmin) v.set_capacity(bufCap);
     elecEVavg.resize(nthrds);
@@ -2360,7 +2360,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	Cross += crs * eVel * meanE[id];
 	if (coulScale) {
 	  coulCrs[id][k.second - 1][0] = crs;
-	  coulCrs[id][k.second - 1][1] = Eerg * mu;
+	  coulCrs[id][k.second - 1][1] = EeV * mu;
 	}
       }
 
@@ -10022,6 +10022,12 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     p2->iattrib[DEBUG_CNT] += 1;
   }
 
+  // For debugging diagnostics
+  //
+  if (elecDist) {
+    elecEVsub[id].push_back(std::max<double>(kEe1[id], kEe2[id]));
+  }
+
   // NOCOOL debugging
   //
   double NCXTRA = 0.0;
@@ -17128,7 +17134,7 @@ void CollideIon::electronGather()
 	  << std::endl << std::setfill(' ');
     }
 
-    if (elecDist and aType==Hybrid) {
+    if (elecDist and (aType==Hybrid or aType==Trace)) {
       std::vector<double> eEV, eEVmin, eEVavg, eEVmax, eEVsub;
       for (int t=0; t<nthrds; t++) {
 	eEV.insert(eEV.end(),
@@ -17238,13 +17244,15 @@ void CollideIon::electronGather()
       } // Process loop
 
       if (myid==0) {
-	elecEVH = ahistoDPtr(new AsciiHisto<double>(eEV, 20, 0.01));
-	if (IDBG) dbg << std::setw(16) << "eEV.size() = "
-		      << std::setw(10) << eEV.size() << std::endl;
-	elecEVHmin = ahistoDPtr(new AsciiHisto<double>(eEVmin, 20, 0.01));
-	elecEVHavg = ahistoDPtr(new AsciiHisto<double>(eEVavg, 20, 0.01));
-	elecEVHmax = ahistoDPtr(new AsciiHisto<double>(eEVmax, 20, 0.01));
-	elecEVHsub = ahistoDPtr(new AsciiHisto<double>(eEVsub, 20, 0.01));
+	if (eEV.size()) {
+	  elecEVH = ahistoDPtr(new AsciiHisto<double>(eEV, 20, 0.01));
+	  if (IDBG) dbg << std::setw(16) << "eEV.size() = "
+			<< std::setw(10) << eEV.size() << std::endl;
+	}
+	if (eEVmin.size()) elecEVHmin = ahistoDPtr(new AsciiHisto<double>(eEVmin, 20, 0.01));
+	if (eEVavg.size()) elecEVHavg = ahistoDPtr(new AsciiHisto<double>(eEVavg, 20, 0.01));
+	if (eEVmax.size()) elecEVHmax = ahistoDPtr(new AsciiHisto<double>(eEVmax, 20, 0.01));
+	if (eEVsub.size()) elecEVHsub = ahistoDPtr(new AsciiHisto<double>(eEVsub, 20, 0.01));
       }
 
     } // END: elecDist
@@ -17867,9 +17875,12 @@ void CollideIon::electronPrint(std::ostream& out)
 
   if (elecEVHsub.get()) {
     out << std::endl
-	<< std::string(53, '-')  << std::endl
-	<< "-----Subspecies electron energy distribution---------" << std::endl
 	<< std::string(53, '-')  << std::endl;
+    if (aType==Trace)
+      out << "-----Selected electron-ion collision energies--------" << std::endl;
+    else
+      out << "-----Subspecies electron energy distribution---------" << std::endl;
+    out << std::string(53, '-')  << std::endl;
     (*elecEVHsub)(out);
   }
 
