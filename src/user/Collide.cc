@@ -2788,7 +2788,7 @@ void Collide::voldiag(ostream& out)
 	<< "-----------------------------------------------------" << endl;
     out << "-----------------------------------------------------"
       	<< "-----------------------------------------------------" << endl;
-    out << right << setw(8) << "n" << setw(8) << "#"
+    out << right << setw(8) << "n" << setw(10) << "#"
 	<< setw(12) << "Factor"
 	<< setw(12) << "Density"   << setw(12) << "MFP/L"
 	<< setw(12) << "Coll prob" << setw(12) << "Flight/L"
@@ -2802,7 +2802,7 @@ void Collide::voldiag(ostream& out)
       unsigned nn = n + nvold - 1;
       double rat  = pow(2.0, -3.0*k);
       double nrm  = Vcnt[k] ? 1.0/Vcnt[k] : 0.0;
-      out << setw(8) << k << setw(8) << Vcnt[k] << setw(12) << rat;
+      out << setw(8) << k << setw(10) << Vcnt[k] << setw(12) << rat;
       for (unsigned l=0; l<nvold-1; l++) out << setw(12) << Vdbl[n+l]*nrm;
       // Variance term
       Vdbl[nn] = fabs(Vdbl[nn] - Vdbl[nn-1]*Vdbl[nn-1]*nrm);

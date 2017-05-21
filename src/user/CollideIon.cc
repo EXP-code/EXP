@@ -17082,8 +17082,10 @@ void CollideIon::electronGather()
 	double Ei        = 0.5*cri*mi*UserTreeDSMC::Vunit*UserTreeDSMC::Vunit/eV;
 	double Ej        = 0.5*crj*mu*UserTreeDSMC::Vunit*UserTreeDSMC::Vunit/eV;
 
-	eEeVsp[Z].push_back(Ee);
-	eIeVsp[Z].push_back(Ei);
+	if (aType!=Trace) {
+	  eEeVsp[Z].push_back(Ee);
+	  eIeVsp[Z].push_back(Ei);
+	}
 
 	eEeV.push_back(Ee);
 	eIeV.push_back(Ei);
