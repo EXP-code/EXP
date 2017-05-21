@@ -179,7 +179,7 @@ static inline uint32_t LCG(uint32_t x)
 
 ACG::ACG(uint32_t seed, int size) : RNG()
 {
-  register int l;
+  int l;
   initialSeed = seed;
   
   //
@@ -215,7 +215,7 @@ ACG::ACG(uint32_t seed, int size) : RNG()
 void
 ACG::reset()
 {
-  register uint32_t u;
+  uint32_t u;
   
   if (initialSeed < SEED_TABLE_SIZE) {
     u = seedTable[ initialSeed ];
@@ -227,7 +227,7 @@ ACG::reset()
   j = randomStateTable[ initialTableEntry ][ 0 ] - 1;
   k = randomStateTable[ initialTableEntry ][ 1 ] - 1;
   
-  register int i;
+  int i;
   for(i = 0; i < stateSize; i++) {
     state[i] = u = LCG(u);
   }
@@ -268,7 +268,7 @@ ACG::asLong()
   k = (k <= 0) ? (stateSize-1) : (k-1);
   
   short int auxIndex = (result >> 24) & (auxSize - 1);
-  register uint32_t auxACG = auxState[auxIndex];
+  uint32_t auxACG = auxState[auxIndex];
   auxState[auxIndex] = lcgRecurr = LCG(lcgRecurr);
   
   //
@@ -276,7 +276,7 @@ ACG::asLong()
   // do not want to run off the end of the permutation table.
   // This insures that we have always got four entries left.
   //
-  register uint32_t *perm = & randomPermutations[result & 0x3c];
+  uint32_t *perm = & randomPermutations[result & 0x3c];
   
   result =  *(perm++) & auxACG;
   result |= *(perm++) & ((auxACG << 24)

@@ -5,13 +5,10 @@
 //
 //  MDW 11/13/91 [based on "findwake" by MDW: 12/26/1987]
 
-static const char rcsid[] = "$Id$";
-
-using namespace std;
-
 #include <string>
 #include <iostream>
-#include <math.h>
+#include <cmath>
+
 #include <Vector.h>
 #include <biorth.h>
 

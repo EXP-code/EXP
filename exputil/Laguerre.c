@@ -15,7 +15,7 @@
 #include "GaussCore.h"
 #include "Laguerre.h"
 
-Laguerre(n, alpha, abscis, weight)
+void Laguerre(n, alpha, abscis, weight)
 int n;
 double alpha, abscis[], weight[];
 {
@@ -24,7 +24,7 @@ double alpha, abscis[], weight[];
 };
 
 
-Radau_Laguerre(n, alpha, abscis, weight, leftw)
+void Radau_Laguerre(n, alpha, abscis, weight, leftw)
 int n;
 double alpha, abscis[], weight[], *leftw;
 {

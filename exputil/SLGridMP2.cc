@@ -1,5 +1,3 @@
-using namespace std;
-
 // #define DEBUG 1
 // #define DEBUG_SLEDGE 1
 // #define DEBUG_NAN 1
@@ -15,8 +13,7 @@ using namespace std;
 
 #define XOFFSET (1.0e-8)
 
-#include <stdlib.h>
-
+#include <cstdlib>
 #include <iostream>
 #include <sstream>
 #include <fstream>

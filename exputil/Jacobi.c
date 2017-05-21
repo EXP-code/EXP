@@ -1,23 +1,26 @@
 /* Copyright 1985 Pierre Asselin.
-/*
-/* This package may be used and distributed freely, but may not be sold.
-/* The present notice must be retained in all copies.
-/* If incorporated in a commercial product,
-/*  1) the package's origin and availability must be acknowledged
-/*     prominently in the commercial product's documentation;
-/*  2) the source code and documentation of the package must be
-/*     made available to purchasers on request and at no extra cost.
-/**/
+  
+   This package may be used and distributed freely, but may not be sold.
+   The present notice must be retained in all copies.
+   If incorporated in a commercial product,
 
-/* Translation of module Jacobi (import, implement).
-/**/
+    1) the package's origin and availability must be acknowledged
+       prominently in the commercial product's documentation;
+
+    2) the source code and documentation of the package must be
+       made available to purchasers on request and at no extra cost.
+*/
+
+/*
+  Translation of module Jacobi (import, implement).
+*/
 
 #include "GaussCore.h"
 #include "Jacobi.h"
 
 #define sqr(x) ((x)*(x))
 
-Jacobi(n, alpha, beta, abscis, weight)
+void Jacobi(n, alpha, beta, abscis, weight)
 int n;
 double alpha, beta;
 double abscis[], weight[];
@@ -31,7 +34,7 @@ double abscis[], weight[];
 }
 
 
-Radau_Jacobi(n, alpha, beta, abscis, weight, leftw)
+void Radau_Jacobi(n, alpha, beta, abscis, weight, leftw)
 int n;
 double alpha, beta;
 double abscis[], weight[], *leftw;
@@ -59,7 +62,7 @@ double abscis[], weight[], *leftw;
 };
 
 
-Lobatto_Jacobi(n, alpha, beta, abscis, weight, leftw, rightw)
+void Lobatto_Jacobi(n, alpha, beta, abscis, weight, leftw, rightw)
 int n;
 double alpha, beta;
 double abscis[], weight[], *leftw, *rightw;

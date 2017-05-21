@@ -1,16 +1,19 @@
 /* Copyright 1985 Pierre Asselin.
-/*
-/* This package may be used and distributed freely, but may not be sold.
-/* The present notice must be retained in all copies.
-/* If incorporated in a commercial product,
-/*  1) the package's origin and availability must be acknowledged
-/*     prominently in the commercial product's documentation;
-/*  2) the source code and documentation of the package must be
-/*     made available to purchasers on request and at no extra cost.
-/**/
 
-/* Translation of module GaussKernel (implement) .
-/**/
+   This package may be used and distributed freely, but may not be sold.
+   The present notice must be retained in all copies.
+   If incorporated in a commercial product,
+
+    1) the package's origin and availability must be acknowledged
+       prominently in the commercial product's documentation;
+
+    2) the source code and documentation of the package must be
+       made available to purchasers on request and at no extra cost.
+*/
+
+/* 
+   Translation of module GaussKernel (implement).
+*/
 
 #include <stdio.h>		/* for error messages */
 #include <stdlib.h>
@@ -21,14 +24,14 @@
 #define sqr(x) ((x)*(x))
 
 /*
-/* Forward declaration for function QQp:
-/**/
+   Forward declaration for function QQp:
+*/
 static int QQp();
 
 /*
-/* Function to test a real value for exceeding -1,
-/* and quit on an error if condition not met.
-/**/
+   Function to test a real value for exceeding -1,
+   and quit on an error if condition not met.
+*/
 void GaussCheck(value)
 double value;
 {
@@ -41,16 +44,16 @@ double value;
 
 
 /*
-/* Static variables needed to imitate Pascal's block-structured
-/* scope rules.
-/**/
+   Static variables needed to imitate Pascal's block-structured
+   scope rules.
+*/
 static double alf1, bet1;
 static int confl1;
 static int n1;
 
 /*
-/* The workhorse.
-/**/
+   The workhorse.
+*/
 void GaussMaster(n, alpha, beta, conflag, abscis, weight)
 int n;
 double alpha, beta;
@@ -70,8 +73,8 @@ double abscis[], weight[];
 #define junk2 &Qp
     
 /* Construction to share storage.
-/* Check if porting to another machine.
-/**/
+   Check if porting to another machine.
+*/
     typedef union {
 	double d;
 	int i;
@@ -82,16 +85,16 @@ double abscis[], weight[];
 
 
   /*
-  /* Give a copy of formal parameters to QQp.
-  /**/
+     Give a copy of formal parameters to QQp.
+  */
     alf1= alpha;  bet1= beta;  confl1= conflag;  n1= n;
 
   /*
-  /* Begin first stage: find upper bound to all roots.
-  /* Do not waste the intermediate information generated along the way.
-  /* upbnd[k]= best known upper bound to root #(k+1),
-  /* rank[k].i= # roots below upbnd[k] ( k+1 or less ).
-  /**/
+     Begin first stage: find upper bound to all roots.
+     Do not waste the intermediate information generated along the way.
+     upbnd[k]= best known upper bound to root #(k+1),
+     rank[k].i= # roots below upbnd[k] ( k+1 or less ).
+  */
     for (k=0; k<n; k++) rank[k].i= 0;
 
     t= 1.0;			/* turns out to be a good choice */
@@ -109,11 +112,11 @@ double abscis[], weight[];
 
 
   /*
-  /* Begin second stage: Isolate the roots by bisection.
-  /* Crunch until (rank[k].i == (k+1)) for all k, at which point
-  /* root #(k+1) lies between upbnd[k-1] and upbdn[k] for all k.
-  /* (define upbnd[-1] as 0.0).
-  /**/
+     Begin second stage: Isolate the roots by bisection.
+     Crunch until (rank[k].i == (k+1)) for all k, at which point
+     root #(k+1) lies between upbnd[k-1] and upbdn[k] for all k.
+     (define upbnd[-1] as 0.0).
+  */
     min= 0.0;			/* lower bound of lowest root */
 
     for (k=0; k<n; k++) {
@@ -128,14 +131,14 @@ double abscis[], weight[];
 	        rank[m].i = below;
 	    };
 	};
-	min= upbnd[k];  	/* prepare l. b. of next root */
+	min= upbnd[k];  	 /* prepare l. b. of next root */
     };
 
 
   /*
-  /* Before Newton refinement:
-  /* compute the global factor Glob.
-  /**/
+     Before Newton refinement:
+     compute the global factor Glob.
+  */
     Glob= (alpha + 1.0);
     if (conflag)
         for (k=2; k<= n; k++) Glob *= ((k+alpha)/k);
@@ -146,14 +149,14 @@ double abscis[], weight[];
     };
 
   /*
-  /* Begin third stage: Newton refinement.
-  /* Cautiously refine each root to accuracy.
-  /*   Newton's method needs a good starting approximation;
-  /*   revert to bisection if things look bad.
-  /*   The construct "do {... break...break...} while false"
-  /*   is used to attempt a single Newton step and abort at the
-  /*   first sign of trouble.
-  /**/
+     Begin third stage: Newton refinement.
+     Cautiously refine each root to accuracy.
+       Newton's method needs a good starting approximation;
+       revert to bisection if things look bad.
+       The construct "do {... break...break...} while false"
+       is used to attempt a single Newton step and abort at the
+       first sign of trouble.
+  */
     min= 0;				/* lower bound of lowest root */
 
     for (k=0; k<n; k++) {
@@ -163,14 +166,14 @@ double abscis[], weight[];
 	    below= QQp(t, &delta, &Qp);	/* Compute values, rank */
 
 	  /* Squeeze the bounds now.  Bug discovered by
-	  /* todd@cougarxp.Princeton.edu (Todd Jay Mitty).
-	  /**/ 
+	     todd@cougarxp.Princeton.edu (Todd Jay Mitty).
+	  */ 
 	    if (below <= k) min= t; else max= t;
 
 	  /* One cautious Newton step.
-	  /* -Desirable improvement:
-	  /*  include machine roundoff in equality tests.
-	  /**/
+	     -Desirable improvement:
+	      include machine roundoff in equality tests.
+	  */
 	    ok= FALSE;
 	    do {
 		if (Qp==0)  break;
@@ -203,9 +206,9 @@ double abscis[], weight[];
 }
 
 
-/* The polynomial computer... /*
-/*   alf1, bet1, n1, confl1 are passed by GaussMaster. /*
-/**/
+/*   The polynomial computer...
+     alf1, bet1, n1, confl1 are passed by GaussMaster.
+*/
 static int QQp(double t, double* poly, double* deriv)
 {
     int k;

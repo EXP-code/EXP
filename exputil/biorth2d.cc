@@ -4,14 +4,11 @@
 //  Clutton-Brock's 2-dimensional series
 //
 
-static const char rcsid[] = "$Id$";
-
-using namespace std;
-
-#include <stdlib.h>
+#include <cstdlib>
 #include <string>
 #include <iostream>
-#include <math.h>
+#include <cmath>
+
 #include <Vector.h>
 #include <biorth2d.h>
 #include <gaussQ.h>

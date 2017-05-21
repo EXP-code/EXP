@@ -350,4 +350,5 @@ bool operator || (const uint128 & a, const uint128 & b) throw () {
 std::ostream &operator<<(std::ostream& out, const uint128& u)
 {
   out << u.toString(16, "0x");
+  return out;
 }

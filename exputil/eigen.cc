@@ -1,5 +1,3 @@
-using namespace std;
-
 #include <unistd.h>
 #include <iostream>
 #include <math.h>
@@ -10,7 +8,7 @@ using namespace std;
 
 static void bomb_ghql(const char* msg)
 {
-  cerr << msg << endl;
+  std::cerr << msg << endl;
   exit(-1);
 }
 

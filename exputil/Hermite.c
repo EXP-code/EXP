@@ -1,16 +1,17 @@
 /* Copyright 1985 Pierre Asselin.
-/*
-/* This package may be used and distributed freely, but may not be sold.
-/* The present notice must be retained in all copies.
-/* If incorporated in a commercial product,
-/*  1) the package's origin and availability must be acknowledged
-/*     prominently in the commercial product's documentation;
-/*  2) the source code and documentation of the package must be
-/*     made available to purchasers on request and at no extra cost.
-/**/
 
-/* Translation of module Hermite (import, implement).
-/**/
+   This package may be used and distributed freely, but may not be sold.
+   The present notice must be retained in all copies.
+   If incorporated in a commercial product,
+   1) the package's origin and availability must be acknowledged
+      prominently in the commercial product's documentation;
+   2) the source code and documentation of the package must be
+      made available to purchasers on request and at no extra cost.
+*/
+
+/* 
+   Translation of module Hermite (import, implement).
+*/
 
 #include <math.h>		/* square root */
 #include "GaussCore.h"
@@ -18,11 +19,11 @@
 #include "Hermite.h"
 
 /*
-/* Macro for Pascal's odd().
-/**/
+  Macro for Pascal's odd().
+*/
 #define odd(n) ((unsigned)(n) & 01)
 
-Odd_Hermite(n, alpha, abscis, weight, w0)
+void Odd_Hermite(n, alpha, abscis, weight, w0)
 int n;
 double alpha, abscis[], weight[], *w0;
 {
@@ -40,7 +41,7 @@ double alpha, abscis[], weight[], *w0;
 };
 
 
-Even_Hermite(n, alpha, abscis, weight)
+void Even_Hermite(n, alpha, abscis, weight)
 int n;
 double alpha, abscis[], weight[];
 {
@@ -58,7 +59,7 @@ double alpha, abscis[], weight[];
 };
 
 
-Hermite(n, alpha, abscis, weight)
+void Hermite(n, alpha, abscis, weight)
 int n;
 double alpha, abscis[], weight[];
 {

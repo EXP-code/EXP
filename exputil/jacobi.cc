@@ -1,5 +1,3 @@
-using namespace std;
-
 #include <iostream>
 
 #include <math.h>
@@ -21,13 +19,13 @@ void jacobi(double **a, int n,double *d, double **v, int *nrot)
   b = new double[n];
   if (!b)
     {
-      cerr << "cannot allocate b in jacobi()\n";
+      std::cerr << "cannot allocate b in jacobi()\n";
     }
   b--;
   z = new double[n];
   if (!z)
     {
-      cerr << "cannot allocate z in jacobi()\n";
+      std::cerr << "cannot allocate z in jacobi()\n";
     }
   z--;
   

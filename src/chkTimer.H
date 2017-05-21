@@ -10,9 +10,7 @@
 
 using namespace std;
 
-/**
-   A "helper" class to print time_t intervals
-*/
+//! A "helper" class to print time_t intervals
 class Time
 {
 protected:
