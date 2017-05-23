@@ -311,6 +311,7 @@ extern int  rlimit_val;
 
 //! Endless loop for setting gdb breakpoints
 extern bool debug_wait;
+extern bool main_wait;
 
 #include "Species.H"
 

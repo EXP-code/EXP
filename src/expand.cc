@@ -462,8 +462,10 @@ main(int argc, char** argv)
   // Sleep loop for debugging
   //==============================================
 
-  while (debug_wait) {
-    sleep(5);
+  if (!main_wait or myid==0) {
+    while (debug_wait) {
+      sleep(5);
+    }
   }
 
   //==============================================

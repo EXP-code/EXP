@@ -122,6 +122,7 @@ bool barrier_light = true;
 bool barrier_quiet = true;
 
 bool debug_wait    = false;
+bool main_wait     = false;
 bool fpe_trap      = false;
 bool fpe_trace     = false;
 bool fpe_wait      = false;
