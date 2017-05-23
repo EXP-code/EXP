@@ -1540,14 +1540,6 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 			 keycomp, keybods, waiton0, waiton1, waiton2,
 			 keynewc, keyoldc, treebar, diagdbg, numbods);
       
-      mout << "------------------------------------" << endl
-	   << "Timing (microsec) at mlevel="         << mlevel << endl
-	   << "------------------------------------" << endl
-	   << "----Running average = "               << fullstep.getTavg()*1.0e+06 << endl
-	   << "----Last full step  = "               << fullstep.getTime()*1.0e+06 << endl
-	   << "----Last time intvl = "               << fullstep.getLast()*1.0e+06 << endl
-	   << "------------------------------------" << endl;
-      
       outHeader0(mout);
       
       outHelper0(mout, "partition",    0, out, tot);
@@ -1763,6 +1755,20 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   if (mlevel==0 and tnow>tM0) {
     tM0 = tnow;
     fullstep.Stop();
+
+    ostringstream sout;
+    sout << outdir << runtag << ".DSMC_log";
+    ofstream mout(sout.str().c_str(), ios::app);
+    
+    mout << endl
+	 << "------------------------------------" << endl
+	 << "Timing (microsec) at T="              << tnow << endl
+	 << "------------------------------------" << endl
+	 << "----Running average = "               << fullstep.getTavg()*1.0e+06 << endl
+	 << "----Last full step  = "               << fullstep.getTime()*1.0e+06 << endl
+	 << "----Last time intvl = "               << fullstep.getLast()*1.0e+06 << endl
+	 << "------------------------------------" << endl;
+      
   } else {
     fullstep.Stop(false);
   }
