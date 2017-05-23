@@ -124,18 +124,26 @@ void initialize(void)
     else barrier_quiet = true;
   }
 
+  if (parse->find_item("main_wait", val)) {
+    if (atoi(val.c_str())) main_wait = false;
+    else main_wait = true;
+  }
+
   if (parse->find_item("debug_wait", val)) {
     if (atoi(val.c_str())) debug_wait = true;
     else debug_wait = false;
     if (myid==0) {
       std::cout << "Found <debug_wait=" << val << ", " << std::boolalpha
 		<< debug_wait << ">" << std::endl;
-      if (debug_wait)
-	std::cout << "----" << std::endl
-		  << "---- Processes will wait in a loop until gdb is attached and the loop is freed" << std::endl
-		  << "---- by setting 'debug_wait = false'" << std::endl
+      if (debug_wait) {
+	std::cout << "----" << std::endl;
+	if (main_wait)
+	  std::cout << "----  Main process will wait in a loop until gdb is attached and the loop is freed" << std::endl;
+	else
+	  std::cout << "---- All processes will wait in a loop until gdb is attached and the loop is freed" << std::endl;
+	std::cout << "---- by setting 'debug_wait = false'" << std::endl
 		  << "----" << std::endl;
-    }
+      }
   }
 
   if (parse->find_item("fpe_trap", val)) {
