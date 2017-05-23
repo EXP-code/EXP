@@ -218,7 +218,12 @@ public:
   void makeTree();
   void Repartition(unsigned);
   void adjustTree(unsigned);
-  Particle * const Body(unsigned k) { return &cc->particles[k]; }
+  Particle * const Body(unsigned k)
+  {
+    PartMap::iterator it = cc->particles.find(k), ie = cc->particles.end();
+    if (it==ie) throw "pHOT::Body: particle now found";
+    return &it->second;
+  }
 
 
   //! Tree geometry

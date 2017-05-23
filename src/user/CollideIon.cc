@@ -18177,13 +18177,18 @@ double CollideIon::molWeight(pCell *cell)
 
     for (auto b : cell->bods) {
       
-      Particle *p = curTree->Body(b);
-      double m = p->mass;
+      try {
+	Particle *p = curTree->Body(b);
+	double m = p->mass;
 
-      for (auto s : SpList) {
-	speciesKey i = s.first;
-	numbC += m * p->dattrib[s.second] / atomic_weights[i.first];
-	massC += m * p->dattrib[s.second] ;
+	for (auto s : SpList) {
+	  speciesKey i = s.first;
+	  numbC += m * p->dattrib[s.second] / atomic_weights[i.first];
+	  massC += m * p->dattrib[s.second] ;
+	}
+      }
+      catch(const std::string & errstr) {
+	std::cout << errstr << ", body=" << b << std::endl;
       }
     }
 
