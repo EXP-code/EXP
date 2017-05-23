@@ -161,9 +161,13 @@ static bool NO_VEL              = false;
 //
 static bool NO_ION_E            = false;
 
+// Do not compute free-free cross section
+//
+static bool NO_FF               = false;
+
 // Artifically suppress energy loss due to free-free
 //
-static bool NO_FF_E            = false;
+static bool NO_FF_E             = false;
 
 // KE debugging: checks energy bookkeeping. Set to false for
 // production
@@ -172,7 +176,7 @@ static bool KE_DEBUG            = true;
 
 // Finalize cell debug diagnostics
 //
-static bool debugFC   = false;
+static bool debugFC             = false;
 
 // Tally ionization potential with energy loss during recombination
 //
@@ -4377,7 +4381,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     // *** Free-free
     //-------------------------------
       
-    if (eta1>0.0 and eta2>0.0) {
+    if (!NO_FF and eta1>0.0 and eta2>0.0) {
       // p1 ion, p2 electron
       {
 	double ke   = std::max<double>(kEe1[id], FloorEv);
@@ -4415,7 +4419,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	}
       }
     }
-    // end:ion_elec scattering
+    // end: free-free 
 
     //-------------------------------
     // *** Collisional excitation
@@ -18591,6 +18595,9 @@ void CollideIon::processConfig()
 
     NO_ION_E =
       cfg.entry<bool>("NO_ION_E", "Suppress energy loss from ionization", false);
+
+    NO_FF =
+      cfg.entry<bool>("NO_FF", "Ignore free-free interaction", false);
 
     NO_FF_E =
       cfg.entry<bool>("NO_FF_E", "Suppress energy loss from free-free", false);
