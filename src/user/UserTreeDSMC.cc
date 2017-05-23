@@ -834,7 +834,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     }
     
     stepnum++;
-    curtime = tnow;
+    tM0 = curtime = tnow;
   }
   
 				// Time the entire step
@@ -1543,8 +1543,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       mout << "------------------------------------" << endl
 	   << "Timing (microsec) at mlevel="         << mlevel << endl
 	   << "------------------------------------" << endl
-	   << "----Running average = "               << fullstep.getTime()*1.0e+06 << endl
-	   << "----Last step time  = "               << fullstep.getLast()*1.0e+06 << endl
+	   << "----Running average = "               << fullstep.getTavg()*1.0e+06 << endl
+	   << "----Last full step  = "               << fullstep.getTime()*1.0e+06 << endl
+	   << "----Last time intvl = "               << fullstep.getLast()*1.0e+06 << endl
 	   << "------------------------------------" << endl;
       
       outHeader0(mout);
@@ -1759,7 +1760,12 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   
   (*barrier)("TreeDSMC: end of accel routine", __FILE__, __LINE__);
   
-  fullstep.Stop();
+  if (mlevel==0 and tnow>tM0) {
+    tM0 = tnow;
+    fullstep.Stop();
+  } else {
+    fullstep.Stop(false);
+  }
 }
 
 void UserTreeDSMC::triggered_cell_body_dump(double time, double radius)

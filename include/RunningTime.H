@@ -14,7 +14,7 @@ private:
   std::deque<double> boxcar;
 
   // The current average, the last time, the time scale prefactor
-  double current, value, tfac;
+  double current, value, tfac, last, accum;
 
   // Previous number of states to keep for average
   unsigned nkeep;
@@ -25,7 +25,10 @@ private:
   // Add the current value to the history
   void append()
   {
-    value = tfac*timer.getTime().getTotalTime();
+    last   = tfac*timer.getTime().getTotalTime();
+    accum += last;
+    value  = accum;
+    accum  = 0.0;
     boxcar.push_back(value);
     if (boxcar.size() > nkeep) boxcar.pop_front();
 
@@ -36,12 +39,21 @@ private:
     current /= boxcar.size();
   }
 
+  // Add to accumulated time
+  void lap()
+  {
+    last   = tfac*timer.getTime().getTotalTime();
+    accum += last;
+  }
+
   // Initialize the stop watch
   void initialize(unsigned n, bool microseconds) 
   {
     nkeep = max<unsigned>(n, 1);
     micro = microseconds;
     current = 0.0;
+    value   = 0.0;
+    accum   = 0.0;
     if (micro) {
       timer.Microseconds();
       tfac = 1.0e-6;
@@ -56,11 +68,22 @@ public:
   RunningTime()                            { initialize(30, true); }
   RunningTime(unsigned n, bool micro=true) { initialize(n, micro); }
 
-  void Start() { timer.start(); }
-  void Stop()  { timer.stop(); append(); timer.reset(); }
+  void Start()
+  {
+    timer.start();
+  }
 
-  double getTime() { return current; }
-  double getLast() { return value;   }
+  void Stop(bool final=true)
+  {
+    timer.stop();
+    if (final) append();
+    else       lap();
+    timer.reset();
+  }
+
+  double getTavg() { return current; }
+  double getTime() { return value;   }
+  double getLast() { return last;    }
 };
 
 #endif
