@@ -770,7 +770,7 @@ protected:
 protected:
   
   //! Computes (min, mean, max) velocities in each cell
-  virtual void cellMinMax(pHOT* const tree, pCell* const cell, int id);
+  virtual void cellMinMax(pCell* const cell, int id);
 
   //@{
   //! Diagnostic for entire cell iteration loop
@@ -780,14 +780,14 @@ protected:
   //@}
 
   virtual void 
-  initialize_cell(pHOT* const tree, pCell* const c, double rvmax, int id);
+  initialize_cell(pCell* const c, double rvmax, int id);
 
   virtual void 
-  initialize_cell_dsmc(pHOT* const tree, pCell* const c, sKey2Amap& nsel, 
+  initialize_cell_dsmc(pCell* const c, sKey2Amap& nsel, 
 		       double rvmax, double tau, int id) {}
 
   virtual void 
-  initialize_cell_epsm(pHOT* const tree, pCell* const c, sKey2Amap& nsel, 
+  initialize_cell_epsm(pCell* const c, sKey2Amap& nsel, 
 		       double rvmax, double tau, int id) 
   {
     std::cout << "NO EPSM implemented!" << std::endl;
@@ -795,7 +795,7 @@ protected:
   }
   
   virtual void 
-  finalize_cell(pHOT* const tree, pCell* const c, 
+  finalize_cell(pCell* const c, 
 		sKeyDmap* const Fn, double kedsp, double tau, int id);
 
   
@@ -954,7 +954,7 @@ protected:
 
   typedef std::shared_ptr<Pord> PordPtr;
 
-  virtual double crossSection(int id, pCell* const c, 
+  virtual double crossSection(int id,  pCell* const c,
 			      Particle* const p1, Particle* const p2, 
 			      double crm, const NTC::Interact::T& itype)
   {
@@ -1054,9 +1054,6 @@ protected:
   virtual NTC::Interact generateSelectionHybridSub(int id, Particle* const p1, Particle* const p2, 
 						   NTC::Interact::T& maxT, sKeyDmap* const Fn,
 						   double *cr, double tau);
-
-  //! Cache instance of current tree
-  pHOT* curTree;
 
   //@{
   //! Trace species maps for diagnostics

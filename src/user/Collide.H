@@ -26,9 +26,6 @@ class Collide;
 //! Helper class to pass info to threaded member
 struct thrd_pass_arguments
 {
-  //! Pointer to iterator
-  pHOT *tree;
-
   //! Effective number of particles
   sKeyDmap *fn;
 
@@ -49,9 +46,6 @@ struct thrd_pass_Collide
 //! Helper class to pass info to threaded member
 struct tstep_pass_arguments
 {
-  //! Pointer to iterator
-  pHOT *tree;
-
   //! Cooling fraction
   double coolfrac;
 
@@ -214,6 +208,9 @@ protected:
   //! Calling force
   ExternalForce *caller;
   
+  //! Tree pointer cached from component
+  pHOT *tree;
+
   //! Called with multistep level
   int mlev;
 
@@ -364,21 +361,21 @@ protected:
 
   //! Initializes cross sections
   virtual void initialize_cell
-  (pHOT* const tree, pCell* const cell, double vrelmax, int id) = 0;
+  (pCell* const cell, double vrelmax, int id) = 0;
   
   //! Additional DSMC-specific initialization
   virtual void initialize_cell_dsmc
-  (pHOT* const tree, pCell* const cell, 
+  (pCell* const cell, 
    sKey2Amap& nsel, double vrelmax, double tau, int id) = 0;
   
   //! Additional EPSM-specific initialization
   virtual void initialize_cell_epsm
-  (pHOT* const tree, pCell* const cell, sKey2Amap& nsel, 
+  (pCell* const cell, sKey2Amap& nsel, 
    double vrelmax, double tau, int id) = 0;
   
   //! Compute energy adjustments diagnostics for the cell after
   //! collisions/cooling
-  virtual void finalize_cell(pHOT* const tree, pCell* const cell, 
+  virtual void finalize_cell(pCell* const cell, 
 			     sKeyDmap* const Fn, double kedsp, double tau, 
 			     int id) {}
   
@@ -387,8 +384,9 @@ protected:
   virtual sKey2Amap& totalCrossSections(int id) = 0;
 
   //! Return the full cross section for particle selection computation
-  virtual double crossSection(int id, pCell* const tree, 
-			      Particle* const p1, Particle* const p2, double cr, 
+  virtual double crossSection(int id, pCell* const c, 
+			      Particle* const p1, Particle* const p2,
+			      double cr,
 			      const NTC::Interact::T& ityp=NTC::Interact::single) = 0;
   
   //! Return the particle selection matrix
@@ -420,7 +418,7 @@ protected:
   virtual bool hasHeatCool() = 0;
   
   //! Compute the EPSM algorithm for the given cell
-  virtual void EPSM(pHOT* const tree, pCell* const cell, int id);
+  virtual void EPSM(pCell* const cell, int id);
   
   //! Use EPSM if true
   bool use_epsm;
@@ -429,7 +427,7 @@ protected:
   //! For diagnostic output
   vector<double> lostSoFar_EPSM;
   
-  void debug_list(pHOT& tree);
+  void debug_list();
   virtual void list_sizes();
   void list_sizes_proc(ostream*);
   void pre_collide_diag();
@@ -635,13 +633,13 @@ public:
   //@{
   //! Collision thread
   void *collide_thread(void *arg);
-  void collide_thread_fork(pHOT *tree, sKeyDmap* Fn);
+  void collide_thread_fork(sKeyDmap* Fn);
   //@}
   
   //@{
   //! Timestep thread
   virtual void *timestep_thread(void *arg);
-  void compute_timestep(pHOT* tree, double coolfrac);
+  void compute_timestep(double coolfrac);
   //@}
   
   //@{
@@ -725,7 +723,7 @@ public:
   //}
 
   //! Gather stats for No-Time-Counter algorithm
-  virtual void NTCgather(pHOT* const tree);
+  virtual void NTCgather();
 
   //! Print stats for No-Time-Counter algorithm
   virtual void NTCstats(ostream& out);

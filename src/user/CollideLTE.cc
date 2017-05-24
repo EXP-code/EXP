@@ -116,7 +116,7 @@ CollideLTE::~CollideLTE()
   delete hc;
 }
 
-void CollideLTE::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
+void CollideLTE::initialize_cell(pCell* cell, double rvmax, int id)
 {
   // Compute geometric cross section
   //
@@ -138,7 +138,7 @@ void CollideLTE::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 }
 
 void CollideLTE::initialize_cell_dsmc
-(pHOT* tree, pCell* cell, sKey2Amap& nsel, double rvmax, double tau, int id)
+(pCell* cell, sKey2Amap& nsel, double rvmax, double tau, int id)
 {
   sCell *samp = cell->sample;
 				// Cell temperature and mass (cgs)
@@ -416,7 +416,7 @@ void CollideLTE::initialize_cell_dsmc
 }
 
 
-double CollideLTE::crossSection(int id, pCell* const tree, 
+double CollideLTE::crossSection(int id, pCell* const c,
 				Particle* const p1, Particle* const p2, double cr,
 				const NTC::Interact::T& ityp)
 {
@@ -734,7 +734,7 @@ void CollideLTE::list_sizes_proc(ostream* out)
 }
 
 
-void CollideLTE::finalize_cell(pHOT* const tree, pCell* const cell, 
+void CollideLTE::finalize_cell(pCell* const cell, 
 			       sKeyDmap* const Fn, double kedsp, double tau,
 			       int id)
 {
