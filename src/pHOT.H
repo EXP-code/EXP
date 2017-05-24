@@ -220,8 +220,10 @@ public:
   void adjustTree(unsigned);
   Particle * const Body(unsigned k)
   {
-    PartMap::iterator it = cc->particles.find(k), ie = cc->particles.end();
-    if (it==ie) throw "pHOT::Body: particle now found";
+    PartMap::iterator ie = cc->particles.end();
+    PartMap::iterator it = cc->particles.find(k);
+    if (it==ie) throw "pHOT::Body: particle not found";
+
     return &it->second;
   }
 
