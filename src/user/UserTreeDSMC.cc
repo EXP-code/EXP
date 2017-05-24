@@ -1034,7 +1034,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   (*barrier)("TreeDSMC: before collide timestep", __FILE__, __LINE__);
   
   tstepTime.start();
-  if (use_multi) collide->compute_timestep(c0->Tree(), coolfrac);
+  if (use_multi) collide->compute_timestep(coolfrac);
   tstepSoFar += tstepTime.stop();
   
 #ifdef USE_GPTL
@@ -1384,7 +1384,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     // Get NTC statistics
     //
     (*barrier)("TreeDSMC: BEFORE Collide::NTCgather",  __FILE__, __LINE__);
-    collide->NTCgather(c0->Tree());
+    collide->NTCgather();
     (*barrier)("TreeDSMC: AFTER Collide::NTCgather",   __FILE__, __LINE__);
     
     // Get level statistics from tree

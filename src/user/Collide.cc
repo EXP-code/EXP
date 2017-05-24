@@ -166,7 +166,7 @@ collide_thread_call(void *atp)
   return NULL;
 }
 
-void Collide::collide_thread_fork(pHOT* tree, sKeyDmap* Fn)
+void Collide::collide_thread_fork(sKeyDmap* Fn)
 {
   int errcode;
   void *retval;
@@ -175,7 +175,6 @@ void Collide::collide_thread_fork(pHOT* tree, sKeyDmap* Fn)
     thrd_pass_Collide td;
     
     td.p        = this;
-    td.arg.tree = tree;
     td.arg.fn   = Fn;
     td.arg.id   = 0;
     
@@ -201,7 +200,6 @@ void Collide::collide_thread_fork(pHOT* tree, sKeyDmap* Fn)
   // Make the <nthrds> threads
   for (int i=0; i<nthrds; i++) {
     td[i].p        = this;
-    td[i].arg.tree = tree;
     td[i].arg.fn   = Fn;
     td[i].arg.id   = i;
     
@@ -279,6 +277,9 @@ Collide::Collide(ExternalForce *force, Component *comp,
   c0     = comp;
   nthrds = nth;
   
+  // Cache the calling tree
+  tree = c0->Tree();
+
   // Initialize atomic weights map
   if (atomic_weights.size()==0) atomic_weights_init();
 
@@ -557,7 +558,7 @@ Collide::Collide(ExternalForce *force, Component *comp,
 
   if (myid==0) {
     std::cout << printDivider << std::endl
-	      << "--- Tree volume = " << c0->Tree()->Volume() << std::endl
+	      << "--- Tree volume = " << tree->Volume() << std::endl
 	      << printDivider << std::endl;
   }
 
@@ -573,12 +574,12 @@ Collide::~Collide()
   delete norm;
 }
 
-void Collide::debug_list(pHOT& tree)
+void Collide::debug_list()
 {
   return;
   
-  unsigned ncells = tree.Number();
-  pHOT_iterator c(tree);
+  unsigned ncells = tree->Number();
+  pHOT_iterator c(*tree);
   for (int cid=0; cid<numprocs; cid++) {
     if (myid == cid) {
       ostringstream sout;
@@ -694,7 +695,7 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
       std::cout << "DEBUG: null cells " << nullcell << "/" 
 		<< totalcell << std::endl;
     
-    debug_list(tree);
+    debug_list();
   }
   snglTime.stop();
   
@@ -717,7 +718,7 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
     tree.checkBounds(2.0, sout.str().c_str());
   }
 
-  collide_thread_fork(&tree, &Fn);
+  collide_thread_fork(&Fn);
 
   if (0 && totalbods) {
     ostringstream sout;
@@ -873,7 +874,6 @@ void Collide::dispersion(vector<double>& disp)
 
 void * Collide::collide_thread(void * arg)
 {
-  pHOT *tree    = static_cast<pHOT*>    (((thrd_pass_arguments*)arg)->tree);
   sKeyDmap *Fn  = static_cast<sKeyDmap*>(((thrd_pass_arguments*)arg)->fn  );
   int id        = static_cast<int>      (((thrd_pass_arguments*)arg)->id  );
   
@@ -1020,7 +1020,7 @@ void * Collide::collide_thread(void * arg)
     
     // Cell initialization (generate cross sections)
     //
-    initialize_cell(tree, c, crm, id);
+    initialize_cell(c, crm, id);
 
     // Per species quantities
     //
@@ -1197,7 +1197,7 @@ void * Collide::collide_thread(void * arg)
       GPTLstart("Collide::cell_init");
 #endif
       initTime[id].start();
-      initialize_cell_epsm(tree, c, nselM, crm, tau, id);
+      initialize_cell_epsm(c, nselM, crm, tau, id);
       initSoFar[id] = initTime[id].stop();
       
 #ifdef USE_GPTL
@@ -1205,7 +1205,7 @@ void * Collide::collide_thread(void * arg)
       GPTLstart("Collide::EPSM");
 #endif
       epsmTime[id].start();
-      EPSM(tree, c, id);
+      EPSM(c, id);
       epsmSoFar[id] = epsmTime[id].stop();
 #ifdef USE_GPTL
 
@@ -1218,7 +1218,7 @@ void * Collide::collide_thread(void * arg)
       GPTLstart("Collide::cell_init");
 #endif
       initTime[id].start();
-      initialize_cell_dsmc(tree, c, nselM, crm, tau, id);
+      initialize_cell_dsmc(c, nselM, crm, tau, id);
       initSoFar[id] = initTime[id].stop();
       
 #ifdef USE_GPTL
@@ -1563,7 +1563,7 @@ void * Collide::collide_thread(void * arg)
     // and diagnostics
     //
   
-    finalize_cell(tree, c, Fn, kedsp, tau, id);
+    finalize_cell(c, Fn, kedsp, tau, id);
   
     stat3SoFar[id] = stat3Time[id].stop();
   
@@ -1987,7 +1987,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
   }
 }
 
-void Collide::EPSM(pHOT* const tree, pCell* const cell, int id)
+void Collide::EPSM(pCell* const cell, int id)
 {
   if (cell->bods.size()<2) return;
   
@@ -2830,7 +2830,7 @@ tstep_thread_call(void *atp)
   return NULL;
 }
 
-void Collide::compute_timestep(pHOT* tree, double coolfrac)
+void Collide::compute_timestep(double coolfrac)
 {
   int errcode;
   void *retval;
@@ -2839,7 +2839,6 @@ void Collide::compute_timestep(pHOT* tree, double coolfrac)
     thrd_pass_tstep td;
     
     td.p            = this;
-    td.arg.tree     = tree;
     td.arg.coolfrac = coolfrac;
     td.arg.id       = 0;
     
@@ -2865,7 +2864,6 @@ void Collide::compute_timestep(pHOT* tree, double coolfrac)
   // Make the <nthrds> threads
   for (int i=0; i<nthrds; i++) {
     tdT[i].p            = this;
-    tdT[i].arg.tree     = tree;
     tdT[i].arg.coolfrac = coolfrac;
     tdT[i].arg.id       = i;
     
@@ -2897,7 +2895,6 @@ void Collide::compute_timestep(pHOT* tree, double coolfrac)
 
 void * Collide::timestep_thread(void * arg)
 {
-  pHOT* tree      = (pHOT* )((tstep_pass_arguments*)arg)->tree;
   double coolfrac = (double)((tstep_pass_arguments*)arg)->coolfrac;
   int id          = (int)((tstep_pass_arguments*)arg)->id;
   
@@ -3413,7 +3410,7 @@ double Collide::molWeight()
   return mol_weight;
 }
 
-void Collide::NTCgather(pHOT* const tree)
+void Collide::NTCgather()
 {
   if (NTC and DEBUG_NTC) {
 

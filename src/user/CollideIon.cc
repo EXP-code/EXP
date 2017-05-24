@@ -799,7 +799,7 @@ bool MaxwellianApprox = false;
 
 // Returns (min, mean, max) velocities in each cell
 //
-void CollideIon::cellMinMax(pHOT* const tree, pCell* const cell, int id)
+void CollideIon::cellMinMax(pCell* const cell, int id)
 {
   if (aType != Hybrid) return;
   
@@ -894,12 +894,8 @@ void CollideIon::cellMinMax(pHOT* const tree, pCell* const cell, int id)
 /**
    Precompute all the necessary cross sections
 */
-void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
-				 double rvmax, int id)
+void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 {
-				// Cache the calling tree
-  curTree = tree;
-
   // Representative avg cell velocity in cgs
   //
   double vavg = 0.5*rvmax*UserTreeDSMC::Vunit;
@@ -913,10 +909,10 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
   // Min/Mean/Max electron ion velocity (hybrid only)
   //
   /*
-  if (cell->sample) cellMinMax(tree, cell->sample, id);
-  else              cellMinMax(tree, cell, id);
+  if (cell->sample) cellMinMax(cell->sample, id);
+  else              cellMinMax(cell, id);
   */
-  cellMinMax(tree, cell, id);
+  cellMinMax(cell, id);
 
   std::array<double, 3> iVels = cVels[id].first;
   std::array<double, 3> eVels = cVels[id].second;
@@ -11946,7 +11942,6 @@ void CollideIon::Elost(double* collide, double* epsm)
 
 void * CollideIon::timestep_thread(void * arg)
 {
-  pHOT* tree = (pHOT* )((tstep_pass_arguments*)arg)->tree;
   int id     = (int)((tstep_pass_arguments*)arg)->id;
 
   thread_timing_beg(id);
@@ -12183,9 +12178,8 @@ double CollideIon::electronEnergy(pCell* const cell, int dbg)
   return Eengy * atomic_weights[0];
 }
 
-void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
-			       sKeyDmap* const Fn, double kedsp, double tau,
-			       int id)
+void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
+			       double kedsp, double tau, int id)
 {
   if (mlev==0) {		// Add electronic potential energy
     collD->addCellPotl(cell, id);
@@ -15802,7 +15796,7 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
       for (auto s : SpList) mW[s.first] = 0.0;
       double massP = 0.0;
       for (auto b : c->bods) {
-	Particle *p = curTree->Body(b);
+	Particle *p = tree->Body(b);
 	massP += p->mass;
 	for (auto s : SpList)
 	  mW[s.first] += p->mass * p->dattrib[s.second];
@@ -18182,7 +18176,7 @@ double CollideIon::molWeight(pCell *cell)
     for (auto b : cell->bods) {
       
       try {
-	Particle *p = curTree->Body(b);
+	Particle *p = tree->Body(b);
 	double m = p->mass;
 
 	for (auto s : SpList) {
@@ -19058,7 +19052,7 @@ void CollideIon::post_cell_loop(int id)
     for (auto c : cellist[id]) {
       nC++;
       for (auto b : c->bods) {
-	Particle *p = curTree->Body(b);
+	Particle *p = tree->Body(b);
 	nP++;
 	unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
 	for (size_t j=0; j<3; j++) {

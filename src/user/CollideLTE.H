@@ -39,24 +39,21 @@ protected:
   vector<double> deltaE;
 
   virtual void 
-  initialize_cell(pHOT* const tree, pCell* const c, double vrelmax, int id);
+  initialize_cell(pCell* const c, double vrelmax, int id);
 
   virtual void 
   initialize_cell_dsmc
-  (pHOT* const tree, pCell* const c, sKey2Amap& nsel, 
-   double vrelmax, double tau, int id);
+  (pCell* const c, sKey2Amap& nsel, double vrelmax, double tau, int id);
 
   virtual void
   initialize_cell_epsm
-  (pHOT* const tree, pCell* const c, sKey2Amap& nsel, 
-   double vrelmax, double tau, int id) 
+  (pCell* const c, sKey2Amap& nsel, double vrelmax, double tau, int id) 
   {
-    initialize_cell_dsmc(tree, c, nsel, vrelmax, tau, id);  
+    initialize_cell_dsmc(c, nsel, vrelmax, tau, id);  
   }
 
   virtual void 
-  finalize_cell(pHOT* tree, pCell* c, sKeyDmap* const Fn, 
-		double kedsp, double tau, int id);
+  finalize_cell(pCell* c, sKeyDmap* const Fn, double kedsp, double tau, int id);
 
   virtual sKey2Amap& totalCrossSections(int id)
   {    
@@ -67,7 +64,7 @@ protected:
 
   bool hasHeatCool() { return true; }
 
-  virtual double crossSection(int id, pCell* const tree, 
+  virtual double crossSection(int id, pCell* const c,
 			      Particle* const p1, Particle* const p2, double crm, 
 			      const NTC::Interact::T& ityp=NTC::Interact::single);
 
