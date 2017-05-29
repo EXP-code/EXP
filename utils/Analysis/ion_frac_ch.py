@@ -144,7 +144,6 @@ def plot_data(filename, degree, smooth, msize, dens, tmax=-1.0, tscale=1.0e5, lo
 
     Tmin = np.log10(Temp.min())
     Tmax = np.log10(Temp.max())
-    print('Tmin=',Tmin,' Tmax=',Tmax)
 
     delT = (Tmax - Tmin - 0.000001)/2000.0
     chT  = 10.0**np.arange(Tmin, Tmax, delT)
@@ -163,8 +162,6 @@ def plot_data(filename, degree, smooth, msize, dens, tmax=-1.0, tscale=1.0e5, lo
     pl.subplot(2, 2, 2)
     pl.xlabel('Temperature (K)')
     pl.ylabel('Slope')
-
-    print(R_Ch)
 
     if degree>0:
         if logY:
