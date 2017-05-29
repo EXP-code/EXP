@@ -815,7 +815,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     if (use_temp || use_dens || use_vol) assignTempDensVol();
     
     stepnum = 0;
-    curtime = tnow;
+    tM0 = curtime = tnow;
     
 #ifdef DEBUG
     cout << "Computed partition and tree [firstime on #" 
@@ -834,7 +834,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     }
     
     stepnum++;
-    tM0 = curtime = tnow;
+    curtime = tnow;
   }
   
 				// Time the entire step
@@ -1752,7 +1752,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   
   (*barrier)("TreeDSMC: end of accel routine", __FILE__, __LINE__);
   
-  if (mlevel==0 and tnow>tM0) {
+  if (myid==0 and mlevel==0 and tnow>tM0) {
     tM0 = tnow;
     fullstep.Stop();
 
