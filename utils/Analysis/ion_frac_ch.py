@@ -18,6 +18,7 @@ polynomical fitting with degree 2.  To use a spline fit, specify the value of th
 	$ python ion_frac_ch -s 10000000 run2
 
 """
+from __future__ import print_function
 
 import sys, getopt
 import copy
@@ -54,7 +55,6 @@ def plot_data(filename, degree, smooth, msize, dens, tmax=-1.0, tscale=1.0e5, lo
     time  = []
     temp  = []
     data  = {}
-
 
     # Read and parse the file
     #
@@ -93,7 +93,7 @@ def plot_data(filename, degree, smooth, msize, dens, tmax=-1.0, tscale=1.0e5, lo
                             else:
                                 data[i] = [float(toks[i])]
                 else:
-                    print "Bad line: toks=", len(toks), " labels=", len(labels)
+                    print("Bad line: toks=", len(toks), " labels=", len(labels))
 
     mk = '*'
     if dot: mk = '.'
@@ -106,34 +106,46 @@ def plot_data(filename, degree, smooth, msize, dens, tmax=-1.0, tscale=1.0e5, lo
 
     # Fields to plot
     #
-    tm = np.array(time)
-    tp = np.array(temp)
+    Temp  = np.array(temp)
+    Time  = np.array(time)
+
+    # Molecular weight
+    #
+    fH    = 0.76
+    fHe   = 0.24
+    mu    = 1.0/(fH/1.0 + fHe/4.0)
+
+    tp    = Temp
+    tm    = Time * tscale             # Time in years
+    k_B   = 1.3806504e-16             # Boltzmann constant
+    Econv = 1.5 * k_B * dens/mu       # Convert to energy in erg
+
     if degree>0:
         pf = np.polyfit(tm, tp, deg=degree)
         yf = np.polyval(pf, tm)
         pd = np.polyder(pf, m=1)
-        zf = np.polyval(pd, tm)
+        zf = np.polyval(pd, tm) * Econv
     else:
         tck = ip.splrep(tm, tp, s=smooth)
         yf  = ip.splev(tm, tck)
-        zf  = ip.splev(tm, tck, der=1)
+        zf  = ip.splev(tm, tck, der=1) * Econv
 
     pl.subplot(2, 2, 1)
     pl.xlabel('Time (year)')
     pl.ylabel('Temperature (K)')
-    y = time
-    for i in range(0, len(y)): y[i] *= tscale
-    pl.plot(y, temp, mk, label='simulation', markersize=msize)
+    pl.plot(tm, tp, mk, label='simulation', markersize=msize)
     if degree>0:
-        pl.plot(y, yf, '-', label='poly fit', linewidth=3)
+        pl.plot(tm, yf, '-', label='poly fit', linewidth=3)
     else:
-        pl.plot(y, yf, '-', label='spline fit', linewidth=3)
+        pl.plot(tm, yf, '-', label='spline fit', linewidth=3)
     leg = pl.legend(loc='best',borderpad=0,labelspacing=0)
     leg.get_title().set_fontsize('6')
     pl.setp(pl.gca().get_legend().get_texts(), fontsize='12')
 
-    Tmin = np.log10(yf.min())
-    Tmax = np.log10(yf.max())
+    Tmin = np.log10(Temp.min())
+    Tmax = np.log10(Temp.max())
+    print('Tmin=',Tmin,' Tmax=',Tmax)
+
     delT = (Tmax - Tmin - 0.000001)/2000.0
     chT  = 10.0**np.arange(Tmin, Tmax, delT)
 
@@ -141,9 +153,8 @@ def plot_data(filename, degree, smooth, msize, dens, tmax=-1.0, tscale=1.0e5, lo
     abund = rl.AbundanceAll['abundance']
     T_Ch  = rl.RadLoss['temperature']
     R_Ch  = rl.RadLoss['rate']
-    k_B   = 1.3806504e-16
-    yr5   = 365.25*24*3600*1e5
-    R_Ch *= yr5/k_B * dens**2
+    yrs   = 365.25*24.0*3600.0
+    R_Ch *= yrs * dens**2
     elems = {}
     for n in zmap:
         elems[n] = ch.ioneq(n)
@@ -152,11 +163,24 @@ def plot_data(filename, degree, smooth, msize, dens, tmax=-1.0, tscale=1.0e5, lo
     pl.subplot(2, 2, 2)
     pl.xlabel('Temperature (K)')
     pl.ylabel('Slope')
+
+    print(R_Ch)
+
     if degree>0:
-        pl.plot(yf, -zf, '-', label='poly fit')
+        if logY:
+            pl.semilogy(yf, -zf, '-', label='poly fit')
+        else:
+            pl.plot(yf, -zf, '-', label='poly fit')
     else:
-        pl.plot(yf, -zf, '-', label='spline fit')
-    pl.plot(T_Ch, R_Ch, '-', label='LTE')
+        if logY:
+            pl.semilogy(yf, -zf, '-', label='spline fit')
+        else:
+            pl.plot(yf, -zf, '-', label='spline fit')
+
+    if logY:
+        pl.semilogy(T_Ch, R_Ch, '-', label='LTE')
+    else:
+        pl.plot(T_Ch, R_Ch, '-', label='LTE')
 
     leg = pl.legend(loc='best',borderpad=0,labelspacing=0)
     leg.get_title().set_fontsize('6')
@@ -229,11 +253,11 @@ def main(argv):
     try:
         opts, args = getopt.getopt(argv,"hD:d:s:m:t:T:lp", ["density=", "deg=", "smooth=", "msize=", "timescale=", "tmax=", "log", "point"])
     except getopt.GetoptError:
-        print sys.argv[0], '[-D <density> | --density=<density> | -d <degree> | --deg=<degree> | -s <smooth> | --smooth=<smooth> | -m <size> | --msize=<size> | -l | --log | -p | --point | -t tscale | --timescale=<tscale> |  -T tmax | --tmax=<tmax>] <runtag>'
+        print(sys.argv[0], '[-D <density> | --density=<density> | -d <degree> | --deg=<degree> | -s <smooth> | --smooth=<smooth> | -m <size> | --msize=<size> | -l | --log | -p | --point | -t tscale | --timescale=<tscale> |  -T tmax | --tmax=<tmax>] <runtag>')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print sys.argv[0], '[-D <density> | --density=<density> | -d <degree> | --deg=<degree> | -s <smooth> | --smooth=<smooth> | -m <size> | --msize=<size> | -l | --log | -p | --point  | -t tscale | --timescale=<tscale> | -T tmax | --tmax=<tmax>] <runtag>'
+            print(sys.argv[0], '[-D <density> | --density=<density> | -d <degree> | --deg=<degree> | -s <smooth> | --smooth=<smooth> | -m <size> | --msize=<size> | -l | --log | -p | --point  | -t tscale | --timescale=<tscale> | -T tmax | --tmax=<tmax>] <runtag>')
             sys.exit()
         elif opt in ("-D", "--density"):
             dens = float(arg)
