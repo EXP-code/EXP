@@ -2340,13 +2340,13 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 				// Neutral-neutral scattering
 				// cross section
 	double Radius = geometric(k.first) + meanR[id];
-	Cross += neutF[id] * M_PI*Radius*Radius;
+	Cross += neutF[id] * M_PI*Radius*Radius * crossfac;
 
 
 				// Neutral-charged elastic cross section
 	if (meanE[id] > 0.0)	// (recall Eerg and EeV are the mean
 				// interparticle KE)
-	  Cross += elastic(k.first, EeV * mu) * eVel * meanE[id];
+	  Cross += elastic(k.first, EeV * mu) * eVel * meanE[id] * crossfac;
 
       } else {			// This species is an ion
 
@@ -2357,14 +2357,14 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 	double mfac = 4.0 * logL;
 	double crs = M_PI*b*b * mfac;
 
-	Cross += crs * eVel * meanE[id];
+	Cross += crs * eVel * meanE[id] * crossfac;
 	if (coulScale) {
 	  coulCrs[id][k.second - 1][0] = crs;
 	  coulCrs[id][k.second - 1][1] = EeV * mu;
 	}
       }
 
-      double tCross = Cross * crossfac * 1e-14 /
+      double tCross = Cross * 1e-14 /
 	(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) * cscl_[k.first];
 
       csections[id][Particle::defaultKey][Particle::defaultKey]() += tCross * meanF[id][k];
