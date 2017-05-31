@@ -125,8 +125,8 @@ void initialize(void)
   }
 
   if (parse->find_item("main_wait", val)) {
-    if (atoi(val.c_str())) main_wait = false;
-    else main_wait = true;
+    if (atoi(val.c_str())) main_wait = true;
+    else main_wait = false;
   }
 
   if (parse->find_item("debug_wait", val)) {
@@ -144,6 +144,7 @@ void initialize(void)
 	std::cout << "---- by setting 'debug_wait = false'" << std::endl
 		  << "----" << std::endl;
       }
+    }
   }
 
   if (parse->find_item("fpe_trap", val)) {
