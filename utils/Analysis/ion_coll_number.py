@@ -12,7 +12,7 @@ input command line and a plotting/parsing routine.
 
 Examples:
 
-	$ python ion_coll_number -d 2 run2
+	$ python ion_coll_number.py -d 2 run2
 
 Plots the collision count types for each ion type.
 
@@ -66,13 +66,24 @@ def plot_data(filename, msz, line, dot, elastic, useTime, fullScreen, stride, ts
 
     # Species
     #
-    spec  = ['H', 'H+', 'He', 'He+', 'He++']
-    for v in spec: data[v] = {}
+    spec5   = ['H', 'H+', 'He', 'He+', 'He++']
+    spec1   = ['All']
+    spec    = []
+    nstanza = 0
 
     # Read and parse the file
     #
     file  = open(filename)
     for line in file:
+        if line.find('Species')>=0:
+            if line.find('(65535, 65535)')>=0:
+                spec = spec1
+            else:
+                spec = spec5
+
+            nstanza = len(spec)
+            for v in spec: data[v] = {}
+            
         if line.find('Time')>=0:    # Get the labels
             next = True
             labels = line.translate(trans).split()
@@ -80,7 +91,7 @@ def plot_data(filename, msz, line, dot, elastic, useTime, fullScreen, stride, ts
             tindx  = labels.index('Elost')
             tail   = nlabs - tindx
             if 'Disp' in labels: lead = 3
-            ncol   = (tindx-lead)/5
+            ncol   = (tindx-lead)/nstanza
 
         if line.find('[1]')>=0:     # Get the column indices
             toks = line.translate(trans).split()
