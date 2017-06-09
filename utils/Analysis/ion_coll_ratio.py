@@ -65,13 +65,24 @@ def plot_data(filename, msz, line, dot, summary, izr, smooth, useTime, stride, t
 
     # Species
     #
-    spec  = ['H', 'H+', 'He', 'He+', 'He++']
-    for v in spec: data[v] = {}
+    spec5   = ['H', 'H+', 'He', 'He+', 'He++']
+    spec1   = ['All']
+    spec    = []
+    nstanza = 0
 
     # Read and parse the file
     #
     file  = open(filename)
     for line in file:
+        if line.find('Species')>=0:
+            if line.find('(65535, 65535)')>=0:
+                spec = spec1
+            else:
+                spec = spec5
+
+            nstanza = len(spec)
+            for v in spec: data[v] = {}
+            
         if line.find('Time')>=0:    # Get the labels
             next = True
             labels = line.translate(trans).split()
