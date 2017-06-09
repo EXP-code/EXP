@@ -489,6 +489,9 @@ protected:
 
 public:
   
+  //! NTC mean cross-section multiplcative factor
+  static double NTCfac;
+
   //! Integrate the cooling solution
   static bool ESOL;		
   

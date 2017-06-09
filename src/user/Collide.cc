@@ -35,6 +35,10 @@ double Collide::ntcThreshDef = 0.95;
 //
 bool Collide::MFPCL    = true;
 
+// NTC mean cross-section multiplcative factor
+//
+double Collide::NTCfac = 3.0;
+
 // Use the explicit energy solution
 //
 bool Collide::ESOL     = false;
@@ -1361,9 +1365,14 @@ void * Collide::collide_thread(void * arg)
 	  double Cross = crossSection(id, c, p1, p2, cr, maxT);
 	  bool ok = false;
 	  
+	  double crsvel  = crossIJ[i1][i2]()/cunit * cr * NTCfac;
+	  if (ntcdb[samp->mykey].Ready(k, maxT)) {
+	    crsvel = ntcdb[samp->mykey].CrsVel(k, maxT, ntcThresh);
+	  }
+
 	  double scrs = Cross / cunit;
 	  double prod = cr * scrs;
-	  double targ = prod / ntcdb[samp->mykey].CrsVel(k, maxT, ntcThresh);
+	  double targ = prod / crsvel;
 	  
 	  if (NTC)
 	    ok = ( targ > (*unit)() );

@@ -14527,7 +14527,7 @@ Collide::sKey2Amap CollideIon::generateSelectionDirect
       // Probability of an interaction of between particles of type 1
       // and 2 for a given particle of type 2
       //
-      double Prob = (*Fn)[i2] * densM[i2] * csections[id][i1][i2]() * crm * tau;
+      double Prob = (*Fn)[i2] * densM[i2] * csections[id][i1][i2]() * NTCfac * crm * tau;
 
       // Count _pairs_ of identical particles only
       //                 |
@@ -14803,7 +14803,7 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
 	}
       }
 
-      collP  [i1] = nsigmaM[i1] * crm * tau;
+      collP[i1]   = nsigmaM[i1] * crm * tau;
 
       meanDens   += densN[i1];
       meanCollP  += densN[i1] * collP  [i1];
@@ -15039,10 +15039,6 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
   sKeyDmap            eta, densM, densN, collP, nsigmaM, ncrossM;
   sKey2Amap           selcM;
 
-  // For debugging
-  //
-  constexpr bool allow_ntcdb = false;
-
   // Convert from CHIANTI to system units
   //
   const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
@@ -15223,17 +15219,15 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	    double curNsel = 0.0;
 	    double iniNsel = 0.0;
 
-	    crsvel = crs0/cunit * 3.0 * crm;
+	    crsvel = crs0/cunit * NTCfac * crm;
 
-	    if (allow_ntcdb) {
-	      if (samp) {
-		if (ntcdb[samp->mykey].Ready(k, v.first))
-		  crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, ntcThresh);
-	      }
-	      else {
-		if (ntcdb[c->mykey].Ready(k, v.first))
-		  crsvel = ntcdb[c->mykey].CrsVel(k, v.first, ntcThresh);
-	      }
+	    if (samp) {
+	      if (ntcdb[samp->mykey].Ready(k, v.first))
+		crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, ntcThresh);
+	    }
+	    else {
+	      if (ntcdb[c->mykey].Ready(k, v.first))
+		crsvel = ntcdb[c->mykey].CrsVel(k, v.first, ntcThresh);
 	    }
 
 	    // Probability of an interaction of between particles of type 1
@@ -15275,7 +15269,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	      if (curNsel > 10000.0) {
 		double crsdef =
 		  csectionsH[id][k.first][k.second][v.first]/cunit
-		  *  3.0 * crm;
+		  *  NTCfac * crm;
 		double cv1=crsdef, cv2=crsdef, cv3=crsdef;
 		if (samp) {
 		  if (ntcdb[samp->mykey].Ready(k, v.first)) {
@@ -15410,16 +15404,14 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
 	      double crsvel =
 		csectionsH[id][k.first][k.second][v.first]/cunit
-		* 3.0 * crm;
+		* NTCfac * crm;
 
-	      if (allow_ntcdb) {
-		if (samp) {
-		  if (ntcdb[samp->mykey].Ready(k, v.first))
-		    crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, ntcThresh);
-		} else {
-		  if (ntcdb[c->mykey].Ready(k, v.first))
-		    crsvel = ntcdb[c->mykey].CrsVel(k, v.first, ntcThresh);
-		}
+	      if (samp) {
+		if (ntcdb[samp->mykey].Ready(k, v.first))
+		  crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, ntcThresh);
+	      } else {
+		if (ntcdb[c->mykey].Ready(k, v.first))
+		  crsvel = ntcdb[c->mykey].CrsVel(k, v.first, ntcThresh);
 	      }
 		
 	      double Prob0 = 0.0, Prob1 = 0.0, Dens = 0.0;
@@ -15514,7 +15506,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
 	      double crsvel1 =
 		csections[id][k.first][k.second][v.first]/cunit
-		* 3.0 * crm;
+		* NTCfac * crm;
 
 	      double crsvel0 = csectionsH[id][k.first][k.second][v.first];
 
@@ -15759,6 +15751,14 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
 {
   speciesKey key(Particle::defaultKey);
 
+  // Convert from NTCdb to system units
+  //
+  const double crs_units = 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+
+  // For NTCdb <cross section>*<relative velocity>
+  //
+  const sKeyPair defKeyPair(Particle::defaultKey, Particle::defaultKey);
+
   // Mass density in the cell
   //
   double volc = c->Volume();
@@ -15818,9 +15818,19 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   //
   spCrm[id] = crm;
 
+
+  // Cross section selection
+  //
+  double crossRat = csections[id][key][key]();
+
+  // Use NTCdb?
+  //
+  if (ntcdb[c->mykey].Ready(defKeyPair, NTC::Interact::single))
+    crossRat = ntcdb[c->mykey].CrsVel(defKeyPair, NTC::Interact::single, ntcThresh) * crs_units/crm;
+
   // Compute collision rates in system units
   //
-  double crossM = (*Fn)[key] * dens * csections[id][key][key]();
+  double crossM = (*Fn)[key] * dens * crossRat;
   double collPM = crossM * crm * tau;
 
   // Interaction rate
@@ -15836,7 +15846,7 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   meanLambda = 1.0/crossM;
   meanCollP  = collPM;
 
-  double Prob  = dens * rateF * csections[id][key][key]();
+  double Prob  = dens * rateF * crossRat;
   double selcM = 0.5 * (num-1) * Prob;
   //             ^      ^
   //             |      |
