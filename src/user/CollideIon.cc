@@ -248,7 +248,7 @@ static bool DBG_NewTest       = false;
 
 // This is for debugging; set to "false" for production
 //
-bool use_normtest = true;
+bool use_normtest = false;
 
 // Test initial and final energy with NOCOOL set
 //
@@ -3498,8 +3498,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 
       // Electron (p1) and Ion (p1)
       rvel1 = p1->dattrib[use_elec+i] - p1->vel[i];
-      // Electron (p2) and Ion (p1)
-      rvel2 = p1->dattrib[use_elec+i] - p1->vel[i];
+      // Electron (p2) and Ion (p2)
+      rvel2 = p2->dattrib[use_elec+i] - p2->vel[i];
 
       sVel1 += rvel1*rvel1;
       sVel2 += rvel2*rvel2;
@@ -4062,8 +4062,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     for (unsigned i=0; i<3; i++) {
       // Electron-electron
       double rvel0 = p1->dattrib[use_elec+i] - p2->dattrib[use_elec+i];
+
       // Electron (p1) and Ion (p2)
       double rvel1 = p1->dattrib[use_elec+i] - p2->vel[i];
+
       // Electron (p2) and Ion (p1)
       double rvel2 = p2->dattrib[use_elec+i] - p1->vel[i];
       
@@ -4073,8 +4075,9 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       
       // Electron (p1) and Ion (p1)
       rvel1 = p1->dattrib[use_elec+i] - p1->vel[i];
-      // Electron (p2) and Ion (p1)
-      rvel2 = p1->dattrib[use_elec+i] - p1->vel[i];
+
+      // Electron (p2) and Ion (p2)
+      rvel2 = p2->dattrib[use_elec+i] - p2->vel[i];
       
       sVel1 += rvel1*rvel1;
       sVel2 += rvel2*rvel2;
@@ -4110,11 +4113,17 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
   // Available COM energy
   //
+				// p1 ion : p2 ion
   kEi [id] = 0.5  * mu0 * vel*vel;
+				// p1 ion : p2 electron
   kEe1[id] = 0.5  * mu1 * vel*vel * eVel2*eVel2;
+				// p2 ion : p1 electron
   kEe2[id] = 0.5  * mu2 * vel*vel * eVel1*eVel1;
+				// p1 electron : p2 electron
   kEee[id] = 0.25 * me  * vel*vel * eVel0*eVel0;
+				// p1 ion : p1 electron
   kE1s[id] = 0.5  * mu1 * vel*vel * sVel1*sVel1;
+				// p2 ion : p2 electron
   kE2s[id] = 0.5  * mu2 * vel*vel * sVel2*sVel2;
   
 
@@ -4143,7 +4152,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
   //
   kEe1[id] = std::max<double>(kEe1[id], FloorEv);
   kEe2[id] = std::max<double>(kEe2[id], FloorEv);
-  kEi [id] = std::max<double>(kEi[id],  FloorEv);
+  kEi [id] = std::max<double>(kEi [id], FloorEv);
   
   // For verbose diagnostic output only
   //
@@ -4422,6 +4431,12 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     //-------------------------------
     
     // p1 nucleus has bound electron, p2 has a free electron
+    //
+    //  +--- Charge of the current subspecies
+    //  |
+    //  |       +--- Electron fraction of partner
+    //  |       |
+    //  V       V
     if (P<Z and eta2>0.0) {
       double ke   = std::max<double>(kEe1[id], FloorEv);
       CEvector CE = ch.IonList[Q]->collExciteCross(ke, id);
@@ -4441,6 +4456,12 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     // end: colexcite
     
     // p2 nucleus has bound electron, p1 has a free electron
+    //
+    //  +--- Charge of the current subspecies
+    //  |
+    //  |       +--- Electron fraction of partner
+    //  |       |
+    //  V       V
     if (P<Z and eta1>0) {
       double ke   = std::max<double>(kEe2[id], FloorEv);
       CEvector CE = ch.IonList[Q]->collExciteCross(ke, id);
@@ -4464,6 +4485,12 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     //-------------------------------
       
     // p1 nucleus has bound electron, p2 has a free electron
+    //
+    //  +--- Charge of the current subspecies
+    //  |
+    //  |       +--- Electron fraction of partner
+    //  |       |
+    //  V       V
     if (P<Z and eta2>0) {
       
       double ke  = std::max<double>(kEe1[id], FloorEv);
@@ -4483,6 +4510,12 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     // end: ionize
     
     // p2 nucleus has bound electron, p1 has a free electron
+    //
+    //  +--- Charge of the current subspecies
+    //  |
+    //  |       +--- Electron fraction of partner
+    //  |       |
+    //  V       V
     if (P<Z and eta1) {
       
       double ke  = std::max<double>(kEe2[id], FloorEv);
@@ -4508,6 +4541,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     if (newRecombAlg) {
 
       // p1 ion and p1 electron
+      //
+      //  +--- Ion charge
+      //  |
+      //  v
       if (P>0) {
 	double ke              = std::max<double>(kE1s[id], FloorEv);
 	std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
@@ -4525,6 +4562,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       }
       
       // p2 ion and p1 electron
+      //
+      //  +--- Ion charge
+      //  |
+      //  v
       if (P>0) {
 	double ke              = std::max<double>(kE2s[id], FloorEv);
 	std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
@@ -4543,6 +4584,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       
     } // end: new recomb algorithm
     else {
+      //  +--- Charge of the current subspecies
+      //  |
+      //  |       +--- Electron fraction of partner
+      //  |       |
+      //  V       V
       if (P>0 and eta2>0.0) {
 	// p1 ion and p2 electron
 	{
@@ -10072,7 +10118,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     totalXS += std::get<0>(I.second);
   }
 
-  // Randomize interaction order
+  // Randomize interaction order to prevent bias
   //
   std::random_shuffle(order.begin(), order.end());
 
