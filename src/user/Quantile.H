@@ -90,14 +90,16 @@ namespace NTC {
       ar & BOOST_SERIALIZATION_NVP(M);
       ar & BOOST_SERIALIZATION_NVP(N);
 
-      if (Archive::is_loading::value) {
+      const bool DEBUG = false;
+
+      if (DEBUG and Archive::is_loading::value) {
 	if (t == Box::none) {
 	  std::cout << "Loading Box type of NONE" << std::endl;
 	  t = Box::quantile;
 	}
       }
 
-      if (Archive::is_saving::value) {
+      if (DEBUG and Archive::is_saving::value) {
 	if (t == Box::none) {
 	  std::cout << "Saving Box type of NONE" << std::endl;
 	}
