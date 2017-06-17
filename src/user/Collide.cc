@@ -188,19 +188,26 @@ void Collide::collide_thread_fork(sKeyDmap* Fn)
   }
   
   td = new thrd_pass_Collide [nthrds];
-  t = new pthread_t [nthrds];
-  
   if (!td) {
-    cerr << "Process " << myid 
-	 << ": collide_thread_fork: error allocating memory for thread counters\n";
-    exit(18);
+    std::ostringstream sout;
+    sout << "Process " << myid 
+	 << ": Collide::collide_thread_fork: error allocating memory for thread counters\n";
+    throw std::runtime_error(sout.str());
   }
+
+  t = new pthread_t [nthrds];
   if (!t) {
-    cerr << "Process " << myid
+    std::ostringstream sout;
+    sout << "Process " << myid
 	 << ": collide_thread_fork: error allocating memory for thread\n";
-    exit(18);
+    throw std::runtime_error(sout.str());
   }
   
+  if (pthread_mutex_init(&tlock, NULL) != 0) {
+    throw std::runtime_error("Collide::collide_thread_fork: mutex init failed");
+  }
+  
+
   // Make the <nthrds> threads
   for (int i=0; i<nthrds; i++) {
     td[i].p        = this;
@@ -246,6 +253,7 @@ void Collide::collide_thread_fork(sKeyDmap* Fn)
   
   delete [] td;
   delete [] t;
+  pthread_mutex_destroy(&tlock);
 }
 
 
@@ -1392,8 +1400,9 @@ void * Collide::collide_thread(void * arg)
 	    ntcTot[id]++;
 
 				// Accumulate average
-#pragma omp critical
+	    pthread_mutex_lock(&tlock);
 	    ntcdb[samp->mykey].Add(k, maxT, prod);
+	    pthread_mutex_unlock(&tlock);
 	    if (maxT == NTC::NTCitem::single) {
 	      std::cout << "ntc singleton" << std::endl;
 	    }
