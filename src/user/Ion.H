@@ -326,6 +326,9 @@ protected:
 				// value of h-bar * c in eV*nm
   static constexpr double hbc     = 197.327;
 
+				// Fine structure constant
+  static constexpr double alpha0  = 7.2973525698e-03;
+
 
 				// Thomson scattering cross-section in nm^2
   static constexpr double thom    = 6.652459263719353e-11;
