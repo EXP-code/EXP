@@ -12704,8 +12704,9 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
 	// Update v_max and cross_max for NTC
 	//
-#pragma omp critical
+	pthread_mutex_lock(&tlock);
 	ntcdb[samp->mykey].Add(electronKey, elecElec, prod);
+	pthread_mutex_unlock(&tlock);
       }
 
 
@@ -16814,8 +16815,12 @@ void CollideIon::gatherSpecies()
 	std::cout << std::setw( 4) << Z1
 		  << std::setw( 4) << Z2
 		  << std::setprecision(5);
-	for (size_t k=0; k<3; k++)
-	  std::cout << std::setw(14) << v.second[k]/totalII;
+	for (size_t k=0; k<3; k++) {
+	  if (totalII>0.0)
+	    std::cout << std::setw(14) << v.second[k]/totalII;
+	  else
+	    std::cout << std::setw(14) << 0.0;
+	}
 	std::cout << std::endl;
       }
 

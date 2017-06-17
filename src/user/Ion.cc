@@ -908,14 +908,6 @@ double Ion::qrp(double u)
 */
 double Ion::directIonCross(double E, int id) 
 {
-  // Rydberg in eV
-  //
-  constexpr double ryd     = 27.2113845/2.0;
-
-  // Atomic radius in nm
-  //
-  constexpr double a0      = 0.0529177211;
-
   // Classical Bohr cross section in nm^2
   //
   constexpr double bohr_cs = M_PI*a0*a0;
@@ -930,7 +922,7 @@ double Ion::directIonCross(double E, int id)
 
   // Ionization potential in Rydbergs
   //
-  double ipRyd    = ip/ryd;
+  double ipRyd    = ip/RydtoeV;
 
   double F, qr, cross;
   
@@ -1170,13 +1162,6 @@ std::vector<double> Ion::radRecombCrossKramers(double E, int id)
   const double nfac   = 8.0*M_PI/pow(3.0, 1.5);
 
   const double incmEv = light * planck / eV;
-
-  // Bohr radius in nm
-  //
-  const double a0 = 0.0529177211;
-
-  // Fine structure constant
-  const double alpha0 = 7.2973525698e-03;
 
   // Return vector
   //

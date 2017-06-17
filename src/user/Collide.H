@@ -220,6 +220,7 @@ protected:
   thrd_pass_Collide *td;
   thrd_pass_tstep   *tdT;
   pthread_t *t;
+  pthread_mutex_t tlock;
   //@}
   
   //@{
