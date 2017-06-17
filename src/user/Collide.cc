@@ -203,11 +203,6 @@ void Collide::collide_thread_fork(sKeyDmap* Fn)
     throw std::runtime_error(sout.str());
   }
   
-  if (pthread_mutex_init(&tlock, NULL) != 0) {
-    throw std::runtime_error("Collide::collide_thread_fork: mutex init failed");
-  }
-  
-
   // Make the <nthrds> threads
   for (int i=0; i<nthrds; i++) {
     td[i].p        = this;
@@ -253,7 +248,6 @@ void Collide::collide_thread_fork(sKeyDmap* Fn)
   
   delete [] td;
   delete [] t;
-  pthread_mutex_destroy(&tlock);
 }
 
 
@@ -289,6 +283,10 @@ Collide::Collide(ExternalForce *force, Component *comp,
   c0     = comp;
   nthrds = nth;
   
+  // For threading
+  //
+  tlock = PTHREAD_MUTEX_INITIALIZER;
+
   // Cache the calling tree
   tree = c0->Tree();
 
