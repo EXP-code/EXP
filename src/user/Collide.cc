@@ -3,6 +3,8 @@
 #include <iomanip>
 #include <sstream>
 #include <cmath>
+#include <chrono>
+#include <ctime>
 
 using namespace std;
 
@@ -19,7 +21,7 @@ using namespace std;
 #include <signal.h>
 
 
-static bool CDEBUG     = false;	// Thread diagnostics, false for
+static bool CDEBUG     = true;	// Thread diagnostics, false for
 				// production
 
 bool Collide::PULLIN   = false;	// Use the original Pullin velocity 
@@ -172,6 +174,16 @@ collide_thread_call(void *atp)
 
 void Collide::collide_thread_fork(sKeyDmap* Fn)
 {
+  static bool dbg_timer = true;
+
+  std::clock_t startcputime;
+  std::chrono::high_resolution_clock::time_point wcts;
+
+  if (dbg_timer) {
+    startcputime = std::clock();
+    wcts = std::chrono::high_resolution_clock::now();
+  }
+
   int errcode;
   void *retval;
   
@@ -222,7 +234,6 @@ void Collide::collide_thread_fork(sKeyDmap* Fn)
     cerr << "Process " << myid << ": " << nthrds << " threads created"
 	 << std::endl;
   
-  
   waitTime.start();
   
   // Collapse the threads
@@ -248,6 +259,22 @@ void Collide::collide_thread_fork(sKeyDmap* Fn)
   
   delete [] td;
   delete [] t;
+
+  if (dbg_timer) {
+
+    double cpu_duration =
+      (std::clock() - startcputime) / (double)CLOCKS_PER_SEC;
+
+    std::chrono::duration<double> wctduration =
+      (std::chrono::high_resolution_clock::now() - wcts);
+
+    std::cout << "Collide::collide_thread_fork: "
+	      << cpu_duration << " CPU sec, "
+	      << wctduration.count() << " Wall sec, "
+	      << wctduration.count()/cpu_duration
+	      << " ratio" << std::endl;
+  }
+
 }
 
 
@@ -586,32 +613,81 @@ Collide::~Collide()
 
 void Collide::debug_list()
 {
-  return;
+  // return;
   
   unsigned ncells = tree->Number();
   pHOT_iterator c(*tree);
+
   for (int cid=0; cid<numprocs; cid++) {
+
+    // Walk through processes
+    //
     if (myid == cid) {
-      ostringstream sout;
-      sout << "==== Collide " << myid << " ncells=" << ncells;
-      cout << setw(70) << setfill('=') << left << sout.str() 
-	   << endl << setfill(' ');
-      
-      for (int n=0; n<nthrds; n++) {
-	int nbeg = ncells*(n  )/nthrds;
-	int nend = ncells*(n+1)/nthrds;
-	for (int j=nbeg; j<nend; j++) {
-	  int tnum = c.nextCell();
-	  cout << setw(8)  << j
-	       << setw(12) << c.Cell()
-	       << setw(12) << cellist[n][j-nbeg]
-	       << setw(12) << c.Cell()->bods.size()
-	       << setw(12) << tnum << endl;
-	}
-      }
-    }
+
+      unsigned cellC = 0;
+      for (auto l : cellist) cellC += l.size();
+
+      std::ostringstream sout;
+      sout << "==== Collide [" << myid << "] level=" << mlev
+	   << " active cells/total=" << cellC << "/" << ncells << " ";
+
+      std::cout << std::setw(70)     << std::setfill('=') << std::left
+		<< sout.str()        << std::endl
+		<< std::setfill(' ') << std::endl;
+
+      if (cellC > 0) {
+
+	//
+	//  +--- Summary info
+	//  |
+	//  V
+	if (true) {
+	  std::cout << std::setw( 8) << std::right << "TID"
+		    << std::setw(12) << std::right << "# cells"
+		    << std::setw(12) << std::right << "# bodies"
+		    << std::endl
+		    << std::setw( 8) << std::right << "---"
+		    << std::setw(12) << std::right << "--------"
+		    << std::setw(12) << std::right << "--------"
+		    << std::endl;
+	  
+	  for (int n=0; n<nthrds; n++) {
+	    unsigned bodCount = 0;
+	    for (auto c : cellist[n]) bodCount += c->bods.size();
+	    cout << setw(8)  << n
+		 << setw(12) << cellist[n].size()
+		 << setw(12) << bodCount
+		 << std::endl;
+	  }
+	  
+	}      // END: summary info
+
+	else { // BEG: per cell info
+
+	  
+	  for (int n=0; n<nthrds; n++) {
+	    int nbeg = ncells*(n  )/nthrds;
+	    int nend = ncells*(n+1)/nthrds;
+	    for (int j=nbeg; j<nend; j++) {
+	      int tnum = c.nextCell();
+	      std::cout << std::setw(8)  << j
+			<< std::setw(12) << c.Cell()
+			<< std::setw(12) << cellist[n][j-nbeg]
+			<< std::setw(12) << c.Cell()->bods.size()
+			<< std::setw(12) << tnum << endl;
+	    }
+
+	  } // END: thread loop
+
+	} // END: per cell info
+
+      } // END: cellC>0
+
+    } // process selection
+
     MPI_Barrier(MPI_COMM_WORLD);
-  }
+
+  } // END::process loop
 }
 
 
@@ -2878,6 +2954,7 @@ void Collide::compute_timestep(double coolfrac)
   }
   
   // Make the <nthrds> threads
+  //
   for (int i=0; i<nthrds; i++) {
     tdT[i].p            = this;
     tdT[i].arg.coolfrac = coolfrac;
