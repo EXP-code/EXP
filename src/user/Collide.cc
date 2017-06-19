@@ -269,13 +269,16 @@ void Collide::collide_thread_fork(sKeyDmap* Fn)
     std::chrono::duration<double> wctduration =
       (std::chrono::high_resolution_clock::now() - wcts);
 
+    //  +--- Summary output
+    //  |
+    //  V
     if (true) {
       if (wctduration > std::chrono::duration<double>(5.0)) {
-	std::cout << "Collide::collide_thread_fork ratio="
+	std::cout << "Collide::collide_thread_fork: T=" << tnow << " ratio="
 		  << wctduration.count()/cpu_duration << std::endl;
       }
     } else {
-      std::cout << "Collide::collide_thread_fork: "
+      std::cout << "Collide::collide_thread_fork: T=" << tnow << " "
 		<< cpu_duration << " CPU sec, "
 		<< wctduration.count() << " Wall sec, "
 		<< wctduration.count()/cpu_duration
