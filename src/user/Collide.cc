@@ -21,7 +21,10 @@ using namespace std;
 #include <signal.h>
 
 
-static bool CDEBUG     = true;	// Thread diagnostics, false for
+static bool CDEBUG     = false;	// Thread diagnostics, false for
+				// production
+
+static bool CTIMER     = false;	// Thread timing diagnostics, false for
 				// production
 
 bool Collide::PULLIN   = false;	// Use the original Pullin velocity 
@@ -174,12 +177,10 @@ collide_thread_call(void *atp)
 
 void Collide::collide_thread_fork(sKeyDmap* Fn)
 {
-  static bool dbg_timer = true;
-
   std::clock_t startcputime;
   std::chrono::high_resolution_clock::time_point wcts;
 
-  if (dbg_timer) {
+  if (CTIMER) {
     startcputime = std::clock();
     wcts = std::chrono::high_resolution_clock::now();
   }
@@ -260,7 +261,7 @@ void Collide::collide_thread_fork(sKeyDmap* Fn)
   delete [] td;
   delete [] t;
 
-  if (dbg_timer) {
+  if (CTIMER) {
 
     double cpu_duration =
       (std::clock() - startcputime) / (double)CLOCKS_PER_SEC;
@@ -268,11 +269,18 @@ void Collide::collide_thread_fork(sKeyDmap* Fn)
     std::chrono::duration<double> wctduration =
       (std::chrono::high_resolution_clock::now() - wcts);
 
-    std::cout << "Collide::collide_thread_fork: "
-	      << cpu_duration << " CPU sec, "
-	      << wctduration.count() << " Wall sec, "
-	      << wctduration.count()/cpu_duration
-	      << " ratio" << std::endl;
+    if (true) {
+      if (wctduration > std::chrono::duration<double>(5.0)) {
+	std::cout << "Collide::collide_thread_fork ratio="
+		  << wctduration.count()/cpu_duration << std::endl;
+      }
+    } else {
+      std::cout << "Collide::collide_thread_fork: "
+		<< cpu_duration << " CPU sec, "
+		<< wctduration.count() << " Wall sec, "
+		<< wctduration.count()/cpu_duration
+		<< " ratio" << std::endl;
+    }
   }
 
 }
@@ -613,8 +621,6 @@ Collide::~Collide()
 
 void Collide::debug_list()
 {
-  // return;
-  
   unsigned ncells = tree->Number();
   pHOT_iterator c(*tree);
 
