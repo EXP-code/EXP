@@ -12454,10 +12454,12 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
     //
     pCell *samp = cell->sample;
 
+    pthread_mutex_lock(&tlock);
     if (samp)
       crsvel = ntcdb[samp->mykey].CrsVel(electronKey, elecElec, ntcThresh);
     else
       crsvel = ntcdb[cell->mykey].CrsVel(electronKey, elecElec, ntcThresh);
+    pthread_mutex_unlock(&tlock);
 
     // Probability of an interaction of between particles of type 1
     // and 2 for a given particle of type 2
@@ -12690,7 +12692,9 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	// Accept or reject candidate pair according to relative speed
 	//
 	double prod = vi * scrs;
+	pthread_mutex_lock(&tlock);
 	double targ = prod/ntcdb[samp->mykey].CrsVel(electronKey, elecElec, ntcThresh);
+	pthread_mutex_unlock(&tlock);
 
 	ok = (targ > (*unit)() );
 
@@ -14930,10 +14934,12 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
 	  sKeyPair k(i1, i2);
 	  if (i1>=i2) k = sKeyPair(i2, i1);
 
+	  pthread_mutex_lock(&tlock);
 	  if (samp)
 	    crsvel = ntcdb[samp->mykey].CrsVel(k, ntcThresh);
 	  else
 	    crsvel = ntcdb[c->mykey].CrsVel(k, ntcThresh);
+	  pthread_mutex_unlock(&tlock);
 
 	  // Probability of an interaction of between particles of type 1
 	  // and 2 for a given particle of type 2
@@ -14959,6 +14965,7 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
 	  if (DEBUG_SL) {
 	    if (selcM[i1][i2]()>10000.0) {
 	      double cv1, cv2, cv3;
+	      pthread_mutex_lock(&tlock);
 	      if (samp) {
 		cv1 = ntcdb[samp->mykey].CrsVel(k, 0.50);
 		cv2 = ntcdb[samp->mykey].CrsVel(k, 0.90);
@@ -14968,6 +14975,7 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
 		cv2 = ntcdb[c->mykey].CrsVel(k, 0.90);
 		cv3 = ntcdb[c->mykey].CrsVel(k, 0.95);
 	      }
+	      pthread_mutex_unlock(&tlock);
 
 	      std::cout << std::endl
 			<< "Too many collisions: collP=" << meanCollP
@@ -15040,10 +15048,12 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
 	    sKeyPair   k(i1, i2);
 
 	    double crsvel = 0.0;
+	    pthread_mutex_lock(&tlock);
 	    if (samp)
 	      crsvel = ntcdb[samp->mykey].CrsVel(k, ntcThresh);
 	    else
 	      crsvel = ntcdb[c->mykey].CrsVel(k, ntcThresh);
+	    pthread_mutex_unlock(&tlock);
 
 	    double Prob0 = 0.0, Prob1 = 0.0;
 
@@ -15268,6 +15278,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
 	    crsvel = crs0/cunit * NTCfac * crm;
 
+	    pthread_mutex_lock(&tlock);
 	    if (samp) {
 	      if (ntcdb[samp->mykey].Ready(k, v.first))
 		crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, ntcThresh);
@@ -15276,6 +15287,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	      if (ntcdb[c->mykey].Ready(k, v.first))
 		crsvel = ntcdb[c->mykey].CrsVel(k, v.first, ntcThresh);
 	    }
+	    pthread_mutex_unlock(&tlock);
 
 	    // Probability of an interaction of between particles of type 1
 	    // and 2 for a given particle of type 1
@@ -15318,6 +15330,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 		  csectionsH[id][k.first][k.second][v.first]/cunit
 		  *  NTCfac * crm;
 		double cv1=crsdef, cv2=crsdef, cv3=crsdef;
+		pthread_mutex_lock(&tlock);
 		if (samp) {
 		  if (ntcdb[samp->mykey].Ready(k, v.first)) {
 		    cv1 = ntcdb[samp->mykey].CrsVel(k, v.first, 0.50);
@@ -15331,6 +15344,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 		    cv3 = ntcdb[c->mykey].CrsVel(k, v.first, 0.95);
 		  }
 		}
+		pthread_mutex_unlock(&tlock);
 
 		std::ostringstream sout;
 		sout << v.first;
@@ -15453,6 +15467,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 		csectionsH[id][k.first][k.second][v.first]/cunit
 		* NTCfac * crm;
 
+	      pthread_mutex_lock(&tlock);
 	      if (samp) {
 		if (ntcdb[samp->mykey].Ready(k, v.first))
 		  crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, ntcThresh);
@@ -15460,6 +15475,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 		if (ntcdb[c->mykey].Ready(k, v.first))
 		  crsvel = ntcdb[c->mykey].CrsVel(k, v.first, ntcThresh);
 	      }
+	      pthread_mutex_unlock(&tlock);
 		
 	      double Prob0 = 0.0, Prob1 = 0.0, Dens = 0.0;
 
@@ -15559,6 +15575,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
 	      double crsvel = crsvel1;
 
+	      pthread_mutex_lock(&tlock);
 	      if (samp) {
 		if (ntcdb[samp->mykey].Ready(k, v.first))
 		  crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, ntcThresh);
@@ -15566,6 +15583,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 		if (ntcdb[c->mykey].Ready(k, v.first))
 		  crsvel = ntcdb[c->mykey].CrsVel(k, v.first, ntcThresh);
 	      }
+	      pthread_mutex_unlock(&tlock);
 
 	      double Prob0 = 0.0, Prob1 = 0.0, Dens = 0.0;
 
@@ -15872,8 +15890,10 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
 
   // Use NTCdb?
   //
+  pthread_mutex_lock(&tlock);
   if (ntcdb[c->mykey].Ready(defKeyPair, NTC::Interact::single))
     crossRat = ntcdb[c->mykey].CrsVel(defKeyPair, NTC::Interact::single, ntcThresh) * crs_units/crm;
+  pthread_mutex_unlock(&tlock);
 
   // Compute collision rates in system units
   //
