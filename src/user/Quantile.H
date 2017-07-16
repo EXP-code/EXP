@@ -16,6 +16,9 @@
 
 namespace NTC {
 
+  //! Histogram or Quantile
+  enum class Box {none=0, quantile=1, histogram=2};
+
   /**
      @brief Estimate a quantile using the Jain & Chlamtac P^2 algorithm
 
@@ -68,7 +71,7 @@ namespace NTC {
     unsigned N;
 
     //! Histogram or Quantile
-    enum class Box {none=0, quantile=1, histogram=2} t;
+    Box t;
 
     //@{
     //! For storage management, data updating, and interpolation
@@ -186,5 +189,37 @@ namespace NTC {
   };
 
 }
+
+namespace boost {
+  namespace serialization {
+
+    template <class Archive>
+    void save(Archive & ar, const NTC::Box & t, const unsigned int version)
+    {
+      int val = 0;
+      if (t == NTC::Box::quantile)       val = 1;
+      else if (t == NTC::Box::histogram) val = 2;
+      ar << val;
+    }
+
+
+    template <class Archive>
+    void load(Archive & ar, NTC::Box & t, const unsigned int version)
+    {
+      int val;
+      ar >> val;
+      if (val == 1)      t = NTC::Box::quantile;
+      else if (val == 2) t = NTC::Box::histogram;
+      else               t = NTC::Box::none;
+    }
+
+    template<class Archive>
+    void serialize(Archive & ar, NTC::Box & t, const unsigned int version)
+    {
+      boost::serialization::split_free(ar, t, version);
+    }
+    
+  } // namespace serialization
+} // namespace boost
 
 #endif
