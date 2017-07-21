@@ -1069,7 +1069,7 @@ void * Collide::collide_thread(void * arg)
 		  samp->stotal[4+k]*samp->stotal[4+k]/samp->stotal[0])
 	    /samp->stotal[0];}
       }
-      crm  = sqrt(2.0*crm);
+      crm  = crm>0.0 ? sqrt(2.0*crm) : 0.0;
     }
     
     stat1SoFar[id] = stat1Time[id].stop();
