@@ -18,16 +18,41 @@ args = parser.parse_args()
 
 file = open(args.body)
 file.readline()
-maxD = [0.0, 0.0, 0.0, 0.0]
+mval = 1.0e32
+mtot = 0.0
+minD = [mval, mval, mval, mval, mval, mval]
+maxD = [0.0,  0.0,  0.0,  0.0,  0.0,  0.0]
+avgP = [0.0, 0.0, 0.0]
+avgV = [0.0, 0.0, 0.0]
 for line in file:
     v = line.split()
-    maxD[0] += float(v[0])
-    for i in range(1,4): maxD[i] = max(maxD[i], float(v[i]))
+    m = float(v[0])
+    mtot += m
+    for i in range(0,6):
+        minD[i] = min(minD[i], float(v[i+1]))
+        maxD[i] = max(maxD[i], float(v[i+1]))
+    for i in range(0,3):
+        avgP[i] += m*float(v[i+1])
+        avgV[i] += m*float(v[i+4])
         
 mfac = args.msun*C.Msun/C.m_p/(args.lpc*C.pc)**3
-dens = maxD[0]/(maxD[1]*maxD[2]*maxD[3]) * mfac
+dens = mtot/((maxD[0]-minD[0])*(maxD[1]-minD[1])*(maxD[2]-minD[2])) * mfac
 
-print("Total mass:", maxD[0])
-print("Maximum pos:", maxD[1:])
-print("Density (n/cc) =", dens)
+for i in range(0,3):
+    avgP[i] /= mtot
+    avgV[i] /= mtot
+
+print()
+print("Value          : {:>13s}   {:>13s}   {:>13s}".format('x|u', 'y|v', 'z|w'))
+print("-------------- : {:13s}   {:13s}   {:13s}".format('-'*13, '-'*13, '-'*13))
+print("Minimum pos    : {:13.6e}   {:13.6e}   {:13.6e}".format(minD[0], minD[1], minD[2]))
+print("Maximum pos    : {:13.6e}   {:13.6e}   {:13.6e}".format(maxD[0], maxD[1], maxD[2]))
+print("Minimum vel    : {:13.6e}   {:13.6e}   {:13.6e}".format(minD[3], minD[4], minD[5]))
+print("Maximum vel    : {:13.6e}   {:13.6e}   {:13.6e}".format(maxD[3], maxD[4], maxD[5]))
+print("Average pos    : {:13.6e}   {:13.6e}   {:13.6e}".format(avgP[0], avgP[1], avgP[2]))
+print("Average vel    : {:13.6e}   {:13.6e}   {:13.6e}".format(avgV[0], avgV[1], avgV[2]))
+print("-------------- : {:13s}   {:13s}   {:13s}".format('-'*13, '-'*13, '-'*13))
+print("Density (n/cc) : {:13.6e}".format(dens))
+print("Total mass     : {:13.6e}".format(mtot))
+print()
 
