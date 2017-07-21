@@ -1619,6 +1619,20 @@ void * Collide::collide_thread(void * arg)
     sel1T[id] += totalCount;
     col1T[id] += colc;
       
+    // Cache acceptance fraction for scaling MFP for time step
+    // selection
+    //
+    if (acceptCount > 0) {
+      double scale = static_cast<double>(totalCount)/acceptCount; 
+      meanLambda *= scale;
+      meanCollP  /= scale;
+      if (MFPTS) {
+	pthread_mutex_lock(&tlock);
+	selMFP[c] = meanLambda;
+	pthread_mutex_unlock(&tlock);
+      }
+    }
+
 #ifdef USE_GPTL
     GPTLstop("Collide::inelastic");
 #endif

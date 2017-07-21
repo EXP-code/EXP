@@ -12028,70 +12028,9 @@ void * CollideIon::timestep_thread(void * arg)
       densM[i1] = c->Mass(i1)/volc;
     }
 
-    double meanDens=0.0, meanLambda=0.0;
+    double meanLambda = 0.0;
 
-    // MFPTS is defined in the Collide class and set by member
-    // functions in UserTreeDSMC
-    //
-    if (MFPTS) {
-
-      if (mfptype == MFP_t::Ncoll) {
-
-	unsigned N = c->bods.size();
-	if (N>1 and spNcol[id]>0) {
-	  double KEtot, KEdspC;
-	  c->KE(KEtot, KEdspC);
-	  double meanVel = sqrt(2.0*KEdspC);
-
-	  meanLambda = meanVel*spTau[id]*0.5*N*(N-1)/spNcol[id];
-	} else {
-	  meanLambda = DBL_MAX;
-	}
-
-      } else {
-
-	for (auto it1 : c->count) {
-	  speciesKey i1 = it1.first;
-	  crossM [i1] = 0.0;
-	  
-	  for (auto it2 : c->count) {
-	    
-	    speciesKey i2 = it2.first;
-	    double      N = UserTreeDSMC::Munit/amu;
-
-	    if (i2 == Particle::defaultKey) N /= atomic_weights[i2.first];
-
-	    double crossTot = 0.0;
-
-	    if (i2 >= i1) {
-	      if (!crossIJ[i1][i2]) {
-		crossTot = crossIJ[i1][i2]();
-	      } else {
-		for (auto v : crossIJ[i1][i2].v)
-		  crossTot += v.second;
-	      }
-	    } else {
-	      if (!crossIJ[i2][i1]) {
-		crossTot = crossIJ[i2][i1]();
-	      } else {
-		for (auto v : crossIJ[i2][i1].v)
-		  crossTot += v.second;
-	      }
-	    }
-	    
-	    crossM[i1] += N * densM[i2] * crossTot;
-	  }
-	  
-	  lambdaM[i1] = 1.0/crossM[i1];
-	  meanDens   += densM[i1] ;
-	  meanLambda += densM[i1] * lambdaM[i1];
-	}
-      
-	// This is the number density-weighted
-	meanLambda /= meanDens;
-      }
-
-    }
+    if (MFPTS) meanLambda = selMFP[c];
 
     for (auto i : c->bods) {
 

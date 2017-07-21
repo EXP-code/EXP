@@ -323,6 +323,8 @@ protected:
 
   std::vector< vector<pCell*> > cellist;
   
+  std::map<pCell*, double> selMFP;
+
   std::vector<double> disptot;
   double masstot;
   double excessCtot, excessEtot;
