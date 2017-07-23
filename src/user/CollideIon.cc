@@ -12501,8 +12501,8 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       unsigned long i1 = bods[l1];
       unsigned long i2 = bods[l2];
 
-      Particle* p1 = cell->Body(bods[i1]);
-      Particle* p2 = cell->Body(bods[i2]);
+      Particle* p1 = cell->Body(i1);
+      Particle* p2 = cell->Body(i2);
 
       KeyConvert k1(p1->iattrib[use_key]);
       KeyConvert k2(p2->iattrib[use_key]);
