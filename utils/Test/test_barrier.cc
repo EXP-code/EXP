@@ -36,6 +36,7 @@
 #include <cstring>
 #include <vector>
 #include <memory>
+#include <random>
 
 #include <cstdlib>
 #include <cmath>
