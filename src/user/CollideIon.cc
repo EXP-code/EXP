@@ -14210,6 +14210,15 @@ void CollideIon::parseSpecies(const std::string& map)
 
       } else if (type.compare("trace")==0) {
 
+	// Sanity check
+	if (c0->keyPos >= 0) {
+	  std::ostringstream sout;
+	  sout << "[" << myid 
+	       << "] CollideIon::parse_species: method <trace> is requested but keyPos="
+	       << c0->keyPos << " and should be < 0 for consistency" << std::endl;
+	  throw std::runtime_error(sout.str());
+	}
+
 	aType = Trace;
 
 	in.getline(line, nline);
