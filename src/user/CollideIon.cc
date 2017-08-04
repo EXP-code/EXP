@@ -10284,6 +10284,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	}
       }
       
+      if (collLim) Prob *= colSc[id];
+
       if (interFlag == free_free) {
 
 	if (I1.first == Interact::electron) {
@@ -10292,7 +10294,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = IS.selectFFInteract(std::get<2>(I));
 
-	  dE = tmpE * Prob;
+	  dE = tmpE * Prob * colSc[id];
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_FF_E) dE = 0.0;
@@ -12643,7 +12645,8 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
 	// Used / Total
 	//
-	if (ok) elecAcc[id]++; elecTot[id]++;
+	if (ok) elecAcc[id]++;
+	elecTot[id]++;
 
 	// Update v_max and cross_max for NTC
 	//
@@ -15352,14 +15355,10 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
     unsigned     nbods  = c->bods.size();
     double       cpbod  = static_cast<double>(totalNsel)/nbods;
 
-    colSc[id] = 1.0;
-
     if (totalNsel > maxSelA or cpbod > maxSelB) {
       std::get<0>(clampdat[id]) ++;
       std::get<1>(clampdat[id]) += cpbod;
       std::get<2>(clampdat[id])  = std::max<double>(cpbod, std::get<2>(clampdat[id]));
-
-      colSc[id] = std::min<double>(maxSelA/totalNsel, maxSelB/cpbod);
 
       totalNsel = 0;
       for (auto & u : selcM) {
@@ -15836,6 +15835,7 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   //
   double crossRat = csections[id][key][key]();
 
+
   // Use NTCdb?
   //
   pthread_mutex_lock(&tlock);
@@ -15869,6 +15869,24 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   //             |
   //             +--- Pairs are double counted
   //
+
+  if (collLim) {		// Sanity clamp
+
+    unsigned     nbods  = c->bods.size();
+    double       cpbod  = selcM/nbods;
+
+    colSc[id] = 1.0;
+
+    if (selcM > maxSelA) {
+      std::get<0>(clampdat[id]) ++;
+      std::get<1>(clampdat[id]) += cpbod;
+      std::get<2>(clampdat[id])  = std::max<double>(cpbod, std::get<2>(clampdat[id]));
+
+      colSc[id] = selcM/maxSelA;
+
+      selcM = std::min<double>(maxSelA, selcM);
+    }
+  }
 
   // Cache probability of an interaction of between the particles pair
   // and number of pairs predicted for use in inelasticTrace

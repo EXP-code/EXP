@@ -1366,7 +1366,6 @@ public:
 	std::cout << "--- Available types ---" << std::endl;
 	for (auto s : esMap) std::cout << "  " << s.first << std::endl;
 	std::cout << "-----------------------" << std::endl;
-	esMapType::const_iterator it = esMap.find(type);
       }
       esType = always;
     }
