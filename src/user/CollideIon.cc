@@ -39,8 +39,7 @@ bool     CollideIon::AlgOrth    = false;
 bool     CollideIon::AlgWght    = false;
 bool     CollideIon::DebugE     = false;
 bool     CollideIon::collLim    = false;
-unsigned CollideIon::maxSelA    = 1000;
-unsigned CollideIon::maxSelB    = 1000;
+unsigned CollideIon::maxSel     = 1000;
 bool     CollideIon::E_split    = false;
 bool     CollideIon::distDiag   = false;
 bool     CollideIon::elecDist   = false;
@@ -487,10 +486,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "COLL_LIMIT"
 	      << (collLim ? "on" : "off")               << std::endl;
     if (collLim)		// print collLim parameters
-    std::cout <<  " " << std::setw(20) << std::left << "maxSelA"
-	      << maxSelA                                << std::endl
-	      <<  " " << std::setw(20) << std::left << "maxSelB"
-	      << maxSelB                                << std::endl;
+    std::cout <<  " " << std::setw(20) << std::left << "maxSel"
+	      << maxSel                                 << std::endl;
     std::cout <<  " " << std::setw(20) << std::left << "scatFac1"
 	      << scatFac1                               << std::endl
 	      <<  " " << std::setw(20) << std::left << "scatFac2"
@@ -15355,7 +15352,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
     unsigned     nbods  = c->bods.size();
     double       cpbod  = static_cast<double>(totalNsel)/nbods;
 
-    if (totalNsel > maxSelA or cpbod > maxSelB) {
+    if (totalNsel > maxSel) {
       std::get<0>(clampdat[id]) ++;
       std::get<1>(clampdat[id]) += cpbod;
       std::get<2>(clampdat[id])  = std::max<double>(cpbod, std::get<2>(clampdat[id]));
@@ -15364,7 +15361,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
       for (auto & u : selcM) {
 	for (auto & v : u.second) {
 	  // Clamp to threshold for each interaction type
-	  v.second.d = std::min<double>(maxSelA, v.second.d);
+	  v.second.d = std::min<double>(maxSel, v.second.d);
 	  totalNsel += v.second.d;
 	}
       }
@@ -15877,14 +15874,13 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
 
     colSc[id] = 1.0;
 
-    if (selcM > maxSelA) {
+    if (selcM > maxSel) {
       std::get<0>(clampdat[id]) ++;
       std::get<1>(clampdat[id]) += cpbod;
       std::get<2>(clampdat[id])  = std::max<double>(cpbod, std::get<2>(clampdat[id]));
 
-      colSc[id] = selcM/maxSelA;
-
-      selcM = std::min<double>(maxSelA, selcM);
+      colSc[id] = selcM/maxSel;
+      selcM = std::min<double>(maxSel, selcM);
     }
   }
 
@@ -18667,11 +18663,8 @@ void CollideIon::processConfig()
     collLim =
       cfg.entry<bool>("COLL_LIMIT", "Limit number of collisions per particle", false);
 
-    maxSelA =
+    maxSel =
       cfg.entry<unsigned>("COLL_LIMIT_ABS", "Limiting number of collisions per cell", 5000);
-
-    maxSelB =
-      cfg.entry<unsigned>("COLL_LIMIT_REL", "Limiting number of collisions per body", 400);
 
     energy_scale =
       cfg.entry<double>("COOL_SCALE", "If positive, reduce the inelastic energy by this fraction", -1.0);

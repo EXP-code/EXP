@@ -1276,8 +1276,7 @@ public:
   static double   Tmax;
   static unsigned Nnum;
   static unsigned Tnum;
-  static unsigned maxSelA;
-  static unsigned maxSelB;
+  static unsigned maxSel;
   static unsigned NoDelC;
   static unsigned maxCoul;
   static string   cache;
