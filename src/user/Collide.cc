@@ -106,6 +106,9 @@ double Collide::TFLOOR = 1000.0;
 //
 bool Collide::MFPTS    = false;
 
+// Random number seed
+unsigned Collide::seed = 11;
+
 double 				// Enhance (or suppress) fiducial cooling rate
 Collide::ENHANCE       = 1.0;	// Currently, only used in LTE method
 
@@ -550,7 +553,7 @@ Collide::Collide(ExternalForce *force, Component *comp,
   use_Kn   = -1;
   use_St   = -1;
   
-  gen  = new ACG     (11+myid);
+  gen  = new ACG     (seed+myid);
   unit = new Uniform (0.0, 1.0, gen);
   norm = new Normal  (0.0, 1.0, gen);
   

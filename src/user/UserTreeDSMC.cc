@@ -61,6 +61,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   Ncell      = 64;
   cnum       = 0;
   madj       = 512;		// No tree pruning by default
+  seed       = 11;		// Default seed for Collide
   epsm       = -1.0;
   hsdiam     = 1.0;
   crossfac   = 1.0;
@@ -109,6 +110,13 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   // Initialize using input parameters
   initialize();
   
+  // Set Collide random seed
+  if (seed==0) {
+    std::ifstream rin("/dev/urandom");
+    rin.read((char *)&seed, sizeof(seed));
+  }
+  Collide::seed = seed;
+
   // Update derived units from Munit, Lunit, Tunit
   Vunit = Lunit/Tunit;
   Eunit = Munit*Vunit*Vunit;

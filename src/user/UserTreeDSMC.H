@@ -153,6 +153,7 @@ class CollideIon;
     @param ctype is a string referring to the name of the desired collision type (default: LTE)
     @param rrtype is a string referring to the name of the desired radiative recombination cross section type.  This is only used by the ctype=Ion method (default: Mewe)
     @param equiptn set to true (default: true) enforces equipartition between electron and ion pairs. This is only used by the ctype=Ion method.
+    @param seed is the default random number seed.  If seed=0, /dev/urandom is used.  Otherwise, Collide class default is used.
 
     <h2>Note on multiple species</h2>
 
@@ -183,7 +184,7 @@ private:
   int ncell, Ncell;
   int cnum, wght;
   int nsteps, msteps, remap;
-  unsigned madj;
+  unsigned madj, seed;
   int use_key, use_temp, use_dens, use_delt, use_exes, use_Kn;
   int use_St, use_vol, use_Eint, tspow;
   double hsdiam;

@@ -561,6 +561,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "Spectrum"
 	      << (use_spectrum ? (wvlSpect ? "in wavelength" : "in eV")
 		  : "off")                              << std::endl
+	      << " " << std::setw(20) << std::left << "random seed"
+	      << seed
 	      << "************************************" << std::endl;
   }
 

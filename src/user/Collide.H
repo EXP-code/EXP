@@ -165,6 +165,9 @@ public:
   //! Upper thresh for reporting
   static unsigned numSanityFreq;
   
+  //! Random seed for initialization
+  static unsigned seed;
+
   //! Toggle for deep debugging output for hybrid method (set to false
   //! for production)
   static constexpr bool init_dbg = false;
