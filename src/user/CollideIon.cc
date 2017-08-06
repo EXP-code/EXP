@@ -10283,6 +10283,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	}
       }
       
+      // Upscale elastic cross sections by collision-limit ratio to
+      // preserve the physical energy loss rate
+      //
       if (collLim) Prob *= colSc[id];
 
       if (interFlag == free_free) {
@@ -10293,7 +10296,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = IS.selectFFInteract(std::get<2>(I));
 
-	  dE = tmpE * Prob * colSc[id];
+	  dE = tmpE * Prob;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_FF_E) dE = 0.0;
