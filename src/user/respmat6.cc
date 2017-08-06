@@ -1976,7 +1976,7 @@ void RespMat::get_wake (Matrix& wake, CVector& ext,
       xt = trans*x0;
 
       r = sqrt(xt*xt);
-      if (r <= model->get_max_radius())
+      if (r <= model->get_max_radius()) {
 	phi = atan2(xt[2],xt[1]);
       
 	f = Re( exp(I*phi*m) * resp );
@@ -1995,6 +1995,7 @@ void RespMat::get_wake (Matrix& wake, CVector& ext,
 	  wake[i][j] += biorth->get_potl(r, l, f) * factr1;
 	  break;
 	}
+      }
     }
   }
       
