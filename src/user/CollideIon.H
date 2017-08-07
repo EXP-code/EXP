@@ -516,6 +516,36 @@ private:
   std::vector< std::array<double, 2> >               KElost;
   //@}
 
+
+  //@{
+
+  //! Trace-species velocity factors including reduced mass for a
+  //! given super particle energy
+
+  //! Trace species unique pair index
+  class orderedPair : public std::pair<unsigned short, unsigned short>
+  {
+  public:
+    orderedPair(unsigned short a, unsigned short b)
+    {
+      if (a > b) {
+	this->first  = a;
+	this->second = b;
+      } else {
+	this->first  = b;
+	this->second = a;
+      }
+    }
+  };
+
+  //! Trace species ion-electron factor
+  std::map<unsigned short, double> fMuE;
+
+  //! Trace species ion-ion fractor
+  std::map<orderedPair, double>    fMuI;
+
+  //@}
+
   //! This defines the various types of interactions used to tag
   //! non-zero cross sections and subsequent interaction processing
   enum InterTypes { 
