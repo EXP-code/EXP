@@ -538,12 +538,6 @@ private:
     }
   };
 
-  //! Trace species ion-electron factor
-  std::map<unsigned short, double> fMuE;
-
-  //! Trace species ion-ion fractor
-  std::map<orderedPair, double>    fMuI;
-
   //@}
 
   //! This defines the various types of interactions used to tag
@@ -696,6 +690,9 @@ private:
   //! Use separate conservation of energy for electrons if true
   //! (default: true)
   bool elc_cons;
+
+  //! Trace double counting scale
+  double dblc;
 
 public:
 
