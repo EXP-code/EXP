@@ -691,6 +691,9 @@ private:
   //! (default: true)
   bool elc_cons;
 
+  //! Enable mu scaling
+  bool mu_scale;
+
   //! Trace double counting scale
   double dblc;
 
