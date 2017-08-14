@@ -4033,8 +4033,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
   for (auto s : SpList) {
     double one = p1->dattrib[s.second] / atomic_weights[s.first.first];
     double two = p2->dattrib[s.second] / atomic_weights[s.first.first];
+
     eta1 += one * (s.first.second - 1);
     eta2 += two * (s.first.second - 1);
+
     Mu1  += one;
     Mu2  += two;
   }
@@ -4222,8 +4224,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     // Fraction in this state
     //--------------------------------------------------
 
-    double fac1 = p1->dattrib[s.second];
-    double fac2 = p2->dattrib[s.second];
+    double fac1 = p1->dattrib[s.second] / atomic_weights[Z];
+    double fac2 = p2->dattrib[s.second] / atomic_weights[Z];
 
     for (auto ss : SpList) {
 
@@ -4334,7 +4336,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
       std::get<0>(hCross[id][t]) = crs;
       
-	CProb[id][1] += crs;
+      CProb[id][1] += crs;
     }
 
     // Particle 2 ION, Particle 1 ELECTRON
