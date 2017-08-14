@@ -53,7 +53,6 @@ double   CollideIon::ESthresh   = 1.0e-10;
 unsigned CollideIon::NoDelC     = 0;
 unsigned CollideIon::maxCoul    = UINT_MAX;
 double   CollideIon::logL       = 24.0;
-double   CollideIon::ieBoost    = 1.0;
 bool     CollideIon::TSESUM     = true;
 double   CollideIon::TSCOOL     = 0.05;
 double   CollideIon::TSFLOOR    = 0.001;
@@ -407,11 +406,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 
   collD = boost::shared_ptr<collDiag>(new collDiag(this));
 
-  // Some algorithm defaults, just in case
-  //
-  dblc = 0.5;			// Double-counting for Trace
-  mu_scale = false;		// square-root mol. weight velocity scaling
-
   // Banners logging the test algorithms
   //
   if (myid==0 && NOCOOL)
@@ -561,15 +555,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << maxCoul                                << std::endl
 	      <<  " " << std::setw(20) << std::left << "logL"
 	      << logL                                   << std::endl
-	      <<  " " << std::setw(20) << std::left << "ieBoost"
-	      << ieBoost                                << std::endl
 	      <<  " " << std::setw(20) << std::left << "Spectrum"
 	      << (use_spectrum ? (wvlSpect ? "in wavelength" : "in eV")
 		  : "off")                              << std::endl
-	      <<  " " << std::setw(20) << std::left << "mu scale"
-	      << (mu_scale ? "on" : "off")              << std::endl
-	      << " " << std::setw(20) << std::left << "doubleCount"
-	      << dblc                                   << std::endl
 	      << " " << std::setw(20) << std::left << "random seed"
 	      << seed                                   << std::endl
 	      << "************************************" << std::endl;
@@ -3775,7 +3763,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	{
 	  double ke   = std::max<double>(kEe1[id], FloorEv);
 	  CFreturn ff = ch.IonList[Q1]->freeFreeCross(ke, id);
-	  double crs  = eVel2 * C2 * ff.first * cfac * ieBoost * nselRat[id];
+	  double crs  = eVel2 * C2 * ff.first * cfac * nselRat[id];
 	
 	  if (std::isinf(crs)) crs = 0.0; // Sanity check
 	
@@ -3795,7 +3783,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	{
 	  double ke   = std::max<double>(kEe2[id], FloorEv);
 	  CFreturn ff = ch.IonList[Q2]->freeFreeCross(ke, id);
-	  double crs  = eVel1 * C1 * ff.first * cfac * ieBoost * nselRat[id];
+	  double crs  = eVel1 * C1 * ff.first * cfac * nselRat[id];
 	  
 	  if (std::isinf(crs)) crs = 0.0; // Sanity check
 	  
@@ -3821,7 +3809,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
       if (C1<Z1 and C2>0) {
 	double ke   = std::max<double>(kEe1[id], FloorEv);
 	CEvector CE = ch.IonList[Q1]->collExciteCross(ke, id);
-	double crs  = eVel2 * C2 * CE.back().first * cfac * ieBoost * nselRat[id];
+	double crs  = eVel2 * C2 * CE.back().first * cfac * nselRat[id];
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
@@ -3841,7 +3829,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
       if (C2<Z2 and C1>0) {
 	double ke   = std::max<double>(kEe2[id], FloorEv);
 	CEvector CE = ch.IonList[Q2]->collExciteCross(ke, id);
-	double crs  = eVel1 * C1 * CE.back().first * cfac * ieBoost * nselRat[id];
+	double crs  = eVel1 * C1 * CE.back().first * cfac * nselRat[id];
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
@@ -3866,7 +3854,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	
 	double ke  = std::max<double>(kEe1[id], FloorEv);
 	double DI  = ch.IonList[Q1]->directIonCross(ke, id);
-	double crs = eVel2 * C2 * DI * cfac * ieBoost * nselRat[id];
+	double crs = eVel2 * C2 * DI * cfac * nselRat[id];
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
@@ -3886,7 +3874,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	
 	double ke  = std::max<double>(kEe2[id], FloorEv);
 	double DI  = ch.IonList[Q2]->directIonCross(ke, id);
-	double crs = eVel1 * C1 * DI * cfac * ieBoost * nselRat[id];
+	double crs = eVel1 * C1 * DI * cfac * nselRat[id];
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
@@ -3911,7 +3899,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	if (C1>0) {
 	  double ke              = std::max<double>(kE1s[id], FloorEv);
 	  std::vector<double> RE = ch.IonList[Q1]->radRecombCross(ke, id);
-	  double crs = sVel1 * C1 * RE.back() * cfac * ieBoost * nselRat[id];
+	  double crs = sVel1 * C1 * RE.back() * cfac * nselRat[id];
 	
 	  if (DEBUG_CRS) trap_crs(crs);
 	
@@ -3930,7 +3918,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	if (C2>0) {
 	  double ke              = std::max<double>(kE2s[id], FloorEv);
 	  std::vector<double> RE = ch.IonList[Q2]->radRecombCross(ke, id);
-	  double crs = sVel2 * C2 * RE.back() * cfac * ieBoost * nselRat[id];
+	  double crs = sVel2 * C2 * RE.back() * cfac * nselRat[id];
 	  
 	  if (DEBUG_CRS) trap_crs(crs);
 	  
@@ -3952,8 +3940,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	  {
 	    double ke              = std::max<double>(kEe1[id], FloorEv);
 	    std::vector<double> RE = ch.IonList[Q1]->radRecombCross(ke, id);
-	    double crs = eVel2 *
-	      C2 * RE.back() * cfac * ieBoost * nselRat[id];
+
+	    double crs = eVel2 * C2 * RE.back() * cfac * nselRat[id];
 	    
 	    if (DEBUG_CRS) trap_crs(crs);
 	
@@ -3972,7 +3960,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 	  {
 	    double ke              = std::max<double>(kEe2[id], FloorEv);
 	    std::vector<double> RE = ch.IonList[Q2]->radRecombCross(ke, id);
-	    double crs = eVel1 * C1 * RE.back() * cfac * ieBoost * nselRat[id];
+
+	    double crs = eVel1 * C1 * RE.back() * cfac * nselRat[id];
 	    
 	    if (DEBUG_CRS) trap_crs(crs);
 	    
@@ -4255,13 +4244,9 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       if (P==0 and PP==0) {
 	
 	double cross = 0.0;
-	double mufac = 1.0;
-	if (mu_scale)
-	  mufac = sqrt(Mu1/atomic_weights[Z]) * sqrt(Mu2/atomic_weights[ZZ]);
 				// Geometric cross sections based on
 				// atomic radius
-	double crs = (geometric(Z)*cscl_[Z] + geometric(ZZ)*cscl_[ZZ]) * cfac *
-	  mufac;
+	double crs = (geometric(Z)*cscl_[Z] + geometric(ZZ)*cscl_[ZZ]) * cfac;
 	
 	if (DEBUG_CRS) trap_crs(crs*crossfac);
 
@@ -4280,12 +4265,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       // --------------------------------------
 
       if (P==0 and kk==proton) {
-	double mufac = 1.0;
-	if (mu_scale)
-	  mufac = sqrt(Mu1/atomic_weights[Z]) * sqrt(Mu2/atomic_weights[1]);
-
 	double crs1 = elastic(Z, kEi[id], Elastic::proton) *
-	  crossfac * cscl_[Z] * cfac * dblc * mufac;
+	  crossfac * cscl_[Z] * cfac;
 	
 	if (DEBUG_CRS) trap_crs(crs1);
 	
@@ -4299,7 +4280,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
       if (PP==0 and k==proton) {
 	double crs1 = elastic(ZZ, kEi[id], Elastic::proton) *
-	  crossfac * cscl_[ZZ] * cfac * dblc;
+	  crossfac * cscl_[ZZ] * cfac;
 	
 	if (DEBUG_CRS) trap_crs(crs1);
 	
@@ -4322,12 +4303,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     //
     if (P==0 and eta2>0.0) {
 
-      double mufac = 1.0;
-      if (mu_scale) mufac = sqrt(Mu1/atomic_weights[Z]);
-
       double crs =
-	elastic(Z, kEe1[id]) * eVel2 * mufac *
-	eta2 * crossfac * cscl_[Z] * fac1 * dblc;
+	elastic(Z, kEe1[id]) * eVel2 * eta2 * crossfac * cscl_[Z] * fac1;
 
       
       if (DEBUG_CRS) trap_crs(crs);
@@ -4343,12 +4320,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     //
     if (P==0 and eta1>0.0) {
 
-      double mufac = 1.0;
-      if (mu_scale) mufac = sqrt(Mu2/atomic_weights[Z]);
-
       double crs =
-	elastic(Z, kEe2[id]) * eVel1 * mufac *
-	eta1 * crossfac * cscl_[Z] * fac2 * dblc;
+	elastic(Z, kEe2[id]) * eVel1 * eta1 * crossfac * cscl_[Z] * fac2;
 	
       if (DEBUG_CRS) trap_crs(crs);
 
@@ -4369,13 +4342,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       // Particle 1 ION, Particle 2 ELECTRON
       {
 	double crs   = 0.0;
-	double mufac = 1;
-	if (mu_scale) mufac = sqrt(Mu1/atomic_weights[Z]);
 
 	if (coulScale) {
 
 	  crs = coulCrs[id][P][0] * pow(kEe1[id]/coulCrs[id][P][1], coulPow) *
-	    eVel2 * mufac * eta2 * crossfac * cscl_[Z] * fac1 * dblc;
+	    eVel2 * eta2 * crossfac * cscl_[Z] * fac1;
 	  
 	} else {
 
@@ -4386,8 +4357,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  double mfac = 4.0 * logL;
 	
 	  crs =
-	    M_PI*b*b * eVel2 * mufac *
-	    eta2 * crossfac * cscl_[Z] * mfac * fac1 * dblc;
+	    M_PI*b*b * eVel2 * eta2 * crossfac * cscl_[Z] * mfac * fac1;
 	}
 	
 	if (DEBUG_CRS) trap_crs(crs);
@@ -4402,13 +4372,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       // Particle 2 ION, Particle 1 ELECTRON
       {
 	double crs   = 0.0;
-	double mufac = 1.0;
-	
-	if (mu_scale) mufac = sqrt(Mu2/atomic_weights[Z]);
 
 	if (coulScale) {
 	  crs = coulCrs[id][P][0] * pow(kEe2[id]/coulCrs[id][P][1], coulPow) *
-	    eVel1 * mufac * eta1 * crossfac * cscl_[Z] * fac2 * dblc;
+	    eVel1 * eta1 * crossfac * cscl_[Z] * fac2;
 	} else {
 	
 	  double b = 0.5*esu*esu*P /
@@ -4418,8 +4385,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  double mfac = 4.0 * logL;
 	
 	  crs =
-	    M_PI*b*b * eVel1 * mufac *
-	    eta1 * crossfac * cscl_[Z] * mfac * fac2 * dblc;
+	    M_PI*b*b * eVel1 * eta1 * crossfac * cscl_[Z] * mfac * fac2;
 	}
 	
 	if (DEBUG_CRS) trap_crs(crs);
@@ -4445,10 +4411,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double   ke  = std::max<double>(kEe1[id], FloorEv);
 	CFreturn ff  = ch.IonList[Q]->freeFreeCross(ke, id);
 
-	double mufac = 1.0;
-	if (mu_scale) mufac = sqrt(Mu1/atomic_weights[Z]);
-
-	double crs  = eVel2 * mufac * eta2 * ff.first * fac1 * dblc * ieBoost;
+	double crs  = eVel2 * eta2 * ff.first * fac1;
 	
 	if (std::isinf(crs)) crs = 0.0; // Sanity check
 	
@@ -4468,10 +4431,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double    ke = std::max<double>(kEe2[id], FloorEv);
 	CFreturn  ff = ch.IonList[Q]->freeFreeCross(ke, id);
 
-	double mufac = 1.0;
-	if (mu_scale) mufac = sqrt(Mu2/atomic_weights[Z]);
-
-	double crs  = eVel1 * mufac * eta1 * ff.first * fac2 * dblc * ieBoost;
+	double crs  = eVel1 * eta1 * ff.first * fac2;
 	
 	if (std::isinf(crs)) crs = 0.0; // Sanity check
 	  
@@ -4503,11 +4463,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       double    ke = std::max<double>(kEe1[id], FloorEv);
       CEvector  CE = ch.IonList[Q]->collExciteCross(ke, id);
 
-      double mufac = 1.0;
-      if (mu_scale) mufac = sqrt(Mu1/atomic_weights[Z]);
-
-      double crs  = eVel2 * mufac *
-	eta2 * CE.back().first * fac1 * dblc * ieBoost;
+      double crs  = eVel2 * eta2 * CE.back().first * fac1;
       
       if (DEBUG_CRS) trap_crs(crs);
       
@@ -4533,11 +4489,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       double    ke = std::max<double>(kEe2[id], FloorEv);
       CEvector  CE = ch.IonList[Q]->collExciteCross(ke, id);
 
-      double mufac = 1.0;
-      if (mu_scale) mufac = sqrt(Mu2/atomic_weights[Z]);
-
-      double crs  = eVel1 * mufac *
-	eta1 * CE.back().first * fac2 * dblc * ieBoost;
+      double crs  = eVel1 * eta1 * CE.back().first * fac2;
       
       if (DEBUG_CRS) trap_crs(crs);
       
@@ -4568,10 +4520,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       double ke    = std::max<double>(kEe1[id], FloorEv);
       double DI    = ch.IonList[Q]->directIonCross(ke, id);
 
-      double mufac = 1.0;
-      if (mu_scale) mufac = sqrt(Mu1/atomic_weights[Z]);
-
-      double crs = eVel2 * mufac * eta2 * DI * fac1 * dblc * ieBoost;
+      double crs = eVel2 * eta2 * DI * fac1;
       
       if (DEBUG_CRS) trap_crs(crs);
       
@@ -4597,10 +4546,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       double ke    = std::max<double>(kEe2[id], FloorEv);
       double DI    = ch.IonList[Q]->directIonCross(ke, id);
 
-      double mufac = 1.0;
-      if (mu_scale) mufac = sqrt(Mu2/atomic_weights[Z]);
-
-      double crs = eVel1 * mufac * eta1 * DI * fac2 * dblc * ieBoost;
+      double crs = eVel1 * eta1 * DI * fac2;
       
       if (DEBUG_CRS) trap_crs(crs);
       
@@ -4629,10 +4575,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double ke              = std::max<double>(kE1s[id], FloorEv);
 	std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
 
-	double mufac = 1.0;
-	if (mu_scale) mufac = sqrt(Mu1/atomic_weights[Z]);
-
-	double crs = sVel1 * mufac * eta1 * RE.back() * fac1 * dblc * ieBoost;
+	double crs = sVel1 * eta1 * RE.back() * fac1;
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	
@@ -4653,9 +4596,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       if (P>0) {
 	double ke              = std::max<double>(kE2s[id], FloorEv);
 	std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
-	double mufac = 1.0;
-	if (mu_scale) mufac = sqrt(Mu2/atomic_weights[Z]);
-	double crs = sVel2 * mufac * eta2 * RE.back() * fac2 * dblc * ieBoost;
+
+	double crs = sVel2 * eta2 * RE.back() * fac2;
 	
 	if (DEBUG_CRS) trap_crs(crs);
 	  
@@ -4680,9 +4622,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       if (P>0 and eta2>0.0) {
 	  double ke              = std::max<double>(kEe1[id], FloorEv);
 	  std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
-	  double mufac = 1.0;
-	  if (mu_scale) mufac = sqrt(Mu1/atomic_weights[Z]);
-	  double crs = eVel2 * mufac * eta2 * RE.back() * fac1 * dblc * ieBoost;
+
+	  double crs = eVel2 * eta2 * RE.back() * fac1;
 	  
 	  if (DEBUG_CRS) trap_crs(crs);
 	  
@@ -4706,10 +4647,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double ke = std::max<double>(kEe2[id], FloorEv);
 	  std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
 	  
-	  double mufac = 1.0;
-	  if (mu_scale) mufac = sqrt(Mu2/atomic_weights[Z]);
-
-	  double crs = eVel1 * mufac * eta1 * RE.back() * fac2 * dblc * ieBoost;
+	  double crs = eVel1 * eta1 * RE.back() * fac2;
 	  
 	  if (DEBUG_CRS) trap_crs(crs);
 	  
@@ -18805,9 +18743,6 @@ void CollideIon::processConfig()
     logL = 
       cfg.entry<double>("logL", "Coulombic log(Lambda) value", 24.0);
 
-    ieBoost = 
-      cfg.entry<double>("ieBoost", "Boost factor for inelastic collisions", 1.0);
-
     Collide::collTnum = 
       cfg.entry<unsigned>("collTnum", "Target number of accepted collisions per cell for assigning time step", UINT_MAX);
 
@@ -18870,12 +18805,6 @@ void CollideIon::processConfig()
 
     ESthresh =
       cfg.entry<double>("ESthresh", "Ionization threshold for electron-electron scattering", 1.0e-10);
-
-    dblc =
-      cfg.entry<double>("doubleCount", "Double counting correction for ion-electron interactions", 0.5);
-
-    mu_scale =
-      cfg.entry<bool>("muScale", "Upscale velocity by molecular weight ratio", false);
 
     Collide::DEBUG_NTC =
       cfg.entry<bool>("DEBUG_NTC", "Enable verbose NTC diagnostics", false);

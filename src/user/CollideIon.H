@@ -691,12 +691,6 @@ private:
   //! (default: true)
   bool elc_cons;
 
-  //! Enable mu scaling
-  bool mu_scale;
-
-  //! Trace double counting scale
-  double dblc;
-
 public:
 
   typedef std::set<unsigned short> ZLtype;
@@ -712,9 +706,6 @@ public:
 
   //! Coulombic log Lambda value
   static double logL;
-
-  //! Artificially bost inelastic scattering cross section by factor
-  static double ieBoost;
 
   //! Relative error tolerance for warnings (default: 1.0e-5)
   static double tolE;
