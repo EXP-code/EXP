@@ -3021,8 +3021,8 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
     1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 }
 
-double CollideIon::crossSectionWeight(int id, pCell* const c,
-				      Particle* const _p1, Particle* const _p2, double cr)
+double CollideIon::crossSectionWeight
+(int id, pCell* const c, Particle* const _p1, Particle* const _p2, double cr)
 {
   Particle* p1 = _p1;		// Pointer copies
   Particle* p2 = _p2;
@@ -3410,9 +3410,9 @@ void trap_crs(double cross)
   }
 }
 
-double CollideIon::crossSectionHybrid(int id, pCell* const c,
-				      Particle* const _p1, Particle* const _p2,
-				      double cr, const Interact::T& itype)
+double CollideIon::crossSectionHybrid
+(int id, pCell* const c, Particle* const _p1, Particle* const _p2,
+ double cr, const Interact::T& itype)
 {
   // Cumulated value of \( \sigma v/v_c \)
   //
@@ -3483,8 +3483,10 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
     for (unsigned i=0; i<3; i++) {
       // Electron-electron
       double rvel0 = p1->dattrib[use_elec+i] - p2->dattrib[use_elec+i];
+ 
       // Electron (p1) and Ion (p2)
       double rvel1 = p1->dattrib[use_elec+i] - p2->vel[i];
+ 
       // Electron (p2) and Ion (p1)
       double rvel2 = p2->dattrib[use_elec+i] - p1->vel[i];
 
@@ -4309,8 +4311,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     //
     if (P==0 and Eta2>0.0) {
 
-      double crs =
-	elastic(Z, kEe1[id]) * eVel2 * Eta2 * crossfac * cscl_[Z] * fac1;
+      double crs = elastic(Z, kEe1[id]) * eVel2 * Eta2 *
+	crossfac * cscl_[Z] * fac1;
 
       
       if (DEBUG_CRS) trap_crs(crs);
@@ -4326,8 +4328,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     //
     if (P==0 and Eta1>0.0) {
 
-      double crs =
-	elastic(Z, kEe2[id]) * eVel1 * Eta1 * crossfac * cscl_[Z] * fac2;
+      double crs = elastic(Z, kEe2[id]) * eVel1 * Eta1 *
+	crossfac * cscl_[Z] * fac2;
 	
       if (DEBUG_CRS) trap_crs(crs);
 
@@ -4362,8 +4364,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	
 	  double mfac = 4.0 * logL;
 	
-	  crs =
-	    M_PI*b*b * eVel2 * Eta2 * crossfac * cscl_[Z] * mfac * fac1;
+	  crs = M_PI*b*b * eVel2 * Eta2 * crossfac * cscl_[Z] * mfac * fac1;
 	}
 	
 	if (DEBUG_CRS) trap_crs(crs);
@@ -4390,8 +4391,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	
 	  double mfac = 4.0 * logL;
 	
-	  crs =
-	    M_PI*b*b * eVel1 * Eta1 * crossfac * cscl_[Z] * mfac * fac2;
+	  crs = M_PI*b*b * eVel1 * Eta1 * crossfac * cscl_[Z] * mfac * fac2;
 	}
 	
 	if (DEBUG_CRS) trap_crs(crs);
