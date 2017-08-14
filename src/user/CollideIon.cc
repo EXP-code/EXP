@@ -4031,10 +4031,12 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
   //
   double eta1 = 0.0, eta2 = 0.0, Mu1 = 0.0, Mu2 = 0.0;
   for (auto s : SpList) {
-    eta1 += p1->dattrib[s.second] * (s.first.second - 1);
-    eta2 += p2->dattrib[s.second] * (s.first.second - 1);
-    Mu1  += p1->dattrib[s.second] / atomic_weights[s.first.first];
-    Mu2  += p2->dattrib[s.second] / atomic_weights[s.first.first];
+    double one = p1->dattrib[s.second] / atomic_weights[s.first.first];
+    double two = p2->dattrib[s.second] / atomic_weights[s.first.first];
+    eta1 += one * (s.first.second - 1);
+    eta2 += two * (s.first.second - 1);
+    Mu1  += one;
+    Mu2  += two;
   }
   Mu1 = 1.0/Mu1;
   Mu2 = 1.0/Mu2;
@@ -4314,6 +4316,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     // *** Neutral atom-electron scattering
     // --------------------------------------
     
+    // Particle 1 ION, Particle 2 ELECTRON
+    //
     if (P==0 and eta2>0.0) {
 
       double mufac = 1.0;
@@ -4331,8 +4335,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       std::get<0>(hCross[id][t]) = crs;
       
 	CProb[id][1] += crs;
-      }
+    }
 
+    // Particle 2 ION, Particle 1 ELECTRON
+    //
     if (P==0 and eta1>0.0) {
 
       double mufac = 1.0;
@@ -4355,9 +4361,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     // *** Ion-electron scattering
     // --------------------------------------
       
+    
     if (P>0 and eta2>0) {
 
-      // p1 is ion, p2 is electron
+      // Particle 1 ION, Particle 2 ELECTRON
       {
 	double crs   = 0.0;
 	double mufac = 1;
@@ -4367,7 +4374,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
 	  crs = coulCrs[id][P][0] * pow(kEe1[id]/coulCrs[id][P][1], coulPow) *
 	    eVel2 * mufac * eta2 * crossfac * cscl_[Z] * fac1 * dblc;
-
+	  
 	} else {
 
 	  double b = 0.5*esu*esu*P /
@@ -4390,7 +4397,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	CProb[id][1] += crs;
       }
 	  
-      // p1 is electron, p2 is ion
+      // Particle 2 ION, Particle 1 ELECTRON
       {
 	double crs   = 0.0;
 	double mufac = 1.0;
@@ -4430,10 +4437,12 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     //-------------------------------
       
     if (!NO_FF and eta1>0.0 and eta2>0.0) {
-      // p1 ion, p2 electron
+
+      // Particle 1 ION, Particle 2 ELECTRON
       {
 	double   ke  = std::max<double>(kEe1[id], FloorEv);
 	CFreturn ff  = ch.IonList[Q]->freeFreeCross(ke, id);
+
 	double mufac = 1.0;
 	if (mu_scale) mufac = sqrt(Mu1/atomic_weights[Z]);
 
@@ -4451,10 +4460,12 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  CProb[id][1] += crs;
 	}
       }
-      // p2 ion, p1 electron
+
+      // Particle 2 ION, Particle 1 ELECTRON
       {
 	double    ke = std::max<double>(kEe2[id], FloorEv);
 	CFreturn  ff = ch.IonList[Q]->freeFreeCross(ke, id);
+
 	double mufac = 1.0;
 	if (mu_scale) mufac = sqrt(Mu2/atomic_weights[Z]);
 
@@ -4479,7 +4490,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     // *** Collisional excitation
     //-------------------------------
     
-    // p1 nucleus has bound electron, p2 has a free electron
+    // Particle 1 nucleus has BOUND ELECTRON, Particle 2 has FREE ELECTRON
     //
     //  +--- Charge of the current subspecies
     //  |
@@ -4489,6 +4500,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     if (P<Z and eta2>0.0) {
       double    ke = std::max<double>(kEe1[id], FloorEv);
       CEvector  CE = ch.IonList[Q]->collExciteCross(ke, id);
+
       double mufac = 1.0;
       if (mu_scale) mufac = sqrt(Mu1/atomic_weights[Z]);
 
@@ -4508,7 +4520,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     }
     // end: colexcite
     
-    // p2 nucleus has bound electron, p1 has a free electron
+    // Particle 2 nucleus has BOUND ELECTRON, Particle 1 has FREE ELECTRON
     //
     //  +--- Charge of the current subspecies
     //  |
@@ -4518,6 +4530,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     if (P<Z and eta1>0) {
       double    ke = std::max<double>(kEe2[id], FloorEv);
       CEvector  CE = ch.IonList[Q]->collExciteCross(ke, id);
+
       double mufac = 1.0;
       if (mu_scale) mufac = sqrt(Mu2/atomic_weights[Z]);
 
@@ -4541,7 +4554,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     // *** Ionization cross section
     //-------------------------------
       
-    // p1 nucleus has bound electron, p2 has a free electron
+    // Particle 1 nucleus has BOUND ELECTRON, Particle 2 has FREE ELECTRON
     //
     //  +--- Charge of the current subspecies
     //  |
@@ -4552,6 +4565,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       
       double ke    = std::max<double>(kEe1[id], FloorEv);
       double DI    = ch.IonList[Q]->directIonCross(ke, id);
+
       double mufac = 1.0;
       if (mu_scale) mufac = sqrt(Mu1/atomic_weights[Z]);
 
@@ -4569,7 +4583,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     }
     // end: ionize
     
-    // p2 nucleus has bound electron, p1 has a free electron
+    // Particle 2 nucleus has BOUND ELECTRON, Particle 1 has FREE ELECTRON
     //
     //  +--- Charge of the current subspecies
     //  |
@@ -4580,6 +4594,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       
       double ke    = std::max<double>(kEe2[id], FloorEv);
       double DI    = ch.IonList[Q]->directIonCross(ke, id);
+
       double mufac = 1.0;
       if (mu_scale) mufac = sqrt(Mu2/atomic_weights[Z]);
 
@@ -4603,7 +4618,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
     if (newRecombAlg) {
 
-      // p1 ion and p1 electron
+      // Particle 1 is ION, Particle 2 has ELECTRON
       //
       //  +--- Ion charge
       //  |
@@ -4611,6 +4626,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       if (P>0) {
 	double ke              = std::max<double>(kE1s[id], FloorEv);
 	std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
+
 	double mufac = 1.0;
 	if (mu_scale) mufac = sqrt(Mu1/atomic_weights[Z]);
 
@@ -4627,7 +4643,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	}
       }
       
-      // p2 ion and p1 electron
+      // Particle 2 is ION, Particle 1 has ELECTRON
       //
       //  +--- Ion charge
       //  |
@@ -4652,14 +4668,14 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       
     } // end: new recomb algorithm
     else {
+      // Particle 1 is ION, Particle 2 has ELECTRON
+      //
       //  +--- Charge of the current subspecies
       //  |
       //  |       +--- Electron fraction of partner
       //  |       |
       //  V       V
       if (P>0 and eta2>0.0) {
-	// p1 ion and p2 electron
-	{
 	  double ke              = std::max<double>(kEe1[id], FloorEv);
 	  std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
 	  double mufac = 1.0;
@@ -4675,12 +4691,19 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	    
 	    CProb[id][1] += crs;
 	  }
-	}
+      }
 
-	// p2 ion and p1 electron
-	{
-	  double ke = std::max<double>(kEe2[id], FloorEv);
+      // Particle 2 is ION, Particle 1 has ELECTRON
+      //
+      //  +--- Charge of the current subspecies
+      //  |
+      //  |       +--- Electron fraction of partner
+      //  |       |
+      //  V       V
+      if (P>0 and eta1>0.0) {
+	double ke = std::max<double>(kEe2[id], FloorEv);
 	  std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
+	  
 	  double mufac = 1.0;
 	  if (mu_scale) mufac = sqrt(Mu2/atomic_weights[Z]);
 
@@ -4695,8 +4718,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	    
 	    CProb[id][2] += crs;
 	  }
-	}
-	
+	  
       } // end: old recomb algorithm
       
     } // end: recombination
