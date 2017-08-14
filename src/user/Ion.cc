@@ -41,7 +41,7 @@ bool Ion::gs_only  = true;
 // Free-free grid
 double Ion::kmin    = -9.0;
 double Ion::kmax    =  4.0;
-double Ion::kdel    =  0.2;
+double Ion::kdel    =  0.5;
 
 //
 // Convert the master element name to a (Z, C) pair
