@@ -11,6 +11,12 @@ using namespace NTC;
 // For verbose debugging
 static const bool DEBUG_V = false;
 
+// Copy data to ascii file
+bool NTCdb::debug_output = true;
+
+// Ascii version number
+unsigned NTCdb::debug_count = 1;
+
 // Chatty output for debugging
 bool NTCdb::chatty = false;
 
@@ -86,6 +92,36 @@ std::ostream& operator<< (std::ostream& out, const sKeyPair& t)
   out << sout.str();
   return out;
 }
+
+void NTCdb::dump()
+{
+  if (myid>0 or not debug_output) return;
+  
+  std::ostringstream sout;
+  sout << "ntcdb_debug." << debug_count++;
+
+  std::ofstream out(sout.str());
+  if (out) {
+    out << std::string('-', 72) << std::endl
+	<< std::string('=', 5) << " Time=" << tnow << std::endl;
+
+    for (auto v : data) {
+      out << std::string('-', 72) << std::endl
+	  << std::string('=', 10) << " Key <" << v.first << std::endl;
+      v.second.dump(out);
+    }
+  }
+}  
+
+void NTCitem::dump(std::ostream& out)
+{
+  for (auto v : db) {
+    out << std::string('-', 72) << std::endl
+	<< std::string('=', 15) << " Key pair <" << v.first << std::endl;
+    v.second.dump(out);
+  }
+}
+
 
 void NTCitem::Test()
 {

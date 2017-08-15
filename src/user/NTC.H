@@ -180,6 +180,16 @@ namespace NTC {
 	(*this)[t] = q;
       }
 
+      //! Invoked for debugging data values before/after serialization
+      void dump(std::ostream& out)
+      {
+	for (auto v : *this) {
+	  out << std::string('-', 72) << std::endl
+	      << std::string('=', 20) << " Interact <" << v.first << std::endl;
+	  v.second.dump(out);
+	}
+      }
+      
     private:
 
       template<class Archive>
@@ -330,6 +340,9 @@ namespace NTC {
     bool Ready(sKeyPair indx) { return Ready(indx, single); }
     //@}
 
+    //! Invoked for debugging data values before/after serialization
+    void dump(std::ostream& out);
+
     //! Node sends to root
     void send()
     {
@@ -451,6 +464,12 @@ namespace NTC {
     //! Persistent copy
     NTCdata pdata;
     
+    //! Copy data to ascii file
+    static bool debug_output;
+
+    //! Ascii version number
+    static unsigned debug_count;
+
     //! Get copies from all nodes to save
     void sync() 
     {
@@ -528,6 +547,7 @@ namespace NTC {
 	oa << BOOST_SERIALIZATION_NVP(pdata);
 	oa << BOOST_SERIALIZATION_NVP(curr_time);
 	oa << BOOST_SERIALIZATION_NVP(next_time);
+	oa << BOOST_SERIALIZATION_NVP(debug_count);
 
 	if (exists) {
 	  boost::filesystem::rename(tfile, filename);
@@ -553,6 +573,7 @@ namespace NTC {
 		  << std::endl
 		  << std::string(40, '-') << std::endl;
       }
+      dump();
     }
     
     //! Restore contents from a file
@@ -566,6 +587,7 @@ namespace NTC {
       ia >> BOOST_SERIALIZATION_NVP(data);
       ia >> BOOST_SERIALIZATION_NVP(curr_time);
       ia >> BOOST_SERIALIZATION_NVP(next_time);
+      ia >> BOOST_SERIALIZATION_NVP(debug_count);
 
       if (myid==0 and chatty) {
 	std::cout << std::endl << std::string(70, '-') << std::endl
@@ -575,8 +597,13 @@ namespace NTC {
 		  << std::string(70, '-') << std::endl;
       }
 
+      // For debugging . . . 
+      dump();
     }
     
+    //! Invoked for debugging data values before/after serialization
+    void dump();
+
   public:
     
     //! Chatty output for debugging
