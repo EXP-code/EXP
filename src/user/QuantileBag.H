@@ -8,7 +8,11 @@ namespace NTC {
   /**
      @brief Container of Quantile objects
 
-     Maintains an array 5-point quantiles and an equally spaced histogram
+     Maintains an array 5-point quantiles and an equally spaced
+     histogram for efficiency with a similar interface to the
+     underlying Quantile class.
+
+     @see Quantile
   */
   class QuantileBag
   {
