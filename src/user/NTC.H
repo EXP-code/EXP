@@ -25,7 +25,7 @@
 
 #include "pHOT_types.H"
 #include "Species.H"
-#include "Quantile.H"
+#include "QuantileBag.H"
 
 // Serialize std::array and std::tuple(...)
 //
@@ -160,7 +160,7 @@ namespace NTC {
       
     };
 
-    class uqMap : public std::map<T, Quantile>
+    class uqMap : public std::map<T, QuantileBag>
     {
       friend class boost::serialization::access;
 
@@ -168,15 +168,15 @@ namespace NTC {
 
       uqMap() {}
 
-      uqMap(const Quantile& q) 
+      uqMap(const QuantileBag& q) 
       {
-	(*this)[single] = Quantile();
+	(*this)[single] = QuantileBag();
 	(*this)[single] = q;
       }
 
-      uqMap(T t, const Quantile& q)
+      uqMap(T t, const QuantileBag& q)
       {
-	(*this)[t] = Quantile();
+	(*this)[t] = QuantileBag();
 	(*this)[t] = q;
       }
 
@@ -185,8 +185,8 @@ namespace NTC {
       template<class Archive>
       void serialize(Archive &ar, const unsigned int version)
       {
-	typedef std::map<T, Quantile> Tup3QuantileMap;
-	ar & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Tup3QuantileMap);
+	typedef std::map<T, QuantileBag> Tup3QuantileBagMap;
+	ar & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Tup3QuantileBagMap);
       }
     };
 
@@ -195,17 +195,6 @@ namespace NTC {
     //@}
     
   protected:
-    
-    //@{
-    //! Quantile init data
-    
-    //@{
-    //! The desired quantiles.  You can add as many of these 
-    //! as you want.
-    const int Nequal = 10;
-    const double u1 = 0.01, u2 = 0.05, u3 = 0.95, u4 = 0.99;
-    const std::vector<double> qs = {u1, u2, u3, u4};
-    //@}
     
     //! Main NTC data structures
     qpMap db;
@@ -558,7 +547,7 @@ namespace NTC {
       // Debugging
       if (myid==0) {
 	std::cout << std::string(40, '-') << std::endl
-		  << "--- Quantile instances: " << Quantile::live()
+		  << "--- QuantileBag instances: " << QuantileBag::live()
 		  << std::endl
 		  << "--- NTCitem instances:  " << NTCitem::live()
 		  << std::endl
