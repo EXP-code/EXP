@@ -1,6 +1,8 @@
 #ifndef _QuantileBag_H
 #define _QuantileBag_H
 
+#include <map>
+
 #include "Quantile.H"
 
 namespace NTC {
