@@ -1487,7 +1487,7 @@ void * Collide::collide_thread(void * arg)
 
 				// Accumulate average
 	    pthread_mutex_lock(&tlock);
-	    ntcdb[samp->mykey].Add(k, maxT, prod);
+	    ntcdb[samp->mykey].Add(k, maxT, prod, tnow);
 	    pthread_mutex_unlock(&tlock);
 	    if (maxT == NTC::NTCitem::single) {
 	      std::cout << "ntc singleton" << std::endl;

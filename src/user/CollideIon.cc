@@ -12696,7 +12696,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	// Update v_max and cross_max for NTC
 	//
 	pthread_mutex_lock(&tlock);
-	ntcdb[samp->mykey].Add(electronKey, elecElec, prod);
+	ntcdb[samp->mykey].Add(electronKey, elecElec, prod, tnow);
 	pthread_mutex_unlock(&tlock);
       }
 

@@ -184,8 +184,8 @@ namespace NTC {
       void dump(std::ostream& out)
       {
 	for (auto v : *this) {
-	  out << std::string('-', 72) << std::endl
-	      << std::string('=', 20) << " Interact <" << v.first << std::endl;
+	  out << std::string(72, '-') << std::endl
+	      << std::string(20, '=') << " Interact " << v.first << std::endl;
 	  v.second.dump(out);
 	}
       }
@@ -209,6 +209,12 @@ namespace NTC {
     //! Main NTC data structures
     qpMap db;
     
+    //! Default time stamp
+    static double def_time;
+
+    //! Time stamp
+    double ts;
+
     void debug();
 
     //@{
@@ -226,6 +232,7 @@ namespace NTC {
     template<class Archive>
     void serialize(Archive &ar, const unsigned int version)
     {
+      ar & BOOST_SERIALIZATION_NVP(ts);
       ar & BOOST_SERIALIZATION_NVP(db);
       ar & BOOST_SERIALIZATION_NVP(caller);
       ar & BOOST_SERIALIZATION_NVP(report);
@@ -253,6 +260,7 @@ namespace NTC {
     //! Constructor
     NTCitem() 
     { 
+      ts     = def_time;
       report = 0; 
       inTest = false;
 
@@ -262,7 +270,9 @@ namespace NTC {
     //! Copy constructor
     NTCitem(const NTCitem& p) 
     {
+      ts     = p.ts;
       db.insert(p.db.begin(), p.db.end());
+
       report = 0;
       inTest = false;
 
@@ -272,7 +282,9 @@ namespace NTC {
     //! Assignment operator
     NTCitem &operator=(const NTCitem& p)
     {
+      ts     = p.ts;
       db.insert(p.db.begin(), p.db.end());
+
       report = 0;
       inTest = false;
 
@@ -319,8 +331,8 @@ namespace NTC {
     
     //@{
     //! Add a single value to the list
-    void  Add(sKeyPair indx, const T& intr, double x);
-    void  Add(sKeyPair indx, double x) { Add(indx, single, x); }
+    void  Add(sKeyPair indx, const T& intr, double x, double t);
+    void  Add(sKeyPair indx, double x, double t) { Add(indx, single, x, t); }
     //@}
     
     //@{
@@ -349,6 +361,7 @@ namespace NTC {
       unsigned long clr = caller;
       unsigned siz      = db.size();
       
+      MPI_Send(&ts,  1, MPI_DOUBLE,        0, 1109, MPI_COMM_WORLD);
       MPI_Send(&clr, 1, MPI_UNSIGNED_LONG, 0, 1110, MPI_COMM_WORLD);
       MPI_Send(&siz, 1, MPI_UNSIGNED,      0, 1111, MPI_COMM_WORLD);
 
@@ -390,6 +403,7 @@ namespace NTC {
     //
     void recv(int id)
     {
+      MPI_Recv(&ts,     1, MPI_DOUBLE,        id, 1109, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       MPI_Recv(&caller, 1, MPI_UNSIGNED_LONG, id, 1110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       
       unsigned siz;
@@ -515,7 +529,16 @@ namespace NTC {
 	    
 	    // Get the instance from the other node
 	    //
-	    pdata[k].recv(i);
+
+	    NTCitem tmp;
+	    tmp.recv(i);
+
+	    NTCdata::iterator it = pdata.find(k);
+	    if (it == pdata.end()) {
+	      pdata[k] = tmp;
+	    } else {
+	      if (tmp.ts > it->second.ts) it->second = tmp;
+	    }
 	  }
 	}
 	// Need this barrier to prevent the MPI buffer cache from
@@ -548,6 +571,8 @@ namespace NTC {
 	oa << BOOST_SERIALIZATION_NVP(curr_time);
 	oa << BOOST_SERIALIZATION_NVP(next_time);
 	oa << BOOST_SERIALIZATION_NVP(debug_count);
+
+	std::cout << "Saving debug_count=" << debug_count << std::endl;
 
 	if (exists) {
 	  boost::filesystem::rename(tfile, filename);
@@ -588,6 +613,8 @@ namespace NTC {
       ia >> BOOST_SERIALIZATION_NVP(curr_time);
       ia >> BOOST_SERIALIZATION_NVP(next_time);
       ia >> BOOST_SERIALIZATION_NVP(debug_count);
+
+      std::cout << "Read debug_count=" << debug_count << std::endl;
 
       if (myid==0 and chatty) {
 	std::cout << std::endl << std::string(70, '-') << std::endl

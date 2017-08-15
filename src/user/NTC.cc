@@ -24,6 +24,9 @@ bool NTCdb::chatty = false;
 unsigned NTCdb::intvl = 10;
 
 // Skip this number of calls between reports
+double   NTCitem::def_time  = -1.0e32;
+
+// Skip this number of calls between reports
 unsigned NTCitem::skprpt    = 5;
 
 // Maximum number of reports for each cell item
@@ -102,12 +105,12 @@ void NTCdb::dump()
 
   std::ofstream out(sout.str());
   if (out) {
-    out << std::string('-', 72) << std::endl
-	<< std::string('=', 5) << " Time=" << tnow << std::endl;
+    out << std::string(72, '-') << std::endl
+	<< std::string( 5, '=') << " Time=" << tnow << std::endl;
 
     for (auto v : data) {
-      out << std::string('-', 72) << std::endl
-	  << std::string('=', 10) << " Key <" << v.first << std::endl;
+      out << std::string(72, '-') << std::endl
+	  << std::string(10, '=') << " Key " << v.first << std::endl;
       v.second.dump(out);
     }
   }
@@ -116,8 +119,8 @@ void NTCdb::dump()
 void NTCitem::dump(std::ostream& out)
 {
   for (auto v : db) {
-    out << std::string('-', 72) << std::endl
-	<< std::string('=', 15) << " Key pair <" << v.first << std::endl;
+    out << std::string(72, '-') << std::endl
+	<< std::string(15, '=') << " Key pair " << v.first << std::endl;
     v.second.dump(out);
   }
 }
@@ -279,7 +282,7 @@ NTCitem::vcMap NTCitem::CrsVel(double p)
   return ret;
 }
 
-void NTCitem::Add(sKeyPair indx, const T& intr, double val)
+void NTCitem::Add(sKeyPair indx, const T& intr, double val, double ts)
 {
   oddBall(indx, intr);
   
