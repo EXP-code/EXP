@@ -251,37 +251,6 @@ void NTCitem::Add(sKeyPair indx, const T& intr, double val)
   //
   if (val<=Min) return;
   
-  // Check for initialization of Quantile
-  //
-  if (db.find(indx) == db.end()) {
-    db[indx][intr].histogram(Nequal);
-    for (auto v : qs) db[indx][intr].quantile(v);
-  }
-  
-  // Check for intr in map
-  //
-  if (db[indx].find(intr) == db[indx].end()) {
-    db[indx][intr].histogram(Nequal);
-    for (auto v : qs) db[indx][intr].quantile(v);
-  }
-  
-  if (0) {
-    std::ostringstream sout; sout << "<" << val << ">";
-    
-    std::cout << "Adding " << std::setw(16) << sout.str() << " to "
-	      << indx << " " << intr
-	      << " [" << db[indx][intr].datums() 
-	      << "/"  << db[indx][intr].target() << "]";
-    if (db[indx][intr].full()) 
-      std::cout << " P(0.5) =" 
-		<< std::setw(16) << db[indx][intr](0.5)
-		<< " P(0.95) =" 
-		<< std::setw(16) << db[indx][intr](0.95)
-		<< " xmax =" 
-		<< std::setw(16) << db[indx][intr].xmax();
-    std::cout << std::endl;
-  }
-  
   // Add new element
   //
   db[indx][intr].add(val);

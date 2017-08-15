@@ -6,15 +6,17 @@
 #include <string>
 #include <cmath>
 
-#include "Quantile.H"
+#include "QuantileBag.H"
 
 using namespace NTC;
 
-// Count instances for debugging
-unsigned QuantileBag::instance = 0;
-
 #include "QuantileBag.H"
 
+// Count instances for debugging
+unsigned int QuantileBag::instance = 0;
+
+// Main constructor
+//
 QuantileBag::QuantileBag()
 {
   // No data to start
@@ -28,7 +30,9 @@ QuantileBag::QuantileBag()
   instance++;
 }
 
-QuantileBag(const QuantileBag& p)
+// Copy constructor
+//
+QuantileBag::QuantileBag(const QuantileBag& p)
 {
   quant = p.quant;
   hist  = p.hist;
@@ -38,7 +42,9 @@ QuantileBag(const QuantileBag& p)
   instance++;
 }
 
-QuantileBag & QuantileBag::operator(const QuantileBag& p)
+// Copy operator
+//
+QuantileBag &QuantileBag::operator=(const QuantileBag& p)
 {
   quant = p.quant;
   hist  = p.hist;
@@ -46,38 +52,48 @@ QuantileBag & QuantileBag::operator(const QuantileBag& p)
 
   // For debugging
   instance++;
+
+  return *this;
 }
 
+// Add a value to all quantiles
+//
 void QuantileBag::add(double x)
 {
   for (auto q : quant) q.second.add(x);
   hist.add(x);
-  N++;
+  M++;
 }
 
+// Retrieve the value with desired quantile
+//
 double QuantileBag::operator()(double p)
 {
   // Find the closest quantile value to p
   //
   std::map<double, Quantile>::iterator it = quant.find(p);
-  if (it != quant.end()) return (*it)();
+  if (it != quant.end()) return it->second();
   return hist(p);
 }
 
 // Node sends its internal data to root
+//
 void QuantileBag::send()
 {
-  for (auto q : quant) q.send();
+  for (auto q : quant) q.second.send();
   hist.send();
 }
     
 // Root intializes itself from node's data
+//
 void QuantileBag::recv(int id)
 {
-  for (auto q : quant) q.recv(id);
+  for (auto q : quant) q.second.recv(id);
   hist.recv(id);
 }
 
+// Only used to decrement live count
+//
 QuantileBag::~QuantileBag()
 {
   instance--;			// Count instances for debugging only

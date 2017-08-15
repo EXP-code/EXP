@@ -15,24 +15,30 @@ namespace NTC {
     friend class boost::serialization::access;
 
   protected:
-    //@{
-    //! Quantile init data
 
+    //! Quantile objject map
     std::map<double, Quantile> quant;
+
+    //! Histogram object
     Quantile hist;
+
+    //! Number of points so far
     unsigned int M;
     
+    //! The desired size of the equally-spaced histogram
+    const unsigned int Nequal = 10;
+
     //@{
-    //! The desired quantiles.  You can add as many of these 
-    //! as you want.
-    const int Nequal = 10;
+    //! Tail values for accuracy. You can add as many of these 
+    //! as you want, but this should suffice.
     const double u1 = 0.01, u2 = 0.05, u3 = 0.95, u4 = 0.99;
     const std::vector<double> qs = {u1, u2, u3, u4};
     //@}
-    
+
     //! Count instances for debugging only
     static unsigned instance;
 
+    //! Boost serialization member
     template<class Archive>
     void serialize(Archive &ar, const unsigned int version)
     {
@@ -66,13 +72,16 @@ namespace NTC {
     unsigned long count() { return M; }
 
     //! Get the value probability value for \f$x\f$, i.e. \f$P^{-1}(x)\f$
-    double inverse(double x);
+    double inverse(double x) { return hist.inverse(x); }
 
     //! Get minimum value so far
-    double xmin();
+    double xmin() { return hist.xmin(); }
 
     //! Get maximum value so far
-    double xmax();
+    double xmax() { return hist.xmax(); }
+
+    //! For debugging: dump accumulated data points
+    void dump(std::ostream& out) { hist.dump(out); }
 
     //@{
     //! MPI syncronize
@@ -84,9 +93,6 @@ namespace NTC {
     void recv(int id);
     //@}
     
-    //! For debugging: dump accumulated data points
-    void dump(std::ostream& out);
-
     //! Return if quantile estimator is fully populated
     bool full() { return(M >= 5); }
 
