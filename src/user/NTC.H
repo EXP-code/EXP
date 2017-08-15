@@ -605,7 +605,9 @@ namespace NTC {
     void update()
     {
       if (tnow >= next_time) {
+	// Set <current time>
 	curr_time = tnow;
+	// Set time for next save
 	next_time = curr_time + dtime*(static_cast<double>(intvl)-eps);
 	std::string filename = ".ntcdb." + runtag;
 	save_myself(filename);
@@ -615,6 +617,8 @@ namespace NTC {
     //! Serialize to finish
     void finish()
     {
+      // Set current time but not next save time
+      curr_time = tnow;
       std::string filename = ".ntcdb." + runtag;
       save_myself(filename);
     }
