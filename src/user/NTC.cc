@@ -12,7 +12,7 @@ using namespace NTC;
 static const bool DEBUG_V = false;
 
 // Copy data to ascii file
-bool NTCdb::debug_output = true;
+bool NTCdb::debug_output = false;
 
 // Ascii version number
 unsigned NTCdb::debug_count = 1;
