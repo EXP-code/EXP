@@ -76,8 +76,8 @@ namespace NTC {
     //@{
     //! For storage management, data updating, and interpolation
     void    init();
-    void    addBox1(double x);
-    void    addBox2(double x);
+    void    addBox1  ( double x );
+    void    addBox2  ( double x );
     double  parabolic( int i, int d );
     double  linear   ( int i, int d );
     //@}
