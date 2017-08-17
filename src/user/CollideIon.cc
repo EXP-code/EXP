@@ -15881,7 +15881,7 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
 
   // Cross section selection
   //
-  double crossRat = csections[id][key][key](), crossRatDB;
+  double crossRat = csections[id][key][key](), crossRatDB = 0.0;
 
 
   // Use NTCdb?
