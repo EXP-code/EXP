@@ -60,7 +60,7 @@ QuantileBag &QuantileBag::operator=(const QuantileBag& p)
 //
 void QuantileBag::add(double x)
 {
-  for (auto q : quant) q.second.add(x);
+  for (auto & q : quant) q.second.add(x);
   hist.add(x);
   M++;
 }
@@ -80,7 +80,7 @@ double QuantileBag::operator()(double p)
 //
 void QuantileBag::send()
 {
-  for (auto q : quant) q.second.send();
+  for (auto & q : quant) q.second.send();
   hist.send();
 }
     
@@ -88,7 +88,7 @@ void QuantileBag::send()
 //
 void QuantileBag::recv(int id)
 {
-  for (auto q : quant) q.second.recv(id);
+  for (auto & q : quant) q.second.recv(id);
   hist.recv(id);
 }
 
