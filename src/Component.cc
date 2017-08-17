@@ -827,12 +827,12 @@ void Component::initialize(void)
       cout << ">: current center on restart: x, y, z: " 
 	   << center[0] << ", " 
 	   << center[1] << ", " 
-	   << center[2];
+	   << center[2] << std::endl;
     else
       cout << ">: user specified initial center: x, y, z: " 
 	   << EJx0 << ", " 
 	   << EJy0 << ", " 
-	   << EJz0;
+	   << EJz0 << std::endl;
 
     cout << "Component <" << name << ">: ";
 
