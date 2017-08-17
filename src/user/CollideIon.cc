@@ -17062,7 +17062,7 @@ void CollideIon::gatherSpecies()
 		  << static_cast<double>(CStt[0])*100.0/CStt[2] << std::endl
 		  << std::setw(8) << std::left << "% miss"
 		  << " = " << std::setw(12)
-		  << static_cast<double>(CStt[1])*100.0/CStt[2  << std::endl;
+		  << static_cast<double>(CStt[1])*100.0/CStt[2] << std::endl;
       }
       std::cout << std::string(24, '-') << std::endl;
     }
