@@ -59,7 +59,7 @@ double   CollideIon::TSFLOOR    = 0.001;
 double   CollideIon::scatFac1   = 1.0;
 double   CollideIon::scatFac2   = 1.0;
 double   CollideIon::tolE       = 1.0e-05;
-double   CollideIon::tolCS      = 1.0e-06;
+double   CollideIon::tolCS      = 1.0;
 
 // The recommended value for qCrit is now -1 (that is, turn it off).
 // It appears to be unstable based on the TestEquil tests.
@@ -18737,7 +18737,7 @@ void CollideIon::processConfig()
       cfg.entry<double>("tolE", "Threshold for reporting energy conservation bookkeeping", 1.0e-5);
 
     tolCS =
-      cfg.entry<double>("tolCS", "Threshold for cross-section sanity using NTCdb", 1.0e-6);
+      cfg.entry<double>("tolCS", "Threshold for cross-section sanity using NTCdb", 1.0);
 
     qCrit =
       cfg.entry<double>("qCrit", "Critical weighting threshold for energy conserving electron interactions", -1.0);
