@@ -711,6 +711,9 @@ public:
   //! Relative error tolerance for warnings (default: 1.0e-5)
   static double tolE;
 
+  //! Relative error tolerance for cross section sanity (default: 1.0e-6)
+  static double tolCS;
+
   /**
      Compare sum of delE against total KE for setting time step, if TRUE
      Compare maximum delE per COM KE per interaction, if FALSE
