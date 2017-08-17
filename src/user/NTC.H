@@ -572,8 +572,6 @@ namespace NTC {
 	oa << BOOST_SERIALIZATION_NVP(next_time);
 	oa << BOOST_SERIALIZATION_NVP(debug_count);
 
-	std::cout << "Saving debug_count=" << debug_count << std::endl;
-
 	if (exists) {
 	  boost::filesystem::rename(tfile, filename);
 	}
@@ -613,8 +611,6 @@ namespace NTC {
       ia >> BOOST_SERIALIZATION_NVP(curr_time);
       ia >> BOOST_SERIALIZATION_NVP(next_time);
       ia >> BOOST_SERIALIZATION_NVP(debug_count);
-
-      std::cout << "Read debug_count=" << debug_count << std::endl;
 
       if (myid==0 and chatty) {
 	std::cout << std::endl << std::string(70, '-') << std::endl
