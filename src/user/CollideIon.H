@@ -504,6 +504,7 @@ private:
   std::vector< unsigned >                            spNsel, elecCnt, spNcol;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot, testCnt;
   std::vector< unsigned >                            Nwght, Njsel, Ncol, Nmis;
+  std::vector< unsigned >                            crZero, crMiss, crTotl;
   std::vector< TypeMap0 >                            Escat, Etotl;
   std::vector< TypeMap1 >                            TotlU;
   std::vector< TypeMap2 >                            TotlD;

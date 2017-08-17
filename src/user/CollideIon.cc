@@ -636,6 +636,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   dEratb   .resize(nthrds, 0);
   Nwght    .resize(nthrds, 0);
   Njsel    .resize(nthrds, 0);
+  crZero   .resize(nthrds, 0);
+  crMiss   .resize(nthrds, 0);
+  crTotl   .resize(nthrds, 0);
   Escat    .resize(nthrds);
   Etotl    .resize(nthrds);
   Italy    .resize(nthrds);
@@ -15878,15 +15881,24 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
 
   // Cross section selection
   //
-  double crossRat = csections[id][key][key]();
+  double crossRat = csections[id][key][key](), crossRatDB;
 
 
   // Use NTCdb?
   //
   pthread_mutex_lock(&tlock);
   if (ntcdb[c->mykey].Ready(defKeyPair, NTC::Interact::single))
-    crossRat = ntcdb[c->mykey].CrsVel(defKeyPair, NTC::Interact::single, ntcThresh) * crs_units/crm;
+    crossRatDB = ntcdb[c->mykey].CrsVel(defKeyPair, NTC::Interact::single, ntcThresh) * crs_units/crm;
   pthread_mutex_unlock(&tlock);
+
+  // This is a kludgy sanity check . . . 
+  //
+  if (crossRatDB>1.0e-6*crossRat) crossRat = crossRatDB;
+  else {
+    crMiss[id]++;
+    if (crossRatDB == 0.0) crZero[id]++;
+  }
+  crTotl[id]++;
 
   // Compute collision rates in system units
   //
@@ -16606,7 +16618,8 @@ void CollideIon::gatherSpecies()
     std::map<int, TypeMap2> taly;
     std::array<double, 3>   Etots {0, 0, 0};
     std::array<double, 3>   Vtots {0, 0, 0};
-    std::array<unsigned, 2> Ntot  {0, 0}, NT;
+    std::array<unsigned, 2> Ntot  {0, 0   }, NT;
+    std::array<unsigned, 3> CStt  {0, 0, 0}, NC;
 
     for (int t=0; t<nthrds; t++) {
       for (auto v : Escat[t]) scat[v.first] += v.second;
@@ -16625,7 +16638,8 @@ void CollideIon::gatherSpecies()
       for (auto v : Vdiag) {
 	for (size_t k=0; k<3; k++) Vtots[k] += v[k];
       }
-      Ntot += {Nwght[t], Njsel[t]};
+      Ntot += { Nwght[t],  Njsel[t]};
+      CStt += {crZero[t], crMiss[t], crTotl[t]};
     }
     
     // Send to root node
@@ -16687,6 +16701,7 @@ void CollideIon::gatherSpecies()
 	MPI_Send(&DD,                  1, MPI_DOUBLE,   0, 577, MPI_COMM_WORLD);
 
 	MPI_Send(&Ntot[0],             2, MPI_UNSIGNED, 0, 578, MPI_COMM_WORLD);
+	MPI_Send(&CStt[0],             3, MPI_UNSIGNED, 0, 579, MPI_COMM_WORLD);
       }
 
       if (myid==0) {
@@ -16745,6 +16760,9 @@ void CollideIon::gatherSpecies()
 
 	MPI_Recv(&NT[0],   2, MPI_UNSIGNED, i, 578, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	Ntot += NT;
+
+	MPI_Recv(&NC[0],   3, MPI_UNSIGNED, i, 579, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	CStt += NC;
       }
     }
     
@@ -17020,11 +17038,33 @@ void CollideIon::gatherSpecies()
 		  << std::setw(14) << Vtots[0] << std::endl;
       }
       
-      std::cout << "Nwght = " << std::setw(12) << Ntot[0] << std::endl
-		<< "Njsum = " << std::setw(12) << Ntot[1] << std::endl;
+      std::cout << std::endl
+		<< std::string(24, '-')   << std::endl
+		<< "---- Selection stats" << std::endl
+		<< std::string(24, '-')   << std::endl
+		<< std::setw(8) << std::left << "Nwght"
+		<< " = " << std::setw(12) << Ntot[0] << std::endl
+		<< std::setw(8) << std::left << "Njsum"
+		<< " = " << std::setw(12) << Ntot[1] << std::endl;
       unsigned Nsum = Ntot[0] + Ntot[1];
-      if (Nsum) std::cout << "Ratio = "	<< std::setw(12)
+      if (Nsum) std::cout << std::setw(8) << std::left << "Ratio"
+			  << " = " << std::setw(12)
 			  << static_cast<double>(Ntot[0])/Nsum << std::endl;
+      if (CStt[2]) {
+	std::cout << std::setw(8) << std::left << "CS zero"
+		  << " = " << std::setw(12) << CStt[0] << std::endl
+		  << std::setw(8) << std::left << "CS miss"
+		  << " = " << std::setw(12) << CStt[1] << std::endl
+		  << std::setw(8) << std::left << "CS totl"
+		  << " = " << std::setw(12) << CStt[2] << std::endl
+		  << std::setw(8) << std::left << "% zero"
+		  << " = " << std::setw(12)
+		  << static_cast<double>(CStt[0])*100.0/CStt[2] << std::endl
+		  << std::setw(8) << std::left << "% miss"
+		  << " = " << std::setw(12)
+		  << static_cast<double>(CStt[1])*100.0/CStt[2  << std::endl;
+      }
+      std::cout << std::string(24, '-') << std::endl;
     }
     
     // Clear the counters
@@ -17038,6 +17078,7 @@ void CollideIon::gatherSpecies()
       for (auto & v : Ediag[t]) v = 0.0;
       for (auto & v : Vdiag[t]) v = 0.0;
       Nwght[t] = Njsel[t] = 0;
+      crZero[t] = crMiss[t] = crTotl[t] = 0;
     }
   }
 
