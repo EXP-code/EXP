@@ -176,6 +176,7 @@ public:
   void synchronize();
 };
 
+
 //! Pair of unsigned shorts for indexing (Z, C) and (l1, l2) index pairs
 typedef std::pair<unsigned short, unsigned short> lQ;
 
@@ -323,6 +324,9 @@ protected:
 				// eV in Rydberg energy
   static constexpr double eVtoRyd = 1.0/13.60569253;
 
+				// 1 eV in ergs
+  static constexpr double eVtoErg = 1.60217733000001e-12;
+
 				// value of h-bar * c in eV*nm
   static constexpr double hbc     = 197.327;
 
@@ -343,10 +347,25 @@ public:
   //@}
 
   //@{
+  //! nu-grid spacing relative to ground state level for photo ionization
+  static double numin;		// default:  1.0
+  static double numax;		// default:  3.0
+  static double nudel;		// default:  0.2
+  //@}
+
+  //@{
   //! Structures for user-friendly specification of recombination types
   enum    RR_Type { mewe, topbase, kramers, spitzer, verner };
   typedef std::map<std::string, RR_Type> RR_Map;
   typedef std::map<RR_Type, std::string> RR_Lab;
+  //@}
+
+  //@{
+  /** Structures for user-friendly specification of photoionization
+      background spectra */
+  enum    IB_Type { none, uvIGM };
+  typedef std::map<std::string, IB_Type> IB_Map;
+  typedef std::map<IB_Type, std::string> IB_Lab;
   //@}
 
   //! Use Verner et al. fortran subroutine (default: true)
@@ -362,6 +381,32 @@ protected:
   static RR_Map  rr_map;
   static RR_Lab  rr_lab;
   static RR_Type rr_type;
+  //@}
+
+  //@{
+  //! Static varibles for setting radiative ionization background type
+  static IB_Map  ib_map;
+  static IB_Lab  ib_lab;
+  static IB_Type ib_type;
+  //@}
+
+  //@{
+  //! For photoionizing background
+  
+  //! Grid created
+  bool IBinit;
+
+  //! Creation routine
+  void IBcreate();
+
+  //! Partial rate grid
+  std::vector<double> IBrate;
+
+  //! Total rate
+  double IBtotl;
+
+  //! Normalized cumulative rate grid for selecting recoil energy
+  std::vector<double> IBcum;
   //@}
 
 public:
@@ -440,8 +485,10 @@ public:
   std::vector< double > egrid;	// Currently initialized but unused (remove?)
   std::vector< double > kgrid;
   std::vector< double > kgr10;
+  std::vector< double > nugrid;
   int kffsteps;
   int effsteps;
+  int nusteps;
   //@}
   
   void convertName();
@@ -494,6 +541,12 @@ public:
       debugging */
   std::vector<double> photoIonizationCross (double E, int id);
 
+  //! Photoionizing background flux (Enu in eV)
+  double photoBackground(double Enu);
+
+  //! Photoionization rate
+  std::pair<double, double> photoIonizationRate();
+
   /** Radiative recombination cross section using Verner (for
       debugging */
   std::vector< std::tuple<int, double> > recombCrossV (double E, int id);
@@ -534,6 +587,24 @@ public:
   static const std::string& getRRtype()
   {
     return rr_lab[rr_type];
+  }
+
+  //! Set ionizing background type for all instances
+  static int setIBtype(const std::string& rr) 
+  {
+    if (rr_map.find(rr) == rr_map.end()) {
+      ib_type = Ion::none;	// Default type
+      return 1;			// Failure
+    } else { 			// Set request
+      ib_type = ib_map[rr];
+      return 0;			// Success
+    }
+  }
+
+  //! Get cross-section type
+  static const std::string& getIBtype()
+  {
+    return ib_lab[ib_type];
   }
 
 };

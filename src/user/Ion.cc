@@ -35,6 +35,20 @@ Ion::RR_Lab Ion::rr_lab = {
 
 Ion::RR_Type Ion::rr_type = Ion::mewe;
 
+// For setting ionization background type (c++-11 initialization style)
+Ion::IB_Map Ion::ib_map = {
+  { "None",    Ion::none    },
+  { "uvIGM",   Ion::uvIGM   }
+};
+
+// For printing ionization background type (c++-11 initialization style)
+Ion::IB_Lab Ion::ib_lab = {
+    { Ion::none,    "None",   },
+    { Ion::uvIGM,   "uvIGM"   }
+};
+
+Ion::IB_Type Ion::ib_type = Ion::none;
+
 bool Ion::use_VFKY = true;
 bool Ion::gs_only  = true;
 
@@ -42,6 +56,11 @@ bool Ion::gs_only  = true;
 double Ion::kmin    = -9.0;
 double Ion::kmax    =  4.0;
 double Ion::kdel    =  0.5;
+
+// Photo-ionizaton grid
+double Ion::numin   = 1.0;
+double Ion::numax   = 3.0;
+double Ion::nudel   = 0.2;
 
 //
 // Convert the master element name to a (Z, C) pair
@@ -623,6 +642,15 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
   kgr10.resize(kffsteps);
   for (int i=0; i<kffsteps; i++) {
     kgr10[i] = pow(10, kgrid[i]) * hbc;
+  }
+
+  IBinit = false;
+
+  if (ib_type != Ion::none) {
+    for (double nu = numin; nu < numax; nu += nudel) 
+      nugrid.push_back(nu);
+
+    nusteps = nugrid.size();
   }
 }
 
@@ -2083,6 +2111,81 @@ std::vector<double> Ion::photoIonizationCross(double E, int id)
   lQ Q(Z, C);
   std::vector<double> ret(1, ch->VernerXC.crossPhotoIon(Q, E));
   return ret;
+}
+
+void Ion::IBcreate()
+{
+  if (IBinit) return;
+}
+
+//
+// Photoionizing background
+//
+double Ion::photoBackground(double Enu)
+{
+  if (ib_type==Ion::none)
+    return 0.0;
+  else
+    return 1.0e-21*pow(Enu/RydtoeV, 0.5);
+}
+
+//
+// Photoionizaton with background
+//
+std::pair<double, double> Ion::photoIonizationRate()
+{
+  if (ib_type == Ion::none) {
+    return std::pair<double, double>(0.0, 0.0);
+  } else {
+    if (not IBinit) IBcreate();
+
+    // If energy is offgrid, set values to zero
+    if (true) 
+      return std::pair<double, double>(0.0, 0.0);
+
+    // Location in cumulative cross section grid
+    //
+    double rn = static_cast<double>(rand())/RAND_MAX;
+  
+    // Interpolate the cross section array
+    //
+    
+    // Points to first element that is not < rn
+    // but may be equal
+    std::vector<double>::iterator lb = 
+      std::lower_bound(IBcum.begin(), IBcum.end(), rn);
+    
+    // Assign upper end of range to the
+    // found element
+    //
+    std::vector<double>::iterator ub = lb;
+    //
+    // If is the first element, increment
+    // the upper boundary
+    //
+    if (lb == IBcum.begin()) { if (IBcum.size()>1) ub++; }
+    //
+    // Otherwise, decrement the lower boundary
+    //
+    else { lb--; }
+    
+    // Compute the associated indices
+    //
+    size_t ii = lb - IBcum.begin();
+    size_t jj = ub - IBcum.begin();
+    double nu = nugrid[ii];
+	  
+    // Linear interpolation
+    //
+    if (*ub > *lb) {
+      double d = *ub - *lb;
+      double a = (rn - *lb) / d;
+      double b = (*ub - rn) / d;
+      nu  = a * kgrid[ii] + b * kgrid[jj];
+    }
+    
+    return std::pair<double, double>(IBtotl, nu*ip);
+  }
 }
 
 std::vector< std::tuple<int, double> > Ion::recombCrossV (double E, int id)
