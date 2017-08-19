@@ -11920,7 +11920,7 @@ void CollideIon::scatterTrace
 void CollideIon::scatterPhotoTrace
 (Particle* p, lQ Q, double Pr, double dE)
 {
-  // Updated Eta
+  // Compute Eta and Mu
   //
   double Eta = 0.0, Mu = 0.0;
   for (auto s : SpList) {
@@ -11952,13 +11952,13 @@ void CollideIon::scatterPhotoTrace
 
   // Set COM frame
   //
-  std::vector<double> vcom(3), vrel(3), v1(3), v2(2);
-  double vi = 0.0;
-  double v12 = 0.0, v22 = 0.0;
+  std::vector<double> vcom(3), vrel(3), v1(3), v2(3);
+  double vi = 0.0, v12 = 0.0, v22 = 0.0;
 
   for (size_t k=0; k<3; k++) {
     v1[k]   = p->vel[k];
     v2[k]   = p->dattrib[use_elec+k];
+
     vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
     vrel[k] = v1[k] - v2[k];
 
@@ -11968,7 +11968,7 @@ void CollideIon::scatterPhotoTrace
     v22    += v2[k] * v2[k];
   }
 				// Energy in COM
-  double kEcom = 0.5 * N0 * mu* vi * amu/UserTreeDSMC::Munit;
+  double kEcom = 0.5 * N0 * mu * vi * amu/UserTreeDSMC::Munit;
 				// Energy reduced by loss
   double totE  = kEcom + Ep;
 
@@ -11989,27 +11989,32 @@ void CollideIon::scatterPhotoTrace
   for (size_t k=0; k<3; k++) {
     // New velocities in COM
     //
-    u1[k] = vcom[k] + m2/mu*vrel[k];
-    u2[k] = vcom[k] - m1/mu*vrel[k];
+    u1[k] = vcom[k] + m2/mt*vrel[k];
+    u2[k] = vcom[k] - m1/mt*vrel[k];
 
+    // For energy solution
+    //
     u12  += u1[k] * u1[k];
     u22  += u2[k] * u2[k];
     vdvb += v1[k] * u1[k];
     udub += v2[k] * u2[k];
   }
   
-  // Solve quadratic
-  double q  = Pr/m1 * Mu, me = m2/Mu, pp = q/Eta;
-  double qb = 1.0 - q;
+  // Solve quadratic for energy conservation
+  //
+  double qq = Pr/m1 * Mu, pp = qq/Eta, me = m2/Mu;
+  double qb = 1.0 - qq;
   double pb = 1.0 - pp;
 
-  double a = qb*qb*v12 + me*pb*pb*v22;
-  double b = 2.0*q*qb*vdvb + 2.0*pp*pb*me*udub;
-  double c = q*q*u12 - v12 + me*pp*pp*u22 - me*v22 - 2.0*Ep/(q*p->mass);
+  double a = qb*qb*v12 + me*Eta*pb*pb*v22;
+  double b = 2.0*qq*qb*vdvb + 2.0*pp*pb*me*Eta*udub;
+  double c = qq*qq*u12 - v12 + me*Eta*(pp*pp*u22 - v22) - 2.0*Ep/(p->mass);
 
   double gam1 = 0.0, gam2 = 0.0, gam  = 0.0;
   double rad  = b*b - 4.0*a*c;
 
+  // Sanity check
+  //
   if (rad<0.0) {
     std::cout << "Failure" << std::endl;
     rad = 0.0;
@@ -12017,6 +12022,8 @@ void CollideIon::scatterPhotoTrace
     rad = sqrt(rad);
   }
 
+  // Reconfigure to eliminate subtraction in quadradic solution
+  //
   if (b>0.0) {
     gam1 = 2.0*c/(-b - rad);
     gam2 = (-b - rad)/(2.0*a);
@@ -12025,6 +12032,8 @@ void CollideIon::scatterPhotoTrace
     gam2 = 2.0*c/(-b + rad);
   }
 
+  // Choose best branch
+  //
   if      (gam1 > 0.0 and gam2 < 0.0) gam = gam1;
   else if (gam1 < 0.0 and gam2 > 0.0) gam = gam2;
   else if (gam1 >=0.0 and gam2 >=0.0) {
@@ -12039,30 +12048,31 @@ void CollideIon::scatterPhotoTrace
   //
   double w12 = 0.0, w22 = 0.0;
   for (size_t k=0; k<3; k++) {
-    w1[k] = qb*v1[k]*gam + q*u1[k];
-    w2[k] = pb*v2[k]*gam + q*u2[k];
+    w1[k] = qb*v1[k]*gam + qq*u1[k];
+    w2[k] = pb*v2[k]*gam + pp*u2[k];
     w12  += w1[k] * w1[k];
     w22  += w2[k] * w2[k];
   }
 
-  // Initial total KE
-  //
-  double KEi1 = 0.5*p->mass * v12;
-  double KEi2 = 0.5*p->mass*atomic_weights[0] * Eta * v22;
+  if (KE_DEBUG) {
 
-
-  // Final total KE
-  //
-
-  double KEf1 = 0.5*p->mass * w12; 
-  double KEf2 = 0.5*p->mass*atomic_weights[0] * Eta * w22;
-
-  double KEi    = KEi1 + KEi2;
-  double KEf    = KEf1 + KEf2;
-  double deltaE = KEf  - KEi - Ep;
-
-  if (fabs(deltaE/KEi) > 1.0e-10) {
-    std::cout << "Energy conservation error" << std::endl;
+    // Initial total KE
+    //
+    double KEi1 = 0.5*p->mass * v12;
+    double KEi2 = 0.5*p->mass * me * Eta * v22;
+    
+    // Final total KE
+    //
+    double KEf1 = 0.5*p->mass * w12; 
+    double KEf2 = 0.5*p->mass * me * Eta * w22;
+    
+    double KEi    = KEi1 + KEi2;
+    double KEf    = KEf1 + KEf2;
+    double deltaE = KEf  - KEi - Ep;
+    
+    if (fabs(deltaE/KEi) > 1.0e-10) {
+      std::cout << "Energy conservation error" << std::endl;
+    }
   }
     
 } // END: CollideIon::scatterPhotoTrace
