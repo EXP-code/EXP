@@ -382,6 +382,22 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   //
   itp=0;
 
+  // Photoionizating background?
+  //
+  use_photoIB = false;
+  if (Ion::setIBtype(photoIB)) {
+    if (photoIB!="none") {
+      std::ostringstream sout;
+      sout << "[" << myid 
+	   << "] CollideIon found an inconsistent return type for "
+	   << "photoionization background <" << photoIB << ">";
+      
+      throw std::runtime_error(sout.str());
+    }
+  } else {
+    use_photoIB = true;
+  }
+
   // Read species file
   //
   parseSpecies(smap);
@@ -10212,7 +10228,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     //
     unsigned short  P1 = C1 - 1; 
     unsigned short  P2 = C2 - 1; 
-      
+
     // Compute class id
     //
     size_t cid = 0;
@@ -11539,6 +11555,53 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     normTest(p2, "p2 [After]");
   }
 
+  // Photoionizing background?
+  //
+  if (use_photoIB) {
+    for (auto s : SpList) {
+      lQ Q    = s.first;
+      int pos = s.second;
+      
+      // Particle 1
+      {
+	CFreturn ff  = ch.IonList[Q]->photoIonizationRate();
+
+	double Pr = ff.first * UserTreeDSMC::Tunit * spTau[id];
+	double Ep = ff.second;
+
+	if (Pr < p1->dattrib[pos]) {
+	  p1->dattrib[pos  ] -= Pr;
+	  p1->dattrib[pos+1] += Pr;
+	} else {
+	  Pr = p1->dattrib[pos];
+	  p1->dattrib[pos  ]  = 0.0;
+	  p1->dattrib[pos+1] += Pr;
+	}
+
+	scatterPhotoTrace(p1, Q, Pr, Ep, molP1[id], etaP1[id]);
+      }
+
+      // Particle 2
+      {
+	CFreturn ff  = ch.IonList[Q]->photoIonizationRate();
+
+	double Pr = ff.first * UserTreeDSMC::Tunit * spTau[id];
+	double Ep = ff.second;
+
+	if (Pr < p2->dattrib[pos]) {
+	  p2->dattrib[pos  ] -= Pr;
+	  p2->dattrib[pos+1] += Pr;
+	} else {
+	  Pr = p2->dattrib[pos];
+	  p2->dattrib[pos  ]  = 0.0;
+	  p2->dattrib[pos+1] += Pr;
+	}
+
+	scatterPhotoTrace(p2, Q, Pr, Ep, molP2[id], etaP2[id]);
+      }
+    }
+  }
+
   // Debug energy conservation
   // -------------------------
   // After the step, the energy of a single pair may have changed in
@@ -11852,6 +11915,139 @@ void CollideIon::scatterTrace
   }
       
 } // END: CollideIon::scatterTrace
+
+
+void CollideIon::scatterPhotoTrace
+(Particle* p, lQ Q, double Pr, double dE, double Mu, double Eta)
+{
+  // Updated Eta
+  //
+  double EtaF = 0.0, SumF = 0.0;
+  for (auto s : SpList) {
+    double frac = p->dattrib[s.second] / atomic_weights[s.first.first];
+    EtaF += frac * (s.first.second - 1);
+    SumF += frac;
+  }
+  EtaF /= SumF;
+
+  // Number interacting atoms
+  //
+  double N0 = p->mass * UserTreeDSMC::Munit * Pr/ (atomic_weights[Q.first] * amu);
+
+  // Convert from eV per particle to system units per
+  // superparticle
+  //
+  double Ep = dE * N0 * eV/UserTreeDSMC::Eunit;
+
+  // Total effective mass in the collision (atomic mass units)
+  //
+  double m1 = atomic_weights[Q.first];
+  double m2 = atomic_weights[0];
+  double mt = m1 + m2;
+
+  // Reduced mass (atomic mass units)
+  //
+  double mu = m1 * m2 / mt;
+
+  // Set COM frame
+  //
+  std::vector<double> vcom(3), vrel(3), v1(3), v2(2);
+  double vi = 0.0;
+  double v12 = 0.0, v22 = 0.0;
+
+  for (size_t k=0; k<3; k++) {
+    v1[k]   = p->vel[k];
+    v2[k]   = p->dattrib[use_elec+k];
+    vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
+    vrel[k] = v1[k] - v2[k];
+
+    vi     += vrel[k] * vrel[k];
+
+    v12    += v1[k] * v1[k];
+    v22    += v2[k] * v2[k];
+  }
+				// Energy in COM
+  double kEcom = 0.5 * N0 * mu* vi * amu/UserTreeDSMC::Munit;
+				// Energy reduced by loss
+  double totE  = kEcom + Ep;
+
+  // Assign interaction energy variables
+  //
+  vrel = unit_vector();
+  vi   = sqrt(vi*totE/kEcom);
+  for (auto & v : vrel) v *= vi;
+  //                         ^
+  //                         |
+  // Velocity in center of mass, computed from v1, v2 and adjusted
+  // according to the inelastic energy gain
+  //
+
+  std::vector<double> u1(3), u2(3), w1(3), w2(3);
+  double u12 = 0.0, u22 = 0.0, vdvb = 0.0, udub = 0.0;
+
+  for (size_t k=0; k<3; k++) {
+    // New velocities in COM
+    //
+    u1[k] = vcom[k] + m2/mu*vrel[k];
+    u2[k] = vcom[k] - m1/mu*vrel[k];
+
+    u12  += u1[k] * u1[k];
+    u22  += u2[k] * u2[k];
+    vdvb += v1[k] * u1[k];
+    udub += v2[k] * u2[k];
+  }
+  
+  // Solve quadratic
+  double q = Pr, qb = 1.0 - Pr, w = 1.0/(Eta + Pr);
+  double c = 0.5*m1*q*q*u12 + 0.5*m2*w*q*q*v12 - 0.5*m1*v12 - 0.5*m2*v22 - Ep;
+  double b = m1*qb*q*vdvb + me*w*Eta*q*udub;
+  double a = 0.5*m1*qb*qb*v12 + 0.5*m2*w*Eta*Eta*v22;
+
+  double gam1 = -b + sqrt(b*b - 4.0*a*c)/(2.0*a);
+  double gam2 = -b - sqrt(b*b - 4.0*a*c)/(2.0*a);
+  double gam  = 1.0;
+
+  if      (gam1 > 0.0 and gam2 < 0.0) gam = gam1;
+  else if (gam1 < 0.0 and gam2 > 0.0) gam = gam2;
+  else if (gam1 >=0.0 and gam2 >=0.0) {
+    if (fabs(gam1 - 1.0) < fabs(gam2 - 1.0)) gam = gam1;
+    else gam = gam2;
+  } else {
+    if (-gam1 > -gam2) gam = gam1;
+    else gam = gam2;
+  }
+
+  // Final velocities
+  //
+  double w12 = 0.0, w22 = 0.0;
+  for (size_t k=0; k<3; k++) {
+    w1[k] = (1.0 - q)*v1[k]*gam + q*u1[k];
+    w2[k] = (Eta - q)*v2[k]*gam + q*u2[k];
+    w12  += w1[k] * w1[k];
+    w22  += w2[k] * w2[k];
+  }
+
+  // Initial total KE
+  //
+  double KEi1 = 0.5*p->mass * v12;
+  double KEi2 = 0.5*p->mass*atomic_weights[0]/Mu * Eta * v22;
+
+
+  // Final total KE
+  //
+
+  double KEf1 = 0.5*p->mass * w12; 
+  double KEf2 = 0.5*p->mass*atomic_weights[0]/Mu * EtaF * w12;
+
+  double KEi    = KEi1 + KEi2;
+  double KEf    = KEf1 + KEf2;
+  double deltaE = KEf  - KEi - Ep;
+
+  if (fabs(deltaE/KEi) > 1.0e-10) {
+    std::cout << "Energy conservation error" << std::endl;
+  }
+    
+} // END: CollideIon::scatterPhotoTrace
 
 
 void CollideIon::deferredEnergyTrace(PordPtr pp, const double E, int id)
@@ -18858,6 +19054,9 @@ void CollideIon::processConfig()
 
     ESthresh =
       cfg.entry<double>("ESthresh", "Ionization threshold for electron-electron scattering", 1.0e-10);
+
+    photoIB =
+      cfg.entry<std::string>("photoIB", "Photo ionization background type (none, uvIGM)", "none");
 
     Collide::DEBUG_NTC =
       cfg.entry<bool>("DEBUG_NTC", "Enable verbose NTC diagnostics", false);

@@ -330,6 +330,9 @@ protected:
 				// value of h-bar * c in eV*nm
   static constexpr double hbc     = 197.327;
 
+				// Planck's constant in eV*s
+  static constexpr double heV     = 4.135667222637445e-15;
+
 				// Fine structure constant
   static constexpr double alpha0  = 7.2973525698e-03;
 
@@ -590,13 +593,13 @@ public:
   }
 
   //! Set ionizing background type for all instances
-  static int setIBtype(const std::string& rr) 
+  static int setIBtype(const std::string& ib) 
   {
-    if (rr_map.find(rr) == rr_map.end()) {
+    if (ib_map.find(ib) == ib_map.end()) {
       ib_type = Ion::none;	// Default type
       return 1;			// Failure
     } else { 			// Set request
-      ib_type = ib_map[rr];
+      ib_type = ib_map[ib];
       return 0;			// Success
     }
   }

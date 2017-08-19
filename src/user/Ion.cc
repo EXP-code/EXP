@@ -60,7 +60,7 @@ double Ion::kdel    =  0.5;
 // Photo-ionizaton grid
 double Ion::numin   = 1.0;
 double Ion::numax   = 3.0;
-double Ion::nudel   = 0.2;
+double Ion::nudel   = 0.05;
 
 //
 // Convert the master element name to a (Z, C) pair
@@ -644,8 +644,10 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
     kgr10[i] = pow(10, kgrid[i]) * hbc;
   }
 
-  IBinit = false;
+  // Initialize the nu-grid for photoionization (in units of the
+  // ionization potential) 
 
+  IBinit = false;
   if (ib_type != Ion::none) {
     for (double nu = numin; nu < numax; nu += nudel) 
       nugrid.push_back(nu);
@@ -700,6 +702,17 @@ Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
   kgr10.resize(kffsteps);
   for (int i=0; i<kffsteps; i++) {
     kgr10[i] = pow(10, kgrid[i]) * hbc;
+  }
+
+  // Initialize the nu-grid for photoionization (in units of the
+  // ionization potential) 
+
+  IBinit = false;
+  if (ib_type != Ion::none) {
+    for (double nu = numin; nu < numax; nu += nudel) 
+      nugrid.push_back(nu);
+
+    nusteps = nugrid.size();
   }
 }
 
@@ -2116,17 +2129,37 @@ std::vector<double> Ion::photoIonizationCross(double E, int id)
 void Ion::IBcreate()
 {
   if (IBinit) return;
+
+  // For conversion of nm^2 to cm^2
+  //           |
+  //           v
+  double ff =  1.0e-14 * ip * nudel / (heV*eVtoErg) * 4.0 * M_PI;
+
+  IBrate.resize(nusteps);
+  IBtotl = 0.0;
+  for (int n=0; n<nusteps; n++) {
+    double E  = ip * nugrid[n];
+    double x  = ff * photoBackground(E) * photoIonizationCross(E, 0)[0] / E;
+    IBrate[n] = x;
+    IBtotl   += x;
+  }
+
+  IBcum.resize(nusteps);
+  IBcum[0] = IBrate[0]/IBtotl;
+  for (int n=1; n<nusteps; n++) IBcum[n] = IBrate[n]/IBtotl + IBcum[n-1];
+
+  IBinit = true;
 }
 
 //
-// Photoionizing background
+// Photoionizing background (photon energy in eV)
 //
 double Ion::photoBackground(double Enu)
 {
   if (ib_type==Ion::none)
     return 0.0;
   else
-    return 1.0e-21*pow(Enu/RydtoeV, 0.5);
+    return 1.0e-21*pow(Enu/10.2042693975, 0.5);
 }
 
 //
@@ -2134,14 +2167,10 @@ double Ion::photoBackground(double Enu)
 //
 std::pair<double, double> Ion::photoIonizationRate()
 {
-  if (ib_type == Ion::none) {
+  if (ib_type == Ion::none or C > Z) {
     return std::pair<double, double>(0.0, 0.0);
   } else {
     if (not IBinit) IBcreate();
-
-    // If energy is offgrid, set values to zero
-    if (true) 
-      return std::pair<double, double>(0.0, 0.0);
 
     // Location in cumulative cross section grid
     //
@@ -2181,10 +2210,10 @@ std::pair<double, double> Ion::photoIonizationRate()
       double d = *ub - *lb;
       double a = (rn - *lb) / d;
       double b = (*ub - rn) / d;
-      nu  = a * kgrid[ii] + b * kgrid[jj];
+      nu  = a * nugrid[ii] + b * nugrid[jj];
     }
     
-    return std::pair<double, double>(IBtotl, nu*ip);
+    return std::pair<double, double>(IBtotl, (nu-1.0)*ip);
   }
 }
 

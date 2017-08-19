@@ -452,8 +452,11 @@ private:
 
   InteractSelect IS;
 
+  //@{
+  //! Pseudo-random number generators
   ACG     *gen;
   Uniform *unit;
+  //@}
   
   //@{
   //! Inelastic work space
@@ -791,6 +794,12 @@ protected:
 
   //! The algorithm type
   AlgorithmType aType;
+
+  //! Photoionization background type
+  std::string photoIB;
+
+  //! Using photoionization
+  bool use_photoIB;
 
 protected:
   
@@ -1262,6 +1271,10 @@ protected:
   void scatterTrace
   (PordPtr pp, KE_& KE,
    std::vector<double>* V1, std::vector<double>* V2, int id);
+
+  //! For photoionization ion-electron recoil
+  void scatterPhotoTrace
+  (Particle* p, lQ Q, double Pr, double dE, double Mu, double Eta);
 
   //! For deep debugging
   void KEcheck(PordPtr pp, double& KE_initl_check,
