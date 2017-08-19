@@ -12016,7 +12016,8 @@ void CollideIon::scatterPhotoTrace
   // Sanity check
   //
   if (rad<0.0) {
-    std::cout << "Failure" << std::endl;
+    std::cout << "CollideIon::tracePhotoScatter: ERROR in consE solution"
+	      << std::endl;
     rad = 0.0;
   } else {
     rad = sqrt(rad);
@@ -12071,7 +12072,8 @@ void CollideIon::scatterPhotoTrace
     double deltaE = KEf  - KEi - Ep;
     
     if (fabs(deltaE/KEi) > 1.0e-10) {
-      std::cout << "Energy conservation error" << std::endl;
+      std::cout << "CollideIon::tracePhotoScatter: ENERGY CONSERVATION ERROR"
+		<< std::endl;
     }
   }
     
