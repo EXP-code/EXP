@@ -11578,7 +11578,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  p1->dattrib[pos+1] += Pr;
 	}
 
-	scatterPhotoTrace(p1, Q, Pr, Ep, molP1[id], etaP1[id]);
+	scatterPhotoTrace(p1, Q, Pr, Ep);
       }
 
       // Particle 2
@@ -11597,7 +11597,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  p2->dattrib[pos+1] += Pr;
 	}
 
-	scatterPhotoTrace(p2, Q, Pr, Ep, molP2[id], etaP2[id]);
+	scatterPhotoTrace(p2, Q, Pr, Ep);
       }
     }
   }
@@ -11918,17 +11918,18 @@ void CollideIon::scatterTrace
 
 
 void CollideIon::scatterPhotoTrace
-(Particle* p, lQ Q, double Pr, double dE, double Mu, double Eta)
+(Particle* p, lQ Q, double Pr, double dE)
 {
   // Updated Eta
   //
-  double EtaF = 0.0, SumF = 0.0;
+  double Eta = 0.0, Mu = 0.0;
   for (auto s : SpList) {
     double frac = p->dattrib[s.second] / atomic_weights[s.first.first];
-    EtaF += frac * (s.first.second - 1);
-    SumF += frac;
+    Eta += frac * (s.first.second - 1);
+    Mu  += frac;
   }
-  EtaF /= SumF;
+  Eta /= Mu;
+  Mu   = 1.0/Mu;
 
   // Number interacting atoms
   //
@@ -11998,14 +11999,31 @@ void CollideIon::scatterPhotoTrace
   }
   
   // Solve quadratic
-  double q = Pr, qb = 1.0 - Pr, w = 1.0/(Eta + Pr);
-  double c = 0.5*m1*q*q*u12 + 0.5*m2*w*q*q*v12 - 0.5*m1*v12 - 0.5*m2*v22 - Ep;
-  double b = m1*qb*q*vdvb + me*w*Eta*q*udub;
-  double a = 0.5*m1*qb*qb*v12 + 0.5*m2*w*Eta*Eta*v22;
+  double q  = Pr/m1 * Mu, me = m2/Mu, pp = q/Eta;
+  double qb = 1.0 - q;
+  double pb = 1.0 - pp;
 
-  double gam1 = -b + sqrt(b*b - 4.0*a*c)/(2.0*a);
-  double gam2 = -b - sqrt(b*b - 4.0*a*c)/(2.0*a);
-  double gam  = 1.0;
+  double a = qb*qb*v12 + me*pb*pb*v22;
+  double b = 2.0*q*qb*vdvb + 2.0*pp*pb*me*udub;
+  double c = q*q*u12 - v12 + me*pp*pp*u22 - me*v22 - 2.0*Ep/(q*p->mass);
+
+  double gam1 = 0.0, gam2 = 0.0, gam  = 0.0;
+  double rad  = b*b - 4.0*a*c;
+
+  if (rad<0.0) {
+    std::cout << "Failure" << std::endl;
+    rad = 0.0;
+  } else {
+    rad = sqrt(rad);
+  }
+
+  if (b>0.0) {
+    gam1 = 2.0*c/(-b - rad);
+    gam2 = (-b - rad)/(2.0*a);
+  } else {
+    gam1 = (-b + rad)/(2.0*a);
+    gam2 = 2.0*c/(-b + rad);
+  }
 
   if      (gam1 > 0.0 and gam2 < 0.0) gam = gam1;
   else if (gam1 < 0.0 and gam2 > 0.0) gam = gam2;
@@ -12021,8 +12039,8 @@ void CollideIon::scatterPhotoTrace
   //
   double w12 = 0.0, w22 = 0.0;
   for (size_t k=0; k<3; k++) {
-    w1[k] = (1.0 - q)*v1[k]*gam + q*u1[k];
-    w2[k] = (Eta - q)*v2[k]*gam + q*u2[k];
+    w1[k] = qb*v1[k]*gam + q*u1[k];
+    w2[k] = pb*v2[k]*gam + q*u2[k];
     w12  += w1[k] * w1[k];
     w22  += w2[k] * w2[k];
   }
@@ -12030,14 +12048,14 @@ void CollideIon::scatterPhotoTrace
   // Initial total KE
   //
   double KEi1 = 0.5*p->mass * v12;
-  double KEi2 = 0.5*p->mass*atomic_weights[0]/Mu * Eta * v22;
+  double KEi2 = 0.5*p->mass*atomic_weights[0] * Eta * v22;
 
 
   // Final total KE
   //
 
   double KEf1 = 0.5*p->mass * w12; 
-  double KEf2 = 0.5*p->mass*atomic_weights[0]/Mu * EtaF * w12;
+  double KEf2 = 0.5*p->mass*atomic_weights[0] * Eta * w22;
 
   double KEi    = KEi1 + KEi2;
   double KEf    = KEf1 + KEf2;

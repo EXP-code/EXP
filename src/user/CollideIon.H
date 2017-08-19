@@ -1273,8 +1273,7 @@ protected:
    std::vector<double>* V1, std::vector<double>* V2, int id);
 
   //! For photoionization ion-electron recoil
-  void scatterPhotoTrace
-  (Particle* p, lQ Q, double Pr, double dE, double Mu, double Eta);
+  void scatterPhotoTrace(Particle* p, lQ Q, double Pr, double dE);
 
   //! For deep debugging
   void KEcheck(PordPtr pp, double& KE_initl_check,
