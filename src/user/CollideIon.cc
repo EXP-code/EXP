@@ -11558,6 +11558,52 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   // Photoionizing background?
   //
   if (use_photoIB) {
+    // Sanity check: check probability on first step
+    // ---------------------------------------------
+    // Time step is decreased automatically, if possible.  Otherwise,
+    // exception is thrown.
+    //
+    static bool first = true;
+    if (first) {
+      const double trgProb = 0.1;
+      const double maxProb = 0.5;
+
+      double maxSoFar = 0.0;
+      bool   good     = true;
+
+      std::ostringstream sout;
+      for (auto s : SpList) {
+	double Pr = ch.IonList[s.first]->photoIonizationRate().first * 
+	  UserTreeDSMC::Tunit * spTau[id];
+	maxSoFar = std::max<double>(Pr, maxSoFar);
+	if (Pr>maxProb) {
+	  sout << "["
+	       << std::setw(2)  << s.first.first  << ", "
+	       << std::setw(2)  << s.first.second << "] "
+	       << std::setw(16) << Pr << std::endl;
+	  good = false;
+	}
+      }
+
+      if (not good) {		// Trigger time-step reduction
+	if (use_delt>=0) {
+	  double newTs = trgProb/maxProb * spTau[id];
+	  p1->dattrib[use_delt] = p2->dattrib[use_delt] = newTs;
+	} else {		// Otherwise, throw exception
+	  std::ostringstream serr;
+	  serr << "CollideIon::inelasticTrace: maxProb=" << maxSoFar
+	       << ", time step too small for photoionization";
+	  if (myid==0) std::cout << serr.str() << std::endl << sout.str();
+	  throw std::runtime_error(serr.str());
+	}
+      }
+      first = false;
+    }
+    //
+    // end sanity check
+
+    // Photoionize all subspecies
+    //
     for (auto s : SpList) {
       lQ Q    = s.first;
       int pos = s.second;
@@ -13594,7 +13640,10 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
     spEdel[id] = 0.0;
     spEmax[id] = DBL_MAX;
 
-    for (auto i : cell->bods) cell->Body(i)->dattrib[use_delt] = dtE;
+    for (auto i : cell->bods) {
+      double cur = cell->Body(i)->dattrib[use_delt];
+      cell->Body(i)->dattrib[use_delt] = std::min<double>(dtE, cur);
+    }
   }
 
   //======================================================================
