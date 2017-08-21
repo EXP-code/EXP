@@ -2154,12 +2154,14 @@ void Ion::IBcreate()
 //
 // Photoionizing background (photon energy in eV)
 //
+// Quasar exponent and value following Haardt and Madau (2012)
+//
 double Ion::photoBackground(double Enu)
 {
   if (ib_type==Ion::none)
     return 0.0;
   else
-    return 1.0e-23*pow(Enu/RydtoeV, -1.4);
+    return 1.0e-24*pow(Enu/RydtoeV, -0.5);
 }
 
 //
