@@ -205,6 +205,8 @@ static bool temp_debug          = false;
 
 static bool scatter_check       = false;
 
+static bool recomb_check        = false;
+
 // Decrease the interacton probability by electron fraction used for
 // dominant subspcies for the NTC rate
 //
@@ -676,6 +678,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   totlIE   .resize(nthrds, 0);
   KElost   .resize(nthrds);
   energyA  .resize(nthrds);
+  recombA  .resize(nthrds);
 
   for (auto &v : Ediag) {
     for (auto &u : v) u = 0.0;
@@ -4604,6 +4607,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
 	double crs = sVel1 * Eta1 * RE.back() * fac1;
 	
+	if (scatter_check and recomb_check) {
+	  double val = sVel1 * vel * 1.0e-14 * RE.back();
+	  recombA[id].add(k, val);
+	}
+
 	if (DEBUG_CRS) trap_crs(crs);
 	
 	if (crs > 0.0) {
@@ -4626,6 +4634,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
 	double crs = sVel2 * Eta2 * RE.back() * fac2;
 	
+	if (scatter_check and recomb_check) {
+	  double val = sVel2 * vel * 1.0e-14 * RE.back();
+	  recombA[id].add(k, val);
+	}
+
 	if (DEBUG_CRS) trap_crs(crs);
 	  
 	if (crs > 0.0) {
@@ -4652,6 +4665,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
 	  double crs = eVel2 * Eta2 * RE.back() * fac1;
 	  
+	if (scatter_check and recomb_check) {
+	  double val = sVel2 * vel * 1.0e-14 * RE.back();
+	  recombA[id].add(k, val);
+	}
+
 	  if (DEBUG_CRS) trap_crs(crs);
 	  
 	  if (crs > 0.0) {
@@ -4675,6 +4693,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
 	  
 	  double crs = eVel1 * Eta1 * RE.back() * fac2;
+	  
+	  if (scatter_check and recomb_check) {
+	    double val = sVel1 * vel * 1.0e-14 * RE.back();
+	    recombA[id].add(k, val);
+	  }
 	  
 	  if (DEBUG_CRS) trap_crs(crs);
 	  
@@ -11601,51 +11624,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     }
     //
     // end sanity check
-
-    // Photoionize all subspecies
-    //
-    for (auto s : SpList) {
-      lQ Q    = s.first;
-      int pos = s.second;
-      
-      // Particle 1
-      {
-	CFreturn ff  = ch.IonList[Q]->photoIonizationRate();
-
-	double Pr = ff.first * UserTreeDSMC::Tunit * spTau[id];
-	double Ep = ff.second;
-
-	if (Pr < p1->dattrib[pos]) {
-	  p1->dattrib[pos  ] -= Pr;
-	  p1->dattrib[pos+1] += Pr;
-	} else {
-	  Pr = p1->dattrib[pos];
-	  p1->dattrib[pos  ]  = 0.0;
-	  p1->dattrib[pos+1] += Pr;
-	}
-
-	scatterPhotoTrace(p1, Q, Pr, Ep);
-      }
-
-      // Particle 2
-      {
-	CFreturn ff  = ch.IonList[Q]->photoIonizationRate();
-
-	double Pr = ff.first * UserTreeDSMC::Tunit * spTau[id];
-	double Ep = ff.second;
-
-	if (Pr < p2->dattrib[pos]) {
-	  p2->dattrib[pos  ] -= Pr;
-	  p2->dattrib[pos+1] += Pr;
-	} else {
-	  Pr = p2->dattrib[pos];
-	  p2->dattrib[pos  ]  = 0.0;
-	  p2->dattrib[pos+1] += Pr;
-	}
-
-	scatterPhotoTrace(p2, Q, Pr, Ep);
-      }
-    }
   }
 
   // Debug energy conservation
@@ -12611,7 +12589,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	dEratg[id] += fabs(delE);
       }
     }
-  }
+  } // End: energy conservation debugging
 
 
   //======================================================================
@@ -12628,6 +12606,44 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 		       << " electron scattering BEGIN" << std::endl;
   }
   
+
+  //======================================================================
+  // Compute photoionization (currently only for Trace)
+  //======================================================================
+  //
+  if (aType == Trace and use_photoIB) {
+
+    // Photoionize all subspecies
+    //
+    for (auto s : SpList) {
+      lQ Q    = s.first;
+      int pos = s.second;
+      
+      for (auto b : cell->bods) {
+	// The particle
+	Particle *p  = tree->Body(b);
+
+	// Pick a new photon for each body
+	CFreturn ff  = ch.IonList[Q]->photoIonizationRate();
+
+	// Compute the probability and get the residual electron energy
+	double Pr = ff.first * UserTreeDSMC::Tunit * spTau[id];
+	double Ep = ff.second;
+
+	if (Pr < p->dattrib[pos]) {
+	  p->dattrib[pos  ] -= Pr;
+	  p->dattrib[pos+1] += Pr;
+	} else {
+	  Pr = p->dattrib[pos];
+	  p->dattrib[pos  ]  = 0.0;
+	  p->dattrib[pos+1] += Pr;
+	}
+	scatterPhotoTrace(p, Q, Pr, Ep);
+      }
+    }
+  } // End: photoionizing background
+
+
   // RMS energy diagnostic for debugFC
   //
   std::vector<std::pair<double, double> > EconsV;
@@ -16278,6 +16294,65 @@ void CollideIon::gatherSpecies()
   std::array<DTup, 3> a_0 = {dtup_0, dtup_0, dtup_0};
   ZTup ztup_0(a_0, 0.0);
 
+  // Recombination diagnostics
+  //
+  if (scatter_check and recomb_check) {
+    StatsMPI::Return comb = recombA[0].stats();
+
+    for (int n=1; n<nthrds; n++) { // Merge into first thread
+      StatsMPI::Return ret = recombA[n].stats();
+      for (auto u : ret) {
+	speciesKey k = u.first;
+	if (comb.find(k) == comb.end()) {
+	  comb[k] = u.second;
+	} else {
+	  comb[k].first += u.second.first;
+	  for (int j=0; j<3; j++) comb[k].second[j] += u.second.second[j];
+	}
+      }
+    }
+    
+    recombTally.clear();
+    if (myid==0) recombTally = comb;
+
+    for (int n=1; n<numprocs; n++) {
+      if (myid==n) {
+	int num = comb.size();
+	MPI_Send(&num,               1, MPI_INT,           0, 2000, MPI_COMM_WORLD);
+	for (auto v : comb) {
+	  unsigned short Q[2];
+	  Q[0] = v.first.first;
+	  Q[1] = v.first.second;
+	  MPI_Send(&Q[0],            2, MPI_UNSIGNED,      0, 2001, MPI_COMM_WORLD);
+	  MPI_Send(&v.second.first,  1, MPI_UNSIGNED_LONG, 0, 2002, MPI_COMM_WORLD);
+	  MPI_Send(&v.second.second, 3, MPI_DOUBLE,        0, 2003, MPI_COMM_WORLD);
+	}
+      }
+      
+      if (myid==0) {
+	int num;
+	MPI_Recv(&num,               1, MPI_INT,           n, 2000, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	for (int i=0; i<num; i++) {
+	  unsigned long cnt;
+	  unsigned short Q[2];
+	  std::array<double, 3> v3;
+	  MPI_Recv(&Q[0],            2, MPI_UNSIGNED,      n, 2001, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&cnt,             1, MPI_UNSIGNED_LONG, n, 2002, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&v3,              3, MPI_DOUBLE,        n, 2003, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  
+	  speciesKey k(Q[0], Q[1]);
+	  if (recombTally.find(k) == recombTally.end()) {
+	    recombTally[k].first = cnt;
+	    for (int j=0; j<3; j++) recombTally[k].second[j] = v3[j];
+	  } else {
+	    recombTally[k].first += cnt;
+	    for (int j=0; j<3; j++) recombTally[k].second[j] += v3[j];
+	  }
+	}
+      }
+    }
+  }
+
   // specM is the mass in each internal state
   //
   if (aType==Hybrid) {
@@ -17342,6 +17417,39 @@ void CollideIon::gatherSpecies()
 		  << static_cast<double>(CStt[1])*100.0/CStt[2] << std::endl;
       }
       std::cout << std::string(24, '-') << std::endl;
+
+      // Recombination diagnostics
+      //
+      if (recomb_check and recombTally.size()) {
+	std::cout << std::endl
+		  << std::string(8+10+3*18, '-') << std::endl
+		  << "---- Recombination coefficient" << std::endl
+		  << std::string(8+10+3*18, '-') << std::endl
+		  << std::setw( 8) << "Species"
+		  << std::setw(10) << "Count"
+		  << std::setw(18) << "Mean"
+		  << std::setw(18) << "Min"
+		  << std::setw(18) << "Max"
+		  << std::endl
+		  << std::setw( 8) << "-------"
+		  << std::setw(10) << "-------"
+		  << std::setw(18) << "-------"
+		  << std::setw(18) << "-------"
+		  << std::setw(18) << "-------"
+		  << std::endl;
+	for (auto v : recombTally) {
+	  std::ostringstream slab;
+	  slab << v.first.first << ", " << v.first.second;
+	  std::cout << std::setw( 8) << slab.str()
+		    << std::setw(10) << v.second.first
+		    << std::setw(18) << v.second.second[0]/v.second.first
+		    << std::setw(18) << v.second.second[1]
+		    << std::setw(18) << v.second.second[2]
+		    << std::endl;
+	}
+	std::cout << std::string(8+10+3*18, '-') << std::endl;
+      }
+      // End: recombination
     }
     
     // Clear the counters
@@ -17382,7 +17490,6 @@ void CollideIon::printSpecies
     printSpeciesTrace();
     printSpeciesColl();
   }
-
 }
 
 void CollideIon::printSpeciesColl()
@@ -19109,6 +19216,9 @@ void CollideIon::processConfig()
 
     scatter_check =
       cfg.entry<bool>("scatterCheck", "Print interaction channel diagnostics", false);
+
+    recomb_check =
+      cfg.entry<bool>("recombCheck", "Print recombination coefficient for all active species", false);
 
     NO_ION_ION =
       cfg.entry<bool>("NO_ION_ION", "Artificially suppress the ion-ion scattering in the Hybrid method", false);

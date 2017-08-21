@@ -21,6 +21,7 @@
 #include "InitContainer.H"
 #include "AsciiHisto.H"
 #include "EnumBitset.H"
+#include "StatsMPI.H"
 
 //
 // Define operator()+ for std::accumulate
@@ -518,9 +519,7 @@ private:
   std::vector< CVels >                               cVels;
   std::vector< CellMom >                             cMoms;
   std::vector< std::array<double, 2> >               KElost;
-  //@}
-
-
+  std::vector< StatsMPI >                            recombA;
   //@{
 
   //! Trace-species velocity factors including reduced mass for a
@@ -1116,6 +1115,8 @@ protected:
   typedef std::map<dKey, CollCounts> CollCountMap;
   const CollCounts ccZ = {{0, 0}};
   std::vector<CollCountMap> collCount;
+
+  StatsMPI::Return recombTally;
   //@}
 
   //! For debugging
