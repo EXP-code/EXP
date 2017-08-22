@@ -579,7 +579,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (use_spectrum ? (wvlSpect ? "in wavelength" : "in eV")
 		  : "off")                              << std::endl
 	      <<  " " << std::setw(20) << std::left << "Photoionization"
-	      << Ion::getIBtype()
+	      << Ion::getIBtype()                       << std::endl
 	      << " " << std::setw(20) << std::left << "random seed"
 	      << seed                                   << std::endl
 	      << "************************************" << std::endl;
