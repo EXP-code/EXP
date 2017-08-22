@@ -12634,12 +12634,12 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	double ww = p->dattrib[pos] * Pr;
 
 	if (Pr >= 1.0) {	// Limiting case
-	  ww =  p->dattrib[pos];
-	  p->dattrib[pos+1] += p->dattrib[pos];
+	  ww = p->dattrib[pos];
 	  p->dattrib[pos  ]  = 0.0;
-	} else {		// Normal case
 	  p->dattrib[pos+1] += ww;
+	} else {		// Normal case
 	  p->dattrib[pos  ] -= ww;
+	  p->dattrib[pos+1] += ww;
 	}
 
 	scatterPhotoTrace(p, Q, ww, Ep);

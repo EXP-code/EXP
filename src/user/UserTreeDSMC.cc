@@ -585,7 +585,7 @@ void UserTreeDSMC::userinfo()
     const std::string eslab = CollideIon::getEStype();
     cout << ", electron algorithm is <" << eslab << ">";
     if (eslab.compare("limited")==0) {
-      cout << ", collision limit is " << CollideIon::esNum;
+      cout << ", electron collision limit is " << CollideIon::esNum;
       if (CollideIon::esThr > 0.0)
 	cout << ", q-threshold is "     << CollideIon::esThr;
     }
