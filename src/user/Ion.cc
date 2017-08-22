@@ -2161,7 +2161,7 @@ double Ion::photoBackground(double Enu)
   if (ib_type==Ion::none)
     return 0.0;
   else
-    return 1.0e-24*pow(Enu/RydtoeV, -0.5);
+    return 1.0e-22*pow(Enu/RydtoeV, -0.5);
 }
 
 //
