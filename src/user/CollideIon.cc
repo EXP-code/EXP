@@ -578,6 +578,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "Spectrum"
 	      << (use_spectrum ? (wvlSpect ? "in wavelength" : "in eV")
 		  : "off")                              << std::endl
+	      <<  " " << std::setw(20) << std::left << "Photoionization"
+	      << Ion::getIBtype()
 	      << " " << std::setw(20) << std::left << "random seed"
 	      << seed                                   << std::endl
 	      << "************************************" << std::endl;
@@ -12629,16 +12631,18 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	// Compute the probability and get the residual electron energy
 	double Pr = ff.first * UserTreeDSMC::Tunit * spTau[id];
 	double Ep = ff.second;
+	double ww = p->dattrib[pos] * Pr;
 
-	if (Pr < p->dattrib[pos]) {
-	  p->dattrib[pos  ] -= Pr;
-	  p->dattrib[pos+1] += Pr;
-	} else {
-	  Pr = p->dattrib[pos];
+	if (Pr >= 1.0) {	// Limiting case
+	  ww =  p->dattrib[pos];
+	  p->dattrib[pos+1] += p->dattrib[pos];
 	  p->dattrib[pos  ]  = 0.0;
-	  p->dattrib[pos+1] += Pr;
+	} else {		// Normal case
+	  p->dattrib[pos+1] += ww;
+	  p->dattrib[pos  ] -= ww;
 	}
-	scatterPhotoTrace(p, Q, Pr, Ep);
+
+	scatterPhotoTrace(p, Q, ww, Ep);
       }
     }
   } // End: photoionizing background
