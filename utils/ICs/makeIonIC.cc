@@ -988,8 +988,6 @@ void InitializeSpeciesTrace
 {
   std::vector< std::vector<double> > frac, cuml;
   
-  bool debug = true;
-
   //
   // Generate the ionization-fraction input file
   //
@@ -997,9 +995,6 @@ void InitializeSpeciesTrace
     
     if (use_chianti) {
       
-      if (debug) std::cout << "Using CHIANTI for ionization equilibrium"
-			   << std::endl;
-
       const std::string ioneq("makeIonIC.ioneq");
       std::ostringstream sout;
       sout << "./genIonization"
@@ -1027,8 +1022,6 @@ void InitializeSpeciesTrace
 	  vString s;
 	  std::getline(sFile, inLine);
 	  
-	  if (debug) std::cout << inLine << std::endl;
-
 	  std::istringstream iss(inLine);
 	  std::copy(std::istream_iterator<std::string>(iss), 
 		    std::istream_iterator<std::string>(), 
@@ -1044,8 +1037,6 @@ void InitializeSpeciesTrace
 	  vString s;
 	  std::getline(sFile, inLine);
 	  
-	  if (debug) std::cout << inLine << std::endl;
-
 	  std::istringstream iss(inLine);
 	  std::copy(std::istream_iterator<std::string>(iss), 
 		    std::istream_iterator<std::string>(), 
@@ -1060,9 +1051,6 @@ void InitializeSpeciesTrace
     }
     else {
       
-      if (debug) std::cout << "Using genIonRecomb for ionization equilibrium"
-			   << std::endl;
-
       std::ostringstream sout;
       sout << "mpirun -np 1 genIonRecomb"
 	   << " -Z " << static_cast<unsigned>(n)
@@ -1084,8 +1072,6 @@ void InitializeSpeciesTrace
 	vString s;
 	std::getline(sFile, inLine);
 	
-	if (debug) std::cout << inLine << std::endl;
-
 	std::istringstream iss(inLine);
 	std::copy(std::istream_iterator<std::string>(iss), 
 		  std::istream_iterator<std::string>(), 

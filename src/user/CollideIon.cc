@@ -43,8 +43,6 @@ unsigned CollideIon::maxSel     = 1000;
 bool     CollideIon::E_split    = false;
 bool     CollideIon::distDiag   = false;
 bool     CollideIon::elecDist   = false;
-int      CollideIon::diagIntvl  = 1;
-int      CollideIon::diagCount  = 0;
 bool     CollideIon::ntcDist    = false;
 bool     CollideIon::enforceMOM = false;
 bool     CollideIon::coulScale  = false;
@@ -582,8 +580,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 		  : "off")                              << std::endl
 	      <<  " " << std::setw(20) << std::left << "Photoionization"
 	      << Ion::getIBtype()                       << std::endl
-	      <<  " " << std::setw(20) << std::left << "Photo-scatter"
-	      << (photoIB_scatter ? "true" : "false")   << std::endl
 	      << " " << std::setw(20) << std::left << "random seed"
 	      << seed                                   << std::endl
 	      << "************************************" << std::endl;
@@ -12646,7 +12642,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	  p->dattrib[pos+1] += ww;
 	}
 
-	if (photoIB_scatter) scatterPhotoTrace(p, Q, ww, Ep);
+	scatterPhotoTrace(p, Q, ww, Ep);
       }
     }
   } // End: photoionizing background
@@ -17562,9 +17558,6 @@ void CollideIon::electronGather()
 {
   if (not distDiag) return;
 
-  diagCount++;
-  if (diagCount % diagIntvl) return;
-
   static bool IDBG = false;
 
   if (use_elec >= 0) {
@@ -18340,7 +18333,6 @@ void CollideIon::electronGather()
 void CollideIon::electronPrint(std::ostream& out)
 {
   if (not distDiag) return;
-  if (diagCount % diagIntvl) return;
 
   // Mean electron density per cell n #/cm^3
   //
@@ -19196,9 +19188,6 @@ void CollideIon::processConfig()
     distDiag =
       cfg.entry<bool>("distDiag", "Report binned histogram for particle energies", false);
 
-    diagIntvl =
-      cfg.entry<int>("diagIntvl", "Reporting interval for binned histograms", false);
-
     elecDist =
       cfg.entry<bool>("elecDist", "Additional detailed histograms for electron velocities", false);
 
@@ -19261,9 +19250,6 @@ void CollideIon::processConfig()
 
     photoIB =
       cfg.entry<std::string>("photoIB", "Photo ionization background type (none, uvIGM)", "none");
-
-    photoIB_scatter =
-      cfg.entry<bool>("photoIBscatter", "Perform ion-electron scattering in photoionization", "true");
 
     Collide::DEBUG_NTC =
       cfg.entry<bool>("DEBUG_NTC", "Enable verbose NTC diagnostics", false);
