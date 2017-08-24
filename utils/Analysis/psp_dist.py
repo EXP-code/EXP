@@ -14,14 +14,14 @@ electrons) for the run with tag "run2".  Field value is "electron" by
 default.  Other fields are "ion" and "interact" for the electron-ion
 interaction kinetic energy.
 
+Only for Trace method, so far.
 """
 
 import re, sys, copy, getopt
 import numpy as np
 import matplotlib.pyplot as plt
-import numpy as np
-import psp_io
 from scipy.optimize import curve_fit
+import psp_io
 
 
 Munit = 1.9891e33
