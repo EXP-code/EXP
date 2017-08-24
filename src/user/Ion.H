@@ -377,6 +377,12 @@ public:
   //! Recombine into ground state only for Verner cross sections
   static bool gs_only;
 
+  //! Ionization background parameters
+  //@{
+  static double HandM_coef;
+  static double HandM_expon;
+  //@}
+
 protected:
 
   //@{

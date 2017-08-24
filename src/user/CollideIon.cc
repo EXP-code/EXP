@@ -19272,6 +19272,12 @@ void CollideIon::processConfig()
     Collide::numSanityFreq =
       cfg.entry<unsigned>("collFreq", "Stride for collision reporting", 2000000u);
 
+    Ion::HandM_coef = 
+      cfg.entry<double>("HandMcoef", "Coefficient for Haard & Madau UV spectral flux", 1.5e-22);
+
+    Ion::HandM_expon = 
+      cfg.entry<double>("HandMexpon", "Frequency exponent for Haard & Madau UV spectral flux", -0.5);
+
     Ion::gs_only =
       cfg.entry<bool>("radRecombGS", "Cross section for recombination into the ground state only", false);
 

@@ -57,10 +57,14 @@ double Ion::kmin    = -9.0;
 double Ion::kmax    =  4.0;
 double Ion::kdel    =  0.5;
 
-// Photo-ionizaton grid
+// Photo-ionization grid
 double Ion::numin   = 1.0;
 double Ion::numax   = 3.0;
 double Ion::nudel   = 0.05;
+
+// Ionization background
+double Ion::HandM_coef  = 1.5e-22;
+double Ion::HandM_expon = -0.5;
 
 //
 // Convert the master element name to a (Z, C) pair
@@ -2161,7 +2165,7 @@ double Ion::photoBackground(double Enu)
   if (ib_type==Ion::none)
     return 0.0;
   else
-    return 1.0e-22*pow(Enu/RydtoeV, -0.5);
+    return HandM_coef*pow(Enu/RydtoeV, HandM_expon);
 }
 
 //
