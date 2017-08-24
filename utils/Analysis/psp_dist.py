@@ -17,7 +17,7 @@ interaction kinetic energy.
 Only for Trace method, so far.
 """
 
-import re, sys, copy, getopt
+import os, re, sys, copy, getopt
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
@@ -102,18 +102,26 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fixed):
         
     for n in range(start, stop+1):
         filename = 'OUT.{}.{:05d}'.format(runtag,n)
+        if not os.path.isfile(filename): continue
+
         O = psp_io.Input(filename, comp='gas')
 
+        dv = np.zeros(3)
         for i in range(O.mass.size):
-            EE = 0.0
             if field=='ion':
-                EE = O.xvel[i]*O.xvel[i] + O.yvel[i]*O.yvel[i] + O.zvel[i]*O.zvel[i]
+                dv[0] = O.xvel[i]
+                dv[1] = O.yvel[i]
+                dv[2] = O.zvel[i]
             elif field=='interact':
-                EE = (O.xvel[i] - O.d12)*(O.xvel[i] - O.d12) + (O.yvel[i] - O.d13)*(O.yvel[i] - O.d13) + (O.zvel[i] - O.d14)*(O.zvel[i] - O.d14)
+                dv[0] = O.xvel[i] - O.d12[i]
+                dv[1] = O.yvel[i] - O.d13[i]
+                dv[2] = O.zvel[i] - O.d14[i]
             else:
-                EE = O.d12[i]*O.d12[i] + O.d13[i]*O.d13[i] + O.d14[i]*O.d14[i]
+                dv[0] = O.d12[i]
+                dv[1] = O.d13[i]
+                dv[2] = O.d14[i]
 
-            EE *= efac
+            EE = efac * np.dot(dv, dv)
             indx = int( (EE - ebeg)/dE)
             if indx>=0 and indx<nbin: yy[indx] += 1
 
@@ -174,7 +182,7 @@ def main(argv):
 
     field = "electron"
     start = 0
-    stop  = 1000000
+    stop  = 99999
     ebeg  = 0.05
     efin  = 60.0
     delta = 0.05
