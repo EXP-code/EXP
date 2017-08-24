@@ -19197,7 +19197,8 @@ void CollideIon::processConfig()
       cfg.entry<bool>("distDiag", "Report binned histogram for particle energies", false);
 
     diagIntvl =
-      cfg.entry<int>("diagIntvl", "Reporting interval for binned histograms", false);
+      cfg.entry<int>("diagIntvl", "Reporting interval for binned histograms", 1);
+    diagIntvl = std::max<int>(diagIntvl, 1); // Sanity
 
     elecDist =
       cfg.entry<bool>("elecDist", "Additional detailed histograms for electron velocities", false);
