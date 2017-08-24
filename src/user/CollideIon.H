@@ -612,6 +612,8 @@ private:
   //! Set to false for production (default: false)
   static bool distDiag;
   static bool elecDist;
+  static int  diagIntvl;
+  static int  diagCount;
   std::vector< boost::circular_buffer<double> > elecEV;
   std::vector< boost::circular_buffer<double> > elecEVmin;
   std::vector< boost::circular_buffer<double> > elecEVavg;
@@ -799,6 +801,9 @@ protected:
 
   //! Using photoionization
   bool use_photoIB;
+
+  //! Scatter step in photoionization interaction
+  bool photoIB_scatter;
 
 protected:
   
