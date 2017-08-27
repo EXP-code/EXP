@@ -17,12 +17,17 @@ interaction kinetic energy.
 Only for Trace method, so far.
 """
 
-import os, re, sys, copy, getopt
+import os, re, sys, copy, getopt, enum
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import psp_io
 
+class FitType(enum.Enum):
+    Analytic = 1
+    AmpOnly  = 2
+    TempAmp  = 3
+    Fixed    = 4
 
 Munit = 1.9891e33
 Lunit = 3.08568e18
@@ -40,6 +45,7 @@ amu   = 1.660539e-24
 eV    = 1.60217653e-12
 
 b0    = 0.0
+a0    = 1.0
 
 def func1(x, a):
     """Fit energy distribution for amplitude only"""
@@ -53,7 +59,7 @@ def func2(x, a, b):
     if b<=0.0: return 1e30
     return a * np.sqrt(x) * np.exp(-b * x) / b**1.5
 
-def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fixed):
+def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit):
     """Parse and plot the OUT psp output files
  
     Parameters:
@@ -74,6 +80,8 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fixed):
     efin(float): final energy
 
     delta(float): energy interval
+
+    fit(FitType): how to chose comparison curve
 
     """
     global b0
@@ -132,19 +140,43 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fixed):
     # Fit for temperature
     fc = 11604.5/defaultT # Initial guess for exponent
     tt = []
-    if not fixed:
+    if fit == FitType.Fixed:
+        # Temp
+        bT = defaultT
+        # Inverse temp
+        b0 = fc
+        # 
+        tt = np.zeros(nbin)
+        for i in range(nbin): tt[i] = func1(xx[i], a0)
+    elif fit == FitType.Analytic:
+        # Temp
+        bT = defaultT
+        # Inverse temp
+        b0 = fc
+        # 
+        tt = np.zeros(nbin)
+        for i in range(nbin): tt[i] = func1(xx[i], 1.0)
+        nrm = sum(yy)/sum(tt)
+        print "norm=",nrm
+        for i in range(nbin): tt[i] *= nrm
+    elif fit == FitType.TempAmp:
         p0 = [sum(yy)/len(yy)*fc**1.5,fc] # Amplitude
         popt, pcov = curve_fit(func2, xx, yy, p0, sigma=np.sqrt(yy)+0.1)
         # Temp
         bT = slopeFac / popt[1]
         for v in xx: tt.append(func2(v, popt[0], popt[1]))
-    else:
+        print 'Amplitude={}  Temperature={}'.format(popt[0], bT)
+    elif fit == FitType.AmpOnly:
         b0 = fc
         p0 = [sum(yy)/len(yy)*fc**1.5] # Amplitude
         popt, pcov = curve_fit(func1, xx, yy, p0, sigma=np.sqrt(yy)+1)
         # Temp
         bT = defaultT
         for v in xx: tt.append(func1(v, popt[0]))
+        print 'Amplitude={}  Temperature={}'.format(popt[0], bT)
+    else:
+        print "This is impossible"
+        exit
 
     # Make curves
     lt = []
@@ -159,10 +191,10 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fixed):
     ax.plot(xx, ly, '-o')
     ax.plot(xx, lt, '-')
     
-    if fixed:
-        ax.set_title("{}: T={}".format(field,bT))
-    else:
+    if type==FitType.TempAmp:
         ax.set_title("{}: T(fit)={}".format(field,bT))
+    else:
+        ax.set_title("{}: T={}".format(field,bT))
     ax.set_ylabel("Log(counts)")
     ax.tick_params(axis='x', labelbottom='off')
 
@@ -180,6 +212,8 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fixed):
 def main(argv):
     """ Parse the command line and call the parsing and plotting routine """
 
+    global a0
+
     field = "electron"
     start = 0
     stop  = 99999
@@ -187,12 +221,12 @@ def main(argv):
     efin  = 60.0
     delta = 0.05
     defT  = 100000.0
-    fixed = False
+    fit   = FitType.Analytic
 
-    options = '[-f <field> | --field=<field> | -n <start> | --start=<start> | -N <stop> | --stop=<stop> | -e <low eV> | --low=<low eV> | -E <high eV> | --high=<high eV> | -d <delta eV> | --delta=<delta eV> | -T <default T> | --temp=<default T> | -F | --fixed] <runtag>'
+    options = '[-f <field> | --field=<field> | -n <start> | --start=<start> | -N <stop> | --stop=<stop> | -e <low eV> | --low=<low eV> | -E <high eV> | --high=<high eV> | -d <delta eV> | --delta=<delta eV> | -T <default T> | --temp=<default T> | -t | --type | -F | --fixed] <runtag>'
 
     try:
-        opts, args = getopt.getopt(argv,"hf:n:N:e:E:d:T:F", ["help","field=","start=","stop=","low=", "high=", "delta=", "temp=", "fixed"])
+        opts, args = getopt.getopt(argv,"hf:n:N:e:E:d:T:t:F:", ["help","field=","start=","stop=","low=", "high=", "delta=", "temp=", "type=", "fixed="])
     except getopt.GetoptError:
         print sys.argv[0], 
         sys.exit(2)
@@ -214,15 +248,25 @@ def main(argv):
             delta = float(arg)
         elif opt in ("-T", "--temp"):
             defT = float(arg)
+        elif opt in ("-t", "--type"):
+            if  FitType.Analytic.name==arg: fit = FitType.Analytic
+            elif FitType.AmpOnly.name==arg: fit = FitType.AmpOnly
+            elif FitType.TempAmp.name==arg: fit = FitType.TempAmp
+            else:
+                print "No such type: ", arg
+                print "Valid types are:"
+                for v in FitType: print v.name
+                exit
         elif opt in ("-F", "--fixed"):
-            fixed = True
+            a0 = float(arg)
+            fit = FitType.Fixed
 
     if len(args)>0:
         runtag = args[0]
     else:
         runtag = "run"
 
-    plot_data(runtag, field, defT, start, stop, ebeg, efin, delta, fixed)
+    plot_data(runtag, field, defT, start, stop, ebeg, efin, delta, fit)
 
 if __name__ == "__main__":
    main(sys.argv[1:])
