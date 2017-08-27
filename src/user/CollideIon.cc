@@ -17452,6 +17452,25 @@ void CollideIon::gatherSpecies()
 		    << std::endl;
 	}
 	std::cout << std::string(8+10+3*18, '-') << std::endl;
+
+	if (use_photoIB) {
+	  std::cout << std::endl
+		    << std::string(8+18+10, '-') << std::endl
+		    << "---- Photoionization coefficient" << std::endl
+		    << std::string(8+18+10, '-') << std::endl;
+	  for (auto s : SpList) {
+	    double Rate = ch.IonList[s.first]->photoIonizationRate().first;
+	    if (Rate>0.0) {
+	      std::ostringstream slab;
+	      slab << s.first.first << ", " << s.first.second;
+	      std::cout << std::setw( 8) << slab.str()
+			<< std::setw(18) << Rate
+			<< std::endl;
+	    }
+	  }
+	  std::cout << std::string(8+18+10, '-') << std::endl;
+	}
+
       }
       // End: recombination
     }
