@@ -29,6 +29,11 @@ class FitType(enum.Enum):
     TempAmp  = 3
     Fixed    = 4
 
+class PlotType(enum.Enum):
+    Linear = 1
+    Log    = 2
+    Both   = 3
+
 Munit = 1.9891e33
 Lunit = 3.08568e18
 Tunit = 3.15569e10
@@ -59,7 +64,7 @@ def func2(x, a, b):
     if b<=0.0: return 1e30
     return a * np.sqrt(x) * np.exp(-b * x) / b**1.5
 
-def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit):
+def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp):
     """Parse and plot the OUT psp output files
  
     Parameters:
@@ -83,6 +88,8 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit):
 
     fit(FitType): how to chose comparison curve
 
+    pTyp(PlotType): type of plots
+
     """
     global b0
 
@@ -93,8 +100,9 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit):
     # Set up bins
     #
     nbin = int( (efin - ebeg)/dE )
-    efin = efin + dE*nbin
+    efin = ebeg + dE*nbin
     yy = np.zeros(nbin)
+    oab = 0
 
     #
     # Loop through phase space
@@ -130,12 +138,19 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit):
                 dv[2] = O.d14[i]
 
             EE = efac * np.dot(dv, dv)
-            indx = int( (EE - ebeg)/dE)
-            if indx>=0 and indx<nbin: yy[indx] += 1
+            if EE<=ebeg or EE>=efin:
+                oab += 1
+            else:
+                indx = int( (EE - ebeg)/dE)
+                yy[indx] += 1
 
     # Compute bin centers
     xx = np.zeros(nbin)
     for i in range(nbin): xx[i] = ebeg + dE*(0.5+i)
+
+    # Normalize
+    norm = (sum(yy) + oab)*dE
+    for i in range(nbin): yy[i] /= norm
 
     # Fit for temperature
     fc = 11604.5/defaultT # Initial guess for exponent
@@ -155,10 +170,8 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit):
         b0 = fc
         # 
         tt = np.zeros(nbin)
-        for i in range(nbin): tt[i] = func1(xx[i], 1.0)
-        nrm = sum(yy)/sum(tt)
-        print "norm=",nrm
-        for i in range(nbin): tt[i] *= nrm
+        nrm = 2.0*b0**3/np.sqrt(np.pi)
+        for i in range(nbin): tt[i] = func1(xx[i], nrm)
     elif fit == FitType.TempAmp:
         p0 = [sum(yy)/len(yy)*fc**1.5,fc] # Amplitude
         popt, pcov = curve_fit(func2, xx, yy, p0, sigma=np.sqrt(yy)+0.1)
@@ -185,25 +198,40 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit):
     ly = []
     for v in yy: ly.append(np.log(v+1))
     
-    fig, axes = plt.subplots(nrows=2, ncols=1)
-    
-    ax = axes[0]
-    ax.plot(xx, ly, '-o')
-    ax.plot(xx, lt, '-')
-    
-    if type==FitType.TempAmp:
-        ax.set_title("{}: T(fit)={}".format(field,bT))
+    if pTyp == PlotType.Both:
+        fig, axes = plt.subplots(nrows=2, ncols=1)
     else:
-        ax.set_title("{}: T={}".format(field,bT))
-    ax.set_ylabel("Log(counts)")
-    ax.tick_params(axis='x', labelbottom='off')
+        fig, axes = plt.subplots(nrows=1, ncols=1)
+    
+    if pTyp.value & PlotType.Log.value:
 
-    ay = axes[1]
-    ay.plot(xx, yy, '-o')
-    ay.plot(xx, tt, '-')
+        if pTyp == PlotType.Both:  ax = axes[0]
+        else:                      ax = axes
+
+        ax.plot(xx, ly, '-o')
+        ax.plot(xx, lt, '-')
+    
+        if type==FitType.TempAmp:
+            ax.set_title("{}: T(fit)={}".format(field,bT))
+        else:
+            ax.set_title("{}: T={}".format(field,bT))
+
+        if pTyp == PlotType.Log:
+            ax.set_xlabel("Energy (eV)")
+        else:
+            ax.tick_params(axis='x', labelbottom='off')
+        ax.set_ylabel("Log(counts)")
+
+    if pTyp.value & PlotType.Linear.value:
+
+        if pTyp == PlotType.Both: ay = axes[1]
+        else:                     ay = axes
+
+        ay.plot(xx, yy, '-o')
+        ay.plot(xx, tt, '-')
         
-    ay.set_xlabel("Energy (eV)")
-    ay.set_ylabel("Counts")
+        ay.set_xlabel("Energy (eV)")
+        ay.set_ylabel("Counts")
         
     fig.tight_layout()
     plt.show()
@@ -222,11 +250,12 @@ def main(argv):
     delta = 0.05
     defT  = 100000.0
     fit   = FitType.Analytic
+    plt   = PlotType.Both
 
-    options = '[-f <field> | --field=<field> | -n <start> | --start=<start> | -N <stop> | --stop=<stop> | -e <low eV> | --low=<low eV> | -E <high eV> | --high=<high eV> | -d <delta eV> | --delta=<delta eV> | -T <default T> | --temp=<default T> | -t | --type | -F | --fixed] <runtag>'
+    options = '[-f <field> | --field=<field> | -n <start> | --start=<start> | -N <stop> | --stop=<stop> | -e <low eV> | --low=<low eV> | -E <high eV> | --high=<high eV> | -d <delta eV> | --delta=<delta eV> | -T <default T> | --temp=<default T> | -t | --type | -F | --fixed | -p <type> | --plot=<type>] <runtag>'
 
     try:
-        opts, args = getopt.getopt(argv,"hf:n:N:e:E:d:T:t:F:", ["help","field=","start=","stop=","low=", "high=", "delta=", "temp=", "type=", "fixed="])
+        opts, args = getopt.getopt(argv,"hf:n:N:e:E:d:T:t:F:p:", ["help","field=","start=","stop=","low=", "high=", "delta=", "temp=", "type=", "fixed=", "plot="])
     except getopt.GetoptError:
         print sys.argv[0], 
         sys.exit(2)
@@ -249,24 +278,33 @@ def main(argv):
         elif opt in ("-T", "--temp"):
             defT = float(arg)
         elif opt in ("-t", "--type"):
-            if  FitType.Analytic.name==arg: fit = FitType.Analytic
-            elif FitType.AmpOnly.name==arg: fit = FitType.AmpOnly
-            elif FitType.TempAmp.name==arg: fit = FitType.TempAmp
+            if   FitType.Analytic.name == arg: fit = FitType.Analytic
+            elif FitType.AmpOnly.name  == arg: fit = FitType.AmpOnly
+            elif FitType.TempAmp.name  == arg: fit = FitType.TempAmp
             else:
-                print "No such type: ", arg
+                print "No such fit type: ", arg
                 print "Valid types are:"
                 for v in FitType: print v.name
                 exit
         elif opt in ("-F", "--fixed"):
             a0 = float(arg)
             fit = FitType.Fixed
+        elif opt in ("-p", "--plot"):
+            if   PlotType.Linear.name == arg: plt = PlotType.Linear
+            elif PlotType.Log.name    == arg: plt = PlotType.Log
+            elif PlotType.Both.name   == arg: plt = PlotType.Type
+            else:
+                print "No such plot type: ", arg
+                print "Valid types are:"
+                for v in PlotType: print v.name
+                exit
 
     if len(args)>0:
         runtag = args[0]
     else:
         runtag = "run"
 
-    plot_data(runtag, field, defT, start, stop, ebeg, efin, delta, fit)
+    plot_data(runtag, field, defT, start, stop, ebeg, efin, delta, fit, plt)
 
 if __name__ == "__main__":
    main(sys.argv[1:])
