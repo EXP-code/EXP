@@ -43,6 +43,7 @@ unsigned CollideIon::maxSel     = 1000;
 bool     CollideIon::E_split    = false;
 bool     CollideIon::distDiag   = false;
 bool     CollideIon::elecDist   = false;
+bool     CollideIon::rcmbDist   = false;
 bool     CollideIon::ntcDist    = false;
 bool     CollideIon::enforceMOM = false;
 bool     CollideIon::coulScale  = false;
@@ -743,6 +744,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
     for (auto &v : elecEVmax) v.set_capacity(bufCap);
     elecEVsub.resize(nthrds);
     for (auto &v : elecEVsub) v.set_capacity(bufCap);
+    elecRC.resize(nthrds);
+    for (auto &v : elecRC)    v.set_capacity(bufCap);
   }
 
   // Enum collsion-type label fields
@@ -10699,6 +10702,12 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    maxC.second = interFlag;
 	  }
 
+	  // For verbose diagnostic output only
+	  //
+	  if (elecDist and rcmbDist) {
+	    elecRC[id].push_back(kEe2[id]);
+	  }
+
 	  // Add the KE from the recombined electron back to the free pool
 	  //
 	  if (NOCOOL and !NOCOOL_ELEC and C2==1 and use_cons>=0) {
@@ -10786,6 +10795,12 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (maxC.first<dE) {
 	    maxC.first = dE;
 	    maxC.second = interFlag;
+	  }
+
+	  // For verbose diagnostic output only
+	  //
+	  if (elecDist and rcmbDist) {
+	    elecRC[id].push_back(kEe1[id]);
 	  }
 
 	  // Add the KE from the recombined electron back to the free pool
@@ -12652,6 +12667,9 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
   //
   std::vector<std::pair<double, double> > EconsV;
   std::vector<double> EconsQ;
+  double rhosig = 0.0;
+  unsigned int Nrhosig = 0;
+
 
   //======================================================================
   // Do electron interactions separately
@@ -12661,7 +12679,9 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
     if (outdbg) outdbg << "in electron interaction loop" << std::endl;
 
-    const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+    const double cunit = 1e-14 * UserTreeDSMC::Munit /
+      (UserTreeDSMC::Lunit * UserTreeDSMC::Lunit);
+      
     std::vector<unsigned long> bods;
     std::map<unsigned long, double> molW, Eta1;
 
@@ -12703,13 +12723,12 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	double wght = 0.0;
 	for (auto s : SpList) {
 	  unsigned short Z = s.first.first, P = s.first.second - 1;
-	  eta1 += p->dattrib[s.second] * P;
+	  eta1 += p->dattrib[s.second] / atomic_weights[Z] * P;
 	  wght += p->dattrib[s.second] / atomic_weights[Z];
 	}
-	molW[i] = wght = 1.0/wght;
-	Eta1[i] = eta1;
-	eta1 *= p->mass/wght * (*Fn)[k.getKey()];
-	
+	Eta1[i] = eta1/wght;
+	molW[i] = 1.0/wght;
+	eta1   *= p->mass/amu;
       } else {			// Mean charge
 	if (k.C()>1) {
 	  bods.push_back(i);
@@ -12730,7 +12749,6 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 				// Accumulate true number
       Eta[i] = eta1;
       eta += eta1;
-
     } // end: body loop
 
     // Sample cell
@@ -12971,6 +12989,12 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	  b = std::min<double>(b, ips);
 	  scrs = M_PI*b*b * ne1 * ne2 * logL;
 	}
+
+	// Accumulate lambda
+	//
+	rhosig += eta * scrs * 1.0e-14 / volc *
+	  UserTreeDSMC::Munit/pow(UserTreeDSMC::Lunit, 3.0);
+	Nrhosig++;
 
 	// Accept or reject candidate pair according to relative speed
 	//
@@ -13554,6 +13578,10 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	outdbg << std::setw(8)  << std::right  << std::right << v.first << "|  "
 	       << std::setw(18) << std::right  << v.second
 	       << std::endl;
+    }
+
+    if (rhosig>0.0) {
+      outdbg << std::endl << "Mean MFP=" << Nrhosig/rhosig << std::endl;
     }
 
     outdbg << std::endl << "Cell=" << cell->mykey << " electron scattering DONE"
@@ -17677,10 +17705,12 @@ void CollideIon::electronGather()
     }
 
     if (elecDist and (aType==Hybrid or aType==Trace)) {
-      std::vector<double> eEV, eEVmin, eEVavg, eEVmax, eEVsub;
+      std::vector<double> eEV, eRC, eEVmin, eEVavg, eEVmax, eEVsub;
       for (int t=0; t<nthrds; t++) {
 	eEV.insert(eEV.end(),
 		   elecEV[t].begin(), elecEV[t].end());
+	eRC.insert(eRC.end(),
+		   elecRC[t].begin(), elecRC[t].end());
 	eEVmin.insert(eEVmin.end(),
 		      elecEVmin[t].begin(), elecEVmin[t].end());
 	eEVavg.insert(eEVavg.end(),
@@ -17718,6 +17748,11 @@ void CollideIon::electronGather()
 	  if (num) {
 	    MPI_Send(&eEVsub[0], num, MPI_DOUBLE,   0, 327, MPI_COMM_WORLD);
 	  }
+
+	  num = eRC.size();
+	  MPI_Send(&num,           1, MPI_UNSIGNED, 0, 328, MPI_COMM_WORLD);
+	  if (num)
+	    MPI_Send(&eRC[0],    num, MPI_DOUBLE,   0, 329, MPI_COMM_WORLD);
 
 	} // END: process send to root
 
@@ -17779,6 +17814,16 @@ void CollideIon::electronGather()
 	    eEVsub.insert(eEVsub.end(), v.begin(), v.end());
 	  }
 
+	  MPI_Recv(&num,      1, MPI_UNSIGNED, n, 328, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
+
+	  if (num) {
+	    v.resize(num);
+	    MPI_Recv(&v[0], num, MPI_DOUBLE,   n, 329, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
+	    eRC.insert(eRC.end(), v.begin(), v.end());
+	  }
+
 	} // Root receive loop
 
 	MPI_Barrier(MPI_COMM_WORLD);
@@ -17795,6 +17840,7 @@ void CollideIon::electronGather()
 	if (eEVavg.size()) elecEVHavg = ahistoDPtr(new AsciiHisto<double>(eEVavg, 20, 0.01));
 	if (eEVmax.size()) elecEVHmax = ahistoDPtr(new AsciiHisto<double>(eEVmax, 20, 0.01));
 	if (eEVsub.size()) elecEVHsub = ahistoDPtr(new AsciiHisto<double>(eEVsub, 20, 0.01));
+	if (eRC.size())    elecRCH    = ahistoDPtr(new AsciiHisto<double>(eRC,    100, 0.005));
       }
 
     } // END: elecDist
@@ -18424,6 +18470,14 @@ void CollideIon::electronPrint(std::ostream& out)
       out << "-----Subspecies electron energy distribution---------" << std::endl;
     out << std::string(53, '-')  << std::endl;
     (*elecEVHsub)(out);
+  }
+
+  if (elecRCH.get()) {
+    out << std::endl
+	<< std::string(53, '-')  << std::endl
+	<< "-----Electron recombination energy distribution--------" << std::endl
+	<< std::string(53, '-')  << std::endl;
+    (*elecRCH)(out);
   }
 
   if (elecH.get()) {
@@ -19209,6 +19263,9 @@ void CollideIon::processConfig()
 
     elecDist =
       cfg.entry<bool>("elecDist", "Additional detailed histograms for electron velocities", false);
+
+    rcmbDist =
+      cfg.entry<bool>("recombDist", "Histograms for electron recombination energy", false);
 
     ntcDist =
       cfg.entry<bool>("ntcDist", "Enable NTC full distribution for electrons", false);
