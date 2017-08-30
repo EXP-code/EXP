@@ -1082,7 +1082,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 
   // Mean interparticle spacing in nm
   //
-  double   ips = 0.0;
+  double   ips = DBL_MAX;
   if (IPS) ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
   // Convert to cross section in system units
@@ -2417,7 +2417,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
   // Mean interparticle spacing
   //
   double  volc = c->Volume();
-  double   ips = 0.0;
+  double   ips = DBL_MAX;
   if (IPS) ips = pow(volc, 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
 
@@ -2684,7 +2684,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
   // Mean interparticle spacing
   //
   double  volc = c->Volume();
-  double   ips = 0.0;
+  double   ips = DBL_MAX;
   if (IPS) ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
   // Species keys
@@ -3068,7 +3068,7 @@ double CollideIon::crossSectionWeight
   // Mean interparticle spacing
   //
   double  volc = c->Volume();
-  double   ips = 0.0;
+  double   ips = DBL_MAX;
   if (IPS) ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
   // Species keys
@@ -3472,8 +3472,8 @@ double CollideIon::crossSectionHybrid
 
   // Mean interparticle spacing
   //
-  double volc  = c->Volume();
-  double ips   = 0.0;
+  double  volc = c->Volume();
+  double   ips = DBL_MAX;
   if (IPS) ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
   // Species keys
@@ -4055,8 +4055,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
   // Mean interparticle spacing
   //
-  double volc   = c->Volume();
-  double ips    = 0.0;
+  double  volc  = c->Volume();
+  double   ips  = DBL_MAX;
   if (IPS) ips  = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
   // Electron fraction and mean molecular weight for each particle
@@ -12682,7 +12682,6 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
   double rhosig = 0.0;
   unsigned int Nrhosig = 0;
 
-
   //======================================================================
   // Do electron interactions separately
   //======================================================================
@@ -12918,7 +12917,6 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       if (aType == Trace) {
 	ne1 = Eta1[i1];
 	ne2 = Eta1[i2];
-	std::cout << "ne1=" << ne1 << " ne2=" << ne2 << std::endl;
 	W1 *= Eta1[i1];
 	W2 *= Eta1[i2];
       }
@@ -12989,7 +12987,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
       // Mean interparticle spacing
       //
-      double   ips = 0.0;
+      double   ips = DBL_MAX;
       if (IPS) ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
       // Collision flag
@@ -12997,7 +12995,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       bool ok = true;
 
       if (esType == classical or esType == limited) {
-
+	
 	if (use_elec >=0 and ne1 > 0 and ne2 > 0) {
 	  double b = 0.5*esu*esu /
 	    std::max<double>(kEee*eV, FloorEv*eV) * 1.0e7; // nm
