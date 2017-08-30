@@ -505,6 +505,7 @@ private:
   std::vector< double >                              kE1s, kE2s, Ein1, Ein2, Evel, nselRat;
   std::vector< double >                              spCrm, spTau, spProb, spEdel, spEmax;
   std::vector< double >                              molP1, molP2, etaP1, etaP2;
+  std::vector< double >                              rhoSigV, rhoSigN;
   std::vector< unsigned >                            spNsel, elecCnt, spNcol;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot, testCnt;
   std::vector< unsigned >                            Nwght, Njsel, Ncol, Nmis;
@@ -601,7 +602,7 @@ private:
   ahistoDPtr elecT, elecH, ionsT, ionET, ionH, lossH, keEH, keIH, momH, crsH, Ecoll;
   std::map<unsigned short, ahistoDPtr> elecZH, ionZH;
   unsigned Ovr_s, Acc_s, Tot_s, CntE;
-  double RhoE, Rho2;
+  double RhoE, Rho2, RhoV, RhoN;
   typedef std::tuple<std::array<double, 4>, unsigned short> energyP;
   std::vector<energyP> energyA;
   energyP energyD;

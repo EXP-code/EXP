@@ -247,7 +247,7 @@ static bool HybridWeightSwitch  = false;
 
 // Debugging newHybrid
 //
-static bool DBG_NewTest       = false;
+static bool DBG_NewTest         = false;
 
 // This is for debugging; set to "false" for production
 //
@@ -255,7 +255,7 @@ bool use_normtest = false;
 
 // Test initial and final energy with NOCOOL set
 //
-const double testDE_tol = 1.0e-7;
+const double testDE_tol         = 1.0e-7;
 
 // Artificially suppress ion-ion scattering in Hybrid method
 //
@@ -264,6 +264,10 @@ static bool NO_ION_ION          = false;
 // Artificially suppress ion-electron scattering in Hybrid method
 //
 static bool NO_ION_ELECTRON     = false;
+
+// Floor the minimum impact parameter for Coulombic scattering
+//
+static bool IPS                 = false;
 
 // Per-species cross-section scale factor for testing
 //
@@ -662,6 +666,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   crZero   .resize(nthrds, 0);
   crMiss   .resize(nthrds, 0);
   crTotl   .resize(nthrds, 0);
+  rhoSigV  .resize(nthrds, 0);
+  rhoSigN  .resize(nthrds, 0);
   Escat    .resize(nthrds);
   Etotl    .resize(nthrds);
   Italy    .resize(nthrds);
@@ -1076,7 +1082,8 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 
   // Mean interparticle spacing in nm
   //
-  double ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
+  double   ips = 0.0;
+  if (IPS) ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
   // Convert to cross section in system units
   //
@@ -2409,8 +2416,9 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 
   // Mean interparticle spacing
   //
-  double volc = c->Volume();
-  double ips = pow(volc, 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
+  double  volc = c->Volume();
+  double   ips = 0.0;
+  if (IPS) ips = pow(volc, 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
 
   if (aType == Direct or aType == Weight or aType == Hybrid) {
@@ -2675,8 +2683,9 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 {
   // Mean interparticle spacing
   //
-  double volc = c->Volume();
-  double ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
+  double  volc = c->Volume();
+  double   ips = 0.0;
+  if (IPS) ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
   // Species keys
   //
@@ -3058,8 +3067,9 @@ double CollideIon::crossSectionWeight
 
   // Mean interparticle spacing
   //
-  double volc = c->Volume();
-  double ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
+  double  volc = c->Volume();
+  double   ips = 0.0;
+  if (IPS) ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
   // Species keys
   //
@@ -3462,8 +3472,9 @@ double CollideIon::crossSectionHybrid
 
   // Mean interparticle spacing
   //
-  double volc = c->Volume();
-  double ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
+  double volc  = c->Volume();
+  double ips   = 0.0;
+  if (IPS) ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
   // Species keys
   //
@@ -4044,8 +4055,9 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
   // Mean interparticle spacing
   //
-  double volc = c->Volume();
-  double ips  = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
+  double volc   = c->Volume();
+  double ips    = 0.0;
+  if (IPS) ips  = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
   // Electron fraction and mean molecular weight for each particle
   //
@@ -12874,7 +12886,8 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       double W1, W2;
 
       if (aType == Trace) {
-	W1 = W2 = 0.5*(p1->mass/molW[i1] + p2->mass/molW[i2]);
+	W1 = p1->mass/molW[i1];
+	W2 = p2->mass/molW[i2];
       } else {
 	if (SAME_ELEC_SCAT) if (k1.Z() != k2.Z()) continue;
 	if (DIFF_ELEC_SCAT) if (k1.Z() == k2.Z()) continue;
@@ -12905,6 +12918,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       if (aType == Trace) {
 	ne1 = Eta1[i1];
 	ne2 = Eta1[i2];
+	std::cout << "ne1=" << ne1 << " ne2=" << ne2 << std::endl;
 	W1 *= Eta1[i1];
 	W2 *= Eta1[i2];
       }
@@ -12975,7 +12989,8 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
       // Mean interparticle spacing
       //
-      double ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
+      double   ips = 0.0;
+      if (IPS) ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
       // Collision flag
       //
@@ -12992,7 +13007,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
 	// Accumulate lambda
 	//
-	rhosig += eta * scrs * 1.0e-14 / volc *
+	rhosig += 0.5*(W1 + W2)/amu * scrs * 1.0e-14 / volc *
 	  UserTreeDSMC::Munit/pow(UserTreeDSMC::Lunit, 3.0);
 	Nrhosig++;
 
@@ -13468,6 +13483,9 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
   } // end: electron interactions for Direct, Weight, or Hybrid for use_elec>=0
 
+
+  rhoSigV[id] += rhosig;
+  rhoSigN[id] += Nrhosig;
 
   //======================================================================
   // Momentum adjustment
@@ -17675,6 +17693,8 @@ void CollideIon::electronGather()
     CntE = 0;
     RhoE = 0.0;
     Rho2 = 0.0;
+    RhoV = 0.0;			// MFP: SUM(rho*sigma)
+    RhoN = 0.0;			// MFP: count
 
     for (int t=0; t<nthrds; t++) {
       loss.insert(loss.end(), velER[t].begin(), velER[t].end());
@@ -17687,9 +17707,13 @@ void CollideIon::electronGather()
       Rho2 += elecDn2[t];
       CntE += elecCnt[t];
       
+      RhoV += rhoSigV[t];
+      RhoN += rhoSigN[t];
+
       elecOvr[t] = elecAcc[t] = elecTot[t] = 0;
       elecDen[t] = elecDn2[t] = 0.0;
       elecCnt[t] = 0;
+      rhoSigV[t] = rhoSigN[t] = 0.0;
     }
 
 
@@ -17753,6 +17777,9 @@ void CollideIon::electronGather()
 	  MPI_Send(&num,           1, MPI_UNSIGNED, 0, 328, MPI_COMM_WORLD);
 	  if (num)
 	    MPI_Send(&eRC[0],    num, MPI_DOUBLE,   0, 329, MPI_COMM_WORLD);
+
+	  MPI_Send(&RhoV,          1, MPI_DOUBLE,   0, 330, MPI_COMM_WORLD);
+	  MPI_Send(&RhoN,          1, MPI_DOUBLE,   0, 331, MPI_COMM_WORLD);
 
 	} // END: process send to root
 
@@ -17823,6 +17850,14 @@ void CollideIon::electronGather()
 		     MPI_STATUS_IGNORE);
 	    eRC.insert(eRC.end(), v.begin(), v.end());
 	  }
+
+	  MPI_Recv(&dv,       1, MPI_DOUBLE,   n, 330, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
+	  RhoV += dv;
+
+	  MPI_Recv(&dv,       1, MPI_DOUBLE,   n, 331, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
+	  RhoN += dv;
 
 	} // Root receive loop
 
@@ -18411,6 +18446,14 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< std::string(53, '-') << std::endl;
   }
   
+  if (RhoN>0.0) {
+    out << std::string(53, '-') << std::endl
+	<< "-----Mean electron MFP (cm): "
+	<< std::setw(14) << std::scientific << RhoN/RhoV
+	<< "  (pc): " << std::fixed << RhoN/RhoV/pc << std::endl
+	<< std::string(53, '-') << std::endl;
+  }
+
   // Print the header for electron quantiles
   //
   if (elecV.size()) {
@@ -19093,6 +19136,9 @@ void CollideIon::processConfig()
 
     NoExact =
       cfg.entry<bool>("NO_EXACT", "Enable equal electron-ion interactions in Hybrid method", false);
+
+    IPS =
+      cfg.entry<bool>("USE_IPS", "Use mean interparticle spacing as minimum Coulombic impact parameter", false);
 
     ExactE =
       cfg.entry<bool>("ENERGY_ES", "Enable the explicit energy conservation algorithm", false);
