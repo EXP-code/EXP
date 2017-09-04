@@ -139,6 +139,9 @@ public:
   key_indx keys;
   std::vector<unsigned long> bods;
   
+  //! Track last time cell was evaluated
+  double time;
+
   //! Add a body, return the current frontier node
   pCell* Add(const key_pair&, change_list* change=0);
   

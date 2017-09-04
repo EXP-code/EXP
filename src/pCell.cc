@@ -57,6 +57,7 @@ pCell::pCell(pHOT* tr) : tree(tr), C(tr->cc), isLeaf(true)
   mykey   = 1u;
   level   = 0;
   maxplev = 0;
+  time    = 0.0;
 				// My body mask
   mask    = mykey << 3*(nbits - level);
 
@@ -97,6 +98,9 @@ pCell::pCell(pCell* mom, unsigned id) :
   maxplev = 0;
 				// My body mask
   mask    = mykey << 3*(nbits - level);
+
+				// Inherit evaluation time
+  time    = parent->time;
 
 				// Initialize state
   for (auto i : tree->spec_list) {

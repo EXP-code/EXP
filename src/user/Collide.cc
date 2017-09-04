@@ -995,6 +995,17 @@ void * Collide::collide_thread(void * arg)
   //
   for (unsigned j=0; j<cellist[id].size(); j++ ) {
     
+    // The current cell
+    //
+    pCell *c = cellist[id][j];
+
+    // Skip cell if this time has already been computed
+    if (c->time >= tnow) {	// Next statement for debugging only . . . 
+      std::cout << "Skipping cell id=" << std::hex << c->mykey << std::dec
+		<< "T_now=" << tnow << ", T_cell=" << c->time << std::endl;
+      continue;
+    }
+
 #ifdef USE_GPTL
     GPTLstart("Collide::bodylist");
 #endif
@@ -1009,7 +1020,6 @@ void * Collide::collide_thread(void * arg)
     
     // Number of particles in this cell
     //
-    pCell *c = cellist[id][j];
     unsigned number = c->bods.size();
     numcntT[id].push_back(number);
     
@@ -1683,6 +1693,10 @@ void * Collide::collide_thread(void * arg)
   
     finalize_cell(c, Fn, kedsp, tau, id);
   
+    // Update cell time
+    //
+    c->time = tnow;
+
     stat3SoFar[id] = stat3Time[id].stop();
   
     //
