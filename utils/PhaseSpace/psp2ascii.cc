@@ -36,6 +36,7 @@ void Usage(char* prog) {
   cerr << prog << ": [-t time -v -h] filename\n\n";
   cerr << "    -t time         use dump closest to <time>\n";
   cerr << "    -o name         prefix name for each component (default: comp)\n";
+  cerr << "    -a              use input format\n";
   cerr << "    -h              print this help message\n";
   cerr << "    -v              verbose output\n\n";
   exit(0);
@@ -48,13 +49,14 @@ main(int argc, char **argv)
   char *prog = argv[0];
   double time=1e20;
   bool verbose = false;
+  bool input   = false;
   string cname("comp");
 
   // Parse command line
 
   while (1) {
 
-    int c = getopt(argc, argv, "t:o:vh");
+    int c = getopt(argc, argv, "t:o:avh");
 
     if (c == -1) break;
 
@@ -71,6 +73,10 @@ main(int argc, char **argv)
     case 'o':
       cname.erase();
       cname = string(optarg);
+      break;
+
+    case 'a':
+      input = true;
       break;
 
     case '?':
@@ -156,7 +162,7 @@ main(int argc, char **argv)
       out << std::setw(18) << part->mass();
       for (int i=0; i<3; i++) out << std::setw(18) << part->pos(i);
       for (int i=0; i<3; i++) out << std::setw(18) << part->vel(i);
-      out << std::setw(18) << part->phi();
+      if (not input) out << std::setw(18) << part->phi();
       for (int i=0; i<part->niatr(); i++) out << std::setw(12) << part->iatr(i);
       for (int i=0; i<part->ndatr(); i++) out << std::setw(18) << part->datr(i);
 
