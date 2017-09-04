@@ -17,7 +17,8 @@ interaction kinetic energy.
 Only for Trace method, so far.
 """
 
-import os, re, sys, copy, getopt, enum
+import os, re, sys, copy, getopt
+import flufl.enum as enum
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
@@ -255,7 +256,7 @@ def main(argv):
     options = '[-f <field> | --field=<field> | -n <start> | --start=<start> | -N <stop> | --stop=<stop> | -e <low eV> | --low=<low eV> | -E <high eV> | --high=<high eV> | -d <delta eV> | --delta=<delta eV> | -T <default T> | --temp=<default T> | -t | --type | -F | --fixed | -p <type> | --plot=<type>] <runtag>'
 
     try:
-        opts, args = getopt.getopt(argv,"hf:n:N:e:E:d:T:t:F:p:", ["help","field=","start=","stop=","low=", "high=", "delta=", "temp=", "type=", "fixed=", "plot="])
+        opts, args = getopt.getopt(argv,"hf:n:N:e:E:d:T:t:Fp:", ["help","field=","start=","stop=","low=", "high=", "delta=", "temp=", "type=", "fixed=", "plot="])
     except getopt.GetoptError:
         print sys.argv[0], 
         sys.exit(2)
