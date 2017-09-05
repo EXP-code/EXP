@@ -1000,9 +1000,7 @@ void * Collide::collide_thread(void * arg)
     pCell *c = cellist[id][j];
 
     // Skip cell if this time has already been computed
-    if (c->time >= tnow) {	// Next statement for debugging only . . . 
-      std::cout << "Skipping cell id=" << std::hex << c->mykey << std::dec
-		<< " T_now=" << tnow << ", T_cell=" << c->time << std::endl;
+    if (c->time >= tnow) {
       continue;
     }
 

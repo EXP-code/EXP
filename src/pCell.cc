@@ -1,4 +1,4 @@
-#include <iostream>
+include <iostream>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
@@ -58,7 +58,7 @@ pCell::pCell(pHOT* tr) : tree(tr), C(tr->cc), isLeaf(true)
   level   = 0;
   maxplev = 0;
   time    = -DBL_MAX;		// -Infinity
-  
+
 				// My body mask
   mask    = mykey << 3*(nbits - level);
 
