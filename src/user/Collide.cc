@@ -1002,7 +1002,7 @@ void * Collide::collide_thread(void * arg)
     // Skip cell if this time has already been computed
     if (c->time >= tnow) {	// Next statement for debugging only . . . 
       std::cout << "Skipping cell id=" << std::hex << c->mykey << std::dec
-		<< "T_now=" << tnow << ", T_cell=" << c->time << std::endl;
+		<< " T_now=" << tnow << ", T_cell=" << c->time << std::endl;
       continue;
     }
 
@@ -1383,7 +1383,17 @@ void * Collide::collide_thread(void * arg)
 	// Single interaction type?
 	//
 	if (!nselM[i1][i2]) {
-	  nselTot = static_cast<unsigned>(floor(nselM[i1][i2]()+0.5));
+	  // Real-valued number of pairs
+	  double nselT = nselM[i1][i2]();
+
+	  // Fractional number of pairs
+	  double fracP = nselT - floor(nselT);
+
+	  // Integer number of pairs
+	  nselTot      = static_cast<unsigned>(floor(nselT));
+
+	  // Monte Carlo the fractional part
+	  if ((*unit)() < fracP) nselTot++;
 	} 
 	// Multiple interaction types?
 	//
@@ -1395,7 +1405,18 @@ void * Collide::collide_thread(void * arg)
 	      maxV = j.second;
 	    }
 	  }
-	  nselTot = static_cast<unsigned>(floor(nselM[i1][i2][maxT]+0.5));
+
+	  // Real-valued number of pairs
+	  double nselT = nselM[i1][i2][maxT];
+
+	  // Fractional number of pairs
+	  double fracP = nselT - floor(nselT);
+
+	  // Integer number of pairs
+	  nselTot = static_cast<unsigned>(floor(nselT));
+
+	  // Monte Carlo the fractional part
+	  if ((*unit)() < fracP) nselTot++;
 
 	  if (maxT == NTC::NTCitem::single) {
 	    std::cout << "ntc singleton" << std::endl;
