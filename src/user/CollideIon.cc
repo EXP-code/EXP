@@ -17626,7 +17626,7 @@ void CollideIon::photoWGather()
 
   for (int t=1; t<nthrds; t++) {
     for (auto v : photoW[t]) photoW[0][v.first] += v.second;
-    photoW[t].clear();
+    photoW[t].clear();		// Clear all but zero thread
   }
 
   for (int n=1; n<numprocs; n++) {
@@ -17638,7 +17638,8 @@ void CollideIon::photoWGather()
 	MPI_Send(&v.first.second, 1, MPI_UNSIGNED_SHORT, 0, 803, MPI_COMM_WORLD);
 	MPI_Send(&v.second,       1, MPI_DOUBLE,         0, 804, MPI_COMM_WORLD);
       }
-      photoW[0].clear();
+      photoW[0].clear();	// Clear zero thread for all but master node.
+				// Master will be cleared in photoWPrint().
     }
     if (myid==0) {
       unsigned numE;
@@ -17689,6 +17690,7 @@ void CollideIon::photoWPrint()
     std::cout << "Could not open <" << sout.str() << "> for append"
 	      << std::endl;
   }
+  photoW[0].clear();
 }
 
 void CollideIon::electronGather()
