@@ -12661,14 +12661,6 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	double Ep = ff.second;
 	double ww = p->dattrib[pos] * Pr;
 
-	static bool first_time = true;
-	if (first_time) {
-	  std::cout << "NB: tau=" << spTau[id] << std::endl;
-	  first_time = false;
-	}
-	if (spTau[id] != 4.0) 
-	  std::cout << "TEST: " << spTau[id] << std::endl;
-
 	if (Pr >= 1.0) {	// Limiting case
 	  ww = p->dattrib[pos];
 	  p->dattrib[pos  ]  = 0.0;
