@@ -608,6 +608,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   neutF    .resize(nthrds);
   numEf    .resize(nthrds);
   densE    .resize(nthrds);
+  photoW   .resize(nthrds);
   colSc    .resize(nthrds);
   coulCrs  .resize(nthrds);
   CE1      .resize(nthrds);
@@ -12660,6 +12661,14 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	double Ep = ff.second;
 	double ww = p->dattrib[pos] * Pr;
 
+	static bool first_time = true;
+	if (first_time) {
+	  std::cout << "NB: tau=" << spTau[id] << std::endl;
+	  first_time = false;
+	}
+	if (spTau[id] != 4.0) 
+	  std::cout << "TEST: " << spTau[id] << std::endl;
+
 	if (Pr >= 1.0) {	// Limiting case
 	  ww = p->dattrib[pos];
 	  p->dattrib[pos  ]  = 0.0;
@@ -12668,6 +12677,8 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	  p->dattrib[pos  ] -= ww;
 	  p->dattrib[pos+1] += ww;
 	}
+
+	photoW[id][s.first] += ww;
 
 	scatterPhotoTrace(p, Q, ww, Ep);
       }
@@ -17617,6 +17628,77 @@ void CollideIon::printSpeciesColl()
   }
 }
 
+void CollideIon::photoWGather()
+{
+  if (not photoDiag) return;
+
+  for (int t=1; t<nthrds; t++) {
+    for (auto v : photoW[t]) photoW[0][v.first] += v.second;
+    photoW[t].clear();
+  }
+
+  for (int n=1; n<numprocs; n++) {
+    if (myid==n) {
+      unsigned numE = photoW[0].size();
+      MPI_Send(&numE, 1, MPI_UNSIGNED, 0, 801, MPI_COMM_WORLD);
+      for (auto v : photoW[0]) {
+	MPI_Send(&v.first.first,  1, MPI_UNSIGNED_SHORT, 0, 802, MPI_COMM_WORLD);
+	MPI_Send(&v.first.second, 1, MPI_UNSIGNED_SHORT, 0, 803, MPI_COMM_WORLD);
+	MPI_Send(&v.second,       1, MPI_DOUBLE,         0, 804, MPI_COMM_WORLD);
+      }
+      photoW[0].clear();
+    }
+    if (myid==0) {
+      unsigned numE;
+      speciesKey k;
+      double v;
+
+      MPI_Recv(&numE, 1, MPI_UNSIGNED, n, 801, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      for (unsigned q=0; q<numE; q++) {
+	MPI_Recv(&k.first,  1, MPI_UNSIGNED_SHORT, n, 802, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	MPI_Recv(&k.second, 1, MPI_UNSIGNED_SHORT, n, 803, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	MPI_Recv(&v,        1, MPI_DOUBLE,         n, 804, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	photoW[0][k] += v;
+      }
+    }
+  }
+
+}
+
+void CollideIon::photoWPrint()
+{
+  if (not photoDiag) return;
+
+  if (photoW[0].size() == 0) return;
+
+  std::ostringstream sout;
+  sout << runtag << ".photoIB";
+
+  std::ofstream out;
+  out.open(sout.str().c_str(), ios::out | ios::app);
+  if (out) {
+    out << std::setw(70) << std::setfill('-') << left << '-'
+	<< std::endl << std::setfill(' ')
+	<< "---- Step "  << this_step << " Time=" << tnow << std::endl
+	<< std::setw(70) << std::setfill('-') << left << '-'
+	<< std::endl << std::setfill(' ')
+	<< std::setw(3)  << std::right << "Z"
+	<< std::setw(3)  << std::right << "C"
+	<< std::setw(18) << std::right << "Value"
+	<< std::endl;
+    for (auto v : photoW[0]) {
+      out << std::setw(3)  << std::right << v.first.first
+	  << std::setw(3)  << std::right << v.first.second
+	  << std::setw(18) << std::right << v.second
+	  << std::endl;
+    }
+    out << std::endl;
+  } else {
+    std::cout << "Could not open <" << sout.str() << "> for append"
+	      << std::endl;
+  }
+}
+
 void CollideIon::electronGather()
 {
   if (not distDiag) return;
@@ -19313,6 +19395,9 @@ void CollideIon::processConfig()
 
     ntcDist =
       cfg.entry<bool>("ntcDist", "Enable NTC full distribution for electrons", false);
+
+    photoDiag =
+      cfg.entry<bool>("photoDiag", "Enable photoionization diagnostics", false);
 
     enforceMOM =
       cfg.entry<bool>("enforceMOM", "Enforce momentum conservation per cell (for ExactE and Hybrid)", false);

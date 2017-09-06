@@ -490,7 +490,7 @@ private:
   std::vector< std::vector<double> >                 dCfrac;
   std::vector< std::vector<int>    >                 dInter;
   std::vector< keyCross >                            sCross; 
-  std::vector< keyWghts >                            meanF, densE;
+  std::vector< keyWghts >                            meanF, densE, photoW;
   std::vector< keyInter >                            sInter;
   std::vector< CEvector >                            CE1, CE2;
   std::vector< CFreturn >                            FF1, FF2;
@@ -802,6 +802,9 @@ protected:
 
   //! Using photoionization
   bool use_photoIB;
+
+  //! Photoionization diagnostics
+  bool photoDiag;
 
 protected:
   
@@ -1130,6 +1133,8 @@ protected:
   //! Expensive diagnostics, only use these if you must
   void electronGather();
   void electronPrint(std::ostream&out );
+  void photoWGather();
+  void photoWPrint();
   //@}
 
   //! Consider commenting these tests out for production
@@ -1138,6 +1143,7 @@ protected:
     mfpCLGather(); 
     electronGather(); 
     spectrumGather();
+    photoWGather();
   }
 
   //! Consider commenting these tests out for production
@@ -1146,6 +1152,7 @@ protected:
     mfpCLPrint(out); 
     electronPrint(out);
     spectrumPrint();
+    photoWPrint();
   }
 
   //! Compute electron energy in a cell
