@@ -17632,6 +17632,66 @@ void CollideIon::photoWGather()
     photoW[t].clear();		// Clear all but zero thread
   }
 
+  // Collect species weights for diagnostic histogram
+  //
+  if (aType == Trace) {
+    std::map<speciesKey, std::vector<double>> data;
+
+    // Iterate through all cells
+    //
+    pHOT_iterator itree(*tree);
+  
+    while (itree.nextCell()) {
+      
+      pCell *c = itree.Cell();
+
+      // Iterate through bodies
+      //
+      for (auto b : c->bods) {
+	Particle *p = tree->Body(b);
+	for (auto s : SpList) {
+	  data[s.first].push_back(p->dattrib[s.second]);
+	  if (p->dattrib[s.second]<0.0 or p->dattrib[s.second]>1.0) {
+	    std::cout << "Crazy value n=" << p->indx << ": ("
+		      << s.first.first << ", " << s.first.second
+		      << ") = " << p->dattrib[s.second] << std::endl;
+	  }
+	}
+      }
+    }
+
+    // Accumulate histogram from all processes and send to root
+    //
+    for (int n=1; n<numprocs; n++) {
+      if (myid==n) {
+	for (auto s : SpList) {
+	  unsigned sz = data[s.first].size();
+	  MPI_Send(&sz, 1, MPI_UNSIGNED, 0, 798, MPI_COMM_WORLD);
+	  MPI_Send(&data[s.first][0], sz, MPI_DOUBLE, 0, 799, MPI_COMM_WORLD);
+	}
+      }
+      if (myid==0) {
+	std::vector<double> rcv;
+	unsigned sz;
+	for (auto s : SpList) {
+	  MPI_Recv(&sz, 1, MPI_UNSIGNED, n, 798, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  rcv.resize(sz);
+	  MPI_Recv(&rcv[0], sz, MPI_DOUBLE, n, 799, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  data[s.first].insert(data[s.first].end(), rcv.begin(), rcv.end());
+	}
+      }
+      }
+
+    // Root process generates the histograms
+    //
+      if (myid==0) {
+      for (auto s : SpList) 
+	frcHist[s.first] =
+	  ahistoDPtr(new AsciiHisto<double>(data[s.first], diagBins));
+    }
+  }
+
+
   for (int n=1; n<numprocs; n++) {
     if (myid==n) {
       unsigned numE = photoW[0].size();
@@ -17689,6 +17749,23 @@ void CollideIon::photoWPrint()
 	  << std::endl;
     }
     out << std::endl;
+    for (auto h : frcHist) {
+      if (h.second.get()) {
+	std::ostringstream sout;
+	sout << "-----Fraction for (Z, C) = ("
+	     << h.first.first << ", "
+	     << h.first.second << "), T="
+	     << tnow;
+
+	out << std::endl
+	    << std::string(53, '-')  << std::endl
+	    << std::setw(53) << std::setfill('-') << std::left
+	    << sout.str() << std::setfill(' ') << std::endl
+	    << std::string(53, '-')  << std::endl;
+	(*h.second)(out);
+      }
+    }
+
   } else {
     std::cout << "Could not open <" << sout.str() << "> for append"
 	      << std::endl;
