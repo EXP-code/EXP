@@ -806,7 +806,8 @@ protected:
   //@{
   //! Photoionization diagnostics
   bool photoDiag;
-  const unsigned diagBins = 32;
+  const unsigned diagBins = 64;
+  std::map<speciesKey, double>     frcQ1, frcQ2, frcQ3;
   std::map<speciesKey, ahistoDPtr> frcHist;
   //@}
 

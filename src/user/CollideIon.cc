@@ -17680,17 +17680,36 @@ void CollideIon::photoWGather()
 	  data[s.first].insert(data[s.first].end(), rcv.begin(), rcv.end());
 	}
       }
-      }
+    }
 
     // Root process generates the histograms
     //
-      if (myid==0) {
-      for (auto s : SpList) 
+    if (myid==0) {
+      static const bool use_log = true;
+      for (auto s : SpList) {
+	std::sort(data[s.first].begin(), data[s.first].end());
+
+	unsigned q1 = 0.25*data[s.first].size();
+	unsigned q2 = 0.50*data[s.first].size();
+	unsigned q3 = 0.75*data[s.first].size();
+
+	if (use_log) {
+	  std::vector<double>::iterator ibeg = data[s.first].begin();
+	  std::vector<double>::iterator iend = data[s.first].end();
+	  std::vector<double>::iterator it;
+	  for (it=ibeg; it<iend; it++) { if (*it>0.0) break; }
+	  if (it!=ibeg) data[s.first].erase(ibeg, it);
+	}
+
 	frcHist[s.first] =
-	  ahistoDPtr(new AsciiHisto<double>(data[s.first], diagBins));
+	  ahistoDPtr(new AsciiHisto<double>(data[s.first], diagBins, use_log));
+
+	frcQ1[s.first] = data[s.first][q1];
+	frcQ2[s.first] = data[s.first][q2];
+	frcQ3[s.first] = data[s.first][q3];
+      }
     }
   }
-
 
   for (int n=1; n<numprocs; n++) {
     if (myid==n) {
@@ -17751,17 +17770,25 @@ void CollideIon::photoWPrint()
     out << std::endl;
     for (auto h : frcHist) {
       if (h.second.get()) {
-	std::ostringstream sout;
-	sout << "-----Fraction for (Z, C) = ("
-	     << h.first.first << ", "
-	     << h.first.second << "), T="
-	     << tnow;
+	std::ostringstream sout1, sout2, sout3, sout4;
+	sout1 << "-----Fraction for (Z, C) = ("
+	      << h.first.first << ", "
+	      << h.first.second << "), T="
+	      << tnow;
+	sout2 << "-----Q1 = " << frcQ1[h.first];
+	sout3 << "-----Q2 = " << frcQ2[h.first];
+	sout4 << "-----Q3 = " << frcQ3[h.first];
 
-	out << std::endl
-	    << std::string(53, '-')  << std::endl
-	    << std::setw(53) << std::setfill('-') << std::left
-	    << sout.str() << std::setfill(' ') << std::endl
-	    << std::string(53, '-')  << std::endl;
+	out << std::endl	// Print header . . . 
+	    << std::setfill('-')     << std::left
+	    << std::setw(53) << '-'  << std::endl
+	    << std::setw(53) << sout1.str() << std::endl
+	    << std::setw(53) << sout2.str() << std::endl
+	    << std::setw(53) << sout3.str() << std::endl
+	    << std::setw(53) << sout4.str() << std::endl
+	    << std::setw(53) << '-'  << std::endl
+	    << std::setfill(' ');
+
 	(*h.second)(out);
       }
     }
