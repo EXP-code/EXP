@@ -16363,6 +16363,9 @@ void CollideIon::gatherSpecies()
       }
     }
     
+    for (int n=0; n<nthrds; n++) // Reset the counters
+      recombA[n].clear();
+
     recombTally.clear();
     if (myid==0) recombTally = comb;
 
