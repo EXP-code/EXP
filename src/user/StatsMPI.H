@@ -68,6 +68,16 @@ public:
     }
     return ret;
   }
+
+  //! Reset values
+  void clear()
+  {
+    ccnt.clear();
+    vsum.clear();
+    vmin.clear();
+    vmax.clear();
+  }
+
 };
 
 #endif
