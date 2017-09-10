@@ -13,9 +13,8 @@ class AsciiHisto
 {
 private:
 
-  std::vector<T> bins;
+  std::vector<unsigned> bins;
   T beg, end, dx;
-  double trim;
   bool logH;
 
   void makeBins(const std::vector<T>& d, int nbins)
@@ -54,7 +53,7 @@ public:
 
   //! Constructor with bin number and trim
   AsciiHisto(const std::vector<T>& data, int nbins, double trim,
-	     bool logV=false) : trim(trim), logH(logV)
+	     bool logV=false) : logH(logV)
   {
     if (trim>0.0) {
 
@@ -80,10 +79,25 @@ public:
     makeBins(d, nbins);
   }
 
+  //! Constructor for pre-existing bins
+  AsciiHisto(const std::vector<unsigned>& inbins,
+	     const T& inBeg, const T& inEnd, bool logV=false) : logH(logV)
+  {
+    bins = inbins;
+    beg  = inBeg;
+    end  = inEnd;
+    dx   = (end - beg)/bins.size();
+    std::cout << "TEST[0]: beg=" << beg << " end=" << end << " dx=" << dx
+	      << std::endl;
+  }
+
   //! Print the distribution
   void operator()(std::ostream &out, unsigned hwid=60)
   {
     if (bins.size() == 0) return;
+
+    std::cout << "TEST[1]: beg=" << beg << " end=" << end << " dx=" << dx
+	      << std::endl;
 
     unsigned wid  = logH ? 16 : 12;
     unsigned maxb = *std::max_element(bins.begin(), bins.end());

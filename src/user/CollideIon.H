@@ -803,8 +803,13 @@ protected:
   //! Using photoionization
   bool use_photoIB;
 
+  //@{
   //! Photoionization diagnostics
   bool photoDiag;
+  const unsigned diagBins = 32;
+  std::map<speciesKey, ahistoDPtr> frcHist;
+  //@}
+
 
 protected:
   
