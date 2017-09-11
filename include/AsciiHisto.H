@@ -87,17 +87,12 @@ public:
     beg  = inBeg;
     end  = inEnd;
     dx   = (end - beg)/bins.size();
-    std::cout << "TEST[0]: beg=" << beg << " end=" << end << " dx=" << dx
-	      << std::endl;
   }
 
   //! Print the distribution
   void operator()(std::ostream &out, unsigned hwid=60)
   {
     if (bins.size() == 0) return;
-
-    std::cout << "TEST[1]: beg=" << beg << " end=" << end << " dx=" << dx
-	      << std::endl;
 
     unsigned wid  = logH ? 16 : 12;
     unsigned maxb = *std::max_element(bins.begin(), bins.end());
