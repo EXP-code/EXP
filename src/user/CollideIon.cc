@@ -17774,20 +17774,21 @@ void CollideIon::photoWPrint()
 	sout1 << "-----Fraction for (Z, C) = ("
 	      << h.first.first << ", "
 	      << h.first.second << "), T="
-	      << tnow;
+	      << tnow << ' ';
 	sout2 << "-----Q1 = " << frcQ1[h.first];
 	sout3 << "-----Q2 = " << frcQ2[h.first];
 	sout4 << "-----Q3 = " << frcQ3[h.first];
 
-	out << std::endl	// Print header . . . 
-	    << std::setfill('-')     << std::left
+	out << std::endl << std::left // Print header . . . 
+	    << std::setfill('-')
 	    << std::setw(53) << '-'  << std::endl
 	    << std::setw(53) << sout1.str() << std::endl
+	    << std::setw(53) << '-'  << std::endl << std::setfill(' ')
 	    << std::setw(53) << sout2.str() << std::endl
 	    << std::setw(53) << sout3.str() << std::endl
 	    << std::setw(53) << sout4.str() << std::endl
-	    << std::setw(53) << '-'  << std::endl
-	    << std::setfill(' ');
+	    << std::setfill('-')
+	    << std::setw(53) << '-'  << std::endl << std::setfill(' ');
 
 	(*h.second)(out);
       }
