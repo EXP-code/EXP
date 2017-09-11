@@ -99,6 +99,7 @@ std::map<std::string, Itype> Types
 // Use CHIANTI or ION for ionization-recombination equilibrium
 //
 bool use_chianti = false;
+bool use_init_file = false;
 
 /**
    Make Uniform temperature box of gas
@@ -988,111 +989,160 @@ void InitializeSpeciesTrace
 {
   std::vector< std::vector<double> > frac, cuml;
   
-  //
-  // Generate the ionization-fraction input file
-  //
-  for (auto n : sZ) {
-    
-    if (use_chianti) {
-      
-      const std::string ioneq("makeIonIC.ioneq");
-      std::ostringstream sout;
-      sout << "./genIonization"
-	   << " -1 " << static_cast<unsigned>(n)
-	   << " -2 " << static_cast<unsigned>(n)
-	   << " -T " << T << " -o " << ioneq;
-      
-      int ret = system(sout.str().c_str());
-      
-      if (ret) {
-	std::cout << "System command  = " << sout.str() << std::endl;
-	std::cout << "System ret code = " << ret << std::endl;
-      }
-      
-      typedef std::vector<std::string> vString;
-      
-      std::string   inLine;
-      std::ifstream sFile(ioneq.c_str());
-      if (sFile.is_open()) {
+  if (use_init_file) {
+    std::ifstream sFile("IonRecombFrac.data");
+
+    typedef std::vector<std::string> vString;
+    std::string inLine;
+
+    if (sFile.is_open()) {
+      vString s;
+      std::getline(sFile, inLine);
 	
-	std::getline(sFile, inLine); // Read and discard the headers
-	std::getline(sFile, inLine);
-	
-	{
-	  vString s;
-	  std::getline(sFile, inLine);
-	  
-	  std::istringstream iss(inLine);
-	  std::copy(std::istream_iterator<std::string>(iss), 
-		    std::istream_iterator<std::string>(), 
-		    std::back_inserter<vString>(s));
-	  
-	  std::vector<double> v;
-	  for (vString::iterator i=s.begin(); i!=s.end(); i++)
-	    v.push_back(::atof(i->c_str()));
-	  frac.push_back(v);
+      std::istringstream iss(inLine);
+      std::copy(std::istream_iterator<std::string>(iss), 
+		std::istream_iterator<std::string>(), 
+		std::back_inserter<vString>(s));
+      
+      std::vector<double> v;
+      for (auto i : s) v.push_back(::atof(i.c_str()));
+      
+      int cnt = 0;
+      for (auto n : sZ) {
+	double sum = 0.0;
+	std::vector<double> V;
+	for (int C=0; C<n; C++) {
+	  sum += v[cnt];
+	  V.push_back(v[cnt]);
+	  cnt++;
 	}
-	
-	{
-	  vString s;
-	  std::getline(sFile, inLine);
-	  
-	  std::istringstream iss(inLine);
-	  std::copy(std::istream_iterator<std::string>(iss), 
-		    std::istream_iterator<std::string>(), 
-		    std::back_inserter<vString>(s));
-	  
-	  std::vector<double> v;
-	  for (vString::iterator i=s.begin(); i!=s.end(); i++)
-	    v.push_back(::atof(i->c_str()));
-	  cuml.push_back(v);
-	}
-      }
-    }
-    else {
-      
-      std::ostringstream sout;
-      sout << "mpirun -np 1 genIonRecomb"
-	   << " -Z " << static_cast<unsigned>(n)
-	   << " -T " << T;
-      
-      int ret = system(sout.str().c_str());
-      
-      if (ret) {
-	std::cout << "System command  = " << sout.str() << std::endl;
-	std::cout << "System ret code = " << ret << std::endl;
-      }
-      
-      typedef std::vector<std::string> vString;
-      
-      std::string   inLine;
-      std::ifstream sFile("IonRecombFrac.data");
-      if (sFile.is_open()) {
-	
-	vString s;
-	std::getline(sFile, inLine);
-	
-	std::istringstream iss(inLine);
-	std::copy(std::istream_iterator<std::string>(iss), 
-		  std::istream_iterator<std::string>(), 
-		  std::back_inserter<vString>(s));
-	
-	std::vector<double> v;
-	for (auto i : s) v.push_back(::atof(i.c_str()));
-	frac.push_back(v);
-	
+	V.push_back(1.0 - sum);
+	frac.push_back(V);
+
 	double norm = 0.0;
-	for (auto i : v) norm += i;
+	for (auto i : V) norm += i;
 	
 	if (fabs(norm - 1.0) > 1.0e-10) {
 	  std::cout << "Normalization error: ";
-	  for (auto i : v) std::cout << std::setw(16) << i;
+	  for (auto i : V) std::cout << std::setw(16) << i;
 	  std::cout << std::endl;
 	}
 	
-	std::vector<double> c = v;
+	std::vector<double> c = V;
 	for (size_t i=1; i<c.size(); i++) c[i] += c[i-1];
 	cuml.push_back(c);
+      }
+    }
+
+  }
+  else {
+
+    //
+    // Generate the ionization-fraction input file
+    //
+    for (auto n : sZ) {
+      
+      if (use_chianti) {
+	
+	const std::string ioneq("makeIonIC.ioneq");
+	std::ostringstream sout;
+	sout << "./genIonization"
+	     << " -1 " << static_cast<unsigned>(n)
+	     << " -2 " << static_cast<unsigned>(n)
+	     << " -T " << T << " -o " << ioneq;
+	
+	int ret = system(sout.str().c_str());
+      
+	if (ret) {
+	  std::cout << "System command  = " << sout.str() << std::endl;
+	  std::cout << "System ret code = " << ret << std::endl;
+	}
+	
+	typedef std::vector<std::string> vString;
+	
+	std::string   inLine;
+	std::ifstream sFile(ioneq.c_str());
+	if (sFile.is_open()) {
+	  
+	  std::getline(sFile, inLine); // Read and discard the headers
+	  std::getline(sFile, inLine);
+	  
+	  {
+	    vString s;
+	    std::getline(sFile, inLine);
+	    
+	    std::istringstream iss(inLine);
+	    std::copy(std::istream_iterator<std::string>(iss), 
+		      std::istream_iterator<std::string>(), 
+		      std::back_inserter<vString>(s));
+	    
+	    std::vector<double> v;
+	    for (vString::iterator i=s.begin(); i!=s.end(); i++)
+	      v.push_back(::atof(i->c_str()));
+	    frac.push_back(v);
+	  }
+	  
+	  {
+	    vString s;
+	    std::getline(sFile, inLine);
+	    
+	    std::istringstream iss(inLine);
+	    std::copy(std::istream_iterator<std::string>(iss), 
+		      std::istream_iterator<std::string>(), 
+		      std::back_inserter<vString>(s));
+	    
+	    std::vector<double> v;
+	    for (vString::iterator i=s.begin(); i!=s.end(); i++)
+	      v.push_back(::atof(i->c_str()));
+	    cuml.push_back(v);
+	  }
+	}
+      }
+      else {
+	
+	std::ostringstream sout;
+	sout << "mpirun -np 1 genIonRecomb"
+	     << " -Z " << static_cast<unsigned>(n)
+	     << " -T " << T;
+	
+	int ret = system(sout.str().c_str());
+      
+	if (ret) {
+	  std::cout << "System command  = " << sout.str() << std::endl;
+	  std::cout << "System ret code = " << ret << std::endl;
+	}
+	
+	typedef std::vector<std::string> vString;
+      
+	std::string   inLine;
+	std::ifstream sFile("IonRecombFrac.data");
+	if (sFile.is_open()) {
+	  
+	  vString s;
+	  std::getline(sFile, inLine);
+	  
+	  std::istringstream iss(inLine);
+	  std::copy(std::istream_iterator<std::string>(iss), 
+		    std::istream_iterator<std::string>(), 
+		    std::back_inserter<vString>(s));
+	  
+	  std::vector<double> v;
+	  for (auto i : s) v.push_back(::atof(i.c_str()));
+	  frac.push_back(v);
+	  
+	  double norm = 0.0;
+	  for (auto i : v) norm += i;
+	  
+	  if (fabs(norm - 1.0) > 1.0e-10) {
+	    std::cout << "Normalization error: ";
+	    for (auto i : v) std::cout << std::setw(16) << i;
+	    std::cout << std::endl;
+	  }
+	  
+	  std::vector<double> c = v;
+	  for (size_t i=1; i<c.size(); i++) c[i] += c[i-1];
+	  cuml.push_back(c);
+	}
       }
     }
   }
@@ -1186,6 +1236,8 @@ int main (int ac, char **av)
     ("electrons",       "set up for weighted or hybrid species with electrons")
     ("CHIANTI,C",	po::value<bool>(&use_chianti)->default_value(false),
      "use CHIANTI to set recombination-ionization equilibrium")
+    ("INIT,I",	        po::value<bool>(&use_init_file)->default_value(false),
+     "use init file to set recombination-ionization equilibrium")
     ("dens,D",		po::value<double>(&D)->default_value(1.0),
      "density in particles per cc")
     ("temp,T",		po::value<double>(&Temp)->default_value(-1.0),
