@@ -11618,8 +11618,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     //
     static bool first = true;
     if (first) {
-      const double trgProb = 0.1;
-      const double maxProb = 0.5;
+      const double trgProb = 0.05;
+      const double maxProb = 0.2;
 
       double maxSoFar = 0.0;
       bool   good     = true;
@@ -11629,19 +11629,23 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	double Pr = ch.IonList[s.first]->photoIonizationRate().first * 
 	  UserTreeDSMC::Tunit * spTau[id];
 	maxSoFar = std::max<double>(Pr, maxSoFar);
-	if (Pr>maxProb) {
-	  sout << "["
-	       << std::setw(2)  << s.first.first  << ", "
-	       << std::setw(2)  << s.first.second << "] "
-	       << std::setw(16) << Pr << std::endl;
-	  good = false;
-	}
+	if (Pr>maxProb) good = false;
+	sout << "["
+	     << std::setw(2)  << s.first.first  << ", "
+	     << std::setw(2)  << s.first.second << "] "
+	     << std::setw(16) << Pr << std::endl;
       }
 
       if (not good) {		// Trigger time-step reduction
-	if (use_delt>=0) {
+	if (use_delt>=0 and maxSoFar<0.99) {
 	  double newTs = trgProb/maxProb * spTau[id];
 	  p1->dattrib[use_delt] = p2->dattrib[use_delt] = newTs;
+	  if (myid==0)
+	    std::cout << std::setw(70) << std::setfill('-') << '-' << std::endl
+		      << std::setw(70) << "-----photoIB: WARNING"  << std::endl
+		      << std::setw(70) << std::setfill('-') << '-' << std::endl
+		      << sout.str() << std::setw(70) << '-'        << std::endl
+		      << std::setfill(' ');
 	} else {		// Otherwise, throw exception
 	  std::ostringstream serr;
 	  serr << "CollideIon::inelasticTrace: maxProb=" << maxSoFar
@@ -11649,6 +11653,13 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  if (myid==0) std::cout << serr.str() << std::endl << sout.str();
 	  throw std::runtime_error(serr.str());
 	}
+      } else {
+	if (myid==0)
+	  std::cout << std::setw(70) << std::setfill('-') << '-' << std::endl
+		    << std::setw(70) << "-----photoIB values"    << std::endl
+		    << std::setw(70) << std::setfill('-') << '-' << std::endl
+		    << sout.str() << std::setw(70) << '-'        << std::endl
+		    << std::setfill(' ');
       }
       first = false;
     }
