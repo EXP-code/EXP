@@ -797,11 +797,26 @@ protected:
   //! The algorithm type
   AlgorithmType aType;
 
+  //@{
+  //! Photoionization features
+
   //! Photoionization background type
   std::string photoIB;
 
   //! Using photoionization
   bool use_photoIB;
+
+  enum PhotoIBType {perParticle, perCollision};
+  PhotoIBType photoIBType;
+
+  //! For type assignment
+  typedef std::map<std::string, PhotoIBType> phMapType;
+  static phMapType phMap;
+
+  //! For labeling
+  typedef std::map<PhotoIBType, std::string> phLabMap;
+  static phLabMap phLab;
+  //@}
 
   //@{
   //! Photoionization diagnostics

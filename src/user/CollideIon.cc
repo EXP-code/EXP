@@ -78,6 +78,14 @@ CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 					    {"limited",   limited},
 					    {"fixed",     fixed} };
 
+CollideIon::phMapType CollideIon::phMap = { {"Particle",  perParticle},
+					    {"Collision", perCollision} };
+
+// For diagnostic labeling of photoionization algorithm
+//
+CollideIon::phLabMap CollideIon::phLab = { {perParticle,  "per particle"},
+					   {perCollision, "per collision"} };
+
 // For diagnostic labeling of HybridColl enum
 //
 std::map<unsigned, std::string> CollideIon::HClabel =
@@ -509,6 +517,11 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (COLL_SPECIES ? "on" : "off")          << std::endl
 	      <<  " " << std::setw(20) << std::left << "COLL_LIMIT"
 	      << (collLim ? "on" : "off")               << std::endl;
+    if (use_photoIB)		// print photoIB parameters
+    std::cout <<  " " << std::setw(20) << std::left << "photoIB type"
+	      << photoIB                                << std::endl
+	      <<  " " << std::setw(20) << std::left << "photoIB algo"
+	      << phLab[photoIBType]                     << std::endl;
     if (collLim)		// print collLim parameters
     std::cout <<  " " << std::setw(20) << std::left << "maxSel"
 	      << maxSel                                 << std::endl;
@@ -11739,6 +11752,45 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     }    
   }
 
+  if (use_photoIB and photoIBType == perCollision) {
+
+    // Photoionize all subspecies
+    //
+    for (auto s : SpList) {
+      lQ Q    = s.first;
+      int pos = s.second;
+      
+      // We expect roughly spNsel/2 collisions pairs . . . 
+      double upscale = static_cast<double>(c->bods.size())/spNsel[id];
+
+      for (auto p : {_p1, _p2}) {
+	// Pick a new photon for each particle
+	CFreturn ff  = ch.IonList[Q]->photoIonizationRate();
+
+	// Compute the probability and get the residual electron energy
+	double Pr = ff.first * UserTreeDSMC::Tunit * spTau[id] * upscale;
+	double Ep = ff.second;
+	double ww = p->dattrib[pos] * Pr;
+
+	if (Pr >= 1.0) {	// Limiting case
+	  ww = p->dattrib[pos];
+	  p->dattrib[pos  ]  = 0.0;
+	  p->dattrib[pos+1] += ww;
+	  std::cout << "Pr=" << Pr << ", upscale=" << upscale << std::endl;
+	} else {		// Normal case
+	  p->dattrib[pos  ] -= ww;
+	  p->dattrib[pos+1] += ww;
+	}
+
+	photoW[id][s.first] += ww;
+
+	scatterPhotoTrace(p, Q, ww, Ep);
+      }
+    }
+
+  } // End: photoionizing background
+
+
   return ret;
 
 } // END: inelasticTrace
@@ -12652,7 +12704,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
   // Compute photoionization (currently only for Trace)
   //======================================================================
   //
-  if (aType == Trace and use_photoIB) {
+  if (aType == Trace and use_photoIB and photoIBType == perParticle) {
 
     // Photoionize all subspecies
     //
@@ -19567,7 +19619,14 @@ void CollideIon::processConfig()
       cfg.entry<double>("ESthresh", "Ionization threshold for electron-electron scattering", 1.0e-10);
 
     photoIB =
-      cfg.entry<std::string>("photoIB", "Photo ionization background type (none, uvIGM)", "none");
+      cfg.entry<std::string>("photoIB", "Photo ionization background model (none, uvIGM)", "none");
+
+    {
+      std::string phType =
+	cfg.entry<std::string>("phType", "Photo ionization background type (Particle, Collision)", "Particle");
+
+      photoIBType = phMap[phType];
+    }
 
     Collide::DEBUG_NTC =
       cfg.entry<bool>("DEBUG_NTC", "Enable verbose NTC diagnostics", false);
