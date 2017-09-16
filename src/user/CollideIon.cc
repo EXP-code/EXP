@@ -17748,15 +17748,15 @@ void CollideIon::photoWGather()
 	}
 
 	// Send number of entries
-	unsigned ns = photoStat[0].size();
+	unsigned ns = photoStat[n].size();
 	MPI_Send(&ns, 1, MPI_UNSIGNED, 0, 796, MPI_COMM_WORLD);
 
 	// Now send the entries
 	for (auto v : photoStat[0]) {
-	  unsigned short Z = v.first.first, C = v.first.second;
-	  MPI_Send(&Z,   1, MPI_UNSIGNED_SHORT, 0, 797, MPI_COMM_WORLD);
-	  MPI_Send(&C,   1, MPI_UNSIGNED_SHORT, 0, 798, MPI_COMM_WORLD);
-	  MPI_Send(&v.second[0], 3, MPI_DOUBLE, 0, 799, MPI_COMM_WORLD);
+	  lQ Q = v.first;
+	  MPI_Send(&Q.first,     1, MPI_UNSIGNED_SHORT, 0, 797, MPI_COMM_WORLD);
+	  MPI_Send(&Q.second,    1, MPI_UNSIGNED_SHORT, 0, 798, MPI_COMM_WORLD);
+	  MPI_Send(&v.second[0], 3, MPI_DOUBLE,         0, 799, MPI_COMM_WORLD);
 	}
       }
       if (myid==0) {
@@ -17770,10 +17770,9 @@ void CollideIon::photoWGather()
 	}
 
 	// Receive the number of entries
-	unsigned ns = photoStat[0].size();
 	MPI_Recv(&sz, 1, MPI_UNSIGNED, n, 796, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	// Now receive the data for each entry and add to local copy
-	for (unsigned s=0; s<ns; s++) {
+	for (unsigned s=0; s<sz; s++) {
 	  std::array<double, 3> dd;
 	  lQ Q;
 	  MPI_Recv(&Q.first,  1, MPI_UNSIGNED_SHORT, n, 797, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
