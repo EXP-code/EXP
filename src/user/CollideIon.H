@@ -483,6 +483,7 @@ private:
   typedef std::map<NTC::Interact::T, XStup>          InterXS;
   typedef std::array<double, 4>                      CellMom;
   typedef std::array<double, 3>                      ChProb;
+  typedef std::map<lQ, std::array<double, 3> >       phStatMap;
 
   std::vector< std::vector<dKey>   >                 kInter;
   std::vector< std::vector<double> >                 dCross;
@@ -521,7 +522,7 @@ private:
   std::vector< CellMom >                             cMoms;
   std::vector< std::array<double, 2> >               KElost;
   std::vector< StatsMPI >                            recombA;
-  std::vector< std::array<double, 3> >               photoStat;
+  std::vector< phStatMap >                           photoStat;
   //@{
 
   //! Trace-species velocity factors including reduced mass for a

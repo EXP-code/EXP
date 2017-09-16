@@ -11762,7 +11762,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       int pos = s.second;
       
       for (auto p : {_p1, _p2}) {
-	photoStat[id][0]++;
+	// Increment total count
+	photoStat[id][Q][0]++;
 
 	// Pick a new photon for each particle
 	CFreturn ff  = ch.IonList[Q]->photoIonizationRate();
@@ -11777,8 +11778,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  ww = p->dattrib[pos];
 	  p->dattrib[pos  ]  = 0.0;
 	  p->dattrib[pos+1] += ww;
-	  photoStat[id][1]++;
-	  photoStat[id][2]  += Pr;
+				// Increment oab count and mean value
+	  photoStat[id][Q][1] += 1;
+	  photoStat[id][Q][2] += Pr;
 	} else {		// Normal case
 	  p->dattrib[pos  ] -= ww;
 	  p->dattrib[pos+1] += ww;
@@ -17696,12 +17698,15 @@ void CollideIon::photoWGather()
 
   for (int t=1; t<nthrds; t++) {
     for (auto v : photoW[t]) photoW[0][v.first] += v.second;
-    photoStat[0][0] += photoStat[t][0];
-    photoStat[0][1] += photoStat[t][1];
-    photoStat[0][2] += photoStat[t][2];
+    for (auto s : SpList) {
+      lQ Q = s.first;
+      if (photoStat[t].find(Q) != photoStat[t].end()) {
+	for (int k=0; k<3; k++) photoStat[0][Q][k] += photoStat[t][Q][k];
+      }
+    }
 				// Clear all but zero thread
-    for (auto & v : photoStat[t]) v = 0.0;
     photoW[t].clear();
+    photoStat[t].clear();
   }
 
   // Collect species weights for diagnostic histogram
@@ -17738,10 +17743,21 @@ void CollideIon::photoWGather()
       if (myid==n) {
 	for (auto s : SpList) {
 	  unsigned sz = data[s.first].size();
-	  MPI_Send(&sz, 1, MPI_UNSIGNED, 0, 797, MPI_COMM_WORLD);
-	  MPI_Send(&data[s.first][0], sz, MPI_DOUBLE, 0, 798, MPI_COMM_WORLD);
+	  MPI_Send(&sz, 1, MPI_UNSIGNED, 0, 794, MPI_COMM_WORLD);
+	  MPI_Send(&data[s.first][0], sz, MPI_DOUBLE, 0, 795, MPI_COMM_WORLD);
 	}
-	MPI_Send(&photoStat[0][0], 3, MPI_DOUBLE, 0, 799, MPI_COMM_WORLD);
+
+	// Send number of entries
+	unsigned ns = photoStat[0].size();
+	MPI_Send(&ns, 1, MPI_UNSIGNED, 0, 796, MPI_COMM_WORLD);
+
+	// Now send the entries
+	for (auto v : photoStat[0]) {
+	  unsigned short Z = v.first.first, C = v.first.second;
+	  MPI_Send(&Z,   1, MPI_UNSIGNED_SHORT, 0, 797, MPI_COMM_WORLD);
+	  MPI_Send(&C,   1, MPI_UNSIGNED_SHORT, 0, 798, MPI_COMM_WORLD);
+	  MPI_Send(&v.second[0], 3, MPI_DOUBLE, 0, 799, MPI_COMM_WORLD);
+	}
       }
       if (myid==0) {
 	std::vector<double> rcv;
@@ -17752,9 +17768,19 @@ void CollideIon::photoWGather()
 	  MPI_Recv(&rcv[0], sz, MPI_DOUBLE, n, 798, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  data[s.first].insert(data[s.first].end(), rcv.begin(), rcv.end());
 	}
-	std::array<double, 3> dd;
-	MPI_Recv(&dd[0], 3, MPI_DOUBLE, n, 799, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	for (int k=0; k<3; k++) photoStat[0][k] += dd[k];
+
+	// Receive the number of entries
+	unsigned ns = photoStat[0].size();
+	MPI_Recv(&sz, 1, MPI_UNSIGNED, n, 796, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	// Now receive the data for each entry and add to local copy
+	for (unsigned s=0; s<ns; s++) {
+	  std::array<double, 3> dd;
+	  lQ Q;
+	  MPI_Recv(&Q.first,  1, MPI_UNSIGNED_SHORT, n, 797, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&Q.second, 1, MPI_UNSIGNED_SHORT, n, 798, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&dd[0],    3, MPI_DOUBLE,         n, 799, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  for (int k=0; k<3; k++) photoStat[0][Q][k] += dd[k];
+	}
       }
     }
 
@@ -17847,24 +17873,26 @@ void CollideIon::photoWPrint()
     for (auto h : frcHist) {
       if (h.second.get()) {
 	std::ostringstream sout1, sout2, sout3, sout4, sout5;
+	lQ Q = h.first;
+
 	sout1 << "-----Fraction for (Z, C) = ("
-	      << h.first.first << ", "
-	      << h.first.second << "), T="
+	      << Q.first << ", "
+	      << Q.second << "), T="
 	      << tnow << ' ';
-	sout2 << "-----Q1 = " << frcQ1[h.first];
-	sout3 << "-----Q2 = " << frcQ2[h.first];
-	sout4 << "-----Q3 = " << frcQ3[h.first];
+	sout2 << "-----Q1 = " << frcQ1[Q];
+	sout3 << "-----Q2 = " << frcQ2[Q];
+	sout4 << "-----Q3 = " << frcQ3[Q];
 	sout5 << "-----Stats:";
 
-	if (photoStat[0][0]>0)
-	  sout5 << " tot=" << static_cast<int>(photoStat[0][0])
-		<< " oab=" << static_cast<int>(photoStat[0][1])
-		<< " rat=" << photoStat[0][1]/photoStat[0][0]
-		<< " avg=" << photoStat[0][2]/photoStat[0][1] << std::endl;
+	if (photoStat[0][Q][0]>0) {
+	  sout5 << " tot=" << static_cast<int>(photoStat[0][Q][0])
+		<< " oab=" << static_cast<int>(photoStat[0][Q][1])
+		<< " rat=" << photoStat[0][Q][1]/photoStat[0][Q][0];
+	  if (photoStat[0][Q][1]>0)
+	    sout5 << " avg=" << photoStat[0][Q][2]/photoStat[0][Q][1];
+	}
 	else
 	  sout5 << " none";
-				// Clear accumulator
-	for (auto & v : photoStat[0]) v = 0.0;
 
 				// Print header
 	out << std::endl << std::left
@@ -17887,7 +17915,11 @@ void CollideIon::photoWPrint()
     std::cout << "Could not open <" << sout.str() << "> for append"
 	      << std::endl;
   }
+
+  // Clear accumulators
+  //
   photoW[0].clear();
+  photoStat[0].clear();
 }
 
 void CollideIon::electronGather()
@@ -19656,7 +19688,12 @@ void CollideIon::processConfig()
 
       photoIBType = phMap[phType];
 
-      if (use_photon<0) photoIBType = perParticle;
+      if (use_photon<0) {
+	if (myid==0)
+	  std::cout << "You requested the photoionization <perCollision> algorithm but no attribute position" << std::endl
+		    << "Switching to <perParticle> algorithm" << std::endl;
+	photoIBType = perParticle;
+      }
     }
 
     Collide::DEBUG_NTC =
