@@ -518,9 +518,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "COLL_LIMIT"
 	      << (collLim ? "on" : "off")               << std::endl;
     if (use_photoIB)		// print photoIB parameters
-    std::cout <<  " " << std::setw(20) << std::left << "photoIB type"
+    std::cout <<  " " << std::setw(20) << std::left << "photoIB model"
 	      << photoIB                                << std::endl
-	      <<  " " << std::setw(20) << std::left << "photoIB algo"
+	      <<  " " << std::setw(20) << std::left << "photoIB method"
 	      << phLab[photoIBType]                     << std::endl;
     if (collLim)		// print collLim parameters
     std::cout <<  " " << std::setw(20) << std::left << "maxSel"
@@ -702,6 +702,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   KElost   .resize(nthrds);
   energyA  .resize(nthrds);
   recombA  .resize(nthrds);
+  photoStat.resize(nthrds);
 
   for (auto &v : Ediag) {
     for (auto &u : v) u = 0.0;
@@ -11760,31 +11761,34 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       lQ Q    = s.first;
       int pos = s.second;
       
-      // We expect roughly spNsel/2 collisions pairs . . . 
-      double upscale = static_cast<double>(c->bods.size())/spNsel[id];
-
       for (auto p : {_p1, _p2}) {
+	photoStat[id][0]++;
+
 	// Pick a new photon for each particle
 	CFreturn ff  = ch.IonList[Q]->photoIonizationRate();
-
+	  
 	// Compute the probability and get the residual electron energy
-	double Pr = ff.first * UserTreeDSMC::Tunit * spTau[id] * upscale;
+	double dT = tnow - p->dattrib[use_photon];
+	double Pr = ff.first * UserTreeDSMC::Tunit * dT;
 	double Ep = ff.second;
 	double ww = p->dattrib[pos] * Pr;
-
+	  
 	if (Pr >= 1.0) {	// Limiting case
 	  ww = p->dattrib[pos];
 	  p->dattrib[pos  ]  = 0.0;
 	  p->dattrib[pos+1] += ww;
-	  std::cout << "Pr=" << Pr << ", upscale=" << upscale << std::endl;
+	  photoStat[id][1]++;
+	  photoStat[id][2]  += Pr;
 	} else {		// Normal case
 	  p->dattrib[pos  ] -= ww;
 	  p->dattrib[pos+1] += ww;
 	}
-
+	
 	photoW[id][s.first] += ww;
-
+	
 	scatterPhotoTrace(p, Q, ww, Ep);
+
+	p->dattrib[use_photon] = tnow;
       }
     }
 
@@ -17692,7 +17696,12 @@ void CollideIon::photoWGather()
 
   for (int t=1; t<nthrds; t++) {
     for (auto v : photoW[t]) photoW[0][v.first] += v.second;
-    photoW[t].clear();		// Clear all but zero thread
+    photoStat[0][0] += photoStat[t][0];
+    photoStat[0][1] += photoStat[t][1];
+    photoStat[0][2] += photoStat[t][2];
+				// Clear all but zero thread
+    for (auto & v : photoStat[t]) v = 0.0;
+    photoW[t].clear();
   }
 
   // Collect species weights for diagnostic histogram
@@ -17729,19 +17738,23 @@ void CollideIon::photoWGather()
       if (myid==n) {
 	for (auto s : SpList) {
 	  unsigned sz = data[s.first].size();
-	  MPI_Send(&sz, 1, MPI_UNSIGNED, 0, 798, MPI_COMM_WORLD);
-	  MPI_Send(&data[s.first][0], sz, MPI_DOUBLE, 0, 799, MPI_COMM_WORLD);
+	  MPI_Send(&sz, 1, MPI_UNSIGNED, 0, 797, MPI_COMM_WORLD);
+	  MPI_Send(&data[s.first][0], sz, MPI_DOUBLE, 0, 798, MPI_COMM_WORLD);
 	}
+	MPI_Send(&photoStat[0][0], 3, MPI_DOUBLE, 0, 799, MPI_COMM_WORLD);
       }
       if (myid==0) {
 	std::vector<double> rcv;
 	unsigned sz;
 	for (auto s : SpList) {
-	  MPI_Recv(&sz, 1, MPI_UNSIGNED, n, 798, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&sz, 1, MPI_UNSIGNED, n, 797, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  rcv.resize(sz);
-	  MPI_Recv(&rcv[0], sz, MPI_DOUBLE, n, 799, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&rcv[0], sz, MPI_DOUBLE, n, 798, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  data[s.first].insert(data[s.first].end(), rcv.begin(), rcv.end());
 	}
+	std::array<double, 3> dd;
+	MPI_Recv(&dd[0], 3, MPI_DOUBLE, n, 799, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	for (int k=0; k<3; k++) photoStat[0][k] += dd[k];
       }
     }
 
@@ -17833,7 +17846,7 @@ void CollideIon::photoWPrint()
     out << std::endl;
     for (auto h : frcHist) {
       if (h.second.get()) {
-	std::ostringstream sout1, sout2, sout3, sout4;
+	std::ostringstream sout1, sout2, sout3, sout4, sout5;
 	sout1 << "-----Fraction for (Z, C) = ("
 	      << h.first.first << ", "
 	      << h.first.second << "), T="
@@ -17841,8 +17854,20 @@ void CollideIon::photoWPrint()
 	sout2 << "-----Q1 = " << frcQ1[h.first];
 	sout3 << "-----Q2 = " << frcQ2[h.first];
 	sout4 << "-----Q3 = " << frcQ3[h.first];
+	sout5 << "-----Stats:";
 
-	out << std::endl << std::left // Print header . . . 
+	if (photoStat[0][0]>0)
+	  sout5 << " tot=" << static_cast<int>(photoStat[0][0])
+		<< " oab=" << static_cast<int>(photoStat[0][1])
+		<< " rat=" << photoStat[0][1]/photoStat[0][0]
+		<< " avg=" << photoStat[0][2]/photoStat[0][1] << std::endl;
+	else
+	  sout5 << " none";
+				// Clear accumulator
+	for (auto & v : photoStat[0]) v = 0.0;
+
+				// Print header
+	out << std::endl << std::left
 	    << std::setfill('-')
 	    << std::setw(53) << '-'  << std::endl
 	    << std::setw(53) << sout1.str() << std::endl
@@ -17850,6 +17875,7 @@ void CollideIon::photoWPrint()
 	    << std::setw(53) << sout2.str() << std::endl
 	    << std::setw(53) << sout3.str() << std::endl
 	    << std::setw(53) << sout4.str() << std::endl
+	    << std::setw(53) << sout5.str() << std::endl
 	    << std::setfill('-')
 	    << std::setw(53) << '-'  << std::endl << std::setfill(' ');
 
@@ -19621,11 +19647,16 @@ void CollideIon::processConfig()
     photoIB =
       cfg.entry<std::string>("photoIB", "Photo ionization background model (none, uvIGM)", "none");
 
+    use_photon = 
+      cfg.entry<int>("use_photon", "Attribute position for photon interaction time", -1);
+
     {
       std::string phType =
 	cfg.entry<std::string>("phType", "Photo ionization background type (Particle, Collision)", "Particle");
 
       photoIBType = phMap[phType];
+
+      if (use_photon<0) photoIBType = perParticle;
     }
 
     Collide::DEBUG_NTC =

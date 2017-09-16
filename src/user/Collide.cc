@@ -1416,6 +1416,7 @@ void * Collide::collide_thread(void * arg)
 	  // Monte Carlo the fractional part
 	  if ((*unit)() < fracP) nselTot++;
 
+	  // Algorithm debug
 	  if (maxT == NTC::NTCitem::single) {
 	    std::cout << "ntc singleton" << std::endl;
 	  }

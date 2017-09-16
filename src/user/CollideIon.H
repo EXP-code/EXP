@@ -505,8 +505,8 @@ private:
   std::vector< double >                              kE1s, kE2s, Ein1, Ein2, Evel, nselRat;
   std::vector< double >                              spCrm, spTau, spProb, spEdel, spEmax;
   std::vector< double >                              molP1, molP2, etaP1, etaP2;
-  std::vector< double >                              rhoSigV, rhoSigN;
-  std::vector< unsigned >                            spNsel, elecCnt, spNcol;
+  std::vector< double >                              rhoSigV, rhoSigN, spNsel;
+  std::vector< unsigned >                            elecCnt, spNcol;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot, testCnt;
   std::vector< unsigned >                            Nwght, Njsel, Ncol, Nmis;
   std::vector< unsigned >                            crZero, crMiss, crTotl;
@@ -521,6 +521,7 @@ private:
   std::vector< CellMom >                             cMoms;
   std::vector< std::array<double, 2> >               KElost;
   std::vector< StatsMPI >                            recombA;
+  std::vector< std::array<double, 3> >               photoStat;
   //@{
 
   //! Trace-species velocity factors including reduced mass for a
@@ -806,6 +807,10 @@ protected:
   //! Using photoionization
   bool use_photoIB;
 
+  //! Interaction time in attribute vector
+  int use_photon;
+
+  //! Algorithm type
   enum PhotoIBType {perParticle, perCollision};
   PhotoIBType photoIBType;
 
