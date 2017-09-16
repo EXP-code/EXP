@@ -17748,7 +17748,7 @@ void CollideIon::photoWGather()
 	}
 
 	// Send number of entries
-	unsigned ns = photoStat[n].size();
+	unsigned ns = photoStat[0].size();
 	MPI_Send(&ns, 1, MPI_UNSIGNED, 0, 796, MPI_COMM_WORLD);
 
 	// Now send the entries
@@ -17763,9 +17763,9 @@ void CollideIon::photoWGather()
 	std::vector<double> rcv;
 	unsigned sz;
 	for (auto s : SpList) {
-	  MPI_Recv(&sz, 1, MPI_UNSIGNED, n, 797, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&sz, 1, MPI_UNSIGNED, n, 794, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  rcv.resize(sz);
-	  MPI_Recv(&rcv[0], sz, MPI_DOUBLE, n, 798, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&rcv[0], sz, MPI_DOUBLE, n, 795, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  data[s.first].insert(data[s.first].end(), rcv.begin(), rcv.end());
 	}
 
@@ -17881,17 +17881,15 @@ void CollideIon::photoWPrint()
 	sout2 << "-----Q1 = " << frcQ1[Q];
 	sout3 << "-----Q2 = " << frcQ2[Q];
 	sout4 << "-----Q3 = " << frcQ3[Q];
-	sout5 << "-----Stats:";
 
 	if (photoStat[0][Q][0]>0) {
-	  sout5 << " tot=" << static_cast<int>(photoStat[0][Q][0])
-		<< " oab=" << static_cast<int>(photoStat[0][Q][1])
-		<< " rat=" << photoStat[0][Q][1]/photoStat[0][Q][0];
-	  if (photoStat[0][Q][1]>0)
-	    sout5 << " avg=" << photoStat[0][Q][2]/photoStat[0][Q][1];
+	  sout5 << "-----Stats (" << Q.first << ", " << Q.second << "):"
+		<< " tot=" << static_cast<int>(photoStat[0][Q][0]);
+	  if (photoStat[0][Q][1]>0) // Only print for Pr>1 events
+	    sout5 << " oab=" << static_cast<int>(photoStat[0][Q][1])
+		  << " rat=" << photoStat[0][Q][1]/photoStat[0][Q][0]
+		  << " avg=" << photoStat[0][Q][2]/photoStat[0][Q][1];
 	}
-	else
-	  sout5 << " none";
 
 				// Print header
 	out << std::endl << std::left
@@ -17901,9 +17899,10 @@ void CollideIon::photoWPrint()
 	    << std::setw(53) << '-'  << std::endl << std::setfill(' ')
 	    << std::setw(53) << sout2.str() << std::endl
 	    << std::setw(53) << sout3.str() << std::endl
-	    << std::setw(53) << sout4.str() << std::endl
-	    << std::setw(53) << sout5.str() << std::endl
-	    << std::setfill('-')
+	    << std::setw(53) << sout4.str() << std::endl;
+	if (sout5.str().size())
+	out << std::setw(53) << sout5.str() << std::endl;
+	out << std::setfill('-')
 	    << std::setw(53) << '-'  << std::endl << std::setfill(' ');
 
 	(*h.second)(out);
