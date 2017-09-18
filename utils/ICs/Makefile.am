@@ -26,7 +26,7 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 noinst_HEADERS =
 
 bin_PROGRAMS = gendisk shrinkics gendisk2 gsphere pstmod gendisk3	\
-	empinfo empdump makeIon phIon
+	empinfo empdump makeIon phIon phConv
 
 shrinkics_SOURCES = shrinkics.cc
 shrinkics_LDADD = $(EXPLIBS)
@@ -66,6 +66,10 @@ makeIon_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(BOOST_LIBS)	\
 phIon_SOURCES = ph_ion.cc
 phIon_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
 phIon_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) $(FLIBS)
+
+phConv_SOURCES = ph_conv.cc
+phConv_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
+phConv_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) $(FLIBS)
 
 initial.cc:		Particle.H
 

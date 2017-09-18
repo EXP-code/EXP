@@ -12815,8 +12815,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       } else {			// Mean charge
 	if (k.C()>1) {
 	  bods.push_back(i);
-	  eta1 = p->mass/atomic_weights[k.Z()] *
-	    (*Fn)[k.getKey()] * (k.C()-1);
+	  eta1 = p->mass/atomic_weights[k.Z()] * (*Fn)[k.getKey()] * (k.C()-1);
 	}
       }
 

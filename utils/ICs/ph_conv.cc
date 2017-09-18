@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iostream>
 #include <iomanip>
 #include <cmath>
@@ -12,7 +13,7 @@ namespace po = boost::program_options;
 
 int main(int argc, char**argv)
 {
-  double n0, tol;
+  double n0, tol, h;
   unsigned T;
   int niter;
 
@@ -21,8 +22,10 @@ int main(int argc, char**argv)
     ("help,h", "produce this help message")
     ("density,D", po::value<double>(&n0)->default_value(1.0e-4), 
      "Density in amu/cc. Good for n0<8.5e-2")
-    ("temp,T", po::value<double>(&n0)->default_value(25000), 
+    ("temp,T", po::value<unsigned>(&T)->default_value(25000), 
      "Density in amu/cc. Good for n0<8.5e-2")
+    ("step,H", po::value<double>(&h)->default_value(0.1), 
+     "Time step")
     ("tol,e",     po::value<double>(&tol)->default_value(1.0e-10), 
      "error tolerance")
     ("iter,n",    po::value<int>(&niter)->default_value(1000), 
@@ -53,8 +56,8 @@ int main(int argc, char**argv)
   };
 
   std::array<double, 3> gamma;
-  std::array<double, 3> init  {0.001, 0.001, 0.001};
-  std::array<double, 3> curr, last;
+  std::array<double, 3> init  {0.1, 0.1, 0.1};
+  std::array<double, 3> curr, last, maxd {0, 0, 0};
 
   for (int i=0; i<3; i++) gamma[i] = beta[T][i]/alpha[i];
   double X = 0.76, Y = 0.24, mX = 1.0, mY = 4.0;
@@ -63,23 +66,34 @@ int main(int argc, char**argv)
   curr = init;
 
   for (int n=0; n<niter; n++) {
+
     double ne = n0*(X/mX*(1.0 - curr[0]) +
 		    Y/mY*(curr[2] + 2.0*(1.0 - curr[0] - curr[2])));
     last = curr;
-    curr[0] = ne*(1.0 - last[0])*gamma[0];
-    curr[1] = ne*last[2]*gamma[1];
-    curr[2] = ne*(1.0 - last[1] - last[2])*gamma[2];
+
+    for (int j=0; j<3; j++) {
+      double delta = h * ( (1.0 - last[j])*beta[T][j]*ne - last[j]*alpha[j] );
+      curr[j] += delta;
+      maxd[j] = std::max<double>(fabs(delta)/curr[j], maxd[j]);
+      curr[j] = std::min<double>(1.0, std::max<double>(0.0, curr[j]));
+    }
 
     std::cout << std::setw(8) << n;
     for (int j=0; j<3; j++) std::cout << std::setw(14) << curr[j];
-    std::cout << std::endl;
+    std::cout << std::setw(14) << ne/n0 << std::endl;
 
-    double tol = 0.0;
-    for (int j=0; j<3; j++)
-      tol += (curr[j] - last[j]) * (curr[j] - last[j]);
-    tol = sqrt(tol);
-    if (tol<1.0e-14) break;
+    double err = 0.0;
+    for (int j=0; j<3; j++) {
+      double dif = 0.5 * (curr[j] - last[j]) / (curr[j] + last[j]);
+      err += dif*dif;
+    }
+    if (sqrt(err)<tol) break;
   }
+
+  std::cout << "Max: ";
+  for (auto v : maxd) std::cout << std::setw(14) << v;
+  std::cout << std::endl;
+
 
   return 0;
 }
