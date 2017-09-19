@@ -53,6 +53,8 @@ eV    = 1.60217653e-12
 b0    = 0.0
 a0    = 1.0
 
+ndatr = 6
+
 def func1(x, a):
     """Fit energy distribution for amplitude only"""
     global b0
@@ -92,7 +94,7 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp):
     pTyp(PlotType): type of plots
 
     """
-    global b0
+    global b0, ndatr
 
     slopeFac = 11604.50560112828
     slope = slopeFac/defaultT
@@ -123,6 +125,10 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp):
 
         O = psp_io.Input(filename, comp='gas')
 
+        exec('xve = O.d{}'.format(ndatr+6))
+        exec('yve = O.d{}'.format(ndatr+7))
+        exec('zve = O.d{}'.format(ndatr+8))
+
         dv = np.zeros(3)
         for i in range(O.mass.size):
             if field=='ion':
@@ -130,13 +136,13 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp):
                 dv[1] = O.yvel[i]
                 dv[2] = O.zvel[i]
             elif field=='interact':
-                dv[0] = O.xvel[i] - O.d12[i]
-                dv[1] = O.yvel[i] - O.d13[i]
-                dv[2] = O.zvel[i] - O.d14[i]
+                dv[0] = O.xvel[i] - xve[i]
+                dv[1] = O.yvel[i] - yve[i]
+                dv[2] = O.zvel[i] - zve[i]
             else:
-                dv[0] = O.d12[i]
-                dv[1] = O.d13[i]
-                dv[2] = O.d14[i]
+                dv[0] = xve[i]
+                dv[1] = yve[i]
+                dv[2] = zve[i]
 
             EE = efac * np.dot(dv, dv)
             if EE<=ebeg or EE>=efin:
@@ -241,7 +247,7 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp):
 def main(argv):
     """ Parse the command line and call the parsing and plotting routine """
 
-    global a0
+    global a0, ndatr
 
     field = "electron"
     start = 0
@@ -253,10 +259,10 @@ def main(argv):
     fit   = FitType.Analytic
     plt   = PlotType.Both
 
-    options = '[-f <field> | --field=<field> | -n <start> | --start=<start> | -N <stop> | --stop=<stop> | -e <low eV> | --low=<low eV> | -E <high eV> | --high=<high eV> | -d <delta eV> | --delta=<delta eV> | -T <default T> | --temp=<default T> | -t | --type | -F | --fixed | -p <type> | --plot=<type>] <runtag>'
+    options = '[-f <field> | --field=<field> | -n <start> | --start=<start> | -N <stop> | --stop=<stop> | -e <low eV> | --low=<low eV> | -E <high eV> | --high=<high eV> | -d <delta eV> | --delta=<delta eV> | -T <default T> | --temp=<default T> | -t | --type | -F | --fixed | -p <type> | --plot=<type> | -D <number> | --ndatr=<number>] <runtag>'
 
     try:
-        opts, args = getopt.getopt(argv,"hf:n:N:e:E:d:T:t:Fp:", ["help","field=","start=","stop=","low=", "high=", "delta=", "temp=", "type=", "fixed=", "plot="])
+        opts, args = getopt.getopt(argv,"hf:n:N:e:E:d:T:t:Fp:D:", ["help","field=","start=","stop=","low=", "high=", "delta=", "temp=", "type=", "fixed=", "plot=", "ndatr="])
     except getopt.GetoptError:
         print sys.argv[0], 
         sys.exit(2)
@@ -299,6 +305,8 @@ def main(argv):
                 print "Valid types are:"
                 for v in PlotType: print v.name
                 exit
+        elif opt in ("-D", "--ndatr"):
+            ndatr = int(arg)
 
     if len(args)>0:
         runtag = args[0]
