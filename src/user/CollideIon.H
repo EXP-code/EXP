@@ -483,7 +483,7 @@ private:
   typedef std::map<NTC::Interact::T, XStup>          InterXS;
   typedef std::array<double, 4>                      CellMom;
   typedef std::array<double, 3>                      ChProb;
-  typedef std::map<lQ, std::array<double, 3> >       phStatMap;
+  typedef std::map<lQ, std::array<double, 4> >       phStatMap;
 
   std::vector< std::vector<dKey>   >                 kInter;
   std::vector< std::vector<double> >                 dCross;
@@ -698,6 +698,10 @@ private:
   //! Use separate conservation of energy for electrons if true
   //! (default: true)
   bool elc_cons;
+
+  //! Use relative ion speed to compute electron-electron rate
+  //! (default: false)
+  bool IonElecRate;
 
 public:
 

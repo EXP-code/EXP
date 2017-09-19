@@ -11709,7 +11709,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     double delE3   = KEinitl - KEfinal - dConSum - totalDE - delEfnl;
 
     if (fabs(delE3) > tolE*KE_initl_check) {
-      std::cout << "**ERROR inelasticHybrid dE = " << delE1 << ", " << delE2
+      std::cout << "**ERROR inelasticTrace dE = " << delE1 << ", " << delE2
 		<< ", rel1 = " << delE1/KE_initl_check
 		<< ", rel2 = " << delE2/KE_initl_check
 		<< ", rel3 = " << delE3/KE_initl_check
@@ -11731,7 +11731,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		<< std::endl;
     } else {
       if (DBG_NewTest)
-	std::cout << "**GOOD inelasticHybrid dE = " << delE1 << ", " << delE2
+	std::cout << "**GOOD inelasticTrace dE = " << delE1 << ", " << delE2
 		  << ", rel1 = " << delE1/KE_initl_check
 		  << ", rel2 = " << delE2/KE_initl_check
 		  << ",  dKE = " << KEinitl - KEfinal
@@ -11755,6 +11755,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
   if (use_photoIB and photoIBType == perCollision) {
 
+    std::map<void *, double> dT;
+    for (auto p : {_p1, _p2}) dT[p] = tnow - p->dattrib[use_photon];
+
     // Photoionize all subspecies
     //
     for (auto s : SpList) {
@@ -11762,33 +11765,37 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       int pos = s.second;
       
       for (auto p : {_p1, _p2}) {
-	// Increment total count
-	photoStat[id][Q][0]++;
-
+	// Skip updated particles
+	if (dT[p]<=0.0) continue;
+	
 	// Pick a new photon for each particle
 	CFreturn ff  = ch.IonList[Q]->photoIonizationRate();
 	  
-	// Compute the probability and get the residual electron energy
-	double dT = tnow - p->dattrib[use_photon];
-	double Pr = ff.first * UserTreeDSMC::Tunit * dT;
-	double Ep = ff.second;
-	double ww = p->dattrib[pos] * Pr;
+	if (ff.first>0.0) {
+	  // Increment total count
+	  photoStat[id][Q][0]++;
+
+	  // Compute the probability and get the residual electron energy
+	  double Pr = ff.first * UserTreeDSMC::Tunit * dT[p];
+	  double Ep = ff.second;
+	  double ww = p->dattrib[pos] * Pr;
 	  
-	if (Pr >= 1.0) {	// Limiting case
-	  ww = p->dattrib[pos];
-	  p->dattrib[pos  ]  = 0.0;
-	  p->dattrib[pos+1] += ww;
-				// Increment oab count and mean value
-	  photoStat[id][Q][1] += 1;
-	  photoStat[id][Q][2] += Pr;
-	} else {		// Normal case
-	  p->dattrib[pos  ] -= ww;
-	  p->dattrib[pos+1] += ww;
+	  if (Pr >= 1.0) {	// Limiting case
+	    ww = p->dattrib[pos];
+	    p->dattrib[pos  ]  = 0.0;
+	    p->dattrib[pos+1] += ww;
+	    // Increment oab count and mean value
+	    photoStat[id][Q][1] += 1;
+	    photoStat[id][Q][2] += Pr;
+	  } else {		// Normal case
+	    p->dattrib[pos  ] -= ww;
+	    p->dattrib[pos+1] += ww;
+	  }
+	  photoStat[id][Q][3]  = std::max<double>(photoStat[id][Q][3], Pr);
+	  photoW[id][s.first] += ww;
+	
+	  scatterPhotoTrace(p, Q, ww, Ep);
 	}
-	
-	photoW[id][s.first] += ww;
-	
-	scatterPhotoTrace(p, Q, ww, Ep);
 
 	p->dattrib[use_photon] = tnow;
       }
@@ -12725,23 +12732,31 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	// Pick a new photon for each body
 	CFreturn ff  = ch.IonList[Q]->photoIonizationRate();
 
-	// Compute the probability and get the residual electron energy
-	double Pr = ff.first * UserTreeDSMC::Tunit * spTau[id];
-	double Ep = ff.second;
-	double ww = p->dattrib[pos] * Pr;
+	if (ff.first>0.0) {
+	  // Increment total count
+	  photoStat[id][Q][0]++;
 
-	if (Pr >= 1.0) {	// Limiting case
-	  ww = p->dattrib[pos];
-	  p->dattrib[pos  ]  = 0.0;
-	  p->dattrib[pos+1] += ww;
-	} else {		// Normal case
-	  p->dattrib[pos  ] -= ww;
-	  p->dattrib[pos+1] += ww;
+	  // Compute the probability and get the residual electron energy
+	  double Pr = ff.first * UserTreeDSMC::Tunit * spTau[id];
+	  double Ep = ff.second;
+	  double ww = p->dattrib[pos] * Pr;
+
+	  if (Pr >= 1.0) {	// Limiting case
+	    ww = p->dattrib[pos];
+	    p->dattrib[pos  ]  = 0.0;
+	    p->dattrib[pos+1] += ww;
+	    // Increment oab count and mean value
+	    photoStat[id][Q][1] += 1;
+	    photoStat[id][Q][2] += Pr;
+	  } else {		// Normal case
+	    p->dattrib[pos  ] -= ww;
+	    p->dattrib[pos+1] += ww;
+	  }
+	  photoStat[id][Q][3]  = std::max<double>(photoStat[id][Q][3], Pr);     
+	  photoW[id][s.first] += ww;
+
+	  scatterPhotoTrace(p, Q, ww, Ep);
 	}
-
-	photoW[id][s.first] += ww;
-
-	scatterPhotoTrace(p, Q, ww, Ep);
       }
     }
   } // End: photoionizing background
@@ -13027,11 +13042,13 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       // Calculate pair's relative speed (pre-collision)
       //
       vector<double> vcom(3), vrel(3), v1(3), v2(3);
+      double vr = 0.0;
       for (int k=0; k<3; k++) {
 	v1[k] = p1->dattrib[use_elec+k];
 	v2[k] = p2->dattrib[use_elec+k];
 	vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
 	vrel[k] = v1[k] - v2[k];
+	vr += (p1->vel[k] - p2->vel[k]) * (p1->vel[k] - p2->vel[k]);
       }
 
       // Compute relative speed
@@ -13046,6 +13063,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       // Relative speed
       //
       vi = sqrt(vi);
+      vr = sqrt(vr);
 
       double cr = vi * UserTreeDSMC::Vunit;
 
@@ -13083,7 +13101,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
 	// Accept or reject candidate pair according to relative speed
 	//
-	double prod = vi * scrs;
+	double prod = (IonElecRate ? vr : vi) * scrs;
 	pthread_mutex_lock(&tlock);
 	double targ = prod/ntcdb[samp->mykey].CrsVel(electronKey, elecElec, ntcThresh);
 	pthread_mutex_unlock(&tlock);
@@ -17702,10 +17720,12 @@ void CollideIon::photoWGather()
       lQ Q = s.first;
       if (photoStat[t].find(Q) != photoStat[t].end()) {
 	for (int k=0; k<3; k++) photoStat[0][Q][k] += photoStat[t][Q][k];
+	photoStat[0][Q][3] =
+	  std::max<double>(photoStat[0][Q][3], photoStat[t][Q][3]);
       }
     }
 				// Clear all but zero thread
-    photoW[t].clear();
+    photoW   [t].clear();
     photoStat[t].clear();
   }
 
@@ -17756,7 +17776,7 @@ void CollideIon::photoWGather()
 	  lQ Q = v.first;
 	  MPI_Send(&Q.first,     1, MPI_UNSIGNED_SHORT, 0, 797, MPI_COMM_WORLD);
 	  MPI_Send(&Q.second,    1, MPI_UNSIGNED_SHORT, 0, 798, MPI_COMM_WORLD);
-	  MPI_Send(&v.second[0], 3, MPI_DOUBLE,         0, 799, MPI_COMM_WORLD);
+	  MPI_Send(&v.second[0], 4, MPI_DOUBLE,         0, 799, MPI_COMM_WORLD);
 	}
       }
       if (myid==0) {
@@ -17773,12 +17793,13 @@ void CollideIon::photoWGather()
 	MPI_Recv(&sz, 1, MPI_UNSIGNED, n, 796, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	// Now receive the data for each entry and add to local copy
 	for (unsigned s=0; s<sz; s++) {
-	  std::array<double, 3> dd;
+	  std::array<double, 4> dd;
 	  lQ Q;
 	  MPI_Recv(&Q.first,  1, MPI_UNSIGNED_SHORT, n, 797, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  MPI_Recv(&Q.second, 1, MPI_UNSIGNED_SHORT, n, 798, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  MPI_Recv(&dd[0],    3, MPI_DOUBLE,         n, 799, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&dd[0],    4, MPI_DOUBLE,         n, 799, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  for (int k=0; k<3; k++) photoStat[0][Q][k] += dd[k];
+	  photoStat[0][Q][3] = std::max<double>(photoStat[0][Q][3], dd[3]);
 	}
       }
     }
@@ -17884,7 +17905,8 @@ void CollideIon::photoWPrint()
 
 	if (photoStat[0][Q][0]>0) {
 	  sout5 << "-----Stats (" << Q.first << ", " << Q.second << "):"
-		<< " tot=" << static_cast<int>(photoStat[0][Q][0]);
+		<< " tot=" << static_cast<int>(photoStat[0][Q][0])
+		<< " max=" << photoStat[0][Q][3];
 	  if (photoStat[0][Q][1]>0) // Only print for Pr>1 events
 	    sout5 << " oab=" << static_cast<int>(photoStat[0][Q][1])
 		  << " rat=" << photoStat[0][Q][1]/photoStat[0][Q][0]
@@ -17916,7 +17938,7 @@ void CollideIon::photoWPrint()
 
   // Clear accumulators
   //
-  photoW[0].clear();
+  photoW[0]   .clear();
   photoStat[0].clear();
 }
 
@@ -19686,13 +19708,16 @@ void CollideIon::processConfig()
 
       photoIBType = phMap[phType];
 
-      if (use_photon<0) {
+      if (photoIBType == perCollision and use_photon<0) {
 	if (myid==0)
 	  std::cout << "You requested the photoionization <perCollision> algorithm but no attribute position" << std::endl
 		    << "Switching to <perParticle> algorithm" << std::endl;
 	photoIBType = perParticle;
       }
     }
+
+    IonElecRate = 
+      cfg.entry<bool>("ION_ELEC_RATE", "Use ion-ion relative speed to compute electron-electron interaction rate", false);
 
     Collide::DEBUG_NTC =
       cfg.entry<bool>("DEBUG_NTC", "Enable verbose NTC diagnostics", false);
