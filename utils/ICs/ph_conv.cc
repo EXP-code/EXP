@@ -1,6 +1,11 @@
+// This method is stable for all densities, unlike ph_ion.
+//
+
 #include <algorithm>
 #include <iostream>
 #include <iomanip>
+#include <fstream>
+#include <string>
 #include <cmath>
 #include <array>
 
@@ -14,8 +19,9 @@ namespace po = boost::program_options;
 int main(int argc, char**argv)
 {
   double n0, tol, h;
-  unsigned T;
+  unsigned T, skip;
   int niter;
+  std::string outf;
 
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -24,12 +30,16 @@ int main(int argc, char**argv)
      "Density in amu/cc. Good for n0<8.5e-2")
     ("temp,T", po::value<unsigned>(&T)->default_value(25000), 
      "Density in amu/cc. Good for n0<8.5e-2")
-    ("step,H", po::value<double>(&h)->default_value(0.1), 
-     "Time step")
+    ("skip,s", po::value<unsigned>(&skip)->default_value(10), 
+     "Iteration step skip for diagnostic output")
+    ("step,H", po::value<double>(&h)->default_value(2000.0), 
+     "Time step in years")
     ("tol,e",     po::value<double>(&tol)->default_value(1.0e-10), 
      "error tolerance")
     ("iter,n",    po::value<int>(&niter)->default_value(1000), 
      "maximum number of iterations")
+    ("outfile,o", po::value<std::string>(&outf)->default_value("IonRecombFrac.data"),
+     "data file for makeIon input")
     ;
   
   po::variables_map vm;
@@ -55,6 +65,9 @@ int main(int argc, char**argv)
     { 30000, {1.6449e-13, 1.8229e-13, 8.3322e-13} }
   };
 
+  const double year = 365.25*24.0*3600.0;
+  h *= year;
+
   std::array<double, 3> gamma;
   std::array<double, 3> init  {0.1, 0.1, 0.1};
   std::array<double, 3> curr, last, maxd {0, 0, 0};
@@ -64,6 +77,8 @@ int main(int argc, char**argv)
   double mu = X/mX + Y/mY;
 
   curr = init;
+
+  double err = 0.0;
 
   for (int n=0; n<niter; n++) {
 
@@ -78,22 +93,43 @@ int main(int argc, char**argv)
       curr[j] = std::min<double>(1.0, std::max<double>(0.0, curr[j]));
     }
 
-    std::cout << std::setw(8) << n;
-    for (int j=0; j<3; j++) std::cout << std::setw(14) << curr[j];
-    std::cout << std::setw(14) << ne/n0 << std::endl;
+    if (n % skip==0) {
+      std::cout << std::setw(8) << n;
+      for (int j=0; j<3; j++) std::cout << std::setw(14) << curr[j];
+      std::cout << std::setw(14) << ne/n0 << std::endl;
+    }
 
-    double err = 0.0;
+    err = 0.0;
     for (int j=0; j<3; j++) {
       double dif = 0.5 * (curr[j] - last[j]) / (curr[j] + last[j]);
       err += dif*dif;
     }
-    if (sqrt(err)<tol) break;
+    err = sqrt(err);
+    if (err<tol) break;
   }
 
-  std::cout << "Max: ";
+  std::cout << std::endl << std::left
+	    << std::setw(24) << "Convergence error"   << err << std::endl
+	    << std::setw(24) << "Requested tolerance" << tol << std::endl
+	    << std::setw(24) << "Max relative error";
   for (auto v : maxd) std::cout << std::setw(14) << v;
-  std::cout << std::endl;
+  std::cout << std::endl << std::endl;
 
+  if (err < tol) {
+    std::ofstream out(outf);
+    if (out) {
+      for (int j=0; j<3; j++) out << std::setw(14) << curr[j];
+      out << std::endl;
+      std::cout << "SUCCESS: "
+		<< "file <" << outf << "> written" << std::endl;
+    } else {
+      std::cout << "FAILURE: "
+		<< "error opening <" << outf << "> for output" << std::endl;
+    }
+  } else {
+    std::cout << "FAILURE: no convergence" << std::endl;
+  }
+  std::cout << std::endl;
 
   return 0;
 }
