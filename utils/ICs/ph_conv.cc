@@ -108,15 +108,7 @@ int main(int argc, char**argv)
   std::array<double, 3> init  {0.1, 0.1, 0.1};
   std::array<double, 3> curr, last, maxd {0, 0, 0}, frac {X, Y, Y};
 
-<<<<<<< Updated upstream
   for (int i=0; i<3; i++) gamma[i] = beta[i]/alpha[i];
-  double X = 0.76, Y = 0.24, mX = 1.0, mY = 4.0;
-  double mu = X/mX + Y/mY;
-=======
-  for (int i=0; i<3; i++) gamma[i] = beta[T][i]/alpha[i];
->>>>>>> Stashed changes
-
-  std::array<double, 3> frac {X, Y, Y};
 
   curr = init;
 
