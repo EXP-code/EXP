@@ -18,8 +18,8 @@ namespace po = boost::program_options;
 
 int main(int argc, char**argv)
 {
-  double n0, tol, h;
-  unsigned T, skip;
+  double n0, tol, h, T;
+  unsigned skip;
   int niter;
   std::string outf;
 
@@ -28,7 +28,7 @@ int main(int argc, char**argv)
     ("help,h", "produce this help message")
     ("density,D", po::value<double>(&n0)->default_value(1.0e-4), 
      "Density in amu/cc. Good for n0<8.5e-2")
-    ("temp,T", po::value<unsigned>(&T)->default_value(25000), 
+    ("temp,T", po::value<double>(&T)->default_value(30000.0), 
      "Density in amu/cc. Good for n0<8.5e-2")
     ("skip,s", po::value<unsigned>(&skip)->default_value(10), 
      "Iteration step skip for diagnostic output")
@@ -59,11 +59,44 @@ int main(int argc, char**argv)
 
   std::array<double, 3> alpha {4.9771e-13, 5.9671e-13, 6.2216e-14};
 
-  std::map<unsigned, std::array<double, 3> > beta
-  {
-    { 25000, {1.8989e-13, 2.0745e-13, 9.4349e-13} },
-    { 30000, {1.6449e-13, 1.8229e-13, 8.3322e-13} }
-  };
+  std::vector<double> Temp;
+  std::vector<std::array<double, 3>> barray;
+  std::array<double, 3> beta;
+  
+  std::ifstream fin("coefficients.dat");
+  if (fin) {
+    double t;
+    std::array<double, 3> v;
+    while (fin) {
+      fin >> t >> v[0] >> v[1] >> v[2];
+      if (fin.good()) {
+	Temp.push_back(t);
+	barray.push_back(v);
+      }
+    }
+  } else {
+    std::cout << "Error opening <coefficients.dat>" << std::endl;
+    exit(-1);
+  }
+
+  // Interpolate
+  if (T<=Temp.back() and T>=Temp.front()) {
+    unsigned indx = 0;
+    for (indx = 0; indx < Temp.size(); indx++) {
+      if (T<Temp[indx]) break;
+    }
+    if (indx == 0) indx = 1;
+    if (indx == Temp.size()) indx = Temp.size()-2;
+    double a = (T - Temp[indx-1])/(Temp[indx] - Temp[indx-1]);
+    double b = (Temp[indx] - T)  /(Temp[indx] - Temp[indx-1]);
+    std::cout << "[a, b] = [" << a << ", " << b << "]" << std::endl;
+    std::cout << "[T_1, T_2] = [" << Temp[indx-1] << ", " << Temp[indx] << "]" << std::endl;
+    for (int k=0; k<3; k++) beta[k] = a*barray[indx-1][k] + b*barray[indx][k];
+  } else {
+    std::cout << "T=" << T << " is out of bounds [" << Temp.front()
+	      << ", " << Temp.back() << "]" << std::endl;
+    exit(-1);
+  }
 
   const double year = 365.25*24.0*3600.0;
   h *= year;
@@ -72,9 +105,11 @@ int main(int argc, char**argv)
   std::array<double, 3> init  {0.1, 0.1, 0.1};
   std::array<double, 3> curr, last, maxd {0, 0, 0};
 
-  for (int i=0; i<3; i++) gamma[i] = beta[T][i]/alpha[i];
+  for (int i=0; i<3; i++) gamma[i] = beta[i]/alpha[i];
   double X = 0.76, Y = 0.24, mX = 1.0, mY = 4.0;
   double mu = X/mX + Y/mY;
+
+  std::array<double, 3> frac {X, Y, Y};
 
   curr = init;
 
@@ -87,7 +122,7 @@ int main(int argc, char**argv)
     last = curr;
 
     for (int j=0; j<3; j++) {
-      double delta = h * ( (1.0 - last[j])*beta[T][j]*ne - last[j]*alpha[j] );
+      double delta = h * ( (1.0 - last[j])*beta[j]*ne - last[j]*alpha[j] );
       curr[j] += delta;
       maxd[j] = std::max<double>(fabs(delta)/curr[j], maxd[j]);
       curr[j] = std::min<double>(1.0, std::max<double>(0.0, curr[j]));
@@ -95,7 +130,7 @@ int main(int argc, char**argv)
 
     if (n % skip==0) {
       std::cout << std::setw(8) << n;
-      for (int j=0; j<3; j++) std::cout << std::setw(14) << curr[j];
+      for (int j=0; j<3; j++) std::cout << std::setw(14) << curr[j] * frac[j];
       std::cout << std::setw(14) << ne/n0 << std::endl;
     }
 
@@ -118,7 +153,7 @@ int main(int argc, char**argv)
   if (err < tol) {
     std::ofstream out(outf);
     if (out) {
-      for (int j=0; j<3; j++) out << std::setw(14) << curr[j];
+      for (int j=0; j<3; j++) out << std::setw(14) << curr[j] * frac[j];
       out << std::endl;
       std::cout << "SUCCESS: "
 		<< "file <" << outf << "> written" << std::endl;
