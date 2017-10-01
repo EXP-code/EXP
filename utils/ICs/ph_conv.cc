@@ -152,7 +152,7 @@ int main(int argc, char**argv)
   if (err < tol) {
     std::ofstream out(outf);
     if (out) {
-      for (int j=0; j<3; j++) out << std::setw(14) << curr[j] * frac[j];
+      for (int j=0; j<3; j++) out << std::setw(14) << curr[j];
       out << std::endl;
       std::cout << "SUCCESS: "
 		<< "file <" << outf << "> written" << std::endl;
