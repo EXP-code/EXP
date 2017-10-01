@@ -10528,16 +10528,18 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 
 	  double Pr = Prob;
+	  double WW = Pr * atomic_weights[Z2];
 
 	  int pos = SpList[k2] - SpList.begin()->second;
 
-	  if (Pr < PP[2]->F(2, pos)) {
-	    PP[2]->F(2, pos  ) -= Pr;
-	    PP[2]->F(2, pos+1) += Pr;
+	  if (WW < PP[2]->F(2, pos)) {
+	    PP[2]->F(2, pos  ) -= WW;
+	    PP[2]->F(2, pos+1) += WW;
 	  } else {
-	    Pr = PP[2]->F(2, pos);
+	    WW = PP[2]->F(2, pos);
+	    Pr = WW/atomic_weights[Z2];
 	    PP[2]->F(2, pos  )  = 0.0;
-	    PP[2]->F(2, pos+1) += Pr;
+	    PP[2]->F(2, pos+1) += WW;
 	  }
 
 	  if (use_normtest) {
@@ -10604,16 +10606,18 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 
 	  double Pr = Prob;
+	  double WW = Pr * atomic_weights[Z1];
 
 	  int pos = SpList[k1] - SpList.begin()->second;
 
-	  if (Pr < PP[1]->F(1, pos)) {
-	    PP[1]->F(1, pos  ) -= Pr;
-	    PP[1]->F(1, pos+1) += Pr;
+	  if (WW < PP[1]->F(1, pos)) {
+	    PP[1]->F(1, pos  ) -= WW;
+	    PP[1]->F(1, pos+1) += WW;
 	  } else {
-	    Pr = PP[1]->F(1, pos);
+	    WW = PP[1]->F(1, pos);
+	    Pr = WW/atomic_weights[Z1];
 	    PP[1]->F(1, pos  )  = 0.0;
-	    PP[1]->F(1, pos+1) += Pr;
+	    PP[1]->F(1, pos+1) += WW;
 	  }
 
 	  if (use_normtest) {
@@ -10683,16 +10687,18 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 	  
 	  double Pr = Prob;
+	  double WW = Pr * atomic_weights[Z2];
 
 	  int pos = SpList[k2] - SpList.begin()->second;
 
-	  if (Pr < PP[2]->F(2, pos)) {
-	    PP[2]->F(2, pos  ) -= Pr;
-	    PP[2]->F(2, pos-1) += Pr;
+	  if (WW < PP[2]->F(2, pos)) {
+	    PP[2]->F(2, pos  ) -= WW;
+	    PP[2]->F(2, pos-1) += WW;
 	  } else {
-	    Pr = PP[2]->F(2, pos);
+	    WW = PP[2]->F(2, pos);
+	    Pr = WW/atomic_weights[Z2];
 	    PP[2]->F(2, pos  )  = 0.0;
-	    PP[2]->F(2, pos-1) += Pr;
+	    PP[2]->F(2, pos-1) += WW;
 	  }
 	  
 	  if (use_normtest) {
@@ -10777,16 +10783,18 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 
 	  double Pr = Prob;
+	  double WW = Pr * atomic_weights[Z1];
 
 	  int pos = SpList[k1] - SpList.begin()->second;
 
-	  if (Pr < PP[1]->F(1, pos)) {
-	    PP[1]->F(1, pos  ) -= Pr;
-	    PP[1]->F(1, pos-1) += Pr;
+	  if (WW < PP[1]->F(1, pos)) {
+	    PP[1]->F(1, pos  ) -= WW;
+	    PP[1]->F(1, pos-1) += WW;
 	  } else {
-	    Pr = PP[1]->F(1, pos);
+	    WW = PP[1]->F(1, pos);
+	    Pr = WW/atomic_weights[Z1];
 	    PP[1]->F(1, pos  )  = 0.0;
-	    PP[1]->F(1, pos-1) += Pr;
+	    PP[1]->F(1, pos-1) += WW;
 	  }
 	  
 	  if (use_normtest) {
