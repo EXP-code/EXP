@@ -13097,7 +13097,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	  double b = 0.5*esu*esu /
 	    std::max<double>(kEee*eV, FloorEv*eV) * 1.0e7; // nm
 	  b = std::min<double>(b, ips);
-	  scrs = M_PI*b*b * ne1 * ne2 * logL;
+	  scrs = M_PI*b*b * ne1 * ne2 * 4.0 * logL;
 	}
 
 	// Accumulate lambda

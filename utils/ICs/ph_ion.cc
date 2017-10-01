@@ -1,5 +1,7 @@
 #include <iostream>
+#include <fstream>
 #include <iomanip>
+#include <string>
 #include <cmath>
 #include <array>
 
@@ -15,6 +17,7 @@ int main(int argc, char**argv)
   double n0, tol;
   unsigned T;
   int niter;
+  std::string outf;
 
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -27,6 +30,8 @@ int main(int argc, char**argv)
      "error tolerance")
     ("iter,n",    po::value<int>(&niter)->default_value(1000), 
      "maximum number of iterations")
+    ("outfile,o", po::value<std::string>(&outf)->default_value("IonRecombFrac.data"),
+     "data file for makeIon input")
     ;
   
   po::variables_map vm;
@@ -62,10 +67,14 @@ int main(int argc, char**argv)
 
   curr = init;
 
+  double err = 0.0;
+
   for (int n=0; n<niter; n++) {
+
     double ne = n0*(X/mX*(1.0 - curr[0]) +
 		    Y/mY*(curr[2] + 2.0*(1.0 - curr[0] - curr[2])));
     last = curr;
+
     curr[0] = ne*(1.0 - last[0])*gamma[0];
     curr[1] = ne*last[2]*gamma[1];
     curr[2] = ne*(1.0 - last[1] - last[2])*gamma[2];
@@ -74,12 +83,33 @@ int main(int argc, char**argv)
     for (int j=0; j<3; j++) std::cout << std::setw(14) << curr[j];
     std::cout << std::endl;
 
-    double tol = 0.0;
+    err = 0.0;
     for (int j=0; j<3; j++)
-      tol += (curr[j] - last[j]) * (curr[j] - last[j]);
-    tol = sqrt(tol);
-    if (tol<1.0e-14) break;
+      err += (curr[j] - last[j]) * (curr[j] - last[j]);
+    err = sqrt(err);
+    if (err < tol) break;
   }
+
+  std::cout << std::endl << std::left
+	    << std::setw(24) << "Convergence error"   << err << std::endl
+	    << std::setw(24) << "Requested tolerance" << tol << std::endl
+	    << std::endl;
+
+  if (err < tol) {
+    std::ofstream out(outf);
+    if (out) {
+      for (int j=0; j<3; j++) out << std::setw(14) << curr[j];
+      out << std::endl;
+      std::cout << "SUCCESS: "
+		<< "file <" << outf << "> written" << std::endl;
+    } else {
+      std::cout << "FAILURE: "
+		<< "error opening <" << outf << "> for output" << std::endl;
+    }
+  } else {
+    std::cout << "FAILURE: no convergence" << std::endl;
+  }
+  std::cout << std::endl;
 
   return 0;
 }
