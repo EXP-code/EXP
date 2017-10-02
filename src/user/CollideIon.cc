@@ -600,6 +600,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 		  : "off")                              << std::endl
 	      <<  " " << std::setw(20) << std::left << "Photoionization"
 	      << Ion::getIBtype()                       << std::endl
+	      <<  " " << std::setw(20) << std::left << "elec scat type"
+	      << getEStype()                            << std::endl
 	      << " " << std::setw(20) << std::left << "random seed"
 	      << seed                                   << std::endl
 	      << "************************************" << std::endl;
@@ -12705,7 +12707,8 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	dEratg[id] += fabs(delE);
       }
     }
-  } // End: energy conservation debugging
+
+  } // End: energy conservation debugging, Hybrid method
 
 
   //======================================================================
@@ -12781,13 +12784,19 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
   // Deep debug
   //
-  std::map<unsigned long, std::array<double, 3>> cacheEvel;
-  bool DeepDebug = true;
+  typedef std::array<double, 3> D3;
+  typedef std::tuple<D3, D3, double> cacheElem;
+  std::map<unsigned long, cacheElem> cacheEvel;
+  static bool DeepDebug = true;
 
   if (DeepDebug) {
     for (auto i : cell->bods) {
       Particle *p = cell->Body(i);
-      for (int k=0; k<3; k++) cacheEvel[i][k] = p->dattrib[use_elec+k];
+      for (int k=0; k<3; k++) {
+	std::get<0>(cacheEvel[i])[k] = p->vel[k];
+	std::get<1>(cacheEvel[i])[k] = p->dattrib[use_elec+k];
+      }
+      std::get<2>(cacheEvel[i]) = p->dattrib[use_elec+3];
     }
   }
 
@@ -12796,6 +12805,8 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
   //======================================================================
   //
   if (use_elec>=0 and esType != always and esType != none) {
+
+    // if (false) { GOOD HERE
 
     if (outdbg) outdbg << "in electron interaction loop" << std::endl;
 
@@ -12807,7 +12818,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
     // Eta will be the true # of electrons
     //
-    double eta = 0.0, crsvel = 0.0;
+    double eta  = 0.0, crsvel = 0.0;
     double volc = cell->Volume();
     double me   = atomic_weights[0]*amu;
 
@@ -12870,9 +12881,13 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       eta += eta1;
     } // end: body loop
 
+    if (false) { /* GOOD HERE */ }
+
     // Sample cell
     //
     pCell *samp = cell->sample;
+
+    if (false) { /* GOOD HERE */ }
 
     pthread_mutex_lock(&tlock);
     if (samp)
@@ -12880,6 +12895,8 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
     else
       crsvel = ntcdb[cell->mykey].CrsVel(electronKey, elecElec, ntcThresh);
     pthread_mutex_unlock(&tlock);
+
+    if (false) { /* BAD HERE */ }
 
     // Probability of an interaction of between particles of type 1
     // and 2 for a given particle of type 2
@@ -12890,6 +12907,8 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
     unsigned nselM = static_cast<unsigned>(floor(selcM));
     if (selcM - nselM > (*unit)()) nselM++;
 
+    if (false) { /* GOOD HERE */ }
+
     //======================================================================
     // EPSM
     //======================================================================
@@ -12899,7 +12918,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       totlES[id]++;
 
       if (nselM > esNum) {
-
+	
 	// Compute RMS
 	//
 	double sigma = 0.0;
@@ -12959,12 +12978,15 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
       }
 
-    } // end: equilibrium particle simulation method (EPSM)
+    } // END: equilibrium particle simulation method (EPSM)
 
+    if (false) { /* BAD */ }
 
+    // nselM clamping and reporting
+    //
     if (esType == limited or esType == fixed) {
       if (debugFC and outdbg) {
-	outdbg << "nselM="     << std::setw(10) << nselM
+	outdbg << "nselM=" << std::setw(10) << nselM
 	       << "/" << esNum << std::endl;
       }
       if (esType == limited)
@@ -12973,10 +12995,12 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	nselM = esNum;
     } else {
       if (debugFC and outdbg) {
-	outdbg << "nselM="     << std::setw(10) << nselM << std::endl;
+	outdbg << "nselM=" << std::setw(10) << nselM << std::endl;
       }
     }
 
+    // The collision selection loop
+    //
     for (unsigned n=0; n<nselM; n++) {
 
       // Pick two particles with electrons at random out of this cell.
@@ -13168,7 +13192,8 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	pthread_mutex_lock(&tlock);
 	ntcdb[samp->mykey].Add(electronKey, elecElec, prod, tnow);
 	pthread_mutex_unlock(&tlock);
-      }
+
+      } // END: collsion selection
 
 
       double deltaKE = 0.0, dKE = 0.0;
@@ -13614,7 +13639,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
     } // loop over particles
 
-
+    // } // debug test
   } // END: electron interactions for Direct, Weight, or Hybrid for use_elec>=0
 
 
@@ -13846,26 +13871,38 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
   }
 
   if (DeepDebug) {		// BEGIN: DeepDebug
-    double maxRel = 0.0;
+    std::array<double, 3> maxDel {0, 0, 0};
     unsigned badCnt = 0;
     for (auto i : cell->bods) {
-      double tot = 0.0;
-      double vel = 0.0;
       Particle *p = cell->Body(i);
+
+      D3 iVel = std::get<0>(cacheEvel[i]);
+      D3 eVel = std::get<1>(cacheEvel[i]);
+
+      std::array<double, 3> dif {0, 0, 0};
       for (int k=0; k<3; k++) {
-	double dif =  cacheEvel[i][k] - p->dattrib[use_elec+k];
-	tot += dif*dif;
-	vel += p->dattrib[use_elec+k] * p->dattrib[use_elec+k];
+	dif[0] +=
+	  (iVel[k] - p->vel[k]) *
+	  (iVel[k] - p->vel[k]) ;
+	dif[1] +=
+	  (eVel[k] - p->dattrib[use_elec+k]) *
+	  (eVel[k] - p->dattrib[use_elec+k]) ;
       }
-      if (sqrt(tot/vel) > 1.0e-32) {
-	maxRel = std::max<double>(maxRel, sqrt(tot/vel));
-	badCnt++;
+      dif[2] = fabs(std::get<2>(cacheEvel[i]) - p->dattrib[use_elec+3]);
+
+      for (int k=0; k<3; k++) {
+	double del = sqrt(dif[k]);
+	maxDel[k] = std::max<double>(maxDel[k], del);
+	if (del > 1.0e-48) badCnt++;
       }
     }
+				// Diagnostic output
     if (badCnt) {
-      std::cout << "ERROR [" << myid << "]: cnt=" << badCnt
-		<< " max=" << maxRel << std::endl;
+      std::cout << "ERROR [" << myid << "]: cnt=" << badCnt << " max=";
+      for (int k=0; k<3; k++) std::cout << " " << maxDel[k];
+      std::cout << std::endl;
     }
+
   } // END: DeepDebug
 
   //======================================================================
@@ -14072,13 +14109,14 @@ double collDiag::addCellElec(pCell* cell, int ue, int id)
 
 void collDiag::addCellPotl(pCell* cell, int id)
 {
-  const double cvrt = UserTreeDSMC::Munit/amu * eV/UserTreeDSMC::Eunit;
-    
-  for (auto n : cell->bods) {
-    
-    Particle * s = cell->Body(n);
+  if (RECOMB_IP) {
 
-    if (RECOMB_IP) {
+    const double cvrt = UserTreeDSMC::Munit/amu * eV/UserTreeDSMC::Eunit;
+    
+    for (auto n : cell->bods) {
+    
+      Particle * s = cell->Body(n);
+
       // Ion electronic potential energy
       //
       if (p->aType == CollideIon::Trace) {
@@ -14107,9 +14145,9 @@ void collDiag::addCellPotl(pCell* cell, int id)
 	  Epot[id] +=  emfac * p->ch.IonList[lQ(Z, CC-1)]->ip;
 	}
       }
-    }
+    } // END: body loop
 
-  } // END: body loop
+  } // END: RECOMB_IP
 
 } // END: addCellPotl
 
