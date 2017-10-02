@@ -571,6 +571,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (NO_ION_ION ? "on" : "off" )           << std::endl
 	      <<  " " << std::setw(20) << std::left << "NO_ION_ELECTRON"
 	      << (NO_ION_ELECTRON ? "on" : "off" )      << std::endl
+	      <<  " " << std::setw(20) << std::left << "ION_ELEC_RATE"
+	      << (IonElecRate ? "on" : "off" )          << std::endl
 	      <<  " " << std::setw(20) << std::left << "ntcDist"
 	      << (ntcDist ? "on" : "off" )              << std::endl
 	      <<  " " << std::setw(20) << std::left << "elc_cons"
@@ -12777,6 +12779,18 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
   double rhosig = 0.0;
   unsigned int Nrhosig = 0;
 
+  // Deep debug
+  //
+  std::map<unsigned long, std::array<double, 3>> cacheEvel;
+  bool DeepDebug = true;
+
+  if (DeepDebug) {
+    for (auto i : cell->bods) {
+      Particle *p = cell->Body(i);
+      for (int k=0; k<3; k++) cacheEvel[i][k] = p->dattrib[use_elec+k];
+    }
+  }
+
   //======================================================================
   // Do electron interactions separately
   //======================================================================
@@ -12873,7 +12887,8 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
     double    Prob = eta * cunit * crsvel * tau / volc;
     size_t   nbods = bods.size();
     double   selcM = 0.5 * nbods * (nbods-1) *  Prob;
-    unsigned nselM = static_cast<unsigned>(floor(selcM+0.5));
+    unsigned nselM = static_cast<unsigned>(floor(selcM));
+    if (selcM - nselM > (*unit)()) nselM++;
 
     //======================================================================
     // EPSM
@@ -12936,6 +12951,12 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
 	nselM = 0;
 	epsmES[id]++;
+
+	if (debugFC and outdbg) {
+	  outdbg << "electronEPSM: nselM=" << std::setw(10) << nselM
+		 << "/" << esNum << std::endl;
+	}
+
       }
 
     } // end: equilibrium particle simulation method (EPSM)
@@ -12946,7 +12967,14 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	outdbg << "nselM="     << std::setw(10) << nselM
 	       << "/" << esNum << std::endl;
       }
-      nselM = std::min<unsigned>(nselM, esNum);
+      if (esType == limited)
+	nselM = std::min<unsigned>(nselM, esNum);
+      else
+	nselM = esNum;
+    } else {
+      if (debugFC and outdbg) {
+	outdbg << "nselM="     << std::setw(10) << nselM << std::endl;
+      }
     }
 
     for (unsigned n=0; n<nselM; n++) {
@@ -13097,7 +13125,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	  double b = 0.5*esu*esu /
 	    std::max<double>(kEee*eV, FloorEv*eV) * 1.0e7; // nm
 	  b = std::min<double>(b, ips);
-	  scrs = M_PI*b*b * ne1 * ne2 * 4.0 * logL;
+	  scrs = M_PI*b*b * ne1 * ne2 * 4.0 * logL * 0.00000001;
 	}
 
 	// Accumulate lambda
@@ -13110,10 +13138,21 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	//
 	double prod = (IonElecRate ? vr : vi) * scrs;
 	pthread_mutex_lock(&tlock);
-	double targ = prod/ntcdb[samp->mykey].CrsVel(electronKey, elecElec, ntcThresh);
+	double crsv = ntcdb[samp->mykey].CrsVel(electronKey, elecElec, ntcThresh);
+	double targ = prod/crsv;
 	pthread_mutex_unlock(&tlock);
 
 	ok = (targ > (*unit)() );
+
+	std::cout << "[" << myid << "]"
+		  << " nsel=" << std::setw(10)  << std::left << nselM
+		  << " ssel=" << std::setw(10)  << std::left << selcM
+		  << " vr="   << std::setw(16)  << std::left << vr
+		  << " vi="   << std::setw(16)  << std::left << vi
+		  << " crsv=" << std::setw(16)  << std::left << crsv
+		  << " targ=" << std::setw(16)  << std::left << targ
+		  << " okay=" << std::boolalpha << ok
+		  << std::endl;
 
 	// Over NTC max average
 	//
@@ -13576,7 +13615,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
     } // loop over particles
 
 
-  } // end: electron interactions for Direct, Weight, or Hybrid for use_elec>=0
+  } // END: electron interactions for Direct, Weight, or Hybrid for use_elec>=0
 
 
   rhoSigV[id] += rhosig;
@@ -13586,7 +13625,6 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
   // Momentum adjustment
   //======================================================================
   //
-
   if (aType == Hybrid and enforceMOM) {
     CellMom fMoms = {0, 0, 0, 0};
 
@@ -13626,7 +13664,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       }
     }
 
-  }
+  } // END: enforceMOM
   
 
   //======================================================================
@@ -13806,6 +13844,29 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       cell->Body(i)->dattrib[use_delt] = std::min<double>(dtE, cur);
     }
   }
+
+  if (DeepDebug) {		// BEGIN: DeepDebug
+    double maxRel = 0.0;
+    unsigned badCnt = 0;
+    for (auto i : cell->bods) {
+      double tot = 0.0;
+      double vel = 0.0;
+      Particle *p = cell->Body(i);
+      for (int k=0; k<3; k++) {
+	double dif =  cacheEvel[i][k] - p->dattrib[use_elec+k];
+	tot += dif*dif;
+	vel += p->dattrib[use_elec+k] * p->dattrib[use_elec+k];
+      }
+      if (sqrt(tot/vel) > 1.0e-32) {
+	maxRel = std::max<double>(maxRel, sqrt(tot/vel));
+	badCnt++;
+      }
+    }
+    if (badCnt) {
+      std::cout << "ERROR [" << myid << "]: cnt=" << badCnt
+		<< " max=" << maxRel << std::endl;
+    }
+  } // END: DeepDebug
 
   //======================================================================
   // DONE
