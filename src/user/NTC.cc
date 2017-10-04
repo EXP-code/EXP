@@ -295,7 +295,6 @@ void NTCitem::Add(sKeyPair indx, const T& intr, double val, double ts)
   db[indx][intr].add(val);
 }
 
-
 NTCitem& NTCdb::operator[](const key_type& k)
 {
   NTCdata::iterator it = data.find(k);
@@ -311,20 +310,12 @@ NTCitem& NTCdb::operator[](const key_type& k)
       it = data.find(check);
     }
     
-    // This is only informational, not a problem
-    if (0) {
-      if (DEBUG_V && it == data.end()) {
-	std::cout << "NTC: no parent found for " << k << std::endl;
-      }
-    }
-    
     // If none, create an empty item.  Otherwise, initialize from the
     // parent
     //
-    if (it == data.end()) {
-      data[k] = NTCitem();
-      it = data.find(k);
-    }
+    if (it == data.end()) data[k] = NTCitem();
+    else                  data[k] = NTCitem(it->second);
+    it = data.find(k);
   }
   
   if (DEBUG_V) it->second.setKey(k);
