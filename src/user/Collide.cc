@@ -154,7 +154,7 @@ std::string Collide::Labels::def = "default";
 
 // Electron type tag
 //
-const unsigned short Collide::electronTyp = 0;
+const unsigned short Collide::electronTyp = -2;
 
 // Enable NTC diagnostics
 //

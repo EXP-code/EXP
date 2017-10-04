@@ -12787,7 +12787,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
   typedef std::array<double, 3> D3;
   typedef std::tuple<D3, D3, double> cacheElem;
   std::map<unsigned long, cacheElem> cacheEvel;
-  static bool DeepDebug = true;
+  static bool DeepDebug = false;
 
   if (DeepDebug) {
     for (auto i : cell->bods) {
@@ -12806,8 +12806,6 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
   //
   if (use_elec>=0 and esType != always and esType != none) {
 
-    // if (false) { GOOD HERE
-
     if (outdbg) outdbg << "in electron interaction loop" << std::endl;
 
     const double cunit = 1e-14 * UserTreeDSMC::Munit /
@@ -12821,14 +12819,11 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
     double eta  = 0.0, crsvel = 0.0;
     double volc = cell->Volume();
     double me   = atomic_weights[0]*amu;
+    double mtot = 0.0;
 
-    // For EPSM only
+    // For EPSM and cross section default
     //
-    std::vector<double> Emom, Emom2;
-    if (ElectronEPSM) {
-      Emom. resize(3, 0.0);
-      Emom2.resize(3, 0.0);
-    }
+    std::array<double, 3> Emom, Emom2;
 
     // Momentum diagnostic distribution
     //
@@ -12867,36 +12862,54 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	}
       }
 
-				// Momentum and rms per cell
-      if (ElectronEPSM) {
 
-	for (size_t j=0; j<3; j++) {
-	  double v = p->dattrib[use_elec+j];
-	  Emom[j]  += eta1 * v;
-	  Emom2[j] += eta1 * v*v;
-	}
+				// Momentum and rms per cell
+      for (size_t j=0; j<3; j++) {
+	double v = p->dattrib[use_elec+j];
+	Emom[j]  += eta1 * v;
+	Emom2[j] += eta1 * v*v;
       }
 				// Accumulate true number
       Eta[i] = eta1;
-      eta += eta1;
-    } // end: body loop
+      eta   += eta1;
+      mtot  += p->mass;
+    }
+    // end: body loop
 
-    if (false) { /* GOOD HERE */ }
+
+    // Mean interparticle spacing
+    //
+    double   ips = DBL_MAX;
+    if (IPS) ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
+
+    // Compute cross section
+    //
+    if (use_elec >=0 and eta>0.0 and mtot>0.0) {
+      double kE = 0.0;
+      for (auto v2 : Emom2) kE += v2/eta;
+      double Tvel = sqrt(kE);
+      kE *= 0.25 * me;
+			       
+      double b = 0.5*esu*esu /
+	std::max<double>(kE*eV, FloorEv*eV) * 1.0e7; // nm
+      b = std::min<double>(b, ips);
+      double e1 = eta/mtot;
+      crsvel = M_PI*b*b * e1*e1 * 4.0 * logL * 0.01 * Tvel;
+    }
 
     // Sample cell
     //
-    pCell *samp = cell->sample;
-
-    if (false) { /* GOOD HERE */ }
+    pCell    *samp = cell->sample;
+    key_type  ckey = cell->mykey;
+    if (samp) ckey = samp->mykey;
 
     pthread_mutex_lock(&tlock);
-    if (samp)
-      crsvel = ntcdb[samp->mykey].CrsVel(electronKey, elecElec, ntcThresh);
-    else
-      crsvel = ntcdb[cell->mykey].CrsVel(electronKey, elecElec, ntcThresh);
+    if (ntcdb[ckey].Ready(electronKey, elecElec)) {
+      crsvel = ntcdb[ckey].CrsVel(electronKey, elecElec, ntcThresh);
+    } else {
+      ntcdb[ckey].Add(electronKey, elecElec, crsvel, tnow);
+    }
     pthread_mutex_unlock(&tlock);
-
-    if (false) { /* BAD HERE */ }
 
     // Probability of an interaction of between particles of type 1
     // and 2 for a given particle of type 2
@@ -12906,8 +12919,6 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
     double   selcM = 0.5 * nbods * (nbods-1) *  Prob;
     unsigned nselM = static_cast<unsigned>(floor(selcM));
     if (selcM - nselM > (*unit)()) nselM++;
-
-    if (false) { /* GOOD HERE */ }
 
     //======================================================================
     // EPSM
@@ -12980,24 +12991,14 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
     } // END: equilibrium particle simulation method (EPSM)
 
-    if (false) { /* BAD */ }
-
-    // nselM clamping and reporting
+    // nselM clamping
     //
-    if (esType == limited or esType == fixed) {
-      if (debugFC and outdbg) {
-	outdbg << "nselM=" << std::setw(10) << nselM
-	       << "/" << esNum << std::endl;
-      }
-      if (esType == limited)
-	nselM = std::min<unsigned>(nselM, esNum);
-      else
-	nselM = esNum;
-    } else {
-      if (debugFC and outdbg) {
-	outdbg << "nselM=" << std::setw(10) << nselM << std::endl;
-      }
-    }
+    if (esType == limited)
+      nselM = std::min<unsigned>(nselM, esNum);
+    if (esType == fixed)
+      nselM = esNum;
+
+    unsigned chosen = 0;
 
     // The collision selection loop
     //
@@ -13133,12 +13134,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       // Compute the cross section
       //
       double scrs = 0.0;
-
-      // Mean interparticle spacing
-      //
-      double   ips = DBL_MAX;
-      if (IPS) ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
-
+      
       // Collision flag
       //
       bool ok = true;
@@ -13149,7 +13145,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	  double b = 0.5*esu*esu /
 	    std::max<double>(kEee*eV, FloorEv*eV) * 1.0e7; // nm
 	  b = std::min<double>(b, ips);
-	  scrs = M_PI*b*b * ne1 * ne2 * 4.0 * logL * 0.00000001;
+	  scrs = M_PI*b*b * ne1 * ne2 * 4.0 * logL;
 	}
 
 	// Accumulate lambda
@@ -13161,22 +13157,27 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	// Accept or reject candidate pair according to relative speed
 	//
 	double prod = (IonElecRate ? vr : vi) * scrs;
-	pthread_mutex_lock(&tlock);
-	double crsv = ntcdb[samp->mykey].CrsVel(electronKey, elecElec, ntcThresh);
-	double targ = prod/crsv;
-	pthread_mutex_unlock(&tlock);
+	double targ = prod/crsvel;
 
 	ok = (targ > (*unit)() );
 
-	std::cout << "[" << myid << "]"
-		  << " nsel=" << std::setw(10)  << std::left << nselM
-		  << " ssel=" << std::setw(10)  << std::left << selcM
-		  << " vr="   << std::setw(16)  << std::left << vr
-		  << " vi="   << std::setw(16)  << std::left << vi
-		  << " crsv=" << std::setw(16)  << std::left << crsv
-		  << " targ=" << std::setw(16)  << std::left << targ
-		  << " okay=" << std::boolalpha << ok
-		  << std::endl;
+	if (ok) {
+	  double prob = 0.5*(W1 + W2)/amu / volc * prod * tau * cunit;
+	    
+	  std::cout << "[" << myid << "]"
+		    << " nsel=" << std::setw(10)  << std::left << nselM
+		    << " ssel=" << std::setw(10)  << std::left << selcM
+		    << " vr="   << std::setw(12)  << std::left << vr
+		    << " vi="   << std::setw(12)  << std::left << vi
+		    << " prod=" << std::setw(12)  << std::left << prod
+		    << " time=" << std::setw(12)  << std::left << tnow
+		    << " crsV=" << std::setw(12)  << std::left << crsvel
+		    << " targ=" << std::setw(12)  << std::left << targ
+		    << " Prob=" << std::setw(12)  << std::left << Prob
+		    << " prob=" << std::setw(12)  << std::left << prob
+		    << " okay=" << std::boolalpha << ok
+		    << std::endl;
+	}
 
 	// Over NTC max average
 	//
@@ -13190,7 +13191,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	// Update v_max and cross_max for NTC
 	//
 	pthread_mutex_lock(&tlock);
-	ntcdb[samp->mykey].Add(electronKey, elecElec, prod, tnow);
+	ntcdb[ckey].Add(electronKey, elecElec, prod, tnow);
 	pthread_mutex_unlock(&tlock);
 
       } // END: collsion selection
@@ -13215,6 +13216,10 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       // Scatter electrons
       //
       if (ok) {
+
+	// For diagnostic reporting only
+	//
+	chosen++;
 
 	vrel = unit_vector();
 	for (auto & v : vrel) v *= vi;
@@ -13639,7 +13644,24 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
     } // loop over particles
 
-    // } // debug test
+    // nselM and reporting
+    //
+    if (esType == limited or esType == fixed) {
+      if (debugFC and outdbg) {
+	std::ostringstream sout;
+	sout << nselM << "/" << esNum;
+	outdbg << "nselM=" << std::setw(12) << std::left << sout.str()
+	       << " chosen=" << std::setw(9) << std::left << chosen
+	       << " time=" << tnow << std::endl;
+      }
+    } else {
+      if (debugFC and outdbg) {
+	outdbg << "nselM=" << std::setw(10) << std::left << nselM
+	       << " chosen=" << std::setw(9) << std::left << chosen
+	       << " time=" << tnow << std::endl;
+      }
+    }
+
   } // END: electron interactions for Direct, Weight, or Hybrid for use_elec>=0
 
 
@@ -15148,7 +15170,9 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
 
   // Sample cell
   //
-  pCell *samp = c->sample;
+  pCell    *samp = c->sample;
+  key_type  ckey = c->mykey;
+  if (samp) ckey = samp->mykey;
 
   // Volume in the cell
   //
@@ -15471,10 +15495,7 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
 	  if (i1>=i2) k = sKeyPair(i2, i1);
 
 	  pthread_mutex_lock(&tlock);
-	  if (samp)
-	    crsvel = ntcdb[samp->mykey].CrsVel(k, ntcThresh);
-	  else
-	    crsvel = ntcdb[c->mykey].CrsVel(k, ntcThresh);
+	  crsvel = ntcdb[ckey].CrsVel(k, ntcThresh);
 	  pthread_mutex_unlock(&tlock);
 
 	  // Probability of an interaction of between particles of type 1
@@ -15502,15 +15523,9 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
 	    if (selcM[i1][i2]()>10000.0) {
 	      double cv1, cv2, cv3;
 	      pthread_mutex_lock(&tlock);
-	      if (samp) {
-		cv1 = ntcdb[samp->mykey].CrsVel(k, 0.50);
-		cv2 = ntcdb[samp->mykey].CrsVel(k, 0.90);
-		cv3 = ntcdb[samp->mykey].CrsVel(k, 0.95);
-	      } else {
-		cv1 = ntcdb[c->mykey].CrsVel(k, 0.50);
-		cv2 = ntcdb[c->mykey].CrsVel(k, 0.90);
-		cv3 = ntcdb[c->mykey].CrsVel(k, 0.95);
-	      }
+	      cv1 = ntcdb[ckey].CrsVel(k, 0.50);
+	      cv2 = ntcdb[ckey].CrsVel(k, 0.90);
+	      cv3 = ntcdb[ckey].CrsVel(k, 0.95);
 	      pthread_mutex_unlock(&tlock);
 
 	      std::cout << std::endl
@@ -15585,10 +15600,7 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
 
 	    double crsvel = 0.0;
 	    pthread_mutex_lock(&tlock);
-	    if (samp)
-	      crsvel = ntcdb[samp->mykey].CrsVel(k, ntcThresh);
-	    else
-	      crsvel = ntcdb[c->mykey].CrsVel(k, ntcThresh);
+	    crsvel = ntcdb[ckey].CrsVel(k, ntcThresh);
 	    pthread_mutex_unlock(&tlock);
 
 	    double Prob0 = 0.0, Prob1 = 0.0;
@@ -15638,7 +15650,9 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
   // Sample cell
   //
-  pCell *samp = c->sample;
+  pCell    *samp = c->sample;
+  key_type  ckey = c->mykey;
+  if (samp) ckey = samp->mykey;
 
   // Volume in the cell
   //
@@ -15815,14 +15829,8 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	    crsvel = crs0/cunit * NTCfac * crm;
 
 	    pthread_mutex_lock(&tlock);
-	    if (samp) {
-	      if (ntcdb[samp->mykey].Ready(k, v.first))
-		crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, ntcThresh);
-	    }
-	    else {
-	      if (ntcdb[c->mykey].Ready(k, v.first))
-		crsvel = ntcdb[c->mykey].CrsVel(k, v.first, ntcThresh);
-	    }
+	    if (ntcdb[ckey].Ready(k, v.first))
+	      crsvel = ntcdb[ckey].CrsVel(k, v.first, ntcThresh);
 	    pthread_mutex_unlock(&tlock);
 
 	    // Probability of an interaction of between particles of type 1
@@ -15867,18 +15875,10 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 		  *  NTCfac * crm;
 		double cv1=crsdef, cv2=crsdef, cv3=crsdef;
 		pthread_mutex_lock(&tlock);
-		if (samp) {
-		  if (ntcdb[samp->mykey].Ready(k, v.first)) {
-		    cv1 = ntcdb[samp->mykey].CrsVel(k, v.first, 0.50);
-		    cv2 = ntcdb[samp->mykey].CrsVel(k, v.first, 0.90);
-		    cv3 = ntcdb[samp->mykey].CrsVel(k, v.first, 0.95);
-		  }
-		} else {
-		  if (ntcdb[c->mykey].Ready(k, v.first)) {
-		    cv1 = ntcdb[c->mykey].CrsVel(k, v.first, 0.50);
-		    cv2 = ntcdb[c->mykey].CrsVel(k, v.first, 0.90);
-		    cv3 = ntcdb[c->mykey].CrsVel(k, v.first, 0.95);
-		  }
+		if (ntcdb[ckey].Ready(k, v.first)) {
+		  cv1 = ntcdb[ckey].CrsVel(k, v.first, 0.50);
+		  cv2 = ntcdb[ckey].CrsVel(k, v.first, 0.90);
+		  cv3 = ntcdb[ckey].CrsVel(k, v.first, 0.95);
 		}
 		pthread_mutex_unlock(&tlock);
 
@@ -16000,13 +16000,8 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 		* NTCfac * crm;
 
 	      pthread_mutex_lock(&tlock);
-	      if (samp) {
-		if (ntcdb[samp->mykey].Ready(k, v.first))
-		  crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, ntcThresh);
-	      } else {
-		if (ntcdb[c->mykey].Ready(k, v.first))
-		  crsvel = ntcdb[c->mykey].CrsVel(k, v.first, ntcThresh);
-	      }
+	      if (ntcdb[ckey].Ready(k, v.first))
+		crsvel = ntcdb[ckey].CrsVel(k, v.first, ntcThresh);
 	      pthread_mutex_unlock(&tlock);
 		
 	      double Prob0 = 0.0, Prob1 = 0.0, Dens = 0.0;
@@ -16108,13 +16103,8 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	      double crsvel = crsvel1;
 
 	      pthread_mutex_lock(&tlock);
-	      if (samp) {
-		if (ntcdb[samp->mykey].Ready(k, v.first))
-		  crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, ntcThresh);
-	      } else {
-		if (ntcdb[c->mykey].Ready(k, v.first))
-		  crsvel = ntcdb[c->mykey].CrsVel(k, v.first, ntcThresh);
-	      }
+	      if (ntcdb[ckey].Ready(k, v.first))
+		crsvel = ntcdb[ckey].CrsVel(k, v.first, ntcThresh);
 	      pthread_mutex_unlock(&tlock);
 
 	      double Prob0 = 0.0, Prob1 = 0.0, Dens = 0.0;
