@@ -13161,24 +13161,6 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
 	ok = (targ > (*unit)() );
 
-	if (ok) {
-	  double prob = 0.5*(W1 + W2)/amu / volc * prod * tau * cunit;
-	    
-	  std::cout << "[" << myid << "]"
-		    << " nsel=" << std::setw(10)  << std::left << nselM
-		    << " ssel=" << std::setw(10)  << std::left << selcM
-		    << " vr="   << std::setw(12)  << std::left << vr
-		    << " vi="   << std::setw(12)  << std::left << vi
-		    << " prod=" << std::setw(12)  << std::left << prod
-		    << " time=" << std::setw(12)  << std::left << tnow
-		    << " crsV=" << std::setw(12)  << std::left << crsvel
-		    << " targ=" << std::setw(12)  << std::left << targ
-		    << " Prob=" << std::setw(12)  << std::left << Prob
-		    << " prob=" << std::setw(12)  << std::left << prob
-		    << " okay=" << std::boolalpha << ok
-		    << std::endl;
-	}
-
 	// Over NTC max average
 	//
 	if (targ >= 1.0) elecOvr[id]++;
