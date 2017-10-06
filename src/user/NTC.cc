@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <sstream>
 
+#include "global.H"
 #include "Particle.H"
 #include "pCell.H"
 #include "NTC.H"
@@ -300,7 +301,16 @@ NTCitem& NTCdb::operator[](const key_type& k)
   NTCdata::iterator it = data.find(k);
   
   if (it == data.end()) {
-    
+    //  +-- Debugging
+    //  |
+    //  v
+    if (true and data.size()>1000)
+      std::cout << "NTCdb [" << std::setw(2) << myid << "]: "
+		<< std::hex << k << " not found, tnow="
+		<< std::setw(10) << tnow << " live=" << std::dec
+		<< std::setw(9) << std::left << NTCitem::instance
+		<< " size=" << std::setw(9) << data.size() << std::endl;
+
     // Look for an initialization parent
     //
     key_type check = k >> 3;

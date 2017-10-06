@@ -13161,7 +13161,10 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
 	ok = (targ > (*unit)() );
 
-	if (ok) {
+	//  +-- Disable verbose debugging
+	//  |
+	//  v
+	if (false and ok) {
 	  double prob = 0.5*(W1 + W2)/amu / volc * prod * tau * cunit;
 	    
 	  std::cout << "[" << myid << "]"
