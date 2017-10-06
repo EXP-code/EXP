@@ -10562,7 +10562,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // The kinetic energy of the ionized electron is lost
 	  // from the COM KE
 	  //
-	  ionExtra[1] += iE2 * Pr;
+	  ionExtra[1] += iE2 * WW;
 
 	  // Energy for ionized electron comes from COM
 	  dE += iE2 * Pr * UserTreeDSMC::Eunit / (N0*eV);
@@ -10640,7 +10640,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // The kinetic energy of the ionized electron is lost
 	  // from the COM KE
 	  //
-	  ionExtra[0] += iE1 * Pr;
+	  ionExtra[0] += iE1 * WW;
 
 	  // Energy for ionized electron comes from COM
 	  dE += iE1 * Pr * UserTreeDSMC::Eunit / (N0*eV);
@@ -10719,7 +10719,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // Electron KE lost in recombination is radiated by does not
 	  // change COM energy
 	  //
-	  rcbExtra[1] += iE2 * Pr;
+	  rcbExtra[1] += iE2 * WW;
 
 	  // Electron KE radiated in recombination
 	  double eE = iE2 * Pr * UserTreeDSMC::Eunit / (N0*eV);
@@ -10814,7 +10814,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // Electron KE lost in recombination is radiated by does not
 	  // change COM energy
 	  //
-	  rcbExtra[0] += iE1 * Pr;
+	  rcbExtra[0] += iE1 * WW;
 
 	  // Electron KE fraction in recombination
 	  //
