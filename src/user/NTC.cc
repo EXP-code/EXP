@@ -18,6 +18,9 @@ bool NTCdb::debug_output = false;
 // Ascii version number
 unsigned NTCdb::debug_count = 1;
 
+// Maximum age for uncalled cell entries in number of time steps
+unsigned NTCdb::maxAge = 20;
+
 // Chatty output for debugging
 bool NTCdb::chatty = false;
 
@@ -266,6 +269,10 @@ double NTCitem::CrsVel(sKeyPair indx, const T& intr, double p)
   
   if (0) debug();
   
+  // Set time stamp
+  //
+  ts = tnow;
+
   // Return value
   return jt->second(p);
 }
@@ -279,11 +286,15 @@ NTCitem::vcMap NTCitem::CrsVel(double p)
       ret[v.first][u.first] = u.second(p);
   }
   
+  // Set time stamp
+  //
+  ts = tnow;
+
   // Return value
   return ret;
 }
 
-void NTCitem::Add(sKeyPair indx, const T& intr, double val, double ts)
+void NTCitem::Add(sKeyPair indx, const T& intr, double val)
 {
   oddBall(indx, intr);
   
@@ -294,6 +305,10 @@ void NTCitem::Add(sKeyPair indx, const T& intr, double val, double ts)
   // Add new element
   //
   db[indx][intr].add(val);
+
+  // Set time stamp
+  //
+  ts = tnow;
 }
 
 NTCitem& NTCdb::operator[](const key_type& k)
@@ -330,5 +345,9 @@ NTCitem& NTCdb::operator[](const key_type& k)
   
   if (DEBUG_V) it->second.setKey(k);
   
+  // Set time stamp
+  //
+  it->second.ts = tnow;
+
   return it->second;
 }

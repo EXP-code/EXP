@@ -740,6 +740,9 @@ public:
   //! Cache NTC database for restart
   virtual void finish() { ntcdb.finish(); }
 
+  //! Age out NTC database
+  virtual void ageout() { ntcdb.ageOut(); }
+
   //! Return particle map from the component
   PartMap& Particles() { return c0->Particles(); }
 

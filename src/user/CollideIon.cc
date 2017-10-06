@@ -12907,7 +12907,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
     if (ntcdb[ckey].Ready(electronKey, elecElec)) {
       crsvel = ntcdb[ckey].CrsVel(electronKey, elecElec, ntcThresh);
     } else {
-      ntcdb[ckey].Add(electronKey, elecElec, crsvel, tnow);
+      ntcdb[ckey].Add(electronKey, elecElec, crsvel);
     }
     pthread_mutex_unlock(&tlock);
 
@@ -13194,7 +13194,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	// Update v_max and cross_max for NTC
 	//
 	pthread_mutex_lock(&tlock);
-	ntcdb[ckey].Add(electronKey, elecElec, prod, tnow);
+	ntcdb[ckey].Add(electronKey, elecElec, prod);
 	pthread_mutex_unlock(&tlock);
 
       } // END: collsion selection

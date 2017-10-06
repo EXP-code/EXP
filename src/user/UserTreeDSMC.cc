@@ -1710,6 +1710,13 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     (*barrier)("TreeDSMC: AFTER collide counters",  __FILE__, __LINE__);
     
     //
+    // Clean NTC catch
+    //
+    (*barrier)("TreeDSMC: BEFORE NTC expire", __FILE__, __LINE__);
+    collide->ageout();
+    (*barrier)("TreeDSMC: AFTER NTC expire",  __FILE__, __LINE__);
+    
+    //
     // Reset the timers
     //
     partnTime.reset();

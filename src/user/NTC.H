@@ -24,8 +24,9 @@
 #include <boost/version.hpp>
 
 #include "pHOT_types.H"
-#include "Species.H"
 #include "QuantileBag.H"
+#include "Species.H"
+#include "global.H"		// For simulation time: tnow
 
 // Serialize std::array and std::tuple(...)
 //
@@ -331,8 +332,8 @@ namespace NTC {
     
     //@{
     //! Add a single value to the list
-    void  Add(sKeyPair indx, const T& intr, double x, double t);
-    void  Add(sKeyPair indx, double x, double t) { Add(indx, single, x, t); }
+    void  Add(sKeyPair indx, const T& intr, double x);
+    void  Add(sKeyPair indx, double x) { Add(indx, single, x); }
     //@}
     
     //@{
@@ -483,6 +484,9 @@ namespace NTC {
 
     //! Ascii version number
     static unsigned debug_count;
+
+    //! Maximum age for uncalled cell entries in number of time steps
+    static unsigned maxAge;
 
     //! Get copies from all nodes to save
     void sync() 
@@ -671,6 +675,24 @@ namespace NTC {
       curr_time = tnow;
       std::string filename = ".ntcdb." + runtag;
       save_myself(filename);
+    }
+
+    //! Clean up unused cell entries
+    void ageOut()
+    {
+      double delT = dtime * maxAge;
+      unsigned removed = 0;
+      double maxage = 0.0;
+      for (auto v : data) {
+	if (tnow - v.second.ts > delT) {
+	  removed++;
+	  maxage = std::max<double>(maxage, tnow - v.second.ts);
+	  data.erase(v.first);
+	}
+      }
+      std::cout << "NTCdb [" << std::setw(2) << myid << "]: removed "
+		<< std::setw(6) << std::left << removed
+		<< " with max age: " << maxage << std::endl;
     }
 
   };
