@@ -681,23 +681,14 @@ namespace NTC {
     void ageOut()
     {
       double delT = dtime * maxAge;
-      unsigned removed = 0;
-      double maxage = 0.0;
       std::list<key_type> q;
       for (auto v : data) {
 	if (tnow - v.second.ts > delT) {
-	  removed++;
-	  maxage = std::max<double>(maxage, tnow - v.second.ts);
 	  q.push_back(v.first);
 	}
       }
 
       for (auto v : q) data.erase(v);
-      
-      std::cout << "NTCdb [" << std::setw(2) << myid << "]:"
-		<< " current size=" << std::setw(9) << std::left << data.size()
-		<< " removed "<< std::setw(6) << std::left << removed
-		<< " with max age: " << maxage << std::endl;
     }
 
   };
