@@ -319,7 +319,7 @@ NTCitem& NTCdb::operator[](const key_type& k)
     //  +-- Debugging
     //  |
     //  v
-    if (true and data.size()>1000)
+    if (false and data.size()>1000)
       std::cout << "NTCdb [" << std::setw(2) << myid << "]: "
 		<< std::hex << k << " not found, tnow="
 		<< std::setw(10) << tnow << " live=" << std::dec
