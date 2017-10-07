@@ -6,7 +6,8 @@ endif
 
 AM_CFLAGS   = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) -fopenmp
 AM_FFLAGS   = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) -fopenmp
-AM_CXXFLAGS = -std=c++11 -fPIC -Wall -D_REENTRANT -Wno-non-virtual-dtor $(ADD_CFLAGS4) -fopenmp
+AM_CXXFLAGS = -std=c++11 -fPIC -fno-inline-small-functions -Wall	\
+	-D_REENTRANT -Wno-non-virtual-dtor $(ADD_CFLAGS4) -fopenmp
 AM_LDFLAGS  = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil -lgomp
 
 libdir      = $(prefix)/lib/user
