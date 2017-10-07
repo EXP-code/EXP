@@ -681,8 +681,9 @@ namespace NTC {
     void ageOut()
     {
       double delT = dtime * maxAge;
-      for (auto it=data.begin(); it!=data.end(); it++) {
-	if (tnow - it->second.ts > delT) data.erase(it);
+      for (auto it=data.begin(); it!=data.end();) {
+	if (tnow - it->second.ts > delT) it = data.erase(it);
+	else ++it;
       }
     }
 
