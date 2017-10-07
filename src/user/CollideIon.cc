@@ -500,6 +500,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << "************************************" << std::endl
 	      << "*** Algorithm selection flags ******" << std::endl
 	      << "************************************" << std::endl
+	      << " " << std::setw(20) << std::left  << "Algorithm type"
+	      << AlgorithmLabels[aType]                 << std::endl
 	      << " " << std::setw(20) << std::left  << "ENERGY_ES"
 	      << (ExactE ? "on" : "off")                << std::endl
 	      <<  " " << std::setw(20) << std::left << "NO_EXACT"
@@ -14993,7 +14995,7 @@ void CollideIon::parseSpecies(const std::string& map)
   // Record algorithm type in stdout log file
   if (myid==0) {
     std::cout << printDivider << std::endl
-	      << "CollideIon: collision algorithm type is <"
+	      << "--- CollideIon: collision algorithm type is <"
 	      << AlgorithmLabels[aType] << ">" << std::endl
 	      << printDivider << std::endl;
   }
