@@ -112,7 +112,7 @@ namespace NTC {
   public:
 
     // Enable for debugging
-    const static bool DBG_VERBOSE = true;
+    const static bool DBG_VERBOSE = false;
 
     //! Add a new quantile value
     //! @param P the quantile probability
