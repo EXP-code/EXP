@@ -681,14 +681,9 @@ namespace NTC {
     void ageOut()
     {
       double delT = dtime * maxAge;
-      std::list<key_type> q;
-      for (auto v : data) {
-	if (tnow - v.second.ts > delT) {
-	  q.push_back(v.first);
-	}
+      for (auto it=data.begin(); it!=data.end(); it++) {
+	if (tnow - it->second.ts > delT) data.erase(it);
       }
-
-      for (auto v : q) data.erase(v);
     }
 
   };
