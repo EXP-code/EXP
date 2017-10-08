@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 # -*- coding: utf-8 -*-
 
@@ -17,8 +17,7 @@ interaction kinetic energy.
 Only for Trace method, so far.
 """
 
-import os, re, sys, copy, getopt
-import flufl.enum as enum
+import os, re, sys, copy, getopt, enum
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
@@ -125,9 +124,9 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp):
 
         O = psp_io.Input(filename, comp='gas')
 
-        exec('xve = O.d{}'.format(ndatr+6))
-        exec('yve = O.d{}'.format(ndatr+7))
-        exec('zve = O.d{}'.format(ndatr+8))
+        exec('global xve; xve = O.d{}'.format(ndatr+6))
+        exec('global yve; yve = O.d{}'.format(ndatr+7))
+        exec('global zve; zve = O.d{}'.format(ndatr+8))
 
         dv = np.zeros(3)
         for i in range(O.mass.size):
@@ -185,7 +184,7 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp):
         # Temp
         bT = slopeFac / popt[1]
         for v in xx: tt.append(func2(v, popt[0], popt[1]))
-        print 'Amplitude={}  Temperature={}'.format(popt[0], bT)
+        print('Amplitude={}  Temperature={}'.format(popt[0], bT))
     elif fit == FitType.AmpOnly:
         b0 = fc
         p0 = [sum(yy)/len(yy)*fc**1.5] # Amplitude
@@ -193,9 +192,9 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp):
         # Temp
         bT = defaultT
         for v in xx: tt.append(func1(v, popt[0]))
-        print 'Amplitude={}  Temperature={}'.format(popt[0], bT)
+        print('Amplitude={}  Temperature={}'.format(popt[0], bT))
     else:
-        print "This is impossible"
+        print("This is impossible")
         exit
 
     # Make curves
@@ -264,11 +263,11 @@ def main(argv):
     try:
         opts, args = getopt.getopt(argv,"hf:n:N:e:E:d:T:t:Fp:D:", ["help","field=","start=","stop=","low=", "high=", "delta=", "temp=", "type=", "fixed=", "plot=", "ndatr="])
     except getopt.GetoptError:
-        print sys.argv[0], 
+        print(sys.argv[0])
         sys.exit(2)
     for opt, arg in opts:
         if opt in ("-h", "--help"):
-            print sys.argv[0], options
+            print(sys.argv[0], options)
             sys.exit()
         elif opt in ("-f", "--field"):
             field = arg
@@ -289,9 +288,9 @@ def main(argv):
             elif FitType.AmpOnly.name  == arg: fit = FitType.AmpOnly
             elif FitType.TempAmp.name  == arg: fit = FitType.TempAmp
             else:
-                print "No such fit type: ", arg
-                print "Valid types are:"
-                for v in FitType: print v.name
+                print("No such fit type: ", arg)
+                print("Valid types are:")
+                for v in FitType: print(v.name)
                 exit
         elif opt in ("-F", "--fixed"):
             a0 = float(arg)
@@ -301,9 +300,9 @@ def main(argv):
             elif PlotType.Log.name    == arg: plt = PlotType.Log
             elif PlotType.Both.name   == arg: plt = PlotType.Type
             else:
-                print "No such plot type: ", arg
-                print "Valid types are:"
-                for v in PlotType: print v.name
+                print("No such plot type: ", arg)
+                print("Valid types are:")
+                for v in PlotType: print(v.name)
                 exit
         elif opt in ("-D", "--ndatr"):
             ndatr = int(arg)
