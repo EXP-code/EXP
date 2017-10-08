@@ -4647,7 +4647,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	
 	if (scatter_check and recomb_check) {
 	  double val = sVel1 * vel * 1.0e-14 * RE.back();
-	  recombA[id].add(k, val);
+	  recombA[id].add(k, Eta1, val);
 	}
 
 	if (DEBUG_CRS) trap_crs(crs);
@@ -4674,7 +4674,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	
 	if (scatter_check and recomb_check) {
 	  double val = sVel2 * vel * 1.0e-14 * RE.back();
-	  recombA[id].add(k, val);
+	  recombA[id].add(k, Eta2, val);
 	}
 
 	if (DEBUG_CRS) trap_crs(crs);
@@ -4705,7 +4705,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  
 	if (scatter_check and recomb_check) {
 	  double val = sVel2 * vel * 1.0e-14 * RE.back();
-	  recombA[id].add(k, val);
+	  recombA[id].add(k, Eta2, val);
 	}
 
 	  if (DEBUG_CRS) trap_crs(crs);
@@ -4734,7 +4734,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  
 	  if (scatter_check and recomb_check) {
 	    double val = sVel1 * vel * 1.0e-14 * RE.back();
-	    recombA[id].add(k, val);
+	    recombA[id].add(k, Eta2, val);
 	  }
 	  
 	  if (DEBUG_CRS) trap_crs(crs);
@@ -16545,8 +16545,7 @@ void CollideIon::gatherSpecies()
 	if (comb.find(k) == comb.end()) {
 	  comb[k] = u.second;
 	} else {
-	  comb[k].first += u.second.first;
-	  for (int j=0; j<3; j++) comb[k].second[j] += u.second.second[j];
+	  for (int j=0; j<4; j++) comb[k][j] += u.second[j];
 	}
       }
     }
@@ -16565,30 +16564,25 @@ void CollideIon::gatherSpecies()
 	  unsigned short Q[2];
 	  Q[0] = v.first.first;
 	  Q[1] = v.first.second;
-	  MPI_Send(&Q[0],            2, MPI_UNSIGNED,      0, 2001, MPI_COMM_WORLD);
-	  MPI_Send(&v.second.first,  1, MPI_UNSIGNED_LONG, 0, 2002, MPI_COMM_WORLD);
-	  MPI_Send(&v.second.second, 3, MPI_DOUBLE,        0, 2003, MPI_COMM_WORLD);
+	  MPI_Send(&Q[0],        2, MPI_UNSIGNED,      0, 2001, MPI_COMM_WORLD);
+	  MPI_Send(&v.second[0], 4, MPI_DOUBLE,        0, 2002, MPI_COMM_WORLD);
 	}
       }
       
       if (myid==0) {
 	int num;
-	MPI_Recv(&num,               1, MPI_INT,           n, 2000, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	MPI_Recv(&num,           1, MPI_INT,           n, 2000, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	for (int i=0; i<num; i++) {
-	  unsigned long cnt;
 	  unsigned short Q[2];
-	  std::array<double, 3> v3;
-	  MPI_Recv(&Q[0],            2, MPI_UNSIGNED,      n, 2001, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  MPI_Recv(&cnt,             1, MPI_UNSIGNED_LONG, n, 2002, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  MPI_Recv(&v3,              3, MPI_DOUBLE,        n, 2003, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  std::array<double, 4> v3;
+	  MPI_Recv(&Q[0],        2, MPI_UNSIGNED,      n, 2001, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&v3,          4, MPI_DOUBLE,        n, 2002, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  
 	  speciesKey k(Q[0], Q[1]);
 	  if (recombTally.find(k) == recombTally.end()) {
-	    recombTally[k].first = cnt;
-	    for (int j=0; j<3; j++) recombTally[k].second[j] = v3[j];
+	    for (int j=0; j<4; j++) recombTally[k][j]  = v3[j];
 	  } else {
-	    recombTally[k].first += cnt;
-	    for (int j=0; j<3; j++) recombTally[k].second[j] += v3[j];
+	    for (int j=0; j<4; j++) recombTally[k][j] += v3[j];
 	  }
 	}
       }
@@ -17664,32 +17658,34 @@ void CollideIon::gatherSpecies()
       //
       if (recomb_check and recombTally.size()) {
 	std::cout << std::endl
-		  << std::string(8+10+3*18, '-') << std::endl
+		  << std::string(8+4*16, '-') << std::endl
 		  << "---- Recombination coefficient" << std::endl
-		  << std::string(8+10+3*18, '-') << std::endl
+		  << std::string(8+4*16, '-') << std::endl
 		  << std::setw( 8) << "Species"
-		  << std::setw(10) << "Count"
-		  << std::setw(18) << "Mean"
-		  << std::setw(18) << "Min"
-		  << std::setw(18) << "Max"
+		  << std::setw(16) << "Weight"
+		  << std::setw(16) << "Mean"
+		  << std::setw(16) << "Min"
+		  << std::setw(16) << "Max"
 		  << std::endl
 		  << std::setw( 8) << "-------"
-		  << std::setw(10) << "-------"
-		  << std::setw(18) << "-------"
-		  << std::setw(18) << "-------"
-		  << std::setw(18) << "-------"
+		  << std::setw(16) << "-------"
+		  << std::setw(16) << "-------"
+		  << std::setw(16) << "-------"
+		  << std::setw(16) << "-------"
 		  << std::endl;
 	for (auto v : recombTally) {
 	  std::ostringstream slab;
+	  double wgt = v.second[0], avg = 0.0;
+	  if (wgt>0.0) avg = v.second[1]/wgt;
 	  slab << v.first.first << ", " << v.first.second;
 	  std::cout << std::setw( 8) << slab.str()
-		    << std::setw(10) << v.second.first
-		    << std::setw(18) << v.second.second[0]/v.second.first
-		    << std::setw(18) << v.second.second[1]
-		    << std::setw(18) << v.second.second[2]
+		    << std::setw(16) << wgt
+		    << std::setw(16) << avg
+		    << std::setw(16) << v.second[2]
+		    << std::setw(16) << v.second[3]
 		    << std::endl;
 	}
-	std::cout << std::string(8+10+3*18, '-') << std::endl;
+	std::cout << std::string(8+4*16, '-') << std::endl;
 
 	if (use_photoIB) {
 	  std::cout << std::endl

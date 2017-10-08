@@ -10,11 +10,11 @@
 class StatsMPI
 {
 private:
-  std::map<speciesKey, unsigned long> cntT;
-  std::map<speciesKey, double       > curT;
+  std::map<speciesKey, double> cntT;
+  std::map<speciesKey, double> curT;
 
-  std::map<speciesKey, unsigned long> ccnt;
-  std::map<speciesKey, double       > vsum, vmin, vmax;
+  std::map<speciesKey, double> ccnt;
+  std::map<speciesKey, double> vsum, vmin, vmax;
 
   void share()
   {
@@ -38,23 +38,22 @@ public:
   //! Constructor
   StatsMPI() {}
   //! Add a value
-  void add(const speciesKey& k, double val)
+  void add(const speciesKey& k, double wgt, double val)
   { 
     if (cntT.find(k) == cntT.end()) {
-      cntT[k]  = 1;
+      cntT[k]  = wgt;
       curT[k]  = val;
       vmin[k]  = val;
       vmax[k]  = val;
     } else {
-      cntT[k]++;
+      cntT[k] += wgt;
       curT[k] += val;
       vmin[k]  = std::min<double>(vmin[k], val);
       vmax[k]  = std::max<double>(vmax[k], val);
     }
   }
 
-  typedef std::array<double, 3> StatType;
-  typedef std::pair<unsigned long, StatType> SpStat;
+  typedef std::array<double, 4> SpStat;
   typedef std::map<speciesKey, SpStat> Return;
 
   //! Access values
@@ -64,7 +63,7 @@ public:
     Return ret;
     for (auto v : ccnt) {
       speciesKey k = v.first;
-      ret[k] = {ccnt[k], {vsum[k], vmin[k], vmax[k]}};
+      ret[k] = {ccnt[k], vsum[k], vmin[k], vmax[k]};
     }
     return ret;
   }
