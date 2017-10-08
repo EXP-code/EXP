@@ -7,6 +7,7 @@
 #    Constructed to theoretically handle niatr/ndatr 3.7.16
 #    niatr/ndatr tested ???
 #
+from __future__ import absolute_import, division, print_function, unicode_literals
 import time
 import numpy as np
 
@@ -135,7 +136,7 @@ class Input():
 
                 if not (self.comp):
                     mode = 0
-                    print 'psp_io.Input: Component must be defined to proceed with orbit resolution.'
+                    print('psp_io.Input: Component must be defined to proceed with orbit resolution.')
 
             if validate==True:
 
@@ -144,13 +145,13 @@ class Input():
                 Input.psp_read_headers(self)
         
                 if self.verbose>=1:
-                    print 'psp_io.Input: The time is %3.3f, with %i components and %i total bodies.' %(self.ctime,self.ncomp,self.ntot)
+                    print('psp_io.Input: The time is %3.3f, with %i components and %i total bodies.' %(self.ctime,self.ncomp,self.ntot))
             
             
                 
                     
         except:
-            print 'psp_io.Input: The master infile is not defined (or does not exist). Master infile required to proceed.'
+            print('psp_io.Input: The master infile is not defined (or does not exist). Master infile required to proceed.')
             mode = 0
 
 
@@ -177,7 +178,7 @@ class Input():
         if mode == 2:
 
             if self.verbose >= 1:
-                print 'psp_io.Input: Orbit Resolution Initialized...'
+                print('psp_io.Input: Orbit Resolution Initialized...')
       
             #
             # drop into orbit retrieval mode
@@ -186,7 +187,7 @@ class Input():
 
 
         if mode == 0:
-            print 'psp_io.Input: Exiting with error.'
+            print('psp_io.Input: Exiting with error.')
             # would be great to put some error code handling in here
 
 
@@ -200,7 +201,7 @@ class Input():
         Input.psp_read_headers(self)
         
         if self.verbose>=1:
-            print 'psp_io.psp_full_read: The time is %3.3f, with %i components and %i total bodies.' %(self.ctime,self.ncomp,self.ntot)
+            print('psp_io.psp_full_read: The time is %3.3f, with %i components and %i total bodies.' %(self.ctime,self.ncomp,self.ntot))
 
         #
         # select component to output
@@ -210,7 +211,7 @@ class Input():
         #
         # if the component is found proceed.
         #
-        if (self.which_comp >= 0): 
+        if (self.which_comp is not None): 
 
             #
             # how many bodies to return? (overridden if orbit_list)
@@ -242,7 +243,7 @@ class Input():
 
             
             if self.verbose >= 2:
-                print 'psp_io.psp_full_read: PSP file read in %3.2f seconds' %(time.time()-master_time)
+                print('psp_io.psp_full_read: PSP file read in %3.2f seconds' %(time.time()-master_time))
 
 
 
@@ -264,7 +265,7 @@ class Input():
         while present_comp < self.ncomp:
             
             if self.verbose >= 4:
-                print 'psp_io.psp_read_headers: Examining component %i' %(present_comp)
+                print('psp_io.psp_read_headers: Examining component %i' %(present_comp))
                 
             # read the component header
             Input.component_header_read(self,present_comp)
@@ -284,11 +285,11 @@ class Input():
             try:
                 self.which_comp = np.where(np.array(self.comp_titles) == self.comp)[0][0]
             except:
-                print 'psp_io.select_component: No matching component!'
+                print('psp_io.select_component: No matching component!')
                 self.which_comp = None
         else:
             self.which_comp = None
-            print 'psp_io.select_component: Proceeding without selecting component.'
+            print('psp_io.select_component: Proceeding without selecting component.')
 
 
 
@@ -341,7 +342,8 @@ class Input():
 
         # information string from the header
         head = np.fromfile(self.f, dtype='a'+str(infostringlen),count=1)
-        [comptitle,expansion,EJinfo,basisinfo] = [q for q in head[0].split(':')]
+        headStr = str( head, encoding='utf8' )
+        [comptitle,expansion,EJinfo,basisinfo] = [q for q in headStr.split(':')]
 
         self.comp_pos_data[present_comp] = self.f.tell()            # save where the data actually begins
 
@@ -463,11 +465,11 @@ class Input():
         head = self.comp_string[self.which_comp]
         [comptitle,expansion,EJinfo,basisinfo] = [q for q in head.split(':')]
 
-        print 'component: ',self.comp_titles[self.which_comp]
-        print 'bodies: ',self.comp_nbodies[self.which_comp]
-        print 'expansion: ',expansion.strip()
-        print 'ej info: ',EJinfo
-        print 'basis info: ',basisinfo
+        print('component: ',self.comp_titles[self.which_comp])
+        print('bodies: ',self.comp_nbodies[self.which_comp])
+        print('expansion: ',expansion.strip())
+        print('ej info: ',EJinfo)
+        print('basis info: ',basisinfo)
 
         #
         # could develop a more user-friendly output for these
@@ -496,7 +498,7 @@ class Input():
         self.return_bodies = len(self.OLIST)
 
         if self.verbose >= 1:
-            print 'psp_io.orbit_map: Orbit map accepted with %i bodies.' %self.return_bodies
+            print('psp_io.orbit_map: Orbit map accepted with %i bodies.' %self.return_bodies)
 
     def timestep_map(self):
 
@@ -515,7 +517,7 @@ class Input():
         self.ILIST = np.array(ilist)
 
         if self.verbose >= 1:
-            print 'psp_io.timestep_map: Filename map accepted with %i files (timesteps).' %len(self.ILIST)
+            print('psp_io.timestep_map: Filename map accepted with %i files (timesteps).' %len(self.ILIST))
 
         
     def orbit_resolve(self):
@@ -533,7 +535,7 @@ class Input():
         self.f.close()
 
         if self.verbose>=1:
-            print 'psp_io.orbit_resolve: The time is %3.3f, with %i components and %i total bodies.' %(self.ctime,self.ncomp,self.ntot)
+            print('psp_io.orbit_resolve: The time is %3.3f, with %i components and %i total bodies.' %(self.ctime,self.ncomp,self.ntot))
 
         #
         # select component to output
@@ -573,7 +575,7 @@ class Input():
             [ctime] = np.fromfile(self.f, dtype='<f8',count=1)
 
             if self.verbose>=4:
-                print 'Time: %3.3f' %(ctime)
+                print('Time: %3.3f' %(ctime))
 
             #
             # read and stuff arrays
@@ -613,7 +615,7 @@ class Input():
             del self.pote
 
         if self.verbose >= 2:
-                    print 'psp_io.orbit_resolve: Orbit(s) resolved in %3.2f seconds' %(time.time()-res_time_initial)
+            print ('psp_io.orbit_resolve: Orbit(s) resolved in %3.2f seconds' %(time.time()-res_time_initial))
 
             
 
@@ -678,7 +680,7 @@ def compute_bar_lag(ParticleInstance,rcut=0.01):
     A2 = np.sum(ParticleInstance.mass[loR] * np.cos(2.*TH[loR]))
     B2 = np.sum(ParticleInstance.mass[loR] * np.sin(2.*TH[loR]))
     bar_angle = 0.5*np.arctan2(B2,A2)
-    print 'Position angle is %4.3f . . .' %bar_angle
+    print('Position angle is %4.3f . . .' %bar_angle)
     #
     # two steps:
     #   1. rotate theta so that the bar is aligned at 0,2pi
