@@ -5,31 +5,44 @@
 #    MSP 10.25.14
 #    Added to exptool 12.3.15
 #    Constructed to theoretically handle niatr/ndatr 3.7.16
-#    niatr/ndatr tested ???
+#    niatr/ndatr verified 5.26.16
 #
+#    08-27-2016 added compatibility for dictionary support, the long-term goal of the reader once I commit to re-engineering everything.
+#
+#    12-08-2016 cleaned up subdividing inputs. needs much more cleaning, particularly eliminating many 'self' items from the Input class.
+#                  should also set up dictionary dump by default, could just engineer in at the end?
+
+
+'''
+.______     _______..______       __    ______   
+|   _  \   /       ||   _  \     |  |  /  __  \  
+|  |_)  | |   (----`|  |_)  |    |  | |  |  |  | 
+|   ___/   \   \    |   ___/     |  | |  |  |  | 
+|  |   .----)   |   |  |         |  | |  `--'  | 
+| _|   |_______/    | _|    _____|__|  \______/  
+                           |______|
+psp_io
+      input and output of Martin Weinberg's PSP files
+
+
+
+
+'''
 from __future__ import absolute_import, division, print_function, unicode_literals
+
+
 import time
 import numpy as np
-
-'''
-#
-# various usage examples
-#
-
-import psp_io
-
-O = psp_io.Input('/scratch/mpetersen/Disk008/OUT.run008.00430',comp='star',nout=30000)
-O = psp_io.Input('/Users/mpetersen/Research/NBody/Disk064a/OUT.run064a.01000',comp='dark',verbose=2)
-O = psp_io.Input('/scratch/mpetersen/Disk006/OUT.run006.01000',comp='star',nout=1000)
-O = psp_io.Input('/scratch/mpetersen/Disk064a/OUT.run064a.00000',comp='star')
-O = psp_io.Input('/scratch/mpetersen/Disk074ashuf/OUT.run074ashuf.00000',comp='star',valid=True)
-O = psp_io.Input('/Users/mpetersen/Research/NBody/Disk064a/OUT.run064a.01000',comp='dark',orbit_list='test.dat',infile_list='ilist.dat')
+import os
 
 
-'''
+
+
+#from exptool.analysis import trapping
+
 
 class Input():
-
+    '''
     #!
     #! input class to read PSP files
     #!
@@ -79,9 +92,9 @@ class Input():
     # component_read
     # orbit_map
     # orbit_resolve
+    '''
 
-
-    def __init__(self, infile, comp=None, nout=None, verbose=0, orbit_list=None, infile_list=None, validate=False):
+    def __init__(self, infile, comp=None, nout=None, verbose=0, orbit_list=None, infile_list=None, validate=True):
 
         #
         # set input parameters
@@ -99,6 +112,9 @@ class Input():
         # is there an infile list?
         self.infile_list = infile_list
         self.ILIST = None
+
+        # override validate flag if component
+        if self.comp != None: validate=False
 
         #
         # do the components have niatr/ndatr? to be deprecated once I figure out how to write them properly
@@ -140,12 +156,22 @@ class Input():
 
             if validate==True:
 
+                # set to a new mode
                 mode = 3
 
                 Input.psp_read_headers(self)
         
                 if self.verbose>=1:
-                    print('psp_io.Input: The time is %3.3f, with %i components and %i total bodies.' %(self.ctime,self.ncomp,self.ntot))
+                    print('psp_io.Input: The time is {0:3.2f}, with {1:1d} components and {2:1d} total bodies.'.format(self.time,self.ncomp,self.ntot) )
+
+                    if self.verbose >= 2:
+
+                        comp_num = 0
+                        while comp_num < self.ncomp:
+                            
+                            print('psp_io.Input: Component {0:20s}, using {0:20s} force calculation.'.format(self.comp_titles[comp_num],self.comp_expansions[comp_num]))
+
+                            comp_num += 1
             
             
                 
@@ -190,7 +216,6 @@ class Input():
             print('psp_io.Input: Exiting with error.')
             # would be great to put some error code handling in here
 
-
             
     def psp_full_read(self):
         master_time = time.time()
@@ -201,7 +226,7 @@ class Input():
         Input.psp_read_headers(self)
         
         if self.verbose>=1:
-            print('psp_io.psp_full_read: The time is %3.3f, with %i components and %i total bodies.' %(self.ctime,self.ncomp,self.ntot))
+            print('psp_io.Input: The time is {0:3.2f}, with {1:1d} components and {2:1d} total bodies.'.format(self.time,self.ncomp,self.ntot) )
 
         #
         # select component to output
@@ -211,15 +236,15 @@ class Input():
         #
         # if the component is found proceed.
         #
-        if (self.which_comp is not None): 
+        if (self.which_comp >= 0): 
 
             #
             # how many bodies to return? (overridden if orbit_list)
             #
             if (self.nout):
-                self.return_bodies = self.nout
+                self.nbodies = self.nout
             else:
-                self.return_bodies = self.comp_nbodies[self.which_comp]
+                self.nbodies = self.comp_nbodies[self.which_comp]
                 
 
             #
@@ -227,7 +252,7 @@ class Input():
             #          
             if (self.orbit_list):
                 Input.orbit_map(self)
-                self.return_bodies = len(self.OLIST)
+                self.nbodies = len(self.OLIST)
 
 
             #
@@ -243,7 +268,7 @@ class Input():
 
             
             if self.verbose >= 2:
-                print('psp_io.psp_full_read: PSP file read in %3.2f seconds' %(time.time()-master_time))
+                print('psp_io.psp_full_read: PSP file read in {0:3.2f} seconds'.format(time.time()-master_time))
 
 
 
@@ -265,7 +290,7 @@ class Input():
         while present_comp < self.ncomp:
             
             if self.verbose >= 4:
-                print('psp_io.psp_read_headers: Examining component %i' %(present_comp))
+                print('psp_io.psp_read_headers: Examining component {0:1d}'.format(present_comp))
                 
             # read the component header
             Input.component_header_read(self,present_comp)
@@ -289,7 +314,9 @@ class Input():
                 self.which_comp = None
         else:
             self.which_comp = None
-            print('psp_io.select_component: Proceeding without selecting component.')
+
+            if self.verbose > 0:
+                print('psp_io.select_component: Proceeding without selecting component.')
 
 
 
@@ -315,7 +342,7 @@ class Input():
             
         # reset to beginning and proceed
         self.f.seek(0)
-        [self.ctime] = np.fromfile(self.f, dtype='<f8',count=1)
+        [self.time] = np.fromfile(self.f, dtype='<f8',count=1)
         [self.ntot,self.ncomp] = np.fromfile(self.f, dtype=np.uint32,count=2)
 
         self.comp_pos = np.zeros(self.ncomp,dtype=np.uint64)                  # byte position of COMPONENT HEADER for returning easily
@@ -324,6 +351,8 @@ class Input():
 
         # generic PSP items worth making accessible
         self.comp_titles = ['' for i in range(0,self.ncomp)]
+        self.comp_expansions = ['' for i in range(0,self.ncomp)]
+        self.comp_basis = ['' for i in range(0,self.ncomp)]
         self.comp_niatr = np.zeros(self.ncomp,dtype=np.uint64)                # each component's number of integer attributes
         self.comp_ndatr = np.zeros(self.ncomp,dtype=np.uint64)                # each component's number of double attributes
         self.comp_string = ['' for i in range(0,self.ncomp)]
@@ -341,20 +370,25 @@ class Input():
             [nbodies,niatr,ndatr,infostringlen] = np.fromfile(self.f, dtype=np.uint32,count=4)
 
         # information string from the header
-        head = np.fromfile(self.f, dtype='a'+str(infostringlen),count=1)
-        headStr = str( head, encoding='utf8' )
-        [comptitle,expansion,EJinfo,basisinfo] = [q for q in headStr.split(':')]
+        #head = (np.fromfile(self.f, dtype='a'+str(infostringlen),count=1)).encode('utf-8')
+        head = (np.fromfile(self.f, dtype=np.dtype((np.bytes_, infostringlen)),count=1))#
+        
+        head_normal = (head[0].decode())
+        
+        [comptitle,expansion,EJinfo,basisinfo] = [q for q in head_normal.split(':')]
 
         self.comp_pos_data[present_comp] = self.f.tell()            # save where the data actually begins
 
-        # 8 is the number of fields
+        # 8 is the number of fields (m,x,y,z,vx,vy,vz,p)
         comp_length = nbodies*(self.floatl*8 + 4*niatr + self.floatl*ndatr)
         self.comp_data_end[present_comp] = self.f.tell() + comp_length                         # where does the data from this component end?
         
         self.comp_titles[present_comp] = comptitle.strip()
+        self.comp_expansions[present_comp] = expansion.strip()
+        self.comp_basis[present_comp] = basisinfo
         self.comp_niatr[present_comp] = niatr
         self.comp_ndatr[present_comp] = ndatr
-        self.comp_string[present_comp] = str(head)
+        self.comp_string[present_comp] = head_normal
         self.comp_nbodies[present_comp] = nbodies
 
 
@@ -384,7 +418,7 @@ class Input():
         #      which defines self.readtype
         #
 
-        Input.create_particle_buffer(self)
+        self.create_particle_buffer()
 
 
         #
@@ -392,7 +426,7 @@ class Input():
         #
         if not (self.orbit_list):
 
-            out = np.memmap(self.infile,dtype=self.readtype,shape=(1,int(self.return_bodies)),offset=int(self.comp_pos_data[self.which_comp]),order='F',mode='r')
+            out = np.memmap(self.infile,dtype=self.readtype,shape=(1,int(self.nbodies)),offset=int(self.comp_pos_data[self.which_comp]),order='F',mode='r')
 
 
             #
@@ -495,10 +529,10 @@ class Input():
         #
         # override number of bodies to return to match orbit list
         #
-        self.return_bodies = len(self.OLIST)
+        self.nbodies = len(self.OLIST)
 
         if self.verbose >= 1:
-            print('psp_io.orbit_map: Orbit map accepted with %i bodies.' %self.return_bodies)
+            print('psp_io.orbit_map: Orbit map accepted with {0:1d} bodies.'.format(self.nbodies))
 
     def timestep_map(self):
 
@@ -517,7 +551,7 @@ class Input():
         self.ILIST = np.array(ilist)
 
         if self.verbose >= 1:
-            print('psp_io.timestep_map: Filename map accepted with %i files (timesteps).' %len(self.ILIST))
+            print('psp_io.timestep_map: Filename map accepted with {0:1d} files (timesteps).'.format(len(self.ILIST)))
 
         
     def orbit_resolve(self):
@@ -535,7 +569,7 @@ class Input():
         self.f.close()
 
         if self.verbose>=1:
-            print('psp_io.orbit_resolve: The time is %3.3f, with %i components and %i total bodies.' %(self.ctime,self.ncomp,self.ntot))
+            print('psp_io.Input: The time is {0:3.2f}, with {1:1d} components and {2:1d} total bodies.'.format(self.time,self.ncomp,self.ntot) )
 
         #
         # select component to output
@@ -554,13 +588,13 @@ class Input():
         self.ntimesteps = len(self.ILIST)
         
         self.TIME = np.zeros([self.ntimesteps])
-        self.XPOS = np.zeros([self.return_bodies,self.ntimesteps])
-        self.YPOS = np.zeros([self.return_bodies,self.ntimesteps])
-        self.ZPOS = np.zeros([self.return_bodies,self.ntimesteps])
-        self.XVEL = np.zeros([self.return_bodies,self.ntimesteps])
-        self.YVEL = np.zeros([self.return_bodies,self.ntimesteps])
-        self.ZVEL = np.zeros([self.return_bodies,self.ntimesteps])
-        self.POTE = np.zeros([self.return_bodies,self.ntimesteps])
+        self.XPOS = np.zeros([self.nbodies,self.ntimesteps])
+        self.YPOS = np.zeros([self.nbodies,self.ntimesteps])
+        self.ZPOS = np.zeros([self.nbodies,self.ntimesteps])
+        self.XVEL = np.zeros([self.nbodies,self.ntimesteps])
+        self.YVEL = np.zeros([self.nbodies,self.ntimesteps])
+        self.ZVEL = np.zeros([self.nbodies,self.ntimesteps])
+        self.POTE = np.zeros([self.nbodies,self.ntimesteps])
 
         #
         # cycle through files
@@ -572,10 +606,10 @@ class Input():
             #
             self.f = open(file,'rb')
 
-            [ctime] = np.fromfile(self.f, dtype='<f8',count=1)
+            [ttime] = np.fromfile(self.f, dtype='<f8',count=1)
 
             if self.verbose>=4:
-                print('Time: %3.3f' %(ctime))
+                print('Time: {0:4.3f}'.format(ttime))
 
             #
             # read and stuff arrays
@@ -587,7 +621,7 @@ class Input():
             if i==0: self.MASS = self.mass
 
             
-            self.TIME[i] = ctime
+            self.TIME[i] = time
             #self.MASS[:,i] = self.mass
             self.XPOS[:,i] = self.xpos
             self.YPOS[:,i] = self.ypos
@@ -615,17 +649,52 @@ class Input():
             del self.pote
 
         if self.verbose >= 2:
-            print ('psp_io.orbit_resolve: Orbit(s) resolved in %3.2f seconds' %(time.time()-res_time_initial))
+                    print('psp_io.orbit_resolve: Orbit(s) resolved in {0:3.2f} seconds'.format(time.time()-res_time_initial))
 
-            
 
+
+
+class PSPDump():
+    '''
+
+    class to wrap the Input class in order to allow for easier manipulation
+
+    '''
+
+    def __init__(self, infile, comp=None, nout=None, verbose=0, orbit_list=None, infile_list=None, validate=False):
+
+
+        DUMP = Input(infile,comp=comp,nout=nout,verbose=verbose)
+
+        self.xpos = DUMP.xpos
+        self.ypos = DUMP.ypos
+        self.zpos = DUMP.zpos
+        self.xvel = DUMP.xvel
+        self.yvel = DUMP.yvel
+        self.zvel = DUMP.zvel
+        self.pote = DUMP.pote
+
+    def add_quantities(self):
+
+        self.rtwo = (self.xpos*self.xpos + self.ypos*self.ypos)**0.5
+        self.rthree = (self.xpos*self.xpos + self.ypos*self.ypos + self.zpos*self.zpos)**0.5
+        self.v2 = (self.xvel*self.xvel + self.yvel*self.yvel + self.zvel*self.zvel)
+        self.E = self.v2 + self.pote
+
+        
 
 #
 # Below here are helper functions to subdivide and combine particles.
 #
 
 class particle_holder(object):
-    ctime = None
+    #
+    # all the quantities you could ever want to fill in your own dump.
+    #
+    infile = None
+    comp = None
+    nbodies = None
+    time = None
     xpos = None
     ypos = None
     zpos = None
@@ -635,26 +704,38 @@ class particle_holder(object):
     mass = None
     pote = None
 
+
+
+
+def convert_to_dict(ParticleInstance):
+    ParticleInstanceDict = {}
+    ParticleInstanceDict['xpos'] = ParticleInstance.xpos
+    ParticleInstanceDict['ypos'] = ParticleInstance.ypos
+    ParticleInstanceDict['zpos'] = ParticleInstance.zpos
+    ParticleInstanceDict['xvel'] = ParticleInstance.xvel
+    ParticleInstanceDict['yvel'] = ParticleInstance.yvel
+    ParticleInstanceDict['zvel'] = ParticleInstance.zvel
+    ParticleInstanceDict['pote'] = ParticleInstance.pote
+    ParticleInstanceDict['mass'] = ParticleInstance.mass
+    return convert_to_dict
+
     
-#
-#
-#
-# could do the bar transform by getting just the lowest R A2 position angles
 
 #
-# only want to drop into this is need-be--calculating R is expensive
-def subdivide_particles(ParticleInstance,loR=0.,hiR=1.0,zcut=1.0,loT=-np.pi,hiT=np.pi,transform=False):
+# this really shouldn't even be an option anymore.
+def subdivide_particles(ParticleInstance,loR=0.,hiR=1.0,zcut=1.0,loT=-np.pi,hiT=np.pi,transform=False,bar_angle=None):
     #
     # if transform=True, requires ParticleInstance.xbar to be defined
     #
     R = (ParticleInstance.xpos*ParticleInstance.xpos + ParticleInstance.ypos*ParticleInstance.ypos)**0.5
     if transform==False:
         particle_roi = np.where( (R > loR) & (R < hiR) & (abs(ParticleInstance.zpos) < zcut))[0]
-    if transform==True:
-        # compute the bar lag
-        BL = compute_bar_lag(ParticleInstance,rcut=0.01)
-        # look for particles in the wedge relative to bar angle
-        particle_roi = np.where( (R > loR) & (R < hiR) & (abs(ParticleInstance.zpos) < zcut) & (BL > loT) & (BL < hiT))[0]
+    #if transform==True:
+    #    # compute the bar lag
+    #    ParticleInstanceTransformed = trapping.BarTransform(ParticleInstance,bar_angle=bar_angle)
+    #    BL = ( (np.arctan2(ParticleInstanceTransformed.ypos,ParticleInstanceTransformed.xpos) + np.pi/2.) % np.pi) - np.pi/2.
+    #    # look for particles in the wedge relative to bar angle
+    #    particle_roi = np.where( (R > loR) & (R < hiR) & (abs(ParticleInstance.zpos) < zcut) & (BL > loT) & (BL < hiT))[0]
     #
     # fill a new array with particles that meet this criteria
     #
@@ -666,35 +747,35 @@ def subdivide_particles(ParticleInstance,loR=0.,hiR=1.0,zcut=1.0,loT=-np.pi,hiT=
     holder.yvel = ParticleInstance.yvel[particle_roi]
     holder.zvel = ParticleInstance.zvel[particle_roi]
     holder.mass = ParticleInstance.mass[particle_roi]
+    holder.infile = ParticleInstance.infile
+    holder.comp = ParticleInstance.comp
+    holder.nbodies = ParticleInstance.nbodies
+    return holder
+
+
+def subdivide_particles_list(ParticleInstance,particle_roi):
+    #
+    # fill a new array with particles that meet this criteria
+    #
+    holder = particle_holder()
+    holder.xpos = ParticleInstance.xpos[particle_roi]
+    holder.ypos = ParticleInstance.ypos[particle_roi]
+    holder.zpos = ParticleInstance.zpos[particle_roi]
+    holder.xvel = ParticleInstance.xvel[particle_roi]
+    holder.yvel = ParticleInstance.yvel[particle_roi]
+    holder.zvel = ParticleInstance.zvel[particle_roi]
+    holder.mass = ParticleInstance.mass[particle_roi]
+    holder.infile = ParticleInstance.infile
+    holder.comp = ParticleInstance.comp
+    holder.nbodies = ParticleInstance.nbodies
+    holder.time = ParticleInstance.time
     return holder
 
 
 
-def compute_bar_lag(ParticleInstance,rcut=0.01):
-    #
-    # simple fourier method to calculate where the particles are in relation to the bar
-    #
-    R = (ParticleInstance.xpos*ParticleInstance.xpos + ParticleInstance.ypos*ParticleInstance.ypos)**0.5
-    TH = np.arctan2(ParticleInstance.ypos,ParticleInstance.xpos)
-    loR = np.where( R < rcut)[0]
-    A2 = np.sum(ParticleInstance.mass[loR] * np.cos(2.*TH[loR]))
-    B2 = np.sum(ParticleInstance.mass[loR] * np.sin(2.*TH[loR]))
-    bar_angle = 0.5*np.arctan2(B2,A2)
-    print('Position angle is %4.3f . . .' %bar_angle)
-    #
-    # two steps:
-    #   1. rotate theta so that the bar is aligned at 0,2pi
-    #   2. fold onto 0,pi to compute the lag
-    #
-    tTH = (TH - bar_angle + np.pi/2.) % np.pi  # compute lag with bar at pi/2
-    #
-    # verification plot
-    #plt.scatter( R[0:10000]*np.cos(tTH[0:10000]-np.pi/2.),R[0:10000]*np.sin(tTH[0:10000]-np.pi/2.),color='black',s=0.5)
-    return tTH - np.pi/2. # retransform to bar at 0
-
-
-
-
+#
+# can this get infile, etc?
+#
 def mix_particles(ParticleInstanceArray):
     n_instances = len(ParticleInstanceArray)
     n_part = 0
@@ -709,7 +790,10 @@ def mix_particles(ParticleInstanceArray):
     final_holder.zvel = np.zeros(n_part)
     final_holder.mass = np.zeros(n_part)
     final_holder.pote = np.zeros(n_part)
-    final_holder.ctime = ParticleInstanceArray[0].ctime # only uses first time, should be fine?
+    #holder.infile = ParticleInstance.infile
+    #holder.comp = ParticleInstance.comp
+    #holder.nbodies = ParticleInstance.nbodies
+    final_holder.time = ParticleInstanceArray[0].time # only uses first time, should be fine?
     #
     #
     first_part = 0
@@ -726,4 +810,60 @@ def mix_particles(ParticleInstanceArray):
         first_part += n_instance_part
     return final_holder
 
+
+
+###############################################################################
+
+# manipulate file lists
+
+def get_n_snapshots(simulation_directory):
+    #
+    # find all snapshots
+    #
+    dirs = os.listdir( simulation_directory )
+    n_snapshots = 0
+    for file in dirs:
+        if file[0:4] == 'OUT.':
+            try:
+                if int(file[-5:]) > n_snapshots:
+                    n_snapshots = int(file[-5:])
+            except:
+                n_snapshots = n_snapshots
+    return n_snapshots
+
+
+
+
+
+
+def map_simulation_files(outfile,simulation_directory,simulation_name):
+    #
+    # simple definition to sort through a directory and make a list of all the dumps, guarding for bad files
+    #
+    if not os.path.isfile(outfile): # check to see if map already exists before making
+        #
+        f = open(outfile,'w')
+        #
+        n_snapshots = get_n_snapshots(simulation_directory)
+        current_time = -1.
+        for i in range(0,n_snapshots+1):
+            try:
+                PSPDump = Input(simulation_directory+'OUT.'+simulation_name+'.%05i' %i)
+                t = PSPDump.time
+                del PSPDump
+
+            except:
+                print('Bad file: ',simulation_directory+'OUT.'+simulation_name+'.{0:05d}'.format(i))
+                t = current_time
+                
+            if t > current_time:
+                print >>f,simulation_directory+'OUT.'+simulation_name+'.%05i' %i
+                current_time = t
+                print(current_time)
+                
+        #
+        f.close()
+    #
+    else:
+        print('psp_io.map_simulation_files: file already exists.')
 
