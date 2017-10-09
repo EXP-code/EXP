@@ -103,7 +103,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   mpichk     = false;
   mfpts      = false;
   hybrid     = false;
-  ageout     = false;
+  ageout     = 0;
   
   // Static initialization
   initialize_colltypes();
@@ -649,8 +649,10 @@ void UserTreeDSMC::initialize()
   if (get_value("mpichk", val))		mpichk     = atol(val);
   if (get_value("mfpts", val))		mfpts      = atol(val);
   if (get_value("hybrid", val))		hybrid     = atol(val);
-  if (get_value("ageout", val))		ageout     = atol(val);
-  
+  if (get_value("ageout", val))         ageout     = atoi(val);
+
+  NTC::maxAge = ageout;
+
   if (get_value("ntc_chkpt", val)) {
     NTC::NTCdb::intvl = atoi(val.c_str());
   }
@@ -1714,7 +1716,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     //
     // Clean NTC catch
     //
-    if (ageout) {
+    if (ageout>0) {
       (*barrier)("TreeDSMC: BEFORE NTC expire", __FILE__, __LINE__);
       collide->ageout();
       (*barrier)("TreeDSMC: AFTER NTC expire",  __FILE__, __LINE__);
