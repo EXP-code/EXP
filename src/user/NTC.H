@@ -485,9 +485,6 @@ namespace NTC {
     //! Ascii version number
     static unsigned debug_count;
 
-    //! Maximum age for uncalled cell entries in number of time steps
-    static unsigned maxAge;
-
     //! Get copies from all nodes to save
     void sync() 
     {
@@ -639,6 +636,9 @@ namespace NTC {
     //! Save interval
     static unsigned intvl;
     
+    //! Maximum age for uncalled cell entries in number of time steps
+    static unsigned maxAge;
+
     //! Constructor
     NTCdb()
     {

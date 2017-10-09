@@ -651,7 +651,7 @@ void UserTreeDSMC::initialize()
   if (get_value("hybrid", val))		hybrid     = atol(val);
   if (get_value("ageout", val))         ageout     = atoi(val);
 
-  NTC::maxAge = ageout;
+  NTC::NTCdb::maxAge = ageout;
 
   if (get_value("ntc_chkpt", val)) {
     NTC::NTCdb::intvl = atoi(val.c_str());
