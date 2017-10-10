@@ -10,8 +10,15 @@
 #include <deque>
 #include <map>
 
+#define BINARY_ARCHIVE		// Comment for xml archive
+
+#ifdef BINARY_ARCHIVE
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
+#else
 #include <boost/archive/xml_iarchive.hpp>
 #include <boost/archive/xml_oarchive.hpp>
+#endif
 
 #include <boost/serialization/base_object.hpp>
 #include <boost/serialization/utility.hpp>
@@ -63,8 +70,8 @@ std::ostream& operator<< (std::ostream& out, const std::tuple<T, U, V>& t);
 std::ostream& operator<< (std::ostream& out, const sKeyPair& t);
 
 
-namespace NTC {
-
+namespace NTC
+{
   //! Container for interaction list to add UI to data types
   class Interact
   {
@@ -567,7 +574,11 @@ namespace NTC {
 	  ofs.open(filename.c_str());
 	}
 
+#ifdef BINARY_ARCHIVE
+	boost::archive::binary_oarchive oa(ofs);
+#else
 	boost::archive::xml_oarchive oa(ofs);
+#endif
 	oa << BOOST_SERIALIZATION_NVP(pdata);
 	oa << BOOST_SERIALIZATION_NVP(curr_time);
 	oa << BOOST_SERIALIZATION_NVP(next_time);
@@ -605,8 +616,11 @@ namespace NTC {
     {
       // open the archive; all processes
       std::ifstream ifs(filename.c_str());
+#ifdef BINARY_ARCHIVE
+      boost::archive::binary_iarchive ia(ifs);
+#else
       boost::archive::xml_iarchive ia(ifs);
-      
+#endif
       // restore the data from the archive
       ia >> BOOST_SERIALIZATION_NVP(data);
       ia >> BOOST_SERIALIZATION_NVP(curr_time);
