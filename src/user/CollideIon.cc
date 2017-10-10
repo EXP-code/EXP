@@ -12821,7 +12821,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
     double eta  = 0.0, crsvel = 0.0;
     double volc = cell->Volume();
     double me   = atomic_weights[0]*amu;
-    double mtot = 0.0;
+    double efrc = 0.0, ewgt = 0.0;
 
     // For EPSM and cross section default
     //
@@ -12856,11 +12856,15 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	}
 	Eta1[i] = eta1/wght;
 	molW[i] = 1.0/wght;
+	efrc   += eta1 * p->mass;
+	ewgt   += wght * p->mass;
 	eta1   *= p->mass/amu;
       } else {			// Mean charge
 	if (k.C()>1) {
 	  bods.push_back(i);
 	  eta1 = p->mass/atomic_weights[k.Z()] * (*Fn)[k.getKey()] * (k.C()-1);
+	  efrc += p->mass/atomic_weights[k.Z()] * (k.C()-1);
+	  ewgt += p->mass/atomic_weights[k.Z()];
 	}
       }
 
@@ -12874,7 +12878,6 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 				// Accumulate true number
       Eta[i] = eta1;
       eta   += eta1;
-      mtot  += p->mass;
     }
     // end: body loop
 
@@ -12886,7 +12889,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
     // Compute cross section
     //
-    if (use_elec >=0 and eta>0.0 and mtot>0.0) {
+    if (use_elec >=0 and ewgt>0.0) {
       double kE = 0.0;
       for (auto v2 : Emom2) kE += v2/eta;
       double Tvel = sqrt(kE);
@@ -12895,8 +12898,8 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       double b = 0.5*esu*esu /
 	std::max<double>(kE*eV, FloorEv*eV) * 1.0e7; // nm
       b = std::min<double>(b, ips);
-      double e1 = eta/mtot;
-      crsvel = M_PI*b*b * e1*e1 * 4.0 * logL * 0.01 * Tvel;
+      double e1 = efrc/ewgt;
+      crsvel = M_PI*b*b * e1 * e1 * 4.0 * logL * Tvel;
     }
 
     // Sample cell
