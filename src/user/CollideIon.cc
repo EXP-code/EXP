@@ -628,6 +628,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   numEf    .resize(nthrds);
   densE    .resize(nthrds);
   photoW   .resize(nthrds);
+  photoN   .resize(nthrds);
   colSc    .resize(nthrds);
   coulCrs  .resize(nthrds);
   CE1      .resize(nthrds);
@@ -11807,6 +11808,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 	  photoStat[id][Q][3]  = std::max<double>(photoStat[id][Q][3], Pr);
 	  photoW[id][s.first] += ww;
+	  photoN[id][s.first] += ww * p->mass *
+	    UserTreeDSMC::Munit/(amu*atomic_weights[Q.first]);
 	
 	  scatterPhotoTrace(p, Q, ww, Ep);
 	}
@@ -12769,6 +12772,8 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	  }
 	  photoStat[id][Q][3]  = std::max<double>(photoStat[id][Q][3], Pr);     
 	  photoW[id][s.first] += ww;
+	  photoN[id][s.first] += ww * p->mass *
+	    UserTreeDSMC::Munit/(amu*atomic_weights[Q.first]);
 
 	  scatterPhotoTrace(p, Q, ww, Ep);
 	}
@@ -12939,16 +12944,17 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	//
 	double sigma = 0.0;
 	for (size_t j=0; j<3; j++) {
-	  Emom[j] /= eta;
-	  sigma +=  Emom2[j]/eta - Emom[j]*Emom[j];
+	  Emom [j] /= eta;
+	  Emom2[j] /= eta;
+	  sigma +=  Emom2[j] - Emom[j]*Emom[j];
 	}
-	sigma = sqrt(fabs(sigma)); // This is now the full 3d RMS
+	sigma = sqrt(fabs(sigma/3.0)); // This is now the 1d RMS
 	
 	// Pass through to get normal random variables with zero mean
 	// and unit mean-squared amplitude.  These will be used to 
 	// generate new electron velocities
 	//
-	double gamma = 0.0, tweight = 0.0;
+	double gamma = 0.0;
 	std::vector<double> mu(3, 0.0);
 	for (auto i : cell->bods) {
 	  Particle *p = cell->Body(i);
@@ -12957,41 +12963,66 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	    p->dattrib[use_elec+j] = (*norm)();
 	    mu[j] += eta1/eta * p->dattrib[use_elec+j];
 	    gamma += eta1/eta * p->dattrib[use_elec+j] * p->dattrib[use_elec+j];
-	    tweight += eta1/eta;
 	  }
-	}
+	} // END: body loop
+
+	double mu2 = 0.0;
+	for (auto v : mu) mu2 += v*v;
+
+	std::array<double, 3> Etst, Etst2;
 
 	// Normalization for normal variates current stored in the particle
 	// structure: p->dattrib[use_elect+j], j=0,1,2
 	//
-	double mu2 = 0.0;
-	for (auto v : mu) mu2 += v*v;
-	if (gamma>mu2)
-	  gamma = sqrt(1.0/(gamma - mu2));
-	else {
-	  gamma = 1.0;		// Fall back to sane values
-	  for (auto & v : mu) v = 0.0;
-	}
+	if (eta>0.0) {
+	  if (gamma>mu2)
+	    gamma = sqrt(3.0/(gamma - mu2));
+	  else {
+	    gamma = 1.0;		// Fall back to sane values
+	    for (auto & v : mu) v = 0.0;
+	  }
 	  
-	// Update electron velocities conserving momentum and energy
-	//
-	for (auto i : cell->bods) {
-	  Particle *p = cell->Body(i);
-
-	  for (size_t j=0; j<3; j++) {
-	    double v = gamma*(p->dattrib[use_elec+j] - mu[j]);
-	    p->dattrib[use_elec+j] = Emom[j] + sigma*v;
+	  // Update electron velocities conserving momentum and energy
+	  //
+	  for (auto i : cell->bods) {
+	    Particle *p = cell->Body(i);
+	    
+	    double eta1 = Eta[i];
+	    for (size_t j=0; j<3; j++) {
+	      double v = gamma*(p->dattrib[use_elec+j] - mu[j]);
+	      p->dattrib[use_elec+j] = Emom[j] + sigma*v;
+	      Etst [j] += eta1/eta * p->dattrib[use_elec+j];
+	      Etst2[j] += eta1/eta * p->dattrib[use_elec+j] * p->dattrib[use_elec+j];
+	    }
 	  }
 	}
-
+	  
 	nselM = 0;
 	epsmES[id]++;
 
 	if (debugFC and outdbg) {
+	  double Temp = sigma*sigma*atomic_weights[0]*amu*
+	    UserTreeDSMC::Vunit*UserTreeDSMC::Vunit/boltz;
 	  outdbg << "electronEPSM: nselM=" << std::setw(10) << nselM
-		 << "/" << esNum << std::endl;
-	}
+		 << "/" << esNum << "  T(K)=" << Temp
+		 << " gamma=" << gamma << " mu2=" << mu2 << std::endl;
 
+	  outdbg << "--Emom =";
+	  for (auto v : Emom) outdbg << std::setw(16) << v;
+	  {
+	    double sum = 0.0;
+	    for (auto v : Emom2) sum += v;
+	    outdbg << std::setw(16) << sum << std::endl;
+	  }
+	    
+	  outdbg << "--Etst =";
+	  for (auto v : Etst) outdbg << std::setw(16) << v;
+	  {
+	    double sum = 0.0;
+	    for (auto v : Etst2) sum += v;
+	    outdbg << std::setw(16) << sum << std::endl;
+	  }
+	}
       }
 
     } // END: equilibrium particle simulation method (EPSM)
@@ -17816,6 +17847,7 @@ void CollideIon::photoWGather()
 
   for (int t=1; t<nthrds; t++) {
     for (auto v : photoW[t]) photoW[0][v.first] += v.second;
+    for (auto v : photoN[t]) photoN[0][v.first] += v.second;
     for (auto s : SpList) {
       lQ Q = s.first;
       if (photoStat[t].find(Q) != photoStat[t].end()) {
@@ -17826,6 +17858,7 @@ void CollideIon::photoWGather()
     }
 				// Clear all but zero thread
     photoW   [t].clear();
+    photoN   [t].clear();
     photoStat[t].clear();
   }
 
@@ -17944,6 +17977,13 @@ void CollideIon::photoWGather()
       }
       photoW[0].clear();	// Clear zero thread for all but master node.
 				// Master will be cleared in photoWPrint().
+      for (auto v : photoN[0]) {
+	MPI_Send(&v.first.first,  1, MPI_UNSIGNED_SHORT, 0, 805, MPI_COMM_WORLD);
+	MPI_Send(&v.first.second, 1, MPI_UNSIGNED_SHORT, 0, 806, MPI_COMM_WORLD);
+	MPI_Send(&v.second,       1, MPI_DOUBLE,         0, 807, MPI_COMM_WORLD);
+      }
+      photoN[0].clear();	// Clear zero thread for all but master node.
+				// Master will be cleared in photoWPrint().
     }
     if (myid==0) {
       unsigned numE;
@@ -17957,6 +17997,14 @@ void CollideIon::photoWGather()
 	MPI_Recv(&v,        1, MPI_DOUBLE,         n, 804, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	photoW[0][k] += v;
       }
+
+      for (unsigned q=0; q<numE; q++) {
+	MPI_Recv(&k.first,  1, MPI_UNSIGNED_SHORT, n, 805, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	MPI_Recv(&k.second, 1, MPI_UNSIGNED_SHORT, n, 806, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	MPI_Recv(&v,        1, MPI_DOUBLE,         n, 807, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	photoN[0][k] += v;
+      }
+
     }
   }
 
@@ -17981,12 +18029,14 @@ void CollideIon::photoWPrint()
 	<< std::endl << std::setfill(' ')
 	<< std::setw(3)  << std::right << "Z"
 	<< std::setw(3)  << std::right << "C"
-	<< std::setw(18) << std::right << "Value"
+	<< std::setw(18) << std::right << "Sfrac"
+	<< std::setw(18) << std::right << "Total"
 	<< std::endl;
     for (auto v : photoW[0]) {
       out << std::setw(3)  << std::right << v.first.first
 	  << std::setw(3)  << std::right << v.first.second
 	  << std::setw(18) << std::right << v.second
+	  << std::setw(18) << std::right << photoN[0][v.first]
 	  << std::endl;
     }
     out << std::endl;
@@ -18004,7 +18054,8 @@ void CollideIon::photoWPrint()
 	sout4 << "-----Q3 = " << frcQ3[Q];
 
 	if (photoStat[0][Q][0]>0) {
-	  sout5 << "-----Stats (" << Q.first << ", " << Q.second << "):"
+	  sout5 << "-----" << std::endl
+		<< "-----Stats (" << Q.first << ", " << Q.second << "):"
 		<< " tot=" << static_cast<int>(photoStat[0][Q][0])
 		<< " max=" << photoStat[0][Q][3];
 	  if (photoStat[0][Q][1]>0) // Only print for Pr>1 events
@@ -18039,6 +18090,7 @@ void CollideIon::photoWPrint()
   // Clear accumulators
   //
   photoW[0]   .clear();
+  photoN[0]   .clear();
   photoStat[0].clear();
 }
 

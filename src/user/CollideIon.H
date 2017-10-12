@@ -491,7 +491,7 @@ private:
   std::vector< std::vector<double> >                 dCfrac;
   std::vector< std::vector<int>    >                 dInter;
   std::vector< keyCross >                            sCross; 
-  std::vector< keyWghts >                            meanF, densE, photoW;
+  std::vector< keyWghts >                            meanF, densE, photoW, photoN;
   std::vector< keyInter >                            sInter;
   std::vector< CEvector >                            CE1, CE2;
   std::vector< CFreturn >                            FF1, FF2;
