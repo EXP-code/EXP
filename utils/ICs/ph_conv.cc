@@ -16,6 +16,35 @@
 
 namespace po = boost::program_options;
 
+/**
+   Solution for rate balance.  
+
+   n_H  * f_H   * alpha_H   = n_e * n_H  * (1 - f_H)      * beta_H+
+   n_He * f_He  * alpha_He  = n_e * n_He * f_He+          * beta_He+
+   n_He * f_He+ * alpha_He+ = n_e * n_He * (1-f_He-f_He+) * beta_He++
+
+   LHS=rate of photoionization
+   RHS=rate of recombination
+
+   Simplify to fractional rates:
+
+   f_H   * alpha_H   = n_e * (1 - f_H)      * beta_H+
+   f_He  * alpha_He  = n_e * f_He+          * beta_He+
+   f_He+ * alpha_He+ = n_e * (1-f_He-f_He+) * beta_He++
+
+   Difference in fraction in time interval h is:
+
+   delta_H   = h*[n_e * (1 - f_H)      * beta_H+   - f_H   * alpha_H]
+   delta_He  = h*[n_e * f_He+          * beta_He+  - f_He  * alpha_He]
+   delta_He+ = h*[n_e * (1-f_He-f_He+) * beta_He++ - f_He+ * alpha_He+]
+
+   Iterative algorithm:
+
+   f_H  (n+1) = f_H  (n) + delta_H
+   f_He (n+1) = f_He (n) + delta_He
+   f_He+(n+1) = f_He+(n) + delta_He+
+
+*/
 int main(int argc, char**argv)
 {
   double n0, tol, h, T;
@@ -104,11 +133,9 @@ int main(int argc, char**argv)
   double X = 0.76, Y = 0.24, mX = 1.0, mY = 4.0;
   double mu = X/mX + Y/mY;
 
-  std::array<double, 3> gamma;
   std::array<double, 3> init  {0.1, 0.1, 0.1};
   std::array<double, 3> curr, last, maxd {0, 0, 0}, frac {X, Y, Y};
-
-  for (int i=0; i<3; i++) gamma[i] = beta[i]/alpha[i];
+  std::array<double, 3> delta;
 
   curr = init;
 
@@ -120,16 +147,19 @@ int main(int argc, char**argv)
 		    Y/mY*(curr[2] + 2.0*(1.0 - curr[0] - curr[2])));
     last = curr;
 
+    delta[0] = h * ( ne*(1.0 - last[0])           * beta[0] - last[0]*alpha[0] );
+    delta[1] = h * ( ne*last[2]                   * beta[1] - last[1]*alpha[1] );
+    delta[2] = h * ( ne*(1.0 - last[1] - last[2]) * beta[2] - last[2]*alpha[2] );
+
     for (int j=0; j<3; j++) {
-      double delta = h * ( (1.0 - last[j])*beta[j]*ne - last[j]*alpha[j] );
-      curr[j] += delta;
-      maxd[j] = std::max<double>(fabs(delta)/curr[j], maxd[j]);
+      curr[j] += delta[j];
+      maxd[j] = std::max<double>(fabs(delta[j])/curr[j], maxd[j]);
       curr[j] = std::min<double>(1.0, std::max<double>(0.0, curr[j]));
     }
 
     if (n % skip==0) {
       std::cout << std::setw(8) << n;
-      for (int j=0; j<3; j++) std::cout << std::setw(14) << curr[j] * frac[j];
+      for (int j=0; j<3; j++) std::cout << std::setw(14) << curr[j];
       std::cout << std::setw(14) << ne/n0 << std::endl;
     }
 
