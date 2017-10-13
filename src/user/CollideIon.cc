@@ -10088,6 +10088,8 @@ void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
 
 /*
   Algorithm for Trace
+
+
   -------------------
 
   1) All superparticles have the same mixture of elements (although the ionization
@@ -11794,6 +11796,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  double Pr = ff.first * UserTreeDSMC::Tunit * dT[p];
 	  double Ep = ff.second;
 	  double ww = p->dattrib[pos] * Pr;
+	  double Gm = UserTreeDSMC::Munit/(amu*atomic_weights[Q.first]);
+
 	  
 	  if (Pr >= 1.0) {	// Limiting case
 	    ww = p->dattrib[pos];
@@ -11808,8 +11812,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 	  photoStat[id][Q][3]  = std::max<double>(photoStat[id][Q][3], Pr);
 	  photoW[id][s.first] += ww;
-	  photoN[id][s.first] += ww * p->mass *
-	    UserTreeDSMC::Munit/(amu*atomic_weights[Q.first]);
+	  photoN[id][s.first] += ww * p->mass * Gm;
 	
 	  scatterPhotoTrace(p, Q, ww, Ep);
 	}
@@ -12758,12 +12761,13 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	  double Pr = ff.first * UserTreeDSMC::Tunit * spTau[id];
 	  double Ep = ff.second;
 	  double ww = p->dattrib[pos] * Pr;
+	  double Gm = UserTreeDSMC::Munit/(amu*atomic_weights[Q.first]);
 
 	  if (Pr >= 1.0) {	// Limiting case
 	    ww = p->dattrib[pos];
 	    p->dattrib[pos  ]  = 0.0;
 	    p->dattrib[pos+1] += ww;
-	    // Increment oab count and mean value
+				// Increment oab count and mean value
 	    photoStat[id][Q][1] += 1;
 	    photoStat[id][Q][2] += Pr;
 	  } else {		// Normal case
@@ -12772,8 +12776,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	  }
 	  photoStat[id][Q][3]  = std::max<double>(photoStat[id][Q][3], Pr);     
 	  photoW[id][s.first] += ww;
-	  photoN[id][s.first] += ww * p->mass *
-	    UserTreeDSMC::Munit/(amu*atomic_weights[Q.first]);
+	  photoN[id][s.first] += ww * p->mass * Gm;
 
 	  scatterPhotoTrace(p, Q, ww, Ep);
 	}
