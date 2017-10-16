@@ -10418,6 +10418,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
       if (interFlag == free_free) {
 
+	Prob *= 2.0;		// To account for electron-ion
+
 	if (I1.first == Interact::electron) {
 	  //
 	  // Ion is p2
@@ -10470,6 +10472,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
       if (interFlag == colexcite) {
 
+	Prob *= 2.0;		// To account for electron-ion
+
 	if (I1.first == Interact::electron) {
 	  //
 	  // Ion is p2
@@ -10519,6 +10523,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       }
 
       if (interFlag == ionize) {
+
+	Prob *= 2.0;		// To account for electron-ion
 
 	if (I1.first == Interact::electron) {
 	  //
@@ -10678,6 +10684,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       }
 	
       if (interFlag == recomb) {
+
+	Prob *= 2.0;		// To account for electron-ion
 
 	if (I1.first == Interact::electron) {
 	  //
@@ -12833,7 +12841,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
     // For EPSM and cross section default
     //
-    std::array<double, 3> Emom, Emom2;
+    std::array<double, 3> Emom {0, 0, 0}, Emom2 {0, 0, 0};
 
     // Momentum diagnostic distribution
     //
@@ -12937,98 +12945,126 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
     // EPSM
     //======================================================================
     //
-    if (ElectronEPSM) {
+    if (ElectronEPSM and eta>0.0 and nbods>1) {
 
       totlES[id]++;
 
       if (nselM > esNum) {
 	
+	nselM = 0;
+
 	// Compute RMS
 	//
-	double sigma = 0.0;
+	double sigma = 0.0, keBeg = 0.0;
 	for (size_t j=0; j<3; j++) {
 	  Emom [j] /= eta;
 	  Emom2[j] /= eta;
-	  sigma +=  Emom2[j] - Emom[j]*Emom[j];
+	  sigma    += Emom2[j] - Emom[j]*Emom[j];
+	  keBeg    += Emom2[j];
 	}
-	sigma = sqrt(fabs(sigma/3.0)); // This is now the 1d RMS
+	sigma = sigma>0.0 ? sqrt(sigma) : 0.0;
 	
 	// Pass through to get normal random variables with zero mean
 	// and unit mean-squared amplitude.  These will be used to 
 	// generate new electron velocities
 	//
-	double gamma = 0.0;
-	std::vector<double> mu(3, 0.0);
+	std::array<double, 3> mu {0, 0, 0}, gam {0, 0, 0};
+	double v;
 	for (auto i : cell->bods) {
 	  Particle *p = cell->Body(i);
-	  double eta1 = Eta[i];
+	  double eta1 = Eta[i]/eta;
 	  for (size_t j=0; j<3; j++) {
-	    p->dattrib[use_elec+j] = (*norm)();
-	    mu[j] += eta1/eta * p->dattrib[use_elec+j];
-	    gamma += eta1/eta * p->dattrib[use_elec+j] * p->dattrib[use_elec+j];
+	    p->dattrib[use_elec+j] = v = (*norm)();
+	    mu [j] += eta1 * v;
+	    gam[j] += eta1 * v*v;
 	  }
 	} // END: body loop
 
-	double mu2 = 0.0;
-	for (auto v : mu) mu2 += v*v;
-
-	std::array<double, 3> Etst, Etst2;
-
-	// Normalization for normal variates current stored in the particle
-	// structure: p->dattrib[use_elect+j], j=0,1,2
+	// Variance of random distribution
 	//
-	if (eta>0.0) {
-	  if (gamma>mu2)
-	    gamma = sqrt(3.0/(gamma - mu2));
-	  else {
-	    gamma = 1.0;		// Fall back to sane values
-	    for (auto & v : mu) v = 0.0;
-	  }
+	double gamma = 0.0;
+	for (size_t j=0; j<3; j++)
+	  gamma += gam[j] - mu[j]*mu[j];
+	gamma = gamma>0.0 ? sqrt(gamma) : 0.0;
+
+	// For testing mean and variance of updated distribution
+	//
+	std::array<double, 3> Etst {0, 0, 0}, Etst2 {0, 0, 0};
 	  
-	  // Update electron velocities conserving momentum and energy
-	  //
-	  for (auto i : cell->bods) {
-	    Particle *p = cell->Body(i);
-	    
-	    double eta1 = Eta[i];
-	    for (size_t j=0; j<3; j++) {
-	      double v = gamma*(p->dattrib[use_elec+j] - mu[j]);
-	      p->dattrib[use_elec+j] = Emom[j] + sigma*v;
-	      Etst [j] += eta1/eta * p->dattrib[use_elec+j];
-	      Etst2[j] += eta1/eta * p->dattrib[use_elec+j] * p->dattrib[use_elec+j];
-	    }
+	// Update electron velocities conserving momentum and energy
+	//
+	double vfac = (gamma>0.0 ? sigma/gamma : 0.0);
+
+	for (auto i : cell->bods) {
+	  Particle *p = cell->Body(i);
+	  double eta1 = Eta[i];
+	  
+	  for (size_t j=0; j<3; j++) {
+	    p->dattrib[use_elec+j] = v = Emom[j] + vfac*(p->dattrib[use_elec+j] - mu[j]);
+	    // For debugging . . . 
+	    Etst [j] += eta1/eta * v;
+	    Etst2[j] += eta1/eta * v*v;
 	  }
 	}
 	  
-	nselM = 0;
 	epsmES[id]++;
 
+	// Debugging output
+	//
 	if (debugFC and outdbg) {
-	  double Temp = sigma*sigma*atomic_weights[0]*amu*
-	    UserTreeDSMC::Vunit*UserTreeDSMC::Vunit/boltz;
-	  outdbg << "electronEPSM: nselM=" << std::setw(10) << nselM
-		 << "/" << esNum << "  T(K)=" << Temp
-		 << " gamma=" << gamma << " mu2=" << mu2 << std::endl;
-
-	  outdbg << "--Emom =";
-	  for (auto v : Emom) outdbg << std::setw(16) << v;
-	  {
-	    double sum = 0.0;
-	    for (auto v : Emom2) sum += v;
-	    outdbg << std::setw(16) << sum << std::endl;
+	  outdbg << "electronEPSM: T(K)="
+		 << keBeg/3.0*atomic_weights[0]*amu * UserTreeDSMC::Vunit*UserTreeDSMC::Vunit/boltz
+		 << std::endl;
+	  
+	  double sig2 = 0.0, keEnd = 0.0;
+	  for (size_t j=0; j<3; j++) {
+	    sig2  += Etst2[j] - Etst[j]*Etst[j];
+	    keEnd += Etst2[j];
 	  }
+	  
+	  double diff2 = (keEnd - keBeg)/std::min<double>(keEnd, keBeg);
+	  
+	  if (fabs(diff2) > 1.0e-8) {
 	    
-	  outdbg << "--Etst =";
-	  for (auto v : Etst) outdbg << std::setw(16) << v;
-	  {
-	    double sum = 0.0;
-	    for (auto v : Etst2) sum += v;
-	    outdbg << std::setw(16) << sum << std::endl;
+	    outdbg << "--Edif  = " << diff2 << std::endl;
+	    outdbg << "--Ncell = " << nbods << std::endl;
+	    outdbg << "--Sigma = " << sigma << std::endl;
+	    outdbg << "--Gamma = " << gamma << std::endl;
+
+	    outdbg << "--Pbeg  = ";
+	    for (auto v : Emom) outdbg << std::setw(16) << v;
+	    outdbg << std::endl;
+
+	    outdbg << "--Pend  = ";
+	    for (auto v : Etst) outdbg << std::setw(16) << v;
+	    outdbg << std::endl;
+
+	    outdbg << "--Ebeg  = ";
+	    for (auto v : Emom2) outdbg << std::setw(16) << v;
+	    double sum = 0.0; for (auto v : Emom2) sum += v;
+	    outdbg << " | " << std::setw(16) << sum << std::endl;
+	    
+	    outdbg << "--Eend  = ";
+	    for (auto v : Etst2) outdbg << std::setw(16) << v;
+	    sum = 0.0; for (auto v : Etst2) sum += v;
+	    outdbg << " | " << std::setw(16) << sum << std::endl;
+
+	    outdbg << "--Sbeg  = ";
+	    for (size_t j=0; j<3; j++)
+	      outdbg << std::setw(16) << Emom2[j] - Emom[j]*Emom[j];
+	    outdbg << std::endl;
+	    
+	    outdbg << "--Send  = ";
+	    for (size_t j=0; j<3; j++)
+	      outdbg << std::setw(16) << Etst2[j] - Etst[j]*Etst[j];
+	    outdbg << std::endl;
 	  }
-	}
-      }
+	} // END: debugFC output
+	  
+      } // END: nselM > esNum
 
     } // END: equilibrium particle simulation method (EPSM)
+
 
     // nselM clamping
     //
