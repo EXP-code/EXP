@@ -168,7 +168,7 @@ static void eigsrt(Vector& d, Matrix& v, int n)
 }
 
 
-Vector Matrix::Symmetric_Eigenvalues(Matrix &EigenVec) throw (char const*)
+Vector Matrix::Symmetric_Eigenvalues(Matrix &EigenVec)
 {
   double **v, *d, **a;
   int n, niters;
@@ -232,7 +232,7 @@ Vector Matrix::Symmetric_Eigenvalues(Matrix &EigenVec) throw (char const*)
 }
 
 
-Vector Symmetric_Eigenvalues(Matrix &m, Matrix &ev) throw (char const*)
+Vector Symmetric_Eigenvalues(Matrix &m, Matrix &ev)
 {
   Vector tmp;
   
@@ -242,7 +242,7 @@ Vector Symmetric_Eigenvalues(Matrix &m, Matrix &ev) throw (char const*)
 }
 
 
-Vector Matrix::Symmetric_Eigenvalues_GHQL(Matrix &EigenVec) throw (char const*)
+Vector Matrix::Symmetric_Eigenvalues_GHQL(Matrix &EigenVec)
 {
   int n;
   
@@ -279,7 +279,7 @@ Vector Matrix::Symmetric_Eigenvalues_GHQL(Matrix &EigenVec) throw (char const*)
 }
 
 
-Vector Symmetric_Eigenvalues_GHQL(Matrix &m, Matrix &ev) throw (char const*)
+Vector Symmetric_Eigenvalues_GHQL(Matrix &m, Matrix &ev)
 {
   Vector tmp;
   
