@@ -271,8 +271,8 @@ class Matrix
 
   Matrix Transpose(void);	
   double Trace(void);
-  Vector Symmetric_Eigenvalues(Matrix &) throw (char const*);
-  Vector Symmetric_Eigenvalues_GHQL(Matrix &) throw (char const*);
+  Vector Symmetric_Eigenvalues(Matrix &);
+  Vector Symmetric_Eigenvalues_GHQL(Matrix &);
   Matrix Inverse(void);
 
 };
@@ -395,9 +395,9 @@ class Three_Vector
 
 Matrix Transpose(Matrix &m);
 double Trace(Matrix &m);
-Vector Symmetric_Eigenvalues(Matrix &m, Matrix &ev) throw (char const*);
-Vector Symmetric_Eigenvalues_GHQL(Matrix &m, Matrix &ev) throw (char const*);
-void jacobi(double **, int, double *, double **, int *) throw (char const*);
+Vector Symmetric_Eigenvalues(Matrix &m, Matrix &ev);
+Vector Symmetric_Eigenvalues_GHQL(Matrix &m, Matrix &ev);
+void jacobi(double **, int, double *, double **, int *);
 void eigsrt(double *, double **, int);
 int SVD(Matrix &A, Matrix &U, Matrix &V, Vector &Z);
 
