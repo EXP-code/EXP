@@ -4319,6 +4319,9 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 				// atomic radius
 	double crs = (geometric(Z)*cscl_[Z] + geometric(ZZ)*cscl_[ZZ]) * cfac;
 	
+				// Double counting
+	if (Z == ZZ) crs *= 0.5;
+
 	if (DEBUG_CRS) trap_crs(crs*crossfac);
 
 	cross += crs*crossfac;
@@ -10418,8 +10421,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
       if (interFlag == free_free) {
 
-	Prob *= 2.0;		// To account for electron-ion
-
 	if (I1.first == Interact::electron) {
 	  //
 	  // Ion is p2
@@ -10472,8 +10473,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
       if (interFlag == colexcite) {
 
-	Prob *= 2.0;		// To account for electron-ion
-
 	if (I1.first == Interact::electron) {
 	  //
 	  // Ion is p2
@@ -10523,8 +10522,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       }
 
       if (interFlag == ionize) {
-
-	Prob *= 2.0;		// To account for electron-ion
 
 	if (I1.first == Interact::electron) {
 	  //
@@ -10684,8 +10681,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       }
 	
       if (interFlag == recomb) {
-
-	Prob *= 2.0;		// To account for electron-ion
 
 	if (I1.first == Interact::electron) {
 	  //
@@ -16524,12 +16519,10 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   meanCollP  = collPM;
 
   double Prob  = dens * rateF * crossRat;
-  double selcM = 0.5 * (num-1) * Prob;
-  //             ^      ^
-  //             |      |
-  //             |      +--- For correct Poisson statistics
-  //             |
-  //             +--- Pairs are double counted
+  double selcM = (num-1) * Prob;
+  //              ^
+  //              |
+  //              +--- For correct Poisson statistics
   //
 
   if (collLim) {		// Sanity clamp
