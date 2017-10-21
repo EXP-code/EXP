@@ -11,7 +11,6 @@ extern int myid;
 	a[k][l]=h+s*(g-h*tau);
 
 void jacobi(double **a, int n,double *d, double **v, int *nrot) 
-  throw (char const*)
 {
   int j, iq, ip, i;
   double tresh, theta, tau, t, sm, s, h, g, c, *b, *z;
