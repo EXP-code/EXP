@@ -47,7 +47,7 @@ namespace po = boost::program_options;
 */
 int main(int argc, char**argv)
 {
-  double n0, tol, h, T;
+  double n0, tol, h, T, z;
   unsigned skip;
   int niter;
   std::string outf;
@@ -65,6 +65,8 @@ int main(int argc, char**argv)
      "Time step in years")
     ("tol,e",     po::value<double>(&tol)->default_value(1.0e-10), 
      "error tolerance")
+    ("redshift,z",     po::value<double>(&z)->default_value(0.1), 
+     "redshift")
     ("iter,n",    po::value<int>(&niter)->default_value(1000), 
      "maximum number of iterations")
     ("outfile,o", po::value<std::string>(&outf)->default_value("IonRecombFrac.data"),
@@ -86,7 +88,20 @@ int main(int argc, char**argv)
     return 1;
   }
 
-  std::array<double, 3> alpha {4.9771e-13, 5.9671e-13, 6.2216e-14};
+
+
+  std::map< double, std::array<double, 3> > alpha = {
+    {0.1, {6.6362e-14, 7.9561e-14, 8.2955e-15}},
+    {1.1, {4.9771e-13, 5.9671e-13, 6.2216e-14}}
+  };
+     
+  if (alpha.find(z) == alpha.end()) {
+    std::cout << "Could not find <" << z << "> in alpha" << std::endl
+	      << "Available values are:";
+    for (auto v : alpha) std::cout << " " << v.first;
+    std::cout << std::endl;
+    exit(-1);
+  }
 
   std::vector<double> Temp;
   std::vector<std::array<double, 3>> barray;
@@ -147,9 +162,9 @@ int main(int argc, char**argv)
 		    Y/mY*(curr[2] + 2.0*(1.0 - curr[0] - curr[2])));
     last = curr;
 
-    delta[0] = h * ( ne*(1.0 - last[0])           * beta[0] - last[0]*alpha[0] );
-    delta[1] = h * ( ne*last[2]                   * beta[1] - last[1]*alpha[1] );
-    delta[2] = h * ( ne*(1.0 - last[1] - last[2]) * beta[2] - last[2]*alpha[2] );
+    delta[0] = h * ( ne*(1.0 - last[0])           * beta[0] - last[0]*alpha[z][0] );
+    delta[1] = h * ( ne*last[2]                   * beta[1] - last[1]*alpha[z][1] );
+    delta[2] = h * ( ne*(1.0 - last[1] - last[2]) * beta[2] - last[2]*alpha[z][2] );
 
     for (int j=0; j<3; j++) {
       curr[j] += delta[j];
