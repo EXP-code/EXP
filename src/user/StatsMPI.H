@@ -42,12 +42,12 @@ public:
   { 
     if (cntT.find(k) == cntT.end()) {
       cntT[k]  = wgt;
-      curT[k]  = val;
+      curT[k]  = val * wgt;
       vmin[k]  = val;
       vmax[k]  = val;
     } else {
       cntT[k] += wgt;
-      curT[k] += val;
+      curT[k] += val * wgt;
       vmin[k]  = std::min<double>(vmin[k], val);
       vmax[k]  = std::max<double>(vmax[k], val);
     }
