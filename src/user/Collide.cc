@@ -3619,11 +3619,14 @@ void Collide::NTCgather()
 
       while (c.nextCell()) {
 	for (auto q : qv) {
-	  NTC::NTCitem::vcMap v = ntcdb[c.Cell()->mykey].CrsVel(q);
-	  for (auto i : v) {
-	    for (auto j : i.second)
-	      qq[i.first][j.first][q].push_back(j.second);
+	  try {
+	    NTC::NTCitem::vcMap v = ntcdb[c.Cell()->mykey].CrsVel(q);
+	    for (auto i : v) {
+	      for (auto j : i.second)
+		qq[i.first][j.first][q].push_back(j.second);
+	    }
 	  }
+	  catch (NTC::NTCitem::Error &error) {}
 	}
       }
       

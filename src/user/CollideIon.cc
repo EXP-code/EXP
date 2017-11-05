@@ -15554,7 +15554,7 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
     if (it1->second) {
 
       speciesKey i1 = it1->first;
-
+      
       for (it2=it1; it2!=c->count.end(); it2++) {
 
 	// Only compute if particles of this species is in the cell
@@ -15568,7 +15568,15 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
 	  if (i1>=i2) k = sKeyPair(i2, i1);
 
 	  pthread_mutex_lock(&tlock);
-	  crsvel = ntcdb[ckey].CrsVel(k, ntcThresh);
+	  try {
+	    crsvel = ntcdb[ckey].CrsVel(k, ntcThresh);
+	  }
+	  catch (NTC::NTCitem::Error &error) {
+	    if (i2>=i1)
+	      crsvel = csections[id][i1][i2]() * crm;
+	    else
+	      crsvel = csections[id][i2][i1]() * crm;
+	  }
 	  pthread_mutex_unlock(&tlock);
 
 	  // Probability of an interaction of between particles of type 1
@@ -15594,26 +15602,35 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
 	  //
 	  if (DEBUG_SL) {
 	    if (selcM[i1][i2]()>10000.0) {
-	      double cv1, cv2, cv3;
-	      pthread_mutex_lock(&tlock);
-	      cv1 = ntcdb[ckey].CrsVel(k, 0.50);
-	      cv2 = ntcdb[ckey].CrsVel(k, 0.90);
-	      cv3 = ntcdb[ckey].CrsVel(k, 0.95);
-	      pthread_mutex_unlock(&tlock);
+	      if (ntcdb[ckey].Ready(k)) {
+		  double cv1, cv2, cv3;
+		  pthread_mutex_lock(&tlock);
+		  cv1 = ntcdb[ckey].CrsVel(k, 0.50);
+		  cv2 = ntcdb[ckey].CrsVel(k, 0.90);
+		  cv3 = ntcdb[ckey].CrsVel(k, 0.95);
+		  pthread_mutex_unlock(&tlock);
 
-	      std::cout << std::endl
-			<< "Too many collisions: collP=" << meanCollP
-			<< ", MFP=" << meanLambda << ", P=" << Prob
-			<< ", <sigma*vel>=" << crsvel
-			<< ", N=" << selcM[i1][i2]()
-			<< ", q(0.5, 0.9, 0.95) = (" << cv1 << ", "
-			<< cv2 << ", " << cv3 << "), iVels=("
-			<< cVels[id].first[0] << ", "
-			<< cVels[id].first[1] << ", "
-			<< cVels[id].first[2] << "), eVels=("
-			<< cVels[id].second[0] << ", "
-			<< cVels[id].second[1] << ", "
-			<< cVels[id].second[2] << ")" << std::endl;
+		  std::cout << std::endl
+			    << "Too many collisions: collP=" << meanCollP
+			    << ", MFP=" << meanLambda << ", P=" << Prob
+			    << ", <sigma*vel>=" << crsvel
+			    << ", N=" << selcM[i1][i2]()
+			    << ", q(0.5, 0.9, 0.95) = (" << cv1 << ", "
+			    << cv2 << ", " << cv3 << "), iVels=("
+			    << cVels[id].first[0] << ", "
+			    << cVels[id].first[1] << ", "
+			    << cVels[id].first[2] << "), eVels=("
+			    << cVels[id].second[0] << ", "
+			    << cVels[id].second[1] << ", "
+			    << cVels[id].second[2] << ")" << std::endl;
+	      } else {
+		  std::cout << std::endl
+			    << "Too many collisions: collP=" << meanCollP
+			    << ", MFP=" << meanLambda << ", P=" << Prob
+			    << ", <sigma*vel>=" << crsvel
+			    << ", N=" << selcM[i1][i2]()
+			    << ", NTC not ready"          << std::endl;
+	      }
 	    }
 	  }
 
@@ -15673,7 +15690,15 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
 
 	    double crsvel = 0.0;
 	    pthread_mutex_lock(&tlock);
-	    crsvel = ntcdb[ckey].CrsVel(k, ntcThresh);
+	    try {
+	      crsvel = ntcdb[ckey].CrsVel(k, ntcThresh);
+	    }
+	    catch (NTC::NTCitem::Error &error) {
+	      if (i2>=i1)
+		crsvel = csections[id][i1][i2]() * crm;
+	      else
+		crsvel = csections[id][i2][i1]() * crm;
+	    }
 	    pthread_mutex_unlock(&tlock);
 
 	    double Prob0 = 0.0, Prob1 = 0.0;
@@ -18186,8 +18211,11 @@ void CollideIon::electronGather()
 
       if (ntcDist) {
 	for (auto q : qv) {
-	  double v = ntcdb[itree.Cell()->mykey].CrsVel(electronKey, elecElec, q);
-	  ee[q].push_back(v);
+	  try {
+	    double v = ntcdb[itree.Cell()->mykey].CrsVel(electronKey, elecElec, q);
+	    ee[q].push_back(v);
+	  }
+	  catch (NTC::NTCitem::Error &error) {}
 	}
       }
     }

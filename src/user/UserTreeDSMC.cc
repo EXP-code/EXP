@@ -94,7 +94,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   use_pullin = false;
   esol       = false;
   ntc        = true;
-  ntcdef     = 10.0;
   cba        = true;
   tube       = false;
   slab       = false;
@@ -447,7 +446,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   Collide::MFPDIAG   	  = mfpstat;	   
   Collide::EFFORT    	  = use_effort; 
   Collide::ENHANCE   	  = enhance;
-  NTC::NTCitem::Def       = ntcdef;
   
   //
   // Create the collision instance from the allowed list
@@ -641,7 +639,6 @@ void UserTreeDSMC::initialize()
   if (get_value("esol", val))		esol       = atol(val);
   if (get_value("cba", val))		cba        = atol(val);
   if (get_value("ntc", val))		ntc        = atol(val);
-  if (get_value("ntcdef", val))		ntcdef     = atof(val.c_str());
   if (get_value("tube", val))		tube       = atol(val);
   if (get_value("slab", val))		slab       = atol(val);
   if (get_value("sub_sample", val))	sub_sample = atol(val);

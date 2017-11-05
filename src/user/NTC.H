@@ -264,6 +264,19 @@ namespace NTC
     }
 
   public:
+
+    class Error : public std::exception 
+    {
+    public:
+      Error() {}
+      virtual ~Error() throw() {}
+      virtual const char *what() const throw()
+      {
+	return "NTCitem: no CrsVel available";
+      }
+    };
+    
+  public:
     
     //! Constructor
     NTCitem() 
@@ -309,9 +322,6 @@ namespace NTC
     
     //! Threshold <cross section> x <relative velocity> value
     static double Min;
-    
-    //! Default <cross section> x <relative velocity> value
-    static double Def;
     
     //@{
     //! Return quantile value for a single index

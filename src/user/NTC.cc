@@ -39,9 +39,6 @@ unsigned NTCitem::maxrpt    = 5;
 // Minimum CrossSection x Velocity value
 double   NTCitem::Min = 1.0e-24;
 
-// Minimum CrossSection x Velocity value
-double   NTCitem::Def = 10.0;
-
 // Count live instances
 unsigned NTCitem::instance  = 0;
 
@@ -255,17 +252,17 @@ double NTCitem::CrsVel(sKeyPair indx, const T& intr, double p)
   qpMap::iterator it = db.find(indx);
   
   // Default value
-  if (it == db.end()) return Def;
+  if (it == db.end()) throw Error();
   
   // Get next stanza
   uqMap::iterator jt = it->second.find(intr);
   
   // Default value
-  if (jt == it->second.end()) return Def;
+  if (jt == it->second.end()) throw Error();
   
   
   // Default value
-  if (! jt->second.full() ) return Def;
+  if (! jt->second.full() ) throw Error();
   
   if (0) debug();
   
