@@ -1492,7 +1492,7 @@ void * Collide::collide_thread(void * arg)
 	  bool ok = false;
 	  
 	  double crsvel  = crossIJ[i1][i2]()/cunit * cr * NTCfac;
-	  if (ntcdb[samp->mykey].Ready(k, maxT)) {
+	  if (use_ntcdb and ntcdb[samp->mykey].Ready(k, maxT)) {
 	    crsvel = ntcdb[samp->mykey].CrsVel(k, maxT, ntcThresh) * ntcFactor;
 	  }
 
