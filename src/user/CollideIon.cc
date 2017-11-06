@@ -597,6 +597,10 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << maxCoul                                << std::endl
 	      <<  " " << std::setw(20) << std::left << "logL"
 	      << logL                                   << std::endl
+	      <<  " " << std::setw(20) << std::left << "ntcThresh"
+	      << ntcThresh                              << std::endl
+	      <<  " " << std::setw(20) << std::left << "ntcFactor"
+	      << ntcFactor                              << std::endl
 	      <<  " " << std::setw(20) << std::left << "Spectrum"
 	      << (use_spectrum ? (wvlSpect ? "in wavelength" : "in eV")
 		  : "off")                              << std::endl
