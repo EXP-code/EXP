@@ -596,12 +596,16 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "maxCoul"
 	      << maxCoul                                << std::endl
 	      <<  " " << std::setw(20) << std::left << "logL"
-	      << logL                                   << std::endl
-	      <<  " " << std::setw(20) << std::left << "ntcThresh"
+	      << logL                                   << std::endl;
+    if (use_ntcdb)
+    std::cout <<  " " << std::setw(20) << std::left << "ntcThresh"
 	      << ntcThresh                              << std::endl
 	      <<  " " << std::setw(20) << std::left << "ntcFactor"
-	      << ntcFactor                              << std::endl
-	      <<  " " << std::setw(20) << std::left << "Spectrum"
+	      << ntcFactor                              << std::endl;
+    else
+    std::cout <<  " " << std::setw(20) << std::left << "NTC database"
+	      << "off"                                  << std::endl;
+    std::cout <<  " " << std::setw(20) << std::left << "Spectrum"
 	      << (use_spectrum ? (wvlSpect ? "in wavelength" : "in eV")
 		  : "off")                              << std::endl
 	      <<  " " << std::setw(20) << std::left << "Photoionization"
@@ -16542,11 +16546,15 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
 
   // Use NTCdb?
   //
-  pthread_mutex_lock(&tlock);
-  if (ntcdb[c->mykey].Ready(defKeyPair, NTC::Interact::single))
-    crossRatDB = ntcdb[c->mykey].CrsVel(defKeyPair, NTC::Interact::single, ntcThresh) * ntcFactor * crs_units/crm;
-  pthread_mutex_unlock(&tlock);
-
+  if (use_ntcdb) {
+    pthread_mutex_lock(&tlock);
+    if (ntcdb[c->mykey].Ready(defKeyPair, NTC::Interact::single))
+      crossRatDB = ntcdb[c->mykey].CrsVel(defKeyPair, NTC::Interact::single, ntcThresh) * ntcFactor * crs_units/crm;
+    pthread_mutex_unlock(&tlock);
+  } else {
+    crossRatDB = crossRat;
+  }
+  
   // This is a kludgy sanity check . . . 
   //
   if (crossRatDB>tolCS*crossRat) crossRat = crossRatDB;
@@ -19985,7 +19993,7 @@ void CollideIon::processConfig()
 
     if (aType==Trace) {		// So far, implemented for Trace method only
       Collide::use_ntcdb =
-	cfg.entry<bool>("ntcDB", "use the NTC data base for max CrsVel values", true);
+	cfg.entry<bool>("ntcDB", "Use the NTC data base for max CrsVel values", true);
     }
 
     Collide::ntcThresh =
