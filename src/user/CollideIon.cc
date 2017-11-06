@@ -12921,7 +12921,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
     pthread_mutex_lock(&tlock);
     if (ntcdb[ckey].Ready(electronKey, elecElec)) {
-      crsvel = ntcdb[ckey].CrsVel(electronKey, elecElec, ntcThresh);
+      crsvel = ntcdb[ckey].CrsVel(electronKey, elecElec, ntcThresh) * ntcFactor;
     } else {
       ntcdb[ckey].Add(electronKey, elecElec, crsvel);
     }
@@ -15569,7 +15569,7 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
 
 	  pthread_mutex_lock(&tlock);
 	  try {
-	    crsvel = ntcdb[ckey].CrsVel(k, ntcThresh);
+	    crsvel = ntcdb[ckey].CrsVel(k, ntcThresh) * ntcFactor;
 	  }
 	  catch (NTC::NTCitem::Error &error) {
 	    if (i2>=i1)
@@ -15691,7 +15691,7 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
 	    double crsvel = 0.0;
 	    pthread_mutex_lock(&tlock);
 	    try {
-	      crsvel = ntcdb[ckey].CrsVel(k, ntcThresh);
+	      crsvel = ntcdb[ckey].CrsVel(k, ntcThresh) * ntcFactor;
 	    }
 	    catch (NTC::NTCitem::Error &error) {
 	      if (i2>=i1)
@@ -15928,7 +15928,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
 	    pthread_mutex_lock(&tlock);
 	    if (ntcdb[ckey].Ready(k, v.first))
-	      crsvel = ntcdb[ckey].CrsVel(k, v.first, ntcThresh);
+	      crsvel = ntcdb[ckey].CrsVel(k, v.first, ntcThresh) * ntcFactor;
 	    pthread_mutex_unlock(&tlock);
 
 	    // Probability of an interaction of between particles of type 1
@@ -16099,7 +16099,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
 	      pthread_mutex_lock(&tlock);
 	      if (ntcdb[ckey].Ready(k, v.first))
-		crsvel = ntcdb[ckey].CrsVel(k, v.first, ntcThresh);
+		crsvel = ntcdb[ckey].CrsVel(k, v.first, ntcThresh) * ntcFactor;
 	      pthread_mutex_unlock(&tlock);
 		
 	      double Prob0 = 0.0, Prob1 = 0.0, Dens = 0.0;
@@ -16202,7 +16202,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
 	      pthread_mutex_lock(&tlock);
 	      if (ntcdb[ckey].Ready(k, v.first))
-		crsvel = ntcdb[ckey].CrsVel(k, v.first, ntcThresh);
+		crsvel = ntcdb[ckey].CrsVel(k, v.first, ntcThresh) * ntcFactor;
 	      pthread_mutex_unlock(&tlock);
 
 	      double Prob0 = 0.0, Prob1 = 0.0, Dens = 0.0;
@@ -16513,7 +16513,7 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   //
   pthread_mutex_lock(&tlock);
   if (ntcdb[c->mykey].Ready(defKeyPair, NTC::Interact::single))
-    crossRatDB = ntcdb[c->mykey].CrsVel(defKeyPair, NTC::Interact::single, ntcThresh) * crs_units/crm;
+    crossRatDB = ntcdb[c->mykey].CrsVel(defKeyPair, NTC::Interact::single, ntcThresh) * ntcFactor * crs_units/crm;
   pthread_mutex_unlock(&tlock);
 
   // This is a kludgy sanity check . . . 
@@ -19951,6 +19951,12 @@ void CollideIon::processConfig()
 
     Collide::numSanityFreq =
       cfg.entry<unsigned>("collFreq", "Stride for collision reporting", 2000000u);
+
+    Collide::ntcThresh =
+      cfg.entry<double>("ntcThresh", "Quantile for NTC CrsVel", 0.95);
+
+    Collide::ntcFactor =
+      cfg.entry<double>("ntcFactor", "scaling factor NTC CrsVel", 1.0);
 
     Ion::HandM_coef = 
       cfg.entry<double>("HandMcoef", "Coefficient for Haard & Madau UV spectral flux", 1.5e-22);

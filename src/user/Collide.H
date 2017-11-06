@@ -477,7 +477,7 @@ protected:
   //@{
   //! NTC threshold
   static double ntcThreshDef;
-  double ntcThresh;
+  double ntcThresh, ntcFactor;
   //@}
 
   //@{

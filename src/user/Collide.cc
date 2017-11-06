@@ -606,6 +606,7 @@ Collide::Collide(ExternalForce *force, Component *comp,
   // Set the threshold from the default value
   //
   ntcThresh = ntcThreshDef;
+  ntcFactor = 1.0;
 
   if (myid==0) {
     std::cout << printDivider << std::endl
@@ -1491,7 +1492,7 @@ void * Collide::collide_thread(void * arg)
 	  
 	  double crsvel  = crossIJ[i1][i2]()/cunit * cr * NTCfac;
 	  if (ntcdb[samp->mykey].Ready(k, maxT)) {
-	    crsvel = ntcdb[samp->mykey].CrsVel(k, maxT, ntcThresh);
+	    crsvel = ntcdb[samp->mykey].CrsVel(k, maxT, ntcThresh) * ntcFactor;
 	  }
 
 	  double scrs = Cross / cunit;
