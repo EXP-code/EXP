@@ -605,6 +605,7 @@ Collide::Collide(ExternalForce *force, Component *comp,
 
   // Set the threshold from the default value
   //
+  use_ntcdb = true;
   ntcThresh = ntcThreshDef;
   ntcFactor = 1.0;
 

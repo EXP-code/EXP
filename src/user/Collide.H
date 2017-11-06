@@ -183,7 +183,7 @@ public:
   //@{
   //! Types for crossSection and generateSelection with interaction index
   typedef std::map<speciesKey,  NTC::Interact>  sKey1Amap;
-  typedef std::map<speciesKey,      sKey1Amap>   sKey2Amap;
+  typedef std::map<speciesKey,      sKey1Amap>  sKey2Amap;
   //@}
 
 
@@ -471,8 +471,11 @@ protected:
   //! Initialize atomic weights (public data)
   void atomic_weights_init();
 
+  //@{
   //! NTC database
   NTC::NTCdb ntcdb;
+  bool use_ntcdb;
+  //@}
 
   //@{
   //! NTC threshold

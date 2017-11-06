@@ -2310,122 +2310,149 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
     //
     csections[id][Particle::defaultKey][Particle::defaultKey]() = 0.0;
 
-    // Compute mean weights in the cell
-    //
-    // In auto iterators below:
-    //    s is of type std::map<speciesKey, int>
-    //    b is of type std::vector<unsigned long>
-    //
-    // Per cell variables:
-    //    meanF[id][sp] is the mean number fraction for species sp
-    //    meanE[id]     is the mean number of electrons per particle
-    //    meanR[id]     is the mean effective cross-section radius
-    //    neutF[id]     is the neutral number fraction
-    //    meanM[id]     is the mean molecular weight
-    //    numEf[id]     is the effective number of particles
-    //    densE[id][sp] is the density of electrons in each cell per species sp
-    //    elecDen[id]   is the total density of electrons in each cell
-    //    elecDn2[id]   is the mean-squared density of electrons in each cell
-    //    elecCnt[id]   is the number of samples in elecDen and elecDn2
-    //
+    if (use_ntcdb) {
 
+      // Compute mean weights in the cell
+      //
+      // In auto iterators below:
+      //    s is of type std::map<speciesKey, int>
+      //    b is of type std::vector<unsigned long>
+      //
+      // Per cell variables:
+      //    meanF[id][sp] is the mean number fraction for species sp
+      //    meanE[id]     is the mean number of electrons per particle
+      //    meanR[id]     is the mean effective cross-section radius
+      //    neutF[id]     is the neutral number fraction
+      //    meanM[id]     is the mean molecular weight
+      //    numEf[id]     is the effective number of particles
+      //    densE[id][sp] is the density of electrons in each cell per species sp
+      //    elecDen[id]   is the total density of electrons in each cell
+      //    elecDn2[id]   is the mean-squared density of electrons in each cell
+      //    elecCnt[id]   is the number of samples in elecDen and elecDn2
+      //
+      
 				// Mean fraction in trace species
 				//
-    for (auto s : SpList) meanF[id][s.first] = 0.0;
-    neutF[id] = meanE[id] = meanR[id] = meanM[id] = cellM[id] = 0.0;
+      for (auto s : SpList) meanF[id][s.first] = 0.0;
+      neutF[id] = meanE[id] = meanR[id] = meanM[id] = cellM[id] = 0.0;
 
 				// Total mass of all particles and
 				// relative fraction of trace species
 				// and elctron number fraction in this
 				// cell
-    double massP = 0.0, numbP = 0.0;
-    for (auto b : cell->bods) {
+      double massP = 0.0, numbP = 0.0;
+      for (auto b : cell->bods) {
 				// Particle mass accumulation
-      Particle *p = tree->Body(b);
-      massP      += p->mass;
-				// Mass-weighted trace fraction
-      for (auto s : SpList) {
-	speciesKey k = s.first;
-	double ee    = k.second - 1;
-	double ww    = p->dattrib[s.second]/atomic_weights[k.first];
-
-				// Mean number fraction
-	meanF[id][s.first] += p->mass * ww;
-				// Mean electron number
-	meanE[id]          += p->mass * ww * ee;
-				// Mean number
-	numbP              += p->mass * ww;
-
-				// For neutrals only
-	if (ee==0) {
-				// Mean particle radius
-	  meanR[id]        += p->mass * ww * geometric(k.first);
-	  neutF[id]        += p->mass * ww;
+	Particle *p = tree->Body(b);
+	massP      += p->mass;
+	// Mass-weighted trace fraction
+	for (auto s : SpList) {
+	  speciesKey k = s.first;
+	  double ee    = k.second - 1;
+	  double ww    = p->dattrib[s.second]/atomic_weights[k.first];
+	  
+	  // Mean number fraction
+	  meanF[id][s.first] += p->mass * ww;
+	  // Mean electron number
+	  meanE[id]          += p->mass * ww * ee;
+	  // Mean number
+	  numbP              += p->mass * ww;
+	  
+	  // For neutrals only
+	  if (ee==0) {
+	    // Mean particle radius
+	    meanR[id]        += p->mass * ww * geometric(k.first);
+	    neutF[id]        += p->mass * ww;
+	  }
 	}
       }
-    }
 				// Normalize mass-weighted fraction
 				// and electron fraction
 				//
-    cellM[id] += massP;
-    if (massP>0.0) {
-      for (auto s : SpList) meanF[id][s.first] /= massP;
-      meanE[id] /= massP;
-      neutF[id] /= massP;
-    }
-    if (neutF[id]>0.0) meanR[id] /= neutF[id];
-    if (numbP    >0.0) meanM[id]  = massP/numbP;
-
+      cellM[id] += massP;
+      if (massP>0.0) {
+	for (auto s : SpList) meanF[id][s.first] /= massP;
+	meanE[id] /= massP;
+	neutF[id] /= massP;
+      }
+      if (neutF[id]>0.0) meanR[id] /= neutF[id];
+      if (numbP    >0.0) meanM[id]  = massP/numbP;
+      
 				// Electron velocity factor for this
 				// cell
-    double eVel = sqrt(amu*meanM[id]/me);
+      double eVel = sqrt(amu*meanM[id]/me);
 
 				// Compute neutral and Coulombic cross
 				// sections
-    for (auto s : SpList) {
+      for (auto s : SpList) {
 
-      speciesKey k = s.first;
+	speciesKey k = s.first;
 				// Reduced mass for this interation
 				//
-      double mu = 0.5*meanM[id];
+	double mu = 0.5*meanM[id];
 
 				// Cumulative cross section
 				//
-      double Cross = 0.0;
+	double Cross = 0.0;
 
 				// This species is a neutral
-      if (k.second == 1) {
+	if (k.second == 1) {
 				// Neutral-neutral scattering
 				// cross section
-	double Radius = geometric(k.first) + meanR[id];
-	Cross += neutF[id] * M_PI*Radius*Radius * crossfac;
+	  double Radius = geometric(k.first) + meanR[id];
+	  Cross += neutF[id] * M_PI*Radius*Radius * crossfac;
 
 
 				// Neutral-charged elastic cross section
-	if (meanE[id] > 0.0)	// (recall Eerg and EeV are the mean
+	  if (meanE[id] > 0.0)	// (recall Eerg and EeV are the mean
 				// interparticle KE)
-	  Cross += elastic(k.first, EeV * mu) * eVel * meanE[id] * crossfac;
+	    Cross += elastic(k.first, EeV * mu) * eVel * meanE[id] * crossfac;
 
-      } else {			// This species is an ion
+	} else {		// This species is an ion
 
 				// Coulombic elastic scattering
-	double b = 0.5*esu*esu*(k.second - 1) /
-	  std::max<double>(Eerg*mu, FloorEv*eV) * 1.0e7; // nm
-	b = std::min<double>(b, ips);
-	double mfac = 4.0 * logL;
-	double crs = M_PI*b*b * mfac;
+	  double b = 0.5*esu*esu*(k.second - 1) /
+	    std::max<double>(Eerg*mu, FloorEv*eV) * 1.0e7; // nm
+	  b = std::min<double>(b, ips);
+	  double mfac = 4.0 * logL;
+	  double crs = M_PI*b*b * mfac;
+	  
+	  Cross += crs * eVel * meanE[id] * crossfac;
+	  if (coulScale) {
+	    coulCrs[id][k.second - 1][0] = crs;
+	    coulCrs[id][k.second - 1][1] = EeV * mu;
+	  }
+	}
+	
+	double tCross = Cross * 1e-14 /
+	  (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) * cscl_[k.first];
 
-	Cross += crs * eVel * meanE[id] * crossfac;
-	if (coulScale) {
-	  coulCrs[id][k.second - 1][0] = crs;
-	  coulCrs[id][k.second - 1][1] = EeV * mu;
+	csections[id][Particle::defaultKey][Particle::defaultKey]() += tCross * meanF[id][k];
+      }
+    } else {
+
+      size_t nbods = cell->bods.size();
+      double Cross = 0.0;
+
+      for (size_t i=0; i<nbods; i++) {
+	for (size_t j=i+1; j<nbods; j++) {
+	  Particle *p1 = tree->Body(cell->bods[i]);
+	  Particle *p2 = tree->Body(cell->bods[j]);
+
+	  double cr = 0.0;
+	  for (size_t k=0; k<3; k++) {
+	    double dvel = p1->vel[k] - p2->vel[k];
+	    cr += dvel*dvel;
+	  }
+
+	  Cross += crossSectionTrace(id, cell, p1, p2, sqrt(cr));
 	}
       }
 
-      double tCross = Cross * 1e-14 /
-	(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) * cscl_[k.first];
+      static const double crsfac = 1e-14 /(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 
-      csections[id][Particle::defaultKey][Particle::defaultKey]() += tCross * meanF[id][k];
+      csections[id][Particle::defaultKey][Particle::defaultKey]() = Cross * crsfac;
+
     }
   } // END: Trace
 }
@@ -19955,6 +19982,11 @@ void CollideIon::processConfig()
 
     Collide::numSanityFreq =
       cfg.entry<unsigned>("collFreq", "Stride for collision reporting", 2000000u);
+
+    if (aType==Trace) {		// So far, implemented for Trace method only
+      Collide::use_ntcdb =
+	cfg.entry<bool>("ntcDB", "use the NTC data base for max CrsVel values", true);
+    }
 
     Collide::ntcThresh =
       cfg.entry<double>("ntcThresh", "Quantile for NTC CrsVel", 0.95);
