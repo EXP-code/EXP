@@ -15011,6 +15011,10 @@ void CollideIon::parseSpecies(const std::string& map)
     }
   }
 
+  // Sanity check.  So far, the full pair-wise cross-section census is
+  // implemented for the Trace method only
+  if (!use_ntcdb and aType!=Trace) use_ntcdb = true; 
+
   unsigned int sz = ZList.size();
   MPI_Bcast(&sz, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
@@ -19991,10 +19995,8 @@ void CollideIon::processConfig()
     Collide::numSanityFreq =
       cfg.entry<unsigned>("collFreq", "Stride for collision reporting", 2000000u);
 
-    if (aType==Trace) {		// So far, implemented for Trace method only
-      Collide::use_ntcdb =
-	cfg.entry<bool>("ntcDB", "Use the NTC data base for max CrsVel values", true);
-    }
+    Collide::use_ntcdb =
+      cfg.entry<bool>("ntcDB", "Use the NTC data base for max CrsVel values", true);
 
     Collide::ntcThresh =
       cfg.entry<double>("ntcThresh", "Quantile for NTC CrsVel", 0.95);
