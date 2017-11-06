@@ -19956,7 +19956,7 @@ void CollideIon::processConfig()
       cfg.entry<double>("ntcThresh", "Quantile for NTC CrsVel", 0.95);
 
     Collide::ntcFactor =
-      cfg.entry<double>("ntcFactor", "scaling factor NTC CrsVel", 1.0);
+      cfg.entry<double>("ntcFactor", "Scaling factor NTC CrsVel", 1.0);
 
     Ion::HandM_coef = 
       cfg.entry<double>("HandMcoef", "Coefficient for Haard & Madau UV spectral flux", 1.5e-22);
