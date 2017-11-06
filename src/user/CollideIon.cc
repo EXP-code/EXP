@@ -16595,17 +16595,18 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
     if (ntcdb[c->mykey].Ready(defKeyPair, NTC::Interact::single))
       crossRatDB = ntcdb[c->mykey].CrsVel(defKeyPair, NTC::Interact::single, ntcThresh) * ntcFactor * crs_units/crm;
     pthread_mutex_unlock(&tlock);
+
+    // This is a kludgy sanity check . . . 
+    //
+    if (crossRatDB>tolCS*crossRat) crossRat = crossRatDB;
+    else {
+      if (crossRatDB == 0.0) crZero[id]++;
+      else                   crMiss[id]++;
+    }
   } else {
     crossRatDB = crossRat;
   }
   
-  // This is a kludgy sanity check . . . 
-  //
-  if (crossRatDB>tolCS*crossRat) crossRat = crossRatDB;
-  else {
-    if (crossRatDB == 0.0) crZero[id]++;
-    else                   crMiss[id]++;
-  }
   crTotl[id]++;
 
   // Compute collision rates in system units
