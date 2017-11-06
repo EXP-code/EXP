@@ -2428,8 +2428,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 	  }
 	}
 	
-	double tCross = Cross * 1e-14 /
-	  (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) * cscl_[k.first];
+	double tCross = Cross * crs_units * cscl_[k.first];
 
 	csections[id][Particle::defaultKey][Particle::defaultKey]() += tCross * meanF[id][k];
       }
@@ -2449,13 +2448,12 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 	    cr += dvel*dvel;
 	  }
 
-	  Cross += crossSectionTrace(id, cell, p1, p2, sqrt(cr));
+	  // Record the maximum cross section (already in system units)
+	  Cross = std::max<double>(Cross, crossSectionTrace(id, cell, p1, p2, sqrt(cr)));
 	}
       }
 
-      static const double crsfac = 1e-14 /(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
-
-      csections[id][Particle::defaultKey][Particle::defaultKey]() = Cross * crsfac;
+      csections[id][Particle::defaultKey][Particle::defaultKey]() = Cross;
 
     }
   } // END: Trace
@@ -12954,13 +12952,55 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
     key_type  ckey = cell->mykey;
     if (samp) ckey = samp->mykey;
 
-    pthread_mutex_lock(&tlock);
-    if (ntcdb[ckey].Ready(electronKey, elecElec)) {
-      crsvel = ntcdb[ckey].CrsVel(electronKey, elecElec, ntcThresh) * ntcFactor;
-    } else {
-      ntcdb[ckey].Add(electronKey, elecElec, crsvel);
+    if (use_ntcdb) {
+
+      pthread_mutex_lock(&tlock);
+      if (ntcdb[ckey].Ready(electronKey, elecElec)) {
+	crsvel = ntcdb[ckey].CrsVel(electronKey, elecElec, ntcThresh) * ntcFactor;
+      } else {
+	ntcdb[ckey].Add(electronKey, elecElec, crsvel);
+      }
+      pthread_mutex_unlock(&tlock);
+
+    } else if (use_elec >= 0) {
+
+      size_t nbods = cell->bods.size();
+      double CrsVel = 0.0;
+
+      for (size_t i=0; i<nbods; i++) {
+	for (size_t j=i+1; j<nbods; j++) {
+	  Particle *p1 = tree->Body(cell->bods[i]);
+	  Particle *p2 = tree->Body(cell->bods[j]);
+
+	  double kE = 0.0;
+	  for (size_t k=0; k<3; k++) {
+	    double dvel = p1->dattrib[use_elec+k] - p2->dattrib[use_elec+k];
+	    kE += dvel*dvel;
+	  }
+
+	  double cvel = sqrt(kE);
+	  kE *= 0.25 * me;
+			       
+	  double e1 = 0.0, e2 = 0.0; // Compute electron fractions
+	  for (auto s : SpList) {
+	    unsigned short Z = s.first.first, P = s.first.second - 1;
+	    e1 += p1->dattrib[s.second] / atomic_weights[Z] * P;
+	    e2 += p2->dattrib[s.second] / atomic_weights[Z] * P;
+	  }
+
+	  // Coulombic impact parameter
+	  double b = 0.5*esu*esu /
+	    std::max<double>(kE*eV, FloorEv*eV) * 1.0e7; // nm
+	  b = std::min<double>(b, ips);
+	  
+	  // Max sigma*cr
+	  CrsVel = std::max<double>(CrsVel,
+				    M_PI*b*b * e1 * e2 * 4.0 * logL * cvel);
+	}
+      }
+
+      crsvel = CrsVel;
     }
-    pthread_mutex_unlock(&tlock);
 
     // Probability of an interaction of between particles of type 1
     // and 2 for a given particle of type 2
