@@ -18534,7 +18534,7 @@ void CollideIon::electronGather()
       }
     }
 
-    if (aType==Hybrid and collLim) {
+    if ((aType==Hybrid or aType==Trace) and collLim) {
 
       clampDat clamp1(clamp0);
 
@@ -19244,7 +19244,7 @@ void CollideIon::electronPrint(std::ostream& out)
   }
 
 
-  if (aType==Hybrid and collLim) {
+  if ((aType==Hybrid or aType==Trace) and collLim) {
     out << std::endl << std::string(53, '-') << std::endl
 	<< "-----Collisions per cell over limit------------------" << std::endl
 	<< std::string(53, '-') << std::endl << std::left
