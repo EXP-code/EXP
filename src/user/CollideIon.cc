@@ -39,6 +39,7 @@ bool     CollideIon::AlgOrth    = false;
 bool     CollideIon::AlgWght    = false;
 bool     CollideIon::DebugE     = false;
 bool     CollideIon::collLim    = false;
+bool     CollideIon::collCor    = false;
 unsigned CollideIon::maxSel     = 1000;
 bool     CollideIon::E_split    = false;
 bool     CollideIon::distDiag   = false;
@@ -526,7 +527,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << phLab[photoIBType]                     << std::endl;
     if (collLim)		// print collLim parameters
     std::cout <<  " " << std::setw(20) << std::left << "maxSel"
-	      << maxSel                                 << std::endl;
+	      << maxSel                                 << std::endl
+	      <<  " " << std::setw(20) << std::left << "collCor"
+	      << (collCor ? "on" : "off")               << std::endl;
     std::cout <<  " " << std::setw(20) << std::left << "scatFac1"
 	      << scatFac1                               << std::endl
 	      <<  " " << std::setw(20) << std::left << "scatFac2"
@@ -10450,7 +10453,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       // Upscale elastic cross sections by collision-limit ratio to
       // preserve the physical energy loss rate
       //
-      if (collLim) Prob *= colSc[id];
+      if (collLim and collCor) Prob *= colSc[id];
 
       if (interFlag == free_free) {
 
@@ -19880,6 +19883,9 @@ void CollideIon::processConfig()
 
     collLim =
       cfg.entry<bool>("COLL_LIMIT", "Limit number of collisions per particle", false);
+
+    collCor =
+      cfg.entry<bool>("COLL_CORR", "Correct collisions per particle for limit", false);
 
     maxSel =
       cfg.entry<unsigned>("COLL_LIMIT_ABS", "Limiting number of collisions per cell", 5000);

@@ -1367,6 +1367,7 @@ public:
   static bool     AlgWght;
   static bool     DebugE;
   static bool     collLim;
+  static bool     collCor;
   static bool     E_split;
   static string   config0;
 
