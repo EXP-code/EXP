@@ -617,10 +617,17 @@ void UserEBarN::determine_acceleration_and_potential(void)
 
       cout << "====================================================\n";
       cout << "Computed quadrupole fit for an ellipsoid using\n";
-      if (expon)
-	cout << "an exponential density with scale length " << modelp << endl;
-      else
-	cout << "an power-law density with exponent " << modelp << endl;
+      switch (bartype) {
+      case powerlaw:
+	cout << "powerlaw density profile with exponent=" << modelp << endl;
+	break;
+      case ferrers:
+	cout << "Ferrers density profile with exponent=" << modelp << endl;
+	break;
+      case expon:
+	cout << "Exponential density profile with scale length=" << modelp << endl;
+	break;
+      }
       cout << "Rho0=" << rho0 << endl;
       cout << "Mass=" << barmass << endl;
       cout << "Ampl=" << amplitude << endl;
