@@ -689,6 +689,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   elecDn2  .resize(nthrds, 0);
   elecCnt  .resize(nthrds, 0);
   testCnt  .resize(nthrds, 0);
+  elecNum  .resize(nthrds, 0);
+  elecRat  .resize(nthrds, 0);
   cellEg   .resize(nthrds, 0);
   cellEb   .resize(nthrds, 0);
   dEratg   .resize(nthrds, 0);
@@ -18310,7 +18312,8 @@ void CollideIon::electronGather()
     // Accumulate from threads
     //
     std::vector<double> loss, keE, keI, mom, crs;
-    unsigned Ovr=0, Acc=0, Tot=0;
+    unsigned Ovr=0, Acc=0, Tot=0, NumE=0;
+    double RatE=0.0;
 
     CntE = 0;
     RhoE = 0.0;
@@ -18332,10 +18335,15 @@ void CollideIon::electronGather()
       RhoV += rhoSigV[t];
       RhoN += rhoSigN[t];
 
+      NumE += elecNum[t];
+      RatE += elecRat[t];
+
       elecOvr[t] = elecAcc[t] = elecTot[t] = 0;
       elecDen[t] = elecDn2[t] = 0.0;
       elecCnt[t] = 0;
       rhoSigV[t] = rhoSigN[t] = 0.0;
+      elecNum[t] = 0;
+      elecRat[t] = 0.0;
     }
 
 
@@ -18986,9 +18994,11 @@ void CollideIon::electronGather()
 
     (*barrier)("CollideIon::electronGather: AFTER Send/Recv loop", __FILE__, __LINE__);
 
-    MPI_Reduce(&Ovr, &Ovr_s, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&Acc, &Acc_s, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&Tot, &Tot_s, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&Ovr,  &Ovr_s, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&Acc,  &Acc_s, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&Tot,  &Tot_s, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&NumE, &Num_s, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&RatE, &Rat_s, 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
 
     (*barrier)("CollideIon::electronGather: AFTER REDUCE loop", __FILE__, __LINE__);
 
@@ -19264,6 +19274,11 @@ void CollideIon::electronPrint(std::ostream& out)
       << std::setw(14) << " Accepted"  << std::setw(16) << Acc_s << std::endl
       << std::setw(14) << " Total"     << std::setw(16) << Tot_s << std::endl
       << std::fixed;
+
+  if (Num_s>0) {
+    Rat_s /= Num_s;
+    out << std::setw(14) << " TargR"   << std::setw(16) << Rat_s << std::endl;
+  }
 
   if (Tot_s>0)
     out << std::setw(14) << " Ratio"     << std::setw(16) << static_cast<double>(Acc_s)/Tot_s << std::endl

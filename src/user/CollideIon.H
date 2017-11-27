@@ -506,8 +506,8 @@ private:
   std::vector< double >                              kE1s, kE2s, Ein1, Ein2, Evel, nselRat;
   std::vector< double >                              spCrm, spTau, spProb, spEdel, spEmax;
   std::vector< double >                              molP1, molP2, etaP1, etaP2;
-  std::vector< double >                              rhoSigV, rhoSigN, spNsel;
-  std::vector< unsigned >                            elecCnt, spNcol;
+  std::vector< double >                              rhoSigV, rhoSigN, spNsel, elecRat;
+  std::vector< unsigned >                            elecCnt, elecNum, spNcol;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot, testCnt;
   std::vector< unsigned >                            Nwght, Njsel, Ncol, Nmis;
   std::vector< unsigned >                            crZero, crMiss, crTotl;
@@ -603,8 +603,8 @@ private:
   std::vector< boost::circular_buffer<double> > velER, keER, keIR, momD, crsD;
   ahistoDPtr elecT, elecH, ionsT, ionET, ionH, lossH, keEH, keIH, momH, crsH, Ecoll;
   std::map<unsigned short, ahistoDPtr> elecZH, ionZH;
-  unsigned Ovr_s, Acc_s, Tot_s, CntE;
-  double RhoE, Rho2, RhoV, RhoN;
+  unsigned Ovr_s, Acc_s, Tot_s, CntE, Num_s;
+  double RhoE, Rho2, RhoV, RhoN, Rat_s;
   typedef std::tuple<std::array<double, 4>, unsigned short> energyP;
   std::vector<energyP> energyA;
   energyP energyD;

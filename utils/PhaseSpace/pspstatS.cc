@@ -291,10 +291,10 @@ main(int ac, char **av)
       cout  << "     COM\t\t";
       for (int i=0; i<3; i++) cout << setw(15) << com1[i]/mass1;
       cout << endl;
-      cout  << "     COV\t\t";
+      cout  << "     COVi\t\t";
       for (int i=0; i<3; i++) cout << setw(15) << cov1[i]/mass1;
       cout << endl;
-      cout  << "     DSP\t\t";
+      cout  << "     DSPi\t\t";
       for (int i=0; i<3; i++) cout << setw(15) << std::sqrt(dsp1[i]/mass1 - cov1[i]*cov1[i]/mass1/mass1);
       cout << endl;
       cout  << "     COVe\t\t";
