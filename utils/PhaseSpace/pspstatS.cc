@@ -46,7 +46,7 @@ main(int ac, char **av)
   double time, Lunit, Munit, Tunit;
   int sindx, eindx, icons, econs;
   std::string cname;
-  bool verbose = false;
+  bool verbose = false, trace = false;
 
   // Parse command line
 
@@ -54,6 +54,7 @@ main(int ac, char **av)
   desc.add_options()
     ("help,h",		"produce help message")
     ("verbose,v",       "verbose output")
+    ("trace",           "trace element method")
     ("time,t",		po::value<double>(&time)->default_value(1.0e20),
      "find closest time slice to requested value")
     ("species,s",	po::value<int>(&sindx)->default_value(-1),
@@ -77,6 +78,8 @@ main(int ac, char **av)
     ;
 
 
+  double mu0 = 1.0/(0.76/atomic_mass[1] + 0.24/atomic_mass[2]);
+
   po::variables_map vm;
 
   try {
@@ -97,6 +100,10 @@ main(int ac, char **av)
 
   if (vm.count("verbose")) {
     verbose = true;
+  }
+
+  if (vm.count("trace")) {
+    trace = true;
   }
 
 
@@ -185,6 +192,9 @@ main(int ac, char **av)
 
       double com1[3] = {0.0, 0.0, 0.0};
       double cov1[3] = {0.0, 0.0, 0.0};
+      double dsp1[3] = {0.0, 0.0, 0.0};
+      double covE[3] = {0.0, 0.0, 0.0};
+      double dspE[3] = {0.0, 0.0, 0.0};
       double ang1[3] = {0.0, 0.0, 0.0};
       double KE1     = 0.0;
       double PE1     = 0.0;
@@ -227,6 +237,7 @@ main(int ac, char **av)
 	mass1 += ms;
 	for (int i=0; i<3; i++) com1[i] += ms*part->pos(i);
 	for (int i=0; i<3; i++) cov1[i] += ms*part->vel(i);
+	for (int i=0; i<3; i++) dsp1[i] += ms*part->vel(i)*part->vel(i);
 	for (int i=0; i<3; i++) ang1[i] += ms*mom[i];
 	rtmp = 0.0;
 	for (int i=0; i<3; i++) rtmp += part->vel(i)*part->vel(i);
@@ -243,9 +254,14 @@ main(int ac, char **av)
 	  double ke = 0.0;
 	  for (int i=0; i<3; i++) {
 	    double t = part->datr(eindx+i);
+	    covE[i] += ms*t;
+	    dspE[i] += ms*t*t;
 	    ke += t*t;
 	  }
-	  EE1 += ke * 0.5*ms*atomic_mass[0]/atomic_mass[k.first];
+	  if (trace)
+	    EE1 += ke * 0.5*ms*atomic_mass[0]/mu0;
+	  else
+	    EE1 += ke * 0.5*ms*atomic_mass[0]/atomic_mass[k.first];
 	  Ev2 += ms * ke;
 
 				// Mass
@@ -253,9 +269,15 @@ main(int ac, char **av)
 				// Ion KE
 	  std::get<1>(hist1[k]) += 0.5 * ms * rtmp * Eunit;
 				// Electron KE
-	  std::get<2>(hist1[k]) += 0.5 * ke * ms * atomic_mass[0]/atomic_mass[k.first] * Eunit;
+	  if (trace)
+	    std::get<2>(hist1[k]) += 0.5 * ke * ms * atomic_mass[0]/mu0 * Eunit;
+	  else
+	    std::get<2>(hist1[k]) += 0.5 * ke * ms * atomic_mass[0]/atomic_mass[k.first] * Eunit;
 				// True particle number
-	  std::get<3>(hist1[k]) += ms * Munit/(atomic_mass[k.first]*amu);
+	  if (trace)
+	    std::get<3>(hist1[k]) += ms * Munit/(mu0*amu);
+	  else
+	    std::get<3>(hist1[k]) += ms * Munit/(atomic_mass[k.first]*amu);
 				// Ion energy conservation
 	  if (icons>=0) std::get<4>(hist1[k]) += part->datr(icons) * Eunit;
 				// Electron energy conservation
@@ -271,6 +293,15 @@ main(int ac, char **av)
       cout << endl;
       cout  << "     COV\t\t";
       for (int i=0; i<3; i++) cout << setw(15) << cov1[i]/mass1;
+      cout << endl;
+      cout  << "     DSP\t\t";
+      for (int i=0; i<3; i++) cout << setw(15) << std::sqrt(dsp1[i]/mass1 - cov1[i]*cov1[i]/mass1/mass1);
+      cout << endl;
+      cout  << "     COVe\t\t";
+      for (int i=0; i<3; i++) cout << setw(15) << covE[i]/mass1;
+      cout << endl;
+      cout  << "     DSPe\t\t";
+      for (int i=0; i<3; i++) cout << setw(15) << std::sqrt(dspE[i]/mass1 - covE[i]*covE[i]/mass1/mass1);
       cout << endl;
       cout  << "     Ang mom\t\t";
       for (int i=0; i<3; i++) cout << setw(15) << ang1[i];
