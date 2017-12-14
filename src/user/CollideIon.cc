@@ -16852,7 +16852,7 @@ void CollideIon::gatherSpecies()
     //
     if (use_elec >= 0) {
       
-      double count = 0.0, meanV = 0.0;
+      double count = 0.0, meanV = 0.0, meanV2 = 0.0;
       unsigned long number = 0;
       
       if (ft != ETcache.end()) {
@@ -16953,13 +16953,16 @@ void CollideIon::gatherSpecies()
 	if (count > 0.0) {
 	  for (auto v : vel) { // Iterate through each dimension
 	    double v1 = std::get<0>(v)/count;
-	    dispr += 0.5*(std::get<1>(v)/count - v1*v1);
-	    meanV += v1*v1;
+	    double v2 = std::get<1>(v)/count;
+	    dispr  += 0.5*(v2 - v1*v1);
+	    meanV  += v1*v1;
+	    meanV2 += v2*v2;
 	  }
-	  meanV = sqrt(meanV);
+	  meanV  = sqrt(meanV );
+	  meanV2 = sqrt(meanV2);
 	}
 	
-	Telc = ETcache[cell->sample->mykey] = Tfac * atomic_weights[0] * dispr;
+	Telc = ETcache[cell->sample->mykey] = Tfac * atomic_weights[0] * meanV2;
 	
       } // END: compute electron temperature
 	
