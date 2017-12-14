@@ -16703,6 +16703,7 @@ void CollideIon::gatherSpecies()
   totlE = 0.0;
   tM    = {0.0, 0.0};
   tempE = 0.0;
+  dispE = 0.0;
   massE = 0.0;
   elecE = 0.0;
 
@@ -16808,6 +16809,7 @@ void CollideIon::gatherSpecies()
     double Tion = KEtot * Tfac * molWeight(cell);
     double Sion = KEdsp * Tfac * molWeight(cell);
     double Telc = 0.0;
+    double Selc = 0.0;
     
     mass  += cell->Mass();
     tM[0] += cell->Mass() * Tion;
@@ -16963,6 +16965,7 @@ void CollideIon::gatherSpecies()
 	}
 	
 	Telc = ETcache[cell->sample->mykey] = Tfac * atomic_weights[0] * meanV2;
+	Selc = ETcache[cell->sample->mykey] = Tfac * atomic_weights[0] * dispr;
 	
       } // END: compute electron temperature
 	
@@ -16980,6 +16983,7 @@ void CollideIon::gatherSpecies()
 	// Mass-weighted temperature
 	//
 	tempE += cell->Mass() * Telc;
+	dispE += cell->Mass() * Selc;
 	massE += cell->Mass();
       }
 
@@ -17109,7 +17113,7 @@ void CollideIon::gatherSpecies()
   // Send values to root
   //
   double val1, val3 = 0.0, val4 = 0.0, val5 = 0.0;
-  double val6 = 0.0, val7 = 0.0, val8 = 0.0;
+  double val6 = 0.0, val7 = 0.0, val8 = 0.0, val9 = 0.0;
   std::array<double, 2> v;
 
   if (aType!=Hybrid and aType!=Trace and COLL_SPECIES) {
@@ -17142,6 +17146,7 @@ void CollideIon::gatherSpecies()
 	MPI_Send(&massE, 1, MPI_DOUBLE, 0, 356, MPI_COMM_WORLD);
 	MPI_Send(&tempE, 1, MPI_DOUBLE, 0, 336, MPI_COMM_WORLD);
 	MPI_Send(&elecE, 1, MPI_DOUBLE, 0, 337, MPI_COMM_WORLD);
+	MPI_Send(&dispE, 1, MPI_DOUBLE, 0, 357, MPI_COMM_WORLD);
 
 				// Local ion map size
 	int sizm = specE.size();
@@ -17246,6 +17251,8 @@ void CollideIon::gatherSpecies()
 	MPI_Recv(&val6, 1, MPI_DOUBLE, i, 336, MPI_COMM_WORLD,
 		 MPI_STATUS_IGNORE);
 	MPI_Recv(&val7, 1, MPI_DOUBLE, i, 337, MPI_COMM_WORLD,
+		 MPI_STATUS_IGNORE);
+	MPI_Recv(&val9, 1, MPI_DOUBLE, i, 357, MPI_COMM_WORLD,
 		 MPI_STATUS_IGNORE);
 
 	int sizm;
@@ -17362,6 +17369,7 @@ void CollideIon::gatherSpecies()
       tempE += val6;
       elecE += val7;
       massE += val8;
+      dispE += val9;
       
     } // end: myid==0
     
@@ -19376,8 +19384,9 @@ void CollideIon::printSpeciesTrace()
 	     << std::setw(12) << std::right << "Time  "
 	     << std::setw(12) << std::right << "Temp_i"
 	     << std::setw(12) << std::right << "Disp_i"
-	     << std::setw(12) << std::right << "Temp_e";
-	nhead = 3;
+	     << std::setw(12) << std::right << "Temp_e"
+	     << std::setw(12) << std::right << "Disp_e";
+	nhead = 4;
       } else {
 	dout << "# "
 	     << std::setw(12) << std::right << "Time  "
@@ -19421,7 +19430,8 @@ void CollideIon::printSpeciesTrace()
        << std::setw(12) << std::right << tM[0]
        << std::setw(12) << std::right << tM[1];
   if (use_elec>=0)
-    dout << std::setw(12) << std::right << tempE;
+    dout << std::setw(12) << std::right << tempE
+	 << std::setw(12) << std::right << dispE;
   for (spDItr it=specM.begin(); it != specM.end(); it++)
     dout << std::setw(12) << std::right << it->second;
   dout << std::endl;
