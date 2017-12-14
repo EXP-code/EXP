@@ -16958,10 +16958,9 @@ void CollideIon::gatherSpecies()
 	    double v2 = std::get<1>(v)/count;
 	    dispr  += 0.5*(v2 - v1*v1);
 	    meanV  += v1*v1;
-	    meanV2 += v2*v2;
+	    meanV2 += 0.5*v2;
 	  }
-	  meanV  = sqrt(meanV );
-	  meanV2 = sqrt(meanV2);
+	  meanV  = sqrt(meanV);
 	}
 	
 	Telc = ETcache[cell->sample->mykey] = Tfac * atomic_weights[0] * meanV2;
