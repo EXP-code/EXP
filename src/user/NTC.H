@@ -376,6 +376,12 @@ namespace NTC
     //! Node sends to root
     void send()
     {
+      static unsigned long dnn = 0;
+
+      dnn++;
+      MPI_Send(&dnn, 1, MPI_UNSIGNED_LONG, 0, 1108, MPI_COMM_WORLD);
+
+
       unsigned long clr = caller;
       unsigned siz      = db.size();
       
@@ -415,12 +421,24 @@ namespace NTC
 	}
       }
       
+      // Compare resent tag for sync check
+      unsigned long dnn1;
+      MPI_Recv(&dnn1, 1, MPI_UNSIGNED_LONG, 0, 1124, MPI_COMM_WORLD,
+	       MPI_STATUS_IGNORE);
+
+      if (dnn != dnn1) {
+	std::cout << "Node " << myid << " synchronization error, got="
+		  << dnn1 << " but expected " << dnn << std::endl;
+      }
+
     }
     
     // Root node initializes from node
     //
     void recv(int id)
     {
+      unsigned long dnn = 0;
+      MPI_Recv(&dnn,    1, MPI_UNSIGNED_LONG, id, 1108, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       MPI_Recv(&ts,     1, MPI_DOUBLE,        id, 1109, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       MPI_Recv(&caller, 1, MPI_UNSIGNED_LONG, id, 1110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       
@@ -464,6 +482,9 @@ namespace NTC
 	} // db2 size loop
 
       } // db1 size loop
+
+      // Resend tag for sync check
+      MPI_Send(&dnn, 1, MPI_UNSIGNED_LONG, id, 1124, MPI_COMM_WORLD);
 
 } // function end
 

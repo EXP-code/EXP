@@ -5,6 +5,7 @@
 #include <sstream>
 #include <string>
 #include <cmath>
+#include <map>
 
 #include "Quantile.H"
 
@@ -321,6 +322,8 @@ double Quantile::operator()(double p)
 // Node sends its internal data to root
 void Quantile::send()
 {
+  static unsigned long count = 0;
+
   unsigned sz = q.size();
 
   // Send vector size
@@ -343,11 +346,18 @@ void Quantile::send()
 
   // Send number of markers
   MPI_Send(&N,      1, MPI_UNSIGNED,      0, 1106, MPI_COMM_WORLD);
+
+  // Debug
+  MPI_Send(&count,  1, MPI_UNSIGNED_LONG, 0, 1107, MPI_COMM_WORLD);
+  count++;
+
 }
     
 // Root intializes itself from node's data
 void Quantile::recv(int id)
 {
+  static std::map<int, unsigned long> dbgC;
+
   unsigned sz;			// Data size
 
   MPI_Status status;		// MPI return values
@@ -412,6 +422,16 @@ void Quantile::recv(int id)
 
   if (DBG_VERBOSE && instance % 1000 == 0)
     std::cout << "I=" << instance << std::endl;
+
+  // Debug
+  unsigned long dbgT;
+  MPI_Recv(&dbgT,  1, MPI_UNSIGNED_LONG,  id, 1107, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  if (dbgT != dbgC[id]) {
+    std::cout << "Mismatch: [dbgT=" << dbgT << "] not equal [dbgc(" << id
+	      << ")=" << dbgC[id] << "]" << std::endl;
+  }
+  dbgC[id]++;
+  
 }
 
 Quantile::~Quantile()
