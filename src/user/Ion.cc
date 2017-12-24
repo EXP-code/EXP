@@ -66,6 +66,13 @@ double Ion::nudel   = 0.05;
 double Ion::HandM_coef  = 1.5e-22;
 double Ion::HandM_expon = -0.5;
 
+// Energy grids (in eV)
+bool   Ion::useFreeFreeGrid  = true;
+bool   Ion::useRadRecombGrid = true;
+double Ion::EminGrid         = 0.05; // eV
+double Ion::EmaxGrid         = 50.0; // eV
+double Ion::DeltaEGrid       = 0.1;  // eV
+
 //
 // Convert the master element name to a (Z, C) pair
 //
@@ -613,6 +620,9 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
   convertName();		// Sets Z and C . . . 
   ip = ch->ipdata[lQ(Z, C)];
 
+  freeFreeGridComputed  = false;
+  radRecombGridComputed = false;
+
   if (isInMasterList(MasterName)) {
     readfblvl();
     readelvlc();
@@ -672,6 +682,9 @@ Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
   boost::split(v, MasterName, boost::is_any_of("_") );
   eleName = v[0];
 
+  freeFreeGridComputed  = false;
+  radRecombGridComputed = false;
+
   ip = 0.0;
 
   if (Z>=C) {
@@ -727,6 +740,9 @@ Ion::Ion()
 {
   Z = 1;
   C = 1;
+
+  freeFreeGridComputed  = false;
+  radRecombGridComputed = false;
 }
 
 //
@@ -753,6 +769,15 @@ Ion::Ion(const Ion &I)
   eleName    = I.eleName;
   elvlc      = I.elvlc;
   wgfa       = I.wgfa;
+
+  freeFreeGridComputed  = I.freeFreeGridComputed;
+  radRecombGridComputed = I.radRecombGridComputed;
+
+  NfreeFreeGrid         = I.NfreeFreeGrid;
+  NradRecombGrid        = I.NradRecombGrid;
+
+  freeFreeGrid          = I.freeFreeGrid;
+  radRecombGrid         = I.radRecombGrid;
 }
 
 /** 
@@ -1030,7 +1055,7 @@ double Ion::directIonCross(double E, int id)
 
     Using the parametrization by Greene (1959)
  */
-std::pair<double, double> Ion::freeFreeCross(double Ei, int id) 
+std::pair<double, double> Ion::freeFreeCrossSingle(double Ei, int id) 
 {
   // No free-free with a neutral
   //
@@ -1145,7 +1170,204 @@ std::pair<double, double> Ion::freeFreeCross(double Ei, int id)
 }
 
 
-std::vector<double> Ion::radRecombCross(double E, int id)
+void Ion::freeFreeMakeEvGrid(int id)
+{
+  freeFreeGridComputed = true;
+
+  // Integration variables
+  //
+  double cum      = 0;
+  double dk       = (kgrid[1] - kgrid[0])*log(10.0);
+
+  // Energy grid
+  NfreeFreeGrid = 1 + std::floor( (EmaxGrid - EminGrid)/DeltaEGrid );
+
+  // Allocate storage for grid
+  freeFreeGrid.resize(NfreeFreeGrid);
+
+  for (size_t n = 0; n < NfreeFreeGrid; n++) {
+
+    // Energy in eV
+    //
+    double Ei = EminGrid + DeltaEGrid*n;
+
+    // Scaled inverse energy
+    //
+    double ni = sqrt( RydtoeV*(C-1)*(C-1)/Ei );
+
+    freeFreeGrid[n].resize(kffsteps);
+
+    for (int j = 0; j < kffsteps; j++) {
+      //
+      // Photon energy in eV
+      //
+      double k      = kgr10[j];
+
+      //
+      // Final kinetic energy
+      //
+      double Ef     = Ei - k;
+      
+      //
+      // Can't emit a photon if not enough KE!
+      //
+      if (Ef <= 0.0) break;
+
+      //
+      // Scaled inverse energy (final)
+      //
+      double nf     = sqrt( RydtoeV*(C-1)*(C-1)/Ef );
+      
+      //
+      // Elwert factor
+      //
+      double corr   = (1.0 - exp(-2.0*M_PI*ni))/(1.0 - exp(-2.0*M_PI*nf));
+      
+      //
+      // Differential cross section contribution
+      //
+      double dsig   = A * ni*nf * log((nf + ni)/(nf - ni)) * corr * dk;
+      
+      cum = cum + dsig;
+      
+      freeFreeGrid[n][j] = cum;
+    }
+
+  }
+
+}
+
+
+std::pair<double, double> Ion::freeFreeCrossEvGrid(double E, int id)
+{
+  // No free-free with a neutral
+  //
+  if (C==1) return std::pair<double, double>(0.0, 0.0);
+
+  if (not freeFreeGridComputed) freeFreeMakeEvGrid(id);
+
+  double eMin = EminGrid, eMax = EminGrid + DeltaEGrid*NfreeFreeGrid;
+  
+  if (E<=eMin or E>=eMax) return freeFreeCrossSingle(E, id);
+
+  double phi = 0.0, ffWaveCross = 0.0;
+
+  size_t indx = std::floor( (E - eMin)/DeltaEGrid );
+  double eA   = eMin + DeltaEGrid*indx, eB = eMin + DeltaEGrid*(indx+1);
+
+  double A = (eB - E)/DeltaEGrid;
+  double B = (E - eA)/DeltaEGrid;
+
+  double cumA = freeFreeGrid[indx+0].back();
+  double cumB = freeFreeGrid[indx+1].back();
+
+  // If cross section is offgrid, set values to zero
+  //
+  if (cumA > 0.0 and cumB > 0.0) {
+
+    std::array<double,  2> k;
+
+    // Location in cumulative cross section grid
+    //
+    double rn = static_cast<double>(rand())/RAND_MAX;
+
+    for (int i=0; i<2; i++) {
+
+      // Interpolate the cross section array
+      //
+    
+      // Points to first element that is not < rn
+      // but may be equal
+      std::vector<double>::iterator lb = 
+	std::lower_bound(freeFreeGrid[indx+i].begin(), freeFreeGrid[indx+i].end(), rn*cumA);
+    
+      // Assign upper end of range to the
+      // found element
+      //
+      std::vector<double>::iterator ub = lb;
+
+      //
+      // If is the first element, increment
+      // the upper boundary
+      //
+      if (lb == freeFreeGrid[indx+i].begin()) { if (freeFreeGrid[indx+i].size()>1) ub++; }
+      
+      //
+      // Otherwise, decrement the lower boundary
+      //
+      else { lb--; }
+      
+      // Compute the associated indices
+      //
+      size_t ii = lb - freeFreeGrid[indx+i].begin();
+      size_t jj = ub - freeFreeGrid[indx+i].begin();
+
+      k[i] = kgrid[ii];
+      
+      // Linear interpolation
+      //
+      if (*ub > *lb) {
+	double d = *ub - *lb;
+	double a = (rn - *lb) / d;
+	double b = (*ub - rn) / d;
+	k[i] = a * kgrid[ii] + b * kgrid[jj];
+      }
+    }
+
+    double K = A*k[0] + B*k[1];
+
+
+    // Assign the photon energy
+    //
+    ffWaveCross = pow(10, K) * hbc;
+
+    // Use the integrated cross section from the differential grid
+    //
+    phi = A*cumA + B*cumB;
+  }
+
+  return std::pair<double, double>(phi, ffWaveCross);
+}
+
+void Ion::radRecombMakeEvGrid(int id)
+{
+  radRecombGridComputed = true;
+
+  // Energy grid
+  NradRecombGrid = 1 + std::floor( (EmaxGrid - EminGrid)/DeltaEGrid );
+
+  // Allocate storage for grid
+  radRecombGrid.resize(NradRecombGrid);
+
+  // Compute grid
+  for (size_t n = 0; n < NradRecombGrid; n++) {
+    double Ei = EminGrid + DeltaEGrid*n;
+    radRecombGrid[n] = radRecombCrossSingle(Ei, id).back();
+  }
+}
+
+std::vector<double> Ion::radRecombCrossEvGrid(double E, int id)
+{
+  // No recombination with a neutral (this test probably not needed here)
+  //
+  if (C==1) return std::vector<double>(1, 0.0);
+
+  if (not radRecombGridComputed) radRecombMakeEvGrid(id);
+
+  double eMin = EminGrid, eMax = EminGrid + DeltaEGrid*NradRecombGrid;
+
+  if (E<=eMin or E>=eMax) return radRecombCrossSingle(E, id);
+  
+  size_t indx = std::floor( (E - eMin)/DeltaEGrid );
+  double eA   = eMin + DeltaEGrid*indx, eB = eMin + DeltaEGrid*(indx+1);
+
+  double A = (eB - E)/DeltaEGrid;
+  double B = (E - eA)/DeltaEGrid;
+
+  return std::vector<double>(1, A*radRecombGrid[indx] + B*radRecombGrid[indx+1]);
+}
+
+std::vector<double> Ion::radRecombCrossSingle(double E, int id)
 {
   // For testing . . .
   //

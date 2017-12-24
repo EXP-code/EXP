@@ -418,6 +418,20 @@ protected:
   std::vector<double> IBcum;
   //@}
 
+  //@{
+  //! Free-free cross section implementations
+  std::pair<double, double> freeFreeCrossSingle(double E, int id);
+  std::pair<double, double> freeFreeCrossEvGrid(double E, int id);
+  void freeFreeMakeEvGrid(int id);
+  //@}
+
+  //@{
+  //! Radiative recombination cross section implementations
+  std::vector<double> radRecombCrossSingle(double E, int id);
+  std::vector<double> radRecombCrossEvGrid(double E, int id);
+  void radRecombMakeEvGrid(int id);
+  //@}
+
 public:
 
   //@{
@@ -495,9 +509,30 @@ public:
   std::vector< double > kgrid;
   std::vector< double > kgr10;
   std::vector< double > nugrid;
+
   int kffsteps;
   int effsteps;
   int nusteps;
+
+  //@{
+  //! Free-free data
+  bool freeFreeGridComputed;
+  size_t NfreeFreeGrid;
+  std::vector< std::vector< double > > freeFreeGrid;
+  //@}
+
+  //@{
+  //! Recombination data
+  bool radRecombGridComputed;
+  size_t NradRecombGrid;
+  std::vector< double > radRecombGrid;
+  //@}
+
+  static bool useFreeFreeGrid;	// Default: true
+  static bool useRadRecombGrid;	// Default: true
+  static double EminGrid;	// Default: 0.05 eV
+  static double EmaxGrid;	// Default: 50 eV
+  static double DeltaEGrid;	// Default: 0.1 eV
   //@}
   
   void convertName();
@@ -521,7 +556,13 @@ public:
 
       First value is cross section, second is photon energy
   */
-  std::pair<double, double> freeFreeCross(double E, int id);
+  std::pair<double, double> freeFreeCross(double E, int id)
+  {
+    if (useFreeFreeGrid)
+      return freeFreeCrossEvGrid(E, id);
+    else 
+      return freeFreeCrossSingle(E, id);
+  }
 
   //! Return type for collisional excitation cross-section data
   typedef std::vector< std::pair<double, double> > collType;
@@ -538,12 +579,19 @@ public:
       as a function of incoming electron impact energy, and returns the
       vector cumulative cross section array. */
 
-  std::vector<double> radRecombCross       (double E, int id);
   std::vector<double> radRecombCrossMewe   (double E, int id);
   std::vector<double> radRecombCrossSpitzer(double E, int id);
   std::vector<double> radRecombCrossKramers(double E, int id);
   std::vector<double> radRecombCrossTopBase(double E, int id);
   std::vector<double> radRecombCrossVerner (double E, int id);
+
+  std::vector<double> radRecombCross       (double E, int id)
+  {
+    if (useRadRecombGrid)
+      return radRecombCrossEvGrid(E, id);
+    else 
+      return radRecombCrossSingle(E, id);
+  }
   //@}
 
   /** Ground state photoionization cross section using Verner (for
