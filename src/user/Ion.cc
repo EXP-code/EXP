@@ -647,11 +647,8 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
   for (double k = kmin; k < kmax; k += kdel) 
     kgrid.push_back(k);
 
-  for (double e = 0.00000001; e < 250 ; e += 0.25) 
-    egrid.push_back(e);
 
   kffsteps = kgrid.size();
-  effsteps = egrid.size();
 
   kgr10.resize(kffsteps);
   for (int i=0; i<kffsteps; i++) {
@@ -705,16 +702,11 @@ Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
   
   // Initialize the k-grid (in inverse nm) for ff and the energy grid
   // (in eV)
-  double e = 0;
   double k = 0;
-  for (e = 0.00000001; e < 250 ; e += 0.25) {
-    egrid.push_back(e);
-  }
   for (k = kmin; k < kmax; k += kdel) {
     kgrid.push_back(k);
   }
   kffsteps = kgrid.size();
-  effsteps = egrid.size();
 
   kgr10.resize(kffsteps);
   for (int i=0; i<kffsteps; i++) {
@@ -755,9 +747,7 @@ Ion::Ion(const Ion &I)
   ip         = I.ip;
 
   kffsteps   = I.kffsteps;
-  effsteps   = I.effsteps;
 
-  egrid      = I.egrid;
   kgrid      = I.kgrid;
   kgr10      = I.kgr10;
   fblvl      = I.fblvl;

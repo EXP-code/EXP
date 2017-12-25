@@ -505,13 +505,11 @@ public:
 
   //@{
   //! Grid values for the various cross sections
-  std::vector< double > egrid;	// Currently initialized but unused (remove?)
   std::vector< double > kgrid;
   std::vector< double > kgr10;
   std::vector< double > nugrid;
 
   int kffsteps;
-  int effsteps;
   int nusteps;
 
   //@{
