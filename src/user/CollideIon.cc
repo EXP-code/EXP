@@ -553,7 +553,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "DIFF_INTERACT"
 	      << (DIFF_INTERACT ? "on" : "off")         << std::endl
 	      <<  " " << std::setw(20) << std::left << "INFR_INTERACT"
-	      << (TRACE_OVERRIDE ? "on" : "off")       << std::endl
+	      << (TRACE_OVERRIDE ? "on" : "off")        << std::endl
 	      <<  " " << std::setw(20) << std::left << "NoDelC"
 	      << NoDelC                                 << std::endl
 	      <<  " " << std::setw(20) << std::left << "NOCOOL_ELEC"
@@ -571,7 +571,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "HybridWeightSwitch"
 	      << (HybridWeightSwitch ? "on" : "off" )   << std::endl
 	      <<  " " << std::setw(20) << std::left << "DBG_NewTest"
-	      << (DBG_NewTest ? "on" : "off" )        << std::endl
+	      << (DBG_NewTest ? "on" : "off" )          << std::endl
 	      <<  " " << std::setw(20) << std::left << "NO_ION_ION"
 	      << (NO_ION_ION ? "on" : "off" )           << std::endl
 	      <<  " " << std::setw(20) << std::left << "NO_ION_ELECTRON"
@@ -581,7 +581,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "ntcDist"
 	      << (ntcDist ? "on" : "off" )              << std::endl
 	      <<  " " << std::setw(20) << std::left << "elc_cons"
-	      << (elc_cons ? "on" : "off" )            << std::endl
+	      << (elc_cons ? "on" : "off" )             << std::endl
 	      <<  " " << std::setw(20) << std::left << "enforceMOM"
 	      << (enforceMOM ? "on" : "off" )           << std::endl
 	      <<  " " << std::setw(20) << std::left << "coulScale"
@@ -593,13 +593,17 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "MFPtype"
 	      << MFP_s.left.at(mfptype)                 << std::endl
 	      <<  " " << std::setw(20) << std::left << "spc_pos"
-	      << spc_pos                             << std::endl
+	      << spc_pos                                << std::endl
 	      <<  " " << std::setw(20) << std::left << "use_elec"
 	      << use_elec                               << std::endl
 	      <<  " " << std::setw(20) << std::left << "maxCoul"
 	      << maxCoul                                << std::endl
 	      <<  " " << std::setw(20) << std::left << "logL"
-	      << logL                                   << std::endl;
+	      << logL                                   << std::endl
+	      <<  " " << std::setw(20) << std::left << "FreeFree cache"
+	      << (useFreeFreeGrid  ? "on" : "off" )     << std::endl
+	      <<  " " << std::setw(20) << std::left << "RadRecomb cache"
+	      << (useRadRecombGrid ? "on" : "off" )     << std::endl;
     if (use_ntcdb)
     std::cout <<  " " << std::setw(20) << std::left << "ntcThresh"
 	      << ntcThresh                              << std::endl
