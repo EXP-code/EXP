@@ -344,9 +344,9 @@ public:
 
   //@{
   //! k-grid spacing in inverse nm (log base 10)
-  static double kmin;		// default: -9.0
-  static double kmax;		// default:  2.0
-  static double kdel;		// default:  1.0
+  static double kmin;		// default: -10.0
+  static double kmax;		// default:  4.0
+  static double kdel;		// default:  0.1
   //@}
 
   //@{
