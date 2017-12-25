@@ -53,9 +53,9 @@ bool Ion::use_VFKY = true;
 bool Ion::gs_only  = true;
 
 // Free-free grid
-double Ion::kmin    = -9.0;
-double Ion::kmax    =  4.0;
-double Ion::kdel    =  0.5;
+double Ion::kmin    = -10.0;
+double Ion::kmax    =   4.0;
+double Ion::kdel    =   0.05;
 
 // Photo-ionization grid
 double Ion::numin   = 1.0;
@@ -1195,7 +1195,7 @@ void Ion::freeFreeMakeEvGrid(int id)
     //
     double ni = sqrt( RydtoeV*(C-1)*(C-1)/Ei );
 
-    freeFreeGrid[n].resize(kffsteps);
+    freeFreeGrid[n].clear();
 
     for (int j = 0; j < kffsteps; j++) {
       //
@@ -1230,7 +1230,7 @@ void Ion::freeFreeMakeEvGrid(int id)
       
       cum = cum + dsig;
       
-      freeFreeGrid[n][j] = cum;
+      freeFreeGrid[n].push_back(cum);
     }
 
   }
@@ -1258,12 +1258,12 @@ std::pair<double, double> Ion::freeFreeCrossEvGrid(double E, int id)
   double A = (eB - E)/DeltaEGrid;
   double B = (E - eA)/DeltaEGrid;
 
-  double cumA = freeFreeGrid[indx+0].back();
-  double cumB = freeFreeGrid[indx+1].back();
+  std::array<double, 2> cum
+  { freeFreeGrid[indx+0].back(), freeFreeGrid[indx+1].back()};
 
   // If cross section is offgrid, set values to zero
   //
-  if (cumA > 0.0 and cumB > 0.0) {
+  if (cum[0] > 0.0 and cum[1] > 0.0) {
 
     std::array<double,  2> k;
 
@@ -1276,41 +1276,53 @@ std::pair<double, double> Ion::freeFreeCrossEvGrid(double E, int id)
       // Interpolate the cross section array
       //
     
-      // Points to first element that is not < rn
-      // but may be equal
-      std::vector<double>::iterator lb = 
-	std::lower_bound(freeFreeGrid[indx+i].begin(), freeFreeGrid[indx+i].end(), rn*cumA);
+      if (rn*cum[i] < freeFreeGrid[indx+i].front()) {
+	
+	k[i] = kgrid[0];
+	
+
+      } else {
+
+	// Points to first element that is not < rn
+	// but may be equal
+	std::vector<double>::iterator lb = 
+	  std::lower_bound(freeFreeGrid[indx+i].begin(), freeFreeGrid[indx+i].end(), rn*cum[i]);
     
-      // Assign upper end of range to the
-      // found element
-      //
-      std::vector<double>::iterator ub = lb;
+	// Assign upper end of range to the
+	// found element
+	//
+	std::vector<double>::iterator ub = lb;
 
-      //
-      // If is the first element, increment
-      // the upper boundary
-      //
-      if (lb == freeFreeGrid[indx+i].begin()) { if (freeFreeGrid[indx+i].size()>1) ub++; }
+	//
+	// If is the first element, increment
+	// the upper boundary
+	//
+	if (lb == freeFreeGrid[indx+i].begin()) {
+	  if (freeFreeGrid[indx+i].size()>1) ub++;
+	}
+	//
+	// Otherwise, decrement the lower boundary
+	//
+	else { lb--; }
       
-      //
-      // Otherwise, decrement the lower boundary
-      //
-      else { lb--; }
-      
-      // Compute the associated indices
-      //
-      size_t ii = lb - freeFreeGrid[indx+i].begin();
-      size_t jj = ub - freeFreeGrid[indx+i].begin();
-
-      k[i] = kgrid[ii];
-      
-      // Linear interpolation
-      //
-      if (*ub > *lb) {
-	double d = *ub - *lb;
-	double a = (rn - *lb) / d;
-	double b = (*ub - rn) / d;
-	k[i] = a * kgrid[ii] + b * kgrid[jj];
+	// Compute the associated indices
+	//
+	size_t ii = std::distance(freeFreeGrid[indx+i].begin(), lb);
+	size_t jj = std::distance(freeFreeGrid[indx+i].begin(), ub);
+	
+	k[i] = kgrid[ii];
+	
+	// Linear interpolation
+	//
+	if (*ub > *lb) {
+	  double d = *ub - *lb;
+	  double a = (rn*cum[i] - *lb) / d;
+	  double b = (*ub - rn*cum[i]) / d;
+	  k[i] = a * kgrid[ii] + b * kgrid[jj];
+	  if (fabs(a)>1.0 or fabs(b)>1.0) {
+	    std::cout << "Oops" << std::endl;
+	  }
+	}
       }
     }
 
@@ -1323,7 +1335,7 @@ std::pair<double, double> Ion::freeFreeCrossEvGrid(double E, int id)
 
     // Use the integrated cross section from the differential grid
     //
-    phi = A*cumA + B*cumB;
+    phi = A*cum[0] + B*cum[1];
   }
 
   return std::pair<double, double>(phi, ffWaveCross);
