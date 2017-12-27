@@ -8569,12 +8569,17 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // the COM frame to zero
   //
   if (NOCOOL) {
-    for (auto & v : PE) v[1] = 0.0;
+    double Encl = 0.0;
+    for (auto & v : PE) {
+      Encl += v[1];
+      v[1] = 0.0;
+    }
+    collD->addNoCool(Encl, id);
   }
 
   // Convert energy loss from eV to system units
   //
-  for (auto & v : PE)    v[1] *= eV / UserTreeDSMC::Eunit;
+  for (auto & v : PE) v[1] *= eV / UserTreeDSMC::Eunit;
 
   // Normalize probabilities and sum inelastic energy changes
   //
@@ -11076,7 +11081,12 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   // the COM frame to zero
   //
   if (NOCOOL) {
-    for (auto & v : PE) v[1] = 0.0;
+    double Encl = 0.0;
+    for (auto & v : PE) {
+      Encl += v[1];
+      v[1] = 0.0;
+    }
+    collD->addNoCool(Encl, id);
   }
 
   // Normalize probabilities and sum inelastic energy changes
@@ -14216,6 +14226,7 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
   misE.resize(nthrds, 0.0);
   dfrE.resize(nthrds, 0.0);
   updE.resize(nthrds, 0.0);
+  Encl.resize(nthrds, 0.0);
   Ncol.resize(nthrds, 0  );
   Nmis.resize(nthrds, 0  );
   Etot_c = 0.0;
@@ -14375,6 +14386,7 @@ void collDiag::gather()
   misE_s = std::accumulate(misE.begin(), misE.end(), 0.0);
   dfrE_s = std::accumulate(dfrE.begin(), dfrE.end(), 0.0);
   updE_s = std::accumulate(updE.begin(), updE.end(), 0.0);
+  Encl_s = std::accumulate(Encl.begin(), Encl.end(), 0.0);
   Ncol_s = std::accumulate(Ncol.begin(), Ncol.end(), 0  );
   Nmis_s = std::accumulate(Nmis.begin(), Nmis.end(), 0  );
 
@@ -14393,6 +14405,7 @@ void collDiag::gather()
   MPI_Reduce(&(z=misE_s), &misE_s,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(z=dfrE_s), &dfrE_s,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(z=updE_s), &updE_s,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=Encl_s), &Encl_s,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(u=Ncol_s), &Ncol_s,  1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(u=Nmis_s), &Nmis_s,  1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   
@@ -14420,6 +14433,7 @@ void collDiag::reset()
   std::fill(misE.begin(), misE.end(), 0.0);
   std::fill(dfrE.begin(), dfrE.end(), 0.0);
   std::fill(updE.begin(), updE.end(), 0.0);
+  std::fill(Encl.begin(), Encl.end(), 0.0);
 }
 
 void collDiag::initialize()
@@ -14718,9 +14732,13 @@ void collDiag::print()
 	else
 	  out << std::setw(12) << 0.0 << " | ";
       }
+
+      double Elost = Elos_s;
+      if (fabs(Encl_s)>0.0) Elost = Encl_s;
+
       Etot_c += Elos_s;
       Ktot_c += Klos_s;
-      out << std::setw(12) << Elos_s
+      out << std::setw(12) << Elost
 	  << std::setw(12) << Etot_c
 	  << std::setw(12) << Klos_s
 	  << std::setw(12) << Ktot_c

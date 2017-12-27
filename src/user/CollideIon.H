@@ -257,8 +257,8 @@ class collDiag : public sKeyCollTD
 private:
   CollideIon *p;
   std::string coll_file_debug, energy_file_debug;
-  std::vector<double> Esum, Elos, Klos, Elec, Edsp, Efrc, Emas, Epot, clrE, misE, dfrE, updE;
-  double Esum_s, Elos_s, Klos_s, Efrc_s, Emas_s, Elec_s, Edsp_s, Etot_c, Ktot_c, Epot_s, delI_s, delE_s, clrE_s, misE_s, dfrE_s, updE_s;
+  std::vector<double> Esum, Elos, Klos, Elec, Edsp, Efrc, Emas, Epot, clrE, misE, dfrE, updE, Encl;
+  double Esum_s, Elos_s, Klos_s, Efrc_s, Emas_s, Elec_s, Edsp_s, Etot_c, Ktot_c, Epot_s, delI_s, delE_s, clrE_s, misE_s, dfrE_s, updE_s, Encl_s;
   std::vector<unsigned> Ncol, Nmis;
   unsigned Ncol_s, Nmis_s;
 
@@ -310,6 +310,12 @@ public:
   {
     Elos[id] += E;
     Klos[id] += K;
+  }
+
+  //! Add nocool lost energy
+  void addNoCool(double E, int id)
+  {
+    Encl[id] += E;
   }
 
 };
