@@ -20,6 +20,8 @@ Only for Trace method, so far.
 import os, re, sys, copy, getopt, enum
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
+from scipy.signal import savgol_filter
 from scipy.optimize import curve_fit
 import psp_io
 
@@ -144,7 +146,7 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp):
                 dv[2] = zve[i]
 
             EE = efac * np.dot(dv, dv)
-            if EE<=ebeg or EE>=efin:
+            if EE<ebeg or EE>=efin:
                 oab += 1
             else:
                 indx = int( (EE - ebeg)/dE)
@@ -157,6 +159,13 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp):
     # Normalize
     norm = (sum(yy) + oab)*dE
     for i in range(nbin): yy[i] /= norm
+    yy0 = copy.deepcopy(yy)
+    yy0.sort()
+    yy_min = 0.0
+    for v in yy0:
+        if v > 0.0:
+            yy_min = v
+            break
 
     # Fit for temperature
     fc = 11604.5/defaultT # Initial guess for exponent
@@ -180,7 +189,7 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp):
         for i in range(nbin): tt[i] = func1(xx[i], nrm)
     elif fit == FitType.TempAmp:
         p0 = [sum(yy)/len(yy)*fc**1.5,fc] # Amplitude
-        popt, pcov = curve_fit(func2, xx, yy, p0, sigma=np.sqrt(yy)+0.1)
+        popt, pcov = curve_fit(func2, xx, yy, p0, sigma=np.sqrt(yy)+yy_min*0.1)
         # Temp
         bT = slopeFac / popt[1]
         for v in xx: tt.append(func2(v, popt[0], popt[1]))
@@ -195,7 +204,7 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp):
         print('Amplitude={}  Temperature={}'.format(popt[0], bT))
     else:
         print("This is impossible")
-        exit
+        sys.exit()
 
     # Make curves
     lt = []
@@ -214,8 +223,8 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp):
         if pTyp == PlotType.Both:  ax = axes[0]
         else:                      ax = axes
 
-        ax.plot(xx, ly, '-o')
-        ax.plot(xx, lt, '-')
+        ax.semilogy(xx, ly, '-o')
+        ax.semilogy(xx, lt, '-')
     
         if type==FitType.TempAmp:
             ax.set_title("{}: T(fit)={}".format(field,bT))
@@ -233,16 +242,39 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp):
         if pTyp == PlotType.Both: ay = axes[1]
         else:                     ay = axes
 
-        ay.plot(xx, yy, '-o')
-        ay.plot(xx, tt, '-')
+        ay.plot(xx, yy, '-o', label='DSMC')
+        # ay.plot(xx, tt, '-', label='T={}K'.format(int(defaultT)))
+        ay.plot(xx, tt, '-', label='T={}K'.format(int(bT)))
         
         ay.set_xlabel("Energy (eV)")
         ay.set_ylabel("Counts")
-        
+        ay.legend()
+
     fig.tight_layout()
     plt.show()
 
-
+    out = open(runtag + '_bins.dat', 'w')
+    out.write('# Temp={:16.4e}\n'.format(bT))
+    for i in range(len(xx)):
+        out.write('{:16.4e} {:16.4e} {:16.4e}\n'.format(xx[i], yy[i], tt[i]))
+    dd = 100.0*(yy - tt)/tt
+    itp = interp1d(xx, dd, kind='linear')
+    wsize = 5
+    dsize = int(np.sqrt(dd.shape[0]))
+    if dsize > wsize:
+            wsize = dsize
+            if 2*int(wsize/2) == wsize: wsize += 1
+    porder = 3
+    # print("wsize=", wsize)
+    zz = savgol_filter(itp(xx), wsize, porder)
+    plt.plot(xx, dd, '-*')
+    plt.plot(xx, zz, '-', linewidth=2)
+    plt.xlabel('Energy (eV)')
+    plt.ylabel('Relative difference')
+    plt.ylim((-15.0, 15.0))
+    plt.grid()
+    plt.show()
+                
 def main(argv):
     """ Parse the command line and call the parsing and plotting routine """
 
@@ -287,23 +319,24 @@ def main(argv):
             if   FitType.Analytic.name == arg: fit = FitType.Analytic
             elif FitType.AmpOnly.name  == arg: fit = FitType.AmpOnly
             elif FitType.TempAmp.name  == arg: fit = FitType.TempAmp
+            elif FitType.Fixed.name    == arg: fit = FitType.Fixed
             else:
                 print("No such fit type: ", arg)
                 print("Valid types are:")
                 for v in FitType: print(v.name)
-                exit
+                sys.exit()
         elif opt in ("-F", "--fixed"):
             a0 = float(arg)
             fit = FitType.Fixed
         elif opt in ("-p", "--plot"):
             if   PlotType.Linear.name == arg: plt = PlotType.Linear
             elif PlotType.Log.name    == arg: plt = PlotType.Log
-            elif PlotType.Both.name   == arg: plt = PlotType.Type
+            elif PlotType.Both.name   == arg: plt = PlotType.Both
             else:
                 print("No such plot type: ", arg)
                 print("Valid types are:")
                 for v in PlotType: print(v.name)
-                exit
+                sys.exit()
         elif opt in ("-D", "--ndatr"):
             ndatr = int(arg)
 
