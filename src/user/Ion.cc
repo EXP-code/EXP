@@ -1236,7 +1236,7 @@ std::pair<double, double> Ion::freeFreeCrossEvGrid(double E, int id)
 
   if (not freeFreeGridComputed) freeFreeMakeEvGrid(id);
 
-  double eMin = EminGrid, eMax = EminGrid + DeltaEGrid*NfreeFreeGrid;
+  double eMin = EminGrid, eMax = EminGrid + DeltaEGrid*(NfreeFreeGrid-1);
   
   if (E<=eMin or E>=eMax) return freeFreeCrossSingle(E, id);
 
@@ -1356,7 +1356,7 @@ std::vector<double> Ion::radRecombCrossEvGrid(double E, int id)
 
   if (not radRecombGridComputed) radRecombMakeEvGrid(id);
 
-  double eMin = EminGrid, eMax = EminGrid + DeltaEGrid*NradRecombGrid;
+  double eMin = EminGrid, eMax = EminGrid + DeltaEGrid*(NradRecombGrid-1);
 
   if (E<=eMin or E>=eMax) return radRecombCrossSingle(E, id);
   
