@@ -984,7 +984,7 @@ void InitializeSpeciesHybrid
 void InitializeSpeciesTrace
 (std::vector<Particle> & particles, 
  std::vector<unsigned char>& sZ, 
- std::vector<double>& sF, double M, double T,
+ std::vector<double>& sF, double M, double T, double Te,
  int& ne, int ni, int nd)
 {
   std::vector< std::vector<double> > frac, cuml;
@@ -1049,7 +1049,7 @@ void InitializeSpeciesTrace
 	sout << "./genIonization"
 	     << " -1 " << static_cast<unsigned>(n)
 	     << " -2 " << static_cast<unsigned>(n)
-	     << " -T " << T << " -o " << ioneq;
+	     << " -T " << Te << " -o " << ioneq;
 	
 	int ret = system(sout.str().c_str());
       
@@ -1103,7 +1103,7 @@ void InitializeSpeciesTrace
 	std::ostringstream sout;
 	sout << "mpirun -np 1 genIonRecomb"
 	     << " -Z " << static_cast<unsigned>(n)
-	     << " -T " << T;
+	     << " -T " << Te;
 	
 	int ret = system(sout.str().c_str());
       
@@ -1217,7 +1217,7 @@ void InitializeSpeciesTrace
 int main (int ac, char **av)
 {
   Itype type = Direct;
-  double D, L, Temp;
+  double D, L, Temp, Teq;
   std::string config;
   std::string oname;
   unsigned seed;
@@ -1242,6 +1242,8 @@ int main (int ac, char **av)
      "density in particles per cc")
     ("temp,T",		po::value<double>(&Temp)->default_value(-1.0),
      "override config file temperature for Trace, if >0")
+    ("Teq",		po::value<double>(&Teq)->default_value(-1.0),
+     "temperature for equilibrium selection, if Teq>0")
     ("length,L",	po::value<double>(&L)->default_value(1.0),
      "length in system units")
     ("number,N",	po::value<int>(&npart)->default_value(250000),
@@ -1417,10 +1419,15 @@ int main (int ac, char **av)
     InitializeSpeciesWeight(particles, sZ, sF, sI, Mass, T, ne, ni, nd);
     break;
   case Trace:
-    if (Temp>0.0)
-      InitializeSpeciesTrace (particles, sZ, sF, Mass, Temp, ne, ni, nd);
-    else
-      InitializeSpeciesTrace (particles, sZ, sF, Mass, T[0], ne, ni, nd);
+    {
+      double T0 = T[0];
+
+      if (Temp > 0.0) T0  = Temp;
+      if (Teq  < 0.0) Teq = T0;
+      
+      InitializeSpeciesTrace (particles, sZ, sF, Mass, T0, Teq,  ne, ni, nd);
+    }
+
     // Compute molecular weight
     molW = 0.0;
     for (size_t k=0; k<sZ.size(); k++) molW += sF[k]/atomic_masses[sZ[k]];
