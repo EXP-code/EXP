@@ -68,7 +68,7 @@ def func2(x, a, b):
     if b<=0.0: return 1e30
     return a * np.sqrt(x) * np.exp(-b * x) / b**1.5
 
-def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp):
+def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp, plim=15.0):
     """Parse and plot the OUT psp output files
  
     Parameters:
@@ -271,7 +271,7 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp):
     plt.plot(xx, zz, '-', linewidth=2)
     plt.xlabel('Energy (eV)')
     plt.ylabel('Relative difference')
-    plt.ylim((-15.0, 15.0))
+    plt.ylim((-plim, plim))
     plt.grid()
     plt.show()
                 
@@ -289,11 +289,12 @@ def main(argv):
     defT  = 100000.0
     fit   = FitType.Analytic
     plt   = PlotType.Both
+    plim  = 15.0
 
-    options = '[-f <field> | --field=<field> | -n <start> | --start=<start> | -N <stop> | --stop=<stop> | -e <low eV> | --low=<low eV> | -E <high eV> | --high=<high eV> | -d <delta eV> | --delta=<delta eV> | -T <default T> | --temp=<default T> | -t | --type | -F | --fixed | -p <type> | --plot=<type> | -D <number> | --ndatr=<number>] <runtag>'
+    options = '[-f <field> | --field=<field> | -n <start> | --start=<start> | -N <stop> | --stop=<stop> | -e <low eV> | --low=<low eV> | -E <high eV> | --high=<high eV> | -d <delta eV> | --delta=<delta eV> | -T <default T> | --temp=<default T> | -t | --type | -F | --fixed | -p <type> | --plot=<type> | -D <number> | --ndatr=<number> | --plim=<value>] <runtag>'
 
     try:
-        opts, args = getopt.getopt(argv,"hf:n:N:e:E:d:T:t:Fp:D:", ["help","field=","start=","stop=","low=", "high=", "delta=", "temp=", "type=", "fixed=", "plot=", "ndatr="])
+        opts, args = getopt.getopt(argv,"hf:n:N:e:E:d:T:t:Fp:D:", ["help","field=","start=","stop=","low=", "high=", "delta=", "temp=", "type=", "fixed=", "plot=", "ndatr=", "plim="])
     except getopt.GetoptError:
         print(sys.argv[0])
         sys.exit(2)
@@ -339,13 +340,15 @@ def main(argv):
                 sys.exit()
         elif opt in ("-D", "--ndatr"):
             ndatr = int(arg)
+        elif opt in ("--plim"):
+            plim = float(arg)
 
     if len(args)>0:
         runtag = args[0]
     else:
         runtag = "run"
 
-    plot_data(runtag, field, defT, start, stop, ebeg, efin, delta, fit, plt)
+    plot_data(runtag, field, defT, start, stop, ebeg, efin, delta, fit, plt, plim=plim)
 
 if __name__ == "__main__":
    main(sys.argv[1:])
