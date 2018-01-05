@@ -17404,7 +17404,8 @@ void CollideIon::gatherSpecies()
     }
   }
   if (massE>0.0) {
-    tempE /= mass;
+    tempE /= massE;
+    dispE /= massE;
   }
   
   // Temporary debug for elastic scattering counts
