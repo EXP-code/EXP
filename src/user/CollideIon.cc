@@ -278,6 +278,19 @@ static bool NO_ION_ELECTRON     = false;
 //
 static bool IPS                 = false;
 
+// This flag causes excess to be added to ion
+//
+bool CollideIon::reverse_apply  = false;
+
+// Apply electron excess to elc_cons
+//
+bool CollideIon::electron_self  = true;
+
+// Excess to be added in proportion to active kinetic energy
+//
+bool CollideIon::ke_weight      = true;
+
+
 // Per-species cross-section scale factor for testing
 //
 static std::vector<double> cscl_;
@@ -9984,8 +9997,6 @@ void CollideIon::debugDeltaE(double delE, unsigned short Z, unsigned short C,
 //
 void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
 {
-  const bool reverse_apply = false;
-
   // Compute final energy
   //
   pp->eFinal();
@@ -12333,8 +12344,6 @@ void CollideIon::deferredEnergyTrace(PordPtr pp, const double E, int id)
 //
 void CollideIon::updateEnergyTrace(PordPtr pp, KE_& KE)
 {
-  const bool reverse_apply = false;
-
   // Compute final energy
   //
   pp->eFinal();
@@ -12394,37 +12403,43 @@ void CollideIon::updateEnergyTrace(PordPtr pp, KE_& KE)
   //
   if (pp->P == Pord::ion_electron) {
     if (elc_cons) {
-      pp->E2[1] -= testE;
-    } else {
-      if (reverse_apply) {
+      if (ke_weight) {
+	double denom = pp->KE1[0] + pp->KE2[1];
+	pp->E1[0] -= testE * pp->KE1[0]/denom;
+	pp->E2[1] -= testE * pp->KE2[1]/denom;
+      } else if (TRACE_ELEC) {
+	pp->E1[0] -= testE*(1.0 - TRACE_FRAC);
+	pp->E2[1] -= testE*(TRACE_FRAC);
+      } else if (reverse_apply) {
 	pp->E1[0] -= testE;
       } else {
-	if (TRACE_ELEC) {
-	  pp->E1[0] -= testE*(1.0 - TRACE_FRAC);
-	  pp->E2[0] -= testE*(TRACE_FRAC);
-	} else {
-	  pp->E2[0] -= testE;
-	}
+	pp->E2[1] -= testE;
       }
+    } else {
+      pp->E1[0] -= testE;
     }
   }
   
   if (pp->P == Pord::electron_ion) {
     if (elc_cons) {
-      pp->E1[1] -= testE;
-    } else {
-      if (reverse_apply) {
-	pp->E2[0] -= testE;
+      if (ke_weight) {
+	double denom = pp->KE1[1] + pp->KE2[0];
+	pp->E1[1] -= testE * pp->KE1[1]/denom;
+	pp->E2[0] -= testE * pp->KE2[0]/denom;
+      } else if (TRACE_FRAC) {
+	pp->E1[1] -= testE*TRACE_FRAC;
+	pp->E2[0] -= testE*(1.0 - TRACE_FRAC);
+      } else if (reverse_apply) {
+	pp->E1[1] -= testE;
       } else {
-	if (TRACE_FRAC) {
-	  pp->E1[0] -= testE*TRACE_FRAC;
-	  pp->E2[0] -= testE*(1.0 - TRACE_FRAC);
-	} else {
-	  pp->E1[0] -= testE;
-	}
+	pp->E2[0] -= testE;
       }
+    } else {
+      pp->E2[0] -= testE;
     }
   }
+  
+    
 
   if (DBG_NewTest and error)
     std::cout << "**ERROR in update: "
@@ -13751,16 +13766,75 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	    p2->dattrib[use_elec+k] = vcom[k] - m1/mt*vrel[k]*vfac;
 	  }
 				// Correct energy for conservation
-	  if (!equal) {
-	    if (elc_cons)
-	      p1->dattrib[use_elec+3] -= deltaKE;
-	    else {
-	      if (TRACE_ELEC) {
-		p1->dattrib[use_cons] -= deltaKE * (1.0 - TRACE_FRAC);
-		p2->dattrib[use_cons] -= deltaKE * TRACE_FRAC;
-	      } else {
-		p1->dattrib[use_cons] -= deltaKE;
+	  if (!equal and elc_cons) {
+	    
+	    double KE1e = 0.0, KE2e = 0.0;
+	    for (int k=0; k<3; k++) {
+	      KE1e += p1->dattrib[use_elec+k] * p1->dattrib[use_elec+k];
+	      KE2e += p2->dattrib[use_elec+k] * p2->dattrib[use_elec+k];
+	    }
+	  
+	    if (aType == Trace) {
+
+	      double eta1 = 0.0, eta2 = 0.0; // electron fraction
+	      double mol1 = 0.0, mol2 = 0.0; // inverse molecular weight
+	      for (auto s : SpList) {
+		unsigned P =  s.first.second - 1;
+		eta1 += p1->dattrib[s.second]*P;
+		eta2 += p2->dattrib[s.second]*P;
+		mol1 += p1->dattrib[s.second]/atomic_weights[s.first.first];
+		mol2 += p2->dattrib[s.second]/atomic_weights[s.first.first];
 	      }
+
+	      KE1e *= 0.5 * p1->mass * eta1 * atomic_weights[0] * mol1;
+	      KE2e *= 0.5 * p2->mass * eta2 * atomic_weights[0] * mol2;
+
+	    } else {
+
+	      speciesKey k1 = KeyConvert(p1->iattrib[use_key]).getKey();
+	      speciesKey k2 = KeyConvert(p2->iattrib[use_key]).getKey();
+  
+	      // Get atomic numbers
+	      //
+	      unsigned short Z1 = k1.first;
+	      unsigned short Z2 = k2.first;
+	      
+	      if (aType == Hybrid) {
+
+		double eta1 = 0.0, eta2 = 0.0; // electron fraction
+		for (unsigned short C=1; C<=Z1; C++)
+		  eta1 += p1->dattrib[spc_pos+C]*C;
+		for (unsigned short C=1; C<=Z2; C++)
+		  eta2 += p2->dattrib[spc_pos+C]*C;
+
+		KE1e *= 0.5 * p1->mass * eta1 * atomic_weights[0] / atomic_weights[Z1];
+		KE2e *= 0.5 * p2->mass * eta2 * atomic_weights[0] / atomic_weights[Z2];
+
+	      } else {
+		KE1e *= 0.5 * p1->mass * atomic_weights[0] / atomic_weights[Z1];
+		KE2e *= 0.5 * p2->mass * atomic_weights[0] / atomic_weights[Z2];
+	      }
+	    }
+	    
+	    double wght1 = 0.5;
+	    double wght2 = 0.5;
+
+	    if (ke_weight) {
+	      wght1 = KE1e/(KE1e + KE2e);
+	      wght2 = KE2e/(KE1e + KE2e);
+	    }
+
+	    if (electron_self) {
+	      p1->dattrib[use_elec+3] -= deltaKE * wght1;
+	      p2->dattrib[use_elec+3] -= deltaKE * wght2;
+	    } else if (TRACE_ELEC) {
+	      p1->dattrib[use_elec+3] -= deltaKE * wght1 * TRACE_FRAC;
+	      p1->dattrib[use_cons]   -= deltaKE * wght1 * (1.0 - TRACE_FRAC);
+	      p2->dattrib[use_elec+3] -= deltaKE * wght2 * TRACE_FRAC;
+	      p2->dattrib[use_cons]   -= deltaKE * wght2 * (1.0 - TRACE_FRAC);
+	    } else {
+	      p1->dattrib[use_cons]   -= deltaKE * wght1 * (1.0 - TRACE_FRAC);
+	      p2->dattrib[use_cons]   -= deltaKE * wght2 * (1.0 - TRACE_FRAC);
 	    }
 	  }
 
@@ -20485,6 +20559,15 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
       }
     }
     
+    // Get kinetic energies
+    //
+    for (size_t k=0; k<3; k++) {
+      KE1[0] += p1->vel[k] * p1->vel[k];
+      KE2[0] += p2->vel[k] * p2->vel[k];
+      KE1[1] += p1->dattrib[c->use_elec+k] * p1->dattrib[c->use_elec+k];
+      KE2[1] += p2->dattrib[c->use_elec+k] * p2->dattrib[c->use_elec+k];
+    }
+
     // Get molecular weights
     //
     double mol1 = 0.0, mol2 = 0.0;
@@ -20507,6 +20590,20 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
       f2[n] = p2->dattrib[sp->second];
       sp++;
     }
+
+    // Get kinetic energies
+    //
+    for (size_t k=0; k<3; k++) {
+      KE1[0] += p1->vel[k] * p1->vel[k];
+      KE2[0] += p2->vel[k] * p2->vel[k];
+      KE1[1] += p1->dattrib[c->use_elec+k] * p1->dattrib[c->use_elec+k];
+      KE2[1] += p2->dattrib[c->use_elec+k] * p2->dattrib[c->use_elec+k];
+    }
+
+    KE1[0] *= 0.5*p1->mass;
+    KE2[0] *= 0.5*p2->mass;
+    KE1[1] *= 0.5*p1->mass * eta1 * atomic_weights[0]/m1;
+    KE2[1] *= 0.5*p2->mass * eta2 * atomic_weights[0]/m2;
 
   } else {
 

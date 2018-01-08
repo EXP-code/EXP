@@ -770,6 +770,21 @@ public:
   //! (default: 2.0)
   static double coulPow;
 
+  //@{
+  //! TRACE algorithm default: adds excess energy to electron.  
+
+  //! This flag causes excess to be added to ion (default: false)
+  static bool reverse_apply;
+
+  //! Apply electron excess to elc_cons (default: true)
+  static bool electron_self;
+
+  //! This flag causes excess to be added in proportion to active
+  //! kinetic energy (default: true)
+  static bool ke_weight;
+  //@}
+
+
 protected:
 
   //! Process config file
@@ -943,7 +958,7 @@ protected:
     double         eta1;
     double         eta2;
 
-    std::array<double, 2>  E1, E2;
+    std::array<double, 2>  E1, E2, KE1, KE2;
     std::vector<double>    f1, f2;
 
     //! Keep particle energies at current time
