@@ -777,7 +777,7 @@ public:
   static bool reverse_apply;
 
   //! Apply electron excess to elc_cons (default: true)
-  static bool electron_self;
+  static bool elec_balance;
 
   //! This flag causes excess to be added in proportion to active
   //! kinetic energy (default: true)

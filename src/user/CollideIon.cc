@@ -284,7 +284,7 @@ bool CollideIon::reverse_apply  = false;
 
 // Apply electron excess to elc_cons
 //
-bool CollideIon::electron_self  = true;
+bool CollideIon::elec_balance   = true;
 
 // Excess to be added in proportion to active kinetic energy
 //
@@ -12403,13 +12403,22 @@ void CollideIon::updateEnergyTrace(PordPtr pp, KE_& KE)
   //
   if (pp->P == Pord::ion_electron) {
     if (elc_cons) {
+
+      double wght1 = 0.5, wght2 = 0.5;
       if (ke_weight) {
 	double denom = pp->KE1[0] + pp->KE2[1];
-	pp->E1[0] -= testE * pp->KE1[0]/denom;
-	pp->E2[1] -= testE * pp->KE2[1]/denom;
+	wght1 = pp->KE1[0]/denom;
+	wght2 = pp->KE2[1]/denom;
+      }
+	
+      if (elec_balance) {
+	pp->E1[0] -= testE * wght1;
+	pp->E2[1] -= testE * wght2;
       } else if (TRACE_ELEC) {
-	pp->E1[0] -= testE*(1.0 - TRACE_FRAC);
-	pp->E2[1] -= testE*(TRACE_FRAC);
+	double ww1 = wght1 * (1.0 - TRACE_FRAC);
+	double ww2 = wght2 * TRACE_FRAC;
+	pp->E1[0] -= testE * ww1/(ww1 + ww2);
+	pp->E2[1] -= testE * ww2/(ww1 + ww2);
       } else if (reverse_apply) {
 	pp->E1[0] -= testE;
       } else {
@@ -12422,13 +12431,22 @@ void CollideIon::updateEnergyTrace(PordPtr pp, KE_& KE)
   
   if (pp->P == Pord::electron_ion) {
     if (elc_cons) {
+
+      double wght1 = 0.5, wght2 = 0.5;
       if (ke_weight) {
 	double denom = pp->KE1[1] + pp->KE2[0];
-	pp->E1[1] -= testE * pp->KE1[1]/denom;
-	pp->E2[0] -= testE * pp->KE2[0]/denom;
+	wght1 = pp->KE1[1]/denom;
+	wght2 = pp->KE2[0]/denom;
+      }
+
+      if (elec_balance) {
+	pp->E1[1] -= testE * wght1;
+	pp->E2[0] -= testE * wght2;
       } else if (TRACE_FRAC) {
-	pp->E1[1] -= testE*TRACE_FRAC;
-	pp->E2[0] -= testE*(1.0 - TRACE_FRAC);
+	double ww1 = wght1 * (1.0 - TRACE_FRAC);
+	double ww2 = wght2 * TRACE_FRAC;
+	pp->E1[1] -= testE * ww1/(ww1 + ww2);
+	pp->E2[0] -= testE * ww2/(ww1 + ww2);
       } else if (reverse_apply) {
 	pp->E1[1] -= testE;
       } else {
@@ -13824,17 +13842,18 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	      wght2 = KE2e/(KE1e + KE2e);
 	    }
 
-	    if (electron_self) {
+	    if (elec_balance) {
 	      p1->dattrib[use_elec+3] -= deltaKE * wght1;
 	      p2->dattrib[use_elec+3] -= deltaKE * wght2;
 	    } else if (TRACE_ELEC) {
+	      double ww1 = 
 	      p1->dattrib[use_elec+3] -= deltaKE * wght1 * TRACE_FRAC;
 	      p1->dattrib[use_cons]   -= deltaKE * wght1 * (1.0 - TRACE_FRAC);
 	      p2->dattrib[use_elec+3] -= deltaKE * wght2 * TRACE_FRAC;
 	      p2->dattrib[use_cons]   -= deltaKE * wght2 * (1.0 - TRACE_FRAC);
 	    } else {
-	      p1->dattrib[use_cons]   -= deltaKE * wght1 * (1.0 - TRACE_FRAC);
-	      p2->dattrib[use_cons]   -= deltaKE * wght2 * (1.0 - TRACE_FRAC);
+	      p1->dattrib[use_cons]   -= deltaKE * wght1;
+	      p2->dattrib[use_cons]   -= deltaKE * wght2;
 	    }
 	  }
 
