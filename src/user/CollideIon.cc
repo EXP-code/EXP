@@ -609,6 +609,12 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << spc_pos                                << std::endl
 	      <<  " " << std::setw(20) << std::left << "use_elec"
 	      << use_elec                               << std::endl
+	      <<  " " << std::setw(20) << std::left << "reverseApply"
+	      << (reverse_apply ? "on" : "off" )        << std::endl
+	      <<  " " << std::setw(20) << std::left << "elecBalance"
+	      << (elec_balance ? "on" : "off" )         << std::endl
+	      <<  " " << std::setw(20) << std::left << "KEWeight"
+	      << (ke_weight ? "on" : "off" )            << std::endl
 	      <<  " " << std::setw(20) << std::left << "maxCoul"
 	      << maxCoul                                << std::endl
 	      <<  " " << std::setw(20) << std::left << "logL"
@@ -13846,7 +13852,6 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	      p1->dattrib[use_elec+3] -= deltaKE * wght1;
 	      p2->dattrib[use_elec+3] -= deltaKE * wght2;
 	    } else if (TRACE_ELEC) {
-	      double ww1 = 
 	      p1->dattrib[use_elec+3] -= deltaKE * wght1 * TRACE_FRAC;
 	      p1->dattrib[use_cons]   -= deltaKE * wght1 * (1.0 - TRACE_FRAC);
 	      p2->dattrib[use_elec+3] -= deltaKE * wght2 * TRACE_FRAC;
@@ -20163,6 +20168,15 @@ void CollideIon::processConfig()
 
     IonElecRate = 
       cfg.entry<bool>("ION_ELEC_RATE", "Use ion-ion relative speed to compute electron-electron interaction rate", false);
+
+    reverse_apply = 
+      cfg.entry<bool>("REVERSE_APPLY", "Add energy excess from momentum conservation ion only", false);
+
+    elec_balance = 
+      cfg.entry<bool>("ELEC_BALANCE", "Add energy excess from momentum conservation to electron and ion free pool", true);
+
+    ke_weight = 
+      cfg.entry<bool>("KE_WEIGHT", "Add energy excess from momentum conservation to electron and weighted by KE", true);
 
     Collide::DEBUG_NTC =
       cfg.entry<bool>("DEBUG_NTC", "Enable verbose NTC diagnostics", false);
