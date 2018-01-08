@@ -41,7 +41,7 @@ def readem(Tag=''):
             toks = line.split()
             for v in zip(labs, toks): data[v[0]].append(float(v[1]))
 
-def plotem(l, Log=False, Smooth=False, Tag='', Intvl=10):
+def plotem(l, Log=False, Smooth=False, Only=False, Tag='', Intvl=10):
     global rtag
 
     if Tag != '': rtag = Tag
@@ -50,10 +50,11 @@ def plotem(l, Log=False, Smooth=False, Tag='', Intvl=10):
     t = np.array(data['Time'])*Tscale
     for v in l:
         y = np.array(data[v])
-        if Log:
-            plt.semilogy(t, y, '-', label=v)
-        else:
-            plt.plot(t, y, '-', label=v)
+        if not Smooth or not Only:
+            if Log:
+                plt.semilogy(t, y, '-', label=v)
+            else:
+                plt.plot(t, y, '-', label=v)
 
         if Smooth:
             if Log: y = np.log(y)
@@ -67,10 +68,16 @@ def plotem(l, Log=False, Smooth=False, Tag='', Intvl=10):
             porder = 3
             # print("wsize=", wsize)
             yy = savgol_filter(itp(t), wsize, porder)
-            if Log:
-                plt.semilogy(t, np.exp(yy), '-', linewidth=2)
+            if Smooth and Only:
+                if Log:
+                    plt.semilogy(t, np.exp(yy), '-', label=v)
+                else:
+                    plt.plot(t, yy, '-', label=v)
             else:
-                plt.plot(t, yy, '-', linewidth=2)
+                if Log:
+                    plt.semilogy(t, np.exp(yy), '-', linewidth=2)
+                else:
+                    plt.plot(t, yy, '-', linewidth=2)
 
     plt.xlabel('Time (years)')
     plt.ylabel(v)
@@ -78,9 +85,9 @@ def plotem(l, Log=False, Smooth=False, Tag='', Intvl=10):
     plt.legend().draggable()
     plt.show()
     
-def plotLoss(Log=True, Smooth=True, Tag='', Intvl=10):
-    plotem(['Elost'], Log=Log, Smooth=Smooth, Tag=Tag, Intvl=Intvl)
+def plotLoss(Log=True, Smooth=True, Only=False, Tag='', Intvl=10):
+    plotem(['Elost'], Log=Log, Smooth=Smooth, Only=Only, Tag=Tag, Intvl=Intvl)
     
-def plotKE(Log=False, Smooth=True, Tag='', Intvl=10):
-    plotem(['EkeI', 'EkeE'], Log=Log, Smooth=Smooth, Tag=Tag, Intvl=Intvl)
+def plotKE(Log=False, Smooth=True, Only=False, Tag='', Intvl=10):
+    plotem(['EkeI', 'EkeE'], Log=Log, Smooth=Smooth, Only=Only, Tag=Tag, Intvl=Intvl)
     
