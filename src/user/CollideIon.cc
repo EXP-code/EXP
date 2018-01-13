@@ -12249,8 +12249,8 @@ void CollideIon::scatterTraceEnergy
   if (cq > 0.0) {
 
     for (size_t i=0; i<3; i++) {
-      uu[i] = vcom[i] + pp->m2/mt*vrel[i] * KE.vfac;
-      vv[i] = vcom[i] - pp->m1/mt*vrel[i] * KE.vfac;
+      uu[i] = vcom[i] + pp->m2/mt*vrel[i]*KE.vfac;
+      vv[i] = vcom[i] - pp->m1/mt*vrel[i]*KE.vfac;
       v1i2 += (*v1)[i] * (*v1)[i];
       v2i2 += (*v2)[i] * (*v2)[i];
       b1f2 += uu[i]*uu[i];
@@ -12270,10 +12270,10 @@ void CollideIon::scatterTraceEnergy
 
   for (int i=0; i<3; i++) {
 
-    double v0 = vcom[i] + pp->m2/mt*vrel[i] * KE.vfac;
+    double v0 = vcom[i] + pp->m2/mt*vrel[i]*KE.vfac;
     
     (*v1)[i] = cq*(*v1)[i]*vrat + q*v0;
-    (*v2)[i] = vcom[i] - pp->m1/mt*vrel[i] * KE.vfac;
+    (*v2)[i] = vcom[i] - pp->m1/mt*vrel[i]*KE.vfac;
   }
 
   // END: energy conservation algorithm
