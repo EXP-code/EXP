@@ -270,7 +270,7 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp, p
     plt.plot(xx, dd, '-*')
     plt.plot(xx, zz, '-', linewidth=2)
     plt.xlabel('Energy (eV)')
-    plt.ylabel('Relative difference')
+    plt.ylabel('Relative difference (%)')
     plt.ylim((-plim, plim))
     plt.grid()
     plt.show()
