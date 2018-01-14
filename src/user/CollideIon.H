@@ -1330,25 +1330,10 @@ protected:
   (double P, PordPtr pp, KE_& KE,
    std::vector<double>* v1, std::vector<double>* v2, int id);
 
-  //@{
   //! Compute the interaction for the trace method
-  void scatterTraceMomentum
-  (PordPtr pp, KE_& KE,
-   std::vector<double>* V1, std::vector<double>* V2, int id);
-
-  void scatterTraceEnergy
-  (PordPtr pp, KE_& KE,
-   std::vector<double>* V1, std::vector<double>* V2, int id);
-
   void scatterTrace
   (PordPtr pp, KE_& KE,
-   std::vector<double>* V1, std::vector<double>* V2, int id)
-  {
-    if (ExactE)
-      scatterTraceEnergy  (pp, KE, V1, V2, id);
-    else
-      scatterTraceMomentum(pp, KE, V1, V2, id);
-  }
+   std::vector<double>* V1, std::vector<double>* V2, int id);
 
   //! For photoionization ion-electron recoil
   void scatterPhotoTrace(Particle* p, lQ Q, double Pr, double dE);
