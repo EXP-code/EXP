@@ -7,6 +7,10 @@
 #include <array>
 #include <map>
 
+/**
+   A class for accumulating data and computing rate coefficients from
+   the DSMC simulation distribution.
+*/
 class StatsMPI
 {
 private:
@@ -16,6 +20,7 @@ private:
   std::map<speciesKey, double> ccnt;
   std::map<speciesKey, double> vsum, vmin, vmax;
 
+  //! Gather from MPI nodes
   void share()
   {
     for (auto s : cntT) {
@@ -37,6 +42,7 @@ public:
 
   //! Constructor
   StatsMPI() {}
+
   //! Add a value
   void add(const speciesKey& k, double wgt, double val)
   { 
@@ -56,7 +62,8 @@ public:
   typedef std::array<double, 4> SpStat;
   typedef std::map<speciesKey, SpStat> Return;
 
-  //! Access values
+  //! Gather values from nodes and return count, mean weighted value,
+  //! and min and max preweighted value
   Return stats()
   {
     share();
