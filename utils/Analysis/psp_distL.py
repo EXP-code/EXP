@@ -151,14 +151,21 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp, p
 
             EE  = efac * np.dot(dv, dv)
             lEE = np.log(EE)
-            if lEE<lebeg or lEE>=lefin:
+
+            # Sanity check
+            if np.isnan(lEE):
+                oab += 1
+            # Enforce bounds
+            elif lEE<lebeg or lEE>=lefin:
                 oab += 1
             else:
+            # Okay . . .
                 indx = int( (lEE - lebeg)/dE)
                 yy[indx] += 1
 
     # Compute bin centers
     xx = np.zeros(nbin)
+    eb = np.zeros(nbin)
     lx = np.zeros(nbin)
     for i in range(nbin):
         lx[i] = lebeg + dE*(0.5+i)
@@ -167,18 +174,12 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp, p
     # Normalize
     delE = np.exp(0.5*dE) - np.exp(-0.5*dE)
     norm = 0.0
+    nn = copy.deepcopy(yy)
     for i in range(nbin): norm += yy[i]
     for i in range(nbin): yy[i] /= norm
 
-    # Minimum non-zero
-    yy0 = copy.deepcopy(yy)
-    yy0.sort()
-    yy_min = 0.0
-    for v in yy0:
-        if v > 0.0:
-            yy_min = v
-            break
-    print('Min={} Max={}'.format(yy_min, yy[-1]))
+    # Poisson error
+    eb = yy/np.sqrt(nn+1)
 
     # Fit for temperature
     fc  = 11604.5/defaultT # Initial guess for exponent
@@ -202,7 +203,7 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp, p
         for i in range(nbin): tt[i] = func1(lx[i], nrm)
     elif fit == FitType.TempAmp:
         p0 = [nrm, fc]          # Amplitude
-        popt, pcov = curve_fit(func2, lx, yy, p0, sigma=np.sqrt(yy+0.1*yy_min))
+        popt, pcov = curve_fit(func2, lx, yy, p0, sigma=eb)
         # popt, pcov = curve_fit(func2, lx, yy, p0, sigma=np.sqrt(yy)+1)
         # Temp
         bT = slopeFac / popt[1]
@@ -212,7 +213,7 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp, p
     elif fit == FitType.AmpOnly:
         b0 = fc
         p0 = [nrm]              # Amplitude
-        popt, pcov = curve_fit(func1, lx, yy, p0, sigma=np.sqrt(yy)+1)
+        popt, pcov = curve_fit(func1, lx, yy, p0, sigma=eb)
         # Temp
         bT = defaultT
         for v in lx: tt.append(func1(v, popt[0]))
@@ -282,14 +283,28 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp, p
     porder = 3
     # print("wsize=", wsize)
     zz = savgol_filter(itp(lx), wsize, porder)
-    plt.semilogx(xx, dd, '-*')
-    plt.semilogx(xx, zz, '-', linewidth=2)
-    plt.xlabel('Energy (eV)')
-    plt.ylabel('Relative difference (%)')
-    plt.ylim((-plim, plim))
+
+    fig = plt.figure()
+    # ax = fig.add_subplot(111,  xlim=(-2,2), ylim=(1,10E11))
+    ax = fig.add_subplot(111, ylim=(-plim, plim))
+    err = 100.0*eb/tt
+    ax.errorbar(xx, dd, yerr=err, fmt='-', capthick=2)
+    ax.plot(xx, zz, '-', linewidth=2)
+    ax.set_xlabel('Energy (eV)')
+    ax.set_ylabel('Relative difference (%)')
+    ax.set_xscale('log')
     plt.grid()
     plt.show()
-                
+    #
+    # List rel dif plot data
+    #
+    header = '{:<6s}  {:<16s}  {:<16s}  {:<16s}  {:<8s}'
+    datfmt = '{:<6d}  {:<16.6e}  {:<16.6e}  {:<16.6e}  {:<8.0f}'
+    print(header.format('bin', 'energy', 'rel dif', 'error', 'count'))
+    print(header.format('----', '------', '------', '------', '------'))
+    for i in range(len(dd)):
+        print(datfmt.format(i, xx[i], dd[i], err[i], nn[i]))
+
 def main(argv):
     """ Parse the command line and call the parsing and plotting routine """
 
