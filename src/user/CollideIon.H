@@ -981,7 +981,8 @@ protected:
     };
     
     typedef std::array<Es, 2> Epair;
-    Epair beg, mid, end;
+    Epair beg, mid, end;	// e.g. beg[0] is particle 1
+				//      beg[1] is particle 2
 
     //! Constructor
     Pord(CollideIon* c, Particle *P1, Particle *P2, double WW1, double WW2,
