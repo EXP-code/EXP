@@ -630,7 +630,71 @@ private:
   std::vector< boost::circular_buffer<double> > elecEVmax;
   std::vector< boost::circular_buffer<double> > elecEVsub;
   ahistoDPtr elecEVH, elecEVHmin, elecEVHavg, elecEVHmax;
-  ahistoDPtr elecEVHsub, elecRCH;
+  ahistoDPtr elecEVHsub, elecRCH, elecRCN;
+
+  std::vector< std::vector<unsigned> > rcmbTotl;
+  std::vector<unsigned> rcmbLH;
+  double rcmbEVmin, rcmbEVmax, rcmbDelta;
+  unsigned rcmbNsiz;
+
+  // For debugging . . .
+  void setupRcmbTotl()
+  {
+    rcmbEVmin = -4.0;
+    rcmbEVmax =  2.0;
+    rcmbDelta =  0.25;
+    rcmbNsiz  = floor((rcmbEVmax - rcmbEVmin)*1.0000001/rcmbDelta);
+
+    rcmbTotl.resize(nthrds);
+    for (auto &v : rcmbTotl) v.resize(rcmbNsiz, 0);
+    rcmbLH.resize(rcmbNsiz);
+  }
+
+  void rcmbTotlAdd(double E, int id)
+  {
+    double lE = log10(E);
+    if (lE<rcmbEVmin or lE>rcmbEVmax) {
+      unsigned indx = (lE - rcmbEVmin)/rcmbDelta;
+      if (indx>=0 or indx<rcmbNsiz) rcmbTotl[id][indx]++;
+    }
+  }
+
+  void rcmbTotlGather()
+  {
+    for (int n=1; n<nthrds; n++) {
+      for (unsigned j=0; j<rcmbNsiz; j++) rcmbTotl[0][j] += rcmbTotl[n][j];
+    }
+    
+    std::vector<unsigned> work;
+    if (myid == 0) {
+      work.resize(rcmbNsiz);
+      rcmbLH = rcmbTotl[0];
+    }
+    
+    // All processes send to root
+    //
+    for (int n=1; n<numprocs; n++) {
+
+      if (myid == n) {
+	MPI_Send(&rcmbTotl[0], rcmbNsiz, MPI_UNSIGNED, 0, 301, MPI_COMM_WORLD);
+      } // Node send
+      
+      if (myid==0) {
+	MPI_Recv(&work[0],     rcmbNsiz, MPI_UNSIGNED, n, 301, MPI_COMM_WORLD,
+		 MPI_STATUS_IGNORE);
+	for (unsigned j=0; j<rcmbNsiz; j++) rcmbLH[j] += work[j];
+      } // Root receive
+
+	MPI_Barrier(MPI_COMM_WORLD);
+
+    } // Process loop
+
+    // Zero counters
+    //
+    for (auto &v : rcmbTotl) {
+      for (auto &u : v) u = 0;
+    }
+  }
   //@}
 
   //@{

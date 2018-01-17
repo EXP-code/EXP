@@ -811,6 +811,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
     for (auto &v : elecEVsub) v.set_capacity(bufCap);
     elecRC.resize(nthrds);
     for (auto &v : elecRC)    v.set_capacity(bufCap);
+
+    setupRcmbTotl();
   }
 
   // Enum collsion-type label fields
@@ -10824,6 +10826,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  if (elecDist and rcmbDist) {
 	    double val = kEe2[id];
+	    rcmbTotlAdd(val, id);
 	    if (rcmbDlog) val = log10(val);
 	    elecRC[id].push_back(val);
 	  }
@@ -10923,6 +10926,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  if (elecDist and rcmbDist) {
 	    double val = kEe1[id];
+	    rcmbTotlAdd(val, id);
 	    if (rcmbDlog) val = log10(val);
 	    elecRC[id].push_back(val);
 	  }
@@ -18701,6 +18705,8 @@ void CollideIon::electronGather()
 	  if (rcmbDlog)    elecRCH    = ahistoDPtr(new AsciiHisto<double>(eRC,    100, 0.25));
 	  else             elecRCH    = ahistoDPtr(new AsciiHisto<double>(eRC,    100, 0.005));
 	}
+	rcmbTotlGather();
+	if (rcmbLH.size()) elecRCN    = ahistoDPtr(new AsciiHisto<double>(rcmbLH, rcmbEVmin, rcmbEVmax));
       }
 
     } // END: elecDist
@@ -19348,6 +19354,14 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< "-----Electron recombination energy distribution--------" << std::endl
 	<< std::string(53, '-')  << std::endl;
     (*elecRCH)(out);
+  }
+
+  if (elecRCN.get()) {
+    out << std::endl
+	<< std::string(53, '-')  << std::endl
+	<< "-----Electron recombination counts--------" << std::endl
+	<< std::string(53, '-')  << std::endl;
+    (*elecRCN)(out);
   }
 
   if (elecH.get()) {
