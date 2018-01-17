@@ -633,8 +633,8 @@ private:
   ahistoDPtr elecEVHsub, elecRCH, elecRCN;
 
   std::vector< std::vector<unsigned> > rcmbTotl;
-  std::vector<unsigned> rcmbLH;
-  double rcmbEVmin, rcmbEVmax, rcmbDelta;
+  std::vector<unsigned>                rcmbLH;
+  double   rcmbEVmin, rcmbEVmax, rcmbDelta;
   unsigned rcmbNsiz;
 
   // For debugging . . .
@@ -647,7 +647,6 @@ private:
 
     rcmbTotl.resize(nthrds);
     for (auto &v : rcmbTotl) v.resize(rcmbNsiz, 0);
-    rcmbLH.resize(rcmbNsiz);
   }
 
   void rcmbTotlAdd(double E, int id)
@@ -655,7 +654,7 @@ private:
     double lE = log10(E);
     if (lE<rcmbEVmin or lE>rcmbEVmax) {
       unsigned indx = (lE - rcmbEVmin)/rcmbDelta;
-      if (indx>=0 or indx<rcmbNsiz) rcmbTotl[id][indx]++;
+      if (indx>=0 and indx<rcmbNsiz) rcmbTotl[id][indx]++;
     }
   }
 
@@ -685,7 +684,7 @@ private:
 	for (unsigned j=0; j<rcmbNsiz; j++) rcmbLH[j] += work[j];
       } // Root receive
 
-	MPI_Barrier(MPI_COMM_WORLD);
+      MPI_Barrier(MPI_COMM_WORLD);
 
     } // Process loop
 

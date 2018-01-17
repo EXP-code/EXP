@@ -18702,6 +18702,7 @@ void CollideIon::electronGather()
 	if (eEVmax.size()) elecEVHmax = ahistoDPtr(new AsciiHisto<double>(eEVmax, 20,  0.01 ));
 	if (eEVsub.size()) elecEVHsub = ahistoDPtr(new AsciiHisto<double>(eEVsub, 20,  0.01 ));
 	if (eRC.size())    elecRCH    = ahistoDPtr(new AsciiHisto<double>(eRC,    100, 0.005));
+
 	rcmbTotlGather();
 	if (rcmbLH.size()) elecRCN    = ahistoDPtr(new AsciiHisto<double>(rcmbLH, rcmbEVmin, rcmbEVmax));
       }
