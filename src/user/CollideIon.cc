@@ -45,6 +45,7 @@ bool     CollideIon::E_split    = false;
 bool     CollideIon::distDiag   = false;
 bool     CollideIon::elecDist   = false;
 bool     CollideIon::rcmbDist   = false;
+bool     CollideIon::rcmbDlog   = true ; // Log scale histogram by default
 bool     CollideIon::ntcDist    = false;
 bool     CollideIon::enforceMOM = false;
 bool     CollideIon::coulScale  = false;
@@ -10822,7 +10823,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // For verbose diagnostic output only
 	  //
 	  if (elecDist and rcmbDist) {
-	    elecRC[id].push_back(kEe2[id]);
+	    double val = kEe2[id];
+	    if (rcmbDlog) val = log10(val);
+	    elecRC[id].push_back(val);
 	  }
 
 	  // Add the KE from the recombined electron back to the free pool
@@ -10919,7 +10922,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // For verbose diagnostic output only
 	  //
 	  if (elecDist and rcmbDist) {
-	    elecRC[id].push_back(kEe1[id]);
+	    double val = kEe1[id];
+	    if (rcmbDlog) val = log10(val);
+	    elecRC[id].push_back(val);
 	  }
 
 	  // Add the KE from the recombined electron back to the free pool
@@ -18692,7 +18697,10 @@ void CollideIon::electronGather()
 	if (eEVavg.size()) elecEVHavg = ahistoDPtr(new AsciiHisto<double>(eEVavg, 20, 0.01));
 	if (eEVmax.size()) elecEVHmax = ahistoDPtr(new AsciiHisto<double>(eEVmax, 20, 0.01));
 	if (eEVsub.size()) elecEVHsub = ahistoDPtr(new AsciiHisto<double>(eEVsub, 20, 0.01));
-	if (eRC.size())    elecRCH    = ahistoDPtr(new AsciiHisto<double>(eRC,    100, 0.005));
+	if (eRC.size()) {
+	  if (rcmbDlog)    elecRCH    = ahistoDPtr(new AsciiHisto<double>(eRC,    100, 0.25));
+	  else             elecRCH    = ahistoDPtr(new AsciiHisto<double>(eRC,    100, 0.005));
+	}
       }
 
     } // END: elecDist
@@ -20141,6 +20149,9 @@ void CollideIon::processConfig()
 
     rcmbDist =
       cfg.entry<bool>("recombDist", "Histograms for electron recombination energy", false);
+
+    rcmbDlog =
+      cfg.entry<bool>("recombDistLog", "Logscale histogram electron recombination energy", true);
 
     ntcDist =
       cfg.entry<bool>("ntcDist", "Enable NTC full distribution for electrons", false);

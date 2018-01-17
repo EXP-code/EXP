@@ -622,6 +622,7 @@ private:
   static bool distDiag;
   static bool elecDist;
   static bool rcmbDist;
+  static bool rcmbDlog;
   std::vector< boost::circular_buffer<double> > elecEV;
   std::vector< boost::circular_buffer<double> > elecRC;
   std::vector< boost::circular_buffer<double> > elecEVmin;
