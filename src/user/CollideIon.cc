@@ -3619,6 +3619,7 @@ double CollideIon::crossSectionHybrid
 
       // Electron (p1) and Ion (p1)
       rvel1 = p1->dattrib[use_elec+i] - p1->vel[i];
+
       // Electron (p2) and Ion (p2)
       rvel2 = p2->dattrib[use_elec+i] - p2->vel[i];
 
@@ -4018,6 +4019,9 @@ double CollideIon::crossSectionHybrid
       // *** Radiative recombination
       //-------------------------------
 
+      // The "new" algorithm uses the electron energy of the ion's
+      // electron rather than the standard particle partner.
+      //
       if (newRecombAlg) {
 
 	// p1 ion and p1 electron
@@ -4101,7 +4105,7 @@ double CollideIon::crossSectionHybrid
 	    }
 	  }
 
-	} // end: old recomb algorithm
+	} // end: original recomb algorithm
 
       } // end: recombination
 
@@ -4697,6 +4701,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     // *** Radiative recombination
     //-------------------------------
 
+    // The "new" algorithm uses the electron energy of the ion's
+    // electron rather than the standard particle partner.
+    //
+
     if (newRecombAlg) {
 
       // Particle 1 is ION, Particle 2 has ELECTRON
@@ -4768,10 +4776,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
 	  double crs = eVel2 * Eta2 * RE.back() * fac1;
 	  
-	if (scatter_check and recomb_check) {
-	  double val = sVel2 * vel * 1.0e-14 * RE.back();
-	  recombA[id].add(k, Eta2, val);
-	}
+	  if (scatter_check and recomb_check) {
+	    double val = sVel2 * vel * 1.0e-14 * RE.back();
+	    recombA[id].add(k, Eta2, val);
+	  }
 
 	  if (DEBUG_CRS) trap_crs(crs);
 	  
@@ -4812,7 +4820,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	    CProb[id][2] += crs;
 	  }
 	  
-      } // end: old recomb algorithm
+      } // end: original recomb algorithm
       
     } // end: recombination
 
