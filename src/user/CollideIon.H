@@ -640,9 +640,9 @@ private:
   // For debugging . . .
   void setupRcmbTotl()
   {
-    rcmbEVmin = -4.0;
+    rcmbEVmin = -4.0;		// log10 end points
     rcmbEVmax =  2.0;
-    rcmbDelta =  0.25;
+    rcmbDelta =  0.25;		// log10 delta
     rcmbNsiz  = floor((rcmbEVmax - rcmbEVmin)*1.0000001/rcmbDelta);
 
     rcmbTotl.resize(nthrds);
@@ -651,15 +651,16 @@ private:
 
   void rcmbTotlAdd(double E, int id)
   {
-    double lE = log10(E);
-    if (lE<rcmbEVmin or lE>rcmbEVmax) {
+    double lE = log10(E);	// Histogram log10 values
+    if (lE>=rcmbEVmin and lE<rcmbEVmax) {
       unsigned indx = (lE - rcmbEVmin)/rcmbDelta;
       if (indx>=0 and indx<rcmbNsiz) rcmbTotl[id][indx]++;
     }
   }
 
-  void rcmbTotlGather()
+  unsigned rcmbTotlGet()
   {
+    // Copy threads to Thread 0
     for (int n=1; n<nthrds; n++) {
       for (unsigned j=0; j<rcmbNsiz; j++) rcmbTotl[0][j] += rcmbTotl[n][j];
     }
@@ -675,24 +676,32 @@ private:
     for (int n=1; n<numprocs; n++) {
 
       if (myid == n) {
-	MPI_Send(&rcmbTotl[0], rcmbNsiz, MPI_UNSIGNED, 0, 301, MPI_COMM_WORLD);
-      } // Node send
+	MPI_Send(&rcmbTotl[0][0], rcmbNsiz, MPI_UNSIGNED, 0, 301, MPI_COMM_WORLD);
+      } // Node sends
       
       if (myid==0) {
-	MPI_Recv(&work[0],     rcmbNsiz, MPI_UNSIGNED, n, 301, MPI_COMM_WORLD,
+	MPI_Recv(&work[0], rcmbNsiz, MPI_UNSIGNED, n, 301, MPI_COMM_WORLD,
 		 MPI_STATUS_IGNORE);
 	for (unsigned j=0; j<rcmbNsiz; j++) rcmbLH[j] += work[j];
-      } // Root receive
+      } // Root receives
 
       MPI_Barrier(MPI_COMM_WORLD);
 
     } // Process loop
 
-    // Zero counters
+    // Zero per-node counters
     //
     for (auto &v : rcmbTotl) {
       for (auto &u : v) u = 0;
     }
+
+    // Total number counted
+    //
+    unsigned ret = 0;
+    for (auto v : rcmbLH) ret += v;
+    if (myid==0) std::cout << "TEST: rcmbTotlGet: have " << ret
+			   << " counts" << std::endl;
+    return ret;
   }
   //@}
 
