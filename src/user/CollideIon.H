@@ -660,6 +660,8 @@ private:
 
   unsigned rcmbTotlGet()
   {
+    if (not elecDist or not rcmbDist) return 0;
+    
     // Copy threads to Thread 0
     for (int n=1; n<nthrds; n++) {
       for (unsigned j=0; j<rcmbNsiz; j++) rcmbTotl[0][j] += rcmbTotl[n][j];
@@ -698,9 +700,11 @@ private:
     // Total number counted
     //
     unsigned ret = 0;
-    for (auto v : rcmbLH) ret += v;
-    if (myid==0) std::cout << "TEST: rcmbTotlGet: have " << ret
-			   << " counts" << std::endl;
+    if (myid==0) {
+      for (auto v : rcmbLH) ret += v;
+      std::cout << "TEST: rcmbTotlGet: have " << ret
+		<< " counts" << std::endl;
+    }
     return ret;
   }
   //@}
