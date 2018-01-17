@@ -18697,14 +18697,11 @@ void CollideIon::electronGather()
 	  if (IDBG) dbg << std::setw(16) << "eEV.size() = "
 			<< std::setw(10) << eEV.size() << std::endl;
 	}
-	if (eEVmin.size()) elecEVHmin = ahistoDPtr(new AsciiHisto<double>(eEVmin, 20, 0.01));
-	if (eEVavg.size()) elecEVHavg = ahistoDPtr(new AsciiHisto<double>(eEVavg, 20, 0.01));
-	if (eEVmax.size()) elecEVHmax = ahistoDPtr(new AsciiHisto<double>(eEVmax, 20, 0.01));
-	if (eEVsub.size()) elecEVHsub = ahistoDPtr(new AsciiHisto<double>(eEVsub, 20, 0.01));
-	if (eRC.size()) {
-	  if (rcmbDlog)    elecRCH    = ahistoDPtr(new AsciiHisto<double>(eRC,    100, 0.25));
-	  else             elecRCH    = ahistoDPtr(new AsciiHisto<double>(eRC,    100, 0.005));
-	}
+	if (eEVmin.size()) elecEVHmin = ahistoDPtr(new AsciiHisto<double>(eEVmin, 20,  0.01 ));
+	if (eEVavg.size()) elecEVHavg = ahistoDPtr(new AsciiHisto<double>(eEVavg, 20,  0.01 ));
+	if (eEVmax.size()) elecEVHmax = ahistoDPtr(new AsciiHisto<double>(eEVmax, 20,  0.01 ));
+	if (eEVsub.size()) elecEVHsub = ahistoDPtr(new AsciiHisto<double>(eEVsub, 20,  0.01 ));
+	if (eRC.size())    elecRCH    = ahistoDPtr(new AsciiHisto<double>(eRC,    100, 0.005));
 	rcmbTotlGather();
 	if (rcmbLH.size()) elecRCN    = ahistoDPtr(new AsciiHisto<double>(rcmbLH, rcmbEVmin, rcmbEVmax));
       }
