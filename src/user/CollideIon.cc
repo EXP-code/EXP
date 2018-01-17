@@ -11367,15 +11367,17 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	
 	// Particle 2 electron
 	// -------------------
-	//            initial---+
-	//                      |
-	//                      v
-	double eta2i = PP[1]->beg[1].eta;
-	double eta2f = PP[1]->end[1].eta;
-	//                      ^
-	//                      |
-	//            final-----+
-	  
+	//            initial/orig----------------------------------+
+	//            initial/swap--------------+                   |
+	//                                      |                   |
+	//                                      v                   v
+	double eta2i = PP[1]->swap ? PP[1]->beg[0].eta : PP[1]->beg[1].eta;
+	double eta2f = PP[1]->swap ? PP[1]->end[0].eta : PP[1]->end[1].eta;
+	//                                      ^                   ^
+	//                                      |                   |
+	//            final/swap----------------+                   |
+	//            final/orig------------------------------------+
+
 	ke1i *= 0.5*p1->mass;
 	ke1f *= 0.5*p1->mass;
 
@@ -11538,16 +11540,17 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	// Particle 1 electron
 	// -------------------
-	//            initial---+
-	//                      |
-	//                      v
-	double eta1i = PP[2]->beg[1].eta;
-	double eta1f = PP[2]->end[1].eta;
-	//                      ^
-	//                      |
-	//            final-----+
-	
-	
+	//            initial/orig----------------------------------+
+	//            initial/swap--------------+                   |
+	//                                      |                   |
+	//                                      v                   v
+	double eta1i = PP[2]->swap ? PP[2]->beg[1].eta : PP[2]->beg[0].eta;
+	double eta1f = PP[2]->swap ? PP[2]->end[1].eta : PP[2]->end[0].eta;
+	//                                      ^                   ^
+	//                                      |                   |
+	//            final/swap----------------+                   |
+	//            final/orig------------------------------------+
+
 	ke1i *= 0.5*p1->mass * eta1i * atomic_weights[0]/molP1[id];
 	ke1f *= 0.5*p1->mass * eta1f * atomic_weights[0]/molP1[id];
 
