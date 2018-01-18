@@ -19362,9 +19362,9 @@ void CollideIon::electronPrint(std::ostream& out)
   if (elecRCN.get()) {
     out << std::endl
 	<< std::string(53, '-')  << std::endl
-	<< "-----Electron recombination counts ("
-	<< std::setprecision(6) << std::scientific << 1.0/rcmbScale
-	<< std::fixed << ")--------" << std::endl
+	<< "-----Electron recombination counts * "
+	<< std::setprecision(6) << std::scientific << rcmbScale
+	<< std::fixed << std::endl
 	<< std::string(53, '-')  << std::endl;
     (*elecRCN)(out);
   }
