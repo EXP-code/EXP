@@ -702,8 +702,6 @@ private:
     unsigned ret = 0;
     if (myid==0) {
       for (auto v : rcmbLH) ret += v;
-      std::cout << "TEST: rcmbTotlGet: have " << ret
-		<< " counts" << std::endl;
     }
     return ret;
   }
