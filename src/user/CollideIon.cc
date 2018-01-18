@@ -11965,7 +11965,7 @@ void CollideIon::scatterTrace
   }
 
 				// Energy in COM
-  double kE   = 0.5*pp->W1*mu*vi;
+  double kE   = 0.5*pp->W2*mu*vi;
 				// Energy reduced by loss
   double totE = kE - KE.delE;
 
