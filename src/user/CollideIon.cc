@@ -18691,7 +18691,7 @@ void CollideIon::electronGather()
 
       } // Process loop
 
-      unsigned rcmbTotlSum = rcmbTotlGet();
+      double rcmbTotlSum = rcmbTotlGet();
 
       if (myid==0) {
 	if (eEV.size()) {
@@ -18704,7 +18704,7 @@ void CollideIon::electronGather()
 	if (eEVmax.size()) elecEVHmax = ahistoDPtr(new AsciiHisto<double>(eEVmax, 20,  0.01 ));
 	if (eEVsub.size()) elecEVHsub = ahistoDPtr(new AsciiHisto<double>(eEVsub, 20,  0.01 ));
 	if (eRC.size())    elecRCH    = ahistoDPtr(new AsciiHisto<double>(eRC,    100, 0.005));
-	if (rcmbTotlSum)   elecRCN    = ahistoDPtr(new AsciiHisto<double>(rcmbLH, rcmbEVmin, rcmbEVmax));
+	if (rcmbTotlSum>0) elecRCN    = ahistoDPtr(new AsciiHisto<double>(rcmbLH, rcmbEVmin, rcmbEVmax));
       }
 
     } // END: elecDist

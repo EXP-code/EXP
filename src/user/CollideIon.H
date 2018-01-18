@@ -658,16 +658,16 @@ private:
     }
   }
 
-  unsigned rcmbTotlGet()
+  double rcmbTotlGet()
   {
-    if (not elecDist or not rcmbDist) return 0;
+    if (not elecDist or not rcmbDist) return 0.0;
     
     // Copy threads to Thread 0
     for (int n=1; n<nthrds; n++) {
       for (unsigned j=0; j<rcmbNsiz; j++) rcmbTotl[0][j] += rcmbTotl[n][j];
     }
     
-    std::vector<unsigned> work;
+    std::vector<double> work;
     if (myid == 0) {
       work.resize(rcmbNsiz);
       rcmbLH = rcmbTotl[0];
@@ -694,12 +694,12 @@ private:
     // Zero per-node counters
     //
     for (auto &v : rcmbTotl) {
-      for (auto &u : v) u = 0;
+      for (auto &u : v) u = 0.0;
     }
 
     // Total number counted
     //
-    unsigned ret = 0;
+    double ret = 0;
     if (myid==0) {
       for (auto v : rcmbLH) ret += v;
     }
