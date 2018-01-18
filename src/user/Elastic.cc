@@ -170,7 +170,7 @@ const Elastic::InterpPair Hydrogen = boost::assign::map_list_of
   (13.600541506433   , 5.9924    );
 
 
-// Total cross section from LaBahn & Callaway, 1966, Phys. Rev., 147, 50, 96-109
+// Total cross section from LaBahn & Callaway, 1966, Phys. Rev., 147, 50, 28-40
 
 const Elastic::InterpPair Helium = boost::assign::map_list_of
   (0.0972135 , 62.2773619684373)

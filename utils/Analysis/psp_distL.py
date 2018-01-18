@@ -267,6 +267,7 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp, p
         ay.legend()
 
     fig.tight_layout()
+    plt.title('Run: {}'.format(runtag))
     plt.show()
 
     out = open(runtag + '_bins.dat', 'w')
@@ -294,6 +295,7 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp, p
     ax.set_ylabel('Relative difference (%)')
     ax.set_xscale('log')
     plt.grid()
+    plt.title('Run: {}'.format(runtag))
     plt.show()
     #
     # List rel dif plot data

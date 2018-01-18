@@ -45,6 +45,7 @@ bool     CollideIon::E_split    = false;
 bool     CollideIon::distDiag   = false;
 bool     CollideIon::elecDist   = false;
 bool     CollideIon::rcmbDist   = false;
+bool     CollideIon::rcmbDlog   = true ; // Log scale histogram by default
 bool     CollideIon::ntcDist    = false;
 bool     CollideIon::enforceMOM = false;
 bool     CollideIon::coulScale  = false;
@@ -810,6 +811,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
     for (auto &v : elecEVsub) v.set_capacity(bufCap);
     elecRC.resize(nthrds);
     for (auto &v : elecRC)    v.set_capacity(bufCap);
+
+    setupRcmbTotl();
   }
 
   // Enum collsion-type label fields
@@ -3619,6 +3622,7 @@ double CollideIon::crossSectionHybrid
 
       // Electron (p1) and Ion (p1)
       rvel1 = p1->dattrib[use_elec+i] - p1->vel[i];
+
       // Electron (p2) and Ion (p2)
       rvel2 = p2->dattrib[use_elec+i] - p2->vel[i];
 
@@ -4018,6 +4022,9 @@ double CollideIon::crossSectionHybrid
       // *** Radiative recombination
       //-------------------------------
 
+      // The "new" algorithm uses the electron energy of the ion's
+      // electron rather than the standard particle partner.
+      //
       if (newRecombAlg) {
 
 	// p1 ion and p1 electron
@@ -4101,7 +4108,7 @@ double CollideIon::crossSectionHybrid
 	    }
 	  }
 
-	} // end: old recomb algorithm
+	} // end: original recomb algorithm
 
       } // end: recombination
 
@@ -4697,6 +4704,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     // *** Radiative recombination
     //-------------------------------
 
+    // The "new" algorithm uses the electron energy of the ion's
+    // electron rather than the standard particle partner.
+    //
+
     if (newRecombAlg) {
 
       // Particle 1 is ION, Particle 2 has ELECTRON
@@ -4768,10 +4779,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
 	  double crs = eVel2 * Eta2 * RE.back() * fac1;
 	  
-	if (scatter_check and recomb_check) {
-	  double val = sVel2 * vel * 1.0e-14 * RE.back();
-	  recombA[id].add(k, Eta2, val);
-	}
+	  if (scatter_check and recomb_check) {
+	    double val = sVel2 * vel * 1.0e-14 * RE.back();
+	    recombA[id].add(k, Eta2, val);
+	  }
 
 	  if (DEBUG_CRS) trap_crs(crs);
 	  
@@ -4812,7 +4823,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	    CProb[id][2] += crs;
 	  }
 	  
-      } // end: old recomb algorithm
+      } // end: original recomb algorithm
       
     } // end: recombination
 
@@ -10814,7 +10825,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // For verbose diagnostic output only
 	  //
 	  if (elecDist and rcmbDist) {
-	    elecRC[id].push_back(kEe2[id]);
+	    double val = kEe2[id];
+	    rcmbTotlAdd(val, id);
+	    if (rcmbDlog) val = log10(val);
+	    elecRC[id].push_back(val);
 	  }
 
 	  // Add the KE from the recombined electron back to the free pool
@@ -10911,7 +10925,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // For verbose diagnostic output only
 	  //
 	  if (elecDist and rcmbDist) {
-	    elecRC[id].push_back(kEe1[id]);
+	    double val = kEe1[id];
+	    rcmbTotlAdd(val, id);
+	    if (rcmbDlog) val = log10(val);
+	    elecRC[id].push_back(val);
 	  }
 
 	  // Add the KE from the recombined electron back to the free pool
@@ -11359,15 +11376,17 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	
 	// Particle 2 electron
 	// -------------------
-	//            initial---+
-	//                      |
-	//                      v
-	double eta2i = PP[1]->beg[1].eta;
-	double eta2f = PP[1]->end[1].eta;
-	//                      ^
-	//                      |
-	//            final-----+
-	  
+	//            initial/orig----------------------------------+
+	//            initial/swap--------------+                   |
+	//                                      |                   |
+	//                                      v                   v
+	double eta2i = PP[1]->swap ? PP[1]->beg[0].eta : PP[1]->beg[1].eta;
+	double eta2f = PP[1]->swap ? PP[1]->end[0].eta : PP[1]->end[1].eta;
+	//                                      ^                   ^
+	//                                      |                   |
+	//            final/swap----------------+                   |
+	//            final/orig------------------------------------+
+
 	ke1i *= 0.5*p1->mass;
 	ke1f *= 0.5*p1->mass;
 
@@ -11530,16 +11549,17 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	// Particle 1 electron
 	// -------------------
-	//            initial---+
-	//                      |
-	//                      v
-	double eta1i = PP[2]->beg[1].eta;
-	double eta1f = PP[2]->end[1].eta;
-	//                      ^
-	//                      |
-	//            final-----+
-	
-	
+	//            initial/orig----------------------------------+
+	//            initial/swap--------------+                   |
+	//                                      |                   |
+	//                                      v                   v
+	double eta1i = PP[2]->swap ? PP[2]->beg[1].eta : PP[2]->beg[0].eta;
+	double eta1f = PP[2]->swap ? PP[2]->end[1].eta : PP[2]->end[0].eta;
+	//                                      ^                   ^
+	//                                      |                   |
+	//            final/swap----------------+                   |
+	//            final/orig------------------------------------+
+
 	ke1i *= 0.5*p1->mass * eta1i * atomic_weights[0]/molP1[id];
 	ke1f *= 0.5*p1->mass * eta1f * atomic_weights[0]/molP1[id];
 
@@ -18671,17 +18691,20 @@ void CollideIon::electronGather()
 
       } // Process loop
 
+      unsigned rcmbTotlSum = rcmbTotlGet();
+
       if (myid==0) {
 	if (eEV.size()) {
 	  elecEVH = ahistoDPtr(new AsciiHisto<double>(eEV, 20, 0.01));
 	  if (IDBG) dbg << std::setw(16) << "eEV.size() = "
 			<< std::setw(10) << eEV.size() << std::endl;
 	}
-	if (eEVmin.size()) elecEVHmin = ahistoDPtr(new AsciiHisto<double>(eEVmin, 20, 0.01));
-	if (eEVavg.size()) elecEVHavg = ahistoDPtr(new AsciiHisto<double>(eEVavg, 20, 0.01));
-	if (eEVmax.size()) elecEVHmax = ahistoDPtr(new AsciiHisto<double>(eEVmax, 20, 0.01));
-	if (eEVsub.size()) elecEVHsub = ahistoDPtr(new AsciiHisto<double>(eEVsub, 20, 0.01));
+	if (eEVmin.size()) elecEVHmin = ahistoDPtr(new AsciiHisto<double>(eEVmin, 20,  0.01 ));
+	if (eEVavg.size()) elecEVHavg = ahistoDPtr(new AsciiHisto<double>(eEVavg, 20,  0.01 ));
+	if (eEVmax.size()) elecEVHmax = ahistoDPtr(new AsciiHisto<double>(eEVmax, 20,  0.01 ));
+	if (eEVsub.size()) elecEVHsub = ahistoDPtr(new AsciiHisto<double>(eEVsub, 20,  0.01 ));
 	if (eRC.size())    elecRCH    = ahistoDPtr(new AsciiHisto<double>(eRC,    100, 0.005));
+	if (rcmbTotlSum)   elecRCN    = ahistoDPtr(new AsciiHisto<double>(rcmbLH, rcmbEVmin, rcmbEVmax));
       }
 
     } // END: elecDist
@@ -19329,6 +19352,14 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< "-----Electron recombination energy distribution--------" << std::endl
 	<< std::string(53, '-')  << std::endl;
     (*elecRCH)(out);
+  }
+
+  if (elecRCN.get()) {
+    out << std::endl
+	<< std::string(53, '-')  << std::endl
+	<< "-----Electron recombination counts--------" << std::endl
+	<< std::string(53, '-')  << std::endl;
+    (*elecRCN)(out);
   }
 
   if (elecH.get()) {
@@ -20130,6 +20161,9 @@ void CollideIon::processConfig()
 
     rcmbDist =
       cfg.entry<bool>("recombDist", "Histograms for electron recombination energy", false);
+
+    rcmbDlog =
+      cfg.entry<bool>("recombDistLog", "Logscale histogram electron recombination energy", true);
 
     ntcDist =
       cfg.entry<bool>("ntcDist", "Enable NTC full distribution for electrons", false);

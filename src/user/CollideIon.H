@@ -622,6 +622,7 @@ private:
   static bool distDiag;
   static bool elecDist;
   static bool rcmbDist;
+  static bool rcmbDlog;
   std::vector< boost::circular_buffer<double> > elecEV;
   std::vector< boost::circular_buffer<double> > elecRC;
   std::vector< boost::circular_buffer<double> > elecEVmin;
@@ -629,7 +630,81 @@ private:
   std::vector< boost::circular_buffer<double> > elecEVmax;
   std::vector< boost::circular_buffer<double> > elecEVsub;
   ahistoDPtr elecEVH, elecEVHmin, elecEVHavg, elecEVHmax;
-  ahistoDPtr elecEVHsub, elecRCH;
+  ahistoDPtr elecEVHsub, elecRCH, elecRCN;
+
+  std::vector< std::vector<unsigned> > rcmbTotl;
+  std::vector<unsigned>                rcmbLH;
+  double   rcmbEVmin, rcmbEVmax, rcmbDelta;
+  unsigned rcmbNsiz;
+
+  // For debugging . . .
+  void setupRcmbTotl()
+  {
+    rcmbEVmin = -4.0;		// log10 end points
+    rcmbEVmax =  2.0;
+    rcmbDelta =  0.25;		// log10 delta
+    rcmbNsiz  = floor((rcmbEVmax - rcmbEVmin)*1.0000001/rcmbDelta);
+
+    rcmbTotl.resize(nthrds);
+    for (auto &v : rcmbTotl) v.resize(rcmbNsiz, 0);
+  }
+
+  void rcmbTotlAdd(double E, int id)
+  {
+    double lE = log10(E);	// Histogram log10 values
+    if (lE>=rcmbEVmin and lE<rcmbEVmax) {
+      unsigned indx = (lE - rcmbEVmin)/rcmbDelta;
+      if (indx>=0 and indx<rcmbNsiz) rcmbTotl[id][indx]++;
+    }
+  }
+
+  unsigned rcmbTotlGet()
+  {
+    if (not elecDist or not rcmbDist) return 0;
+    
+    // Copy threads to Thread 0
+    for (int n=1; n<nthrds; n++) {
+      for (unsigned j=0; j<rcmbNsiz; j++) rcmbTotl[0][j] += rcmbTotl[n][j];
+    }
+    
+    std::vector<unsigned> work;
+    if (myid == 0) {
+      work.resize(rcmbNsiz);
+      rcmbLH = rcmbTotl[0];
+    }
+    
+    // All processes send to root
+    //
+    for (int n=1; n<numprocs; n++) {
+
+      if (myid == n) {
+	MPI_Send(&rcmbTotl[0][0], rcmbNsiz, MPI_UNSIGNED, 0, 301, MPI_COMM_WORLD);
+      } // Node sends
+      
+      if (myid==0) {
+	MPI_Recv(&work[0], rcmbNsiz, MPI_UNSIGNED, n, 301, MPI_COMM_WORLD,
+		 MPI_STATUS_IGNORE);
+	for (unsigned j=0; j<rcmbNsiz; j++) rcmbLH[j] += work[j];
+      } // Root receives
+
+      MPI_Barrier(MPI_COMM_WORLD);
+
+    } // Process loop
+
+    // Zero per-node counters
+    //
+    for (auto &v : rcmbTotl) {
+      for (auto &u : v) u = 0;
+    }
+
+    // Total number counted
+    //
+    unsigned ret = 0;
+    if (myid==0) {
+      for (auto v : rcmbLH) ret += v;
+    }
+    return ret;
+  }
   //@}
 
   //@{
@@ -981,7 +1056,8 @@ protected:
     };
     
     typedef std::array<Es, 2> Epair;
-    Epair beg, mid, end;
+    Epair beg, mid, end;	// e.g. beg[0] is particle 1
+				//      beg[1] is particle 2
 
     //! Constructor
     Pord(CollideIon* c, Particle *P1, Particle *P2, double WW1, double WW2,
