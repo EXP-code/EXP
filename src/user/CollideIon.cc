@@ -18704,7 +18704,12 @@ void CollideIon::electronGather()
 	if (eEVmax.size()) elecEVHmax = ahistoDPtr(new AsciiHisto<double>(eEVmax, 20,  0.01 ));
 	if (eEVsub.size()) elecEVHsub = ahistoDPtr(new AsciiHisto<double>(eEVsub, 20,  0.01 ));
 	if (eRC.size())    elecRCH    = ahistoDPtr(new AsciiHisto<double>(eRC,    100, 0.005));
-	if (rcmbTotlSum>0) elecRCN    = ahistoDPtr(new AsciiHisto<double>(rcmbLH, rcmbEVmin, rcmbEVmax));
+	if (rcmbTotlSum>0) {
+	  std::vector<unsigned> rcmbT;
+	  rcmbScale = 1.0e9/rcmbTotlSum;
+	  for (auto v : rcmbLH) rcmbT.push_back(std::round(v*rcmbScale));
+	  elecRCN = ahistoDPtr(new AsciiHisto<double>(rcmbT, rcmbEVmin, rcmbEVmax));
+	}
       }
 
     } // END: elecDist
@@ -19357,7 +19362,9 @@ void CollideIon::electronPrint(std::ostream& out)
   if (elecRCN.get()) {
     out << std::endl
 	<< std::string(53, '-')  << std::endl
-	<< "-----Electron recombination counts--------" << std::endl
+	<< "-----Electron recombination counts ("
+	<< std::setprecision(6) << std::scientific << 1.0/rcmbScale
+	<< std::fixed << ")--------" << std::endl
 	<< std::string(53, '-')  << std::endl;
     (*elecRCN)(out);
   }

@@ -634,7 +634,7 @@ private:
 
   std::vector< std::vector<double> > rcmbTotl;
   std::vector<double>                rcmbLH;
-  double   rcmbEVmin, rcmbEVmax, rcmbDelta;
+  double   rcmbEVmin, rcmbEVmax, rcmbDelta, rcmbScale;
   unsigned rcmbNsiz;
 
   // For debugging . . .
