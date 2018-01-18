@@ -632,8 +632,8 @@ private:
   ahistoDPtr elecEVH, elecEVHmin, elecEVHavg, elecEVHmax;
   ahistoDPtr elecEVHsub, elecRCH, elecRCN;
 
-  std::vector< std::vector<unsigned> > rcmbTotl;
-  std::vector<unsigned>                rcmbLH;
+  std::vector< std::vector<double> > rcmbTotl;
+  std::vector<double>                rcmbLH;
   double   rcmbEVmin, rcmbEVmax, rcmbDelta;
   unsigned rcmbNsiz;
 
@@ -646,15 +646,15 @@ private:
     rcmbNsiz  = floor((rcmbEVmax - rcmbEVmin)*1.0000001/rcmbDelta);
 
     rcmbTotl.resize(nthrds);
-    for (auto &v : rcmbTotl) v.resize(rcmbNsiz, 0);
+    for (auto &v : rcmbTotl) v.resize(rcmbNsiz, 0.0);
   }
 
-  void rcmbTotlAdd(double E, int id)
+  void rcmbTotlAdd(double E, double w, int id)
   {
     double lE = log10(E);	// Histogram log10 values
     if (lE>=rcmbEVmin and lE<rcmbEVmax) {
       unsigned indx = (lE - rcmbEVmin)/rcmbDelta;
-      if (indx>=0 and indx<rcmbNsiz) rcmbTotl[id][indx]++;
+      if (indx>=0 and indx<rcmbNsiz) rcmbTotl[id][indx] += w;
     }
   }
 
@@ -678,11 +678,11 @@ private:
     for (int n=1; n<numprocs; n++) {
 
       if (myid == n) {
-	MPI_Send(&rcmbTotl[0][0], rcmbNsiz, MPI_UNSIGNED, 0, 301, MPI_COMM_WORLD);
+	MPI_Send(&rcmbTotl[0][0], rcmbNsiz, MPI_DOUBLE, 0, 301, MPI_COMM_WORLD);
       } // Node sends
       
       if (myid==0) {
-	MPI_Recv(&work[0], rcmbNsiz, MPI_UNSIGNED, n, 301, MPI_COMM_WORLD,
+	MPI_Recv(&work[0], rcmbNsiz, MPI_DOUBLE, n, 301, MPI_COMM_WORLD,
 		 MPI_STATUS_IGNORE);
 	for (unsigned j=0; j<rcmbNsiz; j++) rcmbLH[j] += work[j];
       } // Root receives

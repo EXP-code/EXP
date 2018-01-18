@@ -10826,7 +10826,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  if (elecDist and rcmbDist) {
 	    double val = kEe2[id];
-	    rcmbTotlAdd(val, id);
+	    rcmbTotlAdd(val, WW, id);
 	    if (rcmbDlog) val = log10(val);
 	    elecRC[id].push_back(val);
 	  }
@@ -10926,7 +10926,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  if (elecDist and rcmbDist) {
 	    double val = kEe1[id];
-	    rcmbTotlAdd(val, id);
+	    rcmbTotlAdd(val, WW, id);
 	    if (rcmbDlog) val = log10(val);
 	    elecRC[id].push_back(val);
 	  }
