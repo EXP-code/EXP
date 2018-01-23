@@ -112,7 +112,10 @@ void InitializeUniform(std::vector<Particle>& p, double mass, double molW,
   double   rho   = mass/(L[0]*L[1]*L[2]);
   
   std::cout << std::string(70, '-')                 << std::endl;
-  if (T.size()>1 and type != Trace) {
+  if (type == Trace) {
+    std::cout << "T(ion):      "  << T[0]  << " K "   << std::endl;
+    std::cout << "T(elec):     "  << T[1]  << " K "   << std::endl;
+  } else if (T.size()>1) {
     for (auto v : T) {
       std::ostringstream sout;
       sout << "Temp " << atomic_specie[v.first] << ":";
@@ -149,7 +152,7 @@ void InitializeUniform(std::vector<Particle>& p, double mass, double molW,
       varE[Z] = sqrt((boltz*T[Z])/(atomic_masses[0]*amu)) / Vunit; // Electron
     } else {
       varI[Z] = sqrt((boltz*T[0])/(molW*amu))             / Vunit; // Fiducial particle
-      varE[Z] = sqrt((boltz*T[0])/(atomic_masses[0]*amu)) / Vunit; // Electrons
+      varE[Z] = sqrt((boltz*T[1])/(atomic_masses[0]*amu)) / Vunit; // Electrons
     }
   }
   
@@ -984,7 +987,7 @@ void InitializeSpeciesHybrid
 void InitializeSpeciesTrace
 (std::vector<Particle> & particles, 
  std::vector<unsigned char>& sZ, 
- std::vector<double>& sF, double M, double T, double Te,
+ std::vector<double>& sF,  double M, double T,
  int& ne, int ni, int nd)
 {
   std::vector< std::vector<double> > frac, cuml;
@@ -1049,7 +1052,7 @@ void InitializeSpeciesTrace
 	sout << "./genIonization"
 	     << " -1 " << static_cast<unsigned>(n)
 	     << " -2 " << static_cast<unsigned>(n)
-	     << " -T " << Te << " -o " << ioneq;
+	     << " -T " << T << " -o " << ioneq;
 	
 	int ret = system(sout.str().c_str());
       
@@ -1103,7 +1106,7 @@ void InitializeSpeciesTrace
 	std::ostringstream sout;
 	sout << "mpirun -np 1 genIonRecomb"
 	     << " -Z " << static_cast<unsigned>(n)
-	     << " -T " << Te;
+	     << " -T " << T;
 	
 	int ret = system(sout.str().c_str());
       
@@ -1217,7 +1220,7 @@ void InitializeSpeciesTrace
 int main (int ac, char **av)
 {
   Itype type = Direct;
-  double D, L, Temp, Teq;
+  double D, L, Temp, Telec, Teq;
   std::string config;
   std::string oname;
   unsigned seed;
@@ -1244,6 +1247,8 @@ int main (int ac, char **av)
      "override config file temperature for Trace, if >0")
     ("Teq",		po::value<double>(&Teq)->default_value(-1.0),
      "temperature for equilibrium selection, if Teq>0")
+    ("Telec",		po::value<double>(&Telec)->default_value(-1.0),
+     "temperature for electrons, if Telec>0")
     ("length,L",	po::value<double>(&L)->default_value(1.0),
      "length in system units")
     ("number,N",	po::value<int>(&npart)->default_value(250000),
@@ -1361,7 +1366,10 @@ int main (int ac, char **av)
     type = Types[st];
 
     if (type==Trace) {
-      T[0] = iroot.get("temp", 100000.0);
+      if (Temp>0.0) T[0] = Temp;
+      else          T[0] = iroot.get("temp", 100000.0);
+      T[1] = T[0];
+      if (Telec>0.0) T[1] = Telec;
     }
 
     for (pt::ptree::value_type &row : iroot.get_child("elements")) {
@@ -1420,12 +1428,8 @@ int main (int ac, char **av)
     break;
   case Trace:
     {
-      double T0 = T[0];
-
-      if (Temp > 0.0) T0  = Temp;
-      if (Teq  < 0.0) Teq = T0;
-      
-      InitializeSpeciesTrace (particles, sZ, sF, Mass, T0, Teq,  ne, ni, nd);
+      if (Teq  < 0.0) Teq = T[0];
+      InitializeSpeciesTrace (particles, sZ, sF, Mass, Teq,  ne, ni, nd);
     }
 
     // Compute molecular weight
