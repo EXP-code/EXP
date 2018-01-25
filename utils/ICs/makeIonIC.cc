@@ -101,29 +101,36 @@ std::map<std::string, Itype> Types
 bool use_chianti = false;
 bool use_init_file = false;
 
+// Model types
+//
+enum Mtype { Uniform, Interface };
+std::map<std::string, Mtype> Models
+{ {"Uniform", Uniform}, {"Interface", Interface} };
+
+
 /**
    Make Uniform temperature box of gas
 */
-void InitializeUniform(std::vector<Particle>& p, double mass, double molW,
-                       std::map<unsigned char, double>& T, vector<double> &L,
-		       Itype type, int ne)
+void InitializeUniform(std::vector<Particle>& p, std::vector<double>& mass, double molW,
+                       std::vector< std::map<unsigned char, double> >& T, std::vector<double> &L,
+		       Itype type, int sp, int ne, int ni, int nd)
 {
   unsigned npart = p.size();
-  double   rho   = mass/(L[0]*L[1]*L[2]);
+  double   rho   = mass[0]/(L[0]*L[1]*L[2]);
   
   std::cout << std::string(70, '-')                 << std::endl;
   if (type == Trace) {
-    std::cout << "T(ion):      "  << T[0]  << " K "   << std::endl;
-    std::cout << "T(elec):     "  << T[1]  << " K "   << std::endl;
+    std::cout << "T(ion):      "  << T[0][0]  << " K "   << std::endl;
+    std::cout << "T(elec):     "  << T[0][1]  << " K "   << std::endl;
   } else if (T.size()>1) {
-    for (auto v : T) {
+    for (auto v : T[0]) {
       std::ostringstream sout;
       sout << "Temp " << atomic_specie[v.first] << ":";
       std::cout << std::left << std::setw(13) << sout.str() << v.second
 		<< " K "   << std::endl;
     }
   } else {
-    std::cout << "Temp:        "  << T[0]  << " K "   << std::endl;
+    std::cout << "Temp:        "  << T[0][0]  << " K "   << std::endl;
   }
   std::cout << "Number:      "  << npart            << std::endl;
   std::cout << "Length unit: "  << Lunit << " cm"   << std::endl;
@@ -145,40 +152,26 @@ void InitializeUniform(std::vector<Particle>& p, double mass, double molW,
     v^2 = k_B*T/mu(Z)
   */
   std::map<unsigned char, double> varI, varE;
-  for (auto v : T) {
+  for (auto v : T[0]) {
     unsigned char Z = v.first;
     if (Z>0) {
-      varI[Z] = sqrt((boltz*T[Z])/(atomic_masses[Z]*amu)) / Vunit; // Ion
-      varE[Z] = sqrt((boltz*T[Z])/(atomic_masses[0]*amu)) / Vunit; // Electron
+      varI[Z] = sqrt((boltz*T[0][Z])/(atomic_masses[Z]*amu)) / Vunit; // Ion
+      varE[Z] = sqrt((boltz*T[0][Z])/(atomic_masses[0]*amu)) / Vunit; // Electron
     } else {
-      varI[Z] = sqrt((boltz*T[0])/(molW*amu))             / Vunit; // Fiducial particle
-      varE[Z] = sqrt((boltz*T[1])/(atomic_masses[0]*amu)) / Vunit; // Electrons
+      varI[Z] = sqrt((boltz*T[0][0])/(molW*amu))             / Vunit; // Fiducial particle
+      varE[Z] = sqrt((boltz*T[0][1])/(atomic_masses[0]*amu)) / Vunit; // Electrons
     }
   }
   
-  double tKEi  = 0.0;
-  double tKEe  = 0.0;
-  double numbI = 0.0;
-  double numbE = 0.0;
-  double Eunit = Munit*Vunit*Vunit;
-  double ttemp = T[0];
+  double ttemp = T[0][0];
   
-  size_t nd = 0;		// Get the species fraction location
-				// in dattrib
-  if (type == Hybrid) {
-    std::ifstream hin ("species.spec");
-    std::string method, line;
-    std::getline (hin, method);
-    std::getline (hin, line);
-    std::istringstream sin(line);
-    sin >> nd;
-    sin >> nd;
-  }
-
   for (unsigned i=0; i<npart; i++) {
     
     double KE = 0.0;
     
+    p[i].iattrib.resize(ni, 0);
+    p[i].dattrib.resize(nd, 0);
+
     if (type == Trace) {
       
       for (unsigned k=0; k<3; k++) {
@@ -197,7 +190,7 @@ void InitializeUniform(std::vector<Particle>& p, double mass, double molW,
       KeyConvert kc(p[i].iattrib[0]);
       speciesKey sKey  = kc.getKey();
       unsigned short Z = sKey.first;
-      unsigned short C = sKey.second;
+      // unsigned short C = sKey.second;
       
       for (unsigned k=0; k<3; k++) {
 	p[i].pos[k] = L[k]*(*Unit)();
@@ -205,62 +198,155 @@ void InitializeUniform(std::vector<Particle>& p, double mass, double molW,
 	KE += p[i].vel[k] * p[i].vel[k];
       }
       
-      double KEe = 0.0;
       if (ne>=0) {
 	for (int l=0; l<3; l++) {
 	  p[i].dattrib[ne+l] = varE[Z] * (*Norm)();
-	  KEe += p[i].dattrib[ne+l] * p[i].dattrib[ne+l];
 	}
       }
       
-      // Ion KE
-      //
-      tKEi  += 0.5 * p[i].mass * KE * Eunit;
-
-      // Ion number
-      //
-      numbI += p[i].mass/atomic_masses[Z] * Munit / amu;
-
-      // Electron KE and number
-      //
-      if (type == Hybrid) {
-	double eta = 0.0;
-	for (unsigned short C=1; C<=Z; C++)
-	  eta += p[i].dattrib[nd+C]*C;
-	eta *= p[i].mass/atomic_masses[Z];
-	numbE += eta * Munit / amu;
-	tKEe  += 0.5 * eta * atomic_masses[0] * KEe * Eunit;
-      } else {
-	tKEe  += 0.5 * p[i].mass * atomic_masses[0]/atomic_masses[Z] * KEe * Eunit;
-	numbE += p[i].mass/atomic_masses[Z] * Munit / amu * C;
-      }
-
-      ttemp = T[Z];
+      ttemp = T[0][Z];
     }
     
     if (p[i].dattrib.size()>0) p[i].dattrib[0] = ttemp;
-    else p[i].dattrib.push_back(ttemp);
-    
     if (p[i].dattrib.size()>1) p[i].dattrib[1] = rho;
-    else p[i].dattrib.push_back(rho);
-    
+
     if (type == Direct) {
       if (p[i].dattrib.size()>2) p[i].dattrib[2] = KE;
-      else p[i].dattrib.push_back(KE);
+    }
+  }
+}
+
+/**
+   Make split temperature-density box of gas
+*/
+void InitializeInterface(std::vector<Particle>& p,
+			 std::vector<double>& mass, double molW,
+			 std::vector< std::map<unsigned char, double> >& T,
+			 std::vector<double> &L, Itype type,
+			 int sp, int ne, int ni, int nd)
+{
+  unsigned npart = p.size();
+  std::vector<double> rho
+  { mass[0]/(0.5*L[0]*L[1]*L[2]), mass[1]/(0.5*L[0]*L[1]*L[2]) };
+  
+  std::cout << std::string(70, '-')                 << std::endl;
+
+  for (size_t wh=0; wh<2; wh++) {
+
+    std::cout << "Density = " << rho[wh] << std::endl;
+    if (type == Trace) {
+      std::cout << "     T(ion):      "  << T[wh][0]  << " K "   << std::endl
+		<< "     T(elec):     "  << T[wh][1]  << " K "   << std::endl;
+    } else if (T[wh].size()>1) {
+      for (auto v : T[wh]) {
+	std::ostringstream sout;
+      sout << "     Temp " << atomic_specie[v.first] << ":";
+      std::cout << std::left << std::setw(13) << sout.str() << v.second
+		<< " K "   << std::endl;
+      }
+    } else {
+      std::cout << "     Temp:        "  << T[wh][0]  << " K "   << std::endl;
+    }
+  }
+
+  std::cout << "Number:      "  << npart            << std::endl;
+  std::cout << "Length unit: "  << Lunit << " cm"   << std::endl;
+  std::cout << "Time unit:   "  << Tunit << " s"    << std::endl;
+  std::cout << "Vel unit:    "  << Vunit << " cm/s" << std::endl;
+  std::cout << "Mass unit:   "  << Munit << " g"    << std::endl;
+  std::cout << std::string(70, '-')                 << std::endl;
+  
+  /*
+    We want every d.o.f. to have 1/2 k_B T of energy.  For classic
+    DSMC, every superparticle has m/mu(Z) real particles [in physical
+    units where mu(Z) = atomic_masses[Z]*amu].  So the velocity factor
+    is given by the equality: 
+
+    3/2*N*k_B*T = 3/2*m*k_B*T/mu(Z) = 3/2*m*v^2 
+
+    where N is the number of particles, or 
+
+    v^2 = k_B*T/mu(Z)
+  */
+  std::vector< std::map<unsigned char, double> > varI(2), varE(2);
+  for (unsigned char wh=0; wh<2; wh++) {
+    for (auto v : T[wh]) {
+      if (type == Trace) {
+	if (v.first==0)		// Ion
+	  varI[wh][0] = sqrt((boltz*v.second)/(molW*amu))             / Vunit;
+	else			// Electron
+	  varE[wh][0] = sqrt((boltz*v.second)/(atomic_masses[0]*amu)) / Vunit;
+      } else {
+	unsigned char Z = v.first;
+	varI[wh][Z] = sqrt((boltz*T[wh][Z])/(atomic_masses[Z]*amu)) / Vunit; // Ion
+	varE[wh][Z] = sqrt((boltz*T[wh][Z])/(atomic_masses[0]*amu)) / Vunit; // Electron
+      } 
     }
   }
   
-  if (type == Hybrid) {
-    std::cout << "T (ion):      " << tKEi/(1.5*numbI*boltz) << std::endl
-	      << "T (elec):     " << tKEe/(1.5*numbE*boltz) << std::endl
-	      << "N (elec/ion): " << numbE/numbI            << std::endl
-	      << std::string(70, '-') << std::endl;
+  double ttemp;
+
+  boost::random::uniform_int_distribution<> dist(0, 1);
+  unid_var selP(*gen, dist);
+
+  for (unsigned i=0; i<npart; i++) {
+    
+    double KE = 0.0;
+    
+    unsigned char wh = static_cast<unsigned char>(selP());
+
+
+    p[i].iattrib.resize(ni, 0);
+    p[i].dattrib.resize(nd, 0);
+
+    if (type == Trace) {
+      
+      for (unsigned k=0; k<3; k++) {
+	if (k==0)
+	  p[i].pos[k] = 0.5*L[k]*((*Unit)() + wh);
+	else
+	  p[i].pos[k] = L[k]*(*Unit)();
+	p[i].vel[k] = varI[wh][0]*(*Norm)();
+      }
+      
+      if (ne>=0) {
+	for (int l=0; l<3; l++) {
+	  p[i].dattrib[ne+l] = varE[wh][0] * (*Norm)();
+	}
+      }
+
+      ttemp = T[wh][0];
+
+    } else {
+      
+      KeyConvert kc(p[i].iattrib[0]);
+      speciesKey sKey  = kc.getKey();
+      unsigned short Z = sKey.first;
+      // unsigned short C = sKey.second;
+      
+      for (unsigned k=0; k<3; k++) {
+	if (k==0)
+	  p[i].pos[k] = 0.5*L[k]*((*Unit)() + wh);
+	else
+	  p[i].pos[k] = L[k]*(*Unit)();
+	p[i].vel[k] = varI[wh][Z] * (*Norm)();
+	KE += p[i].vel[k] * p[i].vel[k];
+      }
+      
+      if (ne>=0) {
+	for (int l=0; l<3; l++) {
+	  p[i].dattrib[ne+l] = varE[wh][Z] * (*Norm)();
+	}
+      }
+      
+      ttemp = T[wh][Z];
+    }
+    
+    if (p[i].dattrib.size()>0) p[i].dattrib[0] = ttemp;
+    if (p[i].dattrib.size()>1) p[i].dattrib[1] = rho[wh];
+    if (p[i].dattrib.size()>2) p[i].dattrib[2] = KE;
   }
-  else if (type != Trace) {
-    std::cout << "T (ion):     " << tKEi/(1.5*numbI*boltz) << std::endl
-	      << "T (elec):    " << tKEe/(1.5*numbI*boltz) << std::endl
-	      << std::string(70, '-') << std::endl;
-  }
+
 }
 
 void writeParticles(std::vector<Particle>& particles, const string& file, Itype type, 
@@ -281,7 +367,7 @@ void writeParticles(std::vector<Particle>& particles, const string& file, Itype 
       << setw(10) << particles[0].dattrib.size()
       << std::endl;
   
-  for (int n=0; n<particles.size(); n++) {
+  for (unsigned n=0; n<particles.size(); n++) {
     
     out << setw(18) << particles[n].mass;
     
@@ -374,7 +460,9 @@ void InitializeSpeciesDirect
  std::vector<unsigned char>& sZ, 
  std::vector<double>& sF, 
  std::vector< std::vector<double> >& sI,
- double M, std::map<unsigned char, double>& T, int ne, int ni, int nd)
+ std::vector<double>& M,
+ std::vector< std::map<unsigned char, double> >& T,
+ int sp, int ne)
 {
   std::vector< std::vector<double> > frac, cuml;
   
@@ -390,7 +478,7 @@ void InitializeSpeciesDirect
       sout << "./genIonization"
 	   << " -1 " << static_cast<unsigned>(n)
 	   << " -2 " << static_cast<unsigned>(n)
-	   << " -T " << T[n] << " -o " << ioneq;
+	   << " -T " << T[0][n] << " -o " << ioneq;
       
       int ret = system(sout.str().c_str());
       
@@ -444,7 +532,7 @@ void InitializeSpeciesDirect
       std::ostringstream sout;
       sout << "mpirun -np 1 genIonRecomb"
 	   << " -Z " << static_cast<unsigned>(n)
-	   << " -T " << T[n];
+	   << " -T " << T[0][n];
       
       int ret = system(sout.str().c_str());
       
@@ -518,13 +606,20 @@ void InitializeSpeciesDirect
     cumS[i] /= normC;
   }
   
-  for (size_t i=0; i<N; i++) {
+  double tKEi  = 0.0;
+  double tKEe  = 0.0;
+  double numbI = 0.0;
+  double numbE = 0.0;
+  double Eunit = Munit*Vunit*Vunit;
+
+  for (int i=0; i<N; i++) {
     
     double rz = (*Unit)();
     double rc = (*Unit)();
     
     unsigned char Ci = 1, Zi;
     size_t indx;
+
     // Get the species
     for (indx=0; indx<NS; indx++) { 
       if (rz < cumS[indx]) {
@@ -533,29 +628,53 @@ void InitializeSpeciesDirect
       }
     }
     // Get the ionization state
-    for (size_t j=0; j<Zi+1; j++) {
+    for (int j=0; j<Zi+1; j++) {
       if (rc < cuml[indx][j]) {
 	Ci = j+1;
 	break;
       }
     }
     
-    particles[i].mass  = M/N * atomic_masses[sZ[indx]] * normC;
-    
-    particles[i].iattrib.resize(ni, 0);
-    particles[i].dattrib.resize(nd, 0);
-    
-    if (ne>=0) {			 // Add the use_elec fields
-      for (int l=0; l<4; l++) particles[i].dattrib.push_back(0.0);
-    }
+    particles[i].mass  = M[0]/N * atomic_masses[sZ[indx]] * normC;
     
     KeyConvert kc(speciesKey(Zi, Ci));
     particles[i].iattrib[0] = kc.getInt();
+
+    double KEi = 0.0, KEe = 0.0;
+    
+    for (int k=0; k<3; k++) {
+      KEi += particles[i].vel[k] * particles[i].vel[k];
+      if (ne>=0) {
+	KEe += particles[i].dattrib[ne+k] * particles[i].dattrib[ne+k];
+      }
+    }
+      
+    if (particles[i].dattrib.size()>2) particles[i].dattrib[2] = KEi;
+
+    // Ion KE
+    //
+    tKEi += 0.5 * particles[i].mass * KEi * Eunit;
+
+    // Electron KE
+    //
+    tKEe += 0.5 * particles[i].mass * atomic_masses[0]/atomic_masses[Zi] * KEe * Eunit;
+
+    // Ion number
+    //
+    numbI += particles[i].mass/atomic_masses[Zi] * Munit / amu;
+
+    // Electron number
+    //
+    numbE += particles[i].mass/atomic_masses[Zi] * Munit / amu * Ci;
   }
   
+  std::cout << "T (ion):     " << tKEi/(1.5*numbI*boltz) << std::endl
+	    << "T (elec):    " << tKEe/(1.5*numbI*boltz) << std::endl
+	    << std::string(70, '-') << std::endl;
+
   std::ofstream out("species.spec");
   out << "direct" << std::endl;
-  out << std::setw(6) << nd << std::endl;
+  out << std::setw(6) << sp << std::endl;
   for (size_t indx=0; indx<NS; indx++) { 
     out << std::setw(6) << static_cast<unsigned>(sZ[indx])
 	<< std::endl;
@@ -577,7 +696,9 @@ void InitializeSpeciesWeight
  std::vector<unsigned char>& sZ,
  std::vector<double>& sF,
  std::vector< std::vector<double> >& sI,
- double M, std::map<unsigned char, double>& T, int& ne, int ni, int nd)
+ std::vector<double>& M,
+ std::vector< std::map<unsigned char, double> >& T,
+ int sp, int ne)
 {
   std::vector< std::vector<double> > frac, cuml;
   
@@ -593,7 +714,7 @@ void InitializeSpeciesWeight
       sout << "./genIonization"
 	   << " -1 " << static_cast<unsigned>(n)
 	   << " -2 " << static_cast<unsigned>(n)
-	   << " -T " << T[n] << " -o n" << ioneq;
+	   << " -T " << T[0][n] << " -o n" << ioneq;
       
       int ret = system(sout.str().c_str());
       
@@ -647,7 +768,7 @@ void InitializeSpeciesWeight
       std::ostringstream sout;
       sout << "mpirun -np 1 genIonRecomb"
 	   << " -Z " << static_cast<unsigned>(n)
-	   << " -T " << T[n];
+	   << " -T " << T[0][n];
       
       int ret = system(sout.str().c_str());
       
@@ -718,28 +839,21 @@ void InitializeSpeciesWeight
   boost::random::uniform_int_distribution<> dist(0, NS-1);
   unid_var unifd(*gen, dist);
   
-  for (size_t i=0; i<N; i++) {
+  for (int i=0; i<N; i++) {
     // Get the species
     size_t indx = unifd();
     unsigned char Ci = 1, Zi = sZ[indx];
     double rc = (*Unit)();
     
     // Get the ionization state
-    for (size_t j=0; j<Zi+1; j++) {
+    for (int j=0; j<Zi+1; j++) {
       if (rc < cuml[indx][j]) {
 	Ci = j+1;
 	break;
       }
     }
     
-    particles[i].mass  = M/N * sF[indx] * NS;
-    
-    particles[i].iattrib.resize(ni, 0);
-    particles[i].dattrib.resize(nd, 0);
-    particles[i].dattrib.push_back(0.0); // Add the use_cons field
-    if (ne>=0) {			 // Add the use_elec fields
-      for (int l=0; l<4; l++) particles[i].dattrib.push_back(0.0);
-    }
+    particles[i].mass  = M[0]/N * sF[indx] * NS;
     
     KeyConvert kc(speciesKey(Zi, Ci));
     particles[i].iattrib[0] = kc.getInt();
@@ -748,14 +862,14 @@ void InitializeSpeciesWeight
   std::ofstream out("species.spec");
   
   out << "weight" << std::endl;
-  out << std::setw(6) << nd++;
-  if (ne>=0) out << std::setw(6) << (ne=nd);
+  out << std::setw(6) << sp;
+  if (ne>=0) out << std::setw(6) << ne;
   out << std::endl;
   
   for (size_t indx=0; indx<NS; indx++) { 
     out << std::setw(6)  << static_cast<unsigned>(sZ[indx])
 	<< std::setw(16) << wght[indx]
-	<< std::setw(16) << M/N * sF[indx] * NS
+	<< std::setw(16) << M[0]/N * sF[indx] * NS
 	<< std::endl;
   }
   
@@ -775,7 +889,9 @@ void InitializeSpeciesHybrid
  std::vector<unsigned char>& sZ, 
  std::vector<double>& sF, 
  std::vector< std::vector<double> >& sI,
- double M, std::map<unsigned char, double>& T, int& ne, int ni, int nd)
+ std::vector<double>& M,
+ std::vector< std::map<unsigned char, double> >& T,
+ int sp, int ne)
 {
   std::map< unsigned short, std::vector<double> > frac;
   std::vector< std::vector<double> > cuml;
@@ -792,7 +908,7 @@ void InitializeSpeciesHybrid
       sout << "./genIonization"
 	   << " -1 " << static_cast<unsigned>(n)
 	   << " -2 " << static_cast<unsigned>(n)
-	   << " -T " << T[n] << " -o " << ioneq;
+	   << " -T " << T[0][n] << " -o " << ioneq;
       
       int ret = system(sout.str().c_str());
       
@@ -852,7 +968,7 @@ void InitializeSpeciesHybrid
       std::ostringstream sout;
       sout << "mpirun -np 1 genIonRecomb"
 	   << " -Z " << static_cast<unsigned>(n)
-	   << " -T " << T[n];
+	   << " -T " << T[0][n];
       
       int ret = system(sout.str().c_str());
       
@@ -917,9 +1033,6 @@ void InitializeSpeciesHybrid
   double fH = sF[0], W_H = 1.0;
   for (auto & v : frcS) v /= fH;
   
-  auto it = std::max_element(std::begin(sZ), std::end(sZ));
-  size_t maxSp = *it;
-  
   wght[0] = W_H;
   for (size_t i=1; i<NS; i++)
     wght[i] = frcS[i]/atomic_masses[sZ[i]];
@@ -927,32 +1040,12 @@ void InitializeSpeciesHybrid
   boost::random::uniform_int_distribution<> dist(0, NS-1);
   unid_var unifd(*gen, dist);
   
-  for (size_t i=0; i<N; i++) {
+  for (int i=0; i<N; i++) {
     // Get the species
     size_t indx = unifd();
     unsigned char Ci = 0, Zi = sZ[indx];
-    
-    particles[i].mass  = M/N * sF[indx] * NS;
-    
-    particles[i].iattrib.resize(ni, 0);
-    particles[i].dattrib.resize(nd, 0);
 
-    // Add the use_cons field
-    particles[i].dattrib.push_back(0.0);
-
-    // Add the ionization states
-    for (auto v : frac[Zi]) {
-      particles[i].dattrib.push_back(v);
-    }
-
-    // Pad
-    for (size_t v=frac[Zi].size(); v<=maxSp; v++) 
-      particles[i].dattrib.push_back(0.0);
-
-    // Add the use_elec fields
-    if (ne>=0) {
-      for (int l=0; l<4; l++) particles[i].dattrib.push_back(0.0);
-    }
+    particles[i].mass  = M[0]/N * sF[indx] * NS;
     
     KeyConvert kc(speciesKey(Zi, Ci));
     particles[i].iattrib[0] = kc.getInt();
@@ -961,15 +1054,15 @@ void InitializeSpeciesHybrid
   std::ofstream out("species.spec");
   
   out << "hybrid" << std::endl;
-  out << std::setw(6) << nd++;
-  out << std::setw(6) << nd; nd += maxSp + 1;
-  if (ne>=0) out << std::setw(6) << (ne=nd);
+  out << std::setw(6) << sp;
+  out << std::setw(6) << sp+1;
+  if (ne>=0) out << std::setw(6) << ne;
   out << std::endl;
   
   for (size_t indx=0; indx<NS; indx++) { 
     out << std::setw(6)  << static_cast<unsigned>(sZ[indx])
 	<< std::setw(16) << wght[indx]
-	<< std::setw(16) << M/N * sF[indx] * NS
+	<< std::setw(16) << M[0]/N * sF[indx] * NS
 	<< std::endl;
   }
   
@@ -987,12 +1080,17 @@ void InitializeSpeciesHybrid
 void InitializeSpeciesTrace
 (std::vector<Particle> & particles, 
  std::vector<unsigned char>& sZ, 
- std::vector<double>& sF,  double M, double T,
- int& ne, int ni, int nd)
+ std::vector<double>& sF, std::vector<double>& M,
+ std::vector< std::map<unsigned char, double> >& T,
+ std::vector<double>& L,
+ Mtype model, int sp, int ne)
 {
-  std::vector< std::vector<double> > frac, cuml;
+  size_t Ncomp = T.size();
+
+  typedef std::vector< std::vector<double> > spA;
+  std::vector<spA> frac(Ncomp), cuml(Ncomp);
   
-  if (use_init_file) {
+  if (use_init_file and Ncomp==1) {
     std::ifstream sFile("IonRecombFrac.data");
 
     typedef std::vector<std::string> vString;
@@ -1020,7 +1118,7 @@ void InitializeSpeciesTrace
 	  cnt++;
 	}
 	V.push_back(1.0 - sum);
-	frac.push_back(V);
+	frac[0].push_back(V);
 
 	double norm = 0.0;
 	for (auto i : V) norm += i;
@@ -1033,7 +1131,7 @@ void InitializeSpeciesTrace
 	
 	std::vector<double> c = V;
 	for (size_t i=1; i<c.size(); i++) c[i] += c[i-1];
-	cuml.push_back(c);
+	cuml[0].push_back(c);
       }
     }
 
@@ -1043,34 +1141,86 @@ void InitializeSpeciesTrace
     //
     // Generate the ionization-fraction input file
     //
-    for (auto n : sZ) {
+    for (size_t nc=0; nc<Ncomp; nc++) {
+
+      for (auto n : sZ) {
       
-      if (use_chianti) {
+	if (use_chianti) {
 	
-	const std::string ioneq("makeIonIC.ioneq");
-	std::ostringstream sout;
-	sout << "./genIonization"
-	     << " -1 " << static_cast<unsigned>(n)
-	     << " -2 " << static_cast<unsigned>(n)
-	     << " -T " << T << " -o " << ioneq;
+	  const std::string ioneq("makeIonIC.ioneq");
+	  std::ostringstream sout;
+	  sout << "./genIonization"
+	    << " -1 " << static_cast<unsigned>(n)
+	       << " -2 " << static_cast<unsigned>(n)
+	       << " -T " << T[nc][1] << " -o " << ioneq;
 	
-	int ret = system(sout.str().c_str());
-      
-	if (ret) {
-	  std::cout << "System command  = " << sout.str() << std::endl;
-	  std::cout << "System ret code = " << ret << std::endl;
+	  int ret = system(sout.str().c_str());
+	  
+	  if (ret) {
+	    std::cout << "System command  = " << sout.str() << std::endl;
+	    std::cout << "System ret code = " << ret << std::endl;
+	  }
+	
+	  typedef std::vector<std::string> vString;
+	  
+	  std::string   inLine;
+	  std::ifstream sFile(ioneq.c_str());
+	  if (sFile.is_open()) {
+	    
+	    std::getline(sFile, inLine); // Read and discard the headers
+	    std::getline(sFile, inLine);
+	  
+	    {
+	      vString s;
+	      std::getline(sFile, inLine);
+	      
+	      std::istringstream iss(inLine);
+	      std::copy(std::istream_iterator<std::string>(iss), 
+			std::istream_iterator<std::string>(), 
+			std::back_inserter<vString>(s));
+	      
+	      std::vector<double> v;
+	      for (vString::iterator i=s.begin(); i!=s.end(); i++)
+		v.push_back(::atof(i->c_str()));
+	      frac[nc].push_back(v);
+	    }
+	  
+	    {
+	      vString s;
+	      std::getline(sFile, inLine);
+	      
+	      std::istringstream iss(inLine);
+	      std::copy(std::istream_iterator<std::string>(iss), 
+			std::istream_iterator<std::string>(), 
+			std::back_inserter<vString>(s));
+	      
+	      std::vector<double> v;
+	      for (vString::iterator i=s.begin(); i!=s.end(); i++)
+		v.push_back(::atof(i->c_str()));
+	      cuml[nc].push_back(v);
+	    }
+	  }
 	}
-	
-	typedef std::vector<std::string> vString;
-	
-	std::string   inLine;
-	std::ifstream sFile(ioneq.c_str());
-	if (sFile.is_open()) {
+	else {
 	  
-	  std::getline(sFile, inLine); // Read and discard the headers
-	  std::getline(sFile, inLine);
-	  
-	  {
+	  std::ostringstream sout;
+	  sout << "mpirun -np 1 genIonRecomb"
+	       << " -Z " << static_cast<unsigned>(n)
+	       << " -T " << T[nc][1];
+	
+	  int ret = system(sout.str().c_str());
+      
+	  if (ret) {
+	    std::cout << "System command  = " << sout.str() << std::endl;
+	    std::cout << "System ret code = " << ret << std::endl;
+	  }
+	
+	  typedef std::vector<std::string> vString;
+      
+	  std::string   inLine;
+	  std::ifstream sFile("IonRecombFrac.data");
+	  if (sFile.is_open()) {
+	    
 	    vString s;
 	    std::getline(sFile, inLine);
 	    
@@ -1080,151 +1230,99 @@ void InitializeSpeciesTrace
 		      std::back_inserter<vString>(s));
 	    
 	    std::vector<double> v;
-	    for (vString::iterator i=s.begin(); i!=s.end(); i++)
-	      v.push_back(::atof(i->c_str()));
-	    frac.push_back(v);
-	  }
+	    for (auto i : s) v.push_back(::atof(i.c_str()));
+	    frac[nc].push_back(v);
 	  
-	  {
-	    vString s;
-	    std::getline(sFile, inLine);
+	    double norm = 0.0;
+	    for (auto i : v) norm += i;
 	    
-	    std::istringstream iss(inLine);
-	    std::copy(std::istream_iterator<std::string>(iss), 
-		      std::istream_iterator<std::string>(), 
-		      std::back_inserter<vString>(s));
-	    
-	    std::vector<double> v;
-	    for (vString::iterator i=s.begin(); i!=s.end(); i++)
-	      v.push_back(::atof(i->c_str()));
-	    cuml.push_back(v);
+	    if (fabs(norm - 1.0) > 1.0e-10) {
+	      std::cout << "Normalization error: ";
+	      for (auto i : v) std::cout << std::setw(16) << i;
+	      std::cout << std::endl;
+	    }
+	  
+	    std::vector<double> c = v;
+	    for (size_t i=1; i<c.size(); i++) c[i] += c[i-1];
+	    cuml[nc].push_back(c);
 	  }
 	}
       }
-      else {
-	
-	std::ostringstream sout;
-	sout << "mpirun -np 1 genIonRecomb"
-	     << " -Z " << static_cast<unsigned>(n)
-	     << " -T " << T;
-	
-	int ret = system(sout.str().c_str());
-      
-	if (ret) {
-	  std::cout << "System command  = " << sout.str() << std::endl;
-	  std::cout << "System ret code = " << ret << std::endl;
-	}
-	
-	typedef std::vector<std::string> vString;
-      
-	std::string   inLine;
-	std::ifstream sFile("IonRecombFrac.data");
-	if (sFile.is_open()) {
-	  
-	  vString s;
-	  std::getline(sFile, inLine);
-	  
-	  std::istringstream iss(inLine);
-	  std::copy(std::istream_iterator<std::string>(iss), 
-		    std::istream_iterator<std::string>(), 
-		    std::back_inserter<vString>(s));
-	  
-	  std::vector<double> v;
-	  for (auto i : s) v.push_back(::atof(i.c_str()));
-	  frac.push_back(v);
-	  
-	  double norm = 0.0;
-	  for (auto i : v) norm += i;
-	  
-	  if (fabs(norm - 1.0) > 1.0e-10) {
-	    std::cout << "Normalization error: ";
-	    for (auto i : v) std::cout << std::setw(16) << i;
-	    std::cout << std::endl;
-	  }
-	  
-	  std::vector<double> c = v;
-	  for (size_t i=1; i<c.size(); i++) c[i] += c[i-1];
-	  cuml.push_back(c);
-	}
-      }
-    }
+    } // END: number of components
   }
   
   int N = particles.size();
   
   // Compute cumulative species
   // distribution
-  size_t NS = sF.size();
+  int NS = sF.size();
+
   // Normalize sF
   double norm = std::accumulate(sF.begin(), sF.end(), 0.0);
   if (fabs(norm - 1.0)>1.0e-16) {
     std::cout << "Normalization change: " << norm << std::endl;
   }
-  for (size_t i=0; i<NS; i++) sF[i]  /= norm;
+  for (int i=0; i<NS; i++) sF[i]  /= norm;
   
-  for (size_t indx=0; indx<NS; indx++) { 
-    double norm = std::accumulate(frac[indx].begin(), frac[indx].end(), 0.0);
-    for (auto &i : frac[indx]) i /= norm;
+  for (size_t nc=0; nc<Ncomp; nc++) {
+    for (int indx=0; indx<NS; indx++) { 
+      double norm = std::accumulate(frac[nc][indx].begin(), frac[nc][indx].end(), 0.0);
+      for (auto &i : frac[nc][indx]) i /= norm;
+    }
   }
   
-  // Increment for use_cons position
-  nd++;
+  for (int i=0; i<N; i++) {
+    
+    size_t wh = 0;
+    if (model == Interface) {
+      if (particles[i].pos[0] > 0.5*L[0]) wh = 1;
+    }
 
-  for (size_t i=0; i<N; i++) {
+    particles[i].mass  = M[wh]/N;
     
-    particles[i].mass  = M/N;
-    
-    particles[i].iattrib.resize(ni, 0);
-    particles[i].dattrib.resize(nd, 0);
-    
-    // Get the species
+    // Sanity check
     double test = 0.0;
-    for (size_t indx=0; indx<NS; indx++) { 
+
+    int cur = sp;
+    // Get the species
+    for (int indx=0; indx<NS; indx++) { 
       // Get the ionization state
-      for (size_t j=0; j<sZ[indx]+1; j++) {
-	particles[i].dattrib.push_back(sF[indx]*frac[indx][j]);
-	test += sF[indx] * frac[indx][j];
+      for (int j=0; j<sZ[indx]+1; j++) {
+	particles[i].dattrib[cur++] = sF[indx]*frac[wh][indx][j];
+	test += sF[indx] * frac[wh][indx][j];
       }
     }
     assert ( fabs(test-1.0) < 1.0e-12 );
-
-    // Add the use_elec fields
-    if (ne>=0) {
-      for (int l=0; l<4; l++) particles[i].dattrib.push_back(0.0);
-    }
   }
   
-  if (ne>=0) {
-    ne = nd;
-    for (size_t indx=0; indx<NS; indx++) { 
-      for (size_t j=0; j<sZ[indx]+1; j++) ne++;
-    }
-  }
-
   std::ofstream out("species.spec");
   out << "trace" << std::endl;
   // Conservation position and electron position (-1 for none)
-  out << std::setw(6) << nd-1
+  out << std::setw(6) << sp-1
       << std::setw(6) << ne << std::endl;
-  int cntr = nd;
-  for (size_t indx=0; indx<NS; indx++) { 
-    for (size_t j=0; j<sZ[indx]+1; j++) {
+  // Starting species position
+  int cntr = sp;
+  for (int indx=0; indx<NS; indx++) { 
+    for (int j=0; j<sZ[indx]+1; j++) {
       out << std::setw(6) << static_cast<unsigned>(sZ[indx])
 	  << std::setw(6) << j + 1
 	  << std::setw(6) << cntr++
 	  << std::endl;
     }
   }
-}
 
-int main (int ac, char **av)
+} // END: writeParticles
+
+int
+main (int ac, char **av)
 {
-  Itype type = Direct;
-  double D, L, Temp, Telec, Teq;
+  Itype type  = Direct;
+  Mtype model = Uniform;
+  double D, L, Temp, Telec;
   std::string config;
   std::string oname;
   unsigned seed;
-  int ne = -1, ni = 2, nd = 6;
+  int ne = -1, ni = 2, nd = 5;
   int npart;
   
   std::string cmd_line;
@@ -1245,8 +1343,6 @@ int main (int ac, char **av)
      "density in particles per cc")
     ("temp,T",		po::value<double>(&Temp)->default_value(-1.0),
      "override config file temperature for Trace, if >0")
-    ("Teq",		po::value<double>(&Teq)->default_value(-1.0),
-     "temperature for equilibrium selection, if Teq>0")
     ("Telec",		po::value<double>(&Telec)->default_value(-1.0),
      "temperature for electrons, if Telec>0")
     ("length,L",	po::value<double>(&L)->default_value(1.0),
@@ -1264,11 +1360,11 @@ int main (int ac, char **av)
     ("num-int,i",	po::value<int>(&ni)->default_value(2),
      "number of integer attributes")
     ("num-double,d",	po::value<int>(&nd)->default_value(6),
-     "number of double attributes")
+     "base number of double attributes")
     ("config,c",	po::value<std::string>(&config)->default_value("makeIon.config"),
      "element config file")
-    ("output,o",	po::value<std::string>(&oname)->default_value("out.bods"),
-     "body output file")
+    ("output,o",	po::value<std::string>(&oname)->default_value("out"),
+     "output prefix")
     ;
   
   
@@ -1286,30 +1382,14 @@ int main (int ac, char **av)
     std::cout << desc << std::endl;
     std::cout << "Example: " << std::endl;
     std::cout << "\t" << av[0]
-	      << "--length=0.0001 --number=1000 --dens=0.01 --electrons -c trace.config --output=out.bod"
-<< std::endl;
+	      << "--length=0.0001 --number=1000 --dens=0.01 --electrons -c trace.config --output=out"
+	      << std::endl;
     return 1;
-  }
-  
-  if (vm.count("hybrid")) {
-    type = Hybrid;
-  }
-  
-  if (vm.count("weight")) {
-    type = Weight;
-  }
-  
-  if (vm.count("trace")) {
-    type = Trace;
-  }
-  
-  if (vm.count("electrons")) {
-    ne   = 0;
   }
   
   if (myid==0) {
     std::string prefix("makeIon");
-    std::string cmdFile = prefix + ".cmd_line";
+    std::string cmdFile = prefix + "." + oname + ".cmd_line";
     std::ofstream out(cmdFile.c_str());
     if (!out) {
       std::cerr << "makeIon: error opening <" << cmdFile
@@ -1342,7 +1422,11 @@ int main (int ac, char **av)
   std::vector<double>        sF;
 
   // Temperatures
-  std::map<unsigned char, double> T;
+  std::vector< std::map<unsigned char, double> > T;
+  std::vector<double> rho;
+
+  // Species position
+  int sp = -1;
 
   // Parse element file
   {
@@ -1365,11 +1449,25 @@ int main (int ac, char **av)
 
     type = Types[st];
 
-    if (type==Trace) {
-      if (Temp>0.0) T[0] = Temp;
-      else          T[0] = iroot.get("temp", 100000.0);
-      T[1] = T[0];
-      if (Telec>0.0) T[1] = Telec;
+    std::string md = iroot.get("model", "Uniform");
+    if (Models.find(md) == Models.end()) {
+      std::cout << "Model <" << md << "> is not valid" << std::endl
+		<< "Valid types are:";
+      for (auto v : Models) std::cout << " " << v.first;
+      std::cout << std::endl;
+      exit(-1);
+    }
+
+    model = Models[md];
+
+    if (iroot.get("electrons", true)) {
+      ne = 0;
+    }
+  
+    if (model==Interface) {
+      T.resize(2);
+    } else {
+      T.resize(1);
     }
 
     for (pt::ptree::value_type &row : iroot.get_child("elements")) {
@@ -1381,7 +1479,7 @@ int main (int ac, char **av)
       sZ.push_back(i);
       sF.push_back(row.second.get<double>("mfrac"));
       norm += sF.back();
-      if (type!=Trace) T[i] = row.second.get<double>("temp");
+      if (type!=Trace) T[0][i] = row.second.get<double>("temp");
     }
 
     if (norm>0.0) {
@@ -1389,6 +1487,63 @@ int main (int ac, char **av)
     } else {
       std::cout << "Error: zero mass fraction norm" << std::endl;
       exit(-1);
+    }
+
+    if (model==Interface) {
+      rho.resize(2);
+      try {
+	rho[0]  = iroot.get<double>("components.1.Density");
+	rho[1]  = iroot.get<double>("components.2.Density");
+	T[0][0] = iroot.get<double>("components.1.Temp");
+	T[0][1] = iroot.get<double>("components.1.Etemp", T[0][0]);
+	T[1][0] = iroot.get<double>("components.2.Temp");
+	T[1][1] = iroot.get<double>("components.2.Etemp", T[1][0]);
+      }
+      catch (pt::ptree_error & error) {
+	std::cerr << "Error: " << error.what() << std::endl;
+	exit(-2);
+      }
+    } else {
+      rho.push_back(D);
+      if (Temp>0.0) T[0][0] = Temp;
+      else          T[0][0] = iroot.get("temp", 100000.0);
+      T[0][1] = T[0][0];
+      if (Telec>0.0) T[0][1] = Telec;
+    }
+      
+    if (type==Trace) {
+      nd++;			// Conservation of energy position
+      sp = nd;
+
+				// Augment for species number
+      for (size_t indx=0; indx<sF.size(); indx++) { 
+	for (int j=0; j<sZ[indx]+1; j++) nd++;
+      }
+
+      // Electron velocities and cons
+      if (ne>=0) {
+	ne = nd;		// Electron start position
+	nd += 4;		// Electron velocity and conservation
+      }
+
+    }
+    else if (type==Hybrid) {
+      auto it = std::max_element(std::begin(sZ), std::end(sZ));
+      size_t maxSp = *it;
+      nd++;			// Energy conservation 
+      sp = nd++;		// Species position
+      nd += maxSp;
+      if (ne>=0) {
+	ne = nd;		// Electron start position
+	nd += 4;		// Electron velocity and conservation
+      }
+    }
+    else if (type==Weight or type==Direct) {
+      sp = ++nd;		// Energy conservation 
+      if (ne>=0) {
+	ne = nd;		// Electron start position
+	nd += 4;		// Electron velocity and conservation
+      }
     }
   }
 
@@ -1411,27 +1566,38 @@ int main (int ac, char **av)
   
   // Mass in box in m_p
   //
-  double Mass = mp*D*vol/Munit;
+  std::vector<double> Mass;
   
   vector<Particle> particles(npart);
   
   double molW = 1.0;
 
+  // Initialize the phase space vector
+  //
+  switch (model) {
+  case Interface:
+    Mass.push_back( mp*rho[0]*0.5*vol/Munit );
+    Mass.push_back( mp*rho[1]*0.5*vol/Munit );
+    InitializeInterface(particles, Mass, molW, T, LL, type, sp, ne, ni, nd);
+    break;
+  case Uniform:
+  default:
+    Mass.push_back(mp*D*vol/Munit);
+    InitializeUniform(particles, Mass, molW, T, LL, type, sp, ne, ni, nd);
+    break;
+  }
+
   // Initialize the Z, C's	
   //
   switch (type) {
   case Hybrid:
-    InitializeSpeciesHybrid(particles, sZ, sF, sI, Mass, T, ne, ni, nd);
+    InitializeSpeciesHybrid(particles, sZ, sF, sI, Mass, T, sp, ne);
     break;
   case Weight:
-    InitializeSpeciesWeight(particles, sZ, sF, sI, Mass, T, ne, ni, nd);
+    InitializeSpeciesWeight(particles, sZ, sF, sI, Mass, T, sp, ne);
     break;
   case Trace:
-    {
-      if (Teq  < 0.0) Teq = T[0];
-      InitializeSpeciesTrace (particles, sZ, sF, Mass, Teq,  ne, ni, nd);
-    }
-
+    InitializeSpeciesTrace (particles, sZ, sF, Mass, T, LL, model, sp, ne);
     // Compute molecular weight
     molW = 0.0;
     for (size_t k=0; k<sZ.size(); k++) molW += sF[k]/atomic_masses[sZ[k]];
@@ -1439,16 +1605,12 @@ int main (int ac, char **av)
     break;
   case Direct:
   default:
-    InitializeSpeciesDirect(particles, sZ, sF, sI, Mass, T, ne, ni, nd);
+    InitializeSpeciesDirect(particles, sZ, sF, sI, Mass, T, sp, ne);
   }
-  
-  // Initialize the phase space vector
-  //
-  InitializeUniform(particles, Mass, molW, T, LL, type, ne);
   
   // Output file
   //
-  writeParticles(particles, oname, type, sF, sI);
+  writeParticles(particles, oname + ".bod", type, sF, sI);
   
   return 0;
 }
