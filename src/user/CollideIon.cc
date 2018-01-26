@@ -10243,18 +10243,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   double W1 = p1->mass/molP1[id];
   double W2 = p2->mass/molP2[id];
 
-  double wavg = 0.5*(W1 + W2);
-  double wdif = (W1 - W2)/wavg;
-
-  // Sanity check
-  //
-  if (fabs(wdif) > 1.0e-6) {
-    std::cout << "**ERROR W1!=W2, W1=" << W1 << ", W2=" << W2
-	      << ", dif=" << wdif << std::endl;
-  }
-
-  W1 = W2 = wavg;
-
   std::array<PordPtr, 3> PP =
     { PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_ion,      DBL_MAX) ),
       PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_electron, DBL_MAX) ),
