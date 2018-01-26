@@ -117,6 +117,10 @@ writeGrid(const std::vector<double>& T,
     }
   }
 
+  // Add fields
+  dataSet->GetPointData()->AddArray(ions);
+  dataSet->GetPointData()->AddArray(elec);
+
   // Remove unused memory
   dataSet->Squeeze();
 
@@ -158,17 +162,17 @@ main(int ac, char **av)
      "System length in physical units (cgs)")
     ("Tunit,T",		po::value<double>(&Tunit)->default_value(3.15569e12),
      "System time in physical units (cgs)")
-    ("Emin,e",		po::value<double>(&Emax)->default_value(0.0),
+    ("Emin",		po::value<double>(&Emin)->default_value(0.0),
      "Mininum energy in eV")
-    ("Emax,E",		po::value<double>(&Emax)->default_value(100.0),
+    ("Emax",		po::value<double>(&Emax)->default_value(100.0),
      "Maximum energy in eV")
-    ("deltaE,d",	po::value<double>(&dE)->default_value(0.5),
+    ("deltaE",	po::value<double>(&dE)->default_value(0.5),
      "Bin size in eV")
-    ("Xmin,x",		po::value<double>(&Xmax)->default_value(0.0),
+    ("Xmin",		po::value<double>(&Xmin)->default_value(0.0),
      "Mininum position")
-    ("Xmax,X",		po::value<double>(&Xmax)->default_value(1.0),
+    ("Xmax",		po::value<double>(&Xmax)->default_value(1.0),
      "Maximum position")
-    ("deltaX,D",	po::value<double>(&dX)->default_value(0.1),
+    ("deltaX",		po::value<double>(&dX)->default_value(0.1),
      "Bin size in length")
     ("species,s",	po::value<int>(&sindx)->default_value(0),
      "position of species index")
@@ -370,10 +374,12 @@ main(int ac, char **av)
   
   // Write the VTK file
   //
-  std::ostringstream fileName(oname);
+  std::ostringstream fileName;
 
-  writeGrid(T, E, L, Eion, Eelc, fileName);
-  std::cout << "Wrote file < " << fileName.str() << ">" << std::endl;
+  fileName << oname;
+
+  writeGrid(T, L, E, Eion, Eelc, fileName);
+  std::cout << "Wrote file <" << fileName.str() << ">" << std::endl;
 
   return 0;
 }
