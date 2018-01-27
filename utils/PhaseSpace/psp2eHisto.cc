@@ -55,9 +55,9 @@ using vtkFloatArrayP            = vtkSmartPointer<vtkFloatArray>;
 
 typedef std::vector< std::vector<unsigned> > I2Vector;
 
-void write_pvd(const std::string& filename,
-	       const std::vector<double>& times,
-	       const std::vector<std::string>& files)
+void writePVD(const std::string& filename,
+	      const std::vector<double>& times,
+	      const std::vector<std::string>& files)
 {
   // Sanity check
   //
@@ -98,6 +98,9 @@ void write_pvd(const std::string& filename,
   // Write the property tree to the XML file.
   //
   pt::xml_parser::write_xml(filename.c_str(), PT, std::locale(), pt::xml_writer_make_settings<std::string>(' ', 4));
+
+  std::cout << "Wrote PVD file <" << filename.c_str() << "> "
+	    << " with " << times.size() << " data sets." << std::endl;
 }
 
 
@@ -135,7 +138,7 @@ writeGrid(const double T, const int C,
   auto writer = vtkRectilinearGridWriterP::New();
 
   // Append the default extension to the file name
-  fileName << "_" << std::setw(6) << std::setfill('0') << C
+  fileName << "_" << std::setw(5) << std::setfill('0') << C
 	   << "." << writer->GetDefaultFileExtension();
   writer->SetFileName((fileName.str()).c_str());
 
@@ -221,9 +224,10 @@ int
 main(int ac, char **av)
 {
   char *prog = av[0];
+  int ibeg, iend, istride;
   double time, Emin, Emax, dE, Xmin, Xmax, dX, Lunit, Tunit;
-  bool verbose = false, logE = false;
-  std::string cname, oname, PVD;
+  bool verbose = false, logE = false, PVD = false;
+  std::string cname, rtag;
   int comp, sindx, eindx, hindx, dim;
 
   // Parse command line
@@ -233,6 +237,7 @@ main(int ac, char **av)
     ("help,h",		"produce help message")
     ("verbose,v",       "verbose output")
     ("logE",		"bin logarithmically in energy")
+    ("PVD",		"create a ParaView PVD file")
     ("time,t",		po::value<double>(&time)->default_value(1.0e20),
      "find closest time slice to requested value")
     ("Lunit,L",		po::value<double>(&Lunit)->default_value(3.086e18),
@@ -259,12 +264,14 @@ main(int ac, char **av)
      "dimension of inhomogeity (x=0, y=1, z=2)")
     ("name,c",	        po::value<std::string>(&cname)->default_value("gas"),
      "component name")
-    ("files,f",         po::value< std::vector<std::string> >(), 
-     "input files")
-    ("output,o",	po::value<std::string>(&oname)->default_value("out"), 
-     "VTK output file")
-    ("PVD",		po::value<std::string>(&PVD)->default_value(""), 
-     "Create a PVD file for ParaView")
+    ("rtag,t",		po::value<std::string>(&rtag)->default_value("run"), 
+     "runtag name")
+    ("begin",		po::value<int>(&ibeg)->default_value(0),
+     "initial sequence counter")
+    ("final",		po::value<int>(&iend)->default_value(1000000),
+     "final sequence counter")
+    ("stride",		po::value<int>(&istride)->default_value(1),
+     "sequence counter stride")
     ;
 
 
@@ -292,6 +299,10 @@ main(int ac, char **av)
 
   if (vm.count("logE")) {
     logE = true;
+  }
+
+  if (vm.count("PVD")) {
+    PVD = true;
   }
 
   std::vector<double> times;
@@ -360,13 +371,13 @@ main(int ac, char **av)
   Emax = Emin + dE*nEbin;
 
   std::vector<double> E(nEbin);
-  for (int i=0; i<nEbin; i++) E[i] = Emin + dE*(0.5*i);
+  for (int i=0; i<nEbin; i++) E[i] = Emin + dE*(0.5+i);
 
   int nLbin = floor((Xmax - Xmin)/dX+1.0e-8*(Xmax - Xmin));
   Xmax = Xmin + dX*nLbin;
 
   std::vector<double> L(nLbin);
-  for (int i=0; i<nLbin; i++) L[i] = Xmin + dX*(0.5*i);
+  for (int i=0; i<nLbin; i++) L[i] = Xmin + dX*(0.5+i);
 
   int C=0;
 
@@ -376,21 +387,23 @@ main(int ac, char **av)
     Eelc[n].resize(nEbin, 0);
   }
 
-  // Get file arguments
-  //
-  std::vector<std::string> files = vm["files"].as< std::vector<std::string> >();
-
   bool first = true;
   
-  for (auto file : files ) {
+  for (int n=ibeg; n<=iend; n+=istride) {
 
-    ifstream *in = new ifstream(file.c_str());
+    std::ostringstream file;
+    file << "OUT." << rtag << "." << std::setfill('0') << std::setw(5) << n;
+    
+    ifstream *in = new ifstream(file.str());
     if (!*in) {
-      cerr << "Error opening file <" << file << "> for input\n";
-      exit(-1);
+      cerr << "Error opening file <" << file.str() << "> for input."
+	   << std::endl
+	   << "Assuming end of sequence . . . continuing."
+	   << std::endl;
+      break;
     }
 
-    if (verbose) cerr << "Using filename: " << file << endl;
+    if (verbose) cerr << "Using filename: " << file.str() << endl;
 
 
 				// Parse the PSP file
@@ -414,7 +427,7 @@ main(int ac, char **av)
 				// Reopen file for data input
 				// --------------------------
     delete in;
-    in = new ifstream(file);
+    in = new ifstream(file.str());
     
   
     vector<double> pos(3), vel(3);
@@ -485,7 +498,8 @@ main(int ac, char **av)
 
       } // END: Particle loop
 
-      std::cout << gridded << " out of " << total << " with "
+      std::cout << "File <" << file.str() << ">: "
+		<< gridded << " out of " << total << " with "
 		<< pout << " position oab, "
 		<< eEout << " electron oab, "
 		<< eIout << " ion oab" << std::endl;
@@ -497,12 +511,12 @@ main(int ac, char **av)
     //
     std::ostringstream fileName;
 
-    fileName << oname;
+    fileName << rtag;
 
     writeGrid(T, C, L, E, Eion, Eelc, fileName);
     std::cout << "Wrote file <" << fileName.str() << ">" << std::endl;
-
-    if (PVD.size()) {
+    
+    if (PVD) {
       times.push_back(T);
       outfiles.push_back(fileName.str());
     }
@@ -513,8 +527,9 @@ main(int ac, char **av)
 
   // Create PVD file
   //
-  if (PVD.size()) write_pvd(PVD, times, outfiles);
-
+  if (PVD) {
+    writePVD(rtag+".pvd", times, outfiles);
+  }
 
   return 0;
 }
