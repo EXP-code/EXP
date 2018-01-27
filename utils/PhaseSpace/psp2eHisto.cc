@@ -18,8 +18,7 @@ using namespace std;
 #include <iomanip>
 #include <vector>
 #include <string>
-#include <list>
-#include <map>
+#include <locale>
 
 #include <Species.H>
 
@@ -28,14 +27,19 @@ using namespace std;
 #include <PSP.H>
 
 #include <boost/program_options.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/xml_parser.hpp> 
 
 namespace po = boost::program_options;
+namespace pt = boost::property_tree;
 
 //
 // VTK stuff
 //
 #include <vtkSmartPointer.h>
+#include <vtkDoubleArray.h>
 #include <vtkFloatArray.h>
+#include <vtkIntArray.h>
 #include <vtkUnsignedCharArray.h>
 #include <vtkStructuredPoints.h>
 #include <vtkRectilinearGrid.h>
@@ -49,13 +53,78 @@ using vtkRectilinearGridP       = vtkSmartPointer<vtkRectilinearGrid>;
 using vtkRectilinearGridWriterP = vtkSmartPointer<vtkXMLRectilinearGridWriter>;
 using vtkFloatArrayP            = vtkSmartPointer<vtkFloatArray>;
 
-using Node    = std::vector<double>;
-using Element = std::vector<int>;                           
-
 typedef std::vector< std::vector<unsigned> > I2Vector;
 
+void write_pvd(const std::string& filename,
+	       const std::vector<double>& times,
+	       const std::vector<std::string>& files)
+{
+  // Sanity check
+  //
+  if (times.size() != files.size()) {
+    std::cerr << "Mismatch in file and time arrays" << std::endl;
+    exit(-3);
+  }
+
+  // Make file collection elements
+  //
+  pt::ptree ptC;
+
+  for (size_t i=0; i<times.size(); i++) {
+    boost::property_tree::ptree x;
+    x.put("<xmlattr>.timestep", times[i]);
+    x.put("<xmlattr>.part", 0);
+    x.put("<xmlattr>.file", files[i]);
+
+    ptC.add_child("DataSet", x);
+  }
+
+  // Add VTKFile attributes
+  //
+  pt::ptree ptP;
+  
+  ptP.put("<xmlattr>.type", "Collection");
+  ptP.put("<xmlattr>.version", "0.1");
+  ptP.put("<xmlattr>.byte_order", "LittleEndian");
+  ptP.put("<xmlattr>.compressor", "vtkZLibDataCompressor");
+  ptP.add_child("Collection", ptC);
+  
+  // Make the top-level property tree
+  //
+  pt::ptree PT;
+
+  PT.add_child("VTKFile", ptP);
+
+  // Write the property tree to the XML file.
+  //
+  pt::xml_parser::write_xml(filename.c_str(), PT, std::locale(), pt::xml_writer_make_settings<std::string>(' ', 4));
+}
+
+
+// Add "time" value to a VTK dataset.
 void
-writeGrid(const std::vector<double>& T,
+AddTimeToVTK(vtkDataSet *ds, double time)
+{
+  vtkDoubleArray *t = vtkDoubleArray::New();
+  t->SetName("TIME");
+  t->SetNumberOfTuples(1);
+  t->SetTuple1(0, time);
+  ds->GetFieldData()->AddArray(t);
+}
+ 
+// Add "cycle" value to a VTK dataset.
+void
+AddCycleToVTK(vtkDataSet *ds, int cycle)
+{
+  vtkIntArray *c = vtkIntArray::New();
+  c->SetName("CYCLE");
+  c->SetNumberOfTuples(1);
+  c->SetTuple1(0, cycle);
+  ds->GetFieldData()->AddArray(c);
+}
+
+void
+writeGrid(const double T, const int C,
 	  const std::vector<double>& X,
 	  const std::vector<double>& Y,
 	  const I2Vector& gridI,
@@ -66,7 +135,8 @@ writeGrid(const std::vector<double>& T,
   auto writer = vtkRectilinearGridWriterP::New();
 
   // Append the default extension to the file name
-  fileName << "." << writer->GetDefaultFileExtension();
+  fileName << "_" << std::setw(6) << std::setfill('0') << C
+	   << "." << writer->GetDefaultFileExtension();
   writer->SetFileName((fileName.str()).c_str());
 
   // Set knots
@@ -94,9 +164,6 @@ writeGrid(const std::vector<double>& T,
   for (auto z : Y) YY->InsertTuple(k++, &(f=z));
 
   ZZ->InsertTuple(0, &(f=0));
-
-  k = 0;
-  for (auto z : T) tims->InsertTuple(k++, &(f=z));
 
   // Create a pointer to a VTK Unstructured Grid data set
   auto dataSet = vtkRectilinearGridP::New();
@@ -126,7 +193,9 @@ writeGrid(const std::vector<double>& T,
   // Add fields
   dataSet->GetPointData()->AddArray(ions);
   dataSet->GetPointData()->AddArray(elec);
-  // dataSet->GetPointData()->AddArray(tims);
+
+  AddTimeToVTK (dataSet, T);
+  AddCycleToVTK(dataSet, C);
 
   // Remove unused memory
   dataSet->Squeeze();
@@ -153,8 +222,8 @@ main(int ac, char **av)
 {
   char *prog = av[0];
   double time, Emin, Emax, dE, Xmin, Xmax, dX, Lunit, Tunit;
-  bool verbose = false, logE;
-  std::string cname, oname;
+  bool verbose = false, logE = false;
+  std::string cname, oname, PVD;
   int comp, sindx, eindx, hindx, dim;
 
   // Parse command line
@@ -163,6 +232,7 @@ main(int ac, char **av)
   desc.add_options()
     ("help,h",		"produce help message")
     ("verbose,v",       "verbose output")
+    ("logE",		"bin logarithmically in energy")
     ("time,t",		po::value<double>(&time)->default_value(1.0e20),
      "find closest time slice to requested value")
     ("Lunit,L",		po::value<double>(&Lunit)->default_value(3.086e18),
@@ -189,12 +259,12 @@ main(int ac, char **av)
      "dimension of inhomogeity (x=0, y=1, z=2)")
     ("name,c",	        po::value<std::string>(&cname)->default_value("gas"),
      "component name")
-    ("logE",		po::value<bool>(&logE)->default_value(false),
-     "bin logarithmically in energy")
     ("files,f",         po::value< std::vector<std::string> >(), 
      "input files")
     ("output,o",	po::value<std::string>(&oname)->default_value("out"), 
      "VTK output file")
+    ("PVD",		po::value<std::string>(&PVD)->default_value(""), 
+     "Create a PVD file for ParaView")
     ;
 
 
@@ -219,6 +289,13 @@ main(int ac, char **av)
   if (vm.count("verbose")) {
     verbose = true;
   }
+
+  if (vm.count("logE")) {
+    logE = true;
+  }
+
+  std::vector<double> times;
+  std::vector<std::string> outfiles;
 
   // Sanity check
   dim = std::max<int>(0, std::min<int>(2, dim));
@@ -291,7 +368,7 @@ main(int ac, char **av)
   std::vector<double> L(nLbin);
   for (int i=0; i<nLbin; i++) L[i] = Xmin + dX*(0.5*i);
 
-  std::vector<double> T;
+  int C=0;
 
   I2Vector Eion(nLbin), Eelc(nLbin);
   for (int n=0; n<nLbin; n++) {
@@ -328,8 +405,9 @@ main(int ac, char **av)
       
       psp.PrintSummary(in, cerr);
     
-      cerr << "\nBest fit dump to <" << time << "> has time <" 
-	   << psp.SetTime(time) << ">\n";
+      std::cerr << std::endl
+		<< "Best fit dump to <" << time << "> has time <" 
+		<< psp.SetTime(time) << ">" << std::endl;
     } else 
       psp.SetTime(time);
 
@@ -344,11 +422,14 @@ main(int ac, char **av)
     PSPstanza *stanza;
     SParticle* part;
 
+    double T = psp.CurrentTime();
+    if (verbose) {
+      std::cerr << std::endl << "PSP time is <" << T << ">" << std::endl;
+    }
+
     for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
     
       if (stanza->name != cname) continue;
-
-      T.push_back(psp.CurrentTime());
 
 				// Position to beginning of particles
 				// ----------------------------------
@@ -411,17 +492,29 @@ main(int ac, char **av)
 
     } // END: stanza loop
 
+
+    // Write the VTK file
+    //
+    std::ostringstream fileName;
+
+    fileName << oname;
+
+    writeGrid(T, C, L, E, Eion, Eelc, fileName);
+    std::cout << "Wrote file <" << fileName.str() << ">" << std::endl;
+
+    if (PVD.size()) {
+      times.push_back(T);
+      outfiles.push_back(fileName.str());
+    }
+
+    C++;
+
   } // END: file loop
 
-  
-  // Write the VTK file
+  // Create PVD file
   //
-  std::ostringstream fileName;
+  if (PVD.size()) write_pvd(PVD, times, outfiles);
 
-  fileName << oname;
-
-  writeGrid(T, L, E, Eion, Eelc, fileName);
-  std::cout << "Wrote file <" << fileName.str() << ">" << std::endl;
 
   return 0;
 }
