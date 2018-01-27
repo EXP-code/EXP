@@ -81,8 +81,8 @@ writeGrid(const std::vector<double>& T,
   XX   -> SetName("Position");
   YY   -> SetName("Energy");
   tims -> SetName("Times");
-  ions -> SetName("Ion energy");
-  elec -> SetName("Electron energy");
+  ions -> SetName("Ion counts");
+  elec -> SetName("Electron counts");
 
   float f;
   int k;
@@ -92,11 +92,11 @@ writeGrid(const std::vector<double>& T,
 
   k = 0;
   for (auto z : Y) YY->InsertTuple(k++, &(f=z));
+
   ZZ->InsertTuple(0, &(f=0));
 
   k = 0;
-  for (auto z : T) YY->InsertTuple(k++, &(f=z));
-  tims->InsertTuple(0, &(f=0));
+  for (auto z : T) tims->InsertTuple(k++, &(f=z));
 
   // Create a pointer to a VTK Unstructured Grid data set
   auto dataSet = vtkRectilinearGridP::New();
@@ -110,16 +110,23 @@ writeGrid(const std::vector<double>& T,
   //
   for (size_t i=0; i<X.size(); i++) {
     for (size_t j=0; j<Y.size(); j++) {
-      vtkIdType n = dataSet->FindPoint(X[i], Y[j], 0.0);
+      float x = X[i], y = Y[j];
+      vtkIdType n = dataSet->FindPoint(x, y, 0.0);
 
-      ions->InsertTuple(n, &(f=gridI[i][j]));
-      elec->InsertTuple(n, &(f=gridE[i][j]));
+      if (n>=0) {
+	ions->InsertTuple(n, &(f=gridI[i][j]));
+	elec->InsertTuple(n, &(f=gridE[i][j]));
+      } else {
+	std::cout << "Could not find point at (" << X[i] << ", " << Y[j] << ")"
+		  << std::endl;
+      }
     }
   }
 
   // Add fields
   dataSet->GetPointData()->AddArray(ions);
   dataSet->GetPointData()->AddArray(elec);
+  // dataSet->GetPointData()->AddArray(tims);
 
   // Remove unused memory
   dataSet->Squeeze();
@@ -146,7 +153,7 @@ main(int ac, char **av)
 {
   char *prog = av[0];
   double time, Emin, Emax, dE, Xmin, Xmax, dX, Lunit, Tunit;
-  bool verbose = false;
+  bool verbose = false, logE;
   std::string cname, oname;
   int comp, sindx, eindx, hindx, dim;
 
@@ -160,7 +167,7 @@ main(int ac, char **av)
      "find closest time slice to requested value")
     ("Lunit,L",		po::value<double>(&Lunit)->default_value(3.086e18),
      "System length in physical units (cgs)")
-    ("Tunit,T",		po::value<double>(&Tunit)->default_value(3.15569e12),
+    ("Tunit,T",		po::value<double>(&Tunit)->default_value(3.15569e10),
      "System time in physical units (cgs)")
     ("Emin",		po::value<double>(&Emin)->default_value(0.0),
      "Mininum energy in eV")
@@ -182,6 +189,8 @@ main(int ac, char **av)
      "dimension of inhomogeity (x=0, y=1, z=2)")
     ("name,c",	        po::value<std::string>(&cname)->default_value("gas"),
      "component name")
+    ("logE",		po::value<bool>(&logE)->default_value(false),
+     "bin logarithmically in energy")
     ("files,f",         po::value< std::vector<std::string> >(), 
      "input files")
     ("output,o",	po::value<std::string>(&oname)->default_value("out"), 
@@ -257,10 +266,19 @@ main(int ac, char **av)
   //
   double Xf = 0.76;
   double Yf = 0.24;
-  double mu = 1.0/(Xf/atomic_mass[0] + Yf/atomic_mass[2]);
+  double mu = 1.0/(Xf/atomic_mass[1] + Yf/atomic_mass[2]);
 
   // Compute grid parameters and set up structures
   //
+  if (logE) {
+    if (Emin==0.0 or Emax==0.0) {
+      std::cerr << "Energy must be greater than zero for log scaling"
+		<< std::endl;
+      exit(-2);
+    }
+    Emin = log10(Emin);
+    Emax = log10(Emax);
+  }
   int nEbin = floor((Emax - Emin)/dE+1.0e-8*(Emax - Emin));
   Emax = Emin + dE*nEbin;
 
@@ -268,7 +286,7 @@ main(int ac, char **av)
   for (int i=0; i<nEbin; i++) E[i] = Emin + dE*(0.5*i);
 
   int nLbin = floor((Xmax - Xmin)/dX+1.0e-8*(Xmax - Xmin));
-  Xmax = Xmin + dE*nLbin;
+  Xmax = Xmin + dX*nLbin;
 
   std::vector<double> L(nLbin);
   for (int i=0; i<nLbin; i++) L[i] = Xmin + dX*(0.5*i);
@@ -336,12 +354,25 @@ main(int ac, char **av)
 				// ----------------------------------
       in->seekg(stanza->pspos);
 
+      unsigned total = 0, gridded = 0, pout = 0, eEout = 0, eIout = 0;
+
       for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
+
+	total++;
 
 	int Pindx = floor( (part->pos(dim) - Xmin)/dX );
 
-	if (part->pos(dim) < Xmin or part->pos(dim) > Xmax) continue;
-	if (Pindx < 0 or Pindx >= nLbin) continue;
+	if (part->pos(dim) < Xmin or part->pos(dim) > Xmax) {
+	  pout++;
+	  continue;
+	}
+
+	if (Pindx < 0 or Pindx >= nLbin) {
+	  pout++;
+	  continue;
+	}
+
+	gridded++;
 
 	double kEe = 0.0, kEi = 0.0;
 	for (size_t i=0; i<3; i++) {
@@ -350,24 +381,35 @@ main(int ac, char **av)
 	  double vi = part->vel(i);
 	  kEi += vi*vi;
 	}
-	KeyConvert kc(part->iatr(sindx));
 
 	kEe *= KEfac * atomic_mass[0];
 	kEi *= KEfac * mu;
 
+	if (logE) {
+	  kEe = log10(kEe);
+	  kEi = log10(kEi);
+	}
+
 	if (kEe >= Emin and kEe < Emax) {
 	  int Eindx = floor( (kEe - Emin)/dE );
 	  if (Eindx >= 0 and Eindx < nEbin) Eelc[Pindx][Eindx]++;
+	  else eEout++;
 	}
 
 	if (kEi >= Emin and kEi < Emax) {
 	  int Eindx = floor( (kEi - Emin)/dE );
 	  if (Eindx >= 0 and Eindx < nEbin) Eion[Pindx][Eindx]++;
+	  else eIout++;
 	}
 
       } // END: Particle loop
 
-    } // END: stanza lop
+      std::cout << gridded << " out of " << total << " with "
+		<< pout << " position oab, "
+		<< eEout << " electron oab, "
+		<< eIout << " ion oab" << std::endl;
+
+    } // END: stanza loop
 
   } // END: file loop
 
