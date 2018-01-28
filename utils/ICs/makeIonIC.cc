@@ -1318,7 +1318,7 @@ main (int ac, char **av)
 {
   Itype type  = Direct;
   Mtype model = Uniform;
-  double D, L, Temp, Telec;
+  double D, L, R, Temp, Telec;
   std::string config;
   std::string oname;
   unsigned seed;
@@ -1347,6 +1347,8 @@ main (int ac, char **av)
      "temperature for electrons, if Telec>0")
     ("length,L",	po::value<double>(&L)->default_value(1.0),
      "length in system units")
+    ("ratio,R",		po::value<double>(&R)->default_value(1.0),
+     "slab length ratio (1 is cube")
     ("number,N",	po::value<int>(&npart)->default_value(250000),
      "number of particles")
     ("seed,s",		po::value<unsigned>(&seed)->default_value(11),
@@ -1561,6 +1563,7 @@ main (int ac, char **av)
   // Cube axes
   //
   LL.resize(3, L);
+  LL[0] *= R;
   double vol = 1.0;
   for (auto v : LL) vol *= v*Lunit;
   
