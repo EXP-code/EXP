@@ -337,7 +337,7 @@ public:
   void checkIndices();
 
   //! Print the frontier and summary statistics
-  void dumpFrontier();
+  void dumpFrontier(std::ostream& out);
 
   //! 
   void densEmit(unsigned lev, pCell *p);

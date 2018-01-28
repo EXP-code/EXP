@@ -102,7 +102,9 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   mpichk     = false;
   mfpts      = false;
   hybrid     = false;
+  dumpHOT    = false;
   ageout     = 0;
+  cntHOT     = 0;
   
   // Static initialization
   initialize_colltypes();
@@ -646,6 +648,7 @@ void UserTreeDSMC::initialize()
   if (get_value("mpichk", val))		mpichk     = atol(val);
   if (get_value("mfpts", val))		mfpts      = atol(val);
   if (get_value("hybrid", val))		hybrid     = atol(val);
+  if (get_value("dumpHOT", val))	dumpHOT    = atol(val);
   if (get_value("ageout", val))         ageout     = atoi(val);
 
   NTC::NTCdb::maxAge = ageout;
@@ -1763,6 +1766,18 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   GPTLstop("UserTreeDSMC::determine_acceleration_and_potential");
 #endif
   
+  // pHOT frontier dump
+  //
+  if (dumpHOT) {
+    std::ofstream out;
+    if (myid==0) {
+      std::ostringstream sout;
+      sout << outdir << runtag << "." << cntHOT++ << ".frontier";
+      out.open(sout.str());
+    }
+    c0->Tree()->dumpFrontier(out);
+  }
+
   // Debugging disk
   //
   // triggered_cell_body_dump(0.01, 0.002);

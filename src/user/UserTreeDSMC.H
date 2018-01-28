@@ -200,7 +200,9 @@ private:
 
   bool frontier, tsdiag, voldiag, mfpstat, use_multi, use_pullin, use_repair;
   bool cba, cbadiag, dryrun, nocool, ntc, tube, slab, esol;
-  bool sub_sample, treechk, mpichk, mfpts, hybrid;
+  bool sub_sample, treechk, mpichk, mfpts, hybrid, dumpHOT;
+
+  unsigned cntHOT;		// For frontier dump files
 
 				// For NTC db trimming
   unsigned ageout;

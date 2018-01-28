@@ -1138,7 +1138,7 @@ void pHOT::densCheck()
   timer_diagdbg.stop();
 }
 
-void pHOT::dumpFrontier()
+void pHOT::dumpFrontier(std::ostream& out)
 {
   unsigned sum = 0, cnt=0;
   double mean=0.0, disp=0.0;
@@ -1146,11 +1146,46 @@ void pHOT::dumpFrontier()
 
   timer_diagdbg.start();
 
-  if (myid==0) cout << endl << "Frontier info: " << endl;
+  if (myid==0) {
+    out << "#" << std::endl
+	<< "# Frontier info" << std::endl
+	<< "# id "
+	<< std::setw(12) << "key"
+	<< std::setw( 8) << "level"
+	<< std::setw(18) << "num"
+	<< std::setw(18) << "mass"
+	<< std::setw(18) << "density"
+	<< std::setw(10) << "pos(x)"
+	<< std::setw(10) << "var(x)"
+	<< std::setw(10) << "pos(y)"
+	<< std::setw(10) << "var(y)"
+	<< std::setw(10) << "pos(z)"
+	<< std::setw(10) << "var(z)"
+	<< std::endl
+	<< "# [1]"
+	<< std::setw(12) << "[2]"
+	<< std::setw( 8) << "[3]"
+	<< std::setw(18) << "[4]"
+	<< std::setw(18) << "[5]"
+	<< std::setw(18) << "[6]"
+	<< std::setw(10) << "[7]"
+	<< std::setw(10) << "[8]"
+	<< std::setw(10) << "[9]"
+	<< std::setw(10) << "[10]"
+	<< std::setw(10) << "[11]"
+	<< std::setw(10) << "[12]"
+	<< std::endl;
+  }
 
   for (int n=0; n<numprocs; n++) {
+
+    std::vector<std::string> output;
+
     if (n==myid) {
+      
       for (auto i : frontier) {
+	std::ostringstream line;
+
 	vector<double> mpos(3,0.0), vpos(3,0.0);
 	vector<unsigned long>::iterator ib = i.second->bods.begin();
 	double mass = 0.0;
@@ -1173,7 +1208,7 @@ void pHOT::dumpFrontier()
 	totvol  += volume/static_cast<double>(key_type(1u)<<(3*i.second->level));
 #endif
 
-	cout << setw(4)  << myid
+	line << setw( 5) << myid
 #ifdef INT128
 	     << setw(12) << i.first.toHex()
 #else
@@ -1195,15 +1230,46 @@ void pHOT::dumpFrontier()
 	  else
 	    vpos[k] = 0.0;
 
-	  cout << setprecision(4) << setw(10) << mpos[k] 
+	  line << setprecision(4) << setw(10) << mpos[k] 
 	       << setprecision(4) << setw(10) << vpos[k];
 	}
-	cout << endl;
 	mean += num;
 	disp += num*num;
 	sum +=  num;
 	cnt++;
+
+	output.push_back(line.str());
       }
+
+      if (n != 0) {
+	unsigned osize = output.size();
+	MPI_Send(&osize, 1, MPI_UNSIGNED, 0, 233, MPI_COMM_WORLD);
+	for (auto s : output)
+	  MPI_Send(s.c_str(), s.size(), MPI_CHAR, 0, 234, MPI_COMM_WORLD);
+      }
+    }
+    
+    if (myid==0) {
+
+      if (n != 0) {
+	unsigned osize;
+	MPI_Recv(&osize, 1, MPI_UNSIGNED, n, 233, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	
+	MPI_Status status;
+	char *buf;
+	int len;
+	for (unsigned k=0; k<osize; k++) {
+	  MPI_Probe(n, 233, MPI_COMM_WORLD, &status);
+	  MPI_Get_count(&status, MPI_CHAR, &len);
+	  buf = new char[len];
+	  MPI_Recv(buf, len, MPI_CHAR, n, 234, MPI_COMM_WORLD, &status);
+	  output.push_back(std::string(buf, len));
+	  delete [] buf;
+	}
+      }
+
+      for (auto s : output) out << s << std::endl;
+				
     }
     (*barrier)("pHOT: dump frontier", __FILE__, __LINE__);
   }
@@ -1219,12 +1285,12 @@ void pHOT::dumpFrontier()
   MPI_Reduce(&totvol, &totvol0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
   if (myid==0) {
-    cout << endl << setw(12) << "Total" << setw(18) << sum0 << endl;
-    cout << endl << setw(12) << "Mass" << setw(18) << totmass0 << endl;
-    cout << endl << setw(12) << "Volume" << setw(18) << totvol0 << endl;
-    cout << setw(12) << "Mean" << setw(18) << mean0/cnt0 << endl;
-    cout << setw(12) << "Sigma" << setw(18) 
-	 << sqrt((disp0 - mean0*mean0/cnt0)/cnt0) << endl << endl;
+    out << endl << setw(12) << "Total" << setw(18) << sum0 << endl;
+    out << endl << setw(12) << "Mass" << setw(18) << totmass0 << endl;
+    out << endl << setw(12) << "Volume" << setw(18) << totvol0 << endl;
+    out << setw(12) << "Mean" << setw(18) << mean0/cnt0 << endl;
+    out << setw(12) << "Sigma" << setw(18) 
+	<< sqrt((disp0 - mean0*mean0/cnt0)/cnt0) << endl << endl;
   }
 
   timer_diagdbg.stop();
