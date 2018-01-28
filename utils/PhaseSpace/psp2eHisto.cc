@@ -132,7 +132,7 @@ writeGrid(const double T, const int C,
 	  const std::vector<double>& Y,
 	  const I2Vector& gridI,
 	  const I2Vector& gridE,
-	  std::ostringstream& fileName)
+	  std::ostringstream& fileName, bool logE)
 {
   // Create a writer
   auto writer = vtkRectilinearGridWriterP::New();
@@ -152,7 +152,8 @@ writeGrid(const double T, const int C,
   auto elec = vtkFloatArray::New();
 
   XX   -> SetName("Position");
-  YY   -> SetName("Energy");
+  if (logE) YY-> SetName("Log Energy");
+  else      YY-> SetName("Energy");
   tims -> SetName("Times");
   ions -> SetName("Ion counts");
   elec -> SetName("Electron counts");
@@ -520,7 +521,7 @@ main(int ac, char **av)
 
     fileName << rtag;
 
-    writeGrid(T, C, L, E, Eion, Eelc, fileName);
+    writeGrid(T, C, L, E, Eion, Eelc, fileName, logE);
     std::cout << "Wrote file <" << fileName.str() << ">" << std::endl;
     
     if (PVD) {
