@@ -383,8 +383,8 @@ main(int ac, char **av)
 
   I2Vector Eion(nLbin), Eelc(nLbin);
   for (int n=0; n<nLbin; n++) {
-    Eion[n].resize(nEbin, 0);
-    Eelc[n].resize(nEbin, 0);
+    Eion[n].resize(nEbin);
+    Eelc[n].resize(nEbin);
   }
 
   bool first = true;
@@ -449,6 +449,13 @@ main(int ac, char **av)
       in->seekg(stanza->pspos);
 
       unsigned total = 0, gridded = 0, pout = 0, eEout = 0, eIout = 0;
+
+				// Clear counters
+				// --------------
+      for (int n=0; n<nLbin; n++) {
+	std::fill(Eion[n].begin(), Eion[n].end(), 0);
+	std::fill(Eelc[n].begin(), Eelc[n].end(), 0);
+      }
 
       for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
 
