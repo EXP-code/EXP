@@ -22,22 +22,22 @@
 // [set all to false for production]
 
 // Chatty debugging statements with minimal CPU overhead
-static bool DEBUG_NOISY   = true;
+static bool DEBUG_NOISY   = false;
 
 // Debugging that checks internal lists
-static bool DEBUG_CHECK   = true;
+static bool DEBUG_CHECK   = false;
 
 // Extra-verbose output with internal checking
-static bool DEBUG_EXTRA   = true;
+static bool DEBUG_EXTRA   = false;
 
 // Extra debugging for the adjustTree algorithm
 static bool DEBUG_ADJUST  = false;
 
 // Clean up bad entries in particle list
-static bool DEBUG_CLEAN   = true;
+static bool DEBUG_CLEAN   = false;
 
 // Check for malformed particles in cells
-static bool DEBUG_SANITY  = true;
+static bool DEBUG_SANITY  = false;
 
 // Debug keys across all nodes (uses MPI calls)
 static bool DEBUG_KEYS    = false;
@@ -1148,10 +1148,10 @@ void pHOT::dumpFrontier(std::ostream& out)
 
   timer_diagdbg.start();
 
-  if (myid==0) {
+  if (myid==0) {		// Write output header
     out << "#" << std::endl
 	<< "# Frontier info" << std::endl
-	<< "# id "
+	<< "# id  "
 	<< std::setw(12) << "key"
 	<< std::setw( 8) << "level"
 	<< std::setw(18) << "num"
@@ -1170,7 +1170,7 @@ void pHOT::dumpFrontier(std::ostream& out)
 	<< std::setw(10) << "min(z)"
 	<< std::setw(10) << "max(z)"
 	<< std::endl
-	<< "# [1]"
+	<< "# [1] "
 	<< std::setw(12) << "[2]"
 	<< std::setw( 8) << "[3]"
 	<< std::setw(18) << "[4]"
@@ -1191,6 +1191,9 @@ void pHOT::dumpFrontier(std::ostream& out)
 	<< std::endl;
   }
 
+  // I suppose I could do this with MPI_IO, but that seems like
+  // overkill for gathering debug info . . .
+  //
   for (int n=0; n<numprocs; n++) {
 
     // One line for each cell in the frontier
@@ -1225,13 +1228,13 @@ void pHOT::dumpFrontier(std::ostream& out)
 	totvol  += volume/static_cast<double>(key_type(1u)<<(3*i.second->level));
 #endif
 
-	line << setw( 5) << myid
+	line << setw( 6) << myid
 #ifdef INT128
 	     << setw(12) << i.first.toHex()
 #else
 	     << setw(12) << hex << i.first << dec
 #endif
-	     << setw(8)  << i.second->level
+	     << setw( 8) << i.second->level
 	     << setw(18) << num
 	     << setw(18) << mass
 #ifdef INT128
@@ -1266,7 +1269,8 @@ void pHOT::dumpFrontier(std::ostream& out)
 	for (auto s : output)
 	  MPI_Send(s.c_str(), s.size(), MPI_CHAR, 0, 234, MPI_COMM_WORLD);
       }
-    }
+
+    } // END: myid==n
     
     if (myid==0) {
 
@@ -1278,13 +1282,13 @@ void pHOT::dumpFrontier(std::ostream& out)
 	MPI_Recv(&osize, 1, MPI_UNSIGNED, n, 233, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	
 	for (unsigned k=0; k<osize; k++) {
-	  // Get size of string
-	  MPI_Probe(n, 233, MPI_COMM_WORLD, &status);
+				// Get size of string
+	  MPI_Probe(n, 234, MPI_COMM_WORLD, &status);
 	  MPI_Get_count(&status, MPI_CHAR, &len);
-	  // Receive the string
+				// Receive the string
 	  boost::shared_ptr<char> buf(new char[len]);
 	  MPI_Recv(buf.get(), len, MPI_CHAR, n, 234, MPI_COMM_WORLD, &status);
-	  // Add to output list
+				// Add to output list
 	  output.push_back(std::string(buf.get(), len));
 	}
       }
@@ -1298,20 +1302,21 @@ void pHOT::dumpFrontier(std::ostream& out)
   unsigned sum0=0, cnt0=0;
   double mean0=0.0, disp0=0.0, totmass0=0.0, totvol0=0.0;
 
-  MPI_Reduce(&sum, &sum0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&cnt, &cnt0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&mean, &mean0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&disp, &disp0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&totmass, &totmass0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&totvol, &totvol0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&sum,     &sum0,     1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&cnt,     &cnt0,     1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&mean,    &mean0,    1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&disp,    &disp0,    1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&totmass, &totmass0, 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&totvol,  &totvol0,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
 
   if (myid==0) {
-    out << endl << setw(12) << "Total" << setw(18) << sum0 << endl;
-    out << endl << setw(12) << "Mass" << setw(18) << totmass0 << endl;
-    out << endl << setw(12) << "Volume" << setw(18) << totvol0 << endl;
-    out << setw(12) << "Mean" << setw(18) << mean0/cnt0 << endl;
-    out << setw(12) << "Sigma" << setw(18) 
-	<< sqrt((disp0 - mean0*mean0/cnt0)/cnt0) << endl << endl;
+    out << "#" << endl
+	<< "#" << setw(12) << "Total"  << setw(18) << sum0       << endl
+	<< "#" << setw(12) << "Mass"   << setw(18) << totmass0   << endl
+	<< "#" << setw(12) << "Volume" << setw(18) << totvol0    << endl
+	<< "#" << setw(12) << "Mean"   << setw(18) << mean0/cnt0 << endl
+	<< "#" << setw(12) << "Sigma"  << setw(18) 
+	<< sqrt((disp0 - mean0*mean0/cnt0)/cnt0) << endl << "#" << endl;
   }
 
   timer_diagdbg.stop();
