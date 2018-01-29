@@ -16,17 +16,19 @@
 #include <algorithm>
 #include <cmath>
 
+#include <boost/shared_ptr.hpp>
+
 // Hardwired DEBUGGING statements for pHOT
 // [set all to false for production]
 
 // Chatty debugging statements with minimal CPU overhead
-static bool DEBUG_NOISY   = false;
+static bool DEBUG_NOISY   = true;
 
 // Debugging that checks internal lists
-static bool DEBUG_CHECK   = false;
+static bool DEBUG_CHECK   = true;
 
 // Extra-verbose output with internal checking
-static bool DEBUG_EXTRA   = false;
+static bool DEBUG_EXTRA   = true;
 
 // Extra debugging for the adjustTree algorithm
 static bool DEBUG_ADJUST  = false;
@@ -1191,30 +1193,29 @@ void pHOT::dumpFrontier(std::ostream& out)
 
   for (int n=0; n<numprocs; n++) {
 
+    // One line for each cell in the frontier
     std::vector<std::string> output;
 
     if (n==myid) {
       
-      std::vector<double> pmin(3, DBL_MAX), pmax(3, -DBL_MAX);
-
       for (auto i : frontier) {
+	// The output line for this cell
 	std::ostringstream line;
 
-	vector<double> mpos(3,0.0), vpos(3,0.0);
-	vector<unsigned long>::iterator ib = i.second->bods.begin();
-	double mass = 0.0;
-	unsigned num = 0;
-	while (ib != i.second->bods.end()) {
-	  mass += cc->particles[*ib].mass;
+	std::vector<double> pmin(3, DBL_MAX), pmax(3, -DBL_MAX);
+	std::vector<double> mpos(3,0.0), vpos(3,0.0);
+	unsigned num = i.second->bods.size();
+	double  mass = 0.0;
+
+	for (auto j : i.second->bods) {
+	  mass += cc->particles[j].mass;
 	  for (unsigned k=0; k<3; k++) {
-	    tmp = cc->particles[*ib].pos[k];
+	    tmp = cc->particles[j].pos[k];
 	    mpos[k] += tmp;
 	    vpos[k] += tmp*tmp;
 	    pmin[k]  = std::min<double>(pmin[k], tmp);
 	    pmax[k]  = std::max<double>(pmax[k], tmp);
 	  }
-	  ib++;
-	  num++;
 	}
 	
 	totmass += mass;
@@ -1270,19 +1271,21 @@ void pHOT::dumpFrontier(std::ostream& out)
     if (myid==0) {
 
       if (n != 0) {
+	MPI_Status status;
 	unsigned osize;
+	int len;
+
 	MPI_Recv(&osize, 1, MPI_UNSIGNED, n, 233, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	
-	MPI_Status status;
-	char *buf;
-	int len;
 	for (unsigned k=0; k<osize; k++) {
+	  // Get size of string
 	  MPI_Probe(n, 233, MPI_COMM_WORLD, &status);
 	  MPI_Get_count(&status, MPI_CHAR, &len);
-	  buf = new char[len];
-	  MPI_Recv(buf, len, MPI_CHAR, n, 234, MPI_COMM_WORLD, &status);
-	  output.push_back(std::string(buf, len));
-	  delete [] buf;
+	  // Receive the string
+	  boost::shared_ptr<char> buf(new char[len]);
+	  MPI_Recv(buf.get(), len, MPI_CHAR, n, 234, MPI_COMM_WORLD, &status);
+	  // Add to output list
+	  output.push_back(std::string(buf.get(), len));
 	}
       }
 
