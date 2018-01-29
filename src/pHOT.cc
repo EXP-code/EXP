@@ -1157,10 +1157,16 @@ void pHOT::dumpFrontier(std::ostream& out)
 	<< std::setw(18) << "density"
 	<< std::setw(10) << "pos(x)"
 	<< std::setw(10) << "var(x)"
+	<< std::setw(10) << "min(x)"
+	<< std::setw(10) << "max(x)"
 	<< std::setw(10) << "pos(y)"
 	<< std::setw(10) << "var(y)"
+	<< std::setw(10) << "min(y)"
+	<< std::setw(10) << "max(y)"
 	<< std::setw(10) << "pos(z)"
 	<< std::setw(10) << "var(z)"
+	<< std::setw(10) << "min(z)"
+	<< std::setw(10) << "max(z)"
 	<< std::endl
 	<< "# [1]"
 	<< std::setw(12) << "[2]"
@@ -1174,6 +1180,12 @@ void pHOT::dumpFrontier(std::ostream& out)
 	<< std::setw(10) << "[10]"
 	<< std::setw(10) << "[11]"
 	<< std::setw(10) << "[12]"
+	<< std::setw(10) << "[13]"
+	<< std::setw(10) << "[14]"
+	<< std::setw(10) << "[15]"
+	<< std::setw(10) << "[16]"
+	<< std::setw(10) << "[17]"
+	<< std::setw(10) << "[18]"
 	<< std::endl;
   }
 
@@ -1183,6 +1195,8 @@ void pHOT::dumpFrontier(std::ostream& out)
 
     if (n==myid) {
       
+      std::vector<double> pmin(3, DBL_MAX), pmax(3, -DBL_MAX);
+
       for (auto i : frontier) {
 	std::ostringstream line;
 
@@ -1196,6 +1210,8 @@ void pHOT::dumpFrontier(std::ostream& out)
 	    tmp = cc->particles[*ib].pos[k];
 	    mpos[k] += tmp;
 	    vpos[k] += tmp*tmp;
+	    pmin[k]  = std::min<double>(pmin[k], tmp);
+	    pmax[k]  = std::max<double>(pmax[k], tmp);
 	  }
 	  ib++;
 	  num++;
@@ -1231,11 +1247,13 @@ void pHOT::dumpFrontier(std::ostream& out)
 	    vpos[k] = 0.0;
 
 	  line << setprecision(4) << setw(10) << mpos[k] 
-	       << setprecision(4) << setw(10) << vpos[k];
+	       << setprecision(4) << setw(10) << vpos[k]
+	       << setprecision(4) << setw(10) << pmin[k]
+	       << setprecision(4) << setw(10) << pmax[k];
 	}
 	mean += num;
 	disp += num*num;
-	sum +=  num;
+	sum  += num;
 	cnt++;
 
 	output.push_back(line.str());
