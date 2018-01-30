@@ -15,8 +15,6 @@
 
 class pHOT;
 
-
-
 //! Structure used to sort old & new indices for load balancing
 struct loadb_datum
 {
@@ -223,7 +221,7 @@ private:
   int tidal;
 
   // For exchanging particles
-  ParticleFerry pf;
+  ParticleFerryPtr pf;
 
 protected:
 

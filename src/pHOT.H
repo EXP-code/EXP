@@ -112,7 +112,7 @@ protected:
   bool reset;
   unsigned total_cells;
 
-  ParticleFerry pf;
+  ParticleFerryPtr pf;
 
   //! For debugging
   string debugf;

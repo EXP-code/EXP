@@ -914,22 +914,6 @@ void Component::read_bodies_and_distribute_ascii(void)
       MPI_Abort(MPI_COMM_WORLD, 11);
       exit(-1);
     }
-
-				// Sanity check
-    if (niattrib > nimax) {
-      cerr << "Component: niattrib=" << niattrib << " >  nimax="
-	   << nimax << ".  Change constant in ParticleFerry.H and recompile\n";
-      MPI_Abort(MPI_COMM_WORLD, 11);
-      exit(-1);
-    }
-
-    if (ndattrib > ndmax) {
-      cerr << "Component: ndattrib=" << ndattrib << " >  ndmax="
-	   << ndmax << ".  Change constant in ParticleFerry.H and recompile\n";
-      MPI_Abort(MPI_COMM_WORLD, 11);
-      exit(-1);
-    }
-
   }
 				// Broadcast attributes for this
 				// phase-space component
@@ -955,6 +939,9 @@ void Component::read_bodies_and_distribute_ascii(void)
   is_init = 0;
   initialize();
 
+  // Initialize the particle ferry instance with dynamic attribute sizes
+  pf = ParticleFerryPtr(new ParticleFerry(niattrib, ndattrib));
+
   Particle part(niattrib, ndattrib);
 
   if (myid==0) {
@@ -976,7 +963,7 @@ void Component::read_bodies_and_distribute_ascii(void)
     unsigned icount, ibufcount;
     for (int n=1; n<numprocs; n++) {
 
-      pf.ShipParticles(n, 0, nbodies_table[n]);
+      pf->ShipParticles(n, 0, nbodies_table[n]);
 
       icount = 0;
       ibufcount = 0;
@@ -989,7 +976,7 @@ void Component::read_bodies_and_distribute_ascii(void)
 	for (int k=0; k<3; k++) r2 += part.pos[k]*part.pos[k];
 	rmax1 = max<double>(r2, rmax1);
 
-	pf.SendParticle(part);
+	pf->SendParticle(part);
 	icount++;
 
       }
@@ -998,12 +985,12 @@ void Component::read_bodies_and_distribute_ascii(void)
 
   } else {
 
-    pf.ShipParticles(myid, 0, nbodies);
+    pf->ShipParticles(myid, 0, nbodies);
       
 #ifdef DEBUG
     int icount = 0;
 #endif
-    while (pf.RecvParticle(part)) {
+    while (pf->RecvParticle(part)) {
       particles[part.indx] = part;
 #ifdef DEBUG
       if (icount<5) {
@@ -1093,26 +1080,6 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   if (myid) info = boost::shared_array<char>(new char [ninfochar+1]);
   MPI_Bcast(info.get(), ninfochar, MPI_CHAR, 0, MPI_COMM_WORLD);
 
-
-  if (myid==0) {
-				// Assign particle structure buffer
-				// Sanity check
-    if (niattrib > nimax) {
-      cerr << "Component: niattrib=" << niattrib << " >  nimax="
-	   << nimax << ".  Change constant in ParticleFerry.H and recompile\n";
-      MPI_Abort(MPI_COMM_WORLD, 11);
-      exit(-1);
-    }
-
-    if (ndattrib > ndmax) {
-      cerr << "Component: ndattrib=" << ndattrib << " >  ndmax="
-	   << ndmax << ".  Change constant in ParticleFerry.H and recompile\n";
-      MPI_Abort(MPI_COMM_WORLD, 11);
-      exit(-1);
-    }
-
-  }
-
 				// Parse info field to get 
 				// id and parameter strings
   StringTok<string> tokens(info.get());
@@ -1181,7 +1148,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
       cout << "Component [" << name << "]: loading node <" << n << ">\n";
 
-      pf.ShipParticles(n, 0, nbodies_table[n]);
+      pf->ShipParticles(n, 0, nbodies_table[n]);
 
       icount = 0;
       while (icount < nbodies_table[n]) {
@@ -1195,17 +1162,17 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 	rmax1 = max<double>(r2, rmax1);
 
 	icount++;
-	pf.SendParticle(part);
+	pf->SendParticle(part);
       }
 
     }
 
   } else {
 
-    pf.ShipParticles(myid, 0, nbodies);
+    pf->ShipParticles(myid, 0, nbodies);
       
     int icount = 0;
-    while (pf.RecvParticle(part)) {
+    while (pf->RecvParticle(part)) {
       particles[part.indx] = part;
       icount++;
     }
@@ -1324,10 +1291,10 @@ struct Particle * Component::get_particles(int* number)
       } else {
 	  
 	unsigned number;
-	pf.ShipParticles(0, node, number);
+	pf->ShipParticles(0, node, number);
 
 	icount = 0;
-	while (pf.RecvParticle(part)) pbuf[icount++] = part;
+	while (pf->RecvParticle(part)) pbuf[icount++] = part;
 #ifdef DEBUG
 	cout << "Process " << myid 
 	     << ": received " << icount << " particles from Slave " << node
@@ -1370,7 +1337,8 @@ struct Particle * Component::get_particles(int* number)
       }
 #endif
 
-      pf.ShipParticles(0, myid, icount);
+      pf->ShipParticles(0, myid, icount);
+
 #ifdef DEBUG
       icount = 0;
 #endif
@@ -1392,7 +1360,7 @@ struct Particle * Component::get_particles(int* number)
 	}
 	icount++;
 #endif
-	pf.SendParticle(particles[*icur]);
+	pf->SendParticle(particles[*icur]);
       }
 
 #ifdef DEBUG
@@ -2482,7 +2450,7 @@ void Component::add_particles(int from, int to, vector<int>& plist)
 
   unsigned icount, counter=0;
 
-  pf.ShipParticles(to, from, number);
+  pf->ShipParticles(to, from, number);
 
   if (myid == from) {
     
@@ -2491,7 +2459,7 @@ void Component::add_particles(int from, int to, vector<int>& plist)
       icount = 0;
       while (icount < PFbufsz && counter < number) {
 
-	pf.SendParticle(particles[*it]);
+	pf->SendParticle(particles[*it]);
 	particles.erase(*it);
       
 	icount++;
@@ -2515,7 +2483,7 @@ void Component::add_particles(int from, int to, vector<int>& plist)
 
     while (counter < number) {
 
-      while (pf.RecvParticle(temp)) {
+      while (pf->RecvParticle(temp)) {
 	particles[temp.indx] = temp;
 	counter++;
       }
@@ -2596,15 +2564,16 @@ void Component::redistributeByList(vector<int>& redist)
 	tonode = *(it++);
 				// Next destination?
 	if (tonode != lastnode && icount) {
-	  pf.ShipParticles(tonode, curnode, icount);
+	  pf->ShipParticles(tonode, curnode, icount);
+
 	  if (myid==curnode) {
 	    for (unsigned i=0; i<icount; i++) {
-	      pf.SendParticle(particles[tlist[i]]);
+	      pf->SendParticle(particles[tlist[i]]);
 	      particles.erase(tlist[i]);
 	    }
 	  }
 	  if (myid==lastnode) {
-	    while (pf.RecvParticle(part))
+	    while (pf->RecvParticle(part))
 	      particles[part.indx] = part;
 	  }
 	  tlist.clear();

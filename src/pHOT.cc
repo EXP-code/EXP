@@ -249,6 +249,9 @@ pHOT::pHOT(Component *C, sKeySet spec_list)
   MPI_Type_create_struct(nf, blocklen, disp, type, &CellDiagType);
   MPI_Type_commit(&CellDiagType);
 
+				// Initialize particle ferry
+  pf = ParticleFerryPtr(new ParticleFerry(cc->niattrib, cc->ndattrib));
+
   				// Filename for debugging info
   debugf = outdir + runtag + ".pHOT_debug";
 }
@@ -1601,13 +1604,13 @@ void pHOT::sendCell(key_type key, int to, unsigned num)
 			 << " crazy bodies out of " << num << "]" << std::endl;
   }
 
-  pf.ShipParticles(to, myid, num);
-
+  pf->ShipParticles(to, myid, num);
+  
   key_pair tpair;
   vector<unsigned long>::iterator ib = p->bods.begin();
   for (unsigned j=0; j<num; j++) {
 
-    pf.SendParticle(cc->particles[*ib]);
+    pf->SendParticle(cc->particles[*ib]);
     
 				// Find the record and delete it
     tpair.first  = cc->particles[*ib].key;
@@ -1718,10 +1721,10 @@ void pHOT::recvCell(int from, unsigned num)
 
   pCell *p = root;
 
-  pf.ShipParticles(myid, from, num);
+  pf->ShipParticles(myid, from, num);
 
   for (unsigned j=0; j<num; j++) {
-    pf.RecvParticle(part);
+    pf->RecvParticle(part);
     if (part.indx==0 || part.mass<=0.0 || std::isnan(part.mass)) {
       cout << "[recvCell, myid=" << myid 
 	   << ", will ignore crazy body with indx=" << part.indx 
@@ -2379,21 +2382,30 @@ void pHOT::Repartition(unsigned mlevel)
   //
 
   int ps;
-  vector<Partstruct> psend(Tcnt), precv(Fcnt);
+  size_t bufsiz = pf->getBufsize();
+
+  // Allocate send and receive buffers (bytes)
+  std::vector<char> psend(Tcnt*bufsiz), precv(Fcnt*bufsiz);
 
   timer_convert.start();
   for (int toID=0; toID<numprocs; toID++) {
     ps = sdispls[toID];
     for (unsigned i=0; i<sendcounts[toID]; i++) {
-      pf.Particle_to_part(psend[ps+i], cc->Particles()[bodylist[toID][i]]);
+      pf->particlePack(cc->Particles()[bodylist[toID][i]], &psend[(ps+i)*bufsiz]);
       cc->Particles().erase(bodylist[toID][i]);
     }
   }
   timer_convert.stop();
   timer_xchange.start();
 
-  MPI_Alltoallv(&psend[0], &sendcounts[0], &sdispls[0], pf.Particletype, 
-		&precv[0], &recvcounts[0], &rdispls[0], pf.Particletype, 
+  // Multiply counts and displacements by particle buffer size
+  for (auto & v : sendcounts) v *= bufsiz;
+  for (auto & v : recvcounts) v *= bufsiz;
+  for (auto & v : sdispls   ) v *= bufsiz;
+  for (auto & v : rdispls   ) v *= bufsiz;
+
+  MPI_Alltoallv(&psend[0], &sendcounts[0], &sdispls[0], MPI_CHAR,
+		&precv[0], &recvcounts[0], &rdispls[0], MPI_CHAR,
 		MPI_COMM_WORLD);
 
   timer_xchange.stop();
@@ -2402,7 +2414,7 @@ void pHOT::Repartition(unsigned mlevel)
   if (Fcnt) {
     Particle part;
     for (unsigned i=0; i<Fcnt; i++) {
-      pf.part_to_Particle(precv[i], part);
+      pf->particleUnpack(part, &precv[i*bufsiz]);
       if (part.mass<=0.0 || std::isnan(part.mass)) {
 	cout << "[Repartition, myid=" << myid 
 	     << ": crazy body with indx=" << part.indx 
@@ -3111,8 +3123,8 @@ void pHOT::adjustTree(unsigned mlevel)
 
   Particle part;
   unsigned Tcnt=0, Fcnt, sum;
-  vector<int> sdispls(numprocs), rdispls(numprocs);
-  vector<int> sendcounts(numprocs, 0), recvcounts(numprocs, 0);
+  std::vector<int> sdispls(numprocs), rdispls(numprocs);
+  std::vector<int> sendcounts(numprocs, 0), recvcounts(numprocs, 0);
 
   timer_prepare.start();
   for (unsigned k=0; k<numprocs; k++) {
@@ -3148,13 +3160,16 @@ void pHOT::adjustTree(unsigned mlevel)
     // Exchange particles between processes
     //
     int ps;
-    vector<Partstruct> psend(Tcnt), precv(Fcnt);
+    size_t bufsiz = pf->getBufsize();
+
+    // Allocate send and receive buffers
+    std::vector<char> psend(Tcnt*bufsiz), precv(Fcnt*bufsiz);
     
     timer_convert.start();
     for (int toID=0; toID<numprocs; toID++) {
       ps = sdispls[toID];
       for (unsigned i=0; i<sendcounts[toID]; i++) {
-	pf.Particle_to_part(psend[ps+i], cc->Particles()[exchange[toID][i]]);
+	pf->particlePack(cc->Particles()[exchange[toID][i]], &psend[(ps+i)*bufsiz]);
 	cc->Particles().erase(exchange[toID][i]);
       }
     }
@@ -3162,8 +3177,14 @@ void pHOT::adjustTree(unsigned mlevel)
     
     timer_xchange.start();
     
-    MPI_Alltoallv(&psend[0], &sendcounts[0], &sdispls[0], pf.Particletype, 
-		  &precv[0], &recvcounts[0], &rdispls[0], pf.Particletype, 
+    // Mulitiply counts and displacements by particle buffer size
+    for (auto & v : sendcounts) v *= bufsiz;
+    for (auto & v : recvcounts) v *= bufsiz;
+    for (auto & v : sdispls   ) v *= bufsiz;
+    for (auto & v : rdispls   ) v *= bufsiz;
+
+    MPI_Alltoallv(&psend[0], &sendcounts[0], &sdispls[0], MPI_CHAR,
+		  &precv[0], &recvcounts[0], &rdispls[0], MPI_CHAR,
 		  MPI_COMM_WORLD);
     
     timer_xchange.stop();
@@ -3171,7 +3192,7 @@ void pHOT::adjustTree(unsigned mlevel)
     timer_convert.start();
     
     for (unsigned i=0; i<Fcnt; i++) {
-      pf.part_to_Particle(precv[i], part);
+      pf->particleUnpack(part, &precv[i*bufsiz]);
       if (part.mass<=0.0 || std::isnan(part.mass)) {
 	cout << "[adjustTree, myid=" << myid
 	     << ": crazy body indx=" << part.indx 
@@ -3237,6 +3258,8 @@ void pHOT::adjustTree(unsigned mlevel)
   
   timer_overlap.start();
   
+  size_t bufsiz = pf->getBufsize();
+
   for (int n=0; n<numprocs-1; n++) {
     
     if (n==myid) {
@@ -3269,12 +3292,13 @@ void pHOT::adjustTree(unsigned mlevel)
 	  //
 	  // Receive particles
 	  //
-	  vector<Partstruct> Precv(head_num);
-	  MPI_Recv(&Precv[0], head_num, pf.Particletype, 
+	  std::vector<char> Precv(head_num*bufsiz);
+
+	  MPI_Recv(&Precv[0], head_num*bufsiz, MPI_CHAR,
 		   n+1, 136, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  
+
 	  for (int i=0; i<head_num; i++) {
-	    pf.part_to_Particle(Precv[i], part);
+	    pf->particleUnpack(part, &Precv[i*bufsiz]);
 	    cc->Particles()[part.indx] = part;
 	    key_pair newpair(part.key, part.indx);
 	    keybods.insert(newpair);
@@ -3286,10 +3310,10 @@ void pHOT::adjustTree(unsigned mlevel)
 	  // Send particles
 	  //
 	  unsigned k=0;
-	  vector<Partstruct> Psend(tail_num);
+	  std::vector<char> Psend(tail_num*bufsiz);
 	  vector<unsigned long>::iterator ib;
 	  for (auto b : c->bods) {
-	    pf.Particle_to_part(Psend[k++], cc->Particles()[b]);
+	    pf->particlePack(cc->Particles()[b], &Psend[k++*bufsiz]);
 	    cc->Particles().erase(b);
 	  }
 	  
@@ -3304,7 +3328,7 @@ void pHOT::adjustTree(unsigned mlevel)
 	    change.push_back(cell_indx(c, DELETE));
 	  }
 
-	  MPI_Send(&Psend[0], tail_num, pf.Particletype, 
+	  MPI_Send(&Psend[0], tail_num*bufsiz, MPI_CHAR, 
 		   n+1, 135, MPI_COMM_WORLD);
 	}
       }
@@ -3352,9 +3376,9 @@ void pHOT::adjustTree(unsigned mlevel)
 	  // Send particles
 	  //
 	  unsigned k=0;
-	  vector<Partstruct> Psend(head_num);
+	  std::vector<char> Psend(head_num*bufsiz);
 	  for (auto b : c->bods) {
-	    pf.Particle_to_part(Psend[k++], cc->Particles()[b]);
+	    pf->particlePack(cc->Particles()[b], &Psend[k++*bufsiz]);
 	    cc->Particles().erase(b);
 	  }
 	  
@@ -3369,19 +3393,19 @@ void pHOT::adjustTree(unsigned mlevel)
 	    change.push_back(cell_indx(c, DELETE));
 	  }
 
-	  MPI_Send(&Psend[0], head_num, pf.Particletype, 
+	  MPI_Send(&Psend[0], head_num*bufsiz, MPI_CHAR, 
 		   n, 136, MPI_COMM_WORLD);
 	  
 	} else {		
 	  //
 	  // Receive particles
 	  //
-	  vector<Partstruct> Precv(tail_num);
-	  MPI_Recv(&Precv[0], tail_num, pf.Particletype, 
+	  std::vector<char> Precv(tail_num*bufsiz);
+	  MPI_Recv(&Precv[0], tail_num*bufsiz, MPI_CHAR,
 		   n, 135, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
 	  for (int i=0; i<tail_num; i++) {
-	    pf.part_to_Particle(Precv[i], part);
+	    pf->particleUnpack(part, &Precv[i*bufsiz]);
 	    cc->Particles()[part.indx] = part;
 	    key_pair newpair(part.key, part.indx);
 	    keybods.insert(newpair);
@@ -4541,14 +4565,15 @@ void pHOT::spreadOOB()
 #endif
 
   unsigned ps=0, pr=0;
-  set<indx_type>::iterator ioob;
-  Partstruct *psend=0, *precv=0;
-  vector<MPI_Request> rql;
+  std::set<indx_type>::iterator ioob;
+  size_t bufsiz = pf->getBufsize();
+  char *psend=0, *precv=0;
+  std::vector<MPI_Request> rql;
   MPI_Request r;
   int ierr;
 
-  if (Tcnt) psend = new Partstruct [Tcnt];
-  if (Fcnt) precv = new Partstruct [Fcnt];
+  if (Tcnt) psend = new char [Tcnt*bufsiz];
+  if (Fcnt) precv = new char [Fcnt*bufsiz];
 
   //
   // Exchange particles between processes
@@ -4562,7 +4587,7 @@ void pHOT::spreadOOB()
 	if (To) {
 	  for (unsigned i=0; i<To; i++) {
 	    ioob = oob.begin();
-	    pf.Particle_to_part(psend[ps+i], cc->Particles()[*ioob]);
+	    pf->particlePack(cc->Particles()[*ioob], &psend[(ps+i)*bufsiz]);
 	    cc->Particles().erase(*ioob);
 	    if (oob.find(*ioob) == oob.end())
 	      cerr << "Process " << myid << ": serious error, oob="
@@ -4570,7 +4595,7 @@ void pHOT::spreadOOB()
 	    else oob.erase(ioob);
 	  }
 	  rql.push_back(r);
-	  if ( (ierr=MPI_Isend(&psend[ps], To, pf.Particletype, 
+	  if ( (ierr=MPI_Isend(&psend[ps*bufsiz], To*bufsiz, MPI_CHAR, 
 			       toID, 49, MPI_COMM_WORLD, &rql.back()))
 	       != MPI_SUCCESS) {
 	    cout << "Process " << myid << ": error in spreadOOP sending "
@@ -4586,7 +4611,7 @@ void pHOT::spreadOOB()
 	unsigned From = sendlist[numprocs*frID+toID];
 	if (From) {
 	  rql.push_back(r);
-	  if ( (ierr=MPI_Irecv(&precv[pr], From, pf.Particletype, 
+	  if ( (ierr=MPI_Irecv(&precv[pr*bufsiz], From*bufsiz, MPI_CHAR, 
 			       frID, 49, MPI_COMM_WORLD, &rql.back())) 
 	       != MPI_SUCCESS)
 	    {
@@ -4623,7 +4648,7 @@ void pHOT::spreadOOB()
   if (Fcnt) {
     Particle part;
     for (unsigned i=0; i<Fcnt; i++) {
-      pf.part_to_Particle(precv[i], part);
+      pf->particleUnpack(part, &precv[i*bufsiz]);
       if (part.mass<=0.0 || std::isnan(part.mass)) {
 	cout << "[spreadOOB, myid=" << myid 
 	     << ", crazy body with indx=" << part.indx 
