@@ -1473,7 +1473,7 @@ main (int ac, char **av)
 
       if (row.second.count("logN")) {
 	if (i==1) fH = row.second.get<double>("logN");
-	double wgt = pow(10.0, row.second.get<double>("logN") - fH)/PT[i]->weight();
+	double wgt = pow(10.0, row.second.get<double>("logN") - fH)*PT[i]->weight();
 	sF.push_back(wgt);
 	norm += sF.back();
       } else if (row.second.count("mfrac")) {
