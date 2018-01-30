@@ -7416,8 +7416,8 @@ void CollideIon::secondaryScatter(Particle *p)
   if (aType == Trace) {
     for (auto s : SpList) {
       speciesKey k = s.first;
-      double     P = k.secnd - 1;
-      W2 += p->dattrib[s.second]/atomic_weights[s.first] * P;
+      double     P = k.second - 1;
+      W2 += p->dattrib[s.second]/atomic_weights[k.first] * P;
     }
   } else {
     for (unsigned short C=0; C<=Z; C++) W2 += p->dattrib[spc_pos + C] * C;
