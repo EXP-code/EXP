@@ -37,6 +37,7 @@ namespace po = boost::program_options;
 #include "Particle.H"
 #include "globalInit.H"
 #include "Species.H"
+#include "atomic_constants.H"
 
 //
 // Boost random types
@@ -60,26 +61,14 @@ char threading_on = 0;
 int myid = 0;
 pthread_mutex_t mem_lock;
 
-//
-// Physical constants
-//
-double a0    = 5.2917721092e-9;	    // cm (2xBohr radius)
-double boltz = 1.3806488e-16;	    // cgs
-double mp    = 1.67262178e-24;	    // g
-double amu   = 1.660011e-24;	    // atomic mass unit
-double pc    = 3.08567758e18;	    // Parsec (in cm)
-double msun  = 1.9891e33;	    // Solar mass (in g)
-double year  = 365.242*24.0*3600.0; // seconds per year
-
-std::string atomic_specie[3] = {"electron",     "H",     "He"    };
-double      atomic_masses[3] = {0.000548579909, 1.00794, 4.002602};
-
 double Lunit;
 double Tunit;
 double Vunit;
 double Munit;
 
 std::vector<double> LL;
+
+PeriodicTable PT;
 
 //
 // boost RNGs
@@ -125,7 +114,7 @@ void InitializeUniform(std::vector<Particle>& p, std::vector<double>& mass, doub
   } else if (T.size()>1) {
     for (auto v : T[0]) {
       std::ostringstream sout;
-      sout << "Temp " << atomic_specie[v.first] << ":";
+      sout << "Temp " << PT[v.first]->name() << ":";
       std::cout << std::left << std::setw(13) << sout.str() << v.second
 		<< " K "   << std::endl;
     }
@@ -155,11 +144,11 @@ void InitializeUniform(std::vector<Particle>& p, std::vector<double>& mass, doub
   for (auto v : T[0]) {
     unsigned char Z = v.first;
     if (Z>0) {
-      varI[Z] = sqrt((boltz*T[0][Z])/(atomic_masses[Z]*amu)) / Vunit; // Ion
-      varE[Z] = sqrt((boltz*T[0][Z])/(atomic_masses[0]*amu)) / Vunit; // Electron
+      varI[Z] = sqrt((boltz*T[0][Z])/(PT[Z]->weight()*amu)) / Vunit; // Ion
+      varE[Z] = sqrt((boltz*T[0][Z])/(PT[0]->weight()*amu)) / Vunit; // Electron
     } else {
-      varI[Z] = sqrt((boltz*T[0][0])/(molW*amu))             / Vunit; // Fiducial particle
-      varE[Z] = sqrt((boltz*T[0][1])/(atomic_masses[0]*amu)) / Vunit; // Electrons
+      varI[Z] = sqrt((boltz*T[0][0])/(molW*amu))            / Vunit; // Fiducial particle
+      varE[Z] = sqrt((boltz*T[0][1])/(PT[0]->weight()*amu)) / Vunit; // Electrons
     }
   }
   
@@ -240,7 +229,7 @@ void InitializeInterface(std::vector<Particle>& p,
     } else if (T[wh].size()>1) {
       for (auto v : T[wh]) {
 	std::ostringstream sout;
-      sout << "     Temp " << atomic_specie[v.first] << ":";
+	sout << "     Temp " << PT[v.first]->name() << ":";
       std::cout << std::left << std::setw(13) << sout.str() << v.second
 		<< " K "   << std::endl;
       }
@@ -275,11 +264,11 @@ void InitializeInterface(std::vector<Particle>& p,
 	if (v.first==0)		// Ion
 	  varI[wh][0] = sqrt((boltz*v.second)/(molW*amu))             / Vunit;
 	else			// Electron
-	  varE[wh][0] = sqrt((boltz*v.second)/(atomic_masses[0]*amu)) / Vunit;
+	  varE[wh][0] = sqrt((boltz*v.second)/(PT[0]->weight()*amu)) / Vunit;
       } else {
 	unsigned char Z = v.first;
-	varI[wh][Z] = sqrt((boltz*T[wh][Z])/(atomic_masses[Z]*amu)) / Vunit; // Ion
-	varE[wh][Z] = sqrt((boltz*T[wh][Z])/(atomic_masses[0]*amu)) / Vunit; // Electron
+	varI[wh][Z] = sqrt((boltz*T[wh][Z])/(PT[Z]->weight()*amu)) / Vunit; // Ion
+	varE[wh][Z] = sqrt((boltz*T[wh][Z])/(PT[0]->weight()*amu)) / Vunit; // Electron
       } 
     }
   }
@@ -445,7 +434,7 @@ void writeParticles(std::vector<Particle>& particles, const string& file, Itype 
 		  << std::setw(16) << std::get<0>(i.second)
 		  << std::setw(16) << std::get<0>(i.second)/Mtot
 		  << std::setw(12) << std::get<1>(i.second)
-		  << std::setw(16) << std::get<0>(i.second)*Munit/(atomic_masses[i.first.first]*mp*vol)
+		  << std::setw(16) << std::get<0>(i.second)*Munit/(PT[i.first.first]->weight()*mp*vol)
 		  << std::endl;
     }
     
@@ -595,7 +584,7 @@ void InitializeSpeciesDirect
   std::vector<double> frcS(NS), cumS(NS);
   for (size_t i=0; i<NS; i++) {
     sF[i]  /= norm;
-    frcS[i] = sF[i]/atomic_masses[sZ[i]];
+    frcS[i] = sF[i]/PT[sZ[i]]->weight();
     cumS[i] = frcS[i] + (i ? cumS[i-1] : 0);
   }
   
@@ -635,7 +624,7 @@ void InitializeSpeciesDirect
       }
     }
     
-    particles[i].mass  = M[0]/N * atomic_masses[sZ[indx]] * normC;
+    particles[i].mass  = M[0]/N * PT[sZ[indx]]->weight() * normC;
     
     KeyConvert kc(speciesKey(Zi, Ci));
     particles[i].iattrib[0] = kc.getInt();
@@ -657,15 +646,15 @@ void InitializeSpeciesDirect
 
     // Electron KE
     //
-    tKEe += 0.5 * particles[i].mass * atomic_masses[0]/atomic_masses[Zi] * KEe * Eunit;
+    tKEe += 0.5 * particles[i].mass * PT[0]->weight()/PT[Zi]->weight() * KEe * Eunit;
 
     // Ion number
     //
-    numbI += particles[i].mass/atomic_masses[Zi] * Munit / amu;
+    numbI += particles[i].mass/PT[Zi]->weight() * Munit / amu;
 
     // Electron number
     //
-    numbE += particles[i].mass/atomic_masses[Zi] * Munit / amu * Ci;
+    numbE += particles[i].mass/PT[Zi]->weight() * Munit / amu * Ci;
   }
   
   std::cout << "T (ion):     " << tKEi/(1.5*numbI*boltz) << std::endl
@@ -834,7 +823,7 @@ void InitializeSpeciesWeight
   
   wght[0] = W_H;
   for (size_t i=1; i<NS; i++)
-    wght[i] = frcS[i]/atomic_masses[sZ[i]];
+    wght[i] = frcS[i]/PT[sZ[i]]->weight();
   
   boost::random::uniform_int_distribution<> dist(0, NS-1);
   unid_var unifd(*gen, dist);
@@ -1035,7 +1024,7 @@ void InitializeSpeciesHybrid
   
   wght[0] = W_H;
   for (size_t i=1; i<NS; i++)
-    wght[i] = frcS[i]/atomic_masses[sZ[i]];
+    wght[i] = frcS[i]/PT[sZ[i]]->weight();
   
   boost::random::uniform_int_distribution<> dist(0, NS-1);
   unid_var unifd(*gen, dist);
@@ -1472,6 +1461,8 @@ main (int ac, char **av)
       T.resize(1);
     }
 
+    double fH = 0.0;
+
     for (pt::ptree::value_type &row : iroot.get_child("elements")) {
     
       std::istringstream sin(row.first);
@@ -1479,8 +1470,20 @@ main (int ac, char **av)
       sin >> i;
     
       sZ.push_back(i);
-      sF.push_back(row.second.get<double>("mfrac"));
-      norm += sF.back();
+
+      if (row.second.count("logN")) {
+	if (i==1) fH = row.second.get<double>("logN");
+	double wgt = pow(10.0, row.second.get<double>("logN") - fH)/PT[i]->weight();
+	sF.push_back(wgt);
+	norm += sF.back();
+      } else if (row.second.count("mfrac")) {
+	sF.push_back(row.second.get<double>("mfrac"));
+	norm += sF.back();
+      } else {
+	std::cerr << "Missing element definition for atomic number " << i
+		  << std::endl;
+	exit(-3);
+      }
       if (type!=Trace) T[0][i] = row.second.get<double>("temp");
     }
 
@@ -1603,7 +1606,7 @@ main (int ac, char **av)
     InitializeSpeciesTrace (particles, sZ, sF, Mass, T, LL, model, sp, ne);
     // Compute molecular weight
     molW = 0.0;
-    for (size_t k=0; k<sZ.size(); k++) molW += sF[k]/atomic_masses[sZ[k]];
+    for (size_t k=0; k<sZ.size(); k++) molW += sF[k]/PT[sZ[k]]->weight();
     molW = 1.0/molW;
     break;
   case Direct:

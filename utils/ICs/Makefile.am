@@ -58,7 +58,8 @@ empinfo_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 empdump_SOURCES = empdump.cc EmpOrth9thd.cc localmpi.cc
 empdump_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
-makeIon_SOURCES = makeIonIC.cc Particle.cc Particle.H Species.H
+makeIon_SOURCES = makeIonIC.cc Particle.cc Particle.H Species.H	\
+	atomic_constants.H atomic_constants.cc
 makeIon_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
 makeIon_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(BOOST_LIBS)	\
 	$(LIBS) $(FLIBS)
@@ -102,6 +103,12 @@ Particle.H:		$(top_srcdir)/src/Particle.H
 
 Species.H:		$(top_srcdir)/src/Species.H
 			cp $(top_srcdir)/src/$@ .
+
+atomic_constants.cc:	$(top_srcdir)/src/user/atomic_constants.cc atomic_constants.H
+			cp $(top_srcdir)/src/user/$@ .
+
+atomic_constants.H:	$(top_srcdir)/src/user/atomic_constants.H
+			cp $(top_srcdir)/src/user/$@ .
 
 
 CLEANFILES = EmpOrth9thd.cc localmpi.cc CylindricalDisk.cc	\
