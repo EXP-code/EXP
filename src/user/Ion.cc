@@ -73,6 +73,10 @@ double Ion::EminGrid         = 0.05; // eV
 double Ion::EmaxGrid         = 50.0; // eV
 double Ion::DeltaEGrid       = 0.1;  // eV
 
+// Chianti element list
+std::map<unsigned short, std::string> chElems {{1, "h"}, {2, "he"}, {3, "li"}, {4, "be"}, {5, "b"}, {6, "c"}, {7, "n"}, {8, "o"}, {9, "f"}, {10, "ne"}, {11, "na"}, {12, "mg"}, {13, "al"}, {14, "si"}, {15, "p"}, {16, "s"}, {17, "cl"}, {18, "ar"}, {19, "k"}, {20, "ca"}, {21, "sc"}, {22, "ti"}, {23, "v"}, {24, "cr"}, {25, "mn"}, {26, "fe"}, {27, "co"},	{28, "ni"}, {29, "cu"}, {30, "zn"} };
+
+
 //
 // Convert the master element name to a (Z, C) pair
 //
@@ -117,12 +121,58 @@ void Ion::convertName()
 //
 // Convert a given Z,C pair into a master name string
 //
-std::string ZCtoName(unsigned char Z, unsigned char C) 
+std::string Ion::ZCtoName(unsigned char Z, unsigned char C) 
 {
   std::stringstream ss;
   ss << eleNameList[Z-1] << "_" << static_cast<unsigned>(C);
   return ss.str();
 }
+
+Ion::cFile Ion::chiantiFile(std::string suffix)
+{
+  std::pair<unsigned char, std::string> ret {0, ""};
+
+  if (myid==0) {
+
+    static bool first = true;
+    static char * val;
+
+    if (first) {
+      if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
+	std::cout << "Could not find CHIANTI_DATA environment variable"
+		  << " . . . exiting" << std::endl;
+	ret.first = 2;
+      }
+    }
+
+    if (ret.first == 0) {
+
+      std::string MasterNameT = ZCtoName(Z, C);
+
+      std::string fileName(val);
+
+      fileName.append("/");
+      fileName.append(eleName); 
+      fileName.append("/");
+      fileName.append(MasterName); 
+      fileName.append("/"); 
+      fileName.append(MasterName);
+      fileName.append("." + suffix);
+      
+      std::string inLine;
+      std::ifstream file(fileName.c_str());
+      
+      if (file.is_open()) {
+	ret.second = fileName;
+      } else {
+	ret.first = 1;
+      }
+    }
+  }
+
+  return ret;
+}
+
 
 /** 
     Functions to read in the elvlc and wgfa files if they are found
@@ -134,31 +184,18 @@ std::string ZCtoName(unsigned char Z, unsigned char C)
 void Ion::readelvlc() 
 {
   unsigned char nOK = 0;
-
+  
   if (myid==0) {
 
-    char * val;
-    if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
-      std::cout << "Could not find CHIANTI_DATA environment variable"
-		<< " . . . exiting" << std::endl;
-      nOK = 1;
-    }
+    cFile ret = chiantiFile(".elvlc");
+    
+    nOK = ret.first;
 
     if (nOK == 0) {
 
-      std::string fileName(val);
-
-      fileName.append("/");
-      fileName.append(eleName); 
-      fileName.append("/");
-      fileName.append(MasterName); 
-      fileName.append("/"); 
-      fileName.append(MasterName);
-      fileName.append(".elvlc");
-      
-      std::string inLine;
       elvlc_data e;
-      ifstream elvlcFile(fileName.c_str());
+      std::string inLine;
+      std::ifstream elvlcFile(ret.second);
       
       if (elvlcFile.is_open()) {
 
@@ -190,8 +227,10 @@ void Ion::readelvlc()
 	elvlcFile.close();
       }
       else {
-	std::cout << "Cannot find file: " << fileName << std::endl;
-	nOK = 1;
+	if (nOK==1)
+	  std::cout << "Cannot find file: " << ret.second << std::endl;
+	if (nOK==2)
+	  std::cout << "Cannot find CHIANTI database"     << std::endl;
       }
     }
   }
@@ -230,28 +269,16 @@ void Ion::readwgfa()
 
   if (myid==0) {
 
-    char * val;
-    if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
-      std::cout << "Could not find CHIANTI_DATA environment variable"
-		<< " . . . exiting" << std::endl;
-      nOK = 1;
-    }
+    cFile ret = chiantiFile(".wgfa");
+    
+    nOK = ret.first;
 
     if (nOK == 0) {
 
-      std::string fileName(val);
-
-      fileName.append("/");
-      fileName.append(eleName); 
-      fileName.append("/");
-      fileName.append(MasterName); 
-      fileName.append("/"); 
-      fileName.append(MasterName);
-      fileName.append(".wgfa");
-    
       std::string inLine;
       wgfa_data w;
-      ifstream wgfaFile(fileName.c_str());
+
+      std::ifstream wgfaFile(ret.second);
       
       if (wgfaFile.is_open()) {
 	
@@ -279,8 +306,10 @@ void Ion::readwgfa()
 	wgfaFile.close();
       }
       else {
-	std::cout << "Cannot find file: " << fileName << std::endl;
-	nOK = 1;
+	if (nOK==1)
+	  std::cout << "Cannot find file: " << ret.second << std::endl;
+	else
+	  std::cout << "Cannot find CHIANTI database"     << std::endl;
       }
     }
   }
@@ -319,29 +348,14 @@ void Ion::readfblvl()
 
   if (myid==0) {
 
-    std::string MasterNameT = ZCtoName(Z, C);
-
-    char * val;
-    if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
-      std::cout << "Could not find CHIANTI_DATA environment variable"
-		<< " . . . exiting" << std::endl;
-      nOK = 1;
-    }
+    cFile ret = chiantiFile(".fblvl");
+    
+    nOK = ret.first;
 
     if (nOK == 0) {
-
-      std::string fileName(val);
-    
-      fileName.append("/");
-      fileName.append(eleName); 
-      fileName.append("/");
-      fileName.append(MasterNameT); 
-      fileName.append("/"); 
-      fileName.append(MasterNameT);
-      fileName.append(".fblvl");
   
       std::string inLine;
-      ifstream fblvlFile(fileName.c_str());
+      std::ifstream fblvlFile(ret.second);
     
       fblvl_data f;
       if (fblvlFile.is_open()) {
@@ -371,8 +385,10 @@ void Ion::readfblvl()
 	fblvlFile.close();
       }
       else {
-	std::cout << "Cannot find file: " << fileName << std::endl;
-	nOK = 1;
+	if (nOK==1)
+	  std::cout << "Cannot find file: " << ret.second << std::endl;
+	else
+	  std::cout << "Cannot find CHIANTI database"     << std::endl;
       }
     }
   }
@@ -409,29 +425,16 @@ void Ion::readSplups()
 
   if (myid==0) {
 
-    char * val;
-    if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
-      std::cout << "Could not find CHIANTI_DATA environment variable"
-		<< " . . . exiting" << std::endl;
-      nOK = 1;
-    }
+    cFile ret = chiantiFile(".splups");
+    
+    nOK = ret.first;
 
     if (nOK == 0) {
 
-      std::string fileName(val);
-    
-      fileName.append("/");
-      fileName.append(eleName); 
-      fileName.append("/");
-      fileName.append(MasterName); 
-      fileName.append("/"); 
-      fileName.append(MasterName);
-      fileName.append(".splups");
-      
       std::string inLine;
       splups_data s;
 
-      ifstream sFile(fileName.c_str());
+      std::ifstream sFile(ret.second);
 
       if (sFile.is_open()) {
 
@@ -466,8 +469,10 @@ void Ion::readSplups()
 	sFile.close();
       }
       else {
-	std::cout << "Cannot find file: " << fileName << std::endl;
-	nOK = 1;
+	if (nOK==1)
+	  std::cout << "Cannot find file: " << ret.second << std::endl;
+	else
+	  std::cout << "Cannot find CHIANTI database"     << std::endl;
       }
     }
   }
@@ -504,28 +509,15 @@ void Ion::readDi()
 
   if (myid==0) {
 
-    char * val;
-    if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
-      std::cout << "Could not find CHIANTI_DATA environment variable"
-		<< " . . . exiting" << std::endl;
-      nOK = 1;
-    }
+    cFile ret = chiantiFile(".diparams");
+    
+    nOK = ret.first;
 
     if (nOK == 0) {
 
-      std::string fileName(val);
-
-      fileName.append("/");
-      fileName.append(eleName); 
-      fileName.append("/");
-      fileName.append(MasterName); 
-      fileName.append("/"); 
-      fileName.append(MasterName);
-      fileName.append(".diparams");
-  
       std::string inLine;
       di_data s;
-      ifstream sFile(fileName.c_str());
+      ifstream sFile(ret.second);
       int i = 0;
       int i_fac = 0;
       if (sFile.is_open()) {
@@ -570,8 +562,10 @@ void Ion::readDi()
 	sFile.close();
       }
       else {
-	std::cout << "Cannot find file: " << fileName << std::endl;
-	nOK = 1;
+	if (nOK==1)
+	  std::cout << "Cannot find file: " << ret.second << std::endl;
+	else
+	  std::cout << "Cannot find CHIANTI database"     << std::endl;
       }
     }
   }
@@ -697,6 +691,58 @@ Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
     } else {
       std::cerr << "MasterName [" << MasterName << "] not in master list" 
 		<< std::endl;
+      std::cerr << "Attempting to read fblvl and diparams files";
+
+      std::string MasterNameT = ZCtoName(Z, C);
+
+      char * val = getenv("CHIANTI_DATA");
+
+      {
+	std::string fileName(val);
+    
+	fileName.append("/");
+	fileName.append(eleName); 
+	fileName.append("/");
+	fileName.append(MasterNameT); 
+	fileName.append("/"); 
+	fileName.append(MasterNameT);
+	fileName.append(".fblvl");
+	
+	std::string inLine;
+	ifstream file(fileName.c_str());
+	
+	if (file.is_open()) {
+	  file.close();
+	  std::cerr << "...fblvl ok";
+	  readfblvl();
+	} else {
+	  std::cerr << "...no fblvl";
+	}
+      }
+
+      {
+	std::string fileName(val);
+    
+	fileName.append("/");
+	fileName.append(eleName); 
+	fileName.append("/");
+	fileName.append(MasterNameT); 
+	fileName.append("/"); 
+	fileName.append(MasterNameT);
+	fileName.append(".diparams");
+	
+	std::string inLine;
+	ifstream file(fileName.c_str());
+	
+	if (file.is_open()) {
+	  file.close();
+	  std::cerr << "...diparams ok";
+	  readDi();
+	} else {
+	  std::cerr << "...no diparams";
+	}
+      }
+      cerr << std::endl;
     }
   }
   

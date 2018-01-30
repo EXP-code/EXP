@@ -432,6 +432,17 @@ protected:
   void radRecombMakeEvGrid(int id);
   //@}
 
+  //! Return Chianti dir name from element indices
+  std::string ZCtoName(unsigned char Z, unsigned char C);
+
+  //@{
+  //! Chianti file return structure: status and file name
+  typedef std::pair<unsigned char, std::string> cFile;
+
+  //! Return location of Chianti data file and existence status
+  cFile chiantiFile(std::string suffix);
+  //@}
+
 public:
 
   //@{
