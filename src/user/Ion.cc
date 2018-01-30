@@ -16,6 +16,7 @@
 #include "interactSelect.H"
 
 // For setting cross-section type (c++-11 initialization style)
+//
 Ion::RR_Map Ion::rr_map = {
   { "Mewe",    Ion::mewe    },
   { "TopBase", Ion::topbase },
@@ -25,6 +26,7 @@ Ion::RR_Map Ion::rr_map = {
 };
 
 // For printing cross-section type (c++-11 initialization style)
+//
 Ion::RR_Lab Ion::rr_lab = {
     { Ion::mewe,    "Mewe",   },
     { Ion::topbase, "TopBase" },
@@ -36,12 +38,14 @@ Ion::RR_Lab Ion::rr_lab = {
 Ion::RR_Type Ion::rr_type = Ion::mewe;
 
 // For setting ionization background type (c++-11 initialization style)
+//
 Ion::IB_Map Ion::ib_map = {
   { "None",    Ion::none    },
   { "uvIGM",   Ion::uvIGM   }
 };
 
 // For printing ionization background type (c++-11 initialization style)
+//
 Ion::IB_Lab Ion::ib_lab = {
     { Ion::none,    "None",   },
     { Ion::uvIGM,   "uvIGM"   }
@@ -53,20 +57,24 @@ bool Ion::use_VFKY = true;
 bool Ion::gs_only  = true;
 
 // Free-free grid
+//
 double Ion::kmin    = -10.0;
 double Ion::kmax    =   4.0;
 double Ion::kdel    =   0.05;
 
 // Photo-ionization grid
+//
 double Ion::numin   = 1.0;
 double Ion::numax   = 3.0;
 double Ion::nudel   = 0.05;
 
 // Ionization background
+//
 double Ion::HandM_coef  = 1.5e-22;
 double Ion::HandM_expon = -0.5;
 
 // Energy grids (in eV)
+//
 bool   Ion::useFreeFreeGrid  = true;
 bool   Ion::useRadRecombGrid = true;
 double Ion::EminGrid         = 0.05; // eV
@@ -74,6 +82,7 @@ double Ion::EmaxGrid         = 50.0; // eV
 double Ion::DeltaEGrid       = 0.1;  // eV
 
 // Chianti element list
+//
 std::map<unsigned short, std::string> chElems {{1, "h"}, {2, "he"}, {3, "li"}, {4, "be"}, {5, "b"}, {6, "c"}, {7, "n"}, {8, "o"}, {9, "f"}, {10, "ne"}, {11, "na"}, {12, "mg"}, {13, "al"}, {14, "si"}, {15, "p"}, {16, "s"}, {17, "cl"}, {18, "ar"}, {19, "k"}, {20, "ca"}, {21, "sc"}, {22, "ti"}, {23, "v"}, {24, "cr"}, {25, "mn"}, {26, "fe"}, {27, "co"},	{28, "ni"}, {29, "cu"}, {30, "zn"} };
 
 
@@ -187,7 +196,7 @@ void Ion::readelvlc()
   
   if (myid==0) {
 
-    cFile ret = chiantiFile(".elvlc");
+    cFile ret = chiantiFile("elvlc");
     
     nOK = ret.first;
 
@@ -269,7 +278,7 @@ void Ion::readwgfa()
 
   if (myid==0) {
 
-    cFile ret = chiantiFile(".wgfa");
+    cFile ret = chiantiFile("wgfa");
     
     nOK = ret.first;
 
@@ -348,7 +357,7 @@ void Ion::readfblvl()
 
   if (myid==0) {
 
-    cFile ret = chiantiFile(".fblvl");
+    cFile ret = chiantiFile("fblvl");
     
     nOK = ret.first;
 
@@ -393,6 +402,7 @@ void Ion::readfblvl()
     }
   }
 
+  MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
   if (nOK) MPI_Abort(MPI_COMM_WORLD, 44);
 
   unsigned number = fblvl.size();
@@ -425,7 +435,7 @@ void Ion::readSplups()
 
   if (myid==0) {
 
-    cFile ret = chiantiFile(".splups");
+    cFile ret = chiantiFile("splups");
     
     nOK = ret.first;
 
@@ -509,7 +519,7 @@ void Ion::readDi()
 
   if (myid==0) {
 
-    cFile ret = chiantiFile(".diparams");
+    cFile ret = chiantiFile("diparams");
     
     nOK = ret.first;
 
