@@ -6,6 +6,7 @@
 //
 PeriodicTable::PeriodicTable()
 {
+  add("electron",	 "e",      0,      0.005485799098);
   add("Hydrogen",        "H",      1,      1.008);
   add("Helium",          "He",     2,   4.002602);
   add("Lithium",         "Li",     3,       6.94);
