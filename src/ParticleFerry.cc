@@ -7,6 +7,8 @@
 
 // #define DEBUG
 
+// Compute size of buffer needed for a Particle structure
+//
 void ParticleFerry::particleBufInit()
 {
   bufsiz = 0;
@@ -90,6 +92,8 @@ void ParticleFerry::particleBufInit()
 #endif
 }
 
+// Pack a particle into the buffer.  Buffer is supplied by caller.
+//
 void ParticleFerry::particlePack(const Particle& in, char* buffer)
 {
   size_t pos = 0;
@@ -190,6 +194,9 @@ void ParticleFerry::particlePack(const Particle& in, char* buffer)
   }
 }
 
+// Unpack the buffer into the supplied particle.  Buffer is supplied
+// by caller.
+//
 void ParticleFerry::particleUnpack(Particle& out, char* buffer)
 {
   size_t pos = 0;
@@ -293,16 +300,23 @@ void ParticleFerry::particleUnpack(Particle& out, char* buffer)
 
 }
 
+// Constructor
+//
 ParticleFerry::ParticleFerry(int nimax, int ndmax) : nimax(nimax), ndmax(ndmax)
 {
-				// Determine size of buffer for a single particle
+				// Determine size of buffer for a
+				// single particle
   particleBufInit();
-				// Allocate internal buffer
+				// Allocate internal buffer for
+				// default particle ferry methods
   buf.resize(PFbufsz*bufsiz);
 
   bufpos    = 0;
   ibufcount = 0;
 
+
+				// These are for key value sanity
+				// checks
   pk_lo = 1u << (3*pkbits);
   pk_hi = 1u << (3*pkbits+1);
 
@@ -313,10 +327,16 @@ ParticleFerry::ParticleFerry(int nimax, int ndmax) : nimax(nimax), ndmax(ndmax)
 
 }
 
+// Destructor
+//
 ParticleFerry::~ParticleFerry()
 {
+  // Does nothing
 }
 
+// Set up for sending <total> number of Particles to node <to> from
+// node <from>
+//
 void ParticleFerry::ShipParticles(unsigned to, unsigned from, unsigned& total)
 {
   MPI_Status status;
