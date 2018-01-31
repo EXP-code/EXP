@@ -361,30 +361,6 @@ void ParticleFerry::ShipParticles(unsigned to, unsigned from, unsigned& total)
   }
 }
 
-#ifdef I128
-void ParticleFerry::SendParticle(Particle& ptc, unsigned seq, uint128 key)
-#else
-void ParticleFerry::SendParticle(Particle& ptc, unsigned seq, unsigned long key)
-#endif
-{
-  // Add particle to buffer
-  //
-  particlePack(ptc, &buf[bufpos]);
-  memcpy(&buf[bufpos+idxpos], &seq, sizeof(unsigned));
-#ifdef I128
-  memcpy(&buf[bufpos+keypos], &key, sizeof(uint128));
-#else
-  memcpy(&buf[bufpos+keypos], &key, sizeof(unsigned long));
-#endif
-
-  // If buffer is full, send the buffer and reset
-  //
-  bufpos += bufsiz;
-  ibufcount++;
-  itotcount++;
-  if (ibufcount == PFbufsz || itotcount == _total) BufferSend();
-}
-
 void ParticleFerry::SendParticle(Particle& part)
 {
   // Add particle to buffer
@@ -397,26 +373,6 @@ void ParticleFerry::SendParticle(Particle& part)
   // If buffer is full, send the buffer and reset
   //
   if (ibufcount == PFbufsz || itotcount == _total) BufferSend();
-}
-
-#ifdef I128
-bool ParticleFerry::RecvParticle(Particle& ptc, unsigned& seq, uint128& key)
-#else
-bool ParticleFerry::RecvParticle(Particle& ptc, unsigned& seq, unsigned long& key)
-#endif
-{
-  if (itotcount++ == _total) return false;
-
-  if (ibufcount==0) BufferRecv();
-
-  particleUnpack(ptc, &buf[bufpos]);
-  seq = ptc.indx;
-  key = ptc.key;
-
-  ibufcount--;
-  bufpos -= bufsiz;
-
-  return true;
 }
 
 bool ParticleFerry::RecvParticle(Particle& part)

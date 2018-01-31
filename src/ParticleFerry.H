@@ -45,26 +45,18 @@ public:
   //! Destructor
   ~ParticleFerry();
 
-  //! Pack particle into buffer
+  //! Pack particle into buffer.  Caller provides buffer.
   void particlePack(const Particle& in, char* buffer);
 
-  //! Unpack buffer into particle
+  //! Unpack buffer into particle.  Caller provides buffer.
   void particleUnpack(Particle& out, char* buffer);
 
   //! Send message to receiver: get ready for bulk shipment of particles
   void ShipParticles(unsigned to, unsigned from, unsigned& total);
 
   //@{
-  //! Send and receive particles.  User must maintain the buffer
-#ifdef I128
-  void SendParticle(Particle& part, unsigned seq,  uint128  key);
-
-  bool RecvParticle(Particle& part, unsigned& seq, uint128& key);
-#else
-  void SendParticle(Particle& part, unsigned seq,  unsigned long  key);
-
-  bool RecvParticle(Particle& part, unsigned& seq, unsigned long& key);
-#endif
+  //! Send and receive particles.  Uses ParticleFerry internally
+  //! maintained buffer
 
   void SendParticle(Particle& part);
 
