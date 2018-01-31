@@ -7,7 +7,7 @@
 #include "ParticleFerry.H"
 #include "pHOT.H"
 
-#define DEBUG
+// #define DEBUG
 
 void ParticleFerry::particleBufInit()
 {

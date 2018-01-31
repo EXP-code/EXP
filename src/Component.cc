@@ -939,8 +939,10 @@ void Component::read_bodies_and_distribute_ascii(void)
   is_init = 0;
   initialize();
 
-  // Initialize the particle ferry instance with dynamic attribute sizes
-  pf = ParticleFerryPtr(new ParticleFerry(niattrib, ndattrib));
+				// Initialize the particle ferry
+				// instance with dynamic attribute
+				// sizes
+  if (not pf) pf = ParticleFerryPtr(new ParticleFerry(niattrib, ndattrib));
 
   Particle part(niattrib, ndattrib);
 
@@ -1116,8 +1118,13 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   is_init = 0;
   initialize();
 
-				// Form cumulative and differential bodies list
-  
+				// Initialize the particle ferry
+				// instance with dynamic attribute
+				// sizes
+  if (not pf) pf = ParticleFerryPtr(new ParticleFerry(niattrib, ndattrib));
+
+				// Form cumulative and differential
+				// bodies list
   Particle part(niattrib, ndattrib);
 
   unsigned int ipart=0;
@@ -2532,6 +2539,10 @@ double Component::Adiabatic()
 
 void Component::redistributeByList(vector<int>& redist)
 {
+  // Initialize the particle ferry instance with dynamic attribute sizes
+  if (not pf) pf = ParticleFerryPtr(new ParticleFerry(niattrib, ndattrib));
+
+
   Particle part(niattrib, ndattrib);
 
   vector<int>::iterator it = redist.begin();
