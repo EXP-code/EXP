@@ -9,6 +9,8 @@
 
 // #define DEBUG
 
+// Compute size of buffer needed for a Particle structure
+//
 void ParticleFerry::particleBufInit()
 {
   bufsiz = 0;
@@ -92,6 +94,8 @@ void ParticleFerry::particleBufInit()
 #endif
 }
 
+// Pack a particle into the buffer.  Buffer is supplied by caller.
+//
 void ParticleFerry::particlePack(const Particle& in, char* buffer)
 {
   size_t pos = 0;
@@ -192,6 +196,9 @@ void ParticleFerry::particlePack(const Particle& in, char* buffer)
   }
 }
 
+// Unpack the buffer into the supplied particle.  Buffer is supplied
+// by caller.
+//
 void ParticleFerry::particleUnpack(Particle& out, char* buffer)
 {
   size_t pos = 0;
@@ -295,16 +302,23 @@ void ParticleFerry::particleUnpack(Particle& out, char* buffer)
 
 }
 
+// Constructor
+//
 ParticleFerry::ParticleFerry(int nimax, int ndmax) : nimax(nimax), ndmax(ndmax)
 {
-				// Determine size of buffer for a single particle
+				// Determine size of buffer for a
+				// single particle
   particleBufInit();
-				// Allocate internal buffer
+				// Allocate internal buffer for
+				// default particle ferry methods
   buf.resize(PFbufsz*bufsiz);
 
   bufpos    = 0;
   ibufcount = 0;
 
+
+				// These are for key value sanity
+				// checks
   pk_lo = 1u << (3*pkbits);
   pk_hi = 1u << (3*pkbits+1);
 
@@ -315,10 +329,16 @@ ParticleFerry::ParticleFerry(int nimax, int ndmax) : nimax(nimax), ndmax(ndmax)
 
 }
 
+// Destructor
+//
 ParticleFerry::~ParticleFerry()
 {
+  // Does nothing
 }
 
+// Set up for sending <total> number of Particles to node <to> from
+// node <from>
+//
 void ParticleFerry::ShipParticles(unsigned to, unsigned from, unsigned& total)
 {
   MPI_Status status;
@@ -343,30 +363,6 @@ void ParticleFerry::ShipParticles(unsigned to, unsigned from, unsigned& total)
   }
 }
 
-#ifdef I128
-void ParticleFerry::SendParticle(Particle& ptc, unsigned seq, uint128 key)
-#else
-void ParticleFerry::SendParticle(Particle& ptc, unsigned seq, unsigned long key)
-#endif
-{
-  // Add particle to buffer
-  //
-  particlePack(ptc, &buf[bufpos]);
-  memcpy(&buf[bufpos+idxpos], &seq, sizeof(unsigned));
-#ifdef I128
-  memcpy(&buf[bufpos+keypos], &key, sizeof(uint128));
-#else
-  memcpy(&buf[bufpos+keypos], &key, sizeof(unsigned long));
-#endif
-
-  // If buffer is full, send the buffer and reset
-  //
-  bufpos += bufsiz;
-  ibufcount++;
-  itotcount++;
-  if (ibufcount == PFbufsz || itotcount == _total) BufferSend();
-}
-
 void ParticleFerry::SendParticle(Particle& part)
 {
   // Add particle to buffer
@@ -379,26 +375,6 @@ void ParticleFerry::SendParticle(Particle& part)
   // If buffer is full, send the buffer and reset
   //
   if (ibufcount == PFbufsz || itotcount == _total) BufferSend();
-}
-
-#ifdef I128
-bool ParticleFerry::RecvParticle(Particle& ptc, unsigned& seq, uint128& key)
-#else
-bool ParticleFerry::RecvParticle(Particle& ptc, unsigned& seq, unsigned long& key)
-#endif
-{
-  if (itotcount++ == _total) return false;
-
-  if (ibufcount==0) BufferRecv();
-
-  particleUnpack(ptc, &buf[bufpos]);
-  seq = ptc.indx;
-  key = ptc.key;
-
-  ibufcount--;
-  bufpos -= bufsiz;
-
-  return true;
 }
 
 bool ParticleFerry::RecvParticle(Particle& part)
