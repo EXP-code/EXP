@@ -109,6 +109,7 @@ void InitializeUniform(std::vector<Particle>& p, std::vector<double>& mass, doub
   
   std::cout << std::string(70, '-')                 << std::endl;
   if (type == Trace) {
+    std::cout << "MolW:        "  << molW                << std::endl;
     std::cout << "T(ion):      "  << T[0][0]  << " K "   << std::endl;
     std::cout << "T(elec):     "  << T[0][1]  << " K "   << std::endl;
   } else if (T.size()>1) {
@@ -1246,6 +1247,11 @@ void InitializeSpeciesTrace
   // distribution
   int NS = sF.size();
 
+  double molW = 0.0;
+  for (int i=0; i<NS; i++)
+    molW += sF[i]/PT[sZ[i]]->weight();
+  molW = 1.0/molW;
+  
   // Normalize sF
   double norm = std::accumulate(sF.begin(), sF.end(), 0.0);
   if (fabs(norm - 1.0)>1.0e-16) {
@@ -1260,6 +1266,8 @@ void InitializeSpeciesTrace
     }
   }
   
+  double tKEi = 0.0, tKEe = 0.0, numb = 0.0;
+
   for (int i=0; i<N; i++) {
     
     size_t wh = 0;
@@ -1282,6 +1290,25 @@ void InitializeSpeciesTrace
       }
     }
     assert ( fabs(test-1.0) < 1.0e-12 );
+
+    double KEi = 0.0, KEe = 0.0;
+    for (int k=0; k<3; k++) {
+      KEi += particles[i].vel[k] * particles[i].vel[k];
+      if (ne>=0) {
+	KEe += particles[i].dattrib[ne+k] * particles[i].dattrib[ne+k];
+      }
+    }
+      
+    if (particles[i].dattrib.size()>2) particles[i].dattrib[2] = KEi;
+
+    // Kinetic energies
+    //
+    tKEi += 0.5*particles[i].mass * KEi;
+    tKEe += 0.5*particles[i].mass * KEe * PT[0]->weight()/ molW;
+
+    // Ion number
+    //
+    numb += particles[i].mass/molW * Munit / amu;
   }
   
   std::ofstream out("species.spec");
@@ -1299,6 +1326,18 @@ void InitializeSpeciesTrace
 	  << std::endl;
     }
   }
+
+  
+  double Eunit = Munit*Vunit*Vunit;
+
+  std::cout << std::string(70, '-')    << std::endl
+	    << "KE (ion):    " << tKEi << std::endl
+	    << "KE (elec)    " << tKEe << std::endl
+	    << std::string(70, '-')    << std::endl
+	    << "MolW:        " << molW << std::endl
+	    << "T (ion):     " << tKEi*Eunit/(1.5*numb*boltz) << std::endl
+	    << "T (elec):    " << tKEe*Eunit/(1.5*numb*boltz) << std::endl
+	    << std::string(70, '-')    << std::endl;
 
 } // END: writeParticles
 
@@ -1419,6 +1458,9 @@ main (int ac, char **av)
   // Species position
   int sp = -1;
 
+  // Default molecular weight
+  double molW = 1.0;
+
   // Parse element file
   {
     // Create a root
@@ -1492,6 +1534,13 @@ main (int ac, char **av)
     } else {
       std::cout << "Error: zero mass fraction norm" << std::endl;
       exit(-1);
+    }
+
+    if (type == Trace) {
+      molW = 0.0;
+      for (size_t i=0; i<sF.size(); i++)
+	molW += sF[i]/PT[sZ[i]]->weight();
+      molW = 1.0/molW;
     }
 
     if (model==Interface) {
@@ -1576,8 +1625,6 @@ main (int ac, char **av)
   
   vector<Particle> particles(npart);
   
-  double molW = 1.0;
-
   // Initialize the phase space vector
   //
   switch (model) {
