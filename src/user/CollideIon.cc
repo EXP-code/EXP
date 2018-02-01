@@ -17217,13 +17217,11 @@ void CollideIon::gatherSpecies()
 	  }
 	  std::get<1>(specI[0]) += masI;
 	  
-	  double eta = 0.0, masE = 0.0;
+	  double masE = 0.0;
 	  for (auto s : SpList) {
-	    eta  += p->dattrib[s.second] * (s.first.second - 1);
-	    masE += p->dattrib[s.second] *
+	    masE += p->dattrib[s.second] * (s.first.second - 1) *
 	      atomic_weights[0] /atomic_weights[s.first.first];
 	  }
-	  masE *= eta;
 	  
 	  for (size_t j=0; j<3; j++) {
 	    double v = p->dattrib[use_elec+j];
