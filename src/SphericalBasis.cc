@@ -416,11 +416,9 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	//		m loop
 	for (m=0, moffset=0; m<=l; m++) {
 	  if (m==0) {
-	    if (compute)
-	      facs1 = legs[id][l][m]*legs[id][l][m]*mass*mass;
+	    if (compute) facs1 = legs[id][l][m]*legs[id][l][m]*mass;
 	    for (n=1; n<=nmax; n++) {
-	      expcoef0[id][loffset+moffset][n] += potd[id][l][n]*legs[id][l][m]*mass*
-		fac0/normM[l][n];
+	      expcoef0[id][loffset+moffset][n] += potd[id][l][n]*legs[id][l][m]*mass*fac0/normM[l][n];
 
 	      if (compute) {
 		pthread_mutex_lock(&cc_lock);
@@ -435,8 +433,8 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	    fac1 = legs[id][l][m]*cosm[id][m];
 	    fac2 = legs[id][l][m]*sinm[id][m];
 	    if (compute) {
-	      facs1 = fac1*fac1*mass*mass;
-	      facs2 = fac2*fac2*mass*mass;
+	      facs1 = fac1*fac1*mass;
+	      facs2 = fac2*fac2*mass;
 	    }
 	    for (n=1; n<=nmax; n++) {
 

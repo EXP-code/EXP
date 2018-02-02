@@ -2483,8 +2483,6 @@ void EmpCylSL::pca_hall(void)
   }
 
   double wgt = 1.0/cylmass;
-  double nrm = wgt * wgt;
-  double srm = 1.0/cylused;
 
   for (mm=0; mm<=MMAX; mm++)
     for (nn=0; nn<rank3; nn++) {
@@ -2495,15 +2493,14 @@ void EmpCylSL::pca_hall(void)
       tot *= wgt;
       sqr = tot*tot;
 
-      var = accum_cos2[0][mm][nn]*nrm - sqr*srm;
+      var = accum_cos2[0][mm][nn]*wgt - sqr;
       Var = std::max<double>(0.0, var);
 
 				// This is b_Hall
       fac = sqr/(Var/(cylused+1) + sqr + 1.0e-10);
 
       if (hout) *hout << mm << ", " << nn << ", C:   "
-		      << setw(18) << accum_cos2[0][mm][nn]*nrm << "  " 
-		      << setw(18) << sqr*srm << "  " 
+		      << setw(18) << accum_cos2[0][mm][nn]*wgt << "  " 
 		      << setw(18) << sqr << "  " 
 		      << setw(18) << var << "  " 
 		      << setw(18) << fac << std::endl;
@@ -2523,15 +2520,14 @@ void EmpCylSL::pca_hall(void)
 
       sqr = tot*tot;
 
-      var = accum_sin2[0][mm][nn]*nrm - sqr*srm;
+      var = accum_sin2[0][mm][nn]*wgt - sqr;
       Var = std::max<double>(0.0, var);
 
 				// This is b_Hall
       fac = sqr/(Var/(cylused+1) + sqr + 1.0e-10);
 
       if (hout) *hout << mm << ", " << nn << ", S:   "
-		      << setw(18) << accum_sin2[0][mm][nn]*nrm << "  " 
-		      << setw(18) << sqr*srm << "  " 
+		      << setw(18) << accum_sin2[0][mm][nn]*wgt << "  " 
 		      << setw(18) << sqr << "  " 
 		      << setw(18) << var << "  " 
 		      << setw(18) << fac << '\n';

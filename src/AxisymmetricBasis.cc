@@ -123,6 +123,8 @@ AxisymmetricBasis::~AxisymmetricBasis()
 
 void AxisymmetricBasis::pca_hall(int compute)
 {
+  if (muse <= 0.0) return;
+
   static unsigned count = 0;	// For vtk output
 
   std::ofstream out;		// PCA diag output
@@ -171,8 +173,8 @@ void AxisymmetricBasis::pca_hall(int compute)
     fac02 = 1.0;
   }
 
-  double dd, fac, var, b;
-  int loffset, moffset, indx, lm, nn;
+  double fac, var, b;
+  int loffset, moffset, indx, lm;
 
   for (int l=L0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
 
@@ -191,17 +193,17 @@ void AxisymmetricBasis::pca_hall(int compute)
 
 	if (compute) {
 	  
-	  for(int n=1; n<=nmax; n++) {
-	    b = (cc[indx][n][n]*fac02 - expcoef[indx][n]*expcoef[indx][n]/used) /
-	      (expcoef[indx][n]*expcoef[indx][n]*used);
+	  for (int n=1; n<=nmax; n++) {
+	    b = (cc[indx][n][n]*fac02 - expcoef[indx][n]*expcoef[indx][n]/muse) /
+	      (expcoef[indx][n]*expcoef[indx][n]*muse);
 	    b_Hall[indx][n] = 1.0/(1.0 + b);
 	  }
     
 	  for (int n=1; n<=nmax; n++) {
-	    for (nn=n; nn<=nmax; nn++) {
-	      fac = sqnorm[lm][n]*sqnorm[lm][nn];
+	    for (int nn=n; nn<=nmax; nn++) {
+	      fac = sqnorm[lm][n]*sqnorm[lm][nn]/muse;
 	      covar[n][nn] = fac * 
-		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]/used);
+		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]/muse);
 	      if (n!=nn)
 		covar[nn][n] = covar[n][nn];
 	    }    
@@ -217,10 +219,30 @@ void AxisymmetricBasis::pca_hall(int compute)
 #endif
 	  Tevec = evec[indx].Transpose();
 
-	  if (pcavtk && myid==0) {
-	    vtkpca->AddMatrix(eval, Tevec, indx);
+	  // Orthonormal test
+	  if (false) {
+	    double err_off = 0.0, err_on = 0.0;
+	    for (int i=1; i<=nmax; i++) {
+	      for (int j=1; j<=nmax; j++) {
+		double test = 0.0;
+		for (int k=1; k<=nmax; k++) {
+		  test += Tevec[i][k]*evec[indx][k][j];
+		}
+		if (i != j) err_off = std::max<double>(fabs(test    ), err_off);
+		else        err_on  = std::max<double>(fabs(test-1.0), err_on );
+	      }
+	    }
+	    std::cout << "Max Error(off, on) = " << err_off
+		      << ", " << err_on << std::endl;
 	  }
 
+	  if (vtkpca) {
+	    if (dof==3)
+	      vtkpca->Add(b_Hall[indx], Tevec, l, m, 'c');
+	    else
+	      vtkpca->Add(b_Hall[indx], Tevec, m);
+	  }
+	  
 	  if (tk_type == CumulativeCut) {
 	    cuml = eval;
 	    for (int n=2; n<=nmax; n++) cuml[n] += cuml[n-1];
@@ -232,8 +254,9 @@ void AxisymmetricBasis::pca_hall(int compute)
       
 	  for (int n=1; n<=nmax; n++) {
 
-	    for (dd=0.0, nn=1; nn<=nmax; nn++) 
-	      dd += Tevec[n][nn]*expcoef[indx][nn]*sqnorm[lm][nn];
+	    double dd = 0.0;
+	    for (int nn=1; nn<=nmax; nn++) 
+	      dd += Tevec[n][nn]*expcoef[indx][nn]*sqnorm[lm][nn]/muse;
 
 	    var = eval[n];
 
@@ -242,11 +265,11 @@ void AxisymmetricBasis::pca_hall(int compute)
 	      out << setw(5)  << m << setw(5) << 'c' << setw(5) << n;
 	      if (covar[n][n] > 0.0)
 		out << setw(18) << sqrt(covar[n][n])
-		    << setw(18) << expcoef[indx][n]
-		    << setw(18) << fabs(expcoef[indx][n])/sqrt(covar[n][n]/used);
+		    << setw(18) << expcoef[indx][n]/muse
+		    << setw(18) << fabs(expcoef[indx][n]/muse)/sqrt(covar[n][n]/used);
 	      else
 		out << setw(18) << covar[n][n]
-		    << setw(18) << expcoef[indx][n]
+		    << setw(18) << expcoef[indx][n]/muse
 		    << setw(18) << "***";
 	      if (var>0.0)
 		out << setw(18) << sqrt(var)
@@ -289,15 +312,16 @@ void AxisymmetricBasis::pca_hall(int compute)
 	} else {
 	  Tevec = evec[indx].Transpose();
 	  for (int n=1; n<=nmax; n++) {
-	    for (dd=0.0, nn=1; nn<=nmax; nn++) 
-	      dd += Tevec[n][nn]*expcoef[indx][nn] * sqnorm[lm][nn];
+	    double dd = 0.0;
+	    for (int nn=1; nn<=nmax; nn++) 
+	      dd += Tevec[n][nn]*expcoef[indx][nn] * sqnorm[lm][nn]/muse;
 	    smth[n] = dd * weight[indx][n];
 	  }
 	}
 	    
 	inv = evec[indx]*smth;
 	for (int n=1; n<=nmax; n++) {
-	  if (tk_type != Null) expcoef[indx][n] = inv[n]/sqnorm[lm][n];
+	  if (tk_type != Null) expcoef[indx][n] = inv[n]*muse/sqnorm[lm][n];
 	  if (tk_type == Hall) expcoef[indx][n] *= b_Hall[indx][n];
 	}
 	
@@ -308,16 +332,15 @@ void AxisymmetricBasis::pca_hall(int compute)
 	if (compute) {
 
 	  for(int n=1; n<=nmax; n++) {
-	    b = (cc[indx][n][n]*fac02 - expcoef[indx][n]*expcoef[indx][n]/used) /
-	      (expcoef[indx][n]*expcoef[indx][n]*used);
+	    b = (cc[indx][n][n]*fac02 - expcoef[indx][n]*expcoef[indx][n]/muse) / (expcoef[indx][n]*expcoef[indx][n]/muse);
 	    b_Hall[indx][n] = 1.0/(1.0 + b);
 	  }
     
-	  for(int n=1; n<=nmax; n++) {
-	    for(nn=n; nn<=nmax; nn++) {
-	      fac = sqnorm[lm][n] * sqnorm[lm][nn];
+	  for (int n=1; n<=nmax; n++) {
+	    for (int nn=n; nn<=nmax; nn++) {
+	      fac = sqnorm[lm][n] * sqnorm[lm][nn] / muse;
 	      covar[n][nn] = fac * 
-		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]/used);
+		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]/muse);
 	      if (n!=nn)
 		covar[nn][n] = covar[n][nn];
 	    }
@@ -333,8 +356,11 @@ void AxisymmetricBasis::pca_hall(int compute)
 #endif
 	  Tevec = evec[indx].Transpose();
 
-	  if (pcavtk && myid==0) {
-	    vtkpca->AddMatrix(eval, Tevec, indx);
+	  if (vtkpca) {
+	    if (dof==3)
+	      vtkpca->Add(b_Hall[indx], Tevec, l, m, 'c');
+	    else
+	      vtkpca->Add(b_Hall[indx], Tevec, m);
 	  }
 
 	  if (tk_type == CumulativeCut) {
@@ -348,8 +374,9 @@ void AxisymmetricBasis::pca_hall(int compute)
 
 	  for (int n=1; n<=nmax; n++) {
 
-	    for (dd=0.0, nn=1; nn<=nmax; nn++) 
-	      dd += Tevec[n][nn]*expcoef[indx][nn]*sqnorm[lm][nn];
+	    double dd = 0.0;
+	    for (int nn=1; nn<=nmax; nn++) 
+	      dd += Tevec[n][nn]*expcoef[indx][nn]*sqnorm[lm][nn]/muse;
 
 	    var = eval[n];
 
@@ -358,16 +385,16 @@ void AxisymmetricBasis::pca_hall(int compute)
 	      out << setw(5)  << m << setw(5) << 'c' << setw(5) << n;
 	      if (covar[n][n] > 0.0)
 		out << setw(18) << sqrt(covar[n][n])
-		    << setw(18) << expcoef[indx][n]
-		    << setw(18) << fabs(expcoef[indx][n])/sqrt(covar[n][n]/used);
+		    << setw(18) << expcoef[indx][n]/muse
+		    << setw(18) << fabs(expcoef[indx][n]/muse)/sqrt(covar[n][n]/used);
 	      else
 		out << setw(18) << covar[n][n]
-		    << setw(18) << expcoef[indx][n]
+		    << setw(18) << expcoef[indx][n]/muse
 		    << setw(18) << "***";
 	      if (var>0.0)
 		out << setw(18) << sqrt(var)
 		    << setw(18) << dd
-		    << setw(18) << fabs(dd)/sqrt(var);
+		    << setw(18) << fabs(dd)/sqrt(var/used);
 	      else
 		out << setw(18) << var
 		    << setw(18) << dd
@@ -405,15 +432,16 @@ void AxisymmetricBasis::pca_hall(int compute)
 	} else {
 	  Tevec = evec[indx].Transpose();
 	  for (int n=1; n<=nmax; n++) {
-	    for (dd=0.0, nn=1; nn<=nmax; nn++) 
-	      dd += Tevec[n][nn]*expcoef[indx][nn] * sqnorm[lm][nn];
+	    double dd = 0.0;
+	    for (int nn=1; nn<=nmax; nn++) 
+	      dd += Tevec[n][nn]*expcoef[indx][nn] * sqnorm[lm][nn]/muse;
 	    smth[n] = dd * weight[indx][n];
 	  }
 	}
 	    
 	inv = evec[indx]*smth;
 	for (int n=1; n<=nmax; n++) {
-	  expcoef[indx][n] = inv[n]/sqnorm[lm][n];
+	  expcoef[indx][n] = inv[n]*muse/sqnorm[lm][n];
 	  if (tk_type == Hall) expcoef[indx][n] *= b_Hall[indx][n];
 	}
 	
@@ -421,17 +449,17 @@ void AxisymmetricBasis::pca_hall(int compute)
 
 	if (compute) {
 
-	  for(int n=1; n<=nmax; n++) {
+	  for (int n=1; n<=nmax; n++) {
 	    b = (cc[indx][n][n]*fac02 - expcoef[indx][n]*expcoef[indx][n]/used) /
 	      (expcoef[indx][n]*expcoef[indx][n]*used);
 	    b_Hall[indx][n] = 1.0/(1.0 + b);
 	  }
     
-	  for(int n=1; n<=nmax; n++) {
-	    for(nn=n; nn<=nmax; nn++) {
-	      fac = sqnorm[lm][n] * sqnorm[lm][nn];
+	  for (int n=1; n<=nmax; n++) {
+	    for (int nn=n; nn<=nmax; nn++) {
+	      fac = sqnorm[lm][n] * sqnorm[lm][nn] / muse;
 	      covar[n][nn] = fac * 
-		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]/used);
+		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]/muse);
 	      if (n!=nn)
 		covar[nn][n] = covar[n][nn];
 	    }    
@@ -447,8 +475,11 @@ void AxisymmetricBasis::pca_hall(int compute)
 #endif
 	  Tevec = evec[indx].Transpose();
 
-	  if (pcavtk && myid==0) {
-	    vtkpca->AddMatrix(eval, Tevec, indx);
+	  if (vtkpca) {
+	    if (dof==3)
+	      vtkpca->Add(b_Hall[indx], Tevec, l, m, 's');
+	    else
+	      vtkpca->Add(b_Hall[indx], Tevec, m);
 	  }
 
 	  if (tk_type == CumulativeCut) {
@@ -462,8 +493,9 @@ void AxisymmetricBasis::pca_hall(int compute)
 
 	  for (int n=1; n<=nmax; n++) {
 
-	    for (dd=0.0, nn=1; nn<=nmax; nn++) 
-	      dd += Tevec[n][nn]*expcoef[indx][nn]*sqnorm[lm][nn];
+	    double dd = 0.0;
+	    for (int nn=1; nn<=nmax; nn++) 
+	      dd += Tevec[n][nn]*expcoef[indx][nn]*sqnorm[lm][nn] / muse;
 
 	    var = eval[n];
 
@@ -472,11 +504,11 @@ void AxisymmetricBasis::pca_hall(int compute)
 	      out << setw(5)  << m << setw(5) << 's' << setw(5) << n;
 	      if (covar[n][n] > 0.0)
 		out << setw(18) << sqrt(covar[n][n])
-		    << setw(18) << expcoef[indx][n]
-		    << setw(18) << fabs(expcoef[indx][n])/sqrt(covar[n][n]);
+		    << setw(18) << expcoef[indx][n]/muse
+		    << setw(18) << fabs(expcoef[indx][n]/muse)/sqrt(covar[n][n]/used);
 	      else
 		out << setw(18) << covar[n][n]
-		    << setw(18) << expcoef[indx][n]
+		    << setw(18) << expcoef[indx][n]/muse
 		    << setw(18) << "***";
 	      if (var>0.0)
 		out << setw(18) << sqrt(var)
@@ -520,7 +552,8 @@ void AxisymmetricBasis::pca_hall(int compute)
 	else {
 	  Tevec = evec[indx].Transpose();
 	  for (int n=1; n<=nmax; n++) {
-	    for (dd=0.0, nn=1; nn<=nmax; nn++) 
+	    double dd = 0.0;
+	    for (int nn=1; nn<=nmax; nn++) 
 	      dd += Tevec[n][nn]*expcoef[indx][nn] * sqnorm[lm][nn];
 	    smth[n] = dd * weight[indx][n];
 	  }
@@ -528,7 +561,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 
 	inv = evec[indx]*smth;
 	for (int n=1; n<=nmax; n++) {
-	  if (tk_type != Null) expcoef[indx][n] = inv[n]/sqnorm[lm][n];
+	  if (tk_type != Null) expcoef[indx][n] = inv[n]*muse/sqnorm[lm][n];
 	  if (tk_type == Hall) expcoef[indx][n] *= b_Hall[indx][n];
 	}
 	
@@ -538,10 +571,10 @@ void AxisymmetricBasis::pca_hall(int compute)
   }
 
 
-  if (pcavtk && myid==0) {
+  if (vtkpca) {
     std::ostringstream sout;
-    sout << runtag << ".pcavtk." << cC->id << "." << cC->name
-	 << "." << std::setfill('0') << std::setw(5) << count++;
+    sout << runtag << "_pca_" << cC->id << "_" << cC->name
+	 << "_" << std::setfill('0') << std::setw(5) << count++;
     vtkpca->Write(sout.str());
   }
 
