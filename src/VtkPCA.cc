@@ -29,7 +29,7 @@ VtkPCA::VtkPCA(int N) : nmax(N)
   dataSet->SetZCoordinates (ZZ);
 }
 
-void VtkPCA::AddMatrix(const Vector& eval, const Matrix& evec, int indx)
+void VtkPCA::Add(const Vector& eval, const Matrix& evec, int m)
 {
   vtkFloatArrayP V = vtkFloatArrayP::New();
   vtkFloatArrayP T = vtkFloatArrayP::New();
@@ -39,11 +39,13 @@ void VtkPCA::AddMatrix(const Vector& eval, const Matrix& evec, int indx)
   float f;			// Temp float storage
   for (int i=0; i<nmax; i++) {
     for (int j=0; j<nmax; j++) {
-      float x = i+1, y = i+1;
+      float x = i+1, y = j+1;
       vtkIdType n = dataSet->FindPoint(x, y, 0);
 
       if (n>=0) {
-	T->InsertTuple(n, &(f=evec[i+1][j+1]));
+	f = evec[i+1][j+1] * eval[i+1];
+	if (std::isnan(f)) f = 0.0;
+	T->InsertTuple(n, &f);
       } else {
 	std::cout << "Could not find point at (" << x << ", " << y << ")"
 		  << std::endl;
@@ -52,16 +54,61 @@ void VtkPCA::AddMatrix(const Vector& eval, const Matrix& evec, int indx)
   }
 
   // Add eigenvalues
-  for (int i=0; i<nmax; i++)
-    V->InsertTuple(i, &(f=eval[i+1]));
+  for (int i=0; i<nmax; i++) {
+    f = eval[i+1];
+    if (std::isnan(f)) f = 0.0;
+    V->InsertTuple(i, &f);
+  }
 
   // Add arrays
-  vals.push_back(T);
-  vecs.push_back(V);
+  vecs.push_back(T);
+  vals.push_back(V);
 
   // Add label
   std::ostringstream lab;
-  lab << "i_" << indx;
+  lab << m;
+  elab.push_back(lab.str());
+}
+
+void VtkPCA::Add(const Vector& eval, const Matrix& evec, int l, int m, char tag)
+{
+  vtkFloatArrayP V = vtkFloatArrayP::New();
+  vtkFloatArrayP T = vtkFloatArrayP::New();
+
+  // Insert grid data
+  //
+  float f;			// Temp float storage
+  for (int i=0; i<nmax; i++) {
+    for (int j=0; j<nmax; j++) {
+      float x = i+1, y = j+1;
+      vtkIdType n = dataSet->FindPoint(x, y, 0);
+
+      if (n>=0) {
+	f = evec[i+1][j+1] * eval[i+1];
+	if (std::isnan(f)) f = 0.0;
+	T->InsertTuple(n, &f);
+      } else {
+	std::cout << "Could not find point at (" << x << ", " << y << ")"
+		  << std::endl;
+      }
+    }
+  }
+
+  // Add eigenvalues
+  //
+  for (int i=0; i<nmax; i++) {
+    f = eval[i+1];
+    if (std::isnan(f)) f = 0.0;
+    V->InsertTuple(i, &f);
+  }
+
+  // Add arrays
+  vecs.push_back(T);
+  vals.push_back(V);
+
+  // Add label
+  std::ostringstream lab;
+  lab << l << "_" << m << "_" << tag;
   elab.push_back(lab.str());
 }
 
@@ -70,17 +117,21 @@ void VtkPCA::Write(const std::string& name)
   // Create a writer
   auto writer = vtkRectilinearGridWriterP::New();
 
-  writer->SetFileName(name.c_str());
+  // Create the filename with the correct extension for Paraview
+  std::ostringstream filename;
+  filename << name << "." << writer->GetDefaultFileExtension();
+
+  writer->SetFileName(filename.str().c_str());
 
   // Add everything to the data set
   for (size_t k=0; k<elab.size(); k++) {
-    std::string lab1 = "Eigenvalues_" + elab[k];
+    std::string lab1 = "Value " + elab[k];
     vals[k] -> SetName(lab1.c_str());
-    std::string lab2 = "Eigenvectors_" + elab[k];
+    std::string lab2 = "Vector " + elab[k];
     vecs[k] -> SetName(lab2.c_str());
 
     // Add fields
-    dataSet->GetPointData()->AddArray(vals[k]);
+    dataSet->GetFieldData()->AddArray(vals[k]);
     dataSet->GetPointData()->AddArray(vecs[k]);
   }
 
@@ -94,5 +145,6 @@ void VtkPCA::Write(const std::string& name)
   writer->SetInputData(dataSet);
 #endif
   writer->SetDataModeToAscii();
+  // writer->SetDataModeToBinary();
   writer->Write();
 }

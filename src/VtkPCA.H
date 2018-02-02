@@ -41,9 +41,13 @@ public:
   //! Constructor
   VtkPCA(int N);
 
-  //! Add data
-  void AddMatrix(const Vector& eval, const Matrix& evec, int indx);
+  //! Add data for two-dimensional cylindrical basis
+  void Add(const Vector& eval, const Matrix& evec, int m);
 
+  //! Add data for three-dimensional spherical basis
+  void Add(const Vector& eval, const Matrix& evec, int l, int m,
+	   char tag);
+  
   //! Write output file
   void Write(const std::string& name);
 };
