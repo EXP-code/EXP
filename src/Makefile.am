@@ -24,7 +24,7 @@ ADD_LIBS4    = $(gptl_lib) -lgptl
 endif
 
 AM_CFLAGS    = -D_REENTRANT -fopenmp $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4)
-AM_CXXFLAGS  = -std=c++11 -D_REENTRANT -fopenmp $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4)
+AM_CXXFLAGS  = -std=c++11 -D_REENTRANT -fopenmp $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4) @exp_vtk_include@
 
 CXXLINK = mpiCC -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
 
@@ -41,7 +41,7 @@ exp_SOURCES = Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc	\
      OutLog.cc OutCoef.cc multistep.cc parse.cc Slab.cc SlabSL.cc	\
      step.cc sbessj.cc sbessz.cc tidalField.cc ultra.cc ultrasphere.cc	\
      MPL.cc zbrent.cc OutFrac.cc OutCalbr.cc ParticleFerry.cc pCell.cc	\
-     chkSlurm.c chkTimer.cc pHOT.cc Timer.cc
+     chkSlurm.c chkTimer.cc pHOT.cc Timer.cc VtkPCA.cc
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 
@@ -57,7 +57,7 @@ LDADD = $(COMMON_LIBS) @LAPACK_LIBS@ $(ADD_LIBS)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs $(BOOST_LDFLAGS)
 
 exp_LDADD = $(EXPLIBS) $(ADD_LIBS3) $(ADD_LIBS4) $(LAPACK_LIBS)	\
-	$(BLAS_LIBS) $(LIBS) $(FLIBS)
+	$(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@
 
 
 noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H Cylinder.H     \

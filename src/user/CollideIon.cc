@@ -17053,15 +17053,14 @@ void CollideIon::gatherSpecies()
 	    
 	    // Compute effective number of electrons
 	    //
-	    double numbE = 0.0, molW = 0.0;
+	    double numbE = 0.0;
 	    for (auto s : SpList) {
 	      unsigned short Z = s.first.first;
 	      unsigned short P = s.first.second - 1;
-	      numbE += p->dattrib[s.second] * P;
-	      molW  += p->dattrib[s.second] / atomic_weights[Z];
+	      numbE += p->dattrib[s.second] / atomic_weights[Z] * P;
 	    }
 	    
-	    numbE *= p->mass * molW;
+	    numbE *= p->mass;
 	      
 	    for (unsigned k=0; k<3; k++) {
 	      double v = p->dattrib[use_elec+k];
@@ -17149,7 +17148,7 @@ void CollideIon::gatherSpecies()
 	
       } // END: compute electron temperature
 	
-	// Sanity check
+      // Sanity check
       if (Telc < 100.0) {
 	std::ostringstream sout; sout << "[" << myid << "]";
 	std::cout << std::setw(7) << std::left << sout.str()
@@ -17218,13 +17217,11 @@ void CollideIon::gatherSpecies()
 	  }
 	  std::get<1>(specI[0]) += masI;
 	  
-	  double eta = 0.0, masE = 0.0;
+	  double masE = 0.0;
 	  for (auto s : SpList) {
-	    eta  += p->dattrib[s.second] * (s.first.second - 1);
-	    masE += p->dattrib[s.second] *
+	    masE += p->dattrib[s.second] * (s.first.second - 1) *
 	      atomic_weights[0] /atomic_weights[s.first.first];
 	  }
-	  masE *= eta;
 	  
 	  for (size_t j=0; j<3; j++) {
 	    double v = p->dattrib[use_elec+j];
