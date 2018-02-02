@@ -22,6 +22,9 @@ protected:
   //! Output PCA diagnostics
   bool pcadiag;
 
+  //! Output PCA diagnostics in vtk format
+  bool pcavtk;
+
   //! Frequency of PCA recomputation
   int npca;
 

@@ -1,5 +1,6 @@
 #include "expand.h"
 #include <AxisymmetricBasis.H>
+#include <VtkPCA.H>
 
 AxisymmetricBasis:: AxisymmetricBasis(string& line) : Basis(line) 
 {
@@ -9,6 +10,7 @@ AxisymmetricBasis:: AxisymmetricBasis(string& line) : Basis(line)
   npca      = 500;
   pca       = false;
   pcadiag   = false;
+  pcavtk    = false;
   tksmooth  = 3.0;
   tkcum     = 0.95;
   tk_type   = Null;
@@ -17,7 +19,7 @@ AxisymmetricBasis:: AxisymmetricBasis(string& line) : Basis(line)
 
   if (get_value("Lmax", val)) Lmax = atoi(val.c_str());
   if (get_value("nmax", val)) nmax = atoi(val.c_str());
-  if (get_value("dof", val)) dof = atoi(val.c_str());
+  if (get_value("dof", val))  dof = atoi(val.c_str());
   if (get_value("npca", val)) npca = atoi(val.c_str());
   if (get_value("selector", val)) {
     if (atoi(val.c_str())) pca = true; 
@@ -29,6 +31,10 @@ AxisymmetricBasis:: AxisymmetricBasis(string& line) : Basis(line)
   if (get_value("pcadiag", val)) {
     if (atoi(val.c_str())) pcadiag = true; 
     else pcadiag = false;
+  }
+  if (get_value("pcavtk", val)) {
+    if (atoi(val.c_str())) pcavtk = true; 
+    else pcavtk = false;
   }
   if (get_value("tksmooth", val)) tksmooth = atof(val.c_str());
   if (get_value("tkcum", val)) tkcum = atof(val.c_str());
@@ -117,8 +123,11 @@ AxisymmetricBasis::~AxisymmetricBasis()
 
 void AxisymmetricBasis::pca_hall(int compute)
 {
-  ofstream out;
-  if (pcadiag && myid==0 && compute) {
+  static unsigned count = 0;	// For vtk output
+
+  std::ofstream out;		// PCA diag output
+
+  if (pcadiag and myid==0 and compute) {
     // Open the diag file
     ostringstream sout;
     sout << runtag << ".pcadiag." << cC->id << "." << cC->name;
@@ -141,6 +150,11 @@ void AxisymmetricBasis::pca_hall(int compute)
 	   << sout.str() << ">" << endl
 	   << "AxisymmetricBasis::pca_hall: continuing" << endl;
     }
+  }
+
+  VtkPCAptr vtkpca;
+  if (pcavtk and myid==0 and compute) {
+    vtkpca = VtkPCAptr(new VtkPCA(nmax));
   }
 
   if (dof==3)
@@ -202,6 +216,10 @@ void AxisymmetricBasis::pca_hall(int compute)
 	  eval = covar.Symmetric_Eigenvalues(evec[indx]);
 #endif
 	  Tevec = evec[indx].Transpose();
+
+	  if (pcavtk && myid==0) {
+	    vtkpca->AddMatrix(eval, Tevec, indx);
+	  }
 
 	  if (tk_type == CumulativeCut) {
 	    cuml = eval;
@@ -315,6 +333,10 @@ void AxisymmetricBasis::pca_hall(int compute)
 #endif
 	  Tevec = evec[indx].Transpose();
 
+	  if (pcavtk && myid==0) {
+	    vtkpca->AddMatrix(eval, Tevec, indx);
+	  }
+
 	  if (tk_type == CumulativeCut) {
 	    cuml = eval;
 	    for (int n=2; n<=nmax; n++) cuml[n] += cuml[n-1];
@@ -425,6 +447,10 @@ void AxisymmetricBasis::pca_hall(int compute)
 #endif
 	  Tevec = evec[indx].Transpose();
 
+	  if (pcavtk && myid==0) {
+	    vtkpca->AddMatrix(eval, Tevec, indx);
+	  }
+
 	  if (tk_type == CumulativeCut) {
 	    cuml = eval;
 	    for (int n=2; n<=nmax; n++) cuml[n] += cuml[n-1];
@@ -511,6 +537,13 @@ void AxisymmetricBasis::pca_hall(int compute)
     }
   }
 
+
+  if (pcavtk && myid==0) {
+    std::ostringstream sout;
+    sout << runtag << ".pcavtk." << cC->id << "." << cC->name
+	 << "." << std::setfill('0') << std::setw(5) << count++;
+    vtkpca->Write(sout.str());
+  }
 
 }
 
