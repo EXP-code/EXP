@@ -516,7 +516,7 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 	mas = cC->Mass(indx) * adb;
 	phi = atan2(yy, xx);
 
-	ortho->accumulate(r, zz, phi, mas, id, mlevel);
+	ortho->accumulate(r, zz, phi, mas, indx, id, mlevel);
 
 	use[id]++;
 	cylmass0[id] += mas;

@@ -131,8 +131,9 @@ void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p)
 				// by eacn non-root node
     MPI_Bcast(&nbody, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-    vector<Particle> t(nbody);
-    vector<double> val(nbody);
+    vector<Particle>        t(nbody);
+    vector<double>        val(nbody);
+    vector<unsigned long> seq(nbody);
 
     SParticle *part = psp->GetParticle(in);
     Particle bod;
@@ -148,6 +149,7 @@ void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p)
       bod.mass = part->mass();
       for (int k=0; k<3; k++) bod.pos[k] = part->pos(k);
       for (int k=0; k<3; k++) bod.vel[k] = part->vel(k);
+      bod.indx = part->indx();
       p.push_back(bod);
 
       part = psp->NextParticle(in);
@@ -191,14 +193,18 @@ void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p)
 
       for (int i=0; i<nbody; i++) val[i] = t[i].vel[2];
       MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 17, MPI_COMM_WORLD);
+
+      for (int i=0; i<nbody; i++) seq[i] = t[i].indx;
+      MPI_Send(&seq[0], nbody, MPI_UNSIGNED_LONG, n, 18, MPI_COMM_WORLD);
     }
 
   } else {
 
     int nbody;
     MPI_Bcast(&nbody, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    vector<Particle> t(nbody);
-    vector<double> val(nbody);
+    vector<Particle>        t(nbody);
+    vector<double>        val(nbody);
+    vector<unsigned long> seq(nbody);
 				// Get and pack
 
     MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 11, 
@@ -228,6 +234,10 @@ void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p)
     MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 17, 
 	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     for (int i=0; i<nbody; i++) t[i].vel[2] = val[i];
+
+    MPI_Recv(&seq[0], nbody, MPI_UNSIGNED_LONG, 0, 18, 
+	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    for (int i=0; i<nbody; i++) t[i].indx = seq[i];
 
     p.insert(p.end(), t.begin(), t.end());
   }
