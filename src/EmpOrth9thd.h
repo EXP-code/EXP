@@ -165,6 +165,9 @@ public:
   //! TRUE if signal-to-noise methods are on
   static bool SELECT;
 
+  //! TRUE if VTK diagnostics are on
+  static bool PCAVTK;
+
   //! TRUE if we are using coordinate mapping
   static bool CMAP;
 

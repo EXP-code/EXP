@@ -85,6 +85,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
   cmap        = true;
   logarithmic = false;
   pca         = false;
+  pcavtk      = false;
   density     = false;
   coef_dump   = true;
   try_cache   = true;
@@ -147,6 +148,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
 
   if (pca) {
     EmpCylSL::SELECT = true;
+    EmpCylSL::PCAVTK = pcavtk;
     ortho->setHall(hallfile, component->nbodies_tot, hallfreq);
   }
 				// Make sure that all structures are 
@@ -270,6 +272,10 @@ void Cylinder::initialize()
   if (get_value("pca", val)) {
     if (atoi(val.c_str())) pca = true; 
     else pca = false;
+  }
+  if (get_value("pcavtk", val)) {
+    if (atoi(val.c_str())) pcavtk = true; 
+    else pcavtk = false;
   }
   if (get_value("try_cache", val)) {
     if (atoi(val.c_str())) try_cache = true; 

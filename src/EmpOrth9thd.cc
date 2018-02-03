@@ -12,6 +12,7 @@
 #ifndef STANDALONE
 #include "expand.h"
 #include "global.H"
+#include <VtkPCA.H>
 #else  
 				// Constants from expand.h & global.H
 extern int nthrds;
@@ -32,6 +33,7 @@ extern Vector Symmetric_Eigenvalues_SYEVD(Matrix& a, Matrix& ef, int M);
 
 bool     EmpCylSL::DENS            = false;
 bool     EmpCylSL::SELECT          = false;
+bool     EmpCylSL::PCAVTK          = false;
 bool     EmpCylSL::CMAP            = false;
 bool     EmpCylSL::logarithmic     = false;
 bool     EmpCylSL::enforce_limits  = false;
@@ -2510,6 +2512,11 @@ void EmpCylSL::pca_hall(void)
   evecJK.setsize(1, rank3, 1, rank3);
   meanJK.setsize(1, rank3);
 
+#ifndef STANDALONE
+  VtkPCAptr vtkpca;
+  if (PCAVTK) vtkpca = VtkPCAptr(new VtkPCA(rank3));
+#endif
+
   for (auto v : massT) Tmass += v;
 
   for (int mm=0; mm<=MMAX; mm++) {	// Harmonic subspace
@@ -2545,12 +2552,15 @@ void EmpCylSL::pca_hall(void)
     
     // Compute Hall coefficients
     //
+    Vector bhall(1, rank3);
     for (int nn=0; nn<rank3; nn++) {
       double    var = evalJK[nn+1];
       double    sqr = meanJK[nn+1]*meanJK[nn+1];
       double      b = var/sqr;
       double b_Hall = 1.0/(1.0 + b);
     
+      bhall[nn+1] = b_Hall;
+
       if (hout) *hout << mm << ", " << nn << ", C:   "
 		      << setw(18) << meanJK[nn+1]*b_Hall << "  " 
 		      << setw(18) << sqr << "  " 
@@ -2561,6 +2571,10 @@ void EmpCylSL::pca_hall(void)
 	accum_cosN[M][0][mm][nn] *= b_Hall;
       }
     }
+
+#ifndef STANDALONE
+    if (PCAVTK) vtkpca->Add(bhall, evecJK.Transpose(), 0, mm, 'c');
+#endif
   }
   
 
@@ -2597,12 +2611,15 @@ void EmpCylSL::pca_hall(void)
     
     // Compute Hall coefficients
     //
+    Vector bhall(1, rank3);
     for (int nn=0; nn<rank3; nn++) {
       double    var = evalJK[nn+1];
       double    sqr = meanJK[nn+1]*meanJK[nn+1];
       double      b = var/sqr;
       double b_Hall = 1.0/(1.0 + b);
     
+      bhall[nn+1] = b_Hall;
+
       if (hout) *hout << mm << ", " << nn << ", S:   "
 		      << setw(18) << meanJK[nn+1]*b_Hall << "  " 
 		      << setw(18) << sqr << "  " 
@@ -2613,7 +2630,20 @@ void EmpCylSL::pca_hall(void)
 	accum_sinN[M][0][mm][nn] *= b_Hall;
       }
     }
+
+#ifndef STANDALONE
+    if (PCAVTK) vtkpca->Add(bhall, evecJK.Transpose(), 0, mm, 's');
+#endif
   }
+
+#ifndef STANDALONE
+  if (PCAVTK) {
+    std::ostringstream sout;
+    sout << hallfile << "_pca_" 
+	 << "_" << std::setfill('0') << std::setw(5) << hallcount;
+    vtkpca->Write(sout.str());
+  }
+#endif
 
   if (VFLAG & 4)
     cerr << "Process " << setw(4) << myid << ": exiting to pca_hall" << endl;
