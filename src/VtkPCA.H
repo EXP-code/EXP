@@ -36,10 +36,11 @@ private:
   std::vector<std::string>    elab;
   // Dataset
   vtkRectilinearGridP         dataSet;
-
+  // Save smoothed basis
+  bool                        smooth;
 public:
   //! Constructor
-  VtkPCA(int N);
+  VtkPCA(int N, bool smooth=true);
 
   //! Add data for two-dimensional cylindrical basis
   void Add(const Vector& eval, const Matrix& evec, int m);

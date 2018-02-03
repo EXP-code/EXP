@@ -25,6 +25,9 @@ protected:
   //! Output PCA diagnostics in vtk format
   bool pcavtk;
 
+  //! PCA jackknife variance
+  bool pcajknf;
+
   //! Frequency of PCA recomputation
   int npca;
 
@@ -39,6 +42,11 @@ protected:
   Matrix expcoef, expcoef1;
   vector<Matrix*> expcoefN;
   vector<Matrix*> expcoefL;
+
+  typedef boost::shared_ptr<Matrix> MatrixP;
+  vector<MatrixP> expcoefT, expcoefT1;
+  vector<double>  massT, massT1;
+  unsigned        sampT;
   //@}
 
   //! Normalization for covariance matrix based on the biorthogonal basis norm
