@@ -11,33 +11,49 @@ AxisymmetricBasis:: AxisymmetricBasis(string& line) : Basis(line)
   pca       = false;
   pcadiag   = false;
   pcavtk    = false;
+  pcajknf   = false;
   tksmooth  = 3.0;
   tkcum     = 0.95;
   tk_type   = Null;
+  sampT     = 0;
 
   string val;
 
   if (get_value("Lmax", val)) Lmax = atoi(val.c_str());
+
   if (get_value("nmax", val)) nmax = atoi(val.c_str());
+
   if (get_value("dof", val))  dof = atoi(val.c_str());
+
   if (get_value("npca", val)) npca = atoi(val.c_str());
+
   if (get_value("selector", val)) {
     if (atoi(val.c_str())) pca = true; 
   }
+
   if (get_value("pca", val)) {
     if (atoi(val.c_str())) pca = true; 
     else pca = false;
   }
+
   if (get_value("pcadiag", val)) {
     if (atoi(val.c_str())) pcadiag = true; 
     else pcadiag = false;
   }
+
   if (get_value("pcavtk", val)) {
     if (atoi(val.c_str())) pcavtk = true; 
     else pcavtk = false;
   }
+
+  if (get_value("pcajknf", val)) {
+    if (atoi(val.c_str())) pcajknf = true; 
+    else pcajknf = false;
+  }
   if (get_value("tksmooth", val)) tksmooth = atof(val.c_str());
+
   if (get_value("tkcum", val)) tkcum = atof(val.c_str());
+
   if (get_value("tk_type", val)) {
     switch (atoi(val.c_str())) {
     case Hall:			tk_type = Hall;             break;
@@ -124,29 +140,40 @@ AxisymmetricBasis::~AxisymmetricBasis()
 void AxisymmetricBasis::pca_hall(int compute)
 {
   if (muse <= 0.0) return;
-
-  static unsigned count = 0;	// For vtk output
+				// For vtk output
+  static unsigned count = 0;
+				// Original diag output
+  static bool pcaorig   = false;
 
   std::ofstream out;		// PCA diag output
 
   if (pcadiag and myid==0 and compute) {
+
     // Open the diag file
     ostringstream sout;
     sout << runtag << ".pcadiag." << cC->id << "." << cC->name;
     out.open(sout.str().c_str(), ios::out | ios::app);
+
     if (out) {
       out << "#" << endl;
       out << "# Time=" << tnow << endl;
       out << "#" << endl;
       if (dof==3) out << right << "# " << setw(3) << "l";
-      out << setw(5)  << "m" << setw(5) << "C/S" << setw(5) << "n"
-	  << setw(18) << "sqrt(var)"
-	  << setw(18) << "orig coef"
-	  << setw(18) << "S/N"
-	  << setw(18) << "proj sqrt(var)"
-	  << setw(18) << "proj coef"
-	  << setw(18) << "S/N"
-	  << endl;
+      out << setw(5)  << "m" << setw(5) << "C/S" << setw(5) << "n";
+      if (pcaorig)
+	out << setw(18) << "var"
+	    << setw(18) << "orig coef"
+	    << setw(18) << "S/N"
+	    << setw(18) << "proj var"
+	    << setw(18) << "proj coef"
+	    << setw(18) << "S/N";
+      if (pcajknf)
+	out << setw(18) << "jknf var"
+	    << setw(18) << "cum"
+	    << setw(18) << "jknf coef"
+	    << setw(18) << "S/N"
+	    << setw(18) << "B_Hall";
+      out << endl;
     } else {
       cout << "AxisymmetricBasis::pca_hall: could not open output file <"
 	   << sout.str() << ">" << endl
@@ -176,6 +203,20 @@ void AxisymmetricBasis::pca_hall(int compute)
   double fac, var, b;
   int loffset, moffset, indx, lm;
 
+				// For PCA jack knife
+  Vector evalJK, cumlJK;
+  Vector meanJK;
+  Matrix covrJK;
+  Matrix evecJK;
+  double Tmass = 0.0;
+
+  if (pcajknf) {
+    covrJK.setsize(1, nmax, 1, nmax);
+    meanJK.setsize(1, nmax);
+    evecJK.setsize(1, nmax, 1, nmax);
+    for (auto v : massT) Tmass += v;
+  }
+
   for (int l=L0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
 
     for (int m=0, moffset=0; m<=l; m++) {
@@ -201,11 +242,8 @@ void AxisymmetricBasis::pca_hall(int compute)
     
 	  for (int n=1; n<=nmax; n++) {
 	    for (int nn=n; nn<=nmax; nn++) {
-	      fac = sqnorm[lm][n]*sqnorm[lm][nn]/muse;
-	      covar[n][nn] = fac * 
-		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]/muse);
-	      if (n!=nn)
-		covar[nn][n] = covar[n][nn];
+	      covar[n][nn] = (cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]/muse)/muse;
+	      if (n!=nn) covar[nn][n] = covar[n][nn];
 	    }    
 	  }
 	  
@@ -220,6 +258,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	  Tevec = evec[indx].Transpose();
 
 	  // Orthonormal test
+	  //
 	  if (false) {
 	    double err_off = 0.0, err_on = 0.0;
 	    for (int i=1; i<=nmax; i++) {
@@ -232,17 +271,26 @@ void AxisymmetricBasis::pca_hall(int compute)
 		else        err_on  = std::max<double>(fabs(test-1.0), err_on );
 	      }
 	    }
-	    std::cout << "Max Error(off, on) = " << err_off
+	    std::cout << "Max Error (ortho off, on) = " << err_off
 		      << ", " << err_on << std::endl;
 	  }
 
-	  if (vtkpca) {
-	    if (dof==3)
-	      vtkpca->Add(b_Hall[indx], Tevec, l, m, 'c');
-	    else
-	      vtkpca->Add(b_Hall[indx], Tevec, m);
+	  // Eigen test
+	  //
+	  if (false) {
+	    double err = 0.0;
+	    for (int i=1; i<=nmax; i++) {
+	      for (int j=1; j<=nmax; j++) {
+		double test = 0.0;
+		for (int k=1; k<=nmax; k++) {
+		  test += evec[indx][i][k]*eval[k]*Tevec[k][j];
+		}
+		err = std::max<double>(fabs(test-covar[i][j]), err);
+	      }
+	    }
+	    std::cout << "Max Error (eigen) = " << err << std::endl;
 	  }
-	  
+
 	  if (tk_type == CumulativeCut) {
 	    cuml = eval;
 	    for (int n=2; n<=nmax; n++) cuml[n] += cuml[n-1];
@@ -250,35 +298,99 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    for (int n=1; n<=nmax; n++) cuml[n] /= var;
 	  }
 
+	  if (pcajknf) {
+	    covrJK.zero();
+	    meanJK.zero();
+	    
+	    // Compute mean and variance
+	    //
+	    for (unsigned T=0; T<sampT; T++) {
+	      for (int i=1; i<=nmax; i++) {
+		meanJK[i] += (*expcoefT[T])[indx][i]/(massT[T]*sampT);
+		for (int j=1; j<=nmax; j++)
+		  covrJK[i][j] += (*expcoefT[T])[indx][i]/massT[T] * (*expcoefT[T])[indx][j]/massT[T] / sampT;
+	      }
+	    }
+
+	    for (int i=1; i<=nmax; i++) {
+	      for (int j=1; j<=nmax; j++) {
+		covrJK[i][j] -= meanJK[i]*meanJK[j];
+	      }
+	    }
+#ifdef GHQL
+	    evalJK = covrJK.Symmetric_Eigenvalues_GHQL(evecJK);
+#else
+	    evalJK = covrJK.Symmetric_Eigenvalues(evecJK);
+#endif
+	    // Cumulative distribution
+	    //
+	    cumlJK = evalJK;
+	    for (int n=2; n<=nmax; n++) cumlJK[n] += cumlJK[n-1];
+	    for (int n=2; n<=nmax; n++) cumlJK[n] /= cumlJK[nmax];
+
+	    // Recompute Hall coefficients
+	    //
+	    for (int n=1; n<=nmax; n++) {
+	      b = evalJK[n]/(meanJK[n]*meanJK[n]);
+	      b_Hall[indx][n] = 1.0/(1.0 + b);
+	    }
+	  }
+
+	  if (vtkpca) {
+	    if (dof==3)
+	      vtkpca->Add(b_Hall[indx], evecJK.Transpose(), l, m, 'c');
+	    else
+	      vtkpca->Add(b_Hall[indx], evecJK.Transpose(), m);
+	  }
+	  
 	  if (out) out << endl;
       
 	  for (int n=1; n<=nmax; n++) {
 
+	    double fac = 1.0/muse;
+
 	    double dd = 0.0;
 	    for (int nn=1; nn<=nmax; nn++) 
-	      dd += Tevec[n][nn]*expcoef[indx][nn]*sqnorm[lm][nn]/muse;
+	      dd += Tevec[n][nn]*expcoef[indx][nn]*fac;
 
 	    var = eval[n];
 
 	    if (out) {
 	      if (dof==3) out << setw(5) << l;
 	      out << setw(5)  << m << setw(5) << 'c' << setw(5) << n;
-	      if (covar[n][n] > 0.0)
-		out << setw(18) << sqrt(covar[n][n])
-		    << setw(18) << expcoef[indx][n]/muse
-		    << setw(18) << fabs(expcoef[indx][n]/muse)/sqrt(covar[n][n]/used);
-	      else
-		out << setw(18) << covar[n][n]
-		    << setw(18) << expcoef[indx][n]/muse
-		    << setw(18) << "***";
-	      if (var>0.0)
-		out << setw(18) << sqrt(var)
-		    << setw(18) << dd
-		    << setw(18) << fabs(dd)/sqrt(var/used);
-	      else
-		out << setw(18) << var
-		    << setw(18) << dd
-		    << setw(18) << "***";
+	      if (pcaorig) {
+		if (covar[n][n] > 0.0)
+		  out << setw(18) << covar[n][n]
+		      << setw(18) << expcoef[indx][n]*fac
+		      << setw(18) << fabs(expcoef[indx][n]*fac)/sqrt(covar[n][n]);
+		else
+		  out << setw(18) << covar[n][n]
+		      << setw(18) << expcoef[indx][n]*fac
+		      << setw(18) << "***";
+		if (var>0.0)
+		  out << setw(18) << var
+		      << setw(18) << dd
+		      << setw(18) << fabs(dd)/sqrt(var);
+		else
+		  out << setw(18) << var
+		      << setw(18) << dd
+		      << setw(18) << "***";
+	      }
+	      if (pcajknf) {
+		double jkvar = evalJK[n];
+		if (jkvar>0.0)
+		  out << setw(18) << jkvar
+		      << setw(18) << cumlJK[n]
+		      << setw(18) << meanJK[n]
+		      << setw(18) << fabs(meanJK[n])/sqrt(jkvar)
+		      << setw(18) << b_Hall[indx][n];
+		else
+		  out << setw(18) << jkvar
+		      << setw(18) << cumlJK[n]
+		      << setw(18) << meanJK[n]
+		      << setw(18) << "***"
+		      << setw(18) << "***";
+	      }
 	      out << endl;
 	    }
 
@@ -314,14 +426,14 @@ void AxisymmetricBasis::pca_hall(int compute)
 	  for (int n=1; n<=nmax; n++) {
 	    double dd = 0.0;
 	    for (int nn=1; nn<=nmax; nn++) 
-	      dd += Tevec[n][nn]*expcoef[indx][nn] * sqnorm[lm][nn]/muse;
+	      dd += Tevec[n][nn]*expcoef[indx][nn]/muse;
 	    smth[n] = dd * weight[indx][n];
 	  }
 	}
 	    
 	inv = evec[indx]*smth;
 	for (int n=1; n<=nmax; n++) {
-	  if (tk_type != Null) expcoef[indx][n] = inv[n]*muse/sqnorm[lm][n];
+	  if (tk_type != Null) expcoef[indx][n] = inv[n]*muse;
 	  if (tk_type == Hall) expcoef[indx][n] *= b_Hall[indx][n];
 	}
 	
@@ -338,11 +450,8 @@ void AxisymmetricBasis::pca_hall(int compute)
     
 	  for (int n=1; n<=nmax; n++) {
 	    for (int nn=n; nn<=nmax; nn++) {
-	      fac = sqnorm[lm][n] * sqnorm[lm][nn] / muse;
-	      covar[n][nn] = fac * 
-		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]/muse);
-	      if (n!=nn)
-		covar[nn][n] = covar[n][nn];
+	      covar[n][nn] = (cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]/muse) / muse;
+	      if (n!=nn) covar[nn][n] = covar[n][nn];
 	    }
 	  }  
 
@@ -356,13 +465,6 @@ void AxisymmetricBasis::pca_hall(int compute)
 #endif
 	  Tevec = evec[indx].Transpose();
 
-	  if (vtkpca) {
-	    if (dof==3)
-	      vtkpca->Add(b_Hall[indx], Tevec, l, m, 'c');
-	    else
-	      vtkpca->Add(b_Hall[indx], Tevec, m);
-	  }
-
 	  if (tk_type == CumulativeCut) {
 	    cuml = eval;
 	    for (int n=2; n<=nmax; n++) cuml[n] += cuml[n-1];
@@ -370,35 +472,97 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    for (int n=1; n<=nmax; n++) cuml[n] /= var;
 	  }
 
+	  if (pcajknf) {
+	    covrJK.zero();
+	    meanJK.zero();
+	    
+	    // Compute mean and variance
+	    //
+	    for (unsigned T=0; T<sampT; T++) {
+	      for (int i=1; i<=nmax; i++) {
+		meanJK[i] += (*expcoefT[T])[indx][i]/(massT[T]*sampT);
+		for (int j=1; j<=nmax; j++)
+		  covrJK[i][j] += (*expcoefT[T])[indx][i]/massT[T] * (*expcoefT[T])[indx][j]/massT[T] / sampT;
+	      }
+	    }
+
+	    for (int i=1; i<=nmax; i++) {
+	      for (int j=1; j<=nmax; j++) {
+		covrJK[i][j] -= meanJK[i]*meanJK[j];
+	      }
+	    }
+#ifdef GHQL
+	    evalJK = covrJK.Symmetric_Eigenvalues_GHQL(evecJK);
+#else
+	    evalJK = covrJK.Symmetric_Eigenvalues(evecJK);
+#endif
+	    // Cumulative distribution
+	    //
+	    cumlJK = evalJK;
+	    for (int n=2; n<=nmax; n++) cumlJK[n] += cumlJK[n-1];
+	    for (int n=2; n<=nmax; n++) cumlJK[n] /= cumlJK[nmax];
+
+	    // Recompute Hall coefficients
+	    //
+	    for (int n=1; n<=nmax; n++) {
+	      b = evalJK[n]/(meanJK[n]*meanJK[n]);
+	      b_Hall[indx][n] = 1.0/(1.0 + b);
+	    }
+	  }
+
+	  if (vtkpca) {
+	    if (dof==3)
+	      vtkpca->Add(b_Hall[indx], evecJK.Transpose(), l, m, 'c');
+	    else
+	      vtkpca->Add(b_Hall[indx], evecJK.Transpose(), m);
+	  }
+
 	  if (out) out << endl;
 
 	  for (int n=1; n<=nmax; n++) {
-
+	    
 	    double dd = 0.0;
 	    for (int nn=1; nn<=nmax; nn++) 
-	      dd += Tevec[n][nn]*expcoef[indx][nn]*sqnorm[lm][nn]/muse;
+	      dd += Tevec[n][nn]*expcoef[indx][nn]/muse;
 
 	    var = eval[n];
 
 	    if (out) {
 	      if (dof==3) out << setw(5) << l;
 	      out << setw(5)  << m << setw(5) << 'c' << setw(5) << n;
-	      if (covar[n][n] > 0.0)
-		out << setw(18) << sqrt(covar[n][n])
-		    << setw(18) << expcoef[indx][n]/muse
-		    << setw(18) << fabs(expcoef[indx][n]/muse)/sqrt(covar[n][n]/used);
-	      else
-		out << setw(18) << covar[n][n]
-		    << setw(18) << expcoef[indx][n]/muse
-		    << setw(18) << "***";
-	      if (var>0.0)
-		out << setw(18) << sqrt(var)
-		    << setw(18) << dd
-		    << setw(18) << fabs(dd)/sqrt(var/used);
-	      else
-		out << setw(18) << var
-		    << setw(18) << dd
-		    << setw(18) << "***";
+	      if (pcaorig) {
+		if (covar[n][n] > 0.0)
+		  out << setw(18) << sqrt(covar[n][n])
+		      << setw(18) << expcoef[indx][n]/muse
+		      << setw(18) << fabs(expcoef[indx][n]/muse)/sqrt(covar[n][n]);
+		else
+		  out << setw(18) << covar[n][n]
+		      << setw(18) << expcoef[indx][n]/muse
+		      << setw(18) << "***";
+		if (var>0.0)
+		  out << setw(18) << sqrt(var)
+		      << setw(18) << dd
+		      << setw(18) << fabs(dd)/sqrt(var);
+		else
+		  out << setw(18) << var
+		      << setw(18) << dd
+		      << setw(18) << "***";
+	      }
+	      if (pcajknf) {
+		double jkvar = evalJK[n];
+		if (jkvar>0.0)
+		  out << setw(18) << jkvar
+		      << setw(18) << cumlJK[n]
+		      << setw(18) << meanJK[n]
+		      << setw(18) << fabs(meanJK[n])/sqrt(jkvar)
+		      << setw(18) << b_Hall[indx][n];
+		else
+		  out << setw(18) << jkvar
+		      << setw(18) << cumlJK[n]
+		      << setw(18) << meanJK[n]
+		      << setw(18) << "***"
+		      << setw(18) << "***";
+	      }
 	      out << endl;
 	    }
 
@@ -434,14 +598,14 @@ void AxisymmetricBasis::pca_hall(int compute)
 	  for (int n=1; n<=nmax; n++) {
 	    double dd = 0.0;
 	    for (int nn=1; nn<=nmax; nn++) 
-	      dd += Tevec[n][nn]*expcoef[indx][nn] * sqnorm[lm][nn]/muse;
+	      dd += Tevec[n][nn]*expcoef[indx][nn]/muse;
 	    smth[n] = dd * weight[indx][n];
 	  }
 	}
 	    
 	inv = evec[indx]*smth;
 	for (int n=1; n<=nmax; n++) {
-	  expcoef[indx][n] = inv[n]*muse/sqnorm[lm][n];
+	  expcoef[indx][n] = inv[n]*muse;
 	  if (tk_type == Hall) expcoef[indx][n] *= b_Hall[indx][n];
 	}
 	
@@ -450,18 +614,15 @@ void AxisymmetricBasis::pca_hall(int compute)
 	if (compute) {
 
 	  for (int n=1; n<=nmax; n++) {
-	    b = (cc[indx][n][n]*fac02 - expcoef[indx][n]*expcoef[indx][n]/used) /
-	      (expcoef[indx][n]*expcoef[indx][n]*used);
+	    b = (cc[indx][n][n]*fac02 - expcoef[indx][n]*expcoef[indx][n]/muse) /
+	      (expcoef[indx][n]*expcoef[indx][n]*muse);
 	    b_Hall[indx][n] = 1.0/(1.0 + b);
 	  }
     
 	  for (int n=1; n<=nmax; n++) {
 	    for (int nn=n; nn<=nmax; nn++) {
-	      fac = sqnorm[lm][n] * sqnorm[lm][nn] / muse;
-	      covar[n][nn] = fac * 
-		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]/muse);
-	      if (n!=nn)
-		covar[nn][n] = covar[n][nn];
+	      covar[n][nn] = (cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]/muse) / muse;
+	      if (n!=nn) covar[nn][n] = covar[n][nn];
 	    }    
 	  }
 
@@ -475,13 +636,6 @@ void AxisymmetricBasis::pca_hall(int compute)
 #endif
 	  Tevec = evec[indx].Transpose();
 
-	  if (vtkpca) {
-	    if (dof==3)
-	      vtkpca->Add(b_Hall[indx], Tevec, l, m, 's');
-	    else
-	      vtkpca->Add(b_Hall[indx], Tevec, m);
-	  }
-
 	  if (tk_type == CumulativeCut) {
 	    cuml = eval;
 	    for (int n=2; n<=nmax; n++) cuml[n] += cuml[n-1];
@@ -489,38 +643,100 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    for (int n=1; n<=nmax; n++) cuml[n] /= var;
 	  }
 
+	  if (pcajknf) {
+	    covrJK.zero();
+	    meanJK.zero();
+	    
+	    // Compute mean and variance
+	    //
+	    for (unsigned T=0; T<sampT; T++) {
+	      for (int i=1; i<=nmax; i++) {
+		meanJK[i] += (*expcoefT[T])[indx][i]/(massT[T]*sampT);
+		for (int j=1; j<=nmax; j++)
+		  covrJK[i][j] += (*expcoefT[T])[indx][i]/massT[T] * (*expcoefT[T])[indx][j]/massT[T] / sampT;
+	      }
+	    }
+
+	    for (int i=1; i<=nmax; i++) {
+	      for (int j=1; j<=nmax; j++) {
+		covrJK[i][j] -= meanJK[i]*meanJK[j];
+	      }
+	    }
+#ifdef GHQL
+	    evalJK = covrJK.Symmetric_Eigenvalues_GHQL(evecJK);
+#else
+	    evalJK = covrJK.Symmetric_Eigenvalues(evecJK);
+#endif
+	    // Cumulative distribution
+	    //
+	    cumlJK = evalJK;
+	    for (int n=2; n<=nmax; n++) cumlJK[n] += cumlJK[n-1];
+	    for (int n=2; n<=nmax; n++) cumlJK[n] /= cumlJK[nmax];
+
+	    // Recompute Hall coefficients
+	    //
+	    for (int n=1; n<=nmax; n++) {
+	      b = evalJK[n]/(meanJK[n]*meanJK[n]);
+	      b_Hall[indx][n] = 1.0/(1.0 + b);
+	    }
+	  }
+
+	  if (vtkpca) {
+	    if (dof==3)
+	      vtkpca->Add(b_Hall[indx], evecJK.Transpose(), l, m, 's');
+	    else
+	      vtkpca->Add(b_Hall[indx], evecJK.Transpose(), m);
+	  }
+	  
+
 	  if (out) out << endl;
 
 	  for (int n=1; n<=nmax; n++) {
 
 	    double dd = 0.0;
 	    for (int nn=1; nn<=nmax; nn++) 
-	      dd += Tevec[n][nn]*expcoef[indx][nn]*sqnorm[lm][nn] / muse;
+	      dd += Tevec[n][nn]*expcoef[indx][nn] / muse;
 
 	    var = eval[n];
 
 	    if (out) {
 	      if (dof==3) out << setw(5) << l;
 	      out << setw(5)  << m << setw(5) << 's' << setw(5) << n;
-	      if (covar[n][n] > 0.0)
-		out << setw(18) << sqrt(covar[n][n])
-		    << setw(18) << expcoef[indx][n]/muse
-		    << setw(18) << fabs(expcoef[indx][n]/muse)/sqrt(covar[n][n]/used);
-	      else
-		out << setw(18) << covar[n][n]
-		    << setw(18) << expcoef[indx][n]/muse
-		    << setw(18) << "***";
-	      if (var>0.0)
-		out << setw(18) << sqrt(var)
-		    << setw(18) << dd
-		    << setw(18) << fabs(dd)/sqrt(var/used);
-	      else
-		out << setw(18) << var
-		    << setw(18) << dd
-		    << setw(18) << "***";
+	      if (pcaorig) {
+		if (covar[n][n] > 0.0)
+		  out << setw(18) << sqrt(covar[n][n])
+		      << setw(18) << expcoef[indx][n]/muse
+		      << setw(18) << fabs(expcoef[indx][n]/muse)/sqrt(covar[n][n]);
+		else
+		  out << setw(18) << covar[n][n]
+		      << setw(18) << expcoef[indx][n]/muse
+		      << setw(18) << "***";
+		if (var>0.0)
+		  out << setw(18) << sqrt(var)
+		      << setw(18) << dd
+		      << setw(18) << fabs(dd)/sqrt(var);
+		else
+		  out << setw(18) << var
+		      << setw(18) << dd
+		      << setw(18) << "***";
+	      }
+	      if (pcajknf) {
+		double jkvar = evalJK[n];
+		if (jkvar>0.0)
+		  out << setw(18) << jkvar
+		      << setw(18) << cumlJK[n]
+		      << setw(18) << meanJK[n]
+		      << setw(18) << fabs(meanJK[n])/sqrt(jkvar)
+		      << setw(18) << b_Hall[indx][n];
+		else
+		  out << setw(18) << jkvar
+		      << setw(18) << cumlJK[n]
+		      << setw(18) << meanJK[n]
+		      << setw(18) << "***"
+		      << setw(18) << "***";
+	      }
 	      out << endl;
 	    }
-
 
 	    if (tk_type == VarianceCut) {
 
@@ -554,14 +770,14 @@ void AxisymmetricBasis::pca_hall(int compute)
 	  for (int n=1; n<=nmax; n++) {
 	    double dd = 0.0;
 	    for (int nn=1; nn<=nmax; nn++) 
-	      dd += Tevec[n][nn]*expcoef[indx][nn] * sqnorm[lm][nn];
+	      dd += Tevec[n][nn]*expcoef[indx][nn]/muse;
 	    smth[n] = dd * weight[indx][n];
 	  }
 	}
 
 	inv = evec[indx]*smth;
 	for (int n=1; n<=nmax; n++) {
-	  if (tk_type != Null) expcoef[indx][n] = inv[n]*muse/sqnorm[lm][n];
+	  if (tk_type != Null) expcoef[indx][n] = inv[n]*muse;
 	  if (tk_type == Hall) expcoef[indx][n] *= b_Hall[indx][n];
 	}
 	
@@ -613,17 +829,17 @@ void AxisymmetricBasis::parallel_gather_coefficients(void)
 
       if (m==0) {
 	MPI_Reduce(&expcoef1[loffset+moffset][1], 
-		   &expcoef[loffset+moffset][1], nmax, 
+		   &expcoef [loffset+moffset][1], nmax, 
 		   MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 	moffset++;
       }
       else {
 	MPI_Reduce(&expcoef1[loffset+moffset][1], 
-		   &expcoef[loffset+moffset][1], nmax, 
+		   &expcoef [loffset+moffset][1], nmax, 
 		   MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
 	MPI_Reduce(&expcoef1[loffset+moffset+1][1],
-		   &expcoef[loffset+moffset+1][1], nmax, 
+		   &expcoef [loffset+moffset+1][1], nmax, 
 		   MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 	
 	moffset+=2;
@@ -706,6 +922,20 @@ void AxisymmetricBasis::parallel_gather_coef2(void)
 	  }
 	}
 	moffset+=2;
+      }
+    }
+  }
+
+  if (pcajknf) {
+
+    MPI_Allreduce(&massT1[0], &massT[0], sampT,
+		  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+    for (unsigned T=0; T<sampT; T++) {
+      for (int l=0; l<=Lmax*(Lmax+2); l++) {
+	MPI_Allreduce(&(*expcoefT1[T])[l][1],
+		      &(*expcoefT [T])[l][1], nmax,
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
       }
     }
   }

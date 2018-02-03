@@ -147,7 +147,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
 
   if (pca) {
     EmpCylSL::SELECT = true;
-    ortho->setHall(hallfile, hallfreq);
+    ortho->setHall(hallfile, component->nbodies_tot, hallfreq);
   }
 				// Make sure that all structures are 
 				// initialized to start (e.g. for multi-

@@ -1,6 +1,6 @@
 #include <VtkPCA.H>
 
-VtkPCA::VtkPCA(int N) : nmax(N)
+VtkPCA::VtkPCA(int N, bool smooth) : nmax(N), smooth(smooth)
 {
   // Set knots
   auto XX   = vtkFloatArray::New();
@@ -43,7 +43,8 @@ void VtkPCA::Add(const Vector& eval, const Matrix& evec, int m)
       vtkIdType n = dataSet->FindPoint(x, y, 0);
 
       if (n>=0) {
-	f = evec[i+1][j+1] * eval[i+1];
+	f = evec[i+1][j+1];
+	if (smooth) f *= eval[i+1];
 	if (std::isnan(f)) f = 0.0;
 	T->InsertTuple(n, &f);
       } else {
@@ -84,7 +85,8 @@ void VtkPCA::Add(const Vector& eval, const Matrix& evec, int l, int m, char tag)
       vtkIdType n = dataSet->FindPoint(x, y, 0);
 
       if (n>=0) {
-	f = evec[i+1][j+1] * eval[i+1];
+	f = evec[i+1][j+1];
+	if (smooth) f *= eval[i+1];
 	if (std::isnan(f)) f = 0.0;
 	T->InsertTuple(n, &f);
       } else {

@@ -34,6 +34,8 @@ class EmpCylSL
 public:
 
   typedef boost::shared_ptr<SphericalModelTable> SphModTblPtr;
+  typedef boost::shared_ptr<Vector> VectorP;
+  typedef boost::shared_ptr<Matrix> MatrixP;
 
 private:
   int NMAX;
@@ -43,6 +45,7 @@ private:
   int NKEEP;
 
   int hallfreq, hallcount;
+  unsigned nbodstot;
   string hallfile;
 
   double YMIN, YMAX;
@@ -110,8 +113,13 @@ private:
   Vector* accum_cos;
   Vector* accum_sin;
 
-  Vector** accum_cos2;
-  Vector** accum_sin2;
+  std::vector< std::vector<MatrixP> > accum_cos2;
+  std::vector< std::vector<MatrixP> > accum_sin2;
+  std::vector< std::vector<double>  > massT1;
+  std::vector<double> massT;
+  unsigned sampT;
+
+
   Matrix *vc, *vs;
 
   Matrix tabp, tabf, tabd;
@@ -300,7 +308,8 @@ public:
   void accumulate_eof(vector<Particle>& p, bool verbose=false);
 
   //! Add single particle to coefficients
-  void accumulate(double r, double z, double phi, double mass, int id, int mlev=0);
+  void accumulate(double r, double z, double phi, double mass,
+		  unsigned long seq, int id, int mlev=0);
 
   //! Add single particle to EOF coefficients
   void accumulate_eof(double r, double z, double phi, double mass, int id, int mlev=0);
@@ -391,8 +400,9 @@ public:
   double get_hscale(void) { return HSCALE; }
 
   //! Set frequency and file name for selector output
-  inline void setHall(string file, int n=50) {
+  inline void setHall(string file, unsigned tot, int n=50) {
     hallfile = file;
+    nbodstot = tot;
     hallfreq = n;
   }
 

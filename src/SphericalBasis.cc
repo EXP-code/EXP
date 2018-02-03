@@ -372,6 +372,8 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
   use[id] = 0;
 
+  unsigned whch = 0;		// For PCA jacknife
+
   for (int i=nbeg; i<nend; i++) {
 
     indx = cC->levlist[mlevel][i];
@@ -409,7 +411,19 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
       get_potl(Lmax, nmax, rs, potd[id], id);
 
-      if (compute) muse1[id] += mass;
+      if (compute) {
+	muse1[id] += mass;
+	if (pcajknf) {
+	  whch = (indx-1)/sampT;
+	  if (whch>=sampT) {
+	    std::cout << "JKNF: bad index = " << whch << " / " << sampT << std::endl;
+	    whch = sampT-1;
+	  }
+	  pthread_mutex_lock(&cc_lock);
+	  massT1[whch] += mass;
+	  pthread_mutex_unlock(&cc_lock);
+	}
+      }
 
       //		l loop
       for (l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
@@ -424,6 +438,9 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 		pthread_mutex_lock(&cc_lock);
 		for (nn=n; nn<=nmax; nn++)
 		  cc1[loffset+moffset][n][nn] += potd[id][l][n]*potd[id][l][nn]*facs1/(normM[l][n]*normM[l][nn]);
+		if (pcajknf) {
+		  (*expcoefT1[whch])[loffset+moffset][n] += potd[id][l][n]*legs[id][l][m]*mass*fac0/normM[l][n];
+		}
 		pthread_mutex_unlock(&cc_lock);
 	      }
 	    }
@@ -446,8 +463,13 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 		for (nn=n; nn<=nmax; nn++) {
 		  cc1[loffset+moffset][n][nn] += 
 		    potd[id][l][n]*potd[id][l][nn]*facs1/(normM[l][n]*normM[l][nn]);
+
 		  cc1[loffset+moffset+1][n][nn] +=
 		    potd[id][l][n]*potd[id][l][nn]*facs2/(normM[l][n]*normM[l][nn]);
+		}
+		if (pcajknf) {
+		  (*expcoefT1[whch])[loffset+moffset  ][n] += potd[id][l][n]*fac1*mass*fac0/normM[l][n];
+		  (*expcoefT1[whch])[loffset+moffset+1][n] += potd[id][l][n]*fac2*mass*fac0/normM[l][n];
 		}
 		pthread_mutex_unlock(&cc_lock);
 	      }
@@ -513,6 +535,24 @@ void SphericalBasis::determine_coefficients(void)
     for (int l=0; l<=Lmax*(Lmax+2); l++) cc1[l].zero();
     for (int n=0; n<nthrds; n++) muse1[n] = 0.0;
     muse0 = 0.0;
+
+    if (pcajknf) {
+
+      if (sampT == 0) {		// Allocate storage
+	sampT = floor(sqrt(cC->nbodies_tot));
+	massT    .resize(sampT, 0);
+	massT1   .resize(sampT, 0);
+
+	expcoefT .resize(sampT);
+	for (auto & t : expcoefT ) t = MatrixP(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
+	
+	expcoefT1.resize(sampT);
+	for (auto & t : expcoefT1) t = MatrixP(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
+      }
+				// Zero arrays
+      for (auto & t : expcoefT1) t->zero();
+      for (auto & v : massT1)    v = 0;
+    }
   }
 
   use0  = 0;
