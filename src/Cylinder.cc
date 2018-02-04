@@ -113,6 +113,11 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
 				// instance
   ortho = new EmpCylSL(nmax, lmax, mmax, ncylorder, acyl, hcyl);
   
+  {
+    std::string val;
+    if (get_value("tk_type", val)) ortho->setTK(val);
+  }
+
 				// Read in given EOF file
   if (eof_file.size()) {
 

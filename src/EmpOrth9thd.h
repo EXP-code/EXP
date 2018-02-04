@@ -152,6 +152,13 @@ private:
 
 public:
 
+  /*! Enum listing the possible selection algorithms for coefficient
+    selection */
+  enum TKType {
+    Hall,             /*!< Tapered signal-to-noise power defined by Hall   */
+    Null              /*!< Compute the S/N but do not modify coefficients  */
+  };
+
   //! Type of density model to use
   enum EmpModel {
     Exponential,
@@ -418,11 +425,26 @@ public:
     nbodstot = tot;
   }
 
+  void setTK(const std::string& tk)
+  {
+    if      (tk == "Hall") tk_type = Hall;
+    else if (tk == "Null") tk_type = Null;
+    else {
+      if (myid==0) {
+	cout << "EmpCylSL: no such TK type <" << tk << ">"
+	     << " using Null type\n";
+      }
+    }
+  }
+
   vector<double> sanity() { 
     vector<double> ret;
     for (int m=0; m<=MMAX; m++) ret.push_back(accum_cos[0][m]);
     return ret;
   }
+
+private:
+  TKType tk_type;
 
 };
 

@@ -52,12 +52,13 @@ EmpCylSL::EmpModel EmpCylSL::mtype = Exponential;
 
 EmpCylSL::EmpCylSL(void)
 {
-  NORDER=0;
-  MPIset = false;
+  NORDER     = 0;
+  MPIset     = false;
   MPIset_eof = false;
   coefs_made = vector<short>(multistep+1, false);
-  eof_made = false;
-  sampT = 0;
+  eof_made   = false;
+  sampT      = 0;
+  tk_type    = Null;
   
   if (DENS)
     MPItable = 4;
@@ -220,26 +221,27 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   SC = 0;
   SS = 0;
 
-  MPIset = false;
+  MPIset     = false;
   MPIset_eof = false;
   coefs_made = vector<short>(multistep+1, false);
-  eof_made = false;
+  eof_made   = false;
 
-  accum_cos = 0;
-  accum_sin = 0;
+  accum_cos    = 0;
+  accum_sin    = 0;
 
-  sampT = 0;
+  sampT        = 0;
+  tk_type      = Null;
 
-  cylmass = 0.0;
-  cylmass1 = vector<double>(nthrds);
+  cylmass      = 0.0;
+  cylmass1     = vector<double>(nthrds);
   cylmass_made = false;
 
   mpi_double_buf2 = 0;
   mpi_double_buf3 = 0;
 
-  hallfile = "";
+  hallfile  = "";
   hallcount = 0;
-  hallfreq = 50;
+  hallfreq  = 50;
 }
 
 
