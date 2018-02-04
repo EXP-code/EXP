@@ -2583,8 +2583,9 @@ void EmpCylSL::pca_hall(void)
     ofile << hallfile << ".pcalog";
     hout.open(ofile.str(), ios::out | ios::app);
     if (hout.good()) {
-      hout << "# Time = " << tnow << "  Step=" << hallcount << endl
-	   << "#" << endl << std::right
+      hout << "#" << endl << std::right
+	   << "# Time = " << tnow << "  Step=" << hallcount << endl
+	   << "#" << endl
 	   << setw( 4) << "m" << setw(4) << "n" << setw(4) << "CS"
 	   << setw(18) << "Smth coef"
 	   << setw(18) << "|coef|^2"
