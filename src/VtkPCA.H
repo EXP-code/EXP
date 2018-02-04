@@ -1,6 +1,7 @@
 #ifndef _VtkPCA_H
 #define _VtkPCA_H
 
+#include <sstream>
 #include <boost/shared_ptr.hpp>
 #include <Vector.h>
 

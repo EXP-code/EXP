@@ -1,6 +1,8 @@
 #include <iostream>
 #include <iomanip>
 #include <cstdlib>
+#include <cstring>
+
 #include "global.H"
 #include "ParticleFerry.H"
 #include "pHOT.H"

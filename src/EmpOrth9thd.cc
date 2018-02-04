@@ -12,6 +12,7 @@
 #ifndef STANDALONE
 #include "expand.h"
 #include "global.H"
+#include <VtkPCA.H>
 #else  
 				// Constants from expand.h & global.H
 extern int nthrds;
@@ -32,6 +33,7 @@ extern Vector Symmetric_Eigenvalues_SYEVD(Matrix& a, Matrix& ef, int M);
 
 bool     EmpCylSL::DENS            = false;
 bool     EmpCylSL::SELECT          = false;
+bool     EmpCylSL::PCAVTK          = false;
 bool     EmpCylSL::CMAP            = false;
 bool     EmpCylSL::logarithmic     = false;
 bool     EmpCylSL::enforce_limits  = false;
@@ -50,12 +52,13 @@ EmpCylSL::EmpModel EmpCylSL::mtype = Exponential;
 
 EmpCylSL::EmpCylSL(void)
 {
-  NORDER=0;
-  MPIset = false;
+  NORDER     = 0;
+  MPIset     = false;
   MPIset_eof = false;
   coefs_made = vector<short>(multistep+1, false);
-  eof_made = false;
-  sampT = 0;
+  eof_made   = false;
+  sampT      = 0;
+  tk_type    = Null;
   
   if (DENS)
     MPItable = 4;
@@ -218,26 +221,27 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   SC = 0;
   SS = 0;
 
-  MPIset = false;
+  MPIset     = false;
   MPIset_eof = false;
   coefs_made = vector<short>(multistep+1, false);
-  eof_made = false;
+  eof_made   = false;
 
-  accum_cos = 0;
-  accum_sin = 0;
+  accum_cos    = 0;
+  accum_sin    = 0;
 
-  sampT = 0;
+  sampT        = 0;
+  tk_type      = Null;
 
-  cylmass = 0.0;
-  cylmass1 = vector<double>(nthrds);
+  cylmass      = 0.0;
+  cylmass1     = vector<double>(nthrds);
   cylmass_made = false;
 
   mpi_double_buf2 = 0;
   mpi_double_buf3 = 0;
 
-  hallfile = "";
+  hallfile  = "";
   hallcount = 0;
-  hallfreq = 50;
+  hallfreq  = 50;
 }
 
 
@@ -1147,31 +1151,10 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 void EmpCylSL::setup_accumulation(void)
 {
   if (!accum_cos) {
-
     accum_cos = new Vector [MMAX+1];
     accum_sin = new Vector [MMAX+1];
-
-    if (SELECT and sampT == 0) {
-      sampT = floor(sqrt(nbodstot));
-      pthread_mutex_init(&used_lock, NULL);
-
-      accum_cos2.resize(nthrds);
-      accum_sin2.resize(nthrds);
-      massT1    .resize(nthrds);
-      massT     .resize(sampT, 0);
-
-      for (int nth=0; nth<nthrds;nth++) {
-	massT1[nth].resize(sampT, 0);
-
-	accum_cos2[nth].resize(sampT);
-	accum_sin2[nth].resize(sampT);
-	for (unsigned T=0; T<sampT; T++) {
-	  accum_cos2[nth][T] = MatrixP(new Matrix(0, MMAX, 0, rank3-1));
-	  accum_sin2[nth][T] = MatrixP(new Matrix(0, MMAX, 0, rank3-1));
-	}
-      }
-    }
   }
+
 
   if (accum_cosL.size() == 0) {
 
@@ -1256,7 +1239,7 @@ void EmpCylSL::setup_accumulation(void)
     }
   }
   
-  if (SELECT) {
+  if (SELECT and sampT>0) {
     for (int nth=0; nth<nthrds; nth++) {
       for (unsigned T=0; T<sampT; T++) {
 	massT1[nth][T] = 0.0;
@@ -1312,8 +1295,45 @@ void EmpCylSL::setup_accumulation(int M)
     }
   }
   
+  if (SELECT and sampT>0 and M==0) {
+    for (int nth=0; nth<nthrds; nth++) {
+      for (unsigned T=0; T<sampT; T++) {
+	massT1[nth][T] = 0.0;
+	accum_cos2[nth][T]->setsize(0, MMAX, 0, NORDER-1);
+	accum_cos2[nth][T]->zero();
+	accum_sin2[nth][T]->setsize(0, MMAX, 0, NORDER-1);
+	accum_sin2[nth][T]->zero();
+      }
+    }
+  }
+
   coefs_made[M] = false;
+
 #endif
+}
+
+void EmpCylSL::init_pca()
+{
+  if (SELECT) {
+    sampT = floor(sqrt(nbodstot));
+    pthread_mutex_init(&used_lock, NULL);
+
+    accum_cos2.resize(nthrds);
+    accum_sin2.resize(nthrds);
+    massT1    .resize(nthrds);
+    massT     .resize(sampT, 0);
+
+    for (int nth=0; nth<nthrds;nth++) {
+      massT1[nth].resize(sampT, 0);
+
+      accum_cos2[nth].resize(sampT);
+      accum_sin2[nth].resize(sampT);
+      for (unsigned T=0; T<sampT; T++) {
+	accum_cos2[nth][T] = MatrixP(new Matrix(0, MMAX, 0, rank3-1));
+	accum_sin2[nth][T] = MatrixP(new Matrix(0, MMAX, 0, rank3-1));
+      }
+    }
+  }
 }
 
 void EmpCylSL::setup_eof()
@@ -2263,15 +2283,27 @@ void EmpCylSL::make_coefficients(unsigned M0)
 
       howmany1[M][0] += howmany1[M][nth];
 
+      if (SELECT && M==0) {
+	for (unsigned T=0; T<sampT; T++) massT1[0][T] += massT1[nth][T];
+      }
+
       for (mm=0; mm<=MMAX; mm++)
 	for (nn=0; nn<rank3; nn++) {
 	  accum_cosN[M][0][mm][nn] += accum_cosN[M][nth][mm][nn];
+	  if (SELECT && M==0) {
+	    for (unsigned T=0; T<sampT; T++) 
+	      (*accum_cos2[0][T])[mm][nn] += (*accum_cos2[nth][T])[mm][nn];
+	  }
 	}
 
       
       for (mm=1; mm<=MMAX; mm++)
 	for (nn=0; nn<rank3; nn++) {
 	  accum_sinN[M][0][mm][nn] += accum_sinN[M][nth][mm][nn];
+	  if (SELECT && M==0) {
+	    for (unsigned T=0; T<sampT; T++) 
+	      (*accum_sin2[0][T])[mm][nn] += (*accum_sin2[nth][T])[mm][nn];
+	  }
 	}
     }
     
@@ -2291,6 +2323,24 @@ void EmpCylSL::make_coefficients(unsigned M0)
 	else
 	  accum_cos[mm][nn] = MPIout[mm*rank3 + nn];
     
+
+    if (SELECT and M==0) {
+      for (unsigned T=0; T<sampT; T++) {
+	for (mm=0; mm<=MMAX; mm++)
+	  for (nn=0; nn<rank3; nn++)
+	    MPIin[mm*rank3 + nn] = (*accum_cos2[0][T])[mm][nn];
+  
+	MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
+			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+	for (mm=0; mm<=MMAX; mm++)
+	  for (nn=0; nn<rank3; nn++)
+	    (*accum_cos2[0][T])[mm][nn] = MPIout[mm*rank3 + nn];
+	
+      } // T loop
+    } // SELECT
+
+
     for (mm=1; mm<=MMAX; mm++)
       for (nn=0; nn<rank3; nn++)
 	MPIin[mm*rank3 + nn] = accum_sinN[M][0][mm][nn];
@@ -2306,9 +2356,28 @@ void EmpCylSL::make_coefficients(unsigned M0)
 	else
 	  accum_sin[mm][nn] = MPIout[mm*rank3 + nn];
     
+    if (SELECT and M==0) {
+      for (unsigned T=0; T<sampT; T++) {
+	for (mm=1; mm<=MMAX; mm++)
+	  for (nn=0; nn<rank3; nn++)
+	    MPIin[mm*rank3 + nn] = (*accum_sin2[0][T])[mm][nn];
+  
+	MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
+			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	
+	for (mm=1; mm<=MMAX; mm++)
+	  for (nn=0; nn<rank3; nn++)
+	    (*accum_sin2[0][T])[mm][nn] = MPIout[mm*rank3 + nn];
+	
+      } // T loop
+    } // SELECT
+
     coefs_made[M] = true;
   }
   
+
+  if (SELECT and M0==0) pca_hall();
+
 }
 
 void EmpCylSL::multistep_reset()
@@ -2486,38 +2555,67 @@ void EmpCylSL::pca_hall(void)
     cerr << "Process " << setw(4) << myid << ": using " 
 	 << cylused << " particles" << endl;
 
-  ofstream *hout = NULL;
-  if (hallcount++%hallfreq==0 && myid==0 && hallfile.length()>0) {
-    hout = new ofstream(hallfile.c_str(), ios::out | ios::app);
-    if (!hout) {
-      cerr << "Could not open <" << hallfile << "> for appending output" 
-	   << endl;
-    }
-    *hout << "# Time = " << tnow << "  Step=" << hallcount << endl;
-    *hout << "#" << endl;
-  }
-
-  double wgt = 1.0/cylmass;
-
 				// For PCA jack knife
-  Vector evalJK, cumlJK;
-  Vector meanJK;
-  Matrix covrJK;
-  Matrix evecJK;
+  Vector evalJK;
+  Vector cumlJK;
+  Vector meanJK(1, rank3);
+  Vector b_Hall(1, rank3);
+  Matrix covrJK(1, rank3, 1, rank3);
+  Matrix evecJK(1, rank3, 1, rank3);
   double Tmass = 0.0;
 
-  covrJK.setsize(1, rank3, 1, rank3);
-  evecJK.setsize(1, rank3, 1, rank3);
-  meanJK.setsize(1, rank3);
+#ifndef STANDALONE
+  VtkPCAptr vtkpca;
+  if (PCAVTK) vtkpca = VtkPCAptr(new VtkPCA(rank3));
+#endif
 
   for (auto v : massT) Tmass += v;
 
-  for (int mm=0; mm<=MMAX; mm++) {	// Harmonic subspace
+  // No data?
+  //
+  if (Tmass<=0.0) return;	
+  
+  // Setup for diagnostic output
+  //
+  std::ofstream hout;
+  if (hallcount++%hallfreq==0 && myid==0 && hallfile.length()>0) {
+    std::ostringstream ofile;
+    ofile << hallfile << ".pcalog";
+    hout.open(ofile.str(), ios::out | ios::app);
+    if (hout.good()) {
+      hout << "#" << endl << std::right
+	   << "# Time = " << tnow << "  Step=" << hallcount << endl
+	   << "#" << endl
+	   << setw( 4) << "m" << setw(4) << "n" << setw(4) << "CS"
+	   << setw(18) << "Smth coef"
+	   << setw(18) << "|coef|^2"
+	   << setw(18) << "var(coef)"
+	   << setw(18) << "S/N"
+	   << setw(18) << "b_Hall"    << std::endl
+	   << setw( 4) << "--" << setw(4) << "--" << setw(4) << "--"
+	   << setw(18) << "---------"
+	   << setw(18) << "---------"
+	   << setw(18) << "---------"
+	   << setw(18) << "---------"
+	   << setw(18) << "---------" << std::endl;
+    } else {
+      cerr << "Could not open <" << hallfile << "> for appending output" 
+	   << endl;
+    }
+  }
+
+  // Loop through each harmonic subspace [EVEN cosines]
+  //
+  for (int mm=0; mm<=MMAX; mm++) {
 
     covrJK.zero();
     meanJK.zero();
 
-    for (unsigned T=0; T<sampT; T++) { // Partition
+    // Data partitions for variance
+    //
+    for (unsigned T=0; T<sampT; T++) {
+
+      if (massT[T] <= 0.0) continue; // Skip empty partition
 
       for (int nn=0; nn<rank3; nn++) { // Order
 
@@ -2527,7 +2625,7 @@ void EmpCylSL::pca_hall(void)
 
 	  covrJK[nn+1][oo+1] +=
 	    (*accum_cos2[0][T])[mm][nn]/massT[T] *
-	    (*accum_cos2[0][T])[mm][nn]/massT[T] / sampT;
+	    (*accum_cos2[0][T])[mm][oo]/massT[T] / sampT;
 	}
       }
     }
@@ -2543,33 +2641,48 @@ void EmpCylSL::pca_hall(void)
     evalJK = covrJK.Symmetric_Eigenvalues(evecJK);
 #endif
     
+    // Projected coefficients
+    //
+    Vector dd = evecJK.Transpose() * meanJK;
+
     // Compute Hall coefficients
     //
     for (int nn=0; nn<rank3; nn++) {
+
       double    var = evalJK[nn+1];
-      double    sqr = meanJK[nn+1]*meanJK[nn+1];
+      double    sqr = dd[nn+1]*dd[nn+1];
       double      b = var/sqr;
-      double b_Hall = 1.0/(1.0 + b);
     
-      if (hout) *hout << mm << ", " << nn << ", C:   "
-		      << setw(18) << meanJK[nn+1]*b_Hall << "  " 
-		      << setw(18) << sqr << "  " 
-		      << setw(18) << var << "  " 
-		      << setw(18) << b_Hall << std::endl;
+      b_Hall[nn+1]  = 1.0/(1.0 + b);
+
+      if (hout.good()) hout << setw( 4) << mm << setw(4) << nn << setw(4) << "C"
+			    << setw(18) << dd[nn+1]
+			    << setw(18) << sqr
+			    << setw(18) << var
+			    << setw(18) << sqrt(sqr/var)
+			    << setw(18) << b_Hall[nn+1] << std::endl;
 
       for (unsigned M=0; M<=multistep; M++) {
-	accum_cosN[M][0][mm][nn] *= b_Hall;
+	accum_cosN[M][0][mm][nn] *= b_Hall[nn+1];
       }
     }
+
+#ifndef STANDALONE
+    if (PCAVTK) vtkpca->Add(b_Hall, evecJK.Transpose(), 0, mm, 'c');
+#endif
   }
   
 
-  for (int mm=1; mm<=MMAX; mm++) {	// Harmonic subspace (sines)
+  // Loop through each harmonic subspace [ODD sines]
+  //
+  for (int mm=1; mm<=MMAX; mm++) {
 
     covrJK.zero();
     meanJK.zero();
 
-    for (unsigned T=0; T<sampT; T++) { // Partition
+    // Data partitions for variance
+    //
+    for (unsigned T=0; T<sampT; T++) {
 
       for (int nn=0; nn<rank3; nn++) { // Order
 
@@ -2579,7 +2692,7 @@ void EmpCylSL::pca_hall(void)
 
 	  covrJK[nn+1][oo+1] +=
 	    (*accum_sin2[0][T])[mm][nn]/massT[T] *
-	    (*accum_sin2[0][T])[mm][nn]/massT[T] / sampT;
+	    (*accum_sin2[0][T])[mm][oo]/massT[T] / sampT;
 	}
       }
     }
@@ -2595,33 +2708,48 @@ void EmpCylSL::pca_hall(void)
     evalJK = covrJK.Symmetric_Eigenvalues(evecJK);
 #endif
     
+    // Projected coefficients
+    //
+    Vector dd = evecJK.Transpose() * meanJK;
+
     // Compute Hall coefficients
     //
     for (int nn=0; nn<rank3; nn++) {
       double    var = evalJK[nn+1];
-      double    sqr = meanJK[nn+1]*meanJK[nn+1];
+      double    sqr = dd[nn+1]*dd[nn+1];
       double      b = var/sqr;
-      double b_Hall = 1.0/(1.0 + b);
     
-      if (hout) *hout << mm << ", " << nn << ", S:   "
-		      << setw(18) << meanJK[nn+1]*b_Hall << "  " 
-		      << setw(18) << sqr << "  " 
-		      << setw(18) << var << "  " 
-		      << setw(18) << b_Hall << std::endl;
+      b_Hall[nn+1]  = 1.0/(1.0 + b);
+
+      if (hout.good()) hout << setw( 4) << mm << setw(4) << nn << setw(4) << "S"
+			    << setw(18) << dd[nn+1]
+			    << setw(18) << sqr
+			    << setw(18) << var
+			    << setw(18) << sqrt(sqr/var)
+			    << setw(18) << b_Hall[nn+1] << std::endl;
 
       for (unsigned M=0; M<=multistep; M++) {
-	accum_sinN[M][0][mm][nn] *= b_Hall;
+	accum_sinN[M][0][mm][nn] *= b_Hall[nn+1];
       }
     }
+
+#ifndef STANDALONE
+    if (PCAVTK) vtkpca->Add(b_Hall, evecJK.Transpose(), 0, mm, 's');
+#endif
   }
+
+#ifndef STANDALONE
+  if (PCAVTK) {
+    static unsigned ocount = 0;
+    std::ostringstream sout;
+    sout << hallfile << "_pca_"
+	 << std::setfill('0') << std::setw(5) << ocount++;
+    vtkpca->Write(sout.str());
+  }
+#endif
 
   if (VFLAG & 4)
     cerr << "Process " << setw(4) << myid << ": exiting to pca_hall" << endl;
-
-  if (hout) {
-    hout->close();
-    delete hout;
-  }
 
 }
 

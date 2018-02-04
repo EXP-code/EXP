@@ -152,6 +152,13 @@ private:
 
 public:
 
+  /*! Enum listing the possible selection algorithms for coefficient
+    selection */
+  enum TKType {
+    Hall,             /*!< Tapered signal-to-noise power defined by Hall   */
+    Null              /*!< Compute the S/N but do not modify coefficients  */
+  };
+
   //! Type of density model to use
   enum EmpModel {
     Exponential,
@@ -164,6 +171,9 @@ public:
 
   //! TRUE if signal-to-noise methods are on
   static bool SELECT;
+
+  //! TRUE if VTK diagnostics are on
+  static bool PCAVTK;
 
   //! TRUE if we are using coordinate mapping
   static bool CMAP;
@@ -296,6 +306,9 @@ public:
   }
   //@}
 
+  //! Initialize PCA work space
+  void init_pca();
+
   //! Necessary member function currently unused (change design?)
   void determine_coefficients() {};
   //! Necessary member function currently unused (change design?)
@@ -404,6 +417,24 @@ public:
     hallfile = file;
     nbodstot = tot;
     hallfreq = n;
+    init_pca();
+  }
+
+  //! Set frequency and file name for selector output
+  inline void setTotal(unsigned tot) {
+    nbodstot = tot;
+  }
+
+  void setTK(const std::string& tk)
+  {
+    if      (tk == "Hall") tk_type = Hall;
+    else if (tk == "Null") tk_type = Null;
+    else {
+      if (myid==0) {
+	cout << "EmpCylSL: no such TK type <" << tk << ">"
+	     << " using Null type\n";
+      }
+    }
   }
 
   vector<double> sanity() { 
@@ -411,6 +442,9 @@ public:
     for (int m=0; m<=MMAX; m++) ret.push_back(accum_cos[0][m]);
     return ret;
   }
+
+private:
+  TKType tk_type;
 
 };
 
