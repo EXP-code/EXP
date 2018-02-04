@@ -299,6 +299,9 @@ public:
   }
   //@}
 
+  //! Initialize PCA work space
+  void init_pca();
+
   //! Necessary member function currently unused (change design?)
   void determine_coefficients() {};
   //! Necessary member function currently unused (change design?)
@@ -407,6 +410,12 @@ public:
     hallfile = file;
     nbodstot = tot;
     hallfreq = n;
+    init_pca();
+  }
+
+  //! Set frequency and file name for selector output
+  inline void setTotal(unsigned tot) {
+    nbodstot = tot;
   }
 
   vector<double> sanity() { 

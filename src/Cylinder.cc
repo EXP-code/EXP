@@ -86,6 +86,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
   logarithmic = false;
   pca         = false;
   pcavtk      = false;
+  pcainit     = true;
   density     = false;
   coef_dump   = true;
   try_cache   = true;
@@ -146,11 +147,6 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
     if (!cache_ok) ortho->generate_eof(rnum, pnum, tnum, dcond);
   }
 
-  if (pca) {
-    EmpCylSL::SELECT = true;
-    EmpCylSL::PCAVTK = pcavtk;
-    ortho->setHall(hallfile, component->nbodies_tot, hallfreq);
-  }
 				// Make sure that all structures are 
 				// initialized to start (e.g. for multi-
 				// stepping but this should be done on
@@ -587,6 +583,16 @@ void Cylinder::determine_coefficients(void)
     if (eof) {
       determine_coefficients_eof();
     }
+  }
+
+  if (pca and pcainit) {
+    EmpCylSL::SELECT = true;
+    EmpCylSL::PCAVTK = pcavtk;
+    std::ostringstream sout;
+    sout << runtag;
+    if (hallfile != "") sout << "." << hallfile;
+    ortho->setHall(sout.str(), component->nbodies_tot, hallfreq);
+    pcainit = false;
   }
 
   if (multistep==0)
