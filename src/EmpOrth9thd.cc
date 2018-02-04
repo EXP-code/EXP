@@ -2662,9 +2662,12 @@ void EmpCylSL::pca_hall(void)
 			    << setw(18) << sqrt(sqr/var)
 			    << setw(18) << b_Hall[nn+1] << std::endl;
 
-      for (unsigned M=0; M<=multistep; M++) {
-	accum_cosN[M][0][mm][nn] *= b_Hall[nn+1];
-      }
+      // Apply?
+      if (tk_type==Hall) {
+	for (unsigned M=0; M<=multistep; M++) {
+	  accum_cosN[M][0][mm][nn] *= b_Hall[nn+1];
+	}
+      } // END: Hall smoothing
     }
 
 #ifndef STANDALONE
@@ -2728,9 +2731,12 @@ void EmpCylSL::pca_hall(void)
 			    << setw(18) << sqrt(sqr/var)
 			    << setw(18) << b_Hall[nn+1] << std::endl;
 
-      for (unsigned M=0; M<=multistep; M++) {
-	accum_sinN[M][0][mm][nn] *= b_Hall[nn+1];
-      }
+      // Apply?
+      if (tk_type == Hall) {
+	for (unsigned M=0; M<=multistep; M++) {
+	  accum_sinN[M][0][mm][nn] *= b_Hall[nn+1];
+	}
+      } // END: Hall smoothing
     }
 
 #ifndef STANDALONE
