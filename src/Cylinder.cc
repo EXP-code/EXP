@@ -85,6 +85,8 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
   cmap        = true;
   logarithmic = false;
   pca         = false;
+  pcavtk      = false;
+  pcainit     = true;
   density     = false;
   coef_dump   = true;
   try_cache   = true;
@@ -111,6 +113,11 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
 				// instance
   ortho = new EmpCylSL(nmax, lmax, mmax, ncylorder, acyl, hcyl);
   
+  {
+    std::string val;
+    if (get_value("tk_type", val)) ortho->setTK(val);
+  }
+
 				// Read in given EOF file
   if (eof_file.size()) {
 
@@ -145,10 +152,6 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
     if (!cache_ok) ortho->generate_eof(rnum, pnum, tnum, dcond);
   }
 
-  if (pca) {
-    EmpCylSL::SELECT = true;
-    ortho->setHall(hallfile, hallfreq);
-  }
 				// Make sure that all structures are 
 				// initialized to start (e.g. for multi-
 				// stepping but this should be done on
@@ -270,6 +273,10 @@ void Cylinder::initialize()
   if (get_value("pca", val)) {
     if (atoi(val.c_str())) pca = true; 
     else pca = false;
+  }
+  if (get_value("pcavtk", val)) {
+    if (atoi(val.c_str())) pcavtk = true; 
+    else pcavtk = false;
   }
   if (get_value("try_cache", val)) {
     if (atoi(val.c_str())) try_cache = true; 
@@ -516,7 +523,7 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 	mas = cC->Mass(indx) * adb;
 	phi = atan2(yy, xx);
 
-	ortho->accumulate(r, zz, phi, mas, id, mlevel);
+	ortho->accumulate(r, zz, phi, mas, indx, id, mlevel);
 
 	use[id]++;
 	cylmass0[id] += mas;
@@ -581,6 +588,16 @@ void Cylinder::determine_coefficients(void)
     if (eof) {
       determine_coefficients_eof();
     }
+  }
+
+  if (pca and pcainit) {
+    EmpCylSL::SELECT = true;
+    EmpCylSL::PCAVTK = pcavtk;
+    std::ostringstream sout;
+    sout << runtag;
+    if (hallfile != "") sout << "." << hallfile;
+    ortho->setHall(sout.str(), component->nbodies_tot, hallfreq);
+    pcainit = false;
   }
 
   if (multistep==0)

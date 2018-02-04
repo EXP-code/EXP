@@ -14,6 +14,7 @@ Particle::Particle()
   mass = 0.0;
   for (int k=0; k<3; k++)
     pos[k] = vel[k] = 0.0;
+  indx = 0;
 }
 
 Particle::Particle(const Particle &p)
@@ -24,4 +25,5 @@ Particle::Particle(const Particle &p)
     pos[k] = p.pos[k];
     vel[k] = p.vel[k];
   }
+  indx = p.indx;
 }

@@ -11,6 +11,7 @@ class Particle
   double mass;
   double pos[3];
   double vel[3];
+  unsigned long indx;
 
   // Constructor
   Particle();
