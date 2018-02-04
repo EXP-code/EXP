@@ -35,6 +35,7 @@ class PlotType(enum.Enum):
     Linear = 1
     Log    = 2
     Both   = 3
+    NoPlot = 4
 
 Munit = 1.9891e33
 Lunit = 3.08568e18
@@ -158,14 +159,12 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp, p
 
     # Normalize
     norm = (sum(yy) + oab)*dE
+    nn = copy.deepcopy(yy)
+    for i in range(nbin): norm += yy[i]
     for i in range(nbin): yy[i] /= norm
-    yy0 = copy.deepcopy(yy)
-    yy0.sort()
-    yy_min = 0.0
-    for v in yy0:
-        if v > 0.0:
-            yy_min = v
-            break
+
+    # Poisson error
+    eb = yy/np.sqrt(nn+1)
 
     # Fit for temperature
     fc = 11604.5/defaultT # Initial guess for exponent
@@ -189,7 +188,7 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp, p
         for i in range(nbin): tt[i] = func1(xx[i], nrm)
     elif fit == FitType.TempAmp:
         p0 = [sum(yy)/len(yy)*fc**1.5,fc] # Amplitude
-        popt, pcov = curve_fit(func2, xx, yy, p0, sigma=np.sqrt(yy)+yy_min*0.1)
+        popt, pcov = curve_fit(func2, xx, yy, p0, sigma=eb)
         # Temp
         bT = slopeFac / popt[1]
         for v in xx: tt.append(func2(v, popt[0], popt[1]))
@@ -215,7 +214,7 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp, p
     
     if pTyp == PlotType.Both:
         fig, axes = plt.subplots(nrows=2, ncols=1)
-    else:
+    elif pTyp in [PlotType.Linear, PlotType.Log]:
         fig, axes = plt.subplots(nrows=1, ncols=1)
     
     if pTyp.value & PlotType.Log.value:
@@ -250,31 +249,62 @@ def plot_data(runtag, field, defaultT, start, stop, ebeg, efin, dE, fit, pTyp, p
         ay.set_ylabel("Counts")
         ay.legend()
 
-    fig.tight_layout()
-    plt.show()
+    if pTyp != PlotType.NoPlot:
+        fig.tight_layout()
+        plt.show()
 
     out = open(runtag + '_bins.dat', 'w')
     out.write('# Temp={:16.4e}\n'.format(bT))
     for i in range(len(xx)):
-        out.write('{:16.4e} {:16.4e} {:16.4e}\n'.format(xx[i], yy[i], tt[i]))
+        out.write('{:16.4e} {:16.4e} {:16.4e} {:16.4e}\n'.format(xx[i], yy[i], tt[i], nn[i]))
     dd = 100.0*(yy - tt)/tt
-    itp = interp1d(xx, dd, kind='linear')
-    wsize = 5
-    dsize = int(np.sqrt(dd.shape[0]))
-    if dsize > wsize:
+    rr = yy/tt
+
+    if pTyp != PlotType.NoPlot:
+        itp = interp1d(xx, dd, kind='linear')
+        wsize = 5
+        dsize = int(np.sqrt(dd.shape[0]))
+        if dsize > wsize:
             wsize = dsize
             if 2*int(wsize/2) == wsize: wsize += 1
-    porder = 3
-    # print("wsize=", wsize)
-    zz = savgol_filter(itp(xx), wsize, porder)
-    plt.plot(xx, dd, '-*')
-    plt.plot(xx, zz, '-', linewidth=2)
-    plt.xlabel('Energy (eV)')
-    plt.ylabel('Relative difference (%)')
-    plt.ylim((-plim, plim))
-    plt.grid()
-    plt.show()
+        porder = 3
+        # print("wsize=", wsize)
+        zz = savgol_filter(itp(xx), wsize, porder)
+        plt.plot(xx, dd, '-*')
+        plt.plot(xx, zz, '-', linewidth=2)
+        plt.xlabel('Energy (eV)')
+        plt.ylabel('Relative difference (%)')
+        plt.ylim((-plim, plim))
+        plt.grid()
+        plt.show()
                 
+        itr = interp1d(xx, rr, kind='linear')
+        wsize = 5
+        dsize = int(np.sqrt(rr.shape[0]))
+        if dsize > wsize:
+            wsize = dsize
+            if 2*int(wsize/2) == wsize: wsize += 1
+        porder = 3
+        # print("wsize=", wsize)
+        zz = savgol_filter(itr(xx), wsize, porder)
+        plt.plot(xx, rr, '-*')
+        plt.plot(xx, zz, '-', linewidth=2)
+        plt.xlabel('Energy (eV)')
+        plt.ylabel('Ratio of electron to ion distribution')
+        # plt.ylim((-plim, plim))
+        plt.grid()
+        plt.show()
+                
+    #
+    # List data
+    #
+    header = '{:<6s}  {:<10s}  {:<10s}  {:<10s}  {:<8s}'
+    datfmt = '{:<6d}  {:<10.3e}  {:<10.3e}  {:<10.3e}  {:<8.0f}'
+    print(header.format('bin', 'energy', 'rel dif', 'ratio', 'count'))
+    print(header.format('----', '------', '------', '------', '------'))
+    for i in range(len(dd)):
+        print(datfmt.format(i, xx[i], dd[i], rr[i], nn[i]))
+
 def main(argv):
     """ Parse the command line and call the parsing and plotting routine """
 
@@ -333,6 +363,7 @@ def main(argv):
             if   PlotType.Linear.name == arg: plt = PlotType.Linear
             elif PlotType.Log.name    == arg: plt = PlotType.Log
             elif PlotType.Both.name   == arg: plt = PlotType.Both
+            elif PlotType.NoPlot.name == arg: plt = PlotType.NoPlot
             else:
                 print("No such plot type: ", arg)
                 print("Valid types are:")
