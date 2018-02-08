@@ -414,11 +414,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
       if (compute) {
 	muse1[id] += mass;
 	if (pcajknf) {
-	  whch = (indx-1)/sampT;
-	  if (whch>=sampT) {
-	    std::cout << "JKNF: bad index = " << whch << " / " << sampT << std::endl;
-	    whch = sampT-1;
-	  }
+	  whch = indx % sampT;
 	  pthread_mutex_lock(&cc_lock);
 	  massT1[whch] += mass;
 	  pthread_mutex_unlock(&cc_lock);
