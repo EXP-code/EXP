@@ -77,7 +77,6 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
 
   vflag       = 0;
   eof         = 1;
-  hallfile    = "disk";
   hallfreq    = 50;
   self_consistent = true;
   firstime    = true;
@@ -174,7 +173,6 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
 	   << " expcond="     << expcond
 	   << " pca="         << pca
 	   << " hallfreq="    << hallfreq
-	   << " hallfile="    << hallfile
 	   << " eof_file="    << eof_file
 	   << " logarithmic=" << logarithmic
 	   << " vflag="       << vflag
@@ -196,7 +194,6 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
 	 << " expcond="     << expcond
 	 << " pca="         << pca
 	 << " hallfreq="    << hallfreq
-	 << " hallfile="    << hallfile
 	 << " eof_file="    << eof_file
 	 << " logarithmic=" << logarithmic
 	 << " vflag="       << vflag
@@ -248,7 +245,6 @@ void Cylinder::initialize()
   if (get_value("ncylorder",  val)) ncylorder  = atoi(val.c_str());
   if (get_value("ncylrecomp", val)) ncylrecomp = atoi(val.c_str());
   if (get_value("hallfreq", val))   hallfreq   = atoi(val.c_str());
-  if (get_value("hallfile", val))   hallfile   = val;
   if (get_value("eof_file", val))   eof_file   = val;
   if (get_value("vflag",    val))   vflag      = atoi(val.c_str());
 
@@ -594,8 +590,7 @@ void Cylinder::determine_coefficients(void)
     EmpCylSL::SELECT = true;
     EmpCylSL::PCAVTK = pcavtk;
     std::ostringstream sout;
-    sout << runtag;
-    if (hallfile != "") sout << "." << hallfile;
+    sout << runtag << ".pcadiag." << cC->id << "." << cC->name;
     ortho->setHall(sout.str(), component->nbodies_tot, hallfreq);
     pcainit = false;
   }

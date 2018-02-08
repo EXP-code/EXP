@@ -50,7 +50,7 @@ private:
 
   double YMIN, YMAX;
   double dX, dY;
-  int M, cylused, cylused1;
+  int M;
   vector<double> cylmass1;
   bool cylmass_made;
   double cylmass;
@@ -413,7 +413,8 @@ public:
   double get_hscale(void) { return HSCALE; }
 
   //! Set frequency and file name for selector output
-  inline void setHall(string file, unsigned tot, int n=50) {
+  inline void setHall(string file, unsigned tot, int n=50)
+  {
     hallfile = file;
     nbodstot = tot;
     hallfreq = n;

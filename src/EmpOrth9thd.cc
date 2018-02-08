@@ -1195,8 +1195,6 @@ void EmpCylSL::setup_accumulation(void)
   dstepL  = vector<unsigned>(multistep+1, 0); 
   dstepN  = vector<unsigned>(multistep+1, 0); 
 
-  cylused = cylused1 = 0;
-  cylmass = 0.0;
   cylmass_made = false;
 
   for (unsigned M=0; M<=multistep; M++) {
@@ -1295,18 +1293,6 @@ void EmpCylSL::setup_accumulation(int M)
     }
   }
   
-  if (SELECT and sampT>0 and M==0) {
-    for (int nth=0; nth<nthrds; nth++) {
-      for (unsigned T=0; T<sampT; T++) {
-	massT1[nth][T] = 0.0;
-	accum_cos2[nth][T]->setsize(0, MMAX, 0, NORDER-1);
-	accum_cos2[nth][T]->zero();
-	accum_sin2[nth][T]->setsize(0, MMAX, 0, NORDER-1);
-	accum_sin2[nth][T]->zero();
-      }
-    }
-  }
-
   coefs_made[M] = false;
 
 #endif
@@ -2220,10 +2206,8 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
   unsigned whch;
   if (SELECT) {
     pthread_mutex_lock(&used_lock);
-    cylused1++;
     pthread_mutex_unlock(&used_lock);
-    whch = (seq - 1)/sampT;
-    if (whch>=sampT) whch = sampT - 1;
+    whch = seq % sampT;
     massT1[id][whch] += mass;
   }
 
@@ -2264,8 +2248,6 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 
 void EmpCylSL::make_coefficients(unsigned M0)
 {
-  int mm, nn;
-
   if (!MPIset) {
     MPIin  = new double [rank3*(MMAX+1)];
     MPIout = new double [rank3*(MMAX+1)];
@@ -2283,101 +2265,108 @@ void EmpCylSL::make_coefficients(unsigned M0)
 
       howmany1[M][0] += howmany1[M][nth];
 
-      if (SELECT && M==0) {
-	for (unsigned T=0; T<sampT; T++) massT1[0][T] += massT1[nth][T];
-      }
-
-      for (mm=0; mm<=MMAX; mm++)
-	for (nn=0; nn<rank3; nn++) {
+      for (int mm=0; mm<=MMAX; mm++)
+	for (int nn=0; nn<rank3; nn++) {
 	  accum_cosN[M][0][mm][nn] += accum_cosN[M][nth][mm][nn];
-	  if (SELECT && M==0) {
-	    for (unsigned T=0; T<sampT; T++) 
-	      (*accum_cos2[0][T])[mm][nn] += (*accum_cos2[nth][T])[mm][nn];
-	  }
 	}
-
       
-      for (mm=1; mm<=MMAX; mm++)
-	for (nn=0; nn<rank3; nn++) {
+      for (int mm=1; mm<=MMAX; mm++)
+	for (int nn=0; nn<rank3; nn++) {
 	  accum_sinN[M][0][mm][nn] += accum_sinN[M][nth][mm][nn];
-	  if (SELECT && M==0) {
-	    for (unsigned T=0; T<sampT; T++) 
-	      (*accum_sin2[0][T])[mm][nn] += (*accum_sin2[nth][T])[mm][nn];
-	  }
 	}
     }
-    
 				// Begin distribution loop
 				//
-    for (mm=0; mm<=MMAX; mm++)
-      for (nn=0; nn<rank3; nn++)
+    for (int mm=0; mm<=MMAX; mm++)
+      for (int nn=0; nn<rank3; nn++)
 	MPIin[mm*rank3 + nn] = accum_cosN[M][0][mm][nn];
     
     MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
 		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-    for (mm=0; mm<=MMAX; mm++)
-      for (nn=0; nn<rank3; nn++)
+    for (int mm=0; mm<=MMAX; mm++)
+      for (int nn=0; nn<rank3; nn++)
 	if (multistep)
 	  accum_cosN[M][0][mm][nn] = MPIout[mm*rank3 + nn];
 	else
 	  accum_cos[mm][nn] = MPIout[mm*rank3 + nn];
     
 
-    if (SELECT and M==0) {
-      for (unsigned T=0; T<sampT; T++) {
-	for (mm=0; mm<=MMAX; mm++)
-	  for (nn=0; nn<rank3; nn++)
-	    MPIin[mm*rank3 + nn] = (*accum_cos2[0][T])[mm][nn];
-  
-	MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
-			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
-	for (mm=0; mm<=MMAX; mm++)
-	  for (nn=0; nn<rank3; nn++)
-	    (*accum_cos2[0][T])[mm][nn] = MPIout[mm*rank3 + nn];
-	
-      } // T loop
-    } // SELECT
-
-
-    for (mm=1; mm<=MMAX; mm++)
-      for (nn=0; nn<rank3; nn++)
+    for (int mm=1; mm<=MMAX; mm++)
+      for (int nn=0; nn<rank3; nn++)
 	MPIin[mm*rank3 + nn] = accum_sinN[M][0][mm][nn];
     
     MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
 		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   
 
-    for (mm=1; mm<=MMAX; mm++)
-      for (nn=0; nn<rank3; nn++)
+    for (int mm=1; mm<=MMAX; mm++)
+      for (int nn=0; nn<rank3; nn++)
 	if (multistep)
 	  accum_sinN[M][0][mm][nn] = MPIout[mm*rank3 + nn];
 	else
 	  accum_sin[mm][nn] = MPIout[mm*rank3 + nn];
     
-    if (SELECT and M==0) {
-      for (unsigned T=0; T<sampT; T++) {
-	for (mm=1; mm<=MMAX; mm++)
-	  for (nn=0; nn<rank3; nn++)
-	    MPIin[mm*rank3 + nn] = (*accum_sin2[0][T])[mm][nn];
-  
-	MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
-			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	
-	for (mm=1; mm<=MMAX; mm++)
-	  for (nn=0; nn<rank3; nn++)
-	    (*accum_sin2[0][T])[mm][nn] = MPIout[mm*rank3 + nn];
-	
-      } // T loop
-    } // SELECT
-
     coefs_made[M] = true;
   }
   
 
-  if (SELECT and M0==0) pca_hall();
+  if (SELECT and M0==0) {
+				// Sum up over threads
+				//
+    for (int nth=1; nth<nthrds; nth++) {
 
+      for (unsigned T=0; T<sampT; T++) {
+	massT1[0][T] += massT1[nth][T];
+
+	for (int mm=0; mm<=MMAX; mm++)
+	  for (int nn=0; nn<rank3; nn++)
+	    (*accum_cos2[0][T])[mm][nn] += (*accum_cos2[nth][T])[mm][nn];
+	
+	for (int mm=1; mm<=MMAX; mm++)
+	  for (int nn=0; nn<rank3; nn++)
+	    (*accum_sin2[0][T])[mm][nn] += (*accum_sin2[nth][T])[mm][nn];
+      } // T loop
+      
+    } // Thread loop
+
+
+    // Mass used to compute variance in each partition
+    //
+    MPI_Allreduce ( &massT1[0][0], &massT[0], sampT,
+		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    
+
+    // Begin distribution loop for variance jackknife
+    //
+    for (unsigned T=0; T<sampT; T++) {
+      
+      for (int mm=0; mm<=MMAX; mm++)
+	for (int nn=0; nn<rank3; nn++)
+	  MPIin[mm*rank3 + nn] = (*accum_cos2[0][T])[mm][nn];
+  
+      MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+      for (int mm=0; mm<=MMAX; mm++)
+	for (int nn=0; nn<rank3; nn++)
+	  (*accum_cos2[0][T])[mm][nn] = MPIout[mm*rank3 + nn];
+      
+      for (int mm=1; mm<=MMAX; mm++)
+	for (int nn=0; nn<rank3; nn++)
+	  MPIin[mm*rank3 + nn] = (*accum_sin2[0][T])[mm][nn];
+      
+      MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      
+      for (int mm=1; mm<=MMAX; mm++)
+	for (int nn=0; nn<rank3; nn++)
+	  (*accum_sin2[0][T])[mm][nn] = MPIout[mm*rank3 + nn];
+      
+    } // T loop
+    
+    pca_hall();
+  }
 }
 
 void EmpCylSL::multistep_reset()
@@ -2402,21 +2391,17 @@ void EmpCylSL::make_coefficients(void)
   
   if (coefs_made_all()) return;
 
-  int mm, nn;
-
   if (!MPIset) {
     MPIin  = new double [rank3*(MMAX+1)];
     MPIout = new double [rank3*(MMAX+1)];
     MPIset = true;
   }
-  
-
 				// Sum up over threads
 				// 
   for (unsigned M=0; M<=multistep; M++) {
 
     if (coefs_made[M]) continue;
-
+    
     for (int nth=1; nth<nthrds; nth++) {
 
       howmany1[M][0] += howmany1[M][nth];
@@ -2424,9 +2409,9 @@ void EmpCylSL::make_coefficients(void)
       if (SELECT && M==0) {
 	for (unsigned T=0; T<sampT; T++) massT1[0][T] += massT1[nth][T];
       }
-
-      for (mm=0; mm<=MMAX; mm++) {
-	for (nn=0; nn<rank3; nn++) {
+      
+      for (int mm=0; mm<=MMAX; mm++) {
+	for (int nn=0; nn<rank3; nn++) {
 	  accum_cosN[M][0][mm][nn] += accum_cosN[M][nth][mm][nn];
 	  if (SELECT && M==0) {
 	    for (unsigned T=0; T<sampT; T++) 
@@ -2435,8 +2420,8 @@ void EmpCylSL::make_coefficients(void)
 	}
       }
 
-      for (mm=1; mm<=MMAX; mm++) {
-	for (nn=0; nn<rank3; nn++) {
+      for (int mm=1; mm<=MMAX; mm++) {
+	for (int nn=0; nn<rank3; nn++) {
 	  accum_sinN[M][0][mm][nn] += accum_sinN[M][nth][mm][nn];
 	  if (SELECT && M==0) {
 	    for (unsigned T=0; T<sampT; T++) 
@@ -2458,15 +2443,15 @@ void EmpCylSL::make_coefficients(void)
     MPI_Allreduce ( &howmany1[M][0], &howmany[M], 1, MPI_UNSIGNED,
 		    MPI_SUM, MPI_COMM_WORLD);
 
-    for (mm=0; mm<=MMAX; mm++)
-      for (nn=0; nn<rank3; nn++)
+    for (int mm=0; mm<=MMAX; mm++)
+      for (int nn=0; nn<rank3; nn++)
 	MPIin[mm*rank3 + nn] = accum_cosN[M][0][mm][nn];
   
     MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
 		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-    for (mm=0; mm<=MMAX; mm++)
-      for (nn=0; nn<rank3; nn++)
+    for (int mm=0; mm<=MMAX; mm++)
+      for (int nn=0; nn<rank3; nn++)
 	if (multistep)
 	  accum_cosN[M][0][mm][nn] = MPIout[mm*rank3 + nn];
 	else
@@ -2476,35 +2461,36 @@ void EmpCylSL::make_coefficients(void)
 
   if (SELECT) {
     for (unsigned T=0; T<sampT; T++) {
-      for (mm=0; mm<=MMAX; mm++)
-	for (nn=0; nn<rank3; nn++)
+      for (int mm=0; mm<=MMAX; mm++)
+	for (int nn=0; nn<rank3; nn++)
 	  MPIin[mm*rank3 + nn] = (*accum_cos2[0][T])[mm][nn];
   
       MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
 		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-      for (mm=0; mm<=MMAX; mm++)
-	for (nn=0; nn<rank3; nn++)
+      for (int mm=0; mm<=MMAX; mm++)
+	for (int nn=0; nn<rank3; nn++)
 	  (*accum_cos2[0][T])[mm][nn] = MPIout[mm*rank3 + nn];
 
     } // T loop
-  }
+
+  } // SELECT
 
 
   for (unsigned M=0; M<=multistep; M++) {
     
     if (coefs_made[M]) continue;
 
-    for (mm=1; mm<=MMAX; mm++)
-      for (nn=0; nn<rank3; nn++)
+    for (int mm=1; mm<=MMAX; mm++)
+      for (int nn=0; nn<rank3; nn++)
 	MPIin[mm*rank3 + nn] = accum_sinN[M][0][mm][nn];
   
     MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
 		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   
 
-    for (mm=1; mm<=MMAX; mm++)
-      for (nn=0; nn<rank3; nn++)
+    for (int mm=1; mm<=MMAX; mm++)
+      for (int nn=0; nn<rank3; nn++)
 	if (multistep)
 	  accum_sinN[M][0][mm][nn] = MPIout[mm*rank3 + nn];
 	else
@@ -2513,20 +2499,26 @@ void EmpCylSL::make_coefficients(void)
   
   if (SELECT) {
     for (unsigned T=0; T<sampT; T++) {
-      for (mm=1; mm<=MMAX; mm++)
-	for (nn=0; nn<rank3; nn++)
+      for (int mm=1; mm<=MMAX; mm++)
+	for (int nn=0; nn<rank3; nn++)
 	  MPIin[mm*rank3 + nn] = (*accum_sin2[0][T])[mm][nn];
   
       MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
 		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-      for (mm=1; mm<=MMAX; mm++)
-	for (nn=0; nn<rank3; nn++)
+      for (int mm=1; mm<=MMAX; mm++)
+	for (int nn=0; nn<rank3; nn++)
 	  (*accum_sin2[0][T])[mm][nn] = MPIout[mm*rank3 + nn];
 
     } // T loop
 
-  }
+				// Mass used to compute variance in
+				// each partition
+
+    MPI_Allreduce ( &massT1[0][0], &massT[0], sampT,
+		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    
+  } // SELECT
   
   if (SELECT) pca_hall();
 
@@ -2538,23 +2530,7 @@ void EmpCylSL::pca_hall(void)
 {
   if (VFLAG & 4)
     cerr << "Process " << setw(4) << myid << ": made it to pca_hall" << endl;
-
   
-				// Need number of particles to compute
-				// variance
-  MPI_Allreduce ( &cylused1, &cylused, 1,
-		  MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-
-				// Mass used to compute variance in
-				// each partition
-
-  MPI_Allreduce ( &massT1[0][0], &massT[0], sampT,
-		  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
-  if (VFLAG & 4)
-    cerr << "Process " << setw(4) << myid << ": using " 
-	 << cylused << " particles" << endl;
-
 				// For PCA jack knife
   Vector evalJK;
   Vector cumlJK;
@@ -2570,6 +2546,16 @@ void EmpCylSL::pca_hall(void)
 #endif
 
   for (auto v : massT) Tmass += v;
+
+  if (VFLAG & 4)
+    cerr << "Process " << setw(4) << myid << ": mass " 
+	 << Tmass << " of particles" << endl;
+
+  // Debug
+  //
+  if (tnow>0.0 and Tmass<=0.0) {
+    std::cerr << "STRANGE" << std::endl;
+  }
 
   // No data?
   //
@@ -2754,6 +2740,18 @@ void EmpCylSL::pca_hall(void)
   }
 #endif
 
+  // Clean storage
+  //
+  for (int nth=0; nth<nthrds; nth++) {
+    for (unsigned T=0; T<sampT; T++) {
+      massT1[nth][T] = 0.0;
+      accum_cos2[nth][T]->setsize(0, MMAX, 0, NORDER-1);
+      accum_cos2[nth][T]->zero();
+      accum_sin2[nth][T]->setsize(0, MMAX, 0, NORDER-1);
+      accum_sin2[nth][T]->zero();
+    }
+  }
+  
   if (VFLAG & 4)
     cerr << "Process " << setw(4) << myid << ": exiting to pca_hall" << endl;
 
