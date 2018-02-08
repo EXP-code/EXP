@@ -11,7 +11,7 @@ AxisymmetricBasis:: AxisymmetricBasis(string& line) : Basis(line)
   pca       = false;
   pcadiag   = false;
   pcavtk    = false;
-  pcajknf   = false;
+  pcajknf   = true;
   tksmooth  = 3.0;
   tkcum     = 0.95;
   tk_type   = Null;
@@ -142,8 +142,6 @@ void AxisymmetricBasis::pca_hall(int compute)
   if (muse <= 0.0) return;
 				// For vtk output
   static unsigned count = 0;
-				// Original diag output
-  static bool pcaorig   = false;
 
   std::ofstream out;		// PCA diag output
 
@@ -160,19 +158,19 @@ void AxisymmetricBasis::pca_hall(int compute)
       out << "#" << endl;
       if (dof==3) out << right << "# " << setw(3) << "l";
       out << setw(5)  << "m" << setw(5) << "C/S" << setw(5) << "n";
-      if (pcaorig)
-	out << setw(18) << "var"
-	    << setw(18) << "orig coef"
-	    << setw(18) << "S/N"
-	    << setw(18) << "proj var"
-	    << setw(18) << "proj coef"
-	    << setw(18) << "S/N";
       if (pcajknf)
 	out << setw(18) << "jknf var"
 	    << setw(18) << "cum"
 	    << setw(18) << "jknf coef"
 	    << setw(18) << "S/N"
 	    << setw(18) << "B_Hall";
+      else
+	out << setw(18) << "var"
+	    << setw(18) << "orig coef"
+	    << setw(18) << "S/N"
+	    << setw(18) << "proj var"
+	    << setw(18) << "proj coef"
+	    << setw(18) << "S/N";
       out << endl;
     } else {
       cout << "AxisymmetricBasis::pca_hall: could not open output file <"
@@ -358,7 +356,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    if (out) {
 	      if (dof==3) out << setw(5) << l;
 	      out << setw(5)  << m << setw(5) << 'c' << setw(5) << n;
-	      if (pcaorig) {
+	      if (!pcajknf) {
 		if (covar[n][n] > 0.0)
 		  out << setw(18) << covar[n][n]
 		      << setw(18) << expcoef[indx][n]*fac
@@ -530,7 +528,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    if (out) {
 	      if (dof==3) out << setw(5) << l;
 	      out << setw(5)  << m << setw(5) << 'c' << setw(5) << n;
-	      if (pcaorig) {
+	      if (!pcajknf) {
 		if (covar[n][n] > 0.0)
 		  out << setw(18) << sqrt(covar[n][n])
 		      << setw(18) << expcoef[indx][n]/muse
@@ -702,7 +700,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    if (out) {
 	      if (dof==3) out << setw(5) << l;
 	      out << setw(5)  << m << setw(5) << 's' << setw(5) << n;
-	      if (pcaorig) {
+	      if (!pcajknf) {
 		if (covar[n][n] > 0.0)
 		  out << setw(18) << sqrt(covar[n][n])
 		      << setw(18) << expcoef[indx][n]/muse
