@@ -12026,37 +12026,82 @@ void CollideIon::scatterTrace
 
     // BEGIN: energy conservation algorithm
 
-    std::vector<double> uu(3), vv(3);
+    std::vector<double> uu(3), vv(3), w1(3, 0.0);
     double v1i2 = 0.0, b1f2 = 0.0, v2i2 = 0.0, b2f2 = 0.0;
-    double qT = 0.0, vrat = 0.0, q = pp->q, cq = 1.0 - pp->q;
+    double qT = 0.0, vrat = 1.0, q = pp->q, cq = 1.0 - pp->q;
+    double udif = 0.0, gamm = 0.0, vcm2 = 0.0;
+    bool  algok = false;
 
     if (cq > 0.0) {
 
       for (size_t i=0; i<3; i++) {
 	uu[i] = vcom[i] + pp->m2/mt*vrel[i]*KE.vfac;
 	vv[i] = vcom[i] - pp->m1/mt*vrel[i]*KE.vfac;
+	vcm2 += vcom[i] * vcom[i];
 	v1i2 += (*v1)[i] * (*v1)[i];
 	v2i2 += (*v2)[i] * (*v2)[i];
 	b1f2 += uu[i]*uu[i];
 	b2f2 += vv[i]*vv[i];
 	qT   += (*v1)[i]*uu[i];
+	udif += ((*v1)[i] - uu[i])*((*v1)[i] - uu[i]);
       }
       
-      if (v1i2 > 0.0 and b1f2 > 0.0) qT *= q/v1i2;
-      
-      vrat = 
-	( -qT + std::copysign(1.0, qT)*sqrt(qT*qT + cq*(q*b1f2/v1i2 + 1.0)) )/cq;
-    }
+      // Alternative "orthogonal" energy algorithm
+      //
+      if (AlgOrth) {
 
-    if (std::isnan(vrat)) {
-      std::cout << "Vrat problem" << std::endl;
+	// Cross product to determine orthgonal direction
+	//
+	w1 = uu ^ (*v1);
+
+	// Normalize
+	//
+	double wnrm = 0.0;
+	for (auto   v : w1) wnrm += v*v;
+	
+	const double tol = 1.0e-12;
+	// Generate random vector if |u|~0 or |v1|~0
+	if (v1i2 < tol*b1f2 or b1f2 < tol*v1i2) {
+	  for (auto & v : w1) v = (*norm)();
+	}
+
+	// Choose random orthogonal vector if uu || v1
+	else if (wnrm < tol*v1i2) {
+	  auto t3 = zorder(*v1);
+	  int i0 = std::get<0>(t3), i1 = std::get<1>(t3), i2 = std::get<2>(t3);
+	  w1[i0] = (*norm)();
+	  w1[i1] = (*norm)();
+	  w1[i2] = -(w1[i0]*(*v1)[i0] + w1[i1]*(*v1)[i1])/(*v1)[i2];
+	  wnrm = 0.0; for (auto v : w1) wnrm += v*v;
+	}
+	// Sanity check on norm |w|
+	if (wnrm > tol*sqrt(vcm2)) {
+	  for (auto & v : w1) v *= 1.0/sqrt(wnrm);
+	  gamm = sqrt(q*(1.0 - q)*udif);
+	  algok = true;
+	}
+      }
+
+      // Standard "parallel" energy algorithm
+      //
+      if (!AlgOrth or !algok) {
+      
+	if (v1i2 > 0.0 and b1f2 > 0.0) qT *= q/v1i2;
+      
+	vrat = 
+	  ( -qT + std::copysign(1.0, qT)*sqrt(qT*qT + cq*(q*b1f2/v1i2 + 1.0)) )/cq;
+      }
+
+      if (std::isnan(vrat)) {
+	std::cout << "Vrat problem" << std::endl;
+      }
     }
 
     for (int i=0; i<3; i++) {
 
       double v0 = vcom[i] + pp->m2/mt*vrel[i]*KE.vfac;
     
-      (*v1)[i] = cq*(*v1)[i]*vrat + q*v0;
+      (*v1)[i] = cq*(*v1)[i]*vrat + q*v0 + w1[i]*gamm;
       (*v2)[i] = vcom[i] - pp->m1/mt*vrel[i]*KE.vfac;
     }
     
