@@ -340,7 +340,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    //
 	    if (cof.good()) {
 	      cof << "#" << std::endl
-		  << "# cos l=" << l << " m=1" << m << std::endl
+		  << "# cos l=" << l << " m=" << m << std::endl
 		  << "#" << std::endl;
 	      for (int i=1; i<=nmax; i++) {
 		for (int j=1; j<=nmax; j++) {
@@ -529,7 +529,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    //
 	    if (cof.good()) {
 	      cof << "#" << std::endl
-		  << "# cos l=" << l << " m=1" << m << std::endl
+		  << "# cos l=" << l << " m=" << m << std::endl
 		  << "#" << std::endl;
 	      for (int i=1; i<=nmax; i++) {
 		for (int j=1; j<=nmax; j++) {
@@ -715,7 +715,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    //
 	    if (cof.good()) {
 	      cof << "#" << std::endl
-		  << "# sin l=" << l << " m=1" << m << std::endl
+		  << "# sin l=" << l << " m=" << m << std::endl
 		  << "#" << std::endl;
 	      for (int i=1; i<=nmax; i++) {
 		for (int j=1; j<=nmax; j++) {
