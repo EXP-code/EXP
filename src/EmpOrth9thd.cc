@@ -2597,7 +2597,7 @@ void EmpCylSL::pca_hall(void)
     if (mout.good()) {
       mout << "#" << endl << std::right
 	   << "# Time = " << tnow << "  Step=" << hallcount << endl
-	   << "#" << endl;
+	   << "#" << endl << setprecision(4);
     } else {
       cerr << "Could not open <" << mfile.str() << "> for appending output" 
 	   << endl;

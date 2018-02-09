@@ -185,7 +185,7 @@ void AxisymmetricBasis::pca_hall(int compute)
     if (cof.good()) {
       cof << "#" << endl << std::right
 	  << "# Time = " << tnow << endl
-	  << "#" << endl;
+	  << "#" << endl << setprecision(4);
     } else {
       cout << "AxisymmetricBasis::pca_hall: could not open output file <"
 	   << sout2.str() << ">" << endl
