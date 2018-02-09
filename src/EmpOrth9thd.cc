@@ -2539,7 +2539,7 @@ void EmpCylSL::pca_hall(void)
   Matrix covrJK(1, rank3, 1, rank3);
   Matrix evecJK(1, rank3, 1, rank3);
   double Tmass = 0.0;
-
+  
 #ifndef STANDALONE
   VtkPCAptr vtkpca;
   if (PCAVTK) vtkpca = VtkPCAptr(new VtkPCA(rank3));
@@ -2575,10 +2575,14 @@ void EmpCylSL::pca_hall(void)
 	   << setw( 4) << "m" << setw(4) << "n" << setw(4) << "CS"
 	   << setw(18) << "Smth coef"
 	   << setw(18) << "|coef|^2"
+	   << setw(18) << "|orig|^2"
 	   << setw(18) << "var(coef)"
+	   << setw(18) << "cum var"
 	   << setw(18) << "S/N"
 	   << setw(18) << "b_Hall"    << std::endl
 	   << setw( 4) << "--" << setw(4) << "--" << setw(4) << "--"
+	   << setw(18) << "---------"
+	   << setw(18) << "---------"
 	   << setw(18) << "---------"
 	   << setw(18) << "---------"
 	   << setw(18) << "---------"
@@ -2631,6 +2635,16 @@ void EmpCylSL::pca_hall(void)
     //
     Vector dd = evecJK.Transpose() * meanJK;
 
+    // Projected coefficients (orig)
+    //
+    Vector ee = evecJK.Transpose() * accum_cos[mm] / Tmass;
+
+    // Cumulative distribution
+    //
+    Vector cumlJK = evalJK;
+    for (int nn=1; nn<rank3; nn++) cumlJK[nn] += cumlJK[nn-1];
+    for (int nn=0; nn<rank3; nn++) cumlJK[nn] /= cumlJK[rank3-1];
+
     // Compute Hall coefficients
     //
     for (int nn=0; nn<rank3; nn++) {
@@ -2644,7 +2658,9 @@ void EmpCylSL::pca_hall(void)
       if (hout.good()) hout << setw( 4) << mm << setw(4) << nn << setw(4) << "C"
 			    << setw(18) << dd[nn+1]
 			    << setw(18) << sqr
+			    << setw(18) << ee[nn+1] * ee[nn+1]
 			    << setw(18) << var
+			    << setw(18) << cumlJK[nn+1]
 			    << setw(18) << sqrt(sqr/var)
 			    << setw(18) << b_Hall[nn+1] << std::endl;
 
@@ -2701,6 +2717,16 @@ void EmpCylSL::pca_hall(void)
     //
     Vector dd = evecJK.Transpose() * meanJK;
 
+    // Projected coefficients (orig)
+    //
+    Vector ee = evecJK.Transpose() * accum_cos[mm] / Tmass;
+
+    // Cumulative distribution
+    //
+    Vector cumlJK = evalJK;
+    for (int nn=1; nn<rank3; nn++) cumlJK[nn] += cumlJK[nn-1];
+    for (int nn=0; nn<rank3; nn++) cumlJK[nn] /= cumlJK[rank3-1];
+
     // Compute Hall coefficients
     //
     for (int nn=0; nn<rank3; nn++) {
@@ -2713,7 +2739,9 @@ void EmpCylSL::pca_hall(void)
       if (hout.good()) hout << setw( 4) << mm << setw(4) << nn << setw(4) << "S"
 			    << setw(18) << dd[nn+1]
 			    << setw(18) << sqr
+			    << setw(18) << ee[nn+1] * ee[nn+1]
 			    << setw(18) << var
+			    << setw(18) << cumlJK[nn+1]
 			    << setw(18) << sqrt(sqr/var)
 			    << setw(18) << b_Hall[nn+1] << std::endl;
 
