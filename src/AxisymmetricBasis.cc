@@ -144,13 +144,17 @@ void AxisymmetricBasis::pca_hall(int compute)
   static unsigned count = 0;
 
   std::ofstream out;		// PCA diag output
+  std::ofstream cof;		// PCA diag output
 
   if (pcadiag and myid==0 and compute) {
 
     // Open the diag file
-    ostringstream sout;
-    sout << runtag << ".pcadiag." << cC->id << "." << cC->name;
-    out.open(sout.str().c_str(), ios::out | ios::app);
+    ostringstream sout1, sout2;
+    sout1 << runtag << ".pcadiag." << cC->id << "." << cC->name << ".pcalog";
+    sout2 << runtag << ".pcadiag." << cC->id << "." << cC->name << ".pcamat";
+
+    out.open(sout1.str().c_str(), ios::out | ios::app);
+    cof.open(sout2.str().c_str(), ios::out | ios::app);
 
     if (out) {
       out << "#" << endl;
@@ -174,10 +178,21 @@ void AxisymmetricBasis::pca_hall(int compute)
       out << endl;
     } else {
       cout << "AxisymmetricBasis::pca_hall: could not open output file <"
-	   << sout.str() << ">" << endl
+	   << sout1.str() << ">" << endl
 	   << "AxisymmetricBasis::pca_hall: continuing" << endl;
     }
-  }
+
+    if (cof.good()) {
+      cof << "#" << endl << std::right
+	  << "# Time = " << tnow << endl
+	  << "#" << endl;
+    } else {
+      cout << "AxisymmetricBasis::pca_hall: could not open output file <"
+	   << sout2.str() << ">" << endl
+	   << "AxisymmetricBasis::pca_hall: continuing" << endl;
+    }
+
+  } // END: pcadiag file initialization
 
   VtkPCAptr vtkpca;
   if (pcavtk and myid==0 and compute) {
@@ -320,6 +335,21 @@ void AxisymmetricBasis::pca_hall(int compute)
 #else
 	    evalJK = covrJK.Symmetric_Eigenvalues(evecJK);
 #endif
+
+	    // Transformation output
+	    //
+	    if (cof.good()) {
+	      cof << "#" << std::endl
+		  << "# cos l=" << l << " m=1" << m << std::endl
+		  << "#" << std::endl;
+	      for (int i=1; i<=nmax; i++) {
+		for (int j=1; j<=nmax; j++) {
+		  cof << std::setw(12) << evecJK.Transpose()[i][j];
+		}
+		cof << std::endl;
+	      }
+	    }
+
 	    // Cumulative distribution
 	    //
 	    cumlJK = evalJK;
@@ -494,6 +524,21 @@ void AxisymmetricBasis::pca_hall(int compute)
 #else
 	    evalJK = covrJK.Symmetric_Eigenvalues(evecJK);
 #endif
+
+	    // Transformation output
+	    //
+	    if (cof.good()) {
+	      cof << "#" << std::endl
+		  << "# cos l=" << l << " m=1" << m << std::endl
+		  << "#" << std::endl;
+	      for (int i=1; i<=nmax; i++) {
+		for (int j=1; j<=nmax; j++) {
+		  cof << std::setw(12) << evecJK.Transpose()[i][j];
+		}
+		cof << std::endl;
+	      }
+	    }
+
 	    // Cumulative distribution
 	    //
 	    cumlJK = evalJK;
@@ -665,6 +710,21 @@ void AxisymmetricBasis::pca_hall(int compute)
 #else
 	    evalJK = covrJK.Symmetric_Eigenvalues(evecJK);
 #endif
+
+	    // Transformation output
+	    //
+	    if (cof.good()) {
+	      cof << "#" << std::endl
+		  << "# sin l=" << l << " m=1" << m << std::endl
+		  << "#" << std::endl;
+	      for (int i=1; i<=nmax; i++) {
+		for (int j=1; j<=nmax; j++) {
+		  cof << std::setw(12) << evecJK.Transpose()[i][j];
+		}
+		cof << std::endl;
+	      }
+	    }
+
 	    // Cumulative distribution
 	    //
 	    cumlJK = evalJK;

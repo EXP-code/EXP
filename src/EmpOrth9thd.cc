@@ -2535,6 +2535,7 @@ void EmpCylSL::pca_hall(void)
   Vector evalJK;
   Vector cumlJK;
   Vector meanJK(1, rank3);
+  Vector coefJK(1, rank3);
   Vector b_Hall(1, rank3);
   Matrix covrJK(1, rank3, 1, rank3);
   Matrix evecJK(1, rank3, 1, rank3);
@@ -2563,9 +2564,9 @@ void EmpCylSL::pca_hall(void)
   
   // Setup for diagnostic output
   //
-  std::ofstream hout;
+  std::ofstream hout, mout;
   if (hallcount++%hallfreq==0 && myid==0 && hallfile.length()>0) {
-    std::ostringstream ofile;
+    std::ostringstream ofile, mfile;
     ofile << hallfile << ".pcalog";
     hout.open(ofile.str(), ios::out | ios::app);
     if (hout.good()) {
@@ -2575,7 +2576,6 @@ void EmpCylSL::pca_hall(void)
 	   << setw( 4) << "m" << setw(4) << "n" << setw(4) << "CS"
 	   << setw(18) << "Smth coef"
 	   << setw(18) << "|coef|^2"
-	   << setw(18) << "|orig|^2"
 	   << setw(18) << "var(coef)"
 	   << setw(18) << "cum var"
 	   << setw(18) << "S/N"
@@ -2586,10 +2586,20 @@ void EmpCylSL::pca_hall(void)
 	   << setw(18) << "---------"
 	   << setw(18) << "---------"
 	   << setw(18) << "---------"
-	   << setw(18) << "---------"
 	   << setw(18) << "---------" << std::endl;
     } else {
-      cerr << "Could not open <" << hallfile << "> for appending output" 
+      cerr << "Could not open <" << ofile.str() << "> for appending output" 
+	   << endl;
+    }
+    
+    mfile << hallfile << ".pcamat";
+    mout.open(mfile.str(), ios::out | ios::app);
+    if (mout.good()) {
+      mout << "#" << endl << std::right
+	   << "# Time = " << tnow << "  Step=" << hallcount << endl
+	   << "#" << endl;
+    } else {
+      cerr << "Could not open <" << mfile.str() << "> for appending output" 
 	   << endl;
     }
   }
@@ -2600,6 +2610,7 @@ void EmpCylSL::pca_hall(void)
 
     covrJK.zero();
     meanJK.zero();
+    coefJK.zero();
 
     // Data partitions for variance
     //
@@ -2610,6 +2621,8 @@ void EmpCylSL::pca_hall(void)
       for (int nn=0; nn<rank3; nn++) { // Order
 
 	meanJK[nn+1] += (*accum_cos2[0][T])[mm][nn]/(massT[T]*sampT);
+
+	coefJK[nn+1] += (*accum_cos2[0][T])[mm][nn];
 
 	for (int oo=0; oo<rank3; oo++) { // Order
 
@@ -2631,19 +2644,29 @@ void EmpCylSL::pca_hall(void)
     evalJK = covrJK.Symmetric_Eigenvalues(evecJK);
 #endif
     
+    // Transformation output
+    //
+    if (mout.good()) {
+      mout << "#" << std::endl
+	   << "# cos m=" << mm << std::endl
+	   << "#" << std::endl;
+      for (int nn=0; nn<rank3; nn++) {
+	for (int oo=0; oo<rank3; oo++) {
+	  mout << std::setw(12) << evecJK.Transpose()[nn+1][oo+1];
+	}
+	mout << std::endl;
+      }
+    }
+
     // Projected coefficients
     //
-    Vector dd = evecJK.Transpose() * meanJK;
-
-    // Projected coefficients (orig)
-    //
-    Vector ee = evecJK.Transpose() * accum_cos[mm] / Tmass;
+    Vector dd = evecJK.Transpose() * coefJK / Tmass;
 
     // Cumulative distribution
     //
     Vector cumlJK = evalJK;
-    for (int nn=1; nn<rank3; nn++) cumlJK[nn] += cumlJK[nn-1];
-    for (int nn=0; nn<rank3; nn++) cumlJK[nn] /= cumlJK[rank3-1];
+    for (int nn=2; nn<=rank3; nn++) cumlJK[nn] += cumlJK[nn-1];
+    for (int nn=1; nn<=rank3; nn++) cumlJK[nn] /= cumlJK[rank3];
 
     // Compute Hall coefficients
     //
@@ -2658,7 +2681,6 @@ void EmpCylSL::pca_hall(void)
       if (hout.good()) hout << setw( 4) << mm << setw(4) << nn << setw(4) << "C"
 			    << setw(18) << dd[nn+1]
 			    << setw(18) << sqr
-			    << setw(18) << ee[nn+1] * ee[nn+1]
 			    << setw(18) << var
 			    << setw(18) << cumlJK[nn+1]
 			    << setw(18) << sqrt(sqr/var)
@@ -2677,13 +2699,13 @@ void EmpCylSL::pca_hall(void)
 #endif
   }
   
-
   // Loop through each harmonic subspace [ODD sines]
   //
   for (int mm=1; mm<=MMAX; mm++) {
 
     covrJK.zero();
     meanJK.zero();
+    coefJK.zero();
 
     // Data partitions for variance
     //
@@ -2692,6 +2714,8 @@ void EmpCylSL::pca_hall(void)
       for (int nn=0; nn<rank3; nn++) { // Order
 
 	meanJK[nn+1] += (*accum_sin2[0][T])[mm][nn]/(massT[T]*sampT);
+
+	coefJK[nn+1] += (*accum_sin2[0][T])[mm][nn];
 
 	for (int oo=0; oo<rank3; oo++) { // Order
 
@@ -2713,19 +2737,28 @@ void EmpCylSL::pca_hall(void)
     evalJK = covrJK.Symmetric_Eigenvalues(evecJK);
 #endif
     
+    if (mout.good()) {
+      mout << "#" << std::endl
+	   << "# sin m=" << mm << std::endl
+	   << "#" << std::endl;
+      for (int nn=0; nn<rank3; nn++) {
+	for (int oo=0; oo<rank3; oo++) {
+	  mout << std::setw(12) << evecJK.Transpose()[nn+1][oo+1];
+	}
+	mout << std::endl;
+      }
+    }
+
+
     // Projected coefficients
     //
-    Vector dd = evecJK.Transpose() * meanJK;
-
-    // Projected coefficients (orig)
-    //
-    Vector ee = evecJK.Transpose() * accum_cos[mm] / Tmass;
+    Vector dd = evecJK.Transpose() * coefJK / Tmass;
 
     // Cumulative distribution
     //
     Vector cumlJK = evalJK;
-    for (int nn=1; nn<rank3; nn++) cumlJK[nn] += cumlJK[nn-1];
-    for (int nn=0; nn<rank3; nn++) cumlJK[nn] /= cumlJK[rank3-1];
+    for (int nn=2; nn<=rank3; nn++) cumlJK[nn] += cumlJK[nn-1];
+    for (int nn=1; nn<=rank3; nn++) cumlJK[nn] /= cumlJK[rank3];
 
     // Compute Hall coefficients
     //
@@ -2739,7 +2772,6 @@ void EmpCylSL::pca_hall(void)
       if (hout.good()) hout << setw( 4) << mm << setw(4) << nn << setw(4) << "S"
 			    << setw(18) << dd[nn+1]
 			    << setw(18) << sqr
-			    << setw(18) << ee[nn+1] * ee[nn+1]
 			    << setw(18) << var
 			    << setw(18) << cumlJK[nn+1]
 			    << setw(18) << sqrt(sqr/var)
