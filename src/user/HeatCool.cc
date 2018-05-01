@@ -26,7 +26,7 @@ using namespace std;
 // xion tolerance 
 //
 #define TOLERANCE 1e-14
-#define SMALLNUM 1.e-30
+#define SMALLNUM  1.e-30
 
 static double alphaj=-1.2;
 static double fhydrogen=0.76;
@@ -384,7 +384,7 @@ double HeatCool::romberg_o(func_1d func, double a, double b, double eps)
   int nsamples = 1;
   
   tlk[0] = tllnew = (b-a)*(*func)((b-a)/2.0);
-  tll = 0.5*HUGE;
+  tll = 0.5*HUGE_VAL;
   
   while((fabs(tllnew-tll) > fabs(tllnew)*eps) && (n < MAXLEV)) {
     // midpoint rule

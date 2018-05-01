@@ -1,4 +1,5 @@
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
+BUILD_FLAGS =  -L$(top_srcdir)/expgnu/.libs -L$(top_srcdir)/exputil/.libs
 
 if ENABLE_GPTL
 ADD_CFLAGS4  = -DUSE_GPTL $(gptl_include)
@@ -138,19 +139,19 @@ libshear_la_SOURCES = UserShear.cc
 libprofile_la_SOURCES = UserProfile.cc
 
 testCrossSection_SOURCES = testCross.cc phfit2.f
-testCrossSection_LDFLAGS = $(BOOST_LDFLAGS)
+testCrossSection_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS)
 testCrossSection_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu -llapack -lblas
 
 testIonRecomb_SOURCES = testIonRecomb.cc phfit2.f
-testIonRecomb_LDFLAGS = $(BOOST_LDFLAGS)
+testIonRecomb_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS)
 testIonRecomb_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu -llapack -lblas
 
 genIonRecomb_SOURCES = genIonRecomb.cc phfit2.f
-genIonRecomb_LDFLAGS = $(BOOST_LDFLAGS)
+genIonRecomb_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS)
 genIonRecomb_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu -llapack -lblas
 
 testQuantile_SOURCES = testQuantile.cc Quantile.cc
-testQuantile_LDFLAGS = $(BOOST_LDFLAGS)
+testQuantile_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS)
 testQuantile_LDADD = $(BOOST_PROGRAM_OPTIONS_LIB)
 
 

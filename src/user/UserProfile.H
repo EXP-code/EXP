@@ -36,7 +36,7 @@ private:
   vector<int> nbeg, nend, numb;
 
   void determine_acceleration_and_potential(void);
-  void * determine_acceleration_and_potential_thread(void * arg) {}
+  void * determine_acceleration_and_potential_thread(void * arg) { return 0x0; }
   void initialize();
 
   void userinfo();
