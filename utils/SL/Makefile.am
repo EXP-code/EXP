@@ -15,7 +15,8 @@ AM_CPPFLAGS= -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 
 bin_PROGRAMS = slcheck slshift orthochk diskpot
 
-COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS)	\
+$(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@
 SYS_LIBS = -lstdc++ -lpthread -ldl $(LIBS)
 MPI_LIBS = -lmpi
 

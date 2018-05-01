@@ -10,11 +10,12 @@ ADD_LIBS3 = -ldmallocth -ldmallocthcxx
 endif
 
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
-AM_CXXFLAGS = -std=c++11 -D_REENTRANT -DSTANDALONE $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
+AM_CXXFLAGS = -fPIC -std=c++11 -D_REENTRANT -DSTANDALONE $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) @exp_vtk_include@
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src -I$(top_srcdir)/utils/SL
 
-COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS)	\
+$(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@
 MPI_LIBS = -lmpi
 
 BOOST_LIBS = $(BOOST_SYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)
@@ -34,42 +35,42 @@ shrinkics_LDADD = $(EXPLIBS)
 gendisk_SOURCES = initial.cc DiskHalo.cc EmpOrth9thd.cc \
 	SphericalSL.cc legendre.cc Particle.cc SParticle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
-gendisk_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+gendisk_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 gendisk2_SOURCES =  initial2.cc DiskHalo2.cc EmpOrth9thd.cc \
 	SphericalSL.cc legendre.cc Particle.cc SParticle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
-gendisk2_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+gendisk2_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 gendisk3_SOURCES =  initial3.cc DiskHalo3.cc EmpOrth9thd.cc \
 	CylDisk.cc SphericalSL.cc legendre.cc Particle.cc SParticle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
-gendisk3_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+gendisk3_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 gsphere_SOURCES = bonnerebert.cc
-gsphere_LDADD = $(EXPLIBS)
+gsphere_LDADD = $(COMMON_LIBS) $(EXPLIBS)
 
 pstmod_SOURCES = pst_model.cc CylindricalDisk.cc EllipsoidForce.cc SLSphere.cc
-pstmod_LDADD = $(EXPLIBS)
+pstmod_LDADD = $(COMMON_LIBS) $(EXPLIBS)
 
 empinfo_SOURCES = empinfo.cc EmpOrth9thd.cc localmpi.cc
-empinfo_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+empinfo_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 empdump_SOURCES = empdump.cc EmpOrth9thd.cc localmpi.cc
-empdump_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+empdump_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 makeIon_SOURCES = makeIonIC.cc Particle.cc Particle.H Species.H	\
 	atomic_constants.H atomic_constants.cc
 makeIon_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
-makeIon_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(BOOST_LIBS)	\
+makeIon_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(BOOST_LIBS)	\
 	$(LIBS) $(FLIBS)
 
 phIon_SOURCES = ph_ion.cc
-phIon_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
+phIon_LDFLAGS = $(COMMON_LIBS) $(EXPFLAGS) $(BOOST_LDFLAGS)
 phIon_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) $(FLIBS)
 
 phConv_SOURCES = ph_conv.cc
-phConv_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
+phConv_LDFLAGS = $(COMMON_LIBS) $(EXPFLAGS) $(BOOST_LDFLAGS)
 phConv_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) $(FLIBS)
 
 initial.cc:		Particle.H

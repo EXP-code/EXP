@@ -93,6 +93,9 @@ namespace NTC
     //! Default electron pElem
     static pElem const edef;
 
+    //! Default ion pElem
+    static pElem const idef;
+
     //! Default interaction key for singleton
     static T single;
 

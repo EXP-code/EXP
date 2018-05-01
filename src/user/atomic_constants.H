@@ -22,6 +22,9 @@ const double boltzEv   = 8.6173324e-5;
 // Planck's constant (cgs)
 const double planck    = 6.626075540e-27;
 
+// Planck's constant h-bar (eV-s)
+const double hbar      = 6.58211951440e-16;
+
 // Electron charge (cgs)
 const double esu       = 4.80320427e-10;
 

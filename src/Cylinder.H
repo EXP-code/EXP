@@ -37,7 +37,7 @@ private:
   int nmax, lmax, mmax;
   int ncylnx, ncylny, ncylr;
   double hcyl;
-  int ncylorder, ncylrecomp, hallfreq;
+  int ncylorder, ncylrecomp, hallfreq, vtkfreq;
   string eof_file;
   bool self_consistent, logarithmic, density, pca, pcainit, pcavtk;
   bool cmap, try_cache, firstime;

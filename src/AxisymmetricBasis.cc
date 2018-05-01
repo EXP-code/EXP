@@ -12,6 +12,7 @@ AxisymmetricBasis:: AxisymmetricBasis(string& line) : Basis(line)
   pcadiag   = false;
   pcavtk    = false;
   pcajknf   = true;
+  vtkfreq   = 1;
   tksmooth  = 3.0;
   tkcum     = 0.95;
   tk_type   = Null;
@@ -45,6 +46,8 @@ AxisymmetricBasis:: AxisymmetricBasis(string& line) : Basis(line)
     if (atoi(val.c_str())) pcavtk = true; 
     else pcavtk = false;
   }
+
+  if (get_value("vtkfreq", val)) vtkfreq = atoi(val.c_str());
 
   if (get_value("pcajknf", val)) {
     if (atoi(val.c_str())) pcajknf = true; 
@@ -140,8 +143,6 @@ AxisymmetricBasis::~AxisymmetricBasis()
 void AxisymmetricBasis::pca_hall(int compute)
 {
   if (muse <= 0.0) return;
-				// For vtk output
-  static unsigned count = 0;
 
   std::ofstream out;		// PCA diag output
   std::ofstream cof;		// PCA diag output
@@ -195,8 +196,29 @@ void AxisymmetricBasis::pca_hall(int compute)
   } // END: pcadiag file initialization
 
   VtkPCAptr vtkpca;
-  if (pcavtk and myid==0 and compute) {
-    vtkpca = VtkPCAptr(new VtkPCA(nmax));
+
+  static unsigned ocount = 0;
+
+  if (pcavtk and myid==0) {
+
+    if (ocount==0) {		// Look for restart position.  This is
+      while (1) {		// time consuming but is only done once.
+	std::ostringstream fileN;
+	fileN << runtag << "_pca_" << cC->id << "_" << cC->name
+	      << "_" << std::setfill('0') << std::setw(5) << ocount;
+	std::ifstream infile(fileN.str());
+	if (not infile.good()) break;
+	ocount++;
+      }
+      if (ocount)
+	std::cout << "Restart in AxisymmetricBasis::pca_hall: "
+		  << "vtk output will begin at "
+		  << ocount << std::endl;
+    }
+
+    if (compute and ocount % vtkfreq==0) {
+      vtkpca = VtkPCAptr(new VtkPCA(nmax));
+    }
   }
 
   if (dof==3)
@@ -217,7 +239,7 @@ void AxisymmetricBasis::pca_hall(int compute)
   int loffset, moffset, indx, lm;
 
 				// For PCA jack knife
-  Vector evalJK, cumlJK;
+  Vector evalJK, cumlJK, snrval;
   Vector meanJK;
   Matrix covrJK;
   Matrix evecJK;
@@ -356,19 +378,24 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    for (int n=2; n<=nmax; n++) cumlJK[n] += cumlJK[n-1];
 	    for (int n=2; n<=nmax; n++) cumlJK[n] /= cumlJK[nmax];
 
+	    // SNR vector
+	    //
+	    snrval.setsize(cumlJK.getlow(), cumlJK.gethigh());
+
 	    // Recompute Hall coefficients
 	    //
 	    for (int n=1; n<=nmax; n++) {
 	      b = evalJK[n]/(meanJK[n]*meanJK[n]);
 	      b_Hall[indx][n] = 1.0/(1.0 + b);
+	      snrval[n] = sqrt(1.0/b);
 	    }
 	  }
 
-	  if (vtkpca) {
+	  if (vtkpca and myid==0) {
 	    if (dof==3)
-	      vtkpca->Add(b_Hall[indx], evecJK.Transpose(), l, m, 'c');
+	      vtkpca->Add(meanJK, b_Hall[indx], snrval, evalJK, evecJK.Transpose(), l, m, 'c');
 	    else
-	      vtkpca->Add(b_Hall[indx], evecJK.Transpose(), m);
+	      vtkpca->Add(meanJK, b_Hall[indx], snrval, evalJK, evecJK.Transpose(), m);
 	  }
 	  
 	  if (out) out << endl;
@@ -545,19 +572,24 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    for (int n=2; n<=nmax; n++) cumlJK[n] += cumlJK[n-1];
 	    for (int n=2; n<=nmax; n++) cumlJK[n] /= cumlJK[nmax];
 
+	    // SNR vector
+	    //
+	    snrval.setsize(cumlJK.getlow(), cumlJK.gethigh());
+
 	    // Recompute Hall coefficients
 	    //
 	    for (int n=1; n<=nmax; n++) {
 	      b = evalJK[n]/(meanJK[n]*meanJK[n]);
 	      b_Hall[indx][n] = 1.0/(1.0 + b);
+	      snrval[n] = sqrt(1.0/b);
 	    }
 	  }
 
-	  if (vtkpca) {
+	  if (vtkpca and myid==0) {
 	    if (dof==3)
-	      vtkpca->Add(b_Hall[indx], evecJK.Transpose(), l, m, 'c');
+	      vtkpca->Add(meanJK, b_Hall[indx], snrval, evalJK, evecJK.Transpose(), l, m, 'c');
 	    else
-	      vtkpca->Add(b_Hall[indx], evecJK.Transpose(), m);
+	      vtkpca->Add(meanJK, b_Hall[indx], snrval, evalJK, evecJK.Transpose(), m);
 	  }
 
 	  if (out) out << endl;
@@ -731,19 +763,24 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    for (int n=2; n<=nmax; n++) cumlJK[n] += cumlJK[n-1];
 	    for (int n=2; n<=nmax; n++) cumlJK[n] /= cumlJK[nmax];
 
+	    // SNR vector
+	    //
+	    snrval.setsize(cumlJK.getlow(), cumlJK.gethigh());
+
 	    // Recompute Hall coefficients
 	    //
 	    for (int n=1; n<=nmax; n++) {
 	      b = evalJK[n]/(meanJK[n]*meanJK[n]);
 	      b_Hall[indx][n] = 1.0/(1.0 + b);
+	      snrval[n] = sqrt(1.0/b);
 	    }
 	  }
 
-	  if (vtkpca) {
+	  if (vtkpca and myid==0) {
 	    if (dof==3)
-	      vtkpca->Add(b_Hall[indx], evecJK.Transpose(), l, m, 's');
+	      vtkpca->Add(meanJK, b_Hall[indx], snrval, evalJK, evecJK.Transpose(), l, m, 's');
 	    else
-	      vtkpca->Add(b_Hall[indx], evecJK.Transpose(), m);
+	      vtkpca->Add(meanJK, b_Hall[indx], snrval, evalJK, evecJK.Transpose(), m);
 	  }
 	  
 
@@ -847,8 +884,9 @@ void AxisymmetricBasis::pca_hall(int compute)
 
   if (vtkpca) {
     std::ostringstream sout;
+
     sout << runtag << "_pca_" << cC->id << "_" << cC->name
-	 << "_" << std::setfill('0') << std::setw(5) << count++;
+	 << "_" << std::setfill('0') << std::setw(5) << ocount++;
     vtkpca->Write(sout.str());
   }
 

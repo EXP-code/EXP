@@ -13,7 +13,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS3)
 AM_CXXFLAGS = -std=c++11 -D_REENTRANT -DSTANDALONE $(INCLUDES) $(ADD_CXXFLAGS3) $(BOOST_CPPFLAGS) @exp_vtk_include@
 
-COMMON_LIBS = $(LIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS)
+COMMON_LIBS = $(LIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ 
 MPI_LIBS = -lmpi
 EXPLIBS = -lexputil -lexpgnu $(COMMON_LIBS) $(ADD_LIBS3) $(MPI_LIBS)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
@@ -21,16 +21,16 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
-bin_PROGRAMS = diskprof haloprof slabprof psphisto gas2d gas2dcyl makegrid pspbox eofpeek
+bin_PROGRAMS = diskprof haloprof slabprof psphisto gas2d gas2dcyl makegrid pspbox eofpeek diskprof2 pcatest
 
 diskprof_SOURCES = PSP.cc header.cc diskprof.cc EmpOrth9thd.cc localmpi.cc Particle.cc
-diskprof_LDADD = $(EXPLIBS)
+diskprof_LDADD = $(EXPLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@
 
 haloprof_SOURCES = PSP.cc header.cc haloprof.cc SphereSL.cc localmpi.cc Particle.cc
 haloprof_LDADD = $(EXPLIBS)
 
 slabprof_SOURCES =  slabprof.cc PSP.cc header.cc
-slabprof_LDADD = $(EXPLIBS)
+slabprof_LDADD = $(COMMON_LIBS) $(EXPLIBS)
 
 psphisto_SOURCES = psphisto.cc PSP.cc header.cc localmpi.cc Particle.cc
 psphisto_LDADD = $(EXPLIBS)
@@ -48,6 +48,13 @@ pspbox_SOURCES = pspbox.cc header.cc PSP.cc localmpi.cc
 pspbox_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB)
 
 eofpeek_SOURCES = eofpeek.cc
+
+diskprof2_SOURCES = PSP.cc header.cc diskprof2.cc EmpOrth9thd.cc localmpi.cc Particle.cc
+diskprof2_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@ 
+
+pcatest_SOURCES = PSP.cc header.cc pcatest.cc EmpOrth9thd.cc localmpi.cc Particle.cc
+pcatest_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@ 
+
 
 #	SphericalSL.cc legendre.cc ddplgndr.cc sinecosine.cc 
 

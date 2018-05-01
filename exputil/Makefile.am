@@ -14,7 +14,7 @@ endif
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
 AM_CFLAGS   = -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
-AM_CXXFLAGS = -std=c++11 -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
+AM_CXXFLAGS = -std=c++11 -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) @exp_vtk_include@
 
 lib_LTLIBRARIES = libexputil.la
 
@@ -26,7 +26,7 @@ RANDOM_SRC =
 UTIL_SRC = nrutil.cc elemfunc.cc euler.cc euler_slater.cc rotmatrix.cc	\
 	wordSplit.cc ParamParse.cc ParamParseMPI.cc ParamDatabase.cc	\
 	ProgramParam.cc FileUtils.cc BarrierWrapper.cc int128.cc	\
-	uint128.cc stack.cc
+	uint128.cc stack.cc VtkGrid.cc
 OPTIMIZATION_SRC = simann2.cc
 VECTOR_SRC = Vector.cc Vector3.cc eigen.cc eigsrt.cc inverse.cc jacobi.cc \
 	svd.cc eigencc.cc

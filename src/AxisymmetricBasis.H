@@ -25,6 +25,9 @@ protected:
   //! Output PCA diagnostics in vtk format
   bool pcavtk;
 
+  //! vtk diagnostic frequency
+  unsigned vtkfreq;
+
   //! PCA jackknife variance
   bool pcajknf;
 

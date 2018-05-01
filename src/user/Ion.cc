@@ -54,7 +54,7 @@ Ion::IB_Lab Ion::ib_lab = {
 Ion::IB_Type Ion::ib_type = Ion::none;
 
 bool Ion::use_VFKY = true;
-bool Ion::gs_only  = true;
+bool Ion::gs_only  = false;
 
 // Free-free grid
 //

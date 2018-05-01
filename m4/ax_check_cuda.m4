@@ -55,11 +55,13 @@ ax_save_LDFLAGS="${LDFLAGS}"
 # CUDA variables for make
 AC_SUBST([CUDA_CFLAGS])
 AC_SUBST([CUDA_LDFLAGS])
+AC_SUBST([NVCC])
 
 CUDA_CFLAGS="-I$cuda_prefix/include"
 CFLAGS="$CUDA_CFLAGS $CFLAGS"
 CUDA_LDFLAGS="-L$cuda_prefix/lib"
 LDFLAGS="$CUDA_LDFLAGS $LDFLAGS"
+NVCC="$cuda_prefix/bin/nvcc"
 
 # And the header and the lib
 AC_MSG_CHECKING([for cuda.h])

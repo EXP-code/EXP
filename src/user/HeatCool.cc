@@ -1,4 +1,4 @@
-#include <fcntl.h> // for open()
+#include <fcntl.h>		// for open()
 
 #include <iostream>
 #include <fstream>

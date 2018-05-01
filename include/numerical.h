@@ -15,7 +15,6 @@
 #define FLOAT(bob)  ((float) (bob))
 #define DOUBLE(bob) ((double) (bob))
 #define SQR(bob) ((bob)*(bob))
-#define Pi 3.141592653589793
 #ifndef TINY
 #define TINY 1.e-10
 #endif
@@ -27,6 +26,9 @@
 // double BesselI(int, double);
 // double BesselK(int, double);
 // double gammln(double);
+
+
+const double Pi = 3.141592653589793;
 
 
 double poly(double, int, double *);

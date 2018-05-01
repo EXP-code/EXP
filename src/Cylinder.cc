@@ -85,6 +85,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
   logarithmic = false;
   pca         = false;
   pcavtk      = false;
+  vtkfreq     = 1;
   pcainit     = true;
   density     = false;
   coef_dump   = true;
@@ -104,12 +105,17 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
   EmpCylSL::CACHEFILE   = outdir + ".eof.cache." + runtag;
   EmpCylSL::VFLAG       = vflag;
 
-				// For debugging; no use by force
-				// algorithm
+  // EOF default file name override.  Default uses runtag suffix as
+  // above.  Override file must exist if explicitly specified.
+  //
+  if (eof_file.size()) EmpCylSL::CACHEFILE = eof_file;
+
+  // For debugging; no use by force algorithm
+  //
   if (density) EmpCylSL::DENS = true;
 
-				// Make the empirical orthogonal basis
-				// instance
+  // Make the empirical orthogonal basis instance
+  //
   ortho = new EmpCylSL(nmax, lmax, mmax, ncylorder, acyl, hcyl);
   
   {
@@ -117,44 +123,69 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
     if (get_value("tk_type", val)) ortho->setTK(val);
   }
 
-				// Read in given EOF file
-  if (eof_file.size()) {
-
-    if (!ortho->read_eof_file(eof_file)) {
-      if (myid==0) 
-	cerr << "Cylinder: can not read EOF file <"
-	     << eof_file << ">" << endl;
-      MPI_Abort(MPI_COMM_WORLD, -1);
-    }
-
-    firstime = false;
-    eof      = 0;
-
-  } else if (expcond) {
+  if (expcond) {
 				// Set parameters for external dcond function
     EXPSCALE = acyl;
     HSCALE   = hcyl;
     ASHIFT   = ashift;
     eof      = 0;
 
-    bool cache_ok;		// Try to read the cache
+    bool cache_ok = false;
+  
+    // Attempt to read EOF file from cache with override.  Will work
+    // whether first time or restart.  Aborts if overridden cache is
+    // not found.
+    //
+    if (eof_file.size()>0) {
 
-    if (try_cache || restart)
+      cache_ok = ortho->read_cache();
+      
+      if (!cache_ok) {
+	if (myid==0)		// Diagnostic output . . .
+	  std::cerr << "Cylinder: can not read explicitly specified EOF file <"
+		    << EmpCylSL::CACHEFILE << ">" << std::endl
+		    << "Cylinder: shamelessly aborting . . ." << std::endl;
+	
+	MPI_Abort(MPI_COMM_WORLD, 12);
+      }
+    }
+
+
+    // Attempt to read EOF file from cache on restart
+    //
+    if (try_cache || restart) {
+
       cache_ok = ortho->read_cache();
 
-				// On restart, abort of the cache is gone
+      // Diagnostic output . . .
+      //
+      if (!cache_ok and myid==0)
+	std::cerr << "Cylinder: can not read EOF file <"
+		  << EmpCylSL::CACHEFILE << ">" << std::endl
+		  << "Cylinder: will attempt to generate EOF file"
+		  << std::endl;
+    }
+
+    // On restart, abort if the cache is gone
+    //
     if (restart && !cache_ok) {
       if (myid==0) 
-	cerr << "Cylinder: can not read cache file on restart" << endl;
-      MPI_Abort(MPI_COMM_WORLD, -1);
+	std::cerr << "Cylinder: can not read cache file on restart ... aborting"
+		  << std::endl;
+      MPI_Abort(MPI_COMM_WORLD, 13);
     }
+
+    // Genererate eof if needed
+    //
     if (!cache_ok) ortho->generate_eof(rnum, pnum, tnum, dcond);
+
+    firstime = false;
   }
 
-				// Make sure that all structures are 
-				// initialized to start (e.g. for multi-
-				// stepping but this should be done on
-				// 1st call to determine coefs by default
+  // Make sure that all structures are initialized to start (e.g. for
+  // multi- stepping but this should be done on 1st call to determine
+  // coefs by default
+  //
   ortho->setup_accumulation();
 
   
@@ -172,6 +203,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
 	   << " hcyl="        << hcyl
 	   << " expcond="     << expcond
 	   << " pca="         << pca
+	   << " vtkfreq="     << vtkfreq
 	   << " hallfreq="    << hallfreq
 	   << " eof_file="    << eof_file
 	   << " logarithmic=" << logarithmic
@@ -193,6 +225,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
 	 << " hcyl="        << hcyl
 	 << " expcond="     << expcond
 	 << " pca="         << pca
+	 << " vtkfreq="     << vtkfreq
 	 << " hallfreq="    << hallfreq
 	 << " eof_file="    << eof_file
 	 << " logarithmic=" << logarithmic
@@ -245,6 +278,7 @@ void Cylinder::initialize()
   if (get_value("ncylorder",  val)) ncylorder  = atoi(val.c_str());
   if (get_value("ncylrecomp", val)) ncylrecomp = atoi(val.c_str());
   if (get_value("hallfreq", val))   hallfreq   = atoi(val.c_str());
+  if (get_value("vtkfreq",  val))   vtkfreq    = atoi(val.c_str());
   if (get_value("eof_file", val))   eof_file   = val;
   if (get_value("vflag",    val))   vflag      = atoi(val.c_str());
 
@@ -589,6 +623,7 @@ void Cylinder::determine_coefficients(void)
   if (pca and pcainit) {
     EmpCylSL::SELECT = true;
     EmpCylSL::PCAVTK = pcavtk;
+    EmpCylSL::VTKFRQ = vtkfreq;
     std::ostringstream sout;
     sout << runtag << ".pcadiag." << cC->id << "." << cC->name;
     ortho->setHall(sout.str(), component->nbodies_tot, hallfreq);

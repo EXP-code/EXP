@@ -139,16 +139,16 @@ libshear_la_SOURCES = UserShear.cc
 libprofile_la_SOURCES = UserProfile.cc
 
 testCrossSection_SOURCES = testCross.cc phfit2.f
-testCrossSection_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS)
-testCrossSection_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu -llapack -lblas
+testCrossSection_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@
+testCrossSection_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ -llapack -lblas 
 
 testIonRecomb_SOURCES = testIonRecomb.cc phfit2.f
-testIonRecomb_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS)
-testIonRecomb_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu -llapack -lblas
+testIonRecomb_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@
+testIonRecomb_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ -llapack -lblas
 
 genIonRecomb_SOURCES = genIonRecomb.cc phfit2.f
-genIonRecomb_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS)
-genIonRecomb_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu -llapack -lblas
+genIonRecomb_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@
+genIonRecomb_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ -llapack -lblas
 
 testQuantile_SOURCES = testQuantile.cc Quantile.cc
 testQuantile_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS)

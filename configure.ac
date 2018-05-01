@@ -60,7 +60,7 @@ dnl Look for CUDA SDK
 dnl ==========================================================================
 
 AX_CHECK_CUDA
-AM_CONDITIONAL([USING_CUDA], [test "x$CUDA_CFLAGS" != "x"])
+AM_CONDITIONAL([ENABLE_CUDA], [test "x$CUDA_CFLAGS" != "x"])
 
 dnl ==========================================================================
 dnl Added macro to allow non-standard location of VTK installation

@@ -57,6 +57,9 @@ constexpr Interact::pElem const Interact::pdef {Interact::simple, speciesKey(0, 
 // Default electron pElem
 constexpr Interact::pElem const Interact::edef {Interact::electron, speciesKey(0, 0)};
 
+// Default ion pElem
+constexpr Interact::pElem const Interact::idef {Interact::ion, speciesKey(0, 0)};
+
 // Default interaction key for singleton
 Interact::T Interact::single(0, Interact::pdef, Interact::pdef);
 

@@ -24,6 +24,7 @@ extern int VERBOSE;
 #include <numerical.h>
 #include <gaussQ.h>
 #include <EmpOrth9thd.h>
+#include <VtkGrid.H>
 
 extern Vector Symmetric_Eigenvalues_SYEVD(Matrix& a, Matrix& ef, int M);
 
@@ -42,6 +43,7 @@ int      EmpCylSL::NUMY            = 128;
 int      EmpCylSL::NOUT            = 12;
 int      EmpCylSL::NUMR            = 2000;
 unsigned EmpCylSL::VFLAG           = 0;
+unsigned EmpCylSL::VTKFRQ          = 1;
 double   EmpCylSL::RMIN            = 0.001;
 double   EmpCylSL::RMAX            = 20.0;
 double   EmpCylSL::HFAC            = 0.2;
@@ -2531,36 +2533,48 @@ void EmpCylSL::pca_hall(void)
   if (VFLAG & 4)
     cerr << "Process " << setw(4) << myid << ": made it to pca_hall" << endl;
   
-				// For PCA jack knife
-  Vector evalJK;
-  Vector cumlJK;
-  Vector meanJK(1, rank3);
-  Vector coefJK(1, rank3);
-  Vector b_Hall(1, rank3);
-  Matrix covrJK(1, rank3, 1, rank3);
-  Matrix evecJK(1, rank3, 1, rank3);
-  double Tmass = 0.0;
-  
+  // For PCA jack knife
+  //
+  if (pb)
+    pb->reset();
+  else
+    pb = PCAbasisPtr(new PCAbasis(MMAX, rank3));
+
 #ifndef STANDALONE
   VtkPCAptr vtkpca;
-  if (PCAVTK) vtkpca = VtkPCAptr(new VtkPCA(rank3));
+  static unsigned ocount = 0;
+
+  if (PCAVTK and myid==0) {
+
+    if (ocount==0) {	       // Look for restart position; this is
+      while (1) {	       // time consuming but is only done once.
+	std::ostringstream fileN;
+	fileN << hallfile << "_pca_"
+	      << std::setfill('0') << std::setw(5) << ocount << ".vtr";
+	std::cout << "File: " << fileN.str() << std::endl;
+	std::ifstream infile(fileN.str());
+	if (not infile.good()) break;
+	ocount++;
+      }
+      if (ocount)
+	std::cout << "Restart in EmpCylSL::pca_hall: "
+		  << "vtk output will begin at "
+		  << ocount << std::endl;
+    }
+  
+    if (ocount % VTKFRQ==0) vtkpca = VtkPCAptr(new VtkPCA(rank3));
+  }
 #endif
 
-  for (auto v : massT) Tmass += v;
+  for (auto v : massT) pb->Tmass += v;
 
   if (VFLAG & 4)
     cerr << "Process " << setw(4) << myid << ": mass " 
-	 << Tmass << " of particles" << endl;
-
-  // Debug
-  //
-  if (tnow>0.0 and Tmass<=0.0) {
-    std::cerr << "STRANGE" << std::endl;
-  }
+	 << pb->Tmass << " of particles" << endl;
 
   // No data?
   //
-  if (Tmass<=0.0) return;	
+  if (pb->Tmass<=0.0) return;	
   
   // Setup for diagnostic output
   //
@@ -2608,10 +2622,6 @@ void EmpCylSL::pca_hall(void)
   //
   for (int mm=0; mm<=MMAX; mm++) {
 
-    covrJK.zero();
-    meanJK.zero();
-    coefJK.zero();
-
     // Data partitions for variance
     //
     for (unsigned T=0; T<sampT; T++) {
@@ -2620,13 +2630,13 @@ void EmpCylSL::pca_hall(void)
 
       for (int nn=0; nn<rank3; nn++) { // Order
 
-	meanJK[nn+1] += (*accum_cos2[0][T])[mm][nn]/(massT[T]*sampT);
+	pb->C[mm]->meanJK[nn+1] += (*accum_cos2[0][T])[mm][nn]/(massT[T]*sampT);
 
-	coefJK[nn+1] += (*accum_cos2[0][T])[mm][nn];
+	pb->C[mm]->coefJK[nn+1] += (*accum_cos2[0][T])[mm][nn];
 
 	for (int oo=0; oo<rank3; oo++) { // Order
 
-	  covrJK[nn+1][oo+1] +=
+	  pb->C[mm]->covrJK[nn+1][oo+1] +=
 	    (*accum_cos2[0][T])[mm][nn]/massT[T] *
 	    (*accum_cos2[0][T])[mm][oo]/massT[T] / sampT;
 	}
@@ -2635,13 +2645,13 @@ void EmpCylSL::pca_hall(void)
 
     for (int nn=0; nn<rank3; nn++) {
       for (int oo=0; oo<rank3; oo++) {
-	covrJK[nn+1][oo+1] -= meanJK[nn+1]*meanJK[oo+1];
+	pb->C[mm]->covrJK[nn+1][oo+1] -= pb->C[mm]->meanJK[nn+1] * pb->C[mm]->meanJK[oo+1];
       }
     }
 #ifdef GHQL
-    evalJK = covrJK.Symmetric_Eigenvalues_GHQL(evecJK);
+    pb->C[mm]->evalJK = pb->C[mm]->covrJK.Symmetric_Eigenvalues_GHQL(pb->C[mm]->evecJK);
 #else
-    evalJK = covrJK.Symmetric_Eigenvalues(evecJK);
+    pb->C[mm]->evalJK = pb->C[mm]->covrJK.Symmetric_Eigenvalues(pb->C[mm]->evecJK);
 #endif
     
     // Transformation output
@@ -2652,7 +2662,20 @@ void EmpCylSL::pca_hall(void)
 	   << "#" << std::endl;
       for (int nn=0; nn<rank3; nn++) {
 	for (int oo=0; oo<rank3; oo++) {
-	  mout << std::setw(12) << evecJK.Transpose()[nn+1][oo+1];
+	  mout << std::setw(12) << pb->C[mm]->evecJK.Transpose()[nn+1][oo+1];
+	}
+	mout << std::endl;
+      }
+
+      mout << "# Norms" << std::endl;
+      for (int nn=0; nn<rank3; nn++) {
+	for (int oo=0; oo<rank3; oo++) {
+	  double nm = 0.0;
+	  for (int pp=0; pp<rank3; pp++) 
+	    nm +=
+	      pb->C[mm]->evecJK.Transpose()[nn+1][pp+1] *
+	      pb->C[mm]->evecJK.Transpose()[oo+1][pp+1] ;
+	  mout << std::setw(12) << nm;
 	}
 	mout << std::endl;
       }
@@ -2660,42 +2683,50 @@ void EmpCylSL::pca_hall(void)
 
     // Projected coefficients
     //
-    Vector dd = evecJK.Transpose() * coefJK / Tmass;
+    Vector dd = pb->C[mm]->evecJK.Transpose() * pb->C[mm]->coefJK / pb->Tmass;
 
     // Cumulative distribution
     //
-    Vector cumlJK = evalJK;
+    Vector cumlJK = pb->C[mm]->evalJK;
     for (int nn=2; nn<=rank3; nn++) cumlJK[nn] += cumlJK[nn-1];
     for (int nn=1; nn<=rank3; nn++) cumlJK[nn] /= cumlJK[rank3];
+
+    // SNR vector
+    Vector snrval(cumlJK.getlow(), cumlJK.gethigh());
 
     // Compute Hall coefficients
     //
     for (int nn=0; nn<rank3; nn++) {
 
-      double    var = evalJK[nn+1];
+      double    var = pb->C[mm]->evalJK[nn+1];
       double    sqr = dd[nn+1]*dd[nn+1];
       double      b = var/sqr;
     
-      b_Hall[nn+1]  = 1.0/(1.0 + b);
+      pb->C[mm]->b_Hall[nn+1]  = 1.0/(1.0 + b);
+      snrval[nn+1] = sqrt(sqr/var);
 
       if (hout.good()) hout << setw( 4) << mm << setw(4) << nn << setw(4) << "C"
 			    << setw(18) << dd[nn+1]
 			    << setw(18) << sqr
 			    << setw(18) << var
 			    << setw(18) << cumlJK[nn+1]
-			    << setw(18) << sqrt(sqr/var)
-			    << setw(18) << b_Hall[nn+1] << std::endl;
+			    << setw(18) << snrval[nn+1]
+			    << setw(18) << pb->C[mm]->b_Hall[nn+1] << std::endl;
 
       // Apply?
-      if (tk_type==Hall) {
+      if (tk_type == Hall) {
 	for (unsigned M=0; M<=multistep; M++) {
-	  accum_cosN[M][0][mm][nn] *= b_Hall[nn+1];
+	  accum_cosN[M][0][mm][nn] *= pb->C[mm]->b_Hall[nn+1];
 	}
       } // END: Hall smoothing
     }
 
 #ifndef STANDALONE
-    if (PCAVTK) vtkpca->Add(b_Hall, evecJK.Transpose(), 0, mm, 'c');
+    if (vtkpca) vtkpca->Add(pb->C[mm]->coefJK,
+			    pb->C[mm]->b_Hall, snrval,
+			    pb->C[mm]->evalJK,
+			    pb->C[mm]->evecJK.Transpose(),
+			    0, mm, 'c');
 #endif
   }
   
@@ -2703,23 +2734,19 @@ void EmpCylSL::pca_hall(void)
   //
   for (int mm=1; mm<=MMAX; mm++) {
 
-    covrJK.zero();
-    meanJK.zero();
-    coefJK.zero();
-
     // Data partitions for variance
     //
     for (unsigned T=0; T<sampT; T++) {
 
       for (int nn=0; nn<rank3; nn++) { // Order
 
-	meanJK[nn+1] += (*accum_sin2[0][T])[mm][nn]/(massT[T]*sampT);
+	pb->S[mm]->meanJK[nn+1] += (*accum_sin2[0][T])[mm][nn]/(massT[T]*sampT);
 
-	coefJK[nn+1] += (*accum_sin2[0][T])[mm][nn];
+	pb->S[mm]->coefJK[nn+1] += (*accum_sin2[0][T])[mm][nn];
 
 	for (int oo=0; oo<rank3; oo++) { // Order
 
-	  covrJK[nn+1][oo+1] +=
+	  pb->S[mm]->covrJK[nn+1][oo+1] +=
 	    (*accum_sin2[0][T])[mm][nn]/massT[T] *
 	    (*accum_sin2[0][T])[mm][oo]/massT[T] / sampT;
 	}
@@ -2728,13 +2755,13 @@ void EmpCylSL::pca_hall(void)
 
     for (int nn=0; nn<rank3; nn++) {
       for (int oo=0; oo<rank3; oo++) {
-	covrJK[nn+1][oo+1] -= meanJK[nn+1]*meanJK[oo+1];
+	pb->S[mm]->covrJK[nn+1][oo+1] -= pb->S[mm]->meanJK[nn+1] * pb->S[mm]->meanJK[oo+1];
       }
     }
 #ifdef GHQL
-    evalJK = covrJK.Symmetric_Eigenvalues_GHQL(evecJK);
+    pb->S[mm]->evalJK = pb->S[mm]->covrJK.Symmetric_Eigenvalues_GHQL(pb->S[mm]->evecJK);
 #else
-    evalJK = covrJK.Symmetric_Eigenvalues(evecJK);
+    pb->S[mm]->evalJK = pb->S[mm]->covrJK.Symmetric_Eigenvalues(pb->S[mm]->evecJK);
 #endif
     
     if (mout.good()) {
@@ -2743,7 +2770,20 @@ void EmpCylSL::pca_hall(void)
 	   << "#" << std::endl;
       for (int nn=0; nn<rank3; nn++) {
 	for (int oo=0; oo<rank3; oo++) {
-	  mout << std::setw(12) << evecJK.Transpose()[nn+1][oo+1];
+	  mout << std::setw(12) << pb->S[mm]->evecJK.Transpose()[nn+1][oo+1];
+	}
+	mout << std::endl;
+      }
+
+      mout << "# Norms" << std::endl;
+      for (int nn=0; nn<rank3; nn++) {
+	for (int oo=0; oo<rank3; oo++) {
+	  double nm = 0.0;
+	  for (int pp=0; pp<rank3; pp++) 
+	    nm +=
+	      pb->C[mm]->evecJK.Transpose()[nn+1][pp+1] *
+	      pb->C[mm]->evecJK.Transpose()[oo+1][pp+1] ;
+	  mout << std::setw(12) << nm;
 	}
 	mout << std::endl;
       }
@@ -2752,47 +2792,55 @@ void EmpCylSL::pca_hall(void)
 
     // Projected coefficients
     //
-    Vector dd = evecJK.Transpose() * coefJK / Tmass;
+    Vector dd = pb->S[mm]->evecJK.Transpose() * pb->S[mm]->coefJK / pb->Tmass;
 
     // Cumulative distribution
     //
-    Vector cumlJK = evalJK;
+    Vector cumlJK = pb->S[mm]->evalJK;
     for (int nn=2; nn<=rank3; nn++) cumlJK[nn] += cumlJK[nn-1];
     for (int nn=1; nn<=rank3; nn++) cumlJK[nn] /= cumlJK[rank3];
+
+    // SNR vector
+    Vector snrval(cumlJK.getlow(), cumlJK.gethigh());
 
     // Compute Hall coefficients
     //
     for (int nn=0; nn<rank3; nn++) {
-      double    var = evalJK[nn+1];
+      double    var = pb->S[mm]->evalJK[nn+1];
       double    sqr = dd[nn+1]*dd[nn+1];
       double      b = var/sqr;
     
-      b_Hall[nn+1]  = 1.0/(1.0 + b);
+      pb->S[mm]->b_Hall[nn+1]  = 1.0/(1.0 + b);
+      snrval[nn+1] = sqrt(sqr/var);
+
 
       if (hout.good()) hout << setw( 4) << mm << setw(4) << nn << setw(4) << "S"
 			    << setw(18) << dd[nn+1]
 			    << setw(18) << sqr
 			    << setw(18) << var
 			    << setw(18) << cumlJK[nn+1]
-			    << setw(18) << sqrt(sqr/var)
-			    << setw(18) << b_Hall[nn+1] << std::endl;
+			    << setw(18) << snrval[nn+1]
+			    << setw(18) << pb->S[mm]->b_Hall[nn+1] << std::endl;
 
       // Apply?
       if (tk_type == Hall) {
 	for (unsigned M=0; M<=multistep; M++) {
-	  accum_sinN[M][0][mm][nn] *= b_Hall[nn+1];
+	  accum_sinN[M][0][mm][nn] *= pb->S[mm]->b_Hall[nn+1];
 	}
       } // END: Hall smoothing
     }
 
 #ifndef STANDALONE
-    if (PCAVTK) vtkpca->Add(b_Hall, evecJK.Transpose(), 0, mm, 's');
+    if (vtkpca) vtkpca->Add(pb->S[mm]->coefJK,
+			    pb->S[mm]->b_Hall, snrval,
+			    pb->S[mm]->evalJK,
+			    pb->S[mm]->evecJK.Transpose(),
+			    0, mm, 's');
 #endif
   }
 
 #ifndef STANDALONE
-  if (PCAVTK) {
-    static unsigned ocount = 0;
+  if (vtkpca) {
     std::ostringstream sout;
     sout << hallfile << "_pca_"
 	 << std::setfill('0') << std::setw(5) << ocount++;
@@ -4383,3 +4431,75 @@ void EmpCylSL::restrict_order(int n)
     }
   }
 }
+
+void EmpCylSL::dump_images_basis_pca(const string& runtag,
+				     double XYOUT, double ZOUT, 
+				     int OUTR, int OUTZ, int M, int N, int K)
+{
+  if (myid!=0) return;
+  if (pb == 0) return;
+  
+  double p, d, rf, zf, pf;
+
+  double rmin = RMIN*ASCALE;
+  double dR   = (XYOUT-rmin)/(OUTR - 1);
+  double dZ   = 2.0*ZOUT/(OUTZ - 1);
+
+  int Number  = 4;
+  string Types[] = {".pot", ".dens", ".fr", ".fz"};
+  
+  std::vector< std::vector<double> > dataC(Number), dataS(Number);
+  for (auto & v : dataC) v.resize(OUTR*OUTZ);
+  if (M) for (auto & v : dataS) v.resize(OUTR*OUTZ);
+
+  Vector PP(1, NORDER), DD(1, NORDER), RF(1, NORDER), ZF(1, NORDER);
+  
+  VtkGrid vtk(OUTR, OUTZ, 1, rmin, XYOUT, -ZOUT, ZOUT, 0, 0);
+
+  for (int iz=0; iz<OUTZ; iz++) {
+
+    for (int ir=0; ir<OUTR; ir++) {
+	  
+      double z = -ZOUT + dZ*iz;
+      double r =  rmin + dR*ir;
+      double tmp;
+	  
+      //! Cosine space: inner produce of original basis and ev
+      //! transformation
+
+      for (int n=0; n<NORDER; n++)
+	get_all(M, n, r, z, 0.0, PP[n+1], DD[n+1], RF[n+1], ZF[n+1], tmp);
+      //                    ^
+      //                    |
+      //                    + selects COSINE only
+      
+      Vector tp = pb->C[M]->evecJK.Transpose()[N];
+      dataC[0][ir*OUTZ + iz] = tp * PP;
+      dataC[1][ir*OUTZ + iz] = tp * DD;
+      dataC[2][ir*OUTZ + iz] = tp * RF;
+      dataC[3][ir*OUTZ + iz] = tp * ZF;
+
+      //! Sine space: only compute for M>0
+      if (M) {
+	double phi = 0.5*M_PI/M; // Selects SINE only
+	for (int n=0; n<NORDER; n++)
+	  get_all(M, n, r, z, phi, PP[n+1], DD[n+1], RF[n+1], ZF[n+1], tmp);
+
+	Vector tp = pb->S[M]->evecJK.Transpose()[N];
+	dataS[0][ir*OUTZ + iz] = tp * PP;
+	dataS[1][ir*OUTZ + iz] = tp * DD;
+	dataS[2][ir*OUTZ + iz] = tp * RF;
+	dataS[3][ir*OUTZ + iz] = tp * ZF;
+      }
+    }
+  }
+
+  for (int i=0; i<Number; i++) vtk.Add(dataC[i], Types[i]+"(cos)");
+  if (M) for (int i=0; i<Number; i++) vtk.Add(dataS[i], Types[i]+"(sin)");
+  
+  std::ostringstream sout;
+  sout << runtag << "_pcabasis_" << K << "_m" << M << "_n" << N;
+  vtk.Write(sout.str());
+}
+
+

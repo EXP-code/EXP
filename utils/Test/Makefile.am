@@ -18,7 +18,8 @@ AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
 bin_PROGRAMS = testparse testparams testparamsMPI testConfig	\
 simpleConfig readSL testBarrier
 
-COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS)	\
+$(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
 CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 

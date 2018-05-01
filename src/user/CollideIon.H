@@ -22,6 +22,7 @@
 #include "AsciiHisto.H"
 #include "EnumBitset.H"
 #include "StatsMPI.H"
+#include "BN.H"
 
 //
 // Define operator()+ for std::accumulate
@@ -490,6 +491,7 @@ private:
   typedef std::array<double, 4>                      CellMom;
   typedef std::array<double, 3>                      ChProb;
   typedef std::map<lQ, std::array<double, 4> >       phStatMap;
+  typedef std::tuple<unsigned, double, double>       AvgRpt;
 
   std::vector< std::vector<dKey>   >                 kInter;
   std::vector< std::vector<double> >                 dCross;
@@ -507,12 +509,13 @@ private:
 
   std::vector< keyColEx >                            kCE;
   std::vector< double >                              meanE, neutF, meanR, meanM, cellM;
-  std::vector< double >                              numEf, colSc, elecDen, elecDn2;
+ std::vector< double >                              numIf, numEf, numQ2, colSc, elecDen, elecDn2, numIf0, numEf0, colCf;
   std::vector< double >                              kEi, kEe1, kEe2, kEee, clrE, misE, dfrE, updE;
-  std::vector< double >                              kE1s, kE2s, Ein1, Ein2, Evel, nselRat;
-  std::vector< double >                              spCrm, spTau, spProb, spEdel, spEmax;
+  std::vector< double >                              kE1s, kE2s, Ein1, Ein2, Evel, nselRat, Evel2, Ivel2;
+  std::vector< double >                              spCrm, spTau, spProb, spEdel, spEmax, spFtau;
   std::vector< double >                              molP1, molP2, etaP1, etaP2;
   std::vector< double >                              rhoSigV, rhoSigN, spNsel, elecRat;
+  std::vector< AvgRpt >                              tauIon, tauElc, colUps;
   std::vector< unsigned >                            elecCnt, elecNum, spNcol;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot, testCnt;
   std::vector< unsigned >                            Nwght, Njsel, Ncol, Nmis;
@@ -527,6 +530,8 @@ private:
   std::vector< CVels >                               cVels;
   std::vector< CellMom >                             cMoms;
   std::vector< std::array<double, 2> >               KElost;
+  std::vector< std::array<double, 4> >               PiProb;
+  std::vector< std::array<double, 4> >               ABrate;
   std::vector< StatsMPI >                            recombA;
   std::vector< phStatMap >                           photoStat;
   //@{
@@ -845,6 +850,10 @@ public:
   //! (default: 2.0)
   static double coulPow;
 
+  //! Use upper limit on b_{max} based on particle interference
+  //! (default: true)
+  static bool coulInter;
+
   //@{
   //! TRACE algorithm default: adds excess energy to electron.  
 
@@ -1007,14 +1016,21 @@ protected:
 		      Particle* const p1, Particle* const p2, 
 		      double *crm, const NTC::Interact::T& itype, double weight);
 
+  //! Coulombic scattering angle lookup
+  boost::shared_ptr<coulombSelect> coulombSel;
+
   class Pord
   {
   protected:
     CollideIon* caller;
+    void swapPs();
 
   public:
     //! Stash of key index in Particle's integer array
     static int key;
+
+    //! Renormalize species weights for Trace method
+    static bool norm_enforce;
 
     //! Interaction identifier
     enum pType {ion_ion, ion_electron, electron_ion};
@@ -1261,6 +1277,7 @@ protected:
   //! Expensive diagnostics, only use these if you must
   void electronGather();
   void electronPrint(std::ostream&out );
+  void electronReset();
   void photoWGather();
   void photoWPrint();
   //@}
@@ -1350,7 +1367,8 @@ protected:
 
   public:
     double miss, delta, delE, delE0, gamma, defer;
-    double totE, kE, dKE, vfac, vrat, o1, o2;
+    double totE, kE, dKE, vfac, vrat, o1, o2, Tau;
+    bool Coulombic;
 
 
     EnumBitset<KE_Flags> bs;
@@ -1361,6 +1379,8 @@ protected:
       for (auto & v : _f) v = 0.0;
       miss = delta = delE = delE0 = gamma = defer = 0.0;
       totE = kE = dKE = vfac = vrat = o1 = o2 = 0.0;
+      Coulombic = false;
+      Tau = 0.0;
     }
 
     KE_(double dE) : delE(dE), delE0(dE)
@@ -1369,6 +1389,8 @@ protected:
       for (auto & v : _f) v = 0.0;
       miss = delta = gamma = defer = 0.0;
       totE = kE = dKE = vfac = vrat = o1 = o2 = 0.0;
+      Coulombic = false;
+      Tau = 0.0;
     }
     
     double& i(int i) { return _i[i-1]; }
@@ -1443,6 +1465,9 @@ protected:
   //! test for correctness
   void normTest(Particle* const p, const std::string& lab);
 
+  //! Return 3d Colombic scattering vector
+  std::vector<double>& coulomb_vector(std::vector<double>& rel, double W1, double W2, double Tau);
+
   //@}
 
 public:
@@ -1496,7 +1521,7 @@ public:
   //! Gather and print collision statistics
   virtual void printCollGather()  { collD->gather(); }
   virtual void printCollSummary() { collD->print (); }
-  virtual void resetColls()       { collD->reset (); }
+  virtual void resetColls()       { collD->reset (); electronReset(); }
   //@}
 
   //@{

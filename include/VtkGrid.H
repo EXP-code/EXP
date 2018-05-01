@@ -1,9 +1,9 @@
-#ifndef _VtkPCA_H
-#define _VtkPCA_H
+#ifndef _VtkGrid_H
+#define _VtkGrid_H
 
+#include <vector>
 #include <sstream>
 #include <boost/shared_ptr.hpp>
-#include <Vector.h>
 
 //
 // VTK stuff
@@ -25,53 +25,32 @@ using vtkRectilinearGridP       = vtkSmartPointer<vtkRectilinearGrid>;
 using vtkRectilinearGridWriterP = vtkSmartPointer<vtkXMLRectilinearGridWriter>;
 using vtkFloatArrayP            = vtkSmartPointer<vtkFloatArray>;
 
-class VtkPCA
+class VtkGrid
 {
 private:
-  int nmax;
+  int nx, ny, nz;
+  float xmin, xmax, ymin, ymax, zmin, zmax;
 
   // Knots
   vtkFloatArrayP XX, YY, ZZ;
 
-  // Fields
-  std::vector<vtkFloatArrayP> coef, hall, eval, snrv, vecs;
-
-  // Labels
-  std::vector<std::string>    elab;
-
   // Dataset
-  vtkRectilinearGridP         dataSet;
+  vtkRectilinearGridP dataSet;
 
-  // Save smoothed basis
-  bool                        smooth;
-
-  // Rorder by S/N
-  bool                        reorder;
-  
 public:
   //! Constructor
-  VtkPCA(int N, bool reorder=true, bool smooth=false);
+  VtkGrid(int nx, int ny, int nz,
+	 double xmin, double xmax,
+	 double ymin, double ymax,
+	 double zmin, double zmax);
 
   //! Add data for two-dimensional cylindrical basis
-  void Add(const Vector& coef,
-	   const Vector& hall,
-	   const Vector& snr,
-	   const Vector& eval,
-	   const Matrix& evec,
-	   int m);
+  void Add(const std::vector<double>& data, const std::string& name);
 
-  //! Add data for three-dimensional spherical basis
-  void Add(const Vector& coef,
-	   const Vector& hall,
-	   const Vector& snr,
-	   const Vector& eval,
-	   const Matrix& evec,
-	   int l, int m, char tag);
-  
   //! Write output file
   void Write(const std::string& name);
 };
 
-typedef boost::shared_ptr<VtkPCA> VtkPCAptr;
+typedef boost::shared_ptr<VtkGrid> VtkGridptr;
 
 #endif

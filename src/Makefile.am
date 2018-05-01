@@ -23,10 +23,19 @@ ADD_CFLAGS4  = -DUSE_GPTL $(gptl_include)
 ADD_LIBS4    = $(gptl_lib) -lgptl
 endif
 
-AM_CFLAGS    = -D_REENTRANT -fopenmp $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4)
-AM_CXXFLAGS  = -std=c++11 -D_REENTRANT -fopenmp $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4) @exp_vtk_include@
+if ENABLE_CUDA
+ADD_CUDA = replace_me.cu
+endif
 
-CXXLINK = mpiCC -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
+AM_CFLAGS    = -D_REENTRANT -fPIC -fopenmp $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4) $(CUDA_CFLAGS)
+
+AM_CXXFLAGS  = -std=c++11 -D_REENTRANT -fopenmp $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4) @exp_vtk_include@  $(CUDA_CFLAGS)
+
+if ENABLE_CUDA
+CXXLINK = $(NVCC) -ccbin mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
+else
+CXXLINK = $(CXX) -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
+endif
 
 exp_SOURCES = Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc	\
      Cube.cc Cylinder.cc EmpOrth9thd.cc ExternalCollection.cc		\
@@ -41,7 +50,8 @@ exp_SOURCES = Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc	\
      OutLog.cc OutCoef.cc multistep.cc parse.cc Slab.cc SlabSL.cc	\
      step.cc sbessj.cc sbessz.cc tidalField.cc ultra.cc ultrasphere.cc	\
      MPL.cc zbrent.cc OutFrac.cc OutCalbr.cc ParticleFerry.cc pCell.cc	\
-     chkSlurm.c chkTimer.cc pHOT.cc Timer.cc VtkPCA.cc
+     chkSlurm.c chkTimer.cc pHOT.cc Timer.cc VtkPCA.cc $(ADD_CUDA)
+
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 
@@ -49,11 +59,12 @@ bin_PROGRAMS = exp
 
 BOOST_LIBS = $(BOOST_FILESYSTEM_LIB) $(BOOST_SYSTEM_LIB)
 COMMON_LIBS = -lexputil -lexpgnu $(BOOST_LIBS)
+
 SYS_LIBS = -lpthread -ldl -lgomp
 MPI_LIBS = -lmpi
 
 EXPLIBS = $(COMMON_LIBS) @LAPACK_LIBS@ $(MPI_LIBS) $(SYS_LIBS) $(LIBS)
-LDADD = $(COMMON_LIBS) @LAPACK_LIBS@ $(ADD_LIBS)
+LDADD = $(COMMON_LIBS) @LAPACK_LIBS@ $(ADD_LIBS) $(CUDA_LDFLAGS)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs $(BOOST_LDFLAGS)
 
 exp_LDADD = $(EXPLIBS) $(ADD_LIBS3) $(ADD_LIBS4) $(LAPACK_LIBS)	\
@@ -67,6 +78,11 @@ noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H Cylinder.H     \
 	OutMulti.H coef.H exp_thread.h expand.h sltableMP2.h tipsydefs.h     \
         version.h pHOT.H pCell.H pHOT_types.H ParticleFerry.H                \
 	pHOT.H pHOT_types.H
+
+# the rule that can recognize *.cu files and compile the *.cu files to
+# *.o files
+.cu.o :
+	$(NVCC) $(CUDA_CFLAGS) $(NVCC_CXXFLAGS) -c -o $@ $<
 
 # special case for f77 for now
 
