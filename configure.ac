@@ -1,7 +1,7 @@
 dnl ==========================================================================
 dnl Process this file with autoconf to produce a configure script.
 dnl ==========================================================================
-AC_INIT(EXP, 7.48)
+AC_INIT(EXP, 7.51)
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SRCDIR(src/expand.cc)
 AM_INIT_AUTOMAKE
@@ -54,6 +54,13 @@ dnl ==========================================================================
 
 AX_BLAS
 AX_LAPACK
+
+dnl ==========================================================================
+dnl Look for CUDA SDK
+dnl ==========================================================================
+
+AX_CHECK_CUDA
+AM_CONDITIONAL([USING_CUDA], [test "x$CUDA_CFLAGS" != "x"])
 
 dnl ==========================================================================
 dnl Added macro to allow non-standard location of VTK installation
