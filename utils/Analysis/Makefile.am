@@ -21,39 +21,43 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
+if ENABLE_CUDA
+CUDA_LIBFLAGS  = -lcudart
+endif
+
 bin_PROGRAMS = diskprof haloprof slabprof psphisto gas2d gas2dcyl makegrid pspbox eofpeek diskprof2 pcatest
 
 diskprof_SOURCES = PSP.cc header.cc diskprof.cc EmpOrth9thd.cc localmpi.cc Particle.cc
-diskprof_LDADD = $(EXPLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@
+diskprof_LDADD = $(EXPLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ $(CUDA_LIBFLAGS)
 
 haloprof_SOURCES = PSP.cc header.cc haloprof.cc SphereSL.cc localmpi.cc Particle.cc
-haloprof_LDADD = $(EXPLIBS)
+haloprof_LDADD = $(EXPLIBS) $(CUDA_LIBFLAGS)
 
 slabprof_SOURCES =  slabprof.cc PSP.cc header.cc
-slabprof_LDADD = $(COMMON_LIBS) $(EXPLIBS)
+slabprof_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(CUDA_LIBFLAGS)
 
 psphisto_SOURCES = psphisto.cc PSP.cc header.cc localmpi.cc Particle.cc
-psphisto_LDADD = $(EXPLIBS)
+psphisto_LDADD = $(EXPLIBS) $(CUDA_LIBFLAGS)
 
 gas2d_SOURCES =  gas2d.cc PSP.cc header.cc localmpi.cc Particle.cc
-gas2d_LDADD =    $(EXPLIBS)
+gas2d_LDADD =    $(EXPLIBS) $(CUDA_LIBFLAGS)
 
 gas2dcyl_SOURCES = gas2dcyl.cc PSP.cc header.cc localmpi.cc Particle.cc
-gas2dcyl_LDADD = $(EXPLIBS)
+gas2dcyl_LDADD = $(EXPLIBS) $(CUDA_LIBFLAGS)
 
 makegrid_SOURCES = makegrid.cc header.cc PSP.cc
-makegrid_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@ 
+makegrid_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
 
 pspbox_SOURCES = pspbox.cc header.cc PSP.cc localmpi.cc
-pspbox_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB)
+pspbox_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) $(CUDA_LIBFLAGS)
 
 eofpeek_SOURCES = eofpeek.cc
 
 diskprof2_SOURCES = PSP.cc header.cc diskprof2.cc EmpOrth9thd.cc localmpi.cc Particle.cc
-diskprof2_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@ 
+diskprof2_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@ $(CUDA_LIBFLAGS)
 
 pcatest_SOURCES = PSP.cc header.cc pcatest.cc EmpOrth9thd.cc localmpi.cc Particle.cc
-pcatest_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@ 
+pcatest_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@ $(CUDA_LIBFLAGS)
 
 
 #	SphericalSL.cc legendre.cc ddplgndr.cc sinecosine.cc 

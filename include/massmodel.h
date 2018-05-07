@@ -343,12 +343,12 @@ public:
 
   //@{
   //! Evaluate the profile at a particular radius
-  virtual double get_mass(const double);
-  virtual double get_density(const double);
-  virtual double get_pot(const double);
-  virtual double get_dpot(const double);
-  virtual double get_dpot2(const double);
-  virtual void get_pot_dpot(const double, double&, double&);
+  virtual double get_mass(const double) override;
+  virtual double get_density(const double) override;
+  virtual double get_pot(const double) override;
+  virtual double get_dpot(const double) override;
+  virtual double get_dpot2(const double) override;
+  virtual void   get_pot_dpot(const double, double&, double&) override;
   //@}
   
   //@{
@@ -401,13 +401,23 @@ public:
 
   //@{
   //! Evaluate the profile at a radial point
-  double get_mass(const double r) { return real->get_mass(r); }
-  double get_density(const double r) { return real->get_density(r); }
-  double get_pot(const double r) { return real->get_pot(r); }
-  double get_dpot(const double r)  { return real->get_dpot(r); }
-  double get_dpot2(const double r)  { return real->get_dpot2(r); }
-  void get_pot_dpot(const double r, double& p, double& dp) 
-    { real->get_pot_dpot(r, p, dp); }
+  virtual double get_mass(const double r) override
+  { return real->get_mass(r); }
+
+  virtual double get_density(const double r) override
+  { return real->get_density(r); }
+  
+  virtual double get_pot(const double r) override
+  { return real->get_pot(r); }
+
+  virtual double get_dpot(const double r)  override
+  { return real->get_dpot(r); }
+
+  virtual double get_dpot2(const double r)  override
+  { return real->get_dpot2(r); }
+
+  virtual void get_pot_dpot(const double r, double& p, double& dp) override
+  { real->get_pot_dpot(r, p, dp); }
   //@}
   
   //@{

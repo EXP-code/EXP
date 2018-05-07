@@ -6,6 +6,8 @@
 #include <list>
 #include <map>
 
+#include <boost/shared_ptr.hpp>
+
 #include <Particle.H>
 #include <StringTok.H>
 

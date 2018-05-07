@@ -1,7 +1,12 @@
 #ifndef _SphericalBasis_H
 #define _SphericalBasis_H
 
+#include <ACG.h>
+#include <Normal.h>
 #include <AxisymmetricBasis.H>
+#include <cudaParticle.cuH>
+
+#include "config.h"
 
 class MixtureBasis;
 
@@ -80,6 +85,28 @@ protected:
 
   //! Thread method for coefficient accumulation
   virtual void * determine_coefficients_thread(void * arg);
+
+  //! CUDA method for coefficient accumulation
+#if HAVE_LIBCUDA==1
+  virtual void determine_coefficients_cuda(const Matrix& expcoef);
+
+  int nCudaCoefs;
+  cudaChannelFormatDesc channelDesc;
+  std::vector<cudaArray*> cudaInterpArray;
+  thrust::host_vector<cudaTextureObject_t> tex;
+  std::vector<cudaResourceDesc> resDesc;
+  struct cudaTextureDesc texDesc;
+
+  virtual void initialize_cuda
+  (
+   cudaChannelFormatDesc& channelDesc,
+   std::vector<cudaArray*>& cuArray,
+   std::vector<cudaResourceDesc>& resDesc,
+   struct cudaTextureDesc& texDesc,
+   thrust::host_vector<cudaTextureObject_t>& tex
+   ) {}
+
+#endif
 
   //! Thread method for accerlation compuation
   virtual void * determine_acceleration_and_potential_thread(void * arg);

@@ -3,6 +3,7 @@
 
 #include <SLGridMP2.h>
 #include <SphericalBasis.H>
+#include <cudaUtil.H>
 
 /** Computes the potential, acceleration and density using the Sturm
     Liouville direct solution
@@ -47,6 +48,20 @@ private:
   void get_dpotl(int lmax, int nmax, double r, Matrix& p, Matrix& dp, int tid);
 
   void get_potl(int lmax, int nmax, double r, Matrix& p, int tid);
+
+#if HAVE_LIBCUDA==1
+  virtual void initialize_cuda
+  (
+   cudaChannelFormatDesc& channelDesc,
+   std::vector<cudaArray*>& cuArray,
+   std::vector<cudaResourceDesc>& resDesc,
+   struct cudaTextureDesc& texDesc,
+   thrust::host_vector<cudaTextureObject_t>& tex
+   )
+   {
+     ortho->initialize_cuda(channelDesc, cuArray, resDesc, texDesc, tex);
+   }
+#endif
 
   void get_dens(int lmax, int nmax, double r, Matrix& p, int tid);
 

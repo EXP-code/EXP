@@ -107,7 +107,7 @@ public:
   const double         scale()  { return std::get<4>(*this); }
 
   //! Set double value (currently used by CollideIon as above)
-  void set(double s) { if (this) std::get<4>(*this) = s; }
+  void set(double s) { std::get<4>(*this) = s; }
 };
 
 //! A full periodic table registry

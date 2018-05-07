@@ -23,18 +23,18 @@ ADD_CFLAGS4  = -DUSE_GPTL $(gptl_include)
 ADD_LIBS4    = $(gptl_lib) -lgptl
 endif
 
-if ENABLE_CUDA
-ADD_CUDA = replace_me.cu
-endif
-
 AM_CFLAGS    = -D_REENTRANT -fPIC -fopenmp $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4) $(CUDA_CFLAGS)
+
+AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/include -I$(top_srcdir)/exputil -I$(top_srcdir)/expgnu -I$(top_srcdir)/src -I/usr/include/mpi
 
 AM_CXXFLAGS  = -std=c++11 -D_REENTRANT -fopenmp $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4) @exp_vtk_include@  $(CUDA_CFLAGS)
 
 if ENABLE_CUDA
-CXXLINK = $(NVCC) -ccbin mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
-else
-CXXLINK = $(CXX) -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
+ADD_CUDA = cudaParticle.cu cudaSphericalBasis.cu cudaSphere.cu	\
+cudaComponent.cu
+GENCODE_FLAGS  = -gencode arch=compute_61,code=sm_61
+CUDA_LIBFLAGS  = -lcudart
+NVCC_CXXFLAGS  = $(AM_CPPFLAGS) -I. $(CXXFLAGS) $(GENCODE_FLAGS)
 endif
 
 exp_SOURCES = Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc	\
@@ -53,8 +53,6 @@ exp_SOURCES = Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc	\
      chkSlurm.c chkTimer.cc pHOT.cc Timer.cc VtkPCA.cc $(ADD_CUDA)
 
 
-AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
-
 bin_PROGRAMS = exp
 
 BOOST_LIBS = $(BOOST_FILESYSTEM_LIB) $(BOOST_SYSTEM_LIB)
@@ -67,8 +65,9 @@ EXPLIBS = $(COMMON_LIBS) @LAPACK_LIBS@ $(MPI_LIBS) $(SYS_LIBS) $(LIBS)
 LDADD = $(COMMON_LIBS) @LAPACK_LIBS@ $(ADD_LIBS) $(CUDA_LDFLAGS)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs $(BOOST_LDFLAGS)
 
-exp_LDADD = $(EXPLIBS) $(ADD_LIBS3) $(ADD_LIBS4) $(LAPACK_LIBS)	\
-	$(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@
+exp_LDADD = $(EXPLIBS) $(ADD_LIBS3) $(ADD_LIBS4) $(LAPACK_LIBS)		\
+	$(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@	\
+	$(CUDA_LDFLAGS) $(CUDA_LIBFLAGS)
 
 
 noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H Cylinder.H     \
@@ -80,7 +79,10 @@ noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H Cylinder.H     \
 	pHOT.H pHOT_types.H
 
 # the rule that can recognize *.cu files and compile the *.cu files to
-# *.o files
+# *.lo and *.o files
+.cu.lo:
+	$(top_builddir)/cudalt.py $@ $(NVCC) -c $(NVCC_CXXFLAGS) $<
+
 .cu.o :
 	$(NVCC) $(CUDA_CFLAGS) $(NVCC_CXXFLAGS) -c -o $@ $<
 

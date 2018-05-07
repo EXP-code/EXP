@@ -233,6 +233,10 @@ void SphericalBasis::setup(void)
   }
 
   if (NOISE) compute_rms_coefs();
+
+#if HAVE_LIBCUDA==1
+  initialize_cuda(channelDesc, cudaInterpArray, resDesc, texDesc, tex);
+#endif
 }  
 
 
@@ -591,6 +595,7 @@ void SphericalBasis::determine_coefficients(void)
 #ifdef DEBUG
   cout << "Process " << myid << ": in <determine_coefficients>, thread returned, lev=" << mlevel << endl;
 #endif
+
   //
   // Sum up the results from each thread
   //
@@ -606,6 +611,14 @@ void SphericalBasis::determine_coefficients(void)
   if (multistep==0 || mstep==0) {
     used += use0;
   }
+
+#if HAVE_LIBCUDA==1
+  //
+  // CUDA test
+  //
+  determine_coefficients_cuda(expcoef0[0]);
+
+#endif
 
   for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
       

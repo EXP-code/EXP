@@ -4509,9 +4509,13 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
   // Mean interparticle spacing
   //
-  double  volc  = c->Volume();
+  /*
+  // Currently unused
+  //
+  // double  volc  = c->Volume();
   double   ips  = DBL_MAX;
   if (IPS) ips  = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
+  */
 
   // Electron fraction and mean molecular weight for each particle
   //
@@ -9796,8 +9800,8 @@ void CollideIon::KEcheck
       KDif += ionExtra[1] - rcbExtra[1];
     } 
     if (fabs(KDif) > tolE*KE_initl_check) {
-      double tst1 = energyInPart(pp->p1);
-      double tst2 = energyInPart(pp->p2);
+      // double tst1 = energyInPart(pp->p1);
+      // double tst2 = energyInPart(pp->p2);
       std::cout << "**ERROR: KE energy check: del=" << KDif
 		<< ", rel=" << KDif/KE_initl_check
 		<< std::endl;

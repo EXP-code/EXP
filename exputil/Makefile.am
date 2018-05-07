@@ -12,9 +12,16 @@ ADD_CFLAGS3   = -DUSE_DMALLOC -g
 ADD_CXXFLAGS3 = -DUSE_DMALLOC -g
 endif
 
-AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
+AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
 AM_CFLAGS   = -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
-AM_CXXFLAGS = -std=c++11 -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) @exp_vtk_include@
+AM_CXXFLAGS = -std=c++11 -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) @exp_vtk_include@ $(CUDA_FLAGS)
+
+if ENABLE_CUDA
+CUDA_SRC       = cudaSLGridMP2.cu
+GENCODE_FLAGS  = -gencode arch=compute_61,code=sm_61
+CUDA_LIBFLAGS  = -lcudart
+NVCC_CXXFLAGS  = -I/usr/include/mpi -I. $(AM_CPPFLAGS) $(CXXFLAGS) $(GENCODE_FLAGS)
+endif
 
 lib_LTLIBRARIES = libexputil.la
 
@@ -61,8 +68,20 @@ libexputil_la_SOURCES = $(ODE_SRC) $(ROOT_SRC) $(QUAD_SRC) \
 	$(PHASE_SRC)  $(SYMP_SRC) $(INTERP_SRC) $(MASSMODEL_SRC) \
 	$(ORBIT_SRC) $(BIORTH_SRC) $(POLY_SRC) $(GAUSS_SRC) \
 	$(QPDISTF_SRC) $(BESSEL_SRC) $(OPTIMIZATION_SRC) \
-	$(SLEDGE_SRC)
-libexputil_la_LIBADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+	$(SLEDGE_SRC) $(CUDA_SRC)
+
+libexputil_la_LIBADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LDFLAGS)	\
+$(CUDA_LIBFLAGS) $(LIBS) $(FLIBS)
+
+# the rule that can recognize *.cu files and compile the *.cu files to
+# *.lo and *.o files
+
+.cu.lo:
+	$(top_builddir)/cudalt.py $@ $(NVCC) -c $(NVCC_CXXFLAGS) $<
+
+.cu.o :
+	$(NVCC) $(CUDA_CFLAGS) $(NVCC_CXXFLAGS) -c -o $@ $<
+
 
 sledge.f:	$(top_srcdir)/src/sledge.f
 	cp $(top_srcdir)/src/$@ .

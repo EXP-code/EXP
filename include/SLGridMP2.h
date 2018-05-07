@@ -11,11 +11,14 @@
 #include <mpi.h>
 #include <localmpi.h>
 
+#include <config.h>
+
 #include <Vector.h>
 // #include <Matrix.h>
 
 #include <massmodel.h>
 #include <sltableMP2.h>
+#include <cudaUtil.H>
 
 //! Cylindrical SL grid class
 class SLGridCyl
@@ -103,6 +106,11 @@ public:
 
   //! Fill Matrix with desired potential basis 
   void get_pot(Matrix& tab, double x, int m, int which=1);
+
+#if HAVE_LIBCUDA==1
+  void get_pot_cuda(float* tab, double x, int m, int which=1);
+#endif
+
   //! Fill Matrix with desired potential basis 
   void get_dens(Matrix& tab, double x, int m, int which=1);
   //! Fill Matrix with desired potential basis 
@@ -215,6 +223,18 @@ public:
   /** Get density for dimensionless coord with harmonic order l and radial orer n
       Return all radial order values in Vector
   */
+
+#if HAVE_LIBCUDA==1
+  void initialize_cuda(cudaChannelFormatDesc& channelDesc,
+		       std::vector<cudaArray*>& cuArray,
+		       std::vector<cudaResourceDesc>& resDesc,
+		       struct cudaTextureDesc& texDesc,
+		       thrust::host_vector<cudaTextureObject_t>& tex
+		       );
+
+  void get_pot_cuda(float* tab, double x, int m, int which=1);
+#endif
+
   void get_dens(Vector& vec, double x, int l, int which=1);
   /** Get force for dimensionless coord with harmonic order l and radial orer n
       Return all radial order values in Vector
