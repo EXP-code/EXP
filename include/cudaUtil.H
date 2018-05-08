@@ -3,11 +3,63 @@
 
 #define BLOCK_SIZE 256
 
+#include <string>
+
 #include <cuda.h>
+#include <cuda_runtime_api.h>
+#include <thrust/system/cuda/error.h>
+#include <thrust/system_error.h>
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 #include <thrust/system/cuda/experimental/pinned_allocator.h>
-#include "cudaTimer.H"
+
+inline void
+cuda_safe_call(cudaError_t error, const std::string& message = "")
+{
+  if (error)
+    throw thrust::system_error(error, thrust::cuda_category(), message);
+}
+
+// use CUDA's high-resolution timers when possible
+//
+struct cudaTimer
+{
+  cudaEvent_t start;
+  cudaEvent_t end;
+
+  cudaTimer(void)
+  {
+    cuda_safe_call(cudaEventCreate(&start));
+    cuda_safe_call(cudaEventCreate(&end));
+    restart();
+  }
+
+  ~cudaTimer(void)
+  {
+    cuda_safe_call(cudaEventDestroy(start));
+    cuda_safe_call(cudaEventDestroy(end));
+  }
+
+  void restart(void)
+  {
+    cuda_safe_call(cudaEventRecord(start, 0));
+  }
+
+  double elapsed(void)
+  {
+    cuda_safe_call(cudaEventRecord(end, 0));
+    cuda_safe_call(cudaEventSynchronize(end));
+
+    float ms_elapsed;
+    cuda_safe_call(cudaEventElapsedTime(&ms_elapsed, start, end));
+    return ms_elapsed / 1e3;
+  }
+
+  double epsilon(void)
+  {
+    return 0.5e-6;
+  }
+};
 
 inline
 int ConvertSMVer2Cores(int major, int minor)
