@@ -407,7 +407,7 @@ void ParticleFerry::BufferSend()
   cout << "ParticleFerry: process " << myid  << " send, tot=" << itotcount << endl;
   bufferKeyCheck();
 #endif
-  ibufcount = 0;
+  ibufcount = bufpos = 0;	// Reset counter and position
 }
 
 void ParticleFerry::BufferRecv()
