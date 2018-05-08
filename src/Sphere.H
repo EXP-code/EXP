@@ -3,7 +3,10 @@
 
 #include <SLGridMP2.h>
 #include <SphericalBasis.H>
+
+#if HAVE_LIBCUDA==1
 #include <cudaUtil.H>
+#endif
 
 /** Computes the potential, acceleration and density using the Sturm
     Liouville direct solution

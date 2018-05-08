@@ -4,9 +4,12 @@
 #include <ACG.h>
 #include <Normal.h>
 #include <AxisymmetricBasis.H>
-#include <cudaParticle.cuH>
 
 #include "config.h"
+
+#if HAVE_LIBCUDA==1
+#include <cudaParticle.cuH>
+#endif
 
 class MixtureBasis;
 

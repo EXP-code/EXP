@@ -18,7 +18,10 @@
 
 #include <massmodel.h>
 #include <sltableMP2.h>
+
+#if HAVE_LIBCUDA==1
 #include <cudaUtil.H>
+#endif
 
 //! Cylindrical SL grid class
 class SLGridCyl
