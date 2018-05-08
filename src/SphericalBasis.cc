@@ -616,6 +616,7 @@ void SphericalBasis::determine_coefficients(void)
   //
   // CUDA test
   //
+  cC->ParticlesToCuda();
   determine_coefficients_cuda(expcoef0[0]);
 
 #endif
