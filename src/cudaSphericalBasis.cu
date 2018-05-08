@@ -27,7 +27,7 @@ __device__ void reduceSum(T *out, T *work, T *sdata, unsigned int n)
   sdata[tid] = 0.0;
 
   while (i < n) {
-    sdata[tid] += work[i] + work[i+blockSize];
+    sdata[tid] += work[i] + (i+blockSize<n ? work[i+blockSize] : T(0));
     i += gridSize;
   }
   
@@ -124,6 +124,8 @@ float cu_r_to_xi(float r)
 {
   float ret;
 
+  printf("cuRscale=%f\n", cuRscale);
+
   if (cuCmap==1) {
     ret =  (r/cuRscale-1.0)/(r/cuRscale+1.0);
   } else if (cuCmap==2) {
@@ -166,6 +168,27 @@ float cu_d_xi_to_r(float xi)
 
   return ret;
 }
+
+void SphericalBasis::initialize_mapping_constants()
+{
+  // Copy constants to device
+  //
+  
+  cuda_mapping_constants f = get_cuda_mapping_constants();
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuRscale, &f.scale, sizeof(float), size_t(0), cudaMemcpyHostToDevice), "Error copying cuRscale");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuXmin, &f.min, sizeof(float), size_t(0), cudaMemcpyHostToDevice), "Error copying cuXmin");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuXmax, &f.xmax, sizeof(float), size_t(0), cudaMemcpyHostToDevice), "Error copying cuXmax");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuDxi, &f.dxi, sizeof(float), size_t(0), cudaMemcpyHostToDevice), "Error copying cuDxi");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuNumr, &f.numr, sizeof(int), size_t(0), cudaMemcpyHostToDevice), "Error copying cuNumr");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuCmap, &f.cmap, sizeof(int), size_t(0), cudaMemcpyHostToDevice), "Error copying cuCmap");
+}
+
 
 __global__ void coefficient_kernel
 (float *coef, float*work, cudaTextureObject_t *tex, float *plm, cudaParticle* in,

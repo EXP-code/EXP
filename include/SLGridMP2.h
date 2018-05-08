@@ -18,7 +18,7 @@
 
 #include <massmodel.h>
 #include <sltableMP2.h>
-#include <cudaUtil.H>
+#include <cudaUtil.cuH>
 
 //! Cylindrical SL grid class
 class SLGridCyl
@@ -232,7 +232,30 @@ public:
 		       thrust::host_vector<cudaTextureObject_t>& tex
 		       );
 
-  void get_pot_cuda(float* tab, double x, int m, int which=1);
+  struct cuda_mapping_constants
+  {
+    float scale;
+    float xmin;
+    float xmax;
+    float dxi;
+    int   numr;
+    int   cmap;
+  };
+
+  virtual cuda_mapping_constants get_cuda_mapping_constants()
+  {
+    cuda_mapping_constants ret;
+
+    ret.scale = scale;
+    ret.xmin  = xmin;
+    ret.xmax  = xmax;
+    ret.numr  = numr;
+    ret.dxi   = dxi;
+    ret.cmap  = cmap;
+
+    return ret;
+  }
+
 #endif
 
   void get_dens(Vector& vec, double x, int l, int which=1);

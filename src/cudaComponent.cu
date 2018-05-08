@@ -4,8 +4,12 @@ std::pair<unsigned, unsigned> Component::CudaSortByLevel(int minlev, int maxlev)
 {
   std::pair<unsigned, unsigned> ret;
 
-  thrust::sort(cuda_particles.begin(), cuda_particles.end(),
-	       LessCudaLev<cudaParticle>());
+  std::cout << "Size of cuda particle vector: " << cuda_particles.size()
+	    << std::endl
+	    << "Begin sort by level . . . " << std::flush;
+
+  thrust::sort(cuda_particles.begin(), cuda_particles.end(), LessCudaLev());
+  std::cout << "done" << std::endl;
 
   cudaParticle temp;
 
@@ -17,12 +21,10 @@ std::pair<unsigned, unsigned> Component::CudaSortByLevel(int minlev, int maxlev)
   //
   temp.level = minlev;
   ret.first  =
-    thrust::lower_bound(pbeg, pend, temp,
-			LessCudaLev<cudaParticle>()) - pbeg;
+    thrust::lower_bound(pbeg, pend, temp, LessCudaLev()) - pbeg;
 
   temp.level = maxlev;
-  ret.second = thrust::upper_bound(pbeg, pend, temp,
-			    LessCudaLev<cudaParticle>()) - pbeg;
+  ret.second = thrust::upper_bound(pbeg, pend, temp, LessCudaLev()) - pbeg;
 
   return ret;
 }
@@ -33,7 +35,7 @@ void Component::CudaSortBySequence()
     pbeg = cuda_particles.begin(),
     pend = cuda_particles.end();
 
-  thrust::sort(pbeg, pend, LessCudaSeq<cudaParticle>());
+  thrust::sort(pbeg, pend, LessCudaSeq());
 }
 
 

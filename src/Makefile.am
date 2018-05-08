@@ -37,6 +37,8 @@ CUDA_LIBFLAGS  = -lcudart
 NVCC_CXXFLAGS  = $(AM_CPPFLAGS) -I. $(CXXFLAGS) $(GENCODE_FLAGS)
 endif
 
+CXXLINK = mpiCC -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
+
 exp_SOURCES = Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc	\
      Cube.cc Cylinder.cc EmpOrth9thd.cc ExternalCollection.cc		\
      ExternalForce.cc Hernquist.cc Orient.cc Particle.cc PotAccel.cc	\

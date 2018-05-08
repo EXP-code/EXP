@@ -97,15 +97,32 @@ protected:
   std::vector<cudaResourceDesc> resDesc;
   struct cudaTextureDesc texDesc;
 
-  virtual void initialize_cuda
-  (
-   cudaChannelFormatDesc& channelDesc,
-   std::vector<cudaArray*>& cuArray,
-   std::vector<cudaResourceDesc>& resDesc,
-   struct cudaTextureDesc& texDesc,
-   thrust::host_vector<cudaTextureObject_t>& tex
-   ) {}
+  virtual void initialize_cuda() {}
 
+  struct cuda_mapping_constants
+  {
+    float scale;
+    float xmin;
+    float xmax;
+    float dxi;
+    int   numr;
+    int   cmap;
+  };
+
+  virtual cuda_constants get_cuda_mapping constants()
+  {
+    cuda_constants ret;
+    ret.scale = scale;
+    ret.xmin  = 0.0;
+    ret.xmax  = 1.0;
+    ret.numr  = 100;
+    ret.dxi   = 1.0/(ret.numr-1);
+    ret.cmap  = 2;
+
+    return ret;
+  }
+
+  virtual void initialize_mapping_constants();
 #endif
 
   //! Thread method for accerlation compuation

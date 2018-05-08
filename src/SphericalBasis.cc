@@ -235,7 +235,7 @@ void SphericalBasis::setup(void)
   if (NOISE) compute_rms_coefs();
 
 #if HAVE_LIBCUDA==1
-  initialize_cuda(channelDesc, cudaInterpArray, resDesc, texDesc, tex);
+  initialize_cuda();
 #endif
 }  
 

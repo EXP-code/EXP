@@ -9,8 +9,8 @@
 #include <thrust/host_vector.h>
 #include <thrust/system/cuda/experimental/pinned_allocator.h>
 
-extern __constant__ float cuRscale, cuXmin, cuXmax, cuDxi;
-extern __constant__ int   cuNumr, cuCmap;
+__constant__ float cuRscale, cuXmin, cuXmax, cuDxi;
+__constant__ int   cuNumr, cuCmap;
 
 void SLGridSph::initialize_cuda(cudaChannelFormatDesc& channelDesc,
 				std::vector<cudaArray*>& cuArray,
@@ -19,22 +19,6 @@ void SLGridSph::initialize_cuda(cudaChannelFormatDesc& channelDesc,
 				thrust::host_vector<cudaTextureObject_t>& tex
 				)
 {
-  // Copy constants to device
-  //
-  float f;
-
-  cudaMemcpyToSymbol("cuRscale", &(f=scale), sizeof(float), size_t(0), cudaMemcpyHostToDevice);
-
-  cudaMemcpyToSymbol("cuXmin", &(f=xmin), sizeof(float), size_t(0), cudaMemcpyHostToDevice);
-
-  cudaMemcpyToSymbol("cuXmax", &(f=xmax), sizeof(float), size_t(0), cudaMemcpyHostToDevice);
-
-  cudaMemcpyToSymbol("cuDxi", &(f=dxi), sizeof(float), size_t(0), cudaMemcpyHostToDevice);
-
-  cudaMemcpyToSymbol("cuNumr", &numr, sizeof(int), size_t(0), cudaMemcpyHostToDevice);
-
-  cudaMemcpyToSymbol("cuCmap", &cmap, sizeof(int), size_t(0), cudaMemcpyHostToDevice);
-
   // Number of texture arrays
   //
   int ndim = (lmax+1)*nmax;
@@ -64,21 +48,20 @@ void SLGridSph::initialize_cuda(cudaChannelFormatDesc& channelDesc,
   for (int l=0; l<=lmax; l++) {
     for (int n=0; n<nmax; n++) {
       int i = l*nmax + n;
-      cudaMallocArray(&cuArray[i], &channelDesc, BLOCK_SIZE, 1);
+      cuda_safe_call(cudaMallocArray(&cuArray[i], &channelDesc, BLOCK_SIZE, 1), "malloc cuArray");
 
       // Copy to device memory some data located at address h_data
       // in host memory
       for (int j=0; j<numr; j++) tt[j] = table[l].ef[n+1][j];
 
-      cudaMemcpyToArray(cuArray[i], 0, 0, &tt[0], tsize, cudaMemcpyHostToDevice);
+      cuda_safe_call(cudaMemcpyToArray(cuArray[i], 0, 0, &tt[0], tsize, cudaMemcpyHostToDevice), "copy texture to array");
 
       // Specify texture
       memset(&resDesc[i], 0, sizeof(resDesc));
       resDesc[i].resType = cudaResourceTypeArray;
       resDesc[i].res.array.array = cuArray[i];
 
-      cudaCreateTextureObject(&tex[i], &resDesc[i], &texDesc, NULL);
+      cuda_safe_call(cudaCreateTextureObject(&tex[i], &resDesc[i], &texDesc, NULL), "create texture object");
     }
   }
 }
-

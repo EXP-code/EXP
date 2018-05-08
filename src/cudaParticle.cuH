@@ -9,8 +9,7 @@
 #include <thrust/host_vector.h>
 #include <thrust/sort.h>
 
-#include <cudaUtil.H>
-#include <cudaTimer.H>
+#include <cudaUtil.cuH>
 
 #include <Particle.H>
 
@@ -26,21 +25,19 @@ struct cudaParticle
   unsigned indx;
 } __attribute__((aligned));
 
-template <typename T>
 struct LessCudaSeq
 {
   __host__ __device__
-  bool operator()(const T& p1, const T& p2) const
+  bool operator()(const cudaParticle& p1, const cudaParticle& p2) const
   {
     return p1.indx < p2.indx;
   }
 };
 
-template <typename T>
 struct LessCudaLev
 {
   __host__ __device__
-  bool operator()(const T& p1, const T& p2) const
+  bool operator()(const cudaParticle& p1, const cudaParticle& p2) const
   {
     return p1.level < p2.level;
   }
