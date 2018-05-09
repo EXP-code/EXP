@@ -4,9 +4,14 @@
 #include <ACG.h>
 #include <Normal.h>
 #include <AxisymmetricBasis.H>
-#include <cudaParticle.cuH>
 
 #include "config.h"
+
+#if HAVE_LIBCUDA==1
+#include <cudaParticle.cuH>
+#include <cudaMappingConstants.cuH>
+#endif
+
 
 class MixtureBasis;
 
@@ -99,19 +104,10 @@ protected:
 
   virtual void initialize_cuda() {}
 
-  struct cuda_mapping_constants
+  virtual cudaMappingConstants getCudaMappingConstants()
   {
-    float scale;
-    float xmin;
-    float xmax;
-    float dxi;
-    int   numr;
-    int   cmap;
-  };
+    cudaMappingConstants ret;
 
-  virtual cuda_constants get_cuda_mapping constants()
-  {
-    cuda_constants ret;
     ret.scale = scale;
     ret.xmin  = 0.0;
     ret.xmax  = 1.0;

@@ -23,13 +23,20 @@ void SLGridSph::initialize_cuda(cudaChannelFormatDesc& channelDesc,
   //
   int ndim = (lmax+1)*nmax;
 
-  // Allocate CUDA array in device memory
+  // Allocate CUDA array in device memory (a one-dimension 'channel')
+  //
   channelDesc = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
 
+  // Interpolation data array
+  //
   cuArray.resize(ndim);
-  size_t tsize = BLOCK_SIZE*sizeof(float);
+
+  // Size of interpolation array
+  //
+  size_t tsize = numr*sizeof(float);
 
   // Create texture objects
+  //
   tex.resize(ndim);
   thrust::fill(tex.begin(), tex.end(), 0);
 
@@ -48,7 +55,7 @@ void SLGridSph::initialize_cuda(cudaChannelFormatDesc& channelDesc,
   for (int l=0; l<=lmax; l++) {
     for (int n=0; n<nmax; n++) {
       int i = l*nmax + n;
-      cuda_safe_call(cudaMallocArray(&cuArray[i], &channelDesc, BLOCK_SIZE, 1), "malloc cuArray");
+      cuda_safe_call(cudaMallocArray(&cuArray[i], &channelDesc, tsize, 1), "malloc cuArray");
 
       // Copy to device memory some data located at address h_data
       // in host memory

@@ -58,9 +58,9 @@ private:
     ortho->initialize_cuda(channelDesc, cudaInterpArray, resDesc, texDesc, tex);
   }
 
-  virtual cuda_constants get_cuda_mapping_constants()
+  virtual cudaMappingConstants getCudaMappingConstants()
   {
-    ortho->get_cuda_mapping_constants();
+    return ortho->getCudaMappingConstants();
   }
 
 #endif

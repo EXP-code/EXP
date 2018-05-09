@@ -18,7 +18,11 @@
 
 #include <massmodel.h>
 #include <sltableMP2.h>
+
+#if HAVE_LIBCUDA==1
 #include <cudaUtil.cuH>
+#include <cudaMappingConstants.cuH>
+#endif
 
 //! Cylindrical SL grid class
 class SLGridCyl
@@ -232,19 +236,9 @@ public:
 		       thrust::host_vector<cudaTextureObject_t>& tex
 		       );
 
-  struct cuda_mapping_constants
+  virtual cudaMappingConstants getCudaMappingConstants()
   {
-    float scale;
-    float xmin;
-    float xmax;
-    float dxi;
-    int   numr;
-    int   cmap;
-  };
-
-  virtual cuda_mapping_constants get_cuda_mapping_constants()
-  {
-    cuda_mapping_constants ret;
+    cudaMappingConstants ret;
 
     ret.scale = scale;
     ret.xmin  = xmin;

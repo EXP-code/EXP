@@ -236,6 +236,7 @@ void SphericalBasis::setup(void)
 
 #if HAVE_LIBCUDA==1
   initialize_cuda();
+  initialize_mapping_constants();
 #endif
 }  
 

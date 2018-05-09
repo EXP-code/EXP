@@ -4,12 +4,7 @@ std::pair<unsigned, unsigned> Component::CudaSortByLevel(int minlev, int maxlev)
 {
   std::pair<unsigned, unsigned> ret;
 
-  std::cout << "Size of cuda particle vector: " << cuda_particles.size()
-	    << std::endl
-	    << "Begin sort by level . . . " << std::flush;
-
   thrust::sort(cuda_particles.begin(), cuda_particles.end(), LessCudaLev());
-  std::cout << "done" << std::endl;
 
   cudaParticle temp;
 
