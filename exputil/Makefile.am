@@ -20,7 +20,7 @@ if ENABLE_CUDA
 CUDA_SRC       = cudaSLGridMP2.cu
 GENCODE_FLAGS  = -gencode arch=compute_61,code=sm_61
 CUDA_LIBFLAGS  = -lcudart
-NVCC_CXXFLAGS  = -I/usr/include/mpi -I. $(AM_CPPFLAGS) $(CXXFLAGS) $(GENCODE_FLAGS)
+NVCC_CXXFLAGS  = -I/usr/include/mpi -I. $(AM_CPPFLAGS) $(CXXFLAGS) $(GENCODE_FLAGS) $(NVCC_EXTRA)
 endif
 
 lib_LTLIBRARIES = libexputil.la

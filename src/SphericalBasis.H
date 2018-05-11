@@ -94,6 +94,13 @@ protected:
   //! CUDA method for coefficient accumulation
 #if HAVE_LIBCUDA==1
   virtual void determine_coefficients_cuda(const Matrix& expcoef);
+  virtual void determine_acceleration_cuda();
+
+  thrust::host_vector<float> host_coefs;
+  thrust::device_vector<float> dev_coefs;
+
+  virtual void HtoD_coefs(const Matrix& coef);
+  virtual void DtoH_coefs(Matrix& coef);
 
   cudaChannelFormatDesc channelDesc;
   std::vector<cudaArray_t> cuInterpArray;
@@ -105,20 +112,38 @@ protected:
 
   virtual void destroy_cuda()
   {
-    return;
-
     std::cout << "cuInterpArray size = " << cuInterpArray.size() << std::endl;
     unsigned cnt = 0;
+    /*
     for (auto v : cuInterpArray) {
       std::ostringstream sout;
       sout << "destroy cuArray [" << cnt++ << "]";
-      cuda_safe_call(cudaFreeArray(v), sout.str().c_str());
+      cuda_safe_call(cudaFreeArray(v), __FILE__, __LINE__, sout.str().c_str());
+    }
+    */
+    for (size_t i=0; i<cuInterpArray.size(); i++) {
+      std::ostringstream sout;
+      sout << "trying to free cuArray [" << cnt++ << "]";
+      cuda_safe_call(cudaFreeArray(cuInterpArray[i]),
+		     __FILE__, __LINE__, sout.str());
     }
     
     std::cout << "texture object array size = " << tex.size() << std::endl;
+    /*
     for (auto v: tex) {
-      cuda_safe_call(cudaDestroyTextureObject(v), "destroy texture object");
+      std::ostringstream sout;
+      sout << "trying to free TextureObject [" << cnt++ << "]";
+      cuda_safe_call(cudaDestroyTextureObject(v), sout.str().c_str());
     }
+    */
+    for (size_t i=0; i<tex.size(); i++) {
+      std::ostringstream sout;
+      sout << "trying to free TextureObject [" << cnt++ << "]";
+      cuda_safe_call(cudaDestroyTextureObject(tex[i]),
+		     __FILE__, __LINE__, sout.str());
+    }
+
+    std::cout << "cuda memory freed" << std::endl;
   }
 
   virtual cudaMappingConstants getCudaMappingConstants()

@@ -55,6 +55,7 @@ private:
 #if HAVE_LIBCUDA==1
   virtual void initialize_cuda()
   {
+    cudaDeviceReset();
     ortho->initialize_cuda(channelDesc, cuInterpArray, resDesc, texDesc, tex);
   }
 

@@ -3,6 +3,7 @@
 
 #define BLOCK_SIZE 256
 
+#include <sstream>
 #include <string>
 
 #include <cuda.h>
@@ -14,10 +15,17 @@
 #include <thrust/system/cuda/experimental/pinned_allocator.h>
 
 inline void
-cuda_safe_call(cudaError_t error, const std::string& message = "")
+cuda_safe_call(cudaError_t code, const char *file, int line,
+	       const std::string& message = "")
 {
-  if (error)
-    throw thrust::system_error(error, thrust::cuda_category(), message);
+  if (code != cudaSuccess)
+  {
+    std::stringstream ss;
+    ss << file << "(" << line << ")";
+    if (message.size()>0) ss << " : " << message;
+
+    throw thrust::system_error(code, thrust::cuda_category(), ss.str());
+  }
 }
 
 // use CUDA's high-resolution timers when possible
@@ -29,29 +37,30 @@ struct cudaTimer
 
   cudaTimer(void)
   {
-    cuda_safe_call(cudaEventCreate(&start));
-    cuda_safe_call(cudaEventCreate(&end));
+    cuda_safe_call(cudaEventCreate(&start), __FILE__, __LINE__);
+    cuda_safe_call(cudaEventCreate(&end),   __FILE__, __LINE__);
     restart();
   }
 
   ~cudaTimer(void)
   {
-    cuda_safe_call(cudaEventDestroy(start));
-    cuda_safe_call(cudaEventDestroy(end));
+    cuda_safe_call(cudaEventDestroy(start), __FILE__, __LINE__);
+    cuda_safe_call(cudaEventDestroy(end),   __FILE__, __LINE__);
   }
 
   void restart(void)
   {
-    cuda_safe_call(cudaEventRecord(start, 0));
+    cuda_safe_call(cudaEventRecord(start, 0), __FILE__, __LINE__);
   }
 
   double elapsed(void)
   {
-    cuda_safe_call(cudaEventRecord(end, 0));
-    cuda_safe_call(cudaEventSynchronize(end));
+    cuda_safe_call(cudaEventRecord(end, 0),   __FILE__, __LINE__);
+    cuda_safe_call(cudaEventSynchronize(end), __FILE__, __LINE__);
 
     float ms_elapsed;
-    cuda_safe_call(cudaEventElapsedTime(&ms_elapsed, start, end));
+    cuda_safe_call(cudaEventElapsedTime(&ms_elapsed, start, end),
+		   __FILE__, __LINE__);
     return ms_elapsed / 1e3;
   }
 

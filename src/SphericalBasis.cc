@@ -1,4 +1,6 @@
 #include "expand.h"
+
+#include <chrono>
 #include <sstream>
 #include <SphericalBasis.H>
 #include <MixtureBasis.H>
@@ -500,6 +502,8 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
 void SphericalBasis::determine_coefficients(void)
 {
+  auto start0 = std::chrono::high_resolution_clock::now();
+
   // Return if we should leave the coefficients fixed
   //
   if (!self_consistent && !firstime_accel && !initializing) return;
@@ -626,7 +630,9 @@ void SphericalBasis::determine_coefficients(void)
   // CUDA test
   //
   cC->ParticlesToCuda();
+  auto start1 = std::chrono::high_resolution_clock::now();
   determine_coefficients_cuda(expcoef0[0]);
+  auto finish1 = std::chrono::high_resolution_clock::now();
 
 #endif
 
@@ -679,6 +685,16 @@ void SphericalBasis::determine_coefficients(void)
 
   print_timings("SphericalBasis: coefficient timings");
 
+  auto finish0 = std::chrono::high_resolution_clock::now();
+  
+  std::chrono::duration<double> duration0 = finish0 - start0;
+  std::chrono::duration<double> duration1 = finish1 - start1;
+
+  std::cout << std::string(40, '=') << std::endl;
+  std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
+  std::cout << "Time in GPU: " << duration1.count() << std::endl;
+  std::cout << "CPU to GPU : " << duration0.count()/duration1.count() - 1.0 << std::endl;
+  std::cout << std::string(40, '=') << std::endl;
 }
 
 void SphericalBasis::multistep_reset()
