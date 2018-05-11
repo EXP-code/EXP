@@ -95,14 +95,31 @@ protected:
 #if HAVE_LIBCUDA==1
   virtual void determine_coefficients_cuda(const Matrix& expcoef);
 
-  int nCudaCoefs;
   cudaChannelFormatDesc channelDesc;
-  std::vector<cudaArray*> cudaInterpArray;
+  std::vector<cudaArray_t> cuInterpArray;
   thrust::host_vector<cudaTextureObject_t> tex;
   std::vector<cudaResourceDesc> resDesc;
   struct cudaTextureDesc texDesc;
 
   virtual void initialize_cuda() {}
+
+  virtual void destroy_cuda()
+  {
+    return;
+
+    std::cout << "cuInterpArray size = " << cuInterpArray.size() << std::endl;
+    unsigned cnt = 0;
+    for (auto v : cuInterpArray) {
+      std::ostringstream sout;
+      sout << "destroy cuArray [" << cnt++ << "]";
+      cuda_safe_call(cudaFreeArray(v), sout.str().c_str());
+    }
+    
+    std::cout << "texture object array size = " << tex.size() << std::endl;
+    for (auto v: tex) {
+      cuda_safe_call(cudaDestroyTextureObject(v), "destroy texture object");
+    }
+  }
 
   virtual cudaMappingConstants getCudaMappingConstants()
   {

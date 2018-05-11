@@ -17,68 +17,72 @@ void warpReduce(volatile T *sdata, unsigned int tid)
 }
 
 template <typename T, unsigned int blockSize>
-__device__ void reduceSum(T *out, T *work, T *sdata, unsigned int n)
+__global__ void reduceSum(float *out, float *in,
+			  unsigned int dim, unsigned int n)
 {
+  extern __shared__ T sdata[];
+
   unsigned int tid      = threadIdx.x;
-  unsigned int gridSize = (blockSize*2)*gridDim.x;
+  unsigned int gridSize = blockSize*gridDim.x*2;
     
-  unsigned int i = blockIdx.x*(blockSize*2) + tid;
+  for (unsigned j=0; j<dim; j++) {
 
-  sdata[tid] = 0.0;
+    sdata[tid] = 0;
+    
+    unsigned int i = blockIdx.x*blockSize*2 + tid;
 
-  while (i < n) {
-    sdata[tid] += work[i] + (i+blockSize<n ? work[i+blockSize] : T(0));
-    i += gridSize;
-  }
+    while (i < n) {
+      sdata[tid] +=
+	in[i + n*j] + (i+blockSize<n ? in[i + blockSize + n*j] : T(0));
+      i += gridSize;
+    }
   
-  __syncthreads();
+    __syncthreads();
   
-  if (blockSize >= 1024) {
-    if (tid < 512) {
-      sdata[tid] += sdata[tid + 512];
+    if (blockSize >= 1024) {
+      if (tid < 512) {
+	sdata[tid] += sdata[tid + 512];
+	__syncthreads();
+      }
+    }
+    
+    if (blockSize >= 512) {
+      if (tid < 256) {
+	sdata[tid] += sdata[tid + 256];
+      }
       __syncthreads();
     }
-  }
-    
-  if (blockSize >= 512) {
-    if (tid < 256) {
-      sdata[tid] += sdata[tid + 256];
-    }
-    __syncthreads();
-  }
-  
-  if (blockSize >= 256) {
-    if (tid < 128) {
-      sdata[tid] += sdata[tid + 128];
-    }
-    __syncthreads();
-  }
-  
-  if (blockSize >= 128) {
-    if (tid < 64) {
-      sdata[tid] += sdata[tid + 64];
-    }
-    __syncthreads();
-  }
-  
-  if (tid < 32) {
-    warpReduce<T, blockSize>(&sdata[0], tid);
-  }
 
-  if (tid == 0 and blockIdx.x < gridDim.x/2) {
-    *out = sdata[tid];
-    // printf("Ans=%e\n", *out);
-  }
+    if (blockSize >= 256) {
+      if (tid < 128) {
+	sdata[tid] += sdata[tid + 128];
+      }
+      __syncthreads();
+    }
 
-  __syncthreads();
+    if (blockSize >= 128) {
+      if (tid < 64) {
+	sdata[tid] += sdata[tid + 64];
+      }
+      __syncthreads();
+    }
+
+    if (tid < 32) {
+      warpReduce<T, blockSize>(&sdata[0], tid);
+    }
+
+    if (tid == 0) {
+      out[blockIdx.x + j*gridDim.x] = sdata[tid];
+    }
+    __syncthreads();
+  }
 }
-
 
 __host__ __device__
 int Ilm(int l, int m)
 {
   if (l==0) return 0;
-  return (l+1)*(l+2)/2 + m;
+  return l*(l+1)/2 + m;
 }
 
 __host__ __device__
@@ -207,27 +211,25 @@ void SphericalBasis::initialize_mapping_constants()
   cuda_safe_call(cudaMemcpyToSymbol(cuCmap, &f.cmap, sizeof(int), size_t(0), cudaMemcpyHostToDevice), "Error copying cuCmap");
 }
 
-
-__global__ void coefKernel
-(float *coef, float*work, cudaTextureObject_t *tex, float *plm, cudaParticle* in,
- int Lmax, int nmax, unsigned int nbeg, unsigned int nend, float rmax)
+__global__
+void testTexture(cudaTextureObject_t *tex, int nmax)
 {
-  extern __shared__ float sdata[];
-		
-  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
-
-  bool exist = true;
-  bool rgood = true;
-
-  if (tid+nbeg >= nend) {
-    exist = rgood = false;
+  printf("**DEVICE Texture compare\n");
+  for (int l : {0, 1, 2}) {
+    for (int j=0; j<10; j++) {
+      int k = 1 + l*nmax;
+      for (int i : {3980, 3990, 3995, 3999}) 
+	printf("%5d %5d %5d %13.7e\n", l, j, i, tex1D<float>(tex[k+j], i));
+    }
   }
+}
 
-  float adb = 1.0; // = component->Adiabatic();
-
-  float cosp0, sinp0, cosp1, sinp1, cosp2, sinp2, cosp, sinp, v, a, b, xi;
-  float fac0 = 4.0*M_PI, mass = 0.0;
-  int indx;
+__global__ void coordKernel
+(cudaParticle* in, float *M, float *A, float *P, float *L, int *I,
+ unsigned int Lmax, unsigned int stride, unsigned int nbeg, unsigned int nend, float rmax)
+{
+  const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
+  const int psiz  = (Lmax+1)*(Lmax+2)/2;
 
   /*
     vector<double> ctr;
@@ -235,302 +237,366 @@ __global__ void coefKernel
   */
   float ctr[3] {0.0f, 0.0f, 0.0f};
 
-  if (exist) {
+  for (int n=0; n<stride; n++) {
+    int i = tid*stride + n;
+    int npart = i + nbeg;
 
-    cudaParticle p = in[tid + nbeg];
+    if (npart < nend) {
+
+      cudaParticle p = in[npart];
     
-    mass =  p.mass * adb;
-
-    // Adjust mass for subset
-    // if (subset) mass /= ssfrac;
-    
-    float xx = p.pos[0] - ctr[0];
-    float yy = p.pos[1] - ctr[1];
-    float zz = p.pos[2] - ctr[2];
-
-
-    float r2 = (xx*xx + yy*yy + zz*zz);
-    float r = sqrt(r2) + FSMALL;
-  
-    if (r<rmax) {
-    
-      float costh = zz/r;
-      float phi = atan2(yy,xx);
+      float xx = p.pos[0] - ctr[0];
+      float yy = p.pos[1] - ctr[1];
+      float zz = p.pos[2] - ctr[2];
       
-      cosp0 = cos(phi);
-      sinp0 = sin(phi);
+      float r2 = (xx*xx + yy*yy + zz*zz);
+      float r = sqrt(r2) + FSMALL;
       
-      legendre_array(Lmax, costh, plm);
-    
-      // float x, xi;
-      float x;
-
-      x  = cu_r_to_xi(r);
-      xi = (x - cuXmin)/cuDxi;
-      indx = floor(xi);
+      M[i] = -1.0;
       
-      if (indx<0) indx = 0;
-      if (indx>cuNumr-2) indx = cuNumr - 2;
-      
-      a = float(indx+1) - xi;
-      b = 1.0 - a;
-    } else {
-      rgood = false;
-    }
-  }
-
-    
-  //		l loop
-  for (int l=0; l<=Lmax; l++) {
-    //          m loop
-    for (int m=0; m<=l; m++) {
-      
-      if (m==0) {
+      if (r<rmax) {
 	
-	cosp = 1.0;
-	sinp = 0.0;
+	M[i] = p.mass;
 	
-	for (int n=0; n<nmax; n++) {
-	  if (rgood) {
-	    // Do the interpolation
-	    //
-	    int k = l*nmax + n;
-	    
-	    v =
-	      a*tex1D<float>(tex[k], indx  ) +
-	      b*tex1D<float>(tex[k], indx+1) ;
-	      
-	    printf("[%3d %3d %3d] %f %f\n", l, m, n, plm[Ilm(l, m)], v);
-
-	    work[tid] = v * plm[Ilm(l, m)] * mass * fac0;
-
-	  } else {
-	    // Ignore value
-	    //
-	    if (exist) {
-	      work[tid] = 0.0; // out of bounds
-	      if (tid >= nend-nbeg) {
-		printf("Error: %d %d %d\n", tid, nbeg, nend);
-	      }
-	    }
-	  }
-
-	  __syncthreads();
-	    
-	  float z;
-	  reduceSum<float, BLOCK_SIZE>(&z, work, sdata, nend - nbeg);
-	  coef[Ilmn(l, m, 'c', n, nmax)] = z;
-	  // printf("[%d, %d] z=%e\n", l, m, z);
-	}
+	float costh = zz/r;
+	P[i] = atan2(yy,xx);
 	
-	cosp1 = cosp;
-	sinp1 = sinp;
-	cosp  = cosp0;
-	sinp  = sinp0;
-      }
-      else {
-	for (int n=0; n<nmax; n++) {
-	  
-	  if (rgood) {
-	    // Do the interpolation
-	    //
-	    int k = l*nmax + n;
-	    
-	    v =
-	      a*tex1D<float>(tex[k], indx  ) +
-	      b*tex1D<float>(tex[k], indx+1) ;
-	    
-	    v *= plm[Ilm(l, m)] * mass * fac0;
-	    
-	    printf("[%3d %3d %3d] %f %f\n", l, m, n, plm[Ilm(l, m)], v);
-
-	    work[tid] = v * cosp;
-	  } else {
-	    // Ignore value
-	    //
-	    if (exist) {
-	      work[tid] = 0.0;
-	      if (tid >= nend-nbeg) {
-		printf("Error: %d %d %d\n", tid, nbeg, nend);
-	      }
-	    }
-	  }
-	    
-	  __syncthreads();
-	  
-	  float z;
-	  reduceSum<float, BLOCK_SIZE>(&z, work, sdata, nend - nbeg);
-	  coef[Ilmn(l, m, 'c', n, nmax)] = z;
-	  // printf("[%d, %d] z=%e\n", l, m, z);
-	      
-	  if (rgood)
-	    work[tid] = v * sinp;
-	  else {
-	    if (exist) {
-	      work[tid] = 0.0;
-	      if (tid >= nend-nbeg) {
-		printf("Error: %d %d %d\n", tid, nbeg, nend);
-	      }
-	    }
-	  }
-	  
-	  reduceSum<float, BLOCK_SIZE>(&z, work, sdata, nend - nbeg);
-	  coef[Ilmn(l, m, 's', n, nmax)] = z;
-	  // printf("[%d, %d] z=%e\n", l, m, z);
-	    
-	  __syncthreads();
-	}
-	  
-	cosp2 = cosp1;
-	sinp2 = sinp1;
-	cosp1 = cosp;
-	sinp1 = sinp;
+	float *plm = &L[psiz*i];
+	legendre_array(Lmax, costh, plm);
 	
-	cosp  = cosp0*cosp1 - cosp2;
-	sinp  = sinp0*sinp1 - sinp2;
+	float x  = cu_r_to_xi(r);
+	float xi = (x - cuXmin)/cuDxi;
+	int indx = floor(xi);
+	
+	if (indx<0) indx = 0;
+	if (indx>cuNumr-2) indx = cuNumr - 2;
+	
+	A[i] = float(indx+1) - xi;
+	if (A[i]<0.0 or A[i]>1.0) printf("off grid: x=%f\n", xi);
+	I[i] = indx;
       }
     }
   }
 }
 
 
+__global__ void coefKernel
+(float *coef, cudaTextureObject_t *tex,
+ float *M, float *A, float *P, float *L, int *I,  int stride, 
+ int l, int m, unsigned Lmax, unsigned int nmax, unsigned int nbeg, unsigned int nend)
+{
+  const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
+  const int psiz  = (Lmax+1)*(Lmax+2)/2;
+
+  float fac0 = 4.0*M_PI;
+
+  for (int istr=0; istr<stride; istr++) {
+
+    int i = tid*stride + istr;
+
+    if (i<nend - nbeg) {
+
+      float mass = M[i];
+
+      if (mass>0.0) {
+
+	float phi  = P[i];
+	float cosp = cos(phi*m);
+	float sinp = sin(phi*m);
+	
+	float *plm = &L[psiz*i];
+	
+	for (int n=0; n<nmax; n++) {
+	  // Do the interpolation
+	  //
+	  float a = A[i];
+	  float b = 1.0 - a;
+	  int ind = I[i];
+	  
+	  float p0 =
+	    a*tex1D<float>(tex[0], ind  ) +
+	    b*tex1D<float>(tex[0], ind+1) ;
+
+
+	  int k = 1 + l*nmax + n;
+
+	  float v = (
+		     a*tex1D<float>(tex[k], ind  ) +
+		     b*tex1D<float>(tex[k], ind+1)
+		     ) * p0 * plm[Ilm(l, m)] * M[i] * fac0;
+	  
+	  
+	  coef[(2*n+0)*(nend - nbeg) + i] = v * cosp;
+	  coef[(2*n+1)*(nend - nbeg) + i] = v * sinp;
+	}
+      }
+    }
+  }
+}
+
 void SphericalBasis::determine_coefficients_cuda(const Matrix& expcoef)
 {
-  // Create space for coefficients
-  size_t csize = (Lmax+1)*(Lmax+1)*nmax;
-  thrust::host_vector<float> h_coef(csize, 0.0f);
-  thrust::device_vector<float> d_coef = h_coef;
+  std::cout << std::scientific;
 
   // Sort particles and get coefficient size
   std::pair<unsigned, unsigned> lohi = cC->CudaSortByLevel(mlevel, multistep);
 
   unsigned int N         = lohi.second - lohi.first;
-  unsigned int gridSize  = N/BLOCK_SIZE + (N % BLOCK_SIZE > 0 ? 1 : 0);
+  unsigned int stride     = 1;
+  unsigned int gridSize  = N/BLOCK_SIZE/stride;
 
-  assert(gridSize*BLOCK_SIZE >= N);
-
-  thrust::device_vector<cudaTextureObject_t> t_d = tex;
-  thrust::device_vector<float> work_d(lohi.second - lohi.first+1);
-  thrust::device_vector<float> p_d((Lmax+1)*(Lmax+2)/2);
-
-
-  float               *C = thrust::raw_pointer_cast(&d_coef[0]);
-  float               *W = thrust::raw_pointer_cast(&work_d[0]);
-  cudaTextureObject_t *T = thrust::raw_pointer_cast(&t_d[0]);
-  float               *P = thrust::raw_pointer_cast(&p_d[0]);
-  cudaParticle        *I = thrust::raw_pointer_cast(&cC->cuda_particles[0]);
-
-  int sMemSize = csize * sizeof(float);
-
-  testConstants<<<1, 1>>>();
-
-  coefKernel<<<gridSize, BLOCK_SIZE, sMemSize>>>
-    (C, W, T, P, I, Lmax, nmax, lohi.first, lohi.second, rmax);
-  
-  // Copy from device to host
-  //
-  h_coef = d_coef;
-  
-  //
-  // TEST comparison of coefficients
-  //
-
-  struct Element
-  {
-    double d;
-    float  f;
-
-    int  l;
-    int  m;
-    int  n;
-
-    char cs;
+  if (gridSize>128) {
+    stride = N/BLOCK_SIZE/128 + 1;
+    gridSize = N/BLOCK_SIZE/stride;
   }
-  elem;
 
-  std::map<double, Element> compare;
+  if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
-  //		l loop
-  for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
-    //		m loop
-    for (int m=0, moffset=0; m<=l; m++) {
+  std::cout << "**" << std::endl
+	    << "** N      = " << N          << std::endl
+	    << "** Stride = " << stride     << std::endl
+	    << "** Block  = " << BLOCK_SIZE << std::endl
+	    << "** Grid   = " << gridSize   << std::endl
+	    << "**" << std::endl;
 
-      if (m==0) {
-	for (int n=1; n<=nmax; n++) {
-	  elem.l = l;
-	  elem.m = m;
-	  elem.n = n;
-	  elem.cs = 'c';
-	  elem.d = expcoef[loffset+moffset][n];
-	  elem.f = h_coef[Ilmn(l, m, 'c', n-1, nmax)];
+  // Create space for coefficient reduction
+  //
+  thrust::device_vector<float> dN_coef(2*nmax*N);
+  thrust::device_vector<float> dc_coef(2*nmax*gridSize);
 
-	  compare[fabs(elem.d - elem.f)] = elem;
-	}
+  // Texture objects
+  //
+  thrust::device_vector<cudaTextureObject_t> t_d = tex;
 
-	moffset++;
-      }
-      else {
-	for (int n=1; n<=nmax; n++) {
+  // Space for per particle values
+  //
+  thrust::device_vector<float> work_d(gridSize*BLOCK_SIZE);
 
-	  elem.l = l;
-	  elem.m = m;
-	  elem.n = n;
-	  elem.cs = 'c';
-	  elem.d = expcoef[loffset+moffset][n];
-	  elem.f = h_coef[Ilmn(l, m, 'c', n-1, nmax)];
+  // Space for Legendre coefficients 
+  //
+  thrust::device_vector<float> plm_d((Lmax+1)*(Lmax+2)/2*N);
+  thrust::device_vector<float> r_d(N), m_d(N), a_d(N), p_d(N);
+  thrust::device_vector<int>   i_d(N);
 
-	  compare[fabs(elem.d - elem.f)] = elem;
+  // Make pointers for the device
+  //
+  cudaParticle        *S = thrust::raw_pointer_cast(&cC->cuda_particles[0]);
 
-	  elem.l = l;
-	  elem.m = m;
-	  elem.n = n;
-	  elem.cs = 's';
-	  elem.d = expcoef[loffset+moffset+1][n];
-	  elem.f = h_coef[Ilmn(l, m, 's', n-1, nmax)];
+  float               *C = thrust::raw_pointer_cast(&dN_coef[0]);
+  float               *D = thrust::raw_pointer_cast(&dc_coef[0]);
+  float               *M = thrust::raw_pointer_cast(&m_d[0]);
+  float               *A = thrust::raw_pointer_cast(&a_d[0]);
+  float               *P = thrust::raw_pointer_cast(&p_d[0]);
+  float               *L = thrust::raw_pointer_cast(&plm_d[0]);
+  int                 *I = thrust::raw_pointer_cast(&i_d[0]);
 
-	  compare[fabs(elem.d - elem.f)] = elem;
-	}
-	moffset+=2;
+  cudaTextureObject_t *T = thrust::raw_pointer_cast(&t_d[0]);
+
+  // Shared memory size for the reduction
+  //
+  int sMemSize = BLOCK_SIZE * sizeof(float);
+
+
+  // For debugging
+  //
+  if (false) {
+    testConstants<<<1, 1>>>();
+    
+    static bool firstime = true;
+    testTexture<<<1, 1>>>(T, nmax);
+    firstime == false;
+  }
+
+  std::vector<float> coefs((Lmax+1)*(Lmax+1)*nmax);
+
+  // Do the work
+  //
+  coordKernel<<<gridSize, BLOCK_SIZE>>>(S, M, A, P, L, I, Lmax, stride,
+					lohi.first, lohi.second, rmax);
+
+  cudaDeviceSynchronize();
+
+
+  for (int l=0; l<=Lmax; l++) {
+    for (int m=0; m<=l; m++) {
+      coefKernel<<<gridSize, BLOCK_SIZE>>>(C, T, M, A, P, L, I, stride,
+					   l, m, Lmax, nmax,
+					   lohi.first, lohi.second);
+      cudaDeviceSynchronize();
+
+      int osize = nmax*2;
+      reduceSum<float, BLOCK_SIZE><<<gridSize, BLOCK_SIZE, sMemSize>>>(D, C, osize, N);
+
+      cudaDeviceSynchronize();
+
+      // Finish the reduction
+      //
+      for (size_t j=0; j<nmax; j++) {
+	coefs[Ilmn(l, m, 'c', j, nmax)] =
+	  thrust::reduce(dc_coef.begin() + gridSize*(2*j+0),
+			 dc_coef.begin() + gridSize*(2*j+1));
+	cudaDeviceSynchronize();
+	if (m>0)
+	  coefs[Ilmn(l, m, 's', j, nmax)] =
+	    thrust::reduce(dc_coef.begin() + gridSize*(2*j+1),
+			   dc_coef.begin() + gridSize*(2*j+2));
+	cudaDeviceSynchronize();
       }
     }
   }
 
-  std::map<double, Element>::iterator best = compare.begin();
-  std::map<double, Element>::iterator midl = best;
-  std::advance(midl, compare.size()/2);
-  std::map<double, Element>::reverse_iterator last = compare.rbegin();
+  // DEBUG
+  //
+  if (true) {
+    std::cout << "L=M=0 coefficients" << std::endl;
+    for (size_t n=0; n<nmax; n++) {
+      std::cout << std::setw(4)  << n
+		<< std::setw(16) << coefs[Ilmn(0, 0, 'c', n, nmax)]
+		<< std::setw(16) << expcoef[0][n+1]
+		<< std::endl;
+    }
+  }
 
-  std::cout << std::scientific;
+  //
+  // TEST comparison of coefficients
+  //
+  bool compare = false;
 
-  std::cout << "Best case: ["
-	    << std::setw( 2) << best->second.l << ", "
-	    << std::setw( 2) << best->second.m << ", "
-	    << std::setw( 2) << best->second.n << ", "
-	    << std::setw( 2) << best->second.cs << "] = "
-	    << std::setw(15) << best->second.d
-	    << std::setw(15) << best->second.f
-	    << std::setw(15) << fabs(best->second.d - best->second.f)
-	    << std::endl;
+  if (compare) {
+
+    struct Element
+    {
+      double d;
+      float  f;
+      
+      int  l;
+      int  m;
+      int  n;
+      
+      char cs;
+    }
+    elem;
+
+    std::map<double, Element> compare;
+
+    std::ofstream out("test.dat");
+
+    //		l loop
+    for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
+      //		m loop
+      for (int m=0, moffset=0; m<=l; m++) {
+	
+	if (m==0) {
+	  for (int n=1; n<=nmax; n++) {
+	    elem.l = l;
+	    elem.m = m;
+	    elem.n = n;
+	    elem.cs = 'c';
+	    elem.d = expcoef[loffset+moffset][n];
+	    elem.f = coefs[Ilmn(l, m, 'c', n-1, nmax)];
+	    
+	    double test = fabs(elem.d - elem.f);
+	    if (fabs(elem.d)>1.0e-4) test /= fabs(elem.d);
+	    
+	    compare[test] = elem;
+	    
+	    out << std::setw( 5) << l
+		<< std::setw( 5) << m
+		<< std::setw( 5) << n
+		<< std::setw( 5) << 'c'
+		<< std::setw( 5) << Ilmn(l, m, 'c', n-1, nmax)
+		<< std::setw(14) << elem.d
+		<< std::setw(14) << elem.f
+		<< std::endl;
+	  }
+	  
+	  moffset++;
+	}
+	else {
+	  for (int n=1; n<=nmax; n++) {
+	    elem.l = l;
+	    elem.m = m;
+	    elem.n = n;
+	    elem.cs = 'c';
+	    elem.d = expcoef[loffset+moffset][n];
+	    elem.f = coefs[Ilmn(l, m, 'c', n-1, nmax)];
+
+	    out << std::setw( 5) << l
+		<< std::setw( 5) << m
+		<< std::setw( 5) << n
+		<< std::setw( 5) << 'c'
+		<< std::setw( 5) << Ilmn(l, m, 'c', n-1, nmax)
+		<< std::setw(14) << elem.d
+		<< std::setw(14) << elem.f
+		<< std::endl;
+
+	    double test = fabs(elem.d - elem.f);
+	    if (fabs(elem.d)>1.0e-4) test /= fabs(elem.d);
+
+	    compare[test] = elem;
+	  }
+	  for (int n=1; n<=nmax; n++) {
+	    elem.l = l;
+	    elem.m = m;
+	    elem.n = n;
+	    elem.cs = 's';
+	    elem.d = expcoef[loffset+moffset+1][n];
+	    elem.f = coefs[Ilmn(l, m, 's', n-1, nmax)];
+
+	    out << std::setw( 5) << l
+		<< std::setw( 5) << m
+		<< std::setw( 5) << n
+		<< std::setw( 5) << 's'
+		<< std::setw( 5) << Ilmn(l, m, 's', n-1, nmax)
+		<< std::setw(14) << elem.d
+		<< std::setw(14) << elem.f
+		<< std::endl;
+	    
+	    double test = fabs(elem.d - elem.f);
+	    if (fabs(elem.d)>1.0e-4) test /= fabs(elem.d);
+	    
+	    compare[test] = elem;
+	  }
+	  moffset+=2;
+	}
+      }
+    }
+    
+    std::map<double, Element>::iterator best = compare.begin();
+    std::map<double, Element>::iterator midl = best;
+    std::advance(midl, compare.size()/2);
+    std::map<double, Element>::reverse_iterator last = compare.rbegin();
+    
+    std::cout << "Best case: ["
+	      << std::setw( 2) << best->second.l << ", "
+	      << std::setw( 2) << best->second.m << ", "
+	      << std::setw( 2) << best->second.n << ", "
+	      << std::setw( 2) << best->second.cs << "] = "
+	      << std::setw(15) << best->second.d
+	      << std::setw(15) << best->second.f
+	      << std::setw(15) << fabs(best->second.d - best->second.f)
+	      << std::endl;
   
-  std::cout << "Mid case:  ["
-	    << std::setw( 2) << midl->second.l << ", "
-	    << std::setw( 2) << midl->second.m << ", "
-	    << std::setw( 2) << midl->second.n << ", "
-	    << std::setw( 2) << midl->second.cs << "] = "
-	    << std::setw(15) << midl->second.d
-	    << std::setw(15) << midl->second.f
-	    << std::setw(15) << fabs(midl->second.d - midl->second.f)
-	    << std::endl;
-
-  std::cout << "Last case: ["
-	    << std::setw( 2) << last->second.l << ", "
-	    << std::setw( 2) << last->second.m << ", "
-	    << std::setw( 2) << last->second.n << ", "
-	    << std::setw( 2) << last->second.cs << "] = "
-	    << std::setw(15) << last->second.d
-	    << std::setw(15) << last->second.f
-	    << std::setw(15) << fabs(last->second.d - last->second.f)
-	    << std::endl;
+    std::cout << "Mid case:  ["
+	      << std::setw( 2) << midl->second.l << ", "
+	      << std::setw( 2) << midl->second.m << ", "
+	      << std::setw( 2) << midl->second.n << ", "
+	      << std::setw( 2) << midl->second.cs << "] = "
+	      << std::setw(15) << midl->second.d
+	      << std::setw(15) << midl->second.f
+	      << std::setw(15) << fabs(midl->second.d - midl->second.f)
+	      << std::endl;
+    
+    std::cout << "Last case: ["
+	      << std::setw( 2) << last->second.l << ", "
+	      << std::setw( 2) << last->second.m << ", "
+	      << std::setw( 2) << last->second.n << ", "
+	      << std::setw( 2) << last->second.cs << "] = "
+	      << std::setw(15) << last->second.d
+	      << std::setw(15) << last->second.f
+	      << std::setw(15) << fabs(last->second.d - last->second.f)
+	      << std::endl;
+  }
 
 }
 

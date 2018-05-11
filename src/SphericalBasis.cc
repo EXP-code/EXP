@@ -235,8 +235,12 @@ void SphericalBasis::setup(void)
   if (NOISE) compute_rms_coefs();
 
 #if HAVE_LIBCUDA==1
-  initialize_cuda();
-  initialize_mapping_constants();
+  bool firstime = true;
+  if (firstime) {
+    initialize_cuda();
+    initialize_mapping_constants();
+    firstime = false;
+  }
 #endif
 }  
 
@@ -260,6 +264,10 @@ SphericalBasis::~SphericalBasis()
   delete [] du;
   delete gen;
   delete nrand;
+
+#if HAVE_LIBCUDA==1
+  destroy_cuda();
+#endif
 }
 
 void SphericalBasis::initialize()

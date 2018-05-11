@@ -33,10 +33,6 @@ Sphere::Sphere(string& line, MixtureBasis* m) : SphericalBasis(line, m)
 
   setup();
 
-#if HAVE_LIBCUDA==1
-  initialize_cuda();
-  std::cout << "Returned from initialize_cuda()" << std::endl;
-#endif
 }
 
 

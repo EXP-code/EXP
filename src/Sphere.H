@@ -55,7 +55,7 @@ private:
 #if HAVE_LIBCUDA==1
   virtual void initialize_cuda()
   {
-    ortho->initialize_cuda(channelDesc, cudaInterpArray, resDesc, texDesc, tex);
+    ortho->initialize_cuda(channelDesc, cuInterpArray, resDesc, texDesc, tex);
   }
 
   virtual cudaMappingConstants getCudaMappingConstants()
