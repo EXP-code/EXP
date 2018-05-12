@@ -63,7 +63,7 @@ void do_step(int n)
   // K_{1/2} D_1 K_{1/2}
   //========================
 
-  comp.multistep_reset();
+  comp->multistep_reset();
 
   check_bad("before multistep");
 
@@ -122,7 +122,7 @@ void do_step(int n)
 				// this level
 				//
 	if (timing) timer_coef.start();
-	comp.compute_expansion(M);
+	comp->compute_expansion(M);
 	if (timing) timer_coef.stop();
       }
 
@@ -139,7 +139,7 @@ void do_step(int n)
 				// Compute potential for all the
 				// particles active at this step
       if (timing) timer_pot.start();
-      comp.compute_potential(mfirst[mstep]);
+      comp->compute_potential(mfirst[mstep]);
       if (timing) timer_pot.stop();
 
       check_bad("after compute_potential");
@@ -160,7 +160,7 @@ void do_step(int n)
       if (timing) timer_adj.start();
       adjust_multistep_level(false);
       if (mstep==0) { // Print the level lists
-	comp.print_level_lists(tlast);
+	comp->print_level_lists(tlast);
       }
       if (timing) timer_adj.stop();
 
@@ -168,7 +168,7 @@ void do_step(int n)
 
 				// DEBUG
 #ifdef DEBUG
-      comp.multistep_debug();
+      comp->multistep_debug();
 #endif
     }
 
@@ -213,7 +213,7 @@ void do_step(int n)
     if (timing) timer_drift.start();
 				// Compute acceleration
     if (timing) timer_pot.start();
-    comp.compute_potential();
+    comp->compute_potential();
     if (timing) timer_pot.stop();
 				// Velocity by 1/2 step
     if (timing) timer_vel.start();
@@ -223,13 +223,13 @@ void do_step(int n)
   }
 
 				// Write output
-  output.Run(n);
+  output->Run(n);
 
 				// Summarize processor particle load
-  comp.report_numbers();
+  comp->report_numbers();
 
 				// Load balance
-  comp.load_balance();
+  comp->load_balance();
 
 				// Timer output
   if (timing && this_step!=0 && (this_step % tskip) == 0) {
@@ -259,7 +259,7 @@ void do_step(int n)
     if (VERBOSE>4) {
       
       vector<int> levpop(multistep+1, 0), levtot(multistep+1, 0);
-      for (auto c : comp.components) {
+      for (auto c : comp->components) {
 	for (int n=0; n<=multistep; n++) levpop[n] += c->levlist[n].size();
       }
 

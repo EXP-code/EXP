@@ -29,7 +29,7 @@ void * incr_velocity_thread(void *ptr)
   //
   // Component loop
   //
-  for (auto c : comp.components) {
+  for (auto c : comp->components) {
     
     if (mlevel>=0)		// Use a particular level
       ntot = c->levlist[mlevel].size();
@@ -144,7 +144,7 @@ void incr_velocity(double dt, int mlevel)
 
 void incr_com_velocity(double dt)
 {
-  for (auto c : comp.components) {
+  for (auto c : comp->components) {
 
     if (c->com_system) {
       for (int k=0; k<c->dim; k++) c->cov0[k] += c->acc0[k]*dt;

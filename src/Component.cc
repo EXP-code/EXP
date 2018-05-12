@@ -2098,10 +2098,10 @@ void Component::setup_distribution(void)
 
       if (n == 0)
 	nbodies_table[n] = nbodies_index[n] = 
-	  max<int>(1, min<int>((int)(comp.rates[n] * nbodies_tot), nbodies_tot));
+	  max<int>(1, min<int>((int)(comp->rates[n] * nbodies_tot), nbodies_tot));
       else {
 	if (n < numprocs-1)
-	  nbodies_index[n] = (int)(comp.rates[n] * nbodies_tot) + 
+	  nbodies_index[n] = (int)(comp->rates[n] * nbodies_tot) + 
 	    nbodies_index[n-1];
 	else
 	  nbodies_index[n] = nbodies_tot;
@@ -2132,8 +2132,8 @@ void Component::setup_distribution(void)
       
       for (n=0; n<numprocs; n++)
 	*out << "  "
-	    << setw(15) << comp.rates[n]
-	    << setw(15) << 1.0 - comp.rates[n]*nbodies_tot/nbodies_table[n]
+	    << setw(15) << comp->rates[n]
+	    << setw(15) << 1.0 - comp->rates[n]*nbodies_tot/nbodies_table[n]
 	    << setw(15) << nbodies_index[n]
 	    << setw(15) << nbodies_table[n]
 	    << endl;
@@ -2166,10 +2166,10 @@ void Component::load_balance(void)
 
       if (n == 0)
 	nbodies_table1[n] = nbodies_index1[n] = 
-	  max<int>(1, min<int>((int)(comp.rates[n] * nbodies_tot), nbodies_tot));
+	  max<int>(1, min<int>((int)(comp->rates[n] * nbodies_tot), nbodies_tot));
       else {
 	if (n < numprocs-1)
-	  nbodies_index1[n] = (int)(comp.rates[n] * nbodies_tot) + 
+	  nbodies_index1[n] = (int)(comp->rates[n] * nbodies_tot) + 
 	    nbodies_index1[n-1];
 	else
 	  nbodies_index1[n] = nbodies_tot;
@@ -2207,8 +2207,8 @@ void Component::load_balance(void)
       
       for (int n=0; n<numprocs; n++)
 	*out << "  "
-	     << setw(15) << comp.rates[n]
-	     << setw(15) << 1.0 - comp.rates[n]*nbodies_tot/nbodies_table1[n]
+	     << setw(15) << comp->rates[n]
+	     << setw(15) << 1.0 - comp->rates[n]*nbodies_tot/nbodies_table1[n]
 	     << setw(15) << nbodies_index1[n]
 	     << setw(15) << nbodies_table1[n]
 	     << setw(15) << nbodies_index[n]

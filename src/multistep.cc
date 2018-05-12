@@ -9,7 +9,7 @@
 
 void sync_eval_multistep(void)
 {
-  comp.multistep_reset();
+  comp->multistep_reset();
 				// This forces interpolation to evaluate to 
 				// the last set of computed coefficients
   mstep = Mstep;
@@ -230,7 +230,7 @@ void adjust_multistep_level(bool all)
   //
   // Begin the update
   //
-  for (auto c : comp.components) c->force->multistep_update_begin();
+  for (auto c : comp->components) c->force->multistep_update_begin();
 
   //
   // Preliminary data structure and thread creation
@@ -242,7 +242,7 @@ void adjust_multistep_level(bool all)
 
     if (offhi1.size()==0 || mstep==0) {
 
-      for (auto c : comp.components) {
+      for (auto c : comp->components) {
 	for (int n=0; n<nthrds; n++) {
 	  offhi1[c] = vector<unsigned>(nthrds, 0);
 	  offlo1[c] = vector<unsigned>(nthrds, 0);
@@ -276,7 +276,7 @@ void adjust_multistep_level(bool all)
     }
   }
 
-  for (auto c : comp.components) {
+  for (auto c : comp->components) {
     
     if (mstep == 0) {
       for (int n=0; n<nthrds; n++)
@@ -360,7 +360,7 @@ void adjust_multistep_level(bool all)
   //
   // Finish the update
   //
-  for (auto c : comp.components) {
+  for (auto c : comp->components) {
     c->reset_level_lists();
     c->fix_positions();
     c->force->multistep_update_finish();
@@ -388,7 +388,7 @@ void adjust_multistep_level(bool all)
     MPI_Reduce(&maxdt1[0], &maxdt, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
     
-    for (auto c : comp.components) {
+    for (auto c : comp->components) {
 
       unsigned cofflo = 0, coffhi = 0;
       for (int n=0; n<nthrds; n++) {
@@ -407,7 +407,7 @@ void adjust_multistep_level(bool all)
     if (myid==0) {
       
       unsigned sumlo=0, sumhi=0;
-      for (auto c : comp.components) {
+      for (auto c : comp->components) {
 	sumlo += offlo[c];
 	sumhi += offhi[c];
       }
@@ -428,7 +428,7 @@ void adjust_multistep_level(bool all)
 	     << setfill(' ') << right;
 
 	if (sumlo) {
-	  for (auto c : comp.components) {
+	  for (auto c : comp->components) {
 	    ostringstream sout;
 	    sout << "Component <" << c->name << ">";
 	    cout << setw(30) << sout.str() << " |   low: "
@@ -437,7 +437,7 @@ void adjust_multistep_level(bool all)
 	}
 
 	if (sumhi) {
-	  for (auto c : comp.components) {
+	  for (auto c : comp->components) {
 	    ostringstream sout;
 	    sout << "Component <" << c->name << ">";
 	    cout << setw(30) << sout.str() << " |  high: "

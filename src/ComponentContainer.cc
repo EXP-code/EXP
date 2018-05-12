@@ -204,7 +204,7 @@ void ComponentContainer::initialize(void)
 				// Are we talking about THIS component?
       if (c->name.compare(data.first) == 0) {
 	
-	for (auto c1 : comp.components) {
+	for (auto c1 : components) {
 	  // If the second in the pair matches, use it
 	  if (c1->name.compare(data.second) == 0) {
 	    curr->l.push_back(c1);
@@ -257,7 +257,7 @@ void ComponentContainer::initialize(void)
 
 ComponentContainer::~ComponentContainer(void)
 {
-  for (auto p1 : comp.components) {
+  for (auto p1 : components) {
 #ifdef DEBUG
     cout << "Process " << myid 
 	 << " deleting component <" << p1->name << ">" << endl;
@@ -301,7 +301,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   // Potential/force clock
   //
-  for (auto c : comp.components) c->time_so_far.reset();
+  for (auto c : components) c->time_so_far.reset();
 
   //
   // Compute accel for each component
@@ -321,7 +321,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   GPTLstart("ComponentContainer::acceleration");
 #endif
 
-  for (auto c : comp.components) {
+  for (auto c : components) {
 
     if (timing) {
       timer_wait.stop();
@@ -474,21 +474,21 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     timer_extrn.start();
 				// Initialize external force timers?
 				// [One for each in external force list]
-    if (external.force_list.size() != timer_sext.size()) {
+    if (external->force_list.size() != timer_sext.size()) {
       timer_sext.clear();	// Clear the list
-      for (auto ext : external.force_list) {
+      for (auto ext : external->force_list) {
 	timer_sext.push_back( pair<string, Timer>(ext->id, Timer(true)) );
       }
     }
   }
-  if (!external.force_list.empty()) {
+  if (!external->force_list.empty()) {
     
     unsigned cnt=0;
 
-    for (auto c : comp.components) {
+    for (auto c : components) {
       c->time_so_far.start();
       if (timing) itmr = timer_sext.begin();
-      for (auto ext : external.force_list) {
+      for (auto ext : external->force_list) {
 	if (timing) itmr->second.start();
 	ext->set_multistep_level(mlevel);
 	ext->get_acceleration_and_potential(c);
@@ -536,7 +536,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     //
     if (timing) timer_gcom.start();
     for (int k=0; k<3; k++) gcom[k] = 0.0;
-    for (auto c : comp.components) {
+    for (auto c : components) {
       for (int k=0; k<3; k++) gcom[k] += c->com[k];
     }
     if (timing) timer_gcom.stop();
@@ -549,7 +549,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     // Compute angular momentum for each component
     //
     if (timing) timer_angmom.start();
-    for (auto c : comp.components) c->get_angmom();
+    for (auto c : components) c->get_angmom();
     if (timing) timer_angmom.stop();
     
 #ifdef DEBUG
@@ -561,7 +561,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     // Update center of mass system coordinates
     //
     if (timing) timer_gcom.start();
-    for (auto c : comp.components) {
+    for (auto c : components) {
       if (c->com_system) c->update_accel();
     }
     if (timing) timer_gcom.stop();
@@ -741,7 +741,7 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
   //
   // Compute expansion for each component
   //
-  for (auto c : comp.components) {
+  for (auto c : components) {
 #ifdef DEBUG
     cout << "Process " << myid << ": about to compute coefficients <"
 	 << c->id << "> for mlevel=" << mlevel << endl;
@@ -768,7 +768,7 @@ void ComponentContainer::multistep_reset()
   //
   // Do reset for each component
   //
-  for (auto c : comp.components) c->force->multistep_reset();
+  for (auto c : components) c->force->multistep_reset();
 }
 
 
@@ -846,13 +846,13 @@ void ComponentContainer::print_level_lists(double T)
   //
   // Do reset for each component
   //
-  for (auto c : comp.components) c->print_level_lists(T);
+  for (auto c : components) c->print_level_lists(T);
 }
 
 
 void ComponentContainer::multistep_debug()
 {
-  for (auto c : comp.components) c->force->multistep_debug();
+  for (auto c : components) c->force->multistep_debug();
 }
 
 
@@ -866,7 +866,7 @@ void ComponentContainer::fix_acceleration(void)
 
   PartMapItr p, pend;
 
-  for (auto c : comp.components) {
+  for (auto c : components) {
 
     pend = c->particles.end();
     for (p=c->particles.begin(); p != pend; p++) {
@@ -891,7 +891,7 @@ void ComponentContainer::fix_acceleration(void)
     azcm = azcm/mtot;
   }
 
-  for (auto c : comp.components) {
+  for (auto c : components) {
 
     pend = c->particles.end();
     for (p=c->particles.begin(); p != pend; p++) {
@@ -920,7 +920,7 @@ void ComponentContainer::fix_positions()
 
   PartMapItr p, pend;
 
-  for (auto c : comp.components) {
+  for (auto c : components) {
 
     if (timing) timer_fixp.start();
     c->fix_positions();
@@ -946,7 +946,7 @@ void ComponentContainer::fix_positions()
 
   if (global_cov) {
 
-    for (auto c : comp.components) {
+    for (auto c : components) {
 
       pend = c->particles.end();
       for (p=c->particles.begin(); p != pend; p++) {
@@ -1012,17 +1012,17 @@ void ComponentContainer::report_numbers(void)
 	if (myid==0) {
 	  out << "# Step: " << this_step << " Time: " << tnow << endl 
 	      << right << "# " << setw(5)  << "Proc";
-	  for (auto c : comp.components) {
+	  for (auto c : components) {
 	    out << setw(20) << c->name << setw(20) << "Effort";
 	  }
 	  out << endl << "# " << setw(5) << "-----";
-	  for (auto c : comp.components) {
+	  for (auto c : components) {
 	    out << setw(20) << "----------" << setw(20) << "----------";
 	  }
 	  out << endl;
 	}
 	out << setw(7) << num;
-	for (auto c : comp.components) {
+	for (auto c : components) {
 	  out << setw(20) << c->Number();
 	  double toteff = 0.0;
 	  for (auto tp : c->particles)
@@ -1122,7 +1122,7 @@ void ComponentContainer::load_balance(void)
     rates = rates1;
 
 				// Initiate load balancing for each component
-    for (auto c : comp.components) c->load_balance();
+    for (auto c : components) c->load_balance();
 
   }
 
@@ -1131,7 +1131,7 @@ void ComponentContainer::load_balance(void)
 bool ComponentContainer::bad_values()
 {
   bool bad = false;
-  for (auto c : comp.components) {
+  for (auto c : components) {
     bool badval = false;
     for (auto it : c->Particles()) {
       if (std::isnan(it.second.mass)) badval=true;

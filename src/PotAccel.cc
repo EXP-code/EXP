@@ -61,17 +61,17 @@ void PotAccel::exp_thread_fork(bool coef)
   //
   // For determining time in threaded routines
   //
-  if (comp.timing) {
+  if (comp->timing) {
 
-    switch (comp.state) {
+    switch (comp->state) {
     case ComponentContainer::SELF:
-      comp.timer_thr_acc.start();
+      comp->timer_thr_acc.start();
       break;
     case ComponentContainer::INTERACTION:
-      comp.timer_thr_int.start();
+      comp->timer_thr_int.start();
       break;
     case ComponentContainer::EXTERNAL:
-      comp.timer_thr_ext.start();
+      comp->timer_thr_ext.start();
       break;
     }
 
@@ -114,17 +114,17 @@ void PotAccel::exp_thread_fork(bool coef)
   //
   // For determining time in threaded routines
   //
-  if (comp.timing) {
+  if (comp->timing) {
 
-    switch (comp.state) {
+    switch (comp->state) {
     case ComponentContainer::SELF:
-      comp.timer_thr_acc.stop();
+      comp->timer_thr_acc.stop();
       break;
     case ComponentContainer::INTERACTION:
-      comp.timer_thr_int.stop();
+      comp->timer_thr_int.stop();
       break;
     case ComponentContainer::EXTERNAL:
-      comp.timer_thr_ext.stop();
+      comp->timer_thr_ext.stop();
       break;
     }
 

@@ -75,7 +75,7 @@ UserSat::UserSat(string &line) : ExternalForce(line)
 
   if (pinning) {		// Look for the fiducial component
     bool found = false;
-    for (auto c : comp.components) {
+    for (auto c : comp->components) {
       if ( !com_name.compare(c->name) ) {
 	c0 = c;
 	found = true;

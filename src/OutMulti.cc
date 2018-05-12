@@ -39,7 +39,7 @@ void OutMulti::Run(int n, bool last)
   
   vector<unsigned> counts(multistep+1, 0), histo(multistep+1, 0);
 
-  for (auto c : comp.components) {
+  for (auto c : comp->components) {
 
     PartMapItr it = c->Particles().begin();
     for (int q=0; q<c->Number(); q++) counts[c->Part((it++)->first)->level]++;

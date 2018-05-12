@@ -1,6 +1,8 @@
 #include <Component.H>
 #include <SphericalBasis.H>
 
+#include <thrust/iterator/discard_iterator.h>
+
 #define FSMALL 1.0e-16
 #define MINEPS 1.0e-10
 
@@ -20,11 +22,7 @@ struct dArray
 template <typename T>
 dArray<T> toKernel(thrust::device_vector<T>& dev)
 {
-  dArray<T> dA;
-  dA._v = thrust::raw_pointer_cast(&dev[0]);
-  dA._s  = dev.size();
- 
-  return dA;
+  return {thrust::raw_pointer_cast(&dev[0]), dev.size()};
 }
 
 typedef std::pair<unsigned int, unsigned int> PII;
@@ -52,8 +50,6 @@ __global__ void reduceSum(dArray<float> out, dArray<float> in,
   unsigned int tid      = threadIdx.x;
   unsigned int gridSize = blockSize*gridDim.x*2;
     
-  // printf("in reduceSum: b=%d/%d id=%d\n", blockIdx.x, gridDim.x, tid);
-
   for (unsigned j=0; j<dim; j++) {
 
     sdata[tid] = 0;
@@ -109,10 +105,6 @@ __global__ void reduceSum(dArray<float> out, dArray<float> in,
       if (blockIdx.x + j*gridDim.x>=out._s)
 	printf("reduceSum: out of bounds, b=%d/%d j=%d\n", blockIdx.x, gridDim.x, j);
      out._v[blockIdx.x + j*gridDim.x] = sdata[tid];
-     /*
-     printf("reduceSum: i=%d b=%d/%d j=%d\n",
-	    blockIdx.x + j*gridDim.x, blockIdx.x, gridDim.x, j);
-     */
     }
     __syncthreads();
   }
@@ -377,8 +369,8 @@ __global__ void coordKernel
 
 __global__ void coefKernel
 (dArray<float> coef, dArray<cudaTextureObject_t> tex,
- dArray<float> M, dArray<float> A, dArray<float> P,
- dArray<float> L, dArray<int> I,  int stride, 
+ dArray<float> Mass, dArray<float> Afac, dArray<float> Phi,
+ dArray<float> Plm, dArray<int> Indx,  int stride, 
  int l, int m, unsigned Lmax, unsigned int nmax, PII lohi)
 {
   const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
@@ -393,36 +385,35 @@ __global__ void coefKernel
 
     if (i<N) {
 
-      float mass = M._v[i];
+      float mass = Mass._v[i];
 
-      if (i>=M._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+      if (i>=Mass._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 
       if (mass>0.0) {
 
-	if (i>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+	if (i>=Phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 
-	float phi  = P._v[i];
+	float phi  = Phi._v[i];
 	float cosp = cos(phi*m);
 	float sinp = sin(phi*m);
 	
-	if (psiz*(i+1)>L._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+	if (psiz*(i+1)>Plm._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 	
-	float *plm = &L._v[psiz*i];
+	float *plm = &Plm._v[psiz*i];
 	
 	for (int n=0; n<nmax; n++) {
 	  // Do the interpolation
 	  //
-	  float a = A._v[i];
+	  float a = Afac._v[i];
 	  float b = 1.0 - a;
-	  int ind = I._v[i];
+	  int ind = Indx._v[i];
 	  
-	  if (i>=A._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-	  if (i>=I._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+	  if (i>=Afac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+	  if (i>=Indx._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 
 	  float p0 =
 	    a*tex1D<float>(tex._v[0], ind  ) +
 	    b*tex1D<float>(tex._v[0], ind+1) ;
-
 
 	  int k = 1 + l*nmax + n;
 
@@ -431,7 +422,7 @@ __global__ void coefKernel
 	  float v = (
 		     a*tex1D<float>(tex._v[k], ind  ) +
 		     b*tex1D<float>(tex._v[k], ind+1)
-		     ) * p0 * plm[Ilm(l, m)] * M._v[i] * fac0;
+		     ) * p0 * plm[Ilm(l, m)] * Mass._v[i] * fac0;
 	  
 	  
 	  coef._v[(2*n+0)*N + i] = v * cosp;
@@ -452,10 +443,6 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 {
   const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
   const int psiz  = (Lmax+1)*(Lmax+2)/2;
-  // const unsigned int N = lohi.second - lohi.first;
-
-  // const float fac0 = 4.0*M_PI;
-  // const float dfac = 0.25/M_PI;
 
   /*
     vector<double> ctr;
@@ -464,8 +451,8 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
   float ctr[3] {0.0f, 0.0f, 0.0f};
 
   for (int n=0; n<stride; n++) {
-    int i = tid*stride + n;
-    int npart = i + lohi.first;
+    int i     = tid*stride + n;	// Index in the stride
+    int npart = i + lohi.first;	// Particle index
 
     if (npart < lohi.second) {
       
@@ -480,37 +467,38 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
       float r2 = (xx*xx + yy*yy + zz*zz);
       float r  = sqrt(r2) + FSMALL;
       
+      float costh = zz/r;
+      float phi   = atan2(yy, xx);
+      float RR    = xx*xx + yy*yy;
+      
+      float *plm1 = &L1._v[psiz*i];
+      float *plm2 = &L2._v[psiz*i];
+      legendre_v2(Lmax, costh, plm1, plm2);
+
       int ioff = 0;
       // float rs = 0.0;
       float r0;
 
       if (r>rmax) {
 	ioff = 1;
-	r0 = r;
-	r = rmax;
+	r0   = r;
+	r    = rmax;
 	// rs = r/cuRscale;
       }
 
-      float costh = zz/r;
-      float phi   = atan2(yy,xx);
-      float RR    = xx*xx + yy*yy;
-      
-      float *plm  = &L1._v[psiz*i];
-      float *plm2 = &L2._v[psiz*i];
-      legendre_v2(Lmax, costh, plm, plm2);
-
       float  x = cu_r_to_xi(r);
       float xi = (x - cuXmin)/cuDxi;
+      float dx = cu_d_xi_to_r(x)/cuDxi;
       int  ind = floor(xi);
       
       if (ind<1) ind = 1;
       if (ind>cuNumr-2) ind = cuNumr - 2;
       
       float a = float(ind+1) - xi;
-      if (a<0.0 or a>1.0) printf("off grid: x=%f\n", xi);
+      if (a<0.0 or a>1.0) printf("forceKernel: off grid: x=%f\n", xi);
       float b = 1.0 - a;
       
-      // Do the interpolation
+      // Do the interpolation for the prefactor potential
       //
       float pm1 = tex1D<float>(tex._v[0], ind-1);
       float p00 = tex1D<float>(tex._v[0], ind  );
@@ -535,16 +523,27 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 
 	  int pindx = Ilm(l, m);
 
-	  float Plm  =  plm[pindx];
+	  float Plm1 = plm1[pindx];
 	  float Plm2 = plm2[pindx];
       
+	  if (std::isnan(Plm1)) 
+	    {
+	      printf("Force isnan for Plm(%d, %d) ioff=%d\n", l, m, ioff);
+	    }
+
+	  if (std::isnan(Plm2)) 
+	    {
+	      printf("Force isnan for Plm2(%d, %d) ioff=%d\n", l, m, ioff);
+	    }
+	  
+
 	  float pp_c = 0.0;
 	  float dp_c = 0.0;
 	  float pp_s = 0.0;
 	  float dp_s = 0.0;
 	  
-	  int indxC = Ilmn(l, m, 0, 'c', nmax);
-	  int indxS = Ilmn(l, m, 0, 's', nmax);
+	  int indxC = Ilmn(l, m, 'c', 0, nmax);
+	  int indxS = Ilmn(l, m, 's', 0, nmax);
 
 	  float cosp = cos(phi*m);
 	  float sinp = sin(phi*m);
@@ -559,10 +558,10 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 	    float u00 = tex1D<float>(tex._v[k], ind  );
 	    float up1 = tex1D<float>(tex._v[k], ind+1);
 	    
-	    float v = a*u00 + b*up1;
+	    float v = (a*u00 + b*up1)*(a*p00 + b*pp1);
 	    
 	    float dv =
-	      ( (b - 0.5)*um1*pm1 - 2.0*b*u00*p00 + (b + 0.5)*up1*pp1 );
+	      dx * ( (b - 0.5)*um1*pm1 - 2.0*b*u00*p00 + (b + 0.5)*up1*pp1 );
 	    
 	    pp_c +=  v * coef._v[indxC+n];
 	    dp_c += dv * coef._v[indxC+n];
@@ -573,18 +572,23 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 
 	  } // END: n loop
 	  
+	  pp_c *= -1.0;
+	  dp_c *= -1.0;
+
 	  if (m==0) {
 
-	    float fac2 = fac1 * Plm;
-	
 	    if (ioff) {
 	      pp_c *= pow(rmax/r0, (float)(l+1));
 	      dp_c  = -pp_c/r0 * (float)(l+1);
+	      if (std::isnan(pp_c)) 
+		{
+		  printf("Force nan: l=%d, r=%f\n", l, r);
+		}
 	    }
 	    
-	    potl += fac2 * pp_c;
-	    potr += fac2 * dp_c;
-	    pott += fac1 * pp_c * plm2[Ilm(l, m)];
+	    potl += fac1 * pp_c * Plm1;
+	    potr += fac1 * dp_c * Plm1;
+	    pott += fac1 * pp_c * Plm2;
 	    potp += 0.0;
 	    
 	  } else {
@@ -593,12 +597,32 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 	    float sinm = sin(phi*m);
 	    
 	    if (ioff) {
-	      float facp = pow(rmax/r0,(double)(l+1));
-	      float facdp = -1.0/r0 * (l+1);
+	      float facp  = pow(rmax/r0,(double)(l+1));
+	      float facdp = -facp/r0 * (l+1);
 	      pp_c *= facp;
 	      pp_s *= facp;
 	      dp_c = pp_c * facdp;
 	      dp_s = pp_s * facdp;
+
+	      if (std::isnan(pp_c)) 
+		{
+		  printf("Force nan: c l=%d, m=%d, r=%f\n", l, m, r);
+		}
+
+	      if (std::isnan(dp_s)) 
+		{
+		  printf("Force nan: s l=%d, m=%d, r=%f\n", l, m, r);
+		}
+
+	      if (std::isnan(dp_c)) 
+		{
+		  printf("Force nan: dc l=%d, m=%d, r=%f\n", l, m, r);
+		}
+
+	      if (std::isnan(pp_s)) 
+		{
+		  printf("Force nan: ds l=%d, m=%d, r=%f\n", l, m, r);
+		}
 	    }
 
 	    float numf = 1.0, denf = 1.0;
@@ -607,10 +631,10 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 	    
 	    float fac2 = 2.0 * numf/denf * fac1;
 	    
-	    potl += fac2 * Plm  * ( pp_c*cosm + pp_s*sinm);
-	    potr += fac2 * Plm  * ( dp_c*cosm + dp_s*sinm);
+	    potl += fac2 * Plm1 * ( pp_c*cosm + pp_s*sinm);
+	    potr += fac2 * Plm1 * ( dp_c*cosm + dp_s*sinm);
 	    pott += fac2 * Plm2 * ( pp_c*cosm + pp_s*sinm);
-	    potp += fac2 * Plm  * (-pp_c*sinm + pp_s*cosm)*m;
+	    potp += fac2 * Plm1 * (-pp_c*sinm + pp_s*cosm)*m;
 	  }
 
 	} // END: m loop
@@ -619,14 +643,52 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 
       in._v[npart].acc[0] = -(potr*xx/r - pott*xx*zz/(r*r*r));
       in._v[npart].acc[1] = -(potr*yy/r - pott*yy*zz/(r*r*r));
-      in._v[npart].acc[2] = -(potr*zz/r - pott*RR/(r2*r));
+      in._v[npart].acc[2] = -(potr*zz/r - pott*RR/(r*r*r));
+      if (RR > FSMALL) 
+	{
+	  in._v[npart].acc[0] +=  potp*yy/RR;
+	  in._v[npart].acc[1] += -potp*xx/RR;
+	}
       in._v[npart].pot    = potl;
+
+      // Sanity check
+      bool bad = false;
+      for (int k=0; k<3; k++) {
+	if (std::isnan(in._v[npart].acc[k])) bad = true;
+      }
+
+      if (bad) 
+	{
+	  printf("Force nan value: [%d] x=%f xi=%f dxi=%f a=%f i=%d o=%d\n",
+		 in._v[npart].indx, x, xi, dx, a, ind, ioff);
+	  if (ioff==0) 
+	    {
+	      printf("Force nan value, no ioff: [%d] x=%f xi=%f dxi=%f a=%f i=%d\n",
+		     in._v[npart].indx, x, xi, dx, a, ind);
+	    }
+	  
+	  /*
+	  printf("Force nan value: [%d] xx=%f yy=%f zz=%f r=%f R=%f\n",
+		 in._v[npart].indx, xx, yy, zz, r, RR, ioff);
+	  */
+	}
+      
 
     } // Particle index block
 
   } // END: stride loop
 
 }
+
+struct key_functor : public thrust::unary_function<int, int>
+{
+  const int Ngrid;
+  key_functor(int _Ngrid) : Ngrid(_Ngrid) {}
+ 
+  __host__ __device__
+  int operator()(int x) { return x / Ngrid; }
+};
+
 
 void SphericalBasis::determine_coefficients_cuda(const Matrix& expcoef)
 {
@@ -660,6 +722,7 @@ void SphericalBasis::determine_coefficients_cuda(const Matrix& expcoef)
   //
   thrust::device_vector<float> dN_coef(2*nmax*N);
   thrust::device_vector<float> dc_coef(2*nmax*gridSize);
+  thrust::device_vector<float> df_coef(2*nmax);
 
   // Texture objects
   //
@@ -691,6 +754,9 @@ void SphericalBasis::determine_coefficients_cuda(const Matrix& expcoef)
 
   std::vector<float> coefs((Lmax+1)*(Lmax+1)*nmax);
 
+  thrust::counting_iterator<int> index_begin(0);
+  thrust::counting_iterator<int> index_end(gridSize*2*nmax);
+
   // Do the work
   //
 				// Compute the coordinate
@@ -710,24 +776,24 @@ void SphericalBasis::determine_coefficients_cuda(const Matrix& expcoef)
 	 toKernel(a_d), toKernel(p_d), toKernel(plm_d), toKernel(i_d),
 	 stride, l, m, Lmax, nmax, lohi);
 
-      cudaDeviceSynchronize();
-
 				// Begin the reduction per grid block
       int osize = nmax*2;	// 
       reduceSum<float, BLOCK_SIZE><<<gridSize, BLOCK_SIZE, sMemSize>>>
 	(toKernel(dc_coef), toKernel(dN_coef), osize, N);
       
-      cudaDeviceSynchronize();
-				// Finish the reduction
-				//
+				// Finish the reduction for this order
+				// in parallel
+      thrust::reduce_by_key
+	(
+	 thrust::make_transform_iterator(index_begin, key_functor(gridSize)),
+	 thrust::make_transform_iterator(index_end,   key_functor(gridSize)),
+	 dc_coef.begin(), thrust::make_discard_iterator(), df_coef.begin()
+	 );
+
+      thrust::host_vector<float> ret = df_coef;
       for (size_t j=0; j<nmax; j++) {
-	coefs[Ilmn(l, m, 'c', j, nmax)] =
-	  thrust::reduce(dc_coef.begin() + gridSize*(2*j+0),
-			 dc_coef.begin() + gridSize*(2*j+1));
-	if (m>0)
-	  coefs[Ilmn(l, m, 's', j, nmax)] =
-	    thrust::reduce(dc_coef.begin() + gridSize*(2*j+1),
-			   dc_coef.begin() + gridSize*(2*j+2));
+	coefs[Ilmn(l, m, 'c', j, nmax)] = ret[2*j];
+	if (m>0) coefs[Ilmn(l, m, 's', j, nmax)] = ret[2*j+1];
       }
     }
   }
@@ -764,6 +830,30 @@ void SphericalBasis::determine_coefficients_cuda(const Matrix& expcoef)
       std::cout << std::setw(4)  << n
 		<< std::setw(16) << coefs[Ilmn(1, 1, 's', n, nmax)]
 		<< std::setw(16) << expcoef[3][n+1]
+		<< std::endl;
+    }
+    
+    std::cout << "L=2, M=0 coefficients" << std::endl;
+    for (size_t n=0; n<nmax; n++) {
+      std::cout << std::setw(4)  << n
+		<< std::setw(16) << coefs[Ilmn(2, 0, 'c', n, nmax)]
+		<< std::setw(16) << expcoef[4][n+1]
+		<< std::endl;
+    }
+
+    std::cout << "L=2, M=1c coefficients" << std::endl;
+    for (size_t n=0; n<nmax; n++) {
+      std::cout << std::setw(4)  << n
+		<< std::setw(16) << coefs[Ilmn(2, 1, 'c', n, nmax)]
+		<< std::setw(16) << expcoef[5][n+1]
+		<< std::endl;
+    }
+
+    std::cout << "L=2, M=1s coefficients" << std::endl;
+    for (size_t n=0; n<nmax; n++) {
+      std::cout << std::setw(4)  << n
+		<< std::setw(16) << coefs[Ilmn(2, 1, 's', n, nmax)]
+		<< std::setw(16) << expcoef[6][n+1]
 		<< std::endl;
     }
   }
@@ -906,7 +996,6 @@ void SphericalBasis::determine_coefficients_cuda(const Matrix& expcoef)
 	      << std::setw(15) << fabs(last->second.d - last->second.f)
 	      << std::endl;
   }
-
 }
 
 
@@ -950,10 +1039,6 @@ void SphericalBasis::determine_acceleration_cuda()
   // Shared memory size for the reduction
   //
   int sMemSize = BLOCK_SIZE * sizeof(float);
-
-  // For debugging
-  //
-  std::vector<float> coefs((Lmax+1)*(Lmax+1)*nmax);
 
   // Do the work
   //
@@ -1014,3 +1099,66 @@ void SphericalBasis::DtoH_coefs(Matrix& expcoef)
   }
 }
 
+void SphericalBasis::destroy_cuda()
+{
+  // std::cout << "texture object array size = " << tex.size() << std::endl;
+  for (size_t i=0; i<tex.size(); i++) {
+    std::ostringstream sout;
+    sout << "trying to free TextureObject [" << i << "]";
+    cuda_safe_call(cudaDestroyTextureObject(tex[i]),
+		   __FILE__, __LINE__, sout.str());
+  }
+
+  // std::cout << "cuInterpArray size = " << cuInterpArray.size() << std::endl;
+  for (size_t i=0; i<cuInterpArray.size(); i++) {
+    std::ostringstream sout;
+    sout << "trying to free cuArray [" << i << "]";
+    cuda_safe_call(cudaFreeArray(cuInterpArray[i]),
+		     __FILE__, __LINE__, sout.str());
+  }
+    
+  // std::cout << "cuda memory freed" << std::endl;
+}
+
+void SphericalBasis::host_dev_force_compare()
+{
+  // Copy from device
+  cC->host_particles = cC->cuda_particles;
+  
+  // Compare first and last 5
+  for (size_t i=0; i<5; i++) 
+    {
+      auto indx = cC->host_particles[i].indx;
+      auto levl = cC->host_particles[i].level;
+      
+      std::cout << std::setw(8) << indx	<< std::setw(8) << levl;
+
+      for (int k=0; k<3; k++)
+	std::cout << std::setw(14) << cC->host_particles[i].acc[k];
+
+      for (int k=0; k<3; k++)
+	std::cout << std::setw(14) << cC->Particles()[indx].acc[k];
+
+      std::cout << std::endl;
+    }
+  
+  for (size_t j=0; j<5; j++) 
+    {
+      size_t i = cC->host_particles.size() - 6 + j;
+
+      auto indx = cC->host_particles[i].indx;
+      auto levl = cC->host_particles[i].level;
+
+      std::cout << std::setw(8) << indx	<< std::setw(8) << levl;
+      
+      for (int k=0; k<3; k++)
+	std::cout << std::setw(14) << cC->host_particles[i].acc[k];
+
+      for (int k=0; k<3; k++)
+	std::cout << std::setw(14) << cC->Particles()[indx].acc[k];
+
+      std::cout << std::endl;
+    }
+}
+
+    

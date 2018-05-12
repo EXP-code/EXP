@@ -246,19 +246,19 @@ extern pthread_mutex_t mem_lock;
 
 //! One component container per simulation
 class ComponentContainer;
-extern ComponentContainer comp;
+extern ComponentContainer *comp;
 
 // External forces
 
 //! One external force container per simulation
 class ExternalCollection;
-extern ExternalCollection external;
+extern ExternalCollection *external;
 
 // Output list
 
 class OutputContainer;
 //! One output routine container per simulation
-extern OutputContainer output;
+extern OutputContainer *output;
 
 // Parameter database
 

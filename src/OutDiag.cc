@@ -18,7 +18,7 @@ OutDiag::OutDiag(string& line) : Output(line)
   PHI = 1.0e-10;
   NUM = 100;
 
-  for (auto c : comp.components) {
+  for (auto c : comp->components) {
     if (c->force->geometry == PotAccel::sphere || 
 	c->force->geometry == PotAccel::cylinder) 
       {

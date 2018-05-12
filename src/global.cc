@@ -99,10 +99,10 @@ pthread_mutex_t mem_lock;
 CoefHeader coefheader;
 CoefHeader2 coefheader2;
 
-ComponentContainer comp;
-ExternalCollection external;
-OutputContainer output;
-ParamParseMPI *parse = 0;
+ComponentContainer *comp = 0;
+ExternalCollection *external = 0;
+OutputContainer    *output = 0;
+ParamParseMPI      *parse = 0;
 
 map<string, maker_t *, less<string> > factory;
 map<string, maker_t *, less<string> >::iterator fitr;

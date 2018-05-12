@@ -110,41 +110,7 @@ protected:
 
   virtual void initialize_cuda() {}
 
-  virtual void destroy_cuda()
-  {
-    std::cout << "cuInterpArray size = " << cuInterpArray.size() << std::endl;
-    unsigned cnt = 0;
-    /*
-    for (auto v : cuInterpArray) {
-      std::ostringstream sout;
-      sout << "destroy cuArray [" << cnt++ << "]";
-      cuda_safe_call(cudaFreeArray(v), __FILE__, __LINE__, sout.str().c_str());
-    }
-    */
-    for (size_t i=0; i<cuInterpArray.size(); i++) {
-      std::ostringstream sout;
-      sout << "trying to free cuArray [" << cnt++ << "]";
-      cuda_safe_call(cudaFreeArray(cuInterpArray[i]),
-		     __FILE__, __LINE__, sout.str());
-    }
-    
-    std::cout << "texture object array size = " << tex.size() << std::endl;
-    /*
-    for (auto v: tex) {
-      std::ostringstream sout;
-      sout << "trying to free TextureObject [" << cnt++ << "]";
-      cuda_safe_call(cudaDestroyTextureObject(v), sout.str().c_str());
-    }
-    */
-    for (size_t i=0; i<tex.size(); i++) {
-      std::ostringstream sout;
-      sout << "trying to free TextureObject [" << cnt++ << "]";
-      cuda_safe_call(cudaDestroyTextureObject(tex[i]),
-		     __FILE__, __LINE__, sout.str());
-    }
-
-    std::cout << "cuda memory freed" << std::endl;
-  }
+  virtual void destroy_cuda();
 
   virtual cudaMappingConstants getCudaMappingConstants()
   {
@@ -161,6 +127,9 @@ protected:
   }
 
   virtual void initialize_mapping_constants();
+
+  //! Compare CPU and GPU force evaluation for debugging
+  void host_dev_force_compare();
 #endif
 
   //! Thread method for accerlation compuation

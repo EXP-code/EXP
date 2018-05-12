@@ -32,7 +32,7 @@ UserBar::UserBar(string &line) : ExternalForce(line)
   if (ctr_name.size()>0) {
 				// Look for the fiducial component
     bool found = false;
-    for (auto c : comp.components) {
+    for (auto c : comp->components) {
       if ( !ctr_name.compare(c->name) ) {
 	c0 = c;
 	found = true;
@@ -53,7 +53,7 @@ UserBar::UserBar(string &line) : ExternalForce(line)
   if (angm_name.size()>0) {
 				// Look for the fiducial component
     bool found = false;
-    for (auto c : comp.components) {
+    for (auto c : comp->components) {
       if ( !angm_name.compare(c->name) ) {
 	c1 = c;
 	found = true;
@@ -148,7 +148,7 @@ void UserBar::determine_acceleration_and_potential(void)
     for (int n=0; n<8; n++) {
       phi = 2.0*M_PI/8.0 * n;
 
-      for (auto c : comp.components) {
+      for (auto c : comp->components) {
 	
 	if (c->force->geometry == PotAccel::sphere || 
 	    c->force->geometry == PotAccel::cylinder) {

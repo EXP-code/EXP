@@ -560,12 +560,11 @@ main(int argc, char** argv)
   }
 #endif
 
-  //===============
-  // Finish up MPI
-  //===============
+  //=================
+  // A clean shutdown
+  //=================
 
   clean_up();
-
 
   //=================
   // Epilogue command

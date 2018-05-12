@@ -36,7 +36,7 @@ ScatterMFP::ScatterMFP(string& line) : ExternalForce(line)
   
 				// Look for requested id in component list
   c = NULL;
-  for (auto it : comp.components) {
+  for (auto it : comp->components) {
     if (it->id.compare(comp_id) == 0) {
       c = it;
       break;

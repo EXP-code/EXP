@@ -100,8 +100,8 @@ void OutCHKPT::Run(int n, bool last)
     
     struct MasterHeader header;
     header.time  = tnow;
-    header.ntot  = comp.ntot;
-    header.ncomp = comp.ncomp;
+    header.ntot  = comp->ntot;
+    header.ncomp = comp->ncomp;
 
     out->write((char *)&header, sizeof(MasterHeader));
 #ifdef DEBUG
@@ -110,7 +110,7 @@ void OutCHKPT::Run(int n, bool last)
 
   }
   
-  for (auto c : comp.components) {
+  for (auto c : comp->components) {
 #ifdef DEBUG
     cout << "OutCHKPT: process " << myid << " trying to write name=" << c->name
 	 << " force=" << c->id << endl;
