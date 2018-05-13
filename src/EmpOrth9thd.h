@@ -24,6 +24,12 @@ extern int mstep;
 extern unsigned multistep;
 extern vector<int> stepL, stepN;
 extern pthread_mutex_t coef_lock;
+
+#if HAVE_LIBCUDA==1
+#include <cudaParticle.cuH>
+#include <cudaMappingConstants.cuH>
+#endif
+
 #endif
 
 //! Encapsulatates a SLGridSph (Sturm-Liouville basis) for use as force method
@@ -527,6 +533,32 @@ public:
     for (int m=0; m<=MMAX; m++) ret.push_back(accum_cos[0][m]);
     return ret;
   }
+
+#ifndef STANDALONE
+#if HAVE_LIBCUDA==1
+  cudaMappingConstants getCudaMappingConstants();
+
+  void initialize_cuda(std::vector<float*>& cuArray,
+		       std::vector<cudaResourceDesc>& resDesc,
+		       struct cudaTextureDesc& texDesc,
+		       thrust::host_vector<cudaTextureObject_t>& tex);
+
+  double& get_coef(int m, int n, char c)
+  {
+    if (m >  MMAX)
+      throw std::runtime_error("m>mmax");
+
+    if (n >= NMAX)
+      throw std::runtime_error("n>=nmax");
+
+    if (c == 'c')
+      return accum_cos[m][n];
+    else
+      return accum_sin[m][n];
+  }
+
+#endif
+#endif
 
 private:
   TKType tk_type;

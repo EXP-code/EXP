@@ -116,12 +116,18 @@ protected:
   {
     cudaMappingConstants ret;
 
-    ret.scale = scale;
-    ret.xmin  = 0.0;
-    ret.xmax  = 1.0;
-    ret.numr  = 100;
-    ret.dxi   = 1.0/(ret.numr-1);
-    ret.cmap  = 2;
+    ret.rscale = scale;
+    ret.hscale = 0.0;
+    ret.xmin   = 0.0;
+    ret.xmax   = 1.0;
+    ret.ymin   = 0.0;
+    ret.ymax   = 0.0;
+    ret.numr   = 100;
+    ret.numx   = 0;
+    ret.numy   = 0;
+    ret.dxi    = 1.0/(ret.numr-1);
+    ret.dxi    = 0.0;
+    ret.cmap   = 2;
 
     return ret;
   }

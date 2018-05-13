@@ -6,6 +6,13 @@
 #include <Basis.H>
 #include <EmpOrth9thd.h>
 
+#include "config.h"
+
+#if HAVE_LIBCUDA==1
+#include <cudaParticle.cuH>
+#include <cudaMappingConstants.cuH>
+#endif
+
 class MixtureBasis;
 
 /** This routine computes the potential, acceleration and density 
@@ -68,6 +75,44 @@ private:
 
   MixtureBasis *mix;
 
+
+protected:
+
+  //! CUDA method for coefficient accumulation
+#if HAVE_LIBCUDA==1
+  virtual void determine_coefficients_cuda(const Matrix& expcoef);
+  virtual void determine_acceleration_cuda();
+
+  thrust::host_vector<float>  host_coefs;
+  thrust::device_vector<float> dev_coefs;
+
+  virtual void HtoD_coefs(const Matrix& coef);
+  virtual void DtoH_coefs(Matrix& coef);
+
+  std::vector<float*> cuInterpArray;
+  thrust::host_vector<cudaTextureObject_t> tex;
+  std::vector<cudaResourceDesc> resDesc;
+  struct cudaTextureDesc texDesc;
+
+  virtual void initialize_cuda()
+  {
+    cudaDeviceReset();
+    ortho->initialize_cuda(cuInterpArray, resDesc, texDesc, tex);
+  }
+
+  virtual cudaMappingConstants getCudaMappingConstants()
+  {
+    return ortho->getCudaMappingConstants();
+  }
+
+
+  virtual void destroy_cuda();
+
+  virtual void initialize_mapping_constants();
+
+  //! Compare CPU and GPU force evaluation for debugging
+  void host_dev_force_compare();
+#endif
 
 public:
 

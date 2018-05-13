@@ -240,12 +240,18 @@ public:
   {
     cudaMappingConstants ret;
 
-    ret.scale = scale;
-    ret.xmin  = xmin;
-    ret.xmax  = xmax;
-    ret.numr  = numr;
-    ret.dxi   = dxi;
-    ret.cmap  = cmap;
+    ret.rscale = scale;
+    ret.hscale = 0.0;
+    ret.xmin   = xmin;
+    ret.xmax   = xmax;
+    ret.ymin   = 0.0;
+    ret.ymax   = 0.0;
+    ret.numr   = numr;
+    ret.numx   = 0;
+    ret.numy   = 0;
+    ret.dxi    = dxi;
+    ret.dyi    = 0.0;
+    ret.cmap   = cmap;
 
     return ret;
   }
