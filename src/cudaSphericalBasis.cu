@@ -494,7 +494,7 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
       if (ind<1) ind = 1;
       if (ind>cuNumr-2) ind = cuNumr - 2;
       
-      float a = float(ind+1) - xi;
+      float a = (float)(ind+1) - xi;
       if (a<0.0 or a>1.0) printf("forceKernel: off grid: x=%f\n", xi);
       float b = 1.0 - a;
       
@@ -625,6 +625,8 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 		}
 	    }
 
+	    // Factorials
+	    //
 	    float numf = 1.0, denf = 1.0;
 	    for (int i=1; i<=l-m; i++) numf *= i;
 	    for (int i=1; i<=l+m; i++) denf *= i;
@@ -1125,7 +1127,18 @@ void SphericalBasis::host_dev_force_compare()
   // Copy from device
   cC->host_particles = cC->cuda_particles;
   
-  // Compare first and last 5
+  std::streamsize ss = std::cout.precision();
+  std::cout.precision(4);
+
+  std::cout << std::string(16+14*7, '-') << std::endl
+	    << std::setw(8)  << "Index"  << std::setw(8)  << "Level"
+	    << std::setw(14) << "ax [d]" << std::setw(14) << "ay [d]"
+	    << std::setw(14) << "az [d]" << std::setw(14) << "ax [h]"
+	    << std::setw(14) << "ay [h]" << std::setw(14) << "az [h]"
+	    << std::setw(14) << "|Del a|/|a|"  << std::endl;
+
+  // Compare first and last 5 from the device list
+  //
   for (size_t i=0; i<5; i++) 
     {
       auto indx = cC->host_particles[i].indx;
@@ -1139,7 +1152,14 @@ void SphericalBasis::host_dev_force_compare()
       for (int k=0; k<3; k++)
 	std::cout << std::setw(14) << cC->Particles()[indx].acc[k];
 
-      std::cout << std::endl;
+      double diff = 0.0, norm = 0.0;
+      for (int k=0; k<3; k++) {
+	double b  = cC->host_particles[i].acc[k];
+	double a  = cC->Particles()[indx].acc[k];
+	diff += (a - b)*(a - b);
+	norm += a*a;
+      }
+      std::cout << std::setw(14) << sqrt(diff/norm) << std::endl;
     }
   
   for (size_t j=0; j<5; j++) 
@@ -1157,8 +1177,18 @@ void SphericalBasis::host_dev_force_compare()
       for (int k=0; k<3; k++)
 	std::cout << std::setw(14) << cC->Particles()[indx].acc[k];
 
-      std::cout << std::endl;
+      double diff = 0.0, norm = 0.0;
+      for (int k=0; k<3; k++) {
+	double b  = cC->host_particles[i].acc[k];
+	double a  = cC->Particles()[indx].acc[k];
+	diff += (a - b)*(a - b);
+	norm += a*a;
+      }
+      std::cout << std::setw(14) << sqrt(diff/norm) << std::endl;
     }
+
+  std::cout << std::string(16+14*7, '-') << std::endl;
+  std::cout.precision(ss);
 }
 
     
