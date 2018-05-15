@@ -2882,7 +2882,7 @@ void EmpCylSL::accumulated_eval(double r, double z, double phi,
   fr = 0.0;
   fz = 0.0;
   fp = 0.0;
-  p = 0.0;
+  p  = 0.0;
 
   double rr = sqrt(r*r + z*z);
   if (rr/ASCALE>Rtable) return;
