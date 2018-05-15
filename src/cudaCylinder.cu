@@ -3,6 +3,14 @@
 
 #include <cudaReduce.cuH>
 
+// Global symbols for coordinate transformation
+//
+__device__ __constant__
+float cylRscale, cylHscale, cylXmin, cylXmax, cylYmin, cylYmax, cylDxi, cylDyi;
+
+__device__ __constant__
+int   cylNumx, cylNumy, cylCmap;
+
 __host__ __device__
 int Imn(int m, char cs, int n, int nmax)
 {
@@ -11,6 +19,7 @@ int Imn(int m, char cs, int n, int nmax)
   if (m==0) ret = n;
   else ret = (2*m - 1 + (cs=='s' ? 1 : 0))*nmax + n;
 
+  // Verbose sanity check
   if (ret >= (2*m+1)*nmax) {
     printf("Imn oab: %4d %4d %4d [%4d : %4d ]\n", m, n, ret, (2*m+1)*nmax, nmax);
   }
@@ -21,28 +30,27 @@ int Imn(int m, char cs, int n, int nmax)
 __global__
 void testConstantsCyl()
 {
-  printf("** Rscale = %f\n", cuRscale);
-  printf("** Hscale = %f\n", cuHscale);
-  printf("** Xmin   = %f\n", cuXmin);
-  printf("** Xmax   = %f\n", cuXmax);
-  printf("** Ymin   = %f\n", cuYmin);
-  printf("** Ymax   = %f\n", cuYmax);
-  printf("** Dxi    = %f\n", cuDxi);
-  printf("** Dyi    = %f\n", cuDxi);
-  printf("** Numx   = %d\n", cuNumx);
-  printf("** Numy   = %d\n", cuNumy);
-  printf("** Cmap   = %d\n", cuCmap);
+  printf("** Rscale = %f\n", cylRscale);
+  printf("** Hscale = %f\n", cylHscale);
+  printf("** Xmin   = %f\n", cylXmin);
+  printf("** Xmax   = %f\n", cylXmax);
+  printf("** Ymin   = %f\n", cylYmin);
+  printf("** Ymax   = %f\n", cylYmax);
+  printf("** Dxi    = %f\n", cylDxi);
+  printf("** Dyi    = %f\n", cylDyi);
+  printf("** Numx   = %d\n", cylNumx);
+  printf("** Numy   = %d\n", cylNumy);
+  printf("** Cmap   = %d\n", cylCmap);
 }
 
+				// R coordinate transformation
 __device__
 float cu_r_to_xi_cyl(float r)
 {
   float ret;
 
-  if (cuCmap==1) {
-    ret = (r/cuRscale-1.0)/(r/cuRscale+1.0);
-  } else if (cuCmap==2) {
-    ret = log(r);
+  if (cylCmap==1) {
+    ret = (r/cylRscale - 1.0)/(r/cylRscale + 1.0);
   } else {
     ret = r;
   }    
@@ -55,10 +63,8 @@ float cu_xi_to_r_cyl(float xi)
 {
   float ret;
 
-  if (cuCmap==1) {
-    ret = (1.0+xi)/(1.0 - xi) * cuRscale;
-  } else if (cuCmap==2) {
-    ret = exp(xi);
+  if (cylCmap==1) {
+    ret = (1.0 + xi)/(1.0 - xi) * cylRscale;
   } else {
     ret = xi;
   }
@@ -71,10 +77,8 @@ float cu_d_xi_to_r_cyl(float xi)
 {
   float ret;
 
-  if (cuCmap==1) {
-    ret = 0.5*(1.0-xi)*(1.0-xi)/cuRscale;
-  } else if (cuCmap==2) {
-    ret = exp(-xi);
+  if (cylCmap==1) {
+    ret = 0.5*(1.0 - xi)*(1.0 - xi) / cylRscale;
   } else {
     ret = 1.0;
   }
@@ -83,18 +87,17 @@ float cu_d_xi_to_r_cyl(float xi)
 }
 
 				// Z coordinate transformation
-
 __device__
 float cu_z_to_y_cyl(float z)
-{ return z/(fabs(z)+FLT_MIN)*asinh(fabs(z/cuHscale)); }
+{ return z/(fabs(z)+FLT_MIN)*asinh(fabs(z/cylHscale)); }
 
 __device__
 float cu_y_to_z_cyl(double y)
-{ return cuHscale*sinh(y); }
+{ return cylHscale*sinh(y); }
 
 __device__
 float cu_d_y_to_z_cyl(float y)
-{ return cuHscale*cosh(y); }
+{ return cylHscale*cosh(y); }
 
 
 void Cylinder::initialize_mapping_constants()
@@ -104,33 +107,88 @@ void Cylinder::initialize_mapping_constants()
   
   cudaMappingConstants f = getCudaMappingConstants();
 
-  cuda_safe_call(cudaMemcpyToSymbol(cuRscale, &f.rscale, sizeof(float), size_t(0), cudaMemcpyHostToDevice), __FILE__, __LINE__, "Error copying cuRscale");
+  cuda_safe_call(cudaMemcpyToSymbol(cylRscale, &f.rscale, sizeof(float), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuRscale");
 
-  cuda_safe_call(cudaMemcpyToSymbol(cuHscale, &f.hscale, sizeof(float), size_t(0), cudaMemcpyHostToDevice), __FILE__, __LINE__, "Error copying cuHscale");
+  cuda_safe_call(cudaMemcpyToSymbol(cylHscale, &f.hscale, sizeof(float), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuHscale");
 
-  cuda_safe_call(cudaMemcpyToSymbol(cuXmin, &f.xmin, sizeof(float), size_t(0), cudaMemcpyHostToDevice), __FILE__, __LINE__, "Error copying cuXmin");
+  cuda_safe_call(cudaMemcpyToSymbol(cylXmin,   &f.xmin,   sizeof(float), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuXmin");
 
-  cuda_safe_call(cudaMemcpyToSymbol(cuXmax, &f.xmax, sizeof(float), size_t(0), cudaMemcpyHostToDevice), __FILE__, __LINE__, "Error copying cuXmax");
+  cuda_safe_call(cudaMemcpyToSymbol(cylXmax,   &f.xmax,   sizeof(float), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuXmax");
 
-  cuda_safe_call(cudaMemcpyToSymbol(cuDxi, &f.dxi, sizeof(float), size_t(0), cudaMemcpyHostToDevice), __FILE__, __LINE__, "Error copying cuDxi");
+  cuda_safe_call(cudaMemcpyToSymbol(cylDxi,    &f.dxi,    sizeof(float), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuDxi");
 
-  cuda_safe_call(cudaMemcpyToSymbol(cuNumr, &f.numr, sizeof(int), size_t(0), cudaMemcpyHostToDevice), __FILE__, __LINE__, "Error copying cuNumr");
+  cuda_safe_call(cudaMemcpyToSymbol(cylNumx,   &f.numx,   sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuNumx");
 
-  cuda_safe_call(cudaMemcpyToSymbol(cuCmap, &f.cmap, sizeof(int), size_t(0), cudaMemcpyHostToDevice), __FILE__, __LINE__, "Error copying cuCmap");
+  cuda_safe_call(cudaMemcpyToSymbol(cylYmin,   &f.ymin,   sizeof(float), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuYmin");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cylYmax,   &f.ymax,   sizeof(float), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuYmax");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cylDyi,    &f.dyi,    sizeof(float), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuDxi");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cylNumy,   &f.numy,   sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuNumy");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cylCmap,   &f.cmap,   sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuCmap");
 }
 
 
 __global__
+void testCoordCyl(dArray<float> mass, dArray<float> phi,
+		  dArray<float> Xfac, dArray<float> Yfac,
+		  dArray<int> IndX, dArray<int> IndY,
+		  PII lohi)
+{
+  printf("**\n** Coordinate test\n");
+  
+  int N = lohi.second - lohi.first;
+
+  printf("%8s %13s %13s %13s %13s %5s %5s\n", "#", "mass", "phi", "a", "c", "ix", "iy");
+
+  for (int i=0; i<3; i++) {
+    printf("%8d %13.7e %13.7e %13.7e %13.7e %5d %5d\n",
+	   i, mass._v[i], phi._v[i], Xfac._v[i], Yfac._v[i],
+	   IndX._v[i], IndY._v[i]);
+  }
+
+  for (int i=N-4; i<N; i++) {
+    printf("%8d %13.7e %13.7e %13.7e %13.7e %5d %5d\n",
+	   i, mass._v[i], phi._v[i], Xfac._v[i], Yfac._v[i],
+	   IndX._v[i], IndY._v[i]);
+  }
+
+  printf("**\n");
+}
+
+__global__
 void testTextureCyl(dArray<cudaTextureObject_t> tex, int nmax)
 {
-  printf("**DEVICE Texture compare\n");
-  for (int l : {0, 1, 2}) {
-    for (int j=0; j<10; j++) {
-      int k = 1 + l*nmax;
-      for (int i : {3980, 3990, 3995, 3999}) 
-	printf("%5d %5d %5d %13.7e\n", l, j, i, tex1D<float>(tex._v[k+j], i));
-    }
+  printf("** DEVICE 2d texture compare\n");
+  for (int k=0; k<10; k++) {
+    for (int i : {0, 1, 126, 127}) 
+      for (int j : {0, 1, 126, 127}) 
+	printf("%5d %5d %5d %13.7e\n", k, i, j, tex2D<float>(tex._v[j], i, j));
   }
+}
+
+__global__ void testParticles(dArray<cudaParticle> in)
+{
+  for (int k=0; k<4; k++)
+    printf("%5d %13.5e %13.5e %13.5e %13.5e\n",
+	   k, in._v[k].mass, in._v[k].pos[0], in._v[k].pos[1], in._v[k].pos[2]);
+
+  for (int k=in._s-4; k<in._s; k++)
+    printf("%5d %13.5e %13.5e %13.5e %13.5e\n",
+	   k, in._v[k].mass, in._v[k].pos[0], in._v[k].pos[1], in._v[k].pos[2]);
 }
 
 __global__ void coordKernelCyl
@@ -139,8 +197,11 @@ __global__ void coordKernelCyl
  dArray<int> IndX, dArray<int> IndY,
  unsigned int stride, PII lohi, float rmax)
 {
+  // Thread ID
+  //
   const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
 
+  // Centering logic, TBD
   /*
     vector<double> ctr;
     if (mix) mix->getCenter(ctr);
@@ -148,8 +209,8 @@ __global__ void coordKernelCyl
   float ctr[3] {0.0f, 0.0f, 0.0f};
 
   for (int n=0; n<stride; n++) {
-    int i = tid*stride + n;
-    int npart = i + lohi.first;
+    int i = tid*stride + n;	// Particle counter
+    int npart = i + lohi.first;	// Particle index
 
     if (npart < lohi.second) {
 
@@ -176,27 +237,28 @@ __global__ void coordKernelCyl
 
 	if (i>=phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 
-	float X  = (cu_r_to_xi_cyl(r) - cuXmin)/cuDxi;
-	float Y  = (cu_z_to_y_cyl(zz) - cuYmin)/cuDyi;
+	// Interpolation indices
+	//
+	float X  = (cu_r_to_xi_cyl(r) - cylXmin)/cylDxi;
+	float Y  = (cu_z_to_y_cyl(zz) - cylYmin)/cylDyi;
 
 	int indX = floor(X);
 	int indY = floor(Y);
 	
 	if (indX<0) indX = 0;
-	if (indX>cuNumx-2) indX = cuNumr - 2;
+	if (indX>cylNumx-2) indX = cylNumx - 2;
 	
 	if (indY<0) indY = 0;
-	if (indY>cuNumy-2) indY = cuNumr - 2;
+	if (indY>cylNumy-2) indY = cylNumy - 2;
 	
 	Xfac._v[i] = float(indX+1) - X;
-	if (Xfac._v[i]<0.0 or Xfac._v[i]>1.0)
-	  printf("X off grid: x=%f\n", X);
 	IndX._v[i] = indX;
 
 	Yfac._v[i] = float(indY+1) - Y;
-	if (Yfac._v[i]<0.0 or Yfac._v[i]>1.0)
-	  printf("Y off grid: y=%f\n", Y);
 	IndY._v[i] = indY;
+
+	if (Xfac._v[i]<-0.5 or Xfac._v[i]>1.5) printf("X off grid: x=%f\n", X);
+	if (Yfac._v[i]<-0.5 or Yfac._v[i]>1.5) printf("Y off grid: y=%f\n", Y);
 
 	if (i>=Xfac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 	if (i>=IndX._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
@@ -210,18 +272,26 @@ __global__ void coordKernelCyl
 
 __global__ void coefKernelCyl
 (dArray<float> coef, dArray<cudaTextureObject_t> tex,
- dArray<float> Mass, dArray<float> Phi, dArray<float> Xfac, dArray<float> Yfac,
- dArray<int> indX, dArray<int> indY, int stride, int m, unsigned int nmax, PII lohi)
+ dArray<float> Mass, dArray<float> Phi,
+ dArray<float> Xfac, dArray<float> Yfac,
+ dArray<int> indX, dArray<int> indY,
+ int stride, int m, unsigned int nmax, PII lohi)
 {
-  const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
+  // Thread ID
+  //
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
+
+  // Total number of particles to be evaluated
+  //
   const unsigned int N = lohi.second - lohi.first;
-  const float norm = -4.0*M_PI;
+
+  const float norm = -4.0*M_PI;	// Biorthogonality factor
 
   for (int istr=0; istr<stride; istr++) {
 
-    int i = tid*stride + istr;
+    int i = tid*stride + istr;	// Particle counter
 
-    if (i<N) {
+    if (i<N) {			// Allow for grid padding
 
       float mass = Mass._v[i];
       
@@ -243,9 +313,7 @@ __global__ void coefKernelCyl
 	float dely1 = 1.0 - dely0;
 
 	if (i>=Xfac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-	if (i>=indX._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 	if (i>=Yfac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-	if (i>=indY._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 
 	float c00 = delx0*dely0;
 	float c10 = delx1*dely0;
@@ -255,11 +323,27 @@ __global__ void coefKernelCyl
 	int indx = indX._v[i];
 	int indy = indY._v[i];
 
+	if (i>=indX._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+	if (i>=indY._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+
 	for (int n=0; n<nmax; n++) {
 
+	  // Texture maps are packed sequentially as
+	  // ---------------------------------------
+	  //     potC, rforceC, zforceC
+	  //
+	  // for m=0, and
+	  //
+	  //     potC, rforceC, zforceC, potS, rforceS, zforceS
+	  //
+	  // for m>0
+	  //
+	  // The inner loop increments radial order and the outer loop
+	  // increments harmonic order.
+	  //
 	  if (m==0) {
 
-	    int k = 3*n;
+	    int k = 3*n;	// Indices: 0, 3, 6, ... (3*nmax-3) which pulls out potC
 
 	    if (n>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 
@@ -278,7 +362,13 @@ __global__ void coefKernelCyl
 
 	  } else {
 
-	    int k = 3*(2*m - 1)*nmax + 6*n;
+	    // Pulls out potC tables at indices
+	    // --------------------------------
+	    // For m=1, indicies:  3*nmax,  3*nmax+6,  3+nmax+12, ... ,  9*nmax - 6
+	    // For m=2, indicies:  9*nmax,  9*nmax+6,  9*nmax+12, ... , 15*nmax - 6
+	    // For m=3, indicies: 15*nmax, 15*nmax+6, 15*nmax+12, ... , 21*nmax - 6
+	    // ...
+	    int k = 3*(2*m - 1)*nmax + 6*n; 
 
 	    const float d00  = tex2D<float>(tex._v[k  ], indx,   indy  );
 	    const float d10  = tex2D<float>(tex._v[k  ], indx+1, indy  );
@@ -287,31 +377,44 @@ __global__ void coefKernelCyl
 
 	    if (k>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 
-	    const float e00  = tex2D<float>(tex._v[k+1], indx,   indy  );
-	    const float e10  = tex2D<float>(tex._v[k+1], indx+1, indy  );
-	    const float e01  = tex2D<float>(tex._v[k+1], indx,   indy+1);
-	    const float e11  = tex2D<float>(tex._v[k+1], indx+1, indy+1);
+	    // potS tables are offset from potC tables by +3
+	    //
+	    const float e00  = tex2D<float>(tex._v[k+3], indx,   indy  );
+	    const float e10  = tex2D<float>(tex._v[k+3], indx+1, indy  );
+	    const float e01  = tex2D<float>(tex._v[k+3], indx,   indy+1);
+	    const float e11  = tex2D<float>(tex._v[k+3], indx+1, indy+1);
 
 	    if (k+1>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 
 	    coef._v[(2*n+0)*N + i] = (c00*d00 + c10*d10 + c01*d01 + c11*d11) * cosp * norm * mass;
-	    coef._v[(2*n+1)*N + i] = (c00*d00 + c10*d10 + c01*d01 + c11*d11) * sinp * norm * mass;
+	    coef._v[(2*n+1)*N + i] = (c00*e00 + c10*e10 + c01*e01 + c11*e11) * sinp * norm * mass;
 
 	    if ((2*n+0)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 	    if ((2*n+1)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 	  }
+
 	} // norder loop
+
       } // mass value check
+
     } // particle index check
+
   } // stride loop
 }
 
 __global__ void
 forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
 	       dArray<cudaTextureObject_t> tex,
-	       int stride, unsigned int mmax, unsigned int nmax, PII lohi, float cylmass)
+	       int stride, unsigned int mmax, unsigned int nmax, PII lohi,
+	       float rmax, float cylmass)
 {
+  // Thread ID
+  //
   const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
+
+  // Maximum radius squared
+  //
+  const float rmax2 = rmax*rmax;
 
   /*
     vector<double> ctr;
@@ -339,18 +442,14 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
       
       const double ratmin = 0.75;
       const double maxerf = 3.0;
-      const double midpt = ratmin + 0.5*(1.0 - ratmin);
-      const double rsmth = 0.5*(1.0 - ratmin)/maxerf;
+      const double midpt  = ratmin + 0.5*(1.0 - ratmin);
+      const double rsmth  = 0.5*(1.0 - ratmin)/maxerf;
 
-      float ratio = sqrt( (R2 + zz*zz)/R2 );
+      float ratio = sqrt( (R2 + zz*zz)/rmax2 );
       float mfactor = 1.0, frac = 1.0, cfrac = 0.0;
 
       if (ratio >= 1.0) {
 	cfrac      = 1.0 - mfactor;
-	in._v[npart].acc[0] = 0.0;
-	in._v[npart].acc[1] = 0.0;
-	in._v[npart].acc[2] = 0.0;
-
       } else if (ratio > ratmin) {
 	frac  = 0.5*(1.0 - erf( (ratio - midpt)/rsmth )) * mfactor;
 	cfrac = 1.0 - frac;
@@ -365,19 +464,17 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
       
       if (ratio < 1.0) {
 
-	float X  = (cu_r_to_xi_cyl(R) - cuXmin)/cuDxi;
-	float Y  = (cu_z_to_y_cyl(zz) - cuYmin)/cuDyi;
+	float X  = (cu_r_to_xi_cyl(R) - cylXmin)/cylDxi;
+	float Y  = (cu_z_to_y_cyl(zz) - cylYmin)/cylDyi;
 
 	int indX = floor(X);
 	int indY = floor(Y);
 	
 	float delx0 = float(indX+1) - X;
-	if (delx0<0.0 or delx0>1.0)
-	  printf("X off grid: x=%f\n", delx0);
-
 	float dely0 = float(indY+1) - Y;
-	if (dely0<0.0 or dely0>1.0)
-	  printf("Y off grid: y=%f\n", dely0);
+
+	if (delx0<0.0 or delx0>1.0) printf("X off grid: x=%f\n", delx0);
+	if (dely0<0.0 or dely0>1.0) printf("Y off grid: y=%f\n", dely0);
 
 	float delx1 = 1.0 - delx0;
 	float dely1 = 1.0 - delx1;
@@ -394,11 +491,15 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
 
 	  for (int n=0; n<nmax; n++) {
       
+	    // Coefficient index
+	    //
 	    int ic = n;
 	    if (mm) ic +=  (2*mm - 1)*nmax;
 
 	    float fac = coef._v[ic] * ccos;
       
+	    // Texture table index
+	    //
 	    int k = 3*n;
 	    if (mm) k = 3*(2*mm - 1)*nmax + 6*n;
 
@@ -482,9 +583,9 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
 	  
 	}
 
-	in._v[npart].acc[0] = ( fr*xx/R - fp*yy/R2 ) * frac;
-	in._v[npart].acc[1] = ( fr*yy/R + fp*xx/R2 ) * frac;
-	in._v[npart].acc[2] = fz * frac;
+	in._v[npart].acc[0] += ( fr*xx/R - fp*yy/R2 ) * frac;
+	in._v[npart].acc[1] += ( fr*yy/R + fp*xx/R2 ) * frac;
+	in._v[npart].acc[2] += fz * frac;
       }
 
       if (ratio > ratmin) {
@@ -507,47 +608,70 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
 }
 
 
-void Cylinder::determine_coefficients_cuda(const Matrix& expcoef)
+void Cylinder::determine_coefficients_cuda()
 {
+  /*
+  std::cout << " ** BEFORE initialize" << std::endl;
+  testParticles<<<1, 1>>>(toKernel(cC->cuda_particles));
+  std::cout << " **" << std::endl;
+  */
+
+  static bool cuda_firstime = true;
+  if (cuda_firstime and myid==0) {
+    initialize_cuda();
+    initialize_mapping_constants();
+    cuda_firstime = false;
+  }
+
+  /*
+  std::cout << " ** AFTER initialize" << std::endl;
+  testParticles<<<1, 1>>>(toKernel(cC->cuda_particles));
+  std::cout << " **" << std::endl;
+  */
+
   std::cout << std::scientific;
+
+  int deviceCount = 0;
+  cuda_safe_call(cudaGetDeviceCount(&deviceCount),
+		 __FILE__, __LINE__, "could not get device count");
+
+  cudaDeviceProp deviceProp;
+  cudaGetDeviceProperties(&deviceProp, deviceCount-1);
 
   // Sort particles and get coefficient size
   //
   PII lohi = cC->CudaSortByLevel(mlevel, multistep);
 
+  // Compute grid
+  //
   unsigned int N         = lohi.second - lohi.first;
-  unsigned int stride    = 1;
+  unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
   unsigned int gridSize  = N/BLOCK_SIZE/stride;
-
-  /*
-  if (gridSize>128) {
-    stride = N/BLOCK_SIZE/128 + 1;
-    gridSize = N/BLOCK_SIZE/stride;
-  }
-  */
 
   if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
   // unsigned int Nthread = gridSize*BLOCK_SIZE;
 
   std::cout << "**" << std::endl
-	    << "** N      = " << N          << std::endl
-	    << "** Stride = " << stride     << std::endl
-	    << "** Block  = " << BLOCK_SIZE << std::endl
-	    << "** Grid   = " << gridSize   << std::endl
+	    << "** N      = " << N           << std::endl
+	    << "** I low  = " << lohi.first  << std::endl
+	    << "** I high = " << lohi.second << std::endl
+	    << "** Stride = " << stride      << std::endl
+	    << "** Block  = " << BLOCK_SIZE  << std::endl
+	    << "** Grid   = " << gridSize    << std::endl
 	    << "**" << std::endl;
 
   // Create space for coefficient reduction
   //
-  thrust::device_vector<float> dN_coef(2*nmax*N);
-  thrust::device_vector<float> dc_coef(2*nmax*gridSize);
-  thrust::device_vector<float> df_coef(2*nmax);
+  thrust::device_vector<float> dN_coef(2*ncylorder*N);
+  thrust::device_vector<float> dc_coef(2*ncylorder*gridSize);
+  thrust::device_vector<float> df_coef(2*ncylorder);
 
   // Texture objects
   //
   thrust::device_vector<cudaTextureObject_t> t_d = tex;
 
-  // Space for Legendre coefficients 
+  // Space for coordinate arrays
   //
   thrust::device_vector<float> m_d(N), X_d(N), Y_d(N), p_d(N);
   thrust::device_vector<int>   iX_d(N), iY_d(N);
@@ -556,41 +680,58 @@ void Cylinder::determine_coefficients_cuda(const Matrix& expcoef)
   //
   int sMemSize = BLOCK_SIZE * sizeof(float);
 
-  // For debugging
+  // For debugging (set to false to disable)
   //
-  if (false) {
+  static bool firstime = false;
+
+  if (firstime) {
     testConstantsCyl<<<1, 1>>>();
-    
-    static bool firstime = true;
-    testTextureCyl<<<1, 1>>>(toKernel(t_d), nmax);
-    firstime == false;
+    cudaDeviceSynchronize();
+
+    testTextureCyl<<<1, 1>>>(toKernel(t_d), ncylorder);
+    cudaDeviceSynchronize();
+
+    firstime = false;
   }
 
-  std::vector<float> coefs((2*mmax+1)*nmax);
+  std::vector<float> coefs((2*mmax+1)*ncylorder);
 
   thrust::counting_iterator<int> index_begin(0);
-  thrust::counting_iterator<int> index_end(gridSize*2*nmax);
+  thrust::counting_iterator<int> index_end(gridSize*2*ncylorder);
+
+  // Maximum radius on grid
+  //
+  float rmax = rcylmax * acyl;
 
   // Do the work
   //
+  // testParticles<<<1, 1>>>(toKernel(cC->cuda_particles));
+
 				// Compute the coordinate
 				// transformation
 				// 
   coordKernelCyl<<<gridSize, BLOCK_SIZE>>>
     (toKernel(cC->cuda_particles), toKernel(m_d), toKernel(p_d),
      toKernel(X_d), toKernel(Y_d), toKernel(iX_d), toKernel(iY_d),
-     stride, lohi, rcylmax);
+     stride, lohi, rmax);
 
+  /*
+  testCoordCyl<<<1, 1>>>(toKernel(m_d),  toKernel(p_d),
+			 toKernel(X_d),  toKernel(Y_d),
+			 toKernel(iX_d), toKernel(iY_d),
+			 lohi);
+  */
 				// Compute the coefficient
 				// contribution for each order
+  int osize = ncylorder*2;	// 
   for (int m=0; m<=mmax; m++) {
     coefKernelCyl<<<gridSize, BLOCK_SIZE>>>
       (toKernel(dN_coef), toKernel(t_d), toKernel(m_d), toKernel(p_d),
        toKernel(X_d), toKernel(Y_d), toKernel(iX_d), toKernel(iY_d),
-       stride, m, nmax, lohi);
+       stride, m, ncylorder, lohi);
     
 				// Begin the reduction per grid block
-    int osize = nmax*2;	// 
+				//
     reduceSum<float, BLOCK_SIZE><<<gridSize, BLOCK_SIZE, sMemSize>>>
       (toKernel(dc_coef), toKernel(dN_coef), osize, N);
       
@@ -604,51 +745,56 @@ void Cylinder::determine_coefficients_cuda(const Matrix& expcoef)
        );
     
     thrust::host_vector<float> ret = df_coef;
-    for (size_t j=0; j<nmax; j++) {
-      coefs[Imn(m, 'c', j, nmax)] = ret[2*j];
-      if (m>0) coefs[Imn(m, 's', j, nmax)] = ret[2*j+1];
+    for (size_t j=0; j<ncylorder; j++) {
+      coefs[Imn(m, 'c', j, ncylorder)] = ret[2*j];
+      if (m>0) coefs[Imn(m, 's', j, ncylorder)] = ret[2*j+1];
     }
   }
 
   // DEBUG
   //
-  if (false) {
+  if (true) {
     std::cout << "M=0 coefficients" << std::endl;
-    for (size_t n=0; n<nmax; n++) {
+    for (size_t n=0; n<ncylorder; n++) {
       std::cout << std::setw(4)  << n
-		<< std::setw(16) << coefs[Imn(0, 'c', n, nmax)]
+		<< std::setw(4)  << Imn(0, 'c', n, ncylorder)
+		<< std::setw(16) << coefs[Imn(0, 'c', n, ncylorder)]
 		<< std::setw(16) << ortho->get_coef(0, n, 'c')
 		<< std::endl;
     }
 
     std::cout << "M=1c coefficients" << std::endl;
-    for (size_t n=0; n<nmax; n++) {
+    for (size_t n=0; n<ncylorder; n++) {
       std::cout << std::setw(4)  << n
-		<< std::setw(16) << coefs[Imn(1, 'c', n, nmax)]
+		<< std::setw(4)  << Imn(1, 'c', n, ncylorder)
+		<< std::setw(16) << coefs[Imn(1, 'c', n, ncylorder)]
 		<< std::setw(16) << ortho->get_coef(1, n, 'c')
 		<< std::endl;
     }
 
     std::cout << "M=1s coefficients" << std::endl;
-    for (size_t n=0; n<nmax; n++) {
+    for (size_t n=0; n<ncylorder; n++) {
       std::cout << std::setw(4)  << n
-		<< std::setw(16) << coefs[Imn(1, 's', n, nmax)]
+		<< std::setw(4)  << Imn(1, 's', n, ncylorder)
+		<< std::setw(16) << coefs[Imn(1, 's', n, ncylorder)]
 		<< std::setw(16) << ortho->get_coef(1, n, 's')
 		<< std::endl;
     }
 
     std::cout << "M=2c coefficients" << std::endl;
-    for (size_t n=0; n<nmax; n++) {
+    for (size_t n=0; n<ncylorder; n++) {
       std::cout << std::setw(4)  << n
-		<< std::setw(16) << coefs[Imn(2, 'c', n, nmax)]
+		<< std::setw(4)  << Imn(2, 'c', n, ncylorder)
+		<< std::setw(16) << coefs[Imn(2, 'c', n, ncylorder)]
 		<< std::setw(16) << ortho->get_coef(2, n, 'c')
 		<< std::endl;
     }
     
     std::cout << "M=2s coefficients" << std::endl;
-    for (size_t n=0; n<nmax; n++) {
+    for (size_t n=0; n<ncylorder; n++) {
       std::cout << std::setw(4)  << n
-		<< std::setw(16) << coefs[Imn(2, 'c', n, nmax)]
+		<< std::setw(4)  << Imn(2, 's', n, ncylorder)
+		<< std::setw(16) << coefs[Imn(2, 's', n, ncylorder)]
 		<< std::setw(16) << ortho->get_coef(2, n, 's')
 		<< std::endl;
     }
@@ -681,12 +827,12 @@ void Cylinder::determine_coefficients_cuda(const Matrix& expcoef)
     for (int m=0; m<=mmax; m++) {
 	
       if (m==0) {
-	for (int n=0; n<nmax; n++) {
+	for (int n=0; n<ncylorder; n++) {
 	  elem.m = m;
 	  elem.n = n;
 	  elem.cs = 'c';
 	  elem.d = ortho->get_coef(m, n, 'c');
-	  elem.f = coefs[Imn(m, 'c', n, nmax)];
+	  elem.f = coefs[Imn(m, 'c', n, ncylorder)];
 	  
 	  double test = fabs(elem.d - elem.f);
 	  if (fabs(elem.d)>1.0e-4) test /= fabs(elem.d);
@@ -696,24 +842,24 @@ void Cylinder::determine_coefficients_cuda(const Matrix& expcoef)
 	  out << std::setw( 5) << m
 	      << std::setw( 5) << n
 	      << std::setw( 5) << 'c'
-	      << std::setw( 5) << Imn(m, 'c', n, nmax)
+	      << std::setw( 5) << Imn(m, 'c', n, ncylorder)
 	      << std::setw(14) << elem.d
 	      << std::setw(14) << elem.f
 	      << std::endl;
 	}
 
       } else {
-	for (int n=0; n<nmax; n++) {
+	for (int n=0; n<ncylorder; n++) {
 	  elem.m = m;
 	  elem.n = n;
 	  elem.cs = 'c';
 	  elem.d = ortho->get_coef(m, n, 'c');
-	  elem.f = coefs[Imn(m, 'c', n, nmax)];
+	  elem.f = coefs[Imn(m, 'c', n, ncylorder)];
 
 	  out << std::setw( 5) << m
 	      << std::setw( 5) << n
 	      << std::setw( 5) << 'c'
-	      << std::setw( 5) << Imn(m, 'c', n, nmax)
+	      << std::setw( 5) << Imn(m, 'c', n, ncylorder)
 	      << std::setw(14) << elem.d
 	      << std::setw(14) << elem.f
 	      << std::endl;
@@ -724,17 +870,17 @@ void Cylinder::determine_coefficients_cuda(const Matrix& expcoef)
 	  compare[test] = elem;
 	}
 
-	for (int n=0; n<nmax; n++) {
+	for (int n=0; n<ncylorder; n++) {
 	  elem.m = m;
 	  elem.n = n;
 	  elem.cs = 's';
 	  elem.d = ortho->get_coef(m, n, 'c');
-	  elem.f = coefs[Imn(m, 's', n, nmax)];
+	  elem.f = coefs[Imn(m, 's', n, ncylorder)];
 
 	  out << std::setw( 5) << m
 	      << std::setw( 5) << n
 	      << std::setw( 5) << 's'
-	      << std::setw( 5) << Imn(m, 's', n-1, nmax)
+	      << std::setw( 5) << Imn(m, 's', n-1, ncylorder)
 	      << std::setw(14) << elem.d
 	      << std::setw(14) << elem.f
 	      << std::endl;
@@ -786,22 +932,26 @@ void Cylinder::determine_acceleration_cuda()
 {
   std::cout << std::scientific;
 
-  // Sort particles and do all particles at or above mlevel
+
+  int deviceCount = 0;
+  cuda_safe_call(cudaGetDeviceCount(&deviceCount),
+		 __FILE__, __LINE__, "could not get device count");
+
+  cudaDeviceProp deviceProp;
+  cudaGetDeviceProperties(&deviceProp, deviceCount-1);
+
+  // Sort particles and get coefficient size
   //
   PII lohi = cC->CudaSortByLevel(mlevel, multistep);
 
+  // Compute grid
+  //
   unsigned int N         = lohi.second - lohi.first;
-  unsigned int stride    = 1;
+  unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
   unsigned int gridSize  = N/BLOCK_SIZE/stride;
 
-  /*
-  if (gridSize>128) {
-    stride = N/BLOCK_SIZE/128 + 1;
-    gridSize = N/BLOCK_SIZE/stride;
-  }
-  */
-
   if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
+
 
   // unsigned int Nthread = gridSize*BLOCK_SIZE;
 
@@ -820,16 +970,20 @@ void Cylinder::determine_acceleration_cuda()
   //
   int sMemSize = BLOCK_SIZE * sizeof(float);
 
+  // Maximum radius on grid
+  //
+  float rmax = rcylmax * acyl;
+
   // Do the work
   //
   forceKernelCyl<<<gridSize, BLOCK_SIZE, sMemSize>>>
     (toKernel(cC->cuda_particles), toKernel(dev_coefs), toKernel(t_d),
-     stride, mmax, nmax, lohi, cylmass);
+     stride, mmax, ncylorder, lohi, rmax, cylmass);
 }
 
-void Cylinder::HtoD_coefs(const Matrix& expcoef)
+void Cylinder::HtoD_coefs()
 {
-  host_coefs.resize((2*mmax+1)*nmax);
+  host_coefs.resize((2*mmax+1)*ncylorder);
 
   // m loop
   //
@@ -837,9 +991,9 @@ void Cylinder::HtoD_coefs(const Matrix& expcoef)
     
     // n loop
     //
-    for (int n=0; n<nmax; n++) {
-      host_coefs[Imn(m, 'c', n, nmax)] = ortho->get_coef(m, n, 'c');
-      if (m>0) host_coefs[Imn(m, 's', n, nmax)] = ortho->get_coef(m, n, 's');
+    for (int n=0; n<ncylorder; n++) {
+      host_coefs[Imn(m, 'c', n, ncylorder)] = ortho->get_coef(m, n, 'c');
+      if (m>0) host_coefs[Imn(m, 's', n, ncylorder)] = ortho->get_coef(m, n, 's');
     }
   }
 
@@ -847,7 +1001,7 @@ void Cylinder::HtoD_coefs(const Matrix& expcoef)
 }
 
 
-void Cylinder::DtoH_coefs(Matrix& expcoef)
+void Cylinder::DtoH_coefs()
 {
   host_coefs = dev_coefs;
 
@@ -857,10 +1011,10 @@ void Cylinder::DtoH_coefs(Matrix& expcoef)
     
     // n loop
     //
-    for (int n=0; n<nmax; n++) {
-      ortho->get_coef(m, n, 'c') = host_coefs[Imn(m, 'c', n, nmax)];
+    for (int n=0; n<ncylorder; n++) {
+      ortho->get_coef(m, n, 'c') = host_coefs[Imn(m, 'c', n, ncylorder)];
       if (m>0)
-	ortho->get_coef(m, n, 's') = host_coefs[Imn(m, 's', n, nmax)];
+	ortho->get_coef(m, n, 's') = host_coefs[Imn(m, 's', n, ncylorder)];
     }
   }
 }

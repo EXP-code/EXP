@@ -121,9 +121,4 @@ struct key_functor : public thrust::unary_function<int, int>
 };
 
 
-__device__ __constant__ float cuRscale, cuHscale, cuXmin, cuXmax, cuYmin, cuYmax, cuDxi, cuDyi;
-
-__device__ __constant__ int   cuNumr, cuNumx, cuNumy, cuCmap;
-
-
 #endif

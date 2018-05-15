@@ -212,7 +212,9 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   ffac = pfac/ascale;
   dfac = ffac/ascale;
 
-  SLGridSph::mpi = 1;		// Turn on MPI
+				// Enable MPI code for more than one node
+  if (numprocs>1) SLGridSph::mpi = 1;
+
   ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 
 			false, 1, 1.0);
   if (DENS)

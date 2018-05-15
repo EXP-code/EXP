@@ -1,5 +1,6 @@
 using namespace std;
 
+#include <chrono>
 #include <values.h>
 
 #include <sstream>
@@ -387,10 +388,39 @@ void Cylinder::get_acceleration_and_potential(Component* C)
 
   MPL_start_timer();
 
+  auto start0 = std::chrono::high_resolution_clock::now();
+
   determine_acceleration_and_potential();
+
+  auto finish0 = std::chrono::high_resolution_clock::now();
 
   MPL_stop_timer();
 
+
+#if HAVE_LIBCUDA==1
+  if (myid==0) {
+    //
+    // CUDA test
+    //
+    HtoD_coefs();
+    auto start1 = std::chrono::high_resolution_clock::now();
+    determine_acceleration_cuda();
+    auto finish1 = std::chrono::high_resolution_clock::now();
+    
+    std::chrono::duration<double> duration0 = finish0 - start0;
+    std::chrono::duration<double> duration1 = finish1 - start1;
+    
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "== Force evaluation [Cylinder]" << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "Time in CPU: " << duration0.count() << std::endl;
+    std::cout << "Time in GPU: " << duration1.count() << std::endl;
+    std::cout << "CPU to GPU : " << duration0.count()/duration1.count() << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+    
+    host_dev_force_compare();
+  }
+#endif
 
   //=======================
   // Recompute PCA analysis
@@ -630,6 +660,8 @@ void Cylinder::determine_coefficients(void)
     pcainit = false;
   }
 
+  auto start0 = std::chrono::high_resolution_clock::now();
+
   if (multistep==0)
     ortho->setup_accumulation();
   else {
@@ -702,6 +734,34 @@ void Cylinder::determine_coefficients(void)
   }
 
   print_timings("Cylinder: coefficient timings");
+
+  auto finish0 = std::chrono::high_resolution_clock::now();
+  
+#if HAVE_LIBCUDA==1
+  if (myid==0) {
+    //
+    // CUDA test
+    //
+    cC->ParticlesToCuda();
+    HtoD_coefs();
+    auto start1 = std::chrono::high_resolution_clock::now();
+    determine_coefficients_cuda();
+    auto finish1 = std::chrono::high_resolution_clock::now();
+    
+    std::chrono::duration<double> duration0 = finish0 - start0;
+    std::chrono::duration<double> duration1 = finish1 - start1;
+    
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "== Coefficient evaluation [Cylinder]" << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "Time in CPU: " << duration0.count() << std::endl;
+    std::cout << "Time in GPU: " << duration1.count() << std::endl;
+    std::cout << "CPU to GPU : " << duration0.count()/duration1.count() << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+  }
+#endif
+
+
 }
 
 

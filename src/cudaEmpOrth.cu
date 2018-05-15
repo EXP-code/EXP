@@ -18,19 +18,18 @@ void EmpCylSL::initialize_cuda
 {
   // Number of texture arrays
   //
-  size_t ndim = (2*MMAX+1)*rank3;
-  size_t ndimTot = ndim*3;
+  size_t ndim = 3*(2*MMAX+1)*rank3;
 
   // Interpolation data array
   //
-  cuArray.resize(ndimTot);
+  cuArray.resize(ndim);
 
   // Create texture objects
   //
-  tex.resize(ndimTot);
+  tex.resize(ndim);
   thrust::fill(tex.begin(), tex.end(), 0);
 
-  resDesc.resize(ndimTot);
+  resDesc.resize(ndim);
 
   memset(&texDesc, 0, sizeof(texDesc));
   texDesc.readMode = cudaReadModeElementType;
@@ -47,63 +46,57 @@ void EmpCylSL::initialize_cuda
 
     for (size_t n=0; n<rank3; n++) {
     
-      size_t mmax = 1;
-      size_t ntab = 3;
-      if (mm) {
-	mmax++;
-	ntab *= 2;
-      }
+      size_t  ntab = 3;		// m=0
+      if (mm) ntab = 6;		// m>0
 
-      for (size_t m=0; m<mmax; m++) {
-
-	for (size_t t=0; t<ntab; t++) {
-	  cuda_safe_call
-	    (cudaMallocPitch(&cuArray[k], &pitch, sizeof(float)*NUMX, NUMY),
-	     __FILE__, __LINE__, "malloc pitch");
+      for (size_t t=0; t<ntab; t++) {
+	cuda_safe_call
+	  (cudaMallocPitch(&cuArray[k], &pitch, sizeof(float)*NUMX, NUMY),
+	   __FILE__, __LINE__, "malloc pitch");
   
-	  cuda_safe_call
-	    (cudaMemset2D(cuArray[k], pitch, 0, pitch, NUMY),
-	     __FILE__, __LINE__, "memset 2d");
+	cuda_safe_call
+	  (cudaMemset2D(cuArray[k], pitch, 0, pitch, NUMY),
+	   __FILE__, __LINE__, "memset 2d");
 	
-	  // Copy table to flat array
-	  //
-	  for (int j=0; j<NUMY; j++) {
-	    for (int i=0; i<NUMX; i++) {
-	      if (t==0) h_buffer[i+j*NUMX] = potC   [mm][n][i][j];
-	      if (t==1) h_buffer[i+j*NUMX] = rforceC[mm][n][i][j];
-	      if (t==2) h_buffer[i+j*NUMX] = zforceC[mm][n][i][j];
-	      if (t==3) h_buffer[i+j*NUMX] = potS   [mm][n][i][j];
-	      if (t==4) h_buffer[i+j*NUMX] = rforceS[mm][n][i][j];
-	      if (t==5) h_buffer[i+j*NUMX] = zforceS[mm][n][i][j];
-	    }
+	// Copy table to flat array
+	//
+	for (int j=0; j<NUMY; j++) {
+	  for (int i=0; i<NUMX; i++) {
+	    if (t==0) h_buffer[i+j*NUMX] = potC   [mm][n][i][j];
+	    if (t==1) h_buffer[i+j*NUMX] = rforceC[mm][n][i][j];
+	    if (t==2) h_buffer[i+j*NUMX] = zforceC[mm][n][i][j];
+	    if (t==3) h_buffer[i+j*NUMX] = potS   [mm][n][i][j];
+	    if (t==4) h_buffer[i+j*NUMX] = rforceS[mm][n][i][j];
+	    if (t==5) h_buffer[i+j*NUMX] = zforceS[mm][n][i][j];
 	  }
+	}
       
-	  cuda_safe_call
-	    (cudaMemcpy2D(cuArray[k], pitch, &h_buffer[0], sizeof(float)*NUMX, sizeof(float)*NUMX, NUMY, cudaMemcpyHostToDevice),
-	     __FILE__, __LINE__, "memcpy 2d");
-      
-	  memset(&resDesc[k], 0, sizeof(resDesc[k]));
-	  resDesc[k].resType = cudaResourceTypePitch2D;
-	  resDesc[k].res.pitch2D.devPtr = cuArray[k];
-	  resDesc[k].res.pitch2D.pitchInBytes =  pitch;
-	  resDesc[k].res.pitch2D.width = NUMX;
-	  resDesc[k].res.pitch2D.height = NUMY;
-	  resDesc[k].res.pitch2D.desc = cudaCreateChannelDesc<float>();
-	  
-	  cuda_safe_call
-	    (cudaCreateTextureObject(&tex[k], &resDesc[k], &texDesc, NULL),
-	     __FILE__, __LINE__, "2d texture creation");
-	  
-	  k++;
+	cuda_safe_call
+	  (cudaMemcpy2D(cuArray[k], pitch, &h_buffer[0], sizeof(float)*NUMX, sizeof(float)*NUMX, NUMY, cudaMemcpyHostToDevice),
+	   __FILE__, __LINE__, "memcpy 2d");
+	
+	memset(&resDesc[k], 0, sizeof(resDesc[k]));
+	resDesc[k].resType                   = cudaResourceTypePitch2D;
+	resDesc[k].res.pitch2D.devPtr        = cuArray[k];
+	resDesc[k].res.pitch2D.pitchInBytes  =  pitch;
+	resDesc[k].res.pitch2D.width         = NUMX;
+	resDesc[k].res.pitch2D.height        = NUMY;
+	resDesc[k].res.pitch2D.desc          = cudaCreateChannelDesc<float>();
+	
+	cuda_safe_call
+	  (cudaCreateTextureObject(&tex[k], &resDesc[k], &texDesc, NULL),
+	   __FILE__, __LINE__, "2d texture creation");
+	
+	k++;
 
-	} // table loop
-
-      } // cos + sin loop
+      } // table loop
 
     } // radial order loop
 
   } // harmonic subspace loop
 
+
+  assert(k == ndim);
 
   /*
   if (false) {
@@ -135,8 +128,8 @@ cudaMappingConstants EmpCylSL::getCudaMappingConstants()
   ret.numx   = NUMX;
   ret.numy   = NUMY;
   ret.dxi    = dX;
-  ret.dxi    = dY;
+  ret.dyi    = dY;
   ret.cmap   = (CMAP ? 1 : 0);
-  
+
   return ret;
 }

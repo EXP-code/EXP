@@ -80,14 +80,14 @@ protected:
 
   //! CUDA method for coefficient accumulation
 #if HAVE_LIBCUDA==1
-  virtual void determine_coefficients_cuda(const Matrix& expcoef);
+  virtual void determine_coefficients_cuda();
   virtual void determine_acceleration_cuda();
 
   thrust::host_vector<float>  host_coefs;
   thrust::device_vector<float> dev_coefs;
 
-  virtual void HtoD_coefs(const Matrix& coef);
-  virtual void DtoH_coefs(Matrix& coef);
+  virtual void HtoD_coefs();
+  virtual void DtoH_coefs();
 
   std::vector<float*> cuInterpArray;
   thrust::host_vector<cudaTextureObject_t> tex;
@@ -96,7 +96,6 @@ protected:
 
   virtual void initialize_cuda()
   {
-    cudaDeviceReset();
     ortho->initialize_cuda(cuInterpArray, resDesc, texDesc, tex);
   }
 

@@ -548,8 +548,8 @@ public:
     if (m >  MMAX)
       throw std::runtime_error("m>mmax");
 
-    if (n >= NMAX)
-      throw std::runtime_error("n>=nmax");
+    if (n >= rank3)
+      throw std::runtime_error("n>=norder");
 
     if (c == 'c')
       return accum_cos[m][n];

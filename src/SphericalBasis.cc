@@ -238,7 +238,7 @@ void SphericalBasis::setup(void)
 
 #if HAVE_LIBCUDA==1
   bool firstime = true;
-  if (firstime) {
+  if (firstime and myid==0) {
     initialize_cuda();
     initialize_mapping_constants();
     firstime = false;
@@ -268,7 +268,7 @@ SphericalBasis::~SphericalBasis()
   delete nrand;
 
 #if HAVE_LIBCUDA==1
-  destroy_cuda();
+  if (myid==0) destroy_cuda();
 #endif
 }
 
@@ -502,7 +502,9 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
 void SphericalBasis::determine_coefficients(void)
 {
-  auto start0 = std::chrono::high_resolution_clock::now();
+  std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
+
+  start0 = std::chrono::high_resolution_clock::now();
 
   // Return if we should leave the coefficients fixed
   //
@@ -626,14 +628,16 @@ void SphericalBasis::determine_coefficients(void)
   }
 
 #if HAVE_LIBCUDA==1
-  //
-  // CUDA test
-  //
-  cC->ParticlesToCuda();
-  auto start1 = std::chrono::high_resolution_clock::now();
-  determine_coefficients_cuda(expcoef0[0]);
-  auto finish1 = std::chrono::high_resolution_clock::now();
-
+  if (myid==0) {
+    //
+    // CUDA test
+    //
+    cC->ParticlesToCuda();
+    start1 = std::chrono::high_resolution_clock::now();
+    determine_coefficients_cuda(expcoef0[0]);
+    finish1 = std::chrono::high_resolution_clock::now();
+  }
+    
 #endif
 
   for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
@@ -685,18 +689,20 @@ void SphericalBasis::determine_coefficients(void)
 
   print_timings("SphericalBasis: coefficient timings");
 
-  auto finish0 = std::chrono::high_resolution_clock::now();
+  if (myid==0) {
+    auto finish0 = std::chrono::high_resolution_clock::now();
   
-  std::chrono::duration<double> duration0 = finish0 - start0;
-  std::chrono::duration<double> duration1 = finish1 - start1;
+    std::chrono::duration<double> duration0 = finish0 - start0;
+    std::chrono::duration<double> duration1 = finish1 - start1;
 
-  std::cout << std::string(40, '=') << std::endl;
-  std::cout << "== Coefficient evaluation" << std::endl;
-  std::cout << std::string(40, '=') << std::endl;
-  std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
-  std::cout << "Time in GPU: " << duration1.count() << std::endl;
-  std::cout << "CPU to GPU : " << duration0.count()/duration1.count() - 1.0 << std::endl;
-  std::cout << std::string(40, '=') << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "== Coefficient evaluation [SphericalBasis]" << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
+    std::cout << "Time in GPU: " << duration1.count() << std::endl;
+    std::cout << "CPU to GPU : " << duration0.count()/duration1.count() - 1.0 << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+  }
 }
 
 void SphericalBasis::multistep_reset()
@@ -1184,26 +1190,28 @@ void SphericalBasis::determine_acceleration_and_potential(void)
   auto finish0 = std::chrono::high_resolution_clock::now();
 
 #if HAVE_LIBCUDA==1
-  //
-  // CUDA test
-  //
-  HtoD_coefs(expcoef);
-  auto start1 = std::chrono::high_resolution_clock::now();
-  determine_acceleration_cuda();
-  auto finish1 = std::chrono::high_resolution_clock::now();
-
-  std::chrono::duration<double> duration0 = finish0 - start0;
-  std::chrono::duration<double> duration1 = finish1 - start1;
-
-  std::cout << std::string(40, '=') << std::endl;
-  std::cout << "== Force evaluation" << std::endl;
-  std::cout << std::string(40, '=') << std::endl;
-  std::cout << "Time in CPU: " << duration0.count() << std::endl;
-  std::cout << "Time in GPU: " << duration1.count() << std::endl;
-  std::cout << "CPU to GPU : " << duration0.count()/duration1.count() << std::endl;
-  std::cout << std::string(40, '=') << std::endl;
-  
-  host_dev_force_compare();
+  if (myid==0) {
+    //
+    // CUDA test
+    //
+    HtoD_coefs(expcoef);
+    auto start1 = std::chrono::high_resolution_clock::now();
+    determine_acceleration_cuda();
+    auto finish1 = std::chrono::high_resolution_clock::now();
+    
+    std::chrono::duration<double> duration0 = finish0 - start0;
+    std::chrono::duration<double> duration1 = finish1 - start1;
+    
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "== Force evaluation [SphericalBasis]" << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "Time in CPU: " << duration0.count() << std::endl;
+    std::cout << "Time in GPU: " << duration1.count() << std::endl;
+    std::cout << "CPU to GPU : " << duration0.count()/duration1.count() << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+    
+    host_dev_force_compare();
+  }
 #endif
 
 

@@ -3,6 +3,14 @@
 
 #include <cudaReduce.cuH>
 
+// Global symbols for coordinate transformation in SphericalBasis
+//
+__device__ __constant__
+float sphRscale, sphHscale, sphXmin, sphXmax, sphDxi;
+
+__device__ __constant__
+int   sphNumr, sphCmap;
+
 __host__ __device__
 int Ilm(int l, int m)
 {
@@ -98,12 +106,12 @@ void legendre_v2(int lmax, float x, float* p, float* dp)
 __global__
 void testConstants()
 {
-  printf("** Rscale = %f\n", cuRscale);
-  printf("** Xmin   = %f\n", cuXmin);
-  printf("** Xmax   = %f\n", cuXmax);
-  printf("** Dxi    = %f\n", cuDxi);
-  printf("** Numr   = %d\n", cuNumr);
-  printf("** Cmap   = %d\n", cuCmap);
+  printf("** Rscale = %f\n", sphRscale);
+  printf("** Xmin   = %f\n", sphXmin);
+  printf("** Xmax   = %f\n", sphXmax);
+  printf("** Dxi    = %f\n", sphDxi);
+  printf("** Numr   = %d\n", sphNumr);
+  printf("** Cmap   = %d\n", sphCmap);
 }
 
 __device__
@@ -111,9 +119,9 @@ float cu_r_to_xi(float r)
 {
   float ret;
 
-  if (cuCmap==1) {
-    ret = (r/cuRscale-1.0)/(r/cuRscale+1.0);
-  } else if (cuCmap==2) {
+  if (sphCmap==1) {
+    ret = (r/sphRscale-1.0)/(r/sphRscale+1.0);
+  } else if (sphCmap==2) {
     ret = log(r);
   } else {
     ret = r;
@@ -127,9 +135,9 @@ float cu_xi_to_r(float xi)
 {
   float ret;
 
-  if (cuCmap==1) {
-    ret = (1.0+xi)/(1.0 - xi) * cuRscale;
-  } else if (cuCmap==2) {
+  if (sphCmap==1) {
+    ret = (1.0+xi)/(1.0 - xi) * sphRscale;
+  } else if (sphCmap==2) {
     ret = exp(xi);
   } else {
     ret = xi;
@@ -143,9 +151,9 @@ float cu_d_xi_to_r(float xi)
 {
   float ret;
 
-  if (cuCmap==1) {
-    ret = 0.5*(1.0-xi)*(1.0-xi)/cuRscale;
-  } else if (cuCmap==2) {
+  if (sphCmap==1) {
+    ret = 0.5*(1.0-xi)*(1.0-xi)/sphRscale;
+  } else if (sphCmap==2) {
     ret = exp(-xi);
   } else {
     ret = 1.0;
@@ -161,17 +169,23 @@ void SphericalBasis::initialize_mapping_constants()
   
   cudaMappingConstants f = getCudaMappingConstants();
 
-  cuda_safe_call(cudaMemcpyToSymbol(cuRscale, &f.rscale, sizeof(float), size_t(0), cudaMemcpyHostToDevice), __FILE__, __LINE__, "Error copying cuRscale");
+  cuda_safe_call(cudaMemcpyToSymbol(sphRscale, &f.rscale, sizeof(float), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuRscale");
 
-  cuda_safe_call(cudaMemcpyToSymbol(cuXmin, &f.xmin, sizeof(float), size_t(0), cudaMemcpyHostToDevice), __FILE__, __LINE__, "Error copying cuXmin");
+  cuda_safe_call(cudaMemcpyToSymbol(sphXmin,   &f.xmin,   sizeof(float), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuXmin");
 
-  cuda_safe_call(cudaMemcpyToSymbol(cuXmax, &f.xmax, sizeof(float), size_t(0), cudaMemcpyHostToDevice), __FILE__, __LINE__, "Error copying cuXmax");
+  cuda_safe_call(cudaMemcpyToSymbol(sphXmax,   &f.xmax,   sizeof(float), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuXmax");
 
-  cuda_safe_call(cudaMemcpyToSymbol(cuDxi, &f.dxi, sizeof(float), size_t(0), cudaMemcpyHostToDevice), __FILE__, __LINE__, "Error copying cuDxi");
+  cuda_safe_call(cudaMemcpyToSymbol(sphDxi,    &f.dxi,    sizeof(float), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuDxi");
 
-  cuda_safe_call(cudaMemcpyToSymbol(cuNumr, &f.numr, sizeof(int), size_t(0), cudaMemcpyHostToDevice), __FILE__, __LINE__, "Error copying cuNumr");
+  cuda_safe_call(cudaMemcpyToSymbol(sphNumr,   &f.numr,   sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuNumr");
 
-  cuda_safe_call(cudaMemcpyToSymbol(cuCmap, &f.cmap, sizeof(int), size_t(0), cudaMemcpyHostToDevice), __FILE__, __LINE__, "Error copying cuCmap");
+  cuda_safe_call(cudaMemcpyToSymbol(sphCmap,   &f.cmap,   sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuCmap");
 }
 
 __global__
@@ -237,11 +251,11 @@ __global__ void coordKernel
 	if (psiz*(i+1)>Plm._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 
 	float x  = cu_r_to_xi(r);
-	float xi = (x - cuXmin)/cuDxi;
+	float xi = (x - sphXmin)/sphDxi;
 	int indx = floor(xi);
 	
 	if (indx<0) indx = 0;
-	if (indx>cuNumr-2) indx = cuNumr - 2;
+	if (indx>sphNumr-2) indx = sphNumr - 2;
 	  
 	Afac._v[i] = float(indx+1) - xi;
 	if (Afac._v[i]<0.0 or Afac._v[i]>1.0)
@@ -377,12 +391,12 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
       }
 
       float  x = cu_r_to_xi(r);
-      float xi = (x - cuXmin)/cuDxi;
-      float dx = cu_d_xi_to_r(x)/cuDxi;
+      float xi = (x - sphXmin)/sphDxi;
+      float dx = cu_d_xi_to_r(x)/sphDxi;
       int  ind = floor(xi);
       
       if (ind<1) ind = 1;
-      if (ind>cuNumr-2) ind = cuNumr - 2;
+      if (ind>sphNumr-2) ind = sphNumr - 2;
       
       float a = (float)(ind+1) - xi;
       if (a<0.0 or a>1.0) printf("forceKernel: off grid: x=%f\n", xi);
@@ -418,12 +432,12 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
       
 	  if (std::isnan(Plm1)) 
 	    {
-	      printf("Force isnan for Plm(%d, %d) ioff=%d\n", l, m, ioff);
+	      printf("Force isnan for Plm(%d, %d) ioff=%d, costh=%f\n", l, m, ioff, costh);
 	    }
 
 	  if (std::isnan(Plm2)) 
 	    {
-	      printf("Force isnan for Plm2(%d, %d) ioff=%d\n", l, m, ioff);
+	      printf("Force isnan for Plm2(%d, %d) ioff=%d costh=%f\n", l, m, ioff, costh);
 	    }
 	  
 
@@ -533,9 +547,9 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 
       } // END: l loop
 
-      in._v[npart].acc[0] = -(potr*xx/r - pott*xx*zz/(r*r*r));
-      in._v[npart].acc[1] = -(potr*yy/r - pott*yy*zz/(r*r*r));
-      in._v[npart].acc[2] = -(potr*zz/r - pott*RR/(r*r*r));
+      in._v[npart].acc[0] += -(potr*xx/r - pott*xx*zz/(r*r*r));
+      in._v[npart].acc[1] += -(potr*yy/r - pott*yy*zz/(r*r*r));
+      in._v[npart].acc[2] += -(potr*zz/r - pott*RR/(r*r*r));
       if (RR > FSMALL) 
 	{
 	  in._v[npart].acc[0] +=  potp*yy/RR;
@@ -577,22 +591,25 @@ void SphericalBasis::determine_coefficients_cuda(const Matrix& expcoef)
 {
   std::cout << std::scientific;
 
+  int deviceCount = 0;
+  cuda_safe_call(cudaGetDeviceCount(&deviceCount),
+		 __FILE__, __LINE__, "could not get device count");
+
+  cudaDeviceProp deviceProp;
+  cudaGetDeviceProperties(&deviceProp, deviceCount-1);
+
   // Sort particles and get coefficient size
   //
   PII lohi = cC->CudaSortByLevel(mlevel, multistep);
 
+  // Compute grid
+  //
   unsigned int N         = lohi.second - lohi.first;
-  unsigned int stride    = 1;
+  unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
   unsigned int gridSize  = N/BLOCK_SIZE/stride;
 
-  /*
-  if (gridSize>128) {
-    stride = N/BLOCK_SIZE/128 + 1;
-    gridSize = N/BLOCK_SIZE/stride;
-  }
-  */
-
   if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
+
 
   // unsigned int Nthread = gridSize*BLOCK_SIZE;
 
@@ -602,6 +619,7 @@ void SphericalBasis::determine_coefficients_cuda(const Matrix& expcoef)
 	    << "** Block  = " << BLOCK_SIZE << std::endl
 	    << "** Grid   = " << gridSize   << std::endl
 	    << "**" << std::endl;
+
 
   // Create space for coefficient reduction
   //
@@ -625,12 +643,16 @@ void SphericalBasis::determine_coefficients_cuda(const Matrix& expcoef)
 
   // For debugging
   //
-  if (false) {
+  static bool firstime = true;
+
+  if (firstime) {
     testConstants<<<1, 1>>>();
-    
-    static bool firstime = true;
+
+    /*
     testTexture<<<1, 1>>>(toKernel(t_d), nmax);
-    firstime == false;
+
+    firstime = false;
+    */
   }
 
   std::vector<float> coefs((Lmax+1)*(Lmax+1)*nmax);
@@ -650,6 +672,7 @@ void SphericalBasis::determine_coefficients_cuda(const Matrix& expcoef)
 
 				// Compute the coefficient
 				// contribution for each order
+  int osize = nmax*2;		//
   for (int l=0; l<=Lmax; l++) {
     for (int m=0; m<=l; m++) {
       coefKernel<<<gridSize, BLOCK_SIZE>>>
@@ -658,7 +681,7 @@ void SphericalBasis::determine_coefficients_cuda(const Matrix& expcoef)
 	 stride, l, m, Lmax, nmax, lohi);
 
 				// Begin the reduction per grid block
-      int osize = nmax*2;	// 
+      				// 
       reduceSum<float, BLOCK_SIZE><<<gridSize, BLOCK_SIZE, sMemSize>>>
 	(toKernel(dc_coef), toKernel(dN_coef), osize, N);
       
@@ -884,20 +907,22 @@ void SphericalBasis::determine_acceleration_cuda()
 {
   std::cout << std::scientific;
 
-  // Sort particles and do all particles at or above mlevel
+  int deviceCount = 0;
+  cuda_safe_call(cudaGetDeviceCount(&deviceCount),
+		 __FILE__, __LINE__, "could not get device count");
+
+  cudaDeviceProp deviceProp;
+  cudaGetDeviceProperties(&deviceProp, deviceCount-1);
+
+  // Sort particles and get coefficient size
   //
   PII lohi = cC->CudaSortByLevel(mlevel, multistep);
 
+  // Compute grid
+  //
   unsigned int N         = lohi.second - lohi.first;
-  unsigned int stride    = 1;
+  unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
   unsigned int gridSize  = N/BLOCK_SIZE/stride;
-
-  /*
-  if (gridSize>128) {
-    stride = N/BLOCK_SIZE/128 + 1;
-    gridSize = N/BLOCK_SIZE/stride;
-  }
-  */
 
   if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
