@@ -5,11 +5,19 @@ if ENABLE_GPTL
 ADD_CFLAGS4  = -DUSE_GPTL $(gptl_include)
 endif
 
+if ENABLE_CUDA
+ADD_CUDA = cudaParticle.cu cudaSphericalBasis.cu cudaSphere.cu	\
+cudaCylinder.cu cudaEmpOrth.cu cudaComponent.cu
+GENCODE_FLAGS  = -gencode arch=compute_61,code=sm_61
+CUDA_LIBFLAGS  = -lcudart
+NVCC_CXXFLAGS  = $(AM_CPPFLAGS) -I. $(CXXFLAGS) $(GENCODE_FLAGS) $(NVCC_EXTRA)
+endif
+
 AM_CFLAGS   = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) -fopenmp
 AM_FFLAGS   = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) -fopenmp
-AM_CXXFLAGS = -std=c++11 -fPIC -fno-inline-small-functions -Wall	\
-	-D_REENTRANT -Wno-non-virtual-dtor $(ADD_CFLAGS4) -fopenmp
-AM_LDFLAGS  = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil -lgomp
+AM_CXXFLAGS = -std=c++11 -fPIC -fno-inline-small-functions -Wall \
+-D_REENTRANT -Wno-non-virtual-dtor $(ADD_CFLAGS4) -fopenmp
+AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil -lgomp
 
 libdir      = $(prefix)/lib/user
 
@@ -140,7 +148,7 @@ libprofile_la_SOURCES = UserProfile.cc
 
 testCrossSection_SOURCES = testCross.cc phfit2.f
 testCrossSection_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@
-testCrossSection_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ -llapack -lblas 
+testCrossSection_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ -llapack -lblas
 
 testIonRecomb_SOURCES = testIonRecomb.cc phfit2.f
 testIonRecomb_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@
