@@ -342,7 +342,12 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	c->Part(indx)->pot = 0.0;
 	for (int k=0; k<c->dim; k++) c->Part(indx)->acc[k] = 0.0;
       }
+
+#ifdef HAVE_LIBCUDA
+      c->ZeroPotAccel(mlevel);
+#endif
     }
+
     if (timing) {
       timer_zero.stop();
       timer_wait.start();

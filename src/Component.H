@@ -800,6 +800,10 @@ public:
 
   //! Sort the device vector by level and return level boundaries
   std::pair<unsigned, unsigned> CudaSortByLevel(int lo, int hi);
+
+  //! Zero the acceleration
+  void ZeroPotAccel(int mlevel);
+
   //@}
 #endif
 
