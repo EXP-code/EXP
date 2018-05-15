@@ -1,5 +1,9 @@
 #include <Component.H>
 
+// Define for checking cuda_particles: values and counts
+//
+// #define BIG_DEBUG
+
 std::pair<unsigned int, unsigned int>
 Component::CudaSortByLevel(int minlev, int maxlev)
 {
@@ -45,8 +49,6 @@ void Component::CudaSortBySequence()
 
   thrust::sort(pbeg, pend, LessCudaSeq());
 }
-
-// #define BIG_DEBUG
 
 #ifdef BIG_DEBUG
 __global__ void testParticles(cudaParticle* in, int N)
