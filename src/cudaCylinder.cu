@@ -223,7 +223,7 @@ __global__ void coordKernelCyl
       float zz = p.pos[2] - ctr[2];
       
       float r2 = (xx*xx + yy*yy + zz*zz);
-      float r = sqrt(r2) + FSMALL;
+      float r  = sqrt(r2) + FSMALL;
       
       if (i>=mass._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 
@@ -416,6 +416,7 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
   //
   const float rmax2 = rmax*rmax;
 
+  // Centering logic, TBD
   /*
     vector<double> ctr;
     if (mix) mix->getCenter(ctr);
@@ -432,18 +433,18 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
 
       cudaParticle p = in._v[npart];
       
-      float xx = p.pos[0] - ctr[0];
-      float yy = p.pos[1] - ctr[1];
-      float zz = p.pos[2] - ctr[2];
+      float xx  = p.pos[0] - ctr[0];
+      float yy  = p.pos[1] - ctr[1];
+      float zz  = p.pos[2] - ctr[2];
       
-      float phi   = atan2(yy, xx);
-      float R2    = xx*xx + yy*yy + FSMALL;
-      float  R    = sqrt(R2);
+      float phi = atan2(yy, xx);
+      float R2  = xx*xx + yy*yy;
+      float  R  = sqrt(R2) + FSMALL;
       
-      const double ratmin = 0.75;
-      const double maxerf = 3.0;
-      const double midpt  = ratmin + 0.5*(1.0 - ratmin);
-      const double rsmth  = 0.5*(1.0 - ratmin)/maxerf;
+      const float ratmin = 0.75;
+      const float maxerf = 3.0;
+      const float midpt  = ratmin + 0.5*(1.0 - ratmin);
+      const float rsmth  = 0.5*(1.0 - ratmin)/maxerf;
 
       float ratio = sqrt( (R2 + zz*zz)/rmax2 );
       float mfactor = 1.0, frac = 1.0, cfrac = 0.0;
@@ -477,33 +478,33 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
 	if (dely0<0.0 or dely0>1.0) printf("Y off grid: y=%f\n", dely0);
 
 	float delx1 = 1.0 - delx0;
-	float dely1 = 1.0 - delx1;
+	float dely1 = 1.0 - dely0;
       
 	float c00 = delx0*dely0;
 	float c10 = delx1*dely0;
 	float c01 = delx0*dely1;
 	float c11 = delx1*dely1;
 
-	for (int mm=0; mm<=mmax; mm++) {
+	float cos1 = cos(phi);
+	float sin1 = sin(phi);
 
-	  float ccos = cos(phi*mm);
-	  float ssin = sin(phi*mm);
+	float ccos = 1.0;
+	float ssin = 0.0;
+
+	for (int mm=0; mm<=mmax; mm++) {
 
 	  for (int n=0; n<nmax; n++) {
       
-	    // Coefficient index
-	    //
-	    int ic = n;
-	    if (mm) ic +=  (2*mm - 1)*nmax;
-
-	    float fac = coef._v[ic] * ccos;
+	    float fac0 = coef._v[Imn(mm, 'c', n, nmax)];
+	    float fac1 = fac0 * ccos;
+	    float fac2 = fac0 * ssin;
       
 	    // Texture table index
 	    //
 	    int k = 3*n;
 	    if (mm) k = 3*(2*mm - 1)*nmax + 6*n;
 
-	    pp += fac *
+	    pp += fac1 *
 	      (
 	       tex2D<float>(tex._v[k  ], indX,   indY  ) * c00 +
 	       tex2D<float>(tex._v[k  ], indX+1, indY  ) * c10 +
@@ -511,7 +512,7 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
 	       tex2D<float>(tex._v[k  ], indX+1, indY+1) * c11 
 	       );
 	    
-	    fr += fac *
+	    fr += fac1 *
 	      (
 	       tex2D<float>(tex._v[k+1], indX,   indY  ) * c00 +
 	       tex2D<float>(tex._v[k+1], indX+1, indY  ) * c10 +
@@ -519,7 +520,7 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
 	       tex2D<float>(tex._v[k+1], indX+1, indY+1) * c11 
 	       );
       
-	    fz += fac *
+	    fz += fac1 *
 	      (
 	       tex2D<float>(tex._v[k+2], indX,   indY  ) * c00 +
 	       tex2D<float>(tex._v[k+2], indX+1, indY  ) * c10 +
@@ -527,9 +528,7 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
 	       tex2D<float>(tex._v[k+2], indX+1, indY+1) * c11 
 	       );
 	    
-	    fac = coef._v[ic] * ssin;
-	    
-	    fp += fac * mm *
+	    fp += fac2 * mm *
 	      (
 	       tex2D<float>(tex._v[k  ], indX,   indY  ) * c00 +
 	       tex2D<float>(tex._v[k  ], indX+1, indY  ) * c10 +
@@ -540,11 +539,11 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
       
 	    if (mm) {
 	
-	      ic +=  nmax;
+	      float fac0 =  coef._v[Imn(mm, 's', n, nmax)];
+	      float fac1 =  fac0 * ssin;
+	      float fac2 = -fac0 * ccos;
 
-	      fac = coef._v[ic] * ssin;
-	      
-	      pp += fac *
+	      pp += fac1 *
 		(
 		 tex2D<float>(tex._v[k+3], indX,   indY  ) * c00 +
 		 tex2D<float>(tex._v[k+3], indX+1, indY  ) * c10 +
@@ -552,7 +551,7 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
 		 tex2D<float>(tex._v[k+3], indX+1, indY+1) * c11 
 		 );
 	      
-	      fr += fac *
+	      fr += fac1 *
 		(
 		 tex2D<float>(tex._v[k+4], indX,   indY  ) * c00 +
 		 tex2D<float>(tex._v[k+4], indX+1, indY  ) * c10 +
@@ -560,7 +559,7 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
 		 tex2D<float>(tex._v[k+4], indX+1, indY+1) * c11 
 		 );
 	      
-	      fz += fac *
+	      fz += fac1 *
 		(
 		 tex2D<float>(tex._v[k+5], indX,   indY  ) * c00 +
 		 tex2D<float>(tex._v[k+5], indX+1, indY  ) * c10 +
@@ -568,9 +567,7 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
 		 tex2D<float>(tex._v[k+5], indX+1, indY+1) * c11 
 		 );
 	      
-	      fac = -coef._v[ic] * ccos;
-	
-	      fp += fac * mm *
+	      fp += fac2 * mm *
 		(
 		 tex2D<float>(tex._v[k+3], indX,   indY  ) * c00 +
 		 tex2D<float>(tex._v[k+3], indX+1, indY  ) * c10 +
@@ -581,6 +578,13 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
 	    }
 	  }
 	  
+	  // Trig recursion to squeeze avoid internal FP fct call
+	  //
+	  float cosM = ccos;
+	  float sinM = ssin;
+
+	  ccos = cosM * cos1 - sinM * sin1;
+	  ssin = sinM * cos1 + cosM * sin1;
 	}
 
 	in._v[npart].acc[0] += ( fr*xx/R - fp*yy/R2 ) * frac;
@@ -753,7 +757,7 @@ void Cylinder::determine_coefficients_cuda()
 
   // DEBUG
   //
-  if (true) {
+  if (false) {
     std::cout << "M=0 coefficients" << std::endl;
     for (size_t n=0; n<ncylorder; n++) {
       std::cout << std::setw(4)  << n
