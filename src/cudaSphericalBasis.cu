@@ -1,7 +1,11 @@
 #include <Component.H>
 #include <SphericalBasis.H>
-
 #include <cudaReduce.cuH>
+
+// Define for debugging
+//
+// #define OFF_GRID_ALERT
+// #define BOUNDS_CHECK
 
 // Global symbols for coordinate transformation in SphericalBasis
 //
@@ -27,9 +31,11 @@ int Ilmn(int l, int m, char cs, int n, int nmax)
   else if (m==0) ret = l*l*nmax + n;
   else ret = (l*l + 2*m - 1 + (cs=='s' ? 1 : 0))*nmax + n;
 
+#ifdef BOUNDS_CHECK
   if (ret >= (l+1)*(l+1)*nmax) {
     printf("Ilmn oab: %4d %4d %4d [%4d : %4d : %4d]\n", l, m, n, ret, (l+1)*(l+1)*nmax, nmax);
   }
+#endif
 
   return ret;
 }
@@ -221,8 +227,9 @@ __global__ void coordKernel
 
     if (npart < lohi.second) {
 
+#ifdef BOUNDS_CHECK
       if (npart>=in._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-
+#endif
       cudaParticle p = in._v[npart];
     
       float xx = p.pos[0] - ctr[0];
@@ -232,8 +239,9 @@ __global__ void coordKernel
       float r2 = (xx*xx + yy*yy + zz*zz);
       float r = sqrt(r2) + FSMALL;
       
+#ifdef BOUNDS_CHECK
       if (i>=mass._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-
+#endif
       mass._v[i] = -1.0;
       
       if (r<rmax) {
@@ -243,13 +251,15 @@ __global__ void coordKernel
 	float costh = zz/r;
 	phi._v[i] = atan2(yy,xx);
 	
+#ifdef BOUNDS_CHECK
 	if (i>=phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-
+#endif
 	float *plm = &Plm._v[psiz*i];
 	legendre_v(Lmax, costh, plm);
 
+#ifdef BOUNDS_CHECK
 	if (psiz*(i+1)>Plm._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-
+#endif
 	float x  = cu_r_to_xi(r);
 	float xi = (x - sphXmin)/sphDxi;
 	int indx = floor(xi);
@@ -258,12 +268,15 @@ __global__ void coordKernel
 	if (indx>sphNumr-2) indx = sphNumr - 2;
 	  
 	Afac._v[i] = float(indx+1) - xi;
-	if (Afac._v[i]<0.0 or Afac._v[i]>1.0)
-	  printf("off grid: x=%f\n", xi);
+#ifdef OFF_GRID_ALERT
+	if (Afac._v[i]<0.0 or Afac._v[i]>1.0) printf("off grid: x=%f\n", xi);
+#endif
 	Indx._v[i] = indx;
 
+#ifdef BOUNDS_CHECK
 	if (i>=Afac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 	if (i>=Indx._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+#endif
       }
     }
   }
@@ -290,18 +303,22 @@ __global__ void coefKernel
 
       float mass = Mass._v[i];
 
+#ifdef BOUNDS_CHECK
       if (i>=Mass._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+#endif
 
       if (mass>0.0) {
 
+#ifdef BOUNDS_CHECK
 	if (i>=Phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-
+#endif
 	float phi  = Phi._v[i];
 	float cosp = cos(phi*m);
 	float sinp = sin(phi*m);
 	
+#ifdef BOUNDS_CHECK
 	if (psiz*(i+1)>Plm._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-	
+#endif	
 	float *plm = &Plm._v[psiz*i];
 	
 	// Do the interpolation
@@ -310,9 +327,10 @@ __global__ void coefKernel
 	float b = 1.0 - a;
 	int ind = Indx._v[i];
 	
+#ifdef BOUNDS_CHECK
 	if (i>=Afac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 	if (i>=Indx._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-
+#endif
 	for (int n=0; n<nmax; n++) {
 
 	  float p0 =
@@ -321,8 +339,9 @@ __global__ void coefKernel
 
 	  int k = 1 + l*nmax + n;
 
+#ifdef BOUNDS_CHECK
 	  if (k>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-
+#endif
 	  float v = (
 		     a*tex1D<float>(tex._v[k], ind  ) +
 		     b*tex1D<float>(tex._v[k], ind+1)
@@ -332,8 +351,10 @@ __global__ void coefKernel
 	  coef._v[(2*n+0)*N + i] = v * cosp;
 	  coef._v[(2*n+1)*N + i] = v * sinp;
 
+#ifdef BOUNDS_CHECK
 	  if ((2*n+0)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 	  if ((2*n+1)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+#endif
 	}
       }
     }
@@ -360,8 +381,9 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 
     if (npart < lohi.second) {
       
+#ifdef BOUNDS_CHECK
       if (npart>=in._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-
+#endif
       cudaParticle p = in._v[npart];
       
       float xx = p.pos[0] - ctr[0];
@@ -399,7 +421,9 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
       if (ind>sphNumr-2) ind = sphNumr - 2;
       
       float a = (float)(ind+1) - xi;
+#ifdef OFF_GRID_ALERT
       if (a<0.0 or a>1.0) printf("forceKernel: off grid: x=%f\n", xi);
+#endif
       float b = 1.0 - a;
       
       // Do the interpolation for the prefactor potential
@@ -430,6 +454,7 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 	  float Plm1 = plm1[pindx];
 	  float Plm2 = plm2[pindx];
       
+#ifdef BOUNDS_CHECK
 	  if (std::isnan(Plm1)) 
 	    {
 	      printf("Force isnan for Plm(%d, %d) ioff=%d, costh=%f\n", l, m, ioff, costh);
@@ -439,7 +464,7 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 	    {
 	      printf("Force isnan for Plm2(%d, %d) ioff=%d costh=%f\n", l, m, ioff, costh);
 	    }
-	  
+#endif	  
 
 	  float pp_c = 0.0;
 	  float dp_c = 0.0;
@@ -456,8 +481,9 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 	
 	    int k = 1 + l*nmax + n;
 	
+#ifdef BOUNDS_CHECK
 	    if (k>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-	
+#endif	
 	    float um1 = tex1D<float>(tex._v[k], ind-1);
 	    float u00 = tex1D<float>(tex._v[k], ind  );
 	    float up1 = tex1D<float>(tex._v[k], ind+1);
@@ -484,10 +510,9 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 	    if (ioff) {
 	      pp_c *= pow(rmax/r0, (float)(l+1));
 	      dp_c  = -pp_c/r0 * (float)(l+1);
-	      if (std::isnan(pp_c)) 
-		{
-		  printf("Force nan: l=%d, r=%f\n", l, r);
-		}
+#ifdef BOUNDS_CHECK
+	      if (std::isnan(pp_c)) printf("Force nan: l=%d, r=%f\n", l, r);
+#endif
 	    }
 	    
 	    potl += fac1 * pp_c * Plm1;
@@ -508,25 +533,12 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 	      dp_c = pp_c * facdp;
 	      dp_s = pp_s * facdp;
 
-	      if (std::isnan(pp_c)) 
-		{
-		  printf("Force nan: c l=%d, m=%d, r=%f\n", l, m, r);
-		}
-
-	      if (std::isnan(dp_s)) 
-		{
-		  printf("Force nan: s l=%d, m=%d, r=%f\n", l, m, r);
-		}
-
-	      if (std::isnan(dp_c)) 
-		{
-		  printf("Force nan: dc l=%d, m=%d, r=%f\n", l, m, r);
-		}
-
-	      if (std::isnan(pp_s)) 
-		{
-		  printf("Force nan: ds l=%d, m=%d, r=%f\n", l, m, r);
-		}
+#ifdef BOUNDS_CHECK
+	      if (std::isnan(pp_c)) printf("Force nan: c l=%d, m=%d, r=%f\n", l, m, r);
+	      if (std::isnan(dp_s)) printf("Force nan: s l=%d, m=%d, r=%f\n", l, m, r);
+	      if (std::isnan(dp_c)) printf("Force nan: dc l=%d, m=%d, r=%f\n", l, m, r);
+	      if (std::isnan(pp_s)) printf("Force nan: ds l=%d, m=%d, r=%f\n", l, m, r);
+#endif
 	    }
 
 	    // Factorials
@@ -557,6 +569,7 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 	}
       in._v[npart].pot    = potl;
 
+#ifdef BOUNDS_CHECK
       // Sanity check
       bool bad = false;
       for (int k=0; k<3; k++) {
@@ -578,7 +591,7 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 		 in._v[npart].indx, xx, yy, zz, r, RR, ioff);
 	  */
 	}
-      
+#endif
 
     } // Particle index block
 

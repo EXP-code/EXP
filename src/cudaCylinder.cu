@@ -1,7 +1,11 @@
 #include <Component.H>
 #include <Cylinder.H>
-
 #include <cudaReduce.cuH>
+
+// Define for debugging
+//
+// #define OFF_GRID_ALERT
+// #define BOUNDS_CHECK
 
 // Global symbols for coordinate transformation
 //
@@ -19,11 +23,12 @@ int Imn(int m, char cs, int n, int nmax)
   if (m==0) ret = n;
   else ret = (2*m - 1 + (cs=='s' ? 1 : 0))*nmax + n;
 
+#ifdef BOUNDS_CHECK
   // Verbose sanity check
   if (ret >= (2*m+1)*nmax) {
     printf("Imn oab: %4d %4d %4d [%4d : %4d ]\n", m, n, ret, (2*m+1)*nmax, nmax);
   }
-
+#endif
   return ret;
 }
 
@@ -214,8 +219,9 @@ __global__ void coordKernelCyl
 
     if (npart < lohi.second) {
 
+#ifdef BOUNDS_CHECK
       if (npart>=in._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-
+#endif
       cudaParticle p = in._v[npart];
     
       float xx = p.pos[0] - ctr[0];
@@ -224,9 +230,9 @@ __global__ void coordKernelCyl
       
       float r2 = (xx*xx + yy*yy + zz*zz);
       float r  = sqrt(r2) + FSMALL;
-      
+#ifdef BOUNDS_CHECK
       if (i>=mass._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-
+#endif
       mass._v[i] = -1.0;
       
       if (r<rmax) {
@@ -235,8 +241,9 @@ __global__ void coordKernelCyl
 	
 	phi._v[i] = atan2(yy, xx);
 
+#ifdef BOUNDS_CHECK
 	if (i>=phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-
+#endif
 	// Interpolation indices
 	//
 	float X  = (cu_r_to_xi_cyl(r) - cylXmin)/cylDxi;
@@ -257,13 +264,16 @@ __global__ void coordKernelCyl
 	Yfac._v[i] = float(indY+1) - Y;
 	IndY._v[i] = indY;
 
+#ifdef OFF_GRID_ALERT
 	if (Xfac._v[i]<-0.5 or Xfac._v[i]>1.5) printf("X off grid: x=%f\n", X);
 	if (Yfac._v[i]<-0.5 or Yfac._v[i]>1.5) printf("Y off grid: y=%f\n", Y);
-
+#endif
+#ifdef BOUNDS_CHECK
 	if (i>=Xfac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 	if (i>=IndX._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 	if (i>=Yfac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 	if (i>=IndY._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+#endif
       }
     }
   }
@@ -295,12 +305,13 @@ __global__ void coefKernelCyl
 
       float mass = Mass._v[i];
       
+#ifdef BOUNDS_CHECK
       if (i>=Mass._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-      
+#endif      
       if (mass>0.0) {
-
+#ifdef BOUNDS_CHECK
 	if (i>=Phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-
+#endif
 	float phi  = Phi._v[i];
 	float cosp = cos(phi*m);
 	float sinp = sin(phi*m);
@@ -312,9 +323,10 @@ __global__ void coefKernelCyl
 	float delx1 = 1.0 - delx0;
 	float dely1 = 1.0 - dely0;
 
+#ifdef BOUNDS_CHECK
 	if (i>=Xfac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 	if (i>=Yfac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-
+#endif
 	float c00 = delx0*dely0;
 	float c10 = delx1*dely0;
 	float c01 = delx0*dely1;
@@ -323,9 +335,10 @@ __global__ void coefKernelCyl
 	int indx = indX._v[i];
 	int indy = indY._v[i];
 
+#ifdef BOUNDS_CHECK
 	if (i>=indX._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 	if (i>=indY._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-
+#endif
 	for (int n=0; n<nmax; n++) {
 
 	  // Texture maps are packed sequentially as
@@ -345,8 +358,9 @@ __global__ void coefKernelCyl
 
 	    int k = 3*n;	// Indices: 0, 3, 6, ... (3*nmax-3) which pulls out potC
 
+#ifdef BOUNDS_CHECK
 	    if (n>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-
+#endif
 	    // Fetch the values from the texture
 
 	    const float d00  = tex2D<float>(tex._v[k], indx,   indy  );
@@ -354,12 +368,14 @@ __global__ void coefKernelCyl
 	    const float d01  = tex2D<float>(tex._v[k], indx,   indy+1);
 	    const float d11  = tex2D<float>(tex._v[k], indx+1, indy+1);
 
+#ifdef BOUNDS_CHECK
 	    if (k>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-
+#endif
 	    coef._v[(2*n+0)*N + i] = (c00*d00 + c10*d10 + c01*d01 + c11*d11) * norm * mass;
 	    
+#ifdef BOUNDS_CHECK
 	    if ((2*n+0)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-
+#endif
 	  } else {
 
 	    // Pulls out potC tables at indices
@@ -375,8 +391,9 @@ __global__ void coefKernelCyl
 	    const float d01  = tex2D<float>(tex._v[k  ], indx,   indy+1);
 	    const float d11  = tex2D<float>(tex._v[k  ], indx+1, indy+1);
 
+#ifdef BOUNDS_CHECK
 	    if (k>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-
+#endif
 	    // potS tables are offset from potC tables by +3
 	    //
 	    const float e00  = tex2D<float>(tex._v[k+3], indx,   indy  );
@@ -384,13 +401,16 @@ __global__ void coefKernelCyl
 	    const float e01  = tex2D<float>(tex._v[k+3], indx,   indy+1);
 	    const float e11  = tex2D<float>(tex._v[k+3], indx+1, indy+1);
 
+#ifdef BOUNDS_CHECK
 	    if (k+1>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-
+#endif
 	    coef._v[(2*n+0)*N + i] = (c00*d00 + c10*d10 + c01*d01 + c11*d11) * cosp * norm * mass;
 	    coef._v[(2*n+1)*N + i] = (c00*e00 + c10*e10 + c01*e01 + c11*e11) * sinp * norm * mass;
 
+#ifdef BOUNDS_CHECK
 	    if ((2*n+0)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 	    if ((2*n+1)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+#endif
 	  }
 
 	} // norder loop
@@ -429,8 +449,9 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
 
     if (npart < lohi.second) {
       
+#ifdef BOUNDS_CHECK
       if (npart>=in._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-
+#endif
       cudaParticle p = in._v[npart];
       
       float xx  = p.pos[0] - ctr[0];
@@ -474,8 +495,10 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
 	float delx0 = float(indX+1) - X;
 	float dely0 = float(indY+1) - Y;
 
+#ifdef OFF_GRID_ALERT
 	if (delx0<0.0 or delx0>1.0) printf("X off grid: x=%f\n", delx0);
 	if (dely0<0.0 or dely0>1.0) printf("Y off grid: y=%f\n", dely0);
+#endif
 
 	float delx1 = 1.0 - delx0;
 	float dely1 = 1.0 - dely0;
