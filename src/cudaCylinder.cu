@@ -181,7 +181,7 @@ void testTextureCyl(dArray<cudaTextureObject_t> tex, int nmax)
   for (int k=0; k<10; k++) {
     for (int i : {0, 1, 126, 127}) 
       for (int j : {0, 1, 126, 127}) 
-	printf("%5d %5d %5d %13.7e\n", k, i, j, tex2D<float>(tex._v[j], i, j));
+	printf("%5d %5d %5d %13.7e\n", k, i, j, tex3D<float>(tex._v[j], i, j, 0));
   }
 }
 
@@ -356,17 +356,15 @@ __global__ void coefKernelCyl
 	  //
 	  if (m==0) {
 
-	    int k = 3*n;	// Indices: 0, 3, 6, ... (3*nmax-3) which pulls out potC
-
 #ifdef BOUNDS_CHECK
 	    if (n>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
 	    // Fetch the values from the texture
 
-	    const float d00  = tex2D<float>(tex._v[k], indx,   indy  );
-	    const float d10  = tex2D<float>(tex._v[k], indx+1, indy  );
-	    const float d01  = tex2D<float>(tex._v[k], indx,   indy+1);
-	    const float d11  = tex2D<float>(tex._v[k], indx+1, indy+1);
+	    const float d00  = tex3D<float>(tex._v[n], indx,   indy  , 0);
+	    const float d10  = tex3D<float>(tex._v[n], indx+1, indy  , 0);
+	    const float d01  = tex3D<float>(tex._v[n], indx,   indy+1, 0);
+	    const float d11  = tex3D<float>(tex._v[n], indx+1, indy+1, 0);
 
 #ifdef BOUNDS_CHECK
 	    if (k>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
@@ -378,28 +376,22 @@ __global__ void coefKernelCyl
 #endif
 	  } else {
 
-	    // Pulls out potC tables at indices
-	    // --------------------------------
-	    // For m=1, indicies:  3*nmax,  3*nmax+6,  3+nmax+12, ... ,  9*nmax - 6
-	    // For m=2, indicies:  9*nmax,  9*nmax+6,  9*nmax+12, ... , 15*nmax - 6
-	    // For m=3, indicies: 15*nmax, 15*nmax+6, 15*nmax+12, ... , 21*nmax - 6
-	    // ...
-	    int k = 3*(2*m - 1)*nmax + 6*n; 
+	    int k = m*nmax + n;
 
-	    const float d00  = tex2D<float>(tex._v[k  ], indx,   indy  );
-	    const float d10  = tex2D<float>(tex._v[k  ], indx+1, indy  );
-	    const float d01  = tex2D<float>(tex._v[k  ], indx,   indy+1);
-	    const float d11  = tex2D<float>(tex._v[k  ], indx+1, indy+1);
+	    const float d00  = tex3D<float>(tex._v[k  ], indx,   indy  , 0);
+	    const float d10  = tex3D<float>(tex._v[k  ], indx+1, indy  , 0);
+	    const float d01  = tex3D<float>(tex._v[k  ], indx,   indy+1, 0);
+	    const float d11  = tex3D<float>(tex._v[k  ], indx+1, indy+1, 0);
 
 #ifdef BOUNDS_CHECK
 	    if (k>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
 	    // potS tables are offset from potC tables by +3
 	    //
-	    const float e00  = tex2D<float>(tex._v[k+3], indx,   indy  );
-	    const float e10  = tex2D<float>(tex._v[k+3], indx+1, indy  );
-	    const float e01  = tex2D<float>(tex._v[k+3], indx,   indy+1);
-	    const float e11  = tex2D<float>(tex._v[k+3], indx+1, indy+1);
+	    const float e00  = tex3D<float>(tex._v[k+3], indx,   indy  , 3);
+	    const float e10  = tex3D<float>(tex._v[k+3], indx+1, indy  , 3);
+	    const float e01  = tex3D<float>(tex._v[k+3], indx,   indy+1, 3);
+	    const float e11  = tex3D<float>(tex._v[k+3], indx+1, indy+1, 3);
 
 #ifdef BOUNDS_CHECK
 	    if (k+1>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
@@ -524,39 +516,38 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
       
 	    // Texture table index
 	    //
-	    int k = 3*n;
-	    if (mm) k = 3*(2*mm - 1)*nmax + 6*n;
+	    int k = mm*nmax + n;
 
 	    pp += fac1 *
 	      (
-	       tex2D<float>(tex._v[k  ], indX,   indY  ) * c00 +
-	       tex2D<float>(tex._v[k  ], indX+1, indY  ) * c10 +
-	       tex2D<float>(tex._v[k  ], indX,   indY+1) * c01 +
-	       tex2D<float>(tex._v[k  ], indX+1, indY+1) * c11 
+	       tex3D<float>(tex._v[k], indX,   indY  , 0) * c00 +
+	       tex3D<float>(tex._v[k], indX+1, indY  , 0) * c10 +
+	       tex3D<float>(tex._v[k], indX,   indY+1, 0) * c01 +
+	       tex3D<float>(tex._v[k], indX+1, indY+1, 0) * c11 
 	       );
 	    
 	    fr += fac1 *
 	      (
-	       tex2D<float>(tex._v[k+1], indX,   indY  ) * c00 +
-	       tex2D<float>(tex._v[k+1], indX+1, indY  ) * c10 +
-	       tex2D<float>(tex._v[k+1], indX,   indY+1) * c01 +
-	       tex2D<float>(tex._v[k+1], indX+1, indY+1) * c11 
+	       tex3D<float>(tex._v[k], indX,   indY  , 1) * c00 +
+	       tex3D<float>(tex._v[k], indX+1, indY  , 1) * c10 +
+	       tex3D<float>(tex._v[k], indX,   indY+1, 1) * c01 +
+	       tex3D<float>(tex._v[k], indX+1, indY+1, 1) * c11 
 	       );
       
 	    fz += fac1 *
 	      (
-	       tex2D<float>(tex._v[k+2], indX,   indY  ) * c00 +
-	       tex2D<float>(tex._v[k+2], indX+1, indY  ) * c10 +
-	       tex2D<float>(tex._v[k+2], indX,   indY+1) * c01 +
-	       tex2D<float>(tex._v[k+2], indX+1, indY+1) * c11 
+	       tex3D<float>(tex._v[k], indX,   indY  , 2) * c00 +
+	       tex3D<float>(tex._v[k], indX+1, indY  , 2) * c10 +
+	       tex3D<float>(tex._v[k], indX,   indY+1, 2) * c01 +
+	       tex3D<float>(tex._v[k], indX+1, indY+1, 2) * c11 
 	       );
 	    
 	    fp += fac2 * mm *
 	      (
-	       tex2D<float>(tex._v[k  ], indX,   indY  ) * c00 +
-	       tex2D<float>(tex._v[k  ], indX+1, indY  ) * c10 +
-	       tex2D<float>(tex._v[k  ], indX,   indY+1) * c01 +
-	       tex2D<float>(tex._v[k  ], indX+1, indY+1) * c11 
+	       tex3D<float>(tex._v[k], indX,   indY  , 0) * c00 +
+	       tex3D<float>(tex._v[k], indX+1, indY  , 0) * c10 +
+	       tex3D<float>(tex._v[k], indX,   indY+1, 0) * c01 +
+	       tex3D<float>(tex._v[k], indX+1, indY+1, 0) * c11 
 	       );
       
       
@@ -568,34 +559,34 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
 
 	      pp += fac1 *
 		(
-		 tex2D<float>(tex._v[k+3], indX,   indY  ) * c00 +
-		 tex2D<float>(tex._v[k+3], indX+1, indY  ) * c10 +
-		 tex2D<float>(tex._v[k+3], indX,   indY+1) * c01 +
-		 tex2D<float>(tex._v[k+3], indX+1, indY+1) * c11 
+		 tex3D<float>(tex._v[k], indX,   indY  , 3) * c00 +
+		 tex3D<float>(tex._v[k], indX+1, indY  , 3) * c10 +
+		 tex3D<float>(tex._v[k], indX,   indY+1, 3) * c01 +
+		 tex3D<float>(tex._v[k], indX+1, indY+1, 3) * c11 
 		 );
 	      
 	      fr += fac1 *
 		(
-		 tex2D<float>(tex._v[k+4], indX,   indY  ) * c00 +
-		 tex2D<float>(tex._v[k+4], indX+1, indY  ) * c10 +
-		 tex2D<float>(tex._v[k+4], indX,   indY+1) * c01 +
-		 tex2D<float>(tex._v[k+4], indX+1, indY+1) * c11 
+		 tex3D<float>(tex._v[k], indX,   indY  , 4) * c00 +
+		 tex3D<float>(tex._v[k], indX+1, indY  , 4) * c10 +
+		 tex3D<float>(tex._v[k], indX,   indY+1, 4) * c01 +
+		 tex3D<float>(tex._v[k], indX+1, indY+1, 4) * c11 
 		 );
 	      
 	      fz += fac1 *
 		(
-		 tex2D<float>(tex._v[k+5], indX,   indY  ) * c00 +
-		 tex2D<float>(tex._v[k+5], indX+1, indY  ) * c10 +
-		 tex2D<float>(tex._v[k+5], indX,   indY+1) * c01 +
-		 tex2D<float>(tex._v[k+5], indX+1, indY+1) * c11 
+		 tex3D<float>(tex._v[k], indX,   indY  , 5) * c00 +
+		 tex3D<float>(tex._v[k], indX+1, indY  , 5) * c10 +
+		 tex3D<float>(tex._v[k], indX,   indY+1, 5) * c01 +
+		 tex3D<float>(tex._v[k], indX+1, indY+1, 5) * c11 
 		 );
 	      
 	      fp += fac2 * mm *
 		(
-		 tex2D<float>(tex._v[k+3], indX,   indY  ) * c00 +
-		 tex2D<float>(tex._v[k+3], indX+1, indY  ) * c10 +
-		 tex2D<float>(tex._v[k+3], indX,   indY+1) * c01 +
-		 tex2D<float>(tex._v[k+3], indX+1, indY+1) * c11 
+		 tex3D<float>(tex._v[k], indX,   indY  , 3) * c00 +
+		 tex3D<float>(tex._v[k], indX+1, indY  , 3) * c10 +
+		 tex3D<float>(tex._v[k], indX,   indY+1, 3) * c01 +
+		 tex3D<float>(tex._v[k], indX+1, indY+1, 3) * c11 
 		 );
 	      
 	    }

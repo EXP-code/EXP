@@ -538,9 +538,7 @@ public:
 #if HAVE_LIBCUDA==1
   cudaMappingConstants getCudaMappingConstants();
 
-  void initialize_cuda(std::vector<float*>& cuArray,
-		       std::vector<cudaResourceDesc>& resDesc,
-		       struct cudaTextureDesc& texDesc,
+  void initialize_cuda(std::vector<cudaArray_t>& cuArray,
 		       thrust::host_vector<cudaTextureObject_t>& tex);
 
   double& get_coef(int m, int n, char c)

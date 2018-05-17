@@ -89,14 +89,12 @@ protected:
   virtual void HtoD_coefs();
   virtual void DtoH_coefs();
 
-  std::vector<float*> cuInterpArray;
+  std::vector<cudaArray_t> cuInterpArray;
   thrust::host_vector<cudaTextureObject_t> tex;
-  std::vector<cudaResourceDesc> resDesc;
-  struct cudaTextureDesc texDesc;
 
   virtual void initialize_cuda()
   {
-    ortho->initialize_cuda(cuInterpArray, resDesc, texDesc, tex);
+    ortho->initialize_cuda(cuInterpArray, tex);
   }
 
   virtual cudaMappingConstants getCudaMappingConstants()
