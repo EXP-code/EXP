@@ -40,7 +40,7 @@ void EmpCylSL::initialize_cuda
   //
   float *d_Interp;
   cuda_safe_call(cudaMalloc((void **)&d_Interp, NUMX*NUMY*6*sizeof(float)),
-		 __FILE__, __LINE__,o
+		 __FILE__, __LINE__,
 		 "Error allocating d_Interp for texture construction");
   
   std::vector<float> h_buffer(NUMX*NUMY*6, 0.0);
