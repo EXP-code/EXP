@@ -78,7 +78,7 @@ void EmpCylSL::initialize_cuda
 	memset(&resDesc[k], 0, sizeof(resDesc[k]));
 	resDesc[k].resType                   = cudaResourceTypePitch2D;
 	resDesc[k].res.pitch2D.devPtr        = cuArray[k];
-	resDesc[k].res.pitch2D.pitchInBytes  =  pitch;
+	resDesc[k].res.pitch2D.pitchInBytes  = pitch;
 	resDesc[k].res.pitch2D.width         = NUMX;
 	resDesc[k].res.pitch2D.height        = NUMY;
 	resDesc[k].res.pitch2D.desc          = cudaCreateChannelDesc<float>();
