@@ -226,6 +226,12 @@ extern char processor_name[];
 //! Internally defined slave communicator
 extern MPI_Comm MPI_COMM_SLAVE;
 
+//! List of host names and ranks
+extern std::map<std::string, std::vector<int> > nameMap;
+
+//! List of sibling ranks
+extern std::vector<int> siblingList;
+
 /** @name Coefficient header on each output dump */
 //@{
 //! Header type 1

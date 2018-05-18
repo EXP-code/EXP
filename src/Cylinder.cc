@@ -327,6 +327,15 @@ void Cylinder::initialize()
     if (atoi(val.c_str())) cmap = true; 
     else cmap = false;
   }
+
+#if HAVE_LIBCUDA==1
+  bool firstime = true;
+  if (firstime and cC->cudaDevice>=0) {
+    initialize_cuda();
+    initialize_mapping_constants();
+    firstime = false;
+  }
+#endif
 }
 
 void Cylinder::get_acceleration_and_potential(Component* C)
@@ -412,14 +421,14 @@ void Cylinder::get_acceleration_and_potential(Component* C)
 
 #else
   determine_acceleration_and_potential();
-  auto finish0 = std::chrono::high_resolution_clock::now();
+  finish0 = std::chrono::high_resolution_clock::now();
 #endif
 
   MPL_stop_timer();
 
 
 #if HAVE_LIBCUDA
-  if (myid==0) {
+  if (cC->cudaDevice>=0) {
     finish0 = std::chrono::high_resolution_clock::now();
     
     std::chrono::duration<double> duration0 = finish0 - start0;
@@ -674,7 +683,7 @@ void Cylinder::determine_coefficients(void)
     pcainit = false;
   }
 
-  auto start0 = std::chrono::high_resolution_clock::now();
+  start0 = std::chrono::high_resolution_clock::now();
 
   if (multistep==0)
     ortho->setup_accumulation();
@@ -716,7 +725,7 @@ void Cylinder::determine_coefficients(void)
     cC->ParticlesToCuda();
     HtoD_coefs();
     determine_coefficients_cuda();
-    auto finish1 = std::chrono::high_resolution_clock::now();
+    finish1 = std::chrono::high_resolution_clock::now();
   } else {    
     exp_thread_fork(true);
   }
@@ -760,19 +769,10 @@ void Cylinder::determine_coefficients(void)
 
   print_timings("Cylinder: coefficient timings");
 
-  auto finish0 = std::chrono::high_resolution_clock::now();
+  finish0 = std::chrono::high_resolution_clock::now();
   
 #if HAVE_LIBCUDA==1
-  if (myid==0) {
-    //
-    // CUDA test
-    //
-    cC->ParticlesToCuda();
-    HtoD_coefs();
-    auto start1 = std::chrono::high_resolution_clock::now();
-    determine_coefficients_cuda();
-    auto finish1 = std::chrono::high_resolution_clock::now();
-    
+  if (cC->cudaDevice>=0) {
     std::chrono::duration<double> duration0 = finish0 - start0;
     std::chrono::duration<double> duration1 = finish1 - start1;
     
@@ -785,7 +785,6 @@ void Cylinder::determine_coefficients(void)
     std::cout << std::string(60, '=') << std::endl;
   }
 #endif
-
 
 }
 

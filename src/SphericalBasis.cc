@@ -244,7 +244,7 @@ void SphericalBasis::setup(void)
 
 #if HAVE_LIBCUDA==1
   bool firstime = true;
-  if (firstime and myid==0) {
+  if (firstime and cC->cudaDevice>=0) {
     initialize_cuda();
     initialize_mapping_constants();
     firstime = false;
@@ -274,7 +274,7 @@ SphericalBasis::~SphericalBasis()
   delete nrand;
 
 #if HAVE_LIBCUDA==1
-  if (myid==0) destroy_cuda();
+  if (cC->cudaDevice>=0) destroy_cuda();
 #endif
 }
 
@@ -694,7 +694,7 @@ void SphericalBasis::determine_coefficients(void)
   print_timings("SphericalBasis: coefficient timings");
 
 # if HAVE_LIBCUDA
-  if (myid==0) {
+  if (cC->cudaDevice>=0) {
     auto finish0 = std::chrono::high_resolution_clock::now();
   
     std::chrono::duration<double> duration0 = finish0 - start0;
@@ -1187,66 +1187,54 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
 void SphericalBasis::determine_acceleration_and_potential(void)
 {
-  std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
-  
 #ifdef DEBUG
   cout << "Process " << myid << ": in determine_acceleration_and_potential\n";
 #endif
 
 #if HAVE_LIBCUDA==1
   if (cC->cudaDevice>=0) {
-    start1 = std::chrono::high_resolution_clock::now();
+    auto start = std::chrono::high_resolution_clock::now();
+
     cC->ParticlesToCuda();
     HtoD_coefs(expcoef);
     determine_acceleration_cuda();
     cC->CudaToParticles();
-    finish1 = std::chrono::high_resolution_clock::now();
 
-  std::chrono::duration<double> duration = finish - start;
+    auto finish = std::chrono::high_resolution_clock::now();
 
-  std::cout << std::string(60, '=') << std::endl;
-  std::cout << "== Force evaluation [SphericalBasis CUDA]" << std::endl;
-  std::cout << "Time: " << duration.count() << std::endl;
-  std::cout << std::string(60, '=') << std::endl;
+    std::chrono::duration<double> duration = finish - start;
+
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "== Force evaluation [SphericalBasis CUDA]" << std::endl;
+    std::cout << "Time: " << duration.count() << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+  } else {
+    auto start = std::chrono::high_resolution_clock::now();
+
+    exp_thread_fork(false);
+
+    auto finish = std::chrono::high_resolution_clock::now();
+
+    std::chrono::duration<double> duration = finish - start;
+
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "== Force evaluation [SphericalBasis CPU]" << std::endl;
+    std::cout << "Time: " << duration.count() << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+  }
 #else
   auto start = std::chrono::high_resolution_clock::now();
+
   exp_thread_fork(false);
+
   auto finish = std::chrono::high_resolution_clock::now();
+    
+  std::chrono::duration<double> duration = finish - start;
 
   std::cout << std::string(60, '=') << std::endl;
   std::cout << "== Force evaluation [SphericalBasis CPU]" << std::endl;
   std::cout << "Time: " << duration.count() << std::endl;
   std::cout << std::string(60, '=') << std::endl;
-=======
-  if (myid==0) {
-    cC->ParticlesToCuda();
-    HtoD_coefs(expcoef);
-    start1  = std::chrono::high_resolution_clock::now();
-    determine_acceleration_cuda();
-    finish1 = std::chrono::high_resolution_clock::now();
-  }
-#endif
-
-  start0  = std::chrono::high_resolution_clock::now();
-  exp_thread_fork(false);
-  finish0 = std::chrono::high_resolution_clock::now();
-
-#if HAVE_LIBCUDA==1
-  if (myid==0) {
-    std::chrono::duration<double> duration0 = finish0 - start0;
-    std::chrono::duration<double> duration1 = finish1 - start1;
-    
-    std::cout << std::string(60, '=') << std::endl;
-    std::cout << "== Force evaluation [SphericalBasis]" << std::endl;
-    std::cout << std::string(60, '=') << std::endl;
-    std::cout << "Time in CPU: " << duration0.count() << std::endl;
-    std::cout << "Time in GPU: " << duration1.count() << std::endl;
-    std::cout << "CPU to GPU : " << duration0.count()/duration1.count() << std::endl;
-    std::cout << std::string(60, '=') << std::endl;
-    
-    host_dev_force_compare();
-  }
->>>>>>> 563d0f7f12c1fcf524196552abbd5786e0f50aae
 #endif
 
 #ifdef DEBUG

@@ -93,6 +93,13 @@ char processor_name[MPI_MAX_PROCESSOR_NAME];
 
 MPI_Comm MPI_COMM_SLAVE;
 
+				// List of host names and ranks
+std::map<std::string, std::vector<int> > nameMap;
+
+				// List of sibling ranks
+std::vector<int> siblingList;
+
+
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 

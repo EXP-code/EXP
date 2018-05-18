@@ -206,8 +206,44 @@ void make_node_list(int argc, char **argv)
   MPI_Type_create_struct(1, &ityp, &kdsp, &ktyp, &MPI_EXP_KEYTYPE);
   MPI_Type_commit(&MPI_EXP_KEYTYPE);
 
+  // Generate node list for this node
+
+  int  *total_ranks = new int  [sizeof(int) * numprocs];
+  char *total_names = new char [MPI_MAX_PROCESSOR_NAME * numprocs];
+
+  MPI_Allgather(&myid, 1, MPI_INT, total_ranks, 1, MPI_INT,
+		MPI_COMM_WORLD);
+
+  MPI_Allgather(processor_name, MPI_MAX_PROCESSOR_NAME, MPI_CHAR,
+
+		total_names, MPI_MAX_PROCESSOR_NAME, MPI_CHAR,
+		MPI_COMM_WORLD);
+
+  for (int i=0; i<numprocs; i++) {
+    char tmp[MPI_MAX_PROCESSOR_NAME];
+    strncpy(tmp, &total_names[MPI_MAX_PROCESSOR_NAME*i], MPI_MAX_PROCESSOR_NAME);
+    nameMap[std::string(tmp)].push_back(total_ranks[i]);
+  }
+
+  for (auto & v : nameMap) {
+    std::sort(v.second.begin(), v.second.end());
+  }
+
+  siblingList = nameMap[std::string(processor_name)];
+
+  delete [] total_names;
+  delete [] total_ranks;
+
   delete [] procn;
   delete [] cmdnm;
+}
+
+std::map<std::string, std::vector<int> >
+generateNodeList()
+{
+  
+
+  return nameMap;
 }
 
 
