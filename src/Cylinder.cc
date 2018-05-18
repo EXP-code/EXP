@@ -327,15 +327,6 @@ void Cylinder::initialize()
     if (atoi(val.c_str())) cmap = true; 
     else cmap = false;
   }
-
-#if HAVE_LIBCUDA==1
-  bool firstime = true;
-  if (firstime and cC->cudaDevice>=0) {
-    initialize_cuda();
-    initialize_mapping_constants();
-    firstime = false;
-  }
-#endif
 }
 
 void Cylinder::get_acceleration_and_potential(Component* C)
@@ -418,10 +409,8 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   } else {
     determine_acceleration_and_potential();
   }
-
 #else
   determine_acceleration_and_potential();
-  finish0 = std::chrono::high_resolution_clock::now();
 #endif
 
   MPL_stop_timer();
@@ -430,7 +419,7 @@ void Cylinder::get_acceleration_and_potential(Component* C)
 #if HAVE_LIBCUDA
   if (cC->cudaDevice>=0) {
     finish0 = std::chrono::high_resolution_clock::now();
-    
+
     std::chrono::duration<double> duration0 = finish0 - start0;
     std::chrono::duration<double> duration1 = finish1 - start1;
     

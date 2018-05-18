@@ -1148,7 +1148,7 @@ void SphericalBasis::host_dev_force_compare()
 	    << std::setw(14) << "az [d]" << std::setw(14) << "ax [h]"
 	    << std::setw(14) << "ay [h]" << std::setw(14) << "az [h]"
 	    << std::setw(14) << "|Del a|/|a|"
-	    << std::setw(14) << "Radius"  << std::endl;
+	    << std::setw(14) << "|a|"    << std::endl;
 
   // Compare first and last 5 from the device list
   //
@@ -1165,10 +1165,6 @@ void SphericalBasis::host_dev_force_compare()
       for (int k=0; k<3; k++)
 	std::cout << std::setw(14) << cC->Particles()[indx].acc[k];
 
-      double r = 0.0;
-      for (int k=0; k<3; k++)
-	r += cC->Particles()[indx].pos[k] * cC->Particles()[indx].pos[k];
-
       double diff = 0.0, norm = 0.0;
       for (int k=0; k<3; k++) {
 	double b  = cC->host_particles[i].acc[k];
@@ -1177,12 +1173,12 @@ void SphericalBasis::host_dev_force_compare()
 	norm += a*a;
       }
       std::cout << std::setw(14) << sqrt(diff/norm)
-		<< std::setw(14) << sqrt(r) << std::endl;
+		<< std::setw(14) << sqrt(norm) << std::endl;
     }
   
   for (size_t j=0; j<5; j++) 
     {
-      size_t i = cC->host_particles.size() - 6 + j;
+      size_t i = cC->host_particles.size() - 5 + j;
 
       auto indx = cC->host_particles[i].indx;
       auto levl = cC->host_particles[i].level;
@@ -1195,10 +1191,6 @@ void SphericalBasis::host_dev_force_compare()
       for (int k=0; k<3; k++)
 	std::cout << std::setw(14) << cC->Particles()[indx].acc[k];
 
-      double r = 0.0;
-      for (int k=0; k<3; k++)
-	r += cC->Particles()[indx].pos[k] * cC->Particles()[indx].pos[k];
-
       double diff = 0.0, norm = 0.0;
       for (int k=0; k<3; k++) {
 	double b  = cC->host_particles[i].acc[k];
@@ -1207,11 +1199,9 @@ void SphericalBasis::host_dev_force_compare()
 	norm += a*a;
       }
       std::cout << std::setw(14) << sqrt(diff/norm)
-		<< std::setw(14) << sqrt(r) << std::endl;
+		<< std::setw(14) << sqrt(norm) << std::endl;
     }
 
   std::cout << std::string(16+14*8, '-') << std::endl;
   std::cout.precision(ss);
 }
-
-    
