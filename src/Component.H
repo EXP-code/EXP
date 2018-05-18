@@ -295,6 +295,10 @@ protected:
     std::sort (keys.begin(), keys.end());
   }
 
+#if HAVE_LIBCUDA==1
+  int cudaDevice;
+#endif
+
 public:
 
   //! Describe the phase space coordinates
