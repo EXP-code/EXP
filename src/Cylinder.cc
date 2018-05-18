@@ -50,6 +50,12 @@ double dcond(double R, double z, double phi, int M)
 
 Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
 {
+#if HAVE_LIBCUDA==1
+  if (m) {
+    throw std::runtime_error("Error in Cylinder: MixtureBasis logic is not yet implemented in CUDA");
+  }
+#endif
+
   id          = "Cylinder";
   geometry    = cylinder;
   mix         = m;

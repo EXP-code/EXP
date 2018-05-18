@@ -14,6 +14,12 @@ static pthread_mutex_t io_lock;
 SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) : 
   AxisymmetricBasis(line)
 {
+#if HAVE_LIBCUDA==1
+  if (m) {
+    throw std::runtime_error("Error in SphericalBasis: MixtureBasis logic is not yet implemented in CUDA");
+  }
+#endif
+
   dof              = 3;
   mix              = m;
   geometry         = sphere;
@@ -1194,6 +1200,7 @@ void SphericalBasis::determine_acceleration_and_potential(void)
     //
     // CUDA test
     //
+    cC->ParticlesToCuda();
     HtoD_coefs(expcoef);
     auto start1 = std::chrono::high_resolution_clock::now();
     determine_acceleration_cuda();

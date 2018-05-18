@@ -10,7 +10,7 @@
 // Global symbols for coordinate transformation in SphericalBasis
 //
 __device__ __constant__
-float sphRscale, sphHscale, sphXmin, sphXmax, sphDxi;
+float sphScale, sphRscale, sphHscale, sphXmin, sphXmax, sphDxi, sphCen[3];
 
 __device__ __constant__
 int   sphNumr, sphCmap;
@@ -112,6 +112,7 @@ void legendre_v2(int lmax, float x, float* p, float* dp)
 __global__
 void testConstants()
 {
+  printf("** Scale  = %f\n", sphScale);
   printf("** Rscale = %f\n", sphRscale);
   printf("** Xmin   = %f\n", sphXmin);
   printf("** Xmax   = %f\n", sphXmax);
@@ -174,24 +175,28 @@ void SphericalBasis::initialize_mapping_constants()
   //
   
   cudaMappingConstants f = getCudaMappingConstants();
+  float z;
+
+  cuda_safe_call(cudaMemcpyToSymbol(sphScale, &(z=scale), sizeof(float), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying sphScale");
 
   cuda_safe_call(cudaMemcpyToSymbol(sphRscale, &f.rscale, sizeof(float), size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cuRscale");
+		 __FILE__, __LINE__, "Error copying sphRscale");
 
   cuda_safe_call(cudaMemcpyToSymbol(sphXmin,   &f.xmin,   sizeof(float), size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cuXmin");
+		 __FILE__, __LINE__, "Error copying sphXmin");
 
   cuda_safe_call(cudaMemcpyToSymbol(sphXmax,   &f.xmax,   sizeof(float), size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cuXmax");
+		 __FILE__, __LINE__, "Error copying sphXmax");
 
   cuda_safe_call(cudaMemcpyToSymbol(sphDxi,    &f.dxi,    sizeof(float), size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cuDxi");
+		 __FILE__, __LINE__, "Error copying sphDxi");
 
   cuda_safe_call(cudaMemcpyToSymbol(sphNumr,   &f.numr,   sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cuNumr");
+		 __FILE__, __LINE__, "Error copying sphuNumr");
 
   cuda_safe_call(cudaMemcpyToSymbol(sphCmap,   &f.cmap,   sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cuCmap");
+		 __FILE__, __LINE__, "Error copying sphCmap");
 }
 
 __global__
@@ -215,12 +220,6 @@ __global__ void coordKernel
   const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
   const int psiz  = (Lmax+1)*(Lmax+2)/2;
 
-  /*
-    vector<double> ctr;
-    if (mix) mix->getCenter(ctr);
-  */
-  float ctr[3] {0.0f, 0.0f, 0.0f};
-
   for (int n=0; n<stride; n++) {
     int i = tid*stride + n;
     int npart = i + lohi.first;
@@ -232,9 +231,9 @@ __global__ void coordKernel
 #endif
       cudaParticle p = in._v[npart];
     
-      float xx = p.pos[0] - ctr[0];
-      float yy = p.pos[1] - ctr[1];
-      float zz = p.pos[2] - ctr[2];
+      float xx = p.pos[0] - sphCen[0];
+      float yy = p.pos[1] - sphCen[1];
+      float zz = p.pos[2] - sphCen[2];
       
       float r2 = (xx*xx + yy*yy + zz*zz);
       float r = sqrt(r2) + FSMALL;
@@ -402,17 +401,17 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
       legendre_v2(Lmax, costh, plm1, plm2);
 
       int ioff = 0;
-      // float rs = 0.0;
-      float r0;
+      float rs = r/sphScale;
+      float r0 = 0.0;
 
       if (r>rmax) {
 	ioff = 1;
 	r0   = r;
 	r    = rmax;
-	// rs = r/cuRscale;
+	rs   = r/sphScale;
       }
 
-      float  x = cu_r_to_xi(r);
+      float  x = cu_r_to_xi(rs);
       float xi = (x - sphXmin)/sphDxi;
       float dx = cu_d_xi_to_r(x)/sphDxi;
       int  ind = floor(xi);
@@ -600,6 +599,17 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 }
 
 
+template<typename T>
+class LessAbs : public std::binary_function<bool, T, T>
+{
+public:
+  T operator()( const T &a, const T &b ) const
+  {
+    return (fabs(a) < fabs(b));
+  }
+};
+
+
 void SphericalBasis::determine_coefficients_cuda(const Matrix& expcoef)
 {
   std::cout << std::scientific;
@@ -626,11 +636,21 @@ void SphericalBasis::determine_coefficients_cuda(const Matrix& expcoef)
 
   // unsigned int Nthread = gridSize*BLOCK_SIZE;
 
+  std::vector<float> ctr;
+  for (auto v : cC->getCenter(Component::Local | Component::Centered)) ctr.push_back(v);
+
+  cuda_safe_call(cudaMemcpyToSymbol(sphCen, &ctr[0], sizeof(float)*3,
+				    size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying sphCen");
+
   std::cout << "**" << std::endl
 	    << "** N      = " << N          << std::endl
 	    << "** Stride = " << stride     << std::endl
 	    << "** Block  = " << BLOCK_SIZE << std::endl
 	    << "** Grid   = " << gridSize   << std::endl
+	    << "** Xcen   = " << ctr[0]     << std::endl
+	    << "** Ycen   = " << ctr[1]     << std::endl
+	    << "** Zcen   = " << ctr[2]     << std::endl
 	    << "**" << std::endl;
 
 
@@ -717,68 +737,136 @@ void SphericalBasis::determine_coefficients_cuda(const Matrix& expcoef)
 
   // DEBUG
   //
-  if (false) {
+  if (true) {
+    std::cout << std::string(4+4*16, '-') << std::endl
+	      << "---- Spherical"         << std::endl
+	      << std::string(4+4*16, '-') << std::endl;
     std::cout << "L=M=0 coefficients" << std::endl;
+
+    std::cout << std::setw(4)  << "n"
+	      << std::setw(16) << "GPU"
+	      << std::setw(16) << "CPU"
+	      << std::setw(16) << "diff"
+	      << std::setw(16) << "rel diff"
+	      << std::endl;
+
+    int i = Ilmn(0, 0, 'c', 0, nmax);
+    auto cmax = std::max_element(coefs.begin()+i, coefs.begin()+i+nmax, LessAbs<float>());
+
     for (size_t n=0; n<nmax; n++) {
+      double a = coefs[Ilmn(0, 0, 'c', n, nmax)];
+      double b = expcoef[0][n+1];
       std::cout << std::setw(4)  << n
-		<< std::setw(16) << coefs[Ilmn(0, 0, 'c', n, nmax)]
-		<< std::setw(16) << expcoef[0][n+1]
+		<< std::setw(16) << a
+		<< std::setw(16) << b
+		<< std::setw(16) << a - b
+		<< std::setw(16) << (a - b)/fabs(*cmax)
 		<< std::endl;
     }
 
     std::cout << "L=1, M=0 coefficients" << std::endl;
+
+    i = Ilmn(1, 0, 'c', 0, nmax);
+    cmax = std::max_element(coefs.begin()+i, coefs.begin()+i+nmax, LessAbs<float>());
+
     for (size_t n=0; n<nmax; n++) {
+      double a = coefs[Ilmn(1, 0, 'c', n, nmax)];
+      double b = expcoef[1][n+1];
       std::cout << std::setw(4)  << n
-		<< std::setw(16) << coefs[Ilmn(1, 0, 'c', n, nmax)]
-		<< std::setw(16) << expcoef[1][n+1]
+		<< std::setw(16) << a
+		<< std::setw(16) << b
+		<< std::setw(16) << a - b
+		<< std::setw(16) << (a - b)/fabs(*cmax)
 		<< std::endl;
     }
 
     std::cout << "L=1, M=1c coefficients" << std::endl;
+
+    i = Ilmn(1, 1, 'c', 0, nmax);
+    cmax = std::max_element(coefs.begin()+i, coefs.begin()+i+nmax, LessAbs<float>());
+
     for (size_t n=0; n<nmax; n++) {
+      double a = coefs[Ilmn(1, 1, 'c', n, nmax)];
+      double b = expcoef[2][n+1];
       std::cout << std::setw(4)  << n
-		<< std::setw(16) << coefs[Ilmn(1, 1, 'c', n, nmax)]
-		<< std::setw(16) << expcoef[2][n+1]
+		<< std::setw(16) << a
+		<< std::setw(16) << b
+		<< std::setw(16) << a - b
+		<< std::setw(16) << (a - b)/fabs(*cmax)
 		<< std::endl;
     }
 
     std::cout << "L=1, M=1s coefficients" << std::endl;
+
+    i = Ilmn(1, 1, 's', 0, nmax);
+    cmax = std::max_element(coefs.begin()+i, coefs.begin()+i+nmax, LessAbs<float>());
+
     for (size_t n=0; n<nmax; n++) {
+      double a = coefs[Ilmn(1, 1, 's', n, nmax)];
+      double b = expcoef[3][n+1];
       std::cout << std::setw(4)  << n
-		<< std::setw(16) << coefs[Ilmn(1, 1, 's', n, nmax)]
-		<< std::setw(16) << expcoef[3][n+1]
+		<< std::setw(16) << a
+		<< std::setw(16) << b
+		<< std::setw(16) << a - b
+		<< std::setw(16) << (a - b)/fabs(*cmax)
 		<< std::endl;
     }
     
     std::cout << "L=2, M=0 coefficients" << std::endl;
+
+    i = Ilmn(2, 0, 'c', 0, nmax);
+    cmax = std::max_element(coefs.begin()+i, coefs.begin()+i+nmax, LessAbs<float>());
+
     for (size_t n=0; n<nmax; n++) {
+      double a = coefs[Ilmn(2, 0, 'c', n, nmax)];
+      double b = expcoef[4][n+1];
       std::cout << std::setw(4)  << n
-		<< std::setw(16) << coefs[Ilmn(2, 0, 'c', n, nmax)]
-		<< std::setw(16) << expcoef[4][n+1]
+		<< std::setw(16) << a
+		<< std::setw(16) << b
+		<< std::setw(16) << a - b
+		<< std::setw(16) << (a - b)/fabs(*cmax)
 		<< std::endl;
     }
 
     std::cout << "L=2, M=1c coefficients" << std::endl;
+
+    i = Ilmn(2, 2, 'c', 0, nmax);
+    cmax = std::max_element(coefs.begin()+i, coefs.begin()+i+nmax, LessAbs<float>());
+
     for (size_t n=0; n<nmax; n++) {
+      double a = coefs[Ilmn(2, 1, 'c', n, nmax)];
+      double b = expcoef[5][n+1];
       std::cout << std::setw(4)  << n
-		<< std::setw(16) << coefs[Ilmn(2, 1, 'c', n, nmax)]
-		<< std::setw(16) << expcoef[5][n+1]
+		<< std::setw(16) << a
+		<< std::setw(16) << b
+		<< std::setw(16) << a - b
+		<< std::setw(16) << (a - b)/fabs(*cmax)
 		<< std::endl;
     }
 
     std::cout << "L=2, M=1s coefficients" << std::endl;
+
+    i = Ilmn(2, 2, 's', 0, nmax);
+    cmax = std::max_element(coefs.begin()+i, coefs.begin()+i+nmax, LessAbs<float>());
+
     for (size_t n=0; n<nmax; n++) {
+      double a = coefs[Ilmn(2, 1, 's', n, nmax)];
+      double b = expcoef[6][n+1];
       std::cout << std::setw(4)  << n
-		<< std::setw(16) << coefs[Ilmn(2, 1, 's', n, nmax)]
-		<< std::setw(16) << expcoef[6][n+1]
+		<< std::setw(16) << a
+		<< std::setw(16) << b
+		<< std::setw(16) << a - b
+		<< std::setw(16) << (a - b)/fabs(*cmax)
 		<< std::endl;
     }
+
+    std::cout << std::string(4+4*16, '-') << std::endl;
   }
 
   //
   // TEST comparison of coefficients for debugging
   //
-  if (false) {
+  if (true) {
 
     struct Element
     {
@@ -941,11 +1029,21 @@ void SphericalBasis::determine_acceleration_cuda()
 
   unsigned int Nthread = gridSize*BLOCK_SIZE;
 
+  std::vector<float> ctr;
+  for (auto v : cC->getCenter(Component::Local | Component::Centered)) ctr.push_back(v);
+
+  cuda_safe_call(cudaMemcpyToSymbol(sphCen, &ctr[0], sizeof(float)*3,
+				    size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying sphCen");
+
   std::cout << "**" << std::endl
 	    << "** N      = " << N          << std::endl
 	    << "** Stride = " << stride     << std::endl
 	    << "** Block  = " << BLOCK_SIZE << std::endl
 	    << "** Grid   = " << gridSize   << std::endl
+	    << "** Xcen   = " << ctr[0]     << std::endl
+	    << "** Ycen   = " << ctr[1]     << std::endl
+	    << "** Zcen   = " << ctr[2]     << std::endl
 	    << "**" << std::endl;
 
   // Texture objects
@@ -1049,12 +1147,13 @@ void SphericalBasis::host_dev_force_compare()
   std::streamsize ss = std::cout.precision();
   std::cout.precision(4);
 
-  std::cout << std::string(16+14*7, '-') << std::endl
+  std::cout << std::string(16+14*8, '-') << std::endl
 	    << std::setw(8)  << "Index"  << std::setw(8)  << "Level"
 	    << std::setw(14) << "ax [d]" << std::setw(14) << "ay [d]"
 	    << std::setw(14) << "az [d]" << std::setw(14) << "ax [h]"
 	    << std::setw(14) << "ay [h]" << std::setw(14) << "az [h]"
-	    << std::setw(14) << "|Del a|/|a|"  << std::endl;
+	    << std::setw(14) << "|Del a|/|a|"
+	    << std::setw(14) << "Radius"  << std::endl;
 
   // Compare first and last 5 from the device list
   //
@@ -1071,6 +1170,10 @@ void SphericalBasis::host_dev_force_compare()
       for (int k=0; k<3; k++)
 	std::cout << std::setw(14) << cC->Particles()[indx].acc[k];
 
+      double r = 0.0;
+      for (int k=0; k<3; k++)
+	r += cC->Particles()[indx].pos[k] * cC->Particles()[indx].pos[k];
+
       double diff = 0.0, norm = 0.0;
       for (int k=0; k<3; k++) {
 	double b  = cC->host_particles[i].acc[k];
@@ -1078,7 +1181,8 @@ void SphericalBasis::host_dev_force_compare()
 	diff += (a - b)*(a - b);
 	norm += a*a;
       }
-      std::cout << std::setw(14) << sqrt(diff/norm) << std::endl;
+      std::cout << std::setw(14) << sqrt(diff/norm)
+		<< std::setw(14) << sqrt(r) << std::endl;
     }
   
   for (size_t j=0; j<5; j++) 
@@ -1096,6 +1200,10 @@ void SphericalBasis::host_dev_force_compare()
       for (int k=0; k<3; k++)
 	std::cout << std::setw(14) << cC->Particles()[indx].acc[k];
 
+      double r = 0.0;
+      for (int k=0; k<3; k++)
+	r += cC->Particles()[indx].pos[k] * cC->Particles()[indx].pos[k];
+
       double diff = 0.0, norm = 0.0;
       for (int k=0; k<3; k++) {
 	double b  = cC->host_particles[i].acc[k];
@@ -1103,10 +1211,11 @@ void SphericalBasis::host_dev_force_compare()
 	diff += (a - b)*(a - b);
 	norm += a*a;
       }
-      std::cout << std::setw(14) << sqrt(diff/norm) << std::endl;
+      std::cout << std::setw(14) << sqrt(diff/norm)
+		<< std::setw(14) << sqrt(r) << std::endl;
     }
 
-  std::cout << std::string(16+14*7, '-') << std::endl;
+  std::cout << std::string(16+14*8, '-') << std::endl;
   std::cout.precision(ss);
 }
 

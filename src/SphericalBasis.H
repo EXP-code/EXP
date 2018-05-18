@@ -113,7 +113,7 @@ protected:
   {
     cudaMappingConstants ret;
 
-    ret.rscale = scale;
+    ret.rscale = 1.0;
     ret.hscale = 0.0;
     ret.xmin   = 0.0;
     ret.xmax   = 1.0;
