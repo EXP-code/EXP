@@ -56,7 +56,7 @@ private:
   virtual void initialize_cuda()
   {
     cudaDeviceReset();
-    ortho->initialize_cuda(channelDesc, cuInterpArray, resDesc, texDesc, tex);
+    ortho->initialize_cuda(cuInterpArray, tex);
   }
 
   virtual cudaMappingConstants getCudaMappingConstants()

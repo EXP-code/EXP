@@ -102,11 +102,8 @@ protected:
   virtual void HtoD_coefs(const Matrix& coef);
   virtual void DtoH_coefs(Matrix& coef);
 
-  cudaChannelFormatDesc channelDesc;
   std::vector<cudaArray_t> cuInterpArray;
   thrust::host_vector<cudaTextureObject_t> tex;
-  std::vector<cudaResourceDesc> resDesc;
-  struct cudaTextureDesc texDesc;
 
   virtual void initialize_cuda() {}
 
@@ -116,7 +113,7 @@ protected:
   {
     cudaMappingConstants ret;
 
-    ret.rscale = scale;
+    ret.rscale = 1.0;
     ret.hscale = 0.0;
     ret.xmin   = 0.0;
     ret.xmax   = 1.0;

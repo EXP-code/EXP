@@ -63,6 +63,7 @@
 #include <values.h>
 #include <pthread.h>
 
+#include <stdexcept>
 #include <cstdlib>
 #include <cmath>
 #include <cstring>

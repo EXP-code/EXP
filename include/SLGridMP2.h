@@ -229,12 +229,8 @@ public:
   */
 
 #if HAVE_LIBCUDA==1
-  void initialize_cuda(cudaChannelFormatDesc& channelDesc,
-		       std::vector<cudaArray*>& cuArray,
-		       std::vector<cudaResourceDesc>& resDesc,
-		       struct cudaTextureDesc& texDesc,
-		       thrust::host_vector<cudaTextureObject_t>& tex
-		       );
+  void initialize_cuda(std::vector<cudaArray_t>& cuArray,
+		       thrust::host_vector<cudaTextureObject_t>& tex);
 
   virtual cudaMappingConstants getCudaMappingConstants()
   {

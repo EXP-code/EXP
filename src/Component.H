@@ -561,7 +561,8 @@ public:
   }
 
   //! Access to positions
-  inline double Pos(int i, int j, unsigned flags=Inertial) {
+  inline double Pos(int i, int j, unsigned flags=Inertial)
+  {
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
@@ -575,6 +576,24 @@ public:
     }
     if (flags & Centered) val -= center[j];
     return val;
+  }
+
+  //! Get rectified component center
+  std::vector<double> getCenter(unsigned flags=Inertial)
+  {
+    std::vector<double> ret(3, 0.0);
+    for (int j=0; j<3; j++) {
+      if (com_system) {
+	if (flags & Local)
+	  ret[j] += comI[j];
+	else if (flags & Inertial) 
+	  ret[j] -= com0[j] - comI[j];
+
+	if (flags & Centered) ret[j] += center[j];
+      }
+    }
+
+    return ret;
   }
 
   //! Access to velocities
