@@ -1094,8 +1094,9 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
       potl = potr = pott = potp = 0.0;
       
+      get_dpotl(Lmax, nmax, rs, potd[id], dpot[id], id);
+
       if (!NO_L0) {
-	get_dpotl(Lmax, nmax, rs, potd[id], dpot[id], id);
 	get_pot_coefs_safe(0, expcoef[0], &p, &dp, potd[id], dpot[id]);
 	if (ioff) {
 	  p *= rmax/r0;
@@ -1187,25 +1188,28 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
 void SphericalBasis::determine_acceleration_and_potential(void)
 {
+  std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
+  
 #ifdef DEBUG
   cout << "Process " << myid << ": in determine_acceleration_and_potential\n";
 #endif
 
-  auto start0 = std::chrono::high_resolution_clock::now();
+#if HAVE_LIBCUDA==1
+  if (myid==0) {
+    cC->ParticlesToCuda();
+    HtoD_coefs(expcoef);
+    start1  = std::chrono::high_resolution_clock::now();
+    determine_acceleration_cuda();
+    finish1 = std::chrono::high_resolution_clock::now();
+  }
+#endif
+
+  start0  = std::chrono::high_resolution_clock::now();
   exp_thread_fork(false);
-  auto finish0 = std::chrono::high_resolution_clock::now();
+  finish0 = std::chrono::high_resolution_clock::now();
 
 #if HAVE_LIBCUDA==1
   if (myid==0) {
-    //
-    // CUDA test
-    //
-    cC->ParticlesToCuda();
-    HtoD_coefs(expcoef);
-    auto start1 = std::chrono::high_resolution_clock::now();
-    determine_acceleration_cuda();
-    auto finish1 = std::chrono::high_resolution_clock::now();
-    
     std::chrono::duration<double> duration0 = finish0 - start0;
     std::chrono::duration<double> duration1 = finish1 - start1;
     
@@ -1220,7 +1224,6 @@ void SphericalBasis::determine_acceleration_and_potential(void)
     host_dev_force_compare();
   }
 #endif
-
 
 #ifdef DEBUG
   cout << "SphericalBasis: process " << myid << " returned from fork" << endl;
