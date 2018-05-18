@@ -325,6 +325,10 @@ void Cylinder::initialize()
 
 void Cylinder::get_acceleration_and_potential(Component* C)
 {
+  std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
+
+  start0 = std::chrono::high_resolution_clock::now();
+
 #ifdef DEBUG
   cout << "Process " << myid 
        << ": in Cylinder::get_acceleration_and_potential" << endl;
@@ -388,24 +392,29 @@ void Cylinder::get_acceleration_and_potential(Component* C)
 
   MPL_start_timer();
 
-  auto start0 = std::chrono::high_resolution_clock::now();
+#if HAVE_LIBCUDA==1
+  if (cC->cudaDevice>=0) {
+    start1 = std::chrono::high_resolution_clock::now();
+    cC->ParticlesToCuda();
+    HtoD_coefs();
+    determine_acceleration_cuda();
+    cC->CudaToParticles();
+    finish1 = std::chrono::high_resolution_clock::now();
+  } else {
+    determine_acceleration_and_potential();
+  }
 
+#else
   determine_acceleration_and_potential();
-
   auto finish0 = std::chrono::high_resolution_clock::now();
+#endif
 
   MPL_stop_timer();
 
 
-#if HAVE_LIBCUDA==1
+#if HAVE_LIBCUDA
   if (myid==0) {
-    //
-    // CUDA test
-    //
-    HtoD_coefs();
-    auto start1 = std::chrono::high_resolution_clock::now();
-    determine_acceleration_cuda();
-    auto finish1 = std::chrono::high_resolution_clock::now();
+    finish0 = std::chrono::high_resolution_clock::now();
     
     std::chrono::duration<double> duration0 = finish0 - start0;
     std::chrono::duration<double> duration1 = finish1 - start1;
@@ -415,10 +424,7 @@ void Cylinder::get_acceleration_and_potential(Component* C)
     std::cout << std::string(60, '=') << std::endl;
     std::cout << "Time in CPU: " << duration0.count() << std::endl;
     std::cout << "Time in GPU: " << duration1.count() << std::endl;
-    std::cout << "CPU to GPU : " << duration0.count()/duration1.count() << std::endl;
     std::cout << std::string(60, '=') << std::endl;
-    
-    host_dev_force_compare();
   }
 #endif
 
@@ -622,6 +628,8 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 
 void Cylinder::determine_coefficients(void)
 {
+  std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
+
   static char routine[] = "determine_coefficients_Cylinder";
 
   if (!self_consistent && !initializing) return;
@@ -696,9 +704,20 @@ void Cylinder::determine_coefficients(void)
   if (myid==0) cout << endl;
 #endif
 
+#if HAVE_LIBCUDA==1
+  if (cC->cudaDevice>=0) {
+    start1 = std::chrono::high_resolution_clock::now();
+    cC->ParticlesToCuda();
+    HtoD_coefs();
+    determine_coefficients_cuda();
+    auto finish1 = std::chrono::high_resolution_clock::now();
+  } else {    
+    exp_thread_fork(true);
+  }
+#else
 				// Threaded coefficient accumulation loop
   exp_thread_fork(true);
-
+#endif
 				// Accumulate counts and mass used to
 				// determine coefficients
   int use0=0, use1=0;

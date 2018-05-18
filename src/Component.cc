@@ -844,6 +844,27 @@ void Component::initialize(void)
     cout << endl << endl;
   }
   
+#if HAVE_LIBCUDA==1
+  int deviceCount = 0;
+  cudaError_t error_id = cudaGetDeviceCount(&deviceCount);
+
+  cudaDevice = -1;
+
+  // Query and assign my CUDA device
+  //
+  if (deviceCount>0) {
+
+    int myCount = 0, curCount = 0; // Get my local rank in sibling
+    for (auto v : siblingList) {   // processes
+      if (myid==v) myCount = curCount++;
+    }
+
+    if (myCount < deviceCount) cudaDevice = myCount;
+    if (cudaDevice>=0) cudaSetDevice(cudaDevice);
+  }
+
+#endif
+
 }
 
 
