@@ -74,7 +74,7 @@ void legendre_v2(int lmax, float x, float* p, float* dp)
   float fact, somx2, pll, pl1, pl2;
   int m, l;
 
-  p[0] = pll = 1.0f;
+  p[0] = pll = 1.0;
   if (lmax > 0) {
     somx2 = sqrt( (1.0 - x)*(1.0 + x) );
     fact = 1.0;
@@ -368,12 +368,6 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
   const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
   const int psiz  = (Lmax+1)*(Lmax+2)/2;
 
-  /*
-    vector<double> ctr;
-    if (mix) mix->getCenter(ctr);
-  */
-  float ctr[3] {0.0f, 0.0f, 0.0f};
-
   for (int n=0; n<stride; n++) {
     int i     = tid*stride + n;	// Index in the stride
     int npart = i + lohi.first;	// Particle index
@@ -385,9 +379,9 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 #endif
       cudaParticle p = in._v[npart];
       
-      float xx = p.pos[0] - ctr[0];
-      float yy = p.pos[1] - ctr[1];
-      float zz = p.pos[2] - ctr[2];
+      float xx = p.pos[0] - sphCen[0];
+      float yy = p.pos[1] - sphCen[1];
+      float zz = p.pos[2] - sphCen[2];
       
       float r2 = (xx*xx + yy*yy + zz*zz);
       float r  = sqrt(r2) + FSMALL;
@@ -543,8 +537,9 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 	    // Factorials
 	    //
 	    float numf = 1.0, denf = 1.0;
-	    for (int i=1; i<=l-m; i++) numf *= i;
-	    for (int i=1; i<=l+m; i++) denf *= i;
+	    for (int i=2; i<=l+m; i++) {
+	      if (i<=l-m) numf *= i; denf *= i;
+	    }
 	    
 	    float fac2 = 2.0 * numf/denf * fac1;
 	    
@@ -566,7 +561,7 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 	  in._v[npart].acc[0] +=  potp*yy/RR;
 	  in._v[npart].acc[1] += -potp*xx/RR;
 	}
-      in._v[npart].pot    = potl;
+      in._v[npart].pot += potl;
 
 #ifdef BOUNDS_CHECK
       // Sanity check
