@@ -593,6 +593,7 @@ public:
   }
 };
 
+static bool initialize_cuda_cyl = true;
 
 void Cylinder::determine_coefficients_cuda()
 {
@@ -602,11 +603,10 @@ void Cylinder::determine_coefficients_cuda()
   std::cout << " **" << std::endl;
   */
 
-  static bool cuda_firstime = true;
-  if (cuda_firstime and myid==0) {
+  if (initialize_cuda_cyl) {
     initialize_cuda();
     initialize_mapping_constants();
-    cuda_firstime = false;
+    initialize_cuda_cyl = false;
   }
 
   /*
@@ -983,6 +983,12 @@ void Cylinder::determine_coefficients_cuda()
 
 void Cylinder::determine_acceleration_cuda()
 {
+  if (initialize_cuda_cyl) {
+    initialize_cuda();
+    initialize_mapping_constants();
+    initialize_cuda_cyl = false;
+  }
+
   std::cout << std::scientific;
 
   int deviceCount = 0;

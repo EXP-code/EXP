@@ -93,7 +93,7 @@ protected:
 
   //! CUDA method for coefficient accumulation
 #if HAVE_LIBCUDA==1
-  virtual void determine_coefficients_cuda(Matrix& expcoef);
+  virtual void determine_coefficients_cuda();
   virtual void determine_acceleration_cuda();
 
   thrust::host_vector<float> host_coefs;

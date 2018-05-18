@@ -295,10 +295,6 @@ protected:
     std::sort (keys.begin(), keys.end());
   }
 
-#if HAVE_LIBCUDA==1
-  int cudaDevice;
-#endif
-
 public:
 
   //! Describe the phase space coordinates
@@ -805,6 +801,9 @@ public:
 #if HAVE_LIBCUDA==1
   //@{
   //! CUDA utilities for handling host <===> device exchange
+
+  //! Index of the device to use (-1 means ignore)
+  int cudaDevice;
 
   //! The cuda particles in CPU node memory
   thrust::host_vector  <cudaParticle> host_particles;

@@ -241,15 +241,6 @@ void SphericalBasis::setup(void)
   }
 
   if (NOISE) compute_rms_coefs();
-
-#if HAVE_LIBCUDA==1
-  bool firstime = true;
-  if (firstime and cC->cudaDevice>=0) {
-    initialize_cuda();
-    initialize_mapping_constants();
-    firstime = false;
-  }
-#endif
 }  
 
 
@@ -615,7 +606,7 @@ void SphericalBasis::determine_coefficients(void)
   if (cC->cudaDevice>=0) {
     start1 = std::chrono::high_resolution_clock::now();
     cC->ParticlesToCuda();
-    determine_coefficients_cuda(expcoef0[0]);
+    determine_coefficients_cuda();
     finish1 = std::chrono::high_resolution_clock::now();
   } else {
     exp_thread_fork(true);
