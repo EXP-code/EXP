@@ -748,7 +748,7 @@ void Cylinder::determine_coefficients_cuda()
 
   // DEBUG
   //
-  if (true) {
+  if (false) {
     std::cout << std::string(2*4+4*16, '-') << std::endl
 	      << "---- Cylindrical "      << std::endl
 	      << std::string(2*4+4*16, '-') << std::endl;
@@ -857,7 +857,7 @@ void Cylinder::determine_coefficients_cuda()
   //
   // TEST comparison of coefficients for debugging
   //
-  if (true) {
+  if (false) {
 
     struct Element
     {

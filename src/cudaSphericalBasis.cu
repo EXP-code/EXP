@@ -732,7 +732,7 @@ void SphericalBasis::determine_coefficients_cuda(const Matrix& expcoef)
 
   // DEBUG
   //
-  if (true) {
+  if (false) {
     std::cout << std::string(4+4*16, '-') << std::endl
 	      << "---- Spherical"         << std::endl
 	      << std::string(4+4*16, '-') << std::endl;
@@ -861,7 +861,7 @@ void SphericalBasis::determine_coefficients_cuda(const Matrix& expcoef)
   //
   // TEST comparison of coefficients for debugging
   //
-  if (true) {
+  if (false) {
 
     struct Element
     {
