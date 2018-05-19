@@ -712,8 +712,8 @@ void Cylinder::determine_coefficients(void)
   if (cC->cudaDevice>=0) {
     start1 = std::chrono::high_resolution_clock::now();
     cC->ParticlesToCuda();
-    HtoD_coefs();
     determine_coefficients_cuda();
+    HtoD_coefs();
     finish1 = std::chrono::high_resolution_clock::now();
   } else {    
     exp_thread_fork(true);
@@ -1019,6 +1019,10 @@ static int ocf = 0;
 
 void Cylinder::determine_acceleration_and_potential(void)
 {
+  std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
+
+  start0 = std::chrono::high_resolution_clock::now();
+
   static char routine[] = "determine_acceleration_and_potential_Cyl";
   
   if (use_external == false) {
@@ -1032,6 +1036,20 @@ void Cylinder::determine_acceleration_and_potential(void)
 #ifdef DEBUG
   for (int i=0; i<nthrds; i++) offgrid[i] = 0;
   cout << "Proocess " << myid << ": about to fork" << endl;
+#endif
+
+#if HAVE_LIBCUDA==1
+  if (cC->cudaDevice>=0) {
+    start1 = std::chrono::high_resolution_clock::now();
+    cC->ParticlesToCuda();
+    determine_coefficients_cuda();
+    DtoH_coefs();
+    finish1 = std::chrono::high_resolution_clock::now();
+  } else {
+    exp_thread_fork(true);
+  }
+#else
+  exp_thread_fork(true);
 #endif
 
   exp_thread_fork(false);
@@ -1056,6 +1074,23 @@ void Cylinder::determine_acceleration_and_potential(void)
 #endif
 
   print_timings("Cylinder: acceleration timings");
+
+
+# if HAVE_LIBCUDA
+  if (cC->cudaDevice>=0) {
+    auto finish0 = std::chrono::high_resolution_clock::now();
+  
+    std::chrono::duration<double> duration0 = finish0 - start0;
+    std::chrono::duration<double> duration1 = finish1 - start1;
+
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "== Coefficient evaluation [Cylinder]" << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
+    std::cout << "Time in GPU: " << duration1.count() << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+  }
+#endif
 }
 
 void Cylinder::

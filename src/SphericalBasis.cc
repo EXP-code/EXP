@@ -607,6 +607,7 @@ void SphericalBasis::determine_coefficients(void)
     start1 = std::chrono::high_resolution_clock::now();
     cC->ParticlesToCuda();
     determine_coefficients_cuda();
+    DtoH_coefs(expcoef0[0]);
     finish1 = std::chrono::high_resolution_clock::now();
   } else {
     exp_thread_fork(true);
