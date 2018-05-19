@@ -12,6 +12,38 @@
 __constant__ float cuRscale, cuXmin, cuXmax, cuDxi;
 __constant__ int   cuNumr, cuCmap;
 
+__global__
+void testFetch(cudaTextureObject_t* T, float* f, int l, int j, int n, int nmax)
+{
+  int k = l*nmax + 1;
+  *f = tex1D<float>(T[k+j], n);
+}
+
+
+float returnTest(thrust::host_vector<cudaTextureObject_t>& tex, int l, int j, int n, int nmax)
+{
+  thrust::device_vector<cudaTextureObject_t> t_d = tex;
+  cudaTextureObject_t *T = thrust::raw_pointer_cast(t_d.data());
+  
+  float* f;
+  cuda_safe_call(cudaMalloc(&f, sizeof(float)),  __FILE__, __LINE__, "cudaMalloc");
+
+  testFetch<<<1, 1>>>(T, f, l, j, n, nmax);
+
+  cudaDeviceSynchronize();
+
+  float ret;
+  cuda_safe_call(cudaMemcpy(&ret, f, sizeof(float), cudaMemcpyDeviceToHost), __FILE__, __LINE__, "cudaMemcpy");
+
+  cuda_safe_call(cudaFree(f), __FILE__, __LINE__, "cudaFree");
+
+  return ret;
+}
+
+static std::vector<cudaResourceDesc> resDesc;
+static std::vector<cudaTextureDesc>  texDesc;
+
+
 void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
 				thrust::host_vector<cudaTextureObject_t>& tex)
 {
@@ -37,22 +69,22 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
   tex.resize(ndim);
   thrust::fill(tex.begin(), tex.end(), 0);
 
-  cudaResourceDesc resDesc;
+  // cudaResourceDesc resDesc;
+  resDesc.resize(ndim);
 
   // Specify texture object parameters
   //
-  cudaTextureDesc texDesc;
+  texDesc.resize(ndim);
 
-  memset(&texDesc, 0, sizeof(texDesc));
-  texDesc.addressMode[0] = cudaAddressModeClamp;
-  texDesc.filterMode = cudaFilterModePoint;
-  texDesc.readMode = cudaReadModeElementType;
-  texDesc.normalizedCoords = 0;
+  memset(&texDesc[0], 0, sizeof(cudaTextureDesc));
+  texDesc[0].addressMode[0] = cudaAddressModeClamp;
+  texDesc[0].filterMode = cudaFilterModePoint;
+  texDesc[0].readMode = cudaReadModeElementType;
+  texDesc[0].normalizedCoords = 0;
 
   thrust::host_vector<float> tt(numr);
 
-  cuda_safe_call(cudaMallocArray(&cuArray[0], &channelDesc, numr, 1),
-		 __FILE__, __LINE__, "malloc cuArray");
+  cuda_safe_call(cudaMallocArray(&cuArray[0], &channelDesc, numr), __FILE__, __LINE__, "malloc cuArray");
 
   // Copy to device memory some data located at address h_data
   // in host memory
@@ -61,18 +93,16 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
   cuda_safe_call(cudaMemcpyToArray(cuArray[0], 0, 0, &tt[0], tsize, cudaMemcpyHostToDevice), __FILE__, __LINE__, "copy texture to array");
 
   // Specify texture
-  memset(&resDesc, 0, sizeof(resDesc));
-  resDesc.resType = cudaResourceTypeArray;
-  resDesc.res.array.array = cuArray[0];
+  memset(&resDesc[0], 0, sizeof(cudaResourceDesc));
+  resDesc[0].resType = cudaResourceTypeArray;
+  resDesc[0].res.array.array = cuArray[0];
 
-  cuda_safe_call(cudaCreateTextureObject(&tex[0], &resDesc, &texDesc, NULL),
-		 __FILE__, __LINE__, "create texture object");
+  cuda_safe_call(cudaCreateTextureObject(&tex[0], &resDesc[0], &texDesc[0], NULL), __FILE__, __LINE__, "create texture object");
 
   for (int l=0; l<=lmax; l++) {
     for (int n=0; n<nmax; n++) {
       int i = 1 + l*nmax + n;
-      cuda_safe_call(cudaMallocArray(&cuArray[i], &channelDesc, numr, 1),
-		     __FILE__, __LINE__, "malloc cuArray");
+      cuda_safe_call(cudaMallocArray(&cuArray[i], &channelDesc, numr), __FILE__, __LINE__, "malloc cuArray");
 
       // Copy to device memory some data located at address h_data
       // in host memory
@@ -80,24 +110,44 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
       for (int j=0; j<numr; j++) tt[j] = table[l].ef[n+1][j] / fac;
 
       cuda_safe_call(cudaMemcpyToArray(cuArray[i], 0, 0, &tt[0], tsize, cudaMemcpyHostToDevice), __FILE__, __LINE__, "copy texture to array");
-
+      
       // Specify texture
-      resDesc.res.array.array = cuArray[i];
+      memset(&resDesc[i], 0, sizeof(cudaResourceDesc));
+      resDesc[i].resType = cudaResourceTypeArray;
+      resDesc[i].res.array.array = cuArray[i];
 
-      cuda_safe_call(cudaCreateTextureObject(&tex[i], &resDesc, &texDesc, NULL), __FILE__, __LINE__, "create texture object");
+      memset(&texDesc[i], 0, sizeof(cudaTextureDesc));
+      texDesc[i].addressMode[0] = cudaAddressModeClamp;
+      texDesc[i].filterMode = cudaFilterModePoint;
+      texDesc[i].readMode = cudaReadModeElementType;
+      texDesc[i].normalizedCoords = 0;
+
+      cuda_safe_call(cudaCreateTextureObject(&tex[i], &resDesc[i], &texDesc[i], NULL), __FILE__, __LINE__, "create texture object");
     }
   }
 
-  if (false) {
-    printf("**HOST** Texture compare\n");
-    {
-      for (int l : {0, 1, 2}) {
-	for (int j=0; j<10; j++) {
-	  for (int i : {3980, 3990, 3995, 3999}) 
-	    printf("%5d %5d %5d %13.7e\n", l, j, i, table[l].ef[j+1][i]);
+  if (true) {
+    std::cout << "**HOST** Texture compare" << std::endl;
+    unsigned tot = 0, bad = 0;
+    for (int l : {0, 1, 2}) {
+      for (int j=0; j<nmax; j++) {
+	for (int i : {1, 2, numr-2, numr-1}) {
+	  double a = table[l].ef[j+1][i]/sqrt(table[l].ev[j+1]);
+	  double b = returnTest(tex, l, j, i, nmax);
+	  if (a>1.0e-18) {
+	    if ( fabs((a - b)/a ) > 1.0e-7) {
+	      std::cout << std::setw( 5) << l << std::setw( 5) << j
+			<< std::setw( 5) << i << std::setw(15) << a
+			<< std::setw(15) << (a-b)/a << std::endl;
+	      bad++;
+	    }
+	  }
+	  tot++;
 	}
       }
     }
+    std::cout << "**Found " << bad << "/" << tot << " bad values" << std::endl
+	      << "**" << std::endl;
   }
 
   if (false) {

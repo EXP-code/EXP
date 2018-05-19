@@ -185,22 +185,10 @@ void testTextureCyl(dArray<cudaTextureObject_t> tex, int nmax)
   }
 }
 
-__global__ void testParticles(dArray<cudaParticle> in)
-{
-  for (int k=0; k<4; k++)
-    printf("%5d %13.5e %13.5e %13.5e %13.5e\n",
-	   k, in._v[k].mass, in._v[k].pos[0], in._v[k].pos[1], in._v[k].pos[2]);
-
-  for (int k=in._s-4; k<in._s; k++)
-    printf("%5d %13.5e %13.5e %13.5e %13.5e\n",
-	   k, in._v[k].mass, in._v[k].pos[0], in._v[k].pos[1], in._v[k].pos[2]);
-}
-
-
 __global__ void coordKernelCyl
 (dArray<cudaParticle> in, dArray<float> mass, dArray<float> phi,
  dArray<float> Xfac, dArray<float> Yfac,
- dArray<int> IndX, dArray<int> IndY,
+ dArray<int>   IndX, dArray<int>   IndY,
  unsigned int stride, PII lohi, float rmax)
 {
   // Thread ID
@@ -599,7 +587,10 @@ void Cylinder::determine_coefficients_cuda()
 {
   /*
   std::cout << " ** BEFORE initialize" << std::endl;
-  testParticles<<<1, 1>>>(toKernel(cC->cuda_particles));
+  std::copy(cuda_particles.begin(), cuda_particles.begin()+5,
+	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
+  std::copy(cuda_particles.end()-5, cuda_particles.end(),
+	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
   std::cout << " **" << std::endl;
   */
 
@@ -611,7 +602,10 @@ void Cylinder::determine_coefficients_cuda()
 
   /*
   std::cout << " ** AFTER initialize" << std::endl;
-  testParticles<<<1, 1>>>(toKernel(cC->cuda_particles));
+  std::copy(cuda_particles.begin(), cuda_particles.begin()+5,
+	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
+  std::copy(cuda_particles.end()-5, cuda_particles.end(),
+	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
   std::cout << " **" << std::endl;
   */
 
@@ -701,7 +695,12 @@ void Cylinder::determine_coefficients_cuda()
 
   // Do the work
   //
-  // testParticles<<<1, 1>>>(toKernel(cC->cuda_particles));
+  /*
+  std::copy(cuda_particles.begin(), cuda_particles.begin()+5,
+	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
+  std::copy(cuda_particles.end()-5, cuda_particles.end(),
+	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
+  */
 
 				// Compute the coordinate
 				// transformation

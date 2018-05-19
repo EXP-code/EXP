@@ -199,19 +199,6 @@ void SphericalBasis::initialize_mapping_constants()
 		 __FILE__, __LINE__, "Error copying sphCmap");
 }
 
-__global__
-void testTexture(dArray<cudaTextureObject_t> tex, int nmax)
-{
-  printf("**DEVICE Texture compare\n");
-  for (int l : {0, 1, 2}) {
-    for (int j=0; j<10; j++) {
-      int k = 1 + l*nmax;
-      for (int i : {3980, 3990, 3995, 3999}) 
-	printf("%5d %5d %5d %13.7e\n", l, j, i, tex1D<float>(tex._v[k+j], i));
-    }
-  }
-}
-
 __global__ void coordKernel
 (dArray<cudaParticle> in, dArray<float> mass, dArray<float> Afac,
  dArray<float> phi, dArray<float> Plm, dArray<int> Indx, 
@@ -608,24 +595,26 @@ static bool initialize_cuda_sph = true;
 
 void SphericalBasis::determine_coefficients_cuda()
 {
+  // Sort particles and get coefficient size
+  //
+  PII lohi = cC->CudaSortByLevel(mlevel, multistep);
+
   if (initialize_cuda_sph) {
+    lohi = cC->CudaSortByLevel(mlevel, multistep);
+    std::cout << "BEFORE initialize" << std::endl;
     initialize_cuda();
+    lohi = cC->CudaSortByLevel(mlevel, multistep);
+    std::cout << "BEFORE mapping" << std::endl;
     initialize_mapping_constants();
+    std::cout << "AFTER mapping" << std::endl;
+    lohi = cC->CudaSortByLevel(mlevel, multistep);
     initialize_cuda_sph = false;
   }
 
   std::cout << std::scientific;
 
-  int deviceCount = 0;
-  cuda_safe_call(cudaGetDeviceCount(&deviceCount),
-		 __FILE__, __LINE__, "could not get device count");
-
   cudaDeviceProp deviceProp;
-  cudaGetDeviceProperties(&deviceProp, deviceCount-1);
-
-  // Sort particles and get coefficient size
-  //
-  PII lohi = cC->CudaSortByLevel(mlevel, multistep);
+  cudaGetDeviceProperties(&deviceProp, cC->cudaDevice);
 
   // Compute grid
   //
@@ -690,7 +679,7 @@ void SphericalBasis::determine_coefficients_cuda()
     */
   }
 
-  std::vector<float> coefs((Lmax+1)*(Lmax+1)*nmax);
+  host_coefs.resize((Lmax+1)*(Lmax+1)*nmax);
 
   thrust::counting_iterator<int> index_begin(0);
   thrust::counting_iterator<int> index_end(gridSize*2*nmax);
@@ -731,8 +720,8 @@ void SphericalBasis::determine_coefficients_cuda()
 
       thrust::host_vector<float> ret = df_coef;
       for (size_t j=0; j<nmax; j++) {
-	coefs[Ilmn(l, m, 'c', j, nmax)] = ret[2*j];
-	if (m>0) coefs[Ilmn(l, m, 's', j, nmax)] = ret[2*j+1];
+	host_coefs[Ilmn(l, m, 'c', j, nmax)] = ret[2*j];
+	if (m>0) host_coefs[Ilmn(l, m, 's', j, nmax)] = ret[2*j+1];
       }
     }
   }

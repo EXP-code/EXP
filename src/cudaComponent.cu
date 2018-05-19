@@ -2,7 +2,7 @@
 
 // Define for checking cuda_particles: values and counts
 //
-// #define BIG_DEBUG
+#define BIG_DEBUG
 
 std::pair<unsigned int, unsigned int>
 Component::CudaSortByLevel(int minlev, int maxlev)
@@ -50,21 +50,20 @@ void Component::CudaSortBySequence()
   thrust::sort(pbeg, pend, LessCudaSeq());
 }
 
-#ifdef BIG_DEBUG
-__global__ void testParticles(cudaParticle* in, int N)
-{
-  for (int k=0; k<4; k++)
-    printf("%5d %13.5e %13.5e %13.5e %13.5e\n",
-	   k, in[k].mass, in[k].pos[0], in[k].pos[1], in[k].pos[2]);
 
-  for (int k=N-4; k<N; k++)
-    printf("%5d %13.5e %13.5e %13.5e %13.5e\n",
-	   k, in[k].mass, in[k].pos[0], in[k].pos[1], in[k].pos[2]);
+__host__
+std::ostream& operator<< (std::ostream& os, const cudaParticle& p)
+{
+  os << std::setw(10) << p.indx << std::setw(16) << p.mass;
+  for (int k=0; k<3; k++) os << std::setw(16) << p.pos[k];
+  return os;
 }
-#endif
+
 
 void Component::ParticlesToCuda()
 {
+  std::cout << std::scientific;
+
 #ifdef BIG_DEBUG
   static unsigned count = 0;
   std::cout << std::string(72, '-') << std::endl
@@ -83,14 +82,67 @@ void Component::ParticlesToCuda()
     ParticleHtoD(v.second, *(it++));
   }
   
+  static unsigned cnt = 0;
+  std::ostringstream sout;
+  sout << "test." << cnt++;
+
+  std::ofstream tmp(sout.str());
+  std::copy(host_particles.begin(), host_particles.end(),
+	    std::ostream_iterator<cudaParticle>(tmp, "\n") );
+
+  std::cout << "[host] BEFORE first copy" << std::endl;
+  std::copy(host_particles.begin(), host_particles.begin()+5,
+	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
+
+  std::copy(host_particles.end()-5, host_particles.end(),
+	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
+
   cuda_particles = host_particles;
 
-#ifdef BIG_DEBUG
-  /*
-  testParticles<<<1, 1>>>(thrust::raw_pointer_cast(cuda_particles.data()),
-			  cuda_particles.size());
-  */
 
+  std::cout << "[cuda] AFTER first copy" << std::endl;
+  std::copy(cuda_particles.begin(), cuda_particles.begin()+5,
+	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
+
+  std::copy(cuda_particles.end()-5, cuda_particles.end(),
+	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
+
+  std::cout << "SORT particles by seq" << std::endl;
+  CudaSortBySequence();
+
+  host_particles = cuda_particles;
+
+  std::cout << "[host] AFTER first copy" << std::endl;
+
+  std::copy(host_particles.begin(), host_particles.begin()+5,
+	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
+
+  std::copy(host_particles.end()-5, host_particles.end(),
+	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
+
+
+  cuda_particles = host_particles;
+
+  std::cout << "[cuda] AFTER second copy" << std::endl;
+
+  std::copy(cuda_particles.begin(), cuda_particles.begin()+5,
+	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
+
+  std::copy(cuda_particles.end()-5, cuda_particles.end(),
+	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
+
+
+  host_particles = cuda_particles;
+
+  std::cout << "[host] AFTER second copy" << std::endl;
+
+  std::copy(host_particles.begin(), host_particles.begin()+5,
+	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
+
+  std::copy(host_particles.end()-5, host_particles.end(),
+	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
+
+#ifdef BIG_DEBUG
   std::cout << std::string(72, '-') << std::endl
 	    << "---- Host particle size: " << host_particles.size()
 	    << " [" << std::hex << thrust::raw_pointer_cast(host_particles.data()) << "] after" << std::endl << std::dec

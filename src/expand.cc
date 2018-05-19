@@ -211,24 +211,27 @@ void make_node_list(int argc, char **argv)
   int  *total_ranks = new int  [sizeof(int) * numprocs];
   char *total_names = new char [MPI_MAX_PROCESSOR_NAME * numprocs];
 
+				// Send all ranks and host names
   MPI_Allgather(&myid, 1, MPI_INT, total_ranks, 1, MPI_INT,
 		MPI_COMM_WORLD);
 
   MPI_Allgather(processor_name, MPI_MAX_PROCESSOR_NAME, MPI_CHAR,
-
 		total_names, MPI_MAX_PROCESSOR_NAME, MPI_CHAR,
 		MPI_COMM_WORLD);
 
+				// Catagorize all ranks by host names
   for (int i=0; i<numprocs; i++) {
     char tmp[MPI_MAX_PROCESSOR_NAME];
     strncpy(tmp, &total_names[MPI_MAX_PROCESSOR_NAME*i], MPI_MAX_PROCESSOR_NAME);
     nameMap[std::string(tmp)].push_back(total_ranks[i]);
   }
 
+				// Sort rank list (not really necessariy)
   for (auto & v : nameMap) {
     std::sort(v.second.begin(), v.second.end());
   }
 
+				// Sibling ranks on this processor
   siblingList = nameMap[std::string(processor_name)];
 
   delete [] total_names;
