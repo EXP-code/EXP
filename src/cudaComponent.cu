@@ -2,7 +2,7 @@
 
 // Define for checking cuda_particles: values and counts
 //
-#define BIG_DEBUG
+// #define BIG_DEBUG
 
 std::pair<unsigned int, unsigned int>
 Component::CudaSortByLevel(int minlev, int maxlev)
@@ -82,6 +82,7 @@ void Component::ParticlesToCuda()
     ParticleHtoD(v.second, *(it++));
   }
   
+#ifdef BIG_DEBUG
   static unsigned cnt = 0;
   std::ostringstream sout;
   sout << "test." << cnt++;
@@ -96,10 +97,12 @@ void Component::ParticlesToCuda()
 
   std::copy(host_particles.end()-5, host_particles.end(),
 	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
+#endif
 
   cuda_particles = host_particles;
 
 
+#ifdef BIG_DEBUG
   std::cout << "[cuda] AFTER first copy" << std::endl;
   std::copy(cuda_particles.begin(), cuda_particles.begin()+5,
 	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
@@ -142,7 +145,6 @@ void Component::ParticlesToCuda()
   std::copy(host_particles.end()-5, host_particles.end(),
 	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
 
-#ifdef BIG_DEBUG
   std::cout << std::string(72, '-') << std::endl
 	    << "---- Host particle size: " << host_particles.size()
 	    << " [" << std::hex << thrust::raw_pointer_cast(host_particles.data()) << "] after" << std::endl << std::dec

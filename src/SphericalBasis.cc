@@ -1197,7 +1197,7 @@ void SphericalBasis::determine_acceleration_and_potential(void)
     std::chrono::duration<double> duration = finish - start;
 
     std::cout << std::string(60, '=') << std::endl;
-    std::cout << "== Force evaluation [SphericalBasis CUDA]" << std::endl;
+    std::cout << "== Force evaluation [SphericalBasis,self GPU]" << std::endl;
     std::cout << "Time: " << duration.count() << std::endl;
     std::cout << std::string(60, '=') << std::endl;
   } else {
@@ -1210,7 +1210,7 @@ void SphericalBasis::determine_acceleration_and_potential(void)
     std::chrono::duration<double> duration = finish - start;
 
     std::cout << std::string(60, '=') << std::endl;
-    std::cout << "== Force evaluation [SphericalBasis CPU]" << std::endl;
+    std::cout << "== Force evaluation [SphericalBasis,self CPU]" << std::endl;
     std::cout << "Time: " << duration.count() << std::endl;
     std::cout << std::string(60, '=') << std::endl;
   }
@@ -1224,7 +1224,7 @@ void SphericalBasis::determine_acceleration_and_potential(void)
   std::chrono::duration<double> duration = finish - start;
 
   std::cout << std::string(60, '=') << std::endl;
-  std::cout << "== Force evaluation [SphericalBasis CPU]" << std::endl;
+  std::cout << "== Force evaluation [SphericalBasis,self CPU]" << std::endl;
   std::cout << "Time: " << duration.count() << std::endl;
   std::cout << std::string(60, '=') << std::endl;
 #endif

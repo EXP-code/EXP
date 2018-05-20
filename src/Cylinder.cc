@@ -422,12 +422,14 @@ void Cylinder::get_acceleration_and_potential(Component* C)
 
     std::chrono::duration<double> duration0 = finish0 - start0;
     std::chrono::duration<double> duration1 = finish1 - start1;
+    std::chrono::duration<double> duration2 = start1  - start0;
     
     std::cout << std::string(60, '=') << std::endl;
-    std::cout << "== Force evaluation [Cylinder]" << std::endl;
+    std::cout << "== Force evaluation [Cylinder, other]" << std::endl;
     std::cout << std::string(60, '=') << std::endl;
-    std::cout << "Time in CPU: " << duration0.count() << std::endl;
+    std::cout << "Time in CPU: " << duration0.count() - duration1.count() << std::endl;
     std::cout << "Time in GPU: " << duration1.count() << std::endl;
+    std::cout << "Time before: " << duration2.count() << std::endl;
     std::cout << std::string(60, '=') << std::endl;
   }
 #endif
@@ -634,6 +636,8 @@ void Cylinder::determine_coefficients(void)
 {
   std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
 
+  start0 = std::chrono::high_resolution_clock::now();
+
   static char routine[] = "determine_coefficients_Cylinder";
 
   if (!self_consistent && !initializing) return;
@@ -671,8 +675,6 @@ void Cylinder::determine_coefficients(void)
     ortho->setHall(sout.str(), component->nbodies_tot, hallfreq);
     pcainit = false;
   }
-
-  start0 = std::chrono::high_resolution_clock::now();
 
   if (multistep==0)
     ortho->setup_accumulation();
@@ -764,13 +766,14 @@ void Cylinder::determine_coefficients(void)
   if (cC->cudaDevice>=0) {
     std::chrono::duration<double> duration0 = finish0 - start0;
     std::chrono::duration<double> duration1 = finish1 - start1;
+    std::chrono::duration<double> duration2 = start1  - start0;
     
     std::cout << std::string(60, '=') << std::endl;
     std::cout << "== Coefficient evaluation [Cylinder]" << std::endl;
     std::cout << std::string(60, '=') << std::endl;
     std::cout << "Time in CPU: " << duration0.count() << std::endl;
     std::cout << "Time in GPU: " << duration1.count() << std::endl;
-    std::cout << "CPU to GPU : " << duration0.count()/duration1.count() << std::endl;
+    std::cout << "Time before: " << duration2.count() << std::endl;
     std::cout << std::string(60, '=') << std::endl;
   }
 #endif
@@ -1042,17 +1045,15 @@ void Cylinder::determine_acceleration_and_potential(void)
   if (cC->cudaDevice>=0) {
     start1 = std::chrono::high_resolution_clock::now();
     cC->ParticlesToCuda();
-    determine_coefficients_cuda();
+    determine_acceleration_cuda();
     DtoH_coefs();
     finish1 = std::chrono::high_resolution_clock::now();
   } else {
-    exp_thread_fork(true);
+    exp_thread_fork(false);
   }
 #else
-  exp_thread_fork(true);
-#endif
-
   exp_thread_fork(false);
+#endif
 
 #ifdef DEBUG
   cout << "Cylinder: process " << myid << " returned from fork" << endl;
@@ -1082,12 +1083,14 @@ void Cylinder::determine_acceleration_and_potential(void)
   
     std::chrono::duration<double> duration0 = finish0 - start0;
     std::chrono::duration<double> duration1 = finish1 - start1;
+    std::chrono::duration<double> duration2 = start1  - start0;
 
     std::cout << std::string(60, '=') << std::endl;
-    std::cout << "== Coefficient evaluation [Cylinder]" << std::endl;
+    std::cout << "== Force evaluation [Cylinder, self]" << std::endl;
     std::cout << std::string(60, '=') << std::endl;
     std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
     std::cout << "Time in GPU: " << duration1.count() << std::endl;
+    std::cout << "Time before: " << duration2.count() << std::endl;
     std::cout << std::string(60, '=') << std::endl;
   }
 #endif

@@ -6,6 +6,7 @@
 //
 // #define OFF_GRID_ALERT
 // #define BOUNDS_CHECK
+// #define VERBOSE
 
 // Global symbols for coordinate transformation
 //
@@ -639,7 +640,8 @@ void Cylinder::determine_coefficients_cuda()
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying cylCen");
 
-  std::cout << "**" << std::endl
+#ifdef VERBOSE
+  std::cout << std::endl << "**" << std::endl
 	    << "** N      = " << N           << std::endl
 	    << "** I low  = " << lohi.first  << std::endl
 	    << "** I high = " << lohi.second << std::endl
@@ -650,6 +652,7 @@ void Cylinder::determine_coefficients_cuda()
 	    << "** Ycen   = " << ctr[1]     << std::endl
 	    << "** Zcen   = " << ctr[2]     << std::endl
 	    << "**" << std::endl;
+#endif
 
   // Create space for coefficient reduction
   //
@@ -672,15 +675,15 @@ void Cylinder::determine_coefficients_cuda()
 
   // For debugging (set to false to disable)
   //
-  static bool firstime = false;
+  static bool firstime = true;
 
   if (firstime) {
     testConstantsCyl<<<1, 1>>>();
     cudaDeviceSynchronize();
-
+    /*
     testTextureCyl<<<1, 1>>>(toKernel(t_d), ncylorder);
     cudaDeviceSynchronize();
-
+    */
     firstime = false;
   }
 
@@ -1020,7 +1023,8 @@ void Cylinder::determine_acceleration_cuda()
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying cylCen");
 
-  std::cout << "**" << std::endl
+#ifdef VERBOSE
+  std::cout << std::endl << "**" << std::endl
 	    << "** N      = " << N          << std::endl
 	    << "** Stride = " << stride     << std::endl
 	    << "** Block  = " << BLOCK_SIZE << std::endl
@@ -1029,6 +1033,7 @@ void Cylinder::determine_acceleration_cuda()
 	    << "** Ycen   = " << ctr[1]     << std::endl
 	    << "** Zcen   = " << ctr[2]     << std::endl
 	    << "**" << std::endl;
+#endif
 
   // Texture objects
   //

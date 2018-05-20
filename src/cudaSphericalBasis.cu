@@ -6,6 +6,7 @@
 //
 // #define OFF_GRID_ALERT
 // #define BOUNDS_CHECK
+// #define VERBOSE
 
 // Global symbols for coordinate transformation in SphericalBasis
 //
@@ -634,7 +635,8 @@ void SphericalBasis::determine_coefficients_cuda()
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying sphCen");
 
-  std::cout << "**" << std::endl
+#ifdef VERBOSE
+  std::cout << std::endl << "**" << std::endl
 	    << "** N      = " << N          << std::endl
 	    << "** Stride = " << stride     << std::endl
 	    << "** Block  = " << BLOCK_SIZE << std::endl
@@ -643,6 +645,7 @@ void SphericalBasis::determine_coefficients_cuda()
 	    << "** Ycen   = " << ctr[1]     << std::endl
 	    << "** Zcen   = " << ctr[2]     << std::endl
 	    << "**" << std::endl;
+#endif
 
 
   // Create space for coefficient reduction
@@ -671,12 +674,12 @@ void SphericalBasis::determine_coefficients_cuda()
 
   if (firstime) {
     testConstants<<<1, 1>>>();
-
+    cudaDeviceSynchronize();
     /*
     testTexture<<<1, 1>>>(toKernel(t_d), nmax);
-
-    firstime = false;
+    cudaDeviceSynchronize();
     */
+    firstime = false;
   }
 
   host_coefs.resize((Lmax+1)*(Lmax+1)*nmax);
@@ -766,7 +769,8 @@ void SphericalBasis::determine_acceleration_cuda()
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying sphCen");
 
-  std::cout << "**" << std::endl
+#ifdef VERBOSE
+  std::cout << std::endl << "**" << std::endl
 	    << "** N      = " << N          << std::endl
 	    << "** Stride = " << stride     << std::endl
 	    << "** Block  = " << BLOCK_SIZE << std::endl
@@ -775,6 +779,7 @@ void SphericalBasis::determine_acceleration_cuda()
 	    << "** Ycen   = " << ctr[1]     << std::endl
 	    << "** Zcen   = " << ctr[2]     << std::endl
 	    << "**" << std::endl;
+#endif
 
   // Texture objects
   //
