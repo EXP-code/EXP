@@ -351,7 +351,8 @@ __global__ void coefKernel
 __global__ void
 forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 	    dArray<cudaTextureObject_t> tex, dArray<float> L1, dArray<float> L2,
-	    int stride, unsigned Lmax, unsigned int nmax, PII lohi, float rmax)
+	    int stride, unsigned Lmax, unsigned int nmax, PII lohi, float rmax,
+	    bool external)
 {
   const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
   const int psiz  = (Lmax+1)*(Lmax+2)/2;
@@ -544,12 +545,14 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
       in._v[npart].acc[0] += -(potr*xx/r - pott*xx*zz/(r*r*r));
       in._v[npart].acc[1] += -(potr*yy/r - pott*yy*zz/(r*r*r));
       in._v[npart].acc[2] += -(potr*zz/r - pott*RR/(r*r*r));
-      if (RR > FSMALL) 
-	{
-	  in._v[npart].acc[0] +=  potp*yy/RR;
-	  in._v[npart].acc[1] += -potp*xx/RR;
-	}
-      in._v[npart].pot += potl;
+      if (RR > FSMALL) {
+	in._v[npart].acc[0] +=  potp*yy/RR;
+	in._v[npart].acc[1] += -potp*xx/RR;
+      }
+      if (external)
+	in._v[npart].pot    += potl;
+      else
+	in._v[npart].potext += potl;
 
 #ifdef BOUNDS_CHECK
       // Sanity check
@@ -798,7 +801,8 @@ void SphericalBasis::determine_acceleration_cuda()
   //
   forceKernel<<<gridSize, BLOCK_SIZE, sMemSize>>>
     (toKernel(cC->cuda_particles), toKernel(dev_coefs), toKernel(t_d),
-     toKernel(plm1_d), toKernel(plm2_d), stride, Lmax, nmax, lohi, rmax);
+     toKernel(plm1_d), toKernel(plm2_d), stride, Lmax, nmax, lohi, rmax,
+     use_external);
 }
 
 void SphericalBasis::HtoD_coefs(const Matrix& expcoef)

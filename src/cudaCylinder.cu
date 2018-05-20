@@ -370,7 +370,7 @@ __global__ void
 forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
 	       dArray<cudaTextureObject_t> tex,
 	       int stride, unsigned int mmax, unsigned int nmax, PII lohi,
-	       float rmax, float cylmass)
+	       float rmax, float cylmass, bool external)
 {
   // Thread ID
   //
@@ -562,7 +562,10 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<float> coef,
 	in._v[npart].acc[2] += zz*fr * cfrac;
       }
 
-      in._v[npart].pot += pp;
+      if (external)
+	in._v[npart].potext += pp;
+      else
+	in._v[npart].pot    += pp;
 
     } // Particle index block
 
@@ -1051,7 +1054,7 @@ void Cylinder::determine_acceleration_cuda()
   //
   forceKernelCyl<<<gridSize, BLOCK_SIZE, sMemSize>>>
     (toKernel(cC->cuda_particles), toKernel(dev_coefs), toKernel(t_d),
-     stride, mmax, ncylorder, lohi, rmax, cylmass);
+     stride, mmax, ncylorder, lohi, rmax, cylmass, use_external);
 }
 
 void Cylinder::HtoD_coefs()
