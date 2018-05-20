@@ -983,6 +983,11 @@ void Cylinder::determine_coefficients_cuda()
 	      << std::setw(15) << fabs(last->second.d - last->second.f)
 	      << std::endl;
   }
+
+  // Compute number of particles used in coefficient determination
+  //
+  thrust::sort(m_d.begin(), m_d.end());
+  use[0] = thrust::distance(thrust::upper_bound(m_d.begin(), m_d.end(), 0.0), m_d.end());
 }
 
 

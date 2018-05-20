@@ -599,19 +599,9 @@ static bool initialize_cuda_sph = true;
 
 void SphericalBasis::determine_coefficients_cuda()
 {
-  // Sort particles and get coefficient size
-  //
-  PII lohi = cC->CudaSortByLevel(mlevel, multistep);
-
   if (initialize_cuda_sph) {
-    lohi = cC->CudaSortByLevel(mlevel, multistep);
-    std::cout << "BEFORE initialize" << std::endl;
     initialize_cuda();
-    lohi = cC->CudaSortByLevel(mlevel, multistep);
-    std::cout << "BEFORE mapping" << std::endl;
     initialize_mapping_constants();
-    std::cout << "AFTER mapping" << std::endl;
-    lohi = cC->CudaSortByLevel(mlevel, multistep);
     initialize_cuda_sph = false;
   }
 
@@ -619,6 +609,10 @@ void SphericalBasis::determine_coefficients_cuda()
 
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, cC->cudaDevice);
+
+  // Sort particles and get coefficient size
+  //
+  PII lohi = cC->CudaSortByLevel(mlevel, multistep);
 
   // Compute grid
   //
@@ -732,6 +726,10 @@ void SphericalBasis::determine_coefficients_cuda()
     }
   }
 
+  // Compute number of particles used in coefficient determination
+  //
+  thrust::sort(m_d.begin(), m_d.end());
+  use[0] = thrust::distance(thrust::upper_bound(m_d.begin(), m_d.end(), 0.0), m_d.end());
 }
 
 void SphericalBasis::determine_acceleration_cuda()
