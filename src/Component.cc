@@ -68,6 +68,8 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   com_system  = false;
   com_log     = false;
 
+  timers      = false;
+
   force       = 0;		// Null out pointers
   orient      = 0;
 
@@ -391,6 +393,8 @@ Component::Component(istream *in)
   com_log     = false;
   com_restart = 0;
 
+  timers      = false;
+
   force       = 0;		// Null out pointers
   orient      = 0;
 
@@ -450,6 +454,8 @@ void Component::initialize(void)
     if (!datum.first.compare("com"))      com_system = atoi(datum.second) ? true : false;
 
     if (!datum.first.compare("comlog"))   com_log = atoi(datum.second) ? true : false;
+
+    if (!datum.first.compare("timers"))   timers = atoi(datum.second) ? true : false;
 
     if (!datum.first.compare("tidal"))    {tidal = atoi(datum.second); consp=true;}
 

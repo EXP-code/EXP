@@ -2,7 +2,9 @@
 #include "expand.h"
 #include <Basis.H>
 
-#define MINEPS 1.0e-10
+// Machine constant for Legendre
+//
+const double MINEPS=4.0*DBL_MIN;
 
 Basis::Basis(string& line) : PotAccel(line)
 {

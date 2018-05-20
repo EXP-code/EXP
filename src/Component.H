@@ -455,6 +455,9 @@ public:
   //! Maximum radius from center for force evaluation
   double rtrunc;
 
+  //! CUDA timing info
+  bool timers;
+
   //! Orientation cache
   Orient *orient;
 
@@ -811,11 +814,11 @@ public:
   //! The cuda particles in CUDA device memory
   thrust::device_vector<cudaParticle> cuda_particles;
 
-  //! Copy host particles to the cuda structure
-  void ParticlesToCuda();
+  //! Copy host particles to the cuda structure from component C
+  void ParticlesToCuda(Component *C);
 
-  //! Copy cuda device particles to host structure
-  void CudaToParticles();
+  //! Copy cuda device particles to host structure into component C
+  void CudaToParticles(Component *C);
 
   //! Sort the device vector by sequence
   void CudaSortBySequence();

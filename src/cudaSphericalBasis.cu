@@ -7,6 +7,11 @@
 // #define OFF_GRID_ALERT
 // #define BOUNDS_CHECK
 // #define VERBOSE
+#define NAN_CHECK
+
+// Machine constant for Legendre
+//
+const float FMINEPS=4.0*FLT_MIN;
 
 // Global symbols for coordinate transformation in SphericalBasis
 //
@@ -69,6 +74,7 @@ void legendre_v(int lmax, float x, float* p)
   }
 }
 
+
 __host__ __device__
 void legendre_v2(int lmax, float x, float* p, float* dp)
 {
@@ -96,9 +102,9 @@ void legendre_v2(int lmax, float x, float* p, float* dp)
     }
   }
 
-  if (1.0-fabs(x) < MINEPS) {
-    if (x>0) x =   1.0 - MINEPS;
-    else     x = -(1.0 - MINEPS);
+  if (1.0-fabs(x) < FMINEPS) {
+    if (x>0) x =   1.0 - FMINEPS;
+    else     x = -(1.0 - FMINEPS);
   }
 
   somx2 = 1.0/(x*x - 1.0);
@@ -381,6 +387,7 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
       
       float *plm1 = &L1._v[psiz*tid];
       float *plm2 = &L2._v[psiz*tid];
+      
       legendre_v2(Lmax, costh, plm1, plm2);
 
       int ioff = 0;
@@ -436,16 +443,14 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 	  float Plm1 = plm1[pindx];
 	  float Plm2 = plm2[pindx];
       
-#ifdef BOUNDS_CHECK
-	  if (std::isnan(Plm1)) 
-	    {
-	      printf("Force isnan for Plm(%d, %d) ioff=%d, costh=%f\n", l, m, ioff, costh);
-	    }
+#ifdef NAN_CHECK
+	  if (std::isnan(Plm1)) {
+	    printf("Force isnan for Plm(%d, %d) ioff=%d, costh=%f, z=%f, r=%f\n", l, m, ioff, costh, zz, r);
+	  }
 
-	  if (std::isnan(Plm2)) 
-	    {
-	      printf("Force isnan for Plm2(%d, %d) ioff=%d costh=%f\n", l, m, ioff, costh);
-	    }
+	  if (std::isnan(Plm2)) {
+	    printf("Force isnan for Plm2(%d, %d) ioff=%d costh=%f, z=%f, r=%f\n", l, m, ioff, costh, zz, r);
+	  }
 #endif	  
 
 	  float pp_c = 0.0;
@@ -492,7 +497,7 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 	    if (ioff) {
 	      pp_c *= pow(rmax/r0, (float)(l+1));
 	      dp_c  = -pp_c/r0 * (float)(l+1);
-#ifdef BOUNDS_CHECK
+#ifdef NAN_CHECK
 	      if (std::isnan(pp_c)) printf("Force nan: l=%d, r=%f\n", l, r);
 #endif
 	    }
@@ -515,11 +520,19 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 	      dp_c = pp_c * facdp;
 	      dp_s = pp_s * facdp;
 
-#ifdef BOUNDS_CHECK
-	      if (std::isnan(pp_c)) printf("Force nan: c l=%d, m=%d, r=%f\n", l, m, r);
-	      if (std::isnan(dp_s)) printf("Force nan: s l=%d, m=%d, r=%f\n", l, m, r);
-	      if (std::isnan(dp_c)) printf("Force nan: dc l=%d, m=%d, r=%f\n", l, m, r);
-	      if (std::isnan(pp_s)) printf("Force nan: ds l=%d, m=%d, r=%f\n", l, m, r);
+#ifdef NAN_CHECK
+	      if (std::isnan(pp_c)) {
+		printf("Force nan: c l=%d, m=%d, r=%f\n", l, m, r);
+	      }
+	      if (std::isnan(dp_s)) {
+		printf("Force nan: s l=%d, m=%d, r=%f\n", l, m, r);
+	      }
+	      if (std::isnan(dp_c)) {
+		printf("Force nan: dc l=%d, m=%d, r=%f\n", l, m, r);
+	      }
+	      if (std::isnan(pp_s)) {
+		printf("Force nan: ds l=%d, m=%d, r=%f\n", l, m, r);
+	      }
 #endif
 	    }
 
@@ -541,6 +554,11 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 	} // END: m loop
 
       } // END: l loop
+				// Rescale
+      potr /= sphScale*sphScale;
+      potl /= sphScale;
+      pott /= sphScale;
+      potp /= sphScale;
 
       in._v[npart].acc[0] += -(potr*xx/r - pott*xx*zz/(r*r*r));
       in._v[npart].acc[1] += -(potr*yy/r - pott*yy*zz/(r*r*r));
@@ -550,32 +568,24 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
 	in._v[npart].acc[1] += -potp*xx/RR;
       }
       if (external)
-	in._v[npart].pot    += potl;
-      else
 	in._v[npart].potext += potl;
+      else
+	in._v[npart].pot    += potl;
 
-#ifdef BOUNDS_CHECK
+#ifdef NAN_CHECK
       // Sanity check
       bool bad = false;
       for (int k=0; k<3; k++) {
 	if (std::isnan(in._v[npart].acc[k])) bad = true;
       }
 
-      if (bad) 
-	{
-	  printf("Force nan value: [%d] x=%f xi=%f dxi=%f a=%f i=%d o=%d\n",
-		 in._v[npart].indx, x, xi, dx, a, ind, ioff);
-	  if (ioff==0) 
-	    {
-	      printf("Force nan value, no ioff: [%d] x=%f xi=%f dxi=%f a=%f i=%d\n",
-		     in._v[npart].indx, x, xi, dx, a, ind);
-	    }
-	  
-	  /*
-	  printf("Force nan value: [%d] xx=%f yy=%f zz=%f r=%f R=%f\n",
-		 in._v[npart].indx, xx, yy, zz, r, RR, ioff);
-	  */
+      if (bad)  {
+	printf("Force nan value: [%d] x=%f X=%f Y=%f Z=%f r=%f R=%f P=%f dP/dr=%f dP/dx=%f dP/dp=%f\n", in._v[npart].indx, x, xx, yy, zz, r, RR, potl, potr, pott, potp);
+	if (a<0.0 or a>1.0)  {
+	  printf("Force nan value, no ioff: [%d] x=%f xi=%f dxi=%f a=%f i=%d\n",
+		 in._v[npart].indx, x, xi, dx, a, ind);
 	}
+      }
 #endif
 
     } // Particle index block
@@ -608,7 +618,7 @@ void SphericalBasis::determine_coefficients_cuda()
   std::cout << std::scientific;
 
   cudaDeviceProp deviceProp;
-  cudaGetDeviceProperties(&deviceProp, cC->cudaDevice);
+  cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
 
   // Sort particles and get coefficient size
   //
@@ -621,9 +631,6 @@ void SphericalBasis::determine_coefficients_cuda()
   unsigned int gridSize  = N/BLOCK_SIZE/stride;
 
   if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
-
-
-  // unsigned int Nthread = gridSize*BLOCK_SIZE;
 
   std::vector<float> ctr;
   for (auto v : cC->getCenter(Component::Local | Component::Centered)) ctr.push_back(v);
@@ -726,10 +733,13 @@ void SphericalBasis::determine_coefficients_cuda()
     }
   }
 
-  // Compute number of particles used in coefficient determination
+  // Compute number and total mass of particles used in coefficient
+  // determination
   //
   thrust::sort(m_d.begin(), m_d.end());
-  use[0] = thrust::distance(thrust::upper_bound(m_d.begin(), m_d.end(), 0.0), m_d.end());
+
+  auto m_it = thrust::upper_bound(m_d.begin(), m_d.end(), 0.0);
+  use[0]    = thrust::distance(m_it, m_d.end());
 }
 
 void SphericalBasis::determine_acceleration_cuda()

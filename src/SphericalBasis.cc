@@ -265,7 +265,7 @@ SphericalBasis::~SphericalBasis()
   delete nrand;
 
 #if HAVE_LIBCUDA==1
-  if (cC->cudaDevice>=0) destroy_cuda();
+  if (component->cudaDevice>=0) destroy_cuda();
 #endif
 }
 
@@ -603,9 +603,9 @@ void SphericalBasis::determine_coefficients(void)
 #endif
 
 #if HAVE_LIBCUDA==1
-  if (cC->cudaDevice>=0) {
+  if (component->cudaDevice>=0) {
     start1 = std::chrono::high_resolution_clock::now();
-    cC->ParticlesToCuda();
+    component->ParticlesToCuda(component);
     determine_coefficients_cuda();
     DtoH_coefs(expcoef0[0]);
     finish1 = std::chrono::high_resolution_clock::now();
@@ -686,7 +686,7 @@ void SphericalBasis::determine_coefficients(void)
   print_timings("SphericalBasis: coefficient timings");
 
 # if HAVE_LIBCUDA
-  if (cC->cudaDevice>=0) {
+  if (component->timers) {
     auto finish0 = std::chrono::high_resolution_clock::now();
   
     std::chrono::duration<double> duration0 = finish0 - start0;
@@ -1187,13 +1187,13 @@ void SphericalBasis::determine_acceleration_and_potential(void)
 #endif
 
 #if HAVE_LIBCUDA==1
-  if (cC->cudaDevice>=0) {
+  if (component->cudaDevice>=0) {
     start1 = std::chrono::high_resolution_clock::now();
 
-    cC->ParticlesToCuda();
     HtoD_coefs(expcoef);
+    component->ParticlesToCuda(cC);
     determine_acceleration_cuda();
-    cC->CudaToParticles();
+    component->CudaToParticles(cC);
 
     finish1 = std::chrono::high_resolution_clock::now();
   } else {
@@ -1224,18 +1224,20 @@ void SphericalBasis::determine_acceleration_and_potential(void)
   print_timings("SphericalBasis: acceleration timings");
 
 #if HAVE_LIBCUDA==1
-  finish0 = std::chrono::high_resolution_clock::now();
+  if (component->timers) {
+    finish0 = std::chrono::high_resolution_clock::now();
 
-  std::chrono::duration<double> duration0 = finish0 - start0;
-  std::chrono::duration<double> duration1 = finish1 - start1;
+    std::chrono::duration<double> duration0 = finish0 - start0;
+    std::chrono::duration<double> duration1 = finish1 - start1;
   
-  std::cout << std::string(60, '=') << std::endl;
-  std::cout << "== Force evaluation [SphericalBasis, " << cC->name
-	    << "]" << std::endl;
-  std::cout << std::string(60, '=') << std::endl;
-  std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
-  std::cout << "Time in GPU: " << duration1.count() << std::endl;
-  std::cout << std::string(60, '=') << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "== Force evaluation [SphericalBasis::" << cC->name
+	      << "]" << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
+    std::cout << "Time in GPU: " << duration1.count() << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+  }
 #endif
 }
 

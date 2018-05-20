@@ -7,7 +7,9 @@
 
 #include <iostream>
 #include <iomanip>
+#include <list>
 
+#include <fenv.h>
 #include <signal.h>
 #include <fpu_control.h>
 
@@ -41,6 +43,28 @@ void set_fpu_handler(void)
   } else {
     std::cout << "EXP: Floating point-exception handler installed" << std::endl;
   }
+
+  feenableexcept(FE_ALL_EXCEPT & ~FE_INEXACT);
+
+  //
+  // Print enabled flags to root node
+  //
+  if (myid==0) {
+    const std::list<std::pair<int, std::string>> flags =
+      {	{FE_DIVBYZERO, "divide-by-zero"},
+	{FE_INEXACT,   "inexact"},
+	{FE_INVALID,   "invalid"},
+	{FE_OVERFLOW,  "overflow"},
+	{FE_UNDERFLOW, "underflow"} };
+    
+    int _flags = fegetexcept();
+    std::cout << "Enabled FE flags: <";
+    for (auto v : flags) {
+      if (v.first & _flags) std::cout << v.second << ' ';
+    }
+    std::cout << "\b>" << std::endl;
+  }
+  
 }
 
 #endif

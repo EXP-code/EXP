@@ -634,8 +634,6 @@ void Cylinder::determine_coefficients_cuda()
 
   if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
-  // unsigned int Nthread = gridSize*BLOCK_SIZE;
-
   std::vector<float> ctr;
   for (auto v : cC->getCenter(Component::Local | Component::Centered)) ctr.push_back(v);
 
@@ -690,7 +688,7 @@ void Cylinder::determine_coefficients_cuda()
     firstime = false;
   }
 
-  std::vector<float> coefs((2*mmax+1)*ncylorder);
+  host_coefs.resize((2*mmax+1)*ncylorder);
 
   thrust::counting_iterator<int> index_begin(0);
   thrust::counting_iterator<int> index_end(gridSize*2*ncylorder);
@@ -747,8 +745,8 @@ void Cylinder::determine_coefficients_cuda()
     
     thrust::host_vector<float> ret = df_coef;
     for (size_t j=0; j<ncylorder; j++) {
-      coefs[Imn(m, 'c', j, ncylorder)] = ret[2*j];
-      if (m>0) coefs[Imn(m, 's', j, ncylorder)] = ret[2*j+1];
+      host_coefs[Imn(m, 'c', j, ncylorder)] = ret[2*j];
+      if (m>0) host_coefs[Imn(m, 's', j, ncylorder)] = ret[2*j+1];
     }
   }
 
@@ -769,11 +767,11 @@ void Cylinder::determine_coefficients_cuda()
 	      << std::endl;
 
     int i = Imn(0, 'c', 0, ncylorder);
-    auto cmax = std::max_element(coefs.begin()+i, coefs.begin()+i+ncylorder, LessAbs<float>());
+    auto cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+ncylorder, LessAbs<float>());
 
     for (size_t n=0; n<ncylorder; n++) {
       int    i = Imn(0, 'c', n, ncylorder);
-      double a = coefs[i];
+      double a = host_coefs[i];
       double b = ortho->get_coef(0, n, 'c');
       std::cout << std::setw(4)  << n
 		<< std::setw(4)  << i
@@ -787,11 +785,11 @@ void Cylinder::determine_coefficients_cuda()
     std::cout << "M=1c coefficients" << std::endl;
 
     i = Imn(1, 'c', 0, ncylorder);
-    cmax = std::max_element(coefs.begin()+i, coefs.begin()+i+ncylorder, LessAbs<float>());
+    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+ncylorder, LessAbs<float>());
 
     for (size_t n=0; n<ncylorder; n++) {
       int    i = Imn(1, 'c', n, ncylorder);
-      double a = coefs[i];
+      double a = host_coefs[i];
       double b = ortho->get_coef(1, n, 'c');
       std::cout << std::setw(4)  << n
 		<< std::setw(4)  << i
@@ -805,11 +803,11 @@ void Cylinder::determine_coefficients_cuda()
     std::cout << "M=1s coefficients" << std::endl;
 
     i = Imn(1, 's', 0, ncylorder);
-    cmax = std::max_element(coefs.begin()+i, coefs.begin()+i+ncylorder, LessAbs<float>());
+    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+ncylorder, LessAbs<float>());
 
     for (size_t n=0; n<ncylorder; n++) {
       int    i = Imn(1, 's', n, ncylorder);
-      double a = coefs[i];
+      double a = host_coefs[i];
       double b = ortho->get_coef(1, n, 's');
       std::cout << std::setw(4)  << n
 		<< std::setw(4)  << i
@@ -823,11 +821,11 @@ void Cylinder::determine_coefficients_cuda()
     std::cout << "M=2c coefficients" << std::endl;
 
     i = Imn(2, 'c', 0, ncylorder);
-    cmax = std::max_element(coefs.begin()+i, coefs.begin()+i+ncylorder, LessAbs<float>());
+    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+ncylorder, LessAbs<float>());
 
     for (size_t n=0; n<ncylorder; n++) {
       int    i = Imn(2, 'c', n, ncylorder);
-      double a = coefs[i];
+      double a = host_coefs[i];
       double b = ortho->get_coef(2, n, 'c');
       std::cout << std::setw(4)  << n
 		<< std::setw(4)  << i
@@ -841,11 +839,11 @@ void Cylinder::determine_coefficients_cuda()
     std::cout << "M=2s coefficients" << std::endl;
 
     i = Imn(2, 's', 0, ncylorder);
-    cmax = std::max_element(coefs.begin()+i, coefs.begin()+i+ncylorder, LessAbs<float>());
+    cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+ncylorder, LessAbs<float>());
 
     for (size_t n=0; n<ncylorder; n++) {
       int    i = Imn(2, 's', n, ncylorder);
-      double a = coefs[i];
+      double a = host_coefs[i];
       double b = ortho->get_coef(2, n, 's');
       std::cout << std::setw(4)  << n
 		<< std::setw(4)  << i
@@ -890,7 +888,7 @@ void Cylinder::determine_coefficients_cuda()
 	  elem.n = n;
 	  elem.cs = 'c';
 	  elem.d = ortho->get_coef(m, n, 'c');
-	  elem.f = coefs[Imn(m, 'c', n, ncylorder)];
+	  elem.f = host_coefs[Imn(m, 'c', n, ncylorder)];
 	  
 	  double test = fabs(elem.d - elem.f);
 	  if (fabs(elem.d)>1.0e-4) test /= fabs(elem.d);
@@ -912,7 +910,7 @@ void Cylinder::determine_coefficients_cuda()
 	  elem.n = n;
 	  elem.cs = 'c';
 	  elem.d = ortho->get_coef(m, n, 'c');
-	  elem.f = coefs[Imn(m, 'c', n, ncylorder)];
+	  elem.f = host_coefs[Imn(m, 'c', n, ncylorder)];
 
 	  out << std::setw( 5) << m
 	      << std::setw( 5) << n
@@ -933,7 +931,7 @@ void Cylinder::determine_coefficients_cuda()
 	  elem.n = n;
 	  elem.cs = 's';
 	  elem.d = ortho->get_coef(m, n, 'c');
-	  elem.f = coefs[Imn(m, 's', n, ncylorder)];
+	  elem.f = host_coefs[Imn(m, 's', n, ncylorder)];
 
 	  out << std::setw( 5) << m
 	      << std::setw( 5) << n
@@ -984,10 +982,14 @@ void Cylinder::determine_coefficients_cuda()
 	      << std::endl;
   }
 
-  // Compute number of particles used in coefficient determination
+  // Compute number and total mass of particles used in coefficient
+  // determination
   //
   thrust::sort(m_d.begin(), m_d.end());
-  use[0] = thrust::distance(thrust::upper_bound(m_d.begin(), m_d.end(), 0.0), m_d.end());
+
+  auto m_it   = thrust::upper_bound(m_d.begin(), m_d.end(), 0.0);
+  use[0]      = thrust::distance(m_it, m_d.end());
+  cylmass0[0] = thrust::reduce  (m_it, m_d.end());
 }
 
 
@@ -1019,10 +1021,6 @@ void Cylinder::determine_acceleration_cuda()
   unsigned int gridSize  = N/BLOCK_SIZE/stride;
 
   if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
-
-
-  // unsigned int Nthread = gridSize*BLOCK_SIZE;
-
 
   std::vector<float> ctr;
   for (auto v : cC->getCenter(Component::Local | Component::Centered)) ctr.push_back(v);
@@ -1094,8 +1092,7 @@ void Cylinder::DtoH_coefs()
     //
     for (int n=0; n<ncylorder; n++) {
       ortho->get_coef(m, n, 'c') = host_coefs[Imn(m, 'c', n, ncylorder)];
-      if (m>0)
-	ortho->get_coef(m, n, 's') = host_coefs[Imn(m, 's', n, ncylorder)];
+      if (m>0) ortho->get_coef(m, n, 's') = host_coefs[Imn(m, 's', n, ncylorder)];
     }
   }
 }

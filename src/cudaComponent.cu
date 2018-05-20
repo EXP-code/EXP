@@ -1,42 +1,40 @@
 #include <Component.H>
 
-// Define for checking cuda_particles: values and counts
+// Define >0 for checking cuda_particles: values and counts
+// Set to zero for production
 //
-// #define BIG_DEBUG
+#define BIG_DEBUG 1
 
 std::pair<unsigned int, unsigned int>
 Component::CudaSortByLevel(int minlev, int maxlev)
 {
   std::pair<unsigned, unsigned> ret;
 
- try
-   {
-     thrust::sort(cuda_particles.begin(), cuda_particles.end(), LessCudaLev());
+  try {
+    thrust::sort(cuda_particles.begin(), cuda_particles.end(), LessCudaLev());
 
-     cudaParticle temp;
+    cudaParticle temp;
 
-     thrust::device_vector<cudaParticle>::iterator
-       pbeg = cuda_particles.begin(),
-       pend = cuda_particles.end();
-
-     // Get positions of level boundaries
-     //
-     temp.level = minlev;
-     ret.first  = thrust::lower_bound(pbeg, pend, temp, LessCudaLev()) - pbeg;
-     
-     temp.level = maxlev;
-     ret.second = thrust::upper_bound(pbeg, pend, temp, LessCudaLev()) - pbeg;
-   }
- catch(std::bad_alloc &e)
-  {
+    thrust::device_vector<cudaParticle>::iterator
+      pbeg = cuda_particles.begin(),
+      pend = cuda_particles.end();
+    
+    // Get positions of level boundaries
+    //
+    temp.level = minlev;
+    ret.first  = thrust::lower_bound(pbeg, pend, temp, LessCudaLev()) - pbeg;
+    
+    temp.level = maxlev;
+    ret.second = thrust::upper_bound(pbeg, pend, temp, LessCudaLev()) - pbeg;
+  }
+  catch(std::bad_alloc &e) {
     std::cerr << "Ran out of memory while sorting" << std::endl;
     exit(-1);
   }
- catch(thrust::system_error &e)
-   {
-     std::cerr << "Some other error happened during sort, lower_bound, or upper_bound:" << e.what() << std::endl;
-     exit(-1);
-   }
+  catch(thrust::system_error &e) {
+    std::cerr << "Some other error happened during sort, lower_bound, or upper_bound:" << e.what() << std::endl;
+    exit(-1);
+  }
  
   return ret;
 }
@@ -60,29 +58,31 @@ std::ostream& operator<< (std::ostream& os, const cudaParticle& p)
 }
 
 
-void Component::ParticlesToCuda()
+void Component::ParticlesToCuda(Component *C)
 {
   std::cout << std::scientific;
 
-#ifdef BIG_DEBUG
+#if BIG_DEBUG > 0
   static unsigned count = 0;
-  std::cout << std::string(72, '-') << std::endl
-	    << "---- Component name: " << name
-	    << " [#" << count++ << "]" << std::endl
-	    << "---- Comp particle size: " << particles.size() << std::endl
+  std::cout << std::string(72, '-')        << std::endl
+	    << "---- Component name: "     << name
+	    << " [#" << count++ << "]"     << std::endl
+	    << "---- Particle orig:  "     << C->name
+	    << " [" << C->particles.size() << "]" << std::endl
+	    << std::string(72, '-')        << std::endl
 	    << "---- Host particle size: " << host_particles.size()
 	    << " [" << std::hex << thrust::raw_pointer_cast(host_particles.data()) << "] before" << std::endl << std::dec
 	    << "---- Cuda particle size: " << cuda_particles.size()
 	    << " [" << hex << thrust::raw_pointer_cast(cuda_particles.data()) << "] before" << std::endl << std::dec;
 #endif
   
-  host_particles.resize(particles.size());
+  host_particles.resize(C->particles.size());
   thrust::host_vector<cudaParticle>::iterator it = host_particles.begin();
-  for (auto v : particles) {
+  for (auto v : C->particles) {
     ParticleHtoD(v.second, *(it++));
   }
   
-#ifdef BIG_DEBUG
+#if BIG_DEBUG > 1
   static unsigned cnt = 0;
   std::ostringstream sout;
   sout << "test." << cnt++;
@@ -91,7 +91,7 @@ void Component::ParticlesToCuda()
   std::copy(host_particles.begin(), host_particles.end(),
 	    std::ostream_iterator<cudaParticle>(tmp, "\n") );
 
-  std::cout << "[host] BEFORE first copy" << std::endl;
+  std::cout << "[host] BEFORE copy" << std::endl;
   std::copy(host_particles.begin(), host_particles.begin()+5,
 	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
 
@@ -102,8 +102,8 @@ void Component::ParticlesToCuda()
   cuda_particles = host_particles;
 
 
-#ifdef BIG_DEBUG
-  std::cout << "[cuda] AFTER first copy" << std::endl;
+#if BIG_DEBUG > 1
+  std::cout << "[cuda] AFTER copy" << std::endl;
   std::copy(cuda_particles.begin(), cuda_particles.begin()+5,
 	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
 
@@ -113,43 +113,23 @@ void Component::ParticlesToCuda()
   std::cout << "SORT particles by seq" << std::endl;
   CudaSortBySequence();
 
-  host_particles = cuda_particles;
-
-  std::cout << "[host] AFTER first copy" << std::endl;
-
-  std::copy(host_particles.begin(), host_particles.begin()+5,
-	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
-
-  std::copy(host_particles.end()-5, host_particles.end(),
-	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
-
-
-  cuda_particles = host_particles;
-
-  std::cout << "[cuda] AFTER second copy" << std::endl;
+  std::cout << "[cuda] AFTER sort" << std::endl;
 
   std::copy(cuda_particles.begin(), cuda_particles.begin()+5,
 	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
 
   std::copy(cuda_particles.end()-5, cuda_particles.end(),
 	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
+#endif
 
-
-  host_particles = cuda_particles;
-
-  std::cout << "[host] AFTER second copy" << std::endl;
-
-  std::copy(host_particles.begin(), host_particles.begin()+5,
-	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
-
-  std::copy(host_particles.end()-5, host_particles.end(),
-	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
-
+#if BIG_DEBUG > 0
   std::cout << std::string(72, '-') << std::endl
 	    << "---- Host particle size: " << host_particles.size()
 	    << " [" << std::hex << thrust::raw_pointer_cast(host_particles.data()) << "] after" << std::endl << std::dec
+#if BIG_DEBUG > 1
 	    << "---- First mass: " << host_particles[0].mass << std::endl
-	    << "---- Last mass: " << host_particles[host_particles.size()-1].mass << std::endl
+	    << "---- Last mass:  " << host_particles[host_particles.size()-1].mass << std::endl
+#endif
 	    << "---- Cuda particle size: " << cuda_particles.size()
 	    << " [" << hex << thrust::raw_pointer_cast(cuda_particles.data()) << "] after" << std::endl << std::dec
 	    << std::string(72, '-') << std::endl;
@@ -157,10 +137,10 @@ void Component::ParticlesToCuda()
 }
 
 
-void Component::CudaToParticles()
+void Component::CudaToParticles(Component *C)
 {
   host_particles = cuda_particles;
-  for (auto v : host_particles) ParticleDtoH(v, particles[v.indx]);
+  for (auto v : host_particles) ParticleDtoH(v, C->particles[v.indx]);
 }
 
 struct cudaZeroAcc : public thrust::unary_function<cudaParticle, cudaParticle>
