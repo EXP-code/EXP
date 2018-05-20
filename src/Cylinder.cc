@@ -398,41 +398,9 @@ void Cylinder::get_acceleration_and_potential(Component* C)
 
   MPL_start_timer();
 
-#if HAVE_LIBCUDA==1
-  if (cC->cudaDevice>=0) {
-    start1 = std::chrono::high_resolution_clock::now();
-    cC->ParticlesToCuda();
-    HtoD_coefs();
-    determine_acceleration_cuda();
-    cC->CudaToParticles();
-    finish1 = std::chrono::high_resolution_clock::now();
-  } else {
-    determine_acceleration_and_potential();
-  }
-#else
   determine_acceleration_and_potential();
-#endif
 
   MPL_stop_timer();
-
-
-#if HAVE_LIBCUDA
-  if (cC->cudaDevice>=0) {
-    finish0 = std::chrono::high_resolution_clock::now();
-
-    std::chrono::duration<double> duration0 = finish0 - start0;
-    std::chrono::duration<double> duration1 = finish1 - start1;
-    std::chrono::duration<double> duration2 = start1  - start0;
-    
-    std::cout << std::string(60, '=') << std::endl;
-    std::cout << "== Force evaluation [Cylinder, other]" << std::endl;
-    std::cout << std::string(60, '=') << std::endl;
-    std::cout << "Time in CPU: " << duration0.count() - duration1.count() << std::endl;
-    std::cout << "Time in GPU: " << duration1.count() << std::endl;
-    std::cout << "Time before: " << duration2.count() << std::endl;
-    std::cout << std::string(60, '=') << std::endl;
-  }
-#endif
 
   //=======================
   // Recompute PCA analysis
@@ -1086,7 +1054,7 @@ void Cylinder::determine_acceleration_and_potential(void)
     std::chrono::duration<double> duration2 = start1  - start0;
 
     std::cout << std::string(60, '=') << std::endl;
-    std::cout << "== Force evaluation [Cylinder, self]" << std::endl;
+    std::cout << "== Force evaluation [Cylinder, " << cC->name << "]" << std::endl;
     std::cout << std::string(60, '=') << std::endl;
     std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
     std::cout << "Time in GPU: " << duration1.count() << std::endl;

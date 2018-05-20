@@ -1179,54 +1179,32 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
 void SphericalBasis::determine_acceleration_and_potential(void)
 {
+  std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
+  start0 = std::chrono::high_resolution_clock::now();
+
 #ifdef DEBUG
   cout << "Process " << myid << ": in determine_acceleration_and_potential\n";
 #endif
 
 #if HAVE_LIBCUDA==1
   if (cC->cudaDevice>=0) {
-    auto start = std::chrono::high_resolution_clock::now();
+    start1 = std::chrono::high_resolution_clock::now();
 
     cC->ParticlesToCuda();
     HtoD_coefs(expcoef);
     determine_acceleration_cuda();
     cC->CudaToParticles();
 
-    auto finish = std::chrono::high_resolution_clock::now();
-
-    std::chrono::duration<double> duration = finish - start;
-
-    std::cout << std::string(60, '=') << std::endl;
-    std::cout << "== Force evaluation [SphericalBasis,self GPU]" << std::endl;
-    std::cout << "Time: " << duration.count() << std::endl;
-    std::cout << std::string(60, '=') << std::endl;
+    finish1 = std::chrono::high_resolution_clock::now();
   } else {
-    auto start = std::chrono::high_resolution_clock::now();
 
     exp_thread_fork(false);
 
-    auto finish = std::chrono::high_resolution_clock::now();
-
-    std::chrono::duration<double> duration = finish - start;
-
-    std::cout << std::string(60, '=') << std::endl;
-    std::cout << "== Force evaluation [SphericalBasis,self CPU]" << std::endl;
-    std::cout << "Time: " << duration.count() << std::endl;
-    std::cout << std::string(60, '=') << std::endl;
   }
 #else
-  auto start = std::chrono::high_resolution_clock::now();
 
   exp_thread_fork(false);
 
-  auto finish = std::chrono::high_resolution_clock::now();
-    
-  std::chrono::duration<double> duration = finish - start;
-
-  std::cout << std::string(60, '=') << std::endl;
-  std::cout << "== Force evaluation [SphericalBasis,self CPU]" << std::endl;
-  std::cout << "Time: " << duration.count() << std::endl;
-  std::cout << std::string(60, '=') << std::endl;
 #endif
 
 #ifdef DEBUG
@@ -1245,6 +1223,20 @@ void SphericalBasis::determine_acceleration_and_potential(void)
 
   print_timings("SphericalBasis: acceleration timings");
 
+#if HAVE_LIBCUDA==1
+  finish0 = std::chrono::high_resolution_clock::now();
+
+  std::chrono::duration<double> duration0 = finish0 - start0;
+  std::chrono::duration<double> duration1 = finish1 - start1;
+  
+  std::cout << std::string(60, '=') << std::endl;
+  std::cout << "== Force evaluation [SphericalBasis, " << cC->name
+	    << "]" << std::endl;
+  std::cout << std::string(60, '=') << std::endl;
+  std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
+  std::cout << "Time in GPU: " << duration1.count() << std::endl;
+  std::cout << std::string(60, '=') << std::endl;
+#endif
 }
 
 
