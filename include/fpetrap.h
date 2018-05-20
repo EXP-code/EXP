@@ -36,8 +36,10 @@ void set_fpu_handler(void)
   
   oldhandler = signal(SIGFPE, my_fpu_handler);
   if (SIG_ERR == oldhandler) {
-    std::cerr << "cannot install floating point exception handler";
+    std::cerr << "EXP: Cannot install floating-point exception handler" << std::endl;
     exit(-1);
+  } else {
+    std::cout << "EXP: Floating point-exception handler installed" << std::endl;
   }
 }
 
