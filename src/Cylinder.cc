@@ -739,7 +739,9 @@ void Cylinder::determine_coefficients(void)
     std::cout << "== Coefficient evaluation [Cylinder]" << std::endl;
     std::cout << std::string(60, '=') << std::endl;
     std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
-    std::cout << "Time in GPU: " << duration1.count() << std::endl;
+    if (cC->cudaDevice>=0) {
+      std::cout << "Time in GPU: " << duration1.count() << std::endl;
+    }
     std::cout << std::string(60, '=') << std::endl;
   }
 #endif
@@ -1056,8 +1058,10 @@ void Cylinder::determine_acceleration_and_potential(void)
     std::cout << "== Force evaluation [Cylinder::" << cC->name << "]" << std::endl;
     std::cout << std::string(60, '=') << std::endl;
     std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
-    std::cout << "Time in GPU: " << duration1.count() << std::endl;
-    std::cout << "Time before: " << duration2.count() << std::endl;
+    if (cC->cudaDevice>=0) {
+      std::cout << "Time in GPU: " << duration1.count() << std::endl;
+      std::cout << "Time before: " << duration2.count() << std::endl;
+    }
     std::cout << std::string(60, '=') << std::endl;
   }
 #endif

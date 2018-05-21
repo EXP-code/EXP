@@ -696,7 +696,9 @@ void SphericalBasis::determine_coefficients(void)
     std::cout << "== Coefficient evaluation [SphericalBasis]" << std::endl;
     std::cout << std::string(60, '=') << std::endl;
     std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
-    std::cout << "Time in GPU: " << duration1.count() << std::endl;
+    if (cC->cudaDevice>=0) {
+      std::cout << "Time in GPU: " << duration1.count() << std::endl;
+    }
     std::cout << std::string(60, '=') << std::endl;
   }
 #endif
@@ -1235,7 +1237,9 @@ void SphericalBasis::determine_acceleration_and_potential(void)
 	      << "]" << std::endl;
     std::cout << std::string(60, '=') << std::endl;
     std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
-    std::cout << "Time in GPU: " << duration1.count() << std::endl;
+    if (cC->cudaDevice>=0) {
+      std::cout << "Time in GPU: " << duration1.count() << std::endl;
+    }
     std::cout << std::string(60, '=') << std::endl;
   }
 #endif
