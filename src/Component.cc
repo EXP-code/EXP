@@ -69,6 +69,8 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   com_log     = false;
 
   timers      = false;
+  use_cuda    = true;		// Set to false to suppress cuda
+				// computation
 
   force       = 0;		// Null out pointers
   orient      = 0;
@@ -394,6 +396,7 @@ Component::Component(istream *in)
   com_restart = 0;
 
   timers      = false;
+  use_cuda    = true;
 
   force       = 0;		// Null out pointers
   orient      = 0;
@@ -456,6 +459,8 @@ void Component::initialize(void)
     if (!datum.first.compare("comlog"))   com_log = atoi(datum.second) ? true : false;
 
     if (!datum.first.compare("timers"))   timers = atoi(datum.second) ? true : false;
+
+    if (!datum.first.compare("use_cuda")) use_cuda = atoi(datum.second) ? true : false;
 
     if (!datum.first.compare("tidal"))    {tidal = atoi(datum.second); consp=true;}
 
@@ -858,19 +863,21 @@ void Component::initialize(void)
 
   // Query and assign my CUDA device
   //
-  if (deviceCount>0) {
+  if (use_cuda and deviceCount>0) {
 
     int myCount = 0, curCount = 0; // Get my local rank in sibling
     for (auto v : siblingList) {   // processes
-      if (myid==v) myCount = curCount++;
+      if (myid==v) myCount = curCount;
+      curCount++;
     }
 
     if (myCount < deviceCount) cudaDevice = myCount;
-    if (cudaDevice>=0) cudaSetDevice(cudaDevice);
-    if (cudaDevice>=0)
+    if (cudaDevice>=0) {
+      cudaSetDevice(cudaDevice);
       std::cout << "Setting CUDA device on Rank [" << myid
 		<< "] on [" << processor_name << "] to [" << cudaDevice << "]"
 		<< std::endl;
+    }
   }
 #endif
 

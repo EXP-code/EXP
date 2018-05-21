@@ -4,7 +4,7 @@
 
 // Machine constant for Legendre
 //
-const double MINEPS=4.0*DBL_MIN;
+const double MINEPS=20.0*DBL_MIN;
 
 Basis::Basis(string& line) : PotAccel(line)
 {

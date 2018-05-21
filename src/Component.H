@@ -295,6 +295,9 @@ protected:
     std::sort (keys.begin(), keys.end());
   }
 
+  //! Suppress cuda computation even if devices are available
+  bool use_cuda;
+
 public:
 
   //! Describe the phase space coordinates

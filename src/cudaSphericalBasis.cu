@@ -11,7 +11,7 @@
 
 // Machine constant for Legendre
 //
-const float FMINEPS=4.0*FLT_MIN;
+const float FMINEPS=20.0*FLT_MIN;
 
 // Global symbols for coordinate transformation in SphericalBasis
 //
@@ -388,6 +388,10 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
       float *plm1 = &L1._v[psiz*tid];
       float *plm2 = &L2._v[psiz*tid];
       
+      const float FLIM = 1.0e-5;
+      if (costh >   1.0 - FLIM ) costh =   1.0 - FLIM;
+      if (costh < -(1.0 - FLIM)) costh = -(1.0 - FLIM);
+
       legendre_v2(Lmax, costh, plm1, plm2);
 
       int ioff = 0;
