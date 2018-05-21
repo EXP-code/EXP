@@ -3,7 +3,7 @@
 // Define >0 for checking cuda_particles: values and counts
 // Set to zero for production
 //
-#define BIG_DEBUG 1
+#define BIG_DEBUG 0
 
 std::pair<unsigned int, unsigned int>
 Component::CudaSortByLevel(int minlev, int maxlev)

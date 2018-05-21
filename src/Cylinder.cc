@@ -683,7 +683,7 @@ void Cylinder::determine_coefficients(void)
     start1 = std::chrono::high_resolution_clock::now();
     cC->ParticlesToCuda();
     determine_coefficients_cuda();
-    DtoH_coefs();
+    DtoH_coefs(mlevel);
     finish1 = std::chrono::high_resolution_clock::now();
   } else {    
     exp_thread_fork(true);
@@ -736,7 +736,8 @@ void Cylinder::determine_coefficients(void)
     std::chrono::duration<double> duration1 = finish1 - start1;
     
     std::cout << std::string(60, '=') << std::endl;
-    std::cout << "== Coefficient evaluation [Cylinder]" << std::endl;
+    std::cout << "== Coefficient evaluation [Cylinder] level="
+	      << mlevel << std::endl;
     std::cout << std::string(60, '=') << std::endl;
     std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
     if (cC->cudaDevice>=0) {
@@ -1006,7 +1007,7 @@ void Cylinder::determine_acceleration_and_potential(void)
 
 #ifdef DEBUG
   for (int i=0; i<nthrds; i++) offgrid[i] = 0;
-  cout << "Proocess " << myid << ": about to fork" << endl;
+  cout << "Process " << myid << ": about to fork" << endl;
 #endif
 
 #if HAVE_LIBCUDA==1
@@ -1014,7 +1015,6 @@ void Cylinder::determine_acceleration_and_potential(void)
     start1 = std::chrono::high_resolution_clock::now();
     HtoD_coefs();
     cC->ParticlesToCuda();
-    std::cout << "** " << component->name << " --> " << cC->name << std::endl;
     determine_acceleration_cuda();
     cC->CudaToParticles();
     finish1 = std::chrono::high_resolution_clock::now();
@@ -1056,7 +1056,8 @@ void Cylinder::determine_acceleration_and_potential(void)
     std::chrono::duration<double> duration2 = start1  - start0;
 
     std::cout << std::string(60, '=') << std::endl;
-    std::cout << "== Force evaluation [Cylinder::" << cC->name << "]" << std::endl;
+    std::cout << "== Force evaluation [Cylinder::" << cC->name
+	      << "] level=" << mlevel << std::endl;
     std::cout << std::string(60, '=') << std::endl;
     std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
     if (cC->cudaDevice>=0) {

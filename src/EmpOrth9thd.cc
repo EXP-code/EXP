@@ -2527,6 +2527,7 @@ void EmpCylSL::make_coefficients(void)
   if (SELECT) pca_hall();
 
   coefs_made = vector<short>(multistep+1, true);
+
 }
 
 

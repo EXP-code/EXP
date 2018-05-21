@@ -87,7 +87,7 @@ protected:
   thrust::device_vector<float> dev_coefs;
 
   virtual void HtoD_coefs();
-  virtual void DtoH_coefs();
+  virtual void DtoH_coefs(int mlevel);
 
   std::vector<cudaArray_t> cuInterpArray;
   thrust::host_vector<cudaTextureObject_t> tex;

@@ -995,12 +995,6 @@ void Cylinder::determine_coefficients_cuda()
 
 void Cylinder::determine_acceleration_cuda()
 {
-  std::cout << "** BEFORE acceleration"  << std::endl
-	    << std::string(16*7+10, '-') << std::endl;
-  std::copy(cC->cuda_particles.begin(), cC->cuda_particles.begin()+5,
-	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
-  std::cout << std::string(16*7+10, '-') << std::endl;
-
   if (initialize_cuda_cyl) {
     initialize_cuda();
     initialize_mapping_constants();
@@ -1064,18 +1058,15 @@ void Cylinder::determine_acceleration_cuda()
   forceKernelCyl<<<gridSize, BLOCK_SIZE, sMemSize>>>
     (toKernel(cC->cuda_particles), toKernel(dev_coefs), toKernel(t_d),
      stride, mmax, ncylorder, lohi, rmax, cylmass, use_external);
-
-  std::cout << "** AFTER acceleration"  << std::endl
-	    << std::string(16*7+10, '-') << std::endl;
-  std::copy(cC->cuda_particles.begin(), cC->cuda_particles.begin()+5,
-	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
-  std::cout << std::string(16*7+10, '-') << std::endl;
 }
 
 void Cylinder::HtoD_coefs()
 {
+  // Check size
   host_coefs.resize((2*mmax+1)*ncylorder);
 
+  // Copy from EmpCylSL
+  
   // m loop
   //
   for (int m=0; m<=mmax; m++) {
@@ -1088,13 +1079,14 @@ void Cylinder::HtoD_coefs()
     }
   }
 
+  // Copy to device
   dev_coefs = host_coefs;
 }
 
 
-void Cylinder::DtoH_coefs()
+void Cylinder::DtoH_coefs(int M)
 {
-  host_coefs = dev_coefs;
+  // Copy from host device to EmpCylSL
 
   // m loop
   //
@@ -1103,8 +1095,8 @@ void Cylinder::DtoH_coefs()
     // n loop
     //
     for (int n=0; n<ncylorder; n++) {
-      ortho->get_coef(m, n, 'c') = host_coefs[Imn(m, 'c', n, ncylorder)];
-      if (m>0) ortho->get_coef(m, n, 's') = host_coefs[Imn(m, 's', n, ncylorder)];
+      ortho->set_coef(M, m, n, 'c') = host_coefs[Imn(m, 'c', n, ncylorder)];
+      if (m>0) ortho->set_coef(M, m, n, 's') = host_coefs[Imn(m, 's', n, ncylorder)];
     }
   }
 }
