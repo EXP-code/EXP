@@ -995,6 +995,12 @@ void Cylinder::determine_coefficients_cuda()
 
 void Cylinder::determine_acceleration_cuda()
 {
+  std::cout << "** BEFORE acceleration"  << std::endl
+	    << std::string(16*7+10, '-') << std::endl;
+  std::copy(cC->cuda_particles.begin(), cC->cuda_particles.begin()+5,
+	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
+  std::cout << std::string(16*7+10, '-') << std::endl;
+
   if (initialize_cuda_cyl) {
     initialize_cuda();
     initialize_mapping_constants();
@@ -1058,6 +1064,12 @@ void Cylinder::determine_acceleration_cuda()
   forceKernelCyl<<<gridSize, BLOCK_SIZE, sMemSize>>>
     (toKernel(cC->cuda_particles), toKernel(dev_coefs), toKernel(t_d),
      stride, mmax, ncylorder, lohi, rmax, cylmass, use_external);
+
+  std::cout << "** AFTER acceleration"  << std::endl
+	    << std::string(16*7+10, '-') << std::endl;
+  std::copy(cC->cuda_particles.begin(), cC->cuda_particles.begin()+5,
+	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
+  std::cout << std::string(16*7+10, '-') << std::endl;
 }
 
 void Cylinder::HtoD_coefs()

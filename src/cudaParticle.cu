@@ -1,3 +1,5 @@
+#include <iostream>
+#include <iomanip>
 #include "cudaParticle.cuH"
 
 
@@ -27,4 +29,15 @@ void ParticleDtoH(const cudaParticle & d, Particle & h)
   h.potext = d.potext;
   h.level  = d.level;
   h.indx   = d.indx;
+}
+
+__host__
+std::ostream& operator<< (std::ostream& os, const cudaParticle& p)
+{
+  os << std::setw(10) << p.indx << std::setw(16) << p.mass;
+  for (int k=0; k<3; k++) os << std::setw(16) << p.pos[k];
+  // for (int k=0; k<3; k++) os << std::setw(16) << p.vel[k];
+  for (int k=0; k<3; k++) os << std::setw(16) << p.acc[k];
+  // os << std::setw(16) << p.pot << std::setw(16) << p.potext;
+  return os;
 }

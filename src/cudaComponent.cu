@@ -48,17 +48,7 @@ void Component::CudaSortBySequence()
   thrust::sort(pbeg, pend, LessCudaSeq());
 }
 
-
-__host__
-std::ostream& operator<< (std::ostream& os, const cudaParticle& p)
-{
-  os << std::setw(10) << p.indx << std::setw(16) << p.mass;
-  for (int k=0; k<3; k++) os << std::setw(16) << p.pos[k];
-  return os;
-}
-
-
-void Component::ParticlesToCuda(Component *C)
+void Component::ParticlesToCuda()
 {
   std::cout << std::scientific;
 
@@ -67,8 +57,7 @@ void Component::ParticlesToCuda(Component *C)
   std::cout << std::string(72, '-')        << std::endl
 	    << "---- Component name: "     << name
 	    << " [#" << count++ << "]"     << std::endl
-	    << "---- Particle orig:  "     << C->name
-	    << " [" << C->particles.size() << "]" << std::endl
+	    << "---- Particle count: "     << particles.size() << std::endl
 	    << std::string(72, '-')        << std::endl
 	    << "---- Host particle size: " << host_particles.size()
 	    << " [" << std::hex << thrust::raw_pointer_cast(host_particles.data()) << "] before" << std::endl << std::dec
@@ -76,9 +65,9 @@ void Component::ParticlesToCuda(Component *C)
 	    << " [" << hex << thrust::raw_pointer_cast(cuda_particles.data()) << "] before" << std::endl << std::dec;
 #endif
   
-  host_particles.resize(C->particles.size());
+  host_particles.resize(particles.size());
   thrust::host_vector<cudaParticle>::iterator it = host_particles.begin();
-  for (auto v : C->particles) {
+  for (auto v : particles) {
     ParticleHtoD(v.second, *(it++));
   }
   
@@ -137,10 +126,10 @@ void Component::ParticlesToCuda(Component *C)
 }
 
 
-void Component::CudaToParticles(Component *C)
+void Component::CudaToParticles()
 {
   host_particles = cuda_particles;
-  for (auto v : host_particles) ParticleDtoH(v, C->particles[v.indx]);
+  for (auto v : host_particles) ParticleDtoH(v, particles[v.indx]);
 }
 
 struct cudaZeroAcc : public thrust::unary_function<cudaParticle, cudaParticle>

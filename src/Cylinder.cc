@@ -681,7 +681,7 @@ void Cylinder::determine_coefficients(void)
 #if HAVE_LIBCUDA==1
   if (component->cudaDevice>=0) {
     start1 = std::chrono::high_resolution_clock::now();
-    component->ParticlesToCuda(component);
+    cC->ParticlesToCuda();
     determine_coefficients_cuda();
     DtoH_coefs();
     finish1 = std::chrono::high_resolution_clock::now();
@@ -1013,9 +1013,10 @@ void Cylinder::determine_acceleration_and_potential(void)
   if (cC->cudaDevice>=0) {
     start1 = std::chrono::high_resolution_clock::now();
     HtoD_coefs();
-    component->ParticlesToCuda(cC);
+    cC->ParticlesToCuda();
+    std::cout << "** " << component->name << " --> " << cC->name << std::endl;
     determine_acceleration_cuda();
-    component->CudaToParticles(cC);
+    cC->CudaToParticles();
     finish1 = std::chrono::high_resolution_clock::now();
   } else {
     exp_thread_fork(false);

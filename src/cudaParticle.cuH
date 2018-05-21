@@ -48,4 +48,7 @@ void ParticleHtoD(const Particle & h, cudaParticle & d);
 
 void ParticleDtoH(const cudaParticle & d, Particle & h);
 
+extern __host__
+std::ostream& operator<< (std::ostream& os, const cudaParticle& p);
+
 #endif
