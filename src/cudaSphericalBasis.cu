@@ -645,8 +645,6 @@ void SphericalBasis::determine_coefficients_cuda()
 
   if (N == 0) {
     use[0] = 0.0;
-    std::cout << "CUDA SphericalBasis: no particles at Level " << mlevel
-	      << " ... skipping computation" << std::endl;
     return;
   }
 

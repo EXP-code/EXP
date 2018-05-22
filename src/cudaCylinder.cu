@@ -640,8 +640,6 @@ void Cylinder::determine_coefficients_cuda()
   if (N == 0) {
     use[0] = 0.0;
     cylmass0[0] = 0.0;
-    std::cout << "CUDA Cylinder: no particles at Level " << mlevel
-	      << " ... skipping computation" << std::endl;
     return;
   }
 
