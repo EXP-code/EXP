@@ -378,6 +378,10 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
       float yy = p.pos[1] - sphCen[1];
       float zz = p.pos[2] - sphCen[2];
       
+      if (fabs(xx) > 10.0*rmax or
+	  fabs(yy) > 10.0*rmax or
+	  fabs(zz) > 10.0*rmax) continue;
+
       float r2 = (xx*xx + yy*yy + zz*zz);
       float r  = sqrt(r2) + FSMALL;
       
@@ -592,7 +596,7 @@ forceKernel(dArray<cudaParticle> in, dArray<float> coef,
       }
 #endif
 
-    } // Particle index block
+      } // Particle index block
 
   } // END: stride loop
 
@@ -626,13 +630,25 @@ void SphericalBasis::determine_coefficients_cuda()
 
   // Sort particles and get coefficient size
   //
-  PII lohi = cC->CudaSortByLevel(mlevel, multistep);
+  PII lohi = cC->CudaSortByLevel(mlevel, mlevel);
+
+  // Zero out coefficients
+  //
+  host_coefs.resize((Lmax+1)*(Lmax+1)*nmax);
+  thrust::fill(host_coefs.begin(), host_coefs.end(), 0.0);
 
   // Compute grid
   //
   unsigned int N         = lohi.second - lohi.first;
   unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
   unsigned int gridSize  = N/BLOCK_SIZE/stride;
+
+  if (N == 0) {
+    use[0] = 0.0;
+    std::cout << "CUDA SphericalBasis: no particles at Level " << mlevel
+	      << " ... skipping computation" << std::endl;
+    return;
+  }
 
   if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
@@ -689,8 +705,6 @@ void SphericalBasis::determine_coefficients_cuda()
     */
     firstime = false;
   }
-
-  host_coefs.resize((Lmax+1)*(Lmax+1)*nmax);
 
   thrust::counting_iterator<int> index_begin(0);
   thrust::counting_iterator<int> index_end(gridSize*2*nmax);
@@ -846,8 +860,6 @@ void SphericalBasis::HtoD_coefs(const Matrix& expcoef)
 
 void SphericalBasis::DtoH_coefs(Matrix& expcoef)
 {
-  host_coefs = dev_coefs;
-
   // l loop
   //
   for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {

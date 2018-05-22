@@ -624,13 +624,26 @@ void Cylinder::determine_coefficients_cuda()
 
   // Sort particles and get coefficient size
   //
-  PII lohi = cC->CudaSortByLevel(mlevel, multistep);
+  PII lohi = cC->CudaSortByLevel(mlevel, mlevel);
+
+  // Zero out coefficients
+  //
+  host_coefs.resize((2*mmax+1)*ncylorder);
+  thrust::fill(host_coefs.begin(), host_coefs.end(), 0.0);
 
   // Compute grid
   //
   unsigned int N         = lohi.second - lohi.first;
   unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
   unsigned int gridSize  = N/BLOCK_SIZE/stride;
+
+  if (N == 0) {
+    use[0] = 0.0;
+    cylmass0[0] = 0.0;
+    std::cout << "CUDA Cylinder: no particles at Level " << mlevel
+	      << " ... skipping computation" << std::endl;
+    return;
+  }
 
   if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
@@ -687,8 +700,6 @@ void Cylinder::determine_coefficients_cuda()
     */
     firstime = false;
   }
-
-  host_coefs.resize((2*mmax+1)*ncylorder);
 
   thrust::counting_iterator<int> index_begin(0);
   thrust::counting_iterator<int> index_end(gridSize*2*ncylorder);
