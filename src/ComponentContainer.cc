@@ -14,6 +14,7 @@
 #include <gptl.h>
 #endif
 
+#include <NVTX.H>
 
 long ComponentContainer::tinterval = 300;	// Seconds between timer dumps
 
@@ -279,6 +280,10 @@ ComponentContainer::~ComponentContainer(void)
 
 void ComponentContainer::compute_potential(unsigned mlevel)
 {
+  nvTracerPtr tPtr, tPtr1;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("ComponentContainer::compute_potential"));
+
 #ifdef DEBUG
   cout << "Process " << myid << ": entered <compute_potential>\n";
 #endif
@@ -323,6 +328,11 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   for (auto c : components) {
 
+    if (cuda_prof) {
+      std::ostringstream sout; sout << "ComponentContainer, init [" << c->name << "]";
+      tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
+    }
+
     if (timing) {
       timer_wait.stop();
       timer_zero.start();
@@ -363,7 +373,19 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       timer_accel.start();
     }
     c->time_so_far.start();
+
+    if (cuda_prof) {
+      std::ostringstream sout; sout << "ComponentContainer::set_multistep [" << c->name << "]";
+      tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
+    }
+
     c->force->set_multistep_level(mlevel);
+
+    if (cuda_prof) {
+      std::ostringstream sout; sout << "ComponentContainer::get_accel [" << c->name << "]";
+      tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
+    }
+
     c->force->get_acceleration_and_potential(c);
     c->time_so_far.stop();
     if (timing) {
@@ -426,6 +448,11 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	   << inter->c->name << "-->" << other->name << ">";
       GPTLstart(sout.str().c_str());
 #endif
+      if (cuda_prof) {
+	std::ostringstream sout; sout << "ComponentContainer, interaction [" << inter->c->name
+				      << "-->" << other->name << "]";
+	tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
+      }
 
       if (timing) {
 	timer_accel.start();
@@ -475,6 +502,10 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   state = EXTERNAL;
 
+  if (cuda_prof) {
+    tPtr1 = nvTracerPtr(new nvTracer("ComponentContainer::external forces"));
+  }
+
   if (timing) {
     timer_extrn.start();
 				// Initialize external force timers?
@@ -514,6 +545,10 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   GPTLstart("ComponentContainer::centering");
 #endif
 
+
+  if (cuda_prof) {
+    tPtr1 = nvTracerPtr(new nvTracer("ComponentContainer::house keeping"));
+  }
 
 
   if (timing) timer_extrn.stop();

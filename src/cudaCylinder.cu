@@ -1128,7 +1128,7 @@ void Cylinder::destroy_cuda()
 		     __FILE__, __LINE__, sout.str());
   }
     
-  // std::cout << "cuda memory freed" << std::endl;
+  std::cout << "cuda memory freed" << std::endl;
 }
 
 void Cylinder::host_dev_force_compare()

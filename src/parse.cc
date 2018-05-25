@@ -89,6 +89,11 @@ void initialize(void)
     else global_cov = false;
   }
 
+  if (parse->find_item("cuda_prof", val)) {
+    if (atoi(val.c_str())) cuda_prof = true;
+    else cuda_prof = false;
+  }
+
   if (parse->find_item("barrier_check", val)) {
     if (atoi(val.c_str())) barrier_check = true;
     else barrier_check = false;
