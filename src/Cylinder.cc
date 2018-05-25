@@ -97,6 +97,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
   density     = false;
   coef_dump   = true;
   try_cache   = true;
+  dump_basis  = false;
   eof_file    = "";
 
   initialize();
@@ -319,6 +320,10 @@ void Cylinder::initialize()
     if (atoi(val.c_str())) try_cache = true; 
     else try_cache = false;
   }
+  if (get_value("dump_basis", val)) {
+    if (atoi(val.c_str())) dump_basis = true; 
+    else dump_basis = false;
+  }
   if (get_value("density", val)) {
     if (atoi(val.c_str())) density = true; 
     else density = false;
@@ -331,6 +336,10 @@ void Cylinder::initialize()
 
 void Cylinder::get_acceleration_and_potential(Component* C)
 {
+  nvTracerPtr tPtr;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("Cylinder::get_acceleration"));
+
   std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
 
   start0 = std::chrono::high_resolution_clock::now();
@@ -347,7 +356,10 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   //====================================================
 
   if (use_external) {
-    
+    nvTracerPtr tPtr1;
+    if (cuda_prof)
+      tPtr1 = nvTracerPtr(new nvTracer("Cylinder: in external"));
+
     MPL_start_timer();
     determine_acceleration_and_potential();
     MPL_stop_timer();
@@ -375,19 +387,24 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   // Dump basis on first call
   //=========================
 
-  if (ncompcyl==0 && ortho->coefs_made_all() && !initializing) {
-    if (myid == 0 && density) {
-      if (multistep==0 || mstep==0) {
-	ortho->dump_basis(runtag.c_str(), this_step);
+  if ( dump_basis and (this_step==0 || (expcond and ncompcyl==0) )
+       && ortho->coefs_made_all() && !initializing) {
+
+    if (myid == 0 and multistep==0 || mstep==0) {
       
-	ostringstream dumpname;
-	dumpname << "images" << "." << runtag << "." << this_step;
-	ortho->dump_images(dumpname.str(), 5.0*acyl, 5.0*hcyl, 64, 64, true);
-	//
-	// This next call is ONLY for deep debug
-	//
-	// dump_mzero(runtag.c_str(), this_step);
-      }
+      nvTracerPtr tPtr2;
+      if (cuda_prof)
+	tPtr2 = nvTracerPtr(new nvTracer("Cylinder::dump basis"));
+
+      ortho->dump_basis(runtag.c_str(), this_step);
+      
+      ostringstream dumpname;
+      dumpname << "images" << "." << runtag << "." << this_step;
+      ortho->dump_images(dumpname.str(), 5.0*acyl, 5.0*hcyl, 64, 64, true);
+      //
+      // This next call is ONLY for deep debug
+      //
+      // dump_mzero(runtag.c_str(), this_step);
     }
   }
 
@@ -602,6 +619,10 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 
 void Cylinder::determine_coefficients(void)
 {
+  nvTracerPtr tPtr;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("Cylinder::determine_coefficients"));
+
   std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
 
   start0 = std::chrono::high_resolution_clock::now();
@@ -681,7 +702,7 @@ void Cylinder::determine_coefficients(void)
 #if HAVE_LIBCUDA==1
   if (component->cudaDevice>=0) {
     start1 = std::chrono::high_resolution_clock::now();
-    cC->ParticlesToCuda();
+    component->ParticlesToCuda(component);
     determine_coefficients_cuda();
     DtoH_coefs(mlevel);
     finish1 = std::chrono::high_resolution_clock::now();
@@ -991,6 +1012,10 @@ static int ocf = 0;
 
 void Cylinder::determine_acceleration_and_potential(void)
 {
+  nvTracerPtr tPtr;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("Cylinder::determine_acceleration"));
+
   std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
 
   start0 = std::chrono::high_resolution_clock::now();
@@ -1013,10 +1038,22 @@ void Cylinder::determine_acceleration_and_potential(void)
 #if HAVE_LIBCUDA==1
   if (cC->cudaDevice>=0) {
     start1 = std::chrono::high_resolution_clock::now();
+    //
+    // Copy coeficients from this component to device
+    //
     HtoD_coefs();
-    cC->ParticlesToCuda();
+    //
+    // Copy cC particles to component's host stage
+    //
+    component->ParticlesToCuda(cC);
+    //
+    // Do the force computation
+    //
     determine_acceleration_cuda();
-    cC->CudaToParticles();
+    //
+    // Copy device particles back to cC particles
+    //
+    component->CudaToParticles(cC); 
     finish1 = std::chrono::high_resolution_clock::now();
   } else {
     exp_thread_fork(false);

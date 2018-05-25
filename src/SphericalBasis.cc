@@ -281,6 +281,10 @@ void SphericalBasis::check_range()
 
 void SphericalBasis::get_acceleration_and_potential(Component* C)
 {
+  nvTracerPtr tPtr;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("SphericalBasis::get_acceleration"));
+
 #ifdef DEBUG
   cout << "Process " << myid 
        << ": in SphericalBasis::get_acceleration_and_potential" << endl;
@@ -499,6 +503,10 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
 void SphericalBasis::determine_coefficients(void)
 {
+  nvTracerPtr tPtr;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("SphericalBasis::determine_coefficients"));
+
   std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
 
   start0 = std::chrono::high_resolution_clock::now();
@@ -605,7 +613,7 @@ void SphericalBasis::determine_coefficients(void)
 #if HAVE_LIBCUDA==1
   if (component->cudaDevice>=0) {
     start1 = std::chrono::high_resolution_clock::now();
-    cC->ParticlesToCuda();
+    component->ParticlesToCuda(component);
     determine_coefficients_cuda();
     DtoH_coefs(expcoef0[0]);
     finish1 = std::chrono::high_resolution_clock::now();
@@ -1182,6 +1190,10 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
 void SphericalBasis::determine_acceleration_and_potential(void)
 {
+  nvTracerPtr tPtr;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("SphericalBasis::determine_acceleration"));
+
   std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
   start0 = std::chrono::high_resolution_clock::now();
 
@@ -1192,11 +1204,22 @@ void SphericalBasis::determine_acceleration_and_potential(void)
 #if HAVE_LIBCUDA==1
   if (component->cudaDevice>=0) {
     start1 = std::chrono::high_resolution_clock::now();
-
+    //
+    // Copy coeficients from this component to device
+    //
     HtoD_coefs(expcoef);
-    cC->ParticlesToCuda();
+    //
+    // Copy cC particles to component's host stage
+    //
+    component->ParticlesToCuda(cC);
+    //
+    // Do the force computation
+    //
     determine_acceleration_cuda();
-    cC->CudaToParticles();
+    //
+    // Copy device particles back to cC particles
+    //
+    component->CudaToParticles(cC);
 
     finish1 = std::chrono::high_resolution_clock::now();
   } else {

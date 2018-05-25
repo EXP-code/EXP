@@ -817,11 +817,11 @@ public:
   //! The cuda particles in CUDA device memory
   thrust::device_vector<cudaParticle> cuda_particles;
 
-  //! Copy host particles to the cuda structure from component
-  void ParticlesToCuda();
+  //! Copy particles from Component C to the cuda structure for this component
+  void ParticlesToCuda(Component *C);
 
-  //! Copy cuda device particles to host structure into component
-  void CudaToParticles();
+  //! Copy cuda device particles for this component back Component C
+  void CudaToParticles(Component *C);
 
   //! Sort the device vector by sequence
   void CudaSortBySequence();

@@ -11,6 +11,7 @@
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
 #endif
+#include <NVTX.H>
 
 
 class MixtureBasis;

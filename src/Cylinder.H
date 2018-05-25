@@ -12,6 +12,7 @@
 #include <cudaParticle.cuH>
 #include <cudaMappingConstants.cuH>
 #endif
+#include <NVTX.H>
 
 class MixtureBasis;
 
@@ -47,7 +48,7 @@ private:
   int ncylorder, ncylrecomp, hallfreq, vtkfreq;
   string eof_file;
   bool self_consistent, logarithmic, density, pca, pcainit, pcavtk;
-  bool cmap, try_cache, firstime;
+  bool cmap, try_cache, firstime, dump_basis;
 
   // These should be ok for all derived classes, hence declared private
 
@@ -67,7 +68,10 @@ private:
   */
   void compute_multistep_coefficients() 
   {
-      ortho->compute_multistep_coefficients(mlevel);
+    nvTracerPtr tPtr;
+    if (cuda_prof)
+      tPtr = nvTracerPtr(new nvTracer("Cylinder::compute_multistep_coefficients"));
+    ortho->compute_multistep_coefficients(mlevel);
   }
 
   //! Reset used particle counter and mass registers
