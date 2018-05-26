@@ -613,7 +613,7 @@ void SphericalBasis::determine_coefficients(void)
 #if HAVE_LIBCUDA==1
   if (component->cudaDevice>=0) {
     start1 = std::chrono::high_resolution_clock::now();
-    component->ParticlesToCuda(component);
+    component->ParticlesToCuda();
     determine_coefficients_cuda();
     DtoH_coefs(expcoef0[0]);
     finish1 = std::chrono::high_resolution_clock::now();
@@ -1211,7 +1211,7 @@ void SphericalBasis::determine_acceleration_and_potential(void)
     //
     // Copy cC particles to component's host stage
     //
-    component->ParticlesToCuda(cC);
+    cC->ParticlesToCuda();
     //
     // Do the force computation
     //
@@ -1219,7 +1219,7 @@ void SphericalBasis::determine_acceleration_and_potential(void)
     //
     // Copy device particles back to cC particles
     //
-    component->CudaToParticles(cC);
+    cC->CudaToParticles();
 
     finish1 = std::chrono::high_resolution_clock::now();
   } else {

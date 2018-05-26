@@ -1023,6 +1023,14 @@ void Cylinder::determine_acceleration_cuda()
   //
   PII lohi = cC->CudaSortByLevel(mlevel, multistep);
 
+  // Debug
+  //
+  if (component->name != cC->name) {
+    std::cout << "---- Cylindrical force: " << component->name << "-->" << cC->name
+	      << std::endl
+	      << " --- Number: " << cC->cuda_particles.size() << std::endl;
+  }
+
   // Compute grid
   //
   unsigned int N         = lohi.second - lohi.first;
