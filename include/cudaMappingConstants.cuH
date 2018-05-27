@@ -3,18 +3,18 @@
 
 struct cudaMappingConstants
 {
-  float rscale;
-  float hscale;
-  float xmin;
-  float xmax;
-  float ymin;
-  float ymax;
-  float dxi;
-  float dyi;
-  int   numr;
-  int   numx;
-  int   numy;
-  int   cmap;
+  double rscale;
+  double hscale;
+  double xmin;
+  double xmax;
+  double ymin;
+  double ymax;
+  double dxi;
+  double dyi;
+  int    numr;
+  int    numx;
+  int    numy;
+  int    cmap;
 };
 
 #endif

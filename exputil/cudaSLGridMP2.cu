@@ -9,31 +9,32 @@
 #include <thrust/host_vector.h>
 #include <thrust/system/cuda/experimental/pinned_allocator.h>
 
-__constant__ float cuRscale, cuXmin, cuXmax, cuDxi;
+__constant__ double cuRscale, cuXmin, cuXmax, cuDxi;
 __constant__ int   cuNumr, cuCmap;
 
+
 __global__
-void testFetch(cudaTextureObject_t* T, float* f, int l, int j, int n, int nmax)
+void testFetch(cudaTextureObject_t* T, double* f, int l, int j, int n, int nmax)
 {
   int k = l*nmax + 1;
-  *f = tex1D<float>(T[k+j], n);
+  *f = int2_as_double(tex1D<int2>(T[k+j], n));
 }
 
 
-float returnTest(thrust::host_vector<cudaTextureObject_t>& tex, int l, int j, int n, int nmax)
+double returnTestSph(thrust::host_vector<cudaTextureObject_t>& tex, int l, int j, int n, int nmax)
 {
   thrust::device_vector<cudaTextureObject_t> t_d = tex;
   cudaTextureObject_t *T = thrust::raw_pointer_cast(t_d.data());
   
-  float* f;
-  cuda_safe_call(cudaMalloc(&f, sizeof(float)),  __FILE__, __LINE__, "cudaMalloc");
+  double* f;
+  cuda_safe_call(cudaMalloc(&f, sizeof(double)),  __FILE__, __LINE__, "cudaMalloc");
 
   testFetch<<<1, 1>>>(T, f, l, j, n, nmax);
 
   cudaDeviceSynchronize();
 
-  float ret;
-  cuda_safe_call(cudaMemcpy(&ret, f, sizeof(float), cudaMemcpyDeviceToHost), __FILE__, __LINE__, "cudaMemcpy");
+  double ret;
+  cuda_safe_call(cudaMemcpy(&ret, f, sizeof(double), cudaMemcpyDeviceToHost), __FILE__, __LINE__, "cudaMemcpy");
 
   cuda_safe_call(cudaFree(f), __FILE__, __LINE__, "cudaFree");
 
@@ -53,8 +54,7 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
 
   // Allocate CUDA array in device memory (a one-dimension 'channel')
   //
-  cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<float>();
-  // cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
+  cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<int2>();
 
   // Interpolation data array
   //
@@ -62,7 +62,7 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
 
   // Size of interpolation array
   //
-  size_t tsize = numr*sizeof(float);
+  size_t tsize = numr*sizeof(double);
 
   // Create texture objects
   //
@@ -82,7 +82,7 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
   texDesc[0].readMode = cudaReadModeElementType;
   texDesc[0].normalizedCoords = 0;
 
-  thrust::host_vector<float> tt(numr);
+  thrust::host_vector<double> tt(numr);
 
   cuda_safe_call(cudaMallocArray(&cuArray[0], &channelDesc, numr), __FILE__, __LINE__, "malloc cuArray");
 
@@ -106,7 +106,7 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
 
       // Copy to device memory some data located at address h_data
       // in host memory
-      float fac = sqrt(table[l].ev[n+1]);
+      double fac = sqrt(table[l].ev[n+1]);
       for (int j=0; j<numr; j++) tt[j] = table[l].ef[n+1][j] / fac;
 
       cuda_safe_call(cudaMemcpyToArray(cuArray[i], 0, 0, &tt[0], tsize, cudaMemcpyHostToDevice), __FILE__, __LINE__, "copy texture to array");
@@ -133,7 +133,7 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
       for (int j=0; j<nmax; j++) {
 	for (int i : {1, 2, numr-2, numr-1}) {
 	  double a = table[l].ef[j+1][i]/sqrt(table[l].ev[j+1]);
-	  double b = returnTest(tex, l, j, i, nmax);
+	  double b = returnTestSph(tex, l, j, i, nmax);
 	  if (a>1.0e-18) {
 	    if ( fabs((a - b)/a ) > 1.0e-7) {
 	      std::cout << std::setw( 5) << l << std::setw( 5) << j

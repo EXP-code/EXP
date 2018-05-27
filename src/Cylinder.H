@@ -87,8 +87,8 @@ protected:
   virtual void determine_coefficients_cuda();
   virtual void determine_acceleration_cuda();
 
-  thrust::host_vector<float>  host_coefs;
-  thrust::device_vector<float> dev_coefs;
+  thrust::host_vector<double>   host_coefs;
+  thrust::device_vector<double> dev_coefs;
 
   virtual void HtoD_coefs();
   virtual void DtoH_coefs(int mlevel);

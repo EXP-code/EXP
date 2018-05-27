@@ -121,4 +121,13 @@ int ConvertSMVer2Cores(int major, int minor)
   return nGpuArchCoresPerSM[index-1].Cores;
 }
 
+// Convert CUDA int2 to double inline
+//
+__forceinline__ __device__ double int2_as_double (int2 a)
+{
+  double res;
+  asm ("mov.b64 %0, {%1,%2};" : "=d"(res) : "r"(a.x), "r"(a.y));
+  return res;
+}
+
 #endif

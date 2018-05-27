@@ -43,7 +43,7 @@ void warpReduce(volatile T *sdata, unsigned int tid)
 }
 
 template <typename T, unsigned int blockSize>
-__global__ void reduceSum(dArray<float> out, dArray<float> in,
+__global__ void reduceSum(dArray<T> out, dArray<T> in,
 			  unsigned int dim, unsigned int n)
 {
   extern __shared__ T sdata[];

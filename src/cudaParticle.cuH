@@ -15,12 +15,12 @@
 
 struct cudaParticle
 {
-  float mass;
-  float pos[3];
-  float vel[3];
-  float acc[3];
-  float pot;
-  float potext;
+  double mass;
+  double pos[3];
+  double vel[3];
+  double acc[3];
+  double pot;
+  double potext;
   unsigned level;
   unsigned indx;
 } __attribute__((aligned));
