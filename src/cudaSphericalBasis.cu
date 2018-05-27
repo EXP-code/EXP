@@ -7,7 +7,7 @@
 // #define OFF_GRID_ALERT
 // #define BOUNDS_CHECK
 // #define VERBOSE
-#define NAN_CHECK
+// #define NAN_CHECK
 
 // Global symbols for coordinate transformation in SphericalBasis
 //
@@ -349,7 +349,7 @@ __global__ void coefKernel
 #ifdef BOUNDS_CHECK
 	  if (k>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-	  float v = (
+	  cuFP_t v = (
 #if cuREAL == 4
 		     a*tex1D<float>(tex._v[k], ind  ) +
 		     b*tex1D<float>(tex._v[k], ind+1)
@@ -407,6 +407,8 @@ forceKernel(dArray<cudaParticle> in, dArray<cuFP_t> coef,
       cuFP_t costh = zz/r;
       cuFP_t phi   = atan2(yy, xx);
       cuFP_t RR    = xx*xx + yy*yy;
+      cuFP_t cosp  = cos(phi);
+      cuFP_t sinp  = sin(phi);
       
       cuFP_t *plm1 = &L1._v[psiz*tid];
       cuFP_t *plm2 = &L2._v[psiz*tid];
@@ -467,10 +469,13 @@ forceKernel(dArray<cudaParticle> in, dArray<cuFP_t> coef,
 
 	cuFP_t fac1 = (2.0*l + 1.0)/(4.0*M_PI);
 
+	cuFP_t ccos = 1.0;	// For recursion
+	cuFP_t ssin = 0.0;
+
 	// m loop
 	//
 	for (int m=0; m<=l; m++) {
-
+	  
 	  int pindx = Ilm(l, m);
 
 	  cuFP_t Plm1 = plm1[pindx];
@@ -493,9 +498,6 @@ forceKernel(dArray<cudaParticle> in, dArray<cuFP_t> coef,
 	  
 	  int indxC = Ilmn(l, m, 'c', 0, nmax);
 	  int indxS = Ilmn(l, m, 's', 0, nmax);
-
-	  cuFP_t cosp = cos(phi*m);
-	  cuFP_t sinp = sin(phi*m);
 
 	  for (size_t n=0; n<nmax; n++) {
 	
@@ -559,9 +561,6 @@ forceKernel(dArray<cudaParticle> in, dArray<cuFP_t> coef,
 	    
 	  } else {
 
-	    cuFP_t cosm = cos(phi*m);
-	    cuFP_t sinm = sin(phi*m);
-	    
 	    if (ioff) {
 	      cuFP_t facp  = pow(rmax/r0,(cuFP_t)(l+1));
 	      cuFP_t facdp = -facp/r0 * (l+1);
@@ -595,11 +594,19 @@ forceKernel(dArray<cudaParticle> in, dArray<cuFP_t> coef,
 	    
 	    cuFP_t fac2 = 2.0 * numf/denf * fac1;
 	    
-	    potl += fac2 * Plm1 * ( pp_c*cosm + pp_s*sinm);
-	    potr += fac2 * Plm1 * ( dp_c*cosm + dp_s*sinm);
-	    pott += fac2 * Plm2 * ( pp_c*cosm + pp_s*sinm);
-	    potp += fac2 * Plm1 * (-pp_c*sinm + pp_s*cosm)*m;
+	    potl += fac2 * Plm1 * ( pp_c*ccos + pp_s*ssin);
+	    potr += fac2 * Plm1 * ( dp_c*ccos + dp_s*ssin);
+	    pott += fac2 * Plm2 * ( pp_c*ccos + pp_s*ssin);
+	    potp += fac2 * Plm1 * (-pp_c*ssin + pp_s*ccos)*m;
 	  }
+
+	  // Trig recursion to squeeze avoid internal FP fct call
+	  //
+	  cuFP_t cosM = ccos;
+	  cuFP_t sinM = ssin;
+
+	  ccos = cosM * cosp - sinM * sinp;
+	  ssin = sinM * cosp + cosM * sinp;
 
 	} // END: m loop
 
