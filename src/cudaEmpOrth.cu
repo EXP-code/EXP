@@ -9,31 +9,38 @@
 #include <thrust/host_vector.h>
 #include <thrust/system/cuda/experimental/pinned_allocator.h>
 
+#include <cudaUtil.cuH>
+
 __global__
-void testFetchCyl(cudaTextureObject_t* T, double* f, int m, int n, int i, int j, int k, int nmax)
+void testFetchCyl(dArray<cudaTextureObject_t> T, dArray<double> f,
+		  int m, int n, int k, int nmax, int NUMX, int NUMY)
 {
-  int l = m*nmax + n;
-  *f = int2_as_double(tex3D<int2>(T[l], i, j, k));
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
+  const int l = m*nmax + n;
+  const int j = tid/NUMX;
+  const int i = tid - NUMX*j;
+  if (i<NUMX and j<NUMY)
+    f._v[tid] = int2_as_double(tex3D<int2>(T._v[l], i, j, k));
 }
 
-double returnTestCyl(thrust::host_vector<cudaTextureObject_t>& tex, int m, int n, int i, int j, int k, int nmax)
+thrust::host_vector<double> returnTestCyl
+  (thrust::host_vector<cudaTextureObject_t>& tex,
+   int m, int n, int k, int nmax, int NUMX, int NUMY)
 {
   thrust::device_vector<cudaTextureObject_t> t_d = tex;
-  cudaTextureObject_t *T = thrust::raw_pointer_cast(t_d.data());
   
-  double* f;
-  cuda_safe_call(cudaMalloc(&f, sizeof(double)),  __FILE__, __LINE__, "cudaMalloc");
+  unsigned int        N  = NUMX*NUMY;
+  unsigned int gridSize  = N/BLOCK_SIZE;
+  if (N > gridSize*BLOCK_SIZE) gridSize++;
 
-  testFetchCyl<<<1, 1>>>(T, f, m, n, i, j, k, nmax);
+  thrust::device_vector<double> f_d(N);
+
+  testFetchCyl<<<gridSize, BLOCK_SIZE>>>(toKernel(t_d), toKernel(f_d),
+					 m, n, k, nmax, NUMX, NUMY);
 
   cudaDeviceSynchronize();
 
-  double ret;
-  cuda_safe_call(cudaMemcpy(&ret, f, sizeof(double), cudaMemcpyDeviceToHost), __FILE__, __LINE__, "cudaMemcpy");
-
-  cuda_safe_call(cudaFree(f), __FILE__, __LINE__, "cudaFree");
-
-  return ret;
+  return f_d;
 }
 
 void EmpCylSL::initialize_cuda
@@ -136,96 +143,36 @@ void EmpCylSL::initialize_cuda
   cuda_safe_call(cudaFree(d_Interp), __FILE__, __LINE__, "Failure freeing device memory");
 
   if (true) {
+    thrust::host_vector<double> xyg;
     std::cout << "**HOST** Texture 2D compare" << std::endl;
     unsigned tot = 0, bad = 0;
     for (size_t mm=0; mm<=MMAX; mm++) {
       for (size_t n=0; n<rank3; n++) {
-	for (int j=0; j<NUMY; j++) {
-	  for (int i=0; i<NUMX; i++) {
-	    {
-	      double a = potC[mm][n][i][j];
-	      double b = returnTestCyl(tex, mm, n, i, j, 0, rank3);
+	
+	std::vector<Matrix*> orig =
+	  {&potC[mm][n], &rforceC[mm][n], &zforceC[mm][n],
+	   &potS[mm][n], &rforceS[mm][n], &zforceS[mm][n]};
+
+	int kmax = 3;
+	if (mm) kmax += 3;
+
+	for (int k=0; k<kmax; k++) {
+	  xyg = returnTestCyl(tex, mm, n, k, rank3, NUMX, NUMY);
+	
+	  for (int j=0; j<NUMY; j++) {
+	    for (int i=0; i<NUMX; i++) {
+	      double a = (*orig[k])[i][j];
+	      double b = xyg[j*NUMX + i];
 	      if (a>1.0e-18) {
 		if ( fabs((a - b)/a ) > 1.0e-7) {
 		  std::cout << std::setw( 5) << mm << std::setw( 5) << n
 			    << std::setw( 5) << i  << std::setw( 5) << j
-			    << std::setw(15) << a  << std::setw(15) << (a-b)/a << std::endl;
+			    << std::setw( 5) << k  << std::setw(15) << a
+			    << std::setw(15) << (a-b)/a << std::endl;
 		  bad++;
 		}
 	      }
 	      tot++;
-	    }
-
-	    {
-	      double a = rforceC[mm][n][i][j];
-	      double b = returnTestCyl(tex, mm, n, i, j, 1, rank3);
-	      if (a>1.0e-18) {
-		if ( fabs((a - b)/a ) > 1.0e-7) {
-		  std::cout << std::setw( 5) << mm << std::setw( 5) << n
-			    << std::setw( 5) << i  << std::setw( 5) << j
-			    << std::setw(15) << a  << std::setw(15) << (a-b)/a << std::endl;
-		  bad++;
-		}
-	      }
-	      tot++;
-	    }
-
-	    {
-	      double a = zforceC[mm][n][i][j];
-	      double b = returnTestCyl(tex, mm, n, i, j, 2, rank3);
-	      if (a>1.0e-18) {
-		if ( fabs((a - b)/a ) > 1.0e-7) {
-		  std::cout << std::setw( 5) << mm << std::setw( 5) << n
-			    << std::setw( 5) << i  << std::setw( 5) << j
-			    << std::setw(15) << a  << std::setw(15) << (a-b)/a << std::endl;
-		  bad++;
-		}
-	      }
-	      tot++;
-	    }
-
-	    if (mm) {
-	      {
-		double a = potS[mm][n][i][j];
-		double b = returnTestCyl(tex, mm, n, i, j, 3, rank3);
-		if (a>1.0e-18) {
-		  if ( fabs((a - b)/a ) > 1.0e-7) {
-		    std::cout << std::setw( 5) << mm << std::setw( 5) << n
-			      << std::setw( 5) << i  << std::setw( 5) << j
-			      << std::setw(15) << a  << std::setw(15) << (a-b)/a << std::endl;
-		    bad++;
-		  }
-		}
-		tot++;
-	      }
-
-	      {
-		double a = rforceS[mm][n][i][j];
-		double b = returnTestCyl(tex, mm, n, i, j, 4, rank3);
-		if (a>1.0e-18) {
-		  if ( fabs((a - b)/a ) > 1.0e-7) {
-		    std::cout << std::setw( 5) << mm << std::setw( 5) << n
-			      << std::setw( 5) << i  << std::setw( 5) << j
-			      << std::setw(15) << a  << std::setw(15) << (a-b)/a << std::endl;
-		    bad++;
-		  }
-		}
-		tot++;
-	      }
-
-	      {
-		double a = zforceS[mm][n][i][j];
-		double b = returnTestCyl(tex, mm, n, i, j, 5, rank3);
-		if (a>1.0e-18) {
-		  if ( fabs((a - b)/a ) > 1.0e-7) {
-		    std::cout << std::setw( 5) << mm << std::setw( 5) << n
-			      << std::setw( 5) << i  << std::setw( 5) << j
-			      << std::setw(15) << a  << std::setw(15) << (a-b)/a << std::endl;
-		    bad++;
-		  }
-		}
-		tot++;
-	      }
 	    }
 	  }
 	}

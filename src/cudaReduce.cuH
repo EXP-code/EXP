@@ -7,25 +7,6 @@
 #define FSMALL 1.0e-16
 #define MINEPS 1.0e-10
 
-// Template structure to pass to kernel to avoid all of those pesky
-// raw pointer casts
-//
-template <typename T>
-struct dArray
-{
-  T*     _v;			// Pointer to underlying array data
-  size_t _s;			// Number of elements
-};
- 
-// Template function to convert device_vector to structure for passing
-// from host to device in a cuda kernel
-//
-template <typename T>
-dArray<T> toKernel(thrust::device_vector<T>& dev)
-{
-  return {thrust::raw_pointer_cast(&dev[0]), dev.size()};
-}
-
 typedef std::pair<unsigned int, unsigned int> PII;
 
 // Loop unroll

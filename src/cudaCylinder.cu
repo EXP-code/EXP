@@ -692,10 +692,10 @@ void Cylinder::determine_coefficients_cuda()
   if (firstime) {
     testConstantsCyl<<<1, 1>>>();
     cudaDeviceSynchronize();
-    /* */
+    /*
     testTextureCyl<<<1, 1>>>(toKernel(t_d), ncylorder);
     cudaDeviceSynchronize();
-    /* */
+    */
     firstime = false;
   }
 
@@ -1022,14 +1022,6 @@ void Cylinder::determine_acceleration_cuda()
   // Sort particles and get coefficient size
   //
   PII lohi = cC->CudaSortByLevel(mlevel, multistep);
-
-  // Debug
-  //
-  if (component->name != cC->name) {
-    std::cout << "---- Cylindrical force: " << component->name << "-->" << cC->name
-	      << std::endl
-	      << " --- Number: " << cC->cuda_particles.size() << std::endl;
-  }
 
   // Compute grid
   //

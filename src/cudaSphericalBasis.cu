@@ -346,8 +346,8 @@ __global__ void coefKernel
 	  if (k>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
 	  float v = (
-		     a*tex1D<float>(tex._v[k], ind  ) +
-		     b*tex1D<float>(tex._v[k], ind+1)
+		     a*int2_as_double(tex1D<int2>(tex._v[k], ind  )) +
+		     b*int2_as_double(tex1D<int2>(tex._v[k], ind+1))
 		     ) * p0 * plm[Ilm(l, m)] * Mass._v[i] * fac0;
 	  
 	  
@@ -498,6 +498,12 @@ forceKernel(dArray<cudaParticle> in, dArray<double> coef,
 	    double dv =
 	      dx * ( (b - 0.5)*um1*pm1 - 2.0*b*u00*p00 + (b + 0.5)*up1*pp1 );
 	    
+	    if (std::isnan(v))
+	      printf("v tab nan: (%d, %d): a=%f b=%f p0=%f p1=%f u0=%f u1=%f\n", l, m, a, b, p00, pp1, u00, up1);
+
+	    if (std::isnan(dv))
+	      printf("dv tab nan: (%d, %d): a=%f b=%f pn=%f p0=%f pp=%f un=%f u0=%f up=%f\n", l, m, a, b, pm1, p00, pp1, um1, u00, up1);
+
 	    pp_c +=  v * coef._v[indxC+n];
 	    dp_c += dv * coef._v[indxC+n];
 	    if (m>0) {
@@ -509,6 +515,13 @@ forceKernel(dArray<cudaParticle> in, dArray<double> coef,
 	  
 	  pp_c *= -1.0;
 	  dp_c *= -1.0;
+	  pp_s *= -1.0;
+	  dp_s *= -1.0;
+
+	  if (std::isnan(pp_c)) printf("pp_c eval nan: (%d, %d): r=%f r0=%f\n", l, m, r, r0);
+	  if (std::isnan(dp_c)) printf("dp_c eval nan: (%d, %d): r=%f r0=%f\n", l, m, r, r0);
+	  if (std::isnan(pp_s)) printf("pp_s eval nan: (%d, %d): r=%f r0=%f\n", l, m, r, r0);
+	  if (std::isnan(dp_s)) printf("dp_s eval nan: (%d, %d): r=%f r0=%f\n", l, m, r, r0);
 
 	  if (m==0) {
 
@@ -516,7 +529,7 @@ forceKernel(dArray<cudaParticle> in, dArray<double> coef,
 	      pp_c *= pow(rmax/r0, (double)(l+1));
 	      dp_c  = -pp_c/r0 * (double)(l+1);
 #ifdef NAN_CHECK
-	      if (std::isnan(pp_c)) printf("Force nan: l=%d, r=%f\n", l, r);
+	      if (std::isnan(pp_c)) printf("Force nan [ioff]: l=%d, r=%f r0=%f\n", l, r, r0);
 #endif
 	    }
 	    
@@ -707,10 +720,10 @@ void SphericalBasis::determine_coefficients_cuda()
   if (firstime) {
     testConstants<<<1, 1>>>();
     cudaDeviceSynchronize();
-    /* */
+    /*
     testTextureSph<<<1, 1>>>(toKernel(t_d), nmax);
     cudaDeviceSynchronize();
-    /* */
+    */
     firstime = false;
   }
 
@@ -788,14 +801,6 @@ void SphericalBasis::determine_acceleration_cuda()
   // Sort particles and get coefficient size
   //
   PII lohi = cC->CudaSortByLevel(mlevel, multistep);
-
-  // Debug
-  //
-  if (component->name != cC->name) {
-    std::cout << "---- Spherical force: " << component->name << "-->" << cC->name
-	      << std::endl
-	      << " --- Number: " << cC->cuda_particles.size() << std::endl;
-  }
 
   // Compute grid
   //

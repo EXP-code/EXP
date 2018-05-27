@@ -9,36 +9,39 @@
 #include <thrust/host_vector.h>
 #include <thrust/system/cuda/experimental/pinned_allocator.h>
 
+#include <cudaUtil.cuH>
+
 __constant__ double cuRscale, cuXmin, cuXmax, cuDxi;
 __constant__ int   cuNumr, cuCmap;
 
 
 __global__
-void testFetch(cudaTextureObject_t* T, double* f, int l, int j, int n, int nmax)
+void testFetchSph(dArray<cudaTextureObject_t> T, dArray<double> f,
+		  int l, int j, int nmax, int numr)
 {
-  int k = l*nmax + 1;
-  *f = int2_as_double(tex1D<int2>(T[k+j], n));
+  const int n = blockDim.x * blockIdx.x + threadIdx.x;
+  const int k = l*nmax + 1;
+  if (n < numr) f._v[n] = int2_as_double(tex1D<int2>(T._v[k+j], n));
 }
 
 
-double returnTestSph(thrust::host_vector<cudaTextureObject_t>& tex, int l, int j, int n, int nmax)
+thrust::host_vector<double> returnTestSph
+(thrust::host_vector<cudaTextureObject_t>& tex,
+ int l, int j, int nmax, int numr)
 {
   thrust::device_vector<cudaTextureObject_t> t_d = tex;
-  cudaTextureObject_t *T = thrust::raw_pointer_cast(t_d.data());
   
-  double* f;
-  cuda_safe_call(cudaMalloc(&f, sizeof(double)),  __FILE__, __LINE__, "cudaMalloc");
+  unsigned int gridSize  = numr/BLOCK_SIZE;
+  if (numr > gridSize*BLOCK_SIZE) gridSize++;
 
-  testFetch<<<1, 1>>>(T, f, l, j, n, nmax);
+  thrust::device_vector<double> f_d(numr);
+
+  testFetchSph<<<gridSize, BLOCK_SIZE>>>(toKernel(t_d), toKernel(f_d),
+					 l, j, nmax, numr);
 
   cudaDeviceSynchronize();
 
-  double ret;
-  cuda_safe_call(cudaMemcpy(&ret, f, sizeof(double), cudaMemcpyDeviceToHost), __FILE__, __LINE__, "cudaMemcpy");
-
-  cuda_safe_call(cudaFree(f), __FILE__, __LINE__, "cudaFree");
-
-  return ret;
+  return f_d;
 }
 
 static std::vector<cudaResourceDesc> resDesc;
@@ -127,13 +130,15 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
   }
 
   if (true) {
+    thrust::host_vector<double> ret(numr);
     std::cout << "**HOST** Texture compare" << std::endl;
     unsigned tot = 0, bad = 0;
-    for (int l : {0, 1, 2}) {
+    for (int l=0; l<=lmax; l++) {
       for (int j=0; j<nmax; j++) {
-	for (int i : {1, 2, numr-2, numr-1}) {
+	ret = returnTestSph(tex, l, j, nmax, numr);
+	for (int i=0; i<numr; i++) {
 	  double a = table[l].ef[j+1][i]/sqrt(table[l].ev[j+1]);
-	  double b = returnTestSph(tex, l, j, i, nmax);
+	  double b = ret[i];
 	  if (a>1.0e-18) {
 	    if ( fabs((a - b)/a ) > 1.0e-7) {
 	      std::cout << std::setw( 5) << l << std::setw( 5) << j
