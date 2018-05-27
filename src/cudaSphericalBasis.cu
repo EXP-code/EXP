@@ -9,14 +9,10 @@
 // #define VERBOSE
 #define NAN_CHECK
 
-// Machine constant for Legendre
-//
-const double DMINEPS=20.0*DBL_MIN;
-
 // Global symbols for coordinate transformation in SphericalBasis
 //
 __device__ __constant__
-double sphScale, sphRscale, sphHscale, sphXmin, sphXmax, sphDxi, sphCen[3];
+cuFP_t sphScale, sphRscale, sphHscale, sphXmin, sphXmax, sphDxi, sphCen[3];
 
 __device__ __constant__
 int   sphNumr, sphCmap;
@@ -47,9 +43,9 @@ int Ilmn(int l, int m, char cs, int n, int nmax)
 }
 
 __host__ __device__
-void legendre_v(int lmax, double x, double* p)
+void legendre_v(int lmax, cuFP_t x, cuFP_t* p)
 {
-  double fact, somx2, pll, pl1, pl2;
+  cuFP_t fact, somx2, pll, pl1, pl2;
   int m, l;
 
   p[0] = pll = 1.0f;
@@ -76,9 +72,9 @@ void legendre_v(int lmax, double x, double* p)
 
 
 __host__ __device__
-void legendre_v2(int lmax, double x, double* p, double* dp)
+void legendre_v2(int lmax, cuFP_t x, cuFP_t* p, cuFP_t* dp)
 {
-  double fact, somx2, pll, pl1, pl2;
+  cuFP_t fact, somx2, pll, pl1, pl2;
   int m, l;
 
   p[0] = pll = 1.0;
@@ -102,9 +98,9 @@ void legendre_v2(int lmax, double x, double* p, double* dp)
     }
   }
 
-  if (1.0-fabs(x) < DMINEPS) {
-    if (x>0) x =   1.0 - DMINEPS;
-    else     x = -(1.0 - DMINEPS);
+  if (1.0-fabs(x) < MINEPS) {
+    if (x>0) x =   1.0 - MINEPS;
+    else     x = -(1.0 - MINEPS);
   }
 
   somx2 = 1.0/(x*x - 1.0);
@@ -129,9 +125,9 @@ void testConstants()
 }
 
 __device__
-double cu_r_to_xi(double r)
+cuFP_t cu_r_to_xi(cuFP_t r)
 {
-  double ret;
+  cuFP_t ret;
 
   if (sphCmap==1) {
     ret = (r/sphRscale-1.0)/(r/sphRscale+1.0);
@@ -145,9 +141,9 @@ double cu_r_to_xi(double r)
 }
     
 __device__
-double cu_xi_to_r(double xi)
+cuFP_t cu_xi_to_r(cuFP_t xi)
 {
-  double ret;
+  cuFP_t ret;
 
   if (sphCmap==1) {
     ret = (1.0+xi)/(1.0 - xi) * sphRscale;
@@ -161,9 +157,9 @@ double cu_xi_to_r(double xi)
 }
 
 __device__
-double cu_d_xi_to_r(double xi)
+cuFP_t cu_d_xi_to_r(cuFP_t xi)
 {
-  double ret;
+  cuFP_t ret;
 
   if (sphCmap==1) {
     ret = 0.5*(1.0-xi)*(1.0-xi)/sphRscale;
@@ -182,21 +178,21 @@ void SphericalBasis::initialize_mapping_constants()
   //
   
   cudaMappingConstants f = getCudaMappingConstants();
-  double z;
+  cuFP_t z;
 
-  cuda_safe_call(cudaMemcpyToSymbol(sphScale, &(z=scale), sizeof(double), size_t(0), cudaMemcpyHostToDevice),
+  cuda_safe_call(cudaMemcpyToSymbol(sphScale, &(z=scale), sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying sphScale");
 
-  cuda_safe_call(cudaMemcpyToSymbol(sphRscale, &f.rscale, sizeof(double), size_t(0), cudaMemcpyHostToDevice),
+  cuda_safe_call(cudaMemcpyToSymbol(sphRscale, &f.rscale, sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying sphRscale");
 
-  cuda_safe_call(cudaMemcpyToSymbol(sphXmin,   &f.xmin,   sizeof(double), size_t(0), cudaMemcpyHostToDevice),
+  cuda_safe_call(cudaMemcpyToSymbol(sphXmin,   &f.xmin,   sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying sphXmin");
 
-  cuda_safe_call(cudaMemcpyToSymbol(sphXmax,   &f.xmax,   sizeof(double), size_t(0), cudaMemcpyHostToDevice),
+  cuda_safe_call(cudaMemcpyToSymbol(sphXmax,   &f.xmax,   sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying sphXmax");
 
-  cuda_safe_call(cudaMemcpyToSymbol(sphDxi,    &f.dxi,    sizeof(double), size_t(0), cudaMemcpyHostToDevice),
+  cuda_safe_call(cudaMemcpyToSymbol(sphDxi,    &f.dxi,    sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying sphDxi");
 
   cuda_safe_call(cudaMemcpyToSymbol(sphNumr,   &f.numr,   sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
@@ -212,14 +208,18 @@ void testTextureSph(dArray<cudaTextureObject_t> tex, int nmax)
   printf("** DEVICE 1d texture compare\n");
   for (int k=0; k<10; k++) {
     for (int i : {0, 1, sphNumr-2, sphNumr-1}) 
+#if cuREAL == 4
+      printf("%5d %5d %13.7e\n", k, i, tex1D<float>(tex._v[k], i));
+#else
       printf("%5d %5d %13.7e\n", k, i, int2_as_double(tex1D<int2>(tex._v[k], i)));
+#endif
   }
 }
 
 __global__ void coordKernel
-(dArray<cudaParticle> in, dArray<double> mass, dArray<double> Afac,
- dArray<double> phi, dArray<double> Plm, dArray<int> Indx, 
- unsigned int Lmax, unsigned int stride, PII lohi, double rmax)
+(dArray<cudaParticle> in, dArray<cuFP_t> mass, dArray<cuFP_t> Afac,
+ dArray<cuFP_t> phi, dArray<cuFP_t> Plm, dArray<int> Indx, 
+ unsigned int Lmax, unsigned int stride, PII lohi, cuFP_t rmax)
 {
   const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
   const int psiz  = (Lmax+1)*(Lmax+2)/2;
@@ -235,12 +235,12 @@ __global__ void coordKernel
 #endif
       cudaParticle p = in._v[npart];
     
-      double xx = p.pos[0] - sphCen[0];
-      double yy = p.pos[1] - sphCen[1];
-      double zz = p.pos[2] - sphCen[2];
+      cuFP_t xx = p.pos[0] - sphCen[0];
+      cuFP_t yy = p.pos[1] - sphCen[1];
+      cuFP_t zz = p.pos[2] - sphCen[2];
       
-      double r2 = (xx*xx + yy*yy + zz*zz);
-      double r = sqrt(r2) + FSMALL;
+      cuFP_t r2 = (xx*xx + yy*yy + zz*zz);
+      cuFP_t r = sqrt(r2) + FSMALL;
       
 #ifdef BOUNDS_CHECK
       if (i>=mass._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
@@ -251,26 +251,26 @@ __global__ void coordKernel
 	
 	mass._v[i] = p.mass;
 	
-	double costh = zz/r;
+	cuFP_t costh = zz/r;
 	phi._v[i] = atan2(yy,xx);
 	
 #ifdef BOUNDS_CHECK
 	if (i>=phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-	double *plm = &Plm._v[psiz*i];
+	cuFP_t *plm = &Plm._v[psiz*i];
 	legendre_v(Lmax, costh, plm);
 
 #ifdef BOUNDS_CHECK
 	if (psiz*(i+1)>Plm._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-	double x  = cu_r_to_xi(r);
-	double xi = (x - sphXmin)/sphDxi;
+	cuFP_t x  = cu_r_to_xi(r);
+	cuFP_t xi = (x - sphXmin)/sphDxi;
 	int indx = floor(xi);
 	
 	if (indx<0) indx = 0;
 	if (indx>sphNumr-2) indx = sphNumr - 2;
 	  
-	Afac._v[i] = double(indx+1) - xi;
+	Afac._v[i] = cuFP_t(indx+1) - xi;
 #ifdef OFF_GRID_ALERT
 	if (Afac._v[i]<0.0 or Afac._v[i]>1.0) printf("off grid: x=%f\n", xi);
 #endif
@@ -287,16 +287,16 @@ __global__ void coordKernel
 
 
 __global__ void coefKernel
-(dArray<double> coef, dArray<cudaTextureObject_t> tex,
- dArray<double> Mass, dArray<double> Afac, dArray<double> Phi,
- dArray<double> Plm, dArray<int> Indx,  int stride, 
+(dArray<cuFP_t> coef, dArray<cudaTextureObject_t> tex,
+ dArray<cuFP_t> Mass, dArray<cuFP_t> Afac, dArray<cuFP_t> Phi,
+ dArray<cuFP_t> Plm, dArray<int> Indx,  int stride, 
  int l, int m, unsigned Lmax, unsigned int nmax, PII lohi)
 {
   const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
   const int psiz  = (Lmax+1)*(Lmax+2)/2;
   const unsigned int N = lohi.second - lohi.first;
 
-  double fac0 = 4.0*M_PI;
+  cuFP_t fac0 = 4.0*M_PI;
 
   for (int istr=0; istr<stride; istr++) {
 
@@ -304,7 +304,7 @@ __global__ void coefKernel
 
     if (i<N) {
 
-      double mass = Mass._v[i];
+      cuFP_t mass = Mass._v[i];
 
 #ifdef BOUNDS_CHECK
       if (i>=Mass._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
@@ -315,19 +315,19 @@ __global__ void coefKernel
 #ifdef BOUNDS_CHECK
 	if (i>=Phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-	double phi  = Phi._v[i];
-	double cosp = cos(phi*m);
-	double sinp = sin(phi*m);
+	cuFP_t phi  = Phi._v[i];
+	cuFP_t cosp = cos(phi*m);
+	cuFP_t sinp = sin(phi*m);
 	
 #ifdef BOUNDS_CHECK
 	if (psiz*(i+1)>Plm._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif	
-	double *plm = &Plm._v[psiz*i];
+	cuFP_t *plm = &Plm._v[psiz*i];
 	
 	// Do the interpolation
 	//
-	double a = Afac._v[i];
-	double b = 1.0 - a;
+	cuFP_t a = Afac._v[i];
+	cuFP_t b = 1.0 - a;
 	int ind = Indx._v[i];
 	
 #ifdef BOUNDS_CHECK
@@ -336,18 +336,27 @@ __global__ void coefKernel
 #endif
 	for (int n=0; n<nmax; n++) {
 
-	  double p0 =
+	  cuFP_t p0 =
+#if cuREAL == 4
+	    a*tex1D<float>(tex._v[0], ind  ) +
+	    b*tex1D<float>(tex._v[0], ind+1) ;
+#else
 	    a*int2_as_double(tex1D<int2>(tex._v[0], ind  )) +
 	    b*int2_as_double(tex1D<int2>(tex._v[0], ind+1)) ;
-
+#endif
 	  int k = 1 + l*nmax + n;
 
 #ifdef BOUNDS_CHECK
 	  if (k>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
 	  float v = (
+#if cuREAL == 4
+		     a*tex1D<float>(tex._v[k], ind  ) +
+		     b*tex1D<float>(tex._v[k], ind+1)
+#else
 		     a*int2_as_double(tex1D<int2>(tex._v[k], ind  )) +
 		     b*int2_as_double(tex1D<int2>(tex._v[k], ind+1))
+#endif
 		     ) * p0 * plm[Ilm(l, m)] * Mass._v[i] * fac0;
 	  
 	  
@@ -365,9 +374,9 @@ __global__ void coefKernel
 }
 
 __global__ void
-forceKernel(dArray<cudaParticle> in, dArray<double> coef,
-	    dArray<cudaTextureObject_t> tex, dArray<double> L1, dArray<double> L2,
-	    int stride, unsigned Lmax, unsigned int nmax, PII lohi, double rmax,
+forceKernel(dArray<cudaParticle> in, dArray<cuFP_t> coef,
+	    dArray<cudaTextureObject_t> tex, dArray<cuFP_t> L1, dArray<cuFP_t> L2,
+	    int stride, unsigned Lmax, unsigned int nmax, PII lohi, cuFP_t rmax,
 	    bool external)
 {
   const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
@@ -384,33 +393,33 @@ forceKernel(dArray<cudaParticle> in, dArray<double> coef,
 #endif
       cudaParticle p = in._v[npart];
       
-      double xx = p.pos[0] - sphCen[0];
-      double yy = p.pos[1] - sphCen[1];
-      double zz = p.pos[2] - sphCen[2];
+      cuFP_t xx = p.pos[0] - sphCen[0];
+      cuFP_t yy = p.pos[1] - sphCen[1];
+      cuFP_t zz = p.pos[2] - sphCen[2];
       
       if (fabs(xx) > 10.0*rmax or
 	  fabs(yy) > 10.0*rmax or
 	  fabs(zz) > 10.0*rmax) continue;
 
-      double r2 = (xx*xx + yy*yy + zz*zz);
-      double r  = sqrt(r2) + FSMALL;
+      cuFP_t r2 = (xx*xx + yy*yy + zz*zz);
+      cuFP_t r  = sqrt(r2) + FSMALL;
       
-      double costh = zz/r;
-      double phi   = atan2(yy, xx);
-      double RR    = xx*xx + yy*yy;
+      cuFP_t costh = zz/r;
+      cuFP_t phi   = atan2(yy, xx);
+      cuFP_t RR    = xx*xx + yy*yy;
       
-      double *plm1 = &L1._v[psiz*tid];
-      double *plm2 = &L2._v[psiz*tid];
+      cuFP_t *plm1 = &L1._v[psiz*tid];
+      cuFP_t *plm2 = &L2._v[psiz*tid];
       
-      const double FLIM = 1.0e-5;
+      const cuFP_t FLIM = 1.0e-5;
       if (costh >   1.0 - FLIM ) costh =   1.0 - FLIM;
       if (costh < -(1.0 - FLIM)) costh = -(1.0 - FLIM);
 
       legendre_v2(Lmax, costh, plm1, plm2);
 
       int ioff = 0;
-      double rs = r/sphScale;
-      double r0 = 0.0;
+      cuFP_t rs = r/sphScale;
+      cuFP_t r0 = 0.0;
 
       if (r>rmax) {
 	ioff = 1;
@@ -419,38 +428,44 @@ forceKernel(dArray<cudaParticle> in, dArray<double> coef,
 	rs   = r/sphScale;
       }
 
-      double  x = cu_r_to_xi(rs);
-      double xi = (x - sphXmin)/sphDxi;
-      double dx = cu_d_xi_to_r(x)/sphDxi;
+      cuFP_t  x = cu_r_to_xi(rs);
+      cuFP_t xi = (x - sphXmin)/sphDxi;
+      cuFP_t dx = cu_d_xi_to_r(x)/sphDxi;
       int  ind = floor(xi);
       
       if (ind<1) ind = 1;
       if (ind>sphNumr-2) ind = sphNumr - 2;
       
-      double a = (double)(ind+1) - xi;
+      cuFP_t a = (cuFP_t)(ind+1) - xi;
 #ifdef OFF_GRID_ALERT
       if (a<0.0 or a>1.0) printf("forceKernel: off grid: x=%f\n", xi);
 #endif
-      double b = 1.0 - a;
+      cuFP_t b = 1.0 - a;
       
       // Do the interpolation for the prefactor potential
       //
-      double pm1 = int2_as_double(tex1D<int2>(tex._v[0], ind-1));
-      double p00 = int2_as_double(tex1D<int2>(tex._v[0], ind  ));
-      double pp1 = int2_as_double(tex1D<int2>(tex._v[0], ind+1));
+#if cuREAL == 4
+      cuFP_t pm1 = tex1D<float>(tex._v[0], ind-1);
+      cuFP_t p00 = tex1D<float>(tex._v[0], ind  );
+      cuFP_t pp1 = tex1D<float>(tex._v[0], ind+1);
+#else
+      cuFP_t pm1 = int2_as_double(tex1D<int2>(tex._v[0], ind-1));
+      cuFP_t p00 = int2_as_double(tex1D<int2>(tex._v[0], ind  ));
+      cuFP_t pp1 = int2_as_double(tex1D<int2>(tex._v[0], ind+1));
+#endif
 
       // For force accumulation
       //
-      double potl = 0.0;
-      double potr = 0.0;
-      double pott = 0.0;
-      double potp = 0.0;
+      cuFP_t potl = 0.0;
+      cuFP_t potr = 0.0;
+      cuFP_t pott = 0.0;
+      cuFP_t potp = 0.0;
 
       // l loop
       //
       for (int l=0; l<Lmax; l++) {
 
-	double fac1 = (2.0*l + 1.0)/(4.0*M_PI);
+	cuFP_t fac1 = (2.0*l + 1.0)/(4.0*M_PI);
 
 	// m loop
 	//
@@ -458,8 +473,8 @@ forceKernel(dArray<cudaParticle> in, dArray<double> coef,
 
 	  int pindx = Ilm(l, m);
 
-	  double Plm1 = plm1[pindx];
-	  double Plm2 = plm2[pindx];
+	  cuFP_t Plm1 = plm1[pindx];
+	  cuFP_t Plm2 = plm2[pindx];
       
 #ifdef NAN_CHECK
 	  if (std::isnan(Plm1)) {
@@ -471,16 +486,16 @@ forceKernel(dArray<cudaParticle> in, dArray<double> coef,
 	  }
 #endif	  
 
-	  double pp_c = 0.0;
-	  double dp_c = 0.0;
-	  double pp_s = 0.0;
-	  double dp_s = 0.0;
+	  cuFP_t pp_c = 0.0;
+	  cuFP_t dp_c = 0.0;
+	  cuFP_t pp_s = 0.0;
+	  cuFP_t dp_s = 0.0;
 	  
 	  int indxC = Ilmn(l, m, 'c', 0, nmax);
 	  int indxS = Ilmn(l, m, 's', 0, nmax);
 
-	  double cosp = cos(phi*m);
-	  double sinp = sin(phi*m);
+	  cuFP_t cosp = cos(phi*m);
+	  cuFP_t sinp = sin(phi*m);
 
 	  for (size_t n=0; n<nmax; n++) {
 	
@@ -489,45 +504,49 @@ forceKernel(dArray<cudaParticle> in, dArray<double> coef,
 #ifdef BOUNDS_CHECK
 	    if (k>=tex._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif	
-	    double um1 = int2_as_double(tex1D<int2>(tex._v[k], ind-1));
-	    double u00 = int2_as_double(tex1D<int2>(tex._v[k], ind  ));
-	    double up1 = int2_as_double(tex1D<int2>(tex._v[k], ind+1));
+#if cuREAL == 4
+	    cuFP_t um1 = tex1D<float>(tex._v[k], ind-1);
+	    cuFP_t u00 = tex1D<float>(tex._v[k], ind  );
+	    cuFP_t up1 = tex1D<float>(tex._v[k], ind+1);
+#else
+	    cuFP_t um1 = int2_as_double(tex1D<int2>(tex._v[k], ind-1));
+	    cuFP_t u00 = int2_as_double(tex1D<int2>(tex._v[k], ind  ));
+	    cuFP_t up1 = int2_as_double(tex1D<int2>(tex._v[k], ind+1));
+#endif
+	    cuFP_t v = (a*u00 + b*up1)*(a*p00 + b*pp1);
 	    
-	    double v = (a*u00 + b*up1)*(a*p00 + b*pp1);
-	    
-	    double dv =
+	    cuFP_t dv =
 	      dx * ( (b - 0.5)*um1*pm1 - 2.0*b*u00*p00 + (b + 0.5)*up1*pp1 );
 	    
+#ifdef NAN_CHECK
 	    if (std::isnan(v))
 	      printf("v tab nan: (%d, %d): a=%f b=%f p0=%f p1=%f u0=%f u1=%f\n", l, m, a, b, p00, pp1, u00, up1);
 
 	    if (std::isnan(dv))
 	      printf("dv tab nan: (%d, %d): a=%f b=%f pn=%f p0=%f pp=%f un=%f u0=%f up=%f\n", l, m, a, b, pm1, p00, pp1, um1, u00, up1);
+#endif
 
-	    pp_c +=  v * coef._v[indxC+n];
-	    dp_c += dv * coef._v[indxC+n];
+	    pp_c -=  v * coef._v[indxC+n];
+	    dp_c -= dv * coef._v[indxC+n];
 	    if (m>0) {
-	      pp_s +=  v * coef._v[indxS+n];
-	      dp_s += dv * coef._v[indxS+n];
+	      pp_s -=  v * coef._v[indxS+n];
+	      dp_s -= dv * coef._v[indxS+n];
 	    }
 
 	  } // END: n loop
 	  
-	  pp_c *= -1.0;
-	  dp_c *= -1.0;
-	  pp_s *= -1.0;
-	  dp_s *= -1.0;
-
+#ifdef NAN_CHECK
 	  if (std::isnan(pp_c)) printf("pp_c eval nan: (%d, %d): r=%f r0=%f\n", l, m, r, r0);
 	  if (std::isnan(dp_c)) printf("dp_c eval nan: (%d, %d): r=%f r0=%f\n", l, m, r, r0);
 	  if (std::isnan(pp_s)) printf("pp_s eval nan: (%d, %d): r=%f r0=%f\n", l, m, r, r0);
 	  if (std::isnan(dp_s)) printf("dp_s eval nan: (%d, %d): r=%f r0=%f\n", l, m, r, r0);
+#endif
 
 	  if (m==0) {
 
 	    if (ioff) {
-	      pp_c *= pow(rmax/r0, (double)(l+1));
-	      dp_c  = -pp_c/r0 * (double)(l+1);
+	      pp_c *= pow(rmax/r0, (cuFP_t)(l+1));
+	      dp_c  = -pp_c/r0 * (cuFP_t)(l+1);
 #ifdef NAN_CHECK
 	      if (std::isnan(pp_c)) printf("Force nan [ioff]: l=%d, r=%f r0=%f\n", l, r, r0);
 #endif
@@ -540,12 +559,12 @@ forceKernel(dArray<cudaParticle> in, dArray<double> coef,
 	    
 	  } else {
 
-	    double cosm = cos(phi*m);
-	    double sinm = sin(phi*m);
+	    cuFP_t cosm = cos(phi*m);
+	    cuFP_t sinm = sin(phi*m);
 	    
 	    if (ioff) {
-	      double facp  = pow(rmax/r0,(double)(l+1));
-	      double facdp = -facp/r0 * (l+1);
+	      cuFP_t facp  = pow(rmax/r0,(cuFP_t)(l+1));
+	      cuFP_t facdp = -facp/r0 * (l+1);
 	      pp_c *= facp;
 	      pp_s *= facp;
 	      dp_c = pp_c * facdp;
@@ -569,12 +588,12 @@ forceKernel(dArray<cudaParticle> in, dArray<double> coef,
 
 	    // Factorials
 	    //
-	    double numf = 1.0, denf = 1.0;
+	    cuFP_t numf = 1.0, denf = 1.0;
 	    for (int i=2; i<=l+m; i++) {
 	      if (i<=l-m) numf *= i; denf *= i;
 	    }
 	    
-	    double fac2 = 2.0 * numf/denf * fac1;
+	    cuFP_t fac2 = 2.0 * numf/denf * fac1;
 	    
 	    potl += fac2 * Plm1 * ( pp_c*cosm + pp_s*sinm);
 	    potr += fac2 * Plm1 * ( dp_c*cosm + dp_s*sinm);
@@ -593,7 +612,7 @@ forceKernel(dArray<cudaParticle> in, dArray<double> coef,
 
       in._v[npart].acc[0] += -(potr*xx/r - pott*xx*zz/(r*r*r));
       in._v[npart].acc[1] += -(potr*yy/r - pott*yy*zz/(r*r*r));
-      in._v[npart].acc[2] += -(potr*zz/r - pott*RR/(r*r*r));
+      in._v[npart].acc[2] += -(potr*zz/r + pott*RR/(r*r*r));
       if (RR > FSMALL) {
 	in._v[npart].acc[0] +=  potp*yy/RR;
 	in._v[npart].acc[1] += -potp*xx/RR;
@@ -673,10 +692,10 @@ void SphericalBasis::determine_coefficients_cuda()
 
   if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
-  std::vector<double> ctr;
+  std::vector<cuFP_t> ctr;
   for (auto v : cC->getCenter(Component::Local | Component::Centered)) ctr.push_back(v);
 
-  cuda_safe_call(cudaMemcpyToSymbol(sphCen, &ctr[0], sizeof(double)*3,
+  cuda_safe_call(cudaMemcpyToSymbol(sphCen, &ctr[0], sizeof(cuFP_t)*3,
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying sphCen");
 
@@ -695,9 +714,9 @@ void SphericalBasis::determine_coefficients_cuda()
 
   // Create space for coefficient reduction
   //
-  thrust::device_vector<double> dN_coef(2*nmax*N);
-  thrust::device_vector<double> dc_coef(2*nmax*gridSize);
-  thrust::device_vector<double> df_coef(2*nmax);
+  thrust::device_vector<cuFP_t> dN_coef(2*nmax*N);
+  thrust::device_vector<cuFP_t> dc_coef(2*nmax*gridSize);
+  thrust::device_vector<cuFP_t> df_coef(2*nmax);
 
   // Texture objects
   //
@@ -705,13 +724,13 @@ void SphericalBasis::determine_coefficients_cuda()
 
   // Space for Legendre coefficients 
   //
-  thrust::device_vector<double> plm_d((Lmax+1)*(Lmax+2)/2*N);
-  thrust::device_vector<double> r_d(N), m_d(N), a_d(N), p_d(N);
+  thrust::device_vector<cuFP_t> plm_d((Lmax+1)*(Lmax+2)/2*N);
+  thrust::device_vector<cuFP_t> r_d(N), m_d(N), a_d(N), p_d(N);
   thrust::device_vector<int>   i_d(N);
 
   // Shared memory size for the reduction
   //
-  int sMemSize = BLOCK_SIZE * sizeof(double);
+  int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
 
   // For debugging
   //
@@ -752,7 +771,7 @@ void SphericalBasis::determine_coefficients_cuda()
 
 				// Begin the reduction per grid block
       				// 
-      reduceSum<double, BLOCK_SIZE><<<gridSize, BLOCK_SIZE, sMemSize>>>
+      reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize, BLOCK_SIZE, sMemSize>>>
 	(toKernel(dc_coef), toKernel(dN_coef), osize, N);
       
 				// Finish the reduction for this order
@@ -764,7 +783,7 @@ void SphericalBasis::determine_coefficients_cuda()
 	 dc_coef.begin(), thrust::make_discard_iterator(), df_coef.begin()
 	 );
 
-      thrust::host_vector<double> ret = df_coef;
+      thrust::host_vector<cuFP_t> ret = df_coef;
       for (size_t j=0; j<nmax; j++) {
 	host_coefs[Ilmn(l, m, 'c', j, nmax)] = ret[2*j];
 	if (m>0) host_coefs[Ilmn(l, m, 's', j, nmax)] = ret[2*j+1];
@@ -812,10 +831,10 @@ void SphericalBasis::determine_acceleration_cuda()
 
   unsigned int Nthread = gridSize*BLOCK_SIZE;
 
-  std::vector<double> ctr;
+  std::vector<cuFP_t> ctr;
   for (auto v : cC->getCenter(Component::Local | Component::Centered)) ctr.push_back(v);
 
-  cuda_safe_call(cudaMemcpyToSymbol(sphCen, &ctr[0], sizeof(double)*3,
+  cuda_safe_call(cudaMemcpyToSymbol(sphCen, &ctr[0], sizeof(cuFP_t)*3,
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying sphCen");
 
@@ -837,12 +856,12 @@ void SphericalBasis::determine_acceleration_cuda()
 
   // Space for Legendre coefficients 
   //
-  thrust::device_vector<double> plm1_d((Lmax+1)*(Lmax+2)/2*Nthread);
-  thrust::device_vector<double> plm2_d((Lmax+1)*(Lmax+2)/2*Nthread);
+  thrust::device_vector<cuFP_t> plm1_d((Lmax+1)*(Lmax+2)/2*Nthread);
+  thrust::device_vector<cuFP_t> plm2_d((Lmax+1)*(Lmax+2)/2*Nthread);
 
   // Shared memory size for the reduction
   //
-  int sMemSize = BLOCK_SIZE * sizeof(double);
+  int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
 
   // Do the work
   //
@@ -954,10 +973,10 @@ void SphericalBasis::host_dev_force_compare()
       for (int k=0; k<3; k++)
 	std::cout << std::setw(14) << cC->Particles()[indx].acc[k];
 
-      double diff = 0.0, norm = 0.0;
+      cuFP_t diff = 0.0, norm = 0.0;
       for (int k=0; k<3; k++) {
-	double b  = cC->host_particles[i].acc[k];
-	double a  = cC->Particles()[indx].acc[k];
+	cuFP_t b  = cC->host_particles[i].acc[k];
+	cuFP_t a  = cC->Particles()[indx].acc[k];
 	diff += (a - b)*(a - b);
 	norm += a*a;
       }
@@ -980,10 +999,10 @@ void SphericalBasis::host_dev_force_compare()
       for (int k=0; k<3; k++)
 	std::cout << std::setw(14) << cC->Particles()[indx].acc[k];
 
-      double diff = 0.0, norm = 0.0;
+      cuFP_t diff = 0.0, norm = 0.0;
       for (int k=0; k<3; k++) {
-	double b  = cC->host_particles[i].acc[k];
-	double a  = cC->Particles()[indx].acc[k];
+	cuFP_t b  = cC->host_particles[i].acc[k];
+	cuFP_t a  = cC->Particles()[indx].acc[k];
 	diff += (a - b)*(a - b);
 	norm += a*a;
       }

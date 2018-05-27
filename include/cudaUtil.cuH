@@ -150,4 +150,18 @@ dArray<T> toKernel(thrust::device_vector<T>& dev)
 }
 
 
+// Select floating point type size for single/double precision switch
+//
+#ifdef O_SINGLE
+#define cuREAL 4
+#else
+#define cuREAL 8
+#endif
+
+#if cuREAL == 4
+typedef float  cuFP_t;
+#else
+typedef double cuFP_t;
+#endif
+
 #endif

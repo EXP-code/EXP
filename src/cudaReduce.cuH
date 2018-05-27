@@ -4,8 +4,15 @@
 #include <cudaUtil.cuH>
 #include <thrust/iterator/discard_iterator.h>
 
-#define FSMALL 1.0e-16
-#define MINEPS 1.0e-10
+// Machine constants
+//
+#if cuREAL == 4
+#define FSMALL 20.0 * FLT_MIN
+#define MINEPS 20.0 * FLT_MIN
+#else
+#define FSMALL 20.0 * DBL_MIN
+#define MINEPS 20.0 * DBL_MIN
+#endif
 
 typedef std::pair<unsigned int, unsigned int> PII;
 

@@ -12,7 +12,7 @@
 #include <cudaUtil.cuH>
 
 __global__
-void testFetchCyl(dArray<cudaTextureObject_t> T, dArray<double> f,
+void testFetchCyl(dArray<cudaTextureObject_t> T, dArray<cuFP_t> f,
 		  int m, int n, int k, int nmax, int NUMX, int NUMY)
 {
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
@@ -20,10 +20,15 @@ void testFetchCyl(dArray<cudaTextureObject_t> T, dArray<double> f,
   const int j = tid/NUMX;
   const int i = tid - NUMX*j;
   if (i<NUMX and j<NUMY)
+#if cuREAL == 4
+    f._v[tid] = tex3D<float>(T._v[l], i, j, k);
+
+#else
     f._v[tid] = int2_as_double(tex3D<int2>(T._v[l], i, j, k));
+#endif
 }
 
-thrust::host_vector<double> returnTestCyl
+thrust::host_vector<cuFP_t> returnTestCyl
   (thrust::host_vector<cudaTextureObject_t>& tex,
    int m, int n, int k, int nmax, int NUMX, int NUMY)
 {
@@ -33,7 +38,7 @@ thrust::host_vector<double> returnTestCyl
   unsigned int gridSize  = N/BLOCK_SIZE;
   if (N > gridSize*BLOCK_SIZE) gridSize++;
 
-  thrust::device_vector<double> f_d(N);
+  thrust::device_vector<cuFP_t> f_d(N);
 
   testFetchCyl<<<gridSize, BLOCK_SIZE>>>(toKernel(t_d), toKernel(f_d),
 					 m, n, k, nmax, NUMX, NUMY);
@@ -77,7 +82,7 @@ void EmpCylSL::initialize_cuda
 		 __FILE__, __LINE__,
 		 "Error allocating d_Interp for texture construction");
   
-  std::vector<double> h_buffer(NUMX*NUMY*6, 0.0);
+  std::vector<cuFP_t> h_buffer(NUMX*NUMY*6, 0.0);
   size_t k = 0;
 
   for (size_t mm=0; mm<=MMAX; mm++) {
@@ -143,7 +148,7 @@ void EmpCylSL::initialize_cuda
   cuda_safe_call(cudaFree(d_Interp), __FILE__, __LINE__, "Failure freeing device memory");
 
   if (true) {
-    thrust::host_vector<double> xyg;
+    thrust::host_vector<cuFP_t> xyg;
     std::cout << "**HOST** Texture 2D compare" << std::endl;
     unsigned tot = 0, bad = 0;
     for (size_t mm=0; mm<=MMAX; mm++) {
