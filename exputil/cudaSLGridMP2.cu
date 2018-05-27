@@ -37,7 +37,7 @@ thrust::host_vector<cuFP_t> returnTestSph
   
   unsigned int gridSize  = numr/BLOCK_SIZE;
   if (numr > gridSize*BLOCK_SIZE) gridSize++;
-
+  
   thrust::device_vector<cuFP_t> f_d(numr);
 
   testFetchSph<<<gridSize, BLOCK_SIZE>>>(toKernel(t_d), toKernel(f_d),
@@ -62,9 +62,9 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
   // Allocate CUDA array in device memory (a one-dimension 'channel')
   //
 #if cuREAL == 4
-  cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<int2>();
-#else
   cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<float>();
+#else
+  cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<int2>();
 #endif
 
   // Interpolation data array
