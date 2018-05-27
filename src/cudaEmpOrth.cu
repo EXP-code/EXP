@@ -138,7 +138,6 @@ void EmpCylSL::initialize_cuda
   if (true) {
     std::cout << "**HOST** Texture 2D compare" << std::endl;
     unsigned tot = 0, bad = 0;
-    double a, b;
     for (size_t mm=0; mm<=MMAX; mm++) {
       for (size_t n=0; n<rank3; n++) {
 	for (int j=0; j<NUMY; j++) {
