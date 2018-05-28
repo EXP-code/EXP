@@ -455,7 +455,7 @@ void SLGridCyl::write_cached_table(void)
 {
   ofstream out(cyl_cache_name.c_str());
   if (!out) {
-    cerr << "SLGridCyl: error writing <" << cyl_cache_name << ">" << std::endl;
+    std::cerr << "SLGridCyl: error writing <" << cyl_cache_name << ">" << std::endl;
     return;
   }
 
@@ -487,7 +487,7 @@ void SLGridCyl::write_cached_table(void)
     }
   }
 
-  cerr << "SLGridCyl::write_cached_table: done!!" << std::endl;
+  std::cerr << "SLGridCyl::write_cached_table: done!!" << std::endl;
   return ;
 }
 
@@ -663,7 +663,7 @@ void SLGridCyl::get_pot(Matrix& mat, double x, int m, int which)
 #endif
 #ifdef DEBUG_NAN
       if (std::isnan(mat[k][n]) || std::isinf(mat[k][n]) ) {
-	cerr << "SLGridCyl::get_pot: invalid value" << std::endl;
+	std::cerr << "SLGridCyl::get_pot: invalid value" << std::endl;
       }
 #endif
     }
@@ -743,7 +743,7 @@ void SLGridCyl::get_force(Matrix& mat, double x, int m, int which)
 			 ) / sqrt(fabs(table[m][k].ev[n]));
 #ifdef DEBUG_NAN
       if (std::isnan(mat[k][n]) || std::isinf(mat[k][n]) ) {
-	cerr << "SLGridCyl::get_force: invalid value" << std::endl;
+	std::cerr << "SLGridCyl::get_force: invalid value" << std::endl;
       }
 #endif
     }
@@ -899,18 +899,18 @@ void SLGridCyl::get_pot(Matrix* mat, double x, int mMin, int mMax, int which)
 #endif
 #ifdef DEBUG_NAN
 	if (std::isnan(mat[m][k][n]) || std::isinf(mat[m][k][n]) ) {
-	  cerr << "SLGridCyl::get_pot: invalid value" << std::endl;
-	  cerr <<   "  x1=" << x1
-	       << "\n  x2=" << x2
-	       << "\n  t0=" << table[m][k].ef[n][indx]
-	       << "\n  p0=" << p0[indx]
-	       << "\n  tp=" << table[m][k].ef[n][indx+1]
-	       << "\n  pp=" << p0[indx+1]
-	       << "\n  ev=" << fabs(table[m][k].ev[n])
-	       << "\n val=" << (x1*table[m][k].ef[n][indx] + 
-				x2*table[m][k].ef[n][indx+1])/
+	  std::cerr << "SLGridCyl::get_pot: invalid value" << std::endl;
+	  std::cerr <<   "  x1=" << x1
+		    << "\n  x2=" << x2
+		    << "\n  t0=" << table[m][k].ef[n][indx]
+		    << "\n  p0=" << p0[indx]
+		    << "\n  tp=" << table[m][k].ef[n][indx+1]
+		    << "\n  pp=" << p0[indx+1]
+		    << "\n  ev=" << fabs(table[m][k].ev[n])
+		    << "\n val=" << (x1*table[m][k].ef[n][indx] + 
+				     x2*table[m][k].ef[n][indx+1])/
 	    sqrt(fabs(table[m][k].ev[n])) * (x1*p0[indx] + x2*p0[indx+1])
-	       << "" << std::endl;
+		    << "" << std::endl;
 	}
 #endif
       }
@@ -1002,21 +1002,21 @@ void SLGridCyl::get_force(Matrix* mat, double x, int mMin, int mMax, int which)
 			      ) / sqrt(fabs(table[m][k].ev[n]));
 #ifdef DEBUG_NAN
 	if (std::isnan(mat[m][k][n]) || std::isinf(mat[m][k][n]) ) {
-	  cerr << "SLGridCyl::get_force: invalid value" << std::endl;
-	  cerr <<   "   p=" << p
-	       << "\n  tm=" << table[m][k].ef[n][indx-1]
-	       << "\n  pm=" << p0[indx-1]
-	       << "\n  t0=" << table[m][k].ef[n][indx]
-	       << "\n  p0=" << p0[indx]
-	       << "\n  tp=" << table[m][k].ef[n][indx+1]
-	       << "\n  pp=" << p0[indx+1]
-	       << "\n  ev=" << fabs(table[m][k].ev[n])
-	       << "\n val=" << fac * (
-				      (p - 0.5)*table[m][k].ef[n][indx-1]*p0[indx-1]
-				      -2.0*p*table[m][k].ef[n][indx]*p0[indx]
-				      + (p + 0.5)*table[m][k].ef[n][indx+1]*p0[indx+1]
-				      ) / sqrt(fabs(table[m][k].ev[n]))
-	       << "" << std::endl;
+	  std::cerr << "SLGridCyl::get_force: invalid value" << std::endl;
+	  std::cerr <<   "   p=" << p
+		    << "\n  tm=" << table[m][k].ef[n][indx-1]
+		    << "\n  pm=" << p0[indx-1]
+		    << "\n  t0=" << table[m][k].ef[n][indx]
+		    << "\n  p0=" << p0[indx]
+		    << "\n  tp=" << table[m][k].ef[n][indx+1]
+		    << "\n  pp=" << p0[indx+1]
+		    << "\n  ev=" << fabs(table[m][k].ev[n])
+		    << "\n val=" << fac * (
+					   (p - 0.5)*table[m][k].ef[n][indx-1]*p0[indx-1]
+					   -2.0*p*table[m][k].ef[n][indx]*p0[indx]
+					   + (p + 0.5)*table[m][k].ef[n][indx+1]*p0[indx+1]
+					   ) / sqrt(fabs(table[m][k].ev[n]))
+		    << "" << std::endl;
 	}
 #endif
       }
@@ -1375,13 +1375,13 @@ void SLGridCyl::compute_table_slave(void)
     for (i=0; i<N; i++) {
       if (iflag[i] < 0) {
 	ok = false;
-	cerr << "***** Slave " << std::setw(3) << myid 
-	     << "  Level " << std::setw(3) << i << ": " << iflag[i] 
-	     << "  M=" << M << "  kv[" << K << "]=" << kv[K] << endl;
+	std::cerr << "***** Slave " << std::setw(3) << myid 
+		  << "  Level " << std::setw(3) << i << ": " << iflag[i] 
+		  << "  M=" << M << "  kv[" << K << "]=" << kv[K] << endl;
       }
     }
-    if (!ok) cerr << "***** Slave " << std::setw(3) << myid 
-		  << ": if error=-2, consider increasing zmax" << endl;
+    if (!ok) std::cerr << "***** Slave " << std::setw(3) << myid 
+		       << ": if error=-2, consider increasing zmax" << endl;
 #endif
 
 				// Load table
@@ -1551,7 +1551,7 @@ double sphdens(double r)
 
 void SLGridSph::bomb(string oops)
 {
-  cerr << "SLGridSph [#=" << myid << "]: " << oops << endl; 
+  std::cerr << "SLGridSph [#=" << myid << "]: " << oops << endl; 
   exit(-1);
 }
 
@@ -1753,16 +1753,16 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
     if (!cache || !read_cached_table()) {
 
       for (l=0; l<=lmax; l++) {
-	cerr << "Begin [" << l << "] . . ." << std::endl;
+	if (tbdbg) std::cerr << "Begin [" << l << "] . . ." << std::endl;
 	compute_table(&(table[l]), l);
-	cerr << ". . . done" << std::endl;
+	if (tbdbg) std::cerr << ". . . done" << std::endl;
       }
       if (cache) write_cached_table();
     }
   }
 
 #ifdef DEBUG
-  cerr << "Process " << myid << ": exiting constructor" << std::endl;
+  std::cerr << "Process " << myid << ": exiting constructor" << std::endl;
 #endif
 
 }
@@ -1772,7 +1772,7 @@ void check_vector_values_SL(const Vector& v)
   for (int i=v.getlow(); i<=v.gethigh(); i++)
     if (std::isinf(v[i]) || std::isnan(v[i]))
       {
-	cerr << "check_vector: Illegal value" << std::endl;
+	std::cerr << "check_vector: Illegal value" << std::endl;
       }
 }
 
@@ -1787,8 +1787,8 @@ int SLGridSph::read_cached_table(void)
   double RMIN, RMAX, SCL;
 
   if (myid==0) 
-    cerr << "SLGridSph::read_cached_table: trying to read cached table . . ."
-	 << endl;
+    std::cerr << "SLGridSph::read_cached_table: trying to read cached table . . ."
+	      << std::endl;
 
   in.read((char *)&LMAX, sizeof(int));		if(!in || LMAX!=lmax) return 0;
   in.read((char *)&NMAX, sizeof(int));		if(!in || NMAX!=nmax) return 0;
@@ -1805,9 +1805,9 @@ int SLGridSph::read_cached_table(void)
 				// Double check
     if (table[l].l != l) {
       if (myid==0)
-	cerr << "SLGridSph: error reading <" << sph_cache_name << ">" << endl
-	     << "SLGridSph: l: read value (" << table[l].l 
-	     << ") != internal value (" << l << ")" << endl;
+	std::cerr << "SLGridSph: error reading <" << sph_cache_name << ">" << endl
+		  << "SLGridSph: l: read value (" << table[l].l 
+		  << ") != internal value (" << l << ")" << std::endl;
 	return 0;
     }
 
@@ -1830,7 +1830,7 @@ int SLGridSph::read_cached_table(void)
   }
 
   if (myid==0)
-    cerr << "SLGridSph::read_cached_table: Success!!" << std::endl;
+    std::cerr << "SLGridSph::read_cached_table: Success!!" << std::endl;
 
   return 1;
 }
@@ -1840,7 +1840,7 @@ void SLGridSph::write_cached_table(void)
 {
   ofstream out(sph_cache_name.c_str());
   if (!out) {
-    cerr << "SLGridSph: error writing <" << sph_cache_name << ">" << std::endl;
+    std::cerr << "SLGridSph: error writing <" << sph_cache_name << ">" << std::endl;
     return;
   }
 
@@ -1866,7 +1866,7 @@ void SLGridSph::write_cached_table(void)
 	out.write((char *)&table[l].ef[j][i], sizeof(double));
   }
 
-  cerr << "SLGridSph::write_cached_table: done!!" << std::endl;
+  std::cerr << "SLGridSph::write_cached_table: done!!" << std::endl;
   return ;
 }
 
@@ -2734,7 +2734,7 @@ double slabdens(double z)
 
 void SLGridSlab::bomb(string oops)
 {
-  cerr << "SLGridSlab: " << oops << endl; 
+  std::cerr << "SLGridSlab: " << oops << std::endl; 
   exit(-1);
 }
 
@@ -2913,9 +2913,10 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
 
       for (kx=0; kx<=numk; kx++) {
 	for (ky=0; ky<=kx; ky++) {
-	  cerr << "Begin [" << kx << ", " << ky << "] . . ." << std::endl;
+	  if (tbdbg) std::cerr << "Begin [" << kx << ", " << ky << "] . . ."
+			       << std::endl;
 	  compute_table(&(table[kx][ky]), kx, ky);
-	  cerr << ". . . done" << std::endl;
+	  if (tbdbg) std::cerr << ". . . done" << std::endl;
 	}
       }
 
@@ -2924,7 +2925,7 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX, bool VERBOSE)
   }
 
 #ifdef DEBUG
-  cerr << "Process " << myid << ": exiting constructor" << std::endl;
+  std::cerr << "Process " << myid << ": exiting constructor" << std::endl;
 #endif
 }
 
@@ -2942,8 +2943,8 @@ int SLGridSlab::read_cached_table(void)
   double ZMAX, HH, LL, zbeg, zend;
 
   if (myid==0)
-    cerr << "SLGridSlab::read_cached_table: trying to read cached table . . ."
-	 << endl;
+    std::cerr << "SLGridSlab::read_cached_table: trying to read cached table . . ."
+	      << std::endl;
 
   in.read((char *)&NUMK, sizeof(int));		if(!in || NUMK!=numk) return 0;
   in.read((char *)&NMAX, sizeof(int));		if(!in || NMAX!=nmax) return 0;
@@ -2963,18 +2964,18 @@ int SLGridSlab::read_cached_table(void)
 				// Double check
       if (table[kx][ky].kx != kx) {
 	if (myid==0)
-	  cerr << "SLGridSlab: error reading <" << Slab_cache_name << ">"
-	       << endl
-	       << "SLGridSlab: kx: read value (" << table[kx][ky].kx 
-	       << ") != internal value (" << kx << ")" << endl;
+	  std::cerr << "SLGridSlab: error reading <" << Slab_cache_name << ">"
+		    << std::endl
+		    << "SLGridSlab: kx: read value (" << table[kx][ky].kx 
+		    << ") != internal value (" << kx << ")" << std::endl;
 	return 0;
       }
       if (table[kx][ky].ky != ky) {
 	if (myid==0) 
-	  cerr << "SLGridSlab: error reading <" << Slab_cache_name << ">"
-	       << endl
-	       << "SLGridSlab: ky: read value (" << table[kx][ky].ky 
-	       << ") != internal value (" << ky << ")" << endl;
+	  std::cerr << "SLGridSlab: error reading <" << Slab_cache_name << ">"
+		    << std::endl
+		    << "SLGridSlab: ky: read value (" << table[kx][ky].ky 
+		    << ") != internal value (" << ky << ")" << std::endl;
 	return 0;
       }
 
@@ -2998,7 +2999,7 @@ int SLGridSlab::read_cached_table(void)
   }
 
   if (myid==0)
-    cerr << "SLGridSlab::read_cached_table: Success!!" << std::endl;
+    std::cerr << "SLGridSlab::read_cached_table: Success!!" << std::endl;
 
   return 1;
 }
@@ -3008,7 +3009,7 @@ void SLGridSlab::write_cached_table(void)
 {
   ofstream out(Slab_cache_name.c_str());
   if (!out) {
-    cerr << "SLGridSlab: error writing <" << Slab_cache_name << ">" << std::endl;
+    std::cerr << "SLGridSlab: error writing <" << Slab_cache_name << ">" << std::endl;
     return;
   }
 
@@ -3038,7 +3039,7 @@ void SLGridSlab::write_cached_table(void)
     }
   }
 
-  cerr << "SLGridSlab::write_cached_table: done!!" << std::endl;
+  std::cerr << "SLGridSlab::write_cached_table: done!!" << std::endl;
   return ;
 }
 
@@ -4065,11 +4066,11 @@ extern "C" int coeff_(doublereal* x, doublereal* px, doublereal* qx,
     *rx = -rho*(*x)*(*x)*f;
 
     if (*px<=0) 
-      cerr << "Process " << myid << ": "
-	   << "px<=0: x=" << *x << " f=" << f << "" << std::endl;
+      std::cerr << "Process " << myid << ": "
+		<< "px<=0: x=" << *x << " f=" << f << "" << std::endl;
     if (*rx<=0)
-      cerr << "Process " << myid << ": "
-	   << "rx<=0: x=" << *x << " f=" << f << " rho=" << rho <<  "" << std::endl;
+      std::cerr << "Process " << myid << ": "
+		<< "rx<=0: x=" << *x << " f=" << f << " rho=" << rho <<  "" << std::endl;
 
   }
 
