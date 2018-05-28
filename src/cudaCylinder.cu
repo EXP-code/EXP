@@ -378,6 +378,11 @@ __global__ void coefKernelCyl
 
 	} // norder loop
 
+      } else {			// No contribution from OAB particle
+	for (int n=0; n<nmax; n++) {
+	  coef._v[(2*n+0)*N + i] = 0.0;
+	  if (m) coef._v[(2*n+1)*N + i] = 0.0;
+	}
       } // mass value check
 
     } // particle index check

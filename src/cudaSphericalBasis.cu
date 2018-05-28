@@ -75,23 +75,22 @@ __host__ __device__
 void legendre_v2(int lmax, cuFP_t x, cuFP_t* p, cuFP_t* dp)
 {
   cuFP_t fact, somx2, pll, pl1, pl2;
-  int m, l;
 
   p[0] = pll = 1.0;
   if (lmax > 0) {
     somx2 = sqrt( (1.0 - x)*(1.0 + x) );
     fact = 1.0;
-    for (m=1; m<=lmax; m++) {
+    for (int m=1; m<=lmax; m++) {
       pll *= -fact*somx2;
       p[Ilm(m, m)] = pll;
       fact += 2.0;
     }
   }
 
-  for (m=0; m<lmax; m++) {
+  for (int m=0; m<lmax; m++) {
     pl2 = p[Ilm(m, m)];
     p[Ilm(m+1, m)] = pl1 = x*(2*m+1)*pl2;
-    for (l=m+2; l<=lmax; l++) {
+    for (int l=m+2; l<=lmax; l++) {
       p[Ilm(l, m)] = pll = (x*(2*l-1)*pl1-(l+m-1)*pl2)/(l-m);
       pl2 = pl1;
       pl1 = pll;
@@ -105,8 +104,8 @@ void legendre_v2(int lmax, cuFP_t x, cuFP_t* p, cuFP_t* dp)
 
   somx2 = 1.0/(x*x - 1.0);
   dp[0] = 0.0;
-  for (l=1; l<=lmax; l++) {
-    for (m=0; m<l; m++)
+  for (int l=1; l<=lmax; l++) {
+    for (int m=0; m<l; m++)
       dp[Ilm(l, m)] = somx2*(x*l*p[Ilm(l, m)] - (l+m)*p[Ilm(l-1, m)]);
     dp[Ilm(l, l)] = somx2*x*l*p[Ilm(l, l)];
   }
@@ -202,19 +201,6 @@ void SphericalBasis::initialize_mapping_constants()
 		 __FILE__, __LINE__, "Error copying sphCmap");
 }
 
-__global__
-void testTextureSph(dArray<cudaTextureObject_t> tex, int nmax)
-{
-  printf("** DEVICE 1d texture compare\n");
-  for (int k=0; k<10; k++) {
-    for (int i : {0, 1, sphNumr-2, sphNumr-1}) 
-#if cuREAL == 4
-      printf("%5d %5d %13.7e\n", k, i, tex1D<float>(tex._v[k], i));
-#else
-      printf("%5d %5d %13.7e\n", k, i, int2_as_double(tex1D<int2>(tex._v[k], i)));
-#endif
-  }
-}
 
 __global__ void coordKernel
 (dArray<cudaParticle> in, dArray<cuFP_t> mass, dArray<cuFP_t> Afac,
@@ -311,7 +297,7 @@ __global__ void coefKernel
 #endif
 
       if (mass>0.0) {
-
+	
 #ifdef BOUNDS_CHECK
 	if (i>=Phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
@@ -328,7 +314,7 @@ __global__ void coefKernel
 	//
 	cuFP_t a = Afac._v[i];
 	cuFP_t b = 1.0 - a;
-	int ind = Indx._v[i];
+	int  ind = Indx._v[i];
 	
 #ifdef BOUNDS_CHECK
 	if (i>=Afac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
@@ -357,7 +343,7 @@ __global__ void coefKernel
 		     a*int2_as_double(tex1D<int2>(tex._v[k], ind  )) +
 		     b*int2_as_double(tex1D<int2>(tex._v[k], ind+1))
 #endif
-		     ) * p0 * plm[Ilm(l, m)] * Mass._v[i] * fac0;
+		      ) * p0 * plm[Ilm(l, m)] * Mass._v[i] * fac0;
 	  
 	  
 	  coef._v[(2*n+0)*N + i] = v * cosp;
@@ -367,6 +353,11 @@ __global__ void coefKernel
 	  if ((2*n+0)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 	  if ((2*n+1)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
+	}
+      } else {
+	for (int n=0; n<nmax; n++) {
+	  coef._v[(2*n+0)*N + i] = 0.0;
+	  coef._v[(2*n+1)*N + i] = 0.0;
 	}
       }
     }
@@ -670,6 +661,10 @@ void SphericalBasis::determine_coefficients_cuda()
     initialize_cuda();
     initialize_mapping_constants();
     initialize_cuda_sph = false;
+
+    // Copy texture objects to device
+    //
+    t_d = tex;
   }
 
   std::cout << std::scientific;
@@ -725,10 +720,6 @@ void SphericalBasis::determine_coefficients_cuda()
   dc_coef.resize(2*nmax*gridSize);
   df_coef.resize(2*nmax);
 
-  // Texture objects (only need to do this once!)
-  //
-  if (t_d.size()==0) t_d = tex;
-
   // Space for Legendre coefficients 
   //
   plm_d.resize((Lmax+1)*(Lmax+2)/2*N);
@@ -747,15 +738,11 @@ void SphericalBasis::determine_coefficients_cuda()
 
   // For debugging
   //
-  static bool firstime = true;
+  static bool firstime = false;
 
   if (firstime) {
     testConstants<<<1, 1>>>();
     cudaDeviceSynchronize();
-    /*
-    testTextureSph<<<1, 1>>>(toKernel(t_d), nmax);
-    cudaDeviceSynchronize();
-    */
     firstime = false;
   }
 
@@ -777,6 +764,9 @@ void SphericalBasis::determine_coefficients_cuda()
   int osize = nmax*2;		//
   for (int l=0; l<=Lmax; l++) {
     for (int m=0; m<=l; m++) {
+				// Compute the contribution to the
+				// coefficients from each particle
+				//
       coefKernel<<<gridSize, BLOCK_SIZE>>>
 	(toKernel(dN_coef), toKernel(t_d), toKernel(m_d),
 	 toKernel(a_d), toKernel(p_d), toKernel(plm_d), toKernel(i_d),
@@ -796,6 +786,9 @@ void SphericalBasis::determine_coefficients_cuda()
 	 dc_coef.begin(), thrust::make_discard_iterator(), df_coef.begin()
 	 );
 
+				// Assign reduced output to
+				// coefficient array
+				//
       thrust::host_vector<cuFP_t> ret = df_coef;
       for (size_t j=0; j<nmax; j++) {
 	host_coefs[Ilmn(l, m, 'c', j, nmax)] = ret[2*j];
@@ -819,6 +812,10 @@ void SphericalBasis::determine_acceleration_cuda()
     initialize_cuda();
     initialize_mapping_constants();
     initialize_cuda_sph = false;
+
+    // Copy texture objects to device
+    //
+    t_d = tex;
   }
 
   std::cout << std::scientific;
@@ -862,10 +859,6 @@ void SphericalBasis::determine_acceleration_cuda()
 	    << "** Zcen   = " << ctr[2]     << std::endl
 	    << "**" << std::endl;
 #endif
-
-  // Texture objects (only need to do this once!)
-  //
-  if (t_d.size()==0) t_d = tex;
 
   // Space for Legendre coefficients 
   //
