@@ -198,7 +198,7 @@ __global__ void coordKernelCyl
 {
   // Thread ID
   //
-  const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
   for (int n=0; n<stride; n++) {
     int i = tid*stride + n;	// Particle counter
@@ -319,8 +319,8 @@ __global__ void coefKernelCyl
 	cuFP_t c01 = delx0*dely1;
 	cuFP_t c11 = delx1*dely1;
 
-	int indx = indX._v[i];
-	int indy = indY._v[i];
+	int   indx = indX._v[i];
+	int   indy = indY._v[i];
 
 #ifdef BOUNDS_CHECK
 	if (i>=indX._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
