@@ -148,52 +148,10 @@ void Cylinder::initialize_mapping_constants()
 }
 
 
-__global__
-void testCoordCyl(dArray<cuFP_t> mass, dArray<cuFP_t> phi,
-		  dArray<cuFP_t> Xfac, dArray<cuFP_t> Yfac,
-		  dArray<int> IndX, dArray<int> IndY,
-		  PII lohi)
-{
-  printf("**\n** Coordinate test\n");
-  
-  int N = lohi.second - lohi.first;
-
-  printf("%8s %13s %13s %13s %13s %5s %5s\n", "#", "mass", "phi", "a", "c", "ix", "iy");
-
-  for (int i=0; i<3; i++) {
-    printf("%8d %13.7e %13.7e %13.7e %13.7e %5d %5d\n",
-	   i, mass._v[i], phi._v[i], Xfac._v[i], Yfac._v[i],
-	   IndX._v[i], IndY._v[i]);
-  }
-
-  for (int i=N-4; i<N; i++) {
-    printf("%8d %13.7e %13.7e %13.7e %13.7e %5d %5d\n",
-	   i, mass._v[i], phi._v[i], Xfac._v[i], Yfac._v[i],
-	   IndX._v[i], IndY._v[i]);
-  }
-
-  printf("**\n");
-}
-
-__global__
-void testTextureCyl(dArray<cudaTextureObject_t> tex, int nmax)
-{
-  printf("** DEVICE 2d texture compare\n");
-  for (int k=0; k<10; k++) {
-    for (int i : {0, 1, 2, cylNumx/2, cylNumx-2, cylNumx-1}) 
-      for (int j : {0, 1, cylNumy/2, cylNumy-2, cylNumy-1}) 
-#if cuREAL == 4
-	printf("%5d %5d %5d %13.7e\n", k, i, j, tex3D<float>(tex._v[j], i, j, 0));
-#else
-	printf("%5d %5d %5d %13.7e\n", k, i, j, int2_as_double(tex3D<int2>(tex._v[j], i, j, 0)));
-#endif
-  }
-}
-
 __global__ void coordKernelCyl
 (dArray<cudaParticle> in, dArray<cuFP_t> mass, dArray<cuFP_t> phi,
  dArray<cuFP_t> Xfac, dArray<cuFP_t> Yfac,
- dArray<int>   IndX, dArray<int>   IndY,
+ dArray<int> IndX, dArray<int> IndY,
  unsigned int stride, PII lohi, cuFP_t rmax)
 {
   // Thread ID
@@ -215,8 +173,10 @@ __global__ void coordKernelCyl
       cuFP_t yy = p.pos[1] - cylCen[1];
       cuFP_t zz = p.pos[2] - cylCen[2];
       
-      cuFP_t r2 = (xx*xx + yy*yy + zz*zz);
-      cuFP_t r  = sqrt(r2) + FSMALL;
+      cuFP_t R2 = xx*xx + yy*yy;
+      cuFP_t r2 = R2 + zz*zz;
+      cuFP_t R  = sqrt(R2);
+      cuFP_t r  = sqrt(r2);
 #ifdef BOUNDS_CHECK
       if (i>=mass._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
@@ -233,7 +193,7 @@ __global__ void coordKernelCyl
 #endif
 	// Interpolation indices
 	//
-	cuFP_t X  = (cu_r_to_xi_cyl(r) - cylXmin)/cylDxi;
+	cuFP_t X  = (cu_r_to_xi_cyl(R) - cylXmin)/cylDxi;
 	cuFP_t Y  = (cu_z_to_y_cyl(zz) - cylYmin)/cylDyi;
 
 	int indX = floor(X);
@@ -336,16 +296,16 @@ __global__ void coefKernelCyl
 	  int k = m*nmax + n;
 
 #if cuREAL == 4
-	  const cuFP_t d00  = tex3D<float>(tex._v[k], indx,   indy  , 0);
-	  const cuFP_t d10  = tex3D<float>(tex._v[k], indx+1, indy  , 0);
-	  const cuFP_t d01  = tex3D<float>(tex._v[k], indx,   indy+1, 0);
-	  const cuFP_t d11  = tex3D<float>(tex._v[k], indx+1, indy+1, 0);
+	  cuFP_t d00  = tex3D<float>(tex._v[k], indx,   indy  , 0);
+	  cuFP_t d10  = tex3D<float>(tex._v[k], indx+1, indy  , 0);
+	  cuFP_t d01  = tex3D<float>(tex._v[k], indx,   indy+1, 0);
+	  cuFP_t d11  = tex3D<float>(tex._v[k], indx+1, indy+1, 0);
 
 #else
-	  const cuFP_t d00  = int2_as_double(tex3D<int2>(tex._v[k], indx,   indy  , 0));
-	  const cuFP_t d10  = int2_as_double(tex3D<int2>(tex._v[k], indx+1, indy  , 0));
-	  const cuFP_t d01  = int2_as_double(tex3D<int2>(tex._v[k], indx,   indy+1, 0));
-	  const cuFP_t d11  = int2_as_double(tex3D<int2>(tex._v[k], indx+1, indy+1, 0));
+	  cuFP_t d00  = int2_as_double(tex3D<int2>(tex._v[k], indx,   indy  , 0));
+	  cuFP_t d10  = int2_as_double(tex3D<int2>(tex._v[k], indx+1, indy  , 0));
+	  cuFP_t d01  = int2_as_double(tex3D<int2>(tex._v[k], indx,   indy+1, 0));
+	  cuFP_t d11  = int2_as_double(tex3D<int2>(tex._v[k], indx+1, indy+1, 0));
 #endif
 
 #ifdef BOUNDS_CHECK
@@ -358,18 +318,18 @@ __global__ void coefKernelCyl
 	    // potS tables are offset from potC tables by +3
 	    //
 #if cuREAL == 4
-	    const cuFP_t e00  = tex3D<float>(tex._v[k], indx,   indy  , 3);
-	    const cuFP_t e10  = tex3D<float>(tex._v[k], indx+1, indy  , 3);
-	    const cuFP_t e01  = tex3D<float>(tex._v[k], indx,   indy+1, 3);
-	    const cuFP_t e11  = tex3D<float>(tex._v[k], indx+1, indy+1, 3);
+	    d00  = tex3D<float>(tex._v[k], indx,   indy  , 3);
+	    d10  = tex3D<float>(tex._v[k], indx+1, indy  , 3);
+	    d01  = tex3D<float>(tex._v[k], indx,   indy+1, 3);
+	    d11  = tex3D<float>(tex._v[k], indx+1, indy+1, 3);
 #else
-	    const cuFP_t e00  = int2_as_double(tex3D<int2>(tex._v[k], indx,   indy  , 3));
-	    const cuFP_t e10  = int2_as_double(tex3D<int2>(tex._v[k], indx+1, indy  , 3));
-	    const cuFP_t e01  = int2_as_double(tex3D<int2>(tex._v[k], indx,   indy+1, 3));
-	    const cuFP_t e11  = int2_as_double(tex3D<int2>(tex._v[k], indx+1, indy+1, 3));
+	    d00  = int2_as_double(tex3D<int2>(tex._v[k], indx,   indy  , 3));
+	    d10  = int2_as_double(tex3D<int2>(tex._v[k], indx+1, indy  , 3));
+	    d01  = int2_as_double(tex3D<int2>(tex._v[k], indx,   indy+1, 3));
+	    d11  = int2_as_double(tex3D<int2>(tex._v[k], indx+1, indy+1, 3));
 #endif
 
-	    coef._v[(2*n+1)*N + i] = (c00*e00 + c10*e10 + c01*e01 + c11*e11) * sinp * norm * mass;
+	    coef._v[(2*n+1)*N + i] = (c00*d00 + c10*d10 + c01*d01 + c11*d11) * sinp * norm * mass;
 
 #ifdef BOUNDS_CHECK
 	    if ((2*n+1)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
@@ -378,11 +338,13 @@ __global__ void coefKernelCyl
 
 	} // norder loop
 
-      } else {			// No contribution from OAB particle
+      } else {
+	// No contribution from off-grid particles
 	for (int n=0; n<nmax; n++) {
 	  coef._v[(2*n+0)*N + i] = 0.0;
 	  if (m) coef._v[(2*n+1)*N + i] = 0.0;
 	}
+
       } // mass value check
 
     } // particle index check
@@ -453,6 +415,11 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<cuFP_t> coef,
 	int indX = floor(X);
 	int indY = floor(Y);
 	
+	if (indX < 0) indX = 0;
+	if (indY < 0) indY = 0;
+	if (indX >= cylNumx) indX = cylNumx - 1;
+	if (indY >= cylNumy) indY = cylNumy - 1;
+
 	cuFP_t delx0 = cuFP_t(indX+1) - X;
 	cuFP_t dely0 = cuFP_t(indY+1) - Y;
 
@@ -682,6 +649,8 @@ void Cylinder::determine_coefficients_cuda()
     initialize_cuda();
     initialize_mapping_constants();
     initialize_cuda_cyl = false;
+    // Only copy texture memory once
+    t_d = tex;
   }
 
   /*
@@ -709,7 +678,6 @@ void Cylinder::determine_coefficients_cuda()
   // Zero out coefficients
   //
   host_coefs.resize((2*mmax+1)*ncylorder);
-  thrust::fill(host_coefs.begin(), host_coefs.end(), 0.0);
 
   // Compute grid
   //
@@ -752,10 +720,6 @@ void Cylinder::determine_coefficients_cuda()
   dc_coef.resize(2*ncylorder*gridSize);
   df_coef.resize(2*ncylorder);
 
-  // Texture objects (only need to do this once!)
-  //
-  if (t_d.size()==0) t_d = tex;
-
   // Space for coordinate arrays
   //
   m_d.resize(N);
@@ -771,15 +735,11 @@ void Cylinder::determine_coefficients_cuda()
 
   // For debugging (set to false to disable)
   //
-  static bool firstime = true;
+  static bool firstime = false;
 
   if (firstime) {
     testConstantsCyl<<<1, 1>>>();
     cudaDeviceSynchronize();
-    /*
-    testTextureCyl<<<1, 1>>>(toKernel(t_d), ncylorder);
-    cudaDeviceSynchronize();
-    */
     firstime = false;
   }
 
@@ -807,12 +767,6 @@ void Cylinder::determine_coefficients_cuda()
      toKernel(X_d), toKernel(Y_d), toKernel(iX_d), toKernel(iY_d),
      stride, lohi, rmax);
 
-  /*
-  testCoordCyl<<<1, 1>>>(toKernel(m_d),  toKernel(p_d),
-			 toKernel(X_d),  toKernel(Y_d),
-			 toKernel(iX_d), toKernel(iY_d),
-			 lohi);
-  */
 				// Compute the coefficient
 				// contribution for each order
   int osize = ncylorder*2;	// 
@@ -970,7 +924,7 @@ void Cylinder::determine_coefficients_cuda()
 
     std::map<double, Element> compare;
 
-    std::ofstream out("test.dat");
+    std::ofstream out("test_cyl.dat");
 
     // m loop
     for (int m=0; m<=mmax; m++) {
@@ -1047,6 +1001,10 @@ void Cylinder::determine_coefficients_cuda()
     std::advance(midl, compare.size()/2);
     std::map<double, Element>::reverse_iterator last = compare.rbegin();
     
+    std::cout << std::string(3*2 + 3*15, '-') << std::endl
+	      << "---- Cylinder coefficients" << std::endl
+	      << std::string(3*2 + 3*15, '-') << std::endl;
+
     std::cout << "Best case: ["
 	      << std::setw( 2) << best->second.m << ", "
 	      << std::setw( 2) << best->second.n << ", "
@@ -1092,6 +1050,8 @@ void Cylinder::determine_acceleration_cuda()
     initialize_cuda();
     initialize_mapping_constants();
     initialize_cuda_cyl = false;
+    // Only copy texture memory once
+    t_d = tex;
   }
 
   std::cout << std::scientific;
@@ -1133,10 +1093,6 @@ void Cylinder::determine_acceleration_cuda()
 	    << "** Zcen   = " << ctr[2]     << std::endl
 	    << "**" << std::endl;
 #endif
-
-  // Texture objects (only need to do this once!)
-  //
-  if (t_d.size()==0) t_d = tex;
 
   // Shared memory size for the reduction
   //

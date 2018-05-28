@@ -46,23 +46,22 @@ __host__ __device__
 void legendre_v(int lmax, cuFP_t x, cuFP_t* p)
 {
   cuFP_t fact, somx2, pll, pl1, pl2;
-  int m, l;
 
   p[0] = pll = 1.0f;
   if (lmax > 0) {
     somx2 = sqrt( (1.0f - x)*(1.0f + x) );
     fact = 1.0f;
-    for (m=1; m<=lmax; m++) {
+    for (int m=1; m<=lmax; m++) {
       pll *= -fact*somx2;
       p[Ilm(m, m)] = pll;
       fact += 2.0f;
     }
   }
-
-  for (m=0; m<lmax; m++) {
+  
+  for (int m=0; m<lmax; m++) {
     pl2 = p[Ilm(m, m)];
     p[Ilm(m+1, m)] = pl1 = x*(2*m+1)*pl2;
-    for (l=m+2; l<=lmax; l++) {
+    for (int l=m+2; l<=lmax; l++) {
       p[Ilm(l, m)] = pll = (x*(2*l-1)*pl1-(l+m-1)*pl2)/(l-m);
       pl2 = pl1;
       pl1 = pll;
@@ -355,6 +354,7 @@ __global__ void coefKernel
 #endif
 	}
       } else {
+	// No contribution from off-grid particles
 	for (int n=0; n<nmax; n++) {
 	  coef._v[(2*n+0)*N + i] = 0.0;
 	  coef._v[(2*n+1)*N + i] = 0.0;
@@ -388,10 +388,6 @@ forceKernel(dArray<cudaParticle> in, dArray<cuFP_t> coef,
       cuFP_t yy = p.pos[1] - sphCen[1];
       cuFP_t zz = p.pos[2] - sphCen[2];
       
-      if (fabs(xx) > 10.0*rmax or
-	  fabs(yy) > 10.0*rmax or
-	  fabs(zz) > 10.0*rmax) continue;
-
       cuFP_t r2 = (xx*xx + yy*yy + zz*zz);
       cuFP_t r  = sqrt(r2) + FSMALL;
       
@@ -404,10 +400,6 @@ forceKernel(dArray<cudaParticle> in, dArray<cuFP_t> coef,
       cuFP_t *plm1 = &L1._v[psiz*tid];
       cuFP_t *plm2 = &L2._v[psiz*tid];
       
-      const cuFP_t FLIM = 1.0e-5;
-      if (costh >   1.0 - FLIM ) costh =   1.0 - FLIM;
-      if (costh < -(1.0 - FLIM)) costh = -(1.0 - FLIM);
-
       legendre_v2(Lmax, costh, plm1, plm2);
 
       int ioff = 0;
@@ -424,16 +416,27 @@ forceKernel(dArray<cudaParticle> in, dArray<cuFP_t> coef,
       cuFP_t  x = cu_r_to_xi(rs);
       cuFP_t xi = (x - sphXmin)/sphDxi;
       cuFP_t dx = cu_d_xi_to_r(x)/sphDxi;
+
       int  ind = floor(xi);
-      
+      int  in0 = ind;
+
+      if (in0<0) in0 = 0;
+      if (in0>sphNumr-2) in0 = sphNumr - 2;
+
       if (ind<1) ind = 1;
       if (ind>sphNumr-2) ind = sphNumr - 2;
       
-      cuFP_t a = (cuFP_t)(ind+1) - xi;
+      cuFP_t a0 = (cuFP_t)(in0+1) - xi;
+      cuFP_t a1 = (cuFP_t)(ind+1) - xi;
+      cuFP_t b0 = 1.0 - a0;
+      cuFP_t b1 = 1.0 - a1;
+
 #ifdef OFF_GRID_ALERT
-      if (a<0.0 or a>1.0) printf("forceKernel: off grid: x=%f\n", xi);
+      if (a0<0.0 or a0>1.0)
+	printf("forceKernel: off grid [0]: x=%f\n", xi);
+      if (a1<0.0 or a1>1.0)
+	printf("forceKernel: off grid [1]: x=%f\n", xi);
 #endif
-      cuFP_t b = 1.0 - a;
       
       // Do the interpolation for the prefactor potential
       //
@@ -441,10 +444,22 @@ forceKernel(dArray<cudaParticle> in, dArray<cuFP_t> coef,
       cuFP_t pm1 = tex1D<float>(tex._v[0], ind-1);
       cuFP_t p00 = tex1D<float>(tex._v[0], ind  );
       cuFP_t pp1 = tex1D<float>(tex._v[0], ind+1);
+      cuFP_t p0  = p00;
+      cuFP_t p1  = pp1;
+      if (in0==0) {
+	p1 = p0;
+	p0 = tex1D<float>(tex._v[0], 0);
+      }
 #else
       cuFP_t pm1 = int2_as_double(tex1D<int2>(tex._v[0], ind-1));
       cuFP_t p00 = int2_as_double(tex1D<int2>(tex._v[0], ind  ));
       cuFP_t pp1 = int2_as_double(tex1D<int2>(tex._v[0], ind+1));
+      cuFP_t p0  = p00;
+      cuFP_t p1  = pp1;
+      if (in0==0) {
+	p1 = p0;
+	p0 = int2_as_double(tex1D<int2>(tex._v[0], 0));
+      }
 #endif
 
       // For force accumulation
@@ -456,7 +471,7 @@ forceKernel(dArray<cudaParticle> in, dArray<cuFP_t> coef,
 
       // l loop
       //
-      for (int l=0; l<Lmax; l++) {
+      for (int l=0; l<=Lmax; l++) {
 
 	cuFP_t fac1 = (2.0*l + 1.0)/(4.0*M_PI);
 
@@ -501,22 +516,34 @@ forceKernel(dArray<cudaParticle> in, dArray<cuFP_t> coef,
 	    cuFP_t um1 = tex1D<float>(tex._v[k], ind-1);
 	    cuFP_t u00 = tex1D<float>(tex._v[k], ind  );
 	    cuFP_t up1 = tex1D<float>(tex._v[k], ind+1);
+	    cuFP_t u0  = u00;
+	    cuFP_t u1  = up1;
+	    if (in0==0) {
+	      u1 = u0;
+	      u0 = tex1D<float>(tex._v[k], 0);
+	    }
 #else
 	    cuFP_t um1 = int2_as_double(tex1D<int2>(tex._v[k], ind-1));
 	    cuFP_t u00 = int2_as_double(tex1D<int2>(tex._v[k], ind  ));
 	    cuFP_t up1 = int2_as_double(tex1D<int2>(tex._v[k], ind+1));
+	    cuFP_t u0  = u00;
+	    cuFP_t u1  = up1;
+	    if (in0==0) {
+	      u1 = u0;
+	      u0 = int2_as_double(tex1D<int2>(tex._v[k], 0));
+	    }
 #endif
-	    cuFP_t v = (a*u00 + b*up1)*(a*p00 + b*pp1);
+	    cuFP_t v = (a0*u0 + b0*u1)*(a0*p0 + b0*p1);
 	    
 	    cuFP_t dv =
-	      dx * ( (b - 0.5)*um1*pm1 - 2.0*b*u00*p00 + (b + 0.5)*up1*pp1 );
+	      dx * ( (b1 - 0.5)*um1*pm1 - 2.0*b1*u00*p00 + (b1 + 0.5)*up1*pp1 );
 	    
 #ifdef NAN_CHECK
 	    if (std::isnan(v))
-	      printf("v tab nan: (%d, %d): a=%f b=%f p0=%f p1=%f u0=%f u1=%f\n", l, m, a, b, p00, pp1, u00, up1);
+	      printf("v tab nan: (%d, %d): a=%f b=%f p0=%f p1=%f u0=%f u1=%f\n", l, m, a1, b1, p00, pp1, u00, up1);
 
 	    if (std::isnan(dv))
-	      printf("dv tab nan: (%d, %d): a=%f b=%f pn=%f p0=%f pp=%f un=%f u0=%f up=%f\n", l, m, a, b, pm1, p00, pp1, um1, u00, up1);
+	      printf("dv tab nan: (%d, %d): a=%f b=%f pn=%f p0=%f pp=%f un=%f u0=%f up=%f\n", l, m, a1, b1, pm1, p00, pp1, um1, u00, up1);
 #endif
 
 	    pp_c -=  v * coef._v[indxC+n];
@@ -679,7 +706,6 @@ void SphericalBasis::determine_coefficients_cuda()
   // Zero out coefficients
   //
   host_coefs.resize((Lmax+1)*(Lmax+1)*nmax);
-  thrust::fill(host_coefs.begin(), host_coefs.end(), 0.0);
 
   // Compute grid
   //
