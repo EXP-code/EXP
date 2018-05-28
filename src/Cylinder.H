@@ -113,6 +113,19 @@ protected:
 
   //! Compare CPU and GPU force evaluation for debugging
   void host_dev_force_compare();
+
+  //@{
+  //! Working device vectors
+  thrust::device_vector<cudaTextureObject_t> t_d;
+
+  thrust::device_vector<cuFP_t> dN_coef;
+  thrust::device_vector<cuFP_t> dc_coef;
+  thrust::device_vector<cuFP_t> df_coef;
+  thrust::device_vector<cuFP_t> X_d, Y_d, m_d, p_d;
+  thrust::device_vector<int>    iX_d, iY_d;
+  //@}
+
+
 #endif
 
 public:

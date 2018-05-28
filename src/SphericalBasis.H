@@ -134,6 +134,19 @@ protected:
 
   //! Compare CPU and GPU force evaluation for debugging
   void host_dev_force_compare();
+
+  //@{
+  //! Working device vectors
+  thrust::device_vector<cudaTextureObject_t> t_d;
+
+  thrust::device_vector<cuFP_t> dN_coef;
+  thrust::device_vector<cuFP_t> dc_coef;
+  thrust::device_vector<cuFP_t> df_coef;
+  thrust::device_vector<cuFP_t> plm_d, plm1_d, plm2_d;
+  thrust::device_vector<cuFP_t> r_d, m_d, a_d, p_d;
+  thrust::device_vector<int>    i_d;
+  //@}
+
 #endif
 
   //! Thread method for accerlation compuation

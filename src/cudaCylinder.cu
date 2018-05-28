@@ -743,18 +743,22 @@ void Cylinder::determine_coefficients_cuda()
 
   // Create space for coefficient reduction
   //
-  thrust::device_vector<cuFP_t> dN_coef(2*ncylorder*N);
-  thrust::device_vector<cuFP_t> dc_coef(2*ncylorder*gridSize);
-  thrust::device_vector<cuFP_t> df_coef(2*ncylorder);
+  dN_coef.resize(2*ncylorder*N);
+  dc_coef.resize(2*ncylorder*gridSize);
+  df_coef.resize(2*ncylorder);
 
-  // Texture objects
+  // Texture objects (only need to do this once!)
   //
-  thrust::device_vector<cudaTextureObject_t> t_d = tex;
+  if (t_d.size()==0) t_d = tex;
 
   // Space for coordinate arrays
   //
-  thrust::device_vector<cuFP_t> m_d(N), X_d(N), Y_d(N), p_d(N);
-  thrust::device_vector<int>   iX_d(N), iY_d(N);
+  m_d.resize(N);
+  X_d.resize(N);
+  Y_d.resize(N);
+  p_d.resize(N);
+  iX_d.resize(N);
+  iY_d.resize(N);
 
   // Shared memory size for the reduction
   //
@@ -1125,9 +1129,9 @@ void Cylinder::determine_acceleration_cuda()
 	    << "**" << std::endl;
 #endif
 
-  // Texture objects
+  // Texture objects (only need to do this once!)
   //
-  thrust::device_vector<cudaTextureObject_t> t_d = tex;
+  if (t_d.size()==0) t_d = tex;
 
   // Shared memory size for the reduction
   //

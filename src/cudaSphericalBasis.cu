@@ -721,19 +721,25 @@ void SphericalBasis::determine_coefficients_cuda()
 
   // Create space for coefficient reduction
   //
-  thrust::device_vector<cuFP_t> dN_coef(2*nmax*N);
-  thrust::device_vector<cuFP_t> dc_coef(2*nmax*gridSize);
-  thrust::device_vector<cuFP_t> df_coef(2*nmax);
+  dN_coef.resize(2*nmax*N);
+  dc_coef.resize(2*nmax*gridSize);
+  df_coef.resize(2*nmax);
 
-  // Texture objects
+  // Texture objects (only need to do this once!)
   //
-  thrust::device_vector<cudaTextureObject_t> t_d = tex;
+  if (t_d.size()==0) t_d = tex;
 
   // Space for Legendre coefficients 
   //
-  thrust::device_vector<cuFP_t> plm_d((Lmax+1)*(Lmax+2)/2*N);
-  thrust::device_vector<cuFP_t> r_d(N), m_d(N), a_d(N), p_d(N);
-  thrust::device_vector<int>   i_d(N);
+  plm_d.resize((Lmax+1)*(Lmax+2)/2*N);
+
+  // Space for coordinates
+  //
+  r_d.resize(N);
+  m_d.resize(N);
+  a_d.resize(N);
+  p_d.resize(N);
+  i_d.resize(N);
 
   // Shared memory size for the reduction
   //
@@ -857,14 +863,14 @@ void SphericalBasis::determine_acceleration_cuda()
 	    << "**" << std::endl;
 #endif
 
-  // Texture objects
+  // Texture objects (only need to do this once!)
   //
-  thrust::device_vector<cudaTextureObject_t> t_d = tex;
+  if (t_d.size()==0) t_d = tex;
 
   // Space for Legendre coefficients 
   //
-  thrust::device_vector<cuFP_t> plm1_d((Lmax+1)*(Lmax+2)/2*Nthread);
-  thrust::device_vector<cuFP_t> plm2_d((Lmax+1)*(Lmax+2)/2*Nthread);
+  plm1_d.resize((Lmax+1)*(Lmax+2)/2*Nthread);
+  plm2_d.resize((Lmax+1)*(Lmax+2)/2*Nthread);
 
   // Shared memory size for the reduction
   //
