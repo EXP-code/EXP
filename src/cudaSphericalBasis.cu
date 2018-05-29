@@ -703,9 +703,9 @@ void SphericalBasis::determine_coefficients_cuda()
   //
   PII lohi = cC->CudaSortByLevel(mlevel, mlevel);
 
-  // Zero out coefficients
+  // This will stay fixed for the entire run
   //
-  host_coefs.resize((Lmax+1)*(Lmax+1)*nmax);
+  host_coefs.resize((Lmax+1)*(Lmax+1)*nmax); // Should stay fixed, no reserve
 
   // Compute grid
   //
@@ -740,11 +740,29 @@ void SphericalBasis::determine_coefficients_cuda()
 #endif
 
 
-  // Create space for coefficient reduction
+  // Create space for coefficient reduction to prevent continued
+  // dynamic allocation
+  //
+  if (dN_coef.capacity() < 2*nmax*N)
+    dN_coef.reserve(2*nmax*N);
+
+  if (dc_coef.capacity() < 2*nmax*gridSize)
+    dc_coef.reserve(2*nmax*gridSize);
+
+  if (plm_d.capacity() < (Lmax+1)*(Lmax+2)/2*N)
+    plm_d.reserve((Lmax+1)*(Lmax+2)/2*N);
+
+  if (r_d.capacity() < N) r_d.reserve(N);
+  if (m_d.capacity() < N) m_d.reserve(N);
+  if (a_d.capacity() < N) a_d.reserve(N);
+  if (p_d.capacity() < N) p_d.reserve(N);
+  if (i_d.capacity() < N) i_d.reserve(N);
+
+  // Set needed space for current step
   //
   dN_coef.resize(2*nmax*N);
   dc_coef.resize(2*nmax*gridSize);
-  df_coef.resize(2*nmax);
+  df_coef.resize(2*nmax);	// This should stay fixed, no reserve
 
   // Space for Legendre coefficients 
   //
@@ -824,9 +842,9 @@ void SphericalBasis::determine_coefficients_cuda()
   }
 
 
-  // DEBUG
+  // DEBUG, only useful for CUDAtest branch
   //
-  if (true) {
+  if (false) {
     std::cout << std::string(2*4+4*20, '-') << std::endl
 	      << "---- Spherical "      << std::endl
 	      << std::string(2*4+4*20, '-') << std::endl;
@@ -964,7 +982,7 @@ void SphericalBasis::determine_coefficients_cuda()
   //
   // TEST comparison of coefficients for debugging
   //
-  if (true) {
+  if (false) {
 
     struct Element
     {
@@ -1170,6 +1188,12 @@ void SphericalBasis::determine_acceleration_cuda()
 
   // Space for Legendre coefficients 
   //
+  if (plm1_d.capacity() < (Lmax+1)*(Lmax+2)/2*Nthread)
+    plm1_d.reserve((Lmax+1)*(Lmax+2)/2*Nthread);
+
+  if (plm2_d.capacity() < (Lmax+1)*(Lmax+2)/2*Nthread)
+    plm2_d.reserve((Lmax+1)*(Lmax+2)/2*Nthread);
+  
   plm1_d.resize((Lmax+1)*(Lmax+2)/2*Nthread);
   plm2_d.resize((Lmax+1)*(Lmax+2)/2*Nthread);
 
@@ -1187,7 +1211,7 @@ void SphericalBasis::determine_acceleration_cuda()
 
 void SphericalBasis::HtoD_coefs(const Matrix& expcoef)
 {
-  host_coefs.resize((Lmax+1)*(Lmax+1)*nmax);
+  host_coefs.resize((Lmax+1)*(Lmax+1)*nmax); // Should stay fixed, no reserve
 
   // l loop
   //

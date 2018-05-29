@@ -691,7 +691,7 @@ void Cylinder::determine_coefficients_cuda()
 
   // Zero out coefficients
   //
-  host_coefs.resize((2*mmax+1)*ncylorder);
+  host_coefs.resize((2*mmax+1)*ncylorder); // Should stay fixed, no reserve
 
   // Compute grid
   //
@@ -742,18 +742,35 @@ void Cylinder::determine_coefficients_cuda()
 	    << "**" << std::endl;
 #endif
 
-  // Create space for coefficient reduction
+  // Reserve space for coefficient reduction
+  //
+  if (dN_coef.capacity() < 2*ncylorder*N)
+    dN_coef.reserve(2*ncylorder*N);
+
+  if (dc_coef.capacity() < 2*ncylorder*gridSize)
+    dc_coef.reserve(2*ncylorder*gridSize);
+
+  if (m_d .capacity() < N) m_d .reserve(N);
+  if (X_d .capacity() < N) X_d .reserve(N);
+  if (Y_d .capacity() < N) Y_d .reserve(N);
+  if (p_d .capacity() < N) p_d .reserve(N);
+  if (iX_d.capacity() < N) iX_d.reserve(N);
+  if (iY_d.capacity() < N) iY_d.reserve(N);
+
+
+  // Set space for current step
   //
   dN_coef.resize(2*ncylorder*N);
   dc_coef.resize(2*ncylorder*gridSize);
-  df_coef.resize(2*ncylorder);
+  df_coef.resize(2*ncylorder);	// Should stay fixed, no reserve
 
-  // Space for coordinate arrays
+
+  // Space for coordinate arrays on the current step
   //
-  m_d.resize(N);
-  X_d.resize(N);
-  Y_d.resize(N);
-  p_d.resize(N);
+  m_d .resize(N);
+  X_d .resize(N);
+  Y_d .resize(N);
+  p_d .resize(N);
   iX_d.resize(N);
   iY_d.resize(N);
 
@@ -818,9 +835,9 @@ void Cylinder::determine_coefficients_cuda()
     }
   }
 
-  // DEBUG
+  // DEBUG, only useful for CUDAtest branch
   //
-  if (true) {
+  if (false) {
     std::cout << std::string(2*4+4*20, '-') << std::endl
 	      << "---- Cylindrical "      << std::endl
 	      << std::string(2*4+4*20, '-') << std::endl;
@@ -931,7 +948,7 @@ void Cylinder::determine_coefficients_cuda()
   //
   // TEST comparison of coefficients for debugging
   //
-  if (true) {
+  if (false) {
 
     struct Element
     {
@@ -1157,7 +1174,7 @@ void Cylinder::determine_acceleration_cuda()
 void Cylinder::HtoD_coefs()
 {
   // Check size
-  host_coefs.resize((2*mmax+1)*ncylorder);
+  host_coefs.resize((2*mmax+1)*ncylorder); // Should stay fixed, no reserve
 
   // Copy from EmpCylSL
   
