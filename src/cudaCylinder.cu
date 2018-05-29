@@ -11,10 +11,13 @@
 // Global symbols for coordinate transformation
 //
 __device__ __constant__
-cuFP_t cylRscale, cylHscale, cylXmin, cylXmax, cylYmin, cylYmax, cylDxi, cylDyi, cylCen[3];
+cuFP_t cylRscale, cylHscale, cylXmin, cylXmax, cylYmin, cylYmax, cylDxi, cylDyi, cylCen[3], cylBody[9], cylOrig[9];
 
 __device__ __constant__
 int   cylNumx, cylNumy, cylCmap;
+
+__device__ __constant__
+bool  cylOrient;
 
 __host__ __device__
 int Imn(int m, char cs, int n, int nmax)
@@ -145,6 +148,7 @@ void Cylinder::initialize_mapping_constants()
 
   cuda_safe_call(cudaMemcpyToSymbol(cylCmap,   &f.cmap,   sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying cylCmap");
+
 }
 
 
@@ -169,9 +173,17 @@ __global__ void coordKernelCyl
 #endif
       cudaParticle p = in._v[npart];
     
-      cuFP_t xx = p.pos[0] - cylCen[0];
-      cuFP_t yy = p.pos[1] - cylCen[1];
-      cuFP_t zz = p.pos[2] - cylCen[2];
+      cuFP_t xx=0.0, yy=0.0, zz=0.0;
+
+      if (cylOrient) {
+	for (int k=0; k<3; k++) xx += cylBody[0+k]*(p.pos[k] - cylCen[k]);
+	for (int k=0; k<3; k++) yy += cylBody[3+k]*(p.pos[k] - cylCen[k]);
+	for (int k=0; k<3; k++) zz += cylBody[6+k]*(p.pos[k] - cylCen[k]);
+      } else {
+	xx = p.pos[0] - cylCen[0];
+	yy = p.pos[1] - cylCen[1];
+	zz = p.pos[2] - cylCen[2];
+      }
       
       cuFP_t R2 = xx*xx + yy*yy;
       cuFP_t r2 = R2 + zz*zz;
@@ -377,10 +389,19 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<cuFP_t> coef,
 #endif
       cudaParticle p = in._v[npart];
       
-      cuFP_t xx  = p.pos[0] - cylCen[0];
-      cuFP_t yy  = p.pos[1] - cylCen[1];
-      cuFP_t zz  = p.pos[2] - cylCen[2];
-      
+      cuFP_t acc[3] = {0.0, 0.0, 0.0};
+      cuFP_t xx=0.0, yy=0.0, zz=0.0;
+
+      if (cylOrient) {
+	for (int k=0; k<3; k++) xx += cylBody[0+k]*(p.pos[k] - cylCen[k]);
+	for (int k=0; k<3; k++) yy += cylBody[3+k]*(p.pos[k] - cylCen[k]);
+	for (int k=0; k<3; k++) zz += cylBody[6+k]*(p.pos[k] - cylCen[k]);
+      } else {
+	xx = p.pos[0] - cylCen[0];
+	yy = p.pos[1] - cylCen[1];
+	zz = p.pos[2] - cylCen[2];
+      }
+
       cuFP_t phi = atan2(yy, xx);
       cuFP_t R2  = xx*xx + yy*yy;
       cuFP_t  R  = sqrt(R2) + FSMALL;
@@ -593,9 +614,9 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<cuFP_t> coef,
 	  ssin = sinM * cos1 + cosM * sin1;
 	}
 
-	in._v[npart].acc[0] += ( fr*xx/R - fp*yy/R2 ) * frac;
-	in._v[npart].acc[1] += ( fr*yy/R + fp*xx/R2 ) * frac;
-	in._v[npart].acc[2] += fz * frac;
+	acc[0] += ( fr*xx/R - fp*yy/R2 ) * frac;
+	acc[1] += ( fr*yy/R + fp*xx/R2 ) * frac;
+	acc[2] += fz * frac;
       }
 
       if (ratio > ratmin) {
@@ -604,9 +625,17 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<cuFP_t> coef,
 	pp = -cylmass/sqrt(r3);	// -M/r
 	fr = pp/r3;		// -M/r^3
 
-	in._v[npart].acc[0] += xx*fr * cfrac;
-	in._v[npart].acc[1] += yy*fr * cfrac;
-	in._v[npart].acc[2] += zz*fr * cfrac;
+	acc[0] += xx*fr * cfrac;
+	acc[1] += yy*fr * cfrac;
+	acc[2] += zz*fr * cfrac;
+      }
+
+      if (cylOrient) {
+	for (int j=0; j<3; j++) {
+	  for (int k=0; k<3; k++) in._v[npart].acc[j] += cylOrig[3*j+k]*acc[k];
+	}
+      } else {
+	for (int j=0; j<3; j++) in._v[npart].acc[j] += acc[j];
       }
 
       if (external)
@@ -699,6 +728,20 @@ void Cylinder::determine_coefficients_cuda()
   cuda_safe_call(cudaMemcpyToSymbol(cylCen, &ctr[0], sizeof(cuFP_t)*3,
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying cylCen");
+
+  bool orient = (cC->EJ & Orient::AXIS) && !cC->EJdryrun;
+
+  cuda_safe_call(cudaMemcpyToSymbol(cylOrient, &orient,   sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cylOrient");
+
+  if (orient) {
+    std::vector<cuFP_t> trans(9);
+    for (int i=0; i<3; i++) 
+      for (int j=0; j<3; j++) trans[i*3+j] = cC->orient->transformBody()[i][j];
+  
+    cuda_safe_call(cudaMemcpyToSymbol(cylBody, &trans[0], sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		   __FILE__, __LINE__, "Error copying cylBody");
+  }
 
 #ifdef VERBOSE
   std::cout << std::endl << "**" << std::endl
@@ -1081,6 +1124,28 @@ void Cylinder::determine_acceleration_cuda()
   cuda_safe_call(cudaMemcpyToSymbol(cylCen, &ctr[0], sizeof(cuFP_t)*3,
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying cylCen");
+
+  bool orient = (cC->EJ & Orient::AXIS) && !cC->EJdryrun;
+
+  cuda_safe_call(cudaMemcpyToSymbol(cylOrient, &orient,   sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cylOrient");
+
+  if (orient) {
+    std::vector<cuFP_t> trans(9);
+    for (int i=0; i<3; i++) 
+      for (int j=0; j<3; j++)
+	trans[i*3+j] = cC->orient->transformBody()[i][j];
+  
+    cuda_safe_call(cudaMemcpyToSymbol(cylBody, &trans[0], sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		   __FILE__, __LINE__, "Error copying cylBody");
+
+    for (int i=0; i<3; i++) 
+      for (int j=0; j<3; j++)
+	trans[i*3+j] = cC->orient->transformOrig()[i][j];
+  
+    cuda_safe_call(cudaMemcpyToSymbol(cylOrig, &trans[0], sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		   __FILE__, __LINE__, "Error copying cylOrig");
+  }
 
 #ifdef VERBOSE
   std::cout << std::endl << "**" << std::endl
