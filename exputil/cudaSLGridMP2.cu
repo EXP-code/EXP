@@ -142,9 +142,9 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
   //
   if (true) {
 #if cuREAL == 4
-    const cuFP_t tol = 10.0*FLT_MIN;
+    const cuFP_t tol = 10.0*FLT_EPSILON;
 #else
-    const cuFP_t tol = 10.0*DBL_MIN;
+    const cuFP_t tol = 10.0*DBL_EPSILON;
 #endif
 
     struct Element {
@@ -171,8 +171,8 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
 
 	    if ( fabs((a - b)/a ) > tol) {
 	      std::cout << std::setw( 5) << l << std::setw( 5) << j
-			<< std::setw( 5) << i << std::setw(15) << a
-			<< std::setw(15) << (a-b)/a << std::endl;
+			<< std::setw( 5) << i << std::setw(20) << a
+			<< std::setw(20) << (a-b)/a << std::endl;
 	      bad++;
 	    }
 	  }
@@ -191,7 +191,7 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
     std::advance(hi1, -1);
     std::advance(hi9, -10);
 
-    std::cout << "**Found " << bad << "/" << tot << " bad values" << std::endl
+    std::cout << "**Found " << bad << "/" << tot << " values > eps" << std::endl
 	      << "**Low[1] : " << lo1->first << " (" << lo1->second.l << ", " << lo1->second.a << ", " << lo1->second.b << ", " << lo1->second.a - lo1->second.b << ")" << std::endl
 	      << "**Low[9] : " << lo9->first << " (" << lo9->second.l << ", " << lo9->second.a << ", " << lo9->second.b << ", " << lo9->second.a - lo9->second.b << ")" << std::endl<< ")" << std::endl
 	      << "**Middle : " << mid->first << " (" << mid->second.l << ", " << mid->second.a << ", " << mid->second.b << ", " << mid->second.a - mid->second.b << ")" << std::endl<< ")" << std::endl
