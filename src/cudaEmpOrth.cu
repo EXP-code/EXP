@@ -19,13 +19,13 @@ void testFetchCyl(dArray<cudaTextureObject_t> T, dArray<cuFP_t> f,
   const int l = m*nmax + n;
   const int j = tid/NUMX;
   const int i = tid - NUMX*j;
-  if (i<NUMX and j<NUMY)
+  if (i<NUMX and j<NUMY) {
 #if cuREAL == 4
     f._v[tid] = tex3D<float>(T._v[l], i, j, k);
-
 #else
     f._v[tid] = int2_as_double(tex3D<int2>(T._v[l], i, j, k));
 #endif
+  }
 }
 
 thrust::host_vector<cuFP_t> returnTestCyl
@@ -77,8 +77,8 @@ void EmpCylSL::initialize_cuda
   
   // Temporary storage
   //
-  int2 *d_Interp;
-  cuda_safe_call(cudaMalloc((void **)&d_Interp, NUMX*NUMY*6*sizeof(int2)),
+  cuFP_t *d_Interp;
+  cuda_safe_call(cudaMalloc((void **)&d_Interp, NUMX*NUMY*6*sizeof(cuFP_t)),
 		 __FILE__, __LINE__,
 		 "Error allocating d_Interp for texture construction");
   
@@ -105,12 +105,15 @@ void EmpCylSL::initialize_cuda
       }
       
       // Copy data to device
-      cuda_safe_call(cudaMemcpy(d_Interp, &h_buffer[0], NUMX*NUMY*6*sizeof(int2), cudaMemcpyHostToDevice), __FILE__, __LINE__, "Error copying texture table to device");
+      cuda_safe_call(cudaMemcpy(d_Interp, &h_buffer[0], NUMX*NUMY*6*sizeof(cuFP_t), cudaMemcpyHostToDevice), __FILE__, __LINE__, "Error copying texture table to device");
 
       // cudaArray Descriptor
       //
+#if cuREAL == 4
+      cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<float>();
+#else
       cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<int2>();
-
+#endif
       // cuda Array
       //
       cuda_safe_call(cudaMalloc3DArray(&cuArray[k], &channelDesc, make_cudaExtent(NUMX, NUMY, 6), 0), __FILE__, __LINE__, "Error allocating cuArray for 3d texture");
@@ -119,7 +122,7 @@ void EmpCylSL::initialize_cuda
       //
       cudaMemcpy3DParms copyParams = {0};
       
-      copyParams.srcPtr   = make_cudaPitchedPtr(d_Interp, NUMX*sizeof(int2), NUMX, NUMY);
+      copyParams.srcPtr   = make_cudaPitchedPtr(d_Interp, NUMX*sizeof(cuFP_t), NUMX, NUMY);
       copyParams.dstArray = cuArray[k];
       copyParams.extent   = make_cudaExtent(NUMX, NUMY, 6);
       copyParams.kind     = cudaMemcpyDeviceToDevice;
@@ -147,7 +150,18 @@ void EmpCylSL::initialize_cuda
 
   cuda_safe_call(cudaFree(d_Interp), __FILE__, __LINE__, "Failure freeing device memory");
 
-  if (true) {
+  // This is for debugging: compare texture table fetches to original
+  // tables
+  //
+  if (false) {
+#if cuREAL == 4
+    const cuFP_t tol = 1.0e-5;
+    std::cout << "REAL*4" << std::endl;
+#else
+    const cuFP_t tol = 1.0e-7;
+    std::cout << "REAL*8" << std::endl;
+#endif
+
     thrust::host_vector<cuFP_t> xyg;
     std::cout << "**HOST** Texture 2D compare" << std::endl;
     unsigned tot = 0, bad = 0;
@@ -169,11 +183,12 @@ void EmpCylSL::initialize_cuda
 	      double a = (*orig[k])[i][j];
 	      double b = xyg[j*NUMX + i];
 	      if (a>1.0e-18) {
-		if ( fabs((a - b)/a ) > 1.0e-7) {
+		if ( fabs((a - b)/a ) > tol) {
 		  std::cout << std::setw( 5) << mm << std::setw( 5) << n
 			    << std::setw( 5) << i  << std::setw( 5) << j
 			    << std::setw( 5) << k  << std::setw(15) << a
-			    << std::setw(15) << (a-b)/a << std::endl;
+			    << std::setw(15) << b  << std::setw(15) << (a-b)/a
+			    << std::endl;
 		  bad++;
 		}
 	      }

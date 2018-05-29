@@ -137,7 +137,15 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
     }
   }
 
-  if (true) {
+  // This is for debugging: compare texture table fetches to original
+  // tables
+  //
+  if (false) {
+#if cuREAL == 4
+    const cuFP_t tol = 1.0e-5;
+#else
+    const cuFP_t tol = 1.0e-7;
+#endif
     thrust::host_vector<cuFP_t> ret(numr);
     std::cout << "**HOST** Texture compare" << std::endl;
     unsigned tot = 0, bad = 0;
@@ -148,7 +156,7 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
 	  cuFP_t a = table[l].ef[j+1][i]/sqrt(table[l].ev[j+1]);
 	  cuFP_t b = ret[i];
 	  if (a>1.0e-18) {
-	    if ( fabs((a - b)/a ) > 1.0e-7) {
+	    if ( fabs((a - b)/a ) > tol) {
 	      std::cout << std::setw( 5) << l << std::setw( 5) << j
 			<< std::setw( 5) << i << std::setw(15) << a
 			<< std::setw(15) << (a-b)/a << std::endl;

@@ -62,7 +62,10 @@ void Component::ParticlesToCuda()
 	    << "---- Host particle size: " << host_particles.size()
 	    << " [" << std::hex << thrust::raw_pointer_cast(host_particles.data()) << "] before" << std::endl << std::dec
 	    << "---- Cuda particle size: " << cuda_particles.size()
-	    << " [" << hex << thrust::raw_pointer_cast(cuda_particles.data()) << "] before" << std::endl << std::dec;
+	    << " [" << hex << thrust::raw_pointer_cast(cuda_particles.data()) << "] before" << std::endl << std::dec
+	    << "---- Size of real: " << sizeof(cuFP_t) << std::endl
+	    << "---- Size of cudaParticle: " << sizeof(cudaParticle)
+	    << ", native=" << 12*sizeof(cuFP_t) + 2*sizeof(unsigned) << std::endl;
 #endif
   
   host_particles.resize(particles.size());
