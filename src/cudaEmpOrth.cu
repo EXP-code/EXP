@@ -153,19 +153,28 @@ void EmpCylSL::initialize_cuda
   // This is for debugging: compare texture table fetches to original
   // tables
   //
-  if (false) {
+  if (true) {
 #if cuREAL == 4
-    const cuFP_t tol = 1.0e-5;
+    const cuFP_t tol = 10.0*FLT_MIN;
     std::cout << "REAL*4" << std::endl;
 #else
-    const cuFP_t tol = 1.0e-7;
+    const cuFP_t tol = 10.0*DBL_MIN;
     std::cout << "REAL*8" << std::endl;
 #endif
+
+    struct Element {
+      int m;
+      int k;
+      double a;
+      double b;
+    };
+
+    std::multimap<double, Element> compare;
 
     thrust::host_vector<cuFP_t> xyg;
     std::cout << "**HOST** Texture 2D compare" << std::endl;
     unsigned tot = 0, bad = 0;
-    for (size_t mm=0; mm<=MMAX; mm++) {
+    for (int mm=0; mm<=MMAX; mm++) {
       for (size_t n=0; n<rank3; n++) {
 	
 	std::vector<Matrix*> orig =
@@ -183,6 +192,10 @@ void EmpCylSL::initialize_cuda
 	      double a = (*orig[k])[i][j];
 	      double b = xyg[j*NUMX + i];
 	      if (a>1.0e-18) {
+
+		Element comp = {mm, k, a, b};
+		compare.insert(std::make_pair(fabs((a - b)/a), comp));
+
 		if ( fabs((a - b)/a ) > tol) {
 		  std::cout << std::setw( 5) << mm << std::setw( 5) << n
 			    << std::setw( 5) << i  << std::setw( 5) << j
@@ -199,7 +212,21 @@ void EmpCylSL::initialize_cuda
       }
     }
 
+    std::multimap<double, Element>::iterator beg = compare.begin();
+    std::multimap<double, Element>::iterator end = compare.end();
+    std::multimap<double, Element>::iterator lo1=beg, lo9=beg, mid=beg, hi9=end, hi1=end;
+
+    std::advance(lo9, 9);
+    std::advance(mid, compare.size()/2);
+    std::advance(hi1, -1);
+    std::advance(hi9, -10);
+
     std::cout << "**Found " << bad << "/" << tot << " bad values" << std::endl
+	      << "**Low[1] : " << lo1->first << " (" << lo1->second.m << ", " << lo1->second.k << ", " << lo1->second.a << ", " << lo1->second.b << ", " << lo1->second.a - lo1->second.b << ")" << std::endl
+	      << "**Low[9] : " << lo9->first << " (" << lo9->second.m << ", " << lo9->second.k << ", " << lo9->second.a << ", " << lo9->second.b << ", " << lo9->second.a - lo9->second.b << ")" << std::endl
+	      << "**Middle : " << mid->first << " (" << mid->second.m << ", " << mid->second.k << ", " << mid->second.a << ", " << mid->second.b << ", " << mid->second.a - mid->second.b << ")" << std::endl
+	      << "**Hi [9] : " << hi9->first << " (" << hi9->second.m << ", " << hi9->second.k << ", " << hi9->second.a << ", " << lo1->second.b << ", " << hi9->second.a - hi9->second.b << ")" << std::endl
+	      << "**Hi [1] : " << hi1->first << " (" << hi1->second.m << ", " << hi1->second.k << ", " << hi1->second.a << ", " << hi1->second.b << ", " << hi1->second.a - hi1->second.b << ")" << std::endl
 	      << "**" << std::endl;
   }
 }

@@ -140,12 +140,21 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
   // This is for debugging: compare texture table fetches to original
   // tables
   //
-  if (false) {
+  if (true) {
 #if cuREAL == 4
-    const cuFP_t tol = 1.0e-5;
+    const cuFP_t tol = 10.0*FLT_MIN;
 #else
-    const cuFP_t tol = 1.0e-7;
+    const cuFP_t tol = 10.0*DBL_MIN;
 #endif
+
+    struct Element {
+      int l;
+      double a;
+      double b;
+    };
+
+    std::multimap<double, Element> compare;
+
     thrust::host_vector<cuFP_t> ret(numr);
     std::cout << "**HOST** Texture compare" << std::endl;
     unsigned tot = 0, bad = 0;
@@ -156,6 +165,10 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
 	  cuFP_t a = table[l].ef[j+1][i]/sqrt(table[l].ev[j+1]);
 	  cuFP_t b = ret[i];
 	  if (a>1.0e-18) {
+
+	    Element comp = {l, a, b};
+	    compare.insert(std::make_pair(fabs((a - b)/a), comp));
+
 	    if ( fabs((a - b)/a ) > tol) {
 	      std::cout << std::setw( 5) << l << std::setw( 5) << j
 			<< std::setw( 5) << i << std::setw(15) << a
@@ -167,7 +180,23 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
 	}
       }
     }
+
+    std::multimap<double, Element>::iterator beg = compare.begin();
+    std::multimap<double, Element>::iterator end = compare.end();
+    std::multimap<double, Element>::iterator
+      lo1=beg, lo9=beg, mid=beg, hi9=end, hi1=end;
+
+    std::advance(lo9, 9);
+    std::advance(mid, compare.size()/2);
+    std::advance(hi1, -1);
+    std::advance(hi9, -10);
+
     std::cout << "**Found " << bad << "/" << tot << " bad values" << std::endl
+	      << "**Low[1] : " << lo1->first << " (" << lo1->second.l << ", " << lo1->second.a << ", " << lo1->second.b << ", " << lo1->second.a - lo1->second.b << ")" << std::endl
+	      << "**Low[9] : " << lo9->first << " (" << lo9->second.l << ", " << lo9->second.a << ", " << lo9->second.b << ", " << lo9->second.a - lo9->second.b << ")" << std::endl<< ")" << std::endl
+	      << "**Middle : " << mid->first << " (" << mid->second.l << ", " << mid->second.a << ", " << mid->second.b << ", " << mid->second.a - mid->second.b << ")" << std::endl<< ")" << std::endl
+	      << "**Hi [9] : " << hi9->first << " (" << hi9->second.l << ", " << hi9->second.a << ", " << hi9->second.b << ", " << hi9->second.a - hi9->second.b << ")" << std::endl<< ")" << std::endl
+	      << "**Hi [1] : " << hi1->first << " (" << hi1->second.l << ", " << hi1->second.a << ", " << hi1->second.b << ", " << hi1->second.a - hi1->second.b << ")" << std::endl
 	      << "**" << std::endl;
   }
 
