@@ -714,6 +714,7 @@ void SphericalBasis::determine_coefficients_cuda()
   unsigned int gridSize  = N/BLOCK_SIZE/stride;
 
   if (N == 0) {
+    thrust::fill(host_coefs.begin(), host_coefs.end(), 0.0);
     use[0] = 0.0;
     return;
   }
