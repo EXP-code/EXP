@@ -94,14 +94,15 @@ void do_step(int n)
 				// (the "active" particles)
 				//
       for (int M=mfirst[mstep]; M<=multistep; M++) {
-	nvTracerPtr tPtr2;
-
 				// The timestep at level M
 	double DT = dt*mintvl[M];
 	
 				// Advance velocity by 1/2 step:
 				// First K_{1/2}
+#if HAVE_LIBCUDA==1
+	nvTracerPtr tPtr2;
 	if (cuda_prof) tPtr2 = nvTracerPtr(new nvTracer("Velocity kick [1]"));
+#endif
 	if (timing) timer_vel.start();
 	incr_velocity(0.5*DT, M);
 #ifdef CHK_STEP
@@ -114,7 +115,9 @@ void do_step(int n)
 				// Advance position by the whole time
 				// step at this level: D_1
 				//
+#if HAVE_LIBCUDA==1
 	if (cuda_prof) tPtr2 = nvTracerPtr(new nvTracer("Drift"));
+#endif
 	if (timing) timer_drift.start();
 	incr_position(DT, M);
 #ifdef CHK_STEP
@@ -127,15 +130,14 @@ void do_step(int n)
 				// Now, compute the coefficients for
 				// this level
 				//
+#if HAVE_LIBCUDA==1
 	if (cuda_prof) tPtr2 = nvTracerPtr(new nvTracer("Expansion"));
+#endif
 	if (timing) timer_coef.start();
 	comp->compute_expansion(M);
 	if (timing) timer_coef.stop();
       }
 
-      nvTracerPtr tPtr1;
-
-      
       double tlast = tnow;	// Time before current step
       tnow += dt;		// Time at the end of the current step
 
@@ -147,7 +149,10 @@ void do_step(int n)
 
 				// Compute potential for all the
 				// particles active at this step
+#if HAVE_LIBCUDA==1
+      nvTracerPtr tPtr1;
       if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Potential"));
+#endif
       if (timing) timer_pot.start();
       comp->compute_potential(mfirst[mstep]);
       if (timing) timer_pot.stop();
@@ -158,7 +163,9 @@ void do_step(int n)
 				// Advance velocity by 1/2 step to
 				// bring the velocity in sync: 
 				// Second K_{1/2}
+#if HAVE_LIBCUDA==1
       if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [2]"));
+#endif
       if (timing) timer_vel.start();
       for (int M=mfirst[mstep]; M<=multistep; M++) {
 	incr_velocity(0.5*dt*mintvl[M], M);
@@ -168,7 +175,9 @@ void do_step(int n)
       }
       if (timing) timer_vel.stop();
 
+#if HAVE_LIBCUDA==1
       if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Adjust multistep"));
+#endif
       if (timing) timer_adj.start();
       adjust_multistep_level(false);
       if (mstep==0) { // Print the level lists
@@ -211,45 +220,56 @@ void do_step(int n)
 #endif
 
   } else {
-    nvTracerPtr tPtr1;
-
 				// Time at the end of the step
     tnow += dtime;
 				// Velocity by 1/2 step
+#if HAVE_LIBCUDA==1
+    nvTracerPtr tPtr1;
     if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [1]"));
+#endif
     if (timing) timer_vel.start();
     incr_velocity(0.5*dtime);
     incr_com_velocity(0.5*dtime);
     if (timing) timer_vel.stop();
 				// Position by whole step
+#if HAVE_LIBCUDA==1
     if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Drift"));
+#endif
     if (timing) timer_drift.start();
     incr_position(dtime);
     incr_com_position(dtime);
     if (timing) timer_drift.start();
 				// Compute acceleration
+#if HAVE_LIBCUDA==1
     if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Potential"));
+#endif
     if (timing) timer_pot.start();
     comp->compute_potential();
     if (timing) timer_pot.stop();
 				// Velocity by 1/2 step
+#if HAVE_LIBCUDA==1
     if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [2]"));
+#endif
     if (timing) timer_vel.start();
     incr_velocity(0.5*dtime);
     incr_com_velocity(0.5*dtime);
     if (timing) timer_vel.stop();
   }
 
-  nvTracerPtr tPtr;
 				// Write output
+#if HAVE_LIBCUDA==1
+  nvTracerPtr tPtr;
   if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
+#endif
   output->Run(n);
 
 				// Summarize processor particle load
   comp->report_numbers();
 
 				// Load balance
+#if HAVE_LIBCUDA==1
   if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Load balance"));
+#endif
   comp->load_balance();
 
 				// Timer output
