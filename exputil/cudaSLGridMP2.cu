@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <limits>
 #include <map>
 
 #include <cuda.h>
@@ -142,9 +143,9 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
   //
   if (true) {
 #if cuREAL == 4
-    const cuFP_t tol = 10.0*FLT_EPSILON;
+    const cuFP_t tol = 10.0*std::numeric_limits<float>::epsilon();
 #else
-    const cuFP_t tol = 10.0*DBL_EPSILON;
+    const cuFP_t tol = 10.0*std::numeric_limits<double>::epsilon();
 #endif
 
     struct Element {

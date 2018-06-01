@@ -7,11 +7,11 @@
 // Machine constants
 //
 #if cuREAL == 4
-#define FSMALL 20.0 * FLT_MIN
-#define MINEPS 20.0 * FLT_MIN
+#define FSMALL 20.0 * std::numeric_limits<float>::min()
+#define MINEPS 20.0 * std::numeric_limits<float>::min()
 #else
-#define FSMALL 20.0 * DBL_MIN
-#define MINEPS 20.0 * DBL_MIN
+#define FSMALL 20.0 * std::numeric_limits<double>::min()
+#define MINEPS 20.0 * std::numeric_limits<double>::min()
 #endif
 
 typedef std::pair<unsigned int, unsigned int> PII;

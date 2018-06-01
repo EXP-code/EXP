@@ -1,10 +1,11 @@
 
+#include <limits>
 #include "expand.h"
 #include <Basis.H>
 
 // Machine constant for Legendre
 //
-const double MINEPS=20.0*DBL_MIN;
+const double MINEPS=20.0*std::numeric_limits<double>::min();
 
 Basis::Basis(string& line) : PotAccel(line)
 {
