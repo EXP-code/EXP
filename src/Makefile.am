@@ -34,7 +34,7 @@ ADD_CUDA = cudaParticle.cu cudaSphericalBasis.cu cudaSphere.cu	\
 cudaCylinder.cu cudaEmpOrth.cu cudaComponent.cu NVTX.cc
 GENCODE_FLAGS  = -gencode arch=compute_61,code=sm_61
 CUDA_LIBFLAGS  = -lcudart -lnvToolsExt
-NVCC_CXXFLAGS  = $(AM_CPPFLAGS) -I. $(CXXFLAGS) $(GENCODE_FLAGS) $(NVCC_EXTRA)
+NVCC_CXXFLAGS  = -I. $(GENCODE_FLAGS) $(NVCC_EXTRA) -Xcompiler $(AM_CPPFLAGS)
 endif
 
 CXXLINK = mpiCC -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
