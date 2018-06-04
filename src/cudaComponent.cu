@@ -1,3 +1,4 @@
+#include <boost/make_shared.hpp>
 #include <Component.H>
 
 // Define >0 for checking cuda_particles: values and counts
@@ -5,27 +6,42 @@
 //
 #define BIG_DEBUG 0
 
+unsigned Component::cudaStreamData::totalInstances=0;
+
+
+void Component::cuda_initialize()
+{
+  // Initialize 3 streams
+  //
+  cuRingData.resize(3);
+  cuRing = boost::make_shared<cuRingType>(cuRingData);
+}
+
 std::pair<unsigned int, unsigned int>
-Component::CudaSortByLevel(int minlev, int maxlev)
+Component::CudaSortByLevel(Component::cuRingType cr, int minlev, int maxlev)
 {
   std::pair<unsigned, unsigned> ret;
 
   try {
-    thrust::sort(cuda_particles.begin(), cuda_particles.end(), LessCudaLev());
+    thrust::sort(thrust::cuda::par.on(cr->stream),
+		 cr->cuda_particles.begin(), cr->cuda_particles.end(),
+		 LessCudaLev());
 
     cudaParticle temp;
 
     thrust::device_vector<cudaParticle>::iterator
-      pbeg = cuda_particles.begin(),
-      pend = cuda_particles.end();
+      pbeg = cr->cuda_particles.begin(),
+      pend = cr->cuda_particles.end();
     
     // Get positions of level boundaries
     //
     temp.level = minlev;
-    ret.first  = thrust::lower_bound(pbeg, pend, temp, LessCudaLev()) - pbeg;
+    ret.first  = thrust::lower_bound(thrust::cuda::par.on(cr->stream),
+				     pbeg, pend, temp, LessCudaLev()) - pbeg;
     
     temp.level = maxlev;
-    ret.second = thrust::upper_bound(pbeg, pend, temp, LessCudaLev()) - pbeg;
+    ret.second = thrust::upper_bound(thrust::cuda::par.on(cr->stream),
+				     pbeg, pend, temp, LessCudaLev()) - pbeg;
   }
   catch(std::bad_alloc &e) {
     std::cerr << "Ran out of memory while sorting" << std::endl;
@@ -39,16 +55,17 @@ Component::CudaSortByLevel(int minlev, int maxlev)
   return ret;
 }
 
-void Component::CudaSortBySequence()
+void Component::CudaSortBySequence(Component::cuRingType cr)
 {
   thrust::device_vector<cudaParticle>::iterator
-    pbeg = cuda_particles.begin(),
-    pend = cuda_particles.end();
+    pbeg = cr->cuda_particles.begin(),
+    pend = cr->cuda_particles.end();
 
-  thrust::sort(pbeg, pend, LessCudaSeq());
+  thrust::sort(thrust::cuda::par.on(cr->stream), pbeg, pend, LessCudaSeq());
 }
 
-void Component::ParticlesToCuda(PartMap::iterator first, PartMap::iterator last)
+void Component::ParticlesToCuda(Component::cuRingType cr,
+				PartMap::iterator first, PartMap::iterator last)
 {
   std::cout << std::scientific;
 
@@ -61,19 +78,22 @@ void Component::ParticlesToCuda(PartMap::iterator first, PartMap::iterator last)
 	    << " [#" << count++ << "]"     << std::endl
 	    << "---- Particle count: "     << npart  << std::endl
 	    << std::string(72, '-')        << std::endl
-	    << "---- Host particle size: " << host_particles.size()
-	    << " [" << std::hex << thrust::raw_pointer_cast(host_particles.data()) << "] before" << std::endl << std::dec
+	    << "---- Host particle size: " << cr->host_particles.size()
+	    << " [" << std::hex << thrust::raw_pointer_cast(cr->host_particles.data()) << "] before" << std::endl << std::dec
 	    << "---- Cuda particle size: " << cuda_particles.size()
-	    << " [" << hex << thrust::raw_pointer_cast(cuda_particles.data()) << "] before" << std::endl << std::dec
+	    << " [" << hex << thrust::raw_pointer_cast(cr->cuda_particles.data()) << "] before" << std::endl << std::dec
 	    << "---- Size of real: " << sizeof(cuFP_t) << std::endl
 	    << "---- Size of cudaParticle: " << sizeof(cudaParticle)
 	    << ", native=" << 12*sizeof(cuFP_t) + 2*sizeof(unsigned) << std::endl;
 #endif
 
-  if (host_particles.capacity()<npart) host_particles.reserve(npart);
-  host_particles.resize(npart);
+  if (cr->host_particles.capacity()<npart) cr->host_particles.reserve(npart);
+  cr->host_particles.resize(npart);
 
-  thrust::host_vector<cudaParticle>::iterator hit = host_particles.begin();
+  if (cr->cuda_particles.capacity()<npart) cr->cuda_particles.reserve(npart);
+  cr->cuda_particles.resize(npart);
+  
+  thrust::host_vector<cudaParticle>::iterator hit = cr->host_particles.begin();
   for (auto pit=first; pit!=last; pit++) {
     ParticleHtoD(pit->second, *(hit++));
   }
@@ -84,59 +104,70 @@ void Component::ParticlesToCuda(PartMap::iterator first, PartMap::iterator last)
   sout << "test." << cnt++;
 
   std::ofstream tmp(sout.str());
-  std::copy(host_particles.begin(), host_particles.end(),
+  std::copy(cr->host_particles.begin(), cr->host_particles.end(),
 	    std::ostream_iterator<cudaParticle>(tmp, "\n") );
 
   std::cout << "[host] BEFORE copy" << std::endl;
-  std::copy(host_particles.begin(), host_particles.begin()+5,
+  std::copy(cr->host_particles.begin(), cr->host_particles.begin()+5,
 	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
 
-  std::copy(host_particles.end()-5, host_particles.end(),
+  std::copy(cr->host_particles.end()-5, cr->host_particles.end(),
 	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
 #endif
 
-  cuda_particles = host_particles;
-
+  cudaMemcpyAsync(thrust::raw_pointer_cast(cr->cuda_particles.data()),
+		  thrust::raw_pointer_cast(cr->host_particles.data()),
+		  cr->cuda_particles.size()*sizeof(cudaParticle),
+		  cudaMemcpyHostToDevice, cr->stream);
 
 #if BIG_DEBUG > 1
   std::cout << "[cuda] AFTER copy" << std::endl;
-  std::copy(cuda_particles.begin(), cuda_particles.begin()+5,
+  std::copy(cr->cuda_particles.begin(), cr->cuda_particles.begin()+5,
 	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
 
-  std::copy(cuda_particles.end()-5, cuda_particles.end(),
+  std::copy(cr->cuda_particles.end()-5, cr->cuda_particles.end(),
 	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
 
   std::cout << "SORT particles by seq" << std::endl;
-  CudaSortBySequence();
+  CudaSortBySequence(cp);
 
   std::cout << "[cuda] AFTER sort" << std::endl;
 
-  std::copy(cuda_particles.begin(), cuda_particles.begin()+5,
+  std::copy(cr->cuda_particles.begin(), cr->cuda_particles.begin()+5,
 	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
 
-  std::copy(cuda_particles.end()-5, cuda_particles.end(),
+  std::copy(cr->cuda_particles.end()-5, cr->cuda_particles.end(),
 	    std::ostream_iterator<cudaParticle>(std::cout, "\n") );
 #endif
 
 #if BIG_DEBUG > 0
   std::cout << std::string(72, '-') << std::endl
-	    << "---- Host particle size: " << host_particles.size()
-	    << " [" << std::hex << thrust::raw_pointer_cast(host_particles.data()) << "] after" << std::endl << std::dec
+	    << "---- Host particle size: " << cr->host_particles.size()
+	    << " [" << std::hex << thrust::raw_pointer_cast(cr->host_particles.data()) << "] after" << std::endl << std::dec
 #if BIG_DEBUG > 1
-	    << "---- First mass: " << host_particles[0].mass << std::endl
-	    << "---- Last mass:  " << host_particles[host_particles.size()-1].mass << std::endl
+	    << "---- First mass: " << cr->host_particles[0].mass << std::endl
+	    << "---- Last mass:  " << cr->host_particles[cr->host_particles.size()-1].mass << std::endl
 #endif
-	    << "---- Cuda particle size: " << cuda_particles.size()
-	    << " [" << hex << thrust::raw_pointer_cast(cuda_particles.data()) << "] after" << std::endl << std::dec
+	    << "---- Cuda particle size: " << cr->cuda_particles.size()
+	    << " [" << hex << thrust::raw_pointer_cast(cr->cuda_particles.data()) << "] after" << std::endl << std::dec
 	    << std::string(72, '-') << std::endl;
 #endif
 }
 
 
-void Component::CudaToParticles()
+void Component::CudaToParticles(Component::cuRingType cr)
 {
-  host_particles = cuda_particles;
-  for (auto v : host_particles) ParticleDtoH(v, particles[v.indx]);
+  auto csize = cr->cuda_particles.size();
+  if (csize > cr->host_particles.size()) cr->host_particles.reserve(csize);
+  cr->host_particles.resize(csize);  
+
+  cudaMemcpyAsync(thrust::raw_pointer_cast(cr->host_particles.data()),
+		  thrust::raw_pointer_cast(cr->cuda_particles.data()),
+		  cr->host_particles.size()*sizeof(cudaParticle),
+		  cudaMemcpyDeviceToHost, cr->stream);
+
+
+  for (auto v : cr->host_particles) ParticleDtoH(v, particles[v.indx]);
 }
 
 struct cudaZeroAcc : public thrust::unary_function<cudaParticle, cudaParticle>
@@ -152,13 +183,54 @@ struct cudaZeroAcc : public thrust::unary_function<cudaParticle, cudaParticle>
 
 void Component::ZeroPotAccel(int minlev)
 {
-  if (multistep) {
-    std::pair<unsigned int, unsigned int> ret = CudaSortByLevel(minlev, multistep);
+  // Loop over bunches
+  //
+  size_t psize  = Particles().size();
+  
+  PartMap::iterator begin = Particles().begin();
+  PartMap::iterator first = begin;
+  PartMap::iterator last  = begin;
+  PartMap::iterator end   = Particles().end();
 
-    thrust::transform(cuda_particles.begin()+ret.first, cuda_particles.end(),
-		      cuda_particles.begin()+ret.first, cudaZeroAcc());
-  } else {
-    thrust::transform(cuda_particles.begin(), cuda_particles.end(),
-		      cuda_particles.begin(), cudaZeroAcc());
+  if (psize <= bunchSize) last = end;
+  else std::advance(last, bunchSize);
+
+  Component::cuRingType cr = *cuRing.get();
+
+  while (std::distance(first, last)) {
+    
+    // Copy bunch to device
+    //
+    ParticlesToCuda(cr, first, last);
+
+    if (multistep) {
+      std::pair<unsigned int, unsigned int>
+	ret = CudaSortByLevel(cr, minlev, multistep);
+      
+      thrust::transform(thrust::cuda::par.on(cr->stream),
+			cr->cuda_particles.begin()+ret.first, cr->cuda_particles.end(),
+			cr->cuda_particles.begin()+ret.first, cudaZeroAcc());
+    } else {
+      thrust::transform(thrust::cuda::par.on(cr->stream),
+			cr->cuda_particles.begin(), cr->cuda_particles.end(),
+			cr->cuda_particles.begin(), cudaZeroAcc());
+    }
+
+    // Copy device to host
+    //
+    CudaToParticles(cr);
+
+    // Advance iterators
+    //
+    first = last;
+    size_t nadv = std::distance(first, end);
+    if (nadv <= bunchSize) last = end;
+    else std::advance(last, bunchSize);
+
+    // Advance stream iterators
+    //
+    cr++;
   }
+
+
 }

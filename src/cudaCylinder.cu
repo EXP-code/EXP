@@ -712,12 +712,14 @@ void Cylinder::determine_coefficients_cuda()
 		   __FILE__, __LINE__, "Error copying cylBody");
   }
 
+  Component::cuRingType cr = *cC->cuRing.get();
+
   // For debugging (set to false to disable)
   //
   static bool firstime = false;
 
   if (firstime) {
-    testConstantsCyl<<<1, 1>>>();
+    testConstantsCyl<<<1, 1, 0, cr->stream>>>();
     cudaDeviceSynchronize();
     firstime = false;
   }
@@ -748,11 +750,11 @@ void Cylinder::determine_coefficients_cuda()
     
     // Copy bunch to device
     //
-    cC->ParticlesToCuda(first, last);
+    cC->ParticlesToCuda(cr, first, last);
 
     // Sort particles and get coefficient size
     //
-    PII lohi = cC->CudaSortByLevel(mlevel, mlevel);
+    PII lohi = cC->CudaSortByLevel(cr, mlevel, mlevel);
 
     // Compute grid
     //
@@ -827,8 +829,8 @@ void Cylinder::determine_coefficients_cuda()
 				// Compute the coordinate
 				// transformation
 				// 
-      coordKernelCyl<<<gridSize, BLOCK_SIZE>>>
-	(toKernel(cC->cuda_particles), toKernel(m_d), toKernel(p_d),
+      coordKernelCyl<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
+	(toKernel(cr->cuda_particles), toKernel(m_d), toKernel(p_d),
 	 toKernel(X_d), toKernel(Y_d), toKernel(iX_d), toKernel(iY_d),
 	 stride, lohi, rmax);
       
@@ -836,20 +838,21 @@ void Cylinder::determine_coefficients_cuda()
 				// contribution for each order
       int osize = ncylorder*2;	// 
       for (int m=0; m<=mmax; m++) {
-	coefKernelCyl<<<gridSize, BLOCK_SIZE>>>
+	coefKernelCyl<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
 	  (toKernel(dN_coef), toKernel(t_d), toKernel(m_d), toKernel(p_d),
 	   toKernel(X_d), toKernel(Y_d), toKernel(iX_d), toKernel(iY_d),
 	   stride, m, ncylorder, lohi);
       
 				// Begin the reduction per grid block
 				//
-	reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize, BLOCK_SIZE, sMemSize>>>
+	reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize, BLOCK_SIZE, sMemSize, cr->stream>>>
 	  (toKernel(dc_coef), toKernel(dN_coef), osize, N);
       
 				// Finish the reduction for this order
 				// in parallel
 	thrust::reduce_by_key
 	  (
+	   thrust::cuda::par.on(cr->stream),
 	   thrust::make_transform_iterator(index_begin, key_functor(gridSize)),
 	   thrust::make_transform_iterator(index_end,   key_functor(gridSize)),
 	   dc_coef.begin(), thrust::make_discard_iterator(), df_coef.begin()
@@ -867,9 +870,11 @@ void Cylinder::determine_coefficients_cuda()
       //
       thrust::sort(m_d.begin(), m_d.end());
 
-      auto m_it    = thrust::upper_bound(m_d.begin(), m_d.end(), 0.0);
+      auto m_it    = thrust::upper_bound(thrust::cuda::par.on(cr->stream),
+					 m_d.begin(), m_d.end(), 0.0);
       use[0]      += thrust::distance(m_it, m_d.end());
-      cylmass0[0] += thrust::reduce  (m_it, m_d.end());
+      cylmass0[0] += thrust::reduce  (thrust::cuda::par.on(cr->stream),
+				      m_it, m_d.end());
       Ntot        += N;
     }
 
@@ -1145,6 +1150,8 @@ void Cylinder::determine_acceleration_cuda()
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, deviceCount-1);
 
+  Component::cuRingType cr = *cC->cuRing.get();
+
   // Assign component center and orientation
   //
   std::vector<cuFP_t> ctr;
@@ -1193,11 +1200,11 @@ void Cylinder::determine_acceleration_cuda()
 
     // Copy bunch to device
     //
-    cC->ParticlesToCuda(first, last);
+    cC->ParticlesToCuda(cr, first, last);
 
     // Sort particles and get coefficient size
     //
-    PII lohi = cC->CudaSortByLevel(mlevel, multistep);
+    PII lohi = cC->CudaSortByLevel(cr, mlevel, multistep);
 
     // Compute grid
     //
@@ -1235,14 +1242,14 @@ void Cylinder::determine_acceleration_cuda()
     
     // Do the work
     //
-    forceKernelCyl<<<gridSize, BLOCK_SIZE, sMemSize>>>
-      (toKernel(cC->cuda_particles), toKernel(dev_coefs), toKernel(t_d),
+    forceKernelCyl<<<gridSize, BLOCK_SIZE, sMemSize, cr->stream>>>
+      (toKernel(cr->cuda_particles), toKernel(dev_coefs), toKernel(t_d),
        stride, mmax, ncylorder, lohi, rmax, cylmass, use_external);
 
     // Copy particles back to host.  These copies could be staged in
     // streams and returned asynchronously.
     //
-    cC->CudaToParticles();
+    cC->CudaToParticles(cr);
 
     // Advance iterators
     //
@@ -1250,6 +1257,10 @@ void Cylinder::determine_acceleration_cuda()
     size_t nadv = std::distance(first, end);
     if (nadv < cC->bunchSize) last = end;
     else std::advance(last, cC->bunchSize);
+
+    // Advance stream iterator
+    //
+    cr++;
   }
 
   // DEBUGGING TEST
@@ -1334,7 +1345,8 @@ void Cylinder::destroy_cuda()
 void Cylinder::host_dev_force_compare()
 {
   // Copy from device
-  cC->host_particles = cC->cuda_particles;
+  Component::cuRingType cr = *cC->cuRing.get();
+  cr->host_particles = cr->cuda_particles;
   
   std::streamsize ss = std::cout.precision();
   std::cout.precision(10);
@@ -1351,20 +1363,20 @@ void Cylinder::host_dev_force_compare()
   //
   for (size_t i=0; i<5; i++) 
     {
-      auto indx = cC->host_particles[i].indx;
-      auto levl = cC->host_particles[i].level;
+      auto indx = cr->host_particles[i].indx;
+      auto levl = cr->host_particles[i].level;
       
       std::cout << std::setw(8) << indx	<< std::setw(8) << levl;
 
       for (int k=0; k<3; k++)
-	std::cout << std::setw(20) << cC->host_particles[i].acc[k];
+	std::cout << std::setw(20) << cr->host_particles[i].acc[k];
 
       for (int k=0; k<3; k++)
 	std::cout << std::setw(20) << cC->Particles()[indx].acc[k];
 
       double diff = 0.0, norm = 0.0;
       for (int k=0; k<3; k++) {
-	double b  = cC->host_particles[i].acc[k];
+	double b  = cr->host_particles[i].acc[k];
 	double a  = cC->Particles()[indx].acc[k];
 	diff += (a - b)*(a - b);
 	norm += a*a;
@@ -1375,22 +1387,22 @@ void Cylinder::host_dev_force_compare()
   
   for (size_t j=0; j<5; j++) 
     {
-      size_t i = cC->host_particles.size() - 5 + j;
+      size_t i = cr->host_particles.size() - 5 + j;
 
-      auto indx = cC->host_particles[i].indx;
-      auto levl = cC->host_particles[i].level;
+      auto indx = cr->host_particles[i].indx;
+      auto levl = cr->host_particles[i].level;
 
       std::cout << std::setw(8) << indx	<< std::setw(8) << levl;
       
       for (int k=0; k<3; k++)
-	std::cout << std::setw(20) << cC->host_particles[i].acc[k];
+	std::cout << std::setw(20) << cr->host_particles[i].acc[k];
 
       for (int k=0; k<3; k++)
 	std::cout << std::setw(20) << cC->Particles()[indx].acc[k];
 
       double diff = 0.0, norm = 0.0;
       for (int k=0; k<3; k++) {
-	double b  = cC->host_particles[i].acc[k];
+	double b  = cr->host_particles[i].acc[k];
 	double a  = cC->Particles()[indx].acc[k];
 	diff += (a - b)*(a - b);
 	norm += a*a;

@@ -883,6 +883,8 @@ void Component::initialize(void)
 		<< "] on [" << processor_name << "] to [" << cudaDevice << "]"
 		<< std::endl;
     }
+
+    cuda_initialize();
   }
 #endif
 

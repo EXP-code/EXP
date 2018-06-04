@@ -11,6 +11,7 @@
 #include <localmpi.h>
 #include <ParticleFerry.H>
 #include <PotAccel.H>
+#include <Circular.H>
 #include <Timer.h>
 
 #include "config.h"
@@ -811,23 +812,58 @@ public:
   //! Index of the device to use (-1 means ignore)
   int cudaDevice;
 
-  //! The cuda particles in CPU node memory
-  thrust::host_vector  <cudaParticle> host_particles;
-
   //! The cuda particles in CUDA device memory
-  thrust::device_vector<cudaParticle> cuda_particles;
+  //@{
+
+  //! Helper class to hold data and create/destroy the stream
+  class cudaStreamData
+  {
+  private:
+    static unsigned totalInstances;
+
+  public:
+    unsigned instance;
+    thrust::device_vector<double> wrk1, wrk2;
+    thrust::host_vector  <cudaParticle> host_particles;
+    thrust::device_vector<cudaParticle> cuda_particles;
+    cudaStream_t stream;
+
+    cudaStreamData()
+    {
+      cudaStreamCreate(&stream);
+      instance = totalInstances++;
+    }
+
+    ~cudaStreamData()
+    {
+      cudaStreamDestroy(stream);
+      totalInstances--;
+    }
+  };
+
+  //! Initialize the streams
+  void cuda_initialize();
+
+  typedef std::vector<cudaStreamData> cuContainer;
+  typedef cuContainer::iterator       cuIterator;
+  typedef RingIterator <cudaStreamData, cuContainer, cuIterator> cuRingType;
+
+  cuContainer cuRingData;
+  boost::shared_ptr<cuRingType> cuRing;
+  //@}
 
   //! Copy particles from Component C to the cuda structure for this component
-  void ParticlesToCuda(PartMap::iterator first, PartMap::iterator last);
+  void ParticlesToCuda(cuRingType cr,
+		       PartMap::iterator first, PartMap::iterator last);
 
   //! Copy cuda device particles for this component back Component C
-  void CudaToParticles();
+  void CudaToParticles(cuRingType cr);
 
   //! Sort the device vector by sequence
-  void CudaSortBySequence();
+  void CudaSortBySequence(cuRingType cr);
 
   //! Sort the device vector by level and return level boundaries
-  std::pair<unsigned, unsigned> CudaSortByLevel(int lo, int hi);
+  std::pair<unsigned, unsigned> CudaSortByLevel(cuRingType cr, int lo, int hi);
 
   //! Zero the acceleration
   void ZeroPotAccel(int mlevel);
