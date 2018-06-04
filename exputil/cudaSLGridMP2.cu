@@ -142,11 +142,7 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
   // tables
   //
   if (true) {
-#if cuREAL == 4
-    const cuFP_t tol = 10.0*std::numeric_limits<float>::epsilon();
-#else
-    const cuFP_t tol = 10.0*std::numeric_limits<double>::epsilon();
-#endif
+    const cuFP_t tol = 10.0*std::numeric_limits<cuFP_t>::epsilon();
 
     struct Element {
       int l;
@@ -157,7 +153,7 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
     std::multimap<double, Element> compare;
 
     thrust::host_vector<cuFP_t> ret(numr);
-    std::cout << "**HOST** Texture compare" << std::endl;
+    std::cout << "**HOST** Texture compare" << std::endl << std::scientific;
     unsigned tot = 0, bad = 0;
     for (int l=0; l<=lmax; l++) {
       for (int j=0; j<nmax; j++) {
@@ -194,9 +190,9 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
 
     std::cout << "**Found " << bad << "/" << tot << " values > eps" << std::endl
 	      << "**Low[1] : " << lo1->first << " (" << lo1->second.l << ", " << lo1->second.a << ", " << lo1->second.b << ", " << lo1->second.a - lo1->second.b << ")" << std::endl
-	      << "**Low[9] : " << lo9->first << " (" << lo9->second.l << ", " << lo9->second.a << ", " << lo9->second.b << ", " << lo9->second.a - lo9->second.b << ")" << std::endl<< ")" << std::endl
-	      << "**Middle : " << mid->first << " (" << mid->second.l << ", " << mid->second.a << ", " << mid->second.b << ", " << mid->second.a - mid->second.b << ")" << std::endl<< ")" << std::endl
-	      << "**Hi [9] : " << hi9->first << " (" << hi9->second.l << ", " << hi9->second.a << ", " << hi9->second.b << ", " << hi9->second.a - hi9->second.b << ")" << std::endl<< ")" << std::endl
+	      << "**Low[9] : " << lo9->first << " (" << lo9->second.l << ", " << lo9->second.a << ", " << lo9->second.b << ", " << lo9->second.a - lo9->second.b << ")" << std::endl
+	      << "**Middle : " << mid->first << " (" << mid->second.l << ", " << mid->second.a << ", " << mid->second.b << ", " << mid->second.a - mid->second.b << ")" << std::endl
+	      << "**Hi [9] : " << hi9->first << " (" << hi9->second.l << ", " << hi9->second.a << ", " << hi9->second.b << ", " << hi9->second.a - hi9->second.b << ")" << std::endl
 	      << "**Hi [1] : " << hi1->first << " (" << hi1->second.l << ", " << hi1->second.a << ", " << hi1->second.b << ", " << hi1->second.a - hi1->second.b << ")" << std::endl
 	      << "**" << std::endl;
   }

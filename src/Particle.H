@@ -110,6 +110,7 @@ public:
 
 typedef std::unordered_map<unsigned long, Particle> PartMap;
 typedef std::unordered_map<unsigned long, Particle>::iterator PartMapItr;
-
+typedef std::pair<unsigned long, Particle> PMapType;
+std::ostream& operator<< (std::ostream& os, const PMapType& p);
 
 #endif

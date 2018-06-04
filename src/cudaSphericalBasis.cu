@@ -699,149 +699,197 @@ void SphericalBasis::determine_coefficients_cuda()
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
 
-  // Sort particles and get coefficient size
-  //
-  PII lohi = cC->CudaSortByLevel(mlevel, mlevel);
-
   // This will stay fixed for the entire run
   //
-  host_coefs.resize((Lmax+1)*(Lmax+1)*nmax); // Should stay fixed, no reserve
+  host_coefs.resize((Lmax+1)*(Lmax+1)*nmax);
 
-  // Compute grid
+  // Center assignment to symbol data
   //
-  unsigned int N         = lohi.second - lohi.first;
-  unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
-  unsigned int gridSize  = N/BLOCK_SIZE/stride;
-
-  if (N == 0) {
-    thrust::fill(host_coefs.begin(), host_coefs.end(), 0.0);
-    use[0] = 0.0;
-    return;
-  }
-
-  if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
-
   std::vector<cuFP_t> ctr;
-  for (auto v : cC->getCenter(Component::Local | Component::Centered)) ctr.push_back(v);
+  for (auto v : cC->getCenter(Component::Local | Component::Centered))
+    ctr.push_back(v);
 
   cuda_safe_call(cudaMemcpyToSymbol(sphCen, &ctr[0], sizeof(cuFP_t)*3,
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying sphCen");
-
-#ifdef VERBOSE
-  std::cout << std::endl << "**" << std::endl
-	    << "** N      = " << N          << std::endl
-	    << "** Stride = " << stride     << std::endl
-	    << "** Block  = " << BLOCK_SIZE << std::endl
-	    << "** Grid   = " << gridSize   << std::endl
-	    << "** Xcen   = " << ctr[0]     << std::endl
-	    << "** Ycen   = " << ctr[1]     << std::endl
-	    << "** Zcen   = " << ctr[2]     << std::endl
-	    << "**" << std::endl;
-#endif
-
-
-  // Create space for coefficient reduction to prevent continued
-  // dynamic allocation
-  //
-  if (dN_coef.capacity() < 2*nmax*N)
-    dN_coef.reserve(2*nmax*N);
-
-  if (dc_coef.capacity() < 2*nmax*gridSize)
-    dc_coef.reserve(2*nmax*gridSize);
-
-  if (plm_d.capacity() < (Lmax+1)*(Lmax+2)/2*N)
-    plm_d.reserve((Lmax+1)*(Lmax+2)/2*N);
-
-  if (r_d.capacity() < N) r_d.reserve(N);
-  if (m_d.capacity() < N) m_d.reserve(N);
-  if (a_d.capacity() < N) a_d.reserve(N);
-  if (p_d.capacity() < N) p_d.reserve(N);
-  if (i_d.capacity() < N) i_d.reserve(N);
-
-  // Set needed space for current step
-  //
-  dN_coef.resize(2*nmax*N);
-  dc_coef.resize(2*nmax*gridSize);
-  df_coef.resize(2*nmax);	// This should stay fixed, no reserve
-
-  // Space for Legendre coefficients 
-  //
-  plm_d.resize((Lmax+1)*(Lmax+2)/2*N);
-
-  // Space for coordinates
-  //
-  r_d.resize(N);
-  m_d.resize(N);
-  a_d.resize(N);
-  p_d.resize(N);
-  i_d.resize(N);
-
-  // Shared memory size for the reduction
-  //
-  int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
-
+  
   // For debugging
   //
   static bool firstime = false;
-
+  
   if (firstime) {
     testConstants<<<1, 1>>>();
     cudaDeviceSynchronize();
     firstime = false;
   }
-
-  thrust::counting_iterator<int> index_begin(0);
-  thrust::counting_iterator<int> index_end(gridSize*2*nmax);
-
-  // Do the work
+  
+  // Zero counter and coefficients
   //
+  unsigned Ntot = 0;
+  use[0] = 0.0;
+  thrust::fill(host_coefs.begin(), host_coefs.end(), 0.0);
+
+  // Loop over bunches
+  //
+  size_t psize  = cC->Particles().size();
+
+  PartMap::iterator begin = cC->Particles().begin();
+  PartMap::iterator first = begin;
+  PartMap::iterator last  = begin;
+  PartMap::iterator end   = cC->Particles().end();
+
+  if (psize <= cC->bunchSize) last = end;
+  else std::advance(last, cC->bunchSize);
+
+  while (std::distance(first, last)) {
+    
+    // Copy bunch to device
+    //
+    cC->ParticlesToCuda(first, last);
+
+    // Sort particles and get coefficient size
+    //
+    PII lohi = cC->CudaSortByLevel(mlevel, mlevel);
+    
+    // Compute grid
+    //
+    unsigned int N         = lohi.second - lohi.first;
+    unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+    unsigned int gridSize  = N/BLOCK_SIZE/stride;
+
+    if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
+
+#ifdef VERBOSE
+    static debug_max_count = 10;
+    static debug_cur_count = 0;
+    if (debug_cur_count++ < debug_max_count) {
+      std::cout << std::endl << "**" << std::endl
+		<< "** N      = " << N          << std::endl
+		<< "** Stride = " << stride     << std::endl
+		<< "** Block  = " << BLOCK_SIZE << std::endl
+		<< "** Grid   = " << gridSize   << std::endl
+		<< "** Xcen   = " << ctr[0]     << std::endl
+		<< "** Ycen   = " << ctr[1]     << std::endl
+		<< "** Zcen   = " << ctr[2]     << std::endl
+		<< "**" << std::endl;
+    }
+#endif
+
+    if (N) {
+    
+      // Create space for coefficient reduction to prevent continued
+      // dynamic allocation
+      //
+      if (dN_coef.capacity() < 2*nmax*N)
+	dN_coef.reserve(2*nmax*N);
+      
+      if (dc_coef.capacity() < 2*nmax*gridSize)
+	dc_coef.reserve(2*nmax*gridSize);
+      
+      if (plm_d.capacity() < (Lmax+1)*(Lmax+2)/2*N)
+	plm_d.reserve((Lmax+1)*(Lmax+2)/2*N);
+      
+      if (r_d.capacity() < N) r_d.reserve(N);
+      if (m_d.capacity() < N) m_d.reserve(N);
+      if (a_d.capacity() < N) a_d.reserve(N);
+      if (p_d.capacity() < N) p_d.reserve(N);
+      if (i_d.capacity() < N) i_d.reserve(N);
+      
+      // Set needed space for current step
+      //
+      dN_coef.resize(2*nmax*N);
+      dc_coef.resize(2*nmax*gridSize);
+      df_coef.resize(2*nmax);	// This should stay fixed, no reserve
+      
+      // Space for Legendre coefficients 
+      //
+      plm_d.resize((Lmax+1)*(Lmax+2)/2*N);
+    
+      // Space for coordinates
+      //
+      r_d.resize(N);
+      m_d.resize(N);
+      a_d.resize(N);
+      p_d.resize(N);
+      i_d.resize(N);
+      
+      // Shared memory size for the reduction
+      //
+      int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
+    
+    
+      thrust::counting_iterator<int> index_begin(0);
+      thrust::counting_iterator<int> index_end(gridSize*2*nmax);
+
+      // Do the work
+      //
 				// Compute the coordinate
 				// transformation
 				// 
-  coordKernel<<<gridSize, BLOCK_SIZE>>>
-    (toKernel(cC->cuda_particles),
-     toKernel(m_d), toKernel(a_d), toKernel(p_d), toKernel(plm_d),
-     toKernel(i_d), Lmax, stride, lohi, rmax);
-
+      coordKernel<<<gridSize, BLOCK_SIZE>>>
+	(toKernel(cC->cuda_particles),
+	 toKernel(m_d), toKernel(a_d), toKernel(p_d), toKernel(plm_d),
+	 toKernel(i_d), Lmax, stride, lohi, rmax);
+    
 				// Compute the coefficient
 				// contribution for each order
-  int osize = nmax*2;		//
-  for (int l=0; l<=Lmax; l++) {
-    for (int m=0; m<=l; m++) {
+      int osize = nmax*2;	//
+      for (int l=0; l<=Lmax; l++) {
+	for (int m=0; m<=l; m++) {
 				// Compute the contribution to the
 				// coefficients from each particle
 				//
-      coefKernel<<<gridSize, BLOCK_SIZE>>>
-	(toKernel(dN_coef), toKernel(t_d), toKernel(m_d),
-	 toKernel(a_d), toKernel(p_d), toKernel(plm_d), toKernel(i_d),
-	 stride, l, m, Lmax, nmax, lohi);
-
+	  coefKernel<<<gridSize, BLOCK_SIZE>>>
+	    (toKernel(dN_coef), toKernel(t_d), toKernel(m_d),
+	     toKernel(a_d), toKernel(p_d), toKernel(plm_d), toKernel(i_d),
+	     stride, l, m, Lmax, nmax, lohi);
+	  
 				// Begin the reduction per grid block
-      				// 
-      reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize, BLOCK_SIZE, sMemSize>>>
-	(toKernel(dc_coef), toKernel(dN_coef), osize, N);
+				// 
+	  reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize, BLOCK_SIZE, sMemSize>>>
+	    (toKernel(dc_coef), toKernel(dN_coef), osize, N);
       
 				// Finish the reduction for this order
 				// in parallel
-      thrust::reduce_by_key
-	(
-	 thrust::make_transform_iterator(index_begin, key_functor(gridSize)),
-	 thrust::make_transform_iterator(index_end,   key_functor(gridSize)),
-	 dc_coef.begin(), thrust::make_discard_iterator(), df_coef.begin()
-	 );
-
+	  thrust::reduce_by_key
+	    (
+	     thrust::make_transform_iterator(index_begin, key_functor(gridSize)),
+	     thrust::make_transform_iterator(index_end,   key_functor(gridSize)),
+	     dc_coef.begin(), thrust::make_discard_iterator(), df_coef.begin()
+	   );
+	  
 				// Assign reduced output to
 				// coefficient array
 				//
-      thrust::host_vector<cuFP_t> ret = df_coef;
-      for (size_t j=0; j<nmax; j++) {
-	host_coefs[Ilmn(l, m, 'c', j, nmax)] = ret[2*j];
-	if (m>0) host_coefs[Ilmn(l, m, 's', j, nmax)] = ret[2*j+1];
+	  thrust::host_vector<cuFP_t> ret = df_coef;
+	  for (size_t j=0; j<nmax; j++) {
+	    host_coefs[Ilmn(l, m, 'c', j, nmax)] += ret[2*j];
+	    if (m>0) host_coefs[Ilmn(l, m, 's', j, nmax)] += ret[2*j+1];
+	  }
+	}
       }
+
+      // Compute number and total mass of particles used in coefficient
+      // determination
+      //
+      thrust::sort(m_d.begin(), m_d.end());
+      
+      auto m_it = thrust::upper_bound(m_d.begin(), m_d.end(), 0.0);
+      use[0]   += thrust::distance(m_it, m_d.end());
+      Ntot     += N;
     }
+
+    // Advance iterators
+    //
+    first = last;
+    size_t nadv = std::distance(first, end);
+    if (nadv <= cC->bunchSize) last = end;
+    else std::advance(last, cC->bunchSize);
   }
 
+  if (Ntot == 0) {
+    return;
+  }
 
   // DEBUG, only useful for CUDAtest branch
   //
@@ -1002,7 +1050,6 @@ void SphericalBasis::determine_coefficients_cuda()
 
     std::ofstream out("test_sph.dat");
 
-
     //		l loop
     for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
       //		m loop
@@ -1123,14 +1170,6 @@ void SphericalBasis::determine_coefficients_cuda()
 	      << std::setw(20) << fabs(last->second.d - last->second.f)
 	      << std::endl;
   }
-
-  // Compute number and total mass of particles used in coefficient
-  // determination
-  //
-  thrust::sort(m_d.begin(), m_d.end());
-
-  auto m_it = thrust::upper_bound(m_d.begin(), m_d.end(), 0.0);
-  use[0]    = thrust::distance(m_it, m_d.end());
 }
 
 void SphericalBasis::determine_acceleration_cuda()
@@ -1154,60 +1193,117 @@ void SphericalBasis::determine_acceleration_cuda()
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, deviceCount-1);
 
-  // Sort particles and get coefficient size
+  // Assign component center
   //
-  PII lohi = cC->CudaSortByLevel(mlevel, multistep);
-
-  // Compute grid
-  //
-  unsigned int N         = lohi.second - lohi.first;
-  unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
-  unsigned int gridSize  = N/BLOCK_SIZE/stride;
-
-  if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
-
-  unsigned int Nthread = gridSize*BLOCK_SIZE;
-
   std::vector<cuFP_t> ctr;
   for (auto v : cC->getCenter(Component::Local | Component::Centered)) ctr.push_back(v);
 
   cuda_safe_call(cudaMemcpyToSymbol(sphCen, &ctr[0], sizeof(cuFP_t)*3,
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying sphCen");
+  
+  // Loop over bunches
+  //
+  size_t psize  = cC->Particles().size();
+
+  PartMap::iterator begin = cC->Particles().begin();
+  PartMap::iterator first = begin;
+  PartMap::iterator last  = begin;
+  PartMap::iterator end   = cC->Particles().end();
+
+  if (psize <= cC->bunchSize) last = end;
+  else std::advance(last, cC->bunchSize);
+
+  unsigned Ntot = 0;
+
+  while (std::distance(first, last)) {
+
+    // Copy bunch to device
+    //
+    cC->ParticlesToCuda(first, last);
+
+    // Sort particles and get coefficient size
+    //
+    PII lohi = cC->CudaSortByLevel(mlevel, multistep);
+
+    // Compute grid
+    //
+    unsigned int N         = lohi.second - lohi.first;
+    unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+    unsigned int gridSize  = N/BLOCK_SIZE/stride;
+    
+    Ntot += N;
+
+    if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
+
+    unsigned int Nthread = gridSize*BLOCK_SIZE;
 
 #ifdef VERBOSE
-  std::cout << std::endl << "**" << std::endl
-	    << "** N      = " << N          << std::endl
-	    << "** Stride = " << stride     << std::endl
-	    << "** Block  = " << BLOCK_SIZE << std::endl
-	    << "** Grid   = " << gridSize   << std::endl
-	    << "** Xcen   = " << ctr[0]     << std::endl
-	    << "** Ycen   = " << ctr[1]     << std::endl
-	    << "** Zcen   = " << ctr[2]     << std::endl
-	    << "**" << std::endl;
+    static debug_max_count = 10;
+    static debug_cur_count = 0;
+    if (debug_cur_count++ < debug_max_count) {
+      std::cout << std::endl << "**" << std::endl
+		<< "** N      = " << N          << std::endl
+		<< "** Stride = " << stride     << std::endl
+		<< "** Block  = " << BLOCK_SIZE << std::endl
+		<< "** Grid   = " << gridSize   << std::endl
+		<< "** Xcen   = " << ctr[0]     << std::endl
+		<< "** Ycen   = " << ctr[1]     << std::endl
+		<< "** Zcen   = " << ctr[2]     << std::endl
+		<< "**" << std::endl;
+    }
 #endif
+    
+    // Space for Legendre coefficients 
+    //
+    if (plm1_d.capacity() < (Lmax+1)*(Lmax+2)/2*Nthread)
+      plm1_d.reserve((Lmax+1)*(Lmax+2)/2*Nthread);
+    
+    if (plm2_d.capacity() < (Lmax+1)*(Lmax+2)/2*Nthread)
+      plm2_d.reserve((Lmax+1)*(Lmax+2)/2*Nthread);
+    
+    plm1_d.resize((Lmax+1)*(Lmax+2)/2*Nthread);
+    plm2_d.resize((Lmax+1)*(Lmax+2)/2*Nthread);
+    
+    // Shared memory size for the reduction
+    //
+    int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
+    
+    // Do the work
+    //
+    forceKernel<<<gridSize, BLOCK_SIZE, sMemSize>>>
+      (toKernel(cC->cuda_particles), toKernel(dev_coefs), toKernel(t_d),
+       toKernel(plm1_d), toKernel(plm2_d), stride, Lmax, nmax, lohi, rmax,
+       use_external);
 
-  // Space for Legendre coefficients 
-  //
-  if (plm1_d.capacity() < (Lmax+1)*(Lmax+2)/2*Nthread)
-    plm1_d.reserve((Lmax+1)*(Lmax+2)/2*Nthread);
+    // Copy particles back to host.  These copies could be staged in
+    // streams and returned asynchronously.
+    //
+    cC->CudaToParticles();
 
-  if (plm2_d.capacity() < (Lmax+1)*(Lmax+2)/2*Nthread)
-    plm2_d.reserve((Lmax+1)*(Lmax+2)/2*Nthread);
-  
-  plm1_d.resize((Lmax+1)*(Lmax+2)/2*Nthread);
-  plm2_d.resize((Lmax+1)*(Lmax+2)/2*Nthread);
+    // Advance iterators
+    //
+    first = last;
+    size_t nadv = std::distance(first, end);
+    if (nadv <= cC->bunchSize) last = end;
+    else std::advance(last, cC->bunchSize);
+  }
 
-  // Shared memory size for the reduction
-  //
-  int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
-
-  // Do the work
-  //
-  forceKernel<<<gridSize, BLOCK_SIZE, sMemSize>>>
-    (toKernel(cC->cuda_particles), toKernel(dev_coefs), toKernel(t_d),
-     toKernel(plm1_d), toKernel(plm2_d), stride, Lmax, nmax, lohi, rmax,
-     use_external);
+  // DEBUGGING TEST
+  if (false) {
+    std::cout << std::string(10+7*16, '-') << std::endl;
+    std::cout << "---- Acceleration in SphericalBasis [T=" << tnow
+	      << ", N=" << Ntot << "]" << std::endl;
+    std::cout << std::string(10+7*16, '-') << std::endl;
+    first = last = begin;
+    std::advance(last, 5);
+    std::copy(first, last, std::ostream_iterator<PMapType>(std::cout, "\n"));
+    first = begin;
+    last  = end;
+    std::advance(first, psize-5);
+    std::copy(first, last, std::ostream_iterator<PMapType>(std::cout, "\n"));
+    std::cout << std::string(10+7*16, '-') << std::endl;
+  }
 }
 
 void SphericalBasis::HtoD_coefs(const Matrix& expcoef)

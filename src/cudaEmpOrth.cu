@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <limits>
 #include <map>
 
 #include <cuda.h>
@@ -154,13 +155,7 @@ void EmpCylSL::initialize_cuda
   // tables
   //
   if (true) {
-#if cuREAL == 4
-    const cuFP_t tol = 10.0*FLT_EPSILON;
-    std::cout << "REAL*4" << std::endl;
-#else
-    const cuFP_t tol = 10.0*DBL_EPSILON;
-    std::cout << "REAL*8" << std::endl;
-#endif
+    constexpr cuFP_t tol = 10.0*std::numeric_limits<cuFP_t>::epsilon();
 
     struct Element {
       int m;

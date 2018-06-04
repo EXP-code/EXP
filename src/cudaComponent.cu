@@ -48,16 +48,18 @@ void Component::CudaSortBySequence()
   thrust::sort(pbeg, pend, LessCudaSeq());
 }
 
-void Component::ParticlesToCuda()
+void Component::ParticlesToCuda(PartMap::iterator first, PartMap::iterator last)
 {
   std::cout << std::scientific;
 
+  auto npart = std::distance(first, last);
+  
 #if BIG_DEBUG > 0
   static unsigned count = 0;
   std::cout << std::string(72, '-')        << std::endl
 	    << "---- Component name: "     << name
 	    << " [#" << count++ << "]"     << std::endl
-	    << "---- Particle count: "     << particles.size() << std::endl
+	    << "---- Particle count: "     << npart  << std::endl
 	    << std::string(72, '-')        << std::endl
 	    << "---- Host particle size: " << host_particles.size()
 	    << " [" << std::hex << thrust::raw_pointer_cast(host_particles.data()) << "] before" << std::endl << std::dec
@@ -67,11 +69,13 @@ void Component::ParticlesToCuda()
 	    << "---- Size of cudaParticle: " << sizeof(cudaParticle)
 	    << ", native=" << 12*sizeof(cuFP_t) + 2*sizeof(unsigned) << std::endl;
 #endif
-  
-  host_particles.resize(particles.size());
-  thrust::host_vector<cudaParticle>::iterator it = host_particles.begin();
-  for (auto v : particles) {
-    ParticleHtoD(v.second, *(it++));
+
+  if (host_particles.capacity()<npart) host_particles.reserve(npart);
+  host_particles.resize(npart);
+
+  thrust::host_vector<cudaParticle>::iterator hit = host_particles.begin();
+  for (auto pit=first; pit!=last; pit++) {
+    ParticleHtoD(pit->second, *(hit++));
   }
   
 #if BIG_DEBUG > 1
@@ -132,9 +136,6 @@ void Component::ParticlesToCuda()
 void Component::CudaToParticles()
 {
   host_particles = cuda_particles;
-  if (host_particles.size() != particles.size()) {
-    std::cout << "Return copy mismatch" << std::endl;
-  }
   for (auto v : host_particles) ParticleDtoH(v, particles[v.indx]);
 }
 

@@ -702,7 +702,6 @@ void Cylinder::determine_coefficients(void)
 #if HAVE_LIBCUDA==1
   if (component->cudaDevice>=0) {
     start1 = std::chrono::high_resolution_clock::now();
-    component->ParticlesToCuda();
     determine_coefficients_cuda();
     DtoH_coefs(mlevel);
     finish1 = std::chrono::high_resolution_clock::now();
@@ -1043,17 +1042,9 @@ void Cylinder::determine_acceleration_and_potential(void)
     //
     HtoD_coefs();
     //
-    // Copy cC particles to component's host stage
-    //
-    cC->ParticlesToCuda();
-    //
     // Do the force computation
     //
     determine_acceleration_cuda();
-    //
-    // Copy device particles back to cC particles
-    //
-    cC->CudaToParticles(); 
     finish1 = std::chrono::high_resolution_clock::now();
   } else {
     exp_thread_fork(false);

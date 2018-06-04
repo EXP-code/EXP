@@ -818,7 +818,7 @@ public:
   thrust::device_vector<cudaParticle> cuda_particles;
 
   //! Copy particles from Component C to the cuda structure for this component
-  void ParticlesToCuda();
+  void ParticlesToCuda(PartMap::iterator first, PartMap::iterator last);
 
   //! Copy cuda device particles for this component back Component C
   void CudaToParticles();
@@ -831,6 +831,9 @@ public:
 
   //! Zero the acceleration
   void ZeroPotAccel(int mlevel);
+
+  //! Default bunch size
+  size_t bunchSize;
 
   //@}
 #endif
