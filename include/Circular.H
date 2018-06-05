@@ -16,38 +16,56 @@ class RingIterator :
 
 public:
   
+  //! Create from v and position at the beginning
   RingIterator (Container& v) :
     data(v), cursor(v.begin()), begin(v.begin()), end(v.end()) {}
   
+  //! Create from v and begin at iterator i
   RingIterator (Container& v, const Iterator& i) :
     data(v), cursor(i), begin(v.begin()), end(v.end()) {}
 
+  //! Create from v using positions i through j
   RingIterator (Container& v, const Iterator& i, const Iterator& j) :
     data(v), cursor(i), begin(i), end(j) {}
 
+  //! Create from v and begin at position i
   RingIterator (Container& v, size_t i) :
     data(v), cursor(v.begin() + i % v.size()), begin(v.begin()), end(v.end()) {}
 
+  //! Copy constructor
+  RingIterator (const RingIterator& p)
+  {
+    data   = p.data;
+    cursor = p.cursor;
+    begin  = p.begin;
+    end    = p.end;
+  }
+
+  //! Test for equality
   bool operator == (const RingIterator& x) const 
   { 
     return cursor == x.cursor; 
   }
   
+  //! Test for inequality
   bool operator != (const RingIterator& x) const 
   {
     return ! (*this == x); 
   }
   
+  //! Return current data element
   T operator*() const 
   {
     return *cursor; 
   }
   
+  //! Return current iterator
   Iterator operator->() const 
   {
     return cursor; 
   }
   
+  //! Pre-increment operator
   RingIterator& operator++() 
   {
     ++cursor;
@@ -55,6 +73,7 @@ public:
     return *this;
   }
   
+  //! Post-increment operator
   RingIterator operator++(int) 
   {
     RingIterator ring = *this;
@@ -62,6 +81,7 @@ public:
     return ring;
   }
 
+  //! Pre-decrement operator
   RingIterator& operator--() 
   {
     if (cursor == begin) cursor = end;
@@ -69,6 +89,7 @@ public:
     return *this;
   }
 
+  //! Post-decrement operator
   RingIterator operator--(int) 
   {
     RingIterator ring = *this;
@@ -76,11 +97,13 @@ public:
     return ring;
   }
 
+  //! Insert a new element at the current position
   RingIterator insert (const T& x)
   {
     return RingIterator (data, data.insert (cursor, x));
   }
 
+  //! Erase the current element
   RingIterator erase() 
   {
     return RingIterator (data, data.erase (cursor));
@@ -97,29 +120,43 @@ class CyclicIterator :
 
 public:
 
+  //! Create using positions i through j
   CyclicIterator (const Iterator& i, const Iterator& j) :
     cursor(i), begin(i), end(j) {}
   
+  //! Copy constructor
+  CyclicIterator (const CyclicIterator& p)
+  {
+    cursor = p.cursor;
+    begin  = p.begin;
+    end    = p.end;
+  }
+
+  //! Test for equality
   bool operator == (const CyclicIterator& x) const 
   { 
     return cursor == x.cursor; 
   }
 
+  //! Test for inequality
   bool operator != (const CyclicIterator& x) const 
   {
     return ! (*this == x); 
   }
   
+  //! Return current data
   T operator*() const 
   {
     return *cursor; 
   }
 
+  //! Return current iterator
   Iterator operator->() const 
   {
     return cursor; 
   }
 
+  //! Pre-increment operator
   CyclicIterator& operator++() 
   {
     ++cursor;
@@ -127,6 +164,7 @@ public:
     return *this;
   }
 
+  //! Post-increment operator
   CyclicIterator operator++(int) 
   {
     CyclicIterator ring = *this;
@@ -134,6 +172,7 @@ public:
     return ring;
   }
   
+  //! Pre-decrement operator
   CyclicIterator& operator--() 
   {
     if (cursor == begin) cursor = end;
@@ -141,6 +180,7 @@ public:
     return *this;
   }
   
+  //! Post-decrement operator
   CyclicIterator operator--(int) 
   {
     CyclicIterator ring = *this;
