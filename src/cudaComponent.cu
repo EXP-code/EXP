@@ -183,6 +183,9 @@ struct cudaZeroAcc : public thrust::unary_function<cudaParticle, cudaParticle>
 
 void Component::ZeroPotAccel(int minlev)
 {
+  return;			// Don't need this now, since this
+				// duplicates zeroing performed on
+				// host
   // Loop over bunches
   //
   size_t psize  = Particles().size();
