@@ -822,23 +822,26 @@ public:
     static unsigned totalInstances;
 
   public:
+    //! Instance id for debugging
     unsigned instance;
+
+    //! Working device vector (e.g. for Legendre evaluation)
     thrust::device_vector<double> wrk1, wrk2;
+
+    //! Host particles
     thrust::host_vector  <cudaParticle> host_particles;
+
+    //! Device particles
     thrust::device_vector<cudaParticle> cuda_particles;
+
+    //! My stream
     cudaStream_t stream;
 
-    cudaStreamData()
-    {
-      cudaStreamCreate(&stream);
-      instance = totalInstances++;
-    }
+    //! Constructor
+    cudaStreamData();
 
-    ~cudaStreamData()
-    {
-      cudaStreamDestroy(stream);
-      totalInstances--;
-    }
+    //! Destructor
+    ~cudaStreamData();
   };
 
   //! Initialize the streams
