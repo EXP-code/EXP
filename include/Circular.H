@@ -16,13 +16,17 @@ class RingIterator :
 
 public:
   
-  RingIterator (Container& v) : data(v), cursor(v.begin()), begin(v.begin()), end(v.end()) {}
+  RingIterator (Container& v) :
+    data(v), cursor(v.begin()), begin(v.begin()), end(v.end()) {}
   
-  RingIterator (Container& v, const Iterator& i) : data(v), cursor(i), begin(v.begin()), end(v.end()) {}
+  RingIterator (Container& v, const Iterator& i) :
+    data(v), cursor(i), begin(v.begin()), end(v.end()) {}
 
-  RingIterator (Container& v, const Iterator& i, const Iterator& j) : data(v), cursor(i), begin(i), end(j) {}
+  RingIterator (Container& v, const Iterator& i, const Iterator& j) :
+    data(v), cursor(i), begin(i), end(j) {}
 
-  RingIterator (Container& v, size_t i) : data(v), cursor(v.begin() + i % v.size()), begin(v.begin()), end(v.end()) {}
+  RingIterator (Container& v, size_t i) :
+    data(v), cursor(v.begin() + i % v.size()), begin(v.begin()), end(v.end()) {}
 
   bool operator == (const RingIterator& x) const 
   { 
@@ -47,8 +51,7 @@ public:
   RingIterator& operator++() 
   {
     ++cursor;
-    if (cursor == end)
-      cursor = begin;
+    if (cursor == end) cursor = begin;
     return *this;
   }
   
@@ -61,8 +64,7 @@ public:
 
   RingIterator& operator--() 
   {
-    if (cursor == begin)
-      cursor = end;
+    if (cursor == begin) cursor = end;
     --cursor;
     return *this;
   }
@@ -95,7 +97,8 @@ class CyclicIterator :
 
 public:
 
-  CyclicIterator (const Iterator& i, const Iterator& j) : cursor(i), begin(i), end(j) {}
+  CyclicIterator (const Iterator& i, const Iterator& j) :
+    cursor(i), begin(i), end(j) {}
   
   bool operator == (const CyclicIterator& x) const 
   { 
@@ -120,8 +123,7 @@ public:
   CyclicIterator& operator++() 
   {
     ++cursor;
-    if (cursor == end)
-      cursor = begin;
+    if (cursor == end) cursor = begin;
     return *this;
   }
 
@@ -134,8 +136,7 @@ public:
   
   CyclicIterator& operator--() 
   {
-    if (cursor == begin)
-      cursor = end;
+    if (cursor == begin) cursor = end;
     --cursor;
     return *this;
   }
