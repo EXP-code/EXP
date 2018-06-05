@@ -141,7 +141,7 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
   // This is for debugging: compare texture table fetches to original
   // tables
   //
-  if (true) {
+  if (false) {
     const cuFP_t tol = 10.0*std::numeric_limits<cuFP_t>::epsilon();
 
     struct Element {
