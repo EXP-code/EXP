@@ -8,6 +8,19 @@
 
 unsigned Component::cudaStreamData::totalInstances=0;
 
+Component::cudaStreamData::cudaStreamData()
+{
+  cuda_safe_call(cudaStreamCreate(&stream), __FILE__, __LINE__,
+		 "Component::cudaStreamData: error creating stream");
+  instance = totalInstances++;
+}
+
+Component::cudaStreamData::~cudaStreamData()
+{
+  cuda_safe_call(cudaStreamDestroy(stream), __FILE__, __LINE__,
+		 "Component::cudaStreamData: error destroying stream");
+  totalInstances--;
+}
 
 void Component::cuda_initialize()
 {
@@ -36,12 +49,18 @@ Component::CudaSortByLevel(Component::cuRingType cr, int minlev, int maxlev)
     // Get positions of level boundaries
     //
     temp.level = minlev;
+    ret.first  = thrust::lower_bound(pbeg, pend, temp, LessCudaLev()) - pbeg;
+    /*
     ret.first  = thrust::lower_bound(thrust::cuda::par.on(cr->stream),
 				     pbeg, pend, temp, LessCudaLev()) - pbeg;
+    */
     
     temp.level = maxlev;
+    ret.second = thrust::upper_bound(pbeg, pend, temp, LessCudaLev()) - pbeg;
+    /*
     ret.second = thrust::upper_bound(thrust::cuda::par.on(cr->stream),
 				     pbeg, pend, temp, LessCudaLev()) - pbeg;
+    */
   }
   catch(std::bad_alloc &e) {
     std::cerr << "Ran out of memory while sorting" << std::endl;

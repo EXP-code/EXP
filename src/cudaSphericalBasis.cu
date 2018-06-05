@@ -876,7 +876,7 @@ void SphericalBasis::determine_coefficients_cuda()
       // Compute number and total mass of particles used in coefficient
       // determination
       //
-      thrust::sort(m_d.begin(), m_d.end());
+      thrust::sort(thrust::cuda::par.on(cr->stream), m_d.begin(), m_d.end());
       
       auto m_it = thrust::upper_bound(m_d.begin(), m_d.end(), 0.0);
       use[0]   += thrust::distance(m_it, m_d.end());
