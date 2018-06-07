@@ -8,7 +8,7 @@ endif
 if ENABLE_CUDA
 ADD_CUDA = cudaParticle.cu cudaSphericalBasis.cu cudaSphere.cu	\
 cudaCylinder.cu cudaEmpOrth.cu cudaComponent.cu
-GENCODE_FLAGS  = -gencode arch=compute_61,code=sm_61
+GENCODE_FLAGS  = -gencode arch=compute_61,code=sm_61 --expt-relaxed-constexpr
 CUDA_LIBFLAGS  = -lcudart
 NVCC_CXXFLAGS  = $(AM_CPPFLAGS) -I. $(CXXFLAGS) $(GENCODE_FLAGS) $(NVCC_EXTRA)
 endif
