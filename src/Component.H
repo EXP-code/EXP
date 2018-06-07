@@ -812,6 +812,12 @@ public:
   //! Index of the device to use (-1 means ignore)
   int cudaDevice;
 
+  typedef thrust::host_vector<cudaParticle> hostPartType;
+  typedef thrust::host_vector<cudaParticle>::iterator hostPartItr;
+
+  //! Cuda particles in host memory
+  hostPartType host_particles;
+
   //! The cuda particles in CUDA device memory
   //@{
 
@@ -828,8 +834,8 @@ public:
     //! Working device vector (e.g. for Legendre evaluation)
     thrust::device_vector<double> wrk1, wrk2;
 
-    //! Host particles
-    thrust::host_vector  <cudaParticle> host_particles;
+    //! Host particle beginning and ending iterator
+    hostPartItr first, last;
 
     //! Device particles
     thrust::device_vector<cudaParticle> cuda_particles;
@@ -842,6 +848,15 @@ public:
 
     //! Destructor
     ~cudaStreamData();
+
+    //! For debugging
+    void print()
+    {
+      std::cout << "cudaStreamData: instance=" << instance
+		<< " wrk1=" << wrk1.size() << " wrk2=" << wrk2.size()
+		<< " npart=" << thrust::distance(first, last)
+		<< " cudaP=" << cuda_particles.size() << std::endl;
+    }
   };
 
   //! Initialize the streams
@@ -856,11 +871,16 @@ public:
   //@}
 
   //! Copy particles from Component C to the cuda structure for this component
-  void ParticlesToCuda(cuRingType cr,
-		       PartMap::iterator first, PartMap::iterator last);
+  void ParticlesToCuda();
 
+  //! Copy particles host to device for ring entry
+  void HostToDev(cuRingType cr);
+  
+  //! Copy particles device to host for ring entry
+  void DevToHost(cuRingType cr);
+  
   //! Copy cuda device particles for this component back Component C
-  void CudaToParticles(cuRingType cr);
+  void CudaToParticles();
 
   //! Sort the device vector by sequence
   void CudaSortBySequence(cuRingType cr);
