@@ -32,15 +32,6 @@ public:
   RingIterator (Container& v, size_t i) :
     data(v), cursor(v.begin() + i % v.size()), begin(v.begin()), end(v.end()) {}
 
-  //! Copy constructor
-  RingIterator (const RingIterator& p)
-  {
-    data   = p.data;
-    cursor = p.cursor;
-    begin  = p.begin;
-    end    = p.end;
-  }
-
   //! Test for equality
   bool operator == (const RingIterator& x) const 
   { 
@@ -124,14 +115,6 @@ public:
   CyclicIterator (const Iterator& i, const Iterator& j) :
     cursor(i), begin(i), end(j) {}
   
-  //! Copy constructor
-  CyclicIterator (const CyclicIterator& p)
-  {
-    cursor = p.cursor;
-    begin  = p.begin;
-    end    = p.end;
-  }
-
   //! Test for equality
   bool operator == (const CyclicIterator& x) const 
   { 
