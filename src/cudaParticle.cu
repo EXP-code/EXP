@@ -34,6 +34,8 @@ void ParticleDtoH(const cudaParticle & d, Particle & h)
 __host__
 std::ostream& operator<< (std::ostream& os, const cudaParticle& p)
 {
+  std::streamsize sp = os.precision();
+  os.precision(6);
   os << std::setw(10) << p.indx
      << std::setw( 4) << p.level
      << std::setw(16) << p.mass;
@@ -41,5 +43,6 @@ std::ostream& operator<< (std::ostream& os, const cudaParticle& p)
   // for (int k=0; k<3; k++) os << std::setw(16) << p.vel[k];
   for (int k=0; k<3; k++) os << std::setw(16) << p.acc[k];
   // os << std::setw(16) << p.pot << std::setw(16) << p.potext;
+  os.precision(sp);
   return os;
 }
