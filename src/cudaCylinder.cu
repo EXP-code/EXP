@@ -1,7 +1,12 @@
+#include <list>
+
 #include <Component.H>
 #include <Cylinder.H>
 #include <cudaReduce.cuH>
 #include <Bounds.cuH>
+#include "expand.h"
+
+#include <boost/make_shared.hpp>
 
 // Define for debugging
 //
@@ -109,6 +114,14 @@ __device__
 cuFP_t cu_d_y_to_z_cyl(cuFP_t y)
 { return cylHscale*cosh(y); }
 
+
+void Cylinder::cuda_initialize()
+{
+  // Initialize for streams
+  //
+  cuRingData.resize(cuStreams);
+  cuRing = boost::make_shared<cuRingType>(cuRingData);
+}
 
 void Cylinder::initialize_mapping_constants()
 {
@@ -665,6 +678,67 @@ public:
   }
 };
 
+
+void Cylinder::cudaStorage::resize_coefs
+(int ncylorder, int mmax, int N, int gridSize)
+{
+  // Reserve space for coefficient reduction
+  //
+  if (dN_coef.capacity() < 2*ncylorder*N)
+    dN_coef.reserve(2*ncylorder*N);
+  
+  if (dc_coef.capacity() < 2*ncylorder*gridSize)
+    dc_coef.reserve(2*ncylorder*gridSize);
+  
+  if (m_d .capacity() < N) m_d .reserve(N);
+  if (X_d .capacity() < N) X_d .reserve(N);
+  if (Y_d .capacity() < N) Y_d .reserve(N);
+  if (p_d .capacity() < N) p_d .reserve(N);
+  if (iX_d.capacity() < N) iX_d.reserve(N);
+  if (iY_d.capacity() < N) iY_d.reserve(N);
+  
+  
+  // Set space for current step
+  //
+  dN_coef.resize(2*ncylorder*N);
+  dc_coef.resize(2*ncylorder*gridSize);
+  dw_coef.resize(2*ncylorder);	// This will stay fixed
+
+  // Space for coordinate arrays on the current step
+  //
+  m_d .resize(N);
+  X_d .resize(N);
+  Y_d .resize(N);
+  p_d .resize(N);
+  iX_d.resize(N);
+  iY_d.resize(N);
+}
+
+void Cylinder::zero_coefs()
+{
+  Component::cuRingType cr = *cC->cuRing.get();
+  Cylinder ::cuRingType ar = *cuRing.get();
+  
+  for (int n=0; n<cuStreams; n++) {
+    // Resize output array
+    //
+    ar->df_coef.resize((mmax+1)*2*ncylorder);
+    
+    // Zero output array
+    //
+    thrust::fill(thrust::cuda::par.on(cr->stream),
+		 ar->df_coef.begin(), ar->df_coef.end(), 0.0);
+
+    // Global counters
+    //
+    ar->use  = 0.0;
+    ar->mass = 0.0;
+
+    ++cr;
+    ++ar;
+  }
+}
+
 static bool initialize_cuda_cyl = true;
 
 void Cylinder::determine_coefficients_cuda()
@@ -714,6 +788,7 @@ void Cylinder::determine_coefficients_cuda()
   }
 
   Component::cuRingType cr = *cC->cuRing.get();
+  Cylinder::cuRingType  ar = *cuRing.get();
 
   // For debugging (set to false to disable)
   //
@@ -728,8 +803,13 @@ void Cylinder::determine_coefficients_cuda()
   // Zero counter and coefficients
   //
   unsigned Ntot = 0;
+  use[0]      = 0.0;
   cylmass0[0] = 0.0;
   thrust::fill(host_coefs.begin(), host_coefs.end(), 0.0);
+
+  // Zero out coefficient storage
+  //
+  zero_coefs();
 
   // Maximum radius on grid
   //
@@ -791,37 +871,9 @@ void Cylinder::determine_coefficients_cuda()
   
     if (N) {
 
-      // Reserve space for coefficient reduction
+      // Adjust cached storage, if necessary
       //
-      if (dN_coef.capacity() < 2*ncylorder*N)
-	dN_coef.reserve(2*ncylorder*N);
-      
-      if (dc_coef.capacity() < 2*ncylorder*gridSize)
-	dc_coef.reserve(2*ncylorder*gridSize);
-
-      if (m_d .capacity() < N) m_d .reserve(N);
-      if (X_d .capacity() < N) X_d .reserve(N);
-      if (Y_d .capacity() < N) Y_d .reserve(N);
-      if (p_d .capacity() < N) p_d .reserve(N);
-      if (iX_d.capacity() < N) iX_d.reserve(N);
-      if (iY_d.capacity() < N) iY_d.reserve(N);
-      
-      
-      // Set space for current step
-      //
-      dN_coef.resize(2*ncylorder*N);
-      dc_coef.resize(2*ncylorder*gridSize);
-      df_coef.resize(2*ncylorder);	// Should stay fixed, no reserve
-    
-
-      // Space for coordinate arrays on the current step
-      //
-      m_d .resize(N);
-      X_d .resize(N);
-      Y_d .resize(N);
-      p_d .resize(N);
-      iX_d.resize(N);
-      iY_d.resize(N);
+      ar->resize_coefs(ncylorder, mmax, N, gridSize);
 
       // Shared memory size for the reduction
       //
@@ -837,23 +889,26 @@ void Cylinder::determine_coefficients_cuda()
 				// transformation
 				// 
       coordKernelCyl<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
-	(toKernel(cr->cuda_particles), toKernel(m_d), toKernel(p_d),
-	 toKernel(X_d), toKernel(Y_d), toKernel(iX_d), toKernel(iY_d),
-	 stride, lohi, rmax);
+	(toKernel(cr->cuda_particles), toKernel(ar->m_d), toKernel(ar->p_d),
+	 toKernel(ar->X_d), toKernel(ar->Y_d), toKernel(ar->iX_d),
+	 toKernel(ar->iY_d), stride, lohi, rmax);
       
 				// Compute the coefficient
 				// contribution for each order
       int osize = ncylorder*2;	// 
+      auto beg = ar->df_coef.begin();
+
       for (int m=0; m<=mmax; m++) {
+
 	coefKernelCyl<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
-	  (toKernel(dN_coef), toKernel(t_d), toKernel(m_d), toKernel(p_d),
-	   toKernel(X_d), toKernel(Y_d), toKernel(iX_d), toKernel(iY_d),
+	  (toKernel(ar->dN_coef), toKernel(t_d), toKernel(ar->m_d), toKernel(ar->p_d),
+	   toKernel(ar->X_d), toKernel(ar->Y_d), toKernel(ar->iX_d), toKernel(ar->iY_d),
 	   stride, m, ncylorder, lohi);
       
 				// Begin the reduction per grid block
 				//
 	reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize, BLOCK_SIZE, sMemSize, cr->stream>>>
-	  (toKernel(dc_coef), toKernel(dN_coef), osize, N);
+	  (toKernel(ar->dc_coef), toKernel(ar->dN_coef), osize, N);
       
 				// Finish the reduction for this order
 				// in parallel
@@ -862,30 +917,31 @@ void Cylinder::determine_coefficients_cuda()
 	   thrust::cuda::par.on(cr->stream),
 	   thrust::make_transform_iterator(index_begin, key_functor(gridSize)),
 	   thrust::make_transform_iterator(index_end,   key_functor(gridSize)),
-	   dc_coef.begin(), thrust::make_discard_iterator(), df_coef.begin()
+	   ar->dc_coef.begin(), thrust::make_discard_iterator(), ar->dw_coef.begin()
 	   );
-    
-	thrust::host_vector<cuFP_t> ret = df_coef;
-	for (size_t j=0; j<ncylorder; j++) {
-	  host_coefs[Imn(m, 'c', j, ncylorder)] += ret[2*j];
-	  if (m>0) host_coefs[Imn(m, 's', j, ncylorder)] += ret[2*j+1];
-	}
+
+	thrust::transform(thrust::cuda::par.on(cr->stream),
+			  ar->dw_coef.begin(), ar->dw_coef.end(),
+			  beg, beg, thrust::plus<cuFP_t>());
+
+	thrust::advance(beg, 2*ncylorder);
       }
     
       // Compute number and total mass of particles used in coefficient
       // determination
       //
-      thrust::sort(thrust::cuda::par.on(cr->stream), m_d.begin(), m_d.end());
+      thrust::sort(thrust::cuda::par.on(cr->stream), ar->m_d.begin(), ar->m_d.end());
 
       /*
       auto m_it    = thrust::upper_bound(thrust::cuda::par.on(cr->stream),
 					 m_d.begin(), m_d.end(), 0.0);
       */
-      int posn     = getBound<double>(0.0, m_d, cr->stream, BoundType::Upper);
-      auto m_it    = m_d.begin(); thrust::advance(m_it, posn);
-      use[0]      += thrust::distance(m_it, m_d.end());
-      cylmass0[0] += thrust::reduce  (thrust::cuda::par.on(cr->stream),
-				      m_it, m_d.end());
+      int posn     = getBound<double>(0.0, ar->m_d, cr->stream, BoundType::Upper);
+      auto m_it    = ar->m_d.begin();
+      thrust::advance(m_it, posn);
+
+      ar->use     += thrust::distance(m_it, ar->m_d.end());
+      ar->mass    += thrust::reduce  (thrust::cuda::par.on(cr->stream), m_it, ar->m_d.end());
       Ntot        += N;
     }
 
@@ -895,10 +951,31 @@ void Cylinder::determine_coefficients_cuda()
     size_t nadv = std::distance(first, end);
     if (nadv < cC->bunchSize) last = end;
     else std::advance(last, cC->bunchSize);
+
+    // Advance stream iterators
+    //
+    ++cr;			// Coefficient
+    ++ar;			// Force method
   }
 
   if (Ntot == 0) {
     return;
+  }
+
+  // Accumulate the coefficients from the device to the host
+  //
+  for (auto r : cuRingData) {
+    thrust::host_vector<cuFP_t> ret = r.df_coef;
+    int offst = 0;
+    for (int m=0; m<=mmax; m++) {
+      for (size_t j=0; j<ncylorder; j++) {
+	host_coefs[Imn(m, 'c', j, ncylorder)] += ret[2*j+offst];
+	if (m>0) host_coefs[Imn(m, 's', j, ncylorder)] += ret[2*j+1+offst];
+      }
+      offst += 2*ncylorder;
+    }
+    use[0]      += r.use;
+    cylmass0[0] += r.mass;
   }
 
   // DEBUG, only useful for CUDAtest branch
@@ -1278,9 +1355,10 @@ void Cylinder::determine_acceleration_cuda()
     if (nadv < cC->bunchSize) last = end;
     else std::advance(last, cC->bunchSize);
 
-    // Advance stream iterator
+    // Advance stream iterators
     //
-    ++cr;
+    ++cr;			// Component
+				// Force method ring not needed here
   }
 
   cC->CudaToParticles();
@@ -1345,7 +1423,6 @@ void Cylinder::DtoH_coefs(int M)
 
 void Cylinder::destroy_cuda()
 {
-  // std::cout << "texture object array size = " << tex.size() << std::endl;
   for (size_t i=0; i<tex.size(); i++) {
     std::ostringstream sout;
     sout << "trying to free TextureObject [" << i << "]";
@@ -1353,13 +1430,10 @@ void Cylinder::destroy_cuda()
 		   __FILE__, __LINE__, sout.str());
   }
 
-  // std::cout << "cuInterpArray size = " << cuInterpArray.size() << std::endl;
   for (size_t i=0; i<cuInterpArray.size(); i++) {
     std::ostringstream sout;
     sout << "trying to free cuPitch [" << i << "]";
     cuda_safe_call(cudaFree(cuInterpArray[i]),
 		     __FILE__, __LINE__, sout.str());
   }
-    
-  std::cout << "cuda memory freed" << std::endl;
 }

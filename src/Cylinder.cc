@@ -54,6 +54,10 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
   if (m) {
     throw std::runtime_error("Error in Cylinder: MixtureBasis logic is not yet implemented in CUDA");
   }
+
+  // Initialize the circular storage container 
+  cuda_initialize();
+
 #endif
 
   id          = "Cylinder";

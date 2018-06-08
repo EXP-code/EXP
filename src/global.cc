@@ -136,4 +136,4 @@ bool fpe_trace     = false;
 bool fpe_wait      = false;
 
 int  rlimit_val    = 0;
-
+int  cuStreams     = 3;

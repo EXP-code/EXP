@@ -1,6 +1,8 @@
-#include <boost/make_shared.hpp>
 #include <Component.H>
 #include <Bounds.cuH>
+#include "expand.h"
+
+#include <boost/make_shared.hpp>
 
 unsigned Component::cudaStreamData::totalInstances=0;
 
@@ -22,9 +24,9 @@ Component::cudaStreamData::~cudaStreamData()
 
 void Component::cuda_initialize()
 {
-  // Initialize 3 streams
+  // Initialize streams
   //
-  cuRingData.resize(3);
+  cuRingData.resize(cuStreams);
   cuRing = boost::make_shared<cuRingType>(cuRingData);
 }
 
@@ -109,7 +111,7 @@ void Component::HostToDev(Component::cuRingType cr)
 {
   auto npart = thrust::distance(cr->first, cr->last);
   
-  if (npart) {		  // Don't bother tryig to copy zero particles
+  if (npart) {		  // Don't bother trying to copy zero particles
 
     if (cr->cuda_particles.capacity()<npart) cr->cuda_particles.reserve(npart);
     cr->cuda_particles.resize(npart);
@@ -125,7 +127,7 @@ void Component::DevToHost(Component::cuRingType cr)
 {
   auto npart = thrust::distance(cr->first, cr->last);
   
-  if (npart) {		  // Don't bother tryig to copy zero particles
+  if (npart) {		  // Don't bother trying to copy zero particles
 
     if (host_particles.capacity()<npart) host_particles.reserve(npart);
     host_particles.resize(npart);

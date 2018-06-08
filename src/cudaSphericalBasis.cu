@@ -1,7 +1,12 @@
+#include <list>
+#include <tuple>
+
 #include <Component.H>
 #include <SphericalBasis.H>
 #include <cudaReduce.cuH>
 #include <Bounds.cuH>
+
+#include <boost/make_shared.hpp>
 
 // Define for debugging
 //
@@ -169,6 +174,14 @@ cuFP_t cu_d_xi_to_r(cuFP_t xi)
   }
 
   return ret;
+}
+
+void SphericalBasis::cuda_initialize()
+{
+  // Initialize for streams
+  //
+  cuRingData.resize(cuStreams);
+  cuRing = boost::make_shared<cuRingType>(cuRingData);
 }
 
 void SphericalBasis::initialize_mapping_constants()
@@ -683,6 +696,92 @@ public:
 
 static bool initialize_cuda_sph = true;
 
+void SphericalBasis::cudaStorage::resize_coefs
+(int nmax, int Lmax, int N, int gridSize)
+{
+  // Create space for coefficient reduction to prevent continued
+  // dynamic allocation
+  //
+  if (dN_coef.capacity() < 2*nmax*N)
+    dN_coef.reserve(2*nmax*N);
+  
+  if (dc_coef.capacity() < 2*nmax*gridSize)
+    dc_coef.reserve(2*nmax*gridSize);
+  
+  if (plm1_d.capacity() < (Lmax+1)*(Lmax+2)/2*N)
+    plm1_d.reserve((Lmax+1)*(Lmax+2)/2*N);
+  
+  if (r_d.capacity() < N) r_d.reserve(N);
+  if (m_d.capacity() < N) m_d.reserve(N);
+  if (a_d.capacity() < N) a_d.reserve(N);
+  if (p_d.capacity() < N) p_d.reserve(N);
+  if (i_d.capacity() < N) i_d.reserve(N);
+  
+  // Set needed space for current step
+  //
+  dN_coef.resize(2*nmax*N);
+  dc_coef.resize(2*nmax*gridSize);
+
+  // This will stay fixed for the entire run
+  //
+  dw_coef.resize(2*nmax);
+
+  // Space for Legendre coefficients 
+  //
+  if (plm1_d.capacity() < (Lmax+1)*(Lmax+2)/2*N)
+    plm1_d.reserve((Lmax+1)*(Lmax+2)/2*N);
+  plm1_d.resize((Lmax+1)*(Lmax+2)/2*N);
+  
+  // Space for coordinates
+  //
+  r_d.resize(N);
+  m_d.resize(N);
+  a_d.resize(N);
+  p_d.resize(N);
+  i_d.resize(N);
+}
+
+void SphericalBasis::zero_coefs()
+{
+  Component::     cuRingType cr = *cC->cuRing.get();
+  SphericalBasis::cuRingType ar = *cuRing.get();
+  
+  for (int n=0; n<cuStreams; n++) {
+    // Resize output array
+    //
+    ar->df_coef.resize((Lmax+1)*(Lmax+2)*nmax);
+    
+    // Zero output array
+    //
+    thrust::fill(thrust::cuda::par.on(cr->stream),
+		 ar->df_coef.begin(), ar->df_coef.end(), 0.0);
+
+    // Global counter
+    //
+    ar->use = 0.0;
+
+    // Advance iterators
+    //
+    ++cr;			// Component stream
+    ++ar;			// Force method storage
+  }
+}
+
+void SphericalBasis::cudaStorage::resize_acc(int Lmax, int Nthread)
+{
+  // Space for Legendre coefficients 
+  //
+  if (plm1_d.capacity() < (Lmax+1)*(Lmax+2)/2*Nthread)
+    plm1_d.reserve((Lmax+1)*(Lmax+2)/2*Nthread);
+  
+  if (plm2_d.capacity() < (Lmax+1)*(Lmax+2)/2*Nthread)
+    plm2_d.reserve((Lmax+1)*(Lmax+2)/2*Nthread);
+  
+  plm1_d.resize((Lmax+1)*(Lmax+2)/2*Nthread);
+  plm2_d.resize((Lmax+1)*(Lmax+2)/2*Nthread);
+}
+
+
 void SphericalBasis::determine_coefficients_cuda()
 {
   if (initialize_cuda_sph) {
@@ -700,7 +799,8 @@ void SphericalBasis::determine_coefficients_cuda()
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
 
-  Component::cuRingType cr = *cC->cuRing.get();
+  Component::     cuRingType cr = *cC->cuRing.get();
+  SphericalBasis::cuRingType ar = *cuRing.get();
   
   // This will stay fixed for the entire run
   //
@@ -731,6 +831,10 @@ void SphericalBasis::determine_coefficients_cuda()
   unsigned Ntot = 0;
   use[0] = 0.0;
   thrust::fill(host_coefs.begin(), host_coefs.end(), 0.0);
+
+  // Zero out coefficient storage
+  //
+  zero_coefs();
 
   // Copy particles to host vector
   //
@@ -787,47 +891,14 @@ void SphericalBasis::determine_coefficients_cuda()
 
     if (N) {
     
-      // Create space for coefficient reduction to prevent continued
-      // dynamic allocation
+      // Resize storage as needed
       //
-      if (dN_coef.capacity() < 2*nmax*N)
-	dN_coef.reserve(2*nmax*N);
-      
-      if (dc_coef.capacity() < 2*nmax*gridSize)
-	dc_coef.reserve(2*nmax*gridSize);
-      
-      if (plm_d.capacity() < (Lmax+1)*(Lmax+2)/2*N)
-	plm_d.reserve((Lmax+1)*(Lmax+2)/2*N);
-      
-      if (r_d.capacity() < N) r_d.reserve(N);
-      if (m_d.capacity() < N) m_d.reserve(N);
-      if (a_d.capacity() < N) a_d.reserve(N);
-      if (p_d.capacity() < N) p_d.reserve(N);
-      if (i_d.capacity() < N) i_d.reserve(N);
-      
-      // Set needed space for current step
-      //
-      dN_coef.resize(2*nmax*N);
-      dc_coef.resize(2*nmax*gridSize);
-      df_coef.resize(2*nmax);	// This should stay fixed, no reserve
-      
-      // Space for Legendre coefficients 
-      //
-      if (cr->wrk1.capacity() < (Lmax+1)*(Lmax+2)/2*N) cr->wrk1.reserve((Lmax+1)*(Lmax+2)/2*N);
-      cr->wrk1.resize((Lmax+1)*(Lmax+2)/2*N);
-    
-      // Space for coordinates
-      //
-      r_d.resize(N);
-      m_d.resize(N);
-      a_d.resize(N);
-      p_d.resize(N);
-      i_d.resize(N);
+      ar->resize_coefs(nmax, Lmax, N, gridSize);
       
       // Shared memory size for the reduction
       //
       int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
-    
+      
     
       thrust::counting_iterator<int> index_begin(0);
       thrust::counting_iterator<int> index_end(gridSize*2*nmax);
@@ -839,26 +910,29 @@ void SphericalBasis::determine_coefficients_cuda()
 				// 
       coordKernel<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
 	(toKernel(cr->cuda_particles),
-	 toKernel(m_d), toKernel(a_d), toKernel(p_d), toKernel(cr->wrk1),
-	 toKernel(i_d), Lmax, stride, lohi, rmax);
+	 toKernel(ar->m_d), toKernel(ar->a_d), toKernel(ar->p_d),
+	 toKernel(ar->plm1_d), toKernel(ar->i_d),
+	 Lmax, stride, lohi, rmax);
     
 				// Compute the coefficient
 				// contribution for each order
       int osize = nmax*2;	//
+      auto beg = ar->df_coef.begin();
+
       for (int l=0; l<=Lmax; l++) {
 	for (int m=0; m<=l; m++) {
 				// Compute the contribution to the
 				// coefficients from each particle
 				//
 	  coefKernel<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
-	    (toKernel(dN_coef), toKernel(t_d), toKernel(m_d),
-	     toKernel(a_d), toKernel(p_d), toKernel(plm_d), toKernel(i_d),
-	     stride, l, m, Lmax, nmax, lohi);
+	    (toKernel(ar->dN_coef), toKernel(t_d), toKernel(ar->m_d),
+	     toKernel(ar->a_d), toKernel(ar->p_d), toKernel(ar->plm1_d),
+	     toKernel(ar->i_d), stride, l, m, Lmax, nmax, lohi);
 	  
 				// Begin the reduction per grid block
 				// 
 	  reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize, BLOCK_SIZE, sMemSize, cr->stream>>>
-	    (toKernel(dc_coef), toKernel(dN_coef), osize, N);
+	    (toKernel(ar->dc_coef), toKernel(ar->dN_coef), osize, N);
       
 				// Finish the reduction for this order
 				// in parallel
@@ -867,29 +941,29 @@ void SphericalBasis::determine_coefficients_cuda()
 	     thrust::cuda::par.on(cr->stream),
 	     thrust::make_transform_iterator(index_begin, key_functor(gridSize)),
 	     thrust::make_transform_iterator(index_end,   key_functor(gridSize)),
-	     dc_coef.begin(), thrust::make_discard_iterator(), df_coef.begin()
+	     ar->dc_coef.begin(), thrust::make_discard_iterator(), ar->dw_coef.begin()
 	   );
+
+	  thrust::transform(thrust::cuda::par.on(cr->stream),
+			    ar->dw_coef.begin(), ar->dw_coef.end(),
+			    beg, beg, thrust::plus<cuFP_t>());
 	  
-				// Assign reduced output to
-				// coefficient array
-				//
-	  thrust::host_vector<cuFP_t> ret = df_coef;
-	  for (size_t j=0; j<nmax; j++) {
-	    host_coefs[Ilmn(l, m, 'c', j, nmax)] += ret[2*j];
-	    if (m>0) host_coefs[Ilmn(l, m, 's', j, nmax)] += ret[2*j+1];
-	  }
+	  thrust::advance(beg, osize);
 	}
       }
 
       // Compute number and total mass of particles used in coefficient
       // determination
       //
-      thrust::sort(thrust::cuda::par.on(cr->stream), m_d.begin(), m_d.end());
+      thrust::sort(thrust::cuda::par.on(cr->stream), ar->m_d.begin(), ar->m_d.end());
       
       // auto m_it = thrust::upper_bound(thrust::cuda::par.on(cr->stream), m_d.begin(), m_d.end(), 0.0);
-      int posn  = getBound<double>(0.0, m_d, cr->stream, BoundType::Upper);
-      auto m_it = m_d.begin(); thrust::advance(m_it, posn);
-      use[0]   += thrust::distance(m_it, m_d.end());
+
+      int posn  = getBound<double>(0.0, ar->m_d, cr->stream, BoundType::Upper);
+      auto m_it = ar->m_d.begin();
+      thrust::advance(m_it, posn);
+
+      ar->use  += thrust::distance(m_it, ar->m_d.end());
       Ntot     += N;
     }
 
@@ -899,8 +973,31 @@ void SphericalBasis::determine_coefficients_cuda()
     size_t nadv = std::distance(first, end);
     if (nadv <= cC->bunchSize) last = end;
     else std::advance(last, cC->bunchSize);
+
+    // Advance stream iterators
+    //
+    ++cr;			// Component stream
+    ++ar;			// Force method storage
   }
 
+
+  // Copy back coefficient data from device and load the host
+  //
+  for (auto r : cuRingData) {
+    thrust::host_vector<cuFP_t> ret = r.df_coef;
+    int offst = 0;
+    for (int l=0; l<=Lmax; l++) {
+      for (int m=0; m<=l; m++) {
+	for (size_t j=0; j<nmax; j++) {
+	  host_coefs[Ilmn(l, m, 'c', j, nmax)] += ret[2*j+offst];
+	  if (m>0) host_coefs[Ilmn(l, m, 's', j, nmax)] += ret[2*j+1+offst];
+	}
+	offst += nmax*2;
+      }
+    }
+    use[0] += r.use;
+  }
+  
   if (Ntot == 0) {
     return;
   }
@@ -1209,7 +1306,8 @@ void SphericalBasis::determine_acceleration_cuda()
 
   // Stream structure iterator
   //
-  Component::cuRingType cr = *cC->cuRing.get();
+  Component::     cuRingType cr = *cC->cuRing.get();
+  SphericalBasis::cuRingType ar = *cuRing.get();
 
   // Assign component center
   //
@@ -1281,17 +1379,8 @@ void SphericalBasis::determine_acceleration_cuda()
       }
 #endif
       
-      // Space for Legendre coefficients 
-      //
-      if (cr->wrk1.capacity() < (Lmax+1)*(Lmax+2)/2*Nthread)
-	cr->wrk1.reserve((Lmax+1)*(Lmax+2)/2*Nthread);
-      
-      if (cr->wrk2.capacity() < (Lmax+1)*(Lmax+2)/2*Nthread)
-	cr->wrk2.reserve((Lmax+1)*(Lmax+2)/2*Nthread);
-      
-      cr->wrk1.resize((Lmax+1)*(Lmax+2)/2*Nthread);
-      cr->wrk2.resize((Lmax+1)*(Lmax+2)/2*Nthread);
-    
+      ar->resize_acc(Lmax, Nthread);
+
       // Shared memory size for the reduction
       //
       int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
@@ -1300,9 +1389,8 @@ void SphericalBasis::determine_acceleration_cuda()
       //
       forceKernel<<<gridSize, BLOCK_SIZE, sMemSize, cr->stream>>>
 	(toKernel(cr->cuda_particles), toKernel(dev_coefs), toKernel(t_d),
-	 toKernel(cr->wrk1), toKernel(cr->wrk2),
-	 stride, Lmax, nmax, lohi, rmax,
-	 use_external);
+	 toKernel(ar->plm1_d), toKernel(ar->plm2_d),
+	 stride, Lmax, nmax, lohi, rmax, use_external);
 
       // Copy particles back to host
       //
@@ -1318,7 +1406,8 @@ void SphericalBasis::determine_acceleration_cuda()
     
     // Advance stream iterators
     //
-    ++cr;
+    ++cr;			// Component
+    ++ar;			// Force method
   }
 
   // Finally, do copy from host to component
@@ -1394,7 +1483,6 @@ void SphericalBasis::DtoH_coefs(Matrix& expcoef)
 
 void SphericalBasis::destroy_cuda()
 {
-  // std::cout << "texture object array size = " << tex.size() << std::endl;
   for (size_t i=0; i<tex.size(); i++) {
     std::ostringstream sout;
     sout << "trying to free TextureObject [" << i << "]";
@@ -1402,13 +1490,10 @@ void SphericalBasis::destroy_cuda()
 		   __FILE__, __LINE__, sout.str());
   }
 
-  // std::cout << "cuInterpArray size = " << cuInterpArray.size() << std::endl;
   for (size_t i=0; i<cuInterpArray.size(); i++) {
     std::ostringstream sout;
     sout << "trying to free cuArray [" << i << "]";
     cuda_safe_call(cudaFreeArray(cuInterpArray[i]),
 		     __FILE__, __LINE__, sout.str());
   }
-    
-  // std::cout << "cuda memory freed" << std::endl;
 }

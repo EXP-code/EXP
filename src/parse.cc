@@ -65,6 +65,8 @@ void initialize(void)
   if (parse->find_item("dynfracA", val))	dynfracA = atof(val.c_str());
   if (parse->find_item("dynfracP", val))	dynfracP = atof(val.c_str());
 
+  if (parse->find_item("cuStreams", val))       cuStreams = atoi(val.c_str());
+
   if (parse->find_item("DTold", val)) {
     if (atoi(val.c_str())) {
       DTold = true;

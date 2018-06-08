@@ -831,9 +831,6 @@ public:
     //! Instance id for debugging
     unsigned instance;
 
-    //! Working device vector (e.g. for Legendre evaluation)
-    thrust::device_vector<double> wrk1, wrk2;
-
     //! Host particle beginning and ending iterator
     hostPartItr first, last;
 
@@ -848,15 +845,6 @@ public:
 
     //! Destructor
     ~cudaStreamData();
-
-    //! For debugging
-    void print()
-    {
-      std::cout << "cudaStreamData: instance=" << instance
-		<< " wrk1=" << wrk1.size() << " wrk2=" << wrk2.size()
-		<< " npart=" << thrust::distance(first, last)
-		<< " cudaP=" << cuda_particles.size() << std::endl;
-    }
   };
 
   //! Initialize the streams

@@ -118,11 +118,45 @@ protected:
   //! Working device vectors
   thrust::device_vector<cudaTextureObject_t> t_d;
 
-  thrust::device_vector<cuFP_t> dN_coef;
-  thrust::device_vector<cuFP_t> dc_coef;
-  thrust::device_vector<cuFP_t> df_coef;
-  thrust::device_vector<cuFP_t> X_d, Y_d, m_d, p_d;
-  thrust::device_vector<int>    iX_d, iY_d;
+  //! Helper struct to hold device data
+  struct cudaStorage
+  {
+    thrust::device_vector<cuFP_t> dN_coef;
+    thrust::device_vector<cuFP_t> dc_coef;
+    thrust::device_vector<cuFP_t> dw_coef;
+    thrust::device_vector<cuFP_t> df_coef;
+    thrust::device_vector<cuFP_t> X_d, Y_d, m_d, p_d;
+    thrust::device_vector<int>    iX_d, iY_d;
+
+    cuFP_t use, mass;
+
+    void resize_coefs(int ncylorder, int mmax, int N, int gridSize);
+  };
+
+  //! Cyclical ring interator for storage
+  //@{
+  //! An STL container
+  typedef std::vector<cudaStorage> cuContainer;
+
+  //! An iterator for the container
+  typedef cuContainer::iterator    cuIterator;
+
+  //! Convert to a ring iterator
+  typedef RingIterator <cudaStorage, cuContainer, cuIterator> cuRingType;
+
+  //! The storage instance
+  cuContainer cuRingData;
+
+  //! The cyclic iterator instance
+  boost::shared_ptr<cuRingType> cuRing;
+  //@}
+  
+  //! Initialize the container
+  void cuda_initialize();
+
+  //! Zero the coefficient output vectors
+  void zero_coefs();
+
   //@}
 
 

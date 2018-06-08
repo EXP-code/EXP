@@ -32,7 +32,7 @@ AM_CXXFLAGS  = -std=c++11 -D_REENTRANT -fopenmp $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(
 if ENABLE_CUDA
 ADD_CUDA = cudaParticle.cu cudaSphericalBasis.cu cudaSphere.cu	\
 cudaCylinder.cu cudaEmpOrth.cu cudaComponent.cu NVTX.cc
-GENCODE_FLAGS  = -gencode arch=compute_61,code=sm_61
+GENCODE_FLAGS  = -gencode arch=compute_61,code=sm_61 --expt-relaxed-constexpr
 CUDA_LIBFLAGS  = -lcudart -lnvToolsExt
 NVCC_CXXFLAGS  = -I. $(GENCODE_FLAGS) $(NVCC_EXTRA) -Xcompiler $(AM_CPPFLAGS)
 endif

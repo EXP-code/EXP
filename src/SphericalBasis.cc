@@ -18,6 +18,10 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
   if (m) {
     throw std::runtime_error("Error in SphericalBasis: MixtureBasis logic is not yet implemented in CUDA");
   }
+
+  // Initialize the circular storage container 
+  cuda_initialize();
+
 #endif
 
   dof              = 3;
