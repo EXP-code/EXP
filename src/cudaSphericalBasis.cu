@@ -1005,19 +1005,36 @@ void SphericalBasis::determine_coefficients_cuda()
   // DEBUG, only useful for CUDAtest branch
   //
   if (false) {
-    std::cout << std::string(2*4+4*20, '-') << std::endl
-	      << "---- Spherical "      << std::endl
-	      << std::string(2*4+4*20, '-') << std::endl;
-    std::cout << "L=M=0 coefficients" << std::endl
-	      << std::setprecision(10);
 
-    std::cout << std::setw(4)  << "n"
-	      << std::setw(4)  << "i"
-	      << std::setw(20) << "GPU"
-	      << std::setw(20) << "CPU"
-	      << std::setw(20) << "diff"
-	      << std::setw(20) << "rel diff"
-	      << std::endl;
+    constexpr bool compareC = false;
+
+
+    if (compareC) {
+      std::cout << std::string(2*4+4*20, '-') << std::endl
+		<< "---- Spherical "      << std::endl
+		<< std::string(2*4+4*20, '-') << std::endl;
+      std::cout << "L=M=0 coefficients" << std::endl
+		<< std::setprecision(10);
+
+      std::cout << std::setw(4)  << "n"
+		<< std::setw(4)  << "i"
+		<< std::setw(20) << "GPU"
+		<< std::setw(20) << "CPU"
+		<< std::setw(20) << "diff"
+		<< std::setw(20) << "rel diff"
+		<< std::endl;
+    } else {
+      std::cout << std::string(2*4+20, '-') << std::endl
+		<< "---- Spherical "      << std::endl
+		<< std::string(2*4+20, '-') << std::endl;
+      std::cout << "L=M=0 coefficients" << std::endl
+		<< std::setprecision(10);
+
+      std::cout << std::setw(4)  << "n"
+		<< std::setw(4)  << "i"
+		<< std::setw(20) << "GPU"
+		<< std::endl;
+    }
 
     int i = Ilmn(0, 0, 'c', 0, nmax);
     auto cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+nmax, LessAbs<cuFP_t>());
@@ -1025,13 +1042,20 @@ void SphericalBasis::determine_coefficients_cuda()
     for (size_t n=0; n<nmax; n++) {
       cuFP_t a = host_coefs[i+n];
       cuFP_t b = expcoef[0][n+1];
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::setw(20) << b
-		<< std::setw(20) << a - b
-		<< std::setw(20) << (a - b)/fabs(*cmax)
-		<< std::endl;
+      if (compareC) {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::setw(20) << b
+		  << std::setw(20) << a - b
+		  << std::setw(20) << (a - b)/fabs(*cmax)
+		  << std::endl;
+      } else {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::endl;
+      }
     }
 
     std::cout << "L=1, M=0 coefficients" << std::endl;
@@ -1042,13 +1066,20 @@ void SphericalBasis::determine_coefficients_cuda()
     for (size_t n=0; n<nmax; n++) {
       cuFP_t a = host_coefs[i+n];
       cuFP_t b = expcoef[1][n+1];
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::setw(20) << b
-		<< std::setw(20) << a - b
-		<< std::setw(20) << (a - b)/fabs(*cmax)
-		<< std::endl;
+      if (compareC) {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::setw(20) << b
+		  << std::setw(20) << a - b
+		  << std::setw(20) << (a - b)/fabs(*cmax)
+		  << std::endl;
+      } else {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::endl;
+      }
     }
 
     std::cout << "L=1, M=1c coefficients" << std::endl;
@@ -1059,13 +1090,20 @@ void SphericalBasis::determine_coefficients_cuda()
     for (size_t n=0; n<nmax; n++) {
       cuFP_t a = host_coefs[i+n];
       cuFP_t b = expcoef[2][n+1];
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::setw(20) << b
-		<< std::setw(20) << a - b
-		<< std::setw(20) << (a - b)/fabs(*cmax)
-		<< std::endl;
+      if (compareC) {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::setw(20) << b
+		  << std::setw(20) << a - b
+		  << std::setw(20) << (a - b)/fabs(*cmax)
+		  << std::endl;
+      } else {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::endl;
+      }
     }
 
     std::cout << "L=1, M=1s coefficients" << std::endl;
@@ -1076,13 +1114,20 @@ void SphericalBasis::determine_coefficients_cuda()
     for (size_t n=0; n<nmax; n++) {
       cuFP_t a = host_coefs[i+n];
       cuFP_t b = expcoef[3][n+1];
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::setw(20) << b
-		<< std::setw(20) << a - b
-		<< std::setw(20) << (a - b)/fabs(*cmax)
-		<< std::endl;
+      if (compareC) {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::setw(20) << b
+		  << std::setw(20) << a - b
+		  << std::setw(20) << (a - b)/fabs(*cmax)
+		  << std::endl;
+      } else {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::endl;
+      }
     }
 
     std::cout << "L=2, M=0 coefficients" << std::endl;
@@ -1093,15 +1138,22 @@ void SphericalBasis::determine_coefficients_cuda()
     for (size_t n=0; n<nmax; n++) {
       cuFP_t a = host_coefs[i+n];
       cuFP_t b = expcoef[4][n+1];
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::setw(20) << b
-		<< std::setw(20) << a - b
-		<< std::setw(20) << (a - b)/fabs(*cmax)
-		<< std::endl;
+      if (compareC) {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::setw(20) << b
+		  << std::setw(20) << a - b
+		  << std::setw(20) << (a - b)/fabs(*cmax)
+		  << std::endl;
+      } else {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::endl;
+      }
     }
-
+      
     std::cout << "L=2, M=1c coefficients" << std::endl;
 
     i = Ilmn(2, 1, 'c', 0, nmax);
@@ -1110,13 +1162,20 @@ void SphericalBasis::determine_coefficients_cuda()
     for (size_t n=0; n<nmax; n++) {
       cuFP_t a = host_coefs[i+n];
       cuFP_t b = expcoef[5][n+1];
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::setw(20) << b
-		<< std::setw(20) << a - b
-		<< std::setw(20) << (a - b)/fabs(*cmax)
-		<< std::endl;
+      if (compareC) {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::setw(20) << b
+		  << std::setw(20) << a - b
+		  << std::setw(20) << (a - b)/fabs(*cmax)
+		  << std::endl;
+      } else {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::endl;
+      }
     }
 
     std::cout << "L=2, M=1c coefficients" << std::endl;
@@ -1127,13 +1186,20 @@ void SphericalBasis::determine_coefficients_cuda()
     for (size_t n=0; n<nmax; n++) {
       cuFP_t a = host_coefs[i+n];
       cuFP_t b = expcoef[6][n+1];
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::setw(20) << b
-		<< std::setw(20) << a - b
-		<< std::setw(20) << (a - b)/fabs(*cmax)
-		<< std::endl;
+      if (compareC) {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::setw(20) << b
+		  << std::setw(20) << a - b
+		  << std::setw(20) << (a - b)/fabs(*cmax)
+		  << std::endl;
+      } else {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::endl;
+      }
     }
 
     std::cout << std::string(2*4+4*20, '-') << std::endl;

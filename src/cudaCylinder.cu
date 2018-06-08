@@ -981,20 +981,34 @@ void Cylinder::determine_coefficients_cuda()
   // DEBUG, only useful for CUDAtest branch
   //
   if (false) {
-    std::cout << std::string(2*4+4*20, '-') << std::endl
-	      << "---- Cylindrical "      << std::endl
-	      << std::string(2*4+4*20, '-') << std::endl;
-    std::cout << "M=0 coefficients" << std::endl
-	      << std::setprecision(10);
-    
+    constexpr bool compareC = false;
 
-    std::cout << std::setw(4)  << "n"
-	      << std::setw(4)  << "i"
-	      << std::setw(20) << "GPU"
-	      << std::setw(20) << "CPU"
-	      << std::setw(20) << "diff"
-	      << std::setw(20) << "rel diff"
-	      << std::endl;
+    if (compareC) {
+      std::cout << std::string(2*4+4*20, '-') << std::endl
+		<< "---- Cylindrical "      << std::endl
+		<< std::string(2*4+4*20, '-') << std::endl;
+      std::cout << "M=0 coefficients" << std::endl
+		<< std::setprecision(10);
+
+      std::cout << std::setw(4)  << "n"
+		<< std::setw(4)  << "i"
+		<< std::setw(20) << "GPU"
+		<< std::setw(20) << "CPU"
+		<< std::setw(20) << "diff"
+		<< std::setw(20) << "rel diff"
+		<< std::endl;
+    } else {
+      std::cout << std::string(2*4+20, '-') << std::endl
+		<< "---- Cylindrical "      << std::endl
+		<< std::string(2*4+20, '-') << std::endl;
+      std::cout << "M=0 coefficients" << std::endl
+		<< std::setprecision(10);
+
+      std::cout << std::setw(4)  << "n"
+		<< std::setw(4)  << "i"
+		<< std::setw(20) << "GPU"
+		<< std::endl;
+    }
 
     int i = Imn(0, 'c', 0, ncylorder);
     auto cmax = std::max_element(host_coefs.begin()+i, host_coefs.begin()+i+ncylorder, LessAbs<cuFP_t>());
@@ -1003,13 +1017,20 @@ void Cylinder::determine_coefficients_cuda()
       int    i = Imn(0, 'c', n, ncylorder);
       cuFP_t a = host_coefs[i];
       cuFP_t b = ortho->get_coef(0, n, 'c');
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::setw(20) << b
-		<< std::setw(20) << a - b
-		<< std::setw(20) << (a - b)/fabs(*cmax)
-		<< std::endl;
+      if (compareC) {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::setw(20) << b
+		  << std::setw(20) << a - b
+		  << std::setw(20) << (a - b)/fabs(*cmax)
+		  << std::endl;
+      } else {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::endl;
+      }
     }
 
     std::cout << "M=1c coefficients" << std::endl;
@@ -1021,13 +1042,20 @@ void Cylinder::determine_coefficients_cuda()
       int    i = Imn(1, 'c', n, ncylorder);
       cuFP_t a = host_coefs[i];
       cuFP_t b = ortho->get_coef(1, n, 'c');
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::setw(20) << b
-		<< std::setw(20) << a - b
-		<< std::setw(20) << (a - b)/fabs(*cmax)
-		<< std::endl;
+      if (compareC) {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::setw(20) << b
+		  << std::setw(20) << a - b
+		  << std::setw(20) << (a - b)/fabs(*cmax)
+		  << std::endl;
+      } else {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::endl;
+      }
     }
 
     std::cout << "M=1s coefficients" << std::endl;
@@ -1039,13 +1067,20 @@ void Cylinder::determine_coefficients_cuda()
       int    i = Imn(1, 's', n, ncylorder);
       cuFP_t a = host_coefs[i];
       cuFP_t b = ortho->get_coef(1, n, 's');
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::setw(20) << b
-		<< std::setw(20) << a - b
-		<< std::setw(20) << (a - b)/fabs(*cmax)
-		<< std::endl;
+      if (compareC) {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::setw(20) << b
+		  << std::setw(20) << a - b
+		  << std::setw(20) << (a - b)/fabs(*cmax)
+		  << std::endl;
+      } else {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::endl;
+      }
     }
 
     std::cout << "M=2c coefficients" << std::endl;
@@ -1057,13 +1092,20 @@ void Cylinder::determine_coefficients_cuda()
       int    i = Imn(2, 'c', n, ncylorder);
       cuFP_t a = host_coefs[i];
       cuFP_t b = ortho->get_coef(2, n, 'c');
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::setw(20) << b
-		<< std::setw(20) << a - b
-		<< std::setw(20) << (a - b)/fabs(*cmax)
-		<< std::endl;
+      if (compareC) {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::setw(20) << b
+		  << std::setw(20) << a - b
+		  << std::setw(20) << (a - b)/fabs(*cmax)
+		  << std::endl;
+      } else {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::endl;
+      }
     }
     
     std::cout << "M=2s coefficients" << std::endl;
@@ -1075,13 +1117,20 @@ void Cylinder::determine_coefficients_cuda()
       int    i = Imn(2, 's', n, ncylorder);
       cuFP_t a = host_coefs[i];
       cuFP_t b = ortho->get_coef(2, n, 's');
-      std::cout << std::setw(4)  << n
-		<< std::setw(4)  << i
-		<< std::setw(20) << a
-		<< std::setw(20) << b
-		<< std::setw(20) << a - b
-		<< std::setw(20) << (a - b)/fabs(*cmax)
-		<< std::endl;
+      if (compareC) {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::setw(20) << b
+		  << std::setw(20) << a - b
+		  << std::setw(20) << (a - b)/fabs(*cmax)
+		  << std::endl;
+      } else {
+	std::cout << std::setw(4)  << n
+		  << std::setw(4)  << i
+		  << std::setw(20) << a
+		  << std::endl;
+      }
     }
 
     std::cout << std::string(2*4+4*20, '-') << std::endl;
