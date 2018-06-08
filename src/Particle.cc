@@ -264,7 +264,7 @@ void Particle::writeAscii(double* com0, double* comI,
 std::ostream& operator<< (std::ostream& os, const PMapType& p)
 {
   os << std::setw(10) << p.second.indx
-     << std::setw(10) << p.second.level
+     << std::setw( 4) << p.second.level
      << std::setw(16) << p.second.mass;
   for (int k=0; k<3; k++) os << std::setw(16) << p.second.pos[k];
   // for (int k=0; k<3; k++) os << std::setw(16) << p.second.vel[k];
