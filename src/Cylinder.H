@@ -30,13 +30,13 @@ private:
 
   EmpCylSL *ortho;
   int eof, ncompcyl;
-  double cylmass;
+  double cylmass, resetT;
 
   // Three_Vector *pos, *frc;
   Vector *pos, *frc;
 
-  double *cylmass0;
-  int *offgrid;
+  std::vector<double> cylmass0;
+  std::vector<int> offgrid;
 
   void initialize(void);
 
@@ -127,8 +127,6 @@ protected:
     thrust::device_vector<cuFP_t> df_coef;
     thrust::device_vector<cuFP_t> X_d, Y_d, m_d, p_d;
     thrust::device_vector<int>    iX_d, iY_d;
-
-    cuFP_t use, mass;
 
     void resize_coefs(int ncylorder, int mmax, int N, int gridSize);
   };

@@ -33,8 +33,8 @@ inline void check_bad(const char *msg)
 {
 #ifdef CHK_BADV
   if (comp.bad_values()) 
-    cout << "Process " << myid 
-	 << ": found BAD values " << msg << endl;
+    std::cout << "Process " << myid 
+	      << ": found BAD values " << msg << std::endl;
 #endif
 }
 
@@ -42,8 +42,8 @@ inline void check_bad(const char *msg, int v)
 {
 #ifdef CHK_BADV
   if (comp.bad_values()) 
-    cout << "Process " << myid 
-	 << ": found BAD values " << msg << ", M=" << v << endl;
+    std::cout << "Process " << myid 
+	      << ": found BAD values " << msg << ", M=" << v << std::endl;
 #endif
 }
 
@@ -196,16 +196,16 @@ void do_step(int n)
       for (int M=0; M<=multistep; M++) {
 	if (fabs(dtime - pos_check[M]) > 1.0e-8*dtime) {
 	  cerr << "Pos step error[" << M << "]: T=" << tnow << " found="
-	       << pos_check[M] << ", expected=" << dtime << endl;
+	       << pos_check[M] << ", expected=" << dtime << std::endl;
 	  chk = false;
 	}
 	if (fabs(dtime - vel_check[M]) > 1.0e-8*dtime) {
 	  cerr << "Vel step error[" << M << "]: T=" << tnow << " found="
-	       << pos_check[M] << ", expected=" << dtime << endl;
+	       << pos_check[M] << ", expected=" << dtime << std::endl;
 	  chk = false;
 	}
       }
-      if (chk) cerr << "Incremental steps OK at T=" << tnow << endl;
+      if (chk) cerr << "Incremental steps OK at T=" << tnow << std::endl;
     }
 #endif
 
@@ -253,23 +253,24 @@ void do_step(int n)
 				// Timer output
   if (timing && this_step!=0 && (this_step % tskip) == 0) {
     if (myid==0) {
-      cout << endl
-	   << setw(70) << setfill('-') << '-' << endl
-	   << setw(70) << left << "--- Timer info" << endl
-	   << setw(70) << setfill('-') << '-' << endl << setfill(' ') << right;
-      if (multistep) {
-	cout << setw(20) << "Coefs: "
-	     << setw(18) << timer_coef.getTime()() << endl
-	     << setw(20) << "Drift: "
-	     << setw(18) << timer_drift.getTime()() << endl
-	     << setw(20) << "Velocity: "
-	     << setw(18) << timer_vel.getTime()() << endl
-	     << setw(20) << "Force: "
-	     << setw(18) << timer_pot.getTime()() << endl
-	     << setw(20) << "Adjust: "
-	     << setw(18) << timer_adj.getTime()() << endl;
-      }
-      cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
+      std::cout << std::endl
+		<< std::setw(70) << std::setfill('-') << '-' << std::endl
+		<< std::setw(70) << left << "--- Timer info" << std::endl
+		<< std::setw(70) << std::setfill('-') << '-' << std::endl
+		<< std::setfill(' ') << std::right
+		<< std::setw(20) << "Drift: "
+		<< std::setw(18) << timer_drift.getTime()() << std::endl
+		<< std::setw(20) << "Velocity: "
+		<< std::setw(18) << timer_vel.getTime()() << std::endl
+		<< std::setw(20) << "Force: "
+		<< std::setw(18) << timer_pot.getTime()() << std::endl;
+      if (multistep)
+	std::cout << std::setw(20) << "Coefs: "
+		  << std::setw(18) << timer_coef.getTime()() << std::endl
+		  << std::setw(20) << "Adjust: "
+		  << std::setw(18) << timer_adj.getTime()() << std::endl;
+      std::cout << std::setw(70) << std::setfill('-') << '-' << std::endl
+		<< std::setfill(' ');
     }
 
     //
@@ -286,27 +287,28 @@ void do_step(int n)
 		 MPI_COMM_WORLD);
 
       if (myid==0) {
-	cout << endl
-	     << setw(70) << setfill('-') << '-' << endl
-	     << setw(70) << left << "--- Level info" << endl
-	     << setw(70) << setfill('-') << '-' << endl 
-	     << setfill(' ') << right;
+	std::cout << std::endl
+		  << std::setw(70) << std::setfill('-') << '-' << std::endl
+		  << std::setw(70) << left << "--- Level info" << std::endl
+		  << std::setw(70) << std::setfill('-') << '-' << std::endl 
+		  << std::setfill(' ') << right;
       }
       for (int n=0; n<numprocs; n++) {
 	if (myid==n) {
-	  cout << setw(4) << myid << ": ";
-	  for (int m=0; m<=multistep; m++) cout << setw(8) << levpop[m];
-	  cout << endl;
+	  std::cout << std::setw(4) << myid << ": ";
+	  for (int m=0; m<=multistep; m++) std::cout << std::setw(8) << levpop[m];
+	  std::cout << std::endl;
 	}
 	MPI_Barrier(MPI_COMM_WORLD);
       }
 
       if (myid==0) {
-	cout << endl;
-	cout << setw(4) << "T" << ": ";
-	for (int m=0; m<=multistep; m++) cout << setw(8) << levtot[m];
-	cout << endl;
-	cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
+	std::cout << std::endl;
+	std::cout << std::setw(4) << "T" << ": ";
+	for (int m=0; m<=multistep; m++) std::cout << std::setw(8) << levtot[m];
+	std::cout << std::endl;
+	std::cout << std::setw(70) << std::setfill('-') << '-' << std::endl
+		  << std::setfill(' ');
       }
     }
     //

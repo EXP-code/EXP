@@ -52,6 +52,9 @@ protected:
   double muse0;
   //@}
 
+  //! Time at last multistep reset
+  double resetT;
+
   //! Work vectors for cosines for all values <code>m</code>
   Vector *cosm;
 
@@ -149,8 +152,6 @@ protected:
     thrust::device_vector<cuFP_t> plm1_d, plm2_d, r_d, m_d, a_d, p_d;
     thrust::device_vector<int>    i_d;
     
-    cuFP_t use;
-
     void resize_coefs(int nmax, int Lmax, int N, int gridSize);
     void resize_acc  (int Lmax, int Nthread);
   };

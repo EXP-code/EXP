@@ -1,5 +1,5 @@
-#include <list>
 #include <tuple>
+#include <list>
 
 #include <Component.H>
 #include <SphericalBasis.H>
@@ -114,6 +114,14 @@ void legendre_v2(int lmax, cuFP_t x, cuFP_t* p, cuFP_t* dp)
       dp[Ilm(l, m)] = somx2*(x*l*p[Ilm(l, m)] - (l+m)*p[Ilm(l-1, m)]);
     dp[Ilm(l, l)] = somx2*x*l*p[Ilm(l, l)];
   }
+}
+
+template<typename Iterator, typename Pointer>
+__global__
+void reduceUseSph(Iterator first, Iterator last, Pointer result)
+{
+  auto it = thrust::lower_bound(thrust::cuda::par, first, last, 0.0);
+  *result = thrust::distance(it, last);
 }
 
 __global__
@@ -695,6 +703,7 @@ public:
 };
 
 static bool initialize_cuda_sph = true;
+static unsigned dbg_id = 0;
 
 void SphericalBasis::cudaStorage::resize_coefs
 (int nmax, int Lmax, int N, int gridSize)
@@ -755,10 +764,6 @@ void SphericalBasis::zero_coefs()
     //
     thrust::fill(thrust::cuda::par.on(cr->stream),
 		 ar->df_coef.begin(), ar->df_coef.end(), 0.0);
-
-    // Global counter
-    //
-    ar->use = 0.0;
 
     // Advance iterators
     //
@@ -852,10 +857,14 @@ void SphericalBasis::determine_coefficients_cuda()
   if (psize <= cC->bunchSize) last = end;
   else std::advance(last, cC->bunchSize);
 
+  std::vector<cudaStream_t> f_s;
+  thrust::device_vector<unsigned int> f_use;
+
   while (std::distance(first, last)) {
     
     cr->first = first;
     cr->last  = last;
+    cr->id    = ++dbg_id;
 
     // Copy bunch to device
     //
@@ -865,6 +874,14 @@ void SphericalBasis::determine_coefficients_cuda()
     //
     PII lohi = cC->CudaSortByLevel(cr, mlevel, mlevel);
     
+    /*
+    std::cout << "** SphericalBasis [coef] SortByLevel: T=" << tnow
+	      << ", level=" << mlevel << ", #=" << cr->instance
+	      << ", lo=" << lohi.first
+	      << ", hi=" << lohi.second
+	      << std::endl;
+    */
+
     // Compute grid
     //
     unsigned int N         = lohi.second - lohi.first;
@@ -959,12 +976,20 @@ void SphericalBasis::determine_coefficients_cuda()
       
       // auto m_it = thrust::upper_bound(thrust::cuda::par.on(cr->stream), m_d.begin(), m_d.end(), 0.0);
 
-      int posn  = getBound<double>(0.0, ar->m_d, cr->stream, BoundType::Upper);
-      auto m_it = ar->m_d.begin();
-      thrust::advance(m_it, posn);
+      // Asynchronously cache result for host side to prevent stream block
+      //
+      cudaStream_t s1;
+      cudaStreamCreate(&s1);	// Create a new thread
+      f_s.push_back(s1);
+				
+      size_t fsz = f_s.size();	// Augment the data vector
+      f_use.resize(fsz);
+				// Call the kernel on a single thread
+				// 
+      reduceUseSph<<<1, 1, 0, s1>>>(ar->m_d.begin(), ar->m_d.end(),
+				    &f_use[fsz-1]);
 
-      ar->use  += thrust::distance(m_it, ar->m_d.end());
-      Ntot     += N;
+      Ntot += N;
     }
 
     // Advance iterators
@@ -974,7 +999,8 @@ void SphericalBasis::determine_coefficients_cuda()
     if (nadv <= cC->bunchSize) last = end;
     else std::advance(last, cC->bunchSize);
 
-    // Advance stream iterators
+    // Advance stream iterators (these are designed to increment in
+    // lock step)
     //
     ++cr;			// Component stream
     ++ar;			// Force method storage
@@ -995,9 +1021,18 @@ void SphericalBasis::determine_coefficients_cuda()
 	offst += nmax*2;
       }
     }
-    use[0] += r.use;
   }
   
+  // Get the on-grid count from the threads
+  //
+  for (auto & s : f_s) {	// Synchronize and dallocate streams
+    cudaStreamSynchronize(s);
+    cudaStreamDestroy(s);
+  }
+				// Copy data back from device
+  thrust::host_vector<unsigned int> f_ret(f_use);
+  for (auto v : f_ret) use[0] += v;
+
   if (Ntot == 0) {
     return;
   }
@@ -1370,7 +1405,7 @@ void SphericalBasis::determine_acceleration_cuda()
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, deviceCount-1);
 
-  // Stream structure iterator
+  // Stream structure iterators
   //
   Component::     cuRingType cr = *cC->cuRing.get();
   SphericalBasis::cuRingType ar = *cuRing.get();
@@ -1406,6 +1441,7 @@ void SphericalBasis::determine_acceleration_cuda()
 
     cr->first = first;
     cr->last  = last;
+    cr->id    = ++dbg_id;
 
     // Copy bunch to device
     //
@@ -1414,6 +1450,15 @@ void SphericalBasis::determine_acceleration_cuda()
     // Sort particles and get size
     //
     PII lohi = cC->CudaSortByLevel(cr, mlevel, multistep);
+
+    /*
+    std::cout << "** SphericalBasis [accel] SortByLevel: T=" << tnow
+	      << ", level=" << mlevel << ", #=" << cr->instance
+	      << ", name=" << cC->name
+	      << ", lo=" << lohi.first
+	      << ", hi=" << lohi.second
+	      << std::endl;
+    */
 
     // Compute grid
     //
@@ -1484,7 +1529,8 @@ void SphericalBasis::determine_acceleration_cuda()
   if (false) {
     std::cout << std::string(10+7*16, '-') << std::endl;
     std::cout << "---- Acceleration in SphericalBasis [T=" << tnow
-	      << ", N=" << Ntot << "]" << std::endl;
+	      << ", N=" << Ntot << ", level=" << mlevel
+	      << ", name=" << cC->name << "]" << std::endl;
     std::cout << std::string(10+7*16, '-') << std::endl;
     first = last = begin;
     std::advance(last, 5);

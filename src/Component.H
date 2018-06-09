@@ -829,7 +829,7 @@ public:
 
   public:
     //! Instance id for debugging
-    unsigned instance;
+    unsigned instance, id;
 
     //! Host particle beginning and ending iterator
     hostPartItr first, last;

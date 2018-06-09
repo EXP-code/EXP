@@ -50,7 +50,7 @@ Component::CudaSortByLevel(Component::cuRingType cr, int minlev, int maxlev)
 
     thrust::sort(exec, cr->cuda_particles.begin(), cr->cuda_particles.end(), LessCudaLev());
 
-    // cudaParticle temp;
+    cudaParticle temp;
 
     thrust::device_vector<cudaParticle>::iterator
       pbeg = cr->cuda_particles.begin(),
@@ -58,20 +58,11 @@ Component::CudaSortByLevel(Component::cuRingType cr, int minlev, int maxlev)
     
     // Get positions of level boundaries
     //
-    thrust::device_vector<unsigned> levels(thrust::distance(pbeg, pend));
-    thrust::transform(exec, pbeg, pend, levels.begin(), LevelFunctor());
-
-    ret.first  = getBound<unsigned>(minlev, levels, cr->stream, BoundType::Lower);
-    /*
     temp.level = minlev;
-    ret.first  = thrust::lower_bound(exec, pbeg, pend, temp, LessCudaLev()) - pbeg;
-    */
-    
-    ret.second  = getBound<unsigned>(maxlev, levels, cr->stream, BoundType::Upper);
-    /*
+    ret.first  = thrust::lower_bound(thrust::cuda::par, pbeg, pend, temp, LessCudaLev()) - pbeg;
+
     temp.level = maxlev;
-    ret.second = thrust::upper_bound(exec, pbeg, pend, temp, LessCudaLev()) - pbeg;
-    */
+    ret.second = thrust::upper_bound(thrust::cuda::par, pbeg, pend, temp, LessCudaLev()) - pbeg;
   }
   catch(std::bad_alloc &e) {
     std::cerr << "Ran out of memory while sorting" << std::endl;
@@ -120,6 +111,12 @@ void Component::HostToDev(Component::cuRingType cr)
 		    thrust::raw_pointer_cast(&(*cr->first)),
 		    npart*sizeof(cudaParticle),
 		    cudaMemcpyHostToDevice, cr->stream);
+    /*
+    std::cout << "#" << cr->instance << " T=" << tnow << " @ " << cr->id
+	      << " copied " << npart << " " << name
+	      << " particles H2D; first is #" << (*cr->first).indx
+	      << std::endl;
+    */
   }
 }
 
@@ -136,6 +133,12 @@ void Component::DevToHost(Component::cuRingType cr)
 		    thrust::raw_pointer_cast(&cr->cuda_particles[0]),
 		    npart*sizeof(cudaParticle),
 		    cudaMemcpyDeviceToHost, cr->stream);
+    /*
+    std::cout << "#" << cr->instance << " T=" << tnow << " @ " << cr->id
+	      << " copied " << npart << " " << name
+	      << " particles D2H; first is #" << (*cr->first).indx
+	      << std::endl;
+    */
   }
 }
 

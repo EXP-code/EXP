@@ -643,9 +643,7 @@ void SphericalBasis::determine_coefficients(void)
   
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
-  if (multistep==0 || mstep==0) {
-    used += use0;
-  }
+  if (multistep==0 or tnow==resetT) used += use0;
 
   for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
       
@@ -718,7 +716,8 @@ void SphericalBasis::determine_coefficients(void)
 
 void SphericalBasis::multistep_reset()
 {
-  used = 0;
+  used   = 0;
+  resetT = tnow;
   for (int M=0; M<=multistep; M++) dstepN[M] = 0;
 }
 

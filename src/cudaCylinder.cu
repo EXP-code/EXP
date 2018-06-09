@@ -1,5 +1,3 @@
-#include <list>
-
 #include <Component.H>
 #include <Cylinder.H>
 #include <cudaReduce.cuH>
@@ -40,6 +38,15 @@ int Imn(int m, char cs, int n, int nmax)
   }
 #endif
   return ret;
+}
+
+template<typename Iterator, typename Pointer1, typename Pointer2>
+__global__
+void reduceUseCyl(Iterator first, Iterator last, Pointer1 res1, Pointer2 res2)
+{
+  auto it = thrust::lower_bound(thrust::cuda::par, first, last, 0.0);
+  *res1 = thrust::distance(it, last);
+  *res2 = thrust::reduce(thrust::cuda::par, it, last);
 }
 
 __global__
@@ -432,7 +439,8 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<cuFP_t> coef,
       cuFP_t mfactor = 1.0, frac = 1.0, cfrac = 0.0;
 
       if (ratio >= 1.0) {
-	cfrac      = 1.0 - mfactor;
+	// cfrac      = 1.0 - mfactor;
+	cfrac = 1.0;
       } else if (ratio > ratmin) {
 	frac  = 0.5*(1.0 - erf( (ratio - midpt)/rsmth )) * mfactor;
 	cfrac = 1.0 - frac;
@@ -729,17 +737,15 @@ void Cylinder::zero_coefs()
     thrust::fill(thrust::cuda::par.on(cr->stream),
 		 ar->df_coef.begin(), ar->df_coef.end(), 0.0);
 
-    // Global counters
+    // Advance iterators
     //
-    ar->use  = 0.0;
-    ar->mass = 0.0;
-
-    ++cr;
-    ++ar;
+    ++cr;			// Component stream
+    ++ar;			// Force method storage
   }
 }
 
 static bool initialize_cuda_cyl = true;
+static unsigned dbg_id = 0;
 
 void Cylinder::determine_coefficients_cuda()
 {
@@ -830,10 +836,17 @@ void Cylinder::determine_coefficients_cuda()
 
   std::advance(last, cC->bunchSize);
 
+  // Set up stream and data arrays for asynchronous evaluation
+  //
+  std::vector<cudaStream_t> f_s;
+  thrust::device_vector<unsigned int> f_use;
+  thrust::device_vector<cuFP_t>       f_mass;
+
   while (std::distance(first, last)) {
     
     cr->first = first;
     cr->last  = last;
+    cr->id    = ++dbg_id;
 
     // Copy bunch to device
     //
@@ -842,6 +855,14 @@ void Cylinder::determine_coefficients_cuda()
     // Sort particles and get coefficient size
     //
     PII lohi = cC->CudaSortByLevel(cr, mlevel, mlevel);
+
+    /*
+    std::cout << "** Cylinder [coef] SortByLevel: T=" << tnow
+	      << ", level=" << mlevel << ", #=" << cr->instance
+	      << ", lo=" << lohi.first
+	      << ", hi=" << lohi.second
+	      << std::endl;
+    */
 
     // Compute grid
     //
@@ -936,13 +957,22 @@ void Cylinder::determine_coefficients_cuda()
       auto m_it    = thrust::upper_bound(thrust::cuda::par.on(cr->stream),
 					 m_d.begin(), m_d.end(), 0.0);
       */
-      int posn     = getBound<double>(0.0, ar->m_d, cr->stream, BoundType::Upper);
-      auto m_it    = ar->m_d.begin();
-      thrust::advance(m_it, posn);
 
-      ar->use     += thrust::distance(m_it, ar->m_d.end());
-      ar->mass    += thrust::reduce  (thrust::cuda::par.on(cr->stream), m_it, ar->m_d.end());
-      Ntot        += N;
+      // Asynchronously cache result for host side to prevent stream block
+      //
+      cudaStream_t s1;
+      cudaStreamCreate(&s1);	// Create new thread
+      f_s.push_back(s1);
+
+      size_t fsz = f_s.size();	// Augment the data vectors
+      f_use. resize(fsz);
+      f_mass.resize(fsz);
+				// Call the kernel on a single thread
+				// 
+      reduceUseCyl<<<1, 1, 0, s1>>>(ar->m_d.begin(), ar->m_d.end(),
+				    &f_use[fsz-1], &f_mass[fsz-1]);
+
+      Ntot += N;
     }
 
     // Advance iterators
@@ -954,8 +984,8 @@ void Cylinder::determine_coefficients_cuda()
 
     // Advance stream iterators
     //
-    ++cr;			// Coefficient
-    ++ar;			// Force method
+    ++cr;			// Coefficient stream
+    ++ar;			// Force method storage
   }
 
   if (Ntot == 0) {
@@ -974,9 +1004,21 @@ void Cylinder::determine_coefficients_cuda()
       }
       offst += 2*ncylorder;
     }
-    use[0]      += r.use;
-    cylmass0[0] += r.mass;
   }
+
+  // Get the on-grid count and mass from the threads
+  //
+  for (auto & s : f_s) {	// Synchronize and dallocate streams
+    cudaStreamSynchronize(s);
+    cudaStreamDestroy(s);
+  }
+				// Copy the data from the device
+  thrust::host_vector<unsigned int> f_ret1(f_use);
+  thrust::host_vector<cuFP_t>       f_ret2(f_mass);
+
+				// Sum counts and mass
+  for (auto v : f_ret1) use[0]      += v;
+  for (auto v : f_ret2) cylmass0[0] += v;
 
   // DEBUG, only useful for CUDAtest branch
   //
@@ -1341,6 +1383,7 @@ void Cylinder::determine_acceleration_cuda()
 
     cr->first = first;
     cr->last  = last;
+    cr->id    = ++dbg_id;
 
     // Copy bunch to device
     //
@@ -1349,6 +1392,15 @@ void Cylinder::determine_acceleration_cuda()
     // Sort particles and get coefficient size
     //
     PII lohi = cC->CudaSortByLevel(cr, mlevel, multistep);
+
+    /*
+    std::cout << "** Cylinder [accel] SortByLevel: T=" << tnow
+	      << ", level=" << mlevel
+	      << ", name=" << cC->name
+	      << ", lo=" << lohi.first
+	      << ", hi=" << lohi.second
+	      << std::endl;
+    */
 
     // Compute grid
     //
@@ -1416,7 +1468,9 @@ void Cylinder::determine_acceleration_cuda()
   if (false) {
     std::cout << std::string(10+7*16, '-') << std::endl;
     std::cout << "---- Acceleration in Cylinder [T=" << tnow
-	      << ", N=" << Ntot << "]" << std::endl;
+	      << ", N=" << Ntot << ", level=" << mlevel
+	      << ", mass=" << cylmass
+	      << ", name=" << cC->name << "]" << std::endl;
     std::cout << std::string(10+7*16, '-') << std::endl;
     first = last = begin;
     std::advance(last, 5);

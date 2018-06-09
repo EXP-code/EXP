@@ -1,9 +1,8 @@
 using namespace std;
 
-#include <chrono>
-#include <values.h>
-
 #include <sstream>
+#include <chrono>
+#include <limits>
 
 #include "expand.h"
 #include <gaussQ.h>
@@ -256,7 +255,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
   }
 
 #ifdef DEBUG
-  offgrid = new int [nthrds];
+  offgrid.resize(nthrds);
 #endif
 
 }
@@ -266,9 +265,6 @@ Cylinder::~Cylinder()
   delete ortho;
   delete [] pos;
   delete [] frc;
-#ifdef DEBUG
-  delete [] offgrid;
-#endif
 }
 
 void Cylinder::initialize()
@@ -675,11 +671,7 @@ void Cylinder::determine_coefficients(void)
     ortho->setup_accumulation(mlevel);
   }
 
-  cylmass0 = new double [nthrds];
-  if (!cylmass0) {
-    cerr << "Cylinder: problem allocating <cylmass0>\n";
-    exit(-1);
-  }
+  cylmass0.resize(nthrds);
 
 #ifdef LEVCHECK
   for (int n=0; n<numprocs; n++) {
@@ -726,8 +718,6 @@ void Cylinder::determine_coefficients(void)
     cylmassT1 += cylmass0[i];
   }
 
-  delete [] cylmass0;
-
 				// Turn off timer so as not bias by 
 				// communication barrier
   MPL_stop_timer();
@@ -736,7 +726,7 @@ void Cylinder::determine_coefficients(void)
   MPI_Allreduce ( &cylmassT1, &cylmassT0, 1, MPI_DOUBLE, MPI_SUM, 
 		  MPI_COMM_WORLD );
 
-  if (multistep==0 || mstep==0) {
+  if (multistep==0 or tnow==resetT) {
     used    += use0;
     cylmass += cylmassT0;
   }
@@ -786,11 +776,7 @@ void Cylinder::determine_coefficients_eof(void)
   cylmass = 0.0;
   if (myid==0) cerr << "Cylinder: setup for eof\n";
 
-  cylmass0 = new double [nthrds];
-  if (!cylmass0) {
-    cerr << "Cylinder: problem allocating <cylmass0>\n";
-    exit(-1);
-  }
+  cylmass0.resize(nthrds);
 
 				// Threaded coefficient accumulation loop
   exp_thread_fork(true);
@@ -805,7 +791,6 @@ void Cylinder::determine_coefficients_eof(void)
     cylmassT1 += cylmass0[i];
   }
 
-  delete [] cylmass0;
 				// Turn off timer so as not bias by 
 				// communication barrier
   MPL_stop_timer();
@@ -1225,8 +1210,9 @@ void Cylinder::multistep_update(int from, int to, Component* c, int i, int id)
 
 void Cylinder::multistep_reset() 
 { 
-  used = 0; 
+  used    = 0; 
   cylmass = 0.0;
+  resetT  = tnow;
   ortho->reset_mass();
   ortho->multistep_reset();
 }
