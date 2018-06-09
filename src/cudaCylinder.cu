@@ -834,7 +834,8 @@ void Cylinder::determine_coefficients_cuda()
   Component::hostPartItr last  = begin;
   Component::hostPartItr end   = cC->host_particles.end();
 
-  std::advance(last, cC->bunchSize);
+  if (psize <= cC->bunchSize) last = end;
+  else std::advance(last, cC->bunchSize);
 
   // Set up stream and data arrays for asynchronous evaluation
   //
@@ -1375,7 +1376,8 @@ void Cylinder::determine_acceleration_cuda()
   Component::hostPartItr last  = begin;
   Component::hostPartItr end   = cC->host_particles.end();
 
-  std::advance(last, cC->bunchSize);
+  if (psize <= cC->bunchSize) last = end;
+  else std::advance(last, cC->bunchSize);
 
   unsigned Ntot = 0;
 
