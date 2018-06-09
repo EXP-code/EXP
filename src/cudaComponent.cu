@@ -126,9 +126,6 @@ void Component::DevToHost(Component::cuRingType cr)
   
   if (npart) {		  // Don't bother trying to copy zero particles
 
-    if (host_particles.capacity()<npart) host_particles.reserve(npart);
-    host_particles.resize(npart);
-  
     cudaMemcpyAsync(thrust::raw_pointer_cast(&(*cr->first)),
 		    thrust::raw_pointer_cast(&cr->cuda_particles[0]),
 		    npart*sizeof(cudaParticle),
