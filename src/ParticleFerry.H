@@ -6,6 +6,7 @@
 #include "Particle.H"
 
 #include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 
 using namespace std;
 
@@ -46,10 +47,10 @@ public:
   ~ParticleFerry();
 
   //! Pack particle into buffer.  Caller provides buffer.
-  void particlePack(const Particle& in, char* buffer);
+  void particlePack(PartPtr in, char* buffer);
 
   //! Unpack buffer into particle.  Caller provides buffer.
-  void particleUnpack(Particle& out, char* buffer);
+  void particleUnpack(PartPtr out, char* buffer);
 
   //! Send message to receiver: get ready for bulk shipment of particles
   void ShipParticles(unsigned to, unsigned from, unsigned& total);
@@ -58,9 +59,9 @@ public:
   //! Send and receive particles.  Uses ParticleFerry internally
   //! maintained buffer
 
-  void SendParticle(Particle& part);
+  void SendParticle(PartPtr part);
 
-  bool RecvParticle(Particle& part);
+  bool RecvParticle(PartPtr part);
   //@}
 
   //! Size needed for a single particle

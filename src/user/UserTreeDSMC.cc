@@ -187,7 +187,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     PartMapItr p    = c0->Particles().begin();
     PartMapItr pend = c0->Particles().end();
     for (; p!=pend; p++) {
-      if (use_exes >= static_cast<int>(p->second.dattrib.size())) {
+      if (use_exes >= static_cast<int>(p->second->dattrib.size())) {
 	ok1 = 0;
 	break;
       }
@@ -219,7 +219,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     PartMapItr p    = c0->Particles().begin();
     PartMapItr pend = c0->Particles().end();
     for (; p!=pend; p++) {
-      if (use_Kn >= static_cast<int>(p->second.dattrib.size())) {
+      if (use_Kn >= static_cast<int>(p->second->dattrib.size())) {
 	ok1 = 0;
 	break;
       }
@@ -255,7 +255,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     PartMapItr p    = c0->Particles().begin();
     PartMapItr pend = c0->Particles().end();
     for (; p!=pend; p++) {
-      if (use_St >= static_cast<int>(p->second.dattrib.size())) {
+      if (use_St >= static_cast<int>(p->second->dattrib.size())) {
 	ok1 = 0;
 	break;
       }
@@ -979,7 +979,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   
   if (use_effort) {
     PartMapItr pitr = c0->Particles().begin(), pend = c0->Particles().end();
-    for (; pitr!= pend; pitr++) pitr->second.effort = pot_time;
+    for (; pitr!= pend; pitr++) pitr->second->effort = pot_time;
   }
   
   //
@@ -1343,8 +1343,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       PartMapItr pitr, pend = c0->Particles().end();
       double minEff1 = 1.0e20, maxEff1 = 0.0;
       for (pitr=c0->Particles().begin(); pitr!= pend; pitr++) {
-	minEff1 = min<double>(pitr->second.effort, minEff1);
-	maxEff1 = max<double>(pitr->second.effort, maxEff1);
+	minEff1 = min<double>(pitr->second->effort, minEff1);
+	maxEff1 = max<double>(pitr->second->effort, maxEff1);
       }
       
       MPI_Allreduce(&minEff1, &minEff, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
@@ -1358,7 +1358,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	double Lvalue;
 	vector<unsigned> efrt1(ebins, 0);
 	for (pitr=c0->Particles().begin(); pitr!= pend; pitr++) {
-	  Lvalue = log(pitr->second.effort);
+	  Lvalue = log(pitr->second->effort);
 	  indx   = floor((Lvalue - minEff) / (maxEff - minEff) * ebins);
 	  if (indx<0)      indx = 0;
 	  if (indx>=ebins) indx = ebins-1;
@@ -2064,7 +2064,7 @@ void UserTreeDSMC::makeSpeciesMap()
     //
     // Species accumulation
     //
-    KeyConvert kc  (p->second.iattrib[use_key]);
+    KeyConvert kc  (p->second->iattrib[use_key]);
     speciesKey indx(kc.getKey());
     unsigned short Z = indx.first;
     for (unsigned short i=1; i<=Z+1; i++) {
@@ -2077,8 +2077,8 @@ void UserTreeDSMC::makeSpeciesMap()
     // Temperature accumulation
     //
     if (use_temp>=0) {
-      T1[0] += p->second.mass;
-      T1[1] += p->second.mass * p->second.dattrib[use_temp];
+      T1[0] += p->second->mass;
+      T1[1] += p->second->mass * p->second->dattrib[use_temp];
     }
   }
   

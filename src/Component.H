@@ -209,7 +209,7 @@ private:
   void bomb(const string& msg);
 
   // Particle buffer
-  Particle *pbuf;
+  std::vector<PartPtr> pbuf;
 
   // Adiabatic mass
   bool adiabatic;
@@ -478,7 +478,7 @@ public:
   ~Component();
 
   //! Parallel gather
-  Particle* get_particles(int* number);
+  PartPtr * get_particles(int* number);
   
   //! Retrieve particle count on a particular node (one node at a time)
   int particle_count(int node) { 
@@ -546,7 +546,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    return &(tp->second);
+    return tp->second.get();
   }
 
   //! Particle vector size
@@ -560,7 +560,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    return tp->second.mass;
+    return tp->second->mass;
   }
 
   //! Access to positions
@@ -570,7 +570,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    double val = tp->second.pos[j];
+    double val = tp->second->pos[j];
     if (com_system) {
       if (flags & Local)
 	val -= comI[j];
@@ -605,7 +605,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    double val = tp->second.vel[j];
+    double val = tp->second->vel[j];
     if (com_system) {
       if (flags & Local)
 	val -= covI[j];
@@ -622,7 +622,7 @@ public:
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
     for (int k=0; k<3; k++) {
-      pos[k] = tp->second.pos[k];
+      pos[k] = tp->second->pos[k];
       if (com_system) {
 	if (flags & Local) 
 	  pos[k] -= comI[k];
@@ -640,7 +640,7 @@ public:
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
     for (int k=0; k<3; k++) {
-      vel[k] = tp->second.vel[k];
+      vel[k] = tp->second->vel[k];
       if (com_system) {
 	if (flags & Local)
 	  vel[k] -= covI[k];
@@ -680,7 +680,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    double val = tp->second.acc[j];
+    double val = tp->second->acc[j];
     if (com_system && (flags & Inertial)) val += acc0[j];
     return val;
   }
@@ -691,7 +691,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    tp->second.pos[j] += val;
+    tp->second->pos[j] += val;
   }
   
   //! Add to position (by array)
@@ -700,7 +700,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    for (int k=0; k<3; k++) tp->second.pos[k] += val[k];
+    for (int k=0; k<3; k++) tp->second->pos[k] += val[k];
   }
   
   //! Add to position (by vector)
@@ -709,7 +709,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    for (int k=0; k<3; k++) tp->second.pos[k] += val[k];
+    for (int k=0; k<3; k++) tp->second->pos[k] += val[k];
   }
   
   //! Add to velocity (by component)
@@ -718,7 +718,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    tp->second.vel[j] += val;
+    tp->second->vel[j] += val;
   }
   
   //! Add to velocity (by array)
@@ -727,7 +727,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    for (int k=0; k<3; k++) tp->second.vel[k] += val[k];
+    for (int k=0; k<3; k++) tp->second->vel[k] += val[k];
   }
   
   //! Add to velocity (by vector)
@@ -736,7 +736,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    for (int k=0; k<3; k++) tp->second.vel[k] += val[k];
+    for (int k=0; k<3; k++) tp->second->vel[k] += val[k];
   }
   
   //! Add to accerlation (by component)
@@ -745,7 +745,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    tp->second.acc[j] += val;
+    tp->second->acc[j] += val;
   }
   
   //! Add to acceleration (by array)
@@ -754,7 +754,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    for (int k=0; k<3; k++) tp->second.acc[k] += val[k];
+    for (int k=0; k<3; k++) tp->second->acc[k] += val[k];
   }
   
   //! Add to accerlation (by vector)
@@ -763,7 +763,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    for (int k=0; k<3; k++) tp->second.acc[k] += val[k];
+    for (int k=0; k<3; k++) tp->second->acc[k] += val[k];
   }
   
   //! Add to potential
@@ -772,7 +772,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    tp->second.pot += val;
+    tp->second->pot += val;
   }
   
   //! Add to external potential
@@ -781,7 +781,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    tp->second.potext += val;
+    tp->second->potext += val;
   }
   
   //! Reset the level lists

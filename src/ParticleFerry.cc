@@ -96,101 +96,101 @@ void ParticleFerry::particleBufInit()
 
 // Pack a particle into the buffer.  Buffer is supplied by caller.
 //
-void ParticleFerry::particlePack(const Particle& in, char* buffer)
+void ParticleFerry::particlePack(PartPtr in, char* buffer)
 {
   size_t pos = 0;
 
   // double mass
   //
-  memcpy(&buffer[pos], &in.mass, sizeof(double));
+  memcpy(&buffer[pos], &in->mass, sizeof(double));
   pos += sizeof(double);
 
   // double pos[3]
   //
-  memcpy(&buffer[pos], &in.pos[0], 3*sizeof(double));
+  memcpy(&buffer[pos], &in->pos[0], 3*sizeof(double));
   pos += 3*sizeof(double);
 
   // double vel[3]
   //
-  memcpy(&buffer[pos], &in.vel[0], 3*sizeof(double));
+  memcpy(&buffer[pos], &in->vel[0], 3*sizeof(double));
   pos += 3*sizeof(double);
 
   // double acc[3]
   //
-  memcpy(&buffer[pos], &in.acc[0], 3*sizeof(double));
+  memcpy(&buffer[pos], &in->acc[0], 3*sizeof(double));
   pos += 3*sizeof(double);
   
   // double pot
   //
-  memcpy(&buffer[pos], &in.pot, sizeof(double));
+  memcpy(&buffer[pos], &in->pot, sizeof(double));
   pos += sizeof(double);
 
   // double potext
   //
-  memcpy(&buffer[pos], &in.potext, sizeof(double));
+  memcpy(&buffer[pos], &in->potext, sizeof(double));
   pos += sizeof(double);
 
   // std::vector<int> iattrib
   //
-  memcpy(&buffer[pos], &in.iattrib[0], nimax*sizeof(int));
+  memcpy(&buffer[pos], &in->iattrib[0], nimax*sizeof(int));
   pos += sizeof(int)*nimax;
 
   // std::vector<double> dattrib
   //
-  memcpy(&buffer[pos], &in.dattrib[0], ndmax*sizeof(double));
+  memcpy(&buffer[pos], &in->dattrib[0], ndmax*sizeof(double));
   pos += sizeof(double)*ndmax;
 
   // unsigned level
   //
-  memcpy(&buffer[pos], &in.level, sizeof(unsigned));
+  memcpy(&buffer[pos], &in->level, sizeof(unsigned));
   pos += sizeof(unsigned);
 
   // float dtreq
   //
-  memcpy(&buffer[pos], &in.dtreq, sizeof(float));
+  memcpy(&buffer[pos], &in->dtreq, sizeof(float));
   pos += sizeof(float);
 
   // float scale
   //
-  memcpy(&buffer[pos], &in.scale, sizeof(float));
+  memcpy(&buffer[pos], &in->scale, sizeof(float));
   pos += sizeof(float);
 
   // float effort
   //
-  memcpy(&buffer[pos], &in.effort, sizeof(float));
+  memcpy(&buffer[pos], &in->effort, sizeof(float));
   pos += sizeof(float);
   
   // unsigned long indx
   //
-  memcpy(&buffer[pos], &in.indx, sizeof(unsigned long));
+  memcpy(&buffer[pos], &in->indx, sizeof(unsigned long));
   pos += sizeof(unsigned long);
 
   // unsigned tree
   //
-  memcpy(&buffer[pos], &in.tree, sizeof(unsigned));
+  memcpy(&buffer[pos], &in->tree, sizeof(unsigned));
   pos += sizeof(unsigned);
   
 #ifdef I128
   // uint128 key
   //
-  memcpy(&buffer[pos], &in.key, sizeof(uint128));
+  memcpy(&buffer[pos], &in->key, sizeof(uint128));
   pos += sizeof(uint128);
 #else
   // unsigned long key
   //
-  memcpy(&buffer[pos], &in.key, sizeof(unsigned long));
+  memcpy(&buffer[pos], &in->key, sizeof(unsigned long));
   pos += sizeof(unsigned long);
 #endif
 
   // Sanity check
   //
-  if (in.tree > 0) {
-    if ( (in.tree < pk_lo) || (in.tree >= pk_hi) ) {
+  if (in->tree > 0) {
+    if ( (in->tree < pk_lo) || (in->tree >= pk_hi) ) {
       cout << "Error!! [5], id=" << myid 
-	   << ": tree=" << in.tree
-	   << " seq=" << in.indx
-	   << " (x, y, z)={" << in.pos[0] << ", " << in.pos[1]
-	   << ", " << in.pos[2]
+	   << ": tree=" << in->tree
+	   << " seq=" << in->indx
+	   << " (x, y, z)={" << in->pos[0] << ", " << in->pos[1]
+	   << ", " << in->pos[2]
 	   << endl;
     }
   }
@@ -199,103 +199,103 @@ void ParticleFerry::particlePack(const Particle& in, char* buffer)
 // Unpack the buffer into the supplied particle.  Buffer is supplied
 // by caller.
 //
-void ParticleFerry::particleUnpack(Particle& out, char* buffer)
+void ParticleFerry::particleUnpack(PartPtr out, char* buffer)
 {
   size_t pos = 0;
 
   // double mass
   //
-  memcpy(&out.mass, &buffer[pos], sizeof(double));
+  memcpy(&out->mass, &buffer[pos], sizeof(double));
   pos += sizeof(double);
 
   // double pos[3]
   //
-  memcpy(&out.pos[0], &buffer[pos], 3*sizeof(double));
+  memcpy(&out->pos[0], &buffer[pos], 3*sizeof(double));
   pos += 3*sizeof(double);
 
   // double vel[3]
   //
-  memcpy(&out.vel[0], &buffer[pos], 3*sizeof(double));
+  memcpy(&out->vel[0], &buffer[pos], 3*sizeof(double));
   pos += 3*sizeof(double);
 
   // double acc[3]
   //
-  memcpy(&out.acc[0], &buffer[pos], 3*sizeof(double));
+  memcpy(&out->acc[0], &buffer[pos], 3*sizeof(double));
   pos += 3*sizeof(double);
   
   // double pot
   //
-  memcpy(&out.pot, &buffer[pos], sizeof(double));
+  memcpy(&out->pot, &buffer[pos], sizeof(double));
   pos += sizeof(double);
 
   // double potext
   //
-  memcpy(&out.potext, &buffer[pos], sizeof(double));
+  memcpy(&out->potext, &buffer[pos], sizeof(double));
   pos += sizeof(double);
 
   // std::vector<int> iattrib
   //
-  out.iattrib.resize(nimax);
-  memcpy(&out.iattrib[0], &buffer[pos], nimax*sizeof(int));
+  out->iattrib.resize(nimax);
+  memcpy(&out->iattrib[0], &buffer[pos], nimax*sizeof(int));
   pos += sizeof(int)*nimax;
 
   // std::vector<double> dattrib
   //
-  out.dattrib.resize(ndmax);
-  memcpy(&out.dattrib[0], &buffer[pos], ndmax*sizeof(double));
+  out->dattrib.resize(ndmax);
+  memcpy(&out->dattrib[0], &buffer[pos], ndmax*sizeof(double));
   pos += sizeof(double)*ndmax;
 
   // unsigned level
   //
-  memcpy(&out.level, &buffer[pos], sizeof(unsigned));
+  memcpy(&out->level, &buffer[pos], sizeof(unsigned));
   pos += sizeof(unsigned);
 
   // float dtreq
   //
-  memcpy(&out.dtreq, &buffer[pos], sizeof(float));
+  memcpy(&out->dtreq, &buffer[pos], sizeof(float));
   pos += sizeof(float);
 
   // float scale
   //
-  memcpy(&out.scale, &buffer[pos], sizeof(float));
+  memcpy(&out->scale, &buffer[pos], sizeof(float));
   pos += sizeof(float);
 
   // float effort
   //
-  memcpy(&out.effort, &buffer[pos], sizeof(float));
+  memcpy(&out->effort, &buffer[pos], sizeof(float));
   pos += sizeof(float);
   
   // unsigned long indx
   //
-  memcpy(&out.indx, &buffer[pos], sizeof(unsigned long));
+  memcpy(&out->indx, &buffer[pos], sizeof(unsigned long));
   pos += sizeof(unsigned long);
 
   // unsigned tree
   //
-  memcpy(&out.tree, &buffer[pos], sizeof(unsigned));
+  memcpy(&out->tree, &buffer[pos], sizeof(unsigned));
   pos += sizeof(unsigned);
   
 #ifdef I128
   // uint128 key
   //
-  memcpy(&out.key, &buffer[pos], sizeof(uint128));
+  memcpy(&out->key, &buffer[pos], sizeof(uint128));
   pos += sizeof(uint128);
 #else
   // unsigned long key
   //
-  memcpy(&out.key, &buffer[pos], sizeof(unsigned long));
+  memcpy(&out->key, &buffer[pos], sizeof(unsigned long));
   pos += sizeof(unsigned long);
 #endif
 
   // Sanity check
   //
-  if (out.tree > 0) {
-    if ( (out.tree < pk_lo) || (out.tree >= pk_hi) ) {
+  if (out->tree > 0) {
+    if ( (out->tree < pk_lo) || (out->tree >= pk_hi) ) {
       cout << "Error!! [4], id=" << myid 
-	   << ": tree=" << out.tree
-	   << " seq=" << out.indx
-	   << " (x, y, z)={" << out.pos[0] << ", " << out.pos[1]
-	   << ", " << out.pos[2]
+	   << ": tree=" << out->tree
+	   << " seq=" << out->indx
+	   << " (x, y, z)={" << out->pos[0] << ", " << out->pos[1]
+	   << ", " << out->pos[2]
 	   << endl;
     }
   }
@@ -363,7 +363,7 @@ void ParticleFerry::ShipParticles(unsigned to, unsigned from, unsigned& total)
   }
 }
 
-void ParticleFerry::SendParticle(Particle& part)
+void ParticleFerry::SendParticle(PartPtr part)
 {
   // Add particle to buffer
   //
@@ -377,7 +377,7 @@ void ParticleFerry::SendParticle(Particle& part)
   if (ibufcount == PFbufsz || itotcount == _total) BufferSend();
 }
 
-bool ParticleFerry::RecvParticle(Particle& part)
+bool ParticleFerry::RecvParticle(PartPtr part)
 {
   if (itotcount++ == _total) return false;
   if (ibufcount==0) BufferRecv();
@@ -386,11 +386,11 @@ bool ParticleFerry::RecvParticle(Particle& part)
   ibufcount--;
 
   particleUnpack(part, &buf[bufpos]);
-  if (part.indx==0 || part.mass<=0.0 || std::isnan(part.mass)) {
+  if (part->indx==0 || part->mass<=0.0 || std::isnan(part->mass)) {
 	cout << "BAD MASS!" << endl;
   }
 #ifdef DEBUG
-  if (part.indx==0) {
+  if (part->indx==0) {
     cout << "ParticleFerry: process " << myid << " error in sequence" << endl;
   }
 #endif

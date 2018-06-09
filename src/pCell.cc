@@ -185,7 +185,7 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
       while (p->first==keypair.first && p->second==keypair.second ) {
 	cout << "pos=";
 	for (int k=0; k<3; k++) 
-	  cout << setw(18) << C->Particles()[p->second].pos[k];
+	  cout << setw(18) << C->Particles()[p->second]->pos[k];
 	cout << endl;
 	p++;
       }
@@ -205,7 +205,7 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
       bods.push_back(keypair.second);
 				// Flag to recompute sample cell.
       if (change) change->push_back(cell_indx(this, pHOT::RECOMP));
-      maxplev = max<int>(maxplev, C->Particles()[keypair.second].level);
+      maxplev = max<int>(maxplev, C->Particles()[keypair.second]->level);
       
       return this;
     }
@@ -580,18 +580,18 @@ void pCell::accumState()
 {
 				// March through the body list
   for (auto j: bods) {
-    Particle & p = C->Particles()[j];
-    speciesKey spc = p.skey;
+    PartPtr p = C->Particles()[j];
+    speciesKey spc = p->skey;
     if (C->keyPos>=0 and spc==Particle::defaultKey) {
-      spc = p.skey = KeyConvert(p.iattrib[C->keyPos]).getKey();
+      spc = p->skey = KeyConvert(p->iattrib[C->keyPos]).getKey();
     }
 				// Only do the mapping to vector once
 				// in the loop
     std::vector<double> & s = state[spc];
-    double ms = p.mass;
+    double ms = p->mass;
     s[0] += ms;
     for (int k=0; k<3; k++) {
-      double pos = p.pos[k], vel = p.vel[k];
+      double pos = p->pos[k], vel = p->vel[k];
       s[1+k] += ms * vel*vel;
       s[4+k] += ms * vel;
       s[7+k] += ms * pos;
@@ -906,13 +906,13 @@ void pCell::Vel(double &mass, vector<double>& v1, vector<double>& v2)
   if (isLeaf) {
     for (auto i : bods) {
       for (int k=0; k<3; k++) {
-	v1[k] += C->Particles()[i].mass * 
-	  C->Particles()[i].vel[k];
+	v1[k] += C->Particles()[i]->mass * 
+	  C->Particles()[i]->vel[k];
 
-	v2[k] += C->Particles()[i].mass * 
-	  C->Particles()[i].vel[k] * C->Particles()[i].vel[k];
+	v2[k] += C->Particles()[i]->mass * 
+	  C->Particles()[i]->vel[k] * C->Particles()[i]->vel[k];
       }
-      mass += C->Particles()[i].mass;
+      mass += C->Particles()[i]->mass;
     }
   }
 
@@ -1000,7 +1000,7 @@ pCell* pCell::findSampleCell(const std::string & msg)
       std::vector<double> maxpos(3,-1.0e20);
       for (auto b : this->bods) {
 	for (int k=0; k<3; k++) {
-	  double v = C->Particles()[b].pos[k];
+	  double v = C->Particles()[b]->pos[k];
 	  minpos[k] = std::min<double>(minpos[k], v);
 	  maxpos[k] = std::max<double>(maxpos[k], v);
 	}
@@ -1047,19 +1047,19 @@ pCell* pCell::findSampleCell(const std::string & msg)
 Particle* pCell::Body(vector<unsigned long>::iterator k)
 { 
   if (k==bods.end()) return 0;
-  return &(C->Particles()[*k]); 
+  return C->Particles()[*k].get(); 
 }
 
 Particle* pCell::Body(unsigned long i) 
 {
-  return &(C->Particles()[i]); 
+  return C->Particles()[i].get(); 
 }
 
 unsigned pCell::remake_plev()
 {
   maxplev = 0;
   for (auto i : bods) {
-    maxplev = max<unsigned>(maxplev, C->Particles()[i].level);
+    maxplev = max<unsigned>(maxplev, C->Particles()[i]->level);
   }
   maxplev = min<unsigned>(maxplev, multistep);
   return maxplev;

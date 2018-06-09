@@ -16,7 +16,14 @@
 #ifndef STANDALONE
 #include <global.H>
 #include "expand.h"
+
+#if HAVE_LIBCUDA==1
+#include <cudaParticle.cuH>
+#include <cudaMappingConstants.cuH>
+#endif
+
 #else
+
 #include "Particle.h"
 extern int this_step;
 extern int Mstep;
@@ -24,11 +31,6 @@ extern int mstep;
 extern unsigned multistep;
 extern vector<int> stepL, stepN;
 extern pthread_mutex_t coef_lock;
-
-#if HAVE_LIBCUDA==1
-#include <cudaParticle.cuH>
-#include <cudaMappingConstants.cuH>
-#endif
 
 #endif
 

@@ -44,9 +44,9 @@ struct LessCudaLev
 };
 
 
-void ParticleHtoD(const Particle & h, cudaParticle & d);
+void ParticleHtoD(PartPtr h, cudaParticle & d);
 
-void ParticleDtoH(const cudaParticle & d, Particle & h);
+void ParticleDtoH(const cudaParticle & d, PartPtr h);
 
 extern __host__
 std::ostream& operator<< (std::ostream& os, const cudaParticle& p);

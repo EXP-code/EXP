@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <map>
 
+#include <boost/make_shared.hpp>
+
 #include <Component.H>
 #include <Bessel.H>
 #include <CBrock.H>
@@ -114,7 +116,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 
   tree = 0;
 
-  pbuf = new Particle [PFbufsz];
+  pbuf.resize(PFbufsz);
 
   // Already done in read_bodies_and_distribute_ascii()
   // initialize();
@@ -164,7 +166,7 @@ void * reset_level_lists_thrd(void *ptr)
   vector< vector<int> > *v = &static_cast<thrd_pass_reset*>(ptr)->newlist;
 
   for (int n=nbeg; n<nend; n++, it++) {
-    (*v)[it->second.level].push_back(it->first);
+    (*v)[it->second->level].push_back(it->first);
   }
   
   return (NULL);
@@ -439,7 +441,7 @@ Component::Component(istream *in)
 
   tree = 0;
 
-  pbuf = new Particle [PFbufsz];
+  pbuf.resize(PFbufsz);
 }
 
 
@@ -910,8 +912,6 @@ Component::~Component(void)
   delete [] comI;
   delete [] covI;
 
-  delete [] pbuf;
-
   delete tree;
 }
 
@@ -988,20 +988,20 @@ void Component::read_bodies_and_distribute_ascii(void)
 				// sizes
   if (not pf) pf = ParticleFerryPtr(new ParticleFerry(niattrib, ndattrib));
 
-  Particle part(niattrib, ndattrib);
+  PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
 
   if (myid==0) {
 				// Read in Node 0's particles
     for (unsigned i=1; i<=nbodies_table[0]; i++) {
 
-      part.readAscii(aindex, i, fin);
+      part->readAscii(aindex, i, fin);
 				// Get the radius
       double r2 = 0.0;
-      for (int j=0; j<3; j++) r2 += part.pos[j]*part.pos[j];
+      for (int j=0; j<3; j++) r2 += part->pos[j]*part->pos[j];
       rmax1 = max<double>(r2, rmax1);
       
 				// Load the particle
-      particles[part.indx] = part;
+      particles[part->indx] = part;
     }
 
     nbodies = nbodies_table[0];
@@ -1016,10 +1016,10 @@ void Component::read_bodies_and_distribute_ascii(void)
       while (icount < nbodies_table[n]) {
 
 	int i = nbodies_index[n-1] + 1 + icount;
-	part.readAscii(aindex, i, fin);
+	part->readAscii(aindex, i, fin);
 
 	r2 = 0.0;
-	for (int k=0; k<3; k++) r2 += part.pos[k]*part.pos[k];
+	for (int k=0; k<3; k++) r2 += part->pos[k]*part->pos[k];
 	rmax1 = max<double>(r2, rmax1);
 
 	pf->SendParticle(part);
@@ -1037,12 +1037,12 @@ void Component::read_bodies_and_distribute_ascii(void)
     int icount = 0;
 #endif
     while (pf->RecvParticle(part)) {
-      particles[part.indx] = part;
+      particles[part->indx] = part;
 #ifdef DEBUG
       if (icount<5) {
 	cout << "Process " << myid << ": received ";
-	cout << setw(14) << part.mass;
-	for (int k=0; k<3; k++) cout << setw(14) << part.pos[k];
+	cout << setw(14) << part->mass;
+	for (int k=0; k<3; k++) cout << setw(14) << part->pos[k];
 	cout << endl;
       }
       icount++;
@@ -1169,7 +1169,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
 				// Form cumulative and differential
 				// bodies list
-  Particle part(niattrib, ndattrib);
+  PartPtr part = boost::shared_ptr<Particle>(new Particle(niattrib, ndattrib));
 
   unsigned int ipart=0;
 
@@ -1180,14 +1180,14 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     rmax1 = 0.0;
     for (unsigned i=1; i<=nbodies_table[0]; i++)
     {
-      part.readBinary(rsize, indexing, ++seq_cur, in);
+      part->readBinary(rsize, indexing, ++seq_cur, in);
 
       r2 = 0.0;
-      for (int j=0; j<3; j++) r2 += part.pos[j]*part.pos[j];
+      for (int j=0; j<3; j++) r2 += part->pos[j]*part->pos[j];
       rmax1 = max<double>(r2, rmax1);
 
 				// Load the particle
-      particles[part.indx] = part;
+      particles[part->indx] = part;
     }
 
     nbodies = nbodies_table[0];
@@ -1204,11 +1204,11 @@ void Component::read_bodies_and_distribute_binary(istream *in)
       icount = 0;
       while (icount < nbodies_table[n]) {
 
-	part.readBinary(rsize, indexing, ++seq_cur, in);
+	part->readBinary(rsize, indexing, ++seq_cur, in);
 
 	r2 = 0.0;
 	for (int k=0; k<3; k++) 
-	  r2 += part.pos[k]*part.pos[k];
+	  r2 += part->pos[k]*part->pos[k];
 
 	rmax1 = max<double>(r2, rmax1);
 
@@ -1224,7 +1224,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
       
     int icount = 0;
     while (pf->RecvParticle(part)) {
-      particles[part.indx] = part;
+      particles[part->indx] = part;
       icount++;
     }
   }
@@ -1246,10 +1246,10 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 }
 
 
-struct Particle * Component::get_particles(int* number)
+PartPtr * Component::get_particles(int* number)
 {
   static unsigned counter = 1;	// Sequence begins at 1
-  static Particle part;
+  static PartPtr part;
   static bool seq_state_ok = true;
   
   int curcount = 0;		// Counter for this bunch
@@ -1274,7 +1274,7 @@ struct Particle * Component::get_particles(int* number)
 				// Reset
   if (*number < 0) {
     counter = 1;
-    part = Particle(niattrib, ndattrib);
+    part = boost::make_shared<Particle>(niattrib, ndattrib);
     seq_state_ok = true;
   }
 				// Done?
@@ -1283,7 +1283,7 @@ struct Particle * Component::get_particles(int* number)
     return 0;
   }
 
-  map<unsigned int,  Particle> tlist;
+  map<unsigned int, PartPtr> tlist;
 
   unsigned icount;
   int beg = counter;
@@ -1356,7 +1356,7 @@ struct Particle * Component::get_particles(int* number)
 
       // Load the ordered array
       for (unsigned n=0; n<icount; n++) {
-	tlist[pbuf[n].indx] = pbuf[n];
+	tlist[pbuf[n]->indx] = pbuf[n];
 	curcount++;
 	counter++;
       }
@@ -1493,7 +1493,7 @@ struct Particle * Component::get_particles(int* number)
     }
   }
 
-  return pbuf;
+  return &pbuf[0];
 }
 
 
@@ -1525,7 +1525,7 @@ void Component::write_binary(ostream* out, bool real4)
 
 				// First bunch of particles
   int number = -1;
-  Particle *p = get_particles(&number);
+  PartPtr *p = get_particles(&number);
 
   float tf;
   double pot0, pv;
@@ -1533,7 +1533,7 @@ void Component::write_binary(ostream* out, bool real4)
 
     if (myid == 0) {
       for (int k=0; k<number; k++) {
-	p[k].writeBinary(rsize, com0, comI, cov0, covI, indexing, out);
+	p[k]->writeBinary(rsize, com0, comI, cov0, covI, indexing, out);
       }
     }
 				// Next bunch of particles
@@ -1547,12 +1547,12 @@ void Component::write_binary(ostream* out, bool real4)
 void Component::write_ascii(ostream* out, bool accel)
 {
   int number = -1;
-  Particle *p = get_particles(&number);
+  PartPtr *p = get_particles(&number);
 
   while (p) {
     if (myid == 0) {
       for (int k=0; k<number; k++) {
-	p[k].writeAscii(com0, comI, cov0, covI, indexing, accel, out);
+	p[k]->writeAscii(com0, comI, cov0, covI, indexing, accel, out);
       }
     }
 
@@ -1579,10 +1579,10 @@ void Component::initialize_com_system()
   pend = particles.end();
   for (p=particles.begin(); p != pend; p++) {
     
-    mtot1 += p->second.mass;
+    mtot1 += p->second->mass;
 
-    for (int k=0; k<dim; k++) com1[k] += p->second.mass*p->second.pos[k];
-    for (int k=0; k<dim; k++) cov1[k] += p->second.mass*p->second.vel[k];
+    for (int k=0; k<dim; k++) com1[k] += p->second->mass*p->second->pos[k];
+    for (int k=0; k<dim; k++) cov1[k] += p->second->mass*p->second->vel[k];
     
   }
   
@@ -1621,8 +1621,8 @@ void Component::restart_com_system()
     for (p=particles.begin(); p != pend; p++) {
 
       for (int i=0; i<3; i++) {
-	p->second.pos[i] -= com0[i] - comI[i];
-	p->second.vel[i] -= cov0[i] - covI[i];
+	p->second->pos[i] -= com0[i] - comI[i];
+	p->second->vel[i] -= cov0[i] - covI[i];
       }
     }
 
@@ -2382,8 +2382,8 @@ void Component::load_balance(void)
       if (myid==iold) {
 	if (particles.size())
 	  cout << "Process " << myid << ": new ends :"
-	       << "  beg seq=" << particles.begin() ->second.indx
-	       << "  end seq=" << particles.rbegin()->second.indx
+	       << "  beg seq=" << particles.begin() ->second->indx
+	       << "  end seq=" << particles.rbegin()->second->indx
 	       << endl;
 	else
 	  cout << "Process " << myid << ": no particles!"
@@ -2407,8 +2407,8 @@ void Component::load_balance(void)
       if (myid==iold) {
 	if (particles.size())
 	  cout << "Process " << myid << ": new ends :"
-	       << "  beg seq=" << particles.begin() ->second.indx
-	       << "  end seq=" << particles.rbegin()->second.indx
+	       << "  beg seq=" << particles.begin() ->second->indx
+	       << "  end seq=" << particles.rbegin()->second->indx
 	       << endl;
 	else
 	  cout << "Process " << myid << ": no particles!"
@@ -2438,8 +2438,8 @@ void Component::load_balance(void)
       if (myid==i) {
 	ostringstream msg;
 	msg << "Process " << setw(4) << myid << ":"
-	    << setw(9) << particles[0].indx
-	    << setw(9) << particles[nbodies-1].indx;
+	    << setw(9) << particles[0]->indx
+	    << setw(9) << particles[nbodies-1]->indx;
 	strcpy(msgbuf, msg.str().c_str());
 	if (myid!=0) 
 	  MPI_Send(msgbuf, 200, MPI_CHAR, 0, 81, MPI_COMM_WORLD);
@@ -2461,11 +2461,11 @@ void Component::load_balance(void)
 				// Explicit check
     int nbad1 = 0, nbad=0;
     for (unsigned i=0; i<nbodies; i++) {
-      if (particles[i].indx != static_cast<int>(seq_beg+i)) {
+      if (particles[i]->indx != static_cast<int>(seq_beg+i)) {
 	cout << "Process " << myid << ": sequence error on load balance,"
 	     << " component=" << name
 	     << " i=" << i
-	     << " seq=" << particles[i].indx
+	     << " seq=" << particles[i]->indx
 	     << " expected=" << seq_beg+i
 	     << endl << flush;
 	nbad1++;
@@ -2530,12 +2530,12 @@ void Component::add_particles(int from, int to, vector<int>& plist)
 
   if (myid == to) {
   
-    Particle temp;
+    PartPtr temp = boost::make_shared<Particle>();
 
     while (counter < number) {
 
       while (pf->RecvParticle(temp)) {
-	particles[temp.indx] = temp;
+	particles[temp->indx] = temp;
 	counter++;
       }
 
@@ -2556,8 +2556,8 @@ bool Component::freeze(unsigned indx)
 {
   double r2 = 0.0;
   for (int i=0; i<3; i++) r2 += 
-			    (particles[indx].pos[i] - comI[i] - center[i])*
-			    (particles[indx].pos[i] - comI[i] - center[i]);
+			    (particles[indx]->pos[i] - comI[i] - center[i])*
+			    (particles[indx]->pos[i] - comI[i] - center[i]);
   if (r2 > rtrunc*rtrunc) return true;
   else return false;
 }
@@ -2586,8 +2586,6 @@ void Component::redistributeByList(vector<int>& redist)
   // Initialize the particle ferry instance with dynamic attribute sizes
   if (not pf) pf = ParticleFerryPtr(new ParticleFerry(niattrib, ndattrib));
 
-
-  Particle part(niattrib, ndattrib);
 
   vector<int>::iterator it = redist.begin();
   vector<unsigned> tlist;
@@ -2628,8 +2626,9 @@ void Component::redistributeByList(vector<int>& redist)
 	    }
 	  }
 	  if (myid==lastnode) {
+	    PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
 	    while (pf->RecvParticle(part))
-	      particles[part.indx] = part;
+	      particles[part->indx] = part;
 	  }
 	  tlist.clear();
 	  icount = 0;
