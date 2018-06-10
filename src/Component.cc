@@ -70,7 +70,9 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   com_system  = false;
   com_log     = false;
 
+#if HAVE_LIBCUDA==1
   bunchSize   = 500000;
+#endif
   timers      = false;
   use_cuda    = true;		// Set to false to suppress cuda
 				// computation
@@ -398,7 +400,9 @@ Component::Component(istream *in)
   com_log     = false;
   com_restart = 0;
 
+#if HAVE_LIBCUDA==1
   bunchSize   = 500000;
+#endif
   timers      = false;
   use_cuda    = true;
 
@@ -467,7 +471,9 @@ void Component::initialize(void)
 
     if (!datum.first.compare("use_cuda")) use_cuda = atoi(datum.second) ? true : false;
 
+#if HAVE_LIBCUDA==1
     if (!datum.first.compare("bunch"))    bunchSize = atoi(datum.second);
+#endif
 
     if (!datum.first.compare("tidal"))    {tidal = atoi(datum.second); consp=true;}
 
