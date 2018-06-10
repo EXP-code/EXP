@@ -114,8 +114,9 @@ void OutPSN::Run(int n, bool last)
 #ifdef PSN_TIMING
   end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> intvl = end - beg;
-  std::cout << "OutPSN [T=" << tnow << "] timing=" << intvl.count()
-	    << std::endl;
+  if (myid==0)
+    std::cout << "OutPSN [T=" << tnow << "] timing=" << intvl.count()
+	      << std::endl;
 #endif
 }
 
