@@ -10,6 +10,10 @@
 #include <AxisymmetricBasis.H>
 #include <OutCHKPT.H>
 
+#ifdef PSN_TIMING
+#include <chrono>
+#endif
+
 OutCHKPT::OutCHKPT(string& line) : Output(line)
 {
   initialize();
@@ -76,6 +80,11 @@ void OutCHKPT::Run(int n, bool last)
     return;
   }
 
+#ifdef PSN_TIMING
+  std::chrono::high_resolution_clock::time_point beg, end;
+  beg = std::chrono::high_resolution_clock::now();
+#endif
+  
   ofstream *out;
 
   if (myid==0) {
@@ -128,5 +137,12 @@ void OutCHKPT::Run(int n, bool last)
 
   chktimer.mark();
 
+#ifdef PSN_TIMING
+  end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> intvl = end - beg;
+  if (myid==0)
+    std::cout << "OutCHKPT [T=" << tnow << "] timing=" << intvl.count()
+	      << std::endl;
+#endif
 }
 
