@@ -377,14 +377,18 @@ void ParticleFerry::SendParticle(PartPtr part)
   if (ibufcount == PFbufsz || itotcount == _total) BufferSend();
 }
 
-bool ParticleFerry::RecvParticle(PartPtr part)
+PartPtr ParticleFerry::RecvParticle()
 {
-  if (itotcount++ == _total) return false;
+  PartPtr part;			// Will be null on construction; used
+				// to signal end of particles
+  
+  if (itotcount++ == _total) return part;
   if (ibufcount==0) BufferRecv();
 
   bufpos -= bufsiz;
   ibufcount--;
 
+  part = boost::make_shared<Particle>(nimax, ndmax);
   particleUnpack(part, &buf[bufpos]);
   if (part->indx==0 || part->mass<=0.0 || std::isnan(part->mass)) {
 	cout << "BAD MASS!" << endl;
@@ -394,7 +398,7 @@ bool ParticleFerry::RecvParticle(PartPtr part)
     cout << "ParticleFerry: process " << myid << " error in sequence" << endl;
   }
 #endif
-  return true;
+  return part;
 }
 
 void ParticleFerry::BufferSend()

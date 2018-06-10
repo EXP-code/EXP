@@ -988,11 +988,11 @@ void Component::read_bodies_and_distribute_ascii(void)
 				// sizes
   if (not pf) pf = ParticleFerryPtr(new ParticleFerry(niattrib, ndattrib));
 
-  PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
-
   if (myid==0) {
 				// Read in Node 0's particles
     for (unsigned i=1; i<=nbodies_table[0]; i++) {
+
+      PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
 
       part->readAscii(aindex, i, fin);
 				// Get the radius
@@ -1015,6 +1015,8 @@ void Component::read_bodies_and_distribute_ascii(void)
       ibufcount = 0;
       while (icount < nbodies_table[n]) {
 
+	PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
+
 	int i = nbodies_index[n-1] + 1 + icount;
 	part->readAscii(aindex, i, fin);
 
@@ -1036,7 +1038,8 @@ void Component::read_bodies_and_distribute_ascii(void)
 #ifdef DEBUG
     int icount = 0;
 #endif
-    while (pf->RecvParticle(part)) {
+
+    while (PartPtr part=pf->RecvParticle()) {
       particles[part->indx] = part;
 #ifdef DEBUG
       if (icount<5) {
@@ -1169,8 +1172,6 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
 				// Form cumulative and differential
 				// bodies list
-  PartPtr part = boost::shared_ptr<Particle>(new Particle(niattrib, ndattrib));
-
   unsigned int ipart=0;
 
   if (myid==0) {
@@ -1180,6 +1181,8 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     rmax1 = 0.0;
     for (unsigned i=1; i<=nbodies_table[0]; i++)
     {
+      PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
+      
       part->readBinary(rsize, indexing, ++seq_cur, in);
 
       r2 = 0.0;
@@ -1203,6 +1206,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
       icount = 0;
       while (icount < nbodies_table[n]) {
+	PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
 
 	part->readBinary(rsize, indexing, ++seq_cur, in);
 
@@ -1223,7 +1227,8 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     pf->ShipParticles(myid, 0, nbodies);
       
     int icount = 0;
-    while (pf->RecvParticle(part)) {
+    PartPtr part;
+    while (part=pf->RecvParticle()) {
       particles[part->indx] = part;
       icount++;
     }
@@ -1249,7 +1254,6 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 PartPtr * Component::get_particles(int* number)
 {
   static unsigned counter = 1;	// Sequence begins at 1
-  static PartPtr part;
   static bool seq_state_ok = true;
   
   int curcount = 0;		// Counter for this bunch
@@ -1274,7 +1278,7 @@ PartPtr * Component::get_particles(int* number)
 				// Reset
   if (*number < 0) {
     counter = 1;
-    part = boost::make_shared<Particle>(niattrib, ndattrib);
+    makeKeyList();		// Make the sorted key list
     seq_state_ok = true;
   }
 				// Done?
@@ -1300,9 +1304,6 @@ PartPtr * Component::get_particles(int* number)
        << " end=" << end 
        << endl;
 #endif
-
-  // Make the sorted key list
-  makeKeyList();
 
   KeyList::iterator icur, ibeg, iend;
 
@@ -1345,7 +1346,7 @@ PartPtr * Component::get_particles(int* number)
 	pf->ShipParticles(0, node, number);
 
 	icount = 0;
-	while (pf->RecvParticle(part)) pbuf[icount++] = part;
+	while (PartPtr part=pf->RecvParticle()) pbuf[icount++] = part;
 #ifdef DEBUG
 	cout << "Process " << myid 
 	     << ": received " << icount << " particles from Slave " << node
@@ -2530,11 +2531,9 @@ void Component::add_particles(int from, int to, vector<int>& plist)
 
   if (myid == to) {
   
-    PartPtr temp = boost::make_shared<Particle>();
-
     while (counter < number) {
 
-      while (pf->RecvParticle(temp)) {
+      while (PartPtr temp=pf->RecvParticle()) {
 	particles[temp->indx] = temp;
 	counter++;
       }
@@ -2590,6 +2589,7 @@ void Component::redistributeByList(vector<int>& redist)
   vector<int>::iterator it = redist.begin();
   vector<unsigned> tlist;
 
+  PartPtr part;
   unsigned int icount;
   int indx, curnode, tonode, lastnode, M;
 
@@ -2626,8 +2626,7 @@ void Component::redistributeByList(vector<int>& redist)
 	    }
 	  }
 	  if (myid==lastnode) {
-	    PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
-	    while (pf->RecvParticle(part))
+	    while (part=pf->RecvParticle())
 	      particles[part->indx] = part;
 	  }
 	  tlist.clear();

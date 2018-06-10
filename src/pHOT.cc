@@ -1722,8 +1722,7 @@ void pHOT::recvCell(int from, unsigned num)
   pf->ShipParticles(myid, from, num);
 
   for (unsigned j=0; j<num; j++) {
-    PartPtr part = boost::make_shared<Particle>();
-    pf->RecvParticle(part);
+    PartPtr part = pf->RecvParticle();
     if (part->indx==0 || part->mass<=0.0 || std::isnan(part->mass)) {
       cout << "[recvCell, myid=" << myid 
 	   << ", will ignore crazy body with indx=" << part->indx 

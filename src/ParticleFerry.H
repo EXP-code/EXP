@@ -61,7 +61,7 @@ public:
 
   void SendParticle(PartPtr part);
 
-  bool RecvParticle(PartPtr part);
+  PartPtr RecvParticle();
   //@}
 
   //! Size needed for a single particle
