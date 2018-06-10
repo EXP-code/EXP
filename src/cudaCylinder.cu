@@ -857,14 +857,6 @@ void Cylinder::determine_coefficients_cuda()
     //
     PII lohi = cC->CudaSortByLevel(cr, mlevel, mlevel);
 
-    /*
-    std::cout << "** Cylinder [coef] SortByLevel: T=" << tnow
-	      << ", level=" << mlevel << ", #=" << cr->instance
-	      << ", lo=" << lohi.first
-	      << ", hi=" << lohi.second
-	      << std::endl;
-    */
-
     // Compute grid
     //
     unsigned int N         = lohi.second - lohi.first;
@@ -1394,15 +1386,6 @@ void Cylinder::determine_acceleration_cuda()
     // Sort particles and get coefficient size
     //
     PII lohi = cC->CudaSortByLevel(cr, mlevel, multistep);
-
-    /*
-    std::cout << "** Cylinder [accel] SortByLevel: T=" << tnow
-	      << ", level=" << mlevel
-	      << ", name=" << cC->name
-	      << ", lo=" << lohi.first
-	      << ", hi=" << lohi.second
-	      << std::endl;
-    */
 
     // Compute grid
     //

@@ -874,14 +874,6 @@ void SphericalBasis::determine_coefficients_cuda()
     //
     PII lohi = cC->CudaSortByLevel(cr, mlevel, mlevel);
     
-    /*
-    std::cout << "** SphericalBasis [coef] SortByLevel: T=" << tnow
-	      << ", level=" << mlevel << ", #=" << cr->instance
-	      << ", lo=" << lohi.first
-	      << ", hi=" << lohi.second
-	      << std::endl;
-    */
-
     // Compute grid
     //
     unsigned int N         = lohi.second - lohi.first;
@@ -1450,15 +1442,6 @@ void SphericalBasis::determine_acceleration_cuda()
     // Sort particles and get size
     //
     PII lohi = cC->CudaSortByLevel(cr, mlevel, multistep);
-
-    /*
-    std::cout << "** SphericalBasis [accel] SortByLevel: T=" << tnow
-	      << ", level=" << mlevel << ", #=" << cr->instance
-	      << ", name=" << cC->name
-	      << ", lo=" << lohi.first
-	      << ", hi=" << lohi.second
-	      << std::endl;
-    */
 
     // Compute grid
     //
