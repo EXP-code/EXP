@@ -111,12 +111,6 @@ void Component::HostToDev(Component::cuRingType cr)
 		    thrust::raw_pointer_cast(&(*cr->first)),
 		    npart*sizeof(cudaParticle),
 		    cudaMemcpyHostToDevice, cr->stream);
-    /*
-    std::cout << "#" << cr->instance << " T=" << tnow << " @ " << cr->id
-	      << " copied " << npart << " " << name
-	      << " particles H2D; first is #" << (*cr->first).indx
-	      << std::endl;
-    */
   }
 }
 
@@ -130,12 +124,6 @@ void Component::DevToHost(Component::cuRingType cr)
 		    thrust::raw_pointer_cast(&cr->cuda_particles[0]),
 		    npart*sizeof(cudaParticle),
 		    cudaMemcpyDeviceToHost, cr->stream);
-    /*
-    std::cout << "#" << cr->instance << " T=" << tnow << " @ " << cr->id
-	      << " copied " << npart << " " << name
-	      << " particles D2H; first is #" << (*cr->first).indx
-	      << std::endl;
-    */
   }
 }
 
