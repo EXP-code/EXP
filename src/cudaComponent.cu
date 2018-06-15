@@ -8,8 +8,7 @@ unsigned Component::cudaStreamData::totalInstances=0;
 
 Component::cudaStreamData::cudaStreamData()
 {
-  // cuda_safe_call(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking),
-  cuda_safe_call(cudaStreamCreate(&stream),
+  cuda_safe_call(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking),
 		 __FILE__, __LINE__,
 		 "Component::cudaStreamData: error creating stream");
   instance = totalInstances++;

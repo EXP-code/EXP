@@ -966,12 +966,10 @@ void SphericalBasis::determine_coefficients_cuda()
       //
       thrust::sort(thrust::cuda::par.on(cr->stream), ar->m_d.begin(), ar->m_d.end());
       
-      // auto m_it = thrust::upper_bound(thrust::cuda::par.on(cr->stream), m_d.begin(), m_d.end(), 0.0);
-
       // Asynchronously cache result for host side to prevent stream block
       //
-      cudaStream_t s1;
-      cudaStreamCreate(&s1);	// Create a new thread
+      cudaStream_t s1;		// Create a new non blocking stream
+      cudaStreamCreateWithFlags(&s1, cudaStreamNonBlocking);
       f_s.push_back(s1);
 				
       size_t fsz = f_s.size();	// Augment the data vector
