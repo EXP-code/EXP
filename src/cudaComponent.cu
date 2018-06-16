@@ -145,6 +145,8 @@ struct cudaZeroAcc : public thrust::unary_function<cudaParticle, cudaParticle>
 
 void Component::ZeroPotAccel(int minlev)
 {
+  #pragma message "Please ignore the 'statement unreachable' warning here"
+  
   return;			// Don't need this now, since this
 				// duplicates zeroing performed on
 				// host
