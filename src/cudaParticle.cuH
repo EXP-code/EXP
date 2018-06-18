@@ -13,6 +13,7 @@
 
 #include <Particle.H>
 
+//! Simplified particle structure for use in CUDA kernel code
 struct cudaParticle
 {
   cuFP_t mass;
@@ -25,6 +26,7 @@ struct cudaParticle
   unsigned indx;
 } __attribute__((aligned));
 
+//! For thrust sorts on sequence
 struct LessCudaSeq
 {
   __host__ __device__
@@ -34,6 +36,7 @@ struct LessCudaSeq
   }
 };
 
+//! For thrust sorts on on level
 struct LessCudaLev
 {
   __host__ __device__
@@ -44,11 +47,25 @@ struct LessCudaLev
 };
 
 
+//! Copy EXP particle to CUDA particle structure
 void ParticleHtoD(PartPtr h, cudaParticle & d);
 
+//! Copy CUDA particle structure to EXP particle
 void ParticleDtoH(const cudaParticle & d, PartPtr h);
 
+//! Print cudaParticle to output stream
 extern __host__
 std::ostream& operator<< (std::ostream& os, const cudaParticle& p);
+
+//! Functor for extracting level info from cudaParticle structures
+struct cuPartToLevel :
+  public thrust::unary_function<cudaParticle, unsigned>
+{
+  __host__ __device__
+  unsigned operator()(const cudaParticle& p) const
+  {
+    return p.level;
+  }
+};
 
 #endif

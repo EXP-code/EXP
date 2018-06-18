@@ -8,6 +8,7 @@ unsigned Component::cudaStreamData::totalInstances=0;
 
 Component::cudaStreamData::cudaStreamData()
 {
+  // Not sure why this breaks thrust, but it does . . .
   /*
   cuda_safe_call(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking),
 		 __FILE__, __LINE__,
@@ -45,6 +46,22 @@ struct LevelFunctor
 };
 
 
+template<typename Iterator, typename Pointer>
+__global__
+void getLower(Iterator first, Iterator last, int val, Pointer result)
+{
+  auto it  = thrust::lower_bound(thrust::cuda::par, first, last, val);
+  *result  = thrust::distance(first, it);
+}
+
+template<typename Iterator, typename Pointer>
+__global__
+void getUpper(Iterator first, Iterator last, int val, Pointer result)
+{
+  auto it  = thrust::upper_bound(thrust::cuda::par, first, last, val);
+  *result  = thrust::distance(first, it);
+}
+
 std::pair<unsigned int, unsigned int>
 Component::CudaSortByLevel(Component::cuRingType cr, int minlev, int maxlev)
 {
@@ -52,27 +69,37 @@ Component::CudaSortByLevel(Component::cuRingType cr, int minlev, int maxlev)
 
   try {
     auto exec = thrust::cuda::par.on(cr->stream);
-
-    thrust::sort(exec, cr->cuda_particles.begin(), cr->cuda_particles.end(), LessCudaLev());
-
-    cudaParticle temp;
-
+    
     thrust::device_vector<cudaParticle>::iterator
       pbeg = cr->cuda_particles.begin(),
       pend = cr->cuda_particles.end();
     
-    // NB: The execution policy can be changed to
-    // thrust::cuda::par.on(cr->stream) when the thrust binary search
-    // bug for user streams is fixed.
-    //
+    thrust::sort(exec, pbeg, pend, LessCudaLev());
+    
+    // Convert from cudaParticle to a flat vector to prevent copying
+    // the whole particle structure in getBound.  Perhaps this
+    // temporary should be part of the data storage structure?
+    thrust::device_vector<unsigned> lev(cr->cuda_particles.size());
 
-    // Get positions of level boundaries
-    //
-    temp.level = minlev;
-    ret.first  = thrust::lower_bound(thrust::cuda::par, pbeg, pend, temp, LessCudaLev()) - pbeg;
+    thrust::transform(exec, pbeg, pend, lev.begin(), cuPartToLevel());
 
-    temp.level = maxlev;
-    ret.second = thrust::upper_bound(thrust::cuda::par, pbeg, pend, temp, LessCudaLev()) - pbeg;
+    // Perform in the sort on the int vector of levels on the GPU
+    thrust::device_vector<unsigned> retV(1);
+
+    // Use this single thread call to maintain synchronization with cr->stream
+    //
+    getLower<<<1, 1, 0, cr->stream>>>(lev.begin(), lev.end(), minlev, &retV[0]);
+				// Wait for completion before memcpy
+    cudaStreamSynchronize(cr->stream); ret.first = retV[0];
+				// If maxlev==multistep: upper bound
+				// is at end, so skip explicit computation
+    if (maxlev < multistep) {
+      getUpper<<<1, 1, 0, cr->stream>>>(lev.begin(), lev.end(), maxlev, &retV[0]);
+      cudaStreamSynchronize(cr->stream); ret.second = retV[0];
+    } else {
+      ret.second = thrust::distance(pbeg, pend);
+    }
+    
   }
   catch(std::bad_alloc &e) {
     std::cerr << "Ran out of memory while sorting" << std::endl;
