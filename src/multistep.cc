@@ -4,6 +4,7 @@
 
 #include "expand.h"
 #include <sstream>
+#include <chrono>
 #include <map>
 
 
@@ -37,6 +38,10 @@ struct thrd_pass_sync
 static map< Component*, vector<unsigned> > offlo1, offhi1;
 static vector< double > mindt1;
 static vector< double > maxdt1;
+static vector< double > adjtm1;
+static vector< double > adjtm2;
+static vector< unsigned> numsw;
+static vector< unsigned> numtt;
 
 // Type counter
 static vector< vector< vector<unsigned> > > tmdt;
@@ -46,6 +51,11 @@ static vector< vector< vector<unsigned> > > tmdt;
 //
 void * adjust_multistep_level_thread(void *ptr)
 {
+  // Begin diagnostic timing
+  std::chrono::high_resolution_clock::time_point start0, finish0;
+
+  start0 = std::chrono::high_resolution_clock::now();
+
   // Level
   int level = static_cast<thrd_pass_sync*>(ptr)->level;
 
@@ -192,9 +202,16 @@ void * adjust_multistep_level_thread(void *ptr)
     // Update coefficients
     //
     if (nlev != level) {
+      std::chrono::high_resolution_clock::time_point start1, finish1;
+      start1 = std::chrono::high_resolution_clock::now();
       c->force->multistep_update(plev, nlev, c, n, id);
+      finish1 = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> duration = finish1 - start1;
+      adjtm2[id] += duration.count();
       p->level = lev;
+      numsw[id]++;
     }
+    numtt[id]++;
 
     // For reporting level populations
     //
@@ -215,6 +232,10 @@ void * adjust_multistep_level_thread(void *ptr)
     offhi1[c][id] += offhi;
   }
   
+  finish0 = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> duration = finish0 - start0;
+  adjtm1[id] += duration.count();
+
   return (NULL);
 }
 
@@ -237,6 +258,10 @@ void adjust_multistep_level(bool all)
   //
   mindt1 = vector< double > (nthrds,  1.0e20);
   maxdt1 = vector< double > (nthrds, -1.0e20);
+  adjtm1 = vector< double > (nthrds, 0.0);
+  adjtm2 = vector< double > (nthrds, 0.0);
+  numsw  = vector< unsigned > (nthrds, 0);
+  numtt  = vector< unsigned > (nthrds, 0);
 
   if (VERBOSE>0) {
 
@@ -380,12 +405,22 @@ void adjust_multistep_level(bool all)
     for (int n=1; n<nthrds; n++) {
       mindt1[0] = min<double>(mindt1[0], mindt1[n]);
       maxdt1[0] = max<double>(maxdt1[0], maxdt1[n]);
+      adjtm1[0] += adjtm1[n];
+      adjtm2[0] += adjtm2[n];
+      numsw [0] += numsw [n];
+      numtt [0] += numtt [n];
     }
 
-    double mindt, maxdt;
+    double mindt, maxdt, atim1, atim2;
+    unsigned numtot, numadj;
 
-    MPI_Reduce(&mindt1[0], &mindt, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&maxdt1[0], &maxdt, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&mindt1[0], &mindt,  1, MPI_DOUBLE,   MPI_MIN, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&maxdt1[0], &maxdt,  1, MPI_DOUBLE,   MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&adjtm1[0], &atim1,  1, MPI_DOUBLE,   MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&adjtm2[0], &atim2,  1, MPI_DOUBLE,   MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&adjtm1[0], &atim1,  1, MPI_DOUBLE,   MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&numsw [0], &numadj, 1, MPI_UNSIGNED, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&numtt [0], &numtot, 1, MPI_UNSIGNED, MPI_MAX, 0, MPI_COMM_WORLD);
 
     
     for (auto c : comp->components) {
@@ -406,6 +441,17 @@ void adjust_multistep_level(bool all)
     
     if (myid==0) {
       
+      if (VERBOSE>3 and atim1>0) {
+	auto pc = std::cout.precision(1);
+	std::cout << endl
+		  << std::setw(70) << std::setfill('-') << '-' << std::endl << std::setfill(' ')
+		  << std::left << "--- Coefficient adjust stats"  << std::endl << std::fixed
+		  << std::left << "--- Coef/DT = " << 100.0*atim2/atim1   << "%" << std::endl
+		  << std::left << "--- Adj/Tot = " << 100.0*numadj/numtot << "%" << std::endl
+		  << std::setw(70) << std::setfill('-') << '-' << std::endl << std::setfill(' ');
+	std::cout.precision(pc);
+      }
+
       unsigned sumlo=0, sumhi=0;
       for (auto c : comp->components) {
 	sumlo += offlo[c];
