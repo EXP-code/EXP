@@ -8,7 +8,13 @@ unsigned Component::cudaStreamData::totalInstances=0;
 
 Component::cudaStreamData::cudaStreamData()
 {
+  /*
   cuda_safe_call(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking),
+		 __FILE__, __LINE__,
+		 "Component::cudaStreamData: error creating stream");
+  */
+  // Need blocking until thrust bug in binary search is fixed
+  cuda_safe_call(cudaStreamCreate(&stream),
 		 __FILE__, __LINE__,
 		 "Component::cudaStreamData: error creating stream");
   instance = totalInstances++;
@@ -55,6 +61,11 @@ Component::CudaSortByLevel(Component::cuRingType cr, int minlev, int maxlev)
       pbeg = cr->cuda_particles.begin(),
       pend = cr->cuda_particles.end();
     
+    // NB: The execution policy can be changed to
+    // thrust::cuda::par.on(cr->stream) when the thrust binary search
+    // bug for user streams is fixed.
+    //
+
     // Get positions of level boundaries
     //
     temp.level = minlev;
