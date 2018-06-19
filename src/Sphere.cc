@@ -34,7 +34,6 @@ Sphere::Sphere(string& line, MixtureBasis* m) : SphericalBasis(line, m)
 			cmap, rs, diverge, dfac);
 
   setup();
-
 }
 
 

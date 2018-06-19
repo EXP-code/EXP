@@ -18,6 +18,10 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
   if (m) {
     throw std::runtime_error("Error in SphericalBasis: MixtureBasis logic is not yet implemented in CUDA");
   }
+
+  // Initialize the circular storage container 
+  cuda_initialize();
+
 #endif
 
   dof              = 3;
@@ -241,15 +245,6 @@ void SphericalBasis::setup(void)
   }
 
   if (NOISE) compute_rms_coefs();
-
-#if HAVE_LIBCUDA==1
-  bool firstime = true;
-  if (firstime and cC->cudaDevice>=0) {
-    initialize_cuda();
-    initialize_mapping_constants();
-    firstime = false;
-  }
-#endif
 }  
 
 
@@ -274,7 +269,7 @@ SphericalBasis::~SphericalBasis()
   delete nrand;
 
 #if HAVE_LIBCUDA==1
-  if (cC->cudaDevice>=0) destroy_cuda();
+  if (component->cudaDevice>=0) destroy_cuda();
 #endif
 }
 
@@ -290,6 +285,10 @@ void SphericalBasis::check_range()
 
 void SphericalBasis::get_acceleration_and_potential(Component* C)
 {
+  nvTracerPtr tPtr;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("SphericalBasis::get_acceleration"));
+
 #ifdef DEBUG
   cout << "Process " << myid 
        << ": in SphericalBasis::get_acceleration_and_potential" << endl;
@@ -508,6 +507,10 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
 void SphericalBasis::determine_coefficients(void)
 {
+  nvTracerPtr tPtr;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("SphericalBasis::determine_coefficients"));
+
   std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
 
   start0 = std::chrono::high_resolution_clock::now();
@@ -612,10 +615,10 @@ void SphericalBasis::determine_coefficients(void)
 #endif
 
 #if HAVE_LIBCUDA==1
-  if (cC->cudaDevice>=0) {
+  if (component->cudaDevice>=0) {
     start1 = std::chrono::high_resolution_clock::now();
-    cC->ParticlesToCuda();
-    determine_coefficients_cuda(expcoef0[0]);
+    determine_coefficients_cuda();
+    DtoH_coefs(expcoef0[0]);
     finish1 = std::chrono::high_resolution_clock::now();
   } else {
     exp_thread_fork(true);
@@ -640,9 +643,7 @@ void SphericalBasis::determine_coefficients(void)
   
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
-  if (multistep==0 || mstep==0) {
-    used += use0;
-  }
+  if (multistep==0 or tnow==resetT) used += use0;
 
   for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
       
@@ -694,17 +695,20 @@ void SphericalBasis::determine_coefficients(void)
   print_timings("SphericalBasis: coefficient timings");
 
 # if HAVE_LIBCUDA
-  if (cC->cudaDevice>=0) {
+  if (component->timers) {
     auto finish0 = std::chrono::high_resolution_clock::now();
   
     std::chrono::duration<double> duration0 = finish0 - start0;
     std::chrono::duration<double> duration1 = finish1 - start1;
 
     std::cout << std::string(60, '=') << std::endl;
-    std::cout << "== Coefficient evaluation [SphericalBasis]" << std::endl;
+    std::cout << "== Coefficient evaluation [SphericalBasis] level="
+	      << mlevel << std::endl;
     std::cout << std::string(60, '=') << std::endl;
     std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
-    std::cout << "Time in GPU: " << duration1.count() << std::endl;
+    if (cC->cudaDevice>=0) {
+      std::cout << "Time in GPU: " << duration1.count() << std::endl;
+    }
     std::cout << std::string(60, '=') << std::endl;
   }
 #endif
@@ -712,7 +716,8 @@ void SphericalBasis::determine_coefficients(void)
 
 void SphericalBasis::multistep_reset()
 {
-  used = 0;
+  used   = 0;
+  resetT = tnow;
   for (int M=0; M<=multistep; M++) dstepN[M] = 0;
 }
 
@@ -1187,54 +1192,39 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
 void SphericalBasis::determine_acceleration_and_potential(void)
 {
+  nvTracerPtr tPtr;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("SphericalBasis::determine_acceleration"));
+
+  std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
+  start0 = std::chrono::high_resolution_clock::now();
+
 #ifdef DEBUG
   cout << "Process " << myid << ": in determine_acceleration_and_potential\n";
 #endif
 
 #if HAVE_LIBCUDA==1
-  if (cC->cudaDevice>=0) {
-    auto start = std::chrono::high_resolution_clock::now();
-
-    cC->ParticlesToCuda();
+  if (component->cudaDevice>=0) {
+    start1 = std::chrono::high_resolution_clock::now();
+    //
+    // Copy coefficients from this component to device
+    //
     HtoD_coefs(expcoef);
+    //
+    // Do the force computation
+    //
     determine_acceleration_cuda();
-    cC->CudaToParticles();
 
-    auto finish = std::chrono::high_resolution_clock::now();
-
-    std::chrono::duration<double> duration = finish - start;
-
-    std::cout << std::string(60, '=') << std::endl;
-    std::cout << "== Force evaluation [SphericalBasis CUDA]" << std::endl;
-    std::cout << "Time: " << duration.count() << std::endl;
-    std::cout << std::string(60, '=') << std::endl;
+    finish1 = std::chrono::high_resolution_clock::now();
   } else {
-    auto start = std::chrono::high_resolution_clock::now();
 
     exp_thread_fork(false);
 
-    auto finish = std::chrono::high_resolution_clock::now();
-
-    std::chrono::duration<double> duration = finish - start;
-
-    std::cout << std::string(60, '=') << std::endl;
-    std::cout << "== Force evaluation [SphericalBasis CPU]" << std::endl;
-    std::cout << "Time: " << duration.count() << std::endl;
-    std::cout << std::string(60, '=') << std::endl;
   }
 #else
-  auto start = std::chrono::high_resolution_clock::now();
 
   exp_thread_fork(false);
 
-  auto finish = std::chrono::high_resolution_clock::now();
-    
-  std::chrono::duration<double> duration = finish - start;
-
-  std::cout << std::string(60, '=') << std::endl;
-  std::cout << "== Force evaluation [SphericalBasis CPU]" << std::endl;
-  std::cout << "Time: " << duration.count() << std::endl;
-  std::cout << std::string(60, '=') << std::endl;
 #endif
 
 #ifdef DEBUG
@@ -1253,6 +1243,24 @@ void SphericalBasis::determine_acceleration_and_potential(void)
 
   print_timings("SphericalBasis: acceleration timings");
 
+#if HAVE_LIBCUDA==1
+  if (component->timers) {
+    finish0 = std::chrono::high_resolution_clock::now();
+
+    std::chrono::duration<double> duration0 = finish0 - start0;
+    std::chrono::duration<double> duration1 = finish1 - start1;
+  
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "== Force evaluation [SphericalBasis::" << cC->name
+	      << "] level=" << mlevel << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
+    if (cC->cudaDevice>=0) {
+      std::cout << "Time in GPU: " << duration1.count() << std::endl;
+    }
+    std::cout << std::string(60, '=') << std::endl;
+  }
+#endif
 }
 
 

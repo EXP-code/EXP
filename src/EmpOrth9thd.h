@@ -16,7 +16,14 @@
 #ifndef STANDALONE
 #include <global.H>
 #include "expand.h"
+
+#if HAVE_LIBCUDA==1
+#include <cudaParticle.cuH>
+#include <cudaMappingConstants.cuH>
+#endif
+
 #else
+
 #include "Particle.h"
 extern int this_step;
 extern int Mstep;
@@ -24,11 +31,6 @@ extern int mstep;
 extern unsigned multistep;
 extern vector<int> stepL, stepN;
 extern pthread_mutex_t coef_lock;
-
-#if HAVE_LIBCUDA==1
-#include <cudaParticle.cuH>
-#include <cudaMappingConstants.cuH>
-#endif
 
 #endif
 
@@ -541,7 +543,7 @@ public:
   void initialize_cuda(std::vector<cudaArray_t>& cuArray,
 		       thrust::host_vector<cudaTextureObject_t>& tex);
 
-  double& get_coef(int m, int n, char c)
+  double get_coef(int m, int n, char c)
   {
     if (m >  MMAX)
       throw std::runtime_error("m>mmax");
@@ -553,6 +555,20 @@ public:
       return accum_cos[m][n];
     else
       return accum_sin[m][n];
+  }
+
+  double& set_coef(int mlevel, int m, int n, char c)
+  {
+    if (m >  MMAX)
+      throw std::runtime_error("m>mmax");
+
+    if (n >= rank3)
+      throw std::runtime_error("n>=norder");
+
+    if (c == 'c')
+      return accum_cosN[mlevel][0][m][n];
+    else
+      return accum_sinN[mlevel][0][m][n];
   }
 
 #endif

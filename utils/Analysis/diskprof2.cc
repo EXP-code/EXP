@@ -187,7 +187,7 @@ void add_particles(ifstream* in, PSPDumpPtr psp, int& nbods, vector<Particle>& p
 
       // Add to histogram
       //
-      h.Add(part->pos(0), part->pos(1), part->mass());
+      if (part) h.Add(part->pos(0), part->pos(1), part->mass());
     }
 
     //

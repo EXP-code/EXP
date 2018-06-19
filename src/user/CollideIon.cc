@@ -15147,8 +15147,8 @@ void collDiag::getEcons()
 
     // Particle loop
     for (auto v : p->Particles()) {
-      EconsI += v.second.dattrib[p->use_cons];
-      if (elec) EconsE += v.second.dattrib[p->use_elec+3];
+      EconsI += v.second->dattrib[p->use_cons];
+      if (elec) EconsE += v.second->dattrib[p->use_elec+3];
     }
 
     MPI_Reduce(&EconsI, &delI_s, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);

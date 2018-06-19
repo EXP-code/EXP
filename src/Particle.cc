@@ -259,3 +259,19 @@ void Particle::writeAscii(double* com0, double* comI,
   
   *out << std::endl;
 }
+
+// For debugging . . . 
+std::ostream& operator<< (std::ostream& os, const PMapType& p)
+{
+  std::streamsize sp = os.precision();
+  os.precision(6);
+  os << std::setw(10) << p.second->indx
+     << std::setw( 4) << p.second->level
+     << std::setw(16) << p.second->mass;
+  for (int k=0; k<3; k++) os << std::setw(16) << p.second->pos[k];
+  // for (int k=0; k<3; k++) os << std::setw(16) << p->second.vel[k];
+  for (int k=0; k<3; k++) os << std::setw(16) << p.second->acc[k];
+  // os << std::setw(16) << p.second.pot << std::setw(16) << p.second->potext;
+  os.precision(sp);
+  return os;
+}

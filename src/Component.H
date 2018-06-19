@@ -11,6 +11,7 @@
 #include <localmpi.h>
 #include <ParticleFerry.H>
 #include <PotAccel.H>
+#include <Circular.H>
 #include <Timer.h>
 
 #include "config.h"
@@ -208,7 +209,7 @@ private:
   void bomb(const string& msg);
 
   // Particle buffer
-  Particle *pbuf;
+  std::vector<PartPtr> pbuf;
 
   // Adiabatic mass
   bool adiabatic;
@@ -295,9 +296,8 @@ protected:
     std::sort (keys.begin(), keys.end());
   }
 
-#if HAVE_LIBCUDA==1
-  int cudaDevice;
-#endif
+  //! Suppress cuda computation even if devices are available
+  bool use_cuda;
 
 public:
 
@@ -459,6 +459,9 @@ public:
   //! Maximum radius from center for force evaluation
   double rtrunc;
 
+  //! CUDA timing info
+  bool timers;
+
   //! Orientation cache
   Orient *orient;
 
@@ -475,7 +478,7 @@ public:
   ~Component();
 
   //! Parallel gather
-  Particle* get_particles(int* number);
+  PartPtr * get_particles(int* number);
   
   //! Retrieve particle count on a particular node (one node at a time)
   int particle_count(int node) { 
@@ -543,7 +546,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    return &(tp->second);
+    return tp->second.get();
   }
 
   //! Particle vector size
@@ -557,7 +560,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    return tp->second.mass;
+    return tp->second->mass;
   }
 
   //! Access to positions
@@ -567,7 +570,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    double val = tp->second.pos[j];
+    double val = tp->second->pos[j];
     if (com_system) {
       if (flags & Local)
 	val -= comI[j];
@@ -602,7 +605,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    double val = tp->second.vel[j];
+    double val = tp->second->vel[j];
     if (com_system) {
       if (flags & Local)
 	val -= covI[j];
@@ -619,7 +622,7 @@ public:
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
     for (int k=0; k<3; k++) {
-      pos[k] = tp->second.pos[k];
+      pos[k] = tp->second->pos[k];
       if (com_system) {
 	if (flags & Local) 
 	  pos[k] -= comI[k];
@@ -637,7 +640,7 @@ public:
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
     for (int k=0; k<3; k++) {
-      vel[k] = tp->second.vel[k];
+      vel[k] = tp->second->vel[k];
       if (com_system) {
 	if (flags & Local)
 	  vel[k] -= covI[k];
@@ -677,7 +680,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    double val = tp->second.acc[j];
+    double val = tp->second->acc[j];
     if (com_system && (flags & Inertial)) val += acc0[j];
     return val;
   }
@@ -688,7 +691,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    tp->second.pos[j] += val;
+    tp->second->pos[j] += val;
   }
   
   //! Add to position (by array)
@@ -697,7 +700,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    for (int k=0; k<3; k++) tp->second.pos[k] += val[k];
+    for (int k=0; k<3; k++) tp->second->pos[k] += val[k];
   }
   
   //! Add to position (by vector)
@@ -706,7 +709,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    for (int k=0; k<3; k++) tp->second.pos[k] += val[k];
+    for (int k=0; k<3; k++) tp->second->pos[k] += val[k];
   }
   
   //! Add to velocity (by component)
@@ -715,7 +718,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    tp->second.vel[j] += val;
+    tp->second->vel[j] += val;
   }
   
   //! Add to velocity (by array)
@@ -724,7 +727,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    for (int k=0; k<3; k++) tp->second.vel[k] += val[k];
+    for (int k=0; k<3; k++) tp->second->vel[k] += val[k];
   }
   
   //! Add to velocity (by vector)
@@ -733,7 +736,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    for (int k=0; k<3; k++) tp->second.vel[k] += val[k];
+    for (int k=0; k<3; k++) tp->second->vel[k] += val[k];
   }
   
   //! Add to accerlation (by component)
@@ -742,7 +745,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    tp->second.acc[j] += val;
+    tp->second->acc[j] += val;
   }
   
   //! Add to acceleration (by array)
@@ -751,7 +754,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    for (int k=0; k<3; k++) tp->second.acc[k] += val[k];
+    for (int k=0; k<3; k++) tp->second->acc[k] += val[k];
   }
   
   //! Add to accerlation (by vector)
@@ -760,7 +763,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    for (int k=0; k<3; k++) tp->second.acc[k] += val[k];
+    for (int k=0; k<3; k++) tp->second->acc[k] += val[k];
   }
   
   //! Add to potential
@@ -769,7 +772,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    tp->second.pot += val;
+    tp->second->pot += val;
   }
   
   //! Add to external potential
@@ -778,7 +781,7 @@ public:
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
-    tp->second.potext += val;
+    tp->second->potext += val;
   }
   
   //! Reset the level lists
@@ -806,26 +809,78 @@ public:
   //@{
   //! CUDA utilities for handling host <===> device exchange
 
-  //! The cuda particles in CPU node memory
-  thrust::host_vector  <cudaParticle> host_particles;
+  //! Index of the device to use (-1 means ignore)
+  int cudaDevice;
+
+  typedef thrust::host_vector<cudaParticle> hostPartType;
+  typedef thrust::host_vector<cudaParticle>::iterator hostPartItr;
+
+  //! Cuda particles in host memory
+  hostPartType host_particles;
 
   //! The cuda particles in CUDA device memory
-  thrust::device_vector<cudaParticle> cuda_particles;
+  //@{
 
-  //! Copy host particles to the cuda structure
+  //! Helper class to hold data and create/destroy the stream
+  class cudaStreamData
+  {
+  private:
+    static unsigned totalInstances;
+
+  public:
+    //! Instance id for debugging
+    unsigned instance, id;
+
+    //! Host particle beginning and ending iterator
+    hostPartItr first, last;
+
+    //! Device particles
+    thrust::device_vector<cudaParticle> cuda_particles;
+
+    //! My stream
+    cudaStream_t stream;
+
+    //! Constructor
+    cudaStreamData();
+
+    //! Destructor
+    ~cudaStreamData();
+  };
+
+  //! Initialize the streams
+  void cuda_initialize();
+
+  typedef std::vector<cudaStreamData> cuContainer;
+  typedef cuContainer::iterator       cuIterator;
+  typedef RingIterator <cudaStreamData, cuContainer, cuIterator> cuRingType;
+
+  cuContainer cuRingData;
+  boost::shared_ptr<cuRingType> cuRing;
+  //@}
+
+  //! Copy particles from Component C to the cuda structure for this component
   void ParticlesToCuda();
 
-  //! Copy cuda device particles to host structure
+  //! Copy particles host to device for ring entry
+  void HostToDev(cuRingType cr);
+  
+  //! Copy particles device to host for ring entry
+  void DevToHost(cuRingType cr);
+  
+  //! Copy cuda device particles for this component back Component C
   void CudaToParticles();
 
   //! Sort the device vector by sequence
-  void CudaSortBySequence();
+  void CudaSortBySequence(cuRingType cr);
 
   //! Sort the device vector by level and return level boundaries
-  std::pair<unsigned, unsigned> CudaSortByLevel(int lo, int hi);
+  std::pair<unsigned, unsigned> CudaSortByLevel(cuRingType cr, int lo, int hi);
 
   //! Zero the acceleration
   void ZeroPotAccel(int mlevel);
+
+  //! Default bunch size
+  size_t bunchSize;
 
   //@}
 #endif

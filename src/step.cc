@@ -21,6 +21,8 @@
 #include <gptl.h>
 #endif
 
+#include <NVTX.H>
+
 static Timer timer_coef(true), timer_drift(true), timer_vel(true);
 static Timer timer_pot (true), timer_adj  (true);
 
@@ -31,8 +33,8 @@ inline void check_bad(const char *msg)
 {
 #ifdef CHK_BADV
   if (comp.bad_values()) 
-    cout << "Process " << myid 
-	 << ": found BAD values " << msg << endl;
+    std::cout << "Process " << myid 
+	      << ": found BAD values " << msg << std::endl;
 #endif
 }
 
@@ -40,8 +42,8 @@ inline void check_bad(const char *msg, int v)
 {
 #ifdef CHK_BADV
   if (comp.bad_values()) 
-    cout << "Process " << myid 
-	 << ": found BAD values " << msg << ", M=" << v << endl;
+    std::cout << "Process " << myid 
+	      << ": found BAD values " << msg << ", M=" << v << std::endl;
 #endif
 }
 
@@ -50,7 +52,6 @@ void do_step(int n)
 #ifdef USE_GPTL
   GPTLstart("dostep");
 #endif
-
 
   // Turn on step timers or VERBOSE level 4 or greater
   //
@@ -91,12 +92,13 @@ void do_step(int n)
 				// (the "active" particles)
 				//
       for (int M=mfirst[mstep]; M<=multistep; M++) {
-
 				// The timestep at level M
 	double DT = dt*mintvl[M];
 	
 				// Advance velocity by 1/2 step:
 				// First K_{1/2}
+	nvTracerPtr tPtr2;
+	if (cuda_prof) tPtr2 = nvTracerPtr(new nvTracer("Velocity kick [1]"));
 	if (timing) timer_vel.start();
 	incr_velocity(0.5*DT, M);
 #ifdef CHK_STEP
@@ -109,6 +111,7 @@ void do_step(int n)
 				// Advance position by the whole time
 				// step at this level: D_1
 				//
+	if (cuda_prof) tPtr2 = nvTracerPtr(new nvTracer("Drift"));
 	if (timing) timer_drift.start();
 	incr_position(DT, M);
 #ifdef CHK_STEP
@@ -121,12 +124,13 @@ void do_step(int n)
 				// Now, compute the coefficients for
 				// this level
 				//
+
+	if (cuda_prof) tPtr2 = nvTracerPtr(new nvTracer("Expansion"));
 	if (timing) timer_coef.start();
 	comp->compute_expansion(M);
 	if (timing) timer_coef.stop();
       }
 
-      
       double tlast = tnow;	// Time before current step
       tnow += dt;		// Time at the end of the current step
 
@@ -138,6 +142,9 @@ void do_step(int n)
 
 				// Compute potential for all the
 				// particles active at this step
+
+      nvTracerPtr tPtr1;
+      if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Potential"));
       if (timing) timer_pot.start();
       comp->compute_potential(mfirst[mstep]);
       if (timing) timer_pot.stop();
@@ -148,6 +155,8 @@ void do_step(int n)
 				// Advance velocity by 1/2 step to
 				// bring the velocity in sync: 
 				// Second K_{1/2}
+
+      if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [2]"));
       if (timing) timer_vel.start();
       for (int M=mfirst[mstep]; M<=multistep; M++) {
 	incr_velocity(0.5*dt*mintvl[M], M);
@@ -157,6 +166,8 @@ void do_step(int n)
       }
       if (timing) timer_vel.stop();
 
+
+      if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Adjust multistep"));
       if (timing) timer_adj.start();
       adjust_multistep_level(false);
       if (mstep==0) { // Print the level lists
@@ -185,16 +196,16 @@ void do_step(int n)
       for (int M=0; M<=multistep; M++) {
 	if (fabs(dtime - pos_check[M]) > 1.0e-8*dtime) {
 	  cerr << "Pos step error[" << M << "]: T=" << tnow << " found="
-	       << pos_check[M] << ", expected=" << dtime << endl;
+	       << pos_check[M] << ", expected=" << dtime << std::endl;
 	  chk = false;
 	}
 	if (fabs(dtime - vel_check[M]) > 1.0e-8*dtime) {
 	  cerr << "Vel step error[" << M << "]: T=" << tnow << " found="
-	       << pos_check[M] << ", expected=" << dtime << endl;
+	       << pos_check[M] << ", expected=" << dtime << std::endl;
 	  chk = false;
 	}
       }
-      if (chk) cerr << "Incremental steps OK at T=" << tnow << endl;
+      if (chk) cerr << "Incremental steps OK at T=" << tnow << std::endl;
     }
 #endif
 
@@ -202,20 +213,25 @@ void do_step(int n)
 				// Time at the end of the step
     tnow += dtime;
 				// Velocity by 1/2 step
+    nvTracerPtr tPtr1;
+    if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [1]"));
     if (timing) timer_vel.start();
     incr_velocity(0.5*dtime);
     incr_com_velocity(0.5*dtime);
     if (timing) timer_vel.stop();
 				// Position by whole step
+    if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Drift"));
     if (timing) timer_drift.start();
     incr_position(dtime);
     incr_com_position(dtime);
     if (timing) timer_drift.start();
 				// Compute acceleration
+    if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Potential"));
     if (timing) timer_pot.start();
     comp->compute_potential();
     if (timing) timer_pot.stop();
 				// Velocity by 1/2 step
+    if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [2]"));
     if (timing) timer_vel.start();
     incr_velocity(0.5*dtime);
     incr_com_velocity(0.5*dtime);
@@ -223,34 +239,38 @@ void do_step(int n)
   }
 
 				// Write output
+  nvTracerPtr tPtr;
+  if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
   output->Run(n);
 
 				// Summarize processor particle load
   comp->report_numbers();
 
 				// Load balance
+  if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Load balance"));
   comp->load_balance();
 
 				// Timer output
   if (timing && this_step!=0 && (this_step % tskip) == 0) {
     if (myid==0) {
-      cout << endl
-	   << setw(70) << setfill('-') << '-' << endl
-	   << setw(70) << left << "--- Timer info" << endl
-	   << setw(70) << setfill('-') << '-' << endl << setfill(' ') << right;
-      if (multistep) {
-	cout << setw(20) << "Coefs: "
-	     << setw(18) << timer_coef.getTime()() << endl
-	     << setw(20) << "Drift: "
-	     << setw(18) << timer_drift.getTime()() << endl
-	     << setw(20) << "Velocity: "
-	     << setw(18) << timer_vel.getTime()() << endl
-	     << setw(20) << "Force: "
-	     << setw(18) << timer_pot.getTime()() << endl
-	     << setw(20) << "Adjust: "
-	     << setw(18) << timer_adj.getTime()() << endl;
-      }
-      cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
+      std::cout << std::endl
+		<< std::setw(70) << std::setfill('-') << '-' << std::endl
+		<< std::setw(70) << left << "--- Timer info" << std::endl
+		<< std::setw(70) << std::setfill('-') << '-' << std::endl
+		<< std::setfill(' ') << std::right
+		<< std::setw(20) << "Drift: "
+		<< std::setw(18) << timer_drift.getTime()() << std::endl
+		<< std::setw(20) << "Velocity: "
+		<< std::setw(18) << timer_vel.getTime()() << std::endl
+		<< std::setw(20) << "Force: "
+		<< std::setw(18) << timer_pot.getTime()() << std::endl;
+      if (multistep)
+	std::cout << std::setw(20) << "Coefs: "
+		  << std::setw(18) << timer_coef.getTime()() << std::endl
+		  << std::setw(20) << "Adjust: "
+		  << std::setw(18) << timer_adj.getTime()() << std::endl;
+      std::cout << std::setw(70) << std::setfill('-') << '-' << std::endl
+		<< std::setfill(' ');
     }
 
     //
@@ -267,27 +287,28 @@ void do_step(int n)
 		 MPI_COMM_WORLD);
 
       if (myid==0) {
-	cout << endl
-	     << setw(70) << setfill('-') << '-' << endl
-	     << setw(70) << left << "--- Level info" << endl
-	     << setw(70) << setfill('-') << '-' << endl 
-	     << setfill(' ') << right;
+	std::cout << std::endl
+		  << std::setw(70) << std::setfill('-') << '-' << std::endl
+		  << std::setw(70) << left << "--- Level info" << std::endl
+		  << std::setw(70) << std::setfill('-') << '-' << std::endl 
+		  << std::setfill(' ') << right;
       }
       for (int n=0; n<numprocs; n++) {
 	if (myid==n) {
-	  cout << setw(4) << myid << ": ";
-	  for (int m=0; m<=multistep; m++) cout << setw(8) << levpop[m];
-	  cout << endl;
+	  std::cout << std::setw(4) << myid << ": ";
+	  for (int m=0; m<=multistep; m++) std::cout << std::setw(8) << levpop[m];
+	  std::cout << std::endl;
 	}
 	MPI_Barrier(MPI_COMM_WORLD);
       }
 
       if (myid==0) {
-	cout << endl;
-	cout << setw(4) << "T" << ": ";
-	for (int m=0; m<=multistep; m++) cout << setw(8) << levtot[m];
-	cout << endl;
-	cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
+	std::cout << std::endl;
+	std::cout << std::setw(4) << "T" << ": ";
+	for (int m=0; m<=multistep; m++) std::cout << std::setw(8) << levtot[m];
+	std::cout << std::endl;
+	std::cout << std::setw(70) << std::setfill('-') << '-' << std::endl
+		  << std::setfill(' ');
       }
     }
     //

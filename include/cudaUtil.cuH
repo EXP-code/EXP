@@ -121,4 +121,47 @@ int ConvertSMVer2Cores(int major, int minor)
   return nGpuArchCoresPerSM[index-1].Cores;
 }
 
+// Convert CUDA int2 to double inline
+//
+__forceinline__ __device__ double int2_as_double (int2 a)
+{
+  double res;
+  asm ("mov.b64 %0, {%1,%2};" : "=d"(res) : "r"(a.x), "r"(a.y));
+  return res;
+}
+
+// Template structure to pass to kernel to avoid all of those pesky
+// raw pointer casts
+//
+template <typename T>
+struct dArray
+{
+  T*     _v;			// Pointer to underlying array data
+  size_t _s;			// Number of elements
+};
+ 
+// Template function to convert device_vector to structure for passing
+// from host to device in a cuda kernel
+//
+template <typename T>
+dArray<T> toKernel(thrust::device_vector<T>& dev)
+{
+  return {thrust::raw_pointer_cast(&dev[0]), dev.size()};
+}
+
+
+// Select floating point type size for single/double precision switch
+//
+#ifdef O_SINGLE
+#define cuREAL 4
+#else
+#define cuREAL 8
+#endif
+
+#if cuREAL == 4
+typedef float  cuFP_t;
+#else
+typedef double cuFP_t;
+#endif
+
 #endif

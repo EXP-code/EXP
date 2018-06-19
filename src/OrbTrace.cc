@@ -276,10 +276,10 @@ void OrbTrace::Run(int n, bool last)
 	for (int k=0; k<3; k++) pbuf[icnt++] = tcomp->Acc(orblist[i], k, flags);
       }
       if (use_pot) {
-	pbuf[icnt++] = it->second.pot + it->second.potext;
+	pbuf[icnt++] = it->second->pot + it->second->potext;
       }
       if (use_lev) {
-	pbuf[icnt++] = it->second.level;
+	pbuf[icnt++] = it->second->level;
       }
 
 #ifdef DEBUG

@@ -4,27 +4,10 @@
 #include <cudaUtil.cuH>
 #include <thrust/iterator/discard_iterator.h>
 
-#define FSMALL 1.0e-16
-#define MINEPS 1.0e-10
-
-// Template structure to pass to kernel to avoid all of those pesky
-// raw pointer casts
+// Machine constants
 //
-template <typename T>
-struct dArray
-{
-  T*     _v;			// Pointer to underlying array data
-  size_t _s;			// Number of elements
-};
- 
-// Template function to convert device_vector to structure for passing
-// from host to device in a cuda kernel
-//
-template <typename T>
-dArray<T> toKernel(thrust::device_vector<T>& dev)
-{
-  return {thrust::raw_pointer_cast(&dev[0]), dev.size()};
-}
+constexpr cuFP_t FSMALL = 20.0 * std::numeric_limits<cuFP_t>::min();
+constexpr cuFP_t MINEPS = 20.0 * std::numeric_limits<cuFP_t>::min();
 
 typedef std::pair<unsigned int, unsigned int> PII;
 
@@ -43,7 +26,7 @@ void warpReduce(volatile T *sdata, unsigned int tid)
 }
 
 template <typename T, unsigned int blockSize>
-__global__ void reduceSum(dArray<float> out, dArray<float> in,
+__global__ void reduceSum(dArray<T> out, dArray<T> in,
 			  unsigned int dim, unsigned int n)
 {
   extern __shared__ T sdata[];

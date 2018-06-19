@@ -319,6 +319,12 @@ extern int  rlimit_val;
 extern bool debug_wait;
 extern bool main_wait;
 
+//! For toggling CUDA profiling
+extern bool cuda_prof;
+
+//! Number of concurrent CUDA streams
+extern int  cuStreams;
+
 #include "Species.H"
 
 #endif

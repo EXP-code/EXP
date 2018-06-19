@@ -1,9 +1,8 @@
 using namespace std;
 
-#include <chrono>
-#include <values.h>
-
 #include <sstream>
+#include <chrono>
+#include <limits>
 
 #include "expand.h"
 #include <gaussQ.h>
@@ -54,6 +53,10 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
   if (m) {
     throw std::runtime_error("Error in Cylinder: MixtureBasis logic is not yet implemented in CUDA");
   }
+
+  // Initialize the circular storage container 
+  cuda_initialize();
+
 #endif
 
   id          = "Cylinder";
@@ -97,6 +100,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
   density     = false;
   coef_dump   = true;
   try_cache   = true;
+  dump_basis  = false;
   eof_file    = "";
 
   initialize();
@@ -251,7 +255,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
   }
 
 #ifdef DEBUG
-  offgrid = new int [nthrds];
+  offgrid.resize(nthrds);
 #endif
 
 }
@@ -261,9 +265,6 @@ Cylinder::~Cylinder()
   delete ortho;
   delete [] pos;
   delete [] frc;
-#ifdef DEBUG
-  delete [] offgrid;
-#endif
 }
 
 void Cylinder::initialize()
@@ -319,6 +320,10 @@ void Cylinder::initialize()
     if (atoi(val.c_str())) try_cache = true; 
     else try_cache = false;
   }
+  if (get_value("dump_basis", val)) {
+    if (atoi(val.c_str())) dump_basis = true; 
+    else dump_basis = false;
+  }
   if (get_value("density", val)) {
     if (atoi(val.c_str())) density = true; 
     else density = false;
@@ -327,19 +332,14 @@ void Cylinder::initialize()
     if (atoi(val.c_str())) cmap = true; 
     else cmap = false;
   }
-
-#if HAVE_LIBCUDA==1
-  bool firstime = true;
-  if (firstime and cC->cudaDevice>=0) {
-    initialize_cuda();
-    initialize_mapping_constants();
-    firstime = false;
-  }
-#endif
 }
 
 void Cylinder::get_acceleration_and_potential(Component* C)
 {
+  nvTracerPtr tPtr;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("Cylinder::get_acceleration"));
+
   std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
 
   start0 = std::chrono::high_resolution_clock::now();
@@ -356,7 +356,10 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   //====================================================
 
   if (use_external) {
-    
+    nvTracerPtr tPtr1;
+    if (cuda_prof)
+      tPtr1 = nvTracerPtr(new nvTracer("Cylinder: in external"));
+
     MPL_start_timer();
     determine_acceleration_and_potential();
     MPL_stop_timer();
@@ -384,19 +387,24 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   // Dump basis on first call
   //=========================
 
-  if (ncompcyl==0 && ortho->coefs_made_all() && !initializing) {
-    if (myid == 0 && density) {
-      if (multistep==0 || mstep==0) {
-	ortho->dump_basis(runtag.c_str(), this_step);
+  if ( dump_basis and (this_step==0 || (expcond and ncompcyl==0) )
+       && ortho->coefs_made_all() && !initializing) {
+
+    if (myid == 0 and multistep==0 || mstep==0) {
       
-	ostringstream dumpname;
-	dumpname << "images" << "." << runtag << "." << this_step;
-	ortho->dump_images(dumpname.str(), 5.0*acyl, 5.0*hcyl, 64, 64, true);
-	//
-	// This next call is ONLY for deep debug
-	//
-	// dump_mzero(runtag.c_str(), this_step);
-      }
+      nvTracerPtr tPtr2;
+      if (cuda_prof)
+	tPtr2 = nvTracerPtr(new nvTracer("Cylinder::dump basis"));
+
+      ortho->dump_basis(runtag.c_str(), this_step);
+      
+      ostringstream dumpname;
+      dumpname << "images" << "." << runtag << "." << this_step;
+      ortho->dump_images(dumpname.str(), 5.0*acyl, 5.0*hcyl, 64, 64, true);
+      //
+      // This next call is ONLY for deep debug
+      //
+      // dump_mzero(runtag.c_str(), this_step);
     }
   }
 
@@ -407,41 +415,9 @@ void Cylinder::get_acceleration_and_potential(Component* C)
 
   MPL_start_timer();
 
-#if HAVE_LIBCUDA==1
-  if (cC->cudaDevice>=0) {
-    start1 = std::chrono::high_resolution_clock::now();
-    cC->ParticlesToCuda();
-    HtoD_coefs();
-    determine_acceleration_cuda();
-    cC->CudaToParticles();
-    finish1 = std::chrono::high_resolution_clock::now();
-  } else {
-    determine_acceleration_and_potential();
-  }
-
-#else
   determine_acceleration_and_potential();
-  finish0 = std::chrono::high_resolution_clock::now();
-#endif
 
   MPL_stop_timer();
-
-
-#if HAVE_LIBCUDA
-  if (cC->cudaDevice>=0) {
-    finish0 = std::chrono::high_resolution_clock::now();
-    
-    std::chrono::duration<double> duration0 = finish0 - start0;
-    std::chrono::duration<double> duration1 = finish1 - start1;
-    
-    std::cout << std::string(60, '=') << std::endl;
-    std::cout << "== Force evaluation [Cylinder]" << std::endl;
-    std::cout << std::string(60, '=') << std::endl;
-    std::cout << "Time in CPU: " << duration0.count() << std::endl;
-    std::cout << "Time in GPU: " << duration1.count() << std::endl;
-    std::cout << std::string(60, '=') << std::endl;
-  }
-#endif
 
   //=======================
   // Recompute PCA analysis
@@ -643,7 +619,13 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 
 void Cylinder::determine_coefficients(void)
 {
+  nvTracerPtr tPtr;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("Cylinder::determine_coefficients"));
+
   std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
+
+  start0 = std::chrono::high_resolution_clock::now();
 
   static char routine[] = "determine_coefficients_Cylinder";
 
@@ -683,19 +665,13 @@ void Cylinder::determine_coefficients(void)
     pcainit = false;
   }
 
-  start0 = std::chrono::high_resolution_clock::now();
-
   if (multistep==0)
     ortho->setup_accumulation();
   else {
     ortho->setup_accumulation(mlevel);
   }
 
-  cylmass0 = new double [nthrds];
-  if (!cylmass0) {
-    cerr << "Cylinder: problem allocating <cylmass0>\n";
-    exit(-1);
-  }
+  cylmass0.resize(nthrds);
 
 #ifdef LEVCHECK
   for (int n=0; n<numprocs; n++) {
@@ -720,11 +696,10 @@ void Cylinder::determine_coefficients(void)
 #endif
 
 #if HAVE_LIBCUDA==1
-  if (cC->cudaDevice>=0) {
+  if (component->cudaDevice>=0) {
     start1 = std::chrono::high_resolution_clock::now();
-    cC->ParticlesToCuda();
-    HtoD_coefs();
     determine_coefficients_cuda();
+    DtoH_coefs(mlevel);
     finish1 = std::chrono::high_resolution_clock::now();
   } else {    
     exp_thread_fork(true);
@@ -743,8 +718,6 @@ void Cylinder::determine_coefficients(void)
     cylmassT1 += cylmass0[i];
   }
 
-  delete [] cylmass0;
-
 				// Turn off timer so as not bias by 
 				// communication barrier
   MPL_stop_timer();
@@ -753,7 +726,7 @@ void Cylinder::determine_coefficients(void)
   MPI_Allreduce ( &cylmassT1, &cylmassT0, 1, MPI_DOUBLE, MPI_SUM, 
 		  MPI_COMM_WORLD );
 
-  if (multistep==0 || mstep==0) {
+  if (multistep==0 or tnow==resetT) {
     used    += use0;
     cylmass += cylmassT0;
   }
@@ -772,16 +745,18 @@ void Cylinder::determine_coefficients(void)
   finish0 = std::chrono::high_resolution_clock::now();
   
 #if HAVE_LIBCUDA==1
-  if (cC->cudaDevice>=0) {
+  if (component->timers) {
     std::chrono::duration<double> duration0 = finish0 - start0;
     std::chrono::duration<double> duration1 = finish1 - start1;
     
     std::cout << std::string(60, '=') << std::endl;
-    std::cout << "== Coefficient evaluation [Cylinder]" << std::endl;
+    std::cout << "== Coefficient evaluation [Cylinder] level="
+	      << mlevel << std::endl;
     std::cout << std::string(60, '=') << std::endl;
-    std::cout << "Time in CPU: " << duration0.count() << std::endl;
-    std::cout << "Time in GPU: " << duration1.count() << std::endl;
-    std::cout << "CPU to GPU : " << duration0.count()/duration1.count() << std::endl;
+    std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
+    if (cC->cudaDevice>=0) {
+      std::cout << "Time in GPU: " << duration1.count() << std::endl;
+    }
     std::cout << std::string(60, '=') << std::endl;
   }
 #endif
@@ -801,11 +776,7 @@ void Cylinder::determine_coefficients_eof(void)
   cylmass = 0.0;
   if (myid==0) cerr << "Cylinder: setup for eof\n";
 
-  cylmass0 = new double [nthrds];
-  if (!cylmass0) {
-    cerr << "Cylinder: problem allocating <cylmass0>\n";
-    exit(-1);
-  }
+  cylmass0.resize(nthrds);
 
 				// Threaded coefficient accumulation loop
   exp_thread_fork(true);
@@ -820,7 +791,6 @@ void Cylinder::determine_coefficients_eof(void)
     cylmassT1 += cylmass0[i];
   }
 
-  delete [] cylmass0;
 				// Turn off timer so as not bias by 
 				// communication barrier
   MPL_stop_timer();
@@ -1030,6 +1000,14 @@ static int ocf = 0;
 
 void Cylinder::determine_acceleration_and_potential(void)
 {
+  nvTracerPtr tPtr;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("Cylinder::determine_acceleration"));
+
+  std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
+
+  start0 = std::chrono::high_resolution_clock::now();
+
   static char routine[] = "determine_acceleration_and_potential_Cyl";
   
   if (use_external == false) {
@@ -1042,10 +1020,27 @@ void Cylinder::determine_acceleration_and_potential(void)
 
 #ifdef DEBUG
   for (int i=0; i<nthrds; i++) offgrid[i] = 0;
-  cout << "Proocess " << myid << ": about to fork" << endl;
+  cout << "Process " << myid << ": about to fork" << endl;
 #endif
 
+#if HAVE_LIBCUDA==1
+  if (cC->cudaDevice>=0) {
+    start1 = std::chrono::high_resolution_clock::now();
+    //
+    // Copy coeficients from this component to device
+    //
+    HtoD_coefs();
+    //
+    // Do the force computation
+    //
+    determine_acceleration_cuda();
+    finish1 = std::chrono::high_resolution_clock::now();
+  } else {
+    exp_thread_fork(false);
+  }
+#else
   exp_thread_fork(false);
+#endif
 
 #ifdef DEBUG
   cout << "Cylinder: process " << myid << " returned from fork" << endl;
@@ -1067,6 +1062,28 @@ void Cylinder::determine_acceleration_and_potential(void)
 #endif
 
   print_timings("Cylinder: acceleration timings");
+
+
+# if HAVE_LIBCUDA
+  if (component->timers) {
+    auto finish0 = std::chrono::high_resolution_clock::now();
+  
+    std::chrono::duration<double> duration0 = finish0 - start0;
+    std::chrono::duration<double> duration1 = finish1 - start1;
+    std::chrono::duration<double> duration2 = start1  - start0;
+
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "== Force evaluation [Cylinder::" << cC->name
+	      << "] level=" << mlevel << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
+    if (cC->cudaDevice>=0) {
+      std::cout << "Time in GPU: " << duration1.count() << std::endl;
+      std::cout << "Time before: " << duration2.count() << std::endl;
+    }
+    std::cout << std::string(60, '=') << std::endl;
+  }
+#endif
 }
 
 void Cylinder::
@@ -1193,8 +1210,9 @@ void Cylinder::multistep_update(int from, int to, Component* c, int i, int id)
 
 void Cylinder::multistep_reset() 
 { 
-  used = 0; 
+  used    = 0; 
   cylmass = 0.0;
+  resetT  = tnow;
   ortho->reset_mass();
   ortho->multistep_reset();
 }

@@ -128,6 +128,7 @@ bool barrier_label = true;
 bool barrier_light = true;
 bool barrier_quiet = true;
 
+bool cuda_prof     = false;
 bool debug_wait    = false;
 bool main_wait     = false;
 bool fpe_trap      = false;
@@ -135,4 +136,4 @@ bool fpe_trace     = false;
 bool fpe_wait      = false;
 
 int  rlimit_val    = 0;
-
+int  cuStreams     = 3;

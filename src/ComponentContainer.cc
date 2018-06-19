@@ -14,6 +14,7 @@
 #include <gptl.h>
 #endif
 
+#include <NVTX.H>
 
 long ComponentContainer::tinterval = 300;	// Seconds between timer dumps
 
@@ -279,6 +280,10 @@ ComponentContainer::~ComponentContainer(void)
 
 void ComponentContainer::compute_potential(unsigned mlevel)
 {
+  nvTracerPtr tPtr, tPtr1;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("ComponentContainer::compute_potential"));
+
 #ifdef DEBUG
   cout << "Process " << myid << ": entered <compute_potential>\n";
 #endif
@@ -323,6 +328,11 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   for (auto c : components) {
 
+    if (cuda_prof) {
+      std::ostringstream sout; sout << "ComponentContainer, init [" << c->name << "]";
+      tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
+    }
+
     if (timing) {
       timer_wait.stop();
       timer_zero.start();
@@ -363,7 +373,19 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       timer_accel.start();
     }
     c->time_so_far.start();
+
+    if (cuda_prof) {
+      std::ostringstream sout; sout << "ComponentContainer::set_multistep [" << c->name << "]";
+      tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
+    }
+
     c->force->set_multistep_level(mlevel);
+
+    if (cuda_prof) {
+      std::ostringstream sout; sout << "ComponentContainer::get_accel [" << c->name << "]";
+      tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
+    }
+
     c->force->get_acceleration_and_potential(c);
     c->time_so_far.stop();
     if (timing) {
@@ -426,6 +448,11 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	   << inter->c->name << "-->" << other->name << ">";
       GPTLstart(sout.str().c_str());
 #endif
+      if (cuda_prof) {
+	std::ostringstream sout; sout << "ComponentContainer, interaction [" << inter->c->name
+				      << "-->" << other->name << "]";
+	tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
+      }
 
       if (timing) {
 	timer_accel.start();
@@ -475,6 +502,10 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   state = EXTERNAL;
 
+  if (cuda_prof) {
+    tPtr1 = nvTracerPtr(new nvTracer("ComponentContainer::external forces"));
+  }
+
   if (timing) {
     timer_extrn.start();
 				// Initialize external force timers?
@@ -514,6 +545,10 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   GPTLstart("ComponentContainer::centering");
 #endif
 
+
+  if (cuda_prof) {
+    tPtr1 = nvTracerPtr(new nvTracer("ComponentContainer::house keeping"));
+  }
 
 
   if (timing) timer_extrn.stop();
@@ -878,10 +913,10 @@ void ComponentContainer::fix_acceleration(void)
     
       if (c->freeze(p->first)) continue;
 
-      mtot1 += p->second.mass;
-      axcm1 += p->second.mass*p->second.acc[0];
-      aycm1 += p->second.mass*p->second.acc[1];
-      azcm1 += p->second.mass*p->second.acc[2];
+      mtot1 += p->second->mass;
+      axcm1 += p->second->mass*p->second->acc[0];
+      aycm1 += p->second->mass*p->second->acc[1];
+      azcm1 += p->second->mass*p->second->acc[2];
     }
   }
 
@@ -902,9 +937,9 @@ void ComponentContainer::fix_acceleration(void)
     for (p=c->particles.begin(); p != pend; p++) {
 
       if (c->freeze(p->first)) continue;
-      p->second.acc[0] -= axcm;
-      p->second.acc[1] -= aycm;
-      p->second.acc[2] -= azcm;
+      p->second->acc[0] -= axcm;
+      p->second->acc[1] -= aycm;
+      p->second->acc[2] -= azcm;
 
     }
 
@@ -958,7 +993,7 @@ void ComponentContainer::fix_positions()
     
 	if (c->freeze(p->first)) continue;
 
-	for (int k=0; k<3; k++) p->second.vel[k] -= gcov[k];
+	for (int k=0; k<3; k++) p->second->vel[k] -= gcov[k];
       }
     }
   }
@@ -1031,7 +1066,7 @@ void ComponentContainer::report_numbers(void)
 	  out << setw(20) << c->Number();
 	  double toteff = 0.0;
 	  for (auto tp : c->particles)
-	    toteff += tp.second.effort;
+	    toteff += tp.second->effort;
 	  out << setw(20) << toteff;
 	}
 	out << endl;
@@ -1139,23 +1174,23 @@ bool ComponentContainer::bad_values()
   for (auto c : components) {
     bool badval = false;
     for (auto it : c->Particles()) {
-      if (std::isnan(it.second.mass)) badval=true;
+      if (std::isnan(it.second->mass)) badval=true;
       for (int k=0; k<3; k++) {
-	if (std::isnan(it.second.pos[k]))  badval=true;
-	if (std::isnan(it.second.vel[k]))  badval=true;
-	if (std::isnan(it.second.acc[k]))  badval=true;
+	if (std::isnan(it.second->pos[k]))  badval=true;
+	if (std::isnan(it.second->vel[k]))  badval=true;
+	if (std::isnan(it.second->acc[k]))  badval=true;
       }
       if (badval) {
 	cout << "Bad value in <" << c->name << ">: ";
-	cout << setw(12) << it.second.indx
-	     << setw(16) << hex << it.second.key << dec
-	     << setw(18) << it.second.mass;
+	cout << setw(12) << it.second->indx
+	     << setw(16) << hex << it.second->key << dec
+	     << setw(18) << it.second->mass;
 	for (int k=0; k<3; k++)
-	  cout << setw(18) << it.second.pos[k];
+	  cout << setw(18) << it.second->pos[k];
 	for (int k=0; k<3; k++)
-	  cout << setw(18) << it.second.vel[k];
+	  cout << setw(18) << it.second->vel[k];
 	for (int k=0; k<3; k++)
-	  cout << setw(18) << it.second.acc[k];
+	  cout << setw(18) << it.second->acc[k];
 	cout << endl;
 	bad = true;
 	break;

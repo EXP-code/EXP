@@ -224,7 +224,7 @@ public:
     PartMap::iterator it = cc->particles.find(k);
     if (it==ie) throw "pHOT::Body: particle not found";
 
-    return &it->second;
+    return it->second.get();
   }
 
 
