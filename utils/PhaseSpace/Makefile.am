@@ -18,7 +18,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
 bin_PROGRAMS = pspinfo pspstat psp2tipsy pspsplit psp2ascii ascii2psp	\
 		tipstd2psp psp2ta pspgas psp2histo psp2histo1d		\
 		psp2histoE psp2histoH pspreal pspstatS psp2range	\
-		psp2eHisto
+		psp2eHisto psp2histoT
 
 COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@
 
@@ -79,6 +79,11 @@ psp2histoH_SOURCES  = psp2histoH.cc PSP.cc header.cc header.H
 psp2histoH_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
 psp2histoH_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
 psp2histoH_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS) $(EXPLIBS)
+
+psp2histoT_SOURCES  = psp2histoT.cc PSP.cc header.cc header.H
+psp2histoT_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
+psp2histoT_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
+psp2histoT_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS) $(EXPLIBS)
 
 psp2eHisto_SOURCES  = psp2eHisto.cc PSP.cc header.cc header.H
 psp2eHisto_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
