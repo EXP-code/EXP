@@ -49,6 +49,7 @@ if test $ax_cuda_ok = yes; then
 # We need to add the CUDA search directories for header and lib searches
 
 # Saving the current flags
+ax_save_LIBS="${LIBS}"
 ax_save_CFLAGS="${CFLAGS}"
 ax_save_LDFLAGS="${LDFLAGS}"
 
@@ -59,7 +60,7 @@ AC_SUBST([NVCC])
 
 CUDA_CFLAGS="-I$cuda_prefix/include"
 CFLAGS="$CUDA_CFLAGS $CFLAGS"
-CUDA_LDFLAGS="-L$cuda_prefix/lib"
+CUDA_LDFLAGS="-L$cuda_prefix/lib -L$cuda_prefix/lib64 -L$cuda_prefix/lib64/stubs"
 LDFLAGS="$CUDA_LDFLAGS $LDFLAGS"
 NVCC="$cuda_prefix/bin/nvcc"
 
@@ -73,12 +74,12 @@ fi
 
 AC_MSG_CHECKING([for libcuda])
 AC_CHECK_LIB([cuda], [cuInit], [], ax_cuda_ok=no)
-
 if test $ax_cuda_ok = no; then
    AC_MSG_RESULT([Couldn't find libcuda])
 fi
 
 # Returning to the original flags
+LIBS="${ax_save_LIBS}"
 CFLAGS=${ax_save_CFLAGS}
 LDFLAGS=${ax_save_LDFLAGS}
 
