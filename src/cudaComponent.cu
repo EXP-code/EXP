@@ -1,5 +1,4 @@
 #include <Component.H>
-#include <Bounds.cuH>
 #include "expand.h"
 
 #include <boost/make_shared.hpp>

@@ -4,7 +4,6 @@
 #include <Component.H>
 #include <SphericalBasis.H>
 #include <cudaReduce.cuH>
-#include <Bounds.cuH>
 
 #include <boost/make_shared.hpp>
 

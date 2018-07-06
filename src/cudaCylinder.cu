@@ -1,7 +1,6 @@
 #include <Component.H>
 #include <Cylinder.H>
 #include <cudaReduce.cuH>
-#include <Bounds.cuH>
 #include "expand.h"
 
 #include <boost/make_shared.hpp>
