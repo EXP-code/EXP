@@ -84,7 +84,9 @@ public:
   double operator()(double tau, double U)
   {
     double A = eval(tau);
-    if (A<1.0e-10)
+    if (U<1.0e-14)
+      return -1.0;
+    else if (A<1.0e-10)
       return 2.0*U - 1.0;
     else if (A>40.0)
       return 1.0 + log(U)/A;
