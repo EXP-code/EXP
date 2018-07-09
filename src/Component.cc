@@ -870,29 +870,48 @@ void Component::initialize(void)
   
 #if HAVE_LIBCUDA==1
   int deviceCount = 0;
-  cudaError_t error_id = cudaGetDeviceCount(&deviceCount);
 
   cudaDevice = -1;
 
-  // Query and assign my CUDA device
-  //
-  if (use_cuda and deviceCount>0) {
+  if (use_cuda) {
 
-    int myCount = 0, curCount = 0; // Get my local rank in sibling
-    for (auto v : siblingList) {   // processes
-      if (myid==v) myCount = curCount;
-      curCount++;
+    cudaError_t error_id = cudaGetDeviceCount(&deviceCount);
+
+    // Query and assign my CUDA device
+    //
+    if (error_id==cudaSuccess) {
+
+      if (deviceCount>0) {
+
+	int myCount = 0, curCount = 0; // Get my local rank in sibling
+	for (auto v : siblingList) {   // processes
+	  if (myid==v) myCount = curCount;
+	  curCount++;
+	}
+	
+	if (myCount < deviceCount) cudaDevice = myCount;
+	if (cudaDevice>=0) {
+	  cudaSetDevice(cudaDevice);
+	  std::cout << "Setting CUDA device on Rank [" << myid
+		    << "] on [" << processor_name << "] to [" << cudaDevice << "]"
+		    << std::endl;
+	}
+
+	cuda_initialize();
+
+      } else {
+	std::cout << "[#" << myid
+		  << "] CUDA detected by deviceCount==0!" << std::endl;
+	MPI_Abort(MPI_COMM_WORLD, 18);
+	exit(18);
+      }
+
+    } else {
+      std::cout << "[#" << myid << "] CUDA requested but error state is: "
+		<< cudaGetErrorString(error_id) << std::endl;
+	MPI_Abort(MPI_COMM_WORLD, 19);
+	exit(19);
     }
-
-    if (myCount < deviceCount) cudaDevice = myCount;
-    if (cudaDevice>=0) {
-      cudaSetDevice(cudaDevice);
-      std::cout << "Setting CUDA device on Rank [" << myid
-		<< "] on [" << processor_name << "] to [" << cudaDevice << "]"
-		<< std::endl;
-    }
-
-    cuda_initialize();
   }
 #endif
 
@@ -940,7 +959,7 @@ void Component::read_bodies_and_distribute_ascii(void)
     if (!*fin) {
       cerr << "Couldn't open " << pfile << " . . . quitting\n";
       MPI_Abort(MPI_COMM_WORLD, 11);
-      exit(-1);
+      exit(11);
     }
 
     fin->getline(line, nline);
@@ -949,20 +968,20 @@ void Component::read_bodies_and_distribute_ascii(void)
     ins >> nbodies_tot;		
     if (!ins) {
       cerr << "Error reading nbodies_tot . . . quitting\n";
-      MPI_Abort(MPI_COMM_WORLD, 11);
-      exit(-1);
+      MPI_Abort(MPI_COMM_WORLD, 12);
+      exit(12);
     }
     ins >> niattrib;
     if (!ins) {
       cerr << "Error reading integer attribute # . . . quitting\n";
-      MPI_Abort(MPI_COMM_WORLD, 11);
-      exit(-1);
+      MPI_Abort(MPI_COMM_WORLD, 13);
+      exit(13);
     }
     ins >> ndattrib;
     if (!ins) {
       cerr << "Error reading double attribute # . . . quitting\n";
-      MPI_Abort(MPI_COMM_WORLD, 11);
-      exit(-1);
+      MPI_Abort(MPI_COMM_WORLD, 14);
+      exit(14);
     }
   }
 				// Broadcast attributes for this
@@ -1101,16 +1120,16 @@ void Component::read_bodies_and_distribute_binary(istream *in)
       in->read((char*)&cmagic, sizeof(unsigned long));
       if ( (cmagic & nmask) != magic ) {
 	cerr << "Error identifying new PSP.  Is this an old PSP?\n";
-	MPI_Abort(MPI_COMM_WORLD, 11);
-	exit(-1);
+	MPI_Abort(MPI_COMM_WORLD, 15);
+	exit(15);
       }
       rsize = cmagic & mmask;
     }
 
     if(!header.read(in)) {
       cerr << "Error reading component header\n";
-      MPI_Abort(MPI_COMM_WORLD, 12);
-      exit(-1);
+      MPI_Abort(MPI_COMM_WORLD, 16);
+      exit(16);
     }
 
     nbodies_tot = header.nbod;
@@ -1526,7 +1545,8 @@ void Component::write_binary(ostream* out, bool real4)
 
     if (!header.write(out)) {
       cerr << "Component::write_binary: Error writing particle header\n";
-      MPI_Abort(MPI_COMM_WORLD, 34);
+      MPI_Abort(MPI_COMM_WORLD, 17);
+      exit(17);
     }
   }
 
