@@ -892,7 +892,8 @@ void Component::initialize(void)
 	if (myCount < deviceCount) cudaDevice = myCount;
 	if (cudaDevice>=0) {
 	  cudaSetDevice(cudaDevice);
-	  std::cout << "Setting CUDA device on Rank [" << myid
+	  std::cout << "Component <" << name << ">: "
+		    << "setting CUDA device on Rank [" << myid
 		    << "] on [" << processor_name << "] to [" << cudaDevice << "]"
 		    << std::endl;
 	}
