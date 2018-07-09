@@ -6,6 +6,8 @@
 #include <sstream>
 #include <string>
 
+#include <mpi.h>
+
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <thrust/system/cuda/error.h>
@@ -18,11 +20,25 @@ inline void
 cuda_safe_call(cudaError_t code, const char *file, int line,
 	       const std::string& message = "")
 {
-  if (code != cudaSuccess)
-  {
+  if (code != cudaSuccess) {
     std::stringstream ss;
     ss << file << "(" << line << ")";
     if (message.size()>0) ss << " : " << message;
+
+    throw thrust::system_error(code, thrust::cuda_category(), ss.str());
+  }
+}
+
+inline void
+cuda_safe_call_mpi(cudaError_t code, const char *file, int line, int myid,
+		   const std::string& message = "")
+{
+  if (code != cudaSuccess) {
+    std::stringstream ss;
+    ss << file << "(" << line << ") mpi rank=" << myid;
+    if (message.size()>0) ss << " : " << message;
+    
+    MPI_Abort(MPI_COMM_WORLD, 18);
 
     throw thrust::system_error(code, thrust::cuda_category(), ss.str());
   }
