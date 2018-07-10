@@ -18,7 +18,9 @@ AM_CXXFLAGS = -std=c++11 -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CXXFLAGS2) $(ADD_C
 
 if ENABLE_CUDA
 CUDA_SRC       = cudaSLGridMP2.cu
-GENCODE_FLAGS  = -gencode arch=compute_61,code=sm_61
+ifeq ($(GENCODE_FLAGS),)
+SMS = @sm_vers@
+$(foreach sm,$(SMS),$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
 CUDA_LIBFLAGS  = -lcudart
 NVCC_CXXFLAGS  = -I/usr/include/mpi -I. $(GENCODE_FLAGS) $(NVCC_EXTRA) -Xcompiler $(AM_CPPFLAGS)
 endif
