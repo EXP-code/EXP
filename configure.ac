@@ -310,6 +310,8 @@ echo ""
 echo "    CXX_FLAGS=\"-DO_SINGLE\" ..."
 echo ""
 echo "to compile with single precision.  Double precision is default. "
+echo "The compute capability list is '35 60 61 70' by default and may "
+echo "be changed by using --with-cuda-capabilities=LIST flag."
 echo "----------------------------------------------------------------"
 fi
 
