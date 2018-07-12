@@ -448,11 +448,14 @@ public:
   //! Print debug info
   void multistep_debug();
 
-  //! Dump out coefficients to stream
-  void dump_coefs(ostream& out);
+  //! Set coefficients from input stream
+  void set_coefs(int mm, const Vector& cos1, const Vector& sin1, bool zero);
+
+  //! Dump out coefficients to output stream
+  void dump_coefs(std::ostream& out);
 
   //! Dump out coefficients to stream in bianry format
-  void dump_coefs_binary(ostream& out, double time);
+  void dump_coefs_binary(std::ostream& out, double time);
 
   //! Plot basis
   void dump_basis(const string& name, int step, double Rmax=-1.0);

@@ -919,7 +919,7 @@ main(int argc, char **argv)
      "number of vertical points for output")
     ("surface",
      po::value<bool>(&SURFACE)->default_value(true),
-     "make equitorial slices")
+     "make equatorial slices")
     ("vslice",
      po::value<bool>(&VSLICE)->default_value(true),
      "make vertical slices")
