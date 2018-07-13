@@ -13745,7 +13745,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
       selcM = nbods * efrc * densC * dfac / PiProb[id][3];
 
-      Prob = 2.0 * ABrate[id][3] * afac*afac * eVel * tau * UserTreeDSMC::Tunit;
+      Prob = 2.0 * ABrate[id][3] * afac*afac * eVel / PiProb[id][3] * tau * UserTreeDSMC::Tunit;
       nselM = static_cast<unsigned>(floor(selcM));
 
       Cfrac = 0.5 * nbods * (nbods-1) * Prob / selcM;
