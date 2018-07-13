@@ -2,21 +2,23 @@ AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 BUILD_FLAGS =  -L$(top_srcdir)/expgnu/.libs -L$(top_srcdir)/exputil/.libs
 
 if ENABLE_GPTL
-ADD_CFLAGS4  = -DUSE_GPTL $(gptl_include)
+  ADD_CFLAGS4  = -DUSE_GPTL $(gptl_include)
 endif
 
 if ENABLE_CUDA
-ADD_CUDA = cudaParticle.cu cudaSphericalBasis.cu cudaSphere.cu	\
-cudaCylinder.cu cudaEmpOrth.cu cudaComponent.cu
-GENCODE_FLAGS  = -gencode arch=compute_61,code=sm_61 --expt-relaxed-constexpr
-CUDA_LIBFLAGS  = -lcudart
-NVCC_CXXFLAGS  = $(AM_CPPFLAGS) -I. $(CXXFLAGS) $(GENCODE_FLAGS) $(NVCC_EXTRA)
+  ADD_CUDA = cudaParticle.cu cudaSphericalBasis.cu cudaSphere.cu	\
+	cudaCylinder.cu cudaEmpOrth.cu cudaComponent.cu
+  ifeq ($(GENCODE_FLAGS),)
+    $(foreach sm,@sm_vers@,$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
+  endif
+  CUDA_LIBFLAGS  = -lcudart
+  NVCC_CXXFLAGS  = $(AM_CPPFLAGS) -I. $(CXXFLAGS) $(GENCODE_FLAGS) $(NVCC_EXTRA)
 endif
 
 AM_CFLAGS   = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) -fopenmp
 AM_FFLAGS   = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) -fopenmp
 AM_CXXFLAGS = -std=c++11 -fPIC -fno-inline-small-functions -Wall \
--D_REENTRANT -Wno-non-virtual-dtor $(ADD_CFLAGS4) -fopenmp
+	-D_REENTRANT -Wno-non-virtual-dtor $(ADD_CFLAGS4) -fopenmp
 AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil -lgomp
 
 libdir      = $(prefix)/lib/user

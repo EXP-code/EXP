@@ -63,6 +63,19 @@ AX_CHECK_CUDA
 AM_CONDITIONAL([ENABLE_CUDA], [test "x$CUDA_CFLAGS" != "x"])
 
 dnl ==========================================================================
+dnl Added macro to allow list of CUDA compute capabilities
+dnl ==========================================================================
+
+sm_vers="35 60 61 70"
+
+AC_ARG_WITH([cuda-capabilities],
+	[AC_HELP_STRING([--with-cuda-capabilities=LIST],
+	[desired SM compute capabilities (default: 35 60 61 70)])],
+	[sm_vers="$withval"])
+
+AC_SUBST(sm_vers)
+
+dnl ==========================================================================
 dnl Added macro to allow non-standard location of VTK installation
 dnl ==========================================================================
 havevtk=no;
@@ -297,6 +310,8 @@ echo ""
 echo "    CXX_FLAGS=\"-DO_SINGLE\" ..."
 echo ""
 echo "to compile with single precision.  Double precision is default. "
+echo "The compute capability list is '35 60 61 70' by default and may "
+echo "be changed by using --with-cuda-capabilities=LIST flag."
 echo "----------------------------------------------------------------"
 fi
 

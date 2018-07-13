@@ -30,11 +30,13 @@ AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/include -I$(top_srcdir)/exputil -I
 AM_CXXFLAGS  = -std=c++11 -D_REENTRANT -fopenmp $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4) @exp_vtk_include@  $(CUDA_CFLAGS)
 
 if ENABLE_CUDA
-ADD_CUDA = cudaParticle.cu cudaSphericalBasis.cu cudaSphere.cu	\
-cudaCylinder.cu cudaEmpOrth.cu cudaComponent.cu NVTX.cc
-GENCODE_FLAGS  = -gencode arch=compute_61,code=sm_61 --expt-relaxed-constexpr
-CUDA_LIBFLAGS  = -lcudart -lnvToolsExt
-NVCC_CXXFLAGS  = -I. $(GENCODE_FLAGS) $(NVCC_EXTRA) -Xcompiler $(AM_CPPFLAGS)
+  ADD_CUDA = cudaParticle.cu cudaSphericalBasis.cu cudaSphere.cu	\
+	cudaCylinder.cu cudaEmpOrth.cu cudaComponent.cu NVTX.cc
+  ifeq ($(GENCODE_FLAGS),)
+    $(foreach sm,@sm_vers@,$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
+  endif
+  CUDA_LIBFLAGS  = -lcudart -lnvToolsExt
+  NVCC_CXXFLAGS  = -I. $(GENCODE_FLAGS) $(NVCC_EXTRA) -Xcompiler $(AM_CPPFLAGS)
 endif
 
 CXXLINK = mpiCC -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@

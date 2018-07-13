@@ -875,43 +875,43 @@ void Component::initialize(void)
 
   if (use_cuda) {
 
-    cudaError_t error_id = cudaGetDeviceCount(&deviceCount);
+    // Get device count; exit on failure
+    //
+    cuda_safe_call_mpi(cudaGetDeviceCount(&deviceCount), __FILE__, __LINE__,
+		       myid, "cudaGetDevicecCount failure");
 
     // Query and assign my CUDA device
     //
-    if (error_id==cudaSuccess) {
+    if (deviceCount>0) {
 
-      if (deviceCount>0) {
-
-	int myCount = 0, curCount = 0; // Get my local rank in sibling
-	for (auto v : siblingList) {   // processes
-	  if (myid==v) myCount = curCount;
-	  curCount++;
-	}
+      int myCount = 0, curCount = 0; // Get my local rank in sibling
+      for (auto v : siblingList) {   // processes
+	if (myid==v) myCount = curCount;
+	curCount++;
+      }
 	
-	if (myCount < deviceCount) cudaDevice = myCount;
-	if (cudaDevice>=0) {
-	  cudaSetDevice(cudaDevice);
-	  std::cout << "Setting CUDA device on Rank [" << myid
-		    << "] on [" << processor_name << "] to [" << cudaDevice << "]"
-		    << std::endl;
-	}
+      if (myCount < deviceCount) cudaDevice = myCount;
+      if (cudaDevice>=0) {
+	// Set device; exit on failure
+	//
+	cuda_safe_call_mpi(cudaSetDevice(cudaDevice), __FILE__, __LINE__,
+			   myid, "cudaSetDevice failure");
 
-	cuda_initialize();
-
-      } else {
-	std::cout << "[#" << myid
-		  << "] CUDA detected by deviceCount==0!" << std::endl;
-	MPI_Abort(MPI_COMM_WORLD, 18);
-	exit(18);
+	std::cout << "Component <" << name << ">: "
+		  << "setting CUDA device on Rank [" << myid
+		  << "] on [" << processor_name << "] to [" << cudaDevice << "]"
+		  << std::endl;
       }
 
+      cuda_initialize();
+
     } else {
-      std::cout << "[#" << myid << "] CUDA requested but error state is: "
-		<< cudaGetErrorString(error_id) << std::endl;
-	MPI_Abort(MPI_COMM_WORLD, 19);
-	exit(19);
+      std::cout << "[#" << myid
+		<< "] CUDA detected but deviceCount<=0!" << std::endl;
+      MPI_Abort(MPI_COMM_WORLD, 18);
+      exit(18);
     }
+
   }
 #endif
 

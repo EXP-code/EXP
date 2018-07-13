@@ -17,10 +17,12 @@ AM_CFLAGS   = -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
 AM_CXXFLAGS = -std=c++11 -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) @exp_vtk_include@ $(CUDA_FLAGS)
 
 if ENABLE_CUDA
-CUDA_SRC       = cudaSLGridMP2.cu
-GENCODE_FLAGS  = -gencode arch=compute_61,code=sm_61
-CUDA_LIBFLAGS  = -lcudart
-NVCC_CXXFLAGS  = -I/usr/include/mpi -I. $(GENCODE_FLAGS) $(NVCC_EXTRA) -Xcompiler $(AM_CPPFLAGS)
+  CUDA_SRC       = cudaSLGridMP2.cu
+  ifeq ($(GENCODE_FLAGS),)
+    $(foreach sm,@sm_vers@,$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
+  endif
+  CUDA_LIBFLAGS  = -lcudart
+  NVCC_CXXFLAGS  = -I/usr/include/mpi -I. $(GENCODE_FLAGS) $(NVCC_EXTRA) -Xcompiler $(AM_CPPFLAGS)
 endif
 
 lib_LTLIBRARIES = libexputil.la
