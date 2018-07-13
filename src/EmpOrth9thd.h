@@ -135,7 +135,7 @@ private:
 
   Vector* hold;
 
-  vector<short> coefs_made;
+  std::vector<short> coefs_made;
   bool eof_made;
 
   SphModTblPtr make_sl();

@@ -648,9 +648,9 @@ void writePVD(const std::string& filename,
 int
 main(int argc, char **argv)
 {
-  int nice, cnt;
+  int nice, cnt, nmax, lmax, mmax, nord;
   bool HEIGHT, PVD, verbose = false, mask = false;
-  double time;
+  double time, rscale, vscale;
   std::string CACHEFILE, COEFFILE;
 
   //
@@ -667,6 +667,18 @@ main(int argc, char **argv)
     ("nice",
      po::value<int>(&nice)->default_value(0), 
      "number of bins in x direction")
+    ("nmax,n",
+     po::value<int>(&nmax)->default_value(10), 
+     "maximum radial order")
+    ("lmax,l",
+     po::value<int>(&lmax)->default_value(36), 
+     "maximum harmonic order")
+    ("mmax,m",
+     po::value<int>(&mmax)->default_value(4), 
+     "maximum azimuthal order")
+    ("norder",
+     po::value<int>(&nord)->default_value(4), 
+     "maximum empirical radial order")
     ("RMAX,R",
      po::value<double>(&RMAX)->default_value(0.1),
      "maximum radius for output")
@@ -679,6 +691,12 @@ main(int argc, char **argv)
     ("outz",
      po::value<int>(&OUTZ)->default_value(40), 
      "number of vertical points for output")
+    ("rscale",
+     po::value<double>(&rscale)->default_value(0.01), 
+     "radial scale length for basis expansion")
+    ("vscale",
+     po::value<double>(&vscale)->default_value(0.001), 
+     "vertical scale length for basis expansion")
     ("surface",
      po::value<bool>(&SURFACE)->default_value(true),
      "make equatorial slices")
@@ -752,7 +770,10 @@ main(int argc, char **argv)
 
   // Create expansion
   //
-  EmpCylSL ortho;		// Read EOF basis from saved file
+  EmpCylSL ortho(nmax, lmax, mmax, nord, rscale, vscale);
+ 
+  // Read EOF basis from saved file
+  //
   ortho.read_eof_file(CACHEFILE);
 
   // Set coefficients
@@ -764,31 +785,30 @@ main(int argc, char **argv)
   
   cnt = 0;
 
-  while (in) {
-    double T;
-    in >> T;
-    times.push_back(T);
+  in >> time;
 
-    int nmv, nmax, M;
-    in >> nmv;
+  while (in) {
+    times.push_back(time);
+
+    int M, nmax;
+    in >> M;
     in >> nmax;
 
     Vector cos1(0, nmax-1), sin1(0, nmax-1);
     bool first = true;
 
-    for (int n=0; n<nmv; n++) {
-      in >> M;
-      for (int j=0; j<nmax; j++) in >> cos1[j];
-      if (M) {
-	for (int j=0; j<nmax; j++) in >> sin1[j];
-      }
-
-      ortho.set_coefs(M, cos1, sin1, cnt==0);
-
-      cnt++;
+    for (int j=0; j<nmax; j++) in >> cos1[j];
+    if (M) {
+      for (int j=0; j<nmax; j++) in >> sin1[j];
     }
 
-    outfiles.push_back(write_output(ortho, cnt, T));
+    ortho.set_coefs(M, cos1, sin1, cnt==0);
+
+    outfiles.push_back(write_output(ortho, cnt, time) + ".vtr");
+
+    cnt++;
+
+    in >> time;
   }
 
   // Create PVD file
