@@ -11618,28 +11618,31 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  KE.Tau = ABrate[id][2]*afac*afac*eVel * dT;
 	  double Cfrac  = nbods * nbods * dfac/ (PiProb[id][2] * volc) / spNsel[id];
 	  
-	  std::get<0>(tauIon[id]) += 1;
-	  std::get<1>(tauIon[id]) += KE.Tau;
-	  std::get<2>(tauIon[id]) += Cfrac;
+	  tauIon[id][0] += 1;
+	  tauIon[id][1] += KE.Tau;
+	  tauIon[id][2] += KE.Tau * KE.Tau;
+	  tauIon[id][3] += Cfrac;
 	} else {
 	  double eVel = sqrt(2.0 * kEe1[id] * eV / mu1);
 	  double afac = esu*esu/std::max<double>(2.0*kEe1[id]*eV, FloorEv*eV);
 	  KE.Tau = ABrate[id][1]*afac*afac*eVel * dT;
 	  double Cfrac  = nbods * nbods * dfac/ (PiProb[id][1] * volc) / spNsel[id];
 	  
-	  std::get<0>(tauIon[id]) += 1;
-	  std::get<1>(tauIon[id]) += KE.Tau;
-	  std::get<2>(tauIon[id]) += Cfrac;
+	  tauIon[id][0] += 1;
+	  tauIon[id][1] += KE.Tau;
+	  tauIon[id][2] += KE.Tau * KE.Tau;
+	  tauIon[id][3] += Cfrac;
 	}
       } else {
-	  double eVel = sqrt(2.0 * kEi[id] * eV / mu0);
-	  double afac = esu*esu/std::max<double>(2.0*kEi[id]*eV, FloorEv*eV);
-	  KE.Tau = ABrate[id][0]*afac*afac*eVel * dT;
-	  double Cfrac  = nbods * nbods * dfac/ (PiProb[id][0] * volc) / spNsel[id];
+	double eVel = sqrt(2.0 * kEi[id] * eV / mu0);
+	double afac = esu*esu/std::max<double>(2.0*kEi[id]*eV, FloorEv*eV);
+	KE.Tau = ABrate[id][0]*afac*afac*eVel * dT;
+	double Cfrac  = nbods * nbods * dfac/ (PiProb[id][0] * volc) / spNsel[id];
 	  
-	  std::get<0>(tauIon[id]) += 1;
-	  std::get<1>(tauIon[id]) += KE.Tau;
-	  std::get<2>(tauIon[id]) += Cfrac;
+	tauIon[id][0] += 1;
+	tauIon[id][1] += KE.Tau;
+	tauIon[id][2] += KE.Tau * KE.Tau;
+	tauIon[id][3] += Cfrac;
       }
     }
 
@@ -13747,9 +13750,10 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
       Cfrac = 0.5 * nbods * (nbods-1) * Prob / selcM;
 
-      std::get<0>(tauElc[id]) += 1;
-      std::get<1>(tauElc[id]) += 0.5*Prob;
-      std::get<2>(tauElc[id]) += Cfrac;
+      tauElc[id][0] += 1;
+      tauElc[id][1] += 0.5*Prob;
+      tauElc[id][2] += 0.25*Prob*Prob;
+      tauElc[id][3] += Cfrac;
     }
 
 
@@ -17463,9 +17467,10 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   colCf[id] = selcM/totPairs;
   selcM = totPairs;
 
-  std::get<0>(colUps[id]) += 1;
-  std::get<1>(colUps[id]) += selcM;
-  std::get<2>(colUps[id]) += colCf[id];
+  colUps[id][0] += 1;
+  colUps[id][1] += selcM;
+  colUps[id][2] += selcM * selcM;
+  colUps[id][3] += colCf[id];
 
   if (collLim) {		// Sanity clamp
 
@@ -19180,18 +19185,12 @@ void CollideIon::electronGather()
     }
 
     for (int t=1; t<nthrds; t++) {
-				// Ion counters
-      std::get<0>(tauIon[0]) += std::get<0>(tauIon[t]);
-      std::get<1>(tauIon[0]) += std::get<1>(tauIon[t]);
-      std::get<2>(tauIon[0]) += std::get<2>(tauIon[t]);
-				// Electron counters
-      std::get<0>(tauElc[0]) += std::get<0>(tauElc[t]);
-      std::get<1>(tauElc[0]) += std::get<1>(tauElc[t]);
-      std::get<2>(tauElc[0]) += std::get<2>(tauElc[t]);
-				// Upscale counter
-      std::get<0>(colUps[0]) += std::get<0>(colUps[t]);
-      std::get<1>(colUps[0]) += std::get<1>(colUps[t]);
-      std::get<2>(colUps[0]) += std::get<2>(colUps[t]);
+
+      for (int k=0; k<4; k++) {
+	tauIon[0][k] += tauIon[t][k]; // Ion counters
+	tauElc[0][k] += tauElc[t][k]; // Electron counters
+	colUps[0][k] += colUps[t][k]; // Upscale counter
+      }
     }
 
     std::ofstream dbg;
@@ -19258,26 +19257,9 @@ void CollideIon::electronGather()
 	  MPI_Send(&RhoV,          1, MPI_DOUBLE,   0, 330, MPI_COMM_WORLD);
 	  MPI_Send(&RhoN,          1, MPI_DOUBLE,   0, 331, MPI_COMM_WORLD);
 
-	  MPI_Send(&std::get<0>(tauIon[0]),
-		                   1, MPI_UNSIGNED, 0, 332, MPI_COMM_WORLD);
-	  MPI_Send(&std::get<1>(tauIon[0]),
-		                   1, MPI_DOUBLE,   0, 333, MPI_COMM_WORLD);
-	  MPI_Send(&std::get<2>(tauIon[0]),
-		                   1, MPI_DOUBLE,   0, 334, MPI_COMM_WORLD);
-
-	  MPI_Send(&std::get<0>(tauElc[0]),
-		                   1, MPI_UNSIGNED, 0, 335, MPI_COMM_WORLD);
-	  MPI_Send(&std::get<1>(tauElc[0]),
-		                   1, MPI_DOUBLE,   0, 336, MPI_COMM_WORLD);
-	  MPI_Send(&std::get<2>(tauElc[0]),
-		                   1, MPI_DOUBLE,   0, 337, MPI_COMM_WORLD);
-
-	  MPI_Send(&std::get<0>(colUps[0]),
-		                   1, MPI_UNSIGNED, 0, 338, MPI_COMM_WORLD);
-	  MPI_Send(&std::get<1>(colUps[0]),
-		                   1, MPI_DOUBLE,   0, 339, MPI_COMM_WORLD);
-	  MPI_Send(&std::get<2>(colUps[0]),
-		                   1, MPI_DOUBLE,   0, 340, MPI_COMM_WORLD);
+	  MPI_Send(&tauIon[0][0],  4, MPI_DOUBLE,   0, 332, MPI_COMM_WORLD);
+	  MPI_Send(&tauElc[0][0],  4, MPI_DOUBLE,   0, 335, MPI_COMM_WORLD);
+	  MPI_Send(&colUps[0][0],  4, MPI_DOUBLE,   0, 338, MPI_COMM_WORLD);
 
 	} // END: process send to root
 
@@ -19285,6 +19267,7 @@ void CollideIon::electronGather()
 
 	  std::vector<double> v;
 	  unsigned num;
+	  AvgRpt tmpR;
 	  double dv;
 
 
@@ -19342,32 +19325,17 @@ void CollideIon::electronGather()
 	  MPI_Recv(&dv,       1, MPI_DOUBLE,   n, 331, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  RhoN += dv;
 
-	  MPI_Recv(&num,      1, MPI_UNSIGNED, n, 332, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  std::get<0>(tauIon[0]) += num;
+	  MPI_Recv(&tmpR[0],  4, MPI_DOUBLE,   n, 332, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-	  MPI_Recv(&dv,       1, MPI_DOUBLE,   n, 333, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  std::get<1>(tauIon[0]) += dv;
+	  for (int k=0; k<4; k++) tauIon[0][k] += tmpR[k];
 
-	  MPI_Recv(&dv,       1, MPI_DOUBLE,   n, 334, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  std::get<1>(tauIon[0]) += dv;
+	  MPI_Recv(&tmpR[0],  4, MPI_DOUBLE,   n, 335, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-	  MPI_Recv(&num,      1, MPI_UNSIGNED, n, 335, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  std::get<0>(tauElc[0]) += num;
+	  for (int k=0; k<4; k++) tauElc[0][k] += tmpR[k];
 
-	  MPI_Recv(&dv,       1, MPI_DOUBLE,   n, 336, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  std::get<1>(tauElc[0]) += dv;
+	  MPI_Recv(&tmpR[0],  4, MPI_DOUBLE,   n, 338, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-	  MPI_Recv(&dv,       1, MPI_DOUBLE,   n, 337, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  std::get<2>(tauElc[0]) += dv;
-
-	  MPI_Recv(&num,      1, MPI_UNSIGNED, n, 338, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  std::get<0>(colUps[0]) += num;
-
-	  MPI_Recv(&dv,       1, MPI_DOUBLE,   n, 339, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  std::get<1>(colUps[0]) += dv;
-
-	  MPI_Recv(&dv,       1, MPI_DOUBLE,   n, 340, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  std::get<2>(colUps[0]) += dv;
+	  for (int k=0; k<4; k++) colUps[0][k] += tmpR[k];
 
 	} // Root receive loop
 
@@ -20241,59 +20209,65 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< std::left << std::scientific;
     
     out << std::setw(12) << "Species" << std::setw(12) << "Count"
-	<< std::setw(18) << "Tau"     << std::setw(18) << "Frac"
+	<< std::setw(18) << "Tau"     << std::setw(18) << "S(Tau)"
+	<< std::setw(18) << "Frac"
 	<< std::endl << std::endl;
 
     // Counts
-    unsigned nion = std::get<0>(tauIon[0]);
-    unsigned nelc = std::get<0>(tauElc[0]);
-    unsigned nups = std::get<0>(colUps[0]);
+    unsigned nion = tauIon[0][0];
+    unsigned nelc = tauElc[0][0];
+    unsigned nups = colUps[0][0];
 
     out << std::setw(12) << "Ions"<< std::setw(12) << nion;
     if (nion)
-      out << std::setw(18) << std::get<1>(tauIon[0])/nion
-	  << std::setw(18) << std::get<2>(tauIon[0])/nion
+      out << std::setw(18) << tauIon[0][1]/nion
+	  << std::setw(18) << sqrt(fabs(tauIon[0][2] - tauIon[0][1]*tauIon[0][1]/nion)/nion)
+	  << std::setw(18) << tauIon[0][3]/nion
 	  << std::endl;
     else
       out << std::setw(18) << "*****"
+	  << std::setw(18) << "*****"
 	  << std::setw(18) << "*****"
 	  << std::endl;
 
     out << std::setw(12) << "Electrons" << std::setw(12) << nelc;
     if (nelc)
-      out << std::setw(18) << std::get<1>(tauElc[0])/nelc
-	  << std::setw(18) << std::get<2>(tauElc[0])/nelc
+      out << std::setw(18) << tauElc[0][1]/nelc
+	  << std::setw(18) << sqrt(fabs(tauElc[0][2] - tauElc[0][1]*tauElc[0][1]/nelc)/nelc)
+	  << std::setw(18) << tauElc[0][3]/nelc
 	  << std::endl;
     else
       out << std::setw(18) << "*****"
 	  << std::setw(18) << "*****"
+	  << std::setw(18) << "*****"
 	  << std::endl;
 
-    out << std::setw(12) << "Upscale" << std::setw(12) << nion;
+    out << std::setw(12) << "Upscale" << std::setw(12) << nups;
     if (nups)
-      out << std::setw(18) << std::get<1>(colUps[0])/nups
-	  << std::setw(18) << std::get<2>(colUps[0])/nups
+      out << std::setw(18) << colUps[0][1]/nups
+	  << std::setw(18) << sqrt(fabs(colUps[0][2] - colUps[0][1]*colUps[0][1]/nups)/nups)
+	  << std::setw(18) << colUps[0][3]/nups
 	  << std::endl;
     else
       out << std::setw(18) << "*****"
+	  << std::setw(18) << "*****"
 	  << std::setw(18) << "*****"
 	  << std::endl;
 
     out << std::string(53, '-') << std::endl;
 
-    AvgRpt zero(0, 0, 0);	// Zero out counters
-    for (auto & v : tauIon) v = zero;
-    for (auto & v : tauElc) v = zero;
-    for (auto & v : colUps) v = zero;
+    for (auto & v : tauIon) { for(auto & u : v) u = 0.0; }
+    for (auto & v : tauElc) { for(auto & u : v) u = 0.0; }
+    for (auto & v : colUps) { for(auto & u : v) u = 0.0; }
   }
 }
 
 void CollideIon::electronReset()
 {
-  AvgRpt zero(0, 0, 0);	// Zero out counters
-  for (auto & v : tauIon) v = zero;
-  for (auto & v : tauElc) v = zero;
-  for (auto & v : colUps) v = zero;
+  // Zero out counters
+  for (auto & v : tauIon) { for(auto & u : v) u = 0.0; }
+  for (auto & v : tauElc) { for(auto & u : v) u = 0.0; }
+  for (auto & v : colUps) { for(auto & u : v) u = 0.0; }
 }
 
 const std::string clabl(unsigned c)

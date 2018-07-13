@@ -491,7 +491,7 @@ private:
   typedef std::array<double, 4>                      CellMom;
   typedef std::array<double, 3>                      ChProb;
   typedef std::map<lQ, std::array<double, 4> >       phStatMap;
-  typedef std::tuple<unsigned, double, double>       AvgRpt;
+  typedef std::array<double, 4>                      AvgRpt;
 
   std::vector< std::vector<dKey>   >                 kInter;
   std::vector< std::vector<double> >                 dCross;
