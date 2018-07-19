@@ -1,3 +1,5 @@
+// -*- C++ -*-
+
 #include <Component.H>
 #include "expand.h"
 

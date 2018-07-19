@@ -1,3 +1,5 @@
+// -*- C++ -*-
+
 #ifndef CUDA_MAPPING_CONSTANTS_H
 #define CUDA_MAPPING_CONSTANTS_H
 

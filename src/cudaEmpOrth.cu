@@ -1,3 +1,5 @@
+// -*- C++ -*-
+
 #include <EmpOrth9thd.h>
 
 #include <iostream>

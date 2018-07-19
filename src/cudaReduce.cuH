@@ -1,3 +1,5 @@
+// -*- C++ -*-
+
 #ifndef CUDA_REDUCE_CUH
 #define CUDA_REDUCE_CUH
 

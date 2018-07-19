@@ -1,3 +1,5 @@
+// -*- C++ -*-
+
 #include <SLGridMP2.h>
 
 #include <iostream>

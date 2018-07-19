@@ -879,7 +879,7 @@ public:
   //! Zero the acceleration
   void ZeroPotAccel(int mlevel);
 
-  //! Default bunch size
+  //! Default bunch size for CUDA
   size_t bunchSize;
 
   //@}

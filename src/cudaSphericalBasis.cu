@@ -1,3 +1,5 @@
+// -*- C++ -*-
+
 #include <tuple>
 #include <list>
 
