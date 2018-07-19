@@ -1433,6 +1433,11 @@ protected:
   (PordPtr pp, KE_& KE,
    std::vector<double>* V1, std::vector<double>* V2, int id);
 
+  //! Compute the interaction for the trace method using the mean-mass algorithm
+  void scatterTraceMM
+  (PordPtr pp, KE_& KE,
+   std::vector<double>* v1, std::vector<double>* v2, int id);
+
   //! For photoionization ion-electron recoil
   void scatterPhotoTrace(Particle* p, lQ Q, double Pr, double dE);
 
@@ -1487,6 +1492,7 @@ public:
   static bool     NoExact;
   static bool     AlgOrth;
   static bool     AlgWght;
+  static bool     MeanMass;
   static bool     DebugE;
   static bool     collLim;
   static bool     collCor;

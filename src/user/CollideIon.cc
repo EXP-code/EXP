@@ -37,6 +37,7 @@ bool     CollideIon::ExactE     = false;
 bool     CollideIon::NoExact    = true;
 bool     CollideIon::AlgOrth    = false;
 bool     CollideIon::AlgWght    = false;
+bool     CollideIon::MeanMass   = false;
 bool     CollideIon::DebugE     = false;
 bool     CollideIon::collLim    = false;
 bool     CollideIon::collCor    = false;
@@ -547,6 +548,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << "************************************" << std::endl
 	      << " " << std::setw(20) << std::left  << "Algorithm type"
 	      << AlgorithmLabels[aType]                 << std::endl
+	      << " " << std::setw(20) << std::left  << "MEAN_MASS"
+	      << (MeanMass ? "on" : "off")              << std::endl
 	      << " " << std::setw(20) << std::left  << "ENERGY_ES"
 	      << (ExactE ? "on" : "off")                << std::endl
 	      <<  " " << std::setw(20) << std::left << "NO_EXACT"
@@ -12401,6 +12404,11 @@ void CollideIon::scatterTrace
 {
   if (NO_HSCAT) return;
 
+  if (MeanMass) {
+    scatterTraceMM(pp, KE, V1, V2, id);
+    return;
+  }
+
   // Make v1 correspond to the primary, W1>W2
   //
   std::vector<double>* v1 = V1;
@@ -12783,6 +12791,252 @@ void CollideIon::scatterTrace
 } // END: CollideIon::scatterTrace
 
 
+void CollideIon::scatterTraceMM
+(PordPtr pp, KE_& KE, std::vector<double>* v1, std::vector<double>* v2, int id)
+{
+  // Swap velocities?
+  //
+  if (pp->swap) zswap(v1, v2);
+
+  // For energy conservation debugging
+  //
+  if (KE_DEBUG) {
+    KE.i(1) = KE.i(2) = 0.0;
+    for (auto v : *v1) KE.i(1) += v*v;
+    for (auto v : *v2) KE.i(2) += v*v;
+  }
+  
+  // Reset bit flags
+  //
+  KE.bs.reset();
+
+  // Particle masses
+  //
+  double m1 = pp->m1;
+  double m2 = pp->m2;
+
+  if (m1<1.0) m1 /= pp->q;
+  if (m2<1.0) m2 *= pp->q;
+
+  // Total effective mass in the collision
+  //
+  double mt = m1 + m2;
+
+  // Reduced mass (atomic mass units)
+  //
+  double mu = m1 * m2 / mt;
+
+  // Set COM frame
+  //
+  std::vector<double> vcom(3), vrel(3);
+  double vi = 0.0;
+
+  for (size_t k=0; k<3; k++) {
+    vcom[k] = (m1*(*v1)[k] + m2*(*v2)[k])/mt;
+    vrel[k] = (*v1)[k] - (*v2)[k];
+    vi += vrel[k] * vrel[k];
+  }
+				// Energy in COM
+  double kE = 0.5*pp->W2*mu*vi;
+				// Energy reduced by loss
+  double totE = kE - KE.delE;
+
+  // KE is positive
+  //
+  if (kE>0.0) {
+    // More loss energy requested than available?
+    //
+    if (totE < 0.0) {
+      KE.miss = -totE;
+      // Add to energy bucket for these particles
+      //
+      deferredEnergyTrace(pp, -totE, id);
+      KE.delE += totE;
+      totE = 0.0;
+    }
+    // Update the outgoing energy in COM
+    //
+    KE.vfac = sqrt(totE/kE);
+    KE.kE   = kE;
+    KE.totE = totE;
+    KE.bs.set(KE_Flags::Vfac);
+    KE.bs.set(KE_Flags::KEpos);
+  }
+  // KE is zero (limiting case)
+  //
+  else {
+    KE.vfac = 1.0;
+    KE.kE   = kE;
+    KE.totE = totE;
+
+    if (KE.delE>0.0) {
+      KE.miss = KE.delE;
+      // Defer all energy loss
+      //
+      deferredEnergyTrace(pp, KE.delE, id);
+      KE.delE = 0.0;
+    } else {
+      // Apply delE to COM
+      //
+      vi = -2.0*KE.delE/(pp->W1*mu);
+    }
+  }
+
+  // Assign interaction energy variables
+  //
+  if (KE.Coulombic)
+    vrel = coulomb_vector(vrel, pp->W1, pp->W2, KE.Tau);
+  else
+    vrel = unit_vector();
+  
+  vi   = sqrt(vi);
+  for (auto & v : vrel) v *= vi;
+  //                         ^
+  //                         |
+  // Velocity in center of mass, computed from v1, v2 and adjusted
+  // according to the inelastic energy loss
+  //
+
+  KE.delta = 0.0;
+
+  
+  // BEGIN: momentum conservation algorithm
+
+  KE.bs.set(KE_Flags::momC);
+
+  for (size_t k=0; k<3; k++) {
+    (*v1)[k] = vcom[k] + m2/mt*vrel[k] * KE.vfac;
+    (*v2)[k] = vcom[k] - m1/mt*vrel[k] * KE.vfac;
+  }
+    
+  misE[id] += KE.miss;
+
+  // Temporary deep debug
+  //
+  if (KE_DEBUG) {
+
+    double M1 = 0.5 * pp->W1 * pp->m1;
+    double M2 = 0.5 * pp->W2 * pp->m2;
+
+    // Initial KE
+    //
+    double KE1i = M1 * KE.i(1);
+    double KE2i = M2 * KE.i(2);
+
+    double KE1f = 0.0, KE2f = 0.0;
+    for (auto v : *v1) KE1f += v*v;
+    for (auto v : *v2) KE2f += v*v;
+
+    // Final KE
+    //
+    KE1f *= M1;
+    KE2f *= M2;
+      
+    // KE differences
+    //
+    double KEi   = KE1i + KE2i;
+    double KEf   = KE1f + KE2f;
+    double delEt = KEi  - KEf - KE.delta - std::min<double>(kE, KE.delE);
+    
+    // Sanity test
+    //
+    double Ii1 = 0.0, Ii2 = 0.0, Ie1 = 0.0, Ie2 = 0.0;
+    for (size_t k=0; k<3; k++) {
+      Ii1 += pp->p1->vel[k] * pp->p1->vel[k];
+      Ii2 += pp->p2->vel[k] * pp->p2->vel[k];
+      if (use_elec>=0) {
+	size_t K = use_elec + k;
+	Ie1 += pp->p1->dattrib[K] * pp->p1->dattrib[K];
+	Ie2 += pp->p2->dattrib[K] * pp->p2->dattrib[K];
+      }
+    }
+
+    Ii1 *= 0.5 * pp->p1->mass;
+    Ii2 *= 0.5 * pp->p2->mass;
+    Ie1 *= 0.5 * pp->p1->mass * pp->eta1 * atomic_weights[0]/molP1[id];
+    Ie2 *= 0.5 * pp->p2->mass * pp->eta2 * atomic_weights[0]/molP2[id];
+
+    double Fi1 = Ii1, Fi2 = Ii2, Fe1 = Ie1, Fe2 = Ie2;
+
+    if (pp->P == Pord::ion_ion) {
+      Fi1 = 0.0; for (auto v : *v1) Fi1 += v*v;
+      Fi2 = 0.0; for (auto v : *v2) Fi2 += v*v;
+      Fi1 *= 0.5 * pp->p1->mass;
+      Fi2 *= 0.5 * pp->p2->mass;
+    }
+
+    if (pp->P == Pord::ion_electron) {
+      Fi1 = 0.0; for (auto v : *v1) Fi1 += v*v;
+      Fe2 = 0.0; for (auto v : *v2) Fe2 += v*v;
+      Fi1 *= 0.5 * pp->p1->mass;
+      Fe2 *= 0.5 * pp->p2->mass * pp->eta2 * atomic_weights[0]/molP2[id];
+    }
+
+    if (pp->P == Pord::electron_ion) {
+      Fe1 = 0.0; for (auto v : *v1) Fe1 += v*v;
+      Fi2 = 0.0; for (auto v : *v2) Fi2 += v*v;
+      Fe1 *= 0.5 * pp->p1->mass * pp->eta1 * atomic_weights[0]/molP1[id];
+      Fi2 *= 0.5 * pp->p2->mass;
+    }
+
+    if ( fabs(delEt)/std::min<double>(KEi, KEf) > tolE) {
+      std::cout << "**ERROR scatter: delEt = " << delEt
+		<< " rel = "  << delEt/KEi
+		<< " KEi = "  << KEi
+		<< " KEf = "  << KEf
+		<< " dif = "  << KEi - KEf
+		<< "  kE = "  << kE
+		<< "  dE = "  << KE.delE
+		<< " dvf = "  << KE.delE/kE
+		<< " tot = "  << totE
+		<< " vfac = " << KE.vfac
+		<< "   w1 = " << pp->w1
+		<< "   w2 = " << pp->w2
+		<< "   W1 = " << pp->W1
+		<< "   W2 = " << pp->W2
+		<< " flg = " << KE.decode()
+		<< std::endl;
+    } else {
+      if (DBG_NewTest)
+	std::cout << "**GOOD scatter: delEt = "
+		  << std::setprecision(14) << std::scientific
+		  << std::setw(22) << delEt
+		  << " rel = "  << std::setw(22) << delEt/KEi << " kE = " << std::setw(22) << kE
+		  << "   m1 = " << std::setw(22)  << m1
+		  << "   m2 = " << std::setw(22)  << m2
+		  << "   W1 = " << std::setw(22)  << pp->W1
+		  << "   W2 = " << std::setw(22)  << pp->W2
+		  << "  Ei1 = " << std::setw(22)  << KE1i
+		  << "  Ef1 = " << std::setw(22)  << KE1f
+		  << "  Ei2 = " << std::setw(22)  << KE2i
+		  << "  Ef2 = " << std::setw(22)  << KE2f
+		  << "  Ii1 = " << std::setw(22)  << Ii1
+		  << "  Ie1 = " << std::setw(22)  << Ie1
+		  << "  Ii2 = " << std::setw(22)  << Ii2
+		  << "  Ie2 = " << std::setw(22)  << Ie2
+		  << " delE = " << std::setw(22)  << KE.delE
+		  << " swap = " << std::boolalpha << pp->swap
+		  << std::setprecision(5)  << std::endl;
+    }
+
+  } // END: temporary deep debug
+
+  // Sanity check
+  if (pp->W2 > pp->W1) {
+    std::cout << "Backwards: w1=" << pp->w1
+	      << " w2=" << pp->w2
+	      << " W1=" << pp->W1
+	      << " W2=" << pp->W2
+	      << " m1=" << pp->m1
+	      << " m2=" << pp->m2
+	      << " M1=" << pp->p1->mass
+	      << " M2=" << pp->p2->mass
+	      << std::endl;
+  }
+      
+} // END: CollideIon::scatterTraceMM
+
+
 void CollideIon::scatterPhotoTrace
 (Particle* p, lQ Q, double Pr, double dE)
 {
@@ -12998,7 +13252,7 @@ void CollideIon::updateEnergyTrace(PordPtr pp, KE_& KE)
   //
   pp->eFinal();
 
-  if (ExactE) return;
+  if (MeanMass or ExactE)     return;
   if (pp->P == Pord::ion_ion) return;
 
   double tKEi = 0.0;		// Total pre collision KE
@@ -20722,6 +20976,9 @@ void CollideIon::processConfig()
     DebugE =
       cfg.entry<bool>("ENERGY_ES_DBG", "Enable explicit energy conservation checking", true);
 
+    MeanMass =
+      cfg.entry<bool>("MEAN_MASS", "Mean mass, energy and momentum conserving algorithm", false);
+    
     AlgOrth =
       cfg.entry<bool>("ENERGY_ORTHO", "Add energy in orthogonal direction", false);
 
