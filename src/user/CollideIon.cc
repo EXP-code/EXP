@@ -17936,7 +17936,7 @@ void CollideIon::gatherSpecies()
     //
     if (use_elec >= 0) {
       
-      double count = 0.0, meanV = 0.0, meanV2 = 0.0, dispr = 0.0;
+      double count = 0.0, meanV = 0.0, meanV2 = 0.0, dispr = 0.0, netot = 0.0;
       unsigned long number = 0;
       
       typedef std::tuple<double, double> dtup;
@@ -17951,13 +17951,16 @@ void CollideIon::gatherSpecies()
 	    
 	  // Compute effective number of electrons
 	  //
+	  double numbI = 0.0;
 	  double numbE = 0.0;
 	  for (auto s : SpList) {
 	    unsigned short Z = s.first.first;
 	    unsigned short P = s.first.second - 1;
+	    numbI += p->dattrib[s.second] / atomic_weights[Z];
 	    numbE += p->dattrib[s.second] / atomic_weights[Z] * P;
 	  }
 	  
+	  numbI *= p->mass;
 	  numbE *= p->mass;
 	      
 	  for (unsigned k=0; k<3; k++) {
@@ -17965,6 +17968,7 @@ void CollideIon::gatherSpecies()
 	    std::get<0>(vel[k]) += v   * numbE;
 	    std::get<1>(vel[k]) += v*v * numbE;
 	  }
+	  netot  += numbI;
 	  count  += numbE;
 	  number += 1;
 	  
@@ -18043,8 +18047,11 @@ void CollideIon::gatherSpecies()
 	
       // Compute electron temperature
       //
-      Telc = Tfac * atomic_weights[0] * meanV2;
-      Selc = Tfac * atomic_weights[0] * dispr;
+      double eta = 1.0;
+      if (MeanMass) eta = count/netot;
+
+      Telc = eta * Tfac * atomic_weights[0] * meanV2;
+      Selc = eta * Tfac * atomic_weights[0] * dispr;
 
       // Sanity check
       if (Telc < 100.0) {
