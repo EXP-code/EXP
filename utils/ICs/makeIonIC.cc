@@ -1271,17 +1271,11 @@ void InitializeSpeciesTrace
     std::cout << std::string(70, '-') << std::endl;
 
     for (size_t nc=0; nc<Ncomp; nc++) {
-      double netot = 0.0;
       eta[nc] = 0.0;
       for (int indx=0; indx<NS; indx++) { 
 	int C = 0;
-	for (auto v : frac[nc][indx]) {
-	  netot   += sF[indx] * v / sZ[indx];
-	  eta[nc] += sF[indx] * v * C++;
+	for (auto v : frac[nc][indx])  eta[nc] += sF[indx] * v * C++;
       }
-
-	eta[nc] /= netot;
-
       std::ostringstream lab; lab << "Eta (" << nc << "):";
       std::cout << std::left << std::setw(13) << lab.str()
 		<< eta[0] << std::endl;
