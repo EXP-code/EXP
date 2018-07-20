@@ -1274,11 +1274,12 @@ void InitializeSpeciesTrace
       eta[nc] = 0.0;
       for (int indx=0; indx<NS; indx++) { 
 	int C = 0;
-	for (auto v : frac[nc][indx]) eta[nc] += v * C++;
+	for (auto v : frac[nc][indx]) eta[nc] += sF[indx] * v * C++;
       }
 
       std::ostringstream lab; lab << "Eta (" << nc << "):";
-      std::cout << std::left << std::setw(13) << lab.str() << molW << std::endl;
+      std::cout << std::left << std::setw(13) << lab.str()
+		<< eta[0] << std::endl;
     }
   }
   
