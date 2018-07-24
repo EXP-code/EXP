@@ -1274,7 +1274,7 @@ void InitializeSpeciesTrace
       eta[nc] = 0.0;
       for (int indx=0; indx<NS; indx++) { 
 	int C = 0;
-	for (auto v : frac[nc][indx])  eta[nc] += sF[indx] * v * C++;
+	for (auto v : frac[nc][indx])  eta[nc] += sF[indx]/PT[sZ[indx]]->weight() * v * C++;
       }
       std::ostringstream lab; lab << "Eta (" << nc << "):";
       std::cout << std::left << std::setw(13) << lab.str()
