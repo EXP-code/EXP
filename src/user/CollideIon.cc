@@ -12885,7 +12885,8 @@ void CollideIon::scatterTraceMM
   // Assign interaction energy variables
   //
   if (KE.Coulombic)
-    vrel = coulomb_vector(vrel, pp->W1, pp->W2, KE.Tau);
+    // vrel = coulomb_vector(vrel, pp->W1, pp->W2, KE.Tau);
+    vrel = coulomb_vector(vrel, 1.0, 1.0, KE.Tau);
   else
     vrel = unit_vector();
   
@@ -14384,16 +14385,76 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	  double afac = esu*esu/std::max<double>(2.0*kEee*eV, FloorEv*eV);
 	  double Tau  = ABrate[id][3] * afac*afac * cr * tau * UserTreeDSMC::Tunit;
 
-	  vrel = coulomb_vector(vrel, W1, W2, Tau);
+	  if (MeanMass)
+	    vrel = coulomb_vector(vrel, 1.0, 1.0, Tau);
+	  else
+	    vrel = coulomb_vector(vrel, W1, W2, Tau);
 	}
 	else
 	  vrel = unit_vector();
 
 	for (auto & v : vrel) v *= vi;
 
+	if (MeanMass) {
+
+	  // Particle masses
+	  //
+	  m1 *= ne1;
+	  m2 *= ne2;
+
+	  // Total effective mass in the collision
+	  //
+	  mt = m1 + m2;
+
+	  // Reduced mass (atomic mass units)
+	  //
+	  double mu = m1 * m2 / mt;
+	  
+	  // Set COM frame
+	  //
+	  std::vector<double> vcom(3), vrel(3);
+	  double KEcom = 0.0;
+	  
+	  for (size_t k=0; k<3; k++) {
+	    vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
+	    vrel[k] = v1[k] - v2[k];
+	    KEcom += vrel[k] * vrel[k];
+	  }
+
+	  // Energy deficit correction
+	  //
+	  KEcom *= 0.5*mu;
+	  double delE = 0.0;
+	  if (elc_cons)
+	    delE = p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
+	  else
+	    delE = p1->dattrib[use_cons  ] + p2->dattrib[use_cons  ];
+
+	  double vfac = 0.0;
+	  if (KEcom>delE) {
+	    vfac = sqrt(1.0 - delE/KEcom);
+	    if (elc_cons)
+	      p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.0;
+	    else
+	      p1->dattrib[use_cons  ] = p2->dattrib[use_cons  ] = 0.0;
+	  } else {
+	    if (elc_cons)
+	      p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.5*(delE - KEcom);
+	    else
+	      p1->dattrib[use_cons  ] = p2->dattrib[use_cons  ] = 0.5*(delE - KEcom);
+	  }
+
+	  // Assign new electron velocities
+	  //
+	  for (int k=0; k<3; k++) {
+	    p1->dattrib[use_elec+k] = vcom[k] + m2/mt*vrel[k] * vfac;
+	    p2->dattrib[use_elec+k] = vcom[k] - m1/mt*vrel[k] * vfac;
+	  }
+
+	}
 	// Explicit energy conservation using splitting
 	//
-	if (ExactE and q < 1.0) {
+	else if (ExactE and q < 1.0) {
 
 	  bool  algok = false;
 	  double vrat = 1.0;
@@ -14679,7 +14740,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	  } // end: Z1 == Z1
 
 	} // end: ExactE
-
+	
 	// Explicit momentum conservation
 	//
 	else {
