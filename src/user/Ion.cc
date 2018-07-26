@@ -77,6 +77,8 @@ double Ion::HandM_expon = -0.5;
 //
 bool   Ion::useFreeFreeGrid  = true;
 bool   Ion::useRadRecombGrid = true;
+bool   Ion::useExciteGrid    = true;
+bool   Ion::useIonizeGrid    = true;
 double Ion::EminGrid         = 0.05; // eV
 double Ion::EmaxGrid         = 50.0; // eV
 double Ion::DeltaEGrid       = 0.1;  // eV
@@ -626,6 +628,8 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
 
   freeFreeGridComputed  = false;
   radRecombGridComputed = false;
+  exciteGridComputed    = false;
+  ionizeGridComputed    = false;
 
   if (isInMasterList(MasterName)) {
     readfblvl();
@@ -685,6 +689,8 @@ Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
 
   freeFreeGridComputed  = false;
   radRecombGridComputed = false;
+  exciteGridComputed    = false;
+  ionizeGridComputed    = false;
 
   ip = 0.0;
 
@@ -791,6 +797,8 @@ Ion::Ion()
 
   freeFreeGridComputed  = false;
   radRecombGridComputed = false;
+  exciteGridComputed    = false;
+  ionizeGridComputed    = false;
 }
 
 //
@@ -819,11 +827,24 @@ Ion::Ion(const Ion &I)
   freeFreeGridComputed  = I.freeFreeGridComputed;
   radRecombGridComputed = I.radRecombGridComputed;
 
+  exciteGridComputed    = I.exciteGridComputed;
+  ionizeGridComputed    = I.ionizeGridComputed;
+
   NfreeFreeGrid         = I.NfreeFreeGrid;
   NradRecombGrid        = I.NradRecombGrid;
 
   freeFreeGrid          = I.freeFreeGrid;
   radRecombGrid         = I.radRecombGrid;
+
+  collideEmin           = I.collideEmin;
+  ionizeEmin            = I.ionizeEmin;
+  collideEmax           = I.collideEmax;
+  ionizeEmax            = I.ionizeEmax;
+  delCollideE           = I.delCollideE;
+
+  collideDataGrid       = I.collideDataGrid;
+  ionizeDataGrid        = I.ionizeDataGrid;
+
 }
 
 /** 
@@ -834,7 +855,7 @@ Ion::Ion(const Ion &I)
     since the file input, and thus array, are not in any specific order
 */
 Ion::collType
-Ion::collExciteCross(double E, int id)
+Ion::collExciteCrossSingle(double E, int id)
 {
   const double x_array5[5] = {0, 0.25, 0.5, 0.75, 1.0};
   const double x_array9[9] = {0, 0.125, 0.25 , 0.375, 0.5 , 
@@ -983,6 +1004,98 @@ Ion::collExciteCross(double E, int id)
   return CEcum;
 }
 
+Ion::collType
+Ion::collExciteCrossGrid(double E, int id)
+{
+				// This will contain the cumulative
+				// cross section
+  collType CEcum;
+
+				// Zero-valued datum
+  const std::pair<double,double> Null(0, 0);
+
+				// If the data is missing, assume zero
+				// cross section
+  if (splups.size() == 0) {
+    CEcum.push_back(Null);
+    return CEcum;
+  }
+
+  if (not exciteGridComputed) collExciteMakeGrid(id);
+
+  if (E > collideEmax or E < collideEmin) {
+    CEcum.push_back(Null);
+    return CEcum;
+  }
+
+  // Interpolate the values
+  //
+  size_t indx = std::floor( (E - collideEmin)/delCollideE );
+
+  // Sanity check
+  //
+  indx = std::max<size_t>(0, std::min<size_t>(indx, NcollideGrid-2));
+
+  double eA   = collideEmin + delCollideE*indx;
+  double eB   = collideEmin + delCollideE*(indx+1);
+
+  double A = (eB - E)/delCollideE;
+  double B = (E - eA)/delCollideE;
+
+  typedef std::pair<double, double> Elem;
+  std::array<Elem, 2> v { collideDataGrid[indx+0].back(), collideDataGrid[indx+1].back()};
+  
+  std::vector<Elem> ret(1);
+  ret[0] = {A*v[0].first  + B*v[1].first, A*v[0].second + B*v[1].second};
+
+  // Test
+  if (true) {
+    collType tst = collExciteCrossSingle(E, id);
+    double diffXS = fabs(tst.back().first  - ret[0].first );
+    double diffCM = fabs(tst.back().second - ret[0].second);
+    if (tst.back().first >0.0) diffXS /= tst.back().first;
+    if (tst.back().second>0.0) diffCM /= tst.back().second;
+    if (diffXS > 0.01 or diffCM > 0.01) {
+      std::cout << "Diff [collide]: XS expected=" << tst.back().first  << ", got "
+		<< ret[0].first  << std::endl
+		<< "                CM expected=" << tst.back().second << ", got "
+		<< ret[0].second << std::endl;
+    }
+  }
+
+  return ret;
+}
+
+
+void Ion::collExciteMakeGrid(int id)
+{
+  exciteGridComputed = true;
+
+  // Get min/max energy
+  //
+  collideEmax = 0.0;
+  collideEmin = std::numeric_limits<double>::max();
+  for (size_t i=0; i<splups.size(); i++) {
+    double Elev = splups[i].delERyd*RydtoeV;
+    if (splups[i].i==1) {
+      collideEmin = std::min<double>(collideEmin, Elev);
+      collideEmax = std::max<double>(collideEmax, Elev);
+    }
+  }
+
+  // Number of elements in energy grid
+  //
+  NcollideGrid = 1 + std::floor((collideEmax - collideEmin)/DeltaEGrid );
+  NcollideGrid = std::max<int>(NcollideGrid, 10000);
+  delCollideE  = (collideEmax - collideEmin)/(NcollideGrid-1);
+
+  // Compute the grid
+  //
+  collideDataGrid.resize(NcollideGrid);
+  for (int n=0; n<NcollideGrid; n++) 
+    collideDataGrid[n] = collExciteCrossSingle(collideEmin + delCollideE*n, id);
+}
+
 //
 // Calculate the Qr-prime value as in Fontes, Sampson, Zhang 1999
 //
@@ -1022,7 +1135,7 @@ double Ion::qrp(double u)
     See: Dere, K. P., 2007, A&A, 466, 771
     ADS ref:  http://adsabs.harvard.edu/abs/2007A%26A...466..771D
 */
-double Ion::directIonCross(double E, int id) 
+double Ion::directIonCrossSingle(double E, int id) 
 {
   // Classical Bohr cross section in nm^2
   //
@@ -1032,9 +1145,15 @@ double Ion::directIonCross(double E, int id)
   //
   unsigned char I = Z - C + 1;
 
+  if (C == (Z+1)) {
+    return -1;
+  }
+
   // Scaled energy
   //
   double u        = E/ip;
+
+  if (u<1.0) return 0.0;
 
   // Ionization potential in Rydbergs
   //
@@ -1042,10 +1161,6 @@ double Ion::directIonCross(double E, int id)
 
   double F, qr, cross;
   
-  if (C == (Z+1)) {
-    return -1;
-  }
-
   // From Fontes, et al. Phys Rev A, 59, 1329 (eq. 2.11)
   //
   if (Z >= 20) {
@@ -1094,6 +1209,61 @@ double Ion::directIonCross(double E, int id)
 
   return cross;
 }
+
+double Ion::directIonCrossGrid(double E, int id) 
+{
+  if (C == (Z+1)) {
+    return -1;
+  }
+
+  if (E<ip) return 0.0;
+
+  if (not ionizeGridComputed) directIonMakeGrid(id);
+
+  double eMin = ionizeEmin, eMax = ionizeEmin + DeltaEGrid*(NionizeGrid-1);
+  
+  if (E<=eMin or E>=eMax) return directIonCrossSingle(E, id);
+
+  size_t indx = std::floor( (E - eMin)/DeltaEGrid );
+  double eA   = eMin + DeltaEGrid*indx, eB = eMin + DeltaEGrid*(indx+1);
+
+  double A = (eB - E)/DeltaEGrid;
+  double B = (E - eA)/DeltaEGrid;
+
+  double est = A*ionizeDataGrid[indx+0] + B*ionizeDataGrid[indx+1];
+
+  // Test
+  if (true) {
+    double tst = directIonCrossSingle(E, id);
+    double diffXS = fabs(tst - est);
+    if (tst >0.0) diffXS /= tst;
+    if (diffXS > 0.01) {
+      std::cout << "Diff [ionize]: XS expected=" << tst << ", got "
+		<< est << std::endl;
+    }
+  }
+
+  return est;
+}
+
+void Ion::directIonMakeGrid(int id)
+{
+  ionizeGridComputed = true;
+
+  // Get max energy
+  ionizeEmin = ip;
+  ionizeEmax = EmaxGrid;
+
+  // Number of elements in energy grid
+  NionizeGrid = 1 + std::floor( (ionizeEmax - ionizeEmin)/DeltaEGrid );
+  NionizeGrid = std::max<int>(NionizeGrid, 256);
+
+  // Make the grid
+  ionizeDataGrid.resize(NionizeGrid);
+  for (int n=0; n<NionizeGrid; n++) 
+    ionizeDataGrid[n] = directIonCrossSingle(ionizeEmin + DeltaEGrid*n, id);
+}
+
 
 /** 
     Cross section is 3BN(a) from Koch & Motz 1959, with the low-energy
