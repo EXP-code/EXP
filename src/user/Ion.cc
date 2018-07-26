@@ -1049,7 +1049,7 @@ Ion::collExciteCrossGrid(double E, int id)
   ret[0] = {A*v[0].first  + B*v[1].first, A*v[0].second + B*v[1].second};
 
   // Test
-  if (true) {
+  if (false) {
     collType tst = collExciteCrossSingle(E, id);
     double diffXS = fabs(tst.back().first  - ret[0].first );
     double diffCM = fabs(tst.back().second - ret[0].second);
@@ -1233,7 +1233,7 @@ double Ion::directIonCrossGrid(double E, int id)
   double est = A*ionizeDataGrid[indx+0] + B*ionizeDataGrid[indx+1];
 
   // Test
-  if (true) {
+  if (false) {
     double tst = directIonCrossSingle(E, id);
     double diffXS = fabs(tst - est);
     if (tst >0.0) diffXS /= tst;
