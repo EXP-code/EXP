@@ -32,7 +32,7 @@ void CylindricalDisk::Initialize(double Rmin, double Rmax, bool logR,
     trmax = log(Rmax);
   }
 
-  double dRR = (trmax - trmin)/(numR - 1), cost, sint;
+  double dRR = (trmax - trmin)/(numR - 1);
 
   // Compute density
   for (int i=0; i<numR; i++) {
@@ -100,7 +100,7 @@ void CylindricalDisk::Initialize(double Rmin, double Rmax, bool logR,
     coefs[l].zero();
   }
   
-  double theta, phi, rho, facp;
+  double theta, rho;
   double x, y, z, R;
   Vector vec(1, nmax);
 
@@ -212,7 +212,6 @@ double CylindricalDisk::density_eval(double x, double y, double z)
 {
   double r     = sqrt(x*x + y*y + z*z);
   double costh = z/(r+1.0e-18);
-  double phi   = atan2(y, x);
   double ans   = 0.0;
 
   for (int l=0; l<=lmax; l++) {
@@ -228,7 +227,6 @@ double CylindricalDisk::potential_eval(double x, double y, double z)
 {
   double r     = sqrt(x*x + y*y + z*z);
   double costh = z/(r+1.0e-18);
-  double phi   = atan2(y, x);
   double ans   = 0.0;
 
   for (int l=0; l<=lmax; l++) {
