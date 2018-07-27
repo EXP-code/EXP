@@ -79,13 +79,17 @@ bool   Ion::useFreeFreeGrid  = true;
 bool   Ion::useRadRecombGrid = true;
 bool   Ion::useExciteGrid    = true;
 bool   Ion::useIonizeGrid    = true;
-double Ion::EminGrid         = 0.05; // eV
-double Ion::EmaxGrid         = 50.0; // eV
-double Ion::DeltaEGrid       = 0.1;  // eV
+bool   Ion::GridDebug        = false;  // Set to true for debugging
+int    Ion::GridReport       = 100000; // Used for debugging only
+double Ion::EminGrid         = 0.05;   // eV
+double Ion::EmaxGrid         = 50.0;   // eV
+double Ion::DeltaEGrid       = 0.1;    // eV
 
 // Chianti element list
 //
 std::map<unsigned short, std::string> chElems {{1, "h"}, {2, "he"}, {3, "li"}, {4, "be"}, {5, "b"}, {6, "c"}, {7, "n"}, {8, "o"}, {9, "f"}, {10, "ne"}, {11, "na"}, {12, "mg"}, {13, "al"}, {14, "si"}, {15, "p"}, {16, "s"}, {17, "cl"}, {18, "ar"}, {19, "k"}, {20, "ca"}, {21, "sc"}, {22, "ti"}, {23, "v"}, {24, "cr"}, {25, "mn"}, {26, "fe"}, {27, "co"},	{28, "ni"}, {29, "cu"}, {30, "zn"} };
+
+
 
 
 //
@@ -631,6 +635,21 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
   exciteGridComputed    = false;
   ionizeGridComputed    = false;
 
+  freeFreeGridMiss      = 0;
+  freeFreeGridTry       = 0;
+  freeFreeMissMin       = std::numeric_limits<double>::max();
+  freeFreeMissMax       = 0;
+
+  radRecombGridMiss     = 0;
+  radRecombGridTry      = 0;
+  radRecombMissMin      = std::numeric_limits<double>::max();
+  radRecombMissMax      = 0;
+
+  directIonGridMiss     = 0;
+  directIonGridTry      = 0;
+  directIonMissMin      = std::numeric_limits<double>::max();
+  directIonMissMax      = 0;
+
   if (isInMasterList(MasterName)) {
     readfblvl();
     readelvlc();
@@ -835,6 +854,21 @@ Ion::Ion(const Ion &I)
 
   freeFreeGrid          = I.freeFreeGrid;
   radRecombGrid         = I.radRecombGrid;
+
+  freeFreeGridMiss      = I.freeFreeGridMiss;
+  freeFreeGridTry       = I.freeFreeGridTry;
+  freeFreeMissMin       = I.freeFreeMissMin;
+  freeFreeMissMax       = I.freeFreeMissMax;
+
+  radRecombGridMiss     = I.radRecombGridMiss;
+  radRecombGridTry      = I.radRecombGridTry;
+  radRecombMissMin      = I.radRecombMissMin;
+  radRecombMissMax      = I.radRecombMissMax;
+
+  directIonGridMiss     = I.directIonGridMiss;
+  directIonGridTry      = I.directIonGridTry;
+  directIonMissMin      = I.directIonMissMin;
+  directIonMissMax      = I.directIonMissMax;
 
   collideEmin           = I.collideEmin;
   ionizeEmin            = I.ionizeEmin;
@@ -1222,7 +1256,26 @@ double Ion::directIonCrossGrid(double E, int id)
 
   double eMin = ionizeEmin, eMax = ionizeEmin + DeltaEGrid*(NionizeGrid-1);
   
-  if (E<=eMin or E>=eMax) return directIonCrossSingle(E, id);
+  directIonGridTry++;
+  if (E<=eMin or E>=eMax) {
+    if (GridDebug) {
+      directIonGridMiss++;
+      directIonMissMin = std::min<double>(directIonMissMin, E);
+      directIonMissMax = std::max<double>(directIonMissMax, E);
+    }
+    return directIonCrossSingle(E, id);
+  }
+
+  if (GridDebug and myid==0 and directIonGridMiss % GridReport == 1) {
+    std::cout << "DirectIonGrid DEBUG: "
+      << static_cast<double>(directIonGridMiss)/directIonGridTry
+	      << " [" << directIonGridTry << "], (min, max)=("
+	      << directIonMissMin << ", " << directIonMissMax << ")"
+	      << std::endl;
+
+    directIonMissMin = std::numeric_limits<double>::max();
+    directIonMissMax = 0;
+  }
 
   size_t indx = std::floor( (E - eMin)/DeltaEGrid );
   double eA   = eMin + DeltaEGrid*indx, eB = eMin + DeltaEGrid*(indx+1);
@@ -1463,8 +1516,26 @@ std::pair<double, double> Ion::freeFreeCrossEvGrid(double E, int id)
   if (not freeFreeGridComputed) freeFreeMakeEvGrid(id);
 
   double eMin = EminGrid, eMax = EminGrid + DeltaEGrid*(NfreeFreeGrid-1);
-  
-  if (E<=eMin or E>=eMax) return freeFreeCrossSingle(E, id);
+  freeFreeGridTry++;
+  if (E<=eMin or E>=eMax) {
+    if (GridDebug) {
+      freeFreeGridMiss++;
+      freeFreeMissMin = std::min<double>(freeFreeMissMin, E);
+      freeFreeMissMax = std::max<double>(freeFreeMissMax, E);
+    }
+    return freeFreeCrossSingle(E, id);
+  }
+
+  if (GridDebug and myid==0 and freeFreeGridMiss % GridReport == 1) {
+    std::cout << "FreeFreeGrid DEBUG: "
+      << static_cast<double>(freeFreeGridMiss)/freeFreeGridTry
+	      << " [" << freeFreeGridTry << "], (min, max)=("
+	      << freeFreeMissMin << ", " << freeFreeMissMax << ")"
+	      << std::endl;
+
+    freeFreeMissMin = std::numeric_limits<double>::max();
+    freeFreeMissMax = 0;
+  }
 
   double phi = 0.0, ffWaveCross = 0.0;
 
@@ -1584,8 +1655,27 @@ std::vector<double> Ion::radRecombCrossEvGrid(double E, int id)
 
   double eMin = EminGrid, eMax = EminGrid + DeltaEGrid*(NradRecombGrid-1);
 
-  if (E<=eMin or E>=eMax) return radRecombCrossSingle(E, id);
+  radRecombGridTry++;
+  if (E<=eMin or E>=eMax) {
+    if (GridDebug) {
+      radRecombGridMiss++;
+      radRecombMissMin = std::min<double>(radRecombMissMin, E);
+      radRecombMissMax = std::max<double>(radRecombMissMax, E);
+    }
+    return radRecombCrossSingle(E, id);
+  }
   
+  if (GridDebug and myid==0 and radRecombGridMiss % GridReport == 1) {
+    std::cout << "RadRecombGrid DEBUG: "
+      << static_cast<double>(radRecombGridMiss)/radRecombGridTry
+	      << " [" << radRecombGridTry << "], (min, max)=("
+	      << radRecombMissMin << ", " << radRecombMissMax << ")"
+	      << std::endl;
+
+    radRecombMissMin = std::numeric_limits<double>::max();
+    radRecombMissMax = 0;
+  }
+
   size_t indx = std::floor( (E - eMin)/DeltaEGrid );
   double eA   = eMin + DeltaEGrid*indx, eB = eMin + DeltaEGrid*(indx+1);
 

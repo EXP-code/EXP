@@ -422,31 +422,43 @@ protected:
   //@}
 
   //@{
+  //! For debugging grid misses 
+  static bool GridDebug;  // default: false
+  static int  GridReport; // default: 100000
+  //@}
+  
+  //@{
   //! Free-free cross section implementations
   std::pair<double, double> freeFreeCrossSingle(double E, int id);
   std::pair<double, double> freeFreeCrossEvGrid(double E, int id);
-  void freeFreeMakeEvGrid(int id);
+  void                      freeFreeMakeEvGrid(int id);
+  int                       freeFreeGridMiss, freeFreeGridTry;
+  double                    freeFreeMissMin,  freeFreeMissMax;
   //@}
 
   //@{
   //! Radiative recombination cross section implementations
   std::vector<double> radRecombCrossSingle(double E, int id);
   std::vector<double> radRecombCrossEvGrid(double E, int id);
-  void radRecombMakeEvGrid(int id);
+  void                radRecombMakeEvGrid (int id);
+  int                 radRecombGridMiss, radRecombGridTry;
+  double              radRecombMissMin,  radRecombMissMax;
   //@}
 
   //@{
   //! Collisional excitation cross section implementations
   collType collExciteCrossSingle(double E, int id);
   collType collExciteCrossGrid  (double E, int id);
-  void     collExciteMakeGrid(int id);
+  void     collExciteMakeGrid   (int id);
   //@}
 
   //@{
   //! Ionization cross section implementations
   double directIonCrossSingle(double E, int id);
   double directIonCrossGrid  (double E, int id);
-  void   directIonMakeGrid(int id);
+  void   directIonMakeGrid   (int id);
+  int    directIonGridMiss, directIonGridTry;
+  double directIonMissMin,  directIonMissMax;
   //@}
 
 
