@@ -432,7 +432,7 @@ protected:
   std::pair<double, double> freeFreeCrossSingle(double E, int id);
   std::pair<double, double> freeFreeCrossEvGrid(double E, int id);
   void                      freeFreeMakeEvGrid(int id);
-  int                       freeFreeGridMiss, freeFreeGridTry;
+  unsigned long             freeFreeGridMiss, freeFreeGridTry;
   double                    freeFreeMissMin,  freeFreeMissMax;
   //@}
 
@@ -441,7 +441,7 @@ protected:
   std::vector<double> radRecombCrossSingle(double E, int id);
   std::vector<double> radRecombCrossEvGrid(double E, int id);
   void                radRecombMakeEvGrid (int id);
-  int                 radRecombGridMiss, radRecombGridTry;
+  unsigned long       radRecombGridMiss, radRecombGridTry;
   double              radRecombMissMin,  radRecombMissMax;
   //@}
 
@@ -454,11 +454,11 @@ protected:
 
   //@{
   //! Ionization cross section implementations
-  double directIonCrossSingle(double E, int id);
-  double directIonCrossGrid  (double E, int id);
-  void   directIonMakeGrid   (int id);
-  int    directIonGridMiss, directIonGridTry;
-  double directIonMissMin,  directIonMissMax;
+  double        directIonCrossSingle(double E, int id);
+  double        directIonCrossGrid  (double E, int id);
+  void          directIonMakeGrid   (int id);
+  unsigned long directIonGridMiss, directIonGridTry;
+  double        directIonMissMin,  directIonMissMax;
   //@}
 
 
