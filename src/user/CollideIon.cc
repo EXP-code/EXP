@@ -660,7 +660,11 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "FreeFree cache"
 	      << (Ion::useFreeFreeGrid  ? "on" : "off") << std::endl
 	      <<  " " << std::setw(20) << std::left << "RadRecomb cache"
-	      << (Ion::useRadRecombGrid ? "on" : "off") << std::endl;
+	      << (Ion::useRadRecombGrid ? "on" : "off") << std::endl
+	      <<  " " << std::setw(20) << std::left << "Coll excitation cache"
+	      << (Ion::useExciteGrid ? "on" : "off") << std::endl
+	      <<  " " << std::setw(20) << std::left << "Coll ionization cache"
+	      << (Ion::useIonizeGrid ? "on" : "off") << std::endl;
     if (use_ntcdb)
     std::cout <<  " " << std::setw(20) << std::left << "ntcThresh"
 	      << ntcThresh                              << std::endl
@@ -21393,6 +21397,13 @@ void CollideIon::processConfig()
 
     Ion::useRadRecombGrid =
       cfg.entry<bool>("radRecombCache", "Use cache for radiative recombination cross section", true);
+
+    Ion::useExciteGrid =
+      cfg.entry<bool>("exciteCache", "Use cache for collisional excitation cross section", true);
+
+    Ion::useIonizeGrid =
+      cfg.entry<bool>("ionizeCache", "Use cache for collisional ionization cross section", true);
+
 
     // Enter cross-section scale factors into PT if specified
     //
