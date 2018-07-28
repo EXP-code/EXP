@@ -1256,9 +1256,14 @@ double Ion::directIonCrossGrid(double E, int id)
 
   double eMin = ionizeEmin, eMax = ionizeEmin + DeltaEGrid*(NionizeGrid-1);
   
-  directIonGridTry++;
+  bool gridProc = false;
+  if (GridDebug and myid==0 and id==0) {
+    directIonGridTry++;
+    gridProc = true;
+  }
+  
   if (E<=eMin or E>=eMax) {
-    if (GridDebug) {
+    if (gridProc) {
       directIonGridMiss++;
       directIonMissMin = std::min<double>(directIonMissMin, E);
       directIonMissMax = std::max<double>(directIonMissMax, E);
@@ -1266,7 +1271,7 @@ double Ion::directIonCrossGrid(double E, int id)
     return directIonCrossSingle(E, id);
   }
 
-  if (GridDebug and myid==0 and directIonGridMiss % GridReport == 1) {
+  if (gridProc and (directIonGridMiss % GridReport == 1)) {
     std::cout << "DirectIonGrid DEBUG: "
       << static_cast<double>(directIonGridMiss)/directIonGridTry
 	      << " [" << directIonGridTry << "], (min, max)=("
@@ -1516,9 +1521,15 @@ std::pair<double, double> Ion::freeFreeCrossEvGrid(double E, int id)
   if (not freeFreeGridComputed) freeFreeMakeEvGrid(id);
 
   double eMin = EminGrid, eMax = EminGrid + DeltaEGrid*(NfreeFreeGrid-1);
-  freeFreeGridTry++;
+
+  bool gridProc = false;
+  if (GridDebug and myid==0 and id==0) {
+    freeFreeGridTry++;
+    gridProc = true;
+  }
+
   if (E<=eMin or E>=eMax) {
-    if (GridDebug) {
+    if (gridProc) {
       freeFreeGridMiss++;
       freeFreeMissMin = std::min<double>(freeFreeMissMin, E);
       freeFreeMissMax = std::max<double>(freeFreeMissMax, E);
@@ -1526,7 +1537,7 @@ std::pair<double, double> Ion::freeFreeCrossEvGrid(double E, int id)
     return freeFreeCrossSingle(E, id);
   }
 
-  if (GridDebug and myid==0 and freeFreeGridMiss % GridReport == 1) {
+  if (gridProc and (freeFreeGridMiss % GridReport == 1)) {
     std::cout << "FreeFreeGrid DEBUG: "
       << static_cast<double>(freeFreeGridMiss)/freeFreeGridTry
 	      << " [" << freeFreeGridTry << "], (min, max)=("
@@ -1655,9 +1666,14 @@ std::vector<double> Ion::radRecombCrossEvGrid(double E, int id)
 
   double eMin = EminGrid, eMax = EminGrid + DeltaEGrid*(NradRecombGrid-1);
 
-  radRecombGridTry++;
+  bool gridProc = false;
+  if (GridDebug and myid==0 and id==0) {
+    radRecombGridTry++;
+    gridProc = true;
+  }
+  
   if (E<=eMin or E>=eMax) {
-    if (GridDebug) {
+    if (gridProc) {
       radRecombGridMiss++;
       radRecombMissMin = std::min<double>(radRecombMissMin, E);
       radRecombMissMax = std::max<double>(radRecombMissMax, E);
@@ -1665,7 +1681,7 @@ std::vector<double> Ion::radRecombCrossEvGrid(double E, int id)
     return radRecombCrossSingle(E, id);
   }
   
-  if (GridDebug and myid==0 and radRecombGridMiss % GridReport == 1) {
+  if (gridProc and (radRecombGridMiss % GridReport == 1)) {
     std::cout << "RadRecombGrid DEBUG: "
       << static_cast<double>(radRecombGridMiss)/radRecombGridTry
 	      << " [" << radRecombGridTry << "], (min, max)=("
