@@ -486,8 +486,18 @@ private:
   typedef Icont<std::map, speciesKey, double>        keyWghts;
   typedef std::pair< std::array<double, 3>,
 		     std::array<double, 3> >         CVels;
-  typedef std::tuple<double, CEvector, CFreturn>     XStup;
-  typedef std::map<NTC::Interact::T, XStup>          InterXS;
+
+  struct XStup {
+    NTC::Interact::T t;
+    double           crs;
+    CEvector         CE;
+    CFreturn         CF;
+
+    XStup() {}
+    XStup(const NTC::Interact::T& t) : t(t) {}
+  };
+
+  typedef std::vector<XStup>                         InterXS;
   typedef std::array<double, 4>                      CellMom;
   typedef std::array<double, 3>                      ChProb;
   typedef std::map<lQ, std::array<double, 4> >       phStatMap;
