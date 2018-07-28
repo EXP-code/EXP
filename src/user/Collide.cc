@@ -295,11 +295,13 @@ void Collide::collide_thread_fork(sKeyDmap* Fn)
 double   Collide::EPSMratio = -1.0;
 unsigned Collide::EPSMmin   = 0;
 
-std::map<unsigned short, double> Collide::atomic_weights;
+std::vector<double> Collide::atomic_weights;
 
 //! Weights in atomic mass units
 void Collide::atomic_weights_init()
 {
+  atomic_weights.resize(15, -1.0);
+
   atomic_weights[0]  = 0.000548579909; // Mass of electron
   atomic_weights[1]  = 1.0079;	       // Hydrogen
   atomic_weights[2]  = 4.0026;	       // Helium

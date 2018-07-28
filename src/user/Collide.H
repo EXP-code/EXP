@@ -571,7 +571,7 @@ public:
   static double ENHANCE;
   
   //! Atomic weights (public data)
-  static std::map<unsigned short, double> atomic_weights;
+  static std::vector<double> atomic_weights;
 
   //! Target number of collisions per cell (for time step selection)
   static unsigned collTnum;
