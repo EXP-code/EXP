@@ -81,9 +81,9 @@ bool   Ion::useExciteGrid    = true;
 bool   Ion::useIonizeGrid    = true;
 bool   Ion::GridDebug        = false; // Set to true for debugging
 int    Ion::GridReport       = 10000; // Used for debugging only
-double Ion::EminGrid         = 0.05;  // eV
+double Ion::EminGrid         = 0.001; // eV
 double Ion::EmaxGrid         = 50.0;  // eV
-double Ion::DeltaEGrid       = 0.1;   // eV
+double Ion::DeltaEGrid       = 0.05;  // eV
 
 // Chianti element list
 //
@@ -1262,7 +1262,7 @@ double Ion::directIonCrossGrid(double E, int id)
     gridProc = true;
   }
   
-  if (E<=eMin or E>=eMax) {
+  if (E<eMin or E>eMax) {
     if (gridProc) {
       directIonGridMiss++;
       directIonMissMin = std::min<double>(directIonMissMin, E);
@@ -1528,7 +1528,9 @@ std::pair<double, double> Ion::freeFreeCrossEvGrid(double E, int id)
     gridProc = true;
   }
 
-  if (E<=eMin or E>=eMax) {
+  if (E<eMin) E = eMin;		// Enforce minimum energy to prevent
+				// off grid evaluatoin
+  if (E<eMin or E>eMax) {
     if (gridProc) {
       freeFreeGridMiss++;
       freeFreeMissMin = std::min<double>(freeFreeMissMin, E);
@@ -1672,7 +1674,9 @@ std::vector<double> Ion::radRecombCrossEvGrid(double E, int id)
     gridProc = true;
   }
   
-  if (E<=eMin or E>=eMax) {
+  if (E<eMin) E = eMin;		// Enforce minimum energy to prevent
+				// off grid evaluation
+  if (E<eMin or E>eMax) {
     if (gridProc) {
       radRecombGridMiss++;
       radRecombMissMin = std::min<double>(radRecombMissMin, E);
