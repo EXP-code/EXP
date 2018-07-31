@@ -187,6 +187,7 @@ program_option init[] = {
   {"halofile1",       "string",    "SLGridSph.model", "File with input halo model"},
 
   {"halofile2",       "string",    "SLGridSph.model.fake", "File with input halo model for multimass"},
+  {"report",          "bool",      "true",            "Report particle progress in EOF computation"},
   {"\0",              "\0",        "\0",              "\0"}
 };
 
@@ -268,6 +269,7 @@ int          SEED;
 bool         DENS;
 bool         basis;
 bool         zero;
+bool         report;
 int          nhalo;
 int          ndisk;
 int          ngas;
@@ -350,6 +352,7 @@ void param_assign()
    DENS               = config.get<bool>    ("DENS");
    basis              = config.get<bool>    ("basis");
    zero               = config.get<bool>    ("zero");
+   report             = config.get<bool>    ("report");
    nhalo              = config.get<int>     ("nhalo");
    ndisk              = config.get<int>     ("ndisk");
    ngas               = config.get<int>     ("ngas");
@@ -564,7 +567,8 @@ main(int argc, char **argv)
   if (basis) EmpCylSL::DENS = true;
 
                                 // Create expansion only if needed . . .
-  EmpCylSL* expandd = NULL;
+  EmpCylSL* expandd  = NULL;
+  bool      good_eof = false;
   if (n_particlesD) {
     expandd = new EmpCylSL(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE);
 #ifdef DEBUG
@@ -581,8 +585,12 @@ main(int argc, char **argv)
 #endif
 
     if (expandd->read_cache() == 0) {
-      if (expcond)
+      if (expcond) {
 	expandd->generate_eof(RNUM, PNUM, TNUM, dcond);
+	// good_eof = true;
+      }
+    } else {
+      // good_eof = true;
     }
 
   }
@@ -709,10 +717,10 @@ main(int argc, char **argv)
   
   if (n_particlesD) {
     if (myid==0) cout << "Beginning disk accumulation . . . " << flush;
-    if (!expcond) {
+    if (!good_eof and !expcond) {
       expandd->setup_eof();
       expandd->setup_accumulation();
-      expandd->accumulate_eof(dparticles);
+      expandd->accumulate_eof(dparticles, report);
       MPI_Barrier(MPI_COMM_WORLD);
 
       if (myid==0) cout << "done\n";
