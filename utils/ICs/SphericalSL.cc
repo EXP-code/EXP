@@ -516,23 +516,20 @@ void SphericalSL::determine_fields_at_point
  int id
  )
 {
-  int l,loffset,moffset,m;
-  double fac1,fac2,fac3,fac4,costh,dp;
-  double potr,potl,pott,potp,p,pc,dpc,ps,dps,dens;
-  double dfac=0.25/M_PI, pfext1, pfext2, r1;
+  double dfac=0.25/M_PI;
 
+  double costh = cos(theta);
 
-  costh = cos(theta);
-
-  fac1 = dfac;
+  double fac1 = dfac;
 
   dlegendre_R(LMAX, costh, legs[id], dlegs[id]);
   sinecosine_R(LMAX, phi, cosm[id], sinm[id]);
 
 				// For exterior solution
-  pfext1 = 1.0;
-  pfext2 = 1.0;
-  r1 = r;
+  double pfext1 = 1.0;
+  double pfext2 = 1.0;
+  double r1 = r;
+
   if (r>RMAX) {
     pfext1 = RMAX/r;
     pfext2 = pfext1;
@@ -543,14 +540,16 @@ void SphericalSL::determine_fields_at_point
   ortho->get_pot(potd[id], r1);
   ortho->get_force(dpot[id], r1);
 
+  double dens;
   get_dens_coefs(0, expcoef[0], &dens);
   dens *= dfac*dfac;
 
+  double p, dp;
   get_pot_coefs(0, expcoef[0], &p, &dp);
-  potl = fac1*p * pfext2;
-  potr = fac1*dp * pfext2*pfext1;
-  pott = potp = 0.0;
-  
+
+  double potl = fac1*p * pfext2;
+  double potr = fac1*dp * pfext2*pfext1;
+  double pott = 0.0, potp = 0.0;
       
   // l loop
     
@@ -560,7 +559,7 @@ void SphericalSL::determine_fields_at_point
     for (int m=0, moffset=0; m<=l; m++) {
       double fac1 = (2.0*l+1.0)/(4.0*M_PI);
       if (m==0) {
-	fac2 = fac1*legs[0][l][m];
+	double fac2 = fac1*legs[0][l][m];
 	get_dens_coefs(l,expcoef[loffset+moffset],&p);
 	dens += dfac*fac2*p;
 	get_pot_coefs(l,expcoef[loffset+moffset],&p,&dp);
@@ -578,24 +577,26 @@ void SphericalSL::determine_fields_at_point
 	double fac2 = 2.0 * fac1 * factorial[l][m];
 	double fac3 = fac2 * legs[0][l][m];
 	double fac4 = fac2 * dlegs[0][l][m];
+	double pc, ps, dpc, dps;
 	
 	get_dens_coefs(l, expcoef[loffset+moffset], &pc);
 	get_dens_coefs(l, expcoef[loffset+moffset+1], &ps);
 	dens += dfac*fac3*(pc*cosm[id][m] + ps*sinm[id][m]);
 	
-	get_pot_coefs(l,expcoef[loffset+moffset],&pc,&dpc);
-	get_pot_coefs(l,expcoef[loffset+moffset+1],&ps,&dps);
+	get_pot_coefs(l,expcoef[loffset+moffset], &pc, &dpc);
+	get_pot_coefs(l,expcoef[loffset+moffset+1], &ps, &dps);
 
 				// External solution
-	pc *= pfext2;
+	pc  *= pfext2;
 	dpc *= pfext2*pfext1;
-	ps *= pfext2;
+	ps  *= pfext2;
 	dps *= pfext2*pfext1;
 
 	potl += fac3*( pc*cosm[id][m] +  ps*sinm[id][m]);
 	potr += fac3*(dpc*cosm[id][m] + dps*sinm[id][m]);
 	pott += fac4*( pc*cosm[id][m] +  ps*sinm[id][m]);
 	potp += fac3*(-pc*sinm[id][m] +  ps*cosm[id][m])*m;
+
 	moffset +=2;
       }
     }
@@ -613,12 +614,9 @@ void SphericalSL::determine_fields_at_point
 void SphericalSL::get_pot_coefs(int l, Vector& coef,
 				double *p, double *dp, int id)
 {
-  double pp, dpp;
-  int i;
+  double pp=0.0, dpp=0.0;
 
-  pp = dpp = 0.0;
-
-  for (i=1; i<=NMAX; i++) {
+  for (int i=1; i<=NMAX; i++) {
     pp  += potd[id][l][i] * coef[i];
     dpp += dpot[id][l][i] * coef[i];
   }
@@ -629,12 +627,9 @@ void SphericalSL::get_pot_coefs(int l, Vector& coef,
 
 void SphericalSL::get_dens_coefs(int l, Vector& coef, double *p, int id)
 {
-  double pp;
-  int i;
+  double pp = 0.0;
 
-  pp = 0.0;
-
-  for (i=1; i<=NMAX; i++)
+  for (int i=1; i<=NMAX; i++)
     pp  += dend[id][l][i] * coef[i];
 
   *p = pp;
