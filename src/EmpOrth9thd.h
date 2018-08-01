@@ -233,6 +233,13 @@ private:
 
   pthread_mutex_t used_lock;
 
+  //! Thread body for coef accumulation
+  void accumulate_thread_call(int id, std::vector<Particle>* p, int mlevel, bool verbose);
+
+  //! Thread body for eof accumulation
+  void accumulate_eof_thread_call(int id, std::vector<Particle>* p, bool verbose);
+
+
 public:
 
   /*! Enum listing the possible selection algorithms for coefficient
@@ -404,8 +411,16 @@ public:
   //! Accumulate coefficients from particle distribution
   void accumulate(vector<Particle>& p, int mlev=0, bool verbose=false);
 
+  //! Accumulate coefficients from particle distribution by thread.
+  //! Used by external appliations.
+  void accumulate_thread(vector<Particle>& p, int mlev=0, bool verbose=false);
+
   //! Make EOF from particle distribution
   void accumulate_eof(vector<Particle>& p, bool verbose=false);
+
+  //! Make EOF from particle distribution by thread.  Used by external
+  //! applications.
+  void accumulate_eof_thread(vector<Particle>& p, bool verbose=false);
 
   //! Add single particle to coefficients
   void accumulate(double r, double z, double phi, double mass,

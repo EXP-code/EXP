@@ -179,6 +179,7 @@ program_option init[] = {
   {"suffix",          "string",    "",                "Suffix appended for body files"},
   {"VFLAG",           "int",       "0",               "Output flags for EmpCylSL"},
   {"DFLAG",           "int",       "0",               "Output flags for DiskHalo"},
+  {"threads",         "int",       "1",               "Number of lightweight threads"},
   {"expcond",         "bool",      "true",            "Use analytic density function for computing EmpCylSL basis"},
   {"CONSTANT",        "bool",      "false",           "Check basis with a constant density"},
   {"GAUSSIAN",        "bool",      "false",           "Use Gaussian disk profile rather than exponential disk profile"},
@@ -283,90 +284,6 @@ string       halofile1;
 string       halofile2;
 
 
-//
-// Assign the global variables from the database
-//
-void param_assign()
-{
-   LMAX               = config.get<int>     ("LMAX");
-   NMAX               = config.get<int>     ("NMAX");
-   NUMR               = config.get<int>     ("NUMR");
-   RMIN               = config.get<double>  ("RMIN");
-   RCYLMIN            = config.get<double>  ("RCYLMIN");
-   RCYLMAX            = config.get<double>  ("RCYLMAX");
-   SCSPH              = config.get<double>  ("SCSPH");
-   RSPHSL             = config.get<double>  ("RSPHSL");
-   ASCALE             = config.get<double>  ("ASCALE");
-   ASHIFT             = config.get<double>  ("ASHIFT");
-   HSCALE             = config.get<double>  ("HSCALE");
-   DMFAC              = config.get<double>  ("DMFAC");
-   X0                 = config.get<double>  ("X0");
-   Y0                 = config.get<double>  ("Y0");
-   Z0                 = config.get<double>  ("Z0");
-   U0                 = config.get<double>  ("U0");
-   V0                 = config.get<double>  ("V0");
-   W0                 = config.get<double>  ("W0");
-   RNUM               = config.get<int>     ("RNUM");
-   PNUM               = config.get<int>     ("PNUM");
-   TNUM               = config.get<int>     ("TNUM");
-   VFLAG              = config.get<int>     ("VFLAG");
-   DFLAG              = config.get<int>     ("DFLAG");
-   expcond            = config.get<bool>    ("expcond");
-   CMAP               = config.get<bool>    ("CMAP");
-   LOGR               = config.get<bool>    ("LOGR");
-   CHEBY              = config.get<bool>    ("CHEBY");
-   NDR                = config.get<int>     ("NDR");
-   NDZ                = config.get<int>     ("NDZ");
-   NHR                = config.get<int>     ("NHR");
-   NHT                = config.get<int>     ("NHT");
-   SHFAC              = config.get<double>  ("SHFAC");
-   NMAX2              = config.get<int>     ("NMAX2");
-   LMAX2              = config.get<int>     ("LMAX2");
-   MMAX               = config.get<int>     ("MMAX");
-   NUMX               = config.get<int>     ("NUMX");
-   NUMY               = config.get<int>     ("NUMY");
-   NORDER             = config.get<int>     ("NORDER");
-   NORDER1            = config.get<int>     ("NORDER1");
-   SELECT             = config.get<bool>    ("SELECT");
-   DUMPCOEF           = config.get<bool>    ("DUMPCOEF");
-   DIVERGE            = config.get<int>     ("DIVERGE");
-   DIVERGE_RFAC       = config.get<double>  ("DIVERGE_RFAC");
-   DIVERGE2           = config.get<int>     ("DIVERGE2");
-   DIVERGE_RFAC2      = config.get<double>  ("DIVERGE_RFAC2");
-   DF                 = config.get<int>     ("DF");
-   R_DF               = config.get<double>  ("R_DF");
-   DR_DF              = config.get<double>  ("DR_DF");
-   scale_height       = config.get<double>  ("scale_height");
-   scale_length       = config.get<double>  ("scale_length");
-   scale_lenfkN       = config.get<double>  ("scale_lenfkN");
-   disk_mass          = config.get<double>  ("disk_mass");
-   gas_mass           = config.get<double>  ("gas_mass");
-   gscal_length       = config.get<double>  ("gscal_length");
-   ToomreQ            = config.get<double>  ("ToomreQ");
-   Temp               = config.get<double>  ("Temp");
-   Tmin               = config.get<double>  ("Tmin");
-   const_height       = config.get<bool>    ("const_height");
-   images             = config.get<bool>    ("images");
-   multi              = config.get<bool>    ("multi");
-   SEED               = config.get<int>     ("SEED");
-   DENS               = config.get<bool>    ("DENS");
-   basis              = config.get<bool>    ("basis");
-   zero               = config.get<bool>    ("zero");
-   report             = config.get<bool>    ("report");
-   nhalo              = config.get<int>     ("nhalo");
-   ndisk              = config.get<int>     ("ndisk");
-   ngas               = config.get<int>     ("ngas");
-   ngparam            = config.get<int>     ("ngparam");
-   hbods              = config.get<string>  ("hbods");
-   dbods              = config.get<string>  ("dbods");
-   gbods              = config.get<string>  ("gbods");
-   suffix             = config.get<string>  ("suffix");
-   centerfile         = config.get<string>  ("centerfile");
-   halofile1          = config.get<string>  ("halofile1");
-   halofile2          = config.get<string>  ("halofile2");
-}
-
-  
 // Hydrogen fraction
 //
 const double f_H = 0.76;
@@ -439,6 +356,90 @@ double dcond(double R, double z, double phi, int M)
   double x = R*cos(phiS) - ASHIFT*ASCALE;
   double y = R*sin(phiS);
   return DiskDens(sqrt(x*x + y*y), z, atan2(y, x));
+}
+
+//
+// Assign the global variables from the database
+//
+void param_assign()
+{
+   LMAX               = config.get<int>     ("LMAX");
+   NMAX               = config.get<int>     ("NMAX");
+   NUMR               = config.get<int>     ("NUMR");
+   RMIN               = config.get<double>  ("RMIN");
+   RCYLMIN            = config.get<double>  ("RCYLMIN");
+   RCYLMAX            = config.get<double>  ("RCYLMAX");
+   SCSPH              = config.get<double>  ("SCSPH");
+   RSPHSL             = config.get<double>  ("RSPHSL");
+   ASCALE             = config.get<double>  ("ASCALE");
+   ASHIFT             = config.get<double>  ("ASHIFT");
+   HSCALE             = config.get<double>  ("HSCALE");
+   DMFAC              = config.get<double>  ("DMFAC");
+   X0                 = config.get<double>  ("X0");
+   Y0                 = config.get<double>  ("Y0");
+   Z0                 = config.get<double>  ("Z0");
+   U0                 = config.get<double>  ("U0");
+   V0                 = config.get<double>  ("V0");
+   W0                 = config.get<double>  ("W0");
+   RNUM               = config.get<int>     ("RNUM");
+   PNUM               = config.get<int>     ("PNUM");
+   TNUM               = config.get<int>     ("TNUM");
+   VFLAG              = config.get<int>     ("VFLAG");
+   DFLAG              = config.get<int>     ("DFLAG");
+   nthrds             = config.get<int>     ("threads");
+   expcond            = config.get<bool>    ("expcond");
+   CMAP               = config.get<bool>    ("CMAP");
+   LOGR               = config.get<bool>    ("LOGR");
+   CHEBY              = config.get<bool>    ("CHEBY");
+   NDR                = config.get<int>     ("NDR");
+   NDZ                = config.get<int>     ("NDZ");
+   NHR                = config.get<int>     ("NHR");
+   NHT                = config.get<int>     ("NHT");
+   SHFAC              = config.get<double>  ("SHFAC");
+   NMAX2              = config.get<int>     ("NMAX2");
+   LMAX2              = config.get<int>     ("LMAX2");
+   MMAX               = config.get<int>     ("MMAX");
+   NUMX               = config.get<int>     ("NUMX");
+   NUMY               = config.get<int>     ("NUMY");
+   NORDER             = config.get<int>     ("NORDER");
+   NORDER1            = config.get<int>     ("NORDER1");
+   SELECT             = config.get<bool>    ("SELECT");
+   DUMPCOEF           = config.get<bool>    ("DUMPCOEF");
+   DIVERGE            = config.get<int>     ("DIVERGE");
+   DIVERGE_RFAC       = config.get<double>  ("DIVERGE_RFAC");
+   DIVERGE2           = config.get<int>     ("DIVERGE2");
+   DIVERGE_RFAC2      = config.get<double>  ("DIVERGE_RFAC2");
+   DF                 = config.get<int>     ("DF");
+   R_DF               = config.get<double>  ("R_DF");
+   DR_DF              = config.get<double>  ("DR_DF");
+   scale_height       = config.get<double>  ("scale_height");
+   scale_length       = config.get<double>  ("scale_length");
+   scale_lenfkN       = config.get<double>  ("scale_lenfkN");
+   disk_mass          = config.get<double>  ("disk_mass");
+   gas_mass           = config.get<double>  ("gas_mass");
+   gscal_length       = config.get<double>  ("gscal_length");
+   ToomreQ            = config.get<double>  ("ToomreQ");
+   Temp               = config.get<double>  ("Temp");
+   Tmin               = config.get<double>  ("Tmin");
+   const_height       = config.get<bool>    ("const_height");
+   images             = config.get<bool>    ("images");
+   multi              = config.get<bool>    ("multi");
+   SEED               = config.get<int>     ("SEED");
+   DENS               = config.get<bool>    ("DENS");
+   basis              = config.get<bool>    ("basis");
+   zero               = config.get<bool>    ("zero");
+   report             = config.get<bool>    ("report");
+   nhalo              = config.get<int>     ("nhalo");
+   ndisk              = config.get<int>     ("ndisk");
+   ngas               = config.get<int>     ("ngas");
+   ngparam            = config.get<int>     ("ngparam");
+   hbods              = config.get<string>  ("hbods");
+   dbods              = config.get<string>  ("dbods");
+   gbods              = config.get<string>  ("gbods");
+   suffix             = config.get<string>  ("suffix");
+   centerfile         = config.get<string>  ("centerfile");
+   halofile1          = config.get<string>  ("halofile1");
+   halofile2          = config.get<string>  ("halofile2");
 }
 
 int 
@@ -543,7 +544,7 @@ main(int argc, char **argv)
                                 // Create expansion only if needed . . .
   SphericalSL *expandh = NULL;
   if (n_particlesH) {
-    expandh = new SphericalSL(LMAX, NMAX, SCSPH);
+    expandh = new SphericalSL(nthrds, LMAX, NMAX, SCSPH);
 #ifdef DEBUG
     string dumpname("debug");
     expandh->dump_basis(dumpname);
@@ -720,7 +721,10 @@ main(int argc, char **argv)
     if (!good_eof and !expcond) {
       expandd->setup_eof();
       expandd->setup_accumulation();
-      expandd->accumulate_eof(dparticles, report);
+      if (nthrds>1)
+	expandd->accumulate_eof_thread(dparticles, report);
+      else
+	expandd->accumulate_eof(dparticles, report);
       MPI_Barrier(MPI_COMM_WORLD);
 
       if (myid==0) cout << "done\n";
@@ -737,7 +741,12 @@ main(int argc, char **argv)
     if (myid==0) cout << "done\n";
 
     if (myid==0) cout << "Reexpand . . . " << flush;
-    expandd->accumulate(dparticles);
+
+    if (nthrds>1)
+      expandd->accumulate_thread(dparticles, 0, report);
+    else
+      expandd->accumulate(dparticles, 0, report);
+
     expandd->make_coefficients();
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) {

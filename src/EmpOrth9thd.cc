@@ -7,6 +7,7 @@
 
 #include <interp.h>
 #include <Timer.h>
+#include <thread>
 #include "exp_thread.h"
 
 #ifndef STANDALONE
@@ -2159,6 +2160,54 @@ void EmpCylSL::accumulate_eof(vector<Particle>& part, bool verbose)
 }
   
 
+void EmpCylSL::accumulate_eof_thread(vector<Particle>& part, bool verbose)
+{
+  setup_eof();
+
+  std::thread t[nthrds];
+ 
+  // Launch the threads
+  for (int id=0; id<nthrds; ++id) {
+    t[id] = std::thread(&EmpCylSL::accumulate_eof_thread_call, this, id, &part, verbose);
+  }
+  // Join the threads
+  for (int id=0; id<nthrds; ++id) {
+    t[id].join();
+  }
+}
+
+
+void EmpCylSL::accumulate_eof_thread_call(int id, std::vector<Particle>* p, bool verbose)
+{
+  int nbodies = p->size();
+    
+  if (nbodies == 0) return;
+
+  int nbeg = nbodies*id/nthrds;
+  int nend = nbodies*(id+1)/nthrds;
+
+  double r, phi, z, mass;
+
+  int ncnt=0;
+  if (myid==0 && id==0 && verbose) cout << endl;
+
+  for (int n=nbeg; n<nend; n++) {
+    mass = (*p)[n].mass;
+    r = sqrt((*p)[n].pos[0]*(*p)[n].pos[0] + (*p)[n].pos[1]*(*p)[n].pos[1]);
+    phi = atan2((*p)[n].pos[1], (*p)[n].pos[0]);
+    z = (*p)[n].pos[2];
+    
+    int mlev = (*p)[n].level;
+    accumulate_eof(r, z, phi, mass, id, mlev);
+    if (myid==0 && verbose) {
+      if ( (ncnt % 100) == 0) cout << "\r>> " << ncnt << " <<" << flush;
+      ncnt++;
+    }
+  }
+
+}
+  
+
 void EmpCylSL::accumulate(vector<Particle>& part, int mlevel, bool verbose)
 {
    double r, phi, z, mass;
@@ -2178,6 +2227,55 @@ void EmpCylSL::accumulate(vector<Particle>& part, int mlevel, bool verbose)
     accumulate(r, z, phi, mass, p->indx, 0, mlevel);
 
     if (myid==0 && verbose) {
+      if ( (ncnt % 100) == 0) cout << "\r>> " << ncnt << " <<" << flush;
+      ncnt++;
+    }
+  }
+
+}
+  
+
+void EmpCylSL::accumulate_thread(vector<Particle>& part, int mlevel, bool verbose)
+{
+  setup_accumulation();
+
+  std::thread t[nthrds];
+ 
+  // Launch the threads
+  for (int id=0; id<nthrds; ++id) {
+    t[id] = std::thread(&EmpCylSL::accumulate_thread_call, this, id, &part, mlevel, verbose);
+  }
+  // Join the threads
+  for (int id=0; id<nthrds; ++id) {
+    t[id].join();
+  }
+}
+
+
+void EmpCylSL::accumulate_thread_call(int id, std::vector<Particle>* p, int mlevel, bool verbose)
+{
+  int nbodies = p->size();
+    
+  if (nbodies == 0) return;
+
+  int nbeg = nbodies*id/nthrds;
+  int nend = nbodies*(id+1)/nthrds;
+
+  double r, phi, z, mass;
+
+  int ncnt=0;
+  if (myid==0 && id==0 && verbose) cout << endl;
+
+  for (int n=nbeg; n<nend; n++) {
+    
+    mass = (*p)[n].mass;
+    r = sqrt((*p)[n].pos[0]*(*p)[n].pos[0] + (*p)[n].pos[1]*(*p)[n].pos[1]);
+    phi = atan2((*p)[n].pos[1], (*p)[n].pos[0]);
+    z = (*p)[n].pos[2];
+    
+    accumulate(r, z, phi, mass, (*p)[n].indx, id, mlevel);
+
+    if (myid==0 && id==0 && verbose) {
       if ( (ncnt % 100) == 0) cout << "\r>> " << ncnt << " <<" << flush;
       ncnt++;
     }
