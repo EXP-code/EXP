@@ -46,7 +46,7 @@ int    DiskHalo::NCHEB       = 16;
 bool   DiskHalo::CHEBY       = false;
 
 unsigned DiskHalo::VFLAG     = 0;
-unsigned DiskHalo::NBUF      = 8192;
+unsigned DiskHalo::NBUF      = 65568;
 
 string DiskHalo::RUNTAG      = "debug";
 
