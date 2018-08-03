@@ -320,8 +320,10 @@ main(int ac, char **av)
     ("NHR",             po::value<int>(&NHR)->default_value(1600),                      "Number of points in DiskHalo radial table for halo")
     ("NHT",             po::value<int>(&NHT)->default_value(200),                       "Number of points in DiskHalo cos(theta) table for halo")
     ("SHFAC",           po::value<double>(&SHFAC)->default_value(16.0),                 "Scale height factor for assigning vertical table size")
+    ("LMAX",            po::value<int>(&LMAX)->default_value(6),                       "Number of harmonics for Spherical SL for halo/spheroid")
+    ("NMAX",            po::value<int>(&NMAX)->default_value(12),                      "Number of radial basis functions in Spherical SL for halo/spheroid")
     ("NMAX2",           po::value<int>(&NMAX2)->default_value(36),                      "Number of radial basis functions in Spherical SL for determining disk basis")
-    ("LMAX2",           po::value<int>(&LMAX2)->default_value(36),                      "Number of harmonics for Spherial SL for determining disk basis")
+    ("LMAX2",           po::value<int>(&LMAX2)->default_value(36),                      "Number of harmonics for Spherical SL for determining disk basis")
     ("MMAX",            po::value<int>(&MMAX)->default_value(4),                        "Number of azimuthal harmonics for disk basis")
     ("NUMX",            po::value<int>(&NUMX)->default_value(256),                      "Radial grid size for disk basis table")
     ("NUMY",            po::value<int>(&NUMY)->default_value(128),                      "Vertical grid size for disk basis table")
@@ -377,6 +379,8 @@ main(int ac, char **av)
         
   po::variables_map vm;
   
+  // Parse command line for control and critical parameters
+  //
   try {
     po::store(po::parse_command_line(ac, av, desc), vm);
     po::notify(vm);    
@@ -387,19 +391,27 @@ main(int ac, char **av)
     return -1;
   }
   
+  // Print help message and exit
+  //
   if (vm.count("help")) {
     if (myid == 0) {
       const char *mesg = "Generates a Monte Carlo realization of a halo\nwith an embedded disk using Jeans' equations.";
       std::cout << mesg << std::endl
 		<< desc << std::endl << std::endl
 		<< "Examples: " << std::endl
-		<< "\t" << av[0] << " --input=gendisk.config"  << std::endl
-		<< "\t" << av[0] << " --conf=template.config" << std::endl << std::endl;
+		<< "\t" << "Use parameters read from a config file in INI style"  << std::endl
+		<< "\t" << av[0] << " --input=gendisk.config"  << std::endl << std::endl
+		<< "\t" << "Generate a template config file in INI style from current defaults"  << std::endl
+		<< "\t" << av[0] << " --conf=template.config" << std::endl << std::endl
+		<< "\t" << "Override a single parameter in a config file from the command line"  << std::endl
+		<< "\t" << av[0] << "--LMAX=8 --conf=template.config" << std::endl << std::endl;
     }
     MPI_Finalize();
     return 1;
   }
 
+  // Write template config file in INI style and exit
+  //
   if (vm.count("conf")) {
     // Do not overwrite existing config file
     //
@@ -417,26 +429,37 @@ main(int ac, char **av)
       std::ofstream out(config);
 
       if (out) {
+	// Iterate map and print out key--value pairs and description
+	//
 	for (const auto& it : vm) {
+				// Don't write this parameter
+	  if (it.first.find("conf")==0) continue;
+
 	  out << std::setw(20) << std::left << it.first << " = ";
 	  auto& value = it.second.value();
 	  if (auto v = boost::any_cast<uint32_t>(&value))
-	    out << *v;
+	    out << std::setw(32) << std::left << *v;
 	  else if (auto v = boost::any_cast<int>(&value))
-	    out << *v;
+	    out << std::setw(32) << std::left << *v;
 	  else if (auto v = boost::any_cast<unsigned>(&value))
-	    out << *v;
+	    out << std::setw(32) << std::left << *v;
 	  else if (auto v = boost::any_cast<float>(&value))
-	    out << *v;
+	    out << std::setw(32) << std::left << *v;
 	  else if (auto v = boost::any_cast<double>(&value))
-	    out << *v;
+	    out << std::setw(32) << std::left << *v;
 	  else if (auto v = boost::any_cast<bool>(&value))
-	    out << std::boolalpha << *v;
+	    out << std::setw(32) << std::left << std::boolalpha << *v;
 	  else if (auto v = boost::any_cast<std::string>(&value))
-	    out << *v;
+	    out << std::setw(32) << std::left << *v;
 	  else
 	    out << "error";
-	  out << std::endl;
+
+
+	  //                               NO approximations -----+
+	  // Add description as a comment                         |
+	  //                                                      V
+	  const po::option_description& rec = desc.find(it.first, false);
+	  out << " # " << rec.description() << std::endl;
 	}
       } else {
 	if (myid==0)
@@ -448,6 +471,8 @@ main(int ac, char **av)
     return 3;
   }
 
+  // Read parameters fron the config file
+  //
   if (vm.count("input")) {
     try {
       std::ifstream in(config);
@@ -461,6 +486,9 @@ main(int ac, char **av)
     }
   }
   
+  //====================
+  // Okay, now begin ...
+  //====================
 
 #ifdef DEBUG                    // For gdb . . . 
   sleep(20);
@@ -475,7 +503,8 @@ main(int ac, char **av)
     gbods = gbods + "." + suffix;
   }
   
-  // Divvy up the particles
+  // Divvy up the particles by core
+  //
   n_particlesH = nhalo/numprocs;
   if (myid==0) n_particlesH = nhalo - n_particlesH*(numprocs-1);
   
@@ -498,9 +527,9 @@ main(int ac, char **av)
     exit(0);
   }
   
-  // Vectors to contain phase space
-  // Particle structure is defined in
+  // Vectors to contain phase space Particle structure is defined in
   // Particle.H
+  //
   vector<Particle> dparticles, hparticles;
   
   //
@@ -587,8 +616,19 @@ main(int ac, char **av)
 
     // Try to read existing cache to get EOF
     //
-    if (ignore) {
-      save_eof = expandd->read_cache() == 0;
+    if (not ignore) {
+      save_eof = expandd->read_cache();
+      if (myid==0) {
+	if (save_eof) {
+	  std::cout << "EmpCylSL requested cache read: GOOD, continuing" << std::endl;
+	} else {
+	  std::cout << "EmpCylSL requested cache read FAIL: exiting ..." << std::endl;
+	}
+      }
+      if (not save_eof) {
+	MPI_Finalize();
+	return 4;
+      }
     }
 
     // Regenerate EOF from analytic density
