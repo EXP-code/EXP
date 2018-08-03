@@ -197,6 +197,16 @@ double dcond(double R, double z, double phi, int M)
 int 
 main(int ac, char **av)
 {
+  //====================
+  // Inialize MPI stuff
+  //====================
+  
+  local_init_mpi(ac, av);
+
+  //====================
+  // Begin opt parsing
+  //====================
+
   int          LMAX;
   int          NMAX;
   int          NUMR;
@@ -280,9 +290,9 @@ main(int ac, char **av)
   
   po::options_description desc("Allowed options");
   desc.add_options()
-    ("help,h",                                                                          "This help message")
-    ("write,w",         po::value<string>(&config)->default_value("gendisk.ini"),       "Write template options file")
-    ("input,f",         po::value<string>(&config)->default_value("gendisk.ini"),       "Configuration file")
+    ("help,h",                                                                          "Print this help message")
+    ("conf,c",          po::value<string>(&config),                                     "Write template options file with current and all default values")
+    ("input,f",         po::value<string>(&config),                                     "Parameter configuration file")
     ("NUMR",            po::value<int>(&NUMR)->default_value(2000),                     "Size of radial grid for Spherical SL")
     ("RMIN",            po::value<double>(&RMIN)->default_value(0.005),                 "Minimum halo radius")
     ("RCYLMIN",         po::value<double>(&RCYLMIN)->default_value(0.001),              "Minimum disk radius")
@@ -365,80 +375,91 @@ main(int ac, char **av)
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
     ;
         
-    
   po::variables_map vm;
   
   try {
     po::store(po::parse_command_line(ac, av, desc), vm);
     po::notify(vm);    
   } catch (po::error& e) {
-    std::cout << "Option error: " << e.what() << std::endl;
-    exit(-1);
+    if (myid==0) std::cout << "Option error on command line: "
+			   << e.what() << std::endl;
+    MPI_Finalize();
+    return -1;
   }
   
   if (vm.count("help")) {
-    const char *mesg = "Generates a Monte Carlo realization of a halo\nwith an embedded disk using Jeans' equations.";
-    std::cout << mesg << std::endl
-	      << desc << std::endl << std::endl
-	      << "Examples: " << std::endl
-	      << "\t" << av[0] << " --input=gendisk.config"  << std::endl
-	      << "\t" << av[0] << " --write=template.config" << std::endl << std::endl;
+    if (myid == 0) {
+      const char *mesg = "Generates a Monte Carlo realization of a halo\nwith an embedded disk using Jeans' equations.";
+      std::cout << mesg << std::endl
+		<< desc << std::endl << std::endl
+		<< "Examples: " << std::endl
+		<< "\t" << av[0] << " --input=gendisk.config"  << std::endl
+		<< "\t" << av[0] << " --conf=template.config" << std::endl << std::endl;
+    }
+    MPI_Finalize();
     return 1;
   }
 
-  if (vm.count("write")) {
-
+  if (vm.count("conf")) {
+    // Do not overwrite existing config file
+    //
     if (boost::filesystem::exists(config)) {
-      std::cerr << av[0] << ": config file <" << config << "> exists, will not overwrite" << std::endl;
+      if (myid == 0)
+	std::cerr << av[0] << ": config file <" << config
+		  << "> exists, will not overwrite" << std::endl;
+      MPI_Finalize();
       return 2;
     }
 
-    std::ofstream out(config);
+    // Write template file
+    //
+    if (myid==0) {
+      std::ofstream out(config);
 
-    if (out) {
-      for (const auto& it : vm) {
-	out << std::setw(20) << std::left << it.first << " = ";
-	auto& value = it.second.value();
-	if (auto v = boost::any_cast<uint32_t>(&value))
-	  out << *v;
-	else if (auto v = boost::any_cast<int>(&value))
-	  out << *v;
-	else if (auto v = boost::any_cast<unsigned>(&value))
-	  out << *v;
-	else if (auto v = boost::any_cast<float>(&value))
-	  out << *v;
-	else if (auto v = boost::any_cast<double>(&value))
-	  out << *v;
-	else if (auto v = boost::any_cast<bool>(&value))
-	  out << std::boolalpha << *v;
-	else if (auto v = boost::any_cast<std::string>(&value))
-	  out << *v;
-	else
-	  out << "error";
-	out << std::endl;
+      if (out) {
+	for (const auto& it : vm) {
+	  out << std::setw(20) << std::left << it.first << " = ";
+	  auto& value = it.second.value();
+	  if (auto v = boost::any_cast<uint32_t>(&value))
+	    out << *v;
+	  else if (auto v = boost::any_cast<int>(&value))
+	    out << *v;
+	  else if (auto v = boost::any_cast<unsigned>(&value))
+	    out << *v;
+	  else if (auto v = boost::any_cast<float>(&value))
+	    out << *v;
+	  else if (auto v = boost::any_cast<double>(&value))
+	    out << *v;
+	  else if (auto v = boost::any_cast<bool>(&value))
+	    out << std::boolalpha << *v;
+	  else if (auto v = boost::any_cast<std::string>(&value))
+	    out << *v;
+	  else
+	    out << "error";
+	  out << std::endl;
+	}
+      } else {
+	if (myid==0)
+	  std::cerr << av[0] << ": error opening template config file <"
+		    << config << ">" << std::endl;
       }
-    } else {
-      std::cerr << av[0] << ": error opening template config file <" << config << ">" << std::endl;
     }
+    MPI_Finalize();
     return 3;
   }
 
   if (vm.count("input")) {
     try {
-      std::istringstream in(config);
+      std::ifstream in(config);
       po::store(po::parse_config_file(in, desc), vm);
       po::notify(vm);    
     } catch (po::error& e) {
-      std::cout << "Option error: " << e.what() << std::endl;
-      exit(-1);
+      if (myid==0) std::cout << "Option error in configuraton file: "
+			     << e.what() << std::endl;
+      MPI_Finalize();
+      return -1;
     }
   }
-  
-  //====================
-  // Inialize MPI stuff
-  //====================
-  
-  local_init_mpi(ac, av);
   
 
 #ifdef DEBUG                    // For gdb . . . 
