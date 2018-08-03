@@ -275,6 +275,7 @@ main(int ac, char **av)
   string       centerfile;
   string       halofile1;
   string       halofile2;
+  string       cachefile;
   string       config;
   
   po::options_description desc("Allowed options");
@@ -359,6 +360,7 @@ main(int ac, char **av)
     ("centerfile",      po::value<string>(&centerfile)->default_value("center.dat"),    "Read position and velocity center from this file")
     ("halofile1",       po::value<string>(&halofile1)->default_value("SLGridSph.model"),        "File with input halo model")
     ("halofile2",       po::value<string>(&halofile2)->default_value("SLGridSph.model.fake"),   "File with input halo model for multimass")
+    ("cachefile",       po::value<string>(&cachefile)->default_value(".eof.cache.file"),        "Name of EOF cache file")
     ("report",          po::value<bool>(&report)->default_value(true),                  "Report particle progress in EOF computation")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
     ;
@@ -538,6 +540,8 @@ main(int ac, char **av)
   EmpCylSL::logarithmic = LOGR;
   EmpCylSL::DENS        = DENS;
   EmpCylSL::SELECT      = SELECT;
+  EmpCylSL::CACHEFILE   = cachefile;
+
 
   if (basis) EmpCylSL::DENS = true;
 
