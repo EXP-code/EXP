@@ -18,7 +18,7 @@ COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS)	\
 $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@
 MPI_LIBS = -lmpi
 
-BOOST_LIBS = $(BOOST_SYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)
+BOOST_LIBS = $(BOOST_SYSTEM_LIB) $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)
 
 EXPLIBS = $(MPI_LIBS) $(COMMON_LIBS) $(ADD_LIBS3)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
@@ -44,7 +44,8 @@ gendisk_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(
 gendisk2_SOURCES =  initial2.cc DiskHalo2.cc EmpOrth9thd.cc \
 	SphericalSL.cc legendre.cc Particle.cc SParticle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
-gendisk2_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS) $(CUDA_LIBFLAGS)
+gendisk2_LDFLAGS = $(BOOST_LDFLAGS)
+gendisk2_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(BOOST_LIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS) $(CUDA_LIBFLAGS)
 
 gendisk3_SOURCES =  initial3.cc DiskHalo3.cc EmpOrth9thd.cc \
 	CylDisk.cc SphericalSL.cc legendre.cc Particle.cc SParticle.cc \
