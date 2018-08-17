@@ -132,6 +132,11 @@ struct thrd_pass_tstep
 class Collide
 {
   
+protected:
+
+  std::string name_id;
+  std::string version_id;
+
 public:
   
   //! Diagnostic record type
@@ -581,9 +586,15 @@ public:
       @param comp is the fiducial component
       @param hsdiam is the hard-sphere diameter in Bohr units
       @param crossfac is the cross-section scaling for elastic scattering
+      @param name_id is the class name for identification
+      @param version_id is the version identification info
+      @param nth is the number of desired threads
   */
   Collide(ExternalForce *force, Component *comp, 
-	  double hsdiam, double crossfac, int nth=1);
+	  double hsdiam, double crossfac,
+	  const std::string& name_id,
+	  const std::string& version_id,
+	  int nth=1);
   
   //! Destructor
   virtual ~Collide();

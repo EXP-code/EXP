@@ -10,6 +10,11 @@
 #include "UserTreeDSMC.H"
 #include "CollideLTE.H"
 
+// Version info
+//
+#define NAME_ID    "CollideLTE"
+#define VERSION_ID "0.1"
+
 using namespace std;
 
 				// Proton mass (g)
@@ -59,7 +64,7 @@ const bool frost_warning     = false;
 //
 CollideLTE::CollideLTE(ExternalForce *force, Component *comp,
 		       double hD, double sD, int Nth) : 
-  Collide(force, comp, hD, sD, Nth)
+  Collide(force, comp, hD, sD, NAME_ID, VERSION_ID, Nth)
 {
   // Default cooling rates
   coolheat = vector<double>(nthrds, 0.0);
