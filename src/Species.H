@@ -32,6 +32,9 @@ private:
 
 public:
 
+  //! Null constructor
+  KeyConvert() { c.i = -1; }
+
   //! Constructor taking a speciesKey (enter values into the union)
   KeyConvert(const speciesKey& k) { c.us[0] = k.first; c.us[1] = k.second; }
 
