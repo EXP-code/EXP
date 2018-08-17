@@ -1124,7 +1124,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
     Particle *p      = tree->Body(b);
 
     speciesKey K;
-    unsigned short Z;
+    unsigned short Z = 0;
 
     if (aType == Direct or aType == Weight or aType == Hybrid) {
       K = KeyConvert(p->iattrib[use_key]).getKey();
