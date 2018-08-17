@@ -21,6 +21,11 @@
 #include "Configuration.H"
 #include "InitContainer.H"
 
+// Version info
+//
+#define NAME_ID    "CollideIon"
+#define VERSION_ID "0.35 [08/01/18 Mean Mass test]"
+
 using namespace std;
 using namespace NTC;
 
@@ -426,7 +431,7 @@ T operator*(const std::vector<T>& a, const std::vector<T>& b)
 CollideIon::CollideIon(ExternalForce *force, Component *comp,
 		       double hD, double sD,
 		       const std::string& smap, int Nth) :
-  Collide(force, comp, hD, sD, Nth)
+  Collide(force, comp, hD, sD, NAME_ID, VERSION_ID, Nth)
 {
   // Default MFP type
   mfptype = MFP_t::Ncoll;
@@ -11687,7 +11692,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       if (maxInterFlag == ion_elec) {
 	if (maxI1.first == Interact::electron) {
 	  double eVel = sqrt(2.0 * kEe2[id] * eV / mu2);
-	  if (MeanMass) eVel *= sqrt(etaP2[id]);
 	  double afac = esu*esu/std::max<double>(2.0*kEe2[id]*eV, FloorEv*eV);
 	  KE.Tau = ABrate[id][2]*afac*afac*eVel * dT;
 	  double Cfrac  = nbods * nbods * dfac/ (PiProb[id][2] * volc) / spNsel[id];
@@ -11698,7 +11702,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  tauIon[id][3] += Cfrac;
 	} else {
 	  double eVel = sqrt(2.0 * kEe1[id] * eV / mu1);
-	  if (MeanMass) eVel *= sqrt(etaP1[id]);
 	  double afac = esu*esu/std::max<double>(2.0*kEe1[id]*eV, FloorEv*eV);
 	  KE.Tau = ABrate[id][1]*afac*afac*eVel * dT;
 	  double Cfrac  = nbods * nbods * dfac/ (PiProb[id][1] * volc) / spNsel[id];
@@ -14065,9 +14068,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
     if (aType == Trace) {
       double afac = esu*esu/std::max<double>(2.0*kEee[id], FloorEv*eV);
-      double eVel = sqrt(2.0 * kEee[id] / (0.5*me) );
-
-      if (MeanMass) eVel *= sqrt(eta);
+      double eVel = sqrt(2.0 * kEee[id] * eV / (0.5*me) );
 
       double  dfac = UserTreeDSMC::Munit/amu/pow(UserTreeDSMC::Lunit, 3.0) /
 	molP1[id];
@@ -14254,8 +14255,13 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       double W1, W2;
 
       if (aType == Trace) {
-	W1 = p1->mass*Eta1[i1]/molW[i1];
-	W2 = p2->mass*Eta1[i2]/molW[i2];
+	if (MeanMass) {
+	  W1 = p1->mass/molW[i1];
+	  W2 = p2->mass/molW[i2];
+	} else {
+	  W1 = p1->mass*Eta1[i1]/molW[i1];
+	  W2 = p2->mass*Eta1[i2]/molW[i2];
+	}
       } else {
 	if (SAME_ELEC_SCAT) if (k1.Z() != k2.Z()) continue;
 	if (DIFF_ELEC_SCAT) if (k1.Z() == k2.Z()) continue;
@@ -14284,8 +14290,23 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       }
 
       if (aType == Trace) {
-	ne1 = Eta1[i1];		// Electrons per particle
-	ne2 = Eta1[i2];
+	// Get molecular weights and electron fractions
+	//
+	double mol1 = 0.0, eta1 = 0.0;
+	double mol2 = 0.0, eta2 = 0.0;
+	for (auto s : SpList) {
+				// Molecular weight
+	  mol1 += p1->dattrib[s.second]/atomic_weights[s.first.first]; // 
+	  mol2 += p2->dattrib[s.second]/atomic_weights[s.first.first];
+				// Electron fraction
+	  unsigned P =  s.first.second - 1;
+	  eta1 += p1->dattrib[s.second]*P/atomic_weights[s.first.first];
+	  eta2 += p2->dattrib[s.second]*P/atomic_weights[s.first.first];
+	}
+	// Electrons per particle
+	//
+	ne1 = eta1/mol1;
+	ne2 = eta2/mol2;
       }
 
       // Threshold for electron-electron scattering
@@ -14317,7 +14338,9 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       double  q = W2 / W1;
       double m1 = atomic_weights[0];
       double m2 = atomic_weights[0];
+      if (MeanMass) { m1 *= ne1; m2 *= ne2; }
       double mt = m1 + m2;
+      double mu = m1 * m2 / mt;
 
       // Calculate pair's relative speed (pre-collision)
       //
@@ -14349,7 +14372,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
       // Kinetic energy in eV
       //
-      double kEee = 0.25 * me * cr * cr / eV;
+      double kEee = 0.5 * mu * cr * cr / eV;
 
       // Compute the cross section
       //
@@ -14428,7 +14451,8 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	  pthread_mutex_unlock(&tlock);
 	  
 	} // END: collsion selection
-      }
+
+      } // END: not trace algorithm
 
 
       double deltaKE = 0.0, dKE = 0.0;
@@ -14470,19 +14494,6 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	for (auto & v : vrel) v *= vi;
 
 	if (MeanMass) {
-
-	  // Particle masses
-	  //
-	  m1 *= ne1;
-	  m2 *= ne2;
-
-	  // Total effective mass in the collision
-	  //
-	  mt = m1 + m2;
-
-	  // Reduced mass (atomic mass units)
-	  //
-	  double mu = m1 * m2 / mt;
 	  
 	  // Set COM frame
 	  //
