@@ -13610,9 +13610,17 @@ double CollideIon::electronEnergy(pCell* const cell, int dbg)
     KeyConvert k(p->iattrib[use_key]);
     double numb = 0.0;
 
+    // Electron fraction for trace model
+    //
+    if (aType == Trace) {
+      for (auto s : SpList) {
+	double wgt = p->dattrib[s.second] / atomic_weights[s.first.first];
+	numb += wgt * (s.first.second - 1);
+      }
+    }
     // Electron fraction for hybrid model
     //
-    if (aType == Hybrid) {
+    else if (aType == Hybrid) {
       double cnt = 0.0;
       const unsigned short Z = k.getKey().first;
       for (unsigned short C=0; C<=Z; C++)
@@ -13916,10 +13924,10 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
     //
     for (auto i : cell->bods) {
       Particle *p = cell->Body(i);
-      KeyConvert k(p->iattrib[use_key]);
       double eta1 = 0.0;
 				// Ionization-fraction-weighted charge
       if (aType == Hybrid) {
+	KeyConvert k(p->iattrib[use_key]);
 	bods.push_back(i);
 	for (unsigned short C=1; C<=k.Z(); C++) {
 	  eta1 += p->mass/atomic_weights[k.Z()] *
@@ -13941,6 +13949,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	eta1   *= p->mass/amu;	// Number of electrons per amu
       } // END: Trace
       else {			
+	KeyConvert k(p->iattrib[use_key]);
 	if (k.C()>1) {		// Mean charge
 	  bods.push_back(i);
 	  eta1  = p->mass/atomic_weights[k.Z()] * (*Fn)[k.getKey()] * (k.C()-1);
@@ -14247,8 +14256,11 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       Particle* p1 = cell->Body(i1);
       Particle* p2 = cell->Body(i2);
 
-      KeyConvert k1(p1->iattrib[use_key]);
-      KeyConvert k2(p2->iattrib[use_key]);
+      KeyConvert k1, k2;
+      if (use_key>=0) {
+	k1 = KeyConvert(p1->iattrib[use_key]);
+	k2 = KeyConvert(p2->iattrib[use_key]);
+      }
 
       // Find the trace ratio
       //
@@ -14271,13 +14283,11 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
       // Default (not valid for Hybrid method)
       //
-      double ne1 = k1.C() - 1;
-      double ne2 = k2.C() - 1;
+      double ne1 = 0.0, ne2 = 0.0;
 
       // Compute species-weighted electron number for Hybrid method
       //
       if (aType == Hybrid) {
-	ne1 = ne2 = 0.0;
 
 	for (unsigned short C=1; C<=k1.Z(); C++)
 	  ne1 += p1->dattrib[spc_pos+C]*C;
@@ -14288,8 +14298,9 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	W1 *= ne1;
 	W2 *= ne2;
       }
-
-      if (aType == Trace) {
+      // Electron number for trace species
+      //
+      else if (aType == Trace) {
 	// Get molecular weights and electron fractions
 	//
 	double mol1 = 0.0, eta1 = 0.0;
@@ -14307,6 +14318,12 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	//
 	ne1 = eta1/mol1;
 	ne2 = eta2/mol2;
+      }
+      // All others
+      //
+      else {
+	ne1 = k1.C() - 1;
+	ne2 = k2.C() - 1;
       }
 
       // Threshold for electron-electron scattering
@@ -19513,15 +19530,19 @@ void CollideIon::electronGather()
 	  crj += (vi - ve)*(vi - ve);
 	}
 
-	unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
-	double mi        = atomic_weights[Z] * amu;
+	unsigned short Z = 0;
+	double mi        = 0.0;
 
 	if (aType==Trace) { // Compute molecular weight for Trace-type
 	  mi = 0.0;	    // particle
 	  for (auto s : SpList)
 	    mi += p->dattrib[s.second] / atomic_weights[s.first.first];
 	  mi = amu/mi;
+	} else {		// For all other types besides Trace
+	  Z  = KeyConvert(p->iattrib[use_key]).getKey().first;
+	  mi = atomic_weights[Z] * amu;
 	}
+	  
 
 	double mu = mi*me/(mi + me);
 
