@@ -4584,13 +4584,13 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
   // Ion-ion, ion-electron, and electron-electron relative velocities
   //
 
-  double eVel0 = 0.0;
+  double eVel0 = 0.0;		// Electron relative velocities
   double eVel1 = 0.0;
   double eVel2 = 0.0;
-  double gVel0 = 0.0;
+  double gVel0 = 0.0;		// Scaled velocities for mean-mass algorithm
   double gVel1 = 0.0;
   double gVel2 = 0.0;
-  double eVelI = 0.0;
+  double eVelI = 0.0;		// Ion relative velocity
   double sVel1 = 0.0;
   double sVel2 = 0.0;
   
@@ -4653,11 +4653,14 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     sVel1   /= vel;
     sVel2   /= vel;
 
+    // Pick scaled relative velocities for mean-mass algorithm
     if (MeanMass) {
       gVel0 = sqrt(gVel0) * UserTreeDSMC::Vunit / vel;
       gVel1 = sqrt(gVel1) * UserTreeDSMC::Vunit / vel;
       gVel2 = sqrt(gVel2) * UserTreeDSMC::Vunit / vel;
-    } else {
+    }
+    // Pick true relative velocity for all other algorithms
+    else {
       gVel0 = eVel0;
       gVel1 = eVel1;
       gVel2 = eVel2;
@@ -12884,8 +12887,8 @@ void CollideIon::scatterTraceMM
   double m1 = pp->m1;
   double m2 = pp->m2;
 
-  if (m1<1.0) m1 /= pp->q;
-  if (m2<1.0) m2 *= pp->q;
+  if (m1<1.0) m1 *= pp->eta1;
+  if (m2<1.0) m2 *= pp->eta2;
 
   // Total effective mass in the collision
   //
@@ -12906,7 +12909,7 @@ void CollideIon::scatterTraceMM
     vi += vrel[k] * vrel[k];
   }
 				// Energy in COM
-  double kE = 0.5*pp->W2*mu*vi;
+  double kE = 0.5*pp->w2*mu*vi;
 				// Energy reduced by loss
   double totE = kE - KE.delE;
 
@@ -12947,7 +12950,7 @@ void CollideIon::scatterTraceMM
     } else {
       // Apply delE to COM
       //
-      vi = -2.0*KE.delE/(pp->W1*mu);
+      vi = -2.0*KE.delE/(pp->w1*mu);
     }
   }
 
