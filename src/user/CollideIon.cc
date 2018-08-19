@@ -42,7 +42,7 @@ bool     CollideIon::ExactE     = false;
 bool     CollideIon::NoExact    = true;
 bool     CollideIon::AlgOrth    = false;
 bool     CollideIon::AlgWght    = false;
-bool     CollideIon::MeanMass   = false;
+bool     CollideIon::MeanMass   = false; // Mean-mass algorithm
 bool     CollideIon::DebugE     = false;
 bool     CollideIon::collLim    = false;
 bool     CollideIon::collCor    = false;
@@ -12960,7 +12960,6 @@ void CollideIon::scatterTraceMM
   // Assign interaction energy variables
   //
   if (KE.Coulombic)
-    // vrel = coulomb_vector(vrel, pp->W1, pp->W2, KE.Tau);
     vrel = coulomb_vector(vrel, 1.0, 1.0, KE.Tau);
   else
     vrel = unit_vector();
@@ -14389,7 +14388,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
       // Kinetic energy in eV
       //
-      double kEee = 0.5 * mu * cr * cr / eV;
+      double kEee = 0.5 * mu * amu * cr * cr / eV;
 
       // Compute the cross section
       //
@@ -22380,7 +22379,8 @@ void CollideIon::Pord::normTest(unsigned short n, const std::string& lab)
 }
 
 
-//! Return 3d Colombic scattering vector
+// Return 3d Colombic scattering vector
+//
 std::vector<double>& CollideIon::coulomb_vector(std::vector<double>& rel,
 						double W1, double W2, double Tau)
 {
@@ -22414,7 +22414,25 @@ std::vector<double>& CollideIon::coulomb_vector(std::vector<double>& rel,
     h[2] = sinp;
   }
   
+  if (false) {
+    double test = 0.0;
+    for (auto v : h) test += v*v;
+
+    if (fabs(test - 1.0) > 1.0e-6) {
+      std::cout << "Norm error [1]: " << test << " expected 1" << std::endl;
+    }
+  }
+
   for (int i=0; i<3; i++) rel[i] = rel[i]*cosx - h[i]*sinx;
+
+  if (false) {
+    double test = 0.0;
+    for (auto v : rel) test += v*v;
+
+    if (fabs(test - 1.0) > 1.0e-6) {
+      std::cout << "Norm error [2]: " << test << " expected 1" << std::endl;
+    }
+  }
 
   return rel;
 }
