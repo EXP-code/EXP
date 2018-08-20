@@ -1559,7 +1559,7 @@ void * Collide::collide_thread(void * arg)
 			<< " adjust the cell size or particle number." 
 			<< std::endl;
 	    }
-	  }
+	  } // End: NTC
 
 	  if (ok) {
 
