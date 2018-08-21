@@ -1290,10 +1290,16 @@ void InitializeSpeciesTrace
 
     for (size_t nc=0; nc<Ncomp; nc++) {
       eta[nc] = 0.0;
+      double nrm = 0.0;
       for (int indx=0; indx<NS; indx++) { 
 	int C = 0;
-	for (auto v : frac[nc][indx])  eta[nc] += sF[indx]/PT[sZ[indx]]->weight() * v * C++;
+	for (auto v : frac[nc][indx])  {
+	  double wgt = sF[indx]/PT[sZ[indx]]->weight() * v;
+	  eta[nc] += wgt * C++;
+	  nrm     += wgt;
+	}
       }
+      if (nrm>0.0) eta[nc] /= nrm;
       std::ostringstream lab; lab << "Eta (" << nc << "):";
       std::cout << std::left << std::setw(13) << lab.str()
 		<< eta[0] << std::endl;
