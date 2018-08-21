@@ -1303,6 +1303,9 @@ void InitializeSpeciesTrace
       std::ostringstream lab; lab << "Eta (" << nc << "):";
       std::cout << std::left << std::setw(13) << lab.str()
 		<< eta[0] << std::endl;
+      lab.str(""); lab << "Mol (" << nc << "):";
+      std::cout << std::left << std::setw(13) << lab.str()
+		<< 1.0/nrm << std::endl;
     }
   }
   
