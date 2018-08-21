@@ -137,17 +137,32 @@ void InitializeUniform(std::vector<Particle>& p, std::vector<double>& mass, doub
 
     3/2*N*k_B*T = 3/2*m*k_B*T/mu(Z) = 3/2*m*v^2 
 
-    where N is the number of particles, or 
+    where N is the number of particles: N=m/mu(Z), or 
 
     v^2 = k_B*T/mu(Z)
+
+    For electrons:
+    
+    3/2*N_e*k_B*T = 3/2*m*eta*k_B*T/mu(Z) = 3/2*m/mu(Z)*eta*m_e*v_e^2 
+    
+    v_e^2 = k_B*T/m_e
+
+    For mean-mass trace-species algorithm:
+
+    3/2*N_e*k_B*T = 3/2*m*k_B*T/mu(Z) = 3/2*m/mu(Z)*eta*m_e*v_e^2
+
+    or 
+    
+    v_e^2 = k_B*T/(m_e*eta)
   */
+
   std::map<unsigned char, double> varI, varE;
   for (auto v : T[0]) {
     unsigned char Z = v.first;
-    if (Z>0) {
+    if (Z>0) {			// All except TRACE
       varI[Z] = sqrt((boltz*T[0][Z])/(PT[Z]->weight()*amu)) / Vunit; // Ion
       varE[Z] = sqrt((boltz*T[0][Z])/(PT[0]->weight()*amu)) / Vunit; // Electron
-    } else {
+    } else {			// TRACE
       varI[Z] = sqrt((boltz*T[0][0])/(molW*amu))            / Vunit; // Fiducial particle
       varE[Z] = sqrt((boltz*T[0][1])/(PT[0]->weight()*amu)) / Vunit; // Electrons
     }
@@ -263,7 +278,7 @@ void InitializeInterface(std::vector<Particle>& p,
     for (auto v : T[wh]) {
       if (type == Trace) {
 	if (v.first==0)		// Ion
-	  varI[wh][0] = sqrt((boltz*v.second)/(molW*amu))             / Vunit;
+	  varI[wh][0] = sqrt((boltz*v.second)/(molW*amu))            / Vunit;
 	else			// Electron
 	  varE[wh][0] = sqrt((boltz*v.second)/(PT[0]->weight()*amu)) / Vunit;
       } else {
@@ -1267,6 +1282,9 @@ void InitializeSpeciesTrace
   }
   
   std::vector<double> eta(Ncomp, 1.0);
+
+  // Setup for mean-mass correction
+  //
   if (mm) {
     std::cout << std::string(70, '-') << std::endl;
 
