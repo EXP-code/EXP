@@ -1253,15 +1253,15 @@ protected:
   typedef std::map<speciesKey, int> spMap;
   typedef spMap::iterator spItr;
   void printSpeciesElectrons(std::map<speciesKey, unsigned long>& spec,
-			     const std::array<double, 2>& temp);
+			     const std::array<double, 4>& temp);
   void printSpeciesTrace();
   void printSpeciesColl();
   void gatherSpecies();
 
   typedef std::map<speciesKey, double> spDMap;
   typedef spDMap::iterator spDItr;
-  double tempE, massE, elecE, molwM, consE, consG, totlE, dispE;
-  std::array<double, 2> tM;
+  double molwM, consE, consG, dispE;
+  std::array<double, 4> tM;
   spDMap specM;
 
   typedef std::tuple<double, double> DTup;
@@ -1531,8 +1531,8 @@ public:
   void Debug(double t);
 
   //! Print out species counts
-  virtual void printSpecies(std::map<speciesKey, unsigned long>& spec,
-			    double T);
+  virtual void printSpecies(std::map<speciesKey, unsigned long>& spec, double T);
+
   //@{
   //! Gather and print collision statistics
   virtual void printCollGather()  { collD->gather(); }

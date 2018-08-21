@@ -17939,22 +17939,13 @@ void CollideIon::write_cross_debug()
 }
 
 
-
 void CollideIon::gatherSpecies()
 {
-  const double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * amu  /
-    UserTreeDSMC::Munit/boltz;
-
   double mass  = 0.0;
 
   consE = 0.0;
   consG = 0.0;
-  totlE = 0.0;
-  tM    = {0.0, 0.0};
-  tempE = 0.0;
-  dispE = 0.0;
-  massE = 0.0;
-  elecE = 0.0;
+  tM    = {0.0, 0.0, 0.0, 0.0};
 
   specI.clear();
   specE.clear();
@@ -18045,33 +18036,42 @@ void CollideIon::gatherSpecies()
 
     pCell *cell = itree.Cell();
 
-    // Compute the mass-weighted temerature and mass
-    //
-    double KEtot, KEdsp;
-    cell->sample->KE(KEtot, KEdsp);
+    double KEi=0.0, numbI=0.0;
+    double KEe=0.0, numbE=0.0;
     
-    // Total- and dispersion-based temperature values
-    //
-    double Tion = KEtot * Tfac * molWeight(cell);
-    double Sion = KEdsp * Tfac * molWeight(cell);
-    double Telc = 0.0;
-    double Selc = 0.0;
-    
-    mass  += cell->Mass();
-    tM[0] += cell->Mass() * Tion;
-    tM[1] += cell->Mass() * Sion;
-    totlE += cell->Mass() * KEtot;
-    
-    if (std::isnan(KEtot)) {	// For debugging, obviously
-      std::cout << "NaN in sample cell stats" << std::endl;
-      cell->sample->KE(KEtot, KEdsp);
+    for (auto b : cell->bods) {
+      Particle *p = c0->Tree()->Body(b);
+      double   mu = 0.0;	// Inverse molecular weight
+
+      if (aType==Trace) {
+	for (auto s : SpList) {
+	  speciesKey     k = s.first;
+	  unsigned short Z = k.first;
+	  mu += p->dattrib[s.second] / atomic_weights[Z];
+	}
+      } else {
+	KeyConvert k(p->iattrib[use_key]);
+	mu = 1.0/atomic_weights[k.Z()];
+      }
+
+      for (int k=0; k<3; k++) {
+	double vi = p->vel[k];
+	KEi += 0.5 * p->mass * vi * vi;
+      }
+
+      numbI += p->mass * mu;
     }
-    
+
+    tM[0] += KEi;
+    tM[1] += numbI;
+
     if (use_cons >= 0) {
       for (auto b : cell->bods) {
-	consE += c0->Tree()->Body(b)->dattrib[use_cons];
+	Particle *p  = c0->Tree()->Body(b);
+
+	consE += p->dattrib[use_cons];
 	if (use_elec>=0 and elc_cons)
-	  consG += c0->Tree()->Body(b)->dattrib[use_elec+3];
+	  consG += p->dattrib[use_elec+3];
       }
     }
     
@@ -18098,143 +18098,72 @@ void CollideIon::gatherSpecies()
     //
     if (use_elec >= 0) {
       
-      double count = 0.0, meanV = 0.0, meanV2 = 0.0, dispr = 0.0, metot = 0.0;
-      unsigned long number = 0;
-      
-      typedef std::tuple<double, double> dtup;
-      const dtup zero(0.0, 0.0);
-      std::vector<dtup> vel(3, zero);
-	
-      for (auto b : cell->sample->Bodies()) {
-	
+      for (auto b : cell->bods) {
 	Particle *p = c0->Tree()->Body(b);
+	double countE = 0.0;	// Number of electrons
+	double mu = 0.0;	// Inverse molecular weight
 	  
+	// Compute effective number of electrons
+	//
 	if (aType==Trace) {
-	    
-	  // Compute effective number of electrons
-	  //
-	  double numbE = 0.0;
+	  
 	  for (auto s : SpList) {
 	    unsigned short Z = s.first.first;
 	    unsigned short P = s.first.second - 1;
-	    numbE += p->dattrib[s.second] / atomic_weights[Z] * P;
+	    countE += p->dattrib[s.second] / atomic_weights[Z] * P;
+	    mu     += p->dattrib[s.second] / atomic_weights[Z];
 	  }
 	  
-	  numbE *= p->mass;
-	      
-	  for (unsigned k=0; k<3; k++) {
-	    double v = p->dattrib[use_elec+k];
-	    std::get<0>(vel[k]) += v   * numbE;
-	    std::get<1>(vel[k]) += v*v * numbE;
-	  }
-
-	  metot  += p->mass;
-	  count  += numbE;
-	  number += 1;
-	  
+	  countE *= p->mass;
+	  mu     *= p->mass;
 	} else {
-	      
 	  KeyConvert k(p->iattrib[use_key]);
 	    
-	  // Compute effective number of electrons
-	  //
-	  double numbE = 0.0;
 	  if (aType==Hybrid) {
 	    for (unsigned short C=1; C<=k.Z(); C++)
-	      numbE += p->dattrib[spc_pos+C] * C;
+	      countE += p->dattrib[spc_pos+C] * C;
 	  } else {
-	    numbE = k.C() - 1;
+	    countE = k.C() - 1;
 	  }
-	  numbE *= p->mass/atomic_weights[k.Z()];
-	  
-	  for (unsigned k=0; k<3; k++) {
-	    double v = p->dattrib[use_elec+k];
-	    std::get<0>(vel[k]) += v   * numbE;
-	    std::get<1>(vel[k]) += v*v * numbE;
-	  }
-	  count  += numbE;
-	  number += 1;
+	  countE *= p->mass/atomic_weights[k.Z()];
+	  mu      = p->mass/atomic_weights[k.Z()];
 	}
 
-      } // END: body loop
-	
-
-	
-	// Temp computation
-	// ----------------
-	// number of atoms      = w_i  = m_i/(mu_i * m_a)
-	// elec mean velocity   = sv1  = sum_i (w_i v) / sum_i w_i
-	// elec mean vel^2      = sv2  = sum_i (w_i v^2) / sum_i w_i
-	// summed number        = sn   = sum_i (w_i)
-	// elec specific KE     = disp = \sum (sv2 - sv1*sv1)/2
-	// total elecron KE     = KE   = mu_e*m_a * sn * disp
-	// number of elecrons   = N    = sum_i (m_i/(mu_i * m_a)) = sn
-	//                               where we count one electron per ion
-	// total elecron KE     =        3/2 N k T
-	// KE prefactor         = Tfac = 2 * m_a/(3*k)
-	// 3/2 N k T            = KE = mu_e * m_a * N * disp
-	//                       where factor of N cancel on left and right
-	// Temperature = T      = 2/(3*k) * mu_e * m_a * disp
-	// ----------------
-	// Solve for T
-	// ----------------
-	// T = [2/(3*k) * m_a] * mu_e * disp
-	//   = [2/(3*k) * m_a] * mu_e * disp
-	//   = Tfac * mu_e * disp
-	//
-	// --------------------------------
-	// Hybrid electron temp computation
-	// --------------------------------
-	//  N  = \sum_j N_{e,j}
-	//                      where numbE = N_{e,j}, N = \sum_j count_j
-	// v_1 = \sum_j N_{e,j} v_{e,j} / N
-	//                      where v_1 is mean 1-d velocity
-	// s^2 = \sum_k [\sum \sum_j(v_j^2) / N - v_1^2]/2
-	//                      where inner sum is variance for each dim
-	// KE  = mu_e * N * s^2 = 3/2 * N * k * T
-	//                      and N cancels out for solution of T
-	// ==> T = 2/3 * mu_e * m_a * s^2/k = Tfac * mu_e * s^2
-
-      if (count > 0.0) {
-	for (auto v : vel) { // Iterate through each dimension
-	  double v1 = std::get<0>(v)/count;
-	  double v2 = std::get<1>(v)/count;
-	  dispr  += 0.5*(v2 - v1*v1);
-	  meanV  += v1*v1;
-	  meanV2 += 0.5*v2;
+	for (unsigned k=0; k<3; k++) {
+	  double ve = p->dattrib[use_elec+k];
+	  KEe += 0.5 * countE * atomic_weights[0] * ve*ve;
 	}
+
+	if (MeanMass)  numbE += mu;
+	else           numbE += countE;
       }
-	
-      // Compute electron temperature
+      // END: body loop
+
+      tM[2] += KEe;
+      tM[3] += numbE;
+
+      // Temp computation
+      // ----------------
+      // IONS:
       //
-      double Eta = 1.0;
-      if (MeanMass and metot > 0.0) Eta = count/metot;
-
-      Telc = Eta * Tfac * atomic_weights[0] * meanV2;
-      Selc = Eta * Tfac * atomic_weights[0] * dispr;
-
-      // Sanity check
-      if (Telc < 100.0) {
-	std::ostringstream sout; sout << "[" << myid << "]";
-	std::cout << std::setw(7)    << std::left << sout.str()
-		  << ": small Telc=" << std::setw(16) << Telc
-		  << "  Tion="       << std::setw(16) << Tion
-		  << " meanV="       << std::setw(16) << meanV
-		  << " count="       << std::setw(16) << count
-		  << " Npart="       << std::setw(16) << number
-		  << std::endl;
-      } else {
-	// Mass-weighted temperature
-	//
-	tempE += cell->Mass() * Telc;
-	dispE += cell->Mass() * Selc;
-	massE += cell->Mass();
-      }
-
-      // Compute total electron energy in this cell
+      // N_i   = \sum_j count_j where count_j = m_j/(mu_j * m_a)
+      // KE_i  = \sum_k \sum_j count_j * mu_j * m_a * v_{i,j,k)^2
+      // 3/2 N_i k T_i = KE_i
+      // Temperature = T_i = 2/(3*k) * \sum_k \sum_j count_j v_{i,j,k)^2 / N_i
       //
-      elecE += electronEnergy(cell);
-      
+      // ELECTRONS:
+      //
+      // N_e   = \sum_j count_j where count_j = m_j*eta_j/(mu_j * m_a)
+      //                      and eta_j is the number of electrons per ion
+      // eta_j = \sum_i f_i C_i/w_i / sum_i f_i/w_i
+      //                      where f_i is the mass fraction in state i, w_i is the atomic weight
+      //                      and C_i is the charge
+      // mu_j  = 1.0/[\sum_i f_i/w_i]  so eta_j/mu_j = \sum_i f_i C_i/w_i
+      // KE_e  = \sum_k \sum_j count_j * m_e * v_{e,j,k)^2
+      // 3/2 N_e k T = KE_e
+      // Temperature = T_e = 2/(3*k) * \sum_k \sum_j count_j v_{e,j,k)^2 / N_e
+
+
       // Compute ion and electron kinetic energy per element
       //
       for (auto b : cell->bods) {
@@ -18354,9 +18283,8 @@ void CollideIon::gatherSpecies()
 
   // Send values to root
   //
-  double val1, val3 = 0.0, val4 = 0.0, val5 = 0.0;
-  double val6 = 0.0, val7 = 0.0, val8 = 0.0, val9 = 0.0;
-  std::array<double, 2> v;
+  double val1 = 0.0, val3 = 0.0, val4 = 0.0;
+  std::array<double, 4> v;
 
   if (aType!=Hybrid and aType!=Trace and COLL_SPECIES) {
     for (int t=1; t<nthrds; t++) {
@@ -18376,20 +18304,14 @@ void CollideIon::gatherSpecies()
     if (i == myid) {
 				// Mass
       MPI_Send(&mass,  1, MPI_DOUBLE, 0, 331, MPI_COMM_WORLD);
-				// Temp
-      MPI_Send(&tM[0], 2, MPI_DOUBLE, 0, 332, MPI_COMM_WORLD);
-      
+				// Energies
+      MPI_Send(&tM[0], 4, MPI_DOUBLE, 0, 332, MPI_COMM_WORLD);
+				// Conservation counters
       MPI_Send(&consE, 1, MPI_DOUBLE, 0, 333, MPI_COMM_WORLD);
       MPI_Send(&consG, 1, MPI_DOUBLE, 0, 334, MPI_COMM_WORLD);
-      MPI_Send(&totlE, 1, MPI_DOUBLE, 0, 335, MPI_COMM_WORLD);
 
 				// Energies
       if (use_elec >= 0) {
-	MPI_Send(&massE, 1, MPI_DOUBLE, 0, 356, MPI_COMM_WORLD);
-	MPI_Send(&tempE, 1, MPI_DOUBLE, 0, 336, MPI_COMM_WORLD);
-	MPI_Send(&elecE, 1, MPI_DOUBLE, 0, 337, MPI_COMM_WORLD);
-	MPI_Send(&dispE, 1, MPI_DOUBLE, 0, 357, MPI_COMM_WORLD);
-
 				// Local ion map size
 	int sizm = specE.size();
 	MPI_Send(&sizm,  1, MPI_INT,    0, 338, MPI_COMM_WORLD);
@@ -18477,25 +18399,14 @@ void CollideIon::gatherSpecies()
 
       MPI_Recv(&val1, 1, MPI_DOUBLE, i, 331, MPI_COMM_WORLD,
 	       MPI_STATUS_IGNORE);
-      MPI_Recv(&v[0], 2, MPI_DOUBLE, i, 332, MPI_COMM_WORLD,
+      MPI_Recv(&v[0], 4, MPI_DOUBLE, i, 332, MPI_COMM_WORLD,
 	       MPI_STATUS_IGNORE);
-
       MPI_Recv(&val3, 1, MPI_DOUBLE, i, 333, MPI_COMM_WORLD,
 	       MPI_STATUS_IGNORE);
       MPI_Recv(&val4, 1, MPI_DOUBLE, i, 334, MPI_COMM_WORLD,
 	       MPI_STATUS_IGNORE);
-      MPI_Recv(&val5, 1, MPI_DOUBLE, i, 335, MPI_COMM_WORLD,
-	       MPI_STATUS_IGNORE);
 
       if (use_elec >= 0) {
-	MPI_Recv(&val8, 1, MPI_DOUBLE, i, 356, MPI_COMM_WORLD,
-		 MPI_STATUS_IGNORE);
-	MPI_Recv(&val6, 1, MPI_DOUBLE, i, 336, MPI_COMM_WORLD,
-		 MPI_STATUS_IGNORE);
-	MPI_Recv(&val7, 1, MPI_DOUBLE, i, 337, MPI_COMM_WORLD,
-		 MPI_STATUS_IGNORE);
-	MPI_Recv(&val9, 1, MPI_DOUBLE, i, 357, MPI_COMM_WORLD,
-		 MPI_STATUS_IGNORE);
 
 	int sizm;
 				// Receive ion map size
@@ -18605,28 +18516,19 @@ void CollideIon::gatherSpecies()
       mass  += val1;
       tM[0] += v[0];
       tM[1] += v[1];
+      tM[2] += v[2];
+      tM[3] += v[3];
       consE += val3;
       consG += val4;
-      totlE += val5;
-      tempE += val6;
-      elecE += val7;
-      massE += val8;
-      dispE += val9;
       
     } // end: myid==0
     
   } // end: numprocs
 
   if (mass>0.0) {
-    tM[0] /= mass;
-    tM[1] /= mass;
     if (aType == Hybrid or aType == Trace) {
       for (auto & e : specM) e.second /= mass;
     }
-  }
-  if (massE>0.0) {
-    tempE /= massE;
-    dispE /= massE;
   }
   
   // Temporary debug for elastic scattering counts
@@ -19170,7 +19072,7 @@ void CollideIon::printSpecies
   if (myid) return;
 
   if (aType == Direct) {	// Call the generic printSpecies member
-    if (use_elec<0) Collide::printSpecies(spec, tM[0]);
+    if (use_elec<0) Collide::printSpecies(spec, T);
     else printSpeciesElectrons(spec, tM);
   } else if (aType == Weight) {	// Call the weighted printSpecies version
     printSpeciesElectrons(spec, tM);
@@ -19198,13 +19100,20 @@ void CollideIon::printSpeciesColl()
       sout << outdir << runtag << ".DSMC_spc_log";
       ofstream mout(sout.str().c_str(), ios::app);
 
+      const double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * amu  /
+	UserTreeDSMC::Munit/boltz;
+
+      double Ti = 0.0, Te = 0.0;
+      if (tM[1]>0.0) Ti = Tfac*tM[0]/tM[1];
+      if (tM[3]>0.0) Te = Tfac*tM[2]/tM[3];
+
       // Print the header
       //
       mout << std::left
 	   << std::setw(12) << "Time"      << std::setw(19) << tnow  << std::endl
-	   << std::setw(12) << "Temp(ion)" << std::setw(18) << tM[0] << std::endl
-	   << std::setw(12) << "Disp(ion)" << std::setw(18) << tM[1] << std::endl
-	   << std::setw(12) << "Temp(elc)" << std::setw(18) << tempE << std::endl
+	   << std::setw(12) << "Temp(ion)" << std::setw(18) << Ti    << std::endl
+	   << std::setw(12) << "Disp(ion)" << std::setw(18) << tM[0] << std::endl
+	   << std::setw(12) << "Temp(elc)" << std::setw(18) << Te    << std::endl
 	   << std::endl << std::right
 	   << std::setw(20) << "<Sp 1|Sp 2> "
 	   << std::setw(14) << "Scatter"
@@ -20734,9 +20643,9 @@ void CollideIon::printSpeciesTrace()
 	dout << "# "
 	     << std::setw(12) << std::right << "Time  "
 	     << std::setw(12) << std::right << "Temp_i"
-	     << std::setw(12) << std::right << "Disp_i"
+	     << std::setw(12) << std::right << "KE_i"
 	     << std::setw(12) << std::right << "Temp_e"
-	     << std::setw(12) << std::right << "Disp_e";
+	     << std::setw(12) << std::right << "KE_e";
 	nhead = 4;
       } else {
 	dout << "# "
@@ -20770,6 +20679,13 @@ void CollideIon::printSpeciesTrace()
     }
   }
 
+  const double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * amu  /
+    UserTreeDSMC::Munit/boltz;
+  
+  double Ti = 0.0, Te = 0.0;
+  if (tM[1]>0.0) Ti = Tfac*tM[0]/tM[1];
+  if (tM[3]>0.0) Te = Tfac*tM[2]/tM[3];
+  
   // Open for append
   //
   if (!dout.is_open())
@@ -20778,11 +20694,11 @@ void CollideIon::printSpeciesTrace()
   dout << std::setprecision(5);
   dout << "  "
        << std::setw(12) << std::right << tnow
-       << std::setw(12) << std::right << tM[0]
-       << std::setw(12) << std::right << tM[1];
+       << std::setw(12) << std::right << Ti
+       << std::setw(12) << std::right << tM[0];
   if (use_elec>=0)
-    dout << std::setw(12) << std::right << tempE
-	 << std::setw(12) << std::right << dispE;
+    dout << std::setw(12) << std::right << Te
+	 << std::setw(12) << std::right << tM[2];
   for (spDItr it=specM.begin(); it != specM.end(); it++)
     dout << std::setw(12) << std::right << it->second;
   dout << std::endl;
@@ -20847,7 +20763,7 @@ double CollideIon::molWeight(pCell *cell)
 
 
 void CollideIon::printSpeciesElectrons
-(std::map<speciesKey, unsigned long>& spec, const std::array<double, 2>& T)
+(std::map<speciesKey, unsigned long>& spec, const std::array<double, 4>& T)
 {
   if (myid) return;
 
@@ -20886,7 +20802,7 @@ void CollideIon::printSpeciesElectrons
       dout << "# "
 	   << std::setw(wid) << std::right << "Time "
 	   << std::setw(wid) << std::right << "Temp "
-	   << std::setw(wid) << std::right << "Disp ";
+	   << std::setw(wid) << std::right << "KE ";
       if (aType == Hybrid) {
 	for (spDMap::iterator it=specM.begin(); it != specM.end(); it++) {
 	  std::ostringstream sout;
@@ -21011,15 +20927,18 @@ void CollideIon::printSpeciesElectrons
   const double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * amu  /
     UserTreeDSMC::Munit/boltz;
 
+  double totlE = tM[0] + tM[2], numbE = tM[3], tempE = tM[2];
+  if (numbE>0.0) tempE = Tfac*totlE/numbE;
+
   dout << std::setw(wid) << std::right << consE
        << std::setw(wid) << std::right << totlE
        << std::setw(wid) << std::right << totlE + consE;
   
   if (use_elec>=0)
     dout << std::setw(wid) << std::right << tempE
-	 << std::setw(wid) << std::right << elecE
+	 << std::setw(wid) << std::right << totlE
 	 << std::setw(wid) << std::right << consG
-	 << std::setw(wid) << std::right << elecE + totlE + consE + consG;
+	 << std::setw(wid) << std::right << totlE + consE + consG;
   for (auto Z : specZ) {
 
     if (specI.find(Z) != specI.end()) {
