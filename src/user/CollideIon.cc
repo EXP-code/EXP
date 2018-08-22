@@ -18043,6 +18043,8 @@ void CollideIon::gatherSpecies()
       Particle *p = c0->Tree()->Body(b);
       double   mu = 0.0;	// Inverse molecular weight
 
+      mass += p->mass;		// Mass accumulation
+
       if (aType==Trace) {
 	for (auto s : SpList) {
 	  speciesKey     k = s.first;
