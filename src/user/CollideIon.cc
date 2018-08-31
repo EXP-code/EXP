@@ -142,6 +142,10 @@ static bool SAME_INTERACT       = false;
 static bool DIFF_INTERACT       = false;
 static bool TRACE_OVERRIDE      = false;
 
+// Test Coulombic cross section computed from mean KE
+//
+static bool MEAN_KE             = true;
+
 // Suppress distribution of energy to electrons when using NOCOOL
 //
 static bool NOCOOL_ELEC         = false;
@@ -741,6 +745,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   Ivel2    .resize(nthrds);
   Evel2    .resize(nthrds);
   Evel     .resize(nthrds);
+  Eelc     .resize(nthrds);
+  Eion     .resize(nthrds);
   molP1    .resize(nthrds);
   molP2    .resize(nthrds);
   etaP1    .resize(nthrds);
@@ -1230,7 +1236,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
   numIf[id] *= UserTreeDSMC::Munit/amu;
   numEf[id] *= UserTreeDSMC::Munit/amu;
 
-  // Convernt to electron number density in cgs
+  // Convert to electron number density in cgs
   //
   double volc = cell->Volume();
   double dfac = UserTreeDSMC::Munit/amu / (pow(UserTreeDSMC::Lunit, 3.0)*volc);
@@ -2561,7 +2567,8 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 	    neutF[id]        += p->mass * ww;
 	  }
 	}
-      }
+
+      } // END: bods loop
 				// Normalize mass-weighted fraction
 				// and electron fraction
 				//
@@ -2677,10 +2684,46 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 
     }
 
+    Eion[id] = Eelc[id] = 0.0;
+    double massP = 0.0, numbP = 0.0, molW = 0.0;
+    for (auto b : cell->bods) {
+      // Particle mass accumulation
+      Particle *p = tree->Body(b);
+      massP      += p->mass;
+      double wghtE = 0.0;
+      // Mass-weighted trace fraction
+      for (auto s : SpList) {
+	speciesKey k = s.first;
+	double ee    = k.second - 1;
+	double ww    = p->dattrib[s.second]/atomic_weights[k.first];
+	molW        += p->mass * ww;
+	wghtE       += p->mass * ww * ee;
+      }
+	  
+      double kEelc = 0.0, kEion = 0.0;
+      for (int l=0; l<3; l++) {
+	double vi = p->vel[l];
+	double ve = p->dattrib[use_elec+l];
+	kEion += vi*vi;
+	kEelc += ve*ve;
+      }
+      Eelc[id] += wghtE * kEelc;
+      Eion[id] += p->mass * kEion;
+      numbP    += wghtE;
+    } // END: bods loop
+
+    // Mean KE for Coulombic cross section estimate
+    //
+    if (massP>0.0) {
+      double fac = 0.5 * amu * UserTreeDSMC::Vunit * UserTreeDSMC::Vunit / eV;
+      Eelc[id] *= fac * atomic_weights[0] / numbP;
+      Eion[id] *= fac * amu / molW;
+    }
+
     // Compute per channel Coulombic probabilities
-
+    //
     // Ion probabilities
-
+    //
     double muii = meanM[id]/2.0;
     double muee = atomic_weights[0]/2.0;
     double muie = atomic_weights[0] * meanM[id]/(atomic_weights[0] + meanM[id]);
@@ -4872,7 +4915,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       // --------------------------------------
       //
       if (P>0 and PP>0) {
-	double afac = esu*esu/std::max<double>(2.0*kEi[id]*eV, FloorEv*eV) * 1.0e7;
+	double kEc  = MEAN_KE ? Eion[id]  : kEi[id];
+	double afac = esu*esu/std::max<double>(2.0*kEc*eV, FloorEv*eV) * 1.0e7;
 	double crs  = 2.0 * ABrate[id][0] * afac*afac / PiProb[id][0];
 
 	Interact::T t
@@ -4941,8 +4985,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	    gVel2 * Eta2 * crossfac * cscl_[Z] * fac1;
 	  
 	} else {
-
-	  double afac = esu*esu/std::max<double>(2.0*kEe1[id]*eV, FloorEv*eV) * 1.0e7;
+	  double kEc  = MEAN_KE ? Eelc[id]  : kEe1[id];
+	  double afac = esu*esu/std::max<double>(2.0*kEc*eV, FloorEv*eV) * 1.0e7;
 
 	  crs = 2.0 * ABrate[id][1] * afac*afac * gVel2 / PiProb[id][1];
 	}
@@ -4965,7 +5009,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  crs = coulCrs[id][P][0] * pow(kEe2[id]/coulCrs[id][P][1], coulPow) *
 	    gVel1 * Eta1 * crossfac * cscl_[Z] * fac2;
 	} else {
-	  double afac = esu*esu/std::max<double>(2.0*kEe2[id]*eV, FloorEv*eV) * 1.0e7;
+	  double kEc  = MEAN_KE ? Eelc[id]  : kEe2[id];
+	  double afac = esu*esu/std::max<double>(2.0*kEc*eV, FloorEv*eV) * 1.0e7;
 
 	  crs = 2.0 * ABrate[id][2] * afac*afac * gVel1 / PiProb[id][2];
 	}
