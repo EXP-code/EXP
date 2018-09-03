@@ -521,7 +521,7 @@ private:
   std::vector< double >                              meanE, neutF, meanR, meanM, cellM;
  std::vector< double >                              numIf, numEf, numQ2, colSc, elecDen, elecDn2, numIf0, numEf0, colCf;
   std::vector< double >                              kEi, kEe1, kEe2, kEee, clrE, misE, dfrE, updE;
-  std::vector< double >                              kE1s, kE2s, Ein1, Ein2, Evel, nselRat, Evel2, Ivel2;
+  std::vector< double >                              kE1s, kE2s, Ein1, Ein2, Evel, nselRat, Evel2, Ivel2, Eelc, Eion;
   std::vector< double >                              spCrm, spTau, spProb, spEdel, spEmax, spFtau;
   std::vector< double >                              molP1, molP2, etaP1, etaP2;
   std::vector< double >                              rhoSigV, rhoSigN, spNsel, elecRat;
