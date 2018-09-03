@@ -295,11 +295,13 @@ void Collide::collide_thread_fork(sKeyDmap* Fn)
 double   Collide::EPSMratio = -1.0;
 unsigned Collide::EPSMmin   = 0;
 
-std::map<unsigned short, double> Collide::atomic_weights;
+std::vector<double> Collide::atomic_weights;
 
 //! Weights in atomic mass units
 void Collide::atomic_weights_init()
 {
+  atomic_weights.resize(15, -1.0);
+
   atomic_weights[0]  = 0.000548579909; // Mass of electron
   atomic_weights[1]  = 1.0079;	       // Hydrogen
   atomic_weights[2]  = 4.0026;	       // Helium
@@ -318,7 +320,10 @@ void Collide::atomic_weights_init()
 }  
 
 Collide::Collide(ExternalForce *force, Component *comp,
-		 double hDiam, double sCross, int nth)
+		 double hDiam, double sCross,
+		 const std::string& name_id,
+		 const std::string& version_id,
+		 int nth)
 {
   caller = force;
   c0     = comp;
@@ -609,10 +614,16 @@ Collide::Collide(ExternalForce *force, Component *comp,
   ntcThresh = ntcThreshDef;
   ntcFactor = 1.0;
 
+  // Log file identification info
+  //
   if (myid==0) {
     std::cout << printDivider << std::endl
+	      << "** Collide routine "
+	      << name_id << ", version " << version_id << std::endl
+	      << printDivider << std::endl << std::endl
+	      << printDivider << std::endl
 	      << "--- Tree volume = " << tree->Volume() << std::endl
-	      << printDivider << std::endl;
+	      << printDivider << std::endl << std::endl;
   }
 
   // Initialize diagnostic counters
@@ -1548,7 +1559,7 @@ void * Collide::collide_thread(void * arg)
 			<< " adjust the cell size or particle number." 
 			<< std::endl;
 	    }
-	  }
+	  } // End: NTC
 
 	  if (ok) {
 

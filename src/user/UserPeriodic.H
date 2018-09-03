@@ -43,7 +43,7 @@ private:
   double munit;
   double temp;
 
-  std::map<int, double> atomic_weights;
+  std::vector<double> atomic_weights;
 
   vector< vector<unsigned> > cbinT;
   vector< vector<double>   > mbinT, tbinT;

@@ -102,8 +102,8 @@ int
 main(int ac, char **av)
 {
   char *prog = av[0];
-  double time, Emin, Emax, Lunit, Tunit;
-  bool verbose = false, logE = false;
+  double time, Emin, Emax, Lunit, Tunit, Temp;
+  bool verbose = false, logE = false, flat = false;
   std:: string cname, spfile;
   int numb, comp;
 
@@ -117,20 +117,24 @@ main(int ac, char **av)
      "find closest time slice to requested value")
     ("Lunit,L",		po::value<double>(&Lunit)->default_value(3.086e18),
      "System length in physical units (cgs)")
-    ("Tunit,T",		po::value<double>(&Tunit)->default_value(3.15569e12),
+    ("Tunit,T",		po::value<double>(&Tunit)->default_value(3.15569e10),
      "System time in physical units (cgs)")
     ("Emin,e",		po::value<double>(&Emin)->default_value(1.0),
      "Minimum energy in eV")
     ("Emax,E",		po::value<double>(&Emax)->default_value(200.0),
      "Maximum energy in eV")
+    ("Temp,K",		po::value<double>(&Temp)->default_value(3.0e4),
+     "Temperature in kelvins")
     ("bins,b",	        po::value<int>(&numb)->default_value(40),
      "number of bins")
     ("species,s",	po::value<std::string>(&spfile)->default_value("species.spec"),
      "species definition file")
     ("name,c",	        po::value<std::string>(&cname)->default_value("gas"),
      "component name")
-    ("logE,L",
+    ("logE",
      "use log scaling for energy range")
+    ("flat",
+     "use E^{3/2} scaling for energy range")
     ("files,f",         po::value< std::vector<std::string> >(), 
      "input files")
     ;
@@ -148,6 +152,12 @@ main(int ac, char **av)
 
   if (vm.count("logE")) {
     logE = true;
+    flat = false;
+  }
+
+  if (vm.count("flat")) {
+    logE = false;
+    flat = true;
   }
 
   if (vm.count("help")) {
@@ -164,10 +174,13 @@ main(int ac, char **av)
 
   // Units
   //
-  const double amu = 1.66053892e-24; // atomic mass unit in g
-  const double eV  = 1.60217653e-12; // erg per eV
-  double Vunit     = Lunit/Tunit;
-  double KEfac     = 0.5 * amu/eV * Vunit*Vunit;
+  const double amu   = 1.66053892e-24; // atomic mass unit in g
+  const double eV    = 1.60217653e-12; // erg per eV
+  const double boltz = 1.3806504e-16;  // Boltzmann constant
+  double Vunit       = Lunit/Tunit;    // system to cgs conversion
+  double kT          = boltz*Temp/eV;  // kT in eV units
+				// KE conversion from system to eV 
+  double KEfac       = 0.5 * amu/eV * Vunit*Vunit;
 
   const std::vector<double> atomic_mass = {0.000549,  // 0  electron
 					   1.00797,   // 1  H
@@ -219,8 +232,13 @@ main(int ac, char **av)
 		<< std::endl;
       exit(-2);
     }
-    Emin = log10(Emin);
-    Emax = log10(Emax);
+    Emin = log(Emin);
+    Emax = log(Emax);
+  }
+
+  if (flat) {
+    Emin = pow(Emin, 1.5);
+    Emax = pow(Emax, 1.5);
   }
 
   double dE = (Emax - Emin)/numb;
@@ -228,6 +246,7 @@ main(int ac, char **av)
   Emax = Emin + dE*nEbin;
 
   std::vector<double> E(nEbin), Eion(nEbin, 0.0), Eelc(nEbin, 0.0);
+  std::vector<unsigned> Nion(nEbin, 0), Nelc(nEbin, 0);
   for (int i=0; i<nEbin; i++) E[i] = Emin + dE*(0.5+i);
 
   // Get file arguments
@@ -329,14 +348,20 @@ main(int ac, char **av)
 	kEi *= KEfac * mu;
 
 	if (logE) {
-	  kEe = log10(kEe);
-	  kEi = log10(kEi);
+	  kEe = log(kEe);
+	  kEi = log(kEi);
+	}
+
+	if (flat) {
+	  kEe = pow(kEe, 1.5);
+	  kEi = pow(kEi, 1.5);
 	}
 
 	if (kEe >= Emin and kEe < Emax) {
 	  int Eindx = floor( (kEe - Emin)/dE );
 	  if (Eindx >= 0 and Eindx < nEbin) {
 	    Eelc[Eindx] += efrac * part->mass()/mu;
+	    Nelc[Eindx]++;
 	    eEgrid++;
 	  }
 	  else eEout++;
@@ -346,6 +371,7 @@ main(int ac, char **av)
 	  int Eindx = floor( (kEi - Emin)/dE );
 	  if (Eindx >= 0 and Eindx < nEbin) {
 	    Eion[Eindx] += part->mass()/mu;
+	    Nion[Eindx]++;
 	    eIgrid++;
 	  }
 	  else eIout++;
@@ -355,11 +381,12 @@ main(int ac, char **av)
 	
       } // END: Particle loop
 
-      std::cout << "File <" << file << ">: "
+      std::cerr << "File <" << file << ">: "
 		<< eIgrid << "/" << total << " ions and "
 		<< eEgrid << "/" << total << " electrons with "
 		<< eEout << " electron oab, "
-		<< eIout << " ion oab" << std::endl;
+		<< eIout << " ion oab"
+		<< std::endl;
 
     } // END: stanza loop
 
@@ -381,30 +408,54 @@ main(int ac, char **av)
     double Time = psp.CurrentTime();
 
     if (first) {
-      std::cout << setw(fw) << "Time"
+      std::cout << setw(fw) << "# Time"
 		<< setw(fw) << "Energy"
 		<< setw(fw) << "Ions"
+		<< setw(sw) << "N(ion)"
 		<< setw(fw) << "Electrons"
+		<< setw(sw) << "N(elc)"
+		<< setw(fw) << "Exact"
 		<< std::endl;
       
 
-      std::cout << setw(fw) << std::string(sw, '-')
-		<< setw(fw) << std::string(sw, '-')
-		<< setw(fw) << std::string(sw, '-')
-		<< setw(fw) << std::string(sw, '-')
+      std::cout << setw(fw) << std::string(fw-1, '-')
+		<< setw(fw) << std::string(fw-1, '-')
+		<< setw(fw) << std::string(fw-1, '-')
+		<< setw(sw) << std::string(sw-1, '-')
+		<< setw(fw) << std::string(fw-1, '-')
+		<< setw(sw) << std::string(sw-1, '-')
+		<< setw(fw) << std::string(fw-1, '-')
 		<< std::endl;
 
       first = false;
     }
 
-    for (int i=0; i<nEbin; i++)
-      cout << setw(fw) << Time
-	   << setw(fw) << (logE ? exp(E[i]) : E[i])
-	   << setw(fw) << Eion[i]
-	   << setw(fw) << Eelc[i]
-	   << std::endl;
+    double norm = M_2_SQRTPI*pow(kT, -1.5);
+    for (int i=0; i<nEbin; i++) {
+      double Energy = E[i];
+      double exact  = norm * sqrt(Energy) * exp(-Energy/kT);
 
-    cout << std::string(12+18*2, '-') << endl << endl;
+      if (logE) {
+	Energy = exp(Energy);
+	exact  = norm * pow(Energy, 1.5) * exp(-Energy/kT);
+      }
+
+      if (flat) {
+	Energy = pow(Energy, 2.0/3.0);
+	exact  = norm * 2.0/3.0 * exp(-Energy/kT);
+      }
+
+      cout << setw(fw) << Time
+	   << setw(fw) << Energy
+	   << setw(fw) << Eion[i]
+	   << setw(sw) << Nion[i]
+	   << setw(fw) << Eelc[i]
+	   << setw(sw) << Nelc[i]
+	   << setw(fw) << exact * dE
+	   << std::endl;
+    }
+
+    cout << '#' << std::string(fw*5+sw*2-1, '-') << endl << endl;
 
 
     } // END: file loop

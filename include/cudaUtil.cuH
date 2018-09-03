@@ -1,3 +1,5 @@
+// -*- C++ -*-
+
 #ifndef _CUDAHELP_H
 #define _CUDAHELP_H
 

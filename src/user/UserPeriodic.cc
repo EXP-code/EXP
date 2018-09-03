@@ -77,6 +77,9 @@ UserPeriodic::UserPeriodic(string &line) : ExternalForce(line)
   unit = new Uniform(0.0, 1.0, gen);
   norm = new Normal(0.0, 1.0, gen);
 
+  atomic_weights.resize(13, -1.0);
+
+  atomic_weights[0]  = 0.000548579909; // Mass of electron
   atomic_weights[1]  = 1.0079;
   atomic_weights[2]  = 4.0026;
   atomic_weights[3]  = 6.941;

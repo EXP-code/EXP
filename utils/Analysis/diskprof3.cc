@@ -24,7 +24,7 @@
  *  By:
  *  --
  *
- *  MDW 11/28/08, 02/09/18
+ *  MDW 11/28/08, 02/09/18, 07/11/18
  *
  ***************************************************************************/
 
@@ -103,214 +103,6 @@ static  bool VHEIGHT;
 static  bool VOLUME;
 static  bool SURFACE;
 static  bool VSLICE;
-
-class Histogram
-{
-public:
-
-  std::vector<double> data;
-  int N;
-  double R, dR, rmax;
-  
-  Histogram(int N, double R) : N(N), R(R)
-  {
-    dR = 2.0*R/(N+1);
-    data.resize(N*N, 0.0);
-    rmax = R + 0.5*dR;
-  }
-
-  void Reset() { std::fill(data.begin(), data.end(), 0.0); }
-
-  void Syncr() { 
-    if (myid==0)
-      MPI_Reduce(MPI_IN_PLACE, &data[0], data.size(), MPI_DOUBLE, MPI_SUM, 0,
-		 MPI_COMM_WORLD);
-    else
-      MPI_Reduce(&data[0],     &data[0], data.size(), MPI_DOUBLE, MPI_SUM, 0,
-		 MPI_COMM_WORLD);
-  }
-
-  void Add(double x, double y, double m)
-  {
-    if (x < -rmax or x >= rmax or
-	y < -rmax or y >= rmax  ) return;
-
-    int indX = static_cast<int>(floor((x + rmax)/dR));
-    int indY = static_cast<int>(floor((y + rmax)/dR));
-
-    indX = std::min<int>(indX, N-1);
-    indY = std::min<int>(indY, N-1);
-
-    data[indY*N + indX] += m;
-  }
-};
-
-enum ComponentType {Star=1, Gas=2};
-
-void add_particles(ifstream* in, PSPDumpPtr psp, int& nbods, vector<Particle>& p,
-		   Histogram& h)
-{
-  if (myid==0) {
-
-    int nbody = nbods/numprocs;
-    int nbody0 = nbods - nbody*(numprocs-1);
-
-				// Send number of bodies to be received
-				// by eacn non-root node
-    MPI_Bcast(&nbody, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-    vector<Particle>        t(nbody);
-    vector<double>        val(nbody);
-    vector<unsigned long> seq(nbody);
-
-    SParticle *part = psp->GetParticle(in);
-    Particle bod;
-    
-    //
-    // Root's particles
-    //
-    for (int i=0; i<nbody0; i++) {
-      if (part==0) {
-	cerr << "Error reading particle [n=" << 0 << ", i=" << i << "]" << endl;
-	exit(-1);
-      }
-
-      // Make a Particle
-      //
-      bod.mass = part->mass();
-      for (int k=0; k<3; k++) bod.pos[k] = part->pos(k);
-      for (int k=0; k<3; k++) bod.vel[k] = part->vel(k);
-      bod.indx = part->indx();
-      p.push_back(bod);
-
-      part = psp->NextParticle(in);
-
-      // Add to histogram
-      //
-      if (part) h.Add(part->pos(0), part->pos(1), part->mass());
-    }
-
-    //
-    // Send the rest of the particles to the other nodes
-    //
-    for (int n=1; n<numprocs; n++) {
-      
-      for (int i=0; i<nbody; i++) {
-	if (part==0) {
-	  cerr << "Error reading particle [n=" 
-	       << n << ", i=" << i << "]" << endl;
-	  exit(-1);
-	}
-	t[i].mass = part->mass();
-	for (int k=0; k<3; k++) t[i].pos[k] = part->pos(k);
-	for (int k=0; k<3; k++) t[i].vel[k] = part->vel(k);
-	part = psp->NextParticle(in);
-      }
-  
-      for (int i=0; i<nbody; i++) val[i] = t[i].mass;
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 11, MPI_COMM_WORLD);
-
-      for (int i=0; i<nbody; i++) val[i] = t[i].pos[0];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 12, MPI_COMM_WORLD);
-
-      for (int i=0; i<nbody; i++) val[i] = t[i].pos[1];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 13, MPI_COMM_WORLD);
-
-      for (int i=0; i<nbody; i++) val[i] = t[i].pos[2];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 14, MPI_COMM_WORLD);
-
-      for (int i=0; i<nbody; i++) val[i] = t[i].vel[0];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 15, MPI_COMM_WORLD);
-
-      for (int i=0; i<nbody; i++) val[i] = t[i].vel[1];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 16, MPI_COMM_WORLD);
-
-      for (int i=0; i<nbody; i++) val[i] = t[i].vel[2];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 17, MPI_COMM_WORLD);
-
-      for (int i=0; i<nbody; i++) seq[i] = t[i].indx;
-      MPI_Send(&seq[0], nbody, MPI_UNSIGNED_LONG, n, 18, MPI_COMM_WORLD);
-    }
-
-  } else {
-
-    int nbody;
-    MPI_Bcast(&nbody, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    vector<Particle>        t(nbody);
-    vector<double>        val(nbody);
-    vector<unsigned long> seq(nbody);
-				// Get and pack
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 11, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].mass = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 12, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].pos[0] = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 13, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].pos[1] = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 14, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].pos[2] = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 15, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].vel[0] = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 16, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].vel[1] = val[i];
-
-    MPI_Recv(&val[0], nbody, MPI_DOUBLE, 0, 17, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].vel[2] = val[i];
-
-    MPI_Recv(&seq[0], nbody, MPI_UNSIGNED_LONG, 0, 18, 
-	     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (int i=0; i<nbody; i++) t[i].indx = seq[i];
-
-    p.insert(p.end(), t.begin(), t.end());
-  }
-
-  // Synchronize histogram
-  //
-  h.Syncr();
-}
-
-void partition(ifstream* in, PSPDumpPtr psp, int cflag, vector<Particle>& p,
-	       Histogram& h)
-{
-  p.erase(p.begin(), p.end());
-
-  int nbods = 0;
-  if (cflag & Star) {
-    if (myid==0) {
-      nbods = psp->CurrentDump()->nstar;
-      psp->GetStar();
-
-      add_particles(in, psp, nbods, p, h);
-    } else {
-      add_particles(in, psp, nbods, p, h);
-    }      
-  }
-
-  if (cflag & Gas) {
-    if (myid==0) {
-      int nbods = psp->CurrentDump()->ngas;
-      psp->GetGas();
-
-      add_particles(in, psp, nbods, p, h);
-    } else {
-      add_particles(in, psp, nbods, p, h);
-    }      
-  }
-
-}
-
 
 				// Find peak density
 
@@ -435,8 +227,9 @@ Vector get_quart_truncated(Vector& vv, double dz)
 }
 
 
-void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
+std::string write_output(EmpCylSL& ortho, int icnt, double time)
 {
+  std::string retstr("nofile");
   unsigned ncnt = 0;
   int nout;
   
@@ -723,11 +516,11 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 	vtk.Add(data, suffix[n]);
       }
 
-      vtk.Add(histo.data, "histo");
-
       std::ostringstream sout;
       sout << runtag + "_" + outid + "_surface" + sstr.str();
       vtk.Write(sout.str());
+
+      retstr = sout.str();
     }
   } // END: SURFACE
 
@@ -800,8 +593,8 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
     }
   } // END: VSLICE
 
+  return retstr;
 }
-
 
 void writePVD(const std::string& filename,
 	      const std::vector<double>& times,
@@ -855,11 +648,10 @@ void writePVD(const std::string& filename,
 int
 main(int argc, char **argv)
 {
-  int nice, numx, numy, lmax, mmax, nmax, norder;
-  int initc, partc, beg, end, stride, init;
-  double rcylmin, rcylmax, rscale, vscale;
-  bool DENS, HEIGHT, PCA, PVD, verbose = false, mask = false;
-  std::string CACHEFILE;
+  int nice, cnt, nmax, lmax, mmax, nord;
+  bool HEIGHT, PVD, verbose = false, mask = false;
+  double time, rscale, vscale;
+  std::string CACHEFILE, COEFFILE;
 
   //
   // Parse Command line
@@ -875,48 +667,36 @@ main(int argc, char **argv)
     ("nice",
      po::value<int>(&nice)->default_value(0), 
      "number of bins in x direction")
+    ("nmax,n",
+     po::value<int>(&nmax)->default_value(10), 
+     "maximum radial order")
+    ("lmax,l",
+     po::value<int>(&lmax)->default_value(36), 
+     "maximum harmonic order")
+    ("mmax,m",
+     po::value<int>(&mmax)->default_value(4), 
+     "maximum azimuthal order")
+    ("norder",
+     po::value<int>(&nord)->default_value(4), 
+     "maximum empirical radial order")
     ("RMAX,R",
      po::value<double>(&RMAX)->default_value(0.1),
      "maximum radius for output")
     ("ZMAX,Z",
      po::value<double>(&ZMAX)->default_value(0.01),
      "maximum height for output")
-    ("rcylmin",
-     po::value<double>(&rcylmin)->default_value(0.001),
-     "minimum radius for cylindrical basis table")
-    ("rcylmax",
-     po::value<double>(&rcylmax)->default_value(20.0),
-     "maximum radius for cylindrical basis table")
-    ("NUMX",
-     po::value<int>(&numx)->default_value(128), 
-     "number of radial table entries")
-    ("NUMY",
-     po::value<int>(&numy)->default_value(64), 
-     "number of vertical table entries")
-    ("rscale",
-     po::value<double>(&rscale)->default_value(0.01), 
-     "radial scale length for basis expansion")
-    ("vscale",
-     po::value<double>(&vscale)->default_value(0.001), 
-     "vertical scale length for basis expansion")
-    ("lmax",
-     po::value<int>(&lmax)->default_value(36), 
-     "maximum harmonic order for spherical expansion")
-    ("nmax",
-     po::value<int>(&nmax)->default_value(8),
-     "maximum harmonic order for spherical expansion")
-    ("mmax",
-     po::value<int>(&mmax)->default_value(4), 
-     "maximum azimuthal harmonic order for cylindrical expansion")
-    ("norder",
-     po::value<int>(&norder)->default_value(4), 
-     "maximum radial order for each harmonic subspace")
     ("outr",
      po::value<int>(&OUTR)->default_value(40), 
      "number of radial points for output")
     ("outz",
      po::value<int>(&OUTZ)->default_value(40), 
      "number of vertical points for output")
+    ("rscale",
+     po::value<double>(&rscale)->default_value(0.01), 
+     "radial scale length for basis expansion")
+    ("vscale",
+     po::value<double>(&vscale)->default_value(0.001), 
+     "vertical scale length for basis expansion")
     ("surface",
      po::value<bool>(&SURFACE)->default_value(true),
      "make equatorial slices")
@@ -932,42 +712,22 @@ main(int argc, char **argv)
     ("height",
      po::value<bool>(&HEIGHT)->default_value(false),
      "compute height profiles")
-    ("pca",
-     po::value<bool>(&PCA)->default_value(false),
-     "perform the PCA analysis for the disk")
-    ("density",
-     po::value<bool>(&DENS)->default_value(true),
-     "compute density")
-    ("pvd",
-     po::value<bool>(&PVD)->default_value(false),
-     "Compute PVD file for ParaView")
-    ("initcomp",
-     po::value<int>(&initc)->default_value(1),
-     "train on Component (1=stars)")
-    ("partflag",
-     po::value<int>(&partc)->default_value(1),
-     "Wakes using Component(s) [1=stars | 2=gas]")
-    ("init",
-     po::value<int>(&init)->default_value(0),
-     "fiducial PSP index")
-    ("beg",
-     po::value<int>(&beg)->default_value(0),
-     "initial PSP index")
-    ("end",
-     po::value<int>(&end)->default_value(99999),
-     "final PSP index")
-    ("stride",
-     po::value<int>(&stride)->default_value(1),
-     "PSP index stride")
     ("outfile",
      po::value<std::string>(&outid)->default_value("diskprof2"),
      "Filename prefix")
     ("cachefile",
      po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),
-     "cachefile name")
+     "basis cache file name")
+    ("coeffile",
+     po::value<std::string>(&COEFFILE)->default_value("coef.file"),
+     "coefficient name")
+    ("pvd",
+     po::value<bool>(&PVD)->default_value(false),
+     "Compute PVD file for ParaView")
     ("runtag",
      po::value<std::string>(&runtag)->default_value("run1"),
      "runtag for phase space files")
+    ;
     ;
   
   po::variables_map vm;
@@ -1008,208 +768,48 @@ main(int argc, char **argv)
   if (nice>0) setpriority(PRIO_PROCESS, 0, nice);
 
 
-  // ==================================================
-  // PSP input stream
-  // ==================================================
+  // Create expansion
+  //
+  EmpCylSL ortho(nmax, lmax, mmax, nord, rscale, vscale);
+ 
+  // Read EOF basis from saved file
+  //
+  ortho.read_eof_file(CACHEFILE);
 
-  int iok = 1;
-  ifstream in0, in1;
-  std::ostringstream s0, s1;
-  if (myid==0) {
-    s0 << "OUT." << runtag << "."
-       << std::setw(5) << std::setfill('0') << init;
-    in0.open(s0.str());
-    if (!in0) {
-      cerr << "Error opening <" << s0.str() << ">" << endl;
-      iok = 0;
-    }
-  }
-    
-  MPI_Bcast(&iok, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  if (iok==0) {
-    MPI_Finalize();
-    exit(-1);
-  }
-    
-  // ==================================================
-  // All processes will now compute the basis functions
-  // *****Using MPI****
-  // ==================================================
+  // Set coefficients
+  //
+  std::ifstream in(COEFFILE);
 
-  EmpCylSL::RMIN        = rcylmin;
-  EmpCylSL::RMAX        = rcylmax;
-  EmpCylSL::NUMX        = numx;
-  EmpCylSL::NUMY        = numy;
-  EmpCylSL::CMAP        = true;
-  EmpCylSL::logarithmic = true;
-  EmpCylSL::DENS        = DENS;
-  EmpCylSL::CACHEFILE   = CACHEFILE;
-
-				// Create expansion
-				//
-  EmpCylSL ortho(nmax, lmax, mmax, norder, rscale, vscale);
-    
-  if (PCA) {
-    EmpCylSL::SELECT = true;
-      ortho.setHall(runtag + "_" + outid + ".pca", 1);
-  }
-
-  vector<Particle> particles;
-  PSPDumpPtr psp;
-  Histogram histo(OUTR, RMAX);
-  
   std::vector<double> times;
   std::vector<std::string> outfiles;
-
-  // ==================================================
-  // Initialize and/or create basis
-  // ==================================================
   
-  if (ortho.read_cache()==0) {
-    
-    //------------------------------------------------------------ 
+  cnt = 0;
 
-    if (myid==0) {
-      psp = PSPDumpPtr(new PSPDump (&in0, true));
-      cout << "Beginning disk partition [time="
-	   << psp->CurrentTime()
-	   << "] . . . " << flush;
-    }
-      
-    // Do we need to close and reopen?
-    if (in0.rdstate() & ios::eofbit) {
-      in0.close();
-      in0.open(s0.str());
-    }
-      
-    partition(&in0, psp, initc, particles, histo);
-    if (myid==0) cout << "done" << endl;
+  in >> time;
 
-    if (myid==0) {
-      cout << endl
-	   << setw(4) << "#" << "  " << setw(8) << "Number" << endl 
-	   << setfill('-')
-	   << setw(4) << "-" << "  " << setw(8) << "-" << endl
-	   << setfill(' ');
-    }
-    for (int n=0; n<numprocs; n++) {
-      if (n==myid) {
-	cout << setw(4) << myid << "  "
-	     << setw(8) << particles.size() << endl;
-      }
-      MPI_Barrier(MPI_COMM_WORLD);
-    }
-    if (myid==0) cout << endl;
+  while (in) {
+    times.push_back(time);
 
-    //------------------------------------------------------------ 
+    int M, nmax;
+    in >> M;
+    in >> nmax;
 
-    if (myid==0) cout << "Beginning disk accumulation . . . " << flush;
-    ortho.setup_eof();
-    ortho.setup_accumulation();
-    ortho.accumulate_eof(particles, true);
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done" << endl;
-    
-    //------------------------------------------------------------ 
-    
-    if (myid==0) cout << "Making the EOF . . . " << flush;
-    ortho.make_eof();
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done" << endl;
-    
-    //------------------------------------------------------------ 
-    
-    if (myid==0) cout << "Making disk coefficients . . . " << flush;
-    ortho.make_coefficients();
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done" << endl;
-    
-    //------------------------------------------------------------ 
+    Vector cos1(0, nmax-1), sin1(0, nmax-1);
+    bool first = true;
+
+    for (int j=0; j<nmax; j++) in >> cos1[j];
+    if (M) {
+      for (int j=0; j<nmax; j++) in >> sin1[j];
+    }
+
+    ortho.set_coefs(M, cos1, sin1, cnt==0);
+
+    outfiles.push_back(write_output(ortho, cnt, time) + ".vtr");
+
+    cnt++;
+
+    in >> time;
   }
-
-
-  for (int indx=beg; indx<=end; indx+=stride) {
-
-    // ==================================================
-    // PSP input stream
-    // ==================================================
-
-    iok = 1;
-    if (myid==0) {
-      s1.str("");		// Clear
-      s1 << "OUT." << runtag << "."
-	 << std::setw(5) << std::setfill('0') << indx;
-      
-      in1.close();		// Make sure previous file is closed
-      in1.open(s1.str());	// Now, try to open a new one . . . 
-      if (!in1) {
-	cerr << "Error opening <" << s1.str() << ">" << endl;
-	iok = 0;
-      }
-    }
-    
-    MPI_Bcast(&iok, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    if (iok==0) break;
-    
-    // ==================================================
-    // Open frame list
-    // ==================================================
-    
-    psp = PSPDumpPtr(new PSPDump (&in1, true));
-
-    Dump *dump = psp->GetDump();
-    
-    dump = psp->CurrentDump();
-    
-    int icnt = 0;
-    
-    //------------------------------------------------------------ 
-
-    if (myid==0) {
-      tnow = dump->header.time;
-      cout << "Beginning disk partition [time=" << tnow
-	   << ", index=" << indx << "] . . . "  << flush;
-      times.push_back(tnow);
-      ostringstream filen;
-      filen << runtag << "_" << outid << "_surface."
-	    << std::setfill('0') << std::setw(5) << indx << ".vtr";
-      outfiles.push_back(filen.str());
-    }
-      
-    if (in1.rdstate() & ios::eofbit) {
-      in1.close();
-      in1.open(s1.str());
-    }
-      
-    histo.Reset();		// Reset surface histogram
-
-    partition(&in1, psp, partc, particles, histo);
-    if (myid==0) cout << "done" << endl;
-    
-    //------------------------------------------------------------ 
-
-    if (myid==0) cout << "Accumulating particle positions . . . " << flush;
-    ortho.accumulate(particles, 0, true);
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done" << endl;
-      
-    //------------------------------------------------------------ 
-      
-    if (myid==0) cout << "Making disk coefficients . . . " << flush;
-    ortho.make_coefficients();
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done" << endl;
-      
-    //------------------------------------------------------------ 
-      
-    if (myid==0) cout << "Writing output . . . " << flush;
-    write_output(ortho, indx, dump->header.time, histo);
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done" << endl;
-    
-    //------------------------------------------------------------ 
-    
-  } // Dump loop
 
   // Create PVD file
   //

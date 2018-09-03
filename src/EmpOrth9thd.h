@@ -135,7 +135,7 @@ private:
 
   Vector* hold;
 
-  vector<short> coefs_made;
+  std::vector<short> coefs_made;
   bool eof_made;
 
   SphModTblPtr make_sl();
@@ -232,6 +232,13 @@ private:
   void bomb(string oops);
 
   pthread_mutex_t used_lock;
+
+  //! Thread body for coef accumulation
+  void accumulate_thread_call(int id, std::vector<Particle>* p, int mlevel, bool verbose);
+
+  //! Thread body for eof accumulation
+  void accumulate_eof_thread_call(int id, std::vector<Particle>* p, bool verbose);
+
 
 public:
 
@@ -404,8 +411,16 @@ public:
   //! Accumulate coefficients from particle distribution
   void accumulate(vector<Particle>& p, int mlev=0, bool verbose=false);
 
+  //! Accumulate coefficients from particle distribution by thread.
+  //! Used by external appliations.
+  void accumulate_thread(vector<Particle>& p, int mlev=0, bool verbose=false);
+
   //! Make EOF from particle distribution
   void accumulate_eof(vector<Particle>& p, bool verbose=false);
+
+  //! Make EOF from particle distribution by thread.  Used by external
+  //! applications.
+  void accumulate_eof_thread(vector<Particle>& p, bool verbose=false);
 
   //! Add single particle to coefficients
   void accumulate(double r, double z, double phi, double mass,
@@ -448,11 +463,14 @@ public:
   //! Print debug info
   void multistep_debug();
 
-  //! Dump out coefficients to stream
-  void dump_coefs(ostream& out);
+  //! Set coefficients from input stream
+  void set_coefs(int mm, const Vector& cos1, const Vector& sin1, bool zero);
+
+  //! Dump out coefficients to output stream
+  void dump_coefs(std::ostream& out);
 
   //! Dump out coefficients to stream in bianry format
-  void dump_coefs_binary(ostream& out, double time);
+  void dump_coefs_binary(std::ostream& out, double time);
 
   //! Plot basis
   void dump_basis(const string& name, int step, double Rmax=-1.0);

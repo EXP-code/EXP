@@ -24,7 +24,7 @@
 #include <NVTX.H>
 
 static Timer timer_coef(true), timer_drift(true), timer_vel(true);
-static Timer timer_pot (true), timer_adj  (true);
+static Timer timer_pot (true), timer_adj  (true), timer_tot(true);
 
 static unsigned tskip = 1;
 static bool timing = false;
@@ -67,6 +67,8 @@ void do_step(int n)
   comp->multistep_reset();
 
   check_bad("before multistep");
+
+  if (timing) timer_tot.start();
 
   if (multistep) {
     
@@ -238,6 +240,8 @@ void do_step(int n)
     if (timing) timer_vel.stop();
   }
 
+  if (timing) timer_tot.stop();
+
 				// Write output
   nvTracerPtr tPtr;
   if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
@@ -269,7 +273,9 @@ void do_step(int n)
 		  << std::setw(18) << timer_coef.getTime()() << std::endl
 		  << std::setw(20) << "Adjust: "
 		  << std::setw(18) << timer_adj.getTime()() << std::endl;
-      std::cout << std::setw(70) << std::setfill('-') << '-' << std::endl
+      std::cout << std::setw(20) << "Total: "
+		<< std::setw(18) << timer_tot.getTime()() << std::endl
+		<< std::setw(70) << std::setfill('-') << '-' << std::endl
 		<< std::setfill(' ');
     }
 

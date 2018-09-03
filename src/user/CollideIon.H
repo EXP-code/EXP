@@ -486,12 +486,22 @@ private:
   typedef Icont<std::map, speciesKey, double>        keyWghts;
   typedef std::pair< std::array<double, 3>,
 		     std::array<double, 3> >         CVels;
-  typedef std::tuple<double, CEvector, CFreturn>     XStup;
-  typedef std::map<NTC::Interact::T, XStup>          InterXS;
+
+  struct XStup {
+    NTC::Interact::T t;
+    double           crs;
+    CEvector         CE;
+    CFreturn         CF;
+
+    XStup() {}
+    XStup(const NTC::Interact::T& t) : t(t) {}
+  };
+
+  typedef std::vector<XStup>                         InterXS;
   typedef std::array<double, 4>                      CellMom;
   typedef std::array<double, 3>                      ChProb;
   typedef std::map<lQ, std::array<double, 4> >       phStatMap;
-  typedef std::tuple<unsigned, double, double>       AvgRpt;
+  typedef std::array<double, 4>                      AvgRpt;
 
   std::vector< std::vector<dKey>   >                 kInter;
   std::vector< std::vector<double> >                 dCross;
@@ -511,7 +521,7 @@ private:
   std::vector< double >                              meanE, neutF, meanR, meanM, cellM;
  std::vector< double >                              numIf, numEf, numQ2, colSc, elecDen, elecDn2, numIf0, numEf0, colCf;
   std::vector< double >                              kEi, kEe1, kEe2, kEee, clrE, misE, dfrE, updE;
-  std::vector< double >                              kE1s, kE2s, Ein1, Ein2, Evel, nselRat, Evel2, Ivel2;
+  std::vector< double >                              kE1s, kE2s, Ein1, Ein2, Evel, nselRat, Evel2, Ivel2, Eelc, Eion;
   std::vector< double >                              spCrm, spTau, spProb, spEdel, spEmax, spFtau;
   std::vector< double >                              molP1, molP2, etaP1, etaP2;
   std::vector< double >                              rhoSigV, rhoSigN, spNsel, elecRat;
@@ -1243,15 +1253,15 @@ protected:
   typedef std::map<speciesKey, int> spMap;
   typedef spMap::iterator spItr;
   void printSpeciesElectrons(std::map<speciesKey, unsigned long>& spec,
-			     const std::array<double, 2>& temp);
+			     const std::array<double, 4>& temp);
   void printSpeciesTrace();
   void printSpeciesColl();
   void gatherSpecies();
 
   typedef std::map<speciesKey, double> spDMap;
   typedef spDMap::iterator spDItr;
-  double tempE, massE, elecE, molwM, consE, consG, totlE, dispE;
-  std::array<double, 2> tM;
+  double molwM, consE, consG, dispE;
+  std::array<double, 4> tM;
   spDMap specM;
 
   typedef std::tuple<double, double> DTup;
@@ -1433,6 +1443,11 @@ protected:
   (PordPtr pp, KE_& KE,
    std::vector<double>* V1, std::vector<double>* V2, int id);
 
+  //! Compute the interaction for the trace method using the mean-mass algorithm
+  void scatterTraceMM
+  (PordPtr pp, KE_& KE,
+   std::vector<double>* v1, std::vector<double>* v2, int id);
+
   //! For photoionization ion-electron recoil
   void scatterPhotoTrace(Particle* p, lQ Q, double Pr, double dE);
 
@@ -1487,6 +1502,7 @@ public:
   static bool     NoExact;
   static bool     AlgOrth;
   static bool     AlgWght;
+  static bool     MeanMass;
   static bool     DebugE;
   static bool     collLim;
   static bool     collCor;
@@ -1515,8 +1531,8 @@ public:
   void Debug(double t);
 
   //! Print out species counts
-  virtual void printSpecies(std::map<speciesKey, unsigned long>& spec,
-			    double T);
+  virtual void printSpecies(std::map<speciesKey, unsigned long>& spec, double T);
+
   //@{
   //! Gather and print collision statistics
   virtual void printCollGather()  { collD->gather(); }

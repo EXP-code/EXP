@@ -82,7 +82,7 @@ program_option init[] = {
   {"NORDER",		"int",		"4",		"Number of basis functions per azimuthal harmonic"},
   {"OUTR",		"int",		"40",		"Number of radial points for output"},
   {"OUTZ",		"int",		"40",		"Number of vertical points for output"},
-  {"SURFACE",		"bool",		"true",		"Make equitorial and vertical slices"},
+  {"SURFACE",		"bool",		"true",		"Make equatorial and vertical slices"},
   {"VOLUME",		"bool",		"false",	"Make volume for VTK"},
   {"AXIHGT",		"bool",		"false",	"Compute midplane height profiles"},
   {"VHEIGHT",		"bool",		"false",	"Compute height profiles"},

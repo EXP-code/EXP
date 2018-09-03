@@ -7,6 +7,7 @@
 
 #include <interp.h>
 #include <Timer.h>
+#include <thread>
 #include "exp_thread.h"
 
 #ifndef STANDALONE
@@ -2159,6 +2160,55 @@ void EmpCylSL::accumulate_eof(vector<Particle>& part, bool verbose)
 }
   
 
+void EmpCylSL::accumulate_eof_thread(vector<Particle>& part, bool verbose)
+{
+  setup_eof();
+
+  std::thread t[nthrds];
+ 
+  // Launch the threads
+  for (int id=0; id<nthrds; ++id) {
+    t[id] = std::thread(&EmpCylSL::accumulate_eof_thread_call, this, id, &part, verbose);
+  }
+  // Join the threads
+  for (int id=0; id<nthrds; ++id) {
+    t[id].join();
+  }
+}
+
+
+void EmpCylSL::accumulate_eof_thread_call(int id, std::vector<Particle>* p, bool verbose)
+{
+  int nbodies = p->size();
+    
+  if (nbodies == 0) return;
+
+  int nbeg = nbodies*id/nthrds;
+  int nend = nbodies*(id+1)/nthrds;
+
+  double r, phi, z, mass;
+
+  int ncnt=0;
+  if (myid==0 && id==0 && verbose) cout << endl;
+  
+  for (int n=nbeg; n<nend; n++) {
+				// Phase space coords
+    mass = (*p)[n].mass;
+    r    = sqrt((*p)[n].pos[0]*(*p)[n].pos[0] + (*p)[n].pos[1]*(*p)[n].pos[1]);
+    phi  = atan2((*p)[n].pos[1], (*p)[n].pos[0]);
+    z    = (*p)[n].pos[2];
+				// Call accumulation for this particle
+    accumulate_eof(r, z, phi, mass, id, (*p)[n].level);
+
+    if (myid==0 && id==0 && verbose) {
+      if ( (ncnt % 100) == 0) cout << "\r>> " << ncnt << " <<" << flush;
+      ncnt++;
+    }
+  }
+
+}
+  
+
 void EmpCylSL::accumulate(vector<Particle>& part, int mlevel, bool verbose)
 {
    double r, phi, z, mass;
@@ -2170,14 +2220,64 @@ void EmpCylSL::accumulate(vector<Particle>& part, int mlevel, bool verbose)
 
   for (auto p=part.begin(); p!=part.end(); p++) {
 
-    mass = p->mass;
-    r = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
-    phi = atan2(p->pos[1], p->pos[0]);
-    z = p->pos[2];
+    double mass = p->mass;
+    double r    = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+    double phi  = atan2(p->pos[1], p->pos[0]);
+    double z    = p->pos[2];
     
     accumulate(r, z, phi, mass, p->indx, 0, mlevel);
 
     if (myid==0 && verbose) {
+      if ( (ncnt % 100) == 0) cout << "\r>> " << ncnt << " <<" << flush;
+      ncnt++;
+    }
+  }
+
+}
+  
+
+void EmpCylSL::accumulate_thread(vector<Particle>& part, int mlevel, bool verbose)
+{
+  setup_accumulation();
+
+  std::thread t[nthrds];
+ 
+  // Launch the threads
+  //
+  for (int id=0; id<nthrds; ++id) {
+    t[id] = std::thread(&EmpCylSL::accumulate_thread_call, this, id, &part, mlevel, verbose);
+  }
+
+  // Join the threads
+  //
+  for (int id=0; id<nthrds; ++id) {
+    t[id].join();
+  }
+}
+
+
+void EmpCylSL::accumulate_thread_call(int id, std::vector<Particle>* p, int mlevel, bool verbose)
+{
+  int nbodies = p->size();
+    
+  if (nbodies == 0) return;
+
+  int nbeg = nbodies*id/nthrds;
+  int nend = nbodies*(id+1)/nthrds;
+
+  int ncnt=0;
+  if (myid==0 && id==0 && verbose) cout << endl;
+
+  for (int n=nbeg; n<nend; n++) {
+    
+    double mass = (*p)[n].mass;
+    double r    = sqrt((*p)[n].pos[0]*(*p)[n].pos[0] + (*p)[n].pos[1]*(*p)[n].pos[1]);
+    double phi  = atan2((*p)[n].pos[1], (*p)[n].pos[0]);
+    double z    = (*p)[n].pos[2];
+    
+    accumulate(r, z, phi, mass, (*p)[n].indx, id, mlevel);
+
+    if (myid==0 && id==0 && verbose) {
       if ( (ncnt % 100) == 0) cout << "\r>> " << ncnt << " <<" << flush;
       ncnt++;
     }
@@ -2804,6 +2904,7 @@ void EmpCylSL::pca_hall(void)
     for (int nn=1; nn<=rank3; nn++) cumlJK[nn] /= cumlJK[rank3];
 
     // SNR vector
+    //
     Vector snrval(cumlJK.getlow(), cumlJK.gethigh());
 
     // Compute Hall coefficients
@@ -2826,6 +2927,7 @@ void EmpCylSL::pca_hall(void)
 			    << setw(18) << pb->S[mm]->b_Hall[nn+1] << std::endl;
 
       // Apply?
+      //
       if (tk_type == Hall) {
 	for (unsigned M=0; M<=multistep; M++) {
 	  accum_sinN[M][0][mm][nn] *= pb->S[mm]->b_Hall[nn+1];
@@ -3353,6 +3455,28 @@ void EmpCylSL::dump_coefs(ostream& out)
       out << endl;
     }
 
+  }
+}
+
+void EmpCylSL::set_coefs(int m1,
+			 const Vector& cos1, const Vector& sin1, bool zero1)
+{
+  // Zero the coefficients
+  //
+  if (zero1) {
+    for (int mm=0; mm<=MMAX; mm++) accum_cos[mm].zero();
+    for (int mm=1; mm<=MMAX; mm++) accum_sin[mm].zero();
+
+    coefs_made = vector<short>(multistep+1, true);
+  }
+
+  int nmin = std::min<int>(rank3, cos1.getlength());
+  if (m1 <= MMAX) {
+    for (int j=0; j<nmin; j++) accum_cos[m1][j] = cos1[j];
+    if (m1) {
+      nmin = std::min<int>(rank3, sin1.getlength());
+      for (int j=0; j<nmin; j++) accum_sin[m1][j] = sin1[j];
+    }
   }
 }
 
