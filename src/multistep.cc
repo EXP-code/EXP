@@ -248,10 +248,19 @@ void adjust_multistep_level(bool all)
   // if (mstep!=0) return;
   // END DEBUGGING
 
+  // Begin diagnostic timing
+  std::chrono::high_resolution_clock::time_point start, finish;
+
+  start = std::chrono::high_resolution_clock::now();
+
   //
   // Begin the update
   //
   for (auto c : comp->components) c->force->multistep_update_begin();
+
+  finish = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> update_t = finish - start;
+  start = finish;
 
   //
   // Preliminary data structure and thread creation
@@ -439,6 +448,9 @@ void adjust_multistep_level(bool all)
     }
 
     
+    finish = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> collate_t = finish - start;
+
     if (myid==0) {
       
       if (VERBOSE>3 and atim1>0) {
@@ -448,6 +460,8 @@ void adjust_multistep_level(bool all)
 		  << std::left << "--- Coefficient adjust stats"  << std::endl << std::fixed
 		  << std::left << "--- Coef/DT = " << 100.0*atim2/atim1   << "%" << std::endl
 		  << std::left << "--- Adj/Tot = " << 100.0*numadj/numtot << "%" << std::endl
+		  << std::left << "--- Update  = " << update_t.count()    << "sec" << std::endl
+		  << std::left << "--- Colate  = " << collate_t.count()    << "sec" << std::endl
 		  << std::setw(70) << std::setfill('-') << '-' << std::endl << std::setfill(' ');
 	std::cout.precision(pc);
       }

@@ -326,6 +326,7 @@ void do_step(int n)
     timer_vel  .reset();
     timer_pot  .reset();
     timer_adj  .reset();
+    timer_tot  .reset();
   }
 
 #ifdef USE_GPTL
