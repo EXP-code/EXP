@@ -172,10 +172,11 @@ void do_step(int n)
       if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Adjust multistep"));
       if (timing) timer_adj.start();
       adjust_multistep_level(false);
+      if (timing) timer_adj.stop();
+
       if (mstep==0) { // Print the level lists
 	comp->print_level_lists(tlast);
       }
-      if (timing) timer_adj.stop();
 
       check_bad("after multistep advance");
 
