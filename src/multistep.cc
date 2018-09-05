@@ -206,7 +206,7 @@ void * adjust_multistep_level_thread(void *ptr)
       start1 = std::chrono::high_resolution_clock::now();
       c->force->multistep_update(plev, nlev, c, n, id);
       finish1 = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double> duration = finish1 - start1;
+      std::chrono::duration<double, std::micro> duration = finish1 - start1;
       adjtm2[id] += duration.count();
       p->level = lev;
       numsw[id]++;
@@ -233,7 +233,7 @@ void * adjust_multistep_level_thread(void *ptr)
   }
   
   finish0 = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> duration = finish0 - start0;
+  std::chrono::duration<double, std::micro> duration = finish0 - start0;
   adjtm1[id] += duration.count();
 
   return (NULL);
@@ -257,10 +257,6 @@ void adjust_multistep_level(bool all)
   // Begin the update
   //
   for (auto c : comp->components) c->force->multistep_update_begin();
-
-  finish = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> update_t = finish - start;
-  start = finish;
 
   //
   // Preliminary data structure and thread creation
@@ -401,6 +397,10 @@ void adjust_multistep_level(bool all)
   }
 
 
+  finish = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double, std::micro> update_t = finish - start;
+  start =  std::chrono::high_resolution_clock::now();
+
   //
   // Diagnostic output
   //
@@ -449,7 +449,7 @@ void adjust_multistep_level(bool all)
 
     
     finish = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> collate_t = finish - start;
+    std::chrono::duration<double, std::micro> collate_t = finish - start;
 
     if (myid==0) {
       
@@ -459,9 +459,9 @@ void adjust_multistep_level(bool all)
 		  << std::setw(70) << std::setfill('-') << '-' << std::endl << std::setfill(' ')
 		  << std::left << "--- Coefficient adjust stats"  << std::endl << std::fixed
 		  << std::left << "--- Coef/DT = " << 100.0*atim2/atim1   << "%" << std::endl
-		  << std::left << "--- Adj/Tot = " << 100.0*numadj/numtot << "%" << std::endl
-		  << std::left << "--- Update  = " << update_t.count()    << "sec" << std::endl
-		  << std::left << "--- Colate  = " << collate_t.count()    << "sec" << std::endl
+		  << std::left << "--- Adj/Tot = " << 100.0*numadj/numtot << "%" << std::endl << std::scientific
+		  << std::left << "--- Update  = " << std::setprecision(4) << update_t.count() *1.0e-6 << " sec" << std::endl
+		  << std::left << "--- Collate = " << std::setprecision(4) << collate_t.count()*1.0e-6 << " sec" << std::endl
 		  << std::setw(70) << std::setfill('-') << '-' << std::endl << std::setfill(' ');
 	std::cout.precision(pc);
       }
