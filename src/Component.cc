@@ -114,8 +114,6 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 
   reset_level_lists();
 
-  time_so_far.Microseconds();
-
   tree = 0;
 
   pbuf.resize(PFbufsz);

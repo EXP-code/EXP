@@ -1614,7 +1614,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	     << setw(4) << qr
 	     << setw(4) << qt
 	     << setw(4) << qp << " Secs="
-	     << timer.getTime().getTotalTime() << flush;
+	     << timer.getTime() << flush;
 
       } // *** phi quadrature loop
 
@@ -1623,7 +1623,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   } // *** r quadrature loop
   
   if (VFLAG & 16) {
-    long t = timer.stop().getTotalTime();
+    auto t = timer.stop();
     if (myid==0) cout << endl;
     MPI_Barrier(MPI_COMM_WORLD);
     cout << "Process " << setw(4) << myid << ": completed quadrature in " 
@@ -1640,7 +1640,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
   if (VFLAG & 16) {
     cout << "Process " << setw(4) << myid << ": completed basis in " 
-	 << timer.stop().getTotalTime() << " seconds"
+	 << timer.stop() << " seconds"
 	 << endl;
   }
 
@@ -2018,7 +2018,7 @@ void EmpCylSL::make_eof(void)
 	if (VFLAG & 16) {
 	  cout << "Process " << setw(4) << myid 
 	       << ": completed eigenproblem in " 
-	       << timer.stop().getTotalTime() << " seconds"
+	       << timer.stop() << " seconds"
 	       << endl;
 	}
 
@@ -2065,7 +2065,7 @@ void EmpCylSL::make_eof(void)
 	if (VFLAG & 16) {
 	  cout << "Process " << setw(4) << myid 
 	       << ": completed eigenproblem in " 
-	       << timer.stop().getTotalTime() << " seconds"
+	       << timer.stop() << " seconds"
 	       << endl;
 	}
       }
@@ -2085,7 +2085,7 @@ void EmpCylSL::make_eof(void)
       if (VFLAG & 16) {
 	cout << "Process " << setw(4) << myid << ": completed EOF grid for id="
 	     << request_id << " and M=" << M << " in " 
-	     << timer.stop().getTotalTime() << " seconds"
+	     << timer.stop() << " seconds"
 	     << endl;
       }
       else if (VFLAG & 2)
@@ -2111,7 +2111,7 @@ void EmpCylSL::make_eof(void)
 
   if (VFLAG & 16) {
     cout << "Process " << setw(4) << myid << ": grid reduced in " 
-	 << timer.stop().getTotalTime() << " seconds"
+	 << timer.stop()  << " seconds"
 	 << endl;
   } 
   else if (VFLAG & 2)

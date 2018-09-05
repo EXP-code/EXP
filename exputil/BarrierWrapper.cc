@@ -51,7 +51,6 @@ BarrierWrapper::BarrierWrapper(MPI_Comm communicator, bool label)
   bufferT     = 0;
   if (localid==0) 
     bufferT   = new char [cbufsz*commsize];
-  timer.Microseconds();
   onoff       = true;
   nrecv       = 0;
   queued      = 0;
@@ -69,7 +68,6 @@ BarrierWrapper::BarrierWrapper(const BarrierWrapper &p)
   bufferT     = 0;
   if (localid==0) 
     bufferT   = new char [cbufsz*commsize];
-  timer.Microseconds();
   nrecv       = 0;
   queued      = 0;
 }

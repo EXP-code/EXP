@@ -154,7 +154,7 @@ void OutFrac::Run(int n, bool last)
 
   MPI_Status status;
 
-  Timer timer(true);
+  Timer timer;
 
   if (myid==0) timer.start();
 
@@ -232,7 +232,7 @@ void OutFrac::Run(int n, bool last)
 
       out << setw(18) << rtot[indx];
     }
-    out << setw(18) << timer.stop().getRealTime();
+    out << setw(18) << timer.stop();
     out << endl;
   }
 

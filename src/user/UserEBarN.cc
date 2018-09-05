@@ -5,7 +5,7 @@
 #include <localmpi.h>
 #include <UserEBarN.H>
 #include <Timer.h>
-static Timer timer_tot(true), timer_thrd(true);
+static Timer timer_tot, timer_thrd;
 static bool timing = false;
 
 UserEBarN::UserEBarN(string &line) : ExternalForce(line)
@@ -855,9 +855,9 @@ void UserEBarN::determine_acceleration_and_potential(void)
   if (timing) {
     timer_tot.stop();
     cout << setw(20) << "Bar total: "
-	 << setw(18) << timer_tot.getTime()() << endl
+	 << setw(18) << timer_tot.getTime()  << endl
 	 << setw(20) << "Bar threads: "
-	 << setw(18) << timer_thrd.getTime()() << endl;
+	 << setw(18) << timer_thrd.getTime() << endl;
     timer_tot.reset();
     timer_thrd.reset();
   }

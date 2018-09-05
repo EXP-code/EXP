@@ -23,8 +23,8 @@
 
 #include <NVTX.H>
 
-static Timer timer_coef(true), timer_drift(true), timer_vel(true);
-static Timer timer_pot (true), timer_adj  (true), timer_tot(true);
+static Timer timer_coef, timer_drift, timer_vel;
+static Timer timer_pot , timer_adj  , timer_tot;
 
 static unsigned tskip = 1;
 static bool timing = false;
@@ -263,18 +263,18 @@ void do_step(int n)
 		<< std::setw(70) << std::setfill('-') << '-' << std::endl
 		<< std::setfill(' ') << std::right
 		<< std::setw(20) << "Drift: "
-		<< std::setw(18) << timer_drift.getTime()() << std::endl
+		<< std::setw(18) << timer_drift.getTime() << std::endl
 		<< std::setw(20) << "Velocity: "
-		<< std::setw(18) << timer_vel.getTime()() << std::endl
+		<< std::setw(18) << timer_vel.getTime() << std::endl
 		<< std::setw(20) << "Force: "
-		<< std::setw(18) << timer_pot.getTime()() << std::endl;
+		<< std::setw(18) << timer_pot.getTime() << std::endl;
       if (multistep)
 	std::cout << std::setw(20) << "Coefs: "
-		  << std::setw(18) << timer_coef.getTime()() << std::endl
+		  << std::setw(18) << timer_coef.getTime() << std::endl
 		  << std::setw(20) << "Adjust: "
-		  << std::setw(18) << timer_adj.getTime()() << std::endl;
+		  << std::setw(18) << timer_adj.getTime() << std::endl;
       std::cout << std::setw(20) << "Total: "
-		<< std::setw(18) << timer_tot.getTime()() << std::endl
+		<< std::setw(18) << timer_tot.getTime() << std::endl
 		<< std::setw(70) << std::setfill('-') << '-' << std::endl
 		<< std::setfill(' ');
     }

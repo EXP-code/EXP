@@ -77,7 +77,7 @@ UserDSMC::UserDSMC(string &line) : ExternalForce(line)
   gen = new ACG(seed+myid);
   unif = new Uniform(0.0, 1.0, gen);
 #ifdef TIMER
-  timer = new Timer(true);
+  timer = new Timer;
 #endif
 
 }
@@ -476,9 +476,7 @@ void UserDSMC::determine_acceleration_and_potential(void)
   if (debug) {
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) {
-      TimeElapsed stime = timer->stop();
-
-      cout << "Grid constructed in " << stime() << " seconds" << endl;
+      std::cout << "Grid constructed in " << timer->stop() << " seconds" << std::endl;
 
       timer->reset();
       timer->start();
@@ -492,9 +490,7 @@ void UserDSMC::determine_acceleration_and_potential(void)
   if (debug) {
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) {
-      TimeElapsed stime = timer->stop();
-
-      cout << "Sort completed in " << stime() << " seconds" << endl;
+      std::cout << "Sort completed in " << timer->stop() << " seconds" << std::endl;
       timer->reset();
       timer->start();
     }
@@ -507,9 +503,7 @@ void UserDSMC::determine_acceleration_and_potential(void)
   if (debug) {
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) {
-      TimeElapsed stime = timer->stop();
-
-      cout << "Collisions completed in " << stime() << " seconds" << endl;
+      std::cout << "Collisions completed in " << timer->stop() << " seconds" << std::endl;
     }
   }
 #endif

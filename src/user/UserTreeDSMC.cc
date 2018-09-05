@@ -480,23 +480,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   ElostTotCollide = ElostTotEPSM = 0.0;
   
   //
-  // Timers: set precision to microseconds
-  //
-  
-  partnTime.Microseconds();
-  tree1Time.Microseconds();
-  tradjTime.Microseconds();
-  tcellTime.Microseconds();
-  tstepTime.Microseconds();
-  llistTime.Microseconds();
-  clldeTime.Microseconds();
-  clldeWait.Microseconds();
-  partnWait.Microseconds();
-  tree1Wait.Microseconds();
-  tree2Wait.Microseconds();
-  timerDiag.Microseconds();
-  
-  //
   // Quantiles for distribution diagnstic
   //
   quant.push_back(0.0);		// 0
@@ -1254,7 +1237,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     
     const unsigned nf = 12;
     const unsigned nt = pHOT::ntile+2;
-    if (tt.size() != nf) tt = vector<TimeElapsed>(nf);
+    if (tt.size() != nf) tt = vector<double>(nf);
     vector<double> in(nf), IN(nf);
     vector< vector<double> > out(nt), OUT(nt);
     for (unsigned i=0; i<nt; i++) {
@@ -1262,18 +1245,18 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       if (mlevel==0) OUT[i] = vector<double>(nf);
     }
     
-    in[ 0] = partnSoFar();
-    in[ 1] = tree1SoFar();
-    in[ 2] = tradjSoFar();
-    in[ 3] = tcellSoFar();
-    in[ 4] = tstepSoFar();
-    in[ 5] = llistTime.getTime()();
-    in[ 6] = collideSoFar();
-    in[ 7] = timerSoFar();
-    in[ 8] = waitpSoFar();
-    in[ 9] = waitcSoFar();
-    in[10] = wait1SoFar();
-    in[11] = wait2SoFar();
+    in[ 0] = partnSoFar;
+    in[ 1] = tree1SoFar;
+    in[ 2] = tradjSoFar;
+    in[ 3] = tcellSoFar;
+    in[ 4] = tstepSoFar;
+    in[ 5] = llistTime.getTime();
+    in[ 6] = collideSoFar;
+    in[ 7] = timerSoFar;
+    in[ 8] = waitpSoFar;
+    in[ 9] = waitcSoFar;
+    in[10] = wait1SoFar;
+    in[11] = wait2SoFar;
     
     tt[ 0] = partnSoFar;
     tt[ 1] = tree1SoFar;
@@ -1290,8 +1273,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     
     if (mlevel==0) {
       for (unsigned k=0; k<nf; k++) {
-	IN[k] = tt[k]();
-	tt[k].zero();
+	IN[k] = tt[k];
+	tt[k] = 0.0;
       }
     }
     
@@ -1740,17 +1723,17 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     //
     // Zero the elapsed time counters
     //
-    partnSoFar.zero();
-    tree1SoFar.zero();
-    tradjSoFar.zero();
-    tcellSoFar.zero();
-    tstepSoFar.zero();
-    collideSoFar.zero();
-    timerSoFar.zero();
-    waitpSoFar.zero();
-    waitcSoFar.zero();
-    wait1SoFar.zero();
-    wait2SoFar.zero();
+    partnSoFar   = 0.0;
+    tree1SoFar   = 0.0;
+    tradjSoFar   = 0.0;
+    tcellSoFar   = 0.0;
+    tstepSoFar   = 0.0;
+    collideSoFar = 0.0;
+    timerSoFar   = 0.0;
+    waitpSoFar   = 0.0;
+    waitcSoFar   = 0.0;
+    wait1SoFar   = 0.0;
+    wait2SoFar   = 0.0;
 
 #ifdef USE_GPTL
     GPTLstop("UserTreeDSMC::collide_diag");

@@ -11,7 +11,7 @@ using namespace std;
 #include <MixtureBasis.H>
 #include <Timer.h>
 
-Timer timer_debug(true);
+Timer timer_debug;
 
 double EXPSCALE=1.0, HSCALE=1.0, ASHIFT=0.25;
 

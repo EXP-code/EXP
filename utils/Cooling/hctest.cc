@@ -196,8 +196,8 @@ int main(int argc, char** argv)
   //=====================
   // Timing
   //=====================
-  Timer one(true), two(true);
-  TimeElapsed oneSoFar, twoSoFar;
+  Timer one, two;
+  double oneSoFar, twoSoFar;
   double tst;
 
   one.start();
@@ -220,8 +220,8 @@ int main(int argc, char** argv)
   }
   twoSoFar = two.stop();
 
-  cout << "Interpolate = " << oneSoFar.getTotalTime() << endl;
-  cout << "Computation = " << twoSoFar.getTotalTime() << endl;
+  cout << "Interpolate = " << oneSoFar << endl;
+  cout << "Computation = " << twoSoFar << endl;
 
   //=====================
   // Test accuracy

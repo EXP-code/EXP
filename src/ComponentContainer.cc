@@ -27,23 +27,6 @@ ComponentContainer::ComponentContainer(void)
   timing        = false;
   thread_timing = false;
   state         = NONE;
-
-  // Fine resolution for these timers (default resolution is 1 sec)
-  //
-  timer_posn.	Microseconds();
-  timer_gcom.	Microseconds();
-  timer_angmom.	Microseconds();
-  timer_zero.	Microseconds();
-  timer_accel.	Microseconds();
-  timer_thr_acc.Microseconds();
-  timer_thr_int.Microseconds();
-  timer_thr_ext.Microseconds();
-  timer_inter.	Microseconds();
-  timer_force.	Microseconds();
-  timer_expand.	Microseconds();
-  timer_fixp.	Microseconds();
-  timer_extrn.	Microseconds();
-  timer_wait.	Microseconds();
 }
 
 void ComponentContainer::initialize(void)
@@ -430,7 +413,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	for (auto other : inter->l) {
 	  ostringstream sout;
 	  sout << inter->c->name << " <=> " << other->name;
-	  timer_sntr.push_back( pair<string, Timer>(sout.str(), Timer(true)) );
+	  timer_sntr.push_back( pair<string, Timer>(sout.str(), Timer()) );
 	}
       }
     }
@@ -513,7 +496,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     if (external->force_list.size() != timer_sext.size()) {
       timer_sext.clear();	// Clear the list
       for (auto ext : external->force_list) {
-	timer_sext.push_back( pair<string, Timer>(ext->id, Timer(true)) );
+	timer_sext.push_back( pair<string, Timer>(ext->id, Timer()) );
       }
     }
   }
@@ -617,7 +600,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   GPTLstart("ComponentContainer::timing");
 #endif
 
-  if (timing && timer_clock.getTime().getRealTime()>tinterval) {
+  if (timing && timer_clock.getTime()>tinterval) {
     if (myid==0) {
       vector< pair<string, Timer> >::iterator itmr;
       ostringstream sout;
@@ -629,33 +612,33 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       
       if (multistep) {
 	cout << setw(20) << "COM: "
-	     << setw(18) << timer_gcom.getTime()() << endl
+	     << setw(18) << timer_gcom.getTime() << endl
 	     << setw(20) << "Position: "
-	     << setw(18) << timer_posn.getTime()() << endl
+	     << setw(18) << timer_posn.getTime() << endl
 	     << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	     << setfill(' ') << right
 	     << setw(20) << "*** " << setw(30) << left << "fix pos" << ": " 
-	     << setw(18) << timer_fixp.getTime()() << endl
+	     << setw(18) << timer_fixp.getTime() << endl
 	     << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	     << setfill(' ') << right
 	     << setw(20) << "Ang mom: "
-	     << setw(18) << timer_angmom.getTime()() << endl
+	     << setw(18) << timer_angmom.getTime() << endl
 	     << setw(20) << "Zero: "
-	     << setw(18) << timer_zero.getTime()() << endl
+	     << setw(18) << timer_zero.getTime()   << endl
 	     << setw(20) << "Accel: "
-	     << setw(18) << timer_accel.getTime()() << endl;
+	     << setw(18) << timer_accel.getTime()  << endl;
 
 	if (thread_timing)
 	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	       << setfill(' ') << right
 	       << setw(20) << "*** " << setw(30) << left << "threaded" << ": " 
 	       << right << setw(18) 
-	       << timer_thr_acc.getTime()() << endl
+	       << timer_thr_acc.getTime() << endl
 	       << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	       << setfill(' ') << right;
 
 	cout << setw(20) << "Interaction: "
-	     << setw(18) << timer_inter.getTime()() << endl;
+	     << setw(18) << timer_inter.getTime() << endl;
 
 	if (timer_sntr.size()) {
 	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
@@ -663,7 +646,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	  for (itmr=timer_sntr.begin(); itmr != timer_sntr.end(); itmr++) {
 	    cout << setw(20) << "*** " << setw(30) << left << itmr->first 
 		 << ": " << right
-		 << setw(18) << itmr->second.getTime()()
+		 << setw(18) << itmr->second.getTime()
 		 << endl;
 	  }
 	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
@@ -675,19 +658,19 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	       << setfill(' ') << right
 	       << setw(20) << "*** " << setw(30) << left << "threaded" << ": "
 	       << right << setw(18) 
-	       << timer_thr_int.getTime()() << endl
+	       << timer_thr_int.getTime() << endl
 	       << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	       << setfill(' ') << right;
 
 	cout << setw(20) << "External: "
-	     << setw(18) << timer_extrn.getTime()() << endl;
+	     << setw(18) << timer_extrn.getTime() << endl;
 
 	if (thread_timing)
 	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	       << setfill(' ') << right
 	       << setw(20) << "*** " << setw(30) << left << "threaded" << ": " 
 	       << right << setw(18) 
-	       << timer_thr_ext.getTime()() << endl
+	       << timer_thr_ext.getTime() << endl
 	       << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	       << setfill(' ') << right;
 
@@ -698,7 +681,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	  for (itmr = timer_sext.begin(); itmr != timer_sext.end(); itmr++) {
 	    cout << setw(20) << "*** " << setw(30) << left << itmr->first 
 		 << ": " << right
-		 << setw(18) << itmr->second.getTime()()
+		 << setw(18) << itmr->second.getTime()
 		 << endl;
 	  }
 	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
@@ -706,10 +689,10 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	}
 	  
 	cout << setw(20) << "Expand: "
-	     << setw(18) << timer_expand.getTime()() << endl;
+	     << setw(18) << timer_expand.getTime() << endl;
 
 	cout << setw(20) << "Force: "
-	     << setw(18) << timer_force.getTime()() << endl;
+	     << setw(18) << timer_force.getTime() << endl;
       }
 
       cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');

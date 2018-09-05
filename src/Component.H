@@ -797,7 +797,7 @@ public:
   Timer time_so_far;
 
   //! Time in potential/force computation so far
-  double get_time_sofar() { return 1.0e-6*time_so_far.getTime().getRealTime(); }
+  double get_time_sofar() { return time_so_far.getTime(); }
 
   //! Create a hashed octree for this component
   void HOTcreate(std::set<speciesKey> spec_list);

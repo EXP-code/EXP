@@ -54,7 +54,7 @@ exp_SOURCES = Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc	\
      OutLog.cc OutCoef.cc multistep.cc parse.cc Slab.cc SlabSL.cc	\
      step.cc sbessj.cc sbessz.cc tidalField.cc ultra.cc ultrasphere.cc	\
      MPL.cc zbrent.cc OutFrac.cc OutCalbr.cc ParticleFerry.cc pCell.cc	\
-     chkSlurm.c chkTimer.cc pHOT.cc Timer.cc VtkPCA.cc $(ADD_CUDA)
+     chkSlurm.c chkTimer.cc pHOT.cc VtkPCA.cc $(ADD_CUDA)
 
 
 bin_PROGRAMS = exp

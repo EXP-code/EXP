@@ -203,8 +203,7 @@ PotAccel::PotAccel(string& line)
   }
 
   if (VERBOSE>5) {
-    tv_list = vector<struct timeval>(nthrds);
-    timer_list = vector<double>(2*nthrds);
+    timer_list = vector<std::time_t>(2*nthrds);
   }
 }
 
@@ -283,24 +282,19 @@ void PotAccel::print_timings(const string& label)
 void PotAccel::thread_timing_beg(int id)
 {
   if (VERBOSE>5) {
-    gettimeofday(&tv_list[id], 0);
-    timer_list[2*id] = 
-      tv_list[id].tv_usec*1.0e-6 +
-      (tv_list[id].tv_sec % 1000);
+    
+    timer_list[2*id] = std::chrono::system_clock::to_time_t(std::chrono::high_resolution_clock::now());
   }
 }
 
 void PotAccel::thread_timing_end(int id)
 {
   if (VERBOSE>5) {
-    gettimeofday(&tv_list[id], 0);
-    timer_list[2*id+1] = 
-      tv_list[id].tv_usec*1.0e-6 +
-      (tv_list[id].tv_sec % 1000);
+    timer_list[2*id+1] = std::chrono::system_clock::to_time_t(std::chrono::high_resolution_clock::now());
   }
 }
 
-void PotAccel::print_timings(const string& label, vector<double>& tlist)
+void PotAccel::print_timings(const string& label, TList& tlist)
 {
   if (VERBOSE<=5) return;
 
