@@ -7,25 +7,26 @@
 #include <cstdlib>
 #include <chrono>
 
-//! This is a diagnostic timer (wraps up the POSIX time calls)
+//! This is a diagnostic stopwatch-like timer implemented using std::chrono
 class Timer
 {
 private:
 
   //@{
-  //! Time structures
+  //! Time structures (will initialize to zero by default)
   std::chrono::high_resolution_clock::time_point begin, end; 
   //@}
 
   //@{
-  //! the time counted so far
+  //! The time measured so far
   double rtime;
   //@}
   
-  //! indicate whether the timer has been started
+  //! Indicate whether the timer has been started
   bool started;
 
  public:
+
   //! Constructor
   Timer()
   {
@@ -42,7 +43,7 @@ private:
     started    = t.started;
   }
 
-  //! start timer, if already started then do nothing
+  //! Start timer, if already started then do nothing
   void start()
   {
     if (started) return;
@@ -50,7 +51,7 @@ private:
     begin   = std::chrono::high_resolution_clock::now();
   }
   
-  /** stop timer and return time measured so far.  if timer was
+  /** Stop timer and return time measured so far.  If timer was
       stopped the time returned will be 0. */
   double stop()
   {
@@ -64,16 +65,15 @@ private:
     return rtime;
   }
 
-  /** reset the timer, this will reset the time measured to 0 and will
+  /** Reset the timer, this will reset the time measured to 0 and will
       leave the timer in the same status (started or stopped). */
-  void reset()
-  {
-    rtime   = 0;
-    started = false;
-  }
+  void reset() { rtime = 0.0; }
 
-  //! return time measured up to this point.
+  //! Return time measured up to this point.
   double getTime() { return rtime; }
+  
+  //! Return time measured up to this point.
+  double operator()() { return rtime; }
   
   //! Return the status of the timer
   bool isStarted() { return started; }
