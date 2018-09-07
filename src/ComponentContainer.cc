@@ -76,20 +76,16 @@ void ComponentContainer::initialize(void)
       string resfile = outdir + infile;
       in = new ifstream(resfile.c_str());
       if (!*in) {
-	cerr << "ComponentContainer::initialize: could not open <"
-	     << resfile << ">\n";
-	MPI_Abort(MPI_COMM_WORLD, 5);
-	exit(0);
-
+	throw FileOpenError(resfile, __FILE__, __LINE__);
       }
 
       in->read((char *)&master, sizeof(MasterHeader));
       if (!*in) {
-	cerr << "ComponentContainer::initialize: "
+	std::ostringstream sout;
+	sout << "ComponentContainer::initialize: "
 	     << "could not read master header from <"
-	     << resfile << ">\n";
-	MPI_Abort(MPI_COMM_WORLD, 6);
-	exit(0);
+	     << resfile << ">";
+	throw GenericError(sout.str(), __FILE__, __LINE__);
       }
 
       cout << "Recovering from: "
@@ -131,10 +127,10 @@ void ComponentContainer::initialize(void)
       if (myid==0) {
 	ifstream desc(data.second.c_str());
 	if (!desc) {
-	  cerr << "ComponentContainer::initialize: could not open ps description file <"
-	       << data.second << ">\n";
-	  MPI_Abort(MPI_COMM_WORLD, 6);
-	  exit(0);
+	  std::ostringstream sout;
+	  sout << "ComponentContainer::initialize: could not open ps description file <"
+	       << data.second << ">";
+	  throw GenericError(sout.str(), __FILE__, __LINE__);
 	}
 	
 	desc.get(line, linesize, '\0');
@@ -998,9 +994,9 @@ void ComponentContainer::read_rates(void)
       for (int n=0; n<numprocs; n++) {
 	in >> rates[n];
 	if (!in) {
-	  cerr << "setup: error reading <" << ratefile << ">\n";
-	  MPI_Abort(MPI_COMM_WORLD, 33);
-	  exit(0);
+	  std::ostringstream sout;
+	  sout << "setup: error reading <" << ratefile << ">";
+	  throw GenericError(sout.str(), __FILE__, __LINE__);
 	}
 	norm += rates[n];
       }

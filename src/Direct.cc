@@ -78,9 +78,8 @@ void Direct::determine_acceleration_and_potential(void)
 {
 				// Make sure softening is defined if needed
   if (!fixed_soft && component->ndattrib<soft_indx+1) {
-    if (myid==0) cerr << "Direct: particle softening data missing\n";
-    MPI_Abort(MPI_COMM_WORLD, 103);
-    exit(0);
+    std::string msg("Direct: particle softening data missing");
+    throw GenericError(msg, __FILE__, __LINE__);
   }
 				// Determine size of largest nbody list
   ninteract = component->Number();

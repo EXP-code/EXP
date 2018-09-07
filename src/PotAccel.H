@@ -150,9 +150,6 @@ public:
   //! Kill a mutex
   void kill_mutex(pthread_mutex_t *m, const char *caller, const char *name);
 
-  //! Error
-  void bomb(const string& msg);
-
   //! Return umber of particles used on last coefficient evaluation
   int Used() { return used; }
 

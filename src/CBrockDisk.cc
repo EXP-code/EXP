@@ -30,20 +30,20 @@ CBrockDisk::CBrockDisk(string& line, MixtureBasis* m) :  AxisymmetricBasis(line)
   expcoef1.setsize(0, 2*Lmax+1, 1, nmax);
 
   expcoef0 = new Matrix [nthrds];
-  if (!expcoef0) bomb("problem allocating <expcoef0>");
+  if (!expcoef0) throw GenericError("problem allocating <expcoef0>", __FILE__, __LINE__);
 
   for (int i=0; i<nthrds; i++)
     expcoef0[i].setsize(0, Lmax*(Lmax+2), 1, nmax);
   
   if (pca) {
     cc = new Matrix [Lmax*(Lmax+2)+1];
-    if (!cc) bomb("problem allocating <cc>");
+    if (!cc) throw GenericError("problem allocating <cc>", __FILE__, __LINE__);
 
     for (int l=0; l<=Lmax*(Lmax+2); l++)
       cc[l].setsize(1, nmax, 1, nmax);
   
     cc1 = new Matrix [Lmax*(Lmax+2)+1];
-    if (!cc1) bomb("problem allocating <cc1>");
+    if (!cc1) throw GenericError("problem allocating <cc1>", __FILE__, __LINE__);
     
     for (int l=0; l<=Lmax*(Lmax+2); l++)
       cc1[l].setsize(1, nmax, 1, nmax);
@@ -58,10 +58,10 @@ CBrockDisk::CBrockDisk(string& line, MixtureBasis* m) :  AxisymmetricBasis(line)
   work .setsize(0, Lmax+1, 1, nmax);
   
   potd  = new Matrix [nthrds];
-  if (!potd) bomb("problem allocating <potd>");
+  if (!potd) throw GenericError("problem allocating <potd>", __FILE__, __LINE__);
 
   dpot  = new Matrix [nthrds];
-  if (!dpot) bomb("problem allocating <dpot>");
+  if (!dpot) throw GenericError("problem allocating <dpot>", __FILE__, __LINE__);
 
   for (int i=0; i<nthrds; i++) {
     potd[i].setsize(0, Lmax, 1, nmax);
@@ -71,8 +71,8 @@ CBrockDisk::CBrockDisk(string& line, MixtureBasis* m) :  AxisymmetricBasis(line)
 				// Work vectors
   u  = new Vector [nthrds];
   du = new Vector [nthrds];
-  if (!u)  bomb("problem allocating <u>");
-  if (!du) bomb("problem allocating <du>");
+  if (!u)  throw GenericError("problem allocating <u>",  __FILE__, __LINE__);
+  if (!du) throw GenericError("problem allocating <du>", __FILE__, __LINE__);
 
   for (int i=0; i<nthrds; i++) {
     u[i] .setsize(0, nmax);
@@ -89,10 +89,10 @@ CBrockDisk::CBrockDisk(string& line, MixtureBasis* m) :  AxisymmetricBasis(line)
   // Sin, cos
   
   cosm = new Vector [nthrds];
-  if (!cosm) bomb("problem allocating <cosm>");
+  if (!cosm) throw GenericError("problem allocating <cosm>", __FILE__, __LINE__);
 
   sinm = new Vector [nthrds];
-  if (!sinm) bomb("problem allocating <sinm>");
+  if (!sinm) throw GenericError("problem allocating <sinm>", __FILE__, __LINE__);
 
   for (int i=0; i<nthrds; i++) {
     cosm[i].setsize(0, Lmax);

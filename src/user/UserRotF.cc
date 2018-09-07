@@ -116,8 +116,8 @@ void UserRotF::userinfo()
   if (center == 2) 
     cout << " the EJ center";
   if ((center < 0) || (center > 2)) {
-    cout << "You need to choose a proper center (Origin, COM, EJ)" << endl;
-    exit(0);
+    throw GenericError("You need to choose a proper center (Origin, COM, EJ)",
+		       __FILE__, __LINE__);
   } 
   cout << " and R_rot is ";
   if (RROT_Flag > 0.0)  
@@ -192,19 +192,16 @@ void UserRotF::determine_acceleration_and_potential(void)
 	// Open new output stream for writing
 	ofstream out(curfile.c_str());
 	if (!out) {
-	  cout << "UserRotF: error opening new log file <"
-	       << curfile << "> for writing\n";
-	  MPI_Abort(MPI_COMM_WORLD, 121);
-	  exit(0);
+	  throw FileCreateError(curfile, "UserRotF: error opening new log file",
+			      __FILE__, __LINE__);
 	}
 
         // Open old file for reading
         ifstream in(backupfile.c_str());
         if (!in) {
-          cout << "UserRotF: error opening original log file <"
-               << backupfile << "> for reading\n";
-          MPI_Abort(MPI_COMM_WORLD, 122);
-          exit(0);
+	  throw FileCreateError(backupfile,
+				"UserRotF: error opening original log file",
+				__FILE__, __LINE__);
         }
 
         const int linesize = 1024;

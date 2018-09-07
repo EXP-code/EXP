@@ -456,9 +456,9 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   if (ctype.compare("Ion") == 0)
     collide = new CollideIon(this, c0, hsdiam, crossfac, spec_map, nthrds);
   else {
-    if (myid==0) std::cout << "No such Collide type: " << ctype 
-			   << std::endl;
-    exit(-1);
+    std::ostringstream sout;
+    sout << "No such Collide type: " << ctype;
+    throw GenericError(sout.str(), __FILE__, __LINE__);
   }
   
   //
@@ -645,26 +645,18 @@ void UserTreeDSMC::initialize()
   
   if (get_value("rrtype", val)) {
     if (Ion::setRRtype(val)) {
-      if (myid==0) {
-	std::cerr << "UserTreeDSMC: invalid rrtype <" << val << ">" 
-		  << std::endl;
-      }
-      MPI_Barrier(MPI_COMM_WORLD);
-      MPI_Finalize();
-      exit(-1);
+      std::ostringstream sout;
+      sout << "UserTreeDSMC: invalid rrtype <" << val << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
   }
   
   if (get_value("ctype", val)) {
     if (check_ctype(val)) ctype = val;
     else {
-      if (myid==0) {
-	std::cerr << "UserTreeDSMC: invalid ctype <" << ctype << ">" 
-		  << std::endl;
-      }
-      MPI_Barrier(MPI_COMM_WORLD);
-      MPI_Finalize();
-      exit(-1);
+      std::ostringstream sout;
+      sout << "UserTreeDSMC: invalid ctype <" << ctype << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
   }
   

@@ -106,10 +106,11 @@ void incr_velocity(double dt, int mlevel)
       errcode =  pthread_create(p, 0, incr_velocity_thread, &posvel_data[i]);
 
       if (errcode) {
-	cerr << "Process " << myid
+	std::ostringstream sout;
+	sout << "Process " << myid
 	     << " incr_velocity: cannot make thread " << i
-	     << ", errcode=" << errcode << endl;
-	exit(19);
+	     << ", errcode=" << errcode;
+	throw GenericError(sout.str(), __FILE__, __LINE__);
       }
 #ifdef DEBUG
       else {
@@ -124,10 +125,11 @@ void incr_velocity(double dt, int mlevel)
     for (int i=0; i<nthrds; i++) {
       pthread_t p = posvel_thrd[i];
       if ((errcode=pthread_join(p, &retval))) {
-	cerr << "Process " << myid
+	std::ostringstream sout;
+	sout << "Process " << myid
 	     << " incr_velocity: thread join " << i
-	     << " failed, errcode=" << errcode << endl;
-	exit(20);
+	     << " failed, errcode=" << errcode;
+	throw GenericError(sout.str(), __FILE__, __LINE__);
       }
 #ifdef DEBUG    
       cout << "Process " << myid << ": incr_velocity thread <" 

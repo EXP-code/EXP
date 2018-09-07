@@ -8,33 +8,54 @@ using namespace std;
 
 /** Defines an Error Handler base class EXPException to handle exceptions
  */
-class EXPException {
+class EXPException : public std::exception
+{
   public:
   //! Generic exception
   EXPException(string exceptionname, string message,
 	       string sourcefilename, int sourcelinenumber);
   //! Destructor.
   virtual ~EXPException();
+
   //! Returns an error message suitable for printing to the user.
-  string getErrorMessage();
-    
+  const string getErrorMessage() const;
+
+  virtual const char* what() const throw ()
+  {
+    return getErrorMessage().c_str();
+  }
+  
 protected:
   //! Protected so it is only called by properly implemented classes.
   EXPException(string sourcefile, int linenumber);
+
   //! Friendly name of the exception.
   string exceptionname;
+
   //! Error message describing the error in more detail.
   ostringstream * errormessage;
   
 private:
   //! Source file where throw occured.
   string sourcefilename;
+
   //! Line number of throw.
   int sourcelinenumber;
 };
 
+//! Used for explicit detailed messages
+class GenericError : public EXPException
+{
+public:
+  //! Use this for reporting an error with a specific message
+  //@{
+  GenericError(string msg, string sourcefilename, int sourcelinenumber);
+  //@}
+};
+
 //! Used when execution reaches a point it should not reach.
-class InternalError : public EXPException {
+class InternalError : public EXPException
+{
 public:
   //! Use this when you reach an unexpected state.
   //@{
@@ -44,11 +65,36 @@ public:
 };
 
 //! handle Bad range related exception PartMap
-class BadIndexException : public EXPException { 
+class BadIndexException : public EXPException
+{ 
 public:
   //! Constructor
   BadIndexException(int index, int num,
 		    string sourcefilename, int sourcelinenumber);
+};
+
+//! File creation error
+class FileCreateError : public EXPException
+{ 
+public:
+  //! Constructor
+  FileCreateError(string filename,
+		  string sourcefilename, int sourcelinenumber);
+  //! Constructor
+  FileCreateError(string filename, string method,
+		  string sourcefilename, int sourcelinenumber);
+};
+
+//! File open error
+class FileOpenError : public EXPException
+{ 
+public:
+  //! Constructor
+  FileOpenError(string filename,
+		string sourcefilename, int sourcelinenumber);
+  //! Constructor
+  FileOpenError(string filename, string method,
+		string sourcefilename, int sourcelinenumber);
 };
 
 #endif

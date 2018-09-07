@@ -1,7 +1,7 @@
 #include <EXPException.H>
 #include <errno.h>
 
-string EXPException::getErrorMessage()
+const std::string EXPException::getErrorMessage() const
 {
   // This combines the error name, error message, and the throw locations.
   // (*errormessage) << ends;  removed for conversion to stringstream
@@ -11,7 +11,7 @@ string EXPException::getErrorMessage()
   ostringstream wholemessage;
   wholemessage << exceptionname << ": " << buffer << endl;
   wholemessage << "Thrown from " << sourcefilename << ":" << sourcelinenumber;
-  return wholemessage.str();  // stringstream returns a string
+  return wholemessage.str();  // stringstream returns a const std::string
 }
 
 EXPException::EXPException
@@ -54,6 +54,14 @@ InternalError::InternalError
 		  << msg << ".";
 }
 
+GenericError::GenericError
+(string msg, string sourcefilename, int sourcelinenumber)
+: EXPException(sourcefilename, sourcelinenumber)
+{
+  exceptionname = "Execution exception";
+  (*errormessage) << "Error details: " << msg << ".";
+}
+
 BadIndexException::BadIndexException
 (int index, int num,
  string sourcefilename, int sourcelinenumber)
@@ -62,5 +70,21 @@ BadIndexException::BadIndexException
   exceptionname = "Requested index is not in PartMap: ";
   (*errormessage) << "Invalid index: " << index 
 		  << " out of " << num << " particles" << endl;
+}
+
+FileCreateError::FileCreateError
+(string filename, string sourcefilename, int sourcelinenumber)
+: EXPException(sourcefilename, sourcelinenumber)
+{
+  exceptionname = "Could not create new file";
+  (*errormessage) << "File name is <" << filename << ">" << endl;
+}
+
+FileOpenError::FileOpenError
+(string filename, string sourcefilename, int sourcelinenumber)
+: EXPException(sourcefilename, sourcelinenumber)
+{
+  exceptionname = "Could open existing file";
+  (*errormessage) << "File name is <" << filename << ">" << endl;
 }
 

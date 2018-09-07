@@ -90,9 +90,10 @@ double UserPST::get_fid_bulge_dens()
   double Mleft = Mencl - Mdisk - Mbar;
 
   if (Mleft<0) {
-    cerr << "Impossible parameters: Mencl (" << Mencl << ") < Mdisk + Mbar ("
+    std::ostringstream sout;
+    sout << "Impossible parameters: Mencl (" << Mencl << ") < Mdisk + Mbar ("
 	 << Mdisk + Mbar << ")" << endl;
-    exit(-1);
+    throw GenericError(sout.str(), __FILE__, __LINE__);
   }
   
   Mscale = Mencl/(Mdisk + Mleft);

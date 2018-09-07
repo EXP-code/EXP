@@ -284,17 +284,19 @@ void adjust_multistep_level(bool all)
   thrd_pass_sync* td = new thrd_pass_sync [nthrds];
 
   if (!td) {
-    cerr << "Process " << myid
-	 << ": adjust_multistep_level: error allocating thread structures\n";
-    exit(18);
+    std::ostringstream sout;
+    sout << "Process " << myid
+	 << ": adjust_multistep_level: error allocating thread structures";
+    throw GenericError(sout.str(), __FILE__, __LINE__);
   }
 
   pthread_t* t  = new pthread_t [nthrds];
 
   if (!t) {
-    cerr << "Process " << myid
-	 << ": adjust_multistep_level: error allocating memory for thread\n";
-    exit(18);
+    std::ostringstream sout;
+    sout << "Process " << myid
+	 << ": adjust_multistep_level: error allocating memory for thread";
+    throw GenericError(sout.str(), __FILE__, __LINE__);
   }
   
 
@@ -344,10 +346,11 @@ void adjust_multistep_level(bool all)
 	    errcode =  pthread_create(&t[i], 0, adjust_multistep_level_thread, &td[i]);
 	    
 	    if (errcode) {
-	      cerr << "Process " << myid
+	      std::ostringstream sout;
+	      sout << "Process " << myid
 		   << " adjust_multistep_level: cannot make thread " << i
-		   << ", errcode=" << errcode << endl;
-	      exit(19);
+		   << ", errcode=" << errcode;
+	      throw GenericError(sout.str(), __FILE__, __LINE__);
 	    }
 #ifdef DEBUG
 	    else {
@@ -361,10 +364,11 @@ void adjust_multistep_level(bool all)
 	  //
 	  for (int i=0; i<nthrds; i++) {
 	    if ((errcode=pthread_join(t[i], &retval))) {
-	      cerr << "Process " << myid
+	      std::ostringstream sout;
+	      sout << "Process " << myid
 		   << " adjust_multistep_level: thread join " << i
-		   << " failed, errcode=" << errcode << endl;
-	      exit(20);
+		   << " failed, errcode=" << errcode;
+	      throw GenericError(sout.str(), __FILE__, __LINE__);
 	    }
 #ifdef DEBUG    
 	    cout << "Process " << myid 
