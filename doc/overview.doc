@@ -1,0 +1,15 @@
+/*! \page over Architectural overview
+
+<h2> Motivation </h2>
+<p> As mentioned in \ref mainpage, this code uses object-oriented
+design patterns to exploit the similarity in overall structure of all
+biorthogonal expansions for ease of implementation and maintaince.
+</p>
+
+<h2> Organization </h2>
+
+
+<h2> Learning how to use this code </h2>
+
+*/
+
