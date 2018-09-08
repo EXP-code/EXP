@@ -1,5 +1,7 @@
-A more complex example of a disk and halo simulation using higher resolution
-adaptive bases.  The cylindrical tables will take much longer to compute.
+A more complex example of a disk and halo simulation using higher
+resolution adaptive bases.  The cylindrical tables will take much
+longer to compute but provide better dynamical fidelity.  The cache
+file can be reused for new runs with the same Cylinder parameters.
 
 The EJ* parameters in halo.conf and disk.conf instruct the Component
 class to adjust the expansion center to follow the gravitational
