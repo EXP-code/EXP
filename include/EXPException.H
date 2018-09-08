@@ -9,25 +9,23 @@
 class EXPException : public std::exception
 {
   public:
-  //! Generic exception
+  //! Constructor for base
   EXPException(const std::string exceptionname, const std::string message,
 	       const std::string sourcefilename, int sourcelinenumber)
   {
-    errormessage = new std:::ostringstream;
+    errormessage = new std::ostringstream;
     this->sourcefilename   = sourcefilename;
     this->sourcelinenumber = sourcelinenumber; 
     this->exceptionname = exceptionname;
     (*errormessage) << message;
   }
 
-  //! Destructor.
+  //! Destructor for base
   virtual ~EXPException()
   {
     delete errormessage;
     errormessage = 0;
   }
-
-  virtual ~EXPException();
 
   //! Returns an error message suitable for printing to the user.
   const std::string getErrorMessage() const
@@ -47,7 +45,7 @@ class EXPException : public std::exception
   }
   
 protected:
-  //! Protected so it is only called by properly implemented classes.
+  //! Protected so it is only called by properly implemented classes
   EXPException(const std::string sourcefile, int linenumber)
   {
     errormessage = new std::ostringstream;
@@ -55,17 +53,17 @@ protected:
     this->sourcelinenumber = sourcelinenumber; 
   }
 
-  //! Friendly name of the exception.
+  //! Friendly name of the exception
   std::string exceptionname;
 
-  //! Error message describing the error in more detail.
+  //! Error message describing the error in more detail
   std::ostringstream * errormessage;
   
 private:
-  //! Source file where throw occured.
+  //! Source file where throw occured
   std::string sourcefilename;
 
-  //! Line number of throw.
+  //! Line number of throw
   int sourcelinenumber;
 };
 
@@ -140,12 +138,12 @@ public:
     (*errormessage) << "File name is <" << filename << ">" << endl;
   }
 
-  //! Constructor
+  //! Constructor with method string
   FileCreateError(const std::string filename, const std::string method,
 		  const std::string sourcefilename, int sourcelinenumber)
   : EXPException(sourcefilename, sourcelinenumber)
   {
-    exceptionname = method + " cannot create new file";
+    exceptionname = "Cannot create new file in " + method;
     (*errormessage) << "File name is <" << filename << ">"
 		    << endl;
   }
@@ -165,12 +163,12 @@ public:
     (*errormessage) << "File name is <" << filename << ">" << endl;
   }
 
-  //! Constructor
+  //! Constructor with method string
   FileOpenError(const std::string filename, const std::string method,
 		const std::string sourcefilename, int sourcelinenumber)
     : EXPException(sourcefilename, sourcelinenumber)
   {
-    exceptionname = method + " cannot open existing file";
+    exceptionname = "Cannot open existing file in " + method;
     (*errormessage) << "File name is <" << filename << ">" << endl;
   }
 };
