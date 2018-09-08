@@ -4,7 +4,7 @@
 #include <string>
 #include <sstream>
 
-/** Defines an Error Handler base class EXPException to handle exceptions
+/** Defines an error handler base class EXPException to handle exceptions
  */
 class EXPException : public std::exception
 {
@@ -109,7 +109,7 @@ public:
   //@}
 };
 
-//! handle Bad range related exception PartMap
+//! Handle bad range related exception PartMap
 class BadIndexException : public EXPException
 { 
 public:
