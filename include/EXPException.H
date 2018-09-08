@@ -39,6 +39,7 @@ class EXPException : public std::exception
     return wholemessage.str();  // stringstream returns a const std::string
   }
 
+  //! std::exception member
   virtual const char* what() const throw ()
   {
     return getErrorMessage().c_str();
