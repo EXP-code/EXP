@@ -173,7 +173,8 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
       if (!cache_ok and myid==0)
 	std::cerr << "Cylinder: can not read EOF file <"
 		  << EmpCylSL::CACHEFILE << ">" << std::endl
-		  << "Cylinder: will attempt to generate EOF file"
+		  << "Cylinder: will attempt to generate EOF file, "
+		  << "this will take some time . . ."
 		  << std::endl;
     }
 
