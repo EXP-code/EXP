@@ -1,11 +1,98 @@
 /*! \page cuda CUDA implementation
 
-\section Overview
+\section overview Overview
 
-\section Strategy
+GPU computation works best when the CPU--GPU data transfer is minimal.
+One could design the GPU implementation so that all
+computations--drift, kick, and force evaluation--is computed on the
+GPU. Recent versions of MPI implementation allow for GPU to GPU data
+transfer that bypass CPU staging that would allow such an
+implementation.  However, the user also wants to accumulate phase
+space information, and this requires transfer between the CPU and GPU.
 
-\section Implemenation details
+Also, in nearly all cases, the per time step bottleneck is the basis
+construction and force evaluation by at least an order of
+magnitude. So rather than fully re-implement EXP on the GPU, this
+implementation only computes the basis and force on the GPU.  At this
+point, only two basis classes have GPU implementation, SphericalBasis
+and Cylinder.  Both of these assume that the basis functions (either
+one- or two-dimensional) are stored in tables which require special
+treatment (see \ref strategy below).  The other analytic and recursion
+bases and the user modules could be similarly and probably more easily
+implemented on the GPU.  I am leaving these implementations for a
+later date, as needed.
 
-\section Usage notes
+\section strategy Strategy
+
+The autoconf tools will automatically detect the presense of the CUDA
+toolkit and set a config flag which enables the compilation of the GPU
+implementation.  GPU availability is probed at runtime.  Each GPU is
+assigned to a single thread on a single MPI process.  The multistep
+coefficient update has too much divergence for a fast GPU
+implementation. However, one can speed up coefficient update relative
+to the GPU coefficient and force evaluation by assigning the remaining
+cores on the node to threads using the <code>nthrd</code> global
+parameter (see \ref use below).
+
+The Component class assigns the GPU by device number to the process on
+instantiation.  When the associated PotAccel method is instantiated, a
+valid device number triggers initialization of the GPU data space.
+These data include phase space, coefficient, and basis table
+structures.  The basis tables, which are constant data, are copied to
+the GPU during initialization.
+
+\section impl Implementation details
+
+The GPU computation is done in multiple steps:
+<ol>
+
+<li> EXP partitions the \f$N\f$ particles between the \f$n\f$ nodes uniformly
+or according to work-load factors by EXP.  Let us assume that a
+particular process has \f$N_c\f$ particles.
+
+<li> The phase space with \f$N\f$ particles is partitioned in bunches of
+size \f$M<N_c\f$. The value of \f$M\f$ is user adjustable. The break-even
+bunch size (the size beyond which the scaling is linear) is
+approximately \f$M=10^6\f$.
+
+<li> The native coordinates for the particular basis (e.g. spherical
+or cylindrical coordinates) are evaluated for the particles whose
+coefficients are to be evaluated using a specialized kernel.
+
+<li> The coefficient contributions are evaluated using a specialized
+kernel and staged in GPU memory.
+
+<li> The coefficients for each evaluated particle are tree-reduced on
+the GPU and returned to the CPU.
+
+<li> The CPU sum reduces these contributions using MPI and pushes them
+back to the GPU.
+
+<li> The force is computed for all required particles (i.e. all
+particle at the current multistep which could be all or a subset of
+\f$N_c\f$) using the coefficients and specialize kernel.
+
+<li> The particle phase space including the new acceleration values
+are returned to the CPU from the GPU.
+
+</ol>
+
+The coefficient table data is packed as CUDA textures and the table
+interpolation for the coefficient values use the native CUDA texture
+routines.  These are much faster than hand-coded interpolation
+methods.  This is especially true for the two-dimensional table lookup
+needed for the Cylinder methods. All interpolation is linear and the
+tables are constructed with sufficiently small grid spacing that this
+is not a numerical limitation.
+
+\section use Usage notes
+
+<ol>
+<li> Start one process for each GPU on each node
+<li> Divide the CPU cores among the processes per node.  For example,
+if one has 40 cores and 4 GPUs, set <code>--npernode 4</code> in your
+<code>mpirun</code> command and set <code>nthrd=10</code> in the EXP
+config file.
+</ol>
 
 */
