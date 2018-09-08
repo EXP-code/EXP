@@ -1,0 +1,30 @@
+# outdir: /some/dir
+nbodmax : 1000000
+nthrds : 1
+dtime : 0.002
+ldlibdir : /home/weinberg/lib/user
+runtag : run0
+nsteps : 100
+multistep: 10
+dynFracA : 0.004
+dynFracV : 0.02
+nreport : 1
+VERBOSE : 4
+
+[components]
+dark halo : halo.conf
+star disk : disk.conf
+
+[output]
+outlog : nint=10
+outpsn : nint=5
+outchkpt : nint=100
+orbtrace : norb = 5, name = star disk
+outdiag : nint=3
+
+[external]
+# usertest : parm=3
+
+[interaction]
+dark halo : star disk
+star disk : dark halo
