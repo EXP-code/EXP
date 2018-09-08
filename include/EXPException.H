@@ -34,7 +34,7 @@ class EXPException : public std::exception
     std::string buffer = (*errormessage).str();
 
     std::ostringstream wholemessage;
-    wholemessage << exceptionname << ": " << buffer << endl;
+    wholemessage << exceptionname << ": " << buffer;
     wholemessage << "Thrown from " << sourcefilename << ":" << sourcelinenumber;
     return wholemessage.str();  // stringstream returns a const std::string
   }
@@ -120,7 +120,7 @@ public:
   {
     exceptionname = "Requested index is not in PartMap: ";
     (*errormessage) << "Invalid index: " << index 
-		    << " out of " << num << " particles" << endl;
+		    << " out of " << num << " particles";
   }
 
 };
@@ -135,7 +135,7 @@ public:
   : EXPException(sourcefilename, sourcelinenumber)
   {
     exceptionname = "Cannot create new file";
-    (*errormessage) << "File name is <" << filename << ">" << endl;
+    (*errormessage) << "File name is <" << filename << ">";
   }
 
   //! Constructor with method string
@@ -144,8 +144,7 @@ public:
   : EXPException(sourcefilename, sourcelinenumber)
   {
     exceptionname = "Cannot create new file in " + method;
-    (*errormessage) << "File name is <" << filename << ">"
-		    << endl;
+    (*errormessage) << "File name is <" << filename << ">";
   }
 
 };
@@ -160,7 +159,7 @@ public:
     : EXPException(sourcefilename, sourcelinenumber)
   {
     exceptionname = "Cannot open existing file";
-    (*errormessage) << "File name is <" << filename << ">" << endl;
+    (*errormessage) << "File name is <" << filename << ">";
   }
 
   //! Constructor with method string
@@ -169,7 +168,7 @@ public:
     : EXPException(sourcefilename, sourcelinenumber)
   {
     exceptionname = "Cannot open existing file in " + method;
-    (*errormessage) << "File name is <" << filename << ">" << endl;
+    (*errormessage) << "File name is <" << filename << ">";
   }
 };
 
