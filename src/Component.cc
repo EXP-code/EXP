@@ -907,7 +907,7 @@ void Component::initialize(void)
       cuda_initialize();
 
     } else {
-      std::ostrintstream sout;
+      std::ostringstream sout;
       sout << "[#" << myid << "] CUDA detected but deviceCount<=0!";
       throw GenericError(sout.str(), __FILE__, __LINE__);
     }
