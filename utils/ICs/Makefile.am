@@ -35,18 +35,18 @@ bin_PROGRAMS = gendisk shrinkics gendisk2 gsphere pstmod gendisk3	\
 shrinkics_SOURCES = shrinkics.cc
 shrinkics_LDADD = $(EXPLIBS)
 
-gendisk_SOURCES = initial.cc DiskHalo.cc EmpOrth9thd.cc EXPException.cc \
+gendisk_SOURCES = initial.cc DiskHalo.cc EmpOrth9thd.cc \
 	SphericalSL.cc legendre.cc Particle.cc SParticle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
 gendisk_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS) $(CUDA_LIBFLAGS)
 
-gendisk2_SOURCES =  initial2.cc DiskHalo2.cc EmpOrth9thd.cc EXPException.cc \
+gendisk2_SOURCES =  initial2.cc DiskHalo2.cc EmpOrth9thd.cc \
 	SphericalSL.cc legendre.cc Particle.cc SParticle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
 gendisk2_LDFLAGS = $(BOOST_LDFLAGS)
 gendisk2_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(BOOST_LIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS) $(CUDA_LIBFLAGS)
 
-gendisk3_SOURCES =  initial3.cc DiskHalo3.cc EmpOrth9thd.cc EXPException.cc \
+gendisk3_SOURCES =  initial3.cc DiskHalo3.cc EmpOrth9thd.cc \
 	CylDisk.cc SphericalSL.cc legendre.cc Particle.cc SParticle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
 gendisk3_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS) $(CUDA_LIBFLAGS)
@@ -57,10 +57,10 @@ gsphere_LDADD = $(COMMON_LIBS) $(EXPLIBS)
 pstmod_SOURCES = pst_model.cc CylindricalDisk.cc EllipsoidForce.cc SLSphere.cc
 pstmod_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(CUDA_LIBFLAGS)
 
-empinfo_SOURCES = empinfo.cc EmpOrth9thd.cc localmpi.cc EXPException.cc
+empinfo_SOURCES = empinfo.cc EmpOrth9thd.cc localmpi.cc
 empinfo_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS) $(CUDA_LIBFLAGS)
 
-empdump_SOURCES = empdump.cc EmpOrth9thd.cc localmpi.cc EXPException.cc
+empdump_SOURCES = empdump.cc EmpOrth9thd.cc localmpi.cc
 empdump_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS) $(CUDA_LIBFLAGS)
 
 makeIon_SOURCES = makeIonIC.cc Particle.cc Particle.H Species.H	\
@@ -109,9 +109,6 @@ Particle.H:		$(top_srcdir)/src/Particle.H
 Species.H:		$(top_srcdir)/src/Species.H
 			cp $(top_srcdir)/src/$@ .
 
-EXPException.cc:	$(top_srcdir)/src/EXPException.cc
-			cp $(top_srcdir)/src/$@ .
-
 atomic_constants.cc:	$(top_srcdir)/src/user/atomic_constants.cc atomic_constants.H
 			cp $(top_srcdir)/src/user/$@ .
 
@@ -120,8 +117,7 @@ atomic_constants.H:	$(top_srcdir)/src/user/atomic_constants.H
 
 
 CLEANFILES = EmpOrth9thd.cc localmpi.cc CylindricalDisk.cc	\
-	SLSphere.cc Particle.cc Particle.H Particle.h Species.H \
-	EXPException.cc
+	SLSphere.cc Particle.cc Particle.H Particle.h Species.H
 
 ## utils/ICs/Makefile.am ends here
 
