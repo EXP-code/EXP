@@ -1,18 +1,86 @@
 /*! \page multistep Multiple time stepping
 
-<H2>Basic algorithm</H2>
+<H2>Overview</H2>
+
+EXP uses binary time step tree to increase dynamical througput for
+simulations with large dynamic range in characteristic orbital times.
+%Time steps for each particle are chosen to be the minimum of 4
+standard criteria (see \ref tscrit below) and one criteria that may be
+applied by user-defined modules (see \ref modules).
+
+<H2>%Time step criteria</H2>
 
 <ol>
-<li> The global variable #multistep sets the number of
-     time step levels.  Each successive level has time step \f$t_0/2^l\f$
-     where \f$l\f$ is the level counter and \f$t_0\f$ is dtime.  Therfore the
-     smallest stepping interval is \f$t_0/2^{multistep}\f$.
-<li> All bodies start on highest level \f$l=\f$#multistep.
-</ol>	
+
+<li> The characteristic drift time scale:
+\f$|r_{scale}/|\mathbf{v}|\f$, where \f$r_{scale}\f$ represents an
+internal or preset length scale.  This is only used when provided by
+an external user routine or in the Particle structure.
+
+<li> The force time scale: \f$|\mathbf{v}|/|\mathbf{a}|\f$ where
+\f$\mathbf{a}\f$ is the accelration.
+
+<li> The work time scale: \f$\Psi/|\mathbf{v}\cdot\mathbf{a}|\f$ where
+\f$\Psi\f$ is the gravitational potential chosen to be 0 at large
+distances from the center of the particle distribution.
+
+<li> The escape time scale:
+\f$\sqrt{\Psi/\mathbf{a}\cdot\mathbf{a}}\f$.
+
+</ol>
+
+Each of these are tuned by the prefactors \f$\epsilon_D, \epsilon_V,
+\epsilon_A, \epsilon_P\f$ which are the following global variables in
+the configuration file: <code> dynfracD, dynfracD, dynfracD,
+dynfracD</code>.  These values must be calibrated for a specific
+problem at hand, but values of order 0.01 would be typical.  A
+particular criterion can be ignored by choosing a large value for the
+corresponding \f$\epsilon\f$.
 
 <H2>Expansion bases</H2>
 
+The contribution to the expansion coefficients for all particles on a
+particular level are stored separately for the current and previous
+step.  Thus, each level maintains a full set of coefficients
+corresponding to the contribution of particles at that level.  We call
+this the <it>coefficient tableau</it>.  When computing the total
+coefficients at particular multistep level, the offset of the velocity
+update at the half step allows the coefficient contribution at the
+lower inactive levels to be linearly interpolated.  The error in the
+contribution from the interpolation is the same order as that for leap
+frog itself.
+
+The particle time step is computed after each substep.  If a particle
+has changed levels, its previous contribution is substracted from its
+former level and its updated contribution is added to its new level.
+
+<H2>Basic algorithm</H2>
+
+<ol>
+
+<li> The global variable #multistep sets the number of time step
+levels.  Each successive level has time step \f$t_0/2^l\f$ where
+\f$l\f$ is the level counter and \f$t_0\f$ is dtime.  Therfore the
+smallest stepping interval is \f$t_0/2^{multistep}\f$.
+
+<li> All bodies start on highest level \f$l=\f$#multistep (smallest
+time step) to start on the first step.  After the first step, new
+levels are computed and the multistep coefficient tableau is updated.
+
+<li> At each substep, particle time steps are recomputed.  Particles
+that change levels are flagged.  At the end of the step, a particle
+update tableau is computed on each node and sum reduced over all
+nodes.
+
+</ol>
+
 <H2>External time step variable</H2>
 
-*/
+The Particle structure has two time step specific variables
+<code>dtreq</code>, the user-specified time step, and
+<code>scale</code>, the intrinsic scale for the particle.  If these
+values are less then zero, the user-requested time step criterion or
+the characteristic drift time scale, respectively, are ignored.  These
+values are set to -1 by default (ignored).
 
+*/

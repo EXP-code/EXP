@@ -72,9 +72,7 @@ void OutputContainer::initialize(void)
     else {
       string msg("I don't know about the output type: ");
       msg += data.first;
-      if (myid) cerr << msg << endl;
-      MPI_Abort(MPI_COMM_WORLD, 8);
-      exit(0);
+      throw GenericError(msg, __FILE__, __LINE__);
     }
   }
 }

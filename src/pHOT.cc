@@ -190,28 +190,7 @@ pHOT::pHOT(Component *C, sKeySet spec_list)
 
   cntr_total = cntr_new_key = cntr_mine = cntr_not_mine = cntr_ship = 0;
 
-  // Diagnostic times
-  //
   numkeys = 0;
-  timer_keymake.Microseconds();
-  timer_xchange.Microseconds();
-  timer_convert.Microseconds();
-  timer_overlap.Microseconds();
-  timer_prepare.Microseconds();
-  timer_cupdate.Microseconds();
-  timer_scatter.Microseconds();
-  timer_repartn.Microseconds();
-  timer_tadjust.Microseconds();
-  timer_cellcul.Microseconds();
-  timer_keycomp.Microseconds();
-  timer_keybods.Microseconds();
-  timer_waiton0.Microseconds();
-  timer_waiton1.Microseconds();
-  timer_waiton2.Microseconds();
-  timer_keynewc.Microseconds();
-  timer_keyoldc.Microseconds();
-  timer_diagdbg.Microseconds();
-
   use_weight = true;
  
   // Initialize timing structures
@@ -4687,7 +4666,7 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
 				// For diagnostics
   Timer *timer_debug;
   if (DEBUG_KEYS && myid==0) {
-    timer_debug = new Timer(true);
+    timer_debug = new Timer();
     timer_debug->start();
   }
 				// Sort the keys
@@ -5044,7 +5023,7 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
 	  << "----  total oob = " << setw(10) << oobn << endl
 	  << "----      TOTAL = " << setw(10) << tkey0 + oobn << endl
 	  << setfill('-') << setw(60) << '-' << setfill(' ') << endl
-	  << "----   Time (s) = " << setw(10) << timer_debug->stop()()
+	  << "----   Time (s) = " << setw(10) << timer_debug->stop()
 	  << endl
 	  << setfill('-') << setw(60) << '-' << setfill(' ') << endl
 	  << endl;
@@ -5323,7 +5302,7 @@ void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
 //
 void pHOT::rrMerge(vector<key_wght>& initl, vector<key_wght>& final)
 {
-  Timer timer(true);		// For debugging
+  Timer timer;			// For debugging
 
   if (myid==0 && DEBUG_MERGE)  {
     timer.start();   		// Time the trivial version
@@ -5372,7 +5351,7 @@ void pHOT::rrMerge(vector<key_wght>& initl, vector<key_wght>& final)
   if (DEBUG_MERGE) {
 
     if (myid==0) {
-      std::cout << "Trivial sort in " << timer.stop().getRealTime()*1.0e-6
+      std::cout << "Trivial sort in " << timer.stop()
 		<< " seconds" << std::endl;
 
 				// Time the parallel version
@@ -5385,7 +5364,7 @@ void pHOT::rrMerge(vector<key_wght>& initl, vector<key_wght>& final)
     parallelMerge(initl, final0);
 
     if (myid==0) {
-      std::cout << "Parallel sort in " << timer.stop().getRealTime()*1.0e-6 
+      std::cout << "Parallel sort in " << timer.stop()
 		<< " seconds" << std::endl;
 
 				// Check sizes
@@ -5432,61 +5411,61 @@ void pHOT::CollectTiming()
 {
   float fval;
 
-  fval = timer_keymake.getTime()();
+  fval = timer_keymake.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &keymk3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_xchange.getTime()();
+  fval = timer_xchange.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &exchg3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_convert.getTime()();
+  fval = timer_convert.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &cnvrt3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval  = timer_overlap.getTime()();
+  fval  = timer_overlap.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &tovlp3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval  = timer_prepare.getTime()();
+  fval  = timer_prepare.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &prepr3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_cupdate.getTime()();
+  fval = timer_cupdate.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &updat3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_scatter.getTime()();
+  fval = timer_scatter.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &scatr3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_repartn.getTime()();
+  fval = timer_repartn.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &reprt3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_tadjust.getTime()();
+  fval = timer_tadjust.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &tadjt3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_cellcul.getTime()();
+  fval = timer_cellcul.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &celcl3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_keycomp.getTime()();
+  fval = timer_keycomp.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &keycm3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_keybods.getTime()();
+  fval = timer_keybods.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &keybd3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_waiton0.getTime()();
+  fval = timer_waiton0.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &wait03[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_waiton1.getTime()();
+  fval = timer_waiton1.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &wait13[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_waiton2.getTime()();
+  fval = timer_waiton2.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &wait23[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_keynewc.getTime()();
+  fval = timer_keynewc.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &keync3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_keyoldc.getTime()();
+  fval = timer_keyoldc.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &keyoc3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
   fval = barrier->getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &barri3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_diagdbg.getTime()();
+  fval = timer_diagdbg.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &diagd3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
   MPI_Gather(&numkeys, 1, MPI_UNSIGNED, &numk3[0], 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);

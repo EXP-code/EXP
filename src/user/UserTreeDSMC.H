@@ -296,12 +296,12 @@ private:
   double tM0;
 
 				// Elapsed time counters
-  TimeElapsed partnSoFar, tree1SoFar, tradjSoFar, tcellSoFar, tstepSoFar;
-  TimeElapsed waitcSoFar, waitpSoFar, wait1SoFar, wait2SoFar, timerSoFar;
-  TimeElapsed collideSoFar;
+  double partnSoFar, tree1SoFar, tradjSoFar, tcellSoFar, tstepSoFar;
+  double waitcSoFar, waitpSoFar, wait1SoFar, wait2SoFar, timerSoFar;
+  double collideSoFar;
   
 				// Full time step counters
-  vector<TimeElapsed> tt;
+  vector<double> tt;
 
   void userinfo();
 

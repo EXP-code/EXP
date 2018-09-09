@@ -7,7 +7,7 @@
 #include <Timer.h>
 #include <ZBrent.H>
 
-static Timer timer_tot(true), timer_thrd(true);
+static Timer timer_tot, timer_thrd;
 static bool timing = false;
 
 /*
@@ -90,9 +90,10 @@ double UserPST::get_fid_bulge_dens()
   double Mleft = Mencl - Mdisk - Mbar;
 
   if (Mleft<0) {
-    cerr << "Impossible parameters: Mencl (" << Mencl << ") < Mdisk + Mbar ("
+    std::ostringstream sout;
+    sout << "Impossible parameters: Mencl (" << Mencl << ") < Mdisk + Mbar ("
 	 << Mdisk + Mbar << ")" << endl;
-    exit(-1);
+    throw GenericError(sout.str(), __FILE__, __LINE__);
   }
   
   Mscale = Mencl/(Mdisk + Mleft);
@@ -388,9 +389,9 @@ void UserPST::determine_acceleration_and_potential(void)
   if (timing) {
     timer_tot.stop();
     cout << setw(20) << "Bar total: "
-	 << setw(18) << timer_tot.getTime()() << endl
+	 << setw(18) << timer_tot.getTime()  << endl
 	 << setw(20) << "Bar threads: "
-	 << setw(18) << timer_thrd.getTime()() << endl;
+	 << setw(18) << timer_thrd.getTime() << endl;
     timer_tot.reset();
     timer_thrd.reset();
   }

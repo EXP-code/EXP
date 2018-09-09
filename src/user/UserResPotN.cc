@@ -81,9 +81,7 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
   initialize();
 
   if (numRes==0)  {
-    if (myid==0) cerr << "You must specify at least one resonance!\n";
-    MPI_Abort(MPI_COMM_WORLD, 120);
-    exit(0);
+    throw GenericError("You must specify at least one resonance!", __FILE__, __LINE__);
   }
 
   if (ctr_name.size()>0) {
@@ -378,19 +376,15 @@ void UserResPotN::determine_acceleration_and_potential(void)
 				// Open new output stream for writing
 	ofstream out(string(outdir+filename).c_str());
 	if (!out) {
-	  cout << "UserResPotN: error opening new log file <" 
-	       << filename << "> for writing\n";
-	  MPI_Abort(MPI_COMM_WORLD, 121);
-	  exit(0);
+	  throw FileCreateError(outdir+filename, "UserResPotOrb: error opening new log file",
+				__FILE__, __LINE__);
 	}
 	
 				// Open old file for reading
 	ifstream in(backupfile.c_str());
 	if (!in) {
-	  cout << "UserResPotN: error opening original log file <" 
-	       << backupfile << "> for reading\n";
-	  MPI_Abort(MPI_COMM_WORLD, 122);
-	  exit(0);
+	  throw FileCreateError(backupfile, "UserResPotOrb: error opening original log file",
+				__FILE__, __LINE__);
 	}
 
 	const int linesize = 1024;

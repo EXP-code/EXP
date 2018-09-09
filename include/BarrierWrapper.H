@@ -196,7 +196,7 @@ public:
 
   double getTime() {
     // double ret = timer.getTime().getRealTime()*1.0e-6;
-    double ret = timer.getTime()()*1.0e-6;
+    double ret = timer.getTime();
     timer.reset();
     return ret;
   };

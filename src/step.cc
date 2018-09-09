@@ -23,8 +23,8 @@
 
 #include <NVTX.H>
 
-static Timer timer_coef(true), timer_drift(true), timer_vel(true);
-static Timer timer_pot (true), timer_adj  (true);
+static Timer timer_coef, timer_drift, timer_vel;
+static Timer timer_pot , timer_adj  , timer_tot;
 
 static unsigned tskip = 1;
 static bool timing = false;
@@ -67,6 +67,8 @@ void do_step(int n)
   comp->multistep_reset();
 
   check_bad("before multistep");
+
+  if (timing) timer_tot.start();
 
   if (multistep) {
     
@@ -170,10 +172,11 @@ void do_step(int n)
       if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Adjust multistep"));
       if (timing) timer_adj.start();
       adjust_multistep_level(false);
+      if (timing) timer_adj.stop();
+
       if (mstep==0) { // Print the level lists
 	comp->print_level_lists(tlast);
       }
-      if (timing) timer_adj.stop();
 
       check_bad("after multistep advance");
 
@@ -238,6 +241,8 @@ void do_step(int n)
     if (timing) timer_vel.stop();
   }
 
+  if (timing) timer_tot.stop();
+
 				// Write output
   nvTracerPtr tPtr;
   if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
@@ -259,17 +264,19 @@ void do_step(int n)
 		<< std::setw(70) << std::setfill('-') << '-' << std::endl
 		<< std::setfill(' ') << std::right
 		<< std::setw(20) << "Drift: "
-		<< std::setw(18) << timer_drift.getTime()() << std::endl
+		<< std::setw(18) << timer_drift.getTime() << std::endl
 		<< std::setw(20) << "Velocity: "
-		<< std::setw(18) << timer_vel.getTime()() << std::endl
+		<< std::setw(18) << timer_vel.getTime() << std::endl
 		<< std::setw(20) << "Force: "
-		<< std::setw(18) << timer_pot.getTime()() << std::endl;
+		<< std::setw(18) << timer_pot.getTime() << std::endl;
       if (multistep)
 	std::cout << std::setw(20) << "Coefs: "
-		  << std::setw(18) << timer_coef.getTime()() << std::endl
+		  << std::setw(18) << timer_coef.getTime() << std::endl
 		  << std::setw(20) << "Adjust: "
-		  << std::setw(18) << timer_adj.getTime()() << std::endl;
-      std::cout << std::setw(70) << std::setfill('-') << '-' << std::endl
+		  << std::setw(18) << timer_adj.getTime() << std::endl;
+      std::cout << std::setw(20) << "Total: "
+		<< std::setw(18) << timer_tot.getTime() << std::endl
+		<< std::setw(70) << std::setfill('-') << '-' << std::endl
 		<< std::setfill(' ');
     }
 
@@ -320,6 +327,7 @@ void do_step(int n)
     timer_vel  .reset();
     timer_pot  .reset();
     timer_adj  .reset();
+    timer_tot  .reset();
   }
 
 #ifdef USE_GPTL

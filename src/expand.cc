@@ -569,8 +569,8 @@ main(int argc, char** argv)
   }
   catch (EXPException& e) {
 
-    cerr << "Process " << myid << ": uncaught EXP exception" << endl
-	 << e.getErrorMessage() << endl;
+    std::cerr << "Process " << myid << ": uncaught EXP exception" << std::endl
+	      << e.getErrorMessage() << std::endl;
 
 				// Try to force all process to exit!
     MPI_Abort(MPI_COMM_WORLD, -1);

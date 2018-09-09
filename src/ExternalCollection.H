@@ -33,8 +33,6 @@ private:
   void dynamicload(void);
   vector<string> getlibs(void);
 
-  void bomb(string& msg);
-
 public:
   
   //! List of forces we create

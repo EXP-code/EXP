@@ -10,12 +10,11 @@ ADD_LIBS3 = -ldmallocth -ldmallocthcxx
 endif
 
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
-AM_CXXFLAGS = -fPIC -std=c++11 -D_REENTRANT -DSTANDALONE $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) @exp_vtk_include@
+AM_CXXFLAGS = -fPIC -std=c++11 -D_REENTRANT -DSTANDALONE $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) @exp_vtk_include@ $(BOOST_CPPFLAGS)
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src -I$(top_srcdir)/utils/SL
 
-COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS)	\
-$(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@
+COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) @exp_vtk_ldlib@ @exp_vtk_lib@
 MPI_LIBS = -lmpi
 
 BOOST_LIBS = $(BOOST_SYSTEM_LIB) $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)
@@ -76,7 +75,7 @@ phIon_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) $(FLIBS) $(CUDA_LIBFLAGS)
 
 phConv_SOURCES = ph_conv.cc
 phConv_LDFLAGS = $(COMMON_LIBS) $(EXPFLAGS) $(BOOST_LDFLAGS)
-phConv_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) $(FLIBS) $(CUDA_LIBFLAGS)
+phConv_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) $(CUDA_LIBFLAGS)
 
 initial.cc:		Particle.H
 

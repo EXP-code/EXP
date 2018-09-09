@@ -2717,7 +2717,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
     if (massP>0.0) {
       double fac = 0.5 * amu * UserTreeDSMC::Vunit * UserTreeDSMC::Vunit / eV;
       Eelc[id] *= fac * atomic_weights[0] / numbP;
-      Eion[id] *= fac * amu / molW;
+      Eion[id] *= fac / molW;
     }
 
     // Compute per channel Coulombic probabilities

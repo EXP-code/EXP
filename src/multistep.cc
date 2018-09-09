@@ -206,7 +206,7 @@ void * adjust_multistep_level_thread(void *ptr)
       start1 = std::chrono::high_resolution_clock::now();
       c->force->multistep_update(plev, nlev, c, n, id);
       finish1 = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double> duration = finish1 - start1;
+      std::chrono::duration<double, std::micro> duration = finish1 - start1;
       adjtm2[id] += duration.count();
       p->level = lev;
       numsw[id]++;
@@ -233,7 +233,7 @@ void * adjust_multistep_level_thread(void *ptr)
   }
   
   finish0 = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> duration = finish0 - start0;
+  std::chrono::duration<double, std::micro> duration = finish0 - start0;
   adjtm1[id] += duration.count();
 
   return (NULL);
@@ -247,6 +247,11 @@ void adjust_multistep_level(bool all)
   // FOR DEBUGGING
   // if (mstep!=0) return;
   // END DEBUGGING
+
+  // Begin diagnostic timing
+  std::chrono::high_resolution_clock::time_point start, finish;
+
+  start = std::chrono::high_resolution_clock::now();
 
   //
   // Begin the update
@@ -279,17 +284,19 @@ void adjust_multistep_level(bool all)
   thrd_pass_sync* td = new thrd_pass_sync [nthrds];
 
   if (!td) {
-    cerr << "Process " << myid
-	 << ": adjust_multistep_level: error allocating thread structures\n";
-    exit(18);
+    std::ostringstream sout;
+    sout << "Process " << myid
+	 << ": adjust_multistep_level: error allocating thread structures";
+    throw GenericError(sout.str(), __FILE__, __LINE__);
   }
 
   pthread_t* t  = new pthread_t [nthrds];
 
   if (!t) {
-    cerr << "Process " << myid
-	 << ": adjust_multistep_level: error allocating memory for thread\n";
-    exit(18);
+    std::ostringstream sout;
+    sout << "Process " << myid
+	 << ": adjust_multistep_level: error allocating memory for thread";
+    throw GenericError(sout.str(), __FILE__, __LINE__);
   }
   
 
@@ -339,10 +346,11 @@ void adjust_multistep_level(bool all)
 	    errcode =  pthread_create(&t[i], 0, adjust_multistep_level_thread, &td[i]);
 	    
 	    if (errcode) {
-	      cerr << "Process " << myid
+	      std::ostringstream sout;
+	      sout << "Process " << myid
 		   << " adjust_multistep_level: cannot make thread " << i
-		   << ", errcode=" << errcode << endl;
-	      exit(19);
+		   << ", errcode=" << errcode;
+	      throw GenericError(sout.str(), __FILE__, __LINE__);
 	    }
 #ifdef DEBUG
 	    else {
@@ -356,10 +364,11 @@ void adjust_multistep_level(bool all)
 	  //
 	  for (int i=0; i<nthrds; i++) {
 	    if ((errcode=pthread_join(t[i], &retval))) {
-	      cerr << "Process " << myid
+	      std::ostringstream sout;
+	      sout << "Process " << myid
 		   << " adjust_multistep_level: thread join " << i
-		   << " failed, errcode=" << errcode << endl;
-	      exit(20);
+		   << " failed, errcode=" << errcode;
+	      throw GenericError(sout.str(), __FILE__, __LINE__);
 	    }
 #ifdef DEBUG    
 	    cout << "Process " << myid 
@@ -391,6 +400,10 @@ void adjust_multistep_level(bool all)
     c->force->multistep_update_finish();
   }
 
+
+  finish = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double, std::micro> update_t = finish - start;
+  start =  std::chrono::high_resolution_clock::now();
 
   //
   // Diagnostic output
@@ -439,6 +452,9 @@ void adjust_multistep_level(bool all)
     }
 
     
+    finish = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::micro> collate_t = finish - start;
+
     if (myid==0) {
       
       if (VERBOSE>3 and atim1>0) {
@@ -447,7 +463,9 @@ void adjust_multistep_level(bool all)
 		  << std::setw(70) << std::setfill('-') << '-' << std::endl << std::setfill(' ')
 		  << std::left << "--- Coefficient adjust stats"  << std::endl << std::fixed
 		  << std::left << "--- Coef/DT = " << 100.0*atim2/atim1   << "%" << std::endl
-		  << std::left << "--- Adj/Tot = " << 100.0*numadj/numtot << "%" << std::endl
+		  << std::left << "--- Adj/Tot = " << 100.0*numadj/numtot << "%" << std::endl << std::scientific
+		  << std::left << "--- Update  = " << std::setprecision(4) << update_t.count() *1.0e-6 << " sec" << std::endl
+		  << std::left << "--- Collate = " << std::setprecision(4) << collate_t.count()*1.0e-6 << " sec" << std::endl
 		  << std::setw(70) << std::setfill('-') << '-' << std::endl << std::setfill(' ');
 	std::cout.precision(pc);
       }

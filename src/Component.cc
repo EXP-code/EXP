@@ -114,8 +114,6 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 
   reset_level_lists();
 
-  time_so_far.Microseconds();
-
   tree = 0;
 
   pbuf.resize(PFbufsz);
@@ -182,9 +180,10 @@ void Component::reset_level_lists()
     t  = new pthread_t [nthrds];
 
     if (!t) {
-      cerr << "Process " << myid
-	   << ": reset_level_lists: error allocating memory for thread\n";
-      exit(18);
+      std::ostringstream sout;
+      sout << "Process " << myid
+	   << ": reset_level_lists: error allocating memory for thread";
+      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
   }
   
@@ -213,10 +212,11 @@ void Component::reset_level_lists()
       errcode =  pthread_create(&t[i], 0, reset_level_lists_thrd, &td[i]);
 
       if (errcode) {
-	cerr << "Process " << myid
+	std::ostringstream sout;
+	sout << "Process " << myid
 	     << " reset_level_lists: cannot make thread " << i
-	     << ", errcode=" << errcode << endl;
-	exit(19);
+	     << ", errcode=" << errcode;;
+	throw GenericError(sout.str(), __FILE__, __LINE__);
       }
 #ifdef DEBUG
       else {
@@ -230,10 +230,11 @@ void Component::reset_level_lists()
     //
     for (int i=0; i<nthrds; i++) {
       if ((errcode=pthread_join(t[i], &retval))) {
-	cerr << "Process " << myid
+	std::ostringstream sout;
+	sout << "Process " << myid
 	     << " reset_level_lists: thread join " << i
-	     << " failed, errcode=" << errcode << endl;
-	exit(20);
+	     << " failed, errcode=" << errcode;
+	throw GenericError(sout.str(), __FILE__, __LINE__);
       }
 #ifdef DEBUG    
       cout << "Process " << myid << ": multistep thread <" << i << "> thread exited\n";
@@ -906,10 +907,9 @@ void Component::initialize(void)
       cuda_initialize();
 
     } else {
-      std::cout << "[#" << myid
-		<< "] CUDA detected but deviceCount<=0!" << std::endl;
-      MPI_Abort(MPI_COMM_WORLD, 18);
-      exit(18);
+      std::ostringstream sout;
+      sout << "[#" << myid << "] CUDA detected but deviceCount<=0!";
+      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
 
   }
@@ -942,8 +942,9 @@ Component::~Component(void)
 
 void Component::bomb(const string& msg)
 {
-  cerr << "Component <" << name << ", " << id << ">: " << msg << endl;
-  exit(-1);
+  std::ostringstream sout;
+  sout << "Component <" << name << ", " << id << ">: " << msg;
+  throw GenericError(sout.str(), __FILE__, __LINE__);
 }
 
 void Component::read_bodies_and_distribute_ascii(void)
@@ -957,9 +958,9 @@ void Component::read_bodies_and_distribute_ascii(void)
     fin = new ifstream(pfile.c_str());
 
     if (!*fin) {
-      cerr << "Couldn't open " << pfile << " . . . quitting\n";
-      MPI_Abort(MPI_COMM_WORLD, 11);
-      exit(11);
+      std::ostringstream sout;
+      sout << "Couldn't open " << pfile << " . . . quitting";
+      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
 
     fin->getline(line, nline);
@@ -967,21 +968,21 @@ void Component::read_bodies_and_distribute_ascii(void)
     
     ins >> nbodies_tot;		
     if (!ins) {
-      cerr << "Error reading nbodies_tot . . . quitting\n";
-      MPI_Abort(MPI_COMM_WORLD, 12);
-      exit(12);
+      std::ostringstream sout;
+      sout << "Error reading nbodies_tot . . . quitting";
+      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
     ins >> niattrib;
     if (!ins) {
-      cerr << "Error reading integer attribute # . . . quitting\n";
-      MPI_Abort(MPI_COMM_WORLD, 13);
-      exit(13);
+      std::ostringstream sout;
+      sout << "Error reading integer attribute # . . . quitting\n";
+      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
     ins >> ndattrib;
     if (!ins) {
-      cerr << "Error reading double attribute # . . . quitting\n";
-      MPI_Abort(MPI_COMM_WORLD, 14);
-      exit(14);
+      std::ostringstream sout;
+      sout << "Error reading double attribute # . . . quitting";
+      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
   }
 				// Broadcast attributes for this
@@ -993,14 +994,14 @@ void Component::read_bodies_and_distribute_ascii(void)
   double rmax1=0.0, r2;
 
   if (nbodies_tot > nbodmax*numprocs) {
+    std::ostringstream sout;
     if (myid==0) {
-      cerr << "Not enough space on all processors to hold phase space\n";
-      cerr << "nbodmax is currently " << nbodmax*numprocs
+      sout << "Not enough space on all processors to hold phase space "
+	   << "nbodmax is currently " << nbodmax*numprocs
 	   << " but should be at least "
-	   << (int)( (double)nbodies_tot/numprocs + 1) << endl;
+	   << (int)( (double)nbodies_tot/numprocs + 1);
     }
-    MPI_Finalize();
-    exit(-1);
+    throw GenericError(sout.str(), __FILE__, __LINE__);
   }
 
   is_init = 1;
@@ -1119,17 +1120,15 @@ void Component::read_bodies_and_distribute_binary(istream *in)
       unsigned long cmagic;
       in->read((char*)&cmagic, sizeof(unsigned long));
       if ( (cmagic & nmask) != magic ) {
-	cerr << "Error identifying new PSP.  Is this an old PSP?\n";
-	MPI_Abort(MPI_COMM_WORLD, 15);
-	exit(15);
+	std::string msg("Error identifying new PSP.  Is this an old PSP?");
+	throw GenericError(msg, __FILE__, __LINE__);
       }
       rsize = cmagic & mmask;
     }
 
     if(!header.read(in)) {
-      cerr << "Error reading component header\n";
-      MPI_Abort(MPI_COMM_WORLD, 16);
-      exit(16);
+      std::string msg("Error reading component header");
+      throw GenericError(msg, __FILE__, __LINE__);
     }
 
     nbodies_tot = header.nbod;
@@ -1175,14 +1174,14 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   double rmax1=0.0, r2;
 
   if (nbodies_tot > nbodmax*numprocs) {
+    std::ostringstream sout;
     if (myid==0) {
-      cerr << "Not enough space on all processors to hold phase space\n";
-      cerr << "nbodmax is currently " << nbodmax*numprocs
+      sout << "Not enough space on all processors to hold phase space "
+	   << "nbodmax is currently " << nbodmax*numprocs
 	   << " but should be at least "
-	   << (int)( (double)nbodies_tot/numprocs + 1) << endl;
+	   << (int)( (double)nbodies_tot/numprocs + 1);
     }
-    MPI_Finalize();
-    exit(-1);
+    throw GenericError(sout.str(), __FILE__, __LINE__);
   }
 
   is_init = 1;
@@ -1544,9 +1543,8 @@ void Component::write_binary(ostream* out, bool real4)
     out->write((const char*)&cmagic, sizeof(unsigned long));
 
     if (!header.write(out)) {
-      cerr << "Component::write_binary: Error writing particle header\n";
-      MPI_Abort(MPI_COMM_WORLD, 17);
-      exit(17);
+      std::string msg("Component::write_binary: Error writing particle header");
+      throw GenericError(msg, __FILE__, __LINE__);
     }
   }
 
@@ -1830,10 +1828,11 @@ void Component::fix_positions(unsigned mlevel)
       errcode =  pthread_create(&thrd[i], 0, fix_positions_thread, &data[i]);
 
       if (errcode) {
-	cerr << "Process " << myid
+	std::ostringstream sout;
+	sout << "Process " << myid
 	     << " Component::fix_positions: cannot make thread " << i
-	     << ", errcode=" << errcode << endl;
-	exit(19);
+	     << ", errcode=" << errcode;
+	throw GenericError(sout.str(), __FILE__, __LINE__);
       }
     }
     
@@ -1842,10 +1841,11 @@ void Component::fix_positions(unsigned mlevel)
     //
     for (int i=0; i<nthrds; i++) {
       if ((errcode=pthread_join(thrd[i], &retval))) {
-	cerr << "Process " << myid
+	std::ostringstream sout;
+	sout << "Process " << myid
 	     << " Component::fix_positions: thread join " << i
-	     << " failed, errcode=" << errcode << endl;
-	exit(20);
+	     << " failed, errcode=" << errcode;
+	throw GenericError(sout.str(), __FILE__, __LINE__);
       }
 
       for (unsigned mm=mlevel; mm<=multistep; mm++) {
@@ -2104,10 +2104,11 @@ void Component::get_angmom(unsigned mlevel)
       errcode =  pthread_create(&thrd[i], 0, get_angmom_thread, &data[i]);
 
       if (errcode) {
-	cerr << "Process " << myid
+	std::ostringstream sout;
+	sout << "Process " << myid
 	     << " Component::get_angmom: cannot make thread " << i
-	     << ", errcode=" << errcode << endl;
-	exit(19);
+	     << ", errcode=" << errcode;
+	throw GenericError(sout.str(), __FILE__, __LINE__);
       }
     }
     
@@ -2116,10 +2117,11 @@ void Component::get_angmom(unsigned mlevel)
     //
     for (int i=0; i<nthrds; i++) {
       if ((errcode=pthread_join(thrd[i], &retval))) {
-	cerr << "Process " << myid
+	std::ostringstream sout;
+	sout << "Process " << myid
 	     << " Component::get_angmom: thread join " << i
-	     << " failed, errcode=" << errcode << endl;
-	exit(20);
+	     << " failed, errcode=" << errcode;
+	throw GenericError(sout.str(), __FILE__, __LINE__);
       }
       for (unsigned mm=mlevel; mm<=multistep; mm++) {
 	for (unsigned k=0; k<3; k++) 
@@ -2502,9 +2504,9 @@ void Component::load_balance(void)
     MPI_Allreduce(&nbad1, &nbad, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
     if (nbad) {
-      if (myid==0) cout << nbad << " bad states\n";
-      MPI_Finalize();
-      exit(-1);
+      std::ostringstream sout;
+      if (myid==0) sout << nbad << " bad states";
+      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
     
     if (myid==0) *log << "\nSequence check ok!\n";

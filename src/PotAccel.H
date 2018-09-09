@@ -3,6 +3,7 @@
 
 #include <cstdlib>
 #include <string>
+#include <chrono>
 #include <list>
 #include <map>
 
@@ -24,6 +25,10 @@ using namespace std;
 */
 class PotAccel
 {
+
+public:
+  //! For timing
+  typedef std::vector<std::time_t> TList;
 
 private:
 
@@ -75,8 +80,7 @@ protected:
   unsigned mlevel;
 
   //! For thread timing
-  vector<struct timeval> tv_list;
-  vector<double> timer_list;
+  TList timer_list;
 
 public:
 
@@ -146,9 +150,6 @@ public:
   //! Kill a mutex
   void kill_mutex(pthread_mutex_t *m, const char *caller, const char *name);
 
-  //! Error
-  void bomb(const string& msg);
-
   //! Return umber of particles used on last coefficient evaluation
   int Used() { return used; }
 
@@ -189,7 +190,7 @@ public:
 
   //! For timing the fraction spent in threaded force methods
   //@{
-  void print_timings(const string&, vector<double>& tlist);
+  void print_timings(const string&, TList& tlist);
   void print_timings(const string& label);
   void thread_timing_beg(int id);
   void thread_timing_end(int id);

@@ -65,7 +65,7 @@ TwoCenter::TwoCenter(string& line) : PotAccel(line)
   else {
     ostringstream msg;
     msg << "The basis <" << id << "> cannot be used as a multicenter component";
-    bomb(msg.str());
+    throw GenericError(msg.str(), __FILE__, __LINE__);
   }
 
   exp_in ->RegisterComponent(component);

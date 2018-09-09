@@ -1,9 +1,9 @@
+#include <algorithm>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
-
+#include <limits>
 #include <string>
-#include <algorithm>
 
 #include <interp.h>
 #include <Timer.h>
@@ -15,6 +15,7 @@
 #include "global.H"
 #include <VtkPCA.H>
 #else  
+#include "EXPException.H"
 				// Constants from expand.h & global.H
 extern int nthrds;
 extern double tnow;
@@ -1614,7 +1615,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	     << setw(4) << qr
 	     << setw(4) << qt
 	     << setw(4) << qp << " Secs="
-	     << timer.getTime().getTotalTime() << flush;
+	     << timer.getTime() << flush;
 
       } // *** phi quadrature loop
 
@@ -1623,7 +1624,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   } // *** r quadrature loop
   
   if (VFLAG & 16) {
-    long t = timer.stop().getTotalTime();
+    auto t = timer.stop();
     if (myid==0) cout << endl;
     MPI_Barrier(MPI_COMM_WORLD);
     cout << "Process " << setw(4) << myid << ": completed quadrature in " 
@@ -1640,7 +1641,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
   if (VFLAG & 16) {
     cout << "Process " << setw(4) << myid << ": completed basis in " 
-	 << timer.stop().getTotalTime() << " seconds"
+	 << timer.stop() << " seconds"
 	 << endl;
   }
 
@@ -2018,7 +2019,7 @@ void EmpCylSL::make_eof(void)
 	if (VFLAG & 16) {
 	  cout << "Process " << setw(4) << myid 
 	       << ": completed eigenproblem in " 
-	       << timer.stop().getTotalTime() << " seconds"
+	       << timer.stop() << " seconds"
 	       << endl;
 	}
 
@@ -2065,7 +2066,7 @@ void EmpCylSL::make_eof(void)
 	if (VFLAG & 16) {
 	  cout << "Process " << setw(4) << myid 
 	       << ": completed eigenproblem in " 
-	       << timer.stop().getTotalTime() << " seconds"
+	       << timer.stop() << " seconds"
 	       << endl;
 	}
       }
@@ -2085,7 +2086,7 @@ void EmpCylSL::make_eof(void)
       if (VFLAG & 16) {
 	cout << "Process " << setw(4) << myid << ": completed EOF grid for id="
 	     << request_id << " and M=" << M << " in " 
-	     << timer.stop().getTotalTime() << " seconds"
+	     << timer.stop() << " seconds"
 	     << endl;
       }
       else if (VFLAG & 2)
@@ -2111,7 +2112,7 @@ void EmpCylSL::make_eof(void)
 
   if (VFLAG & 16) {
     cout << "Process " << setw(4) << myid << ": grid reduced in " 
-	 << timer.stop().getTotalTime() << " seconds"
+	 << timer.stop()  << " seconds"
 	 << endl;
   } 
   else if (VFLAG & 2)
@@ -2294,7 +2295,7 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
     ostringstream ostr;
     ostr << "EmpCylSL::accumulate: Process " << myid << ", Thread " << id 
 	 << ": calling setup_accumulation from accumulate, aborting" << endl;
-    bomb(ostr.str());
+    throw GenericError(ostr.str(), __FILE__, __LINE__);
   }
 
   double rr = sqrt(r*r+z*z);
@@ -2801,7 +2802,8 @@ void EmpCylSL::pca_hall(void)
     //
     for (int nn=0; nn<rank3; nn++) {
 
-      double    var = pb->C[mm]->evalJK[nn+1];
+      double    var = std::max<double>(pb->C[mm]->evalJK[nn+1],
+				       std::numeric_limits<double>::min());
       double    sqr = dd[nn+1]*dd[nn+1];
       double      b = var/sqr;
     
@@ -2910,7 +2912,8 @@ void EmpCylSL::pca_hall(void)
     // Compute Hall coefficients
     //
     for (int nn=0; nn<rank3; nn++) {
-      double    var = pb->S[mm]->evalJK[nn+1];
+      double    var = std::max<double>(pb->S[mm]->evalJK[nn+1],
+				       std::numeric_limits<double>::min());
       double    sqr = dd[nn+1]*dd[nn+1];
       double      b = var/sqr;
     
@@ -4029,14 +4032,14 @@ double EmpCylSL::r_to_xi(double r)
     if (r<0.0) {
       ostringstream msg;
       msg << "radius=" << r << " < 0! [mapped]";
-      bomb(msg.str());
+      throw GenericError(msg.str(), __FILE__, __LINE__);
     }
     return (r/ASCALE - 1.0)/(r/ASCALE + 1.0);
   } else {
     if (r<0.0)  {
       ostringstream msg;
       msg << "radius=" << r << " < 0!";
-      bomb(msg.str());
+      throw GenericError(msg.str(), __FILE__, __LINE__);
     }
     return r;
   }
@@ -4045,8 +4048,8 @@ double EmpCylSL::r_to_xi(double r)
 double EmpCylSL::xi_to_r(double xi)
 {
   if (CMAP) {
-    if (xi<-1.0) bomb("xi < -1!");
-    if (xi>=1.0) bomb("xi >= 1!");
+    if (xi<-1.0) throw GenericError("xi < -1!", __FILE__, __LINE__);
+    if (xi>=1.0) throw GenericError("xi >= 1!", __FILE__, __LINE__);
 
     return (1.0 + xi)/(1.0 - xi) * ASCALE;
   } else {
@@ -4058,20 +4061,13 @@ double EmpCylSL::xi_to_r(double xi)
 double EmpCylSL::d_xi_to_r(double xi)
 {
   if (CMAP) {
-    if (xi<-1.0) bomb("xi < -1!");
-    if (xi>=1.0) bomb("xi >= 1!");
+    if (xi<-1.0) throw GenericError("xi < -1!", __FILE__, __LINE__);
+    if (xi>=1.0) throw GenericError("xi >= 1!", __FILE__, __LINE__);
 
     return 0.5*(1.0 - xi)*(1.0 - xi) / ASCALE;
   } else {
     return 1.0;
   }
-}
-
-void EmpCylSL::bomb(string oops)
-{
-  cerr << "EmpCylSL: " << oops << endl; 
-  MPI_Abort(MPI_COMM_WORLD, -1);
-  exit(-1);
 }
 
 #define MINEPS 1.0e-10

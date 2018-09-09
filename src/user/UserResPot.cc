@@ -326,19 +326,15 @@ void UserResPot::determine_acceleration_and_potential(void)
 				// Open new output stream for writing
 	ofstream out(string(outdir+filename).c_str());
 	if (!out) {
-	  cout << "UserResPot: error opening new log file <" 
-	       << filename << "> for writing\n";
-	  MPI_Abort(MPI_COMM_WORLD, 121);
-	  exit(0);
+	  throw FileCreateError(outdir+filename, "UserResPotOrb: error opening new log file",
+				__FILE__, __LINE__);
 	}
 	
 				// Open old file for reading
 	ifstream in(backupfile.c_str());
 	if (!in) {
-	  cout << "UserResPot: error opening original log file <" 
-	       << backupfile << "> for reading\n";
-	  MPI_Abort(MPI_COMM_WORLD, 122);
-	  exit(0);
+	  throw FileCreateError(backupfile, "UserResPotOrb: error opening original log file",
+				__FILE__, __LINE__);
 	}
 
 	const int linesize = 1024;

@@ -46,9 +46,9 @@ ScatterMFP::ScatterMFP(string& line) : ExternalForce(line)
 				// Make sure component has been found
 
   if (c==NULL) {
-    cerr << "ScatterMFP: can not find target component <" << comp_id << ">\n";
-    MPI_Abort(MPI_COMM_WORLD, 101);
-    exit(0);
+    std::ostringstream sout;
+    sout << "ScatterMFP: can not find target component <" << comp_id << ">\n";
+    throw GenericError(sout.str(), __FILE__, __LINE__);
   }
 
 				// Check for mfp in particle attribute list

@@ -57,8 +57,11 @@ HaloBulge::HaloBulge(string& line) : ExternalForce(line)
     model = new HernquistSphere(1.0, RMODMIN, RMOD); // Halo model
     break; 
   default:
-    cerr << "No such HALO model type: " << (int)HMODEL << endl;
-    exit(-2);
+    {
+      std::ostringstream sout;
+      sout << "No such HALO model type: " << (int)HMODEL << endl;
+      throw GenericError(sout.str(), __FILE__, __LINE__);
+    }
   }
 
   bmodel = new HernquistSphere(RBCORE, RBMODMIN, RBMOD);

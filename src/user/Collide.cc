@@ -442,16 +442,6 @@ Collide::Collide(ExternalForce *force, Component *comp,
   if (EPSMratio> 0) use_epsm = true;
   else              use_epsm = false;
   
-  // 
-  // TIMERS
-  //
-  
-  diagTime.Microseconds();
-  snglTime.Microseconds();
-  forkTime.Microseconds();
-  waitTime.Microseconds();
-  joinTime.Microseconds();
-  
   stepcount = 0;
   bodycount = 0;
   
@@ -483,23 +473,8 @@ Collide::Collide(ExternalForce *force, Component *comp,
   EPSMTSoFar .resize(nthrds);
   for (int n=0; n<nthrds; n++) {
     EPSMT[n].resize(nEPSMT);
-    for (int i=0; i<nEPSMT; i++) EPSMT[n][i].Microseconds();
     EPSMTSoFar[n].resize(nEPSMT);
   }  
-  
-  for (int n=0; n<nthrds; n++) {
-    listTime [n].Microseconds();
-    initTime [n].Microseconds();
-    collTime [n].Microseconds();
-    elasTime [n].Microseconds();
-    stat1Time[n].Microseconds();
-    stat2Time[n].Microseconds();
-    stat3Time[n].Microseconds();
-    coolTime [n].Microseconds();
-    cellTime [n].Microseconds();
-    curcTime [n].Microseconds();
-    epsmTime [n].Microseconds();
-  }
   
   if (TSDIAG) {
     // Accumulate distribution log ratio of flight time to time step
@@ -569,7 +544,6 @@ Collide::Collide(ExternalForce *force, Component *comp,
   }
   
   if (VERBOSE>5) {
-    tv_list    .resize(nthrds);
     timer_list .resize(2*nthrds);
   }
   
@@ -1753,7 +1727,7 @@ void * Collide::collide_thread(void * arg)
     // Record effort per particle in microseconds
     //
     curcSoFar[id] = curcTime[id].stop();
-    long tt = curcSoFar[id].getRealTime();
+    double tt = curcSoFar[id];
     if (EFFORT) {
       if (effortAccum) 
 	effortNumber[id].push_back(pair<long, unsigned>(tt, number));
@@ -1764,11 +1738,6 @@ void * Collide::collide_thread(void * arg)
   
     // Usage debuging
     //
-    if (tt==0) { 
-      cout << "T=0" << ", precision=" 
-	   << (curcTime[id].Precision() ? "microseconds" : "seconds")
-	   << endl;
-    }
     if (minUsage[id*2+EPSMused] > tt) {
       minUsage[id*2+EPSMused] = tt;
       minPart [id*2+EPSMused] = number;
@@ -2549,7 +2518,7 @@ void Collide::EPSMtimingGather()
   
   for (int n=0; n<nthrds; n++) {
     for (int i=0; i<nEPSMT; i++) {
-      EPSMtime[i] += EPSMTSoFar[n][i]();
+      EPSMtime[i] += EPSMTSoFar[n][i];
       EPSMT[n][i].reset();
     }
   }
@@ -2665,24 +2634,24 @@ void Collide::CollectTiming()
   vector< vector<double> > out(3);
   for (int i=0; i<3; i++) out[i] .resize(nf);
   
-  in[0] += forkSoFar();
-  in[1] += snglSoFar();
-  in[2] += waitSoFar();
-  in[3] += diagSoFar();
-  in[4] += joinSoFar();
+  in[0] += forkSoFar;
+  in[1] += snglSoFar;
+  in[2] += waitSoFar;
+  in[3] += diagSoFar;
+  in[4] += joinSoFar;
   
   for (int n=0; n<nthrds; n++) {
     c = 5;
-    in[c++] += listSoFar[n]();
-    in[c++] += initSoFar[n]();
-    in[c++] += collSoFar[n]();
-    in[c++] += elasSoFar[n]();
-    in[c++] += cellSoFar[n]();
-    in[c++] += epsmSoFar[n]();
-    in[c++] += coolSoFar[n]();
-    in[c++] += stat1SoFar[n]();
-    in[c++] += stat2SoFar[n]();
-    in[c++] += stat3SoFar[n]();
+    in[c++] += listSoFar[n];
+    in[c++] += initSoFar[n];
+    in[c++] += collSoFar[n];
+    in[c++] += elasSoFar[n];
+    in[c++] += cellSoFar[n];
+    in[c++] += epsmSoFar[n];
+    in[c++] += coolSoFar[n];
+    in[c++] += stat1SoFar[n];
+    in[c++] += stat2SoFar[n];
+    in[c++] += stat3SoFar[n];
     in[c++] += collCnt[n];
   }
   

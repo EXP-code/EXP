@@ -6,12 +6,17 @@ information about all components in a phase space that the code can be
 restarted from the dump file.
 
 The following three utilities manipulate the phase-space files:
-integer values:
 
 \par pspinfo OUT
 
 Lists all of the dumps in a <code>psp</code> file (here name OUT) and
 their attributes.
+
+\par pspstat OUT
+
+Prints summary statistics (number of bodies, center of mass, center of
+velocity angular momentum, KE, PE, mass, etc.) for the PSP dump
+
 
 \par psp2tipsy [-t TIME] OUT
 
@@ -28,5 +33,17 @@ for restarting from a particular time point.
 
 Converts dump in file OUT at TIME to ascii files, one for each component.
 The format is the same for ascii initial conditions.
+
+\par psp2ta [-t TIME] OUT
+
+Write an array of a particular PSP double or integer attribute in particle order, primarily for use with Tipsy.
+
+\par psp2histo [-t TIME] OUT
+
+Make a histogram of position, velocity, or a articular PSP array attribute.
+
+\par psp2histoE [-t TIME] OUT
+
+Make a histogram of electron distribution properties (for use with DSMC)
 
 */

@@ -48,14 +48,16 @@ void PotAccel::exp_thread_fork(bool coef)
   t = new pthread_t [nthrds];
 
   if (!td) {
-    cerr << "Process " << myid 
-	 << ": exp_thread_fork: error allocating memory for thread counters\n";
-    exit(18);
+    std::ostringstream sout;
+    sout << "Process " << myid 
+	 << ": exp_thread_fork: error allocating memory for thread counters";
+    throw GenericError(sout.str(), __FILE__, __LINE__);
   }
   if (!t) {
-    cerr << "Process " << myid
+    std::ostringstream sout;
+    sout << "Process " << myid
 	 << ": exp_thread_fork: error allocating memory for thread\n";
-    exit(18);
+    throw GenericError(sout.str(), __FILE__, __LINE__);
   }
 
   //
@@ -85,12 +87,13 @@ void PotAccel::exp_thread_fork(bool coef)
 
     errcode =  pthread_create(&t[i], 0, call_any_threads_thread_call, &td[i]);
     if (errcode) {
-      cerr << "Process " << myid;
-      if (coef)	cerr << ", make_coefficients";
-      else cerr << ", determine_acceleration";
-      cerr << " thread: cannot make thread " << i
-	  << ", errcode=" << errcode << endl;
-      exit(19);
+      std::ostringstream sout;
+      sout << "Process " << myid;
+      if (coef)	sout << ", make_coefficients";
+      else sout << ", determine_acceleration";
+      sout << " thread: cannot make thread " << i
+	   << ", errcode=" << errcode;
+      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
 #ifdef DEBUG
     else {
@@ -102,12 +105,13 @@ void PotAccel::exp_thread_fork(bool coef)
 				// Collapse the threads
   for (int i=0; i<nthrds; i++) {
     if ((errcode=pthread_join(t[i], &retval))) {
-      cerr << "Process " << myid;
-      if (coef)	cerr << ", make_coefficients";
-      else cerr << ", determine_acceleration";
-      cerr << " thread: thread join " << i
-	   << " failed, errcode=" << errcode << endl;
-      exit(20);
+      std::ostringstream sout;
+      sout << "Process " << myid;
+      if (coef)	sout << ", make_coefficients";
+      else sout << ", determine_acceleration";
+      sout << " thread: thread join " << i
+	   << " failed, errcode=" << errcode;
+      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
   }
   
@@ -142,10 +146,11 @@ void PotAccel::make_mutex(pthread_mutex_t *m, const char *caller,
   int errcode;
 
   if ((errcode=pthread_mutex_init(m, NULL))) {
-    cerr << "Process " << myid << ", "
+    std::ostringstream sout;
+    sout << "Process " << myid << ", "
 	 << caller << ": mutex init " 
-	 << name << " failed, errcode= " << errcode << endl;
-    exit(21);
+	 << name << " failed, errcode= " << errcode;
+    throw GenericError(sout.str(), __FILE__, __LINE__);
   }
 }
 
@@ -155,19 +160,13 @@ void PotAccel::kill_mutex(pthread_mutex_t *m, const char * caller,
   int errcode;
   
   if ((errcode=pthread_mutex_destroy(m))) {
-    cerr << "Process " << myid << ", "
+    std::ostringstream sout;
+    sout << "Process " << myid << ", "
 	 << caller << ": mutex destroy " 
-	 << name << " failed, errcode= " << errcode << endl;
-    exit(21);
+	 << name << " failed, errcode= " << errcode;
+    throw GenericError(sout.str(), __FILE__, __LINE__);
   }
 }
-
-void PotAccel::bomb(const string& msg)
-{
-  cerr << "Component [" << id << ": " << msg << endl;
-  exit(-1);
-}
-
 
 PotAccel::PotAccel(string& line)
 {
@@ -182,7 +181,9 @@ PotAccel::PotAccel(string& line)
 
   // Per thread counter
   use = new int [nthrds];
-  if (!use) bomb("problem allocating <use>");
+  if (!use) {
+    throw GenericError("problem allocating <use>", __FILE__, __LINE__);
+  }
 
   string Line = trimLeft(trimRight(line));
   StringTok<string> tokens(Line);
@@ -203,8 +204,7 @@ PotAccel::PotAccel(string& line)
   }
 
   if (VERBOSE>5) {
-    tv_list = vector<struct timeval>(nthrds);
-    timer_list = vector<double>(2*nthrds);
+    timer_list = vector<std::time_t>(2*nthrds);
   }
 }
 
@@ -283,24 +283,19 @@ void PotAccel::print_timings(const string& label)
 void PotAccel::thread_timing_beg(int id)
 {
   if (VERBOSE>5) {
-    gettimeofday(&tv_list[id], 0);
-    timer_list[2*id] = 
-      tv_list[id].tv_usec*1.0e-6 +
-      (tv_list[id].tv_sec % 1000);
+    
+    timer_list[2*id] = std::chrono::system_clock::to_time_t(std::chrono::high_resolution_clock::now());
   }
 }
 
 void PotAccel::thread_timing_end(int id)
 {
   if (VERBOSE>5) {
-    gettimeofday(&tv_list[id], 0);
-    timer_list[2*id+1] = 
-      tv_list[id].tv_usec*1.0e-6 +
-      (tv_list[id].tv_sec % 1000);
+    timer_list[2*id+1] = std::chrono::system_clock::to_time_t(std::chrono::high_resolution_clock::now());
   }
 }
 
-void PotAccel::print_timings(const string& label, vector<double>& tlist)
+void PotAccel::print_timings(const string& label, TList& tlist)
 {
   if (VERBOSE<=5) return;
 

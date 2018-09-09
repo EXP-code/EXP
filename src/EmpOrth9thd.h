@@ -229,8 +229,6 @@ private:
   //! Cache PCA information between calls
   PCAbasisPtr pb;
 
-  void bomb(string oops);
-
   pthread_mutex_t used_lock;
 
   //! Thread body for coef accumulation

@@ -11,7 +11,7 @@ using namespace std;
 #include <MixtureBasis.H>
 #include <Timer.h>
 
-Timer timer_debug(true);
+Timer timer_debug;
 
 double EXPSCALE=1.0, HSCALE=1.0, ASHIFT=0.25;
 
@@ -173,7 +173,8 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
       if (!cache_ok and myid==0)
 	std::cerr << "Cylinder: can not read EOF file <"
 		  << EmpCylSL::CACHEFILE << ">" << std::endl
-		  << "Cylinder: will attempt to generate EOF file"
+		  << "Cylinder: will attempt to generate EOF file, "
+		  << "this will take some time (e.g. hours) . . ."
 		  << std::endl;
     }
 

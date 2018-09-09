@@ -151,7 +151,7 @@ void OutCalbr::Run(int ns, bool last)
 
   MPI_Status status;
 
-  Timer timer(true);
+  Timer timer;
 
   if (myid==0) timer.start();
 
