@@ -26,7 +26,7 @@ noinst_HEADERS =
 bin_PROGRAMS = hctest
 
 hctest_SOURCES =  hctest.cc HeatCool.cc
-hctest_LDADD   = $(EXPLIBS)
+hctest_LDADD   = $(EXPLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@
 
 HeatCool.cc:	$(top_srcdir)/src/user/HeatCool.cc
 		cp $(top_srcdir)/src/user/$@ .

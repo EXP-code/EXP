@@ -31,7 +31,7 @@ void * incr_position_thread(void *ptr)
   //
   // Component loop
   //
-  for (auto c : comp.components) {
+  for (auto c : comp->components) {
 
     if (mlevel>=0)		// Use a particular level
       ntot = c->levlist[mlevel].size();
@@ -101,10 +101,11 @@ void incr_position(double dt, int mlevel)
       errcode =  pthread_create(p, 0, incr_position_thread, &posvel_data[i]);
 
       if (errcode) {
-	cerr << "Process " << myid
+	std::ostringstream sout;
+	sout << "Process " << myid
 	     << " incr_position: cannot make thread " << i
-	     << ", errcode=" << errcode << endl;
-	exit(19);
+	     << ", errcode=" << errcode;;
+	throw GenericError(sout.str(), __FILE__, __LINE__);
       }
 #ifdef DEBUG
       else {
@@ -119,10 +120,11 @@ void incr_position(double dt, int mlevel)
     for (int i=0; i<nthrds; i++) {
       pthread_t p = posvel_thrd[i];
       if ((errcode=pthread_join(p, &retval))) {
-	cerr << "Process " << myid
+	std::ostringstream sout;
+	sout << "Process " << myid
 	     << " incr_position: thread join " << i
-	     << " failed, errcode=" << errcode << endl;
-	exit(20);
+	     << " failed, errcode=" << errcode;
+	throw GenericError(sout.str(), __FILE__, __LINE__);
       }
 #ifdef DEBUG    
       cout << "Process " << myid << ": incr_position thread <" 
@@ -139,7 +141,7 @@ void incr_position(double dt, int mlevel)
 
 void incr_com_position(double dt)
 {
-  for (auto c : comp.components) {
+  for (auto c : comp->components) {
     if (c->com_system) {
       for (int k=0; k<c->dim; k++) c->com0[k] += c->cov0[k]*dt;
     }

@@ -8,6 +8,11 @@
 #include <uint128.H>
 #endif
 
+// Boost shared pointer implementation
+//
+#include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
+
 using namespace std;
 
 //! Keeps track of all info for one particle
@@ -105,11 +110,12 @@ public:
 		   double* com0, double* comI,
 		   double* cov0, double* covI,
 		   bool indexing, std::ostream *out);
-
 };
 
-typedef std::unordered_map<unsigned long, Particle> PartMap;
-typedef std::unordered_map<unsigned long, Particle>::iterator PartMapItr;
-
+typedef boost::shared_ptr<Particle> PartPtr;
+typedef std::unordered_map<unsigned long, PartPtr> PartMap;
+typedef std::unordered_map<unsigned long, PartPtr>::iterator PartMapItr;
+typedef std::pair<unsigned long, PartPtr> PMapType;
+std::ostream& operator<< (std::ostream& os, const PMapType& p);
 
 #endif

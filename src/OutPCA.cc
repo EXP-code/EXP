@@ -21,14 +21,12 @@ void OutPCA::zeroth_order(void)
 
   ofstream cout1(out1.c_str());
   if (!cout1) {
-    cerr << "Couldn't open <" << out1 << ">\n";
-    exit(-1);
+    throw FileOpenError(out1, "OutPCA::zeroth_order", __FILE__, __LINE__);
   }
   
   ofstream cout2(out2.c_str());
   if (!cout2) {
-    cerr << "Couldn't open <" << out2 << ">\n";
-    exit(-1);
+    throw FileOpenError(out2, "OutPCA::zeroth_order", __FILE__, __LINE__);
   }
   
   cout1.precision(6);
@@ -86,14 +84,12 @@ void OutPCA::Run(int k)
 				/* Print out stuff */
   ofstream cout1(out1.c_str());
   if (!cout1) {
-    cerr << "Couldn't open <" << out1 << ">\n";
-    exit(-1);
+    throw FileOpenError(out1, "OutPCA::Run", __FILE__, __LINE__);
   }
   
   ofstream cout2(out2.c_str());
   if (!cout2) {
-    cerr << "Couldn't open <" << out2 << ">\n";
-    exit(-1);
+    throw FileOpenError(out2, "OutPCA::Run", __FILE__, __LINE__);
   }
   
   cout1.precision(6);
@@ -237,8 +233,7 @@ void OutPCA::Run(int k)
       else if (sphereSL)
 	get_potl_dens_SLsph(lmax, nmax, r);
       else {
-	cerr << "tk: no expansion defined" << endl;
-	_exit(-3);
+	throw GenericError("tk: no expansion defined", __FILE__, __LINE__);
       }
 
       for (n=1; n<=nmax; n++) {
@@ -257,8 +252,7 @@ void OutPCA::Run(int k)
 	else if (sphereSL)
 	  get_dens_coefs_SLsph(M_pca, normed, &d);
 	else {
-	  cerr << "tk: no expansion defined" << endl;
-	  _exit(-3);
+	  throw GenericError("tk: no expansion defined", __FILE__, __LINE__);
 	}
 
 	cout1 << setw(14) << d;
@@ -274,8 +268,7 @@ void OutPCA::Run(int k)
 	else if (sphereSL)
 	  get_pot_coefs_SLsph(M_pca, normed, &d, &dd);
 	else {
-	  cerr << "tk: no expansion defined" << endl;
-	  _exit(-3);
+	  throw GenericError("tk: no expansion defined", __FILE__, __LINE__);
 	}
 
 	cout2 << setw(14) << d;

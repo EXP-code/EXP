@@ -14,6 +14,10 @@
 //
 #include <boost/program_options.hpp>
 
+// Library variables
+
+#include <libvars.H>
+
 namespace po = boost::program_options;
 
 /**

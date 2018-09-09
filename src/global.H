@@ -226,6 +226,12 @@ extern char processor_name[];
 //! Internally defined slave communicator
 extern MPI_Comm MPI_COMM_SLAVE;
 
+//! List of host names and ranks
+extern std::map<std::string, std::vector<int> > nameMap;
+
+//! List of sibling ranks
+extern std::vector<int> siblingList;
+
 /** @name Coefficient header on each output dump */
 //@{
 //! Header type 1
@@ -246,19 +252,19 @@ extern pthread_mutex_t mem_lock;
 
 //! One component container per simulation
 class ComponentContainer;
-extern ComponentContainer comp;
+extern ComponentContainer *comp;
 
 // External forces
 
 //! One external force container per simulation
 class ExternalCollection;
-extern ExternalCollection external;
+extern ExternalCollection *external;
 
 // Output list
 
 class OutputContainer;
 //! One output routine container per simulation
-extern OutputContainer output;
+extern OutputContainer *output;
 
 // Parameter database
 
@@ -312,6 +318,12 @@ extern int  rlimit_val;
 //! Endless loop for setting gdb breakpoints
 extern bool debug_wait;
 extern bool main_wait;
+
+//! For toggling CUDA profiling
+extern bool cuda_prof;
+
+//! Number of concurrent CUDA streams
+extern int  cuStreams;
 
 #include "Species.H"
 

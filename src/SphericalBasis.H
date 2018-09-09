@@ -1,7 +1,18 @@
 #ifndef _SphericalBasis_H
 #define _SphericalBasis_H
 
+#include <ACG.h>
+#include <Normal.h>
 #include <AxisymmetricBasis.H>
+
+#include "config.h"
+
+#if HAVE_LIBCUDA==1
+#include <cudaParticle.cuH>
+#include <cudaMappingConstants.cuH>
+#endif
+#include <NVTX.H>
+
 
 class MixtureBasis;
 
@@ -40,6 +51,9 @@ protected:
   vector<double> muse1;
   double muse0;
   //@}
+
+  //! Time at last multistep reset
+  double resetT;
 
   //! Work vectors for cosines for all values <code>m</code>
   Vector *cosm;
@@ -80,6 +94,95 @@ protected:
 
   //! Thread method for coefficient accumulation
   virtual void * determine_coefficients_thread(void * arg);
+
+  //! CUDA method for coefficient accumulation
+#if HAVE_LIBCUDA==1
+  virtual void determine_coefficients_cuda();
+  virtual void determine_acceleration_cuda();
+
+  thrust::host_vector<cuFP_t> host_coefs;
+  thrust::device_vector<cuFP_t> dev_coefs;
+
+  virtual void HtoD_coefs(const Matrix& coef);
+  virtual void DtoH_coefs(Matrix& coef);
+
+  std::vector<cudaArray_t> cuInterpArray;
+  thrust::host_vector<cudaTextureObject_t> tex;
+
+  virtual void initialize_cuda() {}
+
+  virtual void destroy_cuda();
+
+  virtual cudaMappingConstants getCudaMappingConstants()
+  {
+    cudaMappingConstants ret;
+
+    ret.rscale = 1.0;
+    ret.hscale = 0.0;
+    ret.xmin   = 0.0;
+    ret.xmax   = 1.0;
+    ret.ymin   = 0.0;
+    ret.ymax   = 0.0;
+    ret.numr   = 100;
+    ret.numx   = 0;
+    ret.numy   = 0;
+    ret.dxi    = 1.0/(ret.numr-1);
+    ret.dxi    = 0.0;
+    ret.cmap   = 2;
+
+    return ret;
+  }
+
+  virtual void initialize_mapping_constants();
+
+  //! Compare CPU and GPU force evaluation for debugging
+  void host_dev_force_compare();
+
+  //@{
+  //! Working device vectors
+  thrust::device_vector<cudaTextureObject_t> t_d;
+
+  //! Helper struct to hold device data
+  struct cudaStorage
+  {
+    thrust::device_vector<cuFP_t> dN_coef;
+    thrust::device_vector<cuFP_t> dc_coef;
+    thrust::device_vector<cuFP_t> dw_coef;
+    thrust::device_vector<cuFP_t> df_coef;
+    thrust::device_vector<cuFP_t> plm1_d, plm2_d, r_d, m_d, a_d, p_d;
+    thrust::device_vector<int>    i_d;
+    
+    void resize_coefs(int nmax, int Lmax, int N, int gridSize);
+    void resize_acc  (int Lmax, int Nthread);
+  };
+
+
+  //! Cyclical ring iterator for storage
+  //@{
+  //! An STL container
+  typedef std::vector<cudaStorage> cuContainer;
+
+  //! An iterator for the container
+  typedef cuContainer::iterator    cuIterator;
+
+  //! Convert to a ring iterator
+  typedef RingIterator <cudaStorage, cuContainer, cuIterator> cuRingType;
+
+  //! The storage instance
+  cuContainer cuRingData;
+
+  //! The cyclic iterator instance
+  boost::shared_ptr<cuRingType> cuRing;
+  //@}
+  
+  //! Initialize the container
+  void cuda_initialize();
+
+  //! Zero the coefficient output vectors
+  void zero_coefs();
+  //@}
+
+#endif
 
   //! Thread method for accerlation compuation
   virtual void * determine_acceleration_and_potential_thread(void * arg);

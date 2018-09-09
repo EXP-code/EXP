@@ -13,9 +13,9 @@
 void clean_up(void)
 {
 				// Call for final output to files
-  output.Run(this_step, true);
+  output->Run(this_step, true);
 				// Cache for restart
-  external.finish();
+  external->finish();
 
   MPI_Barrier(MPI_COMM_WORLD);
 
@@ -39,6 +39,18 @@ void clean_up(void)
 
   delete barrier;
   delete parse;
+
+  //===================================
+  // Delete the instance containers
+  //===================================
+  
+  delete output;
+  delete external;
+  delete comp;
+
+  //===================================
+  // Shutdown MPI
+  //===================================
 
   MPI_Finalize();
 

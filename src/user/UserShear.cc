@@ -22,7 +22,7 @@ UserShear::UserShear(string &line) : ExternalForce(line)
 				// Look for the fiducial component for
 				// centering
     bool found = false;
-    for (auto c : comp.components) {
+    for (auto c : comp->components) {
       if ( !ctr_name.compare(c->name) ) {
 	c0 = c;
 	found = true;

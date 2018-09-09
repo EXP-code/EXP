@@ -12,9 +12,18 @@ ADD_CFLAGS3   = -DUSE_DMALLOC -g
 ADD_CXXFLAGS3 = -DUSE_DMALLOC -g
 endif
 
-AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
+AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
 AM_CFLAGS   = -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
-AM_CXXFLAGS = -std=c++11 -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
+AM_CXXFLAGS = -std=c++11 -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) @exp_vtk_include@ $(CUDA_FLAGS)
+
+if ENABLE_CUDA
+  CUDA_SRC       = cudaSLGridMP2.cu
+  ifeq ($(GENCODE_FLAGS),)
+    $(foreach sm,@sm_vers@,$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
+  endif
+  CUDA_LIBFLAGS  = -lcudart
+  NVCC_CXXFLAGS  = -I/usr/include/mpi -I. $(GENCODE_FLAGS) $(NVCC_EXTRA) -Xcompiler $(AM_CPPFLAGS)
+endif
 
 lib_LTLIBRARIES = libexputil.la
 
@@ -26,7 +35,7 @@ RANDOM_SRC =
 UTIL_SRC = nrutil.cc elemfunc.cc euler.cc euler_slater.cc rotmatrix.cc	\
 	wordSplit.cc ParamParse.cc ParamParseMPI.cc ParamDatabase.cc	\
 	ProgramParam.cc FileUtils.cc BarrierWrapper.cc int128.cc	\
-	uint128.cc stack.cc
+	uint128.cc stack.cc VtkGrid.cc
 OPTIMIZATION_SRC = simann2.cc
 VECTOR_SRC = Vector.cc Vector3.cc eigen.cc eigsrt.cc inverse.cc jacobi.cc \
 	svd.cc eigencc.cc
@@ -61,8 +70,20 @@ libexputil_la_SOURCES = $(ODE_SRC) $(ROOT_SRC) $(QUAD_SRC) \
 	$(PHASE_SRC)  $(SYMP_SRC) $(INTERP_SRC) $(MASSMODEL_SRC) \
 	$(ORBIT_SRC) $(BIORTH_SRC) $(POLY_SRC) $(GAUSS_SRC) \
 	$(QPDISTF_SRC) $(BESSEL_SRC) $(OPTIMIZATION_SRC) \
-	$(SLEDGE_SRC)
-libexputil_la_LIBADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+	$(SLEDGE_SRC) $(CUDA_SRC)
+
+libexputil_la_LIBADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LDFLAGS)	\
+$(CUDA_LIBFLAGS) $(LIBS) $(FLIBS)
+
+# the rule that can recognize *.cu files and compile the *.cu files to
+# *.lo and *.o files
+
+.cu.lo:
+	$(top_builddir)/cudalt.py $@ $(NVCC) -c $(NVCC_CXXFLAGS) $<
+
+.cu.o :
+	$(NVCC) $(CUDA_CFLAGS) $(NVCC_CXXFLAGS) -c -o $@ $<
+
 
 sledge.f:	$(top_srcdir)/src/sledge.f
 	cp $(top_srcdir)/src/$@ .

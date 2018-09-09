@@ -25,7 +25,8 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #if 1
 
-#include <_G_config.h>
+// #include <_G_config.h>
+#include <stdio.h>
 #include <sys/types.h>
 #if _G_HAVE_SYS_RESOURCE
 #include <sys/time.h>

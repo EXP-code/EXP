@@ -22,7 +22,9 @@ Sphere::Sphere(string& line, MixtureBasis* m) : SphericalBasis(line, m)
 				// Get initialization info
   initialize();
 
-  SLGridSph::mpi = 1;		// Turn on MPI
+				// Enable MPI code for more than one node
+  if (numprocs>1) SLGridSph::mpi = 1;
+
   SLGridSph::model_file_name = homedir + model_file;
   SLGridSph::sph_cache_name  = outdir  + cache_file + "." + runtag;
   

@@ -49,7 +49,7 @@ UserRPtest::UserRPtest(string &line) : ExternalForce(line)
 				// Look for the fiducial component for
 				// centering
     bool found = false;
-    for (auto c : comp.components) {
+    for (auto c : comp->components) {
       if ( !ctr_name.compare(c->name) ) {
 	c0 = c;
 	found = true;
@@ -149,19 +149,19 @@ void UserRPtest::determine_acceleration_and_potential(void)
 				// Open new output stream for writing
 	ofstream out(curfile.c_str());
 	if (!out) {
-	  cout << "UserRPtest: error opening new log file <" 
-	       << curfile << "> for writing\n";
-	  MPI_Abort(MPI_COMM_WORLD, 121);
-	  exit(0);
+	  std::ostringstream sout;
+	  sout << "UserRPtest: error opening new log file <" 
+	       << curfile << "> for writing";
+	  throw GenericError(sout.str(), __FILE__, __LINE__);
 	}
 	
 				// Open old file for reading
 	ifstream in(backupfile.c_str());
 	if (!in) {
-	  cout << "UserRPtest: error opening original log file <" 
-	       << backupfile << "> for reading\n";
-	  MPI_Abort(MPI_COMM_WORLD, 122);
-	  exit(0);
+	  std::ostringstream sout;
+	  sout << "UserRPtest: error opening original log file <" 
+	       << backupfile << "> for reading";
+	  throw GenericError(sout.str(), __FILE__, __LINE__);
 	}
 
 	const int linesize = 1024;

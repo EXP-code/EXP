@@ -1,0 +1,12 @@
+A trivial example of a disk and halo simulation using low-fidelity
+adaptive bases.  This will test your build and provide a starting
+point of exploring parameters.  The configuration in the ../Better
+directory will build a higher resolution, more accurate basis.
+
+Run as follows.  First, change the ldlibdir parameter to point at your
+library install directory.  Then, execute the command:
+
+mpirun -np 6 exp -f IN.FILE
+
+assuming that you have a machine with 6 cores.
+

@@ -2,14 +2,24 @@ AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 BUILD_FLAGS =  -L$(top_srcdir)/expgnu/.libs -L$(top_srcdir)/exputil/.libs
 
 if ENABLE_GPTL
-ADD_CFLAGS4  = -DUSE_GPTL $(gptl_include)
+  ADD_CFLAGS4  = -DUSE_GPTL $(gptl_include)
+endif
+
+if ENABLE_CUDA
+  ADD_CUDA = cudaParticle.cu cudaSphericalBasis.cu cudaSphere.cu	\
+	cudaCylinder.cu cudaEmpOrth.cu cudaComponent.cu
+  ifeq ($(GENCODE_FLAGS),)
+    $(foreach sm,@sm_vers@,$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
+  endif
+  CUDA_LIBFLAGS  = -lcudart
+  NVCC_CXXFLAGS  = $(AM_CPPFLAGS) -I. $(CXXFLAGS) $(GENCODE_FLAGS) $(NVCC_EXTRA)
 endif
 
 AM_CFLAGS   = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) -fopenmp
 AM_FFLAGS   = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) -fopenmp
-AM_CXXFLAGS = -std=c++11 -fPIC -fno-inline-small-functions -Wall	\
+AM_CXXFLAGS = -std=c++11 -fPIC -fno-inline-small-functions -Wall \
 	-D_REENTRANT -Wno-non-virtual-dtor $(ADD_CFLAGS4) -fopenmp
-AM_LDFLAGS  = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil -lgomp
+AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil -lgomp
 
 libdir      = $(prefix)/lib/user
 
@@ -139,16 +149,16 @@ libshear_la_SOURCES = UserShear.cc
 libprofile_la_SOURCES = UserProfile.cc
 
 testCrossSection_SOURCES = testCross.cc phfit2.f
-testCrossSection_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS)
-testCrossSection_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu -llapack -lblas
+testCrossSection_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@
+testCrossSection_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS)
 
 testIonRecomb_SOURCES = testIonRecomb.cc phfit2.f
-testIonRecomb_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS)
-testIonRecomb_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu -llapack -lblas
+testIonRecomb_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@
+testIonRecomb_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS)
 
 genIonRecomb_SOURCES = genIonRecomb.cc phfit2.f
-genIonRecomb_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS)
-genIonRecomb_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu -llapack -lblas
+genIonRecomb_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@
+genIonRecomb_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS)
 
 testQuantile_SOURCES = testQuantile.cc Quantile.cc
 testQuantile_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS)

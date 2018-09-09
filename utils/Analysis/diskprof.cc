@@ -2,7 +2,7 @@
  *  Description:
  *  -----------
  *
- *  Read in coefficients and compute gnuplot slices, 
+ *  Read in coefficients and compute VTK slices, 
  *  and compute volume for VTK rendering
  *
  *
@@ -24,7 +24,7 @@
  *  By:
  *  --
  *
- *  MDW 11/28/08
+ *  MDW 11/28/08, 02/09/18
  *
  ***************************************************************************/
 
@@ -55,6 +55,8 @@ using namespace std;
 #include <ProgramParam.H>
 #include <foarray.H>
 
+#include <VtkGrid.H>
+
 #ifdef DEBUG
 #ifndef _REDUCED
 #pragma message "NOT using reduced particle structure"
@@ -80,7 +82,7 @@ program_option init[] = {
   {"NORDER",		"int",		"4",		"Number of basis functions per azimuthal harmonic"},
   {"OUTR",		"int",		"40",		"Number of radial points for output"},
   {"OUTZ",		"int",		"40",		"Number of vertical points for output"},
-  {"SURFACE",		"bool",		"true",		"Make equitorial and vertical slices"},
+  {"SURFACE",		"bool",		"true",		"Make equatorial and vertical slices"},
   {"VOLUME",		"bool",		"false",	"Make volume for VTK"},
   {"AXIHGT",		"bool",		"false",	"Compute midplane height profiles"},
   {"VHEIGHT",		"bool",		"false",	"Compute height profiles"},
@@ -118,9 +120,51 @@ string outdir, runtag;
 double tpos = 0.0;
 double tnow = 0.0;
   
+class Histogram
+{
+public:
+
+  std::vector<double> data;
+  int N;
+  double R, dR, rmax;
+  
+  Histogram(int N, double R) : N(N), R(R)
+  {
+    dR = 2.0*R/(N+1);
+    data.resize(N*N, 0.0);
+    rmax = R + 0.5*dR;
+  }
+
+  void Reset() { std::fill(data.begin(), data.end(), 0.0); }
+
+  void Syncr() { 
+    if (myid==0)
+      MPI_Reduce(MPI_IN_PLACE, &data[0], data.size(), MPI_DOUBLE, MPI_SUM, 0,
+		 MPI_COMM_WORLD);
+    else
+      MPI_Reduce(&data[0],     &data[0], data.size(), MPI_DOUBLE, MPI_SUM, 0,
+		 MPI_COMM_WORLD);
+  }
+
+  void Add(double x, double y, double m)
+  {
+    if (x < -rmax or x >= rmax or
+	y < -rmax or y >= rmax  ) return;
+
+    int indX = static_cast<int>(floor((x + rmax)/dR));
+    int indY = static_cast<int>(floor((y + rmax)/dR));
+
+    indX = std::min<int>(indX, N-1);
+    indY = std::min<int>(indY, N-1);
+
+    data[indX*N + indY] += m;
+  }
+};
+
 enum ComponentType {Star=1, Gas=2};
 
-void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p)
+void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p,
+		   Histogram& h)
 {
   if (myid==0) {
 
@@ -146,6 +190,9 @@ void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p)
 	cerr << "Error reading particle [n=" << 0 << ", i=" << i << "]" << endl;
 	exit(-1);
       }
+
+      // Make a Particle
+      //
       bod.mass = part->mass();
       for (int k=0; k<3; k++) bod.pos[k] = part->pos(k);
       for (int k=0; k<3; k++) bod.vel[k] = part->vel(k);
@@ -153,8 +200,11 @@ void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p)
       p.push_back(bod);
 
       part = psp->NextParticle(in);
-    }
 
+      // Add to histogram
+      //
+      h.Add(part->pos(0), part->pos(1), part->mass());
+    }
 
     //
     // Send the rest of the particles to the other nodes
@@ -242,9 +292,13 @@ void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p)
     p.insert(p.end(), t.begin(), t.end());
   }
 
+  // Synchronize histogram
+  //
+  h.Syncr();
 }
 
-void partition(ifstream* in, PSPDump* psp, int cflag, vector<Particle>& p)
+void partition(ifstream* in, PSPDump* psp, int cflag, vector<Particle>& p,
+	       Histogram& h)
 {
   p.erase(p.begin(), p.end());
 
@@ -254,9 +308,9 @@ void partition(ifstream* in, PSPDump* psp, int cflag, vector<Particle>& p)
       nbods = psp->CurrentDump()->nstar;
       psp->GetStar();
 
-      add_particles(in, psp, nbods, p);
+      add_particles(in, psp, nbods, p, h);
     } else {
-      add_particles(in, psp, nbods, p);
+      add_particles(in, psp, nbods, p, h);
     }      
   }
 
@@ -265,9 +319,9 @@ void partition(ifstream* in, PSPDump* psp, int cflag, vector<Particle>& p)
       int nbods = psp->CurrentDump()->ngas;
       psp->GetGas();
 
-      add_particles(in, psp, nbods, p);
+      add_particles(in, psp, nbods, p, h);
     } else {
-      add_particles(in, psp, nbods, p);
+      add_particles(in, psp, nbods, p, h);
     }      
   }
 
@@ -399,7 +453,7 @@ Vector get_quart_truncated(Vector& vv, double dz)
 }
 
 
-void write_output(EmpCylSL& ortho, int icnt, double time)
+void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 {
   unsigned ncnt = 0;
   int nout;
@@ -535,43 +589,26 @@ void write_output(EmpCylSL& ortho, int icnt, double time)
       
     if (myid==0) {
 
-      string nsuffx[3] = {".surf", ".height", ".mid"};
-      vector<string> names(3);
-      
-      for (int i=0; i<3; i++) {
-	names[i] = OUTFILE + nsuffx[i];
-	if (ALL) names[i] += sstr.str();
-      }
-      
-      foarray out(names);
+      VtkGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
 
+      std::string names[3] = {"surf", "height", "mid"};
+      
+      std::vector<double> data(OUTR*OUTR);
 
       for (int i=0; i<3; i++) {
-	out[i].write((char *)&OUTR, sizeof(int));
-	out[i].write((char *)&OUTR, sizeof(int));
-      }
-	
-      for (int l=0; l<OUTR; l++) {
-	y = -RMAX + dR*l;
-	
-	for (int j=0; j<OUTR; j++) {
-	    
-	  x = -RMAX + dR*j;
-	    
-	  if ( (ncnt++)%numprocs == myid ) {
-	    
-	    r = sqrt(x*x + y*y);
-	    phi = atan2(y, x);
-	    
-	    for (int i=0; i<3; i++) {
-	      out[i].write((char *)&x, sizeof(double));
-	      out[i].write((char *)&y, sizeof(double));
-	      z = otdat[(i*OUTR + l)*OUTR + j];
-	      out[i].write((char *)&z, sizeof(double));
-	    }
+
+	for (int l=0; l<OUTR; l++) {
+	  for (int j=0; j<OUTR; j++) {
+	    data[i*OUTR + j] = otdat[(i*OUTR + l)*OUTR + j];
 	  }
 	}
+
+	vtk.Add(data, names[i]);
       }
+
+      std::ostringstream sout;
+      sout << OUTFILE + "_posn";
+      vtk.Write(sout.str());
     }
   }
 
@@ -627,47 +664,25 @@ void write_output(EmpCylSL& ortho, int icnt, double time)
     
     if (myid==0) {
 
-      vector<string> names(nout);
-      
-      for (int i=0; i<nout; i++) {
-	names[i] = OUTFILE + "." + suffix[i] + ".vol";
-	if (ALL) names[i] += sstr.str();
-      }
+      VtkGrid vtk(OUTR, OUTR, OUTZ, -RMAX, RMAX, -RMAX, RMAX, -ZMAX, ZMAX);
 
-      foarray out(names);
+      std::vector<double> data(OUTR*OUTR*OUTZ);
 
-      for (int i=0; i<nout; i++) {
-	out[i].write((char *)&OUTR, sizeof(int));
-	out[i].write((char *)&OUTR, sizeof(int));
-	out[i].write((char *)&OUTZ, sizeof(int));
-      }
-    
-    
-      for (int k=0; k<OUTZ; k++) {
-	
-	z = -ZMAX + dz*k;
-	
-	for (int l=0; l<OUTR; l++) {
-	  
-	  y = -RMAX + dR*l;
-	  
-	  for (int j=0; j<OUTR; j++) {
-	    
-	    x = -RMAX + dR*j;
-	    
-	    for (int n=0; n<nout; n++) {
-	      out[n].write((char *)&x, sizeof(double));
-	      out[n].write((char *)&y, sizeof(double));
-	      out[n].write((char *)&z, sizeof(double));
-	      out[n].write(
-			   (char *)&(otdat[((n*OUTZ + k)*OUTR + l)*OUTR + j]), 
-			   sizeof(double)
-			   );
-	      out[n].write((char *)&valid, sizeof(int));
+      for (int n=0; n<nout; n++) {
+
+	for (int k=0; k<OUTZ; k++) {
+	  for (int l=0; l<OUTR; l++) {
+	    for (int j=0; j<OUTR; j++) {
+	      data[(j*OUTR + l)*OUTR + k] = otdat[((n*OUTZ + k)*OUTR + l)*OUTR + j];
 	    }
 	  }
 	}
+	vtk.Add(data, suffix[n]);
       }
+
+      std::ostringstream sout;
+      sout << OUTFILE + "_volume";
+      vtk.Write(sout.str());
     }
 
   }
@@ -721,43 +736,27 @@ void write_output(EmpCylSL& ortho, int icnt, double time)
     
     if (myid==0) {
       
-      vector<string> names(nout);
-      for (int i=0; i<nout; i++) {
-	names[i] = OUTFILE + "." + suffix[i] + ".surf";
-	if (ALL) names[i] += sstr.str();
-      }
+      VtkGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
 
-      foarray out(names);
+      std::vector<double> data(OUTR*OUTR);
 
-      for (int i=0; i<nout; i++) {
-	out[i].write((char *)&OUTR, sizeof(int));
-	out[i].write((char *)&OUTR, sizeof(int));
-	out[i].write((char *)&(f=-RMAX), sizeof(float));
-	out[i].write((char *)&(f= RMAX), sizeof(float));
-	out[i].write((char *)&(f=-RMAX), sizeof(float));
-	out[i].write((char *)&(f= RMAX), sizeof(float));
-      }
-      
-      
-      for (int l=0; l<OUTR; l++) {
-	
-	y = -RMAX + dR*l;
-	
-	for (int j=0; j<OUTR; j++) {
-	  
-	  x = -RMAX + dR*j;
-	  
-	  for (int n=0; n<nout; n++)
-	    out[n].write(
-			 (char *)&(f=otdat[(n*OUTR+l)*OUTR+j]), 
-			 sizeof(float)
-			 );
+      for (int n=0; n<nout; n++) {
+	for (int l=0; l<OUTR; l++) {
+	  for (int j=0; j<OUTR; j++) {
+	    data[l*OUTR + j] = otdat[(n*OUTR+l)*OUTR+j];
+	  }
 	}
+	vtk.Add(data, suffix[n]);
       }
+
+      vtk.Add(histo.data, "histo");
+
+      std::ostringstream sout;
+      sout << OUTFILE + "_surface";
+      vtk.Write(sout.str());
     }
   }
 }
-
 
 
 int
@@ -848,6 +847,7 @@ main(int argc, char **argv)
 
   vector<Particle> particles;
   PSPDump *psp = 0;
+  Histogram histo(config.get<int>("OUTR"), config.get<double>("RMAX"));
 
   if (ortho.read_cache()==0) {
 
@@ -866,7 +866,7 @@ main(int argc, char **argv)
       in0.open(config.get<string>("INITIAL").c_str());
     }
 
-    partition(&in0, psp, config.get<int>("INITFLAG"), particles);
+    partition(&in0, psp, config.get<int>("INITFLAG"), particles, histo);
     if (myid==0) cout << "done" << endl;
 
     if (myid==0) {
@@ -951,7 +951,7 @@ main(int argc, char **argv)
       in1.open(config.get<string>("INFILE").c_str());
     }
 
-    partition(&in1, psp, config.get<int>("PARTFLAG"), particles);
+    partition(&in1, psp, config.get<int>("PARTFLAG"), particles, histo);
     if (myid==0) cout << "done" << endl;
 
     //------------------------------------------------------------ 
@@ -971,7 +971,7 @@ main(int argc, char **argv)
     //------------------------------------------------------------ 
 
     if (myid==0) cout << "Writing output . . . " << flush;
-    write_output(ortho, icnt++, dump->header.time);
+    write_output(ortho, icnt++, dump->header.time, histo);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
 

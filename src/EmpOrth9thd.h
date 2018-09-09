@@ -1,5 +1,3 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 #ifndef _EmpOrth_h
 #define _EmpOrth_h
 
@@ -18,7 +16,14 @@
 #ifndef STANDALONE
 #include <global.H>
 #include "expand.h"
+
+#if HAVE_LIBCUDA==1
+#include <cudaParticle.cuH>
+#include <cudaMappingConstants.cuH>
+#endif
+
 #else
+
 #include "Particle.h"
 extern int this_step;
 extern int Mstep;
@@ -26,6 +31,7 @@ extern int mstep;
 extern unsigned multistep;
 extern vector<int> stepL, stepN;
 extern pthread_mutex_t coef_lock;
+
 #endif
 
 //! Encapsulatates a SLGridSph (Sturm-Liouville basis) for use as force method
@@ -72,8 +78,11 @@ private:
   bool MPIset, MPIset_eof;
   MPI_Status status;
 
+  //@{
+  //! All of this should be rewritten more safely, at some point, sorry.
   double**** SC;
   double**** SS;
+  //@}
 
   Matrix *var;
 
@@ -126,7 +135,7 @@ private:
 
   Vector* hold;
 
-  vector<short> coefs_made;
+  std::vector<short> coefs_made;
   bool eof_made;
 
   SphModTblPtr make_sl();
@@ -139,16 +148,95 @@ private:
 
 				// 1=write, 0=read
 				// return: 0=failure
-  int cache_grid(int, string file="");		
+  int    cache_grid(int, string file="");		
   double integral(int, int, int, int);
-  void get_pot(Matrix&, Matrix&, double, double);
-  void pca_hall(void);
+  void   get_pot(Matrix&, Matrix&, double, double);
+  void   pca_hall(void);
   double massR(double R);
   double densR(double R);
 
-  void bomb(string oops);
+  //! PCA basis structure for caching and diagnostics
+  class PCAbasis
+  {
+  public:
+
+    //! Data for each harmonic subspace
+    class PCAelement
+    {
+    public:
+      //@{
+      //! All the public data
+      Vector evalJK;
+      Vector meanJK;
+      Vector coefJK;
+      Vector b_Hall;
+      Matrix covrJK;
+      Matrix evecJK;
+      //@}
+      
+      //! Constructor
+      PCAelement(int n)
+      {
+	meanJK.setsize(1, n);
+	coefJK.setsize(1, n);
+	b_Hall.setsize(1, n);
+	covrJK.setsize(1, n, 1, n);
+	evecJK.setsize(1, n, 1, n);
+      }
+      
+      //! Zero all data
+      void reset()
+      {
+	meanJK.zero();
+	coefJK.zero();
+	b_Hall.zero();
+	covrJK.zero();
+	evecJK.zero();
+      }
+      
+    };
+
+    typedef boost::shared_ptr<PCAelement> PCAelemPtr;
+
+    //! The cosine and sine spaces
+    std::map<int, PCAelemPtr> C, S;
+
+    //! Mass in the accumulation
+    double Tmass;
+
+    //! Constructor
+    PCAbasis(int M, int n)
+    {
+      for (int m=0; m<=M; m++) {
+	C[m] = PCAelemPtr(new PCAelement(n));
+	if (m) S[m] = PCAelemPtr(new PCAelement(n));
+      }
+      reset();
+    }
+
+    //! Reset all variables to zero for accumulation
+    void reset()
+    {
+      for (auto v : C) v.second->reset();
+      for (auto v : S) v.second->reset();
+      Tmass = 0.0;
+    }
+
+  };
+
+  typedef boost::shared_ptr<PCAbasis> PCAbasisPtr;
+
+  //! Cache PCA information between calls
+  PCAbasisPtr pb;
 
   pthread_mutex_t used_lock;
+
+  //! Thread body for coef accumulation
+  void accumulate_thread_call(int id, std::vector<Particle>* p, int mlevel, bool verbose);
+
+  //! Thread body for eof accumulation
+  void accumulate_eof_thread_call(int id, std::vector<Particle>* p, bool verbose);
+
 
 public:
 
@@ -175,6 +263,9 @@ public:
   //! TRUE if VTK diagnostics are on
   static bool PCAVTK;
 
+  //! VTK diagnostic frequency
+  static unsigned VTKFRQ;
+
   //! TRUE if we are using coordinate mapping
   static bool CMAP;
 
@@ -199,7 +290,8 @@ public:
   //! Number of entries in radial basis table
   static int NUMR;
 
-  //! Selector output freq
+  //! Selector output freq (this only affects diagnostic output).
+  //! Current default is to perform Hall on every step when selected
   static int HALLFREQ;
 
   //! Minimum radial value for basis
@@ -317,8 +409,16 @@ public:
   //! Accumulate coefficients from particle distribution
   void accumulate(vector<Particle>& p, int mlev=0, bool verbose=false);
 
+  //! Accumulate coefficients from particle distribution by thread.
+  //! Used by external appliations.
+  void accumulate_thread(vector<Particle>& p, int mlev=0, bool verbose=false);
+
   //! Make EOF from particle distribution
   void accumulate_eof(vector<Particle>& p, bool verbose=false);
+
+  //! Make EOF from particle distribution by thread.  Used by external
+  //! applications.
+  void accumulate_eof_thread(vector<Particle>& p, bool verbose=false);
 
   //! Add single particle to coefficients
   void accumulate(double r, double z, double phi, double mass,
@@ -361,11 +461,14 @@ public:
   //! Print debug info
   void multistep_debug();
 
-  //! Dump out coefficients to stream
-  void dump_coefs(ostream& out);
+  //! Set coefficients from input stream
+  void set_coefs(int mm, const Vector& cos1, const Vector& sin1, bool zero);
+
+  //! Dump out coefficients to output stream
+  void dump_coefs(std::ostream& out);
 
   //! Dump out coefficients to stream in bianry format
-  void dump_coefs_binary(ostream& out, double time);
+  void dump_coefs_binary(std::ostream& out, double time);
 
   //! Plot basis
   void dump_basis(const string& name, int step, double Rmax=-1.0);
@@ -380,6 +483,11 @@ public:
 			 double XYOUT, double ZOUT, 
 			 int OUTR, int OUTZ, bool logscale,
 			 int M1, int M2, int N1, int N2);
+
+  //! Plot PCA basis images for debugging
+  void dump_images_basis_pca(const string& runtag,
+			     double XYOUT, double ZOUT, 
+			     int OUTR, int OUTZ, int M, int N, int cnt);
 
   //! Restrict order
   void restrict_order(int n);
@@ -444,6 +552,44 @@ public:
     return ret;
   }
 
+#ifndef STANDALONE
+#if HAVE_LIBCUDA==1
+  cudaMappingConstants getCudaMappingConstants();
+
+  void initialize_cuda(std::vector<cudaArray_t>& cuArray,
+		       thrust::host_vector<cudaTextureObject_t>& tex);
+
+  double get_coef(int m, int n, char c)
+  {
+    if (m >  MMAX)
+      throw std::runtime_error("m>mmax");
+
+    if (n >= rank3)
+      throw std::runtime_error("n>=norder");
+
+    if (c == 'c')
+      return accum_cos[m][n];
+    else
+      return accum_sin[m][n];
+  }
+
+  double& set_coef(int mlevel, int m, int n, char c)
+  {
+    if (m >  MMAX)
+      throw std::runtime_error("m>mmax");
+
+    if (n >= rank3)
+      throw std::runtime_error("n>=norder");
+
+    if (c == 'c')
+      return accum_cosN[mlevel][0][m][n];
+    else
+      return accum_sinN[mlevel][0][m][n];
+  }
+
+#endif
+#endif
+
 private:
   TKType tk_type;
 
@@ -455,3 +601,6 @@ extern void sinecosine_R(int mmax, double phi, Vector& c, Vector& s);
 
 
 #endif
+
+// -*- C++ -*-
+

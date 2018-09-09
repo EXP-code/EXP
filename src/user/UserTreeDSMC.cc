@@ -46,7 +46,7 @@ double UserTreeDSMC::Vunit = Lunit/Tunit;
 double UserTreeDSMC::Eunit = Munit*Vunit*Vunit;
 bool   UserTreeDSMC::use_effort = true;
 
-std::map<int, double> UserTreeDSMC::atomic_weights;
+std::vector<double> UserTreeDSMC::atomic_weights;
 
 std::set<std::string> UserTreeDSMC:: colltypes;
 
@@ -134,6 +134,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   // Initialize the atomic_weights map hardcode the atomic weight map
   // for use in collFrac.  Weights in atomic mass units (amu)
   
+  atomic_weights.resize(15, -1.0);
+
   atomic_weights[0]  = 0.000548579909; // Electron
   atomic_weights[1]  = 1.0079;	       // Hydrogen
   atomic_weights[2]  = 4.0026;	       // Helium
@@ -154,12 +156,9 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   
   // Look for the fiducial component
   bool found = false;
-  list<Component*>::iterator cc;
-  Component *c;
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
-    if ( !comp_name.compare(c->name) ) {
-      c0 = c;
+  for (auto cc : comp->components) {
+    if ( !comp_name.compare(cc->name) ) {
+      c0 = cc;
       found = true;
       break;
     }
@@ -190,7 +189,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     PartMapItr p    = c0->Particles().begin();
     PartMapItr pend = c0->Particles().end();
     for (; p!=pend; p++) {
-      if (use_exes >= static_cast<int>(p->second.dattrib.size())) {
+      if (use_exes >= static_cast<int>(p->second->dattrib.size())) {
 	ok1 = 0;
 	break;
       }
@@ -222,7 +221,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     PartMapItr p    = c0->Particles().begin();
     PartMapItr pend = c0->Particles().end();
     for (; p!=pend; p++) {
-      if (use_Kn >= static_cast<int>(p->second.dattrib.size())) {
+      if (use_Kn >= static_cast<int>(p->second->dattrib.size())) {
 	ok1 = 0;
 	break;
       }
@@ -258,7 +257,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     PartMapItr p    = c0->Particles().begin();
     PartMapItr pend = c0->Particles().end();
     for (; p!=pend; p++) {
-      if (use_St >= static_cast<int>(p->second.dattrib.size())) {
+      if (use_St >= static_cast<int>(p->second->dattrib.size())) {
 	ok1 = 0;
 	break;
       }
@@ -457,9 +456,9 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   if (ctype.compare("Ion") == 0)
     collide = new CollideIon(this, c0, hsdiam, crossfac, spec_map, nthrds);
   else {
-    if (myid==0) std::cout << "No such Collide type: " << ctype 
-			   << std::endl;
-    exit(-1);
+    std::ostringstream sout;
+    sout << "No such Collide type: " << ctype;
+    throw GenericError(sout.str(), __FILE__, __LINE__);
   }
   
   //
@@ -479,23 +478,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   collide->set_MFPTS (mfpts);
   
   ElostTotCollide = ElostTotEPSM = 0.0;
-  
-  //
-  // Timers: set precision to microseconds
-  //
-  
-  partnTime.Microseconds();
-  tree1Time.Microseconds();
-  tradjTime.Microseconds();
-  tcellTime.Microseconds();
-  tstepTime.Microseconds();
-  llistTime.Microseconds();
-  clldeTime.Microseconds();
-  clldeWait.Microseconds();
-  partnWait.Microseconds();
-  tree1Wait.Microseconds();
-  tree2Wait.Microseconds();
-  timerDiag.Microseconds();
   
   //
   // Quantiles for distribution diagnstic
@@ -663,26 +645,18 @@ void UserTreeDSMC::initialize()
   
   if (get_value("rrtype", val)) {
     if (Ion::setRRtype(val)) {
-      if (myid==0) {
-	std::cerr << "UserTreeDSMC: invalid rrtype <" << val << ">" 
-		  << std::endl;
-      }
-      MPI_Barrier(MPI_COMM_WORLD);
-      MPI_Finalize();
-      exit(-1);
+      std::ostringstream sout;
+      sout << "UserTreeDSMC: invalid rrtype <" << val << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
   }
   
   if (get_value("ctype", val)) {
     if (check_ctype(val)) ctype = val;
     else {
-      if (myid==0) {
-	std::cerr << "UserTreeDSMC: invalid ctype <" << ctype << ">" 
-		  << std::endl;
-      }
-      MPI_Barrier(MPI_COMM_WORLD);
-      MPI_Finalize();
-      exit(-1);
+      std::ostringstream sout;
+      sout << "UserTreeDSMC: invalid ctype <" << ctype << ">";
+      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
   }
   
@@ -982,7 +956,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   
   if (use_effort) {
     PartMapItr pitr = c0->Particles().begin(), pend = c0->Particles().end();
-    for (; pitr!= pend; pitr++) pitr->second.effort = pot_time;
+    for (; pitr!= pend; pitr++) pitr->second->effort = pot_time;
   }
   
   //
@@ -1255,7 +1229,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     
     const unsigned nf = 12;
     const unsigned nt = pHOT::ntile+2;
-    if (tt.size() != nf) tt = vector<TimeElapsed>(nf);
+    if (tt.size() != nf) tt = vector<double>(nf);
     vector<double> in(nf), IN(nf);
     vector< vector<double> > out(nt), OUT(nt);
     for (unsigned i=0; i<nt; i++) {
@@ -1263,18 +1237,18 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       if (mlevel==0) OUT[i] = vector<double>(nf);
     }
     
-    in[ 0] = partnSoFar();
-    in[ 1] = tree1SoFar();
-    in[ 2] = tradjSoFar();
-    in[ 3] = tcellSoFar();
-    in[ 4] = tstepSoFar();
-    in[ 5] = llistTime.getTime()();
-    in[ 6] = collideSoFar();
-    in[ 7] = timerSoFar();
-    in[ 8] = waitpSoFar();
-    in[ 9] = waitcSoFar();
-    in[10] = wait1SoFar();
-    in[11] = wait2SoFar();
+    in[ 0] = partnSoFar;
+    in[ 1] = tree1SoFar;
+    in[ 2] = tradjSoFar;
+    in[ 3] = tcellSoFar;
+    in[ 4] = tstepSoFar;
+    in[ 5] = llistTime.getTime();
+    in[ 6] = collideSoFar;
+    in[ 7] = timerSoFar;
+    in[ 8] = waitpSoFar;
+    in[ 9] = waitcSoFar;
+    in[10] = wait1SoFar;
+    in[11] = wait2SoFar;
     
     tt[ 0] = partnSoFar;
     tt[ 1] = tree1SoFar;
@@ -1291,8 +1265,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     
     if (mlevel==0) {
       for (unsigned k=0; k<nf; k++) {
-	IN[k] = tt[k]();
-	tt[k].zero();
+	IN[k] = tt[k];
+	tt[k] = 0.0;
       }
     }
     
@@ -1346,8 +1320,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       PartMapItr pitr, pend = c0->Particles().end();
       double minEff1 = 1.0e20, maxEff1 = 0.0;
       for (pitr=c0->Particles().begin(); pitr!= pend; pitr++) {
-	minEff1 = min<double>(pitr->second.effort, minEff1);
-	maxEff1 = max<double>(pitr->second.effort, maxEff1);
+	minEff1 = min<double>(pitr->second->effort, minEff1);
+	maxEff1 = max<double>(pitr->second->effort, maxEff1);
       }
       
       MPI_Allreduce(&minEff1, &minEff, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
@@ -1361,7 +1335,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	double Lvalue;
 	vector<unsigned> efrt1(ebins, 0);
 	for (pitr=c0->Particles().begin(); pitr!= pend; pitr++) {
-	  Lvalue = log(pitr->second.effort);
+	  Lvalue = log(pitr->second->effort);
 	  indx   = floor((Lvalue - minEff) / (maxEff - minEff) * ebins);
 	  if (indx<0)      indx = 0;
 	  if (indx>=ebins) indx = ebins-1;
@@ -1741,17 +1715,17 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     //
     // Zero the elapsed time counters
     //
-    partnSoFar.zero();
-    tree1SoFar.zero();
-    tradjSoFar.zero();
-    tcellSoFar.zero();
-    tstepSoFar.zero();
-    collideSoFar.zero();
-    timerSoFar.zero();
-    waitpSoFar.zero();
-    waitcSoFar.zero();
-    wait1SoFar.zero();
-    wait2SoFar.zero();
+    partnSoFar   = 0.0;
+    tree1SoFar   = 0.0;
+    tradjSoFar   = 0.0;
+    tcellSoFar   = 0.0;
+    tstepSoFar   = 0.0;
+    collideSoFar = 0.0;
+    timerSoFar   = 0.0;
+    waitpSoFar   = 0.0;
+    waitcSoFar   = 0.0;
+    wait1SoFar   = 0.0;
+    wait2SoFar   = 0.0;
 
 #ifdef USE_GPTL
     GPTLstop("UserTreeDSMC::collide_diag");
@@ -2067,7 +2041,7 @@ void UserTreeDSMC::makeSpeciesMap()
     //
     // Species accumulation
     //
-    KeyConvert kc  (p->second.iattrib[use_key]);
+    KeyConvert kc  (p->second->iattrib[use_key]);
     speciesKey indx(kc.getKey());
     unsigned short Z = indx.first;
     for (unsigned short i=1; i<=Z+1; i++) {
@@ -2080,8 +2054,8 @@ void UserTreeDSMC::makeSpeciesMap()
     // Temperature accumulation
     //
     if (use_temp>=0) {
-      T1[0] += p->second.mass;
-      T1[1] += p->second.mass * p->second.dattrib[use_temp];
+      T1[0] += p->second->mass;
+      T1[1] += p->second->mass * p->second->dattrib[use_temp];
     }
   }
   

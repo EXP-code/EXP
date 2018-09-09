@@ -9,6 +9,10 @@
 #include <AxisymmetricBasis.H>
 #include <OutPSN.H>
 
+#ifdef PSN_TIMING
+#include <chrono>
+#endif
+
 OutPSN::OutPSN(string& line) : Output(line)
 {
   initialize();
@@ -60,6 +64,11 @@ void OutPSN::Run(int n, bool last)
   if (n % nint && !last && !dump_signal) return;
   if (restart  && n==0  && !dump_signal) return;
 
+#ifdef PSN_TIMING
+  std::chrono::high_resolution_clock::time_point beg, end;
+  beg = std::chrono::high_resolution_clock::now();
+#endif
+  
   ofstream *out;
 
   psdump = n;
@@ -83,13 +92,13 @@ void OutPSN::Run(int n, bool last)
     
     struct MasterHeader header;
     header.time  = tnow;
-    header.ntot  = comp.ntot;
-    header.ncomp = comp.ncomp;
+    header.ntot  = comp->ntot;
+    header.ncomp = comp->ncomp;
 
     out->write((char *)&header, sizeof(MasterHeader));
   }
   
-  for (auto c : comp.components) {
+  for (auto c : comp->components) {
     c->write_binary(out, true);	// Write floats rather than doubles
   }
 
@@ -101,5 +110,13 @@ void OutPSN::Run(int n, bool last)
   chktimer.mark();
 
   dump_signal = 0;
+
+#ifdef PSN_TIMING
+  end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> intvl = end - beg;
+  if (myid==0)
+    std::cout << "OutPSN [T=" << tnow << "] timing=" << intvl.count()
+	      << std::endl;
+#endif
 }
 

@@ -36,7 +36,7 @@ ScatterMFP::ScatterMFP(string& line) : ExternalForce(line)
   
 				// Look for requested id in component list
   c = NULL;
-  for (auto it : comp.components) {
+  for (auto it : comp->components) {
     if (it->id.compare(comp_id) == 0) {
       c = it;
       break;
@@ -46,9 +46,9 @@ ScatterMFP::ScatterMFP(string& line) : ExternalForce(line)
 				// Make sure component has been found
 
   if (c==NULL) {
-    cerr << "ScatterMFP: can not find target component <" << comp_id << ">\n";
-    MPI_Abort(MPI_COMM_WORLD, 101);
-    exit(0);
+    std::ostringstream sout;
+    sout << "ScatterMFP: can not find target component <" << comp_id << ">\n";
+    throw GenericError(sout.str(), __FILE__, __LINE__);
   }
 
 				// Check for mfp in particle attribute list
@@ -57,7 +57,7 @@ ScatterMFP::ScatterMFP(string& line) : ExternalForce(line)
     c->ndattrib = mfp_index+1;
     PartMapItr it;
     for (it=c->particles.begin(); it!=c->particles.end(); it++)
-      it->second.dattrib.resize(c->ndattrib);
+      it->second->dattrib.resize(c->ndattrib);
     
   }
   

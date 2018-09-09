@@ -190,28 +190,7 @@ pHOT::pHOT(Component *C, sKeySet spec_list)
 
   cntr_total = cntr_new_key = cntr_mine = cntr_not_mine = cntr_ship = 0;
 
-  // Diagnostic times
-  //
   numkeys = 0;
-  timer_keymake.Microseconds();
-  timer_xchange.Microseconds();
-  timer_convert.Microseconds();
-  timer_overlap.Microseconds();
-  timer_prepare.Microseconds();
-  timer_cupdate.Microseconds();
-  timer_scatter.Microseconds();
-  timer_repartn.Microseconds();
-  timer_tadjust.Microseconds();
-  timer_cellcul.Microseconds();
-  timer_keycomp.Microseconds();
-  timer_keybods.Microseconds();
-  timer_waiton0.Microseconds();
-  timer_waiton1.Microseconds();
-  timer_waiton2.Microseconds();
-  timer_keynewc.Microseconds();
-  timer_keyoldc.Microseconds();
-  timer_diagdbg.Microseconds();
-
   use_weight = true;
  
   // Initialize timing structures
@@ -689,7 +668,7 @@ void pHOT::makeTree()
 	  for (PartMapItr 
 		 it=cc->Particles().begin(); it!=cc->Particles().end(); it++) 
 	    {
-	      for (int k=0; k<3; k++) pos[k] += it->second.pos[k];
+	      for (int k=0; k<3; k++) pos[k] += it->second->pos[k];
 	      cnt++;
 	    }
 	  cout << right << setw(w1)  << i 
@@ -1214,9 +1193,9 @@ void pHOT::dumpFrontier(std::ostream& out)
 	double  mass = 0.0;
 
 	for (auto j : i.second->bods) {
-	  mass += cc->particles[j].mass;
+	  mass += cc->particles[j]->mass;
 	  for (unsigned k=0; k<3; k++) {
-	    tmp = cc->particles[j].pos[k];
+	    tmp = cc->particles[j]->pos[k];
 	    mpos[k] += tmp;
 	    vpos[k] += tmp*tmp;
 	    pmin[k]  = std::min<double>(pmin[k], tmp);
@@ -1439,18 +1418,18 @@ void pHOT::testFrontier(string& filename)
 	p = c.second;
 	vector<unsigned long>::iterator ib = p->bods.begin();
 	while (ib != p->bods.end()) {
-	  mass += cc->particles[*ib].mass;
+	  mass += cc->particles[*ib]->mass;
 	  for (int k=0; k<3; k++) {
 	    pos[k] += 
-	      cc->particles[*ib].mass * 
-	      cc->particles[*ib].pos[k];
+	      cc->particles[*ib]->mass * 
+	      cc->particles[*ib]->pos[k];
 	    vel[k] += 
-	      cc->particles[*ib].mass * 
-	      cc->particles[*ib].vel[k];
+	      cc->particles[*ib]->mass * 
+	      cc->particles[*ib]->vel[k];
 	    temp += 
-	      cc->particles[*ib].mass * 
-	      cc->particles[*ib].vel[k] *
-	      cc->particles[*ib].vel[k];
+	      cc->particles[*ib]->mass * 
+	      cc->particles[*ib]->vel[k] *
+	      cc->particles[*ib]->vel[k];
 	  }
 	  ib++;
 	}
@@ -1598,7 +1577,7 @@ void pHOT::sendCell(key_type key, int to, unsigned num)
     unsigned crazy = 0;
     vector<unsigned long>::iterator ib = p->bods.begin();
     for (unsigned j=0; j<num; j++) {
-      if (cc->particles[*(ib++)].indx == 0) crazy++;
+      if (cc->particles[*(ib++)]->indx == 0) crazy++;
     }
     if (crazy) std::cout << "[sendCell node " << myid << " has " << crazy
 			 << " crazy bodies out of " << num << "]" << std::endl;
@@ -1613,8 +1592,8 @@ void pHOT::sendCell(key_type key, int to, unsigned num)
     pf->SendParticle(cc->particles[*ib]);
     
 				// Find the record and delete it
-    tpair.first  = cc->particles[*ib].key;
-    tpair.second = cc->particles[*ib].indx;
+    tpair.first  = cc->particles[*ib]->key;
+    tpair.second = cc->particles[*ib]->indx;
     key_indx::iterator it = keybods.find(tpair);
 
     if (it != keybods.end()) {
@@ -1717,37 +1696,35 @@ void pHOT::recvCell(int from, unsigned num)
 	      << std::setw(12) << ": receiving " << std::setw(4) << num 
 	      << " from " << std::setw(4) << from << endl;
 
-  Particle part;
-
   pCell *p = root;
 
   pf->ShipParticles(myid, from, num);
 
   for (unsigned j=0; j<num; j++) {
-    pf->RecvParticle(part);
-    if (part.indx==0 || part.mass<=0.0 || std::isnan(part.mass)) {
+    PartPtr part = pf->RecvParticle();
+    if (part->indx==0 || part->mass<=0.0 || std::isnan(part->mass)) {
       cout << "[recvCell, myid=" << myid 
-	   << ", will ignore crazy body with indx=" << part.indx 
-	   << ", j=" << j << ", num=" << num << ", mass=" << part.mass
+	   << ", will ignore crazy body with indx=" << part->indx 
+	   << ", j=" << j << ", num=" << num << ", mass=" << part->mass
 #ifdef INT128
-	   << ", key=" << part.key.toHex() << "]"
+	   << ", key=" << part->key.toHex() << "]"
 #else
-	   << ", key=" << hex << part.key << dec << "]"
+	   << ", key=" << hex << part->key << dec << "]"
 #endif
 	   << " from Node " << from << std::endl;
     } else {
-      cc->particles[part.indx] = part;
-      if (part.key == 0u) continue;
-      if (part.key < key_min || part.key >= key_max) {
+      cc->particles[part->indx] = part;
+      if (part->key == 0u) continue;
+      if (part->key < key_min || part->key >= key_max) {
 	cout << "Process " << myid << ": in recvCell, key=" 
 #ifdef INT128
-	     << part.key.toHex() << "]"
+	     << part->key.toHex() << "]"
 #else
-	     << hex << part.key << dec << "]"
+	     << hex << part->key << dec << "]"
 #endif
 	  ;
       }
-      key_pair tpair(part.key, part.indx);
+      key_pair tpair(part->key, part->indx);
       keybods.insert(tpair);
       p = p->Add(tpair);
     }
@@ -2182,23 +2159,23 @@ void pHOT::Repartition(unsigned mlevel)
   vector<key_wght> keys;
   for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
 
-    it->second.key = getKey(&(it->second.pos[0]));
-    if (it->second.key == 0u) {
+    it->second->key = getKey(&(it->second->pos[0]));
+    if (it->second->key == 0u) {
       oob.insert(it->first);
     } else {
       if (use_weight) {
 	// Floor effort flag to prevent divide-by-zero
-	it->second.effort =
-	  std::max<double>(Particle::effort_default, it->second.effort);
+	it->second->effort =
+	  std::max<double>(Particle::effort_default, it->second->effort);
 
 	// Push onto vector
-	keys.push_back(key_wght(it->second.key, it->second.effort));
+	keys.push_back(key_wght(it->second->key, it->second->effort));
 
 	// Reset effort value with some hysteresis
-	it->second.effort = hystrs*(1.0 - hystrs)*it->second.effort;
+	it->second->effort = hystrs*(1.0 - hystrs)*it->second->effort;
 
       } else {
-	keys.push_back(key_wght(it->second.key, 1.0));
+	keys.push_back(key_wght(it->second->key, 1.0));
       }
     }
   }
@@ -2257,15 +2234,15 @@ void pHOT::Repartition(unsigned mlevel)
   unsigned t;
   for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
 				// Skip an OOB particle
-    if (it->second.key == 0u) continue;
+    if (it->second->key == 0u) continue;
 				// Look for key in this node's list
-    t = find_proc(loclist, it->second.key);
+    t = find_proc(loclist, it->second->key);
     if (t == numprocs) {
       cerr << "Process " << myid << ": loclist found last entry, "
 #ifdef INT128
-	   << " key=" << it->second.key.toHex()
+	   << " key=" << it->second->key.toHex()
 #else
-	   << " key=" << hex << it->second.key << dec
+	   << " key=" << hex << it->second->key << dec
 #endif
 	;
       
@@ -2412,21 +2389,21 @@ void pHOT::Repartition(unsigned mlevel)
   timer_convert.start();
 
   if (Fcnt) {
-    Particle part;
     for (unsigned i=0; i<Fcnt; i++) {
+      PartPtr part = boost::make_shared<Particle>();
       pf->particleUnpack(part, &precv[i*bufsiz]);
-      if (part.mass<=0.0 || std::isnan(part.mass)) {
+      if (part->mass<=0.0 || std::isnan(part->mass)) {
 	cout << "[Repartition, myid=" << myid 
-	     << ": crazy body with indx=" << part.indx 
-	     << ", mass=" << part.mass  << ", key="
+	     << ": crazy body with indx=" << part->indx 
+	     << ", mass=" << part->mass  << ", key="
 #ifdef INT128
-	     << part.key.toHex()
+	     << part->key.toHex()
 #else
-	     << hex << part.key << dec
+	     << hex << part->key << dec
 #endif
 	     << ", i=" << i << " out of " << Fcnt << "]" << endl;
       }
-      cc->Particles()[part.indx] = part;
+      cc->Particles()[part->indx] = part;
     }
 
     // Refresh size of local particle list
@@ -2441,15 +2418,15 @@ void pHOT::Repartition(unsigned mlevel)
   keybods.clear();
   unsigned oob1_cnt=0, oob_cnt=0;
   for (PartMapItr n=cc->Particles().begin(); n!=cc->Particles().end(); n++) {
-    if (n->second.key==0u) {
+    if (n->second->key==0u) {
       oob1_cnt++;
       continue;
     }
-    if (n->second.indx==0) {
+    if (n->second->indx==0) {
       cout << "pHOT::Repartition bad particle indx=0!" << endl;
       oob1_cnt++;
     } else {
-      keybods.insert(key_pair(n->second.key, n->second.indx));
+      keybods.insert(key_pair(n->second->key, n->second->indx));
     }
   }
 
@@ -2467,13 +2444,13 @@ void pHOT::Repartition(unsigned mlevel)
     //
     std::list<PartMapItr> badP;
     for (PartMapItr ip=cc->particles.begin(); ip!=cc->particles.end(); ip++) {
-      if (ip->second.indx==0) {
+      if (ip->second->indx==0) {
 	cout << "pHOT::Repartition BAD particle in proc=" << myid
-	     << ", mass=" << ip->second.mass << ", key="
+	     << ", mass=" << ip->second->mass << ", key="
 #ifdef INT128
-	     << ip->second.key.toHex()
+	     << ip->second->key.toHex()
 #else
-	     << hex << ip->second.key << dec
+	     << hex << ip->second->key << dec
 #endif
 	     << endl;
 	badP.push_back(ip);
@@ -3011,7 +2988,7 @@ void pHOT::adjustTree(unsigned mlevel)
 #ifdef INT128
 	   << " oldbody=" << oldkey.toHex()
 	   << " newbody=" << newkey.toHex()
-	   << " cell="    << bodycell.find(oldkey)->second.first.toHex()
+	   << " cell="    << bodycell.find(oldkey)->second->first.toHex()
 #else
 	   << " oldbody=" << hex << oldkey << dec
 	   << " newbody=" << hex << newkey << dec
@@ -3192,23 +3169,24 @@ void pHOT::adjustTree(unsigned mlevel)
     timer_convert.start();
     
     for (unsigned i=0; i<Fcnt; i++) {
+      PartPtr part = boost::make_shared<Particle>();
       pf->particleUnpack(part, &precv[i*bufsiz]);
-      if (part.mass<=0.0 || std::isnan(part.mass)) {
+      if (part->mass<=0.0 || std::isnan(part->mass)) {
 	cout << "[adjustTree, myid=" << myid
-	     << ": crazy body indx=" << part.indx 
-	     << ", mass=" << part.mass << ", key="
+	     << ": crazy body indx=" << part->indx 
+	     << ", mass=" << part->mass << ", key="
 #ifdef INT128
-	     << part.key.toHex()
+	     << part->key.toHex()
 #else
-	     << hex << part.key<< dec
+	     << hex << part->key<< dec
 #endif
 	     << ", i=" << i << " out of " << Fcnt << "]" << endl;
       }
       
-      cc->Particles()[part.indx] = part;
+      cc->Particles()[part->indx] = part;
       
-      if (part.key != 0u) {
-	key_pair newpair(part.key, part.indx);
+      if (part->key != 0u) {
+	key_pair newpair(part->key, part->indx);
 	keybods.insert(newpair);
 	root->Add(newpair, &change);
       }
@@ -3298,9 +3276,10 @@ void pHOT::adjustTree(unsigned mlevel)
 		   n+1, 136, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
 	  for (int i=0; i<head_num; i++) {
+	    PartPtr part = boost::make_shared<Particle>();
 	    pf->particleUnpack(part, &Precv[i*bufsiz]);
-	    cc->Particles()[part.indx] = part;
-	    key_pair newpair(part.key, part.indx);
+	    cc->Particles()[part->indx] = part;
+	    key_pair newpair(part->key, part->indx);
 	    keybods.insert(newpair);
 	    c->Add(newpair, &change);
 	  }
@@ -3405,9 +3384,10 @@ void pHOT::adjustTree(unsigned mlevel)
 		   n, 135, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
 	  for (int i=0; i<tail_num; i++) {
+	    PartPtr part = boost::make_shared<Particle>();
 	    pf->particleUnpack(part, &Precv[i*bufsiz]);
-	    cc->Particles()[part.indx] = part;
-	    key_pair newpair(part.key, part.indx);
+	    cc->Particles()[part->indx] = part;
+	    key_pair newpair(part->key, part->indx);
 	    keybods.insert(newpair);
 	    c->Add(newpair, &change);
 	  }
@@ -3820,7 +3800,7 @@ bool pHOT::checkDupes1(const std::string& msg)
 
   // Make multimap of all index/key pairs
   for (PartMapItr it=cc->Particles().begin(); it!=cc->Particles().end(); it++)
-    plist.insert(pair<indx_type, key_type>(it->first, it->second.key));
+    plist.insert(pair<indx_type, key_type>(it->first, it->second->key));
   
   // Hold unique duplicated indices
   multiset<indx_type> dups;
@@ -4001,16 +3981,16 @@ bool pHOT::checkKeybods(const std::string& msg)
   for (PartMapItr n = cc->Particles().begin(); n!=cc->Particles().end(); n++) {
 
 				// Skip oob particles
-    if (n->second.key) {
-      key_pair tpair(n->second.key, n->second.indx);
+    if (n->second->key) {
+      key_pair tpair(n->second->key, n->second->indx);
       key_indx::iterator it = keybods.find(tpair);
 
       if (it==keybods.end()) {
 	if (DEBUG_NOISY) {
 	  cout << msg << ": checkKeybods: " 
 	       << cnt << " unmatched particle, (x, y, z)=("
-	       << n->second.pos[0] << ", " << n->second.pos[1] 
-	       << ", " << n->second.pos[2] << ")" << endl;
+	       << n->second->pos[0] << ", " << n->second->pos[1] 
+	       << ", " << n->second->pos[2] << ")" << endl;
 	}
 	ok = false;
 	cnt++;
@@ -4040,9 +4020,9 @@ bool pHOT::checkKeybodsFrontier(const std::string& msg)
   for (PartMapItr n = cc->Particles().begin(); n!=cc->Particles().end(); n++) {
     // Skip oob particles
     //
-    if (n->second.key) {
+    if (n->second->key) {
 				// a keybods (std::set) key
-      key_pair tpair(n->second.key, n->second.indx);
+      key_pair tpair(n->second->key, n->second->indx);
       key_indx::iterator it = keybods.find(tpair);
 
       if (it==keybods.end()) {
@@ -4051,13 +4031,13 @@ bool pHOT::checkKeybodsFrontier(const std::string& msg)
 	       << ": count=" << std::setw(5) << pcnt 
 	       << " unmatched particle" << std::endl 
 	       << "(x, y, z)=("
-	       << std::setw(16) << n->second.pos[0] << ", " 
-	       << std::setw(16) << n->second.pos[1] << ", " 
-	       << std::setw(16) << n->second.pos[2] << ")" << std::endl
+	       << std::setw(16) << n->second->pos[0] << ", " 
+	       << std::setw(16) << n->second->pos[1] << ", " 
+	       << std::setw(16) << n->second->pos[2] << ")" << std::endl
 	       << "(u, v, w)=("
-	       << std::setw(16) << n->second.vel[0] << ", " 
-	       << std::setw(16) << n->second.vel[1] << ", " 
-	       << std::setw(16) << n->second.vel[2] << ")" << std::endl;
+	       << std::setw(16) << n->second->vel[0] << ", " 
+	       << std::setw(16) << n->second->vel[1] << ", " 
+	       << std::setw(16) << n->second->vel[2] << ")" << std::endl;
 	}
 	ok = false;
 	pcnt++;
@@ -4066,7 +4046,7 @@ bool pHOT::checkKeybodsFrontier(const std::string& msg)
 	//
 	// Look for the particle key in the bodycell multimap
 	//
-	key2Range ij   = bodycell.equal_range(n->second.key);
+	key2Range ij   = bodycell.equal_range(n->second->key);
 	key_type  ckey = 0l;
 
 	if (ij.first != ij.second) {
@@ -4086,7 +4066,7 @@ bool pHOT::checkKeybodsFrontier(const std::string& msg)
 				// a sequential scan
 	    key_type fCell = 0l;
 	    for (key2Itr kt=bodycell.begin(); kt!=bodycell.end(); kt++) {
-	      if (kt->second.second == n->second.indx) {
+	      if (kt->second.second == n->second->indx) {
 		fCell = kt->second.first;
 		break;
 	      }
@@ -4094,18 +4074,18 @@ bool pHOT::checkKeybodsFrontier(const std::string& msg)
 
 	    cout << "pHOT::checkKeybodsFrontier, " << msg
 		 << ": body count=" << std::setw(5) << bcnt 
-		 << ", key="  << std::hex << n->second.key << std::dec
-		 << ", indx="  << n->second.indx
+		 << ", key="  << std::hex << n->second->key << std::dec
+		 << ", indx="  << n->second->indx
 		 << ", found="  << std::hex << fCell << std::dec
 		 << ", particle with no bodycell" << std::endl
 		 << "(x, y, z)=("
-		 << std::setw(16) << n->second.pos[0] << ", " 
-		 << std::setw(16) << n->second.pos[1] << ", " 
-		 << std::setw(16) << n->second.pos[2] << ")" << std::endl
+		 << std::setw(16) << n->second->pos[0] << ", " 
+		 << std::setw(16) << n->second->pos[1] << ", " 
+		 << std::setw(16) << n->second->pos[2] << ")" << std::endl
 		 << "(u, v, w)=("
-		 << std::setw(16) << n->second.vel[0] << ", " 
-		 << std::setw(16) << n->second.vel[1] << ", " 
-		 << std::setw(16) << n->second.vel[2] << ")" << std::endl;
+		 << std::setw(16) << n->second->vel[0] << ", " 
+		 << std::setw(16) << n->second->vel[1] << ", " 
+		 << std::setw(16) << n->second->vel[2] << ")" << std::endl;
 	  }
 	  ok = false;
 	  bcnt++;
@@ -4119,13 +4099,13 @@ bool pHOT::checkKeybodsFrontier(const std::string& msg)
 		   << ": frontier count=" << std::setw(5) << check.size()
 		   << " unmatched particle" << std::endl
 		   << "(x, y, z)=("
-		   << std::setw(16) << n->second.pos[0] << ", " 
-		   << std::setw(16) << n->second.pos[1] << ", " 
-		   << std::setw(16) << n->second.pos[2] << ")" << std::endl
+		   << std::setw(16) << n->second->pos[0] << ", " 
+		   << std::setw(16) << n->second->pos[1] << ", " 
+		   << std::setw(16) << n->second->pos[2] << ")" << std::endl
 		   << "(u, v, w)=("
-		   << std::setw(16) << n->second.vel[0] << ", " 
-		   << std::setw(16) << n->second.vel[1] << ", " 
-		   << std::setw(16) << n->second.vel[2] << ")" << std::endl;
+		   << std::setw(16) << n->second->vel[0] << ", " 
+		   << std::setw(16) << n->second->vel[1] << ", " 
+		   << std::setw(16) << n->second->vel[2] << ")" << std::endl;
 	    }
 	    ok = false;		// Count the missing cells
 	    if (check.find(ckey) == check.end())  check.insert(ckey);
@@ -4165,8 +4145,8 @@ bool pHOT::checkPartKeybods(const std::string& msg, unsigned mlevel)
   for (unsigned M=mlevel; M<=multistep; M++) {
     for (auto i : CLevels(M)) {
       for (auto b : i->bods) {
-	key_type key  = cc->Particles()[b].key;
-	unsigned indx = cc->Particles()[b].indx;
+	key_type key  = cc->Particles()[b]->key;
+	unsigned indx = cc->Particles()[b]->indx;
 
 	// Look for cell for this body
 	//
@@ -4207,20 +4187,20 @@ bool pHOT::checkBodycell(const std::string& msg)
   unsigned cnt=0;
   for (PartMapItr n=cc->Particles().begin(); n!=cc->Particles().end(); n++) {
     // Ignore OOB particle
-    if (n->second.key==0u) continue;
+    if (n->second->key==0u) continue;
 
     // Look for the bodycell
-    key_key::iterator it = bodycell.find(n->second.key);
+    key_key::iterator it = bodycell.find(n->second->key);
     if (it==bodycell.end()) {
       ok = false;
       cnt++;
       if (DEBUG_NOISY) {
 	cout << "Process " << myid << ": checkBodycell: " 
 	     << cnt << " unmatched particle: key=" << hex
-	     << n->second.key << dec << " index=" 
-	     << n->second.indx  << ", (x, y, z)=("
-	     << n->second.pos[0] << ", " << n->second.pos[1] 
-	     << ", " << n->second.pos[2] << ")" << endl;
+	     << n->second->key << dec << " index=" 
+	     << n->second->indx  << ", (x, y, z)=("
+	     << n->second->pos[0] << ", " << n->second->pos[1] 
+	     << ", " << n->second->pos[2] << ")" << endl;
       }
     }
   }
@@ -4385,7 +4365,7 @@ void pHOT::checkBounds(double rmax, const char *msg)
 
   int bad = 0;
   for (PartMapItr n = cc->Particles().begin(); n!=cc->Particles().end(); n++) {
-    for (int k=0; k<3; k++) if (fabs(n->second.pos[k])>rmax) bad++;
+    for (int k=0; k<3; k++) if (fabs(n->second->pos[k])>rmax) bad++;
   }
   if (bad) {
     cout << "Process " << myid << ": has " << bad << " out of bounds";
@@ -4648,20 +4628,21 @@ void pHOT::spreadOOB()
   if (Fcnt) {
     Particle part;
     for (unsigned i=0; i<Fcnt; i++) {
+      PartPtr part = boost::make_shared<Particle>();
       pf->particleUnpack(part, &precv[i*bufsiz]);
-      if (part.mass<=0.0 || std::isnan(part.mass)) {
+      if (part->mass<=0.0 || std::isnan(part->mass)) {
 	cout << "[spreadOOB, myid=" << myid 
-	     << ", crazy body with indx=" << part.indx 
-	     << ", mass=" << part.mass << ", key="
+	     << ", crazy body with indx=" << part->indx 
+	     << ", mass=" << part->mass << ", key="
 #ifdef INT128
-	     << part.key.toHex()
+	     << part->key.toHex()
 #else
-	     << hex << part.key << dec
+	     << hex << part->key << dec
 #endif
 	     << ", i=" << i << " out of " << Fcnt << "]" << endl;
       }
-      cc->Particles()[part.indx] = part;
-      oob.insert(part.indx);
+      cc->Particles()[part->indx] = part;
+      oob.insert(part->indx);
     }
 
     // Refresh size of local particle list
@@ -4685,7 +4666,7 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
 				// For diagnostics
   Timer *timer_debug;
   if (DEBUG_KEYS && myid==0) {
-    timer_debug = new Timer(true);
+    timer_debug = new Timer();
     timer_debug->start();
   }
 				// Sort the keys
@@ -5042,7 +5023,7 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
 	  << "----  total oob = " << setw(10) << oobn << endl
 	  << "----      TOTAL = " << setw(10) << tkey0 + oobn << endl
 	  << setfill('-') << setw(60) << '-' << setfill(' ') << endl
-	  << "----   Time (s) = " << setw(10) << timer_debug->stop()()
+	  << "----   Time (s) = " << setw(10) << timer_debug->stop()
 	  << endl
 	  << setfill('-') << setw(60) << '-' << setfill(' ') << endl
 	  << endl;
@@ -5321,7 +5302,7 @@ void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
 //
 void pHOT::rrMerge(vector<key_wght>& initl, vector<key_wght>& final)
 {
-  Timer timer(true);		// For debugging
+  Timer timer;			// For debugging
 
   if (myid==0 && DEBUG_MERGE)  {
     timer.start();   		// Time the trivial version
@@ -5370,7 +5351,7 @@ void pHOT::rrMerge(vector<key_wght>& initl, vector<key_wght>& final)
   if (DEBUG_MERGE) {
 
     if (myid==0) {
-      std::cout << "Trivial sort in " << timer.stop().getRealTime()*1.0e-6
+      std::cout << "Trivial sort in " << timer.stop()
 		<< " seconds" << std::endl;
 
 				// Time the parallel version
@@ -5383,7 +5364,7 @@ void pHOT::rrMerge(vector<key_wght>& initl, vector<key_wght>& final)
     parallelMerge(initl, final0);
 
     if (myid==0) {
-      std::cout << "Parallel sort in " << timer.stop().getRealTime()*1.0e-6 
+      std::cout << "Parallel sort in " << timer.stop()
 		<< " seconds" << std::endl;
 
 				// Check sizes
@@ -5430,61 +5411,61 @@ void pHOT::CollectTiming()
 {
   float fval;
 
-  fval = timer_keymake.getTime()();
+  fval = timer_keymake.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &keymk3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_xchange.getTime()();
+  fval = timer_xchange.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &exchg3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_convert.getTime()();
+  fval = timer_convert.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &cnvrt3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval  = timer_overlap.getTime()();
+  fval  = timer_overlap.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &tovlp3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval  = timer_prepare.getTime()();
+  fval  = timer_prepare.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &prepr3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_cupdate.getTime()();
+  fval = timer_cupdate.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &updat3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_scatter.getTime()();
+  fval = timer_scatter.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &scatr3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_repartn.getTime()();
+  fval = timer_repartn.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &reprt3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_tadjust.getTime()();
+  fval = timer_tadjust.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &tadjt3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_cellcul.getTime()();
+  fval = timer_cellcul.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &celcl3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_keycomp.getTime()();
+  fval = timer_keycomp.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &keycm3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_keybods.getTime()();
+  fval = timer_keybods.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &keybd3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_waiton0.getTime()();
+  fval = timer_waiton0.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &wait03[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_waiton1.getTime()();
+  fval = timer_waiton1.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &wait13[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_waiton2.getTime()();
+  fval = timer_waiton2.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &wait23[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_keynewc.getTime()();
+  fval = timer_keynewc.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &keync3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_keyoldc.getTime()();
+  fval = timer_keyoldc.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &keyoc3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
   fval = barrier->getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &barri3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_diagdbg.getTime()();
+  fval = timer_diagdbg.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &diagd3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
   MPI_Gather(&numkeys, 1, MPI_UNSIGNED, &numk3[0], 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
@@ -5634,7 +5615,7 @@ void pHOT::checkEffort(unsigned mlevel)
   for (auto i : frontier) {
     vector<unsigned long>::iterator ib;
     for (auto b : i.second->bods)
-      eff += cc->Particles()[b].effort;
+      eff += cc->Particles()[b]->effort;
   }
 
   vector<double> eq(numprocs);

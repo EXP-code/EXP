@@ -155,7 +155,7 @@ double Bessel::dens(double r, int n)
   double alpha;
 
   if (n>p->n)
-    bomb("Routine dens() called with n out of bounds");
+    throw GenericError("Routine dens() called with n out of bounds", __FILE__, __LINE__);
 
   alpha = p->a[n];
   return alpha*M_SQRT2/fabs(sbessj(p->l,alpha)) * pow(rmax,-2.5) *
@@ -167,7 +167,7 @@ double Bessel::potl(double r, int n)
   double alpha;
 
   if (n>p->n)
-    bomb("Routine potl() called with n out of bounds");
+    throw GenericError("Routine potl() called with n out of bounds", __FILE__, __LINE__);
 
   alpha = p->a[n];
   return M_SQRT2/fabs(alpha*sbessj(p->l,alpha)) * pow(rmax,-0.5) *

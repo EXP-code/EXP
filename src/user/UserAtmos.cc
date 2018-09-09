@@ -24,7 +24,7 @@ UserAtmos::UserAtmos(string &line) : ExternalForce(line)
 				// Look for the fiducial component for
 				// centering
   c0 = 0;
-  for (auto c : comp.components) {
+  for (auto c : comp->components) {
     if ( !compname.compare(c->name) ) {
       c0 = c;
       break;

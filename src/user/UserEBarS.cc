@@ -52,7 +52,7 @@ UserEBarS::UserEBarS(string &line) : ExternalForce(line)
 				// Look for the fiducial component for
 				// centering
     bool found = false;
-    for (auto c : comp.components) {
+    for (auto c : comp->components) {
       if ( !ctr_name.compare(c->name) ) {
 	c0 = c;
 	found = true;
@@ -119,7 +119,7 @@ UserEBarS::UserEBarS(string &line) : ExternalForce(line)
 
   // Assign working vectors for each thread
   okM  = 0;
-  TzM  = new double  [comp.ncomp];
+  TzM  = new double  [comp->ncomp];
   TzN  = new double  [nthrds];
   tacc = new double* [nthrds];
   for (int n=0; n<nthrds; n++) tacc[n] = new double [3];
@@ -250,7 +250,7 @@ void UserEBarS::determine_acceleration_and_potential(void)
       for (int n=0; n<8; n++) {
 	phi = 2.0*M_PI/8.0 * n;
 
-	for (auto c : comp.components) {
+	for (auto c : comp->components) {
 	
 	  if (c->force->geometry == PotAccel::sphere || 
 	      c->force->geometry == PotAccel::cylinder) {
@@ -345,7 +345,7 @@ void UserEBarS::determine_acceleration_and_potential(void)
 	    << setw(15) << "Omega"
 	    << setw(15) << "L_z(Bar)";
 
-	for (auto c : comp.components) {
+	for (auto c : comp->components) {
 	  ostringstream ostr;
 	  ostr << "T_z(" << c->name << ")";
 	  out << setw(15) << ostr.str().substr(0,15);
@@ -389,19 +389,15 @@ void UserEBarS::determine_acceleration_and_potential(void)
 	// Open new output stream for writing
 	ofstream out(string(outdir+name).c_str());
 	if (!out) {
-	  cout << "UserEBarS: error opening new log file <" 
-	       << outdir + name << "> for writing\n";
-	  MPI_Abort(MPI_COMM_WORLD, 121);
-	  exit(0);
+	  throw FileCreateError(outdir+name, "UserEBarS: error opening new log file",
+				__FILE__, __LINE__);
 	}
 	
 	// Open old file for reading
 	ifstream in(backupfile.c_str());
 	if (!in) {
-	  cout << "UserEBarS: error opening original log file <" 
-	       << backupfile << "> for reading\n";
-	  MPI_Abort(MPI_COMM_WORLD, 122);
-	  exit(0);
+	  throw FileOpenError(backupfile, "UserEBarS: error opening original log file",
+				__FILE__, __LINE__);
 	}
 
 	const int linesize = 1024;
@@ -422,7 +418,7 @@ void UserEBarS::determine_acceleration_and_potential(void)
 	  ins >> omega;
 	  ins >> Lz;
 	  ins >> Tz;
-	  for (int m=0; m<comp.ncomp; m++) ins >> TzM[m];
+	  for (int m=0; m<comp->ncomp; m++) ins >> TzM[m];
 	  ins >> am1;
 	  ins >> bps[0];
 	  ins >> bps[1];
@@ -492,12 +488,12 @@ void UserEBarS::determine_acceleration_and_potential(void)
 
 				// Identify list #
   cid=0;
-  for (auto c : comp.components) {
+  for (auto c : comp->components) {
     if (cC == c) break;
     cid++;
   }
 
-  if (cid==comp.ncomp) {
+  if (cid==comp->ncomp) {
     cerr << "Process " << myid << ": failed to identify component!\n";
     MPI_Abort(MPI_COMM_WORLD, 135);
   }
@@ -533,11 +529,11 @@ void UserEBarS::determine_acceleration_and_potential(void)
   }
   
 				// All components computed
-  if (okM == comp.ncomp) {
+  if (okM == comp->ncomp) {
 
 				// Total torque
     Tz0 = 0.0;
-    for (int m=0; m<comp.ncomp; m++) Tz0 += TzM[m];
+    for (int m=0; m<comp->ncomp; m++) Tz0 += TzM[m];
 
 				// Update bar angular momentum
     Lz += Tz0 * (tnow - teval[mlevel]);
@@ -555,7 +551,7 @@ void UserEBarS::determine_acceleration_and_potential(void)
 	    << setw(15) << omega
 	    << setw(15) << Lz;
 
-	for (int m=0; m<comp.ncomp; m++) 
+	for (int m=0; m<comp->ncomp; m++) 
 	  out << setw(15) << TzM[m];
 	
 	out << setw(15) << Tz0;

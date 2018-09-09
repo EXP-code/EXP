@@ -5,326 +5,75 @@
 
 #include <iostream>
 #include <cstdlib>
+#include <chrono>
 
-#include <time.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-
-
-//! This class is a container for returning Timer results
-class TimeElapsed
-{
-private:
-  long userTime, systemTime, realTime;
-  bool micro;
-
-public:
-
-  /** Setting this to true returns the wallclock time in the () operator
-   for TimeElapsed rather than the system + user time for the process.
-   Obviously, this is only for diagnostic and unlikely to affect an
-   simulation values (default value: false). */
-  static bool use_real;
-
-  //! Null constructor
-  TimeElapsed() : userTime(0), systemTime(0), realTime(0), micro(false) {}
-
-  //! Copy constructor
-  TimeElapsed(const TimeElapsed& p) {
-    userTime   = p.userTime;
-    systemTime = p.systemTime;
-    realTime   = p.realTime;
-    micro      = p.micro;
-  }
-
-  //! Standard constructor
-  TimeElapsed(long user, long system, long real, bool type) {
-    userTime   = user;
-    systemTime = system;
-    realTime   = real;
-    micro      = type;
-  }
-
-  //! True if raw long values are in seconds
-  bool usingSeconds() { return !micro; }
-
-  //! True if raw long values are in microseconds
-  bool usingMicroseconds() { return micro; }
-
-  //! Return user time (in seconds or microseconds)
-  long getUserTime() {
-    return userTime;
-  }
-  
-  //! Return system time (in seconds or microseconds)
-  long getSystemTime() {
-    return systemTime;
-  }
-  
-  //! Return total tiem (in seconds or microseconds)
-  long getTotalTime() {
-    return userTime + systemTime;
-  }
-      
-  //! Get the wallclock time (in seconds or microseconds)
-  long getRealTime() {
-    return realTime;
-  }
-  
-  //! Zero out the time container
-  void zero() {
-    userTime = systemTime = realTime = 0;
-  }
-
-  /** Return the time in seconds always.  The precision is determined
-      by the Timer instance and the type of return value is set by the
-      use_real static variable */
-  double operator()() { 
-    double ret = 0.0;
-    if (use_real) ret = realTime;
-    else          ret = userTime + systemTime;
-    if (micro)    ret *= 1.0e-6;
-    return ret;
-  }
-
-  //! Assignment operator
-  TimeElapsed &operator=(const TimeElapsed& p)
-  {
-    userTime   = p.userTime;
-    systemTime = p.systemTime;
-    realTime   = p.realTime;
-    micro      = p.micro;
-
-    return *this;
-  }
-
-  //@{
-  /** Addition operators 
-
-      A value in seconds is promoted to
-      microseconds if one the addends is in microseconds 
-  */
-  TimeElapsed &operator+=(const TimeElapsed& p)
-  {
-    if (micro && !p.micro) {
-      userTime   += p.userTime   * 1000000;
-      systemTime += p.systemTime * 1000000;
-      realTime   += p.realTime   * 1000000;
-    } else if (!micro && p.micro) {
-      micro      = true;
-      userTime   = userTime   * 1000000 + p.userTime   ;
-      systemTime = systemTime * 1000000 + p.systemTime ;
-      realTime   = realTime   * 1000000 + p.realTime   ;
-    } else {
-      userTime   += p.userTime   ;
-      systemTime += p.systemTime ;
-      realTime   += p.realTime   ;
-    }
-
-    return *this;
-  }
-
-  friend TimeElapsed operator+(const TimeElapsed& a, const TimeElapsed& b)
-  {
-    TimeElapsed c;
-    if (a.micro && !b.micro) {
-      c.micro      = true;
-      c.userTime   = a.userTime   + b.userTime   * 1000000;
-      c.systemTime = a.systemTime + b.systemTime * 1000000;
-      c.realTime   = a.realTime   + b.realTime   * 1000000;
-    } else if (b.micro && !a.micro) {
-      c.micro      = true;
-      c.userTime   = b.userTime   + a.userTime   * 1000000;
-      c.systemTime = b.systemTime + a.systemTime * 1000000;
-      c.realTime   = b.realTime   + a.realTime   * 1000000;
-    } else {
-      c.micro      = a.micro;
-      c.userTime   = a.userTime   + b.userTime   ;
-      c.systemTime = a.systemTime + b.systemTime ;
-      c.realTime   = a.realTime   + b.realTime   ;
-    }
-
-    return c;
-  }
-  //@}
-
-};
-
-
-//! This is a diagnostic timer (wraps up the POSIX time calls)
+//! This is a diagnostic stopwatch-like timer implemented using std::chrono
 class Timer
 {
 private:
 
   //@{
-  //! The POSIX time structures
-  timeval begin, end; 
-  struct rusage beginusage, endusage;
+  //! Time structures (will initialize to zero by default)
+  std::chrono::high_resolution_clock::time_point begin, end; 
   //@}
 
   //@{
-  //! the time counted so far
-  long utime, stime, rtime;
+  //! The time measured so far
+  double rtime;
   //@}
   
-  //! indicate whether the timer has been started
+  //! Indicate whether the timer has been started
   bool started;
 
-  /** if true then return number of microseconds for user and system
-      time; else return number of seconds */
-  bool precision; 
-
  public:
-  /** Main constructor: if precision is set to true, then the real and
-      system time will be measured in microseconds */
-  Timer(bool precision = false) {
-    utime = stime = rtime = 0;
+
+  //! Constructor
+  Timer()
+  {
+    rtime   = 0;
     started = false;
-    this->precision = precision;
   }
 
   //! Copy consructor
-  Timer(const Timer& t) {
+  Timer(const Timer& t)
+  {
     begin      = t.begin;
     end        = t.end;
-    beginusage = t.beginusage;
-    endusage   = t.endusage;
-    utime      = t.utime;
-    stime      = t.stime;
     rtime      = t.rtime;
     started    = t.started;
-    precision  = t.precision;
   }
 
-  //! Set precision to seconds
-  void Seconds()      { precision = false; }
-
-  //! Set precision to seconds
-  void Microseconds() { precision = true; }
-
-  //! Return precision (true = microseconds, false = seconds)
-  bool Precision()    { return precision; }
-
-  //! start timer, if already started then do nothing
-  void start() {
+  //! Start timer, if already started then do nothing
+  void start()
+  {
     if (started) return;
     started = true;
-
-    if (gettimeofday(&begin, NULL))
-      std::cerr << "gettimeofday error!";
-
-    if (getrusage(RUSAGE_SELF, &beginusage) == -1)
-      std::cerr << "getrusage error!";
+    begin   = std::chrono::high_resolution_clock::now();
   }
   
-  /** stop timer and return time measured so far.  if timer was
+  /** Stop timer and return time measured so far.  If timer was
       stopped the time returned will be 0. */
-  TimeElapsed stop() {
-    if (!started)
-      return TimeElapsed(0, 0, 0, precision);
-    
-    if (gettimeofday(&end, NULL))
-      std::cerr << "gettimeofday error!";
-
-    if (getrusage(RUSAGE_SELF, &endusage) == -1)
-      std::cerr << "getrusage error!";
-
-    started = false;
-
-    if (precision) {
-      long uusecs = 
-	(endusage.ru_utime.tv_sec   - beginusage.ru_utime.tv_sec) * 1000000 +
-	(endusage.ru_utime.tv_usec  - beginusage.ru_utime.tv_usec);
-
-      utime += uusecs;
-      
-      long susecs = 
-	(endusage.ru_stime.tv_sec   - beginusage.ru_stime.tv_sec) * 1000000 +
-	(endusage.ru_stime.tv_usec  - beginusage.ru_stime.tv_usec);
-
-      stime += susecs;
-      
-      long rusecs = 
-	(end.tv_sec - begin.tv_sec) * 1000000 + end.tv_usec - begin.tv_usec;
-
-      rtime += rusecs;
-      
-    } else {
-      long usecs = (endusage.ru_utime.tv_sec - beginusage.ru_utime.tv_sec);
-
-      utime += usecs;
-	  
-      long ssecs = (endusage.ru_stime.tv_sec - beginusage.ru_stime.tv_sec);
-
-      stime += ssecs;
-      
-      long rsecs = 
-	(end.tv_sec  - begin.tv_sec ) + 
-	(end.tv_usec - begin.tv_usec)/1000000;
-
-      rtime += rsecs;
-    }
-    
-    return TimeElapsed(utime, stime, rtime, precision);
-  }
-
-  /** reset the timer, this will reset the time measured to 0 and will
-      leave the timer in the same status (started or stopped). */
-  void reset() {
-    utime = stime = rtime = 0;
-
+  double stop()
+  {
     if (started) {
-      if (gettimeofday(&begin, NULL))
-	std::cerr << "gettimeofday error!";
-      
-      if (getrusage(RUSAGE_SELF, &beginusage) == -1)
-	std::cerr << "getrusage error!";
+      end     = std::chrono::high_resolution_clock::now();
+      started = false;
+
+      std::chrono::duration<double> duration = end - begin;
+      rtime  += duration.count();
     }
+    return rtime;
   }
 
-  //! return time measured up to this point.
-  TimeElapsed getTime() {
-    if (!started)
-      return TimeElapsed(utime, stime, rtime, precision);
-    
-    if (gettimeofday(&end, NULL))
-      std::cerr << "gettimeofday error!";
-    
-    if (getrusage(RUSAGE_SELF, &endusage) == -1)
-      std::cerr << "getrusage error!";
+  /** Reset the timer, this will reset the time measured to 0 and will
+      leave the timer in the same status (started or stopped). */
+  void reset() { rtime = 0.0; }
 
-    if (precision) {
-      long uusecs = 
-	(endusage.ru_utime.tv_sec  - beginusage.ru_utime.tv_sec ) * 1000000 +
-	(endusage.ru_utime.tv_usec - beginusage.ru_utime.tv_usec);
-      
-      long susecs = 
-	(endusage.ru_stime.tv_sec  - beginusage.ru_stime.tv_sec ) * 1000000 +
-	(endusage.ru_stime.tv_usec - beginusage.ru_stime.tv_usec);
-      
-      long rusecs = 
-	(end.tv_sec - begin.tv_sec) * 1000000 + end.tv_usec - begin.tv_usec;
-      
-      return TimeElapsed(utime + uusecs, 
-			 stime + susecs, 
-			 rtime + rusecs,
-			 precision);
-    } else {
-      long usecs = (endusage.ru_utime.tv_sec - beginusage.ru_utime.tv_sec);
-      
-      long ssecs = (endusage.ru_stime.tv_sec - beginusage.ru_stime.tv_sec);
-      
-      long rsecs = 
-	(end.tv_sec  - begin.tv_sec ) +
-	(end.tv_usec - begin.tv_usec)/1000000;
-      
-      return TimeElapsed(utime + usecs, 
-			 stime + ssecs, 
-			 rtime + rsecs,
-			 precision);
-    }
-  }
+  //! Return time measured up to this point.
+  double getTime() { return rtime; }
+  
+  //! Return time measured up to this point.
+  double operator()() { return rtime; }
   
   //! Return the status of the timer
   bool isStarted() { return started; }

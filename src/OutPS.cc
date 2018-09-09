@@ -54,13 +54,13 @@ void OutPS::Run(int n, bool last)
     
     struct MasterHeader header;
     header.time = tnow;
-    header.ntot = comp.ntot;
-    header.ncomp = comp.ncomp;
+    header.ntot = comp->ntot;
+    header.ncomp = comp->ncomp;
 
     out->write((char *)&header, sizeof(MasterHeader));
   }
   
-  for (auto c : comp.components) {
+  for (auto c : comp->components) {
     c->write_binary(out, true);	// Write floats rather than doubles
   }
 

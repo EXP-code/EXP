@@ -51,7 +51,7 @@ UserSNheat::UserSNheat(string &line) : ExternalForce(line)
 
 				// Look for the fiducial component
   bool found = false;
-  for (auto c : comp.components) {
+  for (auto c : comp->components) {
     if ( !comp_name.compare(c->name) ) {
       c0 = c;
       found = true;
@@ -114,10 +114,10 @@ UserSNheat::UserSNheat(string &line) : ExternalForce(line)
       //
       if (rename(filename.c_str(), backupfile.c_str())) {
 	perror("UserSNheat::Run()");
-	ostringstream message;
+	std::ostringstream message;
 	message << "UserSNheat: could not rename log file <" 
 		<< filename << "> to <" << backupfile << ">";
-	bomb(message.str());
+	throw GenericError(message.str(), __FILE__, __LINE__);
       }
       
       // Open (original) backup file for reading
@@ -136,7 +136,7 @@ UserSNheat::UserSNheat(string &line) : ExternalForce(line)
 	  ostringstream message;
 	  message << "UserSNheat: error opening new log file <" 
 		  << filename << "> for writing";
-	  bomb(message.str());
+	  throw GenericError(message.str(), __FILE__, __LINE__);
 	}
 	
 	const size_t cbufsiz = 4096;

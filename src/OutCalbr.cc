@@ -136,7 +136,7 @@ void OutCalbr::initialize()
 
 				// Search for desired component
   if (get_value(string("name"), tmp)) {
-    for (auto c : comp.components) {
+    for (auto c : comp->components) {
       if (!(c->name.compare(tmp))) tcomp  = c;
     }
   }
@@ -151,7 +151,7 @@ void OutCalbr::Run(int ns, bool last)
 
   MPI_Status status;
 
-  Timer timer(true);
+  Timer timer;
 
   if (myid==0) timer.start();
 

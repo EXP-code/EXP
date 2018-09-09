@@ -15,6 +15,14 @@ void begin_run(void)
 {
 
   //===================================
+  // Make the instance containers
+  //===================================
+  
+  comp     = new ComponentContainer;
+  external = new ExternalCollection;
+  output   = new OutputContainer;
+
+  //===================================
   // Make the Vector class mutex
   //===================================
   
@@ -43,13 +51,13 @@ void begin_run(void)
   // Initialize phase-space components 
   //===================================
 
-  comp.initialize();
+  comp->initialize();
 
   //===================================
   // Initialize external forces, if any
   //===================================
 
-  external.initialize();
+  external->initialize();
   
   //===============================
   // Compute initial acceleration
@@ -60,16 +68,16 @@ void begin_run(void)
   if (multistep) {
     sync_eval_multistep();	// Use last coefficient evaluation
     for (int M=0; M<=multistep; M++) {
-      comp.compute_expansion(M);
+      comp->compute_expansion(M);
     }
   } else {
-    comp.multistep_reset();
+    comp->multistep_reset();
   }
 
-  comp.compute_potential(0);
-  //                     ^
-  //                     |
-  //   All time levels---/
+  comp->compute_potential(0);
+  //                      ^
+  //                      |
+  //   All time levels----/
 
   //==============================
   // Initialize multistep levels
@@ -85,13 +93,13 @@ void begin_run(void)
   if (multistep) {
     sync_eval_multistep();	// Use last coefficient evaluation
     for (int M=0; M<=multistep; M++) {
-      comp.compute_expansion(M);
+      comp->compute_expansion(M);
     }
   } else {
-    comp.multistep_reset();
+    comp->multistep_reset();
   }
 
-  comp.compute_potential(0);
+  comp->compute_potential(0);
 
   initializing = false;
 
@@ -99,8 +107,8 @@ void begin_run(void)
   // Initialize output routines
   //===================================
 
-  output.initialize();
-  output.Run(0);
+  output->initialize();
+  output->Run(0);
 
   //======================
   // Write parameter file 

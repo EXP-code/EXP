@@ -93,16 +93,23 @@ char processor_name[MPI_MAX_PROCESSOR_NAME];
 
 MPI_Comm MPI_COMM_SLAVE;
 
+				// List of host names and ranks
+std::map<std::string, std::vector<int> > nameMap;
+
+				// List of sibling ranks
+std::vector<int> siblingList;
+
+
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 
 CoefHeader coefheader;
 CoefHeader2 coefheader2;
 
-ComponentContainer comp;
-ExternalCollection external;
-OutputContainer output;
-ParamParseMPI *parse = 0;
+ComponentContainer *comp = 0;
+ExternalCollection *external = 0;
+OutputContainer    *output = 0;
+ParamParseMPI      *parse = 0;
 
 map<string, maker_t *, less<string> > factory;
 map<string, maker_t *, less<string> >::iterator fitr;
@@ -121,6 +128,7 @@ bool barrier_label = true;
 bool barrier_light = true;
 bool barrier_quiet = true;
 
+bool cuda_prof     = false;
 bool debug_wait    = false;
 bool main_wait     = false;
 bool fpe_trap      = false;
@@ -128,4 +136,4 @@ bool fpe_trace     = false;
 bool fpe_wait      = false;
 
 int  rlimit_val    = 0;
-
+int  cuStreams     = 3;

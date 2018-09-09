@@ -137,17 +137,32 @@ void InitializeUniform(std::vector<Particle>& p, std::vector<double>& mass, doub
 
     3/2*N*k_B*T = 3/2*m*k_B*T/mu(Z) = 3/2*m*v^2 
 
-    where N is the number of particles, or 
+    where N is the number of particles: N=m/mu(Z), or 
 
     v^2 = k_B*T/mu(Z)
+
+    For electrons:
+    
+    3/2*N_e*k_B*T = 3/2*m*eta*k_B*T/mu(Z) = 3/2*m/mu(Z)*eta*m_e*v_e^2 
+    
+    v_e^2 = k_B*T/m_e
+
+    For mean-mass trace-species algorithm:
+
+    3/2*N_e*k_B*T = 3/2*m*k_B*T/mu(Z) = 3/2*m/mu(Z)*eta*m_e*v_e^2
+
+    or 
+    
+    v_e^2 = k_B*T/(m_e*eta)
   */
+
   std::map<unsigned char, double> varI, varE;
   for (auto v : T[0]) {
     unsigned char Z = v.first;
-    if (Z>0) {
+    if (Z>0) {			// All except TRACE
       varI[Z] = sqrt((boltz*T[0][Z])/(PT[Z]->weight()*amu)) / Vunit; // Ion
       varE[Z] = sqrt((boltz*T[0][Z])/(PT[0]->weight()*amu)) / Vunit; // Electron
-    } else {
+    } else {			// TRACE
       varI[Z] = sqrt((boltz*T[0][0])/(molW*amu))            / Vunit; // Fiducial particle
       varE[Z] = sqrt((boltz*T[0][1])/(PT[0]->weight()*amu)) / Vunit; // Electrons
     }
@@ -263,7 +278,7 @@ void InitializeInterface(std::vector<Particle>& p,
     for (auto v : T[wh]) {
       if (type == Trace) {
 	if (v.first==0)		// Ion
-	  varI[wh][0] = sqrt((boltz*v.second)/(molW*amu))             / Vunit;
+	  varI[wh][0] = sqrt((boltz*v.second)/(molW*amu))            / Vunit;
 	else			// Electron
 	  varE[wh][0] = sqrt((boltz*v.second)/(PT[0]->weight()*amu)) / Vunit;
       } else {
@@ -1073,7 +1088,7 @@ void InitializeSpeciesTrace
  std::vector<double>& sF, std::vector<double>& M,
  std::vector< std::map<unsigned char, double> >& T,
  std::vector<double>& L,
- Mtype model, int sp, int ne)
+ Mtype model, int sp, int ne, bool mm)
 {
   size_t Ncomp = T.size();
 
@@ -1266,6 +1281,34 @@ void InitializeSpeciesTrace
     }
   }
   
+  std::vector<double> eta(Ncomp, 1.0);
+
+  // Setup for mean-mass correction
+  //
+  if (mm) {
+    std::cout << std::string(70, '-') << std::endl;
+
+    for (size_t nc=0; nc<Ncomp; nc++) {
+      eta[nc] = 0.0;
+      double nrm = 0.0;
+      for (int indx=0; indx<NS; indx++) { 
+	int C = 0;
+	for (auto v : frac[nc][indx])  {
+	  double wgt = sF[indx]/PT[sZ[indx]]->weight() * v;
+	  eta[nc] += wgt * C++;
+	  nrm     += wgt;
+	}
+      }
+      if (nrm>0.0) eta[nc] /= nrm;
+      std::ostringstream lab; lab << "Eta (" << nc << "):";
+      std::cout << std::left << std::setw(13) << lab.str()
+		<< eta[0] << std::endl;
+      lab.str(""); lab << "Mol (" << nc << "):";
+      std::cout << std::left << std::setw(13) << lab.str()
+		<< 1.0/nrm << std::endl;
+    }
+  }
+  
   double tKEi = 0.0, tKEe = 0.0, numb = 0.0;
 
   for (int i=0; i<N; i++) {
@@ -1282,8 +1325,10 @@ void InitializeSpeciesTrace
 
     int cur = sp;
     // Get the species
+    //
     for (int indx=0; indx<NS; indx++) { 
       // Get the ionization state
+      //
       for (int j=0; j<sZ[indx]+1; j++) {
 	particles[i].dattrib[cur++] = sF[indx]*frac[wh][indx][j];
 	test += sF[indx] * frac[wh][indx][j];
@@ -1295,6 +1340,7 @@ void InitializeSpeciesTrace
     for (int k=0; k<3; k++) {
       KEi += particles[i].vel[k] * particles[i].vel[k];
       if (ne>=0) {
+	particles[i].dattrib[ne+k] /= sqrt(eta[wh]); // mean-mass correction
 	KEe += particles[i].dattrib[ne+k] * particles[i].dattrib[ne+k];
       }
     }
@@ -1304,7 +1350,7 @@ void InitializeSpeciesTrace
     // Kinetic energies
     //
     tKEi += 0.5*particles[i].mass * KEi;
-    tKEe += 0.5*particles[i].mass * KEe * PT[0]->weight()/ molW;
+    tKEe += 0.5*particles[i].mass * KEe * PT[0]->weight() * eta[wh]/ molW;
 
     // Ion number
     //
@@ -1314,9 +1360,11 @@ void InitializeSpeciesTrace
   std::ofstream out("species.spec");
   out << "trace" << std::endl;
   // Conservation position and electron position (-1 for none)
+  //
   out << std::setw(6) << sp-1
       << std::setw(6) << ne << std::endl;
   // Starting species position
+  //
   int cntr = sp;
   for (int indx=0; indx<NS; indx++) { 
     for (int j=0; j<sZ[indx]+1; j++) {
@@ -1363,6 +1411,7 @@ main (int ac, char **av)
   desc.add_options()
     ("help,h",		"produce help message")
     ("electrons",       "set up for weighted or hybrid species with electrons")
+    ("meanmass",        "set up for the mean-mass algorithm")
     ("CHIANTI,C",	po::value<bool>(&use_chianti)->default_value(false),
      "use CHIANTI to set recombination-ionization equilibrium")
     ("INIT,I",	        po::value<bool>(&use_init_file)->default_value(false),
@@ -1417,6 +1466,11 @@ main (int ac, char **av)
     return 1;
   }
   
+  bool mm = false;
+  if (vm.count("meanmass")) {
+    mm = true;
+  }
+
   if (myid==0) {
     std::string prefix("makeIon");
     std::string cmdFile = prefix + "." + oname + ".cmd_line";
@@ -1650,7 +1704,7 @@ main (int ac, char **av)
     InitializeSpeciesWeight(particles, sZ, sF, sI, Mass, T, sp, ne);
     break;
   case Trace:
-    InitializeSpeciesTrace (particles, sZ, sF, Mass, T, LL, model, sp, ne);
+    InitializeSpeciesTrace (particles, sZ, sF, Mass, T, LL, model, sp, ne, mm);
     // Compute molecular weight
     molW = 0.0;
     for (size_t k=0; k<sZ.size(); k++) molW += sF[k]/PT[sZ[k]]->weight();

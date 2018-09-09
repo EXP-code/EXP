@@ -1,0 +1,56 @@
+#ifndef _VtkGrid_H
+#define _VtkGrid_H
+
+#include <vector>
+#include <sstream>
+#include <boost/shared_ptr.hpp>
+
+//
+// VTK stuff
+//
+#include <vtkSmartPointer.h>
+#include <vtkDoubleArray.h>
+#include <vtkFloatArray.h>
+#include <vtkIntArray.h>
+#include <vtkUnsignedCharArray.h>
+#include <vtkStructuredPoints.h>
+#include <vtkRectilinearGrid.h>
+#include <vtkPoints.h>
+#include <vtkPointData.h>
+#include <vtkXMLRectilinearGridWriter.h>
+#include <vtkLookupTable.h>
+#include <vtkVersion.h>
+
+using vtkRectilinearGridP       = vtkSmartPointer<vtkRectilinearGrid>;
+using vtkRectilinearGridWriterP = vtkSmartPointer<vtkXMLRectilinearGridWriter>;
+using vtkFloatArrayP            = vtkSmartPointer<vtkFloatArray>;
+
+class VtkGrid
+{
+private:
+  int nx, ny, nz;
+  float xmin, xmax, ymin, ymax, zmin, zmax;
+
+  // Knots
+  vtkFloatArrayP XX, YY, ZZ;
+
+  // Dataset
+  vtkRectilinearGridP dataSet;
+
+public:
+  //! Constructor
+  VtkGrid(int nx, int ny, int nz,
+	 double xmin, double xmax,
+	 double ymin, double ymax,
+	 double zmin, double zmax);
+
+  //! Add data for two-dimensional cylindrical basis
+  void Add(const std::vector<double>& data, const std::string& name);
+
+  //! Write output file
+  void Write(const std::string& name);
+};
+
+typedef boost::shared_ptr<VtkGrid> VtkGridptr;
+
+#endif

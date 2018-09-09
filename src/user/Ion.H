@@ -383,6 +383,9 @@ public:
   static double HandM_expon;
   //@}
 
+  //! Return type for collisional excitation cross-section data
+  typedef std::vector< std::pair<double, double> > collType;
+
 protected:
 
   //@{
@@ -419,18 +422,45 @@ protected:
   //@}
 
   //@{
+  //! For debugging grid misses 
+  static bool GridDebug;  // default: false
+  static int  GridReport; // default: 100000
+  //@}
+  
+  //@{
   //! Free-free cross section implementations
   std::pair<double, double> freeFreeCrossSingle(double E, int id);
   std::pair<double, double> freeFreeCrossEvGrid(double E, int id);
-  void freeFreeMakeEvGrid(int id);
+  void                      freeFreeMakeEvGrid(int id);
+  unsigned long             freeFreeGridMiss, freeFreeGridTry;
+  double                    freeFreeMissMin,  freeFreeMissMax;
   //@}
 
   //@{
   //! Radiative recombination cross section implementations
   std::vector<double> radRecombCrossSingle(double E, int id);
   std::vector<double> radRecombCrossEvGrid(double E, int id);
-  void radRecombMakeEvGrid(int id);
+  void                radRecombMakeEvGrid (int id);
+  unsigned long       radRecombGridMiss, radRecombGridTry;
+  double              radRecombMissMin,  radRecombMissMax;
   //@}
+
+  //@{
+  //! Collisional excitation cross section implementations
+  collType collExciteCrossSingle(double E, int id);
+  collType collExciteCrossGrid  (double E, int id);
+  void     collExciteMakeGrid   (int id);
+  //@}
+
+  //@{
+  //! Ionization cross section implementations
+  double        directIonCrossSingle(double E, int id);
+  double        directIonCrossGrid  (double E, int id);
+  void          directIonMakeGrid   (int id);
+  unsigned long directIonGridMiss, directIonGridTry;
+  double        directIonMissMin,  directIonMissMax;
+  //@}
+
 
   //! Return Chianti dir name from element indices
   std::string ZCtoName(unsigned char Z, unsigned char C);
@@ -537,11 +567,26 @@ public:
   std::vector< double > radRecombGrid;
   //@}
 
-  static bool useFreeFreeGrid;	// Default: true
-  static bool useRadRecombGrid;	// Default: true
-  static double EminGrid;	// Default: 0.05 eV
-  static double EmaxGrid;	// Default: 50 eV
-  static double DeltaEGrid;	// Default: 0.1 eV
+  static bool   useFreeFreeGrid;  // Default: true
+  static bool   useRadRecombGrid; // Default: true
+  static bool   useExciteGrid;	  // Default: true
+  static bool   useIonizeGrid;	  // Default: true
+  static double EminGrid;	  // Default: 0.05 eV
+  static double EmaxGrid;	  // Default: 50 eV
+  static double DeltaEGrid;	  // Default: 0.1 eV
+
+  //@{
+  //! Collisional data
+  bool exciteGridComputed;
+  bool ionizeGridComputed;
+  double collideEmin, ionizeEmin;
+  double collideEmax, ionizeEmax;
+  double delCollideE;
+  int NcollideGrid, NionizeGrid;
+
+  std::vector<collType> collideDataGrid;
+  std::vector<double>   ionizeDataGrid;
+
   //@}
   
   void convertName();
@@ -573,14 +618,23 @@ public:
       return freeFreeCrossSingle(E, id);
   }
 
-  //! Return type for collisional excitation cross-section data
-  typedef std::vector< std::pair<double, double> > collType;
-
   //! Get the collisional excitation cross section
-  collType collExciteCross(double E, int id);
+  collType collExciteCross(double E, int id)
+  {
+    if (useExciteGrid)
+      return collExciteCrossGrid(E, id);
+    else
+      return collExciteCrossSingle(E, id);
+  }
 
   //! Ionization cross section
-  double directIonCross(double E, int id);
+  double directIonCross(double E, int id)
+  {
+    if (useIonizeGrid)
+      return directIonCrossGrid(E, id);
+    else
+      return directIonCrossSingle(E, id);
+  }
 
   //@{
 

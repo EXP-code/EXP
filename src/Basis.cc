@@ -1,8 +1,11 @@
 
+#include <limits>
 #include "expand.h"
 #include <Basis.H>
 
-#define MINEPS 1.0e-10
+// Machine constant for Legendre
+//
+constexpr double MINEPS = 20.0*std::numeric_limits<double>::min();
 
 Basis::Basis(string& line) : PotAccel(line)
 {

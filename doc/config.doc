@@ -1,4 +1,5 @@
-/*! \page config Configuration files
+/*! \page config %Configuration files
+
 The main configuration file identified on the <code>exp</code> command
 line using the <code>-f</code> flag. The default parameter file, in
 absence of a <code>-f file</code> override, is named
@@ -17,12 +18,14 @@ The currently defined stanzas are:
      
      Each Key is the mnemonic for a component and each Value is the
      name of file in the working directory which defines the
-     component. The mnemonic may contain spaces.  In particular, to
-     easy the transition between the phase-space format used in this
-     code (\ref bodies) and Tipsy, we use the convention that the
-     first space delimited part of the mnemonic is used by the
-     <code>psp2tipsy</code> (\ref utilities) to determine the type
-     of tipsy particle.
+     component. The mnemonic may contain spaces.  The body file is in
+     EXP native formation.  EXP has its own hierarchical phase space
+     structure that we call PSP.  To easy the transition between the
+     phase-space format used in this code and Tipsy, we use the
+     convention that the first space delimited part of the mnemonic is
+     used by the psp2tipsy to determine the type of tipsy particle.
+     EXP provides a number of standalone routines to manipulate,
+     visualize and summarize the content of PSP files.
 
 \par [output]
 

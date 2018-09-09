@@ -32,7 +32,7 @@ UserBar::UserBar(string &line) : ExternalForce(line)
   if (ctr_name.size()>0) {
 				// Look for the fiducial component
     bool found = false;
-    for (auto c : comp.components) {
+    for (auto c : comp->components) {
       if ( !ctr_name.compare(c->name) ) {
 	c0 = c;
 	found = true;
@@ -53,7 +53,7 @@ UserBar::UserBar(string &line) : ExternalForce(line)
   if (angm_name.size()>0) {
 				// Look for the fiducial component
     bool found = false;
-    for (auto c : comp.components) {
+    for (auto c : comp->components) {
       if ( !angm_name.compare(c->name) ) {
 	c1 = c;
 	found = true;
@@ -148,7 +148,7 @@ void UserBar::determine_acceleration_and_potential(void)
     for (int n=0; n<8; n++) {
       phi = 2.0*M_PI/8.0 * n;
 
-      for (auto c : comp.components) {
+      for (auto c : comp->components) {
 	
 	if (c->force->geometry == PotAccel::sphere || 
 	    c->force->geometry == PotAccel::cylinder) {
@@ -267,19 +267,15 @@ void UserBar::determine_acceleration_and_potential(void)
 	// Open new output stream for writing
 	ofstream out(string(outdir+name).c_str());
 	if (!out) {
-	  cout << "UserEBar: error opening new log file <" 
-	       << outdir + name << "> for writing\n";
-	  MPI_Abort(MPI_COMM_WORLD, 121);
-	  exit(0);
+	  throw FileCreateError(outdir+name, "UserBar: error opening new log file",
+				__FILE__, __LINE__);
 	}
 	
 	// Open old file for reading
 	ifstream in(backupfile.c_str());
 	if (!in) {
-	  cout << "UserEBar: error opening original log file <" 
-	       << backupfile << "> for reading\n";
-	  MPI_Abort(MPI_COMM_WORLD, 122);
-	  exit(0);
+	  throw FileCreateError(backupfile, "UserBar: error opening new log file",
+				__FILE__, __LINE__);
 	}
 
 	const int linesize = 1024;

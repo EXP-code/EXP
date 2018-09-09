@@ -11,11 +11,18 @@
 #include <mpi.h>
 #include <localmpi.h>
 
+#include <config.h>
+
 #include <Vector.h>
 // #include <Matrix.h>
 
 #include <massmodel.h>
 #include <sltableMP2.h>
+
+#if HAVE_LIBCUDA==1
+#include <cudaUtil.cuH>
+#include <cudaMappingConstants.cuH>
+#endif
 
 //! Cylindrical SL grid class
 class SLGridCyl
@@ -60,6 +67,7 @@ private:
   void bomb(string oops);
 
   bool cache;		
+  bool tbdbg;
 
 public:
 
@@ -72,7 +80,8 @@ public:
 
   //! Constructor
   SLGridCyl(int mmax, int nmax, int numr, int numk, double rmin, double rmax,
-	    double l, bool cache=true, int Cmap=0, double Scale=1.0);
+	    double l, bool cache=true, int Cmap=0, double Scale=1.0,
+	    bool Verbose=false);
   //! Destructor
   ~SLGridCyl();
 
@@ -103,6 +112,11 @@ public:
 
   //! Fill Matrix with desired potential basis 
   void get_pot(Matrix& tab, double x, int m, int which=1);
+
+#if HAVE_LIBCUDA==1
+  void get_pot_cuda(float* tab, double x, int m, int which=1);
+#endif
+
   //! Fill Matrix with desired potential basis 
   void get_dens(Matrix& tab, double x, int m, int which=1);
   //! Fill Matrix with desired potential basis 
@@ -162,6 +176,7 @@ private:
   void bomb(string oops);
 
   bool cache;
+  bool tbdbg;
 
 public:
 
@@ -179,12 +194,12 @@ public:
   //! Constructor with model table
   SLGridSph(int lmax, int nmax, int numr, double rmin, double rmax,
 	    boost::shared_ptr<SphericalModelTable> mod, 
-	    bool cache, int Cmap=0, double Scale=1.0);
+	    bool cache, int Cmap=0, double Scale=1.0, bool Verbose=false);
 
   //! Constructor (uses file *model_file_name* for file)
   SLGridSph(int lmax, int nmax, int numr, double rmin, double rmax,
 	    bool cache, int Cmap=0, double Scale=1.0, 
-	    int DIVERGE=0, double DFAC=1.0);
+	    int DIVERGE=0, double DFAC=1.0, bool Verbose=false);
 
   //! Destructor
   ~SLGridSph();
@@ -215,6 +230,33 @@ public:
   /** Get density for dimensionless coord with harmonic order l and radial orer n
       Return all radial order values in Vector
   */
+
+#if HAVE_LIBCUDA==1
+  void initialize_cuda(std::vector<cudaArray_t>& cuArray,
+		       thrust::host_vector<cudaTextureObject_t>& tex);
+
+  virtual cudaMappingConstants getCudaMappingConstants()
+  {
+    cudaMappingConstants ret;
+
+    ret.rscale = scale;
+    ret.hscale = 0.0;
+    ret.xmin   = xmin;
+    ret.xmax   = xmax;
+    ret.ymin   = 0.0;
+    ret.ymax   = 0.0;
+    ret.numr   = numr;
+    ret.numx   = 0;
+    ret.numy   = 0;
+    ret.dxi    = dxi;
+    ret.dyi    = 0.0;
+    ret.cmap   = cmap;
+
+    return ret;
+  }
+
+#endif
+
   void get_dens(Vector& vec, double x, int l, int which=1);
   /** Get force for dimensionless coord with harmonic order l and radial orer n
       Return all radial order values in Vector
@@ -275,6 +317,8 @@ private:
 
   void bomb(string oops);
 
+  bool tbdbg;
+
 public:
 
   //! Global MPI flag, default: 0=off
@@ -297,7 +341,7 @@ public:
 
 
   //! Constructor
-  SLGridSlab(int kmax, int nmax, int numz, double zmax);
+  SLGridSlab(int kmax, int nmax, int numz, double zmax, bool Verbose=false);
 
   //! Destructor
   ~SLGridSlab();

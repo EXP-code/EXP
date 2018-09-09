@@ -1,6 +1,9 @@
 #include <VtkPCA.H>
 
-VtkPCA::VtkPCA(int N, bool smooth) : nmax(N), smooth(smooth)
+#include <map>
+
+VtkPCA::VtkPCA(int N, bool reorder, bool smooth) :
+  nmax(N), reorder(reorder), smooth(smooth)
 {
   // Set knots
   auto XX   = vtkFloatArray::New();
@@ -29,11 +32,31 @@ VtkPCA::VtkPCA(int N, bool smooth) : nmax(N), smooth(smooth)
   dataSet->SetZCoordinates (ZZ);
 }
 
-void VtkPCA::Add(const Vector& eval, const Matrix& evec, int m)
+void VtkPCA::Add(const Vector& Coef, 
+		 const Vector& Hall,
+		 const Vector& SnrV,
+		 const Vector& Eval,
+		 const Matrix& Evec,
+		 int m)
 {
+  vtkFloatArrayP C = vtkFloatArrayP::New();
+  vtkFloatArrayP H = vtkFloatArrayP::New();
+  vtkFloatArrayP S = vtkFloatArrayP::New();
   vtkFloatArrayP V = vtkFloatArrayP::New();
   vtkFloatArrayP T = vtkFloatArrayP::New();
 
+  // Make reorder map
+  //
+  std::vector<int> R;
+
+  if (reorder) {
+    std::map<double, int> reord;
+    for (int i=SnrV.getlow(); i<=SnrV.gethigh(); i++) reord[SnrV[i]] = i;
+    for (auto i=reord.rbegin(); i!=reord.rend(); i++) R.push_back(i->second);
+  } else {
+    for (int i=SnrV.getlow(); i<=SnrV.gethigh(); i++) R.push_back(i);
+  }
+    
   // Insert grid data
   //
   float f;			// Temp float storage
@@ -43,8 +66,8 @@ void VtkPCA::Add(const Vector& eval, const Matrix& evec, int m)
       vtkIdType n = dataSet->FindPoint(x, y, 0);
 
       if (n>=0) {
-	f = evec[i+1][j+1];
-	if (smooth) f *= eval[i+1];
+	f = Evec[R[i]][j+1];
+	if (smooth) f *= Hall[R[i]];
 	if (std::isnan(f)) f = 0.0;
 	T->InsertTuple(n, &f);
       } else {
@@ -54,16 +77,40 @@ void VtkPCA::Add(const Vector& eval, const Matrix& evec, int m)
     }
   }
 
+  // Add coefficients (should not be reordered)
+  for (int i=0; i<nmax; i++) {
+    f = Coef[i+1];
+    if (std::isnan(f)) f = 0.0;
+    C->InsertTuple(i, &f);
+  }
+
+  // Add Hall smoothing
+  for (int i=0; i<nmax; i++) {
+    f = Hall[R[i]];
+    if (std::isnan(f)) f = 0.0;
+    H->InsertTuple(i, &f);
+  }
+
+  // Add S/N
+  for (int i=0; i<nmax; i++) {
+    f = SnrV[R[i]];
+    if (std::isnan(f)) f = 0.0;
+    S->InsertTuple(i, &f);
+  }
+
   // Add eigenvalues
   for (int i=0; i<nmax; i++) {
-    f = eval[i+1];
+    f = Eval[R[i]];
     if (std::isnan(f)) f = 0.0;
     V->InsertTuple(i, &f);
   }
 
   // Add arrays
+  coef.push_back(C);
+  hall.push_back(H);
+  snrv.push_back(S);
+  eval.push_back(V);
   vecs.push_back(T);
-  vals.push_back(V);
 
   // Add label
   std::ostringstream lab;
@@ -71,10 +118,30 @@ void VtkPCA::Add(const Vector& eval, const Matrix& evec, int m)
   elab.push_back(lab.str());
 }
 
-void VtkPCA::Add(const Vector& eval, const Matrix& evec, int l, int m, char tag)
+void VtkPCA::Add(const Vector& Coef,
+		 const Vector& Hall,
+		 const Vector& SnrV,
+		 const Vector& Eval,
+		 const Matrix& Evec,
+		 int l, int m, char tag)
 {
+  vtkFloatArrayP C = vtkFloatArrayP::New();
+  vtkFloatArrayP H = vtkFloatArrayP::New();
+  vtkFloatArrayP S = vtkFloatArrayP::New();
   vtkFloatArrayP V = vtkFloatArrayP::New();
   vtkFloatArrayP T = vtkFloatArrayP::New();
+
+  // Make reorder map
+  //
+  std::vector<int> R;
+
+  if (reorder) {
+    std::map<double, int> reord;
+    for (int i=SnrV.getlow(); i<=SnrV.gethigh(); i++) reord[SnrV[i]] = i;
+    for (auto i=reord.rbegin(); i!=reord.rend(); i++) R.push_back(i->second);
+  } else {
+    for (int i=SnrV.getlow(); i<=SnrV.gethigh(); i++) R.push_back(i);
+  }
 
   // Insert grid data
   //
@@ -85,8 +152,8 @@ void VtkPCA::Add(const Vector& eval, const Matrix& evec, int l, int m, char tag)
       vtkIdType n = dataSet->FindPoint(x, y, 0);
 
       if (n>=0) {
-	f = evec[i+1][j+1];
-	if (smooth) f *= eval[i+1];
+	f = Evec[R[i]][j+1];
+	if (smooth) f *= Hall[R[i]];
 	if (std::isnan(f)) f = 0.0;
 	T->InsertTuple(n, &f);
       } else {
@@ -96,17 +163,44 @@ void VtkPCA::Add(const Vector& eval, const Matrix& evec, int l, int m, char tag)
     }
   }
 
+  // Add coefficients (should not be reordered)
+  //
+  for (int i=0; i<nmax; i++) {
+    f = Coef[i+1];
+    if (std::isnan(f)) f = 0.0;
+    C->InsertTuple(i, &f);
+  }
+
+  // Add Hall smoothing
+  //
+  for (int i=0; i<nmax; i++) {
+    f = Hall[R[i]];
+    if (std::isnan(f)) f = 0.0;
+    H->InsertTuple(i, &f);
+  }
+
+  // Add S/N
+  //
+  for (int i=0; i<nmax; i++) {
+    f = SnrV[R[i]];
+    if (std::isnan(f)) f = 0.0;
+    S->InsertTuple(i, &f);
+  }
+
   // Add eigenvalues
   //
   for (int i=0; i<nmax; i++) {
-    f = eval[i+1];
+    f = Eval[R[i]];
     if (std::isnan(f)) f = 0.0;
     V->InsertTuple(i, &f);
   }
 
   // Add arrays
+  coef.push_back(C);
+  hall.push_back(H);
+  snrv.push_back(S);
+  eval.push_back(V);
   vecs.push_back(T);
-  vals.push_back(V);
 
   // Add label
   std::ostringstream lab;
@@ -127,13 +221,22 @@ void VtkPCA::Write(const std::string& name)
 
   // Add everything to the data set
   for (size_t k=0; k<elab.size(); k++) {
-    std::string lab1 = "Value " + elab[k];
-    vals[k] -> SetName(lab1.c_str());
-    std::string lab2 = "Vector " + elab[k];
-    vecs[k] -> SetName(lab2.c_str());
+    std::string lab0 = "Coefs " + elab[k];
+    coef[k] -> SetName(lab0.c_str());
+    std::string lab1 = "HallC " + elab[k];
+    hall[k] -> SetName(lab1.c_str());
+    std::string lab2 = "S/N " + elab[k];
+    snrv[k] -> SetName(lab2.c_str());
+    std::string lab3 = "Evals " + elab[k];
+    eval[k] -> SetName(lab3.c_str());
+    std::string lab4 = "Evecs " + elab[k];
+    vecs[k] -> SetName(lab4.c_str());
 
     // Add fields
-    dataSet->GetFieldData()->AddArray(vals[k]);
+    dataSet->GetFieldData()->AddArray(coef[k]);
+    dataSet->GetFieldData()->AddArray(hall[k]);
+    dataSet->GetFieldData()->AddArray(snrv[k]);
+    dataSet->GetFieldData()->AddArray(eval[k]);
     dataSet->GetPointData()->AddArray(vecs[k]);
   }
 

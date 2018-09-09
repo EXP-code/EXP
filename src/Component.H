@@ -11,7 +11,15 @@
 #include <localmpi.h>
 #include <ParticleFerry.H>
 #include <PotAccel.H>
+#include <Circular.H>
 #include <Timer.h>
+
+#include "config.h"
+
+#if HAVE_LIBCUDA==1
+#include <cudaParticle.cuH>  
+#endif
+
 
 class pHOT;
 
@@ -201,7 +209,7 @@ private:
   void bomb(const string& msg);
 
   // Particle buffer
-  Particle *pbuf;
+  std::vector<PartPtr> pbuf;
 
   // Adiabatic mass
   bool adiabatic;
@@ -287,6 +295,9 @@ protected:
     }
     std::sort (keys.begin(), keys.end());
   }
+
+  //! Suppress cuda computation even if devices are available
+  bool use_cuda;
 
 public:
 
@@ -448,6 +459,9 @@ public:
   //! Maximum radius from center for force evaluation
   double rtrunc;
 
+  //! CUDA timing info
+  bool timers;
+
   //! Orientation cache
   Orient *orient;
 
@@ -464,7 +478,7 @@ public:
   ~Component();
 
   //! Parallel gather
-  Particle* get_particles(int* number);
+  PartPtr * get_particles(int* number);
   
   //! Retrieve particle count on a particular node (one node at a time)
   int particle_count(int node) { 
@@ -531,9 +545,8 @@ public:
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
-      return 0;
     }
-    return &(tp->second);
+    return tp->second.get();
   }
 
   //! Particle vector size
@@ -546,19 +559,18 @@ public:
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
-      return 0;
     }
-    return tp->second.mass;
+    return tp->second->mass;
   }
 
   //! Access to positions
-  inline double Pos(int i, int j, unsigned flags=Inertial) {
+  inline double Pos(int i, int j, unsigned flags=Inertial)
+  {
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
-      return 0;
     }
-    double val = tp->second.pos[j];
+    double val = tp->second->pos[j];
     if (com_system) {
       if (flags & Local)
 	val -= comI[j];
@@ -569,14 +581,31 @@ public:
     return val;
   }
 
+  //! Get rectified component center
+  std::vector<double> getCenter(unsigned flags=Inertial)
+  {
+    std::vector<double> ret(3, 0.0);
+    for (int j=0; j<3; j++) {
+      if (com_system) {
+	if (flags & Local)
+	  ret[j] += comI[j];
+	else if (flags & Inertial) 
+	  ret[j] -= com0[j] - comI[j];
+
+	if (flags & Centered) ret[j] += center[j];
+      }
+    }
+
+    return ret;
+  }
+
   //! Access to velocities
   inline double Vel(int i, int j, unsigned flags=Inertial) {
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
-      return 0;
     }
-    double val = tp->second.vel[j];
+    double val = tp->second->vel[j];
     if (com_system) {
       if (flags & Local)
 	val -= covI[j];
@@ -591,10 +620,9 @@ public:
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
-      return;
     }
     for (int k=0; k<3; k++) {
-      pos[k] = tp->second.pos[k];
+      pos[k] = tp->second->pos[k];
       if (com_system) {
 	if (flags & Local) 
 	  pos[k] -= comI[k];
@@ -610,10 +638,9 @@ public:
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
-      return;
     }
     for (int k=0; k<3; k++) {
-      vel[k] = tp->second.vel[k];
+      vel[k] = tp->second->vel[k];
       if (com_system) {
 	if (flags & Local)
 	  vel[k] -= covI[k];
@@ -652,9 +679,8 @@ public:
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
-      return 0;
     }
-    double val = tp->second.acc[j];
+    double val = tp->second->acc[j];
     if (com_system && (flags & Inertial)) val += acc0[j];
     return val;
   }
@@ -664,9 +690,8 @@ public:
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
-      return;
     }
-    tp->second.pos[j] += val;
+    tp->second->pos[j] += val;
   }
   
   //! Add to position (by array)
@@ -674,9 +699,8 @@ public:
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
-      return;
     }
-    for (int k=0; k<3; k++) tp->second.pos[k] += val[k];
+    for (int k=0; k<3; k++) tp->second->pos[k] += val[k];
   }
   
   //! Add to position (by vector)
@@ -684,9 +708,8 @@ public:
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
-      return;
     }
-    for (int k=0; k<3; k++) tp->second.pos[k] += val[k];
+    for (int k=0; k<3; k++) tp->second->pos[k] += val[k];
   }
   
   //! Add to velocity (by component)
@@ -694,9 +717,8 @@ public:
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
-      return;
     }
-    tp->second.vel[j] += val;
+    tp->second->vel[j] += val;
   }
   
   //! Add to velocity (by array)
@@ -704,9 +726,8 @@ public:
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
-      return;
     }
-    for (int k=0; k<3; k++) tp->second.vel[k] += val[k];
+    for (int k=0; k<3; k++) tp->second->vel[k] += val[k];
   }
   
   //! Add to velocity (by vector)
@@ -714,9 +735,8 @@ public:
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
-      return;
     }
-    for (int k=0; k<3; k++) tp->second.vel[k] += val[k];
+    for (int k=0; k<3; k++) tp->second->vel[k] += val[k];
   }
   
   //! Add to accerlation (by component)
@@ -724,9 +744,8 @@ public:
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
-      return;
     }
-    tp->second.acc[j] += val;
+    tp->second->acc[j] += val;
   }
   
   //! Add to acceleration (by array)
@@ -734,9 +753,8 @@ public:
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
-      return;
     }
-    for (int k=0; k<3; k++) tp->second.acc[k] += val[k];
+    for (int k=0; k<3; k++) tp->second->acc[k] += val[k];
   }
   
   //! Add to accerlation (by vector)
@@ -744,9 +762,8 @@ public:
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
-      return;
     }
-    for (int k=0; k<3; k++) tp->second.acc[k] += val[k];
+    for (int k=0; k<3; k++) tp->second->acc[k] += val[k];
   }
   
   //! Add to potential
@@ -754,9 +771,8 @@ public:
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
-      return;
     }
-    tp->second.pot += val;
+    tp->second->pot += val;
   }
   
   //! Add to external potential
@@ -764,9 +780,8 @@ public:
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
-      return;
     }
-    tp->second.potext += val;
+    tp->second->potext += val;
   }
   
   //! Reset the level lists
@@ -782,13 +797,93 @@ public:
   Timer time_so_far;
 
   //! Time in potential/force computation so far
-  double get_time_sofar() { return 1.0e-6*time_so_far.getTime().getRealTime(); }
+  double get_time_sofar() { return time_so_far.getTime(); }
 
   //! Create a hashed octree for this component
   void HOTcreate(std::set<speciesKey> spec_list);
 
   //! Delete the hashed octree for this component
   void HOTdelete();
+
+#if HAVE_LIBCUDA==1
+  //@{
+  //! CUDA utilities for handling host <===> device exchange
+
+  //! Index of the device to use (-1 means ignore)
+  int cudaDevice;
+
+  typedef thrust::host_vector<cudaParticle> hostPartType;
+  typedef thrust::host_vector<cudaParticle>::iterator hostPartItr;
+
+  //! Cuda particles in host memory
+  hostPartType host_particles;
+
+  //! The cuda particles in CUDA device memory
+  //@{
+
+  //! Helper class to hold data and create/destroy the stream
+  class cudaStreamData
+  {
+  private:
+    static unsigned totalInstances;
+
+  public:
+    //! Instance id for debugging
+    unsigned instance, id;
+
+    //! Host particle beginning and ending iterator
+    hostPartItr first, last;
+
+    //! Device particles
+    thrust::device_vector<cudaParticle> cuda_particles;
+
+    //! My stream
+    cudaStream_t stream;
+
+    //! Constructor
+    cudaStreamData();
+
+    //! Destructor
+    ~cudaStreamData();
+  };
+
+  //! Initialize the streams
+  void cuda_initialize();
+
+  typedef std::vector<cudaStreamData> cuContainer;
+  typedef cuContainer::iterator       cuIterator;
+  typedef RingIterator <cudaStreamData, cuContainer, cuIterator> cuRingType;
+
+  cuContainer cuRingData;
+  boost::shared_ptr<cuRingType> cuRing;
+  //@}
+
+  //! Copy particles from Component C to the cuda structure for this component
+  void ParticlesToCuda();
+
+  //! Copy particles host to device for ring entry
+  void HostToDev(cuRingType cr);
+  
+  //! Copy particles device to host for ring entry
+  void DevToHost(cuRingType cr);
+  
+  //! Copy cuda device particles for this component back Component C
+  void CudaToParticles();
+
+  //! Sort the device vector by sequence
+  void CudaSortBySequence(cuRingType cr);
+
+  //! Sort the device vector by level and return level boundaries
+  std::pair<unsigned, unsigned> CudaSortByLevel(cuRingType cr, int lo, int hi);
+
+  //! Zero the acceleration
+  void ZeroPotAccel(int mlevel);
+
+  //! Default bunch size for CUDA
+  size_t bunchSize;
+
+  //@}
+#endif
 
 };
 

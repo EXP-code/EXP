@@ -43,24 +43,24 @@ public:
 
   // Required member functions
 
-  double get_mass(const double r) { return d->get_mass(r); }
+  virtual double get_mass(const double r) override
+  { return d->get_mass(r); }
 
-  double get_density(const double r) { return d->get_density(r); }
+  virtual double get_density(const double r) override
+  { return d->get_density(r); }
 
-  double get_pot(const double r) {
-    return d->get_pot(r) + h->get_pot(r);
-  }
+  virtual double get_pot(const double r) override
+  { return d->get_pot(r) + h->get_pot(r); }
 							
 
-  double get_dpot(const double r) {
-    return d->get_dpot(r) + h->get_dpot(r);
-  }
+  virtual double get_dpot(const double r) override
+  { return d->get_dpot(r) + h->get_dpot(r); }
 
-  double get_dpot2(const double r) {
-    return d->get_dpot2(r) + h->get_dpot2(r);
-  }
+  virtual double get_dpot2(const double r) override
+  { return d->get_dpot2(r) + h->get_dpot2(r); }
 
-  void get_pot_dpot(const double r, double &ur, double &dur) {
+  virtual void get_pot_dpot(const double r, double &ur, double &dur) override
+  {
     double ur1, dur1, ur2, dur2;
     d->get_pot_dpot(r, ur1, dur1);
     h->get_pot_dpot(r, ur2, dur2);

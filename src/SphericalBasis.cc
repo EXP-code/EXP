@@ -1,4 +1,6 @@
 #include "expand.h"
+
+#include <chrono>
 #include <sstream>
 #include <SphericalBasis.H>
 #include <MixtureBasis.H>
@@ -12,6 +14,16 @@ static pthread_mutex_t io_lock;
 SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) : 
   AxisymmetricBasis(line)
 {
+#if HAVE_LIBCUDA==1
+  if (m) {
+    throw std::runtime_error("Error in SphericalBasis: MixtureBasis logic is not yet implemented in CUDA");
+  }
+
+  // Initialize the circular storage container 
+  cuda_initialize();
+
+#endif
+
   dof              = 3;
   mix              = m;
   geometry         = sphere;
@@ -121,7 +133,7 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
   expcoef1.setsize(0, Lmax*(Lmax+2), 1, nmax);
   
   expcoef0 = new Matrix [nthrds];
-  if (!expcoef0) bomb("problem allocating <expcoef0>");
+  if (!expcoef0) throw GenericError("problem allocating <expcoef0>", __FILE__, __LINE__);
 
   for (int i=0; i<nthrds; i++)
     expcoef0[i].setsize(0, Lmax*(Lmax+2), 1, nmax);
@@ -138,13 +150,13 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
 
   if (pca) {
     cc = new Matrix [Lmax*(Lmax+2)+1];
-    if (!cc) bomb("problem allocating <cc>");
+    if (!cc) throw GenericError("problem allocating <cc>", __FILE__, __LINE__);
 
     for (int l=0; l<=Lmax*(Lmax+2); l++)
       cc[l].setsize(1, nmax, 1, nmax);
   
     cc1 = new Matrix [Lmax*(Lmax+2)+1];
-    if (!cc1) bomb("problem allocating <cc1>");
+    if (!cc1) throw GenericError("problem allocating <cc1>", __FILE__, __LINE__);
     
     for (int l=0; l<=Lmax*(Lmax+2); l++)
       cc1[l].setsize(1, nmax, 1, nmax);
@@ -162,10 +174,10 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
   dend.setsize(0,Lmax,1,nmax);
 
   potd  = new Matrix [nthrds];
-  if (!potd) bomb("problem allocating <potd>");
+  if (!potd) throw GenericError("problem allocating <potd>", __FILE__, __LINE__);
 
   dpot  = new Matrix [nthrds];
-  if (!dpot) bomb("problem allocating <dpot>");
+  if (!dpot) throw GenericError("problem allocating <dpot>", __FILE__, __LINE__);
 
   for (int i=0; i<nthrds; i++) {
     potd[i].setsize(0, Lmax, 1, nmax);
@@ -175,16 +187,16 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
   // Sin, cos, legendre
   //
   cosm = new Vector [nthrds];
-  if (!cosm) bomb("problem allocating <cosm>");
+  if (!cosm) throw GenericError("problem allocating <cosm>", __FILE__, __LINE__);
 
   sinm = new Vector [nthrds];
-  if (!sinm) bomb("problem allocating <sinm>");
+  if (!sinm) throw GenericError("problem allocating <sinm>", __FILE__, __LINE__);
 
   legs = new Matrix [nthrds];
-  if (!legs) bomb("problem allocating <legs>");
+  if (!legs) throw GenericError("problem allocating <legs>", __FILE__, __LINE__);
 
   dlegs = new Matrix [nthrds];
-  if (!dlegs) bomb("problem allocating <dlegs>");
+  if (!dlegs) throw GenericError("problem allocating <dlegs>", __FILE__, __LINE__);
 
   for (int i=0; i<nthrds; i++) {
     cosm[i].setsize(0,Lmax);
@@ -197,8 +209,8 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
   //
   u = new Vector [nthrds];
   du = new Vector [nthrds];
-  if (!u) bomb("problem allocating <u>");
-  if (!du) bomb("problem allocating <du>");
+  if (!u)  throw GenericError("problem allocating <u>",  __FILE__, __LINE__);
+  if (!du) throw GenericError("problem allocating <du>", __FILE__, __LINE__);
 
   for (int i=0; i<nthrds; i++) {
     u[i].setsize(0,nmax);
@@ -255,6 +267,10 @@ SphericalBasis::~SphericalBasis()
   delete [] du;
   delete gen;
   delete nrand;
+
+#if HAVE_LIBCUDA==1
+  if (component->cudaDevice>=0) destroy_cuda();
+#endif
 }
 
 void SphericalBasis::initialize()
@@ -269,6 +285,10 @@ void SphericalBasis::check_range()
 
 void SphericalBasis::get_acceleration_and_potential(Component* C)
 {
+  nvTracerPtr tPtr;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("SphericalBasis::get_acceleration"));
+
 #ifdef DEBUG
   cout << "Process " << myid 
        << ": in SphericalBasis::get_acceleration_and_potential" << endl;
@@ -487,6 +507,14 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
 void SphericalBasis::determine_coefficients(void)
 {
+  nvTracerPtr tPtr;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("SphericalBasis::determine_coefficients"));
+
+  std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
+
+  start0 = std::chrono::high_resolution_clock::now();
+
   // Return if we should leave the coefficients fixed
   //
   if (!self_consistent && !firstime_accel && !initializing) return;
@@ -586,11 +614,23 @@ void SphericalBasis::determine_coefficients(void)
   if (myid==0) cout << endl;
 #endif
 
+#if HAVE_LIBCUDA==1
+  if (component->cudaDevice>=0) {
+    start1 = std::chrono::high_resolution_clock::now();
+    determine_coefficients_cuda();
+    DtoH_coefs(expcoef0[0]);
+    finish1 = std::chrono::high_resolution_clock::now();
+  } else {
+    exp_thread_fork(true);
+  }
+#else
   exp_thread_fork(true);
+#endif
 
 #ifdef DEBUG
   cout << "Process " << myid << ": in <determine_coefficients>, thread returned, lev=" << mlevel << endl;
 #endif
+
   //
   // Sum up the results from each thread
   //
@@ -603,9 +643,7 @@ void SphericalBasis::determine_coefficients(void)
   
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
-  if (multistep==0 || mstep==0) {
-    used += use0;
-  }
+  if (multistep==0 or tnow==resetT) used += use0;
 
   for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
       
@@ -656,11 +694,30 @@ void SphericalBasis::determine_coefficients(void)
 
   print_timings("SphericalBasis: coefficient timings");
 
+# if HAVE_LIBCUDA
+  if (component->timers) {
+    auto finish0 = std::chrono::high_resolution_clock::now();
+  
+    std::chrono::duration<double> duration0 = finish0 - start0;
+    std::chrono::duration<double> duration1 = finish1 - start1;
+
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "== Coefficient evaluation [SphericalBasis] level="
+	      << mlevel << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
+    if (cC->cudaDevice>=0) {
+      std::cout << "Time in GPU: " << duration1.count() << std::endl;
+    }
+    std::cout << std::string(60, '=') << std::endl;
+  }
+#endif
 }
 
 void SphericalBasis::multistep_reset()
 {
-  used = 0;
+  used   = 0;
+  resetT = tnow;
   for (int M=0; M<=multistep; M++) dstepN[M] = 0;
 }
 
@@ -1041,8 +1098,9 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
       potl = potr = pott = potp = 0.0;
       
+      get_dpotl(Lmax, nmax, rs, potd[id], dpot[id], id);
+
       if (!NO_L0) {
-	get_dpotl(Lmax, nmax, rs, potd[id], dpot[id], id);
 	get_pot_coefs_safe(0, expcoef[0], &p, &dp, potd[id], dpot[id]);
 	if (ioff) {
 	  p *= rmax/r0;
@@ -1122,7 +1180,6 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 	cC->AddPotExt(indx, potl);
       else
 	cC->AddPot(indx, potl);
-
     }
 
   }
@@ -1135,11 +1192,40 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
 void SphericalBasis::determine_acceleration_and_potential(void)
 {
+  nvTracerPtr tPtr;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("SphericalBasis::determine_acceleration"));
+
+  std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
+  start0 = std::chrono::high_resolution_clock::now();
+
 #ifdef DEBUG
   cout << "Process " << myid << ": in determine_acceleration_and_potential\n";
 #endif
 
+#if HAVE_LIBCUDA==1
+  if (component->cudaDevice>=0) {
+    start1 = std::chrono::high_resolution_clock::now();
+    //
+    // Copy coefficients from this component to device
+    //
+    HtoD_coefs(expcoef);
+    //
+    // Do the force computation
+    //
+    determine_acceleration_cuda();
+
+    finish1 = std::chrono::high_resolution_clock::now();
+  } else {
+
+    exp_thread_fork(false);
+
+  }
+#else
+
   exp_thread_fork(false);
+
+#endif
 
 #ifdef DEBUG
   cout << "SphericalBasis: process " << myid << " returned from fork" << endl;
@@ -1157,6 +1243,24 @@ void SphericalBasis::determine_acceleration_and_potential(void)
 
   print_timings("SphericalBasis: acceleration timings");
 
+#if HAVE_LIBCUDA==1
+  if (component->timers) {
+    finish0 = std::chrono::high_resolution_clock::now();
+
+    std::chrono::duration<double> duration0 = finish0 - start0;
+    std::chrono::duration<double> duration1 = finish1 - start1;
+  
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "== Force evaluation [SphericalBasis::" << cC->name
+	      << "] level=" << mlevel << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
+    if (cC->cudaDevice>=0) {
+      std::cout << "Time in GPU: " << duration1.count() << std::endl;
+    }
+    std::cout << std::string(60, '=') << std::endl;
+  }
+#endif
 }
 
 

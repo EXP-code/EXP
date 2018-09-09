@@ -65,6 +65,8 @@ void initialize(void)
   if (parse->find_item("dynfracA", val))	dynfracA = atof(val.c_str());
   if (parse->find_item("dynfracP", val))	dynfracP = atof(val.c_str());
 
+  if (parse->find_item("cuStreams", val))       cuStreams = atoi(val.c_str());
+
   if (parse->find_item("DTold", val)) {
     if (atoi(val.c_str())) {
       DTold = true;
@@ -87,6 +89,11 @@ void initialize(void)
   if (parse->find_item("global_cov", val)) {
     if (atoi(val.c_str())) global_cov = true;
     else global_cov = false;
+  }
+
+  if (parse->find_item("cuda_prof", val)) {
+    if (atoi(val.c_str())) cuda_prof = true;
+    else cuda_prof = false;
   }
 
   if (parse->find_item("barrier_check", val)) {

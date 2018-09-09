@@ -132,6 +132,11 @@ struct thrd_pass_tstep
 class Collide
 {
   
+protected:
+
+  std::string name_id;
+  std::string version_id;
+
 public:
   
   //! Diagnostic record type
@@ -241,12 +246,12 @@ protected:
 
   //@{
   // Timing and debug
-  typedef std::list< std::pair<long, unsigned> > effortL;
+  typedef std::list< std::pair<double, unsigned> > effortL;
 
   unsigned            ncells, bodycount, stepcount;
   Timer               forkTime, snglTime, waitTime, joinTime, diagTime;
-  TimeElapsed         forkSoFar, snglSoFar, waitSoFar;
-  TimeElapsed         diagSoFar, joinSoFar;
+  double              forkSoFar, snglSoFar, waitSoFar;
+  double              diagSoFar, joinSoFar;
   vector<double>      forkSum, snglSum, waitSum, diagSum, joinSum;
   bool                effortAccum;
   vector<effortL>     effortNumber;
@@ -267,26 +272,19 @@ protected:
   //@{
   //! For timing the fraction spent in threaded force methods
 
-  vector<struct timeval> tv_list;
-  vector<double> timer_list;
+  vector<std::time_t> timer_list;
   
   inline void thread_timing_beg(int id)
   {
     if (VERBOSE>5) {
-      gettimeofday(&tv_list[id], 0);
-      timer_list[2*id] = 
-	tv_list[id].tv_usec*1.0e-6 +
-	(tv_list[id].tv_sec % 1000);
+      timer_list[2*id] = std::chrono::system_clock::to_time_t(std::chrono::high_resolution_clock::now());
     }
   }
   
   inline void thread_timing_end(int id)
   {
     if (VERBOSE>5) {
-      gettimeofday(&tv_list[id], 0);
-      timer_list[2*id+1] = 
-	tv_list[id].tv_usec*1.0e-6 +
-	(tv_list[id].tv_sec % 1000);
+      timer_list[2*id+1] = std::chrono::system_clock::to_time_t(std::chrono::high_resolution_clock::now());
     }
   }
   //@}
@@ -447,18 +445,18 @@ protected:
   //! Timing and debug (access for derived classes)
   vector<Timer>       initTime, collTime, elasTime, cellTime, curcTime, epsmTime;
   vector<Timer>       stat1Time, stat2Time, stat3Time, coolTime, listTime;
-  vector<TimeElapsed> initSoFar, collSoFar, elasSoFar, cellSoFar, epsmSoFar;
-  vector<TimeElapsed> stat1SoFar, stat2SoFar, stat3SoFar, coolSoFar, listSoFar;
-  vector<TimeElapsed> curcSoFar;
+  vector<double>      initSoFar, collSoFar, elasSoFar, cellSoFar, epsmSoFar;
+  vector<double>      stat1SoFar, stat2SoFar, stat3SoFar, coolSoFar, listSoFar;
+  vector<double>      curcSoFar;
   vector<int>         collCnt, numbSum;
   vector<double>      initSum, collSum, elasSum, cellSum, epsmSum;
   vector<double>      stat1Sum, stat2Sum, stat3Sum, coolSum, listSum;
   vector<long>        minUsage, maxUsage, minPart, maxPart, minCollP, maxCollP;
   
   static const int nEPSMT = 6;
-  vector< vector<Timer> > EPSMT;
-  vector< vector<TimeElapsed> > EPSMTSoFar;
-  vector<long> EPSMtime, CPUH;
+  vector< vector<Timer>  > EPSMT;
+  vector< vector<double> > EPSMTSoFar;
+  vector<double> EPSMtime, CPUH;
   //@}
   
   //! Species map output
@@ -571,7 +569,7 @@ public:
   static double ENHANCE;
   
   //! Atomic weights (public data)
-  static std::map<unsigned short, double> atomic_weights;
+  static std::vector<double> atomic_weights;
 
   //! Target number of collisions per cell (for time step selection)
   static unsigned collTnum;
@@ -581,9 +579,15 @@ public:
       @param comp is the fiducial component
       @param hsdiam is the hard-sphere diameter in Bohr units
       @param crossfac is the cross-section scaling for elastic scattering
+      @param name_id is the class name for identification
+      @param version_id is the version identification info
+      @param nth is the number of desired threads
   */
   Collide(ExternalForce *force, Component *comp, 
-	  double hsdiam, double crossfac, int nth=1);
+	  double hsdiam, double crossfac,
+	  const std::string& name_id,
+	  const std::string& version_id,
+	  int nth=1);
   
   //! Destructor
   virtual ~Collide();

@@ -295,11 +295,13 @@ void Collide::collide_thread_fork(sKeyDmap* Fn)
 double   Collide::EPSMratio = -1.0;
 unsigned Collide::EPSMmin   = 0;
 
-std::map<unsigned short, double> Collide::atomic_weights;
+std::vector<double> Collide::atomic_weights;
 
 //! Weights in atomic mass units
 void Collide::atomic_weights_init()
 {
+  atomic_weights.resize(15, -1.0);
+
   atomic_weights[0]  = 0.000548579909; // Mass of electron
   atomic_weights[1]  = 1.0079;	       // Hydrogen
   atomic_weights[2]  = 4.0026;	       // Helium
@@ -318,7 +320,10 @@ void Collide::atomic_weights_init()
 }  
 
 Collide::Collide(ExternalForce *force, Component *comp,
-		 double hDiam, double sCross, int nth)
+		 double hDiam, double sCross,
+		 const std::string& name_id,
+		 const std::string& version_id,
+		 int nth)
 {
   caller = force;
   c0     = comp;
@@ -437,16 +442,6 @@ Collide::Collide(ExternalForce *force, Component *comp,
   if (EPSMratio> 0) use_epsm = true;
   else              use_epsm = false;
   
-  // 
-  // TIMERS
-  //
-  
-  diagTime.Microseconds();
-  snglTime.Microseconds();
-  forkTime.Microseconds();
-  waitTime.Microseconds();
-  joinTime.Microseconds();
-  
   stepcount = 0;
   bodycount = 0;
   
@@ -478,23 +473,8 @@ Collide::Collide(ExternalForce *force, Component *comp,
   EPSMTSoFar .resize(nthrds);
   for (int n=0; n<nthrds; n++) {
     EPSMT[n].resize(nEPSMT);
-    for (int i=0; i<nEPSMT; i++) EPSMT[n][i].Microseconds();
     EPSMTSoFar[n].resize(nEPSMT);
   }  
-  
-  for (int n=0; n<nthrds; n++) {
-    listTime [n].Microseconds();
-    initTime [n].Microseconds();
-    collTime [n].Microseconds();
-    elasTime [n].Microseconds();
-    stat1Time[n].Microseconds();
-    stat2Time[n].Microseconds();
-    stat3Time[n].Microseconds();
-    coolTime [n].Microseconds();
-    cellTime [n].Microseconds();
-    curcTime [n].Microseconds();
-    epsmTime [n].Microseconds();
-  }
   
   if (TSDIAG) {
     // Accumulate distribution log ratio of flight time to time step
@@ -564,7 +544,6 @@ Collide::Collide(ExternalForce *force, Component *comp,
   }
   
   if (VERBOSE>5) {
-    tv_list    .resize(nthrds);
     timer_list .resize(2*nthrds);
   }
   
@@ -609,10 +588,16 @@ Collide::Collide(ExternalForce *force, Component *comp,
   ntcThresh = ntcThreshDef;
   ntcFactor = 1.0;
 
+  // Log file identification info
+  //
   if (myid==0) {
     std::cout << printDivider << std::endl
+	      << "** Collide routine "
+	      << name_id << ", version " << version_id << std::endl
+	      << printDivider << std::endl << std::endl
+	      << printDivider << std::endl
 	      << "--- Tree volume = " << tree->Volume() << std::endl
-	      << printDivider << std::endl;
+	      << printDivider << std::endl << std::endl;
   }
 
   // Initialize diagnostic counters
@@ -1548,7 +1533,7 @@ void * Collide::collide_thread(void * arg)
 			<< " adjust the cell size or particle number." 
 			<< std::endl;
 	    }
-	  }
+	  } // End: NTC
 
 	  if (ok) {
 
@@ -1742,7 +1727,7 @@ void * Collide::collide_thread(void * arg)
     // Record effort per particle in microseconds
     //
     curcSoFar[id] = curcTime[id].stop();
-    long tt = curcSoFar[id].getRealTime();
+    double tt = curcSoFar[id];
     if (EFFORT) {
       if (effortAccum) 
 	effortNumber[id].push_back(pair<long, unsigned>(tt, number));
@@ -1753,11 +1738,6 @@ void * Collide::collide_thread(void * arg)
   
     // Usage debuging
     //
-    if (tt==0) { 
-      cout << "T=0" << ", precision=" 
-	   << (curcTime[id].Precision() ? "microseconds" : "seconds")
-	   << endl;
-    }
     if (minUsage[id*2+EPSMused] > tt) {
       minUsage[id*2+EPSMused] = tt;
       minPart [id*2+EPSMused] = number;
@@ -2538,7 +2518,7 @@ void Collide::EPSMtimingGather()
   
   for (int n=0; n<nthrds; n++) {
     for (int i=0; i<nEPSMT; i++) {
-      EPSMtime[i] += EPSMTSoFar[n][i]();
+      EPSMtime[i] += EPSMTSoFar[n][i];
       EPSMT[n][i].reset();
     }
   }
@@ -2654,24 +2634,24 @@ void Collide::CollectTiming()
   vector< vector<double> > out(3);
   for (int i=0; i<3; i++) out[i] .resize(nf);
   
-  in[0] += forkSoFar();
-  in[1] += snglSoFar();
-  in[2] += waitSoFar();
-  in[3] += diagSoFar();
-  in[4] += joinSoFar();
+  in[0] += forkSoFar;
+  in[1] += snglSoFar;
+  in[2] += waitSoFar;
+  in[3] += diagSoFar;
+  in[4] += joinSoFar;
   
   for (int n=0; n<nthrds; n++) {
     c = 5;
-    in[c++] += listSoFar[n]();
-    in[c++] += initSoFar[n]();
-    in[c++] += collSoFar[n]();
-    in[c++] += elasSoFar[n]();
-    in[c++] += cellSoFar[n]();
-    in[c++] += epsmSoFar[n]();
-    in[c++] += coolSoFar[n]();
-    in[c++] += stat1SoFar[n]();
-    in[c++] += stat2SoFar[n]();
-    in[c++] += stat3SoFar[n]();
+    in[c++] += listSoFar[n];
+    in[c++] += initSoFar[n];
+    in[c++] += collSoFar[n];
+    in[c++] += elasSoFar[n];
+    in[c++] += cellSoFar[n];
+    in[c++] += epsmSoFar[n];
+    in[c++] += coolSoFar[n];
+    in[c++] += stat1SoFar[n];
+    in[c++] += stat2SoFar[n];
+    in[c++] += stat3SoFar[n];
     in[c++] += collCnt[n];
   }
   

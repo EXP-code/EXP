@@ -1,8 +1,8 @@
 using namespace std;
 
-#include <values.h>
-
 #include <sstream>
+#include <chrono>
+#include <limits>
 
 #include "expand.h"
 #include <gaussQ.h>
@@ -11,7 +11,7 @@ using namespace std;
 #include <MixtureBasis.H>
 #include <Timer.h>
 
-Timer timer_debug(true);
+Timer timer_debug;
 
 double EXPSCALE=1.0, HSCALE=1.0, ASHIFT=0.25;
 
@@ -49,6 +49,16 @@ double dcond(double R, double z, double phi, int M)
 
 Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
 {
+#if HAVE_LIBCUDA==1
+  if (m) {
+    throw std::runtime_error("Error in Cylinder: MixtureBasis logic is not yet implemented in CUDA");
+  }
+
+  // Initialize the circular storage container 
+  cuda_initialize();
+
+#endif
+
   id          = "Cylinder";
   geometry    = cylinder;
   mix         = m;
@@ -85,10 +95,12 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
   logarithmic = false;
   pca         = false;
   pcavtk      = false;
+  vtkfreq     = 1;
   pcainit     = true;
   density     = false;
   coef_dump   = true;
   try_cache   = true;
+  dump_basis  = false;
   eof_file    = "";
 
   initialize();
@@ -104,12 +116,17 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
   EmpCylSL::CACHEFILE   = outdir + ".eof.cache." + runtag;
   EmpCylSL::VFLAG       = vflag;
 
-				// For debugging; no use by force
-				// algorithm
+  // EOF default file name override.  Default uses runtag suffix as
+  // above.  Override file must exist if explicitly specified.
+  //
+  if (eof_file.size()) EmpCylSL::CACHEFILE = eof_file;
+
+  // For debugging; no use by force algorithm
+  //
   if (density) EmpCylSL::DENS = true;
 
-				// Make the empirical orthogonal basis
-				// instance
+  // Make the empirical orthogonal basis instance
+  //
   ortho = new EmpCylSL(nmax, lmax, mmax, ncylorder, acyl, hcyl);
   
   {
@@ -117,44 +134,70 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
     if (get_value("tk_type", val)) ortho->setTK(val);
   }
 
-				// Read in given EOF file
-  if (eof_file.size()) {
-
-    if (!ortho->read_eof_file(eof_file)) {
-      if (myid==0) 
-	cerr << "Cylinder: can not read EOF file <"
-	     << eof_file << ">" << endl;
-      MPI_Abort(MPI_COMM_WORLD, -1);
-    }
-
-    firstime = false;
-    eof      = 0;
-
-  } else if (expcond) {
+  if (expcond) {
 				// Set parameters for external dcond function
     EXPSCALE = acyl;
     HSCALE   = hcyl;
     ASHIFT   = ashift;
     eof      = 0;
 
-    bool cache_ok;		// Try to read the cache
+    bool cache_ok = false;
+  
+    // Attempt to read EOF file from cache with override.  Will work
+    // whether first time or restart.  Aborts if overridden cache is
+    // not found.
+    //
+    if (eof_file.size()>0) {
 
-    if (try_cache || restart)
+      cache_ok = ortho->read_cache();
+      
+      if (!cache_ok) {
+	if (myid==0)		// Diagnostic output . . .
+	  std::cerr << "Cylinder: can not read explicitly specified EOF file <"
+		    << EmpCylSL::CACHEFILE << ">" << std::endl
+		    << "Cylinder: shamelessly aborting . . ." << std::endl;
+	
+	MPI_Abort(MPI_COMM_WORLD, 12);
+      }
+    }
+
+
+    // Attempt to read EOF file from cache on restart
+    //
+    if (try_cache || restart) {
+
       cache_ok = ortho->read_cache();
 
-				// On restart, abort of the cache is gone
+      // Diagnostic output . . .
+      //
+      if (!cache_ok and myid==0)
+	std::cerr << "Cylinder: can not read EOF file <"
+		  << EmpCylSL::CACHEFILE << ">" << std::endl
+		  << "Cylinder: will attempt to generate EOF file, "
+		  << "this will take some time (e.g. hours) . . ."
+		  << std::endl;
+    }
+
+    // On restart, abort if the cache is gone
+    //
     if (restart && !cache_ok) {
       if (myid==0) 
-	cerr << "Cylinder: can not read cache file on restart" << endl;
-      MPI_Abort(MPI_COMM_WORLD, -1);
+	std::cerr << "Cylinder: can not read cache file on restart ... aborting"
+		  << std::endl;
+      MPI_Abort(MPI_COMM_WORLD, 13);
     }
+
+    // Genererate eof if needed
+    //
     if (!cache_ok) ortho->generate_eof(rnum, pnum, tnum, dcond);
+
+    firstime = false;
   }
 
-				// Make sure that all structures are 
-				// initialized to start (e.g. for multi-
-				// stepping but this should be done on
-				// 1st call to determine coefs by default
+  // Make sure that all structures are initialized to start (e.g. for
+  // multi- stepping but this should be done on 1st call to determine
+  // coefs by default
+  //
   ortho->setup_accumulation();
 
   
@@ -172,6 +215,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
 	   << " hcyl="        << hcyl
 	   << " expcond="     << expcond
 	   << " pca="         << pca
+	   << " vtkfreq="     << vtkfreq
 	   << " hallfreq="    << hallfreq
 	   << " eof_file="    << eof_file
 	   << " logarithmic=" << logarithmic
@@ -193,6 +237,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
 	 << " hcyl="        << hcyl
 	 << " expcond="     << expcond
 	 << " pca="         << pca
+	 << " vtkfreq="     << vtkfreq
 	 << " hallfreq="    << hallfreq
 	 << " eof_file="    << eof_file
 	 << " logarithmic=" << logarithmic
@@ -211,7 +256,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
   }
 
 #ifdef DEBUG
-  offgrid = new int [nthrds];
+  offgrid.resize(nthrds);
 #endif
 
 }
@@ -221,9 +266,6 @@ Cylinder::~Cylinder()
   delete ortho;
   delete [] pos;
   delete [] frc;
-#ifdef DEBUG
-  delete [] offgrid;
-#endif
 }
 
 void Cylinder::initialize()
@@ -245,6 +287,7 @@ void Cylinder::initialize()
   if (get_value("ncylorder",  val)) ncylorder  = atoi(val.c_str());
   if (get_value("ncylrecomp", val)) ncylrecomp = atoi(val.c_str());
   if (get_value("hallfreq", val))   hallfreq   = atoi(val.c_str());
+  if (get_value("vtkfreq",  val))   vtkfreq    = atoi(val.c_str());
   if (get_value("eof_file", val))   eof_file   = val;
   if (get_value("vflag",    val))   vflag      = atoi(val.c_str());
 
@@ -278,6 +321,10 @@ void Cylinder::initialize()
     if (atoi(val.c_str())) try_cache = true; 
     else try_cache = false;
   }
+  if (get_value("dump_basis", val)) {
+    if (atoi(val.c_str())) dump_basis = true; 
+    else dump_basis = false;
+  }
   if (get_value("density", val)) {
     if (atoi(val.c_str())) density = true; 
     else density = false;
@@ -290,6 +337,14 @@ void Cylinder::initialize()
 
 void Cylinder::get_acceleration_and_potential(Component* C)
 {
+  nvTracerPtr tPtr;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("Cylinder::get_acceleration"));
+
+  std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
+
+  start0 = std::chrono::high_resolution_clock::now();
+
 #ifdef DEBUG
   cout << "Process " << myid 
        << ": in Cylinder::get_acceleration_and_potential" << endl;
@@ -302,7 +357,10 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   //====================================================
 
   if (use_external) {
-    
+    nvTracerPtr tPtr1;
+    if (cuda_prof)
+      tPtr1 = nvTracerPtr(new nvTracer("Cylinder: in external"));
+
     MPL_start_timer();
     determine_acceleration_and_potential();
     MPL_stop_timer();
@@ -330,19 +388,24 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   // Dump basis on first call
   //=========================
 
-  if (ncompcyl==0 && ortho->coefs_made_all() && !initializing) {
-    if (myid == 0 && density) {
-      if (multistep==0 || mstep==0) {
-	ortho->dump_basis(runtag.c_str(), this_step);
+  if ( dump_basis and (this_step==0 || (expcond and ncompcyl==0) )
+       && ortho->coefs_made_all() && !initializing) {
+
+    if (myid == 0 and multistep==0 || mstep==0) {
       
-	ostringstream dumpname;
-	dumpname << "images" << "." << runtag << "." << this_step;
-	ortho->dump_images(dumpname.str(), 5.0*acyl, 5.0*hcyl, 64, 64, true);
-	//
-	// This next call is ONLY for deep debug
-	//
-	// dump_mzero(runtag.c_str(), this_step);
-      }
+      nvTracerPtr tPtr2;
+      if (cuda_prof)
+	tPtr2 = nvTracerPtr(new nvTracer("Cylinder::dump basis"));
+
+      ortho->dump_basis(runtag.c_str(), this_step);
+      
+      ostringstream dumpname;
+      dumpname << "images" << "." << runtag << "." << this_step;
+      ortho->dump_images(dumpname.str(), 5.0*acyl, 5.0*hcyl, 64, 64, true);
+      //
+      // This next call is ONLY for deep debug
+      //
+      // dump_mzero(runtag.c_str(), this_step);
     }
   }
 
@@ -356,7 +419,6 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   determine_acceleration_and_potential();
 
   MPL_stop_timer();
-
 
   //=======================
   // Recompute PCA analysis
@@ -558,6 +620,14 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 
 void Cylinder::determine_coefficients(void)
 {
+  nvTracerPtr tPtr;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("Cylinder::determine_coefficients"));
+
+  std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
+
+  start0 = std::chrono::high_resolution_clock::now();
+
   static char routine[] = "determine_coefficients_Cylinder";
 
   if (!self_consistent && !initializing) return;
@@ -589,6 +659,7 @@ void Cylinder::determine_coefficients(void)
   if (pca and pcainit) {
     EmpCylSL::SELECT = true;
     EmpCylSL::PCAVTK = pcavtk;
+    EmpCylSL::VTKFRQ = vtkfreq;
     std::ostringstream sout;
     sout << runtag << ".pcadiag." << cC->id << "." << cC->name;
     ortho->setHall(sout.str(), component->nbodies_tot, hallfreq);
@@ -601,11 +672,7 @@ void Cylinder::determine_coefficients(void)
     ortho->setup_accumulation(mlevel);
   }
 
-  cylmass0 = new double [nthrds];
-  if (!cylmass0) {
-    cerr << "Cylinder: problem allocating <cylmass0>\n";
-    exit(-1);
-  }
+  cylmass0.resize(nthrds);
 
 #ifdef LEVCHECK
   for (int n=0; n<numprocs; n++) {
@@ -629,9 +696,19 @@ void Cylinder::determine_coefficients(void)
   if (myid==0) cout << endl;
 #endif
 
+#if HAVE_LIBCUDA==1
+  if (component->cudaDevice>=0) {
+    start1 = std::chrono::high_resolution_clock::now();
+    determine_coefficients_cuda();
+    DtoH_coefs(mlevel);
+    finish1 = std::chrono::high_resolution_clock::now();
+  } else {    
+    exp_thread_fork(true);
+  }
+#else
 				// Threaded coefficient accumulation loop
   exp_thread_fork(true);
-
+#endif
 				// Accumulate counts and mass used to
 				// determine coefficients
   int use0=0, use1=0;
@@ -642,8 +719,6 @@ void Cylinder::determine_coefficients(void)
     cylmassT1 += cylmass0[i];
   }
 
-  delete [] cylmass0;
-
 				// Turn off timer so as not bias by 
 				// communication barrier
   MPL_stop_timer();
@@ -652,7 +727,7 @@ void Cylinder::determine_coefficients(void)
   MPI_Allreduce ( &cylmassT1, &cylmassT0, 1, MPI_DOUBLE, MPI_SUM, 
 		  MPI_COMM_WORLD );
 
-  if (multistep==0 || mstep==0) {
+  if (multistep==0 or tnow==resetT) {
     used    += use0;
     cylmass += cylmassT0;
   }
@@ -667,6 +742,26 @@ void Cylinder::determine_coefficients(void)
   }
 
   print_timings("Cylinder: coefficient timings");
+
+  finish0 = std::chrono::high_resolution_clock::now();
+  
+#if HAVE_LIBCUDA==1
+  if (component->timers) {
+    std::chrono::duration<double> duration0 = finish0 - start0;
+    std::chrono::duration<double> duration1 = finish1 - start1;
+    
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "== Coefficient evaluation [Cylinder] level="
+	      << mlevel << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
+    if (cC->cudaDevice>=0) {
+      std::cout << "Time in GPU: " << duration1.count() << std::endl;
+    }
+    std::cout << std::string(60, '=') << std::endl;
+  }
+#endif
+
 }
 
 
@@ -682,11 +777,7 @@ void Cylinder::determine_coefficients_eof(void)
   cylmass = 0.0;
   if (myid==0) cerr << "Cylinder: setup for eof\n";
 
-  cylmass0 = new double [nthrds];
-  if (!cylmass0) {
-    cerr << "Cylinder: problem allocating <cylmass0>\n";
-    exit(-1);
-  }
+  cylmass0.resize(nthrds);
 
 				// Threaded coefficient accumulation loop
   exp_thread_fork(true);
@@ -701,7 +792,6 @@ void Cylinder::determine_coefficients_eof(void)
     cylmassT1 += cylmass0[i];
   }
 
-  delete [] cylmass0;
 				// Turn off timer so as not bias by 
 				// communication barrier
   MPL_stop_timer();
@@ -911,6 +1001,14 @@ static int ocf = 0;
 
 void Cylinder::determine_acceleration_and_potential(void)
 {
+  nvTracerPtr tPtr;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("Cylinder::determine_acceleration"));
+
+  std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
+
+  start0 = std::chrono::high_resolution_clock::now();
+
   static char routine[] = "determine_acceleration_and_potential_Cyl";
   
   if (use_external == false) {
@@ -923,10 +1021,27 @@ void Cylinder::determine_acceleration_and_potential(void)
 
 #ifdef DEBUG
   for (int i=0; i<nthrds; i++) offgrid[i] = 0;
-  cout << "Proocess " << myid << ": about to fork" << endl;
+  cout << "Process " << myid << ": about to fork" << endl;
 #endif
 
+#if HAVE_LIBCUDA==1
+  if (cC->cudaDevice>=0) {
+    start1 = std::chrono::high_resolution_clock::now();
+    //
+    // Copy coeficients from this component to device
+    //
+    HtoD_coefs();
+    //
+    // Do the force computation
+    //
+    determine_acceleration_cuda();
+    finish1 = std::chrono::high_resolution_clock::now();
+  } else {
+    exp_thread_fork(false);
+  }
+#else
   exp_thread_fork(false);
+#endif
 
 #ifdef DEBUG
   cout << "Cylinder: process " << myid << " returned from fork" << endl;
@@ -948,6 +1063,28 @@ void Cylinder::determine_acceleration_and_potential(void)
 #endif
 
   print_timings("Cylinder: acceleration timings");
+
+
+# if HAVE_LIBCUDA
+  if (component->timers) {
+    auto finish0 = std::chrono::high_resolution_clock::now();
+  
+    std::chrono::duration<double> duration0 = finish0 - start0;
+    std::chrono::duration<double> duration1 = finish1 - start1;
+    std::chrono::duration<double> duration2 = start1  - start0;
+
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "== Force evaluation [Cylinder::" << cC->name
+	      << "] level=" << mlevel << std::endl;
+    std::cout << std::string(60, '=') << std::endl;
+    std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
+    if (cC->cudaDevice>=0) {
+      std::cout << "Time in GPU: " << duration1.count() << std::endl;
+      std::cout << "Time before: " << duration2.count() << std::endl;
+    }
+    std::cout << std::string(60, '=') << std::endl;
+  }
+#endif
 }
 
 void Cylinder::
@@ -1074,8 +1211,9 @@ void Cylinder::multistep_update(int from, int to, Component* c, int i, int id)
 
 void Cylinder::multistep_reset() 
 { 
-  used = 0; 
+  used    = 0; 
   cylmass = 0.0;
+  resetT  = tnow;
   ortho->reset_mass();
   ortho->multistep_reset();
 }

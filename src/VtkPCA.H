@@ -29,26 +29,44 @@ class VtkPCA
 {
 private:
   int nmax;
+
   // Knots
   vtkFloatArrayP XX, YY, ZZ;
+
   // Fields
-  std::vector<vtkFloatArrayP> vals, vecs;
+  std::vector<vtkFloatArrayP> coef, hall, eval, snrv, vecs;
+
   // Labels
   std::vector<std::string>    elab;
+
   // Dataset
   vtkRectilinearGridP         dataSet;
+
   // Save smoothed basis
   bool                        smooth;
+
+  // Rorder by S/N
+  bool                        reorder;
+  
 public:
   //! Constructor
-  VtkPCA(int N, bool smooth=true);
+  VtkPCA(int N, bool reorder=true, bool smooth=false);
 
   //! Add data for two-dimensional cylindrical basis
-  void Add(const Vector& eval, const Matrix& evec, int m);
+  void Add(const Vector& coef,
+	   const Vector& hall,
+	   const Vector& snr,
+	   const Vector& eval,
+	   const Matrix& evec,
+	   int m);
 
   //! Add data for three-dimensional spherical basis
-  void Add(const Vector& eval, const Matrix& evec, int l, int m,
-	   char tag);
+  void Add(const Vector& coef,
+	   const Vector& hall,
+	   const Vector& snr,
+	   const Vector& eval,
+	   const Matrix& evec,
+	   int l, int m, char tag);
   
   //! Write output file
   void Write(const std::string& name);

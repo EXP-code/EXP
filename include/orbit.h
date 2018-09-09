@@ -170,24 +170,41 @@ public:
   
 				// Safe access
 
-  const double Energy(void) { return energy; }
-  const double AngMom(void) { 
+  double Energy(void) { return energy; }
+
+  double AngMom(void)
+  { 
     if (freq_defined == false) compute_freq();
-    return jmax*kappa; }
-  const double Jmax(void) {
+    return jmax*kappa;
+  }
+
+  double Jmax(void)
+  {
     if (freq_defined == false) compute_freq();
-    return jmax; }
-  const double Kappa(void) { return kappa; }
-  const double Beta(void) { return beta; }
-  const double peri(void) { 
+    return jmax;
+  }
+
+  double Kappa(void) { return kappa; }
+
+  double Beta(void)  { return beta; }
+  
+  double peri(void)
+  { 
     if (freq_defined == false) compute_freq();
-    return r_peri; }
-  const double apo(void) {
+    return r_peri;
+  }
+
+  double apo(void)
+  {
     if (freq_defined == false) compute_freq();
-    return r_apo; }
-  const double circ(void) {
+    return r_apo;
+  }
+
+  double circ(void)
+  {
     if (freq_defined == false) compute_freq();
-    return r_circ; }
+    return r_circ;
+  }
 
   AxiSymModel& modl(void) { return *model; }
 

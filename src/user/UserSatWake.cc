@@ -128,7 +128,7 @@ UserSatWake::UserSatWake(string &line) : ExternalForce(line)
 				// Look for the fiducial component for
 				// centering
     bool found = false;
-    for (auto c : comp.components) {
+    for (auto c : comp->components) {
       if ( !ctr_name.compare(c->name) ) {
 	c0 = c;
 	found = true;
@@ -358,9 +358,11 @@ void UserSatWake::initialize_coefficients()
     u = new SphereSL(LMAX, nmax, numr, rmin, rmax, scale, m);
     break;
   default:
-    if (myid==0) 
-      cerr << "Illegal spherical biorthongal series: " << HALO_TYPE << '\n';
-    exit(-1);
+    {
+      std::ostringstream sout;
+      sout << "Illegal spherical biorthongal series: " << HALO_TYPE;
+      throw GenericError(sout.str(), __FILE__, __LINE__);
+    }
   }
   
   
@@ -460,10 +462,10 @@ void UserSatWake::initialize_coefficients()
       }
 
       if (reading==0) {
-	cerr << "Cache file <" << outdir << cachefile
-	     << "> is incompatible with current input parameters!!" << endl;
-	MPI_Abort(MPI_COMM_WORLD, 35);
-	exit(-1);
+	std::ostringstream sout;
+	sout << "Cache file <" << outdir << cachefile
+	     << "> is incompatible with current input parameters!!";
+	throw GenericError(sout.str(), __FILE__, __LINE__);
       }
     }
   }
@@ -478,8 +480,9 @@ void UserSatWake::initialize_coefficients()
     int tid;
     from_save.read((char *)&tid, sizeof(int));
     if (tid != id) {
-      cerr << "Process " << myid << ": error reading save file!\n";
-      MPI_Abort(MPI_COMM_WORLD, -34);
+      std::ostringstream sout;
+      sout << "Process " << myid << ": error reading save file!";
+      throw GenericError(sout.str(), __FILE__, __LINE__);
     } 
 
     char tbuf[255];
@@ -503,10 +506,9 @@ void UserSatWake::initialize_coefficients()
       
     to_save.open(string(outdir + cachefile).c_str());
     if (!to_save) {
-      cerr << "Couldn't open <" << cachefile <<
-	"> to write cached data" << endl;
-      MPI_Abort(MPI_COMM_WORLD, -35);
-      exit(-1);
+      std::ostringstream sout;
+      sout << "Couldn't open <" << cachefile << "> to write cached data";
+      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
     
     // Write ID string and version #

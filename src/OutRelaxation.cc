@@ -57,7 +57,7 @@ void OutRelaxation::Run(int n, bool final)
 
   int nbodies;
 
-  for (auto c : comp.components) {
+  for (auto c : comp->components) {
 
     nbodies = c->Number();
 

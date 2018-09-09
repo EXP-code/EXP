@@ -27,7 +27,7 @@ UserDiffRot::UserDiffRot(string &line) : ExternalForce(line)
   if (name.size()>0) {
 				// Look for the fiducial component
     bool found = false;
-    for (auto c : comp.components) {
+    for (auto c : comp->components) {
       if ( !name.compare(c->name) ) {
 	c0 = c;
 	found = true;
@@ -49,7 +49,7 @@ UserDiffRot::UserDiffRot(string &line) : ExternalForce(line)
 				// Look for component for particle
 				// avoidance
     bool found = false;
-    for (auto c : comp.components) {
+    for (auto c : comp->components) {
       if ( !avoid.compare(c->name) ) {
 	c1 = c;
 	found = true;
@@ -138,17 +138,17 @@ void UserDiffRot::determine_acceleration_and_potential(void)
     if (myid==0) {
 
       int number = -1;
-      Particle *p = c1->get_particles(&number);
+      PartPtr *p = c1->get_particles(&number);
 
       while (p) {
 	
 	for (int k=0; k<number && ipm<maxpm; k++, ipm++) {
-	  pos[ipm*4] = sqrt(p[k].pos[0]*p[k].pos[0] +
-			    p[k].pos[1]*p[k].pos[1] +
-			    p[k].pos[2]*p[k].pos[2] );
-	  pos[ipm*4+1] = p[k].pos[0];
-	  pos[ipm*4+2] = p[k].pos[1];
-	  pos[ipm*4+3] = p[k].pos[2];
+	  pos[ipm*4] = sqrt(p[k]->pos[0]*p[k]->pos[0] +
+			    p[k]->pos[1]*p[k]->pos[1] +
+			    p[k]->pos[2]*p[k]->pos[2] );
+	  pos[ipm*4+1] = p[k]->pos[0];
+	  pos[ipm*4+2] = p[k]->pos[1];
+	  pos[ipm*4+3] = p[k]->pos[2];
 	}
 
 	if (ipm == maxpm) break;

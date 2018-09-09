@@ -44,7 +44,7 @@ UserDiffuse::UserDiffuse(string &line) : ExternalForce(line)
   if (name.size()>0) {
 				// Look for the fiducial component
     bool found = false;
-    for (auto c : comp.components) {
+    for (auto c : comp->components) {
       if ( !name.compare(c->name) ) {
 	c0 = c;
 	found = true;

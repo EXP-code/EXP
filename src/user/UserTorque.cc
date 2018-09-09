@@ -67,7 +67,7 @@ UserTorque::UserTorque(string &line) : ExternalForce(line)
 
 				// Look for the fiducial component
   bool found = false;
-  for (auto c : comp.components) {
+  for (auto c : comp->components) {
     if ( !com_name.compare(c->id) ) {
       c0 = c;
       found = true;

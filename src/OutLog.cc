@@ -103,27 +103,27 @@ void OutLog::Run(int n, bool last)
 
     firstime = false;
 
-    nbodies  = vector<int>(comp.ncomp);
-    nbodies1 = vector<int>(comp.ncomp);
+    nbodies  = vector<int>(comp->ncomp);
+    nbodies1 = vector<int>(comp->ncomp);
 
-    used     = vector<int>(comp.ncomp);
-    used1    = vector<int>(comp.ncomp);
+    used     = vector<int>(comp->ncomp);
+    used1    = vector<int>(comp->ncomp);
 
-    mtot     = vector<double>(comp.ncomp);
-    mtot1    = vector<double>(comp.ncomp);
+    mtot     = vector<double>(comp->ncomp);
+    mtot1    = vector<double>(comp->ncomp);
 
-    com      = vector<dvector>(comp.ncomp);
-    com1     = vector<dvector>(comp.ncomp);
+    com      = vector<dvector>(comp->ncomp);
+    com1     = vector<dvector>(comp->ncomp);
 
-    cov      = vector<dvector>(comp.ncomp);
-    cov1     = vector<dvector>(comp.ncomp);
+    cov      = vector<dvector>(comp->ncomp);
+    cov1     = vector<dvector>(comp->ncomp);
 
-    angm     = vector<dvector>(comp.ncomp);
-    angm1    = vector<dvector>(comp.ncomp);
+    angm     = vector<dvector>(comp->ncomp);
+    angm1    = vector<dvector>(comp->ncomp);
 
-    ctr = vector<dvector>(comp.ncomp);
+    ctr = vector<dvector>(comp->ncomp);
 
-    for (int i=0; i<comp.ncomp; i++) {
+    for (int i=0; i<comp->ncomp; i++) {
       com   [i] = vector<double>(3);
       com1  [i] = vector<double>(3);
       cov   [i] = vector<double>(3);
@@ -146,14 +146,14 @@ void OutLog::Run(int n, bool last)
     comG      = vector<double>(3);
     covG      = vector<double>(3);
     
-    ektot     = vector<double>(comp.ncomp);
-    ektot1    = vector<double>(comp.ncomp);
-    eptot     = vector<double>(comp.ncomp);
-    eptot1    = vector<double>(comp.ncomp);
-    eptotx    = vector<double>(comp.ncomp);
-    eptotx1   = vector<double>(comp.ncomp);
-    clausius  = vector<double>(comp.ncomp);
-    clausius1 = vector<double>(comp.ncomp);
+    ektot     = vector<double>(comp->ncomp);
+    ektot1    = vector<double>(comp->ncomp);
+    eptot     = vector<double>(comp->ncomp);
+    eptot1    = vector<double>(comp->ncomp);
+    eptotx    = vector<double>(comp->ncomp);
+    eptotx1   = vector<double>(comp->ncomp);
+    clausius  = vector<double>(comp->ncomp);
+    clausius1 = vector<double>(comp->ncomp);
 
     if (myid==0) {
 
@@ -228,7 +228,7 @@ void OutLog::Run(int n, bool last)
 
       
 				// Component stanzas
-	for (auto c : comp.components) {
+	for (auto c : comp->components) {
 	  *out << "|" << setw(cwid) << c->id.c_str();
 	  for (int i=1; i<num_component; i++) 
 	    *out << "|" << setfill(' ') << setw(cwid) << " ";
@@ -241,7 +241,7 @@ void OutLog::Run(int n, bool last)
 	  *out << "+" << setfill('-') << setw(cwid)  << "-";
       
 				// Component dividers
-	for (auto c : comp.components) {
+	for (auto c : comp->components) {
 	  for (int i=0; i<num_component; i++) 
 	    *out << "+" << setfill('-') << setw(cwid) << "-";
 	}
@@ -253,7 +253,7 @@ void OutLog::Run(int n, bool last)
 	for (int i=1; i<num_global; i++) *out << "|" << setw(cwid) << lab_global[i];
     
 				// Component labels
-	for (auto c : comp.components) {
+	for (auto c : comp->components) {
 	  for (int i=0; i<num_component; i++) {
 	    string label = c->name + " " + lab_component[i];
 	    if (label.size()<=cwid)
@@ -270,7 +270,7 @@ void OutLog::Run(int n, bool last)
 	  *out << "+" << setfill('-') << setw(cwid) << "-";
 	
 				// Component dividers
-	for (auto c : comp.components) {
+	for (auto c : comp->components) {
 	  for (int i=0; i<num_component; i++) 
 	    *out << "+" << setfill('-') << setw(cwid) << "-";
 	}
@@ -289,7 +289,7 @@ void OutLog::Run(int n, bool last)
 	  *out << "|" << setw(cwid) << slab.str();
 	}    
 				// Component count
-	for (auto c : comp.components) {
+	for (auto c : comp->components) {
 	  for (int i=0; i<num_component; i++) {
 	    ostringstream slab;
 	    slab << "[" << ++count << "]";
@@ -304,7 +304,7 @@ void OutLog::Run(int n, bool last)
 	  *out << "+" << setfill('-') << setw(cwid) << "-";
 	
 				// Component dividers
-	for (auto c : comp.components) {
+	for (auto c : comp->components) {
 	  for (int i=0; i<num_component; i++) 
 	    *out << "+" << setfill('-') << setw(cwid) << "-";
 	}
@@ -329,7 +329,7 @@ void OutLog::Run(int n, bool last)
   }
 
 				// Zero out accumulators
-  for (int i=0; i<comp.ncomp; i++) {
+  for (int i=0; i<comp->ncomp; i++) {
 
     nbodies [i] = nbodies1 [i] = 0;
     used    [i] = used1    [i] = 0;
@@ -359,7 +359,7 @@ void OutLog::Run(int n, bool last)
   unsigned ntot;
   int indx = 0;
 
-  for (auto c : comp.components) {
+  for (auto c : comp->components) {
   
     nbodies1[indx] = c->Number();
 
@@ -416,13 +416,13 @@ void OutLog::Run(int n, bool last)
   }
 				// Send back to Process 0
 
-  MPI_Reduce(&nbodies1[0], &nbodies[0], comp.ncomp, MPI_INT, MPI_SUM, 
+  MPI_Reduce(&nbodies1[0], &nbodies[0], comp->ncomp, MPI_INT, MPI_SUM, 
 	     0, MPI_COMM_WORLD);
 
-  MPI_Reduce(&mtot1[0], &mtot[0], comp.ncomp, MPI_DOUBLE, MPI_SUM, 
+  MPI_Reduce(&mtot1[0], &mtot[0], comp->ncomp, MPI_DOUBLE, MPI_SUM, 
 	     0, MPI_COMM_WORLD);
 
-  for (int i=0; i<comp.ncomp; i++) {
+  for (int i=0; i<comp->ncomp; i++) {
     MPI_Reduce(&com1[i][0], &com[i][0], 3, MPI_DOUBLE, MPI_SUM, 
 	       0, MPI_COMM_WORLD);
     MPI_Reduce(&cov1[i][0], &cov[i][0], 3, MPI_DOUBLE, MPI_SUM, 
@@ -438,16 +438,16 @@ void OutLog::Run(int n, bool last)
   MPI_Reduce(&angmG[0], &angm0[0], 3, MPI_DOUBLE, MPI_SUM, 
 	     0, MPI_COMM_WORLD);
 
-  MPI_Reduce(&ektot1[0], &ektot[0], comp.ncomp, MPI_DOUBLE, MPI_SUM, 
+  MPI_Reduce(&ektot1[0], &ektot[0], comp->ncomp, MPI_DOUBLE, MPI_SUM, 
 	     0, MPI_COMM_WORLD);
-  MPI_Reduce(&eptot1[0], &eptot[0], comp.ncomp, MPI_DOUBLE, MPI_SUM, 
+  MPI_Reduce(&eptot1[0], &eptot[0], comp->ncomp, MPI_DOUBLE, MPI_SUM, 
 	     0, MPI_COMM_WORLD);
-  MPI_Reduce(&eptotx1[0], &eptotx[0], comp.ncomp, MPI_DOUBLE, MPI_SUM, 
+  MPI_Reduce(&eptotx1[0], &eptotx[0], comp->ncomp, MPI_DOUBLE, MPI_SUM, 
 	     0, MPI_COMM_WORLD);
-  MPI_Reduce(&clausius1[0], &clausius[0], comp.ncomp, MPI_DOUBLE, MPI_SUM, 
+  MPI_Reduce(&clausius1[0], &clausius[0], comp->ncomp, MPI_DOUBLE, MPI_SUM, 
 	     0, MPI_COMM_WORLD);
 
-  MPI_Reduce(&used1[0], &used[0], comp.ncomp, MPI_INT, MPI_SUM, 
+  MPI_Reduce(&used1[0], &used[0], comp->ncomp, MPI_INT, MPI_SUM, 
 	     0, MPI_COMM_WORLD);
 
 
@@ -461,14 +461,14 @@ void OutLog::Run(int n, bool last)
     *out << setw(cwid) << tnow;
 
     double mtot0 = 0.0;
-    for (int i=0; i<comp.ncomp; i++) mtot0 += mtot[i];
+    for (int i=0; i<comp->ncomp; i++) mtot0 += mtot[i];
 
 				// Total mass
     *out << "|" << setw(cwid) << mtot0;
 
 				// Total number
     int nbodies0 = 0;
-    for (int i=0; i<comp.ncomp; i++) nbodies0 += nbodies[i];
+    for (int i=0; i<comp->ncomp; i++) nbodies0 += nbodies[i];
     *out << "|" << setw(cwid) << nbodies0;
 
 				// COM
@@ -492,17 +492,17 @@ void OutLog::Run(int n, bool last)
     
 				// KE
     double ektot0 = 0.0;
-    for (int i=0; i<comp.ncomp; i++) ektot0 += ektot[i];
+    for (int i=0; i<comp->ncomp; i++) ektot0 += ektot[i];
     *out << "|" << setw(cwid) << ektot0;
       
 				// PE
     double eptot0 = 0.0;
-    for (int i=0; i<comp.ncomp; i++) eptot0 += eptot[i] + 0.5*eptotx[i];
+    for (int i=0; i<comp->ncomp; i++) eptot0 += eptot[i] + 0.5*eptotx[i];
     *out << "|" << setw(cwid) << eptot0;
      
 				// Clausius, Total, 2T/VC
     double clausius0 = 0.0;
-    for (int i=0; i<comp.ncomp; i++) clausius0 += clausius[i];
+    for (int i=0; i<comp->ncomp; i++) clausius0 += clausius[i];
     *out << "|" << setw(cwid) << clausius0;
     *out << "|" << setw(cwid) << ektot0 + clausius0;
     if (clausius0 != 0.0)
@@ -512,7 +512,7 @@ void OutLog::Run(int n, bool last)
 
     *out << "|" << setw(cwid) << wtime;
     int usedT = 0;
-    for (int i=0; i<comp.ncomp; i++) usedT += used[i];
+    for (int i=0; i<comp->ncomp; i++) usedT += used[i];
     *out << "|" << setw(cwid) << usedT;
 
 
@@ -521,7 +521,7 @@ void OutLog::Run(int n, bool last)
     // =============
 
 
-    for (int i=0; i<comp.ncomp; i++) {
+    for (int i=0; i<comp->ncomp; i++) {
 
       *out << "|" << setw(cwid) << mtot[i];
       *out << "|" << setw(cwid) << nbodies[i];

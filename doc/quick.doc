@@ -4,13 +4,16 @@
 
 You will need the following libraries:
 <ol>
-<li> Some MPI implementation. I use LAM. Your success may vary
-	with other implementations.
-<li> C++ compiler for most of the code and f77 for one subroutine.
-<li> POSIX threads (<code>pthreads</code> in GNU/Linux).
+<li> Some MPI implementation. I use OpenMPI (previously LAM). Your success may vary 
+	with other implementations but it should work.  I have tried MPICH in the past
+	without trouble, but MPICH has not been tested with EXP in some time.
+<li> C++ compiler for most of the code and Fortran for one subroutine.
+<li> POSIX threads (<code>pthreads</code> in GNU/Linux) and OpenMP.  OpenMP is supported in most compilers these days.
+<li> Boost libraries
+<li> The Visualization Toolkit (VTK)
 </ol>
-All local UMASS astro cluster should have everything you need, 
-of course.
+Most of these are standard in a Linux/GNU development environment (e.g. most national centers).  All local UMASS 'Eagle' astro
+cluster should have everything you need, of course.
 
 \section compiling Compiling the code
 

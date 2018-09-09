@@ -7,7 +7,7 @@
 #include <Timer.h>
 #include <ZBrent.H>
 
-static Timer timer_tot(true), timer_thrd(true);
+static Timer timer_tot, timer_thrd;
 static bool timing = false;
 
 /*
@@ -90,9 +90,10 @@ double UserPST::get_fid_bulge_dens()
   double Mleft = Mencl - Mdisk - Mbar;
 
   if (Mleft<0) {
-    cerr << "Impossible parameters: Mencl (" << Mencl << ") < Mdisk + Mbar ("
+    std::ostringstream sout;
+    sout << "Impossible parameters: Mencl (" << Mencl << ") < Mdisk + Mbar ("
 	 << Mdisk + Mbar << ")" << endl;
-    exit(-1);
+    throw GenericError(sout.str(), __FILE__, __LINE__);
   }
   
   Mscale = Mencl/(Mdisk + Mleft);
@@ -151,8 +152,8 @@ UserPST::UserPST(string &line) : ExternalForce(line)
   //
   // Scaling
   //
-  const double mp = 1.67e-24;	      // Proton mass
-  const double kb  = 1.381e-16;	      // Boltzmann constant
+  // const double mp = 1.67e-24;	      // Proton mass
+  // const double kb  = 1.381e-16;	      // Boltzmann constant
   const double pc    = 3.08568025e18; // One parsec in cm
   const double Msun  = 1.98892e33;    // Solar mass in grams
   const double Grav  = 6.673e-8;      // In cgs
@@ -164,9 +165,9 @@ UserPST::UserPST(string &line) : ExternalForce(line)
 				// 1 km/s in system units (0.00835)
   const double Vunit = Tunit*1.0e5/(Lunit*1.0e3*pc);
 
-  const double r_max = 16.0/Lunit;	       // Mass within 16kpc
-  const double c_s = 5.0;		       // Sounds speed: 5 km/s
-  const double T  = (mp*pow(c_s*1e5, 2.0))/kb; // Temperature
+  // const double r_max = 16.0/Lunit;	       // Mass within 16kpc
+  // const double c_s = 5.0;		       // Sounds speed: 5 km/s
+  // const double T  = (mp*pow(c_s*1e5, 2.0))/kb; // Temperature
 
   Ton    *= 365.25*24*3600/Tunit;
   DeltaT *= 365.25*24*3600/Tunit;
@@ -201,7 +202,7 @@ UserPST::UserPST(string &line) : ExternalForce(line)
   //
   double v_o = 200.0 * Vunit;
   double r_o = 14.1 / Lunit;
-  double coef = v_o*v_o/(2.0*M_PI*r_o);
+  // double coef = v_o*v_o/(2.0*M_PI*r_o);
 
   //
   // Compute r_b by enforcing enclosed mass within 10 kpc
@@ -388,9 +389,9 @@ void UserPST::determine_acceleration_and_potential(void)
   if (timing) {
     timer_tot.stop();
     cout << setw(20) << "Bar total: "
-	 << setw(18) << timer_tot.getTime()() << endl
+	 << setw(18) << timer_tot.getTime()  << endl
 	 << setw(20) << "Bar threads: "
-	 << setw(18) << timer_thrd.getTime()() << endl;
+	 << setw(18) << timer_thrd.getTime() << endl;
     timer_tot.reset();
     timer_thrd.reset();
   }

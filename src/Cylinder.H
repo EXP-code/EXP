@@ -6,6 +6,14 @@
 #include <Basis.H>
 #include <EmpOrth9thd.h>
 
+#include "config.h"
+
+#if HAVE_LIBCUDA==1
+#include <cudaParticle.cuH>
+#include <cudaMappingConstants.cuH>
+#endif
+#include <NVTX.H>
+
 class MixtureBasis;
 
 /** This routine computes the potential, acceleration and density 
@@ -22,13 +30,13 @@ private:
 
   EmpCylSL *ortho;
   int eof, ncompcyl;
-  double cylmass;
+  double cylmass, resetT;
 
   // Three_Vector *pos, *frc;
   Vector *pos, *frc;
 
-  double *cylmass0;
-  int *offgrid;
+  std::vector<double> cylmass0;
+  std::vector<int> offgrid;
 
   void initialize(void);
 
@@ -37,10 +45,10 @@ private:
   int nmax, lmax, mmax;
   int ncylnx, ncylny, ncylr;
   double hcyl;
-  int ncylorder, ncylrecomp, hallfreq;
+  int ncylorder, ncylrecomp, hallfreq, vtkfreq;
   string eof_file;
   bool self_consistent, logarithmic, density, pca, pcainit, pcavtk;
-  bool cmap, try_cache, firstime;
+  bool cmap, try_cache, firstime, dump_basis;
 
   // These should be ok for all derived classes, hence declared private
 
@@ -60,7 +68,10 @@ private:
   */
   void compute_multistep_coefficients() 
   {
-      ortho->compute_multistep_coefficients(mlevel);
+    nvTracerPtr tPtr;
+    if (cuda_prof)
+      tPtr = nvTracerPtr(new nvTracer("Cylinder::compute_multistep_coefficients"));
+    ortho->compute_multistep_coefficients(mlevel);
   }
 
   //! Reset used particle counter and mass registers
@@ -68,6 +79,86 @@ private:
 
   MixtureBasis *mix;
 
+
+protected:
+
+  //! CUDA method for coefficient accumulation
+#if HAVE_LIBCUDA==1
+  virtual void determine_coefficients_cuda();
+  virtual void determine_acceleration_cuda();
+
+  thrust::host_vector<cuFP_t>   host_coefs;
+  thrust::device_vector<cuFP_t> dev_coefs;
+
+  virtual void HtoD_coefs();
+  virtual void DtoH_coefs(int mlevel);
+
+  std::vector<cudaArray_t> cuInterpArray;
+  thrust::host_vector<cudaTextureObject_t> tex;
+
+  virtual void initialize_cuda()
+  {
+    ortho->initialize_cuda(cuInterpArray, tex);
+  }
+
+  virtual cudaMappingConstants getCudaMappingConstants()
+  {
+    return ortho->getCudaMappingConstants();
+  }
+
+
+  virtual void destroy_cuda();
+
+  virtual void initialize_mapping_constants();
+
+  //! Compare CPU and GPU force evaluation for debugging
+  void host_dev_force_compare();
+
+  //@{
+  //! Working device vectors
+  thrust::device_vector<cudaTextureObject_t> t_d;
+
+  //! Helper struct to hold device data
+  struct cudaStorage
+  {
+    thrust::device_vector<cuFP_t> dN_coef;
+    thrust::device_vector<cuFP_t> dc_coef;
+    thrust::device_vector<cuFP_t> dw_coef;
+    thrust::device_vector<cuFP_t> df_coef;
+    thrust::device_vector<cuFP_t> X_d, Y_d, m_d, p_d;
+    thrust::device_vector<int>    iX_d, iY_d;
+
+    void resize_coefs(int ncylorder, int mmax, int N, int gridSize);
+  };
+
+  //! Cyclical ring interator for storage
+  //@{
+  //! An STL container
+  typedef std::vector<cudaStorage> cuContainer;
+
+  //! An iterator for the container
+  typedef cuContainer::iterator    cuIterator;
+
+  //! Convert to a ring iterator
+  typedef RingIterator <cudaStorage, cuContainer, cuIterator> cuRingType;
+
+  //! The storage instance
+  cuContainer cuRingData;
+
+  //! The cyclic iterator instance
+  boost::shared_ptr<cuRingType> cuRing;
+  //@}
+  
+  //! Initialize the container
+  void cuda_initialize();
+
+  //! Zero the coefficient output vectors
+  void zero_coefs();
+
+  //@}
+
+
+#endif
 
 public:
 

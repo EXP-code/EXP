@@ -14,6 +14,7 @@
 #include <gptl.h>
 #endif
 
+#include <NVTX.H>
 
 long ComponentContainer::tinterval = 300;	// Seconds between timer dumps
 
@@ -26,23 +27,6 @@ ComponentContainer::ComponentContainer(void)
   timing        = false;
   thread_timing = false;
   state         = NONE;
-
-  // Fine resolution for these timers (default resolution is 1 sec)
-  //
-  timer_posn.	Microseconds();
-  timer_gcom.	Microseconds();
-  timer_angmom.	Microseconds();
-  timer_zero.	Microseconds();
-  timer_accel.	Microseconds();
-  timer_thr_acc.Microseconds();
-  timer_thr_int.Microseconds();
-  timer_thr_ext.Microseconds();
-  timer_inter.	Microseconds();
-  timer_force.	Microseconds();
-  timer_expand.	Microseconds();
-  timer_fixp.	Microseconds();
-  timer_extrn.	Microseconds();
-  timer_wait.	Microseconds();
 }
 
 void ComponentContainer::initialize(void)
@@ -92,20 +76,16 @@ void ComponentContainer::initialize(void)
       string resfile = outdir + infile;
       in = new ifstream(resfile.c_str());
       if (!*in) {
-	cerr << "ComponentContainer::initialize: could not open <"
-	     << resfile << ">\n";
-	MPI_Abort(MPI_COMM_WORLD, 5);
-	exit(0);
-
+	throw FileOpenError(resfile, __FILE__, __LINE__);
       }
 
       in->read((char *)&master, sizeof(MasterHeader));
       if (!*in) {
-	cerr << "ComponentContainer::initialize: "
+	std::ostringstream sout;
+	sout << "ComponentContainer::initialize: "
 	     << "could not read master header from <"
-	     << resfile << ">\n";
-	MPI_Abort(MPI_COMM_WORLD, 6);
-	exit(0);
+	     << resfile << ">";
+	throw GenericError(sout.str(), __FILE__, __LINE__);
       }
 
       cout << "Recovering from: "
@@ -147,10 +127,10 @@ void ComponentContainer::initialize(void)
       if (myid==0) {
 	ifstream desc(data.second.c_str());
 	if (!desc) {
-	  cerr << "ComponentContainer::initialize: could not open ps description file <"
-	       << data.second << ">\n";
-	  MPI_Abort(MPI_COMM_WORLD, 6);
-	  exit(0);
+	  std::ostringstream sout;
+	  sout << "ComponentContainer::initialize: could not open ps description file <"
+	       << data.second << ">";
+	  throw GenericError(sout.str(), __FILE__, __LINE__);
 	}
 	
 	desc.get(line, linesize, '\0');
@@ -204,7 +184,7 @@ void ComponentContainer::initialize(void)
 				// Are we talking about THIS component?
       if (c->name.compare(data.first) == 0) {
 	
-	for (auto c1 : comp.components) {
+	for (auto c1 : components) {
 	  // If the second in the pair matches, use it
 	  if (c1->name.compare(data.second) == 0) {
 	    curr->l.push_back(c1);
@@ -257,7 +237,7 @@ void ComponentContainer::initialize(void)
 
 ComponentContainer::~ComponentContainer(void)
 {
-  for (auto p1 : comp.components) {
+  for (auto p1 : components) {
 #ifdef DEBUG
     cout << "Process " << myid 
 	 << " deleting component <" << p1->name << ">" << endl;
@@ -279,6 +259,10 @@ ComponentContainer::~ComponentContainer(void)
 
 void ComponentContainer::compute_potential(unsigned mlevel)
 {
+  nvTracerPtr tPtr, tPtr1;
+  if (cuda_prof)
+    tPtr = nvTracerPtr(new nvTracer("ComponentContainer::compute_potential"));
+
 #ifdef DEBUG
   cout << "Process " << myid << ": entered <compute_potential>\n";
 #endif
@@ -301,7 +285,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   // Potential/force clock
   //
-  for (auto c : comp.components) c->time_so_far.reset();
+  for (auto c : components) c->time_so_far.reset();
 
   //
   // Compute accel for each component
@@ -321,7 +305,12 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   GPTLstart("ComponentContainer::acceleration");
 #endif
 
-  for (auto c : comp.components) {
+  for (auto c : components) {
+
+    if (cuda_prof) {
+      std::ostringstream sout; sout << "ComponentContainer, init [" << c->name << "]";
+      tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
+    }
 
     if (timing) {
       timer_wait.stop();
@@ -342,7 +331,12 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	c->Part(indx)->pot = 0.0;
 	for (int k=0; k<c->dim; k++) c->Part(indx)->acc[k] = 0.0;
       }
+
+#ifdef HAVE_LIBCUDA
+      c->ZeroPotAccel(mlevel);
+#endif
     }
+
     if (timing) {
       timer_zero.stop();
       timer_wait.start();
@@ -358,7 +352,19 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       timer_accel.start();
     }
     c->time_so_far.start();
+
+    if (cuda_prof) {
+      std::ostringstream sout; sout << "ComponentContainer::set_multistep [" << c->name << "]";
+      tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
+    }
+
     c->force->set_multistep_level(mlevel);
+
+    if (cuda_prof) {
+      std::ostringstream sout; sout << "ComponentContainer::get_accel [" << c->name << "]";
+      tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
+    }
+
     c->force->get_acceleration_and_potential(c);
     c->time_so_far.stop();
     if (timing) {
@@ -403,7 +409,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	for (auto other : inter->l) {
 	  ostringstream sout;
 	  sout << inter->c->name << " <=> " << other->name;
-	  timer_sntr.push_back( pair<string, Timer>(sout.str(), Timer(true)) );
+	  timer_sntr.push_back( pair<string, Timer>(sout.str(), Timer()) );
 	}
       }
     }
@@ -421,6 +427,11 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	   << inter->c->name << "-->" << other->name << ">";
       GPTLstart(sout.str().c_str());
 #endif
+      if (cuda_prof) {
+	std::ostringstream sout; sout << "ComponentContainer, interaction [" << inter->c->name
+				      << "-->" << other->name << "]";
+	tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
+      }
 
       if (timing) {
 	timer_accel.start();
@@ -470,25 +481,29 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   state = EXTERNAL;
 
+  if (cuda_prof) {
+    tPtr1 = nvTracerPtr(new nvTracer("ComponentContainer::external forces"));
+  }
+
   if (timing) {
     timer_extrn.start();
 				// Initialize external force timers?
 				// [One for each in external force list]
-    if (external.force_list.size() != timer_sext.size()) {
+    if (external->force_list.size() != timer_sext.size()) {
       timer_sext.clear();	// Clear the list
-      for (auto ext : external.force_list) {
-	timer_sext.push_back( pair<string, Timer>(ext->id, Timer(true)) );
+      for (auto ext : external->force_list) {
+	timer_sext.push_back( pair<string, Timer>(ext->id, Timer()) );
       }
     }
   }
-  if (!external.force_list.empty()) {
+  if (!external->force_list.empty()) {
     
     unsigned cnt=0;
 
-    for (auto c : comp.components) {
+    for (auto c : components) {
       c->time_so_far.start();
       if (timing) itmr = timer_sext.begin();
-      for (auto ext : external.force_list) {
+      for (auto ext : external->force_list) {
 	if (timing) itmr->second.start();
 	ext->set_multistep_level(mlevel);
 	ext->get_acceleration_and_potential(c);
@@ -509,6 +524,10 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   GPTLstart("ComponentContainer::centering");
 #endif
 
+
+  if (cuda_prof) {
+    tPtr1 = nvTracerPtr(new nvTracer("ComponentContainer::house keeping"));
+  }
 
 
   if (timing) timer_extrn.stop();
@@ -536,7 +555,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     //
     if (timing) timer_gcom.start();
     for (int k=0; k<3; k++) gcom[k] = 0.0;
-    for (auto c : comp.components) {
+    for (auto c : components) {
       for (int k=0; k<3; k++) gcom[k] += c->com[k];
     }
     if (timing) timer_gcom.stop();
@@ -549,7 +568,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     // Compute angular momentum for each component
     //
     if (timing) timer_angmom.start();
-    for (auto c : comp.components) c->get_angmom();
+    for (auto c : components) c->get_angmom();
     if (timing) timer_angmom.stop();
     
 #ifdef DEBUG
@@ -561,7 +580,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     // Update center of mass system coordinates
     //
     if (timing) timer_gcom.start();
-    for (auto c : comp.components) {
+    for (auto c : components) {
       if (c->com_system) c->update_accel();
     }
     if (timing) timer_gcom.stop();
@@ -577,7 +596,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   GPTLstart("ComponentContainer::timing");
 #endif
 
-  if (timing && timer_clock.getTime().getRealTime()>tinterval) {
+  if (timing && timer_clock.getTime()>tinterval) {
     if (myid==0) {
       vector< pair<string, Timer> >::iterator itmr;
       ostringstream sout;
@@ -589,33 +608,33 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       
       if (multistep) {
 	cout << setw(20) << "COM: "
-	     << setw(18) << timer_gcom.getTime()() << endl
+	     << setw(18) << timer_gcom.getTime() << endl
 	     << setw(20) << "Position: "
-	     << setw(18) << timer_posn.getTime()() << endl
+	     << setw(18) << timer_posn.getTime() << endl
 	     << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	     << setfill(' ') << right
 	     << setw(20) << "*** " << setw(30) << left << "fix pos" << ": " 
-	     << setw(18) << timer_fixp.getTime()() << endl
+	     << setw(18) << timer_fixp.getTime() << endl
 	     << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	     << setfill(' ') << right
 	     << setw(20) << "Ang mom: "
-	     << setw(18) << timer_angmom.getTime()() << endl
+	     << setw(18) << timer_angmom.getTime() << endl
 	     << setw(20) << "Zero: "
-	     << setw(18) << timer_zero.getTime()() << endl
+	     << setw(18) << timer_zero.getTime()   << endl
 	     << setw(20) << "Accel: "
-	     << setw(18) << timer_accel.getTime()() << endl;
+	     << setw(18) << timer_accel.getTime()  << endl;
 
 	if (thread_timing)
 	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	       << setfill(' ') << right
 	       << setw(20) << "*** " << setw(30) << left << "threaded" << ": " 
 	       << right << setw(18) 
-	       << timer_thr_acc.getTime()() << endl
+	       << timer_thr_acc.getTime() << endl
 	       << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	       << setfill(' ') << right;
 
 	cout << setw(20) << "Interaction: "
-	     << setw(18) << timer_inter.getTime()() << endl;
+	     << setw(18) << timer_inter.getTime() << endl;
 
 	if (timer_sntr.size()) {
 	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
@@ -623,7 +642,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	  for (itmr=timer_sntr.begin(); itmr != timer_sntr.end(); itmr++) {
 	    cout << setw(20) << "*** " << setw(30) << left << itmr->first 
 		 << ": " << right
-		 << setw(18) << itmr->second.getTime()()
+		 << setw(18) << itmr->second.getTime()
 		 << endl;
 	  }
 	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
@@ -635,19 +654,19 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	       << setfill(' ') << right
 	       << setw(20) << "*** " << setw(30) << left << "threaded" << ": "
 	       << right << setw(18) 
-	       << timer_thr_int.getTime()() << endl
+	       << timer_thr_int.getTime() << endl
 	       << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	       << setfill(' ') << right;
 
 	cout << setw(20) << "External: "
-	     << setw(18) << timer_extrn.getTime()() << endl;
+	     << setw(18) << timer_extrn.getTime() << endl;
 
 	if (thread_timing)
 	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	       << setfill(' ') << right
 	       << setw(20) << "*** " << setw(30) << left << "threaded" << ": " 
 	       << right << setw(18) 
-	       << timer_thr_ext.getTime()() << endl
+	       << timer_thr_ext.getTime() << endl
 	       << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	       << setfill(' ') << right;
 
@@ -658,7 +677,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	  for (itmr = timer_sext.begin(); itmr != timer_sext.end(); itmr++) {
 	    cout << setw(20) << "*** " << setw(30) << left << itmr->first 
 		 << ": " << right
-		 << setw(18) << itmr->second.getTime()()
+		 << setw(18) << itmr->second.getTime()
 		 << endl;
 	  }
 	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
@@ -666,10 +685,10 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	}
 	  
 	cout << setw(20) << "Expand: "
-	     << setw(18) << timer_expand.getTime()() << endl;
+	     << setw(18) << timer_expand.getTime() << endl;
 
 	cout << setw(20) << "Force: "
-	     << setw(18) << timer_force.getTime()() << endl;
+	     << setw(18) << timer_force.getTime() << endl;
       }
 
       cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
@@ -741,7 +760,7 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
   //
   // Compute expansion for each component
   //
-  for (auto c : comp.components) {
+  for (auto c : components) {
 #ifdef DEBUG
     cout << "Process " << myid << ": about to compute coefficients <"
 	 << c->id << "> for mlevel=" << mlevel << endl;
@@ -768,7 +787,7 @@ void ComponentContainer::multistep_reset()
   //
   // Do reset for each component
   //
-  for (auto c : comp.components) c->force->multistep_reset();
+  for (auto c : components) c->force->multistep_reset();
 }
 
 
@@ -846,13 +865,13 @@ void ComponentContainer::print_level_lists(double T)
   //
   // Do reset for each component
   //
-  for (auto c : comp.components) c->print_level_lists(T);
+  for (auto c : components) c->print_level_lists(T);
 }
 
 
 void ComponentContainer::multistep_debug()
 {
-  for (auto c : comp.components) c->force->multistep_debug();
+  for (auto c : components) c->force->multistep_debug();
 }
 
 
@@ -866,17 +885,17 @@ void ComponentContainer::fix_acceleration(void)
 
   PartMapItr p, pend;
 
-  for (auto c : comp.components) {
+  for (auto c : components) {
 
     pend = c->particles.end();
     for (p=c->particles.begin(); p != pend; p++) {
     
       if (c->freeze(p->first)) continue;
 
-      mtot1 += p->second.mass;
-      axcm1 += p->second.mass*p->second.acc[0];
-      aycm1 += p->second.mass*p->second.acc[1];
-      azcm1 += p->second.mass*p->second.acc[2];
+      mtot1 += p->second->mass;
+      axcm1 += p->second->mass*p->second->acc[0];
+      aycm1 += p->second->mass*p->second->acc[1];
+      azcm1 += p->second->mass*p->second->acc[2];
     }
   }
 
@@ -891,15 +910,15 @@ void ComponentContainer::fix_acceleration(void)
     azcm = azcm/mtot;
   }
 
-  for (auto c : comp.components) {
+  for (auto c : components) {
 
     pend = c->particles.end();
     for (p=c->particles.begin(); p != pend; p++) {
 
       if (c->freeze(p->first)) continue;
-      p->second.acc[0] -= axcm;
-      p->second.acc[1] -= aycm;
-      p->second.acc[2] -= azcm;
+      p->second->acc[0] -= axcm;
+      p->second->acc[1] -= aycm;
+      p->second->acc[2] -= azcm;
 
     }
 
@@ -920,7 +939,7 @@ void ComponentContainer::fix_positions()
 
   PartMapItr p, pend;
 
-  for (auto c : comp.components) {
+  for (auto c : components) {
 
     if (timing) timer_fixp.start();
     c->fix_positions();
@@ -946,14 +965,14 @@ void ComponentContainer::fix_positions()
 
   if (global_cov) {
 
-    for (auto c : comp.components) {
+    for (auto c : components) {
 
       pend = c->particles.end();
       for (p=c->particles.begin(); p != pend; p++) {
     
 	if (c->freeze(p->first)) continue;
 
-	for (int k=0; k<3; k++) p->second.vel[k] -= gcov[k];
+	for (int k=0; k<3; k++) p->second->vel[k] -= gcov[k];
       }
     }
   }
@@ -975,9 +994,9 @@ void ComponentContainer::read_rates(void)
       for (int n=0; n<numprocs; n++) {
 	in >> rates[n];
 	if (!in) {
-	  cerr << "setup: error reading <" << ratefile << ">\n";
-	  MPI_Abort(MPI_COMM_WORLD, 33);
-	  exit(0);
+	  std::ostringstream sout;
+	  sout << "setup: error reading <" << ratefile << ">";
+	  throw GenericError(sout.str(), __FILE__, __LINE__);
 	}
 	norm += rates[n];
       }
@@ -1012,21 +1031,21 @@ void ComponentContainer::report_numbers(void)
 	if (myid==0) {
 	  out << "# Step: " << this_step << " Time: " << tnow << endl 
 	      << right << "# " << setw(5)  << "Proc";
-	  for (auto c : comp.components) {
+	  for (auto c : components) {
 	    out << setw(20) << c->name << setw(20) << "Effort";
 	  }
 	  out << endl << "# " << setw(5) << "-----";
-	  for (auto c : comp.components) {
+	  for (auto c : components) {
 	    out << setw(20) << "----------" << setw(20) << "----------";
 	  }
 	  out << endl;
 	}
 	out << setw(7) << num;
-	for (auto c : comp.components) {
+	for (auto c : components) {
 	  out << setw(20) << c->Number();
 	  double toteff = 0.0;
 	  for (auto tp : c->particles)
-	    toteff += tp.second.effort;
+	    toteff += tp.second->effort;
 	  out << setw(20) << toteff;
 	}
 	out << endl;
@@ -1122,7 +1141,7 @@ void ComponentContainer::load_balance(void)
     rates = rates1;
 
 				// Initiate load balancing for each component
-    for (auto c : comp.components) c->load_balance();
+    for (auto c : components) c->load_balance();
 
   }
 
@@ -1131,26 +1150,26 @@ void ComponentContainer::load_balance(void)
 bool ComponentContainer::bad_values()
 {
   bool bad = false;
-  for (auto c : comp.components) {
+  for (auto c : components) {
     bool badval = false;
     for (auto it : c->Particles()) {
-      if (std::isnan(it.second.mass)) badval=true;
+      if (std::isnan(it.second->mass)) badval=true;
       for (int k=0; k<3; k++) {
-	if (std::isnan(it.second.pos[k]))  badval=true;
-	if (std::isnan(it.second.vel[k]))  badval=true;
-	if (std::isnan(it.second.acc[k]))  badval=true;
+	if (std::isnan(it.second->pos[k]))  badval=true;
+	if (std::isnan(it.second->vel[k]))  badval=true;
+	if (std::isnan(it.second->acc[k]))  badval=true;
       }
       if (badval) {
 	cout << "Bad value in <" << c->name << ">: ";
-	cout << setw(12) << it.second.indx
-	     << setw(16) << hex << it.second.key << dec
-	     << setw(18) << it.second.mass;
+	cout << setw(12) << it.second->indx
+	     << setw(16) << hex << it.second->key << dec
+	     << setw(18) << it.second->mass;
 	for (int k=0; k<3; k++)
-	  cout << setw(18) << it.second.pos[k];
+	  cout << setw(18) << it.second->pos[k];
 	for (int k=0; k<3; k++)
-	  cout << setw(18) << it.second.vel[k];
+	  cout << setw(18) << it.second->vel[k];
 	for (int k=0; k<3; k++)
-	  cout << setw(18) << it.second.acc[k];
+	  cout << setw(18) << it.second->acc[k];
 	cout << endl;
 	bad = true;
 	break;

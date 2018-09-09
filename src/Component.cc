@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <map>
 
+#include <boost/make_shared.hpp>
+
 #include <Component.H>
 #include <Bessel.H>
 #include <CBrock.H>
@@ -68,6 +70,13 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   com_system  = false;
   com_log     = false;
 
+#if HAVE_LIBCUDA==1
+  bunchSize   = 500000;
+#endif
+  timers      = false;
+  use_cuda    = true;		// Set to false to suppress cuda
+				// computation
+
   force       = 0;		// Null out pointers
   orient      = 0;
 
@@ -105,11 +114,9 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 
   reset_level_lists();
 
-  time_so_far.Microseconds();
-
   tree = 0;
 
-  pbuf = new Particle [PFbufsz];
+  pbuf.resize(PFbufsz);
 
   // Already done in read_bodies_and_distribute_ascii()
   // initialize();
@@ -159,7 +166,7 @@ void * reset_level_lists_thrd(void *ptr)
   vector< vector<int> > *v = &static_cast<thrd_pass_reset*>(ptr)->newlist;
 
   for (int n=nbeg; n<nend; n++, it++) {
-    (*v)[it->second.level].push_back(it->first);
+    (*v)[it->second->level].push_back(it->first);
   }
   
   return (NULL);
@@ -173,9 +180,10 @@ void Component::reset_level_lists()
     t  = new pthread_t [nthrds];
 
     if (!t) {
-      cerr << "Process " << myid
-	   << ": reset_level_lists: error allocating memory for thread\n";
-      exit(18);
+      std::ostringstream sout;
+      sout << "Process " << myid
+	   << ": reset_level_lists: error allocating memory for thread";
+      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
   }
   
@@ -204,10 +212,11 @@ void Component::reset_level_lists()
       errcode =  pthread_create(&t[i], 0, reset_level_lists_thrd, &td[i]);
 
       if (errcode) {
-	cerr << "Process " << myid
+	std::ostringstream sout;
+	sout << "Process " << myid
 	     << " reset_level_lists: cannot make thread " << i
-	     << ", errcode=" << errcode << endl;
-	exit(19);
+	     << ", errcode=" << errcode;;
+	throw GenericError(sout.str(), __FILE__, __LINE__);
       }
 #ifdef DEBUG
       else {
@@ -221,10 +230,11 @@ void Component::reset_level_lists()
     //
     for (int i=0; i<nthrds; i++) {
       if ((errcode=pthread_join(t[i], &retval))) {
-	cerr << "Process " << myid
+	std::ostringstream sout;
+	sout << "Process " << myid
 	     << " reset_level_lists: thread join " << i
-	     << " failed, errcode=" << errcode << endl;
-	exit(20);
+	     << " failed, errcode=" << errcode;
+	throw GenericError(sout.str(), __FILE__, __LINE__);
       }
 #ifdef DEBUG    
       cout << "Process " << myid << ": multistep thread <" << i << "> thread exited\n";
@@ -391,6 +401,12 @@ Component::Component(istream *in)
   com_log     = false;
   com_restart = 0;
 
+#if HAVE_LIBCUDA==1
+  bunchSize   = 500000;
+#endif
+  timers      = false;
+  use_cuda    = true;
+
   force       = 0;		// Null out pointers
   orient      = 0;
 
@@ -430,7 +446,7 @@ Component::Component(istream *in)
 
   tree = 0;
 
-  pbuf = new Particle [PFbufsz];
+  pbuf.resize(PFbufsz);
 }
 
 
@@ -450,6 +466,15 @@ void Component::initialize(void)
     if (!datum.first.compare("com"))      com_system = atoi(datum.second) ? true : false;
 
     if (!datum.first.compare("comlog"))   com_log = atoi(datum.second) ? true : false;
+
+    if (!datum.first.compare("timers"))   timers = atoi(datum.second) ? true : false;
+
+
+    if (!datum.first.compare("use_cuda")) use_cuda = atoi(datum.second) ? true : false;
+
+#if HAVE_LIBCUDA==1
+    if (!datum.first.compare("bunch"))    bunchSize = atoi(datum.second);
+#endif
 
     if (!datum.first.compare("tidal"))    {tidal = atoi(datum.second); consp=true;}
 
@@ -844,6 +869,52 @@ void Component::initialize(void)
     cout << endl << endl;
   }
   
+#if HAVE_LIBCUDA==1
+  int deviceCount = 0;
+
+  cudaDevice = -1;
+
+  if (use_cuda) {
+
+    // Get device count; exit on failure
+    //
+    cuda_safe_call_mpi(cudaGetDeviceCount(&deviceCount), __FILE__, __LINE__,
+		       myid, "cudaGetDevicecCount failure");
+
+    // Query and assign my CUDA device
+    //
+    if (deviceCount>0) {
+
+      int myCount = 0, curCount = 0; // Get my local rank in sibling
+      for (auto v : siblingList) {   // processes
+	if (myid==v) myCount = curCount;
+	curCount++;
+      }
+	
+      if (myCount < deviceCount) cudaDevice = myCount;
+      if (cudaDevice>=0) {
+	// Set device; exit on failure
+	//
+	cuda_safe_call_mpi(cudaSetDevice(cudaDevice), __FILE__, __LINE__,
+			   myid, "cudaSetDevice failure");
+
+	std::cout << "Component <" << name << ">: "
+		  << "setting CUDA device on Rank [" << myid
+		  << "] on [" << processor_name << "] to [" << cudaDevice << "]"
+		  << std::endl;
+      }
+
+      cuda_initialize();
+
+    } else {
+      std::ostringstream sout;
+      sout << "[#" << myid << "] CUDA detected but deviceCount<=0!";
+      throw GenericError(sout.str(), __FILE__, __LINE__);
+    }
+
+  }
+#endif
+
 }
 
 
@@ -866,15 +937,14 @@ Component::~Component(void)
   delete [] comI;
   delete [] covI;
 
-  delete [] pbuf;
-
   delete tree;
 }
 
 void Component::bomb(const string& msg)
 {
-  cerr << "Component <" << name << ", " << id << ">: " << msg << endl;
-  exit(-1);
+  std::ostringstream sout;
+  sout << "Component <" << name << ", " << id << ">: " << msg;
+  throw GenericError(sout.str(), __FILE__, __LINE__);
 }
 
 void Component::read_bodies_and_distribute_ascii(void)
@@ -888,9 +958,9 @@ void Component::read_bodies_and_distribute_ascii(void)
     fin = new ifstream(pfile.c_str());
 
     if (!*fin) {
-      cerr << "Couldn't open " << pfile << " . . . quitting\n";
-      MPI_Abort(MPI_COMM_WORLD, 11);
-      exit(-1);
+      std::ostringstream sout;
+      sout << "Couldn't open " << pfile << " . . . quitting";
+      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
 
     fin->getline(line, nline);
@@ -898,21 +968,21 @@ void Component::read_bodies_and_distribute_ascii(void)
     
     ins >> nbodies_tot;		
     if (!ins) {
-      cerr << "Error reading nbodies_tot . . . quitting\n";
-      MPI_Abort(MPI_COMM_WORLD, 11);
-      exit(-1);
+      std::ostringstream sout;
+      sout << "Error reading nbodies_tot . . . quitting";
+      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
     ins >> niattrib;
     if (!ins) {
-      cerr << "Error reading integer attribute # . . . quitting\n";
-      MPI_Abort(MPI_COMM_WORLD, 11);
-      exit(-1);
+      std::ostringstream sout;
+      sout << "Error reading integer attribute # . . . quitting\n";
+      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
     ins >> ndattrib;
     if (!ins) {
-      cerr << "Error reading double attribute # . . . quitting\n";
-      MPI_Abort(MPI_COMM_WORLD, 11);
-      exit(-1);
+      std::ostringstream sout;
+      sout << "Error reading double attribute # . . . quitting";
+      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
   }
 				// Broadcast attributes for this
@@ -924,14 +994,14 @@ void Component::read_bodies_and_distribute_ascii(void)
   double rmax1=0.0, r2;
 
   if (nbodies_tot > nbodmax*numprocs) {
+    std::ostringstream sout;
     if (myid==0) {
-      cerr << "Not enough space on all processors to hold phase space\n";
-      cerr << "nbodmax is currently " << nbodmax*numprocs
+      sout << "Not enough space on all processors to hold phase space "
+	   << "nbodmax is currently " << nbodmax*numprocs
 	   << " but should be at least "
-	   << (int)( (double)nbodies_tot/numprocs + 1) << endl;
+	   << (int)( (double)nbodies_tot/numprocs + 1);
     }
-    MPI_Finalize();
-    exit(-1);
+    throw GenericError(sout.str(), __FILE__, __LINE__);
   }
 
   is_init = 1;
@@ -944,20 +1014,20 @@ void Component::read_bodies_and_distribute_ascii(void)
 				// sizes
   if (not pf) pf = ParticleFerryPtr(new ParticleFerry(niattrib, ndattrib));
 
-  Particle part(niattrib, ndattrib);
-
   if (myid==0) {
 				// Read in Node 0's particles
     for (unsigned i=1; i<=nbodies_table[0]; i++) {
 
-      part.readAscii(aindex, i, fin);
+      PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
+
+      part->readAscii(aindex, i, fin);
 				// Get the radius
       double r2 = 0.0;
-      for (int j=0; j<3; j++) r2 += part.pos[j]*part.pos[j];
+      for (int j=0; j<3; j++) r2 += part->pos[j]*part->pos[j];
       rmax1 = max<double>(r2, rmax1);
       
 				// Load the particle
-      particles[part.indx] = part;
+      particles[part->indx] = part;
     }
 
     nbodies = nbodies_table[0];
@@ -971,11 +1041,13 @@ void Component::read_bodies_and_distribute_ascii(void)
       ibufcount = 0;
       while (icount < nbodies_table[n]) {
 
+	PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
+
 	int i = nbodies_index[n-1] + 1 + icount;
-	part.readAscii(aindex, i, fin);
+	part->readAscii(aindex, i, fin);
 
 	r2 = 0.0;
-	for (int k=0; k<3; k++) r2 += part.pos[k]*part.pos[k];
+	for (int k=0; k<3; k++) r2 += part->pos[k]*part->pos[k];
 	rmax1 = max<double>(r2, rmax1);
 
 	pf->SendParticle(part);
@@ -992,13 +1064,14 @@ void Component::read_bodies_and_distribute_ascii(void)
 #ifdef DEBUG
     int icount = 0;
 #endif
-    while (pf->RecvParticle(part)) {
-      particles[part.indx] = part;
+
+    while (PartPtr part=pf->RecvParticle()) {
+      particles[part->indx] = part;
 #ifdef DEBUG
       if (icount<5) {
 	cout << "Process " << myid << ": received ";
-	cout << setw(14) << part.mass;
-	for (int k=0; k<3; k++) cout << setw(14) << part.pos[k];
+	cout << setw(14) << part->mass;
+	for (int k=0; k<3; k++) cout << setw(14) << part->pos[k];
 	cout << endl;
       }
       icount++;
@@ -1047,17 +1120,15 @@ void Component::read_bodies_and_distribute_binary(istream *in)
       unsigned long cmagic;
       in->read((char*)&cmagic, sizeof(unsigned long));
       if ( (cmagic & nmask) != magic ) {
-	cerr << "Error identifying new PSP.  Is this an old PSP?\n";
-	MPI_Abort(MPI_COMM_WORLD, 11);
-	exit(-1);
+	std::string msg("Error identifying new PSP.  Is this an old PSP?");
+	throw GenericError(msg, __FILE__, __LINE__);
       }
       rsize = cmagic & mmask;
     }
 
     if(!header.read(in)) {
-      cerr << "Error reading component header\n";
-      MPI_Abort(MPI_COMM_WORLD, 12);
-      exit(-1);
+      std::string msg("Error reading component header");
+      throw GenericError(msg, __FILE__, __LINE__);
     }
 
     nbodies_tot = header.nbod;
@@ -1103,14 +1174,14 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   double rmax1=0.0, r2;
 
   if (nbodies_tot > nbodmax*numprocs) {
+    std::ostringstream sout;
     if (myid==0) {
-      cerr << "Not enough space on all processors to hold phase space\n";
-      cerr << "nbodmax is currently " << nbodmax*numprocs
+      sout << "Not enough space on all processors to hold phase space "
+	   << "nbodmax is currently " << nbodmax*numprocs
 	   << " but should be at least "
-	   << (int)( (double)nbodies_tot/numprocs + 1) << endl;
+	   << (int)( (double)nbodies_tot/numprocs + 1);
     }
-    MPI_Finalize();
-    exit(-1);
+    throw GenericError(sout.str(), __FILE__, __LINE__);
   }
 
   is_init = 1;
@@ -1125,8 +1196,6 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
 				// Form cumulative and differential
 				// bodies list
-  Particle part(niattrib, ndattrib);
-
   unsigned int ipart=0;
 
   if (myid==0) {
@@ -1136,14 +1205,16 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     rmax1 = 0.0;
     for (unsigned i=1; i<=nbodies_table[0]; i++)
     {
-      part.readBinary(rsize, indexing, ++seq_cur, in);
+      PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
+      
+      part->readBinary(rsize, indexing, ++seq_cur, in);
 
       r2 = 0.0;
-      for (int j=0; j<3; j++) r2 += part.pos[j]*part.pos[j];
+      for (int j=0; j<3; j++) r2 += part->pos[j]*part->pos[j];
       rmax1 = max<double>(r2, rmax1);
 
 				// Load the particle
-      particles[part.indx] = part;
+      particles[part->indx] = part;
     }
 
     nbodies = nbodies_table[0];
@@ -1159,12 +1230,13 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
       icount = 0;
       while (icount < nbodies_table[n]) {
+	PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
 
-	part.readBinary(rsize, indexing, ++seq_cur, in);
+	part->readBinary(rsize, indexing, ++seq_cur, in);
 
 	r2 = 0.0;
 	for (int k=0; k<3; k++) 
-	  r2 += part.pos[k]*part.pos[k];
+	  r2 += part->pos[k]*part->pos[k];
 
 	rmax1 = max<double>(r2, rmax1);
 
@@ -1179,8 +1251,9 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     pf->ShipParticles(myid, 0, nbodies);
       
     int icount = 0;
-    while (pf->RecvParticle(part)) {
-      particles[part.indx] = part;
+    PartPtr part;
+    while (part=pf->RecvParticle()) {
+      particles[part->indx] = part;
       icount++;
     }
   }
@@ -1202,10 +1275,9 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 }
 
 
-struct Particle * Component::get_particles(int* number)
+PartPtr * Component::get_particles(int* number)
 {
   static unsigned counter = 1;	// Sequence begins at 1
-  static Particle part;
   static bool seq_state_ok = true;
   
   int curcount = 0;		// Counter for this bunch
@@ -1230,7 +1302,7 @@ struct Particle * Component::get_particles(int* number)
 				// Reset
   if (*number < 0) {
     counter = 1;
-    part = Particle(niattrib, ndattrib);
+    makeKeyList();		// Make the sorted key list
     seq_state_ok = true;
   }
 				// Done?
@@ -1239,7 +1311,7 @@ struct Particle * Component::get_particles(int* number)
     return 0;
   }
 
-  map<unsigned int,  Particle> tlist;
+  map<unsigned int, PartPtr> tlist;
 
   unsigned icount;
   int beg = counter;
@@ -1256,9 +1328,6 @@ struct Particle * Component::get_particles(int* number)
        << " end=" << end 
        << endl;
 #endif
-
-  // Make the sorted key list
-  makeKeyList();
 
   KeyList::iterator icur, ibeg, iend;
 
@@ -1301,7 +1370,7 @@ struct Particle * Component::get_particles(int* number)
 	pf->ShipParticles(0, node, number);
 
 	icount = 0;
-	while (pf->RecvParticle(part)) pbuf[icount++] = part;
+	while (PartPtr part=pf->RecvParticle()) pbuf[icount++] = part;
 #ifdef DEBUG
 	cout << "Process " << myid 
 	     << ": received " << icount << " particles from Slave " << node
@@ -1312,7 +1381,7 @@ struct Particle * Component::get_particles(int* number)
 
       // Load the ordered array
       for (unsigned n=0; n<icount; n++) {
-	tlist[pbuf[n].indx] = pbuf[n];
+	tlist[pbuf[n]->indx] = pbuf[n];
 	curcount++;
 	counter++;
       }
@@ -1449,7 +1518,7 @@ struct Particle * Component::get_particles(int* number)
     }
   }
 
-  return pbuf;
+  return &pbuf[0];
 }
 
 
@@ -1474,14 +1543,14 @@ void Component::write_binary(ostream* out, bool real4)
     out->write((const char*)&cmagic, sizeof(unsigned long));
 
     if (!header.write(out)) {
-      cerr << "Component::write_binary: Error writing particle header\n";
-      MPI_Abort(MPI_COMM_WORLD, 34);
+      std::string msg("Component::write_binary: Error writing particle header");
+      throw GenericError(msg, __FILE__, __LINE__);
     }
   }
 
 				// First bunch of particles
   int number = -1;
-  Particle *p = get_particles(&number);
+  PartPtr *p = get_particles(&number);
 
   float tf;
   double pot0, pv;
@@ -1489,7 +1558,7 @@ void Component::write_binary(ostream* out, bool real4)
 
     if (myid == 0) {
       for (int k=0; k<number; k++) {
-	p[k].writeBinary(rsize, com0, comI, cov0, covI, indexing, out);
+	p[k]->writeBinary(rsize, com0, comI, cov0, covI, indexing, out);
       }
     }
 				// Next bunch of particles
@@ -1503,12 +1572,12 @@ void Component::write_binary(ostream* out, bool real4)
 void Component::write_ascii(ostream* out, bool accel)
 {
   int number = -1;
-  Particle *p = get_particles(&number);
+  PartPtr *p = get_particles(&number);
 
   while (p) {
     if (myid == 0) {
       for (int k=0; k<number; k++) {
-	p[k].writeAscii(com0, comI, cov0, covI, indexing, accel, out);
+	p[k]->writeAscii(com0, comI, cov0, covI, indexing, accel, out);
       }
     }
 
@@ -1535,10 +1604,10 @@ void Component::initialize_com_system()
   pend = particles.end();
   for (p=particles.begin(); p != pend; p++) {
     
-    mtot1 += p->second.mass;
+    mtot1 += p->second->mass;
 
-    for (int k=0; k<dim; k++) com1[k] += p->second.mass*p->second.pos[k];
-    for (int k=0; k<dim; k++) cov1[k] += p->second.mass*p->second.vel[k];
+    for (int k=0; k<dim; k++) com1[k] += p->second->mass*p->second->pos[k];
+    for (int k=0; k<dim; k++) cov1[k] += p->second->mass*p->second->vel[k];
     
   }
   
@@ -1577,8 +1646,8 @@ void Component::restart_com_system()
     for (p=particles.begin(); p != pend; p++) {
 
       for (int i=0; i<3; i++) {
-	p->second.pos[i] -= com0[i] - comI[i];
-	p->second.vel[i] -= cov0[i] - covI[i];
+	p->second->pos[i] -= com0[i] - comI[i];
+	p->second->vel[i] -= cov0[i] - covI[i];
       }
     }
 
@@ -1759,10 +1828,11 @@ void Component::fix_positions(unsigned mlevel)
       errcode =  pthread_create(&thrd[i], 0, fix_positions_thread, &data[i]);
 
       if (errcode) {
-	cerr << "Process " << myid
+	std::ostringstream sout;
+	sout << "Process " << myid
 	     << " Component::fix_positions: cannot make thread " << i
-	     << ", errcode=" << errcode << endl;
-	exit(19);
+	     << ", errcode=" << errcode;
+	throw GenericError(sout.str(), __FILE__, __LINE__);
       }
     }
     
@@ -1771,10 +1841,11 @@ void Component::fix_positions(unsigned mlevel)
     //
     for (int i=0; i<nthrds; i++) {
       if ((errcode=pthread_join(thrd[i], &retval))) {
-	cerr << "Process " << myid
+	std::ostringstream sout;
+	sout << "Process " << myid
 	     << " Component::fix_positions: thread join " << i
-	     << " failed, errcode=" << errcode << endl;
-	exit(20);
+	     << " failed, errcode=" << errcode;
+	throw GenericError(sout.str(), __FILE__, __LINE__);
       }
 
       for (unsigned mm=mlevel; mm<=multistep; mm++) {
@@ -2033,10 +2104,11 @@ void Component::get_angmom(unsigned mlevel)
       errcode =  pthread_create(&thrd[i], 0, get_angmom_thread, &data[i]);
 
       if (errcode) {
-	cerr << "Process " << myid
+	std::ostringstream sout;
+	sout << "Process " << myid
 	     << " Component::get_angmom: cannot make thread " << i
-	     << ", errcode=" << errcode << endl;
-	exit(19);
+	     << ", errcode=" << errcode;
+	throw GenericError(sout.str(), __FILE__, __LINE__);
       }
     }
     
@@ -2045,10 +2117,11 @@ void Component::get_angmom(unsigned mlevel)
     //
     for (int i=0; i<nthrds; i++) {
       if ((errcode=pthread_join(thrd[i], &retval))) {
-	cerr << "Process " << myid
+	std::ostringstream sout;
+	sout << "Process " << myid
 	     << " Component::get_angmom: thread join " << i
-	     << " failed, errcode=" << errcode << endl;
-	exit(20);
+	     << " failed, errcode=" << errcode;
+	throw GenericError(sout.str(), __FILE__, __LINE__);
       }
       for (unsigned mm=mlevel; mm<=multistep; mm++) {
 	for (unsigned k=0; k<3; k++) 
@@ -2098,10 +2171,10 @@ void Component::setup_distribution(void)
 
       if (n == 0)
 	nbodies_table[n] = nbodies_index[n] = 
-	  max<int>(1, min<int>((int)(comp.rates[n] * nbodies_tot), nbodies_tot));
+	  max<int>(1, min<int>((int)(comp->rates[n] * nbodies_tot), nbodies_tot));
       else {
 	if (n < numprocs-1)
-	  nbodies_index[n] = (int)(comp.rates[n] * nbodies_tot) + 
+	  nbodies_index[n] = (int)(comp->rates[n] * nbodies_tot) + 
 	    nbodies_index[n-1];
 	else
 	  nbodies_index[n] = nbodies_tot;
@@ -2132,8 +2205,8 @@ void Component::setup_distribution(void)
       
       for (n=0; n<numprocs; n++)
 	*out << "  "
-	    << setw(15) << comp.rates[n]
-	    << setw(15) << 1.0 - comp.rates[n]*nbodies_tot/nbodies_table[n]
+	    << setw(15) << comp->rates[n]
+	    << setw(15) << 1.0 - comp->rates[n]*nbodies_tot/nbodies_table[n]
 	    << setw(15) << nbodies_index[n]
 	    << setw(15) << nbodies_table[n]
 	    << endl;
@@ -2166,10 +2239,10 @@ void Component::load_balance(void)
 
       if (n == 0)
 	nbodies_table1[n] = nbodies_index1[n] = 
-	  max<int>(1, min<int>((int)(comp.rates[n] * nbodies_tot), nbodies_tot));
+	  max<int>(1, min<int>((int)(comp->rates[n] * nbodies_tot), nbodies_tot));
       else {
 	if (n < numprocs-1)
-	  nbodies_index1[n] = (int)(comp.rates[n] * nbodies_tot) + 
+	  nbodies_index1[n] = (int)(comp->rates[n] * nbodies_tot) + 
 	    nbodies_index1[n-1];
 	else
 	  nbodies_index1[n] = nbodies_tot;
@@ -2207,8 +2280,8 @@ void Component::load_balance(void)
       
       for (int n=0; n<numprocs; n++)
 	*out << "  "
-	     << setw(15) << comp.rates[n]
-	     << setw(15) << 1.0 - comp.rates[n]*nbodies_tot/nbodies_table1[n]
+	     << setw(15) << comp->rates[n]
+	     << setw(15) << 1.0 - comp->rates[n]*nbodies_tot/nbodies_table1[n]
 	     << setw(15) << nbodies_index1[n]
 	     << setw(15) << nbodies_table1[n]
 	     << setw(15) << nbodies_index[n]
@@ -2338,8 +2411,8 @@ void Component::load_balance(void)
       if (myid==iold) {
 	if (particles.size())
 	  cout << "Process " << myid << ": new ends :"
-	       << "  beg seq=" << particles.begin() ->second.indx
-	       << "  end seq=" << particles.rbegin()->second.indx
+	       << "  beg seq=" << particles.begin() ->second->indx
+	       << "  end seq=" << particles.rbegin()->second->indx
 	       << endl;
 	else
 	  cout << "Process " << myid << ": no particles!"
@@ -2363,8 +2436,8 @@ void Component::load_balance(void)
       if (myid==iold) {
 	if (particles.size())
 	  cout << "Process " << myid << ": new ends :"
-	       << "  beg seq=" << particles.begin() ->second.indx
-	       << "  end seq=" << particles.rbegin()->second.indx
+	       << "  beg seq=" << particles.begin() ->second->indx
+	       << "  end seq=" << particles.rbegin()->second->indx
 	       << endl;
 	else
 	  cout << "Process " << myid << ": no particles!"
@@ -2394,8 +2467,8 @@ void Component::load_balance(void)
       if (myid==i) {
 	ostringstream msg;
 	msg << "Process " << setw(4) << myid << ":"
-	    << setw(9) << particles[0].indx
-	    << setw(9) << particles[nbodies-1].indx;
+	    << setw(9) << particles[0]->indx
+	    << setw(9) << particles[nbodies-1]->indx;
 	strcpy(msgbuf, msg.str().c_str());
 	if (myid!=0) 
 	  MPI_Send(msgbuf, 200, MPI_CHAR, 0, 81, MPI_COMM_WORLD);
@@ -2417,11 +2490,11 @@ void Component::load_balance(void)
 				// Explicit check
     int nbad1 = 0, nbad=0;
     for (unsigned i=0; i<nbodies; i++) {
-      if (particles[i].indx != static_cast<int>(seq_beg+i)) {
+      if (particles[i]->indx != static_cast<int>(seq_beg+i)) {
 	cout << "Process " << myid << ": sequence error on load balance,"
 	     << " component=" << name
 	     << " i=" << i
-	     << " seq=" << particles[i].indx
+	     << " seq=" << particles[i]->indx
 	     << " expected=" << seq_beg+i
 	     << endl << flush;
 	nbad1++;
@@ -2431,9 +2504,9 @@ void Component::load_balance(void)
     MPI_Allreduce(&nbad1, &nbad, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
     if (nbad) {
-      if (myid==0) cout << nbad << " bad states\n";
-      MPI_Finalize();
-      exit(-1);
+      std::ostringstream sout;
+      if (myid==0) sout << nbad << " bad states";
+      throw GenericError(sout.str(), __FILE__, __LINE__);
     }
     
     if (myid==0) *log << "\nSequence check ok!\n";
@@ -2486,12 +2559,10 @@ void Component::add_particles(int from, int to, vector<int>& plist)
 
   if (myid == to) {
   
-    Particle temp;
-
     while (counter < number) {
 
-      while (pf->RecvParticle(temp)) {
-	particles[temp.indx] = temp;
+      while (PartPtr temp=pf->RecvParticle()) {
+	particles[temp->indx] = temp;
 	counter++;
       }
 
@@ -2512,8 +2583,8 @@ bool Component::freeze(unsigned indx)
 {
   double r2 = 0.0;
   for (int i=0; i<3; i++) r2 += 
-			    (particles[indx].pos[i] - comI[i] - center[i])*
-			    (particles[indx].pos[i] - comI[i] - center[i]);
+			    (particles[indx]->pos[i] - comI[i] - center[i])*
+			    (particles[indx]->pos[i] - comI[i] - center[i]);
   if (r2 > rtrunc*rtrunc) return true;
   else return false;
 }
@@ -2543,11 +2614,10 @@ void Component::redistributeByList(vector<int>& redist)
   if (not pf) pf = ParticleFerryPtr(new ParticleFerry(niattrib, ndattrib));
 
 
-  Particle part(niattrib, ndattrib);
-
   vector<int>::iterator it = redist.begin();
   vector<unsigned> tlist;
 
+  PartPtr part;
   unsigned int icount;
   int indx, curnode, tonode, lastnode, M;
 
@@ -2584,8 +2654,8 @@ void Component::redistributeByList(vector<int>& redist)
 	    }
 	  }
 	  if (myid==lastnode) {
-	    while (pf->RecvParticle(part))
-	      particles[part.indx] = part;
+	    while (part=pf->RecvParticle())
+	      particles[part->indx] = part;
 	  }
 	  tlist.clear();
 	  icount = 0;

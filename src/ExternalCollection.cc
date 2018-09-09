@@ -73,7 +73,7 @@ void ExternalCollection::initialize()
 
 	string msg("I don't know about the external force named: ");
 	msg += name;
-	bomb(msg);
+	throw GenericError(msg, __FILE__, __LINE__);
       }
     }
 
@@ -170,9 +170,8 @@ void ExternalCollection::dynamicload(void)
 	     << name.str() << ">" << endl;
 #endif
 	dlib = dlopen(name.str().c_str(), RTLD_NOW | RTLD_GLOBAL);
-	if(dlib == NULL) {
-	  cerr << dlerror() << endl; 
-	  exit(-1);
+	if (dlib == NULL) {
+	  throw GenericError(dlerror(), __FILE__, __LINE__);
 	}
 
 	if (myid==0) {
@@ -218,8 +217,3 @@ void ExternalCollection::finish()
   for (auto p : force_list) p->finish(); 
 }
 
-void ExternalCollection::bomb(string& msg)
-  {
-  cerr << "ExternalCollection: " << msg << endl;
-  exit(-1);
-}
