@@ -1,4 +1,4 @@
-/*! \page bodies Phase space file format
+/*! \page bodies %Phase space file format
 <H3> Phase-space file utilities</H3>
 The following three utilities manipulate the phase-space files:
 integer values:

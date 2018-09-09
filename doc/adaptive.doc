@@ -22,7 +22,10 @@ parameters.  In particular for the Cylinder class, the parameter which
 specifies the cache file is <code>eof_file=.eof.cache.file</code>
 where <code>.eof.cache.file</code> is the name of the cache file for
 this case.  The cache file is read and compared with the desired
-Cylinder class parameters, if the y match, the cache file is used,
+Cylinder class parameters, if they match, the cache file is used,
 otherwise, the basis is recomputed from scratch.
+
+The fields for the intrinsically two-dimensional cylindrical basis
+functions can take many hours to compute on a single node/laptop.
 
 */
