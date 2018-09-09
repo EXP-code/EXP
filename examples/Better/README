@@ -1,0 +1,16 @@
+A more complex example of a disk and halo simulation using higher
+resolution adaptive bases.  The cylindrical tables will take much
+longer to compute but provide better dynamical fidelity.  The cache
+file can be reused for new runs with the same Cylinder parameters.
+
+The EJ* parameters in halo.conf and disk.conf instruct the Component
+class to adjust the expansion center to follow the gravitational
+potential minumum.  Use the web page documentation for additional
+details on these parameters.
+
+Run as follows.  First, change the ldlibdir parameter to point at your
+library install directory.  Then, execute the command:
+
+mpirun -np 6 exp -f IN.FILE
+
+assuming that you have a machine with 6 cores.

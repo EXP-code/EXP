@@ -1,3 +1,4 @@
+#include <limits>
 #include "expand.h"
 #include <AxisymmetricBasis.H>
 #include <VtkPCA.H>
@@ -386,6 +387,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    //
 	    for (int n=1; n<=nmax; n++) {
 	      b = evalJK[n]/(meanJK[n]*meanJK[n]);
+	      b = std::max<double>(b, std::numeric_limits<double>::min());
 	      b_Hall[indx][n] = 1.0/(1.0 + b);
 	      snrval[n] = sqrt(1.0/b);
 	    }
@@ -580,6 +582,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    //
 	    for (int n=1; n<=nmax; n++) {
 	      b = evalJK[n]/(meanJK[n]*meanJK[n]);
+	      b = std::max<double>(b, std::numeric_limits<double>::min());
 	      b_Hall[indx][n] = 1.0/(1.0 + b);
 	      snrval[n] = sqrt(1.0/b);
 	    }
@@ -771,6 +774,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    //
 	    for (int n=1; n<=nmax; n++) {
 	      b = evalJK[n]/(meanJK[n]*meanJK[n]);
+	      b = std::max<double>(b, std::numeric_limits<double>::min());
 	      b_Hall[indx][n] = 1.0/(1.0 + b);
 	      snrval[n] = sqrt(1.0/b);
 	    }
