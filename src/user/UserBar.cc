@@ -274,8 +274,8 @@ void UserBar::determine_acceleration_and_potential(void)
 	// Open old file for reading
 	ifstream in(backupfile.c_str());
 	if (!in) {
-	  throw FileCreateError(backupfile, "UserBar: error opening new log file",
-				__FILE__, __LINE__);
+	  throw FileOpenError(backupfile, "UserBar: error opening new log file",
+			      __FILE__, __LINE__);
 	}
 
 	const int linesize = 1024;
