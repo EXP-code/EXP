@@ -105,5 +105,8 @@ mpirun -v -np X exp -f IN.FILE
 where <code>-np X</code> should be replaced with the number of cores
 on your machine.  I may be able to provide some more complex (and
 larger!) examples on request.
-*/
+
+I also strongly recommend a read through of the documentation in the
+side bar (also listed in the Related Pages tab).  Additional
+documentation will be added as time allows.  */
 
