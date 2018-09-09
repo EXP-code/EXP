@@ -1,9 +1,9 @@
+#include <algorithm>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
-
+#include <limits>
 #include <string>
-#include <algorithm>
 
 #include <interp.h>
 #include <Timer.h>
@@ -2802,7 +2802,8 @@ void EmpCylSL::pca_hall(void)
     //
     for (int nn=0; nn<rank3; nn++) {
 
-      double    var = pb->C[mm]->evalJK[nn+1];
+      double    var = std::max<double>(pb->C[mm]->evalJK[nn+1],
+				       std::numeric_limits<double>::min());
       double    sqr = dd[nn+1]*dd[nn+1];
       double      b = var/sqr;
     
@@ -2911,7 +2912,8 @@ void EmpCylSL::pca_hall(void)
     // Compute Hall coefficients
     //
     for (int nn=0; nn<rank3; nn++) {
-      double    var = pb->S[mm]->evalJK[nn+1];
+      double    var = std::max<double>(pb->S[mm]->evalJK[nn+1],
+				       std::numeric_limits<double>::min());
       double    sqr = dd[nn+1]*dd[nn+1];
       double      b = var/sqr;
     

@@ -1,15 +1,94 @@
-/*! \page over Architectural overview
+/*! \page over Code overview
 
 <h2> Motivation </h2>
+
 <p> As mentioned in \ref mainpage, this code uses object-oriented
 design patterns to exploit the similarity in overall structure of all
-biorthogonal expansions for ease of implementation and maintaince.
+biorthogonal expansions for ease of implementation and maintenance.
 </p>
 
 <h2> Organization </h2>
 
+<p> The main organizational element is the phase space Component.  On
+construction, a Component instance associates a particular named group
+of phase space particles with a PotAccel "force" method.  These
+components are named by the user with some mnemonic ascii string.  For
+example, a dark halo component might be named "dark" and associated
+with a spherical basis expansion, SphericalBasis.  Similarly, a
+stellar disk component named "stars" would be associated with
+cylindrical disk-shaped basis expansion, Cylinder.  One could include
+some small number of smoothed point source objects,
+e.g. "substructures" or "satellites", which use the Direct force
+method.
+</p>
+
+<p> A particular simulation may have any number of components.  These
+are grouped together in a ComponentContainer.  At the very top level,
+the time stepper operates on the ComponentContainer to advance the
+phase space in time. This would allows the integration method to be
+generic and reimplemented as needed, without changing anything else in
+the code.  Currently, the only time stepper implemented is leap frog
+using a binary multiple time step algorithm (see \ref multistep).
+</p>
+
+<p> The phase-space components can interact with each other or not,
+allowing a wide variety of experiments that help investigate dynamical
+mechanism.  The interactions are specified explicitly in configuration
+file (see \ref config) by component mnemonic.  For example, a mutually
+interacting disk (named "star") and halo (named "dark") would be
+specified as
+\verbatim
+[interaction]
+star : dark
+dark : star
+\endverbatim
+in the input configuration file.
+</p>
+
+<p> After each step, the code runs a list of post-processing routines
+defined by the user using the OutputContainer class.  All of these
+inherit from the Output class.  For example, the OutLOG routine prints
+summary statistics such as mean position, velocity, angular momentum
+energies, into a log file with one line per time step.  The OutPSN
+routine outputs phase space "dumps" and the OutCHKPT makes phase space
+checkpoints with full double precision values.  The time step
+frequency for output is user selectable.  These Output instances are
+defined by the user in the input configuration file; here is an
+example:
+\verbatim
+[output]
+outlog : nint=1
+outpsn : nint=100
+outchkpt : nint=100
+\endverbatim
+For these three, <code>nint=xx</code> is the time-step frequency for output.
+</p>
 
 <h2> Learning how to use this code </h2>
 
+A final note: like many research codes, this code has many flags and
+parameters that allow detailed control of methods.  Many of these were
+used for testing the implemenation and algorithm and do not need
+adjustment.  I have endeavored to provide sane values for the default.
+
+Perhaps the best way to learn how to use this code is through an
+example.  I have provided a separate tar ball in the
+<code>examples</code> directory, which has two examples with a small
+halo and disk phase space components and a full set of configuraton
+files.  The first, in <code>examples/LowFi</code>, has \f$10^4\f$ disk
+and halo particles and a cylindrial disk expansion up to \f$m=1\f$.
+The second, in <code>examples/Better</code>, has \f$10^4\f$ disk and
+\f$10^5\f$ halo particles and a high-resolution cylindrial disk
+expansion up to \f$m=6\f$.
+
+Once you have compiled,
+the following commands will start the test run:
+\verbatim
+cd examples/LowFi
+mpirun -v -np X exp -f IN.FILE
+\endverbatim
+where <code>-np X</code> should be replaced with the number of cores
+on your machine.  I may be able to provide some more complex (and
+larger!) examples on request.
 */
 
