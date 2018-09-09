@@ -14,3 +14,6 @@ library install directory.  Then, execute the command:
 mpirun -np 6 exp -f IN.FILE
 
 assuming that you have a machine with 6 cores.
+
+An EOF cache file is provided, produced in the x86_64 architecture.
+
