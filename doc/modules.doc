@@ -12,15 +12,12 @@ steps necessary to put one's code in the tree:
 <code>foo</code> and is implemented in the following source files
 <code>foo1.cc</code> and <code>foo2.cc</code>. Change the following
 lines:
-
-     <ul>
-	<li> Add <code>libfoo.la</code> to the
-	<code>lib_LTLIBRARIES</code> list
-	<li> Add a new line: <code>libfoo_la_SOURCES = foo1.cc
-	foo2,cc</code>
-	<li> (Optional) Add a new line to define any libraries needed
-	to link your code, e.g.: <code>libfoo_la_LDFLAGS = -lstdc++</code>
-     </ul>
+<ul>
+<li> Add <code>libfoo.la</code> to the <code>lib_LTLIBRARIES</code> list
+<li> Add a new line: <code>libfoo_la_SOURCES = foo1.cc foo2.cc</code>
+<li> (Optional) Add a new line to define any libraries needed
+to link your code, e.g.: <code>libfoo_la_LDFLAGS = -lstdc++</code>
+</ul>
 <li> Compile the code: <code>make</code>
 <li> Install the code in the location defined by your configure
 	script: <code>make install</code>	
