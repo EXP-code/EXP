@@ -571,7 +571,8 @@ main(int argc, char** argv)
 
     std::cerr << "Process " << myid << ": uncaught EXP exception" << std::endl
 	      << e.getErrorMessage() << std::endl;
-
+    sleep(5);
+    std::cerr << std::flush;
 				// Try to force all process to exit!
     MPI_Abort(MPI_COMM_WORLD, -1);
   }
