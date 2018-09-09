@@ -2,10 +2,18 @@
 
 <h2> Motivation </h2>
 
-<p> As mentioned in \ref mainpage, this code uses object-oriented
-design patterns to exploit the similarity in overall structure of all
-biorthogonal expansions for ease of implementation and maintenance.
-</p>
+<p> This code uses object-oriented design patterns to exploit the
+similarity in overall structure of all biorthogonal expansions for
+ease of implementation and maintenance.  The class hierarchy enables
+reuse and reconfiguration for any number of phase-space components
+whose gravity may be represented by a appropriate biorthgonal bases
+and direct gravity methods.  The object-oriented design enforces
+minimal consistency while retaining flexibility. </p>
+
+<p> Users may write, compile and contribute new phase space operators
+for applying perturbations, new force methods, etc. without changing
+or recompiling the base code. See \ref modules for details and a
+simple example. </p>
 
 <h2> Organization </h2>
 
@@ -19,8 +27,15 @@ stellar disk component named "stars" would be associated with
 cylindrical disk-shaped basis expansion, Cylinder.  One could include
 some small number of smoothed point source objects,
 e.g. "substructures" or "satellites", which use the Direct force
-method.
-</p>
+method. </p>
+
+<p> All of these force methods inherit from the PotAccel base class,
+most often used to provide internal and external accelerations.
+However, PotAccel implements a bare-bones interface of a general
+operator which acts on phase space.  For example, periodic boundary
+conditions are implemented by the user module UserPeriodic which
+performes the modulo arithmetric and optionally reflective or vacuum
+boundary conditions.  </p>
 
 <p> A particular simulation may have any number of components.  These
 are grouped together in a ComponentContainer.  At the very top level,
