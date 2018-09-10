@@ -198,6 +198,30 @@ protected:
   //! distribution with boundaries
   boost::shared_ptr<LegeQuad> Lege;
 
+#if HAVE_LIBCUDA==1
+  //! CUDA methods
+  //@{
+  //! Working device vectors
+  std::vector<cudaArray_t> cuFFarray, cuRCarray, cuCEarray, ciCIarray;
+  std::vector<cudaTextureObject_t> ff_d, rc_d, ce_d, ci_d;
+  std::vector<int> cuZ, cuC;
+
+  thrust::host_vector  <double> hEminArray, hEmaxArray;
+  thrust::device_vector<double> dEminArray, dEmaxArray;
+
+  //! Initialize the arrays
+  void cuda_initialize();
+
+  //! Initialize the textures
+  void cuda_initialize_textures();
+
+  //! Destroy the arrays and textures
+  virtual void destroy_cuda();
+  //@}
+
+#endif
+
+
 public:
 
   //! Constructor
@@ -294,6 +318,8 @@ public:
 */
 class Ion 
 {
+  friend chdata;
+
 private:
 
   chdata* ch;
