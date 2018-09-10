@@ -87,8 +87,10 @@ used for testing the implemenation and algorithm and do not need
 adjustment.  I have endeavored to provide sane values as defaults, but
 some combinations are likely to fail on occasion and require study the
 source code to understand.  The class documentation often provides
-details on specific parameters.  If you get stuck, I will do my best
-to help and will add to the documentation in response to questions.
+details on specific parameters.  If you get stuck or confused, I will
+do my best to help and will add to the documentation in response to
+questions.  Also, feel free to contribute documentation and propose
+changes.
 
 Perhaps the best way to learn how to use this code is through an
 example.  I have provided a separate tar ball in the
