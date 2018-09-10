@@ -84,7 +84,11 @@ For these three, <code>nint=xx</code> is the time-step frequency for output.
 A final note: like many research codes, this code has many flags and
 parameters that allow detailed control of methods.  Many of these were
 used for testing the implemenation and algorithm and do not need
-adjustment.  I have endeavored to provide sane values for the default.
+adjustment.  I have endeavored to provide sane values as defaults, but
+some combinations are likely to fail on occasion and require study the
+source code to understand.  The class documentation often provides
+details on specific parameters.  If you get stuck, I will do my best
+to help and will add to the documentation in response to questions.
 
 Perhaps the best way to learn how to use this code is through an
 example.  I have provided a separate tar ball in the
@@ -96,15 +100,15 @@ The second, in <code>examples/Better</code>, has \f$10^4\f$ disk and
 \f$10^5\f$ halo particles and a high-resolution cylindrial disk
 expansion up to \f$m=6\f$.
 
-Once you have compiled,
-the following commands will start the test run:
+Once you have compiled, the following commands will start the test
+run:
 \verbatim
 cd examples/LowFi
 mpirun -v -np X exp -f IN.FILE
 \endverbatim
 where <code>-np X</code> should be replaced with the number of cores
 on your machine.  I may be able to provide some more complex (and
-larger!) examples on request.
+larger!) examples on request. 
 
 I also strongly recommend a read through of the documentation in the
 side bar (also listed in the Related Pages tab).  Additional
