@@ -170,6 +170,35 @@ public:
   //! Constructor
   //! \param line contains the parameters passed to the method
   //! \param m is the MixtureBasis for a multicenter expansion
+  //! 
+  //! Parameters settable in the configuration line include:
+  //! \param acyl is the disk scale length for the basis
+  //! \param hcyl is the disk scale height for the basis
+  //! \param nmax is the radial order for the underlying spherical basis
+  //! \param lmax is the harmonic order for the underlying spherical basis
+  //! \param mmax is the azimuthal harmonic order for final cylindrical expansion
+  //! \param ncylnx is the radial grid in the basis function table
+  //! \param ncylny is the vertical grid in the basis function table
+  //! \param ncylr is the size of the spherical radial grid used to construct the cylindrical basis
+  //! \param ncylrecomp is the number of steps between basis recomputation (default: -1 which means NEVER)
+  //! \param hallfreq is the number of step Hall coefficient recomputaton 
+  //! \param vtkfreq is the number of step VTK output 
+  //! \param eof_file is an override for the default EOF cache file name
+  //! \param vflag sets verbosity (see EmpOrth9thd.cc)
+  //! \param rnum is the number of Legendre radial knots for numerical basis computation
+  //! \param pnum is the number of azimuthal knots for numerical basis computation
+  //! \param tnum is the number of Legendre polar knots for numerical basis computation
+  //! \param ashift is the shift applied in the x-axis relative to the original for basis conditioning
+  //! \param self_consistent set to false for fixed potential
+  //! \param expcond set to true for analytic basis function conditioning (default: true)
+  //! \param logr tabulate basis in logarithmic coordinates (default: false)
+  //! \param pca set to true for real-time Hall analysis (default: false)
+  //! \param pcavtk set to true dumps PCA functions in VTK format for diagnostics (default: false)
+  //! \param try_cache set to true means try to read basis from cache (default: true)
+  //! \param dump_basis set to true outputs basis into file
+  //! \param density set to true means compute density basis in addition to potential (default: false)
+  //! \param cmap set to true means use coordinate mapping (default: true)
+  //!
   Cylinder(string& line, MixtureBasis *m=0);
 
   //! Destructor
