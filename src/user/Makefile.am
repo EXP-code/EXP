@@ -24,7 +24,8 @@ AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil -lgomp
 libdir      = $(prefix)/lib/user
 
 # bin_PROGRAMS = testcoord
-bin_PROGRAMS = testCrossSection testIonRecomb genIonRecomb testQuantile
+bin_PROGRAMS = testCrossSection testIonRecomb genIonRecomb	\
+testQuantile crossTiming
 
 lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la		\
 	libdiffuse.la libsatfix.la libdiffrot.la liblogpot.la		\
@@ -151,6 +152,10 @@ libprofile_la_SOURCES = UserProfile.cc
 testCrossSection_SOURCES = testCross.cc phfit2.f
 testCrossSection_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@
 testCrossSection_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS)
+
+crossTiming_SOURCES = testCrossTiming.cc phfit2.f
+crossTiming_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@
+crossTiming_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS)
 
 testIonRecomb_SOURCES = testIonRecomb.cc phfit2.f
 testIonRecomb_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@
