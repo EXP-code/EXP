@@ -34,12 +34,6 @@ cuFP_t ionEminGrid, ionEmaxGrid, ionDeltaEGrid;
 __device__ __constant__
 cuFP_t ionCollideEmin, ionEmaxGrid, ionDeltaEGrid;
 
-__device__ __constant__
-int   cylNumx, cylNumy, cylCmap;
-
-__device__ __constant__
-bool  cylOrient;
-
 __global__
 void testConstantsIon()
 {
@@ -59,10 +53,13 @@ void testConstantsIon()
 void chdata::cuda_initialize()
 {
   for (auto v : IonList) {
+    // Indecies of ion state
+    //
     cuZ.push_back(v.first.first );
     cuC.push_back(v.first.second);
     
-    // Make grids
+    // Initialize Ion cross-section grids
+    //
     if (not freeFreeGridComputed)
       v.second->freeFreeMakeEvGrid(0);
 
@@ -334,6 +331,15 @@ void chdata:cuda_initialize_textures()
     cuda_safe_call(cudaCreateTextureObject(&ci_d[k], &resDesc, &texDesc, NULL), __FILE__, __LINE__, "create texture object");
   }
 
+  // Grid values for the various cross sections
+  /*
+  std::vector< double > kgrid;
+  std::vector< double > kgr10;
+  std::vector< double > nugrid;
+
+  int kffsteps;
+  int nusteps;
+  */
 }
 
 void Ion::initialize_grid_constants()

@@ -206,8 +206,8 @@ protected:
   std::vector<cudaTextureObject_t> ff_d, rc_d, ce_d, ci_d;
   std::vector<int> cuZ, cuC;
 
-  thrust::host_vector  <double> hEminArray, hEmaxArray;
-  thrust::device_vector<double> dEminArray, dEmaxArray;
+  thrust::host_vector  <double> hEminArray, hEmaxArray, hKgrid, hKgr10, hNugrid;
+  thrust::device_vector<double> dEminArray, dEmaxArray, dKgrid, dKgr10, dNugrid;
 
   //! Initialize the arrays
   void cuda_initialize();
