@@ -23,7 +23,12 @@ standard interface, allowing independent development and testing of
 force routines, component interactions, etc. without recompiling or
 affecting the main code (see: \ref modules).  The source is maintained
 with <a href="https://git-scm.com/">git</a> to facilitate
-collaborative development.  </p>
+collaborative development and hosted by <a
+href="https://bitbucket.org/mdweinberg/exp">Bitbucket</a>.</p>
+
+<p> Recent enhancments include a GPU implementation for adaptive basis
+force evaluation and ongoing development of %Direct %Simulation Monte
+Carlo gas dynamics. </p>
 
 <p>
 Note: this code is <em>NOT</em> in the public domain.  You need permission
@@ -36,7 +41,9 @@ from the author to use it.
 
 Research making use of and feeding back into this project has been
 supported in part by the NASA ATP, NSF Astronomy, and the University
-of Massachusetts/Amherst.
+of Massachusetts/Amherst.  I thank the Simons Foundation/CCA for
+providing access to a state-of-the-art GPU cluster, where the CUDA
+suport for adaptive force bases is being tested.
 
 */
 
