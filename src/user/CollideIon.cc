@@ -5215,13 +5215,16 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
 
 	double crs = sVel1 * Eta1 * RE.back() * fac1;
+
+	if (MeanMass) crs *= gVel1;
+	else          crs *= sVel1;
 	
 	if (scatter_check and recomb_check) {
 	  if (MeanMass) {
-	    double val = sVel1 * vel * 1.0e-14 * RE.back();
+	    double val = gVel1 * vel * 1.0e-14 * RE.back();
 	    recombA[id].add(k, Eta1, val);
 	  } else {
-	    double val = gVel1 * vel * 1.0e-14 * RE.back();
+	    double val = sVel1 * vel * 1.0e-14 * RE.back();
 	    recombA[id].add(k, Eta1, val);
 	  }
 	}
@@ -5284,8 +5287,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  double ke              = std::max<double>(kEe1[id], FloorEv);
 	  std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
 
-	  double crs = gVel2 * Eta2 * RE.back() * fac1;
+	  double crs = Eta2 * RE.back() * fac1;
 	  
+	  if (MeanMass) crs *= gVel2;
+	  else          crs *= sVel2;
+
 	  if (scatter_check and recomb_check) {
 	    if (MeanMass) {
 	      double val = gVel2 * vel * 1.0e-14 * RE.back();
@@ -5319,15 +5325,18 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double ke = std::max<double>(kEe2[id], FloorEv);
 	  std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
 	  
-	  double crs = gVel1 * Eta1 * RE.back() * fac2;
+	  double crs = Eta1 * RE.back() * fac2;
 	  
+	  if (MeanMass) crs *= gVel1;
+	  else          crs *= sVel1;
+
 	  if (scatter_check and recomb_check) {
 	    if (MeanMass) {
 	      double val = gVel1 * vel * 1.0e-14 * RE.back();
-	      recombA[id].add(k, Eta2, val);
+	      recombA[id].add(k, Eta1, val);
 	    } else {
 	      double val = sVel1 * vel * 1.0e-14 * RE.back();
-	      recombA[id].add(k, Eta2, val);
+	      recombA[id].add(k, Eta1, val);
 	    }
 	  }
 	  
@@ -17935,8 +17944,8 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   meanCollP  = collPM;
 
   double Prob  = dens * rateF * crossRat;
-  // double selcM = (num-1) * Prob * 0.5;
-  double selcM = (num-1) * Prob;
+  // double selcM = (num-1) * Prob;
+  double selcM = (num-1) * Prob * 0.5;
   //              ^
   //              |
   //              +--- For correct Poisson statistics
