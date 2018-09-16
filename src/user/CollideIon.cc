@@ -4670,9 +4670,9 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       
       // Scaled electron relative velocity
       if (MeanMass) {
-	rvel0 = p1->dattrib[use_elec+i]*sqrt(Eta1) - p2->dattrib[use_elec+i]*sqrt(Eta2);
-	rvel1 = p1->dattrib[use_elec+i]*sqrt(Eta1) - p2->vel[i];
-	rvel2 = p2->dattrib[use_elec+i]*sqrt(Eta2) - p1->vel[i];
+	rvel0 = p1->dattrib[use_elec+i]*sqrt(Eta1/Mu1) - p2->dattrib[use_elec+i]*sqrt(Eta2/Mu2);
+	rvel1 = p1->dattrib[use_elec+i]*sqrt(Eta1/Mu1) - p2->vel[i];
+	rvel2 = p2->dattrib[use_elec+i]*sqrt(Eta2/Mu2) - p1->vel[i];
 
 	gVel0 += rvel0*rvel0;
 	gVel1 += rvel1*rvel1;
@@ -5217,8 +5217,13 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double crs = sVel1 * Eta1 * RE.back() * fac1;
 	
 	if (scatter_check and recomb_check) {
-	  double val = sVel1 * vel * 1.0e-14 * RE.back();
-	  recombA[id].add(k, Eta1, val);
+	  if (MeanMass) {
+	    double val = sVel1 * vel * 1.0e-14 * RE.back();
+	    recombA[id].add(k, Eta1, val);
+	  } else {
+	    double val = gVel1 * vel * 1.0e-14 * RE.back();
+	    recombA[id].add(k, Eta1, val);
+	  }
 	}
 
 	if (DEBUG_CRS) trap_crs(crs);
@@ -5245,8 +5250,13 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double crs = sVel2 * Eta2 * RE.back() * fac2;
 	
 	if (scatter_check and recomb_check) {
-	  double val = sVel2 * vel * 1.0e-14 * RE.back();
-	  recombA[id].add(k, Eta2, val);
+	  if (MeanMass) {
+	    double val = gVel2 * vel * 1.0e-14 * RE.back();
+	    recombA[id].add(k, Eta2, val);
+	  } else {
+	    double val = sVel2 * vel * 1.0e-14 * RE.back();
+	    recombA[id].add(k, Eta2, val);
+	  }
 	}
 
 	if (DEBUG_CRS) trap_crs(crs);
@@ -5277,8 +5287,13 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  double crs = gVel2 * Eta2 * RE.back() * fac1;
 	  
 	  if (scatter_check and recomb_check) {
-	    double val = sVel2 * vel * 1.0e-14 * RE.back();
-	    recombA[id].add(k, Eta2, val);
+	    if (MeanMass) {
+	      double val = gVel2 * vel * 1.0e-14 * RE.back();
+	      recombA[id].add(k, Eta2, val);
+	    } else {
+	      double val = sVel2 * vel * 1.0e-14 * RE.back();
+	      recombA[id].add(k, Eta2, val);
+	    }
 	  }
 
 	  if (DEBUG_CRS) trap_crs(crs);
@@ -5307,8 +5322,13 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  double crs = gVel1 * Eta1 * RE.back() * fac2;
 	  
 	  if (scatter_check and recomb_check) {
-	    double val = sVel1 * vel * 1.0e-14 * RE.back();
-	    recombA[id].add(k, Eta2, val);
+	    if (MeanMass) {
+	      double val = gVel1 * vel * 1.0e-14 * RE.back();
+	      recombA[id].add(k, Eta2, val);
+	    } else {
+	      double val = sVel1 * vel * 1.0e-14 * RE.back();
+	      recombA[id].add(k, Eta2, val);
+	    }
 	  }
 	  
 	  if (DEBUG_CRS) trap_crs(crs);
@@ -17915,6 +17935,7 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   meanCollP  = collPM;
 
   double Prob  = dens * rateF * crossRat;
+  // double selcM = (num-1) * Prob * 0.5;
   double selcM = (num-1) * Prob;
   //              ^
   //              |
