@@ -11184,7 +11184,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 
-	  double WW = Prob;
+	  double WW = Prob * atomic_weights[Z2];
 
 	  int pos = SpList[k2] - SpList.begin()->second;
 
@@ -11261,7 +11261,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 
-	  double WW = Prob;
+	  double WW = Prob * atomic_weights[Z1];
 
 	  int pos = SpList[k1] - SpList.begin()->second;
 
@@ -11341,7 +11341,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 	  
-	  double WW = Prob;
+	  double WW = Prob * atomic_weights[Z2];
 
 	  int pos = SpList[k2] - SpList.begin()->second;
 
@@ -11439,7 +11439,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 
-	  double WW = Prob;
+	  double WW = Prob * atomic_weights[Z1];
 
 	  int pos = SpList[k1] - SpList.begin()->second;
 
@@ -17944,7 +17944,6 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   meanCollP  = collPM;
 
   double Prob  = dens * rateF * crossRat;
-  // double selcM = (num-1) * Prob;
   double selcM = (num-1) * Prob * 0.5;
   //              ^
   //              |
