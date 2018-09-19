@@ -18,6 +18,10 @@
   would be to allow each component to define an output method.  However,
   this can easily result in a chaos of specialized output streams and so
   I rejected this approach.
+
+  The stopWatch Timer is implemented in the base class but can be used
+  by any derived class to time the output event.  See OutPS for an
+  example.
 */
 class Output
 {
@@ -36,7 +40,7 @@ protected:
   bool timer;
 
   //! Output timer
-  Timer swatch;
+  Timer stopWatch;
 
   //! Used to assign additional specific parameters, create storage, etc.
   virtual void initialize(void) = 0;

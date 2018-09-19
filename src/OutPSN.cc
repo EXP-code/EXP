@@ -66,8 +66,8 @@ void OutPSN::Run(int n, bool last)
   if (restart  && n==0  && !dump_signal) return;
 
   if (myid==0 and timer) {
-    swatch.reset();
-    swatch.start();
+    stopWatch.reset();
+    stopWatch.start();
   }
   
   ofstream *out;
@@ -113,7 +113,7 @@ void OutPSN::Run(int n, bool last)
   dump_signal = 0;
 
   if (myid==0 and timer)
-    std::cout << "OutPSN [T=" << tnow << "] timing=" << timer.stop()
+    std::cout << "OutPSN [T=" << tnow << "] timing=" << stopWatch.stop()
 	      << std::endl;
 }
 
