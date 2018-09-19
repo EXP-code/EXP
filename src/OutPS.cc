@@ -27,6 +27,11 @@ void OutPS::initialize()
   else
     nint = 100;
 
+  if (Output::get_value(string("timer"), tmp))
+    timer = atoi(tmp.c_str()) ? true : false;
+  else
+    timer = false;
+
 }
 
 
@@ -35,6 +40,11 @@ void OutPS::Run(int n, bool last)
   if (n % nint && !last && !dump_signal) return;
   if (restart  && n==0  && !dump_signal) return;
 
+  if (myid==0 and timer) {
+    stopWatch.reset();
+    stopWatch.start();
+  }
+  
   ofstream *out;
 
   psdump = n;
@@ -72,5 +82,9 @@ void OutPS::Run(int n, bool last)
   chktimer.mark();
 
   dump_signal = 0;
+
+  if (myid==0 and timer)
+    std::cout << "OutPS [T=" << tnow << "] timing=" << stopWatch.stop()
+	      << std::endl;
 }
 

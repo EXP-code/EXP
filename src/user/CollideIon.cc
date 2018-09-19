@@ -4670,9 +4670,9 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       
       // Scaled electron relative velocity
       if (MeanMass) {
-	rvel0 = p1->dattrib[use_elec+i]*sqrt(Eta1) - p2->dattrib[use_elec+i]*sqrt(Eta2);
-	rvel1 = p1->dattrib[use_elec+i]*sqrt(Eta1) - p2->vel[i];
-	rvel2 = p2->dattrib[use_elec+i]*sqrt(Eta2) - p1->vel[i];
+	rvel0 = p1->dattrib[use_elec+i]*sqrt(Eta1/Mu1) - p2->dattrib[use_elec+i]*sqrt(Eta2/Mu2);
+	rvel1 = p1->dattrib[use_elec+i]*sqrt(Eta1/Mu1) - p2->vel[i];
+	rvel2 = p2->dattrib[use_elec+i]*sqrt(Eta2/Mu2) - p1->vel[i];
 
 	gVel0 += rvel0*rvel0;
 	gVel1 += rvel1*rvel1;
@@ -5215,10 +5215,18 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
 
 	double crs = sVel1 * Eta1 * RE.back() * fac1;
+
+	if (MeanMass) crs *= gVel1;
+	else          crs *= sVel1;
 	
 	if (scatter_check and recomb_check) {
-	  double val = sVel1 * vel * 1.0e-14 * RE.back();
-	  recombA[id].add(k, Eta1, val);
+	  if (MeanMass) {
+	    double val = gVel1 * vel * 1.0e-14 * RE.back();
+	    recombA[id].add(k, Eta1, val);
+	  } else {
+	    double val = sVel1 * vel * 1.0e-14 * RE.back();
+	    recombA[id].add(k, Eta1, val);
+	  }
 	}
 
 	if (DEBUG_CRS) trap_crs(crs);
@@ -5245,8 +5253,13 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double crs = sVel2 * Eta2 * RE.back() * fac2;
 	
 	if (scatter_check and recomb_check) {
-	  double val = sVel2 * vel * 1.0e-14 * RE.back();
-	  recombA[id].add(k, Eta2, val);
+	  if (MeanMass) {
+	    double val = gVel2 * vel * 1.0e-14 * RE.back();
+	    recombA[id].add(k, Eta2, val);
+	  } else {
+	    double val = sVel2 * vel * 1.0e-14 * RE.back();
+	    recombA[id].add(k, Eta2, val);
+	  }
 	}
 
 	if (DEBUG_CRS) trap_crs(crs);
@@ -5274,11 +5287,19 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  double ke              = std::max<double>(kEe1[id], FloorEv);
 	  std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
 
-	  double crs = gVel2 * Eta2 * RE.back() * fac1;
+	  double crs = Eta2 * RE.back() * fac1;
 	  
+	  if (MeanMass) crs *= gVel2;
+	  else          crs *= sVel2;
+
 	  if (scatter_check and recomb_check) {
-	    double val = sVel2 * vel * 1.0e-14 * RE.back();
-	    recombA[id].add(k, Eta2, val);
+	    if (MeanMass) {
+	      double val = gVel2 * vel * 1.0e-14 * RE.back();
+	      recombA[id].add(k, Eta2, val);
+	    } else {
+	      double val = sVel2 * vel * 1.0e-14 * RE.back();
+	      recombA[id].add(k, Eta2, val);
+	    }
 	  }
 
 	  if (DEBUG_CRS) trap_crs(crs);
@@ -5304,11 +5325,19 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double ke = std::max<double>(kEe2[id], FloorEv);
 	  std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
 	  
-	  double crs = gVel1 * Eta1 * RE.back() * fac2;
+	  double crs = Eta1 * RE.back() * fac2;
 	  
+	  if (MeanMass) crs *= gVel1;
+	  else          crs *= sVel1;
+
 	  if (scatter_check and recomb_check) {
-	    double val = sVel1 * vel * 1.0e-14 * RE.back();
-	    recombA[id].add(k, Eta2, val);
+	    if (MeanMass) {
+	      double val = gVel1 * vel * 1.0e-14 * RE.back();
+	      recombA[id].add(k, Eta1, val);
+	    } else {
+	      double val = sVel1 * vel * 1.0e-14 * RE.back();
+	      recombA[id].add(k, Eta1, val);
+	    }
 	  }
 	  
 	  if (DEBUG_CRS) trap_crs(crs);
@@ -11155,7 +11184,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 
-	  double WW = Prob;
+	  double WW = Prob * atomic_weights[Z2];
 
 	  int pos = SpList[k2] - SpList.begin()->second;
 
@@ -11232,7 +11261,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 
-	  double WW = Prob;
+	  double WW = Prob * atomic_weights[Z1];
 
 	  int pos = SpList[k1] - SpList.begin()->second;
 
@@ -11312,7 +11341,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 	  
-	  double WW = Prob;
+	  double WW = Prob * atomic_weights[Z2];
 
 	  int pos = SpList[k2] - SpList.begin()->second;
 
@@ -11410,7 +11439,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 
-	  double WW = Prob;
+	  double WW = Prob * atomic_weights[Z1];
 
 	  int pos = SpList[k1] - SpList.begin()->second;
 
@@ -17915,7 +17944,7 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   meanCollP  = collPM;
 
   double Prob  = dens * rateF * crossRat;
-  double selcM = (num-1) * Prob;
+  double selcM = (num-1) * Prob * 0.5;
   //              ^
   //              |
   //              +--- For correct Poisson statistics
@@ -17924,6 +17953,8 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   double  dfac = UserTreeDSMC::Munit/amu/pow(UserTreeDSMC::Lunit, 3.0) / molP1[id];
   double totPairs = num * dens * dfac *
     (1.0/PiProb[id][0] + 1.0/PiProb[id][1] + 1.0/PiProb[id][2]);
+
+  totPairs = 0.5*num*(num-1);
 
   colCf[id] = selcM/totPairs;
   selcM = totPairs;

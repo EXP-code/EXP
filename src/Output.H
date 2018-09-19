@@ -5,6 +5,7 @@
 #include <vector>
 #include <utility>
 #include <StringTok.H>
+#include <Timer.h>
 
 //! Output routines.
 /*! These are designed to be run in a chain at each step.  Each Output
@@ -17,6 +18,10 @@
   would be to allow each component to define an output method.  However,
   this can easily result in a chaos of specialized output streams and so
   I rejected this approach.
+
+  The stopWatch Timer is implemented in the base class but can be used
+  by any derived class to time the output event.  See OutPS for an
+  example.
 */
 class Output
 {
@@ -30,6 +35,12 @@ protected:
 
   //! Output frequency (should be used by derived classes)
   int nint;
+
+  //! Use output timer
+  bool timer;
+
+  //! Output timer
+  Timer stopWatch;
 
   //! Used to assign additional specific parameters, create storage, etc.
   virtual void initialize(void) = 0;

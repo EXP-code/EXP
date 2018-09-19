@@ -85,6 +85,17 @@ public:
   /** Constructor
       @param line passes any parameters to basis instance (rsphSL, rmin and numr
       @param m allows the spherical basis to be used for multiple center expansions 
+      
+      Input line parameters include:
+      @param rmin is the minimum radius in Sturm-Liouville solution grid
+      @param rs is the radius for coordinate scaling
+      @param numr is the number of radial grid points
+      @param cmap set to true for scaling coordinates from the semi-infinite to finite segment
+      @param diverge set to true means assume a cuspy profile
+      @param dfac is the power of the "divergent" cusp
+      @param modelname is the file containing the input background model profile
+      @param cachename is the name for the SL grid cache file
+
   */
   Sphere(string& line, MixtureBasis* m=0);
 

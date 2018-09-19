@@ -9,10 +9,6 @@
 #include <AxisymmetricBasis.H>
 #include <OutPSN.H>
 
-#ifdef PSN_TIMING
-#include <chrono>
-#endif
-
 OutPSN::OutPSN(string& line) : Output(line)
 {
   initialize();
@@ -36,6 +32,11 @@ void OutPSN::initialize()
     nbeg = atoi(tmp.c_str());
   else
     nbeg = 0;
+
+  if (Output::get_value(string("timer"), tmp))
+    timer = atoi(tmp.c_str()) ? true : false;
+  else
+    timer = false;
 
 				// Determine last file
 
@@ -64,10 +65,10 @@ void OutPSN::Run(int n, bool last)
   if (n % nint && !last && !dump_signal) return;
   if (restart  && n==0  && !dump_signal) return;
 
-#ifdef PSN_TIMING
-  std::chrono::high_resolution_clock::time_point beg, end;
-  beg = std::chrono::high_resolution_clock::now();
-#endif
+  if (myid==0 and timer) {
+    stopWatch.reset();
+    stopWatch.start();
+  }
   
   ofstream *out;
 
@@ -111,12 +112,8 @@ void OutPSN::Run(int n, bool last)
 
   dump_signal = 0;
 
-#ifdef PSN_TIMING
-  end = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> intvl = end - beg;
-  if (myid==0)
-    std::cout << "OutPSN [T=" << tnow << "] timing=" << intvl.count()
+  if (myid==0 and timer)
+    std::cout << "OutPSN [T=" << tnow << "] timing=" << stopWatch.stop()
 	      << std::endl;
-#endif
 }
 

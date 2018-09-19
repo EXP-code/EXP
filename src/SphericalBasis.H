@@ -212,6 +212,9 @@ protected:
   //! Flag use of even l harmonics only
   bool EVEN_L;
 
+  //! Flag use of even m harmonics only
+  bool EVEN_M;
+
   //! Flag adding noise to coefficients (for testing diffusion)
   bool NOISE;  
 
