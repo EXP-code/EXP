@@ -5,6 +5,7 @@
 #include <vector>
 #include <utility>
 #include <StringTok.H>
+#include <Timer.h>
 
 //! Output routines.
 /*! These are designed to be run in a chain at each step.  Each Output
@@ -30,6 +31,12 @@ protected:
 
   //! Output frequency (should be used by derived classes)
   int nint;
+
+  //! Use output timer
+  bool timer;
+
+  //! Output timer
+  Timer swatch;
 
   //! Used to assign additional specific parameters, create storage, etc.
   virtual void initialize(void) = 0;
