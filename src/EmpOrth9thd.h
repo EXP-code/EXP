@@ -238,6 +238,9 @@ private:
   void accumulate_eof_thread_call(int id, std::vector<Particle>* p, bool verbose);
 
 
+  //! Suppress odd modes
+  bool EVEN_M;
+
 public:
 
   /*! Enum listing the possible selection algorithms for coefficient
@@ -519,6 +522,9 @@ public:
 
   //! Return current value of disk scale height
   double get_hscale(void) { return HSCALE; }
+
+  //! Set even modes only
+  void setEven()          { EVEN_M = true; }
 
   //! Set frequency and file name for selector output
   inline void setHall(string file, unsigned tot, int n=50)

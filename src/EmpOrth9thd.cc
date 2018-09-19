@@ -63,6 +63,7 @@ EmpCylSL::EmpCylSL(void)
   eof_made   = false;
   sampT      = 0;
   tk_type    = Null;
+  EVEN_M     = false;
   
   if (DENS)
     MPItable = 4;
@@ -213,6 +214,8 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   pfac = 1.0/sqrt(ascale);
   ffac = pfac/ascale;
   dfac = ffac/ascale;
+
+  EVEN_M = false;
 
 				// Enable MPI code for more than one node
   if (numprocs>1) SLGridSph::mpi = 1;
@@ -3031,6 +3034,9 @@ void EmpCylSL::accumulated_eval(double r, double z, double phi,
   
   for (int mm=0; mm<=MMAX; mm++) {
     
+    // Suppress odd M terms?
+    if (EVEN_M && (mm/2)*2 != mm) continue;
+
     ccos = cos(phi*mm);
     ssin = sin(phi*mm);
 
@@ -3264,6 +3270,9 @@ void EmpCylSL::get_pot(Matrix& Vc, Matrix& Vs, double r, double z)
 
   for (int mm=0; mm<=MMAX; mm++) {
     
+    // Suppress odd M terms?
+    if (EVEN_M && (mm/2)*2 != mm) continue;
+
     for (int n=0; n<rank3; n++) {
 
       Vc[mm][n] = fac *

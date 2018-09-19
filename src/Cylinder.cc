@@ -134,6 +134,8 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
     if (get_value("tk_type", val)) ortho->setTK(val);
   }
 
+  if (EVEN_M) ortho->setEven();
+
   if (expcond) {
 				// Set parameters for external dcond function
     EXPSCALE = acyl;
@@ -333,6 +335,11 @@ void Cylinder::initialize()
     if (atoi(val.c_str())) cmap = true; 
     else cmap = false;
   }
+  if (get_value("EVEN_M", val)) {
+    if (atoi(val.c_str())) EVEN_M = true; 
+    else EVEN_M = false;
+  }
+
 }
 
 void Cylinder::get_acceleration_and_potential(Component* C)

@@ -23,7 +23,7 @@ class Cylinder : public Basis
 {
 private:
 
-  bool expcond;
+  bool expcond, EVEN_M;
   int rnum, pnum, tnum;
   double ashift;
   unsigned int vflag;
