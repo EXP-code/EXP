@@ -201,14 +201,6 @@ protected:
 #if HAVE_LIBCUDA==1
   //! CUDA methods
   //@{
-  //! Working device vectors
-  std::vector<cudaArray_t> cuFFarray, cuRCarray, cuCEarray, ciCIarray;
-  std::vector<cudaTextureObject_t> ff_d, rc_d, ce_d, ci_d;
-  std::vector<int> cuZ, cuC;
-
-  thrust::host_vector  <double> hEminArray, hEmaxArray, hKgrid, hKgr10, hNugrid;
-  thrust::device_vector<double> dEminArray, dEmaxArray, dKgrid, dKgr10, dNugrid;
-
   //! Initialize the arrays
   void cuda_initialize();
 
@@ -295,6 +287,21 @@ public:
   recombEquil(unsigned short Z, double Temperature, double Emin, double Emax, 
 	      int norder=40, bool use_log=false);
   //@}
+
+#if HAVE_LIBCUDA==1
+  //! CUDA data
+  //@{
+  std::vector<cudaArray_t> cuFFarray, cuRCarray, cuCEarray, ciCIarray;
+  std::vector<cudaTextureObject_t> ff_d, rc_d, ce_d, ci_d;
+  std::vector<int> cuZ, cuC;
+
+  thrust::device_vector<double> dColEmin, dColEmax, dColDE;
+  thrust::device_vector<double> dIonEmin, dIonEmax, dIonDE;
+  thrust::device_vector<double> dEminArray, dEmaxArray;
+  thrust::device_vector<double> dKgrid, dKgr10, dNugrd;
+  //@}
+#endif
+
 
 };
 

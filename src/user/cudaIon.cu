@@ -29,25 +29,18 @@ __device__ functions for each desired cross section
 // Global symbols for coordinate transformation
 //
 __device__ __constant__
-cuFP_t ionEminGrid, ionEmaxGrid, ionDeltaEGrid;
+cuFP_t ionEminGrid, ionEmaxGrid, ionDelEGrid;
 
 __device__ __constant__
-cuFP_t ionCollideEmin, ionEmaxGrid, ionDeltaEGrid;
+int ionNfreeFree;
 
 __global__
 void testConstantsIon()
 {
-  printf("** Rscale = %f\n", cylRscale);
-  printf("** Hscale = %f\n", cylHscale);
-  printf("** Xmin   = %f\n", cylXmin);
-  printf("** Xmax   = %f\n", cylXmax);
-  printf("** Ymin   = %f\n", cylYmin);
-  printf("** Ymax   = %f\n", cylYmax);
-  printf("** Dxi    = %f\n", cylDxi);
-  printf("** Dyi    = %f\n", cylDyi);
-  printf("** Numx   = %d\n", cylNumx);
-  printf("** Numy   = %d\n", cylNumy);
-  printf("** Cmap   = %d\n", cylCmap);
+  printf("** Emin [grid] = %f\n", ionEminGrid );
+  printf("** Emax [grid] = %f\n", ionEmaxGrid );
+  printf("** delE [grid] = %f\n", ionDelEGrid );
+  printf("** NumE [grid] = %d\n", ionNfreeFree);
 }
 
 void chdata::cuda_initialize()
@@ -84,6 +77,12 @@ void chdata:cuda_initialize_textures()
   cuRCarray.resize(ionSize);
   cuCEarray.resize(ionSize);
   cuCIarray.resize(ionSize);
+
+  // Intermediate arrays
+  //
+  thrust::host_vector<double> dColEmin(ionSize), dColEmax(ionSize), dColDE(ionSize);
+  thrust::host_vector<double> dIonEmin(ionSize), dIonEmax(ionSize), dIonDE(ionSize);
+
 
   std::vector<cudaArray_t> cuFFarray, cuRCarray, cuCEarray, ciCIarray;
   std::vector<cudaTextureObject_t> ff_d, rc_d, ce_d, ci_d;
@@ -321,7 +320,7 @@ void chdata:cuda_initialize_textures()
     cuda_safe_call(cudaMemcpyToArray(cuCIarray[k], 0, 0, &tt[0], tsize, cudaMemcpyHostToDevice), __FILE__, __LINE__, "copy texture to array");
 
     // Specify texture
-
+    //
     cudaResourceDesc resDesc;
 
     memset(&resDesc, 0, sizeof(cudaResourceDesc));
@@ -332,56 +331,11 @@ void chdata:cuda_initialize_textures()
   }
 
   // Grid values for the various cross sections
-  /*
-  std::vector< double > kgrid;
-  std::vector< double > kgr10;
-  std::vector< double > nugrid;
-
-  int kffsteps;
-  int nusteps;
-  */
-}
-
-void Ion::initialize_grid_constants()
-{
-  // Copy constants to device
   //
-  
-  cuda_safe_call(cudaMemcpyToSymbol(cylRscale, &f.rscale, sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cylRscale");
-
-  cuda_safe_call(cudaMemcpyToSymbol(cylHscale, &f.hscale, sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cylHscale");
-
-  cuda_safe_call(cudaMemcpyToSymbol(cylXmin,   &f.xmin,   sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cylXmin");
-
-  cuda_safe_call(cudaMemcpyToSymbol(cylXmax,   &f.xmax,   sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cylXmax");
-
-  cuda_safe_call(cudaMemcpyToSymbol(cylDxi,    &f.dxi,    sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cylDxi");
-
-  cuda_safe_call(cudaMemcpyToSymbol(cylNumx,   &f.numx,   sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cylNumx");
-
-  cuda_safe_call(cudaMemcpyToSymbol(cylYmin,   &f.ymin,   sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cylYmin");
-
-  cuda_safe_call(cudaMemcpyToSymbol(cylYmax,   &f.ymax,   sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cylYmax");
-
-  cuda_safe_call(cudaMemcpyToSymbol(cylDyi,    &f.dyi,    sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cylDxi");
-
-  cuda_safe_call(cudaMemcpyToSymbol(cylNumy,   &f.numy,   sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cylNumy");
-
-  cuda_safe_call(cudaMemcpyToSymbol(cylCmap,   &f.cmap,   sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cylCmap");
-
+  dKgrid = thrust::host_vector<double>(kgrid);
+  dKgr10 = thrust::host_vector<double>(kgr10);
+  dNugrd = thrust::host_vector<double>(nugrid);
 }
-
 
 __global__ void coordKernelCyl
 (dArray<cudaParticle> in, dArray<cuFP_t> mass, dArray<cuFP_t> phi,
@@ -597,6 +551,30 @@ __global__ void coefKernelCyl
 
   } // stride loop
 }
+
+void Ion::initialize_grid_constants()
+{
+  // Copy constants to device
+  //
+  cuFP_t f;
+  
+  f = EminGrid;
+  cuda_safe_call(cudaMemcpyToSymbol(ionEminGrid, &f, sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying ionEminGrid");
+
+  f = EmaxGrid;
+  cuda_safe_call(cudaMemcpyToSymbol(ionEmaxGrid, &f, sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying ionEmaxGrid");
+
+  f = DeltaEGrid;
+  cuda_safe_call(cudaMemcpyToSymbol(ionDelEGrid, &f, sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying ionDelEGrid");
+
+  cuda_safe_call(cudaMemcpyToSymbol(ionNfreeFree, &NfreeFreeGrid, sizeof(int), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying ionNfreeFree");
+
+}
+
 
 __global__ void
 forceKernelCyl(dArray<cudaParticle> in, dArray<cuFP_t> coef,
@@ -1729,4 +1707,143 @@ void chdata::destroy_cuda()
     cuda_safe_call(cudaFree(cuInterpArray[i]),
 		     __FILE__, __LINE__, sout.str());
   }
+}
+
+
+struct {
+  cuFP_t a;
+  cuFP_t b;
+} cuPair;
+
+__device__
+cuPair cuFreeFreeCross(double E)
+{
+  cuPair ret = {0.0, 0.0};
+
+  // No free-free with a neutral
+  //
+  if (C==1) return ret;
+
+  double eMin = EminGrid, eMax = ionEminGrid + ionDelEGrid*(ionNfreeFree-1);
+
+  if (E<eMin) E = eMin;		// Enforce minimum energy to prevent
+				// off grid evaluatoin
+  if (E<eMin or E>eMax) return ret;
+
+  double phi = 0.0, ffWaveCross = 0.0;
+
+  size_t indx = floor( (E - eMin)/DeltaEGrid );
+  double eA   = eMin + DeltaEGrid*indx, eB = eMin + DeltaEGrid*(indx+1);
+
+  double A = (eB - E)/DeltaEGrid;
+  double B = (E - eA)/DeltaEGrid;
+
+  double beg[2], cum[2];
+
+  for (int i=0; i<2; i++) {
+#if cuREAL == 4
+    beg[i] = tex3D<float>(tex._v, indx+i, 0, 0);
+    cum[i] = tex3D<float>(tex._v, indx+i, ionNkff, 0);
+#else
+    beg[i] = int2_as_double(tex3D<int2>(tex._v, indx+i, 0, 0));
+    cum[i] = int2_as_double(tex3D<int2>(tex._v, indx+i, ionNkff, 0));
+#endif
+  }
+
+  // If cross section is offgrid, set values to zero
+  //
+  if (cum[0] > 0.0 and cum[1] > 0.0) {
+
+    double k[2];
+
+    // Location in cumulative cross section grid
+    //
+    double rn = static_cast<double>(rand())/RAND_MAX; // Need curand
+
+    for (int i=0; i<2; i++) {
+
+      // Interpolate the cross section array
+      //
+    
+      double val = rn*cum[i];
+
+      if (val < beg[i]) {
+	
+	k[i] = kgrid[0];
+	
+
+      } else {
+
+	// Points to first element that is not < rn
+	// but may be equal
+
+	int cur = 0, next;
+	int count  = ionNkff;
+
+	while (count > 0) {
+	  next = cur; 
+	  int step = count / 2; 
+	  next += step;
+
+	  cuFP_t eval;
+#if cuREAL == 4
+	  eval = tex3D<float>(tex._v, indx+i, next, 0);
+#else
+	  eval = int2_as_double(tex3D<int2>(tex._v, indx+i, next, 0));
+#endif
+	  if (eval < val) {
+            cur = ++next; 
+            count -= step + 1; 
+	  }
+	  else
+            count = step;
+	}
+
+	int lo = cur-1;
+	int hi = cur;
+
+	if (cur < 0) {
+	  lo = 0;
+	  hi = 1;
+	}
+
+	k[i] = kgrid[lo];
+	
+	curFP_t xlo, xhi;
+#if cuREAL == 4
+	xlo = tex3D<float>(tex._v, indx+i, lo, 0);
+	xhi = tex3D<float>(tex._v, indx+i, hi, 0);
+#else
+	xlo = int2_as_double(tex3D<int2>(tex._v, indx+i, lo, 0));
+	xhi = int2_as_double(tex3D<int2>(tex._v, indx+i, hi, 0));
+#endif
+
+	// Linear interpolation
+	//
+	if (xhi > xlo) {
+	  double d = xhi - xlo;
+	  double a = (xhi - val) / d;
+	  double b = (val - xlo) / d;
+	  k[i] = a * kgrid[ii] + b * kgrid[jj];
+	  if (fabs(a)>1.0 or fabs(b)>1.0) {
+	    std::cout << "Oops" << std::endl;
+	  }
+	}
+      }
+    }
+
+    double K = A*k[0] + B*k[1];
+
+    // Assign the photon energy
+    //
+    ffWaveCross = pow(10, K) * hbc;
+
+    // Use the integrated cross section from the differential grid
+    //
+    phi = A*cum[0] + B*cum[1];
+  }
+
+  ret.a = phi;
+  ret.b = ffWaveCross;
+  return ret;
 }

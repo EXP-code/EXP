@@ -31,6 +31,7 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
   NO_L0            = false;
   NO_L1            = false;
   EVEN_L           = false;
+  EVEN_M           = false;
   NOISE            = false;
   noiseN           = 1.0e-6;
   noise_model_file = "SLGridSph.model";
@@ -71,6 +72,11 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
   if (get_value("EVEN_L", val)) {
     if (atoi(val.c_str())) EVEN_L = true; 
     else EVEN_L = false;
+  }
+
+  if (get_value("EVEN_M", val)) {
+    if (atoi(val.c_str())) EVEN_M = true; 
+    else EVEN_M = false;
   }
 
   if (get_value("NOISE", val)) {
@@ -1123,6 +1129,9 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 	//		m loop
 	//		------
 	for (m=0, moffset=0; m<=l; m++) {
+				// Suppress odd M terms?
+	  if (EVEN_M && (m/2)*2 != m) continue;
+
 	  fac1 = (2.0*l+1.0)/(4.0*M_PI) * mfactor;
 	  if (m==0) {
 	    fac2 = fac1*legs[id][l][m];
