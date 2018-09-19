@@ -524,7 +524,7 @@ public:
   double get_hscale(void) { return HSCALE; }
 
   //! Set even modes only
-  void setEven()          { EVEN_M = true; }
+  void setEven(bool even=true) { EVEN_M = even; }
 
   //! Set frequency and file name for selector output
   inline void setHall(string file, unsigned tot, int n=50)
