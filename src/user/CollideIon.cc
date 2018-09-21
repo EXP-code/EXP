@@ -2774,7 +2774,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
     if (not use_ntcdb) {
 
       size_t nbods = cell->bods.size();
-      double Cross = 0.0;
+      double Cross = 0.0, Count = 1.0e-18;
 
       for (size_t i=0; i<nbods; i++) {
 	Particle *p1 = tree->Body(cell->bods[i]);
@@ -2789,11 +2789,13 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 	  }
 	
 	  // Record the maximum cross section (already in system units)
-	  Cross = std::max<double>(Cross, crossSectionTrace(id, cell, p1, p2, sqrt(cr)));
+	  // Cross = std::max<double>(Cross, crossSectionTrace(id, cell, p1, p2, sqrt(cr)));
+	  Cross += crossSectionTrace(id, cell, p1, p2, sqrt(cr));
+	  Count += 1.0;
 	}
       }
 
-      csections[id][Particle::defaultKey][Particle::defaultKey]() = Cross;
+      csections[id][Particle::defaultKey][Particle::defaultKey]() = Cross/Count;
 
     } // END: not use_ntcdb
     
