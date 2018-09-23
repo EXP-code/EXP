@@ -2421,10 +2421,6 @@ chdata::chdata()
   // std::cout << "Reading radiative recombination Gaunt factor file\n";
   readRadGF();
 
-#if HAVE_LIBCUDA==1
-  cuda_initialize();
-#endif
-
   // Done
 }
 
@@ -2440,6 +2436,10 @@ void chdata::createIonList(const std::set<unsigned short>& ZList)
     }
     Ni[i] = 1.0;		// Not sure what this does . . . 
   }
+
+#if HAVE_LIBCUDA==1
+  cuda_initialize();
+#endif
 }
 
 
@@ -3402,6 +3402,12 @@ __device__ functions for each desired cross section
 
 void chdata::cuda_initialize()
 {
+  // Remove any previous initialization data
+  //
+  destroy_cuda();
+  cuZ.clear();
+  cuC.clear();
+
   for (auto v : IonList) {
     cuZ.push_back(v.first.first );
     cuC.push_back(v.first.second);

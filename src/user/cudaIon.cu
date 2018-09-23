@@ -478,7 +478,7 @@ __global__ void testFreeFree
   __syncthreads();
 }
 
-void chdata::testRadRecomb(int Nenergy)
+void chdata::testCross(int Nenergy)
 {
   // Loop over ions and tabulate statistics
   //

@@ -319,8 +319,8 @@ public:
   //@}
 
 #if HAVE_LIBCUDA==1
-  //! Test radiative recombination grid
-  void testRadRecomb(int Nenergy);
+  //! Test cross sections
+  void testCross(int Nenergy);
 
 #endif
   
