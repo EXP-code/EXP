@@ -77,7 +77,7 @@ ResPot::~ResPot()
   delete orb;
 }
 
-AxiSymModel *hmod;
+static AxiSymModel *hmod;
 
 // Circular orbit
 //
