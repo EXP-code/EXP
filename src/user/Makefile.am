@@ -23,8 +23,8 @@ endif
 
 libdir      = $(prefix)/lib/user
 
-# bin_PROGRAMS = testcoord
-bin_PROGRAMS = testCrossSection testIonRecomb genIonRecomb testQuantile
+bin_PROGRAMS = testCrossSection testIonRecomb genIonRecomb testQuantile \
+	testCrossCuda
 
 lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la		\
 	libdiffuse.la libsatfix.la libdiffrot.la liblogpot.la		\
@@ -164,6 +164,10 @@ testQuantile_SOURCES = testQuantile.cc Quantile.cc
 testQuantile_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS)
 testQuantile_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB)
 
+
+testCrossCuda_SOURCES = testCrossCuda.cc cudaIon.cu
+testCrossCuda_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@
+testCrossCuda_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBS)
 
 CylindricalDisk.cc:	$(top_srcdir)/utils/SL/CylindricalDisk.cc
 			cp $(top_srcdir)/utils/SL/$@ .
