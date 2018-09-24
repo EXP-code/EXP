@@ -60,7 +60,7 @@ bool Ion::gs_only  = false;
 //
 double Ion::kmin    = -10.0;
 double Ion::kmax    =   4.0;
-double Ion::kdel    =   0.05;
+double Ion::kdel    =   0.01;
 
 // Photo-ionization grid
 //
@@ -1446,11 +1446,12 @@ std::pair<double, double> Ion::freeFreeCrossSingle(double Ei, int id)
 
 void Ion::freeFreeMakeEvGrid(int id)
 {
+  if (C==1) return;
+
   freeFreeGridComputed = true;
 
   // Integration variables
   //
-  double cum      = 0;
   double dk       = (kgrid[1] - kgrid[0])*log(10.0);
 
   // Energy grid
@@ -1471,16 +1472,18 @@ void Ion::freeFreeMakeEvGrid(int id)
 
     freeFreeGrid[n].clear();
 
+    double cum = 0;
+
     for (int j = 0; j < kffsteps; j++) {
       //
       // Photon energy in eV
       //
-      double k      = kgr10[j];
+      double k  = kgr10[j];
 
       //
       // Final kinetic energy
       //
-      double Ef     = Ei - k;
+      double Ef = Ei - k;
       
       //
       // Can't emit a photon if not enough KE!
@@ -3442,17 +3445,18 @@ void chdata::destroy_cuda()
     }
   }
 
+  /*
   i = 0;
 
   for (auto & v : {cuF0array, cuFFarray, cuRCarray, cuCEarray, cuCIarray}) {
 
     for (auto & u : v) {
       std::ostringstream sout;
-      sout << "trying to free cuPitch [" << i++ << "]";
-      cuda_safe_call(cudaFree(u),
-		     __FILE__, __LINE__, sout.str());
+      sout << "trying to free cuPitch [" << i++ << "] @ (" << u << ")";
+      cuda_safe_call(cudaFree(u), __FILE__, __LINE__, sout.str());
     }
   }
+  */
 }
 
 #endif

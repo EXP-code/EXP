@@ -5,6 +5,7 @@
 #include <boost/make_shared.hpp>
 
 #include <Ion.H>
+#include <Timer.h>
 
 // Global symbols for coordinate transformation
 //
@@ -30,14 +31,14 @@ void chdata::cuda_initialize_textures()
 
   // Interpolation data array
   //
-  cuF0array.resize(ionSize);
-  cuFFarray.resize(ionSize);
-  cuRCarray.resize(ionSize);
-  cuCEarray.resize(ionSize);
-  cuCIarray.resize(ionSize);
+  cuF0array.resize(ionSize, 0);
+  cuFFarray.resize(ionSize, 0);
+  cuRCarray.resize(ionSize, 0);
+  cuCEarray.resize(ionSize, 0);
+  cuCIarray.resize(ionSize, 0);
 
-  NColl.    resize(ionSize);
-  NIonz.    resize(ionSize);
+  NColl.    resize(ionSize, 0);
+  NIonz.    resize(ionSize, 0);
 
   // Texture object array
   //
@@ -58,7 +59,9 @@ void chdata::cuda_initialize_textures()
   for (auto v : IonList) {
 
     IonPtr I = v.second;
-
+    cuZ[k] = I->Z;
+    cuC[k] = I->C;
+    
     // The free-free array
     if (cuC[k]>1) {
       cudaTextureDesc texDesc;
@@ -72,26 +75,15 @@ void chdata::cuda_initialize_textures()
   
       // Temporary storage
       //
-      cuFP_t *d_Interp0, *d_Interp1;
-
-      cuda_safe_call(cudaMalloc((void **)&d_Interp0, I->NfreeFreeGrid*sizeof(cuFP_t)),
-		     __FILE__, __LINE__,
-		     "Error allocating d_Interp0 for texture construction");
-  
       std::vector<cuFP_t> h_buffer0(I->NfreeFreeGrid, 0.0);
 
-      cuda_safe_call(cudaMalloc((void **)&d_Interp1, I->NfreeFreeGrid*CHCUMK*sizeof(cuFP_t)),
+      cuFP_t *d_Interp;
+
+      cuda_safe_call(cudaMalloc((void **)&d_Interp, I->NfreeFreeGrid*CHCUMK*sizeof(cuFP_t)),
 		     __FILE__, __LINE__,
 		     "Error allocating d_Interp1 for texture construction");
   
       std::vector<cuFP_t> h_buffer1(I->NfreeFreeGrid*CHCUMK, 0.0);
-
-      // Temporary storage
-      //
-      cuFP_t *d_Interp;
-      cuda_safe_call(cudaMalloc((void **)&d_Interp, I->NfreeFreeGrid*CHCUMK*sizeof(cuFP_t)),
-		     __FILE__, __LINE__,
-		     "Error allocating d_Interp for texture construction");
 
       double delC = 1.0/(CHCUMK-1);
 
@@ -103,36 +95,106 @@ void chdata::cuda_initialize_textures()
 	
 	// Unit normalized cumulative distribution
 	//
-	std::vector<double> temp(I->kffsteps);
-	for (int j = 0; j < I->kffsteps; j++) {	
+	size_t tsize = I->freeFreeGrid[i].size();
+	std::vector<double> temp(tsize);
+	for (int j = 0; j < tsize; j++) {	
 	  temp[j] = I->freeFreeGrid[i][j]/h_buffer0[i];
 	}
 
-	// Remap to even grid
-	//
-	int j = 1;
-	for (int k = 0; k < I->kffsteps; k++) {	
-	  double C = delC*j;	// Interpolate
-	  if (temp[k] >= C and temp[k-1]< C) {
-	    double D = temp[k] - temp[k-1];
-	    double A = (C - temp[k-1])/D;
-	    double B = (temp[k  ] - C)/D;
-	    h_buffer1[i + j*I->NfreeFreeGrid] = I->kgrid[k-1]*A + I->kgrid[k]*B;
-	    j++;
-	  }
+	/*
+	for (int j = 0; j < tsize; j++) {	
+	  std::cout << std::setw( 2) << I->Z
+		    << std::setw( 2) << I->C
+		    << std::setw( 4) << i
+		    << std::setw( 4) << j
+		    << std::setw(18) << I->freeFreeGrid[i][j]
+		    << std::setw(18) << temp[j]
+		    << std::endl;
 	}
+	*/
+
 
 	// End points
 	//
 	h_buffer1[i                              ] = I->kgrid[0];
-	h_buffer1[i + (CHCUMK-1)*I->NfreeFreeGrid] = I->kgrid[I->kffsteps-1];
+	h_buffer1[i + (CHCUMK-1)*I->NfreeFreeGrid] = I->kgrid[tsize-1];
+
+	// Remap to even grid
+	//
+	for (int j=1; j<CHCUMK-1; j++) {
+
+	  double C = delC*j;
+
+	  // Points to first element that is not < C
+	  // but may be equal
+	  std::vector<double>::iterator lb = 
+	    std::lower_bound(temp.begin(), temp.end(), C);
+    
+	  // Assign upper end of range to the
+	  // found element
+	  //
+	  std::vector<double>::iterator ub = lb;
+	  //
+	  // If is the first element, increment
+	  // the upper boundary
+	  //
+	  if (lb == temp.begin()) { if (temp.size()>1) ub++; }
+	  //
+	  // Otherwise, decrement the lower boundary
+	  //
+	  else { lb--; }
+    
+	  // Compute the associated indices
+	  //
+	  size_t ii = lb - temp.begin();
+	  size_t jj = ub - temp.begin();
+	  double kk = I->kgrid[ii];
+	  
+	  // Linear interpolation
+	  //
+	  if (*ub > *lb) {
+	    double d = *ub - *lb;
+	    double a = (C - *lb) / d;
+	    double b = (*ub - C) / d;
+	    /*
+	    std::cout << "[a, b] = [" << a << ", " << b << "]"
+		      << ", c = " << C << std::endl;
+	    */
+	    kk  = a * I->kgrid[ii] + b * I->kgrid[jj];
+	  }
+
+	  h_buffer1[i + j*I->NfreeFreeGrid] = kk;
+
+	} // END: cumululative array loop
+
+      } // END: energy loop
+
+      /*
+      for (int j=0; j<CHCUMK; j++) {
+	std::cout << std::setw(12) << delC*j;
+	for (int i = 0; i < std::min<int>(5, I->NfreeFreeGrid); i++) {
+	  std::cout << std::setw(12) << h_buffer1[i+j*I->NfreeFreeGrid];
+	}
+	std::cout << std::endl;
       }
+      */
 
       // Copy 1-dim data to device
       //
       size_t tsize = I->NfreeFreeGrid*sizeof(cuFP_t);
 
-      cuda_safe_call(cudaMemcpyToArray(cuF0array[k], 0, 0, &d_Interp0, tsize, cudaMemcpyHostToDevice), __FILE__, __LINE__, "copy texture to array");
+      // Allocate CUDA array in device memory (a one-dimension 'channel')
+      //
+#if cuREAL == 4
+      cudaChannelFormatDesc channelDesc1 = cudaCreateChannelDesc<float>();
+#else
+      cudaChannelFormatDesc channelDesc1 = cudaCreateChannelDesc<int2>();
+#endif
+      
+      std::cout << "Allocating cuF0array[" << k << "]" << std::endl;
+      cuda_safe_call(cudaMallocArray(&cuF0array[k], &channelDesc1, I->NfreeFreeGrid), __FILE__, __LINE__, "malloc cuArray");
+
+      cuda_safe_call(cudaMemcpyToArray(cuF0array[k], 0, 0, &h_buffer0[0], tsize, cudaMemcpyHostToDevice), __FILE__, __LINE__, "copy texture to array");
 
       // Specify 1-d texture
 
@@ -145,26 +207,27 @@ void chdata::cuda_initialize_textures()
       cuda_safe_call(cudaCreateTextureObject(&ff_0[k], &resDesc, &texDesc, NULL), __FILE__, __LINE__, "create texture object");
 
       // Copy data to device
-      cuda_safe_call(cudaMemcpy(d_Interp, &h_buffer1[0], I->NfreeFreeGrid*CHCUMK*sizeof(cuFP_t), cudaMemcpyHostToDevice), __FILE__, __LINE__, "Error copying texture table to device");
+      tsize = I->NfreeFreeGrid*CHCUMK*sizeof(cuFP_t);
+      cuda_safe_call(cudaMemcpy(d_Interp, &h_buffer1[0], tsize, cudaMemcpyHostToDevice), __FILE__, __LINE__, "Error copying texture table to device");
     
       // cuda 2d Array Descriptor
       //
 #if cuREAL == 4
-      cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<float>();
+      cudaChannelFormatDesc channelDesc2 = cudaCreateChannelDesc<float>();
 #else
-      cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<int2>();
+      cudaChannelFormatDesc channelDesc2 = cudaCreateChannelDesc<int2>();
 #endif
       // cuda 2d Array
       //
-      cuda_safe_call(cudaMalloc3DArray(&cuFFarray[k], &channelDesc, make_cudaExtent(I->NfreeFreeGrid, I->kffsteps, 1), 0), __FILE__, __LINE__, "Error allocating cuArray for 3d texture");
+      cuda_safe_call(cudaMalloc3DArray(&cuFFarray[k], &channelDesc2, make_cudaExtent(I->NfreeFreeGrid, CHCUMK, 1), 0), __FILE__, __LINE__, "Error allocating cuArray for 3d texture");
       
       // Array creation
       //
       cudaMemcpy3DParms copyParams = {0};
   
-      copyParams.srcPtr   = make_cudaPitchedPtr(d_Interp, I->NfreeFreeGrid*sizeof(cuFP_t), I->NfreeFreeGrid, I->kffsteps);
+      copyParams.srcPtr   = make_cudaPitchedPtr(d_Interp, I->NfreeFreeGrid*sizeof(cuFP_t), I->NfreeFreeGrid, CHCUMK);
       copyParams.dstArray = cuFFarray[k];
-      copyParams.extent   = make_cudaExtent(I->NfreeFreeGrid, I->kffsteps, 1);
+      copyParams.extent   = make_cudaExtent(I->NfreeFreeGrid, CHCUMK, 1);
       copyParams.kind     = cudaMemcpyDeviceToDevice;
       
       cuda_safe_call(cudaMemcpy3D(&copyParams), __FILE__, __LINE__, "Error in copying 3d pitched array");
@@ -231,7 +294,7 @@ void chdata::cuda_initialize_textures()
       NColl[k] = I->NcollideGrid;
 
       cudaTextureDesc texDesc;
-
+      
       memset(&texDesc, 0, sizeof(texDesc));
       texDesc.readMode = cudaReadModeElementType;
       texDesc.filterMode = cudaFilterModePoint;
@@ -242,6 +305,8 @@ void chdata::cuda_initialize_textures()
       // Temporary storage
       //
       cuFP_t *d_Interp;
+      std::cout << "Size(" << I->Z << ", " << I->C << ")="
+		<< I->NcollideGrid << std::endl;
       cuda_safe_call(cudaMalloc((void **)&d_Interp, I->NcollideGrid*2*sizeof(cuFP_t)),
 		     __FILE__, __LINE__,
 		     "Error allocating d_Interp for texture construction");
@@ -293,7 +358,7 @@ void chdata::cuda_initialize_textures()
       cuda_safe_call(cudaFree(d_Interp), __FILE__, __LINE__, "Failure freeing device memory");
     }
 
-    if (cuZ[k] <= cuC[k]) {
+    if (cuC[k] <= cuZ[k]) {
 
       NIonz[k] = I->NionizeGrid;
 
@@ -319,6 +384,9 @@ void chdata::cuda_initialize_textures()
       
       thrust::host_vector<cuFP_t> tt(I->NionizeGrid);
       
+      std::cout << "Size(" << I->Z << ", " << I->C << ")="
+		<< I->NionizeGrid << std::endl;
+
       cuda_safe_call(cudaMallocArray(&cuCIarray[k], &channelDesc, I->NionizeGrid), __FILE__, __LINE__, "malloc cuArray");
 
       // Copy to device memory some data located at address h_data
@@ -337,6 +405,9 @@ void chdata::cuda_initialize_textures()
       
       cuda_safe_call(cudaCreateTextureObject(&ci_d[k], &resDesc, &texDesc, NULL), __FILE__, __LINE__, "create texture object");
     }
+    
+    // Increment counter
+    k++;	
     
   } // END: IonList
 
@@ -480,6 +551,10 @@ __global__ void testFreeFree
 
 void chdata::testCross(int Nenergy)
 {
+  // Timers
+  //
+  Timer serial, cuda;
+
   // Loop over ions and tabulate statistics
   //
   size_t k = 0;
@@ -492,7 +567,7 @@ void chdata::testCross(int Nenergy)
 
     // Make an energy grid
     //
-    double dE = (I->EmaxGrid - I->EminGrid)/(Nenergy-1);
+    double dE = (I->EmaxGrid - I->EminGrid)/(Nenergy-1) * 0.999;
     for (int i=0; i<Nenergy; i++) {
       energy_h[i] = I->EminGrid + dE*i;
       randsl_h[i] = static_cast<cuFP_t>(rand())/RAND_MAX;
@@ -509,20 +584,32 @@ void chdata::testCross(int Nenergy)
       unsigned int gridSize  = Nenergy/BLOCK_SIZE;
       if (Nenergy > gridSize*BLOCK_SIZE) gridSize++;
 
+      cuda.start();
       testFreeFree<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), toKernel(randsl_d),
 					     toKernel(ph_d), toKernel(xc_d),
 					     ff_0[k], ff_d[k]);
       
       thrust::host_vector<cuFP_t> ph_h = ph_d;
       thrust::host_vector<cuFP_t> xc_h = xc_d;
+      cuda.stop();
 
       std::vector<double> ph_0(Nenergy), xc_0(Nenergy);
 
+      serial.start();
       for (int i=0; i<Nenergy; i++) {
 	auto ret = I->freeFreeCrossTest(energy_h[i], randsl_h[i], 0);
 	xc_0[i] = (xc_h[i] - ret.first )/ret.first;
 	ph_0[i] = (ph_h[i] - ret.second)/ret.second;
+	/*
+	std::cout << std::setw( 4) << i
+		  << std::setw(18) << xc_h[i]
+		  << std::setw(18) << ret.first
+		  << std::setw(18) << ph_h[i]
+		  << std::setw(18) << ret.second
+		  << std::endl;
+	*/
       }
+      serial.stop();
 
       std::sort(xc_0.begin(), xc_0.end());
       std::sort(ph_0.begin(), ph_0.end());
@@ -540,6 +627,12 @@ void chdata::testCross(int Nenergy)
 
     }
 
+    k++;
+
   } // END: Ion list
+
+  std::cout << std::endl
+	    << "Serial time: " << serial() << std::endl
+	    << "Cuda time  : " << cuda()   << std::endl;
 
 }
