@@ -611,10 +611,10 @@ __global__ void testColExcite
 #if cuREAL == 4
       xc._v[tid] = 
 	A*tex3D<float>(tex, indx,   0, 0) +
-	B*tex1D<float>(tex, indx+1, 0, 0) ;
+	B*tex3D<float>(tex, indx+1, 0, 0) ;
       ph._v[tid] = 
 	A*tex3D<float>(tex, indx,   1, 0) +
-	B*tex1D<float>(tex, indx+1, 1, 0) ;
+	B*tex3D<float>(tex, indx+1, 1, 0) ;
 #else
       xc._v[tid] = 
 	A*int2_as_double(tex3D<int2>(tex, indx  , 0, 0)) +
@@ -622,6 +622,111 @@ __global__ void testColExcite
       ph._v[tid] = 
 	A*int2_as_double(tex3D<int2>(tex, indx  , 1, 0)) +
 	B*int2_as_double(tex3D<int2>(tex, indx+1, 1, 0)) ;
+#endif
+    }
+
+  }
+
+  __syncthreads();
+}
+
+__global__ void testColIonize
+(dArray<cuFP_t> energy, dArray<cuFP_t> xc,
+ cudaTextureObject_t tex, cuFP_t Emin, cuFP_t Emax, cuFP_t delE, int Ngrid)
+{
+  // Thread ID
+  //
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
+
+  // Total number of evals
+  //
+  const unsigned int N = energy._s;
+
+  if (tid < N) {
+
+    cuFP_t E = energy._v[tid];
+
+    if (E < Emin or E > Emax) {
+
+      xc._v[tid] = 0.0;
+
+    } else {
+
+      // Interpolate the values
+      //
+      int indx = std::floor( (E - Emin)/delE );
+
+      // Sanity check
+      //
+      if (indx > Ngrid-2) indx = Ngrid - 2;
+      if (indx < 0)       indx = 0;
+      
+      double eA   = Emin + delE*indx;
+      double eB   = Emin + delE*(indx+1);
+    
+      double A = (eB - E)/delE;
+      double B = (E - eA)/delE;
+    
+#if cuREAL == 4
+      xc._v[tid] = 
+	A*tex1D<float>(tex, indx  ) +
+	B*tex1D<float>(tex, indx+1) ;
+#else
+      xc._v[tid] = 
+	A*int2_as_double(tex1D<int2>(tex, indx  )) +
+	B*int2_as_double(tex1D<int2>(tex, indx+1)) ;
+#endif
+    }
+
+  }
+
+  __syncthreads();
+}
+
+__global__ void testRadRecomb
+(dArray<cuFP_t> energy, dArray<cuFP_t> xc, cudaTextureObject_t tex)
+{
+  // Thread ID
+  //
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
+
+  // Total number of evals
+  //
+  const unsigned int N = energy._s;
+
+  if (tid < N) {
+
+    cuFP_t E = energy._v[tid];
+
+    if (E < ionEminGrid or E > ionEmaxGrid) {
+
+      xc._v[tid] = 0.0;
+
+    } else {
+
+      // Interpolate the values
+      //
+      int indx = std::floor( (E - ionEminGrid)/ionDeltaEGrid );
+
+      // Sanity check
+      //
+      if (indx > ionRadRecombNumber-2) indx = ionRadRecombNumber - 2;
+      if (indx < 0)                    indx = 0;
+      
+      double eA   = ionEminGrid + ionDeltaEGrid*indx;
+      double eB   = ionEminGrid + ionDeltaEGrid*(indx+1);
+    
+      double A = (eB - E)/ionDeltaEGrid;
+      double B = (E - eA)/ionDeltaEGrid;
+    
+#if cuREAL == 4
+      xc._v[tid] = 
+	A*tex1D<float>(tex, indx  ) +
+	B*tex1D<float>(tex, indx+1) ;
+#else
+      xc._v[tid] = 
+	A*int2_as_double(tex1D<int2>(tex, indx  )) +
+	B*int2_as_double(tex1D<int2>(tex, indx+1)) ;
 #endif
     }
 
@@ -661,6 +766,7 @@ void chdata::testCross(int Nenergy)
 
     thrust::device_vector<cuFP_t> eFF_d(Nenergy), xFF_d(Nenergy);
     thrust::device_vector<cuFP_t> eCE_d(Nenergy), xCE_d(Nenergy);
+    thrust::device_vector<cuFP_t> xCI_d(Nenergy), xRC_d(Nenergy);
 
     unsigned int gridSize  = Nenergy/BLOCK_SIZE;
     if (Nenergy > gridSize*BLOCK_SIZE) gridSize++;
@@ -677,17 +783,29 @@ void chdata::testCross(int Nenergy)
 					      toKernel(eCE_d), toKernel(xCE_d), ce_d[k],
 					      ceEmin[k], ceEmax[k], ceDelE[k], NColl[k]);
       
+    if (cuC[k]<=cuZ[k])
+      testColIonize<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
+					      toKernel(xCI_d), ci_d[k],
+					      ciEmin[k], ciEmax[k], ciDelE[k], NIonz[k]);
+      
+    if (cuC[k]>1)
+      testRadRecomb<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
+					      toKernel(xRC_d), rc_d[k]);
+      
     std::cout << "k=" << k << " delE=" << ceDelE[k] << std::endl;
 
     thrust::host_vector<cuFP_t> eFF_h = eFF_d;
     thrust::host_vector<cuFP_t> xFF_h = xFF_d;
     thrust::host_vector<cuFP_t> eCE_h = eCE_d;
     thrust::host_vector<cuFP_t> xCE_h = xCE_d;
+    thrust::host_vector<cuFP_t> xCI_h = xCI_d;
+    thrust::host_vector<cuFP_t> xRC_h = xRC_d;
     
     cuda.stop();
     
     std::vector<double> eFF_0(Nenergy, 0), xFF_0(Nenergy, 0);
     std::vector<double> eCE_0(Nenergy, 0), xCE_0(Nenergy, 0);
+    std::vector<double> xCI_0(Nenergy, 0), xRC_0(Nenergy, 0);
     
     serial.start();
     
@@ -703,17 +821,49 @@ void chdata::testCross(int Nenergy)
       auto retCE = I->collExciteCross(energy_h[i], 0).back();
       if (retCE.first>0.0) {
 	xCE_0[i]   = (xCE_h[i] - retCE.first )/retCE.first;
+	/*
 	std::cout << std::setw( 4) << cuZ[k]
 		  << std::setw( 4) << cuC[k]
 		  << std::setw(14) << energy_h[i]
 		  << std::setw(14) << xCE_h[i]
 		  << std::setw(14) << retCE.first
 		  << std::endl;
+	*/
       }
+				// Collisional ionization
+
+      auto retCI = I->directIonCross(energy_h[i], 0);
+      if (retCI>0.0) {
+	xCI_0[i]   = (xCI_h[i] - retCI)/retCI;
+	/*
+	std::cout << std::setw( 4) << cuZ[k]
+		  << std::setw( 4) << cuC[k]
+		  << std::setw(14) << energy_h[i]
+		  << std::setw(14) << xCI_h[i]
+		  << std::setw(14) << retCI
+		  << std::endl;
+	*/
+      }
+
+				// Radiative recombination
+
+      auto retRC = I->radRecombCross(energy_h[i], 0).back();
+      if (retRC>0.0) {
+	xRC_0[i]   = (xRC_h[i] - retRC)/retRC;
+	/*
+	std::cout << std::setw( 4) << cuZ[k]
+		  << std::setw( 4) << cuC[k]
+		  << std::setw(14) << energy_h[i]
+		  << std::setw(14) << xRC_h[i]
+		  << std::setw(14) << retRC
+		  << std::endl;
+	*/
+      }
+
+      /*
       if (retCE.second>0.0)
 	eCE_0[i]   = (eCE_h[i] - retCE.second)/retCE.second;
 
-      /*
       if (cuC[k]<=cuZ[k])
 	std::cout << std::setw(14) << xCE_h[i]
 		  << std::setw(14) << eCE_h[i]
@@ -727,6 +877,8 @@ void chdata::testCross(int Nenergy)
     std::sort(eFF_0.begin(), eFF_0.end());
     std::sort(xCE_0.begin(), xCE_0.end());
     std::sort(eCE_0.begin(), eCE_0.end());
+    std::sort(xCI_0.begin(), xCI_0.end());
+    std::sort(xRC_0.begin(), xRC_0.end());
     
     std::vector<double> quantiles = {0.01, 0.05, 0.1, 0.2, 0.5, 0.8, 0.9, 0.95, 0.99};
 
@@ -734,15 +886,18 @@ void chdata::testCross(int Nenergy)
     for (auto v : quantiles) {
       int indx = std::min<int>(std::floor(v*Nenergy+0.5), Nenergy-1);
       double FF_xc = 0.0, FF_ph = 0.0, CE_xc = 0.0, CE_ph = 0.0;
+      double CI_xc = 0.0, RC_xc = 0.0;
       
       if (cuC[k]>1) {
 	FF_xc = xFF_0[indx];
 	FF_ph = eFF_0[indx];
+	RC_xc = xRC_0[indx];
       }
 
       if (cuC[k]<=cuZ[k]) {
 	CE_xc = xCE_0[indx];
 	CE_ph = eCE_0[indx];
+	CI_xc = xCI_0[indx];
       }
 
       std::cout << std::setw(10) << v
@@ -750,6 +905,8 @@ void chdata::testCross(int Nenergy)
 		<< " | " << std::setw(14) << FF_ph
 		<< " | " << std::setw(14) << CE_xc
 		<< " | " << std::setw(14) << CE_ph
+		<< " | " << std::setw(14) << CI_xc
+		<< " | " << std::setw(14) << RC_xc
 		<< std::endl;
     }
 
