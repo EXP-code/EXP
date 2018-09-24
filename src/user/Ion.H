@@ -218,7 +218,9 @@ protected:
   //! Working device vectors
   std::vector<cudaArray_t> cuF0array, cuFFarray, cuRCarray, cuCEarray, cuCIarray;
   std::vector<cudaTextureObject_t> ff_0, ff_d, rc_d, ce_d, ci_d;
-  std::vector<int> cuZ, cuC, NColl, NIonz;
+  std::vector<cuFP_t> ceEmin, ceEmax, ceDelE;
+  std::vector<cuFP_t> ciEmin, ciEmax, ciDelE;
+  std::vector<int>    cuZ, cuC, NColl, NIonz;
 
   //! Initialize constants describing texture grids
   void cuda_initialize_grid_constants();

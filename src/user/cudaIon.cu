@@ -37,6 +37,14 @@ void chdata::cuda_initialize_textures()
   cuCEarray.resize(ionSize, 0);
   cuCIarray.resize(ionSize, 0);
 
+  ceEmin   .resize(ionSize, 0);
+  ceEmax   .resize(ionSize, 0);
+  ceDelE   .resize(ionSize, 0);
+
+  ciEmin   .resize(ionSize, 0);
+  ciEmax   .resize(ionSize, 0);
+  ciDelE   .resize(ionSize, 0);
+
   NColl.    resize(ionSize, 0);
   NIonz.    resize(ionSize, 0);
 
@@ -291,7 +299,16 @@ void chdata::cuda_initialize_textures()
 
     if (cuC[k] <= cuZ[k]) {
 
-      NColl[k] = I->NcollideGrid;
+      ceEmin[k] = I->collideEmin;
+      ceEmax[k] = I->collideEmax;
+      ceDelE[k] = I->delCollideE;
+      NColl [k] = I->NcollideGrid;
+
+      std::cout << " k=" << k
+		<< " Emin=" << ceEmin[k]
+		<< " Emax=" << ceEmax[k]
+		<< " delE=" << ceDelE[k]
+		<< std::endl;
 
       cudaTextureDesc texDesc;
       
@@ -321,7 +338,7 @@ void chdata::cuda_initialize_textures()
       }
       
       // Copy data to device
-      cuda_safe_call(cudaMemcpy(d_Interp, &h_buffer[0], I->NcollideGrid*sizeof(cuFP_t), cudaMemcpyHostToDevice), __FILE__, __LINE__, "Error copying texture table to device");
+      cuda_safe_call(cudaMemcpy(d_Interp, &h_buffer[0], I->NcollideGrid*2*sizeof(cuFP_t), cudaMemcpyHostToDevice), __FILE__, __LINE__, "Error copying texture table to device");
     
       // cudaArray Descriptor
       //
@@ -360,7 +377,10 @@ void chdata::cuda_initialize_textures()
 
     if (cuC[k] <= cuZ[k]) {
 
-      NIonz[k] = I->NionizeGrid;
+      ciEmin[k] = I->ionizeEmin;
+      ciEmax[k] = I->ionizeEmax;
+      ciDelE[k] = I->DeltaEGrid;
+      NIonz [k] = I->NionizeGrid;
 
       // Allocate CUDA array in device memory (a one-dimension 'channel')
       //
@@ -549,6 +569,67 @@ __global__ void testFreeFree
   __syncthreads();
 }
 
+__global__ void testColExcite
+(dArray<cuFP_t> energy,
+ dArray<cuFP_t> ph, dArray<cuFP_t> xc,
+ cudaTextureObject_t tex, cuFP_t Emin, cuFP_t Emax, cuFP_t delE, int Ngrid)
+{
+  // Thread ID
+  //
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
+
+  // Total number of evals
+  //
+  const unsigned int N = energy._s;
+
+  if (tid < N) {
+
+    cuFP_t E = energy._v[tid];
+
+    if (E < Emin or E > Emax) {
+
+      xc._v[tid] = 0.0;
+      ph._v[tid] = 0.0;
+
+    } else {
+
+      // Interpolate the values
+      //
+      int indx = std::floor( (E - Emin)/delE );
+
+      // Sanity check
+      //
+      if (indx > Ngrid-2) indx = Ngrid - 2;
+      if (indx < 0)       indx = 0;
+      
+      double eA   = Emin + delE*indx;
+      double eB   = Emin + delE*(indx+1);
+    
+      double A = (eB - E)/delE;
+      double B = (E - eA)/delE;
+    
+#if cuREAL == 4
+      xc._v[tid] = 
+	A*tex3D<float>(tex, indx,   0, 0) +
+	B*tex1D<float>(tex, indx+1, 0, 0) ;
+      ph._v[tid] = 
+	A*tex3D<float>(tex, indx,   1, 0) +
+	B*tex1D<float>(tex, indx+1, 1, 0) ;
+#else
+      xc._v[tid] = 
+	A*int2_as_double(tex3D<int2>(tex, indx  , 0, 0)) +
+	B*int2_as_double(tex3D<int2>(tex, indx+1, 0, 0)) ;
+      ph._v[tid] = 
+	A*int2_as_double(tex3D<int2>(tex, indx  , 1, 0)) +
+	B*int2_as_double(tex3D<int2>(tex, indx+1, 1, 0)) ;
+#endif
+    }
+
+  }
+
+  __syncthreads();
+}
+
 void chdata::testCross(int Nenergy)
 {
   // Timers
@@ -577,54 +658,99 @@ void chdata::testCross(int Nenergy)
     thrust::device_vector<cuFP_t> randsl_d = randsl_h;
 
     // Only free-free for non-neutral species
-    if (cuC[k]>1) {
 
-      thrust::device_vector<cuFP_t> ph_d(Nenergy), xc_d(Nenergy);
+    thrust::device_vector<cuFP_t> eFF_d(Nenergy), xFF_d(Nenergy);
+    thrust::device_vector<cuFP_t> eCE_d(Nenergy), xCE_d(Nenergy);
 
-      unsigned int gridSize  = Nenergy/BLOCK_SIZE;
-      if (Nenergy > gridSize*BLOCK_SIZE) gridSize++;
+    unsigned int gridSize  = Nenergy/BLOCK_SIZE;
+    if (Nenergy > gridSize*BLOCK_SIZE) gridSize++;
 
-      cuda.start();
+    cuda.start();
+
+    if (cuC[k]>1)
       testFreeFree<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), toKernel(randsl_d),
-					     toKernel(ph_d), toKernel(xc_d),
+					     toKernel(eFF_d), toKernel(xFF_d),
 					     ff_0[k], ff_d[k]);
+
+    if (cuC[k]<=cuZ[k])
+      testColExcite<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
+					      toKernel(eCE_d), toKernel(xCE_d), ce_d[k],
+					      ceEmin[k], ceEmax[k], ceDelE[k], NColl[k]);
       
-      thrust::host_vector<cuFP_t> ph_h = ph_d;
-      thrust::host_vector<cuFP_t> xc_h = xc_d;
-      cuda.stop();
+    std::cout << "k=" << k << " delE=" << ceDelE[k] << std::endl;
 
-      std::vector<double> ph_0(Nenergy), xc_0(Nenergy);
+    thrust::host_vector<cuFP_t> eFF_h = eFF_d;
+    thrust::host_vector<cuFP_t> xFF_h = xFF_d;
+    thrust::host_vector<cuFP_t> eCE_h = eCE_d;
+    thrust::host_vector<cuFP_t> xCE_h = xCE_d;
+    
+    cuda.stop();
+    
+    std::vector<double> eFF_0(Nenergy, 0), xFF_0(Nenergy, 0);
+    std::vector<double> eCE_0(Nenergy, 0), xCE_0(Nenergy, 0);
+    
+    serial.start();
+    
+    for (int i=0; i<Nenergy; i++) {
+				// Free-free
+      auto retFF = I->freeFreeCrossTest(energy_h[i], randsl_h[i], 0);
+      if (retFF.first>0.0)
+	xFF_0[i]   = (xFF_h[i] - retFF.first )/retFF.first;
+      if (retFF.second>0.0)
+	eFF_0[i]   = (eFF_h[i] - retFF.second)/retFF.second;
 
-      serial.start();
-      for (int i=0; i<Nenergy; i++) {
-	auto ret = I->freeFreeCrossTest(energy_h[i], randsl_h[i], 0);
-	xc_0[i] = (xc_h[i] - ret.first )/ret.first;
-	ph_0[i] = (ph_h[i] - ret.second)/ret.second;
-	/*
-	std::cout << std::setw( 4) << i
-		  << std::setw(18) << xc_h[i]
-		  << std::setw(18) << ret.first
-		  << std::setw(18) << ph_h[i]
-		  << std::setw(18) << ret.second
-		  << std::endl;
-	*/
-      }
-      serial.stop();
-
-      std::sort(xc_0.begin(), xc_0.end());
-      std::sort(ph_0.begin(), ph_0.end());
-
-      std::vector<double> quantiles = {0.01, 0.05, 0.1, 0.2, 0.5, 0.8, 0.9, 0.95, 0.99};
-
-      std::cout << "Ion (" << I->Z << ", " << I->C << ")" << std::endl;
-      for (auto v : quantiles) {
-	int indx = std::min<int>(std::floor(v*Nenergy+0.5), Nenergy-1);
-	std::cout << std::setw(10) << v
-		  << " | " << std::setw(14) << xc_0[indx]
-		  << " | " << std::setw(14) << ph_0[indx]
+				// Collisional excitation
+      auto retCE = I->collExciteCross(energy_h[i], 0).back();
+      if (retCE.first>0.0) {
+	xCE_0[i]   = (xCE_h[i] - retCE.first )/retCE.first;
+	std::cout << std::setw( 4) << cuZ[k]
+		  << std::setw( 4) << cuC[k]
+		  << std::setw(14) << energy_h[i]
+		  << std::setw(14) << xCE_h[i]
+		  << std::setw(14) << retCE.first
 		  << std::endl;
       }
+      if (retCE.second>0.0)
+	eCE_0[i]   = (eCE_h[i] - retCE.second)/retCE.second;
 
+      /*
+      if (cuC[k]<=cuZ[k])
+	std::cout << std::setw(14) << xCE_h[i]
+		  << std::setw(14) << eCE_h[i]
+		  << std::endl;
+      */
+    }
+
+    serial.stop();
+
+    std::sort(xFF_0.begin(), xFF_0.end());
+    std::sort(eFF_0.begin(), eFF_0.end());
+    std::sort(xCE_0.begin(), xCE_0.end());
+    std::sort(eCE_0.begin(), eCE_0.end());
+    
+    std::vector<double> quantiles = {0.01, 0.05, 0.1, 0.2, 0.5, 0.8, 0.9, 0.95, 0.99};
+
+    std::cout << "Ion (" << I->Z << ", " << I->C << ")" << std::endl;
+    for (auto v : quantiles) {
+      int indx = std::min<int>(std::floor(v*Nenergy+0.5), Nenergy-1);
+      double FF_xc = 0.0, FF_ph = 0.0, CE_xc = 0.0, CE_ph = 0.0;
+      
+      if (cuC[k]>1) {
+	FF_xc = xFF_0[indx];
+	FF_ph = eFF_0[indx];
+      }
+
+      if (cuC[k]<=cuZ[k]) {
+	CE_xc = xCE_0[indx];
+	CE_ph = eCE_0[indx];
+      }
+
+      std::cout << std::setw(10) << v
+		<< " | " << std::setw(14) << FF_xc
+		<< " | " << std::setw(14) << FF_ph
+		<< " | " << std::setw(14) << CE_xc
+		<< " | " << std::setw(14) << CE_ph
+		<< std::endl;
     }
 
     k++;
