@@ -1,16 +1,25 @@
 #include <cudaElastic.cuH>
 
+// Atomic radii in picometers from Clementi, E.; Raimond, D. L.;
+// Reinhardt, W. P. (1967). "Atomic Screening Constants from SCF
+// Functions. II. Atoms with 37 to 86 Electrons". Journal of Chemical
+// Physics 47 (4): 1300-1307.  See also Paper 1, ref. therein.
+//
+const int numRadii = 87;
 __constant__ int cudaRadii[numRadii];
 
 // Cross section interpolation arrays for electron-neutral and
 // proton-neutral interactions
 //
 thrust::device_vector<cuFP_t> xsc_H, xsc_He, xsc_pH, xsc_pHe;
+__constant__ cuFP_t cuH_H, cuHe_H, cuPH_H, cuPHe_H;
+__constant__ cuFP_t cuH_Emin, cuHe_Emin, cuPH_Emin, cuPHe_Emin;
 
 // For construction of evenly spaced interpolation arrays
 //
 thrust::host_vector<cuFP_t>
-resampleArray(const std::vector<cuFP_t>& x, const std::vector<cuFP_t>& y)
+resampleArray(const std::vector<cuFP_t>& x, const std::vector<cuFP_t>& y,
+	      cuFP_t& dx)
 {
   // Get minimum grid spacing
   cuFP_t minH = std::numeric_limits<cuFP_t>::max();
@@ -22,7 +31,7 @@ resampleArray(const std::vector<cuFP_t>& x, const std::vector<cuFP_t>& y)
 
   thrust::host_vector<cuFP_t> Y(numH);
   
-  cuFP_t dx = (x.back() - x.front())/(numH - 1);
+  dx = (x.back() - x.front())/(numH - 1);
 
   for (int i=0; i<numH; i++) {
     cuFP_t xx = x.back() + dx*i, yy;
@@ -214,7 +223,15 @@ void cudaElasticInit()
   eV_H.push_back(13.4212320116212);	xs_H.push_back(6.10568);
   eV_H.push_back(13.600541506433);	xs_H.push_back(5.9924);;
 
-  xsc_H = resampleArray(eV_H, xs_H);
+  cuFP_t dx;
+
+  xsc_H = resampleArray(eV_H, xs_H, dx);
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuH_Emin, &eV_H[0], sizeof(cuFP_t)),
+		 __FILE__, __LINE__, "Error copying cuH_Emin");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuH_H, &dx, sizeof(cuFP_t)),
+		 __FILE__, __LINE__, "Error copying cuH_H");
 
   // Total cross section from LaBahn & Callaway, 1966, Phys. Rev., 147, 50, 28-40
   //
@@ -357,7 +374,13 @@ void cudaElasticInit()
   eV_He.push_back(49.7885);	xs_He.push_back(14.6749447715956);
   eV_He.push_back(49.9763);	xs_He.push_back(14.4781239918482);
 
-  xsc_He = resampleArray(eV_He, xs_He);
+  xsc_He = resampleArray(eV_He, xs_He, dx);
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuH_Emin, &eV_He[0], sizeof(cuFP_t)), 
+		 __FILE__, __LINE__, "Error copying cuHe_Emin");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuH_H, &dx, sizeof(cuFP_t)), 
+		 __FILE__, __LINE__, "Error copying cuHe_H");
 
   // Interpolated from Figure 1 of "Elastic scattering and charge
   // transfer in slow collisions: isotopes of H and H + colliding with
@@ -399,7 +422,13 @@ void cudaElasticInit()
   eV_pH.push_back(1.9131);	xs_pH.push_back(2.40094);
   eV_pH.push_back(2.0159);	xs_pH.push_back(2.36315);
 
-  xsc_pH = resampleArray(eV_pH, xs_pH);
+  xsc_pH = resampleArray(eV_pH, xs_pH, dx);
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuPH_Emin, &eV_pH[0], sizeof(cuFP_t)), 
+		 __FILE__, __LINE__, "Error copying cuPH_Emin");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuPH_H, &dx, sizeof(cuFP_t)), 
+		 __FILE__, __LINE__, "Error copying cuPH_H");
 
   // Interpolated from the top panel of Figure 4, op. cit.
   //
@@ -445,5 +474,35 @@ void cudaElasticInit()
   eV_pHe.push_back(1.87302);	xs_pHe.push_back(1.91111);
   eV_pHe.push_back(1.95238);	xs_pHe.push_back(1.91111);
 
-  xsc_pHe = resampleArray(eV_pHe, xs_pHe);
+  xsc_pHe = resampleArray(eV_pHe, xs_pHe, dx);
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuPHe_Emin, &eV_pHe[0], sizeof(cuFP_t)), 
+		 __FILE__, __LINE__, "Error copying cuPHe_Emin");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuPHe_H, &dx, sizeof(cuFP_t)), 
+		 __FILE__, __LINE__, "Error copying cuPHe_H");
 }
+
+__device__
+cuFP_t cudaGeometric(int Z)
+{
+  if (Z>0 and Z< numRadii) {
+    return cudaRadii[Z] * 1.0e-3;
+  } else {
+    return 0.0;
+  }
+}
+		 
+__device__
+cuFP_t cudaElasticInterp(cuFP_t E, cuFP_t Emin, cuFP_t H, dArray<cuFP_t> xsc)
+{
+  int indx = 0;
+  if (E >= Emin+H*xsc._s) indx = xsc._s - 2;
+  else                    indx = floor( (E - Emin)/H );
+
+  cuFP_t a = E - Emin - H*indx;
+  cuFP_t b = Emin + H*(indx+1) - E;
+
+  return a*xsc._v[indx] + b*xsc._v[indx+1];
+}
+

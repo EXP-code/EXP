@@ -220,6 +220,10 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 				   dArray<char>   dZ,
 				   dArray<char>   dC,
 				   dArray<char>   dI,
+				   dArray<cuFP_t> xsc_H,
+				   dArray<cuFP_t> xsc_He,
+				   dArray<cuFP_t> xsc_pH,
+				   dArray<cuFP_t> xsc_pHe,
 				   int numNeut,
 				   int numProt,
 				   int numIon,
@@ -315,7 +319,7 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 	    double cross = 0.0;
 	    // Geometric cross sections based on
 	    // atomic radius
-	    double crs = (geometric(Z)*cscl_[Z] + geometric(ZZ)*cscl_[ZZ]) * cfac;
+	    double crs = (cudaGeometric(Z) + cudaGeometric(ZZ)) * cfac;
 	
 	    // Double counting
 	    if (Z == ZZ) crs *= 0.5;
@@ -330,12 +334,15 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 	  // *** Neutral atom-proton scattering
 	  // --------------------------------------
 
-	  if (P==0 and Z==1 and C==2) {
-	    double crs1 = elastic(Z, kEi[id], Elastic::proton) *
-	      crossfac * cfac;
+	  double crs1 = 0;
+	  if (ZZ==1 and CC==2) {
+	    if (Z==1 and P==0)
+	      crs1 = elastic(kEi, cuH_Emin, cuH_H, xsc_H) * crossfac * cfac;
+	    if (Z==2 and P==0)
+	      crs1 = elastic(kEi, cuHe_Emin, cuH_He, xsc_He) * crossfac * cfac;
+	  }
 	    
-	    
-
+	  // Need to write an index helper function here
 
 	hCross[id].push_back(XStup(t));
 	hCross[id].back().crs = crs1;
@@ -1263,6 +1270,7 @@ void * Collide::collide_thread_cuda(void * arg)
      toKernel(d_meanM),  toKernel(d_Ivel2),  toKernel(d_Evel2),
      toKernel(d_PiProb), toKernel(d_ABrate), toKernel(d_flagI), 
      toKernel(d_Z), toKernel(d_C), toKernel(d_I),
+     toKernel(xsc_H), toKernel(xsc_He), toKernel(xsc_pH), toKernel(xsc_pHe),
      numNeut, numProt, numIon, minSp, stride);
 
   // Compute the total cross section per cell
