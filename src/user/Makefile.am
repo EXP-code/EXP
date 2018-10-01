@@ -13,7 +13,7 @@ AM_CXXFLAGS = -std=c++11 -fPIC -fno-inline-small-functions -Wall \
 AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil -lgomp
 
 if ENABLE_CUDA
-  ADD_CUDA = cudaIon.cu
+  ADD_CUDA = cudaIon.cu cudaCollideIon.cu cudaElastic.cu
   ifeq ($(GENCODE_FLAGS),)
     $(foreach sm,@sm_vers@,$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
   endif

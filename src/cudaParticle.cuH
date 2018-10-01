@@ -3,6 +3,9 @@
 #ifndef PARTICLE_CUH
 #define PARTICLE_CUH
 
+#define DATTRIB_CUDA
+#define DATTRIB_NMAX 5
+
 #include <cuda.h>
 #include <cuda_runtime.h>
 
@@ -24,6 +27,9 @@ struct cudaParticle
   cuFP_t acc[3];
   cuFP_t pot;
   cuFP_t potext;
+#ifdef DATTRIB_CUDA
+  cuFP_t datr[DATTRIB_NMAX];
+#endif
   unsigned level;
   unsigned indx;
 } __attribute__((aligned));

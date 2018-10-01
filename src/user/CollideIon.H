@@ -799,6 +799,19 @@ private:
   //! (default: false)
   bool IonElecRate;
 
+  //! Collision thread.  Virtual to accomodate CUDA implementation
+  virtual void *collide_thread(void *arg) {
+#if HAVE_LIBCUDA==1
+    if (aType == Trace) {
+      return collide_thread_cuda(arg);
+    }
+#endif
+    return Collide::collide_thread(arg);
+  }
+
+  virtual void *collide_thread_cuda(void *arg);
+
+
 public:
 
   typedef std::set<unsigned short> ZLtype;

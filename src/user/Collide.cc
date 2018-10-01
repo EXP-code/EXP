@@ -191,7 +191,11 @@ void Collide::collide_thread_fork(sKeyDmap* Fn)
   int errcode;
   void *retval;
   
+#if HAVE_LIBCUDA==1
+  if (nthrds==1 or cudaDevice>=0) {
+#else
   if (nthrds==1) {
+#endif
     thrd_pass_Collide td;
     
     td.p        = this;
