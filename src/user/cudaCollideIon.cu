@@ -4,38 +4,22 @@
 #include <CollideIon.H>
 #include <cudaElastic.cuH>
 
-enum cudaInterTypesNeut { 
+enum cudaInterTypes { 
   neut_neut  = 0,
   neut_elec  = 1,
-  elec_neut  = 2
+  neut_prot  = 2,
+  ion_ion    = 3,
+  ion_elec   = 4,
+  free_free  = 5,
+  col_excite = 6,
+  col_ionize = 7,
+  recombine  = 8
 };
-
-enum cudaInterTypesProt {
-  neut_prot  = 0,
-  prot_neut  = 1
-};
-
-enum cudaInterTypesIon { 
-  ion_elec   = 0,
-  elec_ion   = 1,
-  ion_ion    = 2,
-  ie_ffree   = 3,
-  ei_ffree   = 4,
-  ie_colex   = 5,
-  ei_colex   = 6,
-  ie_ioniz   = 7,
-  ei_ioniz   = 8,
-  ie_recmb   = 9,
-  ei_recmb   = 10
-};
-
-const int numCudaInterTypesNeut = 3;
-const int numCudaInterTypesProt = 2;
-const int numCudaInterTypesIon  = 11;
 
 const int maxAtomicNumber = 15;
-__constant__ cuFP_t cuda_atomic_weights[MaxAtomicNumber];
+__constant__ cuFP_t cuda_atomic_weights[MaxAtomicNumber], cuFloorEV;
 __constant__ cuFP_t cuVunit, cuMunit, cuTunit, cuLunit, cuAmu, cuEV, cuLogL;
+__constant__ bool   cuMeanKE;
 
 void CollideIon::cuda_atomic_weights_init()
 {
@@ -83,6 +67,12 @@ void CollideIon::cuda_atomic_weights_init()
   v = logL;
   cuda_safe_call(cudaMemcpyToSymbol(cuLogL, &v, sizeof(cuFP_t)), 
 		 __FILE__, __LINE__, "Error copying cuLogL");
+  v = FloorEv;
+  cuda_safe_call(cudaMemcpyToSymbol(cuFloorEV, &v, sizeof(cuFP_t)), 
+		 __FILE__, __LINE__, "Error copying cuFloorEV");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuMeanKE, &MEAN_KE, sizeof(bool)), 
+		 __FILE__, __LINE__, "Error copying cuMeanKE");
 }  
 
 __global__ void cellInitKernel(dArray<cudaParticle> in,
@@ -204,13 +194,13 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,
 }
 
 __global__ void crossSectionKernel(dArray<cudaParticle> in,
-				   dArray<cuFP_t> crossT,
-				   dArray<cuFP_t> crossN,
-				   dArray<cuFP_t> crossP,
-				   dArray<cuFP_t> crossI,
+				   dArray<cuFP_t> cross,
+				   dArray<uchar4> xspec,
+				   dArray<uchar>  xtype,
 				   dArray<cuFP_t> xctot,
 				   dArray<int>    i1,
-				   dArray<cuFP_t> i2,
+				   dArray<int>    i2,
+				   dArray<int>    cc,
 				   dArray<cuFP_t> meanM,
 				   dArray<cuFP_t> Ivel2,
 				   dArray<cuFP_t> Evel2,
@@ -224,9 +214,7 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 				   dArray<cuFP_t> xsc_He,
 				   dArray<cuFP_t> xsc_pH,
 				   dArray<cuFP_t> xsc_pHe,
-				   int numNeut,
-				   int numProt,
-				   int numIon,
+				   int numxc,
 				   int minSp,
 				   unsigned int stride)
 {
@@ -241,11 +229,13 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 
       cudaParticle *p1 = i1._v[n];
       cudaParticle *p2 = i2._v[n];
+      int          cid = cc._v[n];
 
       cuFP_t Eta1=0.0, Eta2=0.0, Mu1=0.0, Mu2=0.0, Sum1=0.0, Sum2=0.0;
 
-      crossT._v[n] = 0.0;
+      xctot._v[n] = 0.0;	// Total cross section accumulator
 
+      int J = 0;		// Cross section position counter
 
       for (int k=0; k<Nsp; k++) {
 
@@ -273,16 +263,28 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
       cuFP_t N1 = p1->mass*cuMunit/(Mu1*cuAmu);
       cuFP_t N2 = p2->mass*cuMunit/(Mu2*cuAmu);
 
-
-      cuFP_t vel = 0.0;
+      cuFP_t vel = 0.0, eVel0 = 0.0, eVel1 = 0.0, eVel2 = 0.0;
       for (int k=0; k<3; k++) {
 	cuFP_t del = p1->vel[k] - p2->vel[k];
 	vel += del*del;
+	del = p1->vel[k] - p2->vel[k];
       }
 
       // Energy available in the center of mass of the atomic collision
       //
       vel = sqrt(vel) * cuVunit;
+
+      cuFP_t  m1 = Mu1 * cuAmu;
+      cuFP_t  m2 = Mu2 * cuAmu;
+      cuFP_t  me = cuda_atomic_weights[0] * cuAmu;
+      cuFP_t mu0 = m1 * m2 / (m1 + m2);
+      cuFP_t mu1 = m1 * me / (m1 + me);
+      cuFP_t mu2 = m2 * me / (m2 + me);
+
+      cuFP_t kEi = 0.5 * mu0 * vel * vel;
+
+      cuFP_t facE = 0.5 * cuAmu * cuVunit * cuVunit / cuEV;
+      cuFP_t Eion = fac * Ivel2._v[c] * 2.0/(Mu1 + Mu2);
 
       int nZ1 = 0;
       for (int k1=0; k1<Nsp; k1++) {
@@ -326,8 +328,12 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 
 	    cross += crs*crossfac;
 
-	    crossN._v[n*numNeut*numNeut + Z1*numNeut + Z2] = cross;
-	    crossT._v[n] += cross;
+	    cross._v[n*numxc+J] = cross;
+	    xspec._v[n*numxc+J] = make_char4(Z, C, ZZ, CC);
+	    xtype._v[n*numxc+J] = neut_neut;
+	    xctot._v[n] += cross;
+	    
+	    J++;		// Increment interaction counter
 	  }
 
 	  // --------------------------------------
@@ -335,95 +341,88 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 	  // --------------------------------------
 
 	  double crs1 = 0;
+
 	  if (ZZ==1 and CC==2) {
-	    if (Z==1 and P==0)
-	      crs1 = elastic(kEi, cuH_Emin, cuH_H, xsc_H) * crossfac * cfac;
-	    if (Z==2 and P==0)
-	      crs1 = elastic(kEi, cuHe_Emin, cuH_He, xsc_He) * crossfac * cfac;
+	    if (Z==1 and P==0) crs1 = cudaElasticInterp(kEi, cuPH_Emin,  cuH_PH,  xsc_PH );
+	    if (Z==2 and P==0) crs1 = cudaElasticInterp(kEi, cuPHe_Emin, cuH_PHe, xsc_PHe);
+	    crs1 *= crossfac * cfac;
 	  }
+	  
+	  if (Z==1 and C==2) {
+	    if (ZZ==1 and PP==0) crs1 = cudaElasticInterp(kEi, cuPH_Emin,  cuH_PH,  xsc_PH );
+	    if (ZZ==2 and PP==0) crs1 = cudaElasticInterp(kEi, cuPHe_Emin, cuH_PHe, xsc_PHe);
+	    crs1 *= crossfac * cfac;
+	  }
+
+	  if (crs1>0.0) {
+	    cross._v[n*numxc+J] = crs1;
+	    xspec._v[n*numxc+J] = make_char4(Z, C, ZZ, CC);
+	    xtype._v[n*numxc+J] = neut_prot;
+	    xctot._v[n] += crs1;
 	    
-	  // Need to write an index helper function here
+	    J++;
+	  }
 
-	hCross[id].push_back(XStup(t));
-	hCross[id].back().crs = crs1;
-	
-	CProb[id][0] += crs1;
-      } // end: neutral-proton scattering
+	  // --------------------------------------
+	  // *** Ion-ion scattering
+	  // --------------------------------------
+	  //
+	  if (P>0 and PP>0) {
+	    double kEc  = cuMeanKE ? Eion : kEi;
+	    double afac = cuEsu*cuEsu/std::max<double>(2.0*kEc*eV, cuFloorEV*cuEV) * 1.0e7;
+	    double crs  = 2.0 * ABrate._v[cid*4+0] * afac*afac / PiProb[cid*4+0];
 
-      if (PP==0 and k==proton) {
-	double crs1 = elastic(ZZ, kEi[id], Elastic::proton) *
-	  crossfac * cscl_[ZZ] * cfac;
-	
-	if (DEBUG_CRS) trap_crs(crs1);
-	
-	Interact::T t
-	{ neut_prot, Ion, {Interact::neutral, kk} };
+	    cross._v[n*numxc+J] = crs;
+	    xspec._v[n*numxc+J] = make_char4(Z, C, ZZ, CC);
+	    xtype._v[n*numxc+J] = ion_ion;
+	    xctot._v[n] += crs;
+	    
+	    J++;
+	  }
 
-	hCross[id].push_back(XStup(t));
-	hCross[id].back().crs = crs1;
-	
-	CProb[id][0] += crs1;
-      } // end: neutral-proton scattering
+	} // End of inner species loop
 
-
-      // --------------------------------------
-      // *** Ion-ion scattering
-      // --------------------------------------
-      //
-      if (P>0 and PP>0) {
-	double kEc  = MEAN_KE ? Eion[id]  : kEi[id];
-	double afac = esu*esu/std::max<double>(2.0*kEc*eV, FloorEv*eV) * 1.0e7;
-	double crs  = 2.0 * ABrate[id][0] * afac*afac / PiProb[id][0];
-
-	Interact::T t
-	{ ion_ion, Ion, {Interact::ion, kk} };
-
-	hCross[id].push_back(XStup(t));
-	hCross[id].back().crs = crs;
-	
-	CProb[id][0] += crs;
-      }
-      // End: ion-ion scattering
-
-
-    } // End of inner species loop
-
-    // --------------------------------------
-    // *** Neutral atom-electron scattering
-    // --------------------------------------
+	// --------------------------------------
+	// *** Neutral atom-electron scattering
+	// --------------------------------------
     
-    // Particle 1 ION, Particle 2 ELECTRON
-    //
-    if (P==0 and Eta2>0.0) {
-      double crs = elastic(Z, kEe1[id]) * gVel2 * Eta2 *
-	crossfac * cscl_[Z] * fac1;
+	// Particle 1 ION, Particle 2 ELECTRON
+	//
+	if (Z<=2 and P==0 and Eta2>0.0) {
+	  double crs = 0.0;
+	  if (Z==1) crs = cudaElasticInterp(kEe1[id], cuH_Emin, cuH_H, xsc_H) * gVel2 * Eta2 *
+		      crossfac * cscl_[Z] * fac1;
+	  if (Z==2) crs = cudaElasticInterp(kEe1[id], cuHe_Emin, cuH_He, xsc_He) * gVel2 * Eta2 *
+		      crossfac * cscl_[Z] * fac1;
 
-      if (DEBUG_CRS) trap_crs(crs);
+	  if (crs>0.0) {
+	    cross._v[n*numxc+J] = crs;
+	    xspec._v[n*numxc+J] = make_char4(Z, C, 0, 0);
+	    xtype._v[n*numxc+J] = neut_elec;
+	    xctot._v[n] += crs;
+	    
+	    J++;
+	  }
+	}
 
-      Interact::T t { neut_elec, Ion, Interact::edef };
+	// Particle 2 ION, Particle 1 ELECTRON
+	//
+	if (P==0 and Eta1>0.0) {
+	  double crs = 0.0;
+	  if (Z==1) crs = cudaElasticInterp(kEe2[id], cuH_Emin, cuH_H, xsc_H) * gVel2 * Eta2 *
+		      crossfac * cscl_[Z] * fac1;
+	  if (Z==2) crs = cudaElasticInterp(kEe2[id], cuHe_Emin, cuH_He, xsc_He) * gVel2 * Eta2 *
+		      crossfac * cscl_[Z] * fac1;
 
-      hCross[id].push_back(XStup(t));
-      hCross[id].back().crs = crs;
-      
-      CProb[id][1] += crs;
-    }
-
-    // Particle 2 ION, Particle 1 ELECTRON
-    //
-    if (P==0 and Eta1>0.0) {
-
-      double crs = elastic(Z, kEe2[id]) * gVel1 * Eta1 *
-	crossfac * cscl_[Z] * fac2;
-	
-      if (DEBUG_CRS) trap_crs(crs);
-
-      Interact::T t { neut_elec, Interact::edef, Ion };
-      
-      hCross[id].push_back(XStup(t));
-      hCross[id].back().crs = crs;
-      
-      CProb[id][2] += crs;
-    }
+	  if (crs>0.0) {
+	    cross._v[n*numxc+J] = crs;
+	    xspec._v[n*numxc+J] = make_char4(0, 0, Z, C);
+	    xtype._v[n*numxc+J] = neut_elec;
+	    xctot._v[n] += crs;
+	    
+	    J++;
+	  }
+	}
 
     // --------------------------------------
     // *** Ion-electron scattering
@@ -441,7 +440,7 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 	    gVel2 * Eta2 * crossfac * cscl_[Z] * fac1;
 	  
 	} else {
-	  double kEc  = MEAN_KE ? Eelc[id]  : kEe1[id];
+	  double kEc  = cuMeanKE ? Eelc[id]  : kEe1[id];
 	  double afac = esu*esu/std::max<double>(2.0*kEc*eV, FloorEv*eV) * 1.0e7;
 
 	  crs = 2.0 * ABrate[id][1] * afac*afac * gVel2 / PiProb[id][1];
@@ -822,7 +821,7 @@ __global__ void etaKernel(dArray<cudaParticle> in,
 	Sum += ww;
       }
 
-      mol._v[i] = Sum;
+      mol._v[i] = 1.0/Sum;
       if (Sum>0.0) eta._v[i] = Eta/Sum;
       else         eta._v[i] = 0.0;
     }
@@ -835,8 +834,8 @@ __global__ void energyKernel
  dArray<cuFP_t> ionion,
  dArray<cuFP_t> ionelc,
  dArray<cuFP_t> elcelc,
- dArray<int> p1,
- dArray<int> p2,
+ dArray<int> i1,
+ dArray<int> i2,
  unsigned int stride)
 {
   const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
@@ -924,9 +923,9 @@ void * Collide::collide_thread_cuda(void * arg)
   
   // Structures for cell boundaries and counts
   //
-  thrust::host_vector<int>  cellI, cellN, pairs, i1, i2;
+  thrust::host_vector<int>  cellI, cellN, pairs, i1, i2, cc;
   thrust::host_vector<char> flagI;
-  size_t Pcount = 0, Npairs = 0;
+  size_t Pcount = 0, Npairs = 0, Count = 0;
 
   // Loop over cells to get count of bodies and cells to process
   //
@@ -951,6 +950,7 @@ void * Collide::collide_thread_cuda(void * arg)
       for (size_t b=0; b<number/2; b++) {
 	i1.push_back(c->bods[2*b+0]);
 	i2.push_back(c->bods[2*b+1]);
+	cc.push_back(Count);
 	Npairs++;
       }
       if ((number/2)*2 != number) {
@@ -960,6 +960,7 @@ void * Collide::collide_thread_cuda(void * arg)
 	flagI.push_back(0);
 	Npairs++;
       }
+      Count++;
     }
   }
 
@@ -1191,6 +1192,7 @@ void * Collide::collide_thread_cuda(void * arg)
   thrust::device_vector<int>    d_cellN = cellN;
   thrust::device_vector<int>    d_i1    = i1;
   thrust::device_vector<int>    d_i2    = i2;
+  thrust::device_vector<int>    d_cc    = cc;
   thrust::device_vector<int>    d_pairs = pairs;
 
   // Create interaction energy files
@@ -1258,20 +1260,24 @@ void * Collide::collide_thread_cuda(void * arg)
   gridSize = N/BLOCK_SIZE/stride;
 
 				// These do not need copying back
-  thrust::device_vector<cuFP_t> d_crossT(N);
-  thrust::device_vector<cuFP_t> d_crossN(N*numCudaInterTypesNeut*numNeut);
-  thrust::device_vector<cuFP_t> d_crossP(N*numCudaInterTypesProt*numProt);
-  thrust::device_vector<cuFP_t> d_crossN(N*numCudaInterTypesIon*numIon);
+  unsigned int totalXCsize =
+    numCudaInterTypesNeut*numNeut +
+    numCudaInterTypesProt*numProt +
+    numCudaInterTypesIon*numIon   ;
+  thrust::device_vector<cuFP_t> d_cross(N*totalXCsize);
+  thrust::device_vector<uchar4> d_xspec(N*totalXCsize);
+  thrust::device_vector<uchar>  d_xtype(N*totalXCsize);
   thrust::device_vector<int>    d_flagI(flagI);
 
   crossSectionKernel<<<gridSize, BLOCK_SIZE>>>
-    (toKernel(d_part), toKernel(d_crossT),
-     toKernel(d_crossN), toKernel(d_crossP), toKernel(d_crossI),
+    (toKernel(d_part),
+     toKernel(d_cross),  toKernel(d_xspec),  toKernel(d_xtype), toKernel(d_crossT),
+     toKernel(d_i1),     toKernel(d_i2),     toKernel(d_cc),
      toKernel(d_meanM),  toKernel(d_Ivel2),  toKernel(d_Evel2),
      toKernel(d_PiProb), toKernel(d_ABrate), toKernel(d_flagI), 
      toKernel(d_Z), toKernel(d_C), toKernel(d_I),
      toKernel(xsc_H), toKernel(xsc_He), toKernel(xsc_pH), toKernel(xsc_pHe),
-     numNeut, numProt, numIon, minSp, stride);
+     totalXCsize, minSp, stride);
 
   // Compute the total cross section per cell
   //
