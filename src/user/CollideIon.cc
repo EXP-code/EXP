@@ -17956,7 +17956,7 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   double totPairs = num * dens * dfac *
     (1.0/PiProb[id][0] + 1.0/PiProb[id][1] + 1.0/PiProb[id][2]);
 
-  totPairs = 0.5*num*(num-1);
+  totPairs = 0.5*(num + 0.5);
 
   colCf[id] = selcM/totPairs;
   selcM = totPairs;
