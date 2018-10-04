@@ -19,7 +19,7 @@ enum cudaInterTypes {
 const int maxAtomicNumber = 15;
 __constant__ cuFP_t cuda_atomic_weights[MaxAtomicNumber], cuFloorEV;
 __constant__ cuFP_t cuVunit, cuMunit, cuTunit, cuLunit, cuAmu, cuEV, cuLogL;
-__constant__ bool   cuMeanKE;
+__constant__ bool   cuMeanKE, cuMeanMass;
 
 void CollideIon::cuda_atomic_weights_init()
 {
@@ -73,6 +73,9 @@ void CollideIon::cuda_atomic_weights_init()
 
   cuda_safe_call(cudaMemcpyToSymbol(cuMeanKE, &MEAN_KE, sizeof(bool)), 
 		 __FILE__, __LINE__, "Error copying cuMeanKE");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuMeanMass, &MeanMass, sizeof(bool)), 
+		 __FILE__, __LINE__, "Error copying cuMeanMass");
 }  
 
 __global__ void cellInitKernel(dArray<cudaParticle> in,
@@ -216,6 +219,7 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 				   dArray<cuFP_t> xsc_pHe,
 				   int numxc,
 				   int minSp,
+				   int eePos,
 				   unsigned int stride)
 {
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
@@ -263,16 +267,53 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
       cuFP_t N1 = p1->mass*cuMunit/(Mu1*cuAmu);
       cuFP_t N2 = p2->mass*cuMunit/(Mu2*cuAmu);
 
-      cuFP_t vel = 0.0, eVel0 = 0.0, eVel1 = 0.0, eVel2 = 0.0;
+      cuFP_t vel = 0.0;
+      cuFP_t eVel0 = 0.0, eVel1 = 0.0, eVel2 = 0.0;
+      cuFP_t gVel0 = 0.0, gVel1 = 0.0, gVel2 = 0.0;
       for (int k=0; k<3; k++) {
 	cuFP_t del = p1->vel[k] - p2->vel[k];
 	vel += del*del;
 	del = p1->vel[k] - p2->vel[k];
+
+	double rvel0 = p1->datr[eePos+i] - p2->datr[eePos+i];
+	double rvel1 = p1->datr[eePos+i] - p2->vel[i];
+	double rvel2 = p2->datr[eePos+i] - p1->vel[i];
+
+	eVel0 += rvel0*rvel0;
+	eVel1 += rvel1*rvel1;
+	eVel2 += rvel2*rvel2;
+
+	// Scaled electron relative velocity
+	if (cuMeanMass) {
+	  rvel0 = p1->datr[eePos+i]*sqrt(Eta1) - p2->datr[eePos+i]*sqrt(Eta2);
+	  rvel1 = p1->datr[eePos+i]*sqrt(Eta1) - p2->vel[i];
+	  rvel2 = p2->datr[eePos+i]*sqrt(Eta2) - p1->vel[i];
+	  
+	  gVel0 += rvel0*rvel0;
+	  gVel1 += rvel1*rvel1;
+	  gVel2 += rvel2*rvel2;
+	}
       }
 
       // Energy available in the center of mass of the atomic collision
       //
-      vel = sqrt(vel) * cuVunit;
+      vel   = sqrt(vel)   * cuVunit;
+      eVel0 = sqrt(eVel0) * cuVunit;
+      eVel1 = sqrt(eVel1) * cuVunit;
+      eVel2 = sqrt(eVel2) * cuVunit;
+
+      // Pick scaled relative velocities for mean-mass algorithm
+      if (cuMeanMass) {
+	gVel0 = sqrt(gVel0) * cuVunit / vel;
+	gVel1 = sqrt(gVel1) * cuVunit / vel;
+	gVel2 = sqrt(gVel2) * cuVunit / vel;
+      }
+      // Pick true relative velocity for all other algorithms
+      else {
+	gVel0 = eVel0;
+	gVel1 = eVel1;
+	gVel2 = eVel2;
+      }
 
       cuFP_t  m1 = Mu1 * cuAmu;
       cuFP_t  m2 = Mu2 * cuAmu;
@@ -285,6 +326,9 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 
       cuFP_t facE = 0.5 * cuAmu * cuVunit * cuVunit / cuEV;
       cuFP_t Eion = fac * Ivel2._v[c] * 2.0/(Mu1 + Mu2);
+      cuFP_t kEe1 = 0.5  * me * eVel2*eVel2;
+      cuFP_t kEe2 = 0.5  * me * eVel1*eVel1;
+      cuFP_t kEee = 0.25 * me * eVel0*eVel0;
 
       int nZ1 = 0;
       for (int k1=0; k1<Nsp; k1++) {
@@ -310,7 +354,7 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 	  // Particle 1 interacts with Particle 2
 	  //--------------------------------------------------
 	  
-	  cuFP_t cfac = p1->datr[I] * p2->dattrib[II];
+	  cuFP_t cfac = p1->datr[I] * p2->datr[II];
 
 	  //-------------------------------
 	  // *** Both particles neutral
@@ -390,9 +434,9 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 	//
 	if (Z<=2 and P==0 and Eta2>0.0) {
 	  double crs = 0.0;
-	  if (Z==1) crs = cudaElasticInterp(kEe1[id], cuH_Emin, cuH_H, xsc_H) * gVel2 * Eta2 *
+	  if (Z==1) crs = cudaElasticInterp(kEe1, cuH_Emin, cuH_H, xsc_H) * gVel2 * Eta2 *
 		      crossfac * cscl_[Z] * fac1;
-	  if (Z==2) crs = cudaElasticInterp(kEe1[id], cuHe_Emin, cuH_He, xsc_He) * gVel2 * Eta2 *
+	  if (Z==2) crs = cudaElasticInterp(kEe1, cuHe_Emin, cuH_He, xsc_He) * gVel2 * Eta2 *
 		      crossfac * cscl_[Z] * fac1;
 
 	  if (crs>0.0) {
@@ -409,9 +453,9 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 	//
 	if (P==0 and Eta1>0.0) {
 	  double crs = 0.0;
-	  if (Z==1) crs = cudaElasticInterp(kEe2[id], cuH_Emin, cuH_H, xsc_H) * gVel2 * Eta2 *
+	  if (Z==1) crs = cudaElasticInterp(kEe2, cuH_Emin, cuH_H, xsc_H) * gVel2 * Eta2 *
 		      crossfac * cscl_[Z] * fac1;
-	  if (Z==2) crs = cudaElasticInterp(kEe2[id], cuHe_Emin, cuH_He, xsc_He) * gVel2 * Eta2 *
+	  if (Z==2) crs = cudaElasticInterp(kEe2, cuHe_Emin, cuH_He, xsc_He) * gVel2 * Eta2 *
 		      crossfac * cscl_[Z] * fac1;
 
 	  if (crs>0.0) {
@@ -424,76 +468,50 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 	  }
 	}
 
-    // --------------------------------------
-    // *** Ion-electron scattering
-    // --------------------------------------
-    //
-    if (P>0 and Eta2>0) {
-
-      // Particle 1 ION, Particle 2 ELECTRON
-      {
-	double crs   = 0.0;
-
-	if (coulScale) {
-
-	  crs = coulCrs[id][P][0] * pow(kEe1[id]/coulCrs[id][P][1], coulPow) *
-	    gVel2 * Eta2 * crossfac * cscl_[Z] * fac1;
+	// --------------------------------------
+	// *** Ion-electron scattering
+	// --------------------------------------
+	//
+	if (P>0 and Eta2>0) {
+	  // Particle 1 ION, Particle 2 ELECTRON
+	  double crs  = 0.0;
+	  double kEc  = cuMeanKE ? Eelc : kEe1;
+	  double afac = cuEsu*cuEsu/std::max<double>(2.0*kEc*cuEV, cuFloorEV*eV) * 1.0e7;
+	    
+	  crs = 2.0 * ABrate[cid*4+1] * afac*afac * gVel2 / PiProb[cid*4+1];
 	  
-	} else {
-	  double kEc  = cuMeanKE ? Eelc[id]  : kEe1[id];
-	  double afac = esu*esu/std::max<double>(2.0*kEc*eV, FloorEv*eV) * 1.0e7;
-
-	  crs = 2.0 * ABrate[id][1] * afac*afac * gVel2 / PiProb[id][1];
-	}
-	
-	if (DEBUG_CRS) trap_crs(crs);
-	
-	Interact::T t { ion_elec, Ion, Interact::edef };
-	
-	hCross[id].push_back(XStup(t));
-	hCross[id].back().crs = crs;
-
-	CProb[id][1] += crs;
-      }
+	  cross._v[n*numxc+J] = crs;
+	  xspec._v[n*numxc+J] = make_char4(Z, C, 0, 0);
+	  xtype._v[n*numxc+J] = ion_elec;
+	  xctot._v[n] += crs;
 	  
-      // Particle 2 ION, Particle 1 ELECTRON
-      {
-	double crs   = 0.0;
-
-	if (coulScale) {
-	  crs = coulCrs[id][P][0] * pow(kEe2[id]/coulCrs[id][P][1], coulPow) *
-	    gVel1 * Eta1 * crossfac * cscl_[Z] * fac2;
-	} else {
-	  double kEc  = MEAN_KE ? Eelc[id]  : kEe2[id];
-	  double afac = esu*esu/std::max<double>(2.0*kEc*eV, FloorEv*eV) * 1.0e7;
-
-	  crs = 2.0 * ABrate[id][2] * afac*afac * gVel1 / PiProb[id][2];
-	}
-	
-	if (DEBUG_CRS) trap_crs(crs);
-	
-	Interact::T t { ion_elec, Interact::edef, Ion };
+	  J++;
 	  
-	hCross[id].push_back(XStup(t));
-	hCross[id].back().crs = crs;
+	  // Particle 2 ION, Particle 1 ELECTRON
+	  crs  = 0.0;
+	  kEc  = MEAN_KE ? Eelc  : kEe2;
+	  afac = esu*esu/std::max<double>(2.0*kEc*eV, FloorEv*eV) * 1.0e7;
+
+	  crs = 2.0 * ABrate[id*4+2] * afac*afac * gVel1 / PiProb[cid*4+2];
+
+	  cross._v[n*numxc+J] = crs;
+	  xspec._v[n*numxc+J] = make_char4(0, 0, Z, C);
+	  xtype._v[n*numxc+J] = ion_elec;
+	  xctot._v[n] += crs;
 	  
-	CProb[id][2] += crs;
-      }
-
-    }
-    // end: ion-electron scattering
+	  J++;
+	} // end: ion-electron scattering
 
 
-    //-------------------------------
-    // *** Free-free
-    //-------------------------------
+	//-------------------------------
+	// *** Free-free
+	//-------------------------------
       
-    if (!NO_FF and Eta1>0.0 and Eta2>0.0) {
+	if (Eta1>0.0 and Eta2>0.0) {
 
-      // Particle 1 ION, Particle 2 ELECTRON
-      {
-	double   ke  = std::max<double>(kEe1[id], FloorEv);
-	CFreturn ff  = ch.IonList[Q]->freeFreeCross(ke, id);
+	  // Particle 1 ION, Particle 2 ELECTRON
+	  double   ke  = std::max<double>(kEe1, cuFloorEV);
+	  CFreturn ff  = ch.IonList[Q]->freeFreeCross(ke, id);
 
 	double crs  = gVel2 * Eta2 * ff.first * fac1;
 	
@@ -1361,8 +1379,8 @@ void * Collide::collide_thread_cuda(void * arg)
       double St = cL/fabs(tau*sqrt(fabs(kedsp))+1.0e-18);
       for (unsigned j=0; j<number; j++) {
 	Particle* p = tree->Body(c->bods[j]);
-	if (use_Kn>=0) p->dattrib[use_Kn] = Kn;
-	if (use_St>=0) p->dattrib[use_St] = St;
+	if (use_Kn>=0) p->datr[use_Kn] = Kn;
+	if (use_St>=0) p->datr[use_St] = St;
       }
     }
     
