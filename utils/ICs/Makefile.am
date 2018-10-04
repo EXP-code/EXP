@@ -117,7 +117,8 @@ atomic_constants.H:	$(top_srcdir)/src/user/atomic_constants.H
 
 
 CLEANFILES = EmpOrth9thd.cc localmpi.cc CylindricalDisk.cc	\
-	SLSphere.cc Particle.cc Particle.H Particle.h Species.H
+	SLSphere.cc Particle.cc Particle.H Particle.h Species.H	\
+	atomic_constants.H atomic_constants.cc
 
 ## utils/ICs/Makefile.am ends here
 
