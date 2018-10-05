@@ -483,6 +483,77 @@ void chdata::cuda_initialize_grid_constants()
 }
 
 
+__device__ void computeFreeFree
+(cuFP_t E, cuFP_t rr,
+ cuFP_t& ph, cuFP_t& xc,
+ cudaTextureObject_t tex1,
+ cudaTextureObject_t tex2)
+{
+  // value of h-bar * c in eV*nm
+  //
+  constexpr double hbc = 197.327;
+
+  // Enforce minimum and maximum energies
+  //
+  if (E<ionEminGrid) E = ionEminGrid;
+  if (E>ionEmaxGrid) E = ionEmaxGrid;
+
+  size_t indx = std::floor( (E - ionEminGrid)/ionDeltaEGrid );
+    
+  if (indx >= ionEgridNumber - 1) indx = ionEgridNumber-2;
+
+  double eA = ionEminGrid + ionDeltaEGrid*indx;
+  double eB = ionEminGrid + ionDeltaEGrid*(indx+1);
+  
+  double A = (eB - E)/ionDeltaEGrid;
+  double B = (E - eA)/ionDeltaEGrid;
+  
+  // Location in cumulative cross section grid
+  //
+  double rn = rr;
+  double dC = 1.0/(CHCUMK-1);
+  int lb    = rn/dC;
+  cuFP_t k[4];
+
+  // Interpolate the cross section array
+  //
+#if cuREAL == 4
+  k[0]  = tex3D<float>(tex2, indx,   lb  , 0);
+  k[1]  = tex3D<float>(tex2, indx+1, lb  , 0);
+  k[2]  = tex3D<float>(tex2, indx,   lb+1, 0);
+  k[3]  = tex3D<float>(tex2, indx+1, lb+1, 0);
+#else
+  k[0] = int2_as_double(tex3D<int2>(tex2, indx,   lb  , 0));
+  k[1] = int2_as_double(tex3D<int2>(tex2, indx+1, lb  , 0));
+  k[2] = int2_as_double(tex3D<int2>(tex2, indx,   lb+1, 0));
+  k[3] = int2_as_double(tex3D<int2>(tex2, indx+1, lb+1, 0));
+#endif
+  
+  // Linear interpolation
+  //
+  double a = (rn - dC*(lb+0)) / dC;
+  double b = (dC*(lb+1) - rn) / dC;
+
+  double K = A*(a*k[0] + b*k[2]) + B*(a*k[1] + b*k[3]);
+
+  // Assign the photon energy
+  //
+  ph = pow(10, K) * hbc;
+
+  // Use the integrated cross section from the differential grid
+  //
+
+  xc = 
+#if cuREAL == 4
+    A*tex1D<float>(tex1, indx  ) +
+    B*tex1D<float>(tex1, indx+1) ;
+#else
+    A*int2_as_double(tex1D<int2>(tex1, indx  )) +
+    B*int2_as_double(tex1D<int2>(tex1, indx+1)) ;
+#endif
+}
+
+
 __global__ void testFreeFree
 (dArray<cuFP_t> energy,
  dArray<cuFP_t> randsl,
@@ -503,70 +574,58 @@ __global__ void testFreeFree
   const unsigned int N = energy._s;
 
   if (tid < N) {
-
-    cuFP_t E = energy._v[tid];
-
-    // Enforce minimum and maximum energies
-    //
-    if (E<ionEminGrid) E = ionEminGrid;
-    if (E>ionEmaxGrid) E = ionEmaxGrid;
-
-    size_t indx = std::floor( (E - ionEminGrid)/ionDeltaEGrid );
-    
-    if (indx >= ionEgridNumber - 1) indx = ionEgridNumber-2;
-
-    double eA = ionEminGrid + ionDeltaEGrid*indx;
-    double eB = ionEminGrid + ionDeltaEGrid*(indx+1);
-
-    double A = (eB - E)/ionDeltaEGrid;
-    double B = (E - eA)/ionDeltaEGrid;
-
-    // Location in cumulative cross section grid
-    //
-    double rn = randsl._v[tid];
-    double dC = 1.0/(CHCUMK-1);
-    int lb    = rn/dC;
-    cuFP_t k[4];
-
-    // Interpolate the cross section array
-    //
-#if cuREAL == 4
-    k[0]  = tex3D<float>(tex2, indx,   lb  , 0);
-    k[1]  = tex3D<float>(tex2, indx+1, lb  , 0);
-    k[2]  = tex3D<float>(tex2, indx,   lb+1, 0);
-    k[3]  = tex3D<float>(tex2, indx+1, lb+1, 0);
-#else
-    k[0] = int2_as_double(tex3D<int2>(tex2, indx,   lb  , 0));
-    k[1] = int2_as_double(tex3D<int2>(tex2, indx+1, lb  , 0));
-    k[2] = int2_as_double(tex3D<int2>(tex2, indx,   lb+1, 0));
-    k[3] = int2_as_double(tex3D<int2>(tex2, indx+1, lb+1, 0));
-#endif
-
-    // Linear interpolation
-    //
-    double a = (rn - dC*(lb+0)) / dC;
-    double b = (dC*(lb+1) - rn) / dC;
-
-    double K = A*(a*k[0] + b*k[2]) + B*(a*k[1] + b*k[3]);
-
-    // Assign the photon energy
-    //
-    ph._v[tid] = pow(10, K) * hbc;
-
-    // Use the integrated cross section from the differential grid
-    //
-
-    xc._v[tid] = 
-#if cuREAL == 4
-      A*tex1D<float>(tex1, indx  ) +
-      B*tex1D<float>(tex1, indx+1) ;
-#else
-    A*int2_as_double(tex1D<int2>(tex1, indx  )) +
-      B*int2_as_double(tex1D<int2>(tex1, indx+1)) ;
-#endif
+    computeFreeFree(energy._v[tid], randsl._v[tid], 
+		    ph._v[tid], xc._v[tid], tex1, tex2);
   }
 
   __syncthreads();
+}
+
+
+__device__ void computeColExcite
+(cuFP_t E, cuFP_t& ph, cuFP_t& xc,
+ cudaTextureObject_t tex, cuFP_t Emin, cuFP_t Emax, cuFP_t delE, int Ngrid)
+{
+  if (E < Emin or E > Emax) {
+
+    xc = 0.0;
+    ph= 0.0;
+
+  } else {
+
+    // Interpolate the values
+    //
+    int indx = std::floor( (E - Emin)/delE );
+    
+    // Sanity check
+    //
+    if (indx > Ngrid-2) indx = Ngrid - 2;
+    if (indx < 0)       indx = 0;
+    
+    double eA   = Emin + delE*indx;
+    double eB   = Emin + delE*(indx+1);
+    
+    double A = (eB - E)/delE;
+    double B = (E - eA)/delE;
+    
+#if cuREAL == 4
+    xc = 
+      A*tex3D<float>(tex, indx,   0, 0) +
+      B*tex3D<float>(tex, indx+1, 0, 0) ;
+    ph = 
+      A*tex3D<float>(tex, indx,   1, 0) +
+      B*tex3D<float>(tex, indx+1, 1, 0) ;
+#else
+    xc = 
+      A*int2_as_double(tex3D<int2>(tex, indx  , 0, 0)) +
+      B*int2_as_double(tex3D<int2>(tex, indx+1, 0, 0)) ;
+    ph= 
+      A*int2_as_double(tex3D<int2>(tex, indx  , 1, 0)) +
+      B*int2_as_double(tex3D<int2>(tex, indx+1, 1, 0)) ;
+#endif
+    }
+
+  }
 }
 
 __global__ void testColExcite
@@ -583,52 +642,51 @@ __global__ void testColExcite
   const unsigned int N = energy._s;
 
   if (tid < N) {
-
-    cuFP_t E = energy._v[tid];
-
-    if (E < Emin or E > Emax) {
-
-      xc._v[tid] = 0.0;
-      ph._v[tid] = 0.0;
-
-    } else {
-
-      // Interpolate the values
-      //
-      int indx = std::floor( (E - Emin)/delE );
-
-      // Sanity check
-      //
-      if (indx > Ngrid-2) indx = Ngrid - 2;
-      if (indx < 0)       indx = 0;
-      
-      double eA   = Emin + delE*indx;
-      double eB   = Emin + delE*(indx+1);
-    
-      double A = (eB - E)/delE;
-      double B = (E - eA)/delE;
-    
-#if cuREAL == 4
-      xc._v[tid] = 
-	A*tex3D<float>(tex, indx,   0, 0) +
-	B*tex3D<float>(tex, indx+1, 0, 0) ;
-      ph._v[tid] = 
-	A*tex3D<float>(tex, indx,   1, 0) +
-	B*tex3D<float>(tex, indx+1, 1, 0) ;
-#else
-      xc._v[tid] = 
-	A*int2_as_double(tex3D<int2>(tex, indx  , 0, 0)) +
-	B*int2_as_double(tex3D<int2>(tex, indx+1, 0, 0)) ;
-      ph._v[tid] = 
-	A*int2_as_double(tex3D<int2>(tex, indx  , 1, 0)) +
-	B*int2_as_double(tex3D<int2>(tex, indx+1, 1, 0)) ;
-#endif
-    }
-
+    void computeColExcite(energy._v[tid], ph._v[tid], xc._v[tid], 
+			  tex, Emin, Emax, delE, Ngrid);
   }
 
   __syncthreads();
 }
+
+__device__ void computeColIonize
+(cuFP_t E, cuFP_t& xc,
+ cudaTextureObject_t tex, cuFP_t Emin, cuFP_t Emax, cuFP_t delE, int Ngrid)
+{
+  if (E < Emin or E > Emax) {
+
+    xc = 0.0;
+
+  } else {
+
+    // Interpolate the values
+    //
+    int indx = std::floor( (E - Emin)/delE );
+
+    // Sanity check
+    //
+    if (indx > Ngrid-2) indx = Ngrid - 2;
+    if (indx < 0)       indx = 0;
+    
+    double eA   = Emin + delE*indx;
+    double eB   = Emin + delE*(indx+1);
+    
+    double A = (eB - E)/delE;
+    double B = (E - eA)/delE;
+    
+#if cuREAL == 4
+    xc = 
+      A*tex1D<float>(tex, indx  ) +
+      B*tex1D<float>(tex, indx+1) ;
+#else
+    xc = 
+      A*int2_as_double(tex1D<int2>(tex, indx  )) +
+      B*int2_as_double(tex1D<int2>(tex, indx+1)) ;
+#endif
+  }
+}
+
+
 
 __global__ void testColIonize
 (dArray<cuFP_t> energy, dArray<cuFP_t> xc,
@@ -643,44 +701,47 @@ __global__ void testColIonize
   const unsigned int N = energy._s;
 
   if (tid < N) {
-
-    cuFP_t E = energy._v[tid];
-
-    if (E < Emin or E > Emax) {
-
-      xc._v[tid] = 0.0;
-
-    } else {
-
-      // Interpolate the values
-      //
-      int indx = std::floor( (E - Emin)/delE );
-
-      // Sanity check
-      //
-      if (indx > Ngrid-2) indx = Ngrid - 2;
-      if (indx < 0)       indx = 0;
-      
-      double eA   = Emin + delE*indx;
-      double eB   = Emin + delE*(indx+1);
-    
-      double A = (eB - E)/delE;
-      double B = (E - eA)/delE;
-    
-#if cuREAL == 4
-      xc._v[tid] = 
-	A*tex1D<float>(tex, indx  ) +
-	B*tex1D<float>(tex, indx+1) ;
-#else
-      xc._v[tid] = 
-	A*int2_as_double(tex1D<int2>(tex, indx  )) +
-	B*int2_as_double(tex1D<int2>(tex, indx+1)) ;
-#endif
-    }
-
+    computeColIonize(energy._v[tid], xc._v[tid], tex, Emin, Emax, delE, Ngrid);
   }
 
   __syncthreads();
+}
+
+__device__ void computeRadRecomb
+(cuFP_t E, cuFP_t& xc, cudaTextureObject_t tex)
+{
+  if (E < ionEminGrid or E > ionEmaxGrid) {
+
+    xc = 0.0;
+
+  } else {
+
+    // Interpolate the values
+    //
+    int indx = std::floor( (E - ionEminGrid)/ionDeltaEGrid );
+
+    // Sanity check
+    //
+    if (indx > ionRadRecombNumber-2) indx = ionRadRecombNumber - 2;
+    if (indx < 0)                    indx = 0;
+    
+    double eA   = ionEminGrid + ionDeltaEGrid*indx;
+    double eB   = ionEminGrid + ionDeltaEGrid*(indx+1);
+    
+    double A = (eB - E)/ionDeltaEGrid;
+    double B = (E - eA)/ionDeltaEGrid;
+    
+#if cuREAL == 4
+    xc = 
+      A*tex1D<float>(tex, indx  ) +
+      B*tex1D<float>(tex, indx+1) ;
+#else
+    xc = 
+      A*int2_as_double(tex1D<int2>(tex, indx  )) +
+      B*int2_as_double(tex1D<int2>(tex, indx+1)) ;
+#endif
+    }
+  }
 }
 
 __global__ void testRadRecomb
@@ -695,45 +756,12 @@ __global__ void testRadRecomb
   const unsigned int N = energy._s;
 
   if (tid < N) {
-
-    cuFP_t E = energy._v[tid];
-
-    if (E < ionEminGrid or E > ionEmaxGrid) {
-
-      xc._v[tid] = 0.0;
-
-    } else {
-
-      // Interpolate the values
-      //
-      int indx = std::floor( (E - ionEminGrid)/ionDeltaEGrid );
-
-      // Sanity check
-      //
-      if (indx > ionRadRecombNumber-2) indx = ionRadRecombNumber - 2;
-      if (indx < 0)                    indx = 0;
-      
-      double eA   = ionEminGrid + ionDeltaEGrid*indx;
-      double eB   = ionEminGrid + ionDeltaEGrid*(indx+1);
-    
-      double A = (eB - E)/ionDeltaEGrid;
-      double B = (E - eA)/ionDeltaEGrid;
-    
-#if cuREAL == 4
-      xc._v[tid] = 
-	A*tex1D<float>(tex, indx  ) +
-	B*tex1D<float>(tex, indx+1) ;
-#else
-      xc._v[tid] = 
-	A*int2_as_double(tex1D<int2>(tex, indx  )) +
-	B*int2_as_double(tex1D<int2>(tex, indx+1)) ;
-#endif
-    }
-
+    computeRadRecomb(energy._v[tid], xc._v[tid], tex);
   }
 
   __syncthreads();
 }
+
 
 void chdata::testCross(int Nenergy)
 {

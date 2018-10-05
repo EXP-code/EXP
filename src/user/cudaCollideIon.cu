@@ -809,51 +809,27 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 
   return totalXS;
 
-}
-
-__global__ void etaKernel(dArray<cudaParticle> in,
-			  dArray<cuFP_t> mol,
-			  dArray<cuFP_t> eta
-			  dArray<int> Z,
-			  dArray<int> C,
-			  dArray<int> I,
-			  int minSp,
-			  int maxSp,
-			  unsigned int stride)
-{
-  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
-  const int rng = maxSp - minSp;
-
-  for (int n=0; n<stride; n++) {
-    int i = tid*stride + n;
-
-    if (i < in._s) {
-
-      cudaParticle *p = &in._v[i];
-
-      cuFP_t Eta = 0.0, Sum = 0.0;
-      
-      for (int s=0; s<rng; s++) {
-	cuFP_t ww = p->datr[s] / cuda_atomic_weights[Z[s]];
-	Eta += ww * (C[s] - 1);
-	Sum += ww;
-      }
-
-      mol._v[i] = 1.0/Sum;
-      if (Sum>0.0) eta._v[i] = Eta/Sum;
-      else         eta._v[i] = 0.0;
-    }
   }
 
-}
 
-__global__ void energyKernel
+  __global__ void energyKernel
 (dArray<cudaParticle> in, 
  dArray<cuFP_t> ionion,
  dArray<cuFP_t> ionelc,
+ dArray<cuFP_t> elcion,
  dArray<cuFP_t> elcelc,
- dArray<int> i1,
- dArray<int> i2,
+ dArray<cuFP_t> ionelS,
+ dArray<cuFP_t> elionS,
+ dArray<cuFP_t> eta1,
+ dArray<cuFP_t> eta2,
+ dArray<cuFP_t> mol1,
+ dArray<cuFP_t> mol2,
+ dArray<int>    i1,
+ dArray<int>    i2,
+ dArray<char>   dZ,
+ dArray<char>   dC,
+ dArray<char>   dI,
+ int pos, int minSP,
  unsigned int stride)
 {
   const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
@@ -866,57 +842,103 @@ __global__ void energyKernel
       cudaParticle p1 = in._v[i1._v[i]];
       cudaParticle p2 = in._v[i2._v[i]];
     
-      cuFP_t xx = p.pos[0] - sphCen[0];
-      cuFP_t yy = p.pos[1] - sphCen[1];
-      cuFP_t zz = p.pos[2] - sphCen[2];
-      
-      cuFP_t r2 = (xx*xx + yy*yy + zz*zz);
-      cuFP_t r = sqrt(r2) + FSMALL;
-      
-#ifdef BOUNDS_CHECK
-      if (i>=mass._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-#endif
-      mass._v[i] = -1.0;
-      
-      if (r<rmax) {
-	
-	mass._v[i] = p.mass;
-	
-	cuFP_t costh = zz/r;
-	phi._v[i] = atan2(yy,xx);
-	
-#ifdef BOUNDS_CHECK
-	if (i>=phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-#endif
-	cuFP_t *plm = &Plm._v[psiz*i];
-	legendre_v(Lmax, costh, plm);
+      // Electron fraction and mean molecular weight for each particle
+      //
+      cuFP_t Eta1=0.0, Eta2=0.0, Mu1=0.0, Mu2=0.0, Sum1=0.0, Sum2=0.0;
 
-#ifdef BOUNDS_CHECK
-	if (psiz*(i+1)>Plm._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-#endif
-	cuFP_t x  = cu_r_to_xi(r);
-	cuFP_t xi = (x - sphXmin)/sphDxi;
-	int indx = floor(xi);
+      for (int k=0; k<dZ._s; k++) {
+				// Number fraction of ions
+	cuFP_t one = p1->datr[dI._v[k]-minSp] / cuda_atomic_weights[dZ._v[k]];
+	cuFP_t two = p2->datr[dI._v[k]-minSp] / cuda_atomic_weights[dZ._v[k]];
 	
-	if (indx<0) indx = 0;
-	if (indx>sphNumr-2) indx = sphNumr - 2;
-	  
-	Afac._v[i] = cuFP_t(indx+1) - xi;
-#ifdef OFF_GRID_ALERT
-	if (Afac._v[i]<0.0 or Afac._v[i]>1.0) printf("off grid: x=%f\n", xi);
-#endif
-	Indx._v[i] = indx;
+	Eta1 += one * (dC._v[k] - 1);
+	Eta2 += two * (dC._v[k] - 1);
 
-#ifdef BOUNDS_CHECK
-	if (i>=Afac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-	if (i>=Indx._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-#endif
+	Sum1 += one;
+	Sum2 += two;
+      }
+				// The number of electrons per particle
+      Eta1 /= Sum1;
+      Eta2 /= Sum2;
+				// The molecular weight
+      Mu1 = 1.0/Sum1;
+      Mu2 = 1.0/Sum2;
+
+      // Ion-ion, ion-electron, and electron-electron relative velocities
+      //
+      
+      cuFP_t eVel0 = 0.0;		// Electron relative velocities
+      cuFP_t eVel1 = 0.0;
+      cuFP_t eVel2 = 0.0;
+      cuFP_t gVel0 = 0.0;		// Scaled velocities for mean-mass algorithm
+      cuFP_t gVel1 = 0.0;
+      cuFP_t gVel2 = 0.0;
+      cuFP_t eVelI = 0.0;		// Ion relative velocity
+  
+      cuFP_t rel;
+      for (int k=0; k<3; k++) {
+				// Ion-ion
+	rel = p1->vel[i] - p2->vel[i];
+	eVelI += rel * rel;
+    
+				// Electron-electron
+	rel = p1->datr[pos+k] - p2->datr[pos+k];
+	eVel0 += rel * rel;
+
+				// Electron (p2) and Ion (p1)
+	rel = p2->datr[pos+k] - p1->vel[k];
+	eVel1 += rel * rel;
+				// Electron (p1) and Ion (p2)
+	rel = p1->datr[pos+k] - p2->vel[k];
+	eVel2 += rel * rel;
+
+				// Scaled electron relative velocity
+	if (MeanMass) {
+	  rel = p1->datr[pos+k]*sqrt(Eta1) - p2->datr[pos+k]*sqrt(Eta2);
+	  gVel0 += rel * rel;
+	  rel = p1->datr[pos+k]*sqrt(Eta1) - p2->vel[k];
+	  gVel1 += rel * rel;
+	  rel = p2->datr[pos+k]*sqrt(Eta2) - p1->vel[k];
+	  gVel2 += rel * rel;
+	}
       }
     }
+
+    eVel0 = sqrt(eVel0) * cuVunit;
+    eVel1 = sqrt(eVel1) * cuVunit;
+    eVel2 = sqrt(eVel2) * cuVunit;
+    
+    // Pick scaled relative velocities for mean-mass algorithm
+    if (MeanMass) {
+      gVel0 = sqrt(gVel0) * cuVunit;
+      gVel1 = sqrt(gVel1) * cuVunit;
+      gVel2 = sqrt(gVel2) * cuVunit;
+    }
+
+    cuFP_t m1  = Mu1 * cuAmu;
+    cuFP_t m2  = Mu2 * cuAmu;
+    cuFP_t me  = cuda atomic_weights[0] * cuAmu;
+    
+    cuFP_t mu0 = m1 * m2 / (m1 + m2);
+    cuFP_t mu1 = m1 * me / (m1 + me);
+    cuFP_t mu2 = me * m2 / (me + m2);
+
+    ionion[i] = 0.5 * mu0 * eVelI / cuEV;
+
+    ionelc[i] = 0.5 * mu1 * eVel1 / cuEV;
+    elcion[i] = 0.5 * mu2 * eVel2 / cuEV;
+    elcelc[i] = 0.25 * me * eVel0 / cuEV;
+
+    ionelS[i] = 0.5 * mu1 * gVel1 / cuEV;
+    elionS[i] = 0.5 * mu2 * gVel2 / cuEV;
+
+    eta1[i]   = Eta1;
+    eta2[i]   = Eta2;
+
+    mol1[i]   = Mu1;
+    mol2[i]   = Mu2;
   }
 }
-
-
 
 void * Collide::collide_thread_cuda(void * arg)
 {
@@ -1129,7 +1151,7 @@ void * Collide::collide_thread_cuda(void * arg)
 
     // Per species quantities
     //
-    double            meanLambda, meanCollP, totalNsel;
+    cuFP_t            meanLambda, meanCollP, totalNsel;
     sKey2Amap         nselM   = generateSelection(c, Fn, crm, tau, id, 
 						  meanLambda, meanCollP, 
 						  totalNsel);
@@ -1217,6 +1239,7 @@ void * Collide::collide_thread_cuda(void * arg)
   //
   thrust::device_vector<cuFP_t> ionion(pairs.size());
   thrust::device_vector<cuFP_t> ionelc(pairs.size());
+  thrust::device_vector<cuFP_t> elcion(pairs.size());
   thrust::device_vector<cuFP_t> elcelc(pairs.size());
 
   // Okay, now compute all of the pieces
@@ -1233,9 +1256,24 @@ void * Collide::collide_thread_cuda(void * arg)
   // Compute energies
   //
   energyKernel<<<gridSize, BLOCK_SIZE>>>
-    (toKernel(d_part), toKernel(ionion), toKernel(ionelc), toKernel(elcelc),
-     toKernel(d_i1), toKernel(d_i2), stride);
+    (toKernel(d_part),
+     toKernel(ionion), toKernel(ionelc),
+     toKernel(elcion), toKernel(elcelc),
+     toKernel(d_i1), toKernel(d_i2), eePos, stride);
 
+
+  // Create ion-electron cross-section lists
+  //
+  thrust::device_vector<cuFP_t> ieXC(pairs.size()*4);
+  thrust::device_vector<cuFP_t> eiXC(pairs.size()*4);
+
+  // Compute ion-electron cross sections
+  //
+  ionElecKernel<<<gridSize, BLOCK_SIZE>>>
+    (toKernel(ionion), toKernel(ionelc),
+     toKernel(elcion), toKernel(elcelc),
+     toKernel(ieXC),   toKernel(eiXC),
+     eePos, stride);
 
   // Compute molecular weight and eta
   //
@@ -1244,7 +1282,7 @@ void * Collide::collide_thread_cuda(void * arg)
   gridSize = N/BLOCK_SIZE/stride;
 
 				// These do not need copying back
-  thrust::device_vector<int> d_Z(Z), d_C(C), d_I(I);
+  thrust::device_vector<int> d_ZZ), d_C(C), d_I(I);
   thrust::device_vector<cuFP_t> d_mol(N), d_eta(N);
 
   etaKernel<<<gridSize, BLOCK_SIZE>>>
@@ -1295,7 +1333,7 @@ void * Collide::collide_thread_cuda(void * arg)
      toKernel(d_PiProb), toKernel(d_ABrate), toKernel(d_flagI), 
      toKernel(d_Z), toKernel(d_C), toKernel(d_I),
      toKernel(xsc_H), toKernel(xsc_He), toKernel(xsc_pH), toKernel(xsc_pHe),
-     totalXCsize, minSp, stride);
+     totalXCsize, minSp, eePos, stride);
 
   // Compute the total cross section per cell
   //
