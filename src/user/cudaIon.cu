@@ -50,28 +50,20 @@ void chdata::cuda_initialize_textures()
 
   // Texture object array
   //
-  ff_0.resize(ionSize);
-  ff_d.resize(ionSize);
-  rc_d.resize(ionSize);
-  ce_d.resize(ionSize);
-  ci_d.resize(ionSize);
-
-  thrust::fill(ff_0.begin(), ff_0.end(), 0);
-  thrust::fill(ff_d.begin(), ff_d.end(), 0);
-  thrust::fill(rc_d.begin(), rc_d.end(), 0);
-  thrust::fill(ce_d.begin(), ce_d.end(), 0);
-  thrust::fill(ci_d.begin(), ci_d.end(), 0);
+  cuIonElem.resize(ionSize);
 
   size_t k = 0;
 
   for (auto v : IonList) {
 
     IonPtr I = v.second;
-    cuZ[k] = I->Z;
-    cuC[k] = I->C;
+    cuIonElement& E = cuIonElem[k];
+
+    E.Z = I->Z;
+    E.C = I->C;
     
     // The free-free array
-    if (cuC[k]>1) {
+    if (E.C>1) {
       cudaTextureDesc texDesc;
 
       memset(&texDesc, 0, sizeof(texDesc));
@@ -108,19 +100,6 @@ void chdata::cuda_initialize_textures()
 	for (int j = 0; j < tsize; j++) {	
 	  temp[j] = I->freeFreeGrid[i][j]/h_buffer0[i];
 	}
-
-	/*
-	for (int j = 0; j < tsize; j++) {	
-	  std::cout << std::setw( 2) << I->Z
-		    << std::setw( 2) << I->C
-		    << std::setw( 4) << i
-		    << std::setw( 4) << j
-		    << std::setw(18) << I->freeFreeGrid[i][j]
-		    << std::setw(18) << temp[j]
-		    << std::endl;
-	}
-	*/
-
 
 	// End points
 	//
@@ -177,16 +156,6 @@ void chdata::cuda_initialize_textures()
 
       } // END: energy loop
 
-      /*
-      for (int j=0; j<CHCUMK; j++) {
-	std::cout << std::setw(12) << delC*j;
-	for (int i = 0; i < std::min<int>(5, I->NfreeFreeGrid); i++) {
-	  std::cout << std::setw(12) << h_buffer1[i+j*I->NfreeFreeGrid];
-	}
-	std::cout << std::endl;
-      }
-      */
-
       // Copy 1-dim data to device
       //
       size_t tsize = I->NfreeFreeGrid*sizeof(cuFP_t);
@@ -212,7 +181,7 @@ void chdata::cuda_initialize_textures()
       resDesc.resType = cudaResourceTypeArray;
       resDesc.res.array.array = cuF0array[k];
 
-      cuda_safe_call(cudaCreateTextureObject(&ff_0[k], &resDesc, &texDesc, NULL), __FILE__, __LINE__, "create texture object");
+      cuda_safe_call(cudaCreateTextureObject(&E.ff_0, &resDesc, &texDesc, NULL), __FILE__, __LINE__, "create texture object");
 
       // Copy data to device
       tsize = I->NfreeFreeGrid*CHCUMK*sizeof(cuFP_t);
@@ -245,7 +214,7 @@ void chdata::cuda_initialize_textures()
       resDesc.res.array.array  = cuFFarray[k];
     
       cuda_safe_call
-	(cudaCreateTextureObject(&ff_d[k], &resDesc, &texDesc, NULL),
+	(cudaCreateTextureObject(&E.ff_d, &resDesc, &texDesc, NULL),
 	 __FILE__, __LINE__, "Failure in 2d texture creation");
       
       cuda_safe_call(cudaFree(d_Interp), __FILE__, __LINE__, "Failure freeing device memory");
@@ -253,7 +222,7 @@ void chdata::cuda_initialize_textures()
 
     // Radiative recombination texture (1-d)
     //
-    if (cuC[k]>1) {
+    if (E.C>1) {
       // Allocate CUDA array in device memory (a one-dimension 'channel')
       //
 #if cuREAL == 4
@@ -292,12 +261,12 @@ void chdata::cuda_initialize_textures()
       resDesc.resType = cudaResourceTypeArray;
       resDesc.res.array.array = cuRCarray[k];
       
-      cuda_safe_call(cudaCreateTextureObject(&rc_d[k], &resDesc, &texDesc, NULL), __FILE__, __LINE__, "create texture object");
+      cuda_safe_call(cudaCreateTextureObject(&E.rc_d, &resDesc, &texDesc, NULL), __FILE__, __LINE__, "create texture object");
     }
 
     // The collisional excitation array
 
-    if (cuC[k] <= cuZ[k]) {
+    if (E.C <= E.Z) {
 
       ceEmin[k] = I->collideEmin;
       ceEmax[k] = I->collideEmax;
@@ -369,7 +338,7 @@ void chdata::cuda_initialize_textures()
       resDesc.res.array.array  = cuCEarray[k];
       
       cuda_safe_call
-	(cudaCreateTextureObject(&ce_d[k], &resDesc, &texDesc, NULL),
+	(cudaCreateTextureObject(&E.ce_d, &resDesc, &texDesc, NULL),
 	 __FILE__, __LINE__, "Failure in 2d texture creation");
       
       cuda_safe_call(cudaFree(d_Interp), __FILE__, __LINE__, "Failure freeing device memory");
@@ -423,7 +392,7 @@ void chdata::cuda_initialize_textures()
       resDesc.resType = cudaResourceTypeArray;
       resDesc.res.array.array = cuCIarray[k];
       
-      cuda_safe_call(cudaCreateTextureObject(&ci_d[k], &resDesc, &texDesc, NULL), __FILE__, __LINE__, "create texture object");
+      cuda_safe_call(cudaCreateTextureObject(&E.ci_d, &resDesc, &texDesc, NULL), __FILE__, __LINE__, "create texture object");
     }
     
     // Increment counter
@@ -484,10 +453,7 @@ void chdata::cuda_initialize_grid_constants()
 
 
 __device__ void computeFreeFree
-(cuFP_t E, cuFP_t rr,
- cuFP_t& ph, cuFP_t& xc,
- cudaTextureObject_t tex1,
- cudaTextureObject_t tex2)
+(cuFP_t E, cuFP_t rr, cuFP_t& ph, cuFP_t& xc, cuIonElement elem)
 {
   // value of h-bar * c in eV*nm
   //
@@ -518,15 +484,15 @@ __device__ void computeFreeFree
   // Interpolate the cross section array
   //
 #if cuREAL == 4
-  k[0]  = tex3D<float>(tex2, indx,   lb  , 0);
-  k[1]  = tex3D<float>(tex2, indx+1, lb  , 0);
-  k[2]  = tex3D<float>(tex2, indx,   lb+1, 0);
-  k[3]  = tex3D<float>(tex2, indx+1, lb+1, 0);
+  k[0]  = tex3D<float>(elem.ff_d, indx,   lb  , 0);
+  k[1]  = tex3D<float>(elem.ff_d, indx+1, lb  , 0);
+  k[2]  = tex3D<float>(elem.ff_d, indx,   lb+1, 0);
+  k[3]  = tex3D<float>(elem.ff_d, indx+1, lb+1, 0);
 #else
-  k[0] = int2_as_double(tex3D<int2>(tex2, indx,   lb  , 0));
-  k[1] = int2_as_double(tex3D<int2>(tex2, indx+1, lb  , 0));
-  k[2] = int2_as_double(tex3D<int2>(tex2, indx,   lb+1, 0));
-  k[3] = int2_as_double(tex3D<int2>(tex2, indx+1, lb+1, 0));
+  k[0] = int2_as_double(tex3D<int2>(elem.ff_d, indx,   lb  , 0));
+  k[1] = int2_as_double(tex3D<int2>(elem.ff_d, indx+1, lb  , 0));
+  k[2] = int2_as_double(tex3D<int2>(elem.ff_d, indx,   lb+1, 0));
+  k[3] = int2_as_double(tex3D<int2>(elem.ff_d, indx+1, lb+1, 0));
 #endif
   
   // Linear interpolation
@@ -545,11 +511,11 @@ __device__ void computeFreeFree
 
   xc = 
 #if cuREAL == 4
-    A*tex1D<float>(tex1, indx  ) +
-    B*tex1D<float>(tex1, indx+1) ;
+    A*tex1D<float>(elem.ff_0, indx  ) +
+    B*tex1D<float>(elem.ff_0, indx+1) ;
 #else
-    A*int2_as_double(tex1D<int2>(tex1, indx  )) +
-    B*int2_as_double(tex1D<int2>(tex1, indx+1)) ;
+    A*int2_as_double(tex1D<int2>(elem.ff_0, indx  )) +
+    B*int2_as_double(tex1D<int2>(elem.ff_0, indx+1)) ;
 #endif
 }
 
@@ -558,8 +524,7 @@ __global__ void testFreeFree
 (dArray<cuFP_t> energy,
  dArray<cuFP_t> randsl,
  dArray<cuFP_t> ph, dArray<cuFP_t> xc,
- cudaTextureObject_t tex1,
- cudaTextureObject_t tex2)
+ cuIonElement elem)
 {
   // value of h-bar * c in eV*nm
   //
@@ -575,7 +540,7 @@ __global__ void testFreeFree
 
   if (tid < N) {
     computeFreeFree(energy._v[tid], randsl._v[tid], 
-		    ph._v[tid], xc._v[tid], tex1, tex2);
+		    ph._v[tid], xc._v[tid], elem);
   }
 
   __syncthreads();
@@ -583,8 +548,8 @@ __global__ void testFreeFree
 
 
 __device__ void computeColExcite
-(cuFP_t E, cuFP_t& ph, cuFP_t& xc,
- cudaTextureObject_t tex, cuFP_t Emin, cuFP_t Emax, cuFP_t delE, int Ngrid)
+(cuFP_t E, cuFP_t& ph, cuFP_t& xc, cuIonElement elem,
+ cuFP_t Emin, cuFP_t Emax, cuFP_t delE, int Ngrid)
 {
   if (E < Emin or E > Emax) {
 
@@ -610,18 +575,18 @@ __device__ void computeColExcite
     
 #if cuREAL == 4
     xc = 
-      A*tex3D<float>(tex, indx,   0, 0) +
-      B*tex3D<float>(tex, indx+1, 0, 0) ;
+      A*tex3D<float>(elem.ce_d, indx,   0, 0) +
+      B*tex3D<float>(elem.ce_d, indx+1, 0, 0) ;
     ph = 
-      A*tex3D<float>(tex, indx,   1, 0) +
-      B*tex3D<float>(tex, indx+1, 1, 0) ;
+      A*tex3D<float>(elem.ce_d, indx,   1, 0) +
+      B*tex3D<float>(elem.ce_d, indx+1, 1, 0) ;
 #else
     xc = 
-      A*int2_as_double(tex3D<int2>(tex, indx  , 0, 0)) +
-      B*int2_as_double(tex3D<int2>(tex, indx+1, 0, 0)) ;
+      A*int2_as_double(tex3D<int2>(elem.ce_d, indx  , 0, 0)) +
+      B*int2_as_double(tex3D<int2>(elem.ce_d, indx+1, 0, 0)) ;
     ph= 
-      A*int2_as_double(tex3D<int2>(tex, indx  , 1, 0)) +
-      B*int2_as_double(tex3D<int2>(tex, indx+1, 1, 0)) ;
+      A*int2_as_double(tex3D<int2>(elem.ce_d, indx  , 1, 0)) +
+      B*int2_as_double(tex3D<int2>(elem.ce_d, indx+1, 1, 0)) ;
 #endif
     }
 
@@ -630,8 +595,8 @@ __device__ void computeColExcite
 
 __global__ void testColExcite
 (dArray<cuFP_t> energy,
- dArray<cuFP_t> ph, dArray<cuFP_t> xc,
- cudaTextureObject_t tex, cuFP_t Emin, cuFP_t Emax, cuFP_t delE, int Ngrid)
+ dArray<cuFP_t> ph, dArray<cuFP_t> xc, cuIonElement elem,
+ cuFP_t Emin, cuFP_t Emax, cuFP_t delE, int Ngrid)
 {
   // Thread ID
   //
@@ -643,15 +608,15 @@ __global__ void testColExcite
 
   if (tid < N) {
     void computeColExcite(energy._v[tid], ph._v[tid], xc._v[tid], 
-			  tex, Emin, Emax, delE, Ngrid);
+			  elem, Emin, Emax, delE, Ngrid);
   }
 
   __syncthreads();
 }
 
 __device__ void computeColIonize
-(cuFP_t E, cuFP_t& xc,
- cudaTextureObject_t tex, cuFP_t Emin, cuFP_t Emax, cuFP_t delE, int Ngrid)
+(cuFP_t E, cuFP_t& xc, cuIonElement elem,
+ cuFP_t Emin, cuFP_t Emax, cuFP_t delE, int Ngrid)
 {
   if (E < Emin or E > Emax) {
 
@@ -676,12 +641,12 @@ __device__ void computeColIonize
     
 #if cuREAL == 4
     xc = 
-      A*tex1D<float>(tex, indx  ) +
-      B*tex1D<float>(tex, indx+1) ;
+      A*tex1D<float>(elem.ci_d, indx  ) +
+      B*tex1D<float>(elem.ci_d, indx+1) ;
 #else
     xc = 
-      A*int2_as_double(tex1D<int2>(tex, indx  )) +
-      B*int2_as_double(tex1D<int2>(tex, indx+1)) ;
+      A*int2_as_double(tex1D<int2>(elem.ci_d, indx  )) +
+      B*int2_as_double(tex1D<int2>(elem.ci_d, indx+1)) ;
 #endif
   }
 }
@@ -689,8 +654,8 @@ __device__ void computeColIonize
 
 
 __global__ void testColIonize
-(dArray<cuFP_t> energy, dArray<cuFP_t> xc,
- cudaTextureObject_t tex, cuFP_t Emin, cuFP_t Emax, cuFP_t delE, int Ngrid)
+(dArray<cuFP_t> energy, dArray<cuFP_t> xc, cuIonElement elem,
+ cuFP_t Emin, cuFP_t Emax, cuFP_t delE, int Ngrid)
 {
   // Thread ID
   //
@@ -701,14 +666,14 @@ __global__ void testColIonize
   const unsigned int N = energy._s;
 
   if (tid < N) {
-    computeColIonize(energy._v[tid], xc._v[tid], tex, Emin, Emax, delE, Ngrid);
+    computeColIonize(energy._v[tid], xc._v[tid], elem, Emin, Emax, delE, Ngrid);
   }
 
   __syncthreads();
 }
 
 __device__ void computeRadRecomb
-(cuFP_t E, cuFP_t& xc, cudaTextureObject_t tex)
+(cuFP_t E, cuFP_t& xc, cudaIonElement elem)
 {
   if (E < ionEminGrid or E > ionEmaxGrid) {
 
@@ -733,19 +698,19 @@ __device__ void computeRadRecomb
     
 #if cuREAL == 4
     xc = 
-      A*tex1D<float>(tex, indx  ) +
-      B*tex1D<float>(tex, indx+1) ;
+      A*tex1D<float>(elem.rc_d, indx  ) +
+      B*tex1D<float>(elem.rc_d, indx+1) ;
 #else
     xc = 
-      A*int2_as_double(tex1D<int2>(tex, indx  )) +
-      B*int2_as_double(tex1D<int2>(tex, indx+1)) ;
+      A*int2_as_double(tex1D<int2>(elem.rc_d, indx  )) +
+      B*int2_as_double(tex1D<int2>(elem.rc_d, indx+1)) ;
 #endif
     }
   }
 }
 
 __global__ void testRadRecomb
-(dArray<cuFP_t> energy, dArray<cuFP_t> xc, cudaTextureObject_t tex)
+(dArray<cuFP_t> energy, dArray<cuFP_t> xc, cudaIonElement elem)
 {
   // Thread ID
   //
@@ -756,7 +721,7 @@ __global__ void testRadRecomb
   const unsigned int N = energy._s;
 
   if (tid < N) {
-    computeRadRecomb(energy._v[tid], xc._v[tid], tex);
+    computeRadRecomb(energy._v[tid], xc._v[tid], elem);
   }
 
   __syncthreads();
@@ -804,21 +769,21 @@ void chdata::testCross(int Nenergy)
     if (cuC[k]>1)
       testFreeFree<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), toKernel(randsl_d),
 					     toKernel(eFF_d), toKernel(xFF_d),
-					     ff_0[k], ff_d[k]);
+					     cuIonElem[k]);
 
     if (cuC[k]<=cuZ[k])
       testColExcite<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
-					      toKernel(eCE_d), toKernel(xCE_d), ce_d[k],
+					      toKernel(eCE_d), toKernel(xCE_d), cuIonElem[k],
 					      ceEmin[k], ceEmax[k], ceDelE[k], NColl[k]);
       
     if (cuC[k]<=cuZ[k])
       testColIonize<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
-					      toKernel(xCI_d), ci_d[k],
+					      toKernel(xCI_d), cuIonElem[k],
 					      ciEmin[k], ciEmax[k], ciDelE[k], NIonz[k]);
       
     if (cuC[k]>1)
       testRadRecomb<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
-					      toKernel(xRC_d), rc_d[k]);
+					      toKernel(xRC_d), cuIonElem[k]);
       
     std::cout << "k=" << k << " delE=" << ceDelE[k] << std::endl;
 

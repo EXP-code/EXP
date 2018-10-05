@@ -202,6 +202,22 @@ class Ion;
 class chdata 
 {
 
+public:
+#if HAVE_LIBCUDA==1
+  struct cuIonElement
+  {
+    int Z, C;
+    cudaTextureObject_t ff_0, ff_d, rc_d, ce_d, ci_d;
+
+    cuIonElement()
+    {
+      Z = C = 0;
+      ff_0 = ff_d = rc_d = ce_d = ci_d = 0;
+    }
+  };
+  std::vector<cuIonElement> cuIonElem;
+#endif
+
 protected:
 
   //! Gauss-Laguerre structure for integration of Maxwell-Boltzmann
@@ -216,11 +232,10 @@ protected:
   //! CUDA methods
   //@{
   //! Working device vectors
-  std::vector<cudaArray_t> cuF0array, cuFFarray, cuRCarray, cuCEarray, cuCIarray;
-  std::vector<cudaTextureObject_t> ff_0, ff_d, rc_d, ce_d, ci_d;
-  std::vector<cuFP_t> ceEmin, ceEmax, ceDelE;
-  std::vector<cuFP_t> ciEmin, ciEmax, ciDelE;
-  std::vector<int>    cuZ, cuC, NColl, NIonz;
+  std::vector<cudaArray_t>         cuF0array, cuFFarray, cuRCarray, cuCEarray, cuCIarray;
+  std::vector<cuFP_t>              ceEmin, ceEmax, ceDelE;
+  std::vector<cuFP_t>              ciEmin, ciEmax, ciDelE;
+  std::vector<int>                 NColl, NIonz;
 
   //! Initialize constants describing texture grids
   void cuda_initialize_grid_constants();
