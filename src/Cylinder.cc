@@ -1061,11 +1061,17 @@ void Cylinder::determine_acceleration_and_potential(void)
     else
       cout << endl << "T=" << tnow << "  self offgrid=" << offtot << endl;
   }    
+  unsigned long kmin=std::numeric_limits<unsigned long>::max(), kmax=0;
+  unsigned      smin=std::numeric_limits<unsigned     >::max(), smax=0;
+  for (auto kv : cC->Particles()) {
+    kmin = std::min<unsigned long>(kmin, kv.first);
+    kmax = std::max<unsigned long>(kmax, kv.first);
+    smin = std::min<unsigned     >(smin, kv.second->indx);
+    smax = std::min<unsigned     >(kmin, kv.second->indx);
+  } 
   cout << "Cylinder: process " << myid << " name=<" << cC->name << "> bodies ["
-       << cC->Particles().begin()->second.indx << ", "
-       << cC->Particles().rbegin()->second.indx << "], ["
-       << cC->Particles().begin()->first << ", "
-       << cC->Particles().rbegin()->first << "]"
+       << kmin << ", " << kmax << "], ["
+       << smin << ", " << smax << "]"
        << " #=" << cC->Particles().size() << endl;
 #endif
 
