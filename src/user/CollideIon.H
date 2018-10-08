@@ -249,6 +249,8 @@ public:
 typedef boost::shared_ptr<CollisionTypeDiag> collTDPtr;
 typedef std::map<speciesKey, collTDPtr> sKeyCollTD;
 
+class CollideIon;
+
 /**
  This helper class maintains database of diagnostics on the CollideIon
  collisions.
@@ -809,8 +811,12 @@ private:
     return Collide::collide_thread(arg);
   }
 
+#if HAVE_LIBCUDA==1
   virtual void *collide_thread_cuda(void *arg);
-
+  void cuda_initialize();
+  void cuda_atomic_weights_init();
+  thrust::device_vector<cuIonElement> cuElems;
+#endif
 
 public:
 

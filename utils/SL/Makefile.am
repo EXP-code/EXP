@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
-CC = mpicc
+CC  = mpicc
 CXX = mpiCC
 
 if ENABLE_DMALLOC
@@ -20,7 +20,7 @@ endif
 bin_PROGRAMS = slcheck slshift orthochk diskpot
 
 COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS)	\
-$(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@
+$(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@  $(CUDA_LDFLAGS)
 SYS_LIBS = -lstdc++ -lpthread -ldl $(LIBS)
 MPI_LIBS = -lmpi
 

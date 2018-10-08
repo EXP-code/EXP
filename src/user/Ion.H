@@ -196,28 +196,24 @@ class Ion;
 //! Number of grid points in cumulative grid
 #define CHCUMK 100
 
+#if HAVE_LIBCUDA==1
+//! Structure of atomic number, state, and cross-section tables (textures)
+struct cuIonElement
+{
+  int                 Z, C, I, NColl, NIonz;
+  cuFP_t              ceEmin, ceEmax, ceDelE;
+  cuFP_t              ciEmin, ciEmax, ciDelE;
+  cudaTextureObject_t ff_0, ff_d, rc_d, ce_d, ci_d;
+};
+
+extern thrust::host_vector<cuIonElement> cuIonElem;
+#endif
+
 /**
    Store database of atomic data
 */
 class chdata 
 {
-
-public:
-#if HAVE_LIBCUDA==1
-  struct cuIonElement
-  {
-    int Z, C;
-    cudaTextureObject_t ff_0, ff_d, rc_d, ce_d, ci_d;
-
-    cuIonElement()
-    {
-      Z = C = 0;
-      ff_0 = ff_d = rc_d = ce_d = ci_d = 0;
-    }
-  };
-  std::vector<cuIonElement> cuIonElem;
-#endif
-
 protected:
 
   //! Gauss-Laguerre structure for integration of Maxwell-Boltzmann
@@ -233,9 +229,6 @@ protected:
   //@{
   //! Working device vectors
   std::vector<cudaArray_t>         cuF0array, cuFFarray, cuRCarray, cuCEarray, cuCIarray;
-  std::vector<cuFP_t>              ceEmin, ceEmax, ceDelE;
-  std::vector<cuFP_t>              ciEmin, ciEmax, ciDelE;
-  std::vector<int>                 NColl, NIonz;
 
   //! Initialize constants describing texture grids
   void cuda_initialize_grid_constants();
@@ -336,9 +329,11 @@ public:
   //@}
 
 #if HAVE_LIBCUDA==1
+  //! Cuda texture interpolation descriptions
+  std::vector<cuIonElement> cuIonElem;
+
   //! Test cross sections
   void testCross(int Nenergy);
-
 #endif
   
 };

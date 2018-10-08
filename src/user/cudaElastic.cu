@@ -1,5 +1,9 @@
 #include <cudaElastic.cuH>
 
+thrust::device_vector<cuFP_t> xsc_H, xsc_He, xsc_pH, xsc_pHe;
+__constant__ cuFP_t cuH_H, cuHe_H, cuPH_H, cuPHe_H;
+__constant__ cuFP_t cuH_Emin, cuHe_Emin, cuPH_Emin, cuPHe_Emin;
+
 // Atomic radii in picometers from Clementi, E.; Raimond, D. L.;
 // Reinhardt, W. P. (1967). "Atomic Screening Constants from SCF
 // Functions. II. Atoms with 37 to 86 Electrons". Journal of Chemical
@@ -7,13 +11,6 @@
 //
 const int numRadii = 87;
 __constant__ int cudaRadii[numRadii];
-
-// Cross section interpolation arrays for electron-neutral and
-// proton-neutral interactions
-//
-thrust::device_vector<cuFP_t> xsc_H, xsc_He, xsc_pH, xsc_pHe;
-__constant__ cuFP_t cuH_H, cuHe_H, cuPH_H, cuPHe_H;
-__constant__ cuFP_t cuH_Emin, cuHe_Emin, cuPH_Emin, cuPHe_Emin;
 
 // For construction of evenly spaced interpolation arrays
 //
@@ -27,7 +24,7 @@ resampleArray(const std::vector<cuFP_t>& x, const std::vector<cuFP_t>& y,
     minH = std::min<cuFP_t>(minH, x[i+1]- x[i]);
 
   // Resample based on minimum spacing
-  int numH = std:floor( (x.back() - x.front())/minH ) + 1;
+  int numH = int( (x.back() - x.front())/minH ) + 1;
 
   thrust::host_vector<cuFP_t> Y(numH);
   
@@ -43,9 +40,9 @@ resampleArray(const std::vector<cuFP_t>& x, const std::vector<cuFP_t>& y,
       auto ub = std::lower_bound(x.begin(), x.end(), xx);
       auto lb = ub++;
       if (ub == x.end()) ub = lb--;
-      cuFP_t a = (x - *lb)(*ub - *lb);
-      cuFP_t b = (*ub - x)(*ub - *lb);
-      yy = a*y[lb - ev_H.begin()] + b*y[ub - ev_H.begin()];
+      auto a = (xx - *lb)/(*ub - *lb);
+      auto b = (*ub - xx)/(*ub - *lb);
+      yy = a*y[lb - x.begin()] + b*y[ub - x.begin()];
     }
     Y.push_back(yy);
   }

@@ -3,7 +3,7 @@
 #include "cudaParticle.cuH"
 
 
-void ParticleHtoD(PartPtr h, cudaParticle & d, int beg=0, int end=0)
+void ParticleHtoD(PartPtr h, cudaParticle & d, int beg, int end)
 {
   d.mass = h->mass;
   for (int k=0; k<3; k++) {
@@ -15,7 +15,7 @@ void ParticleHtoD(PartPtr h, cudaParticle & d, int beg=0, int end=0)
   d.potext = h->potext;
 #ifdef DATTRIB_CUDA
   if (end<h->dattrib.size()) {
-    if (int n=beg; n<end; n++) d.datr[n-nbeg] = h->dattrib[n];
+    for (int n=beg; n<end; n++) d.datr[n-beg] = h->dattrib[n];
   } else {
     std::cerr << "Wrong attribute size in ParticleHtoD" << std::endl;
   }
@@ -24,7 +24,7 @@ void ParticleHtoD(PartPtr h, cudaParticle & d, int beg=0, int end=0)
   d.indx   = h->indx;
 }
 
-void ParticleDtoH(const cudaParticle & d, PartPtr h, int beg=0, int end=0)
+void ParticleDtoH(const cudaParticle & d, PartPtr h, int beg, int end)
 {
   h->mass = d.mass;
   for (int k=0; k<3; k++) {
@@ -35,7 +35,7 @@ void ParticleDtoH(const cudaParticle & d, PartPtr h, int beg=0, int end=0)
   h->pot    = d.pot;
   h->potext = d.potext;
 #ifdef DATTRIB_CUDA
-  if (int n=beg; n<end; n++) h->dattrib[n] = d.datr[n-nbeg];
+  for (int n=beg; n<end; n++) h->dattrib[n] = d.datr[n-beg];
 #endif
   h->level  = d.level;
   h->indx   = d.indx;

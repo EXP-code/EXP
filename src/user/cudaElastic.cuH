@@ -3,7 +3,11 @@
 
 #include <cudaUtil.cuH>
 
+// Cross section interpolation arrays for electron-neutral and
+// proton-neutral interactions
+//
 extern thrust::device_vector<cuFP_t> xsc_H, xsc_He, xsc_pH, xsc_pHe;
+__constant__ extern cuFP_t cuH_H, cuHe_H, cuPH_H, cuPHe_H;
 __constant__ extern cuFP_t cuH_Emin, cuHe_Emin, cuPH_Emin, cuPHe_Emin;
 
 void cudaElasticInit();

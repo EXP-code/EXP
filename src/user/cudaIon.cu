@@ -7,6 +7,8 @@
 #include <Ion.H>
 #include <Timer.h>
 
+thrust::host_vector<cuIonElement> cuIonElem;
+
 // Global symbols for coordinate transformation
 //
 __device__ __constant__
@@ -27,7 +29,7 @@ void testConstantsIon()
 
 void chdata::cuda_initialize_textures()
 {
-  size_t ionSize = cuZ.size();
+  size_t ionSize = IonList.size();
 
   // Interpolation data array
   //
@@ -36,17 +38,6 @@ void chdata::cuda_initialize_textures()
   cuRCarray.resize(ionSize, 0);
   cuCEarray.resize(ionSize, 0);
   cuCIarray.resize(ionSize, 0);
-
-  ceEmin   .resize(ionSize, 0);
-  ceEmax   .resize(ionSize, 0);
-  ceDelE   .resize(ionSize, 0);
-
-  ciEmin   .resize(ionSize, 0);
-  ciEmax   .resize(ionSize, 0);
-  ciDelE   .resize(ionSize, 0);
-
-  NColl.    resize(ionSize, 0);
-  NIonz.    resize(ionSize, 0);
 
   // Texture object array
   //
@@ -59,9 +50,6 @@ void chdata::cuda_initialize_textures()
     IonPtr I = v.second;
     cuIonElement& E = cuIonElem[k];
 
-    E.Z = I->Z;
-    E.C = I->C;
-    
     // The free-free array
     if (E.C>1) {
       cudaTextureDesc texDesc;
@@ -268,15 +256,15 @@ void chdata::cuda_initialize_textures()
 
     if (E.C <= E.Z) {
 
-      ceEmin[k] = I->collideEmin;
-      ceEmax[k] = I->collideEmax;
-      ceDelE[k] = I->delCollideE;
-      NColl [k] = I->NcollideGrid;
+      E.ceEmin = I->collideEmin;
+      E.ceEmax = I->collideEmax;
+      E.ceDelE = I->delCollideE;
+      E.NColl  = I->NcollideGrid;
 
       std::cout << " k=" << k
-		<< " Emin=" << ceEmin[k]
-		<< " Emax=" << ceEmax[k]
-		<< " delE=" << ceDelE[k]
+		<< " Emin=" << E.ceEmin
+		<< " Emax=" << E.ceEmax
+		<< " delE=" << E.ceDelE
 		<< std::endl;
 
       cudaTextureDesc texDesc;
@@ -344,12 +332,12 @@ void chdata::cuda_initialize_textures()
       cuda_safe_call(cudaFree(d_Interp), __FILE__, __LINE__, "Failure freeing device memory");
     }
 
-    if (cuC[k] <= cuZ[k]) {
+    if (E.C <= E.Z) {
 
-      ciEmin[k] = I->ionizeEmin;
-      ciEmax[k] = I->ionizeEmax;
-      ciDelE[k] = I->DeltaEGrid;
-      NIonz [k] = I->NionizeGrid;
+      E.ciEmin = I->ionizeEmin;
+      E.ciEmax = I->ionizeEmax;
+      E.ciDelE = I->DeltaEGrid;
+      E.NIonz  = I->NionizeGrid;
 
       // Allocate CUDA array in device memory (a one-dimension 'channel')
       //
@@ -452,8 +440,9 @@ void chdata::cuda_initialize_grid_constants()
 }
 
 
-__device__ void computeFreeFree
-(cuFP_t E, cuFP_t rr, cuFP_t& ph, cuFP_t& xc, cuIonElement elem)
+__device__
+void computeFreeFree
+(cuFP_t E, cuFP_t rr, cuFP_t& ph, cuFP_t& xc, cuIonElement& elem)
 {
   // value of h-bar * c in eV*nm
   //
@@ -520,16 +509,13 @@ __device__ void computeFreeFree
 }
 
 
-__global__ void testFreeFree
+__global__
+void testFreeFree
 (dArray<cuFP_t> energy,
  dArray<cuFP_t> randsl,
  dArray<cuFP_t> ph, dArray<cuFP_t> xc,
  cuIonElement elem)
 {
-  // value of h-bar * c in eV*nm
-  //
-  constexpr double hbc = 197.327;
-
   // Thread ID
   //
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
@@ -547,11 +533,11 @@ __global__ void testFreeFree
 }
 
 
-__device__ void computeColExcite
-(cuFP_t E, cuFP_t& ph, cuFP_t& xc, cuIonElement elem,
- cuFP_t Emin, cuFP_t Emax, cuFP_t delE, int Ngrid)
+__device__
+void computeColExcite
+(cuFP_t E, cuFP_t& ph, cuFP_t& xc, cuIonElement& elem)
 {
-  if (E < Emin or E > Emax) {
+  if (E < elem.ceEmin or E > elem.ceEmax) {
 
     xc = 0.0;
     ph= 0.0;
@@ -560,18 +546,18 @@ __device__ void computeColExcite
 
     // Interpolate the values
     //
-    int indx = std::floor( (E - Emin)/delE );
+    int indx = std::floor( (E - elem.ceEmin)/elem.ceDelE );
     
     // Sanity check
     //
-    if (indx > Ngrid-2) indx = Ngrid - 2;
-    if (indx < 0)       indx = 0;
+    if (indx > elem.NColl-2) indx = elem.NColl - 2;
+    if (indx < 0)            indx = 0;
     
-    double eA   = Emin + delE*indx;
-    double eB   = Emin + delE*(indx+1);
+    double eA   = elem.ceEmin + elem.ceDelE*indx;
+    double eB   = elem.ceEmin + elem.ceDelE*(indx+1);
     
-    double A = (eB - E)/delE;
-    double B = (E - eA)/delE;
+    double A = (eB - E)/elem.ceDelE;
+    double B = (E - eA)/elem.ceDelE;
     
 #if cuREAL == 4
     xc = 
@@ -588,15 +574,13 @@ __device__ void computeColExcite
       A*int2_as_double(tex3D<int2>(elem.ce_d, indx  , 1, 0)) +
       B*int2_as_double(tex3D<int2>(elem.ce_d, indx+1, 1, 0)) ;
 #endif
-    }
-
   }
+  // DONE
 }
 
 __global__ void testColExcite
 (dArray<cuFP_t> energy,
- dArray<cuFP_t> ph, dArray<cuFP_t> xc, cuIonElement elem,
- cuFP_t Emin, cuFP_t Emax, cuFP_t delE, int Ngrid)
+ dArray<cuFP_t> ph, dArray<cuFP_t> xc, cuIonElement elem)
 {
   // Thread ID
   //
@@ -607,18 +591,17 @@ __global__ void testColExcite
   const unsigned int N = energy._s;
 
   if (tid < N) {
-    void computeColExcite(energy._v[tid], ph._v[tid], xc._v[tid], 
-			  elem, Emin, Emax, delE, Ngrid);
+    computeColExcite(energy._v[tid], ph._v[tid], xc._v[tid], elem);
   }
 
   __syncthreads();
 }
 
-__device__ void computeColIonize
-(cuFP_t E, cuFP_t& xc, cuIonElement elem,
- cuFP_t Emin, cuFP_t Emax, cuFP_t delE, int Ngrid)
+__device__
+void computeColIonize
+(cuFP_t E, cuFP_t& xc, cuIonElement& elem)
 {
-  if (E < Emin or E > Emax) {
+  if (E < elem.ciEmin or E > elem.ciEmax) {
 
     xc = 0.0;
 
@@ -626,18 +609,18 @@ __device__ void computeColIonize
 
     // Interpolate the values
     //
-    int indx = std::floor( (E - Emin)/delE );
+    int indx = std::floor( (E - elem.ciEmin)/elem.ciDelE );
 
     // Sanity check
     //
-    if (indx > Ngrid-2) indx = Ngrid - 2;
-    if (indx < 0)       indx = 0;
+    if (indx > elem.NIonz-2) indx = elem.NIonz - 2;
+    if (indx < 0)            indx = 0;
     
-    double eA   = Emin + delE*indx;
-    double eB   = Emin + delE*(indx+1);
+    double eA   = elem.ciEmin + elem.ciDelE*indx;
+    double eB   = elem.ciEmin + elem.ciDelE*(indx+1);
     
-    double A = (eB - E)/delE;
-    double B = (E - eA)/delE;
+    double A = (eB - E)/elem.ciDelE;
+    double B = (E - eA)/elem.ciDelE;
     
 #if cuREAL == 4
     xc = 
@@ -654,8 +637,7 @@ __device__ void computeColIonize
 
 
 __global__ void testColIonize
-(dArray<cuFP_t> energy, dArray<cuFP_t> xc, cuIonElement elem,
- cuFP_t Emin, cuFP_t Emax, cuFP_t delE, int Ngrid)
+(dArray<cuFP_t> energy, dArray<cuFP_t> xc, cuIonElement elem)
 {
   // Thread ID
   //
@@ -666,14 +648,15 @@ __global__ void testColIonize
   const unsigned int N = energy._s;
 
   if (tid < N) {
-    computeColIonize(energy._v[tid], xc._v[tid], elem, Emin, Emax, delE, Ngrid);
+    computeColIonize(energy._v[tid], xc._v[tid], elem);
   }
 
   __syncthreads();
 }
 
-__device__ void computeRadRecomb
-(cuFP_t E, cuFP_t& xc, cudaIonElement elem)
+__device__
+void computeRadRecomb
+(cuFP_t E, cuFP_t& xc, cuIonElement& elem)
 {
   if (E < ionEminGrid or E > ionEmaxGrid) {
 
@@ -705,12 +688,13 @@ __device__ void computeRadRecomb
       A*int2_as_double(tex1D<int2>(elem.rc_d, indx  )) +
       B*int2_as_double(tex1D<int2>(elem.rc_d, indx+1)) ;
 #endif
-    }
   }
+  // DONE
 }
 
-__global__ void testRadRecomb
-(dArray<cuFP_t> energy, dArray<cuFP_t> xc, cudaIonElement elem)
+__global__
+void testRadRecomb
+(dArray<cuFP_t> energy, dArray<cuFP_t> xc, cuIonElement elem)
 {
   // Thread ID
   //
@@ -743,6 +727,7 @@ void chdata::testCross(int Nenergy)
   for (auto v : IonList) {
 
     IonPtr I = v.second;
+    cuIonElement& E = cuIonElem[k];
 
     // Make an energy grid
     //
@@ -766,26 +751,24 @@ void chdata::testCross(int Nenergy)
 
     cuda.start();
 
-    if (cuC[k]>1)
+    if (E.C>1)
       testFreeFree<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), toKernel(randsl_d),
 					     toKernel(eFF_d), toKernel(xFF_d),
 					     cuIonElem[k]);
 
-    if (cuC[k]<=cuZ[k])
+    if (E.C<=E.Z)
       testColExcite<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
-					      toKernel(eCE_d), toKernel(xCE_d), cuIonElem[k],
-					      ceEmin[k], ceEmax[k], ceDelE[k], NColl[k]);
+					      toKernel(eCE_d), toKernel(xCE_d), cuIonElem[k]);
       
-    if (cuC[k]<=cuZ[k])
+    if (E.C<=E.Z)
       testColIonize<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
-					      toKernel(xCI_d), cuIonElem[k],
-					      ciEmin[k], ciEmax[k], ciDelE[k], NIonz[k]);
+					      toKernel(xCI_d), cuIonElem[k]);
       
-    if (cuC[k]>1)
+    if (E.C>1)
       testRadRecomb<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
 					      toKernel(xRC_d), cuIonElem[k]);
       
-    std::cout << "k=" << k << " delE=" << ceDelE[k] << std::endl;
+    std::cout << "k=" << k << " delE=" << E.ceDelE << std::endl;
 
     thrust::host_vector<cuFP_t> eFF_h = eFF_d;
     thrust::host_vector<cuFP_t> xFF_h = xFF_d;
@@ -881,13 +864,13 @@ void chdata::testCross(int Nenergy)
       double FF_xc = 0.0, FF_ph = 0.0, CE_xc = 0.0, CE_ph = 0.0;
       double CI_xc = 0.0, RC_xc = 0.0;
       
-      if (cuC[k]>1) {
+      if (E.C>1) {
 	FF_xc = xFF_0[indx];
 	FF_ph = eFF_0[indx];
 	RC_xc = xRC_0[indx];
       }
 
-      if (cuC[k]<=cuZ[k]) {
+      if (E.C<=E.Z) {
 	CE_xc = xCE_0[indx];
 	CE_ph = eCE_0[indx];
 	CI_xc = xCI_0[indx];
@@ -910,5 +893,4 @@ void chdata::testCross(int Nenergy)
   std::cout << std::endl
 	    << "Serial time: " << serial() << std::endl
 	    << "Cuda time  : " << cuda()   << std::endl;
-
 }

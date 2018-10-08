@@ -2,6 +2,12 @@
   Test cuda cross section implementation
 */
 
+/* Manual compile string:
+
+mpiCC -g -o testCrossCuda testCrossCuda.o Ion.o cudaIon.o TopBase.o spline.o phfit2.o -lexputil -lexpgnu -lboost_program_options -lvtkCommonCore-7.1 -lvtkCommonDataModel-7.1 -lvtkIOXML-7.1 -lmpi -lcuda -lcudart
+
+*/
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -107,5 +113,7 @@ int main (int ac, char **av)
   std::cout << "# Ions = " << ch.IonList.size() << std::endl;
   ch.testCross(num);
   
+  MPI_Finalize();
+
   return 0;
 }
