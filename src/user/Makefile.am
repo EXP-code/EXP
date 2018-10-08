@@ -14,7 +14,7 @@ AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil -lgomp
 
 if ENABLE_CUDA
   ADD_CUDA = cudaIon.cu cudaCollideIon.cu cudaElastic.cu
-  LNK_CUDA = cudaIon-link.o cudaCollideIon-link.o cudaElastic-link.o
+  OBJ_CUDA = cudaIon.o cudaCollideIon.o cudaElastic.o
   ifeq ($(GENCODE_FLAGS),)
     $(foreach sm,@sm_vers@,$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
   endif
@@ -63,12 +63,10 @@ libcommon_a_SOURCES = ResPot.cc ResPotOrb.cc BarForcing.cc	\
 libdsmc_a_SOURCES = Collide.cc CollideLTE.cc HeatCool.cc		\
 	CollideIon.cc Ion.cc interactSelect.cc Elastic.cc TopBase.cc	\
 	NTC.cc Quantile.cc QuantileBag.cc phfit2.f			\
-	atomic_constants.cc spline.cc
+	atomic_constants.cc spline.cc $(ADD_CUDA)
+libdsmc_a_LIBADD = libdsmc-link.o
 
 libswake_a_SOURCES = respmat6.cc cratint.cc rombeveccmp.cc
-
-# libcudsmc_a_SOURCES = $(ADD_CUDA)
-# libcudsmc_a_AR = $(NVCC) $(CUDA_CFLAGS) $(NVCC_CXXFLAGS) $(CUDA_LDLAGS) $(CUDA_LIBS) -dlink -o
 
 #
 # Shared (loadable) libraries
@@ -127,7 +125,7 @@ libwake_la_LIBADD = libcommon.a
 libdsmc_la_SOURCES = UserDSMC.cc
 libdsmc_la_LIBADD  = libcommon.a
 
-libtreegas_la_SOURCES = UserTreeDSMC.cc 
+libtreegas_la_SOURCES = UserTreeDSMC.cc
 libtreegas_la_LDFLAGS = $(BOOST_LDFLAGS) $(CUDA_LDFLAGS)
 libtreegas_la_LIBADD  = $(BOOST_FILESYSTEM_LIB) $(BOOST_SERIALIZATION_LIB) libcommon.a libdsmc.a
 
@@ -193,10 +191,16 @@ EllipsoidForce.cc:	$(top_srcdir)/utils/ICs/EllipsoidForce.cc
 
 .cu.o:
 	$(NVCC) $(CUDA_CFLAGS) $(NVCC_CXXFLAGS) -c -o $@ $<
-	$(NVCC) $(LNKCODE_FLAGS) -Xcompiler '-fPIC' -dlink -o $*-link.o $*.o
 
 # trigger cuda compilation to make device linkage
 #
+
+# standlone for testing
 cudaIon-link.o:	cudaIon.o
+	$(NVCC) $(LNKCODE_FLAGS) -Xcompiler '-fPIC' -dlink -o $@ $*.o
+
+# linkage for all cuda objects for library
+libdsmc-link.o:	$(OBJ_CUDA)
+	$(NVCC) $(LNKCODE_FLAGS) -Xcompiler '-fPIC' -dlink -o $@ $(OBJ_CUDA)
 
 CLEANFILES = 	CylindricalDisk.cc EllipsoidForce.cc SLSphere.cc
