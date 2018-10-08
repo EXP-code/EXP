@@ -56,10 +56,10 @@ struct LessCudaLev
 
 
 //! Copy EXP particle to CUDA particle structure
-void ParticleHtoD(PartPtr h, cudaParticle & d);
+void ParticleHtoD(PartPtr h, cudaParticle & d, int beg=0, int end=0);
 
 //! Copy CUDA particle structure to EXP particle
-void ParticleDtoH(const cudaParticle & d, PartPtr h);
+void ParticleDtoH(const cudaParticle & d, PartPtr h, int beg=0, int end=0);
 
 //! Print cudaParticle to output stream
 extern __host__

@@ -202,7 +202,7 @@ public:
 	    int DIVERGE=0, double DFAC=1.0, bool Verbose=false);
 
   //! Destructor
-  ~SLGridSph();
+  virtual ~SLGridSph();
 
 				// Members
 

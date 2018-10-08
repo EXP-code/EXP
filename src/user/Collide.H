@@ -14,6 +14,7 @@
 #include <Uniform.h>
 #include <Normal.h>
 
+#include "ExternalForce.H"
 #include "AsciiHisto.H"
 #include "Particle.H"
 #include "pHOT.H"

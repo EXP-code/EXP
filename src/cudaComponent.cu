@@ -2,6 +2,7 @@
 
 #include <Component.H>
 #include "expand.h"
+#include "cudaParticle.cuH"
 
 #include <boost/make_shared.hpp>
 

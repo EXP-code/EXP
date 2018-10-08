@@ -14,12 +14,18 @@ AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil -lgomp
 
 if ENABLE_CUDA
   ADD_CUDA = cudaIon.cu cudaCollideIon.cu cudaElastic.cu
+  LNK_CUDA = cudaIon-link.o cudaCollideIon-link.o cudaElastic-link.o
   ifeq ($(GENCODE_FLAGS),)
     $(foreach sm,@sm_vers@,$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
   endif
-  CUDA_LIBS  = -lcuda -lcudart
-  NVCC_CXXFLAGS  = -I../../ -I. $(GENCODE_FLAGS) $(NVCC_EXTRA) -Xcompiler '-fPIC' -Xcompiler $(AM_CPPFLAGS)
+  ifeq ($(LNKCODE_FLAGS),)
+    $(foreach sm,@sm_vers@,$(eval LNKCODE_FLAGS += -arch=sm_$(sm)))
+  endif
+  CUDA_LIBS  = -lcurand -lcudart -lcuda
+  NVCC_CXXFLAGS  = -I../../ -I. $(GENCODE_FLAGS) $(NVCC_EXTRA) -dc -Xcompiler '-fPIC' -Xcompiler $(AM_CPPFLAGS)
 endif
+
+AM_CXXFLAGS += $(CUDA_CFLAGS)
 
 libdir      = $(prefix)/lib/user
 
@@ -57,9 +63,12 @@ libcommon_a_SOURCES = ResPot.cc ResPotOrb.cc BarForcing.cc	\
 libdsmc_a_SOURCES = Collide.cc CollideLTE.cc HeatCool.cc		\
 	CollideIon.cc Ion.cc interactSelect.cc Elastic.cc TopBase.cc	\
 	NTC.cc Quantile.cc QuantileBag.cc phfit2.f			\
-	atomic_constants.cc spline.cc $(ADD_CUDA)
+	atomic_constants.cc spline.cc
 
 libswake_a_SOURCES = respmat6.cc cratint.cc rombeveccmp.cc
+
+# libcudsmc_a_SOURCES = $(ADD_CUDA)
+# libcudsmc_a_AR = $(NVCC) $(CUDA_CFLAGS) $(NVCC_CXXFLAGS) $(CUDA_LDLAGS) $(CUDA_LIBS) -dlink -o
 
 #
 # Shared (loadable) libraries
@@ -119,7 +128,7 @@ libdsmc_la_SOURCES = UserDSMC.cc
 libdsmc_la_LIBADD  = libcommon.a
 
 libtreegas_la_SOURCES = UserTreeDSMC.cc 
-libtreegas_la_LDFLAGS = $(BOOST_LDFLAGS)
+libtreegas_la_LDFLAGS = $(BOOST_LDFLAGS) $(CUDA_LDFLAGS)
 libtreegas_la_LIBADD  = $(BOOST_FILESYSTEM_LIB) $(BOOST_SERIALIZATION_LIB) libcommon.a libdsmc.a
 
 libperiodic_la_SOURCES = UserPeriodic.cc 
@@ -149,25 +158,24 @@ libshear_la_SOURCES = UserShear.cc
 libprofile_la_SOURCES = UserProfile.cc
 
 testCrossSection_SOURCES = testCross.cc phfit2.f cudaIon.cu
-testCrossSection_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@
-testCrossSection_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBS)
+testCrossSection_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@ $(CUDA_LDFLAGS)
+testCrossSection_LDADD   = cudaIon-link.o $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBS)
 
-testIonRecomb_SOURCES = testIonRecomb.cc phfit2.f
-testIonRecomb_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@
-testIonRecomb_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBS)
+testIonRecomb_SOURCES = testIonRecomb.cc phfit2.f cudaIon.cu
+testIonRecomb_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@ $(CUDA_LDFLAGS)
+testIonRecomb_LDADD   = cudaIon-link.o $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBS)
 
-genIonRecomb_SOURCES = genIonRecomb.cc phfit2.f
-genIonRecomb_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@
-genIonRecomb_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBS)
+genIonRecomb_SOURCES = genIonRecomb.cc phfit2.f cudaIon.cu
+genIonRecomb_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@ $(CUDA_LDFLAGS)
+genIonRecomb_LDADD   = cudaIon-link.o $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBS)
 
-testQuantile_SOURCES = testQuantile.cc Quantile.cc
+testQuantile_SOURCES = testQuantile.cc Quantile.cc 
 testQuantile_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS)
 testQuantile_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB)
 
-
 testCrossCuda_SOURCES = testCrossCuda.cc cudaIon.cu
-testCrossCuda_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@
-testCrossCuda_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBS)
+testCrossCuda_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@  $(CUDA_LDFLAGS)
+testCrossCuda_LDADD   = cudaIon-link.o $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBS) 
 
 CylindricalDisk.cc:	$(top_srcdir)/utils/SL/CylindricalDisk.cc
 			cp $(top_srcdir)/utils/SL/$@ .
@@ -180,10 +188,11 @@ EllipsoidForce.cc:	$(top_srcdir)/utils/ICs/EllipsoidForce.cc
 
 # the rule that can recognize *.cu files and compile the *.cu files to
 # *.lo and *.o files
-.cu.lo:
+.cu.lo :
 	$(top_builddir)/cudalt.py $@ $(NVCC) -c $(NVCC_CXXFLAGS) $<
 
-.cu.o :
+.cu.o:
 	$(NVCC) $(CUDA_CFLAGS) $(NVCC_CXXFLAGS) -c -o $@ $<
+	$(NVCC) $(LNKCODE_FLAGS) -Xcompiler '-fPIC' -dlink -o $*-link.o $*.o
 
 CLEANFILES = 	CylindricalDisk.cc EllipsoidForce.cc SLSphere.cc

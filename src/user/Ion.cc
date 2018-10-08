@@ -3408,14 +3408,23 @@ void chdata::cuda_initialize()
   // Remove any previous initialization data
   //
   destroy_cuda();
-  cuZ.clear();
-  cuC.clear();
+  cuIonElem.clear();
 
   for (auto v : IonList) {
-    cuZ.push_back(v.first.first );
-    cuC.push_back(v.first.second);
+    cuIonElement E;
+				// Initialize cross-section data structures
+				// 
+    E.Z = v.first.first;
+    E.C = v.first.second;
+    E.I = E.NColl  = E.NIonz = 0;
+    E.ceEmin = E.ceEmax = E.ceDelE = 0;
+    E.ciEmin = E.ciEmax = E.ciDelE = 0;
+    E.ff_0 = E.ff_d = E.rc_d = E.ce_d = E.ci_d = 0;
+
+    cuIonElem.push_back(E);
     
-    // Make grids
+				// Make grids
+				// 
     if (not v.second->freeFreeGridComputed)
       v.second->freeFreeMakeEvGrid(0);
 
@@ -3435,28 +3444,15 @@ void chdata::cuda_initialize()
 void chdata::destroy_cuda()
 {
   int i = 0;
-  for (auto & v : {ff_0, ff_d, rc_d, ce_d, ci_d} ) {
-
-    for (auto & u : v) {
+  for (auto & u : cuIonElem) {
+    for (auto & v : {u.ff_0, u.ff_d, u.rc_d, u.ce_d, u.ci_d} ) {
       std::ostringstream sout;
-      sout << "trying to free TextureObject [" << i++ << "]";
-      cuda_safe_call(cudaDestroyTextureObject(u),
+      sout << "trying to free TextureObject [" << i++
+	   << "] with [Z, C]=[" << u.Z << ", " << u.C << "]";
+      cuda_safe_call(cudaDestroyTextureObject(v),
 		     __FILE__, __LINE__, sout.str());
     }
   }
-
-  /*
-  i = 0;
-
-  for (auto & v : {cuF0array, cuFFarray, cuRCarray, cuCEarray, cuCIarray}) {
-
-    for (auto & u : v) {
-      std::ostringstream sout;
-      sout << "trying to free cuPitch [" << i++ << "] @ (" << u << ")";
-      cuda_safe_call(cudaFree(u), __FILE__, __LINE__, sout.str());
-    }
-  }
-  */
 }
 
 #endif
