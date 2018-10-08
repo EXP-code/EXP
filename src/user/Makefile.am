@@ -195,4 +195,8 @@ EllipsoidForce.cc:	$(top_srcdir)/utils/ICs/EllipsoidForce.cc
 	$(NVCC) $(CUDA_CFLAGS) $(NVCC_CXXFLAGS) -c -o $@ $<
 	$(NVCC) $(LNKCODE_FLAGS) -Xcompiler '-fPIC' -dlink -o $*-link.o $*.o
 
+# trigger cuda compilation to make device linkage
+#
+cudaIon-link.o:	cudaIon.o
+
 CLEANFILES = 	CylindricalDisk.cc EllipsoidForce.cc SLSphere.cc
