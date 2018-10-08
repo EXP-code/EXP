@@ -284,10 +284,10 @@ void OrbTrace::Run(int n, bool last)
 
 #ifdef DEBUG
       cout << "Process " << myid << ": packing particle #" << orblist[i]
-	   << "  index=" << it->second.indx;
+	   << "  index=" << it->second->indx;
       for (int k=0; k<3; k++) 
 	cout << " " << 
-	  it->second.pos[k];
+	  it->second->pos[k];
       cout << endl;
 #endif 
     } 

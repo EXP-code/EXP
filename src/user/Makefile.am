@@ -12,19 +12,20 @@ AM_CXXFLAGS = -std=c++11 -fPIC -fno-inline-small-functions -Wall \
 	-D_REENTRANT -Wno-non-virtual-dtor $(ADD_CFLAGS4) -fopenmp
 AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil -lgomp
 
+bin_PROGRAMS = testCrossSection testIonRecomb genIonRecomb testQuantile
+
 if ENABLE_CUDA
   ADD_CUDA = cudaIon.cu cudaCollideIon.cu cudaElastic.cu
+  ADD_CUDA_EXTRA = cudaIon.cu
   ifeq ($(GENCODE_FLAGS),)
     $(foreach sm,@sm_vers@,$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
   endif
   CUDA_LIBS  = -lcuda -lcudart
   NVCC_CXXFLAGS  = -I../../ -I. $(GENCODE_FLAGS) $(NVCC_EXTRA) -Xcompiler '-fPIC' -Xcompiler $(AM_CPPFLAGS)
+  bin_PROGRAMS += testCrossCuda
 endif
 
-libdir      = $(prefix)/lib/user
-
-bin_PROGRAMS = testCrossSection testIonRecomb genIonRecomb testQuantile \
-	testCrossCuda
+libdir = $(prefix)/lib/user
 
 lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la		\
 	libdiffuse.la libsatfix.la libdiffrot.la liblogpot.la		\
@@ -148,7 +149,7 @@ libshear_la_SOURCES = UserShear.cc
 
 libprofile_la_SOURCES = UserProfile.cc
 
-testCrossSection_SOURCES = testCross.cc phfit2.f cudaIon.cu
+testCrossSection_SOURCES = testCross.cc phfit2.f $(ADD_CUDA_EXTRA)
 testCrossSection_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@
 testCrossSection_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBS)
 
@@ -165,7 +166,7 @@ testQuantile_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS)
 testQuantile_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB)
 
 
-testCrossCuda_SOURCES = testCrossCuda.cc cudaIon.cu
+testCrossCuda_SOURCES = testCrossCuda.cc $(ADD_CUDA_EXTRA)
 testCrossCuda_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@
 testCrossCuda_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBS)
 

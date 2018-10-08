@@ -109,6 +109,8 @@ Particle.H:		$(top_srcdir)/src/Particle.H
 Species.H:		$(top_srcdir)/src/Species.H
 			cp $(top_srcdir)/src/$@ .
 
+makeIonIC.cc:		atomic_constants.H
+
 atomic_constants.cc:	$(top_srcdir)/src/user/atomic_constants.cc atomic_constants.H
 			cp $(top_srcdir)/src/user/$@ .
 

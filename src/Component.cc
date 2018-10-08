@@ -1089,12 +1089,17 @@ void Component::read_bodies_and_distribute_ascii(void)
 
 #ifdef DEBUG
   if (particles.size()) {
+    unsigned long imin = std::numeric_limits<unsigned long>::max();
+    unsigned long imax = 0, kmin = imax, kmax = 0;
+    for (auto p : particles) {
+      imin = std::min<unsigned long>(imin, p.first);
+      imax = std::max<unsigned long>(imax, p.first);
+      kmin = std::min<unsigned long>(kmin, p.second->indx);
+      kmax = std::max<unsigned long>(kmax, p.second->indx);
+    }
     cout << "read_bodies_and_distribute_ascii: process " << myid 
-	 << " name=" << name << " bodies ["
-	 << particles.begin() ->second.indx << ", "
-	 << particles.rbegin()->second.indx << "], ["
-	 << particles.begin() ->first << ", "
-	 << particles.rbegin()->first << "]"
+	 << " name=" << name << " bodies [" << kmin << ", "
+	 << kmax << "], [" << imin << ", " << imax << "]"
 	 << " #=" << particles.size() << endl;
   } else {
     cout << "read_bodies_and_distribute_ascii: process " << myid 
@@ -1264,12 +1269,17 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   MPI_Bcast(&rmax, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 #ifdef DEBUG
+  unsigned long imin = std::numeric_limits<unsigned long>::max();
+  unsigned long imax = 0, kmin = imax, kmax = 0;
+  for (auto p : particles) {
+    imin = std::min<unsigned long>(imin, p.first);
+    imax = std::max<unsigned long>(imax, p.first);
+    kmin = std::min<unsigned long>(kmin, p.second->indx);
+    kmax = std::max<unsigned long>(kmax, p.second->indx);
+  }
   cout << "read_bodies_and_distribute_binary: process " << myid 
-       << " name=<" << name << "> bodies ["
-       << particles.begin()->second.indx << ", "
-       << particles.rbegin()->second.indx << "], ["
-       << particles.begin()->first << ", "
-       << particles.rbegin()->first << "]"
+       << " name=" << name << " bodies [" << kmin << ", "
+       << kmax << "], [" << imin << ", " << imax << "]"
        << " #=" << particles.size() << endl;
 #endif
 }
@@ -1284,19 +1294,29 @@ PartPtr * Component::get_particles(int* number)
   
 #ifdef DEBUG
   if (*number < 0) {
+
     if (particles.size()) {
       makeKeyList();
-      unsigned long ibeg = *keys.begin(), iend = *keys.rbegin();
+
+      unsigned long imin = std::numeric_limits<unsigned long>::max();
+      unsigned long imax = 0, kmin = imax, kmax = 0;
+      for (auto p : particles) {
+	imin = std::min<unsigned long>(imin, p.first);
+	imax = std::max<unsigned long>(imax, p.first);
+	kmin = std::min<unsigned long>(kmin, p.second->indx);
+	kmax = std::max<unsigned long>(kmax, p.second->indx);
+      }
+
       cout << "get_particles: process " << myid 
 	   << " <name=" << name << "> bodies ["
-	   << particles[*ibeg].indx << ", "
-	   << particles[*iend].indx << "], ["
-	   << *ibeg << ", " << *iend << "]" 
+	   << kmin << ", " << kmax << "], ["
+	   << imin << ", " << imax << "]" 
 	   << " #=" << keys.size() << endl;
-    else
+    } else {
       cout << "get_particles: process " << myid 
 	   << " <name=" << name << "> #=" 
 	   << keys.size() << endl;
+    }
   }
 #endif
 				// Reset
@@ -1421,10 +1441,10 @@ PartPtr * Component::get_particles(int* number)
       for (icur=ibeg; icur!=iend; icur++) {
 #ifdef DEBUG
 	if (icount<2) {
-	  Particle *pp = &particles[*icur];
+	  Particle *pp = particles[*icur].get();
 	  cout << "Component [" << myid << "]: sending ";
 	  cout << setw(3) << icount
-	       << setw(14) << pp->second.mass
+	       << setw(14) << pp->mass
 #ifdef INT128
 	       << setw(18) << pp->key.toHex()
 #else
@@ -1445,11 +1465,11 @@ PartPtr * Component::get_particles(int* number)
 	   << ", counter value=" << counter;
       if (keys.size())
 	cout << ", nbodies_index=" << nbodies_index[node]
-	     << ", seq_beg=" << particles[*ibeg].indx
-	     << ", seq_end=" << particles[*iend].indx
+	     << ", seq_beg=" << particles[*ibeg]->indx
+	     << ", seq_end=" << particles[*iend]->indx
 	     << ", number found =" << icount
-	     << ", first=" << particles[*keys.begin()].indx
-	     << ", last=" << particles[*keys.rbegin()].indx;
+	     << ", first=" << particles[*keys.begin()]->indx
+	     << ", last=" << particles[*keys.rbegin()]->indx;
       cout << endl << flush;
 #endif    
 	
@@ -2409,12 +2429,18 @@ void Component::load_balance(void)
       
 #ifdef DEBUG
       if (myid==iold) {
-	if (particles.size())
+	if (particles.size()) {
+	  unsigned long kmin = std::numeric_limits<unsigned long>::max();
+	  unsigned long kmax = 0;
+	  for (auto p : particles) {
+	    kmin = std::min<unsigned long>(kmin, p.second->indx);
+	    kmax = std::max<unsigned long>(kmax, p.second->indx);
+	  }
 	  cout << "Process " << myid << ": new ends :"
-	       << "  beg seq=" << particles.begin() ->second->indx
-	       << "  end seq=" << particles.rbegin()->second->indx
+	       << "  beg seq=" << kmin
+	       << "  end seq=" << kmax
 	       << endl;
-	else
+	} else
 	  cout << "Process " << myid << ": no particles!"
 	       << endl;
       }
@@ -2434,12 +2460,18 @@ void Component::load_balance(void)
 
 #ifdef DEBUG
       if (myid==iold) {
-	if (particles.size())
+	if (particles.size()) {
+	  unsigned long kmin = std::numeric_limits<unsigned long>::max();
+	  unsigned long kmax = 0;
+	  for (auto p : particles) {
+	    kmin = std::min<unsigned long>(kmin, p.second->indx);
+	    kmax = std::max<unsigned long>(kmax, p.second->indx);
+	  }
 	  cout << "Process " << myid << ": new ends :"
-	       << "  beg seq=" << particles.begin() ->second->indx
-	       << "  end seq=" << particles.rbegin()->second->indx
+	       << "  beg seq=" << kmin
+	       << "  end seq=" << kmax
 	       << endl;
-	else
+	} else
 	  cout << "Process " << myid << ": no particles!"
 	       << endl;
       }
