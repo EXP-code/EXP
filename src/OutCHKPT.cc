@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iomanip>
 #include <sstream>
+#include <chrono>
 
 #include "expand.h"
 #include <global.H>
@@ -10,9 +11,6 @@
 #include <AxisymmetricBasis.H>
 #include <OutCHKPT.H>
 
-#ifdef PSN_TIMING
-#include <chrono>
-#endif
 
 OutCHKPT::OutCHKPT(string& line) : Output(line)
 {
@@ -33,6 +31,10 @@ void OutCHKPT::initialize()
   else
     nint = 100;
 
+  if (Output::get_value(string("timer"), tmp))
+    timer = atoi(tmp.c_str()) ? true : false;
+  else
+    timer = false;
 }
 
 
@@ -42,6 +44,7 @@ void OutCHKPT::Run(int n, bool last)
   if (VERBOSE>5 && myid==0) {
     cout << " OutCHKPT::Run(): n=" << n << " psdump=" << psdump << endl;
   }
+
   if (n == psdump) {       
     if (myid==0) {
       string backfile = filename + ".bak";
@@ -80,10 +83,8 @@ void OutCHKPT::Run(int n, bool last)
     return;
   }
 
-#ifdef PSN_TIMING
   std::chrono::high_resolution_clock::time_point beg, end;
-  beg = std::chrono::high_resolution_clock::now();
-#endif
+  if (timer) beg = std::chrono::high_resolution_clock::now();
   
   ofstream *out;
 
@@ -137,12 +138,12 @@ void OutCHKPT::Run(int n, bool last)
 
   chktimer.mark();
 
-#ifdef PSN_TIMING
-  end = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> intvl = end - beg;
-  if (myid==0)
-    std::cout << "OutCHKPT [T=" << tnow << "] timing=" << intvl.count()
-	      << std::endl;
-#endif
+  if (timer) {
+    end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> intvl = end - beg;
+    if (myid==0)
+      std::cout << "OutCHKPT [T=" << tnow << "] timing=" << intvl.count()
+		<< std::endl;
+  }
 }
 

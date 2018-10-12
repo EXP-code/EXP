@@ -47,7 +47,7 @@ exp_SOURCES = Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc	\
      ScatterMFP.cc SphericalBasis.cc AxisymmetricBasis.cc Sphere.cc	\
      TwoCenter.cc EJcom.cc global.cc begin.cc ddplgndr.cc Direct.cc	\
      Shells.cc NoForce.cc end.cc OutputContainer.cc OutPS.cc		\
-     OutPSN.cc OutCHKPT.cc Output.cc header.cc expand.cc		\
+     OutPSN.cc OutPSP.cc OutCHKPT.cc Output.cc header.cc expand.cc	\
      externalShock.cc generateRelaxation.cc HaloBulge.cc incpos.cc	\
      incvel.cc ComponentContainer.cc OutAscii.cc OutMulti.cc		\
      OutRelaxation.cc OrbTrace.cc OutDiag.cc OutLog.cc OutCoef.cc	\

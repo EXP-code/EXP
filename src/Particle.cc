@@ -199,6 +199,79 @@ void Particle::writeBinary(unsigned rsize,
 }
 
 
+std::vector<char>& Particle::writeBinaryMPI(unsigned rsize, 
+					    double* com0, double* comI,
+					    double* cov0, double* covI,
+					    bool indexing)
+{
+  buffer.resize(getMPIBufSize(rsize, indexing));
+  char *buf = &buffer[0];
+
+  // Position in buffer
+  size_t pbuf = 0;
+
+  // Working variable
+  float tf;
+
+  if (indexing) { 		// Cache index if desired
+    memcpy (buf+pbuf, &indx, sizeof(unsigned long));
+    pbuf += sizeof(unsigned long);
+  }
+
+  if (rsize == sizeof(float)) {
+    tf = static_cast<float>(mass);
+    memcpy (buf+pbuf, &tf, rsize); pbuf += rsize;
+  }
+  else {
+    memcpy (buf+pbuf, &mass, rsize); pbuf += rsize;
+  }
+  
+  for (int i=0; i<3; i++) {
+    double pv = pos[i] + com0[i] - comI[i];
+    if (rsize == sizeof(float)) {
+      tf = static_cast<float>(pv);
+      memcpy (buf+pbuf, &tf, rsize); pbuf += rsize;
+    }
+    else {
+      memcpy (buf+pbuf, &pv, rsize); pbuf += rsize;
+    }
+  }
+  
+  for (int i=0; i<3; i++) {
+    double pv = vel[i] + cov0[i] - covI[i];
+    if (rsize == sizeof(float)) {
+      tf = static_cast<float>(pv);
+      memcpy (buf+pbuf, &tf, rsize); pbuf += rsize;
+    }
+    else {
+      memcpy (buf+pbuf, &pv, rsize); pbuf += rsize;
+    }
+  }
+
+  double pot0 = pot + potext;
+  if (rsize == sizeof(float)) {
+    tf = static_cast<float>(pot0);
+    memcpy (buf+pbuf, &tf, rsize); pbuf += rsize;
+  }
+  else {
+    memcpy (buf+pbuf, &pot0, rsize); pbuf += rsize;
+  }
+
+  memcpy (buf+pbuf, &iattrib[0], sizeof(int)*iattrib.size());
+  pbuf += sizeof(int)*iattrib.size();
+  
+  for (auto jt: dattrib) {
+    if (rsize == sizeof(float)) {
+      tf = static_cast<float>(jt);
+      memcpy (buf+pbuf, &tf, rsize); pbuf += rsize;
+    }
+    else {
+      memcpy (buf+pbuf, &jt, rsize); pbuf += rsize;
+    }
+  }
+}
+
+
 void Particle::readAscii(bool indexing, int seq, std::istream* fin)
 {
   //

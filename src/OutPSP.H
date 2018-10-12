@@ -1,7 +1,7 @@
-#ifndef _OutPSN_H
-#define _OutPSN_H
+#ifndef _OutPSP_H
+#define _OutPSP_H
 
-#include <OutPSN.H>
+#include <OutPSP.H>
 
 /** Write phase-space dumps at regular intervals.
     Each %dump is written into a new file label as <code>filename.n</code>
@@ -11,21 +11,23 @@
     @param filename is the name of the output file
     @param nint is the number of steps between dumps
     @param nbeg is suffix of the first phase space %dump
+    @param real4 indicates floats for real PS quantities
+    @param real8 indicates doubles for real PS quantities
 */
-class OutPSN : public Output
+class OutPSP : public Output
 {
 
 private:
 
   std::string filename;
-  bool timer;
+  bool real4, timer;
   int nbeg;
   void initialize(void);
 
 public:
 
   //! Constructor
-  OutPSN(string& line);
+  OutPSP(string& line);
 
   //! Provided by derived class to generate some output
   /*!

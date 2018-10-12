@@ -18,6 +18,31 @@ bool ComponentHeader::write(ostream *out)
     return false;
 }
 
+bool ComponentHeader::write_mpi(MPI_File& out, MPI_Offset& offset)
+{
+  MPI_Status status;
+
+  MPI_File_write_at(out, offset, &nbod,      1, MPI_INT, &status);
+  offset += sizeof(int);
+
+  MPI_File_write_at(out, offset, &niatr,     1, MPI_INT, &status);
+  offset += sizeof(int);
+
+  MPI_File_write_at(out, offset, &ndatr,     1, MPI_INT, &status);
+  offset += sizeof(int);
+
+  MPI_File_write_at(out, offset, &ninfochar, 1, MPI_INT, &status);
+  offset += sizeof(int);
+
+  MPI_File_write_at(out, offset, info.get(), ninfochar, MPI_CHAR, &status);
+  offset += ninfochar;
+
+  if (status.MPI_ERROR == MPI_SUCCESS)
+    return true;
+  else
+    return false;
+}
+
 bool ComponentHeader::read(istream *in)
 {
   int ninfo;

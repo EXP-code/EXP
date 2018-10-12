@@ -1588,6 +1588,56 @@ void Component::write_binary(ostream* out, bool real4)
     
 }
 
+void Component::write_binary_mpi(MPI_File& out, MPI_Offset& offset, bool real4)
+{
+  ComponentHeader header;
+  MPI_Status status;
+
+  if (myid == 0) {
+
+    header.nbod  = nbodies_tot;
+    header.niatr = niattrib;
+    header.ndatr = ndattrib;
+  
+    ostringstream outs;
+    outs << name << " : " << id << " : " << cparam << " : " << fparam;
+    strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
+
+    if (real4) rsize = sizeof(float);
+    else       rsize = sizeof(double);
+    unsigned long cmagic = magic + rsize;
+
+    MPI_File_write_at(out, offset, &cmagic, 1, MPI_UNSIGNED_LONG, &status);
+
+    offset += sizeof(unsigned long);
+
+    if (!header.write_mpi(out, offset)) {
+      std::string msg("Component::write_binary_mpi: Error writing particle header");
+      throw GenericError(msg, __FILE__, __LINE__);
+    }
+
+    offset += header.getSize();
+  } else {
+    offset += sizeof(unsigned long) + header.getSize();
+  }
+
+  unsigned N = particles.size();
+  std::vector<unsigned> numP(numprocs, 0);
+
+  MPI_Allgather(&N, 1, MPI_UNSIGNED, &numP[0], 1, MPI_UNSIGNED,	MPI_COMM_WORLD);
+  
+  for (int i=1; i<numprocs; i++) numP[i] += numP[i-1];
+  unsigned bSiz = particles.begin()->second->getMPIBufSize(rsize, indexing);
+  if (myid) offset += numP[myid-1] * bSiz;
+  
+  for (auto & p : particles) {
+    std::vector<char> & buf =
+      p.second->writeBinaryMPI(rsize, com0, comI, cov0, covI, true);
+    MPI_File_write_at(out, offset, &buf[0], bSiz, MPI_CHAR, &status);
+  }
+    
+}
+
 
 void Component::write_ascii(ostream* out, bool accel)
 {

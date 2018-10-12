@@ -13,7 +13,9 @@ class OutPS : public Output
 
 private:
 
-  string filename;
+  std::string filename;
+  bool timer;
+  
   void initialize(void);
 
 public:

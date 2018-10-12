@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <chrono>
 
 #include "expand.h"
 #include <global.H>
@@ -27,6 +28,10 @@ void OutPS::initialize()
   else
     nint = 100;
 
+  if (Output::get_value(string("timer"), tmp))
+    timer = atoi(tmp.c_str()) ? true : false;
+  else
+    timer = false;
 }
 
 
@@ -34,6 +39,9 @@ void OutPS::Run(int n, bool last)
 {
   if (n % nint && !last && !dump_signal) return;
   if (restart  && n==0  && !dump_signal) return;
+
+  std::chrono::high_resolution_clock::time_point beg, end;
+  if (timer) beg = std::chrono::high_resolution_clock::now();
 
   ofstream *out;
 
@@ -72,5 +80,13 @@ void OutPS::Run(int n, bool last)
   chktimer.mark();
 
   dump_signal = 0;
+
+  if (timer) {
+    end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> intvl = end - beg;
+    if (myid==0)
+      std::cout << "OutPS [T=" << tnow << "] timing=" << intvl.count()
+		<< std::endl;
+  }
 }
 

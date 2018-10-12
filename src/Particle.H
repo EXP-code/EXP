@@ -24,6 +24,9 @@ class Particle
 {
 private:
 
+  //! MPI buffer
+  std::vector<char> buffer;
+
 public:
 
   //! Default effort value
@@ -110,6 +113,20 @@ public:
 		   double* com0, double* comI,
 		   double* cov0, double* covI,
 		   bool indexing, std::ostream *out);
+
+  //! Write a particle in binary format (PSP) to buffer for MPI
+  std::vector<char>& writeBinaryMPI(unsigned rsize, 
+				    double* com0, double* comI,
+				    double* cov0, double* covI,
+				    bool indexing);
+
+  //! Particle buffer size
+  unsigned getMPIBufSize(unsigned rsize, bool indexing)
+  {
+    unsigned csize = (8 + dattrib.size()) * rsize + iattrib.size() * sizeof(int);
+    if (indexing) csize += sizeof(unsigned long);
+    return csize;
+  }
 };
 
 typedef boost::shared_ptr<Particle> PartPtr;
