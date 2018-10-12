@@ -73,14 +73,16 @@ void OutPSP::initialize()
 void OutPSP::Run(int n, bool last)
 {
   if (n % nint && !last && !dump_signal) return;
-  if (restart  && n==0  && !dump_signal) return;
+  // if (restart  && n==0  && !dump_signal) return;
 
   std::chrono::high_resolution_clock::time_point beg, end;
   if (timer) beg = std::chrono::high_resolution_clock::now();
   
-  MPI_Offset offset;
+  char err[MPI_MAX_ERROR_STRING];
+  MPI_Offset offset = 0;
   MPI_Status status;
   MPI_File   file;
+  int        len;
 
   psdump = n;
 
@@ -89,16 +91,22 @@ void OutPSP::Run(int n, bool last)
   ostringstream fname;
   fname << filename << "." << setw(5) << setfill('0') << nbeg++;
 
+  // return info about errors
+  MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_RETURN); 
+
   // Open shared file and write master header
   //
   int ret = MPI_File_open(MPI_COMM_WORLD, fname.str().c_str(),
-			  MPI_MODE_CREATE | MPI_MODE_WRONLY,
+			  MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_UNIQUE_OPEN,
 			  MPI_INFO_NULL, &file);
 
+
   if (ret != MPI_SUCCESS) {
-    cerr << "OutPSP: can't open file <" << fname.str() 
-	 << "> . . . quitting\n";
+    cerr << "OutPSP: can't open file <" << fname.str() << "> . . . quitting"
+	 << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 33);
+  } else {
+    cerr << "OutPSP: opened file <" << fname.str() << ">" << std::endl;
   }
 				// Used by OutCHKPT to not duplicate a dump
   lastPS = fname.str();
@@ -110,8 +118,16 @@ void OutPSP::Run(int n, bool last)
     header.ntot  = comp->ntot;
     header.ncomp = comp->ncomp;
     
-    MPI_File_write_at(file, offset, (char *)&header, sizeof(MasterHeader),
+    MPI_File_write_at(file, offset, &header, sizeof(MasterHeader),
 		      MPI_CHAR, &status);
+
+    /*
+      if (status.MPI_ERROR != MPI_SUCCESS) {
+      MPI_Error_string(status.MPI_ERROR, err, &len);
+      std::cout << "OutPSP::run: " << err
+		<< " at line " << __LINE__ << std::endl;
+    }
+    */
   }
   
   offset += sizeof(MasterHeader);
