@@ -199,14 +199,11 @@ void Particle::writeBinary(unsigned rsize,
 }
 
 
-void Particle::writeBinaryMPI(std::vector<char>& bufr, unsigned rsize, 
+void Particle::writeBinaryMPI(char* buf, unsigned rsize, 
 			      double* com0, double* comI,
 			      double* cov0, double* covI,
 			      bool indexing)
 {
-  bufr.resize(getMPIBufSize(rsize, indexing));
-  char *buf = &bufr[0];
-
   // Position in buffer
   size_t pbuf = 0;
 

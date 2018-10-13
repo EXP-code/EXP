@@ -105,9 +105,8 @@ void OutPSP::Run(int n, bool last)
     cerr << "OutPSP: can't open file <" << fname.str() << "> . . . quitting"
 	 << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 33);
-  } else {
-    cerr << "OutPSP: opened file <" << fname.str() << ">" << std::endl;
   }
+
 				// Used by OutCHKPT to not duplicate a dump
   lastPS = fname.str();
 				// Open file and write master header

@@ -1639,21 +1639,42 @@ void Component::write_binary_mpi(MPI_File& out, MPI_Offset& offset, bool real4)
   unsigned bSiz = particles.begin()->second->getMPIBufSize(rsize, indexing);
   if (myid) offset += numP[myid-1] * bSiz;
   
-  std::vector<char> buf;
+  const size_t bunch = 100000;
+  std::vector<char> buffer(bunch*bSiz);
+  size_t count = 0;
+  char *buf = &buffer[0];
 
   for (auto & p : particles) {
     p.second->writeBinaryMPI(buf, rsize, com0, comI, cov0, covI, true);
-    MPI_File_write_at_all(out, offset, &buf[0], bSiz, MPI_CHAR, &status);
+    buf += bSiz;
+    count++;
+
+    if (count==bunch) {
+      MPI_File_write_at_all(out, offset, &buf[0], bSiz*count, MPI_CHAR, &status);
+      /*
+	if (status.MPI_ERROR != MPI_SUCCESS) {
+	MPI_Error_string(status.MPI_ERROR, err, &len);
+	std::cout << "Component::write_binary_mpi: " << err
+	<< " at line " << __LINE__ << std::endl;
+	}
+      */
+      offset += bSiz*count;
+      count   = 0;
+      buf     = &buffer[0];
+    }
+  }
+
+  if (count) {
+    MPI_File_write_at_all(out, offset, &buf[0], bSiz*count, MPI_CHAR, &status);
     /*
-    if (status.MPI_ERROR != MPI_SUCCESS) {
+      if (status.MPI_ERROR != MPI_SUCCESS) {
       MPI_Error_string(status.MPI_ERROR, err, &len);
       std::cout << "Component::write_binary_mpi: " << err
-		<< " at line " << __LINE__ << std::endl;
-    }
+      << " at line " << __LINE__ << std::endl;
+      }
     */
-    offset += bSiz;
+    offset += bSiz*count;
   }
-    
 }
 
 
