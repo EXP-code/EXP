@@ -46,7 +46,7 @@ bool ComponentHeader::write_mpi(MPI_File& out, MPI_Offset& offset)
   */
   offset += sizeof(int);
 
-  MPI_File_write_at(out, offset, &ndatr,     1, MPI_INT, &status);
+  MPI_File_write_at(out, offset, &ndatr, 1, MPI_INT, &status);
   /*
   if (status.MPI_ERROR != MPI_SUCCESS) {
     MPI_Error_string(status.MPI_ERROR, err, &len);
