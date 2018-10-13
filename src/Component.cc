@@ -1625,7 +1625,6 @@ void Component::write_binary_mpi(MPI_File& out, MPI_Offset& offset, bool real4)
       throw GenericError(msg, __FILE__, __LINE__);
     }
 
-    offset += header.getSize();
   } else {
     offset += sizeof(unsigned long) + header.getSize();
   }
