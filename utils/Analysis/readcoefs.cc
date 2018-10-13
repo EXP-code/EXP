@@ -84,6 +84,14 @@ int main(int argc, char **argv)
     exit(-1);
   }
 
+  const std::string overview = "Read disk coefficient file and tabulate coefficients for each harmonic subspace in time\n";
+
+  if (vm.count("help")) {
+    std::cout << overview << std::endl;
+    std::cout << desc     << std::endl;
+    return 1;
+  }
+
   if (vm.count("verbose")) verbose = true;
 
   std::ifstream in(file);
