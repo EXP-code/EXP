@@ -69,19 +69,11 @@ void OutPSP::initialize()
       }
 				// All nodes need nbeg for MPI_File_open
       MPI_Bcast(&nbeg, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    } else {
+    } else {			// Get from root via Bcast
       MPI_Bcast(&nbeg, 1, MPI_INT, 0, MPI_COMM_WORLD);
     }
   }
 
-  // For debugging only . . . 
-  if (0) {
-    for (int i=0; i<numprocs; i++) {
-      std::cout << "OutPSP startup: rank " << std::setw(4) << myid
-		<< ": nbeg=" << nbeg << std::endl;
-      MPI_Barrier(MPI_COMM_WORLD);
-    }
-  }
 }
 
 
