@@ -3,10 +3,19 @@
 
 #include <OutPSP.H>
 
-/** Write phase-space dumps at regular intervals.
+/** Write phase-space dumps at regular intervals using MPI-IO
     Each %dump is written into a new file label as <code>filename.n</code>
     where is begins at <code>nbeg</code> and incremented by 1 after each
     file is written.
+
+    The MPI-IO implementation does not maintain the particle sequence so
+    indexing=1 needs to be added as a Component option if the particle
+    index is needed for post processing.   This version is much faster
+    than OutPSN and OutCHKPT which uses MPI gather to the root node before
+    writing.
+
+    This is the newest version for PSP output and has not be extensively 
+    tested as of 10/2018.
 
     @param filename is the name of the output file
     @param nint is the number of steps between dumps
