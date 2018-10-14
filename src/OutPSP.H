@@ -23,15 +23,15 @@
     @param filename is the name of the output file
     @param nint is the number of steps between dumps
     @param nbeg is suffix of the first phase space %dump
-    @param real4 indicates floats for real PS quantities
-    @param real8 indicates doubles for real PS quantities
+    @param real4 indicates floats for real PS quantities, otherwise doubles
+    @param nagg is the number of MPI-IO aggregators
 */
 class OutPSP : public Output
 {
 
 private:
 
-  std::string filename;
+  std::string filename, nagg;
   bool real4, timer;
   int nbeg;
   void initialize(void);

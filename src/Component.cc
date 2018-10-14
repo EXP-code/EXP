@@ -1131,7 +1131,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
       rsize = cmagic & mmask;
     }
 
-    if(!header.read(in)) {
+    if (!header.read(in)) {
       std::string msg("Error reading component header");
       throw GenericError(msg, __FILE__, __LINE__);
     }
@@ -1610,14 +1610,15 @@ void Component::write_binary_mpi(MPI_File& out, MPI_Offset& offset, bool real4)
 
     unsigned long cmagic = magic + rsize;
 
-    MPI_File_write_at(out, offset, &cmagic, 1, MPI_UNSIGNED_LONG, &status);
-    /*
-    if (status.MPI_ERROR != MPI_SUCCESS) {
-      MPI_Error_string(status.MPI_ERROR, err, &len);
+    int ret =
+      MPI_File_write_at(out, offset, &cmagic, 1, MPI_UNSIGNED_LONG, &status);
+
+    if (ret != MPI_SUCCESS) {
+      MPI_Error_string(ret, err, &len);
       std::cout << "Component::write_binary_mpi: " << err
 		<< " at line " << __LINE__ << std::endl;
     }
-    */
+
     offset += sizeof(unsigned long);
 
     if (!header.write_mpi(out, offset)) {
@@ -1648,14 +1649,15 @@ void Component::write_binary_mpi(MPI_File& out, MPI_Offset& offset, bool real4)
     count++;
 
     if (count==bunch) {
-      MPI_File_write_at_all(out, offset, &buffer[0], bSiz*count, MPI_CHAR, &status);
-      /*
-	if (status.MPI_ERROR != MPI_SUCCESS) {
-	MPI_Error_string(status.MPI_ERROR, err, &len);
+      int ret =
+	MPI_File_write_at(out, offset, &buffer[0], bSiz*count, MPI_CHAR, &status);
+
+      if (ret != MPI_SUCCESS) {
+	MPI_Error_string(ret, err, &len);
 	std::cout << "Component::write_binary_mpi: " << err
-	<< " at line " << __LINE__ << std::endl;
-	}
-      */
+		  << " at line " << __LINE__ << std::endl;
+      }
+
       offset += bSiz*count;
       count   = 0;
       buf     = &buffer[0];
@@ -1663,14 +1665,14 @@ void Component::write_binary_mpi(MPI_File& out, MPI_Offset& offset, bool real4)
   }
 
   if (count) {
-    MPI_File_write_at_all(out, offset, &buffer[0], bSiz*count, MPI_CHAR, &status);
-    /*
-      if (status.MPI_ERROR != MPI_SUCCESS) {
-      MPI_Error_string(status.MPI_ERROR, err, &len);
+    int ret = MPI_File_write_at(out, offset, &buffer[0], bSiz*count, MPI_CHAR, &status);
+
+    if (ret != MPI_SUCCESS) {
+      MPI_Error_string(ret, err, &len);
       std::cout << "Component::write_binary_mpi: " << err
-      << " at line " << __LINE__ << std::endl;
-      }
-    */
+		<< " at line " << __LINE__ << std::endl;
+    }
+
     offset += bSiz*count;
   }
 

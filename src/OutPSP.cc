@@ -39,15 +39,16 @@ void OutPSP::initialize()
   else
     real4 = false;
 
-  if (Output::get_value(string("real8"), tmp))
-    real4 = atoi(tmp.c_str()) ? false : true;
-  else
-    real4 = false;
-
   if (Output::get_value(string("timer"), tmp))
     timer = atoi(tmp.c_str()) ? true : false;
   else
     timer = false;
+
+  if (Output::get_value(string("nagg"), tmp))
+    nagg = tmp;
+  else
+    nagg = "1";
+
 				// Determine last file
 
   if (restart && nbeg==0 && myid==0) {
@@ -73,7 +74,7 @@ void OutPSP::initialize()
 void OutPSP::Run(int n, bool last)
 {
   if (n % nint && !last && !dump_signal) return;
-  // if (restart  && n==0  && !dump_signal) return;
+  if (restart  && n==0  && !dump_signal) return;
 
   std::chrono::high_resolution_clock::time_point beg, end;
   if (timer) beg = std::chrono::high_resolution_clock::now();
@@ -82,6 +83,7 @@ void OutPSP::Run(int n, bool last)
   MPI_Offset offset = 0;
   MPI_Status status;
   MPI_File   file;
+  MPI_Info   info;
   int        len;
 
   psdump = n;
@@ -94,11 +96,21 @@ void OutPSP::Run(int n, bool last)
   // return info about errors
   MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_RETURN); 
 
+
+
+  // Set info to limit the number of aggregators
+  //
+  MPI_Info_create(&info);
+  MPI_Info_set(info, "cb_nodes", nagg.c_str());
+
   // Open shared file and write master header
   //
-  int ret = MPI_File_open(MPI_COMM_WORLD, fname.str().c_str(),
-			  MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_UNIQUE_OPEN,
-			  MPI_INFO_NULL, &file);
+  int ret =
+    MPI_File_open(MPI_COMM_WORLD, fname.str().c_str(),
+		  MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_UNIQUE_OPEN,
+		  info, &file);
+
+  MPI_Info_free(&info);
 
 
   if (ret != MPI_SUCCESS) {
@@ -117,15 +129,14 @@ void OutPSP::Run(int n, bool last)
     header.ntot  = comp->ntot;
     header.ncomp = comp->ncomp;
     
-    MPI_File_write_at(file, offset, &header, sizeof(MasterHeader),
-		      MPI_CHAR, &status);
-    /*
-      if (status.MPI_ERROR != MPI_SUCCESS) {
-      MPI_Error_string(status.MPI_ERROR, err, &len);
+    ret = MPI_File_write_at(file, offset, &header, sizeof(MasterHeader),
+			    MPI_CHAR, &status);
+
+    if (ret != MPI_SUCCESS) {
+      MPI_Error_string(ret, err, &len);
       std::cout << "OutPSP::run: " << err
 		<< " at line " << __LINE__ << std::endl;
     }
-    */
   }
   
   offset += sizeof(MasterHeader);
@@ -134,7 +145,13 @@ void OutPSP::Run(int n, bool last)
     c->write_binary_mpi(file, offset, real4); 
   }
 
-  MPI_File_close(&file);
+  ret = MPI_File_close(&file);
+
+  if (ret != MPI_SUCCESS) {
+    MPI_Error_string(ret, err, &len);
+    std::cout << "OutPSP::run: " << err
+	      << " at line " << __LINE__ << std::endl;
+  }
 
   chktimer.mark();
 
