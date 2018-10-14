@@ -119,7 +119,6 @@ void OutPSP::Run(int n, bool last)
     
     MPI_File_write_at(file, offset, &header, sizeof(MasterHeader),
 		      MPI_CHAR, &status);
-
     /*
       if (status.MPI_ERROR != MPI_SUCCESS) {
       MPI_Error_string(status.MPI_ERROR, err, &len);

@@ -64,7 +64,7 @@ void OutPSN::initialize()
 void OutPSN::Run(int n, bool last)
 {
   if (n % nint && !last && !dump_signal) return;
-  if (restart  && n==0  && !dump_signal) return;
+  // if (restart  && n==0  && !dump_signal) return;
 
   std::chrono::high_resolution_clock::time_point beg, end;
   if (timer) beg = std::chrono::high_resolution_clock::now();

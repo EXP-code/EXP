@@ -199,73 +199,84 @@ void Particle::writeBinary(unsigned rsize,
 }
 
 
-void Particle::writeBinaryMPI(char* buf, unsigned rsize, 
-			      double* com0, double* comI,
-			      double* cov0, double* covI,
-			      bool indexing)
+int Particle::writeBinaryMPI(char *buf, unsigned rsize, 
+			     double* com0, double* comI,
+			     double* cov0, double* covI,
+			     bool indexing)
 {
-  // Position in buffer
-  size_t pbuf = 0;
+  // Pointer offset
+  int p = 0;
 
   // Working variable
   float tf;
 
   if (indexing) { 		// Cache index if desired
-    memcpy (buf+pbuf, &indx, sizeof(unsigned long));
-    pbuf += sizeof(unsigned long);
+    memcpy (buf+p, &indx, sizeof(unsigned long));
+    p += sizeof(unsigned long);
   }
 
   if (rsize == sizeof(float)) {
     tf = static_cast<float>(mass);
-    memcpy (buf+pbuf, &tf, rsize); pbuf += rsize;
+    memcpy (buf+p, &tf, rsize);
   }
   else {
-    memcpy (buf+pbuf, &mass, rsize); pbuf += rsize;
+    memcpy (buf+p, &mass, rsize);
   }
+  p += rsize;
   
   for (int i=0; i<3; i++) {
     double pv = pos[i] + com0[i] - comI[i];
     if (rsize == sizeof(float)) {
       tf = static_cast<float>(pv);
-      memcpy (buf+pbuf, &tf, rsize); pbuf += rsize;
+      memcpy (buf+p, &tf, rsize);
     }
     else {
-      memcpy (buf+pbuf, &pv, rsize); pbuf += rsize;
+      memcpy (buf+p, &pv, rsize);
     }
+    p += rsize;
   }
   
   for (int i=0; i<3; i++) {
     double pv = vel[i] + cov0[i] - covI[i];
     if (rsize == sizeof(float)) {
       tf = static_cast<float>(pv);
-      memcpy (buf+pbuf, &tf, rsize); pbuf += rsize;
+      memcpy (buf+p, &tf, rsize);
     }
     else {
-      memcpy (buf+pbuf, &pv, rsize); pbuf += rsize;
+      memcpy (buf+p, &pv, rsize);
     }
+    p += rsize;
   }
 
   double pot0 = pot + potext;
   if (rsize == sizeof(float)) {
     tf = static_cast<float>(pot0);
-    memcpy (buf+pbuf, &tf, rsize); pbuf += rsize;
+    memcpy (buf+p, &tf, rsize);
   }
   else {
-    memcpy (buf+pbuf, &pot0, rsize); pbuf += rsize;
+    memcpy (buf+p, &pot0, rsize);
+  }
+  p += rsize;
+
+  if (iattrib.size()) {
+    memcpy (buf+p, &iattrib[0], sizeof(int)*iattrib.size());
+    p += sizeof(int)*iattrib.size();
+  }
+  
+  if (dattrib.size()) {
+    for (auto jt: dattrib) {
+      if (rsize == sizeof(float)) {
+	tf = static_cast<float>(jt);
+	memcpy (buf+p, &tf, rsize);
+      }
+      else {
+	memcpy (buf+p, &jt, rsize);
+      }
+      p += rsize;
+    }
   }
 
-  memcpy (buf+pbuf, &iattrib[0], sizeof(int)*iattrib.size());
-  pbuf += sizeof(int)*iattrib.size();
-  
-  for (auto jt: dattrib) {
-    if (rsize == sizeof(float)) {
-      tf = static_cast<float>(jt);
-      memcpy (buf+pbuf, &tf, rsize); pbuf += rsize;
-    }
-    else {
-      memcpy (buf+pbuf, &jt, rsize); pbuf += rsize;
-    }
-  }
+  return p;
 }
 
 

@@ -1641,15 +1641,14 @@ void Component::write_binary_mpi(MPI_File& out, MPI_Offset& offset, bool real4)
   const size_t bunch = 100000;
   std::vector<char> buffer(bunch*bSiz);
   size_t count = 0;
-  char *buf = &buffer[0];
+  char *buf = &buffer[0], *bufl;
 
   for (auto & p : particles) {
-    p.second->writeBinaryMPI(buf, rsize, com0, comI, cov0, covI, true);
-    buf += bSiz;
+    buf += p.second->writeBinaryMPI(buf, rsize, com0, comI, cov0, covI, indexing);
     count++;
 
     if (count==bunch) {
-      MPI_File_write_at_all(out, offset, &buf[0], bSiz*count, MPI_CHAR, &status);
+      MPI_File_write_at_all(out, offset, &buffer[0], bSiz*count, MPI_CHAR, &status);
       /*
 	if (status.MPI_ERROR != MPI_SUCCESS) {
 	MPI_Error_string(status.MPI_ERROR, err, &len);
@@ -1664,7 +1663,7 @@ void Component::write_binary_mpi(MPI_File& out, MPI_Offset& offset, bool real4)
   }
 
   if (count) {
-    MPI_File_write_at_all(out, offset, &buf[0], bSiz*count, MPI_CHAR, &status);
+    MPI_File_write_at_all(out, offset, &buffer[0], bSiz*count, MPI_CHAR, &status);
     /*
       if (status.MPI_ERROR != MPI_SUCCESS) {
       MPI_Error_string(status.MPI_ERROR, err, &len);
@@ -1674,6 +1673,10 @@ void Component::write_binary_mpi(MPI_File& out, MPI_Offset& offset, bool real4)
     */
     offset += bSiz*count;
   }
+
+  // Position file offset at end of particles
+  //
+  offset += (numP[numprocs-1] - numP[myid]) * bSiz;
 }
 
 

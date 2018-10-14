@@ -115,11 +115,11 @@ public:
 		   bool indexing, std::ostream *out);
 
   //! Write a particle in binary format (PSP) to buffer for MPI
-  void writeBinaryMPI(char* buf, unsigned rsize, 
-		      double* com0, double* comI,
-		      double* cov0, double* covI,
-		      bool indexing);
-
+  int writeBinaryMPI(char* buf, unsigned rsize, 
+		     double* com0, double* comI,
+		     double* cov0, double* covI,
+		     bool indexing);
+  
   //! Particle buffer size
   unsigned getMPIBufSize(unsigned rsize, bool indexing)
   {
