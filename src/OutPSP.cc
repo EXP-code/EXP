@@ -50,22 +50,36 @@ void OutPSP::initialize()
     nagg = "1";
 
 				// Determine last file
+  if (restart && nbeg==0) {
+    if (myid==0) {
 
-  if (restart && nbeg==0 && myid==0) {
-
-    for (nbeg=0; nbeg<100000; nbeg++) {
+      for (nbeg=0; nbeg<100000; nbeg++) {
 
 				// Output name
-      ostringstream fname;
-      fname << filename << "." << setw(5) << setfill('0') << nbeg;
+	ostringstream fname;
+	fname << filename << "." << setw(5) << setfill('0') << nbeg;
 
 				// See if we can open file
-      ifstream in(fname.str().c_str());
-
-      if (!in) {
-	cout << "OutPSP: will begin with nbeg=" << nbeg << endl;
-	break;
+	ifstream in(fname.str().c_str());
+	
+	if (!in) {
+	  cout << "OutPSP: will begin with nbeg=" << nbeg << endl;
+	  break;
+	}
       }
+				// All nodes need nbeg for MPI_File_open
+      MPI_Bcast(&nbeg, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    } else {
+      MPI_Bcast(&nbeg, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    }
+  }
+
+  // For debugging only . . . 
+  if (0) {
+    for (int i=0; i<numprocs; i++) {
+      std::cout << "OutPSP startup: rank " << std::setw(4) << myid
+		<< ": nbeg=" << nbeg << std::endl;
+      MPI_Barrier(MPI_COMM_WORLD);
     }
   }
 }
