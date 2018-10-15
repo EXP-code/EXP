@@ -111,6 +111,7 @@ void OutCHKPT::Run(int n, bool last)
   }
 
   if (mpio) {
+    static bool firsttime = true;
 
     // MPI variables
     //
@@ -149,8 +150,6 @@ void OutCHKPT::Run(int n, bool last)
     // Write master header
     //
     if (myid==0) {
-      static bool firsttime = true;
-
       struct MasterHeader header;
       header.time  = tnow;
       header.ntot  = comp->ntot;
