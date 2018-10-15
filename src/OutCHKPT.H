@@ -10,14 +10,17 @@
 
     @param filename is the name of the output file
     @param nint is the number of steps between dumps
+    @param mpio set to true uses MPI-IO output with arbitrarily 
+    sequenced particles
+    @param nagg is the number of MPI-IO aggregators
 */
 class OutCHKPT : public Output
 {
 
 private:
 
-  std::string filename;
-  bool timer;
+  std::string filename, nagg;
+  bool timer, mpio;
 
   void initialize(void);
 

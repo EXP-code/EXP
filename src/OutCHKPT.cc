@@ -19,11 +19,19 @@ OutCHKPT::OutCHKPT(string& line) : Output(line)
 
 void OutCHKPT::initialize()
 {
-  string tmp;
+  std::string tmp;
+
+  if (Output::get_value(string("mpio"), tmp))
+    mpio = atoi(tmp.c_str()) ? true : false;
+  else
+    mpio = false;
 				// Get file name
   if (!Output::get_value(string("filename"), filename)) {
     filename.erase();
-    filename = outdir + "OUT." + runtag + ".chkpt";
+    if (mpio)
+      filename = outdir + "OUT." + runtag + ".chkpt";
+    else
+      filename = outdir + "OUTS." + runtag + ".chkpt";
   }
 
   if (Output::get_value(string("nint"), tmp))
@@ -35,6 +43,11 @@ void OutCHKPT::initialize()
     timer = atoi(tmp.c_str()) ? true : false;
   else
     timer = false;
+
+  if (Output::get_value(string("nagg"), tmp))
+    nagg = tmp;
+  else
+    nagg = "1";
 }
 
 
@@ -46,6 +59,7 @@ void OutCHKPT::Run(int n, bool last)
   }
 
   if (n == psdump) {       
+
     if (myid==0) {
       string backfile = filename + ".bak";
       if (unlink(backfile.c_str())) {
@@ -86,10 +100,7 @@ void OutCHKPT::Run(int n, bool last)
   std::chrono::high_resolution_clock::time_point beg, end;
   if (timer) beg = std::chrono::high_resolution_clock::now();
   
-  ofstream *out;
-
   if (myid==0) {
-    
 				// Attempt to move file to backup
     string backfile = filename + ".bak";
     if (rename(filename.c_str(), backfile.c_str())) {
@@ -97,53 +108,130 @@ void OutCHKPT::Run(int n, bool last)
       cout << "OutCHKPT::Run(): error creating backup file <" 
 	   << backfile << ">";
     }
-	
-				// Open file and write master header
-    out = new ofstream(filename.c_str());
+  }
 
-    if (!*out) {
-      cerr << "OutCHKPT: can't open file <" << filename.c_str() 
-	   << "> . . . quitting\n";
+  if (mpio) {
+
+    // MPI variables
+    //
+    char err[MPI_MAX_ERROR_STRING];
+    MPI_Offset offset = 0;
+    MPI_Status status;
+    MPI_Info   info;
+    MPI_File   file;
+    int        len;
+
+    // Return info about errors (for debugging)
+    //
+    MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN); 
+
+    // Set info to limit the number of aggregators
+    //
+    MPI_Info_create(&info);
+    MPI_Info_set(info, "cb_nodes", nagg.c_str());
+    
+    // Open shared file
+    //
+    int ret =
+      MPI_File_open(MPI_COMM_WORLD, filename.c_str(),
+		    MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_UNIQUE_OPEN,
+		    info, &file);
+    
+    MPI_Info_free(&info);
+    
+    
+    if (ret != MPI_SUCCESS) {
+      cerr << "OutCHKPT:run: can't open file <" << filename << "> . . . quitting"
+	   << std::endl;
       MPI_Abort(MPI_COMM_WORLD, 33);
     }
+    
+    // Write master header
+    //
+    if (myid==0) {
+      struct MasterHeader header;
+      header.time  = tnow;
+      header.ntot  = comp->ntot;
+      header.ncomp = comp->ncomp;
+      
+      ret = MPI_File_write_at(file, offset, &header, sizeof(MasterHeader),
+			      MPI_CHAR, &status);
+
+      if (ret != MPI_SUCCESS) {
+	MPI_Error_string(ret, err, &len);
+	std::cout << "OutCHKPT::run: " << err
+		  << " at line " << __LINE__ << std::endl;
+      }
+    }
+  
+    offset += sizeof(MasterHeader);
+
+    for (auto c : comp->components) {
+      c->write_binary_mpi(file, offset); 
+    }
+    
+    ret = MPI_File_close(&file);
+
+    if (ret != MPI_SUCCESS) {
+      MPI_Error_string(ret, err, &len);
+      std::cout << "OutCHKPT::run: " << err
+		<< " at line " << __LINE__ << std::endl;
+    }
+
+  } else {
+
+    ofstream *out;
+
+    if (myid==0) {
+				// Open file and write master header
+      out = new ofstream(filename.c_str());
+
+      if (!*out) {
+	cerr << "OutCHKPT: can't open file <" << filename.c_str() 
+	     << "> . . . quitting\n";
+	MPI_Abort(MPI_COMM_WORLD, 33);
+      }
 				// Open file and write master header
     
-    struct MasterHeader header;
-    header.time  = tnow;
-    header.ntot  = comp->ntot;
-    header.ncomp = comp->ncomp;
+      struct MasterHeader header;
+      header.time  = tnow;
+      header.ntot  = comp->ntot;
+      header.ncomp = comp->ncomp;
+      
+      out->write((char *)&header, sizeof(MasterHeader));
+#ifdef DEBUG
+      cout << "OutCHKPT: header written" << endl;
+#endif
+      
+    }
+    
+    for (auto c : comp->components) {
+#ifdef DEBUG
+      cout << "OutCHKPT: process " << myid << " trying to write name=" << c->name
+	   << " force=" << c->id << endl;
+#endif
+      c->write_binary(out);
+#ifdef DEBUG
+      cout << "OutCHKPT: process " << myid << " write completed on " << c->name << endl;
+#endif
+    }
+    
+    if (myid==0) {
+      out->close();
+      delete out;
+    }
 
-    out->write((char *)&header, sizeof(MasterHeader));
-#ifdef DEBUG
-    cout << "OutCHKPT: header written" << endl;
-#endif
-
-  }
-  
-  for (auto c : comp->components) {
-#ifdef DEBUG
-    cout << "OutCHKPT: process " << myid << " trying to write name=" << c->name
-	 << " force=" << c->id << endl;
-#endif
-    c->write_binary(out);
-#ifdef DEBUG
-    cout << "OutCHKPT: process " << myid << " write completed on " << c->name << endl;
-#endif
-  }
-  
-  if (myid==0) {
-    out->close();
-    delete out;
   }
 
   chktimer.mark();
 
+
   if (timer) {
     end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> intvl = end - beg;
-    if (myid==0)
-      std::cout << "OutCHKPT [T=" << tnow << "] timing=" << intvl.count()
-		<< std::endl;
+      if (myid==0)
+	std::cout << "OutCHKPT [T=" << tnow << "] timing=" << intvl.count()
+		  << std::endl;
   }
 }
 

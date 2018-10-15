@@ -125,8 +125,10 @@ void OutPSP::Run(int n, bool last)
 
 				// Used by OutCHKPT to not duplicate a dump
   lastPS = fname.str();
-				// Open file and write master header
   
+    
+  // Write master header
+  //
   if (myid==0) {
     struct MasterHeader header;
     header.time  = tnow;
