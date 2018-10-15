@@ -101,6 +101,9 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   nlevel      = -1;
   keyPos      = -1;
 
+  pBufSiz     = 100000;		// Default number particles in MPI-IO buffer
+  blocking    = false;		// Default for MPI_File_write blocking
+
   read_bodies_and_distribute_ascii();
 
   mdt_ctr = vector< vector<unsigned> > (multistep+1);
@@ -535,6 +538,11 @@ void Component::initialize(void)
     if (!datum.first.compare("nlevel"))   nlevel = atoi(datum.second.c_str());
 
     if (!datum.first.compare("keypos"))   keyPos = atoi(datum.second.c_str());
+
+    if (!datum.first.compare("pbufsiz"))  pBufSiz = atoi(datum.second);
+
+    if (!datum.first.compare("blocking")) blocking = atoi(datum.second.c_str()) ? true : false;
+
 
 				// Next parameter
     token = tokens(",");
@@ -1588,7 +1596,39 @@ void Component::write_binary(ostream* out, bool real4)
     
 }
 
-void Component::write_binary_mpi(MPI_File& out, MPI_Offset& offset, bool real4)
+class DoubleBuf
+{
+private:
+  std::vector<char> src1, src2;
+  char *curr, *next;
+
+public:
+
+  DoubleBuf(int size)
+  {
+    src1.resize(size);
+    src2.resize(size);
+    curr = &src1[0];
+    next = &src2[0];
+  }
+
+  char* operator()()
+  {
+    return curr;
+  }
+
+  char* swap()
+  {
+    char* temp = curr;
+    curr = next;
+    next = temp;
+    return curr;
+  }
+
+};
+
+
+void Component::write_binary_mpi_b(MPI_File& out, MPI_Offset& offset, bool real4)
 {
   ComponentHeader header;
   MPI_Status status;
@@ -1639,8 +1679,8 @@ void Component::write_binary_mpi(MPI_File& out, MPI_Offset& offset, bool real4)
   unsigned bSiz = particles.begin()->second->getMPIBufSize(rsize, indexing);
   if (myid) offset += numP[myid-1] * bSiz;
   
-  const size_t bunch = 100000;
-  std::vector<char> buffer(bunch*bSiz);
+  const size_t pBufSiz = 100000;
+  std::vector<char> buffer(pBufSiz*bSiz);
   size_t count = 0;
   char *buf = &buffer[0], *bufl;
 
@@ -1648,7 +1688,7 @@ void Component::write_binary_mpi(MPI_File& out, MPI_Offset& offset, bool real4)
     buf += p.second->writeBinaryMPI(buf, rsize, com0, comI, cov0, covI, indexing);
     count++;
 
-    if (count==bunch) {
+    if (count==pBufSiz) {
       int ret =
 	MPI_File_write_at(out, offset, &buffer[0], bSiz*count, MPI_CHAR, &status);
 
@@ -1666,6 +1706,125 @@ void Component::write_binary_mpi(MPI_File& out, MPI_Offset& offset, bool real4)
 
   if (count) {
     int ret = MPI_File_write_at(out, offset, &buffer[0], bSiz*count, MPI_CHAR, &status);
+
+    if (ret != MPI_SUCCESS) {
+      MPI_Error_string(ret, err, &len);
+      std::cout << "Component::write_binary_mpi: " << err
+		<< " at line " << __LINE__ << std::endl;
+    }
+
+    offset += bSiz*count;
+  }
+
+  // Position file offset at end of particles
+  //
+  offset += (numP[numprocs-1] - numP[myid]) * bSiz;
+}
+
+
+void Component::write_binary_mpi_i(MPI_File& out, MPI_Offset& offset, bool real4)
+{
+  ComponentHeader header;
+  MPI_Request request = MPI_REQUEST_NULL;
+  MPI_Status status;
+  char err[MPI_MAX_ERROR_STRING];
+  int len;
+
+  if (real4) rsize = sizeof(float);
+  else       rsize = sizeof(double);
+
+  if (myid == 0) {
+
+    header.nbod  = nbodies_tot;
+    header.niatr = niattrib;
+    header.ndatr = ndattrib;
+  
+    ostringstream outs;
+    outs << name << " : " << id << " : " << cparam << " : " << fparam;
+    strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
+
+    unsigned long cmagic = magic + rsize;
+
+    int ret =
+      MPI_File_write_at(out, offset, &cmagic, 1, MPI_UNSIGNED_LONG, &status);
+
+    if (ret != MPI_SUCCESS) {
+      MPI_Error_string(ret, err, &len);
+      std::cout << "Component::write_binary_mpi: " << err
+		<< " at line " << __LINE__ << std::endl;
+    }
+
+    offset += sizeof(unsigned long);
+
+    if (!header.write_mpi(out, offset)) {
+      std::string msg("Component::write_binary_mpi: Error writing particle header");
+      throw GenericError(msg, __FILE__, __LINE__);
+    }
+
+  } else {
+    offset += sizeof(unsigned long) + header.getSize();
+  }
+
+  unsigned N = particles.size();
+  std::vector<unsigned> numP(numprocs, 0);
+
+  MPI_Allgather(&N, 1, MPI_UNSIGNED, &numP[0], 1, MPI_UNSIGNED,	MPI_COMM_WORLD);
+  
+  for (int i=1; i<numprocs; i++) numP[i] += numP[i-1];
+  unsigned bSiz = particles.begin()->second->getMPIBufSize(rsize, indexing);
+  if (myid) offset += numP[myid-1] * bSiz;
+  
+  DoubleBuf buffer(pBufSiz*bSiz);
+  char *buf = buffer();
+  size_t count = 0;
+
+  for (auto & p : particles) {
+    buf += p.second->writeBinaryMPI(buf, rsize, com0, comI, cov0, covI, indexing);
+    count++;
+
+    if (count==pBufSiz) {
+      // Check for completion of last write
+      //
+      int ret = MPI_Wait(&request, &status);
+      
+      if (ret != MPI_SUCCESS) {
+	MPI_Error_string(ret, err, &len);
+	std::cout << "Component::write_binary_mpi: " << err
+		  << " at line " << __LINE__ << std::endl;
+      }
+      
+      // Non-blocking write allows next buffer to be filled
+      //
+      ret =
+	MPI_File_iwrite_at(out, offset, buffer(), bSiz*count, MPI_CHAR, &request);
+
+      if (ret != MPI_SUCCESS) {
+	MPI_Error_string(ret, err, &len);
+	std::cout << "Component::write_binary_mpi: " << err
+		  << " at line " << __LINE__ << std::endl;
+      }
+
+      offset += bSiz*count;
+      count   = 0;
+      buf     = buffer.swap();
+    }
+  }
+
+  // Check for completion of last write
+  //
+  int ret = MPI_Wait(&request, &status);
+      
+  if (ret != MPI_SUCCESS) {
+    MPI_Error_string(ret, err, &len);
+    std::cout << "Component::write_binary_mpi: " << err
+	      << " at line " << __LINE__ << std::endl;
+  }
+
+  if (count) {
+
+    // Block on final write
+    //
+    ret = MPI_File_write_at(out, offset, buffer(), bSiz*count, MPI_CHAR, &status);
 
     if (ret != MPI_SUCCESS) {
       MPI_Error_string(ret, err, &len);
