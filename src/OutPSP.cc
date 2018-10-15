@@ -99,10 +99,8 @@ void OutPSP::Run(int n, bool last)
   ostringstream fname;
   fname << filename << "." << setw(5) << setfill('0') << nbeg++;
 
-  // return info about errors
-  MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_RETURN); 
-
-
+  // return info about errors (for debugging)
+  MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN); 
 
   // Set info to limit the number of aggregators
   //
