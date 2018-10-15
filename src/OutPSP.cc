@@ -85,6 +85,8 @@ void OutPSP::Run(int n, bool last)
   std::chrono::high_resolution_clock::time_point beg, end;
   if (timer) beg = std::chrono::high_resolution_clock::now();
   
+  static bool firsttime = true;
+
   char err[MPI_MAX_ERROR_STRING];
   MPI_Offset offset = 0;
   MPI_Status status;
@@ -148,10 +150,16 @@ void OutPSP::Run(int n, bool last)
   offset += sizeof(MasterHeader);
 
   for (auto c : comp->components) {
+    if (firsttime and myid==0 and not c->Indexing())
+      std::cout << "OutPSP::run: component <" << c->name
+		<< "> has not set 'indexing' so PSP particle sequence will be lost." << std::endl
+		<< "If this is NOT what you want, set the component flag 'indexing=1'." << std::endl;
     c->write_binary_mpi(file, offset, real4); 
   }
 
   ret = MPI_File_close(&file);
+
+  firsttime = false;
 
   if (ret != MPI_SUCCESS) {
     MPI_Error_string(ret, err, &len);

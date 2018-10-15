@@ -908,6 +908,9 @@ public:
   //! Default bunch size for CUDA
   size_t bunchSize;
 
+  //! Check for indexing
+  bool Indexing() { return indexing; }
+
   //@}
 #endif
 

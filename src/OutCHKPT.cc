@@ -149,6 +149,8 @@ void OutCHKPT::Run(int n, bool last)
     // Write master header
     //
     if (myid==0) {
+      static bool firsttime = true;
+
       struct MasterHeader header;
       header.time  = tnow;
       header.ntot  = comp->ntot;
@@ -167,6 +169,10 @@ void OutCHKPT::Run(int n, bool last)
     offset += sizeof(MasterHeader);
 
     for (auto c : comp->components) {
+      if (firsttime and myid==0 and not c->Indexing())
+	std::cout << "OutCHKPT::run: component <" << c->name
+		  << "> has not set 'indexing' so PSP particle sequence will be lost." << std::endl
+		  << "If this is NOT what you want, set the component flag 'indexing=1'." << std::endl;
       c->write_binary_mpi(file, offset); 
     }
     
