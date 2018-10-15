@@ -1131,7 +1131,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
       rsize = cmagic & mmask;
     }
 
-    if(!header.read(in)) {
+    if (!header.read(in)) {
       std::string msg("Error reading component header");
       throw GenericError(msg, __FILE__, __LINE__);
     }
