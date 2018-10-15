@@ -509,7 +509,7 @@ public:
   //! Write binary component phase-space structure
   void write_binary(ostream *out, bool real4 = false);
   
-  //! Write binary component phase-space structure using MPI (blocking)
+  //! Write binary component phase-space structure using MPI
   void write_binary_mpi(MPI_File& out, MPI_Offset& offset, bool real4 = false)
   {
     if (blocking)

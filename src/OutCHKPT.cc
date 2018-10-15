@@ -29,9 +29,9 @@ void OutCHKPT::initialize()
   if (!Output::get_value(string("filename"), filename)) {
     filename.erase();
     if (mpio)
-      filename = outdir + "OUT." + runtag + ".chkpt";
-    else
       filename = outdir + "OUTS." + runtag + ".chkpt";
+    else
+      filename = outdir + "OUT." + runtag + ".chkpt";
   }
 
   if (Output::get_value(string("nint"), tmp))
@@ -138,14 +138,13 @@ void OutCHKPT::Run(int n, bool last)
 		    MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_UNIQUE_OPEN,
 		    info, &file);
     
-    MPI_Info_free(&info);
-    
-    
     if (ret != MPI_SUCCESS) {
       cerr << "OutCHKPT:run: can't open file <" << filename << "> . . . quitting"
 	   << std::endl;
       MPI_Abort(MPI_COMM_WORLD, 33);
     }
+    
+    MPI_Info_free(&info);
     
     // Write master header
     //

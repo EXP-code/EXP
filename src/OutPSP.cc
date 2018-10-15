@@ -116,14 +116,13 @@ void OutPSP::Run(int n, bool last)
 		  MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_UNIQUE_OPEN,
 		  info, &file);
 
-  MPI_Info_free(&info);
-
-
   if (ret != MPI_SUCCESS) {
     cerr << "OutPSP: can't open file <" << fname.str() << "> . . . quitting"
 	 << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 33);
   }
+
+  MPI_Info_free(&info);
 
 				// Used by OutCHKPT to not duplicate a dump
   lastPS = fname.str();

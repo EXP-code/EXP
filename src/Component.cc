@@ -1596,14 +1596,21 @@ void Component::write_binary(ostream* out, bool real4)
     
 }
 
+// Helper class that manages two buffers that can be swapped to
+// support non-blocking MPI-IO writes
+//
 class DoubleBuf
 {
 private:
+  // The storage
   std::vector<char> src1, src2;
+
+  // Pointers to the char buffers
   char *curr, *next;
 
 public:
 
+  // Initialize with size chars
   DoubleBuf(int size)
   {
     src1.resize(size);
@@ -1612,11 +1619,13 @@ public:
     next = &src2[0];
   }
 
+  // Get the current buffer
   char* operator()()
   {
     return curr;
   }
 
+  // Swap buffers and return the new current buffer
   char* swap()
   {
     char* temp = curr;
