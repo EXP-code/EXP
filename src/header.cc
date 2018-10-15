@@ -22,61 +22,61 @@ bool ComponentHeader::write_mpi(MPI_File& out, MPI_Offset& offset)
 {
   MPI_Status status;
   char err[MPI_MAX_ERROR_STRING];
-  int len;
+  int len, ret;
 
-  MPI_File_write_at(out, offset, &nbod, 1, MPI_INT, &status);
-  /*
-  if (status.MPI_ERROR != MPI_SUCCESS) {
-    MPI_Error_string(status.MPI_ERROR, err, &len);
+  ret = MPI_File_write_at(out, offset, &nbod, 1, MPI_INT, &status);
+
+  if (ret != MPI_SUCCESS) {
+    MPI_Error_string(ret, err, &len);
     std::cout << "ComponentHeader::write_mpi: " << err
 	      << " at line " << __LINE__ << std::endl;
     return false;
   }
-  */
+
   offset += sizeof(int);
 
-  MPI_File_write_at(out, offset, &niatr, 1, MPI_INT, &status);
-  /*
-  if (status.MPI_ERROR != MPI_SUCCESS) {
-    MPI_Error_string(status.MPI_ERROR, err, &len);
+  ret = MPI_File_write_at(out, offset, &niatr, 1, MPI_INT, &status);
+
+  if (ret != MPI_SUCCESS) {
+    MPI_Error_string(ret, err, &len);
     std::cout << "ComponentHeader::write_mpi: " << err
 	      << " at line " << __LINE__ << std::endl;
     return false;
   }
-  */
+
   offset += sizeof(int);
 
-  MPI_File_write_at(out, offset, &ndatr, 1, MPI_INT, &status);
-  /*
-  if (status.MPI_ERROR != MPI_SUCCESS) {
-    MPI_Error_string(status.MPI_ERROR, err, &len);
+  ret = MPI_File_write_at(out, offset, &ndatr, 1, MPI_INT, &status);
+
+  if (ret != MPI_SUCCESS) {
+    MPI_Error_string(ret, err, &len);
     std::cout << "ComponentHeader::write_mpi: " << err
 	      << " at line " << __LINE__ << std::endl;
     return false;
   }
-  */
+
   offset += sizeof(int);
 
-  MPI_File_write_at(out, offset, &ninfochar, 1, MPI_INT, &status);
-  /*
-  if (status.MPI_ERROR != MPI_SUCCESS) {
-    MPI_Error_string(status.MPI_ERROR, err, &len);
+  ret = MPI_File_write_at(out, offset, &ninfochar, 1, MPI_INT, &status);
+
+  if (ret != MPI_SUCCESS) {
+    MPI_Error_string(ret, err, &len);
     std::cout << "ComponentHeader::write_mpi: " << err
 	      << " at line " << __LINE__ << std::endl;
     return false;
   }
-  */
+
   offset += sizeof(int);
 
-  MPI_File_write_at(out, offset, info.get(), ninfochar, MPI_CHAR, &status);
-  /*
-  if (status.MPI_ERROR != MPI_SUCCESS) {
-    MPI_Error_string(status.MPI_ERROR, err, &len);
+  ret = MPI_File_write_at(out, offset, info.get(), ninfochar, MPI_CHAR, &status);
+
+  if (ret != MPI_SUCCESS) {
+    MPI_Error_string(ret, err, &len);
     std::cout << "ComponentHeader::write_mpi: " << err
 	      << " at line " << __LINE__ << std::endl;
     return false;
   }
-  */
+
   offset += ninfochar;
 
   return true;
