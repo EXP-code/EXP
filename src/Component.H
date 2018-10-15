@@ -831,6 +831,9 @@ public:
   //! Delete the hashed octree for this component
   void HOTdelete();
 
+  //! Check for indexing
+  bool Indexing() { return indexing; }
+
 #if HAVE_LIBCUDA==1
   //@{
   //! CUDA utilities for handling host <===> device exchange
@@ -907,9 +910,6 @@ public:
 
   //! Default bunch size for CUDA
   size_t bunchSize;
-
-  //! Check for indexing
-  bool Indexing() { return indexing; }
 
   //@}
 #endif
