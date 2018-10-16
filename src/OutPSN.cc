@@ -87,7 +87,7 @@ void OutPSN::Run(int n, bool last)
       MPI_Abort(MPI_COMM_WORLD, 33);
     }
 				// Used by OutCHKPT to not duplicate a dump
-    lastPS = fname.str();
+    // lastPS = fname.str();
 				// Open file and write master header
     
     struct MasterHeader header;

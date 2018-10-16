@@ -1664,14 +1664,14 @@ void Component::write_binary_mpi_b(MPI_File& out, MPI_Offset& offset, bool real4
 
     if (ret != MPI_SUCCESS) {
       MPI_Error_string(ret, err, &len);
-      std::cout << "Component::write_binary_mpi: " << err
+      std::cout << "Component::write_binary_mpi_b: " << err
 		<< " at line " << __LINE__ << std::endl;
     }
 
     offset += sizeof(unsigned long);
 
     if (!header.write_mpi(out, offset)) {
-      std::string msg("Component::write_binary_mpi: Error writing particle header");
+      std::string msg("Component::write_binary_mpi_b: Error writing particle header");
       throw GenericError(msg, __FILE__, __LINE__);
     }
 
@@ -1703,7 +1703,7 @@ void Component::write_binary_mpi_b(MPI_File& out, MPI_Offset& offset, bool real4
 
       if (ret != MPI_SUCCESS) {
 	MPI_Error_string(ret, err, &len);
-	std::cout << "Component::write_binary_mpi: " << err
+	std::cout << "Component::write_binary_mpi_b: " << err
 		  << " at line " << __LINE__ << std::endl;
       }
 
@@ -1718,7 +1718,7 @@ void Component::write_binary_mpi_b(MPI_File& out, MPI_Offset& offset, bool real4
 
     if (ret != MPI_SUCCESS) {
       MPI_Error_string(ret, err, &len);
-      std::cout << "Component::write_binary_mpi: " << err
+      std::cout << "Component::write_binary_mpi_b: " << err
 		<< " at line " << __LINE__ << std::endl;
     }
 
@@ -1759,14 +1759,14 @@ void Component::write_binary_mpi_i(MPI_File& out, MPI_Offset& offset, bool real4
 
     if (ret != MPI_SUCCESS) {
       MPI_Error_string(ret, err, &len);
-      std::cout << "Component::write_binary_mpi: " << err
+      std::cout << "Component::write_binary_mpi_i: " << err
 		<< " at line " << __LINE__ << std::endl;
     }
 
     offset += sizeof(unsigned long);
 
     if (!header.write_mpi(out, offset)) {
-      std::string msg("Component::write_binary_mpi: Error writing particle header");
+      std::string msg("Component::write_binary_mpi_i: Error writing particle header");
       throw GenericError(msg, __FILE__, __LINE__);
     }
 
@@ -1798,7 +1798,7 @@ void Component::write_binary_mpi_i(MPI_File& out, MPI_Offset& offset, bool real4
       
       if (ret != MPI_SUCCESS) {
 	MPI_Error_string(ret, err, &len);
-	std::cout << "Component::write_binary_mpi: " << err
+	std::cout << "Component::write_binary_mpi_i: " << err
 		  << " at line " << __LINE__ << std::endl;
       }
       
@@ -1809,7 +1809,7 @@ void Component::write_binary_mpi_i(MPI_File& out, MPI_Offset& offset, bool real4
 
       if (ret != MPI_SUCCESS) {
 	MPI_Error_string(ret, err, &len);
-	std::cout << "Component::write_binary_mpi: " << err
+	std::cout << "Component::write_binary_mpi_i: " << err
 		  << " at line " << __LINE__ << std::endl;
       }
 
@@ -1825,7 +1825,7 @@ void Component::write_binary_mpi_i(MPI_File& out, MPI_Offset& offset, bool real4
       
   if (ret != MPI_SUCCESS) {
     MPI_Error_string(ret, err, &len);
-    std::cout << "Component::write_binary_mpi: " << err
+    std::cout << "Component::write_binary_mpi_i: " << err
 	      << " at line " << __LINE__ << std::endl;
   }
 
@@ -1837,7 +1837,7 @@ void Component::write_binary_mpi_i(MPI_File& out, MPI_Offset& offset, bool real4
 
     if (ret != MPI_SUCCESS) {
       MPI_Error_string(ret, err, &len);
-      std::cout << "Component::write_binary_mpi: " << err
+      std::cout << "Component::write_binary_mpi_i: " << err
 		<< " at line " << __LINE__ << std::endl;
     }
 

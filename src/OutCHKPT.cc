@@ -28,10 +28,7 @@ void OutCHKPT::initialize()
 				// Get file name
   if (!Output::get_value(string("filename"), filename)) {
     filename.erase();
-    if (mpio)
-      filename = outdir + "OUTS." + runtag + ".chkpt";
-    else
-      filename = outdir + "OUT." + runtag + ".chkpt";
+    filename = outdir + "OUT." + runtag + ".chkpt";
   }
 
   if (Output::get_value(string("nint"), tmp))
@@ -58,14 +55,16 @@ void OutCHKPT::Run(int n, bool last)
     cout << " OutCHKPT::Run(): n=" << n << " psdump=" << psdump << endl;
   }
 
+  int returnStatus = 1;
+
   if (n == psdump) {       
 
     if (myid==0) {
       string backfile = filename + ".bak";
       if (unlink(backfile.c_str())) {
-	perror("OutCHKPT::Run()");
+	if (VERBOSE>5) perror("OutCHKPT::Run()");
 	cout << "OutCHKPT::Run(): error unlinking old backup file <" 
-	     << backfile << ">" << endl;
+	     << backfile << ">, it may not exist" << endl;
       } else {
 	if (VERBOSE>5) {
 	  cout << "OutCHKPT::Run(): successfully unlinked <"
@@ -73,9 +72,9 @@ void OutCHKPT::Run(int n, bool last)
 	}
       }
       if (rename(filename.c_str(), backfile.c_str())) {
-	perror("OutCHKPT::Run()");
-	cout << "OutCHKPT: error creating backup file <" 
-	     << backfile << ">" << endl;
+	if (VERBOSE>5) perror("OutCHKPT::Run()");
+	cout << "OutCHKPT: renaming backup file <" 
+	     << backfile << ">, it may not exist" << endl;
       } else {
 	if (VERBOSE>5) {
 	  cout << "OutCHKPT::Run(): successfully renamed <"
@@ -83,9 +82,10 @@ void OutCHKPT::Run(int n, bool last)
 	}
       }
       if (symlink(lastPS.c_str(), filename.c_str())) {
-	perror("OutCHKPT::Run()");
-	cout << "OutCHKPT::Run(): error symlinking new backup file <" 
-	     << filename << ">" << endl;
+	if (VERBOSE>5) perror("OutCHKPT::Run()");
+	cout << "OutCHKPT::Run(): no file <" << lastPS
+	     << "> to link, we will create a new checkpoint" << endl;
+	returnStatus = 0;
       } else {
 	if (VERBOSE>5) {
 	  cout << "OutCHKPT::Run(): successfully linked <"
@@ -94,22 +94,14 @@ void OutCHKPT::Run(int n, bool last)
 	}
       }
     }
-    return;
   }
+
+  MPI_Bcast(&returnStatus, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  if (returnStatus==1) return;
 
   std::chrono::high_resolution_clock::time_point beg, end;
   if (timer) beg = std::chrono::high_resolution_clock::now();
   
-  if (myid==0) {
-				// Attempt to move file to backup
-    string backfile = filename + ".bak";
-    if (rename(filename.c_str(), backfile.c_str())) {
-      perror("OutCHKPT::Run()");
-      cout << "OutCHKPT::Run(): error creating backup file <" 
-	   << backfile << ">";
-    }
-  }
-
   if (mpio) {
     static bool firsttime = true;
 

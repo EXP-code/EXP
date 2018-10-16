@@ -57,7 +57,7 @@ void OutPS::Run(int n, bool last)
       MPI_Abort(MPI_COMM_WORLD, 33);
     }
 
-    lastPS = filename;
+    // lastPS = filename;
 				// Open file and write master header
     
     struct MasterHeader header;

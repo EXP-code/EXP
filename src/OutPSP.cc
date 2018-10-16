@@ -21,7 +21,7 @@ void OutPSP::initialize()
 				// Get file name
   if (!Output::get_value(string("filename"), filename)) {
     filename.erase();
-    filename = outdir + "OUTS." + runtag;
+    filename = outdir + "OUT." + runtag;
   }
 
   if (Output::get_value(string("nint"), tmp))
@@ -125,7 +125,7 @@ void OutPSP::Run(int n, bool last)
   MPI_Info_free(&info);
 
 				// Used by OutCHKPT to not duplicate a dump
-  lastPS = fname.str();
+  if (!real4) lastPS = fname.str();
   
     
   // Write master header
