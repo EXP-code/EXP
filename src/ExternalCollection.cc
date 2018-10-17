@@ -171,9 +171,31 @@ void ExternalCollection::dynamicload(void)
 #endif
 	dlib = dlopen(name.str().c_str(), RTLD_NOW | RTLD_GLOBAL);
 	if (dlib == NULL) {
-	  throw GenericError(dlerror(), __FILE__, __LINE__);
+	  std::cout << std::endl
+		    << std::string(80, '-') << std::endl
+		    << "Error opening <" << name.str() << ">: dlerror="
+		    << dlerror() << std::endl
+		    << std::string(80, '-') << std::endl;
+	  //
+	  // open the memory map? (Only set to true for super deep
+	  // library debug which is why I'm providing no flag)
+	  //
+	  if (false) {
+	    std::ifstream map("/proc/self/maps");
+	    if (map.is_open()) {
+	      std::string line;
+	      while (getline(map, line)) {
+		std::cout << line << std::endl;
+	      }
+	      std::cout << std::flush;
+	    } else {
+	      std::cout << "ExternalCollection: "
+			<< "could not open /proc/self/maps" << std::endl;
+	    }
+	  }
+	  std::string emsg = "Error opening <" + name.str() + ">";
+	  throw GenericError(emsg.c_str(), __FILE__, __LINE__);
 	}
-
 	if (myid==0) {
 	  if (first) {
 	    cout << *s;
