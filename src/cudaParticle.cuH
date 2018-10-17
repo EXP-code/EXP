@@ -55,10 +55,12 @@ struct LessCudaLev
 };
 
 
-//! Copy EXP particle to CUDA particle structure
+//! Copy EXP particle to CUDA particle structure.  Attributes will not
+//! be loaded if end==0.
 void ParticleHtoD(PartPtr h, cudaParticle & d, int beg=0, int end=0);
 
-//! Copy CUDA particle structure to EXP particle
+//! Copy CUDA particle structure to EXP particle.  Attributes will not
+//! be loaded if end==0.
 void ParticleDtoH(const cudaParticle & d, PartPtr h, int beg=0, int end=0);
 
 //! Print cudaParticle to output stream
