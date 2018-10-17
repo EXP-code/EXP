@@ -249,6 +249,8 @@ public:
 typedef boost::shared_ptr<CollisionTypeDiag> collTDPtr;
 typedef std::map<speciesKey, collTDPtr> sKeyCollTD;
 
+class CollideIon;
+
 /**
  This helper class maintains database of diagnostics on the CollideIon
  collisions.
@@ -798,6 +800,23 @@ private:
   //! Use relative ion speed to compute electron-electron rate
   //! (default: false)
   bool IonElecRate;
+
+  //! Collision thread.  Virtual to accomodate CUDA implementation
+  virtual void *collide_thread(void *arg) {
+#if HAVE_LIBCUDA==1
+    if (aType == Trace) {
+      return collide_thread_cuda(arg);
+    }
+#endif
+    return Collide::collide_thread(arg);
+  }
+
+#if HAVE_LIBCUDA==1
+  virtual void *collide_thread_cuda(void *arg);
+  void cuda_initialize();
+  void cuda_atomic_weights_init();
+  thrust::device_vector<cuIonElement> cuElems;
+#endif
 
 public:
 

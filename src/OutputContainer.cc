@@ -8,6 +8,7 @@
 #include <OutDiag.H>
 #include <OutPS.H>
 #include <OutPSN.H>
+#include <OutPSP.H>
 #include <OutAscii.H>
 #include <OutCHKPT.H>
 #include <OutCoef.H>
@@ -43,6 +44,10 @@ void OutputContainer::initialize(void)
 
     else if ( !data.first.compare("outpsn") ) {
       out.push_back(new OutPSN(data.second));
+    }
+    
+    else if ( !data.first.compare("outpsp") ) {
+      out.push_back(new OutPSP(data.second));
     }
     
     else if ( !data.first.compare("outascii") ) {

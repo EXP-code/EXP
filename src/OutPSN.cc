@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iomanip>
 #include <sstream>
+#include <chrono>
 
 #include "expand.h"
 #include <global.H>
@@ -65,10 +66,8 @@ void OutPSN::Run(int n, bool last)
   if (n % nint && !last && !dump_signal) return;
   if (restart  && n==0  && !dump_signal) return;
 
-  if (myid==0 and timer) {
-    stopWatch.reset();
-    stopWatch.start();
-  }
+  std::chrono::high_resolution_clock::time_point beg, end;
+  if (timer) beg = std::chrono::high_resolution_clock::now();
   
   ofstream *out;
 
@@ -88,7 +87,7 @@ void OutPSN::Run(int n, bool last)
       MPI_Abort(MPI_COMM_WORLD, 33);
     }
 				// Used by OutCHKPT to not duplicate a dump
-    lastPS = fname.str();
+    // lastPS = fname.str();
 				// Open file and write master header
     
     struct MasterHeader header;
@@ -112,8 +111,12 @@ void OutPSN::Run(int n, bool last)
 
   dump_signal = 0;
 
-  if (myid==0 and timer)
-    std::cout << "OutPSN [T=" << tnow << "] timing=" << stopWatch.stop()
-	      << std::endl;
+  if (timer) {
+    end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> intvl = end - beg;
+    if (myid==0)
+      std::cout << "OutPSN [T=" << tnow << "] timing=" << intvl.count()
+		<< std::endl;
+  }
 }
 

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <chrono>
 
 #include "expand.h"
 #include <global.H>
@@ -31,7 +32,6 @@ void OutPS::initialize()
     timer = atoi(tmp.c_str()) ? true : false;
   else
     timer = false;
-
 }
 
 
@@ -40,11 +40,9 @@ void OutPS::Run(int n, bool last)
   if (n % nint && !last && !dump_signal) return;
   if (restart  && n==0  && !dump_signal) return;
 
-  if (myid==0 and timer) {
-    stopWatch.reset();
-    stopWatch.start();
-  }
-  
+  std::chrono::high_resolution_clock::time_point beg, end;
+  if (timer) beg = std::chrono::high_resolution_clock::now();
+
   ofstream *out;
 
   psdump = n;
@@ -59,7 +57,7 @@ void OutPS::Run(int n, bool last)
       MPI_Abort(MPI_COMM_WORLD, 33);
     }
 
-    lastPS = filename;
+    // lastPS = filename;
 				// Open file and write master header
     
     struct MasterHeader header;
@@ -83,8 +81,12 @@ void OutPS::Run(int n, bool last)
 
   dump_signal = 0;
 
-  if (myid==0 and timer)
-    std::cout << "OutPS [T=" << tnow << "] timing=" << stopWatch.stop()
-	      << std::endl;
+  if (timer) {
+    end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> intvl = end - beg;
+    if (myid==0)
+      std::cout << "OutPS [T=" << tnow << "] timing=" << intvl.count()
+		<< std::endl;
+  }
 }
 

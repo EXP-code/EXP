@@ -14,6 +14,7 @@
 #include <Uniform.h>
 #include <Normal.h>
 
+#include "ExternalForce.H"
 #include "AsciiHisto.H"
 #include "Particle.H"
 #include "pHOT.H"
@@ -645,10 +646,14 @@ public:
   virtual double Mtotal() { cerr << "Oops [2]" << endl; return 0.0; }
   virtual void Elost(double* collide, double* epsm)  
   { cerr << "Oops [3]" << endl; *collide=0; *epsm=0; }
-  
+
   //@{
-  //! Collision thread
-  void *collide_thread(void *arg);
+  //! Multihreading of collisions
+
+  //! Collision thread.  Virtual to accomodate CUDA implementation
+  virtual void *collide_thread(void *arg);
+
+  //! Launch the threads
   void collide_thread_fork(sKeyDmap* Fn);
   //@}
   

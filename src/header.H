@@ -7,6 +7,8 @@
 
 #include <boost/shared_array.hpp>
 
+#include "localmpi.h"
+
 using namespace std;
 
 //! Describe the phase space dump
@@ -71,8 +73,17 @@ public:
   //! Write binary header to output stream
   bool write(ostream *out);
 
+  //! Write binary header to MPI
+  bool write_mpi(MPI_File& out, MPI_Offset& offset);
+
   //! Read binary header from input stream
   bool read(istream *in);
+
+  //! Get header size
+  int getSize()
+  {
+    return sizeof(int)*4 + ninfochar;
+  }
 
   friend std::ostream& operator<<( std::ostream& os, const ComponentHeader& p ) 
   {

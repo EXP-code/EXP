@@ -1,6 +1,8 @@
 #ifndef _Ion_H
 #define _Ion_H
 
+#include "config.h"
+
 #include <string>
 #include <vector>
 #include <set>
@@ -16,6 +18,15 @@
 #include <KarzasLatter.H>
 
 #include <gaussQ.h>
+
+#if HAVE_LIBCUDA==1
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
+#include <cudaUtil.cuH>
+#endif
+
 
 // Structures for caching the Cspline instances for each Ion instance
 //
@@ -182,12 +193,27 @@ typedef std::pair<unsigned short, unsigned short> lQ;
 
 class Ion;
 
+//! Number of grid points in cumulative grid
+#define CHCUMK 100
+
+#if HAVE_LIBCUDA==1
+//! Structure of atomic number, state, and cross-section tables (textures)
+struct cuIonElement
+{
+  int                 Z, C, I, NColl, NIonz;
+  cuFP_t              ceEmin, ceEmax, ceDelE;
+  cuFP_t              ciEmin, ciEmax, ciDelE;
+  cudaTextureObject_t ff_0, ff_d, rc_d, ce_d, ci_d;
+};
+
+extern thrust::host_vector<cuIonElement> cuIonElem;
+#endif
+
 /**
    Store database of atomic data
 */
 class chdata 
 {
-
 protected:
 
   //! Gauss-Laguerre structure for integration of Maxwell-Boltzmann
@@ -201,6 +227,12 @@ protected:
 #if HAVE_LIBCUDA==1
   //! CUDA methods
   //@{
+  //! Working device vectors
+  std::vector<cudaArray_t>         cuF0array, cuFFarray, cuRCarray, cuCEarray, cuCIarray;
+
+  //! Initialize constants describing texture grids
+  void cuda_initialize_grid_constants();
+
   //! Initialize the arrays
   void cuda_initialize();
 
@@ -208,7 +240,7 @@ protected:
   void cuda_initialize_textures();
 
   //! Destroy the arrays and textures
-  virtual void destroy_cuda();
+  void destroy_cuda();
   //@}
 
 #endif
@@ -219,6 +251,14 @@ public:
   //! Constructor
   chdata();
   
+  //! Destructor
+  virtual ~chdata()
+  {
+#if HAVE_LIBCUDA==1
+    destroy_cuda();
+#endif
+  }
+
   //! Create database of requested ions
   typedef std::set<unsigned short> ZLtype;
   void createIonList(const ZLtype& ZList);
@@ -289,20 +329,13 @@ public:
   //@}
 
 #if HAVE_LIBCUDA==1
-  //! CUDA data
-  //@{
-  std::vector<cudaArray_t> cuFFarray, cuRCarray, cuCEarray, ciCIarray;
-  std::vector<cudaTextureObject_t> ff_d, rc_d, ce_d, ci_d;
-  std::vector<int> cuZ, cuC;
+  //! Cuda texture interpolation descriptions
+  std::vector<cuIonElement> cuIonElem;
 
-  thrust::device_vector<double> dColEmin, dColEmax, dColDE;
-  thrust::device_vector<double> dIonEmin, dIonEmax, dIonDE;
-  thrust::device_vector<double> dEminArray, dEmaxArray;
-  thrust::device_vector<double> dKgrid, dKgr10, dNugrd;
-  //@}
+  //! Test cross sections
+  void testCross(int Nenergy);
 #endif
-
-
+  
 };
 
 /**
@@ -464,6 +497,7 @@ protected:
   //! Free-free cross section implementations
   std::pair<double, double> freeFreeCrossSingle(double E, int id);
   std::pair<double, double> freeFreeCrossEvGrid(double E, int id);
+  std::pair<double, double> freeFreeCrossEvGridTest(double E, double rn, int id);
   void                      freeFreeMakeEvGrid(int id);
   unsigned long             freeFreeGridMiss, freeFreeGridTry;
   double                    freeFreeMissMin,  freeFreeMissMax;
@@ -650,6 +684,13 @@ public:
     else 
       return freeFreeCrossSingle(E, id);
   }
+
+  //! Debugging version
+  std::pair<double, double> freeFreeCrossTest(double E, double rnd, int id)
+  {
+    return freeFreeCrossEvGridTest(E, rnd, id);
+  }
+
 
   //! Get the collisional excitation cross section
   collType collExciteCross(double E, int id)

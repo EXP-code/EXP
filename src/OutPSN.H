@@ -18,7 +18,8 @@ class OutPSN : public Output
 
 private:
 
-  string filename;
+  std::string filename;
+  bool timer;
   int nbeg;
   void initialize(void);
 

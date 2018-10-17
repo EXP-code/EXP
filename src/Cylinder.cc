@@ -134,8 +134,6 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
     if (get_value("tk_type", val)) ortho->setTK(val);
   }
 
-  if (EVEN_M) ortho->setEven();
-
   if (expcond) {
 				// Set parameters for external dcond function
     EXPSCALE = acyl;
@@ -335,11 +333,6 @@ void Cylinder::initialize()
     if (atoi(val.c_str())) cmap = true; 
     else cmap = false;
   }
-  if (get_value("EVEN_M", val)) {
-    if (atoi(val.c_str())) EVEN_M = true; 
-    else EVEN_M = false;
-  }
-
 }
 
 void Cylinder::get_acceleration_and_potential(Component* C)
@@ -1061,17 +1054,20 @@ void Cylinder::determine_acceleration_and_potential(void)
     else
       cout << endl << "T=" << tnow << "  self offgrid=" << offtot << endl;
   }    
-  unsigned long kmin=std::numeric_limits<unsigned long>::max(), kmax=0;
-  unsigned      smin=std::numeric_limits<unsigned     >::max(), smax=0;
-  for (auto kv : cC->Particles()) {
-    kmin = std::min<unsigned long>(kmin, kv.first);
-    kmax = std::max<unsigned long>(kmax, kv.first);
-    smin = std::min<unsigned     >(smin, kv.second->indx);
-    smax = std::min<unsigned     >(kmin, kv.second->indx);
-  } 
+
+  unsigned long imin = std::numeric_limits<unsigned long>::max();
+  unsigned long imax = 0, kmin = imin, kmax = 0;
+
+  for (auto p : cC->Particles()) {
+    imin = std::min<unsigned long>(imin, p.first);
+    imax = std::max<unsigned long>(imax, p.first);
+    kmin = std::min<unsigned long>(kmin, p.second->indx);
+    kmax = std::max<unsigned long>(kmax, p.second->indx);
+  }
+
   cout << "Cylinder: process " << myid << " name=<" << cC->name << "> bodies ["
        << kmin << ", " << kmax << "], ["
-       << smin << ", " << smax << "]"
+       << kmin << ", " << kmax << "]"
        << " #=" << cC->Particles().size() << endl;
 #endif
 

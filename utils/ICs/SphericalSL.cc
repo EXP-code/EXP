@@ -491,16 +491,18 @@ void SphericalSL::accumulate(vector<Particle> &part)
 				// Check coefficients
   int iflg = 0;
   
-  for (n=1; n<=NMAX; n++) {
-    for (l=0; l<=LMAX*(LMAX+2); l++) {
+  for (int n=1; n<=NMAX; n++) {
+    for (int l=0; l<=LMAX*(LMAX+2); l++) {
       if (std::isnan(expcoef[l][n])) {
-	cerr << "expcoef[" << l << "][" << n << "] is NaN" << endl;
+	std::cerr << "expcoef[" << l << "][" << n << "] is NaN"
+		  << std::endl;
 	iflg++;
       }
     }
   }
+
   if (iflg) {
-    cerr << iflg << " NaNs\n";
+    std:: cerr << iflg << " NaNs" << std::endl;
     MPI_Finalize();
     exit(-11);
   }

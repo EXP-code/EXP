@@ -101,6 +101,9 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   nlevel      = -1;
   keyPos      = -1;
 
+  pBufSiz     = 100000;		// Default number particles in MPI-IO buffer
+  blocking    = false;		// Default for MPI_File_write blocking
+
   read_bodies_and_distribute_ascii();
 
   mdt_ctr = vector< vector<unsigned> > (multistep+1);
@@ -431,6 +434,9 @@ Component::Component(istream *in)
   keyPos      = -1;
   nlevel      = -1;
 
+  pBufSiz     = 100000;
+  blocking    = false;
+
   read_bodies_and_distribute_binary(in);
 
   mdt_ctr = vector< vector<unsigned> > (multistep+1);
@@ -535,6 +541,11 @@ void Component::initialize(void)
     if (!datum.first.compare("nlevel"))   nlevel = atoi(datum.second.c_str());
 
     if (!datum.first.compare("keypos"))   keyPos = atoi(datum.second.c_str());
+
+    if (!datum.first.compare("pbufsiz"))  pBufSiz = atoi(datum.second.c_str());
+
+    if (!datum.first.compare("blocking")) blocking = atoi(datum.second.c_str()) ? true : false;
+
 
 				// Next parameter
     token = tokens(",");
@@ -1089,12 +1100,17 @@ void Component::read_bodies_and_distribute_ascii(void)
 
 #ifdef DEBUG
   if (particles.size()) {
+    unsigned long imin = std::numeric_limits<unsigned long>::max();
+    unsigned long imax = 0, kmin = imax, kmax = 0;
+    for (auto p : particles) {
+      imin = std::min<unsigned long>(imin, p.first);
+      imax = std::max<unsigned long>(imax, p.first);
+      kmin = std::min<unsigned long>(kmin, p.second->indx);
+      kmax = std::max<unsigned long>(kmax, p.second->indx);
+    }
     cout << "read_bodies_and_distribute_ascii: process " << myid 
-	 << " name=" << name << " bodies ["
-	 << particles.begin() ->second.indx << ", "
-	 << particles.rbegin()->second.indx << "], ["
-	 << particles.begin() ->first << ", "
-	 << particles.rbegin()->first << "]"
+	 << " name=" << name << " bodies [" << kmin << ", "
+	 << kmax << "], [" << imin << ", " << imax << "]"
 	 << " #=" << particles.size() << endl;
   } else {
     cout << "read_bodies_and_distribute_ascii: process " << myid 
@@ -1126,7 +1142,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
       rsize = cmagic & mmask;
     }
 
-    if(!header.read(in)) {
+    if (!header.read(in)) {
       std::string msg("Error reading component header");
       throw GenericError(msg, __FILE__, __LINE__);
     }
@@ -1264,12 +1280,17 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   MPI_Bcast(&rmax, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 #ifdef DEBUG
+  unsigned long imin = std::numeric_limits<unsigned long>::max();
+  unsigned long imax = 0, kmin = imax, kmax = 0;
+  for (auto p : particles) {
+    imin = std::min<unsigned long>(imin, p.first);
+    imax = std::max<unsigned long>(imax, p.first);
+    kmin = std::min<unsigned long>(kmin, p.second->indx);
+    kmax = std::max<unsigned long>(kmax, p.second->indx);
+  }
   cout << "read_bodies_and_distribute_binary: process " << myid 
-       << " name=<" << name << "> bodies ["
-       << particles.begin()->second.indx << ", "
-       << particles.rbegin()->second.indx << "], ["
-       << particles.begin()->first << ", "
-       << particles.rbegin()->first << "]"
+       << " name=" << name << " bodies [" << kmin << ", "
+       << kmax << "], [" << imin << ", " << imax << "]"
        << " #=" << particles.size() << endl;
 #endif
 }
@@ -1284,19 +1305,29 @@ PartPtr * Component::get_particles(int* number)
   
 #ifdef DEBUG
   if (*number < 0) {
+
     if (particles.size()) {
       makeKeyList();
-      unsigned long ibeg = *keys.begin(), iend = *keys.rbegin();
+
+      unsigned long imin = std::numeric_limits<unsigned long>::max();
+      unsigned long imax = 0, kmin = imax, kmax = 0;
+      for (auto p : particles) {
+	imin = std::min<unsigned long>(imin, p.first);
+	imax = std::max<unsigned long>(imax, p.first);
+	kmin = std::min<unsigned long>(kmin, p.second->indx);
+	kmax = std::max<unsigned long>(kmax, p.second->indx);
+      }
+
       cout << "get_particles: process " << myid 
 	   << " <name=" << name << "> bodies ["
-	   << particles[*ibeg].indx << ", "
-	   << particles[*iend].indx << "], ["
-	   << *ibeg << ", " << *iend << "]" 
+	   << kmin << ", " << kmax << "], ["
+	   << imin << ", " << imax << "]" 
 	   << " #=" << keys.size() << endl;
-    else
+    } else {
       cout << "get_particles: process " << myid 
 	   << " <name=" << name << "> #=" 
 	   << keys.size() << endl;
+    }
   }
 #endif
 				// Reset
@@ -1421,10 +1452,10 @@ PartPtr * Component::get_particles(int* number)
       for (icur=ibeg; icur!=iend; icur++) {
 #ifdef DEBUG
 	if (icount<2) {
-	  Particle *pp = &particles[*icur];
+	  Particle *pp = particles[*icur].get();
 	  cout << "Component [" << myid << "]: sending ";
 	  cout << setw(3) << icount
-	       << setw(14) << pp->second.mass
+	       << setw(14) << pp->mass
 #ifdef INT128
 	       << setw(18) << pp->key.toHex()
 #else
@@ -1445,11 +1476,11 @@ PartPtr * Component::get_particles(int* number)
 	   << ", counter value=" << counter;
       if (keys.size())
 	cout << ", nbodies_index=" << nbodies_index[node]
-	     << ", seq_beg=" << particles[*ibeg].indx
-	     << ", seq_end=" << particles[*iend].indx
+	     << ", seq_beg=" << particles[*ibeg]->indx
+	     << ", seq_end=" << particles[*iend]->indx
 	     << ", number found =" << icount
-	     << ", first=" << particles[*keys.begin()].indx
-	     << ", last=" << particles[*keys.rbegin()].indx;
+	     << ", first=" << particles[*keys.begin()]->indx
+	     << ", last=" << particles[*keys.rbegin()]->indx;
       cout << endl << flush;
 #endif    
 	
@@ -1566,6 +1597,258 @@ void Component::write_binary(ostream* out, bool real4)
 
   }
     
+}
+
+// Helper class that manages two buffers that can be swapped to
+// support non-blocking MPI-IO writes
+//
+class DoubleBuf
+{
+private:
+  // The storage
+  std::vector<char> src1, src2;
+
+  // Pointers to the char buffers
+  char *curr, *next;
+
+public:
+
+  // Initialize with size chars
+  DoubleBuf(int size)
+  {
+    src1.resize(size);
+    src2.resize(size);
+    curr = &src1[0];
+    next = &src2[0];
+  }
+
+  // Get the current buffer
+  char* operator()()
+  {
+    return curr;
+  }
+
+  // Swap buffers and return the new current buffer
+  char* swap()
+  {
+    char* temp = curr;
+    curr = next;
+    next = temp;
+    return curr;
+  }
+
+};
+
+
+void Component::write_binary_mpi_b(MPI_File& out, MPI_Offset& offset, bool real4)
+{
+  ComponentHeader header;
+  MPI_Status status;
+  char err[MPI_MAX_ERROR_STRING];
+  int len;
+
+  if (real4) rsize = sizeof(float);
+  else       rsize = sizeof(double);
+
+  if (myid == 0) {
+
+    header.nbod  = nbodies_tot;
+    header.niatr = niattrib;
+    header.ndatr = ndattrib;
+  
+    ostringstream outs;
+    outs << name << " : " << id << " : " << cparam << " : " << fparam;
+    strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
+
+    unsigned long cmagic = magic + rsize;
+
+    int ret =
+      MPI_File_write_at(out, offset, &cmagic, 1, MPI_UNSIGNED_LONG, &status);
+
+    if (ret != MPI_SUCCESS) {
+      MPI_Error_string(ret, err, &len);
+      std::cout << "Component::write_binary_mpi_b: " << err
+		<< " at line " << __LINE__ << std::endl;
+    }
+
+    offset += sizeof(unsigned long);
+
+    if (!header.write_mpi(out, offset)) {
+      std::string msg("Component::write_binary_mpi_b: Error writing particle header");
+      throw GenericError(msg, __FILE__, __LINE__);
+    }
+
+  } else {
+    offset += sizeof(unsigned long) + header.getSize();
+  }
+
+  unsigned N = particles.size();
+  std::vector<unsigned> numP(numprocs, 0);
+
+  MPI_Allgather(&N, 1, MPI_UNSIGNED, &numP[0], 1, MPI_UNSIGNED,	MPI_COMM_WORLD);
+  
+  for (int i=1; i<numprocs; i++) numP[i] += numP[i-1];
+  unsigned bSiz = particles.begin()->second->getMPIBufSize(rsize, indexing);
+  if (myid) offset += numP[myid-1] * bSiz;
+  
+  std::vector<char> buffer(pBufSiz*bSiz);
+  size_t count = 0;
+  char *buf = &buffer[0], *bufl;
+
+  for (auto & p : particles) {
+    buf += p.second->writeBinaryMPI(buf, rsize, com0, comI, cov0, covI, indexing);
+    count++;
+
+    if (count==pBufSiz) {
+      int ret =
+	MPI_File_write_at(out, offset, &buffer[0], bSiz*count, MPI_CHAR, &status);
+
+      if (ret != MPI_SUCCESS) {
+	MPI_Error_string(ret, err, &len);
+	std::cout << "Component::write_binary_mpi_b: " << err
+		  << " at line " << __LINE__ << std::endl;
+      }
+
+      offset += bSiz*count;
+      count   = 0;
+      buf     = &buffer[0];
+    }
+  }
+
+  if (count) {
+    int ret = MPI_File_write_at(out, offset, &buffer[0], bSiz*count, MPI_CHAR, &status);
+
+    if (ret != MPI_SUCCESS) {
+      MPI_Error_string(ret, err, &len);
+      std::cout << "Component::write_binary_mpi_b: " << err
+		<< " at line " << __LINE__ << std::endl;
+    }
+
+    offset += bSiz*count;
+  }
+
+  // Position file offset at end of particles
+  //
+  offset += (numP[numprocs-1] - numP[myid]) * bSiz;
+}
+
+
+void Component::write_binary_mpi_i(MPI_File& out, MPI_Offset& offset, bool real4)
+{
+  ComponentHeader header;
+  MPI_Request request = MPI_REQUEST_NULL;
+  MPI_Status status;
+  char err[MPI_MAX_ERROR_STRING];
+  int len;
+
+  if (real4) rsize = sizeof(float);
+  else       rsize = sizeof(double);
+
+  if (myid == 0) {
+
+    header.nbod  = nbodies_tot;
+    header.niatr = niattrib;
+    header.ndatr = ndattrib;
+  
+    ostringstream outs;
+    outs << name << " : " << id << " : " << cparam << " : " << fparam;
+    strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
+
+    unsigned long cmagic = magic + rsize;
+
+    int ret =
+      MPI_File_write_at(out, offset, &cmagic, 1, MPI_UNSIGNED_LONG, &status);
+
+    if (ret != MPI_SUCCESS) {
+      MPI_Error_string(ret, err, &len);
+      std::cout << "Component::write_binary_mpi_i: " << err
+		<< " at line " << __LINE__ << std::endl;
+    }
+
+    offset += sizeof(unsigned long);
+
+    if (!header.write_mpi(out, offset)) {
+      std::string msg("Component::write_binary_mpi_i: Error writing particle header");
+      throw GenericError(msg, __FILE__, __LINE__);
+    }
+
+  } else {
+    offset += sizeof(unsigned long) + header.getSize();
+  }
+
+  unsigned N = particles.size();
+  std::vector<unsigned> numP(numprocs, 0);
+
+  MPI_Allgather(&N, 1, MPI_UNSIGNED, &numP[0], 1, MPI_UNSIGNED,	MPI_COMM_WORLD);
+  
+  for (int i=1; i<numprocs; i++) numP[i] += numP[i-1];
+  unsigned bSiz = particles.begin()->second->getMPIBufSize(rsize, indexing);
+  if (myid) offset += numP[myid-1] * bSiz;
+  
+  DoubleBuf buffer(pBufSiz*bSiz);
+  char *buf = buffer();
+  size_t count = 0;
+
+  for (auto & p : particles) {
+    buf += p.second->writeBinaryMPI(buf, rsize, com0, comI, cov0, covI, indexing);
+    count++;
+
+    if (count==pBufSiz) {
+      // Check for completion of last write
+      //
+      int ret = MPI_Wait(&request, &status);
+      
+      if (ret != MPI_SUCCESS) {
+	MPI_Error_string(ret, err, &len);
+	std::cout << "Component::write_binary_mpi_i: " << err
+		  << " at line " << __LINE__ << std::endl;
+      }
+      
+      // Non-blocking write allows next buffer to be filled
+      //
+      ret =
+	MPI_File_iwrite_at(out, offset, buffer(), bSiz*count, MPI_CHAR, &request);
+
+      if (ret != MPI_SUCCESS) {
+	MPI_Error_string(ret, err, &len);
+	std::cout << "Component::write_binary_mpi_i: " << err
+		  << " at line " << __LINE__ << std::endl;
+      }
+
+      offset += bSiz*count;
+      count   = 0;
+      buf     = buffer.swap();
+    }
+  }
+
+  // Check for completion of last write
+  //
+  int ret = MPI_Wait(&request, &status);
+      
+  if (ret != MPI_SUCCESS) {
+    MPI_Error_string(ret, err, &len);
+    std::cout << "Component::write_binary_mpi_i: " << err
+	      << " at line " << __LINE__ << std::endl;
+  }
+
+  if (count) {
+
+    // Block on final write
+    //
+    ret = MPI_File_write_at(out, offset, buffer(), bSiz*count, MPI_CHAR, &status);
+
+    if (ret != MPI_SUCCESS) {
+      MPI_Error_string(ret, err, &len);
+      std::cout << "Component::write_binary_mpi_i: " << err
+		<< " at line " << __LINE__ << std::endl;
+    }
+
+    offset += bSiz*count;
+  }
+
+  // Position file offset at end of particles
+  //
+  offset += (numP[numprocs-1] - numP[myid]) * bSiz;
 }
 
 
@@ -2409,12 +2692,18 @@ void Component::load_balance(void)
       
 #ifdef DEBUG
       if (myid==iold) {
-	if (particles.size())
+	if (particles.size()) {
+	  unsigned long kmin = std::numeric_limits<unsigned long>::max();
+	  unsigned long kmax = 0;
+	  for (auto p : particles) {
+	    kmin = std::min<unsigned long>(kmin, p.second->indx);
+	    kmax = std::max<unsigned long>(kmax, p.second->indx);
+	  }
 	  cout << "Process " << myid << ": new ends :"
-	       << "  beg seq=" << particles.begin() ->second->indx
-	       << "  end seq=" << particles.rbegin()->second->indx
+	       << "  beg seq=" << kmin
+	       << "  end seq=" << kmax
 	       << endl;
-	else
+	} else
 	  cout << "Process " << myid << ": no particles!"
 	       << endl;
       }
@@ -2434,12 +2723,18 @@ void Component::load_balance(void)
 
 #ifdef DEBUG
       if (myid==iold) {
-	if (particles.size())
+	if (particles.size()) {
+	  unsigned long kmin = std::numeric_limits<unsigned long>::max();
+	  unsigned long kmax = 0;
+	  for (auto p : particles) {
+	    kmin = std::min<unsigned long>(kmin, p.second->indx);
+	    kmax = std::max<unsigned long>(kmax, p.second->indx);
+	  }
 	  cout << "Process " << myid << ": new ends :"
-	       << "  beg seq=" << particles.begin() ->second->indx
-	       << "  end seq=" << particles.rbegin()->second->indx
+	       << "  beg seq=" << kmin
+	       << "  end seq=" << kmax
 	       << endl;
-	else
+	} else
 	  cout << "Process " << myid << ": no particles!"
 	       << endl;
       }

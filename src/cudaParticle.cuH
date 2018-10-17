@@ -3,6 +3,9 @@
 #ifndef PARTICLE_CUH
 #define PARTICLE_CUH
 
+#define DATTRIB_CUDA
+#define DATTRIB_NMAX 5
+
 #include <cuda.h>
 #include <cuda_runtime.h>
 
@@ -24,6 +27,9 @@ struct cudaParticle
   cuFP_t acc[3];
   cuFP_t pot;
   cuFP_t potext;
+#ifdef DATTRIB_CUDA
+  cuFP_t datr[DATTRIB_NMAX];
+#endif
   unsigned level;
   unsigned indx;
 } __attribute__((aligned));
@@ -49,11 +55,13 @@ struct LessCudaLev
 };
 
 
-//! Copy EXP particle to CUDA particle structure
-void ParticleHtoD(PartPtr h, cudaParticle & d);
+//! Copy EXP particle to CUDA particle structure.  Attributes will not
+//! be loaded if end==0.
+void ParticleHtoD(PartPtr h, cudaParticle & d, int beg=0, int end=0);
 
-//! Copy CUDA particle structure to EXP particle
-void ParticleDtoH(const cudaParticle & d, PartPtr h);
+//! Copy CUDA particle structure to EXP particle.  Attributes will not
+//! be loaded if end==0.
+void ParticleDtoH(const cudaParticle & d, PartPtr h, int beg=0, int end=0);
 
 //! Print cudaParticle to output stream
 extern __host__

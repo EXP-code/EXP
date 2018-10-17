@@ -168,6 +168,12 @@ struct loadb_datum
   <li> <em>keyPos</em> is the value of the species key in the particle
   integer attribute vector
 
+  <li> <em>pbufsiz</em> is the number of particles in each particle
+  buffer sent to disk when using MPI-IO with OutPSP
+
+  <li> <em>blocking</em> set to true chooses blocking writes when
+  using MPI-IO with OutPSP
+
   </ol>
   
 
@@ -200,6 +206,12 @@ private:
   bool seq_check, ordered, indexing, aindex, umagic;
   int seq_beg, seq_end, seq_cur;
   //@}
+
+  //! Particle buffer count for MPI-IO writing
+  int pBufSiz;
+
+  //! Using blocking writes for MPI-IO
+  bool blocking;
 
 				// Used in computing target rates for
 				// load balancing
@@ -299,6 +311,11 @@ protected:
   //! Suppress cuda computation even if devices are available
   bool use_cuda;
 
+  //! Write binary component phase-space structure using MPI (blocking)
+  void write_binary_mpi_b(MPI_File& out, MPI_Offset& offset, bool real4 = false);
+  //! Write binary component phase-space structure using MPI (non-blocking)
+  void write_binary_mpi_i(MPI_File& out, MPI_Offset& offset, bool real4 = false);
+  
 public:
 
   //! Describe the phase space coordinates
@@ -491,6 +508,15 @@ public:
 
   //! Write binary component phase-space structure
   void write_binary(ostream *out, bool real4 = false);
+  
+  //! Write binary component phase-space structure using MPI
+  void write_binary_mpi(MPI_File& out, MPI_Offset& offset, bool real4 = false)
+  {
+    if (blocking)
+      write_binary_mpi_b(out, offset, real4);
+    else
+      write_binary_mpi_i(out, offset, real4);
+  }
   
   //! Write ascii component phase-space structure
   void write_ascii(ostream *out, bool accel = false);
@@ -804,6 +830,9 @@ public:
 
   //! Delete the hashed octree for this component
   void HOTdelete();
+
+  //! Check for indexing
+  bool Indexing() { return indexing; }
 
 #if HAVE_LIBCUDA==1
   //@{

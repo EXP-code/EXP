@@ -60,7 +60,7 @@ bool Ion::gs_only  = false;
 //
 double Ion::kmin    = -10.0;
 double Ion::kmax    =   4.0;
-double Ion::kdel    =   0.05;
+double Ion::kdel    =   0.01;
 
 // Photo-ionization grid
 //
@@ -1446,11 +1446,12 @@ std::pair<double, double> Ion::freeFreeCrossSingle(double Ei, int id)
 
 void Ion::freeFreeMakeEvGrid(int id)
 {
+  if (C==1) return;
+
   freeFreeGridComputed = true;
 
   // Integration variables
   //
-  double cum      = 0;
   double dk       = (kgrid[1] - kgrid[0])*log(10.0);
 
   // Energy grid
@@ -1471,16 +1472,18 @@ void Ion::freeFreeMakeEvGrid(int id)
 
     freeFreeGrid[n].clear();
 
+    double cum = 0;
+
     for (int j = 0; j < kffsteps; j++) {
       //
       // Photon energy in eV
       //
-      double k      = kgr10[j];
+      double k  = kgr10[j];
 
       //
       // Final kinetic energy
       //
-      double Ef     = Ei - k;
+      double Ef = Ei - k;
       
       //
       // Can't emit a photon if not enough KE!
@@ -1570,6 +1573,134 @@ std::pair<double, double> Ion::freeFreeCrossEvGrid(double E, int id)
     // Location in cumulative cross section grid
     //
     double rn = static_cast<double>(rand())/RAND_MAX;
+
+    for (int i=0; i<2; i++) {
+
+      // Interpolate the cross section array
+      //
+    
+      if (rn*cum[i] < freeFreeGrid[indx+i].front()) {
+	
+	k[i] = kgrid[0];
+	
+
+      } else {
+
+	// Points to first element that is not < rn
+	// but may be equal
+	std::vector<double>::iterator lb = 
+	  std::lower_bound(freeFreeGrid[indx+i].begin(), freeFreeGrid[indx+i].end(), rn*cum[i]);
+    
+	// Assign upper end of range to the
+	// found element
+	//
+	std::vector<double>::iterator ub = lb;
+
+	//
+	// If is the first element, increment
+	// the upper boundary
+	//
+	if (lb == freeFreeGrid[indx+i].begin()) {
+	  if (freeFreeGrid[indx+i].size()>1) ub++;
+	}
+	//
+	// Otherwise, decrement the lower boundary
+	//
+	else { lb--; }
+      
+	// Compute the associated indices
+	//
+	size_t ii = std::distance(freeFreeGrid[indx+i].begin(), lb);
+	size_t jj = std::distance(freeFreeGrid[indx+i].begin(), ub);
+	
+	k[i] = kgrid[ii];
+	
+	// Linear interpolation
+	//
+	if (*ub > *lb) {
+	  double d = *ub - *lb;
+	  double a = (rn*cum[i] - *lb) / d;
+	  double b = (*ub - rn*cum[i]) / d;
+	  k[i] = a * kgrid[ii] + b * kgrid[jj];
+	  if (fabs(a)>1.0 or fabs(b)>1.0) {
+	    std::cout << "Oops" << std::endl;
+	  }
+	}
+      }
+    }
+
+    double K = A*k[0] + B*k[1];
+
+
+    // Assign the photon energy
+    //
+    ffWaveCross = pow(10, K) * hbc;
+
+    // Use the integrated cross section from the differential grid
+    //
+    phi = A*cum[0] + B*cum[1];
+  }
+
+  return std::pair<double, double>(phi, ffWaveCross);
+}
+
+std::pair<double, double> Ion::freeFreeCrossEvGridTest(double E, double rn, int id)
+{
+  // No free-free with a neutral
+  //
+  if (C==1) return std::pair<double, double>(0.0, 0.0);
+
+  if (not freeFreeGridComputed) freeFreeMakeEvGrid(id);
+
+  double eMin = EminGrid, eMax = EminGrid + DeltaEGrid*(NfreeFreeGrid-1);
+
+  bool gridProc = false;
+  if (GridDebug and myid==0 and id==0) {
+    freeFreeGridTry++;
+    gridProc = true;
+  }
+
+  if (E<eMin) E = eMin;		// Enforce minimum energy to prevent
+				// off grid evaluatoin
+  if (E<eMin or E>eMax) {
+    if (gridProc) {
+      freeFreeGridMiss++;
+      freeFreeMissMin = std::min<double>(freeFreeMissMin, E);
+      freeFreeMissMax = std::max<double>(freeFreeMissMax, E);
+    }
+    return freeFreeCrossSingle(E, id);
+  }
+
+  if (gridProc and (freeFreeGridMiss % GridReport == 1)) {
+    std::cout << "FreeFreeGrid DEBUG: "
+      << static_cast<double>(freeFreeGridMiss)/freeFreeGridTry
+	      << " [" << freeFreeGridTry << "], (min, max)=("
+	      << freeFreeMissMin << ", " << freeFreeMissMax << ")"
+	      << std::endl;
+
+    freeFreeMissMin = std::numeric_limits<double>::max();
+    freeFreeMissMax = 0;
+  }
+
+  double phi = 0.0, ffWaveCross = 0.0;
+
+  size_t indx = std::floor( (E - eMin)/DeltaEGrid );
+  double eA   = eMin + DeltaEGrid*indx, eB = eMin + DeltaEGrid*(indx+1);
+
+  double A = (eB - E)/DeltaEGrid;
+  double B = (E - eA)/DeltaEGrid;
+
+  std::array<double, 2> cum
+  { freeFreeGrid[indx+0].back(), freeFreeGrid[indx+1].back()};
+
+  // If cross section is offgrid, set values to zero
+  //
+  if (cum[0] > 0.0 and cum[1] > 0.0) {
+
+    std::array<double,  2> k;
+
+    // Location in cumulative cross section grid
+    //
 
     for (int i=0; i<2; i++) {
 
@@ -2308,6 +2439,10 @@ void chdata::createIonList(const std::set<unsigned short>& ZList)
     }
     Ni[i] = 1.0;		// Not sure what this does . . . 
   }
+
+#if HAVE_LIBCUDA==1
+  cuda_initialize();
+#endif
 }
 
 
@@ -3247,3 +3382,77 @@ chdata::recombEquil(unsigned short Z, double T,
   ret[Z+1] = {nn[Z]/norm, 0.0, recomb[lQ(Z, Z+1)]};
   return ret;
 }
+
+
+/** CUDA strategy
+
+(1) All cross sections with lookup tables to be copied to cuda texture objects
+
+(2) Copy necessary constants to cuda symbol data
+
+(3) Cross sections are then evaluated on the device so we need cuda
+__device__ functions for each desired cross section
+
+  Four grids
+  ----------
+  free free    2-dimensional
+  rad recomb   1-dimensional
+  col excite   1-dimensional (2 values)
+  col ionize   1-dimensional
+*/
+
+#if HAVE_LIBCUDA==1
+
+void chdata::cuda_initialize()
+{
+  // Remove any previous initialization data
+  //
+  destroy_cuda();
+  cuIonElem.clear();
+
+  for (auto v : IonList) {
+    cuIonElement E;
+				// Initialize cross-section data structures
+				// 
+    E.Z = v.first.first;
+    E.C = v.first.second;
+    E.I = E.NColl  = E.NIonz = 0;
+    E.ceEmin = E.ceEmax = E.ceDelE = 0;
+    E.ciEmin = E.ciEmax = E.ciDelE = 0;
+    E.ff_0 = E.ff_d = E.rc_d = E.ce_d = E.ci_d = 0;
+
+    cuIonElem.push_back(E);
+    
+				// Make grids
+				// 
+    if (not v.second->freeFreeGridComputed)
+      v.second->freeFreeMakeEvGrid(0);
+
+    if (v.first.second>1 and not v.second->radRecombGridComputed)
+      v.second->radRecombMakeEvGrid(0);
+
+    if (v.first.second<=v.first.first) {
+      if (not v.second->exciteGridComputed) v.second->collExciteMakeGrid(0);
+      if (not v.second->ionizeGridComputed) v.second->directIonMakeGrid(0);
+    }
+  }
+
+  cuda_initialize_grid_constants();
+  cuda_initialize_textures();
+}
+
+void chdata::destroy_cuda()
+{
+  int i = 0;
+  for (auto & u : cuIonElem) {
+    for (auto & v : {u.ff_0, u.ff_d, u.rc_d, u.ce_d, u.ci_d} ) {
+      std::ostringstream sout;
+      sout << "trying to free TextureObject [" << i++
+	   << "] with [Z, C]=[" << u.Z << ", " << u.C << "]";
+      cuda_safe_call(cudaDestroyTextureObject(v),
+		     __FILE__, __LINE__, sout.str());
+    }
+  }
+}
+
+#endif
