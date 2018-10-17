@@ -141,7 +141,7 @@ void OutPSP::Run(int n, bool last)
 
     if (ret != MPI_SUCCESS) {
       MPI_Error_string(ret, err, &len);
-      std::cout << "OutPSP::run: " << err
+      std::cout << "OutPSP::run: WRITE header " << err
 		<< " at line " << __LINE__ << std::endl;
     }
   }
@@ -156,13 +156,33 @@ void OutPSP::Run(int n, bool last)
     c->write_binary_mpi(file, offset, real4); 
   }
 
+  // Try SYNC-BARRIER-SYNC semantic
+  //
+  ret = MPI_File_sync(file);
+
+  if (ret != MPI_SUCCESS) {
+    MPI_Error_string(ret, err, &len);
+    std::cout << "OutPSP::run: SYNC " << err
+	      << " at line " << __LINE__ << std::endl;
+  }
+  
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  ret = MPI_File_sync(file);
+
+  if (ret != MPI_SUCCESS) {
+    MPI_Error_string(ret, err, &len);
+    std::cout << "OutPSP::run: SYNC " << err
+	      << " at line " << __LINE__ << std::endl;
+  }
+
   ret = MPI_File_close(&file);
 
   firsttime = false;
 
   if (ret != MPI_SUCCESS) {
     MPI_Error_string(ret, err, &len);
-    std::cout << "OutPSP::run: " << err
+    std::cout << "OutPSP::run: CLOSE " << err
 	      << " at line " << __LINE__ << std::endl;
   }
 
