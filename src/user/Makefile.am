@@ -6,10 +6,12 @@ if ENABLE_GPTL
   ADD_CFLAGS4  = -DUSE_GPTL $(gptl_include)
 endif
 
-AM_CFLAGS   = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) -fopenmp
-AM_FFLAGS   = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) -fopenmp
-AM_CXXFLAGS = -std=c++11 -fPIC -fno-inline-small-functions -Wall \
-	-D_REENTRANT -Wno-non-virtual-dtor $(ADD_CFLAGS4) -fopenmp
+AM_CFLAGS = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) -fopenmp	\
+$(CUDA_CFLAGS)
+AM_FFLAGS = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) -fopenmp
+AM_CXXFLAGS = -std=c++11 -fPIC -fno-inline-small-functions -Wall	\
+-D_REENTRANT -Wno-non-virtual-dtor $(ADD_CFLAGS4) -fopenmp		\
+$(CUDA_CFLAGS)
 AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil -lgomp
 
 bin_PROGRAMS = testCrossSection testIonRecomb genIonRecomb testQuantile
@@ -128,7 +130,8 @@ libwake_la_LIBADD = libcommon.a
 
 libtreegas_la_SOURCES = UserTreeDSMC.cc
 libtreegas_la_LDFLAGS = $(BOOST_LDFLAGS) $(CUDA_LDFLAGS)
-libtreegas_la_LIBADD  = $(BOOST_FILESYSTEM_LIB) $(BOOST_SERIALIZATION_LIB) libcommon.a libdsmc.a
+libtreegas_la_LIBADD = $(BOOST_FILESYSTEM_LIB)			\
+$(BOOST_SERIALIZATION_LIB) libcommon.a libdsmc.a $(CUDA_LIBS)
 
 libperiodic_la_SOURCES = UserPeriodic.cc 
 libperiodic_la_LIBADD  = libcommon.a
