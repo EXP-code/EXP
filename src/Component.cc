@@ -434,6 +434,9 @@ Component::Component(istream *in)
   keyPos      = -1;
   nlevel      = -1;
 
+  pBufSiz     = 100000;
+  blocking    = false;
+
   read_bodies_and_distribute_binary(in);
 
   mdt_ctr = vector< vector<unsigned> > (multistep+1);
@@ -539,7 +542,7 @@ void Component::initialize(void)
 
     if (!datum.first.compare("keypos"))   keyPos = atoi(datum.second.c_str());
 
-    if (!datum.first.compare("pbufsiz"))  pBufSiz = atoi(datum.second);
+    if (!datum.first.compare("pbufsiz"))  pBufSiz = atoi(datum.second.c_str());
 
     if (!datum.first.compare("blocking")) blocking = atoi(datum.second.c_str()) ? true : false;
 
@@ -1688,7 +1691,6 @@ void Component::write_binary_mpi_b(MPI_File& out, MPI_Offset& offset, bool real4
   unsigned bSiz = particles.begin()->second->getMPIBufSize(rsize, indexing);
   if (myid) offset += numP[myid-1] * bSiz;
   
-  const size_t pBufSiz = 100000;
   std::vector<char> buffer(pBufSiz*bSiz);
   size_t count = 0;
   char *buf = &buffer[0], *bufl;
