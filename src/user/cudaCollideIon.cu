@@ -103,7 +103,7 @@ void CollideIon::cuda_initialize()
   cuElems = elems;
 
   // Coulombic velocity selection
-
+  //
   cuFP_t tau_i = 0.0001, tau_f = 4.0, tau_z = 40.0;
   std::vector<cuFP_t> hA(coulSelNumT);
 
@@ -209,7 +209,6 @@ __global__ void initCurand(dArray<curandState> state, unsigned long seed)
 }
 
 __global__ void cellInitKernel(dArray<cudaParticle> in,
-			       dArray<cuFP_t> meanM,
 			       dArray<cuFP_t> Ivel2,
 			       dArray<cuFP_t> Evel2,
 			       dArray<cuFP_t> PiProb,
@@ -232,14 +231,12 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,
 
     if (c < cellI._s) {
 
-      meanM._v[c] = 0.0;
-
       int nbods = cellN._v[c];
 
       cuFP_t massP = 0.0, numbP = 0.0, massE = 0.0;
       cuFP_t evel2 = 0.0, ivel2 = 0.0, numQ2 = 0.0;
       cuFP_t densI = 0.0, densQ = 0.0, densE = 0.0;
-      cuFP_t molPP = 0.0;
+      cuFP_t molPP = 0.0, meanM = 0.0;
 
       for (size_t i=0; i<nbods; i++) {
 	
@@ -282,7 +279,7 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,
 	massE += p.mass * ee;
       }
   
-      if (numbP>0.0) meanM._v[c] = massP/numbP;
+      if (numbP>0.0) meanM       = massP/numbP;
       if (massP>0.0) Ivel2._v[c] = ivel2/massP;
       if (massE>0.0) Evel2._v[c] = evel2/massE;
       if (densQ>0.0) numQ2      /= densQ;
@@ -298,9 +295,9 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,
       //
       // Ion probabilities
       //
-      cuFP_t muii = meanM._v[c]/2.0;
+      cuFP_t muii = meanM/2.0;
       cuFP_t muee = cuda_atomic_weights[0]/2.0;
-      cuFP_t muie = cuda_atomic_weights[0] * meanM._v[c]/(cuda_atomic_weights[0] + meanM._v[c]);
+      cuFP_t muie = cuda_atomic_weights[0] * meanM/(cuda_atomic_weights[0] + meanM);
       
       // Ion-Ion
       PiProb._v[c*4 + 0] =
@@ -364,7 +361,6 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 				   dArray<int>    i2,
 				   dArray<int>    cc,
 				   dArray<cuFP_t> volC,
-				   dArray<cuFP_t> meanM,
 				   dArray<cuFP_t> Ivel2,
 				   dArray<cuFP_t> Evel2,
 				   dArray<cuFP_t> PiProb,
@@ -386,7 +382,7 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 
     int n = tid*stride + s;
 
-    if (n < meanM._s) {
+    if (n < i1._s) {
 
       cudaParticle& p1 = in._v[i1._v[n]];
       cudaParticle& p2 = in._v[i2._v[n]];
@@ -1203,7 +1199,6 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 				 dArray<int>    i2,
 				 dArray<int>    cc,
 				 dArray<cuFP_t> selC,
-				 dArray<cuFP_t> meanM,
 				 dArray<cuFP_t> Ivel2,
 				 dArray<cuFP_t> Evel2,
 				 dArray<cuFP_t> PiProb,
@@ -1226,7 +1221,7 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 
     int n = tid*stride + s;
 
-    if (n < meanM._s) {
+    if (n < i1._s) {
 
       cudaParticle& p1    = in._v[i1._v[n]];
       cudaParticle& p2    = in._v[i2._v[n]];
@@ -1860,7 +1855,7 @@ void * CollideIon::collide_thread_cuda(void * arg)
   int gridSize = (N+BLOCK_SIZE*stride-1)/(BLOCK_SIZE*stride);
 
 				// These do not need copying back
-  thrust::device_vector<cuFP_t> d_meanM(N), d_Ivel2(N), d_Evel2(N);
+  thrust::device_vector<cuFP_t> d_Ivel2(N), d_Evel2(N);
   thrust::device_vector<cuFP_t> d_PiProb(N*4), d_ABrate(N*4);
   thrust::device_vector<cuFP_t> d_volC(h_volC), d_tauC(h_tauC), d_selC(N);
 
@@ -1869,7 +1864,6 @@ void * CollideIon::collide_thread_cuda(void * arg)
   //
   cellInitKernel<<<gridSize, BLOCK_SIZE>>>
     (toKernel(d_part),		// Particle array (input)
-     toKernel(d_meanM),		// Mean mass per cell (output)
      toKernel(d_Ivel2),		// Mean squared ion velocity (output)
      toKernel(d_Evel2),		// Mean squared electron velocity (output)
      toKernel(d_PiProb),	// For BN algorithm (output)
@@ -1909,7 +1903,7 @@ void * CollideIon::collide_thread_cuda(void * arg)
      toKernel(d_cross),  toKernel(d_delph), toKernel(d_xspc1),  toKernel(d_xspc2),
      toKernel(d_xtype),  toKernel(d_cross),
      toKernel(d_i1),     toKernel(d_i2),     toKernel(d_cc),    toKernel(d_volC),
-     toKernel(d_meanM),  toKernel(d_Ivel2),  toKernel(d_Evel2),
+     toKernel(d_Ivel2),  toKernel(d_Evel2),
      toKernel(d_PiProb), toKernel(d_ABrate), toKernel(d_flagI), 
      toKernel(xsc_H),    toKernel(xsc_He),   toKernel(xsc_pH),  toKernel(xsc_pHe),
      toKernel(cuElems),
@@ -1917,14 +1911,14 @@ void * CollideIon::collide_thread_cuda(void * arg)
 
   // Do the interactions
   //
-  thrust::device_vector<cuFP_t>         d_deltT(Pcount, std::numeric_limits<cuFP_t>::max());
+  thrust::device_vector<cuFP_t> d_deltT(Pcount, std::numeric_limits<cuFP_t>::max());
 
   partInteractions<<<gridSize, BLOCK_SIZE>>>
     (toKernel(d_part),   toKernel(d_randS),
      toKernel(d_cross),  toKernel(d_delph),  toKernel(d_xspc1),  toKernel(d_xspc2),
      toKernel(d_xtype),  toKernel(d_cross),
      toKernel(d_i1),     toKernel(d_i2),     toKernel(d_cc),    toKernel(d_selC),
-     toKernel(d_meanM),  toKernel(d_Ivel2),  toKernel(d_Evel2),
+     toKernel(d_Ivel2),  toKernel(d_Evel2),
      toKernel(d_PiProb), toKernel(d_ABrate), toKernel(d_deltT), toKernel(d_flagI), 
      toKernel(cuElems),
      spTau[id], totalXCsize, use_elec, stride);
