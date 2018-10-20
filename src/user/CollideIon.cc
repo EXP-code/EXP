@@ -2638,7 +2638,8 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 
 	csections[id][Particle::defaultKey][Particle::defaultKey]() += tCross * meanF[id][k];
       }
-    } else {
+    } // NTC per-cell cross section estimation
+    else {
 
       meanM[id] = 0.0;
 
@@ -2682,7 +2683,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
       if (massP>0.0) Ivel2[id] = ivel2/massP;
       if (massE>0.0) Evel2[id] = evel2/massE;
 
-    }
+    } // END: no NTC, estimate plasma cross section only
 
     Eion[id] = Eelc[id] = 0.0;
     double massP = 0.0, numbP = 0.0, molW = 0.0;
