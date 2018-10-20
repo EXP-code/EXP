@@ -20,7 +20,8 @@ enum cudaInterTypes {
   free_free  = 6,
   col_excite = 7,
   col_ionize = 8,
-  recombine  = 9
+  recombine  = 9,
+  elec_elec  = 10
 };
 
 const int maxAtomicNumber = 15;
@@ -208,17 +209,17 @@ __global__ void initCurand(dArray<curandState> state, unsigned long seed)
   }
 }
 
-__global__ void cellInitKernel(dArray<cudaParticle> in,
-			       dArray<cuFP_t> Ivel2,
-			       dArray<cuFP_t> Evel2,
-			       dArray<cuFP_t> PiProb,
-			       dArray<cuFP_t> ABrate,
-			       dArray<cuFP_t> volC,
-			       dArray<cuFP_t> tauC,
-			       dArray<cuFP_t> selC,
-			       dArray<int>    cellI,
-			       dArray<int>    cellN,
-			       dArray<cuIonElement> elems,
+__global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all active)
+			       dArray<cuFP_t> Ivel2,       // Mean-squared ion velocity (per cell)
+			       dArray<cuFP_t> Evel2,       // Mean-squared electron velocity (per cell)
+			       dArray<cuFP_t> PiProb,      // Relative electron fraction for BN algorithm (per cell)
+			       dArray<cuFP_t> ABrate,      // Plasma rate for BN algorithm (per cell)
+			       dArray<cuFP_t> volC,        // Cell's volume
+			       dArray<cuFP_t> tauC,        // Cell's time step
+			       dArray<cuFP_t> selC,        // Prefactor for per cell pair selection computation
+			       dArray<int>    cellI,       // Index to beginning of bodies for this cell
+			       dArray<int>    cellN,	   // Number of bodies per cell
+			       dArray<cuIonElement> elems, // Species array
 			       int epos, unsigned int stride)
 {
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
@@ -235,8 +236,8 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,
 
       cuFP_t massP = 0.0, numbP = 0.0, massE = 0.0;
       cuFP_t evel2 = 0.0, ivel2 = 0.0, numQ2 = 0.0;
-      cuFP_t densI = 0.0, densQ = 0.0, densE = 0.0;
-      cuFP_t molPP = 0.0, meanM = 0.0;
+      cuFP_t molPP = 0.0, densQ = 0.0, densE = 0.0;
+      cuFP_t meanM = 0.0;
 
       for (size_t i=0; i<nbods; i++) {
 	
@@ -247,6 +248,7 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,
 	massP += p.mass;
 	
 	// Mass-weighted trace fraction
+	// [Iterate through all Trace ionization states]
 	cuFP_t ee = 0.0;
 	for (int k=0; k<elems._s; k++) {
 	  cuIonElement& E = elems._v[k];
@@ -257,8 +259,8 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,
 	  numbP += p.mass * ww;
 	  // Electron fraction
 	  ee += ww * qq;
-	  // Ion dens
-	  densI += p.mass * ww;
+	  // For computing mean molecular weight
+	  molPP += p.mass * ww;
 	  // Charge
 	  densE += p.mass * ww * qq;
 	  // Charge squared
@@ -283,11 +285,10 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,
       if (massP>0.0) Ivel2._v[c] = ivel2/massP;
       if (massE>0.0) Evel2._v[c] = evel2/massE;
       if (densQ>0.0) numQ2      /= densQ;
-      if (densI>0.0) molPP       = massP/densI;
+      if (molPP>0.0) molPP       = massP/molPP;
       
       cuFP_t ddfac = dfac/volC._v[c];
 
-      densI *= ddfac;
       densQ *= ddfac;
       densE *= ddfac;
 
@@ -349,18 +350,17 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,
 
 }
 
-__global__ void crossSectionKernel(dArray<cudaParticle> in,
-				   dArray<curandState> randS,
-				   dArray<cuFP_t> cross,
-				   dArray<cuFP_t> delph,
-				   dArray<uchar3> xspc1,
+__global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle array
+				   dArray<curandState> randS,	  // Cuda random number objects
+				   dArray<cuFP_t> cross,	  // Cross section for each interaction
+				   dArray<cuFP_t> delph,	  // Inelastic energy change for each interaction
+				   dArray<uchar3> xspc1,	  // Ionization state for each interaction
 				   dArray<uchar3> xspc2,
-				   dArray<cudaInterTypes> xtype,
-				   dArray<cuFP_t> xctot,
-				   dArray<int>    i1,
-				   dArray<int>    i2,
-				   dArray<int>    cc,
-				   dArray<cuFP_t> volC,
+				   dArray<cudaInterTypes> xtype,  // Interaction type for each interaction
+				   dArray<cuFP_t> xctot,	  // Total cross section per cell
+				   dArray<int>    i1,		  // Location of first particle in pair
+				   dArray<int>    i2,		  // Location of second particle in pair
+				   dArray<int>    cc,		  // Cell id each pair in i1 and i2
 				   dArray<cuFP_t> Ivel2,
 				   dArray<cuFP_t> Evel2,
 				   dArray<cuFP_t> PiProb,
@@ -371,8 +371,8 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 				   dArray<cuFP_t> xsc_pH,
 				   dArray<cuFP_t> xsc_pHe,
 				   dArray<cuIonElement> elems,
-				   int numxc,
-				   int epos,
+				   int numxc,                      // Number of possible cross sections
+				   int epos,			   // Position of electron velocity in datr
 				   unsigned int stride)
 {
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
@@ -388,7 +388,8 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
       cudaParticle& p2 = in._v[i2._v[n]];
       int          cid = cc._v[n];
       
-      // Zero the xtype
+      // Zero the cross-section type
+      //
       for (int j=0; j<numxc; j++) xtype._v[n*numxc+j] = nothing;
 
       cuFP_t Eta1=0.0, Eta2=0.0, Mu1=0.0, Mu2=0.0, Sum1=0.0, Sum2=0.0;
@@ -423,6 +424,10 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
       //
       // cuFP_t N1 = p1.mass*cuMunit/(Mu1*cuAmu);
       // cuFP_t N2 = p2.mass*cuMunit/(Mu2*cuAmu);
+      // ^
+      // |
+      // +--- Not used in this implementation; originally for internal energy tracking
+      //
 
       cuFP_t vel   = 0.0;
       cuFP_t eVel0 = 0.0, eVel1 = 0.0, eVel2 = 0.0;
@@ -442,9 +447,9 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 
 	// Scaled electron relative velocity
 	if (cuMeanMass) {
-	  rvel0 = p1.datr[epos+k]*sqrt(Eta1) - p2.datr[epos+k]*sqrt(Eta2);
-	  rvel1 = p1.datr[epos+k]*sqrt(Eta1) - p2.vel[k];
-	  rvel2 = p2.datr[epos+k]*sqrt(Eta2) - p1.vel[k];
+	  rvel0 = p1.datr[epos+k]*sqrt(Eta1/Mu1) - p2.datr[epos+k]*sqrt(Eta2/Mu2);
+	  rvel1 = p1.datr[epos+k]*sqrt(Eta1/Mu1) - p2.vel[k];
+	  rvel2 = p2.datr[epos+k]*sqrt(Eta2/Mu2) - p1.vel[k];
 	  
 	  gVel0 += rvel0*rvel0;
 	  gVel1 += rvel1*rvel1;
@@ -472,14 +477,14 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 	gVel2 = eVel2 / vel;
       }
 
-      cuFP_t  m1 = Mu1 * cuAmu;
-      cuFP_t  m2 = Mu2 * cuAmu;
-      cuFP_t  me = cuda_atomic_weights[0] * cuAmu;
-      cuFP_t mu0 = m1 * m2 / (m1 + m2);
-      cuFP_t mu1 = m1 * me / (m1 + me);
-      cuFP_t mu2 = m2 * me / (m2 + me);
+      cuFP_t  m1  = Mu1 * cuAmu;
+      cuFP_t  m2  = Mu2 * cuAmu;
+      cuFP_t  me  = cuda_atomic_weights[0] * cuAmu;
+      cuFP_t mu0  = m1 * m2 / (m1 + m2);
+      cuFP_t mu1  = m1 * me / (m1 + me);
+      cuFP_t mu2  = m2 * me / (m2 + me);
 
-      cuFP_t kEi = 0.5 * mu0 * vel * vel;
+      cuFP_t kEi  = 0.5 * mu0 * vel * vel;
 
       cuFP_t facE = 0.5  * cuAmu * cuVunit * cuVunit / cuEV;
       cuFP_t Eion = facE * Ivel2._v[n] * 0.5*(Mu1 + Mu2);
@@ -488,6 +493,8 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
       cuFP_t kEe2 = 0.5  * mu2 * eVel1*eVel1;
       // cuFP_t kEee = 0.25 * me  * eVel0*eVel0;
 
+      // Loop through all possible ion states
+      //
       for (int k1=0; k1<Nsp; k1++) {
 
 	cuIonElement& elem = elems._v[k1];
@@ -500,6 +507,8 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 	cuFP_t fac1 = p1.datr[I] / cuda_atomic_weights[Z] / Sum1;
 	cuFP_t fac2 = p2.datr[I] / cuda_atomic_weights[Z] / Sum2;
 
+	// Loop through all possible ion states for second ion
+	//
 	for (int kk=0; kk<Nsp; kk++) {
 	  
 	  cuIonElement& elem2 = elems._v[kk];
@@ -543,14 +552,22 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 
 	  cuFP_t crs1 = 0;
 
+	  // Particle 2 is proton
+	  //
 	  if (ZZ==1 and CC==2) {
+	    // Particle 1 is neutral hydrogen
 	    if (Z==1 and P==0) crs1 = cudaElasticInterp(kEi, cuPH_Emin,  cuH_H,   xsc_pH );
+	    // Particle 1 is neutral helium
 	    if (Z==2 and P==0) crs1 = cudaElasticInterp(kEi, cuPHe_Emin, cuPHe_H, xsc_pHe);
 	    crs1 *= cuCrossfac * cfac;
 	  }
 	  
+	  // Particle 1 is proton
+	  //
 	  if (Z==1 and C==2) {
+	    // Particle 2 is neutral hydrogen
 	    if (ZZ==1 and PP==0) crs1 = cudaElasticInterp(kEi, cuPH_Emin,  cuPH_H,  xsc_pH );
+	    // Particle 2 is neutral helium
 	    if (ZZ==2 and PP==0) crs1 = cudaElasticInterp(kEi, cuPHe_Emin, cuPHe_H, xsc_pHe);
 	    crs1 *= cuCrossfac * cfac;
 	  }
@@ -594,8 +611,13 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 	//
 	if (Z<=2 and P==0 and Eta2>0.0) {
 	  cuFP_t crs = 0.0;
+
+	  // Hydrogen
+	  //
 	  if (Z==1) crs = cudaElasticInterp(kEe1, cuH_Emin, cuH_H, xsc_H) * gVel2 * Eta2 *
 		      cuCrossfac * fac1;
+	  // Helium
+	  //
 	  if (Z==2) crs = cudaElasticInterp(kEe1, cuHe_Emin, cuHe_H, xsc_He) * gVel2 * Eta2 *
 		      cuCrossfac * fac1;
 
@@ -614,9 +636,15 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 	//
 	if (P==0 and Eta1>0.0) {
 	  cuFP_t crs = 0.0;
-	  if (Z==1) crs = cudaElasticInterp(kEe2, cuH_Emin, cuH_H, xsc_H) * gVel2 * Eta2 *
+
+	  // Hydrogen
+	  //
+	  if (Z==1) crs = cudaElasticInterp(kEe2, cuH_Emin, cuH_H, xsc_H) * gVel1 * Eta1 *
 		      cuCrossfac * fac1;
-	  if (Z==2) crs = cudaElasticInterp(kEe2, cuHe_Emin, cuHe_H, xsc_He) * gVel2 * Eta2 *
+
+	  // Helium
+	  //
+	  if (Z==2) crs = cudaElasticInterp(kEe2, cuHe_Emin, cuHe_H, xsc_He) * gVel1 * Eta1 *
 		      cuCrossfac * fac1;
 
 	  if (crs>0.0) {
@@ -637,6 +665,7 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 	if (P>0 and Eta2>0) {
 	  // Particle 1 ION, Particle 2 ELECTRON
 	  cuFP_t crs  = 0.0;
+
 	  cuFP_t kEc  = cuMeanKE ? Eelc : kEe1;
 	  kEc = 2.0*kEc > cuFloorEV ? 2.0*kEc*cuEV : cuFloorEV*cuEV;
 	  cuFP_t afac = cuEsu*cuEsu/kEc * 1.0e7;
@@ -685,8 +714,6 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,
 	  computeFreeFree(ke, rn, ph, ff, elem);
 
 	  cuFP_t crs  = gVel2 * Eta2 * ff * fac1;
-	
-	  if (std::isinf(crs)) crs = 0.0; // Sanity check
 	
 	  if (crs>0.0) {
 
@@ -984,7 +1011,10 @@ void cudaUnitVector(cuFP_t *ret, curandState* state)
       nrm += ret[i]*ret[i];
     }
     nrm = sqrt(nrm);
-    for (int i=0; i<3; i++) ret[i] /= nrm;
+
+    if (nrm>0.0) {
+      for (int i=0; i<3; i++) ret[i] /= nrm;
+    }
   } 
 }
 
@@ -1214,6 +1244,8 @@ __global__ void partInteractions(dArray<cudaParticle> in,
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
   const int Nsp = elems._s;
 
+  // Cache new state weights for each particle
+  //
   cuFP_t *FF1 = new cuFP_t [Nsp];
   cuFP_t *FF2 = new cuFP_t [Nsp];
 
@@ -1323,11 +1355,12 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 
 	if (Prob < 1.0e-14) continue;
 
-	// Atomic number
+	// Atomic number and array loc for each member of the pair
 	//
 	IT.Z1 = xspc1._v[n*numxc+J].x;
 	IT.C1 = xspc1._v[n*numxc+J].y;
 	IT.I1 = xspc1._v[n*numxc+J].z;
+
 	IT.Z2 = xspc2._v[n*numxc+J].x;
 	IT.C2 = xspc2._v[n*numxc+J].y;
 	IT.I2 = xspc2._v[n*numxc+J].z;
@@ -1341,17 +1374,20 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	//
 	cuFP_t dE = 0.0;
 
-	// Number interacting atoms (255 is electron)
+	// Compute weights and number interacting atoms (255 is
+	// electron)
 	//
 	if (IT.I1<255) IT.W1 = p1.datr[IT.I1] / cuda_atomic_weights[IT.Z1];
 	else           IT.W1 = Eta1;
 
-	if (IT.I2<255) IT.W2 = p1.datr[IT.I1] / cuda_atomic_weights[IT.Z2];
-	else           IT.W2 = Eta1;
+	if (IT.I2<255) IT.W2 = p2.datr[IT.I2] / cuda_atomic_weights[IT.Z2];
+	else           IT.W2 = Eta2;
 
 	IT.N1 = IT.W1 * cuMunit / cuAmu;
 	IT.N2 = IT.W2 * cuMunit / cuAmu;
 
+	// Number of particles in active partition
+	//
 	cuFP_t N0 = IT.N1 > IT.N2 ? IT.N2 : IT.N1;
 
 	// Select the maximum probability channel
@@ -1370,8 +1406,8 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	}
 
 	if (T == neut_elec) {
-	  if (IT.I1) PE[1] += Prob;
-	  else       PE[2] += Prob;
+	  if (IT.I1<255) PE[1] += Prob;
+	  else           PE[2] += Prob;
 	}
 	
 	if (T == neut_prot) {
@@ -1379,8 +1415,8 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	}
 
 	if (T == ion_elec) {
-	  if (IT.I1) PE[1] += Prob;
-	  else       PE[2] += Prob;
+	  if (IT.I1<255) PE[1] += Prob;
+	  else           PE[2] += Prob;
 	}
       
 	// Upscale inelastic cross sections by ratio of cross-section
@@ -1390,15 +1426,12 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	
 	if (T == free_free) {
 	  
-	  if (IT.I1) {		// Ion is p1
+	  dE = XE * Prob;
 
-	    dE = XE * Prob;
-	    
+	  if (IT.I1<255) {	// Ion is p1
 	    PE[1] += Prob;
 	    EE[1] += dE;
 	  } else {		// Ion is p2
-	    dE = XE * Prob;
-	    
 	    PE[2] += Prob;
 	    EE[2] += dE;
 	  }
@@ -1406,14 +1439,12 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 
 	if (T == col_excite) {
 	  
-	  if (IT.I1) {		// Ion is p1
-	    dE = XE * Prob;
-
+	  dE = XE * Prob;
+	  
+	  if (IT.I1<255) {	// Ion is p1
 	    PE[1] += Prob;
 	    EE[1] += dE;
 	  } else {		// Ion is p2
-	    dE = XE * Prob;
-	  
 	    PE[2] += Prob;
 	    EE[2] += dE;
 	  }
@@ -1421,8 +1452,11 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 
 	if (T == col_ionize) {
 
-	  if (IT.I1) {		// Ion is p1
-	    cuFP_t WW = Prob;	    
+	  cuFP_t WW = Prob;	    
+
+	  dE = XE * Prob;
+
+	  if (IT.I1<255) {	// Ion is p1
 
 	    if (WW < FF1[J]) {
 	      FF1[J]   -= WW;
@@ -1434,8 +1468,6 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	    }
 
 	    Prob = WW;
-	  
-	    dE = XE * Prob;
 	  
 	    // The kinetic energy of the ionized electron is lost
 	    // from the COM KE
@@ -1450,8 +1482,6 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	    
 	  } // END: ion-electron
 	  else {		// Ion is p2
-	    cuFP_t WW = Prob;
-
 	    if (WW < FF2[J]) {
 	      FF2[J]   -= WW;
 	      FF2[J+1] += WW;
@@ -1463,8 +1493,6 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 
 	    Prob = WW;
 	  
-	    dE = XE * Prob;
-
 	    // The kinetic energy of the ionized electron is lost
 	    // from the COM KE
 	    //
@@ -1481,8 +1509,9 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	
 	if (T == recombine) {
 
-	  if (IT.I1) {		// Ion is p1
-	    cuFP_t WW = Prob;
+	  cuFP_t WW = Prob;
+
+	  if (IT.I1<255) {		// Ion is p1
 
 	    if (WW < FF1[J]) {
 	      FF1[J]   -= WW;
@@ -1585,7 +1614,7 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	cuFP_t dT  = spTau * cuTunit;
 
 	if (maxT == ion_elec) {
-	  if (IT.I1) {
+	  if (IT.I1 < 255) {
 	    cuFP_t pVel = sqrt(2.0 * kEe1 / mu1);
 	    cuFP_t afac = esu*esu/(2.0*kEe1 > cuFloorEV*cuEV ? 2.0*kEe1 : cuFloorEV*cuEV);
 	    Tau = ABrate._v[cid*4+1]*afac*afac*pVel * dT;
@@ -1902,7 +1931,7 @@ void * CollideIon::collide_thread_cuda(void * arg)
     (toKernel(d_part),   toKernel(d_randS),
      toKernel(d_cross),  toKernel(d_delph), toKernel(d_xspc1),  toKernel(d_xspc2),
      toKernel(d_xtype),  toKernel(d_cross),
-     toKernel(d_i1),     toKernel(d_i2),     toKernel(d_cc),    toKernel(d_volC),
+     toKernel(d_i1),     toKernel(d_i2),     toKernel(d_cc),
      toKernel(d_Ivel2),  toKernel(d_Evel2),
      toKernel(d_PiProb), toKernel(d_ABrate), toKernel(d_flagI), 
      toKernel(xsc_H),    toKernel(xsc_He),   toKernel(xsc_pH),  toKernel(xsc_pHe),
