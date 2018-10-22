@@ -432,6 +432,7 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
       cuFP_t vel   = 0.0;
       cuFP_t eVel0 = 0.0, eVel1 = 0.0, eVel2 = 0.0;
       cuFP_t gVel0 = 0.0, gVel1 = 0.0, gVel2 = 0.0;
+      cuFP_t sVel1 = 0.0, sVel2 = 0.0;
       for (int k=0; k<3; k++) {
 	cuFP_t del = p1.vel[k] - p2.vel[k];
 	vel += del*del;
@@ -444,6 +445,12 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	eVel0 += rvel0*rvel0;
 	eVel1 += rvel1*rvel1;
 	eVel2 += rvel2*rvel2;
+
+	rvel1 = p1.datr[epos+k] - p1.vel[k];
+	rvel2 = p2.datr[epos+k] - p2.vel[k];
+
+	sVel1 += rvel1*rvel1;
+	sVel2 += rvel2*rvel2;
 
 	// Scaled electron relative velocity
 	if (cuMeanMass) {
@@ -463,6 +470,8 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
       eVel0 = sqrt(eVel0) * cuVunit;
       eVel1 = sqrt(eVel1) * cuVunit;
       eVel2 = sqrt(eVel2) * cuVunit;
+      sVel1 = sqrt(sVel1) * cuVunit;
+      sVel2 = sqrt(sVel2) * cuVunit;
 
       // Pick scaled relative velocities for mean-mass algorithm
       if (cuMeanMass) {
@@ -884,8 +893,11 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	    cuFP_t ke = kEe1 > cuFloorEV ? kEe1 : cuFloorEV, xc;
 	    computeRadRecomb(ke, xc, elem);
 	    
-	    cuFP_t crs = gVel1 * Eta1 * xc * fac1;
+	    cuFP_t crs = Eta1 * xc * fac1;
 	
+	    if (cuMeanMass) crs *= gVel1;
+	    else            crs *= sVel1;
+
 	    if (crs > 0.0) {
 	      cross._v[n*numxc+J] = crs;
 	      xspc1._v[n*numxc+J] = make_uchar3(Z, C,   I);
@@ -906,8 +918,11 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	    cuFP_t ke = kEe2 > cuFloorEV ? kEe2 : cuFloorEV, xc;
 	    computeRadRecomb(ke, xc, elem);
 	    
-	    cuFP_t crs = gVel2 * Eta2 * xc * fac2;
+	    cuFP_t crs = Eta2 * xc * fac2;
 	    
+	    if (cuMeanMass) crs *= gVel2;
+	    else            crs *= sVel2;
+
 	    if (crs > 0.0) {
 	      cross._v[n*numxc+J] = crs;
 	      xspc1._v[n*numxc+J] = make_uchar3(0, 0, 255);
@@ -931,8 +946,11 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	    cuFP_t ke = kEe1 > cuFloorEV ? kEe1 : cuFloorEV, xc;
 	    computeRadRecomb(ke, xc, elem);
 	    
-	    cuFP_t crs = gVel2 * Eta2 * xc * fac1;
-	
+	    cuFP_t crs = Eta2 * xc * fac1;
+
+	    if (cuMeanMass) crs *= gVel2;
+	    else            crs *= sVel2;
+
 	    if (crs > 0.0) {
 	      cross._v[n*numxc+J] = crs;
 	      xspc1._v[n*numxc+J] = make_uchar3(Z, C,   I);
@@ -956,8 +974,11 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	    cuFP_t ke = kEe2 > cuFloorEV ? kEe2 : cuFloorEV, xc;
 	    computeRadRecomb(ke, xc, elem);
 	    
-	    cuFP_t crs = gVel1 * Eta1 * xc * fac2;
+	    cuFP_t crs = Eta1 * xc * fac2;
 	    
+	    if (cuMeanMass) crs *= gVel1;
+	    else            crs *= sVel1;
+
 	    if (crs > 0.0) {
 	      cross._v[n*numxc+J] = crs;
 	      xspc1._v[n*numxc+J] = make_uchar3(0, 0, 255);
@@ -1044,6 +1065,67 @@ cuFP_t cuCA_eval(cuFP_t tau)
     return A*coulSelA[indx-1] + B*coulSelA[indx];
   }
 }
+
+__global__ void photoIonizeKernel(dArray<cudaParticle> in,     // Particle array
+				   dArray<curandState> randS,  // Cuda random number objects
+				   dArray<cuIonElement> elems, // Species map
+				   unsigned int stride)
+{
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
+  const int Nsp = elems._s;
+
+  for (int s=0; s<stride; s++) {
+
+    int n = tid*stride + s;
+
+    if (n < in._s) {
+      
+      cudaParticle& p = in._v[n];
+
+      // Photoionize all subspecies
+      //
+      for (int s=0; s<elems._s; s++) {
+	cuIonElement& elem = elems._v[s];
+
+	int Z = elem.Z;
+	int C = elem.C;
+	int P = elem.C - 1;
+	int I = elem.I;
+	
+	// Pick a new photon for each body
+	CFreturn ff  = ch.IonList[Q]->photoIonizationRate();
+
+	if (C<=Z) {
+	  cuFP_t rn, Ep, Pr;
+	  // Select random variate and get photo data
+	  //
+#if cuREAL == 4
+	  rn = curand_uniform(&randS._v[n]);
+#else
+	  rn = curand_uniform_double(&randS._v[n]);
+#endif
+	  computePhotoIonize(rn, Ep, Pr, elem);
+
+	  // Compute the probability and get the residual electron energy
+	  double Pr *= UserTreeDSMC::Tunit * spTau[id];
+	  double ww  = p.datr[E.I] * Pr;
+	  double Gm  = UserTreeDSMC::Munit/(amu*atomic_weights[Q.first]);
+
+	  if (Pr >= 1.0) {	// Limiting case
+	    ww = p->dattrib[pos];
+	    p.datr[E.I  ]  = 0.0;
+	    p.datr[E.I+1] += ww;
+	  } else {		// Normal case
+	    p.datr[E.I  ] -= ww;
+	    p.datr[E.I+1] += ww;
+	  }
+
+	}
+      }
+    }
+  } // End: photoionizing background
+}
+
 
 //! Select tau given random number U in [0,1)
 __device__
@@ -1140,81 +1222,192 @@ void cudaScatterTrace
  curandState *state, bool Coulombic
  )
 {
-  if (m1<1.0) m1 *= eta1;
-  if (m2<1.0) m2 *= eta2;
+  if (cuMeanMass) {
 
-  // Total effective mass in the collision
-  //
-  double mt = m1 + m2;
+    if (m1<1.0) m1 *= eta1;
+    if (m2<1.0) m2 *= eta2;
 
-  // Reduced mass (atomic mass units)
-  //
-  double mu = m1 * m2 / mt;
-
-  // Set COM frame
-  //
-  cuFP_t vcom[3], vrel[3];
-  cuFP_t vi = 0.0;
-
-  for (size_t k=0; k<3; k++) {
-    vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
-    vrel[k] = v1[k] - v2[k];
-    vi += vrel[k] * vrel[k];
-  }
-				// Energy in COM
-  cuFP_t kE = 0.5*W2*mu*vi;
-				// Energy reduced by loss
-  cuFP_t vfac = 1.0;
-  totE = kE - delE;
-
-  // KE is positive
-  //
-  if (kE>0.0) {
-    // More loss energy requested than available?
+    // Total effective mass in the collision
     //
-    if (totE < 0.0) {
-      // Add to energy bucket for these particles
-      //
-      cudaDeferredEnergy(-totE, m1, m2, W1, W2, E1, E2);
-      totE = 0.0;
+    double mt = m1 + m2;
+
+    // Reduced mass (atomic mass units)
+    //
+    double mu = m1 * m2 / mt;
+    
+    // Set COM frame
+    //
+    cuFP_t vcom[3], vrel[3];
+    cuFP_t vi = 0.0;
+    
+    for (size_t k=0; k<3; k++) {
+      vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
+      vrel[k] = v1[k] - v2[k];
+      vi += vrel[k] * vrel[k];
     }
-    // Update the outgoing energy in COM
-    vfac = sqrt(totE/kE);
-  }
-  // KE is zero (limiting case)
-  //
+
+    // Energy in COM
+    //
+    cuFP_t kE = 0.5*W2*mu*vi;
+
+    // Energy reduced by loss
+    //
+    cuFP_t vfac = 1.0;
+    totE = kE - delE;
+    
+    // KE is positive
+    //
+    if (kE>0.0) {
+      // More loss energy requested than available?
+      //
+      if (totE < 0.0) {
+	// Add to energy bucket for these particles
+	//
+	cudaDeferredEnergy(-totE, m1, m2, W1, W2, E1, E2);
+	totE = 0.0;
+      }
+      // Update the outgoing energy in COM
+      vfac = sqrt(totE/kE);
+    }
+    // KE is zero (limiting case)
+    //
+    else {
+      if (delE>0.0) {
+	// Defer all energy loss
+	//
+	cudaDeferredEnergy(delE, m1, m2, W1, W2, E1, E2);
+	delE = 0.0;
+      } else {
+	// Apply delE to COM
+	//
+	vi = -2.0*delE/(W1*mu);
+      }
+    }
+    
+    // Assign interaction energy variables
+    //
+    if (Coulombic)
+      cudaCoulombVector(vrel, vrel, W1, W2, Tau, state);
+    else
+      cudaUnitVector(vrel, state);
+    
+    vi   = sqrt(vi);
+    for (auto & v : vrel) v *= vi;
+    //                         ^
+    //                         |
+    // Velocity in center of mass, computed from v1, v2 and adjusted
+    // according to the inelastic energy loss
+    //
+    
+    for (size_t k=0; k<3; k++) {
+      v1[k] = vcom[k] + m2/mt*vrel[k] * vfac;
+      v2[k] = vcom[k] - m1/mt*vrel[k] * vfac;
+    }
+  } // END: MeanMass
   else {
-    if (delE>0.0) {
-      // Defer all energy loss
+
+    // Total effective mass in the collision (atomic mass units)
+    //
+    cuFP_t mt = m1 + m2;
+
+    // Reduced mass (atomic mass units)
+    //
+    cuFP_t mu = m1 * m2 / mt;
+
+    // Set COM frame
+    //
+    cuFP_t vcom[3], vrel[3];
+    cuFP_t vi = 0.0;
+    
+    for (size_t k=0; k<3; k++) {
+      vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
+      vrel[k] = v1[k] - v2[k];
+      vi += vrel[k] * vrel[k];
+    }
+				// Energy in COM
+    cuFP_t kE = 0.5*W2*mu*vi;
+				// Energy reduced by loss
+    cuFP_t totE = kE - delE;
+
+    // KE is positive
+    //
+    if (kE>0.0) {
+      // More loss energy requested than available?
       //
-      cudaDeferredEnergy(delE, m1, m2, W1, W2, E1, E2);
-    } else {
-      // Apply delE to COM
-      //
-      vi = -2.0*delE/(W1*mu);
+      if (totE < 0.0) {
+	cudaDeferredEnergy(-totE, m1, m2, W1, W2, E1, E2);
+	totE = 0.0;
+      }
+      // Update the outgoing energy in COM
+      vfac = sqrt(totE/kE);
+    }
+    // KE is zero (limiting case)
+    //
+    else {
+      if (delE>0.0) {
+	// Defer all energy loss
+	//
+	cudaDeferredEnergy(delE, m1, m2, W1, W2, E1, E2);
+	delE = 0.0;
+      } else {
+	// Apply delE to COM
+	//
+	vi = -2.0*delE/(W1*mu);
+      }
+    }
+
+    // Assign interaction energy variables
+    //
+    if (Coulombic)
+      cudaCoulombVector(vrel, vrel, W1, W2, Tau, state);
+    else
+      cudaUnitVector(vrel, state);
+  
+    vi   = sqrt(vi);
+    for (auto & v : vrel) v *= vi;
+    //                         ^
+    //                         |
+    // Velocity in center of mass, computed from v1, v2 and adjusted
+    // according to the inelastic energy loss
+    //
+
+    cuFP_t delta = 0.0;
+
+    // BEGIN: energy conservation algorithm
+
+    cuFP_t uu[3], vv[3];
+    double v1i2 = 0.0, b1f2 = 0.0;
+    double qT   = 0.0, vrat = 1.0, q = W2/W1, cq = 1.0 - W2/W1;
+    double udif = 0.0, gamm = 0.0, vcm2 = 0.0;
+
+    if (cq > 0.0 and q < 1.0) {
+
+      for (size_t i=0; i<3; i++) {
+	uu[i] = vcom[i] + m2/mt*vrel[i]*vfac;
+	vv[i] = vcom[i] - m1/mt*vrel[i]*vfac;
+	vcm2 += vcom[i] * vcom[i];
+	v1i2 += v1[i] * v1[i];
+	b1f2 += uu[i] * uu[i];
+	qT   += v1[i] * uu[i];
+	udif += (v1[i] - uu[i]) * (v1[i] - uu[i]);
+      }
+      
+      if (v1i2 > 0.0 and b1f2 > 0.0) qT *= q/v1i2;
+      
+      vrat = 
+	( -qT + std::copysign(1.0, qT)*sqrt(qT*qT + cq*(q*b1f2/v1i2 + 1.0)) )/cq;
+    }
+
+    // Assign new velocities
+    //
+    for (int i=0; i<3; i++) {
+      double v0 = vcom[i] + pp->m2/mt*vrel[i]*vfac;
+    
+      v1[i] = cq*v1[i]*vrat + q*v0;
+      v2[i] = vcom[i] - m1/mt*vrel[i]*vfac;
     }
   }
-
-  // Assign interaction energy variables
-  //
-  if (Coulombic)
-    cudaCoulombVector(vrel, vrel, W1, W2, Tau, state);
-  else
-    cudaUnitVector(vrel, state);
-  
-  vi   = sqrt(vi);
-  for (auto & v : vrel) v *= vi;
-  //                         ^
-  //                         |
-  // Velocity in center of mass, computed from v1, v2 and adjusted
-  // according to the inelastic energy loss
-  //
-
-  for (size_t k=0; k<3; k++) {
-    v1[k] = vcom[k] + m2/mt*vrel[k] * vfac;
-    v2[k] = vcom[k] - m1/mt*vrel[k] * vfac;
-  }
-      
+    
 } // END: cudaScatterTrace
 
 __global__ void partInteractions(dArray<cudaParticle> in,
@@ -1750,6 +1943,204 @@ __global__ void partInteractions(dArray<cudaParticle> in,
       
       } // END: Electron-Ion interaction
 
+      // Electron-electron interactions
+      {
+	cuFP_t  q = W2 / W1;
+	cuFP_t m1 = atomic_weights[0];
+	cuFP_t m2 = atomic_weights[0];
+	if (cuMeanMass) {
+	  m1 *= Eta1;
+	  m2 *= Eta2;
+	}
+	cuFP_t mt = m1 + m2;
+	cuFP_t mu = m1 * m2 / mt;
+
+	// Calculate pair's relative speed (pre-collision)
+	//
+	cuFP_t vcom(3), vrel(3), v1(3), v2(3);
+	cuFP_t KEcom = 0.0;
+	for (int k=0; k<3; k++) {
+	  v1[k]   = p1.datr[epos+k];
+	  v2[k]   = p2.datr[epos+k];
+	  vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
+	  vrel[k] = v1[k] - v2[k];
+	  KEcom  += vrel[k] * vrel[k];
+	}
+
+	// No point in inelastic collsion for zero velocity . . .
+	//
+	if (KEcom > 0.0) {
+
+	  // Relative speed
+	  //
+	  cuFP_t cr = sqrt(KEcom) * cuVunit;
+
+	  // COM KE
+	  //
+	  KEcom *= 0.5 * mu;
+
+	  // Kinetic energy in eV
+	  //
+	  double kEee = 0.5 * mu * amu * cr * cr / eV;
+
+
+	  double afac = esu*esu/( (2.0*kEee > cuFloorEV ? 2.0*kEee : cuFloorEV)*cuEV );
+	  cuFP_t dT   = spTau * cuTunit;
+	  cuFP_t Tau  = ABrate._v[cid*4+3] * afac*afac * cr * dT;
+
+	  if (MeanMass)
+	    cudaCoulombVector(vrel, vrel, 1.0, 1.0, Tau, state);
+	  else
+	    cudaCoulombVector(vrel, vrel, W1,  W2,  Tau, state);
+
+	  for (int k=0; k<3; k++) vrel[k] *= vi;
+
+	  if (MeanMass) {
+	  
+	    // Energy deficit correction
+	    //
+	    KEcom *= 0.5*mu;
+	    cuFP_t delE = p1.datr[epos+3] + p2.datr[epos+3];
+
+	    cuFP_t vfac = 0.0;
+	    if (KEcom>delE) {
+	      vfac = sqrt(1.0 - delE/KEcom);
+	      p1.datr[epos+3] = p2.datr[epos+3] = 0.0;
+	    } else {
+	      p1.datr[epos+3] = p2.datr[epos+3] = 0.5*(delE - KEcom);
+	    }
+
+	    // Assign new electron velocities
+	    //
+	    for (int k=0; k<3; k++) {
+	      p1.datr[epos+k] = vcom[k] + m2/mt*vrel[k] * vfac;
+	      p2.datr[epos+k] = vcom[k] - m1/mt*vrel[k] * vfac;
+	    }
+	  }
+	  // Explicit energy conservation using splitting
+	  //
+	  else if (q < 1.0) {
+
+	    bool  algok = false;
+	    cuFP_t vrat = 1.0;
+	    cuFP_t gamm = 0.0;
+
+	    cuFP_t uu[3], vv[3], w1[v1];
+	    for (size_t k=0; k<3; k++) {
+	      // New velocities in COM
+	      uu[k] = vcom[k] + 0.5*vrel[k];
+	      vv[k] = vcom[k] - 0.5*vrel[k];
+	    }
+	    
+	    cuFP_t v1i2 = 0.0, b1f2 = 0.0, b2f2 = 0.0;
+	    cuFP_t udif = 0.0, vcm2 = 0.0, v1u1 = 0.0;
+	    
+	    for (size_t k=0; k<3; k++) {
+	      // Difference in Particle 1
+	      udif += (v1[k] - uu[k]) * (v1[k] - uu[k]);
+	      // COM norm
+	      vcm2 += vcom[k] * vcom[k];
+	      // Normalizations
+	      v1i2 += v1[k]*v1[k];
+	      b1f2 += uu[k]*uu[k];
+	      b2f2 += vv[k]*vv[k];
+	      v1u1 += v1[k]*uu[k];
+	    }
+
+
+	    cuFP_t qT = v1u1 * q;
+	    if (v1i2 > 0.0) qT /= v1i2;
+	    cuFP_t sgn = qT>=0.0 ? 1.0 : -1.0;
+	    vrat = ( -qT + sgn*sqrt(qT*qT + (1.0 - q)*(q*b1f2/v1i2 + 1.0) ) )/(1.0 - q);
+
+	    // New velocities in inertial frame
+	    //
+	    cuFP_t u1(3), u2(3);
+	    for (size_t k=0; k<3; k++) {
+	      u1[k] = (1.0 - q)*v1[k]*vrat + w1[k]*gamm + q*uu[k];
+	      u2[k] = vv[k];
+	    }
+
+	    // Assign new electron velocities
+	    //
+	    for (int k=0; k<3; k++) {
+	      p1.datr[epos+k] = u1[k];
+	      p2.datr[epos+k] = u2[k];
+	    }
+	  }
+	  // Explicit momentum conservation
+	  //
+	  else {
+	    bool equal = fabs(q - 1.0) < 1.0e-14;
+
+	    double vfac = 1.0;
+
+	    if (equal) {
+	      const cuFP_t tol = 0.95; // eps = 0.05, tol = 1 - eps
+	      cuFP_t KE0 = 0.5*W1*m1*m2/mt * vi*vi;
+
+	      dKE = p1.datr[epos+3] + p2.datr[epos+3];
+
+	      // Too much KE to be removed, clamp to tol*KE0
+	      // 
+	      if (dKE/KE0 > tol) {
+		// Therefore, remaining excess is:
+		// dKE' = dKE - tol*KE0 = dKE*(1 - tol*KE0/dKE);
+		//
+		cuFP_t ratk = tol*KE0/dKE;
+		p1.datr[epos+3] *= (1.0 - ratk);
+		p2.datr[epos+3] *= (1.0 - ratk);
+
+		dKE = tol*KE0;
+	      } else {
+		p1.datr[epos+3] = p2.datr[epos+3] = 0.0;
+	      }
+
+	      vfac = sqrt(1.0 - dKE/KE0);
+	    }
+	  
+	    cuFP_t qKEfac = 0.5*W1*m1*q*(1.0 - q);
+	    deltaKE = 0.0;
+	    for (int k=0; k<3; k++) {
+	      cuFP_t v0 = vcom[k] + m2/mt*vrel[k]*vfac;
+	      deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
+	      p1.datr[epos+k] = (1.0 - q)*v1[k] + q*v0;
+	      p2.datr[epos+k] = vcom[k] - m1/mt*vrel[k]*vfac;
+	    }
+
+	    // Correct energy for conservation
+	    if (!equal) {
+	      cuFP_t KE1e = 0.0, KE2e = 0.0;
+	      for (int k=0; k<3; k++) {
+		KE1e += p1.datr[epos+k] * p1.datr[epos+k];
+		KE2e += p2.datr[epos+k] * p2.datr[epos+k];
+	      }
+	  
+	      cuFP_t eta1 = 0.0, eta2 = 0.0; // electron fraction
+	      for (auto s : SpList) {
+		unsigned P =  s.first.second - 1;
+		eta1 += p1->dattrib[s.second]*P/atomic_weights[s.first.first];
+		eta2 += p2->dattrib[s.second]*P/atomic_weights[s.first.first];
+	      }
+
+	      KE1e *= 0.5 * p1->mass * Eta1/Mu1 * atomic_weights[0];
+	      KE2e *= 0.5 * p2->mass * Eta2/Mu2 * atomic_weights[0];
+
+	      double wght1 = 0.5;
+	      double wght2 = 0.5;
+
+	      wght1 = KE1e/(KE1e + KE2e);
+	      wght2 = KE2e/(KE1e + KE2e);
+	      
+	      p1.datr[epos+3] -= deltaKE * wght1;
+	      p2.datr[epos+3] -= deltaKE * wght2;
+	    }
+	  }
+
+	} // end: momentum conservation
+
+      } // end: electron-electron
+      
     } // END: interactions with atoms AND electrons
     
   } // END: stride
@@ -1843,8 +2234,6 @@ void * CollideIon::collide_thread_cuda(void * arg)
     c0->host_particles.reserve(Pcount);
   c0->host_particles.resize(Pcount);
 
-  Component::hostPartItr hit = c0->host_particles.begin();
-
   // Species map info
   int minSp = std::numeric_limits<int>::max(), maxSp = 0;
   int numNeut = 0, numProt = 0, numIon = 0;
@@ -1866,6 +2255,17 @@ void * CollideIon::collide_thread_cuda(void * arg)
 
   // Copy particles to DEVICE
   //
+  Component::hostPartItr hit = c0->host_particles.begin();
+  for (unsigned j=0; j<cellist[id].size(); j++ ) {
+    pCell *c = cellist[id][j];
+    size_t number = c->bods.size();
+    for (size_t n=0; n<number; n++) {
+      PartPtr h = Particles()[c->bods[n]];
+      ParticleHtoD(h, *hit, minSp, maxSp);
+      hit++;
+    }
+  }
+
   thrust::device_vector<cudaParticle> d_part = c0->host_particles;
 
   // Copy cell boundaries and counts to DEVICE
@@ -1954,115 +2354,27 @@ void * CollideIon::collide_thread_cuda(void * arg)
 
   // Finally, copy back particles to host
   // 
+  c0->host_particles = d_part;
 
-  /*
+  // Copy requested dt back to host
+  // 
+  thrust::vector<cuFP_t> deltT = d_deltT;
+  thrust::vector<cuFP_t>::iterator dit = deltT.begin();
 
-  // Loop over cells, processing collisions in each cell
+  // Copy particles to HOST
   //
+  hit = c0->host_particles.begin();
   for (unsigned j=0; j<cellist[id].size(); j++ ) {
-
-    // Cache acceptance fraction for scaling MFP for time step
-    // selection
-    //
-    if (acceptCount > 0) {
-      cuFP_t scale = static_cast<cuFP_t>(totalCount)/acceptCount; 
-      meanLambda *= scale;
-      meanCollP  /= scale;
-      if (MFPTS) {
-	pthread_mutex_lock(&tlock);
-	selMFP[c] = meanLambda;
-	pthread_mutex_unlock(&tlock);
-      }
+    pCell *c = cellist[id][j];
+    size_t number = c->bods.size();
+    for (size_t n=0; n<number; n++) {
+      PartPtr h = Particles()[c->bods[n]];
+      ParticleDtoH(*hit, h, minSp, maxSp);
+      h->dtreq = *dit;
+      hit++;
+      dit++;
     }
-
-    collSoFar[id] = collTime[id].stop();
-  
-    // Update collision counter in the cell
-    //
-    c->iattrib["collCount"] = acceptCount;
-
-    // Compute dispersion diagnostics
-    //
-    stat3Time[id].start();
-  
-    cuFP_t tmass = 0.0;
-    vector<cuFP_t> velm(3, 0.0), velm2(3, 0.0);
-    for (unsigned j=0; j<number; j++) {
-      Particle* p = tree->Body(c->bods[j]);
-      for (unsigned k=0; k<3; k++) {
-	velm[k]  += p.mass*p.vel[k];
-	velm2[k] += p.mass*p.vel[k]*p.vel[k];
-      }
-      tmass += p.mass;
-    }
-  
-    if (tmass>0.0) {
-      for (unsigned k=0; k<3; k++) {
-	
-	velm[k] /= tmass;
-	velm2[k] = velm2[k] - velm[k]*velm[k]*tmass;
-	if (velm2[k]>0.0) {
-	  tdispT[id][k] += velm2[k];
-	  tmassT[id]    += tmass;
-	}
-      }
-    }
-    
-    //
-    // General hook for the derived classes for specific computations
-    // and diagnostics
-    //
-  
-    finalize_cell(c, Fn, kedsp, tau, id);
-  
-    // Update cell time
-    //
-    c->time = tnow;
-
-    stat3SoFar[id] = stat3Time[id].stop();
-  
-    //
-    // Compute Knudsen and/or Strouhal number
-    //
-    if (use_Kn>=0 || use_St>=0) {
-      cuFP_t cL = pow(volc, 0.33333333);
-      cuFP_t Kn = meanLambda/cL;
-      cuFP_t St = cL/fabs(tau*sqrt(fabs(kedsp))+1.0e-18);
-      for (unsigned j=0; j<number; j++) {
-	Particle* p = tree->Body(c->bods[j]);
-	if (use_Kn>=0) p.datr[use_Kn] = Kn;
-	if (use_St>=0) p.datr[use_St] = St;
-      }
-    }
-    
-    // Record effort per particle in microseconds
-    //
-    curcSoFar[id] = curcTime[id].stop();
-    cuFP_t tt = curcSoFar[id];
-    if (EFFORT) {
-      if (effortAccum) 
-	effortNumber[id].push_back(pair<long, unsigned>(tt, number));
-      cuFP_t effort = static_cast<cuFP_t>(tt)/number;
-      for (unsigned k=0; k<number; k++) 
-	tree->Body(c->bods[k])->effort += effort;
-    }
-  
-    // Usage debuging
-    //
-    if (minUsage[id*2+EPSMused] > tt) {
-      minUsage[id*2+EPSMused] = tt;
-      minPart [id*2+EPSMused] = number;
-      minCollP[id*2+EPSMused] = meanCollP;
-    }
-    if (maxUsage[id*2+EPSMused] < tt) {
-      maxUsage[id*2+EPSMused] = tt;
-      maxPart [id*2+EPSMused] = number;
-      maxCollP[id*2+EPSMused] = meanCollP;
-    }
-    
-  } // Loop over cells
-
-  */
+  }
 
   if (id==0) {
     std::ostringstream sout;

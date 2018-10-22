@@ -38,10 +38,15 @@ void chdata::cuda_initialize_textures()
   cuRCarray.resize(ionSize, 0);
   cuCEarray.resize(ionSize, 0);
   cuCIarray.resize(ionSize, 0);
+  cuPIarray.resize(ionSize, 0);
 
   // Texture object array
   //
   cuIonElem.resize(ionSize);
+
+  // Total photo-ionization rate
+  //
+  std::vector<cuFP_t> phRate(ionSize, 0.0);
 
   size_t k = 0;
 
@@ -381,6 +386,75 @@ void chdata::cuda_initialize_textures()
       resDesc.res.array.array = cuCIarray[k];
       
       cuda_safe_call(cudaCreateTextureObject(&E.ci_d, &resDesc, &texDesc, NULL), __FILE__, __LINE__, "create texture object");
+
+      // Photoionization array
+      //
+
+      thrust::host_vector<cuFP_t> piCum.resize(CHCUMK, 0.0);
+      piCum[CHCUMK-1] = 1.0;
+      
+      double delC = 1.0/(CHCUMK-1);
+      
+      if (not IBinit) IBcreate();
+      
+      E.piTotl = IBtotl;
+
+      // Copy cross section values to buffer
+      //
+      for (int i = 1; i < CHCUMK-1; i++) {
+
+	// Location in cumulative cross section grid
+	//
+	double C = delC*j;
+
+	// Interpolate the cross section array
+	//
+	
+	// Points to first element that is not < rn
+	// but may be equal
+	std::vector<double>::iterator lb = 
+	  std::lower_bound(IBcum.begin(), IBcum.end(), rn);
+	
+	// Assign upper end of range to the
+	// found element
+	//
+	std::vector<double>::iterator ub = lb;
+	//
+	// If is the first element, increment
+	// the upper boundary
+	//
+	if (lb == IBcum.begin()) { if (IBcum.size()>1) ub++; }
+	//
+	// Otherwise, decrement the lower boundary
+	//
+	else { lb--; }
+	
+	// Compute the associated indices
+	//
+	size_t ii = lb - IBcum.begin();
+	size_t jj = ub - IBcum.begin();
+	double nu = nugrid[ii];
+	  
+	// Linear interpolation
+	//
+	if (*ub > *lb) {
+	  double d = *ub - *lb;
+	  double a = (rn - *lb) / d;
+	  double b = (*ub - rn) / d;
+	  nu  = a * nugrid[ii] + b * nugrid[jj];
+	}
+    
+	piCum[i] = (nu - 1.0)*ip;
+	
+      } // END: cumululative array loop
+
+      std::cout << "Allocating pi_0[" << k << "]" << std::endl;
+
+      // Create storage on device
+      cuPIarray[k] = piCum;
+
+      // Assign pointer
+      E.pi_0 = thrust::raw_pointer_cast(&cuPIarray[k][0]);
     }
     
     // Increment counter
@@ -436,7 +510,6 @@ void chdata::cuda_initialize_grid_constants()
 				    sizeof(int), size_t(0),
 				    cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying ionRadRecombNumber");
-
 }
 
 
@@ -634,6 +707,23 @@ void computeColIonize
   }
 }
 
+
+__device__
+void computePhotoIonize
+(cuFP_t rr, cuFP_t& ph, cuFP_t& xc, cuIonElement& elem)
+{
+  cuFP_t dC = 1.0/CHCUMK;
+  int indx  = rr/ionNuCdel;
+  if (indx > CHCUMK-2) indx = CHCUMK - 2;
+
+  // Linear interpolation
+  //
+  double a = (rr - dC*(indx+0)) / dC;
+  double b = (dC*(indx+1) - rr) / dC;
+
+  ph = a*elem.pi_0[indx+0] + b*elem.pi_0[indx+1];
+  xc = elem.piTotl;
+}
 
 
 __global__ void testColIonize

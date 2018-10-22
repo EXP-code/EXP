@@ -203,6 +203,7 @@ struct cuIonElement
   int                 Z, C, I, NColl, NIonz;
   cuFP_t              ceEmin, ceEmax, ceDelE;
   cuFP_t              ciEmin, ciEmax, ciDelE;
+  cuFP_t              piTotl, *pi_0;
   cudaTextureObject_t ff_0, ff_d, rc_d, ce_d, ci_d;
 };
 
@@ -227,8 +228,12 @@ protected:
 #if HAVE_LIBCUDA==1
   //! CUDA methods
   //@{
+  //@{
   //! Working device vectors
-  std::vector<cudaArray_t>         cuF0array, cuFFarray, cuRCarray, cuCEarray, cuCIarray;
+  std::vector<cudaArray_t> cuF0array, cuFFarray, cuRCarray, cuCEarray;
+  std::vector<cudaArray_t> cuCIarray, cuPIarray;
+  std::vector<thrust::device_vector<cuFP_t>> cuPIarray;
+  //@}
 
   //! Initialize constants describing texture grids
   void cuda_initialize_grid_constants();
