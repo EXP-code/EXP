@@ -5217,7 +5217,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double ke              = std::max<double>(kE1s[id], FloorEv);
 	std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
 
-	double crs = sVel1 * Eta1 * RE.back() * fac1;
+	double crs = Eta1 * RE.back() * fac1;
 
 	if (MeanMass) crs *= gVel1;
 	else          crs *= sVel1;
@@ -5253,8 +5253,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double ke              = std::max<double>(kE2s[id], FloorEv);
 	std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
 
-	double crs = sVel2 * Eta2 * RE.back() * fac2;
+	double crs = Eta2 * RE.back() * fac2;
 	
+	if (MeanMass) crs *= gVel2;
+	else          crs *= sVel2;
+
 	if (scatter_check and recomb_check) {
 	  if (MeanMass) {
 	    double val = gVel2 * vel * 1.0e-14 * RE.back();
