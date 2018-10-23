@@ -391,7 +391,7 @@ PartPtr ParticleFerry::RecvParticle()
   part = boost::make_shared<Particle>(nimax, ndmax);
   particleUnpack(part, &buf[bufpos]);
   if (part->indx==0 || part->mass<=0.0 || std::isnan(part->mass)) {
-	cout << "BAD MASS!" << endl;
+    cout << "BAD MASS!" << endl;
   }
 #ifdef DEBUG
   if (part->indx==0) {
