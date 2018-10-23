@@ -3,8 +3,7 @@
 #ifndef PARTICLE_CUH
 #define PARTICLE_CUH
 
-#define DATTRIB_CUDA
-#define DATTRIB_NMAX 5
+#define DATTRIB_CUDA 10
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -27,12 +26,14 @@ struct cudaParticle
   cuFP_t acc[3];
   cuFP_t pot;
   cuFP_t potext;
-#ifdef DATTRIB_CUDA
-  cuFP_t datr[DATTRIB_NMAX];
+#if DATTRIB_CUDA>0
+  cuFP_t datr[DATTRIB_CUDA];
 #endif
+  cuFP_t dtreq;
   unsigned level;
   unsigned indx;
 } __attribute__((aligned));
+
 
 //! For thrust sorts on sequence
 struct LessCudaSeq
