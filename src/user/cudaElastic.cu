@@ -31,20 +31,21 @@ resampleArray(const std::vector<cuFP_t>& x, const std::vector<cuFP_t>& y,
   dx = (x.back() - x.front())/(numH - 1);
 
   for (int i=0; i<numH; i++) {
-    cuFP_t xx = x.back() + dx*i, yy;
+    cuFP_t xx = x.front() + dx*i, yy;
     if (xx <= x.front()) {
       yy = y.front();
     } else if (xx >= x.back()) {
       yy = y.back();
     } else {
-      auto ub = std::lower_bound(x.begin(), x.end(), xx);
-      auto lb = ub++;
+      auto lb = std::lower_bound(x.begin(), x.end(), xx);
+      auto ub = lb;
+      if (lb!=x.begin()) lb--;
       if (ub == x.end()) ub = lb--;
-      auto a = (xx - *lb)/(*ub - *lb);
-      auto b = (*ub - xx)/(*ub - *lb);
+      auto a = (*ub - xx)/(*ub - *lb);
+      auto b = (xx - *lb)/(*ub - *lb);
       yy = a*y[lb - x.begin()] + b*y[ub - x.begin()];
     }
-    Y.push_back(yy);
+    Y[i] = yy;
   }
 
   return Y;
@@ -140,7 +141,7 @@ void cudaElasticInit()
   radii[84] =  135;
   radii[86] =  120;
 
-  cuda_safe_call(cudaMemcpyToSymbol(cudaRadii, &radii[0], sizeof(cuFP_t)*numRadii), 
+  cuda_safe_call(cudaMemcpyToSymbol(cudaRadii, &radii[0], sizeof(int)*numRadii), 
 		 __FILE__, __LINE__, "Error copying cudaRadii");
 
   // Total cross section from Malik & Trefftz, 1960, Zeitschrift fur Astrophysik, 50, 96-109
@@ -497,8 +498,8 @@ cuFP_t cudaElasticInterp(cuFP_t E, cuFP_t Emin, cuFP_t H, dArray<cuFP_t> xsc)
   if (E >= Emin+H*xsc._s) indx = xsc._s - 2;
   else                    indx = floor( (E - Emin)/H );
 
-  cuFP_t a = E - Emin - H*indx;
-  cuFP_t b = Emin + H*(indx+1) - E;
+  cuFP_t a = (E - Emin - H*(indx+0))/H;
+  cuFP_t b = (Emin + H*(indx+1) - E)/H;
 
   return a*xsc._v[indx] + b*xsc._v[indx+1];
 }

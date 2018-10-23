@@ -229,9 +229,10 @@ protected:
   //! CUDA methods
   //@{
   //@{
-  //! Working device vectors
+  //! Working device vectors (one element of the vector for each
+  //! species in the species map
   std::vector<cudaArray_t> cuF0array, cuFFarray, cuRCarray, cuCEarray;
-  std::vector<cudaArray_t> cuCIarray, cuPIarray;
+  std::vector<cudaArray_t> cuCIarray;
   std::vector<thrust::device_vector<cuFP_t>> cuPIarray;
   //@}
 

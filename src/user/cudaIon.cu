@@ -38,7 +38,7 @@ void chdata::cuda_initialize_textures()
   cuRCarray.resize(ionSize, 0);
   cuCEarray.resize(ionSize, 0);
   cuCIarray.resize(ionSize, 0);
-  cuPIarray.resize(ionSize, 0);
+  cuPIarray.resize(ionSize   );
 
   // Texture object array
   //
@@ -389,73 +389,76 @@ void chdata::cuda_initialize_textures()
 
       // Photoionization array
       //
+      if (I->ib_type != Ion::none) {
 
-      thrust::host_vector<cuFP_t> piCum.resize(CHCUMK, 0.0);
-      piCum[CHCUMK-1] = 1.0;
+	thrust::host_vector<cuFP_t> piCum(CHCUMK, 0.0);
+	piCum[CHCUMK-1] = 1.0;
       
-      double delC = 1.0/(CHCUMK-1);
+	double delC = 1.0/(CHCUMK-1);
       
-      if (not IBinit) IBcreate();
+	if (not I->IBinit) I->IBcreate();
       
-      E.piTotl = IBtotl;
+	E.piTotl = I->IBtotl;
 
-      // Copy cross section values to buffer
-      //
-      for (int i = 1; i < CHCUMK-1; i++) {
+	// Copy cross section values to buffer
+	//
+	for (int j=1; j<CHCUMK-1; j++) {
 
-	// Location in cumulative cross section grid
-	//
-	double C = delC*j;
+	  // Location in cumulative cross section grid
+	  //
+	  double C = delC*j;
 
-	// Interpolate the cross section array
-	//
+	  // Interpolate the cross section array
+	  //
 	
-	// Points to first element that is not < rn
-	// but may be equal
-	std::vector<double>::iterator lb = 
-	  std::lower_bound(IBcum.begin(), IBcum.end(), rn);
-	
-	// Assign upper end of range to the
-	// found element
-	//
-	std::vector<double>::iterator ub = lb;
-	//
-	// If is the first element, increment
-	// the upper boundary
-	//
-	if (lb == IBcum.begin()) { if (IBcum.size()>1) ub++; }
-	//
-	// Otherwise, decrement the lower boundary
-	//
-	else { lb--; }
-	
-	// Compute the associated indices
-	//
-	size_t ii = lb - IBcum.begin();
-	size_t jj = ub - IBcum.begin();
-	double nu = nugrid[ii];
+	  // Points to first element that is not < rn
+	  // but may be equal
+	  std::vector<double>::iterator lb = 
+	    std::lower_bound(I->IBcum.begin(), I->IBcum.end(), C);
 	  
-	// Linear interpolation
-	//
-	if (*ub > *lb) {
-	  double d = *ub - *lb;
-	  double a = (rn - *lb) / d;
-	  double b = (*ub - rn) / d;
-	  nu  = a * nugrid[ii] + b * nugrid[jj];
+	  // Assign upper end of range to the
+	  // found element
+	  //
+	  std::vector<double>::iterator ub = lb;
+	  //
+	  // If is the first element, increment
+	  // the upper boundary
+	  //
+	  if (lb == I->IBcum.begin()) { if (I->IBcum.size()>1) ub++; }
+	  //
+	  // Otherwise, decrement the lower boundary
+	  //
+	  else { lb--; }
+	  
+	  // Compute the associated indices
+	  //
+	  size_t ii = lb - I->IBcum.begin();
+	  size_t jj = ub - I->IBcum.begin();
+	  double nu = I->nugrid[ii];
+	  
+	  // Linear interpolation
+	  //
+	  if (*ub > *lb) {
+	    double d = *ub - *lb;
+	    double a = (C - *lb) / d;
+	    double b = (*ub - C) / d;
+	    nu  = a * I->nugrid[ii] + b * I->nugrid[jj];
+	  }
+	  
+	  piCum[j] = (nu - 1.0)*I->ip;
 	}
-    
-	piCum[i] = (nu - 1.0)*ip;
 	
+	std::cout << "Allocating pi_0[" << k << "]" << std::endl;
+
+	// Create storage on device
+	cuPIarray[k] = piCum;
+
+	// Assign pointer
+	E.pi_0 = thrust::raw_pointer_cast(&cuPIarray[k][0]);
+
       } // END: cumululative array loop
 
-      std::cout << "Allocating pi_0[" << k << "]" << std::endl;
-
-      // Create storage on device
-      cuPIarray[k] = piCum;
-
-      // Assign pointer
-      E.pi_0 = thrust::raw_pointer_cast(&cuPIarray[k][0]);
-    }
+    } // END: ions with electrons
     
     // Increment counter
     k++;	
@@ -712,8 +715,8 @@ __device__
 void computePhotoIonize
 (cuFP_t rr, cuFP_t& ph, cuFP_t& xc, cuIonElement& elem)
 {
-  cuFP_t dC = 1.0/CHCUMK;
-  int indx  = rr/ionNuCdel;
+  constexpr cuFP_t dC = 1.0/CHCUMK;
+  int indx  = rr/dC;
   if (indx > CHCUMK-2) indx = CHCUMK - 2;
 
   // Linear interpolation

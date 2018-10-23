@@ -23,7 +23,7 @@ void computeRadRecomb
 
 __device__
 void computePhotoIonize
-(cuFP_t rr, cuFP_t& ph, cuFP_t& xc, cuIonElement& elem)
+(cuFP_t rr, cuFP_t& ph, cuFP_t& xc, cuIonElement& elem);
 
 #endif
 

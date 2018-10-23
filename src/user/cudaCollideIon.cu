@@ -75,6 +75,15 @@ void CollideIon::cuda_initialize()
   if (done) return;
   done = true;
 
+  if (c0->cudaDevice>=0) {
+    cudaSetDevice(c0->cudaDevice);
+  } else {
+    std::cerr << "ERROR: c0->cudaDevice not set but CUDA requested"
+	      << std::endl;
+    MPI_Finalize();
+    exit(33);
+  }
+
   thrust::host_vector<cuIonElement> elems;
 
   int minSp = std::numeric_limits<int>::max();
@@ -85,11 +94,12 @@ void CollideIon::cuda_initialize()
     int C = k.second;
     // Scan
     bool found = false;
-    for (auto & E : cuIonElem) {
+    for (auto & E : ch.cuIonElem) {
       if (E.Z == Z and E.C == C) {
 	E.I = s.second;
 	minSp = std::min<int>(minSp, s.second);
 	elems.push_back(E);
+	found = true;
 	break;
       }
     }
@@ -129,6 +139,8 @@ void CollideIon::cuda_initialize()
 
   cuda_safe_call(cudaMemcpyToSymbol(coulSelA, &hA[0], coulSelNumT*sizeof(cuFP_t)), 
 		 __FILE__, __LINE__, "Error copying coulSelA");
+
+  cuda_atomic_weights_init();
 }
 
 void CollideIon::cuda_atomic_weights_init()
@@ -1066,10 +1078,11 @@ cuFP_t cuCA_eval(cuFP_t tau)
   }
 }
 
-__global__ void photoIonizeKernel(dArray<cudaParticle> in,     // Particle array
-				   dArray<curandState> randS,  // Cuda random number objects
-				   dArray<cuIonElement> elems, // Species map
-				   unsigned int stride)
+__global__ void photoIonizeKernel(dArray<cudaParticle> in,    // Particle array
+				  dArray<cuFP_t> dT,	      // Time steps
+				  dArray<curandState> randS,  // Cuda random number objects
+				  dArray<cuIonElement> elems, // Species map
+				  unsigned int stride)
 {
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
   const int Nsp = elems._s;
@@ -1084,20 +1097,16 @@ __global__ void photoIonizeKernel(dArray<cudaParticle> in,     // Particle array
 
       // Photoionize all subspecies
       //
-      for (int s=0; s<elems._s; s++) {
+      for (int s=0; s<Nsp; s++) {
 	cuIonElement& elem = elems._v[s];
 
 	int Z = elem.Z;
 	int C = elem.C;
-	int P = elem.C - 1;
 	int I = elem.I;
 	
-	// Pick a new photon for each body
-	CFreturn ff  = ch.IonList[Q]->photoIonizationRate();
-
 	if (C<=Z) {
 	  cuFP_t rn, Ep, Pr;
-	  // Select random variate and get photo data
+	  // Select random variate and pick a new photon for each body
 	  //
 #if cuREAL == 4
 	  rn = curand_uniform(&randS._v[n]);
@@ -1107,17 +1116,17 @@ __global__ void photoIonizeKernel(dArray<cudaParticle> in,     // Particle array
 	  computePhotoIonize(rn, Ep, Pr, elem);
 
 	  // Compute the probability and get the residual electron energy
-	  double Pr *= UserTreeDSMC::Tunit * spTau[id];
-	  double ww  = p.datr[E.I] * Pr;
-	  double Gm  = UserTreeDSMC::Munit/(amu*atomic_weights[Q.first]);
+	  Pr *= cuTunit * dT._v[n];
+	  cuFP_t ww  = p.datr[I] * Pr;
+	  // cuFP_t Gm  = cuMunit/(amu*cuda_atomic_weights[Z]);
 
 	  if (Pr >= 1.0) {	// Limiting case
-	    ww = p->dattrib[pos];
-	    p.datr[E.I  ]  = 0.0;
-	    p.datr[E.I+1] += ww;
+	    ww = p.datr[I];
+	    p.datr[I  ]  = 0.0;
+	    p.datr[I+1] += ww;
 	  } else {		// Normal case
-	    p.datr[E.I  ] -= ww;
-	    p.datr[E.I+1] += ww;
+	    p.datr[I  ] -= ww;
+	    p.datr[I+1] += ww;
 	  }
 
 	}
@@ -1317,7 +1326,7 @@ void cudaScatterTrace
     // Set COM frame
     //
     cuFP_t vcom[3], vrel[3];
-    cuFP_t vi = 0.0;
+    cuFP_t vi = 0.0, vfac = 1.0;
     
     for (size_t k=0; k<3; k++) {
       vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
@@ -1371,20 +1380,18 @@ void cudaScatterTrace
     // according to the inelastic energy loss
     //
 
-    cuFP_t delta = 0.0;
-
     // BEGIN: energy conservation algorithm
 
-    cuFP_t uu[3], vv[3];
-    double v1i2 = 0.0, b1f2 = 0.0;
-    double qT   = 0.0, vrat = 1.0, q = W2/W1, cq = 1.0 - W2/W1;
-    double udif = 0.0, gamm = 0.0, vcm2 = 0.0;
+    cuFP_t vrat = 1.0, q = W2/W1, cq = 1.0 - W2/W1;
 
     if (cq > 0.0 and q < 1.0) {
 
+      cuFP_t uu[3];
+      cuFP_t v1i2 = 0.0, b1f2 = 0.0, qT = 0.0;
+      cuFP_t udif = 0.0, vcm2 = 0.0;
+
       for (size_t i=0; i<3; i++) {
 	uu[i] = vcom[i] + m2/mt*vrel[i]*vfac;
-	vv[i] = vcom[i] - m1/mt*vrel[i]*vfac;
 	vcm2 += vcom[i] * vcom[i];
 	v1i2 += v1[i] * v1[i];
 	b1f2 += uu[i] * uu[i];
@@ -1401,7 +1408,7 @@ void cudaScatterTrace
     // Assign new velocities
     //
     for (int i=0; i<3; i++) {
-      double v0 = vcom[i] + pp->m2/mt*vrel[i]*vfac;
+      double v0 = vcom[i] + m2/mt*vrel[i]*vfac;
     
       v1[i] = cq*v1[i]*vrat + q*v0;
       v2[i] = vcom[i] - m1/mt*vrel[i]*vfac;
@@ -1426,7 +1433,6 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 				 dArray<cuFP_t> Evel2,
 				 dArray<cuFP_t> PiProb,
 				 dArray<cuFP_t> ABrate,
-				 dArray<cuFP_t> deltT,
 				 dArray<int>    flagI, 
 				 dArray<cuIonElement> elems,
 				 cuFP_t spTau,
@@ -1847,8 +1853,8 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	//
 	{
 	  cuFP_t dt = totE/totalDE;
-	  deltT._v[i1._v[n]] = dt < deltT._v[i1._v[n]] ? dt : deltT._v[i1._v[n]];
-	  deltT._v[i2._v[n]] = dt < deltT._v[i2._v[n]] ? dt : deltT._v[i2._v[n]];
+	  p1.dtreq = dt < p1.dtreq ? dt : p1.dtreq;
+	  p2.dtreq = dt < p2.dtreq ? dt : p2.dtreq;
 	}
       
 	for (int k=0; k<3; k++) {
@@ -1887,8 +1893,8 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	//
 	{
 	  cuFP_t dt = totE/totalDE;
-	  deltT._v[i1._v[n]] = dt < deltT._v[i1._v[n]] ? dt : deltT._v[i1._v[n]];
-	  deltT._v[i2._v[n]] = dt < deltT._v[i2._v[n]] ? dt : deltT._v[i2._v[n]];
+	  p1.dtreq = dt < p1.dtreq ? dt : p1.dtreq;
+	  p2.dtreq = dt < p2.dtreq ? dt : p2.dtreq;
 	}
 
       
@@ -1929,8 +1935,8 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	//
 	{
 	  cuFP_t dt = totE/totalDE;
-	  deltT._v[i1._v[n]] = dt < deltT._v[i1._v[n]] ? dt : deltT._v[i1._v[n]];
-	  deltT._v[i2._v[n]] = dt < deltT._v[i2._v[n]] ? dt : deltT._v[i2._v[n]];
+	  p1.dtreq = dt < p1.dtreq ? dt : p1.dtreq;
+	  p2.dtreq = dt < p2.dtreq ? dt : p2.dtreq;
 	}
 	
 	for (int k=0; k<3; k++) {
@@ -1943,11 +1949,40 @@ __global__ void partInteractions(dArray<cudaParticle> in,
       
       } // END: Electron-Ion interaction
 
+      // Reassign weights and update electron fractions
+      //
+      Eta1 = Eta2 = 0.0;
+      Sum1 = Sum2 = 0.0;
+      for (int k=0; k<Nsp; k++) {
+	cuIonElement& E = elems._v[k];
+
+	p1.datr[E.I] = FF1[k];
+	p2.datr[E.I] = FF2[k];
+
+				// Number fraction of ions
+	cuFP_t one = p1.datr[E.I] / cuda_atomic_weights[E.Z];
+	cuFP_t two = p2.datr[E.I] / cuda_atomic_weights[E.Z];
+
+				// Electron number fraction
+	Eta1 += one * (E.C - 1);
+	Eta2 += two * (E.C - 1);
+
+	Sum1 += one;
+	Sum2 += two;
+      }
+				// Recomputation of Eta
+      Eta1 /= Sum1;
+      Eta2 /= Sum2;
+				// Mu should be identical but redone
+				// here anyway
+      Mu1 = 1.0/Sum1;
+      Mu2 = 1.0/Sum2;
+
       // Electron-electron interactions
       {
-	cuFP_t  q = W2 / W1;
-	cuFP_t m1 = atomic_weights[0];
-	cuFP_t m2 = atomic_weights[0];
+	cuFP_t  q = (IT.W1 > IT.W2 ? IT.W2/IT.W1 : IT.W1/IT.W2);
+	cuFP_t m1 = cuda_atomic_weights[0];
+	cuFP_t m2 = cuda_atomic_weights[0];
 	if (cuMeanMass) {
 	  m1 *= Eta1;
 	  m2 *= Eta2;
@@ -1957,7 +1992,7 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 
 	// Calculate pair's relative speed (pre-collision)
 	//
-	cuFP_t vcom(3), vrel(3), v1(3), v2(3);
+	cuFP_t vcom[3], vrel[3], v1[3], v2[3];
 	cuFP_t KEcom = 0.0;
 	for (int k=0; k<3; k++) {
 	  v1[k]   = p1.datr[epos+k];
@@ -1973,7 +2008,8 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 
 	  // Relative speed
 	  //
-	  cuFP_t cr = sqrt(KEcom) * cuVunit;
+	  cuFP_t vi = sqrt(KEcom);
+	  cuFP_t cr = vi * cuVunit;
 
 	  // COM KE
 	  //
@@ -1988,14 +2024,14 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	  cuFP_t dT   = spTau * cuTunit;
 	  cuFP_t Tau  = ABrate._v[cid*4+3] * afac*afac * cr * dT;
 
-	  if (MeanMass)
+	  if (cuMeanMass)
 	    cudaCoulombVector(vrel, vrel, 1.0, 1.0, Tau, state);
 	  else
-	    cudaCoulombVector(vrel, vrel, W1,  W2,  Tau, state);
+	    cudaCoulombVector(vrel, vrel, IT.W1, IT.W2, Tau, state);
 
 	  for (int k=0; k<3; k++) vrel[k] *= vi;
 
-	  if (MeanMass) {
+	  if (cuMeanMass) {
 	  
 	    // Energy deficit correction
 	    //
@@ -2021,11 +2057,8 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	  //
 	  else if (q < 1.0) {
 
-	    bool  algok = false;
 	    cuFP_t vrat = 1.0;
-	    cuFP_t gamm = 0.0;
-
-	    cuFP_t uu[3], vv[3], w1[v1];
+	    cuFP_t uu[3], vv[3];
 	    for (size_t k=0; k<3; k++) {
 	      // New velocities in COM
 	      uu[k] = vcom[k] + 0.5*vrel[k];
@@ -2055,9 +2088,9 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 
 	    // New velocities in inertial frame
 	    //
-	    cuFP_t u1(3), u2(3);
+	    cuFP_t u1[3], u2[3];
 	    for (size_t k=0; k<3; k++) {
-	      u1[k] = (1.0 - q)*v1[k]*vrat + w1[k]*gamm + q*uu[k];
+	      u1[k] = (1.0 - q)*v1[k]*vrat + q*uu[k];
 	      u2[k] = vv[k];
 	    }
 
@@ -2077,9 +2110,8 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 
 	    if (equal) {
 	      const cuFP_t tol = 0.95; // eps = 0.05, tol = 1 - eps
-	      cuFP_t KE0 = 0.5*W1*m1*m2/mt * vi*vi;
-
-	      dKE = p1.datr[epos+3] + p2.datr[epos+3];
+	      cuFP_t KE0 = 0.5*IT.W1*m1*m2/mt * vi*vi;
+	      cuFP_t dKE = p1.datr[epos+3] + p2.datr[epos+3];
 
 	      // Too much KE to be removed, clamp to tol*KE0
 	      // 
@@ -2099,8 +2131,8 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	      vfac = sqrt(1.0 - dKE/KE0);
 	    }
 	  
-	    cuFP_t qKEfac = 0.5*W1*m1*q*(1.0 - q);
-	    deltaKE = 0.0;
+	    cuFP_t qKEfac  = 0.5*IT.W1*m1*q*(1.0 - q);
+	    cuFP_t deltaKE = 0.0;
 	    for (int k=0; k<3; k++) {
 	      cuFP_t v0 = vcom[k] + m2/mt*vrel[k]*vfac;
 	      deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
@@ -2116,15 +2148,8 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 		KE2e += p2.datr[epos+k] * p2.datr[epos+k];
 	      }
 	  
-	      cuFP_t eta1 = 0.0, eta2 = 0.0; // electron fraction
-	      for (auto s : SpList) {
-		unsigned P =  s.first.second - 1;
-		eta1 += p1->dattrib[s.second]*P/atomic_weights[s.first.first];
-		eta2 += p2->dattrib[s.second]*P/atomic_weights[s.first.first];
-	      }
-
-	      KE1e *= 0.5 * p1->mass * Eta1/Mu1 * atomic_weights[0];
-	      KE2e *= 0.5 * p2->mass * Eta2/Mu2 * atomic_weights[0];
+	      KE1e *= 0.5 * p1.mass * Eta1/Mu1 * cuda_atomic_weights[0];
+	      KE2e *= 0.5 * p2.mass * Eta2/Mu2 * cuda_atomic_weights[0];
 
 	      double wght1 = 0.5;
 	      double wght2 = 0.5;
@@ -2230,11 +2255,11 @@ void * CollideIon::collide_thread_cuda(void * arg)
 
   // Prepare for cudaParticle staging
   //
-  if (c0->host_particles.capacity()<Pcount)
-    c0->host_particles.reserve(Pcount);
+  if (c0->host_particles.capacity()<Pcount) c0->host_particles.reserve(Pcount);
   c0->host_particles.resize(Pcount);
 
   // Species map info
+  //
   int minSp = std::numeric_limits<int>::max(), maxSp = 0;
   int numNeut = 0, numProt = 0, numIon = 0;
   for (auto s : SpList) {
@@ -2256,17 +2281,30 @@ void * CollideIon::collide_thread_cuda(void * arg)
   // Copy particles to DEVICE
   //
   Component::hostPartItr hit = c0->host_particles.begin();
+  thrust::host_vector<cuFP_t> h_tauP(Pcount);
+  size_t pc = 0;
+
   for (unsigned j=0; j<cellist[id].size(); j++ ) {
     pCell *c = cellist[id][j];
     size_t number = c->bods.size();
     for (size_t n=0; n<number; n++) {
       PartPtr h = Particles()[c->bods[n]];
       ParticleHtoD(h, *hit, minSp, maxSp);
+      if (pc<Pcount)
+	h_tauP[pc++] = h_tauC[j];
+      else
+	std::cout << "OAB" << std::endl;
       hit++;
     }
   }
 
-  thrust::device_vector<cudaParticle> d_part = c0->host_particles;
+  std::cout << "Pcount = " << Pcount << ", Ncount = " << pc << std::endl
+	    << "Mass[0] = " << c0->host_particles.front().mass << std::endl
+	    << "Mass["  << c0->host_particles.size()-1 << "] = "
+	    << c0->host_particles.back().mass << std::endl;
+
+  thrust::device_vector<cuFP_t>       d_tauP(h_tauP);
+  thrust::device_vector<cudaParticle> d_part(c0->host_particles);
 
   // Copy cell boundaries and counts to DEVICE
   //
@@ -2340,41 +2378,53 @@ void * CollideIon::collide_thread_cuda(void * arg)
 
   // Do the interactions
   //
-  thrust::device_vector<cuFP_t> d_deltT(Pcount, std::numeric_limits<cuFP_t>::max());
-
   partInteractions<<<gridSize, BLOCK_SIZE>>>
     (toKernel(d_part),   toKernel(d_randS),
      toKernel(d_cross),  toKernel(d_delph),  toKernel(d_xspc1),  toKernel(d_xspc2),
      toKernel(d_xtype),  toKernel(d_cross),
      toKernel(d_i1),     toKernel(d_i2),     toKernel(d_cc),    toKernel(d_selC),
      toKernel(d_Ivel2),  toKernel(d_Evel2),
-     toKernel(d_PiProb), toKernel(d_ABrate), toKernel(d_deltT), toKernel(d_flagI), 
+     toKernel(d_PiProb), toKernel(d_ABrate), toKernel(d_flagI), 
      toKernel(cuElems),
      spTau[id], totalXCsize, use_elec, stride);
+
+  // Photoionization
+  //
+  if (use_photoIB) {
+    N        = Pcount;	// Number of particles
+    stride   = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+    gridSize = (N+BLOCK_SIZE*stride-1)/(BLOCK_SIZE*stride);
+
+    photoIonizeKernel<<<gridSize, BLOCK_SIZE>>>
+      (toKernel(d_part),  toKernel(d_tauP),  toKernel(d_randS),
+       toKernel(cuElems), stride);
+  }
 
   // Finally, copy back particles to host
   // 
   c0->host_particles = d_part;
 
-  // Copy requested dt back to host
-  // 
-  thrust::vector<cuFP_t> deltT = d_deltT;
-  thrust::vector<cuFP_t>::iterator dit = deltT.begin();
-
   // Copy particles to HOST
   //
   hit = c0->host_particles.begin();
+  long int ibeg, iend;
   for (unsigned j=0; j<cellist[id].size(); j++ ) {
     pCell *c = cellist[id][j];
     size_t number = c->bods.size();
     for (size_t n=0; n<number; n++) {
+      if (j==0 and n==0) ibeg = c->bods[0]; iend = c->bods[n];
       PartPtr h = Particles()[c->bods[n]];
-      ParticleDtoH(*hit, h, minSp, maxSp);
-      h->dtreq = *dit;
-      hit++;
-      dit++;
+      ParticleDtoH(*(hit++), h, minSp, maxSp);
     }
   }
+
+  std::cout << "After step" << std::endl
+	    << "Mass[0] = " << c0->host_particles.front().mass << std::endl
+	    << "Mass["  << c0->host_particles.size()-1 << "] = "
+	    << c0->host_particles.back().mass << std::endl
+	    << "mass[" << ibeg << "] = " << Particles()[ibeg]->mass
+	    << "Mass[" << iend << "] = " << Particles()[iend]->mass
+	    << std::endl;
 
   if (id==0) {
     std::ostringstream sout;
