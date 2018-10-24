@@ -13,7 +13,7 @@
 
 #include <expand.h>
 #include <ExternalCollection.H>
-#include <UserTreeDSMC.H>
+#include <TreeDSMC.H>
 #include <CollideLTE.H>
 #include <CollideIon.H>
 
@@ -34,23 +34,23 @@ static bool levelst_debug = false;
 //
 // Version string for log file stamping
 //
-const std::string UserTreeDSMC::version = "0.35 [01/10/17 trace]";
+const std::string TreeDSMC::version = "0.35 [01/10/17 trace]";
 
 //
 // Simulation units
 //
-double UserTreeDSMC::Lunit = 3.0e5*pc;
-double UserTreeDSMC::Munit = 1.0e12*msun;
-double UserTreeDSMC::Tunit = sqrt(Lunit*Lunit*Lunit/(Munit*6.67384e-08));
-double UserTreeDSMC::Vunit = Lunit/Tunit;
-double UserTreeDSMC::Eunit = Munit*Vunit*Vunit;
-bool   UserTreeDSMC::use_effort = true;
+double TreeDSMC::Lunit = 3.0e5*pc;
+double TreeDSMC::Munit = 1.0e12*msun;
+double TreeDSMC::Tunit = sqrt(Lunit*Lunit*Lunit/(Munit*6.67384e-08));
+double TreeDSMC::Vunit = Lunit/Tunit;
+double TreeDSMC::Eunit = Munit*Vunit*Vunit;
+bool   TreeDSMC::use_effort = true;
 
-std::vector<double> UserTreeDSMC::atomic_weights;
+std::vector<double> TreeDSMC::atomic_weights;
 
-std::set<std::string> UserTreeDSMC:: colltypes;
+std::set<std::string> TreeDSMC:: colltypes;
 
-UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
+TreeDSMC::TreeDSMC(string& line) : ExternalForce(line)
 {
   (*barrier)("TreeDSMC: BEGIN construction", __FILE__, __LINE__);
   
@@ -165,7 +165,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   }
   
   if (!found) {
-    cerr << "UserTreeDSMC: process " << myid 
+    cerr << "TreeDSMC: process " << myid 
 	 << ": can't find fiducial component <" << comp_name << ">" << endl;
     MPI_Abort(MPI_COMM_WORLD, 35);
   }
@@ -202,7 +202,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     //
     if (ok==0) {
       if (myid==0) {
-	cout << "UserTreeDSMC: excess calculation requested but some" << endl
+	cout << "TreeDSMC: excess calculation requested but some" << endl
 	     << "particles have incompatible float attribute counts." << endl
 	     << "Attribute #" << use_exes << ". Continuing without excess."
 	     << endl;
@@ -235,7 +235,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     if (ok==0) {
       if (myid==0) {
 	std::cout 
-	  << "UserTreeDSMC: Knudsen number calculation requested but some" 
+	  << "TreeDSMC: Knudsen number calculation requested but some" 
 	  << std::endl
 	  << "particles have incompatible float attribute counts." 
 	  << std::endl
@@ -271,7 +271,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     if (ok==0) {
       if (myid==0) {
 	std::cout 
-	  << "UserTreeDSMC: Strouhal number calculation requested but some" 
+	  << "TreeDSMC: Strouhal number calculation requested but some" 
 	  << std::endl
 	  << "particles have incompatible float attribute counts." 
 	  << std::endl
@@ -499,12 +499,12 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   (*barrier)("TreeDSMC: END construction", __FILE__, __LINE__);
 }
 
-UserTreeDSMC::~UserTreeDSMC()
+TreeDSMC::~TreeDSMC()
 {
   delete collide;
 }
 
-void UserTreeDSMC::userinfo()
+void TreeDSMC::userinfo()
 {
   if (myid) return;		// Return if node master node
   
@@ -579,7 +579,7 @@ void UserTreeDSMC::userinfo()
   print_divider();
 }
 
-void UserTreeDSMC::initialize()
+void TreeDSMC::initialize()
 {
   string val;
   
@@ -646,7 +646,7 @@ void UserTreeDSMC::initialize()
   if (get_value("rrtype", val)) {
     if (Ion::setRRtype(val)) {
       std::ostringstream sout;
-      sout << "UserTreeDSMC: invalid rrtype <" << val << ">";
+      sout << "TreeDSMC: invalid rrtype <" << val << ">";
       throw GenericError(sout.str(), __FILE__, __LINE__);
     }
   }
@@ -655,7 +655,7 @@ void UserTreeDSMC::initialize()
     if (check_ctype(val)) ctype = val;
     else {
       std::ostringstream sout;
-      sout << "UserTreeDSMC: invalid ctype <" << ctype << ">";
+      sout << "TreeDSMC: invalid ctype <" << ctype << ">";
       throw GenericError(sout.str(), __FILE__, __LINE__);
     }
   }
@@ -673,7 +673,7 @@ void UserTreeDSMC::initialize()
 	  collFrac[p] = boost::lexical_cast<double>(it->second);
 	} 
 	catch( boost::bad_lexical_cast const& ) {
-	  std::cout << "UserTreeDSMC::initialize: bad double value, "
+	  std::cout << "TreeDSMC::initialize: bad double value, "
 		    << "input string was: " << it->second << std::endl;
 	}
       }
@@ -709,7 +709,7 @@ void UserTreeDSMC::initialize()
 // |_|  |_/_/   \_\___|_| \_| |_| \_\\___/ \___/  |_| |___|_| \_|_____|
 //                                                                    
 
-void UserTreeDSMC::determine_acceleration_and_potential(void)
+void TreeDSMC::determine_acceleration_and_potential(void)
 {
   static unsigned cat = 0;	// For debugging sync
   {
@@ -719,7 +719,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   }
   
 #ifdef USE_GPTL
-  GPTLstart("UserTreeDSMC::determine_acceleration_and_potential");
+  GPTLstart("TreeDSMC::determine_acceleration_and_potential");
 #endif
   
   static bool firstime = true;
@@ -731,7 +731,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   
   if (cC != c0) {
 #ifdef USE_GPTL
-    GPTLstop("UserTreeDSMC::determine_acceleration_and_potential");
+    GPTLstop("TreeDSMC::determine_acceleration_and_potential");
 #endif
     return;
   }
@@ -811,10 +811,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     
     if (tnow-curtime < 1.0e-14) {
       if (myid==0) {
-	cout << "UserTreeDSMC: attempt to redo step at T=" << tnow << endl;
+	cout << "TreeDSMC: attempt to redo step at T=" << tnow << endl;
       }
 #ifdef USE_GPTL
-      GPTLstop("UserTreeDSMC::determine_acceleration_and_potential");
+      GPTLstop("TreeDSMC::determine_acceleration_and_potential");
 #endif
       return; 			// Don't do this time step again!
     }
@@ -831,7 +831,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 #endif
   
 #ifdef DEBUG
-  if (!c0->Tree()->checkParticles(cout, "UserTreeDSMC: after init")) {
+  if (!c0->Tree()->checkParticles(cout, "TreeDSMC: after init")) {
     cout << "After init only: Particle check FAILED [" << right
 	 << setw(3) << mlevel << ", " << setw(3) << myid << "]" << endl;
   }
@@ -858,11 +858,11 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   if (mlevel<=madj) {
     
 #ifdef USE_GPTL
-    GPTLstart("UserTreeDSMC::pHOT");
-    GPTLstart("UserTreeDSMC::waiting");
+    GPTLstart("TreeDSMC::pHOT");
+    GPTLstart("TreeDSMC::waiting");
     (*barrier)("TreeDSMC: pHOT waiting");
-    GPTLstop ("UserTreeDSMC::waiting");
-    GPTLstart("UserTreeDSMC::repart");
+    GPTLstop ("TreeDSMC::waiting");
+    GPTLstart("TreeDSMC::repart");
 #endif
     
     (*barrier)("TreeDSMC: after pHOT wait", __FILE__, __LINE__);
@@ -876,8 +876,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     waitpSoFar += partnWait.stop();
     
 #ifdef USE_GPTL
-    GPTLstop ("UserTreeDSMC::repart");
-    GPTLstart("UserTreeDSMC::makeTree");
+    GPTLstop ("TreeDSMC::repart");
+    GPTLstart("TreeDSMC::makeTree");
 #endif
     tree1Time.start();
     c0->Tree()->makeTree();
@@ -887,13 +887,13 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     (*barrier)("TreeDSMC: after makeTree", __FILE__, __LINE__);
     wait1SoFar += tree1Wait.stop();
 #ifdef USE_GPTL
-    GPTLstop ("UserTreeDSMC::makeTree");
-    GPTLstart("UserTreeDSMC::pcheck");
+    GPTLstop ("TreeDSMC::makeTree");
+    GPTLstart("TreeDSMC::pcheck");
 #endif
     tree1Time.start();
 #ifdef DEBUG
     cout << "Made partition, tree and level list [" << mlevel << "]" << endl;
-    if (!c0->Tree()->checkParticles(cout, "UserTreeDSMC: after partition")) {
+    if (!c0->Tree()->checkParticles(cout, "TreeDSMC: after partition")) {
       cout << "Particle check on new tree FAILED [" << mlevel << "]" << endl;
     }
 #endif
@@ -909,15 +909,15 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     tree1SoFar += tree1Time.stop();
     
 #ifdef USE_GPTL
-    GPTLstop("UserTreeDSMC::pcheck");
-    GPTLstop("UserTreeDSMC::pHOT");
+    GPTLstop("TreeDSMC::pcheck");
+    GPTLstop("TreeDSMC::pHOT");
 #endif
     
   } else {
     
 #ifdef USE_GPTL
-    GPTLstart("UserTreeDSMC::pHOT_2");
-    GPTLstart("UserTreeDSMC::adjustTree");
+    GPTLstart("TreeDSMC::pHOT_2");
+    GPTLstart("TreeDSMC::adjustTree");
 #endif
     
 #ifdef DEBUG
@@ -944,8 +944,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     }
     
 #ifdef USE_GPTL
-    GPTLstop("UserTreeDSMC::adjustTree");
-    GPTLstop("UserTreeDSMC::pHOT_2");
+    GPTLstop("TreeDSMC::adjustTree");
+    GPTLstop("TreeDSMC::pHOT_2");
 #endif
     
   }
@@ -973,7 +973,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   }
   
 #ifdef USE_GPTL
-  GPTLstart("UserTreeDSMC::collide");
+  GPTLstart("TreeDSMC::collide");
 #endif
   
   //
@@ -1000,7 +1000,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   (*barrier)("TreeDSMC: after collide", __FILE__, __LINE__);
   
 #ifdef USE_GPTL
-  GPTLstop("UserTreeDSMC::collide");
+  GPTLstop("TreeDSMC::collide");
 #endif
   
   waitcSoFar += clldeWait.stop();
@@ -1014,7 +1014,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
   
 #ifdef USE_GPTL
-  GPTLstart("UserTreeDSMC::collide_timestep");
+  GPTLstart("TreeDSMC::collide_timestep");
 #endif
   
   (*barrier)("TreeDSMC: before collide timestep", __FILE__, __LINE__);
@@ -1024,7 +1024,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   tstepSoFar += tstepTime.stop();
   
 #ifdef USE_GPTL
-  GPTLstop("UserTreeDSMC::collide_timestep");
+  GPTLstop("TreeDSMC::collide_timestep");
 #endif
   
   //
@@ -1106,7 +1106,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     (*barrier)("TreeDSMC: ENTERING diagstep stanza", __FILE__, __LINE__);
     
 #ifdef USE_GPTL
-    GPTLstart("UserTreeDSMC::collide_diag");
+    GPTLstart("TreeDSMC::collide_diag");
 #endif
     
     // Uncomment for debug
@@ -1728,7 +1728,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     wait2SoFar   = 0.0;
 
 #ifdef USE_GPTL
-    GPTLstop("UserTreeDSMC::collide_diag");
+    GPTLstop("TreeDSMC::collide_diag");
 #endif
     
     (*barrier)("TreeDSMC: after collision diags", __FILE__, __LINE__);
@@ -1737,7 +1737,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   
   
 #ifdef USE_GPTL
-  GPTLstop("UserTreeDSMC::determine_acceleration_and_potential");
+  GPTLstop("TreeDSMC::determine_acceleration_and_potential");
 #endif
   
   // pHOT frontier dump
@@ -1781,7 +1781,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   }
 }
 
-void UserTreeDSMC::triggered_cell_body_dump(double time, double radius)
+void TreeDSMC::triggered_cell_body_dump(double time, double radius)
 {
   static bool done = false;
   if (tnow<time) return;
@@ -1819,7 +1819,7 @@ void UserTreeDSMC::triggered_cell_body_dump(double time, double radius)
 }
 
 
-void UserTreeDSMC::assignTempDensVol()
+void TreeDSMC::assignTempDensVol()
 {
   const double f_H = 0.76;
   // This should be generalized and
@@ -1828,7 +1828,7 @@ void UserTreeDSMC::assignTempDensVol()
   double mm = f_H*mp + (1.0-f_H)*4.0*mp;
   double KEtot, KEdsp, T;
   double Tfac;
-  if (ctype == "LTE") Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * mm/UserTreeDSMC::Munit/boltz;
+  if (ctype == "LTE") Tfac = 2.0*TreeDSMC::Eunit/3.0 * mm/TreeDSMC::Munit/boltz;
   pCell *cell;
 #ifdef DEBUG
   unsigned nbod=0, ntot, zbod=0, ztot, pcel=0, ptot;
@@ -1875,7 +1875,7 @@ void UserTreeDSMC::assignTempDensVol()
 	// computations
 	if (sKey != Particle::defaultKey) mi = mp*atomic_weights[sKey.first];
 	
-	Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * mi/UserTreeDSMC::Munit/boltz;
+	Tfac = 2.0*TreeDSMC::Eunit/3.0 * mi/TreeDSMC::Munit/boltz;
 	T    = KEdsp* Tfac;
 	
 	int sz = cell->Body(j)->dattrib.size();
@@ -1948,7 +1948,7 @@ void UserTreeDSMC::assignTempDensVol()
 #endif
 }
 
-void UserTreeDSMC::TempHisto()
+void TreeDSMC::TempHisto()
 {
   if (use_temp<0) return;
   
@@ -2025,7 +2025,7 @@ void UserTreeDSMC::TempHisto()
 
 // Make species map
 //
-void UserTreeDSMC::makeSpeciesMap()
+void TreeDSMC::makeSpeciesMap()
 {
   // Clean the local and global maps
   //
@@ -2102,24 +2102,8 @@ void UserTreeDSMC::makeSpeciesMap()
   else TempTot = 0.0;
 }
 
-void UserTreeDSMC::finish()
+void TreeDSMC::finish()
 { 
   collide->finish(); 
 }
 
-extern "C" {
-  ExternalForce *makerTreeDSMC(string& line)
-  {
-    return new UserTreeDSMC(line);
-  }
-}
-
-class proxytreedsmc { 
-public:
-  proxytreedsmc()
-  {
-    factory["usertreedsmc"] = makerTreeDSMC;
-  }
-};
-
-proxytreedsmc p;

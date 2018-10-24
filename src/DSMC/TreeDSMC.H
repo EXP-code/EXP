@@ -1,5 +1,5 @@
-#ifndef _UserTreeDSMC_H
-#define _UserTreeDSMC_H
+#ifndef _TreeDSMC_H
+#define _TreeDSMC_H
 
 #include <set>
 
@@ -174,7 +174,7 @@ class CollideIon;
     sequential, only unique.  They are stored in the code using a STL
     <code>map</code> template.
 */
-class UserTreeDSMC : public ExternalForce
+class TreeDSMC : public ExternalForce
 {
   static const std::string version;
 
@@ -362,10 +362,10 @@ public:
   static bool use_effort;
 
   //! Constructor
-  UserTreeDSMC(string &line);
+  TreeDSMC(string &line);
 
   //! Destructor
-  ~UserTreeDSMC();
+  ~TreeDSMC();
 
   //! Finish
   void finish();

@@ -3,7 +3,7 @@
 #include <sstream>
 
 #include "expand.h"
-
+#include <massmodel.h>
 #include <UserHalo.H>
 
 

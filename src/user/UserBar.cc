@@ -3,6 +3,7 @@
 
 #include "expand.h"
 #include <localmpi.h>
+#include <gaussQ.h>
 
 #include <UserBar.H>
 

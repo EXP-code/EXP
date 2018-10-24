@@ -3,6 +3,7 @@
 #include "expand.h"
 
 #include <localmpi.h>
+#include <massmodel.h>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
 

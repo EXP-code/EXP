@@ -3,8 +3,10 @@
 
 #include "expand.h"
 #include <localmpi.h>
+#include <gaussQ.h>
 #include <UserEBarN.H>
 #include <Timer.h>
+
 static Timer timer_tot, timer_thrd;
 static bool timing = false;
 

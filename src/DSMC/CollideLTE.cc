@@ -7,7 +7,7 @@
 #include <cfloat>
 
 #include "global.H"
-#include "UserTreeDSMC.H"
+#include "TreeDSMC.H"
 #include "CollideLTE.H"
 
 // Version info
@@ -126,7 +126,7 @@ void CollideLTE::initialize_cell(pCell* cell, double rvmax, int id)
   // Compute geometric cross section
   //
 
-  double diam  = sqrt(crossfac)*a0/UserTreeDSMC::Lunit;
+  double diam  = sqrt(crossfac)*a0/TreeDSMC::Lunit;
   double cross = M_PI*diam*diam;
 
   for (auto it1 : cell->count) {
@@ -159,15 +159,15 @@ void CollideLTE::initialize_cell_dsmc
   massSoFar  += massC;
 
 				// Mean mass per particle
-  double Mass = massC * UserTreeDSMC::Munit;
+  double Mass = massC * TreeDSMC::Munit;
   double mm   = f_H*mp + (1.0-f_H)*4.0*mp;
-  double T    = 2.0*KEdspS*UserTreeDSMC::Eunit/3.0 * mm/UserTreeDSMC::Munit/boltz;
+  double T    = 2.0*KEdspS*TreeDSMC::Eunit/3.0 * mm/TreeDSMC::Munit/boltz;
 
 				// Volume in cells
   double volumeC = cell->Volume();
   double volumeS = samp->Volume();
 
-  double Volume  = volumeC * pow(UserTreeDSMC::Lunit, 3);
+  double Volume  = volumeC * pow(TreeDSMC::Lunit, 3);
   double Density = Mass/Volume;
   double n0      = Density/mp;
   double T0      = T;
@@ -180,7 +180,7 @@ void CollideLTE::initialize_cell_dsmc
   }
     
 				// Volume in real cell
-  double CellVolume = volumeC * pow(UserTreeDSMC::Lunit, 3);
+  double CellVolume = volumeC * pow(TreeDSMC::Lunit, 3);
 
   if (T>0.0) {
     if (log(T)>tmin && log(T)<tmax) {
@@ -232,7 +232,7 @@ void CollideLTE::initialize_cell_dsmc
   else {
 				// Convert to energy rate in system units
     double Cfac = CellVolume * n0 * n0 *
-      UserTreeDSMC::Tunit / UserTreeDSMC::Eunit;
+      TreeDSMC::Tunit / TreeDSMC::Eunit;
 
 				// Energy to lose/gain
     coolheat[id] = hc->CoolRate(n0, T) * Cfac * tau * ENHANCE;
@@ -243,7 +243,7 @@ void CollideLTE::initialize_cell_dsmc
       h0 = h = rfac * min<double>(tau, h);
 
 				// Energy to temperature
-      double Tfac = 3.0*UserTreeDSMC::Munit/UserTreeDSMC::Eunit/2.0 *
+      double Tfac = 3.0*TreeDSMC::Munit/TreeDSMC::Eunit/2.0 *
 	cell->Mass()*boltz/mm;
 
 				// Initial energy

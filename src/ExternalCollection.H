@@ -54,11 +54,4 @@ public:
   void finish();
 };
 
-
-#include <tidalField.H>
-#include <externalShock.H>
-#include <generateRelaxation.H>
-#include <ScatterMFP.H>
-#include <HaloBulge.H>
-
 #endif

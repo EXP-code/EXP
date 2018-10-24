@@ -278,7 +278,7 @@ AM_CONDITIONAL(ENABLE_DMALLOC, test "$enable_dmalloc" = "yes")
 dnl ==========================================================================
 dnl Make the makefiles
 dnl ==========================================================================
-AC_OUTPUT(expgnu/Makefile exputil/Makefile src/Makefile Makefile doc/Makefile src/user/Makefile utils/Makefile utils/PhaseSpace/Makefile utils/SL/Makefile utils/Test/Makefile utils/ICs/Makefile utils/Cooling/Makefile utils/Analysis/Makefile)
+AC_OUTPUT(expgnu/Makefile exputil/Makefile src/Makefile Makefile doc/Makefile src/user/Makefile src/DSMC/Makefile utils/Makefile utils/PhaseSpace/Makefile utils/SL/Makefile utils/Test/Makefile utils/ICs/Makefile utils/Cooling/Makefile utils/Analysis/Makefile)
 
 echo "----------------------------------------------------------------"
 echo "Now type: "

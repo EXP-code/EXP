@@ -2,6 +2,7 @@
 #include <sstream>
 
 #include "expand.h"
+#include <gaussQ.h>
 
 #include <UserDisk.H>
 

@@ -14,6 +14,13 @@
 
 #include <ExternalCollection.H>
 
+#include <tidalField.H>
+#include <externalShock.H>
+#include <generateRelaxation.H>
+#include <ScatterMFP.H>
+#include <HaloBulge.H>
+#include <TreeDSMC.H>
+
 ExternalCollection::ExternalCollection(void)
 {
 				// Do nothing
@@ -50,6 +57,10 @@ void ExternalCollection::initialize()
     else if ( !name.compare("ScatterMFP") )
 
       force_list.insert(force_list.end(), new ScatterMFP(rest));
+    
+    else if ( !name.compare("TreeDSMC") )
+
+      force_list.insert(force_list.end(), new TreeDSMC(rest));
     
     else if ( !name.compare("HaloBulge") )
 

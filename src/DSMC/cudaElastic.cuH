@@ -12,8 +12,8 @@ __constant__ extern cuFP_t cuH_Emin, cuHe_Emin, cuPH_Emin, cuPHe_Emin;
 
 void cudaElasticInit();
 
-__device__ cuFP_t cudaGeometric(int Z);
+__device__ extern cuFP_t cudaGeometric(int Z);
 
-__device__ cuFP_t cudaElasticInterp(cuFP_t E, cuFP_t Emin, cuFP_t H, dArray<cuFP_t> xsc);
+__device__ extern cuFP_t cudaElasticInterp(cuFP_t E, cuFP_t Emin, cuFP_t H, dArray<cuFP_t> xsc);
 
 #endif

@@ -492,14 +492,23 @@ cuFP_t cudaGeometric(int Z)
 }
 		 
 __device__
-cuFP_t cudaElasticInterp(cuFP_t E, cuFP_t Emin, cuFP_t H, dArray<cuFP_t> xsc)
+cuFP_t cudaElasticInterp(cuFP_t E, cuFP_t Emin, cuFP_t H, dArray<cuFP_t> xsc,
+			 bool pin = true)
 {
   int indx = 0;
   if (E >= Emin+H*xsc._s) indx = xsc._s - 2;
+  if (E <  Emin)          indx = 0;
   else                    indx = floor( (E - Emin)/H );
 
   cuFP_t a = (E - Emin - H*(indx+0))/H;
   cuFP_t b = (Emin + H*(indx+1) - E)/H;
+
+  // Enforce return value to grid boundaries for off-grid ordinates.
+  // Otherwise, values will be extrapolated.
+  if (pin) {
+    if (a < 0.0) return xsc._v[0];
+    if (b < 0.0) return xsc._v[xsc._s-1];
+  }
 
   return a*xsc._v[indx] + b*xsc._v[indx+1];
 }

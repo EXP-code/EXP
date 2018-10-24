@@ -14,7 +14,7 @@
 #include <boost/filesystem.hpp>
 
 #include "global.H"
-#include "UserTreeDSMC.H"
+#include "TreeDSMC.H"
 #include "CollideIon.H"
 #include "localmpi.h"
 #include "Species.H"
@@ -1057,7 +1057,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 {
   // Representative avg cell velocity in cgs
   //
-  double vavg = 0.5*rvmax*UserTreeDSMC::Vunit;
+  double vavg = 0.5*rvmax*TreeDSMC::Vunit;
 
   vavg_dbg = 0.5*rvmax;
 
@@ -1233,13 +1233,13 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 
   // Physical number of particles
   //
-  numIf[id] *= UserTreeDSMC::Munit/amu;
-  numEf[id] *= UserTreeDSMC::Munit/amu;
+  numIf[id] *= TreeDSMC::Munit/amu;
+  numEf[id] *= TreeDSMC::Munit/amu;
 
   // Convert to electron number density in cgs
   //
   double volc = cell->Volume();
-  double dfac = UserTreeDSMC::Munit/amu / (pow(UserTreeDSMC::Lunit, 3.0)*volc);
+  double dfac = TreeDSMC::Munit/amu / (pow(TreeDSMC::Lunit, 3.0)*volc);
 
   for (auto & v : densE[id]) v.second *= dfac;
   densItot *= dfac;
@@ -1252,11 +1252,11 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
   // Mean interparticle spacing in nm
   //
   double   ips = DBL_MAX;
-  if (IPS) ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
+  if (IPS) ips = pow(volc/numEf[id], 0.333333) * TreeDSMC::Lunit * 1.0e7;
 
   // Convert to cross section in system units
   //
-  double crs_units = 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+  double crs_units = 1e-14 / (TreeDSMC::Lunit*TreeDSMC::Lunit);
 
 
   if (aType == Direct or aType == Weight or aType == Hybrid) {
@@ -1671,7 +1671,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 	  double mu2 = atomic_weights[i2.first]*atomic_weights[0] /
 	    (atomic_weights[i2.first] + atomic_weights[0]);
 
-	  double efac = 0.5 * amu * UserTreeDSMC::Vunit * UserTreeDSMC::Vunit;
+	  double efac = 0.5 * amu * TreeDSMC::Vunit * TreeDSMC::Vunit;
 
 
 				// Min/Mean/Max electron energy for P1 ion
@@ -2456,7 +2456,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 	  }
 
 	  csections[id][i1][i2]() =  (CrossG + Cross1 + Cross2) *
-	    crossfac * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) *
+	    crossfac * 1e-14 / (TreeDSMC::Lunit*TreeDSMC::Lunit) *
 	    cscl_[i1.first] * cscl_[i2.first];
 
 	} // END: "Direct" and "Weight"
@@ -2620,7 +2620,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 	  b = std::min<double>(b, ips);
 
 	  if (coulInter) {
-	    double b_max = sqrt(1.0/(M_PI*pow(numIf[id]*UserTreeDSMC::Munit/amu, 2.0/3.0)));
+	    double b_max = sqrt(1.0/(M_PI*pow(numIf[id]*TreeDSMC::Munit/amu, 2.0/3.0)));
 	    std::min<double>(b, b_max);
 	  }
 
@@ -2716,7 +2716,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
     // Mean KE for Coulombic cross section estimate
     //
     if (massP>0.0) {
-      double fac = 0.5 * amu * UserTreeDSMC::Vunit * UserTreeDSMC::Vunit / eV;
+      double fac = 0.5 * amu * TreeDSMC::Vunit * TreeDSMC::Vunit / eV;
       Eelc[id] *= fac * atomic_weights[0] / numbP;
       Eion[id] *= fac / molW;
     }
@@ -2809,7 +2809,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 {
   // it1 and it2 are of type std::map<speciesKey, unsigned>
 
-  double vel  = crm * UserTreeDSMC::Vunit;
+  double vel  = crm * TreeDSMC::Vunit;
   double Eerg = 0.5*vel*vel*amu;
   double EeV  = Eerg / eV;
 
@@ -2817,7 +2817,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
   //
   double  volc = c->Volume();
   double   ips = DBL_MAX;
-  if (IPS) ips = pow(volc, 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
+  if (IPS) ips = pow(volc, 0.333333) * TreeDSMC::Lunit * 1.0e7;
 
 
   if (aType == Direct or aType == Weight or aType == Hybrid) {
@@ -3054,7 +3054,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	} // END: types "Direct" and "Weight"
 
 	csections[id][i1][i2]() = (Cross1 + Cross2) * crossfac * 1e-14 /
-	  (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) *
+	  (TreeDSMC::Lunit*TreeDSMC::Lunit) *
 	  cscl_[i1.first] * cscl_[i2.first];
 
       }
@@ -3106,7 +3106,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	b = std::min<double>(b, ips);
 
 	if (coulInter) {
-	  double b_max = sqrt(1.0/(M_PI*pow(numIf[id]*UserTreeDSMC::Munit/amu, 2.0/3.0)));
+	  double b_max = sqrt(1.0/(M_PI*pow(numIf[id]*TreeDSMC::Munit/amu, 2.0/3.0)));
 	  std::min<double>(b, b_max);
 	}
 
@@ -3115,7 +3115,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
       }
 
       double tCross = Cross * crossfac * 1e-14 /
-	(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) * cscl_[k.first];
+	(TreeDSMC::Lunit*TreeDSMC::Lunit) * cscl_[k.first];
 
       csections[id][Particle::defaultKey][Particle::defaultKey]() += tCross * meanF[id][k];
     }
@@ -3132,7 +3132,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
   //
   double  volc = c->Volume();
   double   ips = DBL_MAX;
-  if (IPS) ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
+  if (IPS) ips = pow(volc/numEf[id], 0.333333) * TreeDSMC::Lunit * 1.0e7;
 
   // Species keys
   //
@@ -3144,8 +3144,8 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 
   // Number of atoms in each super particle
   //
-  double N1 = (p1->mass*UserTreeDSMC::Munit)/(atomic_weights[Z1]*amu);
-  double N2 = (p2->mass*UserTreeDSMC::Munit)/(atomic_weights[Z2]*amu);
+  double N1 = (p1->mass*TreeDSMC::Munit)/(atomic_weights[Z1]*amu);
+  double N2 = (p2->mass*TreeDSMC::Munit)/(atomic_weights[Z2]*amu);
 
   // Number of associated electrons for each particle
   //
@@ -3160,7 +3160,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
   double mu0  = m1 * m2 / (m1 + m2);
   double mu1  = m1;
   double mu2  = m2;
-  double vel  = cr * UserTreeDSMC::Vunit;
+  double vel  = cr * TreeDSMC::Vunit;
 
   double dof1   = 1.0 + ne1;
   double dof2   = 1.0 + ne2;
@@ -3185,9 +3185,9 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
       eVel1 += rvel1*rvel1;
       eVel2 += rvel2*rvel2;
     }
-    eVel0 = sqrt(eVel0) * UserTreeDSMC::Vunit;
-    eVel1 = sqrt(eVel1) * UserTreeDSMC::Vunit;
-    eVel2 = sqrt(eVel2) * UserTreeDSMC::Vunit;
+    eVel0 = sqrt(eVel0) * TreeDSMC::Vunit;
+    eVel1 = sqrt(eVel1) * TreeDSMC::Vunit;
+    eVel2 = sqrt(eVel2) * TreeDSMC::Vunit;
   }
 
   // Available COM energy
@@ -3214,8 +3214,8 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
   Ein1[id] = Ein2[id] = 0.0;
 
   if (use_Eint>=0) {
-    Ein1[id] = p1->dattrib[use_Eint] * UserTreeDSMC::Eunit / N1;
-    Ein2[id] = p2->dattrib[use_Eint] * UserTreeDSMC::Eunit / N2;
+    Ein1[id] = p1->dattrib[use_Eint] * TreeDSMC::Eunit / N1;
+    Ein2[id] = p2->dattrib[use_Eint] * TreeDSMC::Eunit / N2;
 
     // Compute the total available energy and divide among degrees of freedom
     // Convert ergs to eV
@@ -3531,7 +3531,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 				// *** Convert to system units
 				//-------------------------------
   return (cross00 + cross12 + cross21 + cross1p + cross2p + sum12 + sum21) *
-    1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+    1e-14 / (TreeDSMC::Lunit*TreeDSMC::Lunit);
 }
 
 double CollideIon::crossSectionWeight
@@ -3544,7 +3544,7 @@ double CollideIon::crossSectionWeight
   //
   double  volc = c->Volume();
   double   ips = DBL_MAX;
-  if (IPS) ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
+  if (IPS) ips = pow(volc/numEf[id], 0.333333) * TreeDSMC::Lunit * 1.0e7;
 
   // Species keys
   //
@@ -3570,8 +3570,8 @@ double CollideIon::crossSectionWeight
 
   // Number of atoms in each super particle
   //
-  double N1   = p1->mass*UserTreeDSMC::Munit/amu / atomic_weights[Z1];
-  double N2   = p2->mass*UserTreeDSMC::Munit/amu / atomic_weights[Z2];
+  double N1   = p1->mass*TreeDSMC::Munit/amu / atomic_weights[Z1];
+  double N2   = p2->mass*TreeDSMC::Munit/amu / atomic_weights[Z2];
 
   // Number of associated electrons for each particle
   //
@@ -3585,7 +3585,7 @@ double CollideIon::crossSectionWeight
 
   // Energy available in the center of mass of the atomic collision
   //
-  double vel = cr * UserTreeDSMC::Vunit;
+  double vel = cr * TreeDSMC::Vunit;
   double m1  = atomic_weights[Z1]*amu;
   double m2  = atomic_weights[Z2]*amu;
   double me  = atomic_weights[ 0]*amu;
@@ -3611,9 +3611,9 @@ double CollideIon::crossSectionWeight
       eVel1 += rvel1*rvel1;
       eVel2 += rvel2*rvel2;
     }
-    eVel0 = sqrt(eVel0) * UserTreeDSMC::Vunit;
-    eVel1 = sqrt(eVel1) * UserTreeDSMC::Vunit;
-    eVel2 = sqrt(eVel2) * UserTreeDSMC::Vunit;
+    eVel0 = sqrt(eVel0) * TreeDSMC::Vunit;
+    eVel1 = sqrt(eVel1) * TreeDSMC::Vunit;
+    eVel2 = sqrt(eVel2) * TreeDSMC::Vunit;
 
     eVel0   /= vel;		// These are now ratios
     eVel1   /= vel;
@@ -3633,8 +3633,8 @@ double CollideIon::crossSectionWeight
   Ein1[id] = Ein2[id] = 0.0;
 
   if (use_Eint>=0) {
-    Ein1[id] = p1->dattrib[use_Eint] * UserTreeDSMC::Eunit / N1;
-    Ein2[id] = p2->dattrib[use_Eint] * UserTreeDSMC::Eunit / N2;
+    Ein1[id] = p1->dattrib[use_Eint] * TreeDSMC::Eunit / N1;
+    Ein2[id] = p2->dattrib[use_Eint] * TreeDSMC::Eunit / N2;
 
     // Compute the total available energy and divide among degrees of freedom
     // Convert ergs to eV
@@ -3930,7 +3930,7 @@ double CollideIon::crossSectionWeight
 				// *** Convert to system units
 				//-------------------------------
   return (cross00 + cross12 + cross21 + cross1p + cross2p + sum12 + sum21) *
-    1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+    1e-14 / (TreeDSMC::Lunit*TreeDSMC::Lunit);
 }
 
 
@@ -3964,13 +3964,13 @@ double CollideIon::crossSectionHybrid
 
   // Convert to cross section in system units
   //
-  double crs_units = 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+  double crs_units = 1e-14 / (TreeDSMC::Lunit*TreeDSMC::Lunit);
 
   // Mean interparticle spacing
   //
   double  volc = c->Volume();
   double   ips = DBL_MAX;
-  if (IPS) ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
+  if (IPS) ips = pow(volc/numEf[id], 0.333333) * TreeDSMC::Lunit * 1.0e7;
 
   // Species keys
   //
@@ -3982,12 +3982,12 @@ double CollideIon::crossSectionHybrid
 
   // Number of atoms in each super particle
   //
-  double N1    = p1->mass*UserTreeDSMC::Munit/amu / atomic_weights[Z1];
-  double N2    = p2->mass*UserTreeDSMC::Munit/amu / atomic_weights[Z2];
+  double N1    = p1->mass*TreeDSMC::Munit/amu / atomic_weights[Z1];
+  double N2    = p2->mass*TreeDSMC::Munit/amu / atomic_weights[Z2];
 
   // Energy available in the center of mass of the atomic collision
   //
-  double vel   = cr * UserTreeDSMC::Vunit;
+  double vel   = cr * TreeDSMC::Vunit;
 
   double m1    = atomic_weights[Z1]*amu;
   double m2    = atomic_weights[Z2]*amu;
@@ -4039,11 +4039,11 @@ double CollideIon::crossSectionHybrid
       sVel1 += rvel1*rvel1;
       sVel2 += rvel2*rvel2;
     }
-    eVel0 = sqrt(eVel0) * UserTreeDSMC::Vunit;
-    eVel1 = sqrt(eVel1) * UserTreeDSMC::Vunit;
-    eVel2 = sqrt(eVel2) * UserTreeDSMC::Vunit;
-    sVel1 = sqrt(sVel1) * UserTreeDSMC::Vunit;
-    sVel2 = sqrt(sVel2) * UserTreeDSMC::Vunit;
+    eVel0 = sqrt(eVel0) * TreeDSMC::Vunit;
+    eVel1 = sqrt(eVel1) * TreeDSMC::Vunit;
+    eVel2 = sqrt(eVel2) * TreeDSMC::Vunit;
+    sVel1 = sqrt(sVel1) * TreeDSMC::Vunit;
+    sVel2 = sqrt(sVel2) * TreeDSMC::Vunit;
 
     eVel0   /= vel;		// These are now ratios
     eVel1   /= vel;
@@ -4067,8 +4067,8 @@ double CollideIon::crossSectionHybrid
 
   if (use_Eint>=0) {
 
-    Ein1[id] = p1->dattrib[use_Eint] * UserTreeDSMC::Eunit / N1;
-    Ein2[id] = p2->dattrib[use_Eint] * UserTreeDSMC::Eunit / N2;
+    Ein1[id] = p1->dattrib[use_Eint] * TreeDSMC::Eunit / N1;
+    Ein2[id] = p2->dattrib[use_Eint] * TreeDSMC::Eunit / N2;
 
     // Compute the total available energy and divide among degrees of freedom
     // Convert ergs to eV
@@ -4580,7 +4580,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
   // Convert to cross section in system units
   //
-  double crs_units = 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+  double crs_units = 1e-14 / (TreeDSMC::Lunit*TreeDSMC::Lunit);
 
   // Mean interparticle spacing
   //
@@ -4589,7 +4589,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
   //
   // double  volc  = c->Volume();
   double   ips  = DBL_MAX;
-  if (IPS) ips  = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
+  if (IPS) ips  = pow(volc/numEf[id], 0.333333) * TreeDSMC::Lunit * 1.0e7;
   */
 
   // Electron fraction and mean molecular weight for each particle
@@ -4623,13 +4623,13 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
   // Number of atoms in each super particle
   //
-  double N1 = p1->mass*UserTreeDSMC::Munit/(Mu1*amu);
-  double N2 = p2->mass*UserTreeDSMC::Munit/(Mu2*amu);
+  double N1 = p1->mass*TreeDSMC::Munit/(Mu1*amu);
+  double N2 = p2->mass*TreeDSMC::Munit/(Mu2*amu);
 
 
   // Energy available in the center of mass of the atomic collision
   //
-  double vel = cr * UserTreeDSMC::Vunit;
+  double vel = cr * TreeDSMC::Vunit;
 
 
   // Ion-ion, ion-electron, and electron-electron relative velocities
@@ -4692,11 +4692,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       sVel1 += rvel1*rvel1;
       sVel2 += rvel2*rvel2;
     }
-    eVel0 = sqrt(eVel0) * UserTreeDSMC::Vunit;
-    eVel1 = sqrt(eVel1) * UserTreeDSMC::Vunit;
-    eVel2 = sqrt(eVel2) * UserTreeDSMC::Vunit;
-    sVel1 = sqrt(sVel1) * UserTreeDSMC::Vunit;
-    sVel2 = sqrt(sVel2) * UserTreeDSMC::Vunit;
+    eVel0 = sqrt(eVel0) * TreeDSMC::Vunit;
+    eVel1 = sqrt(eVel1) * TreeDSMC::Vunit;
+    eVel2 = sqrt(eVel2) * TreeDSMC::Vunit;
+    sVel1 = sqrt(sVel1) * TreeDSMC::Vunit;
+    sVel2 = sqrt(sVel2) * TreeDSMC::Vunit;
     
     eVel0   /= vel;		// These are now ratios
     eVel1   /= vel;
@@ -4706,9 +4706,9 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
     // Pick scaled relative velocities for mean-mass algorithm
     if (MeanMass) {
-      gVel0 = sqrt(gVel0) * UserTreeDSMC::Vunit / vel;
-      gVel1 = sqrt(gVel1) * UserTreeDSMC::Vunit / vel;
-      gVel2 = sqrt(gVel2) * UserTreeDSMC::Vunit / vel;
+      gVel0 = sqrt(gVel0) * TreeDSMC::Vunit / vel;
+      gVel1 = sqrt(gVel1) * TreeDSMC::Vunit / vel;
+      gVel2 = sqrt(gVel2) * TreeDSMC::Vunit / vel;
     }
     // Pick true relative velocity for all other algorithms
     else {
@@ -4756,8 +4756,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
   if (use_Eint>=0) {
 
-    Ein1[id] = p1->dattrib[use_Eint] * UserTreeDSMC::Eunit / N1;
-    Ein2[id] = p2->dattrib[use_Eint] * UserTreeDSMC::Eunit / N2;
+    Ein1[id] = p1->dattrib[use_Eint] * TreeDSMC::Eunit / N1;
+    Ein2[id] = p2->dattrib[use_Eint] * TreeDSMC::Eunit / N2;
 
     // Compute the total available energy and divide among degrees of freedom
     // Convert ergs to eV
@@ -5397,8 +5397,8 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
 
   // Number of atoms in each super particle
   //
-  double N1 = (p1->mass*UserTreeDSMC::Munit)/(atomic_weights[Z1]*amu);
-  double N2 = (p2->mass*UserTreeDSMC::Munit)/(atomic_weights[Z2]*amu);
+  double N1 = (p1->mass*TreeDSMC::Munit)/(atomic_weights[Z1]*amu);
+  double N2 = (p2->mass*TreeDSMC::Munit)/(atomic_weights[Z2]*amu);
 
   double NN = std::min<double>(N1, N2);	// Currently, N1 should equal N2
 
@@ -5696,7 +5696,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
 
   // Convert energy loss to system units
   //
-  delE = delE/UserTreeDSMC::Eunit;
+  delE = delE/TreeDSMC::Eunit;
 
   // Assign interaction energy variables
   //
@@ -5886,14 +5886,14 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
       ctd1->dv[id][0] += 1;
       ctd1->dv[id][1] += N1;
       ctd1->dv[id][2] +=
-	0.5*Mu*(vi - (*cr))*(vi - (*cr)) * UserTreeDSMC::Eunit / eV;
+	0.5*Mu*(vi - (*cr))*(vi - (*cr)) * TreeDSMC::Eunit / eV;
     }
 
     if (partflag==2) {
       ctd2->dv[id][0] += 1;
       ctd2->dv[id][1] += N2;
       ctd2->dv[id][2] +=
-	0.5*Mu*(vi - (*cr))*(vi - (*cr)) * UserTreeDSMC::Eunit / eV;
+	0.5*Mu*(vi - (*cr))*(vi - (*cr)) * TreeDSMC::Eunit / eV;
     }
 
 				// Distribute electron energy to particles
@@ -5917,14 +5917,14 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
       ctd1->dv[id][0] += 1;
       ctd1->dv[id][1] += N1;
       ctd1->dv[id][2] +=
-	0.5*Mu*(vi - (*cr))*(vi - (*cr)) * UserTreeDSMC::Eunit / eV;
+	0.5*Mu*(vi - (*cr))*(vi - (*cr)) * TreeDSMC::Eunit / eV;
     }
 
     if (partflag==2) {
       ctd2->dv[id][0] += 1;
       ctd2->dv[id][1] += N2;
       ctd2->dv[id][2] +=
-	0.5*Mu*(vi - (*cr))*(vi - (*cr)) * UserTreeDSMC::Eunit / eV;
+	0.5*Mu*(vi - (*cr))*(vi - (*cr)) * TreeDSMC::Eunit / eV;
     }
 
 				// Remaining energy split set to zero
@@ -6332,7 +6332,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
 
   // Number interacting atoms
   //
-  double NN = Wb * UserTreeDSMC::Munit / amu;
+  double NN = Wb * TreeDSMC::Munit / amu;
 
   // For tracking energy conservation (system units)
   //
@@ -6430,7 +6430,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
   // Cross section scale factor
   //
   double scaleCrossSection = tCross/csections[id][k1.getKey()][k2.getKey()]() *
-    1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+    1e-14 / (TreeDSMC::Lunit*TreeDSMC::Lunit);
 
   NN *= scaleCrossSection;
 
@@ -6501,7 +6501,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
     if (DEBUG_CR and (!DEBUG_NQ or Z1 != Z2) ) {
       speciesKey i1 = k1.getKey();
       speciesKey i2 = k2.getKey();
-      double cfac = 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+      double cfac = 1e-14 / (TreeDSMC::Lunit*TreeDSMC::Lunit);
       //
       // Output on collisions for now . . .
       //
@@ -6748,7 +6748,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
 
   // Convert energy loss to system units
   //
-  delE = delE/UserTreeDSMC::Eunit;
+  delE = delE/TreeDSMC::Eunit;
 
   // -----------------
   // ENERGY DIAGNOSTIC
@@ -8485,7 +8485,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
       // Number interacting atoms
       //
-      double N0 = PP[cid]->W2 * UserTreeDSMC::Munit / amu;
+      double N0 = PP[cid]->W2 * TreeDSMC::Munit / amu;
 
       // Number of real atoms in this interaction
       //
@@ -8724,7 +8724,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  ionExtra[1] += iE2 * Pr;
 
 	  // Energy for ionized electron comes from COM
-	  dE += iE2 * Pr * UserTreeDSMC::Eunit / (N0*eV);
+	  dE += iE2 * Pr * TreeDSMC::Eunit / (N0*eV);
 
 	  if (std::isinf(iE2 * Pr)) {
 	    std::cout << "**ERROR: crazy ion energy [2]=" << iE2
@@ -8799,7 +8799,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  ionExtra[0] += iE1 * Pr;
 
 	  // Energy for ionized electron comes from COM
-	  dE += iE1 * Pr * UserTreeDSMC::Eunit / (N0*eV);
+	  dE += iE1 * Pr * TreeDSMC::Eunit / (N0*eV);
 
 	  if (std::isinf(iE1 * Pr)) {
 	    std::cout << "**ERROR: crazy ion energy [1]=" << iE1
@@ -8877,7 +8877,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  rcbExtra[1] += iE2 * Pr;
 
 	  // Electron KE radiated in recombination
-	  double eE = iE2 * Pr * UserTreeDSMC::Eunit / (N0*eV);
+	  double eE = iE2 * Pr * TreeDSMC::Eunit / (N0*eV);
 
 	  if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * Pr;
 	  if (energy_scale > 0.0) dE *= energy_scale;
@@ -8967,7 +8967,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  // Electron KE fraction in recombination
 	  //
 	  double eE = 0.0;
-	  eE = iE1 * Pr * UserTreeDSMC::Eunit / (N0*eV);
+	  eE = iE1 * Pr * TreeDSMC::Eunit / (N0*eV);
 
 	  if (RECOMB_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * Pr;
 	  if (energy_scale > 0.0) dE *= energy_scale;
@@ -9042,7 +9042,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       // Convert from eV per particle to system units per
       // superparticle
       //
-      double Escl = N0 * eV/UserTreeDSMC::Eunit;
+      double Escl = N0 * eV/TreeDSMC::Eunit;
 
       if (PE[1][0]>0.0) {
 	ctd1->dv[id][0] += Prob;
@@ -9126,7 +9126,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // Convert to super particle (current in eV)
   //
   for (size_t cid=0; cid<3; cid++) {
-    double N0 = PP[cid]->W2 * UserTreeDSMC::Munit / amu;
+    double N0 = PP[cid]->W2 * TreeDSMC::Munit / amu;
     PE[cid][1] *= N0;
   }
 
@@ -9152,7 +9152,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
   // Convert energy loss from eV to system units
   //
-  for (auto & v : PE) v[1] *= eV / UserTreeDSMC::Eunit;
+  for (auto & v : PE) v[1] *= eV / TreeDSMC::Eunit;
 
   // Normalize probabilities and sum inelastic energy changes
   //
@@ -9216,7 +9216,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       double mu1 = m1 * me / (m1 + me);
       double mu2 = me * m2 / (me + m2);
 
-      double dT  = spTau[id] * UserTreeDSMC::Tunit;
+      double dT  = spTau[id] * TreeDSMC::Tunit;
 
       if (maxInterFlag == ion_elec) {
 	if (maxI1.first == Interact::electron) {
@@ -10989,7 +10989,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
       // Number interacting atoms
       //
-      double N0 = PP[cid]->W2 * UserTreeDSMC::Munit / amu;
+      double N0 = PP[cid]->W2 * TreeDSMC::Munit / amu;
 
       // Temporary debugging
       //
@@ -11223,7 +11223,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  ionExtra[1] += Echg;
 
 	  // Energy for ionized electron comes from COM
-	  dE += Echg * UserTreeDSMC::Eunit / (N0*eV);
+	  dE += Echg * TreeDSMC::Eunit / (N0*eV);
 
 	  if (std::isinf(Echg)) {
 	    std::cout << "**ERROR: crazy ion energy [2]=" << iE2
@@ -11300,7 +11300,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  ionExtra[0] += Echg;
 
 	  // Energy for ionized electron comes from COM
-	  dE += Echg * UserTreeDSMC::Eunit / (N0*eV);
+	  dE += Echg * TreeDSMC::Eunit / (N0*eV);
 
 	  if (std::isinf(iE1 * Prob)) {
 	    std::cout << "**ERROR: crazy ion energy [1]=" << iE1
@@ -11378,7 +11378,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  rcbExtra[1] += Echg;
 
 	  // Electron KE radiated in recombination
-	  double eE = Echg * UserTreeDSMC::Eunit / (N0*eV);
+	  double eE = Echg * TreeDSMC::Eunit / (N0*eV);
 
 	  if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * Prob;
 	  if (energy_scale > 0.0) dE *= energy_scale;
@@ -11476,7 +11476,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // Electron KE fraction in recombination
 	  //
-	  double eE = Echg * UserTreeDSMC::Eunit / (N0*eV);
+	  double eE = Echg * TreeDSMC::Eunit / (N0*eV);
 
 	  if (RECOMB_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * Prob;
 	  if (energy_scale > 0.0) dE *= energy_scale;
@@ -11565,7 +11565,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       // Convert from eV per particle to system units per
       // superparticle
       //
-      double Escl = N0 * eV/UserTreeDSMC::Eunit;
+      double Escl = N0 * eV/TreeDSMC::Eunit;
 
       if (PE[1][0]>0.0) {
 	ctd->dv[id][0] += Prob;
@@ -11670,13 +11670,13 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   // Convert to super particle (current in eV)
   //
   for (size_t cid=0; cid<3; cid++) {
-    double N0 = PP[cid]->W2 * UserTreeDSMC::Munit / amu;
+    double N0 = PP[cid]->W2 * TreeDSMC::Munit / amu;
     PE[cid][1] *= N0;
   }
 
   // Convert energy loss from eV to system units
   //
-  for (auto & v : PE) v[1] *= eV / UserTreeDSMC::Eunit;
+  for (auto & v : PE) v[1] *= eV / TreeDSMC::Eunit;
 
   // Work vectors
   //
@@ -11762,11 +11762,11 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       double mu1 = m1 * me / (m1 + me);
       double mu2 = me * m2 / (me + m2);
 
-      double dT  = spTau[id] * UserTreeDSMC::Tunit;
+      double dT  = spTau[id] * TreeDSMC::Tunit;
 
       size_t nbods = c->bods.size();
       double  volc = c->Volume();
-      double  dfac = UserTreeDSMC::Munit/amu/pow(UserTreeDSMC::Lunit, 3.0) *
+      double  dfac = TreeDSMC::Munit/amu/pow(TreeDSMC::Lunit, 3.0) *
 	p1->mass/molP1[id];
 
       if (maxInterFlag == ion_elec) {
@@ -12383,7 +12383,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       std::ostringstream sout;
       for (auto s : SpList) {
 	double Pr = ch.IonList[s.first]->photoIonizationRate().first * 
-	  UserTreeDSMC::Tunit * spTau[id];
+	  TreeDSMC::Tunit * spTau[id];
 	maxSoFar = std::max<double>(Pr, maxSoFar);
 	if (Pr>maxProb) good = false;
 	sout << "["
@@ -12518,10 +12518,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  photoStat[id][Q][0]++;
 
 	  // Compute the probability and get the residual electron energy
-	  double Pr = ff.first * UserTreeDSMC::Tunit * dT[p];
+	  double Pr = ff.first * TreeDSMC::Tunit * dT[p];
 	  double Ep = ff.second;
 	  double ww = p->dattrib[pos] * Pr;
-	  double Gm = UserTreeDSMC::Munit/(amu*atomic_weights[Q.first]);
+	  double Gm = TreeDSMC::Munit/(amu*atomic_weights[Q.first]);
 
 	  
 	  if (Pr >= 1.0) {	// Limiting case
@@ -13208,12 +13208,12 @@ void CollideIon::scatterPhotoTrace
 
   // Number interacting atoms
   //
-  double N0 = p->mass * UserTreeDSMC::Munit * Pr/ (atomic_weights[Q.first] * amu);
+  double N0 = p->mass * TreeDSMC::Munit * Pr/ (atomic_weights[Q.first] * amu);
 
   // Convert from eV per particle to system units per
   // superparticle
   //
-  double Ep = dE * N0 * eV/UserTreeDSMC::Eunit;
+  double Ep = dE * N0 * eV/TreeDSMC::Eunit;
 
   // Total effective mass in the collision (atomic mass units)
   //
@@ -13243,7 +13243,7 @@ void CollideIon::scatterPhotoTrace
     v22    += v2[k] * v2[k];
   }
 				// Energy in COM
-  double kEcom = 0.5 * N0 * mu * vi * amu/UserTreeDSMC::Munit;
+  double kEcom = 0.5 * N0 * mu * vi * amu/TreeDSMC::Munit;
 				// Energy reduced by loss
   double totE  = kEcom + Ep;
 
@@ -13918,10 +13918,10 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	  photoStat[id][Q][0]++;
 
 	  // Compute the probability and get the residual electron energy
-	  double Pr = ff.first * UserTreeDSMC::Tunit * spTau[id];
+	  double Pr = ff.first * TreeDSMC::Tunit * spTau[id];
 	  double Ep = ff.second;
 	  double ww = p->dattrib[pos] * Pr;
-	  double Gm = UserTreeDSMC::Munit/(amu*atomic_weights[Q.first]);
+	  double Gm = TreeDSMC::Munit/(amu*atomic_weights[Q.first]);
 
 	  if (Pr >= 1.0) {	// Limiting case
 	    ww = p->dattrib[pos];
@@ -13978,8 +13978,8 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
     if (outdbg) outdbg << "in electron interaction loop" << std::endl;
 
-    const double cunit = 1e-14 * UserTreeDSMC::Munit /
-      (UserTreeDSMC::Lunit * UserTreeDSMC::Lunit);
+    const double cunit = 1e-14 * TreeDSMC::Munit /
+      (TreeDSMC::Lunit * TreeDSMC::Lunit);
       
     std::vector<unsigned long> bods;
     std::map<unsigned long, double> molW, Eta1;
@@ -14054,7 +14054,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
     // Mean interparticle spacing
     //
     double   ips = DBL_MAX;
-    if (IPS) ips = pow(volC/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
+    if (IPS) ips = pow(volC/numEf[id], 0.333333) * TreeDSMC::Lunit * 1.0e7;
 
     // Compute cross section
     //
@@ -14158,12 +14158,12 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       double afac = esu*esu/std::max<double>(2.0*kEee[id], FloorEv*eV);
       double eVel = sqrt(2.0 * kEee[id] * eV / (0.5*me) );
 
-      double  dfac = UserTreeDSMC::Munit/amu/pow(UserTreeDSMC::Lunit, 3.0) /
+      double  dfac = TreeDSMC::Munit/amu/pow(TreeDSMC::Lunit, 3.0) /
 	molP1[id];
 
       selcM = nbods * efrc * densC * dfac / PiProb[id][3];
 
-      Prob = 2.0 * ABrate[id][3] * afac*afac * eVel / PiProb[id][3] * tau * UserTreeDSMC::Tunit;
+      Prob = 2.0 * ABrate[id][3] * afac*afac * eVel / PiProb[id][3] * tau * TreeDSMC::Tunit;
       nselM = static_cast<unsigned>(floor(selcM));
 
       Cfrac = 0.5 * nbods * (nbods-1) * Prob / selcM;
@@ -14249,7 +14249,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	//
 	if (debugFC and outdbg) {
 	  outdbg << "electronEPSM: T(K)="
-		 << keBeg/3.0*atomic_weights[0]*amu * UserTreeDSMC::Vunit*UserTreeDSMC::Vunit/boltz
+		 << keBeg/3.0*atomic_weights[0]*amu * TreeDSMC::Vunit*TreeDSMC::Vunit/boltz
 		 << std::endl;
 	  
 	  double sig2 = 0.0, keEnd = 0.0;
@@ -14464,7 +14464,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       vi = sqrt(vi);
       vr = sqrt(vr);
 
-      double cr = vi * UserTreeDSMC::Vunit;
+      double cr = vi * TreeDSMC::Vunit;
 
       // Kinetic energy in eV
       //
@@ -14499,7 +14499,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	  // Accumulate lambda
 	  //
 	  rhosig += 0.5*(W1 + W2)/amu * scrs * 1.0e-14 / volC *
-	    UserTreeDSMC::Munit/pow(UserTreeDSMC::Lunit, 3.0);
+	    TreeDSMC::Munit/pow(TreeDSMC::Lunit, 3.0);
 	  Nrhosig++;
 
 	  // Accept or reject candidate pair according to relative speed
@@ -14577,7 +14577,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
 	if (aType == Trace) {
 	  double afac = esu*esu/std::max<double>(2.0*kEee*eV, FloorEv*eV);
-	  double Tau  = ABrate[id][3] * afac*afac * cr * tau * UserTreeDSMC::Tunit;
+	  double Tau  = ABrate[id][3] * afac*afac * cr * tau * TreeDSMC::Tunit;
 
 	  if (MeanMass)
 	    vrel = coulomb_vector(vrel, 1.0, 1.0, Tau);
@@ -15289,8 +15289,8 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 				// specified
   if (use_temp>=0) {
 				// Energy to temperature
-    const double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * amu  /
-      UserTreeDSMC::Munit/boltz;
+    const double Tfac = 2.0*TreeDSMC::Eunit/3.0 * amu  /
+      TreeDSMC::Munit/boltz;
 
     double Temp = KEdspC * Tfac * molWeight(cell);
 
@@ -15596,7 +15596,7 @@ void collDiag::addCellPotl(pCell* cell, int id)
 {
   if (RECOMB_IP) {
 
-    const double cvrt = UserTreeDSMC::Munit/amu * eV/UserTreeDSMC::Eunit;
+    const double cvrt = TreeDSMC::Munit/amu * eV/TreeDSMC::Eunit;
     
     for (auto n : cell->bods) {
     
@@ -15998,7 +15998,7 @@ void collDiag::print()
     std::ofstream out(coll_file_debug.c_str(), ios::out | ios::app);
     out << std::scientific << std::setprecision(3);
     if (out) {
-      double cvrt   = eV/UserTreeDSMC::Eunit;
+      double cvrt   = eV/TreeDSMC::Eunit;
 
       out << std::setw(12) << tnow
 	  << std::setw(12) << p->tM[0]
@@ -16640,7 +16640,7 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
 
   // Convert from CHIANTI to system units
   //
-  const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+  const double cunit = 1e-14/(TreeDSMC::Lunit*TreeDSMC::Lunit);
 
   // Sample cell
   //
@@ -17145,7 +17145,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
   // Convert from CHIANTI to system units
   //
-  const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+  const double cunit = 1e-14/(TreeDSMC::Lunit*TreeDSMC::Lunit);
 
   // Sample cell
   //
@@ -17700,7 +17700,7 @@ Interact CollideIon::generateSelectionHybridSub
   // Convert from CHIANTI to system units and from system to physical
   // time units
   //
-  const double cunit = 1e-14 * UserTreeDSMC::Tunit;
+  const double cunit = 1e-14 * TreeDSMC::Tunit;
 
   speciesKey      k1 = KeyConvert(p1->iattrib[use_key]).getKey();
   speciesKey      k2 = KeyConvert(p2->iattrib[use_key]).getKey();
@@ -17724,7 +17724,7 @@ Interact CollideIon::generateSelectionHybridSub
     rvel = p2->vel[i] - p1->vel[i];
     *cr += rvel * rvel;
   }
-  eVel = sqrt(eVel) * UserTreeDSMC::Vunit;
+  eVel = sqrt(eVel) * TreeDSMC::Vunit;
   *cr  = sqrt(*cr);
 
   // Available COM energy in eV
@@ -17839,7 +17839,7 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
 
   // Convert from NTCdb to system units
   //
-  const double crs_units = 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+  const double crs_units = 1e-14 / (TreeDSMC::Lunit*TreeDSMC::Lunit);
 
   // For NTCdb <cross section>*<relative velocity>
   //
@@ -17956,7 +17956,7 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   //              +--- For correct Poisson statistics
   //
 
-  double  dfac = UserTreeDSMC::Munit/amu/pow(UserTreeDSMC::Lunit, 3.0) / molP1[id];
+  double  dfac = TreeDSMC::Munit/amu/pow(TreeDSMC::Lunit, 3.0) / molP1[id];
   double totPairs = num * dens * dfac *
     (1.0/PiProb[id][0] + 1.0/PiProb[id][1] + 1.0/PiProb[id][2]);
 
@@ -19184,8 +19184,8 @@ void CollideIon::printSpeciesColl()
       sout << outdir << runtag << ".DSMC_spc_log";
       ofstream mout(sout.str().c_str(), ios::app);
 
-      const double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * amu  /
-	UserTreeDSMC::Munit/boltz;
+      const double Tfac = 2.0*TreeDSMC::Eunit/3.0 * amu  /
+	TreeDSMC::Munit/boltz;
 
       double Ti = 0.0, Te = 0.0;
       if (tM[1]>0.0) Ti = Tfac*tM[0]/tM[1];
@@ -19538,9 +19538,9 @@ void CollideIon::electronGather()
 
 	double mu = mi*me/(mi + me);
 
-	double Ee        = 0.5*cre*me*UserTreeDSMC::Vunit*UserTreeDSMC::Vunit/eV;
-	double Ei        = 0.5*cri*mi*UserTreeDSMC::Vunit*UserTreeDSMC::Vunit/eV;
-	double Ej        = 0.5*crj*mu*UserTreeDSMC::Vunit*UserTreeDSMC::Vunit/eV;
+	double Ee        = 0.5*cre*me*TreeDSMC::Vunit*TreeDSMC::Vunit/eV;
+	double Ei        = 0.5*cri*mi*TreeDSMC::Vunit*TreeDSMC::Vunit/eV;
+	double Ej        = 0.5*crj*mu*TreeDSMC::Vunit*TreeDSMC::Vunit/eV;
 
 	if (aType!=Trace) {
 	  eEeVsp[Z].push_back(Ee);
@@ -20763,8 +20763,8 @@ void CollideIon::printSpeciesTrace()
     }
   }
 
-  const double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * amu  /
-    UserTreeDSMC::Munit/boltz;
+  const double Tfac = 2.0*TreeDSMC::Eunit/3.0 * amu  /
+    TreeDSMC::Munit/boltz;
   
   double Ti = 0.0, Te = 0.0;
   if (tM[1]>0.0) Ti = Tfac*tM[0]/tM[1];
@@ -21008,8 +21008,8 @@ void CollideIon::printSpeciesElectrons
     }
   }
 
-  const double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * amu  /
-    UserTreeDSMC::Munit/boltz;
+  const double Tfac = 2.0*TreeDSMC::Eunit/3.0 * amu  /
+    TreeDSMC::Munit/boltz;
 
   double totlE = tM[0] + tM[2], numbE = tM[3], tempE = tM[2];
   if (numbE>0.0) tempE = Tfac*totlE/numbE;
@@ -21536,7 +21536,7 @@ void CollideIon::processConfig()
 	cfg.property_tree().not_found())
       {
 	double mass = cfg.property_tree().get<double>("ElectronMass.value");
-	UserTreeDSMC::atomic_weights[0] = atomic_weights[0] = mass;
+	TreeDSMC::atomic_weights[0] = atomic_weights[0] = mass;
       }
 
     if (myid==0) {

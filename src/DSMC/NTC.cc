@@ -88,6 +88,7 @@ std::ostream& operator<< (std::ostream& out, const std::tuple<T, U, V>& t)
   return out;
 }
 
+/*
 std::ostream& operator<< (std::ostream& out, const sKeyPair& t)
 {
   std::ostringstream sout;
@@ -99,6 +100,7 @@ std::ostream& operator<< (std::ostream& out, const sKeyPair& t)
   out << sout.str();
   return out;
 }
+*/
 
 void NTCdb::dump()
 {

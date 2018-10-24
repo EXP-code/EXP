@@ -117,11 +117,11 @@ Species.H:		$(top_srcdir)/src/Species.H
 
 makeIonIC.cc:		atomic_constants.H
 
-atomic_constants.cc:	$(top_srcdir)/src/user/atomic_constants.cc atomic_constants.H
-			cp $(top_srcdir)/src/user/$@ .
+atomic_constants.cc:	$(top_srcdir)/src/DSMC/atomic_constants.cc atomic_constants.H
+			cp $(top_srcdir)/src/DSMC/$@ .
 
-atomic_constants.H:	$(top_srcdir)/src/user/atomic_constants.H
-			cp $(top_srcdir)/src/user/$@ .
+atomic_constants.H:	$(top_srcdir)/src/DSMC/atomic_constants.H
+			cp $(top_srcdir)/src/DSMC/$@ .
 
 
 CLEANFILES = EmpOrth9thd.cc localmpi.cc CylindricalDisk.cc	\

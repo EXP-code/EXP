@@ -12,7 +12,7 @@ endif
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
 AM_CXXFLAGS = -std=c++11 -D_REENTRANT -DSTANDALONE $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
 
-AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src -I$(top_srcdir)/src/user
+AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src -I$(top_srcdir)/src/DSMC
 
 COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 MPI_LIBS = -lmpi
@@ -28,8 +28,8 @@ bin_PROGRAMS = hctest
 hctest_SOURCES =  hctest.cc HeatCool.cc
 hctest_LDADD   = $(EXPLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@
 
-HeatCool.cc:	$(top_srcdir)/src/user/HeatCool.cc
-		cp $(top_srcdir)/src/user/$@ .
+HeatCool.cc:	$(top_srcdir)/src/DSMC/HeatCool.cc
+		cp $(top_srcdir)/src/DSMC/$@ .
 
 CLEANFILES = 	HeatCool.cc
 

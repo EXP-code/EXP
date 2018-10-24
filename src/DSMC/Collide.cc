@@ -11,7 +11,7 @@ using namespace std;
 #include "Timer.h"
 #include "global.H"
 #include "pHOT.H"
-#include "UserTreeDSMC.H"
+#include "TreeDSMC.H"
 #include "Collide.H"
 
 #ifdef USE_GPTL
@@ -1133,7 +1133,7 @@ void * Collide::collide_thread(void * arg)
     //  v
     if (false) {
       
-      const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+      const double cunit = 1e-14/(TreeDSMC::Lunit*TreeDSMC::Lunit);
 
       if ( !nselM.begin()->second.begin()->second ) {
 	std::cout << std::left << setw(20) << "Species"
@@ -1476,7 +1476,7 @@ void * Collide::collide_thread(void * arg)
 
 	  // Accept or reject candidate pair according to relative speed
 	  //
-	  const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+	  const double cunit = 1e-14/(TreeDSMC::Lunit*TreeDSMC::Lunit);
 	  double Cross = crossSection(id, c, p1, p2, cr, maxT);
 	  bool ok = false;
 	  
@@ -2206,7 +2206,7 @@ void Collide::EPSM(pCell* const cell, int id)
   EPSMT[id][2].start();
   
   double Emin = 1.5*boltz*TFLOOR * mass/mp * 
-    UserTreeDSMC::Munit/UserTreeDSMC::Eunit;
+    TreeDSMC::Munit/TreeDSMC::Eunit;
   
   // Einternal+Exes is the amount that
   // is *really* available for cooling
@@ -3427,7 +3427,7 @@ void Collide::CPUHog(ostream& out)
 double Collide::hsDiameter()
 {
   const double Bohr = 5.2917721092e-09;
-  return hsdiam*Bohr*sqrt(crossfac)/UserTreeDSMC::Lunit;
+  return hsdiam*Bohr*sqrt(crossfac)/TreeDSMC::Lunit;
 }
 
 void Collide::printSpecies(std::map<speciesKey, unsigned long>& spec,

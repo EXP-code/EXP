@@ -2,7 +2,7 @@
 
 #include <Component.H>
 #include <CollideIon.H>
-#include <UserTreeDSMC.H>
+#include <TreeDSMC.H>
 #include <cudaIon.cuH>
 #include <cudaElastic.cuH>
 #include <EXPException.H>
@@ -168,19 +168,19 @@ void CollideIon::cuda_atomic_weights_init()
   cuda_safe_call(cudaMemcpyToSymbol(cuda_atomic_weights, &weights[0], sizeof(cuFP_t)*maxAtomicNumber), 
 		 __FILE__, __LINE__, "Error copying cuda_atomic_weights");
 
-  cuFP_t v = UserTreeDSMC::Vunit;
+  cuFP_t v = TreeDSMC::Vunit;
   cuda_safe_call(cudaMemcpyToSymbol(cuVunit, &v, sizeof(cuFP_t)), 
 		 __FILE__, __LINE__, "Error copying cuVunit");
-  v = UserTreeDSMC::Lunit;
+  v = TreeDSMC::Lunit;
   cuda_safe_call(cudaMemcpyToSymbol(cuLunit, &v, sizeof(cuFP_t)), 
 		 __FILE__, __LINE__, "Error copying cuLunit");
-  v = UserTreeDSMC::Munit;
+  v = TreeDSMC::Munit;
   cuda_safe_call(cudaMemcpyToSymbol(cuMunit, &v, sizeof(cuFP_t)), 
 		 __FILE__, __LINE__, "Error copying cuMunit");
-  v = UserTreeDSMC::Tunit;
+  v = TreeDSMC::Tunit;
   cuda_safe_call(cudaMemcpyToSymbol(cuTunit, &v, sizeof(cuFP_t)), 
 		 __FILE__, __LINE__, "Error copying cuTunit");
-  v = UserTreeDSMC::Eunit;
+  v = TreeDSMC::Eunit;
   cuda_safe_call(cudaMemcpyToSymbol(cuEunit, &v, sizeof(cuFP_t)), 
 		 __FILE__, __LINE__, "Error copying cuEunit");
   v = amu;
@@ -577,9 +577,9 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	  //
 	  if (ZZ==1 and CC==2) {
 	    // Particle 1 is neutral hydrogen
-	    if (Z==1 and P==0) crs1 = cudaElasticInterp(kEi, cuPH_Emin,  cuH_H,   xsc_pH );
+	    if (Z==1 and P==0) crs1 = cudaElasticInterp(log10(kEi), cuPH_Emin,  cuH_H,   xsc_pH );
 	    // Particle 1 is neutral helium
-	    if (Z==2 and P==0) crs1 = cudaElasticInterp(kEi, cuPHe_Emin, cuPHe_H, xsc_pHe);
+	    if (Z==2 and P==0) crs1 = cudaElasticInterp(log10(kEi), cuPHe_Emin, cuPHe_H, xsc_pHe);
 	    crs1 *= cuCrossfac * cfac;
 	  }
 	  
@@ -587,9 +587,9 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	  //
 	  if (Z==1 and C==2) {
 	    // Particle 2 is neutral hydrogen
-	    if (ZZ==1 and PP==0) crs1 = cudaElasticInterp(kEi, cuPH_Emin,  cuPH_H,  xsc_pH );
+	    if (ZZ==1 and PP==0) crs1 = cudaElasticInterp(log10(kEi), cuPH_Emin,  cuPH_H,  xsc_pH );
 	    // Particle 2 is neutral helium
-	    if (ZZ==2 and PP==0) crs1 = cudaElasticInterp(kEi, cuPHe_Emin, cuPHe_H, xsc_pHe);
+	    if (ZZ==2 and PP==0) crs1 = cudaElasticInterp(log10(kEi), cuPHe_Emin, cuPHe_H, xsc_pHe);
 	    crs1 *= cuCrossfac * cfac;
 	  }
 

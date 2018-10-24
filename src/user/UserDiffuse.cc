@@ -7,6 +7,8 @@
 #include <ACG.h>
 #include <Uniform.h>
 #include <Normal.h>
+#include <gaussQ.h>
+#include <massmodel.h>
 
 #include <UserDiffuse.H>
 

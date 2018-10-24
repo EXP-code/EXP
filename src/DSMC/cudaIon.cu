@@ -4,10 +4,9 @@
 #include <iomanip>
 #include <boost/make_shared.hpp>
 
-#include <Ion.H>
 #include <Timer.h>
 
-thrust::host_vector<cuIonElement> cuIonElem;
+#include <cudaIon.cuH>
 
 // Global symbols for coordinate transformation
 //
@@ -16,6 +15,8 @@ cuFP_t ionEminGrid, ionEmaxGrid, ionDeltaEGrid;
 
 __device__ __constant__
 int ionEgridNumber, ionRadRecombNumber;
+
+thrust::host_vector<cuIonElement> cuIonElem;
 
 __global__
 void testConstantsIon()
