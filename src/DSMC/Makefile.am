@@ -24,17 +24,13 @@ bin_PROGRAMS = testCrossSection testIonRecomb genIonRecomb	\
 testQuantile
 
 if ENABLE_CUDA
-  ADD_CUDA0 = cudaIon.cu cudaCollideIon.cu cudaElastic.cu
-  OBJ_CUDA0 = cudaIon.o cudaCollideIon.o cudaElastic.o
-  ADD_CUDA1 = cudaIon.cu cudaElastic.cu
-  OBJ_CUDA1 = cudaIon.o cudaElastic.o
-  ADD_CUDA_LINK0 = libexpdsmc-link.o
-  ADD_CUDA_LINK1 = libtestdsmc-link.o
+  ADD_CUDA0  = cudaCollideIon.cu
+  ADD_CUDA1  = cudaIon.cu
   ifeq ($(GENCODE_FLAGS),)
     $(foreach sm,@sm_vers@,$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
   endif
   CUDA_LIBFLAGS  = -lcudart -lnvToolsExt
-  NVCC_CXXFLAGS  = -I/usr/include/mpi -I. $(GENCODE_FLAGS) $(NVCC_EXTRA) -dc -Xcompiler $(AM_CPPFLAGS)
+  NVCC_CXXFLAGS  = -I/usr/include/mpi -I. $(GENCODE_FLAGS) $(NVCC_EXTRA) -Xcompiler $(AM_CPPFLAGS)
   bin_PROGRAMS += testCrossCuda
 endif
 
@@ -50,10 +46,10 @@ TESTDSMC_SRC = Ion.cc interactSelect.cc Elastic.cc TopBase.cc	\
 	spline.cc $(ADD_CUDA1)
 
 libexpdsmc_a_SOURCES = $(DSMC_SRC) 
-libexpdsmc_a_LIBADD =  $(ADD_CUDA_LINK0) # $(CUDA_LDFLAGS) $(CUDA_LIBFLAGS) $(LIBS)
+# libexpdsmc_a_LIBADD =  $(ADD_CUDA_LINK0) # $(CUDA_LDFLAGS) $(CUDA_LIBFLAGS) $(LIBS)
 
 libtestdsmc_a_SOURCES = $(TESTDSMC_SRC)
-libtestdsmc_a_LIBADD =   $(ADD_CUDA_LINK1) # $(CUDA_LDFLAGS) $(CUDA_LIBFLAGS) $(LIBS)
+# libtestdsmc_a_LIBADD =   $(ADD_CUDA_LINK1) # $(CUDA_LDFLAGS) $(CUDA_LIBFLAGS) $(LIBS)
 
 testCrossSection_SOURCES = testCross.cc
 testCrossSection_DEPENDENCIES = libtestdsmc.a
@@ -88,14 +84,6 @@ testCrossCuda_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) lib
 
 .cu.o :
 	$(NVCC) $(CUDA_CFLAGS) $(NVCC_CXXFLAGS) -c -o $@ $<
-
-# linkage for all cuda objects for DSMC library
-libexpdsmc-link.o: $(OBJ_CUDA0)
-	$(NVCC) $(LNKCODE_FLAGS) -Xcompiler '-fPIC' -dlink -o $@ $(OBJ_CUDA0)
-
-# linkage for all cuda objects for DSMC library (stand-alone version)
-libtestdsmc-link.o: $(OBJ_CUDA1)
-	$(NVCC) $(LNKCODE_FLAGS) -Xcompiler '-fPIC' -dlink -o $@ $(OBJ_CUDA1)
 
 CLEANFILES =
 

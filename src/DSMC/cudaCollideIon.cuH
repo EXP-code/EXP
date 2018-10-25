@@ -1,4 +1,0 @@
-#ifndef CUDACOLLIDEION_CUH
-#define CUDACOLLIDEION_CUH
-
-#endif
