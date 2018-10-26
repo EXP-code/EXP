@@ -622,7 +622,7 @@ namespace NTC
 	  boost::filesystem::rename(tfile, filename);
 	}
 
-	if (chatty) {
+	if (chatty and NTCitem::live()) {
 	  std::cout << std::endl << std::string(70, '-') << std::endl
 		    << "-- Took NTC checkpoint at time <" << curr_time << ">" << std::endl
 		    << "-- Next NTC checkpoint at time <" << next_time << ">" << std::endl
@@ -634,7 +634,7 @@ namespace NTC
       pdata.clear();
 
       // Debugging
-      if (myid==0) {
+      if (myid==0 and NTCitem::live()) {
 	std::cout << std::string(40, '-') << std::endl
 		  << "--- QuantileBag instances: " << QuantileBag::live()
 		  << std::endl
