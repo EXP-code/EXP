@@ -1336,10 +1336,12 @@ void TreeDSMC::determine_acceleration_and_potential(void)
 	vector<unsigned> efrt1(ebins, 0);
 	for (pitr=c0->Particles().begin(); pitr!= pend; pitr++) {
 	  Lvalue = log(pitr->second->effort);
-	  indx   = floor((Lvalue - minEff) / (maxEff - minEff) * ebins);
-	  if (indx<0)      indx = 0;
-	  if (indx>=ebins) indx = ebins-1;
-	  efrt1[indx]++;
+	  if (maxEff>minEff) {
+	    indx = floor((Lvalue - minEff) / (maxEff - minEff) * ebins);
+	    if (indx<0)      indx = 0;
+	    if (indx>=ebins) indx = ebins-1;
+	    efrt1[indx]++;
+	  } else efrt1[0]++;
 	}
 	
 	MPI_Reduce(&efrt1[0], &efrt[0], ebins, MPI_UNSIGNED, MPI_SUM, 0, 
