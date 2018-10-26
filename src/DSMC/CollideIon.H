@@ -814,8 +814,10 @@ private:
 #if HAVE_LIBCUDA==1
   virtual void *collide_thread_cuda(void *arg);
   void cuda_initialize();
+  void cudaElasticInit();
   void cuda_atomic_weights_init();
   thrust::device_vector<cuIonElement> cuElems;
+  thrust::device_vector<cuFP_t> xsc_H, xsc_He, xsc_pH, xsc_pHe;
 #endif
 
 public:

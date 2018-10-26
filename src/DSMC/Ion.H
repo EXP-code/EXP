@@ -207,7 +207,6 @@ struct cuIonElement
   cudaTextureObject_t ff_0, ff_d, rc_d, ce_d, ci_d;
 };
 
-extern thrust::host_vector<cuIonElement> cuIonElem;
 #endif
 
 /**

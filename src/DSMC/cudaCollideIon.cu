@@ -11,7 +11,9 @@
 
 #include <cudaUtil.cuH>
 
-thrust::device_vector<cuFP_t> xsc_H, xsc_He, xsc_pH, xsc_pHe;
+// Enable for debugging only
+// #define MASS_DEBUG
+
 __constant__ cuFP_t           cuH_H, cuHe_H, cuPH_H, cuPHe_H;
 __constant__ cuFP_t           cuH_Emin, cuHe_Emin, cuPH_Emin, cuPHe_Emin;
 
@@ -65,7 +67,7 @@ resampleArray(const std::vector<cuFP_t>& x, const std::vector<cuFP_t>& y,
 // Initialize cross-section look up and interpolation arrays.  Data
 // input could be generalized here . . . for later.
 //
-void cudaElasticInit()
+void CollideIon::cudaElasticInit()
 {
   std::vector<int> radii(numRadii, 0);
 
@@ -533,8 +535,6 @@ cuFP_t ionEminGrid, ionEmaxGrid, ionDeltaEGrid;
 __device__ __constant__
 int ionEgridNumber, ionRadRecombNumber;
 
-thrust::host_vector<cuIonElement> cuIonElem;
-
 __global__
 void testConstantsIon()
 {
@@ -679,7 +679,7 @@ void chdata::cuda_initialize_textures()
       cudaChannelFormatDesc channelDesc1 = cudaCreateChannelDesc<int2>();
 #endif
       
-      std::cout << "Allocating cuF0array[" << k << "]" << std::endl;
+      // std::cout << "Allocating cuF0array[" << k << "]" << std::endl;
       cuda_safe_call(cudaMallocArray(&cuF0array[k], &channelDesc1, I->NfreeFreeGrid), __FILE__, __LINE__, "malloc cuArray");
 
       cuda_safe_call(cudaMemcpyToArray(cuF0array[k], 0, 0, &h_buffer0[0], tsize, cudaMemcpyHostToDevice), __FILE__, __LINE__, "copy texture to array");
@@ -784,11 +784,13 @@ void chdata::cuda_initialize_textures()
       E.ceDelE = I->delCollideE;
       E.NColl  = I->NcollideGrid;
 
+      /*
       std::cout << " k=" << k
 		<< " Emin=" << E.ceEmin
 		<< " Emax=" << E.ceEmax
 		<< " delE=" << E.ceDelE
 		<< std::endl;
+      */
 
       cudaTextureDesc texDesc;
       
@@ -802,8 +804,10 @@ void chdata::cuda_initialize_textures()
       // Temporary storage
       //
       cuFP_t *d_Interp;
+      /*
       std::cout << "Size(" << I->Z << ", " << I->C << ")="
 		<< I->NcollideGrid << std::endl;
+      */
       cuda_safe_call(cudaMalloc((void **)&d_Interp, I->NcollideGrid*2*sizeof(cuFP_t)),
 		     __FILE__, __LINE__,
 		     "Error allocating d_Interp for texture construction");
@@ -884,8 +888,10 @@ void chdata::cuda_initialize_textures()
       
       thrust::host_vector<cuFP_t> tt(I->NionizeGrid);
       
+      /*
       std::cout << "Size(" << I->Z << ", " << I->C << ")="
 		<< I->NionizeGrid << std::endl;
+      */
 
       cuda_safe_call(cudaMallocArray(&cuCIarray[k], &channelDesc, I->NionizeGrid), __FILE__, __LINE__, "malloc cuArray");
 
@@ -966,7 +972,7 @@ void chdata::cuda_initialize_textures()
 	  piCum[j] = (nu - 1.0)*I->ip;
 	}
 	
-	std::cout << "Allocating pi_0[" << k << "]" << std::endl;
+	// std::cout << "Allocating pi_0[" << k << "]" << std::endl;
 
 	// Create storage on device
 	cuPIarray[k] = piCum;
@@ -1729,11 +1735,16 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
 			       dArray<int>    cellI,       // Index to beginning of bodies for this cell
 			       dArray<int>    cellN,	   // Number of bodies per cell
 			       dArray<cuIonElement> elems, // Species array
-			       int epos, unsigned int stride)
+			       int epos,		   // Electron position in array
+			       unsigned int stride)
 {
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
   const cuFP_t dfac = cuMunit/cuAmu / (cuLunit*cuLunit*cuLunit);
+
+  if (epos+3>=DATTRIB_CUDA) {
+    printf("cellInit: epos OAB, epos+3=%d/%d\n", epos+3, DATTRIB_CUDA);
+  }
 
   for (int s=0; s<stride; s++) {
 
@@ -1750,6 +1761,12 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
 
       for (size_t i=0; i<nbods; i++) {
 	
+	// Sanity check
+	//
+	if (i + cellI._v[c] >= in._s) {
+	  printf("Cell init: Wanted %d/%d\n", i + cellI._v[c], in._s);
+	}
+
 	// The particle
 	cudaParticle & p = in._v[i + cellI._v[c]];
 
@@ -1761,6 +1778,7 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
 	cuFP_t ee = 0.0;
 	for (int k=0; k<elems._s; k++) {
 	  cuIonElement& E = elems._v[k];
+	  if (E.I >= 5) printf("Crazy I: %d\n", E.I);
 	  cuFP_t ff = p.datr[E.I];
 	  cuFP_t ww = ff/cuda_atomic_weights[E.Z];
 	  cuFP_t qq = E.C - 1;
@@ -1780,6 +1798,9 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
 	cuFP_t eVel2 = 0.0, iVel2 = 0.0;
 	for (int l=0; l<3; l++) {
 	  cuFP_t ve  = p.datr[epos+l];
+	  if (isnan(ve)) {
+	    printf("Weird electron\n");
+	  }
 	  eVel2 += ve*ve;
 	  cuFP_t vi  = p.vel[l];
 	  iVel2 += vi*vi;
@@ -1849,7 +1870,13 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
       cuFP_t dens = massP * ddfac;
       cuFP_t tot_pairs =  dens * nbods / molPP * 
 	(1.0/PiProb._v[c*4+0] + 1.0/PiProb._v[c*4+1] + 1.0/PiProb._v[c*4+2]);
-      cuFP_t Prob = dens * cuMunit/cuAmu * sqrt(Ivel2._v[c]) * tauC._v[c];
+      // cuFP_t Prob = dens * cuMunit/cuAmu * sqrt(Ivel2._v[c]) * tauC._v[c];
+      cuFP_t Prob = dens * sqrt(Ivel2._v[c]) * tauC._v[c];
+
+      if (isnan(Prob) or isnan(tot_pairs) or tot_pairs<=0.0) {
+	printf("tot_pairs=%f dens=%f nbods=%d molPP=%f\n",
+	       tot_pairs, dens, nbods, molPP);
+      }
 
       selC._v[c] = Prob/tot_pairs;
 
@@ -1887,11 +1914,24 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
   const int Nsp = elems._s;
 
+  if (epos+3>=DATTRIB_CUDA) {
+    printf("crossSection: epos OAB, epos+3=%d/%d\n", epos+3, DATTRIB_CUDA);
+  }
+
   for (int s=0; s<stride; s++) {
 
     int n = tid*stride + s;
 
     if (n < i1._s) {
+
+      // Sanity check
+      //
+      if (i1._v[n] >= in._s) {
+	printf("cross section: i1 wanted %d/%d\n", i1._v[n], in._s);
+      }
+      if (i2._v[n] >= in._s) {
+	printf("cross section: i2 wanted %d/%d\n", i2._v[n], in._s);
+      }
 
       cudaParticle& p1 = in._v[i1._v[n]];
       cudaParticle& p2 = in._v[i2._v[n]];
@@ -2052,16 +2092,19 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	    // atomic radius
 	    cuFP_t crs = (cudaGeometric(Z) + cudaGeometric(ZZ)) * cfac;
 	
-	    // Double counting
-	    if (Z == ZZ) crs *= 0.5;
+	    if (crs>0.0) {
 
-	    cross._v[n*numxc+J] = crs*cuCrossfac;
-	    xspc1._v[n*numxc+J] = make_uchar3(Z,  C,  I );
-	    xspc2._v[n*numxc+J] = make_uchar3(ZZ, CC, II);
-	    xtype._v[n*numxc+J] = neut_neut;
-	    xctot._v[n]        += crs*cuCrossfac;
-	    
-	    J++;		// Increment interaction counter
+	      // Double counting
+	      if (Z == ZZ) crs *= 0.5;
+
+	      cross._v[n*numxc+J] = crs*cuCrossfac;
+	      xspc1._v[n*numxc+J] = make_uchar3(Z,  C,  I );
+	      xspc2._v[n*numxc+J] = make_uchar3(ZZ, CC, II);
+	      xtype._v[n*numxc+J] = neut_neut;
+	      xctot._v[n]        += crs*cuCrossfac;
+	      
+	      J++;		// Increment interaction counter
+	    }
 	  }
 
 	  // --------------------------------------
@@ -2108,15 +2151,18 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	    cuFP_t kEc  = cuMeanKE ? Eion : kEi;
 	    kEc = 2.0*kEc > cuFloorEV ? 2.0*kEc*cuEV : cuFloorEV*cuEV;
 	    cuFP_t afac = cuEsu*cuEsu/kEc * 1.0e7;
-	    cuFP_t crs  = 2.0 * ABrate._v[cid*4+0] * afac*afac / PiProb._v[cid*4+0];
+	    cuFP_t crs  = 2.0 * ABrate._v[cid*4+0] * afac*afac / PiProb._v[cid*4+0] * cfac;
 
-	    cross._v[n*numxc+J] = crs;
-	    xspc1._v[n*numxc+J] = make_uchar3(Z,  C,  I );
-	    xspc2._v[n*numxc+J] = make_uchar3(ZZ, CC, II);
-	    xtype._v[n*numxc+J] = ion_ion;
-	    xctot._v[n]        += crs;
-	    
-	    J++;
+	    if (cfac>0.0) {
+
+	      cross._v[n*numxc+J] = crs;
+	      xspc1._v[n*numxc+J] = make_uchar3(Z,  C,  I );
+	      xspc2._v[n*numxc+J] = make_uchar3(ZZ, CC, II);
+	      xtype._v[n*numxc+J] = ion_ion;
+	      xctot._v[n]        += crs;
+	      
+	      J++;
+	    }
 	  }
 
 	} // End of inner species loop
@@ -2190,13 +2236,16 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	    
 	  crs = 2.0 * ABrate._v[cid*4+1] * afac*afac * gVel2 / PiProb._v[cid*4+1];
 	  
-	  cross._v[n*numxc+J] = crs;
-	  xspc1._v[n*numxc+J] = make_uchar3(Z, C,   I);
-	  xspc2._v[n*numxc+J] = make_uchar3(0, 0, 255);
-	  xtype._v[n*numxc+J] = ion_elec;
-	  xctot._v[n]        += crs;
-	  
-	  J++;
+	  if (fac1*Eta2 > 0.0) {
+
+	    cross._v[n*numxc+J] = crs;
+	    xspc1._v[n*numxc+J] = make_uchar3(Z, C,   I);
+	    xspc2._v[n*numxc+J] = make_uchar3(0, 0, 255);
+	    xtype._v[n*numxc+J] = ion_elec;
+	    xctot._v[n]        += crs;
+	    
+	    J++;
+	  }
 	  
 	  // Particle 2 ION, Particle 1 ELECTRON
 	  crs  = 0.0;
@@ -2205,13 +2254,15 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 
 	  crs = 2.0 * ABrate._v[cid*4+2] * afac*afac * gVel1 / PiProb._v[cid*4+2];
 
-	  cross._v[n*numxc+J] = crs;
-	  xspc1._v[n*numxc+J] = make_uchar3(0, 0, 255);
-	  xspc2._v[n*numxc+J] = make_uchar3(Z, C,   I);
-	  xtype._v[n*numxc+J] = ion_elec;
-	  xctot._v[n]        += crs;
+	  if (fac2*Eta1 > 0.0) {
+	    cross._v[n*numxc+J] = crs;
+	    xspc1._v[n*numxc+J] = make_uchar3(0, 0, 255);
+	    xspc2._v[n*numxc+J] = make_uchar3(Z, C,   I);
+	    xtype._v[n*numxc+J] = ion_elec;
+	    xctot._v[n]        += crs;
 	  
-	  J++;
+	    J++;
+	  }
 	} // end: ion-electron scattering
 
 
@@ -2590,6 +2641,12 @@ __global__ void photoIonizeKernel(dArray<cudaParticle> in,    // Particle array
 
     if (n < in._s) {
       
+      // Sanity check
+      //
+      if (n >= in._s) {
+	printf("photoIonize: wanted %d/%d\n", n, in._s);
+      }
+
       cudaParticle& p = in._v[n];
 
       // Photoionize all subspecies
@@ -2774,6 +2831,9 @@ void cudaScatterTrace
       }
       // Update the outgoing energy in COM
       vfac = sqrt(totE/kE);
+      if (isnan(vfac)) {
+	printf("totE=%f kE=%f\n", totE, kE);
+      }
     }
     // KE is zero (limiting case)
     //
@@ -2804,11 +2864,19 @@ void cudaScatterTrace
     // Velocity in center of mass, computed from v1, v2 and adjusted
     // according to the inelastic energy loss
     //
-    
+    bool crazy = false;
     for (size_t k=0; k<3; k++) {
       v1[k] = vcom[k] + m2/mt*vrel[k] * vfac;
       v2[k] = vcom[k] - m1/mt*vrel[k] * vfac;
+      if (isnan(v1[k]) or isnan(v2[k])) crazy = true;
     }
+
+    if (crazy) {
+      printf("scatter: vcom={%f %f %f} vrel={%f %f %f} m1=%f m2=%f\n",
+	     vcom[0], vcom[1], vcom[2],
+	     vrel[0], vrel[1], vrel[2], m1, m2);
+    }
+    
   } // END: MeanMass
   else {
 
@@ -2940,6 +3008,10 @@ __global__ void partInteractions(dArray<cudaParticle> in,
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
   const int Nsp = elems._s;
 
+  if (epos+3>=DATTRIB_CUDA) {
+    printf("partInteract: epos OAB, epos+3=%d/%d\n", epos+3, DATTRIB_CUDA);
+  }
+
   // Cache new state weights for each particle
   //
   cuFP_t *FF1 = new cuFP_t [Nsp];
@@ -2950,6 +3022,14 @@ __global__ void partInteractions(dArray<cudaParticle> in,
     int n = tid*stride + s;
 
     if (n < i1._s) {
+
+      // Sanity check
+      if (i1._v[n] >= in._s) {
+	printf("part interactions i1: wanted %d/%d\n", i1._v[n], in._s);
+      }
+      if (i2._v[n] >= in._s) {
+	printf("part interactions i2: wanted %d/%d\n", i2._v[n], in._s);
+      }
 
       cudaParticle& p1    = in._v[i1._v[n]];
       cudaParticle& p2    = in._v[i2._v[n]];
@@ -3123,6 +3203,10 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	if (T == free_free) {
 	  
 	  dE = XE * Prob;
+				// Sanity
+	  if (isnan(dE)) {
+	    printf("Crazy dE value\n");
+	  }
 
 	  if (IT.I1<255) {	// Ion is p1
 	    PE[1] += Prob;
@@ -3136,7 +3220,11 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	if (T == col_excite) {
 	  
 	  dE = XE * Prob;
-	  
+				// Sanity
+	  if (isnan(dE)) {
+	    printf("Crazy dE value\n");
+	  }
+
 	  if (IT.I1<255) {	// Ion is p1
 	    PE[1] += Prob;
 	    EE[1] += dE;
@@ -3151,16 +3239,24 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	  cuFP_t WW = Prob;	    
 
 	  dE = XE * Prob;
+				// Sanity
+	  if (isnan(dE)) {
+	    printf("Crazy dE value\n");
+	  }
 
 	  if (IT.I1<255) {	// Ion is p1
 
-	    if (WW < FF1[J]) {
-	      FF1[J]   -= WW;
-	      FF1[J+1] += WW;
+	    if (IT.I1>Nsp-2) {
+	      printf("Crazy ionize I1=%d\n", IT.I1);
+	    }
+	      
+	    if (WW < FF1[IT.I1]) {
+	      FF1[IT.I1]   -= WW;
+	      FF1[IT.I1+1] += WW;
 	    } else {
-	      WW = FF1[J];
-	      FF1[J]    = 0.0;
-	      FF1[J+1] += WW;
+	      WW = FF1[IT.I1];
+	      FF1[IT.I1]    = 0.0;
+	      FF1[IT.I1+1] += WW;
 	    }
 
 	    Prob = WW;
@@ -3173,18 +3269,28 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	    // Energy for ionized electron comes from COM
 	    dE += Echg * cuEunit / (N0*eV);
 	    
+				// Sanity
+	    if (isnan(dE)) {
+	      printf("Crazy dE value\n");
+	    }
+
 	    PE[1] += Prob;
 	    EE[1] += dE;
 	    
 	  } // END: ion-electron
 	  else {		// Ion is p2
-	    if (WW < FF2[J]) {
-	      FF2[J]   -= WW;
-	      FF2[J+1] += WW;
+
+	    if (IT.I2 > Nsp-2) {
+	      printf("Crazy ionize I2=%d\n", IT.I2);
+	    }
+
+	    if (WW < FF2[IT.I2]) {
+	      FF2[IT.I2]   -= WW;
+	      FF2[IT.I2+1] += WW;
 	    } else {
-	      WW = FF2[J];
-	      FF2[J]    = 0.0;
-	      FF2[J+1] += WW;
+	      WW = FF2[IT.I2];
+	      FF2[IT.I2]    = 0.0;
+	      FF2[IT.I2+1] += WW;
 	    }
 
 	    Prob = WW;
@@ -3196,6 +3302,11 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 
 	    // Energy for ionized electron comes from COM
 	    dE += Echg * cuEunit / (N0*eV);
+
+				// Sanity
+	    if (isnan(dE)) {
+	      printf("Crazy dE value\n");
+	    }
 
 	    PE[2] += Prob;
 	    EE[2] += dE;
@@ -3209,13 +3320,17 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 
 	  if (IT.I1<255) {		// Ion is p1
 
-	    if (WW < FF1[J]) {
-	      FF1[J]   -= WW;
-	      FF1[J-1] += WW;
+	    if (IT.I1>Nsp-1 or IT.I1==0) {
+	      printf("Crazy recombine I1=%d\n", IT.I1);
+	    }
+
+	    if (WW < FF1[IT.I1]) {
+	      FF1[IT.I1]   -= WW;
+	      FF1[IT.I1-1] += WW;
 	    } else {
-	      WW = FF1[J];
-	      FF1[J]    = 0.0;
-	      FF1[J-1] += WW;
+	      WW = FF1[IT.I1];
+	      FF1[IT.I1]    = 0.0;
+	      FF1[IT.I1-1] += WW;
 	    }
 
 	    Prob = WW;		// Update to truncated value
@@ -3229,19 +3344,28 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	    //
 	    // cuFP_t eE = Echg * cuEunit / (N0*cuEV);
 	    
+				// Sanity
+	    if (isnan(dE)) {
+	      printf("Crazy dE value\n");
+	    }
+
 	    PE[1] += Prob;
 	    EE[1] += dE;
 	  } // END: ion-electron
 	  else {		// Ion is p2
 	    cuFP_t WW = Prob;
 
-	    if (WW < FF2[J]) {
-	      FF2[J]   -= WW;
-	      FF2[J-1] += WW;
+	    if (IT.I2 > Nsp-1 or IT.I2==0) {
+	      printf("Crazy recombine I2=%d\n", IT.I2);
+	    }
+
+	    if (WW < FF2[IT.I2]) {
+	      FF2[IT.I2]   -= WW;
+	      FF2[IT.I2-1] += WW;
 	    } else {
-	      WW = FF2[J];
-	      FF2[J]    = 0.0;
-	      FF2[J-1] += WW;
+	      WW = FF2[IT.I2];
+	      FF2[IT.I2]    = 0.0;
+	      FF2[IT.I2-1] += WW;
 	    }
 	  
 	    Prob = WW;		// Update to truncated value
@@ -3254,6 +3378,11 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	    // Electron KE radiated in recombination
 	    // cuFP_t eE = Echg * cuEunit / (N0*eV);
 	    
+				// Sanity
+	    if (isnan(dE)) {
+	      printf("Crazy dE value\n");
+	    }
+
 	    PE[2] += Prob;
 	    EE[2] += dE;
 	  } // END: electro-ion
@@ -3340,11 +3469,13 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	}
 
 	if (IT.W1 >= IT.W2)
-	  cudaScatterTrace(Mu1, Mu2, Eta1, Eta2, IT.W1, IT.W2, E1, E2, totE,
-			   v1, v2, totalDE, Tau, state, Coulombic);
+	  cudaScatterTrace(Mu1, Mu2, Eta1, Eta2, IT.W1, IT.W2,
+			   &E1[0], &E2[0], totE,
+			   &v1[0], &v2[0], totalDE, Tau, state, Coulombic);
 	else
-	  cudaScatterTrace(Mu2, Mu1, Eta2, Eta1, IT.W2, IT.W1, E2, E1, totE,
-			   v2, v1, totalDE, Tau, state, Coulombic);
+	  cudaScatterTrace(Mu2, Mu1, Eta2, Eta1, IT.W2, IT.W1,
+			   &E2[0], &E1[0], totE,
+			   &v2[0], &v1[0], totalDE, Tau, state, Coulombic);
 
 	// Time-step computation
 	//
@@ -3358,6 +3489,13 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	  // Both particles are ions
 	  p1.vel[k] = v1[k];
 	  p2.vel[k] = v2[k];
+				// Sanity
+	  if (isnan(v1[k])) {
+	    printf("Strange value for p1.vel for J=0\n");
+	  }
+	  if (isnan(v2[k])) {
+	    printf("Strange value for p2.vel for J=0\n");
+	  }
 	}
       
       } // END: Atom-atom interaction
@@ -3379,11 +3517,13 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	PE[1] = totalDE;
       
 	if (IT.W1 >= IT.W2)
-	  cudaScatterTrace(Mu1, Mue*Eta2, Eta1, Eta2, IT.W1, IT.W2, E1, E2, totE,
-			   v1, v2, totalDE, Tau, state, Coulombic);
+	  cudaScatterTrace(Mu1, Mue*Eta2, Eta1, Eta2, IT.W1, IT.W2,
+			   &E1[0], &E2[0], totE,
+			   &v1[0], &v2[0], totalDE, Tau, state, Coulombic);
 	else
-	  cudaScatterTrace(Mue*Eta2, Mu1, Eta2, Eta1, IT.W2, IT.W1, E2, E1, totE,
-			   v2, v1, totalDE, Tau, state, Coulombic);
+	  cudaScatterTrace(Mue*Eta2, Mu1, Eta2, Eta1, IT.W2, IT.W1,
+			   &E2[0], &E1[0], totE,
+			   &v2[0], &v1[0], totalDE, Tau, state, Coulombic);
 			   
 
 	// Time-step computation
@@ -3398,9 +3538,17 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	for (int k=0; k<3; k++) {
 	  // Particle 1 is the ion
 	  p1.vel[k] = v1[k];
+				// Sanity
+	  if (isnan(v1[k])) {
+	    printf("Strange value for p1.vel for J=1\n");
+	  }
 
 	  // Particle 2 is the elctron
 	  p2.datr[epos+k] = v2[k];
+				// Sanity
+	  if (isnan(v2[k])) {
+	    printf("Strange value for v2 for J=1\n");
+	  }
 	}
 	
       } // END: PE[1] (Ion-electron interaction)
@@ -3422,11 +3570,13 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	PE[2]  = totalDE;
       
 	if (IT.W1 >= IT.W2)
-	  cudaScatterTrace(Mue*Eta1, Mu2, Eta1, Eta2, IT.W1, IT.W2, E1, E2, totE,
-			   v1, v2, totalDE, Tau, state, Coulombic);
+	  cudaScatterTrace(Mue*Eta1, Mu2, Eta1, Eta2, IT.W1, IT.W2,
+			   &E1[0], &E2[0], totE,
+			   &v1[0], &v2[0], totalDE, Tau, state, Coulombic);
 	else
-	  cudaScatterTrace(Mu2, Mue*Eta1, Eta2, Eta1, IT.W2, IT.W1, E2, E1, totE,
-			   v2, v1, totalDE, Tau, state, Coulombic);
+	  cudaScatterTrace(Mu2, Mue*Eta1, Eta2, Eta1, IT.W2, IT.W1,
+			   &E2[0], &E1[0], totE,
+			   &v2[0], &v1[0], totalDE, Tau, state, Coulombic);
 
 	// Time-step computation
 	//
@@ -3440,8 +3590,17 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	  // Particle 1 is the electron
 	  p1.datr[epos+k] = v1[k];
 
+				// Sanity
+	  if (isnan(v1[k])) {
+	    printf("Strange value for v2 for J=2\n");
+	  }
+
 	  // Particle 2 is the ion
 	  p2.vel[k] = v2[k];
+				// Sanity
+	  if (isnan(v2[k])) {
+	    printf("Strange value for p2.vel for J=2\n");
+	  }
 	}
       
       } // END: Electron-Ion interaction
@@ -3548,6 +3707,13 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	    for (int k=0; k<3; k++) {
 	      p1.datr[epos+k] = vcom[k] + m2/mt*vrel[k] * vfac;
 	      p2.datr[epos+k] = vcom[k] - m1/mt*vrel[k] * vfac;
+				// Sanity
+	      if (isnan(v1[k])) {
+		printf("Strange value for v1 for elec-elec\n");
+	      }
+	      if (isnan(v2[k])) {
+		printf("Strange value for v2 for elec-elec\n");
+	      }
 	    }
 	  }
 	  // Explicit energy conservation using splitting
@@ -3596,6 +3762,13 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	    for (int k=0; k<3; k++) {
 	      p1.datr[epos+k] = u1[k];
 	      p2.datr[epos+k] = u2[k];
+				// Sanity
+	      if (isnan(u1[k])) {
+		printf("Strange value for u1 for elec-elec\n");
+	      }
+	      if (isnan(u2[k])) {
+		printf("Strange value for u2 for elec-elec\n");
+	      }
 	    }
 	  }
 	  // Explicit momentum conservation
@@ -3635,6 +3808,13 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	      deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
 	      p1.datr[epos+k] = (1.0 - q)*v1[k] + q*v0;
 	      p2.datr[epos+k] = vcom[k] - m1/mt*vrel[k]*vfac;
+				// Sanity
+	      if (isnan(p1.datr[epos+k])) {
+		printf("Strange value for p1 for elec-elec\n");
+	      }
+	      if (isnan(p2.datr[epos+k])) {
+		printf("Strange value for p2 for elec-elec\n");
+	      }
 	    }
 
 	    // Correct energy for conservation
@@ -3707,6 +3887,8 @@ void * CollideIon::collide_thread_cuda(void * arg)
   thrust::host_vector<cuFP_t> h_volC(Ncells), h_tauC(Ncells);
 
   size_t Pcount = 0, Npairs = 0, Count = 0, Pindx = 0, Pindx0 = 0;
+  typedef std::pair<long int, int> partIndex;
+  std::vector<partIndex> bods;
 
   // Loop over cells to get count of bodies and cells to process
   //
@@ -3732,6 +3914,9 @@ void * CollideIon::collide_thread_cuda(void * arg)
       pairs.push_back(Npairs);
       flagI.push_back(1);
       Pcount += number;
+
+      for (size_t b=0; b<number; b++)
+	bods.push_back(partIndex(c->bods[b], j));
 
       Pindx0 = Pindx;
       for (size_t b=0; b<number/2; b++) {
@@ -3772,6 +3957,8 @@ void * CollideIon::collide_thread_cuda(void * arg)
   numProt *= numNeut;
   maxSp++;
 
+  int ePos = use_elec - minSp;	// Electron position in cudaParticle datr
+
   if (use_elec>=0)
     maxSp = std::max<int>(maxSp, use_elec+3);
   else
@@ -3779,31 +3966,34 @@ void * CollideIon::collide_thread_cuda(void * arg)
 
   // Copy particles to DEVICE
   //
-  Component::hostPartItr hit = c0->host_particles.begin();
   thrust::host_vector<cuFP_t> h_tauP(Pcount);
-  size_t pc = 0;
-
-  for (unsigned j=0; j<cellist[id].size(); j++ ) {
-    pCell *c = cellist[id][j];
-    size_t number = c->bods.size();
-    for (size_t n=0; n<number; n++) {
-      PartPtr h = Particles()[c->bods[n]];
-      ParticleHtoD(h, *hit, minSp, maxSp);
-      if (pc<Pcount)
-	h_tauP[pc++] = h_tauC[j];
-      else
-	std::cout << "OAB" << std::endl;
-      hit++;
-    }
+  thrust::host_vector<cuFP_t>::iterator pit = h_tauP.begin();
+  thrust::host_vector<cudaParticle>::iterator hit = c0->host_particles.begin();
+  
+  for (auto b : bods) {
+    PartPtr h = Particles()[b.first];
+    ParticleHtoD(h, *(hit++), minSp, maxSp);
+    *(pit++) = h_tauC[b.second];
   }
 
+#ifdef MASS_DEBUG
   std::cout << "Pcount = " << Pcount << ", Ncount = " << pc << std::endl
 	    << "Mass[0] = " << c0->host_particles.front().mass << std::endl
 	    << "Mass["  << c0->host_particles.size()-1 << "] = "
 	    << c0->host_particles.back().mass << std::endl;
+#endif
 
   thrust::device_vector<cuFP_t>       d_tauP(h_tauP);
   thrust::device_vector<cudaParticle> d_part(c0->host_particles);
+
+#ifdef MASS_DEBUG
+  c0->host_particles = d_part;		// Check copy
+
+  std::cout << "1st copy back" << std::endl
+	    << "Mass[0] = " << c0->host_particles.front().mass << std::endl
+	    << "Mass["  << c0->host_particles.size()-1 << "] = "
+	    << c0->host_particles.back().mass << std::endl;
+#endif
 
   // Copy cell boundaries and counts to DEVICE
   //
@@ -3840,9 +4030,18 @@ void * CollideIon::collide_thread_cuda(void * arg)
      toKernel(d_cellI),		// Cell index (input)
      toKernel(d_cellN),		// Cell body count (output)
      toKernel(cuElems),		// Ionization state info (input)
-     minSp,			// Location of state data in particle attribute array (input)
+     ePos,			// Electron location in cudaParticle datr
      stride);			// Stride for processing (input)
 
+#ifdef MASS_DEBUG
+  c0->host_particles = d_part;		// Check copy
+
+  std::cout << "2nd copy back" << std::endl
+	    << "Mass[0] = " << c0->host_particles.front().mass << std::endl
+	    << "Mass["  << c0->host_particles.size()-1 << "] = "
+	    << c0->host_particles.back().mass << std::endl;
+#endif
+  
   // Compute the cross sections for each interaction en masse
   //
   N        = i1.size();	// Number of pairs
@@ -3873,7 +4072,16 @@ void * CollideIon::collide_thread_cuda(void * arg)
      toKernel(d_PiProb), toKernel(d_ABrate), toKernel(d_flagI), 
      toKernel(xsc_H),    toKernel(xsc_He),   toKernel(xsc_pH),  toKernel(xsc_pHe),
      toKernel(cuElems),
-     totalXCsize, use_elec, stride);
+     totalXCsize, ePos, stride);
+
+#ifdef MASS_DEBUG
+  c0->host_particles = d_part;		// Check copy
+
+  std::cout << "3rd copy back" << std::endl
+	    << "Mass[0] = " << c0->host_particles.front().mass << std::endl
+	    << "Mass["  << c0->host_particles.size()-1 << "] = "
+	    << c0->host_particles.back().mass << std::endl;
+#endif
 
   // Do the interactions
   //
@@ -3885,7 +4093,7 @@ void * CollideIon::collide_thread_cuda(void * arg)
      toKernel(d_Ivel2),  toKernel(d_Evel2),
      toKernel(d_PiProb), toKernel(d_ABrate), toKernel(d_flagI), 
      toKernel(cuElems),
-     spTau[id], totalXCsize, use_elec, stride);
+     spTau[id], totalXCsize, ePos, stride);
 
   // Photoionization
   //
@@ -3903,20 +4111,41 @@ void * CollideIon::collide_thread_cuda(void * arg)
   // 
   c0->host_particles = d_part;
 
+#ifdef MASS_DEBUG
+  std::cout << "4th copy back" << std::endl
+	    << "Mass[0] = " << c0->host_particles.front().mass << std::endl
+	    << "Mass["  << c0->host_particles.size()-1 << "] = "
+	    << c0->host_particles.back().mass << std::endl;
+#endif
+
   // Copy particles to HOST
   //
   hit = c0->host_particles.begin();
-  long int ibeg, iend;
-  for (unsigned j=0; j<cellist[id].size(); j++ ) {
-    pCell *c = cellist[id][j];
-    size_t number = c->bods.size();
-    for (size_t n=0; n<number; n++) {
-      if (j==0 and n==0) ibeg = c->bods[0]; iend = c->bods[n];
-      PartPtr h = Particles()[c->bods[n]];
-      ParticleDtoH(*(hit++), h, minSp, maxSp);
+#ifdef MASS_DEBUG
+  long int ibeg=-1, iend;
+#endif
+  for (auto p : c0->host_particles) {
+    long int curr = p.indx;
+    PartPtr h = Particles()[curr];
+#ifdef MASS_DEBUG
+    if (ibeg<0) ibeg = curr; iend = curr;
+    double m0 = h->mass, mh = (*hit).mass;
+    if (fabs((mh - m0)/m0) > 1.0e-18) {
+      std::cout << "Mass mismatch before: m0=" << m0 << " != mh=" << mh
+		<< std::endl;
     }
+#endif
+    ParticleDtoH(p, h, minSp, maxSp);
+#ifdef MASS_DEBUG
+    double m1 = h->mass;
+    if (fabs((m1 - m0)/m0) > 1.0e-18) {
+      std::cout << "Mass mismatch after: m0=" << m0 << " != m1=" << m1
+		<< std::endl;
+    }
+#endif
   }
 
+#ifdef MASS_DEBUG
   std::cout << "After step" << std::endl
 	    << "Mass[0] = " << c0->host_particles.front().mass << std::endl
 	    << "Mass["  << c0->host_particles.size()-1 << "] = "
@@ -3924,6 +4153,7 @@ void * CollideIon::collide_thread_cuda(void * arg)
 	    << "mass[" << ibeg << "] = " << Particles()[ibeg]->mass
 	    << "Mass[" << iend << "] = " << Particles()[iend]->mass
 	    << std::endl;
+#endif
 
   if (id==0) {
     std::ostringstream sout;

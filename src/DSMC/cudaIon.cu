@@ -532,8 +532,6 @@ cuFP_t ionEminGrid, ionEmaxGrid, ionDeltaEGrid;
 __device__ __constant__
 int ionEgridNumber, ionRadRecombNumber;
 
-thrust::host_vector<cuIonElement> cuIonElem;
-
 __global__
 void testConstantsIon()
 {
