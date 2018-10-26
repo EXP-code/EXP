@@ -31,6 +31,37 @@ extern void mpi_gdb_print_trace(int sig);
 extern void mpi_gdb_wait_trace(int sig);
 
 //===========================================
+// A signal handler to trap invalid FP only
+//===========================================
+
+void set_fpu_invalid_handler(void)
+{
+  // Flag invalid FP results only, such as 0/0 or infinity - infinity
+  // or sqrt(-1).
+  //
+  feenableexcept(FE_INVALID);
+  //
+  // Print enabled flags to root node
+  //
+  if (myid==0) {
+    const std::list<std::pair<int, std::string>> flags =
+      {	{FE_DIVBYZERO, "divide-by-zero"},
+	{FE_INEXACT,   "inexact"},
+	{FE_INVALID,   "invalid"},
+	{FE_OVERFLOW,  "overflow"},
+	{FE_UNDERFLOW, "underflow"} };
+    
+    int _flags = fegetexcept();
+    std::cout << "Enabled FE flags: <";
+    for (auto v : flags) {
+      if (v.first & _flags) std::cout << v.second << ' ';
+    }
+    std::cout << "\b>" << std::endl;
+  }
+  signal(SIGFPE, mpi_gdb_print_trace);
+}
+
+//===========================================
 // A signal handler to produce a traceback
 //===========================================
 
@@ -425,7 +456,7 @@ main(int argc, char** argv)
   // by installing user handler
   //============================
 
-  if (fpe_trap ) set_fpu_handler();
+  if (fpe_trap ) set_fpu_invalid_handler();
   if (fpe_trace) set_fpu_trace_handler();
   if (fpe_wait ) set_fpu_gdb_handler();
 
