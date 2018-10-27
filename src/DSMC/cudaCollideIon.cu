@@ -2045,8 +2045,8 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
       cuFP_t kEi  = 0.5 * mu0 * vel * vel;
 
       cuFP_t facE = 0.5  * cuAmu * cuVunit * cuVunit / cuEV;
-      cuFP_t Eion = facE * Ivel2._v[n] * 0.5*(Mu1 + Mu2);
-      cuFP_t Eelc = facE * Evel2._v[n] * cuda_atomic_weights[0];
+      cuFP_t Eion = facE * Ivel2._v[cid] * 0.5*(Mu1 + Mu2);
+      cuFP_t Eelc = facE * Evel2._v[cid] * cuda_atomic_weights[0];
       cuFP_t kEe1 = 0.5  * mu1 * eVel2*eVel2;
       cuFP_t kEe2 = 0.5  * mu2 * eVel1*eVel1;
       // cuFP_t kEee = 0.25 * me  * eVel0*eVel0;
@@ -2994,8 +2994,6 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 				 dArray<int>    i2,
 				 dArray<int>    cc,
 				 dArray<cuFP_t> selC,
-				 dArray<cuFP_t> Ivel2,
-				 dArray<cuFP_t> Evel2,
 				 dArray<cuFP_t> PiProb,
 				 dArray<cuFP_t> ABrate,
 				 dArray<int>    flagI, 
@@ -4059,7 +4057,12 @@ void * CollideIon::collide_thread_cuda(void * arg)
   thrust::device_vector<uchar3>         d_xspc2(N*totalXCsize);
   thrust::device_vector<cudaInterTypes> d_xtype(N*totalXCsize);
   thrust::device_vector<int>            d_flagI(flagI);
-  thrust::device_vector<curandState>    d_randS(N);
+  thrust::device_vector<curandState>    d_randS;
+
+				// For resuing the same random
+				// generators in photoionize kernel
+  if (use_photoIB) d_randS.resize(Pcount);
+  else             d_randS.resize(N);
 
   initCurand<<<gridSize, BLOCK_SIZE>>>(toKernel(d_randS), seed);
 
@@ -4090,7 +4093,6 @@ void * CollideIon::collide_thread_cuda(void * arg)
      toKernel(d_cross),  toKernel(d_delph),  toKernel(d_xspc1),  toKernel(d_xspc2),
      toKernel(d_xtype),  toKernel(d_cross),
      toKernel(d_i1),     toKernel(d_i2),     toKernel(d_cc),    toKernel(d_selC),
-     toKernel(d_Ivel2),  toKernel(d_Evel2),
      toKernel(d_PiProb), toKernel(d_ABrate), toKernel(d_flagI), 
      toKernel(cuElems),
      spTau[id], totalXCsize, ePos, stride);
@@ -4101,6 +4103,9 @@ void * CollideIon::collide_thread_cuda(void * arg)
     N        = Pcount;	// Number of particles
     stride   = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
     gridSize = (N+BLOCK_SIZE*stride-1)/(BLOCK_SIZE*stride);
+
+    d_randS.resize(N);
+    initCurand<<<gridSize, BLOCK_SIZE>>>(toKernel(d_randS), seed);
 
     photoIonizeKernel<<<gridSize, BLOCK_SIZE>>>
       (toKernel(d_part),  toKernel(d_tauP),  toKernel(d_randS),
