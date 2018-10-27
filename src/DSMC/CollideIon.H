@@ -801,23 +801,15 @@ private:
   //! (default: false)
   bool IonElecRate;
 
-  //! Collision thread.  Virtual to accomodate CUDA implementation
-  virtual void *collide_thread(void *arg) {
-#if HAVE_LIBCUDA==1
-    if (aType == Trace) {
-      return collide_thread_cuda(arg);
-    }
-#endif
-    return Collide::collide_thread(arg);
-  }
-
 #if HAVE_LIBCUDA==1
   virtual void *collide_thread_cuda(void *arg);
   void cuda_initialize();
   void cudaElasticInit();
   void cuda_atomic_weights_init();
+  void cuda_random_init();
   thrust::device_vector<cuIonElement> cuElems;
-  thrust::device_vector<cuFP_t> xsc_H, xsc_He, xsc_pH, xsc_pHe;
+  thrust::device_vector<cuFP_t>       xsc_H, xsc_He, xsc_pH, xsc_pHe;
+  thrust::device_vector<curandState>  d_randS;
 #endif
 
 public:
@@ -884,6 +876,10 @@ public:
   //! Use upper limit on b_{max} based on particle interference
   //! (default: true)
   static bool coulInter;
+
+  //! Turn cuda off, even when GPU is available
+  //! (default: false)
+  static bool cudaOff;
 
   //@{
   //! TRACE algorithm default: adds excess energy to electron.  
@@ -972,9 +968,16 @@ protected:
   std::map<speciesKey, ahistoDPtr> frcHist;
   //@}
 
+  //! Collision thread.  Virtual to accomodate CUDA implementation
+  virtual void *collide_thread(void *arg) {
+#if HAVE_LIBCUDA==1
+    if (not cudaOff and aType == Trace) {
+      return collide_thread_cuda(arg);
+    }
+#endif
+    return Collide::collide_thread(arg);
+  }
 
-protected:
-  
   //! Computes (min, mean, max) velocities in each cell
   virtual void cellMinMax(pCell* const cell, int id);
 

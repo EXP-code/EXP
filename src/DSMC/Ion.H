@@ -21,6 +21,8 @@
 
 #if HAVE_LIBCUDA==1
 #include <cuda.h>
+#include <curand.h>
+#include <curand_kernel.h>
 #include <cuda_runtime.h>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>

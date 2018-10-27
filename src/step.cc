@@ -100,7 +100,9 @@ void do_step(int n)
 				// Advance velocity by 1/2 step:
 				// First K_{1/2}
 	nvTracerPtr tPtr2;
-	if (cuda_prof) tPtr2 = nvTracerPtr(new nvTracer("Velocity kick [1]"));
+	if (cuda_prof) {
+	  tPtr2 = nvTracerPtr(new nvTracer("Velocity kick [1]"));
+	}
 	if (timing) timer_vel.start();
 	incr_velocity(0.5*DT, M);
 #ifdef CHK_STEP
@@ -113,7 +115,10 @@ void do_step(int n)
 				// Advance position by the whole time
 				// step at this level: D_1
 				//
-	if (cuda_prof) tPtr2 = nvTracerPtr(new nvTracer("Drift"));
+	if (cuda_prof) {
+	  tPtr2.reset();
+	  tPtr2 = nvTracerPtr(new nvTracer("Drift"));
+	}
 	if (timing) timer_drift.start();
 	incr_position(DT, M);
 #ifdef CHK_STEP
@@ -127,7 +132,10 @@ void do_step(int n)
 				// this level
 				//
 
-	if (cuda_prof) tPtr2 = nvTracerPtr(new nvTracer("Expansion"));
+	if (cuda_prof) {
+	  tPtr2.reset();
+	  tPtr2 = nvTracerPtr(new nvTracer("Expansion"));
+	}
 	if (timing) timer_coef.start();
 	comp->compute_expansion(M);
 	if (timing) timer_coef.stop();
@@ -158,7 +166,10 @@ void do_step(int n)
 				// bring the velocity in sync: 
 				// Second K_{1/2}
 
-      if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [2]"));
+      if (cuda_prof) {
+	tPtr1.reset();
+	tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [2]"));
+      }
       if (timing) timer_vel.start();
       for (int M=mfirst[mstep]; M<=multistep; M++) {
 	incr_velocity(0.5*dt*mintvl[M], M);
@@ -169,7 +180,10 @@ void do_step(int n)
       if (timing) timer_vel.stop();
 
 
-      if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Adjust multistep"));
+      if (cuda_prof) {
+	tPtr1.reset();
+	tPtr1 = nvTracerPtr(new nvTracer("Adjust multistep"));
+      }
       if (timing) timer_adj.start();
       adjust_multistep_level(false);
       if (timing) timer_adj.stop();
@@ -223,18 +237,27 @@ void do_step(int n)
     incr_com_velocity(0.5*dtime);
     if (timing) timer_vel.stop();
 				// Position by whole step
-    if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Drift"));
+    if (cuda_prof) {
+      tPtr1.reset();
+      tPtr1 = nvTracerPtr(new nvTracer("Drift"));
+    }
     if (timing) timer_drift.start();
     incr_position(dtime);
     incr_com_position(dtime);
     if (timing) timer_drift.start();
 				// Compute acceleration
-    if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Potential"));
+    if (cuda_prof) {
+      tPtr1.reset();
+      tPtr1 = nvTracerPtr(new nvTracer("Potential"));
+    }
     if (timing) timer_pot.start();
     comp->compute_potential();
     if (timing) timer_pot.stop();
 				// Velocity by 1/2 step
-    if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [2]"));
+    if (cuda_prof) {
+      tPtr1.reset();
+      tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [2]"));
+    }
     if (timing) timer_vel.start();
     incr_velocity(0.5*dtime);
     incr_com_velocity(0.5*dtime);
@@ -252,7 +275,10 @@ void do_step(int n)
   comp->report_numbers();
 
 				// Load balance
-  if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Load balance"));
+  if (cuda_prof) {
+    tPtr.reset();
+    tPtr = nvTracerPtr(new nvTracer("Load balance"));
+  }
   comp->load_balance();
 
 				// Timer output

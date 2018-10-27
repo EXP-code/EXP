@@ -358,8 +358,9 @@ void Cylinder::get_acceleration_and_potential(Component* C)
 
   if (use_external) {
     nvTracerPtr tPtr1;
-    if (cuda_prof)
+    if (cuda_prof) {
       tPtr1 = nvTracerPtr(new nvTracer("Cylinder: in external"));
+    }
 
     MPL_start_timer();
     determine_acceleration_and_potential();
@@ -394,8 +395,9 @@ void Cylinder::get_acceleration_and_potential(Component* C)
     if (myid == 0 and multistep==0 || mstep==0) {
       
       nvTracerPtr tPtr2;
-      if (cuda_prof)
+      if (cuda_prof) {
 	tPtr2 = nvTracerPtr(new nvTracer("Cylinder::dump basis"));
+      }
 
       ortho->dump_basis(runtag.c_str(), this_step);
       

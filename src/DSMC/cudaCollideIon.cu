@@ -1575,6 +1575,9 @@ static bool   newRecombAlg = false;
 void CollideIon::cuda_initialize()
 {
   static bool done = false;
+
+  cuda_random_init();
+
   if (done) return;
   done = true;
 
@@ -1645,6 +1648,7 @@ void CollideIon::cuda_initialize()
 
   cuda_atomic_weights_init();
 }
+
 
 void CollideIon::cuda_atomic_weights_init()
 {
@@ -3849,6 +3853,33 @@ __global__ void partInteractions(dArray<cudaParticle> in,
   delete [] FF2;
 }
 
+// Allocate one generator per particle (overkill, could be tuned to
+// save memory)
+//
+void CollideIon::cuda_random_init()
+{
+  if (d_randS.size() < Particles().size()) {
+    
+    std::cout << "Node " << myid
+	      << ": CUDA random: size was " << d_randS.size()
+	      << ", new size will be " << Particles().size()
+	      << std::endl;
+
+    cudaDeviceProp deviceProp;
+    cudaGetDeviceProperties(&deviceProp, c0->cudaDevice);
+
+    // Compute the cross sections for each interaction en masse
+    //
+    int N        = Particles().size(); // Number of particles
+    int stride   = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+    int gridSize = (N+BLOCK_SIZE*stride-1)/(BLOCK_SIZE*stride);
+
+    d_randS.resize(N);
+    initCurand<<<gridSize, BLOCK_SIZE>>>(toKernel(d_randS), seed);
+  }
+}
+
+
 void * CollideIon::collide_thread_cuda(void * arg)
 {
   cuda_initialize();
@@ -4057,14 +4088,6 @@ void * CollideIon::collide_thread_cuda(void * arg)
   thrust::device_vector<uchar3>         d_xspc2(N*totalXCsize);
   thrust::device_vector<cudaInterTypes> d_xtype(N*totalXCsize);
   thrust::device_vector<int>            d_flagI(flagI);
-  thrust::device_vector<curandState>    d_randS;
-
-				// For resuing the same random
-				// generators in photoionize kernel
-  if (use_photoIB) d_randS.resize(Pcount);
-  else             d_randS.resize(N);
-
-  initCurand<<<gridSize, BLOCK_SIZE>>>(toKernel(d_randS), seed);
 
   crossSectionKernel<<<gridSize, BLOCK_SIZE>>>
     (toKernel(d_part),   toKernel(d_randS),
@@ -4103,9 +4126,6 @@ void * CollideIon::collide_thread_cuda(void * arg)
     N        = Pcount;	// Number of particles
     stride   = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
     gridSize = (N+BLOCK_SIZE*stride-1)/(BLOCK_SIZE*stride);
-
-    d_randS.resize(N);
-    initCurand<<<gridSize, BLOCK_SIZE>>>(toKernel(d_randS), seed);
 
     photoIonizeKernel<<<gridSize, BLOCK_SIZE>>>
       (toKernel(d_part),  toKernel(d_tauP),  toKernel(d_randS),

@@ -309,6 +309,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
     if (cuda_prof) {
       std::ostringstream sout; sout << "ComponentContainer, init [" << c->name << "]";
+      tPtr1.reset();
       tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
     }
 
@@ -355,6 +356,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
     if (cuda_prof) {
       std::ostringstream sout; sout << "ComponentContainer::set_multistep [" << c->name << "]";
+      tPtr1.reset();
       tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
     }
 
@@ -362,6 +364,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
     if (cuda_prof) {
       std::ostringstream sout; sout << "ComponentContainer::get_accel [" << c->name << "]";
+      tPtr1.reset();
       tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
     }
 
@@ -430,6 +433,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       if (cuda_prof) {
 	std::ostringstream sout; sout << "ComponentContainer, interaction [" << inter->c->name
 				      << "-->" << other->name << "]";
+	tPtr1.reset();
 	tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
       }
 
@@ -482,6 +486,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   state = EXTERNAL;
 
   if (cuda_prof) {
+    tPtr1.reset();
     tPtr1 = nvTracerPtr(new nvTracer("ComponentContainer::external forces"));
   }
 
@@ -526,6 +531,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
 
   if (cuda_prof) {
+    tPtr1.reset();
     tPtr1 = nvTracerPtr(new nvTracer("ComponentContainer::house keeping"));
   }
 

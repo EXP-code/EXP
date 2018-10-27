@@ -64,6 +64,7 @@ unsigned CollideIon::maxCoul    = UINT_MAX;
 double   CollideIon::logL       = 5.0/(16.0*M_PI); // energy transfer factor
 bool     CollideIon::TSESUM     = true;
 bool     CollideIon::coulInter  = true;
+bool     CollideIon::cudaOff    = false;
 double   CollideIon::TSCOOL     = 0.05;
 double   CollideIon::TSFLOOR    = 0.001;
 double   CollideIon::scatFac1   = 1.0; // Hybrid algorithm
@@ -670,9 +671,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (Ion::useFreeFreeGrid  ? "on" : "off") << std::endl
 	      <<  " " << std::setw(20) << std::left << "RadRecomb cache"
 	      << (Ion::useRadRecombGrid ? "on" : "off") << std::endl
-	      <<  " " << std::setw(20) << std::left << "Coll excitation cache"
+	      <<  " " << std::setw(20) << std::left << "Coll excite cache"
 	      << (Ion::useExciteGrid ? "on" : "off") << std::endl
-	      <<  " " << std::setw(20) << std::left << "Coll ionization cache"
+	      <<  " " << std::setw(20) << std::left << "Coll ionize cache"
 	      << (Ion::useIonizeGrid ? "on" : "off") << std::endl;
     if (use_ntcdb)
     std::cout <<  " " << std::setw(20) << std::left << "ntcThresh"
@@ -21319,6 +21320,9 @@ void CollideIon::processConfig()
 
     coulInter =
       cfg.entry<bool>("coulInter", "Compute maximum cross section based Chandrasekhar interference", true);
+
+    cudaOff =
+      cfg.entry<bool>("cudaOff", "Suppress GPU computation when GPU is available for testing", false);
 
     Collide::collTnum = 
       cfg.entry<unsigned>("collTnum", "Target number of accepted collisions per cell for assigning time step", UINT_MAX);

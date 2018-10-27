@@ -23,7 +23,7 @@
 #include <gptl.h>
 #endif
 
-using namespace std;
+#include <NVTX.H>
 
 //
 // Debugging check
@@ -725,6 +725,9 @@ void TreeDSMC::determine_acceleration_and_potential(void)
   static bool firstime = true;
   static unsigned nrep = 0;
   
+  nvTracerPtr tPtr, tPtr2;
+  if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("TreeDSMC: init"));
+
   //
   // Only compute DSMC when passed the fiducial component
   //
@@ -852,6 +855,11 @@ void TreeDSMC::determine_acceleration_and_potential(void)
   
   overhead.Start();
   
+  if (cuda_prof) {
+    tPtr.reset();
+    tPtr = nvTracerPtr(new nvTracer("TreeDSMC: (re)partition"));
+  }
+
   //
   // Sort the particles into cells
   //
@@ -880,7 +888,15 @@ void TreeDSMC::determine_acceleration_and_potential(void)
     GPTLstart("TreeDSMC::makeTree");
 #endif
     tree1Time.start();
+    if (cuda_prof) {
+      tPtr2.reset();
+      tPtr2 = nvTracerPtr(new nvTracer("TreeDSMC: makeTree"));
+    }
     c0->Tree()->makeTree();
+    if (cuda_prof) {
+      tPtr2.reset();
+      tPtr2 = nvTracerPtr(new nvTracer("TreeDSMC: makeCellLevelList"));
+    }
     c0->Tree()->makeCellLevelList();
     tree1Time.stop();
     tree1Wait.start();
@@ -925,9 +941,17 @@ void TreeDSMC::determine_acceleration_and_potential(void)
       cout << "About to adjust tree [" << mlevel << "]" << endl;
 #endif
     tradjTime.start();
+    if (cuda_prof) {
+      tPtr2.reset();
+      tPtr2 = nvTracerPtr(new nvTracer("TreeDSMC: adjustTree"));
+    }
     c0->Tree()->adjustTree(mlevel);
     tradjSoFar += tradjTime.stop();
     tcellTime.start();
+    if (cuda_prof) {
+      tPtr2.reset();
+      tPtr2 = nvTracerPtr(new nvTracer("TreeDSMC: adjustCellLevelList"));
+    }
     c0->Tree()->adjustCellLevelList(mlevel);
     tcellSoFar += tcellTime.stop();
     tree2Wait.start();
@@ -950,6 +974,8 @@ void TreeDSMC::determine_acceleration_and_potential(void)
     
   }
   
+  if (cuda_prof) tPtr2.reset();
+
   overhead.Stop();
   pot_time += overhead.getTime();
   pot_time /= max<unsigned>(1, c0->Number());
@@ -964,6 +990,10 @@ void TreeDSMC::determine_acceleration_and_potential(void)
   //
   
   clldeTime.start();
+  if (cuda_prof) {
+    tPtr.reset();
+    tPtr = nvTracerPtr(new nvTracer("TreeDSMC: collide"));
+  }
   
   if (0) {
     ostringstream sout;
@@ -1013,12 +1043,18 @@ void TreeDSMC::determine_acceleration_and_potential(void)
   // diagnostics from the current step.
   //
   
+  if (cuda_prof) {
+    tPtr.reset();
+    tPtr = nvTracerPtr(new nvTracer("TreeDSMC: finish"));
+  }
 #ifdef USE_GPTL
   GPTLstart("TreeDSMC::collide_timestep");
 #endif
   
   (*barrier)("TreeDSMC: before collide timestep", __FILE__, __LINE__);
   
+  if (cuda_prof) tPtr2 = nvTracerPtr(new nvTracer("TreeDSMC: timesteps"));
+
   tstepTime.start();
   if (use_multi) collide->compute_timestep(coolfrac);
   tstepSoFar += tstepTime.stop();
@@ -1027,6 +1063,8 @@ void TreeDSMC::determine_acceleration_and_potential(void)
   GPTLstop("TreeDSMC::collide_timestep");
 #endif
   
+  if (cuda_prof) tPtr2.reset();
+
   //
   // Repartition and remake the tree after first step to adjust load
   // balancing for work queue effort method
@@ -1092,6 +1130,11 @@ void TreeDSMC::determine_acceleration_and_potential(void)
     (*barrier)(sout.str(), __FILE__, __LINE__);
   }
   
+  if (cuda_prof) {
+    tPtr2.reset();
+    tPtr2 = nvTracerPtr(new nvTracer("TreeDSMC: diagnostics"));
+  }
+
   //
   // Periodically display the current progress
   //
@@ -1101,7 +1144,7 @@ void TreeDSMC::determine_acceleration_and_potential(void)
   //
   // Lots of diagnostics are computed and emitted here . . .
   //
-  if (diagstep && std::get<0>(CC)>0) {
+  if (false & diagstep && std::get<0>(CC)>0) {
     
     (*barrier)("TreeDSMC: ENTERING diagstep stanza", __FILE__, __LINE__);
     
@@ -1381,7 +1424,7 @@ void TreeDSMC::determine_acceleration_and_potential(void)
     c0->Tree()->gatherCellLevelList();
     (*barrier)("TreeDSMC: AFTER pHOT::gatherCellLevelList",   __FILE__, __LINE__);
     
-    if (myid==0) {
+    if (myid==0 and false) {
       
       unsigned sell_total = collide->select();
       unsigned coll_total = collide->total();
