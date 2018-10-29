@@ -1894,8 +1894,7 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 				   dArray<curandState> randS,	  // Cuda random number objects
 				   dArray<cuFP_t> cross,	  // Cross section for each interaction
 				   dArray<cuFP_t> delph,	  // Inelastic energy change for each interaction
-				   dArray<uchar3> xspc1,	  // Ionization state for each interaction
-				   dArray<uchar3> xspc2,
+				   dArray<unsigned char>  xspcs,  // Ionization state for each interaction
 				   dArray<cudaInterTypes> xtype,  // Interaction type for each interaction
 				   dArray<cuFP_t> xctot,	  // Total cross section per cell
 				   dArray<int>    i1,		  // Location of first particle in pair
@@ -2102,8 +2101,12 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	      if (Z == ZZ) crs *= 0.5;
 
 	      cross._v[n*numxc+J] = crs*cuCrossfac;
-	      xspc1._v[n*numxc+J] = make_uchar3(Z,  C,  I );
-	      xspc2._v[n*numxc+J] = make_uchar3(ZZ, CC, II);
+	      xspcs._v[(n*numxc+J)+0] = Z;
+	      xspcs._v[(n*numxc+J)+1] = C;
+	      xspcs._v[(n*numxc+J)+2] = I;
+	      xspcs._v[(n*numxc+J)+3] = ZZ;
+	      xspcs._v[(n*numxc+J)+4] = CC;
+	      xspcs._v[(n*numxc+J)+5] = II;
 	      xtype._v[n*numxc+J] = neut_neut;
 	      xctot._v[n]        += crs*cuCrossfac;
 	      
@@ -2139,8 +2142,12 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 
 	  if (crs1>0.0) {
 	    cross._v[n*numxc+J] = crs1;
-	    xspc1._v[n*numxc+J] = make_uchar3(Z,  C,  I );
-	    xspc2._v[n*numxc+J] = make_uchar3(ZZ, CC, II);
+	    xspcs._v[(n*numxc+J)*6+0] = Z;
+	    xspcs._v[(n*numxc+J)*6+1] = C;
+	    xspcs._v[(n*numxc+J)*6+2] = I;
+	    xspcs._v[(n*numxc+J)*6+3] = ZZ;
+	    xspcs._v[(n*numxc+J)*6+4] = CC;
+	    xspcs._v[(n*numxc+J)*6+5] = II;
 	    xtype._v[n*numxc+J] = neut_prot;
 	    xctot._v[n]        += crs1;
 	    
@@ -2160,8 +2167,12 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	    if (cfac>0.0) {
 
 	      cross._v[n*numxc+J] = crs;
-	      xspc1._v[n*numxc+J] = make_uchar3(Z,  C,  I );
-	      xspc2._v[n*numxc+J] = make_uchar3(ZZ, CC, II);
+	      xspcs._v[(n*numxc+J)*6+0] = Z;
+	      xspcs._v[(n*numxc+J)*6+1] = C;
+	      xspcs._v[(n*numxc+J)*6+2] = I;
+	      xspcs._v[(n*numxc+J)*6+3] = ZZ;
+	      xspcs._v[(n*numxc+J)*6+4] = CC;
+	      xspcs._v[(n*numxc+J)*6+5] = II;
 	      xtype._v[n*numxc+J] = ion_ion;
 	      xctot._v[n]        += crs;
 	      
@@ -2191,8 +2202,12 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 
 	  if (crs>0.0) {
 	    cross._v[n*numxc+J] = crs;
-	    xspc1._v[n*numxc+J] = make_uchar3(Z, C,   I);
-	    xspc2._v[n*numxc+J] = make_uchar3(0, 0, 255);
+	    xspcs._v[(n*numxc+J)*6+0] = Z;
+	    xspcs._v[(n*numxc+J)*6+1] = C;
+	    xspcs._v[(n*numxc+J)*6+2] = I;
+	    xspcs._v[(n*numxc+J)*6+3] = 0;
+	    xspcs._v[(n*numxc+J)*6+4] = 0;
+	    xspcs._v[(n*numxc+J)*6+5] = 255;
 	    xtype._v[n*numxc+J] = neut_elec;
 	    xctot._v[n]        += crs;
 	    
@@ -2217,8 +2232,12 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 
 	  if (crs>0.0) {
 	    cross._v[n*numxc+J] = crs;
-	    xspc1._v[n*numxc+J] = make_uchar3(0, 0, 255);
-	    xspc2._v[n*numxc+J] = make_uchar3(Z, C,   I);
+	    xspcs._v[(n*numxc+J)*6+0] = 0;
+	    xspcs._v[(n*numxc+J)*6+1] = 0;
+	    xspcs._v[(n*numxc+J)*6+2] = 255;
+	    xspcs._v[(n*numxc+J)*6+3] = Z;
+	    xspcs._v[(n*numxc+J)*6+4] = C;
+	    xspcs._v[(n*numxc+J)*6+5] = I;
 	    xtype._v[n*numxc+J] = neut_elec;
 	    xctot._v[n]        += crs;
 	    
@@ -2243,8 +2262,12 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	  if (fac1*Eta2 > 0.0) {
 
 	    cross._v[n*numxc+J] = crs;
-	    xspc1._v[n*numxc+J] = make_uchar3(Z, C,   I);
-	    xspc2._v[n*numxc+J] = make_uchar3(0, 0, 255);
+	    xspcs._v[(n*numxc+J)*6+0] = Z;
+	    xspcs._v[(n*numxc+J)*6+1] = C;
+	    xspcs._v[(n*numxc+J)*6+2] = I;
+	    xspcs._v[(n*numxc+J)*6+3] = 0;
+	    xspcs._v[(n*numxc+J)*6+4] = 0;
+	    xspcs._v[(n*numxc+J)*6+5] = 255;
 	    xtype._v[n*numxc+J] = ion_elec;
 	    xctot._v[n]        += crs;
 	    
@@ -2260,8 +2283,12 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 
 	  if (fac2*Eta1 > 0.0) {
 	    cross._v[n*numxc+J] = crs;
-	    xspc1._v[n*numxc+J] = make_uchar3(0, 0, 255);
-	    xspc2._v[n*numxc+J] = make_uchar3(Z, C,   I);
+	    xspcs._v[(n*numxc+J)*6+0] = 0;
+	    xspcs._v[(n*numxc+J)*6+1] = 0;
+	    xspcs._v[(n*numxc+J)*6+2] = 255;
+	    xspcs._v[(n*numxc+J)*6+3] = Z;
+	    xspcs._v[(n*numxc+J)*6+4] = C;
+	    xspcs._v[(n*numxc+J)*6+5] = I;
 	    xtype._v[n*numxc+J] = ion_elec;
 	    xctot._v[n]        += crs;
 	  
@@ -2292,8 +2319,12 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 
 	    cross._v[n*numxc+J] = crs;
 	    delph._v[n*numxc+J] = ph;
-	    xspc1._v[n*numxc+J] = make_uchar3(Z, C,   I);
-	    xspc2._v[n*numxc+J] = make_uchar3(0, 0, 255);
+	    xspcs._v[(n*numxc+J)*6+0] = Z;
+	    xspcs._v[(n*numxc+J)*6+1] = C;
+	    xspcs._v[(n*numxc+J)*6+2] = I;
+	    xspcs._v[(n*numxc+J)*6+3] = 0;
+	    xspcs._v[(n*numxc+J)*6+4] = 0;
+	    xspcs._v[(n*numxc+J)*6+5] = 255;
 	    xtype._v[n*numxc+J] = free_free;
 	    xctot._v[n]        += crs;
 	  
@@ -2316,8 +2347,12 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 
 	    cross._v[n*numxc+J] = crs;
 	    delph._v[n*numxc+J] = ph;
-	    xspc1._v[n*numxc+J] = make_uchar3(0, 0, 255);
-	    xspc2._v[n*numxc+J] = make_uchar3(Z, C,   I);
+	    xspcs._v[(n*numxc+J)*6+0] = 0;
+	    xspcs._v[(n*numxc+J)*6+1] = 0;
+	    xspcs._v[(n*numxc+J)*6+2] = 255;
+	    xspcs._v[(n*numxc+J)*6+3] = Z;
+	    xspcs._v[(n*numxc+J)*6+4] = C;
+	    xspcs._v[(n*numxc+J)*6+5] = I;
 	    xtype._v[n*numxc+J] = free_free;
 	    xctot._v[n]        += crs;
 	  
@@ -2346,8 +2381,12 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	  if (crs > 0.0) {
 	    cross._v[n*numxc+J] = crs;
 	    delph._v[n*numxc+J] = ph;
-	    xspc1._v[n*numxc+J] = make_uchar3(Z, C,   I);
-	    xspc2._v[n*numxc+J] = make_uchar3(0, 0, 255);
+	    xspcs._v[(n*numxc+J)*6+0] = Z;
+	    xspcs._v[(n*numxc+J)*6+1] = C;
+	    xspcs._v[(n*numxc+J)*6+2] = I;
+	    xspcs._v[(n*numxc+J)*6+3] = 0;
+	    xspcs._v[(n*numxc+J)*6+4] = 0;
+	    xspcs._v[(n*numxc+J)*6+5] = 255;
 	    xtype._v[n*numxc+J] = col_excite;
 	    xctot._v[n]        += crs;
 	  
@@ -2373,8 +2412,12 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	  if (crs > 0.0) {
 	    cross._v[n*numxc+J] = crs;
 	    delph._v[n*numxc+J] = ph;
-	    xspc1._v[n*numxc+J] = make_uchar3(0, 0, 255);
-	    xspc2._v[n*numxc+J] = make_uchar3(Z, C,   I);
+	    xspcs._v[(n*numxc+J)*6+0] = 0;
+	    xspcs._v[(n*numxc+J)*6+1] = 0;
+	    xspcs._v[(n*numxc+J)*6+2] = 255;
+	    xspcs._v[(n*numxc+J)*6+3] = Z;
+	    xspcs._v[(n*numxc+J)*6+4] = C;
+	    xspcs._v[(n*numxc+J)*6+5] = I;
 	    xtype._v[n*numxc+J] = col_excite;
 	    xctot._v[n]        += crs;
 	  
@@ -2403,8 +2446,12 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
       
 	  if (crs > 0.0) {
 	    cross._v[n*numxc+J] = crs;
-	    xspc1._v[n*numxc+J] = make_uchar3(Z, C,   I);
-	    xspc2._v[n*numxc+J] = make_uchar3(0, 0, 255);
+	    xspcs._v[(n*numxc+J)*6+0] = Z;
+	    xspcs._v[(n*numxc+J)*6+1] = C;
+	    xspcs._v[(n*numxc+J)*6+2] = I;
+	    xspcs._v[(n*numxc+J)*6+3] = 0;
+	    xspcs._v[(n*numxc+J)*6+4] = 0;
+	    xspcs._v[(n*numxc+J)*6+5] = 255;
 	    xtype._v[n*numxc+J] = col_ionize;
 	    xctot._v[n]        += crs;
 	  
@@ -2428,8 +2475,12 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
       
 	  if (crs > 0.0) {
 	    cross._v[n*numxc+J] = crs;
-	    xspc1._v[n*numxc+J] = make_uchar3(0, 0, 255);
-	    xspc2._v[n*numxc+J] = make_uchar3(Z, C,   I);
+	    xspcs._v[(n*numxc+J)*6+0] = 0;
+	    xspcs._v[(n*numxc+J)*6+1] = 0;
+	    xspcs._v[(n*numxc+J)*6+2] = 255;
+	    xspcs._v[(n*numxc+J)*6+3] = Z;
+	    xspcs._v[(n*numxc+J)*6+4] = C;
+	    xspcs._v[(n*numxc+J)*6+5] = I;
 	    xtype._v[n*numxc+J] = col_ionize;
 	    xctot._v[n]        += crs;
 	  
@@ -2464,8 +2515,12 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 
 	    if (crs > 0.0) {
 	      cross._v[n*numxc+J] = crs;
-	      xspc1._v[n*numxc+J] = make_uchar3(Z, C,   I);
-	      xspc2._v[n*numxc+J] = make_uchar3(0, 0, 255);
+	      xspcs._v[(n*numxc+J)*6+0] = Z;
+	      xspcs._v[(n*numxc+J)*6+1] = C;
+	      xspcs._v[(n*numxc+J)*6+2] = I;
+	      xspcs._v[(n*numxc+J)*6+3] = 0;
+	      xspcs._v[(n*numxc+J)*6+4] = 0;
+	      xspcs._v[(n*numxc+J)*6+5] = 255;
 	      xtype._v[n*numxc+J] = recombine;
 	      xctot._v[n]        += crs;
 	      
@@ -2489,8 +2544,12 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 
 	    if (crs > 0.0) {
 	      cross._v[n*numxc+J] = crs;
-	      xspc1._v[n*numxc+J] = make_uchar3(0, 0, 255);
-	      xspc2._v[n*numxc+J] = make_uchar3(Z, C,   I);
+	      xspcs._v[(n*numxc+J)*6+0] = 0;
+	      xspcs._v[(n*numxc+J)*6+1] = 0;
+	      xspcs._v[(n*numxc+J)*6+2] = 255;
+	      xspcs._v[(n*numxc+J)*6+3] = Z;
+	      xspcs._v[(n*numxc+J)*6+4] = C;
+	      xspcs._v[(n*numxc+J)*6+5] = I;
 	      xtype._v[n*numxc+J] = recombine;
 	      xctot._v[n] += crs;
 	      
@@ -2517,8 +2576,12 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 
 	    if (crs > 0.0) {
 	      cross._v[n*numxc+J] = crs;
-	      xspc1._v[n*numxc+J] = make_uchar3(Z, C,   I);
-	      xspc2._v[n*numxc+J] = make_uchar3(0, 0, 255);
+	      xspcs._v[(n*numxc+J)*6+0] = Z;
+	      xspcs._v[(n*numxc+J)*6+1] = C;
+	      xspcs._v[(n*numxc+J)*6+2] = I;
+	      xspcs._v[(n*numxc+J)*6+3] = 0;
+	      xspcs._v[(n*numxc+J)*6+4] = 0;
+	      xspcs._v[(n*numxc+J)*6+5] = 255;
 	      xtype._v[n*numxc+J] = recombine;
 	      xctot._v[n]        += crs;
 	      
@@ -2545,8 +2608,12 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 
 	    if (crs > 0.0) {
 	      cross._v[n*numxc+J] = crs;
-	      xspc1._v[n*numxc+J] = make_uchar3(0, 0, 255);
-	      xspc2._v[n*numxc+J] = make_uchar3(Z, C,   I);
+	      xspcs._v[(n*numxc+J)*6+0] = 0;
+	      xspcs._v[(n*numxc+J)*6+1] = 0;
+	      xspcs._v[(n*numxc+J)*6+2] = 255;
+	      xspcs._v[(n*numxc+J)*6+3] = Z;
+	      xspcs._v[(n*numxc+J)*6+4] = C;
+	      xspcs._v[(n*numxc+J)*6+5] = I;
 	      xtype._v[n*numxc+J] = recombine;
 	      xctot._v[n]        += crs;
 	      
@@ -2990,8 +3057,7 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 				 dArray<curandState> randS,
 				 dArray<cuFP_t> cross,
 				 dArray<cuFP_t> delph,
-				 dArray<uchar3> xspc1,
-				 dArray<uchar3> xspc2,
+				 dArray<unsigned char>  xspcs,
 				 dArray<cudaInterTypes> xtype,
 				 dArray<cuFP_t> xctot,
 				 dArray<int>    i1,
@@ -3033,8 +3099,12 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	printf("part interactions i2: wanted %d/%d\n", i2._v[n], in._s);
       }
 
+      /*
       cudaParticle& p1    = in._v[i1._v[n]];
       cudaParticle& p2    = in._v[i2._v[n]];
+      */
+      cudaParticle  p1    = in._v[i1._v[n]];
+      cudaParticle  p2    = in._v[i2._v[n]];
       curandState*  state = &randS._v[n];
 
       // Cell position in arrays
@@ -3135,13 +3205,15 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 
 	// Atomic number and array loc for each member of the pair
 	//
-	IT.Z1 = xspc1._v[n*numxc+J].x;
-	IT.C1 = xspc1._v[n*numxc+J].y;
-	IT.I1 = xspc1._v[n*numxc+J].z;
+	unsigned char *u = &(xspcs._v[(n*numxc+J)*6]);
 
-	IT.Z2 = xspc2._v[n*numxc+J].x;
-	IT.C2 = xspc2._v[n*numxc+J].y;
-	IT.I2 = xspc2._v[n*numxc+J].z;
+	IT.Z1 = *(u+0);
+	IT.C1 = *(u+1);
+	IT.I1 = *(u+2);
+
+	IT.Z2 = *(u+3);
+	IT.C2 = *(u+4);
+	IT.I2 = *(u+5);
 
 	// Traditional ionization state (e.g. C1=1 is neutral)
 	//
@@ -3845,6 +3917,9 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 
       } // end: electron-electron
       
+      in._v[i1._v[n]] = p1;
+      in._v[i2._v[n]] = p2;
+
     } // END: interactions with atoms AND electrons
     
   } // END: stride
@@ -4084,14 +4159,13 @@ void * CollideIon::collide_thread_cuda(void * arg)
 
   thrust::device_vector<cuFP_t>         d_cross(N*totalXCsize);
   thrust::device_vector<cuFP_t>         d_delph(N*totalXCsize);
-  thrust::device_vector<uchar3>         d_xspc1(N*totalXCsize);
-  thrust::device_vector<uchar3>         d_xspc2(N*totalXCsize);
+  thrust::device_vector<unsigned char>  d_xspcs(N*totalXCsize*6);
   thrust::device_vector<cudaInterTypes> d_xtype(N*totalXCsize);
   thrust::device_vector<int>            d_flagI(flagI);
 
   crossSectionKernel<<<gridSize, BLOCK_SIZE>>>
     (toKernel(d_part),   toKernel(d_randS),
-     toKernel(d_cross),  toKernel(d_delph), toKernel(d_xspc1),  toKernel(d_xspc2),
+     toKernel(d_cross),  toKernel(d_delph), toKernel(d_xspcs),
      toKernel(d_xtype),  toKernel(d_cross),
      toKernel(d_i1),     toKernel(d_i2),     toKernel(d_cc),
      toKernel(d_Ivel2),  toKernel(d_Evel2),
@@ -4113,7 +4187,7 @@ void * CollideIon::collide_thread_cuda(void * arg)
   //
   partInteractions<<<gridSize, BLOCK_SIZE>>>
     (toKernel(d_part),   toKernel(d_randS),
-     toKernel(d_cross),  toKernel(d_delph),  toKernel(d_xspc1),  toKernel(d_xspc2),
+     toKernel(d_cross),  toKernel(d_delph),  toKernel(d_xspcs),
      toKernel(d_xtype),  toKernel(d_cross),
      toKernel(d_i1),     toKernel(d_i2),     toKernel(d_cc),    toKernel(d_selC),
      toKernel(d_PiProb), toKernel(d_ABrate), toKernel(d_flagI), 
