@@ -14165,14 +14165,15 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
       selcM = nbods * efrc * densC * dfac / PiProb[id][3];
 
-      Prob = 2.0 * ABrate[id][3] * afac*afac * eVel / PiProb[id][3] * tau * TreeDSMC::Tunit;
+      double tauE = ABrate[id][3] * afac*afac * eVel * tau * TreeDSMC::Tunit;
+      Prob = 2.0 * tauE / PiProb[id][3];
       nselM = static_cast<unsigned>(floor(selcM));
 
       Cfrac = 0.5 * nbods * (nbods-1) * Prob / selcM;
 
       tauElc[id][0] += 1;
-      tauElc[id][1] += 0.5*Prob;
-      tauElc[id][2] += 0.25*Prob*Prob;
+      tauElc[id][1] += tauE;
+      tauElc[id][2] += tauE*tauE;
       tauElc[id][3] += Cfrac;
     }
 
