@@ -1245,6 +1245,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
   for (auto & v : densE[id]) v.second *= dfac;
   densItot *= dfac;
   densEtot *= dfac;
+  densQtot *= dfac;
 
   elecDen[id] += densEtot;
   elecDn2[id] += densEtot * densEtot;
