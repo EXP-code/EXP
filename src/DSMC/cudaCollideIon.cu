@@ -1521,7 +1521,7 @@ const int maxAtomicNumber = 15;
 __constant__ cuFP_t cuda_atomic_weights[maxAtomicNumber], cuFloorEV, cuEsu;
 __constant__ cuFP_t cuVunit, cuMunit, cuTunit, cuLunit, cuEunit;
 __constant__ cuFP_t cuAmu, cuEV, cuLogL, cuCrossfac;
-__constant__ bool   cuMeanKE, cuMeanMass, cuNewRecombAlg;
+__constant__ bool   cuMeanKE, cuMeanMass, cuNewRecombAlg, cuNoCool;
 
 const int coulSelNumT = 2000;
 __constant__ cuFP_t coulSelA[coulSelNumT];
@@ -1728,6 +1728,9 @@ void CollideIon::cuda_atomic_weights_init()
 
   cuda_safe_call(cudaMemcpyToSymbol(cuNewRecombAlg, &newRecombAlg, sizeof(bool)), 
 		 __FILE__, __LINE__, "Error copying cuNewRecombAlg");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuNoCool, &NOCOOL, sizeof(bool)), 
+		 __FILE__, __LINE__, "Error copying cuNoCool");
 }  
 
 
@@ -3431,10 +3434,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
 	  if (IT.I1<255) {	// Ion is p1
 	    PE[1] += Prob;
-	    EE[1] += dE;
+	    EE[1] += dE * N0;
 	  } else {		// Ion is p2
 	    PE[2] += Prob;
-	    EE[2] += dE;
+	    EE[2] += dE * N0;
 	  }
 	}
 
@@ -3449,10 +3452,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
 	  if (IT.I1<255) {	// Ion is p1
 	    PE[1] += Prob;
-	    EE[1] += dE;
+	    EE[1] += dE * N0;
 	  } else {		// Ion is p2
 	    PE[2] += Prob;
-	    EE[2] += dE;
+	    EE[2] += dE * N0;
 	  }
 	} // END: col_excite
 
@@ -3499,7 +3502,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    }
 
 	    PE[1] += Prob;
-	    EE[1] += dE;
+	    EE[1] += dE * N0;
 	    
 	  } // END: ion-electron
 	  else {		// Ion is p2
@@ -3534,7 +3537,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    }
 
 	    PE[2] += Prob;
-	    EE[2] += dE;
+	    EE[2] += dE * N0;
 	  } // END: electron-ion
 	  
 	} // END: ionize
@@ -3594,7 +3597,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    }
 
 	    PE[1] += Prob;
-	    EE[1] += dE;
+	    EE[1] += dE * N0;
 	  } // END: ion-electron
 	  else if (IT.I2<255) {		// Ion is p2
 
@@ -3646,7 +3649,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    }
 
 	    PE[2] += Prob;
-	    EE[2] += dE;
+	    EE[2] += dE * N0;
 	  } // END: electron-ion
 	  else {
 	    int K = n*numxc+J;
@@ -3670,9 +3673,11 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       // total energy change for all interation
       //
       cuFP_t totalDE = 0.0;
-      for (int i=0; i<3; i++) {
-	EE[i] *= cuEV / cuEunit;
-	totalDE += EE[i];
+      if (not cuNoCool) {
+	for (int i=0; i<3; i++) {
+	  EE[i] *= cuEV / cuEunit;
+	  totalDE += EE[i];
+	}
       }
 
       // Normalize probabilities and sum inelastic energy changes
