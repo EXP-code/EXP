@@ -12406,7 +12406,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	} else {		// Otherwise, throw exception
 	  std::ostringstream serr;
 	  serr << "CollideIon::inelasticTrace: maxProb=" << maxSoFar
-	       << ", time step too small for photoionization";
+	       << ", time step too large for photoionization";
 	  if (myid==0) std::cout << serr.str() << std::endl << sout.str();
 	  throw std::runtime_error(serr.str());
 	}
