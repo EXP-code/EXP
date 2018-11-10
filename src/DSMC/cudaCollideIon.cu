@@ -387,10 +387,10 @@ void CollideIon::cudaElasticInit()
 
   xsc_He = resampleArray(eV_He, xs_He, dx);
 
-  cuda_safe_call(cudaMemcpyToSymbol(cuH_Emin, &eV_He[0], sizeof(cuFP_t)), 
+  cuda_safe_call(cudaMemcpyToSymbol(cuHe_Emin, &eV_He[0], sizeof(cuFP_t)), 
 		 __FILE__, __LINE__, "Error copying cuHe_Emin");
 
-  cuda_safe_call(cudaMemcpyToSymbol(cuH_H, &dx, sizeof(cuFP_t)), 
+  cuda_safe_call(cudaMemcpyToSymbol(cuHe_H, &dx, sizeof(cuFP_t)), 
 		 __FILE__, __LINE__, "Error copying cuHe_H");
 
   // Interpolated from Figure 1 of "Elastic scattering and charge
@@ -534,16 +534,6 @@ cuFP_t ionEminGrid, ionEmaxGrid, ionDeltaEGrid;
 
 __device__ __constant__
 int ionEgridNumber, ionRadRecombNumber;
-
-__global__
-void testConstantsIon()
-{
-  printf("** Egrid(min) = %f\n", ionEminGrid);
-  printf("** Egrid(max) = %f\n", ionEmaxGrid);
-  printf("** Egrid(del) = %f\n", ionDeltaEGrid);
-  printf("** Egrid(num) = %d\n", ionEgridNumber);
-  printf("** Rgrid(num) = %d\n", ionRadRecombNumber);
-}
 
 void chdata::cuda_initialize_textures()
 {
@@ -1537,6 +1527,25 @@ const int coulSelNumT = 2000;
 __constant__ cuFP_t coulSelA[coulSelNumT];
 __constant__ cuFP_t coulSelTau_i, coulSelTau_f, coulSelTau_z, coulSelDel;
 
+__global__
+void testConstantsIon(int idev)
+{
+  printf("** ------------------------------------\n");
+  printf("** Ion constants [%d]\n", idev            );
+  printf("** ------------------------------------\n");
+  printf("** Lunit      = %f\n", cuLunit            );
+  printf("** Tunit      = %f\n", cuTunit            );
+  printf("** Vunit      = %f\n", cuVunit            );
+  printf("** Munit      = %f\n", cuMunit            );
+  printf("** Eunit      = %f\n", cuEunit            );
+  printf("** Egrid(min) = %f\n", ionEminGrid        );
+  printf("** Egrid(max) = %f\n", ionEmaxGrid        );
+  printf("** Egrid(del) = %f\n", ionDeltaEGrid      );
+  printf("** Egrid(num) = %d\n", ionEgridNumber     );
+  printf("** Rgrid(num) = %d\n", ionRadRecombNumber );
+  printf("** ------------------------------------\n");
+}
+
 // Coulombic algorithm initialization
 //
 double cuCA_f(double x)
@@ -1647,6 +1656,11 @@ void CollideIon::cuda_initialize()
 		 __FILE__, __LINE__, "Error copying coulSelA");
 
   cuda_atomic_weights_init();
+
+  // For debugging only
+  //
+  testConstantsIon<<<1, 1>>>(c0->cudaDevice);
+
 }
 
 
@@ -1875,12 +1889,14 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
       cuFP_t tot_pairs =  dens * nbods / molPP * 
 	(1.0/PiProb._v[c*4+0] + 1.0/PiProb._v[c*4+1] + 1.0/PiProb._v[c*4+2]);
       // cuFP_t Prob = dens * cuMunit/cuAmu * sqrt(Ivel2._v[c]) * tauC._v[c];
-      cuFP_t Prob = dens * sqrt(Ivel2._v[c]) * tauC._v[c];
+      cuFP_t Prob = massP/volC._v[c] * sqrt(Ivel2._v[c]) * tauC._v[c];
 
       if (isnan(Prob) or isnan(tot_pairs) or tot_pairs<=0.0) {
 	printf("tot_pairs=%f dens=%f nbods=%d molPP=%f\n",
 	       tot_pairs, dens, nbods, molPP);
       }
+
+      tot_pairs = 0.5*(0.5 + nbods);
 
       selC._v[c] = Prob/tot_pairs;
 
@@ -1890,29 +1906,29 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
 
 }
 
-__global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle array
-				   dArray<curandState> randS,	  // Cuda random number objects
-				   dArray<cuFP_t> cross,	  // Cross section for each interaction
-				   dArray<cuFP_t> delph,	  // Inelastic energy change for each interaction
+__global__ void crossSectionKernel(dArray<cudaParticle>   in,     // Particle array
+				   dArray<curandState>    randS,  // Cuda random number objects
+				   dArray<cuFP_t>         cross,  // Cross section for each interaction
+				   dArray<cuFP_t>         delph,  // Inelastic energy change for each interaction
 				   dArray<unsigned char>  xspcs,  // Ionization state for each interaction
 				   dArray<cudaInterTypes> xtype,  // Interaction type for each interaction
-				   dArray<cuFP_t> xctot,	  // Total cross section per cell
-				   dArray<int>    i1,		  // Location of first particle in pair
-				   dArray<int>    i2,		  // Location of second particle in pair
-				   dArray<int>    cc,		  // Cell id each pair in i1 and i2
-				   dArray<cuFP_t> Ivel2,
-				   dArray<cuFP_t> Evel2,
-				   dArray<cuFP_t> PiProb,
-				   dArray<cuFP_t> ABrate,
-				   dArray<int>    flagI, 
-				   dArray<cuFP_t> xsc_H,
-				   dArray<cuFP_t> xsc_He,
-				   dArray<cuFP_t> xsc_pH,
-				   dArray<cuFP_t> xsc_pHe,
-				   dArray<cuIonElement> elems,
-				   int numxc,                      // Number of possible cross sections
-				   int epos,			   // Position of electron velocity in datr
-				   unsigned int stride)
+				   dArray<cuFP_t>         xctot,  // Total cross section per pair
+				   dArray<int>            i1,     // Location of first particle in pair
+				   dArray<int>            i2,	  // Location of second particle in pair
+				   dArray<int>            cc,     // Cell id each pair in i1 and i2
+				   dArray<cuFP_t>         Ivel2,
+				   dArray<cuFP_t>         Evel2,
+				   dArray<cuFP_t>         PiProb,
+				   dArray<cuFP_t>         ABrate,
+				   dArray<int>            flagI, 
+				   dArray<cuFP_t>         xsc_H,
+				   dArray<cuFP_t>         xsc_He,
+				   dArray<cuFP_t>         xsc_pH,
+				   dArray<cuFP_t>         xsc_pHe,
+				   dArray<cuIonElement>   elems,
+				   int                    numxc,   // Number of possible cross sections
+				   int                    epos,    // Position of electron velocity in datr
+				   unsigned int           stride)
 {
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
   const int Nsp = elems._s;
@@ -1946,9 +1962,11 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 
       cuFP_t Eta1=0.0, Eta2=0.0, Mu1=0.0, Mu2=0.0, Sum1=0.0, Sum2=0.0;
 
-      xctot._v[n] = 0.0;	// Total cross section accumulator
+      xctot._v[n] = 0.0;	// Total cross section accumulator per pair
 
-      int J = 0;		// Cross section position counter
+				// Cross section position counter
+      int K = n*numxc;		// Pair array location
+      int L = K*6;		// xspc array location
 
       for (int k=0; k<Nsp; k++) {
 	cuIonElement& E = elems._v[k];
@@ -2093,24 +2111,26 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	    
 	    // Geometric cross sections based on
 	    // atomic radius
-	    cuFP_t crs = (cudaGeometric(Z) + cudaGeometric(ZZ)) * cfac;
+	    cuFP_t crs = (cudaGeometric(Z) + cudaGeometric(ZZ)) * cfac * cuCrossfac;
 	
 	    if (crs>0.0) {
 
 	      // Double counting
 	      if (Z == ZZ) crs *= 0.5;
 
-	      cross._v[n*numxc+J] = crs*cuCrossfac;
-	      xspcs._v[(n*numxc+J)+0] = Z;
-	      xspcs._v[(n*numxc+J)+1] = C;
-	      xspcs._v[(n*numxc+J)+2] = I;
-	      xspcs._v[(n*numxc+J)+3] = ZZ;
-	      xspcs._v[(n*numxc+J)+4] = CC;
-	      xspcs._v[(n*numxc+J)+5] = II;
-	      xtype._v[n*numxc+J] = neut_neut;
-	      xctot._v[n]        += crs*cuCrossfac;
+	      cross._v[K]   = crs;
+	      xspcs._v[L+0] = Z;
+	      xspcs._v[L+1] = C;
+	      xspcs._v[L+2] = I;
+	      xspcs._v[L+3] = ZZ;
+	      xspcs._v[L+4] = CC;
+	      xspcs._v[L+5] = II;
+	      xtype._v[K]   = neut_neut;
+	      xctot._v[n]  += crs;
 	      
-	      J++;		// Increment interaction counter
+	      // Increment interaction counter
+	      K++;
+	      L = K*6;
 	    }
 	  }
 
@@ -2124,9 +2144,9 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	  //
 	  if (ZZ==1 and CC==2) {
 	    // Particle 1 is neutral hydrogen
-	    if (Z==1 and P==0) crs1 = cudaElasticInterp(log10(kEi), cuPH_Emin,  cuH_H,   xsc_pH );
+	    if (Z==1 and P==0) crs1 = cudaElasticInterp(log10(kEi/cuEV), cuPH_Emin,  cuH_H,   xsc_pH );
 	    // Particle 1 is neutral helium
-	    if (Z==2 and P==0) crs1 = cudaElasticInterp(log10(kEi), cuPHe_Emin, cuPHe_H, xsc_pHe);
+	    if (Z==2 and P==0) crs1 = cudaElasticInterp(log10(kEi/cuEV), cuPHe_Emin, cuPHe_H, xsc_pHe);
 	    crs1 *= cuCrossfac * cfac;
 	  }
 	  
@@ -2134,24 +2154,25 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	  //
 	  if (Z==1 and C==2) {
 	    // Particle 2 is neutral hydrogen
-	    if (ZZ==1 and PP==0) crs1 = cudaElasticInterp(log10(kEi), cuPH_Emin,  cuPH_H,  xsc_pH );
+	    if (ZZ==1 and PP==0) crs1 = cudaElasticInterp(log10(kEi/cuEV), cuPH_Emin,  cuPH_H,  xsc_pH );
 	    // Particle 2 is neutral helium
-	    if (ZZ==2 and PP==0) crs1 = cudaElasticInterp(log10(kEi), cuPHe_Emin, cuPHe_H, xsc_pHe);
+	    if (ZZ==2 and PP==0) crs1 = cudaElasticInterp(log10(kEi/cuEV), cuPHe_Emin, cuPHe_H, xsc_pHe);
 	    crs1 *= cuCrossfac * cfac;
 	  }
 
 	  if (crs1>0.0) {
-	    cross._v[n*numxc+J] = crs1;
-	    xspcs._v[(n*numxc+J)*6+0] = Z;
-	    xspcs._v[(n*numxc+J)*6+1] = C;
-	    xspcs._v[(n*numxc+J)*6+2] = I;
-	    xspcs._v[(n*numxc+J)*6+3] = ZZ;
-	    xspcs._v[(n*numxc+J)*6+4] = CC;
-	    xspcs._v[(n*numxc+J)*6+5] = II;
-	    xtype._v[n*numxc+J] = neut_prot;
-	    xctot._v[n]        += crs1;
+	    cross._v[K]   = crs1;
+	    xspcs._v[L+0] = Z;
+	    xspcs._v[L+1] = C;
+	    xspcs._v[L+2] = I;
+	    xspcs._v[L+3] = ZZ;
+	    xspcs._v[L+4] = CC;
+	    xspcs._v[L+5] = II;
+	    xtype._v[K]   = neut_prot;
+	    xctot._v[n]  += crs1;
 	    
-	    J++;
+	    K++;
+	    L = K*6;
 	  }
 
 	  // --------------------------------------
@@ -2159,24 +2180,24 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	  // --------------------------------------
 	  //
 	  if (P>0 and PP>0) {
-	    cuFP_t kEc  = cuMeanKE ? Eion : kEi;
-	    kEc = 2.0*kEc > cuFloorEV ? 2.0*kEc*cuEV : cuFloorEV*cuEV;
-	    cuFP_t afac = cuEsu*cuEsu/kEc * 1.0e7;
+	    cuFP_t kEc  = cuMeanKE ? Eion : kEi/cuEV;
+	    kEc = 2.0*kEc > cuFloorEV ? 2.0*kEc : cuFloorEV;
+	    cuFP_t afac = cuEsu*cuEsu/(kEc*cuEV) * 1.0e7;
 	    cuFP_t crs  = 2.0 * ABrate._v[cid*4+0] * afac*afac / PiProb._v[cid*4+0] * cfac;
 
 	    if (cfac>0.0) {
-
-	      cross._v[n*numxc+J] = crs;
-	      xspcs._v[(n*numxc+J)*6+0] = Z;
-	      xspcs._v[(n*numxc+J)*6+1] = C;
-	      xspcs._v[(n*numxc+J)*6+2] = I;
-	      xspcs._v[(n*numxc+J)*6+3] = ZZ;
-	      xspcs._v[(n*numxc+J)*6+4] = CC;
-	      xspcs._v[(n*numxc+J)*6+5] = II;
-	      xtype._v[n*numxc+J] = ion_ion;
-	      xctot._v[n]        += crs;
+	      cross._v[K]   = crs;
+	      xspcs._v[L+0] = Z;
+	      xspcs._v[L+1] = C;
+	      xspcs._v[L+2] = I;
+	      xspcs._v[L+3] = ZZ;
+	      xspcs._v[L+4] = CC;
+	      xspcs._v[L+5] = II;
+	      xtype._v[K]   = ion_ion;
+	      xctot._v[n]  += crs;
 	      
-	      J++;
+	      K++;
+	      L = K*6;
 	    }
 	  }
 
@@ -2193,25 +2214,26 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 
 	  // Hydrogen
 	  //
-	  if (Z==1) crs = cudaElasticInterp(kEe1, cuH_Emin, cuH_H, xsc_H) * gVel2 * Eta2 *
+	  if (Z==1) crs = cudaElasticInterp(kEe1/cuEV, cuH_Emin, cuH_H, xsc_H) * gVel2 * Eta2 *
 		      cuCrossfac * fac1;
 	  // Helium
 	  //
-	  if (Z==2) crs = cudaElasticInterp(kEe1, cuHe_Emin, cuHe_H, xsc_He) * gVel2 * Eta2 *
+	  if (Z==2) crs = cudaElasticInterp(kEe1/cuEV, cuHe_Emin, cuHe_H, xsc_He) * gVel2 * Eta2 *
 		      cuCrossfac * fac1;
 
 	  if (crs>0.0) {
-	    cross._v[n*numxc+J] = crs;
-	    xspcs._v[(n*numxc+J)*6+0] = Z;
-	    xspcs._v[(n*numxc+J)*6+1] = C;
-	    xspcs._v[(n*numxc+J)*6+2] = I;
-	    xspcs._v[(n*numxc+J)*6+3] = 0;
-	    xspcs._v[(n*numxc+J)*6+4] = 0;
-	    xspcs._v[(n*numxc+J)*6+5] = 255;
-	    xtype._v[n*numxc+J] = neut_elec;
-	    xctot._v[n]        += crs;
+	    cross._v[K]   = crs;
+	    xspcs._v[L+0] = Z;
+	    xspcs._v[L+1] = C;
+	    xspcs._v[L+2] = I;
+	    xspcs._v[L+3] = 0;
+	    xspcs._v[L+4] = 0;
+	    xspcs._v[L+5] = 255;
+	    xtype._v[K]   = neut_elec;
+	    xctot._v[n]  += crs;
 	    
-	    J++;
+	    K++;
+	    L = K*6;
 	  }
 	}
 
@@ -2231,17 +2253,18 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 		      cuCrossfac * fac1;
 
 	  if (crs>0.0) {
-	    cross._v[n*numxc+J] = crs;
-	    xspcs._v[(n*numxc+J)*6+0] = 0;
-	    xspcs._v[(n*numxc+J)*6+1] = 0;
-	    xspcs._v[(n*numxc+J)*6+2] = 255;
-	    xspcs._v[(n*numxc+J)*6+3] = Z;
-	    xspcs._v[(n*numxc+J)*6+4] = C;
-	    xspcs._v[(n*numxc+J)*6+5] = I;
-	    xtype._v[n*numxc+J] = neut_elec;
-	    xctot._v[n]        += crs;
+	    cross._v[K]   = crs;
+	    xspcs._v[L+0] = 0;
+	    xspcs._v[L+1] = 0;
+	    xspcs._v[L+2] = 255;
+	    xspcs._v[L+3] = Z;
+	    xspcs._v[L+4] = C;
+	    xspcs._v[L+5] = I;
+	    xtype._v[K]   = neut_elec;
+	    xctot._v[n]  += crs;
 	    
-	    J++;
+	    K++;
+	    L = K*6;
 	  }
 	}
 
@@ -2253,46 +2276,48 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	  // Particle 1 ION, Particle 2 ELECTRON
 	  cuFP_t crs  = 0.0;
 
-	  cuFP_t kEc  = cuMeanKE ? Eelc : kEe1;
-	  kEc = 2.0*kEc > cuFloorEV ? 2.0*kEc*cuEV : cuFloorEV*cuEV;
-	  cuFP_t afac = cuEsu*cuEsu/kEc * 1.0e7;
+	  cuFP_t kEc  = cuMeanKE ? Eelc : kEe1/cuEV;
+	  kEc = 2.0*kEc > cuFloorEV ? 2.0*kEc : cuFloorEV;
+	  cuFP_t afac = cuEsu*cuEsu/(kEc*cuEV) * 1.0e7;
 	    
 	  crs = 2.0 * ABrate._v[cid*4+1] * afac*afac * gVel2 / PiProb._v[cid*4+1];
 	  
 	  if (fac1*Eta2 > 0.0) {
 
-	    cross._v[n*numxc+J] = crs;
-	    xspcs._v[(n*numxc+J)*6+0] = Z;
-	    xspcs._v[(n*numxc+J)*6+1] = C;
-	    xspcs._v[(n*numxc+J)*6+2] = I;
-	    xspcs._v[(n*numxc+J)*6+3] = 0;
-	    xspcs._v[(n*numxc+J)*6+4] = 0;
-	    xspcs._v[(n*numxc+J)*6+5] = 255;
-	    xtype._v[n*numxc+J] = ion_elec;
-	    xctot._v[n]        += crs;
+	    cross._v[K]   = crs;
+	    xspcs._v[L+0] = Z;
+	    xspcs._v[L+1] = C;
+	    xspcs._v[L+2] = I;
+	    xspcs._v[L+3] = 0;
+	    xspcs._v[L+4] = 0;
+	    xspcs._v[L+5] = 255;
+	    xtype._v[K]   = ion_elec;
+	    xctot._v[n]  += crs;
 	    
-	    J++;
+	    K++;
+	    L = K*6;
 	  }
 	  
 	  // Particle 2 ION, Particle 1 ELECTRON
 	  crs  = 0.0;
-	  kEc  = cuMeanKE ? Eelc : kEe2;
+	  kEc  = cuMeanKE ? Eelc : kEe2/cuEV;
 	  afac = cuEsu*cuEsu/(2.0*kEc > cuFloorEV ? 2.0*kEc : cuFloorEV) * cuEV * 1.0e7;
 
 	  crs = 2.0 * ABrate._v[cid*4+2] * afac*afac * gVel1 / PiProb._v[cid*4+2];
 
 	  if (fac2*Eta1 > 0.0) {
-	    cross._v[n*numxc+J] = crs;
-	    xspcs._v[(n*numxc+J)*6+0] = 0;
-	    xspcs._v[(n*numxc+J)*6+1] = 0;
-	    xspcs._v[(n*numxc+J)*6+2] = 255;
-	    xspcs._v[(n*numxc+J)*6+3] = Z;
-	    xspcs._v[(n*numxc+J)*6+4] = C;
-	    xspcs._v[(n*numxc+J)*6+5] = I;
-	    xtype._v[n*numxc+J] = ion_elec;
-	    xctot._v[n]        += crs;
+	    cross._v[K]   = crs;
+	    xspcs._v[L+0] = 0;
+	    xspcs._v[L+1] = 0;
+	    xspcs._v[L+2] = 255;
+	    xspcs._v[L+3] = Z;
+	    xspcs._v[L+4] = C;
+	    xspcs._v[L+5] = I;
+	    xtype._v[K]   = ion_elec;
+	    xctot._v[n]  += crs;
 	  
-	    J++;
+	    K++;
+	    L = K*6;
 	  }
 	} // end: ion-electron scattering
 
@@ -2304,7 +2329,7 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	if (Eta1>0.0 and Eta2>0.0) {
 
 	  // Particle 1 ION, Particle 2 ELECTRON
-	  cuFP_t ke = kEe1 > cuFloorEV ? kEe1 : cuFloorEV, ff, ph;
+	  cuFP_t ke = kEe1/cuEV > cuFloorEV ? kEe1/cuEV : cuFloorEV, ff, ph;
 	  cuFP_t rn;
 #if cuREAL == 4
 	  rn = curand_uniform(&randS._v[n]);
@@ -2317,22 +2342,23 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	
 	  if (crs>0.0) {
 
-	    cross._v[n*numxc+J] = crs;
-	    delph._v[n*numxc+J] = ph;
-	    xspcs._v[(n*numxc+J)*6+0] = Z;
-	    xspcs._v[(n*numxc+J)*6+1] = C;
-	    xspcs._v[(n*numxc+J)*6+2] = I;
-	    xspcs._v[(n*numxc+J)*6+3] = 0;
-	    xspcs._v[(n*numxc+J)*6+4] = 0;
-	    xspcs._v[(n*numxc+J)*6+5] = 255;
-	    xtype._v[n*numxc+J] = free_free;
-	    xctot._v[n]        += crs;
+	    cross._v[K]   = crs;
+	    delph._v[K]   = ph;
+	    xspcs._v[L+0] = Z;
+	    xspcs._v[L+1] = C;
+	    xspcs._v[L+2] = I;
+	    xspcs._v[L+3] = 0;
+	    xspcs._v[L+4] = 0;
+	    xspcs._v[L+5] = 255;
+	    xtype._v[K]   = free_free;
+	    xctot._v[n]  += crs;
 	  
-	    J++;
+	    K++;
+	    L = K*6;
 	  }
 
 	  // Particle 2 ION, Particle 1 ELECTRON
-	  ke = kEe2 > cuFloorEV ? kEe2 : cuFloorEV;
+	  ke = kEe2/cuEV > cuFloorEV ? kEe2/cuEV : cuFloorEV;
 
 #if cuREAL == 4
 	  rn = curand_uniform(&randS._v[n]);
@@ -2345,18 +2371,19 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	  
 	  if (crs>0.0) {
 
-	    cross._v[n*numxc+J] = crs;
-	    delph._v[n*numxc+J] = ph;
-	    xspcs._v[(n*numxc+J)*6+0] = 0;
-	    xspcs._v[(n*numxc+J)*6+1] = 0;
-	    xspcs._v[(n*numxc+J)*6+2] = 255;
-	    xspcs._v[(n*numxc+J)*6+3] = Z;
-	    xspcs._v[(n*numxc+J)*6+4] = C;
-	    xspcs._v[(n*numxc+J)*6+5] = I;
-	    xtype._v[n*numxc+J] = free_free;
-	    xctot._v[n]        += crs;
+	    cross._v[K]   = crs;
+	    delph._v[K]   = ph;
+	    xspcs._v[L+0] = 0;
+	    xspcs._v[L+1] = 0;
+	    xspcs._v[L+2] = 255;
+	    xspcs._v[L+3] = Z;
+	    xspcs._v[L+4] = C;
+	    xspcs._v[L+5] = I;
+	    xtype._v[K]   = free_free;
+	    xctot._v[n]  += crs;
 	  
-	    J++;
+	    K++;
+	    L = K*6;
 	  }
 	}
 	// end: free-free 
@@ -2373,24 +2400,25 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	//  |       |
 	//  V       V
 	if (P<Z and Eta2>0.0) {
-	  cuFP_t ke = kEe1 > cuFloorEV ? kEe1 : cuFloorEV, ph, xc;
+	  cuFP_t ke = kEe1/cuEV > cuFloorEV ? kEe1/cuEV : cuFloorEV, ph, xc;
 	  computeColExcite(ke, ph, xc, elem);
 
 	  cuFP_t crs = gVel2 * Eta2 * xc * fac1;
       
 	  if (crs > 0.0) {
-	    cross._v[n*numxc+J] = crs;
-	    delph._v[n*numxc+J] = ph;
-	    xspcs._v[(n*numxc+J)*6+0] = Z;
-	    xspcs._v[(n*numxc+J)*6+1] = C;
-	    xspcs._v[(n*numxc+J)*6+2] = I;
-	    xspcs._v[(n*numxc+J)*6+3] = 0;
-	    xspcs._v[(n*numxc+J)*6+4] = 0;
-	    xspcs._v[(n*numxc+J)*6+5] = 255;
-	    xtype._v[n*numxc+J] = col_excite;
-	    xctot._v[n]        += crs;
+	    cross._v[K]   = crs;
+	    delph._v[K]   = ph;
+	    xspcs._v[L+0] = Z;
+	    xspcs._v[L+1] = C;
+	    xspcs._v[L+2] = I;
+	    xspcs._v[L+3] = 0;
+	    xspcs._v[L+4] = 0;
+	    xspcs._v[L+5] = 255;
+	    xtype._v[K]   = col_excite;
+	    xctot._v[n]  += crs;
 	  
-	    J++;
+	    K++;
+	    L = K*6;
 	  }
 	}
 
@@ -2404,24 +2432,25 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	//  V       V
 	if (P<Z and Eta1>0) {
 
-	  cuFP_t ke = kEe2 > cuFloorEV ? kEe2 : cuFloorEV, ph, xc;
+	  cuFP_t ke = kEe2/cuEV > cuFloorEV ? kEe2/cuEV : cuFloorEV, ph, xc;
 	  computeColExcite(ke, ph, xc, elem);
 
 	  cuFP_t crs = gVel1 * Eta1 * xc * fac2;
       
 	  if (crs > 0.0) {
-	    cross._v[n*numxc+J] = crs;
-	    delph._v[n*numxc+J] = ph;
-	    xspcs._v[(n*numxc+J)*6+0] = 0;
-	    xspcs._v[(n*numxc+J)*6+1] = 0;
-	    xspcs._v[(n*numxc+J)*6+2] = 255;
-	    xspcs._v[(n*numxc+J)*6+3] = Z;
-	    xspcs._v[(n*numxc+J)*6+4] = C;
-	    xspcs._v[(n*numxc+J)*6+5] = I;
-	    xtype._v[n*numxc+J] = col_excite;
-	    xctot._v[n]        += crs;
+	    cross._v[K]   = crs;
+	    delph._v[K]   = ph;
+	    xspcs._v[L+0] = 0;
+	    xspcs._v[L+1] = 0;
+	    xspcs._v[L+2] = 255;
+	    xspcs._v[L+3] = Z;
+	    xspcs._v[L+4] = C;
+	    xspcs._v[L+5] = I;
+	    xtype._v[K]   = col_excite;
+	    xctot._v[n]  += crs;
 	  
-	    J++;
+	    K++;
+	    L = K*6;
 	  }
 	}	  
 	// end: colexcite
@@ -2439,23 +2468,24 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	//  V       V
 	if (P<Z and Eta2>0) {
       
-	  cuFP_t ke = kEe1 > cuFloorEV ? kEe1 : cuFloorEV, xc;
+	  cuFP_t ke = kEe1/cuEV > cuFloorEV ? kEe1/cuEV : cuFloorEV, xc;
 	  computeColIonize(ke, xc, elem);
 
 	  cuFP_t crs = gVel2 * Eta2 * xc * fac1;
       
 	  if (crs > 0.0) {
-	    cross._v[n*numxc+J] = crs;
-	    xspcs._v[(n*numxc+J)*6+0] = Z;
-	    xspcs._v[(n*numxc+J)*6+1] = C;
-	    xspcs._v[(n*numxc+J)*6+2] = I;
-	    xspcs._v[(n*numxc+J)*6+3] = 0;
-	    xspcs._v[(n*numxc+J)*6+4] = 0;
-	    xspcs._v[(n*numxc+J)*6+5] = 255;
-	    xtype._v[n*numxc+J] = col_ionize;
-	    xctot._v[n]        += crs;
+	    cross._v[K]   = crs;
+	    xspcs._v[L+0] = Z;
+	    xspcs._v[L+1] = C;
+	    xspcs._v[L+2] = I;
+	    xspcs._v[L+3] = 0;
+	    xspcs._v[L+4] = 0;
+	    xspcs._v[L+5] = 255;
+	    xtype._v[K]   = col_ionize;
+	    xctot._v[n]  += crs;
 	  
-	    J++;
+	    K++;
+	    L = K*6;
 	  }
 	}
     
@@ -2468,23 +2498,24 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	//  V       V
 	if (P<Z and Eta1) {
 	  
-	  cuFP_t ke = kEe2 > cuFloorEV ? kEe2 : cuFloorEV, xc;
+	  cuFP_t ke = kEe2/cuEV > cuFloorEV ? kEe2/cuEV : cuFloorEV, xc;
 	  computeColIonize(ke, xc, elem);
 
 	  cuFP_t crs = gVel1 * Eta1 * xc * fac2;
       
 	  if (crs > 0.0) {
-	    cross._v[n*numxc+J] = crs;
-	    xspcs._v[(n*numxc+J)*6+0] = 0;
-	    xspcs._v[(n*numxc+J)*6+1] = 0;
-	    xspcs._v[(n*numxc+J)*6+2] = 255;
-	    xspcs._v[(n*numxc+J)*6+3] = Z;
-	    xspcs._v[(n*numxc+J)*6+4] = C;
-	    xspcs._v[(n*numxc+J)*6+5] = I;
-	    xtype._v[n*numxc+J] = col_ionize;
-	    xctot._v[n]        += crs;
+	    cross._v[K]   = crs;
+	    xspcs._v[L+0] = 0;
+	    xspcs._v[L+1] = 0;
+	    xspcs._v[L+2] = 255;
+	    xspcs._v[L+3] = Z;
+	    xspcs._v[L+4] = C;
+	    xspcs._v[L+5] = I;
+	    xtype._v[K]   = col_ionize;
+	    xctot._v[n]  += crs;
 	  
-	    J++;
+	    K++;
+	    L = K*6;
 	  }
 	}
 	// end: ionize
@@ -2505,7 +2536,8 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	  //  |
 	  //  v
 	  if (P>0) {
-	    cuFP_t ke = kEe1 > cuFloorEV ? kEe1 : cuFloorEV, xc;
+
+	    cuFP_t ke = kEe1/cuEV > cuFloorEV ? kEe1/cuEV : cuFloorEV, xc;
 	    computeRadRecomb(ke, xc, elem);
 	    
 	    cuFP_t crs = Eta1 * xc * fac1;
@@ -2514,17 +2546,18 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	    else            crs *= sVel1;
 
 	    if (crs > 0.0) {
-	      cross._v[n*numxc+J] = crs;
-	      xspcs._v[(n*numxc+J)*6+0] = Z;
-	      xspcs._v[(n*numxc+J)*6+1] = C;
-	      xspcs._v[(n*numxc+J)*6+2] = I;
-	      xspcs._v[(n*numxc+J)*6+3] = 0;
-	      xspcs._v[(n*numxc+J)*6+4] = 0;
-	      xspcs._v[(n*numxc+J)*6+5] = 255;
-	      xtype._v[n*numxc+J] = recombine;
-	      xctot._v[n]        += crs;
+	      cross._v[K]   = crs;
+	      xspcs._v[L+0] = Z;
+	      xspcs._v[L+1] = C;
+	      xspcs._v[L+2] = I;
+	      xspcs._v[L+3] = 0;
+	      xspcs._v[L+4] = 0;
+	      xspcs._v[L+5] = 255;
+	      xtype._v[K]   = recombine;
+	      xctot._v[n]  += crs;
 	      
-	      J++;
+	      K++;
+	      L = K*6;
 	    }
 	  }
       
@@ -2534,7 +2567,8 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	  //  |
 	  //  v
 	  if (P>0) {
-	    cuFP_t ke = kEe2 > cuFloorEV ? kEe2 : cuFloorEV, xc;
+
+	    cuFP_t ke = kEe2/cuEV > cuFloorEV ? kEe2/cuEV : cuFloorEV, xc;
 	    computeRadRecomb(ke, xc, elem);
 	    
 	    cuFP_t crs = Eta2 * xc * fac2;
@@ -2543,17 +2577,18 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	    else            crs *= sVel2;
 
 	    if (crs > 0.0) {
-	      cross._v[n*numxc+J] = crs;
-	      xspcs._v[(n*numxc+J)*6+0] = 0;
-	      xspcs._v[(n*numxc+J)*6+1] = 0;
-	      xspcs._v[(n*numxc+J)*6+2] = 255;
-	      xspcs._v[(n*numxc+J)*6+3] = Z;
-	      xspcs._v[(n*numxc+J)*6+4] = C;
-	      xspcs._v[(n*numxc+J)*6+5] = I;
-	      xtype._v[n*numxc+J] = recombine;
-	      xctot._v[n] += crs;
+	      cross._v[K]   = crs;
+	      xspcs._v[L+0] = 0;
+	      xspcs._v[L+1] = 0;
+	      xspcs._v[L+2] = 255;
+	      xspcs._v[L+3] = Z;
+	      xspcs._v[L+4] = C;
+	      xspcs._v[L+5] = I;
+	      xtype._v[K]   = recombine;
+	      xctot._v[n]  += crs;
 	      
-	      J++;
+	      K++;
+	      L = K*6;
 	    }
 	  }
 	} // end: new recomb algorithm
@@ -2566,26 +2601,28 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	  //  |       |
 	  //  V       V
 	  if (P>0 and Eta2>0.0) {
-	    cuFP_t ke = kEe1 > cuFloorEV ? kEe1 : cuFloorEV, xc;
+
+	    cuFP_t ke = kEe1/cuEV > cuFloorEV ? kEe1/cuEV : cuFloorEV, xc;
 	    computeRadRecomb(ke, xc, elem);
-	    
+
 	    cuFP_t crs = Eta2 * xc * fac1;
 
 	    if (cuMeanMass) crs *= gVel2;
 	    else            crs *= sVel2;
 
 	    if (crs > 0.0) {
-	      cross._v[n*numxc+J] = crs;
-	      xspcs._v[(n*numxc+J)*6+0] = Z;
-	      xspcs._v[(n*numxc+J)*6+1] = C;
-	      xspcs._v[(n*numxc+J)*6+2] = I;
-	      xspcs._v[(n*numxc+J)*6+3] = 0;
-	      xspcs._v[(n*numxc+J)*6+4] = 0;
-	      xspcs._v[(n*numxc+J)*6+5] = 255;
-	      xtype._v[n*numxc+J] = recombine;
-	      xctot._v[n]        += crs;
+	      cross._v[K]   = crs;
+	      xspcs._v[L+0] = Z;
+	      xspcs._v[L+1] = C;
+	      xspcs._v[L+2] = I;
+	      xspcs._v[L+3] = 0;
+	      xspcs._v[L+4] = 0;
+	      xspcs._v[L+5] = 255;
+	      xtype._v[K]   = recombine;
+	      xctot._v[n]  += crs;
 	      
-	      J++;
+	      K++;
+	      L = K*6;
 	    }
 	  }
 
@@ -2598,7 +2635,7 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	  //  V       V
 	  if (P>0 and Eta1>0.0) {
 
-	    cuFP_t ke = kEe2 > cuFloorEV ? kEe2 : cuFloorEV, xc;
+	    cuFP_t ke = kEe2/cuEV > cuFloorEV ? kEe2/cuEV : cuFloorEV, xc;
 	    computeRadRecomb(ke, xc, elem);
 	    
 	    cuFP_t crs = Eta1 * xc * fac2;
@@ -2607,28 +2644,113 @@ __global__ void crossSectionKernel(dArray<cudaParticle> in,       // Particle ar
 	    else            crs *= sVel1;
 
 	    if (crs > 0.0) {
-	      cross._v[n*numxc+J] = crs;
-	      xspcs._v[(n*numxc+J)*6+0] = 0;
-	      xspcs._v[(n*numxc+J)*6+1] = 0;
-	      xspcs._v[(n*numxc+J)*6+2] = 255;
-	      xspcs._v[(n*numxc+J)*6+3] = Z;
-	      xspcs._v[(n*numxc+J)*6+4] = C;
-	      xspcs._v[(n*numxc+J)*6+5] = I;
-	      xtype._v[n*numxc+J] = recombine;
-	      xctot._v[n]        += crs;
+	      cross._v[K]   = crs;
+	      xspcs._v[L+0] = 0;
+	      xspcs._v[L+1] = 0;
+	      xspcs._v[L+2] = 255;
+	      xspcs._v[L+3] = Z;
+	      xspcs._v[L+4] = C;
+	      xspcs._v[L+5] = I;
+	      xtype._v[K]   = recombine;
+	      xctot._v[n]  += crs;
 	      
-	      J++;
+	      K++;
+	      L = K*6;
 	    }
 	  }
 	} // end: original recomb algorithm
       
       } // end: outer ionization state loop
 
+      // CHECK
+      if (K-numxc*n>=numxc) {
+	printf("Crazy spec count: J=%d > numxc=%d\n", K-n*numxc, numxc);
+      }
+      cuFP_t test = 0.0;
+      for (int j=0; j<numxc; j++) {
+	K = n*numxc+j;
+	L = K*6;
+	auto T = xtype._v[K];
+	if (T == nothing) break;
+	test += cross._v[K];
+	if (T == recombine) {	// Electron-Ion
+	  if (xspcs._v[L+2] == 255) {
+	    if (xspcs._v[L+4] < 2) {
+	      printf("Recombine crazy logic [e-i]: [%d %d %d] [%d %d %d] j=%d J=%d/%d\n",
+		     xspcs._v[L+0],
+		     xspcs._v[L+1],
+		     xspcs._v[L+2],
+		     xspcs._v[L+3],
+		     xspcs._v[L+4],
+		     xspcs._v[L+5], j, K-n*numxc, numxc);
+	    }
+	  } 
+	  else if (xspcs._v[L+5] == 255) {
+				// Ion-Electron
+	    if (xspcs._v[L+1] < 2) {
+	      printf("Recombine crazy logic [i-e]: [%d %d %d] [%d %d %d] j=%d J=%d/%d\n",
+		     xspcs._v[L+0],
+		     xspcs._v[L+1],
+		     xspcs._v[L+2],
+		     xspcs._v[L+3],
+		     xspcs._v[L+4],
+		     xspcs._v[L+5], j, K-n*numxc, numxc);
+	    }
+	  } else {		// Ion-Ion
+	    printf("Recombine crazy logic [i-i]: [%d %d %d] [%d %d %d] j=%d J=%d/%d T=%d\n",
+		   xspcs._v[L+0],
+		   xspcs._v[L+1],
+		   xspcs._v[L+2],
+		   xspcs._v[L+3],
+		   xspcs._v[L+4],
+		   xspcs._v[L+5], j, K-n*numxc, numxc, T);
+	  }
+	} // END: T == recombine
+      }
+      if (fabs(test - xctot._v[n])/test > 1.0e-18) {
+	printf("Crazy mismatch in crossSection: sum=%e tot=%e\n", test, xctot._v[n]);
+      }
+      // END: CHECK
+
     } // end: particle loop
 
   } // end: stride
-
+  
 }
+
+__global__ void crossSectionSumKernel(dArray<cuFP_t> xctot, // Total cross section per pair
+				      dArray<int>    pr,    // Pair count per cell
+				      dArray<cuFP_t> xccel, // Mean sum cross section per cell
+				      unsigned int   stride)
+{
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
+
+  for (int s=0; s<stride; s++) {
+
+    int n = tid*stride + s;
+
+    if (n < xccel._s) {
+
+      // Zero the cumulative cross section
+      //
+      xccel._v[n] = 0.0;
+      
+      // Compute pair range
+      //
+      int maxcount = pr._s;
+      if (n < xccel._s-1) maxcount = pr._v[n+1];
+      int count = maxcount - pr._v[n];
+
+      // Sum up all cross sections per cell
+      //
+      if (count) {
+	for (int j=pr._v[n]; j<maxcount; j++) xccel._v[n] += xctot._v[j];
+	xccel._v[n] /= count;
+      }
+    }
+  }
+}
+
 
 // Return random 3d unit vector
 __device__
@@ -2698,10 +2820,11 @@ cuFP_t cuCA_eval(cuFP_t tau)
 }
 
 __global__ void photoIonizeKernel(dArray<cudaParticle> in,    // Particle array
-				  dArray<cuFP_t> dT,	      // Time steps
-				  dArray<curandState> randS,  // Cuda random number objects
+				  dArray<cuFP_t>       dT,    // Time steps
+				  dArray<curandState>  randS, // Cuda random number objects
 				  dArray<cuIonElement> elems, // Species map
-				  unsigned int stride)
+				  unsigned int         stride // Number of passes through part array
+				  )
 {
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
   const int Nsp = elems._s;
@@ -2718,7 +2841,7 @@ __global__ void photoIonizeKernel(dArray<cudaParticle> in,    // Particle array
 	printf("photoIonize: wanted %d/%d\n", n, in._s);
       }
 
-      cudaParticle& p = in._v[n];
+      // cudaParticle& p = in._v[n];
 
       // Photoionize all subspecies
       //
@@ -2741,22 +2864,22 @@ __global__ void photoIonizeKernel(dArray<cudaParticle> in,    // Particle array
 	  computePhotoIonize(rn, Ep, Pr, elem);
 
 	  // Compute the probability and get the residual electron energy
+	  //
 	  Pr *= cuTunit * dT._v[n];
-	  cuFP_t ww  = p.datr[I] * Pr;
-	  // cuFP_t Gm  = cuMunit/(amu*cuda_atomic_weights[Z]);
+	  cuFP_t ww  = in._v[n].datr[I] * Pr;
 
 	  if (Pr >= 1.0) {	// Limiting case
-	    ww = p.datr[I];
-	    p.datr[I  ]  = 0.0;
-	    p.datr[I+1] += ww;
+	    ww = in._v[n].datr[I];
+	    in._v[n].datr[I  ]  = 0.0;
+	    in._v[n].datr[I+1] += ww;
 	  } else {		// Normal case
-	    p.datr[I  ] -= ww;
-	    p.datr[I+1] += ww;
+	    in._v[n].datr[I  ] -= ww;
+	    in._v[n].datr[I+1] += ww;
 	  }
 
-	}
-      }
-    }
+	} // End: bound electron block
+      } // End: species loop
+    } // End: particle number block
   } // End: photoionizing background
 }
 
@@ -2779,7 +2902,7 @@ cuFP_t cuCA_get(cuFP_t tau, cuFP_t U)
 // Return 3d Colombic scattering vector
 //
 __device__
-void cudaCoulombVector(cuFP_t *ret, cuFP_t *rel, cuFP_t W1, cuFP_t W2, cuFP_t Tau,
+void cudaCoulombVector(cuFP_t *rel, cuFP_t W1, cuFP_t W2, cuFP_t Tau,
 		       curandState *state)
 {
 				// Normalize
@@ -2798,9 +2921,15 @@ void cudaCoulombVector(cuFP_t *ret, cuFP_t *rel, cuFP_t W1, cuFP_t W2, cuFP_t Ta
 #endif
 
 
-  cuFP_t fac    = (W1>W2 ? W1 : W2)/(W1<W2 ? W1 : W2);
-  cuFP_t tau    = fac * Tau;
+  cuFP_t tau = 100.0;
+  if (W1>0.0 and W2>0.0) {
+    cuFP_t fac = (W1>W2 ? W1 : W2)/(W1<W2 ? W1 : W2);
+    if (fac*Tau<100.0) tau = fac*Tau;
+  }
   cuFP_t cosx   = cuCA_get(tau, rn);
+  if (isnan(cosx)) {
+    printf("Crazy cosx for Tau=%f tau=%f rn=%f W1=%f W2=%f\n", Tau, tau, rn, W1, W2);
+  }
   cuFP_t sinx   = sqrt(fabs(1.0 - cosx*cosx));
   cuFP_t cosp   = cos(phi);
   cuFP_t sinp   = sin(phi);
@@ -2871,12 +3000,12 @@ void cudaScatterTrace
     
     // Set COM frame
     //
-    cuFP_t vcom[3], vrel[3];
+    cuFP_t vcom[3], vrel[3], vrl0[3];
     cuFP_t vi = 0.0;
     
     for (size_t k=0; k<3; k++) {
       vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
-      vrel[k] = v1[k] - v2[k];
+      vrl0[k] = vrel[k] = v1[k] - v2[k];
       vi += vrel[k] * vrel[k];
     }
 
@@ -2903,7 +3032,7 @@ void cudaScatterTrace
       // Update the outgoing energy in COM
       vfac = sqrt(totE/kE);
       if (isnan(vfac)) {
-	printf("totE=%f kE=%f\n", totE, kE);
+	printf("totE=%e kE=%e delE=%e\n", totE, kE, delE);
       }
     }
     // KE is zero (limiting case)
@@ -2924,7 +3053,7 @@ void cudaScatterTrace
     // Assign interaction energy variables
     //
     if (Coulombic)
-      cudaCoulombVector(vrel, vrel, W1, W2, Tau, state);
+      cudaCoulombVector(vrel, W1, W2, Tau, state);
     else
       cudaUnitVector(vrel, state);
     
@@ -2943,9 +3072,11 @@ void cudaScatterTrace
     }
 
     if (crazy) {
-      printf("scatter: vcom={%f %f %f} vrel={%f %f %f} m1=%f m2=%f\n",
+      printf("scatter: vcom={%f %f %f} vrel={%f %f %f} vrel0={%f, %f, %f} m1=%f m2=%f vi=%f ff=%f\n",
 	     vcom[0], vcom[1], vcom[2],
-	     vrel[0], vrel[1], vrel[2], m1, m2);
+	     vrel[0], vrel[1], vrel[2],
+	     vrl0[0], vrl0[1], vrl0[2],
+	     m1, m2, vi, vfac);
     }
     
   } // END: MeanMass
@@ -3004,7 +3135,7 @@ void cudaScatterTrace
     // Assign interaction energy variables
     //
     if (Coulombic)
-      cudaCoulombVector(vrel, vrel, W1, W2, Tau, state);
+      cudaCoulombVector(vrel, W1, W2, Tau, state);
     else
       cudaUnitVector(vrel, state);
   
@@ -3053,25 +3184,26 @@ void cudaScatterTrace
     
 } // END: cudaScatterTrace
 
-__global__ void partInteractions(dArray<cudaParticle> in,
-				 dArray<curandState> randS,
-				 dArray<cuFP_t> cross,
-				 dArray<cuFP_t> delph,
+__global__ void partInteractions(dArray<cudaParticle>   in,
+				 dArray<curandState>    randS,
+				 dArray<cuFP_t>         cross,
+				 dArray<cuFP_t>         delph,
 				 dArray<unsigned char>  xspcs,
 				 dArray<cudaInterTypes> xtype,
-				 dArray<cuFP_t> xctot,
-				 dArray<int>    i1,
-				 dArray<int>    i2,
-				 dArray<int>    cc,
-				 dArray<cuFP_t> selC,
-				 dArray<cuFP_t> PiProb,
-				 dArray<cuFP_t> ABrate,
-				 dArray<int>    flagI, 
-				 dArray<cuIonElement> elems,
-				 cuFP_t spTau,
-				 int numxc,
-				 int epos,
-				 unsigned int stride)
+				 dArray<cuFP_t>         xctot,
+				 dArray<int>            i1,
+				 dArray<int>            i2,
+				 dArray<int>            cc,
+				 dArray<cuFP_t>         selC,
+				 dArray<cuFP_t>         xccel,
+				 dArray<cuFP_t>         PiProb,
+				 dArray<cuFP_t>         ABrate,
+				 dArray<int>            flagI, 
+				 dArray<cuIonElement>   elems,
+				 cuFP_t                 spTau,
+				 int                    numxc,
+				 int                    epos,
+				 unsigned int           stride)
 {
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
   const int Nsp = elems._s;
@@ -3117,9 +3249,20 @@ __global__ void partInteractions(dArray<cudaParticle> in,
       //
       cuFP_t totalXS = xctot._v[n];
 
+      cuFP_t test = 0.0;
+      for (int k=0; k<numxc; k++) {
+	if (xtype._v[n*numxc+k] == nothing) break;
+	test += cross._v[n*numxc+k];
+      }
+
+      if (fabs(test - totalXS)/test > 1.0e-18) {
+	printf("Crazy mismatch in xc: sum=%e tot=%e ratio=%e\n", test, totalXS, totalXS/test);
+      }
+
       // Upscale rate
       //
-      cuFP_t colCf = selC._v[cid] * totalXS;
+      cuFP_t xcfac = cuMunit/cuAmu * 1.0e-14 / (cuLunit*cuLunit);
+      cuFP_t colCf = selC._v[cid] * xccel._v[cid] * xcfac;
 
       // Energy computation
       //
@@ -3202,18 +3345,20 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	double Prob        = XS/totalXS;
 
 	if (Prob < 1.0e-14) continue;
+	if (Prob > 1.0) printf("Crazy prob [%e] not possible: XS=%e totalXS=%e\n", Prob, XS, totalXS);
 
 	// Atomic number and array loc for each member of the pair
 	//
-	unsigned char *u = &(xspcs._v[(n*numxc+J)*6]);
+	int K = n*numxc+J;
+	int L = K*6;
 
-	IT.Z1 = *(u+0);
-	IT.C1 = *(u+1);
-	IT.I1 = *(u+2);
+	IT.Z1 = xspcs._v[L+0];
+	IT.C1 = xspcs._v[L+1];
+	IT.I1 = xspcs._v[L+2];
 
-	IT.Z2 = *(u+3);
-	IT.C2 = *(u+4);
-	IT.I2 = *(u+5);
+	IT.Z2 = xspcs._v[L+3];
+	IT.C2 = xspcs._v[L+4];
+	IT.I2 = xspcs._v[L+5];
 
 	// Traditional ionization state (e.g. C1=1 is neutral)
 	//
@@ -3272,6 +3417,7 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	// Upscale inelastic cross sections by ratio of cross-section
 	// and plasma rate scattering
 	//
+	cuFP_t prob0 = Prob;	// For debugging only
 	Prob *= colCf;
 	
 	if (T == free_free) {
@@ -3279,7 +3425,8 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	  dE = XE * Prob;
 				// Sanity
 	  if (isnan(dE)) {
-	    printf("Crazy dE value\n");
+	    printf("Crazy dE value in free-free: XE=%e P=%e\n", XE, Prob);
+	    dE = 0.0;
 	  }
 
 	  if (IT.I1<255) {	// Ion is p1
@@ -3296,7 +3443,8 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	  dE = XE * Prob;
 				// Sanity
 	  if (isnan(dE)) {
-	    printf("Crazy dE value\n");
+	    printf("Crazy dE value in col excite: XE=%e P=%e\n", XE, Prob);
+	    dE = 0.0;
 	  }
 
 	  if (IT.I1<255) {	// Ion is p1
@@ -3315,7 +3463,8 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	  dE = XE * Prob;
 				// Sanity
 	  if (isnan(dE)) {
-	    printf("Crazy dE value\n");
+	    printf("Crazy dE value in col ionize: XE=%e P=%e\n", XE, Prob);
+	    dE = 0.0;
 	  }
 
 	  if (IT.I1<255) {	// Ion is p1
@@ -3345,7 +3494,8 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	    
 				// Sanity
 	    if (isnan(dE)) {
-	      printf("Crazy dE value\n");
+	      printf("Crazy dE value in col ionize: XE=%e P=%e E=%e\n", XE, Prob, Echg);
+	      dE = 0.0;
 	    }
 
 	    PE[1] += Prob;
@@ -3379,7 +3529,8 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 
 				// Sanity
 	    if (isnan(dE)) {
-	      printf("Crazy dE value\n");
+	      printf("Crazy dE value in col ionize: XE=%e P=%e E=%e\n", XE, Prob, Echg);
+	      dE = 0.0;
 	    }
 
 	    PE[2] += Prob;
@@ -3389,14 +3540,32 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	} // END: ionize
 	
 	if (T == recombine) {
+	  
+	  if (Prob > 1.0) printf("In recombine: crazy prob [%e] not possible: XS=%e totalXS=%e\n", Prob, XS, totalXS);
 
 	  cuFP_t WW = Prob;
 
 	  if (IT.I1<255) {		// Ion is p1
 
-	    if (IT.I1>Nsp-1 or IT.I1==0) {
-	      printf("Crazy recombine I1=%d\n", IT.I1);
+	    if (IT.C1<=1 or IT.I2!=255) {
+	      int K = n*numxc + J;
+	      int L = K*6;
+	      printf("Crazy recombine [p1] (%d %d %d) (%d %d %d) (%d %d) T=%d J=%d N=%d\n",
+		     xspcs._v[L+0],
+		     xspcs._v[L+1],
+		     xspcs._v[L+2],
+		     xspcs._v[L+3],
+		     xspcs._v[L+4],
+		     xspcs._v[L+5],
+		     IT.C1, IT.C2,
+		     xtype._v[K], J, numxc);
 	    }
+
+	    if (WW < 0.0 or WW > 1.0)
+	      printf("Crazy W: Z1=%d C1=%d I1=%d Z2=%d C2=%d I2=%d: ww=%e f1=%e P0=%e cf=%e\n",
+		     IT.Z1, IT.C1, IT.I1, 
+		     IT.Z2, IT.C2, IT.I2,
+		     WW, FF1[IT.I1], prob0, colCf);
 
 	    if (WW < FF1[IT.I1]) {
 	      FF1[IT.I1]   -= WW;
@@ -3420,18 +3589,36 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	    
 				// Sanity
 	    if (isnan(dE)) {
-	      printf("Crazy dE value\n");
+	      printf("Crazy dE value in recomb: P=%e\n", Prob);
+	      dE = 0.0;
 	    }
 
 	    PE[1] += Prob;
 	    EE[1] += dE;
 	  } // END: ion-electron
-	  else {		// Ion is p2
+	  else if (IT.I2<255) {		// Ion is p2
+
 	    cuFP_t WW = Prob;
 
-	    if (IT.I2 > Nsp-1 or IT.I2==0) {
-	      printf("Crazy recombine I2=%d\n", IT.I2);
+	    if (IT.C2<=1 or IT.I1!=255) {
+	      int K = n*numxc + J;
+	      int L = K*6;
+	      printf("Crazy recombine [p2] (%d %d %d) (%d %d %d) (%d %d) T=%d J=%d N=%d\n",
+		     xspcs._v[L+0],
+		     xspcs._v[L+1],
+		     xspcs._v[L+2],
+		     xspcs._v[L+3],
+		     xspcs._v[L+4],
+		     xspcs._v[L+5],
+		     IT.C1, IT.C2,
+		     xtype._v[K], J, numxc);
 	    }
+
+	    if (WW < 0.0 or WW > 1.0)
+	      printf("Crazy W: Z1=%d C1=%d I1=%d Z2=%d C2=%d I2=%d: ww=%e f2=%e P0=%e cf=%e\n",
+		     IT.Z1, IT.C1, IT.I1, 
+		     IT.Z2, IT.C2, IT.I2,
+		     WW, FF2[IT.I2], prob0, colCf);
 
 	    if (WW < FF2[IT.I2]) {
 	      FF2[IT.I2]   -= WW;
@@ -3454,12 +3641,26 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	    
 				// Sanity
 	    if (isnan(dE)) {
-	      printf("Crazy dE value\n");
+	      printf("Crazy dE value in recomb: P=%e\n", Prob);
+	      dE = 0.0;
 	    }
 
 	    PE[2] += Prob;
 	    EE[2] += dE;
-	  } // END: electro-ion
+	  } // END: electron-ion
+	  else {
+	    int K = n*numxc+J;
+	    int L = K*6;
+	    printf("Crazy recombine [no e] (%d %d %d) (%d %d %d) (%d %d) T=%d J=%d N=%d\n",
+		   xspcs._v[L+0],
+		   xspcs._v[L+1],
+		   xspcs._v[L+2],
+		   xspcs._v[L+3],
+		   xspcs._v[L+4],
+		   xspcs._v[L+5],
+		   IT.C1, IT.C2,
+		   xtype._v[K], J, numxc);
+	  } // END: unexpected
 
 	} // END: recomb
 
@@ -3565,10 +3766,10 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	  p2.vel[k] = v2[k];
 				// Sanity
 	  if (isnan(v1[k])) {
-	    printf("Strange value for p1.vel for J=0\n");
+	    printf("Crazy value for p1.vel for J=0\n");
 	  }
 	  if (isnan(v2[k])) {
-	    printf("Strange value for p2.vel for J=0\n");
+	    printf("Crazy value for p2.vel for J=0\n");
 	  }
 	}
       
@@ -3614,14 +3815,14 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	  p1.vel[k] = v1[k];
 				// Sanity
 	  if (isnan(v1[k])) {
-	    printf("Strange value for p1.vel for J=1\n");
+	    printf("Crazy value for p1.vel for J=1\n");
 	  }
 
 	  // Particle 2 is the elctron
 	  p2.datr[epos+k] = v2[k];
 				// Sanity
 	  if (isnan(v2[k])) {
-	    printf("Strange value for v2 for J=1\n");
+	    printf("Crazy value for v2 for J=1\n");
 	  }
 	}
 	
@@ -3666,14 +3867,14 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 
 				// Sanity
 	  if (isnan(v1[k])) {
-	    printf("Strange value for v2 for J=2\n");
+	    printf("Crazy value for v2 for J=2\n");
 	  }
 
 	  // Particle 2 is the ion
 	  p2.vel[k] = v2[k];
 				// Sanity
 	  if (isnan(v2[k])) {
-	    printf("Strange value for p2.vel for J=2\n");
+	    printf("Crazy value for p2.vel for J=2\n");
 	  }
 	}
       
@@ -3755,9 +3956,9 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	  cuFP_t Tau  = ABrate._v[cid*4+3] * afac*afac * cr * dT;
 
 	  if (cuMeanMass)
-	    cudaCoulombVector(vrel, vrel, 1.0, 1.0, Tau, state);
+	    cudaCoulombVector(vrel, 1.0, 1.0, Tau, state);
 	  else
-	    cudaCoulombVector(vrel, vrel, IT.W1, IT.W2, Tau, state);
+	    cudaCoulombVector(vrel, IT.W1, IT.W2, Tau, state);
 
 	  for (int k=0; k<3; k++) vrel[k] *= vi;
 
@@ -3783,10 +3984,10 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	      p2.datr[epos+k] = vcom[k] - m1/mt*vrel[k] * vfac;
 				// Sanity
 	      if (isnan(v1[k])) {
-		printf("Strange value for v1 for elec-elec\n");
+		printf("Crazy value for v1 for elec-elec\n");
 	      }
 	      if (isnan(v2[k])) {
-		printf("Strange value for v2 for elec-elec\n");
+		printf("Crazy value for v2 for elec-elec\n");
 	      }
 	    }
 	  }
@@ -3838,10 +4039,10 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	      p2.datr[epos+k] = u2[k];
 				// Sanity
 	      if (isnan(u1[k])) {
-		printf("Strange value for u1 for elec-elec\n");
+		printf("Crazy value for u1 for elec-elec\n");
 	      }
 	      if (isnan(u2[k])) {
-		printf("Strange value for u2 for elec-elec\n");
+		printf("Crazy value for u2 for elec-elec\n");
 	      }
 	    }
 	  }
@@ -3884,10 +4085,10 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 	      p2.datr[epos+k] = vcom[k] - m1/mt*vrel[k]*vfac;
 				// Sanity
 	      if (isnan(p1.datr[epos+k])) {
-		printf("Strange value for p1 for elec-elec\n");
+		printf("Crazy value for p1 for elec-elec\n");
 	      }
 	      if (isnan(p2.datr[epos+k])) {
-		printf("Strange value for p2 for elec-elec\n");
+		printf("Crazy value for p2 for elec-elec\n");
 	      }
 	    }
 
@@ -3933,24 +4134,17 @@ __global__ void partInteractions(dArray<cudaParticle> in,
 //
 void CollideIon::cuda_random_init()
 {
-  if (d_randS.size() < Particles().size()) {
+  int N = Particles().size(); // Number of particles
+  int P = d_randS.size();     // Number of generators
+
+  if (P < N) {
     
     std::cout << "Node " << myid
-	      << ": CUDA random: size was " << d_randS.size()
-	      << ", new size will be " << Particles().size()
+	      << ": CUDA random: size was " << P
+	      << ", new size will be " << N
 	      << std::endl;
 
-    cudaDeviceProp deviceProp;
-    cudaGetDeviceProperties(&deviceProp, c0->cudaDevice);
-
-    // Compute the cross sections for each interaction en masse
-    //
-    int N        = Particles().size(); // Number of particles
-    int stride   = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
-    int gridSize = (N+BLOCK_SIZE*stride-1)/(BLOCK_SIZE*stride);
-
     d_randS.resize(N);
-    initCurand<<<gridSize, BLOCK_SIZE>>>(toKernel(d_randS), seed);
   }
 }
 
@@ -4158,6 +4352,7 @@ void * CollideIon::collide_thread_cuda(void * arg)
     numIon*5*2;
 
   thrust::device_vector<cuFP_t>         d_cross(N*totalXCsize);
+  thrust::device_vector<cuFP_t>         d_xctot(N);
   thrust::device_vector<cuFP_t>         d_delph(N*totalXCsize);
   thrust::device_vector<unsigned char>  d_xspcs(N*totalXCsize*6);
   thrust::device_vector<cudaInterTypes> d_xtype(N*totalXCsize);
@@ -4166,13 +4361,27 @@ void * CollideIon::collide_thread_cuda(void * arg)
   crossSectionKernel<<<gridSize, BLOCK_SIZE>>>
     (toKernel(d_part),   toKernel(d_randS),
      toKernel(d_cross),  toKernel(d_delph), toKernel(d_xspcs),
-     toKernel(d_xtype),  toKernel(d_cross),
+     toKernel(d_xtype),  toKernel(d_xctot),
      toKernel(d_i1),     toKernel(d_i2),     toKernel(d_cc),
      toKernel(d_Ivel2),  toKernel(d_Evel2),
      toKernel(d_PiProb), toKernel(d_ABrate), toKernel(d_flagI), 
      toKernel(xsc_H),    toKernel(xsc_He),   toKernel(xsc_pH),  toKernel(xsc_pHe),
      toKernel(cuElems),
      totalXCsize, ePos, stride);
+
+  // Sum up cross section per cell
+  //
+  N        = cellI.size();	// Number of cells
+  stride   = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+  gridSize = (N+BLOCK_SIZE*stride-1)/(BLOCK_SIZE*stride);
+
+				// These do not need copying back
+  thrust::device_vector<cuFP_t> d_xccel(N);
+
+  // Sum cross section for each cell
+  //
+  crossSectionSumKernel<<<gridSize, BLOCK_SIZE>>>
+    (toKernel(d_xctot), toKernel(d_pairs), toKernel(d_xccel), stride);
 
 #ifdef MASS_DEBUG
   c0->host_particles = d_part;		// Check copy
@@ -4188,11 +4397,11 @@ void * CollideIon::collide_thread_cuda(void * arg)
   partInteractions<<<gridSize, BLOCK_SIZE>>>
     (toKernel(d_part),   toKernel(d_randS),
      toKernel(d_cross),  toKernel(d_delph),  toKernel(d_xspcs),
-     toKernel(d_xtype),  toKernel(d_cross),
-     toKernel(d_i1),     toKernel(d_i2),     toKernel(d_cc),    toKernel(d_selC),
+     toKernel(d_xtype),  toKernel(d_xctot),
+     toKernel(d_i1),     toKernel(d_i2),     toKernel(d_cc),
+     toKernel(d_selC),   toKernel(d_xccel),
      toKernel(d_PiProb), toKernel(d_ABrate), toKernel(d_flagI), 
-     toKernel(cuElems),
-     spTau[id], totalXCsize, ePos, stride);
+     toKernel(cuElems),  spTau[id], totalXCsize, ePos, stride);
 
   // Photoionization
   //
@@ -4202,7 +4411,7 @@ void * CollideIon::collide_thread_cuda(void * arg)
     gridSize = (N+BLOCK_SIZE*stride-1)/(BLOCK_SIZE*stride);
 
     photoIonizeKernel<<<gridSize, BLOCK_SIZE>>>
-      (toKernel(d_part),  toKernel(d_tauP),  toKernel(d_randS),
+      (toKernel(d_part),  toKernel(d_tauP), toKernel(d_randS),
        toKernel(cuElems), stride);
   }
 

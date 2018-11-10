@@ -1144,7 +1144,7 @@ void TreeDSMC::determine_acceleration_and_potential(void)
   //
   // Lots of diagnostics are computed and emitted here . . .
   //
-  if (false & diagstep && std::get<0>(CC)>0) {
+  if (diagstep && std::get<0>(CC)>0) {
     
     (*barrier)("TreeDSMC: ENTERING diagstep stanza", __FILE__, __LINE__);
     
@@ -1424,7 +1424,7 @@ void TreeDSMC::determine_acceleration_and_potential(void)
     c0->Tree()->gatherCellLevelList();
     (*barrier)("TreeDSMC: AFTER pHOT::gatherCellLevelList",   __FILE__, __LINE__);
     
-    if (myid==0 and false) {
+    if (myid==0) {
       
       unsigned sell_total = collide->select();
       unsigned coll_total = collide->total();
