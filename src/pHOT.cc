@@ -336,7 +336,7 @@ void pHOT::computeCellStates()
   root->zeroState();
 
   // Make temporary to get around OpenMP limitations.  This can be
-  // changed evelutally when the GnuC suite supports STL iterators.
+  // changed eventually when the GnuC suite supports STL iterators.
   //
   size_t iTmp = 0, cTmp = frontier.size();
   std::vector<pCell*> tmp(cTmp);
