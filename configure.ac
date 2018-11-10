@@ -1,7 +1,7 @@
 dnl ==========================================================================
 dnl Process this file with autoconf to produce a configure script.
 dnl ==========================================================================
-AC_INIT(EXP, 7.595)
+AC_INIT(EXP, 7.596)
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SRCDIR(src/expand.cc)
 AM_INIT_AUTOMAKE
