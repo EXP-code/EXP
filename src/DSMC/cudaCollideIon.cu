@@ -3034,9 +3034,6 @@ void cudaScatterTrace
       }
       // Update the outgoing energy in COM
       vfac = sqrt(totE/kE);
-      if (isnan(vfac)) {
-	printf("totE=%e kE=%e delE=%e\n", totE, kE, delE);
-      }
     }
     // KE is zero (limiting case)
     //
@@ -3082,7 +3079,9 @@ void cudaScatterTrace
 	     m1, m2, vi, vfac);
     }
     
-  } // END: MeanMass
+  }
+  // END:   MeanMass
+  // BEGIN: Energy conservation
   else {
 
     // Total effective mass in the collision (atomic mass units)
@@ -3114,6 +3113,8 @@ void cudaScatterTrace
       // More loss energy requested than available?
       //
       if (totE < 0.0) {
+	// Add to energy bucket for these particles
+	//
 	cudaDeferredEnergy(-totE, m1, m2, W1, W2, E1, E2);
 	totE = 0.0;
       }
@@ -3183,7 +3184,7 @@ void cudaScatterTrace
       v1[i] = cq*v1[i]*vrat + q*v0;
       v2[i] = vcom[i] - m1/mt*vrel[i]*vfac;
     }
-  }
+  } // END: Energy conservation algorithm
     
 } // END: cudaScatterTrace
 
@@ -3797,11 +3798,11 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	PE[1] = totalDE;
       
 	if (IT.W1 >= IT.W2)
-	  cudaScatterTrace(Mu1, Mue*Eta2, Eta1, Eta2, IT.W1, IT.W2,
+	  cudaScatterTrace(Mu1, Mue, Eta1, Eta2, IT.W1, IT.W2,
 			   &E1[0], &E2[0], totE,
 			   &v1[0], &v2[0], totalDE, Tau, state, Coulombic);
 	else
-	  cudaScatterTrace(Mue*Eta2, Mu1, Eta2, Eta1, IT.W2, IT.W1,
+	  cudaScatterTrace(Mue, Mu1, Eta2, Eta1, IT.W2, IT.W1,
 			   &E2[0], &E1[0], totE,
 			   &v2[0], &v1[0], totalDE, Tau, state, Coulombic);
 			   
@@ -3850,11 +3851,11 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	PE[2]  = totalDE;
       
 	if (IT.W1 >= IT.W2)
-	  cudaScatterTrace(Mue*Eta1, Mu2, Eta1, Eta2, IT.W1, IT.W2,
+	  cudaScatterTrace(Mue, Mu2, Eta1, Eta2, IT.W1, IT.W2,
 			   &E1[0], &E2[0], totE,
 			   &v1[0], &v2[0], totalDE, Tau, state, Coulombic);
 	else
-	  cudaScatterTrace(Mu2, Mue*Eta1, Eta2, Eta1, IT.W2, IT.W1,
+	  cudaScatterTrace(Mu2, Mue, Eta2, Eta1, IT.W2, IT.W1,
 			   &E2[0], &E1[0], totE,
 			   &v2[0], &v1[0], totalDE, Tau, state, Coulombic);
 
