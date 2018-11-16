@@ -194,6 +194,7 @@ main(int argc, char **argv)
   EmpCylSL::CMAP        = true;
   EmpCylSL::logarithmic = true;
   EmpCylSL::DENS        = DENS;
+  EmpCylSL::NOUT        = norder;
   EmpCylSL::CACHEFILE   = CACHEFILE;
 
 				// Create expansion
@@ -213,8 +214,7 @@ main(int argc, char **argv)
   if (ortho.read_cache()==1) {
     if (myid==0) {
       std::cout << "EOF parameter match, continuing" << std::flush;
-      ortho.dump_images_basis(OUTTAG, RMAX, ZMAX, OUTR, OUTZ, LOGSC,
-				  0, mmax, 0, norder);
+      ortho.dump_basis(OUTTAG, 0, RMAX);
       std::cout << "done" << std::endl;
     }
   } else {

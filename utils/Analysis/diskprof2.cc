@@ -858,7 +858,7 @@ main(int argc, char **argv)
   int nice, numx, numy, lmax, mmax, nmax, norder;
   int initc, partc, beg, end, stride, init;
   double rcylmin, rcylmax, rscale, vscale;
-  bool DENS, HEIGHT, PCA, PVD, verbose = false, mask = false;
+  bool DENS, PCA, PVD, verbose = false, mask = false;
   std::string CACHEFILE;
 
   //
@@ -930,7 +930,7 @@ main(int argc, char **argv)
      po::value<bool>(&AXIHGT)->default_value(false),
      "compute midplane height profiles")
     ("height",
-     po::value<bool>(&HEIGHT)->default_value(false),
+     po::value<bool>(&VHEIGHT)->default_value(false),
      "compute height profiles")
     ("pca",
      po::value<bool>(&PCA)->default_value(false),
