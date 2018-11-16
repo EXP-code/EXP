@@ -3534,6 +3534,7 @@ void EmpCylSL::dump_basis(const string& name, int step, double Rmax)
   double r, dr = rmax/(numx-1);
   double z, dz = 2.0*rmax/(numy-1);
   double fac=1;
+  int    nw = floor(log10(0.5+NOUT));
   
   ofstream outC, outS;
 
@@ -3542,14 +3543,18 @@ void EmpCylSL::dump_basis(const string& name, int step, double Rmax)
     for (int n=0; n<=min<int>(NOUT, rank3-1); n++) {
 
       ostringstream ins;
-      ins << name << ".C." << mm << "." << n << "." << step;
+      ins << std::setfill('0');
+      ins << name << ".C." << std::setw(2) << mm << "."
+	  << std::setw(nw) << n << "." << step;
       
       outC.open(ins.str().c_str());
       
       if (mm) {
 
 	ostringstream ins;
-	ins << name << ".S." << mm << "." << n << "." << step;
+	ins << std::setfill('0');
+	ins << name << ".S." << std::setw(2) << mm << "."
+	    << std::setw(nw) << n << "." << step;
 	
 	outS.open(ins.str().c_str());
       }
