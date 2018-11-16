@@ -408,7 +408,8 @@ main(int ac, char **av)
     double Time = psp.CurrentTime();
 
     if (first) {
-      std::cout << setw(fw) << "# Time"
+      std::cout << "# "
+		<< setw(fw) << "Time"
 		<< setw(fw) << "Energy"
 		<< setw(fw) << "Ions"
 		<< setw(sw) << "N(ion)"
@@ -418,7 +419,8 @@ main(int ac, char **av)
 		<< std::endl;
       
 
-      std::cout << setw(fw) << std::string(fw-1, '-')
+      std::cout << "# "
+		<< setw(fw) << std::string(fw-1, '-')
 		<< setw(fw) << std::string(fw-1, '-')
 		<< setw(fw) << std::string(fw-1, '-')
 		<< setw(sw) << std::string(sw-1, '-')
@@ -445,7 +447,8 @@ main(int ac, char **av)
 	exact  = norm * 2.0/3.0 * exp(-Energy/kT);
       }
 
-      cout << setw(fw) << Time
+      cout << "  "
+	   << setw(fw) << Time
 	   << setw(fw) << Energy
 	   << setw(fw) << Eion[i]
 	   << setw(sw) << Nion[i]
