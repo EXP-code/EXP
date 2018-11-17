@@ -108,29 +108,59 @@ class Histogram
 {
 public:
 
-  std::vector<double> data;
+  std::vector<double> dataXY;
+  std::vector<std::vector<double>> dataZ;
   int N;
   double R, dR, rmax;
   
   Histogram(int N, double R) : N(N), R(R)
   {
     dR = 2.0*R/(N+1);
-    data.resize(N*N, 0.0);
+    dataXY.resize(N*N, 0.0);
+    dataZ .resize(N*N);
     rmax = R + 0.5*dR;
   }
 
-  void Reset() { std::fill(data.begin(), data.end(), 0.0); }
+  void Reset() {
+    std::fill(dataXY.begin(), dataXY.end(), 0.0);
+    for (auto & v : dataZ) v.clear();
+  }
 
   void Syncr() { 
     if (myid==0)
-      MPI_Reduce(MPI_IN_PLACE, &data[0], data.size(), MPI_DOUBLE, MPI_SUM, 0,
+      MPI_Reduce(MPI_IN_PLACE, &dataXY[0], dataXY.size(), MPI_DOUBLE, MPI_SUM, 0,
 		 MPI_COMM_WORLD);
     else
-      MPI_Reduce(&data[0],     &data[0], data.size(), MPI_DOUBLE, MPI_SUM, 0,
+      MPI_Reduce(&dataXY[0],   &dataXY[0], dataXY.size(), MPI_DOUBLE, MPI_SUM, 0,
 		 MPI_COMM_WORLD);
+
+    std::vector<double> work;
+    int nz;
+
+    for (int n=1; n<numprocs; n++) {
+      if (myid==0) {
+	for (auto & v : dataZ) {
+	  MPI_Recv(&nz, 1, MPI_INT, n, 110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  work.resize(nz);
+	  MPI_Recv(&work[0], nz, MPI_DOUBLE, n, 111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  v.insert(std::end(v), std::begin(work), std::end(work));
+	}
+      } else if (myid==n) {
+	for (auto v : dataZ) {
+	  nz = v.size();
+	  MPI_Send(&(nz=v.size()), 1, MPI_INT, 0, 110, MPI_COMM_WORLD);
+	  MPI_Send(&v[0], v.size(), MPI_DOUBLE, 0, 111, MPI_COMM_WORLD);
+	}
+      }
+    }
+
+    if (myid==0) {
+      for (auto & v : dataZ) std::sort(std::begin(v), std::end(v));
+    }
+
   }
 
-  void Add(double x, double y, double m)
+  void Add(double x, double y, double z, double m)
   {
     if (x < -rmax or x >= rmax or
 	y < -rmax or y >= rmax  ) return;
@@ -141,7 +171,8 @@ public:
     indX = std::min<int>(indX, N-1);
     indY = std::min<int>(indY, N-1);
 
-    data[indY*N + indX] += m;
+    dataXY[indY*N + indX] += m;
+    dataZ [indY*N + indX].push_back(z);
   }
 };
 
@@ -187,7 +218,7 @@ void add_particles(ifstream* in, PSPDumpPtr psp, int& nbods, vector<Particle>& p
 
       // Add to histogram
       //
-      if (part) h.Add(part->pos(0), part->pos(1), part->mass());
+      if (part) h.Add(part->pos(0), part->pos(1), part->pos(2), part->mass());
     }
 
     //
@@ -438,7 +469,7 @@ Vector get_quart_truncated(Vector& vv, double dz)
 void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 {
   unsigned ncnt = 0;
-  int nout;
+  int noutV = 7, noutS = 10;
   
   // ==================================================
   // Setup for output files
@@ -447,8 +478,8 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
   ostringstream sstr;
   sstr << "." << std::setfill('0') << std::setw(5) << icnt;
 
-  nout = 7;
-  string suffix[7] = {"p0", "p", "fr", "fz", "fp", "d0", "d"};
+  string suffix[10] = {"p0", "p", "fr", "fz", "fp", "d0", "d",
+		       "z10", "z50", "z90"};
 
   // ==================================================
   // Axisymmetric structure (for GNUPLOT)
@@ -597,7 +628,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
     double p0, d0, p, fr, fz, fp;
     
     size_t blSiz = OUTZ*OUTR*OUTR;
-    vector<double> indat(nout*blSiz, 0.0), otdat(nout*blSiz);
+    vector<double> indat(noutV*blSiz, 0.0), otdat(noutV*blSiz);
     
     for (int j=0; j<OUTR; j++) {
 	  
@@ -631,7 +662,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
     }
     
     
-    MPI_Reduce(&indat[0], &otdat[0], nout*OUTZ*OUTR*OUTR, MPI_DOUBLE, MPI_SUM, 
+    MPI_Reduce(&indat[0], &otdat[0], noutV*OUTZ*OUTR*OUTR, MPI_DOUBLE, MPI_SUM, 
 	       0, MPI_COMM_WORLD);
     
     if (myid==0) {
@@ -640,7 +671,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 
       std::vector<double> data(OUTR*OUTR*OUTZ);
 
-      for (int n=0; n<nout; n++) {
+      for (int n=0; n<noutV; n++) {
 
 	for (int j=0; j<OUTR; j++) {
 	  for (int l=0; l<OUTR; l++) {
@@ -675,7 +706,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
     double x, y, z=0.0, r, phi;
     double p0, d0, p, fr, fz, fp;
     
-    vector<double> indat(nout*OUTR*OUTR, 0.0), otdat(nout*OUTR*OUTR);
+    vector<double> indat(noutS*OUTR*OUTR, 0.0), otdat(noutS*OUTR*OUTR);
     
     for (int j=0; j<OUTR; j++) {
 	
@@ -700,11 +731,22 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 	  indat[(4*OUTR+j)*OUTR+l] = fp;
 	  indat[(5*OUTR+j)*OUTR+l] = d0;
 	  indat[(6*OUTR+j)*OUTR+l] = v;
+	  indat[(7*OUTR+j)*OUTR+l] = 0.0;
+	  indat[(8*OUTR+j)*OUTR+l] = 0.0;
+	  indat[(9*OUTR+j)*OUTR+l] = 0.0;
+
+	  // Check for number in the histogram bin
+	  //
+	  if (int numZ=histo.dataZ[l*OUTR+j].size()>0.0) {
+	    indat[(7*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.1*numZ)];
+	    indat[(8*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.5*numZ)];
+	    indat[(9*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.9*numZ)];
+	  }
 	}
       }
     }
     
-    MPI_Reduce(&indat[0], &otdat[0], nout*OUTR*OUTR,
+    MPI_Reduce(&indat[0], &otdat[0], noutS*OUTR*OUTR,
 	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     
     
@@ -714,7 +756,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 
       std::vector<double> data(OUTR*OUTR);
 
-      for (int n=0; n<nout; n++) {
+      for (int n=0; n<noutS; n++) {
 	for (int j=0; j<OUTR; j++) {
 	  for (int l=0; l<OUTR; l++) {
 	    data[l*OUTR + j] = otdat[(n*OUTR+j)*OUTR+l];
@@ -723,7 +765,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 	vtk.Add(data, suffix[n]);
       }
 
-      vtk.Add(histo.data, "histo");
+      vtk.Add(histo.dataXY, "histo");
 
       std::ostringstream sout;
       sout << runtag + "_" + outid + "_surface" + sstr.str();
@@ -746,7 +788,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
     double x, y=0, z, r, phi;
     double p0, d0, p, fr, fz, fp;
     
-    std::vector<double> indat(nout*OUTR*OUTR, 0.0), otdat(nout*OUTR*OUTR);
+    std::vector<double> indat(noutV*OUTR*OUTR, 0.0), otdat(noutV*OUTR*OUTR);
     
       for (int j=0; j<OUTR; j++) {
 	
@@ -775,7 +817,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
       }
     }
     
-    MPI_Reduce(&indat[0], &otdat[0], nout*OUTR*OUTZ,
+    MPI_Reduce(&indat[0], &otdat[0], noutV*OUTR*OUTZ,
 	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     
     
@@ -785,7 +827,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 
       std::vector<double> data(OUTR*OUTZ);
 
-      for (int n=0; n<nout; n++) {
+      for (int n=0; n<noutV; n++) {
 	for (int j=0; j<OUTR; j++) {
 	  for (int l=0; l<OUTZ; l++) {
 	    data[j*OUTZ + l] = otdat[(n*OUTR+j)*OUTZ+l];
