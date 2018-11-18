@@ -147,7 +147,6 @@ public:
 	}
       } else if (myid==n) {
 	for (auto v : dataZ) {
-	  nz = v.size();
 	  MPI_Send(&(nz=v.size()), 1, MPI_INT, 0, 110, MPI_COMM_WORLD);
 	  MPI_Send(&v[0], v.size(), MPI_DOUBLE, 0, 111, MPI_COMM_WORLD);
 	}
@@ -737,7 +736,8 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 
 	  // Check for number in the histogram bin
 	  //
-	  if (int numZ=histo.dataZ[l*OUTR+j].size()>0.0) {
+	  int numZ = histo.dataZ[l*OUTR+j].size();
+	  if (numZ>0) {
 	    indat[(7*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.1*numZ)];
 	    indat[(8*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.5*numZ)];
 	    indat[(9*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.9*numZ)];
