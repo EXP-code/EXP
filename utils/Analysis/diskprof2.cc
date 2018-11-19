@@ -147,8 +147,9 @@ public:
 	}
       } else if (myid==n) {
 	for (auto v : dataZ) {
-	  MPI_Send(&(nz=v.size()), 1, MPI_INT, 0, 110, MPI_COMM_WORLD);
-	  MPI_Send(&v[0], v.size(), MPI_DOUBLE, 0, 111, MPI_COMM_WORLD);
+	  nz = v.size();
+	  MPI_Send(&nz, 1,MPI_INT, 0, 110, MPI_COMM_WORLD);
+	  MPI_Send(&v[0], nz, MPI_DOUBLE, 0, 111, MPI_COMM_WORLD);
 	}
       }
     }
@@ -156,7 +157,6 @@ public:
     if (myid==0) {
       for (auto & v : dataZ) std::sort(std::begin(v), std::end(v));
     }
-
   }
 
   void Add(double x, double y, double z, double m)
@@ -304,6 +304,11 @@ void add_particles(ifstream* in, PSPDumpPtr psp, int& nbods, vector<Particle>& p
     for (int i=0; i<nbody; i++) t[i].indx = seq[i];
 
     p.insert(p.end(), t.begin(), t.end());
+
+    // Add to histogram
+    //
+    for (auto part : t)
+      h.Add(part.pos[0], part.pos[1], part.pos[2], part.mass);
   }
 
   // Synchronize histogram
@@ -321,22 +326,16 @@ void partition(ifstream* in, PSPDumpPtr psp, int cflag, vector<Particle>& p,
     if (myid==0) {
       nbods = psp->CurrentDump()->nstar;
       psp->GetStar();
-
-      add_particles(in, psp, nbods, p, h);
-    } else {
-      add_particles(in, psp, nbods, p, h);
-    }      
+    }
+    add_particles(in, psp, nbods, p, h);
   }
 
   if (cflag & Gas) {
     if (myid==0) {
       int nbods = psp->CurrentDump()->ngas;
       psp->GetGas();
-
-      add_particles(in, psp, nbods, p, h);
-    } else {
-      add_particles(in, psp, nbods, p, h);
-    }      
+    }
+    add_particles(in, psp, nbods, p, h);
   }
 
 }
@@ -365,7 +364,7 @@ double get_max_dens(Vector& vv, double dz)
 				// Solution of 2nd order Lagrange interpolation
 				// formula
   double delta;
-  double del = vv[ipeak+1] - vv[ipeak-1];
+  double del  = vv[ipeak+1] - vv[ipeak-1];
   double ddel = vv[ipeak+1] + vv[ipeak-1] - 2.0*vv[ipeak];
 
   if (fabs(ddel) < 1.0e-4) 
@@ -598,7 +597,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 
 	for (int l=0; l<OUTR; l++) {
 	  for (int j=0; j<OUTR; j++) {
-	    data[i*OUTR + j] = otdat[(i*OUTR + l)*OUTR + j];
+	    data[l*OUTR + j] = otdat[(i*OUTR + l)*OUTR + j];
 	  }
 	}
 
@@ -730,18 +729,6 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 	  indat[(4*OUTR+j)*OUTR+l] = fp;
 	  indat[(5*OUTR+j)*OUTR+l] = d0;
 	  indat[(6*OUTR+j)*OUTR+l] = v;
-	  indat[(7*OUTR+j)*OUTR+l] = 0.0;
-	  indat[(8*OUTR+j)*OUTR+l] = 0.0;
-	  indat[(9*OUTR+j)*OUTR+l] = 0.0;
-
-	  // Check for number in the histogram bin
-	  //
-	  int numZ = histo.dataZ[l*OUTR+j].size();
-	  if (numZ>0) {
-	    indat[(7*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.1*numZ)];
-	    indat[(8*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.5*numZ)];
-	    indat[(9*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.9*numZ)];
-	  }
 	}
       }
     }
@@ -752,6 +739,23 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
     
     if (myid==0) {
       
+      for (int j=0; j<OUTR; j++) {
+	for (int l=0; l<OUTR; l++) {
+	  otdat[(7*OUTR+j)*OUTR+l] = 0.0;
+	  otdat[(8*OUTR+j)*OUTR+l] = 0.0;
+	  otdat[(9*OUTR+j)*OUTR+l] = 0.0;
+	  
+	  // Check for number in the histogram bin
+	  //
+	  int numZ = histo.dataZ[l*OUTR+j].size();
+	  if (numZ>0) {
+	    otdat[(7*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.1*numZ)];
+	    otdat[(8*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.5*numZ)];
+	    otdat[(9*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.9*numZ)];
+	  }
+	}
+      }
+
       VtkGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
 
       std::vector<double> data(OUTR*OUTR);
@@ -759,7 +763,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
       for (int n=0; n<noutS; n++) {
 	for (int j=0; j<OUTR; j++) {
 	  for (int l=0; l<OUTR; l++) {
-	    data[l*OUTR + j] = otdat[(n*OUTR+j)*OUTR+l];
+	    data[j*OUTR + l] = otdat[(n*OUTR+j)*OUTR+l];
 	  }
 	}
 	vtk.Add(data, suffix[n]);
