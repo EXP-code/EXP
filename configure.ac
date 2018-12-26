@@ -1,7 +1,7 @@
 dnl ==========================================================================
 dnl Process this file with autoconf to produce a configure script.
 dnl ==========================================================================
-AC_INIT(EXP, 7.596)
+AC_INIT(EXP, 7.597)
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SRCDIR(src/expand.cc)
 AM_INIT_AUTOMAKE
@@ -46,6 +46,12 @@ AX_BOOST_SERIALIZATION
 AX_BOOST_REGEX
 AX_BOOST_PROGRAM_OPTIONS
 AX_BOOST_SYSTEM
+
+
+dnl ==========================================================================
+dnl Check for YAML-CPP
+dnl ==========================================================================
+AX_YAML([], [AC_MSG_ERROR([Could not find the yaml-cpp library!])])
 
 
 dnl ==========================================================================
