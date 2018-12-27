@@ -26,7 +26,7 @@ private:
 public:
 
   //! Constructor
-  OutPSN(string& line);
+  OutPSN(const YAML::Node & conf);
 
   //! Provided by derived class to generate some output
   /*!

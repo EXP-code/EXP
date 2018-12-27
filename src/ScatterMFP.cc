@@ -24,7 +24,7 @@ bool less_rpair(const rpair& one, const rpair& two)
 }
 
 
-ScatterMFP::ScatterMFP(string& line) : ExternalForce(line)
+ScatterMFP::ScatterMFP(const YAML::Node& conf) : ExternalForce(conf)
 {
   tautab = 100;
   tauscat = 1.0;
@@ -85,13 +85,11 @@ ScatterMFP::~ScatterMFP()
 
 void ScatterMFP::initialize()
 {
-  string val;
-
-  if (get_value("tautab", val)) tautab = atoi(val.c_str());
-  if (get_value("tauscat", val)) tauscat = atof(val.c_str());
-  if (get_value("rmax", val)) rmax = atof(val.c_str());
-  if (get_value("nscat", val)) nscat = atoi(val.c_str());
-  if (get_value("mfp_index", val)) mfp_index = atoi(val.c_str());
+  if (conf["tautab"])         tautab             = conf["tautab"].as<int>();
+  if (conf["tauscat"])        tauscat            = conf["tauscat"].as<double>();
+  if (conf["rmax"])           rmax               = conf["rmax"].as<double>();
+  if (conf["nscat"])          nscat              = conf["nscat"].as<int>();
+  if (conf["mfp_index"])      mfp_index          = conf["mfp_index"].as<int>();
 }
 
 

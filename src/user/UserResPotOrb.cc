@@ -34,7 +34,7 @@ string respotorb_mpi_id()
   return id;
 }
 
-UserResPotOrb::UserResPotOrb(string &line) : ExternalForce(line)
+UserResPotOrb::UserResPotOrb(const YAML::Node& conf) : ExternalForce(conf)
 {
   LMAX = 2;
   NUMR = 800;
@@ -266,23 +266,21 @@ void UserResPotOrb::userinfo()
 
 void UserResPotOrb::initialize()
 {
-  string val;
+  if (conf["LMAX"])           LMAX               = conf["LMAX"].as<int>();
+  if (conf["NMAX"])           NMAX               = conf["NMAX"].as<int>();
+  if (conf["NUMR"])           NUMR               = conf["NUMR"].as<int>();
 
-  if (get_value("LMAX", val))     LMAX = atoi(val.c_str());
-  if (get_value("NMAX", val))     NMAX = atoi(val.c_str());
-  if (get_value("NUMR", val))     NUMR = atoi(val.c_str());
-
-  if (get_value("L0", val))       L0 = atoi(val.c_str());
-  if (get_value("M0", val))       M0 = atoi(val.c_str());
+  if (conf["L0"])             L0                 = conf["L0"].as<int>();
+  if (conf["M0"])             M0                 = conf["M0"].as<int>();
 
   for (numRes=0; numRes<1000; numRes++) {
     ostringstream countl1, countl2;
     countl1 << "L1(" << numRes+1 << ")";
     countl2 << "L2(" << numRes+1 << ")";
-    if (get_value(countl1.str(), val)) {
-      L1.push_back(atoi(val.c_str()));
-      if (get_value(countl2.str(), val))
-	L2.push_back(atoi(val.c_str()));
+    if (conf[countl1.str()]) {
+      L1.push_back(conf[countl1.str()].as<int>());
+      if (conf[countl2.str()])
+	L2.push_back(conf[countl2.str()].as<int>());
       else break;
     } else break;
   }
@@ -294,34 +292,34 @@ void UserResPotOrb::initialize()
     MPI_Abort(MPI_COMM_WORLD, 119);
   }
 
-  if (get_value("Klim", val))     Klim = atof(val.c_str());
+  if (conf["Klim"])           Klim               = conf["Klim"].as<double>();
 
-  if (get_value("ton", val))      ton = atof(val.c_str());
-  if (get_value("toff", val))     toff = atof(val.c_str());
-  if (get_value("delta", val))    delta = atof(val.c_str());
+  if (conf["ton"])            ton                = conf["ton"].as<double>();
+  if (conf["toff"])           toff               = conf["toff"].as<double>();
+  if (conf["delta"])          delta              = conf["delta"].as<double>();
 
-  if (get_value("MASS", val))     MASS = atof(val.c_str());
-  if (get_value("AMP", val))      AMP = atof(val.c_str());
-  if (get_value("COROT", val))    COROT = atof(val.c_str());
-  if (get_value("A21", val))      A21 = atof(val.c_str());
-  if (get_value("A32", val))      A32 = atof(val.c_str());
+  if (conf["MASS"])           MASS               = conf["MASS"].as<double>();
+  if (conf["AMP"])            AMP                = conf["AMP"].as<double>();
+  if (conf["COROT"])          COROT              = conf["COROT"].as<double>();
+  if (conf["A21"])            A21                = conf["A21"].as<double>();
+  if (conf["A32"])            A32                = conf["A32"].as<double>();
 
-  if (get_value("NUMX", val))     NUMX = atoi(val.c_str());
-  if (get_value("NUME", val))     NUME = atoi(val.c_str());
-  if (get_value("RECS", val))     RECS = atoi(val.c_str());
-  if (get_value("ITMAX", val))    ITMAX = atoi(val.c_str());
-  if (get_value("DELE", val))     DELE = atof(val.c_str());
-  if (get_value("DELK", val))     DELK = atof(val.c_str());
-  if (get_value("DELB", val))     DELB = atof(val.c_str());
-  if (get_value("ALPHA", val))    ALPHA = atof(val.c_str());
-  
-  if (get_value("pmass", val))    pmass = atof(val.c_str());
+  if (conf["NUMX"])           NUMX               = conf["NUMX"].as<int>();
+  if (conf["NUME"])           NUME               = conf["NUME"].as<int>();
+  if (conf["RECS"])           RECS               = conf["RECS"].as<int>();
+  if (conf["ITMAX"])          ITMAX              = conf["ITMAX"].as<int>();
+  if (conf["DELE"])           DELE               = conf["DELE"].as<double>();
+  if (conf["DELK"])           DELK               = conf["DELK"].as<double>();
+  if (conf["DELB"])           DELB               = conf["DELB"].as<double>();
+  if (conf["ALPHA"])          ALPHA              = conf["ALPHA"].as<double>();
 
-  if (get_value("model", val))    model_file = val;
-  if (get_value("data", val))     data_file = val;
-  if (get_value("ctrname", val))  ctr_name = val;
-  if (get_value("filename", val)) filename = val;
-  if (get_value("debug",val))	  debug = atol(val);
+  if (conf["pmass"])          pmass              = conf["pmass"].as<double>();
+
+  if (conf["model"])          model_file         = conf["model"].as<string>();
+  if (conf["data"])           data_file          = conf["data"].as<string>();
+  if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
+  if (conf["filename"])       filename           = conf["filename"].as<string>();
+  if (conf["debug"])          debug              = conf["debug"].as<bool>();
 }
 
 double UserResPotOrb::get_radius(double t)
@@ -708,9 +706,9 @@ void * UserResPotOrb::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerResPotOrb(string& line)
+  ExternalForce *makerResPotOrb(const YAML::Node& conf)
   {
-    return new UserResPotOrb(line);
+    return new UserResPotOrb(conf);
   }
 }
 

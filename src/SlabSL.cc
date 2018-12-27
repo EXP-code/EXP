@@ -8,7 +8,7 @@
 
 #include <SlabSL.H>
 
-SlabSL::SlabSL(string& line) : PotAccel(line)
+SlabSL::SlabSL(const YAML::Node& conf) : PotAccel(conf)
 {
   id = "Slab (Sturm-Liouville)";
   NGRID = 100;
@@ -76,15 +76,13 @@ SlabSL::~SlabSL()
 
 void SlabSL::initialize()
 {
-  string val;
-
-  if (get_value("nmaxx", val)) nmaxx = atoi(val.c_str());
-  if (get_value("nmaxy", val)) nmaxy = atoi(val.c_str());
-  if (get_value("nmaxz", val)) nmaxz = atoi(val.c_str());
-  if (get_value("nminx", val)) nminx = atoi(val.c_str());
-  if (get_value("nminy", val)) nminy = atoi(val.c_str());
-  if (get_value("hslab", val)) hslab = atof(val.c_str());
-  if (get_value("zmax", val))  zmax = atof(val.c_str());
+  if (conf["nmaxx"])          nmaxx              = conf["nmaxx"].as<int>();
+  if (conf["nmaxy"])          nmaxy              = conf["nmaxy"].as<int>();
+  if (conf["nmaxz"])          nmaxz              = conf["nmaxz"].as<int>();
+  if (conf["nminx"])          nminx              = conf["nminx"].as<int>();
+  if (conf["nminy"])          nminy              = conf["nminy"].as<int>();
+  if (conf["hslab"])          hslab              = conf["hslab"].as<double>();
+  if (conf["zmax"])           zmax               = conf["zmax"].as<double>();
 }
 
 void SlabSL::determine_coefficients(void)

@@ -4,6 +4,8 @@
 #include <mpi.h>
 #include <utility>
 
+#include <yaml-cpp/yaml.h>
+
 #include <EXPException.H>
 #include <global.H>
 #include <Orient.H>
@@ -321,20 +323,23 @@ public:
   //! Describe the phase space coordinates
   enum PSTYPE {Inertial=1, Local=2, Centered=4};
 
+  //! Configuration for this component
+  YAML::Node conf;
+
   //! Identify this component
-  string name;
+  std::string name;
 
   //! Force method
-  string id;
+  std::string id;
 
-  //! Parameter string for component
-  string cparam;
+  //! Parameters for component
+  YAML::Node cconf;
+
+  //! Parameters for force
+  YAML::Node fconf;
 
   //! Particle file
-  string pfile;
-
-  //! Parameter string for force
-  string fparam;
+  std::string pfile;
 
   //! Slab geometry
   bool slab;
@@ -486,7 +491,7 @@ public:
   /*! 
     Takes the id string id and phase space file name as arguments
   */
-  Component(string NAME, string ID, string CPARAM, string PS, string FPARAM);
+  Component(const std::string name, const YAML::Node conf);
 
   //! Initialize from file
   Component(istream *in);

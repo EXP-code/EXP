@@ -47,7 +47,7 @@ double dcond(double R, double z, double phi, int M)
 }
 
 
-Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
+Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 {
 #if HAVE_LIBCUDA==1
   if (m) {
@@ -129,11 +129,8 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
   //
   ortho = new EmpCylSL(nmax, lmax, mmax, ncylorder, acyl, hcyl);
   
-  {
-    std::string val;
-    if (get_value("tk_type", val)) ortho->setTK(val);
-  }
-
+  if (conf["tk_type"]) ortho->setTK(conf["tk_type"].as<std::string>());
+  
   if (expcond) {
 				// Set parameters for external dcond function
     EXPSCALE = acyl;
@@ -270,69 +267,39 @@ Cylinder::~Cylinder()
 
 void Cylinder::initialize()
 {
-  string val;
-
   // These first two should not be user settable . . . but need them for now
-  if (get_value("rcylmin", val))    rcylmin    = atof(val.c_str());
-  if (get_value("rcylmax", val))    rcylmax    = atof(val.c_str());
+  if (conf["rcylmin"])    rcylmin    = conf["rcylmin"].as<double>();
+  if (conf["rcylmax"])    rcylmax    = conf["rcylmax"].as<double>();
 
-  if (get_value("acyl",   val))     acyl       = atof(val.c_str());
-  if (get_value("hcyl",   val))     hcyl       = atof(val.c_str());
-  if (get_value("nmax",   val))     nmax       = atoi(val.c_str());
-  if (get_value("lmax",   val))     lmax       = atoi(val.c_str());
-  if (get_value("mmax",   val))     mmax       = atoi(val.c_str());
-  if (get_value("ncylnx", val))     ncylnx     = atoi(val.c_str());
-  if (get_value("ncylny", val))     ncylny     = atoi(val.c_str());
-  if (get_value("ncylr",  val))     ncylr      = atoi(val.c_str());
-  if (get_value("ncylorder",  val)) ncylorder  = atoi(val.c_str());
-  if (get_value("ncylrecomp", val)) ncylrecomp = atoi(val.c_str());
-  if (get_value("hallfreq", val))   hallfreq   = atoi(val.c_str());
-  if (get_value("vtkfreq",  val))   vtkfreq    = atoi(val.c_str());
-  if (get_value("eof_file", val))   eof_file   = val;
-  if (get_value("vflag",    val))   vflag      = atoi(val.c_str());
+  if (conf["acyl"])       acyl       = conf["acyl"].as<double>();
+  if (conf["hcyl"])       hcyl       = conf["hcyl"].as<double>();
+  if (conf["nmax"])       nmax       = conf["nmax"].as<int>();
+  if (conf["lmax"])       lmax       = conf["lmax"].as<int>();
+  if (conf["mmax"])       mmax       = conf["mmax"].as<int>();
+  if (conf["ncylnx"])     ncylnx     = conf["ncylnx"].as<int>();
+  if (conf["ncylny"])     ncylny     = conf["ncylny"].as<int>();
+  if (conf["ncylr"])      ncylr      = conf["ncylr"].as<int>();
+  if (conf["ncylorder"])  ncylorder  = conf["ncylorder"].as<int>();
+  if (conf["ncylrecomp"]) ncylrecomp = conf["ncylrecomp"].as<int>();
+  if (conf["hallfreq"])   hallfreq   = conf["hallfreq"].as<int>();
+  if (conf["vtkfreq"])    vtkfreq    = conf["vtkfreq"].as<int>();
+  if (conf["eof_file"])   eof_file   = conf["eof_file"].as<std::string>();
+  if (conf["vflag"])      vflag      = conf["vflag"].as<int>();
 
-  if (get_value("rnum",   val))     rnum       = atoi(val.c_str());
-  if (get_value("pnum",   val))     pnum       = atoi(val.c_str());
-  if (get_value("tnum",   val))     tnum       = atoi(val.c_str());
-  if (get_value("ashift", val))     ashift     = atof(val.c_str());
-  
+  if (conf["rnum"])       rnum       = conf["rnum"].as<int>();
+  if (conf["pnum"])       pnum       = conf["pnum"].as<int>();
+  if (conf["tnum"])       tnum       = conf["tnum"].as<int>();
+  if (conf["ashift"])     ashift     = conf["ashift"].as<double>();
+  if (conf["expcond"])    expcond    = conf["expcond"].as<bool>();
+  if (conf["logr"])      logarithmic = conf["logr"].as<bool>();
+  if (conf["pca"])        pca        = conf["pca"].as<bool>();
+  if (conf["pcavtk"])     pcavtk     = conf["pcavtk"].as<bool>();
+  if (conf["try_cache"])  try_cache  = conf["try_cache"].as<bool>();
+  if (conf["density"])    density    = conf["density"].as<bool>();
+  if (conf["cmap"])       cmap       = conf["cmap"].as<bool>();
 
-  if (get_value("self_consistent", val)) {
-    if (atoi(val.c_str())) self_consistent = true; 
-    else self_consistent = false;
-  }
-  if (get_value("expcond", val)) {
-    if (atoi(val.c_str())) expcond = true; 
-    else expcond = false;
-  }
-  if (get_value("logr", val)) {
-    if (atoi(val.c_str())) logarithmic = true; 
-    else logarithmic = false;
-  }
-  if (get_value("pca", val)) {
-    if (atoi(val.c_str())) pca = true; 
-    else pca = false;
-  }
-  if (get_value("pcavtk", val)) {
-    if (atoi(val.c_str())) pcavtk = true; 
-    else pcavtk = false;
-  }
-  if (get_value("try_cache", val)) {
-    if (atoi(val.c_str())) try_cache = true; 
-    else try_cache = false;
-  }
-  if (get_value("dump_basis", val)) {
-    if (atoi(val.c_str())) dump_basis = true; 
-    else dump_basis = false;
-  }
-  if (get_value("density", val)) {
-    if (atoi(val.c_str())) density = true; 
-    else density = false;
-  }
-  if (get_value("cmap", val)) {
-    if (atoi(val.c_str())) cmap = true; 
-    else cmap = false;
-  }
+  if (conf["self_consistent"])
+    self_consistent = conf["self_consistent"].as<bool>();
 }
 
 void Cylinder::get_acceleration_and_potential(Component* C)

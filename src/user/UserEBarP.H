@@ -93,7 +93,7 @@ private:
 public:
 
   //! Constructor
-  UserEBarP(string &line);
+  UserEBarP(const YAML::Node& conf);
 
   //! Destructor
   ~UserEBarP();

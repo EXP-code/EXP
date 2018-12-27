@@ -52,7 +52,7 @@ private:
 public:
 
   //! Constructor
-  UserDisk(string &line);
+  UserDisk(const YAML::Node& conf);
 
   //! Destructor
   ~UserDisk();

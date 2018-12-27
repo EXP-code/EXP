@@ -6,7 +6,7 @@
 #include <TwoCenter.H>
 #include <MixtureBasis.H>
 
-TwoCenter::TwoCenter(string& line) : PotAccel(line)
+TwoCenter::TwoCenter(const YAML::Node& conf) : PotAccel(conf)
 {
   nhisto = 0;
   inner  = vector<double>(3, 0);
@@ -39,28 +39,28 @@ TwoCenter::TwoCenter(string& line) : PotAccel(line)
   // Instantiate the force ("reflection" by hand)
   //
   if ( !basis.compare("bessel") ) {
-    exp_in  = new Bessel(line, mix_in );
-    exp_out = new Bessel(line, mix_out);
+    exp_in  = new Bessel(conf, mix_in );
+    exp_out = new Bessel(conf, mix_out);
   }
   else if ( !basis.compare("c_brock") ) {
-    exp_in  = new CBrock(line, mix_in );
-    exp_out = new CBrock(line, mix_out);
+    exp_in  = new CBrock(conf, mix_in );
+    exp_out = new CBrock(conf, mix_out);
   }
   else if ( !basis.compare("c_brock_disk") ) {
-    exp_in  = new CBrockDisk(line, mix_in );
-    exp_out = new CBrockDisk(line, mix_out);
+    exp_in  = new CBrockDisk(conf, mix_in );
+    exp_out = new CBrockDisk(conf, mix_out);
   }
   else if ( !basis.compare("hernq") ) {
-    exp_in  = new Hernquist(line, mix_in );
-    exp_out = new Hernquist(line, mix_out);
+    exp_in  = new Hernquist(conf, mix_in );
+    exp_out = new Hernquist(conf, mix_out);
   }
   else if ( !basis.compare("sphereSL") ) {
-    exp_in  = new Sphere(line, mix_in );
-    exp_out = new Sphere(line, mix_out);
+    exp_in  = new Sphere(conf, mix_in );
+    exp_out = new Sphere(conf, mix_out);
   }
   else if ( !basis.compare("cylinder") ) {
-    exp_in  = new Cylinder(line, mix_in );
-    exp_out = new Cylinder(line, mix_out);
+    exp_in  = new Cylinder(conf, mix_in );
+    exp_out = new Cylinder(conf, mix_out);
   }
   else {
     ostringstream msg;
@@ -77,9 +77,8 @@ TwoCenter::TwoCenter(string& line) : PotAccel(line)
 
 void TwoCenter::initialize()
 {
-  string val;
-  if (get_value("nhisto", val))		nhisto = atoi(val.c_str());
-  if (get_value("basis",  val))		basis  = val.c_str();
+  if (conf["nhisto"])         nhisto             = conf["nhisto"].as<int>();
+  if (conf["basis"])          basis              = conf["basis"].as<string>();
 }
 
 TwoCenter::~TwoCenter(void)

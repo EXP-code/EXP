@@ -3,7 +3,7 @@
 #include <AxisymmetricBasis.H>
 #include <VtkPCA.H>
 
-AxisymmetricBasis:: AxisymmetricBasis(string& line) : Basis(line) 
+AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf) 
 {
   Lmax      = 4;
   nmax      = 10;
@@ -21,45 +21,21 @@ AxisymmetricBasis:: AxisymmetricBasis(string& line) : Basis(line)
 
   string val;
 
-  if (get_value("Lmax", val)) Lmax = atoi(val.c_str());
+  if (conf["Lmax"])     Lmax       = conf["Lmax"].as<int>();
+  if (conf["nmax"])     nmax       = conf["nmax"].as<int>();
+  if (conf["dof"])      dof        = conf["dof"].as<int>();
+  if (conf["npca"])     npca       = conf["npca"].as<int>();
+  if (conf["selector"]) pca        = conf["selector"].as<bool>();
+  if (conf["pca"])      pca        = conf["pca"].as<bool>();
+  if (conf["pcadiag"])  pcadiag    = conf["pcadiag"].as<bool>();
+  if (conf["pcavtk"])   pcavtk     = conf["pcavtk"].as<bool>();
+  if (conf["vtkfreq"])  vtkfreq    = conf["vtkfreq"].as<int>();
+  if (conf["pcajknf"])  pcajknf    = conf["pcajknf"].as<bool>();
+  if (conf["tksmooth"]) tksmooth   = conf["tksmooth"].as<double>();
+  if (conf["tkcum"])    tkcum      = conf["tkcum"].as<double>();
 
-  if (get_value("nmax", val)) nmax = atoi(val.c_str());
-
-  if (get_value("dof", val))  dof = atoi(val.c_str());
-
-  if (get_value("npca", val)) npca = atoi(val.c_str());
-
-  if (get_value("selector", val)) {
-    if (atoi(val.c_str())) pca = true; 
-  }
-
-  if (get_value("pca", val)) {
-    if (atoi(val.c_str())) pca = true; 
-    else pca = false;
-  }
-
-  if (get_value("pcadiag", val)) {
-    if (atoi(val.c_str())) pcadiag = true; 
-    else pcadiag = false;
-  }
-
-  if (get_value("pcavtk", val)) {
-    if (atoi(val.c_str())) pcavtk = true; 
-    else pcavtk = false;
-  }
-
-  if (get_value("vtkfreq", val)) vtkfreq = atoi(val.c_str());
-
-  if (get_value("pcajknf", val)) {
-    if (atoi(val.c_str())) pcajknf = true; 
-    else pcajknf = false;
-  }
-  if (get_value("tksmooth", val)) tksmooth = atof(val.c_str());
-
-  if (get_value("tkcum", val)) tkcum = atof(val.c_str());
-
-  if (get_value("tk_type", val)) {
-    switch (atoi(val.c_str())) {
+  if (conf["tk_type"]) {
+    switch (conf["tk_type"].as<int>()) {
     case Hall:			tk_type = Hall;             break;
     case VarianceCut:		tk_type = VarianceCut;      break;
     case CumulativeCut:		tk_type = CumulativeCut;    break;

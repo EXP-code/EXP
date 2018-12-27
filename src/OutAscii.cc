@@ -11,7 +11,7 @@ using namespace std;
 #include <AxisymmetricBasis.H>
 #include <OutAscii.H>
 
-OutAscii::OutAscii(string& line) : Output(line)
+OutAscii::OutAscii(const YAML::Node& conf) : Output(conf)
 {
   nint = 100;
   nbeg = 0;
@@ -45,16 +45,18 @@ void OutAscii::initialize()
 {
   string tmp;
 
-  if (Output::get_value(string("nint"), tmp))  nint = atoi(tmp.c_str());
-  if (Output::get_value(string("nbeg"), tmp))  nbeg = atoi(tmp.c_str());
-  if (Output::get_value(string("name"), tmp))  name = tmp;
-  if (!Output::get_value(string("filename"), filename)) {
+  if (Output::conf["nint"])    nint  = Output::conf["nint"].as<int>();
+  if (Output::conf["nbeg"])    nbeg  = Output::conf["nbeg"].as<int>();
+  if (Output::conf["name"])    name  = Output::conf["name"].as<std::string>();
+  if (Output::conf["accel"])   accel = Output::conf["name"].as<bool>();
+
+  if (Output::conf["filename"])
+    filename = Output::conf["filename"].as<std::string>();
+  else {
     filename.erase();
     filename = outdir + "OUTASC." + runtag;
   }
-  if (Output::get_value(string("accel"), tmp)) {
-    if (atoi(tmp.c_str())) accel = true;
-  }
+
 				// Determine last file
 
   if (restart && nbeg==0 && myid==0) {

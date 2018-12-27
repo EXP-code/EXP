@@ -38,7 +38,6 @@ void clean_up(void)
 		     << setfill(' ') << endl;
 
   delete barrier;
-  delete parse;
 
   //===================================
   // Delete the instance containers

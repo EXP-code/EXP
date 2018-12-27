@@ -101,7 +101,7 @@ private:
 public:
 
   //! Constructor
-  UserPST(string &line);
+  UserPST(const YAML::Node& conf);
 
   //! Destructor
   ~UserPST();

@@ -102,7 +102,7 @@ private:
 public:
 
   //! Constructor
-  UserEBarS(string &line);
+  UserEBarS(const YAML::Node& conf);
 
   //! Destructor
   ~UserEBarS();

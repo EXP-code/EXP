@@ -8,7 +8,7 @@
 
 #include <OrbTrace.H>
 
-OrbTrace::OrbTrace(string& line) : Output(line)
+OrbTrace::OrbTrace(const YAML::Node& conf) : Output(conf)
 {
   nint    = 1;
   norb    = 5;
@@ -191,47 +191,21 @@ OrbTrace::OrbTrace(string& line) : Output(line)
 
 void OrbTrace::initialize()
 {
-  string tmp;
-				// Get file name
-  get_value(string("filename"), filename);
-  
-  if (get_value(string("norb"), tmp)) 
-    norb = atoi(tmp.c_str());
-
-  if (get_value(string("nbeg"), tmp))
-    nbeg = atoi(tmp.c_str());
-
-  if (get_value(string("nskip"), tmp))
-    nskip = atoi(tmp.c_str());
-
-  if (get_value(string("nint"), tmp)) 
-    nint = atoi(tmp.c_str());
-
-  if (get_value(string("orbitlist"), tmp))
-    orbitlist = tmp;
-
-  if (get_value(string("use_acc"), tmp)) {
-    if (atoi(tmp.c_str())) use_acc = true;
-    else                   use_acc = false;
-  }
-
-  if (get_value(string("use_pot"), tmp)) {
-    if (atoi(tmp.c_str())) use_pot = true;
-    else                   use_pot = false;
-  }
-
-  if (get_value(string("use_lev"), tmp)) {
-    if (atoi(tmp.c_str())) use_lev = true;
-    else                   use_lev = false;
-  }
-
-  if (get_value(string("local"), tmp)) {
-    if (atoi(tmp.c_str())) local   = true;
-    else                   local   = false;
-  }
+  // Get file name
+  if (conf["filename"])    filename  = conf["filename"].as<std::string>();
+  if (conf["norb"])        norb      = conf["norb"].as<int>();
+  if (conf["nbeg"])        nbeg      = conf["nbeg"].as<int>();
+  if (conf["nskip"])       nskip     = conf["nskip"].as<int>();
+  if (conf["nint"])        nint      = conf["nint"].as<int>();
+  if (conf["orbitlist"])   orbitlist = conf["orbitlist"].as<std::string>();
+  if (conf["use_acc"])     use_acc   = conf["use_acc"].as<bool>();
+  if (conf["use_pot"])     use_pot   = conf["use_pot"].as<bool>();
+  if (conf["use_lev"])     use_lev   = conf["use_lev"].as<bool>();
+  if (conf["local"])       local     = conf["local"].as<bool>();
 
 				// Search for desired component
-  if (get_value(string("name"), tmp)) {
+  if (conf["name"]) {
+    std::string tmp = conf["name"].as<std::string>();
     for (auto c : comp->components) {
       if (!(c->name.compare(tmp))) tcomp  = c;
     }

@@ -6,7 +6,7 @@
 
 #include <OutCoef.H>
 
-OutCoef::OutCoef(string& line) : Output(line)
+OutCoef::OutCoef(const YAML::Node& conf) : Output(conf)
 {
   nint = 10;
   filename = outdir + "outcoef." + runtag;
@@ -31,20 +31,15 @@ OutCoef::OutCoef(string& line) : Output(line)
 
 void OutCoef::initialize()
 {
-  string tmp;
-				// Get file name
-  get_value(string("filename"), filename);
-  
-  if (get_value(string("nint"), tmp)) 
-    nint = atoi(tmp.c_str());
-
-				// Search for desired component
-  if (get_value(string("name"), tmp)) {
-    for (auto c : comp->components) {
-      if (!(c->name.compare(tmp))) tcomp  = c;
+  if (conf["filename"])     filename = conf["filename"].as<std::string>();
+  if (conf["nint"])         nint     = conf["nint"].as<int>();
+  if (conf["name"])
+    {				// Search for desired component
+      std::string tmp = conf["name"].as<std::string>();
+      for (auto c : comp->components) {
+	if (!(c->name.compare(tmp))) tcomp  = c;
+      }
     }
-  }
-  
 }
 
 void OutCoef::Run(int n, bool last)

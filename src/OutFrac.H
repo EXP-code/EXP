@@ -29,7 +29,7 @@ private:
 public:
 
   //! Constructor
-  OutFrac(string& line);
+  OutFrac(const YAML::Node& conf);
 
   //! Generate the output
   /*!

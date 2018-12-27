@@ -13,6 +13,8 @@
 #include <chkTimer.H>
 #include <BarrierWrapper.H>
 
+#include <yaml-cpp/yaml.h>
+
 using namespace std;
 
 /*! \file global.H
@@ -266,12 +268,8 @@ class OutputContainer;
 //! One output routine container per simulation
 extern OutputContainer *output;
 
-// Parameter database
-
-#include <ParamParseMPI.H>
-
 //! Parameter database
-extern ParamParseMPI *parse;
+extern YAML::Node parse;
 
 //! Total alloted runtime (runtime < 0 turns off timer)
 extern double runtime;

@@ -10,7 +10,7 @@
 
 const double default_quant[] = {0.001, 0.003, 0.01, 0.03, 0.1, 0.2, 0.4, 0.5, 0.6, 0.8, 0.9, 0.97, 0.99, 0.993, 0.999};
 
-OutFrac::OutFrac(string& line) : Output(line)
+OutFrac::OutFrac(const YAML::Node& conf) : Output(conf)
 {
   nint = 10;
   filename = outdir + "OUTFRAC." + runtag;
@@ -125,27 +125,20 @@ OutFrac::OutFrac(string& line) : Output(line)
 
 void OutFrac::initialize()
 {
-  string tmp;
 				// Get file name
-  get_value(string("filename"), filename);
-  
-  if (get_value(string("nint"), tmp)) 
-    nint = atoi(tmp.c_str());
-
+  filename = conf["filename"].as<std::string>();
+  nint     = conf["nint"]    .as<int>();
 				// Search for desired component
-  if (get_value(string("name"), tmp)) {
+  if (conf["name"]) {
+    std::string tmp = conf["name"].as<std::string>();
     for (auto c : comp->components) {
       if (!(c->name.compare(tmp))) tcomp  = c;
     }
   }
 
 				// Get quantiles
-  std::map<int, string> vals;
-  if ((vals=get_value_array(string("frac"))).size()) {
-    Quant.clear();
-    for (auto it : vals) Quant.push_back(atof(it.second.c_str()));
-  }
-  
+  if (conf["frac"])  Quant = conf["frac"].as<std::vector<double>>();
+
 }
 
 void OutFrac::Run(int n, bool last)

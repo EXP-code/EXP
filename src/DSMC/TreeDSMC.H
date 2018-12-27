@@ -362,7 +362,7 @@ public:
   static bool use_effort;
 
   //! Constructor
-  TreeDSMC(string &line);
+  TreeDSMC(const YAML::Node& conf);
 
   //! Destructor
   ~TreeDSMC();

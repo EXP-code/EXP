@@ -35,7 +35,7 @@ private:
 public:
 
   //! Constructor
-  OutAscii(string& line);
+  OutAscii(const YAML::Node& conf);
 
   //! Provided by derived class to generate some output
   /*!

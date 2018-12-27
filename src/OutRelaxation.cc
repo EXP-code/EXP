@@ -7,7 +7,7 @@
 #include <ComponentContainer.H>
 #include <OutRelaxation.H>
 
-OutRelaxation::OutRelaxation(string& line) : Output(line)
+OutRelaxation::OutRelaxation(const YAML::Node& conf) : Output(conf)
 {
   id = "OutRelaxation";
 
@@ -37,15 +37,13 @@ OutRelaxation::OutRelaxation(string& line) : Output(line)
 
 void OutRelaxation::initialize()
 {
-  string tmp;
-
 				// Get file name
-  if (!get_value(string("suffix"), suffix)) {
-    suffix.erase();
+  if (conf["suffix"])
+    suffix = conf["suffix"].as<std::string>();
+  else
     suffix = "out";
-  }
 
-  if (get_value(string("epos"), tmp))  epos = atoi(tmp.c_str());
+  if (conf["epos"]) epos = conf["epos"].as<int>();
 }
 
 void OutRelaxation::Run(int n, bool final)

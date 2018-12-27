@@ -52,7 +52,8 @@ public:
   //! Constructor
   //! \param line is the parameter string
   //! \param m is the MixtureBasis for a multicenter expansion
-  CBrockDisk(string& line, MixtureBasis* m=0);
+  CBrockDisk(const YAML::Node& conf, MixtureBasis* m=0);
+
   //! Destructor
   virtual ~CBrockDisk(void);
 

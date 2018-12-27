@@ -115,7 +115,7 @@ double UserPST::get_fid_bulge_dens()
   return r_b;
 }
 
-UserPST::UserPST(string &line) : ExternalForce(line)
+UserPST::UserPST(const YAML::Node& conf) : ExternalForce(conf)
 {
   id = "Piner-Stone-Teuben";
 
@@ -355,26 +355,24 @@ void UserPST::userinfo()
 
 void UserPST::initialize()
 {
-  string val;
-
-  if (get_value("rmin", val))	        rmin     = atof(val.c_str());
-  if (get_value("rmax", val))	        rmax     = atof(val.c_str());
-  if (get_value("numr", val))	        numr     = atoi(val.c_str());
-  if (get_value("blog", val))	        blog     = atol(val);
-  if (get_value("dlog", val))	        dlog     = atol(val);
-  if (get_value("arat", val))		arat     = atof(val.c_str());
-  if (get_value("Qm", val))		Qm       = atof(val.c_str());
-  if (get_value("rL", val))		rL       = atof(val.c_str());
-  if (get_value("rhoC", val))		rhoC     = atof(val.c_str());
-  if (get_value("nu", val))		nu       = atof(val.c_str());
-  if (get_value("Lmax", val))		Lmax     = atoi(val.c_str());
-  if (get_value("Nmax", val))		Nmax     = atoi(val.c_str());
-  if (get_value("numR", val))		numR     = atoi(val.c_str());
-  if (get_value("numt", val))		numt     = atoi(val.c_str());
-  if (get_value("numg", val))		numg     = atoi(val.c_str());
-  if (get_value("Ton", val))		Ton      = atof(val.c_str());
-  if (get_value("DeltaT", val))		DeltaT   = atof(val.c_str());
-  if (get_value("filename", val))	filename = val;
+  if (conf["rmin"])           rmin               = conf["rmin"].as<double>();
+  if (conf["rmax"])           rmax               = conf["rmax"].as<double>();
+  if (conf["numr"])           numr               = conf["numr"].as<int>();
+  if (conf["blog"])           blog               = conf["blog"].as<bool>();
+  if (conf["dlog"])           dlog               = conf["dlog"].as<bool>();
+  if (conf["arat"])           arat               = conf["arat"].as<double>();
+  if (conf["Qm"])             Qm                 = conf["Qm"].as<double>();
+  if (conf["rL"])             rL                 = conf["rL"].as<double>();
+  if (conf["rhoC"])           rhoC               = conf["rhoC"].as<double>();
+  if (conf["nu"])             nu                 = conf["nu"].as<double>();
+  if (conf["Lmax"])           Lmax               = conf["Lmax"].as<int>();
+  if (conf["Nmax"])           Nmax               = conf["Nmax"].as<int>();
+  if (conf["numR"])           numR               = conf["numR"].as<int>();
+  if (conf["numt"])           numt               = conf["numt"].as<int>();
+  if (conf["numg"])           numg               = conf["numg"].as<int>();
+  if (conf["Ton"])            Ton                = conf["Ton"].as<double>();
+  if (conf["DeltaT"])         DeltaT             = conf["DeltaT"].as<double>();
+  if (conf["filename"])       filename           = conf["filename"].as<string>();
 }
 
 
@@ -477,9 +475,9 @@ void * UserPST::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerPST(string& line)
+  ExternalForce *makerPST(const YAML::Node& conf)
   {
-    return new UserPST(line);
+    return new UserPST(conf);
   }
 }
 

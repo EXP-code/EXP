@@ -2,7 +2,7 @@
 
 #include <ExternalForce.H>
 
-ExternalForce::ExternalForce(string& line) : PotAccel(line)
+ExternalForce::ExternalForce(const YAML::Node& conf) : PotAccel(conf)
 {
 				// Do nothing
 }

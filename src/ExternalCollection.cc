@@ -30,41 +30,38 @@ void ExternalCollection::initialize()
 {
   (*barrier)("ExternalCollection::initialize: BEGIN", __FILE__, __LINE__);
 
-  spair data;
-
   dynamicload();
   
-  parse->find_list("external");
+  YAML::Node ext = parse["external"];
 
-  while (parse->get_next(data)) {
-      
-    string name = data.first;
-    string rest = data.second;
+  for (YAML::const_iterator it=ext.begin(); it!=ext.end(); ++it) {
+
+    std::string name = it->first.as<std::string>();
     
 				// Instantiate the force
     if ( !name.compare("tidalField") )
 
-      force_list.insert(force_list.end(), new tidalField(rest));
+      force_list.insert(force_list.end(), new tidalField(it->second));
 
     else if ( !name.compare("externalShock") )
       
-      force_list.insert(force_list.end(), new externalShock(rest));
+      force_list.insert(force_list.end(), new externalShock(it->second));
 
     else if ( !name.compare("generateRelaxation") )
 
-      force_list.insert(force_list.end(), new generateRelaxation(rest));
+      force_list.insert(force_list.end(), new generateRelaxation(it->second));
 
     else if ( !name.compare("ScatterMFP") )
 
-      force_list.insert(force_list.end(), new ScatterMFP(rest));
+      force_list.insert(force_list.end(), new ScatterMFP(it->second));
     
     else if ( !name.compare("TreeDSMC") )
 
-      force_list.insert(force_list.end(), new TreeDSMC(rest));
+      force_list.insert(force_list.end(), new TreeDSMC(it->second));
     
     else if ( !name.compare("HaloBulge") )
 
-      force_list.insert(force_list.end(), new HaloBulge(rest));
+      force_list.insert(force_list.end(), new HaloBulge(it->second));
     
     else {			// First try to find it in dynamic library
     
@@ -73,7 +70,7 @@ void ExternalCollection::initialize()
       for (fitr=factory.begin(); fitr!=factory.end(); fitr++) {
 
 	if (!name.compare(fitr->first)) {
-	  force_list.insert(force_list.end(), factory[name](rest));
+	  force_list.insert(force_list.end(), factory[name](it->second));
 	  found = true;
 	}
 

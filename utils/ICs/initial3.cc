@@ -45,6 +45,10 @@
 #include <interp.h>
 #include <EmpOrth9thd.h>
 
+#include <boost/program_options.hpp>
+
+namespace po = boost::program_options;
+
 #include <norminv.H>
 
 #define M_SQRT1_3 (0.5773502691896257645091487)
@@ -58,96 +62,6 @@
 #include "SphericalSL.h"
 #include "DiskHalo3.h" 
 #include "localmpi.h"
-#include "ProgramParam.H"
-//
-// Parameter definition stanza
-//
-program_option init[] = {
-  {"LMAX",            "int",       "4",               "Number of harmonics for halo expansion"},
-  {"NMAX",            "int",       "10",              "Number of radial basis functions for halo expansion"},
-  {"NUMR",            "int",       "2000",            "Size of radial grid for Spherical SL"},
-  {"RMIN",            "double",    "0.005",           "Minimum halo radius"},
-  {"RCYLMIN",         "double",    "0.001",           "Minimum disk radius"},
-  {"RCYLMAX",         "double",    "20.0",            "Maximum disk radius"},
-  {"SCSPH",           "double",    "1.0",             "Scale for Spherical SL coordinate mapping"},
-  {"RSPHSL",          "double",    "47.5",            "Maximum halo expansion radius"},
-  {"ASCALE",          "double",    "1.0",             "Radial scale length for disk basis construction"},
-  {"ASHIFT",          "double",    "0.0",             "Fraction of scale length for shift in conditioning function"},
-  {"HSCALE",          "double",    "0.1",             "Vertical scale length for disk basis construction"},
-  {"DMFAC",           "double",    "1.0",             "Disk mass scaling factor for spherical deprojection model"},
-  {"X0",              "double",    "0.0",             "Disk-Halo x center position"},
-  {"Y0",              "double",    "0.0",             "Disk-Halo y center position"},
-  {"Z0",              "double",    "0.0",             "Disk-Halo z center position"},
-  {"U0",              "double",    "0.0",             "Disk-Halo x velocity center position"},
-  {"V0",              "double",    "0.0",             "Disk-Halo y velocity center position"},
-  {"W0",              "double",    "0.0",             "Disk-Halo z velocity center position"},
-  {"RNUM",            "int",       "200",             "Number of radial knots for EmpCylSL basis construction quadrature"},
-  {"PNUM",            "int",       "80",              "Number of azimthal knots for EmpCylSL basis construction quadrature"},
-  {"TNUM",            "int",       "80",              "Number of cos(theta) knots for EmpCylSL basis construction quadrature"},
-  {"CMAP",            "bool",      "false",           "Map coordinates from radius to tabled grid"},
-  {"LOGR",            "bool",      "false",           "Make a logarithmic coordinate mapping"},
-  {"CHEBY",           "bool",      "false",           "Use Chebyshev smoothing for epicyclic and asymmetric drift"},
-  {"NDR",             "int",       "1600",            "Number of points in DiskHalo radial table for disk"},
-  {"NDZ",             "int",       "400",             "Number of points in DiskHalo vertical table for disk"},
-  {"NHR",             "int",       "1600",            "Number of points in DiskHalo radial table for halo"},
-  {"NHT",             "int",       "200",             "Number of points in DiskHalo cos(theta) table for halo"},
-  {"SHFAC",           "double",    "16.0",            "Scale height factor for assigning vertical table size"},
-  {"NMAX2",           "int",       "36",              "Number of radial basis functions in Spherical SL for determining disk basis"},
-  {"LMAX2",           "int",       "36",              "Number of harmonics for Spherial SL for determining disk basis"},
-  {"MMAX",            "int",       "4",               "Number of azimuthal harmonics for disk basis"},
-  {"NUMX",            "int",       "256",             "Radial grid size for disk basis table"},
-  {"NUMY",            "int",       "128",             "Vertical grid size for disk basis table"},
-  {"NORDER",          "int",       "16",              "Number of disk basis functions per M-order"},
-  {"DIVERGE",         "int",       "0",               "Cusp extrapolation for primary halo model"},
-  {"DIVERGE_RFAC",    "double",    "1.0",             "Extrapolation exponent for primary mass model"},
-  {"DIVERGE2",        "int",       "0",               "Cusp extrapolation for number model"},
-  {"DIVERGE_RFAC2",   "double",    "1.0",             "Extrapolation exponent for number model"},
-  {"DF",              "int",       "0",               "Use change-over from Jeans to Eddington"},
-  {"R_DF",            "double",    "20.0",            "Change over radius for Eddington"},
-  {"DR_DF",           "double",    "5.0",             "Width of change for to Eddington"},
-  {"scale_height",    "double",    "0.1",             "Scale length for disk realization"},
-  {"scale_length",    "double",    "2.0",             "Scale height for disk realization"},
-  {"scale_lenfkN",    "double",    "-1.0",            "Scale for multimass gas"},
-  {"disk_mass",       "double",    "1.0",             "Mass of stellar adisk"},
-  {"gas_mass",        "double",    "1.0",             "Mass of gaseous disk"},
-  {"gscal_length",    "double",    "4.0",             "Gas disk scale length"},
-  {"ToomreQ",         "double",    "1.2",             "Toomre Q parameter for stellar disk generation"},
-  {"Temp",            "double",    "2000.0",          "Gas temperature (in K)"},
-  {"Tmin",            "double",    "500.0",           "Temperature floor (in K) for gas disk generation"},
-  {"const_height",    "bool",      "true",            "Use constant disk scale height"},
-  {"images",          "bool",      "false",           "Print out reconstructed disk profiles"},
-  {"multi",           "bool",      "false",           "Use multimass halo"},
-  {"SEED",            "int",       "11",              "Random number seed"},
-  {"DENS",            "bool",      "true",            "Compute the density basis functions"},
-  {"basis",           "bool",      "false",           "Print out disk and halo basis"},
-  {"zero",            "bool",      "false",           "zero center of mass and velocity"},
-  {"nhalo",           "int",       "1000",            "Number of halo particles"},
-  {"ndisk",           "int",       "1000",            "Number of disk particles"},
-  {"ngas",            "int",       "1000",            "Number of gas particles"},
-  {"ngparam",         "int",       "3",               "Number of gas particle parameters"},
-  {"hbods",           "string",    "halo.bods",       "Halo particle output file"},
-  {"dbods",           "string",    "disk.bods",       "Disk particle output file"},
-  {"gbods",           "string",    "gas.bods",        "Gas particle output file"},
-  {"suffix",          "string",    "",                "Suffix appended for body files"},
-  {"VFLAG",           "int",       "0",               "Output flags for EmpCylSL"},
-  {"DFLAG",           "int",       "0",               "Output flags for DiskHalo"},
-  {"expcond",         "bool",      "true",            "Use analytic density function for computing EmpCylSL basis"},
-  {"CONSTANT",        "bool",      "false",           "Check basis with a constant density"},
-  {"GAUSSIAN",        "bool",      "false",           "Use Gaussian disk profile rather than exponential disk profile"},
-  {"PLUMMER",         "bool",      "false",           "Use Plummer disk profile rather than exponential disk profile"},
-  {"centerfile",      "string",    "center.dat",      "Read position and velocity center from this file"},
-  {"halofile1",       "string",    "SLGridSph.model", "File with input halo model"},
-
-  {"halofile2",       "string",    "SLGridSph.model.fake", "File with input halo model for multimass"},
-  {"\0",              "\0",        "\0",              "\0"}
-};
-
-
-const char *desc = "Generates a Monte Carlo realization of a halo\nwith an embedded disk using Jeans' equations.";
-
-
-ProgramParam config(desc, init);
-
 
 //
 // Global variables
@@ -228,90 +142,6 @@ string       centerfile;
 string       halofile1;
 string       halofile2;
 
-
-
-//
-// Assign the global variables from the database
-//
-void param_assign()
-{
-   LMAX               = config.get<int>     ("LMAX");
-   NMAX               = config.get<int>     ("NMAX");
-   NUMR               = config.get<int>     ("NUMR");
-   RMIN               = config.get<double>  ("RMIN");
-   RCYLMIN            = config.get<double>  ("RCYLMIN");
-   RCYLMAX            = config.get<double>  ("RCYLMAX");
-   SCSPH              = config.get<double>  ("SCSPH");
-   RSPHSL             = config.get<double>  ("RSPHSL");
-   ASCALE             = config.get<double>  ("ASCALE");
-   ASHIFT             = config.get<double>  ("ASHIFT");
-   HSCALE             = config.get<double>  ("HSCALE");
-   DMFAC              = config.get<double>  ("DMFAC");
-   X0                 = config.get<double>  ("X0");
-   Y0                 = config.get<double>  ("Y0");
-   Z0                 = config.get<double>  ("Z0");
-   U0                 = config.get<double>  ("U0");
-   V0                 = config.get<double>  ("V0");
-   W0                 = config.get<double>  ("W0");
-   RNUM               = config.get<int>     ("RNUM");
-   PNUM               = config.get<int>     ("PNUM");
-   TNUM               = config.get<int>     ("TNUM");
-   VFLAG              = config.get<int>     ("VFLAG");
-   DFLAG              = config.get<int>     ("DFLAG");
-   expcond            = config.get<bool>    ("expcond");
-   CMAP               = config.get<bool>    ("CMAP");
-   LOGR               = config.get<bool>    ("LOGR");
-   CHEBY              = config.get<bool>    ("CHEBY");
-   NDR                = config.get<int>     ("NDR");
-   NDZ                = config.get<int>     ("NDZ");
-   NHR                = config.get<int>     ("NHR");
-   NHT                = config.get<int>     ("NHT");
-   SHFAC              = config.get<double>  ("SHFAC");
-   NMAX2              = config.get<int>     ("NMAX2");
-   LMAX2              = config.get<int>     ("LMAX2");
-   MMAX               = config.get<int>     ("MMAX");
-   NUMX               = config.get<int>     ("NUMX");
-   NUMY               = config.get<int>     ("NUMY");
-   NORDER             = config.get<int>     ("NORDER");
-   DIVERGE            = config.get<int>     ("DIVERGE");
-   DIVERGE_RFAC       = config.get<double>  ("DIVERGE_RFAC");
-   DIVERGE2           = config.get<int>     ("DIVERGE2");
-   DIVERGE_RFAC2      = config.get<double>  ("DIVERGE_RFAC2");
-   DF                 = config.get<int>     ("DF");
-   R_DF               = config.get<double>  ("R_DF");
-   DR_DF              = config.get<double>  ("DR_DF");
-   scale_height       = config.get<double>  ("scale_height");
-   scale_length       = config.get<double>  ("scale_length");
-   scale_lenfkN       = config.get<double>  ("scale_lenfkN");
-   disk_mass          = config.get<double>  ("disk_mass");
-   gas_mass           = config.get<double>  ("gas_mass");
-   gscal_length       = config.get<double>  ("gscal_length");
-   ToomreQ            = config.get<double>  ("ToomreQ");
-   Temp               = config.get<double>  ("Temp");
-   Tmin               = config.get<double>  ("Tmin");
-   const_height       = config.get<bool>    ("const_height");
-   images             = config.get<bool>    ("images");
-   multi              = config.get<bool>    ("multi");
-   SEED               = config.get<int>     ("SEED");
-   DENS               = config.get<bool>    ("DENS");
-   basis              = config.get<bool>    ("basis");
-   zero               = config.get<bool>    ("zero");
-   nhalo              = config.get<int>     ("nhalo");
-   ndisk              = config.get<int>     ("ndisk");
-   ngas               = config.get<int>     ("ngas");
-   ngparam            = config.get<int>     ("ngparam");
-   hbods              = config.get<string>  ("hbods");
-   dbods              = config.get<string>  ("dbods");
-   gbods              = config.get<string>  ("gbods");
-   suffix             = config.get<string>  ("suffix");
-   centerfile         = config.get<string>  ("centerfile");
-   halofile1          = config.get<string>  ("halofile1");
-   halofile2          = config.get<string>  ("halofile2");
-}
-
-
-
-  
 // Hydrogen fraction
 //
 const double f_H = 0.76;
@@ -397,15 +227,160 @@ main(int argc, char **argv)
   // Parse command line 
   //====================
 
-  try {
-    if (config.parse_args(argc, argv)) return -1;
-    param_assign();
-  }
-  catch (const char *msg) {
-    cerr << msg << endl;
-    return -1;
-  }
-
+  po::options_description desc("Generates a Monte Carlo realization of a halo\nwith an embedded disk using Jeans\' equations.\nAllowed options");
+  desc.add_options()
+    ("help,h",                                                                          "Print this help message")
+    ("LMAX",                po::value<int>(&LMAX)->default_value(4),
+     "Number of harmonics for halo expansion")
+    ("NMAX",                po::value<int>(&NMAX)->default_value(10),
+     "Number of radial basis functions for halo expansion")
+    ("NUMR",                po::value<int>(&NUMR)->default_value(2000),
+     "Size of radial grid for Spherical SL")
+    ("RMIN",                po::value<double>(&RMIN)->default_value(0.005),
+     "Minimum halo radius")
+    ("RCYLMIN",             po::value<double>(&RCYLMIN)->default_value(0.001),
+     "Minimum disk radius")
+    ("RCYLMAX",             po::value<double>(&RCYLMAX)->default_value(20.0),
+     "Maximum disk radius")
+    ("SCSPH",               po::value<double>(&SCSPH)->default_value(1.0),
+     "Scale for Spherical SL coordinate mapping")
+    ("RSPHSL",              po::value<double>(&RSPHSL)->default_value(47.5),
+     "Maximum halo expansion radius")
+    ("ASCALE",              po::value<double>(&ASCALE)->default_value(1.0),
+     "Radial scale length for disk basis construction")
+    ("ASHIFT",              po::value<double>(&ASHIFT)->default_value(0.0),
+     "Fraction of scale length for shift in conditioning function")
+    ("HSCALE",              po::value<double>(&HSCALE)->default_value(0.1),
+     "Vertical scale length for disk basis construction")
+    ("DMFAC",               po::value<double>(&DMFAC)->default_value(1.0),
+     "Disk mass scaling factor for spherical deprojection model")
+    ("X0",                  po::value<double>(&X0)->default_value(0.0),
+     "Disk-Halo x center position")
+    ("Y0",                  po::value<double>(&Y0)->default_value(0.0),
+     "Disk-Halo y center position")
+    ("Z0",                  po::value<double>(&Z0)->default_value(0.0),
+     "Disk-Halo z center position")
+    ("U0",                  po::value<double>(&U0)->default_value(0.0),
+     "Disk-Halo x velocity center position")
+    ("V0",                  po::value<double>(&V0)->default_value(0.0),
+     "Disk-Halo y velocity center position")
+    ("W0",                  po::value<double>(&W0)->default_value(0.0),
+     "Disk-Halo z velocity center position")
+    ("RNUM",                po::value<int>(&RNUM)->default_value(200),
+     "Number of radial knots for EmpCylSL basis construction quadrature")
+    ("PNUM",                po::value<int>(&PNUM)->default_value(80),
+     "Number of azimthal knots for EmpCylSL basis construction quadrature")
+    ("TNUM",                po::value<int>(&TNUM)->default_value(80),
+     "Number of cos(theta) knots for EmpCylSL basis construction quadrature")
+    ("CMAP",                po::value<bool>(&CMAP)->default_value(false),
+     "Map coordinates from radius to tabled grid")
+    ("LOGR",                po::value<bool>(&LOGR)->default_value(false),
+     "Make a logarithmic coordinate mapping")
+    ("CHEBY",               po::value<bool>(&CHEBY)->default_value(false),
+     "Use Chebyshev smoothing for epicyclic and asymmetric drift")
+    ("NDR",                 po::value<int>(&NDR)->default_value(1600),
+     "Number of points in DiskHalo radial table for disk")
+    ("NDZ",                 po::value<int>(&NDZ)->default_value(400),
+     "Number of points in DiskHalo vertical table for disk")
+    ("NHR",                 po::value<int>(&NHR)->default_value(1600),
+     "Number of points in DiskHalo radial table for halo")
+    ("NHT",                 po::value<int>(&NHT)->default_value(200),
+     "Number of points in DiskHalo cos(theta) table for halo")
+    ("SHFAC",               po::value<double>(&SHFAC)->default_value(16.0),
+     "Scale height factor for assigning vertical table size")
+    ("NMAX2",               po::value<int>(&NMAX2)->default_value(36),
+     "Number of radial basis functions in Spherical SL for determining disk basis")
+    ("LMAX2",               po::value<int>(&LMAX2)->default_value(36),
+     "Number of harmonics for Spherial SL for determining disk basis")
+    ("MMAX",                po::value<int>(&MMAX)->default_value(4),
+     "Number of azimuthal harmonics for disk basis")
+    ("NUMX",                po::value<int>(&NUMX)->default_value(256),
+     "Radial grid size for disk basis table")
+    ("NUMY",                po::value<int>(&NUMY)->default_value(128),
+     "Vertical grid size for disk basis table")
+    ("NORDER",              po::value<int>(&NORDER)->default_value(16),
+     "Number of disk basis functions per M-order")
+    ("DIVERGE",             po::value<int>(&DIVERGE)->default_value(0),
+     "Cusp extrapolation for primary halo model")
+    ("DIVERGE_RFAC",        po::value<double>(&DIVERGE_RFAC)->default_value(1.0),
+     "Extrapolation exponent for primary mass model")
+    ("DIVERGE2",            po::value<int>(&DIVERGE2)->default_value(0),
+     "Cusp extrapolation for number model")
+    ("DIVERGE_RFAC2",       po::value<double>(&DIVERGE_RFAC2)->default_value(1.0),
+     "Extrapolation exponent for number model")
+    ("DF",                  po::value<int>(&DF)->default_value(0),
+     "Use change-over from Jeans to Eddington")
+    ("R_DF",                po::value<double>(&R_DF)->default_value(20.0),
+     "Change over radius for Eddington")
+    ("DR_DF",               po::value<double>(&DR_DF)->default_value(5.0),
+     "Width of change for to Eddington")
+    ("scale_height",        po::value<double>(&scale_height)->default_value(0.1),
+     "Scale length for disk realization")
+    ("scale_length",        po::value<double>(&scale_length)->default_value(2.0),
+     "Scale height for disk realization")
+    ("scale_lenfkN",        po::value<double>(&scale_lenfkN)->default_value(-1.0),
+     "Scale for multimass gas")
+    ("disk_mass",           po::value<double>(&disk_mass)->default_value(1.0),
+     "Mass of stellar adisk")
+    ("gas_mass",            po::value<double>(&gas_mass)->default_value(1.0),
+     "Mass of gaseous disk")
+    ("gscal_length",        po::value<double>(&gscal_length)->default_value(4.0),
+     "Gas disk scale length")
+    ("ToomreQ",             po::value<double>(&ToomreQ)->default_value(1.2),
+     "Toomre Q parameter for stellar disk generation")
+    ("Temp",                po::value<double>(&Temp)->default_value(2000.0),
+     "Gas temperature (in K)")
+    ("Tmin",                po::value<double>(&Tmin)->default_value(500.0),
+     "Temperature floor (in K) for gas disk generation")
+    ("const_height",        po::value<bool>(&const_height)->default_value(true),
+     "Use constant disk scale height")
+    ("images",              po::value<bool>(&images)->default_value(false),
+     "Print out reconstructed disk profiles")
+    ("multi",               po::value<bool>(&multi)->default_value(false),
+     "Use multimass halo")
+    ("SEED",                po::value<int>(&SEED)->default_value(11),
+     "Random number seed")
+    ("DENS",                po::value<bool>(&DENS)->default_value(true),
+     "Compute the density basis functions")
+    ("basis",               po::value<bool>(&basis)->default_value(false),
+     "Print out disk and halo basis")
+    ("zero",                po::value<bool>(&zero)->default_value(false),
+     "zero center of mass and velocity")
+    ("nhalo",               po::value<int>(&nhalo)->default_value(1000),
+     "Number of halo particles")
+    ("ndisk",               po::value<int>(&ndisk)->default_value(1000),
+     "Number of disk particles")
+    ("ngas",                po::value<int>(&ngas)->default_value(1000),
+     "Number of gas particles")
+    ("ngparam",             po::value<int>(&ngparam)->default_value(3),
+     "Number of gas particle parameters")
+    ("hbods",               po::value<std::string>(&hbods)->default_value("halo.bods"),
+     "Halo particle output file")
+    ("dbods",               po::value<std::string>(&dbods)->default_value("disk.bods"),
+     "Disk particle output file")
+    ("gbods",               po::value<std::string>(&gbods)->default_value("gas.bods"),
+     "Gas particle output file")
+    ("suffix",              po::value<std::string>(&suffix)->default_value(".bod"),
+     "Suffix appended for body files")
+    ("VFLAG",               po::value<int>(&VFLAG)->default_value(0),
+     "Output flags for EmpCylSL")
+    ("DFLAG",               po::value<int>(&DFLAG)->default_value(0),
+     "Output flags for DiskHalo")
+    ("expcond",             po::value<bool>(&expcond)->default_value(true),
+     "Use analytic density function for computing EmpCylSL basis")
+    ("CONSTANT",            po::value<bool>(&CONSTANT)->default_value(false),
+     "Check basis with a constant density")
+    ("GAUSSIAN",            po::value<bool>(&GAUSSIAN)->default_value(false),
+     "Use Gaussian disk profile rather than exponential disk profile")
+    ("PLUMMER",             po::value<bool>(&PLUMMER)->default_value(false),
+     "Use Plummer disk profile rather than exponential disk profile")
+    ("centerfile",          po::value<std::string>(&centerfile)->default_value("center.dat"),
+     "Read position and velocity center from this file")
+    ("halofile1",           po::value<std::string>(&halofile1)->default_value("SLGridSph.model"),
+     "File with input halo model")
+    ("halofile2",           po::value<std::string>(&halofile2)->default_value("SLGridSph.model.fake"),
+     "File with input halo model for multimass")
+    ;
 
 #ifdef DEBUG                    // For gdb . . . 
   sleep(20);

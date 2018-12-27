@@ -70,7 +70,7 @@ MPI_LIBS = -lmpi
 
 EXPLIBS  = $(COMMON_LIBS) @LAPACK_LIBS@ $(MPI_LIBS) $(SYS_LIBS) $(LIBS)
 LDADD    = $(COMMON_LIBS) @LAPACK_LIBS@ $(ADD_LIBS) $(CUDA_LDFLAGS)
-EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs -L$(top_srcdir)/src/DSMC $(BOOST_LDFLAGS)
+EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs -L$(top_srcdir)/src/DSMC $(BOOST_LDFLAGS) $(YAML)
 
 exp_LDADD = $(EXPLIBS) $(ADD_LIBS3) $(ADD_LIBS4) $(LAPACK_LIBS)		\
 	$(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@	\

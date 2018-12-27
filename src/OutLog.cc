@@ -57,7 +57,7 @@ char OutLog::lab_component[][20] = {
 
 
 
-OutLog::OutLog(string& line) : Output(line)
+OutLog::OutLog(const YAML::Node& conf) : Output(conf)
 {
   ektotxy=0.0;
   lastwtime = MPI_Wtime();
@@ -69,15 +69,16 @@ OutLog::OutLog(string& line) : Output(line)
 
 void OutLog::initialize()
 {
-  string tmp;
 				// Get file name
-  if (!Output::get_value(string("filename"), filename)) {
+  if (Output::conf["filename"])
+    filename = Output::conf["filename"].as<std::string>();
+  else {
     filename.erase();
     filename = outdir + "OUTLOG." + runtag;
   }
 
-  if (Output::get_value(string("freq"), tmp))
-    nint = atoi(tmp.c_str());
+  if (Output::conf["freq"])
+    nint = Output::conf["freq"].as<int>();
   else
     nint = 1;
 }

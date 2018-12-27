@@ -12,7 +12,7 @@
 
 using namespace std;
 
-UserProfile::UserProfile(string &line) : ExternalForce(line)
+UserProfile::UserProfile(const YAML::Node& conf) : ExternalForce(conf)
 {
   first    = true;
   filename = "profile";
@@ -141,8 +141,8 @@ void UserProfile::initialize()
   for (numComp=0; numComp<1000; numComp++) {
     ostringstream count;
     count << "C(" << numComp+1 << ")";
-    if (get_value(count.str(), val))
-      C.push_back(val.c_str());
+    if (conf[count.str()])
+      C.push_back(conf[count.str()].as<std::string>());
     else break;
   }
 
@@ -153,15 +153,16 @@ void UserProfile::initialize()
     MPI_Abort(MPI_COMM_WORLD, 122);
   }
 
-  if (get_value("filename", val))     filename = val;
-  if (get_value("NUMR",     val))     NUMR = atoi(val.c_str());
-  if (get_value("RMIN",     val))     RMIN = atof(val.c_str());
-  if (get_value("RMAX",     val))     RMAX = atof(val.c_str());
-  if (get_value("DT",       val))     DT   = atof(val.c_str());
-  if (get_value("NTHETA",   val))     NTHETA = atoi(val.c_str());
-  if (get_value("NPHI",     val))     NPHI = atoi(val.c_str());
+  if (conf["filename"])       filename           = conf["filename"].as<string>();
+  if (conf["NUMR"])           NUMR               = conf["NUMR"].as<int>();
+  if (conf["RMIN"])           RMIN               = conf["RMIN"].as<double>();
+  if (conf["RMAX"])           RMAX               = conf["RMAX"].as<double>();
+  if (conf["DT"])             DT                 = conf["DT"].as<double>();
+  if (conf["NTHETA"])         NTHETA             = conf["NTHETA"].as<int>();
+  if (conf["NPHI"])           NPHI               = conf["NPHI"].as<int>();
 
-  if (get_value("LOGR",     val)) {
+  if (conf["LOGR"]) {
+    std::string val = conf["LOGR"].as<std::string>();
     if (val[0]=='T' || val[0]=='t') 
       LOGR = true;
     else if (val[0]=='F' || val[0]=='f')
@@ -326,9 +327,9 @@ void UserProfile::determine_acceleration_and_potential(void)
 
 
 extern "C" {
-  ExternalForce *makerProfile(string& line)
+  ExternalForce *makerProfile(const YAML::Node& conf)
   {
-    return new UserProfile(line);
+    return new UserProfile(conf);
   }
 }
 

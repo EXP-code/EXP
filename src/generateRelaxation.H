@@ -16,7 +16,7 @@ private:
 public:
 
   //! Constructor
-  generateRelaxation(string& line);
+  generateRelaxation(const YAML::Node& conf);
 
 };
 

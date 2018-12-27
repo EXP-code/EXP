@@ -8,12 +8,12 @@
 
 #include <externalShock.H>
 
-externalShock::externalShock(std::string& line) : ExternalForce(line)
+externalShock::externalShock(const YAML::Node& conf) : ExternalForce(conf)
 {
-  E=-0.5;
-  K=1.0e-4;
-  PER=0.25;
-  AMPL=1.0;
+  E      = -0.5;
+  K      = 1.0e-4;
+  PER    = 0.25;
+  AMPL   = 1.0;
   INFILE = "w05";
 
   initialize();
@@ -33,11 +33,11 @@ void externalShock::initialize()
 {
   std::string val;
 
-  if (get_value("E", val)) E = atof(val.c_str());
-  if (get_value("K", val)) K = atof(val.c_str());
-  if (get_value("PER", val)) PER = atof(val.c_str());
-  if (get_value("AMPL", val)) AMPL = atof(val.c_str());
-  if (get_value("INFILE", val)) INFILE = val;
+  if (conf["E"])      E      = conf["E"].as<double>();
+  if (conf["K"])      K      = conf["K"].as<double>();
+  if (conf["PER"])    PER    = conf["PER"].as<double>();
+  if (conf["AMPL"])   AMPL   = conf["AMPL"].as<double>();
+  if (conf["INFILE"]) INFILE = conf["INFILE"].as<std::string>();
 }
 
 

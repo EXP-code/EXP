@@ -12,7 +12,7 @@
 
 using namespace std;
 
-UserWake::UserWake(string &line) : ExternalForce(line)
+UserWake::UserWake(const YAML::Node& conf) : ExternalForce(conf)
 {
   first = true;
   filename = "wake";
@@ -159,8 +159,8 @@ void UserWake::initialize()
   for (numComp=0; numComp<1000; numComp++) {
     ostringstream count;
     count << "C(" << numComp+1 << ")";
-    if (get_value(count.str(), val))
-      C.push_back(val.c_str());
+    if (conf[count.str()])
+      C.push_back(conf[count.str()].as<std::string>());
     else break;
   }
 
@@ -171,17 +171,17 @@ void UserWake::initialize()
     MPI_Abort(MPI_COMM_WORLD, 122);
   }
 
-  if (get_value("filename", val)) filename = val;
-  if (get_value("NUMX", val))     NUMX = atoi(val.c_str());
-  if (get_value("NUMY", val))     NUMY = atoi(val.c_str());
-  if (get_value("XMIN", val))     XMIN = atof(val.c_str());
-  if (get_value("XMAX", val))     XMAX = atof(val.c_str());
-  if (get_value("YMIN", val))     YMIN = atof(val.c_str());
-  if (get_value("YMAX", val))     YMAX = atof(val.c_str());
-  if (get_value("PHI", val))      PHI = atof(val.c_str());
-  if (get_value("THETA", val))    THETA = atof(val.c_str());
-  if (get_value("PSI", val))      PSI = atof(val.c_str());
-  if (get_value("NSTEP", val))      NSTEP = atoi(val.c_str());
+  if (conf["filename"])       filename           = conf["filename"].as<string>();
+  if (conf["NUMX"])           NUMX               = conf["NUMX"].as<int>();
+  if (conf["NUMY"])           NUMY               = conf["NUMY"].as<int>();
+  if (conf["XMIN"])           XMIN               = conf["XMIN"].as<double>();
+  if (conf["XMAX"])           XMAX               = conf["XMAX"].as<double>();
+  if (conf["YMIN"])           YMIN               = conf["YMIN"].as<double>();
+  if (conf["YMAX"])           YMAX               = conf["YMAX"].as<double>();
+  if (conf["PHI"])            PHI                = conf["PHI"].as<double>();
+  if (conf["THETA"])          THETA              = conf["THETA"].as<double>();
+  if (conf["PSI"])            PSI                = conf["PSI"].as<double>();
+  if (conf["NSTEP"])          NSTEP              = conf["NSTEP"].as<int>();
 }
 
 
@@ -355,9 +355,9 @@ void * UserWake::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerWake(string& line)
+  ExternalForce *makerWake(const YAML::Node& conf)
   {
-    return new UserWake(line);
+    return new UserWake(conf);
   }
 }
 

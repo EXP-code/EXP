@@ -19,7 +19,7 @@ endif
 
 COMMON_LIBS = $(LIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ 
 MPI_LIBS = -lmpi
-EXPLIBS = -lexputil -lexpgnu $(COMMON_LIBS) $(ADD_LIBS3) $(MPI_LIBS) $(CUDA_LIBFLAGS)
+EXPLIBS = -lexputil -lexpgnu $(COMMON_LIBS) $(ADD_LIBS3) $(MPI_LIBS) $(CUDA_LIBFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) $(YAML)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs $(CUDA_LDFLAGS)
 CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
@@ -64,11 +64,6 @@ diskprof3_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_
 
 readcoefs_SOURCES = readcoefs.cc
 readcoefs_LDADD = $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB)
-
-pcatest_SOURCES = header.cc pcatest.cc EmpOrth9thd.cc localmpi.cc
-pcatest_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
-
-#	SphericalSL.cc legendre.cc ddplgndr.cc sinecosine.cc 
 
 EmpOrth9thd.cc:	$(top_srcdir)/src/EmpOrth9thd.cc
 	cp $(top_srcdir)/src/$@ .

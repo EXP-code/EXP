@@ -37,6 +37,13 @@
 #include <cmath>
 #include <string>
 
+				// Boost stuff
+
+#include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
+
+namespace po = boost::program_options;
+
 using namespace std;
 
                                 // System libs
@@ -53,36 +60,9 @@ using namespace std;
 #include <SphereSL.H>
 
 #include <localmpi.h>
-#include <ProgramParam.H>
 #include <foarray.H>
 
-program_option init[] = {
-  {"RMIN",		"double",	"0.0",		"minimum radius for output"},
-  {"RMAX",		"double",	"0.1",		"maximum radius for output"},
-  {"ZCENTER",		"double",	"0.0",		"gas disk midplane"},
-  {"ZWIDTH",		"double",	"0.05",		"gas disk halfwidth"},
-  {"NBINS",		"int",		"40",		"number of bins"},
-  {"IBEG",		"int",		"0",		"first PSP index"},
-  {"IEND",		"int",		"100",		"last PSP index"},
-  {"ISKIP",		"int",		"1",		"skip PSP interval"},
-  {"PBEG",		"int",		"0",		"first particle index"},
-  {"PEND",		"int",		"-1",		"last particle index"},
-  {"LOG",		"bool",		"false",	"use logarithmic scaling for radial axis"},
-  {"PROJ",		"int",		"1",		"projection (1=cyl, 2=ephere)"},
-  {"COMP",		"string",	"gas disk",	"component name"},
-  {"LOG",		"bool",		"false",	"use logarithmic scaling for radial axis"},
-  {"OUTFILE",		"string",	"gasprof",	"filename prefix"},
-  {"INFILE",		"string",	"OUT",		"phase space file"},
-  {"RUNTAG",		"string",	"run",		"file containing desired indices for PSP output"},
-  {"",			"",		"",		""}
-};
-
-
-const char desc[] = "Compute disk potential, force and density profiles from PSP phase-space output files\n";
-
 enum ProjectionType {Cylindrical=1, Spherical=2};
-
-ProgramParam config(desc, init);
 
 				// Variables not used but needed for linking
 int VERBOSE = 4;
@@ -103,7 +83,11 @@ double tnow = 0.0;
 int
 main(int argc, char **argv)
 {
-  
+  double rmin, rmax, zcen, zwid;
+  int nbins, pbeg, pend, proj, ibeg, iend, iskip;
+  string comp, outfile, infile, runtag;
+  bool rlog, logr;
+
 #ifdef DEBUG
   sleep(20);
 #endif  
@@ -112,7 +96,44 @@ main(int argc, char **argv)
   // Parse command line or input parameter file
   // ==================================================
   
-  if (config.parse_args(argc,argv)) return -1;
+  po::options_description desc("Compute disk potential, force and density profiles from PSP phase-space output files\nAllowed options");
+  desc.add_options()
+    ("help,h",                                                                          "Print this help message")
+    ("RMIN",                po::value<double>(&rmin)->default_value(0.0),
+     "minimum radius for output")
+    ("RMAX",                po::value<double>(&rmax)->default_value(0.1),
+     "maximum radius for output")
+    ("ZCENTER",             po::value<double>(&zcen)->default_value(0.0),
+     "gas disk midplane")
+    ("ZWIDTH",              po::value<double>(&zwid)->default_value(0.05),
+     "gas disk halfwidth")
+    ("NBINS",               po::value<int>(&nbins)->default_value(40),
+     "number of bins")
+    ("IBEG",                po::value<int>(&ibeg)->default_value(0),
+     "first PSP index")
+    ("IEND",                po::value<int>(&iend)->default_value(100),
+     "last PSP index")
+    ("ISKIP",               po::value<int>(&iskip)->default_value(1),
+     "skip PSP interval")
+    ("PBEG",                po::value<int>(&pbeg)->default_value(0),
+     "first particle index")
+    ("PEND",                po::value<int>(&pend)->default_value(-1),
+     "last particle index")
+    ("LOG",                 po::value<bool>(&rlog)->default_value(false),
+     "use logarithmic scaling for radial axis")
+    ("PROJ",                po::value<int>(&proj)->default_value(1),
+     "projection (1=cyl)")
+    ("COMP",                po::value<string>(&comp)->default_value("gas disk"),
+     "component name")
+     ("LOG",                po::value<bool>(&logr)->default_value(false),
+     "use logarithmic scaling for radial axis")
+    ("OUTFILE",             po::value<string>(&outfile)->default_value("gasprof"),
+     "filename prefix")
+    ("INFILE",              po::value<string>(&infile)->default_value("OUT"),
+     "phase space file")
+    ("RUNTAG",              po::value<string>(&runtag)->default_value("run"),
+     "file containing desired indices for PSP output")
+     ;
   
   
   // ==================================================
@@ -132,10 +153,9 @@ main(int argc, char **argv)
 				// Root looks for existence of files
 				// with the given tag
   if (myid==0) {
-    for (int i=config.get<int>("IBEG"); i<=config.get<int>("IEND"); i++) {
+    for (int i=ibeg; i<=iend; i++) {
       ostringstream lab;
-      lab << config.get<string>("INFILE") << "." 
-	  << config.get<string>("RUNTAG") << "." 
+      lab << infile << "." << runtag << "."
 	  << setw(5) << right << setfill('0') << i;
       ifstream in(lab.str().c_str());
       if (in) files.push_back(lab.str());
@@ -163,17 +183,6 @@ main(int argc, char **argv)
     }
     MPI_Barrier(MPI_COMM_WORLD);
   }
-
-  double rmin = config.get<double>("RMIN");
-  double rmax = config.get<double>("RMAX");
-  int   nbins = config.get<int>   ("NBINS");
-  bool   rlog = config.get<bool>  ("LOG");
-  double zcen = config.get<double>("ZCENTER");
-  double zwid = config.get<double>("ZWIDTH");
-  int    pbeg = config.get<int>   ("PBEG");
-  int    pend = config.get<int>   ("PEND");
-  string comp = config.get<string>("COMP");
-  int    proj = config.get<int>   ("PROJ");
 
   if (rmin>0 && rmax > 0 && rlog) {
     rmin = log(rmin);
@@ -314,8 +323,7 @@ main(int argc, char **argv)
   }
 
   if (myid==0) {
-    string outf = config.get<string>("OUTFILE") + ".dat";
-    ofstream out(outf.c_str());
+    ofstream out(outfile + ".dat");
 
     // Label header
     out << left 

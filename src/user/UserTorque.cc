@@ -40,13 +40,13 @@ private:
 
 public:
 
-  UserTorque(string &line);
+  UserTorque(const YAML::Node& conf);
   ~UserTorque();
 
 };
 
 
-UserTorque::UserTorque(string &line) : ExternalForce(line)
+UserTorque::UserTorque(const YAML::Node& conf) : ExternalForce(conf)
 {
   file_name = "dLz.dat";	// Data file
   com_name = "sphereSL";	// Default component for com
@@ -112,18 +112,16 @@ void UserTorque::userinfo()
 
 void UserTorque::initialize()
 {
-  string val;
-
-  if (get_value("comname", val))	com_name = val;
-  if (get_value("file_name", val))	file_name = val;
-  if (get_value("model_name", val))	model_name = val;
-  if (get_value("sgn", val))	        sgn = atoi(val)>0 ? 1 : -1;
-  if (get_value("diverge", val))	diverge = atoi(val);
-  if (get_value("diverge_rfac", val))	diverge_rfac = atof(val);
-  if (get_value("ton", val))		ton = atof(val);
-  if (get_value("toff", val))		toff = atof(val);
-  if (get_value("delta", val))		delta = atof(val);
-  if (get_value("boost", val))		boost = atof(val);
+  if (conf["comname"])        com_name           = conf["comname"].as<string>();
+  if (conf["file_name"])      file_name          = conf["file_name"].as<string>();
+  if (conf["model_name"])     model_name         = conf["model_name"].as<string>();
+  if (conf["sgn"])            sgn                = conf["sgn"].as<int>()>0 ? 1 : -1;
+  if (conf["diverge"])        diverge            = conf["diverge"].as<int>();
+  if (conf["diverge_rfac"])   diverge_rfac       = conf["diverge_rfac"].as<double>();
+  if (conf["ton"])            ton                = conf["ton"].as<double>();
+  if (conf["toff"])           toff               = conf["toff"].as<double>();
+  if (conf["delta"])          delta              = conf["delta"].as<double>();
+  if (conf["boost"])          boost              = conf["boost"].as<double>();
   
   ifstream in(file_name.c_str());
   if (in) {
@@ -257,9 +255,9 @@ void * UserTorque::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerTorque(string& line)
+  ExternalForce *makerTorque(const YAML::Node& conf)
   {
-    return new UserTorque(line);
+    return new UserTorque(conf);
   }
 }
 

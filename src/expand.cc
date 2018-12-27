@@ -181,7 +181,7 @@ void signal_handler_dump(int sig)
 }
 
 //! Sync argument lists on all processes
-void MPL_parse_args(int argc, char** argv);
+void YAML_parse_args(int argc, char** argv);
 
 //! Print multicomputer process info
 void make_node_list(int argc, char **argv)
@@ -449,7 +449,7 @@ main(int argc, char** argv)
   // broadcast to all processes 
   //============================
 
-  MPL_parse_args(argc, argv);
+  YAML_parse_args(argc, argv);
 
   //============================
   // Trap floating point errors

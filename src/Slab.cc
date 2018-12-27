@@ -10,7 +10,7 @@
 
 static const double KEPS=1.0e-6;
 
-Slab::Slab(string& line) : PotAccel(line)
+Slab::Slab(const YAML::Node& conf) : PotAccel(conf)
 {
   id = "Slab (trigonometric)";
   nminx = nminy = 0;
@@ -76,15 +76,12 @@ Slab::~Slab()
 
 void Slab::initialize()
 {
-  string val;
-
-  if (get_value("nmaxx", val)) nmaxx = atoi(val.c_str());
-  if (get_value("nmaxy", val)) nmaxy = atoi(val.c_str());
-  if (get_value("nmaxz", val)) nmaxz = atoi(val.c_str());
-  if (get_value("nminx", val)) nminx = atoi(val.c_str());
-  if (get_value("nminy", val)) nminy = atoi(val.c_str());
-  if (get_value("zmax",  val)) zmax  = atof(val.c_str());
-
+  if (conf["nmaxx"])          nmaxx              = conf["nmaxx"].as<int>();
+  if (conf["nmaxy"])          nmaxy              = conf["nmaxy"].as<int>();
+  if (conf["nmaxz"])          nmaxz              = conf["nmaxz"].as<int>();
+  if (conf["nminx"])          nminx              = conf["nminx"].as<int>();
+  if (conf["nminy"])          nminy              = conf["nminy"].as<int>();
+  if (conf["zmax"])           zmax               = conf["zmax"].as<double>();
 }
 
 void Slab::determine_coefficients(void)

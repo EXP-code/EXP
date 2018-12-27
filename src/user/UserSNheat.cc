@@ -24,7 +24,7 @@ double UserSNheat::Tunit = sqrt(Lunit*Lunit*Lunit/(Munit*6.673e-08));
 double UserSNheat::Vunit = Lunit/Tunit;
 double UserSNheat::Eunit = Munit*Vunit*Vunit;
 
-UserSNheat::UserSNheat(string &line) : ExternalForce(line)
+UserSNheat::UserSNheat(const YAML::Node& conf) : ExternalForce(conf)
 {
 
   id = "SupernovaHeating";	// ID
@@ -216,24 +216,22 @@ void UserSNheat::userinfo()
 
 void UserSNheat::initialize()
 {
-  string val;
+  if (conf["compname"])       comp_name          = conf["compname"].as<string>();
+  if (conf["verbose"])        verbose            = conf["verbose"].as<int>();
 
-  if (get_value("compname", val))	comp_name  = val;
-  if (get_value("verbose",  val))	verbose = atoi(val.c_str()) ? true : false;
+  if (conf["X"])              origin[0]          = conf["X"].as<double>();
+  if (conf["Y"])              origin[1]          = conf["Y"].as<double>();
+  if (conf["Z"])              origin[2]          = conf["Z"].as<double>();
 
-  if (get_value("X", val))	        origin[0]  = atof(val.c_str());
-  if (get_value("Y", val))	        origin[1]  = atof(val.c_str());
-  if (get_value("Z", val))	        origin[2]  = atof(val.c_str());
+  if (conf["dT"])             dT                 = conf["dT"].as<double>();
+  if (conf["dE"])             dE                 = conf["dE"].as<double>();
+  if (conf["radius"])         radius             = conf["radius"].as<double>();
+  if (conf["delay"])          delay              = conf["delay"].as<double>();
+  if (conf["number"])         N                  = conf["number"].as<int>();
 
-  if (get_value("dT", val))	        dT         = atof(val.c_str());
-  if (get_value("dE", val))	        dE         = atof(val.c_str());
-  if (get_value("radius", val))	        radius     = atof(val.c_str());
-  if (get_value("delay", val))	        delay      = atof(val.c_str());
-  if (get_value("number", val))	        N          = atoi(val.c_str());
-
-  if (get_value("Lunit", val))		Lunit      = atof(val.c_str());
-  if (get_value("Tunit", val))		Tunit      = atof(val.c_str());
-  if (get_value("Munit", val))		Munit      = atof(val.c_str());
+  if (conf["Lunit"])          Lunit              = conf["Lunit"].as<double>();
+  if (conf["Tunit"])          Tunit              = conf["Tunit"].as<double>();
+  if (conf["Munit"])          Munit              = conf["Munit"].as<double>();
 }
 
 
@@ -396,9 +394,9 @@ void * UserSNheat::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerSNheat(string& line)
+  ExternalForce *makerSNheat(const YAML::Node& conf)
   {
-    return new UserSNheat(line);
+    return new UserSNheat(conf);
   }
 }
 

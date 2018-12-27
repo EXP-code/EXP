@@ -58,7 +58,7 @@ private:
 public:
 
   //! Constructor
-  UserRPtest(string &line);
+  UserRPtest(const YAML::Node& conf);
 
   //! Destructor
   ~UserRPtest();

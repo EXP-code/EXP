@@ -8,7 +8,7 @@
 #include <AxisymmetricBasis.H>
 #include <OutDiag.H>
 
-OutDiag::OutDiag(string& line) : Output(line)
+OutDiag::OutDiag(const YAML::Node& conf) : Output(conf)
 {
   if (myid) return;
 				// Defaults
@@ -37,32 +37,33 @@ OutDiag::OutDiag(string& line) : Output(line)
 
 void OutDiag::initialize()
 {
-  string tmp;
 				// Get file name
-  if (!Output::get_value(string("filename"), filename)) {
+  if (Output::conf["filename"])
+    filename = Output::conf["filename"].as<std::string>();
+  else {
     filename.erase();
     filename = "ORBDIAG." + runtag;
   }
 
-  if (Output::get_value(string("nint"), tmp))
-    nint = atoi(tmp.c_str());
+  if (Output::conf["nint"])
+    nint = Output::conf["nint"].as<int>();
   else
     nint = 1;
 
-  if (Output::get_value(string("RMIN"), tmp))
-    RMIN = atof(tmp.c_str());
+  if (Output::conf["RMIN"])
+    RMIN = Output::conf["RMIN"].as<double>();
 
-  if (Output::get_value(string("RMAX"), tmp))
-    RMAX = atof(tmp.c_str());
+  if (Output::conf["RMAX"])
+    RMAX = Output::conf["RMAX"].as<double>();
 
-  if (Output::get_value(string("THETA"), tmp))
-    THETA = atof(tmp.c_str());
+  if (Output::conf["THETA"])
+    THETA = Output::conf["THETA"].as<double>();
 
-  if (Output::get_value(string("PHI"), tmp))
-    PHI = atof(tmp.c_str());
+  if (Output::conf["PHI"])
+    PHI = Output::conf["PHI"].as<double>();
 
-  if (Output::get_value(string("NUM"), tmp))
-    NUM = atoi(tmp.c_str());
+  if (Output::conf["NUM"])
+    NUM = Output::conf["NUM"].as<int>();
 }
 
 

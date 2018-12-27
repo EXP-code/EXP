@@ -18,7 +18,7 @@ private:
 public:
 
   //! Constructor
-  OutRelaxation(string& line);
+  OutRelaxation(const YAML::Node& conf);
   //! Destructor
   virtual ~OutRelaxation() {};
 

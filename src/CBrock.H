@@ -32,7 +32,7 @@ public:
   //! Constructor
   /*! \param line is the parameter string */
   /*! \param m is the MixtureBasis for a multicenter expansion */
-  CBrock(string& line, MixtureBasis* m=0);
+  CBrock(const YAML::Node& conf, MixtureBasis* m=0);
 
 };
 

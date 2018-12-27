@@ -10,7 +10,7 @@ ADD_LIBS3 = -ldmallocth -ldmallocthcxx
 endif
 
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
-AM_CXXFLAGS = -std=c++11 -D_REENTRANT $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
+AM_CXXFLAGS = -std=c++11 -D_REENTRANT $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) $(BOOST_CPPFLAGS)
 AM_CPPFLAGS= -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 
 if ENABLE_CUDA
@@ -24,6 +24,8 @@ $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@  $(CUDA_LDFLAGS)
 SYS_LIBS = -lstdc++ -lpthread -ldl $(LIBS)
 MPI_LIBS = -lmpi
 
+BOOST_LIBS = $(BOOST_SYSTEM_LIB) $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)
+
 EXPLIBS = $(MPI_LIBS) $(SYS_LIBS) $(COMMON_LIBS) $(ADD_LIBS3)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
 CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
@@ -34,7 +36,7 @@ slcheck_SOURCES = slcheck.cc localmpi.cc
 slcheck_LDADD = $(EXPLIBS) $(CUDA_LIBFLAGS)
 
 slshift_SOURCES = slshift.cc SLSphere.cc localmpi.cc
-slshift_LDADD = $(EXPLIBS) $(CUDA_LIBFLAGS)
+slshift_LDADD = $(EXPLIBS) $(CUDA_LIBFLAGS) $(BOOST_LIBS)
 
 orthochk_SOURCES = orthochk.cc biorth1d.cc localmpi.cc
 orthochk_LDADD = $(EXPLIBS) $(CUDA_LIBFLAGS)

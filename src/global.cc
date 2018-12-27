@@ -7,7 +7,6 @@
 #include <ExternalCollection.H>
 #include <OutputContainer.H>
 #include <BarrierWrapper.H>
-#include <ParamParseMPI.H>
 #include <chkTimer.H>
 
 				// Numerical parameters
@@ -109,7 +108,7 @@ CoefHeader2 coefheader2;
 ComponentContainer *comp = 0;
 ExternalCollection *external = 0;
 OutputContainer    *output = 0;
-ParamParseMPI      *parse = 0;
+YAML::Node          parse;
 
 map<string, maker_t *, less<string> > factory;
 map<string, maker_t *, less<string> >::iterator fitr;

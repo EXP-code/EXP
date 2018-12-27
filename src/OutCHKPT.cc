@@ -12,7 +12,7 @@
 #include <OutCHKPT.H>
 
 
-OutCHKPT::OutCHKPT(string& line) : Output(line)
+OutCHKPT::OutCHKPT(const YAML::Node& conf) : Output(conf)
 {
   initialize();
 }
@@ -21,28 +21,30 @@ void OutCHKPT::initialize()
 {
   std::string tmp;
 
-  if (Output::get_value(string("mpio"), tmp))
-    mpio = atoi(tmp.c_str()) ? true : false;
+  if (Output::conf["mpio"])
+    mpio = Output::conf["mpio"].as<bool>();
   else
     mpio = false;
 				// Get file name
-  if (!Output::get_value(string("filename"), filename)) {
+  if (Output::conf["filename"])
+    filename = Output::conf["filename"].as<std::string>();
+  else {
     filename.erase();
     filename = outdir + "OUT." + runtag + ".chkpt";
   }
 
-  if (Output::get_value(string("nint"), tmp))
-    nint = atoi(tmp.c_str());
+  if (Output::conf["nint"])
+    nint = Output::conf["nint"].as<int>();
   else
     nint = 100;
 
-  if (Output::get_value(string("timer"), tmp))
-    timer = atoi(tmp.c_str()) ? true : false;
+  if (Output::conf["timer"])
+    timer = Output::conf["timer"].as<bool>();
   else
     timer = false;
 
-  if (Output::get_value(string("nagg"), tmp))
-    nagg = tmp;
+  if (Output::conf["nagg"])
+    nagg = Output::conf["nagg"].as<std::string>();
   else
     nagg = "1";
 }

@@ -46,7 +46,7 @@ private:
 public:
 
   //! Constructor
-  UserBar(string &line);
+  UserBar(const YAML::Node& conf);
 
   //! Destructor
   ~UserBar();

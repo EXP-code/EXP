@@ -37,7 +37,7 @@ private:
 public:
 
   //! Constructor
-  OutCalbr(string& line);
+  OutCalbr(const YAML::Node& conf);
 
   //! Generate the output
   /*!

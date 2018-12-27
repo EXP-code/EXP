@@ -34,10 +34,17 @@ bool less_loadb(const loadb_datum& one, const loadb_datum& two)
 }
 
 // Constructor
-Component::Component(string NAME, string ID, string CPARAM, string PFILE, 
-		     string FPARAM) : 
-  name(NAME), id(ID), cparam(CPARAM), pfile(PFILE), fparam(FPARAM)
+Component::Component(const std::string NAME, const YAML::Node CONF) :
+  name(NAME), conf(CONF)
 {
+  cconf = conf["parameters"];
+  pfile = conf["bodyfile"].as<std::string>();
+
+  const YAML::Node force = conf["force"];
+  
+  id    = force["id"].as<std::string>();
+  fconf = force["id"]["parameters"];
+
   EJ          = 0;
   nEJkeep     = 100;
   nEJwant     = 500;
@@ -77,7 +84,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   use_cuda    = true;		// Set to false to suppress cuda
 				// computation
 
-  force       = 0;		// Null out pointers
+				// Null out pointers
   orient      = 0;
 
   com         = 0;
@@ -458,140 +465,108 @@ Component::Component(istream *in)
 
 void Component::initialize(void)
 {
-				// Parse the parameters
-  StringTok<string> tokens(cparam);
-  pair<string, string> datum;
+  for (YAML::const_iterator it=cconf.begin(); it!=cconf.end(); ++it) {
 
-  string token = tokens(",");	// Comma separated tokens
-
-  while (token.size()) {
-    StringTok<string> parse(token);
-    datum.first  = trimLeft(trimRight(parse("=")));
-    datum.second = trimLeft(trimRight(parse("=")));
-
-    if (!datum.first.compare("com"))      com_system = atoi(datum.second) ? true : false;
-
-    if (!datum.first.compare("comlog"))   com_log = atoi(datum.second) ? true : false;
-
-    if (!datum.first.compare("timers"))   timers = atoi(datum.second) ? true : false;
-
-
-    if (!datum.first.compare("use_cuda")) use_cuda = atoi(datum.second) ? true : false;
+    if ((*it)["com"])      com_system = (*it)["com"].as<bool>();
+    if ((*it)["comlog"])   com_log    = (*it)["comlog"].as<bool>();
+    if ((*it)["timers"])   timers     = (*it)["comlog"].as<bool>();
+    if ((*it)["use_cuda"]) use_cuda   = (*it)["use_cuda"].as<bool>();
 
 #if HAVE_LIBCUDA==1
-    if (!datum.first.compare("bunch"))    bunchSize = atoi(datum.second);
+    if ((*it)["bunch"])    bunch      = (*it)["bunch"].as<int>();
 #endif
 
-    if (!datum.first.compare("tidal"))    {tidal = atoi(datum.second); consp=true;}
+    if ((*it)["tidal"]) {
+      tidal = (*it)["tidal"].as<bool>();
+      consp=true;
+    }
 
-    if (!datum.first.compare("EJ"))       EJ = atoi(datum.second.c_str());
-    
-    if (!datum.first.compare("eEJ0"))     {if (myid==0) cout << "Component: eEJ0 is no longer used, Ecurr is computed from the bodies using the expansion directly" << endl;}
+    if ((*it)["EJ"])       EJ         = (*it)["EJ"].as<int>();
+    if ((*it)["eEJ0"] and myid==0)
+      std::cout << "Component: eEJ0 is no longer used, Ecurr is computed from the bodies using the expansion directly" << std::endl;
+    if ((*it)["nEJkeep"])  nEJkeep    = (*it)["nEJkeep"].as<int>();
+    if ((*it)["nEJwant"])  nEJwant    = (*it)["nEJwant"].as<int>();
+    if ((*it)["EJx0"])     EJx0       = (*it)["EJx0"].as<double>();
+    if ((*it)["EJy0"])     EJy0       = (*it)["EJy0"].as<double>();
+    if ((*it)["EJz0"])     EJz0       = (*it)["EJz0"].as<double>();
+    if ((*it)["EJu0"])     EJu0       = (*it)["EJu0"].as<double>();
+    if ((*it)["EJv0"])     EJv0       = (*it)["EJv0"].as<double>();
+    if ((*it)["EJw0"])     EJw0       = (*it)["EJw0"].as<double>();
+    if ((*it)["EJdT"])     EJdT       = (*it)["EJdT"].as<double>();
+    if ((*it)["EJkinE"])   EJkinE     = (*it)["EJkinE"].as<double>();
+    if ((*it)["EJext"])    EJext      = (*it)["EJext"].as<double>();
+    if ((*it)["EJdiag"])   EJdiag     = (*it)["EJdiag"].as<double>();
+    if ((*it)["EJdryrun"]) EJdryrun   = (*it)["EJdryrun"].as<bool>();
+    if ((*it)["EJlinear"]) EJlinear   = (*it)["EJlinear"].as<bool>();
+    if ((*it)["EJdamp"])   EJdamp     = (*it)["EJdamp"].as<double>();
+    if ((*it)["rmax"])     rmax       = (*it)["rmax"].as<double>();
+    if ((*it)["rtrunc"])   rtrunc     = (*it)["rtrunc"].as<double>();
+    if ((*it)["rcom"])     rcom       = (*it)["rcom"].as<double>();
+    if ((*it)["scheck"])   seq_check  = (*it)["scheck"].as<bool>();
+    if ((*it)["magic"])    umagic     = (*it)["magic"].as<bool>();
+    if ((*it)["indexing"]) indexing   = (*it)["indexing"].as<bool>();
+    if ((*it)["aindex"])   aindex     = (*it)["aindex"].as<bool>();
+    if ((*it)["nlevel"])   nlevel     = (*it)["nlevel"].as<int>();
+    if ((*it)["keypos"])   keyPos     = (*it)["keypos"].as<int>();
+    if ((*it)["pbufsiz"])  pBufSiz    = (*it)["pBufSiz"].as<int>();
+    if ((*it)["blocking"]) blocking   = (*it)["blocking"].as<bool>();
 
-    if (!datum.first.compare("nEJkeep"))  nEJkeep = atoi(datum.second.c_str());
+    if ((*it)["ton"]) {
+      ton = (*it)["ton"].as<double>();
+      adiabatic = true;
+    }
 
-    if (!datum.first.compare("nEJwant"))  nEJwant = atoi(datum.second.c_str());
+    if ((*it)["toff"]) {
+      toff = (*it)["toff"].as<double>();
+      adiabatic = true;
+    }
 
-    if (!datum.first.compare("EJx0"))     EJx0 = atof(datum.second.c_str());
-
-    if (!datum.first.compare("EJy0"))     EJy0 = atof(datum.second.c_str());
-
-    if (!datum.first.compare("EJz0"))     EJz0 = atof(datum.second.c_str());
-
-    if (!datum.first.compare("EJu0"))     EJu0 = atof(datum.second.c_str());
-
-    if (!datum.first.compare("EJv0"))     EJv0 = atof(datum.second.c_str());
-
-    if (!datum.first.compare("EJw0"))     EJw0 = atof(datum.second.c_str());
-
-    if (!datum.first.compare("EJdT"))     EJdT = atof(datum.second.c_str());
-
-    if (!datum.first.compare("EJkinE"))   EJkinE = atoi(datum.second.c_str()) ? true : false;
-
-    if (!datum.first.compare("EJext"))    EJext =  atoi(datum.second.c_str()) ? true : false;
-
-    if (!datum.first.compare("EJdiag"))   EJdiag = atoi(datum.second.c_str()) ? true : false;
-
-    if (!datum.first.compare("EJdryrun")) EJdryrun = atoi(datum.second.c_str()) ? true : false;
-
-    if (!datum.first.compare("EJlinear")) EJlinear = atoi(datum.second.c_str()) ? true : false;
-
-    if (!datum.first.compare("EJdamp"))   EJdamp = atof(datum.second.c_str());
-
-    if (!datum.first.compare("rmax"))     rmax = atof(datum.second.c_str());
-
-    if (!datum.first.compare("ton"))      {ton = atof(datum.second.c_str()); adiabatic = true;}
-
-    if (!datum.first.compare("toff"))     {toff= atof(datum.second.c_str()); adiabatic = true;}
-
-    if (!datum.first.compare("twid"))     {twid = atof(datum.second.c_str()); adiabatic = true;}
-
-    if (!datum.first.compare("rtrunc"))   {rtrunc = atof(datum.second.c_str());}
-
-    if (!datum.first.compare("rcom"))     {rcom = atof(datum.second.c_str());}
-    
-    if (!datum.first.compare("scheck"))   seq_check = atoi(datum.second.c_str()) ? true : false;
-
-    if (!datum.first.compare("magic"))    umagic = atoi(datum.second.c_str()) ? true : false;
-
-    if (!datum.first.compare("indexing")) indexing = atoi(datum.second.c_str()) ? true : false;
-
-    if (!datum.first.compare("aindex"))   aindex = atoi(datum.second.c_str()) ? true : false;
-
-    if (!datum.first.compare("nlevel"))   nlevel = atoi(datum.second.c_str());
-
-    if (!datum.first.compare("keypos"))   keyPos = atoi(datum.second.c_str());
-
-    if (!datum.first.compare("pbufsiz"))  pBufSiz = atoi(datum.second.c_str());
-
-    if (!datum.first.compare("blocking")) blocking = atoi(datum.second.c_str()) ? true : false;
-
-
-				// Next parameter
-    token = tokens(",");
+    if ((*it)["twid"]) {
+      twid = (*it)["twid"].as<double>();
+      adiabatic = true;
+    }
   }
 
-
-				// Instantiate the force ("reflection" by hand)
-
+  // Instantiate the force ("reflection" by hand)
+  //
   if ( !id.compare("bessel") ) {
-    force = new Bessel(fparam);
+    force = new Bessel(fconf);
   }
   else if ( !id.compare("c_brock") ) {
-    force = new CBrock(fparam);
+    force = new CBrock(fconf);
   }
   else if ( !id.compare("c_brock_disk") ) {
-    force = new CBrockDisk(fparam);
+    force = new CBrockDisk(fconf);
   }
   else if ( !id.compare("hernq") ) {
-    force = new Hernquist(fparam);
+    force = new Hernquist(fconf);
   }
   else if ( !id.compare("sphereSL") ) {
-    force = new Sphere(fparam);
+    force = new Sphere(fconf);
   }
   else if ( !id.compare("EJcom") ) {
-    force = new EJcom(fparam);
+    force = new EJcom(fconf);
   }
   else if ( !id.compare("cube") ) {
-    force = new Cube(fparam);
+    force = new Cube(fconf);
   }
   else if ( !id.compare("slab") ) {
-    force = new Slab(fparam);
+    force = new Slab(fconf);
   }
   else if ( !id.compare("slabSL") ) {
-    force = new SlabSL(fparam);
+    force = new SlabSL(fconf);
   }
   else if ( !id.compare("cylinder") ) {
-    force = new Cylinder(fparam);
+    force = new Cylinder(fconf);
   }
   else if ( !id.compare("direct") ) {
-    force = new Direct(fparam);
+    force = new Direct(fconf);
   }
   else if ( !id.compare("shells") ) {
-    force = new Shells(fparam);
+    force = new Shells(fconf);
   }
   else if ( !id.compare("noforce") ) {
-    force = new NoForce(fparam);
+    force = new NoForce(fconf);
   }
   else {
     string msg("I don't know about the force: ");
@@ -1171,21 +1146,31 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
 				// Parse info field to get 
 				// id and parameter strings
-  StringTok<string> tokens(info.get());
-  name   = trimLeft(trimRight(tokens(":")));
-  id     = trimLeft(trimRight(tokens(":")));
-  cparam = trimLeft(trimRight(tokens(":")));
-  fparam = trimLeft(trimRight(tokens(":")));
+
+  std::istringstream sin(info.get());
+  YAML::Node config = YAML::Load(sin);
+
+  for (const auto& kv : config) {
+    name  = kv.first.as<std::string>();
+    cconf = kv.second["parameters"];
+    pfile = kv.second["bodyfile"].as<std::string>();
+
+    const YAML::Node force  = kv.second["force"];
+  
+    id    = force["id"].as<std::string>();
+    fconf = force["id"]["parameters"];
 
 				// Informational output
-  if (myid==0)
-    cout << setw(60) << setfill('-') << "-" << endl << setfill(' ')
-	 << "--- New Component" << endl
-	 << setw(20) << " name   :: " << name           << endl
-	 << setw(20) << " id     :: " << id             << endl
-	 << setw(20) << " cparam :: " << cparam         << endl
-	 << setw(20) << " fparam :: " << fparam         << endl
-	 << setw(60) << setfill('-') << "-" << endl << setfill(' ');
+    if (myid==0)
+      cout << setw(60) << setfill('-') << "-" << endl << setfill(' ')
+	   << "--- New Component" << endl
+	   << setw(20) << " name   :: " << name           << endl
+	   << setw(20) << " id     :: " << id             << endl
+	   << setw(20) << " cparam :: " << cconf          << endl
+	   << setw(20) << " fparam :: " << fconf          << endl
+	   << setw(60) << setfill('-') << "-" << endl << setfill(' ');
+    
+  }
 
   double rmax1=0.0, r2;
 
@@ -1564,8 +1549,18 @@ void Component::write_binary(ostream* out, bool real4)
     header.ndatr = ndattrib;
   
     ostringstream outs;
-    outs << name << " : " << id << " : " << cparam << " : " << fparam;
+
+    YAML::Node outf;
+    outf[name] = conf;
+
+    outs << outf;
     strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
+
+    // DEBUGGING
+    if (myid==0) {
+      std::cout << "Serialized YAML header looks like this:" << std::endl
+		<< "<<<" << outf << ">>>" << std::endl;
+    }
 
     if (real4) rsize = sizeof(float);
     else       rsize = sizeof(double);
@@ -1656,8 +1651,12 @@ void Component::write_binary_mpi_b(MPI_File& out, MPI_Offset& offset, bool real4
     header.niatr = niattrib;
     header.ndatr = ndattrib;
   
-    ostringstream outs;
-    outs << name << " : " << id << " : " << cparam << " : " << fparam;
+    std::ostringstream outs;
+
+    YAML::Node nout;
+    nout[name] = conf;
+
+    outs << nout;
     strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
 
     unsigned long cmagic = magic + rsize;
@@ -1750,8 +1749,12 @@ void Component::write_binary_mpi_i(MPI_File& out, MPI_Offset& offset, bool real4
     header.niatr = niattrib;
     header.ndatr = ndattrib;
   
-    ostringstream outs;
-    outs << name << " : " << id << " : " << cparam << " : " << fparam;
+    std::ostringstream outs;
+
+    YAML::Node nout;
+    nout[name] = conf;
+
+    outs << nout;
     strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
 
     unsigned long cmagic = magic + rsize;

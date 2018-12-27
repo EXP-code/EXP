@@ -8,22 +8,23 @@
 #include <AxisymmetricBasis.H>
 #include <OutMulti.H>
 
-OutMulti::OutMulti(string& line) : Output(line)
+OutMulti::OutMulti(const YAML::Node& conf) : Output(conf)
 {
   initialize();
 }
 
 void OutMulti::initialize()
 {
-  string tmp;
 				// Get file name
-  if (!Output::get_value(string("filename"), filename)) {
+  if (Output::conf["filename"])
+    filename = Output::conf["filename"].as<std::string>();
+  else {
     filename.erase();
     filename = outdir + "OUT.multi." + runtag;
   }
 
-  if (Output::get_value(string("nint"), tmp))
-    nint = atoi(tmp.c_str());
+  if (Output::conf["nint"])
+    nint = Output::conf["nint"].as<int>();
   else
     nint = 100;
 

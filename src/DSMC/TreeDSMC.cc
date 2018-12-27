@@ -50,7 +50,7 @@ std::vector<double> TreeDSMC::atomic_weights;
 
 std::set<std::string> TreeDSMC:: colltypes;
 
-TreeDSMC::TreeDSMC(string& line) : ExternalForce(line)
+TreeDSMC::TreeDSMC(const YAML::Node& conf) : ExternalForce(conf)
 {
   (*barrier)("TreeDSMC: BEGIN construction", __FILE__, __LINE__);
   
@@ -579,71 +579,91 @@ void TreeDSMC::userinfo()
   print_divider();
 }
 
+template<typename Out>
+void split(const std::string &s, char delim, Out result) {
+  std::stringstream ss(s);
+  std::string item;
+  while (std::getline(ss, item, delim)) {
+    *(result++) = item;
+  }
+}
+
+std::vector<std::string> split(const std::string &s, char delim)
+{
+  std::vector<std::string> elems;
+  split(s, delim, std::back_inserter(elems));
+  return elems;
+}
+
+std::pair<int, int> splitPair(const std::string &s, char delim)
+{
+  std::vector<std::string> i = split(s, delim);
+  if (i.size() != 2) {
+    std::cerr << "Error spliting indices: found string <" << s << "> and delimiter=" << delim << std::endl;
+    exit(-1);
+  }
+  return std::pair<int, int>(std::stoi(i[0]), std::stoi(i[1]));
+}
+
 void TreeDSMC::initialize()
 {
-  string val;
-  
-  if (get_value("Lunit", val))		Lunit      = atof(val.c_str());
-  if (get_value("Tunit", val))		Tunit      = atof(val.c_str());
-  if (get_value("Munit", val))		Munit      = atof(val.c_str());
-  if (get_value("cnum", val))		cnum       = atoi(val.c_str());
-  if (get_value("madj", val))		madj       = atoi(val.c_str());
-  if (get_value("epsm", val))		epsm       = atof(val.c_str());
-  if (get_value("hsdiam", val))		hsdiam     = atof(val.c_str());
-  if (get_value("crossfac", val))	crossfac    = atof(val.c_str());
-  if (get_value("boxsize", val))	boxsize    = atof(val.c_str());
-  if (get_value("boxratio", val))	boxratio   = atof(val.c_str());
-  if (get_value("coolfrac", val))	coolfrac   = atof(val.c_str());
-  if (get_value("enhance", val))	enhance    = atof(val.c_str());
-  if (get_value("nsteps", val))		nsteps     = atoi(val.c_str());
-  if (get_value("msteps", val))		msteps     = atoi(val.c_str());
-  if (get_value("ncell", val))		ncell      = atoi(val.c_str());
-  if (get_value("Ncell", val))		Ncell      = atoi(val.c_str());
-  if (get_value("compname", val))	comp_name  = val;
-  if (get_value("specmap", val))	spec_map   = val;
-  if (get_value("use_temp", val))	use_temp   = atoi(val.c_str());
-  if (get_value("use_dens", val))	use_dens   = atoi(val.c_str());
-  if (get_value("use_delt", val))	use_delt   = atoi(val.c_str());
-  if (get_value("use_Kn", val))		use_Kn     = atoi(val.c_str());
-  if (get_value("use_St", val))		use_St     = atoi(val.c_str());
-  if (get_value("use_vol", val))	use_vol    = atoi(val.c_str());
-  if (get_value("use_exes", val))	use_exes   = atoi(val.c_str());
-  if (get_value("use_Eint", val))	use_Eint   = atoi(val.c_str());
-  if (get_value("frontier", val))	frontier   = atol(val);
-  if (get_value("tspow", val))		tspow      = atoi(val.c_str());
-  if (get_value("tsdiag", val))		tsdiag     = atol(val);
-  if (get_value("voldiag", val))	voldiag    = atol(val);
-  if (get_value("mfpstat", val))	mfpstat    = atol(val);
-  if (get_value("cbadiag", val))	cbadiag    = atol(val);
-  if (get_value("dryrun", val))		dryrun     = atol(val);
-  if (get_value("nocool", val))		nocool     = atol(val);
-  if (get_value("use_multi", val))	use_multi  = atol(val);
-  if (get_value("use_pullin", val))	use_pullin = atol(val);
-  if (get_value("use_effort", val))	use_effort = atol(val);
-  if (get_value("esol", val))		esol       = atol(val);
-  if (get_value("cba", val))		cba        = atol(val);
-  if (get_value("ntc", val))		ntc        = atol(val);
-  if (get_value("tube", val))		tube       = atol(val);
-  if (get_value("slab", val))		slab       = atol(val);
-  if (get_value("sub_sample", val))	sub_sample = atol(val);
-  if (get_value("treechk", val))	treechk    = atol(val);
-  if (get_value("mpichk", val))		mpichk     = atol(val);
-  if (get_value("mfpts", val))		mfpts      = atol(val);
-  if (get_value("hybrid", val))		hybrid     = atol(val);
-  if (get_value("dumpHOT", val))	dumpHOT    = atol(val);
-  if (get_value("ageout", val))         ageout     = atoi(val);
+  if (conf["Lunit"])          Lunit              = conf["Lunit"].as<double>();
+  if (conf["Tunit"])          Tunit              = conf["Tunit"].as<double>();
+  if (conf["Munit"])          Munit              = conf["Munit"].as<double>();
+  if (conf["cnum"])           cnum               = conf["cnum"].as<int>();
+  if (conf["madj"])           madj               = conf["madj"].as<int>();
+  if (conf["epsm"])           epsm               = conf["epsm"].as<double>();
+  if (conf["hsdiam"])         hsdiam             = conf["hsdiam"].as<double>();
+  if (conf["crossfac"])       crossfac           = conf["crossfac"].as<double>();
+  if (conf["boxsize"])        boxsize            = conf["boxsize"].as<double>();
+  if (conf["boxratio"])       boxratio           = conf["boxratio"].as<double>();
+  if (conf["coolfrac"])       coolfrac           = conf["coolfrac"].as<double>();
+  if (conf["enhance"])        enhance            = conf["enhance"].as<double>();
+  if (conf["nsteps"])         nsteps             = conf["nsteps"].as<int>();
+  if (conf["msteps"])         msteps             = conf["msteps"].as<int>();
+  if (conf["ncell"])          ncell              = conf["ncell"].as<int>();
+  if (conf["Ncell"])          Ncell              = conf["Ncell"].as<int>();
+  if (conf["compname"])       comp_name          = conf["compname"].as<string>();
+  if (conf["specmap"])        spec_map           = conf["specmap"].as<string>();
+  if (conf["use_temp"])       use_temp           = conf["use_temp"].as<int>();
+  if (conf["use_dens"])       use_dens           = conf["use_dens"].as<int>();
+  if (conf["use_delt"])       use_delt           = conf["use_delt"].as<int>();
+  if (conf["use_Kn"])         use_Kn             = conf["use_Kn"].as<int>();
+  if (conf["use_St"])         use_St             = conf["use_St"].as<int>();
+  if (conf["use_vol"])        use_vol            = conf["use_vol"].as<int>();
+  if (conf["use_exes"])       use_exes           = conf["use_exes"].as<int>();
+  if (conf["use_Eint"])       use_Eint           = conf["use_Eint"].as<int>();
+  if (conf["frontier"])       frontier           = conf["frontier"].as<bool>();
+  if (conf["tspow"])          tspow              = conf["tspow"].as<int>();
+  if (conf["tsdiag"])         tsdiag             = conf["tsdiag"].as<bool>();
+  if (conf["voldiag"])        voldiag            = conf["voldiag"].as<bool>();
+  if (conf["mfpstat"])        mfpstat            = conf["mfpstat"].as<bool>();
+  if (conf["cbadiag"])        cbadiag            = conf["cbadiag"].as<bool>();
+  if (conf["dryrun"])         dryrun             = conf["dryrun"].as<bool>();
+  if (conf["nocool"])         nocool             = conf["nocool"].as<bool>();
+  if (conf["use_multi"])      use_multi          = conf["use_multi"].as<bool>();
+  if (conf["use_pullin"])     use_pullin         = conf["use_pullin"].as<bool>();
+  if (conf["use_effort"])     use_effort         = conf["use_effort"].as<bool>();
+  if (conf["esol"])           esol               = conf["esol"].as<bool>();
+  if (conf["cba"])            cba                = conf["cba"].as<bool>();
+  if (conf["ntc"])            ntc                = conf["ntc"].as<bool>();
+  if (conf["tube"])           tube               = conf["tube"].as<bool>();
+  if (conf["slab"])           slab               = conf["slab"].as<bool>();
+  if (conf["sub_sample"])     sub_sample         = conf["sub_sample"].as<bool>();
+  if (conf["treechk"])        treechk            = conf["treechk"].as<bool>();
+  if (conf["mpichk"])         mpichk             = conf["mpichk"].as<bool>();
+  if (conf["mfpts"])          mfpts              = conf["mfpts"].as<bool>();
+  if (conf["hybrid"])         hybrid             = conf["hybrid"].as<bool>();
+  if (conf["dumpHOT"])        dumpHOT            = conf["dumpHOT"].as<bool>();
+  if (conf["ageout"])         ageout             = conf["ageout"].as<int>();
 
   NTC::NTCdb::maxAge = ageout;
 
-  if (get_value("ntc_chkpt", val)) {
-    NTC::NTCdb::intvl = atoi(val.c_str());
-  }
+  if (conf["ntc_chkpt"])      NTC::NTCdb::intvl  = conf["ntc_chkpt"].as<int>();
+  if (conf["ntc_verbose"])    NTC::NTCdb::chatty = conf["ntc_chkpt"].as<bool>();
   
-  if (get_value("ntc_verbose", val)) {
-    NTC::NTCdb::chatty = atol(val);
-  }
-  
-  if (get_value("rrtype", val)) {
+  if (conf["rrtype"]) {
+    std::string val = conf["rrtype"].as<std::string>();
     if (Ion::setRRtype(val)) {
       std::ostringstream sout;
       sout << "TreeDSMC: invalid rrtype <" << val << ">";
@@ -651,7 +671,8 @@ void TreeDSMC::initialize()
     }
   }
   
-  if (get_value("ctype", val)) {
+  if (conf["ctype"]) {
+    std::string val = conf["ctype"].as<std::string>();
     if (check_ctype(val)) ctype = val;
     else {
       std::ostringstream sout;
@@ -664,39 +685,38 @@ void TreeDSMC::initialize()
   // spc(1,2)=3.1, spc(3,4)=5.6, etc.
   //
   if (ctype.compare("LTE")==0) {
-    std::map<std::pair<int, int>, string> vals;
-    if ((vals = get_value_matrix("spc")).size()) {
-      std::map<std::pair<int, int>, string>::iterator it=vals.begin();
-      while (it != vals.end()) {
-	try {
-	  speciesKey p(it->first.first, it->first.second);
-	  collFrac[p] = boost::lexical_cast<double>(it->second);
-	} 
-	catch( boost::bad_lexical_cast const& ) {
-	  std::cout << "TreeDSMC::initialize: bad double value, "
-		    << "input string was: " << it->second << std::endl;
+    
+    for (YAML::const_iterator it=conf.begin(); it!=conf.end(); it++) {
+      std::string key = it->first.as<std::string>();
+
+      size_t pos = key.find("spc(");
+
+      if (pos == 0) {
+	size_t bpos = key.find("(");
+	size_t epos = key.find(")");
+	if (bpos != std::string::npos and epos != std::string::npos) {
+	  std::pair<int, int> pr = splitPair(key.substr(bpos+1, epos-bpos-1), ',');
+	  speciesKey p(pr.first, pr.second);
+	  collFrac[p] = it->second.as<double>();
 	}
+      } else {
+	collFrac[Particle::defaultKey] = 1.0;
       }
-      it++;
-    } else {
-      // The default key is defined in pCell.H
-      collFrac[Particle::defaultKey] = 1.0;
     }
   }
   
   // Ion method specific parameters
   //
   if (ctype.compare("Ion")==0) {
-    if (get_value("equiptn", val))        CollideIon::equiptn = atol(val);
-    if (get_value("scatter", val))        CollideIon::scatter = atol(val);
-    if (get_value("nodelC",  val))        CollideIon::NoDelC  = atoi(val);
-    if (get_value("estype",  val))        CollideIon::setEStype(val);
-    if (get_value("esnum",   val))        CollideIon::esNum   = atoi(val);
-    if (get_value("esthr",   val))        CollideIon::esThr   = atof(val);
-    if (get_value("logL",    val))        CollideIon::logL    = atof(val);
-    if (get_value("config",  val))        CollideIon::config0 = val;
-    if (get_value("eEPSM",   val))        CollideIon::ElectronEPSM
-					                      = atol(val);
+    if (conf["equiptn"]) CollideIon::equiptn  = conf["equiptn"].as<bool>();
+    if (conf["scatter"]) CollideIon::scatter  = conf["scatter"].as<bool>();
+    if (conf["nodelC"])  CollideIon::NoDelC   = conf["nodelC"].as<int>();
+    if (conf["esnum"])   CollideIon::esNum    = conf["esnum"].as<int>();
+    if (conf["esthr"])   CollideIon::esThr    = conf["esthr"].as<double>();
+    if (conf["logL"])    CollideIon::logL     = conf["logL"].as<double>();
+    if (conf["config"])  CollideIon::config0  = conf["config"].as<string>();
+    if (conf["eEPSM"])   CollideIon::ElectronEPSM  = conf["eEPSM"].as<bool>();
+    if (conf["estype"])  CollideIon::setEStype(conf["estype"].as<std::string>());
   }
   
 }

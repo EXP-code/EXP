@@ -3,7 +3,7 @@
 
 #include <generateRelaxation.H>
 
-generateRelaxation::generateRelaxation(string& line) : ExternalForce(line)
+generateRelaxation::generateRelaxation(const YAML::Node& conf) : ExternalForce(conf)
 {
   done = 0;
 }

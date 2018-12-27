@@ -1,6 +1,6 @@
 #include <Shells.H>
 
-Shells::Shells(string& line) : PotAccel(line)
+Shells::Shells(const YAML::Node& conf) : PotAccel(conf)
 {
   nsample         = -1;
   nselect         = -1;
@@ -46,20 +46,9 @@ Shells::~Shells()
 
 void Shells::initialize(void)
 {
-  string val;
-
-  if (get_value("nsample", val)) 
-    nsample = atoi(val.c_str());
-
-  if (get_value("nselect", val)) 
-    nselect = atoi(val.c_str());
-
-  if (get_value("self_consistent", val)) {
-    if (atoi(val.c_str())) self_consistent = true; 
-    else self_consistent = false;
-  } else
-    self_consistent = true;
-
+  if (conf["nsample"])         nsample         = conf["nsample"].as<int>();
+  if (conf["nselect"])         nselect         = conf["nselect"].as<int>();
+  if (conf["self_consistent"]) self_consistent = conf["self_consistent"].as<bool>();
 }
 
 void Shells::get_acceleration_and_potential(Component* C)

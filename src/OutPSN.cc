@@ -10,7 +10,7 @@
 #include <AxisymmetricBasis.H>
 #include <OutPSN.H>
 
-OutPSN::OutPSN(string& line) : Output(line)
+OutPSN::OutPSN(const YAML::Node& conf) : Output(conf)
 {
   initialize();
 }
@@ -19,23 +19,25 @@ void OutPSN::initialize()
 {
   string tmp;
 				// Get file name
-  if (!Output::get_value(string("filename"), filename)) {
+  if (Output::conf["filename"])
+    filename = Output::conf["filename"].as<std::string>();
+  else{
     filename.erase();
     filename = outdir + "OUT." + runtag;
   }
 
-  if (Output::get_value(string("nint"), tmp))
-    nint = atoi(tmp.c_str());
+  if (Output::conf["nint"])
+    nint = Output::conf["nint"].as<int>();
   else
     nint = 100;
 
-  if (Output::get_value(string("nbeg"), tmp))
-    nbeg = atoi(tmp.c_str());
+  if (Output::conf["nbeg"])
+    nbeg = Output::conf["nbeg"].as<int>();
   else
     nbeg = 0;
 
-  if (Output::get_value(string("timer"), tmp))
-    timer = atoi(tmp.c_str()) ? true : false;
+  if (Output::conf["timer"])
+    timer = Output::conf["timer"].as<bool>();
   else
     timer = false;
 

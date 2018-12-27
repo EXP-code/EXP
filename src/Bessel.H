@@ -74,7 +74,8 @@ public:
   static int RNUM;
 
   //! Constructor
-  Bessel(string& line, MixtureBasis* m=0);
+  Bessel(const YAML::Node& conf, MixtureBasis* m=0);
+
   //! Destructor
   virtual ~Bessel();
 };

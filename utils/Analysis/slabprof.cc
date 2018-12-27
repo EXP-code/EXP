@@ -38,13 +38,19 @@
 #include <cmath>
 #include <string>
 
+				// Boost stuff
+#include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
+
+namespace po = boost::program_options;
+
+
                                 // System libs
 #include <sys/time.h>
 #include <sys/resource.h>
 
 				// MDW classes
 #include <PSP.H>
-#include <ProgramParam.H>
 
 //=============================================================================
 // Variables not used but needed for linking
@@ -64,33 +70,7 @@ pthread_mutex_t coef_lock;
 double tpos = 0.0;
 double tnow = 0.0;
 int myid = 0;  
-string outdir, runtag;
-//
-//=============================================================================
-// Option database
-//=============================================================================
-
-program_option init[] = {
-  {"CFLAGS",		"int",		"2",		"component flags (Star=1, Gas=2, Halo=4)"},
-  {"TEMP",		"int",		"0",		"temperature (default=0)"},
-  {"DENS",		"int",		"1",		"density (default=1)"},
-  {"KNUD",		"int",		"4",		"Knudsen (default=4)"},
-  {"STRL",		"int",		"5",		"Straoul (default=5)"},
-  {"Rmin",		"double",	"0.0",		"minimum position"},
-  {"Rmax",		"double",	"1.0",		"maximum position"},
-  {"Nbins",		"int",		"100",		"number of bins"},
-  {"AXIS",		"int",		"2",		"which axis"},
-  {"OUTFILE",		"string",	"slab.prof",	"output filename"},
-  {"RUNTAG",		"string",	"run",		"run tag"},
-  {"MININDX",		"int",		"0",		"Minimum PSP index"},
-  {"MAXINDX",		"int",		"100",		"Maximum PSP index"},
-  {"",			"",		"",		""}
-};
-
-
-const char desc[] = "Compute 1-dimensional projection of shocktube runs\n";
-
-ProgramParam config(desc, init);
+string outdir, outfile, runtag;
 
 //=============================================================================
 
@@ -182,22 +162,54 @@ main(int argc, char **argv)
   sleep(20);
 #endif  
   
+  int IMIN, IMAX;
+
   // ==================================================
   // Parse command line or input parameter file
   // ==================================================
   
-  if (config.parse_args(argc,argv)) return -1;
+  po::options_description desc("Compute 1-dimensional projection of shocktube runs\nAllowed options");
+  desc.add_options()
+    ("help,h",                                                                          "Print this help message")
+    ("CFLAGS",              po::value<int>(&CFLAGS)->default_value(2),
+     "component flags (Star=1)")
+    ("TEMP",                po::value<int>(&TEMP)->default_value(0),
+     "temperature (default=0)")
+    ("DENS",                po::value<int>(&DENS)->default_value(1),
+     "density (default=1)")
+    ("KNUD",                po::value<int>(&KNUD)->default_value(4),
+     "Knudsen (default=4)")
+    ("STRL",                po::value<int>(&STRL)->default_value(5),
+     "Straoul (default=5)")
+    ("Rmin",                po::value<double>(&Rmin)->default_value(0.0),
+     "minimum position")
+    ("Rmax",                po::value<double>(&Rmax)->default_value(1.0),
+     "maximum position")
+    ("Nbins",               po::value<int>(&Nbins)->default_value(100),
+     "number of bins")
+    ("AXIS",                po::value<int>(&AXIS)->default_value(2),
+     "which axis")
+    ("OUTFILE",             po::value<string>(&outfile)->default_value("slab.prof"),
+     "output filename")
+    ("RUNTAG",              po::value<string>(&runtag)->default_value("run"),
+     "run tag")
+    ("MININDX",             po::value<int>(&IMIN)->default_value(0),
+     "Minimum PSP index")
+    ("MAXINDX",             po::value<int>(&IMAX)->default_value(100),
+     "Maximum PSP index")
+    ;
   
-  
-  CFLAGS  = config.get<int>("CFLAGS");
-  TEMP    = config.get<int>("TEMP");
-  DENS    = config.get<int>("DENS");
-  KNUD    = config.get<int>("KNUD");
-  STRL    = config.get<int>("STRL");
-  Nbins   = config.get<int>("Nbins");
-  AXIS    = config.get<int>("AXIS");
-  Rmin    = config.get<double>("Rmin");
-  Rmax    = config.get<double>("Rmax");
+
+  po::variables_map vm;
+
+  try {
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::notify(vm);    
+  } catch (po::error& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    exit(-1);
+  }
+
 
   // ==================================================
   // Open frame list
@@ -206,12 +218,9 @@ main(int argc, char **argv)
   ofstream indx;
   ifstream in;
 
-  int IMIN = config.get<int>("MININDX");
-  int IMAX = config.get<int>("MAXINDX");
-
-  ofstream out(config.get<string>("OUTFILE").c_str());
+  ofstream out(outfile);
   if (!out) {
-    cerr << "Error opening output file <" << config.get<string>("OUTFILE")
+    cerr << "Error opening output file <" << outfile
 	 << ">" << endl;
     exit(-1);
   }
@@ -219,7 +228,7 @@ main(int argc, char **argv)
   for (int i=IMIN; i<=IMAX; i++) {
 
     ostringstream sout;
-    sout << "OUT." << config.get<string>("RUNTAG") << "."
+    sout << "OUT." << runtag << "."
 	 << right << setw(5) << setfill('0') << i;
 
     in.close();

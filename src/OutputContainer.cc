@@ -20,63 +20,63 @@ OutputContainer::OutputContainer() {}
 
 void OutputContainer::initialize(void)
 {
-  spair data;
-  
-  parse->find_list("output");
+  YAML::Node outs = parse["output"];
 
-  while ( parse->get_next(data) ) {
+  for (YAML::const_iterator it=outs.begin(); it!=outs.end(); ++it) {
 
-    if ( !data.first.compare("outlog") ) {
-      out.push_back(new OutLog(data.second));
+    std::string name = it->first.as<std::string>();
+
+    if ( !name.compare("outlog") ) {
+      out.push_back(new OutLog(it->second));
     }
 
-    else if ( !data.first.compare("orbtrace") ) {
-      out.push_back(new OrbTrace(data.second));
+    else if ( !name.compare("orbtrace") ) {
+      out.push_back(new OrbTrace(it->second));
     }
 
-    else if ( !data.first.compare("outdiag") ) {
-      out.push_back(new OutDiag(data.second));
+    else if ( !name.compare("outdiag") ) {
+      out.push_back(new OutDiag(it->second));
     }
 
-    else if ( !data.first.compare("outps") ) {
-      out.push_back(new OutPS(data.second));
+    else if ( !name.compare("outps") ) {
+      out.push_back(new OutPS(it->second));
     }
 
-    else if ( !data.first.compare("outpsn") ) {
-      out.push_back(new OutPSN(data.second));
+    else if ( !name.compare("outpsn") ) {
+      out.push_back(new OutPSN(it->second));
     }
     
-    else if ( !data.first.compare("outpsp") ) {
-      out.push_back(new OutPSP(data.second));
+    else if ( !name.compare("outpsp") ) {
+      out.push_back(new OutPSP(it->second));
     }
     
-    else if ( !data.first.compare("outascii") ) {
-      out.push_back(new OutAscii(data.second));
+    else if ( !name.compare("outascii") ) {
+      out.push_back(new OutAscii(it->second));
     }
     
-    else if ( !data.first.compare("outchkpt") ) {
-      out.push_back(new OutCHKPT(data.second));
+    else if ( !name.compare("outchkpt") ) {
+      out.push_back(new OutCHKPT(it->second));
     }
 
-    else if ( !data.first.compare("outcoef") ) {
-      out.push_back(new OutCoef(data.second));
+    else if ( !name.compare("outcoef") ) {
+      out.push_back(new OutCoef(it->second));
     }
 
-    else if ( !data.first.compare("outfrac") ) {
-      out.push_back(new OutFrac(data.second));
+    else if ( !name.compare("outfrac") ) {
+      out.push_back(new OutFrac(it->second));
     }
 
-    else if ( !data.first.compare("outmulti") ) {
-      out.push_back(new OutMulti(data.second));
+    else if ( !name.compare("outmulti") ) {
+      out.push_back(new OutMulti(it->second));
     }
 
-    else if ( !data.first.compare("outcalbr") ) {
-      out.push_back(new OutCalbr(data.second));
+    else if ( !name.compare("outcalbr") ) {
+      out.push_back(new OutCalbr(it->second));
     }
 
     else {
       string msg("I don't know about the output type: ");
-      msg += data.first;
+      msg += name;
       throw GenericError(msg, __FILE__, __LINE__);
     }
   }

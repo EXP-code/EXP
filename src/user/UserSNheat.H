@@ -85,7 +85,7 @@ private:
 public:
 
   //! Constructor
-  UserSNheat(string &line);
+  UserSNheat(const YAML::Node& conf);
 
   //! Destructor
   ~UserSNheat();

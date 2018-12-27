@@ -40,7 +40,7 @@ public:
   string id;
 
   //! Constructor
-  Cube(string& line);
+  Cube(const YAML::Node& conf);
 
   //! Destructor
   virtual ~Cube();

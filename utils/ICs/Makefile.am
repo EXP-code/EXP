@@ -50,7 +50,7 @@ gendisk3_SOURCES =  initial3.cc DiskHalo3.cc EmpOrth9thd.cc \
 	CylDisk.cc SphericalSL.cc legendre.cc Particle.cc SParticle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
 gendisk3_LDFLAGS = $(EXPFLAGS)
-gendisk3_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+gendisk3_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(BOOST_LIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 gsphere_SOURCES = bonnerebert.cc
 gsphere_LDADD = $(COMMON_LIBS) $(EXPLIBS)

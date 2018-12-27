@@ -59,7 +59,6 @@ namespace pt = boost::property_tree;
 #include <EmpOrth9thd.h>
 
 #include <localmpi.h>
-#include <ProgramParam.H>
 #include <foarray.H>
 
 #include <VtkGrid.H>

@@ -38,7 +38,7 @@ private:
 public:
 
   //! Constructor
-  UserBarTrigger(string &line);
+  UserBarTrigger(const YAML::Node& conf);
 
   //! Destructor
   ~UserBarTrigger();

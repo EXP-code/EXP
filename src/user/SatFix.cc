@@ -1,7 +1,7 @@
 #include <mpi.h>
 #include <SatFix.H>
 
-SatFix::SatFix(string &line) : ExternalForce(line)
+SatFix::SatFix(const YAML::Node& conf) : ExternalForce(conf)
 {
   verbose = true;
   debug   = false;
@@ -54,11 +54,9 @@ void SatFix::userinfo()
 
 void SatFix::initialize()
 {
-  string val;
-
-  if (get_value("compname", val))   comp_name = val;
-  if (get_value("verbose",  val))   if (atoi(val.c_str())) verbose = true;
-  if (get_value("debug",    val))   if (atoi(val.c_str())) debug = true;
+  if (conf["compname"])       comp_name          = conf["compname"].as<string>();
+  if (conf["verbose"])        verbose            = conf["verbose"].as<bool>();
+  if (conf["debug"])          debug              = conf["debug"].as<bool>();
 }
 
 void SatFix::get_acceleration_and_potential(Component* C)

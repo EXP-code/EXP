@@ -5,7 +5,7 @@
 #include <localmpi.h>
 #include <UserEBarP.H>
 
-UserEBarP::UserEBarP(string &line) : ExternalForce(line)
+UserEBarP::UserEBarP(const YAML::Node& conf) : ExternalForce(conf)
 {
   id = "RotatingBarWithMonopoleOmegaFile";
 
@@ -240,31 +240,28 @@ void UserEBarP::userinfo()
 
 void UserEBarP::initialize()
 {
-  string val;
-
-  if (get_value("ctrname", val))	ctr_name = val;
-  if (get_value("angmname", val))	angm_name = val;
-  if (get_value("tblname", val))	table_name = val;
-  if (get_value("length", val))		length = atof(val.c_str());
-  if (get_value("bratio", val))		bratio = atof(val.c_str());
-  if (get_value("cratio", val))		cratio = atof(val.c_str());
-  if (get_value("amp", val))		amplitude = atof(val.c_str());
-  if (get_value("angmomfac", val))	angmomfac = atof(val.c_str());
-  if (get_value("barmass", val))	barmass = atof(val.c_str());
-  if (get_value("Ton", val))		Ton = atof(val.c_str());
-  if (get_value("Toff", val))		Toff = atof(val.c_str());
-  if (get_value("TmonoOn", val))	TmonoOn = atof(val.c_str());
-  if (get_value("TmonoOff", val))	TmonoOff = atof(val.c_str());
-  if (get_value("DeltaT", val))		DeltaT = atof(val.c_str());
-  if (get_value("DeltaMonoT", val))	DeltaMonoT = atof(val.c_str());
-  if (get_value("soft", val))		soft = atol(val);
-  if (get_value("monopole", val))	monopole = atol(val);
-  if (get_value("fileomega", val))	fileomega = val;
-  if (get_value("onoff", val))		monopole_onoff = atol(val);
-  if (get_value("monofrac", val))	monopole_frac = atof(val.c_str());
-  if (get_value("quadfrac", val))	quadrupole_frac = atof(val.c_str());
-  if (get_value("filename", val))	filename = val;
-
+  if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
+  if (conf["angmname"])       angm_name          = conf["angmname"].as<string>();
+  if (conf["tblname"])        table_name         = conf["tblname"].as<string>();
+  if (conf["length"])         length             = conf["length"].as<double>();
+  if (conf["bratio"])         bratio             = conf["bratio"].as<double>();
+  if (conf["cratio"])         cratio             = conf["cratio"].as<double>();
+  if (conf["amp"])            amplitude          = conf["amp"].as<double>();
+  if (conf["angmomfac"])      angmomfac          = conf["angmomfac"].as<double>();
+  if (conf["barmass"])        barmass            = conf["barmass"].as<double>();
+  if (conf["Ton"])            Ton                = conf["Ton"].as<double>();
+  if (conf["Toff"])           Toff               = conf["Toff"].as<double>();
+  if (conf["TmonoOn"])        TmonoOn            = conf["TmonoOn"].as<double>();
+  if (conf["TmonoOff"])       TmonoOff           = conf["TmonoOff"].as<double>();
+  if (conf["DeltaT"])         DeltaT             = conf["DeltaT"].as<double>();
+  if (conf["DeltaMonoT"])     DeltaMonoT         = conf["DeltaMonoT"].as<double>();
+  if (conf["soft"])           soft               = conf["soft"].as<bool>();
+  if (conf["monopole"])       monopole           = conf["monopole"].as<bool>();
+  if (conf["fileomega"])      fileomega          = conf["fileomega"].as<string>();
+  if (conf["onoff"])          monopole_onoff     = conf["onoff"].as<bool>();
+  if (conf["monofrac"])       monopole_frac      = conf["monofrac"].as<double>();
+  if (conf["quadfrac"])       quadrupole_frac    = conf["quadfrac"].as<double>();
+  if (conf["filename"])       filename           = conf["filename"].as<string>();
 }
 
 
@@ -669,9 +666,9 @@ void * UserEBarP::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerEBarP(string& line)
+  ExternalForce *makerEBarP(const YAML::Node& conf)
   {
-    return new UserEBarP(line);
+    return new UserEBarP(conf);
   }
 }
 

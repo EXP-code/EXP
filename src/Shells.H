@@ -52,8 +52,8 @@ private:
 public:
 
   //! The constructor
-  /** \param line passes in any explicit parameters */
-  Shells(string& line);
+  /** \param conf passes in any explicit parameters */
+  Shells(const YAML::Node& conf);
 
   //! The constructor
   virtual ~Shells();

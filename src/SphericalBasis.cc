@@ -11,8 +11,8 @@
 static pthread_mutex_t io_lock;
 #endif
 
-SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) : 
-  AxisymmetricBasis(line)
+SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) : 
+  AxisymmetricBasis(conf)
 {
 #if HAVE_LIBCUDA==1
   if (m) {
@@ -40,55 +40,42 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
   ssfrac           = 0.0;
   subset           = false;
 
-  string val;
-
-  if (get_value("scale", val)) 
-    scale = atof(val.c_str());
+  if (conf["scale"]) 
+    scale = conf["scale"].as<double>();
   else
     scale = 1.0;
 
-  if (get_value("rmax", val)) 
-    rmax = atof(val.c_str());
+  if (conf["rmax"]) 
+    rmax = conf["rmax"].as<double>();
   else
     rmax = 10.0;
 
-  if (get_value("self_consistent", val)) {
-    if (atoi(val.c_str())) self_consistent = true; 
-    else self_consistent = false;
+  if (conf["self_consistent"]) {
+    self_consistent = conf["self_consistent"].as<bool>();
   } else
     self_consistent = true;
 
-  if (get_value("NO_L0", val)) {
-    if (atoi(val.c_str())) NO_L0 = true; 
-    else NO_L0 = false;
-  }
+  if (conf["NO_L0"])   NO_L0   = conf["NO_L0"].as<bool>();
+  if (conf["NO_L1"])   NO_L1   = conf["NO_L1"].as<bool>();
+  if (conf["EVEN_L"])  EVEN_L  = conf["EVEN_L"].as<bool>();
 
-  if (get_value("NO_L1", val)) {
-    if (atoi(val.c_str())) NO_L1 = true; 
-    else NO_L1 = false;
-  }
-
-  if (get_value("EVEN_L", val)) {
-    if (atoi(val.c_str())) EVEN_L = true; 
-    else EVEN_L = false;
-  }
-
-  if (get_value("NOISE", val)) {
-    if (atoi(val.c_str())) {
+  if (conf["NOISE"]) {
+    if (conf["NOISE"].as<bool>()) {
       NOISE = true; 
       self_consistent = false;
     }
     else NOISE = false;
   }
 
-  if (get_value("noiseN", val)) noiseN = atof(val.c_str());
+  if (conf["noiseN"])  noiseN  = conf["noiseN"].as<bool>();
 
-  if (get_value("noise_model_file", val)) noise_model_file = val;
+  if (conf["noise_model_file"]) noise_model_file = conf["noise_model_file"].as<std::string>();
 
-  if (get_value("seedN", val)) seedN = atoi(val.c_str());
+  if (conf["seedN"])   seedN   = conf["seedN"].as<int>();
 
-  if (get_value("ssfrac", val)) {
-    ssfrac = atof(val.c_str());	// Check for sane value
+  if (conf["ssfrac"]) {
+    ssfrac = conf["ssfrac"].as<double>();
+				// Check for sane value
     if (ssfrac>0.0 && ssfrac<1.0) subset = true;
   }
 

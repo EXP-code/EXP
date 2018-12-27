@@ -27,8 +27,8 @@ private:
 public:
 
   //! The constructor
-  /*! \param line is ignored here */
-  NoForce(std::string& line);
+  /*! \param conf is ignored here */
+  NoForce(const YAML::Node& conf);
 
   //! The constructor
   virtual ~NoForce();

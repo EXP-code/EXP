@@ -7,7 +7,7 @@
 #include <UserReflect.H>
 
 
-UserReflect::UserReflect(string &line) : ExternalForce(line)
+UserReflect::UserReflect(const YAML::Node& conf) : ExternalForce(conf)
 {
 
   id = "ReflectBC";		// Reflect boundary condition ID
@@ -78,11 +78,9 @@ void UserReflect::userinfo()
 
 void UserReflect::initialize()
 {
-  string val;
-
-  if (get_value("compname", val))	comp_name = val;
-  if (get_value("radius", val))	        radius = atof(val.c_str());
-  if (get_value("debug", val))	        debug = atol(val);
+  if (conf["compname"])       comp_name          = conf["compname"].as<string>();
+  if (conf["radius"])         radius             = conf["radius"].as<double>();
+  if (conf["debug"])          debug              = conf["debug"].as<bool>();
 }
 
 
@@ -220,9 +218,9 @@ void * UserReflect::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerReflect(string& line)
+  ExternalForce *makerReflect(const YAML::Node& conf)
   {
-    return new UserReflect(line);
+    return new UserReflect(conf);
   }
 }
 

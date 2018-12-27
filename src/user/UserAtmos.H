@@ -30,7 +30,7 @@ private:
 public:
 
   //! Constructor
-  UserAtmos(string &line);
+  UserAtmos(const YAML::Node& conf);
 
   //! Destructor
   ~UserAtmos();

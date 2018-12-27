@@ -14,7 +14,7 @@
 #include <sstream>
 
 
-UserRPtest::UserRPtest(string &line) : ExternalForce(line)
+UserRPtest::UserRPtest(const YAML::Node& conf) : ExternalForce(conf)
 {
   LMAX = 2;
   NMAX = 20;
@@ -106,27 +106,25 @@ void UserRPtest::userinfo()
 
 void UserRPtest::initialize()
 {
-  string val;
+  if (conf["L0"])             L0                 = conf["L0"].as<int>();
+  if (conf["M0"])             M0                 = conf["M0"].as<int>();
+  if (conf["L1"])             L1                 = conf["L1"].as<int>();
+  if (conf["L2"])             L2                 = conf["L2"].as<int>();
 
-  if (get_value("L0", val))       L0 = atoi(val.c_str());
-  if (get_value("M0", val))       M0 = atoi(val.c_str());
-  if (get_value("L1", val))       L1 = atoi(val.c_str());
-  if (get_value("L2", val))       L2 = atoi(val.c_str());
+  if (conf["rmin"])           rmin               = conf["rmin"].as<double>();
+  if (conf["rmax"])           rmax               = conf["rmax"].as<double>();
+  if (conf["scale"])          scale              = conf["scale"].as<double>();
 
-  if (get_value("rmin", val))     rmin = atof(val.c_str());
-  if (get_value("rmax", val))     rmax = atof(val.c_str());
-  if (get_value("scale", val))     scale = atof(val.c_str());
+  if (conf["NUMX"])           NUMX               = conf["NUMX"].as<int>();
+  if (conf["NUME"])           NUME               = conf["NUME"].as<int>();
+  if (conf["RECS"])           RECS               = conf["RECS"].as<int>();
 
-  if (get_value("NUMX", val))     NUMX = atoi(val.c_str());
-  if (get_value("NUME", val))     NUME = atoi(val.c_str());
-  if (get_value("RECS", val))     RECS = atoi(val.c_str());
+  if (conf["with_ps"])        with_ps            = conf["with_ps"].as<bool>();
+  if (conf["npart"])          npart              = conf["npart"].as<int>();
 
-  if (get_value("with_ps", val))  with_ps = atol(val);
-  if (get_value("npart", val))    npart = atoi(val.c_str());
-
-  if (get_value("model", val))    model_file = val;
-  if (get_value("ctrname", val))  ctr_name = val;
-  if (get_value("filename", val)) filename = val;
+  if (conf["model"])          model_file         = conf["model"].as<string>();
+  if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
+  if (conf["filename"])       filename           = conf["filename"].as<string>();
 }
 
 void UserRPtest::determine_acceleration_and_potential(void)
@@ -328,9 +326,9 @@ void * UserRPtest::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerRPtest(string& line)
+  ExternalForce *makerRPtest(const YAML::Node& conf)
   {
-    return new UserRPtest(line);
+    return new UserRPtest(conf);
   }
 }
 

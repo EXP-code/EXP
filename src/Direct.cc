@@ -7,7 +7,7 @@ static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 static const int MSGTAG=103;
 
-Direct::Direct(string& line) : PotAccel(line)
+Direct::Direct(const YAML::Node& conf) : PotAccel(conf)
 {
   soft_indx = 0;
   soft = 0.01;
@@ -41,24 +41,22 @@ Direct::~Direct()
 
 void Direct::initialize(void)
 {
-  string val;
-
-  if (get_value("soft_indx", val)) {
-    soft_indx = atoi(val.c_str());
+  if (conf["soft_indx"]) {
+    soft_indx = conf["soft_indx"].as<int>();
     fixed_soft = false;
     ndim = 5;
   }
 
-  if (get_value("soft", val)) {
-    soft = atof(val.c_str());
+  if (conf["soft"]) {
+    soft = conf["soft"].as<double>();
     fixed_soft = true;
     ndim = 4;
   }
 
-  if (get_value("pm_model",val))          pm_model = atoi(val.c_str()) ? true : false;
-  if (get_value("diverge", val))          diverge = atoi(val.c_str());
-  if (get_value("diverge_rfac", val))     diverge_rfac = atof(val.c_str());
-  if (get_value("pmmodel_file", val))     pmmodel_file = val;
+  if (conf["pm_model"])         pm_model     = conf["pm_model"].as<bool>();
+  if (conf["diverge"])          diverge      = conf["diverge"].as<int>();
+  if (conf["diverge_rfac"])     diverge_rfac = conf["diverge_rfac"].as<double>();
+  if (conf["pmmodel_file"])     pmmodel_file = conf["pmmodel_file"].as<std::string>();
 
 }
 

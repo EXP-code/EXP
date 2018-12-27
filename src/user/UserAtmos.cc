@@ -7,7 +7,7 @@
 #include <UserAtmos.H>
 
 
-UserAtmos::UserAtmos(string &line) : ExternalForce(line)
+UserAtmos::UserAtmos(const YAML::Node& conf) : ExternalForce(conf)
 {
 
   id = "SphericalHalo";		// Halo model file
@@ -65,12 +65,10 @@ void UserAtmos::userinfo()
 
 void UserAtmos::initialize()
 {
-  string val;
-
-  if (get_value("gx", val))	        g[0] = atof(val.c_str());
-  if (get_value("gy", val))	        g[1] = atof(val.c_str());
-  if (get_value("gz", val))	        g[2] = atof(val.c_str());
-  if (get_value("compname", val))	compname = val;
+  if (conf["gx"])             g[0]               = conf["gx"].as<double>();
+  if (conf["gy"])             g[1]               = conf["gy"].as<double>();
+  if (conf["gz"])             g[2]               = conf["gz"].as<double>();
+  if (conf["compname"])       compname           = conf["compname"].as<string>();
 }
 
 
@@ -120,9 +118,9 @@ void * UserAtmos::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerAtmos(string& line)
+  ExternalForce *makerAtmos(const YAML::Node& conf)
   {
-    return new UserAtmos(line);
+    return new UserAtmos(conf);
   }
 }
 

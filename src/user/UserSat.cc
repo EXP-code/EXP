@@ -37,10 +37,13 @@ private:
 
 public:
   
-				//! For debugging . . .
+  //! For debugging . . .
   static int instances;
 
-  UserSat(string &line);
+  //! Constructor
+  UserSat(const YAML::Node& conf);
+
+  //! Destuctor
   ~UserSat();
 
 };
@@ -48,7 +51,7 @@ public:
 
 int UserSat::instances = 0;
 
-UserSat::UserSat(string &line) : ExternalForce(line)
+UserSat::UserSat(const YAML::Node& conf) : ExternalForce(conf)
 {
   id = "UserSat";		// ID string
 
@@ -189,25 +192,28 @@ void UserSat::userinfo()
 
 void UserSat::initialize()
 {
-  string val;
+  if (conf["comname"]) {
+    com_name = conf["comname"].as<std::string>();
+    pinning = true;
+  }
 
-  if (get_value("comname", val))  {com_name = val; pinning = true; }
-  if (get_value("config", val))   config = val;
-  if (get_value("core", val))     core = atof(val.c_str());
-  if (get_value("mass", val))     mass = atof(val.c_str());
-  if (get_value("ton", val))      ton = atof(val.c_str());
-  if (get_value("toff", val))     toff = atof(val.c_str());
-  if (get_value("delta", val))    delta = atof(val.c_str());
-  if (get_value("toffset", val))  toffset = atof(val.c_str());
-  if (get_value("orbit", val))    orbit = atol(val);
-  if (get_value("shadow", val))   shadow = atol(val);
-  if (get_value("verbose", val))  verbose = atol(val);
-  if (get_value("r0", val))       r0 = atof(val.c_str());
-  if (get_value("phase", val))    phase = atof(val.c_str());
-  if (get_value("omega", val))    omega = atof(val.c_str());
+  if (conf["config"])         config             = conf["config"].as<string>();
+  if (conf["core"])           core               = conf["core"].as<double>();
+  if (conf["mass"])           mass               = conf["mass"].as<double>();
+  if (conf["ton"])            ton                = conf["ton"].as<double>();
+  if (conf["toff"])           toff               = conf["toff"].as<double>();
+  if (conf["delta"])          delta              = conf["delta"].as<double>();
+  if (conf["toffset"])        toffset            = conf["toffset"].as<double>();
+  if (conf["orbit"])          orbit              = conf["orbit"].as<bool>();
+  if (conf["shadow"])         shadow             = conf["shadow"].as<bool>();
+  if (conf["verbose"])        verbose            = conf["verbose"].as<bool>();
+  if (conf["r0"])             r0                 = conf["r0"].as<double>();
+  if (conf["phase"])          phase              = conf["phase"].as<double>();
+  if (conf["omega"])          omega              = conf["omega"].as<double>();
 
 				// Set trajectory type
-  if (get_value("trajtype", val)) {
+  if (conf["trajtype"]) {
+    std::string val = conf["trajtype"].as<std::string>();
     switch (atoi(val.c_str())) {
     case circ:
       traj_type = circ;
@@ -347,9 +353,9 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerSat(string& line)
+  ExternalForce *makerSat(const YAML::Node& conf)
   {
-    return new UserSat(line);
+    return new UserSat(conf);
   }
 }
 

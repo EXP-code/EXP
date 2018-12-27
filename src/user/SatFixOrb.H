@@ -63,7 +63,7 @@ private:
 public:
 
   //! Constructor
-  SatFixOrb(string &line);
+  SatFixOrb(const YAML::Node& conf);
 
   //! Destructor
   ~SatFixOrb();
@@ -77,9 +77,9 @@ public:
 
 
 extern "C" {
-  ExternalForce *makerSatFixOrb(string& line)
+  ExternalForce *makerSatFixOrb(const YAML::Node& conf)
   {
-    return new SatFixOrb(line);
+    return new SatFixOrb(conf);
   }
 }
 

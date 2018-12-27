@@ -88,7 +88,7 @@ public:
   /*! \brief Constructor
       \param line token list of specific parameters
   */
-  OutLog(string& line);
+  OutLog(const YAML::Node& conf);
 
   /*! \brief Generate output
       \param nstep 

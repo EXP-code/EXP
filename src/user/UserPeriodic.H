@@ -64,7 +64,7 @@ private:
 public:
 
   //! Constructor
-  UserPeriodic(string &line);
+  UserPeriodic(const YAML::Node& conf);
 
   //! Destructor
   ~UserPeriodic();

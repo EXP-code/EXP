@@ -36,7 +36,7 @@ private:
 public:
 
   //! Constructor
-  UserReflect(string &line);
+  UserReflect(const YAML::Node& conf);
 
   //! Destructor
   ~UserReflect();

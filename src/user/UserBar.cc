@@ -7,7 +7,7 @@
 
 #include <UserBar.H>
 
-UserBar::UserBar(string &line) : ExternalForce(line)
+UserBar::UserBar(const YAML::Node &conf) : ExternalForce(conf)
 {
   id = "RotatingBar";
 
@@ -110,21 +110,19 @@ void UserBar::userinfo()
 
 void UserBar::initialize()
 {
-  string val;
-
-  if (get_value("ctrname", val))	ctr_name = val;
-  if (get_value("angmname", val))	angm_name = val;
-  if (get_value("length", val))		length = atof(val.c_str());
-  if (get_value("bratio", val))		bratio = atof(val.c_str());
-  if (get_value("cratio", val))		cratio = atof(val.c_str());
-  if (get_value("amp", val))		amplitude = atof(val.c_str());
-  if (get_value("Ton", val))		Ton = atof(val.c_str());
-  if (get_value("Toff", val))		Toff = atof(val.c_str());
-  if (get_value("DeltaT", val))		DeltaT = atof(val.c_str());
-  if (get_value("Fcorot", val))		Fcorot = atof(val.c_str());
-  if (get_value("fixed", val))		fixed = atol(val);
-  if (get_value("soft", val))		soft = atoi(val);
-  if (get_value("filename", val))	filename = val;
+  if (conf["ctrname"])	  ctr_name  = conf["ctrname"].as<std::string>();
+  if (conf["angmname"])	  angm_name = conf["angmname"].as<std::string>();
+  if (conf["length"])	  length    = conf["length"].as<double>();
+  if (conf["bratio"])	  bratio    = conf["bratio"].as<double>();
+  if (conf["cratio"])	  cratio    = conf["cratio"].as<double>();
+  if (conf["amp"])	  amplitude = conf["amplitude"].as<double>();
+  if (conf["Ton"])	  Ton       = conf["Ton"].as<double>();
+  if (conf["Toff"])	  Toff      = conf["Toff"].as<double>();
+  if (conf["DeltaT"])	  DeltaT    = conf["DeltaT"].as<double>();
+  if (conf["Fcorot"])	  Fcorot    = conf["Fcorot"].as<double>();
+  if (conf["fixed"])	  fixed     = conf["fixed"].as<bool>();
+  if (conf["soft"])	  soft      = conf["soft"].as<bool>();
+  if (conf["filename"])	  filename  = conf["filename"].as<std::string>();
 
 }
 
@@ -445,9 +443,9 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerBar(string& line)
+  ExternalForce *makerBar(const YAML::Node& conf)
   {
-    return new UserBar(line);
+    return new UserBar(conf);
   }
 }
 

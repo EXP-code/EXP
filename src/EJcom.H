@@ -43,7 +43,7 @@ public:
   /** Constructor
       \param line passes any parameters (rsphSL, rmin and numr) 
   */
-  EJcom(string& line);
+  EJcom(const YAML::Node& conf);
 
   //! Mixture function for the two expansions
   double mixture(double* p);

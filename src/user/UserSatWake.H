@@ -118,7 +118,7 @@ public:
   
 
   //! Constructor
-  UserSatWake(string &line);
+  UserSatWake(const YAML::Node& conf);
 
   //! Destructor
   ~UserSatWake();

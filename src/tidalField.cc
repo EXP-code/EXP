@@ -3,7 +3,7 @@
 
 #include <tidalField.H>
 
-tidalField::tidalField(string& line) : ExternalForce(line)
+tidalField::tidalField(const YAML::Node& config) : ExternalForce(config)
 {
   hills_omega = 0.5;
   hills_p = 0.5;
@@ -13,10 +13,8 @@ tidalField::tidalField(string& line) : ExternalForce(line)
 
 void tidalField::initialize()
 {
-  string val;
-
-  if (get_value("hills_omega", val)) hills_omega = atof(val.c_str());
-  if (get_value("hills_p", val)) hills_p = atof(val.c_str());
+  if (conf["hills_omega"])    hills_omega        = conf["hills_omega"].as<double>();
+  if (conf["hills_p"])        hills_p            = conf["hills_p"].as<double>();
 }
 
 void * tidalField::determine_acceleration_and_potential_thread(void * arg)

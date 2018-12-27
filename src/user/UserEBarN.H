@@ -160,7 +160,7 @@ private:
 public:
 
   //! Constructor
-  UserEBarN(string &line);
+  UserEBarN(const YAML::Node& conf);
 
   //! Destructor
   ~UserEBarN();

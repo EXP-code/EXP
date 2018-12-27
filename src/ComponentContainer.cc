@@ -63,8 +63,6 @@ void ComponentContainer::initialize(void)
   MPI_Bcast(&ir, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
   restart = ir ? true : false;
 
-  spair data;
-
   if (restart) {
 
     struct MasterHeader master;
@@ -113,52 +111,13 @@ void ComponentContainer::initialize(void)
 
   } else {
     
-    parse->find_list("components");
+    YAML::Node comp = parse["components"];
 
     ncomp = 0;
 
-    while (parse->get_next(data)) {
-      
-      string name = trimLeft(trimRight(data.first));
-      string id, pfile, cparam, fparam;
-      const int linesize = 2048;
-      char line[linesize];
+    for (YAML::const_iterator it=comp.begin(); it!=comp.end(); ++it) {
 
-      if (myid==0) {
-	ifstream desc(data.second.c_str());
-	if (!desc) {
-	  std::ostringstream sout;
-	  sout << "ComponentContainer::initialize: could not open ps description file <"
-	       << data.second << ">";
-	  throw GenericError(sout.str(), __FILE__, __LINE__);
-	}
-	
-	desc.get(line, linesize, '\0');
-
-				// Replace delimeters with spaces
-	for (int i=0; i<linesize; i++) {
-	  if ( line[i] == '\0' ) break;
-	  if ( line[i] == '\n' ) line[i] = ' ';
-	}
-
-      }
-	
-      MPI_Bcast(line, linesize, MPI_CHAR, 0, MPI_COMM_WORLD);
-
-      string sline(line);
-      StringTok<string> tokens(sline);
-      id     = tokens(":");
-      cparam = tokens(":");
-      pfile  = tokens(":");
-      fparam = tokens(":");
-
-      id     = trimLeft(trimRight(id));
-      cparam = trimLeft(trimRight(cparam));
-      pfile  = trimLeft(trimRight(pfile));
-      fparam = trimLeft(trimRight(fparam));
-
-      c = new Component(name, id, cparam, pfile, fparam);
-      components.push_back(c);
+      components.push_back(new Component(it->first.as<std::string>(), it->second));
       
       ncomp++;
     }
@@ -178,15 +137,19 @@ void ComponentContainer::initialize(void)
     curr->c = c;
 				// Loop through looking for pairs, it's n^2
 				// but there will not be that many . . .
-    parse->find_list("interaction");
-    while (parse->get_next(data)) {
+    YAML::Node inters = parse["interaction"];
 
+    for (YAML::const_iterator it=inters.begin(); it!=inters.end(); ++it) {
+
+      std::string name1 = it->first.as<std::string>();
+      std::string name2 = it->second.as<std::string>();
+      
 				// Are we talking about THIS component?
-      if (c->name.compare(data.first) == 0) {
+      if (c->name.compare(name1) == 0) {
 	
 	for (auto c1 : components) {
-	  // If the second in the pair matches, use it
-	  if (c1->name.compare(data.second) == 0) {
+				// If the second in the pair matches, use it
+	  if (c1->name.compare(name2) == 0) {
 	    curr->l.push_back(c1);
 	  }
 	}

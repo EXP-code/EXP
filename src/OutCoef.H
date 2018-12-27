@@ -24,7 +24,7 @@ private:
 public:
 
   //! Constructor
-  OutCoef(string& line);
+  OutCoef(const YAML::Node& conf);
 
   //! Generate the output
   /*!

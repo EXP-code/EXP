@@ -70,7 +70,7 @@ public:
   string id;
 
   //! Constructor
-  SlabSL(string& line);
+  SlabSL(const YAML::Node& conf);
 
   //! Destructor
   virtual ~SlabSL();

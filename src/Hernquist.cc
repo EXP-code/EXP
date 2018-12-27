@@ -1,7 +1,7 @@
 #include "expand.h"
 #include <Hernquist.H>
 
-Hernquist::Hernquist(string& line, MixtureBasis* m) : SphericalBasis(line, m)
+Hernquist::Hernquist(const YAML::Node& conf, MixtureBasis* m) : SphericalBasis(conf, m)
 {
   id = "Hernquist sphere";
   initialize();
