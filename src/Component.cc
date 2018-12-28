@@ -414,6 +414,8 @@ void Component::print_level_lists(double T)
 
 Component::Component(istream *in)
 {
+  // Defaults
+
   EJ          = 0;
   nEJkeep     = 100;
   nEJwant     = 500;
@@ -1211,15 +1213,21 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     exit(-1);
   }
 
+  // Assign local conf
+  //
+  conf["name"]       = name;
+  conf["parameters"] = cconf;
+  conf["bodyfile"]   = pfile;
+  conf["force"]      = force;
 				// Informational output
   if (myid==0)
-    cout << setw(60) << setfill('-') << "-" << endl << setfill(' ')
-	 << "--- New Component" << endl
+    cout << std::string(60, '-') << endl
+	 << "--- New Component"  << endl
 	 << setw(20) << " name   :: " << name           << endl
 	 << setw(20) << " id     :: " << id             << endl
 	 << setw(20) << " cparam :: " << cconf          << endl
 	 << setw(20) << " fparam :: " << fconf          << endl
-	 << setw(60) << setfill('-') << "-" << endl << setfill(' ');
+	 << std::string(60, '-') << endl;
   
   double rmax1=0.0, r2;
 
@@ -1597,18 +1605,19 @@ void Component::write_binary(ostream* out, bool real4)
     header.niatr = niattrib;
     header.ndatr = ndattrib;
   
-    ostringstream outs;
-
-    outs << conf;
+    std::ostringstream outs; outs << conf;
     strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
 
     // DEBUGGING
-    /*
     if (myid==0) {
-      std::cout << "Serialized YAML header looks like this:" << std::endl
-		<< "<<<" << conf << ">>>" << std::endl;
+      std::cout << std::string(72, '-') << std::endl
+		<< "Serialized YAML header looks like this:" << std::endl
+		<< std::string(72, '-') << std::endl
+		<< outs.str() << std::endl
+		<< "Cur size=" << outs.str().size()
+		<< " max size=" << header.ninfochar << std::endl
+		<< std::string(72, '-') << std::endl;
     }
-    */
 
     if (real4) rsize = sizeof(float);
     else       rsize = sizeof(double);
