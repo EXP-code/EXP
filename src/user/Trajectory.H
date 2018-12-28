@@ -8,14 +8,11 @@
 #include <model3d.h>
 
 #include <FindOrb.H>
-#include <ParamDatabase.H>
 
 //! Computes an satellite orbits and tidal forces in fixed halo
 class Trajectory
 {
 protected:
-
-  ParamDatabase *config;
 
 public:
 

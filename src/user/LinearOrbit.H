@@ -6,7 +6,6 @@
 #include <string>
 
 #include <Vector.h>
-#include <ParamDatabase.H>
 #include <Trajectory.H>
 
 //! Computes a linear satellite trajectory
