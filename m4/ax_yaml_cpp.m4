@@ -75,8 +75,6 @@ else
 
    AC_CHECK_HEADERS([yaml-cpp/yaml.h])
 
-   AX_CXX_CHECK_LIB([yaml-cpp], [YAML::Parser], [ax_yaml_ok=yes;AC_DEFINE(HAVE_YAML,1,[Define if you have the YAML library.])])
-
    if test $ax_yaml_ok = no; then
       YAML="$ax_yaml_default"
       LIBS="$ax_yaml_default $ax_yaml_save_LIBS -lm"
