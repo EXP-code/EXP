@@ -501,13 +501,8 @@ Component::Component(istream *in)
 
 void Component::initialize(void)
 {
-  if (myid==0)
-    std::cout << std::string(72, '-')  << std::endl
-	      << name << " parameters" << std::endl
-	      << std::string(72, '-') << std::endl
-	      << cconf                 << std::endl
-	      << std::string(72, '-')  << std::endl;
-
+  // Load parameters from YAML configuration node
+  
   if (cconf["com"     ]) com_system = cconf["com"     ].as<bool>();
   if (cconf["comlog"  ])    com_log = cconf["comlog"  ].as<bool>();
   if (cconf["timers"  ])     timers = cconf["comlog"  ].as<bool>();
@@ -1190,21 +1185,31 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   std::istringstream sin(info.get());
   YAML::Node config = YAML::Load(sin);
 
-  if (myid==0)
-    std::cout << std::string(72, '-') << std::endl
-	      << "Reloaded config   " << std::endl
-	      << std::string(72, '-') << std::endl
-	      << config               << std::endl
-	      << std::string(72, '-') << std::endl;
+  try {
+    name  = config["name"].as<std::string>();
+    cconf = config["parameters"];
+    pfile = config["bodyfile"].as<std::string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing YAML in PSP file: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
-  name  = config["name"].as<std::string>();
-  cconf = config["parameters"];
-  pfile = config["bodyfile"].as<std::string>();
-
-  const YAML::Node force  = config["force"];
+  YAML::Node force;
     
-  id    = force["id"].as<std::string>();
-  fconf = force["parameters"];
+  try {
+    force = config["force"];
+    id    = force["id"].as<std::string>();
+    fconf = force["parameters"];
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing YAML force stanza in PSP file: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
 				// Informational output
   if (myid==0)
