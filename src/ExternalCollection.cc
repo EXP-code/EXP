@@ -32,7 +32,17 @@ void ExternalCollection::initialize()
 
   dynamicload();
   
-  YAML::Node ext = parse["external"];
+  YAML::Node ext;
+
+  try {
+    ext = parse["external"];
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing 'external' stanza: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
   for (YAML::const_iterator it=ext.begin(); it!=ext.end(); ++it) {
 

@@ -36,7 +36,16 @@ void initialize(void)
     cout << parse << std::endl;
   }
 
-  YAML::Node _G = parse["global"];
+  YAML::Node _G;
+  try {
+    _G = parse["global"];
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing 'global' stanza: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
   if (_G) {
     
@@ -391,7 +400,15 @@ void YAML_parse_args(int argc, char** argv)
       exit(EXIT_SUCCESS);
     }
 
-    parse = YAML::Load(in);
+    try {
+      parse = YAML::Load(in);
+    }
+    catch (YAML::Exception & error) {
+      if (myid==0) std::cout << "Error parsing config file: "
+			     << error.what() << std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
 
     std::ostringstream serial;
     serial << parse << std::endl;
