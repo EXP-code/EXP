@@ -35,7 +35,7 @@ void ExternalCollection::initialize()
   YAML::Node ext;
 
   try {
-    ext = parse["external"];
+    ext = parse["External"];
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing 'external' stanza: "

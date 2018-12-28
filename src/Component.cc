@@ -504,7 +504,7 @@ void Component::initialize(void)
   if (myid==0)
     std::cout << std::string(72, '-')  << std::endl
 	      << name << " parameters" << std::endl
-	      << std::string(72, '-')  << std::endl
+	      << std::string(72, '-') << std::endl
 	      << cconf                 << std::endl
 	      << std::string(72, '-')  << std::endl;
 
@@ -1190,28 +1190,32 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   std::istringstream sin(info.get());
   YAML::Node config = YAML::Load(sin);
 
-  for (const auto& kv : config) {
-    name  = kv.first.as<std::string>();
-    cconf = kv.second["parameters"];
-    pfile = kv.second["bodyfile"].as<std::string>();
+  if (myid==0)
+    std::cout << std::string(72, '-') << std::endl
+	      << "Reloaded config   " << std::endl
+	      << std::string(72, '-') << std::endl
+	      << config               << std::endl
+	      << std::string(72, '-') << std::endl;
 
-    const YAML::Node force  = kv.second["force"];
-  
-    id    = force["id"].as<std::string>();
-    fconf = force["parameters"];
+  name  = config["name"].as<std::string>();
+  cconf = config["parameters"];
+  pfile = config["bodyfile"].as<std::string>();
+
+  const YAML::Node force  = config["force"];
+    
+  id    = force["id"].as<std::string>();
+  fconf = force["parameters"];
 
 				// Informational output
-    if (myid==0)
-      cout << setw(60) << setfill('-') << "-" << endl << setfill(' ')
-	   << "--- New Component" << endl
-	   << setw(20) << " name   :: " << name           << endl
-	   << setw(20) << " id     :: " << id             << endl
-	   << setw(20) << " cparam :: " << cconf          << endl
-	   << setw(20) << " fparam :: " << fconf          << endl
-	   << setw(60) << setfill('-') << "-" << endl << setfill(' ');
-    
-  }
-
+  if (myid==0)
+    cout << setw(60) << setfill('-') << "-" << endl << setfill(' ')
+	 << "--- New Component" << endl
+	 << setw(20) << " name   :: " << name           << endl
+	 << setw(20) << " id     :: " << id             << endl
+	 << setw(20) << " cparam :: " << cconf          << endl
+	 << setw(20) << " fparam :: " << fconf          << endl
+	 << setw(60) << setfill('-') << "-" << endl << setfill(' ');
+  
   double rmax1=0.0, r2;
 
   if (nbodies_tot > nbodmax*numprocs) {
@@ -1594,10 +1598,12 @@ void Component::write_binary(ostream* out, bool real4)
     strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
 
     // DEBUGGING
+    /*
     if (myid==0) {
       std::cout << "Serialized YAML header looks like this:" << std::endl
 		<< "<<<" << conf << ">>>" << std::endl;
     }
+    */
 
     if (real4) rsize = sizeof(float);
     else       rsize = sizeof(double);
@@ -1689,11 +1695,7 @@ void Component::write_binary_mpi_b(MPI_File& out, MPI_Offset& offset, bool real4
     header.ndatr = ndattrib;
   
     std::ostringstream outs;
-
-    YAML::Node nout;
-    nout[name] = conf;
-
-    outs << nout;
+    outs << conf;
     strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
 
     unsigned long cmagic = magic + rsize;
@@ -1787,11 +1789,7 @@ void Component::write_binary_mpi_i(MPI_File& out, MPI_Offset& offset, bool real4
     header.ndatr = ndattrib;
   
     std::ostringstream outs;
-
-    YAML::Node nout;
-    nout[name] = conf;
-
-    outs << nout;
+    outs << conf;
     strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
 
     unsigned long cmagic = magic + rsize;

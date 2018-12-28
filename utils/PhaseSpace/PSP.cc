@@ -91,22 +91,19 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
       std::istringstream sin(stanza.comp.info.get());
       YAML::Node conf = YAML::Load(sin), cconf, fconf;
       
-
-      for (YAML::const_iterator it=conf.begin(); it!=conf.end(); it++) {
-	cconf  = it->second["parameters"];
-	fconf  = it->second["force"];
+      cconf  = conf["parameters"];
+      fconf  = conf["force"];
 	
-	std::ostringstream csout, fsout;
-	csout << cconf;
-	fsout << fconf["parameters"];
+      std::ostringstream csout, fsout;
+      csout << cconf;
+      fsout << fconf["parameters"];
 
-	stanza.name       = it->second["name"].as<std::string>(); 
-	stanza.id         = fconf["id"].as<std::string>();;
-	stanza.cparam     = csout.str();
-	stanza.fparam     = fsout.str();
-	stanza.index_size = 0;
-	stanza.r_size     = rsize;
-      }
+      stanza.name       = conf["name"].as<std::string>(); 
+      stanza.id         = fconf["id"].as<std::string>();;
+      stanza.cparam     = csout.str();
+      stanza.fparam     = fsout.str();
+      stanza.index_size = 0;
+      stanza.r_size     = rsize;
 
       // Check for indexing
       // -------------------

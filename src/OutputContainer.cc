@@ -20,7 +20,7 @@ OutputContainer::OutputContainer() {}
 
 void OutputContainer::initialize(void)
 {
-  YAML::Node outs = parse["output"];
+  YAML::Node outs = parse["Output"];
 
   if (outs.IsSequence()) {
 

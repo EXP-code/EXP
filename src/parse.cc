@@ -1,6 +1,6 @@
-/*
-  Parse command line
-*/
+//
+//  Parse command line
+//
 
 #include "expand.h"
 
@@ -40,7 +40,7 @@ void initialize(void)
 
   YAML::Node _G;
   try {
-    _G = parse["global"];
+    _G = parse["Global"];
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing 'global' stanza: "
@@ -255,75 +255,56 @@ void initialize(void)
 
 }
 
-void print_parm(ostream& out, const char *comment)
+void update_parm()
 {
-  out << comment << "[global]" << endl;
+  YAML::Node conf = parse["Global"];
 
-  out << endl;
+  if (not conf["nbodmax"])    conf["nbodmax"]     = nbodmax;
+  if (not conf["nsteps"])     conf["nsteps"]      = nsteps;
+  if (not conf["nthrds"])     conf["nthrds"]      = nthrds;
+  if (not conf["nreport"])    conf["nreport"]     = nreport;
+  if (not conf["nbalance"])   conf["nbalance"]    = nbalance;
+  if (not conf["dbthresh"])   conf["dbthresh"]    = dbthresh;
 
-  out << comment << setw(20) << "nbodmax"    << " : " << nbodmax     << endl;
-  out << comment << setw(20) << "nsteps"     << " : " << nsteps      << endl;
-  out << comment << setw(20) << "nthrds"     << " : " << nthrds      << endl;
-  out << comment << setw(20) << "nreport"    << " : " << nreport     << endl;
-  out << comment << setw(20) << "nbalance"   << " : " << nbalance    << endl;
-  out << comment << setw(20) << "dbthresh"   << " : " << dbthresh    << endl;
+  if (not conf["time"])       conf["time"]        = tnow;
+  if (not conf["dtime"])      conf["dtime"]       = dtime;
+  if (not conf["nbits"])      conf["nbits"]       = nbits;
+  if (not conf["pkbits"])     conf["pkbits"]      = pkbits;
+  if (not conf["PFbufsz"])    conf["PFbufsz"]     = PFbufsz;
+  if (not conf["NICE"])       conf["NICE"]        = NICE;
+  if (not conf["VERBOSE"])    conf["VERBOSE"]     = VERBOSE;
+  if (not conf["rlimit"])     conf["rlimit"]      = rlimit_val;
+  if (not conf["runtime"])    conf["runtime"]     = runtime;
 
-  out << comment << setw(20) << "time"       << " : " << tnow        << endl;
-  out << comment << setw(20) << "dtime"      << " : " << dtime       << endl;
-  out << comment << setw(20) << "nbits"      << " : " << nbits       << endl;
-  out << comment << setw(20) << "pkbits"     << " : " << pkbits      << endl;
-  out << comment << setw(20) << "PFbufsz"    << " : " << PFbufsz     << endl;
-  out << comment << setw(20) << "NICE"       << " : " << NICE        << endl;
-  out << comment << setw(20) << "VERBOSE"    << " : " << VERBOSE     << endl;
-  out << comment << setw(20) << "rlimit"     << " : " << rlimit_val  << endl;
-  out << comment << setw(20) << "runtime"    << " : " << runtime     << endl;
+  if (not conf["multistep"])  conf["multistep"]   = multistep;
+  if (not conf["centerlevl"]) conf["centerlevl"]  = centerlevl;
+  if (not conf["DTold"])      conf["DTold"]       = DTold;
+  if (not conf["dynfracS"])   conf["dynfracS"]    = dynfracS;
+  if (not conf["dynfracV"])   conf["dynfracV"]    = dynfracV;
+  if (not conf["dynfracA"])   conf["dynfracA"]    = dynfracA;
+  if (not conf["dynfracP"])   conf["dynfracP"]    = dynfracP;
 
-  out << comment << setw(20) << "multistep"  << " : " << multistep   << endl;
-  out << comment << setw(20) << "centerlevl" << " : " << centerlevl  << endl;
-  out << comment << setw(20) << "DTold"      << " : " << DTold       << endl;
-  out << comment << setw(20) << "dynfracS"   << " : " << dynfracS    << endl;
-  out << comment << setw(20) << "dynfracV"   << " : " << dynfracV    << endl;
-  out << comment << setw(20) << "dynfracA"   << " : " << dynfracA    << endl;
-  out << comment << setw(20) << "dynfracP"   << " : " << dynfracP    << endl;
+  if (not conf["use_cwd"])    conf["use_cwd"]     = use_cwd;
+  if (not conf["eqmotion"])   conf["eqmotion"]    = eqmotion;
+  if (not conf["global_cov"]) conf["global_cov"]  = global_cov;
 
-  out << comment << setw(20) << "use_cwd"    << " : " << use_cwd     << endl;
-  out << comment << setw(20) << "eqmotion"   << " : " << eqmotion    << endl;
-  out << comment << setw(20) << "global_cov" << " : " << global_cov  << endl;
+  if (not conf["homedir"])    conf["homedir"]     = homedir;
+  if (not conf["ldlibdir"])   conf["ldlibdir"]    = ldlibdir;
+  if (not conf["infile"])     conf["infile"]      = infile;
+  if (not conf["parmfile"])   conf["parmfile"]    = parmfile;
+  if (not conf["ratefile"])   conf["ratefile"]    = ratefile;
+  if (not conf["outdir"])     conf["outdir"]      = outdir;
+  if (not conf["runtag"])     conf["runtag"]      = runtag;
+  if (not conf["command"])    conf["command"]    = restart_cmd;
 
-  out << comment << setw(20) << "homedir"    << " : " << homedir     << endl;
-  out << comment << setw(20) << "ldlibdir"   << " : " << ldlibdir    << endl;
-  out << comment << setw(20) << "infile"     << " : " << infile      << endl;
-  out << comment << setw(20) << "parmfile"   << " : " << parmfile    << endl;
-  out << comment << setw(20) << "ratefile"   << " : " << ratefile    << endl;
-  out << comment << setw(20) << "outdir"     << " : " << outdir      << endl;
-  out << comment << setw(20) << "runtag"     << " : " << runtag      << endl;
-  out << comment << setw(20) << "command"    << " : " << restart_cmd << endl;
-
-  out << endl;
-
-  out << comment << "[components]" << endl;
-
-  out << endl;
-
-  out << comment << "[output]" << endl;
-
-  out << endl;
-
-  out << comment << setw(20) << "outlog"    << " : " << "nint=1"  << endl;
-  out << comment << setw(20) << "outpsn"    << " : " << "nint=10" << endl;
-
-  out << endl;
-
-  out << comment << "[external]" << endl;
-
-  out << endl;
+  parse["Global"] = conf;
 }
 
 
 void write_parm(void)
 {
   if (myid!=0) return;
-  string curparm(outdir + parmfile + "." + runtag);
+  string curparm(outdir + parmfile + "." + runtag + ".yaml");
   ofstream out(curparm.c_str());
   if (!out) {
     cerr << "write_parm: could not open <" << parmfile << ">\n";
@@ -331,28 +312,34 @@ void write_parm(void)
     exit(EXIT_SUCCESS);
   }
   
-  print_parm(out, "");
+  update_parm();
 
   out << std::endl
-      << "#--------------------" << std::endl
-      << "# Parameter database " << std::endl
-      << "#--------------------" << std::endl
-      << std::endl;
+      << "---"                       << std::endl
+      << "#------------------------" << std::endl
+      << "# Parameter database     " << std::endl
+      << "# EXP [" << VERSION << "]" << std::endl
+      << "#------------------------" << std::endl
+      << "#"                         << std::endl;
 
-  out << parse << std::endl;
+  out << parse << std::endl
+      << "..." << std::endl;
 }
 
 
 void print_default(void)
 {
-  print_parm(cout, "# ");
+  update_parm();
+  
+  std::cout << "# EXP [" << VERSION << "]" << std::endl
+	    << parse << std::endl;
 }
 
 
 void YAML_parse_args(int argc, char** argv)
 {
   extern char *optarg;
-  char *prog=argv[0];
+  char *prog = argv[0];
   int myid;
   char file[128];
   int c;

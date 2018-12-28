@@ -111,7 +111,7 @@ void ComponentContainer::initialize(void)
 
   } else {
     
-    YAML::Node comp = parse["components"];
+    YAML::Node comp = parse["Components"];
 
     ncomp = 0;
 
@@ -145,7 +145,7 @@ void ComponentContainer::initialize(void)
     curr->c = c;
 				// Loop through looking for pairs, it's n^2
 				// but there will not be that many . . .
-    YAML::Node inters = parse["interaction"];
+    YAML::Node inters = parse["Interaction"];
 
     for (YAML::const_iterator it=inters.begin(); it!=inters.end(); ++it) {
 
