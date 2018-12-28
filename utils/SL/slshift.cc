@@ -394,6 +394,30 @@ main(int argc, char** argv)
     local_init_mpi(argc, argv);
   }
 
+  po::variables_map vm;
+  
+  // Parse command line for control and critical parameters
+  //
+  try {
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::notify(vm);    
+  } catch (po::error& e) {
+    if (myid==0) std::cout << "Option error on command line: "
+			   << e.what() << std::endl;
+    MPI_Finalize();
+    return -1;
+  }
+  
+  // Print help message and exit
+  //
+  if (vm.count("help")) {
+    if (myid == 0) {
+      std::cout << desc << std::endl << std::endl;
+    }
+    if (use_mpi) MPI_Finalize();
+    return 1;
+  }
+
   if (use_mpi) {
 
     SLGridSph::mpi = 1;		// Turn on MPI

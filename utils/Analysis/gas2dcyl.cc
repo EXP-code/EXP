@@ -134,6 +134,16 @@ main(int argc, char **argv)
 
   local_init_mpi(argc, argv);
   
+  po::variables_map vm;
+
+  try {
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::notify(vm);    
+  } catch (po::error& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    exit(-1);
+  }
+
   // ==================================================
   // Do round robin grid assignment of nodes
   // ==================================================

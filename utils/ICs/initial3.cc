@@ -382,6 +382,30 @@ main(int argc, char **argv)
      "File with input halo model for multimass")
     ;
 
+  po::variables_map vm;
+  
+  // Parse command line for control and critical parameters
+  //
+  try {
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::notify(vm);    
+  } catch (po::error& e) {
+    if (myid==0) std::cout << "Option error on command line: "
+			   << e.what() << std::endl;
+    MPI_Finalize();
+    return -1;
+  }
+  
+  // Print help message and exit
+  //
+  if (vm.count("help")) {
+    if (myid == 0) {
+      std::cout << desc << std::endl << std::endl;
+    }
+    MPI_Finalize();
+    return 1;
+  }
+
 #ifdef DEBUG                    // For gdb . . . 
   sleep(20);
   set_fpu_handler();            // Make gdb trap FPU exceptions
