@@ -31,9 +31,11 @@ void exp_usage(char *prog)
 void initialize(void)
 {
   if (myid==0) {
-    cout << "Parameter database:\n"
-	 << "-------------------\n\n";
-    cout << parse << std::endl;
+    cout << std::string(72, '=')  << std::endl
+	 << "Parameter database:" << std::endl
+	 << "-------------------" << std::endl << std::endl
+	 << parse << std::endl
+	 << std::string(72, '=')  << std::endl << std::endl;
   }
 
   YAML::Node _G;
