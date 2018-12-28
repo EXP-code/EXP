@@ -37,13 +37,42 @@ bool less_loadb(const loadb_datum& one, const loadb_datum& two)
 Component::Component(const std::string NAME, const YAML::Node CONF) :
   name(NAME), conf(CONF)
 {
-  cconf = conf["parameters"];
+  YAML::Node cconf;
+
+  try {
+    cconf = conf["parameters"];
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing component 'parameters': "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+  
   pfile = conf["bodyfile"].as<std::string>();
 
-  const YAML::Node force = conf["force"];
-  
+  YAML::Node force, fparm;
+  try {
+    force = conf["force"];
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing component 'force': "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+
   id    = force["id"].as<std::string>();
-  fconf = force["id"]["parameters"];
+
+  try {
+    fparm = force["parameters"];
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing component force 'parameters': "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
   EJ          = 0;
   nEJkeep     = 100;
