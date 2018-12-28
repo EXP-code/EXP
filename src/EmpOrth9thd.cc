@@ -3533,7 +3533,8 @@ void EmpCylSL::dump_basis(const string& name, int step, double Rmax)
   
   double r, dr = rmax/(numx-1);
   double z, dz = 2.0*rmax/(numy-1);
-  double fac=1;
+  double fac   = 1.0;
+  int    nw    = 1 + floor(log10(0.5+NOUT));
   
   ofstream outC, outS;
 
@@ -3542,14 +3543,18 @@ void EmpCylSL::dump_basis(const string& name, int step, double Rmax)
     for (int n=0; n<=min<int>(NOUT, rank3-1); n++) {
 
       ostringstream ins;
-      ins << name << ".C." << mm << "." << n << "." << step;
+      ins << std::setfill('0') << std::right
+	  << name << ".C." << std::setw(2) << mm << "."
+	  << std::setw(nw) << n << "." << step;
       
       outC.open(ins.str().c_str());
       
       if (mm) {
 
 	ostringstream ins;
-	ins << name << ".S." << mm << "." << n << "." << step;
+	ins << std::setfill('0') << std::right
+	    << name << ".S." << std::setw(2) << mm << "."
+	    << std::setw(nw) << n << "." << step;
 	
 	outS.open(ins.str().c_str());
       }
@@ -3691,8 +3696,8 @@ void EmpCylSL::dump_images(const string& OUTFILE,
     dr = (XYOUT - rmin)/(OUTR-1);
   
   string Name;
-  int Number  = 14;
-  int Number2 = 8;
+  int Number     = 14;
+  int Number2    = 8;
   string Types[] = {".pot", ".dens", ".fr", ".fz", ".fp",
 				// Finite difference
 		    ".empfr", ".empfz", ".empfp",

@@ -25,7 +25,7 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
-bin_PROGRAMS = diskprof haloprof slabprof psphisto gas2d gas2dcyl makegrid pspbox eofpeek diskprof2 pcatest diskprof3 readcoefs
+bin_PROGRAMS = diskprof haloprof slabprof psphisto gas2d gas2dcyl makegrid pspbox eofpeek diskprof2 pcatest diskprof3 readcoefs pcatest
 
 diskprof_SOURCES = PSP.cc header.cc diskprof.cc EmpOrth9thd.cc localmpi.cc Particle.cc
 diskprof_LDADD = $(EXPLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@
@@ -64,6 +64,9 @@ diskprof3_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_
 
 readcoefs_SOURCES = readcoefs.cc
 readcoefs_LDADD = $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB)
+
+pcatest_SOURCES = header.cc pcatest.cc EmpOrth9thd.cc localmpi.cc
+pcatest_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
 
 #	SphericalSL.cc legendre.cc ddplgndr.cc sinecosine.cc 
 
