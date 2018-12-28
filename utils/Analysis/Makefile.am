@@ -28,42 +28,54 @@ noinst_HEADERS =
 bin_PROGRAMS = diskprof haloprof slabprof psphisto gas2d gas2dcyl makegrid pspbox eofpeek diskprof2 pcatest diskprof3 readcoefs pcatest
 
 diskprof_SOURCES = PSP.cc header.cc diskprof.cc EmpOrth9thd.cc localmpi.cc Particle.cc
-diskprof_LDADD = $(EXPLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@
+diskprof_LDFLAGS =  $(BOOST_LDFLAGS)
+diskprof_LDADD   = $(EXPLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@
 
 haloprof_SOURCES = PSP.cc header.cc haloprof.cc SphereSL.cc localmpi.cc Particle.cc
+haloprof_LDFLAGS =  $(BOOST_LDFLAGS)
 haloprof_LDADD = $(EXPLIBS)
 
 slabprof_SOURCES =  slabprof.cc PSP.cc header.cc
+slabprof_LDFLAGS =  $(BOOST_LDFLAGS)
 slabprof_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(CUDA_LIBFLAGS)
 
 psphisto_SOURCES = psphisto.cc PSP.cc header.cc localmpi.cc Particle.cc
-psphisto_LDADD = $(EXPLIBS)
+psphisto_LDFLAGS =  $(BOOST_LDFLAGS)
+psphisto_LDADD   = $(EXPLIBS)
 
 gas2d_SOURCES =  gas2d.cc PSP.cc header.cc localmpi.cc Particle.cc
-gas2d_LDADD =    $(EXPLIBS)
+gas2d_LDFLAGS =  $(BOOST_LDFLAGS)
+gas2d_LDADD   =  $(EXPLIBS)
 
 gas2dcyl_SOURCES = gas2dcyl.cc PSP.cc header.cc localmpi.cc Particle.cc
+gas2dcyl_LDFLAGS =  $(BOOST_LDFLAGS)
 gas2dcyl_LDADD = $(EXPLIBS)
 
 makegrid_SOURCES = makegrid.cc header.cc PSP.cc
-makegrid_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
+makegrid_LDFLAGS =  $(BOOST_LDFLAGS)
+makegrid_LDADD = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
 
 pspbox_SOURCES = pspbox.cc header.cc PSP.cc localmpi.cc
-pspbox_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB)
+pspbox_LDFLAGS = $(BOOST_LDFLAGS) 
+pspbox_LDADD = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB)
 
 eofpeek_SOURCES = eofpeek.cc
 
 diskprof2_SOURCES = PSP.cc header.cc diskprof2.cc EmpOrth9thd.cc localmpi.cc Particle.cc
-diskprof2_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
+diskprof2_LDFLAGS = $(BOOST_LDFLAGS) 
+diskprof2_LDADD = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
 
 pcatest_SOURCES = PSP.cc header.cc pcatest.cc EmpOrth9thd.cc localmpi.cc Particle.cc
-pcatest_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
+pcatest_LDFLAGS = $(BOOST_LDFLAGS) 
+pcatest_LDADD   = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
 
 diskprof3_SOURCES = diskprof3.cc EmpOrth9thd.cc localmpi.cc
-diskprof3_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
+diskprof3_LDFLAGS = $(BOOST_LDFLAGS) 
+diskprof3_LDADD   = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
 
 readcoefs_SOURCES = readcoefs.cc
-readcoefs_LDADD = $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB)
+readcoefs_LDFLAGS = $(BOOST_LDFLAGS) 
+readcoefs_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB)
 
 EmpOrth9thd.cc:	$(top_srcdir)/src/EmpOrth9thd.cc
 	cp $(top_srcdir)/src/$@ .
