@@ -1,9 +1,6 @@
+#include <yaml-cpp/yaml.h>
+
 #include <PSP.H>
-
-#include <StringTok.H>
-extern string trimLeft(const string);
-extern string trimRight(const string);
-
 
 bool badstatus(istream *in)
 {
@@ -91,45 +88,39 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
       
       // Parse the info string
       // ---------------------
-      StringTok<string> tokens(stanza.comp.info.get());
-      stanza.name       = trimLeft(trimRight(tokens(":")));
-      stanza.id         = trimLeft(trimRight(tokens(":")));
-      stanza.cparam     = trimLeft(trimRight(tokens(":")));
-      stanza.fparam     = trimLeft(trimRight(tokens(":")));
-      stanza.index_size = 0;
-      stanza.r_size     = rsize;
+      std::istringstream sin(stanza.comp.info.get());
+      YAML::Node conf = YAML::Load(sin), cconf, fconf;
       
-      // Check for old style
-      // -------------------
-      /*
-	if (stanza.fparam.size() == 0) {
-	stanza.fparam = stanza.cparam;
-	stanza.cparam = "";
-	}
-      */
+
+      for (YAML::const_iterator it=conf.begin(); it!=conf.end(); it++) {
+	cconf  = it->second["parameters"];
+	fconf  = it->second["force"];
+	
+	std::ostringstream csout, fsout;
+	csout << cconf;
+	fsout << fconf["parameters"];
+
+	stanza.name       = it->first.as<std::string>();
+	stanza.id         = fconf["id"].as<std::string>();;
+	stanza.cparam     = csout.str();
+	stanza.fparam     = fsout.str();
+	stanza.index_size = 0;
+	stanza.r_size     = rsize;
+      }
+
       // Check for indexing
       // -------------------
       size_t pos1 = stanza.cparam.find("indexing");
-      if (pos1 != string::npos) {
-	// Look for equals sign
-	size_t pos2 = stanza.cparam.find("=", pos1);
-	
-	// No equals sign?!!
-	if (pos2 == string::npos) {
-	  cerr << "Bad syntax in component parameter string" << endl;
-	  exit(-1);
-	}
-	
-	// Look for field delimiter
-	size_t pos3 = stanza.cparam.find(",", pos2);
-	if (pos3 != string::npos) pos3 -= pos2+1;
-	
-	if (atoi(stanza.cparam.substr(pos2+1, pos3).c_str()))
+      if (cconf["indexing"]) {
+	if (cconf["indexing"].as<bool>()) 
 	  stanza.index_size = sizeof(unsigned long);
       }
+
       // Strip of the tipsy type
-      StringTok<string> tipsytype(stanza.name);
-      stanza.ttype = trimLeft(trimRight(tipsytype(" ")));
+      // -----------------------
+      if (stanza.name.find(" ") != std::string::npos) {
+	stanza.ttype = stanza.name.substr(0, stanza.name.find(" "));
+      }
       
       // Skip forward to next header
       // ---------------------------
