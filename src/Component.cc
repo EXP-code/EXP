@@ -1609,7 +1609,7 @@ void Component::write_binary(ostream* out, bool real4)
     strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
 
     // DEBUGGING
-    if (myid==0) {
+    if (false and myid==0) {
       std::cout << std::string(72, '-') << std::endl
 		<< "Serialized YAML header looks like this:" << std::endl
 		<< std::string(72, '-') << std::endl
