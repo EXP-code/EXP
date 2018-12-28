@@ -51,7 +51,7 @@ AX_BOOST_SYSTEM
 dnl ==========================================================================
 dnl Check for YAML-CPP
 dnl ==========================================================================
-AX_YAML([], [AC_MSG_ERROR([Could not find the yaml-cpp library!])])
+AX_YAML([], [AC_MSG_ERROR([Could not find the yaml-cpp library!  Install the libyaml-cpp-dev package in Ubuntu.])])
 
 
 dnl ==========================================================================
