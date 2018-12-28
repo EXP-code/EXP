@@ -25,7 +25,7 @@ private:
 public:
 
   //! Constructor
-  LinearOrbit(const string &file);
+  LinearOrbit(const YAML::Node& conf);
 
   //! Destructor
   ~LinearOrbit(void);

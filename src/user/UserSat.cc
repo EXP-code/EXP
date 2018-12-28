@@ -13,8 +13,10 @@ class UserSat : public ExternalForce
 {
 private:
   
-  string com_name, config, orbfile;
+  string com_name, orbfile;
   Component *c0;
+
+  YAML::Node config;
 
   Trajectory *traj;
 
@@ -71,7 +73,6 @@ UserSat::UserSat(const YAML::Node& conf) : ExternalForce(conf)
 
   pinning  = false;	        // Pin reference frame to a component
   com_name = "";		// Default component for com
-  config   = "conf.file";	// Configuration file for spherical orbit
   traj_type = circ;		// Trajectory type (default is circ)
 
   initialize();
@@ -197,7 +198,7 @@ void UserSat::initialize()
     pinning = true;
   }
 
-  if (conf["config"])         config             = conf["config"].as<string>();
+  if (conf["config"])         config             = conf["config"];
   if (conf["core"])           core               = conf["core"].as<double>();
   if (conf["mass"])           mass               = conf["mass"].as<double>();
   if (conf["ton"])            ton                = conf["ton"].as<double>();

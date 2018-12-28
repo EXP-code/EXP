@@ -21,7 +21,6 @@
 #include <model3d.h>
 
 #include <FindOrb.H>
-#include <ParamDatabase.H>
 #include <Trajectory.H>
 
 //! Computes an satellite orbits and tidal forces in fixed halo
@@ -48,7 +47,7 @@ private:
 public:
 
   //! Constructor
-  SatelliteOrbit(const string &file);
+  SatelliteOrbit(const YAML::Node& conf);
 
   //! Destructor
   ~SatelliteOrbit(void);
