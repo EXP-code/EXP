@@ -492,11 +492,12 @@ Component::Component(istream *in)
 
 void Component::initialize(void)
 {
-  std::cout << std::string(60, '-')  << std::endl
-	    << name << " parameters" << std::endl
-	    << std::string(60, '-')  << std::endl
-	    << cconf                 << std::endl
-	    << std::string(60, '-')  << std::endl;
+  if (myid==0)
+    std::cout << std::string(60, '-')  << std::endl
+	      << name << " parameters" << std::endl
+	      << std::string(60, '-')  << std::endl
+	      << cconf                 << std::endl
+	      << std::string(60, '-')  << std::endl;
 
   if (cconf["com"     ]) com_system = cconf["com"     ].as<bool>();
   if (cconf["comlog"  ])    com_log = cconf["comlog"  ].as<bool>();
@@ -509,7 +510,7 @@ void Component::initialize(void)
 
   if (cconf["tidal"]) {
     tidal = cconf["tidal"].as<bool>();
-    consp=true;
+    consp = true;
   }
 
   if (cconf["EJ"      ])        EJ  = cconf["EJ"].as<int>();
