@@ -268,35 +268,36 @@ Cylinder::~Cylinder()
 void Cylinder::initialize()
 {
   // These first two should not be user settable . . . but need them for now
-  if (conf["rcylmin"])    rcylmin    = conf["rcylmin"].as<double>();
-  if (conf["rcylmax"])    rcylmax    = conf["rcylmax"].as<double>();
+  //
+  if (conf["rcylmin"   ])    rcylmin  = conf["rcylmin"   ].as<double>();
+  if (conf["rcylmax"   ])    rcylmax  = conf["rcylmax"   ].as<double>();
 
-  if (conf["acyl"])       acyl       = conf["acyl"].as<double>();
-  if (conf["hcyl"])       hcyl       = conf["hcyl"].as<double>();
-  if (conf["nmax"])       nmax       = conf["nmax"].as<int>();
-  if (conf["lmax"])       lmax       = conf["lmax"].as<int>();
-  if (conf["mmax"])       mmax       = conf["mmax"].as<int>();
-  if (conf["ncylnx"])     ncylnx     = conf["ncylnx"].as<int>();
-  if (conf["ncylny"])     ncylny     = conf["ncylny"].as<int>();
-  if (conf["ncylr"])      ncylr      = conf["ncylr"].as<int>();
-  if (conf["ncylorder"])  ncylorder  = conf["ncylorder"].as<int>();
-  if (conf["ncylrecomp"]) ncylrecomp = conf["ncylrecomp"].as<int>();
-  if (conf["hallfreq"])   hallfreq   = conf["hallfreq"].as<int>();
-  if (conf["vtkfreq"])    vtkfreq    = conf["vtkfreq"].as<int>();
-  if (conf["eof_file"])   eof_file   = conf["eof_file"].as<std::string>();
-  if (conf["vflag"])      vflag      = conf["vflag"].as<int>();
+  if (conf["acyl"      ])       acyl  = conf["acyl"      ].as<double>();
+  if (conf["hcyl"      ])       hcyl  = conf["hcyl"      ].as<double>();
+  if (conf["nmax"      ])       nmax  = conf["nmax"      ].as<int>();
+  if (conf["lmax"      ])       lmax  = conf["lmax"      ].as<int>();
+  if (conf["mmax"      ])       mmax  = conf["mmax"      ].as<int>();
+  if (conf["ncylnx"    ])     ncylnx  = conf["ncylnx"    ].as<int>();
+  if (conf["ncylny"    ])     ncylny  = conf["ncylny"    ].as<int>();
+  if (conf["ncylr"     ])      ncylr  = conf["ncylr"     ].as<int>();
+  if (conf["ncylorder" ])  ncylorder  = conf["ncylorder" ].as<int>();
+  if (conf["ncylrecomp"]) ncylrecomp  = conf["ncylrecomp"].as<int>();
+  if (conf["hallfreq"  ])   hallfreq  = conf["hallfreq"  ].as<int>();
+  if (conf["vtkfreq"   ])    vtkfreq  = conf["vtkfreq"   ].as<int>();
+  if (conf["eof_file"  ])   eof_file  = conf["eof_file"  ].as<std::string>();
+  if (conf["vflag"     ])      vflag  = conf["vflag"     ].as<int>();
 
-  if (conf["rnum"])       rnum       = conf["rnum"].as<int>();
-  if (conf["pnum"])       pnum       = conf["pnum"].as<int>();
-  if (conf["tnum"])       tnum       = conf["tnum"].as<int>();
-  if (conf["ashift"])     ashift     = conf["ashift"].as<double>();
-  if (conf["expcond"])    expcond    = conf["expcond"].as<bool>();
-  if (conf["logr"])      logarithmic = conf["logr"].as<bool>();
-  if (conf["pca"])        pca        = conf["pca"].as<bool>();
-  if (conf["pcavtk"])     pcavtk     = conf["pcavtk"].as<bool>();
-  if (conf["try_cache"])  try_cache  = conf["try_cache"].as<bool>();
-  if (conf["density"])    density    = conf["density"].as<bool>();
-  if (conf["cmap"])       cmap       = conf["cmap"].as<bool>();
+  if (conf["rnum"      ])       rnum  = conf["rnum"      ].as<int>();
+  if (conf["pnum"      ])       pnum  = conf["pnum"      ].as<int>();
+  if (conf["tnum"      ])       tnum  = conf["tnum"      ].as<int>();
+  if (conf["ashift"    ])     ashift  = conf["ashift"    ].as<double>();
+  if (conf["expcond"   ])    expcond  = conf["expcond"   ].as<bool>();
+  if (conf["logr"      ]) logarithmic = conf["logr"      ].as<bool>();
+  if (conf["pca"       ])        pca  = conf["pca"       ].as<bool>();
+  if (conf["pcavtk"    ])     pcavtk  = conf["pcavtk"    ].as<bool>();
+  if (conf["try_cache" ])  try_cache  = conf["try_cache" ].as<bool>();
+  if (conf["density"   ])    density  = conf["density"   ].as<bool>();
+  if (conf["cmap"      ])       cmap  = conf["cmap"      ].as<bool>();
 
   if (conf["self_consistent"])
     self_consistent = conf["self_consistent"].as<bool>();
