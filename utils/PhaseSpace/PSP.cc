@@ -100,7 +100,7 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
 	csout << cconf;
 	fsout << fconf["parameters"];
 
-	stanza.name       = it->first.as<std::string>();
+	stanza.name       = it->second["name"].as<std::string>(); 
 	stanza.id         = fconf["id"].as<std::string>();;
 	stanza.cparam     = csout.str();
 	stanza.fparam     = fsout.str();

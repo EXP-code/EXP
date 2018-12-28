@@ -34,9 +34,18 @@ bool less_loadb(const loadb_datum& one, const loadb_datum& two)
 }
 
 // Constructor
-Component::Component(const std::string NAME, const YAML::Node CONF) :
-  name(NAME), conf(CONF)
+Component::Component(const YAML::Node CONF) : conf(CONF)
 {
+  try {
+    name = conf["name"].as<std::string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing component 'name': "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+
   try {
     cconf = conf["parameters"];
   }
@@ -493,11 +502,11 @@ Component::Component(istream *in)
 void Component::initialize(void)
 {
   if (myid==0)
-    std::cout << std::string(60, '-')  << std::endl
+    std::cout << std::string(72, '-')  << std::endl
 	      << name << " parameters" << std::endl
-	      << std::string(60, '-')  << std::endl
+	      << std::string(72, '-')  << std::endl
 	      << cconf                 << std::endl
-	      << std::string(60, '-')  << std::endl;
+	      << std::string(72, '-')  << std::endl;
 
   if (cconf["com"     ]) com_system = cconf["com"     ].as<bool>();
   if (cconf["comlog"  ])    com_log = cconf["comlog"  ].as<bool>();
@@ -1581,16 +1590,13 @@ void Component::write_binary(ostream* out, bool real4)
   
     ostringstream outs;
 
-    YAML::Node outf;
-    outf[name] = conf;
-
-    outs << outf;
+    outs << conf;
     strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
 
     // DEBUGGING
     if (myid==0) {
       std::cout << "Serialized YAML header looks like this:" << std::endl
-		<< "<<<" << outf << ">>>" << std::endl;
+		<< "<<<" << conf << ">>>" << std::endl;
     }
 
     if (real4) rsize = sizeof(float);

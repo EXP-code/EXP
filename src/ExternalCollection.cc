@@ -44,57 +44,69 @@ void ExternalCollection::initialize()
     exit(-1);
   }
 
-  for (YAML::const_iterator it=ext.begin(); it!=ext.end(); ++it) {
+  if (ext.IsSequence()) {
 
-    std::string name = it->first.as<std::string>();
-    
-				// Instantiate the force
-    if ( !name.compare("tidalField") )
+    int next = 0;
 
-      force_list.insert(force_list.end(), new tidalField(it->second));
+    while (ext[next]) {
 
-    else if ( !name.compare("externalShock") )
+      std::string name = ext[next]["id"].as<std::string>();
+      const YAML::Node& node = ext[next]["parameters"];
       
-      force_list.insert(force_list.end(), new externalShock(it->second));
+      // Instantiate the force
+      if ( !name.compare("tidalField") )
+	
+	force_list.insert(force_list.end(), new tidalField(node));
+      
+      else if ( !name.compare("externalShock") )
+	
+	force_list.insert(force_list.end(), new externalShock(node));
+      
+      else if ( !name.compare("generateRelaxation") )
+	
+	force_list.insert(force_list.end(), new generateRelaxation(node));
+      
+      else if ( !name.compare("ScatterMFP") )
 
-    else if ( !name.compare("generateRelaxation") )
-
-      force_list.insert(force_list.end(), new generateRelaxation(it->second));
-
-    else if ( !name.compare("ScatterMFP") )
-
-      force_list.insert(force_list.end(), new ScatterMFP(it->second));
+	force_list.insert(force_list.end(), new ScatterMFP(node));
+      
+      else if ( !name.compare("TreeDSMC") )
+	
+	force_list.insert(force_list.end(), new TreeDSMC(node));
+      
+      else if ( !name.compare("HaloBulge") )
+	
+	force_list.insert(force_list.end(), new HaloBulge(node));
+      
+      else {			// First try to find it in dynamic library
     
-    else if ( !name.compare("TreeDSMC") )
+	bool found = false;
 
-      force_list.insert(force_list.end(), new TreeDSMC(it->second));
-    
-    else if ( !name.compare("HaloBulge") )
+	for (fitr=factory.begin(); fitr!=factory.end(); fitr++) {
 
-      force_list.insert(force_list.end(), new HaloBulge(it->second));
-    
-    else {			// First try to find it in dynamic library
-    
-      bool found = false;
-
-      for (fitr=factory.begin(); fitr!=factory.end(); fitr++) {
-
-	if (!name.compare(fitr->first)) {
-	  force_list.insert(force_list.end(), factory[name](it->second));
-	  found = true;
+	  if (!name.compare(fitr->first)) {
+	    force_list.insert(force_list.end(), factory[name](node));
+	    found = true;
+	  }
+	  
 	}
+	
 
+	if (!found) {		// Complain to user
+
+	  string msg("I don't know about the external force named: ");
+	  msg += name;
+	  throw GenericError(msg, __FILE__, __LINE__);
+	}
       }
-
-
-      if (!found) {		// Complain to user
-
-	string msg("I don't know about the external force named: ");
-	msg += name;
-	throw GenericError(msg, __FILE__, __LINE__);
-      }
+      
+      next++;
     }
-
+  } else {
+    if (myid==0)
+      std::cout << std::string(72, '-') << std::endl
+		<< "No external force entries" << std::endl
+		<< std::string(72, '-') << std::endl;
   }
 
   (*barrier)("ExternalCollection::initialize: FINISH", __FILE__, __LINE__);

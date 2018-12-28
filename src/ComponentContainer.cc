@@ -115,11 +115,19 @@ void ComponentContainer::initialize(void)
 
     ncomp = 0;
 
-    for (YAML::const_iterator it=comp.begin(); it!=comp.end(); ++it) {
-
-      components.push_back(new Component(it->first.as<std::string>(), it->second));
-      
-      ncomp++;
+    if (comp.IsSequence()) {
+      while (comp[ncomp]) {
+	components.push_back(new Component(comp[ncomp]));
+	ncomp++;
+      }
+    }
+    
+    if (ncomp==0) {
+      if (myid==0)
+	std::cerr << "I did not find any components; quitting . . ."
+		  << std::endl;
+      MPI_Finalize();
+      exit(-1);
     }
 
   }

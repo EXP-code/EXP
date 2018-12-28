@@ -491,7 +491,7 @@ public:
   /*! 
     Takes the id string id and phase space file name as arguments
   */
-  Component(const std::string name, const YAML::Node conf);
+  Component(const YAML::Node conf);
 
   //! Initialize from file
   Component(istream *in);
