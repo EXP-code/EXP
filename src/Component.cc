@@ -37,8 +37,6 @@ bool less_loadb(const loadb_datum& one, const loadb_datum& two)
 Component::Component(const std::string NAME, const YAML::Node CONF) :
   name(NAME), conf(CONF)
 {
-  YAML::Node cconf;
-
   try {
     cconf = conf["parameters"];
   }
@@ -51,7 +49,7 @@ Component::Component(const std::string NAME, const YAML::Node CONF) :
   
   pfile = conf["bodyfile"].as<std::string>();
 
-  YAML::Node force, fparm;
+  YAML::Node force;
   try {
     force = conf["force"];
   }
@@ -65,7 +63,7 @@ Component::Component(const std::string NAME, const YAML::Node CONF) :
   id    = force["id"].as<std::string>();
 
   try {
-    fparm = force["parameters"];
+    fconf = force["parameters"];
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing component force 'parameters': "
@@ -494,66 +492,69 @@ Component::Component(istream *in)
 
 void Component::initialize(void)
 {
-  for (YAML::const_iterator it=cconf.begin(); it!=cconf.end(); ++it) {
+  std::cout << std::string(60, '-')  << std::endl
+	    << name << " parameters" << std::endl
+	    << std::string(60, '-')  << std::endl
+	    << cconf                 << std::endl
+	    << std::string(60, '-')  << std::endl;
 
-    if ((*it)["com"])      com_system = (*it)["com"].as<bool>();
-    if ((*it)["comlog"])   com_log    = (*it)["comlog"].as<bool>();
-    if ((*it)["timers"])   timers     = (*it)["comlog"].as<bool>();
-    if ((*it)["use_cuda"]) use_cuda   = (*it)["use_cuda"].as<bool>();
-
+  if (cconf["com"])      com_system = cconf["com"].as<bool>();
+  if (cconf["comlog"])   com_log    = cconf["comlog"].as<bool>();
+  if (cconf["timers"])   timers     = cconf["comlog"].as<bool>();
+  if (cconf["use_cuda"]) use_cuda   = cconf["use_cuda"].as<bool>();
+  
 #if HAVE_LIBCUDA==1
-    if ((*it)["bunch"])    bunch      = (*it)["bunch"].as<int>();
+  if (cconf["bunch"])    bunch      = cconf["bunch"].as<int>();
 #endif
 
-    if ((*it)["tidal"]) {
-      tidal = (*it)["tidal"].as<bool>();
-      consp=true;
-    }
+  if (cconf["tidal"]) {
+    tidal = cconf["tidal"].as<bool>();
+    consp=true;
+  }
 
-    if ((*it)["EJ"])       EJ         = (*it)["EJ"].as<int>();
-    if ((*it)["eEJ0"] and myid==0)
-      std::cout << "Component: eEJ0 is no longer used, Ecurr is computed from the bodies using the expansion directly" << std::endl;
-    if ((*it)["nEJkeep"])  nEJkeep    = (*it)["nEJkeep"].as<int>();
-    if ((*it)["nEJwant"])  nEJwant    = (*it)["nEJwant"].as<int>();
-    if ((*it)["EJx0"])     EJx0       = (*it)["EJx0"].as<double>();
-    if ((*it)["EJy0"])     EJy0       = (*it)["EJy0"].as<double>();
-    if ((*it)["EJz0"])     EJz0       = (*it)["EJz0"].as<double>();
-    if ((*it)["EJu0"])     EJu0       = (*it)["EJu0"].as<double>();
-    if ((*it)["EJv0"])     EJv0       = (*it)["EJv0"].as<double>();
-    if ((*it)["EJw0"])     EJw0       = (*it)["EJw0"].as<double>();
-    if ((*it)["EJdT"])     EJdT       = (*it)["EJdT"].as<double>();
-    if ((*it)["EJkinE"])   EJkinE     = (*it)["EJkinE"].as<double>();
-    if ((*it)["EJext"])    EJext      = (*it)["EJext"].as<double>();
-    if ((*it)["EJdiag"])   EJdiag     = (*it)["EJdiag"].as<double>();
-    if ((*it)["EJdryrun"]) EJdryrun   = (*it)["EJdryrun"].as<bool>();
-    if ((*it)["EJlinear"]) EJlinear   = (*it)["EJlinear"].as<bool>();
-    if ((*it)["EJdamp"])   EJdamp     = (*it)["EJdamp"].as<double>();
-    if ((*it)["rmax"])     rmax       = (*it)["rmax"].as<double>();
-    if ((*it)["rtrunc"])   rtrunc     = (*it)["rtrunc"].as<double>();
-    if ((*it)["rcom"])     rcom       = (*it)["rcom"].as<double>();
-    if ((*it)["scheck"])   seq_check  = (*it)["scheck"].as<bool>();
-    if ((*it)["magic"])    umagic     = (*it)["magic"].as<bool>();
-    if ((*it)["indexing"]) indexing   = (*it)["indexing"].as<bool>();
-    if ((*it)["aindex"])   aindex     = (*it)["aindex"].as<bool>();
-    if ((*it)["nlevel"])   nlevel     = (*it)["nlevel"].as<int>();
-    if ((*it)["keypos"])   keyPos     = (*it)["keypos"].as<int>();
-    if ((*it)["pbufsiz"])  pBufSiz    = (*it)["pBufSiz"].as<int>();
-    if ((*it)["blocking"]) blocking   = (*it)["blocking"].as<bool>();
+  if (cconf["EJ"])       EJ         = cconf["EJ"].as<int>();
+  if (cconf["eEJ0"] and myid==0)
+    std::cout << "Component: eEJ0 is no longer used, Ecurr is computed from the bodies using the expansion directly" << std::endl;
+  if (cconf["nEJkeep"])  nEJkeep    = cconf["nEJkeep"].as<int>();
+  if (cconf["nEJwant"])  nEJwant    = cconf["nEJwant"].as<int>();
+  if (cconf["EJx0"])     EJx0       = cconf["EJx0"].as<double>();
+  if (cconf["EJy0"])     EJy0       = cconf["EJy0"].as<double>();
+  if (cconf["EJz0"])     EJz0       = cconf["EJz0"].as<double>();
+  if (cconf["EJu0"])     EJu0       = cconf["EJu0"].as<double>();
+  if (cconf["EJv0"])     EJv0       = cconf["EJv0"].as<double>();
+  if (cconf["EJw0"])     EJw0       = cconf["EJw0"].as<double>();
+  if (cconf["EJdT"])     EJdT       = cconf["EJdT"].as<double>();
+  if (cconf["EJkinE"])   EJkinE     = cconf["EJkinE"].as<double>();
+  if (cconf["EJext"])    EJext      = cconf["EJext"].as<double>();
+  if (cconf["EJdiag"])   EJdiag     = cconf["EJdiag"].as<double>();
+  if (cconf["EJdryrun"]) EJdryrun   = cconf["EJdryrun"].as<bool>();
+  if (cconf["EJlinear"]) EJlinear   = cconf["EJlinear"].as<bool>();
+  if (cconf["EJdamp"])   EJdamp     = cconf["EJdamp"].as<double>();
+  if (cconf["rmax"])     rmax       = cconf["rmax"].as<double>();
+  if (cconf["rtrunc"])   rtrunc     = cconf["rtrunc"].as<double>();
+  if (cconf["rcom"])     rcom       = cconf["rcom"].as<double>();
+  if (cconf["scheck"])   seq_check  = cconf["scheck"].as<bool>();
+  if (cconf["magic"])    umagic     = cconf["magic"].as<bool>();
+  if (cconf["indexing"]) indexing   = cconf["indexing"].as<bool>();
+  if (cconf["aindex"])   aindex     = cconf["aindex"].as<bool>();
+  if (cconf["nlevel"])   nlevel     = cconf["nlevel"].as<int>();
+  if (cconf["keypos"])   keyPos     = cconf["keypos"].as<int>();
+  if (cconf["pbufsiz"])  pBufSiz    = cconf["pBufSiz"].as<int>();
+  if (cconf["blocking"]) blocking   = cconf["blocking"].as<bool>();
 
-    if ((*it)["ton"]) {
-      ton = (*it)["ton"].as<double>();
-      adiabatic = true;
-    }
+  if (cconf["ton"]) {
+    ton = cconf["ton"].as<double>();
+    adiabatic = true;
+  }
 
-    if ((*it)["toff"]) {
-      toff = (*it)["toff"].as<double>();
-      adiabatic = true;
-    }
+  if (cconf["toff"]) {
+    toff = cconf["toff"].as<double>();
+    adiabatic = true;
+  }
 
-    if ((*it)["twid"]) {
-      twid = (*it)["twid"].as<double>();
-      adiabatic = true;
-    }
+  if (cconf["twid"]) {
+    twid = cconf["twid"].as<double>();
+    adiabatic = true;
   }
 
   // Instantiate the force ("reflection" by hand)
@@ -1187,7 +1188,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     const YAML::Node force  = kv.second["force"];
   
     id    = force["id"].as<std::string>();
-    fconf = force["id"]["parameters"];
+    fconf = force["parameters"];
 
 				// Informational output
     if (myid==0)
