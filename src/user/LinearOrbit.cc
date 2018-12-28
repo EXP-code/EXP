@@ -130,12 +130,12 @@ LinearOrbit::LinearOrbit(const YAML::Node& conf)
 
 
 // ===================================================================
-// Destructior
+// Destructor
 // ===================================================================
 
 LinearOrbit::~LinearOrbit(void)
 {
-  delete config;
+  // Nothing
 }
 
 Vector LinearOrbit::get_satellite_orbit(double t)

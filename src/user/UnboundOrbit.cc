@@ -289,12 +289,8 @@ UnboundOrbit::UnboundOrbit(const YAML::Node& conf)
 
 UnboundOrbit::~UnboundOrbit(void)
 {
-  if (m)
-    delete m;
-  else 
-    delete model;
-
-  delete config;
+  if (m) delete m;
+  else   delete model;
 }
 
 Vector UnboundOrbit::get_satellite_orbit(double t)

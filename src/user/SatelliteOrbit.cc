@@ -84,9 +84,7 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
   double RMODMAX      = 20.0;
   double RA           = 1.0e20;
   int DIVERGE         = 0;
-  int NUMDF           = 100;
   int MAXIT           = 2000;
-  int NRECS           = 512;
   double DIVRG_RFAC   = 1.0;
   bool CIRCULAR       = false;
   std::string MODFILE = "halo.model";
@@ -106,9 +104,7 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
   if (conf["RMODMAX"   ])  RMODMAX      = conf["RMODMAX"   ].as<double>();
   if (conf["RA"        ])  RA           = conf["RA"        ].as<double>();
   if (conf["DIVERGE"   ])  DIVERGE      = conf["DIVERGE"   ].as<int>();
-  if (conf["NUMDF"     ])  NUMDF        = conf["NUMDF"     ].as<int>();
   if (conf["MAXIT"     ])  MAXIT        = conf["MAXIT"     ].as<int>();
-  if (conf["NRECS"     ])  NRECS        = conf["NRECS"     ].as<int>();
   if (conf["DIVRG_RFAC"])  DIVRG_RFAC   = conf["DIVRG_RFAC"].as<double>();
   if (conf["CIRCULAR"  ])  CIRCULAR     = conf["CIRCULAR"  ].as<bool>();
   if (conf["MODFILE"   ])  MODFILE      = conf["MODFILE"   ].as<std::string>();
@@ -238,7 +234,6 @@ SatelliteOrbit::~SatelliteOrbit(void)
   else   delete halo_model;
   
   delete orb;
-  delete config;
 }
 
 Vector SatelliteOrbit::get_satellite_orbit(double T)
