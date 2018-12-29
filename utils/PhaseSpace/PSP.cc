@@ -1,4 +1,5 @@
-#include <yaml-cpp/yaml.h>
+#include <boost/algorithm/string.hpp> // For trim_copy
+#include <yaml-cpp/yaml.h>	      // YAML support
 
 #include <PSP.H>
 
@@ -90,51 +91,94 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
       // ---------------------
       std::istringstream sin(stanza.comp.info.get());
       YAML::Node conf, cconf, fconf;
+      bool yaml_ok = true;
       
       try {
 	conf = YAML::Load(sin);
       }
       catch (YAML::Exception & error) {
-	std::cout << "Error parsing component config.  Old-style PSP? "
+	std::cout << "Error parsing component config.  Trying old-style PSP"
 		  << std::endl
 		  << error.what() << std::endl;
-	exit(-1);
+	yaml_ok = false;
       }
 
-      cconf  = conf["parameters"];
-      fconf  = conf["force"];
+      if (yaml_ok) {
 
-      // Output map in flow style
-      //
-      cconf.SetStyle(YAML::EmitterStyle::Flow);
-      fconf["parameters"].SetStyle(YAML::EmitterStyle::Flow);
+	cconf  = conf["parameters"];
+	fconf  = conf["force"];
+
+	// Output map in flow style
+	//
+	cconf.SetStyle(YAML::EmitterStyle::Flow);
+	fconf["parameters"].SetStyle(YAML::EmitterStyle::Flow);
 	
-      // Write node to sstream
-      //
-      std::ostringstream csout, fsout;
-      csout << cconf;
-      fsout << fconf["parameters"];
+	// Write node to sstream
+	//
+	std::ostringstream csout, fsout;
+	csout << cconf;
+	fsout << fconf["parameters"];
 
-      stanza.name       = conf["name"].as<std::string>(); 
-      stanza.id         = fconf["id"].as<std::string>();;
-      stanza.cparam     = csout.str();
-      stanza.fparam     = fsout.str();
-      stanza.index_size = 0;
-      stanza.r_size     = rsize;
+	stanza.name       = conf["name"].as<std::string>(); 
+	stanza.id         = fconf["id"].as<std::string>();;
+	stanza.cparam     = csout.str();
+	stanza.fparam     = fsout.str();
+	stanza.index_size = 0;
+	stanza.r_size     = rsize;
 
-      // Check for indexing
-      // -------------------
-      size_t pos1 = stanza.cparam.find("indexing");
-      if (cconf["indexing"]) {
-	if (cconf["indexing"].as<bool>()) 
-	  stanza.index_size = sizeof(unsigned long);
-      }
+	// Check for indexing
+	// -------------------
+	size_t pos1 = stanza.cparam.find("indexing");
+	if (cconf["indexing"]) {
+	  if (cconf["indexing"].as<bool>()) 
+	    stanza.index_size = sizeof(unsigned long);
+	}
+	
+	// Strip of the tipsy type
+	// -----------------------
+	if (stanza.name.find(" ") != std::string::npos) {
+	  stanza.ttype = stanza.name.substr(0, stanza.name.find(" "));
+	}
 
-      // Strip of the tipsy type
-      // -----------------------
-      if (stanza.name.find(" ") != std::string::npos) {
-	stanza.ttype = stanza.name.substr(0, stanza.name.find(" "));
-      }
+      } // END: new PSP
+      else {
+
+	// Parse the info string
+	// ---------------------
+	StringTok<string> tokens(stanza.comp.info.get());
+	stanza.name       = boost::trim_copy(tokens(":"));
+	stanza.id         = boost::trim_copy(tokens(":"));
+	stanza.cparam     = boost::trim_copy(tokens(":"));
+	stanza.fparam     = boost::trim_copy(tokens(":"));
+	stanza.index_size = 0;
+	stanza.r_size     = rsize;
+	
+	// Check for indexing
+	// -------------------
+	size_t pos1 = stanza.cparam.find("indexing");
+	if (pos1 != string::npos) {
+	  // Look for equals sign
+	  size_t pos2 = stanza.cparam.find("=", pos1);
+	  
+	  // No equals sign?!!
+	  if (pos2 == string::npos) {
+	    cerr << "Bad syntax in component parameter string" << endl;
+	    exit(-1);
+	  }
+	  
+	  // Look for field delimiter
+	  size_t pos3 = stanza.cparam.find(",", pos2);
+	  if (pos3 != string::npos) pos3 -= pos2+1;
+	  
+	  if (atoi(stanza.cparam.substr(pos2+1, pos3).c_str()))
+	    stanza.index_size = sizeof(unsigned long);
+	}
+	// Strip of the tipsy type
+	StringTok<string> tipsytype(stanza.name);
+	stanza.ttype = boost::trim_copy(tipsytype(" "));
+	
+      } // END: old PSP
+
       
       // Skip forward to next header
       // ---------------------------
