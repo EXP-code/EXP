@@ -1605,7 +1605,17 @@ void Component::write_binary(ostream* out, bool real4)
     header.niatr = niattrib;
     header.ndatr = ndattrib;
   
-    std::ostringstream outs; outs << conf;
+    std::ostringstream outs;
+    outs << conf;
+
+    // Resize info string, if necessary
+    size_t infosz = outs.str().size() + 4;
+    if (header.ninfochar < outs.str().size()) {
+      header.ninfochar = outs.str().size();
+      header.info = boost::shared_array<char>(new char [header.ninfochar]);
+    }
+
+    // Copy to info string
     strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
 
     // DEBUGGING
