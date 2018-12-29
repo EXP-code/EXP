@@ -33,10 +33,18 @@ void UserLogPot::userinfo()
 
 void UserLogPot::initialize()
 {
-  if (conf["R"])              R                  = conf["R"].as<double>();
-  if (conf["b"])              b                  = conf["b"].as<double>();
-  if (conf["c"])              c                  = conf["c"].as<double>();
-  if (conf["v2"])             v2                 = conf["v2"].as<double>();
+  try {
+    if (conf["R"])      R     = conf["R"].as<double>();
+    if (conf["b"])      b     = conf["b"].as<double>();
+    if (conf["c"])      c     = conf["c"].as<double>();
+    if (conf["v2"])     v2    = conf["v2"].as<double>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserLogPot: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 

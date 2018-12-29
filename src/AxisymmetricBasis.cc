@@ -21,33 +21,42 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
 
   string val;
 
-  if (conf["Lmax"])     Lmax       = conf["Lmax"].as<int>();
-  if (conf["nmax"])     nmax       = conf["nmax"].as<int>();
-  if (conf["dof"])      dof        = conf["dof"].as<int>();
-  if (conf["npca"])     npca       = conf["npca"].as<int>();
-  if (conf["selector"]) pca        = conf["selector"].as<bool>();
-  if (conf["pca"])      pca        = conf["pca"].as<bool>();
-  if (conf["pcadiag"])  pcadiag    = conf["pcadiag"].as<bool>();
-  if (conf["pcavtk"])   pcavtk     = conf["pcavtk"].as<bool>();
-  if (conf["vtkfreq"])  vtkfreq    = conf["vtkfreq"].as<int>();
-  if (conf["pcajknf"])  pcajknf    = conf["pcajknf"].as<bool>();
-  if (conf["tksmooth"]) tksmooth   = conf["tksmooth"].as<double>();
-  if (conf["tkcum"])    tkcum      = conf["tkcum"].as<double>();
+  try {
+    if (conf["Lmax"])     Lmax       = conf["Lmax"].as<int>();
+    if (conf["nmax"])     nmax       = conf["nmax"].as<int>();
+    if (conf["dof"])      dof        = conf["dof"].as<int>();
+    if (conf["npca"])     npca       = conf["npca"].as<int>();
+    if (conf["selector"]) pca        = conf["selector"].as<bool>();
+    if (conf["pca"])      pca        = conf["pca"].as<bool>();
+    if (conf["pcadiag"])  pcadiag    = conf["pcadiag"].as<bool>();
+    if (conf["pcavtk"])   pcavtk     = conf["pcavtk"].as<bool>();
+    if (conf["vtkfreq"])  vtkfreq    = conf["vtkfreq"].as<int>();
+    if (conf["pcajknf"])  pcajknf    = conf["pcajknf"].as<bool>();
+    if (conf["tksmooth"]) tksmooth   = conf["tksmooth"].as<double>();
+    if (conf["tkcum"])    tkcum      = conf["tkcum"].as<double>();
 
-  if (conf["tk_type"]) {
-    switch (conf["tk_type"].as<int>()) {
-    case Hall:			tk_type = Hall;             break;
-    case VarianceCut:		tk_type = VarianceCut;      break;
-    case CumulativeCut:		tk_type = CumulativeCut;    break;
-    case VarianceWeighted:	tk_type = VarianceWeighted; break;
-    case Null:			tk_type = Null;             break;
-    default:
-      if (myid==0) {
-	cout << "AxisymmetricBasis: no such TK type <" << val << ">"
-	     << " using Hall type\n";
+    if (conf["tk_type"]) {
+      switch (conf["tk_type"].as<int>()) {
+      case Hall:                tk_type = Hall;             break;
+      case VarianceCut:         tk_type = VarianceCut;      break;
+      case CumulativeCut:       tk_type = CumulativeCut;    break;
+      case VarianceWeighted:    tk_type = VarianceWeighted; break;
+      case Null:                tk_type = Null;             break;
+      default:
+	if (myid==0) {
+	  cout << "AxisymmetricBasis: no such TK type <" << val << ">"
+	       << " using Hall type\n";
+	}
       }
     }
   }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in AxisymmetricBasis: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+
 
   sqnorm.setsize(0, Lmax, 1, nmax);
   for (int l=0; l<=Lmax; l++)

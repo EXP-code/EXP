@@ -191,26 +191,33 @@ OrbTrace::OrbTrace(const YAML::Node& conf) : Output(conf)
 
 void OrbTrace::initialize()
 {
-  // Get file name
-  if (conf["filename"])    filename  = conf["filename"].as<std::string>();
-  if (conf["norb"])        norb      = conf["norb"].as<int>();
-  if (conf["nbeg"])        nbeg      = conf["nbeg"].as<int>();
-  if (conf["nskip"])       nskip     = conf["nskip"].as<int>();
-  if (conf["nint"])        nint      = conf["nint"].as<int>();
-  if (conf["orbitlist"])   orbitlist = conf["orbitlist"].as<std::string>();
-  if (conf["use_acc"])     use_acc   = conf["use_acc"].as<bool>();
-  if (conf["use_pot"])     use_pot   = conf["use_pot"].as<bool>();
-  if (conf["use_lev"])     use_lev   = conf["use_lev"].as<bool>();
-  if (conf["local"])       local     = conf["local"].as<bool>();
-
+  try{ 
+    // Get file name
+    if (conf["filename"])    filename  = conf["filename"].as<std::string>();
+    if (conf["norb"])        norb      = conf["norb"].as<int>();
+    if (conf["nbeg"])        nbeg      = conf["nbeg"].as<int>();
+    if (conf["nskip"])       nskip     = conf["nskip"].as<int>();
+    if (conf["nint"])        nint      = conf["nint"].as<int>();
+    if (conf["orbitlist"])   orbitlist = conf["orbitlist"].as<std::string>();
+    if (conf["use_acc"])     use_acc   = conf["use_acc"].as<bool>();
+    if (conf["use_pot"])     use_pot   = conf["use_pot"].as<bool>();
+    if (conf["use_lev"])     use_lev   = conf["use_lev"].as<bool>();
+    if (conf["local"])       local     = conf["local"].as<bool>();
+    
 				// Search for desired component
-  if (conf["name"]) {
-    std::string tmp = conf["name"].as<std::string>();
-    for (auto c : comp->components) {
-      if (!(c->name.compare(tmp))) tcomp  = c;
+    if (conf["name"]) {
+      std::string tmp = conf["name"].as<std::string>();
+      for (auto c : comp->components) {
+	if (!(c->name.compare(tmp))) tcomp  = c;
+      }
     }
   }
-  
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in OrbTrace: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 void OrbTrace::Run(int n, bool last)

@@ -237,65 +237,73 @@ void UserResPot::userinfo()
 
 void UserResPot::initialize()
 {
-  if (conf["LMAX"])           LMAX               = conf["LMAX"].as<int>();
-  if (conf["NMAX"])           NMAX               = conf["NMAX"].as<int>();
-  if (conf["NUMR"])           NUMR               = conf["NUMR"].as<int>();
-
-  if (conf["L0"])             L0                 = conf["L0"].as<int>();
-  if (conf["M0"])             M0                 = conf["M0"].as<int>();
-  if (conf["L1"])             L1                 = conf["L1"].as<int>();
-  if (conf["L2"])             L2                 = conf["L2"].as<int>();
-
-  if (conf["rmin"])           rmin               = conf["rmin"].as<double>();
-  if (conf["rmax"])           rmax               = conf["rmax"].as<double>();
-  if (conf["Klim"])           Klim               = conf["Klim"].as<double>();
-  if (conf["scale"])          scale              = conf["scale"].as<double>();
-  if (conf["drfac"])          drfac              = conf["drfac"].as<double>();
-
-  if (conf["ton"])            ton                = conf["ton"].as<double>();
-  if (conf["toff"])           toff               = conf["toff"].as<double>();
-  if (conf["delta"])          delta              = conf["delta"].as<double>();
-  if (conf["toffset"])        toffset            = conf["toffset"].as<double>();
-  if (conf["phase0"])         phase0             = conf["phase0"].as<double>();
-
-  if (conf["MASS"])           MASS               = conf["MASS"].as<double>();
-  if (conf["MFRAC"])          MFRAC              = conf["MFRAC"].as<double>();
-  if (conf["LENGTH"])         LENGTH             = conf["LENGTH"].as<double>();
-  if (conf["AMP"])            AMP                = conf["AMP"].as<double>();
-  if (conf["COROT"])          COROT              = conf["COROT"].as<double>();
-  if (conf["A21"])            A21                = conf["A21"].as<double>();
-  if (conf["A32"])            A32                = conf["A32"].as<double>();
-
-  if (conf["NUMX"])           NUMX               = conf["NUMX"].as<int>();
-  if (conf["NUME"])           NUME               = conf["NUME"].as<int>();
-  if (conf["RECS"])           RECS               = conf["RECS"].as<int>();
-  if (conf["ITMAX"])          ITMAX              = conf["ITMAX"].as<int>();
-
-  if (conf["omega"])          omega              = conf["omega"].as<double>();
-  if (conf["domega"])         domega             = conf["domega"].as<double>();
-  if (conf["tom0"])           tom0               = conf["tom0"].as<double>();
-  if (conf["dtom"])           dtom               = conf["dtom"].as<double>();
-
-
-  if (conf["model"])          model_file         = conf["model"].as<string>();
-  if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
-  if (conf["filename"])       filename           = conf["filename"].as<string>();
-  if (conf["fileomega"])      fileomega          = conf["fileomega"].as<string>();
-  if (conf["usetag"])         usetag             = conf["usetag"].as<int>();
-
-  if (conf["usebar"])
-    {
-      usebar = conf["usebar"].as<bool>();
-      useorb = !usebar;
-    }
-  if (conf["useorb"])   
-    {
-      useorb = conf["useorb"].as<bool>();
-      usebar = !useorb;
-    }
+  try {
+    if (conf["LMAX"])           LMAX               = conf["LMAX"].as<int>();
+    if (conf["NMAX"])           NMAX               = conf["NMAX"].as<int>();
+    if (conf["NUMR"])           NUMR               = conf["NUMR"].as<int>();
+    
+    if (conf["L0"])             L0                 = conf["L0"].as<int>();
+    if (conf["M0"])             M0                 = conf["M0"].as<int>();
+    if (conf["L1"])             L1                 = conf["L1"].as<int>();
+    if (conf["L2"])             L2                 = conf["L2"].as<int>();
+    
+    if (conf["rmin"])           rmin               = conf["rmin"].as<double>();
+    if (conf["rmax"])           rmax               = conf["rmax"].as<double>();
+    if (conf["Klim"])           Klim               = conf["Klim"].as<double>();
+    if (conf["scale"])          scale              = conf["scale"].as<double>();
+    if (conf["drfac"])          drfac              = conf["drfac"].as<double>();
+    
+    if (conf["ton"])            ton                = conf["ton"].as<double>();
+    if (conf["toff"])           toff               = conf["toff"].as<double>();
+    if (conf["delta"])          delta              = conf["delta"].as<double>();
+    if (conf["toffset"])        toffset            = conf["toffset"].as<double>();
+    if (conf["phase0"])         phase0             = conf["phase0"].as<double>();
+    
+    if (conf["MASS"])           MASS               = conf["MASS"].as<double>();
+    if (conf["MFRAC"])          MFRAC              = conf["MFRAC"].as<double>();
+    if (conf["LENGTH"])         LENGTH             = conf["LENGTH"].as<double>();
+    if (conf["AMP"])            AMP                = conf["AMP"].as<double>();
+    if (conf["COROT"])          COROT              = conf["COROT"].as<double>();
+    if (conf["A21"])            A21                = conf["A21"].as<double>();
+    if (conf["A32"])            A32                = conf["A32"].as<double>();
+    
+    if (conf["NUMX"])           NUMX               = conf["NUMX"].as<int>();
+    if (conf["NUME"])           NUME               = conf["NUME"].as<int>();
+    if (conf["RECS"])           RECS               = conf["RECS"].as<int>();
+    if (conf["ITMAX"])          ITMAX              = conf["ITMAX"].as<int>();
+    
+    if (conf["omega"])          omega              = conf["omega"].as<double>();
+    if (conf["domega"])         domega             = conf["domega"].as<double>();
+    if (conf["tom0"])           tom0               = conf["tom0"].as<double>();
+    if (conf["dtom"])           dtom               = conf["dtom"].as<double>();
+    
+    
+    if (conf["model"])          model_file         = conf["model"].as<string>();
+    if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
+    if (conf["filename"])       filename           = conf["filename"].as<string>();
+    if (conf["fileomega"])      fileomega          = conf["fileomega"].as<string>();
+    if (conf["usetag"])         usetag             = conf["usetag"].as<int>();
+    
+    if (conf["usebar"])
+      {
+	usebar = conf["usebar"].as<bool>();
+	useorb = !usebar;
+      }
+    if (conf["useorb"])   
+      {
+	useorb = conf["useorb"].as<bool>();
+	usebar = !useorb;
+      }
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserResPot: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
-
-
+  
+  
 double UserResPot::get_omega(double t)
 {
   if (t<Time.front()) return Omega.front();

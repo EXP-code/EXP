@@ -15,18 +15,26 @@ OutMulti::OutMulti(const YAML::Node& conf) : Output(conf)
 
 void OutMulti::initialize()
 {
+  try {
 				// Get file name
-  if (Output::conf["filename"])
-    filename = Output::conf["filename"].as<std::string>();
-  else {
-    filename.erase();
-    filename = outdir + "OUT.multi." + runtag;
-  }
+    if (Output::conf["filename"])
+      filename = Output::conf["filename"].as<std::string>();
+    else {
+      filename.erase();
+      filename = outdir + "OUT.multi." + runtag;
+    }
 
-  if (Output::conf["nint"])
-    nint = Output::conf["nint"].as<int>();
-  else
-    nint = 100;
+    if (Output::conf["nint"])
+      nint = Output::conf["nint"].as<int>();
+    else
+      nint = 100;
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in OutMulti: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
 }
 

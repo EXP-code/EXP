@@ -132,48 +132,57 @@ void UserPeriodic::userinfo()
 
 void UserPeriodic::initialize()
 {
-  if (conf["compname"])       comp_name          = conf["compname"].as<string>();
-
-  if (conf["sx"])             L[0]               = conf["sx"].as<double>();
-  if (conf["sy"])             L[1]               = conf["sy"].as<double>();
-  if (conf["sz"])             L[2]               = conf["sz"].as<double>();
-
-  if (conf["cx"])             offset[0]          = conf["cx"].as<double>();
-  if (conf["cy"])             offset[1]          = conf["cy"].as<double>();
-  if (conf["cz"])             offset[2]          = conf["cz"].as<double>();
-
-  if (conf["dT"])             dT                 = conf["dT"].as<double>();
-  if (conf["nbin"])           nbin               = conf["nbin"].as<int>();
-  if (conf["tcol"])           tcol               = conf["tcol"].as<int>();
-
-  if (conf["vunit"])          vunit              = conf["vunit"].as<double>();
-  if (conf["temp"])           temp               = conf["temp"].as<double>();
-
-  thermal = false;
-
-  if (conf["btype"]) {
-    std::string val = conf["btype"].as<std::string>();
-    if (strlen(val.c_str()) >= 3) {
-      for (int k=0; k<3; k++) {
-	switch (val.c_str()[k]) {
-	case 'p':
-	  bc[k] = 'p';		// Periodic
-	  break;
-	case 'r':
-	  bc[k] = 'r';		// Reflection
-	  break;
-	case 't':		// Thermal
-	  bc[k] = 't';
-	  thermal = true;
-	  break;
-	default:
-	  bc[k] = 'v';		// Vacuum
-	  break;
+  try {
+    if (conf["compname"])       comp_name          = conf["compname"].as<string>();
+    
+    if (conf["sx"])             L[0]               = conf["sx"].as<double>();
+    if (conf["sy"])             L[1]               = conf["sy"].as<double>();
+    if (conf["sz"])             L[2]               = conf["sz"].as<double>();
+    
+    if (conf["cx"])             offset[0]          = conf["cx"].as<double>();
+    if (conf["cy"])             offset[1]          = conf["cy"].as<double>();
+    if (conf["cz"])             offset[2]          = conf["cz"].as<double>();
+    
+    if (conf["dT"])             dT                 = conf["dT"].as<double>();
+    if (conf["nbin"])           nbin               = conf["nbin"].as<int>();
+    if (conf["tcol"])           tcol               = conf["tcol"].as<int>();
+    
+    if (conf["vunit"])          vunit              = conf["vunit"].as<double>();
+    if (conf["temp"])           temp               = conf["temp"].as<double>();
+    
+    
+    thermal = false;
+    
+    if (conf["btype"]) {
+      std::string val = conf["btype"].as<std::string>();
+      if (strlen(val.c_str()) >= 3) {
+	for (int k=0; k<3; k++) {
+	  switch (val.c_str()[k]) {
+	  case 'p':
+	    bc[k] = 'p';		// Periodic
+	    break;
+	  case 'r':
+	    bc[k] = 'r';		// Reflection
+	    break;
+	  case 't':		// Thermal
+	    bc[k] = 't';
+	    thermal = true;
+	    break;
+	  default:
+	    bc[k] = 'v';		// Vacuum
+	    break;
+	  }
 	}
       }
     }
   }
-  
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserPeriodic: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+    
   // Check for thermal type
   if (thermal && c0->keyPos<0) {
     if (myid==0) {
@@ -182,7 +191,6 @@ void UserPeriodic::initialize()
     }
     MPI_Abort(MPI_COMM_WORLD, 36);
   }
-
 }
 
 

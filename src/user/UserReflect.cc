@@ -78,9 +78,17 @@ void UserReflect::userinfo()
 
 void UserReflect::initialize()
 {
-  if (conf["compname"])       comp_name          = conf["compname"].as<string>();
-  if (conf["radius"])         radius             = conf["radius"].as<double>();
-  if (conf["debug"])          debug              = conf["debug"].as<bool>();
+  try {
+    if (conf["compname"])  comp_name   = conf["compname"].as<string>();
+    if (conf["radius"])    radius      = conf["radius"].as<double>();
+    if (conf["debug"])     debug       = conf["debug"].as<bool>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserReflect: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 

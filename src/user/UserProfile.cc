@@ -136,41 +136,48 @@ void UserProfile::userinfo()
 
 void UserProfile::initialize()
 {
-  string val;
+  try {
 
-  for (numComp=0; numComp<1000; numComp++) {
-    ostringstream count;
-    count << "C(" << numComp+1 << ")";
-    if (conf[count.str()])
-      C.push_back(conf[count.str()].as<std::string>());
-    else break;
+    for (numComp=0; numComp<1000; numComp++) {
+      ostringstream count;
+      count << "C(" << numComp+1 << ")";
+      if (conf[count.str()])
+	C.push_back(conf[count.str()].as<std::string>());
+      else break;
+    }
+    
+    if (numComp != (int)C.size()) {
+      cerr << "UserProfile: error parsing component names, "
+	   << "  Size(C)=" << C.size()
+	   << "  numRes=" << numComp << endl;
+      MPI_Abort(MPI_COMM_WORLD, 122);
+    }
+    
+    if (conf["filename"])       filename           = conf["filename"].as<string>();
+    if (conf["NUMR"])           NUMR               = conf["NUMR"].as<int>();
+    if (conf["RMIN"])           RMIN               = conf["RMIN"].as<double>();
+    if (conf["RMAX"])           RMAX               = conf["RMAX"].as<double>();
+    if (conf["DT"])             DT                 = conf["DT"].as<double>();
+    if (conf["NTHETA"])         NTHETA             = conf["NTHETA"].as<int>();
+    if (conf["NPHI"])           NPHI               = conf["NPHI"].as<int>();
+    
+    if (conf["LOGR"]) {
+      std::string val = conf["LOGR"].as<std::string>();
+      if (val[0]=='T' || val[0]=='t') 
+	LOGR = true;
+      else if (val[0]=='F' || val[0]=='f')
+	LOGR = false;
+      else if (atoi(val.c_str()))
+	LOGR = true;
+      else
+	LOGR = false;
+    }
   }
-
-  if (numComp != (int)C.size()) {
-    cerr << "UserProfile: error parsing component names, "
-	 << "  Size(C)=" << C.size()
-	 << "  numRes=" << numComp << endl;
-    MPI_Abort(MPI_COMM_WORLD, 122);
-  }
-
-  if (conf["filename"])       filename           = conf["filename"].as<string>();
-  if (conf["NUMR"])           NUMR               = conf["NUMR"].as<int>();
-  if (conf["RMIN"])           RMIN               = conf["RMIN"].as<double>();
-  if (conf["RMAX"])           RMAX               = conf["RMAX"].as<double>();
-  if (conf["DT"])             DT                 = conf["DT"].as<double>();
-  if (conf["NTHETA"])         NTHETA             = conf["NTHETA"].as<int>();
-  if (conf["NPHI"])           NPHI               = conf["NPHI"].as<int>();
-
-  if (conf["LOGR"]) {
-    std::string val = conf["LOGR"].as<std::string>();
-    if (val[0]=='T' || val[0]=='t') 
-      LOGR = true;
-    else if (val[0]=='F' || val[0]=='f')
-      LOGR = false;
-    else if (atoi(val.c_str()))
-      LOGR = true;
-    else
-      LOGR = false;
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserProfile: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
   }
 }
 

@@ -31,15 +31,23 @@ OutCoef::OutCoef(const YAML::Node& conf) : Output(conf)
 
 void OutCoef::initialize()
 {
-  if (conf["filename"])     filename = conf["filename"].as<std::string>();
-  if (conf["nint"])         nint     = conf["nint"].as<int>();
-  if (conf["name"])
-    {				// Search for desired component
-      std::string tmp = conf["name"].as<std::string>();
-      for (auto c : comp->components) {
-	if (!(c->name.compare(tmp))) tcomp  = c;
+  try {
+    if (conf["filename"])     filename = conf["filename"].as<std::string>();
+    if (conf["nint"])         nint     = conf["nint"].as<int>();
+    if (conf["name"])
+      {				// Search for desired component
+	std::string tmp = conf["name"].as<std::string>();
+	for (auto c : comp->components) {
+	  if (!(c->name.compare(tmp))) tcomp  = c;
+	}
       }
-    }
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in OutCoef: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 void OutCoef::Run(int n, bool last)

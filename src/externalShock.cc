@@ -31,13 +31,19 @@ externalShock::~externalShock()
 
 void externalShock::initialize()
 {
-  std::string val;
-
-  if (conf["E"])      E      = conf["E"].as<double>();
-  if (conf["K"])      K      = conf["K"].as<double>();
-  if (conf["PER"])    PER    = conf["PER"].as<double>();
-  if (conf["AMPL"])   AMPL   = conf["AMPL"].as<double>();
-  if (conf["INFILE"]) INFILE = conf["INFILE"].as<std::string>();
+  try {
+    if (conf["E"])      E      = conf["E"].as<double>();
+    if (conf["K"])      K      = conf["K"].as<double>();
+    if (conf["PER"])    PER    = conf["PER"].as<double>();
+    if (conf["AMPL"])   AMPL   = conf["AMPL"].as<double>();
+    if (conf["INFILE"]) INFILE = conf["INFILE"].as<std::string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in externalShock: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 

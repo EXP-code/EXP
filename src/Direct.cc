@@ -41,22 +41,30 @@ Direct::~Direct()
 
 void Direct::initialize(void)
 {
-  if (conf["soft_indx"]) {
-    soft_indx = conf["soft_indx"].as<int>();
-    fixed_soft = false;
-    ndim = 5;
-  }
+  try {
+    if (conf["soft_indx"]) {
+      soft_indx = conf["soft_indx"].as<int>();
+      fixed_soft = false;
+      ndim = 5;
+    }
 
-  if (conf["soft"]) {
-    soft = conf["soft"].as<double>();
-    fixed_soft = true;
-    ndim = 4;
-  }
+    if (conf["soft"]) {
+      soft = conf["soft"].as<double>();
+      fixed_soft = true;
+      ndim = 4;
+    }
 
-  if (conf["pm_model"])         pm_model     = conf["pm_model"].as<bool>();
-  if (conf["diverge"])          diverge      = conf["diverge"].as<int>();
-  if (conf["diverge_rfac"])     diverge_rfac = conf["diverge_rfac"].as<double>();
-  if (conf["pmmodel_file"])     pmmodel_file = conf["pmmodel_file"].as<std::string>();
+    if (conf["pm_model"])         pm_model     = conf["pm_model"].as<bool>();
+    if (conf["diverge"])          diverge      = conf["diverge"].as<int>();
+    if (conf["diverge_rfac"])     diverge_rfac = conf["diverge_rfac"].as<double>();
+    if (conf["pmmodel_file"])     pmmodel_file = conf["pmmodel_file"].as<std::string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in Direct: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
 }
 

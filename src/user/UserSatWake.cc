@@ -243,60 +243,67 @@ void UserSatWake::userinfo()
 
 void UserSatWake::initialize()
 {
-  if (conf["LMIN"])           LMIN               = conf["LMIN"].as<int>();
-  if (conf["LMAX"])           LMAX               = conf["LMAX"].as<int>();
-  if (conf["MMIN"])           MMIN               = conf["MMIN"].as<int>();
-  if (conf["MMAX"])           MMAX               = conf["MMAX"].as<int>();
-  if (conf["lmax"])           lmax               = conf["lmax"].as<int>();
-  if (conf["nmax"])           nmax               = conf["nmax"].as<int>();
-  if (conf["nfreqs"])         nfreqs             = conf["nfreqs"].as<int>();
-  if (conf["HALO_TRUNC"])     HALO_TRUNC         = conf["HALO_TRUNC"].as<int>();
-  if (conf["nptsE"])          nptsE              = conf["nptsE"].as<int>();
-  if (conf["nptsK"])          nptsK              = conf["nptsK"].as<int>();
-  if (conf["CAUCHY"])         CAUCHY             = conf["CAUCHY"].as<int>();
-  if (conf["RATINT"])         RATINT             = conf["RATINT"].as<int>();
-  if (conf["PTGRID"])         PTGRID             = conf["PTGRID"].as<int>();
-  if (conf["NRECS"])          NRECS              = conf["NRECS"].as<int>();
-  if (conf["DIVERGE"])        DIVERGE            = conf["DIVERGE"].as<int>();
-  if (conf["DIVEXPON"])       DIVEXPON           = conf["DIVEXPON"].as<int>();
-  if (conf["OLD"])            OLD                = conf["OLD"].as<int>();
-  if (conf["VERBOSE"])        VERBOSE            = conf["VERBOSE"].as<int>();
-  if (conf["HALO_TYPE"])      HALO_TYPE          = conf["HALO_TYPE"].as<int>();
-  if (conf["SITYPE"])         SITYPE             = ITOSIT(conf["SITYPE"].as<int>());
-  if (conf["RMODMAX"])        RMODMAX            = conf["RMODMAX"].as<double>();
-  if (conf["DELTA"])          DELTA              = conf["DELTA"].as<double>();
-  if (conf["OMPI"])           OMPI               = conf["OMPI"].as<double>();
-  if (conf["NUMDF"])          NUMDF              = conf["NUMDF"].as<int>();
-  if (conf["RA"])             RA                 = conf["RA"].as<double>();
-  if (conf["INCLINE"])        INCLINE            = conf["INCLINE"].as<double>();
-  if (conf["PSI"])            PSI                = conf["PSI"].as<double>();
-  if (conf["PHIP"])           PHIP               = conf["PHIP"].as<double>();
-  if (conf["NUMT"])           NUMT               = conf["NUMT"].as<int>();
-  if (conf["E"])              E                  = conf["E"].as<double>();
-  if (conf["Rperi"])          Rperi              = conf["Rperi"].as<double>();
-  if (conf["Rsoft"])          Rsoft              = conf["Rsoft"].as<double>();
-  if (conf["Rfac"])           Rfac               = conf["Rfac"].as<double>();
-  if (conf["Mfac"])           Mfac               = conf["Mfac"].as<double>();
-  if (conf["rmin"])           rmin               = conf["rmin"].as<double>();
-  if (conf["rmax"])           rmax               = conf["rmax"].as<double>();
-  if (conf["scale"])          scale              = conf["scale"].as<double>();
-  if (conf["numr"])           numr               = conf["numr"].as<int>();
-  if (conf["nint"])           nint               = conf["nint"].as<int>();
-  if (conf["Tmax"])           Tmax               = conf["Tmax"].as<double>();
-  if (conf["delT"])           delT               = conf["delT"].as<double>();
-  if (conf["Toffset"])        Toffset            = conf["Toffset"].as<double>();
-  if (conf["MASS"])           satmass            = conf["MASS"].as<double>();
-  if (conf["logL"])           logL               = conf["logL"].as<double>();
-  if (conf["INFILE"])         INFILE             = conf["INFILE"].as<string>();
-  if (conf["CACHEDIR"])       CACHEDIR           = conf["CACHEDIR"].as<string>();
-  if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
-  if (conf["UseCache"])       UseCache           = conf["UseCache"].as<int>();
-  if (conf["XYMAX"])          XYMAX              = conf["XYMAX"].as<double>();
-  if (conf["NUMXY"])          NUMXY              = conf["NUMXY"].as<double>();
-  if (conf["RespChk"])        RespChk            = conf["RespChk"].as<int>();
-  if (conf["Circ"])           Circ               = conf["Circ"].as<int>();
-}
-
+  try {
+    if (conf["LMIN"])           LMIN               = conf["LMIN"].as<int>();
+    if (conf["LMAX"])           LMAX               = conf["LMAX"].as<int>();
+    if (conf["MMIN"])           MMIN               = conf["MMIN"].as<int>();
+    if (conf["MMAX"])           MMAX               = conf["MMAX"].as<int>();
+    if (conf["lmax"])           lmax               = conf["lmax"].as<int>();
+    if (conf["nmax"])           nmax               = conf["nmax"].as<int>();
+    if (conf["nfreqs"])         nfreqs             = conf["nfreqs"].as<int>();
+    if (conf["HALO_TRUNC"])     HALO_TRUNC         = conf["HALO_TRUNC"].as<int>();
+    if (conf["nptsE"])          nptsE              = conf["nptsE"].as<int>();
+    if (conf["nptsK"])          nptsK              = conf["nptsK"].as<int>();
+    if (conf["CAUCHY"])         CAUCHY             = conf["CAUCHY"].as<int>();
+    if (conf["RATINT"])         RATINT             = conf["RATINT"].as<int>();
+    if (conf["PTGRID"])         PTGRID             = conf["PTGRID"].as<int>();
+    if (conf["NRECS"])          NRECS              = conf["NRECS"].as<int>();
+    if (conf["DIVERGE"])        DIVERGE            = conf["DIVERGE"].as<int>();
+    if (conf["DIVEXPON"])       DIVEXPON           = conf["DIVEXPON"].as<int>();
+    if (conf["OLD"])            OLD                = conf["OLD"].as<int>();
+    if (conf["VERBOSE"])        VERBOSE            = conf["VERBOSE"].as<int>();
+    if (conf["HALO_TYPE"])      HALO_TYPE          = conf["HALO_TYPE"].as<int>();
+    if (conf["SITYPE"])         SITYPE             = ITOSIT(conf["SITYPE"].as<int>());
+    if (conf["RMODMAX"])        RMODMAX            = conf["RMODMAX"].as<double>();
+    if (conf["DELTA"])          DELTA              = conf["DELTA"].as<double>();
+    if (conf["OMPI"])           OMPI               = conf["OMPI"].as<double>();
+    if (conf["NUMDF"])          NUMDF              = conf["NUMDF"].as<int>();
+    if (conf["RA"])             RA                 = conf["RA"].as<double>();
+    if (conf["INCLINE"])        INCLINE            = conf["INCLINE"].as<double>();
+    if (conf["PSI"])            PSI                = conf["PSI"].as<double>();
+    if (conf["PHIP"])           PHIP               = conf["PHIP"].as<double>();
+    if (conf["NUMT"])           NUMT               = conf["NUMT"].as<int>();
+    if (conf["E"])              E                  = conf["E"].as<double>();
+    if (conf["Rperi"])          Rperi              = conf["Rperi"].as<double>();
+    if (conf["Rsoft"])          Rsoft              = conf["Rsoft"].as<double>();
+    if (conf["Rfac"])           Rfac               = conf["Rfac"].as<double>();
+    if (conf["Mfac"])           Mfac               = conf["Mfac"].as<double>();
+    if (conf["rmin"])           rmin               = conf["rmin"].as<double>();
+    if (conf["rmax"])           rmax               = conf["rmax"].as<double>();
+    if (conf["scale"])          scale              = conf["scale"].as<double>();
+    if (conf["numr"])           numr               = conf["numr"].as<int>();
+    if (conf["nint"])           nint               = conf["nint"].as<int>();
+    if (conf["Tmax"])           Tmax               = conf["Tmax"].as<double>();
+    if (conf["delT"])           delT               = conf["delT"].as<double>();
+    if (conf["Toffset"])        Toffset            = conf["Toffset"].as<double>();
+    if (conf["MASS"])           satmass            = conf["MASS"].as<double>();
+    if (conf["logL"])           logL               = conf["logL"].as<double>();
+    if (conf["INFILE"])         INFILE             = conf["INFILE"].as<string>();
+    if (conf["CACHEDIR"])       CACHEDIR           = conf["CACHEDIR"].as<string>();
+    if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
+    if (conf["UseCache"])       UseCache           = conf["UseCache"].as<int>();
+    if (conf["XYMAX"])          XYMAX              = conf["XYMAX"].as<double>();
+    if (conf["NUMXY"])          NUMXY              = conf["NUMXY"].as<double>();
+    if (conf["RespChk"])        RespChk            = conf["RespChk"].as<int>();
+    if (conf["Circ"])           Circ               = conf["Circ"].as<int>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserSatWake: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+}  
 
 void UserSatWake::initialize_coefficients()
 {

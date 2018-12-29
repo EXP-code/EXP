@@ -54,9 +54,17 @@ void SatFix::userinfo()
 
 void SatFix::initialize()
 {
-  if (conf["compname"])       comp_name          = conf["compname"].as<string>();
-  if (conf["verbose"])        verbose            = conf["verbose"].as<bool>();
-  if (conf["debug"])          debug              = conf["debug"].as<bool>();
+  try {
+    if (conf["compname"])       comp_name          = conf["compname"].as<string>();
+    if (conf["verbose"])        verbose            = conf["verbose"].as<bool>();
+    if (conf["debug"])          debug              = conf["debug"].as<bool>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in SatFix: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 void SatFix::get_acceleration_and_potential(Component* C)

@@ -106,35 +106,43 @@ void UserRPtest::userinfo()
 
 void UserRPtest::initialize()
 {
-  if (conf["L0"])             L0                 = conf["L0"].as<int>();
-  if (conf["M0"])             M0                 = conf["M0"].as<int>();
-  if (conf["L1"])             L1                 = conf["L1"].as<int>();
-  if (conf["L2"])             L2                 = conf["L2"].as<int>();
-
-  if (conf["rmin"])           rmin               = conf["rmin"].as<double>();
-  if (conf["rmax"])           rmax               = conf["rmax"].as<double>();
-  if (conf["scale"])          scale              = conf["scale"].as<double>();
-
-  if (conf["NUMX"])           NUMX               = conf["NUMX"].as<int>();
-  if (conf["NUME"])           NUME               = conf["NUME"].as<int>();
-  if (conf["RECS"])           RECS               = conf["RECS"].as<int>();
-
-  if (conf["with_ps"])        with_ps            = conf["with_ps"].as<bool>();
-  if (conf["npart"])          npart              = conf["npart"].as<int>();
-
-  if (conf["model"])          model_file         = conf["model"].as<string>();
-  if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
-  if (conf["filename"])       filename           = conf["filename"].as<string>();
+  try {
+    if (conf["L0"])             L0                 = conf["L0"].as<int>();
+    if (conf["M0"])             M0                 = conf["M0"].as<int>();
+    if (conf["L1"])             L1                 = conf["L1"].as<int>();
+    if (conf["L2"])             L2                 = conf["L2"].as<int>();
+    
+    if (conf["rmin"])           rmin               = conf["rmin"].as<double>();
+    if (conf["rmax"])           rmax               = conf["rmax"].as<double>();
+    if (conf["scale"])          scale              = conf["scale"].as<double>();
+    
+    if (conf["NUMX"])           NUMX               = conf["NUMX"].as<int>();
+    if (conf["NUME"])           NUME               = conf["NUME"].as<int>();
+    if (conf["RECS"])           RECS               = conf["RECS"].as<int>();
+    
+    if (conf["with_ps"])        with_ps            = conf["with_ps"].as<bool>();
+    if (conf["npart"])          npart              = conf["npart"].as<int>();
+    
+    if (conf["model"])          model_file         = conf["model"].as<string>();
+    if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
+    if (conf["filename"])       filename           = conf["filename"].as<string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserRPtest: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 void UserRPtest::determine_acceleration_and_potential(void)
 {
   if (first) {
-
+    
     if (restart) {
-
+      
       if (myid == 0) {
-				// Backup up old file
+	// Backup up old file
 	string curfile = outdir + filename;
 	string backupfile = curfile + ".bak";
 	string command("cp ");
@@ -144,7 +152,7 @@ void UserRPtest::determine_acceleration_and_potential(void)
 		    << command << ">" << endl;
 	}
 	
-				// Open new output stream for writing
+	// Open new output stream for writing
 	ofstream out(curfile.c_str());
 	if (!out) {
 	  std::ostringstream sout;
@@ -153,7 +161,7 @@ void UserRPtest::determine_acceleration_and_potential(void)
 	  throw GenericError(sout.str(), __FILE__, __LINE__);
 	}
 	
-				// Open old file for reading
+	// Open old file for reading
 	ifstream in(backupfile.c_str());
 	if (!in) {
 	  std::ostringstream sout;
@@ -161,13 +169,13 @@ void UserRPtest::determine_acceleration_and_potential(void)
 	       << backupfile << "> for reading";
 	  throw GenericError(sout.str(), __FILE__, __LINE__);
 	}
-
+	
 	const int linesize = 1024;
 	char line[linesize];
 	
 	in.getline(line, linesize); // Discard header
 	in.getline(line, linesize); // Next line
-
+	
 	double tlast1;
 	bool firstline = true;
 

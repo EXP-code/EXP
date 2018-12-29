@@ -355,24 +355,32 @@ void UserPST::userinfo()
 
 void UserPST::initialize()
 {
-  if (conf["rmin"])           rmin               = conf["rmin"].as<double>();
-  if (conf["rmax"])           rmax               = conf["rmax"].as<double>();
-  if (conf["numr"])           numr               = conf["numr"].as<int>();
-  if (conf["blog"])           blog               = conf["blog"].as<bool>();
-  if (conf["dlog"])           dlog               = conf["dlog"].as<bool>();
-  if (conf["arat"])           arat               = conf["arat"].as<double>();
-  if (conf["Qm"])             Qm                 = conf["Qm"].as<double>();
-  if (conf["rL"])             rL                 = conf["rL"].as<double>();
-  if (conf["rhoC"])           rhoC               = conf["rhoC"].as<double>();
-  if (conf["nu"])             nu                 = conf["nu"].as<double>();
-  if (conf["Lmax"])           Lmax               = conf["Lmax"].as<int>();
-  if (conf["Nmax"])           Nmax               = conf["Nmax"].as<int>();
-  if (conf["numR"])           numR               = conf["numR"].as<int>();
-  if (conf["numt"])           numt               = conf["numt"].as<int>();
-  if (conf["numg"])           numg               = conf["numg"].as<int>();
-  if (conf["Ton"])            Ton                = conf["Ton"].as<double>();
-  if (conf["DeltaT"])         DeltaT             = conf["DeltaT"].as<double>();
-  if (conf["filename"])       filename           = conf["filename"].as<string>();
+  try {
+    if (conf["rmin"])           rmin               = conf["rmin"].as<double>();
+    if (conf["rmax"])           rmax               = conf["rmax"].as<double>();
+    if (conf["numr"])           numr               = conf["numr"].as<int>();
+    if (conf["blog"])           blog               = conf["blog"].as<bool>();
+    if (conf["dlog"])           dlog               = conf["dlog"].as<bool>();
+    if (conf["arat"])           arat               = conf["arat"].as<double>();
+    if (conf["Qm"])             Qm                 = conf["Qm"].as<double>();
+    if (conf["rL"])             rL                 = conf["rL"].as<double>();
+    if (conf["rhoC"])           rhoC               = conf["rhoC"].as<double>();
+    if (conf["nu"])             nu                 = conf["nu"].as<double>();
+    if (conf["Lmax"])           Lmax               = conf["Lmax"].as<int>();
+    if (conf["Nmax"])           Nmax               = conf["Nmax"].as<int>();
+    if (conf["numR"])           numR               = conf["numR"].as<int>();
+    if (conf["numt"])           numt               = conf["numt"].as<int>();
+    if (conf["numg"])           numg               = conf["numg"].as<int>();
+    if (conf["Ton"])            Ton                = conf["Ton"].as<double>();
+    if (conf["DeltaT"])         DeltaT             = conf["DeltaT"].as<double>();
+    if (conf["filename"])       filename           = conf["filename"].as<string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserPST: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 
@@ -383,7 +391,7 @@ void UserPST::determine_acceleration_and_potential(void)
   if (timing) timer_thrd.start();
   exp_thread_fork(false);
   if (timing) timer_thrd.stop();
-
+  
   if (timing) {
     timer_tot.stop();
     cout << setw(20) << "Bar total: "
@@ -393,7 +401,7 @@ void UserPST::determine_acceleration_and_potential(void)
     timer_tot.reset();
     timer_thrd.reset();
   }
-
+  
   print_timings("UserPST: acceleration timings");
 }
 
@@ -403,9 +411,9 @@ void * UserPST::determine_acceleration_and_potential_thread(void * arg)
   int id = *((int*)arg), nbodies, nbeg, nend, indx;
   double xx, yy, zz, rr, bfrc, fr, fz, extpot;
   vector<double> pos(3), pos1(3), acct(3), force(4), acc(3);
-
+  
   double posang = omega*tnow;
-
+  
   double cosp = cos(posang);
   double sinp = sin(posang);
 

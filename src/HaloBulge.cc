@@ -106,15 +106,23 @@ void * HaloBulge::determine_acceleration_and_potential_thread(void * arg)
 
 void HaloBulge::initialize()
 {
-  if (conf["HMODEL"])	HMODEL   = conf["HMODEL"].as<int>();
-  if (conf["INFILE"])	INFILE   = conf["INFILE"].as<std::string>();
-  if (conf["MHALO"])	MHALO    = conf["MHALO"].as<double>();
-  if (conf["RHALO"])	RHALO    = conf["RHALO"].as<double>();
-  if (conf["RMODMIN"])	RMODMIN  = conf["RMODMIN"].as<double>();
-  if (conf["RMOD"])	RMOD     = conf["RMOD"].as<double>();
-  if (conf["RBCORE"])	RBCORE   = conf["RBCORE"].as<double>();
-  if (conf["MBULGE"])	MBULGE   = conf["MBULGE"].as<double>();
-  if (conf["RBULGE"])	RBULGE   = conf["RBULGE"].as<double>();
-  if (conf["RBMODMIN"])	RBMODMIN = conf["RBMODMIN"].as<double>();
-  if (conf["RBMOD"])	RBMOD    = conf["RBMOD"].as<double>();
+  try {
+    if (conf["HMODEL"])     HMODEL   = conf["HMODEL"].as<int>();
+    if (conf["INFILE"])     INFILE   = conf["INFILE"].as<std::string>();
+    if (conf["MHALO"])      MHALO    = conf["MHALO"].as<double>();
+    if (conf["RHALO"])      RHALO    = conf["RHALO"].as<double>();
+    if (conf["RMODMIN"])    RMODMIN  = conf["RMODMIN"].as<double>();
+    if (conf["RMOD"])       RMOD     = conf["RMOD"].as<double>();
+    if (conf["RBCORE"])     RBCORE   = conf["RBCORE"].as<double>();
+    if (conf["MBULGE"])     MBULGE   = conf["MBULGE"].as<double>();
+    if (conf["RBULGE"])     RBULGE   = conf["RBULGE"].as<double>();
+    if (conf["RBMODMIN"])   RBMODMIN = conf["RBMODMIN"].as<double>();
+    if (conf["RBMOD"])      RBMOD    = conf["RBMOD"].as<double>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in HaloBulge: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }

@@ -106,23 +106,32 @@ void UserDiffuse::userinfo()
 
 void UserDiffuse::initialize()
 {
-  if (conf["name"])           name               = conf["name"].as<string>();
-  if (conf["pmass"])          pmass              = conf["pmass"].as<double>();
-  if (conf["clip"])           clip               = conf["clip"].as<double>();
-  if (conf["logL"])           logL               = conf["logL"].as<double>();
-  if (conf["seed"])           seed               = conf["seed"].as<int>();
-  if (conf["nfreq"])          nfreq              = conf["nfreq"].as<int>();
-  if (conf["rmin"])           rmin               = conf["rmin"].as<double>();
-  if (conf["rmax"])           rmax               = conf["rmax"].as<double>();
-  if (conf["logr"])           logr               = conf["logr"].as<bool>();
-  if (conf["numr"])           numr               = conf["numr"].as<int>();
-  if (conf["numv"])           numv               = conf["numv"].as<int>();
+  try {
+    if (conf["name"])           name               = conf["name"].as<string>();
+    if (conf["pmass"])          pmass              = conf["pmass"].as<double>();
+    if (conf["clip"])           clip               = conf["clip"].as<double>();
+    if (conf["logL"])           logL               = conf["logL"].as<double>();
+    if (conf["seed"])           seed               = conf["seed"].as<int>();
+    if (conf["nfreq"])          nfreq              = conf["nfreq"].as<int>();
+    if (conf["rmin"])           rmin               = conf["rmin"].as<double>();
+    if (conf["rmax"])           rmax               = conf["rmax"].as<double>();
+    if (conf["logr"])           logr               = conf["logr"].as<bool>();
+    if (conf["numr"])           numr               = conf["numr"].as<int>();
+    if (conf["numv"])           numv               = conf["numv"].as<int>();
+    
+    if (conf["use_file"])       use_file           = conf["use_file"].as<bool>();
+    if (conf["modfile"])        modfile            = conf["modfile"].as<string>();
+    if (conf["diverge"])        diverge            = conf["diverge"].as<int>();
+    if (conf["diverge_rfac"])   diverge_rfac       = conf["diverge_rfac"].as<double>();
+    if (conf["check_ev"])       check_ev           = conf["check_ev"].as<bool>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserDiffuse: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
-  if (conf["use_file"])       use_file           = conf["use_file"].as<bool>();
-  if (conf["modfile"])        modfile            = conf["modfile"].as<string>();
-  if (conf["diverge"])        diverge            = conf["diverge"].as<int>();
-  if (conf["diverge_rfac"])   diverge_rfac       = conf["diverge_rfac"].as<double>();
-  if (conf["check_ev"])       check_ev           = conf["check_ev"].as<bool>();
 
   gen = new ACG(seed+myid);
   urand = new Uniform(0.0, 1.0, gen);

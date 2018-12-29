@@ -85,11 +85,19 @@ ScatterMFP::~ScatterMFP()
 
 void ScatterMFP::initialize()
 {
-  if (conf["tautab"])         tautab             = conf["tautab"].as<int>();
-  if (conf["tauscat"])        tauscat            = conf["tauscat"].as<double>();
-  if (conf["rmax"])           rmax               = conf["rmax"].as<double>();
-  if (conf["nscat"])          nscat              = conf["nscat"].as<int>();
-  if (conf["mfp_index"])      mfp_index          = conf["mfp_index"].as<int>();
+  try {
+    if (conf["tautab"])         tautab        = conf["tautab"].as<int>();
+    if (conf["tauscat"])        tauscat       = conf["tauscat"].as<double>();
+    if (conf["rmax"])           rmax          = conf["rmax"].as<double>();
+    if (conf["nscat"])          nscat         = conf["nscat"].as<int>();
+    if (conf["mfp_index"])      mfp_index     = conf["mfp_index"].as<int>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in ScatterMFP: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 

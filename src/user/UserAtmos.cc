@@ -65,10 +65,18 @@ void UserAtmos::userinfo()
 
 void UserAtmos::initialize()
 {
-  if (conf["gx"])             g[0]               = conf["gx"].as<double>();
-  if (conf["gy"])             g[1]               = conf["gy"].as<double>();
-  if (conf["gz"])             g[2]               = conf["gz"].as<double>();
-  if (conf["compname"])       compname           = conf["compname"].as<string>();
+  try {
+    if (conf["gx"])             g[0]               = conf["gx"].as<double>();
+    if (conf["gy"])             g[1]               = conf["gy"].as<double>();
+    if (conf["gz"])             g[2]               = conf["gz"].as<double>();
+    if (conf["compname"])       compname           = conf["compname"].as<string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserAtmos: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 

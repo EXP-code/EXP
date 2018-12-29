@@ -111,16 +111,24 @@ void UserDiffRot::userinfo()
 
 void UserDiffRot::initialize()
 {
-  if (conf["name"])           name               = conf["name"].as<string>();
-  if (conf["avoid"])          avoid              = conf["avoid"].as<string>();
-  if (conf["maxpm"])          maxpm              = conf["maxpm"].as<int>();
-  if (conf["seed"])           seed               = conf["seed"].as<int>();
-  if (conf["rate"])           rate               = conf["rate"].as<double>();
-  if (conf["width"])          width              = conf["width"].as<double>();
-  if (conf["seed"])           seed               = conf["seed"].as<int>();
-  if (conf["ndyn"])           ndyn               = conf["ndyn"].as<int>();
-  if (conf["dynmin"])         dynmin             = conf["dynmin"].as<double>();
-  if (conf["dynmax"])         dynmax             = conf["dynmax"].as<double>();
+  try {
+    if (conf["name"])    name    = conf["name"].as<string>();
+    if (conf["avoid"])   avoid   = conf["avoid"].as<string>();
+    if (conf["maxpm"])   maxpm   = conf["maxpm"].as<int>();
+    if (conf["seed"])    seed    = conf["seed"].as<int>();
+    if (conf["rate"])    rate    = conf["rate"].as<double>();
+    if (conf["width"])   width   = conf["width"].as<double>();
+    if (conf["seed"])    seed    = conf["seed"].as<int>();
+    if (conf["ndyn"])    ndyn    = conf["ndyn"].as<int>();
+    if (conf["dynmin"])  dynmin  = conf["dynmin"].as<double>();
+    if (conf["dynmax"])  dynmax  = conf["dynmax"].as<double>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserDiffRot: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 

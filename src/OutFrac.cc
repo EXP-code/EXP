@@ -125,19 +125,27 @@ OutFrac::OutFrac(const YAML::Node& conf) : Output(conf)
 
 void OutFrac::initialize()
 {
+  try {
 				// Get file name
-  filename = conf["filename"].as<std::string>();
-  nint     = conf["nint"]    .as<int>();
+    filename = conf["filename"].as<std::string>();
+    nint     = conf["nint"]    .as<int>();
 				// Search for desired component
-  if (conf["name"]) {
-    std::string tmp = conf["name"].as<std::string>();
-    for (auto c : comp->components) {
-      if (!(c->name.compare(tmp))) tcomp  = c;
+    if (conf["name"]) {
+      std::string tmp = conf["name"].as<std::string>();
+      for (auto c : comp->components) {
+	if (!(c->name.compare(tmp))) tcomp  = c;
+      }
     }
-  }
 
 				// Get quantiles
-  if (conf["frac"])  Quant = conf["frac"].as<std::vector<double>>();
+    if (conf["frac"])  Quant = conf["frac"].as<std::vector<double>>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in OutFrac: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
 }
 

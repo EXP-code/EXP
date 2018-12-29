@@ -76,12 +76,20 @@ Slab::~Slab()
 
 void Slab::initialize()
 {
-  if (conf["nmaxx"])          nmaxx              = conf["nmaxx"].as<int>();
-  if (conf["nmaxy"])          nmaxy              = conf["nmaxy"].as<int>();
-  if (conf["nmaxz"])          nmaxz              = conf["nmaxz"].as<int>();
-  if (conf["nminx"])          nminx              = conf["nminx"].as<int>();
-  if (conf["nminy"])          nminy              = conf["nminy"].as<int>();
-  if (conf["zmax"])           zmax               = conf["zmax"].as<double>();
+  try {
+    if (conf["nmaxx"])          nmaxx     = conf["nmaxx"].as<int>();
+    if (conf["nmaxy"])          nmaxy     = conf["nmaxy"].as<int>();
+    if (conf["nmaxz"])          nmaxz     = conf["nmaxz"].as<int>();
+    if (conf["nminx"])          nminx     = conf["nminx"].as<int>();
+    if (conf["nminy"])          nminy     = conf["nminy"].as<int>();
+    if (conf["zmax"])           zmax      = conf["zmax"].as<double>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in Slab: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 void Slab::determine_coefficients(void)

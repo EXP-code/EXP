@@ -69,18 +69,26 @@ OutLog::OutLog(const YAML::Node& conf) : Output(conf)
 
 void OutLog::initialize()
 {
+  try {
 				// Get file name
-  if (Output::conf["filename"])
-    filename = Output::conf["filename"].as<std::string>();
-  else {
-    filename.erase();
-    filename = outdir + "OUTLOG." + runtag;
+    if (Output::conf["filename"])
+      filename = Output::conf["filename"].as<std::string>();
+    else {
+      filename.erase();
+      filename = outdir + "OUTLOG." + runtag;
+    }
+    
+    if (Output::conf["freq"])
+      nint = Output::conf["freq"].as<int>();
+    else
+      nint = 1;
   }
-
-  if (Output::conf["freq"])
-    nint = Output::conf["freq"].as<int>();
-  else
-    nint = 1;
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in OutLog: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 

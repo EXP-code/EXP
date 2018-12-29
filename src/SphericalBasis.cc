@@ -40,44 +40,53 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
   ssfrac           = 0.0;
   subset           = false;
 
-  if (conf["scale"]) 
-    scale = conf["scale"].as<double>();
-  else
-    scale = 1.0;
+  try {
+    if (conf["scale"]) 
+      scale = conf["scale"].as<double>();
+    else
+      scale = 1.0;
 
-  if (conf["rmax"]) 
-    rmax = conf["rmax"].as<double>();
-  else
-    rmax = 10.0;
+    if (conf["rmax"]) 
+      rmax = conf["rmax"].as<double>();
+    else
+      rmax = 10.0;
 
-  if (conf["self_consistent"]) {
-    self_consistent = conf["self_consistent"].as<bool>();
-  } else
-    self_consistent = true;
+    if (conf["self_consistent"]) {
+      self_consistent = conf["self_consistent"].as<bool>();
+    } else
+      self_consistent = true;
 
-  if (conf["NO_L0"])   NO_L0   = conf["NO_L0"].as<bool>();
-  if (conf["NO_L1"])   NO_L1   = conf["NO_L1"].as<bool>();
-  if (conf["EVEN_L"])  EVEN_L  = conf["EVEN_L"].as<bool>();
-
-  if (conf["NOISE"]) {
-    if (conf["NOISE"].as<bool>()) {
-      NOISE = true; 
-      self_consistent = false;
+    if (conf["NO_L0"])   NO_L0   = conf["NO_L0"].as<bool>();
+    if (conf["NO_L1"])   NO_L1   = conf["NO_L1"].as<bool>();
+    if (conf["EVEN_L"])  EVEN_L  = conf["EVEN_L"].as<bool>();
+    
+    if (conf["NOISE"]) {
+      if (conf["NOISE"].as<bool>()) {
+	NOISE = true; 
+	self_consistent = false;
+      }
+      else NOISE = false;
     }
-    else NOISE = false;
+    
+    if (conf["noiseN"])  noiseN  = conf["noiseN"].as<bool>();
+
+    if (conf["noise_model_file"]) noise_model_file = conf["noise_model_file"].as<std::string>();
+
+    if (conf["seedN"])   seedN   = conf["seedN"].as<int>();
+    
+    if (conf["ssfrac"]) {
+      ssfrac = conf["ssfrac"].as<double>();
+      // Check for sane value
+      if (ssfrac>0.0 && ssfrac<1.0) subset = true;
+    }
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in SphericalBasis: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
   }
 
-  if (conf["noiseN"])  noiseN  = conf["noiseN"].as<bool>();
-
-  if (conf["noise_model_file"]) noise_model_file = conf["noise_model_file"].as<std::string>();
-
-  if (conf["seedN"])   seedN   = conf["seedN"].as<int>();
-
-  if (conf["ssfrac"]) {
-    ssfrac = conf["ssfrac"].as<double>();
-				// Check for sane value
-    if (ssfrac>0.0 && ssfrac<1.0) subset = true;
-  }
 
   Lmax = Lmax<1 ? 1 : Lmax;
 

@@ -46,9 +46,17 @@ Shells::~Shells()
 
 void Shells::initialize(void)
 {
-  if (conf["nsample"])         nsample         = conf["nsample"].as<int>();
-  if (conf["nselect"])         nselect         = conf["nselect"].as<int>();
-  if (conf["self_consistent"]) self_consistent = conf["self_consistent"].as<bool>();
+  try {
+    if (conf["nsample"])         nsample         = conf["nsample"].as<int>();
+    if (conf["nselect"])         nselect         = conf["nselect"].as<int>();
+    if (conf["self_consistent"]) self_consistent = conf["self_consistent"].as<bool>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in Shells: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 void Shells::get_acceleration_and_potential(Component* C)

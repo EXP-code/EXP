@@ -13,8 +13,16 @@ tidalField::tidalField(const YAML::Node& config) : ExternalForce(config)
 
 void tidalField::initialize()
 {
-  if (conf["hills_omega"])    hills_omega        = conf["hills_omega"].as<double>();
-  if (conf["hills_p"])        hills_p            = conf["hills_p"].as<double>();
+  try {
+    if (conf["hills_omega"])    hills_omega        = conf["hills_omega"].as<double>();
+    if (conf["hills_p"])        hills_p            = conf["hills_p"].as<double>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in tidalField: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 void * tidalField::determine_acceleration_and_potential_thread(void * arg)

@@ -86,24 +86,33 @@ UnboundOrbit::UnboundOrbit(const YAML::Node& conf)
 
   // Configured parameters
   //
-  if (conf["MODEL"])      MODEL = conf["MODEL"].as<int>();
-  if (conf["DIVERGE"])    DIVERGE = conf["DIVERGE"].as<int>();
-  if (conf["DIVEXPON"])   DIVEXPON = conf["DIVEXPON"].as<double>();
-  if (conf["RCORE"])      RCORE = conf["RCORE"].as<double>();
-  if (conf["E"])          E = conf["E"].as<double>();
-  if (conf["Rperi"])      Rperi = conf["Rperi"].as<double>();
-  if (conf["Redge"])      Redge = conf["Redge"].as<double>();
-  if (conf["deltaR"])     deltaR = conf["deltaR"].as<double>();
-  if (conf["RMODMIN"])    RMODMIN = conf["RMODMIN"].as<double>();
-  if (conf["RMODMAX"])    RMODMAX = conf["RMODMAX"].as<double>();
-  if (conf["VROT"])       VROT = conf["VROT"].as<double>();
-  if (conf["rmin"])       rmin = conf["rmin"].as<double>();
-  if (conf["rmax"])       rmax = conf["rmax"].as<double>();
-  if (conf["PHIP"])       PHIP = conf["PHIP"].as<double>();
-  if (conf["THETA"])      THETA = conf["THETA"].as<double>();
-  if (conf["PSI"])        PSI = conf["PSI"].as<double>();
-  if (conf["INFILE"])     INFILE = conf["INFILE"].as<string>();
-  if (conf["orbfile"])    orbfile = conf["orbfile"].as<bool>();
+  try {
+    if (conf["MODEL"])      MODEL = conf["MODEL"].as<int>();
+    if (conf["DIVERGE"])    DIVERGE = conf["DIVERGE"].as<int>();
+    if (conf["DIVEXPON"])   DIVEXPON = conf["DIVEXPON"].as<double>();
+    if (conf["RCORE"])      RCORE = conf["RCORE"].as<double>();
+    if (conf["E"])          E = conf["E"].as<double>();
+    if (conf["Rperi"])      Rperi = conf["Rperi"].as<double>();
+    if (conf["Redge"])      Redge = conf["Redge"].as<double>();
+    if (conf["deltaR"])     deltaR = conf["deltaR"].as<double>();
+    if (conf["RMODMIN"])    RMODMIN = conf["RMODMIN"].as<double>();
+    if (conf["RMODMAX"])    RMODMAX = conf["RMODMAX"].as<double>();
+    if (conf["VROT"])       VROT = conf["VROT"].as<double>();
+    if (conf["rmin"])       rmin = conf["rmin"].as<double>();
+    if (conf["rmax"])       rmax = conf["rmax"].as<double>();
+    if (conf["PHIP"])       PHIP = conf["PHIP"].as<double>();
+    if (conf["THETA"])      THETA = conf["THETA"].as<double>();
+    if (conf["PSI"])        PSI = conf["PSI"].as<double>();
+    if (conf["INFILE"])     INFILE = conf["INFILE"].as<string>();
+    if (conf["orbfile"])    orbfile = conf["orbfile"].as<bool>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UnboundOrbit: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+
 
   m = 0;
   model = 0;

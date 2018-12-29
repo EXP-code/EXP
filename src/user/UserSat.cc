@@ -193,64 +193,72 @@ void UserSat::userinfo()
 
 void UserSat::initialize()
 {
-  if (conf["comname"]) {
-    com_name = conf["comname"].as<std::string>();
-    pinning = true;
-  }
-
-  if (conf["config"])         config             = conf["config"];
-  if (conf["core"])           core               = conf["core"].as<double>();
-  if (conf["mass"])           mass               = conf["mass"].as<double>();
-  if (conf["ton"])            ton                = conf["ton"].as<double>();
-  if (conf["toff"])           toff               = conf["toff"].as<double>();
-  if (conf["delta"])          delta              = conf["delta"].as<double>();
-  if (conf["toffset"])        toffset            = conf["toffset"].as<double>();
-  if (conf["orbit"])          orbit              = conf["orbit"].as<bool>();
-  if (conf["shadow"])         shadow             = conf["shadow"].as<bool>();
-  if (conf["verbose"])        verbose            = conf["verbose"].as<bool>();
-  if (conf["r0"])             r0                 = conf["r0"].as<double>();
-  if (conf["phase"])          phase              = conf["phase"].as<double>();
-  if (conf["omega"])          omega              = conf["omega"].as<double>();
-
-				// Set trajectory type
-  if (conf["trajtype"]) {
-    std::string val = conf["trajtype"].as<std::string>();
-    switch (atoi(val.c_str())) {
-    case circ:
-      traj_type = circ;
-      break;
-    case bound:
-      traj_type = bound;
-      break;
-    case unbound:
-      traj_type = unbound;
-      break;
-    case linear:
-      traj_type = linear;
-      break;
-    default:
-      if (myid==0) {
-	cerr << "UserSat: no such trjectory type="
-	     << val << endl;
-      }
+  try {
+    if (conf["comname"]) {
+      com_name = conf["comname"].as<std::string>();
+      pinning = true;
+    }
+    
+    if (conf["config"])         config             = conf["config"];
+    if (conf["core"])           core               = conf["core"].as<double>();
+    if (conf["mass"])           mass               = conf["mass"].as<double>();
+    if (conf["ton"])            ton                = conf["ton"].as<double>();
+    if (conf["toff"])           toff               = conf["toff"].as<double>();
+    if (conf["delta"])          delta              = conf["delta"].as<double>();
+    if (conf["toffset"])        toffset            = conf["toffset"].as<double>();
+    if (conf["orbit"])          orbit              = conf["orbit"].as<bool>();
+    if (conf["shadow"])         shadow             = conf["shadow"].as<bool>();
+    if (conf["verbose"])        verbose            = conf["verbose"].as<bool>();
+    if (conf["r0"])             r0                 = conf["r0"].as<double>();
+    if (conf["phase"])          phase              = conf["phase"].as<double>();
+    if (conf["omega"])          omega              = conf["omega"].as<double>();
+    
+    // Set trajectory type
+    if (conf["trajtype"]) {
+      std::string val = conf["trajtype"].as<std::string>();
+      switch (atoi(val.c_str())) {
+      case circ:
+	traj_type = circ;
+	break;
+      case bound:
+	traj_type = bound;
+	break;
+      case unbound:
+	traj_type = unbound;
+	break;
+      case linear:
+	traj_type = linear;
+	break;
+      default:
+	if (myid==0) {
+	  cerr << "UserSat: no such trjectory type="
+	       << val << endl;
+	}
 	MPI_Abort(MPI_COMM_WORLD, 36);
+      }
     }
   }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserSat: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+}  
 
-}
 
 void * UserSat::determine_acceleration_and_potential_thread(void * arg) 
 {
   double pos[3], rs[3], fac, ffac, phi;
   double satmass;
-				// Sanity check
+  // Sanity check
   int nbodies = cC->Number();
   if (nbodies != static_cast<int>(cC->Particles().size())) {
     cerr << "UserSat: ooops! number=" << nbodies
 	 << " but particle size=" << cC->Particles().size() << endl;
     nbodies = static_cast<int>(cC->Particles().size());
   }
-
+  
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;

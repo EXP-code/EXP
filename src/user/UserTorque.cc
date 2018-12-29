@@ -112,16 +112,25 @@ void UserTorque::userinfo()
 
 void UserTorque::initialize()
 {
-  if (conf["comname"])        com_name           = conf["comname"].as<string>();
-  if (conf["file_name"])      file_name          = conf["file_name"].as<string>();
-  if (conf["model_name"])     model_name         = conf["model_name"].as<string>();
-  if (conf["sgn"])            sgn                = conf["sgn"].as<int>()>0 ? 1 : -1;
-  if (conf["diverge"])        diverge            = conf["diverge"].as<int>();
-  if (conf["diverge_rfac"])   diverge_rfac       = conf["diverge_rfac"].as<double>();
-  if (conf["ton"])            ton                = conf["ton"].as<double>();
-  if (conf["toff"])           toff               = conf["toff"].as<double>();
-  if (conf["delta"])          delta              = conf["delta"].as<double>();
-  if (conf["boost"])          boost              = conf["boost"].as<double>();
+  try {
+    if (conf["comname"])        com_name           = conf["comname"].as<string>();
+    if (conf["file_name"])      file_name          = conf["file_name"].as<string>();
+    if (conf["model_name"])     model_name         = conf["model_name"].as<string>();
+    if (conf["sgn"])            sgn                = conf["sgn"].as<int>()>0 ? 1 : -1;
+    if (conf["diverge"])        diverge            = conf["diverge"].as<int>();
+    if (conf["diverge_rfac"])   diverge_rfac       = conf["diverge_rfac"].as<double>();
+    if (conf["ton"])            ton                = conf["ton"].as<double>();
+    if (conf["toff"])           toff               = conf["toff"].as<double>();
+    if (conf["delta"])          delta              = conf["delta"].as<double>();
+    if (conf["boost"])          boost              = conf["boost"].as<double>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserTorque: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+  
   
   ifstream in(file_name.c_str());
   if (in) {
@@ -134,9 +143,9 @@ void UserTorque::initialize()
     
     dX = (xmax - xmin)/numx;
     dY = (ymax - ymin)/numy;
-
+    
     float z;
-
+    
     for (int j=0; j<numy; j++) {
       fvector tmp;
       for (int i=0; i<numx; i++) {
@@ -145,11 +154,11 @@ void UserTorque::initialize()
       }
       array.push_back(tmp);
     }
-
+    
   } else {
     throw "UserTorque: could not open input file";
   }
-
+  
   halo = new SphericalModelTable(model_name, diverge, diverge_rfac);
   orb  = new SphericalOrbit(halo);
 }

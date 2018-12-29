@@ -16,24 +16,32 @@ OutPS::OutPS(const YAML::Node& conf) : Output(conf)
 
 void OutPS::initialize()
 {
-  string tmp;
+  try {
 				// Get file name
-  if (Output::conf["filename"]) {
-    filename = Output::conf["filename"].as<std::string>();
-  } else {
-    filename.erase();
-    filename = outdir + "OUT" + runtag;
+    if (Output::conf["filename"]) {
+      filename = Output::conf["filename"].as<std::string>();
+    } else {
+      filename.erase();
+      filename = outdir + "OUT" + runtag;
+    }
+
+    if (Output::conf["nint"])
+      nint = Output::conf["nint"].as<int>();
+    else
+      nint = 100;
+
+    if (Output::conf["timer"])
+      timer = Output::conf["timer"].as<bool>();
+    else
+      timer = false;
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in OutPS: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
   }
 
-  if (Output::conf["nint"])
-    nint = Output::conf["nint"].as<int>();
-  else
-    nint = 100;
-
-  if (Output::conf["timer"])
-    timer = Output::conf["timer"].as<bool>();
-  else
-    timer = false;
 }
 
 

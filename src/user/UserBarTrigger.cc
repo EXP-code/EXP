@@ -130,13 +130,21 @@ void UserBarTrigger::userinfo()
 
 void UserBarTrigger::initialize()
 {
-  if (conf["impact"])         impact             = conf["impact"].as<double>();
-  if (conf["theta"])          theta              = conf["theta"].as<double>();
-  if (conf["smass"])          smass              = conf["smass"].as<double>();
-  if (conf["svel"])           svel               = conf["svel"].as<double>();
-  if (conf["stime"])          stime              = conf["stime"].as<double>();
-  if (conf["lmax"])           lmax               = conf["lmax"].as<int>();
-  if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
+  try {
+    if (conf["impact"])   impact       = conf["impact"].as<double>();
+    if (conf["theta"])    theta        = conf["theta"].as<double>();
+    if (conf["smass"])    smass        = conf["smass"].as<double>();
+    if (conf["svel"])     svel         = conf["svel"].as<double>();
+    if (conf["stime"])    stime        = conf["stime"].as<double>();
+    if (conf["lmax"])     lmax         = conf["lmax"].as<int>();
+    if (conf["ctrname"])  ctr_name     = conf["ctrname"].as<string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserBarTrigger: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 

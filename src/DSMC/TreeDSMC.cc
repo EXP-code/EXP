@@ -607,118 +607,125 @@ std::pair<int, int> splitPair(const std::string &s, char delim)
 
 void TreeDSMC::initialize()
 {
-  if (conf["Lunit"])          Lunit              = conf["Lunit"].as<double>();
-  if (conf["Tunit"])          Tunit              = conf["Tunit"].as<double>();
-  if (conf["Munit"])          Munit              = conf["Munit"].as<double>();
-  if (conf["cnum"])           cnum               = conf["cnum"].as<int>();
-  if (conf["madj"])           madj               = conf["madj"].as<int>();
-  if (conf["epsm"])           epsm               = conf["epsm"].as<double>();
-  if (conf["hsdiam"])         hsdiam             = conf["hsdiam"].as<double>();
-  if (conf["crossfac"])       crossfac           = conf["crossfac"].as<double>();
-  if (conf["boxsize"])        boxsize            = conf["boxsize"].as<double>();
-  if (conf["boxratio"])       boxratio           = conf["boxratio"].as<double>();
-  if (conf["coolfrac"])       coolfrac           = conf["coolfrac"].as<double>();
-  if (conf["enhance"])        enhance            = conf["enhance"].as<double>();
-  if (conf["nsteps"])         nsteps             = conf["nsteps"].as<int>();
-  if (conf["msteps"])         msteps             = conf["msteps"].as<int>();
-  if (conf["ncell"])          ncell              = conf["ncell"].as<int>();
-  if (conf["Ncell"])          Ncell              = conf["Ncell"].as<int>();
-  if (conf["compname"])       comp_name          = conf["compname"].as<string>();
-  if (conf["specmap"])        spec_map           = conf["specmap"].as<string>();
-  if (conf["use_temp"])       use_temp           = conf["use_temp"].as<int>();
-  if (conf["use_dens"])       use_dens           = conf["use_dens"].as<int>();
-  if (conf["use_delt"])       use_delt           = conf["use_delt"].as<int>();
-  if (conf["use_Kn"])         use_Kn             = conf["use_Kn"].as<int>();
-  if (conf["use_St"])         use_St             = conf["use_St"].as<int>();
-  if (conf["use_vol"])        use_vol            = conf["use_vol"].as<int>();
-  if (conf["use_exes"])       use_exes           = conf["use_exes"].as<int>();
-  if (conf["use_Eint"])       use_Eint           = conf["use_Eint"].as<int>();
-  if (conf["frontier"])       frontier           = conf["frontier"].as<bool>();
-  if (conf["tspow"])          tspow              = conf["tspow"].as<int>();
-  if (conf["tsdiag"])         tsdiag             = conf["tsdiag"].as<bool>();
-  if (conf["voldiag"])        voldiag            = conf["voldiag"].as<bool>();
-  if (conf["mfpstat"])        mfpstat            = conf["mfpstat"].as<bool>();
-  if (conf["cbadiag"])        cbadiag            = conf["cbadiag"].as<bool>();
-  if (conf["dryrun"])         dryrun             = conf["dryrun"].as<bool>();
-  if (conf["nocool"])         nocool             = conf["nocool"].as<bool>();
-  if (conf["use_multi"])      use_multi          = conf["use_multi"].as<bool>();
-  if (conf["use_pullin"])     use_pullin         = conf["use_pullin"].as<bool>();
-  if (conf["use_effort"])     use_effort         = conf["use_effort"].as<bool>();
-  if (conf["esol"])           esol               = conf["esol"].as<bool>();
-  if (conf["cba"])            cba                = conf["cba"].as<bool>();
-  if (conf["ntc"])            ntc                = conf["ntc"].as<bool>();
-  if (conf["tube"])           tube               = conf["tube"].as<bool>();
-  if (conf["slab"])           slab               = conf["slab"].as<bool>();
-  if (conf["sub_sample"])     sub_sample         = conf["sub_sample"].as<bool>();
-  if (conf["treechk"])        treechk            = conf["treechk"].as<bool>();
-  if (conf["mpichk"])         mpichk             = conf["mpichk"].as<bool>();
-  if (conf["mfpts"])          mfpts              = conf["mfpts"].as<bool>();
-  if (conf["hybrid"])         hybrid             = conf["hybrid"].as<bool>();
-  if (conf["dumpHOT"])        dumpHOT            = conf["dumpHOT"].as<bool>();
-  if (conf["ageout"])         ageout             = conf["ageout"].as<int>();
+  try {
+    if (conf["Lunit"])          Lunit              = conf["Lunit"].as<double>();
+    if (conf["Tunit"])          Tunit              = conf["Tunit"].as<double>();
+    if (conf["Munit"])          Munit              = conf["Munit"].as<double>();
+    if (conf["cnum"])           cnum               = conf["cnum"].as<int>();
+    if (conf["madj"])           madj               = conf["madj"].as<int>();
+    if (conf["epsm"])           epsm               = conf["epsm"].as<double>();
+    if (conf["hsdiam"])         hsdiam             = conf["hsdiam"].as<double>();
+    if (conf["crossfac"])       crossfac           = conf["crossfac"].as<double>();
+    if (conf["boxsize"])        boxsize            = conf["boxsize"].as<double>();
+    if (conf["boxratio"])       boxratio           = conf["boxratio"].as<double>();
+    if (conf["coolfrac"])       coolfrac           = conf["coolfrac"].as<double>();
+    if (conf["enhance"])        enhance            = conf["enhance"].as<double>();
+    if (conf["nsteps"])         nsteps             = conf["nsteps"].as<int>();
+    if (conf["msteps"])         msteps             = conf["msteps"].as<int>();
+    if (conf["ncell"])          ncell              = conf["ncell"].as<int>();
+    if (conf["Ncell"])          Ncell              = conf["Ncell"].as<int>();
+    if (conf["compname"])       comp_name          = conf["compname"].as<string>();
+    if (conf["specmap"])        spec_map           = conf["specmap"].as<string>();
+    if (conf["use_temp"])       use_temp           = conf["use_temp"].as<int>();
+    if (conf["use_dens"])       use_dens           = conf["use_dens"].as<int>();
+    if (conf["use_delt"])       use_delt           = conf["use_delt"].as<int>();
+    if (conf["use_Kn"])         use_Kn             = conf["use_Kn"].as<int>();
+    if (conf["use_St"])         use_St             = conf["use_St"].as<int>();
+    if (conf["use_vol"])        use_vol            = conf["use_vol"].as<int>();
+    if (conf["use_exes"])       use_exes           = conf["use_exes"].as<int>();
+    if (conf["use_Eint"])       use_Eint           = conf["use_Eint"].as<int>();
+    if (conf["frontier"])       frontier           = conf["frontier"].as<bool>();
+    if (conf["tspow"])          tspow              = conf["tspow"].as<int>();
+    if (conf["tsdiag"])         tsdiag             = conf["tsdiag"].as<bool>();
+    if (conf["voldiag"])        voldiag            = conf["voldiag"].as<bool>();
+    if (conf["mfpstat"])        mfpstat            = conf["mfpstat"].as<bool>();
+    if (conf["cbadiag"])        cbadiag            = conf["cbadiag"].as<bool>();
+    if (conf["dryrun"])         dryrun             = conf["dryrun"].as<bool>();
+    if (conf["nocool"])         nocool             = conf["nocool"].as<bool>();
+    if (conf["use_multi"])      use_multi          = conf["use_multi"].as<bool>();
+    if (conf["use_pullin"])     use_pullin         = conf["use_pullin"].as<bool>();
+    if (conf["use_effort"])     use_effort         = conf["use_effort"].as<bool>();
+    if (conf["esol"])           esol               = conf["esol"].as<bool>();
+    if (conf["cba"])            cba                = conf["cba"].as<bool>();
+    if (conf["ntc"])            ntc                = conf["ntc"].as<bool>();
+    if (conf["tube"])           tube               = conf["tube"].as<bool>();
+    if (conf["slab"])           slab               = conf["slab"].as<bool>();
+    if (conf["sub_sample"])     sub_sample         = conf["sub_sample"].as<bool>();
+    if (conf["treechk"])        treechk            = conf["treechk"].as<bool>();
+    if (conf["mpichk"])         mpichk             = conf["mpichk"].as<bool>();
+    if (conf["mfpts"])          mfpts              = conf["mfpts"].as<bool>();
+    if (conf["hybrid"])         hybrid             = conf["hybrid"].as<bool>();
+    if (conf["dumpHOT"])        dumpHOT            = conf["dumpHOT"].as<bool>();
+    if (conf["ageout"])         ageout             = conf["ageout"].as<int>();
 
-  NTC::NTCdb::maxAge = ageout;
+    NTC::NTCdb::maxAge = ageout;
 
-  if (conf["ntc_chkpt"])      NTC::NTCdb::intvl  = conf["ntc_chkpt"].as<int>();
-  if (conf["ntc_verbose"])    NTC::NTCdb::chatty = conf["ntc_chkpt"].as<bool>();
+    if (conf["ntc_chkpt"])      NTC::NTCdb::intvl  = conf["ntc_chkpt"].as<int>();
+    if (conf["ntc_verbose"])    NTC::NTCdb::chatty = conf["ntc_chkpt"].as<bool>();
   
-  if (conf["rrtype"]) {
-    std::string val = conf["rrtype"].as<std::string>();
-    if (Ion::setRRtype(val)) {
-      std::ostringstream sout;
-      sout << "TreeDSMC: invalid rrtype <" << val << ">";
-      throw GenericError(sout.str(), __FILE__, __LINE__);
-    }
-  }
-  
-  if (conf["ctype"]) {
-    std::string val = conf["ctype"].as<std::string>();
-    if (check_ctype(val)) ctype = val;
-    else {
-      std::ostringstream sout;
-      sout << "TreeDSMC: invalid ctype <" << ctype << ">";
-      throw GenericError(sout.str(), __FILE__, __LINE__);
-    }
-  }
-  
-  // Look for array values in the parameter string of the form
-  // spc(1,2)=3.1, spc(3,4)=5.6, etc.
-  //
-  if (ctype.compare("LTE")==0) {
-    
-    for (YAML::const_iterator it=conf.begin(); it!=conf.end(); it++) {
-      std::string key = it->first.as<std::string>();
-
-      size_t pos = key.find("spc(");
-
-      if (pos == 0) {
-	size_t bpos = key.find("(");
-	size_t epos = key.find(")");
-	if (bpos != std::string::npos and epos != std::string::npos) {
-	  std::pair<int, int> pr = splitPair(key.substr(bpos+1, epos-bpos-1), ',');
-	  speciesKey p(pr.first, pr.second);
-	  collFrac[p] = it->second.as<double>();
-	}
-      } else {
-	collFrac[Particle::defaultKey] = 1.0;
+    if (conf["rrtype"]) {
+      std::string val = conf["rrtype"].as<std::string>();
+      if (Ion::setRRtype(val)) {
+	std::ostringstream sout;
+	sout << "TreeDSMC: invalid rrtype <" << val << ">";
+	throw GenericError(sout.str(), __FILE__, __LINE__);
       }
     }
-  }
+    
+    if (conf["ctype"]) {
+      std::string val = conf["ctype"].as<std::string>();
+      if (check_ctype(val)) ctype = val;
+      else {
+	std::ostringstream sout;
+	sout << "TreeDSMC: invalid ctype <" << ctype << ">";
+	throw GenericError(sout.str(), __FILE__, __LINE__);
+      }
+    }
   
-  // Ion method specific parameters
-  //
-  if (ctype.compare("Ion")==0) {
-    if (conf["equiptn"]) CollideIon::equiptn  = conf["equiptn"].as<bool>();
-    if (conf["scatter"]) CollideIon::scatter  = conf["scatter"].as<bool>();
-    if (conf["nodelC"])  CollideIon::NoDelC   = conf["nodelC"].as<int>();
-    if (conf["esnum"])   CollideIon::esNum    = conf["esnum"].as<int>();
-    if (conf["esthr"])   CollideIon::esThr    = conf["esthr"].as<double>();
-    if (conf["logL"])    CollideIon::logL     = conf["logL"].as<double>();
-    if (conf["config"])  CollideIon::config0  = conf["config"].as<string>();
-    if (conf["eEPSM"])   CollideIon::ElectronEPSM  = conf["eEPSM"].as<bool>();
-    if (conf["estype"])  CollideIon::setEStype(conf["estype"].as<std::string>());
+    // Look for array values in the parameter string of the form
+    // spc(1,2)=3.1, spc(3,4)=5.6, etc.
+    //
+    if (ctype.compare("LTE")==0) {
+    
+      for (YAML::const_iterator it=conf.begin(); it!=conf.end(); it++) {
+	std::string key = it->first.as<std::string>();
+	
+	size_t pos = key.find("spc(");
+	
+	if (pos == 0) {
+	  size_t bpos = key.find("(");
+	  size_t epos = key.find(")");
+	  if (bpos != std::string::npos and epos != std::string::npos) {
+	    std::pair<int, int> pr = splitPair(key.substr(bpos+1, epos-bpos-1), ',');
+	    speciesKey p(pr.first, pr.second);
+	    collFrac[p] = it->second.as<double>();
+	  }
+	} else {
+	  collFrac[Particle::defaultKey] = 1.0;
+	}
+      }
+    }
+    
+    // Ion method specific parameters
+    //
+    if (ctype.compare("Ion")==0) {
+      if (conf["equiptn"]) CollideIon::equiptn  = conf["equiptn"].as<bool>();
+      if (conf["scatter"]) CollideIon::scatter  = conf["scatter"].as<bool>();
+      if (conf["nodelC"])  CollideIon::NoDelC   = conf["nodelC"].as<int>();
+      if (conf["esnum"])   CollideIon::esNum    = conf["esnum"].as<int>();
+      if (conf["esthr"])   CollideIon::esThr    = conf["esthr"].as<double>();
+      if (conf["logL"])    CollideIon::logL     = conf["logL"].as<double>();
+      if (conf["config"])  CollideIon::config0  = conf["config"].as<string>();
+      if (conf["eEPSM"])   CollideIon::ElectronEPSM  = conf["eEPSM"].as<bool>();
+      if (conf["estype"])  CollideIon::setEStype(conf["estype"].as<std::string>());
+    }
   }
-  
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in TreeDSMC: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 

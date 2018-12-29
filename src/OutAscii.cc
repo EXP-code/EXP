@@ -43,20 +43,25 @@ OutAscii::OutAscii(const YAML::Node& conf) : Output(conf)
 
 void OutAscii::initialize()
 {
-  string tmp;
-
-  if (Output::conf["nint"])    nint  = Output::conf["nint"].as<int>();
-  if (Output::conf["nbeg"])    nbeg  = Output::conf["nbeg"].as<int>();
-  if (Output::conf["name"])    name  = Output::conf["name"].as<std::string>();
-  if (Output::conf["accel"])   accel = Output::conf["name"].as<bool>();
-
-  if (Output::conf["filename"])
-    filename = Output::conf["filename"].as<std::string>();
-  else {
-    filename.erase();
-    filename = outdir + "OUTASC." + runtag;
+  try {
+    if (Output::conf["nint"])    nint  = Output::conf["nint"].as<int>();
+    if (Output::conf["nbeg"])    nbeg  = Output::conf["nbeg"].as<int>();
+    if (Output::conf["name"])    name  = Output::conf["name"].as<std::string>();
+    if (Output::conf["accel"])   accel = Output::conf["name"].as<bool>();
+    
+    if (Output::conf["filename"])
+      filename = Output::conf["filename"].as<std::string>();
+    else {
+      filename.erase();
+      filename = outdir + "OUTASC." + runtag;
+    }
   }
-
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in OutAscii: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 				// Determine last file
 
   if (restart && nbeg==0 && myid==0) {

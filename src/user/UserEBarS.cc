@@ -197,35 +197,43 @@ void UserEBarS::userinfo()
 
 void UserEBarS::initialize()
 {
-  if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
-  if (conf["tblname"])        table_name         = conf["tblname"].as<string>();
-  if (conf["length"])         length             = conf["length"].as<double>();
-  if (conf["bratio"])         bratio             = conf["bratio"].as<double>();
-  if (conf["cratio"])         cratio             = conf["cratio"].as<double>();
-  if (conf["amp"])            amplitude          = conf["amp"].as<double>();
-  if (conf["angmomfac"])      angmomfac          = conf["angmomfac"].as<double>();
-  if (conf["barmass"])        barmass            = conf["barmass"].as<double>();
-  if (conf["Ton"])            Ton                = conf["Ton"].as<double>();
-  if (conf["Toff"])           Toff               = conf["Toff"].as<double>();
-  if (conf["TmonoOn"])        TmonoOn            = conf["TmonoOn"].as<double>();
-  if (conf["TmonoOff"])       TmonoOff           = conf["TmonoOff"].as<double>();
-  if (conf["DeltaT"])         DeltaT             = conf["DeltaT"].as<double>();
-  if (conf["DeltaMonoT"])     DeltaMonoT         = conf["DeltaMonoT"].as<double>();
-  if (conf["DOmega"])         DOmega             = conf["DOmega"].as<double>();
-  if (conf["tom0"])           tom0               = conf["tom0"].as<double>();
-  if (conf["dtom"])           dtom               = conf["dtom"].as<double>();
-  if (conf["T0"])             T0                 = conf["T0"].as<double>();
-  if (conf["Fcorot"])         Fcorot             = conf["Fcorot"].as<double>();
-  if (conf["omega"])          omega0             = conf["omega"].as<double>();
-  if (conf["fixed"])          fixed              = conf["fixed"].as<bool>();
-  if (conf["self"])           fixed              = conf["self"].as<bool>();
-  if (conf["soft"])           soft               = conf["soft"].as<bool>();
-  if (conf["monopole"])       monopole           = conf["monopole"].as<bool>();
-  if (conf["follow"])         monopole_follow    = conf["follow"].as<bool>();
-  if (conf["onoff"])          monopole_onoff     = conf["onoff"].as<bool>();
-  if (conf["monofrac"])       monopole_frac      = conf["monofrac"].as<double>();
-  if (conf["quadfrac"])       quadrupole_frac    = conf["quadfrac"].as<double>();
-  if (conf["filename"])       filename           = conf["filename"].as<string>();
+  try {
+    if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
+    if (conf["tblname"])        table_name         = conf["tblname"].as<string>();
+    if (conf["length"])         length             = conf["length"].as<double>();
+    if (conf["bratio"])         bratio             = conf["bratio"].as<double>();
+    if (conf["cratio"])         cratio             = conf["cratio"].as<double>();
+    if (conf["amp"])            amplitude          = conf["amp"].as<double>();
+    if (conf["angmomfac"])      angmomfac          = conf["angmomfac"].as<double>();
+    if (conf["barmass"])        barmass            = conf["barmass"].as<double>();
+    if (conf["Ton"])            Ton                = conf["Ton"].as<double>();
+    if (conf["Toff"])           Toff               = conf["Toff"].as<double>();
+    if (conf["TmonoOn"])        TmonoOn            = conf["TmonoOn"].as<double>();
+    if (conf["TmonoOff"])       TmonoOff           = conf["TmonoOff"].as<double>();
+    if (conf["DeltaT"])         DeltaT             = conf["DeltaT"].as<double>();
+    if (conf["DeltaMonoT"])     DeltaMonoT         = conf["DeltaMonoT"].as<double>();
+    if (conf["DOmega"])         DOmega             = conf["DOmega"].as<double>();
+    if (conf["tom0"])           tom0               = conf["tom0"].as<double>();
+    if (conf["dtom"])           dtom               = conf["dtom"].as<double>();
+    if (conf["T0"])             T0                 = conf["T0"].as<double>();
+    if (conf["Fcorot"])         Fcorot             = conf["Fcorot"].as<double>();
+    if (conf["omega"])          omega0             = conf["omega"].as<double>();
+    if (conf["fixed"])          fixed              = conf["fixed"].as<bool>();
+    if (conf["self"])           fixed              = conf["self"].as<bool>();
+    if (conf["soft"])           soft               = conf["soft"].as<bool>();
+    if (conf["monopole"])       monopole           = conf["monopole"].as<bool>();
+    if (conf["follow"])         monopole_follow    = conf["follow"].as<bool>();
+    if (conf["onoff"])          monopole_onoff     = conf["onoff"].as<bool>();
+    if (conf["monofrac"])       monopole_frac      = conf["monofrac"].as<double>();
+    if (conf["quadfrac"])       quadrupole_frac    = conf["quadfrac"].as<double>();
+    if (conf["filename"])       filename           = conf["filename"].as<string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserEBarS: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 

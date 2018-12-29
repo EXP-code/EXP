@@ -37,33 +37,42 @@ OutDiag::OutDiag(const YAML::Node& conf) : Output(conf)
 
 void OutDiag::initialize()
 {
+  try {
 				// Get file name
-  if (Output::conf["filename"])
-    filename = Output::conf["filename"].as<std::string>();
-  else {
-    filename.erase();
-    filename = "ORBDIAG." + runtag;
+    if (Output::conf["filename"])
+      filename = Output::conf["filename"].as<std::string>();
+    else {
+      filename.erase();
+      filename = "ORBDIAG." + runtag;
+    }
+
+    if (Output::conf["nint"])
+      nint = Output::conf["nint"].as<int>();
+    else
+      nint = 1;
+
+    if (Output::conf["RMIN"])
+      RMIN = Output::conf["RMIN"].as<double>();
+
+    if (Output::conf["RMAX"])
+      RMAX = Output::conf["RMAX"].as<double>();
+
+    if (Output::conf["THETA"])
+      THETA = Output::conf["THETA"].as<double>();
+    
+    if (Output::conf["PHI"])
+      PHI = Output::conf["PHI"].as<double>();
+    
+    if (Output::conf["NUM"])
+      NUM = Output::conf["NUM"].as<int>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in OutDiag: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
   }
 
-  if (Output::conf["nint"])
-    nint = Output::conf["nint"].as<int>();
-  else
-    nint = 1;
-
-  if (Output::conf["RMIN"])
-    RMIN = Output::conf["RMIN"].as<double>();
-
-  if (Output::conf["RMAX"])
-    RMAX = Output::conf["RMAX"].as<double>();
-
-  if (Output::conf["THETA"])
-    THETA = Output::conf["THETA"].as<double>();
-
-  if (Output::conf["PHI"])
-    PHI = Output::conf["PHI"].as<double>();
-
-  if (Output::conf["NUM"])
-    NUM = Output::conf["NUM"].as<int>();
 }
 
 

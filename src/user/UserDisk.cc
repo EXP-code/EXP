@@ -92,19 +92,27 @@ void UserDisk::userinfo()
 
 void UserDisk::initialize()
 {
-  if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
-  if (conf["a"])              a                  = conf["a"].as<double>();
-  if (conf["mass"])           mass               = conf["mass"].as<double>();
-  if (conf["Ton"])            Ton                = conf["Ton"].as<double>();
-  if (conf["Toff"])           Toff               = conf["Toff"].as<double>();
-  if (conf["DeltaT"])         DeltaT             = conf["DeltaT"].as<double>();
+  try {
+    if (conf["ctrname"])   ctr_name    = conf["ctrname"].as<string>();
+    if (conf["a"])         a           = conf["a"].as<double>();
+    if (conf["mass"])      mass        = conf["mass"].as<double>();
+    if (conf["Ton"])       Ton         = conf["Ton"].as<double>();
+    if (conf["Toff"])      Toff        = conf["Toff"].as<double>();
+    if (conf["DeltaT"])    DeltaT      = conf["DeltaT"].as<double>();
 
-  if (conf["Nscale"])         Nscale             = conf["Nscale"].as<double>();
-  if (conf["Ngrid"])          Ngrid              = conf["Ngrid"].as<int>();
-  if (conf["Nint"])           Nint               = conf["Nint"].as<int>();
+    if (conf["Nscale"])    Nscale      = conf["Nscale"].as<double>();
+    if (conf["Ngrid"])     Ngrid       = conf["Ngrid"].as<int>();
+    if (conf["Nint"])      Nint        = conf["Nint"].as<int>();
 
-  if (conf["debug"])          debug              = conf["debug"].as<bool>();
-  if (conf["dfac"])           dfac               = conf["dfac"].as<double>();
+    if (conf["debug"])     debug       = conf["debug"].as<bool>();
+    if (conf["dfac"])      dfac        = conf["dfac"].as<double>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserDisk: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 

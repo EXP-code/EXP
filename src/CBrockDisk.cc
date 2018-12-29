@@ -105,11 +105,20 @@ CBrockDisk::CBrockDisk(const YAML::Node& conf, MixtureBasis* m) :  AxisymmetricB
 
 void CBrockDisk::initialize(void)
 {
-  if (conf["rmax"])            rmax   = conf["rmax"].as<double>();
-  if (conf["scale"])           scale  = conf["scale"].as<double>();
-  if (conf["Lmax"])            Lmax   = conf["Lmax"].as<int>();
-  if (conf["nmax"])            nmax   = conf["nmax"].as<int>();
-  if (conf["self_consistent"]) self_consistent = conf["self_consistent"].as<bool>();
+  try {
+    if (conf["rmax"])            rmax   = conf["rmax"].as<double>();
+    if (conf["scale"])           scale  = conf["scale"].as<double>();
+    if (conf["Lmax"])            Lmax   = conf["Lmax"].as<int>();
+    if (conf["nmax"])            nmax   = conf["nmax"].as<int>();
+    if (conf["self_consistent"]) self_consistent = conf["self_consistent"].as<bool>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in CBrockDisk: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+
 }
 
 CBrockDisk::~CBrockDisk(void)

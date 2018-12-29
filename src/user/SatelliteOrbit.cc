@@ -91,23 +91,31 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
 
   // Get configured values
   //
-  if (conf["HALO_MODEL"])  HALO_MODEL   = conf["HALO_MODEL"].as<int>();
-  if (conf["PERI"      ])  PERI         = conf["PERI"      ].as<double>();
-  if (conf["APO"       ])  APO          = conf["APO"       ].as<double>();
-  if (conf["RSAT"      ])  RSAT         = conf["RSAT"      ].as<double>();
-  if (conf["INCLINE"   ])  INCLINE      = conf["INCLINE"   ].as<double>();
-  if (conf["PSI"       ])  PSI          = conf["PSI"       ].as<double>();
-  if (conf["PHIP"      ])  PHIP         = conf["PHIP"      ].as<double>();
-  if (conf["VROT"      ])  VROT         = conf["VROT"      ].as<double>();
-  if (conf["RCORE"     ])  VROT         = conf["RCORE"     ].as<double>();
-  if (conf["RMODMIN"   ])  RMODMIN      = conf["RMODMIN"   ].as<double>();
-  if (conf["RMODMAX"   ])  RMODMAX      = conf["RMODMAX"   ].as<double>();
-  if (conf["RA"        ])  RA           = conf["RA"        ].as<double>();
-  if (conf["DIVERGE"   ])  DIVERGE      = conf["DIVERGE"   ].as<int>();
-  if (conf["MAXIT"     ])  MAXIT        = conf["MAXIT"     ].as<int>();
-  if (conf["DIVRG_RFAC"])  DIVRG_RFAC   = conf["DIVRG_RFAC"].as<double>();
-  if (conf["CIRCULAR"  ])  CIRCULAR     = conf["CIRCULAR"  ].as<bool>();
-  if (conf["MODFILE"   ])  MODFILE      = conf["MODFILE"   ].as<std::string>();
+  try {
+    if (conf["HALO_MODEL"])  HALO_MODEL   = conf["HALO_MODEL"].as<int>();
+    if (conf["PERI"      ])  PERI         = conf["PERI"      ].as<double>();
+    if (conf["APO"       ])  APO          = conf["APO"       ].as<double>();
+    if (conf["RSAT"      ])  RSAT         = conf["RSAT"      ].as<double>();
+    if (conf["INCLINE"   ])  INCLINE      = conf["INCLINE"   ].as<double>();
+    if (conf["PSI"       ])  PSI          = conf["PSI"       ].as<double>();
+    if (conf["PHIP"      ])  PHIP         = conf["PHIP"      ].as<double>();
+    if (conf["VROT"      ])  VROT         = conf["VROT"      ].as<double>();
+    if (conf["RCORE"     ])  VROT         = conf["RCORE"     ].as<double>();
+    if (conf["RMODMIN"   ])  RMODMIN      = conf["RMODMIN"   ].as<double>();
+    if (conf["RMODMAX"   ])  RMODMAX      = conf["RMODMAX"   ].as<double>();
+    if (conf["RA"        ])  RA           = conf["RA"        ].as<double>();
+    if (conf["DIVERGE"   ])  DIVERGE      = conf["DIVERGE"   ].as<int>();
+    if (conf["MAXIT"     ])  MAXIT        = conf["MAXIT"     ].as<int>();
+    if (conf["DIVRG_RFAC"])  DIVRG_RFAC   = conf["DIVRG_RFAC"].as<double>();
+    if (conf["CIRCULAR"  ])  CIRCULAR     = conf["CIRCULAR"  ].as<bool>();
+    if (conf["MODFILE"   ])  MODFILE      = conf["MODFILE"   ].as<std::string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in SatelliteOrbit: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
 				// Initilize HALO model
   switch (HALO_MODEL) {

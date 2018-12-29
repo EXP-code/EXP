@@ -153,51 +153,55 @@ void UserWake::userinfo()
 
 void UserWake::initialize()
 {
-  string val;
-
-
-  for (numComp=0; numComp<1000; numComp++) {
-    ostringstream count;
-    count << "C(" << numComp+1 << ")";
-    if (conf[count.str()])
-      C.push_back(conf[count.str()].as<std::string>());
-    else break;
+  try {
+    for (numComp=0; numComp<1000; numComp++) {
+      ostringstream count;
+      count << "C(" << numComp+1 << ")";
+      if (conf[count.str()])
+	C.push_back(conf[count.str()].as<std::string>());
+      else break;
+    }
+    
+    if (numComp != (int)C.size()) {
+      cerr << "UserWake: error parsing component names, "
+	   << "  Size(C)=" << C.size()
+	   << "  numRes=" << numComp << endl;
+      MPI_Abort(MPI_COMM_WORLD, 122);
+    }
+    
+    if (conf["filename"])       filename           = conf["filename"].as<string>();
+    if (conf["NUMX"])           NUMX               = conf["NUMX"].as<int>();
+    if (conf["NUMY"])           NUMY               = conf["NUMY"].as<int>();
+    if (conf["XMIN"])           XMIN               = conf["XMIN"].as<double>();
+    if (conf["XMAX"])           XMAX               = conf["XMAX"].as<double>();
+    if (conf["YMIN"])           YMIN               = conf["YMIN"].as<double>();
+    if (conf["YMAX"])           YMAX               = conf["YMAX"].as<double>();
+    if (conf["PHI"])            PHI                = conf["PHI"].as<double>();
+    if (conf["THETA"])          THETA              = conf["THETA"].as<double>();
+    if (conf["PSI"])            PSI                = conf["PSI"].as<double>();
+    if (conf["NSTEP"])          NSTEP              = conf["NSTEP"].as<int>();
   }
-
-  if (numComp != (int)C.size()) {
-    cerr << "UserWake: error parsing component names, "
-	 << "  Size(C)=" << C.size()
-	 << "  numRes=" << numComp << endl;
-    MPI_Abort(MPI_COMM_WORLD, 122);
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserWake: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
   }
-
-  if (conf["filename"])       filename           = conf["filename"].as<string>();
-  if (conf["NUMX"])           NUMX               = conf["NUMX"].as<int>();
-  if (conf["NUMY"])           NUMY               = conf["NUMY"].as<int>();
-  if (conf["XMIN"])           XMIN               = conf["XMIN"].as<double>();
-  if (conf["XMAX"])           XMAX               = conf["XMAX"].as<double>();
-  if (conf["YMIN"])           YMIN               = conf["YMIN"].as<double>();
-  if (conf["YMAX"])           YMAX               = conf["YMAX"].as<double>();
-  if (conf["PHI"])            PHI                = conf["PHI"].as<double>();
-  if (conf["THETA"])          THETA              = conf["THETA"].as<double>();
-  if (conf["PSI"])            PSI                = conf["PSI"].as<double>();
-  if (conf["NSTEP"])          NSTEP              = conf["NSTEP"].as<int>();
-}
-
+}  
 
 void UserWake::determine_acceleration_and_potential(void)
 {
-
+  
   if (first) {
-
+    
     count = 0;
     nlast = this_step;
     nnext = this_step;
-
+    
     if (restart) {
-
+      
       if (myid == 0) {
-
+	
 	for (count=0; count<10000; count++) {
 	  ostringstream ostr;
 	  ostr << outdir << runtag << "." << filename << "." 
@@ -208,10 +212,10 @@ void UserWake::determine_acceleration_and_potential(void)
 	  if (!in) break;
 	}
       }
-
+      
       if (myid==0) 
 	cout << "UserWake: beginning at frame=" << count << endl;
-
+      
       MPI_Bcast(&count, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	
     }

@@ -37,13 +37,22 @@ OutRelaxation::OutRelaxation(const YAML::Node& conf) : Output(conf)
 
 void OutRelaxation::initialize()
 {
+  try {
 				// Get file name
-  if (conf["suffix"])
-    suffix = conf["suffix"].as<std::string>();
-  else
-    suffix = "out";
+    if (conf["suffix"])
+      suffix = conf["suffix"].as<std::string>();
+    else
+      suffix = "out";
 
-  if (conf["epos"]) epos = conf["epos"].as<int>();
+    if (conf["epos"]) epos = conf["epos"].as<int>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in OutRelaxation: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+
 }
 
 void OutRelaxation::Run(int n, bool final)

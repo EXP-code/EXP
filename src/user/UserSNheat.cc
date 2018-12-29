@@ -216,33 +216,40 @@ void UserSNheat::userinfo()
 
 void UserSNheat::initialize()
 {
-  if (conf["compname"])       comp_name          = conf["compname"].as<string>();
-  if (conf["verbose"])        verbose            = conf["verbose"].as<int>();
-
-  if (conf["X"])              origin[0]          = conf["X"].as<double>();
-  if (conf["Y"])              origin[1]          = conf["Y"].as<double>();
-  if (conf["Z"])              origin[2]          = conf["Z"].as<double>();
-
-  if (conf["dT"])             dT                 = conf["dT"].as<double>();
-  if (conf["dE"])             dE                 = conf["dE"].as<double>();
-  if (conf["radius"])         radius             = conf["radius"].as<double>();
-  if (conf["delay"])          delay              = conf["delay"].as<double>();
-  if (conf["number"])         N                  = conf["number"].as<int>();
-
-  if (conf["Lunit"])          Lunit              = conf["Lunit"].as<double>();
-  if (conf["Tunit"])          Tunit              = conf["Tunit"].as<double>();
-  if (conf["Munit"])          Munit              = conf["Munit"].as<double>();
-}
-
+  try {
+    if (conf["compname"])       comp_name          = conf["compname"].as<string>();
+    if (conf["verbose"])        verbose            = conf["verbose"].as<int>();
+    
+    if (conf["X"])              origin[0]          = conf["X"].as<double>();
+    if (conf["Y"])              origin[1]          = conf["Y"].as<double>();
+    if (conf["Z"])              origin[2]          = conf["Z"].as<double>();
+    
+    if (conf["dT"])             dT                 = conf["dT"].as<double>();
+    if (conf["dE"])             dE                 = conf["dE"].as<double>();
+    if (conf["radius"])         radius             = conf["radius"].as<double>();
+    if (conf["delay"])          delay              = conf["delay"].as<double>();
+    if (conf["number"])         N                  = conf["number"].as<int>();
+    
+    if (conf["Lunit"])          Lunit              = conf["Lunit"].as<double>();
+    if (conf["Tunit"])          Tunit              = conf["Tunit"].as<double>();
+    if (conf["Munit"])          Munit              = conf["Munit"].as<double>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserSNheat: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+}  
 
 void UserSNheat::determine_acceleration_and_potential(void)
 {
   if (cC != c0)     return;
   if (tnow < delay) return;
   if (ncount > N)   return;
-
+  
   if (!firstime) {
-
+    
     if (myid==0) {
       nSN = arrivalTime(tnow - tlast);
       if (nSN) {

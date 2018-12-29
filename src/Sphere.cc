@@ -39,14 +39,22 @@ Sphere::Sphere(const YAML::Node& conf, MixtureBasis* m) : SphericalBasis(conf, m
 
 void Sphere::initialize()
 {
-  if (conf["rmin"])      rmin       = conf["rmin"].as<double>();
-  if (conf["rs"])        rs         = conf["rs"].as<double>();
-  if (conf["numr"])      numr       = conf["numr"].as<int>();
-  if (conf["cmap"])      cmap       = conf["cmap"].as<int>();
-  if (conf["diverge"])   diverge    = conf["diverge"].as<int>();
-  if (conf["dfac"])      dfac       = conf["dfac"].as<double>();
-  if (conf["modelname"]) model_file = conf["modelname"].as<std::string>();
-  if (conf["cachename"]) cache_file = conf["cachename"].as<std::string>();
+  try {
+    if (conf["rmin"])      rmin       = conf["rmin"].as<double>();
+    if (conf["rs"])        rs         = conf["rs"].as<double>();
+    if (conf["numr"])      numr       = conf["numr"].as<int>();
+    if (conf["cmap"])      cmap       = conf["cmap"].as<int>();
+    if (conf["diverge"])   diverge    = conf["diverge"].as<int>();
+    if (conf["dfac"])      dfac       = conf["dfac"].as<double>();
+    if (conf["modelname"]) model_file = conf["modelname"].as<std::string>();
+    if (conf["cachename"]) cache_file = conf["cachename"].as<std::string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in Sphere: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 Sphere::~Sphere(void)

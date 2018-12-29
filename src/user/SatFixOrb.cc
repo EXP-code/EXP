@@ -77,11 +77,19 @@ void SatFixOrb::userinfo()
 
 void SatFixOrb::initialize()
 {
-  if (conf["compname"])       comp_nam           = conf["compname"].as<string>();
-  if (conf["config"])         config             = conf["config"].as<string>();
-  if (conf["toffset"])        toffset            = conf["toffset"].as<double>();
-  if (conf["verbose"])        verbose            = conf["verbose"].as<bool>();
-  if (conf["debug"])          debug              = conf["debug"].as<bool>();
+  try {
+    if (conf["compname"])       comp_nam           = conf["compname"].as<string>();
+    if (conf["config"])         config             = conf["config"].as<string>();
+    if (conf["toffset"])        toffset            = conf["toffset"].as<double>();
+    if (conf["verbose"])        verbose            = conf["verbose"].as<bool>();
+    if (conf["debug"])          debug              = conf["debug"].as<bool>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in SatFixOrb: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 void SatFixOrb::get_acceleration_and_potential(Component* C)

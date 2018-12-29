@@ -77,8 +77,16 @@ TwoCenter::TwoCenter(const YAML::Node& conf) : PotAccel(conf)
 
 void TwoCenter::initialize()
 {
-  if (conf["nhisto"])         nhisto             = conf["nhisto"].as<int>();
-  if (conf["basis"])          basis              = conf["basis"].as<string>();
+  try {
+    if (conf["nhisto"])         nhisto     = conf["nhisto"].as<int>();
+    if (conf["basis"])          basis      = conf["basis"].as<string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in TwoCenter: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 TwoCenter::~TwoCenter(void)

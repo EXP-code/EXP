@@ -72,13 +72,21 @@ LinearOrbit::LinearOrbit(const YAML::Node& conf)
   double THETA = 0.0;
   double PSI   = 0.0;
 
-  if (conf["X0"])      X0      = conf["X0"   ].as<double>();
-  if (conf["Y0"])      Y0      = conf["Y0"   ].as<double>();
-  if (conf["Z0"])      Z0      = conf["Z0"   ].as<double>();
-  if (conf["Vsat"])    Vsat    = conf["Vsat" ].as<double>();
-  if (conf["THETA"])   THETA   = conf["THETA"].as<double>() * M_PI/180.0;
-  if (conf["PSI"])     PSI     = conf["PSI"  ].as<double>() * M_PI/180.0;
-  if (conf["PHIP"])    PHIP    = conf["PHIP" ].as<double>() * M_PI/180.0;
+  try {
+    if (conf["X0"])      X0      = conf["X0"   ].as<double>();
+    if (conf["Y0"])      Y0      = conf["Y0"   ].as<double>();
+    if (conf["Z0"])      Z0      = conf["Z0"   ].as<double>();
+    if (conf["Vsat"])    Vsat    = conf["Vsat" ].as<double>();
+    if (conf["THETA"])   THETA   = conf["THETA"].as<double>() * M_PI/180.0;
+    if (conf["PSI"])     PSI     = conf["PSI"  ].as<double>() * M_PI/180.0;
+    if (conf["PHIP"])    PHIP    = conf["PHIP" ].as<double>() * M_PI/180.0;
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in LinearOrbit: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
   rotate = return_euler_slater(PHIP, THETA, PSI, 1);
 

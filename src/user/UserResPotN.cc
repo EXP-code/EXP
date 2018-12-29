@@ -265,86 +265,94 @@ void UserResPotN::userinfo()
 
 void UserResPotN::initialize()
 {
-  if (conf["LMAX"])           LMAX               = conf["LMAX"].as<int>();
-  if (conf["NMAX"])           NMAX               = conf["NMAX"].as<int>();
-  if (conf["NUMR"])           NUMR               = conf["NUMR"].as<int>();
-
-  if (conf["L0"])             L0                 = conf["L0"].as<int>();
-  if (conf["M0"])             M0                 = conf["M0"].as<int>();
-
-  for (numRes=0; numRes<1000; numRes++) {
-    ostringstream countl1, countl2;
-    countl1 << "L1(" << numRes+1 << ")";
-    countl2 << "L2(" << numRes+1 << ")";
-    if (conf[countl1.str()]) {
-      L1.push_back(conf[countl1.str()].as<int>());
-      if (conf[countl2.str()])
-	L2.push_back(conf[countl2.str()].as<int>());
-      else break;
-    } else break;
-  }
-
-  if (L1.size() != L2.size() || numRes != (int)L1.size()) {
-    cerr << "UserResPotN: error parsing resonances, "
-	 << "  Size(L1)=" << L1.size() << "  Size(L2)=" << L2.size() 
-	 << "  numRes=" << numRes << endl;
-    MPI_Abort(MPI_COMM_WORLD, 119);
-  }
-
-  if (conf["Klim"])           Klim               = conf["Klim"].as<double>();
-  if (conf["scale"])          scale              = conf["scale"].as<double>();
-  if (conf["drfac"])          drfac              = conf["drfac"].as<double>();
-
-  if (conf["ton"])            ton                = conf["ton"].as<double>();
-  if (conf["toff"])           toff               = conf["toff"].as<double>();
-  if (conf["delta"])          delta              = conf["delta"].as<double>();
-  if (conf["toffset"])        toffset            = conf["toffset"].as<double>();
-  if (conf["phase0"])         phase0             = conf["phase0"].as<double>();
-
-  if (conf["MASS"])           MASS               = conf["MASS"].as<double>();
-  if (conf["MFRAC"])          MFRAC              = conf["MFRAC"].as<double>();
-  if (conf["LENGTH"])         LENGTH             = conf["LENGTH"].as<double>();
-  if (conf["AMP"])            AMP                = conf["AMP"].as<double>();
-  if (conf["COROT"])          COROT              = conf["COROT"].as<double>();
-  if (conf["A21"])            A21                = conf["A21"].as<double>();
-  if (conf["A32"])            A32                = conf["A32"].as<double>();
-
-  if (conf["NUMX"])           NUMX               = conf["NUMX"].as<int>();
-  if (conf["NUME"])           NUME               = conf["NUME"].as<int>();
-  if (conf["RECS"])           RECS               = conf["RECS"].as<int>();
-  if (conf["ITMAX"])          ITMAX              = conf["ITMAX"].as<int>();
-  if (conf["DELE"])           DELE               = conf["DELE"].as<double>();
-  if (conf["DELK"])           DELK               = conf["DELK"].as<double>();
-  if (conf["DELB"])           DELB               = conf["DELB"].as<double>();
-  if (conf["ALPHA"])          ALPHA              = conf["ALPHA"].as<double>();
-
-  if (conf["self"])           self               = conf["self"].as<int>();
-  if (conf["omega"])          omega              = conf["omega"].as<double>();
-  if (conf["domega"])         domega             = conf["domega"].as<double>();
-  if (conf["tom0"])           tom0               = conf["tom0"].as<double>();
-  if (conf["dtom"])           dtom               = conf["dtom"].as<double>();
-
-  if (conf["pmass"])          pmass              = conf["pmass"].as<double>();
-
-
-  if (conf["model"])          model_file         = conf["model"].as<string>();
-  if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
-  if (conf["filename"])       filename           = conf["filename"].as<string>();
-  if (conf["fileomega"])      fileomega          = conf["fileomega"].as<string>();
-  if (conf["debug"])          debug              = conf["debug"].as<bool>();
-  if (conf["usetag"])         usetag             = conf["usetag"].as<int>();
-
-  if (conf["usebar"])   
-    {
-      usebar = conf["usebar"].as<bool>();
-      useorb = !usebar;
+  try {
+    if (conf["LMAX"])           LMAX               = conf["LMAX"].as<int>();
+    if (conf["NMAX"])           NMAX               = conf["NMAX"].as<int>();
+    if (conf["NUMR"])           NUMR               = conf["NUMR"].as<int>();
+    
+    if (conf["L0"])             L0                 = conf["L0"].as<int>();
+    if (conf["M0"])             M0                 = conf["M0"].as<int>();
+    
+    for (numRes=0; numRes<1000; numRes++) {
+      ostringstream countl1, countl2;
+      countl1 << "L1(" << numRes+1 << ")";
+      countl2 << "L2(" << numRes+1 << ")";
+      if (conf[countl1.str()]) {
+	L1.push_back(conf[countl1.str()].as<int>());
+	if (conf[countl2.str()])
+	  L2.push_back(conf[countl2.str()].as<int>());
+	else break;
+      } else break;
     }
-
-  if (conf["useorb"])
-    {
-      useorb = conf["useorb"].as<bool>();
-      usebar = !useorb;
+    
+    if (L1.size() != L2.size() || numRes != (int)L1.size()) {
+      cerr << "UserResPotN: error parsing resonances, "
+	   << "  Size(L1)=" << L1.size() << "  Size(L2)=" << L2.size() 
+	   << "  numRes=" << numRes << endl;
+      MPI_Abort(MPI_COMM_WORLD, 119);
     }
+    
+    if (conf["Klim"])           Klim               = conf["Klim"].as<double>();
+    if (conf["scale"])          scale              = conf["scale"].as<double>();
+    if (conf["drfac"])          drfac              = conf["drfac"].as<double>();
+    
+    if (conf["ton"])            ton                = conf["ton"].as<double>();
+    if (conf["toff"])           toff               = conf["toff"].as<double>();
+    if (conf["delta"])          delta              = conf["delta"].as<double>();
+    if (conf["toffset"])        toffset            = conf["toffset"].as<double>();
+    if (conf["phase0"])         phase0             = conf["phase0"].as<double>();
+    
+    if (conf["MASS"])           MASS               = conf["MASS"].as<double>();
+    if (conf["MFRAC"])          MFRAC              = conf["MFRAC"].as<double>();
+    if (conf["LENGTH"])         LENGTH             = conf["LENGTH"].as<double>();
+    if (conf["AMP"])            AMP                = conf["AMP"].as<double>();
+    if (conf["COROT"])          COROT              = conf["COROT"].as<double>();
+    if (conf["A21"])            A21                = conf["A21"].as<double>();
+    if (conf["A32"])            A32                = conf["A32"].as<double>();
+    
+    if (conf["NUMX"])           NUMX               = conf["NUMX"].as<int>();
+    if (conf["NUME"])           NUME               = conf["NUME"].as<int>();
+    if (conf["RECS"])           RECS               = conf["RECS"].as<int>();
+    if (conf["ITMAX"])          ITMAX              = conf["ITMAX"].as<int>();
+    if (conf["DELE"])           DELE               = conf["DELE"].as<double>();
+    if (conf["DELK"])           DELK               = conf["DELK"].as<double>();
+    if (conf["DELB"])           DELB               = conf["DELB"].as<double>();
+    if (conf["ALPHA"])          ALPHA              = conf["ALPHA"].as<double>();
+    
+    if (conf["self"])           self               = conf["self"].as<int>();
+    if (conf["omega"])          omega              = conf["omega"].as<double>();
+    if (conf["domega"])         domega             = conf["domega"].as<double>();
+    if (conf["tom0"])           tom0               = conf["tom0"].as<double>();
+    if (conf["dtom"])           dtom               = conf["dtom"].as<double>();
+    
+    if (conf["pmass"])          pmass              = conf["pmass"].as<double>();
+    
+    
+    if (conf["model"])          model_file         = conf["model"].as<string>();
+    if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
+    if (conf["filename"])       filename           = conf["filename"].as<string>();
+    if (conf["fileomega"])      fileomega          = conf["fileomega"].as<string>();
+    if (conf["debug"])          debug              = conf["debug"].as<bool>();
+    if (conf["usetag"])         usetag             = conf["usetag"].as<int>();
+    
+    if (conf["usebar"])   
+      {
+	usebar = conf["usebar"].as<bool>();
+	useorb = !usebar;
+      }
+    
+    if (conf["useorb"])
+      {
+	useorb = conf["useorb"].as<bool>();
+	usebar = !useorb;
+    }
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserResPotN: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 double UserResPotN::get_omega(double t)
