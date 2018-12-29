@@ -304,7 +304,7 @@ void update_parm()
 void write_parm(void)
 {
   if (myid!=0) return;
-  string curparm(outdir + parmfile + "." + runtag + ".yaml");
+  string curparm(outdir + parmfile + "." + runtag + ".yml");
   ofstream out(curparm.c_str());
   if (!out) {
     cerr << "write_parm: could not open <" << parmfile << ">\n";
