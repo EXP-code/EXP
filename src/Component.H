@@ -330,7 +330,7 @@ public:
   enum PSTYPE {Inertial=1, Local=2, Centered=4};
 
   //! Configuration for this component
-  YAML::Node conf;
+  YAML::Node& conf;
 
   //! Identify this component
   std::string name;
@@ -497,10 +497,10 @@ public:
   /*! 
     Takes the id string id and phase space file name as arguments
   */
-  Component(const YAML::Node conf);
+  Component(YAML::Node& conf);
 
   //! Initialize from file
-  Component(istream *in);
+  Component(YAML::Node&, istream *in);
 
   //! Destructor
   ~Component();

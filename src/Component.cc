@@ -34,7 +34,7 @@ bool less_loadb(const loadb_datum& one, const loadb_datum& two)
 }
 
 // Constructor
-Component::Component(const YAML::Node CONF) : conf(CONF)
+Component::Component(YAML::Node& CONF) : conf(CONF)
 {
   try {
     name = conf["name"].as<std::string>();
@@ -71,7 +71,7 @@ Component::Component(const YAML::Node CONF) : conf(CONF)
     exit(-1);
   }
 
-  id    = force["id"].as<std::string>();
+  id = force["id"].as<std::string>();
 
   try {
     fconf = force["parameters"];
@@ -417,7 +417,7 @@ void Component::print_level_lists(double T)
   }
 }
 
-Component::Component(istream *in)
+Component::Component(YAML::Node& CONF, istream *in) : conf(CONF)
 {
   // Defaults
 
@@ -1242,10 +1242,10 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   if (myid==0)
     cout << std::string(60, '-') << endl
 	 << "--- New Component"  << endl
-	 << setw(20) << " name   :: " << name           << endl
-	 << setw(20) << " id     :: " << id             << endl
-	 << setw(20) << " cparam :: " << cconf          << endl
-	 << setw(20) << " fparam :: " << fconf          << endl
+	 << setw(20) << " name   :: " << name        << endl
+	 << setw(20) << " id     :: " << id          << endl
+	 << setw(20) << " cparam :: " << cconf       << endl
+	 << setw(20) << " fparam :: " << fconf       << endl
 	 << std::string(60, '-') << endl;
   
   double rmax1=0.0, r2;

@@ -102,9 +102,15 @@ void ComponentContainer::initialize(void)
       
     MPI_Bcast(&ncomp, 1, MPI_INT,    0, MPI_COMM_WORLD);
       
-    for (int i=0; i<ncomp; i++) {
-      c = new Component(in);
-      components.push_back(c);
+
+    YAML::Node comp = parse["Components"];
+
+    if (comp.IsSequence()) {
+      for (int i=0; i<ncomp; i++) {
+	YAML::Node cur = comp[i];
+	components.push_back(new Component(cur, in));
+	// Could reassign "comp[ncomp] = cur" to capture defaults
+      }
     }
       
     delete in;
@@ -117,7 +123,9 @@ void ComponentContainer::initialize(void)
 
     if (comp.IsSequence()) {
       while (comp[ncomp]) {
-	components.push_back(new Component(comp[ncomp]));
+	YAML::Node cur = comp[ncomp];
+	components.push_back(new Component(cur));
+	// Could reassign "comp[ncomp] = cur" to capture defaults
 	ncomp++;
       }
     }
