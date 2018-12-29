@@ -511,7 +511,7 @@ void Component::initialize(void)
   if (cconf["use_cuda"])   use_cuda = cconf["use_cuda"].as<bool>();
   
 #if HAVE_LIBCUDA==1
-  if (cconf["bunch"   ])      bunch = cconf["bunch"   ].as<int>();
+  if (cconf["bunch"   ])  bunchSize = cconf["bunch"   ].as<int>();
 #endif
 
   if (cconf["tidal"]) {
