@@ -715,7 +715,7 @@ void TreeDSMC::initialize()
       if (conf["esnum"])   CollideIon::esNum    = conf["esnum"].as<int>();
       if (conf["esthr"])   CollideIon::esThr    = conf["esthr"].as<double>();
       if (conf["logL"])    CollideIon::logL     = conf["logL"].as<double>();
-      if (conf["config"])  CollideIon::config0  = conf["config"].as<string>();
+      if (conf["config"])  CollideIon::config   = conf["config"];
       if (conf["eEPSM"])   CollideIon::ElectronEPSM  = conf["eEPSM"].as<bool>();
       if (conf["estype"])  CollideIon::setEStype(conf["estype"].as<std::string>());
     }
