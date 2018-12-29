@@ -123,6 +123,8 @@ Component::Component(const YAML::Node CONF) : conf(CONF)
   use_cuda    = true;		// Set to false to suppress cuda
 				// computation
 
+  ignore_info = false;		// Do not parse info fields on restart
+
 				// Null out pointers
   orient      = 0;
 
@@ -508,13 +510,13 @@ void Component::initialize(void)
 {
   // Load parameters from YAML configuration node
   try {
-    if (cconf["com"     ]) com_system = cconf["com"     ].as<bool>();
-    if (cconf["comlog"  ])    com_log = cconf["comlog"  ].as<bool>();
-    if (cconf["timers"  ])     timers = cconf["timers"  ].as<bool>();
-    if (cconf["use_cuda"])   use_cuda = cconf["use_cuda"].as<bool>();
+    if (cconf["com"     ])  com_system = cconf["com"     ].as<bool>();
+    if (cconf["comlog"  ])     com_log = cconf["comlog"  ].as<bool>();
+    if (cconf["timers"  ])      timers = cconf["timers"  ].as<bool>();
+    if (cconf["use_cuda"])    use_cuda = cconf["use_cuda"].as<bool>();
   
 #if HAVE_LIBCUDA==1
-    if (cconf["bunch"   ])  bunchSize = cconf["bunch"   ].as<int>();
+    if (cconf["bunch"   ])   bunchSize = cconf["bunch"   ].as<int>();
 #endif
 
     if (cconf["tidal"]) {
@@ -522,35 +524,36 @@ void Component::initialize(void)
       consp = true;
     }
 
-    if (cconf["EJ"      ])        EJ  = cconf["EJ"].as<int>();
+    if (cconf["EJ"      ])         EJ  = cconf["EJ"].as<int>();
     if (cconf["eEJ0"    ] and myid==0)
       std::cout << "Component: eEJ0 is no longer used, Ecurr is computed from the bodies using the expansion directly" << std::endl;
-    if (cconf["nEJkeep" ])   nEJkeep  = cconf["nEJkeep" ].as<int>();
-    if (cconf["nEJwant" ])   nEJwant  = cconf["nEJwant" ].as<int>();
-    if (cconf["EJx0"    ])      EJx0  = cconf["EJx0"    ].as<double>();
-    if (cconf["EJy0"    ])      EJy0  = cconf["EJy0"    ].as<double>();
-    if (cconf["EJz0"    ])      EJz0  = cconf["EJz0"    ].as<double>();
-    if (cconf["EJu0"    ])      EJu0  = cconf["EJu0"    ].as<double>();
-    if (cconf["EJv0"    ])      EJv0  = cconf["EJv0"    ].as<double>();
-    if (cconf["EJw0"    ])      EJw0  = cconf["EJw0"    ].as<double>();
-    if (cconf["EJdT"    ])      EJdT  = cconf["EJdT"    ].as<double>();
-    if (cconf["EJkinE"  ])    EJkinE  = cconf["EJkinE"  ].as<bool>();
-    if (cconf["EJext"   ])     EJext  = cconf["EJext"   ].as<bool>();
-    if (cconf["EJdiag"  ])    EJdiag  = cconf["EJdiag"  ].as<bool>();
-    if (cconf["EJdryrun"])  EJdryrun  = cconf["EJdryrun"].as<bool>();
-    if (cconf["EJlinear"])  EJlinear  = cconf["EJlinear"].as<bool>();
-    if (cconf["EJdamp"  ])    EJdamp  = cconf["EJdamp"  ].as<double>();
-    if (cconf["rmax"    ])      rmax  = cconf["rmax"    ].as<double>();
-    if (cconf["rtrunc"  ])    rtrunc  = cconf["rtrunc"  ].as<double>();
-    if (cconf["rcom"    ])      rcom  = cconf["rcom"    ].as<double>();
-    if (cconf["scheck"  ]) seq_check  = cconf["scheck"  ].as<bool>();
-    if (cconf["magic"   ])    umagic  = cconf["magic"   ].as<bool>();
-    if (cconf["indexing"])  indexing  = cconf["indexing"].as<bool>();
-    if (cconf["aindex"  ])    aindex  = cconf["aindex"  ].as<bool>();
-    if (cconf["nlevel"  ])    nlevel  = cconf["nlevel"  ].as<int>();
-    if (cconf["keypos"  ])    keyPos  = cconf["keypos"  ].as<int>();
-    if (cconf["pbufsiz" ])   pBufSiz  = cconf["pbufsiz" ].as<int>();
-    if (cconf["blocking"])  blocking  = cconf["blocking"].as<bool>();
+    if (cconf["nEJkeep" ])    nEJkeep  = cconf["nEJkeep" ].as<int>();
+    if (cconf["nEJwant" ])    nEJwant  = cconf["nEJwant" ].as<int>();
+    if (cconf["EJx0"    ])       EJx0  = cconf["EJx0"    ].as<double>();
+    if (cconf["EJy0"    ])       EJy0  = cconf["EJy0"    ].as<double>();
+    if (cconf["EJz0"    ])       EJz0  = cconf["EJz0"    ].as<double>();
+    if (cconf["EJu0"    ])       EJu0  = cconf["EJu0"    ].as<double>();
+    if (cconf["EJv0"    ])       EJv0  = cconf["EJv0"    ].as<double>();
+    if (cconf["EJw0"    ])       EJw0  = cconf["EJw0"    ].as<double>();
+    if (cconf["EJdT"    ])       EJdT  = cconf["EJdT"    ].as<double>();
+    if (cconf["EJkinE"  ])     EJkinE  = cconf["EJkinE"  ].as<bool>();
+    if (cconf["EJext"   ])      EJext  = cconf["EJext"   ].as<bool>();
+    if (cconf["EJdiag"  ])     EJdiag  = cconf["EJdiag"  ].as<bool>();
+    if (cconf["EJdryrun"])   EJdryrun  = cconf["EJdryrun"].as<bool>();
+    if (cconf["EJlinear"])   EJlinear  = cconf["EJlinear"].as<bool>();
+    if (cconf["EJdamp"  ])     EJdamp  = cconf["EJdamp"  ].as<double>();
+    if (cconf["rmax"    ])       rmax  = cconf["rmax"    ].as<double>();
+    if (cconf["rtrunc"  ])     rtrunc  = cconf["rtrunc"  ].as<double>();
+    if (cconf["rcom"    ])       rcom  = cconf["rcom"    ].as<double>();
+    if (cconf["scheck"  ])  seq_check  = cconf["scheck"  ].as<bool>();
+    if (cconf["magic"   ])     umagic  = cconf["magic"   ].as<bool>();
+    if (cconf["indexing"])   indexing  = cconf["indexing"].as<bool>();
+    if (cconf["aindex"  ])     aindex  = cconf["aindex"  ].as<bool>();
+    if (cconf["nlevel"  ])     nlevel  = cconf["nlevel"  ].as<int>();
+    if (cconf["keypos"  ])     keyPos  = cconf["keypos"  ].as<int>();
+    if (cconf["pbufsiz" ])    pBufSiz  = cconf["pbufsiz" ].as<int>();
+    if (cconf["blocking"])   blocking  = cconf["blocking"].as<bool>();
+    if (cconf["ignore"  ]) ignore_info = cconf["ignore"  ].as<bool>();
     
     if (cconf["ton"]) {
       ton = cconf["ton"].as<double>();
@@ -1194,9 +1197,14 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
 				// Parse info field to get 
 				// id and parameter strings
+  YAML::Node config;
 
-  std::istringstream sin(info.get());
-  YAML::Node config = YAML::Load(sin);
+  if (ignore_info) {
+    config = cconf;
+  } else {
+    std::istringstream sin(info.get());
+    config = YAML::Load(sin);
+  }
 
   try {
     name  = config["name"].as<std::string>();

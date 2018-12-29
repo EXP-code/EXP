@@ -176,6 +176,8 @@ struct loadb_datum
   <li> <em>blocking</em> set to true chooses blocking writes when
   using MPI-IO with OutPSP
 
+  <li> <em>ignore</em> the PSP info stanza on restart (i.e. for specifying
+  alternative parameters or using an old-style PSP file
   </ol>
   
 
@@ -312,6 +314,10 @@ protected:
 
   //! Suppress cuda computation even if devices are available
   bool use_cuda;
+
+  //! Suppress parsing of info fields on restart; use config specified
+  //! parameters instead
+  bool ignore_info;
 
   //! Write binary component phase-space structure using MPI (blocking)
   void write_binary_mpi_b(MPI_File& out, MPI_Offset& offset, bool real4 = false);
