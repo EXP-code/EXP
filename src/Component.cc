@@ -50,8 +50,8 @@ Component::Component(const YAML::Node CONF) : conf(CONF)
     cconf = conf["parameters"];
   }
   catch (YAML::Exception & error) {
-    if (myid==0) std::cout << "Error parsing component 'parameters' for ["
-			   << name << "]: "
+    if (myid==0) std::cout << "Error parsing 'parameters' for Component <"
+			   << name << ">: "
 			   << error.what() << std::endl;
     MPI_Finalize();
     exit(-1);
@@ -64,8 +64,8 @@ Component::Component(const YAML::Node CONF) : conf(CONF)
     force = conf["force"];
   }
   catch (YAML::Exception & error) {
-    if (myid==0) std::cout << "Error parsing component 'force' for ["
-			   << name << "]: "
+    if (myid==0) std::cout << "Error parsing 'force' for Component <"
+			   << name << ">: "
 			   << error.what() << std::endl;
     MPI_Finalize();
     exit(-1);
@@ -77,8 +77,8 @@ Component::Component(const YAML::Node CONF) : conf(CONF)
     fconf = force["parameters"];
   }
   catch (YAML::Exception & error) {
-    if (myid==0) std::cout << "Error parsing component force 'parameters' for ["
-			   << name << "]: "
+    if (myid==0) std::cout << "Error parsing force 'parameters' for Component <"
+			   << name << ">: "
 			   << error.what() << std::endl;
     MPI_Finalize();
     exit(-1);
@@ -568,8 +568,8 @@ void Component::initialize(void)
     }
   }
   catch (YAML::Exception & error) {
-    if (myid==0) std::cout << "Error parsing component parameters for ["
-			   << name << "]: "
+    if (myid==0) std::cout << "Error parsing parameters for Component <"
+			   << name << ">: "
 			   << error.what() << std::endl;
     MPI_Finalize();
     exit(-1);
