@@ -89,11 +89,28 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
       // Parse the info string
       // ---------------------
       std::istringstream sin(stanza.comp.info.get());
-      YAML::Node conf = YAML::Load(sin), cconf, fconf;
+      YAML::Node conf, cconf, fconf;
       
+      try {
+	conf = YAML::Load(sin);
+      }
+      catch (YAML::Exception & error) {
+	std::cout << "Error parsing component config.  Old-style PSP? "
+		  << std::endl
+		  << error.what() << std::endl;
+	exit(-1);
+      }
+
       cconf  = conf["parameters"];
       fconf  = conf["force"];
+
+      // Output map in flow style
+      //
+      cconf.SetStyle(YAML::EmitterStyle::Flow);
+      fconf["parameters"].SetStyle(YAML::EmitterStyle::Flow);
 	
+      // Write node to sstream
+      //
       std::ostringstream csout, fsout;
       csout << cconf;
       fsout << fconf["parameters"];
