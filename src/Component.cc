@@ -510,7 +510,7 @@ void Component::initialize(void)
   try {
     if (cconf["com"     ]) com_system = cconf["com"     ].as<bool>();
     if (cconf["comlog"  ])    com_log = cconf["comlog"  ].as<bool>();
-    if (cconf["timers"  ])     timers = cconf["comlog"  ].as<bool>();
+    if (cconf["timers"  ])     timers = cconf["timers"  ].as<bool>();
     if (cconf["use_cuda"])   use_cuda = cconf["use_cuda"].as<bool>();
   
 #if HAVE_LIBCUDA==1
@@ -534,9 +534,9 @@ void Component::initialize(void)
     if (cconf["EJv0"    ])      EJv0  = cconf["EJv0"    ].as<double>();
     if (cconf["EJw0"    ])      EJw0  = cconf["EJw0"    ].as<double>();
     if (cconf["EJdT"    ])      EJdT  = cconf["EJdT"    ].as<double>();
-    if (cconf["EJkinE"  ])    EJkinE  = cconf["EJkinE"  ].as<double>();
-    if (cconf["EJext"   ])     EJext  = cconf["EJext"   ].as<double>();
-    if (cconf["EJdiag"  ])    EJdiag  = cconf["EJdiag"  ].as<double>();
+    if (cconf["EJkinE"  ])    EJkinE  = cconf["EJkinE"  ].as<bool>();
+    if (cconf["EJext"   ])     EJext  = cconf["EJext"   ].as<bool>();
+    if (cconf["EJdiag"  ])    EJdiag  = cconf["EJdiag"  ].as<bool>();
     if (cconf["EJdryrun"])  EJdryrun  = cconf["EJdryrun"].as<bool>();
     if (cconf["EJlinear"])  EJlinear  = cconf["EJlinear"].as<bool>();
     if (cconf["EJdamp"  ])    EJdamp  = cconf["EJdamp"  ].as<double>();
@@ -549,7 +549,7 @@ void Component::initialize(void)
     if (cconf["aindex"  ])    aindex  = cconf["aindex"  ].as<bool>();
     if (cconf["nlevel"  ])    nlevel  = cconf["nlevel"  ].as<int>();
     if (cconf["keypos"  ])    keyPos  = cconf["keypos"  ].as<int>();
-    if (cconf["pbufsiz" ])   pBufSiz  = cconf["pBufSiz" ].as<int>();
+    if (cconf["pbufsiz" ])   pBufSiz  = cconf["pbufsiz" ].as<int>();
     if (cconf["blocking"])  blocking  = cconf["blocking"].as<bool>();
     
     if (cconf["ton"]) {
