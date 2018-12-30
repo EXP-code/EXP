@@ -58,7 +58,12 @@ void OutAscii::initialize()
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in OutAscii: "
-			   << error.what() << std::endl;
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
     MPI_Finalize();
     exit(-1);
   }

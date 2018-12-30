@@ -41,7 +41,13 @@ Component::Component(YAML::Node& CONF) : conf(CONF)
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing component 'name': "
-			   << error.what() << std::endl;
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+
     MPI_Finalize();
     exit(-1);
   }
@@ -52,7 +58,13 @@ Component::Component(YAML::Node& CONF) : conf(CONF)
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing 'parameters' for Component <"
 			   << name << ">: "
-			   << error.what() << std::endl;
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf
+			   << std::string(60, '-') << std::endl;
+
     MPI_Finalize();
     exit(-1);
   }
@@ -66,7 +78,13 @@ Component::Component(YAML::Node& CONF) : conf(CONF)
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing 'force' for Component <"
 			   << name << ">: "
-			   << error.what() << std::endl;
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+
     MPI_Finalize();
     exit(-1);
   }
@@ -79,7 +97,13 @@ Component::Component(YAML::Node& CONF) : conf(CONF)
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing force 'parameters' for Component <"
 			   << name << ">: "
-			   << error.what() << std::endl;
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << force                << std::endl
+			   << std::string(60, '-') << std::endl;
+
     MPI_Finalize();
     exit(-1);
   }
@@ -573,7 +597,13 @@ void Component::initialize(void)
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters for Component <"
 			   << name << ">: "
-			   << error.what() << std::endl;
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << cconf                << std::endl
+			   << std::string(60, '-') << std::endl;
+
     MPI_Finalize();
     exit(-1);
   }
@@ -1213,7 +1243,12 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing YAML in PSP file: "
-			   << error.what() << std::endl;
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << config               << std::endl
+			   << std::string(60, '-') << std::endl;
     MPI_Finalize();
     exit(-1);
   }
@@ -1227,7 +1262,13 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing YAML force stanza in PSP file: "
-			   << error.what() << std::endl;
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << config               << std::endl
+			   << std::string(60, '-') << std::endl;
+
     MPI_Finalize();
     exit(-1);
   }

@@ -134,7 +134,12 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in Cylinder: "
-			   << error.what() << std::endl;
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf
+			   << std::string(60, '-') << std::endl;
     MPI_Finalize();
     exit(-1);
   }
@@ -314,7 +319,12 @@ void Cylinder::initialize()
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing Cylinder parameters: "
-			   << error.what() << std::endl;
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
     MPI_Finalize();
     exit(-1);
   }
