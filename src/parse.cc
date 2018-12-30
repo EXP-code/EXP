@@ -178,6 +178,7 @@ void initialize(void)
     if (_G["ratefile"])	        ratefile = _G["ratefile"].as<std::string>();
     if (_G["runtag"])		runtag   = _G["runtag"].as<std::string>();
     if (_G["restart_cmd"])      restart_cmd = _G["restart_cmd"].as<std::string>();
+    if (_G["ignore_info"])      ignore_info = _G["ignore_info"].as<bool>();
     
     bool ok = true;
 

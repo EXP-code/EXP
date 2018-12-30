@@ -189,6 +189,10 @@ extern vector<thrd_pass_posvel> posvel_data;
 //! Threads for incr_position and incr_velocity
 extern vector<pthread_t> posvel_thrd;
 
+//! Suppress parsing of info fields on restart; use config specified
+//! parameters instead
+extern bool ignore_info;
+
 /**
    Phase space dump on next step
 

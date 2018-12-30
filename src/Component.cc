@@ -147,8 +147,6 @@ Component::Component(YAML::Node& CONF) : conf(CONF)
   use_cuda    = true;		// Set to false to suppress cuda
 				// computation
 
-  ignore_info = false;		// Do not parse info fields on restart
-
 				// Null out pointers
   orient      = 0;
 
@@ -1280,7 +1278,10 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   conf["bodyfile"]   = pfile;
   conf["force"]      = force;
 				// Informational output
-  if (myid==0)
+  if (myid==0)  {
+    cconf.SetStyle(YAML::EmitterStyle::Flow);
+    fconf.SetStyle(YAML::EmitterStyle::Flow);
+
     cout << std::string(60, '-') << endl
 	 << "--- New Component"  << endl
 	 << setw(20) << " name   :: " << name        << endl
@@ -1288,6 +1289,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 	 << setw(20) << " cparam :: " << cconf       << endl
 	 << setw(20) << " fparam :: " << fconf       << endl
 	 << std::string(60, '-') << endl;
+  }
   
   double rmax1=0.0, r2;
 
