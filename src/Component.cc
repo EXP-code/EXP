@@ -34,13 +34,17 @@ bool less_loadb(const loadb_datum& one, const loadb_datum& two)
 }
 
 // Constructor
-Component::Component(YAML::Node& CONF) : conf(CONF)
+Component::Component(YAML::Node& CONF)
 {
+  // Make a copy
+  conf = CONF;
+
   try {
     name = conf["name"].as<std::string>();
   }
   catch (YAML::Exception & error) {
-    if (myid==0) std::cout << "Error parsing component 'name': "
+    if (myid==0) std::cout << __FILE__ << ": " << __LINE__ << std::endl
+			   << "Error parsing component 'name': "
 			   << error.what() << std::endl
 			   << std::string(60, '-') << std::endl
 			   << "Config node"        << std::endl
@@ -174,6 +178,8 @@ Component::Component(YAML::Node& CONF) : conf(CONF)
   pBufSiz     = 100000;		// Default number particles in MPI-IO buffer
   blocking    = false;		// Default for MPI_File_write blocking
 
+  set_default_values();
+
   read_bodies_and_distribute_ascii();
 
   mdt_ctr = vector< vector<unsigned> > (multistep+1);
@@ -191,9 +197,56 @@ Component::Component(YAML::Node& CONF) : conf(CONF)
 
   pbuf.resize(PFbufsz);
 
-  // Already done in read_bodies_and_distribute_ascii()
-  // initialize();
+  // Enter unset defaults in YAML conf
+  //
+  if (CONF["parameters"]) CONF["parameters"] = cconf;
 }
+
+void Component::set_default_values()
+{
+  if (!cconf["EJ"])              cconf["EJ"]          = EJ;
+  if (!cconf["nEJkeep"])         cconf["nEJkeep"]     = nEJkeep;
+  if (!cconf["nEJwant"])         cconf["nEJwant"]     = nEJwant;
+  if (!cconf["EJkinE"])          cconf["EJkinE"]      = EJkinE;
+  if (!cconf["EJext"])           cconf["EJext"]       = EJext;
+  if (!cconf["EJdiag"])          cconf["EJdiag"]      = EJdiag;
+  if (!cconf["EJdryrun"])        cconf["EJdryrun"]    = EJdryrun;
+  if (!cconf["EJx0"])            cconf["EJx0"]        = EJx0;
+  if (!cconf["EJy0"])            cconf["EJy0"]        = EJy0;
+  if (!cconf["EJz0"])            cconf["EJz0"]        = EJz0;
+  if (!cconf["EJu0"])            cconf["EJu0"]        = EJu0;
+  if (!cconf["EJv0"])            cconf["EJv0"]        = EJv0;
+  if (!cconf["EJw0"])            cconf["EJw0"]        = EJw0;
+  if (!cconf["EJdT"])            cconf["EJdT"]        = EJdT;
+  if (!cconf["EJlinear"])        cconf["EJlinear"]    = EJlinear;
+  if (!cconf["EJdamp"])          cconf["EJdamp"]      = EJdamp;
+  if (!cconf["binary"])          cconf["binary"]      = binary;
+  if (!cconf["adiabatic"])       cconf["adiabatic"]   = adiabatic;
+  if (!cconf["ton"])             cconf["ton"]         = ton;
+  if (!cconf["toff"])            cconf["toff"]        = toff;
+  if (!cconf["twid"])            cconf["twid"]        = twid;
+  if (!cconf["rtrunc"])          cconf["rtrunc"]      = rtrunc;
+  if (!cconf["rcom"])            cconf["rcom"]        = rcom;
+  if (!cconf["consp"])           cconf["consp"]       = consp;
+  if (!cconf["tidal"])           cconf["tidal"]       = tidal;
+  if (!cconf["com_system"])      cconf["com_system"]  = com_system;
+  if (!cconf["comlog"])          cconf["comlog"]      = com_log;
+#if HAVE_LIBCUDA==1
+  if (!cconf["bunch"])           cconf["bunch"]       = bunchSize;
+#endif
+  if (!cconf["timers"])          cconf["timers"]      = timers;
+  if (!cconf["use_cuda"])        cconf["use_cuda"]    = use_cuda;
+  if (!cconf["com"])             cconf["com"]         = com_system;
+  if (!cconf["scheck"])          cconf["scheck"]      = seq_check;
+  if (!cconf["indexing"])        cconf["indexing"]    = indexing;
+  if (!cconf["aindex"])          cconf["aindex"]      = aindex;
+  if (!cconf["umagic"])          cconf["umagic"]      = umagic;
+  if (!cconf["nlevel"])          cconf["nlevel"]      = nlevel;
+  if (!cconf["keyPos"])          cconf["keyPos"]      = keyPos;
+  if (!cconf["pBufSiz"])         cconf["pBufSiz"]     = pBufSiz;
+  if (!cconf["blocking"])        cconf["blocking"]    = blocking;
+}
+
 
 void Component::HOTcreate(std::set<speciesKey> spec_list)
 {
@@ -542,7 +595,7 @@ void Component::initialize(void)
 #endif
 
     if (cconf["tidal"]) {
-      tidal = cconf["tidal"].as<bool>();
+      tidal = cconf["tidal"].as<int>();
       consp = true;
     }
 
@@ -595,7 +648,7 @@ void Component::initialize(void)
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters for Component <"
 			   << name << ">: "
-			   << error.what() << std::endl
+			   << error.what()         << std::endl
 			   << std::string(60, '-') << std::endl
 			   << "Config node"        << std::endl
 			   << std::string(60, '-') << std::endl
@@ -1663,7 +1716,7 @@ void Component::write_binary(ostream* out, bool real4)
     header.ndatr = ndattrib;
   
     std::ostringstream outs;
-    outs << conf;
+    if (conf.Type() != YAML::NodeType::Null) outs << conf;
 
     // Resize info string, if necessary
     size_t infosz = outs.str().size() + 4;

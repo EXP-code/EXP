@@ -661,7 +661,7 @@ void TreeDSMC::initialize()
     NTC::NTCdb::maxAge = ageout;
 
     if (conf["ntc_chkpt"])      NTC::NTCdb::intvl  = conf["ntc_chkpt"].as<int>();
-    if (conf["ntc_verbose"])    NTC::NTCdb::chatty = conf["ntc_chkpt"].as<bool>();
+    if (conf["ntc_verbose"])    NTC::NTCdb::chatty = conf["ntc_verbose"].as<bool>();
   
     if (conf["rrtype"]) {
       std::string val = conf["rrtype"].as<std::string>();
@@ -722,7 +722,12 @@ void TreeDSMC::initialize()
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in TreeDSMC: "
-			   << error.what() << std::endl;
+			   << error.what()         << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                << std::endl
+			   << std::string(60, '-') << std::endl;
     MPI_Finalize();
     exit(-1);
   }

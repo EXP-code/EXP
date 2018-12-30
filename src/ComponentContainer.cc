@@ -126,6 +126,7 @@ void ComponentContainer::initialize(void)
 	YAML::Node cur = comp[ncomp];
 	components.push_back(new Component(cur));
 	// Could reassign "comp[ncomp] = cur" to capture defaults
+	comp[ncomp] = cur;	// Test of reassignment
 	ncomp++;
       }
     }
@@ -137,6 +138,10 @@ void ComponentContainer::initialize(void)
       MPI_Finalize();
       exit(-1);
     }
+
+    // Test of reassignment
+    //
+    parse["Components"] = comp;
 
   }
 

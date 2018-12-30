@@ -317,8 +317,13 @@ protected:
 
   //! Write binary component phase-space structure using MPI (blocking)
   void write_binary_mpi_b(MPI_File& out, MPI_Offset& offset, bool real4 = false);
+
   //! Write binary component phase-space structure using MPI (non-blocking)
   void write_binary_mpi_i(MPI_File& out, MPI_Offset& offset, bool real4 = false);
+
+  //! Set default, unset parameters in config
+  void set_default_values();
+
   
 public:
 
@@ -326,7 +331,7 @@ public:
   enum PSTYPE {Inertial=1, Local=2, Centered=4};
 
   //! Configuration for this component
-  YAML::Node& conf;
+  YAML::Node conf;
 
   //! Identify this component
   std::string name;

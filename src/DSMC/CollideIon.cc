@@ -21960,13 +21960,21 @@ void CollideIon::processConfig()
     }
   }
   catch (YAML::Exception & error) {
-    if (myid==0) std::cerr << "Error parsing component 'name': "
-			   << error.what() << std::endl;
+    if (myid==0) std::cout << __FILE__ << ": " << __LINE__ << std::endl
+			   << "Error parsing CollideIon config: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << iconf                << std::endl
+			   << std::string(60, '-') << std::endl;
+
     MPI_Finalize();
     exit(53);
   }
   catch (...) {
-    if (myid==0) std::cerr << "Error parsing CollideIon config info" << std::endl
+    if (myid==0) std::cerr << __FILE__ << ": " << __LINE__ << std::endl
+			   << "Error parsing CollideIon config: "
 			   << "unknown error" << std::endl;
     MPI_Finalize();
     exit(54);
