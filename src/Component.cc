@@ -1517,12 +1517,7 @@ PartPtr * Component::get_particles(int* number)
 	  cout << "Component [" << myid << "]: sending ";
 	  cout << setw(3) << icount
 	       << setw(14) << pp->mass
-#ifdef INT128
-	       << setw(18) << pp->key.toHex()
-#else
-	       << setw(18) << hex << pp->key << dec
-#endif
-	    ;
+	       << setw(18) << hex << pp->key << dec;
 	  for (int k=0; k<3; k++) cout << setw(14) << pp->pos[k];
 	  cout << endl;
 	}

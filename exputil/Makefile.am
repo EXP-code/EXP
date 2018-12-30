@@ -34,7 +34,7 @@ QUAD_SRC = qadapt.cc gauleg.cc qadapt2d.cc gint2.cc rombe2d.cc Trapsum.cc
 RANDOM_SRC =
 UTIL_SRC = nrutil.cc elemfunc.cc euler.cc euler_slater.cc		\
 	rotmatrix.cc wordSplit.cc FileUtils.cc BarrierWrapper.cc	\
-	int128.cc uint128.cc stack.cc VtkGrid.cc
+	stack.cc VtkGrid.cc
 OPTIMIZATION_SRC = simann2.cc
 VECTOR_SRC = Vector.cc Vector3.cc eigen.cc eigsrt.cc inverse.cc jacobi.cc \
 	svd.cc eigencc.cc

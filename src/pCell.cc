@@ -30,11 +30,7 @@ string printKey(key_type p)
   unsigned short cnt = 0;
   unsigned Nbits = sizeof(p)*8;
   for (unsigned k=0; k<Nbits; k++) {
-#ifdef INT128
-    sout << ( (p & one).toUint() ? '1' : '0' );
-#else
     sout << ( (p & one) ? '1' : '0' );
-#endif
     if (++cnt==3) {sout << '.'; cnt = 0;}
     p = p>>1;
   }
@@ -139,11 +135,7 @@ unsigned pCell::childId(key_type key)
 {
   key_type id = key - mask;
   id >>= 3*(nbits - 1 - level);
-#ifdef INT128
-  unsigned cid = id.toUint();
-#else
   unsigned cid = static_cast<unsigned>(id);
-#endif
   if (cid>7) {
     cout << "Process " << myid << ": crazy cid value: " << cid
 	 << " level=" << level << "  id=" << hex << id << dec << endl;
@@ -267,11 +259,7 @@ void pCell::RemoveKey(const key_pair& pr)
   else {
     //-----------------------------------------------------------------      
     cout << "Process " << myid << ": cell=" 
-#ifdef INT128
-	 << mykey.toHex() 
-#else
 	 << hex << mykey << dec
-#endif
 	 << " key not in keys list!" << endl;
     //-----------------------------------------------------------------      
   }
@@ -295,18 +283,10 @@ void pCell::RemoveKey(const key_pair& pr)
   else {
     //-----------------------------------------------------------------      
     cout << "Process " << myid << ": cell=" 
-#ifdef INT128
-	 << mykey.toHex()
-#else
 	 << hex << mykey << dec
-#endif
 	 << " missing keypair entry in keybods,";
     cout << "key=" 
-#ifdef INT128
-	 << pr.first.toHex() 
-#else
 	 << hex << pr.first << dec
-#endif
 	 << " index=" << pr.second
 	 << endl;
     //-----------------------------------------------------------------      
@@ -316,11 +296,7 @@ void pCell::RemoveKey(const key_pair& pr)
 #ifdef ADJUST_INFO
   //-----------------------------------------------------------------      
   cout << "Process " << myid << ": pCell::REMOVED KEY=" 
-#ifdef INT128
-       << pr.first.toHex()
-#else
        << hex << pr.first << dec
-#endif
        << " index=" << pr.second << endl;
   //-----------------------------------------------------------------      
 #endif
@@ -354,13 +330,8 @@ bool pCell::Remove(const key_pair& keypair, change_list* change)
     if (keys.find(keypair) == keys.end()) {
       cout << "Process " << myid << ": "
 	   << "pCell::Remove: ERROR finding keypair in cell's list" 
-#ifdef INT128
-	   << " cur=" << mykey.toHex()
-	   << " key=" << keypair.first.toHex() 
-#else
 	   << hex << " cur=" << mykey
 	   << " key=" << keypair.first << dec
-#endif
 	   << " index=" << keypair.second
 	   << endl;
       return ret;
@@ -375,11 +346,7 @@ bool pCell::Remove(const key_pair& keypair, change_list* change)
     if (ik == tree->bodycell.end()) {
       cout << "Process " << myid << ": "
 	   << "pCell::Remove: ERROR finding key in bodycell"
-#ifdef INT128
-	   << " key="   << keypair.first.toHex() 
-#else
 	   << " key="   << hex << keypair.first << dec
-#endif
 	   << " index=" << keypair.second
 	   << endl;
       return ret;
@@ -394,11 +361,7 @@ bool pCell::Remove(const key_pair& keypair, change_list* change)
     if (p==tree->keybods.end()) {
       cout << "Process " << myid << ": "
 	   << "pCell::Remove: ERROR missing keypair entry in keybods," 
-#ifdef INT128
-	   << " key="   << keypair.first.toHex() 
-#else
 	   << " key="   << hex << keypair.first << dec
-#endif
 	   << " index=" << keypair.second
 	   << endl;
       return ret;
@@ -417,11 +380,7 @@ bool pCell::Remove(const key_pair& keypair, change_list* change)
     //-----------------------------------------------------------------      
       cout << "Process " << myid << ": "
 	   << "pCell::Remove: ERROR missing index in bods,"
-#ifdef INT128
-	   << " key="   << keypair.first.toHex() 
-#else
 	   << " key="   << hex << keypair.first << dec
-#endif
 	   << " index=" << keypair.second
 	   << endl;
       return ret;
@@ -920,20 +879,12 @@ void pCell::Vel(double &mass, vector<double>& v1, vector<double>& v2)
 
 double pCell::Volume()
 {
-#ifdef INT128
-  return tree->volume/(key_type(1u) << 3*level).toDouble();
-#else
   return tree->volume/static_cast<double>(key_type(1u) << 3*level);
-#endif
 }
 
 double pCell::Scale()
 {
-#ifdef INT128
-  return 1.0/(key_type(1u) << level).toDouble();
-#else
   return 1.0/static_cast<double>(key_type(1u) << level);
-#endif
 }
 
 void pCell::match(pCell* target, int& mcount, key_type& key)
@@ -992,7 +943,7 @@ pCell* pCell::findSampleCell(const std::string & msg)
     static int tcount = 0;
     static int bcount = 0;
     int mcount = 0;
-    key_type tkey = -1;
+    key_type tkey = 0xffffffffffffffff;
     sample->match(this, mcount, tkey);
     tcount++;
     if (mcount == 0) {

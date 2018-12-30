@@ -444,11 +444,8 @@ public:
     return fit->second; 
   }
 
-#ifdef INT128
-  double Volume() { return volume/(( (key_type)1u << (3*fit->second->level) ).toDouble()); }
-#else
   double Volume() { return volume/( (key_type)1u << (3*fit->second->level) ); }
-#endif
+
   void KE(double &tot, double &dsp) { fit->second->KE(tot, dsp); }
 
   double Mass() { return fit->second->Mass(); }

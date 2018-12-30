@@ -83,15 +83,9 @@ void ParticleFerry::particleBufInit()
   //
   keypos = bufsiz;
 
-#ifdef I128
-  // uint128 key
-  //
-  bufsiz += sizeof(uint128);
-#else
   // unsigned long key
   //
   bufsiz += sizeof(unsigned long);
-#endif
 }
 
 // Pack a particle into the buffer.  Buffer is supplied by caller.
@@ -170,17 +164,10 @@ void ParticleFerry::particlePack(PartPtr in, char* buffer)
   memcpy(&buffer[pos], &in->tree, sizeof(unsigned));
   pos += sizeof(unsigned);
   
-#ifdef I128
-  // uint128 key
-  //
-  memcpy(&buffer[pos], &in->key, sizeof(uint128));
-  pos += sizeof(uint128);
-#else
   // unsigned long key
   //
   memcpy(&buffer[pos], &in->key, sizeof(unsigned long));
   pos += sizeof(unsigned long);
-#endif
 
   // Sanity check
   //
@@ -275,17 +262,10 @@ void ParticleFerry::particleUnpack(PartPtr out, char* buffer)
   memcpy(&out->tree, &buffer[pos], sizeof(unsigned));
   pos += sizeof(unsigned);
   
-#ifdef I128
-  // uint128 key
-  //
-  memcpy(&out->key, &buffer[pos], sizeof(uint128));
-  pos += sizeof(uint128);
-#else
   // unsigned long key
   //
   memcpy(&out->key, &buffer[pos], sizeof(unsigned long));
   pos += sizeof(unsigned long);
-#endif
 
   // Sanity check
   //
@@ -433,18 +413,6 @@ void ParticleFerry::BufferRecv()
 void ParticleFerry::bufferKeyCheck()
 {
 				// Sanity check for pHOT keys
-#ifdef I128
-  uint128 minkey = 1u;
-  minkey <<= 128 - 1;
-  uint128 maxkey = 0u;
-  unsigned err0 = 0;
-  for (unsigned n=0; n<ibufcount; n++) {
-    uint128 key; memcpy(&key, &buf[n*bufsiz+keypos], sizeof(uint128));
-    minkey = min<uint128>(minkey, key);
-    maxkey = max<uint128>(maxkey, key);
-    if ((key < key_lo || key >= key_hi) && key > 0u) err0++;
-  }
-#else
   unsigned long minkey = 1u;
   minkey <<= sizeof(unsigned long)*8 - 1;
   unsigned long maxkey = 0u;
@@ -455,7 +423,6 @@ void ParticleFerry::bufferKeyCheck()
     maxkey = max<unsigned long>(maxkey, key);
     if ((key < key_lo || key >= key_hi) && key > 0u) err0++;
   }
-#endif
 
   unsigned maxpexp = 1u;
   maxpexp <<= (3*pkbits);

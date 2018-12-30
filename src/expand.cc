@@ -227,15 +227,11 @@ void make_node_list(int argc, char **argv)
 
   // Make MPI datatype
 
-#ifdef INT128
-  int ityp = 2;
+#ifdef I64
+  MPI_EXP_KEYTYPE = MPI_UNSIGNED_LONG_LONG;
 #else
-  int ityp = 1;
+  MPI_EXP_KEYTYPE = MPI_UNSIGNED_LONG;
 #endif
-  MPI_Aint kdsp = 0;
-  MPI_Datatype ktyp = MPI_UNSIGNED_LONG;
-  MPI_Type_create_struct(1, &ityp, &kdsp, &ktyp, &MPI_EXP_KEYTYPE);
-  MPI_Type_commit(&MPI_EXP_KEYTYPE);
 
   // Generate node list for this node
 

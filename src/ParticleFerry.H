@@ -23,11 +23,7 @@ private:
   unsigned bufpos, ibufcount, itotcount;
   unsigned _to, _from, _total;
   unsigned pk_lo, pk_hi;
-#ifdef I128
-  uint128  key_lo, key_hi;
-#else
   unsigned long key_lo, key_hi;
-#endif
 
   int keypos, treepos, idxpos;
 
