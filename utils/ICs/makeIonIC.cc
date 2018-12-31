@@ -1613,10 +1613,11 @@ main (int ac, char **av)
       }
     } else {
       rho.push_back(D);
-      if (Temp>0.0) T[0][0] = Temp;
-      else          T[0][0] = iroot.get("temp", 100000.0);
+      if (Temp>0.0) T[0][0]  = Temp;
+      else          T[0][0]  = iroot.get("temp", 100000.0);
       T[0][1] = T[0][0];
       if (Telec>0.0) T[0][1] = Telec;
+      else           T[0][1] = iroot.get("telc", T[0][0]);
     }
       
     if (type==Trace) {
