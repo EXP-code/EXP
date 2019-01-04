@@ -20722,46 +20722,48 @@ void CollideIon::printSpeciesTrace()
       // Open the file for the first time
       //
       dout.open(species_file_debug.c_str());
+      dout.precision(10);
+      dout << std::scientific;
 
       // Print the header
       //
       int nhead = 2;
       if (use_elec>=0) {
 	dout << "# "
-	     << std::setw(12) << std::right << "Time  "
-	     << std::setw(12) << std::right << "Temp_i"
-	     << std::setw(12) << std::right << "KE_i"
-	     << std::setw(12) << std::right << "Temp_e"
-	     << std::setw(12) << std::right << "KE_e";
+	     << std::setw(18) << std::right << "Time  "
+	     << std::setw(18) << std::right << "Temp_i"
+	     << std::setw(18) << std::right << "KE_i"
+	     << std::setw(18) << std::right << "Temp_e"
+	     << std::setw(18) << std::right << "KE_e";
 	nhead = 4;
       } else {
 	dout << "# "
-	     << std::setw(12) << std::right << "Time  "
-	     << std::setw(12) << std::right << "Temp  "
-	     << std::setw(12) << std::right << "Disp  ";
+	     << std::setw(18) << std::right << "Time  "
+	     << std::setw(18) << std::right << "Temp  "
+	     << std::setw(18) << std::right << "Disp  ";
       }
       for (spDItr it=specM.begin(); it != specM.end(); it++) {
 	std::ostringstream sout;
 	sout << "(" << it->first.first << "," << it->first.second << ") ";
-	dout << std::setw(12) << right << sout.str();
+	dout << std::setw(18) << right << sout.str();
       }
       dout << std::endl;
 
       unsigned cnt = 0;
       dout << "# "
-	   << std::setw(12) << std::right << clabl(++cnt);
+	   << std::setw(18) << std::right << clabl(++cnt);
       for (int n=0; n<nhead; n++)
-	dout << std::setw(12) << std::right << clabl(++cnt);
+	dout << std::setw(18) << std::right << clabl(++cnt);
       for (spDItr it=specM.begin(); it != specM.end(); it++)
-	dout << std::setw(12) << right << clabl(++cnt);
+	dout << std::setw(18) << right << clabl(++cnt);
       dout << std::endl;
 
       dout << "# "
-	   << std::setw(12) << std::right << "--------";
+	   << std::setw(18) << std::right << "--------";
       for (int n=0; n<nhead; n++)
-	dout << std::setw(12) << std::right << "--------";
+	dout << std::setw(18) << std::right << "--------";
       for (spDItr it=specM.begin(); it != specM.end(); it++)
-	dout << std::setw(12) << std::right << "--------";
+	dout << std::setw(18) << std::right << "--------";
       dout << std::endl;
     }
   }
@@ -20780,14 +20782,14 @@ void CollideIon::printSpeciesTrace()
 
   dout << std::setprecision(5);
   dout << "  "
-       << std::setw(12) << std::right << tnow
-       << std::setw(12) << std::right << Ti
-       << std::setw(12) << std::right << tM[0];
+       << std::setw(18) << std::right << tnow
+       << std::setw(18) << std::right << Ti
+       << std::setw(18) << std::right << tM[0];
   if (use_elec>=0)
-    dout << std::setw(12) << std::right << Te
-	 << std::setw(12) << std::right << tM[2];
+    dout << std::setw(18) << std::right << Te
+	 << std::setw(18) << std::right << tM[2];
   for (spDItr it=specM.begin(); it != specM.end(); it++)
-    dout << std::setw(12) << std::right << it->second;
+    dout << std::setw(18) << std::right << it->second;
   dout << std::endl;
 }
 
@@ -21089,87 +21091,68 @@ void CollideIon::printSpeciesElectrons
 
 void CollideIon::processConfig()
 {
-  YAML::Node iconf;
-
-  // Ensure that the original config is used, unless explicited edited
-  // by the user
-  //
-  if (restart) {
-    std::string conffile = runtag + ".CollideIon.config.yml";
-    if ( !boost::filesystem::exists(conffile) ) {
-      if (myid==0) std::cout << "CollideIon: can't find restart config file <"
-			     << conffile << ">, using defaults" << std::endl;
-      iconf = config;
-    } else {
-      std::ifstream in(conffile);
-      iconf = YAML::Load(in);
-    }
-  } else {
-    iconf = config;
-  }
-
   try {
-    if (iconf["NO_EXACT"])
-      NoExact = iconf["NO_EXACT"]["value"].as<bool>();
+    if (config["NO_EXACT"])
+      NoExact = config["NO_EXACT"]["value"].as<bool>();
     else {
-      iconf["NO_EXACT"]["desc"]  = "Enable equal electron-ion interactions in Hybrid method";
-      iconf["NO_EXACT"]["value"] = NoExact = false;
+      config["NO_EXACT"]["desc"]  = "Enable equal electron-ion interactions in Hybrid method";
+      config["NO_EXACT"]["value"] = NoExact = false;
     }
 
-    if (iconf["USE_IPS"])
-      IPS = iconf["USE_IPS"]["value"].as<bool>();
+    if (config["USE_IPS"])
+      IPS = config["USE_IPS"]["value"].as<bool>();
     else {
-      iconf["USE_IPS"]["desc"] = "Use mean interparticle spacing as minimum Coulombic impact parameter";
-      iconf["USE_IPS"]["value"] = IPS = false;
+      config["USE_IPS"]["desc"] = "Use mean interparticle spacing as minimum Coulombic impact parameter";
+      config["USE_IPS"]["value"] = IPS = false;
     }
 
-    if (iconf["ENERGY_ES"])
-      ExactE = iconf["ENERGY_ES"]["value"].as<bool>();
+    if (config["ENERGY_ES"])
+      ExactE = config["ENERGY_ES"]["value"].as<bool>();
     else {
-      iconf["ENERGY_ES"]["desc"] = "Enable the explicit energy conservation algorithm";
-      iconf["ENERGY_ES"]["value"] = ExactE = false;
+      config["ENERGY_ES"]["desc"] = "Enable the explicit energy conservation algorithm";
+      config["ENERGY_ES"]["value"] = ExactE = false;
     }
 
-    if (iconf["ENERGY_ES_DBG"])
-      DebugE = iconf["ENERGY_ES_DBG"]["value"].as<bool>();
+    if (config["ENERGY_ES_DBG"])
+      DebugE = config["ENERGY_ES_DBG"]["value"].as<bool>();
     else {
-      iconf["ENERGY_ES_DBG"]["desc"] = "Enable explicit energy conservation checking";
-      iconf["ENERGY_ES_DBG"]["value"] = DebugE = true;
+      config["ENERGY_ES_DBG"]["desc"] = "Enable explicit energy conservation checking";
+      config["ENERGY_ES_DBG"]["value"] = DebugE = true;
     }
 
-    if (iconf["MEAN_MASS"])
-      MeanMass = iconf["MEAN_MASS"]["value"].as<bool>();
+    if (config["MEAN_MASS"])
+      MeanMass = config["MEAN_MASS"]["value"].as<bool>();
     else {
-      iconf["MEAN_MASS"]["desc"] = "Mean mass, energy and momentum conserving algorithm";
-      iconf["MEAN_MASS"]["value"] = MeanMass = false;
+      config["MEAN_MASS"]["desc"] = "Mean mass, energy and momentum conserving algorithm";
+      config["MEAN_MASS"]["value"] = MeanMass = false;
     }
 
-    if (iconf["ENERGY_ORTHO"])
-      AlgOrth = iconf["ENERGY_ORTHO"]["value"].as<bool>();
+    if (config["ENERGY_ORTHO"])
+      AlgOrth = config["ENERGY_ORTHO"]["value"].as<bool>();
     else {
-      iconf["ENERGY_ORTHO"]["desc"] = "Add energy in orthogonal direction";
-      iconf["ENERGY_ORTHO"]["value"] = AlgOrth = false;
+      config["ENERGY_ORTHO"]["desc"] = "Add energy in orthogonal direction";
+      config["ENERGY_ORTHO"]["value"] = AlgOrth = false;
     }
 
-    if (iconf["ENERGY_WEIGHT"])
-      AlgWght = iconf["ENERGY_WEIGHT"]["value"].as<bool>();
+    if (config["ENERGY_WEIGHT"])
+      AlgWght = config["ENERGY_WEIGHT"]["value"].as<bool>();
     else {
-      iconf["ENERGY_WEIGHT"]["desc"] = "Energy conservation weighted by superparticle number count";
-      iconf["ENERGY_WEIGHT"]["value"] = AlgWght = false;
+      config["ENERGY_WEIGHT"]["desc"] = "Energy conservation weighted by superparticle number count";
+      config["ENERGY_WEIGHT"]["value"] = AlgWght = false;
     }
 
-    if (iconf["TRACE_ELEC"])
-      TRACE_ELEC = iconf["TRACE_ELEC"]["value"].as<bool>();
+    if (config["TRACE_ELEC"])
+      TRACE_ELEC = config["TRACE_ELEC"]["value"].as<bool>();
     else {
-      iconf["TRACE_ELEC"]["desc"] = "Add excess energy directly to the electrons";
-      iconf["TRACE_ELEC"]["value"] = TRACE_ELEC = false;
+      config["TRACE_ELEC"]["desc"] = "Add excess energy directly to the electrons";
+      config["TRACE_ELEC"]["value"] = TRACE_ELEC = false;
     }
 
-    if (iconf["ALWAYS_APPLY"])
-      ALWAYS_APPLY = iconf["ALWAYS_APPLY"]["value"].as<bool>();
+    if (config["ALWAYS_APPLY"])
+      ALWAYS_APPLY = config["ALWAYS_APPLY"]["value"].as<bool>();
     else {
-      iconf["ALWAYS_APPLY"]["desc"] = "Attempt to remove excess energy from all interactions";
-      iconf["ALWAYS_APPLY"]["value"] = ALWAYS_APPLY = false;
+      config["ALWAYS_APPLY"]["desc"] = "Attempt to remove excess energy from all interactions";
+      config["ALWAYS_APPLY"]["value"] = ALWAYS_APPLY = false;
     }
 
     if (!ExactE and ALWAYS_APPLY) {
@@ -21183,545 +21166,545 @@ void CollideIon::processConfig()
       }
     }
 
-    if (iconf["COLL_SPECIES"])
-      COLL_SPECIES = iconf["COLL_SPECIES"]["value"].as<bool>();
+    if (config["COLL_SPECIES"])
+      COLL_SPECIES = config["COLL_SPECIES"]["value"].as<bool>();
     else {
-      iconf["COLL_SPECIES"]["desc"] = "Print collision count by species for debugging";
-      iconf["COLL_SPECIES"]["value"] = COLL_SPECIES = false;
+      config["COLL_SPECIES"]["desc"] = "Print collision count by species for debugging";
+      config["COLL_SPECIES"]["value"] = COLL_SPECIES = false;
     }
 
-    if (iconf["SECONDARY_SCATTER"])
-      SECONDARY_SCATTER = iconf["SECONDARY_SCATTER"]["value"].as<unsigned>();
+    if (config["SECONDARY_SCATTER"])
+      SECONDARY_SCATTER = config["SECONDARY_SCATTER"]["value"].as<unsigned>();
     else {
-      iconf["SECONDARY_SCATTER"]["desc"] = "Scatter electron with its donor ion n times (0 value for no scattering)";
-      iconf["SECONDARY_SCATTER"]["value"] = SECONDARY_SCATTER = 0;
+      config["SECONDARY_SCATTER"]["desc"] = "Scatter electron with its donor ion n times (0 value for no scattering)";
+      config["SECONDARY_SCATTER"]["value"] = SECONDARY_SCATTER = 0;
     }
 
-    if (iconf["TRACE_FRAC"])
-      TRACE_FRAC = iconf["TRACE_FRAC"]["value"].as<double>();
+    if (config["TRACE_FRAC"])
+      TRACE_FRAC = config["TRACE_FRAC"]["value"].as<double>();
     else {
-      iconf["TRACE_FRAC"]["desc"] = "Add this fraction to electrons and rest to ions";
-      iconf["TRACE_FRAC"]["value"] = TRACE_FRAC = 1.0;
+      config["TRACE_FRAC"]["desc"] = "Add this fraction to electrons and rest to ions";
+      config["TRACE_FRAC"]["value"] = TRACE_FRAC = 1.0;
     }
 
-    if (iconf["SAME_ELEC_SCAT"])
-      SAME_ELEC_SCAT = iconf["SAME_ELEC_SCAT"]["value"].as<bool>();
+    if (config["SAME_ELEC_SCAT"])
+      SAME_ELEC_SCAT = config["SAME_ELEC_SCAT"]["value"].as<bool>();
     else {
-      iconf["SAME_ELEC_SCAT"]["desc"] = "Only scatter electrons with the same donor-ion mass";
-      iconf["SAME_ELEC_SCAT"]["value"] = SAME_ELEC_SCAT = false;
+      config["SAME_ELEC_SCAT"]["desc"] = "Only scatter electrons with the same donor-ion mass";
+      config["SAME_ELEC_SCAT"]["value"] = SAME_ELEC_SCAT = false;
     }
 
-    if (iconf["DIFF_ELEC_SCAT"])
-      DIFF_ELEC_SCAT = iconf["DIFF_ELEC_SCAT"]["value"].as<bool>();
+    if (config["DIFF_ELEC_SCAT"])
+      DIFF_ELEC_SCAT = config["DIFF_ELEC_SCAT"]["value"].as<bool>();
     else {
-      iconf["DIFF_ELEC_SCAT"]["desc"] = "Only scatter electrons with different donor-ion mass";
-      iconf["DIFF_ELEC_SCAT"]["value"] = DIFF_ELEC_SCAT = false;
+      config["DIFF_ELEC_SCAT"]["desc"] = "Only scatter electrons with different donor-ion mass";
+      config["DIFF_ELEC_SCAT"]["value"] = DIFF_ELEC_SCAT = false;
     }
 
-    if (iconf["SAME_IONS_SCAT"])
-      SAME_IONS_SCAT = iconf["SAME_IONS_SCAT"]["value"].as<bool>();
+    if (config["SAME_IONS_SCAT"])
+      SAME_IONS_SCAT = config["SAME_IONS_SCAT"]["value"].as<bool>();
     else {
-      iconf["SAME_IONS_SCAT"]["desc"] = "Only scatter ions with the same mass";
-      iconf["SAME_IONS_SCAT"]["value"] = SAME_IONS_SCAT = false;
+      config["SAME_IONS_SCAT"]["desc"] = "Only scatter ions with the same mass";
+      config["SAME_IONS_SCAT"]["value"] = SAME_IONS_SCAT = false;
     }
 
-    if (iconf["SAME_INTERACT"])
-      SAME_INTERACT = iconf["SAME_INTERACT"]["value"].as<bool>();
+    if (config["SAME_INTERACT"])
+      SAME_INTERACT = config["SAME_INTERACT"]["value"].as<bool>();
     else {
-      iconf["SAME_INTERACT"]["desc"] = "Only perform interactions with equal-mass particles";
-      iconf["SAME_INTERACT"]["value"] = SAME_INTERACT = false;
+      config["SAME_INTERACT"]["desc"] = "Only perform interactions with equal-mass particles";
+      config["SAME_INTERACT"]["value"] = SAME_INTERACT = false;
     }
 
-    if (iconf["DIFF_INTERACT"])
-      DIFF_INTERACT = iconf["DIFF_INTERACT"]["value"].as<bool>();
+    if (config["DIFF_INTERACT"])
+      DIFF_INTERACT = config["DIFF_INTERACT"]["value"].as<bool>();
     else {
-      iconf["DIFF_INTERACT"]["desc"] = "Only perform interactions with different species particles";
-      iconf["DIFF_INTERACT"]["value"] = DIFF_INTERACT = false;
+      config["DIFF_INTERACT"]["desc"] = "Only perform interactions with different species particles";
+      config["DIFF_INTERACT"]["value"] = DIFF_INTERACT = false;
     }
 
-    if (iconf["WEIGHT_RATIO"])
-      Fwght = iconf["WEIGHT_RATIO"]["value"].as<double>();
+    if (config["WEIGHT_RATIO"])
+      Fwght = config["WEIGHT_RATIO"]["value"].as<double>();
     else {
-      iconf["WEIGHT_RATIO"]["desc"] = "Weighting ratio for spreading excess energy to components";
-      iconf["WEIGHT_RATIO"]["value"] = Fwght = 0.5;
+      config["WEIGHT_RATIO"]["desc"] = "Weighting ratio for spreading excess energy to components";
+      config["WEIGHT_RATIO"]["value"] = Fwght = 0.5;
     }
 
-    if (iconf["TRACE_OVERRIDE"])
-      TRACE_OVERRIDE = iconf["TRACE_OVERRIDE"]["value"].as<bool>();
+    if (config["TRACE_OVERRIDE"])
+      TRACE_OVERRIDE = config["TRACE_OVERRIDE"]["value"].as<bool>();
     else {
-      iconf["TRACE_OVERRIDE"]["desc"] = "Distribute energy equally to trace species";
-      iconf["TRACE_OVERRIDE"]["value"] = TRACE_OVERRIDE = false;
+      config["TRACE_OVERRIDE"]["desc"] = "Distribute energy equally to trace species";
+      config["TRACE_OVERRIDE"]["value"] = TRACE_OVERRIDE = false;
     }
 
-    if (iconf["NOCOOL_ELEC"])
-      NOCOOL_ELEC = iconf["NOCOOL_ELEC"]["value"].as<bool>();
+    if (config["NOCOOL_ELEC"])
+      NOCOOL_ELEC = config["NOCOOL_ELEC"]["value"].as<bool>();
     else {
-      iconf["NOCOOL_ELEC"]["desc"] = "Suppress distribution of energy to electrons when using NOCOOL";
-      iconf["NOCOOL_ELEC"]["value"] = NOCOOL_ELEC = false;
+      config["NOCOOL_ELEC"]["desc"] = "Suppress distribution of energy to electrons when using NOCOOL";
+      config["NOCOOL_ELEC"]["value"] = NOCOOL_ELEC = false;
     }
 
-    if (iconf["NOSHARE_ELEC"])
-      NOSHARE_ELEC = iconf["NOSHARE_ELEC"]["value"].as<bool>();
+    if (config["NOSHARE_ELEC"])
+      NOSHARE_ELEC = config["NOSHARE_ELEC"]["value"].as<bool>();
     else {
-      iconf["NOSHARE_ELEC"]["desc"] = "Suppress distribution of ionization energy between electrons";
-      iconf["NOSHARE_ELEC"]["value"] = NOSHARE_ELEC = false;
+      config["NOSHARE_ELEC"]["desc"] = "Suppress distribution of ionization energy between electrons";
+      config["NOSHARE_ELEC"]["value"] = NOSHARE_ELEC = false;
     }
 
-    if (iconf["CLONE_ELEC"])
-      CLONE_ELEC = iconf["CLONE_ELEC"]["value"].as<bool>();
+    if (config["CLONE_ELEC"])
+      CLONE_ELEC = config["CLONE_ELEC"]["value"].as<bool>();
     else {
-      iconf["CLONE_ELEC"]["desc"] = "Clone energy of ionizing electron to newly created free electron";
-      iconf["CLONE_ELEC"]["value"] = CLONE_ELEC = false;
+      config["CLONE_ELEC"]["desc"] = "Clone energy of ionizing electron to newly created free electron";
+      config["CLONE_ELEC"]["value"] = CLONE_ELEC = false;
     }
 
-    if (iconf["frost_warning"])
-      frost_warning = iconf["frost_warning"]["value"].as<bool>();
+    if (config["frost_warning"])
+      frost_warning = config["frost_warning"]["value"].as<bool>();
     else {
-      iconf["frost_warning"]["desc"] = "Warn if energy lost is smaller than available energy";
-      iconf["frost_warning"]["value"] = frost_warning = false;
+      config["frost_warning"]["desc"] = "Warn if energy lost is smaller than available energy";
+      config["frost_warning"]["value"] = frost_warning = false;
     }
 
-    if (iconf["DEBUG_SL"])
-      DEBUG_SL = iconf["DEBUG_SL"]["value"].as<bool>();
+    if (config["DEBUG_SL"])
+      DEBUG_SL = config["DEBUG_SL"]["value"].as<bool>();
     else {
-      iconf["DEBUG_SL"]["desc"] = "Enable verbose interaction selection diagnostics";
-      iconf["DEBUG_SL"]["value"] = DEBUG_SL = false;
+      config["DEBUG_SL"]["desc"] = "Enable verbose interaction selection diagnostics";
+      config["DEBUG_SL"]["value"] = DEBUG_SL = false;
     }
 
-    if (iconf["DEBUG_CR"])
-      DEBUG_CR = iconf["DEBUG_CR"]["value"].as<bool>();
+    if (config["DEBUG_CR"])
+      DEBUG_CR = config["DEBUG_CR"]["value"].as<bool>();
     else {
-      iconf["DEBUG_CR"]["desc"] = "Enable printing of relative cross sections and probabilities for interaction selection";
-      iconf["DEBUG_CR"]["value"] = DEBUG_CR = false;
+      config["DEBUG_CR"]["desc"] = "Enable printing of relative cross sections and probabilities for interaction selection";
+      config["DEBUG_CR"]["value"] = DEBUG_CR = false;
     }
 
-    if (iconf["DEBUG_NQ"])
-      DEBUG_NQ = iconf["DEBUG_NQ"]["value"].as<bool>();
+    if (config["DEBUG_NQ"])
+      DEBUG_NQ = config["DEBUG_NQ"]["value"].as<bool>();
     else {
-      iconf["DEBUG_NQ"]["desc"] = "Printing of cross section debug info for unequal species only";
-      iconf["DEBUG_NQ"]["value"] = DEBUG_NQ = false;
+      config["DEBUG_NQ"]["desc"] = "Printing of cross section debug info for unequal species only";
+      config["DEBUG_NQ"]["value"] = DEBUG_NQ = false;
     }
 
-    if (iconf["NO_DOF"])
-      NO_DOF = iconf["NO_DOF"]["value"].as<bool>();
+    if (config["NO_DOF"])
+      NO_DOF = config["NO_DOF"]["value"].as<bool>();
     else {
-      iconf["NO_DOF"]["desc"] = "Suppress adjustment of electron speed based on degrees of freedom";
-      iconf["NO_DOF"]["value"] = NO_DOF = true;
+      config["NO_DOF"]["desc"] = "Suppress adjustment of electron speed based on degrees of freedom";
+      config["NO_DOF"]["value"] = NO_DOF = true;
     }
 
-    if (iconf["NO_VEL"])
-      NO_VEL = iconf["NO_VEL"]["value"].as<bool>();
+    if (config["NO_VEL"])
+      NO_VEL = config["NO_VEL"]["value"].as<bool>();
     else {
-      iconf["NO_VEL"]["desc"] = "Suppress adjustment of electron speed for equipartition equilibrium";
-      iconf["NO_VEL"]["value"] = NO_VEL = false;
+      config["NO_VEL"]["desc"] = "Suppress adjustment of electron speed for equipartition equilibrium";
+      config["NO_VEL"]["value"] = NO_VEL = false;
     }
 
-    if (iconf["NO_ION_E"])
-      NO_ION_E = iconf["NO_ION_E"]["value"].as<bool>();
+    if (config["NO_ION_E"])
+      NO_ION_E = config["NO_ION_E"]["value"].as<bool>();
     else {
-      iconf["NO_ION_E"]["desc"] = "Suppress energy loss from ionization";
-      iconf["NO_ION_E"]["value"] = NO_ION_E = false;
+      config["NO_ION_E"]["desc"] = "Suppress energy loss from ionization";
+      config["NO_ION_E"]["value"] = NO_ION_E = false;
     }
 
-    if (iconf["NO_FF"])
-      NO_FF = iconf["NO_FF"]["value"].as<bool>();
+    if (config["NO_FF"])
+      NO_FF = config["NO_FF"]["value"].as<bool>();
     else {
-      iconf["NO_FF"]["desc"] = "Ignore free-free interaction";
-      iconf["NO_FF"]["value"] = NO_FF = false;
+      config["NO_FF"]["desc"] = "Ignore free-free interaction";
+      config["NO_FF"]["value"] = NO_FF = false;
     }
 
-    if (iconf["NO_FF_E"])
-      NO_FF_E = iconf["NO_FF_E"]["value"].as<bool>();
+    if (config["NO_FF_E"])
+      NO_FF_E = config["NO_FF_E"]["value"].as<bool>();
     else {
-      iconf["NO_FF_E"]["desc"] = "Suppress energy loss from free-free";
-      iconf["NO_FF_E"]["value"] = NO_FF_E = false;
+      config["NO_FF_E"]["desc"] = "Suppress energy loss from free-free";
+      config["NO_FF_E"]["value"] = NO_FF_E = false;
     }
 
-    if (iconf["KE_DEBUG"])
-      KE_DEBUG = iconf["KE_DEBUG"]["value"].as<bool>();
+    if (config["KE_DEBUG"])
+      KE_DEBUG = config["KE_DEBUG"]["value"].as<bool>();
     else {
-      iconf["KE_DEBUG"]["desc"] = "Check energy bookkeeping for debugging";
-      iconf["KE_DEBUG"]["value"] = KE_DEBUG = true;
+      config["KE_DEBUG"]["desc"] = "Check energy bookkeeping for debugging";
+      config["KE_DEBUG"]["value"] = KE_DEBUG = true;
     }
 
-    if (iconf["NO_HSCAT"])
-      NO_HSCAT = iconf["NO_HSCAT"]["value"].as<bool>();
+    if (config["NO_HSCAT"])
+      NO_HSCAT = config["NO_HSCAT"]["value"].as<bool>();
     else {
-      iconf["NO_HSCAT"]["desc"] = "Artificially suppress scattering for debugging Trace method";
-      iconf["NO_HSCAT"]["value"] = NO_HSCAT = false;
+      config["NO_HSCAT"]["desc"] = "Artificially suppress scattering for debugging Trace method";
+      config["NO_HSCAT"]["value"] = NO_HSCAT = false;
     }
 
-    if (iconf["DBG_HSCAT"])
-      DBG_HSCAT = iconf["DBG_HSCAT"]["value"].as<bool>();
+    if (config["DBG_HSCAT"])
+      DBG_HSCAT = config["DBG_HSCAT"]["value"].as<bool>();
     else {
-      iconf["DBG_HSCAT"]["desc"] = "Cache and check constancy of masses and weights with scattering for only debugging Trace method";
-      iconf["DBG_HSCAT"]["value"] = DBG_HSCAT = false;
+      config["DBG_HSCAT"]["desc"] = "Cache and check constancy of masses and weights with scattering for only debugging Trace method";
+      config["DBG_HSCAT"]["value"] = DBG_HSCAT = false;
     }
 
-    if (iconf["tolE"])
-      tolE = iconf["tolE"]["value"].as<double>();
+    if (config["tolE"])
+      tolE = config["tolE"]["value"].as<double>();
     else {
-      iconf["tolE"]["desc"] = "Threshold for reporting energy conservation bookkeeping";
-      iconf["tolE"]["value"] = tolE = 1.0e-5;
+      config["tolE"]["desc"] = "Threshold for reporting energy conservation bookkeeping";
+      config["tolE"]["value"] = tolE = 1.0e-5;
     }
 
-    if (iconf["tolCS"])
-      tolCS = iconf["tolCS"]["value"].as<double>();
+    if (config["tolCS"])
+      tolCS = config["tolCS"]["value"].as<double>();
     else {
-      iconf["tolCS"]["desc"] = "Threshold for cross-section sanity using NTCdb";
-      iconf["tolCS"]["value"] = tolCS = 1.0;
+      config["tolCS"]["desc"] = "Threshold for cross-section sanity using NTCdb";
+      config["tolCS"]["value"] = tolCS = 1.0;
     }
 
-    if (iconf["qCrit"])
-      qCrit = iconf["qCrit"]["value"].as<double>();
+    if (config["qCrit"])
+      qCrit = config["qCrit"]["value"].as<double>();
     else {
-      iconf["qCrit"]["desc"] = "Critical weighting threshold for energy conserving electron interactions";
-      iconf["qCrit"]["value"] = qCrit = -1.0;
+      config["qCrit"]["desc"] = "Critical weighting threshold for energy conserving electron interactions";
+      config["qCrit"]["value"] = qCrit = -1.0;
     }
 
-    if (iconf["RECOMB_IP"])
-      RECOMB_IP = iconf["RECOMB_IP"]["value"].as<bool>();
+    if (config["RECOMB_IP"])
+      RECOMB_IP = config["RECOMB_IP"]["value"].as<bool>();
     else {
-      iconf["RECOMB_IP"]["desc"] = "Electronic binding energy is lost in recombination";
-      iconf["RECOMB_IP"]["value"] = RECOMB_IP = false;
+      config["RECOMB_IP"]["desc"] = "Electronic binding energy is lost in recombination";
+      config["RECOMB_IP"]["value"] = RECOMB_IP = false;
     }
 
-    if (iconf["CROSS_DBG"])
-      CROSS_DBG = iconf["CROSS_DBG"]["value"].as<bool>();
+    if (config["CROSS_DBG"])
+      CROSS_DBG = config["CROSS_DBG"]["value"].as<bool>();
     else {
-      iconf["CROSS_DBG"]["desc"] = "Enable verbose cross-section value diagnostics";
-      iconf["CROSS_DBG"]["value"] = CROSS_DBG = false;
+      config["CROSS_DBG"]["desc"] = "Enable verbose cross-section value diagnostics";
+      config["CROSS_DBG"]["value"] = CROSS_DBG = false;
     }
 
-    if (iconf["EXCESS_DBG"])
-      EXCESS_DBG = iconf["EXCESS_DBG"]["value"].as<bool>();
+    if (config["EXCESS_DBG"])
+      EXCESS_DBG = config["EXCESS_DBG"]["value"].as<bool>();
     else {
-      iconf["EXCESS_DBG"]["desc"] = "Enable check for excess weight counter in trace algorithm";
-      iconf["EXCESS_DBG"]["value"] = EXCESS_DBG = false;
+      config["EXCESS_DBG"]["desc"] = "Enable check for excess weight counter in trace algorithm";
+      config["EXCESS_DBG"]["value"] = EXCESS_DBG = false;
     }
 
-    if (iconf["DEBUG_CNT"])
-      DEBUG_CNT = iconf["DEBUG_CNT"]["value"].as<int>();
+    if (config["DEBUG_CNT"])
+      DEBUG_CNT = config["DEBUG_CNT"]["value"].as<int>();
     else {
-      iconf["DEBUG_CNT"]["desc"] = "Count collisions in each particle for debugging";
-      iconf["DEBUG_CNT"]["value"] = DEBUG_CNT = -1;
+      config["DEBUG_CNT"]["desc"] = "Count collisions in each particle for debugging";
+      config["DEBUG_CNT"]["value"] = DEBUG_CNT = -1;
     }
 
-    if (iconf["COLL_LIMIT"])
-      collLim = iconf["COLL_LIMIT"]["value"].as<bool>();
+    if (config["COLL_LIMIT"])
+      collLim = config["COLL_LIMIT"]["value"].as<bool>();
     else {
-      iconf["COLL_LIMIT"]["desc"] = "Limit number of collisions per particle";
-      iconf["COLL_LIMIT"]["value"] = collLim = false;
+      config["COLL_LIMIT"]["desc"] = "Limit number of collisions per particle";
+      config["COLL_LIMIT"]["value"] = collLim = false;
     }
 
-    if (iconf["COLL_CORR"])
-      collCor = iconf["COLL_CORR"]["value"].as<bool>();
+    if (config["COLL_CORR"])
+      collCor = config["COLL_CORR"]["value"].as<bool>();
     else {
-      iconf["COLL_CORR"]["desc"] = "Correct collisions per particle for limit";
-      iconf["COLL_CORR"]["value"] = collCor = false;
+      config["COLL_CORR"]["desc"] = "Correct collisions per particle for limit";
+      config["COLL_CORR"]["value"] = collCor = false;
     }
 
-    if (iconf["COLL_LIMIT_ABS"])
-      maxSel = iconf["COLL_LIMIT_ABS"]["value"].as<unsigned>();
+    if (config["COLL_LIMIT_ABS"])
+      maxSel = config["COLL_LIMIT_ABS"]["value"].as<unsigned>();
     else {
-      iconf["COLL_LIMIT_ABS"]["desc"] = "Limiting number of collisions per cell";
-      iconf["COLL_LIMIT_ABS"]["value"] = maxSel = 5000;
+      config["COLL_LIMIT_ABS"]["desc"] = "Limiting number of collisions per cell";
+      config["COLL_LIMIT_ABS"]["value"] = maxSel = 5000;
     }
 
-    if (iconf["COOL_SCALE"])
-      energy_scale = iconf["COOL_SCALE"]["value"].as<double>();
+    if (config["COOL_SCALE"])
+      energy_scale = config["COOL_SCALE"]["value"].as<double>();
     else {
-      iconf["COOL_SCALE"]["desc"] = "If positive, reduce the inelastic energy by this fraction";
-      iconf["COOL_SCALE"]["value"] = energy_scale = -1.0;
+      config["COOL_SCALE"]["desc"] = "If positive, reduce the inelastic energy by this fraction";
+      config["COOL_SCALE"]["value"] = energy_scale = -1.0;
     }
 
-    if (iconf["TSESUM"])
-      TSESUM = iconf["TSESUM"]["value"].as<bool>();
+    if (config["TSESUM"])
+      TSESUM = config["TSESUM"]["value"].as<bool>();
     else {
-      iconf["TSESUM"]["desc"] = "Use sum per cell of TRUE, use max per cell if FALSE for setting time step";
-      iconf["TSESUM"]["value"] = TSESUM = true;
+      config["TSESUM"]["desc"] = "Use sum per cell of TRUE, use max per cell if FALSE for setting time step";
+      config["TSESUM"]["value"] = TSESUM = true;
     }
 
-    if (iconf["TSCOOL"])
-      TSCOOL = iconf["TSCOOL"]["value"].as<double>();
+    if (config["TSCOOL"])
+      TSCOOL = config["TSCOOL"]["value"].as<double>();
     else {
-      iconf["TSCOOL"]["desc"] = "Multiplicative factor for choosing cooling time step";
-      iconf["TSCOOL"]["value"] = TSCOOL = 0.05;
+      config["TSCOOL"]["desc"] = "Multiplicative factor for choosing cooling time step";
+      config["TSCOOL"]["value"] = TSCOOL = 0.05;
     }
 
-    if (iconf["TSFLOOR"])
-      TSFLOOR = iconf["TSFLOOR"]["value"].as<double>();
+    if (config["TSFLOOR"])
+      TSFLOOR = config["TSFLOOR"]["value"].as<double>();
     else {
-      iconf["TSFLOOR"]["desc"] = "Floor KE/deltaE for choosing cooling time step";
-      iconf["TSFLOOR"]["value"] = TSFLOOR = 0.001;
+      config["TSFLOOR"]["desc"] = "Floor KE/deltaE for choosing cooling time step";
+      config["TSFLOOR"]["value"] = TSFLOOR = 0.001;
     }
 
-    if (iconf["scatFac1"])
-      scatFac1 = iconf["scatFac1"]["value"].as<double>();
+    if (config["scatFac1"])
+      scatFac1 = config["scatFac1"]["value"].as<double>();
     else {
-      iconf["scatFac1"]["desc"] = "Energy split in favor of dominant species (Hybrid)";
-      iconf["scatFac1"]["value"] = scatFac1 = 1.0;
+      config["scatFac1"]["desc"] = "Energy split in favor of dominant species (Hybrid)";
+      config["scatFac1"]["value"] = scatFac1 = 1.0;
     }
 
-    if (iconf["scatFac2"])
-      scatFac2 = iconf["scatFac2"]["value"].as<double>();
+    if (config["scatFac2"])
+      scatFac2 = config["scatFac2"]["value"].as<double>();
     else {
-      iconf["scatFac2"]["desc"] = "Energy split in favor of trace species (Hybrid)";
-      iconf["scatFac2"]["value"] = scatFac2 = 1.0;
+      config["scatFac2"]["desc"] = "Energy split in favor of trace species (Hybrid)";
+      config["scatFac2"]["value"] = scatFac2 = 1.0;
     }
 
-    if (iconf["E_split"])
-      E_split = iconf["E_split"]["value"].as<bool>();
+    if (config["E_split"])
+      E_split = config["E_split"]["value"].as<bool>();
     else {
-      iconf["E_split"]["desc"] = "Apply energy loss to ions and electrons";
-      iconf["E_split"]["value"] = E_split = false;
+      config["E_split"]["desc"] = "Apply energy loss to ions and electrons";
+      config["E_split"]["value"] = E_split = false;
     }
 
-    if (iconf["KE_DEBUG"])
-      KE_DEBUG = iconf["KE_DEBUG"]["value"].as<bool>();
+    if (config["KE_DEBUG"])
+      KE_DEBUG = config["KE_DEBUG"]["value"].as<bool>();
     else {
-      iconf["KE_DEBUG"]["desc"] = "Check energy bookkeeping for debugging";
-      iconf["KE_DEBUG"]["value"] = KE_DEBUG = false;
+      config["KE_DEBUG"]["desc"] = "Check energy bookkeeping for debugging";
+      config["KE_DEBUG"]["value"] = KE_DEBUG = false;
     }
 
-    if (iconf["FloorEv"])
-      FloorEv = iconf["FloorEv"]["value"].as<double>();
+    if (config["FloorEv"])
+      FloorEv = config["FloorEv"]["value"].as<double>();
     else {
-      iconf["FloorEv"]["desc"] = "Minimum energy for Coulombic elastic scattering cross section";
-      iconf["FloorEv"]["value"] = FloorEv = 0.05f;
+      config["FloorEv"]["desc"] = "Minimum energy for Coulombic elastic scattering cross section";
+      config["FloorEv"]["value"] = FloorEv = 0.05f;
     }
 
-    if (iconf["minCollFrac"])
-      minCollFrac = iconf["minCollFrac"]["value"].as<double>();
+    if (config["minCollFrac"])
+      minCollFrac = config["minCollFrac"]["value"].as<double>();
     else {
-      iconf["minCollFrac"]["desc"] = "Minimum relative fraction for collisional excitation";
-      iconf["minCollFrac"]["value"] = minCollFrac = -1.0f;
+      config["minCollFrac"]["desc"] = "Minimum relative fraction for collisional excitation";
+      config["minCollFrac"]["value"] = minCollFrac = -1.0f;
     }
 
-    if (iconf["maxCoul"])
-      maxCoul = iconf["maxCoul"]["value"].as<unsigned>();
+    if (config["maxCoul"])
+      maxCoul = config["maxCoul"]["value"].as<unsigned>();
     else {
-      iconf["maxCoul"]["desc"] = "Maximum number of elastic Coulombic collisions per step";
-      iconf["maxCoul"]["value"] = maxCoul = UINT_MAX;
+      config["maxCoul"]["desc"] = "Maximum number of elastic Coulombic collisions per step";
+      config["maxCoul"]["value"] = maxCoul = UINT_MAX;
     }
 
-    if (iconf["logL"])
-      logL = iconf["logL"]["value"].as<double>();
+    if (config["logL"])
+      logL = config["logL"]["value"].as<double>();
     else {
-      iconf["logL"]["desc"] = "Coulombic log(Lambda) value";
-      iconf["logL"]["value"] = logL = 24.0;
+      config["logL"]["desc"] = "Coulombic log(Lambda) value";
+      config["logL"]["value"] = logL = 24.0;
     }
 
-    if (iconf["coulInter"])
-      coulInter = iconf["coulInter"]["value"].as<bool>();
+    if (config["coulInter"])
+      coulInter = config["coulInter"]["value"].as<bool>();
     else {
-      iconf["coulInter"]["desc"] = "Compute maximum cross section based Chandrasekhar interference";
-      iconf["coulInter"]["value"] = coulInter = true;
+      config["coulInter"]["desc"] = "Compute maximum cross section based Chandrasekhar interference";
+      config["coulInter"]["value"] = coulInter = true;
     }
 
-    if (iconf["cudaOff"])
-      cudaOff = iconf["cudaOff"]["value"].as<bool>();
+    if (config["cudaOff"])
+      cudaOff = config["cudaOff"]["value"].as<bool>();
     else {
-      iconf["cudaOff"]["desc"] = "Suppress GPU computation when GPU is available for testing";
-      iconf["cudaOff"]["value"] = cudaOff = false;
+      config["cudaOff"]["desc"] = "Suppress GPU computation when GPU is available for testing";
+      config["cudaOff"]["value"] = cudaOff = false;
     }
 
-    if (iconf["collTnum"])
-      Collide::collTnum = iconf["collTnum"]["value"].as<unsigned>();
+    if (config["collTnum"])
+      Collide::collTnum = config["collTnum"]["value"].as<unsigned>();
     else {
-      iconf["collTnum"]["desc"] = "Target number of accepted collisions per cell for assigning time step";
-      iconf["collTnum"]["value"] = Collide::collTnum = UINT_MAX;
+      config["collTnum"]["desc"] = "Target number of accepted collisions per cell for assigning time step";
+      config["collTnum"]["value"] = Collide::collTnum = UINT_MAX;
     }
 
-    if (iconf["distDiag"])
-      distDiag = iconf["distDiag"]["value"].as<bool>();
+    if (config["distDiag"])
+      distDiag = config["distDiag"]["value"].as<bool>();
     else {
-      iconf["distDiag"]["desc"] = "Report binned histogram for particle energies";
-      iconf["distDiag"]["value"] = distDiag = false;
+      config["distDiag"]["desc"] = "Report binned histogram for particle energies";
+      config["distDiag"]["value"] = distDiag = false;
     }
 
-    if (iconf["elecDist"])
-      elecDist = iconf["elecDist"]["value"].as<bool>();
+    if (config["elecDist"])
+      elecDist = config["elecDist"]["value"].as<bool>();
     else {
-      iconf["elecDist"]["desc"] = "Additional detailed histograms for electron velocities";
-      iconf["elecDist"]["value"] = elecDist = false;
+      config["elecDist"]["desc"] = "Additional detailed histograms for electron velocities";
+      config["elecDist"]["value"] = elecDist = false;
     }
 
-    if (iconf["recombDist"])
-      rcmbDist = iconf["recombDist"]["value"].as<bool>();
+    if (config["recombDist"])
+      rcmbDist = config["recombDist"]["value"].as<bool>();
     else {
-      iconf["recombDist"]["desc"] = "Histograms for electron recombination energy";
-      iconf["recombDist"]["value"] = rcmbDist = false;
+      config["recombDist"]["desc"] = "Histograms for electron recombination energy";
+      config["recombDist"]["value"] = rcmbDist = false;
     }
 
-    if (iconf["recombDistLog"])
-      rcmbDlog = iconf["recombDistLog"]["value"].as<bool>();
+    if (config["recombDistLog"])
+      rcmbDlog = config["recombDistLog"]["value"].as<bool>();
     else {
-      iconf["recombDistLog"]["desc"] = "Logscale histogram electron recombination energy";
-      iconf["recombDistLog"]["value"] = rcmbDlog = true;
+      config["recombDistLog"]["desc"] = "Logscale histogram electron recombination energy";
+      config["recombDistLog"]["value"] = rcmbDlog = true;
     }
 
-    if (iconf["ntcDist"])
-      ntcDist = iconf["ntcDist"]["value"].as<bool>();
+    if (config["ntcDist"])
+      ntcDist = config["ntcDist"]["value"].as<bool>();
     else {
-      iconf["ntcDist"]["desc"] = "Enable NTC full distribution for electrons";
-      iconf["ntcDist"]["value"] = ntcDist = false;
+      config["ntcDist"]["desc"] = "Enable NTC full distribution for electrons";
+      config["ntcDist"]["value"] = ntcDist = false;
     }
 
-    if (iconf["photoDiag"])
-      photoDiag = iconf["photoDiag"]["value"].as<bool>();
+    if (config["photoDiag"])
+      photoDiag = config["photoDiag"]["value"].as<bool>();
     else {
-      iconf["photoDiag"]["desc"] = "Enable photoionization diagnostics";
-      iconf["photoDiag"]["value"] = photoDiag = false;
+      config["photoDiag"]["desc"] = "Enable photoionization diagnostics";
+      config["photoDiag"]["value"] = photoDiag = false;
     }
 
-    if (iconf["enforceMOM"])
-      enforceMOM = iconf["enforceMOM"]["value"].as<bool>();
+    if (config["enforceMOM"])
+      enforceMOM = config["enforceMOM"]["value"].as<bool>();
     else {
-      iconf["enforceMOM"]["desc"] = "Enforce momentum conservation per cell (for ExactE and Hybrid)";
-      iconf["enforceMOM"]["value"] = enforceMOM = false;
+      config["enforceMOM"]["desc"] = "Enforce momentum conservation per cell (for ExactE and Hybrid)";
+      config["enforceMOM"]["value"] = enforceMOM = false;
     }
 
-    if (iconf["coulScale"])
-      coulScale = iconf["coulScale"]["value"].as<bool>();
+    if (config["coulScale"])
+      coulScale = config["coulScale"]["value"].as<bool>();
     else {
-      iconf["coulScale"]["desc"] = "Use 'effective' ion-electron scattering cross section";
-      iconf["coulScale"]["value"] = coulScale = false;
+      config["coulScale"]["desc"] = "Use 'effective' ion-electron scattering cross section";
+      config["coulScale"]["value"] = coulScale = false;
     }
 
-    if (iconf["coulPow"])
-      coulPow = iconf["coulPow"]["value"].as<double>();
+    if (config["coulPow"])
+      coulPow = config["coulPow"]["value"].as<double>();
     else {
-      iconf["coulPow"]["desc"] = "Energy power scaling for 'effective' ion-electron scattering cross section";
-      iconf["coulPow"]["value"] = coulPow = false;
+      config["coulPow"]["desc"] = "Energy power scaling for 'effective' ion-electron scattering cross section";
+      config["coulPow"]["value"] = coulPow = false;
     }
 
-    if (iconf["ElcCons"])
-      elc_cons = iconf["ElcCons"]["value"].as<bool>();
+    if (config["ElcCons"])
+      elc_cons = config["ElcCons"]["value"].as<bool>();
     else {
-      iconf["ElcCons"]["desc"] = "Use separate electron conservation of energy collection";
-      iconf["ElcCons"]["value"] = elc_cons = true;
+      config["ElcCons"]["desc"] = "Use separate electron conservation of energy collection";
+      config["ElcCons"]["value"] = elc_cons = true;
     }
 
-    if (iconf["debugFC"])
-      debugFC = iconf["debugFC"]["value"].as<bool>();
+    if (config["debugFC"])
+      debugFC = config["debugFC"]["value"].as<bool>();
     else {
-      iconf["debugFC"]["desc"] = "Enable finalize-cell electron scattering diagnostics";
-      iconf["debugFC"]["value"] = debugFC = false;
+      config["debugFC"]["desc"] = "Enable finalize-cell electron scattering diagnostics";
+      config["debugFC"]["value"] = debugFC = false;
     }
 
-    if (iconf["newRecombAlg"])
-      newRecombAlg = iconf["newRecombAlg"]["value"].as<bool>();
+    if (config["newRecombAlg"])
+      newRecombAlg = config["newRecombAlg"]["value"].as<bool>();
     else {
-      iconf["newRecombAlg"]["desc"] = "Compute recombination cross section based on ion's electron";
-      iconf["newRecombAlg"]["value"] = newRecombAlg = false;
+      config["newRecombAlg"]["desc"] = "Compute recombination cross section based on ion's electron";
+      config["newRecombAlg"]["value"] = newRecombAlg = false;
     }
 
-    if (iconf["HybridWeightSwitch"])
-      HybridWeightSwitch = iconf["HybridWeightSwitch"]["value"].as<bool>();
+    if (config["HybridWeightSwitch"])
+      HybridWeightSwitch = config["HybridWeightSwitch"]["value"].as<bool>();
     else {
-      iconf["HybridWeightSwitch"]["desc"] = "Use full trace algorithm for interaction fractions below threshold";
-      iconf["HybridWeightSwitch"]["value"] = HybridWeightSwitch = false;
+      config["HybridWeightSwitch"]["desc"] = "Use full trace algorithm for interaction fractions below threshold";
+      config["HybridWeightSwitch"]["value"] = HybridWeightSwitch = false;
     }
 
-    if (iconf["DBG_TEST"])
-      DBG_NewTest = iconf["DBG_TEST"]["value"].as<bool>();
+    if (config["DBG_TEST"])
+      DBG_NewTest = config["DBG_TEST"]["value"].as<bool>();
     else {
-      iconf["DBG_TEST"]["desc"] = "Verbose debugging of energy conservation";
-      iconf["DBG_TEST"]["value"] = DBG_NewTest = false;
+      config["DBG_TEST"]["desc"] = "Verbose debugging of energy conservation";
+      config["DBG_TEST"]["value"] = DBG_NewTest = false;
     }
 
-    if (iconf["scatterCheck"])
-      scatter_check = iconf["scatterCheck"]["value"].as<bool>();
+    if (config["scatterCheck"])
+      scatter_check = config["scatterCheck"]["value"].as<bool>();
     else {
-      iconf["scatterCheck"]["desc"] = "Print interaction channel diagnostics";
-      iconf["scatterCheck"]["value"] = scatter_check = false;
+      config["scatterCheck"]["desc"] = "Print interaction channel diagnostics";
+      config["scatterCheck"]["value"] = scatter_check = false;
     }
 
-    if (iconf["recombCheck"])
-      recomb_check = iconf["recombCheck"]["value"].as<bool>();
+    if (config["recombCheck"])
+      recomb_check = config["recombCheck"]["value"].as<bool>();
     else {
-      iconf["recombCheck"]["desc"] = "Print recombination coefficient for all active species";
-      iconf["recombCheck"]["value"] = recomb_check = false;
+      config["recombCheck"]["desc"] = "Print recombination coefficient for all active species";
+      config["recombCheck"]["value"] = recomb_check = false;
     }
 
-    if (iconf["NO_ION_ION"])
-      NO_ION_ION = iconf["NO_ION_ION"]["value"].as<bool>();
+    if (config["NO_ION_ION"])
+      NO_ION_ION = config["NO_ION_ION"]["value"].as<bool>();
     else {
-      iconf["NO_ION_ION"]["desc"] = "Artificially suppress the ion-ion scattering in the Hybrid method";
-      iconf["NO_ION_ION"]["value"] = NO_ION_ION = false;
+      config["NO_ION_ION"]["desc"] = "Artificially suppress the ion-ion scattering in the Hybrid method";
+      config["NO_ION_ION"]["value"] = NO_ION_ION = false;
     }
 
-    if (iconf["NO_ION_ELECTRON"])
-      NO_ION_ELECTRON = iconf["NO_ION_ELECTRON"]["value"].as<bool>();
+    if (config["NO_ION_ELECTRON"])
+      NO_ION_ELECTRON = config["NO_ION_ELECTRON"]["value"].as<bool>();
     else {
-      iconf["NO_ION_ELECTRON"]["desc"] = "Artificially suppress the ion-electron scattering in the Hybrid method";
-      iconf["NO_ION_ELECTRON"]["value"] = NO_ION_ELECTRON = false;
+      config["NO_ION_ELECTRON"]["desc"] = "Artificially suppress the ion-electron scattering in the Hybrid method";
+      config["NO_ION_ELECTRON"]["value"] = NO_ION_ELECTRON = false;
     }
 
-    if (iconf["Spectrum"])
-      use_spectrum = iconf["Spectrum"]["value"].as<bool>();
+    if (config["Spectrum"])
+      use_spectrum = config["Spectrum"]["value"].as<bool>();
     else {
-      iconf["Spectrum"]["desc"] = "Tabulate emission spectrum.  Use log scale if min > 0.0 and wvlSpect is false";
-      iconf["Spectrum"]["value"] = use_spectrum = false;
+      config["Spectrum"]["desc"] = "Tabulate emission spectrum.  Use log scale if min > 0.0 and wvlSpect is false";
+      config["Spectrum"]["value"] = use_spectrum = false;
     }
 
-    if (iconf["wvlSpectrum"])
-      wvlSpect = iconf["wvlSpectrum"]["value"].as<bool>();
+    if (config["wvlSpectrum"])
+      wvlSpect = config["wvlSpectrum"]["value"].as<bool>();
     else {
-      iconf["wvlSpectrum"]["desc"] = "Tabulate emission spectrum using in constant wavelength bins";
-      iconf["wvlSpectrum"]["value"] = wvlSpect = true;
+      config["wvlSpectrum"]["desc"] = "Tabulate emission spectrum using in constant wavelength bins";
+      config["wvlSpectrum"]["value"] = wvlSpect = true;
     }
 
-    if (iconf["minSpect"])
-      minSpect = iconf["minSpect"]["value"].as<double>();
+    if (config["minSpect"])
+      minSpect = config["minSpect"]["value"].as<double>();
     else {
-      iconf["minSpect"]["desc"] = "Minimum energy (eV) or wavelength (in angstrom) for tabulated emission spectrum";
-      iconf["minSpect"]["value"] = minSpect = 100.0;
+      config["minSpect"]["desc"] = "Minimum energy (eV) or wavelength (in angstrom) for tabulated emission spectrum";
+      config["minSpect"]["value"] = minSpect = 100.0;
     }
 
-    if (iconf["maxSpect"])
-      maxSpect = iconf["maxSpect"]["value"].as<double>();
+    if (config["maxSpect"])
+      maxSpect = config["maxSpect"]["value"].as<double>();
     else {
-      iconf["maxSpect"]["desc"] = "Maximum energy (eV) or wavelength (in angstrom) for tabulated emission spectrum";
-      iconf["maxSpect"]["value"] = maxSpect = 20000.0;
+      config["maxSpect"]["desc"] = "Maximum energy (eV) or wavelength (in angstrom) for tabulated emission spectrum";
+      config["maxSpect"]["value"] = maxSpect = 20000.0;
     }
 
-    if (iconf["delEvSpect"])
-      delSpect = iconf["delEvSpect"]["value"].as<double>();
+    if (config["delEvSpect"])
+      delSpect = config["delEvSpect"]["value"].as<double>();
     else {
-      iconf["delEvSpect"]["desc"] = "Energy or wavelength bin width for tabulated emission spectrum (eV)";
-      iconf["delEvSpect"]["value"] = delSpect = 100.0;
+      config["delEvSpect"]["desc"] = "Energy or wavelength bin width for tabulated emission spectrum (eV)";
+      config["delEvSpect"]["value"] = delSpect = 100.0;
     }
 
-    if (iconf["ESthresh"])
-      ESthresh = iconf["ESthresh"]["value"].as<double>();
+    if (config["ESthresh"])
+      ESthresh = config["ESthresh"]["value"].as<double>();
     else {
-      iconf["ESthresh"]["desc"] = "Ionization threshold for electron-electron scattering";
-      iconf["ESthresh"]["value"] = ESthresh = 1.0e-10;
+      config["ESthresh"]["desc"] = "Ionization threshold for electron-electron scattering";
+      config["ESthresh"]["value"] = ESthresh = 1.0e-10;
     }
 
-    if (iconf["photoIB"])
-      photoIB = iconf["photoIB"]["value"].as<std::string>();
+    if (config["photoIB"])
+      photoIB = config["photoIB"]["value"].as<std::string>();
     else {
-      iconf["photoIB"]["desc"] = "Photo ionization background model (none, uvIGM)";
-      iconf["photoIB"]["value"] = photoIB = "uvIGM";
+      config["photoIB"]["desc"] = "Photo ionization background model (none, uvIGM)";
+      config["photoIB"]["value"] = photoIB = "uvIGM";
     }
 
-    if (iconf["use_photon"])
-      use_photon = iconf["use_photon"]["value"].as<int>();
+    if (config["use_photon"])
+      use_photon = config["use_photon"]["value"].as<int>();
     else {
-      iconf["use_photon"]["desc"] = "Attribute position for photon interaction time";
-      iconf["use_photon"]["value"] = use_photon = -1;
+      config["use_photon"]["desc"] = "Attribute position for photon interaction time";
+      config["use_photon"]["value"] = use_photon = -1;
     }
 
     {
       std::string phType;
-      if (iconf["phType"])
-	phType = iconf["phType"]["value"].as<std::string>();
+      if (config["phType"])
+	phType = config["phType"]["value"].as<std::string>();
       else {
-	iconf["phType"]["desc"] = "Photo ionization background type (Particle, Collision)"; 
-	iconf["phType"]["value"] = phType = "Particle";
+	config["phType"]["desc"] = "Photo ionization background type (Particle, Collision)"; 
+	config["phType"]["value"] = phType = "Particle";
       }
 
       photoIBType = phMap[phType];
@@ -21734,155 +21717,155 @@ void CollideIon::processConfig()
       }
     }
 
-    if (iconf["ION_ELEC_RATE"])
-      IonElecRate = iconf["ION_ELEC_RATE"]["value"].as<bool>();
+    if (config["ION_ELEC_RATE"])
+      IonElecRate = config["ION_ELEC_RATE"]["value"].as<bool>();
     else {
-      iconf["ION_ELEC_RATE"]["desc"] = "Use ion-ion relative speed to compute electron-electron interaction rate";
-      iconf["ION_ELEC_RATE"]["value"] = IonElecRate = false;
+      config["ION_ELEC_RATE"]["desc"] = "Use ion-ion relative speed to compute electron-electron interaction rate";
+      config["ION_ELEC_RATE"]["value"] = IonElecRate = false;
     }
 
-    if (iconf["REVERSE_APPLY"])
-      reverse_apply = iconf["REVERSE_APPLY"]["value"].as<bool>();
+    if (config["REVERSE_APPLY"])
+      reverse_apply = config["REVERSE_APPLY"]["value"].as<bool>();
     else {
-      iconf["REVERSE_APPLY"]["desc"] = "Add energy excess from momentum conservation ion only";
-      iconf["REVERSE_APPLY"]["value"] = reverse_apply = false;
+      config["REVERSE_APPLY"]["desc"] = "Add energy excess from momentum conservation ion only";
+      config["REVERSE_APPLY"]["value"] = reverse_apply = false;
     }
 
-    if (iconf["ELEC_BALANCE"])
-      elec_balance = iconf["ELEC_BALANCE"]["value"].as<bool>();
+    if (config["ELEC_BALANCE"])
+      elec_balance = config["ELEC_BALANCE"]["value"].as<bool>();
     else {
-      iconf["ELEC_BALANCE"]["desc"] = "Add energy excess from momentum conservation to electron and ion free pool";
-      iconf["ELEC_BALANCE"]["value"] = elec_balance = true;
+      config["ELEC_BALANCE"]["desc"] = "Add energy excess from momentum conservation to electron and ion free pool";
+      config["ELEC_BALANCE"]["value"] = elec_balance = true;
     }
 
-    if (iconf["KE_WEIGHT"])
-      ke_weight = iconf["KE_WEIGHT"]["value"].as<bool>();
+    if (config["KE_WEIGHT"])
+      ke_weight = config["KE_WEIGHT"]["value"].as<bool>();
     else {
-      iconf["KE_WEIGHT"]["desc"] = "Add energy excess from momentum conservation to electron and weighted by KE";
-      iconf["KE_WEIGHT"]["value"] = ke_weight = true;
+      config["KE_WEIGHT"]["desc"] = "Add energy excess from momentum conservation to electron and weighted by KE";
+      config["KE_WEIGHT"]["value"] = ke_weight = true;
     }
 
-    if (iconf["DEBUG_NTC"])
-      Collide::DEBUG_NTC = iconf["DEBUG_NTC"]["value"].as<bool>();
+    if (config["DEBUG_NTC"])
+      Collide::DEBUG_NTC = config["DEBUG_NTC"]["value"].as<bool>();
     else {
-      iconf["DEBUG_NTC"]["desc"] = "Enable verbose NTC diagnostics";
-      iconf["DEBUG_NTC"]["value"] = Collide::DEBUG_NTC = false;
+      config["DEBUG_NTC"]["desc"] = "Enable verbose NTC diagnostics";
+      config["DEBUG_NTC"]["value"] = Collide::DEBUG_NTC = false;
     }
 
-    if (iconf["NTC_DIST"])
-      Collide::NTC_DIST = iconf["NTC_DIST"]["value"].as<bool>();
+    if (config["NTC_DIST"])
+      Collide::NTC_DIST = config["NTC_DIST"]["value"].as<bool>();
     else {
-      iconf["NTC_DIST"]["desc"] = "Enable full NTC distribution output";
-      iconf["NTC_DIST"]["value"] = Collide::NTC_DIST = false;
+      config["NTC_DIST"]["desc"] = "Enable full NTC distribution output";
+      config["NTC_DIST"]["value"] = Collide::NTC_DIST = false;
     }
 
-    if (iconf["collStop"])
-      Collide::numSanityStop = iconf["collStop"]["value"].as<bool>();
+    if (config["collStop"])
+      Collide::numSanityStop = config["collStop"]["value"].as<bool>();
     else {
-      iconf["collStop"]["desc"] = "Stop simulation if collisions per step are over threshold";
-      iconf["collStop"]["value"] = Collide::numSanityStop = false;
+      config["collStop"]["desc"] = "Stop simulation if collisions per step are over threshold";
+      config["collStop"]["value"] = Collide::numSanityStop = false;
     }
 
-    if (iconf["maxStop"])
-      Collide::numSanityMax = iconf["maxStop"]["value"].as<unsigned>();
+    if (config["maxStop"])
+      Collide::numSanityMax = config["maxStop"]["value"].as<unsigned>();
     else {
-      iconf["maxStop"]["desc"] = "Threshold for simulation stop";
-      iconf["maxStop"]["value"] = Collide::numSanityMax = 100000000u;
+      config["maxStop"]["desc"] = "Threshold for simulation stop";
+      config["maxStop"]["value"] = Collide::numSanityMax = 100000000u;
     }
 
-    if (iconf["collMsg"])
-      Collide::numSanityMsg = iconf["collMsg"]["value"].as<bool>();
+    if (config["collMsg"])
+      Collide::numSanityMsg = config["collMsg"]["value"].as<bool>();
     else {
-      iconf["collMsg"]["desc"] = "Report collisions over threshold value";
-      iconf["collMsg"]["value"] = Collide::numSanityMsg = false;
+      config["collMsg"]["desc"] = "Report collisions over threshold value";
+      config["collMsg"]["value"] = Collide::numSanityMsg = false;
     }
 
-    if (iconf["collMin"])
-      Collide::numSanityVal = iconf["collMin"]["value"].as<unsigned>();
+    if (config["collMin"])
+      Collide::numSanityVal = config["collMin"]["value"].as<unsigned>();
     else {
-      iconf["collMin"]["desc"] = "Minimum threshold for reporting";
-      iconf["collMin"]["value"] = Collide::numSanityVal = 10000000u;
+      config["collMin"]["desc"] = "Minimum threshold for reporting";
+      config["collMin"]["value"] = Collide::numSanityVal = 10000000u;
     }
 
-    if (iconf["collFreq"])
-      Collide::numSanityFreq = iconf["collFreq"]["value"].as<unsigned>();
+    if (config["collFreq"])
+      Collide::numSanityFreq = config["collFreq"]["value"].as<unsigned>();
     else {
-      iconf["collFreq"]["desc"] = "Stride for collision reporting";
-      iconf["collFreq"]["value"] = Collide::numSanityFreq = 2000000u;
+      config["collFreq"]["desc"] = "Stride for collision reporting";
+      config["collFreq"]["value"] = Collide::numSanityFreq = 2000000u;
     }
 
-    if (iconf["ntcDB"])
-      Collide::use_ntcdb = iconf["ntcDB"]["value"].as<bool>();
+    if (config["ntcDB"])
+      Collide::use_ntcdb = config["ntcDB"]["value"].as<bool>();
     else {
-      iconf["ntcDB"]["desc"] = "Use the NTC data base for max CrsVel values";
-      iconf["ntcDB"]["value"] = Collide::use_ntcdb = true;
+      config["ntcDB"]["desc"] = "Use the NTC data base for max CrsVel values";
+      config["ntcDB"]["value"] = Collide::use_ntcdb = true;
     }
 
-    if (iconf["ntcThresh"])
-      Collide::ntcThresh = iconf["ntcThresh"]["value"].as<double>();
+    if (config["ntcThresh"])
+      Collide::ntcThresh = config["ntcThresh"]["value"].as<double>();
     else {
-      iconf["ntcThresh"]["desc"] = "Quantile for NTC CrsVel";
-      iconf["ntcThresh"]["value"] = Collide::ntcThresh = 0.95;
+      config["ntcThresh"]["desc"] = "Quantile for NTC CrsVel";
+      config["ntcThresh"]["value"] = Collide::ntcThresh = 0.95;
     }
 
-    if (iconf["ntcFactor"])
-      Collide::ntcFactor = iconf["ntcFactor"]["value"].as<double>();
+    if (config["ntcFactor"])
+      Collide::ntcFactor = config["ntcFactor"]["value"].as<double>();
     else {
-      iconf["ntcFactor"]["desc"] = "Scaling factor NTC CrsVel";
-      iconf["ntcFactor"]["value"] = Collide::ntcFactor = 1.0;
+      config["ntcFactor"]["desc"] = "Scaling factor NTC CrsVel";
+      config["ntcFactor"]["value"] = Collide::ntcFactor = 1.0;
     }
 
-    if (iconf["HandMcoef"])
-      Ion::HandM_coef = iconf["HandMcoef"]["value"].as<double>();
+    if (config["HandMcoef"])
+      Ion::HandM_coef = config["HandMcoef"]["value"].as<double>();
     else {
-      iconf["HandMcoef"]["desc"] = "Coefficient for Haard & Madau UV spectral flux";
-      iconf["HandMcoef"]["value"] = Ion::HandM_coef = 1.5e-22;
+      config["HandMcoef"]["desc"] = "Coefficient for Haard & Madau UV spectral flux";
+      config["HandMcoef"]["value"] = Ion::HandM_coef = 1.5e-22;
     }
 
-    if (iconf["HandMexpon"])
-      Ion::HandM_expon = iconf["HandMexpon"]["value"].as<double>();
+    if (config["HandMexpon"])
+      Ion::HandM_expon = config["HandMexpon"]["value"].as<double>();
     else {
-      iconf["HandMexpon"]["desc"] = "Frequency exponent for Haard & Madau UV spectral flux";
-      iconf["HandMexpon"]["value"] = Ion::HandM_expon = -0.5;
+      config["HandMexpon"]["desc"] = "Frequency exponent for Haard & Madau UV spectral flux";
+      config["HandMexpon"]["value"] = Ion::HandM_expon = -0.5;
     }
 
-    if (iconf["radRecombGS"])
-      Ion::gs_only = iconf["radRecombGS"]["value"].as<bool>();
+    if (config["radRecombGS"])
+      Ion::gs_only = config["radRecombGS"]["value"].as<bool>();
     else {
-      iconf["radRecombGS"]["desc"] = "Cross section for recombination into the ground state only";
-      iconf["radRecombGS"]["value"] = Ion::gs_only = false;
+      config["radRecombGS"]["desc"] = "Cross section for recombination into the ground state only";
+      config["radRecombGS"]["value"] = Ion::gs_only = false;
     }
 
-    if (iconf["freeFreeCache"])
-      Ion::useFreeFreeGrid = iconf["freeFreeCache"]["value"].as<bool>();
+    if (config["freeFreeCache"])
+      Ion::useFreeFreeGrid = config["freeFreeCache"]["value"].as<bool>();
     else {
-      iconf["freeFreeCache"]["desc"] = "Use cache for free-free cross section";
-      iconf["freeFreeCache"]["value"] = Ion::useFreeFreeGrid = true;
+      config["freeFreeCache"]["desc"] = "Use cache for free-free cross section";
+      config["freeFreeCache"]["value"] = Ion::useFreeFreeGrid = true;
     }
 
-    if (iconf["radRecombCache"])
-      Ion::useRadRecombGrid = iconf["radRecombCache"]["value"].as<bool>();
+    if (config["radRecombCache"])
+      Ion::useRadRecombGrid = config["radRecombCache"]["value"].as<bool>();
     else {
-      iconf["radRecombCache"]["desc"] = "Use cache for radiative recombination cross section";
-      iconf["radRecombCache"]["value"] = Ion::useRadRecombGrid = true;
+      config["radRecombCache"]["desc"] = "Use cache for radiative recombination cross section";
+      config["radRecombCache"]["value"] = Ion::useRadRecombGrid = true;
     }
 
-    if (iconf["exciteCache"])
-      Ion::useExciteGrid = iconf["exciteCache"]["value"].as<bool>();
+    if (config["exciteCache"])
+      Ion::useExciteGrid = config["exciteCache"]["value"].as<bool>();
     else {
-      iconf["exciteCache"]["desc"] = "Use cache for collisional excitation cross section";
-      iconf["exciteCache"]["value"] = Ion::useExciteGrid = true;
+      config["exciteCache"]["desc"] = "Use cache for collisional excitation cross section";
+      config["exciteCache"]["value"] = Ion::useExciteGrid = true;
     }
 
-    if (iconf["ionizeCache"])
-      Ion::useIonizeGrid = iconf["ionizeCache"]["value"].as<bool>();
+    if (config["ionizeCache"])
+      Ion::useIonizeGrid = config["ionizeCache"]["value"].as<bool>();
     else {
-      iconf["ionizeCache"]["desc"] = "Use cache for collisional ionization cross section";
-      iconf["ionizeCache"]["value"] = Ion::useIonizeGrid = true;
+      config["ionizeCache"]["desc"] = "Use cache for collisional ionization cross section";
+      config["ionizeCache"]["value"] = Ion::useIonizeGrid = true;
     }
 
-    if (iconf["CrossSectionScale"]) {
-      YAML::Node scl = iconf["CrossSectionScale"];
+    if (config["CrossSectionScale"]) {
+      YAML::Node scl = config["CrossSectionScale"];
 
       for (YAML::const_iterator v=scl.begin(); v!=scl.end(); ++v) {
 	std::string elem = v->first.as<std::string>();
@@ -21899,9 +21882,9 @@ void CollideIon::processConfig()
       }
     }
 
-    if (iconf["MFP"]) 
+    if (config["MFP"]) 
       {
-	std::string name = iconf["MFP"]["value"].as<std::string>();
+	std::string name = config["MFP"]["value"].as<std::string>();
 	try {
 	  mfptype = MFP_s.right.at(name);
 	}
@@ -21913,7 +21896,7 @@ void CollideIon::processConfig()
 		      << ", using <Direct> instead" << std::endl;
 	  }
 	  mfptype = MFP_t::Direct;
-	  iconf["MFP"]["value"] = "Direct";
+	  config["MFP"]["value"] = "Direct";
 	}
       }
     else {
@@ -21927,35 +21910,31 @@ void CollideIon::processConfig()
     // Update atomic weight databases IF ElctronMass is specified
     // using direct call to underlying boost::property_tree
     //
-    if (iconf["ElectronMass"])
+    if (config["ElectronMass"])
       {
-	double mass = iconf["ElectronMass"]["value"].as<double>();
+	double mass = config["ElectronMass"]["value"].as<double>();
 	TreeDSMC::atomic_weights[0] = atomic_weights[0] = mass;
       }
 
     if (myid==0) {
-      std::string save = runtag +".CollideIon.config.yml";
-      std::ofstream out(save);
-      if (out) {
-	iconf["_description"] = "CollideIon configuration, tag=" + runtag;
-	time_t t = time(0);   // get current time
+      config["_description"] = "CollideIon configuration, tag=" + runtag;
+      time_t t = time(0);   // get current time
 
-	struct tm * now = localtime( & t );
-	std::ostringstream sout;
-	sout << (now->tm_year + 1900) << '-'
-	     << (now->tm_mon + 1) << '-'
+      struct tm * now = localtime( & t );
+      std::ostringstream sout;
+      sout << (now->tm_year + 1900) << '-'
+	   << (now->tm_mon + 1) << '-'
 	   <<  now->tm_mday << ' '
 	   << std::setfill('0') << std::setw(2) << now->tm_hour << ':'
-	     << std::setfill('0') << std::setw(2) << now->tm_min  << ':'
-	     << std::setfill('0') << std::setw(2) << now->tm_sec;
-	
-	std::string orig;
-	if (iconf["_date"]) {
-	  orig = iconf["_date"].as<std::string>();
-	  iconf["_date"] = sout.str() + " [" + orig + "] ";
-	} else {
-	  iconf["_date"] = sout.str();
-	}
+	   << std::setfill('0') << std::setw(2) << now->tm_min  << ':'
+	   << std::setfill('0') << std::setw(2) << now->tm_sec;
+      
+      std::string orig;
+      if (config["_date"]) {
+	orig = config["_date"].as<std::string>();
+	config["_date"] = sout.str() + " [" + orig + "] ";
+      } else {
+	config["_date"] = sout.str();
       }
     }
   }
@@ -21966,7 +21945,7 @@ void CollideIon::processConfig()
 			   << std::string(60, '-') << std::endl
 			   << "Config node"        << std::endl
 			   << std::string(60, '-') << std::endl
-			   << iconf                << std::endl
+			   << config                << std::endl
 			   << std::string(60, '-') << std::endl;
 
     MPI_Finalize();
