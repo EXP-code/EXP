@@ -810,6 +810,7 @@ private:
   thrust::device_vector<cuIonElement> cuElems;
   thrust::device_vector<cuFP_t>       xsc_H, xsc_He, xsc_pH, xsc_pHe;
   thrust::device_vector<curandState>  d_randS;
+  cudaDeviceProp                      deviceProp;
 #endif
 
 public:
