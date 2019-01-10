@@ -1779,7 +1779,11 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
 
     if (c < cellI._s) {
 
+      // Number of particles in _this_ cell
+      //
       int nbods = cellN._v[c];
+
+      // NB: cellI is the offset into the body list for _this_ cell
 
       cuFP_t massP = 0.0, numbP = 0.0, massE = 0.0;
       cuFP_t evel2 = 0.0, ivel2 = 0.0, numQ2 = 0.0;
@@ -1964,7 +1968,6 @@ __global__ void crossSectionKernel(dArray<cudaParticle>   in,     // Particle ar
     }
     
     if (n < nmax) {
-
 				// The last pair is multiple scatter
       if (n == nmax - 1 and N > N2) rep = 2;
       
@@ -1993,7 +1996,7 @@ __global__ void crossSectionKernel(dArray<cudaParticle>   in,     // Particle ar
 	xctot._v[n] = 0.0;	// Total cross section accumulator per pair
 	
 				// Cross section position counter
-	int K = n*numxc;		// Pair array location
+	int K = n*numxc;	// Pair array location
 	int L = K*6;		// xspc array location
 	
 	for (int k=0; k<Nsp; k++) {
@@ -3271,7 +3274,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     }
 
     if (n < nmax) {
-
 				// The last pair is multiple scatter
       if (n == nmax - 1 and N > N2) rep = 2;
       
@@ -4319,7 +4321,8 @@ void * CollideIon::collide_thread_cuda(void * arg)
 
   int ePos = use_elec - minSp;	// Electron position in cudaParticle datr
 
-  if (use_elec>=0)
+				// Augment species position counter
+  if (use_elec>=0)		// for electrons
     maxSp = std::max<int>(maxSp, use_elec+3);
   else
     throw GenericError("use_elec must be set to use CUDA Trace implementation",  __FILE__, __LINE__);
