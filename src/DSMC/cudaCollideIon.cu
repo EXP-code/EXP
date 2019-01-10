@@ -2176,7 +2176,7 @@ __global__ void crossSectionKernel(dArray<cudaParticle>   in,     // Particle ar
 	    //
 	    if (ZZ==1 and CC==2) {
 	      // Particle 1 is neutral hydrogen
-	      if (Z==1 and P==0) crs1 = cudaElasticInterp(log10(kEi/cuEV), cuPH_Emin,  cuH_H,   xsc_pH );
+	      if (Z==1 and P==0) crs1 = cudaElasticInterp(log10(kEi/cuEV), cuPH_Emin,  cuPH_H,   xsc_pH );
 	      // Particle 1 is neutral helium
 	      if (Z==2 and P==0) crs1 = cudaElasticInterp(log10(kEi/cuEV), cuPHe_Emin, cuPHe_H, xsc_pHe);
 	      crs1 *= cuCrossfac * cfac;
