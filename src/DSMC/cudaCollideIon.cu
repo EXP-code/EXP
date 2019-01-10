@@ -4260,6 +4260,7 @@ void * CollideIon::collide_thread_cuda(void * arg)
     pCell *c = cellist[id][j];
 
     // Skip cell if this time has already been computed
+    //
     if (c->time >= tnow) {
       continue;
     }
@@ -4286,8 +4287,8 @@ void * CollideIon::collide_thread_cuda(void * arg)
 	Npairs++;
       }
       if ((number/2)*2 != number) {
-	i1.push_back(Pindx-2);
-	i2.push_back(Pindx-1);
+	i1.push_back(Pindx++);
+	i2.push_back(Pindx-2);	// The one before the last one
 	cc.push_back(Count);
 	Npairs++;
       }
@@ -4312,7 +4313,8 @@ void * CollideIon::collide_thread_cuda(void * arg)
     else             numIon++;
     if (k.first==1)  numProt++;
   }
-  numProt *= numNeut;
+  // Make maxSP +1 beyond the last species weight
+  //
   maxSp++;
 
   int ePos = use_elec - minSp;	// Electron position in cudaParticle datr
