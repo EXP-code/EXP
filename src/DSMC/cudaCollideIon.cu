@@ -1956,8 +1956,8 @@ __global__ void crossSectionKernel(dArray<cudaParticle>   in,     // Particle ar
 
     // Deal with odd # of bodies per cell
     //
-    if (nn < i1._s) {
-      cid = cc._v[nn];		// Cell id
+    if (n < i1._s) {
+      cid = cc._v[n];		// Cell id
       N   = cn._v[cid];		// Body count
       N2  = int(N/2)*2;		// Largest even #
       if (N > N2) nmax = N2;	// Set up for odd part #
@@ -1966,7 +1966,7 @@ __global__ void crossSectionKernel(dArray<cudaParticle>   in,     // Particle ar
     if (n < nmax) {
 
 				// The last pair is multiple scatter
-      if (n == nmax - 1 and N > Neven) rep = 2;
+      if (n == nmax - 1 and N > N2) rep = 2;
       
       for (int r=0; r<rep; r++) {
 
@@ -3229,6 +3229,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 				 dArray<unsigned char>  xspcs,
 				 dArray<cudaInterTypes> xtype,
 				 dArray<cuFP_t>         xctot,
+				 dArray<int>            cn,
 				 dArray<int>            i1,
 				 dArray<int>            i2,
 				 dArray<int>            cc,
@@ -3262,8 +3263,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
     // Deal with odd # of bodies per cell
     //
-    if (nn < i1._s) {
-      cid = cc._v[nn];		// Cell id
+    if (n < i1._s) {
+      cid = cc._v[n];		// Cell id
       N   = cn._v[cid];		// Body count
       N2  = int(N/2)*2;		// Largest even #
       if (N > N2) nmax = N2;	// Set up for odd part #
@@ -3272,7 +3273,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     if (n < nmax) {
 
 				// The last pair is multiple scatter
-      if (n == nmax - 1 and N > Neven) rep = 2;
+      if (n == nmax - 1 and N > N2) rep = 2;
       
       for (int r=0; r<rep; r++) {
 	
@@ -4455,7 +4456,7 @@ void * CollideIon::collide_thread_cuda(void * arg)
   partInteractions<<<gridSize, BLOCK_SIZE>>>
     (toKernel(d_part),   toKernel(d_randS),
      toKernel(d_cross),  toKernel(d_delph),  toKernel(d_xspcs),
-     toKernel(d_xtype),  toKernel(d_xctot),
+     toKernel(d_xtype),  toKernel(d_xctot),  toKernel(d_cellN),
      toKernel(d_i1),     toKernel(d_i2),     toKernel(d_cc),
      toKernel(d_selC),   toKernel(d_xccel),
      toKernel(d_PiProb), toKernel(d_ABrate),
