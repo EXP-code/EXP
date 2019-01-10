@@ -232,7 +232,7 @@ void CollideIon::cudaElasticInit()
   eV_H.push_back(12.9858496735092);	xs_H.push_back(6.40788);
   eV_H.push_back(13.2163710158414);	xs_H.push_back(6.25682);
   eV_H.push_back(13.4212320116212);	xs_H.push_back(6.10568);
-  eV_H.push_back(13.600541506433);	xs_H.push_back(5.9924);;
+  eV_H.push_back(13.600541506433);	xs_H.push_back(5.9924);
 
   cuFP_t dx;
 
@@ -509,9 +509,9 @@ cuFP_t cudaElasticInterp(cuFP_t E, cuFP_t Emin, cuFP_t H, dArray<cuFP_t> xsc,
 			 bool pin = true)
 {
   int indx = 0;
-  if (E >= Emin+H*xsc._s) indx = xsc._s - 2;
-  if (E <  Emin)          indx = 0;
-  else                    indx = floor( (E - Emin)/H );
+  if (E >= Emin+H*(xsc._s-1)) indx = xsc._s - 2;
+  else if (E <  Emin)         indx = 0;
+  else                        indx = floor( (E - Emin)/H );
 
   cuFP_t a = (E - Emin - H*(indx+0))/H;
   cuFP_t b = (Emin + H*(indx+1) - E)/H;
@@ -1543,6 +1543,7 @@ void testConstantsIon(int idev)
   printf("** Egrid(del) = %f\n", ionDeltaEGrid      );
   printf("** Egrid(num) = %d\n", ionEgridNumber     );
   printf("** Rgrid(num) = %d\n", ionRadRecombNumber );
+  printf("** log Lambda = %f\n", cuLogL             );
   printf("** ------------------------------------\n");
 }
 
