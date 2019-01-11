@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <ctime>
+#include <bitset>
 
 #include <iostream>
 #include <iomanip>
@@ -240,6 +241,37 @@ pHOT::~pHOT()
   delete root;
 }
 
+#define NEWKEY
+
+uint64_t split3( unsigned int a )
+{
+  // we only use the first 21 bits
+  uint64_t x = a & 0x1fffff;
+  x = (x | x << 32) & 0x001f00000000ffff; // shift left 32 bits, OR with self, and 00011111000000000000000000000000000000001111111111111111
+  x = (x | x << 16) & 0x001f0000ff0000ff; // shift left 32 bits, OR with self, and 00011111000000000000000011111111000000000000000011111111
+  x = (x | x << 8 ) & 0x100f00f00f00f00f; // shift left 32 bits, OR with self, and 0001000000001111000000001111000000001111000000001111000000000000
+  x = (x | x << 4 ) & 0x10c30c30c30c30c3; // shift left 32 bits, OR with self, and 0001000011000011000011000011000011000011000011000011000100000000
+  x = (x | x << 2 ) & 0x1249249249249249;
+  return x;
+}
+
+uint64_t mortonEncode_mask( unsigned int* u )
+{
+  uint64_t answer = 0;
+  answer |= split3(u[0]) | split3(u[1]) << 1 | split3(u[2]) << 2;
+  return answer;
+}
+
+uint64_t newKey(double *d)
+{
+  const unsigned int maxI = 0x1fffff;
+  unsigned int u[3];
+
+  for (int k=0; k<3; k++) u[k] = d[k] * maxI;
+  
+  return mortonEncode_mask(&u[0]);
+}
+
 
 key_type pHOT::getKey(double *p)
 {
@@ -273,7 +305,18 @@ key_type pHOT::getKey(double *p)
     }
   }
 
-  const double factor = static_cast<double>(key_type(1u)<<nbits);
+#ifdef NEWKEY
+
+  double dd[3];
+  const uint64_t lead = (1ull << nbits*3);
+  for (unsigned k=0; k<3; k++) dd[2-k] = (p[k]+offset[k])/sides[k];
+  key_type _key = newKey(dd) | lead;
+
+#else
+
+  // const double factor = static_cast<double>(key_type(1u)<<nbits);
+
+  const unsigned int factor = (key_type(1u)<<nbits)-1;
 
   const key_type mask = 0x1u;
 
@@ -296,6 +339,8 @@ key_type pHOT::getKey(double *p)
 
   _key += place;		// Leading placeholder for cell masking
 
+#endif
+  
 #ifdef USE_GPTL
   GPTLstop("pHOT::getKey");
 #endif
@@ -598,10 +643,14 @@ void pHOT::makeTree()
   pCell* p = root;
   for (auto it : keybods) {
 
+    /*
     if (it.first < key_min || it.first >= key_max) {
       cout << "Process " << myid << ": in makeTree, key=" 
-	   << hex << it.first << endl << dec;
+	   << hex << it.first
+	   << "[" << key_min << ", " << key_max << "]"
+	   << endl << dec;
     }
+    */
     p = p->Add(it);		// Do the work
   }
 
