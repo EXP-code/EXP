@@ -241,7 +241,7 @@ pHOT::~pHOT()
   delete root;
 }
 
-#define NEWKEY
+#undef NEWKEY
 
 uint64_t split3( unsigned int a )
 {
@@ -314,9 +314,9 @@ key_type pHOT::getKey(double *p)
 
 #else
 
-  // const double factor = static_cast<double>(key_type(1u)<<nbits);
+  const double factor = static_cast<double>(key_type(1u)<<nbits);
 
-  const unsigned int factor = (key_type(1u)<<nbits)-1;
+  // const unsigned int factor = (key_type(1u)<<nbits)-1;
 
   const key_type mask = 0x1u;
 
