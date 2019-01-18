@@ -806,7 +806,7 @@ private:
   void cuda_initialize();
   void cudaElasticInit();
   void cuda_atomic_weights_init();
-  void cuda_random_init();
+  void cuda_random_init(int);
   thrust::device_vector<cuIonElement> cuElems;
   thrust::device_vector<cuFP_t>       xsc_H, xsc_He, xsc_pH, xsc_pHe;
   thrust::device_vector<curandState>  d_randS;
@@ -1532,6 +1532,7 @@ public:
   static bool       collLim;
   static bool       collCor;
   static bool       E_split;
+  static bool       MeanKE;
   static YAML::Node config;
 
   //! Constructor
