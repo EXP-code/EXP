@@ -1226,7 +1226,8 @@ protected:
 
   virtual double getCoolingRate(int id) { return 0; }
   
-  void parseSpecies(const std::string& map);
+  //! Parse species config
+  void parseSpecies();
 
   
   //@{
@@ -1537,8 +1538,7 @@ public:
 
   //! Constructor
   CollideIon(ExternalForce *force, Component *comp,
-	     double hsDiam, double crossfac,
-	     const std::string& spcMap, int nth=1);
+	     double hsDiam, double crossfac, int nth=1);
 
   //! Destructor
   ~CollideIon();

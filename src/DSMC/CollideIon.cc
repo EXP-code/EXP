@@ -435,8 +435,7 @@ T operator*(const std::vector<T>& a, const std::vector<T>& b)
 // CONSTRUCTOR
 //
 CollideIon::CollideIon(ExternalForce *force, Component *comp,
-		       double hD, double sD,
-		       const std::string& smap, int Nth) :
+		       double hD, double sD, int Nth) :
   Collide(force, comp, hD, sD, NAME_ID, VERSION_ID, Nth)
 {
   // Default MFP type
@@ -470,9 +469,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
     use_photoIB = true;
   }
 
-  // Read species file
+  // Read species config
   //
-  parseSpecies(smap);
+  parseSpecies();
 
   // Fill the Chianti data base
   //
@@ -16225,10 +16224,8 @@ void collDiag::print()
 
 }
 
-void CollideIon::parseSpecies(const std::string& map)
+void CollideIon::parseSpecies()
 {
-  unsigned char nOK = 0;
-
   //
   // Default values
   //
@@ -16237,380 +16234,302 @@ void CollideIon::parseSpecies(const std::string& map)
   spc_pos    = -1;
 
   //
-  // Let root node ONLY do the reading
+  // Check for the existence of the stanza
   //
-  if (myid==0) {
-
-    std::ifstream in(map.c_str());
-    if (in.bad())
-      {
-	std::cerr << "CollideIon::parseSpecies: definition file <"
-		  << map << "> could not be opened . . . quitting"
-		  << std::endl;
-	nOK = 1;
-      }
-
-
-    // Ok, read the first line to get the implementation type
-
-    if (nOK == 0) {
-
-      const int nline = 2048;
-      char line[nline];
-
-      in.getline(line, nline);
-      std::string type(line);
-
-      if (type.compare("direct")==0) {
-
-	aType = Direct;
-
-	if (use_key<0) {
-	  std::cerr << "CollideIon: species key position is not defined in "
-		    << "Component" << std::endl;
-	  nOK = 1;
-	}
-
-	in.getline(line, nline);
-
-	if (in.good()) {
-	  std::istringstream sz(line);
-	  sz >> use_elec;
-	} else {
-	  nOK = 1;		// Can't read position flag
-	}
-
-	if (nOK == 0) {
-
-	  int Z;
-	  while (1) {
-	    in.getline(line, nline);
-	    if (in.good()) {
-	      std::istringstream sz(line);
-	      sz >> Z;		// Add to the element list
-	      if (!sz.bad()) ZList.insert(Z);
-	    } else {
-	      break;
-	    }
-	  }
-	}
-
-      } else if (type.compare("weight")==0) {
-
-	aType = Weight;
-
-	if (use_key<0) {
-	  std::cerr << "CollideIon: species key position is not defined in "
-		    << "Component" << std::endl;
-	  nOK = 1;
-	}
-
-	in.getline(line, nline);
-
-	if (in.good()) {
-	  std::istringstream sz(line);
-	  sz >> use_cons;
-	  if (sz.good()) {
-	    sz >> use_elec;
-	  }
-	} else {
-	  nOK = 1;		// Can't read electrons or use_cons value, fatal
-	}
-
-				// Print warning, not fatal
-	if (use_cons<0) {
-	  std::cout << "CollideIon: energy key position is not defined, "
-		    << "you are using weighting but NOT imposing energy conservation"
-		    << std::endl;
-	}
-
-	if (use_elec<0) {
-	  std::cout << "CollideIon: electron key position is not defined, "
-		    << "you are using weighting WITHOUT explicit electron velocities"
-		    << std::endl;
-	}
-
-	if (nOK == 0) {
-
-	  int Z;
-	  double W, M;
-	  while (1) {
-	    in.getline(line, nline);
-	    if (in.good()) {
-	      std::istringstream sz(line);
-	      sz >> Z;
-	      sz >> W;
-	      sz >> M;		// Add to the element list
-	      if (!sz.bad()) {
-		ZList.insert(Z);
-		ZWList[Z] = W;
-		ZMList[Z] = M;
-	      }
-	    } else {
-	      break;
-	    }
-	  }
-
-	  // Find the largest weight (assume fiducial)
-	  double sMax = 0.0;
-	  for (auto v : ZWList) {
-	    if (v.second > sMax) {
-	      sFid = v.first;
-	      sMax = v.second;
-	    }
-	  }
-
-	}
-
-      } else if (type.compare("hybrid")==0) {
-
-	aType = Hybrid;
-
-	if (use_key<0) {
-	  std::cerr << "CollideIon: species key position is not defined in "
-		    << "Component" << std::endl;
-	  nOK = 1;
-	}
-
-	in.getline(line, nline);
-
-	if (in.good()) {
-	  std::istringstream sz(line);
-	  sz >> use_cons;
-	  if (sz.good()) {
-	    sz >> spc_pos;
-	  }
-	  if (sz.good()) {
-	    sz >> use_elec;
-	  }
-	} else {
-	  nOK = 1;		// Can't read electrons or use_cons value, fatal
-	}
-
-				// Print warning, not fatal
-	if (use_cons<0) {
-	  std::cout << "CollideIon: energy key position is not defined, "
-		    << "you are using hybrid weighting but NOT imposing energy conservation"
-		    << std::endl;
-	}
-
-	if (use_elec<0) {
-	  std::cout << "CollideIon: electron key position is not defined, "
-		    << "you are using hybrid weighting WITHOUT explicit electron velocities"
-		    << std::endl;
-	}
-
-	if (spc_pos<0) {
-	  std::cout << "CollideIon: ionization start index for hybrid algorithm is not defined, "
-		    << "this is fatal!"
-		    << std::endl;
-	  nOK = 1;
-	}
-
-	if (nOK == 0) {
-
-	  int Z;
-	  double W, M;
-	  while (1) {
-	    in.getline(line, nline);
-	    if (in.good()) {
-	      std::istringstream sz(line);
-	      sz >> Z;
-	      sz >> W;
-	      sz >> M;		// Add to the element list
-	      if (!sz.bad()) {
-		ZList.insert(Z);
-		ZWList[Z] = W;
-		ZMList[Z] = M;
-	      }
-	    } else {
-	      break;
-	    }
-	  }
-
-	  // Find the largest weight (assume fiducial)
-	  double sMax = 0.0;
-	  for (auto v : ZWList) {
-	    if (v.second > sMax) {
-	      sFid = v.first;
-	      sMax = v.second;
-	    }
-	  }
-
-	}
-
-      } else if (type.compare("trace")==0) {
-
-	// Sanity check
-	if (c0->keyPos >= 0) {
-	  std::ostringstream sout;
-	  sout << "[" << myid 
-	       << "] CollideIon::parse_species: method <trace> is requested but keyPos="
-	       << c0->keyPos << " and should be < 0 for consistency" << std::endl;
-	  throw std::runtime_error(sout.str());
-	}
-
-	aType = Trace;
-
-	in.getline(line, nline);
-
-	if (in.good()) {
-	  std::istringstream sz(line);
-	  sz >> use_cons;
-	  if (sz.good()) {
-	    sz >> use_elec;
-	  }
-	} else {
-	  nOK = 1;		// Can't read electrons or use_cons value, fatal
-	}
-
-	if (nOK == 0) {
-
-	  speciesKey key;
-	  int pos;
-	  while (1) {
-	    in.getline(line, nline);
-	    if (in.good()) {
-	      std::istringstream sz(line);
-	      sz >> key.first;
-	      sz >> key.second;
-	      sz >> pos;
-	      // Add to the species list
-	      if (!sz.bad()) {
-		SpList[key] = pos;
-		ZList.insert(key.first);
-	      }
-	    } else {
-	      break;
-	    }
-	  }
-	}
-
-      } else {
-	std::cerr << "CollideIon::parseSpecies: implementation type <"
-		  << type << "> is not recognized . . . quitting"
-		  << std::endl;
-	nOK = 1;
-      }
-    }
-
-  }
-
-  MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
-
-
-  if (nOK) MPI_Abort(MPI_COMM_WORLD, 55);
-
-  int is = aType;
-  MPI_Bcast(&is, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  if (myid) {
-    switch (is) {
-    case Direct:
-      aType = Direct;
-      break;
-    case Weight:
-      aType = Weight;
-      break;
-    case Hybrid:
-      aType = Hybrid;
-      break;
-    case Trace:
-      aType = Trace;
-      break;
-    default:
-      std::cout << "Proc " << myid << ": error in enum <" << is << ">"
+  if (not config["species_map"]) {
+    if (myid==0) {
+      std::cerr << "CollideIon::parseSpecies: no species map in config"
+		<< " . . . quitting"
 		<< std::endl;
+    }
+    MPI_Abort(MPI_COMM_WORLD, 54);
+  }
+  
+  std::string type;
+  if (config["species_map"]["type"]) {
+    type = config["species_map"]["type"].as<std::string>();
+  } else {
+    if (myid==0) {
+      std::cerr << "CollideIon::parseSpecies: no <type> key found . . . "
+		<< "quitting" << std::endl;
+    }
+    MPI_Abort(MPI_COMM_WORLD, 55);
+  }    
+
+  //  ___  _            _   
+  // |   \(_)_ _ ___ __| |_ 
+  // | |) | | '_/ -_) _|  _|
+  // |___/|_|_| \___\__|\__|
+  //                       
+  if (type.compare("direct")==0) {
+
+    aType = Direct;
+
+    if (use_key<0) {
+      if (myid==0) {
+	std::cerr << "CollideIon: species key position is not defined in "
+		  << "Component" << std::endl;
+      }
       MPI_Abort(MPI_COMM_WORLD, 56);
     }
-  }
 
+    if (config["species_map"]["elec"]) {
+      use_elec = config["species_map"]["elec"].as<int>();
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <elec> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 57);
+    }    
+
+    if (config["species_map"]["elements"]) {
+      auto zz = config["species_map"]["elements"].as<std::vector<unsigned short>>();
+      for (auto Z : zz) ZList.insert(Z);
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <elements> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 58);
+    }    
+  }
+  // __      __   _      _   _   
+  // \ \    / /__(_)__ _| |_| |_ 
+  //  \ \/\/ / -_) / _` | ' \  _|
+  //   \_/\_/\___|_\__, |_||_\__|
+  //               |___/         
+  //
+  else if (type.compare("weight")==0) {
+
+    aType = Weight;
+
+    if (use_key<0) {
+      if (myid==0) {
+	std::cerr << "CollideIon: species key position is not defined in "
+		  << "Component" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 58);
+    }
+
+    if (config["species_map"]["cons"]) {
+      use_cons = config["species_map"]["cons"].as<int>();
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <cons> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 59);
+    }    
+
+    if (config["species_map"]["elec"]) {
+      use_elec = config["species_map"]["elec"].as<int>();
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <elec> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 60);
+    }    
+
+
+    // Print warning, not fatal
+    if (use_cons<0 and myid==0) {
+      std::cout << "CollideIon: energy key position is not defined, "
+		<< "you are using weighting but NOT imposing energy conservation"
+		<< std::endl;
+    }
+
+    if (use_elec<0 and myid==0) {
+      std::cout << "CollideIon: electron key position is not defined, "
+		<< "you are using weighting WITHOUT explicit electron velocities"
+		<< std::endl;
+    }
+
+    if (config["species_map"]["elements"]) {
+      YAML::Node elems = config["species_map"]["elements"];
+      for (YAML::const_iterator it=elems.begin(); it!=elems.end(); ++it) {
+	unsigned short Z = it->first.as<unsigned short>();
+	auto dd = it->second.as<std::vector<double>>();
+	ZList.insert(Z);
+	ZWList[Z] = dd[0];
+	ZMList[Z] = dd[1];
+      }
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <elements> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 61);
+    }    
+
+    // Find the largest weight (assume fiducial)
+    double sMax = 0.0;
+    for (auto v : ZWList) {
+      if (v.second > sMax) {
+	sFid = v.first;
+	sMax = v.second;
+      }
+    }
+  }
+  //  _  _      _        _    _ 
+  // | || |_  _| |__ _ _(_)__| |
+  // | __ | || | '_ \ '_| / _` |
+  // |_||_|\_, |_.__/_| |_\__,_|
+  //       |__/                 
+  //
+  else if (type.compare("hybrid")==0) {
+
+    aType = Hybrid;
+
+    if (use_key<0) {
+      if (myid==0) {
+	std::cerr << "CollideIon: species key position is not defined in "
+		  << "Component" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 62);
+    }
+
+    if (config["species_map"]["cons"]) {
+      use_cons = config["species_map"]["cons"].as<int>();
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <cons> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 63);
+    }    
+
+    if (config["species_map"]["spos"]) {
+      spc_pos = config["species_map"]["spos"].as<int>();
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <spos> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 64);
+    }    
+
+    if (config["species_map"]["elec"]) {
+      use_elec = config["species_map"]["elec"].as<int>();
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <elec> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 65);
+    }    
+
+				// Print warning, not fatal
+    if (use_cons<0 and myid==0) {
+      std::cout << "CollideIon: energy key position is not defined, "
+		<< "you are using hybrid weighting but NOT imposing energy conservation"
+		<< std::endl;
+    }
+
+    if (use_elec<0 and myid==0) {
+      std::cout << "CollideIon: electron key position is not defined, "
+		<< "you are using hybrid weighting WITHOUT explicit electron velocities"
+		<< std::endl;
+    }
+
+    if (spc_pos<0 and myid==0) {
+      std::cout << "CollideIon: ionization start index for hybrid algorithm is not defined, "
+		<< "this is fatal!"
+		<< std::endl;
+    }
+
+    if (config["species_map"]["elements"]) {
+      YAML::Node elems = config["species_map"]["elements"];
+      for (YAML::const_iterator it=elems.begin(); it!=elems.end(); ++it) {
+	unsigned short Z = it->first.as<unsigned short>();
+	auto dd = it->second.as<std::vector<double>>();
+	ZList.insert(Z);
+	ZWList[Z] = dd[0];
+	ZMList[Z] = dd[1];
+      }
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <elements> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 66);
+    }    
+    
+    // Find the largest weight (assume fiducial)
+    double sMax = 0.0;
+    for (auto v : ZWList) {
+      if (v.second > sMax) {
+	sFid = v.first;
+	sMax = v.second;
+      }
+    }
+    
+  }
+  //  _____                
+  // |_   _| _ __ _ __ ___ 
+  //   | || '_/ _` / _/ -_)
+  //   |_||_| \__,_\__\___|
+  // 
+  else if (type.compare("trace")==0) {
+
+    // Sanity check
+    if (c0->keyPos >= 0) {
+      std::ostringstream sout;
+      sout << "[" << myid 
+	   << "] CollideIon::parse_species: method <trace> is requested but keyPos="
+	   << c0->keyPos << " and should be < 0 for consistency" << std::endl;
+      throw std::runtime_error(sout.str());
+    }
+
+    aType = Trace;
+
+    if (config["species_map"]["cons"]) {
+      use_cons = config["species_map"]["cons"].as<int>();
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <cons> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 67);
+    }    
+
+    if (config["species_map"]["elec"]) {
+      use_elec = config["species_map"]["elec"].as<int>();
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <elec> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 68);
+    }    
+
+    if (config["species_map"]["elements"]) {
+      YAML::Node elems = config["species_map"]["elements"];
+
+      for (YAML::const_iterator it=elems.begin(); it!=elems.end(); ++it) {
+	auto dd = it->as<std::vector<int>>();
+	speciesKey key(dd[0], dd[1]);
+	SpList[key] = dd[2];
+	ZList.insert(key.first);
+      }
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <elements> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 69);
+    }    
+    
+  } else {
+    std::cerr << "CollideIon::parseSpecies: implementation type <"
+	      << type << "> is not recognized . . . quitting"
+	      << std::endl;
+  }
+  
   // Sanity check.  So far, the full pair-wise cross-section census is
   // implemented for the Trace method only
   if (!use_ntcdb and aType!=Trace) use_ntcdb = true; 
-
-  unsigned int sz = ZList.size();
-  MPI_Bcast(&sz, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-
-  unsigned short z;
-
-  if (myid==0) {
-    for (auto it : ZList) {
-      z = it;
-      MPI_Bcast(&z, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-    }
-  } else {
-    for (unsigned j=0; j<sz; j++) {
-      MPI_Bcast(&z, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-      ZList.insert(z);
-    }
-  }
-
-
-  sz = ZWList.size();
-  MPI_Bcast(&sz, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-
-  double v;
-
-  if (myid==0) {
-    for (auto it : ZWList) {
-      z = it.first;
-      v = it.second;
-      MPI_Bcast(&z, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&v, 1, MPI_DOUBLE,         0, MPI_COMM_WORLD);
-    }
-
-    for (auto it : ZMList) {
-      z = it.first;
-      v = it.second;
-      MPI_Bcast(&z, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&v, 1, MPI_DOUBLE,         0, MPI_COMM_WORLD);
-    }
-
-  } else {
-    for (unsigned j=0; j<sz; j++) {
-      MPI_Bcast(&z, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&v, 1, MPI_DOUBLE,         0, MPI_COMM_WORLD);
-      ZWList[z] = v;
-    }
-
-    for (unsigned j=0; j<sz; j++) {
-      MPI_Bcast(&z, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&v, 1, MPI_DOUBLE,         0, MPI_COMM_WORLD);
-      ZMList[z] = v;
-    }
-  }
-
-  MPI_Bcast(&use_cons,   1, MPI_INT,       0, MPI_COMM_WORLD);
-  MPI_Bcast(&use_elec,   1, MPI_INT,       0, MPI_COMM_WORLD);
-  MPI_Bcast(&spc_pos, 1, MPI_INT,       0, MPI_COMM_WORLD);
-
-  if (aType == Trace) {
-
-    speciesKey key;
-    int pos;
-
-    sz = SpList.size();
-    MPI_Bcast(&sz, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-
-    if (myid==0) {
-      for (auto it : SpList) {
-
-	key = it.first;
-	pos = it.second;
-
-	MPI_Bcast(&key.first,  1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&key.second, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&pos,        1, MPI_INT,            0, MPI_COMM_WORLD);
-      }
-    } else {
-      for (unsigned j=0; j<sz; j++) {
-	MPI_Bcast(&key.first,  1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&key.second, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&pos,        1, MPI_INT,            0, MPI_COMM_WORLD);
-	SpList[key] = pos;
-      }
-    }
-  }
 
   // Record algorithm type in stdout log file
   if (myid==0) {

@@ -68,7 +68,6 @@ TreeDSMC::TreeDSMC(const YAML::Node& conf) : ExternalForce(conf)
   boxsize    = 1.0;
   boxratio   = 1.0;
   comp_name  = "gas disk";
-  spec_map   = "species.spec";
   ctype      = "Ion";
   nsteps     = -1;
   msteps     = -1;
@@ -454,7 +453,7 @@ TreeDSMC::TreeDSMC(const YAML::Node& conf) : ExternalForce(conf)
   if (ctype.compare("LTE") == 0)
     collide = new CollideLTE(this, c0, hsdiam, crossfac, nthrds);
   if (ctype.compare("Ion") == 0)
-    collide = new CollideIon(this, c0, hsdiam, crossfac, spec_map, nthrds);
+    collide = new CollideIon(this, c0, hsdiam, crossfac, nthrds);
   else {
     std::ostringstream sout;
     sout << "No such Collide type: " << ctype;
@@ -625,7 +624,6 @@ void TreeDSMC::initialize()
     if (conf["ncell"])          ncell              = conf["ncell"].as<int>();
     if (conf["Ncell"])          Ncell              = conf["Ncell"].as<int>();
     if (conf["compname"])       comp_name          = conf["compname"].as<string>();
-    if (conf["specmap"])        spec_map           = conf["specmap"].as<string>();
     if (conf["use_temp"])       use_temp           = conf["use_temp"].as<int>();
     if (conf["use_dens"])       use_dens           = conf["use_dens"].as<int>();
     if (conf["use_delt"])       use_delt           = conf["use_delt"].as<int>();
