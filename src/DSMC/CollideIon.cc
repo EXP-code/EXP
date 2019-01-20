@@ -8044,12 +8044,10 @@ void CollideIon::secondaryScatter(Particle *p)
   double KEi = 0.0;
   if (DBG_NewTest) KEi = energyInPart(p);
 
-  unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
-
   double W1 = 0.0;
   double W2 = 0.0;
 
-  double M1 = atomic_weights[Z];
+  double M1 = 0.0;
   double M2 = atomic_weights[0];
 
   if (aType == Trace) {
@@ -8061,8 +8059,11 @@ void CollideIon::secondaryScatter(Particle *p)
     }
     M1 = 1.0/W1;
   } else {
-    W1 = 0.0;
+    unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
     for (unsigned short C=0; C<=Z; C++) W2 += p->dattrib[spc_pos + C] * C;
+    W1 = 1.0/atomic_weights[Z];
+    W2 /= atomic_weights[Z];
+    M1 = atomic_weights[Z];
   }
 
   double MT = M1 + M2;
@@ -18141,19 +18142,19 @@ void CollideIon::gatherSpecies()
 	  unsigned short Q[2];
 	  Q[0] = v.first.first;
 	  Q[1] = v.first.second;
-	  MPI_Send(&Q[0],        2, MPI_UNSIGNED,      0, 2001, MPI_COMM_WORLD);
-	  MPI_Send(&v.second[0], 4, MPI_DOUBLE,        0, 2002, MPI_COMM_WORLD);
+	  MPI_Send(&Q[0],        2, MPI_UNSIGNED_SHORT,    0, 2001, MPI_COMM_WORLD);
+	  MPI_Send(&v.second[0], 4, MPI_DOUBLE,            0, 2002, MPI_COMM_WORLD);
 	}
       }
       
       if (myid==0) {
 	int num;
-	MPI_Recv(&num,           1, MPI_INT,           n, 2000, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	MPI_Recv(&num,           1, MPI_INT,              n, 2000, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	for (int i=0; i<num; i++) {
 	  unsigned short Q[2];
 	  std::array<double, 4> v3;
-	  MPI_Recv(&Q[0],        2, MPI_UNSIGNED,      n, 2001, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  MPI_Recv(&v3,          4, MPI_DOUBLE,        n, 2002, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&Q[0],        2, MPI_UNSIGNED_SHORT,   n, 2001, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&v3,          4, MPI_DOUBLE,           n, 2002, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  
 	  speciesKey k(Q[0], Q[1]);
 	  if (recombTally.find(k) == recombTally.end()) {
