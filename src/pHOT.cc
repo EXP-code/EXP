@@ -2140,6 +2140,12 @@ void pHOT::Repartition(unsigned mlevel)
   GPTLstart("pHOT::Repartition::compute_keys");
 #endif
 
+#if HAVE_LIBCUDA==1
+
+  std::vector<key_wght> keys;
+  keyProcessCuda(keys);
+
+#else
   timer_keygenr.start();
 
   oob.clear();
@@ -2209,7 +2215,11 @@ void pHOT::Repartition(unsigned mlevel)
 #endif
 
   timer_keysort.stop();
+
+#endif
+  
   timer_prepare.start();
+
 
   //
   // Nodes compute send list
@@ -2494,6 +2504,7 @@ void pHOT::Repartition(unsigned mlevel)
     timer_diagdbg.stop();
   }
 
+#if HAVE_LIBCUDA != 1
   if (checkDupes1("pHOT::Repartition: after exchange")) {
     cout << "Process " << myid << " at T=" << tnow 
 	 << ", L=" << mlevel
@@ -2501,6 +2512,7 @@ void pHOT::Repartition(unsigned mlevel)
 	 << d1b << endl;
   }
   d1b++;
+#endif
 
   timer_repartn.stop();
 

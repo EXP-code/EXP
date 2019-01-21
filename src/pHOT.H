@@ -161,6 +161,19 @@ protected:
 
   static void qtile_initialize(); // Quantile set up
 
+#if HAVE_LIBCUDA==1
+
+  void keyProcessCuda(std::vector<key_wght> keys);
+
+  void sortCombineOne(std::vector<key_type>& one,
+		      std::vector<key_type>& two,
+		      std::vector<key_type>& comb);
+
+  void parallelMergeOne(std::vector<key_type>& initl,
+			std::vector<key_type>& final);
+
+#endif
+
 public:
 
   //! Effort value hysteresis (default: 0.25)
