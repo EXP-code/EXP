@@ -5,7 +5,7 @@
 
 #include <Cube.H>
 
-Cube::Cube(string& line) : PotAccel(line)
+Cube::Cube(const YAML::Node& conf) : PotAccel(conf)
 {
   id = "Cube";
 
@@ -44,14 +44,26 @@ Cube::~Cube(void)
 
 void Cube::initialize(void)
 {
-  string val;
+  try {
+    if (conf["nminx"]) nminx = conf["nminx"].as<int>();
+    if (conf["nminy"]) nminy = conf["nminy"].as<int>();
+    if (conf["nminz"]) nminz = conf["nminz"].as<int>();
+    if (conf["nmaxx"]) nmaxx = conf["nmaxx"].as<int>();
+    if (conf["nmaxy"]) nmaxy = conf["nmaxy"].as<int>();
+    if (conf["nmaxz"]) nmaxz = conf["nmaxz"].as<int>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in Cube: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
-  if (get_value("nminx", val)) nminx = atoi(val.c_str());
-  if (get_value("nminy", val)) nminy = atoi(val.c_str());
-  if (get_value("nminz", val)) nminz = atoi(val.c_str());
-  if (get_value("nmaxx", val)) nmaxx = atoi(val.c_str());
-  if (get_value("nmaxy", val)) nmaxy = atoi(val.c_str());
-  if (get_value("nmaxz", val)) nmaxz = atoi(val.c_str());
 }
 
 void * Cube::determine_coefficients_thread(void * arg)

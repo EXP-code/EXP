@@ -168,7 +168,7 @@ public:
   //@}
 
   //! Constructor
-  //! \param line contains the parameters passed to the method
+  //! \param conf contains the parameters passed to the method
   //! \param m is the MixtureBasis for a multicenter expansion
   //! 
   //! Parameters settable in the configuration line include:
@@ -199,7 +199,7 @@ public:
   //! \param density set to true means compute density basis in addition to potential (default: false)
   //! \param cmap set to true means use coordinate mapping (default: true)
   //!
-  Cylinder(string& line, MixtureBasis *m=0);
+  Cylinder(const YAML::Node& conf, MixtureBasis *m=0);
 
   //! Destructor
   virtual ~Cylinder();

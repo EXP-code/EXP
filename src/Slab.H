@@ -62,7 +62,7 @@ public:
   string id;
 
   //! Constructor
-  Slab(string& line);
+  Slab(const YAML::Node& conf);
 
   //! Destructor
   virtual ~Slab();

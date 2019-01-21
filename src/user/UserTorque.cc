@@ -40,13 +40,13 @@ private:
 
 public:
 
-  UserTorque(string &line);
+  UserTorque(const YAML::Node& conf);
   ~UserTorque();
 
 };
 
 
-UserTorque::UserTorque(string &line) : ExternalForce(line)
+UserTorque::UserTorque(const YAML::Node& conf) : ExternalForce(conf)
 {
   file_name = "dLz.dat";	// Data file
   com_name = "sphereSL";	// Default component for com
@@ -112,18 +112,31 @@ void UserTorque::userinfo()
 
 void UserTorque::initialize()
 {
-  string val;
+  try {
+    if (conf["comname"])        com_name           = conf["comname"].as<string>();
+    if (conf["file_name"])      file_name          = conf["file_name"].as<string>();
+    if (conf["model_name"])     model_name         = conf["model_name"].as<string>();
+    if (conf["sgn"])            sgn                = conf["sgn"].as<int>()>0 ? 1 : -1;
+    if (conf["diverge"])        diverge            = conf["diverge"].as<int>();
+    if (conf["diverge_rfac"])   diverge_rfac       = conf["diverge_rfac"].as<double>();
+    if (conf["ton"])            ton                = conf["ton"].as<double>();
+    if (conf["toff"])           toff               = conf["toff"].as<double>();
+    if (conf["delta"])          delta              = conf["delta"].as<double>();
+    if (conf["boost"])          boost              = conf["boost"].as<double>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserTorque: "
+			   << error.what()         << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
 
-  if (get_value("comname", val))	com_name = val;
-  if (get_value("file_name", val))	file_name = val;
-  if (get_value("model_name", val))	model_name = val;
-  if (get_value("sgn", val))	        sgn = atoi(val)>0 ? 1 : -1;
-  if (get_value("diverge", val))	diverge = atoi(val);
-  if (get_value("diverge_rfac", val))	diverge_rfac = atof(val);
-  if (get_value("ton", val))		ton = atof(val);
-  if (get_value("toff", val))		toff = atof(val);
-  if (get_value("delta", val))		delta = atof(val);
-  if (get_value("boost", val))		boost = atof(val);
+    MPI_Finalize();
+    exit(-1);
+  }
+  
   
   ifstream in(file_name.c_str());
   if (in) {
@@ -136,9 +149,9 @@ void UserTorque::initialize()
     
     dX = (xmax - xmin)/numx;
     dY = (ymax - ymin)/numy;
-
+    
     float z;
-
+    
     for (int j=0; j<numy; j++) {
       fvector tmp;
       for (int i=0; i<numx; i++) {
@@ -147,11 +160,11 @@ void UserTorque::initialize()
       }
       array.push_back(tmp);
     }
-
+    
   } else {
     throw "UserTorque: could not open input file";
   }
-
+  
   halo = new SphericalModelTable(model_name, diverge, diverge_rfac);
   orb  = new SphericalOrbit(halo);
 }
@@ -257,9 +270,9 @@ void * UserTorque::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerTorque(string& line)
+  ExternalForce *makerTorque(const YAML::Node& conf)
   {
-    return new UserTorque(line);
+    return new UserTorque(conf);
   }
 }
 

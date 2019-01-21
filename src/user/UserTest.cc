@@ -14,14 +14,14 @@ private:
 
 public:
 
-  UserTest(string &line);
+  UserTest(const YAML::Node& conf);
   ~UserTest();
 
 };
 
 int UserTest::total = 0;
 
-UserTest::UserTest(string &line) : ExternalForce(line)
+UserTest::UserTest(const YAML::Node& conf) : ExternalForce(conf)
 {
   id = "Test";
   total++;
@@ -49,9 +49,9 @@ void * UserTest::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerTest(string& line)
+  ExternalForce *makerTest(const YAML::Node& conf)
   {
-    return new UserTest(line);
+    return new UserTest(conf);
   }
 }
 

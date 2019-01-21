@@ -34,6 +34,8 @@
 
 namespace po = boost::program_options;
 
+#include <yaml-cpp/yaml.h>
+
 #include "Particle.H"
 #include "globalInit.H"
 #include "Species.H"
@@ -87,8 +89,10 @@ std::map<std::string, Itype> Types
 
 // Use CHIANTI or ION for ionization-recombination equilibrium
 //
-bool use_chianti = false;
+bool use_chianti   = false;
 bool use_init_file = false;
+bool use_yaml      = true;
+
 
 // Model types
 //
@@ -677,12 +681,35 @@ void InitializeSpeciesDirect
 	    << "T (elec):    " << tKEe/(1.5*numbI*boltz) << std::endl
 	    << std::string(70, '-') << std::endl;
 
-  std::ofstream out("species.spec");
-  out << "direct" << std::endl;
-  out << std::setw(6) << sp << std::endl;
-  for (size_t indx=0; indx<NS; indx++) { 
-    out << std::setw(6) << static_cast<unsigned>(sZ[indx])
-	<< std::endl;
+  if (use_yaml) {
+    YAML::Emitter out;
+
+    out << YAML::BeginMap
+	<< YAML::Key   << "species_map"
+	<< YAML::BeginMap
+	<< YAML::Key   << "type"
+	<< YAML::Value << "direct"
+	<< YAML::Key   << "elec"
+	<< YAML::Value << sp
+	<< YAML::Key   << "elements"
+	<< YAML::Value << YAML::BeginSeq << YAML::Flow;
+    for (auto v : sZ) out << v;
+    out << YAML::EndSeq
+	<< YAML::EndMap
+	<< YAML::EndMap;
+  
+    std::ofstream fout("species.yml");
+
+    fout << out.c_str() << std::endl;
+    
+  } else {
+    std::ofstream out("species.spec");
+    out << "direct" << std::endl;
+    out << std::setw(6) << sp << std::endl;
+    for (size_t indx=0; indx<NS; indx++) { 
+      out << std::setw(6) << static_cast<unsigned>(sZ[indx])
+	  << std::endl;
+    }
   }
   
   sI = cuml;
@@ -864,18 +891,47 @@ void InitializeSpeciesWeight
     particles[i].iattrib[0] = kc.getInt();
   }
   
-  std::ofstream out("species.spec");
+  if (use_yaml) {
+    YAML::Emitter out;
+
+    out << YAML::BeginMap << YAML::Key << "species_map" << YAML::BeginMap;
+    out << YAML::Key   << "type";
+    out << YAML::Value << "weight";
+    out << YAML::Key   << "cons";
+    out << YAML::Value << sp;
+    out << YAML::Key   << "elec";
+    out << YAML::Value << ne;
+    out << YAML::Key   << "elements";
+    out << YAML::Value << YAML::BeginSeq;
+    for (size_t indx=0; indx<NS; indx++) { 
+      out << YAML::Flow << YAML::BeginSeq 
+	  << static_cast<unsigned>(sZ[indx])
+	  << wght[indx]
+	  << M[0]/N * sF[indx] * NS
+	  << YAML::EndSeq;
+    }
+    out << YAML::EndSeq;
+    out << YAML::EndMap;
+    out << YAML::EndMap;
+    
+    std::ofstream fout("species.yml");
+
+    std::cout << out.c_str() << std::endl;
+
+  } else {
+    std::ofstream out("species.spec");
   
-  out << "weight" << std::endl;
-  out << std::setw(6) << sp;
-  if (ne>=0) out << std::setw(6) << ne;
-  out << std::endl;
+    out << "weight" << std::endl;
+    out << std::setw(6) << sp;
+    if (ne>=0) out << std::setw(6) << ne;
+    out << std::endl;
   
-  for (size_t indx=0; indx<NS; indx++) { 
-    out << std::setw(6)  << static_cast<unsigned>(sZ[indx])
-	<< std::setw(16) << wght[indx]
-	<< std::setw(16) << M[0]/N * sF[indx] * NS
-	<< std::endl;
+    for (size_t indx=0; indx<NS; indx++) { 
+      out << std::setw(6)  << static_cast<unsigned>(sZ[indx])
+	  << std::setw(16) << wght[indx]
+	  << std::setw(16) << M[0]/N * sF[indx] * NS
+	  << std::endl;
+    }
   }
   
   sI = cuml;
@@ -1056,19 +1112,52 @@ void InitializeSpeciesHybrid
     particles[i].iattrib[0] = kc.getInt();
   }
   
-  std::ofstream out("species.spec");
+  if (use_yaml) {
+    YAML::Emitter out;
+    out << YAML::BeginMap
+	<< YAML::Key     << "species_map"
+	<< YAML::BeginMap
+	<< YAML::Key     << "type"
+	<< YAML::Value   << "hybrid"
+	<< YAML::Key     << "cons"
+	<< YAML::Value   << sp
+	<< YAML::Key     << "spos"
+	<< YAML::Value   << sp+1;
+    if (ne>=0) {
+      out << YAML::Key   << "Elec"
+	  << YAML::Value << ne;
+    }
+    out << YAML::Key << "elements" << YAML::BeginSeq;
+    for (size_t indx=0; indx<NS; indx++) { 
+      out << YAML::Flow << YAML::BeginSeq 
+	  << static_cast<unsigned>(sZ[indx])
+	  << wght[indx]
+	  << M[0]/N * sF[indx] * NS
+	  << YAML::EndSeq;
+    }
+
+    out << YAML::EndSeq
+	<< YAML::EndMap
+	<< YAML::EndMap;
+
+    std::ofstream fout("species.yml");
+    fout << out.c_str() << std::endl;
+
+  } else {
+    std::ofstream out("species.spec");
   
-  out << "hybrid" << std::endl;
-  out << std::setw(6) << sp;
-  out << std::setw(6) << sp+1;
-  if (ne>=0) out << std::setw(6) << ne;
-  out << std::endl;
-  
-  for (size_t indx=0; indx<NS; indx++) { 
-    out << std::setw(6)  << static_cast<unsigned>(sZ[indx])
-	<< std::setw(16) << wght[indx]
-	<< std::setw(16) << M[0]/N * sF[indx] * NS
-	<< std::endl;
+    out << "hybrid" << std::endl;
+    out << std::setw(6) << sp;
+    out << std::setw(6) << sp+1;
+    if (ne>=0) out << std::setw(6) << ne;
+    out << std::endl;
+    
+    for (size_t indx=0; indx<NS; indx++) { 
+      out << std::setw(6)  << static_cast<unsigned>(sZ[indx])
+	  << std::setw(16) << wght[indx]
+	  << std::setw(16) << M[0]/N * sF[indx] * NS
+	  << std::endl;
+    }
   }
   
   sI = cuml;
@@ -1357,24 +1446,58 @@ void InitializeSpeciesTrace
     numb += particles[i].mass/molW * Munit / amu;
   }
   
-  std::ofstream out("species.spec");
-  out << "trace" << std::endl;
-  // Conservation position and electron position (-1 for none)
-  //
-  out << std::setw(6) << sp-1
-      << std::setw(6) << ne << std::endl;
-  // Starting species position
-  //
-  int cntr = sp;
-  for (int indx=0; indx<NS; indx++) { 
-    for (int j=0; j<sZ[indx]+1; j++) {
-      out << std::setw(6) << static_cast<unsigned>(sZ[indx])
-	  << std::setw(6) << j + 1
-	  << std::setw(6) << cntr++
-	  << std::endl;
+  if (use_yaml) {
+    YAML::Emitter out;
+
+    out << YAML::BeginMap
+	<< YAML::Key << "species_map"
+	<< YAML::BeginMap
+	<< YAML::Key   << "type"
+	<< YAML::Value << "trace"
+	<< YAML::Key << "cons"
+	<< YAML::Value << sp - 1
+	<< YAML::Key << "elec"
+	<< YAML::Value << ne
+	<< YAML::Key << "elements"
+	<< YAML::Value << YAML::BeginSeq;
+  
+    int cntr = sp;
+    for (int indx=0; indx<NS; indx++) { 
+      for (int j=0; j<sZ[indx]+1; j++) {
+	out << YAML::Flow << YAML::BeginSeq 
+	    << static_cast<unsigned>(sZ[indx])
+	    << j + 1
+	    << cntr++ << YAML::EndSeq;
+      }
+    }
+    
+    out << YAML::EndSeq
+	<< YAML::EndMap
+	<< YAML::EndMap;
+
+    std::ofstream fout("species.yml");
+    fout << out.c_str() << std::endl;
+
+  } else {
+
+    std::ofstream out("species.spec");
+    out << "trace" << std::endl;
+    // Conservation position and electron position (-1 for none)
+    //
+    out << std::setw(6) << sp-1
+	<< std::setw(6) << ne << std::endl;
+    // Starting species position
+    //
+    int cntr = sp;
+    for (int indx=0; indx<NS; indx++) { 
+      for (int j=0; j<sZ[indx]+1; j++) {
+	out << std::setw(6) << static_cast<unsigned>(sZ[indx])
+	    << std::setw(6) << j + 1
+	    << std::setw(6) << cntr++
+	    << std::endl;
+      }
     }
   }
-
   
   double Eunit = Munit*Vunit*Vunit;
 
@@ -1412,6 +1535,8 @@ main (int ac, char **av)
     ("help,h",		"produce help message")
     ("electrons",       "set up for weighted or hybrid species with electrons")
     ("meanmass",        "set up for the mean-mass algorithm")
+    ("yaml",            "write YAML species config file")
+    ("old",             "write old-style species config file")
     ("CHIANTI,C",	po::value<bool>(&use_chianti)->default_value(false),
      "use CHIANTI to set recombination-ionization equilibrium")
     ("INIT,I",	        po::value<bool>(&use_init_file)->default_value(false),
@@ -1469,6 +1594,14 @@ main (int ac, char **av)
   bool mm = false;
   if (vm.count("meanmass")) {
     mm = true;
+  }
+
+  if (vm.count("yaml")) {
+    use_yaml = true;
+  }
+
+  if (vm.count("old")) {
+    use_yaml = false;
   }
 
   if (myid==0) {
@@ -1613,10 +1746,11 @@ main (int ac, char **av)
       }
     } else {
       rho.push_back(D);
-      if (Temp>0.0) T[0][0] = Temp;
-      else          T[0][0] = iroot.get("temp", 100000.0);
+      if (Temp>0.0) T[0][0]  = Temp;
+      else          T[0][0]  = iroot.get("temp", 100000.0);
       T[0][1] = T[0][0];
       if (Telec>0.0) T[0][1] = Telec;
+      else           T[0][1] = iroot.get("telc", T[0][0]);
     }
       
     if (type==Trace) {

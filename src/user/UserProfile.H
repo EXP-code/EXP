@@ -44,7 +44,7 @@ private:
 public:
 
   //! Constructor
-  UserProfile(string &line);
+  UserProfile(const YAML::Node& conf);
 
   //! Destructor
   ~UserProfile();

@@ -225,7 +225,7 @@ public:
   bool sampleTest()
   {
     int mcount = 0;
-    key_type key = -1;
+    key_type key = 0xffffffffffffffff;
     sample->match(this, mcount, key);
     return mcount == 1;
   }

@@ -15,7 +15,8 @@ private:
 
 public:
   //! Constructor
-  UserTest(string &line);
+  UserTest(const YAML::Node& conf);
+
   //! Destructor
   ~UserTest();
 

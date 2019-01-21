@@ -18,7 +18,6 @@
 #include "CollideIon.H"
 #include "localmpi.h"
 #include "Species.H"
-#include "Configuration.H"
 #include "InitContainer.H"
 
 // Version info
@@ -74,9 +73,10 @@ double   CollideIon::tolCS      = 1.0;
 
 // The recommended value for qCrit is now -1 (that is, turn it off).
 // It appears to be unstable based on the TestEquil tests.
+
 double   CollideIon::qCrit      = -1.0;
 
-string   CollideIon::config0    = "CollideIon.config";
+YAML::Node CollideIon::config;
 
 bool CollideIon::ElectronEPSM   = false;
 CollideIon::ElectronScatter
@@ -142,10 +142,6 @@ static bool SAME_IONS_SCAT      = false;
 static bool SAME_INTERACT       = false;
 static bool DIFF_INTERACT       = false;
 static bool TRACE_OVERRIDE      = false;
-
-// Test Coulombic cross section computed from mean KE
-//
-static bool MEAN_KE             = true;
 
 // Suppress distribution of energy to electrons when using NOCOOL
 //
@@ -319,6 +315,11 @@ bool CollideIon::elec_balance   = true;
 bool CollideIon::ke_weight      = true;
 
 
+// Coulombic cross section computed from mean KE
+//
+bool CollideIon::MeanKE         = true;
+
+
 // Per-species cross-section scale factor for testing
 //
 static std::vector<double> cscl_;
@@ -434,8 +435,7 @@ T operator*(const std::vector<T>& a, const std::vector<T>& b)
 // CONSTRUCTOR
 //
 CollideIon::CollideIon(ExternalForce *force, Component *comp,
-		       double hD, double sD,
-		       const std::string& smap, int Nth) :
+		       double hD, double sD, int Nth) :
   Collide(force, comp, hD, sD, NAME_ID, VERSION_ID, Nth)
 {
   // Default MFP type
@@ -469,9 +469,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
     use_photoIB = true;
   }
 
-  // Read species file
+  // Read species config
   //
-  parseSpecies(smap);
+  parseSpecies();
 
   // Fill the Chianti data base
   //
@@ -1111,7 +1111,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
   // Total electron density
   //
   double densEtot = 0.0;
-
+  
   // Values for estimating effective MFP per cell
   //
   spNcol[id] = 0;
@@ -1208,11 +1208,11 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 
     if (aType == Trace) {
       for (auto s : SpList) {
-	speciesKey k = s.first;
+	speciesKey k  = s.first;
 				// Number of electrons
-	double ee    = k.second - 1;
+	double ee     = k.second - 1;
 				// Number fraction of particles
-	double ww    = p->dattrib[s.second]/atomic_weights[k.first];
+	double ww     = p->dattrib[s.second]/atomic_weights[k.first];
 
 	numQ2[id]    += p->mass * ww * ee*ee;
 	numEf[id]    += p->mass * ww * (1.0 + ee);
@@ -1241,6 +1241,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
   //
   double volc = cell->Volume();
   double dfac = TreeDSMC::Munit/amu / (pow(TreeDSMC::Lunit, 3.0)*volc);
+  double tmp1 = densQtot, tmp2 = densEtot;
 
   for (auto & v : densE[id]) v.second *= dfac;
   densItot *= dfac;
@@ -2731,6 +2732,22 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
     double muee = atomic_weights[0]/2.0;
     double muie = atomic_weights[0] * meanM[id]/(atomic_weights[0] + meanM[id]);
 
+    if (false) {
+      std::cout << " MUii=" << muii
+		<< " MUee=" << muee
+		<< " MUie=" << muie
+		<< " denQ=" << densQtot
+		<< " denE=" << densEtot
+		<< " numQ=" << numQ2[id]
+		<< " Ivel2=" << Ivel2[id]
+		<< " Evel2=" << Evel2[id]
+		<< " volC=" << volc
+		<< " masC=" << massP
+		<< " numQ=" << tmp1
+		<< " numE=" << tmp2
+		<< std::endl;
+    }
+
 				// Ion-Ion
     PiProb[id][0] =
       densQtot +
@@ -2758,6 +2775,13 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
       (pow(Ivel2[id] + Evel2[id], 1.5) * muie*muie) +
       densEtot;
 
+    if (false) {
+      std::cout << " PP1=" << PiProb[id][0]
+		<< " PP2=" << PiProb[id][1]
+		<< " PP3=" << PiProb[id][2]
+		<< " PP4=" << PiProb[id][3]
+		<< std::endl;
+    }
 				// Sanity check
     double test1 = densQtot/PiProb[id][0] + densEtot/PiProb[id][1];
     double test2 = densQtot/PiProb[id][2] + densEtot/PiProb[id][3];
@@ -4647,12 +4671,23 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
   double sVel1 = 0.0;
   double sVel2 = 0.0;
   
+  double iKE1  = 0.0;
+  double iKE2  = 0.0;
+  double eKE1  = 0.0;
+  double eKE2  = 0.0;
+
   // Ion-ion
   for (unsigned i=0; i<3; i++) {
     double rvel = p1->vel[i] - p2->vel[i];
     eVelI += rvel * rvel;
   }
     
+  /*
+  if (fabs(cr*cr - eVelI) > 1.0e-8*cr*cr) {
+    std::cout << "CRAZY: " << cr << ", " << sqrt(eVelI) << std::endl;
+  }
+  */
+
   if (NO_VEL) {
     eVel0 = eVel1 = eVel2 = 1.0;
     gVel0 = gVel1 = gVel2 = 1.0;
@@ -4693,6 +4728,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       
       sVel1 += rvel1*rvel1;
       sVel2 += rvel2*rvel2;
+
+      iKE1 += p1->vel[i] * p1->vel[i];
+      iKE2 += p2->vel[i] * p2->vel[i];
+      eKE1 += p1->dattrib[use_elec+i] * p1->dattrib[use_elec+i];
+      eKE2 += p2->dattrib[use_elec+i] * p2->dattrib[use_elec+i];
     }
     eVel0 = sqrt(eVel0) * TreeDSMC::Vunit;
     eVel1 = sqrt(eVel1) * TreeDSMC::Vunit;
@@ -4751,7 +4791,35 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 				// p2 ion : p2 electron
   kE2s[id] = 0.5  * mu2 * vel*vel * sVel2*sVel2;
 
-  
+  if (false) {
+    std::cout << " Eion=" << Eion[id]
+	      << " Eelc=" << Eelc[id]
+	      << " eVel1=" << eVel1
+	      << " eVel2=" << eVel2
+	      << " gVel1=" << gVel1
+	      << " gVel2=" << gVel2
+	      << " ke1=" << kEe1[id]/eV
+	      << " ke2=" << kEe2[id]/eV
+	      << std::endl;
+  }
+
+  if (false) {
+    double fac = 0.5 * TreeDSMC::Vunit * TreeDSMC::Vunit / eV;
+    iKE1 *= m1 * fac;
+    iKE2 *= m1 * fac;
+    eKE1 *= me * fac * Eta1;
+    eKE2 *= me * fac * Eta2;
+
+    std::cout << "iKE1="  << iKE1
+	      << " iKE2=" << iKE2
+	      << " eKE1=" << eKE2
+	      << " eKE2=" << eKE2
+	      << " Eion=" << Eion[id]
+	      << " Eelc=" << Eelc[id]
+	      << std::endl;
+  }
+
+
   // Internal energy per particle
   //
   Ein1[id] = Ein2[id] = 0.0;
@@ -4850,7 +4918,6 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       // Particle 1 interacts with Particle 2
       //--------------------------------------------------
     
-      double cfac = p1->dattrib[s.second] * p2->dattrib[ss.second];
       orderedPair op(Z, ZZ), op1(Z, 1);
 
       //-------------------------------
@@ -4862,7 +4929,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double cross = 0.0;
 				// Geometric cross sections based on
 				// atomic radius
-	double crs = (geometric(Z)*cscl_[Z] + geometric(ZZ)*cscl_[ZZ]) * cfac;
+	double crs = (geometric(Z)*cscl_[Z] + geometric(ZZ)*cscl_[ZZ]) * fac1 * fac2;
 	
 				// Double counting
 	if (Z == ZZ) crs *= 0.5;
@@ -4886,7 +4953,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
       if (P==0 and kk==proton) {
 	double crs1 = elastic(Z, kEi[id], Elastic::proton) *
-	  crossfac * cscl_[Z] * cfac;
+	  crossfac * cscl_[Z] * fac1 * fac2;
 	
 	if (DEBUG_CRS) trap_crs(crs1);
 	
@@ -4901,7 +4968,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
       if (PP==0 and k==proton) {
 	double crs1 = elastic(ZZ, kEi[id], Elastic::proton) *
-	  crossfac * cscl_[ZZ] * cfac;
+	  crossfac * cscl_[ZZ] * fac1 * fac2;
 	
 	if (DEBUG_CRS) trap_crs(crs1);
 	
@@ -4920,7 +4987,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       // --------------------------------------
       //
       if (P>0 and PP>0) {
-	double kEc  = MEAN_KE ? Eion[id]  : kEi[id];
+	double kEc  = MeanKE ? Eion[id] : kEi[id];
 	double afac = esu*esu/std::max<double>(2.0*kEc*eV, FloorEv*eV) * 1.0e7;
 	double crs  = 2.0 * ABrate[id][0] * afac*afac / PiProb[id][0];
 
@@ -4990,10 +5057,16 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	    gVel2 * Eta2 * crossfac * cscl_[Z] * fac1;
 	  
 	} else {
-	  double kEc  = MEAN_KE ? Eelc[id]  : kEe1[id];
+	  double kEc  = MeanKE ? Eelc[id] : kEe1[id];
 	  double afac = esu*esu/std::max<double>(2.0*kEc*eV, FloorEv*eV) * 1.0e7;
-
+	  
 	  crs = 2.0 * ABrate[id][1] * afac*afac * gVel2 / PiProb[id][1];
+
+	  if (false) {
+	    std::cout << "kEc1=" << kEc
+		      << " crs1=" << crs
+		      << std::endl;
+	  }
 	}
 	
 	if (DEBUG_CRS) trap_crs(crs);
@@ -5014,10 +5087,16 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  crs = coulCrs[id][P][0] * pow(kEe2[id]/coulCrs[id][P][1], coulPow) *
 	    gVel1 * Eta1 * crossfac * cscl_[Z] * fac2;
 	} else {
-	  double kEc  = MEAN_KE ? Eelc[id]  : kEe2[id];
+	  double kEc  = MeanKE ? Eelc[id] : kEe2[id];
 	  double afac = esu*esu/std::max<double>(2.0*kEc*eV, FloorEv*eV) * 1.0e7;
 
 	  crs = 2.0 * ABrate[id][2] * afac*afac * gVel1 / PiProb[id][2];
+
+	  if (false) {
+	    std::cout << "kEc2=" << kEc
+		      << " crs2=" << crs
+		      << std::endl;
+	  }
 	}
 	
 	if (DEBUG_CRS) trap_crs(crs);
@@ -5369,6 +5448,26 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
   for (auto & v : CProb[id]) {
     v *= crs_units;
     totalXS += v;
+  }
+
+  if (false) {
+    double x[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    for (auto X : hCross[id]) {
+      if (get<0>(X.t) == neut_neut) x[0] += X.crs; 
+      else if (get<0>(X.t) == neut_elec) x[1] += X.crs; 
+      else if (get<0>(X.t) == neut_prot) x[2] += X.crs; 
+      else if (get<0>(X.t) == ion_ion  ) x[3] += X.crs; 
+      else if (get<0>(X.t) == ion_elec ) x[4] += X.crs; 
+      else                               x[5] += X.crs;
+    }
+    std::cout << "nn="  << x[0]
+	      << " ne=" << x[1]
+	      << " np=" << x[2]
+	      << " ii=" << x[3]
+	      << " ie=" << x[4]
+	      << " ot=" << x[5]
+	      << " tt=" << totalXS/crs_units
+	      << std::endl;
   }
 
   return totalXS;
@@ -7945,12 +8044,10 @@ void CollideIon::secondaryScatter(Particle *p)
   double KEi = 0.0;
   if (DBG_NewTest) KEi = energyInPart(p);
 
-  unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
-
   double W1 = 0.0;
   double W2 = 0.0;
 
-  double M1 = atomic_weights[Z];
+  double M1 = 0.0;
   double M2 = atomic_weights[0];
 
   if (aType == Trace) {
@@ -7962,8 +8059,11 @@ void CollideIon::secondaryScatter(Particle *p)
     }
     M1 = 1.0/W1;
   } else {
-    W1 = 0.0;
+    unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
     for (unsigned short C=0; C<=Z; C++) W2 += p->dattrib[spc_pos + C] * C;
+    W1 = 1.0/atomic_weights[Z];
+    W2 /= atomic_weights[Z];
+    M1 = atomic_weights[Z];
   }
 
   double MT = M1 + M2;
@@ -9199,9 +9299,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     } else if (NO_ION_ELECTRON) {
       J = 0;
     } else {
-      if      (Pr < PE[0][0]) J = 0;
-      else if (Pr < PE[1][0]) J = 1;
+      if      (Pr < PE[0][0])            J = 0;
+      else if (Pr < PE[0][0] + PE[1][0]) J = 1;
     }
+
     Jsav = J;
 
     // Parse for Coulombic interaction
@@ -10894,6 +10995,12 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     totalXS += I.crs;
   }
 
+  if (false) {
+    std::cout << "XS1=" << totalXS
+	      << " XS2=" << 0.0
+	      << std::endl;
+  }
+
   // Randomize interaction order to prevent bias
   //
   std::random_shuffle(order.begin(), order.end());
@@ -11059,6 +11166,13 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  PE[2][0] += Prob;
 	} else {
 	  PE[1][0] += Prob;
+	}
+
+	if (false) {
+	  std::cout << "Prob=" << Prob
+		    << " ke1=" << kEe1[id]
+		    << " ke2=" << kEe2[id]
+		    << std::endl;
 	}
       }
       
@@ -11636,6 +11750,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
   } // END: interaction loop [hCross]
 
+
   // Deep debug
   //
   if (false) {
@@ -11649,6 +11764,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		<< std::endl;
     }
     std::cout << std::string(40, '-') << std::endl;
+  }
+
+  if (false) {
+    std::cout << std::string(52, '-') << std::endl;
+    std::cout << std::setw(20) << interLabels[maxInterFlag]
+	      << std::setw(16) << maxP
+	      << std::setw(16) << totalXS
+	      << std::endl;
   }
 
   // Update energy ratio diagnostic list for histogram
@@ -11744,8 +11867,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     } else if (NO_ION_ELECTRON) {
       J = 0;
     } else {
-      if      (Pr < PE[0][0]) J = 0;
-      else if (Pr < PE[1][0]) J = 1;
+      if      (Pr < PE[0][0])            J = 0;
+      else if (Pr < PE[0][0] + PE[1][0]) J = 1;
     }
     Jsav = J;
 
@@ -11767,14 +11890,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       double dT  = spTau[id] * TreeDSMC::Tunit;
 
       size_t nbods = c->bods.size();
-      double  volc = c->Volume();
-      double  dfac = TreeDSMC::Munit/amu/pow(TreeDSMC::Lunit, 3.0) *
-	p1->mass/molP1[id];
-
+      double  volc = c->Volume(), eVel, afac, KE2;
+      double  dfac = TreeDSMC::Munit/amu/pow(TreeDSMC::Lunit, 3.0) * p1->mass/molP1[id];
+      
       if (maxInterFlag == ion_elec) {
 	if (maxI1.first == Interact::electron) {
-	  double eVel = sqrt(2.0 * kEe2[id] * eV / mu2);
-	  double afac = esu*esu/std::max<double>(2.0*kEe2[id]*eV, FloorEv*eV);
+	  KE2 = 2.0 * kEe2[id] * eV;
+	  eVel = sqrt(KE2 / mu2);
+	  afac = esu*esu/std::max<double>(KE2, FloorEv*eV);
 	  KE.Tau = ABrate[id][2]*afac*afac*eVel * dT;
 	  double Cfrac  = nbods * nbods * dfac/ (PiProb[id][2] * volc) / spNsel[id];
 	  
@@ -11783,8 +11906,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  tauIon[id][2] += KE.Tau * KE.Tau;
 	  tauIon[id][3] += Cfrac;
 	} else {
-	  double eVel = sqrt(2.0 * kEe1[id] * eV / mu1);
-	  double afac = esu*esu/std::max<double>(2.0*kEe1[id]*eV, FloorEv*eV);
+	  KE2 = 2.0 * kEe1[id] * eV;
+	  eVel = sqrt(KE2 / mu1);
+	  afac = esu*esu/std::max<double>(KE2, FloorEv*eV);
 	  KE.Tau = ABrate[id][1]*afac*afac*eVel * dT;
 	  double Cfrac  = nbods * nbods * dfac/ (PiProb[id][1] * volc) / spNsel[id];
 	  
@@ -11794,8 +11918,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  tauIon[id][3] += Cfrac;
 	}
       } else {
-	double eVel = sqrt(2.0 * kEi[id] * eV / mu0);
-	double afac = esu*esu/std::max<double>(2.0*kEi[id]*eV, FloorEv*eV);
+	KE2 = 2.0 * kEi[id] * eV;
+	eVel = sqrt(KE2 / mu0);
+	afac = esu*esu/std::max<double>(KE2, FloorEv*eV);
 	KE.Tau = ABrate[id][0]*afac*afac*eVel * dT;
 	double Cfrac  = nbods * nbods * dfac/ (PiProb[id][0] * volc) / spNsel[id];
 	  
@@ -11804,6 +11929,28 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	tauIon[id][2] += KE.Tau * KE.Tau;
 	tauIon[id][3] += Cfrac;
       }
+
+      if (false) {
+	std::cout << " Tau="  << KE.Tau
+		  << " eVel=" << 0.5*KE2/eV
+		  << " afac=" << afac
+		  << " dT="   << dT
+		  << " AB1="  << ABrate[id][0]
+		  << " AB2="  << ABrate[id][1]
+		  << " AB3="  << ABrate[id][2]
+		  << " AB4="  << ABrate[id][3]
+		  << " Mu1="  << molP1[id]
+		  << " Mu2="  << molP2[id]
+		  << " KE1="  << kEe1[id]
+		  << " KE2="  << kEe2[id]
+		  << " tXS="  << totalXS
+		  << std::endl;
+      }
+
+    }
+
+    if (false) {
+      printf("ke1=%e ke2=%e\n", kEe1[id], kEe2[id]);
     }
 
     //
@@ -16078,10 +16225,8 @@ void collDiag::print()
 
 }
 
-void CollideIon::parseSpecies(const std::string& map)
+void CollideIon::parseSpecies()
 {
-  unsigned char nOK = 0;
-
   //
   // Default values
   //
@@ -16090,380 +16235,302 @@ void CollideIon::parseSpecies(const std::string& map)
   spc_pos    = -1;
 
   //
-  // Let root node ONLY do the reading
+  // Check for the existence of the stanza
   //
-  if (myid==0) {
-
-    std::ifstream in(map.c_str());
-    if (in.bad())
-      {
-	std::cerr << "CollideIon::parseSpecies: definition file <"
-		  << map << "> could not be opened . . . quitting"
-		  << std::endl;
-	nOK = 1;
-      }
-
-
-    // Ok, read the first line to get the implementation type
-
-    if (nOK == 0) {
-
-      const int nline = 2048;
-      char line[nline];
-
-      in.getline(line, nline);
-      std::string type(line);
-
-      if (type.compare("direct")==0) {
-
-	aType = Direct;
-
-	if (use_key<0) {
-	  std::cerr << "CollideIon: species key position is not defined in "
-		    << "Component" << std::endl;
-	  nOK = 1;
-	}
-
-	in.getline(line, nline);
-
-	if (in.good()) {
-	  std::istringstream sz(line);
-	  sz >> use_elec;
-	} else {
-	  nOK = 1;		// Can't read position flag
-	}
-
-	if (nOK == 0) {
-
-	  int Z;
-	  while (1) {
-	    in.getline(line, nline);
-	    if (in.good()) {
-	      std::istringstream sz(line);
-	      sz >> Z;		// Add to the element list
-	      if (!sz.bad()) ZList.insert(Z);
-	    } else {
-	      break;
-	    }
-	  }
-	}
-
-      } else if (type.compare("weight")==0) {
-
-	aType = Weight;
-
-	if (use_key<0) {
-	  std::cerr << "CollideIon: species key position is not defined in "
-		    << "Component" << std::endl;
-	  nOK = 1;
-	}
-
-	in.getline(line, nline);
-
-	if (in.good()) {
-	  std::istringstream sz(line);
-	  sz >> use_cons;
-	  if (sz.good()) {
-	    sz >> use_elec;
-	  }
-	} else {
-	  nOK = 1;		// Can't read electrons or use_cons value, fatal
-	}
-
-				// Print warning, not fatal
-	if (use_cons<0) {
-	  std::cout << "CollideIon: energy key position is not defined, "
-		    << "you are using weighting but NOT imposing energy conservation"
-		    << std::endl;
-	}
-
-	if (use_elec<0) {
-	  std::cout << "CollideIon: electron key position is not defined, "
-		    << "you are using weighting WITHOUT explicit electron velocities"
-		    << std::endl;
-	}
-
-	if (nOK == 0) {
-
-	  int Z;
-	  double W, M;
-	  while (1) {
-	    in.getline(line, nline);
-	    if (in.good()) {
-	      std::istringstream sz(line);
-	      sz >> Z;
-	      sz >> W;
-	      sz >> M;		// Add to the element list
-	      if (!sz.bad()) {
-		ZList.insert(Z);
-		ZWList[Z] = W;
-		ZMList[Z] = M;
-	      }
-	    } else {
-	      break;
-	    }
-	  }
-
-	  // Find the largest weight (assume fiducial)
-	  double sMax = 0.0;
-	  for (auto v : ZWList) {
-	    if (v.second > sMax) {
-	      sFid = v.first;
-	      sMax = v.second;
-	    }
-	  }
-
-	}
-
-      } else if (type.compare("hybrid")==0) {
-
-	aType = Hybrid;
-
-	if (use_key<0) {
-	  std::cerr << "CollideIon: species key position is not defined in "
-		    << "Component" << std::endl;
-	  nOK = 1;
-	}
-
-	in.getline(line, nline);
-
-	if (in.good()) {
-	  std::istringstream sz(line);
-	  sz >> use_cons;
-	  if (sz.good()) {
-	    sz >> spc_pos;
-	  }
-	  if (sz.good()) {
-	    sz >> use_elec;
-	  }
-	} else {
-	  nOK = 1;		// Can't read electrons or use_cons value, fatal
-	}
-
-				// Print warning, not fatal
-	if (use_cons<0) {
-	  std::cout << "CollideIon: energy key position is not defined, "
-		    << "you are using hybrid weighting but NOT imposing energy conservation"
-		    << std::endl;
-	}
-
-	if (use_elec<0) {
-	  std::cout << "CollideIon: electron key position is not defined, "
-		    << "you are using hybrid weighting WITHOUT explicit electron velocities"
-		    << std::endl;
-	}
-
-	if (spc_pos<0) {
-	  std::cout << "CollideIon: ionization start index for hybrid algorithm is not defined, "
-		    << "this is fatal!"
-		    << std::endl;
-	  nOK = 1;
-	}
-
-	if (nOK == 0) {
-
-	  int Z;
-	  double W, M;
-	  while (1) {
-	    in.getline(line, nline);
-	    if (in.good()) {
-	      std::istringstream sz(line);
-	      sz >> Z;
-	      sz >> W;
-	      sz >> M;		// Add to the element list
-	      if (!sz.bad()) {
-		ZList.insert(Z);
-		ZWList[Z] = W;
-		ZMList[Z] = M;
-	      }
-	    } else {
-	      break;
-	    }
-	  }
-
-	  // Find the largest weight (assume fiducial)
-	  double sMax = 0.0;
-	  for (auto v : ZWList) {
-	    if (v.second > sMax) {
-	      sFid = v.first;
-	      sMax = v.second;
-	    }
-	  }
-
-	}
-
-      } else if (type.compare("trace")==0) {
-
-	// Sanity check
-	if (c0->keyPos >= 0) {
-	  std::ostringstream sout;
-	  sout << "[" << myid 
-	       << "] CollideIon::parse_species: method <trace> is requested but keyPos="
-	       << c0->keyPos << " and should be < 0 for consistency" << std::endl;
-	  throw std::runtime_error(sout.str());
-	}
-
-	aType = Trace;
-
-	in.getline(line, nline);
-
-	if (in.good()) {
-	  std::istringstream sz(line);
-	  sz >> use_cons;
-	  if (sz.good()) {
-	    sz >> use_elec;
-	  }
-	} else {
-	  nOK = 1;		// Can't read electrons or use_cons value, fatal
-	}
-
-	if (nOK == 0) {
-
-	  speciesKey key;
-	  int pos;
-	  while (1) {
-	    in.getline(line, nline);
-	    if (in.good()) {
-	      std::istringstream sz(line);
-	      sz >> key.first;
-	      sz >> key.second;
-	      sz >> pos;
-	      // Add to the species list
-	      if (!sz.bad()) {
-		SpList[key] = pos;
-		ZList.insert(key.first);
-	      }
-	    } else {
-	      break;
-	    }
-	  }
-	}
-
-      } else {
-	std::cerr << "CollideIon::parseSpecies: implementation type <"
-		  << type << "> is not recognized . . . quitting"
-		  << std::endl;
-	nOK = 1;
-      }
-    }
-
-  }
-
-  MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
-
-
-  if (nOK) MPI_Abort(MPI_COMM_WORLD, 55);
-
-  int is = aType;
-  MPI_Bcast(&is, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  if (myid) {
-    switch (is) {
-    case Direct:
-      aType = Direct;
-      break;
-    case Weight:
-      aType = Weight;
-      break;
-    case Hybrid:
-      aType = Hybrid;
-      break;
-    case Trace:
-      aType = Trace;
-      break;
-    default:
-      std::cout << "Proc " << myid << ": error in enum <" << is << ">"
+  if (not config["species_map"]) {
+    if (myid==0) {
+      std::cerr << "CollideIon::parseSpecies: no species map in config"
+		<< " . . . quitting"
 		<< std::endl;
+    }
+    MPI_Abort(MPI_COMM_WORLD, 54);
+  }
+  
+  std::string type;
+  if (config["species_map"]["type"]) {
+    type = config["species_map"]["type"].as<std::string>();
+  } else {
+    if (myid==0) {
+      std::cerr << "CollideIon::parseSpecies: no <type> key found . . . "
+		<< "quitting" << std::endl;
+    }
+    MPI_Abort(MPI_COMM_WORLD, 55);
+  }    
+
+  //  ___  _            _   
+  // |   \(_)_ _ ___ __| |_ 
+  // | |) | | '_/ -_) _|  _|
+  // |___/|_|_| \___\__|\__|
+  //                       
+  if (type.compare("direct")==0) {
+
+    aType = Direct;
+
+    if (use_key<0) {
+      if (myid==0) {
+	std::cerr << "CollideIon: species key position is not defined in "
+		  << "Component" << std::endl;
+      }
       MPI_Abort(MPI_COMM_WORLD, 56);
     }
-  }
 
+    if (config["species_map"]["elec"]) {
+      use_elec = config["species_map"]["elec"].as<int>();
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <elec> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 57);
+    }    
+
+    if (config["species_map"]["elements"]) {
+      auto zz = config["species_map"]["elements"].as<std::vector<unsigned short>>();
+      for (auto Z : zz) ZList.insert(Z);
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <elements> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 58);
+    }    
+  }
+  // __      __   _      _   _   
+  // \ \    / /__(_)__ _| |_| |_ 
+  //  \ \/\/ / -_) / _` | ' \  _|
+  //   \_/\_/\___|_\__, |_||_\__|
+  //               |___/         
+  //
+  else if (type.compare("weight")==0) {
+
+    aType = Weight;
+
+    if (use_key<0) {
+      if (myid==0) {
+	std::cerr << "CollideIon: species key position is not defined in "
+		  << "Component" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 58);
+    }
+
+    if (config["species_map"]["cons"]) {
+      use_cons = config["species_map"]["cons"].as<int>();
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <cons> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 59);
+    }    
+
+    if (config["species_map"]["elec"]) {
+      use_elec = config["species_map"]["elec"].as<int>();
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <elec> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 60);
+    }    
+
+
+    // Print warning, not fatal
+    if (use_cons<0 and myid==0) {
+      std::cout << "CollideIon: energy key position is not defined, "
+		<< "you are using weighting but NOT imposing energy conservation"
+		<< std::endl;
+    }
+
+    if (use_elec<0 and myid==0) {
+      std::cout << "CollideIon: electron key position is not defined, "
+		<< "you are using weighting WITHOUT explicit electron velocities"
+		<< std::endl;
+    }
+
+    if (config["species_map"]["elements"]) {
+      YAML::Node elems = config["species_map"]["elements"];
+      for (YAML::const_iterator it=elems.begin(); it!=elems.end(); ++it) {
+	unsigned short Z = it->first.as<unsigned short>();
+	auto dd = it->second.as<std::vector<double>>();
+	ZList.insert(Z);
+	ZWList[Z] = dd[0];
+	ZMList[Z] = dd[1];
+      }
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <elements> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 61);
+    }    
+
+    // Find the largest weight (assume fiducial)
+    double sMax = 0.0;
+    for (auto v : ZWList) {
+      if (v.second > sMax) {
+	sFid = v.first;
+	sMax = v.second;
+      }
+    }
+  }
+  //  _  _      _        _    _ 
+  // | || |_  _| |__ _ _(_)__| |
+  // | __ | || | '_ \ '_| / _` |
+  // |_||_|\_, |_.__/_| |_\__,_|
+  //       |__/                 
+  //
+  else if (type.compare("hybrid")==0) {
+
+    aType = Hybrid;
+
+    if (use_key<0) {
+      if (myid==0) {
+	std::cerr << "CollideIon: species key position is not defined in "
+		  << "Component" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 62);
+    }
+
+    if (config["species_map"]["cons"]) {
+      use_cons = config["species_map"]["cons"].as<int>();
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <cons> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 63);
+    }    
+
+    if (config["species_map"]["spos"]) {
+      spc_pos = config["species_map"]["spos"].as<int>();
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <spos> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 64);
+    }    
+
+    if (config["species_map"]["elec"]) {
+      use_elec = config["species_map"]["elec"].as<int>();
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <elec> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 65);
+    }    
+
+				// Print warning, not fatal
+    if (use_cons<0 and myid==0) {
+      std::cout << "CollideIon: energy key position is not defined, "
+		<< "you are using hybrid weighting but NOT imposing energy conservation"
+		<< std::endl;
+    }
+
+    if (use_elec<0 and myid==0) {
+      std::cout << "CollideIon: electron key position is not defined, "
+		<< "you are using hybrid weighting WITHOUT explicit electron velocities"
+		<< std::endl;
+    }
+
+    if (spc_pos<0 and myid==0) {
+      std::cout << "CollideIon: ionization start index for hybrid algorithm is not defined, "
+		<< "this is fatal!"
+		<< std::endl;
+    }
+
+    if (config["species_map"]["elements"]) {
+      YAML::Node elems = config["species_map"]["elements"];
+      for (YAML::const_iterator it=elems.begin(); it!=elems.end(); ++it) {
+	unsigned short Z = it->first.as<unsigned short>();
+	auto dd = it->second.as<std::vector<double>>();
+	ZList.insert(Z);
+	ZWList[Z] = dd[0];
+	ZMList[Z] = dd[1];
+      }
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <elements> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 66);
+    }    
+    
+    // Find the largest weight (assume fiducial)
+    double sMax = 0.0;
+    for (auto v : ZWList) {
+      if (v.second > sMax) {
+	sFid = v.first;
+	sMax = v.second;
+      }
+    }
+    
+  }
+  //  _____                
+  // |_   _| _ __ _ __ ___ 
+  //   | || '_/ _` / _/ -_)
+  //   |_||_| \__,_\__\___|
+  // 
+  else if (type.compare("trace")==0) {
+
+    // Sanity check
+    if (c0->keyPos >= 0) {
+      std::ostringstream sout;
+      sout << "[" << myid 
+	   << "] CollideIon::parse_species: method <trace> is requested but keyPos="
+	   << c0->keyPos << " and should be < 0 for consistency" << std::endl;
+      throw std::runtime_error(sout.str());
+    }
+
+    aType = Trace;
+
+    if (config["species_map"]["cons"]) {
+      use_cons = config["species_map"]["cons"].as<int>();
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <cons> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 67);
+    }    
+
+    if (config["species_map"]["elec"]) {
+      use_elec = config["species_map"]["elec"].as<int>();
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <elec> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 68);
+    }    
+
+    if (config["species_map"]["elements"]) {
+      YAML::Node elems = config["species_map"]["elements"];
+
+      for (YAML::const_iterator it=elems.begin(); it!=elems.end(); ++it) {
+	auto dd = it->as<std::vector<int>>();
+	speciesKey key(dd[0], dd[1]);
+	SpList[key] = dd[2];
+	ZList.insert(key.first);
+      }
+    } else {
+      if (myid==0) {
+	std::cerr << "CollideIon::parseSpecies: no <elements> key found . . . "
+		  << "quitting" << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 69);
+    }    
+    
+  } else {
+    std::cerr << "CollideIon::parseSpecies: implementation type <"
+	      << type << "> is not recognized . . . quitting"
+	      << std::endl;
+  }
+  
   // Sanity check.  So far, the full pair-wise cross-section census is
   // implemented for the Trace method only
   if (!use_ntcdb and aType!=Trace) use_ntcdb = true; 
-
-  unsigned int sz = ZList.size();
-  MPI_Bcast(&sz, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-
-  unsigned short z;
-
-  if (myid==0) {
-    for (auto it : ZList) {
-      z = it;
-      MPI_Bcast(&z, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-    }
-  } else {
-    for (unsigned j=0; j<sz; j++) {
-      MPI_Bcast(&z, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-      ZList.insert(z);
-    }
-  }
-
-
-  sz = ZWList.size();
-  MPI_Bcast(&sz, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-
-  double v;
-
-  if (myid==0) {
-    for (auto it : ZWList) {
-      z = it.first;
-      v = it.second;
-      MPI_Bcast(&z, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&v, 1, MPI_DOUBLE,         0, MPI_COMM_WORLD);
-    }
-
-    for (auto it : ZMList) {
-      z = it.first;
-      v = it.second;
-      MPI_Bcast(&z, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&v, 1, MPI_DOUBLE,         0, MPI_COMM_WORLD);
-    }
-
-  } else {
-    for (unsigned j=0; j<sz; j++) {
-      MPI_Bcast(&z, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&v, 1, MPI_DOUBLE,         0, MPI_COMM_WORLD);
-      ZWList[z] = v;
-    }
-
-    for (unsigned j=0; j<sz; j++) {
-      MPI_Bcast(&z, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&v, 1, MPI_DOUBLE,         0, MPI_COMM_WORLD);
-      ZMList[z] = v;
-    }
-  }
-
-  MPI_Bcast(&use_cons,   1, MPI_INT,       0, MPI_COMM_WORLD);
-  MPI_Bcast(&use_elec,   1, MPI_INT,       0, MPI_COMM_WORLD);
-  MPI_Bcast(&spc_pos, 1, MPI_INT,       0, MPI_COMM_WORLD);
-
-  if (aType == Trace) {
-
-    speciesKey key;
-    int pos;
-
-    sz = SpList.size();
-    MPI_Bcast(&sz, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-
-    if (myid==0) {
-      for (auto it : SpList) {
-
-	key = it.first;
-	pos = it.second;
-
-	MPI_Bcast(&key.first,  1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&key.second, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&pos,        1, MPI_INT,            0, MPI_COMM_WORLD);
-      }
-    } else {
-      for (unsigned j=0; j<sz; j++) {
-	MPI_Bcast(&key.first,  1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&key.second, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&pos,        1, MPI_INT,            0, MPI_COMM_WORLD);
-	SpList[key] = pos;
-      }
-    }
-  }
 
   // Record algorithm type in stdout log file
   if (myid==0) {
@@ -17966,6 +18033,10 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
 
   totPairs = 0.5*(num + 0.5);
 
+  if (false) {
+    std::cout << "Npairs=" << totPairs << std::endl;
+  }
+
   colCf[id] = selcM/totPairs;
   selcM = totPairs;
 
@@ -18071,19 +18142,19 @@ void CollideIon::gatherSpecies()
 	  unsigned short Q[2];
 	  Q[0] = v.first.first;
 	  Q[1] = v.first.second;
-	  MPI_Send(&Q[0],        2, MPI_UNSIGNED,      0, 2001, MPI_COMM_WORLD);
-	  MPI_Send(&v.second[0], 4, MPI_DOUBLE,        0, 2002, MPI_COMM_WORLD);
+	  MPI_Send(&Q[0],        2, MPI_UNSIGNED_SHORT,    0, 2001, MPI_COMM_WORLD);
+	  MPI_Send(&v.second[0], 4, MPI_DOUBLE,            0, 2002, MPI_COMM_WORLD);
 	}
       }
       
       if (myid==0) {
 	int num;
-	MPI_Recv(&num,           1, MPI_INT,           n, 2000, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	MPI_Recv(&num,           1, MPI_INT,              n, 2000, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	for (int i=0; i<num; i++) {
 	  unsigned short Q[2];
 	  std::array<double, 4> v3;
-	  MPI_Recv(&Q[0],        2, MPI_UNSIGNED,      n, 2001, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  MPI_Recv(&v3,          4, MPI_DOUBLE,        n, 2002, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&Q[0],        2, MPI_UNSIGNED_SHORT,   n, 2001, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&v3,          4, MPI_DOUBLE,           n, 2002, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  
 	  speciesKey k(Q[0], Q[1]);
 	  if (recombTally.find(k) == recombTally.end()) {
@@ -20723,46 +20794,48 @@ void CollideIon::printSpeciesTrace()
       // Open the file for the first time
       //
       dout.open(species_file_debug.c_str());
+      dout.precision(10);
+      dout << std::scientific;
 
       // Print the header
       //
       int nhead = 2;
       if (use_elec>=0) {
 	dout << "# "
-	     << std::setw(12) << std::right << "Time  "
-	     << std::setw(12) << std::right << "Temp_i"
-	     << std::setw(12) << std::right << "KE_i"
-	     << std::setw(12) << std::right << "Temp_e"
-	     << std::setw(12) << std::right << "KE_e";
+	     << std::setw(18) << std::right << "Time  "
+	     << std::setw(18) << std::right << "Temp_i"
+	     << std::setw(18) << std::right << "KE_i"
+	     << std::setw(18) << std::right << "Temp_e"
+	     << std::setw(18) << std::right << "KE_e";
 	nhead = 4;
       } else {
 	dout << "# "
-	     << std::setw(12) << std::right << "Time  "
-	     << std::setw(12) << std::right << "Temp  "
-	     << std::setw(12) << std::right << "Disp  ";
+	     << std::setw(18) << std::right << "Time  "
+	     << std::setw(18) << std::right << "Temp  "
+	     << std::setw(18) << std::right << "Disp  ";
       }
       for (spDItr it=specM.begin(); it != specM.end(); it++) {
 	std::ostringstream sout;
 	sout << "(" << it->first.first << "," << it->first.second << ") ";
-	dout << std::setw(12) << right << sout.str();
+	dout << std::setw(18) << right << sout.str();
       }
       dout << std::endl;
 
       unsigned cnt = 0;
       dout << "# "
-	   << std::setw(12) << std::right << clabl(++cnt);
+	   << std::setw(18) << std::right << clabl(++cnt);
       for (int n=0; n<nhead; n++)
-	dout << std::setw(12) << std::right << clabl(++cnt);
+	dout << std::setw(18) << std::right << clabl(++cnt);
       for (spDItr it=specM.begin(); it != specM.end(); it++)
-	dout << std::setw(12) << right << clabl(++cnt);
+	dout << std::setw(18) << right << clabl(++cnt);
       dout << std::endl;
 
       dout << "# "
-	   << std::setw(12) << std::right << "--------";
+	   << std::setw(18) << std::right << "--------";
       for (int n=0; n<nhead; n++)
-	dout << std::setw(12) << std::right << "--------";
+	dout << std::setw(18) << std::right << "--------";
       for (spDItr it=specM.begin(); it != specM.end(); it++)
-	dout << std::setw(12) << std::right << "--------";
+	dout << std::setw(18) << std::right << "--------";
       dout << std::endl;
     }
   }
@@ -20781,14 +20854,14 @@ void CollideIon::printSpeciesTrace()
 
   dout << std::setprecision(5);
   dout << "  "
-       << std::setw(12) << std::right << tnow
-       << std::setw(12) << std::right << Ti
-       << std::setw(12) << std::right << tM[0];
+       << std::setw(18) << std::right << tnow
+       << std::setw(18) << std::right << Ti
+       << std::setw(18) << std::right << tM[0];
   if (use_elec>=0)
-    dout << std::setw(12) << std::right << Te
-	 << std::setw(12) << std::right << tM[2];
+    dout << std::setw(18) << std::right << Te
+	 << std::setw(18) << std::right << tM[2];
   for (spDItr it=specM.begin(); it != specM.end(); it++)
-    dout << std::setw(12) << std::right << it->second;
+    dout << std::setw(18) << std::right << it->second;
   dout << std::endl;
 }
 
@@ -21090,84 +21163,69 @@ void CollideIon::printSpeciesElectrons
 
 void CollideIon::processConfig()
 {
-  // Parse test algorithm features
-  //
-  Configuration cfg;
-  std::string config(config0);
-
-  // Ensure that the original config is used, unless explicited edited
-  // by the user
-  //
-  if (restart) config = runtag + ".CollideIon.config.json";
-
   try {
-
-    if ( !boost::filesystem::exists(config) ) {
-      if (myid==0) std::cout << "CollideIon: can't find config file <"
-			     << config << ">, using defaults" << std::endl;
-    } else {
-      cfg.load(config, "JSON");
+    if (config["NO_EXACT"])
+      NoExact = config["NO_EXACT"]["value"].as<bool>();
+    else {
+      config["NO_EXACT"]["desc"]  = "Enable equal electron-ion interactions in Hybrid method";
+      config["NO_EXACT"]["value"] = NoExact = false;
     }
 
-    if (!cfg.property_tree().count("_description")) {
-      // Write description as the first node
-      //
-      ptree::value_type val("_description",
-			    ptree("CollideIon configuration, tag=" + runtag));
-      cfg.property_tree().insert(cfg.property_tree().begin(), val);
+    if (config["USE_IPS"])
+      IPS = config["USE_IPS"]["value"].as<bool>();
+    else {
+      config["USE_IPS"]["desc"] = "Use mean interparticle spacing as minimum Coulombic impact parameter";
+      config["USE_IPS"]["value"] = IPS = false;
     }
 
-    // Write or rewrite date string
-    {
-      time_t t = time(0);   // get current time
-      struct tm * now = localtime( & t );
-      std::ostringstream sout;
-      sout << (now->tm_year + 1900) << '-'
-	   << (now->tm_mon + 1) << '-'
-	   <<  now->tm_mday << ' '
-	   << std::setfill('0') << std::setw(2) << now->tm_hour << ':'
-	   << std::setfill('0') << std::setw(2) << now->tm_min  << ':'
-	   << std::setfill('0') << std::setw(2) << now->tm_sec;
-
-      if (cfg.property_tree().count("_date")) {
-	std::string orig = cfg.property_tree().get<std::string>("_date");
-	cfg.property_tree().put("_date", sout.str() + " [" + orig + "] ");
-      } else {
-	// Write description as the second node, after "_description"
-	//
-	ptree::assoc_iterator ait = cfg.property_tree().find("_description");
-	ptree::iterator it = cfg.property_tree().to_iterator(ait);
-	ptree::value_type val("_date", ptree(sout.str()));
-	cfg.property_tree().insert(++it, val);
-      }
+    if (config["ENERGY_ES"])
+      ExactE = config["ENERGY_ES"]["value"].as<bool>();
+    else {
+      config["ENERGY_ES"]["desc"] = "Enable the explicit energy conservation algorithm";
+      config["ENERGY_ES"]["value"] = ExactE = false;
     }
 
-    NoExact =
-      cfg.entry<bool>("NO_EXACT", "Enable equal electron-ion interactions in Hybrid method", false);
+    if (config["ENERGY_ES_DBG"])
+      DebugE = config["ENERGY_ES_DBG"]["value"].as<bool>();
+    else {
+      config["ENERGY_ES_DBG"]["desc"] = "Enable explicit energy conservation checking";
+      config["ENERGY_ES_DBG"]["value"] = DebugE = true;
+    }
 
-    IPS =
-      cfg.entry<bool>("USE_IPS", "Use mean interparticle spacing as minimum Coulombic impact parameter", false);
+    if (config["MEAN_MASS"])
+      MeanMass = config["MEAN_MASS"]["value"].as<bool>();
+    else {
+      config["MEAN_MASS"]["desc"] = "Mean mass, energy and momentum conserving algorithm";
+      config["MEAN_MASS"]["value"] = MeanMass = false;
+    }
 
-    ExactE =
-      cfg.entry<bool>("ENERGY_ES", "Enable the explicit energy conservation algorithm", false);
+    if (config["ENERGY_ORTHO"])
+      AlgOrth = config["ENERGY_ORTHO"]["value"].as<bool>();
+    else {
+      config["ENERGY_ORTHO"]["desc"] = "Add energy in orthogonal direction";
+      config["ENERGY_ORTHO"]["value"] = AlgOrth = false;
+    }
 
-    DebugE =
-      cfg.entry<bool>("ENERGY_ES_DBG", "Enable explicit energy conservation checking", true);
+    if (config["ENERGY_WEIGHT"])
+      AlgWght = config["ENERGY_WEIGHT"]["value"].as<bool>();
+    else {
+      config["ENERGY_WEIGHT"]["desc"] = "Energy conservation weighted by superparticle number count";
+      config["ENERGY_WEIGHT"]["value"] = AlgWght = false;
+    }
 
-    MeanMass =
-      cfg.entry<bool>("MEAN_MASS", "Mean mass, energy and momentum conserving algorithm", false);
-    
-    AlgOrth =
-      cfg.entry<bool>("ENERGY_ORTHO", "Add energy in orthogonal direction", false);
+    if (config["TRACE_ELEC"])
+      TRACE_ELEC = config["TRACE_ELEC"]["value"].as<bool>();
+    else {
+      config["TRACE_ELEC"]["desc"] = "Add excess energy directly to the electrons";
+      config["TRACE_ELEC"]["value"] = TRACE_ELEC = false;
+    }
 
-    AlgWght =
-      cfg.entry<bool>("ENERGY_WEIGHT", "Energy conservation weighted by superparticle number count", false);
-
-    TRACE_ELEC =
-      cfg.entry<bool>("TRACE_ELEC", "Add excess energy directly to the electrons", false);
-
-    ALWAYS_APPLY =
-      cfg.entry<bool>("ALWAYS_APPLY", "Attempt to remove excess energy from all interactions", false);
+    if (config["ALWAYS_APPLY"])
+      ALWAYS_APPLY = config["ALWAYS_APPLY"]["value"].as<bool>();
+    else {
+      config["ALWAYS_APPLY"]["desc"] = "Attempt to remove excess energy from all interactions";
+      config["ALWAYS_APPLY"]["value"] = ALWAYS_APPLY = false;
+    }
 
     if (!ExactE and ALWAYS_APPLY) {
       ALWAYS_APPLY = false;
@@ -21180,237 +21238,546 @@ void CollideIon::processConfig()
       }
     }
 
-    COLL_SPECIES =
-      cfg.entry<bool>("COLL_SPECIES", "Print collision count by species for debugging", false);
-
-    SECONDARY_SCATTER =
-      cfg.entry<unsigned>("SECONDARY_SCATTER", "Scatter electron with its donor ion n times (0 value for no scattering)", 0);
-
-    TRACE_FRAC =
-      cfg.entry<double>("TRACE_FRAC", "Add this fraction to electrons and rest to ions", 1.0f);
-
-    SAME_ELEC_SCAT =
-      cfg.entry<bool>("SAME_ELEC_SCAT", "Only scatter electrons with the same donor-ion mass", false);
-
-    DIFF_ELEC_SCAT =
-      cfg.entry<bool>("DIFF_ELEC_SCAT", "Only scatter electrons with different donor-ion mass", false);
-
-    SAME_IONS_SCAT =
-      cfg.entry<bool>("SAME_IONS_SCAT", "Only scatter ions with the same mass", false);
-
-    SAME_INTERACT =
-      cfg.entry<bool>("SAME_INTERACT", "Only perform interactions with equal-mass particles", false);
-
-    DIFF_INTERACT =
-      cfg.entry<bool>("DIFF_INTERACT", "Only perform interactions with different species particles", false);
-
-    Fwght =
-      cfg.entry<double>("WEIGHT_RATIO", "Weighting ratio for spreading excess energy to components", 0.5);
-
-    TRACE_OVERRIDE =
-      cfg.entry<bool>("TRACE_OVERRIDE", "Distribute energy equally to trace species", false);
-
-    NOCOOL_ELEC =
-      cfg.entry<bool>("NOCOOL_ELEC", "Suppress distribution of energy to electrons when using NOCOOL", false);
-
-    NOSHARE_ELEC =
-      cfg.entry<bool>("NOSHARE_ELEC", "Suppress distribution of ionization energy between electrons", false);
-
-    CLONE_ELEC =
-      cfg.entry<bool>("CLONE_ELEC", "Clone energy of ionizing electron to newly created free electron", false);
-
-    frost_warning =
-      cfg.entry<bool>("frost_warning", "Warn if energy lost is smaller than available energy", false);
-
-    DEBUG_SL =
-      cfg.entry<bool>("DEBUG_SL", "Enable verbose interaction selection diagnostics", false);
-
-    DEBUG_CR =
-      cfg.entry<bool>("DEBUG_CR", "Enable printing of relative cross sections and probabilities for interaction selection", false);
-
-    DEBUG_NQ =
-      cfg.entry<bool>("DEBUG_NQ", "Printing of cross section debug info for unequal species only", false);
-
-    NO_DOF =
-      cfg.entry<bool>("NO_DOF", "Suppress adjustment of electron speed based on degrees of freedom", true);
-
-    NO_VEL =
-      cfg.entry<bool>("NO_VEL", "Suppress adjustment of electron speed for equipartition equilibrium", false);
-
-    NO_ION_E =
-      cfg.entry<bool>("NO_ION_E", "Suppress energy loss from ionization", false);
-
-    NO_FF =
-      cfg.entry<bool>("NO_FF", "Ignore free-free interaction", false);
-
-    NO_FF_E =
-      cfg.entry<bool>("NO_FF_E", "Suppress energy loss from free-free", false);
-
-    KE_DEBUG =
-      cfg.entry<bool>("KE_DEBUG", "Check energy bookkeeping for debugging", true);
-
-    NO_HSCAT =
-      cfg.entry<bool>("NO_HSCAT", "Artificially suppress scattering for debugging Trace method", false);
-
-    DBG_HSCAT =
-      cfg.entry<bool>("DBG_HSCAT", "Cache and check constancy of masses and weights with scattering for only debugging Trace method", false);
-
-    tolE =
-      cfg.entry<double>("tolE", "Threshold for reporting energy conservation bookkeeping", 1.0e-5);
-
-    tolCS =
-      cfg.entry<double>("tolCS", "Threshold for cross-section sanity using NTCdb", 1.0);
-
-    qCrit =
-      cfg.entry<double>("qCrit", "Critical weighting threshold for energy conserving electron interactions", -1.0);
-
-    RECOMB_IP =
-      cfg.entry<bool>("RECOMB_IP", "Electronic binding energy is lost in recombination", false);
-
-    CROSS_DBG =
-      cfg.entry<bool>("CROSS_DBG", "Enable verbose cross-section value diagnostics", false);
-
-    EXCESS_DBG =
-      cfg.entry<bool>("EXCESS_DBG", "Enable check for excess weight counter in trace algorithm", false);
-
-    DEBUG_CNT =
-      cfg.entry<int>("DEBUG_CNT", "Count collisions in each particle for debugging", -1);
-
-    collLim =
-      cfg.entry<bool>("COLL_LIMIT", "Limit number of collisions per particle", false);
-
-    collCor =
-      cfg.entry<bool>("COLL_CORR", "Correct collisions per particle for limit", false);
-
-    maxSel =
-      cfg.entry<unsigned>("COLL_LIMIT_ABS", "Limiting number of collisions per cell", 5000);
-
-    energy_scale =
-      cfg.entry<double>("COOL_SCALE", "If positive, reduce the inelastic energy by this fraction", -1.0);
-
-    TSESUM =
-      cfg.entry<bool>("TSESUM", "Use sum per cell of TRUE, use max per cell if FALSE for setting time step", true);
-
-    TSCOOL =
-      cfg.entry<double>("TSCOOL", "Multiplicative factor for choosing cooling time step", 0.05);
-
-    TSFLOOR =
-      cfg.entry<double>("TSFLOOR", "Floor KE/deltaE for choosing cooling time step", 0.001);
-
-    scatFac1 =
-      cfg.entry<double>("scatFac1", "Energy split in favor of dominant species (Hybrid)", 1.0);
-
-    scatFac2 =
-      cfg.entry<double>("scatFac2", "Energy split in favor of trace species (Hybrid)", 1.0);
-
-    E_split =
-      cfg.entry<bool>("E_split", "Apply energy loss to ions and electrons", false);
-
-    KE_DEBUG =
-      cfg.entry<bool>("KE_DEBUG", "Check energy bookkeeping for debugging", false);
-
-    FloorEv =
-      cfg.entry<double>("FloorEv", "Minimum energy for Coulombic elastic scattering cross section", 0.05f);
-
-    minCollFrac =
-      cfg.entry<double>("minCollFrac", "Minimum relative fraction for collisional excitation", -1.0f);
-
-    maxCoul = 
-      cfg.entry<unsigned>("maxCoul", "Maximum number of elastic Coulombic collisions per step", UINT_MAX);
-
-    logL = 
-      cfg.entry<double>("logL", "Coulombic log(Lambda) value", 24.0);
-
-    coulInter =
-      cfg.entry<bool>("coulInter", "Compute maximum cross section based Chandrasekhar interference", true);
-
-    cudaOff =
-      cfg.entry<bool>("cudaOff", "Suppress GPU computation when GPU is available for testing", false);
-
-    Collide::collTnum = 
-      cfg.entry<unsigned>("collTnum", "Target number of accepted collisions per cell for assigning time step", UINT_MAX);
-
-    distDiag =
-      cfg.entry<bool>("distDiag", "Report binned histogram for particle energies", false);
-
-    elecDist =
-      cfg.entry<bool>("elecDist", "Additional detailed histograms for electron velocities", false);
-
-    rcmbDist =
-      cfg.entry<bool>("recombDist", "Histograms for electron recombination energy", false);
-
-    rcmbDlog =
-      cfg.entry<bool>("recombDistLog", "Logscale histogram electron recombination energy", true);
-
-    ntcDist =
-      cfg.entry<bool>("ntcDist", "Enable NTC full distribution for electrons", false);
-
-    photoDiag =
-      cfg.entry<bool>("photoDiag", "Enable photoionization diagnostics", false);
-
-    enforceMOM =
-      cfg.entry<bool>("enforceMOM", "Enforce momentum conservation per cell (for ExactE and Hybrid)", false);
-
-    coulScale =
-      cfg.entry<bool>("coulScale", "Use 'effective' ion-electron scattering cross section", false);
-
-    coulPow =
-      cfg.entry<double>("coulPow", "Energy power scaling for 'effective' ion-electron scattering cross section", false);
-
-    elc_cons =
-      cfg.entry<bool>("ElcCons", "Use separate electron conservation of energy collection", true);
-
-    debugFC =
-      cfg.entry<bool>("debugFC", "Enable finalize-cell electron scattering diagnostics", false);
-
-    newRecombAlg =
-      cfg.entry<bool>("newRecombAlg", "Compute recombination cross section based on ion's electron", false);
-
-    HybridWeightSwitch =
-      cfg.entry<bool>("HybridWeightSwitch", "Use full trace algorithm for interaction fractions below threshold", false);
-
-    DBG_NewTest =
-      cfg.entry<bool>("DBG_TEST", "Verbose debugging of energy conservation", false);
-
-    scatter_check =
-      cfg.entry<bool>("scatterCheck", "Print interaction channel diagnostics", false);
-
-    recomb_check =
-      cfg.entry<bool>("recombCheck", "Print recombination coefficient for all active species", false);
-
-    NO_ION_ION =
-      cfg.entry<bool>("NO_ION_ION", "Artificially suppress the ion-ion scattering in the Hybrid method", false);
-
-    NO_ION_ELECTRON =
-      cfg.entry<bool>("NO_ION_ELECTRON", "Artificially suppress the ion-electron scattering in the Hybrid method", false);
-
-    use_spectrum =
-      cfg.entry<bool>("Spectrum", "Tabulate emission spectrum.  Use log scale if min > 0.0 and wvlSpect is false", false);
-
-    wvlSpect =
-      cfg.entry<bool>("wvlSpectrum", "Tabulate emission spectrum using in constant wavelength bins", true);
-
-    minSpect =
-      cfg.entry<double>("minSpect", "Minimum energy (eV) or wavelength (in angstrom) for tabulated emission spectrum", 100.0);
-
-    maxSpect =
-      cfg.entry<double>("maxSpect", "Maximum energy (eV) or wavelength (in angstrom) for tabulated emission spectrum", 20000.0);
-
-    delSpect =
-      cfg.entry<double>("delEvSpect", "Energy or wavelength bin width for tabulated emission spectrum (eV)", 100.0);
-
-    ESthresh =
-      cfg.entry<double>("ESthresh", "Ionization threshold for electron-electron scattering", 1.0e-10);
-
-    photoIB =
-      cfg.entry<std::string>("photoIB", "Photo ionization background model (none, uvIGM)", "none");
-
-    use_photon = 
-      cfg.entry<int>("use_photon", "Attribute position for photon interaction time", -1);
+    if (config["COLL_SPECIES"])
+      COLL_SPECIES = config["COLL_SPECIES"]["value"].as<bool>();
+    else {
+      config["COLL_SPECIES"]["desc"] = "Print collision count by species for debugging";
+      config["COLL_SPECIES"]["value"] = COLL_SPECIES = false;
+    }
+
+    if (config["SECONDARY_SCATTER"])
+      SECONDARY_SCATTER = config["SECONDARY_SCATTER"]["value"].as<unsigned>();
+    else {
+      config["SECONDARY_SCATTER"]["desc"] = "Scatter electron with its donor ion n times (0 value for no scattering)";
+      config["SECONDARY_SCATTER"]["value"] = SECONDARY_SCATTER = 0;
+    }
+
+    if (config["TRACE_FRAC"])
+      TRACE_FRAC = config["TRACE_FRAC"]["value"].as<double>();
+    else {
+      config["TRACE_FRAC"]["desc"] = "Add this fraction to electrons and rest to ions";
+      config["TRACE_FRAC"]["value"] = TRACE_FRAC = 1.0;
+    }
+
+    if (config["SAME_ELEC_SCAT"])
+      SAME_ELEC_SCAT = config["SAME_ELEC_SCAT"]["value"].as<bool>();
+    else {
+      config["SAME_ELEC_SCAT"]["desc"] = "Only scatter electrons with the same donor-ion mass";
+      config["SAME_ELEC_SCAT"]["value"] = SAME_ELEC_SCAT = false;
+    }
+
+    if (config["DIFF_ELEC_SCAT"])
+      DIFF_ELEC_SCAT = config["DIFF_ELEC_SCAT"]["value"].as<bool>();
+    else {
+      config["DIFF_ELEC_SCAT"]["desc"] = "Only scatter electrons with different donor-ion mass";
+      config["DIFF_ELEC_SCAT"]["value"] = DIFF_ELEC_SCAT = false;
+    }
+
+    if (config["SAME_IONS_SCAT"])
+      SAME_IONS_SCAT = config["SAME_IONS_SCAT"]["value"].as<bool>();
+    else {
+      config["SAME_IONS_SCAT"]["desc"] = "Only scatter ions with the same mass";
+      config["SAME_IONS_SCAT"]["value"] = SAME_IONS_SCAT = false;
+    }
+
+    if (config["SAME_INTERACT"])
+      SAME_INTERACT = config["SAME_INTERACT"]["value"].as<bool>();
+    else {
+      config["SAME_INTERACT"]["desc"] = "Only perform interactions with equal-mass particles";
+      config["SAME_INTERACT"]["value"] = SAME_INTERACT = false;
+    }
+
+    if (config["DIFF_INTERACT"])
+      DIFF_INTERACT = config["DIFF_INTERACT"]["value"].as<bool>();
+    else {
+      config["DIFF_INTERACT"]["desc"] = "Only perform interactions with different species particles";
+      config["DIFF_INTERACT"]["value"] = DIFF_INTERACT = false;
+    }
+
+    if (config["WEIGHT_RATIO"])
+      Fwght = config["WEIGHT_RATIO"]["value"].as<double>();
+    else {
+      config["WEIGHT_RATIO"]["desc"] = "Weighting ratio for spreading excess energy to components";
+      config["WEIGHT_RATIO"]["value"] = Fwght = 0.5;
+    }
+
+    if (config["TRACE_OVERRIDE"])
+      TRACE_OVERRIDE = config["TRACE_OVERRIDE"]["value"].as<bool>();
+    else {
+      config["TRACE_OVERRIDE"]["desc"] = "Distribute energy equally to trace species";
+      config["TRACE_OVERRIDE"]["value"] = TRACE_OVERRIDE = false;
+    }
+
+    if (config["NOCOOL_ELEC"])
+      NOCOOL_ELEC = config["NOCOOL_ELEC"]["value"].as<bool>();
+    else {
+      config["NOCOOL_ELEC"]["desc"] = "Suppress distribution of energy to electrons when using NOCOOL";
+      config["NOCOOL_ELEC"]["value"] = NOCOOL_ELEC = false;
+    }
+
+    if (config["NOSHARE_ELEC"])
+      NOSHARE_ELEC = config["NOSHARE_ELEC"]["value"].as<bool>();
+    else {
+      config["NOSHARE_ELEC"]["desc"] = "Suppress distribution of ionization energy between electrons";
+      config["NOSHARE_ELEC"]["value"] = NOSHARE_ELEC = false;
+    }
+
+    if (config["CLONE_ELEC"])
+      CLONE_ELEC = config["CLONE_ELEC"]["value"].as<bool>();
+    else {
+      config["CLONE_ELEC"]["desc"] = "Clone energy of ionizing electron to newly created free electron";
+      config["CLONE_ELEC"]["value"] = CLONE_ELEC = false;
+    }
+
+    if (config["frost_warning"])
+      frost_warning = config["frost_warning"]["value"].as<bool>();
+    else {
+      config["frost_warning"]["desc"] = "Warn if energy lost is smaller than available energy";
+      config["frost_warning"]["value"] = frost_warning = false;
+    }
+
+    if (config["DEBUG_SL"])
+      DEBUG_SL = config["DEBUG_SL"]["value"].as<bool>();
+    else {
+      config["DEBUG_SL"]["desc"] = "Enable verbose interaction selection diagnostics";
+      config["DEBUG_SL"]["value"] = DEBUG_SL = false;
+    }
+
+    if (config["DEBUG_CR"])
+      DEBUG_CR = config["DEBUG_CR"]["value"].as<bool>();
+    else {
+      config["DEBUG_CR"]["desc"] = "Enable printing of relative cross sections and probabilities for interaction selection";
+      config["DEBUG_CR"]["value"] = DEBUG_CR = false;
+    }
+
+    if (config["DEBUG_NQ"])
+      DEBUG_NQ = config["DEBUG_NQ"]["value"].as<bool>();
+    else {
+      config["DEBUG_NQ"]["desc"] = "Printing of cross section debug info for unequal species only";
+      config["DEBUG_NQ"]["value"] = DEBUG_NQ = false;
+    }
+
+    if (config["NO_DOF"])
+      NO_DOF = config["NO_DOF"]["value"].as<bool>();
+    else {
+      config["NO_DOF"]["desc"] = "Suppress adjustment of electron speed based on degrees of freedom";
+      config["NO_DOF"]["value"] = NO_DOF = true;
+    }
+
+    if (config["NO_VEL"])
+      NO_VEL = config["NO_VEL"]["value"].as<bool>();
+    else {
+      config["NO_VEL"]["desc"] = "Suppress adjustment of electron speed for equipartition equilibrium";
+      config["NO_VEL"]["value"] = NO_VEL = false;
+    }
+
+    if (config["NO_ION_E"])
+      NO_ION_E = config["NO_ION_E"]["value"].as<bool>();
+    else {
+      config["NO_ION_E"]["desc"] = "Suppress energy loss from ionization";
+      config["NO_ION_E"]["value"] = NO_ION_E = false;
+    }
+
+    if (config["NO_FF"])
+      NO_FF = config["NO_FF"]["value"].as<bool>();
+    else {
+      config["NO_FF"]["desc"] = "Ignore free-free interaction";
+      config["NO_FF"]["value"] = NO_FF = false;
+    }
+
+    if (config["NO_FF_E"])
+      NO_FF_E = config["NO_FF_E"]["value"].as<bool>();
+    else {
+      config["NO_FF_E"]["desc"] = "Suppress energy loss from free-free";
+      config["NO_FF_E"]["value"] = NO_FF_E = false;
+    }
+
+    if (config["KE_DEBUG"])
+      KE_DEBUG = config["KE_DEBUG"]["value"].as<bool>();
+    else {
+      config["KE_DEBUG"]["desc"] = "Check energy bookkeeping for debugging";
+      config["KE_DEBUG"]["value"] = KE_DEBUG = true;
+    }
+
+    if (config["NO_HSCAT"])
+      NO_HSCAT = config["NO_HSCAT"]["value"].as<bool>();
+    else {
+      config["NO_HSCAT"]["desc"] = "Artificially suppress scattering for debugging Trace method";
+      config["NO_HSCAT"]["value"] = NO_HSCAT = false;
+    }
+
+    if (config["DBG_HSCAT"])
+      DBG_HSCAT = config["DBG_HSCAT"]["value"].as<bool>();
+    else {
+      config["DBG_HSCAT"]["desc"] = "Cache and check constancy of masses and weights with scattering for only debugging Trace method";
+      config["DBG_HSCAT"]["value"] = DBG_HSCAT = false;
+    }
+
+    if (config["tolE"])
+      tolE = config["tolE"]["value"].as<double>();
+    else {
+      config["tolE"]["desc"] = "Threshold for reporting energy conservation bookkeeping";
+      config["tolE"]["value"] = tolE = 1.0e-5;
+    }
+
+    if (config["tolCS"])
+      tolCS = config["tolCS"]["value"].as<double>();
+    else {
+      config["tolCS"]["desc"] = "Threshold for cross-section sanity using NTCdb";
+      config["tolCS"]["value"] = tolCS = 1.0;
+    }
+
+    if (config["qCrit"])
+      qCrit = config["qCrit"]["value"].as<double>();
+    else {
+      config["qCrit"]["desc"] = "Critical weighting threshold for energy conserving electron interactions";
+      config["qCrit"]["value"] = qCrit = -1.0;
+    }
+
+    if (config["RECOMB_IP"])
+      RECOMB_IP = config["RECOMB_IP"]["value"].as<bool>();
+    else {
+      config["RECOMB_IP"]["desc"] = "Electronic binding energy is lost in recombination";
+      config["RECOMB_IP"]["value"] = RECOMB_IP = false;
+    }
+
+    if (config["CROSS_DBG"])
+      CROSS_DBG = config["CROSS_DBG"]["value"].as<bool>();
+    else {
+      config["CROSS_DBG"]["desc"] = "Enable verbose cross-section value diagnostics";
+      config["CROSS_DBG"]["value"] = CROSS_DBG = false;
+    }
+
+    if (config["EXCESS_DBG"])
+      EXCESS_DBG = config["EXCESS_DBG"]["value"].as<bool>();
+    else {
+      config["EXCESS_DBG"]["desc"] = "Enable check for excess weight counter in trace algorithm";
+      config["EXCESS_DBG"]["value"] = EXCESS_DBG = false;
+    }
+
+    if (config["DEBUG_CNT"])
+      DEBUG_CNT = config["DEBUG_CNT"]["value"].as<int>();
+    else {
+      config["DEBUG_CNT"]["desc"] = "Count collisions in each particle for debugging";
+      config["DEBUG_CNT"]["value"] = DEBUG_CNT = -1;
+    }
+
+    if (config["COLL_LIMIT"])
+      collLim = config["COLL_LIMIT"]["value"].as<bool>();
+    else {
+      config["COLL_LIMIT"]["desc"] = "Limit number of collisions per particle";
+      config["COLL_LIMIT"]["value"] = collLim = false;
+    }
+
+    if (config["COLL_CORR"])
+      collCor = config["COLL_CORR"]["value"].as<bool>();
+    else {
+      config["COLL_CORR"]["desc"] = "Correct collisions per particle for limit";
+      config["COLL_CORR"]["value"] = collCor = false;
+    }
+
+    if (config["COLL_LIMIT_ABS"])
+      maxSel = config["COLL_LIMIT_ABS"]["value"].as<unsigned>();
+    else {
+      config["COLL_LIMIT_ABS"]["desc"] = "Limiting number of collisions per cell";
+      config["COLL_LIMIT_ABS"]["value"] = maxSel = 5000;
+    }
+
+    if (config["COOL_SCALE"])
+      energy_scale = config["COOL_SCALE"]["value"].as<double>();
+    else {
+      config["COOL_SCALE"]["desc"] = "If positive, reduce the inelastic energy by this fraction";
+      config["COOL_SCALE"]["value"] = energy_scale = -1.0;
+    }
+
+    if (config["TSESUM"])
+      TSESUM = config["TSESUM"]["value"].as<bool>();
+    else {
+      config["TSESUM"]["desc"] = "Use sum per cell of TRUE, use max per cell if FALSE for setting time step";
+      config["TSESUM"]["value"] = TSESUM = true;
+    }
+
+    if (config["TSCOOL"])
+      TSCOOL = config["TSCOOL"]["value"].as<double>();
+    else {
+      config["TSCOOL"]["desc"] = "Multiplicative factor for choosing cooling time step";
+      config["TSCOOL"]["value"] = TSCOOL = 0.05;
+    }
+
+    if (config["TSFLOOR"])
+      TSFLOOR = config["TSFLOOR"]["value"].as<double>();
+    else {
+      config["TSFLOOR"]["desc"] = "Floor KE/deltaE for choosing cooling time step";
+      config["TSFLOOR"]["value"] = TSFLOOR = 0.001;
+    }
+
+    if (config["scatFac1"])
+      scatFac1 = config["scatFac1"]["value"].as<double>();
+    else {
+      config["scatFac1"]["desc"] = "Energy split in favor of dominant species (Hybrid)";
+      config["scatFac1"]["value"] = scatFac1 = 1.0;
+    }
+
+    if (config["scatFac2"])
+      scatFac2 = config["scatFac2"]["value"].as<double>();
+    else {
+      config["scatFac2"]["desc"] = "Energy split in favor of trace species (Hybrid)";
+      config["scatFac2"]["value"] = scatFac2 = 1.0;
+    }
+
+    if (config["E_split"])
+      E_split = config["E_split"]["value"].as<bool>();
+    else {
+      config["E_split"]["desc"] = "Apply energy loss to ions and electrons";
+      config["E_split"]["value"] = E_split = false;
+    }
+
+    if (config["KE_DEBUG"])
+      KE_DEBUG = config["KE_DEBUG"]["value"].as<bool>();
+    else {
+      config["KE_DEBUG"]["desc"] = "Check energy bookkeeping for debugging";
+      config["KE_DEBUG"]["value"] = KE_DEBUG = false;
+    }
+
+    if (config["FloorEv"])
+      FloorEv = config["FloorEv"]["value"].as<double>();
+    else {
+      config["FloorEv"]["desc"] = "Minimum energy for Coulombic elastic scattering cross section";
+      config["FloorEv"]["value"] = FloorEv = 0.05f;
+    }
+
+    if (config["minCollFrac"])
+      minCollFrac = config["minCollFrac"]["value"].as<double>();
+    else {
+      config["minCollFrac"]["desc"] = "Minimum relative fraction for collisional excitation";
+      config["minCollFrac"]["value"] = minCollFrac = -1.0f;
+    }
+
+    if (config["maxCoul"])
+      maxCoul = config["maxCoul"]["value"].as<unsigned>();
+    else {
+      config["maxCoul"]["desc"] = "Maximum number of elastic Coulombic collisions per step";
+      config["maxCoul"]["value"] = maxCoul = UINT_MAX;
+    }
+
+    if (config["logL"])
+      logL = config["logL"]["value"].as<double>();
+    else {
+      config["logL"]["desc"] = "Coulombic log(Lambda) value";
+      config["logL"]["value"] = logL = 24.0;
+    }
+
+    if (config["coulInter"])
+      coulInter = config["coulInter"]["value"].as<bool>();
+    else {
+      config["coulInter"]["desc"] = "Compute maximum cross section based Chandrasekhar interference";
+      config["coulInter"]["value"] = coulInter = true;
+    }
+
+    if (config["cudaOff"])
+      cudaOff = config["cudaOff"]["value"].as<bool>();
+    else {
+      config["cudaOff"]["desc"] = "Suppress GPU computation when GPU is available for testing";
+      config["cudaOff"]["value"] = cudaOff = false;
+    }
+
+    if (config["collTnum"])
+      Collide::collTnum = config["collTnum"]["value"].as<unsigned>();
+    else {
+      config["collTnum"]["desc"] = "Target number of accepted collisions per cell for assigning time step";
+      config["collTnum"]["value"] = Collide::collTnum = UINT_MAX;
+    }
+
+    if (config["distDiag"])
+      distDiag = config["distDiag"]["value"].as<bool>();
+    else {
+      config["distDiag"]["desc"] = "Report binned histogram for particle energies";
+      config["distDiag"]["value"] = distDiag = false;
+    }
+
+    if (config["elecDist"])
+      elecDist = config["elecDist"]["value"].as<bool>();
+    else {
+      config["elecDist"]["desc"] = "Additional detailed histograms for electron velocities";
+      config["elecDist"]["value"] = elecDist = false;
+    }
+
+    if (config["recombDist"])
+      rcmbDist = config["recombDist"]["value"].as<bool>();
+    else {
+      config["recombDist"]["desc"] = "Histograms for electron recombination energy";
+      config["recombDist"]["value"] = rcmbDist = false;
+    }
+
+    if (config["recombDistLog"])
+      rcmbDlog = config["recombDistLog"]["value"].as<bool>();
+    else {
+      config["recombDistLog"]["desc"] = "Logscale histogram electron recombination energy";
+      config["recombDistLog"]["value"] = rcmbDlog = true;
+    }
+
+    if (config["ntcDist"])
+      ntcDist = config["ntcDist"]["value"].as<bool>();
+    else {
+      config["ntcDist"]["desc"] = "Enable NTC full distribution for electrons";
+      config["ntcDist"]["value"] = ntcDist = false;
+    }
+
+    if (config["photoDiag"])
+      photoDiag = config["photoDiag"]["value"].as<bool>();
+    else {
+      config["photoDiag"]["desc"] = "Enable photoionization diagnostics";
+      config["photoDiag"]["value"] = photoDiag = false;
+    }
+
+    if (config["enforceMOM"])
+      enforceMOM = config["enforceMOM"]["value"].as<bool>();
+    else {
+      config["enforceMOM"]["desc"] = "Enforce momentum conservation per cell (for ExactE and Hybrid)";
+      config["enforceMOM"]["value"] = enforceMOM = false;
+    }
+
+    if (config["coulScale"])
+      coulScale = config["coulScale"]["value"].as<bool>();
+    else {
+      config["coulScale"]["desc"] = "Use 'effective' ion-electron scattering cross section";
+      config["coulScale"]["value"] = coulScale = false;
+    }
+
+    if (config["coulPow"])
+      coulPow = config["coulPow"]["value"].as<double>();
+    else {
+      config["coulPow"]["desc"] = "Energy power scaling for 'effective' ion-electron scattering cross section";
+      config["coulPow"]["value"] = coulPow = false;
+    }
+
+    if (config["ElcCons"])
+      elc_cons = config["ElcCons"]["value"].as<bool>();
+    else {
+      config["ElcCons"]["desc"] = "Use separate electron conservation of energy collection";
+      config["ElcCons"]["value"] = elc_cons = true;
+    }
+
+    if (config["debugFC"])
+      debugFC = config["debugFC"]["value"].as<bool>();
+    else {
+      config["debugFC"]["desc"] = "Enable finalize-cell electron scattering diagnostics";
+      config["debugFC"]["value"] = debugFC = false;
+    }
+
+    if (config["newRecombAlg"])
+      newRecombAlg = config["newRecombAlg"]["value"].as<bool>();
+    else {
+      config["newRecombAlg"]["desc"] = "Compute recombination cross section based on ion's electron";
+      config["newRecombAlg"]["value"] = newRecombAlg = false;
+    }
+
+    if (config["HybridWeightSwitch"])
+      HybridWeightSwitch = config["HybridWeightSwitch"]["value"].as<bool>();
+    else {
+      config["HybridWeightSwitch"]["desc"] = "Use full trace algorithm for interaction fractions below threshold";
+      config["HybridWeightSwitch"]["value"] = HybridWeightSwitch = false;
+    }
+
+    if (config["DBG_TEST"])
+      DBG_NewTest = config["DBG_TEST"]["value"].as<bool>();
+    else {
+      config["DBG_TEST"]["desc"] = "Verbose debugging of energy conservation";
+      config["DBG_TEST"]["value"] = DBG_NewTest = false;
+    }
+
+    if (config["scatterCheck"])
+      scatter_check = config["scatterCheck"]["value"].as<bool>();
+    else {
+      config["scatterCheck"]["desc"] = "Print interaction channel diagnostics";
+      config["scatterCheck"]["value"] = scatter_check = false;
+    }
+
+    if (config["recombCheck"])
+      recomb_check = config["recombCheck"]["value"].as<bool>();
+    else {
+      config["recombCheck"]["desc"] = "Print recombination coefficient for all active species";
+      config["recombCheck"]["value"] = recomb_check = false;
+    }
+
+    if (config["NO_ION_ION"])
+      NO_ION_ION = config["NO_ION_ION"]["value"].as<bool>();
+    else {
+      config["NO_ION_ION"]["desc"] = "Artificially suppress the ion-ion scattering in the Hybrid method";
+      config["NO_ION_ION"]["value"] = NO_ION_ION = false;
+    }
+
+    if (config["NO_ION_ELECTRON"])
+      NO_ION_ELECTRON = config["NO_ION_ELECTRON"]["value"].as<bool>();
+    else {
+      config["NO_ION_ELECTRON"]["desc"] = "Artificially suppress the ion-electron scattering in the Hybrid method";
+      config["NO_ION_ELECTRON"]["value"] = NO_ION_ELECTRON = false;
+    }
+
+    if (config["Spectrum"])
+      use_spectrum = config["Spectrum"]["value"].as<bool>();
+    else {
+      config["Spectrum"]["desc"] = "Tabulate emission spectrum.  Use log scale if min > 0.0 and wvlSpect is false";
+      config["Spectrum"]["value"] = use_spectrum = false;
+    }
+
+    if (config["wvlSpectrum"])
+      wvlSpect = config["wvlSpectrum"]["value"].as<bool>();
+    else {
+      config["wvlSpectrum"]["desc"] = "Tabulate emission spectrum using in constant wavelength bins";
+      config["wvlSpectrum"]["value"] = wvlSpect = true;
+    }
+
+    if (config["minSpect"])
+      minSpect = config["minSpect"]["value"].as<double>();
+    else {
+      config["minSpect"]["desc"] = "Minimum energy (eV) or wavelength (in angstrom) for tabulated emission spectrum";
+      config["minSpect"]["value"] = minSpect = 100.0;
+    }
+
+    if (config["maxSpect"])
+      maxSpect = config["maxSpect"]["value"].as<double>();
+    else {
+      config["maxSpect"]["desc"] = "Maximum energy (eV) or wavelength (in angstrom) for tabulated emission spectrum";
+      config["maxSpect"]["value"] = maxSpect = 20000.0;
+    }
+
+    if (config["delEvSpect"])
+      delSpect = config["delEvSpect"]["value"].as<double>();
+    else {
+      config["delEvSpect"]["desc"] = "Energy or wavelength bin width for tabulated emission spectrum (eV)";
+      config["delEvSpect"]["value"] = delSpect = 100.0;
+    }
+
+    if (config["ESthresh"])
+      ESthresh = config["ESthresh"]["value"].as<double>();
+    else {
+      config["ESthresh"]["desc"] = "Ionization threshold for electron-electron scattering";
+      config["ESthresh"]["value"] = ESthresh = 1.0e-10;
+    }
+
+    if (config["photoIB"])
+      photoIB = config["photoIB"]["value"].as<std::string>();
+    else {
+      config["photoIB"]["desc"] = "Photo ionization background model (none, uvIGM)";
+      config["photoIB"]["value"] = photoIB = "uvIGM";
+    }
+
+    if (config["use_photon"])
+      use_photon = config["use_photon"]["value"].as<int>();
+    else {
+      config["use_photon"]["desc"] = "Attribute position for photon interaction time";
+      config["use_photon"]["value"] = use_photon = -1;
+    }
 
     {
-      std::string phType =
-	cfg.entry<std::string>("phType", "Photo ionization background type (Particle, Collision)", "Particle");
+      std::string phType;
+      if (config["phType"])
+	phType = config["phType"]["value"].as<std::string>();
+      else {
+	config["phType"]["desc"] = "Photo ionization background type (Particle, Collision)"; 
+	config["phType"]["value"] = phType = "Particle";
+      }
 
       photoIBType = phMap[phType];
 
@@ -21422,96 +21789,174 @@ void CollideIon::processConfig()
       }
     }
 
-    IonElecRate = 
-      cfg.entry<bool>("ION_ELEC_RATE", "Use ion-ion relative speed to compute electron-electron interaction rate", false);
+    if (config["ION_ELEC_RATE"])
+      IonElecRate = config["ION_ELEC_RATE"]["value"].as<bool>();
+    else {
+      config["ION_ELEC_RATE"]["desc"] = "Use ion-ion relative speed to compute electron-electron interaction rate";
+      config["ION_ELEC_RATE"]["value"] = IonElecRate = false;
+    }
 
-    reverse_apply = 
-      cfg.entry<bool>("REVERSE_APPLY", "Add energy excess from momentum conservation ion only", false);
+    if (config["REVERSE_APPLY"])
+      reverse_apply = config["REVERSE_APPLY"]["value"].as<bool>();
+    else {
+      config["REVERSE_APPLY"]["desc"] = "Add energy excess from momentum conservation ion only";
+      config["REVERSE_APPLY"]["value"] = reverse_apply = false;
+    }
 
-    elec_balance = 
-      cfg.entry<bool>("ELEC_BALANCE", "Add energy excess from momentum conservation to electron and ion free pool", true);
+    if (config["ELEC_BALANCE"])
+      elec_balance = config["ELEC_BALANCE"]["value"].as<bool>();
+    else {
+      config["ELEC_BALANCE"]["desc"] = "Add energy excess from momentum conservation to electron and ion free pool";
+      config["ELEC_BALANCE"]["value"] = elec_balance = true;
+    }
 
-    ke_weight = 
-      cfg.entry<bool>("KE_WEIGHT", "Add energy excess from momentum conservation to electron and weighted by KE", true);
+    if (config["KE_WEIGHT"])
+      ke_weight = config["KE_WEIGHT"]["value"].as<bool>();
+    else {
+      config["KE_WEIGHT"]["desc"] = "Add energy excess from momentum conservation to electron and weighted by KE";
+      config["KE_WEIGHT"]["value"] = ke_weight = true;
+    }
 
-    Collide::DEBUG_NTC =
-      cfg.entry<bool>("DEBUG_NTC", "Enable verbose NTC diagnostics", false);
+    if (config["DEBUG_NTC"])
+      Collide::DEBUG_NTC = config["DEBUG_NTC"]["value"].as<bool>();
+    else {
+      config["DEBUG_NTC"]["desc"] = "Enable verbose NTC diagnostics";
+      config["DEBUG_NTC"]["value"] = Collide::DEBUG_NTC = false;
+    }
 
-    Collide::NTC_DIST =
-      cfg.entry<bool>("NTC_DIST", "Enable full NTC distribution output", false);
+    if (config["NTC_DIST"])
+      Collide::NTC_DIST = config["NTC_DIST"]["value"].as<bool>();
+    else {
+      config["NTC_DIST"]["desc"] = "Enable full NTC distribution output";
+      config["NTC_DIST"]["value"] = Collide::NTC_DIST = false;
+    }
 
-    Collide::numSanityStop =
-      cfg.entry<bool>("collStop", "Stop simulation if collisions per step are over threshold", false);
+    if (config["collStop"])
+      Collide::numSanityStop = config["collStop"]["value"].as<bool>();
+    else {
+      config["collStop"]["desc"] = "Stop simulation if collisions per step are over threshold";
+      config["collStop"]["value"] = Collide::numSanityStop = false;
+    }
 
-    Collide::numSanityMax =
-      cfg.entry<unsigned>("maxStop", "Threshold for simulation stop", 100000000u);
+    if (config["maxStop"])
+      Collide::numSanityMax = config["maxStop"]["value"].as<unsigned>();
+    else {
+      config["maxStop"]["desc"] = "Threshold for simulation stop";
+      config["maxStop"]["value"] = Collide::numSanityMax = 100000000u;
+    }
 
-    Collide::numSanityMsg =
-      cfg.entry<bool>("collMsg", "Report collisions over threshold value", false);
+    if (config["collMsg"])
+      Collide::numSanityMsg = config["collMsg"]["value"].as<bool>();
+    else {
+      config["collMsg"]["desc"] = "Report collisions over threshold value";
+      config["collMsg"]["value"] = Collide::numSanityMsg = false;
+    }
 
-    Collide::numSanityVal =
-      cfg.entry<unsigned>("collMin", "Minimum threshold for reporting", 10000000u);
+    if (config["collMin"])
+      Collide::numSanityVal = config["collMin"]["value"].as<unsigned>();
+    else {
+      config["collMin"]["desc"] = "Minimum threshold for reporting";
+      config["collMin"]["value"] = Collide::numSanityVal = 10000000u;
+    }
 
-    Collide::numSanityFreq =
-      cfg.entry<unsigned>("collFreq", "Stride for collision reporting", 2000000u);
+    if (config["collFreq"])
+      Collide::numSanityFreq = config["collFreq"]["value"].as<unsigned>();
+    else {
+      config["collFreq"]["desc"] = "Stride for collision reporting";
+      config["collFreq"]["value"] = Collide::numSanityFreq = 2000000u;
+    }
 
-    Collide::use_ntcdb =
-      cfg.entry<bool>("ntcDB", "Use the NTC data base for max CrsVel values", true);
+    if (config["ntcDB"])
+      Collide::use_ntcdb = config["ntcDB"]["value"].as<bool>();
+    else {
+      config["ntcDB"]["desc"] = "Use the NTC data base for max CrsVel values";
+      config["ntcDB"]["value"] = Collide::use_ntcdb = true;
+    }
 
-    Collide::ntcThresh =
-      cfg.entry<double>("ntcThresh", "Quantile for NTC CrsVel", 0.95);
+    if (config["ntcThresh"])
+      Collide::ntcThresh = config["ntcThresh"]["value"].as<double>();
+    else {
+      config["ntcThresh"]["desc"] = "Quantile for NTC CrsVel";
+      config["ntcThresh"]["value"] = Collide::ntcThresh = 0.95;
+    }
 
-    Collide::ntcFactor =
-      cfg.entry<double>("ntcFactor", "Scaling factor NTC CrsVel", 1.0);
+    if (config["ntcFactor"])
+      Collide::ntcFactor = config["ntcFactor"]["value"].as<double>();
+    else {
+      config["ntcFactor"]["desc"] = "Scaling factor NTC CrsVel";
+      config["ntcFactor"]["value"] = Collide::ntcFactor = 1.0;
+    }
 
-    Ion::HandM_coef = 
-      cfg.entry<double>("HandMcoef", "Coefficient for Haard & Madau UV spectral flux", 1.5e-22);
+    if (config["HandMcoef"])
+      Ion::HandM_coef = config["HandMcoef"]["value"].as<double>();
+    else {
+      config["HandMcoef"]["desc"] = "Coefficient for Haard & Madau UV spectral flux";
+      config["HandMcoef"]["value"] = Ion::HandM_coef = 1.5e-22;
+    }
 
-    Ion::HandM_expon = 
-      cfg.entry<double>("HandMexpon", "Frequency exponent for Haard & Madau UV spectral flux", -0.5);
+    if (config["HandMexpon"])
+      Ion::HandM_expon = config["HandMexpon"]["value"].as<double>();
+    else {
+      config["HandMexpon"]["desc"] = "Frequency exponent for Haard & Madau UV spectral flux";
+      config["HandMexpon"]["value"] = Ion::HandM_expon = -0.5;
+    }
 
-    Ion::gs_only =
-      cfg.entry<bool>("radRecombGS", "Cross section for recombination into the ground state only", false);
+    if (config["radRecombGS"])
+      Ion::gs_only = config["radRecombGS"]["value"].as<bool>();
+    else {
+      config["radRecombGS"]["desc"] = "Cross section for recombination into the ground state only";
+      config["radRecombGS"]["value"] = Ion::gs_only = false;
+    }
 
-    Ion::useFreeFreeGrid =
-      cfg.entry<bool>("freeFreeCache", "Use cache for free-free cross section", true);
+    if (config["freeFreeCache"])
+      Ion::useFreeFreeGrid = config["freeFreeCache"]["value"].as<bool>();
+    else {
+      config["freeFreeCache"]["desc"] = "Use cache for free-free cross section";
+      config["freeFreeCache"]["value"] = Ion::useFreeFreeGrid = true;
+    }
 
-    Ion::useRadRecombGrid =
-      cfg.entry<bool>("radRecombCache", "Use cache for radiative recombination cross section", true);
+    if (config["radRecombCache"])
+      Ion::useRadRecombGrid = config["radRecombCache"]["value"].as<bool>();
+    else {
+      config["radRecombCache"]["desc"] = "Use cache for radiative recombination cross section";
+      config["radRecombCache"]["value"] = Ion::useRadRecombGrid = true;
+    }
 
-    Ion::useExciteGrid =
-      cfg.entry<bool>("exciteCache", "Use cache for collisional excitation cross section", true);
+    if (config["exciteCache"])
+      Ion::useExciteGrid = config["exciteCache"]["value"].as<bool>();
+    else {
+      config["exciteCache"]["desc"] = "Use cache for collisional excitation cross section";
+      config["exciteCache"]["value"] = Ion::useExciteGrid = true;
+    }
 
-    Ion::useIonizeGrid =
-      cfg.entry<bool>("ionizeCache", "Use cache for collisional ionization cross section", true);
+    if (config["ionizeCache"])
+      Ion::useIonizeGrid = config["ionizeCache"]["value"].as<bool>();
+    else {
+      config["ionizeCache"]["desc"] = "Use cache for collisional ionization cross section";
+      config["ionizeCache"]["value"] = Ion::useIonizeGrid = true;
+    }
 
+    if (config["CrossSectionScale"]) {
+      YAML::Node scl = config["CrossSectionScale"];
 
-    // Enter cross-section scale factors into PT if specified
-    //
-    boost::optional<ptree&> vt =
-      cfg.property_tree().get_child_optional("CrossSectionScale");
-
-    if (vt) {			// Parse stanza ONLY IF it exists
-
-      for (auto & v : vt.get()) {
-
-	if (PT[v.first]) {
-	  PT[v.first]->set(vt->get<double>(v.first));
+      for (YAML::const_iterator v=scl.begin(); v!=scl.end(); ++v) {
+	std::string elem = v->first.as<std::string>();
+	if (PT[elem]) {
+	  PT[elem]->set(v->second.as<double>());
 	} else {
 	  if (myid==0) {
-	    std::cout << "Element <" << v.first << "> is not in my "
+	    std::cout << "Element <" << elem << "> is not in my "
 		      << "periodic table.  Continuing WITHOUT "
-		      << "setting <" << v.first << "> = "
-		      << vt->get<double>(v.first) << std::endl;
+		      << "setting <" << elem << "> = "
+		      << v->second.as<double>() << std::endl;
 	  }
 	}
       }
     }
 
-    if (cfg.property_tree().find("MFP") !=
-	cfg.property_tree().not_found())
+    if (config["MFP"]) 
       {
-	std::string name = cfg.property_tree().get<std::string>("MFP.value");
+	std::string name = config["MFP"]["value"].as<std::string>();
 	try {
 	  mfptype = MFP_s.right.at(name);
 	}
@@ -21523,7 +21968,7 @@ void CollideIon::processConfig()
 		      << ", using <Direct> instead" << std::endl;
 	  }
 	  mfptype = MFP_t::Direct;
-	  cfg.property_tree().put("MFP.value", "Direct");
+	  config["MFP"]["value"] = "Direct";
 	}
       }
     else {
@@ -21532,36 +21977,58 @@ void CollideIon::processConfig()
 		      << "MFP algorithm not specified"
 		      << ", using <Direct> instead" << std::endl;
       }
-      cfg.property_tree().put("MFP.desc", "Name of MFP estimation algorithm for time step selection");
-      cfg.property_tree().put("MFP.value", "Direct");
     }
 
     // Update atomic weight databases IF ElctronMass is specified
     // using direct call to underlying boost::property_tree
     //
-    if (cfg.property_tree().find("ElectronMass") !=
-	cfg.property_tree().not_found())
+    if (config["ElectronMass"])
       {
-	double mass = cfg.property_tree().get<double>("ElectronMass.value");
+	double mass = config["ElectronMass"]["value"].as<double>();
 	TreeDSMC::atomic_weights[0] = atomic_weights[0] = mass;
       }
 
     if (myid==0) {
-      // cfg.display();
-      cfg.save(runtag +".CollideIon.config", "JSON");
+      config["_description"] = "CollideIon configuration, tag=" + runtag;
+      time_t t = time(0);   // get current time
+
+      struct tm * now = localtime( & t );
+      std::ostringstream sout;
+      sout << (now->tm_year + 1900) << '-'
+	   << (now->tm_mon + 1) << '-'
+	   <<  now->tm_mday << ' '
+	   << std::setfill('0') << std::setw(2) << now->tm_hour << ':'
+	   << std::setfill('0') << std::setw(2) << now->tm_min  << ':'
+	   << std::setfill('0') << std::setw(2) << now->tm_sec;
+      
+      std::string orig;
+      if (config["_date"]) {
+	orig = config["_date"].as<std::string>();
+	config["_date"] = sout.str() + " [" + orig + "] ";
+      } else {
+	config["_date"] = sout.str();
+      }
     }
   }
-  catch (const boost::property_tree::ptree_error &e) {
-    if (myid==0)
-      std::cerr << "Error parsing CollideIon config info" << std::endl
-		<< e.what() << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 54);
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << __FILE__ << ": " << __LINE__ << std::endl
+			   << "Error parsing CollideIon config: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << config                << std::endl
+			   << std::string(60, '-') << std::endl;
+
+    MPI_Finalize();
+    exit(53);
   }
   catch (...) {
-    if (myid==0)
-      std::cerr << "Error parsing CollideIon config info" << std::endl
-		<< "unknown error" << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 55);
+    if (myid==0) std::cerr << __FILE__ << ": " << __LINE__ << std::endl
+			   << "Error parsing CollideIon config: "
+			   << "unknown error" << std::endl;
+    MPI_Finalize();
+    exit(54);
   }
 }
 

@@ -133,12 +133,12 @@ protected:
   Timer timer_prepare, timer_cupdate, timer_scatter, timer_repartn;
   Timer timer_tadjust, timer_cellcul, timer_keycomp, timer_keybods;
   Timer timer_waiton1, timer_waiton2, timer_keynewc, timer_keyoldc;
-  Timer timer_waiton0, timer_diagdbg;
+  Timer timer_waiton0, timer_keysort, timer_keygenr, timer_diagdbg;
 
   vector<float>    keymk3, exchg3, cnvrt3, tovlp3, prepr3, updat3;
   vector<float>    scatr3, reprt3, tadjt3, celcl3, keycm3, keybd3;
   vector<float>    wait03, wait13, wait23, keync3, keyoc3, barri3;
-  vector<float>    diagd3;
+  vector<float>    diagd3, keyst3, keygn3;
   vector<unsigned> numk3;
 
   map<pCell*, unsigned> clevlst; // Map cell ptrs to cell level
@@ -160,6 +160,19 @@ protected:
   static unsigned klen;
 
   static void qtile_initialize(); // Quantile set up
+
+#if HAVE_LIBCUDA==1
+
+  void keyProcessCuda(std::vector<key_wght> keys);
+
+  void sortCombineOne(std::vector<key_type>& one,
+		      std::vector<key_type>& two,
+		      std::vector<key_type>& comb);
+
+  void parallelMergeOne(std::vector<key_type>& initl,
+			std::vector<key_type>& final);
+
+#endif
 
 public:
 
@@ -396,10 +409,11 @@ public:
 	      vector<float>    &scatter, vector<float>    &repartn,
 	      vector<float>    &tadjust, vector<float>    &celcull,
 	      vector<float>    &keycomp, vector<float>    &keybods,
+	      vector<float>    &keysort, vector<float>    &keygenr,
 	      vector<float>    &waiton0, vector<float>    &waiton1,
 	      vector<float>    &waiton2, vector<float>    &keynewc,
-	      vector<float>    &keyoldc, vector<float>    &treebar, 
-	      vector<float>    &diagdbg, vector<unsigned> &numk);
+	      vector<float>    &keyoldc, vector<float>    &treebar,
+	      vector<float>    &diagdbg, vector<unsigned> &numk    );
   //@}
 
 };
@@ -444,11 +458,8 @@ public:
     return fit->second; 
   }
 
-#ifdef INT128
-  double Volume() { return volume/(( (key_type)1u << (3*fit->second->level) ).toDouble()); }
-#else
   double Volume() { return volume/( (key_type)1u << (3*fit->second->level) ); }
-#endif
+
   void KE(double &tot, double &dsp) { fit->second->KE(tot, dsp); }
 
   double Mass() { return fit->second->Mass(); }

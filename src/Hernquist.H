@@ -29,7 +29,7 @@ private:
 public:
 
   //! Constructor
-  Hernquist(string& line, MixtureBasis* m=0);
+  Hernquist(const YAML::Node& conf, MixtureBasis* m=0);
 
 };
 

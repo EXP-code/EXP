@@ -4,9 +4,6 @@
 
 #include <unordered_map>
 #include <vector>
-#ifdef I128
-#include <uint128.H>
-#endif
 
 // Boost shared pointer implementation
 //
@@ -75,11 +72,7 @@ public:
   unsigned tree;
 
   //! Hash key
-#ifdef I128
-  uint128 key;
-#else
   unsigned long key;
-#endif
   
   typedef std::pair<unsigned short, unsigned short> speciesKey;
   static const speciesKey defaultKey;

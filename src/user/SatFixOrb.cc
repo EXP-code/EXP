@@ -2,7 +2,7 @@
 #include <cassert>
 #include <SatFixOrb.H>
 
-SatFixOrb::SatFixOrb(string &line) : ExternalForce(line)
+SatFixOrb::SatFixOrb(const YAML::Node& conf) : ExternalForce(conf)
 {
   verbose = true;
   debug   = false;
@@ -51,7 +51,7 @@ SatFixOrb::SatFixOrb(string &line) : ExternalForce(line)
 
   last = vector<unsigned int>(numprocs, 0);
 
-  orb = new SatelliteOrbit(config);
+  orb = new SatelliteOrbit(conf);
 
   userinfo();
 }
@@ -77,13 +77,24 @@ void SatFixOrb::userinfo()
 
 void SatFixOrb::initialize()
 {
-  string val;
-
-  if (get_value("compname", val))   comp_nam = val;
-  if (get_value("config", val))     config = val;
-  if (get_value("toffset", val))    toffset = atof(val.c_str());
-  if (get_value("verbose", val))    if (atoi(val.c_str())) verbose = true;
-  if (get_value("debug", val))      if (atoi(val.c_str())) debug = true;
+  try {
+    if (conf["compname"])       comp_nam           = conf["compname"].as<string>();
+    if (conf["config"])         config             = conf["config"].as<string>();
+    if (conf["toffset"])        toffset            = conf["toffset"].as<double>();
+    if (conf["verbose"])        verbose            = conf["verbose"].as<bool>();
+    if (conf["debug"])          debug              = conf["debug"].as<bool>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in SatFixOrb: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 void SatFixOrb::get_acceleration_and_potential(Component* C)

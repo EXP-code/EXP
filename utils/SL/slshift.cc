@@ -5,10 +5,16 @@
 #include <vector>
 #include <cmath>
 
+// Boost stuff
+//
+#include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
+
+namespace po = boost::program_options;
+
 #include <getopt.h>		// For long options
 
 #include <localmpi.h>
-#include <ProgramParam.H>
 #include <SLSphere.H>		// Defines biorthogonal SL class
 #include <gaussQ.h>		// Gauss-Legendre quadrature
 
@@ -34,59 +40,6 @@ int      numx;
 int      numt;
 int      nump;
 string   outfile;
-
-
-program_option init[] = {
-  {"use_mpi",	"bool",		"false",	"using parallel computation"},
-  {"check_bio",	"bool",		"false",	"check consistency of biorthogonal set"},
-  {"surface",	"bool",		"false",	"print out surface cuts of the reconstructed shift"},
-  {"dump",	"bool",		"false",	"print the coefficients to a file"},
-  {"cmap",	"int",		"0",		"coordinate scaling in SphereSL"},
-  {"scale",	"double",	"1.0",		"scaling from real coordinates to table"},
-  {"Lmax",	"int",		"2",		"maximum number of angular harmonics in the expansion"},
-  {"nmax",	"int",		"10",		"maximum number of radial harmonics in the expansion"},
-  {"numr",	"int",		"1000",		"radial knots in the shift operator"},
-  {"rmin",	"double",	"0.0001",	"minimum radius for the shift operator"},
-  {"rmax",	"double",	"1.95",		"maximum radius for the shift operator"},
-  {"rs",	"double",	"0.067",	"cmap scale factor"},
-  {"delr",	"double",	"0.003",	"horizontal shift for test"},
-  {"xmax",	"double",	"1.0",		"radial scale for output"},
-  {"numx",	"int",		"100",		"number of output knots per side"},
-  {"numt",	"int",		"40",		"number of theta knots in shift operator"},
-  {"nump",	"int",		"40",		"number of phi knots in shift operator"},
-  {"delta",	"double",	"0.05",		"fractional displacement for two-point numerical derivative"},
-  {"outfile",	"string",	"slshift",	"output file prefix"},
-  {"\0",	"\0",		"\0",		"\0"}
-};
-
-
-const char *desc = "Check the consistency of a linear shift in the basis";
-
-ProgramParam config(desc, init);
-
-
-void assign_values()
-{
-  use_mpi   = config.get<bool>  ("use_mpi");
-  check_bio = config.get<bool>  ("check_bio");
-  surface   = config.get<bool>  ("surface");
-  dump      = config.get<bool>  ("dump");
-  cmap      = config.get<int>   ("cmap");
-  scale     = config.get<double>("scale");
-  Lmax      = config.get<int>   ("Lmax");
-  nmax      = config.get<int>   ("nmax");
-  numr      = config.get<int>   ("numr");
-  rmin      = config.get<double>("rmin");
-  rmax      = config.get<double>("rmax");
-  rs        = config.get<double>("rs");
-  delr      = config.get<double>("delr");
-  xmax      = config.get<double>("xmax");
-  numx      = config.get<int>   ("numx");
-  numt      = config.get<int>   ("numt");
-  nump      = config.get<int>   ("nump");
-  delta     = config.get<double>("delta");
-  outfile   = config.get<string>("outfile");
-};
 
 
 //===========================================================================
@@ -391,20 +344,78 @@ main(int argc, char** argv)
   // Parse command line
   //====================
 
-  try {
-    if (config.parse_args(argc, argv)) return -1;
-    assign_values();
-  }
-  catch (const char *msg) {
-    cerr << msg << endl;
-    return -1;
-  }
+  po::options_description desc("Check the consistency of a linear shift in the basis\nAllowed options");
+  desc.add_options()
+    ("help,h",                                                                          "Print this help message")
+    ("use_mpi",             po::value<bool>(&use_mpi)->default_value(false),
+     "using parallel computation")
+    ("check_bio",           po::value<bool>(&check_bio)->default_value(false),
+     "check consistency of biorthogonal set")
+    ("surface",             po::value<bool>(&surface)->default_value(false),
+     "print out surface cuts of the reconstructed shift")
+    ("dump",                po::value<bool>(&dump)->default_value(false),
+     "print the coefficients to a file")
+    ("cmap",                po::value<int>(&cmap)->default_value(0),
+     "coordinate scaling in SphereSL")
+    ("scale",               po::value<double>(&scale)->default_value(1.0),
+     "scaling from real coordinates to table")
+    ("Lmax",                po::value<int>(&Lmax)->default_value(2),
+     "maximum number of angular harmonics in the expansion")
+    ("nmax",                po::value<int>(&nmax)->default_value(10),
+     "maximum number of radial harmonics in the expansion")
+    ("numr",                po::value<int>(&numr)->default_value(1000),
+     "radial knots in the shift operator")
+    ("rmin",                po::value<double>(&rmin)->default_value(0.0001),
+     "minimum radius for the shift operator")
+    ("rmax",                po::value<double>(&rmax)->default_value(1.95),
+     "maximum radius for the shift operator")
+    ("rs",                  po::value<double>(&rs)->default_value(0.067),
+     "cmap scale factor")
+    ("delr",                po::value<double>(&delr)->default_value(0.003),
+     "horizontal shift for test")
+    ("xmax",                po::value<double>(&xmax)->default_value(1.0),
+     "radial scale for output")
+    ("numx",                po::value<int>(&numx)->default_value(100),
+     "number of output knots per side")
+    ("numt",                po::value<int>(&numt)->default_value(40),
+     "number of theta knots in shift operator")
+    ("nump",                po::value<int>(&nump)->default_value(40),
+     "number of phi knots in shift operator")
+    ("delta",               po::value<double>(&delta)->default_value(0.05),
+     "fractional displacement for two-point numerical derivative")
+    ("outfile",             po::value<string>(&outfile)->default_value("slshift"),
+     "output file prefix")
+    ;
 
   //===================
   // MPI preliminaries 
   //===================
   if (use_mpi) {
     local_init_mpi(argc, argv);
+  }
+
+  po::variables_map vm;
+  
+  // Parse command line for control and critical parameters
+  //
+  try {
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::notify(vm);    
+  } catch (po::error& e) {
+    if (myid==0) std::cout << "Option error on command line: "
+			   << e.what() << std::endl;
+    MPI_Finalize();
+    return -1;
+  }
+  
+  // Print help message and exit
+  //
+  if (vm.count("help")) {
+    if (myid == 0) {
+      std::cout << desc << std::endl << std::endl;
+    }
+    if (use_mpi) MPI_Finalize();
+    return 1;
   }
 
   if (use_mpi) {

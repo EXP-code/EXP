@@ -32,7 +32,7 @@ private:
 public:
 
   //! Constructor
-  UserHalo(string &line);
+  UserHalo(const YAML::Node& conf);
 
   //! Destructor
   ~UserHalo();

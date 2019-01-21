@@ -45,7 +45,7 @@ private:
 public:
 
   //! Constructor
-  UserDiffRot(string &line);
+  UserDiffRot(const YAML::Node& conf);
 
   //! Destructor
   ~UserDiffRot();

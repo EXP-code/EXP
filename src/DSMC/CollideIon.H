@@ -806,10 +806,11 @@ private:
   void cuda_initialize();
   void cudaElasticInit();
   void cuda_atomic_weights_init();
-  void cuda_random_init();
+  void cuda_random_init(int);
   thrust::device_vector<cuIonElement> cuElems;
   thrust::device_vector<cuFP_t>       xsc_H, xsc_He, xsc_pH, xsc_pHe;
   thrust::device_vector<curandState>  d_randS;
+  cudaDeviceProp                      deviceProp;
 #endif
 
 public:
@@ -1225,7 +1226,8 @@ protected:
 
   virtual double getCoolingRate(int id) { return 0; }
   
-  void parseSpecies(const std::string& map);
+  //! Parse species config
+  void parseSpecies();
 
   
   //@{
@@ -1510,48 +1512,48 @@ protected:
   //@}
 
 public:
-  static double   Nmin;
-  static double   Nmax;
-  static double   Tmin;
-  static double   Tmax;
-  static unsigned Nnum;
-  static unsigned Tnum;
-  static unsigned maxSel;
-  static unsigned NoDelC;
-  static unsigned maxCoul;
-  static string   cache;
-  static bool     equiptn;
-  static bool     scatter;
-  static bool     ExactE;
-  static bool     NoExact;
-  static bool     AlgOrth;
-  static bool     AlgWght;
-  static bool     MeanMass;
-  static bool     DebugE;
-  static bool     collLim;
-  static bool     collCor;
-  static bool     E_split;
-  static string   config0;
+  static double     Nmin;
+  static double     Nmax;
+  static double     Tmin;
+  static double     Tmax;
+  static unsigned   Nnum;
+  static unsigned   Tnum;
+  static unsigned   maxSel;
+  static unsigned   NoDelC;
+  static unsigned   maxCoul;
+  static string     cache;
+  static bool       equiptn;
+  static bool       scatter;
+  static bool       ExactE;
+  static bool       NoExact;
+  static bool       AlgOrth;
+  static bool       AlgWght;
+  static bool       MeanMass;
+  static bool       DebugE;
+  static bool       collLim;
+  static bool       collCor;
+  static bool       E_split;
+  static bool       MeanKE;
+  static YAML::Node config;
 
   //! Constructor
-  CollideIon(ExternalForce *force, Component *comp, 
-	     double hsDiam, double crossfac, 
-	     const std::string& spcMap, int nth=1);
+  CollideIon(ExternalForce *force, Component *comp,
+	     double hsDiam, double crossfac, int nth=1);
 
   //! Destructor
   ~CollideIon();
-  
+
   //! Sets timestep processing for the EXP multiple time-step algorithm
   virtual void set_timestep(int DTpos) { use_delt=DTpos; }
-  
+
   virtual double Etotal();
   virtual double Mtotal();
 
   //! Times the per-thread processing time
   virtual void *timestep_thread(void *arg);
-  
+
   virtual void Elost(double* collide, double* epsm);
-  
+
   void Debug(double t);
 
   //! Print out species counts
@@ -1572,9 +1574,9 @@ public:
   //@}
 
   //! Select particle numbers for interaction
-  virtual sKey2Amap generateSelection(pCell* c, sKeyDmap* Fn, 
+  virtual sKey2Amap generateSelection(pCell* c, sKeyDmap* Fn,
 				      double crm, double tau, int id,
-				      double& meanLambda, double& meanCollP, 
+				      double& meanLambda, double& meanCollP,
 				      double& totalNsel);
 
   //! Generate subdominate interaction rates
@@ -1584,17 +1586,17 @@ public:
 
   //! Check whether subdominant interactions are defined (currently
   //! only implemented for hybrid method)
-  virtual bool selectSub() 
-  { 
+  virtual bool selectSub()
+  {
     // if (aType == Hybrid) return true;
-    return false; 
+    return false;
   }
 
   //! Compute/retrieve mean molecular weight for this cell
   virtual double molWeight(pCell *c);
 
   //! Set electron scattering type
-  static void setEStype(const std::string& type) 
+  static void setEStype(const std::string& type)
   {
     esMapType::const_iterator it = esMap.find(type);
     if (it != esMap.end())
@@ -1615,7 +1617,7 @@ public:
   //! Get electron scattering type
   static std::string getEStype()
   {
-    for (auto i : esMap) 
+    for (auto i : esMap)
       if (esType == i.second) return i.first;
     return "unknown";
   }

@@ -13,6 +13,8 @@
 #include <chkTimer.H>
 #include <BarrierWrapper.H>
 
+#include <yaml-cpp/yaml.h>
+
 using namespace std;
 
 /*! \file global.H
@@ -187,6 +189,10 @@ extern vector<thrd_pass_posvel> posvel_data;
 //! Threads for incr_position and incr_velocity
 extern vector<pthread_t> posvel_thrd;
 
+//! Suppress parsing of info fields on restart; use config specified
+//! parameters instead
+extern bool ignore_info;
+
 /**
    Phase space dump on next step
 
@@ -266,12 +272,8 @@ class OutputContainer;
 //! One output routine container per simulation
 extern OutputContainer *output;
 
-// Parameter database
-
-#include <ParamParseMPI.H>
-
 //! Parameter database
-extern ParamParseMPI *parse;
+extern YAML::Node parse;
 
 //! Total alloted runtime (runtime < 0 turns off timer)
 extern double runtime;

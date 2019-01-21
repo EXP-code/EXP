@@ -1,6 +1,8 @@
 #ifndef _tidalField_H
 #define _tidalField_H
 
+#include <yaml-cpp/yaml.h>
+
 //! Compute tidal acceleration and potential in the Hills limit.
 /*!
   The calculation is done in a frame having its cartesian axis 
@@ -24,7 +26,7 @@ private:
 public:
 
   //! Constructor
-  tidalField(string& line);
+  tidalField(const YAML::Node& config);
 
   //! Destructor
   virtual ~tidalField() {}

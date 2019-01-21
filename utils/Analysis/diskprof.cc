@@ -39,6 +39,14 @@
 
 using namespace std;
 
+				// Boost stuff
+
+#include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
+
+namespace po = boost::program_options;
+
+
                                 // System libs
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -52,7 +60,6 @@ using namespace std;
 #include <EmpOrth9thd.h>
 
 #include <localmpi.h>
-#include <ProgramParam.H>
 #include <foarray.H>
 
 #include <VtkGrid.H>
@@ -62,48 +69,6 @@ using namespace std;
 #pragma message "NOT using reduced particle structure"
 #endif
 #endif
-
-program_option init[] = {
-  {"NICE",		"int",		"0",		"system priority"},
-  {"DENS",		"bool",		"true",		"compute density"},
-  {"RMAX",		"double",	"0.1",		"maximum radius for output"},
-  {"ZMAX",		"double",	"0.1",		"maximum height for output"},
-  {"RCYLMIN",		"double",	"0.001",	"number of scale lengths for minimum radius in table"},
-  {"RCYLMAX",		"double",	"20.0",		"number of scale lengths for maximum radius in table"},
-  {"NUMX",		"int",		"128",		"number of radial table entries"},
-  {"NUMY",		"int",		"64",		"number of vertical table entries"},
-  {"RSCALE",		"double",	"0.01",		"Radial scale length for basis expansion"},
-  {"VSCALE",		"double",	"0.001",	"Vertical Scale length for basis expansion"},
-  {"TINIT",		"double",	"0.0",		"Initial time for basis"},
-  {"TIME",		"double",	"0.0",		"Desired time slice"},
-  {"LMAX",		"int",		"36",		"Maximum harmonic order for spherical expansion"},
-  {"NMAX",		"int",		"8",		"Maximum radial order for spherical expansion"},
-  {"MMAX",		"int",		"4",		"Maximum harmonic order"},
-  {"NORDER",		"int",		"4",		"Number of basis functions per azimuthal harmonic"},
-  {"OUTR",		"int",		"40",		"Number of radial points for output"},
-  {"OUTZ",		"int",		"40",		"Number of vertical points for output"},
-  {"SURFACE",		"bool",		"true",		"Make equatorial and vertical slices"},
-  {"VOLUME",		"bool",		"false",	"Make volume for VTK"},
-  {"AXIHGT",		"bool",		"false",	"Compute midplane height profiles"},
-  {"VHEIGHT",		"bool",		"false",	"Compute height profiles"},
-  {"ALL",		"bool",		"false",	"Compute output for every time slice"},
-  {"PCA",		"bool",		"false",	"Perform the PCA analysis for the disk"},
-  {"INITFLAG",		"int",		"1",		"Train set on Component (1=stars)"},
-  {"PARTFLAG",		"int",		"1",		"Wakes using Component(s) [1=stars | 2=gas]"},
-  {"OUTFILE",		"string",	"diskprof",	"Filename prefix"},
-  {"CACHEFILE",         "string",       ".eof.cache.file", "Cachefile name"},
-  {"INITIAL",		"string",	"OUT.0",	"Initial phase space file"},
-  {"INFILE",		"string",	"OUT",		"Phase space file"},
-  {"INDEX",		"string",	"frame.indx",	"File containing desirecd indices for PSP output"},
-  {"",			"",		"",		""}
-};
-
-
-const char desc[] = "Compute disk potential, force and density profiles from PSP phase-space output files\n";
-
-
-ProgramParam config(desc, init);
-
 				// Variables not used but needed for linking
 int VERBOSE = 4;
 int nthrds = 1;
@@ -327,6 +292,10 @@ void partition(ifstream* in, PSPDump* psp, int cflag, vector<Particle>& p,
 
 }
 
+double ZMAX, RMAX;
+string OUTFILE;
+int OUTR, OUTZ;
+bool AXIHGT, ALL, VHEIGHT, VOLUME, SURFACE;
 
 				// Find peak density
 
@@ -359,7 +328,7 @@ double get_max_dens(Vector& vv, double dz)
   else
     delta = - 0.5*del/ddel;
 
-  return -config.get<double>("ZMAX")+dz*(ipeak + delta);
+  return -ZMAX+dz*(ipeak + delta);
 
 }
 
@@ -367,7 +336,6 @@ double get_max_dens(Vector& vv, double dz)
 
 Vector get_quart(Vector& vv, double dz)
 {
-  double ZMAX = config.get<double>("ZMAX");
   int lo = vv.getlow();
   int hi = vv.gethigh();
 
@@ -399,7 +367,6 @@ Vector get_quart(Vector& vv, double dz)
 
 Vector get_quart_truncated(Vector& vv, double dz)
 {
-  double ZMAX = config.get<double>("ZMAX");
   int lo = vv.getlow();
   int hi = vv.gethigh();
 
@@ -458,18 +425,6 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
   unsigned ncnt = 0;
   int nout;
   
-  string OUTFILE  = config.get<string>("OUTFILE");
-  double RMAX     = config.get<double>("RMAX");
-  double ZMAX     = config.get<double>("ZMAX");
-  int OUTR        = config.get<int   >("OUTR");
-  int OUTZ        = config.get<int   >("OUTZ");
-  
-  bool AXIHGT     = config.get<bool>("AXIHGT");
-  bool ALL        = config.get<bool>("ALL");
-  bool VHEIGHT    = config.get<bool>("VHEIGHT");
-  bool VOLUME     = config.get<bool>("VOLUME");
-  bool SURFACE    = config.get<bool>("SURFACE");
-
   // ==================================================
   // Setup for output files
   // ==================================================
@@ -767,12 +722,79 @@ main(int argc, char **argv)
   sleep(20);
 #endif  
   
+  int NICE, NUMX, NUMY, NMAX, LMAX, MMAX, NORDER, OUTR, INITFLAG, PARTFLAG;
+  double RCYLMIN, RCYLMAX, RSCALE, VSCALE, RMAX, TINIT;
+  std::string INITIAL, INFILE, CACHEFILE, OUTFILE, INDEX;
+  bool DENS, PCA;
+
   // ==================================================
   // Parse command line or input parameter file
   // ==================================================
   
-  if (config.parse_args(argc,argv)) return -1;
-  
+  po::options_description desc("Compute disk potential, force and density profiles from PSP phase-space output files\nAllowed options");
+  desc.add_options()
+    ("help,h",                                                                          "Print this help message")
+    ("NICE",                po::value<int>(&NICE)->default_value(0),
+     "system priority")
+    ("DENS",                po::value<bool>(&DENS)->default_value(true),
+     "compute density")
+    ("RMAX",                po::value<double>(&RMAX)->default_value(0.1),
+     "maximum radius for output")
+    ("ZMAX",                po::value<double>(&ZMAX)->default_value(0.1),
+     "maximum height for output")
+    ("RCYLMIN",             po::value<double>(&RCYLMIN)->default_value(0.001),
+     "number of scale lengths for minimum radius in table")
+    ("RCYLMAX",             po::value<double>(&RCYLMAX)->default_value(20.0),
+     "number of scale lengths for maximum radius in table")
+    ("NUMX",                po::value<int>(&NUMX)->default_value(128),
+     "number of radial table entries")
+    ("NUMY",                po::value<int>(&NUMY)->default_value(64),
+     "number of vertical table entries")
+    ("RSCALE",              po::value<double>(&RSCALE)->default_value(0.01),
+     "Radial scale length for basis expansion")
+    ("VSCALE",              po::value<double>(&VSCALE)->default_value(0.001),
+     "Vertical Scale length for basis expansion")
+    ("TINIT",               po::value<double>(&TINIT)->default_value(0.0),
+     "Initial time for PSP dump")
+    ("LMAX",                po::value<int>(&LMAX)->default_value(36),
+     "Maximum harmonic order for spherical expansion")
+    ("NMAX",                po::value<int>(&NMAX)->default_value(8),
+     "Maximum radial order for spherical expansion")
+    ("MMAX",                po::value<int>(&MMAX)->default_value(4),
+     "Maximum harmonic order")
+    ("NORDER",              po::value<int>(&NORDER)->default_value(4),
+     "Number of basis functions per azimuthal harmonic")
+    ("OUTR",                po::value<int>(&OUTR)->default_value(40),
+     "Number of radial points for output")
+    ("OUTZ",                po::value<int>(&OUTZ)->default_value(40),
+     "Number of vertical points for output")
+    ("SURFACE",             po::value<bool>(&SURFACE)->default_value(true),
+     "Make equatorial and vertical slices")
+    ("VOLUME",              po::value<bool>(&VOLUME)->default_value(false),
+     "Make volume for VTK")
+    ("AXIHGT",              po::value<bool>(&AXIHGT)->default_value(false),
+     "Compute midplane height profiles")
+    ("VHEIGHT",             po::value<bool>(&VHEIGHT)->default_value(false),
+     "Compute height profiles")
+    ("ALL",                 po::value<bool>(&ALL)->default_value(false),
+     "Compute output for every time slice")
+    ("PCA",                 po::value<bool>(&PCA)->default_value(false),
+     "Perform the PCA analysis for the disk")
+    ("INITFLAG",            po::value<int>(&INITFLAG)->default_value(1),
+     "Train set on Component (1=stars)")
+    ("PARTFLAG",            po::value<int>(&PARTFLAG)->default_value(1),
+     "Wakes using Component(s) [1=stars | 2=gas]")
+    ("OUTFILE",             po::value<string>(&OUTFILE)->default_value("diskprof"),
+     "Filename prefix")
+    ("CACHEFILE",           po::value<string>(&CACHEFILE)->default_value(".eof.cache.file"),
+     "Cachefile name")
+    ("INITIAL",             po::value<string>(&INITIAL)->default_value("OUT.0"),
+     "Initial phase space file")
+    ("INFILE",              po::value<string>(&INFILE)->default_value("OUT"),
+     "Phase space file")
+    ("INDEX",               po::value<string>(&INDEX)->default_value("frame.indx"),
+     "File containing desirecd indices for PSP output")
+    ;
   
   // ==================================================
   // MPI preliminaries
@@ -780,12 +802,23 @@ main(int argc, char **argv)
 
   local_init_mpi(argc, argv);
   
+  po::variables_map vm;
+
+  try {
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::notify(vm);    
+  } catch (po::error& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    exit(-1);
+  }
+
+
   // ==================================================
   // Nice process
   // ==================================================
 
-  if (config.get<int>("NICE")>0)
-    setpriority(PRIO_PROCESS, 0, config.get<int>("NICE"));
+  if (NICE>0)
+    setpriority(PRIO_PROCESS, 0, NICE);
 
 
   // ==================================================
@@ -795,17 +828,15 @@ main(int argc, char **argv)
   int iok = 1;
   ifstream in0, in1;
   if (myid==0) {
-    in0.open(config.get<string>("INITIAL").c_str());
+    in0.open(INITIAL);
     if (!in0) {
-      cerr << "Error opening <" << config.get<string>("INITIAL")
-	   << ">" << endl;
+      cerr << "Error opening <" << INITIAL << ">" << endl;
       iok = 0;
     }
 
-    in1.open(config.get<string>("INFILE").c_str());
+    in1.open(INFILE);
     if (!in1) {
-      cerr << "Error opening <" << config.get<string>("INFILE")
-	   << ">" << endl;
+      cerr << "Error opening <" << INFILE << ">" << endl;
       iok = 0;
     }
     
@@ -822,32 +853,27 @@ main(int argc, char **argv)
   // *****Using MPI****
   // ==================================================
 
-  EmpCylSL::RMIN        = config.get<double>("RCYLMIN");
-  EmpCylSL::RMAX        = config.get<double>("RCYLMAX");
-  EmpCylSL::NUMX        = config.get<int>("NUMX");
-  EmpCylSL::NUMY        = config.get<int>("NUMY");
+  EmpCylSL::RMIN        = RCYLMIN;
+  EmpCylSL::RMAX        = RCYLMAX;
+  EmpCylSL::NUMX        = NUMX;
+  EmpCylSL::NUMY        = NUMY;
   EmpCylSL::CMAP        = true;
   EmpCylSL::logarithmic = true;
-  EmpCylSL::DENS        = config.get<bool>("DENS");
-  EmpCylSL::CACHEFILE   = config.get<string>("CACHEFILE");
+  EmpCylSL::DENS        = DENS;
+  EmpCylSL::CACHEFILE   = CACHEFILE;
 
                                 // Create expansion
 				//
-  EmpCylSL ortho(config.get<int>("NMAX"), 
-		 config.get<int>("LMAX"), 
-		 config.get<int>("MMAX"), 
-		 config.get<int>("NORDER"),
-		 config.get<double>("RSCALE"),
-		 config.get<double>("VSCALE"));
+  EmpCylSL ortho(NMAX, LMAX, MMAX, NORDER, RSCALE, VSCALE);
 
-  if (config.get<bool>("PCA")) {
+  if (PCA) {
     EmpCylSL::SELECT = true;
-    ortho.setHall(config.get<string>("OUTFILE") + ".pca", 1);
+    ortho.setHall(OUTFILE + ".pca", 1);
   }
 
   vector<Particle> particles;
   PSPDump *psp = 0;
-  Histogram histo(config.get<int>("OUTR"), config.get<double>("RMAX"));
+  Histogram histo(OUTR, RMAX);
 
   if (ortho.read_cache()==0) {
 
@@ -856,17 +882,17 @@ main(int argc, char **argv)
     if (myid==0) {
       psp = new PSPDump (&in0, true);
       cout << "Beginning disk partition [time="
-	   << psp->SetTime(config.get<double>("TINIT"))
+	   << psp->SetTime(TINIT)
 	   << "] . . . " << flush;
     }
 
     // Do we need to close and reopen?
     if (in0.rdstate() & ios::eofbit) {
       in0.close();
-      in0.open(config.get<string>("INITIAL").c_str());
+      in0.open(INITIAL);
     }
 
-    partition(&in0, psp, config.get<int>("INITFLAG"), particles, histo);
+    partition(&in0, psp, INITFLAG, particles, histo);
     if (myid==0) cout << "done" << endl;
 
     if (myid==0) {
@@ -917,9 +943,9 @@ main(int argc, char **argv)
   // Open frame list
   // ==================================================
 
-  ofstream indx(config.get<string>("INDEX").c_str());
+  ofstream indx(INDEX);
   if (!indx) {
-    cerr << "Error opening <" << config.get<string>("INDEX") 
+    cerr << "Error opening <" << INDEX
 	 << "> for output . . . continuing without writing index file" 
 	 << endl;
   }
@@ -928,7 +954,7 @@ main(int argc, char **argv)
   psp = new PSPDump (&in1, true);
 
   Dump *dump = psp->GetDump();
-  bool ALL = config.get<bool>("ALL");
+  bool ALL = ALL;
 
   if (!ALL) dump = psp->CurrentDump();
 
@@ -948,10 +974,10 @@ main(int argc, char **argv)
 
     if (in1.rdstate() & ios::eofbit) {
       in1.close();
-      in1.open(config.get<string>("INFILE").c_str());
+      in1.open(INFILE);
     }
 
-    partition(&in1, psp, config.get<int>("PARTFLAG"), particles, histo);
+    partition(&in1, psp, PARTFLAG, particles, histo);
     if (myid==0) cout << "done" << endl;
 
     //------------------------------------------------------------ 

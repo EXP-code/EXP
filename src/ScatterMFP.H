@@ -45,7 +45,7 @@ private:
 public:
 
   //! Constructor
-  ScatterMFP(string& line);
+  ScatterMFP(const YAML::Node& conf);
 
   //! Destructor
   ~ScatterMFP();

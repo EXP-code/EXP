@@ -22,7 +22,7 @@ private:
 public:
 
   //! Constructor
-  OutDiag(string& line);
+  OutDiag(const YAML::Node& conf);
 
   //! Generate the output
   /*!

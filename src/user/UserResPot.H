@@ -118,7 +118,7 @@ private:
 public:
 
   //! Constructor
-  UserResPot(string &line);
+  UserResPot(const YAML::Node& conf);
 
   //! Destructor
   ~UserResPot();

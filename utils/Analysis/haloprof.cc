@@ -39,6 +39,13 @@
 
 using namespace std;
 
+				// Boost stuff
+
+#include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
+
+namespace po = boost::program_options;
+
                                 // System libs
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -53,37 +60,7 @@ using namespace std;
 #include <SphereSL.H>
 
 #include <localmpi.h>
-#include <ProgramParam.H>
 #include <foarray.H>
-
-program_option init[] = {
-  {"NICE",		"int",		"0",		"system priority"},
-  {"DENS",		"bool",		"true",		"compute density"},
-  {"RMIN",		"double",	"0.0",		"minimum radius for output"},
-  {"RMAX",		"double",	"0.1",		"maximum radius for output"},
-  {"TIME",		"double",	"0.0",		"Desired time slice"},
-  {"LMAX",		"int",		"4",		"Maximum harmonic order for spherical expansion"},
-  {"NMAX",		"int",		"12",		"Maximum radial order for spherical expansion"},
-  {"MMAX",		"int",		"4",		"Maximum harmonic order"},
-  {"OUTR",		"int",		"40",		"Number of radial points for output"},
-  {"PROBE",		"bool",		"true",		"Make traces along axes"},
-  {"SURFACE",		"bool",		"true",		"Make equitorial and vertical slices"},
-  {"VOLUME",		"bool",		"false",	"Make volume for VTK"},
-  {"ALL",		"bool",		"false",	"Compute output for every time slice"},
-  {"PARTFLAG",		"int",		"4",		"Wakes using Component(s) [1=stars | 2=gas | 4=halo]"},
-  {"OUTFILE",		"string",	"haloprof",	"Filename prefix"},
-  {"MODFILE",		"string",	"SLGridSph.model",
-   							"Model file"},
-  {"INFILE",		"string",	"OUT",		"Phase space file"},
-  {"INDEX",		"string",	"frame.indx",	"File containing desired indices for PSP output"},
-  {"",			"",		"",		""}
-};
-
-
-const char desc[] = "Compute disk potential, force and density profiles from PSP phase-space output files\n";
-
-
-ProgramParam config(desc, init);
 
 				// Variables not used but needed for linking
 int VERBOSE = 4;
@@ -101,6 +78,11 @@ string outdir, runtag;
 double tpos = 0.0;
 double tnow = 0.0;
   
+string OUTFILE, INFILE, INDEX;
+double RMIN, RMAX, TIME;
+int OUTR, NICE, LMAX, NMAX, MMAX, PARTFLAG;
+bool ALL, VOLUME, SURFACE, PROBE;
+
 enum ComponentType {Star=1, Gas=2, Halo=4};
 
 void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p)
@@ -281,16 +263,6 @@ void write_output(SphereSL& ortho, int icnt, double time)
   int nout;
   
   node.valid = 1;
-
-  string OUTFILE  = config.get<string>("OUTFILE");
-  double RMIN     = config.get<double>("RMIN");
-  double RMAX     = config.get<double>("RMAX");
-  int OUTR        = config.get<int   >("OUTR");
-  
-  bool ALL        = config.get<bool>("ALL");
-  bool VOLUME     = config.get<bool>("VOLUME");
-  bool SURFACE    = config.get<bool>("SURFACE");
-  bool PROBE      = config.get<bool>("PROBE");
 
   // ==================================================
   // Setup for output files
@@ -621,11 +593,50 @@ main(int argc, char **argv)
   sleep(20);
 #endif  
   
+  int NICE, LMAX, NMAX, PARTFLAG;
+  std::string MODFILE, INDEX, INFILE;
+  bool ALL;
+
   // ==================================================
   // Parse command line or input parameter file
   // ==================================================
   
-  if (config.parse_args(argc,argv)) return -1;
+  po::options_description desc("Compute disk potential, force and density profiles from PSP phase-space output files\nAllowed options");
+  desc.add_options()
+    ("help,h",                                                                          "Print this help message")
+    ("NICE",                po::value<int>(&NICE)->default_value(0),
+     "system priority")
+    ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
+     "minimum radius for output")
+    ("RMAX",                po::value<double>(&RMAX)->default_value(0.1),
+     "maximum radius for output")
+    ("TIME",                po::value<double>(&TIME)->default_value(0.0),
+     "Desired time slice")
+    ("LMAX",                po::value<int>(&LMAX)->default_value(4),
+     "Maximum harmonic order for spherical expansion")
+    ("NMAX",                po::value<int>(&NMAX)->default_value(12),
+     "Maximum radial order for spherical expansion")
+    ("MMAX",                po::value<int>(&MMAX)->default_value(4),
+     "Maximum harmonic order")
+    ("OUTR",                po::value<int>(&OUTR)->default_value(40),
+     "Number of radial points for output")
+    ("PROBE",               po::value<bool>(&PROBE)->default_value(true),
+     "Make traces along axes")
+    ("SURFACE",             po::value<bool>(&SURFACE)->default_value(true),
+     "Make equitorial and vertical slices")
+    ("VOLUME",              po::value<bool>(&VOLUME)->default_value(false),
+     "Make volume for VTK")
+    ("ALL",                 po::value<bool>(&ALL)->default_value(false),
+     "Compute output for every time slice")
+    ("PARTFLAG",            po::value<int>(&PARTFLAG)->default_value(4),
+     "Wakes using Component(s) [1=stars | 2=gas | 4=halo]")
+    ("OUTFILE",             po::value<string>(&OUTFILE)->default_value("haloprof"),
+     "Filename prefix")
+    ("INFILE",              po::value<string>(&INFILE)->default_value("OUT"),
+     "Phase space file")
+    ("INDEX",               po::value<string>(&INDEX)->default_value("frame.indx"),
+     "File containing desired indices for PSP output")
+    ;
   
   
   // ==================================================
@@ -634,22 +645,32 @@ main(int argc, char **argv)
 
   local_init_mpi(argc, argv);
   
+  po::variables_map vm;
+
+  try {
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::notify(vm);    
+  } catch (po::error& e) {
+    if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    exit(-1);
+  }
+
   // ==================================================
   // Nice process
   // ==================================================
 
-  if (config.get<int>("NICE")>0)
-    setpriority(PRIO_PROCESS, 0, config.get<int>("NICE"));
+  if (NICE>0)
+    setpriority(PRIO_PROCESS, 0, NICE);
 
 
   // ==================================================
   // Make SL expansion
   // ==================================================
 
-  SphericalModelTable halo(config.get<string>("MODFILE"));
+  SphericalModelTable halo(MODFILE);
   SphereSL::mpi = true;
   SphereSL::NUMR = 4000;
-  SphereSL ortho(&halo, config.get<int>("LMAX"), config.get<int>("NMAX"));
+  SphereSL ortho(&halo, LMAX, NMAX);
 
   // ==================================================
   // Open frame list
@@ -660,17 +681,17 @@ main(int argc, char **argv)
 
   if (myid==0) {
 
-    indx.open(config.get<string>("INDEX").c_str());
+    indx.open(INDEX);
     if (!indx) {
-      cerr << "Error opening <" << config.get<string>("INDEX") 
+      cerr << "Error opening <" << INDEX
 	   << "> for output . . . continuing without writing index file" 
 	   << endl;
     }
 
 
-    in.open(config.get<string>("INFILE").c_str());
+    in.open(INFILE);
     if (!in) {
-      cerr << "Error opening <" << config.get<string>("INFILE")
+      cerr << "Error opening <" << INFILE
 	   << ">" << endl;
       exit(-1);
     }
@@ -680,7 +701,6 @@ main(int argc, char **argv)
   PSPDump psp(&in, true);
 
   Dump *dump = psp.GetDump();
-  bool ALL = config.get<bool>("ALL");
 
   if (!ALL) dump = psp.CurrentDump();
 
@@ -700,10 +720,10 @@ main(int argc, char **argv)
 
     if (in.rdstate() & ios::eofbit) {
       in.close();
-      in.open(config.get<string>("INFILE").c_str());
+      in.open(INFILE);
     }
 
-    partition(&in, &psp, config.get<int>("PARTFLAG"), particles);
+    partition(&in, &psp, PARTFLAG, particles);
     if (myid==0) cout << "done" << endl;
 
     //------------------------------------------------------------ 

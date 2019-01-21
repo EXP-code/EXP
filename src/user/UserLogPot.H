@@ -27,7 +27,7 @@ private:
 public:
 
   //! Constructor
-  UserLogPot(string &line);
+  UserLogPot(const YAML::Node& conf);
 
   //! Destructor
   ~UserLogPot();

@@ -13,8 +13,10 @@ class UserSat : public ExternalForce
 {
 private:
   
-  string com_name, config, orbfile;
+  string com_name, orbfile;
   Component *c0;
+
+  YAML::Node config;
 
   Trajectory *traj;
 
@@ -37,10 +39,13 @@ private:
 
 public:
   
-				//! For debugging . . .
+  //! For debugging . . .
   static int instances;
 
-  UserSat(string &line);
+  //! Constructor
+  UserSat(const YAML::Node& conf);
+
+  //! Destuctor
   ~UserSat();
 
 };
@@ -48,7 +53,7 @@ public:
 
 int UserSat::instances = 0;
 
-UserSat::UserSat(string &line) : ExternalForce(line)
+UserSat::UserSat(const YAML::Node& conf) : ExternalForce(conf)
 {
   id = "UserSat";		// ID string
 
@@ -68,7 +73,6 @@ UserSat::UserSat(string &line) : ExternalForce(line)
 
   pinning  = false;	        // Pin reference frame to a component
   com_name = "";		// Default component for com
-  config   = "conf.file";	// Configuration file for spherical orbit
   traj_type = circ;		// Trajectory type (default is circ)
 
   initialize();
@@ -189,61 +193,77 @@ void UserSat::userinfo()
 
 void UserSat::initialize()
 {
-  string val;
-
-  if (get_value("comname", val))  {com_name = val; pinning = true; }
-  if (get_value("config", val))   config = val;
-  if (get_value("core", val))     core = atof(val.c_str());
-  if (get_value("mass", val))     mass = atof(val.c_str());
-  if (get_value("ton", val))      ton = atof(val.c_str());
-  if (get_value("toff", val))     toff = atof(val.c_str());
-  if (get_value("delta", val))    delta = atof(val.c_str());
-  if (get_value("toffset", val))  toffset = atof(val.c_str());
-  if (get_value("orbit", val))    orbit = atol(val);
-  if (get_value("shadow", val))   shadow = atol(val);
-  if (get_value("verbose", val))  verbose = atol(val);
-  if (get_value("r0", val))       r0 = atof(val.c_str());
-  if (get_value("phase", val))    phase = atof(val.c_str());
-  if (get_value("omega", val))    omega = atof(val.c_str());
-
-				// Set trajectory type
-  if (get_value("trajtype", val)) {
-    switch (atoi(val.c_str())) {
-    case circ:
-      traj_type = circ;
-      break;
-    case bound:
-      traj_type = bound;
-      break;
-    case unbound:
-      traj_type = unbound;
-      break;
-    case linear:
-      traj_type = linear;
-      break;
-    default:
-      if (myid==0) {
-	cerr << "UserSat: no such trjectory type="
-	     << val << endl;
-      }
+  try {
+    if (conf["comname"]) {
+      com_name = conf["comname"].as<std::string>();
+      pinning = true;
+    }
+    
+    if (conf["config"])         config             = conf["config"];
+    if (conf["core"])           core               = conf["core"].as<double>();
+    if (conf["mass"])           mass               = conf["mass"].as<double>();
+    if (conf["ton"])            ton                = conf["ton"].as<double>();
+    if (conf["toff"])           toff               = conf["toff"].as<double>();
+    if (conf["delta"])          delta              = conf["delta"].as<double>();
+    if (conf["toffset"])        toffset            = conf["toffset"].as<double>();
+    if (conf["orbit"])          orbit              = conf["orbit"].as<bool>();
+    if (conf["shadow"])         shadow             = conf["shadow"].as<bool>();
+    if (conf["verbose"])        verbose            = conf["verbose"].as<bool>();
+    if (conf["r0"])             r0                 = conf["r0"].as<double>();
+    if (conf["phase"])          phase              = conf["phase"].as<double>();
+    if (conf["omega"])          omega              = conf["omega"].as<double>();
+    
+    // Set trajectory type
+    if (conf["trajtype"]) {
+      std::string val = conf["trajtype"].as<std::string>();
+      switch (atoi(val.c_str())) {
+      case circ:
+	traj_type = circ;
+	break;
+      case bound:
+	traj_type = bound;
+	break;
+      case unbound:
+	traj_type = unbound;
+	break;
+      case linear:
+	traj_type = linear;
+	break;
+      default:
+	if (myid==0) {
+	  cerr << "UserSat: no such trjectory type="
+	       << val << endl;
+	}
 	MPI_Abort(MPI_COMM_WORLD, 36);
+      }
     }
   }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserSat: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+}  
 
-}
 
 void * UserSat::determine_acceleration_and_potential_thread(void * arg) 
 {
   double pos[3], rs[3], fac, ffac, phi;
   double satmass;
-				// Sanity check
+  // Sanity check
   int nbodies = cC->Number();
   if (nbodies != static_cast<int>(cC->Particles().size())) {
     cerr << "UserSat: ooops! number=" << nbodies
 	 << " but particle size=" << cC->Particles().size() << endl;
     nbodies = static_cast<int>(cC->Particles().size());
   }
-
+  
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -347,9 +367,9 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerSat(string& line)
+  ExternalForce *makerSat(const YAML::Node& conf)
   {
-    return new UserSat(line);
+    return new UserSat(conf);
   }
 }
 

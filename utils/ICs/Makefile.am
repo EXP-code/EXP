@@ -11,8 +11,7 @@ endif
 
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
 AM_CXXFLAGS = -fPIC -std=c++11 -D_REENTRANT -DSTANDALONE $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) @exp_vtk_include@ $(BOOST_CPPFLAGS)
-
-AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src -I$(top_srcdir)/utils/SL
+AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src -I$(top_srcdir)/utils/SL $(CUDA_CFLAGS)
 
 if ENABLE_CUDA
 CUDA_LIBFLAGS  = -lcudart
@@ -49,8 +48,8 @@ gendisk2_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(BOOST_LIBS) $(LAPACK_LIBS) $(BLAS_L
 gendisk3_SOURCES =  initial3.cc DiskHalo3.cc EmpOrth9thd.cc \
 	CylDisk.cc SphericalSL.cc legendre.cc Particle.cc SParticle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
-gendisk3_LDFLAGS = $(EXPFLAGS)
-gendisk3_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+gendisk3_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
+gendisk3_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(BOOST_LIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 gsphere_SOURCES = bonnerebert.cc
 gsphere_LDADD = $(COMMON_LIBS) $(EXPLIBS)
@@ -70,8 +69,8 @@ empdump_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(
 makeIon_SOURCES = makeIonIC.cc Particle.cc Particle.H Species.H \
 	atomic_constants.H atomic_constants.cc
 makeIon_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
-makeIon_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(BOOST_LIBS)	\
-	$(LIBS) $(FLIBS)
+makeIon_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS)	\
+	$(BOOST_LIBS) $(LIBS) $(FLIBS) $(YAML)
 
 phIon_SOURCES = ph_ion.cc
 phIon_LDFLAGS = $(COMMON_LIBS) $(EXPFLAGS) $(BOOST_LDFLAGS)

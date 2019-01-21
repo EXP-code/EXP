@@ -4,7 +4,7 @@
 
 #include <EJcom.H>
 
-EJcom::EJcom(string&line) : TwoCenter(line)
+EJcom::EJcom(const YAML::Node& conf) : TwoCenter(conf)
 {
   id = "EJcom";
 
@@ -22,8 +22,8 @@ void EJcom::initialize()
 {
   string val;
 
-  if (get_value("cfac",  val)) cfac  = atof(val.c_str());
-  if (get_value("alpha", val)) alpha = atof(val.c_str());
+  if (conf["cfac"])  cfac  = conf["cfac"].as<double>();
+  if (conf["alpha"]) alpha = conf["alpha"].as<double>();
 }
 
 

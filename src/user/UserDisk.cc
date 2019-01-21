@@ -9,7 +9,7 @@
 extern double bessj0(double);
 extern double bessj1(double);
 
-UserDisk::UserDisk(string &line) : ExternalForce(line)
+UserDisk::UserDisk(const YAML::Node& conf) : ExternalForce(conf)
 {
   id = "ThinExponentialDiskPotential";
 
@@ -92,22 +92,33 @@ void UserDisk::userinfo()
 
 void UserDisk::initialize()
 {
-  string val;
+  try {
+    if (conf["ctrname"])   ctr_name    = conf["ctrname"].as<string>();
+    if (conf["a"])         a           = conf["a"].as<double>();
+    if (conf["mass"])      mass        = conf["mass"].as<double>();
+    if (conf["Ton"])       Ton         = conf["Ton"].as<double>();
+    if (conf["Toff"])      Toff        = conf["Toff"].as<double>();
+    if (conf["DeltaT"])    DeltaT      = conf["DeltaT"].as<double>();
 
-  if (get_value("ctrname", val))	ctr_name = val;
-  if (get_value("a", val))		a = atof(val.c_str());
-  if (get_value("mass", val))		mass = atof(val.c_str());
-  if (get_value("Ton", val))		Ton = atof(val.c_str());
-  if (get_value("Toff", val))		Toff = atof(val.c_str());
-  if (get_value("DeltaT", val))		DeltaT = atof(val.c_str());
+    if (conf["Nscale"])    Nscale      = conf["Nscale"].as<double>();
+    if (conf["Ngrid"])     Ngrid       = conf["Ngrid"].as<int>();
+    if (conf["Nint"])      Nint        = conf["Nint"].as<int>();
 
-  if (get_value("Nscale", val))		Nscale = atof(val.c_str());
-  if (get_value("Ngrid", val))		Ngrid = atoi(val.c_str());
-  if (get_value("Nint", val))		Nint = atoi(val.c_str());
-
-  if (get_value("debug", val))	        debug = atol(val);
-  if (get_value("dfac", val))	        dfac = atof(val.c_str());}
-
+    if (conf["debug"])     debug       = conf["debug"].as<bool>();
+    if (conf["dfac"])      dfac        = conf["dfac"].as<double>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserDisk: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+}
 
 
 void UserDisk::getTable(double R, double Z,
@@ -370,9 +381,9 @@ void * UserDisk::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerExpDisk(string& line)
+  ExternalForce *makerExpDisk(const YAML::Node& conf)
   {
-    return new UserDisk(line);
+    return new UserDisk(conf);
   }
 }
 

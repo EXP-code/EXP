@@ -53,7 +53,7 @@ private:
 public:
 
   //! Constructor
-  OrbTrace(string& line);
+  OrbTrace(const YAML::Node& conf);
 
   //! Generate the output
   /*!

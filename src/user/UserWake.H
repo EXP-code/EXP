@@ -48,7 +48,7 @@ private:
 public:
 
   //! Constructor
-  UserWake(string &line);
+  UserWake(const YAML::Node& conf);
 
   //! Destructor
   ~UserWake();

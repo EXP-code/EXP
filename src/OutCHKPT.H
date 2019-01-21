@@ -27,7 +27,7 @@ private:
 public:
 
   //! Constructor
-  OutCHKPT(string& line);
+  OutCHKPT(const YAML::Node& conf);
 
   //! Provided by derived class to generate some output
   /*!

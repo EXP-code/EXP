@@ -28,7 +28,7 @@ private:
 public:
 
   //! Constructor
-  UserShear(string &line);
+  UserShear(const YAML::Node& conf);
 
   //! Destructor
   ~UserShear();

@@ -7,7 +7,7 @@
 #include <ComponentContainer.H>
 #include <OutRelaxation.H>
 
-OutRelaxation::OutRelaxation(string& line) : Output(line)
+OutRelaxation::OutRelaxation(const YAML::Node& conf) : Output(conf)
 {
   id = "OutRelaxation";
 
@@ -37,15 +37,27 @@ OutRelaxation::OutRelaxation(string& line) : Output(line)
 
 void OutRelaxation::initialize()
 {
-  string tmp;
-
+  try {
 				// Get file name
-  if (!get_value(string("suffix"), suffix)) {
-    suffix.erase();
-    suffix = "out";
+    if (conf["suffix"])
+      suffix = conf["suffix"].as<std::string>();
+    else
+      suffix = "out";
+
+    if (conf["epos"]) epos = conf["epos"].as<int>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in OutRelaxation: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
   }
 
-  if (get_value(string("epos"), tmp))  epos = atoi(tmp.c_str());
 }
 
 void OutRelaxation::Run(int n, bool final)

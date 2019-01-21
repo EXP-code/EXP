@@ -7,7 +7,7 @@
 #include <UserSlabHalo.H>
 
 
-UserSlabHalo::UserSlabHalo(string &line) : ExternalForce(line)
+UserSlabHalo::UserSlabHalo(const YAML::Node& conf) : ExternalForce(conf)
 {
 
   id   = "SlabHalo";		// Halo model file
@@ -75,33 +75,41 @@ void UserSlabHalo::userinfo()
 
 void UserSlabHalo::initialize()
 {
-  string val;
-
-  if (get_value("ctrname", val))	ctr_name = val;
-
-  if (get_value("h0", val))	        h0 = atof(val.c_str());
-
-  if (get_value("z0", val))	        z0 = atof(val.c_str());
-
-  if (get_value("rho0", val)) {
-    rho0 = atof(val.c_str());
-    U0  = 4.0*M_PI*rho0*h0*h0;
-    v0 = sqrt(0.5*U0);
+  try {
+    if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
+    if (conf["h0"])             h0                 = conf["h0"].as<double>();
+    if (conf["z0"])             z0                 = conf["z0"].as<double>();
+    
+    if (conf["rho0"]) {
+      rho0 = conf["rho0"].as<double>();
+      U0  = 4.0*M_PI*rho0*h0*h0;
+      v0 = sqrt(0.5*U0);
+    }
+    
+    if (conf["v0"]) {
+      v0 = conf["v0"].as<double>();
+      U0 = 2.0*v0*v0;
+      rho0 = U0/(4.0*M_PI*h0*h0);
+    }
   }
-
-  if (get_value("v0", val)) {
-    v0 = atof(val.c_str());
-    U0 = 2.0*v0*v0;
-    rho0 = U0/(4.0*M_PI*h0*h0);
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserSlabHalo: "
+			   << error.what()         << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
   }
-
 }
 
 
 void UserSlabHalo::determine_acceleration_and_potential(void)
 {
   exp_thread_fork(false);
-
+  
   print_timings("UserSlabHalo: accleration timings");
 }
 
@@ -112,20 +120,20 @@ void * UserSlabHalo::determine_acceleration_and_potential_thread(void * arg)
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
-
+  
   thread_timing_beg(id);
-
+  
   double pos[3];
-
+  
   PartMapItr it = cC->Particles().begin();
-
+  
   for (int q=0   ; q<nbeg; q++) it++;
   for (int q=nbeg; q<nend; q++) {
     unsigned long i = (it++)->first;
-				// If we are multistepping, compute accel 
-				// only at or below this level
+    // If we are multistepping, compute accel 
+    // only at or below this level
     if (multistep && (cC->Part(i)->level < mlevel)) continue;
-
+    
     for (int k=0; k<3; k++) {
       pos[k] = cC->Pos(i, k);	// Inertial by default
       if (c0) pos[k] -= c0->center[k];
@@ -145,9 +153,9 @@ void * UserSlabHalo::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerSlabHalo(string& line)
+  ExternalForce *makerSlabHalo(const YAML::Node& conf)
   {
-    return new UserSlabHalo(line);
+    return new UserSlabHalo(conf);
   }
 }
 

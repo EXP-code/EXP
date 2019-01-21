@@ -9,7 +9,7 @@
 #include <MixtureBasis.H>
 #include <CBrockDisk.H>
 
-CBrockDisk::CBrockDisk(string& line, MixtureBasis* m) :  AxisymmetricBasis(line)
+CBrockDisk::CBrockDisk(const YAML::Node& conf, MixtureBasis* m) :  AxisymmetricBasis(conf)
 {
   id              = "Clutton-Brock two-dimensional disk";
 
@@ -105,16 +105,25 @@ CBrockDisk::CBrockDisk(string& line, MixtureBasis* m) :  AxisymmetricBasis(line)
 
 void CBrockDisk::initialize(void)
 {
-  string val;
-
-  if (get_value("rmax", val)) rmax = atof(val.c_str());
-  if (get_value("scale", val)) scale = atof(val.c_str());
-  if (get_value("Lmax", val)) Lmax = atoi(val.c_str());
-  if (get_value("nmax", val)) nmax = atoi(val.c_str());
-  if (get_value("self_consistent", val)) {
-    if (atoi(val.c_str())) self_consistent = true; 
-    else self_consistent = false;
+  try {
+    if (conf["rmax"])            rmax   = conf["rmax"].as<double>();
+    if (conf["scale"])           scale  = conf["scale"].as<double>();
+    if (conf["Lmax"])            Lmax   = conf["Lmax"].as<int>();
+    if (conf["nmax"])            nmax   = conf["nmax"].as<int>();
+    if (conf["self_consistent"]) self_consistent = conf["self_consistent"].as<bool>();
   }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in CBrockDisk: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+
 }
 
 CBrockDisk::~CBrockDisk(void)

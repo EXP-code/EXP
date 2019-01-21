@@ -34,10 +34,84 @@ bool less_loadb(const loadb_datum& one, const loadb_datum& two)
 }
 
 // Constructor
-Component::Component(string NAME, string ID, string CPARAM, string PFILE, 
-		     string FPARAM) : 
-  name(NAME), id(ID), cparam(CPARAM), pfile(PFILE), fparam(FPARAM)
+Component::Component(YAML::Node& CONF)
 {
+  // Make a copy
+  conf = CONF;
+
+  try {
+    name = conf["name"].as<std::string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << __FILE__ << ": " << __LINE__ << std::endl
+			   << "Error parsing component 'name': "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+
+    MPI_Finalize();
+    exit(-1);
+  }
+
+  try {
+    cconf = conf["parameters"];
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing 'parameters' for Component <"
+			   << name << ">: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf
+			   << std::string(60, '-') << std::endl;
+
+    MPI_Finalize();
+    exit(-1);
+  }
+  
+  pfile = conf["bodyfile"].as<std::string>();
+
+  YAML::Node force;
+  try {
+    force = conf["force"];
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing 'force' for Component <"
+			   << name << ">: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+
+    MPI_Finalize();
+    exit(-1);
+  }
+
+  id = force["id"].as<std::string>();
+
+  try {
+    fconf = force["parameters"];
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing force 'parameters' for Component <"
+			   << name << ">: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << force                << std::endl
+			   << std::string(60, '-') << std::endl;
+
+    MPI_Finalize();
+    exit(-1);
+  }
+
   EJ          = 0;
   nEJkeep     = 100;
   nEJwant     = 500;
@@ -77,7 +151,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   use_cuda    = true;		// Set to false to suppress cuda
 				// computation
 
-  force       = 0;		// Null out pointers
+				// Null out pointers
   orient      = 0;
 
   com         = 0;
@@ -104,6 +178,8 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   pBufSiz     = 100000;		// Default number particles in MPI-IO buffer
   blocking    = false;		// Default for MPI_File_write blocking
 
+  set_default_values();
+
   read_bodies_and_distribute_ascii();
 
   mdt_ctr = vector< vector<unsigned> > (multistep+1);
@@ -121,9 +197,56 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 
   pbuf.resize(PFbufsz);
 
-  // Already done in read_bodies_and_distribute_ascii()
-  // initialize();
+  // Enter unset defaults in YAML conf
+  //
+  if (CONF["parameters"]) CONF["parameters"] = cconf;
 }
+
+void Component::set_default_values()
+{
+  if (!cconf["EJ"])              cconf["EJ"]          = EJ;
+  if (!cconf["nEJkeep"])         cconf["nEJkeep"]     = nEJkeep;
+  if (!cconf["nEJwant"])         cconf["nEJwant"]     = nEJwant;
+  if (!cconf["EJkinE"])          cconf["EJkinE"]      = EJkinE;
+  if (!cconf["EJext"])           cconf["EJext"]       = EJext;
+  if (!cconf["EJdiag"])          cconf["EJdiag"]      = EJdiag;
+  if (!cconf["EJdryrun"])        cconf["EJdryrun"]    = EJdryrun;
+  if (!cconf["EJx0"])            cconf["EJx0"]        = EJx0;
+  if (!cconf["EJy0"])            cconf["EJy0"]        = EJy0;
+  if (!cconf["EJz0"])            cconf["EJz0"]        = EJz0;
+  if (!cconf["EJu0"])            cconf["EJu0"]        = EJu0;
+  if (!cconf["EJv0"])            cconf["EJv0"]        = EJv0;
+  if (!cconf["EJw0"])            cconf["EJw0"]        = EJw0;
+  if (!cconf["EJdT"])            cconf["EJdT"]        = EJdT;
+  if (!cconf["EJlinear"])        cconf["EJlinear"]    = EJlinear;
+  if (!cconf["EJdamp"])          cconf["EJdamp"]      = EJdamp;
+  if (!cconf["binary"])          cconf["binary"]      = binary;
+  if (!cconf["adiabatic"])       cconf["adiabatic"]   = adiabatic;
+  if (!cconf["ton"])             cconf["ton"]         = ton;
+  if (!cconf["toff"])            cconf["toff"]        = toff;
+  if (!cconf["twid"])            cconf["twid"]        = twid;
+  if (!cconf["rtrunc"])          cconf["rtrunc"]      = rtrunc;
+  if (!cconf["rcom"])            cconf["rcom"]        = rcom;
+  if (!cconf["consp"])           cconf["consp"]       = consp;
+  if (!cconf["tidal"])           cconf["tidal"]       = tidal;
+  if (!cconf["com_system"])      cconf["com_system"]  = com_system;
+  if (!cconf["comlog"])          cconf["comlog"]      = com_log;
+#if HAVE_LIBCUDA==1
+  if (!cconf["bunch"])           cconf["bunch"]       = bunchSize;
+#endif
+  if (!cconf["timers"])          cconf["timers"]      = timers;
+  if (!cconf["use_cuda"])        cconf["use_cuda"]    = use_cuda;
+  if (!cconf["com"])             cconf["com"]         = com_system;
+  if (!cconf["scheck"])          cconf["scheck"]      = seq_check;
+  if (!cconf["indexing"])        cconf["indexing"]    = indexing;
+  if (!cconf["aindex"])          cconf["aindex"]      = aindex;
+  if (!cconf["umagic"])          cconf["umagic"]      = umagic;
+  if (!cconf["nlevel"])          cconf["nlevel"]      = nlevel;
+  if (!cconf["keyPos"])          cconf["keyPos"]      = keyPos;
+  if (!cconf["pBufSiz"])         cconf["pBufSiz"]     = pBufSiz;
+  if (!cconf["blocking"])        cconf["blocking"]    = blocking;
+}
+
 
 void Component::HOTcreate(std::set<speciesKey> spec_list)
 {
@@ -369,8 +492,10 @@ void Component::print_level_lists(double T)
   }
 }
 
-Component::Component(istream *in)
+Component::Component(YAML::Node& CONF, istream *in) : conf(CONF)
 {
+  // Defaults
+
   EJ          = 0;
   nEJkeep     = 100;
   nEJwant     = 500;
@@ -458,140 +583,122 @@ Component::Component(istream *in)
 
 void Component::initialize(void)
 {
-				// Parse the parameters
-  StringTok<string> tokens(cparam);
-  pair<string, string> datum;
-
-  string token = tokens(",");	// Comma separated tokens
-
-  while (token.size()) {
-    StringTok<string> parse(token);
-    datum.first  = trimLeft(trimRight(parse("=")));
-    datum.second = trimLeft(trimRight(parse("=")));
-
-    if (!datum.first.compare("com"))      com_system = atoi(datum.second) ? true : false;
-
-    if (!datum.first.compare("comlog"))   com_log = atoi(datum.second) ? true : false;
-
-    if (!datum.first.compare("timers"))   timers = atoi(datum.second) ? true : false;
-
-
-    if (!datum.first.compare("use_cuda")) use_cuda = atoi(datum.second) ? true : false;
-
+  // Load parameters from YAML configuration node
+  try {
+    if (cconf["com"     ])  com_system = cconf["com"     ].as<bool>();
+    if (cconf["comlog"  ])     com_log = cconf["comlog"  ].as<bool>();
+    if (cconf["timers"  ])      timers = cconf["timers"  ].as<bool>();
+    if (cconf["use_cuda"])    use_cuda = cconf["use_cuda"].as<bool>();
+  
 #if HAVE_LIBCUDA==1
-    if (!datum.first.compare("bunch"))    bunchSize = atoi(datum.second);
+    if (cconf["bunch"   ])   bunchSize = cconf["bunch"   ].as<int>();
 #endif
 
-    if (!datum.first.compare("tidal"))    {tidal = atoi(datum.second); consp=true;}
+    if (cconf["tidal"]) {
+      tidal = cconf["tidal"].as<int>();
+      consp = true;
+    }
 
-    if (!datum.first.compare("EJ"))       EJ = atoi(datum.second.c_str());
+    if (cconf["EJ"      ])         EJ  = cconf["EJ"].as<int>();
+    if (cconf["eEJ0"    ] and myid==0)
+      std::cout << "Component: eEJ0 is no longer used, Ecurr is computed from the bodies using the expansion directly" << std::endl;
+    if (cconf["nEJkeep" ])    nEJkeep  = cconf["nEJkeep" ].as<int>();
+    if (cconf["nEJwant" ])    nEJwant  = cconf["nEJwant" ].as<int>();
+    if (cconf["EJx0"    ])       EJx0  = cconf["EJx0"    ].as<double>();
+    if (cconf["EJy0"    ])       EJy0  = cconf["EJy0"    ].as<double>();
+    if (cconf["EJz0"    ])       EJz0  = cconf["EJz0"    ].as<double>();
+    if (cconf["EJu0"    ])       EJu0  = cconf["EJu0"    ].as<double>();
+    if (cconf["EJv0"    ])       EJv0  = cconf["EJv0"    ].as<double>();
+    if (cconf["EJw0"    ])       EJw0  = cconf["EJw0"    ].as<double>();
+    if (cconf["EJdT"    ])       EJdT  = cconf["EJdT"    ].as<double>();
+    if (cconf["EJkinE"  ])     EJkinE  = cconf["EJkinE"  ].as<bool>();
+    if (cconf["EJext"   ])      EJext  = cconf["EJext"   ].as<bool>();
+    if (cconf["EJdiag"  ])     EJdiag  = cconf["EJdiag"  ].as<bool>();
+    if (cconf["EJdryrun"])   EJdryrun  = cconf["EJdryrun"].as<bool>();
+    if (cconf["EJlinear"])   EJlinear  = cconf["EJlinear"].as<bool>();
+    if (cconf["EJdamp"  ])     EJdamp  = cconf["EJdamp"  ].as<double>();
+    if (cconf["rmax"    ])       rmax  = cconf["rmax"    ].as<double>();
+    if (cconf["rtrunc"  ])     rtrunc  = cconf["rtrunc"  ].as<double>();
+    if (cconf["rcom"    ])       rcom  = cconf["rcom"    ].as<double>();
+    if (cconf["scheck"  ])  seq_check  = cconf["scheck"  ].as<bool>();
+    if (cconf["magic"   ])     umagic  = cconf["magic"   ].as<bool>();
+    if (cconf["indexing"])   indexing  = cconf["indexing"].as<bool>();
+    if (cconf["aindex"  ])     aindex  = cconf["aindex"  ].as<bool>();
+    if (cconf["nlevel"  ])     nlevel  = cconf["nlevel"  ].as<int>();
+    if (cconf["keypos"  ])     keyPos  = cconf["keypos"  ].as<int>();
+    if (cconf["pbufsiz" ])    pBufSiz  = cconf["pbufsiz" ].as<int>();
+    if (cconf["blocking"])   blocking  = cconf["blocking"].as<bool>();
+    if (cconf["ignore"  ]) ignore_info = cconf["ignore"  ].as<bool>();
     
-    if (!datum.first.compare("eEJ0"))     {if (myid==0) cout << "Component: eEJ0 is no longer used, Ecurr is computed from the bodies using the expansion directly" << endl;}
+    if (cconf["ton"]) {
+      ton = cconf["ton"].as<double>();
+      adiabatic = true;
+    }
 
-    if (!datum.first.compare("nEJkeep"))  nEJkeep = atoi(datum.second.c_str());
+    if (cconf["toff"]) {
+      toff = cconf["toff"].as<double>();
+      adiabatic = true;
+    }
 
-    if (!datum.first.compare("nEJwant"))  nEJwant = atoi(datum.second.c_str());
+    if (cconf["twid"]) {
+      twid = cconf["twid"].as<double>();
+      adiabatic = true;
+    }
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters for Component <"
+			   << name << ">: "
+			   << error.what()         << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << cconf                << std::endl
+			   << std::string(60, '-') << std::endl;
 
-    if (!datum.first.compare("EJx0"))     EJx0 = atof(datum.second.c_str());
-
-    if (!datum.first.compare("EJy0"))     EJy0 = atof(datum.second.c_str());
-
-    if (!datum.first.compare("EJz0"))     EJz0 = atof(datum.second.c_str());
-
-    if (!datum.first.compare("EJu0"))     EJu0 = atof(datum.second.c_str());
-
-    if (!datum.first.compare("EJv0"))     EJv0 = atof(datum.second.c_str());
-
-    if (!datum.first.compare("EJw0"))     EJw0 = atof(datum.second.c_str());
-
-    if (!datum.first.compare("EJdT"))     EJdT = atof(datum.second.c_str());
-
-    if (!datum.first.compare("EJkinE"))   EJkinE = atoi(datum.second.c_str()) ? true : false;
-
-    if (!datum.first.compare("EJext"))    EJext =  atoi(datum.second.c_str()) ? true : false;
-
-    if (!datum.first.compare("EJdiag"))   EJdiag = atoi(datum.second.c_str()) ? true : false;
-
-    if (!datum.first.compare("EJdryrun")) EJdryrun = atoi(datum.second.c_str()) ? true : false;
-
-    if (!datum.first.compare("EJlinear")) EJlinear = atoi(datum.second.c_str()) ? true : false;
-
-    if (!datum.first.compare("EJdamp"))   EJdamp = atof(datum.second.c_str());
-
-    if (!datum.first.compare("rmax"))     rmax = atof(datum.second.c_str());
-
-    if (!datum.first.compare("ton"))      {ton = atof(datum.second.c_str()); adiabatic = true;}
-
-    if (!datum.first.compare("toff"))     {toff= atof(datum.second.c_str()); adiabatic = true;}
-
-    if (!datum.first.compare("twid"))     {twid = atof(datum.second.c_str()); adiabatic = true;}
-
-    if (!datum.first.compare("rtrunc"))   {rtrunc = atof(datum.second.c_str());}
-
-    if (!datum.first.compare("rcom"))     {rcom = atof(datum.second.c_str());}
-    
-    if (!datum.first.compare("scheck"))   seq_check = atoi(datum.second.c_str()) ? true : false;
-
-    if (!datum.first.compare("magic"))    umagic = atoi(datum.second.c_str()) ? true : false;
-
-    if (!datum.first.compare("indexing")) indexing = atoi(datum.second.c_str()) ? true : false;
-
-    if (!datum.first.compare("aindex"))   aindex = atoi(datum.second.c_str()) ? true : false;
-
-    if (!datum.first.compare("nlevel"))   nlevel = atoi(datum.second.c_str());
-
-    if (!datum.first.compare("keypos"))   keyPos = atoi(datum.second.c_str());
-
-    if (!datum.first.compare("pbufsiz"))  pBufSiz = atoi(datum.second.c_str());
-
-    if (!datum.first.compare("blocking")) blocking = atoi(datum.second.c_str()) ? true : false;
-
-
-				// Next parameter
-    token = tokens(",");
+    MPI_Finalize();
+    exit(-1);
   }
 
-
-				// Instantiate the force ("reflection" by hand)
-
+  // Instantiate the force ("reflection" by hand)
+  //
   if ( !id.compare("bessel") ) {
-    force = new Bessel(fparam);
+    force = new Bessel(fconf);
   }
   else if ( !id.compare("c_brock") ) {
-    force = new CBrock(fparam);
+    force = new CBrock(fconf);
   }
   else if ( !id.compare("c_brock_disk") ) {
-    force = new CBrockDisk(fparam);
+    force = new CBrockDisk(fconf);
   }
   else if ( !id.compare("hernq") ) {
-    force = new Hernquist(fparam);
+    force = new Hernquist(fconf);
   }
   else if ( !id.compare("sphereSL") ) {
-    force = new Sphere(fparam);
+    force = new Sphere(fconf);
   }
   else if ( !id.compare("EJcom") ) {
-    force = new EJcom(fparam);
+    force = new EJcom(fconf);
   }
   else if ( !id.compare("cube") ) {
-    force = new Cube(fparam);
+    force = new Cube(fconf);
   }
   else if ( !id.compare("slab") ) {
-    force = new Slab(fparam);
+    force = new Slab(fconf);
   }
   else if ( !id.compare("slabSL") ) {
-    force = new SlabSL(fparam);
+    force = new SlabSL(fconf);
   }
   else if ( !id.compare("cylinder") ) {
-    force = new Cylinder(fparam);
+    force = new Cylinder(fconf);
   }
   else if ( !id.compare("direct") ) {
-    force = new Direct(fparam);
+    force = new Direct(fconf);
   }
   else if ( !id.compare("shells") ) {
-    force = new Shells(fparam);
+    force = new Shells(fconf);
   }
   else if ( !id.compare("noforce") ) {
-    force = new NoForce(fparam);
+    force = new NoForce(fconf);
   }
   else {
     string msg("I don't know about the force: ");
@@ -1171,22 +1278,72 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
 				// Parse info field to get 
 				// id and parameter strings
-  StringTok<string> tokens(info.get());
-  name   = trimLeft(trimRight(tokens(":")));
-  id     = trimLeft(trimRight(tokens(":")));
-  cparam = trimLeft(trimRight(tokens(":")));
-  fparam = trimLeft(trimRight(tokens(":")));
+  YAML::Node config;
 
+  if (ignore_info) {
+    config = cconf;
+  } else {
+    std::istringstream sin(info.get());
+    config = YAML::Load(sin);
+  }
+
+  try {
+    name  = config["name"].as<std::string>();
+    cconf = config["parameters"];
+    pfile = config["bodyfile"].as<std::string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing YAML in PSP file: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << config               << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+
+  YAML::Node force;
+    
+  try {
+    force = config["force"];
+    id    = force["id"].as<std::string>();
+    fconf = force["parameters"];
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing YAML force stanza in PSP file: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << config               << std::endl
+			   << std::string(60, '-') << std::endl;
+
+    MPI_Finalize();
+    exit(-1);
+  }
+
+  // Assign local conf
+  //
+  conf["name"]       = name;
+  conf["parameters"] = cconf;
+  conf["bodyfile"]   = pfile;
+  conf["force"]      = force;
 				// Informational output
-  if (myid==0)
-    cout << setw(60) << setfill('-') << "-" << endl << setfill(' ')
-	 << "--- New Component" << endl
-	 << setw(20) << " name   :: " << name           << endl
-	 << setw(20) << " id     :: " << id             << endl
-	 << setw(20) << " cparam :: " << cparam         << endl
-	 << setw(20) << " fparam :: " << fparam         << endl
-	 << setw(60) << setfill('-') << "-" << endl << setfill(' ');
+  if (myid==0)  {
+    cconf.SetStyle(YAML::EmitterStyle::Flow);
+    fconf.SetStyle(YAML::EmitterStyle::Flow);
 
+    cout << std::string(60, '-') << endl
+	 << "--- New Component"  << endl
+	 << setw(20) << " name   :: " << name        << endl
+	 << setw(20) << " id     :: " << id          << endl
+	 << setw(20) << " cparam :: " << cconf       << endl
+	 << setw(20) << " fparam :: " << fconf       << endl
+	 << std::string(60, '-') << endl;
+  }
+  
   double rmax1=0.0, r2;
 
   if (nbodies_tot > nbodmax*numprocs) {
@@ -1456,12 +1613,7 @@ PartPtr * Component::get_particles(int* number)
 	  cout << "Component [" << myid << "]: sending ";
 	  cout << setw(3) << icount
 	       << setw(14) << pp->mass
-#ifdef INT128
-	       << setw(18) << pp->key.toHex()
-#else
-	       << setw(18) << hex << pp->key << dec
-#endif
-	    ;
+	       << setw(18) << hex << pp->key << dec;
 	  for (int k=0; k<3; k++) cout << setw(14) << pp->pos[k];
 	  cout << endl;
 	}
@@ -1563,9 +1715,29 @@ void Component::write_binary(ostream* out, bool real4)
     header.niatr = niattrib;
     header.ndatr = ndattrib;
   
-    ostringstream outs;
-    outs << name << " : " << id << " : " << cparam << " : " << fparam;
+    std::ostringstream outs;
+    if (conf.Type() != YAML::NodeType::Null) outs << conf;
+
+    // Resize info string, if necessary
+    size_t infosz = outs.str().size() + 4;
+    if (header.ninfochar < outs.str().size()) {
+      header.ninfochar = outs.str().size();
+      header.info = boost::shared_array<char>(new char [header.ninfochar]);
+    }
+
+    // Copy to info string
     strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
+
+    // DEBUGGING
+    if (false and myid==0) {
+      std::cout << std::string(72, '-') << std::endl
+		<< "Serialized YAML header looks like this:" << std::endl
+		<< std::string(72, '-') << std::endl
+		<< outs.str() << std::endl
+		<< "Cur size=" << outs.str().size()
+		<< " max size=" << header.ninfochar << std::endl
+		<< std::string(72, '-') << std::endl;
+    }
 
     if (real4) rsize = sizeof(float);
     else       rsize = sizeof(double);
@@ -1656,8 +1828,8 @@ void Component::write_binary_mpi_b(MPI_File& out, MPI_Offset& offset, bool real4
     header.niatr = niattrib;
     header.ndatr = ndattrib;
   
-    ostringstream outs;
-    outs << name << " : " << id << " : " << cparam << " : " << fparam;
+    std::ostringstream outs;
+    outs << conf;
     strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
 
     unsigned long cmagic = magic + rsize;
@@ -1750,8 +1922,8 @@ void Component::write_binary_mpi_i(MPI_File& out, MPI_Offset& offset, bool real4
     header.niatr = niattrib;
     header.ndatr = ndattrib;
   
-    ostringstream outs;
-    outs << name << " : " << id << " : " << cparam << " : " << fparam;
+    std::ostringstream outs;
+    outs << conf;
     strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
 
     unsigned long cmagic = magic + rsize;

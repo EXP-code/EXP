@@ -10,44 +10,58 @@
 #include <AxisymmetricBasis.H>
 #include <OutPSP.H>
 
-OutPSP::OutPSP(string& line) : Output(line)
+OutPSP::OutPSP(const YAML::Node& conf) : Output(conf)
 {
   initialize();
 }
 
 void OutPSP::initialize()
 {
-  string tmp;
+  try {
 				// Get file name
-  if (!Output::get_value(string("filename"), filename)) {
-    filename.erase();
-    filename = outdir + "OUT." + runtag;
+    if (Output::conf["filename"])
+      filename = Output::conf["filename"].as<std::string>();
+    else {
+      filename.erase();
+      filename = outdir + "OUT." + runtag;
+    }
+
+    if (Output::conf["nint"])
+      nint = Output::conf["nint"].as<int>();
+    else
+      nint = 100;
+    
+    if (Output::conf["nbeg"])
+      nbeg = Output::conf["nbeg"].as<int>();
+    else
+      nbeg = 0;
+
+    if (Output::conf["real4"])
+      real4 = Output::conf["real4"].as<bool>();
+    else
+      real4 = false;
+
+    if (Output::conf["timer"])
+      timer = Output::conf["timer"].as<bool>();
+    else
+      timer = false;
+
+    if (Output::conf["nagg"])
+      nagg = Output::conf["nagg"].as<std::string>();
+    else
+      nagg = "1";
   }
-
-  if (Output::get_value(string("nint"), tmp))
-    nint = atoi(tmp.c_str());
-  else
-    nint = 100;
-
-  if (Output::get_value(string("nbeg"), tmp))
-    nbeg = atoi(tmp.c_str());
-  else
-    nbeg = 0;
-
-  if (Output::get_value(string("real4"), tmp))
-    real4 = atoi(tmp.c_str()) ? true : false;
-  else
-    real4 = false;
-
-  if (Output::get_value(string("timer"), tmp))
-    timer = atoi(tmp.c_str()) ? true : false;
-  else
-    timer = false;
-
-  if (Output::get_value(string("nagg"), tmp))
-    nagg = tmp;
-  else
-    nagg = "1";
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in OutPSP: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
 				// Determine last file
   if (restart && nbeg==0) {

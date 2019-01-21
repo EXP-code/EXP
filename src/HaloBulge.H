@@ -40,7 +40,7 @@ private:
 public:
 
   //! Constructor
-  HaloBulge(string& line);
+  HaloBulge(const YAML::Node& conf);
 
 };
 

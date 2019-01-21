@@ -7,7 +7,7 @@
 #include <UserHalo.H>
 
 
-UserHalo::UserHalo(string &line) : ExternalForce(line)
+UserHalo::UserHalo(const YAML::Node& conf) : ExternalForce(conf)
 {
 
   id = "SphericalHalo";		// Halo model file
@@ -80,17 +80,27 @@ void UserHalo::userinfo()
 
 void UserHalo::initialize()
 {
-  string val;
-
-  if (get_value("model_file", val))	model_file = val;
-  if (get_value("q1", val))	        q1 = atof(val.c_str());
-  if (get_value("q2", val))	        q2 = atof(val.c_str());
-  if (get_value("q3", val))	        q3 = atof(val.c_str());
-  if (get_value("diverge", val))	diverge = atoi(val.c_str());
-  if (get_value("diverge_rfac", val))	diverge_rfac = atof(val.c_str());
-  if (get_value("ctrname", val))	ctr_name = val;
-}
-
+  try {
+    if (conf["model_file"])     model_file         = conf["model_file"].as<string>();
+    if (conf["q1"])             q1                 = conf["q1"].as<double>();
+    if (conf["q2"])             q2                 = conf["q2"].as<double>();
+    if (conf["q3"])             q3                 = conf["q3"].as<double>();
+    if (conf["diverge"])        diverge            = conf["diverge"].as<int>();
+    if (conf["diverge_rfac"])   diverge_rfac       = conf["diverge_rfac"].as<double>();
+    if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserHalo: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+}  
 
 void UserHalo::determine_acceleration_and_potential(void)
 {
@@ -198,9 +208,9 @@ void * UserHalo::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerHalo(string& line)
+  ExternalForce *makerHalo(const YAML::Node& conf)
   {
-    return new UserHalo(line);
+    return new UserHalo(conf);
   }
 }
 

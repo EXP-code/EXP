@@ -6,10 +6,6 @@
 #include <map>
 #include <set>
 
-#ifdef INT128
-#include <uint128.H>
-#endif
-
 using namespace std;
 using namespace __gnu_cxx;
 
@@ -17,11 +13,7 @@ class pCell;
 struct Partstruct;
 
 typedef unsigned long indx_type;
-#ifdef INT128
-typedef uint128 key_type;
-#else
 typedef unsigned long key_type;
-#endif
 typedef pair<key_type, indx_type> key_pair;
 typedef pair<key_type, key_pair>  key_item;
 typedef pair<pCell*, indx_type>   cell_indx;
@@ -41,17 +33,10 @@ struct ltPAIR {
   }
 };
 
-#ifdef INT128
-struct hashULL {
-  size_t operator()(uint128 __i) const
-  { return static_cast<size_t>(__i.toUint()); }
-};
-#else
 struct hashULL {
   size_t operator()(unsigned long __i) const
   { return static_cast<size_t>(__i); }
 };
-#endif
 
 				// For cell transaction list
 typedef vector<cell_indx> change_list;

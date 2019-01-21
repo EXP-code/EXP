@@ -6,7 +6,6 @@
 #include <string>
 
 #include <Vector.h>
-#include <ParamDatabase.H>
 #include <Trajectory.H>
 
 //! Computes a linear satellite trajectory
@@ -25,7 +24,7 @@ private:
 public:
 
   //! Constructor
-  LinearOrbit(const string &file);
+  LinearOrbit(const YAML::Node& conf);
 
   //! Destructor
   ~LinearOrbit(void);

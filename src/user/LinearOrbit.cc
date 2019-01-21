@@ -40,7 +40,8 @@
 #include <cmath>
 #include <string>
 
-#include <kevin_complex.h>
+#include <yaml-cpp/yaml.h>
+
 #include <Vector.h>
 #include <orbit.h>
 #include <LinearOrbit.H>
@@ -52,57 +53,62 @@ using namespace std;
 
 Matrix return_euler_slater(double PHI, double THETA, double PSI, int BODY);
 
-				// Default input parameters (storage)
-
-static database_record init[] = {
-  {"Vsat",	"double",	"1.0"},
-  {"X0",	"double",	"0.0"},
-  {"Y0",	"double",	"0.0"},
-  {"Z0",	"double",	"0.0"},
-  {"PHIP",	"double",	"0.0"},
-  {"THETA",	"double",	"0.0"},
-  {"PSI",	"double",	"0.0"},
-  {""		"",		""}
-};
-
 // ===================================================================
 // Constructor
 // ===================================================================
 
-LinearOrbit::LinearOrbit(const string &conf)
+LinearOrbit::LinearOrbit(const YAML::Node& conf)
 {
-  config = new ParamDatabase(init);
-  config->parseFile(conf);
-
 // =================================
 // Initialize parameters
 // =================================
 
-  X0 = config->get<double>("X0");
-  Y0 = config->get<double>("Y0");
-  Z0 = config->get<double>("Z0");
-  Vsat  = config->get<double>("Vsat");
+  X0    = 0.0;
+  Y0    = 0.0;
+  Z0    = 0.0;
+  Vsat  = 1.0;
 
-  double THETA   = config->get<double>("THETA")   * M_PI/180.0;
-  double PSI     = config->get<double>("PSI")     * M_PI/180.0;
-  double PHIP    = config->get<double>("PHIP")    * M_PI/180.0;
+  double PHIP  = 0.0;
+  double THETA = 0.0;
+  double PSI   = 0.0;
 
-  rotate  = return_euler_slater(PHIP, THETA, PSI, 1);
+  try {
+    if (conf["X0"])      X0      = conf["X0"   ].as<double>();
+    if (conf["Y0"])      Y0      = conf["Y0"   ].as<double>();
+    if (conf["Z0"])      Z0      = conf["Z0"   ].as<double>();
+    if (conf["Vsat"])    Vsat    = conf["Vsat" ].as<double>();
+    if (conf["THETA"])   THETA   = conf["THETA"].as<double>() * M_PI/180.0;
+    if (conf["PSI"])     PSI     = conf["PSI"  ].as<double>() * M_PI/180.0;
+    if (conf["PHIP"])    PHIP    = conf["PHIP" ].as<double>() * M_PI/180.0;
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in LinearOrbit: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+
+  rotate = return_euler_slater(PHIP, THETA, PSI, 1);
 
   if (myid==0) {
     
     Vector a(1, 3), b(1, 3);
-    a[1] = config->get<double>("X0"); 
-    a[2] = config->get<double>("Y0");
-    a[3] = config->get<double>("Z0"); 
+    a[1] = X0;
+    a[2] = Y0;
+    a[3] = Z0;
 
     cout << "LinearOrbit initialized with:" << endl << left
 	 << setw(5) << "" << setw(10) << "THETA" << " = "
-	 << config->get<double>("THETA") << endl
+	 << THETA * 180.0/M_PI << endl
 	 << setw(5) << "" << setw(10) << "PSI "  << " = " 
-	 << config->get<double>("PSI")   << endl
+	 << PSI * 180.0/M_PI   << endl
 	 << setw(5) << "" << setw(10) << "PHIP"  << " = " 
-	 << config->get<double>("PHIP") << endl
+	 << PHIP * 180.0/M_PI << endl
 	 << "Initial position and velocity is:" << endl
 	 << setw(5) << "" << setw(10) << "(X, Y, Z)" 
 	 << " = (" << a[1]
@@ -137,12 +143,12 @@ LinearOrbit::LinearOrbit(const string &conf)
 
 
 // ===================================================================
-// Destructior
+// Destructor
 // ===================================================================
 
 LinearOrbit::~LinearOrbit(void)
 {
-  delete config;
+  // Nothing
 }
 
 Vector LinearOrbit::get_satellite_orbit(double t)

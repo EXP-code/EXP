@@ -265,7 +265,7 @@ protected:
 public:
 
   //! Constructor (<code>line</code> contains the paramter list)
-  SphericalBasis(string& line, MixtureBasis *m=0);
+  SphericalBasis(const YAML::Node& conf, MixtureBasis *m=0);
 
   //! Copy constructor
   SphericalBasis(const SphericalBasis& p);

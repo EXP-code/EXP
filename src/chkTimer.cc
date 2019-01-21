@@ -108,7 +108,7 @@ bool CheckpointTimer::done()
     // Zero otherwise
   }
 
-  MPI_Bcast(&flg, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&flg, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
 
 
   //

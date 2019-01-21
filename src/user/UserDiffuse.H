@@ -81,7 +81,7 @@ private:
 public:
 
   //! Constructor
-  UserDiffuse(string &line);
+  UserDiffuse(const YAML::Node& conf);
 
   //! Destructor
   ~UserDiffuse();

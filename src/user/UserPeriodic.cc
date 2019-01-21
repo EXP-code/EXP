@@ -14,7 +14,7 @@ template <typename T> int sgn(T val) {
     return (T(0) < val) - (val < T(0));
 }
 
-UserPeriodic::UserPeriodic(string &line) : ExternalForce(line)
+UserPeriodic::UserPeriodic(const YAML::Node& conf) : ExternalForce(conf)
 {
   (*barrier)("Periodic: BEGIN construction", __FILE__, __LINE__);
 
@@ -132,49 +132,62 @@ void UserPeriodic::userinfo()
 
 void UserPeriodic::initialize()
 {
-  string val;
-
-  if (get_value("compname", val))	comp_name = val;
-
-  if (get_value("sx", val))	        L[0] = atof(val.c_str());
-  if (get_value("sy", val))	        L[1] = atof(val.c_str());
-  if (get_value("sz", val))	        L[2] = atof(val.c_str());
-
-  if (get_value("cx", val))	        offset[0] = atof(val.c_str());
-  if (get_value("cy", val))	        offset[1] = atof(val.c_str());
-  if (get_value("cz", val))	        offset[2] = atof(val.c_str());
-
-  if (get_value("dT", val))	        dT = atof(val.c_str());
-  if (get_value("nbin", val))	        nbin = atoi(val.c_str());
-  if (get_value("tcol", val))	        tcol = atoi(val.c_str());
-
-  if (get_value("vunit", val))		vunit = atof(val.c_str());
-  if (get_value("temp", val))		temp = atof(val.c_str());
-
-  thermal = false;
-
-  if (get_value("btype", val)) {
-    if (strlen(val.c_str()) >= 3) {
-      for (int k=0; k<3; k++) {
-	switch (val.c_str()[k]) {
-	case 'p':
-	  bc[k] = 'p';		// Periodic
-	  break;
-	case 'r':
-	  bc[k] = 'r';		// Reflection
-	  break;
-	case 't':		// Thermal
-	  bc[k] = 't';
-	  thermal = true;
-	  break;
-	default:
-	  bc[k] = 'v';		// Vacuum
-	  break;
+  try {
+    if (conf["compname"])       comp_name          = conf["compname"].as<string>();
+    
+    if (conf["sx"])             L[0]               = conf["sx"].as<double>();
+    if (conf["sy"])             L[1]               = conf["sy"].as<double>();
+    if (conf["sz"])             L[2]               = conf["sz"].as<double>();
+    
+    if (conf["cx"])             offset[0]          = conf["cx"].as<double>();
+    if (conf["cy"])             offset[1]          = conf["cy"].as<double>();
+    if (conf["cz"])             offset[2]          = conf["cz"].as<double>();
+    
+    if (conf["dT"])             dT                 = conf["dT"].as<double>();
+    if (conf["nbin"])           nbin               = conf["nbin"].as<int>();
+    if (conf["tcol"])           tcol               = conf["tcol"].as<int>();
+    
+    if (conf["vunit"])          vunit              = conf["vunit"].as<double>();
+    if (conf["temp"])           temp               = conf["temp"].as<double>();
+    
+    
+    thermal = false;
+    
+    if (conf["btype"]) {
+      std::string val = conf["btype"].as<std::string>();
+      if (strlen(val.c_str()) >= 3) {
+	for (int k=0; k<3; k++) {
+	  switch (val.c_str()[k]) {
+	  case 'p':
+	    bc[k] = 'p';		// Periodic
+	    break;
+	  case 'r':
+	    bc[k] = 'r';		// Reflection
+	    break;
+	  case 't':		// Thermal
+	    bc[k] = 't';
+	    thermal = true;
+	    break;
+	  default:
+	    bc[k] = 'v';		// Vacuum
+	    break;
+	  }
 	}
       }
     }
   }
-  
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserPeriodic: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+    
   // Check for thermal type
   if (thermal && c0->keyPos<0) {
     if (myid==0) {
@@ -183,7 +196,6 @@ void UserPeriodic::initialize()
     }
     MPI_Abort(MPI_COMM_WORLD, 36);
   }
-
 }
 
 
@@ -374,9 +386,9 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerPeriodic(string& line)
+  ExternalForce *makerPeriodic(const YAML::Node& conf)
   {
-    return new UserPeriodic(line);
+    return new UserPeriodic(conf);
   }
 }
 

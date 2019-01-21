@@ -59,81 +59,95 @@
 #include <localmpi.h>
 #include <global.H>
 #include <SatelliteOrbit.h>
-#include <ParamDatabase.H>
 				// External prototype for Euler matrix
 
 Matrix return_euler(double PHI, double THETA, double PSI, int BODY);
-
-				// Default input parameters (storage)
-
-static database_record init[] = {
-  {"HALO_MODEL",	"int",		"0"  },
-  {"PERI",		"double",	"0.5"},
-  {"APO",		"double",	"1.0"},
-  {"RSAT",		"double",	"1.0"},
-  {"INCLINE",		"double",	"45.0"},	  
-  {"PSI",		"double",	"0.0"},
-  {"PHIP",		"double",	"0.0"},
-  {"VROT",		"double",	"1.0"},
-  {"RCORE",		"double",	"1.0"},
-  {"RMODMIN",		"double", 	"1.0e-3"},
-  {"RMODMAX",		"double", 	"20.0"},
-  {"RA",		"double", 	"1.0e20"},
-  {"DIVERGE",		"int", 		"0"},
-  {"NUMDF",		"int", 		"100"},
-  {"MAXIT",		"int", 		"2000"},
-  {"NRECS",		"int", 		"512"},
-  {"DIVERGE_RFAC",	"double",	"1.0"},
-  {"CIRCULAR",		"bool",		"false"},
-  {"MODFILE",		"string",	"halo.model"},
-  {"",			"",    		""}
-};
 
 // ===================================================================
 // Constructor
 // ===================================================================
 
-SatelliteOrbit::SatelliteOrbit(const string &conf)
+SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
 {
-  config = new ParamDatabase(init);
-  config->parseFile(conf);
+  // Default parameters values
+  //
+  int    HALO_MODEL   = 0;
+  double PERI         = 0.5;
+  double APO          = 1.0;
+  double RSAT         = 1.0;
+  double INCLINE      = 45.0;
+  double PSI          = 0.0;
+  double PHIP         = 0.0;
+  double VROT         = 1.0;
+  double RCORE        = 1.0;
+  double RMODMIN      = 1.0e-3;
+  double RMODMAX      = 20.0;
+  double RA           = 1.0e20;
+  int DIVERGE         = 0;
+  int MAXIT           = 2000;
+  double DIVRG_RFAC   = 1.0;
+  bool CIRCULAR       = false;
+  std::string MODFILE = "halo.model";
+
+  // Get configured values
+  //
+  try {
+    if (conf["HALO_MODEL"])  HALO_MODEL   = conf["HALO_MODEL"].as<int>();
+    if (conf["PERI"      ])  PERI         = conf["PERI"      ].as<double>();
+    if (conf["APO"       ])  APO          = conf["APO"       ].as<double>();
+    if (conf["RSAT"      ])  RSAT         = conf["RSAT"      ].as<double>();
+    if (conf["INCLINE"   ])  INCLINE      = conf["INCLINE"   ].as<double>();
+    if (conf["PSI"       ])  PSI          = conf["PSI"       ].as<double>();
+    if (conf["PHIP"      ])  PHIP         = conf["PHIP"      ].as<double>();
+    if (conf["VROT"      ])  VROT         = conf["VROT"      ].as<double>();
+    if (conf["RCORE"     ])  VROT         = conf["RCORE"     ].as<double>();
+    if (conf["RMODMIN"   ])  RMODMIN      = conf["RMODMIN"   ].as<double>();
+    if (conf["RMODMAX"   ])  RMODMAX      = conf["RMODMAX"   ].as<double>();
+    if (conf["RA"        ])  RA           = conf["RA"        ].as<double>();
+    if (conf["DIVERGE"   ])  DIVERGE      = conf["DIVERGE"   ].as<int>();
+    if (conf["MAXIT"     ])  MAXIT        = conf["MAXIT"     ].as<int>();
+    if (conf["DIVRG_RFAC"])  DIVRG_RFAC   = conf["DIVRG_RFAC"].as<double>();
+    if (conf["CIRCULAR"  ])  CIRCULAR     = conf["CIRCULAR"  ].as<bool>();
+    if (conf["MODFILE"   ])  MODFILE      = conf["MODFILE"   ].as<std::string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in SatelliteOrbit: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
 				// Initilize HALO model
-  switch (config->get<int>("HALO_MODEL")) {
+  switch (HALO_MODEL) {
   case file:
-    m = new SphericalModelTable(
-				config->get<string>("MODFILE"), 
-				config->get<int>("DIVERGE"), 
-				config->get<double>("DIVERGE_RFAC")
-				);
-    m->setup_df(config->get<int>("NUMDF"), config->get<double>("RA"));
+    m = new SphericalModelTable(MODFILE, DIVERGE, DIVRG_RFAC);
+    m->setup_df(RA);
     halo_model = m;
 				// Assign filename to ID string
-    Model3dNames[0] = config->get<string>("MODFILE");
+    Model3dNames[0] = MODFILE;
     break;
     
   case sing_isothermal:
-    halo_model = new SingIsothermalSphere(
-					  config->get<double>("VROT"), 
-					  config->get<double>("RMODMIN"),
-					  config->get<double>("RMODMAX")
-					  );
+    halo_model = new SingIsothermalSphere(VROT, RMODMIN, RMODMAX);
     break;
 
   case isothermal:
-    halo_model = new IsothermalSphere(config->get<double>("RCORE"), 
-				      config->get<double>("RMODMAX"), 
-				      config->get<double>("VROT"));
+    halo_model = new IsothermalSphere(RCORE, RMODMAX, VROT);
     break;
 
   case hernquist_model:
     halo_model = new HernquistSphere(1.0, // Halo model
-				     config->get<double>("RMODMIN"), 
-				     config->get<double>("RMODMAX"));
+				     RMODMIN, 
+				     RMODMAX);
     break; 
 
   default:
-    cerr << "Illegal HALO model: " << config->get<int>("HALO_MODEL") << '\n';
+    cerr << "Illegal HALO model: " << HALO_MODEL << '\n';
     exit(-1);
   }
   
@@ -141,10 +155,6 @@ SatelliteOrbit::SatelliteOrbit(const string &conf)
 // ===================================================================
 // Setup orbit
 // ===================================================================
-
-  double INCLINE = config->get<double>("INCLINE");
-  double PSI     = config->get<double>("PSI");
-  double PHIP    = config->get<double>("PHIP");
     
   INCLINE *= M_PI/180.0;
   PSI     *= M_PI/180.0;
@@ -157,22 +167,20 @@ SatelliteOrbit::SatelliteOrbit(const string &conf)
 				// In case non-inertial is not desired
   omega = domega = 0.0;
 
-  circ = config->get<bool>("CIRCULAR");
+  if (CIRCULAR) {
 
-  if (circ) {
-
-    rsat = config->get<double>("RSAT");
+    rsat = RSAT;
     vsat = sqrt(rsat*halo_model->get_dpot(rsat));
     Omega = vsat/rsat;
 
   } else {
 
-    FindOrb::MAXIT = config->get<int>("MAXIT");
+    FindOrb::MAXIT = MAXIT;
 
     orb = new FindOrb(
 		      halo_model,
-		      config->get<double>("PERI"), 
-		      config->get<double>("APO")
+		      PERI, 
+		      APO
 		      );
 
     OrbValues ret = orb->Anneal();
@@ -239,7 +247,6 @@ SatelliteOrbit::~SatelliteOrbit(void)
   else   delete halo_model;
   
   delete orb;
-  delete config;
 }
 
 Vector SatelliteOrbit::get_satellite_orbit(double T)

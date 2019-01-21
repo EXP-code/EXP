@@ -29,7 +29,7 @@ private:
 public:
 
   //! Constructor
-  SatFix(string &line);
+  SatFix(const YAML::Node& conf);
 
   //! Destructor
   ~SatFix();
@@ -43,9 +43,9 @@ public:
 
 
 extern "C" {
-  ExternalForce *makerSatFix(string& line)
+  ExternalForce *makerSatFix(const YAML::Node& conf)
   {
-    return new SatFix(line);
+    return new SatFix(conf);
   }
 }
 

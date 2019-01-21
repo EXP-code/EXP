@@ -39,7 +39,6 @@
 #include <cmath>
 #include <string>
 
-#include <kevin_complex.h>
 #include <Vector.h>
 #include <orbit.h>
 #include <massmodel.h>
@@ -58,78 +57,105 @@ using namespace std;
 
 Matrix return_euler_slater(double PHI, double THETA, double PSI, int BODY);
 
-				// Default input parameters (storage)
-
-static database_record init[] = {
-  {"MODEL",	"int",		"0"},
-  {"DIVERGE",	"int",		"0"},
-  {"DIVEXPON",	"double",	"1.0"},
-  {"RCORE",	"double",	"1.0"},
-  {"E",		"double",	"0.0"},
-  {"Rperi",	"double",	"0.1"},
-  {"Redge",	"double",	"2.0"},
-  {"deltaR",	"double",	"0.01"},
-  {"RMODMIN",	"double",	"1.0e-3"},
-  {"RMODMAX",	"double",	"20.0"},
-  {"VROT",	"double",	"1.0"},
-  {"rmin",	"double",	"-1.0"},
-  {"rmax",	"double",	"-1.0"},
-  {"PHIP",	"double",	"178.45"},
-  {"THETA",	"double",	"114.89"},
-  {"PSI",	"double",	"54.05"},
-  {"INFILE",	"string",	"SLGridSph.model"},
-  {"orbfile",	"bool",		"true"},
-  {""		"",		""}
-};
-
 // ===================================================================
 // Constructor
 // ===================================================================
 
-UnboundOrbit::UnboundOrbit(const string &conf)
+UnboundOrbit::UnboundOrbit(const YAML::Node& conf)
 {
-  config = new ParamDatabase(init);
-  config->parseFile(conf);
+  // Default parameters
+  //
+  int     MODEL          = 0;
+  int     DIVERGE        = 0;
+  double  DIVEXPON       = 1.0;
+  double  RCORE          = 1.0;
+  double  E              = 0.0;
+  double  Rperi          = 0.1;
+  double  Redge          = 2.0;
+  double  deltaR         = 0.01;
+  double  RMODMIN        = 1.0e-3;
+  double  RMODMAX        = 20.0;
+  double  VROT           = 1.0;
+  double  rmin           = -1.0;
+  double  rmax           = -1.0;
+  double  PHIP           = 178.45;
+  double  THETA          = 114.89;
+  double  PSI            = 54.05;
+  string  INFILE         = "SLGridSph.model";
+  bool    orbfile        = true;
+
+  // Configured parameters
+  //
+  try {
+    if (conf["MODEL"])      MODEL = conf["MODEL"].as<int>();
+    if (conf["DIVERGE"])    DIVERGE = conf["DIVERGE"].as<int>();
+    if (conf["DIVEXPON"])   DIVEXPON = conf["DIVEXPON"].as<double>();
+    if (conf["RCORE"])      RCORE = conf["RCORE"].as<double>();
+    if (conf["E"])          E = conf["E"].as<double>();
+    if (conf["Rperi"])      Rperi = conf["Rperi"].as<double>();
+    if (conf["Redge"])      Redge = conf["Redge"].as<double>();
+    if (conf["deltaR"])     deltaR = conf["deltaR"].as<double>();
+    if (conf["RMODMIN"])    RMODMIN = conf["RMODMIN"].as<double>();
+    if (conf["RMODMAX"])    RMODMAX = conf["RMODMAX"].as<double>();
+    if (conf["VROT"])       VROT = conf["VROT"].as<double>();
+    if (conf["rmin"])       rmin = conf["rmin"].as<double>();
+    if (conf["rmax"])       rmax = conf["rmax"].as<double>();
+    if (conf["PHIP"])       PHIP = conf["PHIP"].as<double>();
+    if (conf["THETA"])      THETA = conf["THETA"].as<double>();
+    if (conf["PSI"])        PSI = conf["PSI"].as<double>();
+    if (conf["INFILE"])     INFILE = conf["INFILE"].as<string>();
+    if (conf["orbfile"])    orbfile = conf["orbfile"].as<bool>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UnboundOrbit: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
+
 
   m = 0;
   model = 0;
 
-  switch (config->get<int>("MODEL")) {
+  switch (MODEL) {
 
   case file:
-    m = new SphericalModelTable(config->get<string>("INFILE"), 
-				config->get<int   >("DIVERGE"),
-				config->get<double>("DIVEXPON"));
+    m = new SphericalModelTable(INFILE, 
+				DIVERGE,
+				DIVEXPON);
     model = m;
 				// Assign filename to ID string
-    Model3dNames[0] = config->get<string>("INFILE");
+    Model3dNames[0] = INFILE;
     break;
 
   case sing_isothermal:
     model = new SingIsothermalSphere(1.0, 
-				     config->get<double>("RMODMIN"),
-				     config->get<double>("RMODMAX"));
+				     RMODMIN,
+				     RMODMAX);
     break;
 
   case isothermal:
-    model = new IsothermalSphere(config->get<double>("RCORE"),
-				 config->get<double>("RMODMAX"),
-				 config->get<double>("VROT"));
+    model = new IsothermalSphere(RCORE,
+				 RMODMAX,
+				 VROT);
     break;
 
   case hernquist_model:
     model = new HernquistSphere(1.0, 
-				config->get<double>("RMODMIN"), 
-				config->get<double>("RMODMAX"));
+				RMODMIN, 
+				RMODMAX);
     break; 
 
   default:
-    cerr << "Illegal model: " << config->get<int>("MODEL") << '\n';
+    cerr << "Illegal model: " << MODEL << '\n';
     exit(-1);
   }
 
-  double rmin = config->get<double>("rmin");
-  double rmax = config->get<double>("rmax");
   if (rmin < 0.0) rmin = model->get_min_radius();
   if (rmax < 0.0) rmax = model->get_max_radius();
 
@@ -137,8 +163,6 @@ UnboundOrbit::UnboundOrbit(const string &conf)
 // Compute orbit
 // =================================
 
-  double Rperi = config->get<double>("Rperi");
-  double E     = config->get<double>("E");
   double VTperi = sqrt(2.0*(E - model->get_pot(Rperi)));
   double J = Rperi*VTperi;
 
@@ -153,13 +177,11 @@ UnboundOrbit::UnboundOrbit(const string &conf)
   double rnext, rlast = Rperi;
   double tnext, tlast = 0.0;
   double phinext, philast = 0.0;
-  double deltaR = config->get<double>("deltaR");
 
   //
   // First step
   //
 
-  double Redge = config->get<double>("Redge");
   double denom = sqrt(2.0*(VTperi*VTperi/Rperi - model->get_dpot(Rperi)));
 
   rnext = rlast + deltaR;
@@ -200,16 +222,16 @@ UnboundOrbit::UnboundOrbit(const string &conf)
   
   ofstream out;
 
-  if (config->get<bool>("orbfile")) {
+  if (orbfile) {
     string orbfile = runtag + ".xyz";
     out.open(orbfile.c_str());
   }
 
 
   Three_Vector In, Out;
-  double THETA   = config->get<double>("THETA")   * M_PI/180.0;
-  double PSI     = config->get<double>("PSI")     * M_PI/180.0;
-  double PHIP    = config->get<double>("PHIP")    * M_PI/180.0;
+  THETA   = THETA   * M_PI/180.0;
+  PSI     = PSI     * M_PI/180.0;
+  PHIP    = PHIP    * M_PI/180.0;
   Matrix Trans = return_euler_slater(PHIP, THETA, PSI, 1);
   
   for (unsigned i=R.size()-1; i>=1; i--) {
@@ -255,21 +277,21 @@ UnboundOrbit::UnboundOrbit(const string &conf)
     
     cout << "UnboundOrbit initialized with:" << endl
 	 << setw(5) << "" << setw(10) << "THETA" << " = "
-	 << config->get<double>("THETA") << endl
+	 << THETA << endl
 	 << setw(5) << "" << setw(10) << "PSI "  << " = " 
-	 << config->get<double>("PSI")   << endl
+	 << PSI   << endl
 	 << setw(5) << "" << setw(10) << "PHIP"  << " = " 
-	 << config->get<double>("PHIP") << endl
+	 << PHIP << endl
 	 << setw(5) << "" << setw(10) << "model" 
-	 << " = " << config->get<int   >("MODEL") << endl
+	 << " = " << MODEL << endl
 	 << setw(5) << "" << setw(10) << "INFILE" 
-	 << " = " << config->get<string>("INFILE") << endl
+	 << " = " << INFILE << endl
 	 << setw(5) << "" << setw(10) << "E" 
-	 << " = " << config->get<double>("E") << endl
+	 << " = " << E << endl
 	 << setw(5) << "" << setw(10) << "Rperi" 
-	 << " = " << config->get<double>("Rperi") << endl
+	 << " = " << Rperi << endl
 	 << setw(5) << "" << setw(10) << "Redge" 
-	 << " = " << config->get<double>("Redge") << endl;
+	 << " = " << Redge << endl;
   }
 
 }
@@ -281,12 +303,8 @@ UnboundOrbit::UnboundOrbit(const string &conf)
 
 UnboundOrbit::~UnboundOrbit(void)
 {
-  if (m)
-    delete m;
-  else 
-    delete model;
-
-  delete config;
+  if (m) delete m;
+  else   delete model;
 }
 
 Vector UnboundOrbit::get_satellite_orbit(double t)

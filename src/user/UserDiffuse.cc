@@ -14,7 +14,7 @@
 
 static pthread_mutex_t randlock = PTHREAD_MUTEX_INITIALIZER;
 
-UserDiffuse::UserDiffuse(string &line) : ExternalForce(line)
+UserDiffuse::UserDiffuse(const YAML::Node& conf) : ExternalForce(conf)
 {
   id = "Two-body relaxation";
 
@@ -106,25 +106,37 @@ void UserDiffuse::userinfo()
 
 void UserDiffuse::initialize()
 {
-  string val;
+  try {
+    if (conf["name"])           name               = conf["name"].as<string>();
+    if (conf["pmass"])          pmass              = conf["pmass"].as<double>();
+    if (conf["clip"])           clip               = conf["clip"].as<double>();
+    if (conf["logL"])           logL               = conf["logL"].as<double>();
+    if (conf["seed"])           seed               = conf["seed"].as<int>();
+    if (conf["nfreq"])          nfreq              = conf["nfreq"].as<int>();
+    if (conf["rmin"])           rmin               = conf["rmin"].as<double>();
+    if (conf["rmax"])           rmax               = conf["rmax"].as<double>();
+    if (conf["logr"])           logr               = conf["logr"].as<bool>();
+    if (conf["numr"])           numr               = conf["numr"].as<int>();
+    if (conf["numv"])           numv               = conf["numv"].as<int>();
+    
+    if (conf["use_file"])       use_file           = conf["use_file"].as<bool>();
+    if (conf["modfile"])        modfile            = conf["modfile"].as<string>();
+    if (conf["diverge"])        diverge            = conf["diverge"].as<int>();
+    if (conf["diverge_rfac"])   diverge_rfac       = conf["diverge_rfac"].as<double>();
+    if (conf["check_ev"])       check_ev           = conf["check_ev"].as<bool>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserDiffuse: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
-  if (get_value("name", val))		name = val;
-  if (get_value("pmass", val))		pmass = atof(val.c_str());
-  if (get_value("clip", val))		clip = atof(val.c_str());
-  if (get_value("logL", val))		logL = atof(val.c_str());
-  if (get_value("seed", val))		seed = atoi(val.c_str());
-  if (get_value("nfreq", val))		nfreq = atoi(val.c_str());
-  if (get_value("rmin", val))		rmin = atof(val.c_str());
-  if (get_value("rmax", val))		rmax = atof(val.c_str());
-  if (get_value("logr", val))		logr = atol(val);
-  if (get_value("numr", val))		numr = atoi(val.c_str());
-  if (get_value("numv", val))		numv = atoi(val.c_str());
-
-  if (get_value("use_file", val))	use_file = atol(val);
-  if (get_value("modfile", val))	modfile = val;
-  if (get_value("diverge", val))	diverge = atoi(val.c_str());
-  if (get_value("diverge_rfac", val))	diverge_rfac = atof(val.c_str());
-  if (get_value("check_ev", val))	check_ev = atol(val);
 
   gen = new ACG(seed+myid);
   urand = new Uniform(0.0, 1.0, gen);
@@ -692,9 +704,9 @@ void UserDiffuse::get_coefs(double r, double v,
 
 
 extern "C" {
-  ExternalForce *makerDiffuse(string& line)
+  ExternalForce *makerDiffuse(const YAML::Node& conf)
   {
-    return new UserDiffuse(line);
+    return new UserDiffuse(conf);
   }
 }
 

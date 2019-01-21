@@ -83,7 +83,7 @@ private:
 public:
 				// Global parameters
   /** Constructor
-      @param line passes any parameters to basis instance (rsphSL, rmin and numr
+      @param conf passes any parameters to basis instance (rsphSL, rmin and numr
       @param m allows the spherical basis to be used for multiple center expansions 
       
       Input line parameters include:
@@ -97,7 +97,7 @@ public:
       @param cachename is the name for the SL grid cache file
 
   */
-  Sphere(string& line, MixtureBasis* m=0);
+  Sphere(const YAML::Node& conf, MixtureBasis* m=0);
 
   //! Destructor
   virtual ~Sphere();

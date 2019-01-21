@@ -5,11 +5,12 @@
 
 #include <string>
 
+#include <yaml-cpp/yaml.h>
+
 #include <Vector.h>
 #include <massmodel.h>
 #include <model3d.h>
 
-#include <ParamDatabase.H>
 #include <Trajectory.H>
 
 //! Computes an satellite orbits and tidal forces in fixed halo
@@ -34,7 +35,7 @@ private:
 public:
 
   //! Constructor
-  UnboundOrbit(const string &file);
+  UnboundOrbit(const YAML::Node& conf);
 
   //! Destructor
   ~UnboundOrbit(void);

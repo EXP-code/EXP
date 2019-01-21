@@ -25,7 +25,8 @@ private:
 public:
 
   //! Constructor
-  externalShock(string& line);
+  externalShock(const YAML::Node& conf);
+
   //! Destructor
   ~externalShock();
 

@@ -35,8 +35,9 @@ AM_CXXFLAGS  = -std=c++11 -D_REENTRANT -fopenmp $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(
 bin_PROGRAMS = exp
 
 if ENABLE_CUDA
-  ADD_CUDA = cudaParticle.cu cudaSphericalBasis.cu cudaSphere.cu	\
-	cudaCylinder.cu cudaEmpOrth.cu cudaComponent.cu NVTX.cc
+  ADD_CUDA = cudaParticle.cu cudaSphericalBasis.cu cudaSphere.cu \
+	cudaCylinder.cu cudaEmpOrth.cu cudaComponent.cu NVTX.cc	 \
+	cudaHOT.cu
   ifeq ($(GENCODE_FLAGS),)
     $(foreach sm,@sm_vers@,$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
   endif
@@ -74,7 +75,7 @@ EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs -L$(top_sr
 
 exp_LDADD = $(EXPLIBS) $(ADD_LIBS3) $(ADD_LIBS4) $(LAPACK_LIBS)		\
 	$(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@	\
-	$(CUDA_LDFLAGS) $(CUDA_LIBFLAGS)
+	$(CUDA_LDFLAGS) $(CUDA_LIBFLAGS) $(YAML)
 
 
 noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H Cylinder.H     \

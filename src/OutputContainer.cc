@@ -20,65 +20,76 @@ OutputContainer::OutputContainer() {}
 
 void OutputContainer::initialize(void)
 {
-  spair data;
-  
-  parse->find_list("output");
+  YAML::Node outs = parse["Output"];
 
-  while ( parse->get_next(data) ) {
+  if (outs.IsSequence()) {
 
-    if ( !data.first.compare("outlog") ) {
-      out.push_back(new OutLog(data.second));
-    }
+    int nout = 0;
 
-    else if ( !data.first.compare("orbtrace") ) {
-      out.push_back(new OrbTrace(data.second));
-    }
-
-    else if ( !data.first.compare("outdiag") ) {
-      out.push_back(new OutDiag(data.second));
-    }
-
-    else if ( !data.first.compare("outps") ) {
-      out.push_back(new OutPS(data.second));
-    }
-
-    else if ( !data.first.compare("outpsn") ) {
-      out.push_back(new OutPSN(data.second));
-    }
+    while (outs[nout]) {
+      std::string name = outs[nout]["id"].as<std::string>();
+      const YAML::Node& node = outs[nout]["parameters"];
     
-    else if ( !data.first.compare("outpsp") ) {
-      out.push_back(new OutPSP(data.second));
-    }
+      if ( !name.compare("outlog") ) {
+	out.push_back(new OutLog(node));
+      }
+      
+      else if ( !name.compare("orbtrace") ) {
+	out.push_back(new OrbTrace(node));
+      }
+      
+      else if ( !name.compare("outdiag") ) {
+	out.push_back(new OutDiag(node));
+      }
+
+      else if ( !name.compare("outps") ) {
+	out.push_back(new OutPS(node));
+      }
+
+      else if ( !name.compare("outpsn") ) {
+	out.push_back(new OutPSN(node));
+      }
     
-    else if ( !data.first.compare("outascii") ) {
-      out.push_back(new OutAscii(data.second));
-    }
+      else if ( !name.compare("outpsp") ) {
+	out.push_back(new OutPSP(node));
+      }
     
-    else if ( !data.first.compare("outchkpt") ) {
-      out.push_back(new OutCHKPT(data.second));
-    }
+      else if ( !name.compare("outascii") ) {
+	out.push_back(new OutAscii(node));
+      }
+    
+      else if ( !name.compare("outchkpt") ) {
+	out.push_back(new OutCHKPT(node));
+      }
 
-    else if ( !data.first.compare("outcoef") ) {
-      out.push_back(new OutCoef(data.second));
-    }
+      else if ( !name.compare("outcoef") ) {
+	out.push_back(new OutCoef(node));
+      }
 
-    else if ( !data.first.compare("outfrac") ) {
-      out.push_back(new OutFrac(data.second));
-    }
+      else if ( !name.compare("outfrac") ) {
+	out.push_back(new OutFrac(node));
+      }
 
-    else if ( !data.first.compare("outmulti") ) {
-      out.push_back(new OutMulti(data.second));
-    }
+      else if ( !name.compare("outmulti") ) {
+	out.push_back(new OutMulti(node));
+      }
 
-    else if ( !data.first.compare("outcalbr") ) {
-      out.push_back(new OutCalbr(data.second));
+      else if ( !name.compare("outcalbr") ) {
+	out.push_back(new OutCalbr(node));
+      }
+      
+      else {
+	string msg("I don't know about the output type: ");
+	msg += name;
+	throw GenericError(msg, __FILE__, __LINE__);
+      }
+      nout++;
     }
-
-    else {
-      string msg("I don't know about the output type: ");
-      msg += data.first;
-      throw GenericError(msg, __FILE__, __LINE__);
-    }
+  } else {
+    if (myid==0)
+      std::cout << std::string(72, '-') << std::endl
+		<< "No output entries" << std::endl
+		<< std::string(72, '-') << std::endl;
   }
 }
 
@@ -103,7 +114,3 @@ void OutputContainer::Run(int n, bool final)
     if (final) cout << "\n";
   }
 }
-
-
-
-

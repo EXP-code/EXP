@@ -169,7 +169,7 @@ void do_output_init(void);
 
 // Parameter database
 
-#include <ParamParseMPI.H>
+#include <yaml-cpp/yaml.h>
 #include <ComponentContainer.H>
 #include <global.H>
 

@@ -23,22 +23,22 @@ using namespace std;
 
 #include <HaloBulge.H>
 
-HaloBulge::HaloBulge(string& line) : ExternalForce(line)
+HaloBulge::HaloBulge(const YAML::Node& conf) : ExternalForce(conf)
 {
 				// Defaults
-  HMODEL = file;
-  INFILE = "w05";
+  HMODEL   = file;
+  INFILE   = "w05";
   
-  MHALO=1.0;
-  RHALO=1.0;
-  RMODMIN=1.0e-3;
-  RMOD=20.0;
+  MHALO    = 1.0;
+  RHALO    = 1.0;
+  RMODMIN  = 1.0e-3;
+  RMOD     = 20.0;
   
-  RBCORE=1.0;
-  MBULGE=1.0;
-  RBULGE=1.0;
-  RBMODMIN=1.0e-3;
-  RBMOD=20.0;
+  RBCORE   = 1.0;
+  MBULGE   = 1.0;
+  RBULGE   = 1.0;
+  RBMODMIN = 1.0e-3;
+  RBMOD    = 20.0;
 
   initialize();
 
@@ -106,17 +106,28 @@ void * HaloBulge::determine_acceleration_and_potential_thread(void * arg)
 
 void HaloBulge::initialize()
 {
-  string value;
-
-  if (get_value("HMODEL", value))	HMODEL = atoi(value.c_str());
-  if (get_value("INFILE", value))	INFILE = value;
-  if (get_value("MHALO", value))	MHALO = atof(value.c_str());
-  if (get_value("RHALO", value))	RHALO = atof(value.c_str());
-  if (get_value("RMODMIN", value))	RMODMIN = atof(value.c_str());
-  if (get_value("RMOD", value))		RMOD = atof(value.c_str());
-  if (get_value("RBCORE", value))	RBCORE = atof(value.c_str());
-  if (get_value("MBULGE", value))	MBULGE = atof(value.c_str());
-  if (get_value("RBULGE", value))	RBULGE = atof(value.c_str());
-  if (get_value("RBMODMIN", value))	RBMODMIN = atof(value.c_str());
-  if (get_value("RBMOD", value))	RBMOD = atof(value.c_str());
+  try {
+    if (conf["HMODEL"])     HMODEL   = conf["HMODEL"].as<int>();
+    if (conf["INFILE"])     INFILE   = conf["INFILE"].as<std::string>();
+    if (conf["MHALO"])      MHALO    = conf["MHALO"].as<double>();
+    if (conf["RHALO"])      RHALO    = conf["RHALO"].as<double>();
+    if (conf["RMODMIN"])    RMODMIN  = conf["RMODMIN"].as<double>();
+    if (conf["RMOD"])       RMOD     = conf["RMOD"].as<double>();
+    if (conf["RBCORE"])     RBCORE   = conf["RBCORE"].as<double>();
+    if (conf["MBULGE"])     MBULGE   = conf["MBULGE"].as<double>();
+    if (conf["RBULGE"])     RBULGE   = conf["RBULGE"].as<double>();
+    if (conf["RBMODMIN"])   RBMODMIN = conf["RBMODMIN"].as<double>();
+    if (conf["RBMOD"])      RBMOD    = conf["RBMOD"].as<double>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in HaloBulge: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }

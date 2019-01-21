@@ -96,7 +96,7 @@ public:
   /** Constructor
       \param line passes any parameters (rsphSL, rmin and numr) 
   */
-  TwoCenter(string& line);
+  TwoCenter(const YAML::Node& conf);
 
   //! Destructor
   ~TwoCenter();

@@ -5,7 +5,7 @@
 #include <localmpi.h>
 #include <UserEBarP.H>
 
-UserEBarP::UserEBarP(string &line) : ExternalForce(line)
+UserEBarP::UserEBarP(const YAML::Node& conf) : ExternalForce(conf)
 {
   id = "RotatingBarWithMonopoleOmegaFile";
 
@@ -240,42 +240,52 @@ void UserEBarP::userinfo()
 
 void UserEBarP::initialize()
 {
-  string val;
-
-  if (get_value("ctrname", val))	ctr_name = val;
-  if (get_value("angmname", val))	angm_name = val;
-  if (get_value("tblname", val))	table_name = val;
-  if (get_value("length", val))		length = atof(val.c_str());
-  if (get_value("bratio", val))		bratio = atof(val.c_str());
-  if (get_value("cratio", val))		cratio = atof(val.c_str());
-  if (get_value("amp", val))		amplitude = atof(val.c_str());
-  if (get_value("angmomfac", val))	angmomfac = atof(val.c_str());
-  if (get_value("barmass", val))	barmass = atof(val.c_str());
-  if (get_value("Ton", val))		Ton = atof(val.c_str());
-  if (get_value("Toff", val))		Toff = atof(val.c_str());
-  if (get_value("TmonoOn", val))	TmonoOn = atof(val.c_str());
-  if (get_value("TmonoOff", val))	TmonoOff = atof(val.c_str());
-  if (get_value("DeltaT", val))		DeltaT = atof(val.c_str());
-  if (get_value("DeltaMonoT", val))	DeltaMonoT = atof(val.c_str());
-  if (get_value("soft", val))		soft = atol(val);
-  if (get_value("monopole", val))	monopole = atol(val);
-  if (get_value("fileomega", val))	fileomega = val;
-  if (get_value("onoff", val))		monopole_onoff = atol(val);
-  if (get_value("monofrac", val))	monopole_frac = atof(val.c_str());
-  if (get_value("quadfrac", val))	quadrupole_frac = atof(val.c_str());
-  if (get_value("filename", val))	filename = val;
-
+  try {
+    if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
+    if (conf["angmname"])       angm_name          = conf["angmname"].as<string>();
+    if (conf["tblname"])        table_name         = conf["tblname"].as<string>();
+    if (conf["length"])         length             = conf["length"].as<double>();
+    if (conf["bratio"])         bratio             = conf["bratio"].as<double>();
+    if (conf["cratio"])         cratio             = conf["cratio"].as<double>();
+    if (conf["amp"])            amplitude          = conf["amp"].as<double>();
+    if (conf["angmomfac"])      angmomfac          = conf["angmomfac"].as<double>();
+    if (conf["barmass"])        barmass            = conf["barmass"].as<double>();
+    if (conf["Ton"])            Ton                = conf["Ton"].as<double>();
+    if (conf["Toff"])           Toff               = conf["Toff"].as<double>();
+    if (conf["TmonoOn"])        TmonoOn            = conf["TmonoOn"].as<double>();
+    if (conf["TmonoOff"])       TmonoOff           = conf["TmonoOff"].as<double>();
+    if (conf["DeltaT"])         DeltaT             = conf["DeltaT"].as<double>();
+    if (conf["DeltaMonoT"])     DeltaMonoT         = conf["DeltaMonoT"].as<double>();
+    if (conf["soft"])           soft               = conf["soft"].as<bool>();
+    if (conf["monopole"])       monopole           = conf["monopole"].as<bool>();
+    if (conf["fileomega"])      fileomega          = conf["fileomega"].as<string>();
+    if (conf["onoff"])          monopole_onoff     = conf["onoff"].as<bool>();
+    if (conf["monofrac"])       monopole_frac      = conf["monofrac"].as<double>();
+    if (conf["quadfrac"])       quadrupole_frac    = conf["quadfrac"].as<double>();
+    if (conf["filename"])       filename           = conf["filename"].as<string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters UserEBarP: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 
 void UserEBarP::determine_acceleration_and_potential(void)
 {
-				// Write to bar state file, if true
+  // Write to bar state file, if true
   bool update = false;
-
+  
   if (c1) c1->get_angmom();	// Tell component to compute angular momentum
   // cout << "Process " << myid << ": Lz=" << c1->angmom[2] << endl; // debug
-
+  
   if (firstime) {
     
     ellip = new EllipForce(length, length*bratio, length*bratio*cratio,
@@ -285,35 +295,35 @@ void UserEBarP::determine_acceleration_and_potential(void)
     
     const int N = 100;
     LegeQuad gq(N);
-
+    
     double a1 = length;
     double a2 = bratio*a1;
     double a3 = cratio*a2;
-
+    
     double geom = pow(a1*a2*a3, 1.0/3.0);
-
+    
     double A12 = a1*a1/geom/geom;
     double A22 = a2*a2/geom/geom;
     double A32 = a3*a3/geom/geom;
-
+    
     double u, d, t, denom, ans1=0.0, ans2=0.0;
     double mass = barmass * fabs(amplitude);
-
+    
     for (int i=1; i<=N; i++) {
       t = 0.5*M_PI*gq.knot(i);
       u = tan(t);
       d = cos(t);
       d = 1.0/(d*d);
-
+      
       denom = sqrt( (A12+u)*(A22+u)*(A32+u) );
       ans1 += d*gq.weight(i) /( (A12+u)*denom );
       ans2 += d*gq.weight(i) /( (A22+u)*denom );
     }
     ans1 *= 0.5*M_PI;
     ans2 *= 0.5*M_PI;
-
+    
     if (myid==0) {
-
+      
       cout << "====================================================\n";
       cout << "Computed quadrupole fit to homogenous ellipsoid\n";
       cout << "with Mass=" << mass << " A_1=" << a1 << " A_2=" << a2 
@@ -322,14 +332,14 @@ void UserEBarP::determine_acceleration_and_potential(void)
 	   << "     U_{22} = b1 r**2/( 1+(r/b5)**5 ) or\n"
 	   << "            = b1 r**2/( 1+ r/b5 )**5\n";
       cout << "====================================================\n";
-
+      
       cout << "V_1=" << ans1 << endl;
       cout << "V_2=" << ans2 << endl;
       cout << "I_3=" << 0.2*mass*(a1*a1 + a2*a2) << endl;
       cout << "Omega(0)=" << omega << endl;
-
+      
     }
-
+    
     double rho = mass/(4.0*M_PI/3.0*a1*a2*a3);
     double b1 = M_PI*rho*sqrt(2.0*M_PI/15.0)*(ans1 - ans2);
     double b25 = 0.4*a1*a2*a3*(a2*a2 - a1*a1)/(ans1 - ans2);
@@ -669,9 +679,9 @@ void * UserEBarP::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerEBarP(string& line)
+  ExternalForce *makerEBarP(const YAML::Node& conf)
   {
-    return new UserEBarP(line);
+    return new UserEBarP(conf);
   }
 }
 

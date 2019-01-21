@@ -6,7 +6,7 @@
 #include <gaussQ.h>
 #include <Sphere.H>
 
-Sphere::Sphere(string& line, MixtureBasis* m) : SphericalBasis(line, m)
+Sphere::Sphere(const YAML::Node& conf, MixtureBasis* m) : SphericalBasis(conf, m)
 {
   id = "Sphere SL";
 				// Defaults
@@ -39,17 +39,27 @@ Sphere::Sphere(string& line, MixtureBasis* m) : SphericalBasis(line, m)
 
 void Sphere::initialize()
 {
-  string val;
-
-  if (get_value("rmin", val))      rmin = atof(val.c_str());
-  if (get_value("rs", val))        rs = atof(val.c_str());
-  if (get_value("numr", val))      numr = atoi(val.c_str());
-  if (get_value("cmap", val))      cmap = atoi(val.c_str());
-  if (get_value("diverge", val))   diverge = atoi(val.c_str());
-  if (get_value("dfac", val))      dfac = atof(val.c_str());
-  if (get_value("modelname", val)) model_file = val.c_str();
-  if (get_value("cachename", val)) cache_file = val.c_str();
-
+  try {
+    if (conf["rmin"])      rmin       = conf["rmin"].as<double>();
+    if (conf["rs"])        rs         = conf["rs"].as<double>();
+    if (conf["numr"])      numr       = conf["numr"].as<int>();
+    if (conf["cmap"])      cmap       = conf["cmap"].as<int>();
+    if (conf["diverge"])   diverge    = conf["diverge"].as<int>();
+    if (conf["dfac"])      dfac       = conf["dfac"].as<double>();
+    if (conf["modelname"]) model_file = conf["modelname"].as<std::string>();
+    if (conf["cachename"]) cache_file = conf["cachename"].as<std::string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in Sphere: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 Sphere::~Sphere(void)

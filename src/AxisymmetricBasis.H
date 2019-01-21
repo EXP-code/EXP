@@ -92,7 +92,7 @@ public:
   };
 
   //! Constructor
-  AxisymmetricBasis(string& line);
+  AxisymmetricBasis(const YAML::Node& line);
 
   //! Destructor
   virtual ~AxisymmetricBasis();

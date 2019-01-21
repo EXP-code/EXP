@@ -29,7 +29,7 @@ private:
 public:
 
   //! Constructor
-  UserSlabHalo(string &line);
+  UserSlabHalo(const YAML::Node& conf);
 
   //! Destructor
   ~UserSlabHalo();

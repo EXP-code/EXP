@@ -55,8 +55,8 @@ private:
 public:
 
   //! The constructor
-  /** \param line passes in any explicit parameters */
-  Direct(string& line);
+  /** \param conf passes in any explicit parameters */
+  Direct(const YAML::Node& conf);
 
   //! The constructor
   virtual ~Direct();

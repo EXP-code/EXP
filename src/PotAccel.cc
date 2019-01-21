@@ -168,7 +168,7 @@ void PotAccel::kill_mutex(pthread_mutex_t *m, const char * caller,
   }
 }
 
-PotAccel::PotAccel(string& line)
+PotAccel::PotAccel(const YAML::Node& CONF) : conf(CONF)
 {
   used         = 0;
   component    = NULL;
@@ -185,24 +185,6 @@ PotAccel::PotAccel(string& line)
     throw GenericError("problem allocating <use>", __FILE__, __LINE__);
   }
 
-  string Line = trimLeft(trimRight(line));
-  StringTok<string> tokens(Line);
-  pair<string, string> datum;
-
-				// Comma separated tokens
-  string token = tokens(",");
-  
-  while (token.size()) {
-
-    StringTok<string> parse(token);
-    datum.first  = trimLeft(trimRight(parse("=")));
-    datum.second = trimLeft(trimRight(parse("=")));
-    namevalue.push_back(datum);
-
-				// Next parameter
-    token = tokens(",");
-  }
-
   if (VERBOSE>5) {
     timer_list = vector<std::time_t>(2*nthrds);
   }
@@ -211,67 +193,6 @@ PotAccel::PotAccel(string& line)
 PotAccel::~PotAccel(void)
 {
   delete [] use;
-}
-
-
-int PotAccel::get_value(const string& name, string& value)
-{
-  for (auto it : namevalue) {
-    if (it.first.compare(name) == 0) {
-      value = it.second;
-      return 1;
-    }
-  }
-  return 0;
-}
-
-std::map<int, std::string> PotAccel::get_value_array(const string& name)
-{
-  std::map<int, string> values;
-  int indx;
-
-  for (auto it : namevalue) {
-    string key = name + "(";
-    if (it.first.compare(0, key.size(), key) == 0) {
-      string sindx = it.first.substr(key.size(), it.first.find(")"));
-      try {
-	indx = boost::lexical_cast<int>(sindx);
-      } 
-      catch( boost::bad_lexical_cast const& ) {
-	std::cout << "PotAccel::get_value_array: input string <" 
-		  << it.first << "> is not valid" << std::endl;
-      }
-      values[indx] = it.second;
-    }
-  }
-  return values;
-}
-
-
-std::map<std::pair<int, int>, string> 
-PotAccel::get_value_matrix(const string& name)
-{
-  std::map<std::pair<int, int>, string> values;
-  std::pair<int, int> indx;
-
-  for (auto it : namevalue) {
-    string key = name + "(";
-    if (it.first.compare(0, key.size(), key) == 0) {
-      string sindx1 = it.first.substr(key.size(), it.first.find(","));
-      string sindx2 = it.first.substr(key.size() + sindx1.size(), 
-				       it.first.find(")"));
-      try {
-	indx.first  = boost::lexical_cast<int>(sindx1);
-	indx.second = boost::lexical_cast<int>(sindx2);
-      } 
-      catch( boost::bad_lexical_cast const& ) {
-	std::cout << "PotAccel::get_value_matrix: input string <" 
-		  << it.first << "> is not valid" << std::endl;
-      }
-      values[indx] = it.second;
-    }
-  }
-  return values;
 }
 
 

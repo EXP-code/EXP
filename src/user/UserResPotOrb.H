@@ -103,7 +103,7 @@ private:
 public:
 
   //! Constructor
-  UserResPotOrb(string &line);
+  UserResPotOrb(const YAML::Node& conf);
 
   //! Destructor
   ~UserResPotOrb();

@@ -4,6 +4,8 @@
 #include <mpi.h>
 #include <utility>
 
+#include <yaml-cpp/yaml.h>
+
 #include <EXPException.H>
 #include <global.H>
 #include <Orient.H>
@@ -174,6 +176,8 @@ struct loadb_datum
   <li> <em>blocking</em> set to true chooses blocking writes when
   using MPI-IO with OutPSP
 
+  <li> <em>ignore</em> the PSP info stanza on restart (i.e. for specifying
+  alternative parameters or using an old-style PSP file
   </ol>
   
 
@@ -313,28 +317,36 @@ protected:
 
   //! Write binary component phase-space structure using MPI (blocking)
   void write_binary_mpi_b(MPI_File& out, MPI_Offset& offset, bool real4 = false);
+
   //! Write binary component phase-space structure using MPI (non-blocking)
   void write_binary_mpi_i(MPI_File& out, MPI_Offset& offset, bool real4 = false);
+
+  //! Set default, unset parameters in config
+  void set_default_values();
+
   
 public:
 
   //! Describe the phase space coordinates
   enum PSTYPE {Inertial=1, Local=2, Centered=4};
 
+  //! Configuration for this component
+  YAML::Node conf;
+
   //! Identify this component
-  string name;
+  std::string name;
 
   //! Force method
-  string id;
+  std::string id;
 
-  //! Parameter string for component
-  string cparam;
+  //! Parameters for component
+  YAML::Node cconf;
+
+  //! Parameters for force
+  YAML::Node fconf;
 
   //! Particle file
-  string pfile;
-
-  //! Parameter string for force
-  string fparam;
+  std::string pfile;
 
   //! Slab geometry
   bool slab;
@@ -486,10 +498,10 @@ public:
   /*! 
     Takes the id string id and phase space file name as arguments
   */
-  Component(string NAME, string ID, string CPARAM, string PS, string FPARAM);
+  Component(YAML::Node& conf);
 
   //! Initialize from file
-  Component(istream *in);
+  Component(YAML::Node&, istream *in);
 
   //! Destructor
   ~Component();

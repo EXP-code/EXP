@@ -8,7 +8,7 @@
 #include <OutCalbr.H>
 
 
-OutCalbr::OutCalbr(string& line) : Output(line)
+OutCalbr::OutCalbr(const YAML::Node& conf) : Output(conf)
 {
   nint = 10;
   filename = outdir + "OUTCALBR." + runtag;
@@ -124,23 +124,31 @@ void OutCalbr::set_energies()
 
 void OutCalbr::initialize()
 {
-  string tmp;
-				// Get file name
-  get_value(string("filename"), filename);
+  try {
+    if (conf["filename"])      filename = conf["filename"].as<std::string>();
+    if (conf["nint"])          nint     = conf["nint"].as<int>();
+    if (conf["N"])             num      = conf["N"].as<int>();
   
-  if (get_value(string("nint"), tmp)) 
-    nint = atoi(tmp.c_str());
-
-  if (get_value(string("N"), tmp)) 
-    num = atoi(tmp.c_str());
-
-				// Search for desired component
-  if (get_value(string("name"), tmp)) {
-    for (auto c : comp->components) {
-      if (!(c->name.compare(tmp))) tcomp  = c;
+    // Search for desired component
+    //
+    if (conf["name"]) {
+      std::string tmp = conf["name"].as<std::string>();
+      for (auto c : comp->components) {
+	if (!(c->name.compare(tmp))) tcomp  = c;
+      }
     }
   }
-
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in OutCalbr: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 void OutCalbr::Run(int ns, bool last)

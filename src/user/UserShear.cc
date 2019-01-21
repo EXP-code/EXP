@@ -7,7 +7,7 @@
 #include <UserShear.H>
 
 
-UserShear::UserShear(string &line) : ExternalForce(line)
+UserShear::UserShear(const YAML::Node& conf) : ExternalForce(conf)
 {
 
   id       = "ShearingSheet";	// Shearing sheet
@@ -67,12 +67,24 @@ void UserShear::userinfo()
 
 void UserShear::initialize()
 {
-  string val;
+  try {
+    if (conf["radius"])    r0           = conf["radius"].as<double>();
+    if (conf["velocity"])  s0           = conf["velocity"].as<double>();
+    if (conf["offset"])    xoff         = conf["offset"].as<double>();
+    if (conf["ctrname"])   ctr_name     = conf["ctrname"].as<string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserShear: "
+			   << error.what()         << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
-  if (get_value("radius",   val))	r0       = atof(val.c_str());
-  if (get_value("velocity", val))       s0       = atof(val.c_str());
-  if (get_value("offset",   val))	xoff     = atof(val.c_str());
-  if (get_value("ctrname",  val))	ctr_name = val;
 
   omega = sqrt(2.0)*s0/r0;
   kappa = 2.0*s0/r0;
@@ -132,9 +144,9 @@ void * UserShear::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerShear(string& line)
+  ExternalForce *makerShear(const YAML::Node& conf)
   {
-    return new UserShear(line);
+    return new UserShear(conf);
   }
 }
 

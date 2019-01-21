@@ -45,10 +45,14 @@ TESTDSMC_SRC = Ion.cc interactSelect.cc Elastic.cc TopBase.cc	\
 	Quantile.cc QuantileBag.cc phfit2.f atomic_constants.cc	\
 	spline.cc $(ADD_CUDA1)
 
+EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs -L$(top_srcdir)/src/DSMC $(BOOST_LDFLAGS)
+
 libexpdsmc_a_SOURCES = $(DSMC_SRC) 
+libexpdsmc_a_LDFLAGS = $(EXPFLAGS)
 # libexpdsmc_a_LIBADD =  $(ADD_CUDA_LINK0) # $(CUDA_LDFLAGS) $(CUDA_LIBFLAGS) $(LIBS)
 
 libtestdsmc_a_SOURCES = $(TESTDSMC_SRC)
+libtestdsmc_a_LDFLAGS = $(EXPFLAGS)
 # libtestdsmc_a_LIBADD =   $(ADD_CUDA_LINK1) # $(CUDA_LDFLAGS) $(CUDA_LIBFLAGS) $(LIBS)
 
 testCrossSection_SOURCES = testCross.cc
@@ -58,17 +62,17 @@ testCrossSection_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_SERIALIZATION_LIB) $(
 
 testIonRecomb_SOURCES = testIonRecomb.cc
 testIonRecomb_DEPENDENCIES = libtestdsmc.a
-testIonRecomb_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@ $(CUDA_LDFLAGS)
+testIonRecomb_LDFLAGS = $(EXPFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@ $(CUDA_LDFLAGS)
 testIonRecomb_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libtestdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
 
 genIonRecomb_SOURCES = genIonRecomb.cc
 genIonRecomb_DEPENDENCIES = libtestdsmc.a
-genIonRecomb_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@ $(CUDA_LDFLAGS)
+genIonRecomb_LDFLAGS = $(EXPFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@ $(CUDA_LDFLAGS)
 genIonRecomb_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libtestdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
 
 testQuantile_SOURCES = testQuantile.cc
 testQuantile_DEPENDENCIES = libtestdsmc.a
-testQuantile_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) $(CUDA_LDFLAGS)
+testQuantile_LDFLAGS = $(EXPFLAGS) $(BUILD_FLAGS) $(CUDA_LDFLAGS)
 testQuantile_LDADD   = libtestdsmc.a $(BOOST_PROGRAM_OPTIONS_LIB) $(CUDA_LIBFLAGS)
 
 testCrossCuda_SOURCES = testCrossCuda.cc

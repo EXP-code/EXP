@@ -8,6 +8,7 @@
 #include <map>
 
 #include <boost/shared_ptr.hpp>
+#include <yaml-cpp/yaml.h>
 
 #include <Particle.H>
 #include <StringTok.H>
@@ -39,21 +40,11 @@ private:
 protected:
 
   //! Contains parameter database
-  list< pair<string, string> > namevalue;
+  const YAML::Node& conf;
 
   //@{
   /** Call to return <code>value</code> for requested parameter
       <code>name</code> */
-
-  //! Returns a single value from a key=value pair
-  int get_value(const string& name, string& value);
-
-  //! Returns a map from key(n)=value pairs
-  std::map<int, string> get_value_array(const string& name);
-
-  //! Returns a map from key(i,j)=value pairs
-  std::map<std::pair<int, int>, string> get_value_matrix(const string& name);
-  //@}
 
   //! Number of bodies
   int nbodies;
@@ -106,7 +97,7 @@ public:
   //! Constructor
   /*! \param line is parsed and info is made available to derived 
     classes on  request */
-  PotAccel(string& line);
+  PotAccel(const YAML::Node& conf);
 
   //! Destructor
   virtual ~PotAccel();

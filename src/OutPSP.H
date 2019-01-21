@@ -37,7 +37,7 @@ private:
 public:
 
   //! Constructor
-  OutPSP(string& line);
+  OutPSP(const YAML::Node& conf);
 
   //! Provided by derived class to generate some output
   /*!

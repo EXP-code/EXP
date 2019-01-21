@@ -38,7 +38,7 @@ public:
   
   //! Constructor
   /** \param line passes any parameters to the method */
-  ExternalForce(string& line);
+  ExternalForce(const YAML::Node& config);
 
   //! Destructor
   virtual ~ExternalForce() {}
@@ -55,8 +55,7 @@ public:
 
 };
 
-typedef ExternalForce *maker_t(string&);
-// extern map<string, maker_t *, less<string> > factory;
+typedef ExternalForce *maker_t(const YAML::Node&);
 
 #endif
 

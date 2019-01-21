@@ -57,7 +57,7 @@ char OutLog::lab_component[][20] = {
 
 
 
-OutLog::OutLog(string& line) : Output(line)
+OutLog::OutLog(const YAML::Node& conf) : Output(conf)
 {
   ektotxy=0.0;
   lastwtime = MPI_Wtime();
@@ -69,17 +69,31 @@ OutLog::OutLog(string& line) : Output(line)
 
 void OutLog::initialize()
 {
-  string tmp;
+  try {
 				// Get file name
-  if (!Output::get_value(string("filename"), filename)) {
-    filename.erase();
-    filename = outdir + "OUTLOG." + runtag;
+    if (Output::conf["filename"])
+      filename = Output::conf["filename"].as<std::string>();
+    else {
+      filename.erase();
+      filename = outdir + "OUTLOG." + runtag;
+    }
+    
+    if (Output::conf["freq"])
+      nint = Output::conf["freq"].as<int>();
+    else
+      nint = 1;
   }
-
-  if (Output::get_value(string("freq"), tmp))
-    nint = atoi(tmp.c_str());
-  else
-    nint = 1;
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in OutLog: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 

@@ -7,7 +7,7 @@
 
 #include <UserDiffRot.H>
 
-UserDiffRot::UserDiffRot(string &line) : ExternalForce(line)
+UserDiffRot::UserDiffRot(const YAML::Node& conf) : ExternalForce(conf)
 {
   id = "Rotational randomization";
 
@@ -111,18 +111,29 @@ void UserDiffRot::userinfo()
 
 void UserDiffRot::initialize()
 {
-  string val;
-
-  if (get_value("name", val))		name = val;
-  if (get_value("avoid", val))		avoid = val;
-  if (get_value("maxpm", val))		maxpm = atoi(val.c_str());
-  if (get_value("seed", val))		seed = atoi(val.c_str());
-  if (get_value("rate", val))		rate = atof(val.c_str());
-  if (get_value("width", val))		width = atof(val.c_str());
-  if (get_value("seed", val))		seed = atoi(val.c_str());
-  if (get_value("ndyn", val))		ndyn = atoi(val.c_str());
-  if (get_value("dynmin", val))		dynmin = atof(val.c_str());
-  if (get_value("dynmax", val))		dynmax = atof(val.c_str());
+  try {
+    if (conf["name"])    name    = conf["name"].as<string>();
+    if (conf["avoid"])   avoid   = conf["avoid"].as<string>();
+    if (conf["maxpm"])   maxpm   = conf["maxpm"].as<int>();
+    if (conf["seed"])    seed    = conf["seed"].as<int>();
+    if (conf["rate"])    rate    = conf["rate"].as<double>();
+    if (conf["width"])   width   = conf["width"].as<double>();
+    if (conf["seed"])    seed    = conf["seed"].as<int>();
+    if (conf["ndyn"])    ndyn    = conf["ndyn"].as<int>();
+    if (conf["dynmin"])  dynmin  = conf["dynmin"].as<double>();
+    if (conf["dynmax"])  dynmax  = conf["dynmax"].as<double>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserDiffRot: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 
@@ -338,9 +349,9 @@ void * UserDiffRot::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerDiffRot(string& line)
+  ExternalForce *makerDiffRot(const YAML::Node& conf)
   {
-    return new UserDiffRot(line);
+    return new UserDiffRot(conf);
   }
 }
 

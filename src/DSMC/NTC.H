@@ -10,6 +10,7 @@
 #include <deque>
 #include <map>
 
+
 #define BINARY_ARCHIVE		// Comment for xml archive
 
 #ifdef BINARY_ARCHIVE
@@ -35,6 +36,7 @@
 #include "Species.H"
 #include "global.H"		// For simulation time: tnow
 
+
 // Serialize std::array and std::tuple(...)
 //
 namespace boost {
@@ -58,7 +60,6 @@ namespace boost {
       ar & boost::serialization::make_nvp("tup1", std::get<1>(t));
       ar & boost::serialization::make_nvp("tup2", std::get<2>(t));
     }
-
   } // namespace serialization
 
 } // namespace boost
@@ -386,6 +387,7 @@ namespace NTC
 
 
       unsigned long clr = caller;
+
       unsigned siz      = db.size();
       
       MPI_Send(&ts,  1, MPI_DOUBLE,        0, 1109, MPI_COMM_WORLD);
@@ -533,12 +535,8 @@ namespace NTC
       if (myid==0) pdata.insert(data.begin(), data.end());
       
       unsigned siz;
-#ifdef INT128
-      uint128 k;
-      unsigned long k1, k2;
-#else
+
       unsigned long k;
-#endif
       
       for (int i=1; i<numprocs; i++) {
 	if (i==myid) {
@@ -546,13 +544,7 @@ namespace NTC
 	  MPI_Send(&siz, 1, MPI_UNSIGNED, 0, 1110, MPI_COMM_WORLD);
 	  for (auto &p : data) {
 	    k = p.first;
-#ifdef INT128
-	    k.decompose(k1, k2);
-	    MPI_Send(&k1, 1, MPI_UNSIGNED_LONG, 0, 1111, MPI_COMM_WORLD);
-	    MPI_Send(&k2, 1, MPI_UNSIGNED_LONG, 0, 1112, MPI_COMM_WORLD);
-#else
 	    MPI_Send(&k,  1, MPI_UNSIGNED_LONG, 0, 1111, MPI_COMM_WORLD);
-#endif
 	    p.second.send();
 	  }
 	  
@@ -561,13 +553,7 @@ namespace NTC
 	if (0==myid) {
 	  MPI_Recv(&siz, 1, MPI_UNSIGNED, i, 1110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  for (unsigned j=0; j<siz; j++) {
-#ifdef INT128
-	    MPI_Recv(&k1, 1, MPI_UNSIGNED_LONG, i, 1111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	    MPI_Recv(&k2, 1, MPI_UNSIGNED_LONG, i, 1112, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	    k.recompose(k1, k2);
-#else
 	    MPI_Recv(&k,  1, MPI_UNSIGNED_LONG, i, 1111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-#endif
 	    
 	    // Get the instance from the other node
 	    //

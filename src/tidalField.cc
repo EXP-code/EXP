@@ -3,7 +3,7 @@
 
 #include <tidalField.H>
 
-tidalField::tidalField(string& line) : ExternalForce(line)
+tidalField::tidalField(const YAML::Node& config) : ExternalForce(config)
 {
   hills_omega = 0.5;
   hills_p = 0.5;
@@ -13,10 +13,21 @@ tidalField::tidalField(string& line) : ExternalForce(line)
 
 void tidalField::initialize()
 {
-  string val;
-
-  if (get_value("hills_omega", val)) hills_omega = atof(val.c_str());
-  if (get_value("hills_p", val)) hills_p = atof(val.c_str());
+  try {
+    if (conf["hills_omega"])    hills_omega        = conf["hills_omega"].as<double>();
+    if (conf["hills_p"])        hills_p            = conf["hills_p"].as<double>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in tidalField: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 void * tidalField::determine_acceleration_and_potential_thread(void * arg)

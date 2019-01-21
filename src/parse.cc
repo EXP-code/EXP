@@ -1,6 +1,6 @@
-/*
-  Parse command line
-*/
+//
+//  Parse command line
+//
 
 #include "expand.h"
 
@@ -31,116 +31,81 @@ void exp_usage(char *prog)
 void initialize(void)
 {
   if (myid==0) {
-    cout << "Parameter database:\n"
-	 << "-------------------\n\n";
-    parse->print_database(cout);
+    cout << std::string(72, '=')  << std::endl
+	 << "Parameter database:" << std::endl
+	 << "-------------------" << std::endl << std::endl
+	 << parse << std::endl
+	 << std::string(72, '=')  << std::endl << std::endl;
   }
 
-  parse->find_list("global");
-  string val;
+  YAML::Node _G;
+  try {
+    _G = parse["Global"];
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing 'global' stanza: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << parse                << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 
-  if (parse->find_item("nbodmax", val))		nbodmax = atoi(val.c_str());
-  if (parse->find_item("nsteps", val))		nsteps = atoi(val.c_str());
-  if (parse->find_item("nthrds", val))		nthrds = max<int>(1, atoi(val.c_str()));
-  if (parse->find_item("nreport", val))		nreport = atoi(val.c_str());
-  if (parse->find_item("nbalance", val))	nbalance = atoi(val.c_str());
-  if (parse->find_item("dbthresh", val))	dbthresh = atof(val.c_str());
+  if (_G) {
+    
+    if (_G["nbodmax"])       nbodmax    = _G["nbodmax"].as<int>();
+    if (_G["nsteps"])	     nsteps     = _G["nsteps"].as<int>();
+    if (_G["nthrds"])	     nthrds     = std::max<int>(1, _G["nthrds"].as<int>());
+    if (_G["nreport"])	     nreport    = _G["nreport"].as<int>();
+    if (_G["nbalance"])      nbalance   = _G["nbalance"].as<int>();
+    if (_G["dbthresh"])      dbthresh   = _G["dbthresh"].as<int>();
+    
+    if (_G["time"])          tnow       = _G["time"].as<double>();
+    if (_G["dtime"])         dtime      = _G["dtime"].as<double>();
+    if (_G["nbits"])         nbits      = _G["nbits"].as<int>();
+    if (_G["pkbits"])        pkbits     = _G["pkbits"].as<int>();
+    if (_G["PFbufsz"])       PFbufsz    = _G["PFbusz"].as<int>();
+    if (_G["NICE"])          NICE       = _G["NICE"].as<int>();
+    if (_G["VERBOSE"])       VERBOSE    = _G["VERBOSE"].as<int>();
+    if (_G["rlimit"])        rlimit_val = _G["rlimit"].as<int>();
+    if (_G["runtime"])       runtime    = _G["runtime"].as<double>();
+    
+    if (_G["multistep"])     multistep  = _G["multistep"].as<int>();
+    if (_G["centerlevl"])    centerlevl = _G["centerlevl"].as<int>();
 
-  if (parse->find_item("time", val))		tnow = atof(val.c_str());
-  if (parse->find_item("dtime", val))		dtime = atof(val.c_str());
-  if (parse->find_item("nbits", val))           nbits = atoi(val.c_str());
-  if (parse->find_item("pkbits", val))          pkbits = atoi(val.c_str());
-  if (parse->find_item("PFbufsz", val))         PFbufsz = atoi(val.c_str());
-  if (parse->find_item("NICE", val))		NICE = atoi(val.c_str());
-  if (parse->find_item("VERBOSE", val))		VERBOSE = atoi(val.c_str());
-  if (parse->find_item("rlimit", val))          rlimit_val = atoi(val.c_str());
-  if (parse->find_item("runtime", val))		runtime = atof(val.c_str());
+    if (_G["dynfracS"])	     dynfracS   = _G["dynfracS"].as<double>();
+    if (_G["dynfracD"])	     dynfracD   = _G["dynfracD"].as<double>();
+    if (_G["dynfracV"])	     dynfracV   = _G["dynfracV"].as<double>();
+    if (_G["dynfracA"])	     dynfracA   = _G["dynfracA"].as<double>();
+    if (_G["dynfracP"])	     dynfracP   = _G["dynfracP"].as<double>();
 
-  if (parse->find_item("multistep", val))	multistep = atoi(val.c_str());
-  if (parse->find_item("centerlevl", val))	centerlevl = atoi(val.c_str());
+    if (_G["cuStreams"])     cuStreams  = _G["cuStrams"].as<int>();
 
-  if (parse->find_item("dynfracS", val))	dynfracS = atof(val.c_str());
-  if (parse->find_item("dynfracD", val))	dynfracD = atof(val.c_str());
-  if (parse->find_item("dynfracV", val))	dynfracV = atof(val.c_str());
-  if (parse->find_item("dynfracA", val))	dynfracA = atof(val.c_str());
-  if (parse->find_item("dynfracP", val))	dynfracP = atof(val.c_str());
-
-  if (parse->find_item("cuStreams", val))       cuStreams = atoi(val.c_str());
-
-  if (parse->find_item("DTold", val)) {
-    if (atoi(val.c_str())) {
-      DTold = true;
-      if (myid==0)
+    if (_G["DTold"]) {
+      DTold = _G["DTold"].as<bool>();
+      if (DTold and myid==0)
 	cout << "parse: using original (old) time-step algorithm" << endl;
     }
-    else DTold = false;
-  }
+    
+    if (_G["use_cwd"])       use_cwd    = _G["use_cwd"].as<bool>();
+    if (_G["eqmotion"])      eqmotion   = _G["eqmotion"].as<bool>();
+    if (_G["global_cov"])    global_cov = _G["global_cov"].as<bool>();
+    if (_G["cuda_prof"])     cuda_prof  = _G["cuda_prof"].as<bool>();
+    if (_G["barrier_check"]) barrier_check = _G["barrier_check"].as<bool>();
+    if (_G["barrier_debug"]) barrier_debug = _G["barrier_debug"].as<bool>();
+    if (_G["barrier_extra"]) barrier_extra = _G["barrier_extra"].as<bool>();
+    if (_G["barrier_label"]) barrier_extra = _G["barrier_label"].as<bool>();
+    if (_G["barrier_heavy"]) barrier_extra = _G["barrier_heavy"].as<bool>();
+    if (_G["barrier_quiet"]) barrier_quiet = _G["barrier_quiet"].as<bool>();
+    if (_G["barrier_verbose"]) barrier_quiet = not _G["barrier_quiet"].as<bool>();
 
-  if (parse->find_item("use_cwd", val)) {
-    if (atoi(val.c_str())) use_cwd = true;
-    else use_cwd = false;
-  }
-
-  if (parse->find_item("eqmotion", val)) {
-    if (atoi(val.c_str())) eqmotion = true;
-    else eqmotion = false;
-  }
-
-  if (parse->find_item("global_cov", val)) {
-    if (atoi(val.c_str())) global_cov = true;
-    else global_cov = false;
-  }
-
-  if (parse->find_item("cuda_prof", val)) {
-    if (atoi(val.c_str())) cuda_prof = true;
-    else cuda_prof = false;
-  }
-
-  if (parse->find_item("barrier_check", val)) {
-    if (atoi(val.c_str())) barrier_check = true;
-    else barrier_check = false;
-  }
-
-  if (parse->find_item("barrier_debug", val)) {
-    if (atoi(val.c_str())) barrier_debug = true;
-    else barrier_debug = false;
-  }
-
-  if (parse->find_item("barrier_extra", val)) {
-    if (atoi(val.c_str())) barrier_extra = true;
-    else barrier_extra = false;
-  }
-
-  if (parse->find_item("barrier_label", val)) {
-    if (atoi(val.c_str())) barrier_label = true;
-    else barrier_label = false;
-  }
-
-  if (parse->find_item("barrier_heavy", val)) {
-    if (atoi(val.c_str())) barrier_light = false;
-    else barrier_light = true;
-  }
-
-  if (parse->find_item("barrier_quiet", val)) {
-    if (atoi(val.c_str())) barrier_quiet = true;
-    else barrier_quiet = false;
-  }
-
-  if (parse->find_item("barrier_verbose", val)) {
-    if (atoi(val.c_str())) barrier_quiet = false;
-    else barrier_quiet = true;
-  }
-
-  if (parse->find_item("main_wait", val)) {
-    if (atoi(val.c_str())) main_wait = true;
-    else main_wait = false;
-  }
-
-  if (parse->find_item("debug_wait", val)) {
-    if (atoi(val.c_str())) debug_wait = true;
-    else debug_wait = false;
-    if (myid==0) {
-      std::cout << "Found <debug_wait=" << val << ", " << std::boolalpha
+    if (_G["main_wait"])     main_wait  = _G["main_wait"].as<bool>();
+    if (_G["debug_wait"]) {
+      debug_wait = _G["debug_wait"].as<bool>();
+      std::cout << "Found <debug_wait=" << std::boolalpha
 		<< debug_wait << ">" << std::endl;
       if (debug_wait) {
 	std::cout << "----" << std::endl;
@@ -152,114 +117,119 @@ void initialize(void)
 		  << "----" << std::endl;
       }
     }
-  }
-
-  if (parse->find_item("fpe_trap", val)) {
-    if (atoi(val.c_str())) {
-      fpe_trap  = true;
-      fpe_trace = false;
-      fpe_wait  = false;
-    } else fpe_trap = false;
-    if (myid==0) {
-      std::cout << "Found <fpe_trap=" << val << ", " << std::boolalpha
-		<< fpe_trap << ">" << std::endl;
-      if (fpe_trap) std::cout << "----" << std::endl
-			      << "---- Set a breakpoint in fpetrap.h:21 to catch and debug FP errors" << std::endl
-			      << "----" << std::endl;
+    
+    if (_G["fpe_trap"]) {
+      if (_G["fpe_trap"].as<bool>()) {
+	fpe_trap  = true;
+	fpe_trace = false;
+	fpe_wait  = false;
+      } else fpe_trap = false;
+      if (myid==0) {
+	std::cout << "Found <fpe_trap=" << std::boolalpha
+		  << fpe_trap << ">" << std::endl;
+	if (fpe_trap) std::cout << "----" << std::endl
+				<< "---- Set a breakpoint in fpetrap.h:21 to catch and debug FP errors" << std::endl
+				<< "----" << std::endl;
+      }
     }
-  }
 
-  if (parse->find_item("fpe_trace", val)) {
-    if (atoi(val.c_str())) {
-      fpe_trap  = false;
-      fpe_trace = true;
-      fpe_wait  = false;
-    } else fpe_trace = false;
-    if (myid==0) {
-      std::cout << "Found <fpe_trace=" << val << ", " << std::boolalpha
-		<< fpe_trace << ">" << std::endl;
-      if (fpe_trace) std::cout << "----" << std::endl
-			       << "---- Print a backtrace to stderr on detecting an FP error" << std::endl
-			       << "----" << std::endl;
+    if (_G["fpe_trace"]) {
+      if (_G["fpe_trace"].as<bool>()) {
+	fpe_trap  = false;
+	fpe_trace = true;
+	fpe_wait  = false;
+      } else fpe_trace = false;
+      if (myid==0) {
+	std::cout << "Found <fpe_trace=" << std::boolalpha
+		  << fpe_trace << ">" << std::endl;
+	if (fpe_trace) std::cout << "----" << std::endl
+				 << "---- Print a backtrace to stderr on detecting an FP error" << std::endl
+				 << "----" << std::endl;
+      }
     }
-  }
 
-  if (parse->find_item("fpe_wait", val)) {
-    if (atoi(val.c_str())) {
-      fpe_trap  = false;
-      fpe_trace = false;
-      fpe_wait  = true;
-    } else fpe_wait = false;
-    if (myid==0) {
-      std::cout << "Found <fpe_wait=" << val << ", " << std::boolalpha
-		<< fpe_wait << ">" << std::endl;
-      if (fpe_wait)
-	std::cout << "----" << std::endl
-		  << "---- When an FPE is signalled, process will spin, waiting for a gdb connection." << std::endl
-		  << "---- Messages describing the affected node and pid will be written to the" << std::endl
-		  << "---- standard output." << std::endl
-		  << "----" << std::endl;
+    if (_G["fpe_wait"]) {
+      if (_G["fpe_wait"].as<bool>()) {
+	fpe_trap  = false;
+	fpe_trace = false;
+	fpe_wait  = true;
+      } else fpe_wait = false;
+      if (myid==0) {
+	std::cout << "Found <fpe_wait=" << std::boolalpha
+		  << fpe_wait << ">" << std::endl;
+	if (fpe_wait)
+	  std::cout << "----" << std::endl
+		    << "---- When an FPE is signalled, process will spin, waiting for a gdb connection." << std::endl
+		    << "---- Messages describing the affected node and pid will be written to the" << std::endl
+		    << "---- standard output." << std::endl
+		    << "----" << std::endl;
+      }
     }
-  }
 
-  if (parse->find_item("homedir", val)) {
-    // Check for and add trailing slash
-    if (*val.rbegin() != '/') val += '/';
-    homedir = val;
-  }
+    if (_G["homedir"]) {
+      homedir = _G["homedir"].as<std::string>();
+      // Check for and add trailing slash
+      if (*homedir.rbegin() != '/') homedir += '/';
+    }
 
-  if (parse->find_item("ldlibdir", val))	ldlibdir = val;
-  if (parse->find_item("infile", val))		infile = val;
-  if (parse->find_item("parmfile", val))	parmfile = val;
-  if (parse->find_item("ratefile", val))	ratefile = val;
-  if (parse->find_item("runtag", val))		runtag = val;
-  if (parse->find_item("restart_cmd", val))     restart_cmd = val;
-
-  if (parse->find_item("outdir", val)) {
+    if (_G["ldlibdir"])	        ldlibdir = _G["ldlibdir"].as<std::string>();
+    if (_G["infile"])		infile   = _G["infile"].as<std::string>();
+    if (_G["parmfile"])	        parmfile = _G["parmfile"].as<std::string>();
+    if (_G["ratefile"])	        ratefile = _G["ratefile"].as<std::string>();
+    if (_G["runtag"])		runtag   = _G["runtag"].as<std::string>();
+    if (_G["restart_cmd"])      restart_cmd = _G["restart_cmd"].as<std::string>();
+    if (_G["ignore_info"])      ignore_info = _G["ignore_info"].as<bool>();
+    
     bool ok = true;
+
+    if (_G["outdir"]) {
+
+      outdir = _G["outdir"].as<std::string>();
+
 				// Check for and add trailing slash
-    if (*val.rbegin() != '/') val += '/';
+      if (*outdir.rbegin() != '/') outdir += '/';
 
 				// Root node with check existence and try
 				// to create directory if need be . . .
-    if (myid == 0) {
-      struct stat sb;		// Stat buffer structure
-      if (stat(val.c_str(), &sb) == -1) {
-				// Error in opening the candidate directory
-	cout << "parse: I can't open directory <" << val << ">" << endl;
-				// Maybe we need to create it?
-	cout << "parse: I will attempt to create it" << endl;
-	if (mkdir(val.c_str(), 0755) == -1) {
-	  cout << "parse: error creating directory <" << val 
-	       << ">, aborting" << endl;
-	  perror("mkdir");
-	  MPI_Abort(MPI_COMM_WORLD, 10);
-	  exit(EXIT_SUCCESS);
+      if (myid == 0) {
+	struct stat sb;		// Stat buffer structure
+	if (stat(outdir.c_str(), &sb) == -1) {
+	  // Error in opening the candidate directory
+	  cout << "parse: I can't open directory <" << outdir << ">" << endl;
+	  // Maybe we need to create it?
+	  cout << "parse: I will attempt to create it" << endl;
+	  if (mkdir(outdir.c_str(), 0755) == -1) {
+	    cout << "parse: error creating directory <" << outdir
+		 << ">, aborting" << endl;
+	    perror("mkdir");
+	    MPI_Abort(MPI_COMM_WORLD, 10);
+	    exit(EXIT_SUCCESS);
+	  }
+	} else {
+	  cout << "parse: output path <" << outdir << "> is "; // 
+	  switch (sb.st_mode & S_IFMT) {
+	  case S_IFBLK:  cout << "a block device";     ok=false;  break;
+	  case S_IFCHR:  cout << "a character device"; ok=false;  break;
+	  case S_IFDIR:  cout << "a directory";        ok=true;   break;
+	  case S_IFIFO:  cout << "a FIFO/pipe";        ok=false;  break;
+	  case S_IFLNK:  cout << "a symlink";          ok=false;  break;
+	  case S_IFREG:  cout << "a regular file";     ok=false;  break;
+	  case S_IFSOCK: cout << "a socket";           ok=false;  break;
+	  default:       cout << "an unknown type";    ok=false;  break;
+	  }
+	  if (ok) cout << " . . . good"     << endl;
+	  else    cout << " . . . very bad" << endl;
 	}
-      } else {
-	cout << "parse: output path <" << val << "> is "; // 
-	switch (sb.st_mode & S_IFMT) {
-	case S_IFBLK:  cout << "a block device";     ok=false;  break;
-	case S_IFCHR:  cout << "a character device"; ok=false;  break;
-	case S_IFDIR:  cout << "a directory";        ok=true;   break;
-	case S_IFIFO:  cout << "a FIFO/pipe";        ok=false;  break;
-	case S_IFLNK:  cout << "a symlink";          ok=false;  break;
-	case S_IFREG:  cout << "a regular file";     ok=false;  break;
-	case S_IFSOCK: cout << "a socket";           ok=false;  break;
-	default:       cout << "an unknown type";    ok=false;  break;
-	}
-	if (ok) cout << " . . . good"     << endl;
-	else    cout << " . . . very bad" << endl;
       }
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
 				// Append "/" if necessary
-    if (val[val.size()-1] != '/') val += "/";
+    if (outdir[outdir.size()-1] != '/') outdir += "/";
     
     ostringstream tfile;
     if (myid==0 && ok) {	// Try to open a file in this path
-      tfile << val << ".test.file." << rand();
+      tfile << outdir << ".test.file." << rand();
 
       if (mknod(tfile.str().c_str(),  S_IFREG | 0666, 0)==-1) {
 				// If the file exists, ok, otherwise NOT ok
@@ -287,81 +257,68 @@ void initialize(void)
       exit(255);
     }
 
-				// Ok, we have an output directory!
-    outdir = val;
   }
 
 }
 
-void print_parm(ostream& out, const char *comment)
+void update_parm()
 {
-  out << comment << "[global]" << endl;
+  try {
+    YAML::Node conf = parse["Global"];
 
-  out << endl;
+    if (not conf["nbodmax"])    conf["nbodmax"]     = nbodmax;
+    if (not conf["nsteps"])     conf["nsteps"]      = nsteps;
+    if (not conf["nthrds"])     conf["nthrds"]      = nthrds;
+    if (not conf["nreport"])    conf["nreport"]     = nreport;
+    if (not conf["nbalance"])   conf["nbalance"]    = nbalance;
+    if (not conf["dbthresh"])   conf["dbthresh"]    = dbthresh;
+    
+    if (not conf["time"])       conf["time"]        = tnow;
+    if (not conf["dtime"])      conf["dtime"]       = dtime;
+    if (not conf["nbits"])      conf["nbits"]       = nbits;
+    if (not conf["pkbits"])     conf["pkbits"]      = pkbits;
+    if (not conf["PFbufsz"])    conf["PFbufsz"]     = PFbufsz;
+    if (not conf["NICE"])       conf["NICE"]        = NICE;
+    if (not conf["VERBOSE"])    conf["VERBOSE"]     = VERBOSE;
+    if (not conf["rlimit"])     conf["rlimit"]      = rlimit_val;
+    if (not conf["runtime"])    conf["runtime"]     = runtime;
+    
+    if (not conf["multistep"])  conf["multistep"]   = multistep;
+    if (not conf["centerlevl"]) conf["centerlevl"]  = centerlevl;
+    if (not conf["DTold"])      conf["DTold"]       = DTold;
+    if (not conf["dynfracS"])   conf["dynfracS"]    = dynfracS;
+    if (not conf["dynfracV"])   conf["dynfracV"]    = dynfracV;
+    if (not conf["dynfracA"])   conf["dynfracA"]    = dynfracA;
+    if (not conf["dynfracP"])   conf["dynfracP"]    = dynfracP;
+    
+    if (not conf["use_cwd"])    conf["use_cwd"]     = use_cwd;
+    if (not conf["eqmotion"])   conf["eqmotion"]    = eqmotion;
+    if (not conf["global_cov"]) conf["global_cov"]  = global_cov;
 
-  out << comment << setw(20) << "nbodmax"    << " : " << nbodmax     << endl;
-  out << comment << setw(20) << "nsteps"     << " : " << nsteps      << endl;
-  out << comment << setw(20) << "nthrds"     << " : " << nthrds      << endl;
-  out << comment << setw(20) << "nreport"    << " : " << nreport     << endl;
-  out << comment << setw(20) << "nbalance"   << " : " << nbalance    << endl;
-  out << comment << setw(20) << "dbthresh"   << " : " << dbthresh    << endl;
-
-  out << comment << setw(20) << "time"       << " : " << tnow        << endl;
-  out << comment << setw(20) << "dtime"      << " : " << dtime       << endl;
-  out << comment << setw(20) << "nbits"      << " : " << nbits       << endl;
-  out << comment << setw(20) << "pkbits"     << " : " << pkbits      << endl;
-  out << comment << setw(20) << "PFbufsz"    << " : " << PFbufsz     << endl;
-  out << comment << setw(20) << "NICE"       << " : " << NICE        << endl;
-  out << comment << setw(20) << "VERBOSE"    << " : " << VERBOSE     << endl;
-  out << comment << setw(20) << "rlimit"     << " : " << rlimit_val  << endl;
-  out << comment << setw(20) << "runtime"    << " : " << runtime     << endl;
-
-  out << comment << setw(20) << "multistep"  << " : " << multistep   << endl;
-  out << comment << setw(20) << "centerlevl" << " : " << centerlevl  << endl;
-  out << comment << setw(20) << "DTold"      << " : " << DTold       << endl;
-  out << comment << setw(20) << "dynfracS"   << " : " << dynfracS    << endl;
-  out << comment << setw(20) << "dynfracV"   << " : " << dynfracV    << endl;
-  out << comment << setw(20) << "dynfracA"   << " : " << dynfracA    << endl;
-  out << comment << setw(20) << "dynfracP"   << " : " << dynfracP    << endl;
-
-  out << comment << setw(20) << "use_cwd"    << " : " << use_cwd     << endl;
-  out << comment << setw(20) << "eqmotion"   << " : " << eqmotion    << endl;
-  out << comment << setw(20) << "global_cov" << " : " << global_cov  << endl;
-
-  out << comment << setw(20) << "homedir"    << " : " << homedir     << endl;
-  out << comment << setw(20) << "ldlibdir"   << " : " << ldlibdir    << endl;
-  out << comment << setw(20) << "infile"     << " : " << infile      << endl;
-  out << comment << setw(20) << "parmfile"   << " : " << parmfile    << endl;
-  out << comment << setw(20) << "ratefile"   << " : " << ratefile    << endl;
-  out << comment << setw(20) << "outdir"     << " : " << outdir      << endl;
-  out << comment << setw(20) << "runtag"     << " : " << runtag      << endl;
-  out << comment << setw(20) << "command"    << " : " << restart_cmd << endl;
-
-  out << endl;
-
-  out << comment << "[components]" << endl;
-
-  out << endl;
-
-  out << comment << "[output]" << endl;
-
-  out << endl;
-
-  out << comment << setw(20) << "outlog"    << " : " << "nint=1"  << endl;
-  out << comment << setw(20) << "outpsn"    << " : " << "nint=10" << endl;
-
-  out << endl;
-
-  out << comment << "[external]" << endl;
-
-  out << endl;
+    if (not conf["homedir"])    conf["homedir"]     = homedir;
+    if (not conf["ldlibdir"])   conf["ldlibdir"]    = ldlibdir;
+    if (not conf["infile"])     conf["infile"]      = infile;
+    if (not conf["parmfile"])   conf["parmfile"]    = parmfile;
+    if (not conf["ratefile"])   conf["ratefile"]    = ratefile;
+    if (not conf["outdir"])     conf["outdir"]      = outdir;
+    if (not conf["runtag"])     conf["runtag"]      = runtag;
+    if (not conf["command"])    conf["command"]    = restart_cmd;
+    
+    parse["Global"] = conf;
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error updating parameters in parse.update_parm: "
+			   << error.what() << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 
 void write_parm(void)
 {
   if (myid!=0) return;
-  string curparm(outdir + parmfile + "." + runtag);
+  string curparm(outdir + parmfile + "." + runtag + ".yml");
   ofstream out(curparm.c_str());
   if (!out) {
     cerr << "write_parm: could not open <" << parmfile << ">\n";
@@ -369,28 +326,34 @@ void write_parm(void)
     exit(EXIT_SUCCESS);
   }
   
-  print_parm(out, "");
+  update_parm();
 
-  out << endl
-      << "--------------------" << endl
-      << " Parameter database " << endl
-      << "--------------------" << endl
-      << endl;
+  out << std::endl
+      << "---"                       << std::endl
+      << "#------------------------" << std::endl
+      << "# Parameter database     " << std::endl
+      << "# EXP [" << VERSION << "]" << std::endl
+      << "#------------------------" << std::endl
+      << "#"                         << std::endl;
 
-  parse->print_database(out);
+  out << parse << std::endl
+      << "..." << std::endl;
 }
 
 
 void print_default(void)
 {
-  print_parm(cout, "# ");
+  update_parm();
+  
+  std::cout << "# EXP [" << VERSION << "]" << std::endl
+	    << parse << std::endl;
 }
 
 
-void MPL_parse_args(int argc, char** argv)
+void YAML_parse_args(int argc, char** argv)
 {
   extern char *optarg;
-  char *prog=argv[0];
+  char *prog = argv[0];
   int myid;
   char file[128];
   int c;
@@ -440,7 +403,22 @@ void MPL_parse_args(int argc, char** argv)
       exit(EXIT_SUCCESS);
     }
 
-    parse = new ParamParseMPI(&in, ":");
+    try {
+      parse = YAML::Load(in);
+    }
+    catch (YAML::Exception & error) {
+      if (myid==0) std::cout << "Error parsing config file: "
+			     << error.what() << std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
+
+    std::ostringstream serial;
+    serial << parse << std::endl;
+
+    int line_size = serial.str().size();
+    MPI_Bcast(&line_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(const_cast<char*>(serial.str().data()), line_size, MPI_CHAR, 0, MPI_COMM_WORLD);
 
   } else {
     
@@ -458,12 +436,19 @@ void MPL_parse_args(int argc, char** argv)
       exit(EXIT_SUCCESS);
     }
 
-    parse = new ParamParseMPI(NULL, ":");
+    int line_size;
+    MPI_Bcast(&line_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    std::string config;
+    config.resize(line_size);
+
+    MPI_Bcast(const_cast<char*>(config.data()), line_size, MPI_CHAR, 0, MPI_COMM_WORLD);
+    
+    std::istringstream sin(config);
+
+    parse = YAML::Load(sin);
 
   }
 
-  parse->parse_argv(argc-optind, &argv[optind]);
-
   initialize();
-
 }

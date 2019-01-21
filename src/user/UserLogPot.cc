@@ -5,7 +5,7 @@
 
 #include <UserLogPot.H>
 
-UserLogPot::UserLogPot(string &line) : ExternalForce(line)
+UserLogPot::UserLogPot(const YAML::Node& conf) : ExternalForce(conf)
 {
   id = "LogarithmicPotential";
 
@@ -33,12 +33,23 @@ void UserLogPot::userinfo()
 
 void UserLogPot::initialize()
 {
-  string val;
-
-  if (get_value("R", val))		R = atof(val.c_str());
-  if (get_value("b", val))		b = atof(val.c_str());
-  if (get_value("c", val))		c = atof(val.c_str());
-  if (get_value("v2", val))		v2 = atof(val.c_str());
+  try {
+    if (conf["R"])      R     = conf["R"].as<double>();
+    if (conf["b"])      b     = conf["b"].as<double>();
+    if (conf["c"])      c     = conf["c"].as<double>();
+    if (conf["v2"])     v2    = conf["v2"].as<double>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserLogPot: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 
@@ -87,9 +98,9 @@ void * UserLogPot::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerLogPot(string& line)
+  ExternalForce *makerLogPot(const YAML::Node& conf)
   {
-    return new UserLogPot(line);
+    return new UserLogPot(conf);
   }
 }
 

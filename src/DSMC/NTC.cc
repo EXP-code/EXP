@@ -332,7 +332,7 @@ NTCitem& NTCdb::operator[](const key_type& k)
     //
     key_type check = k >> 3;
     it = data.find(check);
-    while (it == data.end() and check != 0) {
+    while (it == data.end() and check != 0ul) {
       check = check >> 3;
       it = data.find(check);
     }

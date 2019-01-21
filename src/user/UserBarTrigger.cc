@@ -7,7 +7,7 @@
 #include <UserBarTrigger.H>
 
 
-UserBarTrigger::UserBarTrigger(string &line) : ExternalForce(line)
+UserBarTrigger::UserBarTrigger(const YAML::Node& conf) : ExternalForce(conf)
 {
 				// Name for this force (only used for
 				// diagnostic output
@@ -130,15 +130,26 @@ void UserBarTrigger::userinfo()
 
 void UserBarTrigger::initialize()
 {
-  string val;
-
-  if (get_value("impact", val))         impact = atof(val.c_str());
-  if (get_value("theta", val))          theta  = atof(val.c_str());
-  if (get_value("smass", val))	        smass  = atof(val.c_str());
-  if (get_value("svel", val))	        svel   = atof(val.c_str());
-  if (get_value("stime", val))	        stime  = atof(val.c_str());
-  if (get_value("lmax", val))		lmax   = atoi(val.c_str());
-  if (get_value("ctrname", val))	ctr_name = val;
+  try {
+    if (conf["impact"])   impact       = conf["impact"].as<double>();
+    if (conf["theta"])    theta        = conf["theta"].as<double>();
+    if (conf["smass"])    smass        = conf["smass"].as<double>();
+    if (conf["svel"])     svel         = conf["svel"].as<double>();
+    if (conf["stime"])    stime        = conf["stime"].as<double>();
+    if (conf["lmax"])     lmax         = conf["lmax"].as<int>();
+    if (conf["ctrname"])  ctr_name     = conf["ctrname"].as<string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing parameters in UserBarTrigger: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    MPI_Finalize();
+    exit(-1);
+  }
 }
 
 
@@ -211,9 +222,9 @@ void * UserBarTrigger::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerBarTrigger(string& line)
+  ExternalForce *makerBarTrigger(const YAML::Node& conf)
   {
-    return new UserBarTrigger(line);
+    return new UserBarTrigger(conf);
   }
 }
 
