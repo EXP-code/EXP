@@ -1593,13 +1593,15 @@ void TreeDSMC::determine_acceleration_and_potential(void)
       vector<float>    keymake, xchange, convert, overlap, prepare;
       vector<float>    cupdate, scatter, repartn, tadjust, keycall;
       vector<float>    keycomp, keybods, waiton0, waiton1, waiton2;
-      vector<float>    keynewc, keyoldc, treebar, diagdbg;
+      vector<float>    keynewc, keyoldc, treebar, diagdbg, keysort;
+      vector<float>    keygenr;
       vector<unsigned> numbods;
       
       c0->Tree()->Timing(keymake, xchange, convert, overlap, prepare,
 			 cupdate, scatter, repartn, tadjust, keycall,
-			 keycomp, keybods, waiton0, waiton1, waiton2,
-			 keynewc, keyoldc, treebar, diagdbg, numbods);
+			 keycomp, keybods, keysort, keygenr, waiton0,
+			 waiton1, waiton2, keynewc, keyoldc, treebar,
+			 diagdbg, numbods);
       
       outHeader0(mout);
       
@@ -1626,6 +1628,8 @@ void TreeDSMC::determine_acceleration_and_potential(void)
       outHelper1<float>(mout, "keycall", keycall);
       outHelper1<float>(mout, "keycomp", keycomp);
       outHelper1<float>(mout, "keybods", keybods);
+      outHelper1<float>(mout, "keysort", keysort);
+      outHelper1<float>(mout, "keygenr", keygenr);
       outHelper1<float>(mout, "new key", keynewc);
       outHelper1<float>(mout, "old key", keyoldc);
       outHelper1<float>(mout, "diagnos", diagdbg);
