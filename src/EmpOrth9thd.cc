@@ -2834,6 +2834,7 @@ void EmpCylSL::pca_hall(void)
 			    pb->C[mm]->b_Hall, snrval,
 			    pb->C[mm]->evalJK,
 			    pb->C[mm]->evecJK.Transpose(),
+			    pb->C[mm]->covrJK,
 			    0, mm, 'c');
 #endif
   }
@@ -2946,6 +2947,7 @@ void EmpCylSL::pca_hall(void)
 			    pb->S[mm]->b_Hall, snrval,
 			    pb->S[mm]->evalJK,
 			    pb->S[mm]->evecJK.Transpose(),
+			    pb->S[mm]->covrJK,
 			    0, mm, 's');
 #endif
   }

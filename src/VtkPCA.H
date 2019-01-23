@@ -34,7 +34,7 @@ private:
   vtkFloatArrayP XX, YY, ZZ;
 
   // Fields
-  std::vector<vtkFloatArrayP> coef, hall, eval, snrv, vecs;
+  std::vector<vtkFloatArrayP> coef, hall, eval, snrv, vecs, covr;
 
   // Labels
   std::vector<std::string>    elab;
@@ -58,6 +58,7 @@ public:
 	   const Vector& snr,
 	   const Vector& eval,
 	   const Matrix& evec,
+	   const Matrix& covr,
 	   int m);
 
   //! Add data for three-dimensional spherical basis
@@ -66,6 +67,7 @@ public:
 	   const Vector& snr,
 	   const Vector& eval,
 	   const Matrix& evec,
+	   const Matrix& covr,
 	   int l, int m, char tag);
   
   //! Write output file
