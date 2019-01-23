@@ -386,9 +386,9 @@ void AxisymmetricBasis::pca_hall(int compute)
 
 	  if (vtkpca and myid==0) {
 	    if (dof==3)
-	      vtkpca->Add(meanJK, b_Hall[indx], snrval, evalJK, evecJK.Transpose(), l, m, 'c');
+	      vtkpca->Add(meanJK, b_Hall[indx], snrval, evalJK, evecJK.Transpose(), covrJK, l, m, 'c');
 	    else
-	      vtkpca->Add(meanJK, b_Hall[indx], snrval, evalJK, evecJK.Transpose(), m);
+	      vtkpca->Add(meanJK, b_Hall[indx], snrval, evalJK, evecJK.Transpose(), covrJK, m);
 	  }
 	  
 	  if (out) out << endl;
@@ -581,9 +581,9 @@ void AxisymmetricBasis::pca_hall(int compute)
 
 	  if (vtkpca and myid==0) {
 	    if (dof==3)
-	      vtkpca->Add(meanJK, b_Hall[indx], snrval, evalJK, evecJK.Transpose(), l, m, 'c');
+	      vtkpca->Add(meanJK, b_Hall[indx], snrval, evalJK, evecJK.Transpose(), covrJK, l, m, 'c');
 	    else
-	      vtkpca->Add(meanJK, b_Hall[indx], snrval, evalJK, evecJK.Transpose(), m);
+	      vtkpca->Add(meanJK, b_Hall[indx], snrval, evalJK, evecJK.Transpose(), covrJK, m);
 	  }
 
 	  if (out) out << endl;
@@ -773,9 +773,9 @@ void AxisymmetricBasis::pca_hall(int compute)
 
 	  if (vtkpca and myid==0) {
 	    if (dof==3)
-	      vtkpca->Add(meanJK, b_Hall[indx], snrval, evalJK, evecJK.Transpose(), l, m, 's');
+	      vtkpca->Add(meanJK, b_Hall[indx], snrval, evalJK, evecJK.Transpose(), covrJK, l, m, 's');
 	    else
-	      vtkpca->Add(meanJK, b_Hall[indx], snrval, evalJK, evecJK.Transpose(), m);
+	      vtkpca->Add(meanJK, b_Hall[indx], snrval, evalJK, evecJK.Transpose(), covrJK, m);
 	  }
 	  
 
