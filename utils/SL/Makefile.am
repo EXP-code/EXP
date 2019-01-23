@@ -33,11 +33,11 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 noinst_HEADERS =
 
 slcheck_SOURCES = slcheck.cc localmpi.cc
-slcheck_LDFLAGS = $(BOOST_LDFLAGS)
+slcheck_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
 slcheck_LDADD = $(EXPLIBS) $(CUDA_LIBFLAGS)
 
 slshift_SOURCES = slshift.cc SLSphere.cc localmpi.cc
-slshift_LDFLAGS = $(BOOST_LDFLAGS)
+slshift_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
 slshift_LDADD = $(EXPLIBS) $(CUDA_LIBFLAGS) $(BOOST_LIBS)
 
 orthochk_SOURCES = orthochk.cc biorth1d.cc localmpi.cc

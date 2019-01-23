@@ -2665,21 +2665,21 @@ void VernerData::initialize(chdata* ch)
     
     for (auto v : data) {
       lQ k = v.first;
-      MPI_Bcast(&k.first,  1, MPI_INT, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&k.second, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&k.first,  1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&k.second, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
       v.second->sync();
     }
     
-    int done = 0;
-    MPI_Bcast(&done,  1, MPI_INT, 0, MPI_COMM_WORLD);
+    unsigned short done = 0;
+    MPI_Bcast(&done,  1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
     
   } else {
     lQ key;
     
     while (1) {
-      MPI_Bcast(&key.first,  1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&key.first,  1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
       if (key.first==0) break;
-      MPI_Bcast(&key.second, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&key.second, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
       
       vrPtr dat(new VernerRec);
       dat->sync();

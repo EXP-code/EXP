@@ -65,7 +65,7 @@ static bool DEBUG_OOB     = true;
 static bool DEBUG_MERGE   = false;
 
 // Use round-robin distribution and scalar sort rather than parallel sort
-static bool USE_RROBIN    = true;
+static bool USE_RROBIN    = false;
 
 #ifdef USE_GPTL
 #include <gptl.h>
@@ -87,7 +87,7 @@ unsigned pHOT::ntile;
 std::vector<unsigned> pHOT::qtile;
 
 // Use computed effort per particle in domain decomposition (default: true)
-bool pHOT::use_weight     = false; // Testing
+bool pHOT::use_weight  = false;
 
 double   pHOT::hystrs  = 0.5;
 
@@ -192,14 +192,13 @@ pHOT::pHOT(Component *C, sKeySet spec_list)
   cntr_total = cntr_new_key = cntr_mine = cntr_not_mine = cntr_ship = 0;
 
   numkeys = 0;
-  use_weight = true;
  
   // Initialize timing structures
   //
   keymk3 = exchg3 = cnvrt3 = tovlp3 = prepr3 = updat3 =
     scatr3 = reprt3 = tadjt3 = celcl3 = keycm3 = keybd3 =
-    wait03 = wait13 = wait23 = keync3 = keyoc3 = barri3 =
-    diagd3 = vector<float>(numprocs);
+    keyst3 = keygn3 = wait03 = wait13 = wait23 = keync3 =
+    keyoc3 = barri3 = diagd3 = vector<float>(numprocs);
   
   numk3    = vector<unsigned>(numprocs);
   numfront = vector<int>(numprocs);
@@ -2141,6 +2140,14 @@ void pHOT::Repartition(unsigned mlevel)
   GPTLstart("pHOT::Repartition::compute_keys");
 #endif
 
+#if HAVE_LIBCUDA==1
+
+  std::vector<key_wght> keys;
+  keyProcessCuda(keys);
+
+#else
+  timer_keygenr.start();
+
   oob.clear();
   vector<key_wght> keys;
   for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
@@ -2190,6 +2197,9 @@ void pHOT::Repartition(unsigned mlevel)
   GPTLstart("pHOT::Repartition::spreadOOB");
 #endif
 
+  timer_keygenr.stop();
+  timer_keysort.start();
+
   spreadOOB();
 
 #ifdef USE_GPTL
@@ -2204,7 +2214,12 @@ void pHOT::Repartition(unsigned mlevel)
   GPTLstart("pHOT::bodyList");
 #endif
 
+  timer_keysort.stop();
+
+#endif
+  
   timer_prepare.start();
+
 
   //
   // Nodes compute send list
@@ -2489,6 +2504,7 @@ void pHOT::Repartition(unsigned mlevel)
     timer_diagdbg.stop();
   }
 
+#if HAVE_LIBCUDA != 1
   if (checkDupes1("pHOT::Repartition: after exchange")) {
     cout << "Process " << myid << " at T=" << tnow 
 	 << ", L=" << mlevel
@@ -2496,6 +2512,7 @@ void pHOT::Repartition(unsigned mlevel)
 	 << d1b << endl;
   }
   d1b++;
+#endif
 
   timer_repartn.stop();
 
@@ -5363,6 +5380,12 @@ void pHOT::CollectTiming()
   fval = timer_keybods.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &keybd3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
+  fval = timer_keysort.getTime();
+  MPI_Gather(&fval, 1, MPI_FLOAT, &keyst3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+
+  fval = timer_keygenr.getTime();
+  MPI_Gather(&fval, 1, MPI_FLOAT, &keygn3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+
   fval = timer_waiton0.getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &wait03[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
@@ -5399,6 +5422,8 @@ void pHOT::CollectTiming()
   timer_cellcul.reset();
   timer_keycomp.reset();
   timer_keybods.reset();
+  timer_keysort.reset();
+  timer_keygenr.reset();
   timer_waiton1.reset();
   timer_waiton2.reset();
   timer_keynewc.reset();
@@ -5428,6 +5453,7 @@ void pHOT::Timing(vector<float>    &keymake, vector<float>    &exchange,
 		  vector<float>    &scatter, vector<float>    &repartn,
 		  vector<float>    &tadjust, vector<float>    &cellcul,
 		  vector<float>    &keycomp, vector<float>    &keybods,
+		  vector<float>    &keysort, vector<float>    &keygenr,
 		  vector<float>    &waiton0, vector<float>    &waiton1,
 		  vector<float>    &waiton2, vector<float>    &keynewc,
 		  vector<float>    &keyoldc, vector<float>    &treebar,
@@ -5445,6 +5471,8 @@ void pHOT::Timing(vector<float>    &keymake, vector<float>    &exchange,
   getQuant<float   >(celcl3, cellcul);
   getQuant<float   >(keycm3, keycomp);
   getQuant<float   >(keybd3, keybods);
+  getQuant<float   >(keyst3, keysort);
+  getQuant<float   >(keygn3, keygenr);
   getQuant<float   >(wait03, waiton0);
   getQuant<float   >(wait13, waiton1);
   getQuant<float   >(wait23, waiton2);
@@ -5452,7 +5480,7 @@ void pHOT::Timing(vector<float>    &keymake, vector<float>    &exchange,
   getQuant<float   >(keyoc3, keyoldc);
   getQuant<float   >(barri3, treebar);
   getQuant<float   >(diagd3, diagdbg);
-  getQuant<unsigned>(numk3,  numk);
+  getQuant<unsigned>(numk3,  numk   );
 }
 
 
