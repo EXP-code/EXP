@@ -54,6 +54,11 @@ thrust::host_vector<cuFP_t> returnTestSph
 static std::vector<cudaResourceDesc> resDesc;
 static std::vector<cudaTextureDesc>  texDesc;
 
+struct Element {
+  int l;
+  double a;
+  double b;
+};
 
 void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
 				thrust::host_vector<cudaTextureObject_t>& tex)
@@ -145,12 +150,6 @@ void SLGridSph::initialize_cuda(std::vector<cudaArray_t>& cuArray,
   //
   if (false) {
     const cuFP_t tol = 10.0*std::numeric_limits<cuFP_t>::epsilon();
-
-    struct Element {
-      int l;
-      double a;
-      double b;
-    };
 
     std::multimap<double, Element> compare;
 
