@@ -1877,7 +1877,7 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
 	cuFP_t eVel2 = 0.0, iVel2 = 0.0;
 	for (int l=0; l<3; l++) {
 	  cuFP_t ve  = p.datr[epos+l];
-	  if (isnan(ve)) {
+	  if (::isnan(ve)) {
 	    printf("Weird electron\n");
 	  }
 	  eVel2 += ve*ve;
@@ -1960,7 +1960,7 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
       // cuFP_t Prob = dens * cuMunit/cuAmu * sqrt(Ivel2._v[c]) * tauC._v[c];
       cuFP_t Prob = massP/volC._v[c] * sqrt(Ivel2._v[c]) * tauC._v[c];
 
-      if (isnan(Prob) or isnan(tot_pairs) or tot_pairs<=0.0) {
+      if (::isnan(Prob) or ::isnan(tot_pairs) or tot_pairs<=0.0) {
 	printf("tot_pairs=%f dens=%f nbods=%d meanM=%f\n",
 	       tot_pairs, dens, nbods, meanM);
       }
@@ -3071,7 +3071,7 @@ void cudaCoulombVector(cuFP_t *rel, cuFP_t W1, cuFP_t W2, cuFP_t Tau,
     if (fac*Tau<100.0) tau = fac*Tau;
   }
   cuFP_t cosx   = cuCA_get(tau, rn);
-  if (isnan(cosx)) {
+  if (::isnan(cosx)) {
     printf("Crazy cosx for Tau=%f tau=%f rn=%f W1=%f W2=%f\n", Tau, tau, rn, W1, W2);
   }
   cuFP_t sinx   = sqrt(fabs(1.0 - cosx*cosx));
@@ -3209,7 +3209,7 @@ void cudaScatterTrace
     for (size_t k=0; k<3; k++) {
       v1[k] = vcom[k] + m2/mt*vrel[k] * vfac;
       v2[k] = vcom[k] - m1/mt*vrel[k] * vfac;
-      if (isnan(v1[k]) or isnan(v2[k])) crazy = true;
+      if (::isnan(v1[k]) or ::isnan(v2[k])) crazy = true;
     }
 
     if (crazy) {
@@ -3617,7 +3617,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    dE = XE * Prob;
 	    // Sanity
-	    if (isnan(dE)) {
+	    if (::isnan(dE)) {
 	      printf("Crazy dE value in free-free: XE=%e P=%e\n", XE, Prob);
 	      dE = 0.0;
 	    }
@@ -3635,7 +3635,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    dE = XE * Prob;
 	    // Sanity
-	    if (isnan(dE)) {
+	    if (::isnan(dE)) {
 	      printf("Crazy dE value in col excite: XE=%e P=%e\n", XE, Prob);
 	      dE = 0.0;
 	    }
@@ -3655,7 +3655,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    dE = XE * Prob;
 	    // Sanity
-	    if (isnan(dE)) {
+	    if (::isnan(dE)) {
 	      printf("Crazy dE value in col ionize: XE=%e P=%e\n", XE, Prob);
 	      dE = 0.0;
 	    }
@@ -3686,7 +3686,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      dE += Echg * cuEunit / (N0*eV);
 	      
 	      // Sanity
-	      if (isnan(dE)) {
+	      if (::isnan(dE)) {
 		printf("Crazy dE value in col ionize: XE=%e P=%e E=%e\n", XE, Prob, Echg);
 		dE = 0.0;
 	      }
@@ -3721,7 +3721,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      dE += Echg * cuEunit / (N0*eV);
 	      
 	      // Sanity
-	      if (isnan(dE)) {
+	      if (::isnan(dE)) {
 		printf("Crazy dE value in col ionize: XE=%e P=%e E=%e\n", XE, Prob, Echg);
 		dE = 0.0;
 	      }
@@ -3781,7 +3781,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      // cuFP_t eE = Echg * cuEunit / (N0*cuEV);
 	      
 	      // Sanity
-	      if (isnan(dE)) {
+	      if (::isnan(dE)) {
 		printf("Crazy dE value in recomb: P=%e\n", Prob);
 		dE = 0.0;
 	      }
@@ -3833,7 +3833,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      // cuFP_t eE = Echg * cuEunit / (N0*eV);
 	      
 	      // Sanity
-	      if (isnan(dE)) {
+	      if (::isnan(dE)) {
 		printf("Crazy dE value in recomb: P=%e\n", Prob);
 		dE = 0.0;
 	      }
@@ -3984,10 +3984,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    p1.vel[k] = v1[k];
 	    p2.vel[k] = v2[k];
 	    // Sanity
-	    if (isnan(v1[k])) {
+	    if (::isnan(v1[k])) {
 	      printf("Crazy value for p1.vel for J=0\n");
 	    }
-	    if (isnan(v2[k])) {
+	    if (::isnan(v2[k])) {
 	      printf("Crazy value for p2.vel for J=0\n");
 	    }
 	  }
@@ -4038,14 +4038,14 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    // Particle 1 is the ion
 	    p1.vel[k] = v1[k];
 	    // Sanity
-	    if (isnan(v1[k])) {
+	    if (::isnan(v1[k])) {
 	      printf("Crazy value for p1.vel for J=1\n");
 	    }
 	    
 	    // Particle 2 is the elctron
 	    p2.datr[epos+k] = v2[k];
 	    // Sanity
-	    if (isnan(v2[k])) {
+	    if (::isnan(v2[k])) {
 	      printf("Crazy value for v2 for J=1\n");
 	    }
 	  }
@@ -4096,14 +4096,14 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    p1.datr[epos+k] = v1[k];
 	    
 	    // Sanity
-	    if (isnan(v1[k])) {
+	    if (::isnan(v1[k])) {
 	      printf("Crazy value for v2 for J=2\n");
 	    }
 	    
 	    // Particle 2 is the ion
 	    p2.vel[k] = v2[k];
 	    // Sanity
-	    if (isnan(v2[k])) {
+	    if (::isnan(v2[k])) {
 	      printf("Crazy value for p2.vel for J=2\n");
 	    }
 	  }
@@ -4224,10 +4224,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 		p1.datr[epos+k] = vcom[k] + m2/mt*vrel[k] * vfac;
 		p2.datr[epos+k] = vcom[k] - m1/mt*vrel[k] * vfac;
 		// Sanity
-		if (isnan(v1[k])) {
+		if (::isnan(v1[k])) {
 		  printf("Crazy value for v1 for elec-elec\n");
 		}
-		if (isnan(v2[k])) {
+		if (::isnan(v2[k])) {
 		  printf("Crazy value for v2 for elec-elec\n");
 		}
 	      }
@@ -4279,10 +4279,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 		p1.datr[epos+k] = u1[k];
 		p2.datr[epos+k] = u2[k];
 		// Sanity
-		if (isnan(u1[k])) {
+		if (::isnan(u1[k])) {
 		  printf("Crazy value for u1 for elec-elec\n");
 		}
-		if (isnan(u2[k])) {
+		if (::isnan(u2[k])) {
 		  printf("Crazy value for u2 for elec-elec\n");
 		}
 	      }
@@ -4325,10 +4325,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 		p1.datr[epos+k] = (1.0 - q)*v1[k] + q*v0;
 		p2.datr[epos+k] = vcom[k] - m1/mt*vrel[k]*vfac;
 		// Sanity
-		if (isnan(p1.datr[epos+k])) {
+		if (::isnan(p1.datr[epos+k])) {
 		  printf("Crazy value for p1 for elec-elec\n");
 		}
-		if (isnan(p2.datr[epos+k])) {
+		if (::isnan(p2.datr[epos+k])) {
 		  printf("Crazy value for p2 for elec-elec\n");
 		}
 	      }
