@@ -760,12 +760,8 @@ void Cylinder::determine_coefficients_cuda()
 
   std::cout << std::scientific;
 
-  int deviceCount = 0;
-  cuda_safe_call(cudaGetDeviceCount(&deviceCount),
-		 __FILE__, __LINE__, "could not get device count");
-
   cudaDeviceProp deviceProp;
-  cudaGetDeviceProperties(&deviceProp, deviceCount-1);
+  cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
 
   // This will stay fixed for the entire run
   //
@@ -1311,12 +1307,8 @@ void Cylinder::determine_acceleration_cuda()
 
   std::cout << std::scientific;
 
-  int deviceCount = 0;
-  cuda_safe_call(cudaGetDeviceCount(&deviceCount),
-		 __FILE__, __LINE__, "could not get device count");
-
   cudaDeviceProp deviceProp;
-  cudaGetDeviceProperties(&deviceProp, deviceCount-1);
+  cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
 
   Component::cuRingType cr = *cC->cuRing.get();
 

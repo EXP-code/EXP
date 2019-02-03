@@ -269,6 +269,7 @@ void update_parm()
     if (not conf["nbodmax"])    conf["nbodmax"]     = nbodmax;
     if (not conf["nsteps"])     conf["nsteps"]      = nsteps;
     if (not conf["nthrds"])     conf["nthrds"]      = nthrds;
+    if (not conf["ngpus"])      conf["ngpus"]       = ngpus;
     if (not conf["nreport"])    conf["nreport"]     = nreport;
     if (not conf["nbalance"])   conf["nbalance"]    = nbalance;
     if (not conf["dbthresh"])   conf["dbthresh"]    = dbthresh;

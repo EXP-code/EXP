@@ -42,6 +42,9 @@ extern int nsteps;
 //! Number of threads per process (e.g. one per processor)
 extern int nthrds;
 
+//! Number of gpu devices per node
+extern int ngpus;
+
 //! Number of steps between particle number reports (use 0 for none)
 extern int nreport;
 

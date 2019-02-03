@@ -1389,12 +1389,8 @@ void SphericalBasis::determine_acceleration_cuda()
 
   std::cout << std::scientific;
 
-  int deviceCount = 0;
-  cuda_safe_call(cudaGetDeviceCount(&deviceCount),
-		 __FILE__, __LINE__, "could not get device count");
-
   cudaDeviceProp deviceProp;
-  cudaGetDeviceProperties(&deviceProp, deviceCount-1);
+  cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
 
   // Stream structure iterators
   //

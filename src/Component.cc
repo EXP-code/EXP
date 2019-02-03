@@ -1003,6 +1003,8 @@ void Component::initialize(void)
     //
     if (deviceCount>0) {
 
+      if (ngpus>0) deviceCount = std::min<int>(devicecount, ngpus);
+
       int myCount = 0, curCount = 0; // Get my local rank in sibling
       for (auto v : siblingList) {   // processes
 	if (myid==v) myCount = curCount;
