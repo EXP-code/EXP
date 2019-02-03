@@ -1003,7 +1003,7 @@ void Component::initialize(void)
     //
     if (deviceCount>0) {
 
-      if (ngpus>0) deviceCount = std::min<int>(devicecount, ngpus);
+      if (ngpus>0) deviceCount = std::min<int>(deviceCount, ngpus);
 
       int myCount = 0, curCount = 0; // Get my local rank in sibling
       for (auto v : siblingList) {   // processes
@@ -1022,9 +1022,9 @@ void Component::initialize(void)
 		  << "setting CUDA device on Rank [" << myid
 		  << "] on [" << processor_name << "] to [" << cudaDevice << "]"
 		  << std::endl;
-      }
 
-      cuda_initialize();
+	cuda_initialize();
+      }
 
     } else {
       std::ostringstream sout;
