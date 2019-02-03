@@ -103,6 +103,9 @@ public:
   //! Reset used particle counter
   virtual void multistep_reset() { used=0; }
 
+  //! Set tk_type from string
+  TKType setTK(const std::string& tk);
+
 private:
 
   int    Ldim, L0;

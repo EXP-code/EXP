@@ -34,21 +34,7 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
     if (conf["pcajknf"])  pcajknf    = conf["pcajknf"].as<bool>();
     if (conf["tksmooth"]) tksmooth   = conf["tksmooth"].as<double>();
     if (conf["tkcum"])    tkcum      = conf["tkcum"].as<double>();
-
-    if (conf["tk_type"]) {
-      switch (conf["tk_type"].as<int>()) {
-      case Hall:                tk_type = Hall;             break;
-      case VarianceCut:         tk_type = VarianceCut;      break;
-      case CumulativeCut:       tk_type = CumulativeCut;    break;
-      case VarianceWeighted:    tk_type = VarianceWeighted; break;
-      case Null:                tk_type = Null;             break;
-      default:
-	if (myid==0) {
-	  cout << "AxisymmetricBasis: no such TK type <" << val << ">"
-	       << " using Hall type\n";
-	}
-      }
-    }
+    if (conf["tk_type"])  tk_type    = setTK(conf["tk_type"].as<std::string>());
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in AxisymmetricBasis: "
@@ -1033,3 +1019,19 @@ void AxisymmetricBasis::parallel_gather_coef2(void)
 
 }
 
+AxisymmetricBasis::TKType AxisymmetricBasis::setTK(const std::string& tk)
+{
+  TKType ret = Null;
+
+  if      (tk == "Hall")             ret = Hall;
+  else if (tk == "VarianceCut")      ret = VarianceCut;
+  else if (tk == "CumulativeCut")    ret = CumulativeCut;
+  else if (tk == "VarianceWeighted") ret = VarianceWeighted;
+  else if (tk == "Null")             ret = Null;
+  else {
+    if (myid==0) {
+      cout << "AxisymmetricBasis: no such TK type <" << tk << ">"
+	   << " using Null type\n";
+    }
+  }
+}
