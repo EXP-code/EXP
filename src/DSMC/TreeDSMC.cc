@@ -66,7 +66,7 @@ TreeDSMC::TreeDSMC(const YAML::Node& conf) : ExternalForce(conf)
   hsdiam     = 1.0;
   crossfac   = 1.0;
   boxsize    = 1.0;
-  boxratio   = 1.0;
+  boffset    = 0.0;
   comp_name  = "gas disk";
   ctype      = "Ion";
   nsteps     = -1;
@@ -94,8 +94,6 @@ TreeDSMC::TreeDSMC(const YAML::Node& conf) : ExternalForce(conf)
   esol       = false;
   ntc        = true;
   cba        = true;
-  tube       = false;
-  slab       = false;
   sub_sample = true;
   treechk    = false;
   mpichk     = false;
@@ -105,6 +103,9 @@ TreeDSMC::TreeDSMC(const YAML::Node& conf) : ExternalForce(conf)
   ageout     = 0;
   cntHOT     = 0;
   
+  bSiz.resize(3, boxsize);
+  bOff.resize(3, boffset);
+
   // Static initialization
   initialize_colltypes();
 
@@ -413,18 +414,8 @@ TreeDSMC::TreeDSMC(const YAML::Node& conf) : ExternalForce(conf)
   
   c0->HOTcreate(spec_list);
   
-  if (tube) {
-    c0->Tree()->setSides (boxsize*boxratio, boxsize, boxsize);
-    c0->Tree()->setOffset(0.0,              0.0,     0.0);
-  } 
-  else if (slab) {
-    c0->Tree()->setSides (boxsize, boxsize, boxsize*boxratio);
-    c0->Tree()->setOffset(0.0,              0.0,     0.0);
-  } 
-  else {
-    c0->Tree()->setSides (2.0*boxsize, 2.0*boxsize, 2.0*boxsize*boxratio);
-    c0->Tree()->setOffset(    boxsize,     boxsize,     boxsize*boxratio);
-  }
+  c0->Tree()->setSides (bSiz[0], bSiz[1], bSiz[2]);
+  c0->Tree()->setOffset(bOff[0], bOff[1], bOff[2]);
   
   pCell::bucket = ncell;
   pCell::Bucket = Ncell;
@@ -516,9 +507,10 @@ void TreeDSMC::userinfo()
        << ", Vunit=" << Vunit << ", Eunit=" << Eunit
        << ", cnum=" << cnum << ", hsdiam=" << hsdiam 
        << ", crossfac=" << crossfac << ", madj=" << madj 
-       << ", epsm=" << epsm << ", boxsize=" << boxsize 
-       << ", ncell=" << ncell << ", Ncell=" << Ncell 
-       << ", boxratio=" << boxratio << ", compname=" << comp_name
+       << ", epsm=" << epsm << ", ncell=" << ncell << ", Ncell=" << Ncell 
+       << ", boxsize=[" << bSiz[0] << ", " << bSiz[1] << ", " << bSiz[2] << "]"
+       << ", boffset=[" << bOff[0] << ", " << bOff[1] << ", " << bOff[2] << "]"
+       << ", compname=" << comp_name
        << ", keyPos=" << use_key << ", vol(tree)=" << volume;
   if (msteps>=0) 
     cout << ", with diagnostic output at levels <= " << msteps;
@@ -540,8 +532,6 @@ void TreeDSMC::userinfo()
   else             cout << ", NTC disabled";
   if (cba && cbadiag)     
     cout << " with diagnostics";
-  if (tube)        cout << ", using TUBE mode";
-  else if (slab)   cout << ", using THIN SLAB mode";
   if (use_effort)  cout << ", with effort-based load";
   else             cout << ", with uniform load";
   if (fabs(enhance-1.0)>1.0e-6)
@@ -615,8 +605,6 @@ void TreeDSMC::initialize()
     if (conf["epsm"])           epsm               = conf["epsm"].as<double>();
     if (conf["hsdiam"])         hsdiam             = conf["hsdiam"].as<double>();
     if (conf["crossfac"])       crossfac           = conf["crossfac"].as<double>();
-    if (conf["boxsize"])        boxsize            = conf["boxsize"].as<double>();
-    if (conf["boxratio"])       boxratio           = conf["boxratio"].as<double>();
     if (conf["coolfrac"])       coolfrac           = conf["coolfrac"].as<double>();
     if (conf["enhance"])        enhance            = conf["enhance"].as<double>();
     if (conf["nsteps"])         nsteps             = conf["nsteps"].as<int>();
@@ -646,8 +634,6 @@ void TreeDSMC::initialize()
     if (conf["esol"])           esol               = conf["esol"].as<bool>();
     if (conf["cba"])            cba                = conf["cba"].as<bool>();
     if (conf["ntc"])            ntc                = conf["ntc"].as<bool>();
-    if (conf["tube"])           tube               = conf["tube"].as<bool>();
-    if (conf["slab"])           slab               = conf["slab"].as<bool>();
     if (conf["sub_sample"])     sub_sample         = conf["sub_sample"].as<bool>();
     if (conf["treechk"])        treechk            = conf["treechk"].as<bool>();
     if (conf["mpichk"])         mpichk             = conf["mpichk"].as<bool>();
@@ -680,6 +666,35 @@ void TreeDSMC::initialize()
       }
     }
   
+    if (conf["boxsize"]) {
+      auto vz = conf["boxsize"].as<std::vector<double>>();
+      if (vz.size()) {
+	for (size_t k=0; k<3; k++) {
+	  size_t indx = std::min<size_t>(k, vz.size()-1);
+	  bSiz[k] = vz[indx];
+	}
+      } else {
+	std::ostringstream sout;
+	sout << "TreeDSMC: invalid boxsize";
+	throw GenericError(sout.str(), __FILE__, __LINE__);
+      }
+    }
+
+
+    if (conf["boffset"]) {
+      auto vz = conf["boffset"].as<std::vector<double>>();
+      if (vz.size()) {
+	for (size_t k=0; k<3; k++) {
+	  size_t indx = std::min<size_t>(k, vz.size()-1);
+	  bOff[k] = vz[indx];
+	}
+      } else {
+	std::ostringstream sout;
+	sout << "TreeDSMC: invalid boffset";
+	throw GenericError(sout.str(), __FILE__, __LINE__);
+      }
+    }
+
     // Look for array values in the parameter string of the form
     // spc(1,2)=3.1, spc(3,4)=5.6, etc.
     //

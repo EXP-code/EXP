@@ -101,8 +101,8 @@ class CollideIon;
     @param Lunit is the physical scale in cm per system units (default: 300 kpc)
     @param Tunit is the physical time scale in years per system unit (default: gravitational)
     @param Munit is the physical mass in units of mp per system units (default: 1e12 Msun)
-    @param boxsize half the size of a side in system units (default: 1)
-    @param boxratio is the ratio of the z box height to the x or y box height (default: 1)
+    @param boxsize is the size of a side in system units (default: 1, 1, 1)
+    @param boffset is offset in the side for the origin  (default: 0, 0, 0)
     @param ncell is the desired number of particles per cell (default: 7)
     @param Ncell is the desired number of particles per sample cell (default: 64)
     @param cnum non-zero adjusts cross section to yield cnum collisions per cell
@@ -145,10 +145,6 @@ class CollideIon;
     @param mfpts set to true (default) uses the mean free path to estimate a time step
     @param ntc set to true (default) uses the no time counter algorithm to select collistions
     @param ntcfac is an upscaling factor for the NTC database in mixed units (default: 2.0)
-    @param tube set to true (default: false) sets the octree region to a 
-    rectangular rather than square region whose different axis is X
-    @param slab set to true (default: false) sets the octree region to a 
-    rectangular rather than square region whose different axis is Z
     @param ctype is a string referring to the name of the desired collision type (default: LTE)
     @param rrtype is a string referring to the name of the desired radiative recombination cross section type.  This is only used by the ctype=Ion method (default: Mewe)
     @param equiptn set to true (default: true) enforces equipartition between electron and ion pairs. This is only used by the ctype=Ion method.
@@ -190,7 +186,7 @@ private:
   double crossfac;
   double collfrac;
   double boxsize;
-  double boxratio;
+  double boffset;
   double epsm;
   double coolfrac;
   double enhance;
@@ -199,8 +195,11 @@ private:
   string rrtype;
 
   bool frontier, tsdiag, voldiag, mfpstat, use_multi, use_pullin, use_repair;
-  bool cba, cbadiag, dryrun, nocool, ntc, tube, slab, esol;
+  bool cba, cbadiag, dryrun, nocool, ntc, esol;
   bool sub_sample, treechk, mpichk, mfpts, hybrid, dumpHOT;
+
+				// Box size and offsets
+  std::vector<double> bSiz, bOff;
 
   unsigned cntHOT;		// For frontier dump files
 
