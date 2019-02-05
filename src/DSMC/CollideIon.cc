@@ -2699,18 +2699,24 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 	e is the electric charge
 	k_b is Boltzmann's constant,
 	T_e and T_i are the temperatures of the electrons and ions, respectively,
-	KE_e and KE_i are the kinetic energies of the electrons and ions, respectively,
+	KE_e and KE_i are the kinetic energies per particle of the electrons and ions, respectively,
 	n_e is the density of electrons,
 	n_{ij} is the density of atomic species i, with positive ionic charge c_j
       */
 
-      double KEi = ivel2*TreeDSMC::Eunit;
-      double KEe = evel2*TreeDSMC::Eunit;
       double ni  = numbP * dfac;
       double ne  = massE * dfac;
       double cj  = massI * dfac;
       
-      debye[id] = sqrt(6.0*M_PI*esu*esu*(ne/KEe + ni/KEi));
+      double dfac = TreeDSMC::Munit/amu / (pow(TreeDSMC::Lunit, 3.0)*volc);
+
+      double Ni  = numbP*TreeDSMC::Munit/amu;
+      double Ne  = massE*TreeDSMC::Munit/amu;
+      double KEi = ivel2*TreeDSMC::Eunit / Ni;
+      double KEe = evel2*TreeDSMC::Eunit * atomic_weights[0] / Ne;
+
+      debye[id]  = 1.0/sqrt(6.0*M_PI*esu*esu*(ne/KEe + ni/KEi));
+      debye[id] /= TreeDSMC::Lunit;
 
       if (numbP>0.0) meanM[id] = massP/numbP;
       if (numbP>0.0) Ivel2[id] = ivel2/numbP;
