@@ -709,6 +709,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   meanE    .resize(nthrds);
   meanR    .resize(nthrds);
   meanM    .resize(nthrds);
+  debye    .resize(nthrds);
   cellM    .resize(nthrds);
   neutF    .resize(nthrds);
   numIf    .resize(nthrds);
@@ -2647,7 +2648,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
       meanM[id] = 0.0;
 
       size_t nbods = cell->bods.size();
-      double massP = 0.0, numbP = 0.0, massE = 0.0;
+      double massP = 0.0, numbP = 0.0, massE = 0.0, massI = 0.0;
       double evel2 = 0.0, ivel2 = 0.0;
 
       meanM[id] = 0.0;
@@ -2660,31 +2661,60 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 	massP += p->mass;
 	
 				// Mass-weighted trace fraction
-	double ee = 0.0;
+	double ee = 0.0, ii = 0.0;
 	for (auto s : SpList) {
 	  double ww    = p->dattrib[s.second]/atomic_weights[s.first.first];
 				// Mean number
 	  numbP += p->mass * ww;
 				// Electron fraction
-	  ee += p->dattrib[s.second] * (s.first.second - 1);
+	  unsigned short q = s.first.second - 1;
+	  ee += ww * q;
+	  ii += ww * q*q;
 	}
 
 	double eVel2 = 0.0, iVel2 = 0.0;
 	for (int l=0; l<3; l++) {
 	  double ve  = p->dattrib[use_elec+l];
-	  eVel2 += ve*ve;
+	  eVel2     += ve*ve;
 	  double vi  = p->vel[l];
-	  iVel2 += vi*vi;
+	  iVel2     += vi*vi;
 	}
 
 	evel2 += p->mass * ee * eVel2;
 	ivel2 += p->mass * iVel2;
 	massE += p->mass * ee;
+	massI += p->mass * ii;
       }
 
+      // Estimate Debye length
+      /*
+	λ_D = [k_b/(4*pi*e^2*(n_e/T_e + ∑_{ij} n_{ij}*c_j^2/T_i))]^{1/2}
+	    = [4*pi*e^2*(n_e/(k_B*T_e) + ∑_{ij} n_{ij}*c_j^2/(k_B*T_i)]^{-1/2}
+	    = [4*pi*e^2*3/2*(n_e/KE_e + ∑_{ij} n_{ij}*c_j^2/KE_i]^{-1/2}
+	    = [6*pi*e^2*(n_e/KE_e + ∑_{ij} n_{ij}*c_j^2/KE_i]^{-1/2}
+
+	where
+
+	λ_D is the Debye length,
+	e is the electric charge
+	k_b is Boltzmann's constant,
+	T_e and T_i are the temperatures of the electrons and ions, respectively,
+	KE_e and KE_i are the kinetic energies of the electrons and ions, respectively,
+	n_e is the density of electrons,
+	n_{ij} is the density of atomic species i, with positive ionic charge c_j
+      */
+
+      double KEi = ivel2*TreeDSMC::Eunit;
+      double KEe = evel2*TreeDSMC::Eunit;
+      double ni  = numbP * dfac;
+      double ne  = massE * dfac;
+      double cj  = massI * dfac;
+      
+      debye[id] = sqrt(6.0*M_PI*esu*esu*(ne/KEe + ni/KEi));
+
       if (numbP>0.0) meanM[id] = massP/numbP;
-      if (massP>0.0) Ivel2[id] = ivel2/massP;
-      if (massE>0.0) Evel2[id] = evel2/massE;
+      if (numbP>0.0) Ivel2[id] = ivel2/numbP;
+      if (numbP>0.0) Evel2[id] = evel2/numbP;
 
     } // END: no NTC, estimate plasma cross section only
 
