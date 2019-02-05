@@ -666,14 +666,21 @@ void TreeDSMC::initialize()
       }
     }
   
-    if (conf["boxsize"]) {
-      auto vz = conf["boxsize"].as<std::vector<double>>();
-      if (vz.size()) {
-	for (size_t k=0; k<3; k++) {
-	  size_t indx = std::min<size_t>(k, vz.size()-1);
-	  bSiz[k] = vz[indx];
+    if (conf["boxsize"]) {      // Check for scalar
+      if (conf["boxsize"].IsScalar()) {
+	double v = conf["boxsize"].as<double>();
+	for (size_t k=0; k<3; k++) bSiz[k] = v;
+      }	                        // Check for vector
+      else if (conf["boxsize"].IsSequence()) {
+	auto vz = conf["boxsize"].as<std::vector<double>>();
+	if (vz.size()) {
+	  for (size_t k=0; k<3; k++) {
+	    size_t indx = std::min<size_t>(k, vz.size()-1);
+	    bSiz[k] = vz[indx];
+	  }
 	}
-      } else {
+      }	                        // Unexpected type
+      else {
 	std::ostringstream sout;
 	sout << "TreeDSMC: invalid boxsize";
 	throw GenericError(sout.str(), __FILE__, __LINE__);
@@ -681,14 +688,20 @@ void TreeDSMC::initialize()
     }
 
 
-    if (conf["boffset"]) {
-      auto vz = conf["boffset"].as<std::vector<double>>();
-      if (vz.size()) {
-	for (size_t k=0; k<3; k++) {
-	  size_t indx = std::min<size_t>(k, vz.size()-1);
-	  bOff[k] = vz[indx];
+    if (conf["boffset"]) {	// Check for scalar
+      if (conf["boffset"].IsScalar()) {
+	double v = conf["boffset"].as<double>();
+	for (size_t k=0; k<3; k++) bOff[k] = v;
+      }	                        // Check for vector
+      else if (conf["boffset"].IsSequence()) {
+	auto vz = conf["boffset"].as<std::vector<double>>();
+	if (vz.size()) {
+	  for (size_t k=0; k<3; k++) {
+	    size_t indx = std::min<size_t>(k, vz.size()-1);
+	    bOff[k] = vz[indx];
+	  }
 	}
-      } else {
+      } else {                  // Unexpected type
 	std::ostringstream sout;
 	sout << "TreeDSMC: invalid boffset";
 	throw GenericError(sout.str(), __FILE__, __LINE__);
