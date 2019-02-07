@@ -4595,6 +4595,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 				     Particle* const _p1, Particle* const _p2,
 				     double cr)
 {
+  // Velocity threshold
+  //
+  cr = std::max<double>(cr, 1.0e-16);
+
   // Channel probability tally
   //
   for (auto & v : CProb[id]) v = 0.0;
@@ -5069,14 +5073,16 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  }
 	}
 	
-	if (DEBUG_CRS) trap_crs(crs);
+	if (crs>0.0 and not std::isnan(crs)) {
+	  if (DEBUG_CRS) trap_crs(crs);
 	
-	Interact::T t { ion_elec, Ion, Interact::edef };
+	  Interact::T t { ion_elec, Ion, Interact::edef };
 	
-	hCross[id].push_back(XStup(t));
-	hCross[id].back().crs = crs;
+	  hCross[id].push_back(XStup(t));
+	  hCross[id].back().crs = crs;
 
-	CProb[id][1] += crs;
+	  CProb[id][1] += crs;
+	}
       }
 	  
       // Particle 2 ION, Particle 1 ELECTRON
@@ -5099,14 +5105,16 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  }
 	}
 	
-	if (DEBUG_CRS) trap_crs(crs);
+	if (crs>0.0 and not std::isnan(crs)) {
+	  if (DEBUG_CRS) trap_crs(crs);
 	
-	Interact::T t { ion_elec, Interact::edef, Ion };
+	  Interact::T t { ion_elec, Interact::edef, Ion };
 	  
-	hCross[id].push_back(XStup(t));
-	hCross[id].back().crs = crs;
+	  hCross[id].push_back(XStup(t));
+	  hCross[id].back().crs = crs;
 	  
-	CProb[id][2] += crs;
+	  CProb[id][2] += crs;
+	}
       }
 
     }
@@ -13122,6 +13130,9 @@ void CollideIon::scatterTraceMM
 
   if (m1<1.0) m1 *= pp->eta1;
   if (m2<1.0) m2 *= pp->eta2;
+
+  m1 = std::max<double>(m1, 1.0e-12); 
+  m2 = std::max<double>(m2, 1.0e-12); 
 
   // Total effective mass in the collision
   //
