@@ -97,7 +97,7 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
 	"Compute the S/N but do not modify coefficients"};
 
       cout << "AxisymmetricBasis: using Hall type: " << types[tk_type] 
-	   << " >>> " << desc[tk_type] << endl;
+	   << "====>" << desc[tk_type] << endl;
     }
   }
 }
@@ -523,4 +523,6 @@ AxisymmetricBasis::TKType AxisymmetricBasis::setTK(const std::string& tk)
 	   << " using Null type\n";
     }
   }
+
+  return ret;
 }

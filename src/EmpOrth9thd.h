@@ -526,6 +526,19 @@ public:
     nbodstot = tot;
     hallfreq = n;
     init_pca();
+
+    if (myid==0) {
+      const string types[] = {
+	"Hall", 
+	"Null"};
+
+      const string desc[] = {
+	"Tapered signal-to-noise power defined by Hall",
+	"Compute the S/N but do not modify coefficients"};
+
+      cout << "EmpCylSL: using Hall type: " << tk_type
+	   << "====>" << desc[tk_type] << endl;
+    }
   }
 
   //! Set frequency and file name for selector output
