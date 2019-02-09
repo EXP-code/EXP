@@ -68,7 +68,7 @@ public:
 	   const Vector& eval,
 	   const Matrix& evec,
 	   const Matrix& covr,
-	   int l, int m, char tag);
+	   int l, int m);
   
   //! Write output file
   void Write(const std::string& name);

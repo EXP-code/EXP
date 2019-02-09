@@ -87,7 +87,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 
   vflag       = 0;
   eof         = 1;
-  hallfreq    = 50;
+  npca        = 50;
   self_consistent = true;
   firstime    = true;
   expcond     = true;
@@ -95,7 +95,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   logarithmic = false;
   pca         = false;
   pcavtk      = false;
-  vtkfreq     = 1;
+  nvtk        = 1;
   pcainit     = true;
   density     = false;
   coef_dump   = true;
@@ -226,8 +226,8 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	   << " hcyl="        << hcyl
 	   << " expcond="     << expcond
 	   << " pca="         << pca
-	   << " vtkfreq="     << vtkfreq
-	   << " hallfreq="    << hallfreq
+	   << " nvtk="        << nvtk
+	   << " npca="        << npca
 	   << " eof_file="    << eof_file
 	   << " logarithmic=" << logarithmic
 	   << " vflag="       << vflag
@@ -248,8 +248,8 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	 << " hcyl="        << hcyl
 	 << " expcond="     << expcond
 	 << " pca="         << pca
-	 << " vtkfreq="     << vtkfreq
-	 << " hallfreq="    << hallfreq
+	 << " nvtk="        << nvtk
+	 << " npca="        << npca
 	 << " eof_file="    << eof_file
 	 << " logarithmic=" << logarithmic
 	 << " vflag="       << vflag
@@ -297,8 +297,8 @@ void Cylinder::initialize()
     if (conf["ncylr"     ])      ncylr  = conf["ncylr"     ].as<int>();
     if (conf["ncylorder" ])  ncylorder  = conf["ncylorder" ].as<int>();
     if (conf["ncylrecomp"]) ncylrecomp  = conf["ncylrecomp"].as<int>();
-    if (conf["hallfreq"  ])   hallfreq  = conf["hallfreq"  ].as<int>();
-    if (conf["vtkfreq"   ])    vtkfreq  = conf["vtkfreq"   ].as<int>();
+    if (conf["npca"      ])       npca  = conf["npca"      ].as<int>();
+    if (conf["nvtk"      ])       nvtk  = conf["nvtk"      ].as<int>();
     if (conf["eof_file"  ])   eof_file  = conf["eof_file"  ].as<std::string>();
     if (conf["vflag"     ])      vflag  = conf["vflag"     ].as<int>();
     
@@ -656,10 +656,10 @@ void Cylinder::determine_coefficients(void)
   if (pca and pcainit) {
     EmpCylSL::SELECT = true;
     EmpCylSL::PCAVTK = pcavtk;
-    EmpCylSL::VTKFRQ = vtkfreq;
+    EmpCylSL::VTKFRQ = nvtk;
     std::ostringstream sout;
     sout << runtag << ".pcadiag." << cC->id << "." << cC->name;
-    ortho->setHall(sout.str(), component->nbodies_tot, hallfreq);
+    ortho->setHall(sout.str(), component->nbodies_tot, npca);
     pcainit = false;
   }
 

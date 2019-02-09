@@ -45,7 +45,7 @@ private:
   int nmax, lmax, mmax;
   int ncylnx, ncylny, ncylr;
   double hcyl;
-  int ncylorder, ncylrecomp, hallfreq, vtkfreq;
+  int ncylorder, ncylrecomp, npca, nvtk;
   string eof_file;
   bool self_consistent, logarithmic, density, pca, pcainit, pcavtk;
   bool cmap, try_cache, firstime, dump_basis;
@@ -181,8 +181,8 @@ public:
   //! \param ncylny is the vertical grid in the basis function table
   //! \param ncylr is the size of the spherical radial grid used to construct the cylindrical basis
   //! \param ncylrecomp is the number of steps between basis recomputation (default: -1 which means NEVER)
-  //! \param hallfreq is the number of step Hall coefficient recomputaton 
-  //! \param vtkfreq is the number of step VTK output 
+  //! \param npca is the number of step Hall coefficient recomputaton 
+  //! \param nvtk is the number of step VTK output 
   //! \param eof_file is an override for the default EOF cache file name
   //! \param vflag sets verbosity (see EmpOrth9thd.cc)
   //! \param rnum is the number of Legendre radial knots for numerical basis computation

@@ -129,7 +129,7 @@ void VtkPCA::Add(const Vector& Coef,
 		 const Vector& Eval,
 		 const Matrix& Evec,
 		 const Matrix& Covr,
-		 int l, int m, char tag)
+		 int l, int m)
 {
   vtkFloatArrayP C = vtkFloatArrayP::New();
   vtkFloatArrayP H = vtkFloatArrayP::New();
@@ -215,7 +215,7 @@ void VtkPCA::Add(const Vector& Coef,
 
   // Add label
   std::ostringstream lab;
-  lab << l << "_" << m << "_" << tag;
+  lab << l << "_" << m;
   elab.push_back(lab.str());
 }
 

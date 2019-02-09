@@ -155,51 +155,46 @@ private:
   double massR(double R);
   double densR(double R);
 
-  //! PCA basis structure for caching and diagnostics
-  class PCAbasis
+  //! Data for each harmonic subspace
+  class PCAelement
   {
   public:
-
-    //! Data for each harmonic subspace
-    class PCAelement
-    {
-    public:
-      //@{
-      //! All the public data
-      Vector evalJK;
-      Vector meanJK;
-      Vector coefJK;
-      Vector b_Hall;
-      Matrix covrJK;
-      Matrix evecJK;
-      //@}
+    //@{
+    //! All the public data
+    Vector evalJK;
+    Vector meanJK;
+    Vector coefJK;
+    Vector b_Hall;
+    Matrix covrJK;
+    Matrix evecJK;
+    //@}
+    
+    //! Constructor
+    PCAelement(int n) {
+      meanJK.setsize(1, n);
+      coefJK.setsize(1, n);
+      b_Hall.setsize(1, n);
+      covrJK.setsize(1, n, 1, n);
+      evecJK.setsize(1, n, 1, n);
+    }
       
-      //! Constructor
-      PCAelement(int n)
-      {
-	meanJK.setsize(1, n);
-	coefJK.setsize(1, n);
-	b_Hall.setsize(1, n);
-	covrJK.setsize(1, n, 1, n);
-	evecJK.setsize(1, n, 1, n);
-      }
-      
-      //! Zero all data
-      void reset()
-      {
-	meanJK.zero();
-	coefJK.zero();
-	b_Hall.zero();
-	covrJK.zero();
-	evecJK.zero();
-      }
-      
-    };
+    //! Zero all data
+    void reset() {
+      meanJK.zero();
+      coefJK.zero();
+      b_Hall.zero();
+      covrJK.zero();
+      evecJK.zero();
+    }
+    
+  };
 
-    typedef boost::shared_ptr<PCAelement> PCAelemPtr;
+  typedef boost::shared_ptr<PCAelement> PCAelemPtr;
 
-    //! The cosine and sine spaces
-    std::map<int, PCAelemPtr> C, S;
+  //! PCA basis structure for caching and diagnostics
+  class PCAbasis : public std::map<int, PCAelemPtr>
+  {
+  public:
 
     //! Mass in the accumulation
     double Tmass;
@@ -208,8 +203,7 @@ private:
     PCAbasis(int M, int n)
     {
       for (int m=0; m<=M; m++) {
-	C[m] = PCAelemPtr(new PCAelement(n));
-	if (m) S[m] = PCAelemPtr(new PCAelement(n));
+	(*this)[m] = PCAelemPtr(new PCAelement(n));
       }
       reset();
     }
@@ -217,8 +211,7 @@ private:
     //! Reset all variables to zero for accumulation
     void reset()
     {
-      for (auto v : C) v.second->reset();
-      for (auto v : S) v.second->reset();
+      for (auto v : *this) v.second->reset();
       Tmass = 0.0;
     }
 

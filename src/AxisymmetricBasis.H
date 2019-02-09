@@ -28,9 +28,6 @@ protected:
   //! vtk diagnostic frequency
   unsigned vtkfreq;
 
-  //! PCA jackknife variance
-  bool pcajknf;
-
   //! Frequency of PCA recomputation
   int npca;
 
@@ -57,11 +54,6 @@ protected:
 
   //! Sqr root of the normalization
   Matrix sqnorm;
-
-  //@{
-  //! The variance for all nodes and per node (respectively)
-  Matrix *cc, *cc1;
-  //@}
 
   //! Accumulated mass for variance computation
   double muse;

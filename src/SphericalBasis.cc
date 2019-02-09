@@ -150,18 +150,6 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
   }
 
   if (pca) {
-    cc = new Matrix [Lmax*(Lmax+2)+1];
-    if (!cc) throw GenericError("problem allocating <cc>", __FILE__, __LINE__);
-
-    for (int l=0; l<=Lmax*(Lmax+2); l++)
-      cc[l].setsize(1, nmax, 1, nmax);
-  
-    cc1 = new Matrix [Lmax*(Lmax+2)+1];
-    if (!cc1) throw GenericError("problem allocating <cc1>", __FILE__, __LINE__);
-    
-    for (int l=0; l<=Lmax*(Lmax+2); l++)
-      cc1[l].setsize(1, nmax, 1, nmax);
-  
     muse1 = vector<double>(nthrds, 0.0);
     muse0 = 0.0;
 
@@ -254,8 +242,6 @@ SphericalBasis::~SphericalBasis()
   delete [] expcoef0;
 
   if (pca) {
-    delete [] cc;
-    delete [] cc1;
     pthread_mutex_destroy(&cc_lock);
   }
   delete [] potd;
@@ -434,12 +420,10 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
       if (compute) {
 	muse1[id] += mass;
-	if (pcajknf) {
-	  whch = indx % sampT;
-	  pthread_mutex_lock(&cc_lock);
-	  massT1[whch] += mass;
-	  pthread_mutex_unlock(&cc_lock);
-	}
+	whch = indx % sampT;
+	pthread_mutex_lock(&cc_lock);
+	massT1[whch] += mass;
+	pthread_mutex_unlock(&cc_lock);
       }
 
       //		l loop
@@ -454,10 +438,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	      if (compute) {
 		pthread_mutex_lock(&cc_lock);
 		for (nn=n; nn<=nmax; nn++)
-		  cc1[loffset+moffset][n][nn] += potd[id][l][n]*potd[id][l][nn]*facs1/(normM[l][n]*normM[l][nn]);
-		if (pcajknf) {
 		  (*expcoefT1[whch])[loffset+moffset][n] += potd[id][l][n]*legs[id][l][m]*mass*fac0/normM[l][n];
-		}
 		pthread_mutex_unlock(&cc_lock);
 	      }
 	    }
@@ -478,13 +459,6 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	      if (compute && mlevel==0) {
 		pthread_mutex_lock(&cc_lock);
 		for (nn=n; nn<=nmax; nn++) {
-		  cc1[loffset+moffset][n][nn] += 
-		    potd[id][l][n]*potd[id][l][nn]*facs1/(normM[l][n]*normM[l][nn]);
-
-		  cc1[loffset+moffset+1][n][nn] +=
-		    potd[id][l][n]*potd[id][l][nn]*facs2/(normM[l][n]*normM[l][nn]);
-		}
-		if (pcajknf) {
 		  (*expcoefT1[whch])[loffset+moffset  ][n] += potd[id][l][n]*fac1*mass*fac0/normM[l][n];
 		  (*expcoefT1[whch])[loffset+moffset+1][n] += potd[id][l][n]*fac2*mass*fac0/normM[l][n];
 		}
@@ -557,24 +531,20 @@ void SphericalBasis::determine_coefficients(void)
   for (int i=0; i<nthrds; i++) expcoef0[i].zero();
     
   if (compute && mlevel==0) {
-    for (int l=0; l<=Lmax*(Lmax+2); l++) cc1[l].zero();
     for (int n=0; n<nthrds; n++) muse1[n] = 0.0;
     muse0 = 0.0;
 
-    if (pcajknf) {
+    if (sampT == 0) {		// Allocate storage
+      sampT = floor(sqrt(cC->nbodies_tot));
+      massT    .resize(sampT, 0);
+      massT1   .resize(sampT, 0);
 
-      if (sampT == 0) {		// Allocate storage
-	sampT = floor(sqrt(cC->nbodies_tot));
-	massT    .resize(sampT, 0);
-	massT1   .resize(sampT, 0);
-
-	expcoefT .resize(sampT);
-	for (auto & t : expcoefT ) t = MatrixP(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
+      expcoefT .resize(sampT);
+      for (auto & t : expcoefT ) t = MatrixP(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
 	
-	expcoefT1.resize(sampT);
-	for (auto & t : expcoefT1) t = MatrixP(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
-      }
-				// Zero arrays
+      expcoefT1.resize(sampT);
+      for (auto & t : expcoefT1) t = MatrixP(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
+      // Zero arrays
       for (auto & t : expcoefT1) t->zero();
       for (auto & v : massT1)    v = 0;
     }
