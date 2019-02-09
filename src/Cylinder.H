@@ -47,7 +47,7 @@ private:
   double hcyl;
   int ncylorder, ncylrecomp, npca, nvtk;
   string eof_file;
-  bool self_consistent, logarithmic, density, pca, pcainit, pcavtk;
+  bool self_consistent, logarithmic, density, pca, pcainit, pcavtk, pcadiag;
   bool cmap, try_cache, firstime, dump_basis;
 
   // These should be ok for all derived classes, hence declared private
@@ -183,6 +183,7 @@ public:
   //! \param ncylrecomp is the number of steps between basis recomputation (default: -1 which means NEVER)
   //! \param npca is the number of step Hall coefficient recomputaton 
   //! \param nvtk is the number of step VTK output 
+  //! \param pcadiag set to true enables PCA output diagnostics (default: false)
   //! \param eof_file is an override for the default EOF cache file name
   //! \param vflag sets verbosity (see EmpOrth9thd.cc)
   //! \param rnum is the number of Legendre radial knots for numerical basis computation

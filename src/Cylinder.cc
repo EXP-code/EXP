@@ -95,6 +95,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   logarithmic = false;
   pca         = false;
   pcavtk      = false;
+  pcadiag     = false;
   nvtk        = 1;
   pcainit     = true;
   density     = false;
@@ -310,6 +311,7 @@ void Cylinder::initialize()
     if (conf["logr"      ]) logarithmic = conf["logr"      ].as<bool>();
     if (conf["pca"       ])        pca  = conf["pca"       ].as<bool>();
     if (conf["pcavtk"    ])     pcavtk  = conf["pcavtk"    ].as<bool>();
+    if (conf["pcadiag"   ])    pcadiag  = conf["pcadiag"   ].as<bool>();
     if (conf["try_cache" ])  try_cache  = conf["try_cache" ].as<bool>();
     if (conf["density"   ])    density  = conf["density"   ].as<bool>();
     if (conf["cmap"      ])       cmap  = conf["cmap"      ].as<bool>();
@@ -658,8 +660,16 @@ void Cylinder::determine_coefficients(void)
     EmpCylSL::PCAVTK = pcavtk;
     EmpCylSL::VTKFRQ = nvtk;
     std::ostringstream sout;
-    sout << runtag << ".pcadiag." << cC->id << "." << cC->name;
+    if (pcadiag) 
+      sout << runtag << ".pcadiag." << cC->id << "." << cC->name;
     ortho->setHall(sout.str(), component->nbodies_tot, npca);
+    if (myid==0) {
+      std::cout << "Cylinder: PCA initialized";
+      if (pcadiag) 
+	std::cout << ", writing diagnostic output to <"
+		  << sout.str() << ">";
+      std::cout << std::endl;
+    }
     pcainit = false;
   }
 
