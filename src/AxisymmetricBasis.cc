@@ -138,7 +138,7 @@ void AxisymmetricBasis::pca_hall(int compute)
       out << "# Time=" << tnow << endl;
       out << "#" << endl;
       if (dof==3) out << right << "# " << setw(3) << "l";
-      out << setw(5)  << "m" << setw(5) << "C/S" << setw(5) << "n";
+      out << setw(5)  << "m" << setw(5) << "n";
       out << setw(18) << "jknf var"
 	  << setw(18) << "cum"
 	  << setw(18) << "jknf coef"

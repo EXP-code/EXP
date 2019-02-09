@@ -2821,7 +2821,7 @@ void EmpCylSL::pca_hall(void)
       (*pb)[mm]->b_Hall[nn+1]  = 1.0/(1.0 + b);
       snrval[nn+1] = sqrt(sqr/var);
 
-      if (hout.good()) hout << setw( 4) << mm << setw(4) << nn << setw(4) << "C"
+      if (hout.good()) hout << setw( 4) << mm << setw(4) << nn
 			    << setw(18) << dd[nn+1]
 			    << setw(18) << sqr
 			    << setw(18) << var
