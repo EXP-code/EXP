@@ -2734,7 +2734,7 @@ void EmpCylSL::pca_hall(void)
     for (unsigned T=0; T<sampT; T++) {
 
       if (massT[T] <= 0.0) continue; // Skip empty partition
-
+      
       for (int nn=0; nn<rank3; nn++) { // Order
 
 	double modn = (*accum_cos2[0][T])[mm][nn] * (*accum_cos2[0][T])[mm][nn];
@@ -2833,7 +2833,7 @@ void EmpCylSL::pca_hall(void)
       if (tk_type == Hall) {
 	for (unsigned M=0; M<=multistep; M++) {
 	  accum_cosN[M][0][mm][nn] *= (*pb)[mm]->b_Hall[nn+1];
-	  if (M)
+	  if (mm)
 	    accum_sinN[M][0][mm][nn] *= (*pb)[mm]->b_Hall[nn+1];
 	}
       } // END: Hall smoothing
