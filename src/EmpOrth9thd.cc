@@ -2694,20 +2694,13 @@ void EmpCylSL::pca_hall(void)
       hout << "#" << endl << std::right
 	   << "# Time = " << tnow << "  Step=" << hallcount << endl
 	   << "#" << endl
-	   << setw( 4) << "m" << setw(4) << "n" << setw(4) << "CS"
+	   << setw( 4) << "m" << setw(4) << "n"
 	   << setw(18) << "Smth coef"
 	   << setw(18) << "|coef|^2"
 	   << setw(18) << "var(coef)"
 	   << setw(18) << "cum var"
 	   << setw(18) << "S/N"
-	   << setw(18) << "b_Hall"    << std::endl
-	   << setw( 4) << "--" << setw(4) << "--" << setw(4) << "--"
-	   << setw(18) << "---------"
-	   << setw(18) << "---------"
-	   << setw(18) << "---------"
-	   << setw(18) << "---------"
-	   << setw(18) << "---------"
-	   << setw(18) << "---------" << std::endl;
+	   << setw(18) << "b_Hall" << std::endl << std::endl;
     } else {
       cerr << "Could not open <" << ofile.str() << "> for appending output" 
 	   << endl;
