@@ -523,4 +523,6 @@ AxisymmetricBasis::TKType AxisymmetricBasis::setTK(const std::string& tk)
 	   << " using Null type\n";
     }
   }
+
+  return ret;
 }
