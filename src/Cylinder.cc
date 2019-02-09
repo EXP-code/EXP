@@ -229,6 +229,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	   << " pca="         << pca
 	   << " nvtk="        << nvtk
 	   << " npca="        << npca
+	   << " pcadiag="     << pcadiag
 	   << " eof_file="    << eof_file
 	   << " logarithmic=" << logarithmic
 	   << " vflag="       << vflag
@@ -251,6 +252,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	 << " pca="         << pca
 	 << " nvtk="        << nvtk
 	 << " npca="        << npca
+	 << " pcadiag="     << pcadiag
 	 << " eof_file="    << eof_file
 	 << " logarithmic=" << logarithmic
 	 << " vflag="       << vflag
