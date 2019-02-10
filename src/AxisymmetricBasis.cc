@@ -391,7 +391,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
       
       if (dof==3) {
 	indx  = loffset + moffset;
-	indxC = loffC += m;
+	indxC = loffC + m;
       } else {
 	indx  = moffset;
 	indxC = m;
