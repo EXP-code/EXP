@@ -59,50 +59,52 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 
 #endif
 
-  id          = "Cylinder";
-  geometry    = cylinder;
-  mix         = m;
-  dof         = 3;
+  id              = "Cylinder";
+  geometry        = cylinder;
+  mix             = m;
+  dof             = 3;
 				// Default values
 
-  rcylmin     = 0.001;		// Should only change these two in
-  rcylmax     = 20.0;		// extreme circumstances
+  rcylmin         = 0.001;	// Should only change these two in
+  rcylmax         = 20.0;	// extreme circumstances
 
-  ncylnx      = 128;		// These defaults should do fine in
-  ncylny      = 128;		// most cases, as well
-  ncylr       = 2000;
+  ncylnx          = 128;	// These defaults should do fine in
+  ncylny          = 128;	// most cases, as well
+  ncylr           = 2000;
 
-  acyl        = 1.0;
-  nmax        = 20;
-  lmax        = 36;
-  mmax        = 4;
-  hcyl        = 1.0;
-  ncylorder   = 10;
-  ncylrecomp  = -1;
+  acyl            = 1.0;
+  nmax            = 20;
+  lmax            = 36;
+  mmax            = 4;
+  hcyl            = 1.0;
+  ncylorder       = 10;
+  ncylrecomp      = -1;
 
-  rnum        = 100;
-  pnum        = 40;
-  tnum        = 40;
-  ashift      = 0.25;
+  rnum            = 100;
+  pnum            = 40;
+  tnum            = 40;
+  ashift          = 0.25;
 
-  vflag       = 0;
-  eof         = 1;
-  npca        = 50;
+  vflag           = 0;
+  eof             = 1;
+  npca            = 50;
   self_consistent = true;
-  firstime    = true;
-  expcond     = true;
-  cmap        = true;
-  logarithmic = false;
-  pca         = false;
-  pcavtk      = false;
-  pcadiag     = false;
-  nvtk        = 1;
-  pcainit     = true;
-  density     = false;
-  coef_dump   = true;
-  try_cache   = true;
-  dump_basis  = false;
-  eof_file    = "";
+  firstime        = true;
+  expcond         = true;
+  cmap            = true;
+  logarithmic     = false;
+  pca             = false;
+  pcavtk          = false;
+  pcadiag         = false;
+  nvtk            = 1;
+  pcainit         = true;
+  density         = false;
+  coef_dump       = true;
+  try_cache       = true;
+  dump_basis      = false;
+  compute         = false;
+  firstime_coef   = true;
+  eof_file        = "";
 
   initialize();
 
@@ -664,7 +666,7 @@ void Cylinder::determine_coefficients(void)
     std::ostringstream sout;
     if (pcadiag) 
       sout << runtag << ".pcadiag." << cC->id << "." << cC->name;
-    ortho->setHall(sout.str(), component->nbodies_tot, npca);
+    ortho->setHall(sout.str(), component->nbodies_tot);
     if (myid==0) {
       std::cout << "Cylinder: PCA initialized";
       if (pcadiag) 
@@ -705,11 +707,16 @@ void Cylinder::determine_coefficients(void)
   if (myid==0) cout << endl;
 #endif
 
+  if (pca) compute = firstime_coef || ( (mstep == 0) && !(this_step%npca) );
+
+
 #if HAVE_LIBCUDA==1
   if (component->cudaDevice>=0) {
     start1 = std::chrono::high_resolution_clock::now();
-    determine_coefficients_cuda();
+
+    determine_coefficients_cuda(compute);
     DtoH_coefs(mlevel);
+
     finish1 = std::chrono::high_resolution_clock::now();
   } else {    
     exp_thread_fork(true);
@@ -745,10 +752,12 @@ void Cylinder::determine_coefficients(void)
 
 				// Make the coefficients for this level
   if (multistep==0 || !self_consistent) {
-    ortho->make_coefficients();
+    ortho->make_coefficients(compute);
   } else {
-    ortho->make_coefficients(mlevel);
+    ortho->make_coefficients(mlevel, compute);
   }
+
+  firstime_coef = false;
 
   print_timings("Cylinder: coefficient timings");
 
@@ -821,7 +830,7 @@ void Cylinder::determine_coefficients_eof(void)
   if (myid==0) cerr << "Cylinder: coefs computed\n";
 
   eof = 0;
-}    
+}
 
 
 void check_force_values(double phi, double p, double fr, double fz, double fp)

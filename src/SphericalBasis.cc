@@ -496,7 +496,7 @@ void SphericalBasis::determine_coefficients(void)
 
   int loffset, moffset, use0, use1;
 
-  if (pca) compute = (mstep == 0) && (!(this_step%npca) || firstime_coef);
+  if (pca) compute = firstime_coef || ( (mstep == 0) && !(this_step%npca) );
 
 #ifdef DEBUG
   cout << "Process " << myid << ": in <determine_coefficients>" << endl;
@@ -587,9 +587,18 @@ void SphericalBasis::determine_coefficients(void)
 
 #if HAVE_LIBCUDA==1
   if (component->cudaDevice>=0) {
-    start1 = std::chrono::high_resolution_clock::now();
-    determine_coefficients_cuda();
+    start1  = std::chrono::high_resolution_clock::now();
+    determine_coefficients_cuda(compute);
     DtoH_coefs(expcoef0[0]);
+
+    if (compute) {
+      parallel_gather_coef2();
+      pca_hall(true);
+      firstime_coef = 0;
+    } else {
+      pca_hall(false);
+    }
+
     finish1 = std::chrono::high_resolution_clock::now();
   } else {
     exp_thread_fork(true);
@@ -657,10 +666,12 @@ void SphericalBasis::determine_coefficients(void)
     }
   }
   
-  if (compute && multistep==0) {
+  if (compute) {
     parallel_gather_coef2();
-    pca_hall(1);
+    pca_hall(true);
     firstime_coef = 0;
+  } else {
+    pca_hall(false);
   }
 
   print_timings("SphericalBasis: coefficient timings");
@@ -971,10 +982,10 @@ void SphericalBasis::compute_multistep_coefficients()
   if (pca) {
     if (compute) {
       parallel_gather_coef2();
-      pca_hall(1);
+      pca_hall(true);
       firstime_coef = 0;
     } else {
-      pca_hall(0);
+      pca_hall(false);
     }
   }
 

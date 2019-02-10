@@ -90,7 +90,7 @@ public:
   virtual ~AxisymmetricBasis();
 
   //! Compute component noise suppression using PCA analysis
-  void pca_hall(int compute);
+  void pca_hall(bool compute);
 
   //! Reset used particle counter
   virtual void multistep_reset() { used=0; }
@@ -111,7 +111,7 @@ private:
   Vector eval;
   Vector cuml;
   Matrix *evec;
-  Matrix Tevec;
+  Matrix *Tevec;
   Matrix covar;
 
 };

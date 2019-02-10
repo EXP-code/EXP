@@ -362,7 +362,6 @@ __global__ void coefKernelCyl
 	    d01  = int2_as_double(tex3D<int2>(tex._v[k], indx,   indy+1, 3));
 	    d11  = int2_as_double(tex3D<int2>(tex._v[k], indx+1, indy+1, 3));
 #endif
-
 	    coef._v[(2*n+1)*N + i] = (c00*d00 + c10*d10 + c01*d01 + c11*d11) * sinp * norm * mass;
 
 #ifdef BOUNDS_CHECK
@@ -689,7 +688,7 @@ public:
 
 
 void Cylinder::cudaStorage::resize_coefs
-(int ncylorder, int mmax, int N, int gridSize)
+(int ncylorder, int mmax, int N, int gridSize, int sampT, bool pca)
 {
   // Reserve space for coefficient reduction
   //
@@ -706,6 +705,15 @@ void Cylinder::cudaStorage::resize_coefs
   if (iX_d.capacity() < N) iX_d.reserve(N);
   if (iY_d.capacity() < N) iY_d.reserve(N);
   
+  
+  // Fixed size arrays
+  //
+  if (pca) {
+    T_coef.resize(sampT);
+    for (int T=0; T<sampT; T++) {
+      T_coef[T].resize((mmax+1)*2*ncylorder);
+    }
+  }
   
   // Set space for current step
   //
@@ -738,6 +746,22 @@ void Cylinder::zero_coefs()
     thrust::fill(thrust::cuda::par.on(cr->stream),
 		 ar->df_coef.begin(), ar->df_coef.end(), 0.0);
 
+    // Resize and zero PCA arrays
+    //
+    if (pca) {
+				// (Re)initialize?
+      if (ar->T_coef.size() != sampT) {
+	ar->T_coef.resize(sampT);
+	for (int T=0; T<sampT; T++) {
+	  ar->T_coef[T].resize((mmax+1)*2*ncylorder);
+	}
+      }
+    
+      for (int T=0; T<sampT; T++)
+	thrust::fill(thrust::cuda::par.on(cr->stream),
+		     ar->T_coef[T].begin(), ar->T_coef[T].end(), 0.0);
+    }
+
     // Advance iterators
     //
     ++cr;			// Component stream
@@ -748,7 +772,7 @@ void Cylinder::zero_coefs()
 static bool initialize_cuda_cyl = true;
 static unsigned dbg_id = 0;
 
-void Cylinder::determine_coefficients_cuda()
+void Cylinder::determine_coefficients_cuda(bool compute)
 {
   if (initialize_cuda_cyl) {
     initialize_cuda();
@@ -766,6 +790,13 @@ void Cylinder::determine_coefficients_cuda()
   // This will stay fixed for the entire run
   //
   host_coefs.resize((2*mmax+1)*ncylorder);
+
+  if (pca) {
+    sampT = floor(sqrt(component->nbodies_tot));
+    host_coefsT.resize(sampT);
+    for (int T=0; T<sampT; T++) host_coefsT[T].resize((2*mmax+1)*ncylorder);
+    host_massT.resize(sampT);
+  }
 
   // Set component center and orientation
   //
@@ -810,6 +841,11 @@ void Cylinder::determine_coefficients_cuda()
   cylmass0[0] = 0.0;
   thrust::fill(host_coefs.begin(), host_coefs.end(), 0.0);
 
+  if (pca) {
+    for (int T=0; T<sampT; T++) thrust::fill(host_coefsT[T].begin(), host_coefsT[T].end(), 0.0);
+    thrust::fill(host_massT.begin(), host_massT.end(), 0.0);
+  }
+
   // Zero out coefficient storage
   //
   zero_coefs();
@@ -852,7 +888,7 @@ void Cylinder::determine_coefficients_cuda()
 
     // Sort particles and get coefficient size
     //
-    PII lohi = cC->CudaSortByLevel(cr, mlevel, mlevel);
+    PII lohi = cC->CudaSortByLevel(cr, mlevel, multistep);
 
     // Compute grid
     //
@@ -884,7 +920,7 @@ void Cylinder::determine_coefficients_cuda()
 
       // Adjust cached storage, if necessary
       //
-      ar->resize_coefs(ncylorder, mmax, N, gridSize);
+      ar->resize_coefs(ncylorder, mmax, N, gridSize, sampT, pca);
 
       // Shared memory size for the reduction
       //
@@ -908,6 +944,8 @@ void Cylinder::determine_coefficients_cuda()
 				// contribution for each order
       int osize = ncylorder*2;	// 
       auto beg = ar->df_coef.begin();
+      std::vector<thrust::device_vector<cuFP_t>::iterator> bg;
+      for (int T=0; T<sampT; T++) bg.push_back(ar->T_coef[T].begin());
 
       for (int m=0; m<=mmax; m++) {
 
@@ -935,7 +973,52 @@ void Cylinder::determine_coefficients_cuda()
 			  ar->dw_coef.begin(), ar->dw_coef.end(),
 			  beg, beg, thrust::plus<cuFP_t>());
 
-	thrust::advance(beg, 2*ncylorder);
+	thrust::advance(beg, osize);
+
+	if (compute) {
+
+	  int sN = N/sampT;
+
+	  for (int T=0; T<sampT; T++) {
+	    int k = sN*T;	// Starting position
+	    int s = sN;
+				// Last bunch
+	    if (T==sampT-1) s = N - k;
+	    
+				// Begin the reduction per grid block
+				//
+	    reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize, BLOCK_SIZE, sMemSize, cr->stream>>>
+	      (toKernel(ar->dc_coef),
+	       toKernelS(ar->dN_coef, k*osize, s*osize), osize, s);
+      
+				// Finish the reduction for this order
+				// in parallel
+	    thrust::reduce_by_key
+	      (
+	       thrust::cuda::par.on(cr->stream),
+	       thrust::make_transform_iterator(index_begin, key_functor(gridSize)),
+	       thrust::make_transform_iterator(index_end,   key_functor(gridSize)),
+	       ar->dc_coef.begin(), thrust::make_discard_iterator(), ar->dw_coef.begin()
+	       );
+
+
+	    thrust::transform(thrust::cuda::par.on(cr->stream),
+			      ar->dw_coef.begin(), ar->dw_coef.end(),
+			      bg[T], bg[T], thrust::plus<cuFP_t>());
+
+	    thrust::advance(bg[T], osize);
+
+	    if (m==0) {
+	      auto mbeg = ar->m_d.begin();
+	      auto mend = mbeg;
+	      thrust::advance(mbeg, sN*T);
+	      if (T<sampT-1) thrust::advance(mend, sN*(T+1));
+	      else mend = ar->m_d.end();
+
+	      host_massT[T] += thrust::reduce(mbeg, mend);
+	    }
+	  }
+	}
       }
     
       // Compute number and total mass of particles used in coefficient
@@ -988,6 +1071,20 @@ void Cylinder::determine_coefficients_cuda()
 	if (m>0) host_coefs[Imn(m, 's', j, ncylorder)] += ret[2*j+1+offst];
       }
       offst += 2*ncylorder;
+    }
+
+    if (compute) {
+      for (int T=0; T<sampT; T++) {
+	thrust::host_vector<cuFP_t> retT = r.T_coef[T];
+	int offst = 0;
+	for (int m=0; m<=mmax; m++) {
+	  for (size_t j=0; j<ncylorder; j++) {
+	    host_coefsT[T][Imn(m, 'c', j, ncylorder)] += retT[2*j + offst];
+	    if (m>0) host_coefsT[T][Imn(m, 's', j, ncylorder)] += retT[2*j+1 + offst];
+	  }
+	  offst += 2*ncylorder;
+	}
+      }
     }
   }
 
@@ -1495,6 +1592,31 @@ void Cylinder::DtoH_coefs(int M)
       if (m>0) ortho->set_coef(M, m, n, 's') = host_coefs[Imn(m, 's', n, ncylorder)];
     }
   }
+
+  if (compute) {
+
+    // T loop
+    //
+    for (int T=0; T<sampT; T++) {
+
+      // Copy mass per sample T
+      //
+      ortho->set_massT(T) = host_massT[T];
+
+      // m loop
+      //
+      for (int m=0; m<=mmax; m++) {
+	
+	// n loop
+	//
+	for (int n=0; n<ncylorder; n++) {
+	  ortho->set_coefT(T, m, n, 'c') = host_coefsT[T][Imn(m, 'c', n, ncylorder)];
+	  if (m>0) ortho->set_coefT(T, m, n, 's') = host_coefsT[T][Imn(m, 's', n, ncylorder)];
+	}
+      }
+    }
+  }
+
 }
 
 void Cylinder::destroy_cuda()

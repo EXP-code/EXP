@@ -48,7 +48,7 @@ private:
   int ncylorder, ncylrecomp, npca, nvtk;
   string eof_file;
   bool self_consistent, logarithmic, density, pca, pcainit, pcavtk, pcadiag;
-  bool cmap, try_cache, firstime, dump_basis;
+  bool cmap, try_cache, firstime, dump_basis, compute, firstime_coef;
 
   // These should be ok for all derived classes, hence declared private
 
@@ -84,11 +84,14 @@ protected:
 
   //! CUDA method for coefficient accumulation
 #if HAVE_LIBCUDA==1
-  virtual void determine_coefficients_cuda();
+  virtual void determine_coefficients_cuda(bool compute_pca);
   virtual void determine_acceleration_cuda();
 
-  thrust::host_vector<cuFP_t>   host_coefs;
+  thrust::host_vector  <cuFP_t> host_coefs, host_massT;
   thrust::device_vector<cuFP_t> dev_coefs;
+  std::vector<thrust::host_vector<cuFP_t>> host_coefsT;
+
+  int sampT;
 
   virtual void HtoD_coefs();
   virtual void DtoH_coefs(int mlevel);
@@ -98,6 +101,7 @@ protected:
 
   virtual void initialize_cuda()
   {
+    sampT = floor(sqrt(component->nbodies_tot));
     ortho->initialize_cuda(cuInterpArray, tex);
   }
 
@@ -105,7 +109,6 @@ protected:
   {
     return ortho->getCudaMappingConstants();
   }
-
 
   virtual void destroy_cuda();
 
@@ -126,9 +129,11 @@ protected:
     thrust::device_vector<cuFP_t> dw_coef;
     thrust::device_vector<cuFP_t> df_coef;
     thrust::device_vector<cuFP_t> X_d, Y_d, m_d, p_d;
-    thrust::device_vector<int>    iX_d, iY_d;
+    thrust::device_vector<int   > iX_d, iY_d;
 
-    void resize_coefs(int ncylorder, int mmax, int N, int gridSize);
+    std::vector<thrust::device_vector<cuFP_t>> T_coef;
+
+    void resize_coefs(int ncylorder, int mmax, int N, int gridSize, int sampT, bool pca);
   };
 
   //! Cyclical ring interator for storage

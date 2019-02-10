@@ -50,7 +50,6 @@ private:
   int NORDER;
   int NKEEP;
 
-  int hallfreq, hallcount;
   unsigned nbodstot;
   string hallfile;
 
@@ -151,7 +150,7 @@ private:
   int    cache_grid(int, string file="");		
   double integral(int, int, int, int);
   void   get_pot(Matrix&, Matrix&, double, double);
-  void   pca_hall(void);
+  void   pca_hall(bool compute);
   double massR(double R);
   double densR(double R);
 
@@ -380,9 +379,9 @@ public:
   //! Make coefficients from accumulated data
   //@{
   //! All levels
-  void make_coefficients(void);
+  void make_coefficients(bool compute=false);
   //! Single level
-  void make_coefficients(unsigned mlevel);
+  void make_coefficients(unsigned mlevel, bool compute=false);
   //! Make empirical orthgonal functions
   void make_eof(void);
   //! True if coefficients are made at all levels
@@ -520,11 +519,10 @@ public:
   void setEven(bool even=true) { EVEN_M = even; }
 
   //! Set frequency and file name for selector output
-  inline void setHall(string file, unsigned tot, int n=50)
+  inline void setHall(string file, unsigned tot)
   {
     hallfile = file;
     nbodstot = tot;
-    hallfreq = n;
     init_pca();
 
     if (myid==0) {
@@ -536,7 +534,7 @@ public:
 	"Tapered signal-to-noise power defined by Hall",
 	"Compute the S/N but do not modify coefficients"};
 
-      cout << "EmpCylSL: using Hall type: " << tk_type
+      cout << "EmpCylSL: using PCA type: " << types[tk_type]
 	   << "====>" << desc[tk_type] << endl;
     }
   }
@@ -597,6 +595,31 @@ public:
       return accum_cosN[mlevel][0][m][n];
     else
       return accum_sinN[mlevel][0][m][n];
+  }
+
+  double& set_coefT(int T, int m, int n, char c)
+  {
+    if (m >  MMAX)
+      throw std::runtime_error("m>mmax");
+
+    if (n >= rank3)
+      throw std::runtime_error("n>=norder");
+
+    if (T >= sampT)
+      throw std::runtime_error("T>=sampT");
+
+    if (c == 'c')
+      return (*accum_cos2[0][T])[m][n];
+    else
+      return (*accum_sin2[0][T])[m][n];
+  }
+
+  double& set_massT(int T)
+  {
+    if (T >= sampT)
+      throw std::runtime_error("T>=sampT");
+
+    return massT[T];
   }
 
 #endif

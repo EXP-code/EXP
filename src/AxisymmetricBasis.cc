@@ -62,19 +62,21 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
     weight = new Vector [Ldim];
     b_Hall = new Vector [Ldim];
     evec   = new Matrix [Ldim];
+    Tevec  = new Matrix [Ldim];
     
     for (int l=0; l<Ldim; l++) {
       weight[l].setsize(1, nmax);
       b_Hall[l].setsize(1, nmax);
-      evec[l].setsize(1, nmax, 1, nmax);
+      evec  [l].setsize(1, nmax, 1, nmax);
+      Tevec [l].setsize(1, nmax, 1, nmax);
     }
 
     smth.setsize(1, nmax);
-    inv.setsize(1, nmax);
+    inv .setsize(1, nmax);
     eval.setsize(1, nmax);
     cuml.setsize(1, nmax);
-    Tevec.setsize(1, nmax, 1, nmax);
-    covar.setsize(1, nmax, 1, nmax);
+    
+    covar .setsize(1, nmax, 1, nmax);
     sqnorm.setsize(0, Lmax, 1, nmax);
       
     for (int l=0; l<=Lmax; l++)
@@ -96,7 +98,7 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
 	"Weight coefficients be S/N for S/N<1",
 	"Compute the S/N but do not modify coefficients"};
 
-      cout << "AxisymmetricBasis: using Hall type: " << types[tk_type] 
+      cout << "AxisymmetricBasis: using PCA type: " << types[tk_type] 
 	   << "====>" << desc[tk_type] << endl;
     }
   }
@@ -112,11 +114,12 @@ AxisymmetricBasis::~AxisymmetricBasis()
     delete [] weight;
     delete [] b_Hall;
     delete [] evec;
+    delete [] Tevec;
   }
 }
 
 
-void AxisymmetricBasis::pca_hall(int compute)
+void AxisymmetricBasis::pca_hall(bool compute)
 {
   if (muse <= 0.0) return;
 
@@ -163,73 +166,75 @@ void AxisymmetricBasis::pca_hall(int compute)
 
   } // END: pcadiag file initialization
 
-  VtkPCAptr vtkpca;
+  int indx=0, indxC=0;
 
-  static unsigned ocount = 0;
+  if (compute) {
 
-  if (pcavtk and myid==0) {
+    VtkPCAptr vtkpca;
 
-    if (ocount==0) {		// Look for restart position.  This is
-      while (1) {		// time consuming but is only done once.
-	std::ostringstream fileN;
-	fileN << runtag << "_pca_" << cC->id << "_" << cC->name
-	      << "_" << std::setfill('0') << std::setw(5) << ocount;
-	std::ifstream infile(fileN.str());
-	if (not infile.good()) break;
-	ocount++;
+    static unsigned ocount = 0;
+
+    if (pcavtk and myid==0) {
+
+      if (ocount==0) {		// Look for restart position.  This is
+	while (1) {	      // time consuming but is only done once.
+	  std::ostringstream fileN;
+	  fileN << runtag << "_pca_" << cC->id << "_" << cC->name
+		<< "_" << std::setfill('0') << std::setw(5) << ocount;
+	  std::ifstream infile(fileN.str());
+	  if (not infile.good()) break;
+	  ocount++;
+	}
+	if (ocount)
+	  std::cout << "Restart in AxisymmetricBasis::pca_hall: "
+		    << "vtk output will begin at "
+		    << ocount << std::endl;
       }
-      if (ocount)
-	std::cout << "Restart in AxisymmetricBasis::pca_hall: "
-		  << "vtk output will begin at "
-		  << ocount << std::endl;
+      
+      if (compute and ocount % vtkfreq==0) {
+	vtkpca = VtkPCAptr(new VtkPCA(nmax));
+      }
     }
 
-    if (compute and ocount % vtkfreq==0) {
-      vtkpca = VtkPCAptr(new VtkPCA(nmax));
+    if (dof==3) {
+      L0    = 0;
+      fac02 = 16.0*M_PI*M_PI;
+    } else {
+      L0    = Lmax;
+      fac02 = 1.0;
     }
-  }
 
-  if (dof==3) {
-    L0    = 0;
-    fac02 = 16.0*M_PI*M_PI;
-  } else {
-    L0    = Lmax;
-    fac02 = 1.0;
-  }
-
-  double fac, var, b;
-  int indx=0, indxC;
+    double fac, var, b;
 
 				// For PCA jack knife
-  Vector evalJK, cumlJK, snrval;
-  Vector meanJK;
-  Matrix covrJK;
-  Matrix evecJK;
-  double Tmass = 0.0;
+    Vector evalJK, cumlJK, snrval;
+    Vector meanJK;
+    Matrix covrJK;
+    Matrix evecJK;
+    double Tmass = 0.0;
+    
+    covrJK.setsize(1, nmax, 1, nmax);
+    meanJK.setsize(1, nmax);
+    evecJK.setsize(1, nmax, 1, nmax);
 
-  covrJK.setsize(1, nmax, 1, nmax);
-  meanJK.setsize(1, nmax);
-  evecJK.setsize(1, nmax, 1, nmax);
-  for (auto v : massT) Tmass += v;
+    for (auto v : massT) Tmass += v;
 
-  for (int l=L0, loffset=0, loffC=0; l<=Lmax; loffset+=(2*l+1), loffC+=(l+1), l++) {
+    for (int l=L0, loffset=0, loffC=0; l<=Lmax; loffset+=(2*l+1), loffC+=(l+1), l++) {
 
-    for (int m=0, moffset=0; m<=l; m++) {
+      for (int m=0, moffset=0; m<=l; m++) {
       
-      if (dof==3) {
-	indx  = loffset + moffset;
-	indxC = loffC + m;
-      }
-      else {
-	indx  = moffset;
-	indxC = m;
-      }
-
-      if (compute) {
-
+	if (dof==3) {
+	  indx  = loffset + moffset;
+	  indxC = loffC + m;
+	}
+	else {
+	  indx  = moffset;
+	  indxC = m;
+	}
+	
 	covrJK.zero();
 	meanJK.zero();
-	    
+	  
 	// Compute mean and variance
 	//
 	for (unsigned T=0; T<sampT; T++) {
@@ -249,7 +254,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 		modj += (*expcoefT[T])[indx+1][j] * (*expcoefT[T])[indx+1][j] ;
 
 	      modj = sqrt(modj)/massT[T];
-
+	      
 	      covrJK[i][j] += modi * modj / sampT;
 	    }
 	  }
@@ -258,7 +263,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	for (int i=1; i<=nmax; i++) {
 	  for (int j=1; j<=nmax; j++) {
 	    covrJK[i][j] -= meanJK[i]*meanJK[j];
-	    }
+	  }
 	}
 #ifdef GHQL
 	evalJK = covrJK.Symmetric_Eigenvalues_GHQL(evecJK);
@@ -298,91 +303,115 @@ void AxisymmetricBasis::pca_hall(int compute)
 	  b_Hall[indxC][n] = 1.0/(1.0 + b);
 	  snrval[n] = sqrt(1.0/b);
 	}
+	
+	if (vtkpca and myid==0) {
+	  if (dof==3)
+	    vtkpca->Add(meanJK, b_Hall[indxC], snrval, evalJK, evecJK.Transpose(), covrJK, l, m);
+	  else
+	    vtkpca->Add(meanJK, b_Hall[indxC], snrval, evalJK, evecJK.Transpose(), covrJK, m);
+	}
+	
+	if (out) out << endl;
+
+	for (int n=1; n<=nmax; n++) {
+	  
+	  var = eval[n];
+	  
+	  if (out) {
+	    if (dof==3) out << setw(5) << l;
+	    out << setw(5)  << m << setw(5) << n;
+	  
+	    double jkvar = evalJK[n];
+	    if (jkvar>0.0)
+	      out << setw(18) << jkvar
+		  << setw(18) << cumlJK[n]
+		  << setw(18) << meanJK[n]
+		  << setw(18) << fabs(meanJK[n])/sqrt(jkvar)
+		  << setw(18) << b_Hall[indxC][n];
+	    else
+	      out << setw(18) << jkvar
+		  << setw(18) << cumlJK[n]
+		  << setw(18) << meanJK[n]
+		  << setw(18) << "***"
+		  << setw(18) << "***";
+	    out << endl;
+	}
+	
+	  double dd = 0.0;
+	  for (int nn=1; nn<=nmax; nn++) {
+	    double mod  = expcoef[indx  ][nn]*expcoef[indx  ][nn];
+	    if (m) mod += expcoef[indx+1][nn]*expcoef[indx+1][nn];
+	    dd += Tevec[indxC][n][nn]*sqrt(mod)/muse;
+	  }
+	  
+	  if (tk_type == VarianceCut) {
+	  
+	    if (tksmooth*var > dd*dd)
+	      weight[indxC][n] = 0.0;
+	    else
+	      weight[indxC][n] = 1.0;
+	    
+	  }
+	  else if (tk_type == CumulativeCut) {
+	  
+	    if (n==1 || cuml[n] <= tkcum)
+	      weight[indxC][n] = 1.0;
+	    else
+	      weight[indxC][n] = 0.0;
+	  
+	  }
+	  else if (tk_type == VarianceWeighted) {
+	  
+	    weight[indxC][n] = 1.0/(1.0 + var/(dd*dd + 1.0e-14));
+	  
+	  }
+	  else
+	    weight[indxC][n] = 1.0;
+	  
+	}
       }
 
-      if (vtkpca and myid==0) {
-	if (dof==3)
-	  vtkpca->Add(meanJK, b_Hall[indxC], snrval, evalJK, evecJK.Transpose(), covrJK, l, m);
-	else
-	  vtkpca->Add(meanJK, b_Hall[indxC], snrval, evalJK, evecJK.Transpose(), covrJK, m);
-      }
+      evec [indxC] = evecJK;
+      Tevec[indxC] = evecJK.Transpose();
       
-      if (out) out << endl;
-
-      for (int n=1; n<=nmax; n++) {
-	  
-	var = eval[n];
-	  
-	if (out) {
-	  if (dof==3) out << setw(5) << l;
-	  out << setw(5)  << m << setw(5) << n;
-	  
-	  double jkvar = evalJK[n];
-	  if (jkvar>0.0)
-	    out << setw(18) << jkvar
-		<< setw(18) << cumlJK[n]
-		<< setw(18) << meanJK[n]
-		<< setw(18) << fabs(meanJK[n])/sqrt(jkvar)
-		<< setw(18) << b_Hall[indxC][n];
-	  else
-	    out << setw(18) << jkvar
-		<< setw(18) << cumlJK[n]
-		<< setw(18) << meanJK[n]
-		<< setw(18) << "***"
-		<< setw(18) << "***";
-	  out << endl;
-	}
-
-	double dd = 0.0;
-	for (int nn=1; nn<=nmax; nn++) {
-	  double mod  = expcoef[indx  ][nn]*expcoef[indx  ][nn];
-	  if (m) mod += expcoef[indx+1][nn]*expcoef[indx+1][nn];
-	  dd += Tevec[n][nn]*sqrt(mod)/muse;
-	}
-
-	if (tk_type == VarianceCut) {
-
-	  if (tksmooth*var > dd*dd)
-	    weight[indxC][n] = 0.0;
-	  else
-	    weight[indxC][n] = 1.0;
-
-	}
-	else if (tk_type == CumulativeCut) {
-
-	  if (n==1 || cuml[n] <= tkcum)
-	    weight[indxC][n] = 1.0;
-	  else
-	    weight[indxC][n] = 0.0;
-
-	}
-	else if (tk_type == VarianceWeighted) {
-	  
-	  weight[indxC][n] = 1.0/(1.0 + var/(dd*dd + 1.0e-14));
-	  
-	}
-	else
-	  weight[indxC][n] = 1.0;
-	  
+      if (vtkpca) {
+	std::ostringstream sout;
+	
+	sout << runtag << "_pca_" << cC->id << "_" << cC->name
+	     << "_" << std::setfill('0') << std::setw(5) << ocount++;
+	vtkpca->Write(sout.str());
       }
+    }
+  }
 
-      Tevec = evecJK.Transpose();
+
+  for (int l=L0, loffset=0, loffC=0; l<=Lmax; loffset+=(2*l+1), loffC+=(l+1), l++) {
+    
+    for (int m=0, moffset=0; m<=l; m++) {
+      
+      if (dof==3) {
+	indx  = loffset + moffset;
+	indxC = loffC += m;
+      } else {
+	indx  = moffset;
+	indxC = m;
+      }
 
       // Cosine terms
       //
       for (int n=1; n<=nmax; n++) {
 	double dd = 0.0;
 	for (int nn=1; nn<=nmax; nn++) 
-	  dd += Tevec[n][nn]*expcoef[indx][nn]/muse;
+	  dd += Tevec[indxC][n][nn]*expcoef[indx][nn]/muse;
 	smth[n] = dd * weight[indxC][n];
       }
-	
-      inv = evecJK * smth;
+    
+      inv = evec[indxC] * smth;
       for (int n=1; n<=nmax; n++) {
 	if (tk_type != Null) expcoef[indx][n]  = inv[n]*muse;
 	if (tk_type == Hall) expcoef[indx][n] *= b_Hall[indxC][n];
       }
-	
+  
       moffset++;
 
       // Sine terms
@@ -391,11 +420,11 @@ void AxisymmetricBasis::pca_hall(int compute)
 	for (int n=1; n<=nmax; n++) {
 	  double dd = 0.0;
 	  for (int nn=1; nn<=nmax; nn++) 
-	    dd += Tevec[n][nn]*expcoef[indx+1][nn]/muse;
+	    dd += Tevec[indxC][n][nn]*expcoef[indx+1][nn]/muse;
 	  smth[n] = dd * weight[indxC][n];
 	}
 	
-	inv = evecJK * smth;
+	inv = evec[indxC] * smth;
 	for (int n=1; n<=nmax; n++) {
 	  if (tk_type != Null) expcoef[indx+1][n]  = inv[n]*muse;
 	  if (tk_type == Hall) expcoef[indx+1][n] *= b_Hall[indxC][n];
@@ -405,15 +434,6 @@ void AxisymmetricBasis::pca_hall(int compute)
       }
     }
   }
-
-  if (vtkpca) {
-    std::ostringstream sout;
-
-    sout << runtag << "_pca_" << cC->id << "_" << cC->name
-	 << "_" << std::setfill('0') << std::setw(5) << ocount++;
-    vtkpca->Write(sout.str());
-  }
-
 }
 
 void AxisymmetricBasis::parallel_gather_coefficients(void)
