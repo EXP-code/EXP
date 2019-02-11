@@ -262,7 +262,7 @@ __global__ void coordKernelCyl
 
 
 __global__ void coefKernelCyl
-(dArray<cuFP_t> coef, dArray<cudaTextureObject_t> tex,
+(dArray<cuFP_t> coef, dArray<cuFP_t> used, dArray<cudaTextureObject_t> tex,
  dArray<cuFP_t> Mass, dArray<cuFP_t> Phi,
  dArray<cuFP_t> Xfac, dArray<cuFP_t> Yfac,
  dArray<int> indX, dArray<int> indY,
@@ -290,6 +290,9 @@ __global__ void coefKernelCyl
       if (i>=Mass._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif      
       if (mass>0.0) {
+				// For accumulating mass of used particles
+	if (m==0) used._v[i] = mass;
+
 #ifdef BOUNDS_CHECK
 	if (i>=Phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
@@ -699,6 +702,7 @@ void Cylinder::cudaStorage::resize_coefs
     dc_coef.reserve(2*ncylorder*gridSize);
   
   if (m_d .capacity() < N) m_d .reserve(N);
+  if (u_d .capacity() < N) u_d .reserve(N);
   if (X_d .capacity() < N) X_d .reserve(N);
   if (Y_d .capacity() < N) Y_d .reserve(N);
   if (p_d .capacity() < N) p_d .reserve(N);
@@ -724,6 +728,7 @@ void Cylinder::cudaStorage::resize_coefs
   // Space for coordinate arrays on the current step
   //
   m_d .resize(N);
+  u_d .resize(N);
   X_d .resize(N);
   Y_d .resize(N);
   p_d .resize(N);
@@ -947,10 +952,13 @@ void Cylinder::determine_coefficients_cuda(bool compute)
       std::vector<thrust::device_vector<cuFP_t>::iterator> bg;
       for (int T=0; T<sampT; T++) bg.push_back(ar->T_coef[T].begin());
 
+      thrust::fill(ar->u_d.begin(), ar->u_d.end(), 0.0);
+
       for (int m=0; m<=mmax; m++) {
 
 	coefKernelCyl<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
-	  (toKernel(ar->dN_coef), toKernel(t_d), toKernel(ar->m_d), toKernel(ar->p_d),
+	  (toKernel(ar->dN_coef), toKernel(ar->u_d),
+	   toKernel(t_d), toKernel(ar->m_d), toKernel(ar->p_d),
 	   toKernel(ar->X_d), toKernel(ar->Y_d), toKernel(ar->iX_d), toKernel(ar->iY_d),
 	   stride, m, ncylorder, lohi);
       
@@ -1009,11 +1017,11 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	    thrust::advance(bg[T], osize);
 
 	    if (m==0) {
-	      auto mbeg = ar->m_d.begin();
+	      auto mbeg = ar->u_d.begin();
 	      auto mend = mbeg;
 	      thrust::advance(mbeg, sN*T);
 	      if (T<sampT-1) thrust::advance(mend, sN*(T+1));
-	      else mend = ar->m_d.end();
+	      else mend = ar->u_d.end();
 
 	      host_massT[T] += thrust::reduce(mbeg, mend);
 	    }
