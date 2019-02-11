@@ -590,15 +590,6 @@ void SphericalBasis::determine_coefficients(void)
     start1  = std::chrono::high_resolution_clock::now();
     determine_coefficients_cuda(compute);
     DtoH_coefs(expcoef0[0]);
-
-    if (compute) {
-      parallel_gather_coef2();
-      pca_hall(true);
-      firstime_coef = 0;
-    } else {
-      pca_hall(false);
-    }
-
     finish1 = std::chrono::high_resolution_clock::now();
   } else {
     exp_thread_fork(true);

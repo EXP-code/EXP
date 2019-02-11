@@ -619,7 +619,7 @@ public:
     if (T >= sampT)
       throw std::runtime_error("T>=sampT");
 
-    return massT[T];
+    return massT1[0][T];
   }
 
 #endif
