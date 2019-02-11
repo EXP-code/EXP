@@ -2693,7 +2693,7 @@ void EmpCylSL::pca_hall(bool compute)
 	     << "# Time = " << tnow << endl
 	     << "#" << endl
 	     << setw( 4) << "m" << setw(4) << "n"
-	     << setw(18) << "Smth coef"
+	     << setw(18) << "coef"
 	     << setw(18) << "|coef|^2"
 	     << setw(18) << "var(coef)"
 	     << setw(18) << "cum var"
@@ -2823,6 +2823,7 @@ void EmpCylSL::pca_hall(bool compute)
 			      << setw(18) << (*pb)[mm]->b_Hall[nn+1] << std::endl;
 	
       }
+      if (hout.good()) hout << std::endl;
 
 #ifndef STANDALONE
       if (vtkpca) vtkpca->Add((*pb)[mm]->coefJK,
