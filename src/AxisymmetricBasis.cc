@@ -305,7 +305,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 
 	for (int n=1; n<=nmax; n++) {
 	  
-	  var = evalJK[n];
+	  var = evalJK[n]/sampT;
 	  
 	  // Compute projection
 	  //

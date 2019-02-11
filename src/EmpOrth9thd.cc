@@ -2806,7 +2806,7 @@ void EmpCylSL::pca_hall(bool compute)
       //
       for (int nn=0; nn<rank3; nn++) {
 	
-	double    var = std::max<double>((*pb)[mm]->evalJK[nn+1],
+	double    var = std::max<double>((*pb)[mm]->evalJK[nn+1]/sampT,
 					 std::numeric_limits<double>::min());
 	double    sqr = dd[nn+1]*dd[nn+1];
 	double      b = var/sqr;
