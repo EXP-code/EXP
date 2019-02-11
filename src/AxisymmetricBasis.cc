@@ -289,7 +289,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	//
 	cumlJK = evalJK;
 	for (int n=2; n<=nmax; n++) cumlJK[n] += cumlJK[n-1];
-	for (int n=2; n<=nmax; n++) cumlJK[n] /= cumlJK[nmax];
+	for (int n=1; n<=nmax; n++) cumlJK[n] /= cumlJK[nmax];
 	
 	// SNR vector
 	//
