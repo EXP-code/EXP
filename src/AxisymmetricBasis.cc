@@ -270,6 +270,8 @@ void AxisymmetricBasis::pca_hall(bool compute)
 #else
 	evalJK = covrJK.Symmetric_Eigenvalues(evecJK);
 #endif
+	evec [indxC] = evecJK;
+	Tevec[indxC] = evecJK.Transpose();
 
 	// Transformation output
 	//
@@ -279,7 +281,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	      << "#" << std::endl;
 	  for (int i=1; i<=nmax; i++) {
 	    for (int j=1; j<=nmax; j++) {
-	      cof << std::setw(12) << evecJK.Transpose()[i][j];
+	      cof << std::setw(12) << Tevec[indxC][i][j];
 	    }
 	    cof << std::endl;
 	  }
@@ -295,53 +297,43 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	//
 	snrval.setsize(cumlJK.getlow(), cumlJK.gethigh());
 	
-	// Recompute Hall coefficients
-	//
-	for (int n=1; n<=nmax; n++) {
-	  b = evalJK[n]/(meanJK[n]*meanJK[n]);
-	  b = std::max<double>(b, std::numeric_limits<double>::min());
-	  b_Hall[indxC][n] = 1.0/(1.0 + b);
-	  snrval[n] = sqrt(1.0/b);
-	}
-	
-	if (vtkpca and myid==0) {
-	  if (dof==3)
-	    vtkpca->Add(meanJK, b_Hall[indxC], snrval, evalJK, evecJK.Transpose(), covrJK, l, m);
-	  else
-	    vtkpca->Add(meanJK, b_Hall[indxC], snrval, evalJK, evecJK.Transpose(), covrJK, m);
-	}
-	
 	if (out) out << endl;
 
 	for (int n=1; n<=nmax; n++) {
 	  
-	  var = eval[n];
+	  var = evalJK[n];
 	  
+	  // Compute projection
+	  //
+	  double dd = 0.0;
+	  for (int nn=1; nn<=nmax; nn++) {
+	    double mod  = expcoef[indx  ][nn]*expcoef[indx  ][nn];
+	    if (m) mod += expcoef[indx+1][nn]*expcoef[indx+1][nn];
+	    dd += Tevec[indxC][n][nn]*sqrt(mod);
+	  }
+	  
+	  b = var/(dd*dd);
+	  b = std::max<double>(b, std::numeric_limits<double>::min());
+	  b_Hall[indxC][n] = 1.0/(1.0 + b);
+	  snrval[n] = sqrt(1.0/b);
+
 	  if (out) {
 	    if (dof==3) out << setw(5) << l;
 	    out << setw(5)  << m << setw(5) << n;
 	  
-	    double jkvar = evalJK[n];
-	    if (jkvar>0.0)
-	      out << setw(18) << jkvar
+	    if (var>0.0)
+	      out << setw(18) << var
 		  << setw(18) << cumlJK[n]
 		  << setw(18) << meanJK[n]
-		  << setw(18) << fabs(meanJK[n])/sqrt(jkvar)
+		  << setw(18) << fabs(dd)/sqrt(var)
 		  << setw(18) << b_Hall[indxC][n];
 	    else
-	      out << setw(18) << jkvar
+	      out << setw(18) << var
 		  << setw(18) << cumlJK[n]
 		  << setw(18) << meanJK[n]
 		  << setw(18) << "***"
 		  << setw(18) << "***";
 	    out << endl;
-	}
-	
-	  double dd = 0.0;
-	  for (int nn=1; nn<=nmax; nn++) {
-	    double mod  = expcoef[indx  ][nn]*expcoef[indx  ][nn];
-	    if (m) mod += expcoef[indx+1][nn]*expcoef[indx+1][nn];
-	    dd += Tevec[indxC][n][nn]*sqrt(mod)/muse;
 	  }
 	  
 	  if (tk_type == VarianceCut) {
@@ -369,11 +361,16 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	    weight[indxC][n] = 1.0;
 	  
 	}
+
+	if (vtkpca and myid==0) {
+	  if (dof==3)
+	    vtkpca->Add(meanJK, b_Hall[indxC], snrval, evalJK, evecJK.Transpose(), covrJK, l, m);
+	  else
+	    vtkpca->Add(meanJK, b_Hall[indxC], snrval, evalJK, evecJK.Transpose(), covrJK, m);
+	}
+
       }
 
-      evec [indxC] = evecJK;
-      Tevec[indxC] = evecJK.Transpose();
-      
       if (vtkpca) {
 	std::ostringstream sout;
 	
@@ -402,13 +399,13 @@ void AxisymmetricBasis::pca_hall(bool compute)
       for (int n=1; n<=nmax; n++) {
 	double dd = 0.0;
 	for (int nn=1; nn<=nmax; nn++) 
-	  dd += Tevec[indxC][n][nn]*expcoef[indx][nn]/muse;
+	  dd += Tevec[indxC][n][nn]*expcoef[indx][nn];
 	smth[n] = dd * weight[indxC][n];
       }
     
       inv = evec[indxC] * smth;
       for (int n=1; n<=nmax; n++) {
-	if (tk_type != Null) expcoef[indx][n]  = inv[n]*muse;
+	if (tk_type != Null) expcoef[indx][n]  = inv[n];
 	if (tk_type == Hall) expcoef[indx][n] *= b_Hall[indxC][n];
       }
   
@@ -420,13 +417,13 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	for (int n=1; n<=nmax; n++) {
 	  double dd = 0.0;
 	  for (int nn=1; nn<=nmax; nn++) 
-	    dd += Tevec[indxC][n][nn]*expcoef[indx+1][nn]/muse;
+	    dd += Tevec[indxC][n][nn]*expcoef[indx+1][nn];
 	  smth[n] = dd * weight[indxC][n];
 	}
 	
 	inv = evec[indxC] * smth;
 	for (int n=1; n<=nmax; n++) {
-	  if (tk_type != Null) expcoef[indx+1][n]  = inv[n]*muse;
+	  if (tk_type != Null) expcoef[indx+1][n]  = inv[n];
 	  if (tk_type == Hall) expcoef[indx+1][n] *= b_Hall[indxC][n];
 	}
 	
