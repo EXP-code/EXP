@@ -2726,6 +2726,8 @@ void EmpCylSL::pca_hall(bool compute)
 	
 	if (massT[T] <= 0.0) continue; // Skip empty partition
 	
+	double mfac = pb->Tmass/massT[T];
+
 	for (int nn=0; nn<rank3; nn++) { // Order
 	  
 	  double modn = (*accum_cos2[0][T])[mm][nn] * (*accum_cos2[0][T])[mm][nn];
@@ -2733,7 +2735,7 @@ void EmpCylSL::pca_hall(bool compute)
 	    modn += (*accum_sin2[0][T])[mm][nn] * (*accum_sin2[0][T])[mm][nn];
 	  modn = sqrt(modn);
 
-	  (*pb)[mm]->meanJK[nn+1] += modn/(massT[T]*sampT);
+	  (*pb)[mm]->meanJK[nn+1] += modn*mfac/sampT;
 
 	  (*pb)[mm]->coefJK[nn+1] += modn;
 
@@ -2744,7 +2746,7 @@ void EmpCylSL::pca_hall(bool compute)
 	      modo += (*accum_sin2[0][T])[mm][oo] * (*accum_sin2[0][T])[mm][oo];
 	    modo = sqrt(modo);
 	    
-	    (*pb)[mm]->covrJK[nn+1][oo+1] +=  modn/massT[T] * modo/massT[T] / sampT;
+	    (*pb)[mm]->covrJK[nn+1][oo+1] +=  modn*mfac * modo*mfac / sampT;
 	  }
 	}
       }
@@ -2789,7 +2791,7 @@ void EmpCylSL::pca_hall(bool compute)
 
       // Projected coefficients
       //
-      Vector dd = (*pb)[mm]->evecJK.Transpose() * (*pb)[mm]->coefJK / pb->Tmass;
+      Vector dd = (*pb)[mm]->evecJK.Transpose() * (*pb)[mm]->coefJK;
       
       // Cumulative distribution
       //

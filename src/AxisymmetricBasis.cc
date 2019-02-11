@@ -238,13 +238,16 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	// Compute mean and variance
 	//
 	for (unsigned T=0; T<sampT; T++) {
+
+	  double mfac = Tmass/massT[T];
+
 	  for (int i=1; i<=nmax; i++) {
 	    double modi =
 	      (*expcoefT[T])[indx][i] * (*expcoefT[T])[indx][i];
 	    if (m)
 	      modi += (*expcoefT[T])[indx+1][i] * (*expcoefT[T])[indx+1][i] ;
 	    
-	    modi = sqrt(modi)/massT[T];
+	    modi = sqrt(modi) * mfac;
 	    
 	    meanJK[i] += modi/sampT;
 
@@ -254,7 +257,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	      if (m) 
 		modj += (*expcoefT[T])[indx+1][j] * (*expcoefT[T])[indx+1][j] ;
 
-	      modj = sqrt(modj)/massT[T];
+	      modj = sqrt(modj) * mfac;
 	      
 	      covrJK[i][j] += modi * modj / sampT;
 	    }
