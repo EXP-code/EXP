@@ -456,7 +456,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	      expcoef0[id][loffset+moffset  ][n] += potd[id][l][n]*fac1*mass*fac0/normM[l][n];
 	      expcoef0[id][loffset+moffset+1][n] += potd[id][l][n]*fac2*mass*fac0/normM[l][n];
 
-	      if (compute && mlevel==0) {
+	      if (compute) {
 		pthread_mutex_lock(&cc_lock);
 		for (nn=n; nn<=nmax; nn++) {
 		  (*expcoefT1[whch])[loffset+moffset  ][n] += potd[id][l][n]*fac1*mass*fac0/normM[l][n];
@@ -530,7 +530,7 @@ void SphericalBasis::determine_coefficients(void)
 
   for (int i=0; i<nthrds; i++) expcoef0[i].zero();
     
-  if (compute && mlevel==0) {
+  if (compute) {
     for (int n=0; n<nthrds; n++) muse1[n] = 0.0;
     muse0 = 0.0;
 
