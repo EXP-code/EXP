@@ -149,7 +149,7 @@ protected:
     thrust::device_vector<cuFP_t> dc_coef;
     thrust::device_vector<cuFP_t> dw_coef;
     thrust::device_vector<cuFP_t> df_coef;
-    thrust::device_vector<cuFP_t> plm1_d, plm2_d, r_d, m_d, a_d, p_d;
+    thrust::device_vector<cuFP_t> plm1_d, plm2_d, r_d, m_d, u_d, a_d, p_d;
     thrust::device_vector<int   > i_d;
     
     std::vector<thrust::device_vector<cuFP_t>> T_coef;
