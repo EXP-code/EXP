@@ -247,6 +247,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	    modi = sqrt(modi)/massT[T];
 	    
 	    meanJK[i] += modi/sampT;
+
 	    for (int j=1; j<=nmax; j++) {
 	      double modj =
 		(*expcoefT[T])[indx][j] * (*expcoefT[T])[indx][j];
