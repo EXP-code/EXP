@@ -240,17 +240,15 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	//
 	for (unsigned T=0; T<sampT; T++) {
 
-	  double mfac = Tmass/massT[T];
-
 	  for (int i=1; i<=nmax; i++) {
 	    double modi =
 	      (*expcoefT[T])[indx][i] * (*expcoefT[T])[indx][i];
 	    if (m)
 	      modi += (*expcoefT[T])[indx+1][i] * (*expcoefT[T])[indx+1][i] ;
 	    
-	    modi = sqrt(modi) * mfac;
+	    modi = sqrt(modi);
 	    
-	    meanJK[i] += modi/sampT;
+	    meanJK[i] += modi;
 
 	    for (int j=1; j<=nmax; j++) {
 	      double modj =
@@ -258,9 +256,9 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	      if (m) 
 		modj += (*expcoefT[T])[indx+1][j] * (*expcoefT[T])[indx+1][j] ;
 
-	      modj = sqrt(modj) * mfac;
+	      modj = sqrt(modj);
 	      
-	      covrJK[i][j] += modi * modj / sampT;
+	      covrJK[i][j] += modi * modj * sampT;
 	    }
 	  }
 	}
@@ -309,6 +307,10 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	for (int n=1; n<=nmax; n++) {
 	  
 	  var = evalJK[n]/sampT;
+	  //               ^
+	  //               |
+	  //               +--------- bootstrap variance estimate for
+	  //                          population variance
 	  
 	  b = var/(tt[n]*tt[n]);
 	  b = std::max<double>(b, std::numeric_limits<double>::min());
