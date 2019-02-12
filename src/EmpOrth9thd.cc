@@ -2735,8 +2735,6 @@ void EmpCylSL::pca_hall(bool compute)
 
 	  (*pb)[mm]->meanJK[nn+1] += modn;
 
-	  (*pb)[mm]->coefJK[nn+1] += modn;
-
 	  for (int oo=0; oo<rank3; oo++) { // Order
 	    
 	    double modo = (*accum_cos2[0][T])[mm][oo] * (*accum_cos2[0][T])[mm][oo];
@@ -2804,7 +2802,7 @@ void EmpCylSL::pca_hall(bool compute)
       //
       for (int nn=0; nn<rank3; nn++) {
 	
-	// Boostrap variacne estimate for popl variance------------+
+	// Boostrap variance estimate for popl variance------------+
 	//                                                         |
 	//                                                         v
 	double    var = std::max<double>((*pb)[mm]->evalJK[nn+1]/sampT,
@@ -2827,7 +2825,7 @@ void EmpCylSL::pca_hall(bool compute)
       if (hout.good()) hout << std::endl;
 
 #ifndef STANDALONE
-      if (vtkpca) vtkpca->Add((*pb)[mm]->coefJK,
+      if (vtkpca) vtkpca->Add((*pb)[mm]->meanJK,
 			      (*pb)[mm]->b_Hall, snrval,
 			      (*pb)[mm]->evalJK,
 			      (*pb)[mm]->evecJK.Transpose(),

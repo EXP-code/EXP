@@ -162,7 +162,6 @@ private:
     //! All the public data
     Vector evalJK;
     Vector meanJK;
-    Vector coefJK;
     Vector b_Hall;
     Matrix covrJK;
     Matrix evecJK;
@@ -171,7 +170,6 @@ private:
     //! Constructor
     PCAelement(int n) {
       meanJK.setsize(1, n);
-      coefJK.setsize(1, n);
       b_Hall.setsize(1, n);
       covrJK.setsize(1, n, 1, n);
       evecJK.setsize(1, n, 1, n);
@@ -180,7 +178,6 @@ private:
     //! Zero all data
     void reset() {
       meanJK.zero();
-      coefJK.zero();
       b_Hall.zero();
       covrJK.zero();
       evecJK.zero();
