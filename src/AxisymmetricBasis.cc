@@ -218,6 +218,8 @@ void AxisymmetricBasis::pca_hall(bool compute)
     meanJK.setsize(1, nmax);
     evecJK.setsize(1, nmax, 1, nmax);
 
+    std::vector<double> meanJK1(nmax), meanJK2(nmax);
+
     for (auto v : massT) Tmass += v;
 
     for (int l=L0, loffset=0, loffC=0; l<=Lmax; loffset+=(2*l+1), loffC+=(l+1), l++) {
@@ -236,6 +238,9 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	covrJK.zero();
 	meanJK.zero();
 	  
+	std::fill(meanJK1.begin(), meanJK1.end(), 0.0);
+	std::fill(meanJK2.begin(), meanJK2.end(), 0.0);
+
 	// Compute mean and variance
 	//
 	for (unsigned T=0; T<sampT; T++) {
@@ -249,6 +254,9 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	    modi = sqrt(modi);
 	    
 	    meanJK[i] += modi;
+
+	    meanJK1[i-1] += (*expcoefT[T])[indx  ][i];
+	    if (m) meanJK2[i-1] += (*expcoefT[T])[indx+1][i];
 
 	    for (int j=1; j<=nmax; j++) {
 	      double modj =
@@ -303,6 +311,20 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	if (out) out << endl;
 
 	Vector tt = Tevec[indxC] * meanJK;
+
+	if (myid==0) {
+	  for (int n=1; n<=nmax; n++) {
+	    std::cout   << std::setw(3)  << l
+		        << std::setw(3)  << m
+			<< std::setw(3)  << n
+			<< std::setw(16) << expcoef[indx][n]
+			<< std::setw(16) << meanJK1[n-1];
+	    if (m)
+	      std::cout << std::setw(16) << expcoef[indx][n]
+			<< std::setw(16) << meanJK2[n-1];
+	    std::cout   << std::endl;
+	  }
+	}
 
 	for (int n=1; n<=nmax; n++) {
 	  

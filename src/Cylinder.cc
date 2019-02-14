@@ -376,6 +376,8 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   // Compute coefficients 
   //======================
 
+  if (pca) compute = firstime_coef || ( (mstep == 0) && !(this_step%npca) );
+
   // On first call, will try to read cached tables rather
   // than recompute from distribution
   
@@ -386,6 +388,8 @@ void Cylinder::get_acceleration_and_potential(Component* C)
       determine_coefficients();
   }
   
+  if (compute) ortho->zero_pca();
+
   //=========================
   // Dump basis on first call
   //=========================
@@ -706,9 +710,6 @@ void Cylinder::determine_coefficients(void)
   MPI_Barrier(MPI_COMM_WORLD);
   if (myid==0) cout << endl;
 #endif
-
-  if (pca) compute = firstime_coef || ( (mstep == 0) && !(this_step%npca) );
-
 
 #if HAVE_LIBCUDA==1
   if (component->cudaDevice>=0) {

@@ -132,8 +132,6 @@ private:
 
   Matrix tabp, tabf, tabd;
 
-  Vector* hold;
-
   std::vector<short> coefs_made;
   bool eof_made;
 
@@ -392,6 +390,9 @@ public:
 
   //! Initialize PCA work space
   void init_pca();
+
+  //! Clear PCA work space
+  void zero_pca();
 
   //! Necessary member function currently unused (change design?)
   void determine_coefficients() {};

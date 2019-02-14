@@ -149,7 +149,6 @@ EmpCylSL::~EmpCylSL(void)
 
     delete [] vc;
     delete [] vs;
-    delete [] hold;
     delete [] var;
 
     delete [] cosm;
@@ -1257,6 +1256,19 @@ void EmpCylSL::setup_accumulation(void)
   coefs_made = vector<short>(multistep+1, false);
 }
 
+void EmpCylSL::zero_pca()
+{
+  if (SELECT) {
+    for (int nth=0; nth<nthrds; nth++) {
+      for (unsigned T=0; T<sampT; T++) {
+	massT1[nth][T] = 0.0;
+	accum_cos2[nth][T]->zero();
+	accum_sin2[nth][T]->zero();
+      }
+    }
+  }
+}
+
 void EmpCylSL::setup_accumulation(int M)
 {
 #ifndef STANDALONE
@@ -1408,11 +1420,9 @@ void EmpCylSL::setup_eof()
 
     vc = new Matrix [nthrds];
     vs = new Matrix [nthrds];
-    hold = new Vector[nthrds];
     for (int i=0; i<nthrds; i++) {
       vc[i].setsize(0, max<int>(1,MMAX), 0, rank3-1);
       vs[i].setsize(0, max<int>(1,MMAX), 0, rank3-1);
-      hold[i].setsize(0, rank3-1);
     }
 
     var = new Matrix[MMAX+1];
@@ -2322,24 +2332,17 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
     mcos = cos(phi*mm);
     msin = sin(phi*mm);
 
-    for (int nn=0; nn<rank3; nn++) 
-      hold[id][nn] = norm * mass * mcos * vc[id][mm][nn];
+    for (int nn=0; nn<rank3; nn++) {
+      double hold = norm * mass * mcos * vc[id][mm][nn];
 
-    for (int nn=0; nn<rank3; nn++) 
-      accum_cosN[mlevel][id][mm][nn] += hold[id][nn];
+      accum_cosN[mlevel][id][mm][nn] += hold;
 
-    if (SELECT) {
-      for (int nn=0; nn<rank3; nn++) 
-	(*accum_cos2[id][whch])[mm][nn] += hold[id][nn];
-    }
-    if (mm>0) {
-      for (int nn=0; nn<rank3; nn++) 
-	hold[id][nn] = norm * mass * msin * vs[id][mm][nn];
-      for (int nn=0; nn<rank3; nn++) 
-	accum_sinN[mlevel][id][mm][nn] += hold[id][nn];
-      if (SELECT) {
-	for (int nn=0; nn<rank3; nn++)
-	  (*accum_sin2[id][whch])[mm][nn] += hold[id][nn];
+      if (SELECT) (*accum_cos2[id][whch])[mm][nn] += hold;
+
+      if (mm>0) {
+	hold = norm * mass * msin * vs[id][mm][nn];
+	accum_sinN[mlevel][id][mm][nn] += hold;
+	if (SELECT) (*accum_sin2[id][whch])[mm][nn] += hold;
       }
     }
 
@@ -2415,7 +2418,9 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
   }
   
 
-  if (SELECT and M0==0) {
+  if (compute) {
+    std::cout << "M0=" << M0 << std::endl;
+
 				// Sum up over threads
 				//
     for (int nth=1; nth<nthrds; nth++) {
@@ -2430,6 +2435,7 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 	for (int mm=1; mm<=MMAX; mm++)
 	  for (int nn=0; nn<rank3; nn++)
 	    (*accum_sin2[0][T])[mm][nn] += (*accum_sin2[nth][T])[mm][nn];
+
       } // T loop
       
     } // Thread loop
@@ -2510,14 +2516,14 @@ void EmpCylSL::make_coefficients(bool compute)
 
       howmany1[M][0] += howmany1[M][nth];
 
-      if (SELECT && M==0) {
+      if (compute) {
 	for (unsigned T=0; T<sampT; T++) massT1[0][T] += massT1[nth][T];
       }
       
       for (int mm=0; mm<=MMAX; mm++) {
 	for (int nn=0; nn<rank3; nn++) {
 	  accum_cosN[M][0][mm][nn] += accum_cosN[M][nth][mm][nn];
-	  if (SELECT && M==0) {
+	  if (compute) {
 	    for (unsigned T=0; T<sampT; T++) 
 	      (*accum_cos2[0][T])[mm][nn] += (*accum_cos2[nth][T])[mm][nn];
 	  }
@@ -2527,7 +2533,7 @@ void EmpCylSL::make_coefficients(bool compute)
       for (int mm=1; mm<=MMAX; mm++) {
 	for (int nn=0; nn<rank3; nn++) {
 	  accum_sinN[M][0][mm][nn] += accum_sinN[M][nth][mm][nn];
-	  if (SELECT && M==0) {
+	  if (compute) {
 	    for (unsigned T=0; T<sampT; T++) 
 	      (*accum_sin2[0][T])[mm][nn] += (*accum_sin2[nth][T])[mm][nn];
 	  }
@@ -2601,7 +2607,7 @@ void EmpCylSL::make_coefficients(bool compute)
 	  accum_sin[mm][nn] = MPIout[mm*rank3 + nn];
   }
   
-  if (SELECT) {
+  if (compute) {
     for (unsigned T=0; T<sampT; T++) {
       for (int mm=1; mm<=MMAX; mm++)
 	for (int nn=0; nn<rank3; nn++)
@@ -2624,7 +2630,7 @@ void EmpCylSL::make_coefficients(bool compute)
     
   } // SELECT
   
-  if (SELECT) pca_hall(compute);
+  if (compute) pca_hall(compute);
 
   coefs_made = vector<short>(multistep+1, true);
 
@@ -2716,10 +2722,15 @@ void EmpCylSL::pca_hall(bool compute)
       }
     }
     
+    std::vector<double> meanJK1(rank3), meanJK2(rank3);
+
     // Loop through each harmonic subspace [EVEN cosines]
     //
     for (int mm=0; mm<=MMAX; mm++) {
       
+      std::fill(meanJK1.begin(), meanJK1.end(), 0.0);
+      std::fill(meanJK2.begin(), meanJK2.end(), 0.0);
+
       // Data partitions for variance
       //
       for (unsigned T=0; T<sampT; T++) {
@@ -2734,6 +2745,9 @@ void EmpCylSL::pca_hall(bool compute)
 	  modn = sqrt(modn);
 
 	  (*pb)[mm]->meanJK[nn+1] += modn;
+
+	  meanJK1[nn] += (*accum_cos2[0][T])[mm][nn];
+	  if (mm) meanJK2[nn] += (*accum_sin2[0][T])[mm][nn];
 
 	  for (int oo=0; oo<rank3; oo++) { // Order
 	    
@@ -2758,6 +2772,19 @@ void EmpCylSL::pca_hall(bool compute)
       (*pb)[mm]->evalJK = (*pb)[mm]->covrJK.Symmetric_Eigenvalues((*pb)[mm]->evecJK);
 #endif
     
+      if (myid==0) {
+	for (int n=0; n<rank3; n++) {
+	  std::cout   << std::setw(3)  << mm
+		      << std::setw(3)  << n+1
+		      << std::setw(16) << accum_cos[mm][n]
+		      << std::setw(16) << meanJK1[n];
+	  if (mm)
+	    std::cout << std::setw(16) << accum_sin[mm][n]
+		      << std::setw(16) << meanJK2[n];
+	  std::cout   << std::endl;
+	}
+      }
+
       // Transformation output
       //
       if (mout.good()) {
@@ -4206,20 +4233,15 @@ void EmpCylSL::multistep_update(int from, int to, double r, double z, double phi
     mcos = cos(phi*mm);
     msin = sin(phi*mm);
 
-    for (int nn=0; nn<rank3; nn++) 
-      hold[id][nn] = norm * mass * mcos * vc[id][mm][nn];
-
     for (int nn=0; nn<rank3; nn++) {
-      differC1[id][from][mm][nn] -= hold[id][nn];
-      differC1[id][to  ][mm][nn] += hold[id][nn];
-    }
+      double hold = norm * mass * mcos * vc[id][mm][nn];
+      differC1[id][from][mm][nn] -= hold;
+      differC1[id][to  ][mm][nn] += hold;
 
-    if (mm>0) {
-      for (int nn=0; nn<rank3; nn++) 
-	hold[id][nn] = norm * mass * msin * vs[id][mm][nn];
-      for (int nn=0; nn<rank3; nn++) {
-	differS1[id][from][mm][nn] -= hold[id][nn];
-	differS1[id][to  ][mm][nn] += hold[id][nn];
+      if (mm>0) {
+	hold = norm * mass * msin * vs[id][mm][nn];
+	differS1[id][from][mm][nn] -= hold;
+	differS1[id][to  ][mm][nn] += hold;
       }
     }
   }
