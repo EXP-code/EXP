@@ -67,6 +67,9 @@ protected:
   //! Coefficient dump flag (true if a useful dump_coefs member is defined)
   bool coef_dump;
 
+  //! Top active level at current multistep
+  unsigned toplev;
+
   //! Current level for multistepping
   unsigned mlevel;
 
@@ -171,7 +174,7 @@ public:
   virtual void multistep_update_finish() {}
 
   //! Set the level for evaluating acceleration at level n
-  virtual void set_multistep_level(unsigned n) { mlevel=n; }
+  virtual void set_multistep_level(unsigned n) { toplev=n; }
 
   //! Reset data for multistep
   virtual void multistep_reset() {}

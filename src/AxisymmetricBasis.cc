@@ -255,7 +255,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	    
 	    meanJK[i] += modi;
 
-	    meanJK1[i-1] += (*expcoefT[T])[indx  ][i];
+	    meanJK1[i-1] += (*expcoefT[T])[indx][i];
 	    if (m) meanJK2[i-1] += (*expcoefT[T])[indx+1][i];
 
 	    for (int j=1; j<=nmax; j++) {
@@ -311,7 +311,6 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	if (out) out << endl;
 
 	Vector tt = Tevec[indxC] * meanJK;
-
 	if (myid==0) {
 	  for (int n=1; n<=nmax; n++) {
 	    std::cout   << std::setw(3)  << l

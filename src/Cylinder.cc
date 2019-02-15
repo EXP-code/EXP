@@ -681,81 +681,85 @@ void Cylinder::determine_coefficients(void)
     pcainit = false;
   }
 
-  if (multistep==0)
-    ortho->setup_accumulation();
-  else {
-    ortho->setup_accumulation(mlevel);
-  }
+  for (mlevel=toplev; mlevel<=multistep; mlevel++) {
 
-  cylmass0.resize(nthrds);
+    if (multistep==0)
+      ortho->setup_accumulation();
+    else {
+      ortho->setup_accumulation(mlevel);
+    }
+    
+    cylmass0.resize(nthrds);
 
 #ifdef LEVCHECK
-  for (int n=0; n<numprocs; n++) {
-    if (n==myid) {
-      if (myid==0) cout << "------------------------" << endl
-			<< "Level check in Cylinder:" << endl 
-			<< "------------------------" << endl;
-      cout << setw(4) << myid << setw(4) << mlevel << setw(4) << eof;
-      if (cC->levlist[mlevel].size())
-	cout << setw(12) << cC->levlist[mlevel].size()
-	     << setw(12) << cC->levlist[mlevel].front()
-	     << setw(12) << cC->levlist[mlevel].back() << endl;
-      else
-	cout << setw(12) << cC->levlist[mlevel].size()
-	     << setw(12) << (int)(-1)
-	     << setw(12) << (int)(-1) << endl;
+    for (int n=0; n<numprocs; n++) {
+      if (n==myid) {
+	if (myid==0) cout << "------------------------" << endl
+			  << "Level check in Cylinder:" << endl 
+			  << "------------------------" << endl;
+	cout << setw(4) << myid << setw(4) << mlevel << setw(4) << eof;
+	if (cC->levlist[mlevel].size())
+	  cout << setw(12) << cC->levlist[mlevel].size()
+	       << setw(12) << cC->levlist[mlevel].front()
+	       << setw(12) << cC->levlist[mlevel].back() << endl;
+	else
+	  cout << setw(12) << cC->levlist[mlevel].size()
+	       << setw(12) << (int)(-1)
+	       << setw(12) << (int)(-1) << endl;
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
     }
     MPI_Barrier(MPI_COMM_WORLD);
-  }
-  MPI_Barrier(MPI_COMM_WORLD);
-  if (myid==0) cout << endl;
+    if (myid==0) cout << endl;
 #endif
-
+    
 #if HAVE_LIBCUDA==1
-  if (component->cudaDevice>=0) {
-    start1 = std::chrono::high_resolution_clock::now();
+    if (component->cudaDevice>=0) {
+      start1 = std::chrono::high_resolution_clock::now();
 
-    determine_coefficients_cuda(compute);
-    DtoH_coefs(mlevel);
+      determine_coefficients_cuda(compute);
+      DtoH_coefs(mlevel);
 
-    finish1 = std::chrono::high_resolution_clock::now();
-  } else {    
-    exp_thread_fork(true);
+      finish1 = std::chrono::high_resolution_clock::now();
+    } else {    
+      exp_thread_fork(true);
   }
 #else
 				// Threaded coefficient accumulation loop
-  exp_thread_fork(true);
+    exp_thread_fork(true);
 #endif
 				// Accumulate counts and mass used to
 				// determine coefficients
-  int use0=0, use1=0;
-  double cylmassT1=0.0, cylmassT0=0.0;
+    int use0=0, use1=0;
+    double cylmassT1=0.0, cylmassT0=0.0;
 
-  for (int i=0; i<nthrds; i++) {
-    use1 += use[i];
-    cylmassT1 += cylmass0[i];
-  }
+    for (int i=0; i<nthrds; i++) {
+      use1 += use[i];
+      cylmassT1 += cylmass0[i];
+    }
 
 				// Turn off timer so as not bias by 
 				// communication barrier
-  MPL_stop_timer();
+    MPL_stop_timer();
 
-  MPI_Allreduce ( &use1, &use0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce ( &cylmassT1, &cylmassT0, 1, MPI_DOUBLE, MPI_SUM, 
-		  MPI_COMM_WORLD );
+    MPI_Allreduce ( &use1, &use0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce ( &cylmassT1, &cylmassT0, 1, MPI_DOUBLE, MPI_SUM, 
+		    MPI_COMM_WORLD );
 
-  if (multistep==0 or tnow==resetT) {
-    used    += use0;
-    cylmass += cylmassT0;
+    if (multistep==0 or tnow==resetT) {
+      used    += use0;
+      cylmass += cylmassT0;
+    }
+    
   }
-  
+
   MPL_start_timer();
 
 				// Make the coefficients for this level
   if (multistep==0 || !self_consistent) {
     ortho->make_coefficients(compute);
   } else {
-    ortho->make_coefficients(mlevel, compute);
+    ortho->make_coefficients(toplev, compute);
   }
 
   firstime_coef = false;
@@ -877,7 +881,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 
   // If we are multistepping, compute accel only at or below <mlevel>
   //
-  for (unsigned lev=mlevel; lev<=multistep; lev++) {
+  for (unsigned lev=toplev; lev<=multistep; lev++) {
 
     unsigned nbodies = cC->levlist[lev].size();
 
@@ -1103,7 +1107,7 @@ void Cylinder::determine_acceleration_and_potential(void)
 
     std::cout << std::string(60, '=') << std::endl;
     std::cout << "== Force evaluation [Cylinder::" << cC->name
-	      << "] level=" << mlevel << std::endl;
+	      << "] level=" << toplev << std::endl;
     std::cout << std::string(60, '=') << std::endl;
     std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
     if (cC->cudaDevice>=0) {
