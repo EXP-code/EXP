@@ -1076,10 +1076,6 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 		if (T<sampT-1) thrust::advance(mend, sN*(T+1));
 		else mend = ar->u_d.end();
 		
-		// TEST
-		thrust::host_vector<cuFP_t> tst = ar->u_d;
-		// END TEST
-
 		host_massT[T] += thrust::reduce(mbeg, mend);
 	      }
 	    }
