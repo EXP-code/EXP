@@ -1624,7 +1624,7 @@ void SphericalBasis::determine_acceleration_cuda()
   cC->CudaToParticles();
 
   // DEBUGGING TEST
-  if (true) {
+  if (false) {
     std::cout << std::string(10+7*16, '-') << std::endl;
     std::cout << "---- Acceleration in SphericalBasis [T=" << tnow
 	      << ", N=" << Ntot << ", level=" << mlevel
