@@ -319,7 +319,7 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
 
     if (multistep) compute_multistep_coefficients();
 
-    if (myid==0) {
+    if (myid==-1) {
       for (int n=1; n<=nmax; n++)
 	std::cout << std::setw(4)  << this_step
 		  << std::setw(4)  << mstep
