@@ -720,8 +720,10 @@ void Cylinder::determine_coefficients(void)
     if (component->cudaDevice>=0) {
       start1 = std::chrono::high_resolution_clock::now();
 
-      determine_coefficients_cuda(compute);
-      DtoH_coefs(mlevel);
+      if (cC->levlist[mlevel].size()) {
+	determine_coefficients_cuda(compute);
+	DtoH_coefs(mlevel);
+      }
 
       finish1 = std::chrono::high_resolution_clock::now();
     } else {    
