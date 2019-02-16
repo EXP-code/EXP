@@ -5,7 +5,7 @@
 #include <string>
 
                                 // MDW classes
-#include <EmpOrth9thd.h>
+#include <EmpCylSL.h>
 #include <localmpi.h>
 
 				// Global variables

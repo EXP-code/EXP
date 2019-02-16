@@ -96,7 +96,7 @@ namespace po = boost::program_options;
 #include <biorth.h>
 #include <SphericalSL.h>
 #include <interp.h>
-#include <EmpOrth9thd.h>
+#include <EmpCylSL.h>
 
 #include <norminv.H>
 

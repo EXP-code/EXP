@@ -36,7 +36,7 @@ bin_PROGRAMS = exp
 
 if ENABLE_CUDA
   ADD_CUDA = cudaParticle.cu cudaSphericalBasis.cu cudaSphere.cu \
-	cudaCylinder.cu cudaEmpOrth.cu cudaComponent.cu NVTX.cc	 \
+	cudaCylinder.cu cudaEmpCylSL.cu cudaComponent.cu NVTX.cc	 \
 	cudaHOT.cu
   ifeq ($(GENCODE_FLAGS),)
     $(foreach sm,@sm_vers@,$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
@@ -48,7 +48,7 @@ endif
 CXXLINK = mpiCC -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 exp_SOURCES = Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc	\
-     Cube.cc Cylinder.cc EmpOrth9thd.cc ExternalCollection.cc		\
+     Cube.cc Cylinder.cc EmpCylSL.cc ExternalCollection.cc		\
      ExternalForce.cc Hernquist.cc Orient.cc Particle.cc PotAccel.cc	\
      ScatterMFP.cc SphericalBasis.cc AxisymmetricBasis.cc Sphere.cc	\
      TwoCenter.cc EJcom.cc global.cc begin.cc ddplgndr.cc Direct.cc	\
@@ -81,7 +81,7 @@ exp_LDADD = $(EXPLIBS) $(ADD_LIBS3) $(ADD_LIBS4) $(LAPACK_LIBS)		\
 noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H Cylinder.H     \
 	ExternalCollection.H ExternalForce.H Hernquist.H Particle.H          \
 	Particle.H PotAccel.H ScatterMFP.H SphericalBasis.H externalShock.H  \
-	generateRelaxation.H tidalField.H EmpOrth9thd.h Orient.H OutPS.H     \
+	generateRelaxation.H tidalField.H EmpCylSL.h Orient.H OutPS.H     \
 	OutMulti.H coef.H exp_thread.h expand.h sltableMP2.h tipsydefs.h     \
         version.h pHOT.H pCell.H pHOT_types.H ParticleFerry.H                \
 	pHOT.H pHOT_types.H

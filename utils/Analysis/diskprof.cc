@@ -57,7 +57,7 @@ namespace po = boost::program_options;
 #include "Particle.h"
 #include <PSP.H>
 #include <interp.h>
-#include <EmpOrth9thd.h>
+#include <EmpCylSL.h>
 
 #include <localmpi.h>
 #include <foarray.H>

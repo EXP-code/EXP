@@ -4,7 +4,7 @@
 #include <Vector.h>
 #include <Orient.H>
 #include <Basis.H>
-#include <EmpOrth9thd.h>
+#include <EmpCylSL.h>
 
 #include "config.h"
 
@@ -71,7 +71,7 @@ private:
     nvTracerPtr tPtr;
     if (cuda_prof)
       tPtr = nvTracerPtr(new nvTracer("Cylinder::compute_multistep_coefficients"));
-    ortho->compute_multistep_coefficients(mlevel);
+    ortho->compute_multistep_coefficients(toplev);
   }
 
   //! Reset used particle counter and mass registers
@@ -190,7 +190,7 @@ public:
   //! \param nvtk is the number of step VTK output 
   //! \param pcadiag set to true enables PCA output diagnostics (default: false)
   //! \param eof_file is an override for the default EOF cache file name
-  //! \param vflag sets verbosity (see EmpOrth9thd.cc)
+  //! \param vflag sets verbosity (see EmpCylSL.cc)
   //! \param rnum is the number of Legendre radial knots for numerical basis computation
   //! \param pnum is the number of azimuthal knots for numerical basis computation
   //! \param tnum is the number of Legendre polar knots for numerical basis computation

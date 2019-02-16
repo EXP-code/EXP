@@ -319,7 +319,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 			<< std::setw(16) << expcoef[indx][n]
 			<< std::setw(16) << meanJK1[n-1];
 	    if (m)
-	      std::cout << std::setw(16) << expcoef[indx][n]
+	      std::cout << std::setw(16) << expcoef[indx+1][n]
 			<< std::setw(16) << meanJK2[n-1];
 	    std::cout   << std::endl;
 	  }

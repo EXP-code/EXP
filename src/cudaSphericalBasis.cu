@@ -1708,8 +1708,8 @@ void SphericalBasis::DtoH_coefs(Matrix& expcoef)
 	    // n loop
 	    //
 	    for (int n=1; n<=nmax; n++) {
-	      (*expcoefT1[T])[loffset+moffset][n] += ret[2*(n-1) + offst];
-	      if (m>0) (*expcoefT1[T])[loffset+moffset+1][n] += ret[2*(n-1) + 1 + offst];
+	      (*expcoefT1[T])[loffset+moffset][n] = ret[2*(n-1) + offst];
+	      if (m>0) (*expcoefT1[T])[loffset+moffset+1][n] = ret[2*(n-1) + 1 + offst];
 	    }
 
 	    offst += osize;

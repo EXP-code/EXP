@@ -57,7 +57,7 @@ namespace pt = boost::property_tree;
 #include "Particle.h"
 #include <PSP.H>
 #include <interp.h>
-#include <EmpOrth9thd.h>
+#include <EmpCylSL.h>
 
 #include <localmpi.h>
 #include <foarray.H>

@@ -1,5 +1,5 @@
-#ifndef _EmpOrth_h
-#define _EmpOrth_h
+#ifndef _EmpCylSL_h
+#define _EmpCylSL_h
 
 #include <vector>
 
@@ -148,7 +148,6 @@ private:
   int    cache_grid(int, string file="");		
   double integral(int, int, int, int);
   void   get_pot(Matrix&, Matrix&, double, double);
-  void   pca_hall(bool compute);
   double massR(double R);
   double densR(double R);
 
@@ -360,13 +359,11 @@ public:
 	       double& p, double& d, double& fr, double& fz, double& fp);
 
   //! Setup for accumulated coefficients
-  //@{
-  //! All levels
-  void setup_accumulation(void);
-  //! Single level
-  void setup_accumulation(int mlevel);
+  void setup_accumulation(int toplev=0);
+
   //! For EOF
   void setup_eof(void);
+
   //! Clear mass counter
   void reset_mass(void);
   //@}
@@ -375,10 +372,16 @@ public:
   //@{
   //! All levels
   void make_coefficients(bool compute=false);
+
   //! Single level
   void make_coefficients(unsigned mlevel, bool compute=false);
+
   //! Make empirical orthgonal functions
   void make_eof(void);
+
+  //! Compute PCA
+  void pca_hall(bool compute);
+
   //! True if coefficients are made at all levels
   bool coefs_made_all() 
   {
@@ -391,11 +394,9 @@ public:
   //! Initialize PCA work space
   void init_pca();
 
-  //! Clear PCA work space
-  void zero_pca();
-
   //! Necessary member function currently unused (change design?)
   void determine_coefficients() {};
+
   //! Necessary member function currently unused (change design?)
   void determine_acceleration_and_potential() {};
 

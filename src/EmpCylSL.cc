@@ -25,7 +25,7 @@ extern int VERBOSE;
 
 #include <numerical.h>
 #include <gaussQ.h>
-#include <EmpOrth9thd.h>
+#include <EmpCylSL.h>
 #include <VtkGrid.H>
 
 extern Vector Symmetric_Eigenvalues_SYEVD(Matrix& a, Matrix& ef, int M);
@@ -1152,15 +1152,12 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 }
 
 
-void EmpCylSL::setup_accumulation(void)
+void EmpCylSL::setup_accumulation(int toplev)
 {
-  if (!accum_cos) {
+  if (!accum_cos) {		// First time
+
     accum_cos = new Vector [MMAX+1];
     accum_sin = new Vector [MMAX+1];
-  }
-
-
-  if (accum_cosL.size() == 0) {
 
     for (unsigned M=0; M<=multistep; M++) {
       accum_cosL.push_back(new Vector* [nthrds]);
@@ -1178,141 +1175,117 @@ void EmpCylSL::setup_accumulation(void)
       howmany1.push_back(vector<unsigned>(nthrds, 0));
       howmany.push_back(0);
     }
+
     if (VFLAG & 8)
       cerr << "Slave " << setw(4) << myid 
 	   << ": tables allocated, MMAX=" << MMAX << endl;
-  }
 
-  differC1 = vector< vector<Matrix> >(nthrds);
-  differS1 = vector< vector<Matrix> >(nthrds);
-  for (int nth=0; nth<nthrds; nth++) {
-    differC1[nth] = vector<Matrix>(multistep+1);
-    differS1[nth] = vector<Matrix>(multistep+1); 
-  }
-
-  unsigned sz = (multistep+1)*(MMAX+1)*NORDER;
-  workC1 = vector<double>(sz);
-  workC  = vector<double>(sz);
-  workS1 = vector<double>(sz);
-  workS  = vector<double>(sz);
-
-  dstepL  = vector<unsigned>(multistep+1, 0); 
-  dstepN  = vector<unsigned>(multistep+1, 0); 
-
-  cylmass_made = false;
-
-  for (unsigned M=0; M<=multistep; M++) {
-
+    differC1 = vector< vector<Matrix> >(nthrds);
+    differS1 = vector< vector<Matrix> >(nthrds);
     for (int nth=0; nth<nthrds; nth++) {
+      differC1[nth] = vector<Matrix>(multistep+1);
+      differS1[nth] = vector<Matrix>(multistep+1); 
+    }
+    
+    unsigned sz = (multistep+1)*(MMAX+1)*NORDER;
+    workC1 = vector<double>(sz);
+    workC  = vector<double>(sz);
+    workS1 = vector<double>(sz);
+    workS  = vector<double>(sz);
+    
+    dstepL  = vector<unsigned>(multistep+1, 0); 
+    dstepN  = vector<unsigned>(multistep+1, 0); 
+    
+    cylmass_made = false;
 
-      for (int m=0; m<=MMAX; m++) {
+    for (unsigned M=0; M<=multistep; M++) {
+      
+      for (int nth=0; nth<nthrds; nth++) {
 	
-	accum_cosN[M][nth][m].setsize(0, NORDER-1);
-	accum_cosN[M][nth][m].zero();
-
-	if (accum_cosL[M][nth][m].getlow()  !=0 ||
-	    accum_cosL[M][nth][m].gethigh() != NORDER-1)
-	  {
-	    accum_cosL[M][nth][m].setsize(0, NORDER-1);
-	    accum_cosL[M][nth][m].zero();
+	for (int m=0; m<=MMAX; m++) {
+	  
+	  accum_cosN[M][nth][m].setsize(0, NORDER-1);
+	  accum_cosL[M][nth][m].setsize(0, NORDER-1);
+	  
+	  if (m>0) {
+	    accum_sinN[M][nth][m].setsize(0, NORDER-1);
+	    accum_sinL[M][nth][m].setsize(0, NORDER-1);
 	  }
-
-	if (m>0) {
-	  accum_sinN[M][nth][m].setsize(0, NORDER-1);
-	  accum_sinN[M][nth][m].zero();
-
-	  if (accum_sinL[M][nth][m].getlow()  !=0 ||
-	      accum_sinL[M][nth][m].gethigh() != NORDER-1)
-	    {
-	      accum_sinL[M][nth][m].setsize(0, NORDER-1);
-	      accum_sinL[M][nth][m].zero();
-	    }
+	}
+      }
+    }
+    
+    for (int m=0; m<=MMAX; m++) {
+      accum_cos[m].setsize(0, NORDER-1);
+      if (m>0) accum_sin[m].setsize(0, NORDER-1);
+    }
+    
+    if (SELECT and sampT>0) {
+      for (int nth=0; nth<nthrds; nth++) {
+	for (unsigned T=0; T<sampT; T++) {
+	  massT1[nth][T] = 0.0;
+	  accum_cos2[nth][T]->setsize(0, MMAX, 0, NORDER-1);
+	  accum_sin2[nth][T]->setsize(0, MMAX, 0, NORDER-1);
 	}
       }
     }
   }
 
+  // Zero values on every pass
+  //
   for (int m=0; m<=MMAX; m++) {
-    accum_cos[m].setsize(0, NORDER-1);
     accum_cos[m].zero();
-    if (m>0) {
-      accum_sin[m].setsize(0, NORDER-1);
-      accum_sin[m].zero();
-    }
+    if (m>0) accum_sin[m].zero();
   }
-  
+
   if (SELECT and sampT>0) {
     for (int nth=0; nth<nthrds; nth++) {
       for (unsigned T=0; T<sampT; T++) {
 	massT1[nth][T] = 0.0;
-	accum_cos2[nth][T]->setsize(0, MMAX, 0, NORDER-1);
-	accum_cos2[nth][T]->zero();
-	accum_sin2[nth][T]->setsize(0, MMAX, 0, NORDER-1);
-	accum_sin2[nth][T]->zero();
-      }
-    }
-  }
-  
-  coefs_made = vector<short>(multistep+1, false);
-}
-
-void EmpCylSL::zero_pca()
-{
-  if (SELECT) {
-    for (int nth=0; nth<nthrds; nth++) {
-      for (unsigned T=0; T<sampT; T++) {
-	massT1[nth][T] = 0.0;
 	accum_cos2[nth][T]->zero();
 	accum_sin2[nth][T]->zero();
       }
     }
   }
-}
 
-void EmpCylSL::setup_accumulation(int M)
-{
+
+  for (int M=toplev; M<=multistep; M++) {
+    
+    howmany[M] = 0;
+
+    //
+    // Swap buffers
+    //
+    Vector **p;
+    
+    p = accum_cosL[M];
+    accum_cosL[M] = accum_cosN[M];
+    accum_cosN[M] = p;
+    
+    p = accum_sinL[M];
+    accum_sinL[M] = accum_sinN[M];
+    accum_sinN[M] = p;
+    
 #ifndef STANDALONE
-  howmany[M] = 0;
-
-  //
-  // Swap buffers
-  //
-  Vector **p;
-
-  p = accum_cosL[M];
-  accum_cosL[M] = accum_cosN[M];
-  accum_cosN[M] = p;
-
-  p = accum_sinL[M];
-  accum_sinL[M] = accum_sinN[M];
-  accum_sinN[M] = p;
-
-  dstepL[M]  = dstepN[M];
-  dstepN[M] += mintvl[M];
-
-  //
-  // Clean current coefficient files
-  //
-  for (int nth=0; nth<nthrds; nth++) {
-
-    howmany1[M][nth] = 0;
-
-    for (int m=0; m<=MMAX; m++) {
+    dstepL[M]  = dstepN[M];
+    dstepN[M] += mintvl[M];
+#endif
+    
+    //
+    // Clean current coefficient files
+    //
+    for (int nth=0; nth<nthrds; nth++) {
       
-      accum_cosN[M][nth][m].setsize(0, NORDER-1);
-      accum_cosN[M][nth][m].zero();
-
-      if (m>0) {
-	accum_sinN[M][nth][m].setsize(0, NORDER-1);
-	accum_sinN[M][nth][m].zero();
-	
+      howmany1[M][nth] = 0;
+      
+      for (int m=0; m<=MMAX; m++) {
+	accum_cosN[M][nth][m].zero();
+	if (m>0) accum_sinN[M][nth][m].zero();
       }
     }
+    
+    coefs_made[M] = false;
   }
-  
-  coefs_made[M] = false;
-
-#endif
 }
 
 void EmpCylSL::init_pca()
@@ -2346,8 +2319,7 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
       }
     }
 
-    if (multistep==0 || mstep==0)
-      cylmass1[id] += mass;
+    cylmass1[id] += mass;
   }
 
 }
@@ -2362,7 +2334,7 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
   }
   
 
-  for (unsigned M=0; M<=M0; M++) {
+  for (unsigned M=M0; M<=multistep; M++) {
     
     if (coefs_made[M]) continue;
 
@@ -2419,8 +2391,6 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
   
 
   if (compute) {
-    std::cout << "M0=" << M0 << std::endl;
-
 				// Sum up over threads
 				//
     for (int nth=1; nth<nthrds; nth++) {
@@ -2475,7 +2445,6 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
       
     } // T loop
     
-    pca_hall(compute);
   }
 }
 
@@ -2608,7 +2577,9 @@ void EmpCylSL::make_coefficients(bool compute)
   }
   
   if (compute) {
+
     for (unsigned T=0; T<sampT; T++) {
+
       for (int mm=1; mm<=MMAX; mm++)
 	for (int nn=0; nn<rank3; nn++)
 	  MPIin[mm*rank3 + nn] = (*accum_sin2[0][T])[mm][nn];
@@ -2628,10 +2599,8 @@ void EmpCylSL::make_coefficients(bool compute)
     MPI_Allreduce ( &massT1[0][0], &massT[0], sampT,
 		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     
-  } // SELECT
+  } // END: 'compute' stanza
   
-  if (compute) pca_hall(compute);
-
   coefs_made = vector<short>(multistep+1, true);
 
 }
@@ -2884,6 +2853,8 @@ void EmpCylSL::pca_hall(bool compute)
   }
     
 
+  if (pb==0) return;
+
   // Loop through each harmonic subspace [EVEN cosines]
   //
 
@@ -2891,31 +2862,36 @@ void EmpCylSL::pca_hall(bool compute)
 
   for (int mm=0; mm<=MMAX; mm++) {
 
-    for (unsigned M=0; M<=multistep; M++) {
+    auto it = pb->find(mm);
+
+    if (it != pb->end()) {
+
+      auto & I = it->second;
+
       // COSINES
 
       // Project coefficients
-      for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_cosN[M][0][mm][nn];
-      Vector dd = (*pb)[mm]->evecJK.Transpose() * wrk;
+      for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_cos[mm][nn];
+      Vector dd = I->evecJK.Transpose() * wrk;
 
       // Smooth coefficients
-      wrk = dd & (*pb)[mm]->b_Hall;
+      wrk = dd & I->b_Hall;
 
       // Deproject coefficients
-      dd = (*pb)[mm]->evecJK.Transpose() * wrk;
-      for (int nn=0; nn<rank3; nn++) accum_cosN[M][0][mm][nn] = dd[nn+1];
+      dd = I->evecJK.Transpose() * wrk;
+      for (int nn=0; nn<rank3; nn++) accum_cos[mm][nn] = dd[nn+1];
 
       if (mm) {
 	// Project coefficients
-	for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_sinN[M][0][mm][nn];
-	Vector dd = (*pb)[mm]->evecJK.Transpose() * wrk;
+	for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_sin[mm][nn];
+	Vector dd = I->evecJK.Transpose() * wrk;
 
 	// Smooth coefficients
-	wrk = dd & (*pb)[mm]->b_Hall;
+	wrk = dd & I->b_Hall;
 
 	// Deproject coefficients
-	dd = (*pb)[mm]->evecJK.Transpose() * wrk;
-	for (int nn=0; nn<rank3; nn++) accum_sinN[M][0][mm][nn] = dd[nn+1];
+	dd = I->evecJK.Transpose() * wrk;
+	for (int nn=0; nn<rank3; nn++) accum_sin[mm][nn] = dd[nn+1];
       }
     }
   }
@@ -2923,7 +2899,6 @@ void EmpCylSL::pca_hall(bool compute)
 
   if (VFLAG & 4)
     cerr << "Process " << setw(4) << myid << ": exiting to pca_hall" << endl;
-
 }
 
 

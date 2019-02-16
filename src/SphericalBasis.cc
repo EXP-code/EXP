@@ -304,11 +304,23 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
   // Compute coefficients 
   //======================
 
+  if (pca) compute = firstime_coef || ( (mstep == 0) && !(this_step%npca) );
+
   if (firstime_accel || self_consistent || initializing) {
-    if (multistep)
-      compute_multistep_coefficients();
-    else
-      determine_coefficients();
+
+    determine_coefficients();
+
+    if (multistep) compute_multistep_coefficients();
+
+    if (compute) {
+      for (int i=0; i<nthrds; i++) muse0 += muse1[i];
+      MPI_Allreduce ( &muse0, &muse,  1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      parallel_gather_coef2();
+      firstime_coef = 0;
+    }
+
+    if (pca) pca_hall(compute);
+
     firstime_accel = false;
   }
   
@@ -350,7 +362,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 {
   int l, loffset, moffset, m, n, nn, indx;
   double r, r2, rs, fac1, fac2, costh, phi, mass;
-  double facs1=0.0, facs2=0.0, fac0=4.0*M_PI;
+  double fac0=4.0*M_PI;
   double xx, yy, zz;
 
   unsigned nbodies = cC->levlist[mlevel].size();
@@ -431,14 +443,15 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	//		m loop
 	for (m=0, moffset=0; m<=l; m++) {
 	  if (m==0) {
-	    if (compute) facs1 = legs[id][l][m]*legs[id][l][m]*mass;
 	    for (n=1; n<=nmax; n++) {
-	      expcoef0[id][loffset+moffset][n] += potd[id][l][n]*legs[id][l][m]*mass*fac0/normM[l][n];
+
+	      double hold = potd[id][l][n]*legs[id][l][m]*mass*fac0/normM[l][n];
+
+	      expcoef0[id][loffset+moffset][n] += hold;
 
 	      if (compute) {
 		pthread_mutex_lock(&cc_lock);
-		for (nn=n; nn<=nmax; nn++)
-		  (*expcoefT1[whch])[loffset+moffset][n] += potd[id][l][n]*legs[id][l][m]*mass*fac0/normM[l][n];
+		(*expcoefT1[whch])[loffset+moffset][n] += hold;
 		pthread_mutex_unlock(&cc_lock);
 	      }
 	    }
@@ -447,32 +460,32 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	  else {
 	    fac1 = legs[id][l][m]*cosm[id][m];
 	    fac2 = legs[id][l][m]*sinm[id][m];
-	    if (compute) {
-	      facs1 = fac1*fac1*mass;
-	      facs2 = fac2*fac2*mass;
-	    }
+
 	    for (n=1; n<=nmax; n++) {
 
-	      expcoef0[id][loffset+moffset  ][n] += potd[id][l][n]*fac1*mass*fac0/normM[l][n];
-	      expcoef0[id][loffset+moffset+1][n] += potd[id][l][n]*fac2*mass*fac0/normM[l][n];
+	      double hold = potd[id][l][n]*mass*fac0/normM[l][n];
+
+	      expcoef0[id][loffset+moffset  ][n] += hold*fac1;
+	      expcoef0[id][loffset+moffset+1][n] += hold*fac2;
 
 	      if (compute) {
 		pthread_mutex_lock(&cc_lock);
-		for (nn=n; nn<=nmax; nn++) {
-		  (*expcoefT1[whch])[loffset+moffset  ][n] += potd[id][l][n]*fac1*mass*fac0/normM[l][n];
-		  (*expcoefT1[whch])[loffset+moffset+1][n] += potd[id][l][n]*fac2*mass*fac0/normM[l][n];
-		}
+		(*expcoefT1[whch])[loffset+moffset  ][n] += hold*fac1;
+		(*expcoefT1[whch])[loffset+moffset+1][n] += hold*fac2;
 		pthread_mutex_unlock(&cc_lock);
 	      }
 	      
 	    }
 	    moffset+=2;
-	  }
-	}
-      }
-    }
+	  } // m!=0
 
-  }
+	} // m loop
+
+      } // l loop
+
+    } // r < rmax
+
+  } // particle loop
 
   thread_timing_end(id);
 
@@ -496,12 +509,7 @@ void SphericalBasis::determine_coefficients(void)
 
   int loffset, moffset, use0, use1;
 
-  if (pca) compute = firstime_coef || ( (mstep == 0) && !(this_step%npca) );
-
   if (compute) {
-    for (int n=0; n<nthrds; n++) muse1[n] = 0.0;
-    muse0 = 0.0;
-      
     if (sampT == 0) {		// Allocate storage
       sampT = floor(sqrt(cC->nbodies_tot));
       massT    .resize(sampT, 0);
@@ -512,10 +520,14 @@ void SphericalBasis::determine_coefficients(void)
       
       expcoefT1.resize(sampT);
       for (auto & t : expcoefT1) t = MatrixP(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
-      // Zero arrays
-      for (auto & t : expcoefT1) t->zero();
-      for (auto & v : massT1)    v = 0;
     }
+
+    // Zero arrays
+    for (int n=0; n<nthrds; n++) muse1[n] = 0.0;
+    muse0 = 0.0;
+      
+    for (auto & t : expcoefT1) t->zero();
+    for (auto & v : massT1)    v = 0;
   }
 
 #ifdef DEBUG
@@ -657,17 +669,6 @@ void SphericalBasis::determine_coefficients(void)
     }
   }
   
-  if (compute) {
-    for (int i=0; i<nthrds; i++) muse0 += muse1[i];
-    MPI_Allreduce ( &muse0, &muse,  1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
-    parallel_gather_coef2();
-    pca_hall(true);
-    firstime_coef = 0;
-  } else {
-    pca_hall(false);
-  }
-
   print_timings("SphericalBasis: coefficient timings");
 
 # if HAVE_LIBCUDA

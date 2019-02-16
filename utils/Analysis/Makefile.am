@@ -27,7 +27,7 @@ noinst_HEADERS =
 
 bin_PROGRAMS = diskprof haloprof slabprof psphisto gas2d gas2dcyl makegrid pspbox eofpeek diskprof2 pcatest diskprof3 readcoefs pcatest
 
-diskprof_SOURCES = PSP.cc header.cc diskprof.cc EmpOrth9thd.cc localmpi.cc Particle.cc
+diskprof_SOURCES = PSP.cc header.cc diskprof.cc EmpCylSL.cc localmpi.cc Particle.cc
 diskprof_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
 diskprof_LDADD   = $(EXPLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ 
 
@@ -61,15 +61,15 @@ pspbox_LDADD   = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB)
 
 eofpeek_SOURCES = eofpeek.cc
 
-diskprof2_SOURCES = PSP.cc header.cc diskprof2.cc EmpOrth9thd.cc localmpi.cc Particle.cc
+diskprof2_SOURCES = PSP.cc header.cc diskprof2.cc EmpCylSL.cc localmpi.cc Particle.cc
 diskprof2_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
 diskprof2_LDADD   = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
 
-pcatest_SOURCES = PSP.cc header.cc pcatest.cc EmpOrth9thd.cc localmpi.cc Particle.cc
+pcatest_SOURCES = PSP.cc header.cc pcatest.cc EmpCylSL.cc localmpi.cc Particle.cc
 pcatest_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
 pcatest_LDADD   = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
 
-diskprof3_SOURCES = diskprof3.cc EmpOrth9thd.cc localmpi.cc
+diskprof3_SOURCES = diskprof3.cc EmpCylSL.cc localmpi.cc
 diskprof3_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
 diskprof3_LDADD   = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
 
@@ -77,7 +77,7 @@ readcoefs_SOURCES = readcoefs.cc
 readcoefs_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
 readcoefs_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB)
 
-EmpOrth9thd.cc:	$(top_srcdir)/src/EmpOrth9thd.cc
+EmpCylSL.cc:	$(top_srcdir)/src/EmpCylSL.cc
 	cp $(top_srcdir)/src/$@ .
 
 PSP.H:	$(top_srcdir)/utils/PhaseSpace/PSP.H
@@ -100,7 +100,7 @@ localmpi.cc:	$(top_srcdir)/exputil/localmpi.cc
 dist_bin_SCRIPTS = parse_outfrac ion_collide.py ion_energy.py	\
 	ion_rate.py ion_frac.py ion_coll_number.py
 
-CLEANFILES = 	EmpOrth9thd.cc localmpi.cc PSP.cc PSP.H header.cc header.H
+CLEANFILES = 	EmpCylSL.cc localmpi.cc PSP.cc PSP.H header.cc header.H
 
 ## utils/ICs/Makefile.am ends here
 

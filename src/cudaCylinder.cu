@@ -1609,7 +1609,7 @@ void Cylinder::DtoH_coefs(int M)
 
       // Copy mass per sample T
       //
-      ortho->set_massT(T) = host_massT[T];
+      ortho->set_massT(T) += host_massT[T];
 
       // m loop
       //
@@ -1618,8 +1618,8 @@ void Cylinder::DtoH_coefs(int M)
 	// n loop
 	//
 	for (int n=0; n<ncylorder; n++) {
-	  ortho->set_coefT(T, m, n, 'c') = host_coefsT[T][Imn(m, 'c', n, ncylorder)];
-	  if (m>0) ortho->set_coefT(T, m, n, 's') = host_coefsT[T][Imn(m, 's', n, ncylorder)];
+	  ortho->set_coefT(T, m, n, 'c') += host_coefsT[T][Imn(m, 'c', n, ncylorder)];
+	  if (m>0) ortho->set_coefT(T, m, n, 's') += host_coefsT[T][Imn(m, 's', n, ncylorder)];
 	}
       }
     }

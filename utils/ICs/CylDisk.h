@@ -8,7 +8,7 @@
 #define _CylDisk_h
 
 #include "massmodel.h"
-#include "EmpOrth9thd.h"
+#include "EmpCylSL.h"
 #include "interp.h"
 
 class CylDisk : public AxiSymModel

@@ -6,7 +6,7 @@ using namespace std;
 
 #include "expand.h"
 #include <gaussQ.h>
-#include <EmpOrth9thd.h>
+#include <EmpCylSL.h>
 #include <Cylinder.H>
 #include <MixtureBasis.H>
 #include <Timer.h>
@@ -381,14 +381,12 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   // On first call, will try to read cached tables rather
   // than recompute from distribution
   
-  if (self_consistent || initializing) {
-    if (multistep)
-      compute_multistep_coefficients();
-    else
-      determine_coefficients();
+  if (firstime_coef || self_consistent || initializing) {
+    determine_coefficients();
+    firstime_coef = false;
   }
   
-  if (compute) ortho->zero_pca();
+  if (pca) ortho->pca_hall(compute);
 
   //=========================
   // Dump basis on first call
@@ -681,14 +679,10 @@ void Cylinder::determine_coefficients(void)
     pcainit = false;
   }
 
+  ortho->setup_accumulation(toplev);
+
   for (mlevel=toplev; mlevel<=multistep; mlevel++) {
 
-    if (multistep==0)
-      ortho->setup_accumulation();
-    else {
-      ortho->setup_accumulation(mlevel);
-    }
-    
     cylmass0.resize(nthrds);
 
 #ifdef LEVCHECK
@@ -723,7 +717,7 @@ void Cylinder::determine_coefficients(void)
       finish1 = std::chrono::high_resolution_clock::now();
     } else {    
       exp_thread_fork(true);
-  }
+    }
 #else
 				// Threaded coefficient accumulation loop
     exp_thread_fork(true);
@@ -751,7 +745,7 @@ void Cylinder::determine_coefficients(void)
       cylmass += cylmassT0;
     }
     
-  }
+  } // mlevel loop
 
   MPL_start_timer();
 
@@ -760,9 +754,8 @@ void Cylinder::determine_coefficients(void)
     ortho->make_coefficients(compute);
   } else {
     ortho->make_coefficients(toplev, compute);
+    compute_multistep_coefficients();
   }
-
-  firstime_coef = false;
 
   print_timings("Cylinder: coefficient timings");
 
