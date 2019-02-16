@@ -931,10 +931,6 @@ void Cylinder::determine_coefficients_cuda(bool compute)
       //
       int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
     
-
-      thrust::counting_iterator<int> index_begin(0);
-      thrust::counting_iterator<int> index_end(gridSize*2*ncylorder);
-
       // Do the work
       //
 				// Compute the coordinate
@@ -976,11 +972,14 @@ void Cylinder::determine_coefficients_cuda(bool compute)
       
 				// Finish the reduction for this order
 				// in parallel
+	thrust::counting_iterator<int> index_begin(0);
+	thrust::counting_iterator<int> index_end(gridSize1*osize);
+
 	thrust::reduce_by_key
 	  (
 	   thrust::cuda::par.on(cr->stream),
-	   thrust::make_transform_iterator(index_begin, key_functor(gridSize)),
-	   thrust::make_transform_iterator(index_end,   key_functor(gridSize)),
+	   thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
+	   thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 	   ar->dc_coef.begin(), thrust::make_discard_iterator(), ar->dw_coef.begin()
 	   );
 
@@ -1015,11 +1014,14 @@ void Cylinder::determine_coefficients_cuda(bool compute)
       
 				// Finish the reduction for this order
 				// in parallel
+	    thrust::counting_iterator<int> index_begin(0);
+	    thrust::counting_iterator<int> index_end(gridSize1*osize);
+
 	    thrust::reduce_by_key
 	      (
 	       thrust::cuda::par.on(cr->stream),
-	       thrust::make_transform_iterator(index_begin, key_functor(gridSize)),
-	       thrust::make_transform_iterator(index_end,   key_functor(gridSize)),
+	       thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
+	       thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 	       ar->dc_coef.begin(), thrust::make_discard_iterator(), ar->dw_coef.begin()
 	       );
 
