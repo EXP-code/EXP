@@ -1193,9 +1193,6 @@ void EmpCylSL::setup_accumulation(int toplev)
     workS1 = vector<double>(sz);
     workS  = vector<double>(sz);
     
-    dstepL  = vector<unsigned>(multistep+1, 0); 
-    dstepN  = vector<unsigned>(multistep+1, 0); 
-    
     cylmass_made = false;
 
     for (unsigned M=0; M<=multistep; M++) {
@@ -1265,11 +1262,6 @@ void EmpCylSL::setup_accumulation(int toplev)
     p = accum_sinL[M];
     accum_sinL[M] = accum_sinN[M];
     accum_sinN[M] = p;
-    
-#ifndef STANDALONE
-    dstepL[M]  = dstepN[M];
-    dstepN[M] += mintvl[M];
-#endif
     
     //
     // Clean current coefficient files
@@ -2450,7 +2442,6 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 
 void EmpCylSL::multistep_reset()
 {
-  for (unsigned M=0; M<=multistep; M++) dstepN[M] = 0;
 }
 
 void EmpCylSL::reset_mass(void)
@@ -2741,7 +2732,7 @@ void EmpCylSL::pca_hall(bool compute)
       (*pb)[mm]->evalJK = (*pb)[mm]->covrJK.Symmetric_Eigenvalues((*pb)[mm]->evecJK);
 #endif
     
-      if (myid==0) {
+      if (myid==-1) {
 	for (int n=0; n<rank3; n++) {
 	  std::cout   << std::setw(3)  << mm
 		      << std::setw(3)  << n+1
@@ -4227,6 +4218,7 @@ void EmpCylSL::multistep_update(int from, int to, double r, double z, double phi
 
 void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
 {
+#ifndef STANDALONE
 				// Clean coefficient matrix
 				// 
   for (int mm=0; mm<=MMAX; mm++) {
@@ -4240,35 +4232,22 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
   double a, b;			// 
   for (unsigned M=0; M<mlevel; M++) {
 
-				// No interpolation? Should never happen!
-    if (dstepN[M] == dstepL[M]) {
+    b = (double)(mstep - dstepL[M][mstep-1])/(double)(dstepN[M][mstep-1] - dstepL[M][mstep-1]);
+    a = 1.0 - b;
 
-      for (int mm=0; mm<=MMAX; mm++) {
-	for (int nn=0; nn<rank3; nn++) {
-	  accum_cos[mm][nn] += accum_cosN[M][0][mm][nn];
-	  if (mm)
-	    accum_sin[mm][nn] += accum_sinN[M][0][mm][nn];
-	}
+    for (int mm=0; mm<=MMAX; mm++) {
+      for (int nn=0; nn<rank3; nn++) {
+	accum_cos[mm][nn] += a*accum_cosL[M][0][mm][nn] + b*accum_cosN[M][0][mm][nn];
+	if (mm)
+	  accum_sin[mm][nn] += a*accum_sinL[M][0][mm][nn] + b*accum_sinN[M][0][mm][nn];
       }
-
-    } else {
-
-      b = (double)(mstep - dstepL[M])/(double)(dstepN[M] - dstepL[M]);
-      a = 1.0 - b;
-      for (int mm=0; mm<=MMAX; mm++) {
-	for (int nn=0; nn<rank3; nn++) {
-	  accum_cos[mm][nn] += a*accum_cosL[M][0][mm][nn] + b*accum_cosN[M][0][mm][nn];
-	  if (mm)
-	    accum_sin[mm][nn] += a*accum_sinL[M][0][mm][nn] + b*accum_sinN[M][0][mm][nn];
-	}
-      }
-      // Sanity debug check
-      if (a<0.0 && a>1.0) {
-	cout << "Process " << myid << ": interpolation error in multistep [a]" << endl;
-      }
-      if (b<0.0 && b>1.0) {
-	cout << "Process " << myid << ": interpolation error in multistep [b]" << endl;
-      }
+    }
+    // Sanity debug check
+    if (a<0.0 && a>1.0) {
+      cout << "Process " << myid << ": interpolation error in multistep [a]" << endl;
+    }
+    if (b<0.0 && b>1.0) {
+      cout << "Process " << myid << ": interpolation error in multistep [b]" << endl;
     }
   }
 				// Add coefficients at or below this level
@@ -4284,6 +4263,7 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
   }
 
   coefs_made = vector<short>(multistep+1, true);
+#endif
 }
 
 

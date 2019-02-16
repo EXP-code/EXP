@@ -116,7 +116,6 @@ private:
   vector<Vector**> accum_sinL, accum_sinN;
   vector< vector<unsigned> > howmany1;
   vector<unsigned> howmany;
-  vector<unsigned> dstepL, dstepN;
 
   Vector* accum_cos;
   Vector* accum_sin;

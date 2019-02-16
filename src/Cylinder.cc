@@ -376,14 +376,23 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   // Compute coefficients 
   //======================
 
-  if (pca) compute = firstime_coef || ( (mstep == 0) && !(this_step%npca) );
+  if (pca and firstime_coef) {	// Do all levels on first call
+    int mstep_sav = mstep;
+    mstep = 0;
+    compute = true;
+    determine_coefficients();
+    // ortho->pca_hall(true);
+    firstime_coef = false;
+    mstep = mstep_sav;
+  }
+
+  if (pca) compute = (mstep == 0) && !(this_step%npca);
 
   // On first call, will try to read cached tables rather
   // than recompute from distribution
   
-  if (firstime_coef || self_consistent || initializing) {
+  if (self_consistent || initializing) {
     determine_coefficients();
-    firstime_coef = false;
   }
   
   if (pca) ortho->pca_hall(compute);

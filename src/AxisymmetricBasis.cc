@@ -311,7 +311,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	if (out) out << endl;
 
 	Vector tt = Tevec[indxC] * meanJK;
-	if (myid==0) {
+	if (myid==-1) {
 	  for (int n=1; n<=nmax; n++) {
 	    std::cout   << std::setw(3)  << l
 		        << std::setw(3)  << m

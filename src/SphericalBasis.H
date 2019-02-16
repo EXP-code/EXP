@@ -254,7 +254,6 @@ protected:
   //@{
   vector< vector<Matrix> > differ1;
   vector< double > pack, unpack;
-  vector< unsigned > dstepL, dstepN;
   //@}
 
   /** Dump current coefficients (all multistep levels)

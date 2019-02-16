@@ -119,9 +119,6 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
 
   // Coefficient evaluation times
   // 
-  dstepL  = vector<unsigned>(multistep+1, 0);
-  dstepN  = vector<unsigned>(multistep+1, 0);
-
   for (int i=0; i<=multistep; i++) {
     expcoefN.push_back(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
     expcoefL.push_back(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
@@ -304,7 +301,17 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
   // Compute coefficients 
   //======================
 
-  if (pca) compute = firstime_coef || ( (mstep == 0) && !(this_step%npca) );
+  if (pca and firstime_coef) {	// Do all levels on first call
+    int mstep_sav = mstep;
+    mstep = 0;
+    compute = true;
+    determine_coefficients();
+    if (multistep) compute_multistep_coefficients();
+    firstime_coef = false;
+    mstep = mstep_sav;
+  }
+
+  if (pca) compute = (mstep == 0) && !(this_step%npca);
 
   if (firstime_accel || self_consistent || initializing) {
 
@@ -312,11 +319,19 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
 
     if (multistep) compute_multistep_coefficients();
 
+    if (myid==0) {
+      for (int n=1; n<=nmax; n++)
+	std::cout << std::setw(4)  << this_step
+		  << std::setw(4)  << mstep
+		  << std::setw(4)  << n
+		  << std::setw(16) << expcoef[0][n]
+		  << std::endl;
+    }
+
     if (compute) {
       for (int i=0; i<nthrds; i++) muse0 += muse1[i];
       MPI_Allreduce ( &muse0, &muse,  1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
       parallel_gather_coef2();
-      firstime_coef = 0;
     }
 
     if (pca) pca_hall(compute);
@@ -545,19 +560,6 @@ void SphericalBasis::determine_coefficients(void)
     expcoefN[mlevel] = p;
   
     //
-    // Augment the interpolation step counter for this level
-    //
-    dstepL[mlevel]   = dstepN[mlevel];
-    dstepN[mlevel]  += mintvl[mlevel];
-
-    if (0) {
-      if (myid==0) cout << "swapping"
-			<< ": minS="    << dstepL[mlevel]
-			<< ", maxS="    << dstepN[mlevel] 
-			<< ", M="       << mlevel 
-			<< ", delstep=" << mintvl[mlevel] << endl;
-    }
-    //
     // Clean arrays for current level
     //
     expcoefN[mlevel]->zero();
@@ -695,7 +697,6 @@ void SphericalBasis::multistep_reset()
 {
   used   = 0;
   resetT = tnow;
-  for (int M=0; M<=multistep; M++) dstepN[M] = 0;
 }
 
 
@@ -836,45 +837,25 @@ void SphericalBasis::compute_multistep_coefficients()
   double a, b;			// 
   for (int M=0; M<toplev; M++) {
 
-    				// No interpolation? Should never happen!
-    if ( dstepN[M] == dstepL[M] ) {
-      
-      for (int l=0; l<=Lmax*(Lmax+2); l++) {
-	for (int n=1; n<=nmax; n++) 
-	  expcoef[l][n] += (*expcoefN[M])[l][n];
-      }
+    b = (double)(mstep - dstepL[M][mstep-1])/(double)(dstepN[M][mstep-1] - dstepL[M][mstep-1]);
+    a = 1.0 - b;
 
-      if (myid==0)		// Print warning
-	cerr << "Process " << myid << " SphericalBasis: "
-	     << "interpolation override in compute_multistep_coefficients()"
-	     << ", mstep="   << mstep 
-	     << ", delstep=" << mintvl[M] 
-	     << ", M="       << M
-	     << ", N="       << dstepN[M] 
-	     << ", L="       << dstepL[M] 
+    for (int l=0; l<=Lmax*(Lmax+2); l++) {
+      for (int n=1; n<=nmax; n++) 
+	expcoef[l][n] += a*(*expcoefL[M])[l][n] + b*(*expcoefN[M])[l][n];
+    }
+    
+    if (0) {
+      if (myid==0) {
+	cerr << "Interpolate:"
+	     << " M="     << setw(4) << M
+	     << " mstep=" << setw(4) << mstep 
+	     << " minS="  << setw(4) << dstepL[M][mstep]
+	     << " maxS="  << setw(4) << dstepN[M][mstep]
+	     << " a="     << setw(8) << a 
+	     << " b="     << setw(8) << b 
+	     << " c01="   << setw(8) << expcoef[0][1]
 	     << endl;
-
-    } else {
-
-      b = (double)(mstep - dstepL[M])/(double)(dstepN[M] - dstepL[M]);
-      a = 1.0 - b;
-      for (int l=0; l<=Lmax*(Lmax+2); l++) {
-	for (int n=1; n<=nmax; n++) 
-	  expcoef[l][n] += a*(*expcoefL[M])[l][n] + b*(*expcoefN[M])[l][n];
-      }
-
-      if (0) {
-	if (myid==0) {
-	  cerr << "Interpolate:"
-	       << " M="     << setw(4) << M
-	       << " minS="  << setw(4) << dstepL[M] 
-	       << " maxS="  << setw(4) << dstepN[M]
-	       << " mstep=" << setw(4) << mstep 
-	       << " a="     << setw(8) << a 
-	       << " b="     << setw(8) << b 
-	       << " c01="   << setw(8) << expcoef[0][1]
-	       << endl;
-	}
       }
 				// Sanity debug check
 				// 
