@@ -605,8 +605,10 @@ void SphericalBasis::determine_coefficients(void)
 #if HAVE_LIBCUDA==1
     if (component->cudaDevice>=0) {
       start1  = std::chrono::high_resolution_clock::now();
-      determine_coefficients_cuda(compute);
-      DtoH_coefs(expcoef0[0]);
+      if (cC->levlist[mlevel].size()) {
+	determine_coefficients_cuda(compute);
+	DtoH_coefs(expcoef0[0]);
+      }
       finish1 = std::chrono::high_resolution_clock::now();
     } else {
       exp_thread_fork(true);
