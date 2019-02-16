@@ -893,7 +893,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
     // Sort particles and get coefficient size
     //
-    PII lohi = cC->CudaSortByLevel(cr, mlevel, multistep);
+    PII lohi = cC->CudaSortByLevel(cr, mlevel, mlevel);
 
     // Compute grid
     //
@@ -950,11 +950,16 @@ void Cylinder::determine_coefficients_cuda(bool compute)
       int osize = ncylorder*2;	// 
       auto beg = ar->df_coef.begin();
       std::vector<thrust::device_vector<cuFP_t>::iterator> bg;
-      for (int T=0; T<sampT; T++) bg.push_back(ar->T_coef[T].begin());
+
+      if (pca) {
+	for (int T=0; T<sampT; T++) bg.push_back(ar->T_coef[T].begin());
+      }
 
       thrust::fill(ar->u_d.begin(), ar->u_d.end(), 0.0);
 
       for (int m=0; m<=mmax; m++) {
+
+	
 
 	coefKernelCyl<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
 	  (toKernel(ar->dN_coef), toKernel(ar->u_d),
@@ -963,8 +968,10 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	   stride, m, ncylorder, lohi);
       
 				// Begin the reduction per grid block
-				//
-	reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize, BLOCK_SIZE, sMemSize, cr->stream>>>
+				// [perhaps this should use a stride?]
+	unsigned int gridSize1 = N/BLOCK_SIZE;
+	if (N > gridSize1*BLOCK_SIZE) gridSize1++;
+	reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
 	  (toKernel(ar->dc_coef), toKernel(ar->dN_coef), osize, N);
       
 				// Finish the reduction for this order
@@ -995,9 +1002,16 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	    
 				// Begin the reduction per grid block
 				//
-	    reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize, BLOCK_SIZE, sMemSize, cr->stream>>>
-	      (toKernel(ar->dc_coef),
-	       toKernelS(ar->dN_coef, k*osize, s*osize), osize, s);
+	    /*
+	      unsigned int stride1   = s/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+	      unsigned int gridSize1 = s/BLOCK_SIZE/stride1;
+	      if (s > gridSize1*BLOCK_SIZE*stride1) gridSize1++;
+	    */
+
+	    unsigned int gridSize1 = s/BLOCK_SIZE;
+	    if (s > gridSize1*BLOCK_SIZE) gridSize1++;
+	    reduceSumS<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
+	      (toKernel(ar->dc_coef), toKernel(ar->dN_coef), osize, N, k, k+s);
       
 				// Finish the reduction for this order
 				// in parallel
@@ -1478,7 +1492,7 @@ void Cylinder::determine_acceleration_cuda()
 
     // Sort particles and get coefficient size
     //
-    PII lohi = cC->CudaSortByLevel(cr, mlevel, multistep);
+    PII lohi = cC->CudaSortByLevel(cr, toplev, multistep);
 
     // Compute grid
     //

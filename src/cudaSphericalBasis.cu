@@ -930,7 +930,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
     // Sort particles and get coefficient size
     //
-    PII lohi = cC->CudaSortByLevel(cr, mlevel, multistep);
+    PII lohi = cC->CudaSortByLevel(cr, mlevel, mlevel);
     
     // Compute grid
     //
@@ -1002,8 +1002,10 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 	     toKernel(ar->i_d), stride, l, m, Lmax, nmax, lohi);
 	  
 				// Begin the reduction per grid block
-				// 
-	  reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize, BLOCK_SIZE, sMemSize, cr->stream>>>
+				// [perhaps this should use a stride?]
+	  unsigned int gridSize1 = N/BLOCK_SIZE;
+	  if (N > gridSize1*BLOCK_SIZE) gridSize1++;
+	  reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
 	    (toKernel(ar->dc_coef), toKernel(ar->dN_coef), osize, N);
       
 				// Finish the reduction for this order
@@ -1033,9 +1035,17 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 	    
 				// Begin the reduction per grid block
 				//
-	      reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize, BLOCK_SIZE, sMemSize, cr->stream>>>
-		(toKernel(ar->dc_coef),
-		 toKernelS(ar->dN_coef, k*osize, s*osize), osize, s);
+	      /*
+	      unsigned int stride1   = s/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+	      unsigned int gridSize1 = s/BLOCK_SIZE/stride1;
+
+	      if (s > gridSize1*BLOCK_SIZE*stride1) gridSize1++;
+	      */
+
+	      unsigned int gridSize1 = s/BLOCK_SIZE;
+	      if (s > gridSize1*BLOCK_SIZE) gridSize1++;
+	      reduceSumS<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
+		(toKernel(ar->dc_coef), toKernel(ar->dN_coef), osize, N, k, k+s);
       
 				// Finish the reduction for this order
 				// in parallel
@@ -1546,7 +1556,7 @@ void SphericalBasis::determine_acceleration_cuda()
 
     // Sort particles and get size
     //
-    PII lohi = cC->CudaSortByLevel(cr, mlevel, multistep);
+    PII lohi = cC->CudaSortByLevel(cr, toplev, multistep);
 
     // Compute grid
     //
@@ -1614,7 +1624,7 @@ void SphericalBasis::determine_acceleration_cuda()
   cC->CudaToParticles();
 
   // DEBUGGING TEST
-  if (false) {
+  if (true) {
     std::cout << std::string(10+7*16, '-') << std::endl;
     std::cout << "---- Acceleration in SphericalBasis [T=" << tnow
 	      << ", N=" << Ntot << ", level=" << mlevel
