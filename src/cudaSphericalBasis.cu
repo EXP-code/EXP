@@ -302,7 +302,7 @@ __global__ void coefKernel
 {
   const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
   const int psiz  = (Lmax+1)*(Lmax+2)/2;
-  const unsigned int N = lohi.second - lohi.first;
+  const int N     = lohi.second - lohi.first;
 
   cuFP_t fac0 = 4.0*M_PI;
 
@@ -312,7 +312,9 @@ __global__ void coefKernel
 
     if (i<N) {
 
-      cuFP_t mass = Mass._v[i];
+      int I = i + lohi.first;	// Offset into particle array
+
+      cuFP_t mass = Mass._v[I];
 
 #ifdef BOUNDS_CHECK
       if (i>=Mass._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
@@ -320,12 +322,12 @@ __global__ void coefKernel
 
       if (mass>0.0) {
 				// For accumulating mass of used particles
-	if (l==0 and m==0) used._v[i] = mass;
+	if (l==0 and m==0) used._v[I] = mass;
 
 #ifdef BOUNDS_CHECK
 	if (i>=Phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-	cuFP_t phi  = Phi._v[i];
+	cuFP_t phi  = Phi._v[I];
 	cuFP_t cosp = cos(phi*m);
 	cuFP_t sinp = sin(phi*m);
 	
@@ -336,9 +338,9 @@ __global__ void coefKernel
 	
 	// Do the interpolation
 	//
-	cuFP_t a = Afac._v[i];
+	cuFP_t a = Afac._v[I];
 	cuFP_t b = 1.0 - a;
-	int  ind = Indx._v[i];
+	int  ind = Indx._v[I];
 	
 #ifdef BOUNDS_CHECK
 	if (i>=Afac._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
@@ -367,7 +369,7 @@ __global__ void coefKernel
 		     a*int2_as_double(tex1D<int2>(tex._v[k], ind  )) +
 		     b*int2_as_double(tex1D<int2>(tex._v[k], ind+1))
 #endif
-		      ) * p0 * plm[Ilm(l, m)] * Mass._v[i] * fac0;
+		      ) * p0 * plm[Ilm(l, m)] * Mass._v[I] * fac0;
 	  
 	  
 	  coef._v[(2*n+0)*N + i] = v * cosp;

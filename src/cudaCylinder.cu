@@ -271,39 +271,40 @@ __global__ void coefKernelCyl
   // Thread ID
   //
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
-
-  // Total number of particles to be evaluated
-  //
-  const unsigned int N = lohi.second - lohi.first;
+  const int N   = lohi.second - lohi.first;
 
   const cuFP_t norm = -4.0*M_PI;	// Biorthogonality factor
 
   for (int istr=0; istr<stride; istr++) {
 
-    int i = tid*stride + istr;	// Particle counter
+    // Particle counter
+    //
+    int i = tid*stride + istr;
 
     if (i<N) {			// Allow for grid padding
 
-      cuFP_t mass = Mass._v[i];
+      int I = i + lohi.first;	// Offset into particle array
+
+      cuFP_t mass = Mass._v[I];
       
 #ifdef BOUNDS_CHECK
       if (i>=Mass._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif      
       if (mass>0.0) {
 				// For accumulating mass of used particles
-	if (m==0) used._v[i] = mass;
+	if (m==0) used._v[I] = mass;
 
 #ifdef BOUNDS_CHECK
 	if (i>=Phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-	cuFP_t phi  = Phi._v[i];
+	cuFP_t phi  = Phi._v[I];
 	cuFP_t cosp = cos(phi*m);
 	cuFP_t sinp = sin(phi*m);
 	
 	// Do the interpolation
 	//
-	cuFP_t delx0 = Xfac._v[i];
-	cuFP_t dely0 = Yfac._v[i];
+	cuFP_t delx0 = Xfac._v[I];
+	cuFP_t dely0 = Yfac._v[I];
 	cuFP_t delx1 = 1.0 - delx0;
 	cuFP_t dely1 = 1.0 - dely0;
 
@@ -316,8 +317,8 @@ __global__ void coefKernelCyl
 	cuFP_t c01 = delx0*dely1;
 	cuFP_t c11 = delx1*dely1;
 
-	int   indx = indX._v[i];
-	int   indy = indY._v[i];
+	int   indx = indX._v[I];
+	int   indy = indY._v[I];
 
 #ifdef BOUNDS_CHECK
 	if (i>=indX._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
