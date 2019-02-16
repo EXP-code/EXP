@@ -2878,7 +2878,7 @@ void EmpCylSL::pca_hall(bool compute)
       wrk = dd & I->b_Hall;
 
       // Deproject coefficients
-      dd = I->evecJK.Transpose() * wrk;
+      dd = I->evecJK * wrk;
       for (int nn=0; nn<rank3; nn++) accum_cos[mm][nn] = dd[nn+1];
 
       if (mm) {
@@ -2890,7 +2890,7 @@ void EmpCylSL::pca_hall(bool compute)
 	wrk = dd & I->b_Hall;
 
 	// Deproject coefficients
-	dd = I->evecJK.Transpose() * wrk;
+	dd = I->evecJK * wrk;
 	for (int nn=0; nn<rank3; nn++) accum_sin[mm][nn] = dd[nn+1];
       }
     }
