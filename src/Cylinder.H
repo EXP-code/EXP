@@ -45,7 +45,7 @@ private:
   int nmax, lmax, mmax;
   int ncylnx, ncylny, ncylr;
   double hcyl;
-  int ncylorder, ncylrecomp, npca, nvtk;
+  int ncylorder, ncylrecomp, npca, npca0, nvtk;
   string eof_file;
   bool self_consistent, logarithmic, density, pca, pcainit, pcavtk, pcadiag;
   bool cmap, try_cache, firstime, dump_basis, compute, firstime_coef;
@@ -186,7 +186,8 @@ public:
   //! \param ncylny is the vertical grid in the basis function table
   //! \param ncylr is the size of the spherical radial grid used to construct the cylindrical basis
   //! \param ncylrecomp is the number of steps between basis recomputation (default: -1 which means NEVER)
-  //! \param npca is the number of step Hall coefficient recomputaton 
+  //! \param npca is the number of steps between Hall coefficient recomputaton 
+  //! \param npca0 is the first step for Hall coefficient computaton 
   //! \param nvtk is the number of step VTK output 
   //! \param pcadiag set to true enables PCA output diagnostics (default: false)
   //! \param eof_file is an override for the default EOF cache file name

@@ -301,17 +301,22 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
   // Compute coefficients 
   //======================
 
-  if (pca and firstime_coef) {	// Do all levels on first call
+  if (firstime_coef) {		// Do all levels on first call
     int mstep_sav = mstep;
     mstep = 0;
-    compute = true;
+    if (pca and npca0==0) compute = true;
     determine_coefficients();
     if (multistep) compute_multistep_coefficients();
     firstime_coef = false;
     mstep = mstep_sav;
   }
 
-  if (pca) compute = (mstep == 0) && !(this_step%npca);
+  if (pca) {
+    if (this_step >= npca0) 
+      compute = (mstep == 0) && !( (this_step-npca0) % npca);
+    else
+      compute = false;
+  }
 
   if (firstime_accel || self_consistent || initializing) {
 

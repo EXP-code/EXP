@@ -88,6 +88,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   vflag           = 0;
   eof             = 1;
   npca            = 50;
+  npca0           = 0;
   self_consistent = true;
   firstime        = true;
   expcond         = true;
@@ -231,6 +232,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	   << " pca="         << pca
 	   << " nvtk="        << nvtk
 	   << " npca="        << npca
+	   << " npca0="       << npca0
 	   << " pcadiag="     << pcadiag
 	   << " eof_file="    << eof_file
 	   << " logarithmic=" << logarithmic
@@ -254,6 +256,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	 << " pca="         << pca
 	 << " nvtk="        << nvtk
 	 << " npca="        << npca
+	 << " npca0"        << npca0
 	 << " pcadiag="     << pcadiag
 	 << " eof_file="    << eof_file
 	 << " logarithmic=" << logarithmic
@@ -303,6 +306,7 @@ void Cylinder::initialize()
     if (conf["ncylorder" ])  ncylorder  = conf["ncylorder" ].as<int>();
     if (conf["ncylrecomp"]) ncylrecomp  = conf["ncylrecomp"].as<int>();
     if (conf["npca"      ])       npca  = conf["npca"      ].as<int>();
+    if (conf["npca0"     ])       npca  = conf["npca0"     ].as<int>();
     if (conf["nvtk"      ])       nvtk  = conf["nvtk"      ].as<int>();
     if (conf["eof_file"  ])   eof_file  = conf["eof_file"  ].as<std::string>();
     if (conf["vflag"     ])      vflag  = conf["vflag"     ].as<int>();
@@ -376,17 +380,22 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   // Compute coefficients 
   //======================
 
-  if (pca and firstime_coef) {	// Do all levels on first call
+  if (firstime_coef) {	// Do all levels on first call
     int mstep_sav = mstep;
     mstep = 0;
-    compute = true;
+    if (pca and npca0==0) compute = true;
     determine_coefficients();
-    // ortho->pca_hall(true);
+    ortho->pca_hall(compute);
     firstime_coef = false;
     mstep = mstep_sav;
   }
 
-  if (pca) compute = (mstep == 0) && !(this_step%npca);
+  if (pca) {
+    if (this_step >= npca0)
+      compute = (mstep == 0) && !( (this_step-npca0) % npca);
+    else
+      compute = false;
+  }
 
   // On first call, will try to read cached tables rather
   // than recompute from distribution

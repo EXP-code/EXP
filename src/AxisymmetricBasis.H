@@ -28,8 +28,11 @@ protected:
   //! vtk diagnostic frequency
   unsigned vtkfreq;
 
-  //! Frequency of PCA recomputation
+  //! Frequency of PCA computation
   int npca;
+
+  //! First step for PCA computation
+  int npca0;
 
   /**
      Expansion coefficients (summed over all nodes)
