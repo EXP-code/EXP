@@ -988,17 +988,18 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
       for (int l=0; l<=Lmax; l++) {
 	for (int m=0; m<=l; m++) {
-				// Compute the contribution to the
-				// coefficients from each particle
-				//
+	  // Compute the contribution to the
+	  // coefficients from each particle
+	  //
 	  coefKernel<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
 	    (toKernel(ar->dN_coef), toKernel(ar->u_d),
 	     toKernel(t_d), toKernel(ar->m_d),
 	     toKernel(ar->a_d), toKernel(ar->p_d), toKernel(ar->plm1_d),
 	     toKernel(ar->i_d), stride, l, m, Lmax, nmax, lohi);
 	  
-				// Begin the reduction per grid block
-				// [perhaps this should use a stride?]
+	  // Begin the reduction per grid block
+	  // [perhaps this should use a stride?]
+	  //
 	  unsigned int gridSize1 = N/BLOCK_SIZE;
 	  if (N > gridSize1*BLOCK_SIZE) gridSize1++;
 	  reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
@@ -1033,8 +1034,9 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 	      int s = sN;
 	      if (T==sampT-1) s = N - k;
 	    
-				// Begin the reduction per grid block
-				//
+	      // Begin the reduction per grid block
+	      //
+	      /* A reminder to consider implementing strides in reduceSum */
 	      /*
 	      unsigned int stride1   = s/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
 	      unsigned int gridSize1 = s/BLOCK_SIZE/stride1;
