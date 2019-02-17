@@ -1030,8 +1030,14 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 	  if (compute) {
 
 	    int sN = N/sampT;
+	    int nT = sampT;
 
-	    for (int T=0; T<sampT; T++) {
+	    if (sN==0) {	// Fail-safe underrun
+	      sN = 1;
+	      nT = N;
+	    }
+
+	    for (int T=0; T<nT; T++) {
 	      int k = sN*T;	// Starting position
 	      int s = sN;
 	      if (T==sampT-1) s = N - k;
