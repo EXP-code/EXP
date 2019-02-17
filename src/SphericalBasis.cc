@@ -576,13 +576,15 @@ void SphericalBasis::determine_coefficients(void)
   
     if (multistep==0 or tnow==resetT) {
       used += use1;
-      std::cout << "SphericalBasis used: " << std::setw(18) << tnow
-		<< std::setw(10) << used
-		<< std::setw(10) << use1
-		<< std::setw( 6) << myid
-		<< std::setw( 6) << mlevel
-		<< std::setw( 6) << mstep
-		<< std::endl;
+      if (false) {
+	std::cout << "SphericalBasis used: " << std::setw(18) << tnow
+		  << std::setw(10) << used
+		  << std::setw(10) << use1
+		  << std::setw( 6) << myid
+		  << std::setw( 6) << mlevel
+		  << std::setw( 6) << mstep
+		  << std::endl;
+      }
     }
 
     for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
