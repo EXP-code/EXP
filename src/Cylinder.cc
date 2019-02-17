@@ -376,62 +376,6 @@ void Cylinder::get_acceleration_and_potential(Component* C)
     return;
   }
 
-  //======================
-  // Compute coefficients 
-  //======================
-
-  if (firstime_coef) {	// Do all levels on first call
-    int mstep_sav = mstep;
-    mstep = 0;
-    if (pca and npca0==0) compute = true;
-    determine_coefficients();
-    ortho->pca_hall(compute);
-    firstime_coef = false;
-    mstep = mstep_sav;
-  }
-
-  if (pca) {
-    if (this_step >= npca0)
-      compute = (mstep == 0) && !( (this_step-npca0) % npca);
-    else
-      compute = false;
-  }
-
-  // On first call, will try to read cached tables rather
-  // than recompute from distribution
-  
-  if (self_consistent || initializing) {
-    determine_coefficients();
-  }
-  
-  if (pca) ortho->pca_hall(compute);
-
-  //=========================
-  // Dump basis on first call
-  //=========================
-
-  if ( dump_basis and (this_step==0 || (expcond and ncompcyl==0) )
-       && ortho->coefs_made_all() && !initializing) {
-
-    if (myid == 0 and multistep==0 || mstep==0) {
-      
-      nvTracerPtr tPtr2;
-      if (cuda_prof) {
-	tPtr2 = nvTracerPtr(new nvTracer("Cylinder::dump basis"));
-      }
-
-      ortho->dump_basis(runtag.c_str(), this_step);
-      
-      ostringstream dumpname;
-      dumpname << "images" << "." << runtag << "." << this_step;
-      ortho->dump_images(dumpname.str(), 5.0*acyl, 5.0*hcyl, 64, 64, true);
-      //
-      // This next call is ONLY for deep debug
-      //
-      // dump_mzero(runtag.c_str(), this_step);
-    }
-  }
-
 
   //======================================
   // Determine potential and acceleration 
@@ -653,7 +597,7 @@ void Cylinder::determine_coefficients(void)
 
   static char routine[] = "determine_coefficients_Cylinder";
 
-  if (!self_consistent && !initializing) return;
+  if (!self_consistent && !firstime_coef && !initializing) return;
 
   if (!expcond && firstime) {
 				// Try to read cache
@@ -695,6 +639,13 @@ void Cylinder::determine_coefficients(void)
       std::cout << std::endl;
     }
     pcainit = false;
+  }
+
+  if (pca) {
+    if (this_step >= npca0)
+      compute = (mstep == 0) && !( (this_step-npca0) % npca);
+    else
+      compute = false;
   }
 
   ortho->setup_accumulation(toplev);
@@ -744,25 +695,20 @@ void Cylinder::determine_coefficients(void)
 #endif
 				// Accumulate counts and mass used to
 				// determine coefficients
-    int use0=0, use1=0;
-    double cylmassT1=0.0, cylmassT0=0.0;
+    int use1=0;
+    double cylmassT1=0.0;
 
     for (int i=0; i<nthrds; i++) {
       use1 += use[i];
       cylmassT1 += cylmass0[i];
     }
-
 				// Turn off timer so as not bias by 
 				// communication barrier
     MPL_stop_timer();
 
-    MPI_Allreduce ( &use1, &use0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce ( &cylmassT1, &cylmassT0, 1, MPI_DOUBLE, MPI_SUM, 
-		    MPI_COMM_WORLD );
-
     if (multistep==0 or tnow==resetT) {
-      used    += use0;
-      cylmass += cylmassT0;
+      used    += use1;
+      cylmass += cylmassT1;
     }
     
   } // mlevel loop
@@ -775,6 +721,34 @@ void Cylinder::determine_coefficients(void)
   } else {
     ortho->make_coefficients(toplev, compute);
     compute_multistep_coefficients();
+  }
+
+  if (pca) ortho->pca_hall(compute);
+
+  //=========================
+  // Dump basis on first call
+  //=========================
+
+  if ( dump_basis and (this_step==0 || (expcond and ncompcyl==0) )
+       && ortho->coefs_made_all() && !initializing) {
+
+    if (myid == 0 and multistep==0 || mstep==0) {
+      
+      nvTracerPtr tPtr2;
+      if (cuda_prof) {
+	tPtr2 = nvTracerPtr(new nvTracer("Cylinder::dump basis"));
+      }
+
+      ortho->dump_basis(runtag.c_str(), this_step);
+      
+      ostringstream dumpname;
+      dumpname << "images" << "." << runtag << "." << this_step;
+      ortho->dump_images(dumpname.str(), 5.0*acyl, 5.0*hcyl, 64, 64, true);
+      //
+      // This next call is ONLY for deep debug
+      //
+      // dump_mzero(runtag.c_str(), this_step);
+    }
   }
 
   print_timings("Cylinder: coefficient timings");
@@ -798,6 +772,7 @@ void Cylinder::determine_coefficients(void)
   }
 #endif
 
+  firstime_coef = false;
 }
 
 

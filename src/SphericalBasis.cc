@@ -281,69 +281,6 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
   cC = C;			// "Register" component
   nbodies = cC->Number();	// And compute number of bodies
 
-  //====================================================
-  // Accel & pot using previously computed coefficients 
-  //====================================================
-
-  if (use_external) {
-
-    MPL_start_timer();
-    determine_acceleration_and_potential();
-    MPL_stop_timer();
-
-    use_external = false;
-
-    return;
-  }
-
-
-  //======================
-  // Compute coefficients 
-  //======================
-
-  if (firstime_coef) {		// Do all levels on first call
-    int mstep_sav = mstep;
-    mstep = 0;
-    if (pca and npca0==0) compute = true;
-    determine_coefficients();
-    if (multistep) compute_multistep_coefficients();
-    firstime_coef = false;
-    mstep = mstep_sav;
-  }
-
-  if (pca) {
-    if (this_step >= npca0) 
-      compute = (mstep == 0) && !( (this_step-npca0) % npca);
-    else
-      compute = false;
-  }
-
-  if (firstime_accel || self_consistent || initializing) {
-
-    determine_coefficients();
-
-    if (multistep) compute_multistep_coefficients();
-
-    if (myid==-1) {
-      for (int n=1; n<=nmax; n++)
-	std::cout << std::setw(4)  << this_step
-		  << std::setw(4)  << mstep
-		  << std::setw(4)  << n
-		  << std::setw(16) << expcoef[0][n]
-		  << std::endl;
-    }
-
-    if (compute) {
-      for (int i=0; i<nthrds; i++) muse0 += muse1[i];
-      MPI_Allreduce ( &muse0, &muse,  1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      parallel_gather_coef2();
-    }
-
-    if (pca) pca_hall(compute);
-
-    firstime_accel = false;
-  }
-  
   if (NOISE) update_noise();
 
   //======================================
@@ -525,9 +462,17 @@ void SphericalBasis::determine_coefficients(void)
 
   // Return if we should leave the coefficients fixed
   //
-  if (!self_consistent && !firstime_accel && !initializing) return;
+  if (!self_consistent && !firstime_coef && !initializing) return;
 
-  int loffset, moffset, use0, use1;
+  if (pca) {
+    if (this_step >= npca0) 
+      compute = (mstep == 0) && !( (this_step-npca0) % npca);
+    else
+      compute = false;
+  }
+
+
+  int loffset, moffset, use1;
 
   if (compute) {
     if (sampT == 0) {		// Allocate storage
@@ -571,10 +516,7 @@ void SphericalBasis::determine_coefficients(void)
     
     for (int i=0; i<nthrds; i++) expcoef0[i].zero();
     
-    
-    use0  = 0;
-    use1  = 0;
-  
+    use1 = 0;
     if (multistep==0) used = 0;
     
 #ifdef DEBUG
@@ -632,9 +574,16 @@ void SphericalBasis::determine_coefficients(void)
     for (int i=0; i<nthrds; i++) use1 += use[i];
     for (int i=1; i<nthrds; i++) expcoef0[0] += expcoef0[i];
   
-    MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-
-    if (multistep==0 or tnow==resetT) used += use0;
+    if (multistep==0 or tnow==resetT) {
+      used += use1;
+      std::cout << "SphericalBasis used: " << std::setw(18) << tnow
+		<< std::setw(10) << used
+		<< std::setw(10) << use1
+		<< std::setw( 6) << myid
+		<< std::setw( 6) << mlevel
+		<< std::setw( 6) << mstep
+		<< std::endl;
+    }
 
     for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
       
@@ -678,6 +627,24 @@ void SphericalBasis::determine_coefficients(void)
     }
   }
   
+  //======================================
+  // Multistep update
+  //======================================
+
+  if (multistep) compute_multistep_coefficients();
+
+  //======================================
+  // PCA computation
+  //======================================
+
+  if (compute) {
+    for (int i=0; i<nthrds; i++) muse0 += muse1[i];
+    MPI_Allreduce ( &muse0, &muse,  1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    parallel_gather_coef2();
+  }
+
+  if (pca) pca_hall(compute);
+
   print_timings("SphericalBasis: coefficient timings");
 
 # if HAVE_LIBCUDA
@@ -698,6 +665,8 @@ void SphericalBasis::determine_coefficients(void)
     std::cout << std::string(60, '=') << std::endl;
   }
 #endif
+
+  firstime_coef = false;
 }
 
 void SphericalBasis::multistep_reset()
@@ -844,7 +813,7 @@ void SphericalBasis::compute_multistep_coefficients()
   double a, b;			// 
   for (int M=0; M<toplev; M++) {
 
-    b = (double)(mstep - dstepL[M][mstep-1])/(double)(dstepN[M][mstep-1] - dstepL[M][mstep-1]);
+    b = (double)(mstep - dstepL[M][mstep])/(double)(dstepN[M][mstep] - dstepL[M][mstep]);
     a = 1.0 - b;
 
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
@@ -961,16 +930,6 @@ void SphericalBasis::compute_multistep_coefficients()
 	<< endl;
   }
 #endif
-
-  if (pca) {
-    if (compute) {
-      parallel_gather_coef2();
-      pca_hall(true);
-      firstime_coef = 0;
-    } else {
-      pca_hall(false);
-    }
-  }
 
 }
 
