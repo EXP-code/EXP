@@ -72,7 +72,7 @@ libexputil_la_SOURCES = $(ODE_SRC) $(ROOT_SRC) $(QUAD_SRC) \
 	$(SLEDGE_SRC) $(CUDA_SRC)
 
 libexputil_la_LIBADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LDFLAGS)	\
-$(CUDA_LIBFLAGS) $(LIBS) $(FLIBS)
+$(CUDA_LIBFLAGS) @exp_vtk_ldlib@ @exp_vtk_lib@ $(LIBS) $(FLIBS)
 
 # the rule that can recognize *.cu files and compile the *.cu files to
 # *.lo and *.o files
