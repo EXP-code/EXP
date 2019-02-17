@@ -7,16 +7,6 @@
 #include <chrono>
 #include <map>
 
-
-void sync_eval_multistep(void)
-{
-  comp->multistep_reset();
-				// This forces interpolation to evaluate to 
-				// the last set of computed coefficients
-  mstep = Mstep;
-}
-
-
 //
 // Helper class to pass info to threaded multistep update routine
 //

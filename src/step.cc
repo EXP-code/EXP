@@ -140,7 +140,7 @@ void do_step(int n)
 	comp->compute_expansion(M);
 	if (timing) timer_coef.stop();
       }
-
+      
       double tlast = tnow;	// Time before current step
       tnow += dt;		// Time at the end of the current step
 
@@ -244,7 +244,13 @@ void do_step(int n)
     if (timing) timer_drift.start();
     incr_position(dtime);
     incr_com_position(dtime);
-    if (timing) timer_drift.start();
+    if (timing) timer_drift.stop();
+
+				// Compute coefficients
+    if (timing) timer_coef.start();
+    comp->compute_expansion(0);
+    if (timing) timer_coef.stop();
+
 				// Compute acceleration
     if (cuda_prof) {
       tPtr1.reset();

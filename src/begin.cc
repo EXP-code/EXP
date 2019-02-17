@@ -64,44 +64,38 @@ void begin_run(void)
   //===============================
 
   initializing = true;
-
+  
   if (multistep) {
-    sync_eval_multistep();	// Use last coefficient evaluation
-    for (int M=0; M<=multistep; M++) {
-      comp->compute_expansion(M);
-    }
-  } else {
     comp->multistep_reset();
+
+    comp->compute_expansion(0);
+    //                      ^
+    //                      |
+    //                      |
+    comp->compute_potential(0);
+    //                      ^
+    //                      |
+    //   All time levels----/
+
+    //==============================
+    // Initialize multistep levels
+    //==============================
+    adjust_multistep_level(true);
+    //                     ^
+    //                     |
+    // Do all particles----+
   }
 
-  comp->compute_potential(0);
-  //                      ^
-  //                      |
-  //   All time levels----/
-
-  //==============================
-  // Initialize multistep levels
-  //==============================
-  adjust_multistep_level(true);
-  //                     ^
-  //                     |
-  // Do all particles---/
-
-
-  // Then recompute coefficients . . . 
+  // Compute coefficients . . . 
   //
-  if (multistep) {
-    sync_eval_multistep();	// Use last coefficient evaluation
-    for (int M=0; M<=multistep; M++) {
-      comp->compute_expansion(M);
-    }
-  } else {
-    comp->multistep_reset();
-  }
+  if (multistep) comp->multistep_reset();
 
+  comp->compute_expansion(0);
   comp->compute_potential(0);
 
   initializing = false;
+
+  if (multistep) comp->multistep_reset();
 
   //===================================
   // Initialize output routines
