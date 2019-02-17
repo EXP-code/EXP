@@ -52,8 +52,8 @@ void VtkPCA::Add(const Vector& Coef,
   std::vector<int> R;
 
   if (reorder) {
-    std::map<double, int> reord;
-    for (int i=SnrV.getlow(); i<=SnrV.gethigh(); i++) reord[SnrV[i]] = i;
+    std::multimap<double, int> reord;
+    for (int i=SnrV.getlow(); i<=SnrV.gethigh(); i++) reord.insert(std::make_pair(SnrV[i], i));;
     for (auto i=reord.rbegin(); i!=reord.rend(); i++) R.push_back(i->second);
   } else {
     for (int i=SnrV.getlow(); i<=SnrV.gethigh(); i++) R.push_back(i);
