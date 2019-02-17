@@ -95,8 +95,6 @@ void begin_run(void)
 
   initializing = false;
 
-  if (multistep) comp->multistep_reset();
-
   //===================================
   // Initialize output routines
   //===================================
