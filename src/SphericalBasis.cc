@@ -475,6 +475,7 @@ void SphericalBasis::determine_coefficients(void)
   int loffset, moffset, use1;
 
   if (compute) {
+
     if (sampT == 0) {		// Allocate storage
       sampT = floor(sqrt(cC->nbodies_tot));
       massT    .resize(sampT, 0);
@@ -487,12 +488,15 @@ void SphericalBasis::determine_coefficients(void)
       for (auto & t : expcoefT1) t = MatrixP(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
     }
 
-    // Zero arrays
-    for (int n=0; n<nthrds; n++) muse1[n] = 0.0;
-    muse0 = 0.0;
+    // Zero arrays?
+    //
+    if (mlevel==0) {
+      for (int n=0; n<nthrds; n++) muse1[n] = 0.0;
+      muse0 = 0.0;
       
-    for (auto & t : expcoefT1) t->zero();
-    for (auto & v : massT1)    v = 0;
+      for (auto & t : expcoefT1) t->zero();
+      for (auto & v : massT1)    v = 0;
+    }
   }
 
 #ifdef DEBUG
@@ -637,9 +641,8 @@ void SphericalBasis::determine_coefficients(void)
       for (int i=0; i<nthrds; i++) muse0 += muse1[i];
       MPI_Allreduce ( &muse0, &muse,  1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
       parallel_gather_coef2();
+      pca_hall(compute);
     }
-
-    if (pca) pca_hall(compute);
   }
 
   print_timings("SphericalBasis: coefficient timings");
