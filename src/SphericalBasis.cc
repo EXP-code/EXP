@@ -905,29 +905,6 @@ void SphericalBasis::compute_multistep_coefficients()
     }
   }
 
-#ifdef DEBUG
-  /*
-  if (myid==0) {
-    ofstream out("multistep_update.debug", ios::app);
-    out << setw(70) << setfill('-') << '-' << endl;
-    ostringstream sout;
-    sout << "--- mlevel=" << mlevel << "/" << multistep
-	 << " T=" << tnow << " ";
-    out << setw(70) << left << sout.str().c_str() << endl << setfill(' ');
-    out << setw(70) << setfill('-') << '-' << endl << setfill(' ');
-    ostringstream sout2;
-    sout2 << left << setw(5) << "# l" << setw(5) << "| n"
-	  << setw(18) << "| coef" << endl << right;
-    for (int l=0; l<=Lmax*(Lmax+2); l++) {
-      for (int n=1; n<=nmax; n++) 
-	out << setw(5) << l << setw(5) << n 
-	    << setw(18) << expcoef[l][n] << endl;
-    }
-    out << endl;
-  }
-  */
-#endif
-
 #ifdef TMP_DEBUG
   if (myid==0) {
 
