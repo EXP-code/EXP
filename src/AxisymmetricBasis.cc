@@ -25,6 +25,7 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
     if (conf["nmax"])     nmax       = conf["nmax"].as<int>();
     if (conf["dof"])      dof        = conf["dof"].as<int>();
     if (conf["npca"])     npca       = conf["npca"].as<int>();
+    if (conf["npca0"])    npca0      = conf["npca0"].as<int>();
     if (conf["selector"]) pca        = conf["selector"].as<bool>();
     if (conf["pca"])      pca        = conf["pca"].as<bool>();
     if (conf["pcadiag"])  pcadiag    = conf["pcadiag"].as<bool>();

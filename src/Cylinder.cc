@@ -306,7 +306,7 @@ void Cylinder::initialize()
     if (conf["ncylorder" ])  ncylorder  = conf["ncylorder" ].as<int>();
     if (conf["ncylrecomp"]) ncylrecomp  = conf["ncylrecomp"].as<int>();
     if (conf["npca"      ])       npca  = conf["npca"      ].as<int>();
-    if (conf["npca0"     ])       npca  = conf["npca0"     ].as<int>();
+    if (conf["npca0"     ])      npca0  = conf["npca0"     ].as<int>();
     if (conf["nvtk"      ])       nvtk  = conf["nvtk"      ].as<int>();
     if (conf["eof_file"  ])   eof_file  = conf["eof_file"  ].as<std::string>();
     if (conf["vflag"     ])      vflag  = conf["vflag"     ].as<int>();
