@@ -1152,7 +1152,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 }
 
 
-void EmpCylSL::setup_accumulation(int toplev)
+void EmpCylSL::setup_accumulation(int mlevel)
 {
   if (!accum_cos) {		// First time
 
@@ -1246,7 +1246,7 @@ void EmpCylSL::setup_accumulation(int toplev)
   }
 
 
-  for (int M=toplev; M<=multistep; M++) {
+  for (int M=mlevel; M<=multistep; M++) {
     
     howmany[M] = 0;
 

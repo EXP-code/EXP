@@ -1501,7 +1501,7 @@ void Cylinder::determine_acceleration_cuda()
 
     // Sort particles and get coefficient size
     //
-    PII lohi = cC->CudaSortByLevel(cr, toplev, multistep);
+    PII lohi = cC->CudaSortByLevel(cr, mlevel, multistep);
 
     // Compute grid
     //

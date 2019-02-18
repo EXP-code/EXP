@@ -71,7 +71,7 @@ private:
     nvTracerPtr tPtr;
     if (cuda_prof)
       tPtr = nvTracerPtr(new nvTracer("Cylinder::compute_multistep_coefficients"));
-    ortho->compute_multistep_coefficients(toplev);
+    ortho->compute_multistep_coefficients(mfirst[mstep]);
   }
 
   //! Reset used particle counter and mass registers

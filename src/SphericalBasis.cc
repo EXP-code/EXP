@@ -499,153 +499,148 @@ void SphericalBasis::determine_coefficients(void)
   cout << "Process " << myid << ": in <determine_coefficients>" << endl;
 #endif
 
-  for (mlevel=toplev; mlevel<=multistep; mlevel++) {
-
-    //
-    // Swap interpolation arrays
-    //
-    Matrix *p = expcoefL[mlevel];
-
-    expcoefL[mlevel] = expcoefN[mlevel];
-    expcoefN[mlevel] = p;
+  //
+  // Swap interpolation arrays
+  //
+  Matrix *p = expcoefL[mlevel];
   
-    //
-    // Clean arrays for current level
-    //
-    expcoefN[mlevel]->zero();
+  expcoefL[mlevel] = expcoefN[mlevel];
+  expcoefN[mlevel] = p;
+  
+  //
+  // Clean arrays for current level
+  //
+  expcoefN[mlevel]->zero();
     
-    for (int i=0; i<nthrds; i++) expcoef0[i].zero();
+  for (int i=0; i<nthrds; i++) expcoef0[i].zero();
     
-    use1 = 0;
-    if (multistep==0) used = 0;
+  use1 = 0;
+  if (multistep==0) used = 0;
     
 #ifdef DEBUG
-    cout << "Process " << myid 
-	 << ": in <determine_coefficients>, about to thread, lev=" 
-	 << mlevel << endl;
+  cout << "Process " << myid 
+       << ": in <determine_coefficients>, about to thread, lev=" 
+       << mlevel << endl;
 #endif
 
 #ifdef LEVCHECK
-    MPI_Barrier(MPI_COMM_WORLD);
-    for (int n=0; n<numprocs; n++) {
-      if (n==myid) {
-	if (myid==0) cout << "-------------------------------" << endl
-			  << "Level check in Spherical Basis:" << endl 
-			  << "-------------------------------" << endl;
-	cout << setw(4) << myid << setw(4) << mlevel;
-	if (cC->levlist[mlevel].size())
-	  cout << setw(12) << cC->levlist[mlevel].size()
-	       << setw(12) << cC->levlist[mlevel].front()
-	       << setw(12) << cC->levlist[mlevel].back() << endl;
-	else
-	  cout << setw(12) << cC->levlist[mlevel].size()
-	       << setw(12) << (int)(-1)
-	       << setw(12) << (int)(-1) << endl;
-	
-      }
-      MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(MPI_COMM_WORLD);
+  for (int n=0; n<numprocs; n++) {
+    if (n==myid) {
+      if (myid==0) cout << "-------------------------------" << endl
+			<< "Level check in Spherical Basis:" << endl 
+			<< "-------------------------------" << endl;
+      cout << setw(4) << myid << setw(4) << mlevel;
+      if (cC->levlist[mlevel].size())
+	cout << setw(12) << cC->levlist[mlevel].size()
+	     << setw(12) << cC->levlist[mlevel].front()
+	     << setw(12) << cC->levlist[mlevel].back() << endl;
+      else
+	cout << setw(12) << cC->levlist[mlevel].size()
+	     << setw(12) << (int)(-1)
+	     << setw(12) << (int)(-1) << endl;
+      
     }
     MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << endl;
+  }
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (myid==0) cout << endl;
 #endif
     
 #if HAVE_LIBCUDA==1
-    if (component->cudaDevice>=0) {
-      start1  = std::chrono::high_resolution_clock::now();
-      if (cC->levlist[mlevel].size()) {
-	determine_coefficients_cuda(compute);
-	DtoH_coefs(expcoef0[0]);
-      }
-      finish1 = std::chrono::high_resolution_clock::now();
-    } else {
-      exp_thread_fork(true);
+  if (component->cudaDevice>=0) {
+    start1  = std::chrono::high_resolution_clock::now();
+    if (cC->levlist[mlevel].size()) {
+      determine_coefficients_cuda(compute);
+      DtoH_coefs(expcoef0[0]);
     }
-#else
+    finish1 = std::chrono::high_resolution_clock::now();
+  } else {
     exp_thread_fork(true);
+  }
+#else
+  exp_thread_fork(true);
 #endif
-
+  
 #ifdef DEBUG
-    cout << "Process " << myid << ": in <determine_coefficients>, thread returned, lev=" << mlevel << endl;
+  cout << "Process " << myid << ": in <determine_coefficients>, thread returned, lev=" << mlevel << endl;
 #endif
 
-    //
-    // Sum up the results from each thread
-    //
-    for (int i=0; i<nthrds; i++) use1 += use[i];
-    for (int i=1; i<nthrds; i++) expcoef0[0] += expcoef0[i];
+  //
+  // Sum up the results from each thread
+  //
+  for (int i=0; i<nthrds; i++) use1 += use[i];
+  for (int i=1; i<nthrds; i++) expcoef0[0] += expcoef0[i];
   
-    if (multistep==0 or tnow==resetT) {
-      used += use1;
-      if (false) {
-	std::cout << "SphericalBasis used: " << std::setw(18) << tnow
-		  << std::setw(10) << used
-		  << std::setw(10) << use1
-		  << std::setw( 6) << myid
-		  << std::setw( 6) << mlevel
-		  << std::setw( 6) << mstep
-		  << std::endl;
-      }
-    }
+  if (multistep==0 or tnow==resetT) {
+    used += use1;
+  }
+  
+  for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
+    
+    for (int m=0, moffset=0; m<=l; m++) {
 
-    for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
-      
-      for (int m=0, moffset=0; m<=l; m++) {
-
-	if (m==0) {
+      if (m==0) {
 	  
-	  if (multistep)
-	    MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
-			    &((*expcoefN[mlevel])[loffset+moffset][1]),
-			    nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	  else
-	    MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
-			    &(expcoef[loffset+moffset][1]),
-			    nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	if (multistep)
+	  MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
+			  &((*expcoefN[mlevel])[loffset+moffset][1]),
+			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	else
+	  MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
+			  &(expcoef[loffset+moffset][1]),
+			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	
+	moffset++;
 	  
-	  moffset++;
+      } else {
+	
+	if (multistep) {
+	  MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
+			  &((*expcoefN[mlevel])[loffset+moffset][1]),
+			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	  
+	  MPI_Allreduce ( &(expcoef0[0][loffset+moffset+1][1]),
+			  &((*expcoefN[mlevel])[loffset+moffset+1][1]),
+			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	} else {
+	  MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
+			  &(expcoef[loffset+moffset][1]),
+			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	  
-	  if (multistep) {
-	    MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
-			    &((*expcoefN[mlevel])[loffset+moffset][1]),
-			    nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	    
-	    MPI_Allreduce ( &(expcoef0[0][loffset+moffset+1][1]),
-			    &((*expcoefN[mlevel])[loffset+moffset+1][1]),
-			    nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	  } else {
-	    MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
-			    &(expcoef[loffset+moffset][1]),
-			    nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	    
-	    MPI_Allreduce ( &(expcoef0[0][loffset+moffset+1][1]),
-			    &(expcoef[loffset+moffset+1][1]),
-			    nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	  }
-	  moffset+=2;
+	  MPI_Allreduce ( &(expcoef0[0][loffset+moffset+1][1]),
+			  &(expcoef[loffset+moffset+1][1]),
+			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	}
+	moffset+=2;
       }
     }
   }
   
   //======================================
-  // Multistep update
+  // Last level?
   //======================================
+  
+  if (mlevel==multistep) {
 
-  if (multistep) compute_multistep_coefficients();
+    //======================================
+    // Multistep update
+    //======================================
 
-  //======================================
-  // PCA computation
-  //======================================
+    if (multistep) compute_multistep_coefficients();
 
-  if (compute) {
-    for (int i=0; i<nthrds; i++) muse0 += muse1[i];
-    MPI_Allreduce ( &muse0, &muse,  1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    parallel_gather_coef2();
+    //======================================
+    // PCA computation
+    //======================================
+    
+    if (compute) {
+      for (int i=0; i<nthrds; i++) muse0 += muse1[i];
+      MPI_Allreduce ( &muse0, &muse,  1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      parallel_gather_coef2();
+    }
+
+    if (pca) pca_hall(compute);
   }
-
-  if (pca) pca_hall(compute);
 
   print_timings("SphericalBasis: coefficient timings");
 
@@ -667,6 +662,50 @@ void SphericalBasis::determine_coefficients(void)
     std::cout << std::string(60, '=') << std::endl;
   }
 #endif
+
+  //================================
+  // Dump coefficients for debugging
+  //================================
+
+  if (myid==0 and mstep==0 and mlevel==multistep) {
+
+    std::cout << std::string(60, '-') << std::endl
+	      << "-- SphericalBasis T=" << std::setw(16) << tnow << std::endl
+	      << std::string(60, '-') << std::endl;
+
+    for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
+      
+      for (int m=0, moffset=0; m<=l; m++) {
+
+	if (m==0) {
+	  
+	  for (int n=1; n<=nmax; n++) {
+	    std::cout << std::setw(4)  << l
+		      << std::setw(4)  << m
+		      << std::setw(4)  << n
+		      << std::setw(18) << expcoef[loffset+moffset][n]
+		      << std::endl;
+	  }
+
+	  moffset++;
+	  
+	} else {
+	  
+	  for (int n=1; n<=nmax; n++) {
+	    std::cout << std::setw(4)  << l
+		      << std::setw(4)  << m
+		      << std::setw(4)  << n
+		      << std::setw(18) << expcoef[loffset+moffset  ][n]
+		      << std::setw(18) << expcoef[loffset+moffset+1][n]
+		      << std::endl;
+	  }
+
+	  moffset+=2;
+	}
+      }
+    }
+    std::cout << std::string(60, '-') << std::endl;
+  }
 
   firstime_coef = false;
 }
@@ -813,7 +852,7 @@ void SphericalBasis::compute_multistep_coefficients()
 
 				// Interpolate to get coefficients above
   double a, b;			// 
-  for (int M=0; M<toplev; M++) {
+  for (int M=0; M<mfirst[mlevel]; M++) {
 
     b = (double)(mstep - dstepL[M][mstep])/(double)(dstepN[M][mstep] - dstepL[M][mstep]);
     a = 1.0 - b;
@@ -849,7 +888,7 @@ void SphericalBasis::compute_multistep_coefficients()
   }
 				// Add coefficients at or below this level
 				// 
-  for (int M=toplev; M<=multistep; M++) {
+  for (int M=mfirst[mstep]; M<=multistep; M++) {
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
       for (int n=1; n<=nmax; n++) 
 	expcoef[l][n] += (*expcoefN[M])[l][n];
@@ -955,7 +994,7 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
   // If we are multistepping, compute accel only at or above <mlevel>
   //
-  for (int lev=toplev; lev<=multistep; lev++) {
+  for (int lev=mlevel; lev<=multistep; lev++) {
 
     nbodies = cC->levlist[lev].size();
 
