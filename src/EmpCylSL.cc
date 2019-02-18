@@ -1154,7 +1154,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 
 void EmpCylSL::setup_accumulation(int mlevel)
 {
-  if (!accum_cos) {		// First time
+  if (!accum_cos) {		// First time only
 
     accum_cos = new Vector [MMAX+1];
     accum_sin = new Vector [MMAX+1];
@@ -1235,7 +1235,7 @@ void EmpCylSL::setup_accumulation(int mlevel)
     if (m>0) accum_sin[m].zero();
   }
 
-  if (SELECT and sampT>0) {
+  if (SELECT and mlevel==0 and sampT>0) {
     for (int nth=0; nth<nthrds; nth++) {
       for (unsigned T=0; T<sampT; T++) {
 	massT1[nth][T] = 0.0;
