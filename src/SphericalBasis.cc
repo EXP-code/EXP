@@ -855,7 +855,7 @@ void SphericalBasis::compute_multistep_coefficients()
 
 				// Interpolate to get coefficients above
   double a, b;			// 
-  for (int M=0; M<mfirst[mlevel]; M++) {
+  for (int M=0; M<mfirst[mstep]; M++) {
 
     b = (double)(mstep - dstepL[M][mstep])/(double)(dstepN[M][mstep] - dstepL[M][mstep]);
     a = 1.0 - b;
