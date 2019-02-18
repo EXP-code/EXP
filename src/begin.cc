@@ -65,13 +65,27 @@ void begin_run(void)
 
   initializing = true;
   
+  //================================
+  // Multistep level initialization
+  //================================
+
   if (multistep) {
+
     comp->multistep_reset();
 
-    comp->compute_expansion(0);
-    //                      ^
-    //                      |
-    //                      |
+    //=====================================
+    // Compute coefficients at every level
+    //=====================================
+
+    for (int M=0; M<=multistep; M++) comp->compute_expansion(M);
+    //                          ^
+    //                          |
+    // Loop on all levels-------+
+
+    //========================
+    // Compute full potential
+    //========================
+
     comp->compute_potential(0);
     //                      ^
     //                      |
@@ -80,17 +94,21 @@ void begin_run(void)
     //==============================
     // Initialize multistep levels
     //==============================
+
     adjust_multistep_level(true);
     //                     ^
     //                     |
     // Do all particles----+
   }
 
-  // Compute coefficients . . . 
-  //
+  //===========================================
+  // Compute coefficients (again if multistep)
+  //===========================================
+
   if (multistep) comp->multistep_reset();
 
-  comp->compute_expansion(0);
+  for (int M=0; M<=multistep; M++) comp->compute_expansion(M);
+
   comp->compute_potential(0);
 
   initializing = false;
