@@ -185,7 +185,7 @@ __global__ void coordKernelCyl
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
   for (int n=0; n<stride; n++) {
-    int i = tid*stride + n;	// Particle counter
+    int i     = tid*stride + n;	// Particle counter
     int npart = i + lohi.first;	// Particle index
 
     if (npart < lohi.second) {
@@ -275,36 +275,35 @@ __global__ void coefKernelCyl
 
   const cuFP_t norm = -4.0*M_PI;	// Biorthogonality factor
 
-  for (int istr=0; istr<stride; istr++) {
+  for (int n=0; n<stride; n++) {
 
     // Particle counter
     //
-    int i = tid*stride + istr;
+    int i     = tid*stride + n;
+    int npart = i + lohi.first;
 
-    if (i<N) {			// Allow for grid padding
+    if (npart < lohi.second) {	// Allow for grid padding
 
-      int I = i + lohi.first;	// Offset into particle array
-
-      cuFP_t mass = Mass._v[I];
+      cuFP_t mass = Mass._v[npart];
       
 #ifdef BOUNDS_CHECK
       if (i>=Mass._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif      
       if (mass>0.0) {
 				// For accumulating mass of used particles
-	if (m==0) used._v[I] = mass;
+	if (m==0) used._v[npart] = mass;
 
 #ifdef BOUNDS_CHECK
 	if (i>=Phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-	cuFP_t phi  = Phi._v[I];
+	cuFP_t phi  = Phi._v[i];
 	cuFP_t cosp = cos(phi*m);
 	cuFP_t sinp = sin(phi*m);
 	
 	// Do the interpolation
 	//
-	cuFP_t delx0 = Xfac._v[I];
-	cuFP_t dely0 = Yfac._v[I];
+	cuFP_t delx0 = Xfac._v[i];
+	cuFP_t dely0 = Yfac._v[i];
 	cuFP_t delx1 = 1.0 - delx0;
 	cuFP_t dely1 = 1.0 - dely0;
 
@@ -317,8 +316,8 @@ __global__ void coefKernelCyl
 	cuFP_t c01 = delx0*dely1;
 	cuFP_t c11 = delx1*dely1;
 
-	int   indx = indX._v[I];
-	int   indy = indY._v[I];
+	int   indx = indX._v[i];
+	int   indy = indY._v[i];
 
 #ifdef BOUNDS_CHECK
 	if (i>=indX._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
