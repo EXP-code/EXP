@@ -773,7 +773,7 @@ void Cylinder::determine_coefficients(void)
   // Dump coefficients for debugging
   //================================
 
-  if (myid==0 and mstep==0 and mlevel==multistep) {
+  if (false and myid==0 and mstep==0 and mlevel==multistep) {
     std::cout << std::string(60, '-') << std::endl
 	      << "-- Cylinder T=" << std::setw(16) << tnow << std::endl
 	      << std::string(60, '-') << std::endl;
