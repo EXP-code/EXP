@@ -717,13 +717,6 @@ void Cylinder::determine_coefficients(void)
 
     used    += use0;
     cylmass += cylmassT0;
-
-    if (true and myid==0 and mlevel==multistep) {
-      std::cout << "TEST: time=" << std::setw(16) << std::left << tnow
-		<< " used="      << std::setw(10) << std::left << used
-		<< " cylmass="   << std::setw(16) << std::left << cylmass
-		<< std::endl;
-    }
   }
 
   MPL_start_timer();
