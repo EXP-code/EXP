@@ -130,7 +130,7 @@ public:
   virtual void RegisterComponent(Component *c) { component = c; }
 
   //! Thread particle counter
-  int *use;
+  std::vector<int> use;
 
   //! Make some threads
   void exp_thread_fork(bool coef);

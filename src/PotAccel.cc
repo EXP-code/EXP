@@ -180,8 +180,10 @@ PotAccel::PotAccel(const YAML::Node& CONF) : conf(CONF)
   mlevel       = 0;
 
   // Per thread counter
-  use = new int [nthrds];
-  if (!use) {
+  try {
+    use.resize(nthrds);
+  }
+  catch (...) {
     throw GenericError("problem allocating <use>", __FILE__, __LINE__);
   }
 
@@ -192,7 +194,6 @@ PotAccel::PotAccel(const YAML::Node& CONF) : conf(CONF)
 
 PotAccel::~PotAccel(void)
 {
-  delete [] use;
 }
 
 
