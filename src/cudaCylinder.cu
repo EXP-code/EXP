@@ -442,8 +442,7 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<cuFP_t> coef,
       cuFP_t mfactor = 1.0, frac = 1.0, cfrac = 0.0;
 
       if (ratio >= 1.0) {
-	// cfrac      = 1.0 - mfactor;
-	cfrac = 1.0;
+	cfrac = 1.0 - mfactor;
       } else if (ratio > ratmin) {
 	frac  = 0.5*(1.0 - erf( (ratio - midpt)/rsmth )) * mfactor;
 	cfrac = 1.0 - frac;
