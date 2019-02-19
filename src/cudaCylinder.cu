@@ -45,8 +45,16 @@ template<typename Iterator, typename Pointer1, typename Pointer2>
 __global__
 void reduceUseCyl(Iterator first, Iterator last, Pointer1 res1, Pointer2 res2)
 {
-  auto it = thrust::lower_bound(thrust::cuda::par, first, last, 0.0);
+  // Sort used masses
+  thrust::sort(thrust::cuda::par, first, last);
+
+  // Iterator will point to first non-zero element
+  auto it = thrust::upper_bound(thrust::cuda::par, first, last, 0.0);
+
+  // Number of non-zero elements
   *res1 = thrust::distance(it, last);
+
+  // Sum of mass
   *res2 = thrust::reduce(thrust::cuda::par, it, last);
 }
 
@@ -841,8 +849,6 @@ void Cylinder::determine_coefficients_cuda(bool compute)
   // Zero counter and coefficients
   //
   unsigned Ntot = 0;
-  use[0]      = 0.0;
-  cylmass0[0] = 0.0;
   thrust::fill(host_coefs.begin(), host_coefs.end(), 0.0);
 
   if (pca) {
@@ -1066,7 +1072,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
       f_mass.resize(fsz);
 				// Call the kernel on a single thread
 				// 
-      reduceUseCyl<<<1, 1, 0, s1>>>(ar->m_d.begin(), ar->m_d.end(),
+      reduceUseCyl<<<1, 1, 0, s1>>>(ar->u_d.begin(), ar->u_d.end(),
 				    &f_use[fsz-1], &f_mass[fsz-1]);
 
       Ntot += N;

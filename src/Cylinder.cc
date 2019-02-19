@@ -678,6 +678,11 @@ void Cylinder::determine_coefficients(void)
   if (component->cudaDevice>=0) {
     start1 = std::chrono::high_resolution_clock::now();
     
+    if (mstep==0) {
+      std::fill(use.begin(), use.end(), 0.0);
+      std::fill(cylmass0.begin(), cylmass0.end(), 0.0);
+    }
+
     if (cC->levlist[mlevel].size()) {
       determine_coefficients_cuda(compute);
       DtoH_coefs(mlevel);
@@ -693,11 +698,11 @@ void Cylinder::determine_coefficients(void)
 #endif
 				// Accumulate counts and mass used to
 				// determine coefficients
-  int use1=0;
-  double cylmassT1=0.0;
+  int use1=0, use0=0;
+  double cylmassT1=0.0, cylmassT0=0.0;
   
   for (int i=0; i<nthrds; i++) {
-    use1 += use[i];
+    use1      += use[i];
     cylmassT1 += cylmass0[i];
   }
 				// Turn off timer so as not bias by 
@@ -705,10 +710,21 @@ void Cylinder::determine_coefficients(void)
   MPL_stop_timer();
 
   if (tnow==resetT) {
-    used    += use1;
-    cylmass += cylmassT1;
+
+    MPI_Allreduce ( &use1, &use0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce ( &cylmassT1, &cylmassT0, 1, MPI_DOUBLE, MPI_SUM, 
+		    MPI_COMM_WORLD );
+
+    used    += use0;
+    cylmass += cylmassT0;
+
+    if (true and myid==0 and mlevel==multistep) {
+      std::cout << "TEST: time=" << std::setw(16) << std::left << tnow
+		<< " used="      << std::setw(10) << std::left << used
+		<< " cylmass="   << std::setw(16) << std::left << cylmass
+		<< std::endl;
+    }
   }
-    
 
   MPL_start_timer();
 
