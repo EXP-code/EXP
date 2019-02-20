@@ -233,7 +233,7 @@ __global__ void coordKernel
   const int psiz  = (Lmax+1)*(Lmax+2)/2;
 
   for (int n=0; n<stride; n++) {
-    int i = tid*stride + n;
+    int i     = tid*stride + n;
     int npart = i + lohi.first;
 
     if (npart < lohi.second) {
@@ -295,22 +295,23 @@ __global__ void coordKernel
 
 
 __global__ void coefKernel
-(dArray<cuFP_t> coef, dArray<cudaTextureObject_t> tex,
+(dArray<cuFP_t> coef, dArray<cuFP_t> used, dArray<cudaTextureObject_t> tex,
  dArray<cuFP_t> Mass, dArray<cuFP_t> Afac, dArray<cuFP_t> Phi,
  dArray<cuFP_t> Plm, dArray<int> Indx,  int stride, 
  int l, int m, unsigned Lmax, unsigned int nmax, PII lohi)
 {
   const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
   const int psiz  = (Lmax+1)*(Lmax+2)/2;
-  const unsigned int N = lohi.second - lohi.first;
+  const int N     = lohi.second - lohi.first;
 
   cuFP_t fac0 = 4.0*M_PI;
 
-  for (int istr=0; istr<stride; istr++) {
+  for (int n=0; n<stride; n++) {
 
-    int i = tid*stride + istr;
+    int i     = tid*stride + n;
+    int npart = i + lohi.first;
 
-    if (i<N) {
+    if (npart < lohi.second) {
 
       cuFP_t mass = Mass._v[i];
 
@@ -319,7 +320,9 @@ __global__ void coefKernel
 #endif
 
       if (mass>0.0) {
-	
+				// For accumulating mass of used particles
+	if (l==0 and m==0) used._v[i] = mass;
+
 #ifdef BOUNDS_CHECK
 	if (i>=Phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
@@ -707,7 +710,7 @@ static bool initialize_cuda_sph = true;
 static unsigned dbg_id = 0;
 
 void SphericalBasis::cudaStorage::resize_coefs
-(int nmax, int Lmax, int N, int gridSize)
+(int nmax, int Lmax, int N, int gridSize, int sampT, bool pca)
 {
   // Create space for coefficient reduction to prevent continued
   // dynamic allocation
@@ -723,10 +726,20 @@ void SphericalBasis::cudaStorage::resize_coefs
   
   if (r_d.capacity() < N) r_d.reserve(N);
   if (m_d.capacity() < N) m_d.reserve(N);
+  if (u_d.capacity() < N) u_d.reserve(N);
   if (a_d.capacity() < N) a_d.reserve(N);
   if (p_d.capacity() < N) p_d.reserve(N);
   if (i_d.capacity() < N) i_d.reserve(N);
   
+  // Fixed size arrays
+  //
+  if (pca) {
+    T_coef.resize(sampT);
+    for (int T=0; T<sampT; T++) {
+      T_coef[T].resize((Lmax+1)*(Lmax+2)*nmax);
+    }
+  }
+
   // Set needed space for current step
   //
   dN_coef.resize(2*nmax*N);
@@ -746,6 +759,7 @@ void SphericalBasis::cudaStorage::resize_coefs
   //
   r_d.resize(N);
   m_d.resize(N);
+  u_d.resize(N);
   a_d.resize(N);
   p_d.resize(N);
   i_d.resize(N);
@@ -765,6 +779,24 @@ void SphericalBasis::zero_coefs()
     //
     thrust::fill(thrust::cuda::par.on(cr->stream),
 		 ar->df_coef.begin(), ar->df_coef.end(), 0.0);
+
+    // Resize and zero PCA arrays
+    //
+    if (pca) {
+      if (ar->T_coef.size() != sampT) {
+	ar->T_coef.resize(sampT);
+	for (int T=0; T<sampT; T++) {
+	  ar->T_coef[T].resize((Lmax+1)*(Lmax+2)*nmax);
+	}
+	host_massT.resize(sampT);
+      }
+
+      for (int T=0; T<sampT; T++)
+	thrust::fill(thrust::cuda::par.on(cr->stream),
+		     ar->T_coef[T].begin(), ar->T_coef[T].end(), 0.0);
+
+      thrust::fill(host_massT.begin(), host_massT.end(), 0.0);
+    }
 
     // Advance iterators
     //
@@ -788,8 +820,28 @@ void SphericalBasis::cudaStorage::resize_acc(int Lmax, int Nthread)
 }
 
 
-void SphericalBasis::determine_coefficients_cuda()
+void SphericalBasis::determine_coefficients_cuda(bool compute)
 {
+  if (pca) {
+
+    if (sampT == 0) {		// Allocate storage
+      sampT = floor(sqrt(cC->nbodies_tot));
+      massT    .resize(sampT, 0);
+      massT1   .resize(sampT, 0);
+
+      expcoefT .resize(sampT);
+      for (auto & t : expcoefT ) t = MatrixP(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
+	
+      expcoefT1.resize(sampT);
+      for (auto & t : expcoefT1) t = MatrixP(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
+    }
+  }
+
+  if (compute && mlevel==0) {	// Zero arrays
+    for (auto & t : expcoefT1) t->zero();
+    for (auto & v : massT1)    v = 0;
+  }
+
   if (initialize_cuda_sph) {
     initialize_cuda();
     initialize_mapping_constants();
@@ -811,6 +863,10 @@ void SphericalBasis::determine_coefficients_cuda()
   // This will stay fixed for the entire run
   //
   host_coefs.resize((Lmax+1)*(Lmax+1)*nmax);
+
+  if (pca) {
+    host_massT.resize(sampT);
+  }
 
   // Center assignment to symbol data
   //
@@ -837,6 +893,8 @@ void SphericalBasis::determine_coefficients_cuda()
   unsigned Ntot = 0;
   use[0] = 0.0;
   thrust::fill(host_coefs.begin(), host_coefs.end(), 0.0);
+
+  if (compute) thrust::fill(host_massT.begin(), host_massT.end(), 0.0);
 
   // Zero out coefficient storage
   //
@@ -903,16 +961,12 @@ void SphericalBasis::determine_coefficients_cuda()
     
       // Resize storage as needed
       //
-      ar->resize_coefs(nmax, Lmax, N, gridSize);
+      ar->resize_coefs(nmax, Lmax, N, gridSize, sampT, pca);
       
       // Shared memory size for the reduction
       //
       int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
       
-    
-      thrust::counting_iterator<int> index_begin(0);
-      thrust::counting_iterator<int> index_end(gridSize*2*nmax);
-
       // Do the work
       //
 				// Compute the coordinate
@@ -928,29 +982,41 @@ void SphericalBasis::determine_coefficients_cuda()
 				// contribution for each order
       int osize = nmax*2;	//
       auto beg = ar->df_coef.begin();
+      std::vector<thrust::device_vector<cuFP_t>::iterator> bg;
+      for (int T=0; T<sampT; T++) bg.push_back(ar->T_coef[T].begin());
+
+      thrust::fill(ar->u_d.begin(), ar->u_d.end(), 0.0);
 
       for (int l=0; l<=Lmax; l++) {
 	for (int m=0; m<=l; m++) {
-				// Compute the contribution to the
-				// coefficients from each particle
-				//
+	  // Compute the contribution to the
+	  // coefficients from each particle
+	  //
 	  coefKernel<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
-	    (toKernel(ar->dN_coef), toKernel(t_d), toKernel(ar->m_d),
+	    (toKernel(ar->dN_coef), toKernel(ar->u_d),
+	     toKernel(t_d), toKernel(ar->m_d),
 	     toKernel(ar->a_d), toKernel(ar->p_d), toKernel(ar->plm1_d),
 	     toKernel(ar->i_d), stride, l, m, Lmax, nmax, lohi);
 	  
-				// Begin the reduction per grid block
-				// 
-	  reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize, BLOCK_SIZE, sMemSize, cr->stream>>>
+	  // Begin the reduction per grid block
+	  // [perhaps this should use a stride?]
+	  //
+	  unsigned int gridSize1 = N/BLOCK_SIZE;
+	  if (N > gridSize1*BLOCK_SIZE) gridSize1++;
+	  reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
 	    (toKernel(ar->dc_coef), toKernel(ar->dN_coef), osize, N);
       
 				// Finish the reduction for this order
 				// in parallel
+    
+	  thrust::counting_iterator<int> index_begin(0);
+	  thrust::counting_iterator<int> index_end(gridSize1*osize);
+
 	  thrust::reduce_by_key
 	    (
 	     thrust::cuda::par.on(cr->stream),
-	     thrust::make_transform_iterator(index_begin, key_functor(gridSize)),
-	     thrust::make_transform_iterator(index_end,   key_functor(gridSize)),
+	     thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
+	     thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 	     ar->dc_coef.begin(), thrust::make_discard_iterator(), ar->dw_coef.begin()
 	   );
 
@@ -959,6 +1025,68 @@ void SphericalBasis::determine_coefficients_cuda()
 			    beg, beg, thrust::plus<cuFP_t>());
 	  
 	  thrust::advance(beg, osize);
+
+	  if (compute) {
+
+	    int sN = N/sampT;
+	    int nT = sampT;
+
+	    if (sN==0) {	// Fail-safe underrun
+	      sN = 1;
+	      nT = N;
+	    }
+
+	    for (int T=0; T<nT; T++) {
+	      int k = sN*T;	// Starting position
+	      int s = sN;
+	      if (T==sampT-1) s = N - k;
+	    
+	      // Begin the reduction per grid block
+	      //
+	      /* A reminder to consider implementing strides in reduceSum */
+	      /*
+	      unsigned int stride1   = s/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+	      unsigned int gridSize1 = s/BLOCK_SIZE/stride1;
+
+	      if (s > gridSize1*BLOCK_SIZE*stride1) gridSize1++;
+	      */
+
+	      unsigned int gridSize1 = s/BLOCK_SIZE;
+	      if (s > gridSize1*BLOCK_SIZE) gridSize1++;
+	      reduceSumS<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
+		(toKernel(ar->dc_coef), toKernel(ar->dN_coef), osize, N, k, k+s);
+      
+				// Finish the reduction for this order
+				// in parallel
+	      thrust::counting_iterator<int> index_begin(0);
+	      thrust::counting_iterator<int> index_end(gridSize1*osize);
+
+	      thrust::reduce_by_key
+		(
+		 thrust::cuda::par.on(cr->stream),
+		 thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
+		 thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
+		 ar->dc_coef.begin(), thrust::make_discard_iterator(), ar->dw_coef.begin()
+		 );
+
+
+	      thrust::transform(thrust::cuda::par.on(cr->stream),
+				ar->dw_coef.begin(), ar->dw_coef.end(),
+				bg[T], bg[T], thrust::plus<cuFP_t>());
+
+	      thrust::advance(bg[T], osize);
+
+	      if (l==0 and m==0) {
+		auto mbeg = ar->u_d.begin();
+		auto mend = mbeg;
+		thrust::advance(mbeg, sN*T);
+		if (T<sampT-1) thrust::advance(mend, sN*(T+1));
+		else mend = ar->u_d.end();
+		
+		host_massT[T] += thrust::reduce(mbeg, mend);
+	      }
+	    }
+	  }
 	}
       }
 
@@ -1561,12 +1689,54 @@ void SphericalBasis::DtoH_coefs(Matrix& expcoef)
       // n loop
       //
       for (int n=1; n<=nmax; n++) {
-	expcoef[loffset+moffset][n] = host_coefs[Ilmn(l, m, 'c', n-1, nmax)];
-	if (m>0) expcoef[loffset+moffset+1][n] = host_coefs[Ilmn(l, m, 's', n-1, nmax)];
+	expcoef0[0][loffset+moffset][n] = host_coefs[Ilmn(l, m, 'c', n-1, nmax)];
+	if (m>0) expcoef0[0][loffset+moffset+1][n] = host_coefs[Ilmn(l, m, 's', n-1, nmax)];
       }
 
       if (m>0) moffset += 2;
       else     moffset += 1;
+    }
+  }
+
+  if (compute) {
+
+    for (int T=0; T<sampT; T++) {
+      massT1[T] += host_massT[T];
+      muse1 [0] += host_massT[T];
+    }
+
+    for (auto r : cuRingData) {
+      // T loop
+      //
+      for (int T=0; T<sampT; T++) {
+
+	thrust::host_vector<cuFP_t> ret = r.T_coef[T];
+
+	int offst = 0;
+	int osize = 2.0*nmax;
+
+	// l loop
+	//
+	for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
+
+	  // m loop
+	  //
+	  for (int m=0, moffset=0; m<=l; m++) {
+	
+	    // n loop
+	    //
+	    for (int n=1; n<=nmax; n++) {
+	      (*expcoefT1[T])[loffset+moffset][n] += ret[2*(n-1) + offst];
+	      if (m>0) (*expcoefT1[T])[loffset+moffset+1][n] += ret[2*(n-1) + 1 + offst];
+	    }
+
+	    offst += osize;
+
+	    if (m>0) moffset += 2;
+	    else     moffset += 1;
+	  }
+	}
+      }
     }
   }
 }

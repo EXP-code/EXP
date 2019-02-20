@@ -77,7 +77,7 @@ testQuantile_LDADD   = libtestdsmc.a $(BOOST_PROGRAM_OPTIONS_LIB) $(CUDA_LIBFLAG
 
 testCrossCuda_SOURCES = testCrossCuda.cc
 testCrossCuda_DEPENDENCIES = libtestdsmc.a
-testCrossCuda_LDFLAGS = $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@ $(CUDA_LDFLAGS)
+testCrossCuda_LDFLAGS = $(EXTRA_LDFLAGS) $(BOOST_LDFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@ $(CUDA_LDFLAGS)
 testCrossCuda_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libtestdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
 
 # the rule that can recognize *.cu files and compile the *.cu files to

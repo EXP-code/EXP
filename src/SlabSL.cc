@@ -226,8 +226,6 @@ void SlabSL::get_acceleration_and_potential(Component* C)
 {
   cC = C;
 
-  determine_coefficients();
-
   MPL_start_timer();
   exp_thread_fork(false);
   MPL_stop_timer();

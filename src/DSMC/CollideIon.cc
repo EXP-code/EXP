@@ -709,6 +709,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   meanE    .resize(nthrds);
   meanR    .resize(nthrds);
   meanM    .resize(nthrds);
+  debye    .resize(nthrds);
   cellM    .resize(nthrds);
   neutF    .resize(nthrds);
   numIf    .resize(nthrds);
@@ -2647,7 +2648,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
       meanM[id] = 0.0;
 
       size_t nbods = cell->bods.size();
-      double massP = 0.0, numbP = 0.0, massE = 0.0;
+      double massP = 0.0, numbP = 0.0, massE = 0.0, massI = 0.0;
       double evel2 = 0.0, ivel2 = 0.0;
 
       meanM[id] = 0.0;
@@ -2660,31 +2661,66 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 	massP += p->mass;
 	
 				// Mass-weighted trace fraction
-	double ee = 0.0;
+	double ee = 0.0, ii = 0.0;
 	for (auto s : SpList) {
 	  double ww    = p->dattrib[s.second]/atomic_weights[s.first.first];
 				// Mean number
 	  numbP += p->mass * ww;
 				// Electron fraction
-	  ee += p->dattrib[s.second] * (s.first.second - 1);
+	  unsigned short q = s.first.second - 1;
+	  ee += ww * q;
+	  ii += ww * q*q;
 	}
 
 	double eVel2 = 0.0, iVel2 = 0.0;
 	for (int l=0; l<3; l++) {
 	  double ve  = p->dattrib[use_elec+l];
-	  eVel2 += ve*ve;
+	  eVel2     += ve*ve;
 	  double vi  = p->vel[l];
-	  iVel2 += vi*vi;
+	  iVel2     += vi*vi;
 	}
 
 	evel2 += p->mass * ee * eVel2;
 	ivel2 += p->mass * iVel2;
 	massE += p->mass * ee;
+	massI += p->mass * ii;
       }
 
+      // Estimate Debye length
+      /*
+	λ_D = [k_b/(4*pi*e^2*(n_e/T_e + ∑_{ij} n_{ij}*c_j^2/T_i))]^{1/2}
+	    = [4*pi*e^2*(n_e/(k_B*T_e) + ∑_{ij} n_{ij}*c_j^2/(k_B*T_i)]^{-1/2}
+	    = [4*pi*e^2*3/2*(n_e/KE_e + ∑_{ij} n_{ij}*c_j^2/KE_i]^{-1/2}
+	    = [6*pi*e^2*(n_e/KE_e + ∑_{ij} n_{ij}*c_j^2/KE_i]^{-1/2}
+
+	where
+
+	λ_D is the Debye length,
+	e is the electric charge
+	k_b is Boltzmann's constant,
+	T_e and T_i are the temperatures of the electrons and ions, respectively,
+	KE_e and KE_i are the kinetic energies per particle of the electrons and ions, respectively,
+	n_e is the density of electrons,
+	n_{ij} is the density of atomic species i, with positive ionic charge c_j
+      */
+
+      double ni  = numbP * dfac;
+      double ne  = massE * dfac;
+      double cj  = massI * dfac;
+      
+      double dfac = TreeDSMC::Munit/amu / (pow(TreeDSMC::Lunit, 3.0)*volc);
+
+      double Ni  = numbP*TreeDSMC::Munit/amu;
+      double Ne  = massE*TreeDSMC::Munit/amu;
+      double KEi = ivel2*TreeDSMC::Eunit / Ni;
+      double KEe = evel2*TreeDSMC::Eunit * atomic_weights[0] / Ne;
+
+      debye[id]  = 1.0/sqrt(6.0*M_PI*esu*esu*(ne/KEe + ni/KEi));
+      debye[id] /= TreeDSMC::Lunit;
+
       if (numbP>0.0) meanM[id] = massP/numbP;
-      if (massP>0.0) Ivel2[id] = ivel2/massP;
-      if (massE>0.0) Evel2[id] = evel2/massE;
+      if (numbP>0.0) Ivel2[id] = ivel2/numbP;
+      if (numbP>0.0) Evel2[id] = evel2/numbP;
 
     } // END: no NTC, estimate plasma cross section only
 
@@ -4595,6 +4631,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 				     Particle* const _p1, Particle* const _p2,
 				     double cr)
 {
+  // Velocity threshold
+  //
+  cr = std::max<double>(cr, 1.0e-16);
+
   // Channel probability tally
   //
   for (auto & v : CProb[id]) v = 0.0;
@@ -5069,14 +5109,16 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  }
 	}
 	
-	if (DEBUG_CRS) trap_crs(crs);
+	if (crs>0.0 and not std::isnan(crs)) {
+	  if (DEBUG_CRS) trap_crs(crs);
 	
-	Interact::T t { ion_elec, Ion, Interact::edef };
+	  Interact::T t { ion_elec, Ion, Interact::edef };
 	
-	hCross[id].push_back(XStup(t));
-	hCross[id].back().crs = crs;
+	  hCross[id].push_back(XStup(t));
+	  hCross[id].back().crs = crs;
 
-	CProb[id][1] += crs;
+	  CProb[id][1] += crs;
+	}
       }
 	  
       // Particle 2 ION, Particle 1 ELECTRON
@@ -5099,14 +5141,16 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  }
 	}
 	
-	if (DEBUG_CRS) trap_crs(crs);
+	if (crs>0.0 and not std::isnan(crs)) {
+	  if (DEBUG_CRS) trap_crs(crs);
 	
-	Interact::T t { ion_elec, Interact::edef, Ion };
+	  Interact::T t { ion_elec, Interact::edef, Ion };
 	  
-	hCross[id].push_back(XStup(t));
-	hCross[id].back().crs = crs;
+	  hCross[id].push_back(XStup(t));
+	  hCross[id].back().crs = crs;
 	  
-	CProb[id][2] += crs;
+	  CProb[id][2] += crs;
+	}
       }
 
     }
@@ -13122,6 +13166,9 @@ void CollideIon::scatterTraceMM
 
   if (m1<1.0) m1 *= pp->eta1;
   if (m2<1.0) m2 *= pp->eta2;
+
+  m1 = std::max<double>(m1, 1.0e-12); 
+  m2 = std::max<double>(m2, 1.0e-12); 
 
   // Total effective mass in the collision
   //

@@ -72,6 +72,7 @@ int Mstep = 0;
 int mstep = 0;
 vector<int> mfirst, mintvl, stepL, stepN;
 vector< vector<bool> > mactive;
+vector< vector<int> > dstepL, dstepN;
 
 
 				// Multithreading data structures for

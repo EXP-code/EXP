@@ -28,11 +28,11 @@ protected:
   //! vtk diagnostic frequency
   unsigned vtkfreq;
 
-  //! PCA jackknife variance
-  bool pcajknf;
-
-  //! Frequency of PCA recomputation
+  //! Frequency of PCA computation
   int npca;
+
+  //! First step for PCA computation
+  int npca0;
 
   /**
      Expansion coefficients (summed over all nodes)
@@ -57,11 +57,6 @@ protected:
 
   //! Sqr root of the normalization
   Matrix sqnorm;
-
-  //@{
-  //! The variance for all nodes and per node (respectively)
-  Matrix *cc, *cc1;
-  //@}
 
   //! Accumulated mass for variance computation
   double muse;
@@ -98,7 +93,7 @@ public:
   virtual ~AxisymmetricBasis();
 
   //! Compute component noise suppression using PCA analysis
-  void pca_hall(int compute);
+  void pca_hall(bool compute);
 
   //! Reset used particle counter
   virtual void multistep_reset() { used=0; }
@@ -119,7 +114,7 @@ private:
   Vector eval;
   Vector cuml;
   Matrix *evec;
-  Matrix Tevec;
+  Matrix *Tevec;
   Matrix covar;
 
 };

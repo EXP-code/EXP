@@ -21,7 +21,7 @@
 
 #include "AddDisk.h"
 #include "SphericalSL.h"
-#include "EmpOrth9thd.h"
+#include "EmpCylSL.h"
 #include "SParticle.H"
 
 class DiskHalo

@@ -1,5 +1,5 @@
-#ifndef _EmpOrth_h
-#define _EmpOrth_h
+#ifndef _EmpCylSL_h
+#define _EmpCylSL_h
 
 #include <vector>
 
@@ -50,7 +50,6 @@ private:
   int NORDER;
   int NKEEP;
 
-  int hallfreq, hallcount;
   unsigned nbodstot;
   string hallfile;
 
@@ -117,7 +116,6 @@ private:
   vector<Vector**> accum_sinL, accum_sinN;
   vector< vector<unsigned> > howmany1;
   vector<unsigned> howmany;
-  vector<unsigned> dstepL, dstepN;
 
   Vector* accum_cos;
   Vector* accum_sin;
@@ -132,8 +130,6 @@ private:
   Matrix *vc, *vs;
 
   Matrix tabp, tabf, tabd;
-
-  Vector* hold;
 
   std::vector<short> coefs_made;
   bool eof_made;
@@ -151,55 +147,46 @@ private:
   int    cache_grid(int, string file="");		
   double integral(int, int, int, int);
   void   get_pot(Matrix&, Matrix&, double, double);
-  void   pca_hall(void);
   double massR(double R);
   double densR(double R);
 
-  //! PCA basis structure for caching and diagnostics
-  class PCAbasis
+  //! Data for each harmonic subspace
+  class PCAelement
   {
   public:
-
-    //! Data for each harmonic subspace
-    class PCAelement
-    {
-    public:
-      //@{
-      //! All the public data
-      Vector evalJK;
-      Vector meanJK;
-      Vector coefJK;
-      Vector b_Hall;
-      Matrix covrJK;
-      Matrix evecJK;
-      //@}
+    //@{
+    //! All the public data
+    Vector evalJK;
+    Vector meanJK;
+    Vector b_Hall;
+    Matrix covrJK;
+    Matrix evecJK;
+    //@}
+    
+    //! Constructor
+    PCAelement(int n) {
+      meanJK.setsize(1, n);
+      b_Hall.setsize(1, n);
+      covrJK.setsize(1, n, 1, n);
+      evecJK.setsize(1, n, 1, n);
+    }
       
-      //! Constructor
-      PCAelement(int n)
-      {
-	meanJK.setsize(1, n);
-	coefJK.setsize(1, n);
-	b_Hall.setsize(1, n);
-	covrJK.setsize(1, n, 1, n);
-	evecJK.setsize(1, n, 1, n);
-      }
-      
-      //! Zero all data
-      void reset()
-      {
-	meanJK.zero();
-	coefJK.zero();
-	b_Hall.zero();
-	covrJK.zero();
-	evecJK.zero();
-      }
-      
-    };
+    //! Zero all data
+    void reset() {
+      meanJK.zero();
+      b_Hall.zero();
+      covrJK.zero();
+      evecJK.zero();
+    }
+    
+  };
 
-    typedef boost::shared_ptr<PCAelement> PCAelemPtr;
+  typedef boost::shared_ptr<PCAelement> PCAelemPtr;
 
-    //! The cosine and sine spaces
-    std::map<int, PCAelemPtr> C, S;
+  //! PCA basis structure for caching and diagnostics
+  class PCAbasis : public std::map<int, PCAelemPtr>
+  {
+  public:
 
     //! Mass in the accumulation
     double Tmass;
@@ -208,8 +195,7 @@ private:
     PCAbasis(int M, int n)
     {
       for (int m=0; m<=M; m++) {
-	C[m] = PCAelemPtr(new PCAelement(n));
-	if (m) S[m] = PCAelemPtr(new PCAelement(n));
+	(*this)[m] = PCAelemPtr(new PCAelement(n));
       }
       reset();
     }
@@ -217,8 +203,7 @@ private:
     //! Reset all variables to zero for accumulation
     void reset()
     {
-      for (auto v : C) v.second->reset();
-      for (auto v : S) v.second->reset();
+      for (auto v : *this) v.second->reset();
       Tmass = 0.0;
     }
 
@@ -373,13 +358,11 @@ public:
 	       double& p, double& d, double& fr, double& fz, double& fp);
 
   //! Setup for accumulated coefficients
-  //@{
-  //! All levels
-  void setup_accumulation(void);
-  //! Single level
-  void setup_accumulation(int mlevel);
+  void setup_accumulation(int toplev=0);
+
   //! For EOF
   void setup_eof(void);
+
   //! Clear mass counter
   void reset_mass(void);
   //@}
@@ -387,11 +370,17 @@ public:
   //! Make coefficients from accumulated data
   //@{
   //! All levels
-  void make_coefficients(void);
+  void make_coefficients(bool compute=false);
+
   //! Single level
-  void make_coefficients(unsigned mlevel);
+  void make_coefficients(unsigned mlevel, bool compute=false);
+
   //! Make empirical orthgonal functions
   void make_eof(void);
+
+  //! Compute PCA
+  void pca_hall(bool compute);
+
   //! True if coefficients are made at all levels
   bool coefs_made_all() 
   {
@@ -406,6 +395,7 @@ public:
 
   //! Necessary member function currently unused (change design?)
   void determine_coefficients() {};
+
   //! Necessary member function currently unused (change design?)
   void determine_acceleration_and_potential() {};
 
@@ -527,12 +517,24 @@ public:
   void setEven(bool even=true) { EVEN_M = even; }
 
   //! Set frequency and file name for selector output
-  inline void setHall(string file, unsigned tot, int n=50)
+  inline void setHall(string file, unsigned tot)
   {
     hallfile = file;
     nbodstot = tot;
-    hallfreq = n;
     init_pca();
+
+    if (myid==0) {
+      const string types[] = {
+	"Hall", 
+	"Null"};
+
+      const string desc[] = {
+	"Tapered signal-to-noise power defined by Hall",
+	"Compute the S/N but do not modify coefficients"};
+
+      cout << "EmpCylSL: using PCA type: " << types[tk_type]
+	   << "====>" << desc[tk_type] << endl;
+    }
   }
 
   //! Set frequency and file name for selector output
@@ -591,6 +593,31 @@ public:
       return accum_cosN[mlevel][0][m][n];
     else
       return accum_sinN[mlevel][0][m][n];
+  }
+
+  double& set_coefT(int T, int m, int n, char c)
+  {
+    if (m >  MMAX)
+      throw std::runtime_error("m>mmax");
+
+    if (n >= rank3)
+      throw std::runtime_error("n>=norder");
+
+    if (T >= sampT)
+      throw std::runtime_error("T>=sampT");
+
+    if (c == 'c')
+      return (*accum_cos2[0][T])[m][n];
+    else
+      return (*accum_sin2[0][T])[m][n];
+  }
+
+  double& set_massT(int T)
+  {
+    if (T >= sampT)
+      throw std::runtime_error("T>=sampT");
+
+    return massT1[0][T];
   }
 
 #endif

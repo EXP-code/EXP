@@ -70,14 +70,25 @@ std::ostream& operator<< (std::ostream& os, const cudaParticle& p)
 {
   std::streamsize sp = os.precision();
   os.precision(6);
+  // Index, level, mass
   os << std::setw(10) << p.indx
      << std::setw( 4) << p.level
      << std::setw(16) << p.mass;
+
+  // Position
   for (int k=0; k<3; k++) os << std::setw(16) << p.pos[k];
-  // for (int k=0; k<3; k++) os << std::setw(16) << p.vel[k];
+
+  // Velocity
+  for (int k=0; k<3; k++) os << std::setw(16) << p.vel[k];
+
+  // Acceleration
   for (int k=0; k<3; k++) os << std::setw(16) << p.acc[k];
-  // os << std::setw(16) << p.pot << std::setw(16) << p.potext;
+
+  // Potential
+  os << std::setw(16) << p.pot << std::setw(16) << p.potext;
+
 #if DATTRIB_CUDA>0
+  // Double attributes
   for (int n=0; n<DATTRIB_CUDA; n++) os << std::setw(16) << p.datr[n];
 #endif
 

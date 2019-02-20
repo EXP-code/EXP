@@ -52,8 +52,8 @@ void VtkPCA::Add(const Vector& Coef,
   std::vector<int> R;
 
   if (reorder) {
-    std::map<double, int> reord;
-    for (int i=SnrV.getlow(); i<=SnrV.gethigh(); i++) reord[SnrV[i]] = i;
+    std::multimap<double, int> reord;
+    for (int i=SnrV.getlow(); i<=SnrV.gethigh(); i++) reord.insert(std::make_pair(SnrV[i], i));;
     for (auto i=reord.rbegin(); i!=reord.rend(); i++) R.push_back(i->second);
   } else {
     for (int i=SnrV.getlow(); i<=SnrV.gethigh(); i++) R.push_back(i);
@@ -129,7 +129,7 @@ void VtkPCA::Add(const Vector& Coef,
 		 const Vector& Eval,
 		 const Matrix& Evec,
 		 const Matrix& Covr,
-		 int l, int m, char tag)
+		 int l, int m)
 {
   vtkFloatArrayP C = vtkFloatArrayP::New();
   vtkFloatArrayP H = vtkFloatArrayP::New();
@@ -143,8 +143,8 @@ void VtkPCA::Add(const Vector& Coef,
   std::vector<int> R;
 
   if (reorder) {
-    std::map<double, int> reord;
-    for (int i=SnrV.getlow(); i<=SnrV.gethigh(); i++) reord[SnrV[i]] = i;
+    std::multimap<double, int> reord;
+    for (int i=SnrV.getlow(); i<=SnrV.gethigh(); i++) reord.insert(std::make_pair(SnrV[i], i));
     for (auto i=reord.rbegin(); i!=reord.rend(); i++) R.push_back(i->second);
   } else {
     for (int i=SnrV.getlow(); i<=SnrV.gethigh(); i++) R.push_back(i);
@@ -215,7 +215,7 @@ void VtkPCA::Add(const Vector& Coef,
 
   // Add label
   std::ostringstream lab;
-  lab << l << "_" << m << "_" << tag;
+  lab << l << "_" << m;
   elab.push_back(lab.str());
 }
 

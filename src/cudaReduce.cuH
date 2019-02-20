@@ -43,10 +43,18 @@ __global__ void reduceSum(dArray<T> out, dArray<T> in,
     unsigned int i = blockIdx.x*blockSize*2 + tid;
 
     while (i < n) {
-      // Sanity check
-      if (i+n*j>=in._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
-      if (i+blockSize<n)
-	if (i+n*j+blockSize>=in._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+      // Sanity checks
+      //
+      if (i+n*j>=in._s) {
+	printf("out of bounds: %d >= %d @ %s:%d\n",
+	       i+n*j, in._s, __FILE__, __LINE__);
+      }
+
+      if (i+blockSize<n) {
+	if (i+n*j+blockSize>=in._s)
+	  printf("out of bounds: block %d >= %d @ %s:%d\n",
+		 i+n*j+blockSize, in._s, __FILE__, __LINE__);
+      }
 
       sdata[tid] +=
 	in._v[i + n*j] + (i+blockSize<n ? in._v[i + blockSize + n*j] : T(0));
@@ -88,8 +96,84 @@ __global__ void reduceSum(dArray<T> out, dArray<T> in,
     }
 
     if (tid == 0) {
-      if (blockIdx.x + j*gridDim.x>=out._s)
+      if (blockIdx.x + j*gridDim.x>=out._s) {
 	printf("reduceSum: out of bounds, b=%d/%d j=%d\n", blockIdx.x, gridDim.x, j);
+      }
+      
+     out._v[blockIdx.x + j*gridDim.x] = sdata[tid];
+    }
+    __syncthreads();
+  }
+}
+
+template <typename T, unsigned int blockSize>
+__global__ void reduceSumS(dArray<T> out, dArray<T> in,
+			   unsigned int dim, unsigned int n,
+			   unsigned int beg, unsigned int e)
+{
+  extern __shared__ T sdata[];
+
+  unsigned int tid      = threadIdx.x;
+  unsigned int gridSize = blockSize*gridDim.x*2;
+    
+  for (unsigned j=0; j<dim; j++) {
+
+    sdata[tid] = 0;
+    
+    unsigned int i = blockIdx.x*blockSize*2 + beg + tid;
+
+    while (i < e) {
+      // Sanity checks
+      //
+      if (i+n*j>=in._s) {
+	printf("reduceSumS out of bounds: %d >= %d @ %s:%d\n",
+	       i+n*j, in._s, __FILE__, __LINE__);
+      }
+
+      sdata[tid] +=
+	in._v[i + n*j] + (i+blockSize<e ? in._v[i + blockSize + n*j] : T(0));
+      i += gridSize;
+    }
+  
+    __syncthreads();
+  
+    if (blockSize >= 1024) {
+      if (tid < 512) {
+	sdata[tid] += sdata[tid + 512];
+	__syncthreads();
+      }
+    }
+    
+    if (blockSize >= 512) {
+      if (tid < 256) {
+	sdata[tid] += sdata[tid + 256];
+      }
+      __syncthreads();
+    }
+
+    if (blockSize >= 256) {
+      if (tid < 128) {
+	sdata[tid] += sdata[tid + 128];
+      }
+      __syncthreads();
+    }
+
+    if (blockSize >= 128) {
+      if (tid < 64) {
+	sdata[tid] += sdata[tid + 64];
+      }
+      __syncthreads();
+    }
+
+    if (tid < 32) {
+      warpReduce<T, blockSize>(&sdata[0], tid);
+    }
+
+    if (tid == 0) {
+      if (blockIdx.x + j*gridDim.x>=out._s) {
+	printf("reduceSumS: out of bounds, b=%d/%d j=%d\n", blockIdx.x, gridDim.x, j);
+      }
+      
      out._v[blockIdx.x + j*gridDim.x] = sdata[tid];
     }
     __syncthreads();

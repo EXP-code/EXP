@@ -64,40 +64,50 @@ void begin_run(void)
   //===============================
 
   initializing = true;
+  
+  //================================
+  // Multistep level initialization
+  //================================
 
   if (multistep) {
-    sync_eval_multistep();	// Use last coefficient evaluation
-    for (int M=0; M<=multistep; M++) {
-      comp->compute_expansion(M);
-    }
-  } else {
+
     comp->multistep_reset();
+
+    //=====================================
+    // Compute coefficients at every level
+    //=====================================
+
+    for (int M=0; M<=multistep; M++) comp->compute_expansion(M);
+    //                          ^
+    //                          |
+    // Loop on all levels-------+
+
+    //========================
+    // Compute full potential
+    //========================
+
+    comp->compute_potential(0);
+    //                      ^
+    //                      |
+    //   All time levels----/
+
+    //==============================
+    // Initialize multistep levels
+    //==============================
+
+    adjust_multistep_level(true);
+    //                     ^
+    //                     |
+    // Do all particles----+
   }
 
-  comp->compute_potential(0);
-  //                      ^
-  //                      |
-  //   All time levels----/
+  //===========================================
+  // Compute coefficients (again if multistep)
+  //===========================================
 
-  //==============================
-  // Initialize multistep levels
-  //==============================
-  adjust_multistep_level(true);
-  //                     ^
-  //                     |
-  // Do all particles---/
+  if (multistep) comp->multistep_reset();
 
-
-  // Then recompute coefficients . . . 
-  //
-  if (multistep) {
-    sync_eval_multistep();	// Use last coefficient evaluation
-    for (int M=0; M<=multistep; M++) {
-      comp->compute_expansion(M);
-    }
-  } else {
-    comp->multistep_reset();
-  }
+  for (int M=0; M<=multistep; M++) comp->compute_expansion(M);
 
   comp->compute_potential(0);
 

@@ -4,7 +4,7 @@
 #include <Vector.h>
 #include <Orient.H>
 #include <Basis.H>
-#include <EmpOrth9thd.h>
+#include <EmpCylSL.h>
 
 #include "config.h"
 
@@ -45,10 +45,10 @@ private:
   int nmax, lmax, mmax;
   int ncylnx, ncylny, ncylr;
   double hcyl;
-  int ncylorder, ncylrecomp, hallfreq, vtkfreq;
+  int ncylorder, ncylrecomp, npca, npca0, nvtk;
   string eof_file;
-  bool self_consistent, logarithmic, density, pca, pcainit, pcavtk;
-  bool cmap, try_cache, firstime, dump_basis;
+  bool self_consistent, logarithmic, density, pca, pcainit, pcavtk, pcadiag;
+  bool cmap, try_cache, firstime, dump_basis, compute, firstime_coef;
 
   // These should be ok for all derived classes, hence declared private
 
@@ -71,7 +71,7 @@ private:
     nvTracerPtr tPtr;
     if (cuda_prof)
       tPtr = nvTracerPtr(new nvTracer("Cylinder::compute_multistep_coefficients"));
-    ortho->compute_multistep_coefficients(mlevel);
+    ortho->compute_multistep_coefficients(mfirst[mstep]);
   }
 
   //! Reset used particle counter and mass registers
@@ -84,11 +84,14 @@ protected:
 
   //! CUDA method for coefficient accumulation
 #if HAVE_LIBCUDA==1
-  virtual void determine_coefficients_cuda();
+  virtual void determine_coefficients_cuda(bool compute_pca);
   virtual void determine_acceleration_cuda();
 
-  thrust::host_vector<cuFP_t>   host_coefs;
+  thrust::host_vector  <cuFP_t> host_coefs, host_massT;
   thrust::device_vector<cuFP_t> dev_coefs;
+  std::vector<thrust::host_vector<cuFP_t>> host_coefsT;
+
+  int sampT;
 
   virtual void HtoD_coefs();
   virtual void DtoH_coefs(int mlevel);
@@ -98,6 +101,7 @@ protected:
 
   virtual void initialize_cuda()
   {
+    sampT = floor(sqrt(component->nbodies_tot));
     ortho->initialize_cuda(cuInterpArray, tex);
   }
 
@@ -105,7 +109,6 @@ protected:
   {
     return ortho->getCudaMappingConstants();
   }
-
 
   virtual void destroy_cuda();
 
@@ -125,10 +128,12 @@ protected:
     thrust::device_vector<cuFP_t> dc_coef;
     thrust::device_vector<cuFP_t> dw_coef;
     thrust::device_vector<cuFP_t> df_coef;
-    thrust::device_vector<cuFP_t> X_d, Y_d, m_d, p_d;
-    thrust::device_vector<int>    iX_d, iY_d;
+    thrust::device_vector<cuFP_t> X_d, Y_d, m_d, u_d, p_d;
+    thrust::device_vector<int   > iX_d, iY_d;
 
-    void resize_coefs(int ncylorder, int mmax, int N, int gridSize);
+    std::vector<thrust::device_vector<cuFP_t>> T_coef;
+
+    void resize_coefs(int ncylorder, int mmax, int N, int gridSize, int sampT, bool pca);
   };
 
   //! Cyclical ring interator for storage
@@ -181,10 +186,12 @@ public:
   //! \param ncylny is the vertical grid in the basis function table
   //! \param ncylr is the size of the spherical radial grid used to construct the cylindrical basis
   //! \param ncylrecomp is the number of steps between basis recomputation (default: -1 which means NEVER)
-  //! \param hallfreq is the number of step Hall coefficient recomputaton 
-  //! \param vtkfreq is the number of step VTK output 
+  //! \param npca is the number of steps between Hall coefficient recomputaton 
+  //! \param npca0 is the first step for Hall coefficient computaton 
+  //! \param nvtk is the number of step VTK output 
+  //! \param pcadiag set to true enables PCA output diagnostics (default: false)
   //! \param eof_file is an override for the default EOF cache file name
-  //! \param vflag sets verbosity (see EmpOrth9thd.cc)
+  //! \param vflag sets verbosity (see EmpCylSL.cc)
   //! \param rnum is the number of Legendre radial knots for numerical basis computation
   //! \param pnum is the number of azimuthal knots for numerical basis computation
   //! \param tnum is the number of Legendre polar knots for numerical basis computation

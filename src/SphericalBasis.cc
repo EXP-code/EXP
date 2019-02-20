@@ -119,9 +119,6 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
 
   // Coefficient evaluation times
   // 
-  dstepL  = vector<unsigned>(multistep+1, 0);
-  dstepN  = vector<unsigned>(multistep+1, 0);
-
   for (int i=0; i<=multistep; i++) {
     expcoefN.push_back(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
     expcoefL.push_back(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
@@ -150,18 +147,6 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
   }
 
   if (pca) {
-    cc = new Matrix [Lmax*(Lmax+2)+1];
-    if (!cc) throw GenericError("problem allocating <cc>", __FILE__, __LINE__);
-
-    for (int l=0; l<=Lmax*(Lmax+2); l++)
-      cc[l].setsize(1, nmax, 1, nmax);
-  
-    cc1 = new Matrix [Lmax*(Lmax+2)+1];
-    if (!cc1) throw GenericError("problem allocating <cc1>", __FILE__, __LINE__);
-    
-    for (int l=0; l<=Lmax*(Lmax+2); l++)
-      cc1[l].setsize(1, nmax, 1, nmax);
-  
     muse1 = vector<double>(nthrds, 0.0);
     muse0 = 0.0;
 
@@ -254,8 +239,6 @@ SphericalBasis::~SphericalBasis()
   delete [] expcoef0;
 
   if (pca) {
-    delete [] cc;
-    delete [] cc1;
     pthread_mutex_destroy(&cc_lock);
   }
   delete [] potd;
@@ -298,34 +281,6 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
   cC = C;			// "Register" component
   nbodies = cC->Number();	// And compute number of bodies
 
-  //====================================================
-  // Accel & pot using previously computed coefficients 
-  //====================================================
-
-  if (use_external) {
-
-    MPL_start_timer();
-    determine_acceleration_and_potential();
-    MPL_stop_timer();
-
-    use_external = false;
-
-    return;
-  }
-
-
-  //======================
-  // Compute coefficients 
-  //======================
-
-  if (firstime_accel || self_consistent || initializing) {
-    if (multistep)
-      compute_multistep_coefficients();
-    else
-      determine_coefficients();
-    firstime_accel = false;
-  }
-  
   if (NOISE) update_noise();
 
   //======================================
@@ -364,7 +319,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 {
   int l, loffset, moffset, m, n, nn, indx;
   double r, r2, rs, fac1, fac2, costh, phi, mass;
-  double facs1=0.0, facs2=0.0, fac0=4.0*M_PI;
+  double fac0=4.0*M_PI;
   double xx, yy, zz;
 
   unsigned nbodies = cC->levlist[mlevel].size();
@@ -434,12 +389,10 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
       if (compute) {
 	muse1[id] += mass;
-	if (pcajknf) {
-	  whch = indx % sampT;
-	  pthread_mutex_lock(&cc_lock);
-	  massT1[whch] += mass;
-	  pthread_mutex_unlock(&cc_lock);
-	}
+	whch = indx % sampT;
+	pthread_mutex_lock(&cc_lock);
+	massT1[whch] += mass;
+	pthread_mutex_unlock(&cc_lock);
       }
 
       //		l loop
@@ -447,17 +400,15 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	//		m loop
 	for (m=0, moffset=0; m<=l; m++) {
 	  if (m==0) {
-	    if (compute) facs1 = legs[id][l][m]*legs[id][l][m]*mass;
 	    for (n=1; n<=nmax; n++) {
-	      expcoef0[id][loffset+moffset][n] += potd[id][l][n]*legs[id][l][m]*mass*fac0/normM[l][n];
+
+	      double hold = potd[id][l][n]*legs[id][l][m]*mass*fac0/normM[l][n];
+
+	      expcoef0[id][loffset+moffset][n] += hold;
 
 	      if (compute) {
 		pthread_mutex_lock(&cc_lock);
-		for (nn=n; nn<=nmax; nn++)
-		  cc1[loffset+moffset][n][nn] += potd[id][l][n]*potd[id][l][nn]*facs1/(normM[l][n]*normM[l][nn]);
-		if (pcajknf) {
-		  (*expcoefT1[whch])[loffset+moffset][n] += potd[id][l][n]*legs[id][l][m]*mass*fac0/normM[l][n];
-		}
+		(*expcoefT1[whch])[loffset+moffset][n] += hold;
 		pthread_mutex_unlock(&cc_lock);
 	      }
 	    }
@@ -466,39 +417,32 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	  else {
 	    fac1 = legs[id][l][m]*cosm[id][m];
 	    fac2 = legs[id][l][m]*sinm[id][m];
-	    if (compute) {
-	      facs1 = fac1*fac1*mass;
-	      facs2 = fac2*fac2*mass;
-	    }
+
 	    for (n=1; n<=nmax; n++) {
 
-	      expcoef0[id][loffset+moffset  ][n] += potd[id][l][n]*fac1*mass*fac0/normM[l][n];
-	      expcoef0[id][loffset+moffset+1][n] += potd[id][l][n]*fac2*mass*fac0/normM[l][n];
+	      double hold = potd[id][l][n]*mass*fac0/normM[l][n];
 
-	      if (compute && mlevel==0) {
+	      expcoef0[id][loffset+moffset  ][n] += hold*fac1;
+	      expcoef0[id][loffset+moffset+1][n] += hold*fac2;
+
+	      if (compute) {
 		pthread_mutex_lock(&cc_lock);
-		for (nn=n; nn<=nmax; nn++) {
-		  cc1[loffset+moffset][n][nn] += 
-		    potd[id][l][n]*potd[id][l][nn]*facs1/(normM[l][n]*normM[l][nn]);
-
-		  cc1[loffset+moffset+1][n][nn] +=
-		    potd[id][l][n]*potd[id][l][nn]*facs2/(normM[l][n]*normM[l][nn]);
-		}
-		if (pcajknf) {
-		  (*expcoefT1[whch])[loffset+moffset  ][n] += potd[id][l][n]*fac1*mass*fac0/normM[l][n];
-		  (*expcoefT1[whch])[loffset+moffset+1][n] += potd[id][l][n]*fac2*mass*fac0/normM[l][n];
-		}
+		(*expcoefT1[whch])[loffset+moffset  ][n] += hold*fac1;
+		(*expcoefT1[whch])[loffset+moffset+1][n] += hold*fac2;
 		pthread_mutex_unlock(&cc_lock);
 	      }
 	      
 	    }
 	    moffset+=2;
-	  }
-	}
-      }
-    }
+	  } // m!=0
 
-  }
+	} // m loop
+
+      } // l loop
+
+    } // r < rmax
+
+  } // particle loop
 
   thread_timing_end(id);
 
@@ -518,11 +462,42 @@ void SphericalBasis::determine_coefficients(void)
 
   // Return if we should leave the coefficients fixed
   //
-  if (!self_consistent && !firstime_accel && !initializing) return;
+  if (!self_consistent && !firstime_coef && !initializing) return;
 
-  int loffset, moffset, use0, use1;
+  if (pca) {
+    if (this_step >= npca0) 
+      compute = (mstep == 0) && !( (this_step-npca0) % npca);
+    else
+      compute = false;
+  }
 
-  if (pca) compute = (mstep == 0) && (!(this_step%npca) || firstime_coef);
+
+  int loffset, moffset, use1;
+
+  if (compute) {
+
+    if (sampT == 0) {		// Allocate storage
+      sampT = floor(sqrt(cC->nbodies_tot));
+      massT    .resize(sampT, 0);
+      massT1   .resize(sampT, 0);
+      
+      expcoefT .resize(sampT);
+      for (auto & t : expcoefT ) t = MatrixP(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
+      
+      expcoefT1.resize(sampT);
+      for (auto & t : expcoefT1) t = MatrixP(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
+    }
+
+    // Zero arrays?
+    //
+    if (mlevel==0) {
+      for (int n=0; n<nthrds; n++) muse1[n] = 0.0;
+      muse0 = 0.0;
+      
+      for (auto & t : expcoefT1) t->zero();
+      for (auto & v : massT1)    v = 0;
+    }
+  }
 
 #ifdef DEBUG
   cout << "Process " << myid << ": in <determine_coefficients>" << endl;
@@ -532,57 +507,18 @@ void SphericalBasis::determine_coefficients(void)
   // Swap interpolation arrays
   //
   Matrix *p = expcoefL[mlevel];
-
+  
   expcoefL[mlevel] = expcoefN[mlevel];
   expcoefN[mlevel] = p;
   
   //
-  // Augment the interpolation step counter for this level
-  //
-  dstepL[mlevel]   = dstepN[mlevel];
-  dstepN[mlevel]  += mintvl[mlevel];
-
-  if (0) {
-    if (myid==0) cout << "swapping"
-		      << ": minS="    << dstepL[mlevel]
-		      << ", maxS="    << dstepN[mlevel] 
-		      << ", M="       << mlevel 
-		      << ", delstep=" << mintvl[mlevel] << endl;
-  }
-  //
   // Clean arrays for current level
   //
   expcoefN[mlevel]->zero();
-
+    
   for (int i=0; i<nthrds; i++) expcoef0[i].zero();
     
-  if (compute && mlevel==0) {
-    for (int l=0; l<=Lmax*(Lmax+2); l++) cc1[l].zero();
-    for (int n=0; n<nthrds; n++) muse1[n] = 0.0;
-    muse0 = 0.0;
-
-    if (pcajknf) {
-
-      if (sampT == 0) {		// Allocate storage
-	sampT = floor(sqrt(cC->nbodies_tot));
-	massT    .resize(sampT, 0);
-	massT1   .resize(sampT, 0);
-
-	expcoefT .resize(sampT);
-	for (auto & t : expcoefT ) t = MatrixP(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
-	
-	expcoefT1.resize(sampT);
-	for (auto & t : expcoefT1) t = MatrixP(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
-      }
-				// Zero arrays
-      for (auto & t : expcoefT1) t->zero();
-      for (auto & v : massT1)    v = 0;
-    }
-  }
-
-  use0  = 0;
-  use1  = 0;
-  
+  use1 = 0;
   if (multistep==0) used = 0;
     
 #ifdef DEBUG
@@ -614,12 +550,14 @@ void SphericalBasis::determine_coefficients(void)
   MPI_Barrier(MPI_COMM_WORLD);
   if (myid==0) cout << endl;
 #endif
-
+    
 #if HAVE_LIBCUDA==1
   if (component->cudaDevice>=0) {
-    start1 = std::chrono::high_resolution_clock::now();
-    determine_coefficients_cuda();
-    DtoH_coefs(expcoef0[0]);
+    start1  = std::chrono::high_resolution_clock::now();
+    if (cC->levlist[mlevel].size()) {
+      determine_coefficients_cuda(compute);
+      DtoH_coefs(expcoef0[0]);
+    }
     finish1 = std::chrono::high_resolution_clock::now();
   } else {
     exp_thread_fork(true);
@@ -627,7 +565,7 @@ void SphericalBasis::determine_coefficients(void)
 #else
   exp_thread_fork(true);
 #endif
-
+  
 #ifdef DEBUG
   cout << "Process " << myid << ": in <determine_coefficients>, thread returned, lev=" << mlevel << endl;
 #endif
@@ -637,17 +575,13 @@ void SphericalBasis::determine_coefficients(void)
   //
   for (int i=0; i<nthrds; i++) use1 += use[i];
   for (int i=1; i<nthrds; i++) expcoef0[0] += expcoef0[i];
-  if (compute) {
-    for (int i=0; i<nthrds; i++) muse0 += muse1[i];
-    MPI_Allreduce ( &muse0, &muse,  1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  
+  if (multistep==0 or tnow==resetT) {
+    used += use1;
   }
   
-  MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-
-  if (multistep==0 or tnow==resetT) used += use0;
-
   for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
-      
+    
     for (int m=0, moffset=0; m<=l; m++) {
 
       if (m==0) {
@@ -662,9 +596,9 @@ void SphericalBasis::determine_coefficients(void)
 			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	
 	moffset++;
-
+	  
       } else {
-
+	
 	if (multistep) {
 	  MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
 			  &((*expcoefN[mlevel])[loffset+moffset][1]),
@@ -687,10 +621,28 @@ void SphericalBasis::determine_coefficients(void)
     }
   }
   
-  if (compute && multistep==0) {
-    parallel_gather_coef2();
-    pca_hall(1);
-    firstime_coef = 0;
+  //======================================
+  // Last level?
+  //======================================
+  
+  if (mlevel==multistep) {
+
+    //======================================
+    // Multistep update
+    //======================================
+
+    if (multistep) compute_multistep_coefficients();
+
+    //======================================
+    // PCA computation
+    //======================================
+    
+    if (compute) {
+      for (int i=0; i<nthrds; i++) muse0 += muse1[i];
+      MPI_Allreduce ( &muse0, &muse,  1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      parallel_gather_coef2();
+      pca_hall(compute);
+    }
   }
 
   print_timings("SphericalBasis: coefficient timings");
@@ -713,13 +665,58 @@ void SphericalBasis::determine_coefficients(void)
     std::cout << std::string(60, '=') << std::endl;
   }
 #endif
+
+  //================================
+  // Dump coefficients for debugging
+  //================================
+
+  if (false and myid==0 and mstep==0 and mlevel==multistep) {
+
+    std::cout << std::string(60, '-') << std::endl
+	      << "-- SphericalBasis T=" << std::setw(16) << tnow << std::endl
+	      << std::string(60, '-') << std::endl;
+
+    for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
+      
+      for (int m=0, moffset=0; m<=l; m++) {
+
+	if (m==0) {
+	  
+	  for (int n=1; n<=nmax; n++) {
+	    std::cout << std::setw(4)  << l
+		      << std::setw(4)  << m
+		      << std::setw(4)  << n
+		      << std::setw(18) << expcoef[loffset+moffset][n]
+		      << std::endl;
+	  }
+
+	  moffset++;
+	  
+	} else {
+	  
+	  for (int n=1; n<=nmax; n++) {
+	    std::cout << std::setw(4)  << l
+		      << std::setw(4)  << m
+		      << std::setw(4)  << n
+		      << std::setw(18) << expcoef[loffset+moffset  ][n]
+		      << std::setw(18) << expcoef[loffset+moffset+1][n]
+		      << std::endl;
+	  }
+
+	  moffset+=2;
+	}
+      }
+    }
+    std::cout << std::string(60, '-') << std::endl;
+  }
+
+  firstime_coef = false;
 }
 
 void SphericalBasis::multistep_reset()
 {
   used   = 0;
   resetT = tnow;
-  for (int M=0; M<=multistep; M++) dstepN[M] = 0;
 }
 
 
@@ -858,47 +855,27 @@ void SphericalBasis::compute_multistep_coefficients()
 
 				// Interpolate to get coefficients above
   double a, b;			// 
-  for (int M=0; M<mlevel; M++) {
+  for (int M=0; M<mfirst[mstep]; M++) {
 
-    				// No interpolation? Should never happen!
-    if ( dstepN[M] == dstepL[M] ) {
-      
-      for (int l=0; l<=Lmax*(Lmax+2); l++) {
-	for (int n=1; n<=nmax; n++) 
-	  expcoef[l][n] += (*expcoefN[M])[l][n];
-      }
+    b = (double)(mstep - dstepL[M][mstep])/(double)(dstepN[M][mstep] - dstepL[M][mstep]);
+    a = 1.0 - b;
 
-      if (myid==0)		// Print warning
-	cerr << "Process " << myid << " SphericalBasis: "
-	     << "interpolation override in compute_multistep_coefficients()"
-	     << ", mstep="   << mstep 
-	     << ", delstep=" << mintvl[M] 
-	     << ", M="       << M
-	     << ", N="       << dstepN[M] 
-	     << ", L="       << dstepL[M] 
+    for (int l=0; l<=Lmax*(Lmax+2); l++) {
+      for (int n=1; n<=nmax; n++) 
+	expcoef[l][n] += a*(*expcoefL[M])[l][n] + b*(*expcoefN[M])[l][n];
+    }
+    
+    if (0) {
+      if (myid==0) {
+	cerr << "Interpolate:"
+	     << " M="     << setw(4) << M
+	     << " mstep=" << setw(4) << mstep 
+	     << " minS="  << setw(4) << dstepL[M][mstep]
+	     << " maxS="  << setw(4) << dstepN[M][mstep]
+	     << " a="     << setw(8) << a 
+	     << " b="     << setw(8) << b 
+	     << " c01="   << setw(8) << expcoef[0][1]
 	     << endl;
-
-    } else {
-
-      b = (double)(mstep - dstepL[M])/(double)(dstepN[M] - dstepL[M]);
-      a = 1.0 - b;
-      for (int l=0; l<=Lmax*(Lmax+2); l++) {
-	for (int n=1; n<=nmax; n++) 
-	  expcoef[l][n] += a*(*expcoefL[M])[l][n] + b*(*expcoefN[M])[l][n];
-      }
-
-      if (0) {
-	if (myid==0) {
-	  cerr << "Interpolate:"
-	       << " M="     << setw(4) << M
-	       << " minS="  << setw(4) << dstepL[M] 
-	       << " maxS="  << setw(4) << dstepN[M]
-	       << " mstep=" << setw(4) << mstep 
-	       << " a="     << setw(8) << a 
-	       << " b="     << setw(8) << b 
-	       << " c01="   << setw(8) << expcoef[0][1]
-	       << endl;
-	}
       }
 				// Sanity debug check
 				// 
@@ -914,7 +891,7 @@ void SphericalBasis::compute_multistep_coefficients()
   }
 				// Add coefficients at or below this level
 				// 
-  for (int M=mlevel; M<=multistep; M++) {
+  for (int M=mfirst[mstep]; M<=multistep; M++) {
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
       for (int n=1; n<=nmax; n++) 
 	expcoef[l][n] += (*expcoefN[M])[l][n];
@@ -930,29 +907,6 @@ void SphericalBasis::compute_multistep_coefficients()
 	   << endl;
     }
   }
-
-#ifdef DEBUG
-  /*
-  if (myid==0) {
-    ofstream out("multistep_update.debug", ios::app);
-    out << setw(70) << setfill('-') << '-' << endl;
-    ostringstream sout;
-    sout << "--- mlevel=" << mlevel << "/" << multistep
-	 << " T=" << tnow << " ";
-    out << setw(70) << left << sout.str().c_str() << endl << setfill(' ');
-    out << setw(70) << setfill('-') << '-' << endl << setfill(' ');
-    ostringstream sout2;
-    sout2 << left << setw(5) << "# l" << setw(5) << "| n"
-	  << setw(18) << "| coef" << endl << right;
-    for (int l=0; l<=Lmax*(Lmax+2); l++) {
-      for (int n=1; n<=nmax; n++) 
-	out << setw(5) << l << setw(5) << n 
-	    << setw(18) << expcoef[l][n] << endl;
-    }
-    out << endl;
-  }
-  */
-#endif
 
 #ifdef TMP_DEBUG
   if (myid==0) {
@@ -997,16 +951,6 @@ void SphericalBasis::compute_multistep_coefficients()
 	<< endl;
   }
 #endif
-
-  if (pca) {
-    if (compute) {
-      parallel_gather_coef2();
-      pca_hall(1);
-      firstime_coef = 0;
-    } else {
-      pca_hall(0);
-    }
-  }
 
 }
 

@@ -34,18 +34,18 @@ bin_PROGRAMS = gendisk shrinkics gendisk2 gsphere pstmod gendisk3	\
 shrinkics_SOURCES = shrinkics.cc
 shrinkics_LDADD = $(EXPLIBS)
 
-gendisk_SOURCES = initial.cc DiskHalo.cc EmpOrth9thd.cc \
+gendisk_SOURCES = initial.cc DiskHalo.cc EmpCylSL.cc \
 	SphericalSL.cc legendre.cc Particle.cc SParticle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
 gendisk_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
-gendisk2_SOURCES =  initial2.cc DiskHalo2.cc EmpOrth9thd.cc \
+gendisk2_SOURCES =  initial2.cc DiskHalo2.cc EmpCylSL.cc \
 	SphericalSL.cc legendre.cc Particle.cc SParticle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
 gendisk2_LDFLAGS =  $(EXPFLAGS) $(BOOST_LDFLAGS)
 gendisk2_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(BOOST_LIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
-gendisk3_SOURCES =  initial3.cc DiskHalo3.cc EmpOrth9thd.cc \
+gendisk3_SOURCES =  initial3.cc DiskHalo3.cc EmpCylSL.cc \
 	CylDisk.cc SphericalSL.cc legendre.cc Particle.cc SParticle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
 gendisk3_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
@@ -58,11 +58,11 @@ pstmod_SOURCES = pst_model.cc CylindricalDisk.cc EllipsoidForce.cc SLSphere.cc
 pstmod_LDFLAGS = $(EXPFLAGS)
 pstmod_LDADD = $(COMMON_LIBS) $(EXPLIBS)
 
-empinfo_SOURCES = empinfo.cc EmpOrth9thd.cc localmpi.cc
+empinfo_SOURCES = empinfo.cc EmpCylSL.cc localmpi.cc
 empinfo_LDFLAGS = $(EXPFLAGS)
 empinfo_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
-empdump_SOURCES = empdump.cc EmpOrth9thd.cc localmpi.cc
+empdump_SOURCES = empdump.cc EmpCylSL.cc localmpi.cc
 empdump_LDFLAGS = $(EXPFLAGS)
 empdump_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
@@ -98,7 +98,7 @@ CylindricalDisk.cc:	$(top_srcdir)/utils/SL/CylindricalDisk.cc
 SLSphere.cc:		$(top_srcdir)/utils/SL/SLSphere.cc
 			cp $(top_srcdir)/utils/SL/$@ .
 
-EmpOrth9thd.cc:		$(top_srcdir)/src/EmpOrth9thd.cc Particle.H
+EmpCylSL.cc:		$(top_srcdir)/src/EmpCylSL.cc Particle.H
 			cp $(top_srcdir)/src/$@ .
 
 localmpi.cc:		$(top_srcdir)/exputil/localmpi.cc
@@ -123,7 +123,7 @@ atomic_constants.H:	$(top_srcdir)/src/DSMC/atomic_constants.H
 			cp $(top_srcdir)/src/DSMC/$@ .
 
 
-CLEANFILES = EmpOrth9thd.cc localmpi.cc CylindricalDisk.cc	\
+CLEANFILES = EmpCylSL.cc localmpi.cc CylindricalDisk.cc	\
 	SLSphere.cc Particle.cc Particle.H Particle.h Species.H \
 	atomic_constants.H atomic_constants.cc
 

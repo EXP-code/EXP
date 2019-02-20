@@ -97,10 +97,10 @@ protected:
 
   //! CUDA method for coefficient accumulation
 #if HAVE_LIBCUDA==1
-  virtual void determine_coefficients_cuda();
+  virtual void determine_coefficients_cuda(bool compute_pca);
   virtual void determine_acceleration_cuda();
 
-  thrust::host_vector<cuFP_t> host_coefs;
+  thrust::host_vector<cuFP_t> host_coefs, host_massT;
   thrust::device_vector<cuFP_t> dev_coefs;
 
   virtual void HtoD_coefs(const Matrix& coef);
@@ -149,10 +149,12 @@ protected:
     thrust::device_vector<cuFP_t> dc_coef;
     thrust::device_vector<cuFP_t> dw_coef;
     thrust::device_vector<cuFP_t> df_coef;
-    thrust::device_vector<cuFP_t> plm1_d, plm2_d, r_d, m_d, a_d, p_d;
-    thrust::device_vector<int>    i_d;
+    thrust::device_vector<cuFP_t> plm1_d, plm2_d, r_d, m_d, u_d, a_d, p_d;
+    thrust::device_vector<int   > i_d;
     
-    void resize_coefs(int nmax, int Lmax, int N, int gridSize);
+    std::vector<thrust::device_vector<cuFP_t>> T_coef;
+
+    void resize_coefs(int nmax, int Lmax, int N, int gridSize, int sampT, bool pca);
     void resize_acc  (int Lmax, int Nthread);
   };
 
@@ -252,7 +254,6 @@ protected:
   //@{
   vector< vector<Matrix> > differ1;
   vector< double > pack, unpack;
-  vector< unsigned > dstepL, dstepN;
   //@}
 
   /** Dump current coefficients (all multistep levels)

@@ -6,7 +6,7 @@ using namespace std;
 
 #include "expand.h"
 #include <gaussQ.h>
-#include <EmpOrth9thd.h>
+#include <EmpCylSL.h>
 #include <Cylinder.H>
 #include <MixtureBasis.H>
 #include <Timer.h>
@@ -59,49 +59,53 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 
 #endif
 
-  id          = "Cylinder";
-  geometry    = cylinder;
-  mix         = m;
-  dof         = 3;
+  id              = "Cylinder";
+  geometry        = cylinder;
+  mix             = m;
+  dof             = 3;
 				// Default values
 
-  rcylmin     = 0.001;		// Should only change these two in
-  rcylmax     = 20.0;		// extreme circumstances
+  rcylmin         = 0.001;	// Should only change these two in
+  rcylmax         = 20.0;	// extreme circumstances
 
-  ncylnx      = 128;		// These defaults should do fine in
-  ncylny      = 128;		// most cases, as well
-  ncylr       = 2000;
+  ncylnx          = 128;	// These defaults should do fine in
+  ncylny          = 128;	// most cases, as well
+  ncylr           = 2000;
 
-  acyl        = 1.0;
-  nmax        = 20;
-  lmax        = 36;
-  mmax        = 4;
-  hcyl        = 1.0;
-  ncylorder   = 10;
-  ncylrecomp  = -1;
+  acyl            = 1.0;
+  nmax            = 20;
+  lmax            = 36;
+  mmax            = 4;
+  hcyl            = 1.0;
+  ncylorder       = 10;
+  ncylrecomp      = -1;
 
-  rnum        = 100;
-  pnum        = 40;
-  tnum        = 40;
-  ashift      = 0.25;
+  rnum            = 100;
+  pnum            = 40;
+  tnum            = 40;
+  ashift          = 0.25;
 
-  vflag       = 0;
-  eof         = 1;
-  hallfreq    = 50;
+  vflag           = 0;
+  eof             = 1;
+  npca            = 50;
+  npca0           = 0;
   self_consistent = true;
-  firstime    = true;
-  expcond     = true;
-  cmap        = true;
-  logarithmic = false;
-  pca         = false;
-  pcavtk      = false;
-  vtkfreq     = 1;
-  pcainit     = true;
-  density     = false;
-  coef_dump   = true;
-  try_cache   = true;
-  dump_basis  = false;
-  eof_file    = "";
+  firstime        = true;
+  expcond         = true;
+  cmap            = true;
+  logarithmic     = false;
+  pca             = false;
+  pcavtk          = false;
+  pcadiag         = false;
+  nvtk            = 1;
+  pcainit         = true;
+  density         = false;
+  coef_dump       = true;
+  try_cache       = true;
+  dump_basis      = false;
+  compute         = false;
+  firstime_coef   = true;
+  eof_file        = "";
 
   initialize();
 
@@ -226,8 +230,10 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	   << " hcyl="        << hcyl
 	   << " expcond="     << expcond
 	   << " pca="         << pca
-	   << " vtkfreq="     << vtkfreq
-	   << " hallfreq="    << hallfreq
+	   << " nvtk="        << nvtk
+	   << " npca="        << npca
+	   << " npca0="       << npca0
+	   << " pcadiag="     << pcadiag
 	   << " eof_file="    << eof_file
 	   << " logarithmic=" << logarithmic
 	   << " vflag="       << vflag
@@ -248,8 +254,10 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	 << " hcyl="        << hcyl
 	 << " expcond="     << expcond
 	 << " pca="         << pca
-	 << " vtkfreq="     << vtkfreq
-	 << " hallfreq="    << hallfreq
+	 << " nvtk="        << nvtk
+	 << " npca="        << npca
+	 << " npca0"        << npca0
+	 << " pcadiag="     << pcadiag
 	 << " eof_file="    << eof_file
 	 << " logarithmic=" << logarithmic
 	 << " vflag="       << vflag
@@ -297,8 +305,9 @@ void Cylinder::initialize()
     if (conf["ncylr"     ])      ncylr  = conf["ncylr"     ].as<int>();
     if (conf["ncylorder" ])  ncylorder  = conf["ncylorder" ].as<int>();
     if (conf["ncylrecomp"]) ncylrecomp  = conf["ncylrecomp"].as<int>();
-    if (conf["hallfreq"  ])   hallfreq  = conf["hallfreq"  ].as<int>();
-    if (conf["vtkfreq"   ])    vtkfreq  = conf["vtkfreq"   ].as<int>();
+    if (conf["npca"      ])       npca  = conf["npca"      ].as<int>();
+    if (conf["npca0"     ])      npca0  = conf["npca0"     ].as<int>();
+    if (conf["nvtk"      ])       nvtk  = conf["nvtk"      ].as<int>();
     if (conf["eof_file"  ])   eof_file  = conf["eof_file"  ].as<std::string>();
     if (conf["vflag"     ])      vflag  = conf["vflag"     ].as<int>();
     
@@ -310,6 +319,7 @@ void Cylinder::initialize()
     if (conf["logr"      ]) logarithmic = conf["logr"      ].as<bool>();
     if (conf["pca"       ])        pca  = conf["pca"       ].as<bool>();
     if (conf["pcavtk"    ])     pcavtk  = conf["pcavtk"    ].as<bool>();
+    if (conf["pcadiag"   ])    pcadiag  = conf["pcadiag"   ].as<bool>();
     if (conf["try_cache" ])  try_cache  = conf["try_cache" ].as<bool>();
     if (conf["density"   ])    density  = conf["density"   ].as<bool>();
     if (conf["cmap"      ])       cmap  = conf["cmap"      ].as<bool>();
@@ -364,46 +374,6 @@ void Cylinder::get_acceleration_and_potential(Component* C)
     use_external = false;
 
     return;
-  }
-
-  //======================
-  // Compute coefficients 
-  //======================
-
-  // On first call, will try to read cached tables rather
-  // than recompute from distribution
-  
-  if (self_consistent || initializing) {
-    if (multistep)
-      compute_multistep_coefficients();
-    else
-      determine_coefficients();
-  }
-  
-  //=========================
-  // Dump basis on first call
-  //=========================
-
-  if ( dump_basis and (this_step==0 || (expcond and ncompcyl==0) )
-       && ortho->coefs_made_all() && !initializing) {
-
-    if (myid == 0 and multistep==0 || mstep==0) {
-      
-      nvTracerPtr tPtr2;
-      if (cuda_prof) {
-	tPtr2 = nvTracerPtr(new nvTracer("Cylinder::dump basis"));
-      }
-
-      ortho->dump_basis(runtag.c_str(), this_step);
-      
-      ostringstream dumpname;
-      dumpname << "images" << "." << runtag << "." << this_step;
-      ortho->dump_images(dumpname.str(), 5.0*acyl, 5.0*hcyl, 64, 64, true);
-      //
-      // This next call is ONLY for deep debug
-      //
-      // dump_mzero(runtag.c_str(), this_step);
-    }
   }
 
 
@@ -627,7 +597,7 @@ void Cylinder::determine_coefficients(void)
 
   static char routine[] = "determine_coefficients_Cylinder";
 
-  if (!self_consistent && !initializing) return;
+  if (!self_consistent && !firstime_coef && !initializing) return;
 
   if (!expcond && firstime) {
 				// Try to read cache
@@ -656,18 +626,29 @@ void Cylinder::determine_coefficients(void)
   if (pca and pcainit) {
     EmpCylSL::SELECT = true;
     EmpCylSL::PCAVTK = pcavtk;
-    EmpCylSL::VTKFRQ = vtkfreq;
+    EmpCylSL::VTKFRQ = nvtk;
     std::ostringstream sout;
-    sout << runtag << ".pcadiag." << cC->id << "." << cC->name;
-    ortho->setHall(sout.str(), component->nbodies_tot, hallfreq);
+    if (pcadiag) 
+      sout << runtag << ".pcadiag." << cC->id << "." << cC->name;
+    ortho->setHall(sout.str(), component->nbodies_tot);
+    if (myid==0) {
+      std::cout << "Cylinder: PCA initialized";
+      if (pcadiag) 
+	std::cout << ", writing diagnostic output to <"
+		  << sout.str() << ">";
+      std::cout << std::endl;
+    }
     pcainit = false;
   }
 
-  if (multistep==0)
-    ortho->setup_accumulation();
-  else {
-    ortho->setup_accumulation(mlevel);
+  if (pca) {
+    if (this_step >= npca0)
+      compute = (mstep == 0) && !( (this_step-npca0) % npca);
+    else
+      compute = false;
   }
+
+  ortho->setup_accumulation(mlevel);
 
   cylmass0.resize(nthrds);
 
@@ -692,12 +673,21 @@ void Cylinder::determine_coefficients(void)
   MPI_Barrier(MPI_COMM_WORLD);
   if (myid==0) cout << endl;
 #endif
-
+    
 #if HAVE_LIBCUDA==1
   if (component->cudaDevice>=0) {
     start1 = std::chrono::high_resolution_clock::now();
-    determine_coefficients_cuda();
-    DtoH_coefs(mlevel);
+    
+    if (mstep==0) {
+      std::fill(use.begin(), use.end(), 0.0);
+      std::fill(cylmass0.begin(), cylmass0.end(), 0.0);
+    }
+
+    if (cC->levlist[mlevel].size()) {
+      determine_coefficients_cuda(compute);
+      DtoH_coefs(mlevel);
+    }
+
     finish1 = std::chrono::high_resolution_clock::now();
   } else {    
     exp_thread_fork(true);
@@ -708,34 +698,63 @@ void Cylinder::determine_coefficients(void)
 #endif
 				// Accumulate counts and mass used to
 				// determine coefficients
-  int use0=0, use1=0;
+  int use1=0, use0=0;
   double cylmassT1=0.0, cylmassT0=0.0;
-
+  
   for (int i=0; i<nthrds; i++) {
-    use1 += use[i];
+    use1      += use[i];
     cylmassT1 += cylmass0[i];
   }
-
 				// Turn off timer so as not bias by 
 				// communication barrier
   MPL_stop_timer();
 
-  MPI_Allreduce ( &use1, &use0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce ( &cylmassT1, &cylmassT0, 1, MPI_DOUBLE, MPI_SUM, 
-		  MPI_COMM_WORLD );
+  if (tnow==resetT) {
 
-  if (multistep==0 or tnow==resetT) {
+    MPI_Allreduce ( &use1, &use0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce ( &cylmassT1, &cylmassT0, 1, MPI_DOUBLE, MPI_SUM, 
+		    MPI_COMM_WORLD );
+
     used    += use0;
     cylmass += cylmassT0;
   }
-  
+
   MPL_start_timer();
 
 				// Make the coefficients for this level
   if (multistep==0 || !self_consistent) {
-    ortho->make_coefficients();
-  } else {
-    ortho->make_coefficients(mlevel);
+    ortho->make_coefficients(compute);
+  } else if (mlevel==multistep) {
+    ortho->make_coefficients(mfirst[mstep], compute);
+    compute_multistep_coefficients();
+  }
+
+  if (pca and mlevel==multistep) ortho->pca_hall(compute);
+
+  //=========================
+  // Dump basis on first call
+  //=========================
+
+  if ( dump_basis and (this_step==0 || (expcond and ncompcyl==0) )
+       && ortho->coefs_made_all() && !initializing) {
+
+    if (myid == 0 and multistep==0 || mstep==0) {
+      
+      nvTracerPtr tPtr2;
+      if (cuda_prof) {
+	tPtr2 = nvTracerPtr(new nvTracer("Cylinder::dump basis"));
+      }
+
+      ortho->dump_basis(runtag.c_str(), this_step);
+      
+      ostringstream dumpname;
+      dumpname << "images" << "." << runtag << "." << this_step;
+      ortho->dump_images(dumpname.str(), 5.0*acyl, 5.0*hcyl, 64, 64, true);
+      //
+      // This next call is ONLY for deep debug
+      //
+      // dump_mzero(runtag.c_str(), this_step);
+    }
   }
 
   print_timings("Cylinder: coefficient timings");
@@ -759,6 +778,19 @@ void Cylinder::determine_coefficients(void)
   }
 #endif
 
+  //================================
+  // Dump coefficients for debugging
+  //================================
+
+  if (false and myid==0 and mstep==0 and mlevel==multistep) {
+    std::cout << std::string(60, '-') << std::endl
+	      << "-- Cylinder T=" << std::setw(16) << tnow << std::endl
+	      << std::string(60, '-') << std::endl;
+    ortho->dump_coefs(std::cout);
+    std::cout << std::string(60, '-') << std::endl;
+  }
+
+  firstime_coef = false;
 }
 
 
@@ -809,7 +841,7 @@ void Cylinder::determine_coefficients_eof(void)
   if (myid==0) cerr << "Cylinder: coefs computed\n";
 
   eof = 0;
-}    
+}
 
 
 void check_force_values(double phi, double p, double fr, double fz, double fp)

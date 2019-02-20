@@ -22,7 +22,7 @@ void OutPS::initialize()
       filename = Output::conf["filename"].as<std::string>();
     } else {
       filename.erase();
-      filename = outdir + "OUT" + runtag;
+      filename = outdir + "OUT." + runtag;
     }
 
     if (Output::conf["nint"])

@@ -161,12 +161,6 @@ void CBrockDisk::get_acceleration_and_potential(Component* curComp)
     return;
   }
 
-  //======================
-  // Compute coefficients 
-  //======================
-
-  if (self_consistent || initializing) determine_coefficients();
-
   //======================================
   // Determine potential and acceleration 
   //======================================
@@ -185,6 +179,9 @@ void CBrockDisk::determine_coefficients(void)
 {
   int compute;
   int l, i, n, nn;
+
+  if (!self_consistent && !initializing) return;
+
 
   if (pca) compute = !(this_step%npca);
 

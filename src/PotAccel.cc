@@ -21,7 +21,6 @@ call_any_threads_thread_call(void *atp)
 }
                    
 pthread_mutex_t PotAccel::cc_lock;
-int PotAccel::compute;
 
 void PotAccel::exp_thread_fork(bool coef)
 {
@@ -176,12 +175,15 @@ PotAccel::PotAccel(const YAML::Node& CONF) : conf(CONF)
   geometry     = other;
   use_external = false;
   coef_dump    = false;
+  compute      = false;
   dof          = 3;
   mlevel       = 0;
 
   // Per thread counter
-  use = new int [nthrds];
-  if (!use) {
+  try {
+    use.resize(nthrds);
+  }
+  catch (...) {
     throw GenericError("problem allocating <use>", __FILE__, __LINE__);
   }
 
@@ -192,7 +194,6 @@ PotAccel::PotAccel(const YAML::Node& CONF) : conf(CONF)
 
 PotAccel::~PotAccel(void)
 {
-  delete [] use;
 }
 
 

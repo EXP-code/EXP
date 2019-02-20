@@ -138,6 +138,8 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
 	// -----------------------
 	if (stanza.name.find(" ") != std::string::npos) {
 	  stanza.ttype = stanza.name.substr(0, stanza.name.find(" "));
+	} else {
+	  stanza.ttype = stanza.name;
 	}
 
       } // END: new PSP

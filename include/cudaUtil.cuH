@@ -167,6 +167,15 @@ dArray<T> toKernel(thrust::device_vector<T>& dev)
   return {thrust::raw_pointer_cast(&dev[0]), dev.size()};
 }
 
+// Template function to convert device_vector to structure for passing
+// from host to device in a cuda kernel
+//
+template <typename T>
+dArray<T> toKernelS(thrust::device_vector<T>& dev, int start, int size)
+{
+  return {thrust::raw_pointer_cast(&dev[start]), size};
+}
+
 
 // Select floating point type size for single/double precision switch
 //

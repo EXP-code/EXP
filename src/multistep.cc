@@ -7,16 +7,6 @@
 #include <chrono>
 #include <map>
 
-
-void sync_eval_multistep(void)
-{
-  comp->multistep_reset();
-				// This forces interpolation to evaluate to 
-				// the last set of computed coefficients
-  mstep = Mstep;
-}
-
-
 //
 // Helper class to pass info to threaded multistep update routine
 //
@@ -548,7 +538,42 @@ void initialize_multistep()
     }
   }
 
+				// Compute interpolation arrays
+  std::vector<int> dstep(multistep+1);
+  dstepL.resize(multistep+1);
+  dstepN.resize(multistep+1);
+
+  for (int ms=0; ms<=multistep; ms++) {
+    dstep[ms] = 1<<ms;
+    dstepL[ms].resize(Mstep, 0);
+    dstepN[ms].resize(Mstep, 0);
+  }
+
+  for (int ms=0; ms<=multistep; ms++) {
+    int rev = multistep - ms;
+    for (int n=0; n<Mstep; n++) {
+      dstepL[rev][n] = (n/dstep[ms])*dstep[ms];
+      dstepN[rev][n] = dstepL[rev][n] + dstep[ms];
+    }
+  }
+
+
   if (VERBOSE>10 && myid==0 && multistep) {
+    std::cout << std::setw(70) << std::setfill('-') << '-' << std::endl
+	      << std::setw(70) << std::left << "--- Multistep level interpolation intervals " << std::endl
+	      << std::setw(70) << setfill('-') << '-' << std::endl << std::setfill(' ') << std::right;
+
+    for (int l=0; l<=multistep; l++) {
+      for (int n=0; n<Mstep; n++) {
+	std::cout << std::setw(4) << l
+		  << std::setw(4) << n
+		  << std::setw(8) << dstepL[l][n]
+		  << std::setw(8) << dstepN[l][n]
+		  << std::endl;
+      }
+    }
+    std::cout << std::endl;
+
     cout << setw(70) << setfill('-') << '-' << endl
 	 << setw(70) << left << "--- Multistep level control structure " << endl
 	 << setw(70) << setfill('-') << '-' << endl << setfill(' ') << right;

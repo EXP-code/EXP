@@ -169,6 +169,9 @@ extern vector<int> mintvl;
 //! Lowest synchronized level at a step
 extern vector<int> mfirst;
 
+//! Multistep interpolation array
+extern vector< vector<int> > dstepL, dstepN;
+
 //! Multistep level flag: levels currently synchronized
 extern vector< vector<bool> > mactive;
 
