@@ -297,6 +297,15 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	    }
 	    cof << std::endl;
 	  }
+	  cof << "#" << std::endl
+	      << "# Covariance matrix" << std::endl
+	      << "#" << std::endl;
+	  for (int i=1; i<=nmax; i++) {
+	    for (int j=1; j<=nmax; j++) {
+	      cof << std::setw(12) << covrJK[i][j];
+	    }
+	    cof << std::endl;
+	  }
 	}
 
 	// Cumulative distribution
