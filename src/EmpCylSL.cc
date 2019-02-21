@@ -2770,6 +2770,19 @@ void EmpCylSL::pca_hall(bool compute)
 	  }
 	  mout << std::endl;
 	}
+
+	mout << "# Covariance matrix" << std::endl;
+	for (int nn=0; nn<rank3; nn++) {
+	  for (int oo=0; oo<rank3; oo++) {
+	    double nm = 0.0;
+	    for (int pp=0; pp<rank3; pp++) 
+	      nm +=
+		(*pb)[mm]->covrJK.Transpose()[nn+1][pp+1] *
+		(*pb)[mm]->covrJK.Transpose()[oo+1][pp+1] ;
+	    mout << std::setw(12) << nm;
+	  }
+	  mout << std::endl;
+	}
       }
 
       // Projected coefficients
