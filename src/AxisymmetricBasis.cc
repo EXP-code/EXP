@@ -12,10 +12,11 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
   pca       = false;
   pcadiag   = false;
   pcavtk    = false;
+  pcaeof    = false;
   vtkfreq   = 1;
   tksmooth  = 3.0;
   tkcum     = 0.95;
-  tk_type   = Null;
+  tk_type   = None;
   sampT     = 0;
 
   string val;
@@ -30,6 +31,7 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
     if (conf["pca"])      pca        = conf["pca"].as<bool>();
     if (conf["pcadiag"])  pcadiag    = conf["pcadiag"].as<bool>();
     if (conf["pcavtk"])   pcavtk     = conf["pcavtk"].as<bool>();
+    if (conf["pcaeof"])   pcavtk     = conf["pcaeof"].as<bool>();
     if (conf["vtkfreq"])  vtkfreq    = conf["vtkfreq"].as<int>();
     if (conf["tksmooth"]) tksmooth   = conf["tksmooth"].as<double>();
     if (conf["tkcum"])    tkcum      = conf["tkcum"].as<double>();
@@ -83,6 +85,9 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
     for (int l=0; l<=Lmax; l++)
       for (int n=1; n<=nmax; n++) sqnorm[l][n] = 1.0;
 
+    tvar.resize(Ldim);
+    for (auto & v : tvar) v = MatrixP(new Matrix(1, nmax, 1, nmax));
+
     if (myid==0) {
 
       const string types[] = {
@@ -90,7 +95,7 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
 	"VarianceCut", 
 	"CumulativeCut",
 	"VarianceWeighted", 
-	"Null"};
+	"None"};
 
       const string desc[] = {
 	"Tapered signal-to-noise power defined by Hall",
@@ -148,8 +153,10 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	  << setw(18) << "var(coef)"
 	  << setw(18) << "cum var"
 	  << setw(18) << "S/N"
-	  << setw(18) << "B_Hall"
-	  << endl;
+	  << setw(18) << "B_Hall";
+      if (tvar.size())
+	out << setw(18) << "EOF";
+      out << endl;
     } else {
       cout << "AxisymmetricBasis::pca_hall: could not open output file <"
 	   << sout1.str() << ">" << endl
@@ -213,11 +220,13 @@ void AxisymmetricBasis::pca_hall(bool compute)
     Vector meanJK;
     Matrix covrJK;
     Matrix evecJK;
+    Vector eofvec;
     double Tmass = 0.0;
     
     covrJK.setsize(1, nmax, 1, nmax);
     meanJK.setsize(1, nmax);
     evecJK.setsize(1, nmax, 1, nmax);
+    eofvec.setsize(1, nmax);
 
     std::vector<double> meanJK1(nmax), meanJK2(nmax);
 
@@ -306,6 +315,45 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	    }
 	    cof << std::endl;
 	  }
+
+	  if (tvar.size()) {
+
+	    Matrix evecVar(1, nmax, 1, nmax);
+	    Vector evalVar = tvar[indxC]->Symmetric_Eigenvalues(evecVar);
+
+	    cof << "# EOF values" << std::endl;
+	    double total = 0.0;
+	    for (int nn=0; nn<nmax; nn++) {
+	      total += evalVar[nn+1];
+	      cof << std::setw(12) << evalVar[nn+1];
+	    }
+	    cof << std::endl;
+
+	    cof << "# EOF accumulation" << std::endl;
+	    double cum = 0.0;
+	    for (int nn=0; nn<nmax; nn++) {
+	      cum += evalVar[nn+1];
+	      cof << std::setw(12) << cum/total;
+	    }
+	    cof << std::endl;
+
+	    cof << "# EOF eigenvectors" << std::endl;
+	    for (int nn=0; nn<nmax; nn++) {
+	      for (int oo=0; oo<nmax; oo++)
+		cof << std::setw(12) << evecVar.Transpose()[nn+1][oo+1];
+	      cof << std::endl;
+	    }
+
+	    Vector initVar(1, nmax);
+	    for (int nn=0; nn<nmax; nn++) {
+	      initVar[nn+1] = expcoef[indx][nn+1] * expcoef[indx][nn+1];
+	      if (m) initVar[nn+1] += expcoef[indx+1][nn+1] * expcoef[indx+1][nn+1];
+	      initVar[nn+1] = sqrt(eofvec[nn+1]);
+	    }
+
+	    eofvec = evecVar.Transpose() * initVar;
+	  }
+
 	}
 
 	// Cumulative distribution
@@ -366,6 +414,8 @@ void AxisymmetricBasis::pca_hall(bool compute)
 		  << setw(18) << cumlJK[n]
 		  << setw(18) << "***"
 		  << setw(18) << "***";
+	    if (tvar.size())
+	      out << setw(18) << eofvec[n];
 	    out << endl;
 	  }
 	  
@@ -438,7 +488,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
     
       inv = evec[indxC] * smth;
       for (int n=1; n<=nmax; n++) {
-	if (tk_type != Null) expcoef[indx][n]  = inv[n];
+	if (tk_type != None) expcoef[indx][n]  = inv[n];
 	if (tk_type == Hall) expcoef[indx][n] *= b_Hall[indxC][n];
       }
   
@@ -456,7 +506,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	
 	inv = evec[indxC] * smth;
 	for (int n=1; n<=nmax; n++) {
-	  if (tk_type != Null) expcoef[indx+1][n]  = inv[n];
+	  if (tk_type != None) expcoef[indx+1][n]  = inv[n];
 	  if (tk_type == Hall) expcoef[indx+1][n] *= b_Hall[indxC][n];
 	}
 	
@@ -556,21 +606,43 @@ void AxisymmetricBasis::parallel_gather_coef2(void)
 		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     }
   }
+
+  int Lsize = (Lmax+1)*(Lmax+2)/2;
+
+  std::vector<double> MPIinT(nmax*nmax*Lsize);
+  std::vector<double> MPIotT(nmax*nmax*Lsize);
+
+
+  for (int l=0; l<Lsize; l++) {
+
+    for (int nn=0; nn<nmax; nn++)
+      for (int oo=0; oo<nmax; oo++)
+	MPIinT[nmax*nmax*l + nn*nmax + oo] = (*tvar[l])[nn+1][oo+1];
+  
+    MPI_Allreduce ( &MPIinT[0], &MPIotT[0], nmax*nmax*Lmax,
+		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+    for (int nn=0; nn<nmax; nn++)
+      for (int oo=0; oo<nmax; oo++)
+	(*tvar[l])[nn+1][oo+1]= MPIinT[nmax*nmax*l + nn*nmax + oo];
+    
+  } 
+  
 }
 
 AxisymmetricBasis::TKType AxisymmetricBasis::setTK(const std::string& tk)
 {
-  TKType ret = Null;
+  TKType ret = None;
 
   if      (tk == "Hall")             ret = Hall;
   else if (tk == "VarianceCut")      ret = VarianceCut;
   else if (tk == "CumulativeCut")    ret = CumulativeCut;
   else if (tk == "VarianceWeighted") ret = VarianceWeighted;
-  else if (tk == "Null")             ret = Null;
+  else if (tk == "None")             ret = None;
   else {
     if (myid==0) {
       cout << "AxisymmetricBasis: no such TK type <" << tk << ">"
-	   << " using Null type\n";
+	   << " using None type\n";
     }
   }
 

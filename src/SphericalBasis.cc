@@ -327,6 +327,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
   double adb = component->Adiabatic();
+  std::vector<double> wk(nmax);
 
 #ifdef DEBUG
   pthread_mutex_lock(&io_lock);
@@ -402,16 +403,27 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	  if (m==0) {
 	    for (n=1; n<=nmax; n++) {
 
-	      double hold = potd[id][l][n]*legs[id][l][m]*mass*fac0/normM[l][n];
+	      wk[n-1] = potd[id][l][n]*legs[id][l][m]*mass*fac0/normM[l][n];
 
-	      expcoef0[id][loffset+moffset][n] += hold;
+	      expcoef0[id][loffset+moffset][n] += wk[n-1];
 
 	      if (compute) {
 		pthread_mutex_lock(&cc_lock);
-		(*expcoefT1[whch])[loffset+moffset][n] += hold;
+		(*expcoefT1[whch])[loffset+moffset][n] += wk[n-1];
 		pthread_mutex_unlock(&cc_lock);
 	      }
 	    }
+
+	    if (compute) {
+	      pthread_mutex_lock(&cc_lock);
+	      for (int n=1; n<=nmax; n++) {
+		for (int o=1; o<=nmax; o++) {
+		  (*tvar[loffset+moffset])[n][o] += wk[n-1]*wk[o-1]/mass;
+		}
+	      }
+	      pthread_mutex_unlock(&cc_lock);
+	    }
+
 	    moffset++;
 	  }
 	  else {
@@ -420,19 +432,30 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
 	    for (n=1; n<=nmax; n++) {
 
-	      double hold = potd[id][l][n]*mass*fac0/normM[l][n];
+	      wk[n-1] = potd[id][l][n]*mass*fac0/normM[l][n];
 
-	      expcoef0[id][loffset+moffset  ][n] += hold*fac1;
-	      expcoef0[id][loffset+moffset+1][n] += hold*fac2;
+	      expcoef0[id][loffset+moffset  ][n] += wk[n-1]*fac1;
+	      expcoef0[id][loffset+moffset+1][n] += wk[n-1]*fac2;
 
 	      if (compute) {
 		pthread_mutex_lock(&cc_lock);
-		(*expcoefT1[whch])[loffset+moffset  ][n] += hold*fac1;
-		(*expcoefT1[whch])[loffset+moffset+1][n] += hold*fac2;
+		(*expcoefT1[whch])[loffset+moffset  ][n] += wk[n-1]*fac1;
+		(*expcoefT1[whch])[loffset+moffset+1][n] += wk[n-1]*fac2;
 		pthread_mutex_unlock(&cc_lock);
 	      }
 	      
 	    }
+
+	    if (compute) {
+	      pthread_mutex_lock(&cc_lock);
+	      for (int n=1; n<=nmax; n++) {
+		for (int o=1; o<=nmax; o++) {
+		  (*tvar[loffset+moffset])[n][o] += wk[n-1]*wk[o-1]/mass;
+		}
+	      }
+	      pthread_mutex_unlock(&cc_lock);
+	    }
+
 	    moffset+=2;
 	  } // m!=0
 
@@ -496,6 +519,8 @@ void SphericalBasis::determine_coefficients(void)
       
       for (auto & t : expcoefT1) t->zero();
       for (auto & v : massT1)    v = 0;
+
+      for (auto & v : tvar) v->zero();
     }
   }
 

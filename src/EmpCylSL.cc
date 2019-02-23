@@ -37,6 +37,7 @@ extern Vector Symmetric_Eigenvalues_SYEVD(Matrix& a, Matrix& ef, int M);
 bool     EmpCylSL::DENS            = false;
 bool     EmpCylSL::SELECT          = false;
 bool     EmpCylSL::PCAVTK          = false;
+bool     EmpCylSL::PCAEOF          = false;
 bool     EmpCylSL::CMAP            = false;
 bool     EmpCylSL::logarithmic     = false;
 bool     EmpCylSL::enforce_limits  = false;
@@ -62,7 +63,7 @@ EmpCylSL::EmpCylSL(void)
   coefs_made = vector<short>(multistep+1, false);
   eof_made   = false;
   sampT      = 0;
-  tk_type    = Null;
+  tk_type    = None;
   EVEN_M     = false;
   
   if (DENS)
@@ -236,7 +237,7 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   accum_sin    = 0;
 
   sampT        = 0;
-  tk_type      = Null;
+  tk_type      = None;
 
   cylmass      = 0.0;
   cylmass1     = vector<double>(nthrds);
@@ -1237,6 +1238,9 @@ void EmpCylSL::setup_accumulation(int mlevel)
 
   if (SELECT and mlevel==0 and sampT>0) {
     for (int nth=0; nth<nthrds; nth++) {
+
+      for (auto & v : tvar[nth]) v->zero();
+
       for (unsigned T=0; T<sampT; T++) {
 	massT1[nth][T] = 0.0;
 	accum_cos2[nth][T]->zero();
@@ -1286,6 +1290,9 @@ void EmpCylSL::init_pca()
     sampT = floor(sqrt(nbodstot));
     pthread_mutex_init(&used_lock, NULL);
 
+    if (PCAEOF)
+      tvar    .resize(nthrds);
+
     accum_cos2.resize(nthrds);
     accum_sin2.resize(nthrds);
     massT1    .resize(nthrds);
@@ -1293,6 +1300,12 @@ void EmpCylSL::init_pca()
 
     for (int nth=0; nth<nthrds;nth++) {
       massT1[nth].resize(sampT, 0);
+
+      if (PCAEOF) {
+	tvar[nth].resize(MMAX + 1);
+	for (auto & v : tvar[nth])
+	  v = MatrixP(new Matrix(1, rank3, 1, rank3));
+      }
 
       accum_cos2[nth].resize(sampT);
       accum_sin2[nth].resize(sampT);
@@ -2309,6 +2322,18 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 	accum_sinN[mlevel][id][mm][nn] += hold;
 	if (SELECT) (*accum_sin2[id][whch])[mm][nn] += hold;
       }
+
+      if (SELECT and PCAEOF) {
+	double hold1 = vc[id][mm][nn], hold2 = 0.0;
+	if (mm>0) hold2 = vs[id][mm][nn];
+	double modu1 = sqrt(hold1*hold1 + hold2*hold2)*norm;
+	for (int oo=0; oo<rank3; oo++) {
+	  hold1 = vc[id][mm][oo], hold2 = 0.0;
+	  if (mm>0) hold2 = vs[id][mm][oo];
+	  double modu2 = sqrt(hold1*hold1 + hold2*hold2)*norm;
+	  (*tvar[id][mm])[nn+1][oo+1] += modu1 * modu2 * mass;
+	}
+      }
     }
 
     cylmass1[id] += mass;
@@ -2387,6 +2412,13 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 				//
     for (int nth=1; nth<nthrds; nth++) {
 
+      if (PCAEOF) {
+	for (int mm=0; mm<=MMAX; mm++)
+	  for (int nn=0; nn<rank3; nn++)
+	    for (int oo=0; oo<rank3; oo++)
+	      (*tvar[0][mm])[nn+1][oo+1] += (*tvar[nth][mm])[nn+1][oo+1];
+      }
+	
       for (unsigned T=0; T<sampT; T++) {
 	massT1[0][T] += massT1[nth][T];
 
@@ -2409,8 +2441,29 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     
 
-    // Begin distribution loop for variance jackknife
+    // Test variance
     //
+    if (PCAEOF) {
+
+      std::vector<double> MPIinT(rank3*rank3*(1 + MMAX));
+      std::vector<double> MPIotT(rank3*rank3*(1 + MMAX));
+    
+      for (int mm=0; mm<=MMAX; mm++)
+	for (int nn=0; nn<rank3; nn++)
+	  for (int oo=0; oo<rank3; oo++)
+	    MPIinT[mm*rank3*rank3 + nn*rank3 + oo] = (*tvar[0][mm])[nn+1][oo+1];
+  
+      MPI_Allreduce ( &MPIinT[0], &MPIotT[0], rank3*rank3*(MMAX+1),
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      
+      for (int mm=0; mm<=MMAX; mm++)
+	for (int nn=0; nn<rank3; nn++)
+	  for (int oo=0; oo<rank3; oo++)
+	    (*tvar[0][mm])[nn+1][oo+1] = MPIotT[mm*rank3*rank3 + nn*rank3 + oo];
+    }
+      
+      // Begin distribution loop for variance jackknife
+      //
     for (unsigned T=0; T<sampT; T++) {
       
       for (int mm=0; mm<=MMAX; mm++)
@@ -2664,7 +2717,9 @@ void EmpCylSL::pca_hall(bool compute)
 	     << setw(18) << "var(coef)"
 	     << setw(18) << "cum var"
 	     << setw(18) << "S/N"
-	     << setw(18) << "b_Hall" << std::endl << std::endl;
+	     << setw(18) << "b_Hall";
+	if (PCAEOF) hout << setw(18) << "EOF";
+	hout << std::endl << std::endl;
       } else {
 	cerr << "Could not open <" << ofile.str() << "> for appending output" 
 	     << endl;
@@ -2683,6 +2738,8 @@ void EmpCylSL::pca_hall(bool compute)
     }
     
     std::vector<double> meanJK1(rank3), meanJK2(rank3);
+
+    Vector eofvec(1, rank3);
 
     // Loop through each harmonic subspace [EVEN cosines]
     //
@@ -2773,15 +2830,46 @@ void EmpCylSL::pca_hall(bool compute)
 
 	mout << "# Covariance matrix" << std::endl;
 	for (int nn=0; nn<rank3; nn++) {
-	  for (int oo=0; oo<rank3; oo++) {
-	    double nm = 0.0;
-	    for (int pp=0; pp<rank3; pp++) 
-	      nm +=
-		(*pb)[mm]->covrJK.Transpose()[nn+1][pp+1] *
-		(*pb)[mm]->covrJK.Transpose()[oo+1][pp+1] ;
-	    mout << std::setw(12) << nm;
+	  for (int oo=0; oo<rank3; oo++)
+	    mout << std::setw(12) << (*pb)[mm]->covrJK[nn+1][oo+1];
+	  mout << std::endl;
+	}
+
+	if (PCAEOF) {
+	  Matrix evecVar(1, rank3, 1, rank3);
+	  Vector evalVar = tvar[0][mm]->Symmetric_Eigenvalues(evecVar);
+
+	  mout << "# EOF values" << std::endl;
+	  double total = 0.0;
+	  for (int nn=0; nn<rank3; nn++) {
+	    total += evalVar[nn+1];
+	    mout << std::setw(12) << evalVar[nn+1];
 	  }
 	  mout << std::endl;
+	  
+	  mout << "# EOF accumulation" << std::endl;
+	  double cum = 0.0;
+	  for (int nn=0; nn<rank3; nn++) {
+	    cum += evalVar[nn+1];
+	    mout << std::setw(12) << cum/total;
+	  }
+	  mout << std::endl;
+	  
+	  mout << "# EOF eigenvectors" << std::endl;
+	  for (int nn=0; nn<rank3; nn++) {
+	    for (int oo=0; oo<rank3; oo++)
+	      mout << std::setw(12) << evecVar.Transpose()[nn+1][oo+1];
+	    mout << std::endl;
+	  }
+
+	  Vector initVar(1, rank3);
+	  for (int nn=0; nn<rank3; nn++) {
+	    initVar[nn+1] = accum_cos[mm][nn] * accum_cos[mm][nn];
+	    if (mm) initVar[nn+1] += accum_sin[mm][nn] * accum_sin[mm][nn];
+	    initVar[nn+1] = sqrt(eofvec[nn+1]);
+	  }
+
+	  eofvec = evecVar.Transpose() * initVar;
 	}
       }
 
@@ -2813,14 +2901,17 @@ void EmpCylSL::pca_hall(bool compute)
 	(*pb)[mm]->b_Hall[nn+1]  = 1.0/(1.0 + b);
 	snrval[nn+1] = sqrt(sqr/var);
 
-	if (hout.good()) hout << setw( 4) << mm << setw(4) << nn
-			      << setw(18) << dd[nn+1]
-			      << setw(18) << sqr
-			      << setw(18) << var
-			      << setw(18) << cumlJK[nn+1]
-			      << setw(18) << snrval[nn+1]
-			      << setw(18) << (*pb)[mm]->b_Hall[nn+1] << std::endl;
-	
+	if (hout.good()) {
+	  hout << setw( 4) << mm << setw(4) << nn
+	       << setw(18) << dd[nn+1]
+	       << setw(18) << sqr
+	       << setw(18) << var
+	       << setw(18) << cumlJK[nn+1]
+	       << setw(18) << snrval[nn+1]
+	       << setw(18) << (*pb)[mm]->b_Hall[nn+1];
+	  if (PCAEOF) hout << std::setw(18) << eofvec[nn+1];
+	  hout << std::endl;
+	}
       }
       if (hout.good()) hout << std::endl;
 
@@ -2846,11 +2937,13 @@ void EmpCylSL::pca_hall(bool compute)
     // Clean storage
     //
     for (int nth=0; nth<nthrds; nth++) {
+
+      if (PCAEOF) 
+	for (auto & v : tvar[nth]) v->zero();
+
       for (unsigned T=0; T<sampT; T++) {
 	massT1[nth][T] = 0.0;
-	accum_cos2[nth][T]->setsize(0, MMAX, 0, NORDER-1);
 	accum_cos2[nth][T]->zero();
-	accum_sin2[nth][T]->setsize(0, MMAX, 0, NORDER-1);
 	accum_sin2[nth][T]->zero();
       }
     }

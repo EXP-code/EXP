@@ -47,7 +47,7 @@ private:
   double hcyl;
   int ncylorder, ncylrecomp, npca, npca0, nvtk;
   string eof_file;
-  bool self_consistent, logarithmic, density, pca, pcainit, pcavtk, pcadiag;
+  bool self_consistent, logarithmic, density, pca, pcainit, pcavtk, pcadiag, pcaeof;
   bool cmap, try_cache, firstime, dump_basis, compute, firstime_coef;
 
   // These should be ok for all derived classes, hence declared private
@@ -132,6 +132,11 @@ protected:
     thrust::device_vector<int   > iX_d, iY_d;
 
     std::vector<thrust::device_vector<cuFP_t>> T_coef;
+
+    thrust::device_vector<cuFP_t> dN_tvar;
+    thrust::device_vector<cuFP_t> dc_tvar;
+    thrust::device_vector<cuFP_t> dw_tvar;
+    thrust::device_vector<cuFP_t> df_tvar;
 
     void resize_coefs(int ncylorder, int mmax, int N, int gridSize, int sampT, bool pca);
   };

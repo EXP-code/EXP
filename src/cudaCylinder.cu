@@ -270,18 +270,21 @@ __global__ void coordKernelCyl
 
 
 __global__ void coefKernelCyl
-(dArray<cuFP_t> coef, dArray<cuFP_t> used, dArray<cudaTextureObject_t> tex,
+(dArray<cuFP_t> coef, dArray<cuFP_t> tvar,
+ dArray<cuFP_t> used, dArray<cudaTextureObject_t> tex,
  dArray<cuFP_t> Mass, dArray<cuFP_t> Phi,
  dArray<cuFP_t> Xfac, dArray<cuFP_t> Yfac,
  dArray<int> indX, dArray<int> indY,
- int stride, int m, unsigned int nmax, PII lohi)
+ int stride, int m, unsigned int nmax, PII lohi, bool compute)
 {
   // Thread ID
   //
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
   const int N   = lohi.second - lohi.first;
 
-  const cuFP_t norm = -4.0*M_PI;	// Biorthogonality factor
+  const cuFP_t norm = -4.0*M_PI;    // Biorthogonality factor
+
+  cuFP_t *wn = new cuFP_t [nmax]; // Temporary for EOF computation
 
   for (int n=0; n<stride; n++) {
 
@@ -352,12 +355,15 @@ __global__ void coefKernelCyl
 	  cuFP_t d01  = int2_as_double(tex3D<int2>(tex._v[k], indx,   indy+1, 0));
 	  cuFP_t d11  = int2_as_double(tex3D<int2>(tex._v[k], indx+1, indy+1, 0));
 #endif
-
+	  cuFP_t val  = c00*d00 + c10*d10 + c01*d01 + c11*d11;
+	  
 #ifdef BOUNDS_CHECK
 	  if (k>=tex._s)            printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 	  if ((2*n+0)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-	  coef._v[(2*n+0)*N + i] = (c00*d00 + c10*d10 + c01*d01 + c11*d11) * cosp * norm * mass;
+	  coef._v[(2*n+0)*N + i] = val * cosp * norm * mass;
+
+	  wn[n] = val*val;
 
 	  if (m>0) {
 	    // potS tables are offset from potC tables by +3
@@ -373,7 +379,10 @@ __global__ void coefKernelCyl
 	    d01  = int2_as_double(tex3D<int2>(tex._v[k], indx,   indy+1, 3));
 	    d11  = int2_as_double(tex3D<int2>(tex._v[k], indx+1, indy+1, 3));
 #endif
+	    val = c00*d00 + c10*d10 + c01*d01 + c11*d11;
 	    coef._v[(2*n+1)*N + i] = (c00*d00 + c10*d10 + c01*d01 + c11*d11) * sinp * norm * mass;
+
+	    wn[n] += val*val;
 
 #ifdef BOUNDS_CHECK
 	    if ((2*n+1)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
@@ -385,6 +394,21 @@ __global__ void coefKernelCyl
 
 	} // norder loop
 
+	if (compute) {
+	  for (int r=0; r<nmax; r++) wn[r] = sqrt(wn[r]);
+	  /*
+	  if (npart==0) {
+	    for (int r=0; r<nmax; r++) printf("%3d %3d %13.6e\n", r+1, m, wn[r]);
+	  }
+	  */
+	  for (int r=0, c=0; r<nmax; r++) {
+	    for (int s=r; s<nmax; s++) {
+	      tvar._v[N*c + i] = wn[r] * wn[s] * norm * norm * mass;
+	      c++;
+	    }
+	  }
+	}
+
       } else {
 	// No contribution from off-grid particles
 	for (int n=0; n<nmax; n++) {
@@ -392,11 +416,22 @@ __global__ void coefKernelCyl
 	  if (m) coef._v[(2*n+1)*N + i] = 0.0;
 	}
 
+	if (compute) {
+	  for (int r=0, c=0; r<nmax; r++) {
+	    for (int s=r; s<nmax; s++) {
+	      tvar._v[N*c + i] = 0.0;
+	      c++;
+	    }
+	  }
+	}
+
       } // mass value check
 
     } // particle index check
 
   } // stride loop
+
+  delete [] wn;
 }
 
 __global__ void
@@ -724,6 +759,11 @@ void Cylinder::cudaStorage::resize_coefs
     for (int T=0; T<sampT; T++) {
       T_coef[T].resize((mmax+1)*2*ncylorder);
     }
+
+    int csz = ncylorder*(ncylorder+1)/2;
+    dN_tvar.resize(csz*N);
+    dc_tvar.resize(csz*gridSize);
+    dw_tvar.resize(csz);
   }
   
   // Set space for current step
@@ -772,6 +812,11 @@ void Cylinder::zero_coefs()
       for (int T=0; T<sampT; T++)
 	thrust::fill(thrust::cuda::par.on(cr->stream),
 		     ar->T_coef[T].begin(), ar->T_coef[T].end(), 0.0);
+
+      ar->df_tvar.resize((mmax+1)*ncylorder*(ncylorder+1)/2);
+    
+      thrust::fill(thrust::cuda::par.on(cr->stream),
+		   ar->df_tvar.begin(), ar->df_tvar.end(), 0.0);
     }
 
     // Advance iterators
@@ -949,7 +994,9 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 				// Compute the coefficient
 				// contribution for each order
       int osize = ncylorder*2;	// 
-      auto beg = ar->df_coef.begin();
+      int vsize = ncylorder*(ncylorder+1)/2;
+      auto beg  = ar->df_coef.begin();
+      auto begV = ar->df_tvar.begin();
       std::vector<thrust::device_vector<cuFP_t>::iterator> bg;
 
       if (pca) {
@@ -960,13 +1007,11 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
       for (int m=0; m<=mmax; m++) {
 
-	
-
 	coefKernelCyl<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
-	  (toKernel(ar->dN_coef), toKernel(ar->u_d),
+	  (toKernel(ar->dN_coef), toKernel(ar->dN_tvar), toKernel(ar->u_d),
 	   toKernel(t_d), toKernel(ar->m_d), toKernel(ar->p_d),
 	   toKernel(ar->X_d), toKernel(ar->Y_d), toKernel(ar->iX_d), toKernel(ar->iY_d),
-	   stride, m, ncylorder, lohi);
+	   stride, m, ncylorder, lohi, compute);
       
 				// Begin the reduction per grid block
 				// [perhaps this should use a stride?]
@@ -1053,6 +1098,30 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	      host_massT[T] += thrust::reduce(mbeg, mend);
 	    }
 	  }
+
+	  // Reduce EOF variance
+	  //
+	  reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
+	    (toKernel(ar->dc_tvar), toKernel(ar->dN_tvar), vsize, N);
+      
+				// Finish the reduction for this order
+				// in parallel
+	  thrust::counting_iterator<int> index_begin(0);
+	  thrust::counting_iterator<int> index_end(gridSize1*vsize);
+
+	  thrust::reduce_by_key
+	    (
+	     thrust::cuda::par.on(cr->stream),
+	     thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
+	     thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
+	     ar->dc_tvar.begin(), thrust::make_discard_iterator(), ar->dw_tvar.begin()
+	     );
+
+	  thrust::transform(thrust::cuda::par.on(cr->stream),
+			    ar->dw_tvar.begin(), ar->dw_tvar.end(),
+			    begV, begV, thrust::plus<cuFP_t>());
+
+	  thrust::advance(begV, vsize);
 	}
       }
     
@@ -1118,6 +1187,23 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	    if (m>0) host_coefsT[T][Imn(m, 's', j, ncylorder)] += retT[2*j+1 + offst];
 	  }
 	  offst += 2*ncylorder;
+	}
+      }
+
+      // EOF variance computation
+      //
+      thrust::host_vector<cuFP_t> retV = r.df_tvar;
+      int csz = ncylorder*(ncylorder+1)/2;
+      if (retV.size() == (mmax+1)*csz) {
+	for (int m=0; m<=mmax; m++) {
+	  int c = 0;
+	  for (size_t j=0; j<ncylorder; j++) {
+	    for (size_t k=j; k<ncylorder; k++) {
+	      ortho->set_tvar(m, j, k) += retV[csz*m + c];
+	      if (j!=k) ortho->set_tvar(m, k, j) += retV[csz*m + c];
+	      c++;
+	    }
+	  }
 	}
       }
     }

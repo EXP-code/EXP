@@ -82,7 +82,7 @@ void initialize(void)
     if (_G["dynfracA"])	     dynfracA   = _G["dynfracA"].as<double>();
     if (_G["dynfracP"])	     dynfracP   = _G["dynfracP"].as<double>();
 
-    if (_G["cuStreams"])     cuStreams  = _G["cuStrams"].as<int>();
+    if (_G["cuStreams"])     cuStreams  = _G["cuStreams"].as<int>();
 
     if (_G["DTold"]) {
       DTold = _G["DTold"].as<bool>();

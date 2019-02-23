@@ -97,6 +97,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   pca             = false;
   pcavtk          = false;
   pcadiag         = false;
+  pcaeof          = false;
   nvtk            = 1;
   pcainit         = true;
   density         = false;
@@ -234,6 +235,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	   << " npca="        << npca
 	   << " npca0="       << npca0
 	   << " pcadiag="     << pcadiag
+	   << " pcaeof="      << pcaeof
 	   << " eof_file="    << eof_file
 	   << " logarithmic=" << logarithmic
 	   << " vflag="       << vflag
@@ -258,6 +260,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	 << " npca="        << npca
 	 << " npca0"        << npca0
 	 << " pcadiag="     << pcadiag
+	 << " pcaeof="      << pcaeof
 	 << " eof_file="    << eof_file
 	 << " logarithmic=" << logarithmic
 	 << " vflag="       << vflag
@@ -320,6 +323,7 @@ void Cylinder::initialize()
     if (conf["pca"       ])        pca  = conf["pca"       ].as<bool>();
     if (conf["pcavtk"    ])     pcavtk  = conf["pcavtk"    ].as<bool>();
     if (conf["pcadiag"   ])    pcadiag  = conf["pcadiag"   ].as<bool>();
+    if (conf["pcaeof"    ])     pcaeof  = conf["pcaeof"    ].as<bool>();
     if (conf["try_cache" ])  try_cache  = conf["try_cache" ].as<bool>();
     if (conf["density"   ])    density  = conf["density"   ].as<bool>();
     if (conf["cmap"      ])       cmap  = conf["cmap"      ].as<bool>();
@@ -626,6 +630,7 @@ void Cylinder::determine_coefficients(void)
   if (pca and pcainit) {
     EmpCylSL::SELECT = true;
     EmpCylSL::PCAVTK = pcavtk;
+    EmpCylSL::PCAEOF = pcaeof;
     EmpCylSL::VTKFRQ = nvtk;
     std::ostringstream sout;
     if (pcadiag) 

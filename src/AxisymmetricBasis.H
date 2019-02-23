@@ -25,6 +25,9 @@ protected:
   //! Output PCA diagnostics in vtk format
   bool pcavtk;
 
+  //! Compute eof decomposition for testing
+  bool pcaeof;
+
   //! vtk diagnostic frequency
   unsigned vtkfreq;
 
@@ -50,6 +53,8 @@ protected:
   vector<MatrixP> expcoefT, expcoefT1;
   vector<double>  massT, massT1;
   unsigned        sampT;
+
+  vector<MatrixP> tvar;		// Test for eof trim
   //@}
 
   //! Normalization for covariance matrix based on the biorthogonal basis norm
@@ -83,7 +88,7 @@ public:
     VarianceCut,      /*!< Cut all coefficients below some S/N level       */
     CumulativeCut,    /*!< Cut coefficients below some cumulative fraction */
     VarianceWeighted, /*!< Weight coefficients be S/N for S/N<1            */
-    Null              /*!< Compute the S/N but do not modify coefficients  */
+    None              /*!< Compute the S/N but do not modify coefficients  */
   };
 
   //! Constructor

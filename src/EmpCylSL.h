@@ -1,3 +1,5 @@
+// -*- C++ -*-
+
 #ifndef _EmpCylSL_h
 #define _EmpCylSL_h
 
@@ -120,6 +122,8 @@ private:
   Vector* accum_cos;
   Vector* accum_sin;
 
+  std::vector< std::vector<MatrixP> > tvar; // Test for eof trim
+
   std::vector< std::vector<MatrixP> > accum_cos2;
   std::vector< std::vector<MatrixP> > accum_sin2;
   std::vector< std::vector<double>  > massT1;
@@ -232,7 +236,7 @@ public:
     selection */
   enum TKType {
     Hall,             /*!< Tapered signal-to-noise power defined by Hall   */
-    Null              /*!< Compute the S/N but do not modify coefficients  */
+    None              /*!< Compute the S/N but do not modify coefficients  */
   };
 
   //! Type of density model to use
@@ -250,6 +254,9 @@ public:
 
   //! TRUE if VTK diagnostics are on
   static bool PCAVTK;
+
+  //! TRUE if EOF diagnostics are on
+  static bool PCAEOF;
 
   //! VTK diagnostic frequency
   static unsigned VTKFRQ;
@@ -526,7 +533,7 @@ public:
     if (myid==0) {
       const string types[] = {
 	"Hall", 
-	"Null"};
+	"None"};
 
       const string desc[] = {
 	"Tapered signal-to-noise power defined by Hall",
@@ -545,11 +552,11 @@ public:
   void setTK(const std::string& tk)
   {
     if      (tk == "Hall") tk_type = Hall;
-    else if (tk == "Null") tk_type = Null;
+    else if (tk == "None") tk_type = None;
     else {
       if (myid==0) {
 	cout << "EmpCylSL: no such TK type <" << tk << ">"
-	     << " using Null type\n";
+	     << " using None type\n";
       }
     }
   }
@@ -610,6 +617,17 @@ public:
       return (*accum_cos2[0][T])[m][n];
     else
       return (*accum_sin2[0][T])[m][n];
+  }
+
+  double& set_tvar(int m, int i, int j)
+  {
+    if (m >  MMAX)
+      throw std::runtime_error("m>mmax");
+
+    if (i >= rank3 or j >= rank3)
+      throw std::runtime_error("n>norder");
+
+    return (*tvar[0][m])[i+1][j+1];
   }
 
   double& set_massT(int T)
