@@ -348,7 +348,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	    for (int nn=0; nn<nmax; nn++) {
 	      initVar[nn+1] = expcoef[indx][nn+1] * expcoef[indx][nn+1];
 	      if (m) initVar[nn+1] += expcoef[indx+1][nn+1] * expcoef[indx+1][nn+1];
-	      initVar[nn+1] = sqrt(eofvec[nn+1]);
+	      initVar[nn+1] = sqrt(initVar[nn+1]);
 	    }
 
 	    eofvec = evecVar.Transpose() * initVar;

@@ -2866,7 +2866,7 @@ void EmpCylSL::pca_hall(bool compute)
 	  for (int nn=0; nn<rank3; nn++) {
 	    initVar[nn+1] = accum_cos[mm][nn] * accum_cos[mm][nn];
 	    if (mm) initVar[nn+1] += accum_sin[mm][nn] * accum_sin[mm][nn];
-	    initVar[nn+1] = sqrt(eofvec[nn+1]);
+	    initVar[nn+1] = sqrt(initVar[nn+1]);
 	  }
 
 	  eofvec = evecVar.Transpose() * initVar;

@@ -317,7 +317,6 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
 
 void * SphericalBasis::determine_coefficients_thread(void * arg)
 {
-  int l, loffset, moffset, m, n, nn, indx;
   double r, r2, rs, fac1, fac2, costh, phi, mass;
   double fac0=4.0*M_PI;
   double xx, yy, zz;
@@ -353,7 +352,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
-    indx = cC->levlist[mlevel][i];
+    int indx = cC->levlist[mlevel][i];
 
     if (component->freeze(indx)) continue;
 
@@ -397,11 +396,12 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
       }
 
       //		l loop
-      for (l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
+      for (int l=0, loffset=0, iC=0; l<=Lmax; loffset+=(2*l+1), l++) {
 	//		m loop
-	for (m=0, moffset=0; m<=l; m++) {
+	for (int m=0, moffset=0; m<=l; m++) {
+
 	  if (m==0) {
-	    for (n=1; n<=nmax; n++) {
+	    for (int n=1; n<=nmax; n++) {
 
 	      wk[n-1] = potd[id][l][n]*legs[id][l][m]*mass*fac0/normM[l][n];
 
@@ -418,10 +418,11 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	      pthread_mutex_lock(&cc_lock);
 	      for (int n=1; n<=nmax; n++) {
 		for (int o=1; o<=nmax; o++) {
-		  (*tvar[loffset+moffset])[n][o] += wk[n-1]*wk[o-1]/mass;
+		  (*tvar[iC])[n][o] += wk[n-1]*wk[o-1]/mass;
 		}
 	      }
 	      pthread_mutex_unlock(&cc_lock);
+	      iC++;
 	    }
 
 	    moffset++;
@@ -430,7 +431,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	    fac1 = legs[id][l][m]*cosm[id][m];
 	    fac2 = legs[id][l][m]*sinm[id][m];
 
-	    for (n=1; n<=nmax; n++) {
+	    for (int n=1; n<=nmax; n++) {
 
 	      wk[n-1] = potd[id][l][n]*mass*fac0/normM[l][n];
 
@@ -450,10 +451,11 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	      pthread_mutex_lock(&cc_lock);
 	      for (int n=1; n<=nmax; n++) {
 		for (int o=1; o<=nmax; o++) {
-		  (*tvar[loffset+moffset])[n][o] += wk[n-1]*wk[o-1]/mass;
+		  (*tvar[iC])[n][o] += wk[n-1]*wk[o-1]/mass;
 		}
 	      }
 	      pthread_mutex_unlock(&cc_lock);
+	      iC++;
 	    }
 
 	    moffset+=2;
