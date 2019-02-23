@@ -2666,7 +2666,7 @@ void EmpCylSL::pca_hall(bool compute)
     
 #ifndef STANDALONE
     VtkPCAptr vtkpca;
-    static unsigned ocount = 0;
+    static unsigned ocount = 0, eofcount = 0;
 
     if (PCAVTK and myid==0) {
 
@@ -2870,6 +2870,15 @@ void EmpCylSL::pca_hall(bool compute)
 	  }
 
 	  eofvec = evecVar.Transpose() * initVar;
+
+	  // VTK basis
+	  //
+#ifndef STANDALONE
+	  for (int nn=1; nn<=rank3; nn++) {
+	    dump_images_basis_eof(runtag, 0.1, 0.01, 100, 40, mm, nn, eofcount,
+				  evecVar.Transpose()[nn]);
+	  }
+#endif
 	}
       }
 
@@ -2947,6 +2956,10 @@ void EmpCylSL::pca_hall(bool compute)
 	accum_sin2[nth][T]->zero();
       }
     }
+
+#ifndef STANDALONE
+    eofcount++;
+#endif
   }
     
 
@@ -2992,7 +3005,6 @@ void EmpCylSL::pca_hall(bool compute)
       }
     }
   }
-
 
   if (VFLAG & 4)
     cerr << "Process " << setw(4) << myid << ": exiting to pca_hall" << endl;
@@ -4642,6 +4654,77 @@ void EmpCylSL::dump_images_basis_pca(const string& runtag,
   
   std::ostringstream sout;
   sout << runtag << "_pcabasis_" << K << "_m" << M << "_n" << N;
+  vtk.Write(sout.str());
+}
+
+
+void EmpCylSL::dump_images_basis_eof(const string& runtag,
+				     double XYOUT, double ZOUT, 
+				     int OUTR, int OUTZ, int M, int N, int K,
+				     Vector& tp)
+{
+  if (myid!=0) return;
+  if (pb == 0) return;
+  
+  double p, d, rf, zf, pf;
+
+  double rmin = RMIN*ASCALE;
+  double dR   = (XYOUT-rmin)/(OUTR - 1);
+  double dZ   = 2.0*ZOUT/(OUTZ - 1);
+
+  int Number  = 4;
+  string Types[] = {".pot", ".dens", ".fr", ".fz"};
+  
+  std::vector< std::vector<double> > dataC(Number), dataS(Number);
+  for (auto & v : dataC) v.resize(OUTR*OUTZ);
+  if (M) for (auto & v : dataS) v.resize(OUTR*OUTZ);
+
+  Vector PP(1, NORDER), DD(1, NORDER), RF(1, NORDER), ZF(1, NORDER);
+  
+  VtkGrid vtk(OUTR, OUTZ, 1, rmin, XYOUT, -ZOUT, ZOUT, 0, 0);
+
+  for (int iz=0; iz<OUTZ; iz++) {
+
+    for (int ir=0; ir<OUTR; ir++) {
+	  
+      double z = -ZOUT + dZ*iz;
+      double r =  rmin + dR*ir;
+      double tmp;
+	  
+      //! Cosine space: inner produce of original basis and ev
+      //! transformation
+
+      for (int n=0; n<NORDER; n++)
+	get_all(M, n, r, z, 0.0, PP[n+1], DD[n+1], RF[n+1], ZF[n+1], tmp);
+      //                    ^
+      //                    |
+      //                    + selects COSINE only
+      
+
+      dataC[0][ir*OUTZ + iz] = tp * PP;
+      dataC[1][ir*OUTZ + iz] = tp * DD;
+      dataC[2][ir*OUTZ + iz] = tp * RF;
+      dataC[3][ir*OUTZ + iz] = tp * ZF;
+
+      //! Sine space: only compute for M>0
+      if (M) {
+	double phi = 0.5*M_PI/M; // Selects SINE only
+	for (int n=0; n<NORDER; n++)
+	  get_all(M, n, r, z, phi, PP[n+1], DD[n+1], RF[n+1], ZF[n+1], tmp);
+
+	dataS[0][ir*OUTZ + iz] = tp * PP;
+	dataS[1][ir*OUTZ + iz] = tp * DD;
+	dataS[2][ir*OUTZ + iz] = tp * RF;
+	dataS[3][ir*OUTZ + iz] = tp * ZF;
+      }
+    }
+  }
+
+  for (int i=0; i<Number; i++) vtk.Add(dataC[i], Types[i]+"(cos)");
+  if (M) for (int i=0; i<Number; i++) vtk.Add(dataS[i], Types[i]+"(sin)");
+  
+  std::ostringstream sout;
+  sout << runtag << "_pcaeof_" << K << "_m" << M << "_n" << N;
   vtk.Write(sout.str());
 }
 

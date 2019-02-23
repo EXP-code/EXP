@@ -489,6 +489,12 @@ public:
 			     double XYOUT, double ZOUT, 
 			     int OUTR, int OUTZ, int M, int N, int cnt);
 
+  //! Plot EOF basis images for debugging
+  void dump_images_basis_eof(const string& runtag,
+			     double XYOUT, double ZOUT, 
+			     int OUTR, int OUTZ, int M, int N, int cnt,
+			     Vector& tp);
+
   //! Restrict order
   void restrict_order(int n);
 
