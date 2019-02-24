@@ -1095,7 +1095,7 @@ main(int argc, char **argv)
   EmpCylSL ortho(nmax, lmax, mmax, norder, rscale, vscale);
     
   if (PCA) {
-    EmpCylSL::SELECT = true;
+    EmpCylSL::PCAVAR = true;
       ortho.setHall(runtag + "_" + outid + ".pca", 1);
   }
 

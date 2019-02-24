@@ -102,6 +102,7 @@ protected:
 
   thrust::host_vector<cuFP_t> host_coefs, host_massT;
   thrust::device_vector<cuFP_t> dev_coefs;
+  cuFP_t host_mass_tot;
 
   virtual void HtoD_coefs(const Matrix& coef);
   virtual void DtoH_coefs(Matrix& coef);

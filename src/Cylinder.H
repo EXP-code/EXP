@@ -47,7 +47,7 @@ private:
   double hcyl;
   int ncylorder, ncylrecomp, npca, npca0, nvtk;
   string eof_file;
-  bool self_consistent, logarithmic, density, pca, pcainit, pcavtk, pcadiag, pcaeof;
+  bool self_consistent, logarithmic, density, pcavar, pcainit, pcavtk, pcadiag, pcaeof;
   bool cmap, try_cache, firstime, dump_basis, compute, firstime_coef;
 
   // These should be ok for all derived classes, hence declared private
@@ -138,7 +138,7 @@ protected:
     thrust::device_vector<cuFP_t> dw_tvar;
     thrust::device_vector<cuFP_t> df_tvar;
 
-    void resize_coefs(int ncylorder, int mmax, int N, int gridSize, int sampT, bool pca);
+    void resize_coefs(int ncylorder, int mmax, int N, int gridSize, int sampT, bool pcavar, bool pcaeof);
   };
 
   //! Cyclical ring interator for storage
@@ -204,7 +204,7 @@ public:
   //! \param self_consistent set to false for fixed potential
   //! \param expcond set to true for analytic basis function conditioning (default: true)
   //! \param logr tabulate basis in logarithmic coordinates (default: false)
-  //! \param pca set to true for real-time Hall analysis (default: false)
+  //! \param pcavar set to true for real-time Hall analysis (default: false)
   //! \param pcavtk set to true dumps PCA functions in VTK format for diagnostics (default: false)
   //! \param try_cache set to true means try to read basis from cache (default: true)
   //! \param dump_basis set to true outputs basis into file

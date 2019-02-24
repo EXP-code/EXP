@@ -250,7 +250,7 @@ public:
   static bool DENS;
 
   //! TRUE if signal-to-noise methods are on
-  static bool SELECT;
+  static bool PCAVAR;
 
   //! TRUE if VTK diagnostics are on
   static bool PCAVTK;
@@ -422,7 +422,7 @@ public:
 
   //! Add single particle to coefficients
   void accumulate(double r, double z, double phi, double mass,
-		  unsigned long seq, int id, int mlev=0);
+		  unsigned long seq, int id, int mlev=0, bool compute=false);
 
   //! Add single particle to EOF coefficients
   void accumulate_eof(double r, double z, double phi, double mass, int id, int mlev=0);
@@ -537,16 +537,21 @@ public:
     init_pca();
 
     if (myid==0) {
-      const string types[] = {
-	"Hall", 
-	"None"};
+      if (PCAVAR) {
+	const string types[] = {
+	  "Hall", 
+	  "None"};
 
-      const string desc[] = {
-	"Tapered signal-to-noise power defined by Hall",
-	"Compute the S/N but do not modify coefficients"};
-
-      cout << "EmpCylSL: using PCA type: " << types[tk_type]
-	   << "====>" << desc[tk_type] << endl;
+	const string desc[] = {
+	  "Tapered signal-to-noise power defined by Hall",
+	  "Compute the S/N but do not modify coefficients"};
+	
+	cout << "EmpCylSL: using PCA type: " << types[tk_type]
+	     << "====>" << desc[tk_type] << endl;
+      }
+      if (PCAEOF) {
+	cout << "EmpCylSL: using PCA EOF" << endl;
+      }
     }
   }
 

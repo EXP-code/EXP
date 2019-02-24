@@ -16,8 +16,9 @@ protected:
   //! Maximum radial basis index
   int nmax;
 
-  //! Use principal component analysis to select coefficients
-  bool pca;
+  //! Use principal component boostrap analysis of variance to select
+  //! coefficients
+  bool pcavar;
 
   //! Output PCA diagnostics
   bool pcadiag;
@@ -25,7 +26,7 @@ protected:
   //! Output PCA diagnostics in vtk format
   bool pcavtk;
 
-  //! Compute eof decomposition for testing
+  //! Compute eof decomposition
   bool pcaeof;
 
   //! vtk diagnostic frequency

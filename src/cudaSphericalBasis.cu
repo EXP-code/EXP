@@ -734,7 +734,7 @@ static bool initialize_cuda_sph = true;
 static unsigned dbg_id = 0;
 
 void SphericalBasis::cudaStorage::resize_coefs
-(int nmax, int Lmax, int N, int gridSize, int sampT, bool pca, bool pcaeof)
+(int nmax, int Lmax, int N, int gridSize, int sampT, bool pcavar, bool pcaeof)
 {
   // Create space for coefficient reduction to prevent continued
   // dynamic allocation
@@ -757,18 +757,18 @@ void SphericalBasis::cudaStorage::resize_coefs
   
   // Fixed size arrays
   //
-  if (pca) {
+  if (pcavar) {
     T_coef.resize(sampT);
     for (int T=0; T<sampT; T++) {
       T_coef[T].resize((Lmax+1)*(Lmax+2)*nmax);
     }
+  }
 
-    if (pcaeof) {
-      int csz = nmax*(nmax+1)/2;
-      dN_tvar.resize(csz*N);
-      dc_tvar.resize(csz*gridSize);
-      dw_tvar.resize(csz);
-    }
+  if (pcaeof) {
+    int csz = nmax*(nmax+1)/2;
+    dN_tvar.resize(csz*N);
+    dc_tvar.resize(csz*gridSize);
+    dw_tvar.resize(csz);
   }
 
   // Set needed space for current step
@@ -813,7 +813,7 @@ void SphericalBasis::zero_coefs()
 
     // Resize and zero PCA arrays
     //
-    if (pca) {
+    if (pcavar) {
       if (ar->T_coef.size() != sampT) {
 	ar->T_coef.resize(sampT);
 	for (int T=0; T<sampT; T++) {
@@ -827,13 +827,15 @@ void SphericalBasis::zero_coefs()
 		     ar->T_coef[T].begin(), ar->T_coef[T].end(), 0.0);
 
       thrust::fill(host_massT.begin(), host_massT.end(), 0.0);
+    }
 
-      if (pcaeof) {
-	ar->df_tvar.resize((Lmax+1)*(Lmax+2)/2*nmax*(nmax+1)/2);
+    if (pcaeof) {
+      ar->df_tvar.resize((Lmax+1)*(Lmax+2)/2*nmax*(nmax+1)/2);
     
-	thrust::fill(thrust::cuda::par.on(cr->stream),
-		     ar->df_tvar.begin(), ar->df_tvar.end(), 0.0);
-      }
+      thrust::fill(thrust::cuda::par.on(cr->stream),
+		   ar->df_tvar.begin(), ar->df_tvar.end(), 0.0);
+
+      if (not pcavar) host_mass_tot = 0.0;
     }
 
     // Advance iterators
@@ -860,7 +862,7 @@ void SphericalBasis::cudaStorage::resize_acc(int Lmax, int Nthread)
 
 void SphericalBasis::determine_coefficients_cuda(bool compute)
 {
-  if (pca) {
+  if (pcavar) {
 
     if (sampT == 0) {		// Allocate storage
       sampT = floor(sqrt(cC->nbodies_tot));
@@ -902,7 +904,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
   //
   host_coefs.resize((Lmax+1)*(Lmax+1)*nmax);
 
-  if (pca) {
+  if (pcavar) {
     host_massT.resize(sampT);
   }
 
@@ -932,7 +934,12 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
   use[0] = 0.0;
   thrust::fill(host_coefs.begin(), host_coefs.end(), 0.0);
 
-  if (compute) thrust::fill(host_massT.begin(), host_massT.end(), 0.0);
+  if (compute) {
+    if (pcavar)
+      thrust::fill(host_massT.begin(), host_massT.end(), 0.0);
+    else
+      host_mass_tot = 0.0;
+  }
 
   // Zero out coefficient storage
   //
@@ -999,7 +1006,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
     
       // Resize storage as needed
       //
-      ar->resize_coefs(nmax, Lmax, N, gridSize, sampT, pca, pcaeof);
+      ar->resize_coefs(nmax, Lmax, N, gridSize, sampT, pcavar, pcaeof);
       
       // Shared memory size for the reduction
       //
@@ -1022,9 +1029,11 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
       int vsize = nmax*(nmax+1)/2;
       auto beg  = ar->df_coef.begin();
       auto begV = ar->df_tvar.begin();
-      std::vector<thrust::device_vector<cuFP_t>::iterator> bg;
-      for (int T=0; T<sampT; T++) bg.push_back(ar->T_coef[T].begin());
 
+      std::vector<thrust::device_vector<cuFP_t>::iterator> bg;
+      if (pcavar) {
+	for (int T=0; T<sampT; T++) bg.push_back(ar->T_coef[T].begin());
+      }
       thrust::fill(ar->u_d.begin(), ar->u_d.end(), 0.0);
 
       for (int l=0; l<=Lmax; l++) {
@@ -1068,62 +1077,65 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
 	  if (compute) {
 
-	    int sN = N/sampT;
-	    int nT = sampT;
+	    if (pcavar) {
 
-	    if (sN==0) {	// Fail-safe underrun
-	      sN = 1;
-	      nT = N;
-	    }
+	      int sN = N/sampT;
+	      int nT = sampT;
 
-	    for (int T=0; T<nT; T++) {
-	      int k = sN*T;	// Starting position
-	      int s = sN;
-	      if (T==sampT-1) s = N - k;
+	      if (sN==0) {	// Fail-safe underrun
+		sN = 1;
+		nT = N;
+	      }
+
+	      for (int T=0; T<nT; T++) {
+		int k = sN*T;	// Starting position
+		int s = sN;
+		if (T==sampT-1) s = N - k;
 	    
-	      // Begin the reduction per grid block
-	      //
-	      /* A reminder to consider implementing strides in reduceSum */
-	      /*
-	      unsigned int stride1   = s/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
-	      unsigned int gridSize1 = s/BLOCK_SIZE/stride1;
-
-	      if (s > gridSize1*BLOCK_SIZE*stride1) gridSize1++;
-	      */
-
-	      unsigned int gridSize1 = s/BLOCK_SIZE;
-	      if (s > gridSize1*BLOCK_SIZE) gridSize1++;
-	      reduceSumS<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
-		(toKernel(ar->dc_coef), toKernel(ar->dN_coef), osize, N, k, k+s);
-      
+		// Begin the reduction per grid block
+		//
+		/* A reminder to consider implementing strides in reduceSum */
+		/*
+		  unsigned int stride1   = s/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+		  unsigned int gridSize1 = s/BLOCK_SIZE/stride1;
+		  
+		  if (s > gridSize1*BLOCK_SIZE*stride1) gridSize1++;
+		*/
+		
+		unsigned int gridSize1 = s/BLOCK_SIZE;
+		if (s > gridSize1*BLOCK_SIZE) gridSize1++;
+		reduceSumS<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
+		  (toKernel(ar->dc_coef), toKernel(ar->dN_coef), osize, N, k, k+s);
+		
 				// Finish the reduction for this order
 				// in parallel
-	      thrust::counting_iterator<int> index_begin(0);
-	      thrust::counting_iterator<int> index_end(gridSize1*osize);
+		thrust::counting_iterator<int> index_begin(0);
+		thrust::counting_iterator<int> index_end(gridSize1*osize);
 
-	      thrust::reduce_by_key
-		(
-		 thrust::cuda::par.on(cr->stream),
-		 thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
-		 thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
-		 ar->dc_coef.begin(), thrust::make_discard_iterator(), ar->dw_coef.begin()
-		 );
-
-
-	      thrust::transform(thrust::cuda::par.on(cr->stream),
-				ar->dw_coef.begin(), ar->dw_coef.end(),
-				bg[T], bg[T], thrust::plus<cuFP_t>());
-
-	      thrust::advance(bg[T], osize);
-
-	      if (l==0 and m==0) {
-		auto mbeg = ar->u_d.begin();
-		auto mend = mbeg;
-		thrust::advance(mbeg, sN*T);
-		if (T<sampT-1) thrust::advance(mend, sN*(T+1));
-		else mend = ar->u_d.end();
+		thrust::reduce_by_key
+		  (
+		   thrust::cuda::par.on(cr->stream),
+		   thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
+		   thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
+		   ar->dc_coef.begin(), thrust::make_discard_iterator(), ar->dw_coef.begin()
+		   );
 		
-		host_massT[T] += thrust::reduce(mbeg, mend);
+		
+		thrust::transform(thrust::cuda::par.on(cr->stream),
+				  ar->dw_coef.begin(), ar->dw_coef.end(),
+				  bg[T], bg[T], thrust::plus<cuFP_t>());
+		
+		thrust::advance(bg[T], osize);
+
+		if (l==0 and m==0) {
+		  auto mbeg = ar->u_d.begin();
+		  auto mend = mbeg;
+		  thrust::advance(mbeg, sN*T);
+		  if (T<sampT-1) thrust::advance(mend, sN*(T+1));
+		  else mend = ar->u_d.end();
+		  
+		  host_massT[T] += thrust::reduce(mbeg, mend);
+		}
 	      }
 	    }
 	    
@@ -1152,10 +1164,17 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 				begV, begV, thrust::plus<cuFP_t>());
 	      
 	      thrust::advance(begV, vsize);
-	    }
-	  }
-	}
-      }
+
+	      if (not pcavar and l==0 and m==0) {
+		auto mbeg = ar->u_d.begin();
+		auto mend = ar->u_d.end();
+		host_mass_tot += thrust::reduce(mbeg, mend);
+	      }
+
+	    } // END: pcaeof
+	  } // END: compute
+	} // END: m-loop
+      } // END: l-loop
 
       // Compute number and total mass of particles used in coefficient
       // determination
@@ -1767,40 +1786,49 @@ void SphericalBasis::DtoH_coefs(Matrix& expcoef)
 
   if (compute) {
 
-    for (int T=0; T<sampT; T++) {
-      massT1[T] += host_massT[T];
-      muse1 [0] += host_massT[T];
+    if (pcavar) {
+      for (int T=0; T<sampT; T++) {
+	massT1[T] += host_massT[T];
+	muse1 [0] += host_massT[T];
+      }
+    } else {
+      muse1[0] += host_mass_tot;
     }
 
+
     for (auto r : cuRingData) {
-      // T loop
-      //
-      for (int T=0; T<sampT; T++) {
 
-	thrust::host_vector<cuFP_t> ret = r.T_coef[T];
+      if (pcavar) {
 
-	int offst = 0;
-	int osize = 2.0*nmax;
-
-	// l loop
+	// T loop
 	//
-	for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
+	for (int T=0; T<sampT; T++) {
 
-	  // m loop
+	  thrust::host_vector<cuFP_t> ret = r.T_coef[T];
+
+	  int offst = 0;
+	  int osize = 2.0*nmax;
+	  
+	  // l loop
 	  //
-	  for (int m=0, moffset=0; m<=l; m++) {
-	
-	    // n loop
+	  for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
+	    
+	    // m loop
 	    //
-	    for (int n=1; n<=nmax; n++) {
-	      (*expcoefT1[T])[loffset+moffset][n] += ret[2*(n-1) + offst];
-	      if (m>0) (*expcoefT1[T])[loffset+moffset+1][n] += ret[2*(n-1) + 1 + offst];
+	    for (int m=0, moffset=0; m<=l; m++) {
+	      
+	      // n loop
+	      //
+	      for (int n=1; n<=nmax; n++) {
+		(*expcoefT1[T])[loffset+moffset][n] += ret[2*(n-1) + offst];
+		if (m>0) (*expcoefT1[T])[loffset+moffset+1][n] += ret[2*(n-1) + 1 + offst];
+	      }
+
+	      offst += osize;
+	      
+	      if (m>0) moffset += 2;
+	      else     moffset += 1;
 	    }
-
-	    offst += osize;
-
-	    if (m>0) moffset += 2;
-	    else     moffset += 1;
 	  }
 	}
       }
