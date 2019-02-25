@@ -339,7 +339,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	  Matrix evecVar(1, nmax, 1, nmax);
 	  Vector evalVar = tvar[indxC]->Symmetric_Eigenvalues(evecVar);
 	  
-	  cof << "# EOF values" << std::endl;
+	  cof << "# EOF eigenvalues" << std::endl;
 	  double total = 0.0;
 	  for (int nn=0; nn<nmax; nn++) {
 	    total += evalVar[nn+1];

@@ -2861,7 +2861,7 @@ void EmpCylSL::pca_hall(bool compute)
 	  Matrix evecVar(1, rank3, 1, rank3);
 	  Vector evalVar = tvar[0][mm]->Symmetric_Eigenvalues(evecVar);
 
-	  mout << "# EOF values" << std::endl;
+	  mout << "# EOF eigenvalues" << std::endl;
 	  double total = 0.0;
 	  for (int nn=0; nn<rank3; nn++) {
 	    total += evalVar[nn+1];
