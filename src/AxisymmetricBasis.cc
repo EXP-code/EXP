@@ -112,7 +112,7 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
       tvar.resize(Ldim);
       for (auto & v : tvar) v = MatrixP(new Matrix(1, nmax, 1, nmax));
 
-      cout << "AxisymmetricBasis: using PCA EOF" << endl;
+      if (myid==0) cout << "AxisymmetricBasis: using PCA EOF" << endl;
     }
 
   }
