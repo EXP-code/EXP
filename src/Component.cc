@@ -1718,7 +1718,7 @@ void Component::write_binary(ostream* out, bool real4)
     header.ndatr = ndattrib;
   
     std::ostringstream outs;
-    if (conf.Type() != YAML::NodeType::Null) outs << conf;
+    if (conf.Type() != YAML::NodeType::Null) outs << conf << std::endl;
 
     // Resize info string, if necessary
     size_t infosz = outs.str().size() + 4;
@@ -1831,8 +1831,19 @@ void Component::write_binary_mpi_b(MPI_File& out, MPI_Offset& offset, bool real4
     header.ndatr = ndattrib;
   
     std::ostringstream outs;
-    outs << conf;
+    outs << conf << std::endl;
     strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
+
+    // DEBUGGING
+    if (false and myid==0) {
+      std::cout << std::string(72, '-') << std::endl
+		<< "Serialized YAML header looks like this:" << std::endl
+		<< std::string(72, '-') << std::endl
+		<< outs.str() << std::endl
+		<< "Cur size=" << outs.str().size()
+		<< " max size=" << header.ninfochar << std::endl
+		<< std::string(72, '-') << std::endl;
+    }
 
     unsigned long cmagic = magic + rsize;
 
@@ -1925,8 +1936,19 @@ void Component::write_binary_mpi_i(MPI_File& out, MPI_Offset& offset, bool real4
     header.ndatr = ndattrib;
   
     std::ostringstream outs;
-    outs << conf;
+    outs << conf << std::endl;
     strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
+
+    // DEBUGGING
+    if (false and myid==0) {
+      std::cout << std::string(72, '-') << std::endl
+		<< "Serialized YAML header looks like this:" << std::endl
+		<< std::string(72, '-') << std::endl
+		<< outs.str() << std::endl
+		<< "Cur size=" << outs.str().size()
+		<< " max size=" << header.ninfochar << std::endl
+		<< std::string(72, '-') << std::endl;
+    }
 
     unsigned long cmagic = magic + rsize;
 
