@@ -307,8 +307,6 @@ __global__ void coefKernel
 
   cuFP_t fac0 = 4.0*M_PI;
 
-  cuFP_t *wn = new cuFP_t [nmax]; // Temporary for EOF computation
-
   for (int n=0; n<stride; n++) {
 
     int i     = tid*stride + n;
@@ -376,8 +374,6 @@ __global__ void coefKernel
 	  coef._v[(2*n+0)*N + i] = v * cosp;
 	  coef._v[(2*n+1)*N + i] = v * sinp;
 
-	  wn[n] = fabs(v);
-
 #ifdef BOUNDS_CHECK
 	  if ((2*n+0)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 	  if ((2*n+1)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
@@ -385,9 +381,17 @@ __global__ void coefKernel
 	}
 
 	if (compute and tvar._s>0) {
+	  cuFP_t x, y;
+
 	  for (int r=0, c=0; r<nmax; r++) {
+	    x = coef._v[(2*r+0)*N + i] * coef._v[(2*r+0)*N + i] +
+	        coef._v[(2*r+1)*N + i] * coef._v[(2*r+1)*N + i];
+
 	    for (int s=r; s<nmax; s++) {
-	      tvar._v[N*c + i] = wn[r] * wn[s] / Mass._v[i];
+	      y = coef._v[(2*s+0)*N + i] * coef._v[(2*s+0)*N + i] +
+		  coef._v[(2*s+1)*N + i] * coef._v[(2*s+1)*N + i];
+
+	      tvar._v[N*c + i] = sqrt(x*y) / Mass._v[i];
 	      c++;
 	    }
 	  }
@@ -411,7 +415,6 @@ __global__ void coefKernel
     }
   }
 
-  delete [] wn;
 }
 
 __global__ void

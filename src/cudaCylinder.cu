@@ -284,8 +284,6 @@ __global__ void coefKernelCyl
 
   const cuFP_t norm = -4.0*M_PI;    // Biorthogonality factor
 
-  cuFP_t *wn = new cuFP_t [nmax]; // Temporary for EOF computation
-
   for (int n=0; n<stride; n++) {
 
     // Particle counter
@@ -363,8 +361,6 @@ __global__ void coefKernelCyl
 #endif
 	  coef._v[(2*n+0)*N + i] = val * cosp * norm * mass;
 
-	  wn[n] = val*val;
-
 	  if (m>0) {
 	    // potS tables are offset from potC tables by +3
 	    //
@@ -382,8 +378,6 @@ __global__ void coefKernelCyl
 	    val = c00*d00 + c10*d10 + c01*d01 + c11*d11;
 	    coef._v[(2*n+1)*N + i] = (c00*d00 + c10*d10 + c01*d01 + c11*d11) * sinp * norm * mass;
 
-	    wn[n] += val*val;
-
 #ifdef BOUNDS_CHECK
 	    if ((2*n+1)*N+i>=coef._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
@@ -395,15 +389,18 @@ __global__ void coefKernelCyl
 	} // norder loop
 
 	if (compute) {
-	  for (int r=0; r<nmax; r++) wn[r] = sqrt(wn[r]);
-	  /*
-	  if (npart==0) {
-	    for (int r=0; r<nmax; r++) printf("%3d %3d %13.6e\n", r+1, m, wn[r]);
-	  }
-	  */
+	  cuFP_t x, y;
 	  for (int r=0, c=0; r<nmax; r++) {
+	    x = coef._v[(2*r+0)*N + i] * coef._v[(2*r+0)*N + i];
+	    if (m>0) 
+	      x += coef._v[(2*r+1)*N + i] * coef._v[(2*r+1)*N + i];
+
 	    for (int s=r; s<nmax; s++) {
-	      tvar._v[N*c + i] = wn[r] * wn[s] * norm * norm * mass;
+	      y = coef._v[(2*s+0)*N + i] * coef._v[(2*s+0)*N + i];
+	      if (m>0) 
+		y += coef._v[(2*s+1)*N + i] * coef._v[(2*s+1)*N + i];
+
+	      tvar._v[N*c + i] = sqrt(x*y) / mass;
 	      c++;
 	    }
 	  }
@@ -431,7 +428,6 @@ __global__ void coefKernelCyl
 
   } // stride loop
 
-  delete [] wn;
 }
 
 __global__ void
