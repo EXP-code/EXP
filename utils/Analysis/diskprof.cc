@@ -867,7 +867,7 @@ main(int argc, char **argv)
   EmpCylSL ortho(NMAX, LMAX, MMAX, NORDER, RSCALE, VSCALE);
 
   if (PCA) {
-    EmpCylSL::SELECT = true;
+    EmpCylSL::PCAVAR = true;
     ortho.setHall(OUTFILE + ".pca", 1);
   }
 

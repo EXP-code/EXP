@@ -94,9 +94,10 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   expcond         = true;
   cmap            = true;
   logarithmic     = false;
-  pca             = false;
+  pcavar          = false;
   pcavtk          = false;
   pcadiag         = false;
+  pcaeof          = false;
   nvtk            = 1;
   pcainit         = true;
   density         = false;
@@ -229,7 +230,8 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	   << " acyl="        << acyl
 	   << " hcyl="        << hcyl
 	   << " expcond="     << expcond
-	   << " pca="         << pca
+	   << " pcavar="      << pcavar
+	   << " pcaeof="      << pcaeof
 	   << " nvtk="        << nvtk
 	   << " npca="        << npca
 	   << " npca0="       << npca0
@@ -253,10 +255,11 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	 << " acyl="        << acyl
 	 << " hcyl="        << hcyl
 	 << " expcond="     << expcond
-	 << " pca="         << pca
+	 << " pcavar="      << pcavar
+	 << " pcaeof="      << pcaeof
 	 << " nvtk="        << nvtk
 	 << " npca="        << npca
-	 << " npca0"        << npca0
+	 << " npca0="       << npca0
 	 << " pcadiag="     << pcadiag
 	 << " eof_file="    << eof_file
 	 << " logarithmic=" << logarithmic
@@ -317,7 +320,8 @@ void Cylinder::initialize()
     if (conf["ashift"    ])     ashift  = conf["ashift"    ].as<double>();
     if (conf["expcond"   ])    expcond  = conf["expcond"   ].as<bool>();
     if (conf["logr"      ]) logarithmic = conf["logr"      ].as<bool>();
-    if (conf["pca"       ])        pca  = conf["pca"       ].as<bool>();
+    if (conf["pcavar"    ])     pcavar  = conf["pcavar"    ].as<bool>();
+    if (conf["pcaeof"    ])     pcaeof  = conf["pcaeof"    ].as<bool>();
     if (conf["pcavtk"    ])     pcavtk  = conf["pcavtk"    ].as<bool>();
     if (conf["pcadiag"   ])    pcadiag  = conf["pcadiag"   ].as<bool>();
     if (conf["try_cache" ])  try_cache  = conf["try_cache" ].as<bool>();
@@ -623,8 +627,9 @@ void Cylinder::determine_coefficients(void)
     }
   }
 
-  if (pca and pcainit) {
-    EmpCylSL::SELECT = true;
+  if ( (pcavar or pcaeof) and pcainit) {
+    EmpCylSL::PCAVAR = pcavar;
+    EmpCylSL::PCAEOF = pcaeof;
     EmpCylSL::PCAVTK = pcavtk;
     EmpCylSL::VTKFRQ = nvtk;
     std::ostringstream sout;
@@ -641,7 +646,7 @@ void Cylinder::determine_coefficients(void)
     pcainit = false;
   }
 
-  if (pca) {
+  if (pcavar or pcaeof) {
     if (this_step >= npca0)
       compute = (mstep == 0) && !( (this_step-npca0) % npca);
     else
@@ -729,7 +734,7 @@ void Cylinder::determine_coefficients(void)
     compute_multistep_coefficients();
   }
 
-  if (pca and mlevel==multistep) ortho->pca_hall(compute);
+  if ((pcavar or pcaeof) and mlevel==multistep) ortho->pca_hall(compute);
 
   //=========================
   // Dump basis on first call

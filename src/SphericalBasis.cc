@@ -146,7 +146,7 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
     }
   }
 
-  if (pca) {
+  if (pcavar or pcaeof) {
     muse1 = vector<double>(nthrds, 0.0);
     muse0 = 0.0;
 
@@ -238,7 +238,7 @@ SphericalBasis::~SphericalBasis()
 {
   delete [] expcoef0;
 
-  if (pca) {
+  if (pcavar or pcaeof) {
     pthread_mutex_destroy(&cc_lock);
   }
   delete [] potd;
@@ -317,7 +317,6 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
 
 void * SphericalBasis::determine_coefficients_thread(void * arg)
 {
-  int l, loffset, moffset, m, n, nn, indx;
   double r, r2, rs, fac1, fac2, costh, phi, mass;
   double fac0=4.0*M_PI;
   double xx, yy, zz;
@@ -327,6 +326,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
   double adb = component->Adiabatic();
+  std::vector<double> wk(nmax);
 
 #ifdef DEBUG
   pthread_mutex_lock(&io_lock);
@@ -352,7 +352,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
-    indx = cC->levlist[mlevel][i];
+    int indx = cC->levlist[mlevel][i];
 
     if (component->freeze(indx)) continue;
 
@@ -389,50 +389,77 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
       if (compute) {
 	muse1[id] += mass;
-	whch = indx % sampT;
-	pthread_mutex_lock(&cc_lock);
-	massT1[whch] += mass;
-	pthread_mutex_unlock(&cc_lock);
+	if (pcavar) {
+	  whch = indx % sampT;
+	  pthread_mutex_lock(&cc_lock);
+	  massT1[whch] += mass;
+	  pthread_mutex_unlock(&cc_lock);
+	}
       }
 
       //		l loop
-      for (l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
+      for (int l=0, loffset=0, iC=0; l<=Lmax; loffset+=(2*l+1), l++) {
 	//		m loop
-	for (m=0, moffset=0; m<=l; m++) {
+	for (int m=0, moffset=0; m<=l; m++) {
+
 	  if (m==0) {
-	    for (n=1; n<=nmax; n++) {
+	    for (int n=1; n<=nmax; n++) {
 
-	      double hold = potd[id][l][n]*legs[id][l][m]*mass*fac0/normM[l][n];
+	      wk[n-1] = potd[id][l][n]*legs[id][l][m]*mass*fac0/normM[l][n];
 
-	      expcoef0[id][loffset+moffset][n] += hold;
+	      expcoef0[id][loffset+moffset][n] += wk[n-1];
 
-	      if (compute) {
+	      if (compute and pcavar) {
 		pthread_mutex_lock(&cc_lock);
-		(*expcoefT1[whch])[loffset+moffset][n] += hold;
+		(*expcoefT1[whch])[loffset+moffset][n] += wk[n-1];
 		pthread_mutex_unlock(&cc_lock);
 	      }
 	    }
+
+	    if (compute and pcaeof) {
+	      pthread_mutex_lock(&cc_lock);
+	      for (int n=1; n<=nmax; n++) {
+		for (int o=1; o<=nmax; o++) {
+		  (*tvar[iC])[n][o] += wk[n-1]*wk[o-1]/mass;
+		}
+	      }
+	      pthread_mutex_unlock(&cc_lock);
+	      iC++;
+	    }
+
 	    moffset++;
 	  }
 	  else {
 	    fac1 = legs[id][l][m]*cosm[id][m];
 	    fac2 = legs[id][l][m]*sinm[id][m];
 
-	    for (n=1; n<=nmax; n++) {
+	    for (int n=1; n<=nmax; n++) {
 
-	      double hold = potd[id][l][n]*mass*fac0/normM[l][n];
+	      wk[n-1] = potd[id][l][n]*mass*fac0/normM[l][n];
 
-	      expcoef0[id][loffset+moffset  ][n] += hold*fac1;
-	      expcoef0[id][loffset+moffset+1][n] += hold*fac2;
+	      expcoef0[id][loffset+moffset  ][n] += wk[n-1]*fac1;
+	      expcoef0[id][loffset+moffset+1][n] += wk[n-1]*fac2;
 
-	      if (compute) {
+	      if (compute and pcavar) {
 		pthread_mutex_lock(&cc_lock);
-		(*expcoefT1[whch])[loffset+moffset  ][n] += hold*fac1;
-		(*expcoefT1[whch])[loffset+moffset+1][n] += hold*fac2;
+		(*expcoefT1[whch])[loffset+moffset  ][n] += wk[n-1]*fac1;
+		(*expcoefT1[whch])[loffset+moffset+1][n] += wk[n-1]*fac2;
 		pthread_mutex_unlock(&cc_lock);
 	      }
 	      
 	    }
+
+	    if (compute and pcaeof) {
+	      pthread_mutex_lock(&cc_lock);
+	      for (int n=1; n<=nmax; n++) {
+		for (int o=1; o<=nmax; o++) {
+		  (*tvar[iC])[n][o] += wk[n-1]*wk[o-1]/mass;
+		}
+	      }
+	      pthread_mutex_unlock(&cc_lock);
+	      iC++;
+	    }
+
 	    moffset+=2;
 	  } // m!=0
 
@@ -464,7 +491,7 @@ void SphericalBasis::determine_coefficients(void)
   //
   if (!self_consistent && !firstime_coef && !initializing) return;
 
-  if (pca) {
+  if (pcavar or pcaeof) {
     if (this_step >= npca0) 
       compute = (mstep == 0) && !( (this_step-npca0) % npca);
     else
@@ -494,8 +521,14 @@ void SphericalBasis::determine_coefficients(void)
       for (int n=0; n<nthrds; n++) muse1[n] = 0.0;
       muse0 = 0.0;
       
-      for (auto & t : expcoefT1) t->zero();
-      for (auto & v : massT1)    v = 0;
+      if (pcavar) {
+	for (auto & t : expcoefT1) t->zero();
+	for (auto & v : massT1)    v = 0;
+      }
+
+      if (pcaeof) {
+	for (auto & v : tvar) v->zero();
+      }
     }
   }
 

@@ -589,7 +589,7 @@ main(int ac, char **av)
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
   EmpCylSL::DENS        = DENS;
-  EmpCylSL::SELECT      = SELECT;
+  EmpCylSL::PCAVAR      = SELECT;
   EmpCylSL::CACHEFILE   = cachefile;
 
 
