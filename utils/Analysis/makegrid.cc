@@ -123,7 +123,7 @@ int main(int argc, char**argv)
   double xmin=-1.0, xmax=1.0;
   double ymin=-1.0, ymax=1.0;
   double zmin=-1.0, zmax=1.0;
-  double vscale = 1.0, rmin, rmax;
+  double vscale = 1.0, rmin, rmax, zcut = -100.0;
   string infile("OUT.bin");
   string outfile("OUT");
   string cname, dname, sname;
@@ -131,8 +131,12 @@ int main(int argc, char**argv)
   unsigned long initial_dark = 0, final_dark = MAXLONG;
   unsigned long initial_star = 0, final_star = MAXLONG;
   unsigned long initial_gas  = 0, final_gas  = MAXLONG;
-  bool mask    = false;
-  bool verbose = false;
+
+  bool COM      = false;
+  bool mask     = false;
+  bool verbose  = false;
+  bool monopole = false;
+  bool relative = false;
 				// Boltzmann constant (cgs)
   const double boltz = 1.3810e-16;
 				// Hydrogen fraction
@@ -151,6 +155,9 @@ int main(int argc, char**argv)
     ("help,h", "produce this help message")
     ("verbose,v", "verbose output")
     ("mask,b", "blank empty cells")
+    ("monopole,M", "subtract tabulated monopole")
+    ("relative,D", "density relative to tabulated monopole")
+    ("COM,C",      "use COM as origin")
     ("numx,1", po::value<int>(&numx)->default_value(20), 
      "number of bins in x direction")
     ("numy,2", po::value<int>(&numy)->default_value(20), 
@@ -177,6 +184,8 @@ int main(int argc, char**argv)
      "maximum coord value for all dimensions")
     ("vscale,V", po::value<double>(&vscale)->default_value(1.0), 
      "vertical scale factor")
+    ("planecut,P", po::value<double>(&zcut)->default_value(-100.0), 
+     "vertical plane cut")
     ("time,t", po::value<double>(&time)->default_value(0.0), 
      "desired PSP time")
     ("dark-name,d", po::value<string>(&dname),
@@ -220,11 +229,15 @@ int main(int argc, char**argv)
  
   if (vm.count("verbose")) verbose = true;
 
-  if (vm.count("mask")) mask = true;
+  if (vm.count("mask"))     mask     = true;
+  if (vm.count("monopole")) monopole = true;
+  if (vm.count("relative")) relative = true;
+  if (vm.count("COM"))      COM      = true;
   
   if (vm.count("rmin")) { xmin = ymin = zmin = rmin; }
   if (vm.count("rmax")) { xmax = ymax = zmax = rmax; }
   if (vm.count("numr")) { numx = numy = numz = numr; }
+
 
   ifstream *in = new ifstream(infile.c_str());
   if (!*in) {
@@ -269,15 +282,38 @@ int main(int argc, char**argv)
        << endl;
   cout << "Grid spacing: [" << dx << ", " << dy << ", " << dz << "]"
        << endl;
+  if (zcut>0.0) cout << "Plane cut:    " << zcut << endl;       
+
+  double smax = 0.0;
+
+  smax = std::max<double>(smax, fabs(xmin));
+  smax = std::max<double>(smax, fabs(xmax));
+
+  smax = std::max<double>(smax, fabs(ymin));
+  smax = std::max<double>(smax, fabs(ymax));
+
+  smax = std::max<double>(smax, fabs(zmin));
+  smax = std::max<double>(smax, fabs(zmax));
+
+  smax *= 1.8;			// Round up of sqrt(3)
+
+  int nums = 0;
+  nums  = std::max<int>(nums, numx);
+  nums  = std::max<int>(nums, numy);
+  nums  = std::max<int>(nums, numz);
+  nums *= 4;
+
+  double dr = smax/nums;
+  vector<float> dshell(nums, 0.0);
 
   float ftmp;
   vector<float> xyz(3), uvw(3);
-  vector< vector< vector<float> > > mass(numx), gdens(numx), gtemp(numx);
+  vector< vector< vector<float> > > mass(numx),  gdens(numx), gtemp(numx);
   vector< vector< vector<float> > > gknud(numx), gstrl(numx), gmach(numx);
   vector< vector< vector<float> > > sdens(numx), ddens(numx), gnumb(numx);
   vector< vector< vector< vector<double> > > > pos(numx);
-  vector< vector< vector< vector<float > > > > vel(numx);
-
+  vector< vector< vector< vector<float > > > > vel(numx), veld(numx), vels(numx);
+  
   for (int i=0; i<numx; i++) {
     
     mass [i] = vector< vector<float> >(numy);
@@ -290,8 +326,10 @@ int main(int argc, char**argv)
     ddens[i] = vector< vector<float> >(numy);
     gnumb[i] = vector< vector<float> >(numy);
 
-    pos[i]  = vector< vector< vector<double> > >(numy);
-    vel[i]  = vector< vector< vector<float> > >(numy);
+    pos  [i] = vector< vector< vector<double> > >(numy);
+    vel  [i] = vector< vector< vector<float> > >(numy);
+    veld [i] = vector< vector< vector<float> > >(numy);
+    vels [i] = vector< vector< vector<float> > >(numy);
     
     for (int j=0; j<numy; j++) {
       
@@ -305,12 +343,16 @@ int main(int argc, char**argv)
       ddens[i][j] = vector<float>(numz, 0.0);
       gnumb[i][j] = vector<float>(numz, 0.0);
 
-      pos[i][j]   = vector< vector<double> >(numz);
-      vel[i][j]   = vector< vector<float > >(numz);
+      pos [i][j]   = vector< vector<double> >(numz);
+      vel [i][j]   = vector< vector<float > >(numz);
+      veld[i][j]   = vector< vector<float > >(numz);
+      vels[i][j]   = vector< vector<float > >(numz);
 
       for (int k=0; k<numz; k++) {
-	pos[i][j][k] = vector<double>(3);
-	vel[i][j][k] = vector<float> (3, 0.0);
+	pos [i][j][k] = vector<double>(3);
+	vel [i][j][k] = vector<float> (3, 0.0);
+	veld[i][j][k] = vector<float> (3, 0.0);
+	vels[i][j][k] = vector<float> (3, 0.0);
 
 	pos[i][j][k][0] = xmin + dx*(0.5 + i);
 	pos[i][j][k][1] = ymin + dy*(0.5 + j);
@@ -324,6 +366,7 @@ int main(int argc, char**argv)
   in = new ifstream(infile.c_str());
 
   double ms, ps[3], vs[3];
+  double com[3] = {0.0, 0.0, 0.0};
   size_t indx;
 
   bool found_gas  = false;
@@ -362,6 +405,41 @@ int main(int argc, char**argv)
   PSPstanza* its;
   SParticle* prt;
 
+  //
+  // Compute COM for the entire phase space
+  //
+  if (COM) {
+
+    double tot_mass = 0.0;
+
+    for (its=psp.GetStanza(); its!=0; its=psp.NextStanza()) {
+
+      //
+      // Position to beginning of particles
+      //
+      in->seekg(its->pspos);
+      
+      indx = 0;
+      for (prt=psp.GetParticle(in); prt!=0; prt=psp.NextParticle(in)) {
+	
+	if (its->index_size) indx = prt->indx();
+	else                 indx++;
+	
+	ms = prt->mass();
+	for (int i=0; i<3; i++) com[i] += ms*prt->pos(i);
+	tot_mass += ms;
+      }
+    }
+    
+    if (tot_mass>0.0) {
+      for (int i=0; i<3; i++) com[i] /= tot_mass;
+    }
+
+    cout << "COM:          [" << com[0] << ", "
+	 << com[1] << ", " << com[2] << "]" << std::endl;
+  }
+  
+
   for (its=psp.GetStanza(); its!=0; its=psp.NextStanza()) {
 
     if (dname.compare(its->name) == 0) {
@@ -382,22 +460,31 @@ int main(int argc, char**argv)
 	else                 indx++;
 
 	ms = prt->mass();
-	for (int i=0; i<3; i++) ps[i] = prt->pos(i);
+	for (int i=0; i<3; i++) ps[i] = prt->pos(i) - com[i];
 	for (int i=0; i<3; i++) vs[i] = prt->vel(i);
 	if (verbose) posvel["dark"](ps, vs);
 
 				// Accumulate
 				// 
-	if (indx > initial_dark && indx <= final_dark &&
-	    ps[0] >= xmin && ps[0] < xmax       &&
-	    ps[1] >= ymin && ps[1] < ymax       &&
-	    ps[2] >= zmin && ps[2] < zmax       ) {
-	  
-	  int ii = (ps[0] - xmin)/dx;
-	  int jj = (ps[1] - ymin)/dy;
-	  int kk = (ps[2] - zmin)/dz;
-	  
-	  ddens[ii][jj][kk] += ms;
+	if (indx > initial_dark && indx <= final_dark) {
+	  if (ps[0] >= xmin && ps[0] < xmax       &&
+	      ps[1] >= ymin && ps[1] < ymax       &&
+	      ps[2] >= zmin && ps[2] < zmax       &&
+	      (ps[2] > zcut or ps[2] < -zcut) ) {
+	    
+	    int ii = (ps[0] - xmin)/dx;
+	    int jj = (ps[1] - ymin)/dy;
+	    int kk = (ps[2] - zmin)/dz;
+	    
+	    ddens[ii][jj][kk] += ms;
+	    for (int i=0; i<3; i++) veld[ii][jj][kk][i] += ms*vs[i];
+	  }
+
+	  double rr = sqrt(ps[0]*ps[0] + ps[1]*ps[1] + ps[2]*ps[2]);
+	  if (rr < smax) {
+	    int uu = floor(rr/dr);
+	    dshell[uu] += ms;
+	  }
 	}
       }
 
@@ -419,7 +506,7 @@ int main(int argc, char**argv)
 	else                 indx++;
 
 	ms = prt->mass();
-	for (int i=0; i<3; i++) ps[i] = prt->pos(i);
+	for (int i=0; i<3; i++) ps[i] = prt->pos(i) - com[i];
 	for (int i=0; i<3; i++) vs[i] = prt->vel(i);
 	if (verbose) posvel["star"](ps, vs);
 
@@ -436,10 +523,11 @@ int main(int argc, char**argv)
 	  int kk = (ps[2] - zmin)/dz;
 	  
 	  sdens[ii][jj][kk] += ms;
+	  for (int i=0; i<3; i++) vels[ii][jj][kk][i] += ms*vs[i];
 	}
       }
 
-    } else if (cname.compare(its->name) == 0) {
+      } else if (cname.compare(its->name) == 0) {
 
       found_gas = true;
 
@@ -457,8 +545,8 @@ int main(int argc, char**argv)
 	else                 indx++;
 
 	ms = prt->mass();
-	for (int i=0; i<3; i++) ps[i]  = prt->pos(i);
-	for (int i=0; i<3; i++) xyz[i] = prt->pos(i);
+	for (int i=0; i<3; i++) ps[i]  = prt->pos(i) - com[i];
+	for (int i=0; i<3; i++) xyz[i] = prt->pos(i) - com[i];
 	for (int i=0; i<3; i++) vs[i]  = prt->vel(i);
 	for (int i=0; i<3; i++) uvw[i] = prt->vel(i);
       
@@ -521,7 +609,7 @@ int main(int argc, char**argv)
     exit(-1);
   }
 
-  if (!found_dark && sname.size() > 0) {
+  if (!found_star && sname.size() > 0) {
     cerr << "Could not find star component named <" << sname << ">\n";
     exit(-1);
   }
@@ -529,6 +617,11 @@ int main(int argc, char**argv)
   if (!found_gas && cname.size() > 0) {
     cerr << "Could not find gas component named <" << cname << ">\n";
     exit(-1);
+  }
+
+  if (found_dark) {
+    for (int k=0; k<nums; k++) 
+      dshell[k] /= 4.0*M_PI/3.0*(std::pow(dr*(k+1), 3.0) - std::pow(dr*(k+0), 3.0));
   }
 
   for (int i=0; i<numx; i++) {
@@ -551,11 +644,35 @@ int main(int argc, char**argv)
 	  }
 	  mass [i][j][k] /= dx*dy*dz;
 	}
-	if (found_dark) ddens[i][j][k] /= dx*dy*dz;
-	if (found_star) sdens[i][j][k] /= dx*dy*dz;
+	if (found_dark) {
+	  if (ddens[i][j][k]>0.0)
+	    for (int s=0; s<3; s++) veld[i][j][k][s] /= ddens[i][j][k];
+	  ddens[i][j][k] /= dx*dy*dz;
+
+	  double xx = xmin + dx*(0.5 + i);
+	  double yy = ymin + dy*(0.5 + j);
+	  double zz = zmin + dz*(0.5 + k);
+	  double rr = std::sqrt(xx*xx + yy*yy + zz*zz);
+
+	  if (monopole and rr < smax)
+	    ddens[i][j][k] -= dshell[std::floor(rr/dr)];
+
+	  if (relative and rr < smax) {
+	    if (dshell[std::floor(rr/dr)] > 0.0)
+	      ddens[i][j][k] /= dshell[std::floor(rr/dr)];
+	    else
+	      ddens[i][j][k]  = 0.0;
+	  }
+	}
+	if (found_star) {
+	  if (sdens[i][j][k]>0.0)
+	    for (int s=0; s<3; s++) vels[i][j][k][s] /= sdens[i][j][k];
+	  sdens[i][j][k] /= dx*dy*dz;
+	}
       }
     }
   }
+
   
   vtkSmartPointer<vtkFloatArray> XX = vtkFloatArray::New();
   vtkSmartPointer<vtkFloatArray> YY = vtkFloatArray::New();
@@ -581,8 +698,8 @@ int main(int argc, char**argv)
   vtkSmartPointer<vtkDataArray> density;
   vtkSmartPointer<vtkDataArray> velocity;
   vtkSmartPointer<vtkPoints>    points;
-  vtkSmartPointer<vtkDataArray> dRho;
-  vtkSmartPointer<vtkDataArray> sRho;
+  vtkSmartPointer<vtkDataArray> dRho, dVel;
+  vtkSmartPointer<vtkDataArray> sRho, sVel;
 
 
   if (found_gas) {
@@ -610,11 +727,17 @@ int main(int argc, char**argv)
   if (found_dark) {
     dRho = vtkFloatArray::New();
     dRho->SetName("Dark density");
+    dVel = vtkFloatArray::New();
+    dVel->SetName("Dark velocity");
+    dVel->SetNumberOfComponents(3);
   }
 
   if (found_star) {
     sRho = vtkFloatArray::New();
     sRho->SetName("Star density");
+    sVel = vtkFloatArray::New();
+    sVel->SetName("Star velocity");
+    sVel->SetNumberOfComponents(3);
   }
 
   vtkSmartPointer<vtkUnsignedCharArray> visible = vtkUnsignedCharArray::New();
@@ -669,12 +792,15 @@ int main(int argc, char**argv)
 	  }
 	}
 
-	if (found_dark)
+	if (found_dark) {
 	  dRho->InsertTuple(n, &ddens[i][j][k]);
-
-	if (found_star)
+	  dVel->InsertTuple(n, &veld[i][j][k][0]);
+	}
+	
+	if (found_star) {
 	  sRho->InsertTuple(n, &sdens[i][j][k]);
-
+	  sVel->InsertTuple(n, &vels[i][j][k][0]);
+	}
 
 	offset++;
       }
@@ -695,11 +821,15 @@ int main(int argc, char**argv)
     // dataSet->SetPointVisibilityArray(visible);
   }
     
-  if (found_dark)
+  if (found_dark) {
     dataSet->GetPointData()->AddArray(dRho);
+    dataSet->GetPointData()->SetVectors(dVel);
+  }
   
-  if (found_star)
+  if (found_star) {
     dataSet->GetPointData()->AddArray(sRho);
+    dataSet->GetPointData()->SetVectors(sVel);
+  }
   
   dataSet->SetDimensions(numx, numy, numz);
 
