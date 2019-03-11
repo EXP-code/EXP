@@ -58,7 +58,7 @@ namespace po = boost::program_options;
 #include <interp.h>
 #include <massmodel.h>
 #include <SphereSL.H>
-
+#include <VtkGrid.H>
 #include <localmpi.h>
 #include <foarray.H>
 
@@ -80,7 +80,7 @@ double tnow = 0.0;
   
 string OUTFILE, INFILE, INDEX;
 double RMIN, RMAX, TIME;
-int OUTR, NICE, LMAX, NMAX, MMAX, PARTFLAG;
+int OUTR, NICE, LMAX, NMAX, MMAX, PARTFLAG, L1, L2;
 bool ALL, VOLUME, SURFACE, PROBE;
 
 enum ComponentType {Star=1, Gas=2, Halo=4};
@@ -271,8 +271,8 @@ void write_output(SphereSL& ortho, int icnt, double time)
   ostringstream sstr;
   sstr << "." << icnt;
 
-  nout = 7;
-  string suffix[7] = {"p0", "p", "fr", "ft", "fp", "d0", "d"};
+  nout = 8;
+  string suffix[8] = {"p0", "p", "fr", "ft", "fp", "d0", "d", "dd"};
 
   if (VOLUME) {
       
@@ -305,7 +305,7 @@ void write_output(SphereSL& ortho, int icnt, double time)
 	  costh = z/r;
 	  phi = atan2(y, x);
 	  
-	  ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp);
+	  ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp, L1, L2);
 	  
 	  indat[((0*OUTR + k)*OUTR + l)*OUTR + j] = p0;
 	  indat[((1*OUTR + k)*OUTR + l)*OUTR + j] = p1;
@@ -314,6 +314,10 @@ void write_output(SphereSL& ortho, int icnt, double time)
 	  indat[((4*OUTR + k)*OUTR + l)*OUTR + j] = fp;
 	  indat[((5*OUTR + k)*OUTR + l)*OUTR + j] = d0;
 	  indat[((6*OUTR + k)*OUTR + l)*OUTR + j] = d1;
+	  if (d0>0.0)
+	    indat[((7*OUTR + k)*OUTR + l)*OUTR + j] = d1/d0;
+	  else
+	    indat[((7*OUTR + k)*OUTR + l)*OUTR + j] = 0.0;
 	}
       }
     }
@@ -324,42 +328,24 @@ void write_output(SphereSL& ortho, int icnt, double time)
     
     if (myid==0) {
 
-      vector<string> names(nout);
-      
-      for (int i=0; i<nout; i++) {
-	names[i] = OUTFILE + "." + suffix[i] + ".vol";
-	if (ALL) names[i] += sstr.str();
-      }
+      VtkGrid vtk(OUTR, OUTR, OUTR, -RMAX, RMAX, -RMAX, RMAX, -RMAX, RMAX);
 
-      foarray out(names);
+      std::vector<double> data(OUTR*OUTR*OUTR);
 
-      for (int i=0; i<nout; i++) {
-	out[i].write((char *)&OUTR, sizeof(int));
-	out[i].write((char *)&OUTR, sizeof(int));
-	out[i].write((char *)&OUTR, sizeof(int));
-      }
-    
-    
-      for (int k=0; k<OUTR; k++) {
-	
-	node.z = -RMAX + dR*k;
-	
-	for (int l=0; l<OUTR; l++) {
-	  
-	  node.y = -RMAX + dR*l;
-	  
-	  for (int j=0; j<OUTR; j++) {
-	    
-	    node.x = -RMAX + dR*j;
-	    
-	    for (int n=0; n<nout; n++) {
-	      node.value  = otdat[((n*OUTR + k)*OUTR + l)*OUTR + j];
-
-	      out[n].write((char *)&node, sizeof(Node));
+      for (int n=0; n<nout; n++) {
+	for (int k=0; k<OUTR; k++) {
+	  for (int l=0; l<OUTR; l++) {
+	    for (int j=0; j<OUTR; j++) {
+	      data[(j*OUTR + l)*OUTR + k] = otdat[((n*OUTR + k)*OUTR + l)*OUTR + j];
 	    }
 	  }
 	}
+	vtk.Add(data, suffix[n]);
       }
+
+      std::ostringstream sout;
+      sout << OUTFILE + "_volume";
+      vtk.Write(sout.str());
     }
 
   }
@@ -403,6 +389,10 @@ void write_output(SphereSL& ortho, int icnt, double time)
 	  indat[(4*OUTR+l)*OUTR+j] = fp;
 	  indat[(5*OUTR+l)*OUTR+j] = d0;
 	  indat[(6*OUTR+l)*OUTR+j] = d1;
+	  if (d0>0.0)
+	    indat[(7*OUTR+l)*OUTR+j] = d1/d0;
+	  else
+	    indat[(7*OUTR+l)*OUTR+j] = 0.0;
 	}
       }
     }
@@ -520,6 +510,10 @@ void write_output(SphereSL& ortho, int icnt, double time)
 	indat[indx + 4] = fp;
 	indat[indx + 5] = d0;
 	indat[indx + 6] = d1;
+	if (d0>0.0)
+	  indat[indx + 7] = d1/d0;
+	else
+	  indat[indx + 7] = 0.0;
 
 	costh = 0.0;
 	phi   = 0.5*M_PI;
@@ -533,6 +527,10 @@ void write_output(SphereSL& ortho, int icnt, double time)
 	indat[indx + 4] = fp;
 	indat[indx + 5] = d0;
 	indat[indx + 6] = d1;
+	if (d0>0.0)
+	  indat[indx + 7] = d1/d0;
+	else
+	  indat[indx + 7] = 0.0;
 
 	costh = 1.0;
 	phi   = 0.0;
@@ -546,6 +544,10 @@ void write_output(SphereSL& ortho, int icnt, double time)
 	indat[indx + 4] = fp;
 	indat[indx + 5] = d0;
 	indat[indx + 6] = d1;
+	if (d0>0.0)
+	  indat[indx + 7] = d1/d0;
+	else
+	  indat[indx + 7] = 0.0;
 
       }
     }
@@ -618,6 +620,10 @@ main(int argc, char **argv)
      "Maximum radial order for spherical expansion")
     ("MMAX",                po::value<int>(&MMAX)->default_value(4),
      "Maximum harmonic order")
+    ("L1",                  po::value<int>(&L1)->default_value(0),
+     "minimum l harmonic")
+    ("L2",                  po::value<int>(&L2)->default_value(100),
+     "maximum l harmonic")
     ("OUTR",                po::value<int>(&OUTR)->default_value(40),
      "Number of radial points for output")
     ("PROBE",               po::value<bool>(&PROBE)->default_value(true),
@@ -634,6 +640,8 @@ main(int argc, char **argv)
      "Filename prefix")
     ("INFILE",              po::value<string>(&INFILE)->default_value("OUT"),
      "Phase space file")
+    ("MODFILE",             po::value<string>(&MODFILE)->default_value("SLGridSph.model"),
+     "Halo model file")
     ("INDEX",               po::value<string>(&INDEX)->default_value("frame.indx"),
      "File containing desired indices for PSP output")
     ;
@@ -656,12 +664,20 @@ main(int argc, char **argv)
   }
 
   // ==================================================
+  // Print help message and exit
+  // ==================================================
+
+  if (vm.count("help")) {
+    std::cout << desc << std::endl;
+    return 0;
+  }
+
+  // ==================================================
   // Nice process
   // ==================================================
 
   if (NICE>0)
     setpriority(PRIO_PROCESS, 0, NICE);
-
 
   // ==================================================
   // Make SL expansion
