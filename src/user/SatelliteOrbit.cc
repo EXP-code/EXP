@@ -216,55 +216,26 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
     }
   }
     
-  if (myid==0) {
+  if (myid==0 and orbfile) {
 
-    double r, phi;
+    std::ofstream out(runtag + ".xyz");
 
-    if (circ) {
-      r = rsat;
-      phi = 0.0;
-    } else {
-      r   = orb->Orb().get_angle(6, 0.0);
-      phi = orb->Orb().get_angle(7, 0.0);
-    }
-      
-    v0[1] = r*cos(phi);
-    v0[2] = r*sin(phi);
-    v0[3] = 0.0;
-    
-				// Set current satellite position
-    currentR = rotate*v0;
+    if (out.good()) {		// Print orbit . . .
+      double T = orbtmin;
 
-    ostringstream sout;
-    sout << "X, Y, Z, at T=" << tnow;
+      while (T < orbtmax) {
+	currentR = rotate * get_satellite_orbit(T);
 
-    cout << setw(30) << left << sout.str() << " | " 
-	 << currentR[1] << ", "
-	 << currentR[2] << ", " 
-	 << currentR[3] << endl
-	 << setw(60) << setfill('-') << '-' << endl << setfill(' ');
-
-    if (orbfile) {
-      std::ofstream out(runtag + ".xyz");
-
-      if (out.good()) {
-	double T = orbtmin;
-
-	while (T > orbtmax) {
-	  Vector ps = get_satellite_orbit(T);
-
-	  out << setw(18) << T
-	      << setw(18) << ps[1]
-	      << setw(18) << ps[2]
-	      << setw(18) << ps[3]
-	      << endl;
-
-	  T += orbdelt;
-	}
+	out << setw(18) << T
+	    << setw(18) << currentR[1]
+	    << setw(18) << currentR[2]
+	    << setw(18) << currentR[3]
+	    << endl;
+	
+	T += orbdelt;
       }
     }
     // END: orbit output
-
   }
 
 }
