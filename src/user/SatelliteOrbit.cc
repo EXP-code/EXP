@@ -87,12 +87,14 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
   int    MAXIT        = 2000;
   int    NUMDF        = 800;
   double DIVRG_RFAC   = 1.0;
-  bool   CIRCULAR     = false;
-  std::string MODFILE = "halo.model";
   bool   orbfile      = true;
   double orbtmin      = -2.0;
   double orbtmax      =  2.0;
   double orbdelt      =  0.1;
+  /*  */ circ         = false;
+  std::string
+         MODFILE      = "halo.model";
+
 
   // Get configured values
   //
@@ -113,8 +115,8 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
     if (conf["MAXIT"     ])  MAXIT        = conf["MAXIT"     ].as<int>();
     if (conf["NUMDF"     ])  NUMDF        = conf["NUMDF"     ].as<int>();
     if (conf["DIVRG_RFAC"])  DIVRG_RFAC   = conf["DIVRG_RFAC"].as<double>();
-    if (conf["CIRCULAR"  ])  CIRCULAR     = conf["CIRCULAR"  ].as<bool>();
     if (conf["MODFILE"   ])  MODFILE      = conf["MODFILE"   ].as<std::string>();
+    if (conf["CIRCULAR"  ])  circ         = conf["CIRCULAR"  ].as<bool>();
     if (conf["orbfile"   ])  orbfile      = conf["orbfile"   ].as<bool>();
     if (conf["orbtmin"   ])  orbtmin      = conf["orbtmin"   ].as<double>();
     if (conf["orbtmax"   ])  orbtmax      = conf["orbtmax"   ].as<double>();
@@ -177,7 +179,7 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
 				// In case non-inertial is not desired
   omega = domega = 0.0;
 
-  if (CIRCULAR) {
+  if (circ) {
 
     rsat = RSAT;
     vsat = sqrt(rsat*halo_model->get_dpot(rsat));
@@ -216,20 +218,21 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
     }
   }
     
-  if (myid==0 and orbfile) {
+  if (myid==0 and orbfile) {	// Print diagnostic orbit file
 
     std::ofstream out(runtag + ".xyz");
 
-    if (out.good()) {		// Print orbit . . .
+    if (out.good()) {
+
       double T = orbtmin;
 
       while (T < orbtmax) {
-	currentR = rotate * get_satellite_orbit(T);
+	Vector ps = get_satellite_orbit(T);
 
 	out << setw(18) << T
-	    << setw(18) << currentR[1]
-	    << setw(18) << currentR[2]
-	    << setw(18) << currentR[3]
+	    << setw(18) << ps[1]
+	    << setw(18) << ps[2]
+	    << setw(18) << ps[3]
 	    << endl;
 	
 	T += orbdelt;
