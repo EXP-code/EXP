@@ -106,6 +106,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   dump_basis      = false;
   compute         = false;
   firstime_coef   = true;
+  eof_over        = false;
   eof_file        = "";
 
   initialize();
@@ -168,15 +169,18 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
       cache_ok = ortho->read_cache();
       
       if (!cache_ok) {
-	if (myid==0)		// Diagnostic output . . .
+	if (myid==0) {		// Diagnostic output . . .
 	  std::cerr << "Cylinder: can not read explicitly specified EOF file <"
-		    << EmpCylSL::CACHEFILE << ">" << std::endl
-		    << "Cylinder: shamelessly aborting . . ." << std::endl;
-	
-	MPI_Abort(MPI_COMM_WORLD, 12);
+		    << EmpCylSL::CACHEFILE << ">" << std::endl;
+	  if (eof_over) {
+	    std::cerr << "Cylinder: override specified . . ." << std::endl;
+	  } else {
+	    std::cerr << "Cylinder: shamelessly aborting . . ." << std::endl;
+	    MPI_Abort(MPI_COMM_WORLD, 12);
+	  }
+	}
       }
     }
-
 
     // Attempt to read EOF file from cache on restart
     //
@@ -237,6 +241,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	   << " npca0="       << npca0
 	   << " pcadiag="     << pcadiag
 	   << " eof_file="    << eof_file
+	   << " override="    << std::boolalpha << eof_over
 	   << " logarithmic=" << logarithmic
 	   << " vflag="       << vflag
 	   << endl << endl;
@@ -262,6 +267,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	 << " npca0="       << npca0
 	 << " pcadiag="     << pcadiag
 	 << " eof_file="    << eof_file
+	 << " override="    << std::boolalpha << eof_over
 	 << " logarithmic=" << logarithmic
 	 << " vflag="       << vflag
 	 << endl << endl;
@@ -312,6 +318,7 @@ void Cylinder::initialize()
     if (conf["npca0"     ])      npca0  = conf["npca0"     ].as<int>();
     if (conf["nvtk"      ])       nvtk  = conf["nvtk"      ].as<int>();
     if (conf["eof_file"  ])   eof_file  = conf["eof_file"  ].as<std::string>();
+    if (conf["override"  ])   eof_over  = conf["override"  ].as<bool>();
     if (conf["vflag"     ])      vflag  = conf["vflag"     ].as<int>();
     
     if (conf["rnum"      ])       rnum  = conf["rnum"      ].as<int>();
