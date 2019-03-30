@@ -5,6 +5,8 @@
 #include <limits>
 #include <string>
 
+#include <omp.h>		// For multithreading basis construction
+
 #include <interp.h>
 #include <Timer.h>
 #include <thread>
@@ -1454,12 +1456,12 @@ void EmpCylSL::setup_eof()
     }
 
     table = new Matrix [nthrds];
-    facC = new Matrix [nthrds];
-    facS = new Matrix [nthrds];
+    facC  = new Matrix [nthrds];
+    facS  = new Matrix [nthrds];
     for (int i=0; i<nthrds; i++) {
       table[i].setsize(0, LMAX, 1, NMAX);
-      facC[i].setsize(1, NMAX, 0, LMAX);
-      facS[i].setsize(1, NMAX, 0, LMAX);
+      facC [i].setsize(1, NMAX, 0, LMAX);
+      facS [i].setsize(1, NMAX, 0, LMAX);
     }
 
     MPIbufsz = (NUMX+1)*(NUMY+1);
@@ -1498,6 +1500,8 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
   double xi, rr, costh, phi, R, z, dens, ylm, jfac;
 
+  omp_set_num_threads(nthrds);	// OpenMP set up
+
   int id = 0;			// Not multithreaded
   int nn1, nn2;
 
@@ -1513,8 +1517,11 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   int cntr = 0;
 
   // *** Radial quadrature loop
+
+#pragma omp parallel for default(shared)
   for (int qr=1; qr<=numr; qr++) { 
-    
+    int id = omp_get_thread_num();
+
     xi = XMIN + (XMAX - XMIN) * lr.knot(qr);
     rr  = xi_to_r(xi);
     ortho->get_pot(table[id], rr/ASCALE);
@@ -2002,9 +2009,9 @@ void EmpCylSL::make_eof(void)
 
 	var[M] /= maxV;
     
-	/*==========================*/
-	/* Solve eigenvalue problem */
-	/*==========================*/
+	//==========================
+	// Solve eigenvalue problem 
+	//==========================
     
 	if (VFLAG & 16) {
 	  cout << "Process " << setw(4) << myid 
@@ -2049,9 +2056,9 @@ void EmpCylSL::make_eof(void)
 	if (maxV>1.0e-5)
 	  var[M] /= maxV;
     
-    /*==========================*/
-    /* Solve eigenvalue problem */
-    /*==========================*/
+	//==========================
+	// Solve eigenvalue problem
+	//==========================
     
 	if (VFLAG & 16) {
 	  cout << "Process " << setw(4) << myid 
