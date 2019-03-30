@@ -83,11 +83,18 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
   double RMODMIN      = 1.0e-3;
   double RMODMAX      = 20.0;
   double RA           = 1.0e20;
-  int DIVERGE         = 0;
-  int MAXIT           = 2000;
+  int    DIVERGE      = 0;
+  int    MAXIT        = 2000;
+  int    NUMDF        = 800;
   double DIVRG_RFAC   = 1.0;
-  bool CIRCULAR       = false;
-  std::string MODFILE = "halo.model";
+  bool   orbfile      = true;
+  double orbtmin      = -2.0;
+  double orbtmax      =  2.0;
+  double orbdelt      =  0.1;
+  /*  */ circ         = false;
+  std::string
+         MODFILE      = "halo.model";
+
 
   // Get configured values
   //
@@ -106,9 +113,14 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
     if (conf["RA"        ])  RA           = conf["RA"        ].as<double>();
     if (conf["DIVERGE"   ])  DIVERGE      = conf["DIVERGE"   ].as<int>();
     if (conf["MAXIT"     ])  MAXIT        = conf["MAXIT"     ].as<int>();
+    if (conf["NUMDF"     ])  NUMDF        = conf["NUMDF"     ].as<int>();
     if (conf["DIVRG_RFAC"])  DIVRG_RFAC   = conf["DIVRG_RFAC"].as<double>();
-    if (conf["CIRCULAR"  ])  CIRCULAR     = conf["CIRCULAR"  ].as<bool>();
     if (conf["MODFILE"   ])  MODFILE      = conf["MODFILE"   ].as<std::string>();
+    if (conf["CIRCULAR"  ])  circ         = conf["CIRCULAR"  ].as<bool>();
+    if (conf["orbfile"   ])  orbfile      = conf["orbfile"   ].as<bool>();
+    if (conf["orbtmin"   ])  orbtmin      = conf["orbtmin"   ].as<double>();
+    if (conf["orbtmax"   ])  orbtmax      = conf["orbtmax"   ].as<double>();
+    if (conf["orbdelt"   ])  orbdelt      = conf["orbdelt"   ].as<double>();
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in SatelliteOrbit: "
@@ -126,7 +138,7 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
   switch (HALO_MODEL) {
   case file:
     m = new SphericalModelTable(MODFILE, DIVERGE, DIVRG_RFAC);
-    m->setup_df(RA);
+    m->setup_df(NUMDF, RA);
     halo_model = m;
 				// Assign filename to ID string
     Model3dNames[0] = MODFILE;
@@ -152,9 +164,9 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
   }
   
 
-// ===================================================================
-// Setup orbit
-// ===================================================================
+  // ===================================================================
+  // Setup orbit
+  // ===================================================================
     
   INCLINE *= M_PI/180.0;
   PSI     *= M_PI/180.0;
@@ -167,7 +179,7 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
 				// In case non-inertial is not desired
   omega = domega = 0.0;
 
-  if (CIRCULAR) {
+  if (circ) {
 
     rsat = RSAT;
     vsat = sqrt(rsat*halo_model->get_dpot(rsat));
@@ -206,33 +218,27 @@ SatelliteOrbit::SatelliteOrbit(const YAML::Node& conf)
     }
   }
     
-  if (myid==0) {
+  if (myid==0 and orbfile) {	// Print diagnostic orbit file
 
-    double r, phi;
+    std::ofstream out(runtag + ".xyz");
 
-    if (circ) {
-      r = rsat;
-      phi = 0.0;
-    } else {
-      r   = orb->Orb().get_angle(6, 0.0);
-      phi = orb->Orb().get_angle(7, 0.0);
+    if (out.good()) {
+
+      double T = orbtmin;
+
+      while (T < orbtmax) {
+	Vector ps = get_satellite_orbit(T);
+
+	out << setw(18) << T
+	    << setw(18) << ps[1]
+	    << setw(18) << ps[2]
+	    << setw(18) << ps[3]
+	    << endl;
+	
+	T += orbdelt;
+      }
     }
-      
-    v0[1] = r*cos(phi);
-    v0[2] = r*sin(phi);
-    v0[3] = 0.0;
-    
-				// Set current satellite position
-    currentR = rotate*v0;
-
-    ostringstream sout;
-    sout << "X, Y, Z, at T=" << tnow;
-
-    cout << setw(30) << left << sout.str() << " | " 
-	 << currentR[1] << ", "
-	 << currentR[2] << ", " 
-	 << currentR[3] << endl
-	 << setw(60) << setfill('-') << '-' << endl << setfill(' ');
+    // END: orbit output
   }
 
 }

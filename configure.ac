@@ -1,7 +1,7 @@
 dnl ==========================================================================
 dnl Process this file with autoconf to produce a configure script.
 dnl ==========================================================================
-AC_INIT(EXP, 7.601)
+AC_INIT(EXP, 7.602)
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SRCDIR(src/expand.cc)
 AM_INIT_AUTOMAKE
@@ -41,11 +41,11 @@ dnl Look for BOOST libraries
 dnl ==========================================================================
 
 AX_BOOST_BASE([1.35.0])
+AX_BOOST_SYSTEM
 AX_BOOST_FILESYSTEM
 AX_BOOST_SERIALIZATION
 AX_BOOST_REGEX
 AX_BOOST_PROGRAM_OPTIONS
-AX_BOOST_SYSTEM
 
 
 dnl ==========================================================================
@@ -149,17 +149,17 @@ if test x$havevtk = xyes; then
    CXXFLAGS="$exp_vtk_include $CXXFLAGS"
    LDFLAGS="$exp_vtk_lib $LDFLAGS"
 
-   dnl Compare supplied version to check whether <6 or >=6 libraries are needed
-   CMPV="6.0"
-   AS_VERSION_COMPARE(${vtk_version}, ${CMPV}, [VTK_POST_6_0=-1], [VTK_POST_6_0=0],[VTK_POST_6_0=1])
+   dnl Compare supplied version to check whether <7.0 or >=7.0 libraries are needed
+   CMPV="7.0"
+   AS_VERSION_COMPARE(${vtk_version}, ${CMPV}, [VTK_POST_7_0=-1], [VTK_POST_7_0=0],[VTK_POST_7_0=1])
 
-   AS_IF([test "${VTK_POST_6_0}" != "-1"], AC_MSG_RESULT([VTK post 6.0: yes]), AC_MSG_RESULT([VTK post 6.0: no]))
+   AS_IF([test "${VTK_POST_7_0}" != "-1"], AC_MSG_RESULT([VTK post 7.0: yes]), AC_MSG_RESULT([VTK post 7.0: no]))
 
-   if test "${VTK_POST_6_0}" != "-1"; then
+   if test "${VTK_POST_7_0}" != "1"; then
       exp_vtk_ldlib="-lvtkCommonCore$vtk_libval -lvtkCommonDataModel$vtk_libval -lvtkIOXML$vtk_libval"
 
    else
-      exp_vtk_ldlib="-lvtkHybrid -lvtkRendering -lvtkGraphics -lvtkFiltering -lvtkImaging -lvtkCommon -lvtkIO"
+      exp_vtk_ldlib="-lvtkHybrid$vtk_libval -lvtkRendering$vtk_libval -lvtkGraphics$vtk_libval -lvtkFiltering$vtk_libval -lvtkImaging$vtk_libval -lvtkCommon$vtk_libval -lvtkIO$vtk_libval"
 
       if test x$ac_cv_lib_png_main = xyes; then
       	 exp_vtk_ldlib="$exp_vtk_ldlib -lpng"

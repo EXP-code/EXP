@@ -47,7 +47,7 @@ private:
   double hcyl;
   int ncylorder, ncylrecomp, npca, npca0, nvtk;
   string eof_file;
-  bool self_consistent, logarithmic, density, pcavar, pcainit, pcavtk, pcadiag, pcaeof;
+  bool self_consistent, logarithmic, density, pcavar, pcainit, pcavtk, pcadiag, pcaeof, eof_over;
   bool cmap, try_cache, firstime, dump_basis, compute, firstime_coef;
 
   // These should be ok for all derived classes, hence declared private
