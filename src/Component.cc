@@ -1282,69 +1282,69 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 				// id and parameter strings
   YAML::Node config;
 
-  if (ignore_info) {
+  if (ignore_info) {		// Ignore parameter info
     config = cconf;
-  } else {
+  } else {			// Use parameter info
     std::istringstream sin(info.get());
     config = YAML::Load(sin);
-  }
 
-  try {
-    name  = config["name"].as<std::string>();
-    cconf = config["parameters"];
-    pfile = config["bodyfile"].as<std::string>();
-  }
-  catch (YAML::Exception & error) {
-    if (myid==0) std::cout << "Error parsing YAML in PSP file: "
-			   << error.what() << std::endl
-			   << std::string(60, '-') << std::endl
-			   << "Config node"        << std::endl
-			   << std::string(60, '-') << std::endl
-			   << config               << std::endl
-			   << std::string(60, '-') << std::endl;
-    MPI_Finalize();
-    exit(-1);
-  }
+    try {
+      name  = config["name"].as<std::string>();
+      cconf = config["parameters"];
+      pfile = config["bodyfile"].as<std::string>();
+    }
+    catch (YAML::Exception & error) {
+      if (myid==0) std::cout << "Error parsing YAML in PSP file: "
+			     << error.what() << std::endl
+			     << std::string(60, '-') << std::endl
+			     << "Config node"        << std::endl
+			     << std::string(60, '-') << std::endl
+			     << config               << std::endl
+			     << std::string(60, '-') << std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
 
-  YAML::Node force;
+    YAML::Node force;
     
-  try {
-    force = config["force"];
-    id    = force["id"].as<std::string>();
-    fconf = force["parameters"];
-  }
-  catch (YAML::Exception & error) {
-    if (myid==0) std::cout << "Error parsing YAML force stanza in PSP file: "
-			   << error.what() << std::endl
-			   << std::string(60, '-') << std::endl
-			   << "Config node"        << std::endl
-			   << std::string(60, '-') << std::endl
-			   << config               << std::endl
-			   << std::string(60, '-') << std::endl;
+    try {
+      force = config["force"];
+      id    = force["id"].as<std::string>();
+      fconf = force["parameters"];
+    }
+    catch (YAML::Exception & error) {
+      if (myid==0) std::cout << "Error parsing YAML force stanza in PSP file: "
+			     << error.what() << std::endl
+			     << std::string(60, '-') << std::endl
+			     << "Config node"        << std::endl
+			     << std::string(60, '-') << std::endl
+			     << config               << std::endl
+			     << std::string(60, '-') << std::endl;
+      
+      MPI_Finalize();
+      exit(-1);
+    }
 
-    MPI_Finalize();
-    exit(-1);
-  }
-
-  // Assign local conf
-  //
-  conf["name"]       = name;
-  conf["parameters"] = cconf;
-  conf["bodyfile"]   = pfile;
-  conf["force"]      = force;
+    // Assign local conf
+    //
+    conf["name"]       = name;
+    conf["parameters"] = cconf;
+    conf["bodyfile"]   = pfile;
+    conf["force"]      = force;
 				// Informational output
-  if (myid==0)  {
-    cconf.SetStyle(YAML::EmitterStyle::Flow);
-    fconf.SetStyle(YAML::EmitterStyle::Flow);
+    if (myid==0)  {
+      cconf.SetStyle(YAML::EmitterStyle::Flow);
+      fconf.SetStyle(YAML::EmitterStyle::Flow);
 
-    cout << std::string(60, '-') << endl
-	 << "--- New Component"  << endl
-	 << setw(20) << " name   :: " << name        << endl
-	 << setw(20) << " id     :: " << id          << endl
-	 << setw(20) << " cparam :: " << cconf       << endl
-	 << setw(20) << " fparam :: " << fconf       << endl
-	 << std::string(60, '-') << endl;
-  }
+      cout << std::string(60, '-') << endl
+	   << "--- New Component"  << endl
+	   << setw(20) << " name   :: " << name        << endl
+	   << setw(20) << " id     :: " << id          << endl
+	   << setw(20) << " cparam :: " << cconf       << endl
+	   << setw(20) << " fparam :: " << fconf       << endl
+	   << std::string(60, '-') << endl;
+    }
+  } // END: parse and assign parameter info from PSP
   
   double rmax1=0.0, r2;
 
