@@ -1503,18 +1503,16 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   omp_set_num_threads(nthrds);	// OpenMP set up
 
   if (VFLAG & 16 && myid==0)
-    cout << left
-	 << setw(4) << " r"
-	 << setw(4) << " t"
-	 << setw(4) << " p" << "  Elapsed" << endl
-	 << setw(4) << "---"
-	 << setw(4) << "---"
-	 << setw(4) << "---" << " ---------" << endl;
+    std::cout << std::left
+	      << std::setw(4) << " r"
+	      << "  Elapsed" << std::endl
+	      << std::setw(4) << "---"
+	      << " ---------" << std::endl;
 
   std::vector<int> cntr(nthrds, 0);
 
   // *** Radial quadrature loop
-
+  //
 #pragma omp parallel for
   for (int qr=1; qr<=numr; qr++) { 
     int id = omp_get_thread_num();
@@ -1524,6 +1522,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
     ortho->get_pot(table[id], rr/ASCALE);
 
     // *** cos(theta) quadrature loop
+    //
     for (int qt=1; qt<=numt; qt++) {
 
       if (cntr[id]++ % numprocs != myid) continue;
@@ -1538,20 +1537,24 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	* rr*rr / d_xi_to_r(xi);
       
       // *** Phi quadrature loop
+      //
       for (int qp=0; qp<nump; qp++) {
 
 	double phi = dphi*qp;
 	sinecosine_R(LMAX, phi, cosm[id], sinm[id]);
 
 	// *** m loop
+	//
 	for (int m=0; m<=MMAX; m++) {
 
 	  double dens = (*func)(R, z, phi, m) * jfac;
 
 	  // *** ir loop
+	  //
 	  for (int ir=1; ir<=NMAX; ir++) {
 
 	    // *** l loop
+	    //
 	    for (int l=m; l<=LMAX; l++) {
 
 	      double ylm = sqrt((2.0*l+1.0)/(4.0*M_PI)) * pfac *
@@ -1584,7 +1587,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 		for (int ir2=1; ir2<=NMAX; ir2++) {
 		  for (int l2=m; l2<=LMAX; l2++) {
 		    int nn2 = ir2 + NMAX*(l2-m);
-
+		    
 		    SC[id][m][nn1][nn2] += 
 		      facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
 		  }
@@ -1613,25 +1616,26 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	  
 	} // *** m loop
 
-      if (VFLAG & 16 && myid==0)
-	cout << left << '\r'
-	     << setw(4) << qr
-	     << setw(4) << qt
-	     << setw(4) << qp << " Secs="
-	     << timer.getTime() << flush;
-
       } // *** phi quadrature loop
 
     } // *** cos(theta) quadrature loop
+
+#pragma omp critical
+    if (VFLAG & 16 && myid==0) {
+      std::cout << std::left << '\r'
+		<< std::setw(4) << qr
+		<< " Secs=" << timer.getTime() << std::flush;
+    }    
 
   } // *** r quadrature loop
   
   if (VFLAG & 16) {
     auto t = timer.stop();
-    if (myid==0) cout << endl;
+    if (myid==0) std::cout << std::endl;
     MPI_Barrier(MPI_COMM_WORLD);
-    cout << "Process " << setw(4) << myid << ": completed quadrature in " 
-	 << t << " seconds" << endl;
+    std::cout << "Process " << std::setw(4) << myid
+	      << ": completed quadrature in " << t << " seconds"
+	      << std::endl;
     timer.reset();
     timer.start();
   }
