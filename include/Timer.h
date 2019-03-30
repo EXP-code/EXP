@@ -70,10 +70,18 @@ private:
   void reset() { rtime = 0.0; }
 
   //! Return time measured up to this point.
-  double getTime() { return rtime; }
+  double getTime()
+  {
+    end     = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration = end - begin;
+    rtime  += duration.count();
+    begin   = end;
+
+    return rtime;
+  }
   
   //! Return time measured up to this point.
-  double operator()() { return rtime; }
+  double operator()() { return getTime(); }
   
   //! Return the status of the timer
   bool isStarted() { return started; }
