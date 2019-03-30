@@ -1498,12 +1498,9 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   LegeQuad lt(numt);
   double dphi = 2.0*M_PI/nump;
 
-  double xi, rr, costh, phi, R, z, dens, ylm, jfac;
 
+  omp_set_dynamic(0);		// Explicitly disable dynamic teams
   omp_set_num_threads(nthrds);	// OpenMP set up
-
-  int id = 0;			// Not multithreaded
-  int nn1, nn2;
 
   if (VFLAG & 16 && myid==0)
     cout << left
@@ -1514,42 +1511,42 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	 << setw(4) << "---"
 	 << setw(4) << "---" << " ---------" << endl;
 
-  int cntr = 0;
+  std::vector<int> cntr(nthrds, 0);
 
   // *** Radial quadrature loop
 
-#pragma omp parallel for default(shared)
+#pragma omp parallel for
   for (int qr=1; qr<=numr; qr++) { 
     int id = omp_get_thread_num();
 
-    xi = XMIN + (XMAX - XMIN) * lr.knot(qr);
-    rr  = xi_to_r(xi);
+    double xi = XMIN + (XMAX - XMIN) * lr.knot(qr);
+    double rr = xi_to_r(xi);
     ortho->get_pot(table[id], rr/ASCALE);
 
     // *** cos(theta) quadrature loop
     for (int qt=1; qt<=numt; qt++) {
 
-      if (cntr++ % numprocs != myid) continue;
+      if (cntr[id]++ % numprocs != myid) continue;
 
-      costh = -1.0 + 2.0*lt.knot(qt);
-      R = rr * sqrt(1.0 - costh*costh);
-      z = rr * costh;
+      double costh = -1.0 + 2.0*lt.knot(qt);
+      double R = rr * sqrt(1.0 - costh*costh);
+      double z = rr * costh;
 
       legendre_R(LMAX, costh, legs[id]);
 
-      jfac = dphi*2.0*lt.weight(qt)*(XMAX - XMIN)*lr.weight(qr) 
+      double jfac = dphi*2.0*lt.weight(qt)*(XMAX - XMIN)*lr.weight(qr) 
 	* rr*rr / d_xi_to_r(xi);
       
       // *** Phi quadrature loop
       for (int qp=0; qp<nump; qp++) {
 
-	phi = dphi*qp;
+	double phi = dphi*qp;
 	sinecosine_R(LMAX, phi, cosm[id], sinm[id]);
 
 	// *** m loop
 	for (int m=0; m<=MMAX; m++) {
 
-	  dens = (*func)(R, z, phi, m) * jfac;
+	  double dens = (*func)(R, z, phi, m) * jfac;
 
 	  // *** ir loop
 	  for (int ir=1; ir<=NMAX; ir++) {
@@ -1557,7 +1554,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	    // *** l loop
 	    for (int l=m; l<=LMAX; l++) {
 
-	      ylm = sqrt((2.0*l+1.0)/(4.0*M_PI)) * pfac *
+	      double ylm = sqrt((2.0*l+1.0)/(4.0*M_PI)) * pfac *
 		exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[0][l][m];
 
 	      if (m==0) {
@@ -1580,13 +1577,13 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
 	    for (int l1=m; l1<=LMAX; l1++) {
 
-	      nn1 = ir1 + NMAX*(l1-m);
+	      int nn1 = ir1 + NMAX*(l1-m);
 
 	      if (m==0) {
 		
 		for (int ir2=1; ir2<=NMAX; ir2++) {
 		  for (int l2=m; l2<=LMAX; l2++) {
-		    nn2 = ir2 + NMAX*(l2-m);
+		    int nn2 = ir2 + NMAX*(l2-m);
 
 		    SC[id][m][nn1][nn2] += 
 		      facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
@@ -1599,7 +1596,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
 		  for (int l2=m; l2<=LMAX; l2++) {
 		    
-		    nn2 = ir2 + NMAX*(l2-m);
+		    int nn2 = ir2 + NMAX*(l2-m);
 
 		    SC[id][m][nn1][nn2] += 
 		      facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
