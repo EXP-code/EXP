@@ -5,6 +5,10 @@
 #include <limits>
 #include <string>
 
+#include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
+#include <boost/progress.hpp>	// Progress bar
+
 #include <omp.h>		// For multithreading basis construction
 
 #include <interp.h>
@@ -1502,14 +1506,13 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   omp_set_dynamic(0);		// Explicitly disable dynamic teams
   omp_set_num_threads(nthrds);	// OpenMP set up
 
-  if (VFLAG & 16 && myid==0)
-    std::cout << std::left
-	      << std::setw(4) << " r"
-	      << "  Elapsed" << std::endl
-	      << std::setw(4) << "---"
-	      << " ---------" << std::endl;
-
   std::vector<int> cntr(nthrds, 0);
+
+  boost::shared_ptr<boost::progress_display> progress;
+  if (VFLAG & 16 && myid==0) {
+    std::cout << std::endl << "Quadrature loop progress" << std::endl;
+    progress = boost::make_shared<boost::progress_display>(numr/nthrds);
+  }
 
   // *** Radial quadrature loop
   //
@@ -1620,22 +1623,39 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
     } // *** cos(theta) quadrature loop
 
-#pragma omp critical
-    if (VFLAG & 16 && myid==0) {
-      std::cout << std::left << '\r'
-		<< std::setw(4) << qr
-		<< " Secs=" << timer.getTime() << std::flush;
+    // Diagnostic timing output
+    //
+    if (VFLAG & 16 && myid==0 and id==0) {
+      ++(*progress);
     }    
 
   } // *** r quadrature loop
   
   if (VFLAG & 16) {
     auto t = timer.stop();
-    if (myid==0) std::cout << std::endl;
-    MPI_Barrier(MPI_COMM_WORLD);
-    std::cout << "Process " << std::setw(4) << myid
-	      << ": completed quadrature in " << t << " seconds"
-	      << std::endl;
+    if (myid==0) {
+      std::cout << std::endl
+		<< std::setw( 8) << "Process"
+		<< std::setw(18) << "Completion time"
+		<< std::endl
+		<< std::setw( 8) << "-------"
+		<< std::setw(18) << "---------------"
+		<< std::endl;
+    }
+
+    for (int n=0; n<numprocs; n++) {
+      if (n==myid) {
+	std::cout << std::setw( 8) << myid
+		  << std::setw(18) << t
+		  << std::endl;
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+
+    if (myid==0) {
+      std::cout << std::endl;
+    }
+
     timer.reset();
     timer.start();
   }
