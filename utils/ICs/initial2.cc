@@ -1,5 +1,3 @@
-// #define DEBUG
-
 /*
   Generates a Monte Carlo realization of a halo with an embedded
   disk using Jeans' equations.
@@ -104,7 +102,121 @@ namespace po = boost::program_options;
 
                                 // For debugging
 #ifdef DEBUG
+#include <fenv.h>
 #include <fpetrap.h>
+
+//===========================================
+// Handlers defined in exputil/stack.cc
+//===========================================
+
+extern void mpi_print_trace(const string& routine, const string& msg,
+			    const char *file, int line);
+
+extern void mpi_gdb_print_trace(int sig);
+
+extern void mpi_gdb_wait_trace(int sig);
+
+//===========================================
+// A signal handler to trap invalid FP only
+//===========================================
+
+void set_fpu_invalid_handler(void)
+{
+  // Flag invalid FP results only, such as 0/0 or infinity - infinity
+  // or sqrt(-1).
+  //
+  feenableexcept(FE_INVALID);
+  //
+  // Print enabled flags to root node
+  //
+  if (myid==0) {
+    const std::list<std::pair<int, std::string>> flags =
+      {	{FE_DIVBYZERO, "divide-by-zero"},
+	{FE_INEXACT,   "inexact"},
+	{FE_INVALID,   "invalid"},
+	{FE_OVERFLOW,  "overflow"},
+	{FE_UNDERFLOW, "underflow"} };
+    
+    int _flags = fegetexcept();
+    std::cout << "Enabled FE flags: <";
+    for (auto v : flags) {
+      if (v.first & _flags) std::cout << v.second << ' ';
+    }
+    std::cout << "\b>" << std::endl;
+  }
+  signal(SIGFPE, mpi_gdb_print_trace);
+}
+
+//===========================================
+// A signal handler to produce a traceback
+//===========================================
+
+void set_fpu_trace_handler(void)
+{
+  // Flag all FP errors except inexact
+  //
+  // fedisableexcept(FE_ALL_EXCEPT & ~FE_INEXACT);
+
+  // Flag invalid FP results only, such as 0/0 or infinity - infinity
+  // or sqrt(-1).
+  //
+  feenableexcept(FE_INVALID);
+  //
+  // Print enabled flags to root node
+  //
+  if (myid==0) {
+    const std::list<std::pair<int, std::string>> flags =
+      {	{FE_DIVBYZERO, "divide-by-zero"},
+	{FE_INEXACT,   "inexact"},
+	{FE_INVALID,   "invalid"},
+	{FE_OVERFLOW,  "overflow"},
+	{FE_UNDERFLOW, "underflow"} };
+    
+    int _flags = fegetexcept();
+    std::cout << "Enabled FE flags: <";
+    for (auto v : flags) {
+      if (v.first & _flags) std::cout << v.second << ' ';
+    }
+    std::cout << "\b>" << std::endl;
+  }
+  signal(SIGFPE, mpi_gdb_print_trace);
+}
+
+//===========================================
+// A signal handler to produce stop and wait
+//===========================================
+
+void set_fpu_gdb_handler(void)
+{
+  // Flag all FP errors except inexact
+  //
+  // fedisableexcept(FE_ALL_EXCEPT & ~FE_INEXACT);
+
+  // Flag invalid FP results only, such as 0/0 or infinity - infinity
+  // or sqrt(-1).
+  //
+  feenableexcept(FE_INVALID);
+  //
+  // Print enabled flags to root node
+  //
+  if (myid==0) {
+    const std::list<std::pair<int, std::string>> flags =
+      {	{FE_DIVBYZERO, "divide-by-zero"},
+	{FE_INEXACT,   "inexact"},
+	{FE_INVALID,   "invalid"},
+	{FE_OVERFLOW,  "overflow"},
+	{FE_UNDERFLOW, "underflow"} };
+    
+    int _flags = fegetexcept();
+    std::cout << "Enabled FE flags: <";
+    for (auto v : flags) {
+      if (v.first & _flags) std::cout << v.second << ' ';
+    }
+    std::cout << "\b>" << std::endl;
+  }
+  signal(SIGFPE, mpi_gdb_wait_trace);
+}
+
 #endif
 
                                 // Local headers
@@ -197,6 +309,10 @@ double dcond(double R, double z, double phi, int M)
 int 
 main(int ac, char **av)
 {
+#ifdef DEBUG
+  feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
+#endif
+
   //====================
   // Inialize MPI stuff
   //====================
@@ -215,9 +331,6 @@ main(int ac, char **av)
   double       RCYLMAX;
   double       SCSPH;
   double       RSPHSL;
-  double       ASCALE;
-  double       ASHIFT;
-  double       HSCALE;
   double       DMFAC;
   double       X0;
   double       Y0;
