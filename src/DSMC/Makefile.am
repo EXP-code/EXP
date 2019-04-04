@@ -1,5 +1,8 @@
 ## Process this file with automake to produce Makefile.in
 
+CC = mpicc
+CXX = mpiCC
+
 LIBS = -lpthread -lmpi -lm
 EXTRA_LDFLAGS = -L$(top_srcdir)/exputil/.libs	\
 -L$(top_srcdir)/expgnu/.libs
