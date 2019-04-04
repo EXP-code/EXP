@@ -309,10 +309,6 @@ double dcond(double R, double z, double phi, int M)
 int 
 main(int ac, char **av)
 {
-#ifdef DEBUG
-  feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
-#endif
-
   //====================
   // Inialize MPI stuff
   //====================
@@ -605,7 +601,8 @@ main(int ac, char **av)
 
 #ifdef DEBUG                    // For gdb . . . 
   sleep(20);
-  set_fpu_handler();            // Make gdb trap FPU exceptions
+  // set_fpu_handler();         // Make gdb trap FPU exceptions
+  set_fpu_gdb_handler();	// Make gdb trap FPU exceptions
 #endif
   
   int n_particlesH, n_particlesD, n_particlesG;
