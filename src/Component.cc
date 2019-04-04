@@ -1262,8 +1262,10 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     ninfochar   = header.ninfochar;
 
     info = boost::shared_array<char>(new char [ninfochar+1]);
+				// Zero fill array
+    std::fill(info.get(), info.get() + (ninfochar+1), 0);
+				// Copy into array
     memcpy(info.get(), header.info.get(), ninfochar);
-    info[ninfochar] = '\0';
   }
 
   if (umagic)
@@ -1275,7 +1277,11 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   MPI_Bcast(&niattrib,    1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&ndattrib,    1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&ninfochar,   1, MPI_INT, 0, MPI_COMM_WORLD);
-  if (myid) info = boost::shared_array<char>(new char [ninfochar+1]);
+  if (myid) {
+    info = boost::shared_array<char>(new char [ninfochar+1]);
+				// Zero fill array
+    std::fill(info.get(), info.get() + (ninfochar+1), 0);
+  }
   MPI_Bcast(info.get(), ninfochar, MPI_CHAR, 0, MPI_COMM_WORLD);
 
 				// Parse info field to get 
