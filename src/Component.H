@@ -176,8 +176,9 @@ struct loadb_datum
   <li> <em>blocking</em> set to true chooses blocking writes when
   using MPI-IO with OutPSP
 
-  <li> <em>ignore</em> the PSP info stanza on restart (i.e. for specifying
-  alternative parameters or using an old-style PSP file
+  <li> <em>ignore</em> the PSP info stanza on restart (i.e. for
+  specifying alternative parameters, using an old-style PSP file, or
+  starting a new job with a previous output from another simulation)
   </ol>
   
 
