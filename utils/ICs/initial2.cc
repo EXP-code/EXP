@@ -482,6 +482,7 @@ main(int ac, char **av)
     ("halofile1",       po::value<string>(&halofile1)->default_value("SLGridSph.model"),        "File with input halo model")
     ("halofile2",       po::value<string>(&halofile2)->default_value("SLGridSph.model.fake"),   "File with input halo model for multimass")
     ("cachefile",       po::value<string>(&cachefile)->default_value(".eof.cache.file"),        "Name of EOF cache file")
+    ("runtag",          po::value<string>(&runtag)->default_value("run000"),        "Run tag for image diagnostics")
     ("report",          po::value<bool>(&report)->default_value(true),                  "Report particle progress in EOF computation")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
     ;
@@ -664,7 +665,7 @@ main(int ac, char **av)
   DiskHalo::VFLAG       = static_cast<unsigned int>(DFLAG);
   DiskHalo::CHEBY       = CHEBY;
   if (suffix.size())
-    DiskHalo::RUNTAG  = suffix;
+    DiskHalo::RUNTAG    = suffix;
   
   AddDisk::use_mpi      = true;
   AddDisk::Rmin         = RMIN;
@@ -944,12 +945,11 @@ main(int ac, char **av)
     
     if (n_particlesD) {
       int nout = 200;
-      char dumpname[] = "basis.dump";
-      expandd->dump_basis(dumpname, 0);
-      string prefix = "gendisk2";
-      expandd->dump_images(prefix, 5.0*scale_length, 5.0*scale_height,
+      string dumpstr = runtag + ".dump";
+      expandd->dump_basis(dumpstr, 0);
+      expandd->dump_images(runtag, 5.0*scale_length, 5.0*scale_height,
 			   nout, nout, false);
-      expandd->dump_images_basis(prefix, 5.0*scale_length, 5.0*scale_height,
+      expandd->dump_images_basis(runtag, 5.0*scale_length, 5.0*scale_height,
 				 nout, nout, false, 0, MMAX, 0, NORDER-1);
     }
 
