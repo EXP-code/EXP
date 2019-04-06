@@ -149,13 +149,13 @@ if test x$havevtk = xyes; then
    CXXFLAGS="$exp_vtk_include $CXXFLAGS"
    LDFLAGS="$exp_vtk_lib $LDFLAGS"
 
-   dnl Compare supplied version to check whether <7.0 or >=7.0 libraries are needed
-   CMPV="7.0"
-   AS_VERSION_COMPARE(${vtk_version}, ${CMPV}, [VTK_POST_7_0=-1], [VTK_POST_7_0=0],[VTK_POST_7_0=1])
+   dnl Compare supplied version to check whether <7.1 or >=7.1 libraries are needed
+   CMPV="7.1"
+   AS_VERSION_COMPARE(${vtk_version}, ${CMPV}, [VTK_POST_7_1=-1], [VTK_POST_7_1=0],[VTK_POST_7_1=1])
 
-   AS_IF([test "${VTK_POST_7_0}" != "-1"], AC_MSG_RESULT([VTK post 7.0: yes]), AC_MSG_RESULT([VTK post 7.0: no]))
+   AS_IF([test "${VTK_POST_7_1}" != "-1"], AC_MSG_RESULT([VTK post 7.1: yes]), AC_MSG_RESULT([VTK post 7.1: no]))
 
-   if test "${VTK_POST_7_0}" != "1"; then
+   if test "${VTK_POST_7_1}" != "1"; then
       exp_vtk_ldlib="-lvtkCommonCore$vtk_libval -lvtkCommonDataModel$vtk_libval -lvtkIOXML$vtk_libval"
 
    else
