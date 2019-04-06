@@ -20,7 +20,7 @@
 #include <ScatterMFP.H>
 #include <HaloBulge.H>
 
-#ifdef DSMC_ENABLED
+#if DSMC_ENABLED>0
 #include <TreeDSMC.H>
 #endif
 
@@ -78,8 +78,7 @@ void ExternalCollection::initialize()
 
 	force_list.insert(force_list.end(), new ScatterMFP(node));
       
-#ifdef DSMC_ENBLED
-      This is a big dog
+#if DSMC_ENABLED>0
       else if ( !name.compare("TreeDSMC") )
 	
 	force_list.insert(force_list.end(), new TreeDSMC(node));
