@@ -19,7 +19,10 @@
 #include <generateRelaxation.H>
 #include <ScatterMFP.H>
 #include <HaloBulge.H>
+
+#ifdef DSMC_ENABLED
 #include <TreeDSMC.H>
+#endif
 
 ExternalCollection::ExternalCollection(void)
 {
@@ -75,10 +78,12 @@ void ExternalCollection::initialize()
 
 	force_list.insert(force_list.end(), new ScatterMFP(node));
       
+#ifdef DSMC_ENBLED
+      This is a big dog
       else if ( !name.compare("TreeDSMC") )
 	
 	force_list.insert(force_list.end(), new TreeDSMC(node));
-      
+#endif
       else if ( !name.compare("HaloBulge") )
 	
 	force_list.insert(force_list.end(), new HaloBulge(node));
