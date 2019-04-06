@@ -257,7 +257,7 @@ AC_CHECK_LIB(mpi, main, , [have_mpi=no])
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS(malloc.h unistd.h mpi.h)
+AC_CHECK_HEADERS(malloc.h unistd.h mpi.h fpu_control.h)
 
 dnl Must have an MPI installation
 if test x$have_mpi = xno; then

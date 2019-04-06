@@ -32,9 +32,11 @@ static void (*oldhandler)(int);	// keep a reference to the initial value
  */
 void set_fpu_handler(void)
 {
+#ifdef HAVE_FPU_CONTROL_H 
 				// Set control flag (see fpu_control.h)
   short cw = 0x0372;
   _FPU_SETCW(cw);
+#endif
   
   oldhandler = signal(SIGFPE, my_fpu_handler);
   if (SIG_ERR == oldhandler) {
