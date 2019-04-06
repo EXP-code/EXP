@@ -1541,7 +1541,10 @@ double DiskHalo::a_drift(double xp, double yp, double zp)
   }
   // END DEBUG
   
-  return 1.0 - vp2/vr2 + 
+  double ret = 0.0;
+  if (vr2>0.0) ret = 1.0 - vp2/vr2;
+
+  return ret + 
     cp[0]*cr[0] * asytable[iphi1][ir1] +
     cp[0]*cr[1] * asytable[iphi1][ir2] +
     cp[1]*cr[0] * asytable[iphi2][ir1] +
