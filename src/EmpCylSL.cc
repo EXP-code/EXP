@@ -2035,10 +2035,19 @@ void EmpCylSL::make_eof(void)
 	//==========================
     
 	if (VFLAG & 16) {
+	  int nancount = 0;
+	  for (int i=1; i<=var[M].getnrows(); i++) {
+	    for (int j=1; j<=var[M].getncols(); j++) {
+	      if (std::isnan(var[M][i][j])) nancount++;
+	    }
+	  }
+	  
 	  cout << "Process " << setw(4) << myid 
 	       << ": in eigenvalue problem with "
 	       << "rank=[" << var[M].getncols() << ", " 
-	       << var[M].getnrows() << "]" << endl;
+	       << var[M].getnrows() << "]"
+	       << ", found " << nancount << " NaN values" << endl;
+
 	  timer.reset();
 	  timer.start();
 	}
@@ -2082,10 +2091,19 @@ void EmpCylSL::make_eof(void)
 	//==========================
     
 	if (VFLAG & 16) {
+	  int nancount = 0;
+	  for (int i=1; i<=var[M].getnrows(); i++) {
+	    for (int j=1; j<=var[M].getncols(); j++) {
+	      if (std::isnan(var[M][i][j])) nancount++;
+	    }
+	  }
+
 	  cout << "Process " << setw(4) << myid 
 	       << ": in eigenvalue problem with "
 	       << "rank=[" << var[M].getncols() << ", " 
-	       << var[M].getnrows() << "]" << endl;
+	       << var[M].getnrows() << "]"
+	       << ", found " << nancount << " NaN values" << endl;
+
 	  timer.reset();
 	  timer.start();
 	}

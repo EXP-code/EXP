@@ -92,7 +92,7 @@ extern "C" {
 
     if jobz = 'N' and n > 1, then lwork ≥ 2*n + 1;
 
-    if jobz = 'V' and n > 1, then lwork ≥ 2*n2+ 6*n + 1.
+    if jobz = 'V' and n > 1, then lwork ≥ 2*n^2+ 6*n + 1.
 
     If lwork = -1, then a workspace query is assumed; the routine only
     calculates the required sizes of the work and iwork arrays,
