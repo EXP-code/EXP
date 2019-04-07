@@ -132,6 +132,69 @@ void set_fpu_gdb_handler(void)
 }
 
 
+
+void exp_mpi_error_handler(MPI_Comm *communicator, int *error_code, ...)
+{
+  char error_string[MPI_MAX_ERROR_STRING];
+  int error_string_length;
+
+  std::cout << "exp_mpi_error_handler: entry" << std::endl;
+  std::cout << "exp_mpi_error_handler: error_code = " << *error_code << std::endl;
+  MPI_Error_string(*error_code, error_string, &error_string_length);
+  error_string[error_string_length] = '\0';
+
+  //
+  // Look for active MPI environment
+  //
+  int numprocs, myid;
+  MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+  MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+
+  //
+  // Get host name and pid
+  //
+  const size_t maxlen = 128;
+  char hostname[maxlen];
+  int hsiz = gethostname(hostname, maxlen);
+  pid_t pid = getpid();
+
+  std::ostringstream sout;
+  sout << "MPI error, name=" << hostname
+       << ", pid=" << pid
+       << ", node=" << myid << ": signal " << error_code
+       << ", error=" << error_string;
+
+  std::cerr << sout.str();
+  if (numprocs>1) std::cerr << " [mpi_id=" << myid << "]";
+  std::cerr << std::endl;
+
+  //
+  // Enter sleep loop
+  //
+  const unsigned int waittime = 2;
+  unsigned int sofar = 0;
+  bool go = true;
+  while (go) {
+    sleep(waittime);
+    sofar += waittime;
+				// Notify every minute for 10 minutes
+    if (sofar < 600 and sofar % 60==0) {
+      std::cerr << hostname << "[pid=" << pid << "] waiting [MPI] "
+		<< sofar/60 << " minutes" << std::endl;
+				// Notify every ten minutes
+    } else if (sofar < 3600 and sofar % 600==0) {
+      std::cerr << hostname << "[pid=" << pid << "] waiting [MPI] "
+		<< sofar/60 << " minutes" << std::endl;
+				// Notify every thirty minutes
+    } else if (sofar % 1800==0) {
+      std::cerr << hostname << "[pid=" << pid << "] waiting [MPI] "
+		<< sofar/60 << " minutes" << std::endl;
+    }      
+  }
+
+}
+
+
 //===========================================
 // Clean stop on a SIGTERM or SIGHUP
 //===========================================
@@ -325,6 +388,7 @@ main(int argc, char** argv)
 
   int *nslaves, n, retdir, retdir0;
   MPI_Group world_group, slave_group;
+  MPI_Errhandler errhandler;
 
   //===================
   // MPI preliminaries 
@@ -334,6 +398,12 @@ main(int argc, char** argv)
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
   MPI_Get_processor_name(processor_name, &proc_namelen);
+
+				// Installation of MPI error handler
+  if (mpi_wait) {
+    MPI_Comm_create_errhandler(&exp_mpi_error_handler, &errhandler);
+    MPI_Comm_set_errhandler(MPI_COMM_WORLD, errhandler);
+  }
 
 				// Make SLAVE group 
 #ifdef SLAVE_GROUP

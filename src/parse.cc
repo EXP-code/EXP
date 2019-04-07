@@ -118,6 +118,22 @@ void initialize(void)
       }
     }
     
+    if (_G["mpi_wait"]) {
+      if (_G["mpi_wait"].as<bool>()) {
+	mpi_wait  = true;
+      } else mpi_wait = false;
+      if (myid==0) {
+	std::cout << "Found <mpi_wait=" << std::boolalpha
+		  << mpi_wait << ">" << std::endl;
+	if (mpi_wait)
+	  std::cout << "----" << std::endl
+		    << "---- When the MPI error handler is called, process will spin, waiting for a gdb connection." << std::endl
+		    << "---- Messages describing the affected node and pid will be written to the" << std::endl
+		    << "---- standard output." << std::endl
+		    << "----" << std::endl;
+      }
+    }
+
     if (_G["fpe_trap"]) {
       if (_G["fpe_trap"].as<bool>()) {
 	fpe_trap  = true;

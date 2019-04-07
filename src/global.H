@@ -24,6 +24,9 @@ using namespace std;
     the inputfile
 */
 
+//! Install error handler for MPI debugging
+extern bool mpi_wait;
+
 //! Install error handler for fpe debugging
 extern bool fpe_trap;
 
