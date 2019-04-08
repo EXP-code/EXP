@@ -149,13 +149,13 @@ if test x$havevtk = xyes; then
    CXXFLAGS="$exp_vtk_include $CXXFLAGS"
    LDFLAGS="$exp_vtk_lib $LDFLAGS"
 
-   dnl Compare supplied version to check whether <7.0 or >=7.0 libraries are needed
-   CMPV="7.0"
-   AS_VERSION_COMPARE(${vtk_version}, ${CMPV}, [VTK_POST_7_0=-1], [VTK_POST_7_0=0],[VTK_POST_7_0=1])
+   dnl Compare supplied version to check whether <7.1 or >=7.1 libraries are needed
+   CMPV="7.1"
+   AS_VERSION_COMPARE(${vtk_version}, ${CMPV}, [VTK_POST_7_1=-1], [VTK_POST_7_1=0],[VTK_POST_7_1=1])
 
-   AS_IF([test "${VTK_POST_7_0}" != "-1"], AC_MSG_RESULT([VTK post 7.0: yes]), AC_MSG_RESULT([VTK post 7.0: no]))
+   AS_IF([test "${VTK_POST_7_1}" != "-1"], AC_MSG_RESULT([VTK post 7.1: yes]), AC_MSG_RESULT([VTK post 7.1: no]))
 
-   if test "${VTK_POST_7_0}" != "1"; then
+   if test "${VTK_POST_7_1}" != "1"; then
       exp_vtk_ldlib="-lvtkCommonCore$vtk_libval -lvtkCommonDataModel$vtk_libval -lvtkIOXML$vtk_libval"
 
    else
@@ -227,6 +227,47 @@ AC_ARG_ENABLE(dmalloc,
     enable_dmalloc=no)
 
 
+# ==========================================================================
+# CHECKING FOR DSMC
+# ==========================================================================
+AC_MSG_CHECKING([for DSMC])
+
+AC_ARG_WITH([dsmc],
+	[AC_HELP_STRING([--with-dsmc=[yes|no]],
+	[compile the DSMC directory (default=no)])],
+	[dsmc_flag="$withval"],[dsmc_flag="no"])
+
+dsmc_result=no
+have_dsmc=0
+dsmc_make=""
+
+AC_SUBST(LDFLAGS_DSMC)
+AC_SUBST(INCLUDE_DSMC)
+AC_SUBST(SUBDIR_DSMC)
+AC_SUBST(EXPADD_DSMC)
+
+LDFLAGS_DSMC=""
+INCLUDE_DSMC=""
+SUBDIR_DSMC=""
+EXPADD_DSMC=""
+
+if test x$dsmc_flag = xyes; then
+  dsmc_result=yes
+  have_dsmc=1
+  dsmc_make="src/DSMC/Makefile"
+  LDFLAGS_DSMC="-L\$(top_srcdir)/src/DSMC -lexpdsmc"
+  INCLUDE_DSMC="-I\$(top_srcdir)/src/DSMC"
+  EXPADD_DSMC="./DSMC/libexpdsmc.a"
+  SUBDIR_DSMC="DSMC"
+  AC_CONFIG_FILES([src/DSMC/Makefile])
+fi
+  
+AC_MSG_RESULT([$dsmc_result])
+
+AC_DEFINE_UNQUOTED(DSMC_ENABLED, [$have_dsmc], [True if DSMC is enabled])
+AM_CONDITIONAL(DSMC_ENABLED, test x$dsmc_result = xyes)
+
+
 dnl ==========================================================================
 dnl Look for doxygen
 dnl ==========================================================================
@@ -257,7 +298,7 @@ AC_CHECK_LIB(mpi, main, , [have_mpi=no])
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS(malloc.h unistd.h mpi.h)
+AC_CHECK_HEADERS(malloc.h unistd.h mpi.h fpu_control.h)
 
 dnl Must have an MPI installation
 if test x$have_mpi = xno; then
@@ -284,7 +325,7 @@ AM_CONDITIONAL(ENABLE_DMALLOC, test "$enable_dmalloc" = "yes")
 dnl ==========================================================================
 dnl Make the makefiles
 dnl ==========================================================================
-AC_OUTPUT(expgnu/Makefile exputil/Makefile src/Makefile Makefile doc/Makefile src/user/Makefile src/DSMC/Makefile utils/Makefile utils/PhaseSpace/Makefile utils/SL/Makefile utils/Test/Makefile utils/ICs/Makefile utils/Cooling/Makefile utils/Analysis/Makefile)
+AC_OUTPUT(expgnu/Makefile exputil/Makefile src/Makefile Makefile doc/Makefile src/user/Makefile $dsmc_make utils/Makefile utils/PhaseSpace/Makefile utils/SL/Makefile utils/Test/Makefile utils/ICs/Makefile utils/Cooling/Makefile utils/Analysis/Makefile)
 
 echo "----------------------------------------------------------------"
 echo "Now type: "

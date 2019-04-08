@@ -132,6 +132,7 @@ bool barrier_quiet = true;
 bool cuda_prof     = false;
 bool debug_wait    = false;
 bool main_wait     = false;
+bool mpi_wait      = false;
 bool fpe_trap      = false;
 bool fpe_trace     = false;
 bool fpe_wait      = false;

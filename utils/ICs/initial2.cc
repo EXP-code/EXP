@@ -77,6 +77,8 @@
 #include <string>
 #include <vector>
 
+#include <fenv.h>
+
 // Boost stuff
 //
 #include <boost/program_options.hpp>
@@ -354,6 +356,7 @@ main(int ac, char **av)
   int          MMAX;
   int          NUMX;
   int          NUMY;
+  int          NOUT;
   int          NORDER;
   int          NORDER1;
   bool         SELECT;
@@ -438,6 +441,7 @@ main(int ac, char **av)
     ("NUMY",            po::value<int>(&NUMY)->default_value(128),                      "Vertical grid size for disk basis table")
     ("NORDER",          po::value<int>(&NORDER)->default_value(16),                     "Number of disk basis functions per M-order")
     ("NORDER1",         po::value<int>(&NORDER1)->default_value(1000),                  "Restricts disk basis function to NORDER1<NORDER after basis construction for testing")
+    ("NOUT",            po::value<int>(&NOUT)->default_value(1000),                      "Number of radial basis functions to output for each harmonic order")
     ("SELECT",          po::value<bool>(&SELECT)->default_value(false),                 "Enable significance selection in coefficient computation")
     ("DUMPCOEF",        po::value<bool>(&DUMPCOEF)->default_value(false),               "Dump disk coefficients")
     ("DIVERGE",         po::value<int>(&DIVERGE)->default_value(0),                     "Cusp extrapolation for primary halo model")
@@ -482,7 +486,7 @@ main(int ac, char **av)
     ("halofile1",       po::value<string>(&halofile1)->default_value("SLGridSph.model"),        "File with input halo model")
     ("halofile2",       po::value<string>(&halofile2)->default_value("SLGridSph.model.fake"),   "File with input halo model for multimass")
     ("cachefile",       po::value<string>(&cachefile)->default_value(".eof.cache.file"),        "Name of EOF cache file")
-    ("runtag",          po::value<string>(&runtag)->default_value("run000"),        "Run tag for image diagnostics")
+    ("runtag",          po::value<string>(&runtag)->default_value("run000"),                    "Label prefix for diagnostic images")
     ("report",          po::value<bool>(&report)->default_value(true),                  "Report particle progress in EOF computation")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
     ;
@@ -532,6 +536,8 @@ main(int ac, char **av)
       MPI_Finalize();
       return 2;
     }
+
+    NOUT = std::min<int>(NOUT, NORDER);
 
     // Write template file
     //
@@ -683,8 +689,7 @@ main(int ac, char **av)
   if (n_particlesH) {
     expandh = new SphericalSL(nthrds, LMAX, NMAX, SCSPH);
 #ifdef DEBUG
-    string dumpname("debug");
-    expandh->dump_basis(dumpname);
+    expandh->dump_basis(runtag);
 #endif
   }
 
@@ -696,6 +701,7 @@ main(int ac, char **av)
   EmpCylSL::NUMX        = NUMX;
   EmpCylSL::NUMY        = NUMY;
   EmpCylSL::NUMR        = NUMR;
+  EmpCylSL::NOUT        = NOUT;
   EmpCylSL::CMAP        = CMAP;
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
@@ -873,9 +879,9 @@ main(int ac, char **av)
   
   if (n_particlesD) {
     if (myid==0) cout << "Beginning disk accumulation . . . " << flush;
+    expandd->setup_accumulation();
     if (!save_eof and !expcond) {
       expandd->setup_eof();
-      expandd->setup_accumulation();
       if (nthrds>1)
 	expandd->accumulate_eof_thread(dparticles, report);
       else

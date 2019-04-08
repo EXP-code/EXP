@@ -52,31 +52,36 @@ private:
   }
   
   /** Stop timer and return time measured so far.  If timer was
-      stopped the time returned will be 0. */
+      stopped the time returned will be the current elapsed time. */
   double stop()
   {
     if (started) {
       end     = std::chrono::high_resolution_clock::now();
       started = false;
-
       std::chrono::duration<double> duration = end - begin;
       rtime  += duration.count();
     }
     return rtime;
   }
 
-  /** Reset the timer, this will reset the time measured to 0 and will
-      leave the timer in the same status (started or stopped). */
-  void reset() { rtime = 0.0; }
+  /** Reset the timer, this will reset the time measured to 0 and
+      reset the zero point if the timer is active */
+  void reset() {
+    if (started) {
+      begin   = std::chrono::high_resolution_clock::now();
+    }
+    rtime = 0.0;
+  }
 
   //! Return time measured up to this point.
   double getTime()
   {
-    end     = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> duration = end - begin;
-    rtime  += duration.count();
-    begin   = end;
-
+    if (started) {
+      end     = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> duration = end - begin;
+      rtime  += duration.count();
+      begin   = end;
+    }
     return rtime;
   }
   

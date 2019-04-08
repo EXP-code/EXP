@@ -260,6 +260,12 @@ void adjust_multistep_level(bool all)
 
   if (VERBOSE>0) {
 
+    static bool first = true;
+    if (myid==0 and first) {
+      std::cout << "multistep: thread number is " << nthrds << std::endl;
+      first = false;
+    }
+
     if (offhi1.size()==0 || mstep==0) {
 
       for (auto c : comp->components) {

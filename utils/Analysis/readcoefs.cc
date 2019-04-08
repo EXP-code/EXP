@@ -112,15 +112,15 @@ int main(int argc, char **argv)
   
   for (auto c : coefs) {
     for (int mm=0; mm<=std::min<int>(mmax, c.second->mmax); mm++) {
-      std::cout << std::setw(12) << c.first << std::setw(5) << mm;
+      std::cout << std::setw(18) << c.first << std::setw(5) << mm;
       for (int nn=0; nn<=std::min<int>(nmax, c.second->nmax); nn++) {
 	if (mm==0)
-	  std::cout << std::setw(12) << fabs(c.second->cos_c[mm][nn]);
+	  std::cout << std::setw(18) << fabs(c.second->cos_c[mm][nn]);
 	else {
 	  double amp =
 	    c.second->cos_c[mm][nn] * c.second->cos_c[mm][nn] +
 	    c.second->sin_c[mm][nn] * c.second->sin_c[mm][nn] ;
-	  std::cout << std::setw(12) << sqrt(amp);
+	  std::cout << std::setw(18) << sqrt(amp);
 	}
       }
       std::cout << std::endl;

@@ -679,6 +679,9 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
 	cout << setw(20) << "Force: "
 	     << setw(18) << timer_force.getTime() << endl;
+
+	cout << setw(20) << "Elapsed: "
+	     << setw(18) << timer_clock.getTime() << endl;
       }
 
       cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
