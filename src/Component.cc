@@ -494,8 +494,84 @@ void Component::print_level_lists(double T)
 
 Component::Component(YAML::Node& CONF, istream *in) : conf(CONF)
 {
-  // Defaults
+  // Make a copy
+  conf = CONF;
 
+  try {
+    name = conf["name"].as<std::string>();
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << __FILE__ << ": " << __LINE__ << std::endl
+			   << "Error parsing component 'name': "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+
+    MPI_Finalize();
+    exit(-1);
+  }
+
+  try {
+    cconf = conf["parameters"];
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing 'parameters' for Component <"
+			   << name << ">: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf
+			   << std::string(60, '-') << std::endl;
+
+    MPI_Finalize();
+    exit(-1);
+  }
+  
+  pfile = conf["bodyfile"].as<std::string>();
+
+  YAML::Node force;
+  try {
+    force = conf["force"];
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing 'force' for Component <"
+			   << name << ">: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+
+    MPI_Finalize();
+    exit(-1);
+  }
+
+  id = force["id"].as<std::string>();
+
+  try {
+    fconf = force["parameters"];
+  }
+  catch (YAML::Exception & error) {
+    if (myid==0) std::cout << "Error parsing force 'parameters' for Component <"
+			   << name << ">: "
+			   << error.what() << std::endl
+			   << std::string(60, '-') << std::endl
+			   << "Config node"        << std::endl
+			   << std::string(60, '-') << std::endl
+			   << force                << std::endl
+			   << std::string(60, '-') << std::endl;
+
+    MPI_Finalize();
+    exit(-1);
+  }
+
+  // Defaults
+  //
   EJ          = 0;
   nEJkeep     = 100;
   nEJwant     = 500;
@@ -628,7 +704,6 @@ void Component::initialize(void)
     if (cconf["keypos"  ])     keyPos  = cconf["keypos"  ].as<int>();
     if (cconf["pbufsiz" ])    pBufSiz  = cconf["pbufsiz" ].as<int>();
     if (cconf["blocking"])   blocking  = cconf["blocking"].as<bool>();
-    if (cconf["ignore"  ]) ignore_info = cconf["ignore"  ].as<bool>();
     
     if (cconf["ton"]) {
       ton = cconf["ton"].as<double>();
