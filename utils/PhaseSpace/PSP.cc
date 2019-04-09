@@ -111,16 +111,23 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
 	// Output map in flow style
 	//
 	cconf.SetStyle(YAML::EmitterStyle::Flow);
-	fconf["parameters"].SetStyle(YAML::EmitterStyle::Flow);
+	if (fconf.IsMap())
+	  fconf["parameters"].SetStyle(YAML::EmitterStyle::Flow);
 	
 	// Write node to sstream
 	//
 	std::ostringstream csout, fsout;
 	csout << cconf;
-	fsout << fconf["parameters"];
+	if (fconf.IsMap())
+	  fsout << fconf["parameters"];
+	else
+	  fsout << "<undefined>";
 
 	stanza.name       = conf["name"].as<std::string>(); 
-	stanza.id         = fconf["id"].as<std::string>();;
+	if (fconf.IsMap())
+	  stanza.id       = fconf["id"].as<std::string>();
+	else
+	  stanza.id       = "<undefined>";
 	stanza.cparam     = csout.str();
 	stanza.fparam     = fsout.str();
 	stanza.index_size = 0;
