@@ -533,9 +533,9 @@ Component::Component(YAML::Node& CONF, istream *in) : conf(CONF)
   
   pfile = conf["bodyfile"].as<std::string>();
 
-  YAML::Node force;
+  YAML::Node cforce;
   try {
-    force = conf["force"];
+    cforce = conf["force"];
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing 'force' for Component <"
@@ -551,10 +551,10 @@ Component::Component(YAML::Node& CONF, istream *in) : conf(CONF)
     exit(-1);
   }
 
-  id = force["id"].as<std::string>();
+  id = cforce["id"].as<std::string>();
 
   try {
-    fconf = force["parameters"];
+    fconf = cforce["parameters"];
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing force 'parameters' for Component <"
@@ -563,7 +563,7 @@ Component::Component(YAML::Node& CONF, istream *in) : conf(CONF)
 			   << std::string(60, '-') << std::endl
 			   << "Config node"        << std::endl
 			   << std::string(60, '-') << std::endl
-			   << force                << std::endl
+			   << cforce                << std::endl
 			   << std::string(60, '-') << std::endl;
 
     MPI_Finalize();
@@ -1363,8 +1363,13 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 				// id and parameter strings
   YAML::Node config;
 
-  if (ignore_info) {		// Ignore parameter info
-    config = cconf;
+  if (ignore_info and VERBOSE>3) {		// Ignore parameter info
+    if (myid==0) std::cout << std::string(60, '-') << std::endl
+			   << "ignore_info debug"  << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    config = conf;
   } else {			// Use parameter info
     std::istringstream sin(info.get());
     config = YAML::Load(sin);
@@ -2021,7 +2026,7 @@ void Component::write_binary_mpi_i(MPI_File& out, MPI_Offset& offset, bool real4
     strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
 
     // DEBUGGING
-    if (false and myid==0) {
+    if (true and myid==0) {
       std::cout << std::string(72, '-') << std::endl
 		<< "Serialized YAML header looks like this:" << std::endl
 		<< std::string(72, '-') << std::endl
