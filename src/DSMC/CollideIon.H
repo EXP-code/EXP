@@ -878,10 +878,6 @@ public:
   //! (default: true)
   static bool coulInter;
 
-  //! Turn cuda off, even when GPU is available
-  //! (default: false)
-  static bool cudaOff;
-
   //@{
   //! TRACE algorithm default: adds excess energy to electron.  
 
@@ -972,7 +968,7 @@ protected:
   //! Collision thread.  Virtual to accomodate CUDA implementation
   virtual void *collide_thread(void *arg) {
 #if HAVE_LIBCUDA==1
-    if (not cudaOff and aType == Trace) {
+    if (use_cuda and aType == Trace) {
       return collide_thread_cuda(arg);
     }
 #endif

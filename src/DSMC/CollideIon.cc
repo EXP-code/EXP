@@ -63,7 +63,6 @@ unsigned CollideIon::maxCoul    = UINT_MAX;
 double   CollideIon::logL       = 5.0/(16.0*M_PI); // energy transfer factor
 bool     CollideIon::TSESUM     = true;
 bool     CollideIon::coulInter  = true;
-bool     CollideIon::cudaOff    = false;
 double   CollideIon::TSCOOL     = 0.05;
 double   CollideIon::TSFLOOR    = 0.001;
 double   CollideIon::scatFac1   = 1.0; // Hybrid algorithm
@@ -4833,6 +4832,19 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
   if (false) {
     std::cout << " Eion=" << Eion[id]
+	      << " Eelc=" << Eelc[id]
+	      << " eVel1=" << eVel1
+	      << " eVel2=" << eVel2
+	      << " gVel1=" << gVel1
+	      << " gVel2=" << gVel2
+	      << " ke1=" << kEe1[id]/eV
+	      << " ke2=" << kEe2[id]/eV
+	      << std::endl;
+  }
+
+  if (std::isnan(kEe1[id]) or std::isnan(kEe2[id])) {
+    std::cout << "KE NaN: "
+	      << " Eion=" << Eion[id]
 	      << " Eelc=" << Eelc[id]
 	      << " eVel1=" << eVel1
 	      << " eVel2=" << eVel2
@@ -21619,13 +21631,6 @@ void CollideIon::processConfig()
     else {
       config["coulInter"]["desc"] = "Compute maximum cross section based Chandrasekhar interference";
       config["coulInter"]["value"] = coulInter = true;
-    }
-
-    if (config["cudaOff"])
-      cudaOff = config["cudaOff"]["value"].as<bool>();
-    else {
-      config["cudaOff"]["desc"] = "Suppress GPU computation when GPU is available for testing";
-      config["cudaOff"]["value"] = cudaOff = false;
     }
 
     if (config["collTnum"])
