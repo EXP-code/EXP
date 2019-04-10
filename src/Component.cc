@@ -148,9 +148,6 @@ Component::Component(YAML::Node& CONF)
   bunchSize   = 500000;
 #endif
   timers      = false;
-  use_cuda    = true;		// Set to false to suppress cuda
-				// computation
-
 				// Null out pointers
   orient      = 0;
 
@@ -235,7 +232,6 @@ void Component::set_default_values()
   if (!cconf["bunch"])           cconf["bunch"]       = bunchSize;
 #endif
   if (!cconf["timers"])          cconf["timers"]      = timers;
-  if (!cconf["use_cuda"])        cconf["use_cuda"]    = use_cuda;
   if (!cconf["com"])             cconf["com"]         = com_system;
   if (!cconf["scheck"])          cconf["scheck"]      = seq_check;
   if (!cconf["indexing"])        cconf["indexing"]    = indexing;
@@ -609,7 +605,6 @@ Component::Component(YAML::Node& CONF, istream *in) : conf(CONF)
   bunchSize   = 500000;
 #endif
   timers      = false;
-  use_cuda    = true;
 
   force       = 0;		// Null out pointers
   orient      = 0;
@@ -664,7 +659,6 @@ void Component::initialize(void)
     if (cconf["com"     ])  com_system = cconf["com"     ].as<bool>();
     if (cconf["comlog"  ])     com_log = cconf["comlog"  ].as<bool>();
     if (cconf["timers"  ])      timers = cconf["timers"  ].as<bool>();
-    if (cconf["use_cuda"])    use_cuda = cconf["use_cuda"].as<bool>();
   
 #if HAVE_LIBCUDA==1
     if (cconf["bunch"   ])   bunchSize = cconf["bunch"   ].as<int>();

@@ -94,6 +94,7 @@ void initialize(void)
     if (_G["eqmotion"])      eqmotion   = _G["eqmotion"].as<bool>();
     if (_G["global_cov"])    global_cov = _G["global_cov"].as<bool>();
     if (_G["cuda_prof"])     cuda_prof  = _G["cuda_prof"].as<bool>();
+    if (_G["use_cuda"])      use_cuda   = _G["use_cuda"].as<bool>();
     if (_G["barrier_check"]) barrier_check = _G["barrier_check"].as<bool>();
     if (_G["barrier_debug"]) barrier_debug = _G["barrier_debug"].as<bool>();
     if (_G["barrier_extra"]) barrier_extra = _G["barrier_extra"].as<bool>();

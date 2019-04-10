@@ -330,6 +330,9 @@ extern int  rlimit_val;
 extern bool debug_wait;
 extern bool main_wait;
 
+//! Set to false to suppress cuda computation
+extern bool use_cuda;
+
 //! For toggling CUDA profiling
 extern bool cuda_prof;
 

@@ -2140,86 +2140,95 @@ void pHOT::Repartition(unsigned mlevel)
   GPTLstart("pHOT::Repartition::compute_keys");
 #endif
 
-#if HAVE_LIBCUDA==1
-
   std::vector<key_wght> keys;
-  keyProcessCuda(keys);
-
-#else
-  timer_keygenr.start();
-
-  oob.clear();
-  vector<key_wght> keys;
-  for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
-
-    it->second->key = getKey(&(it->second->pos[0]));
-    if (it->second->key == 0u) {
-      oob.insert(it->first);
-    } else {
-      if (use_weight) {
-	// Floor effort flag to prevent divide-by-zero
-	it->second->effort =
-	  std::max<double>(Particle::effort_default, it->second->effort);
-
-	// Push onto vector
-	keys.push_back(key_wght(it->second->key, it->second->effort));
-
-	// Reset effort value with some hysteresis
-	it->second->effort = hystrs*(1.0 - hystrs)*it->second->effort;
-
-      } else {
-	keys.push_back(key_wght(it->second->key, 1.0));
-      }
-    }
-  }
-
 
   static unsigned long d1a=0, d1b=0;
-  if (checkDupes1("pHOT::Repartition: after new keys")) {
-    cout << "Process " << myid << " at T=" << tnow 
-	 << ", L=" << mlevel
-	 << ": duplicate check failed after new keys, cnt="
-	 << d1a << endl;
-  }
-  d1a++;
 
-  if (DEBUG_NOISY) 
-    std::cout << "Process " << std::left << std::setw(4) << myid 
-	      << ": part #="   << std::setw(10) << cc->Particles().size()
-	      << "  key size=" << std::setw(10) << keys.size()
-	      << "  oob size=" << std::setw(10) << oob.size() << endl;
+  bool have_cuda = false;
+#if HAVE_LIBCUDA==1
+  have_cuda = true;
+#endif
   
+  if (use_cuda and have_cuda) {
+
+#if HAVE_LIBCUDA==1
+    keyProcessCuda(keys);
+#endif
+
+  } // END: use_cuda
+  else {
+
+    timer_keygenr.start();
+
+    oob.clear();
+    for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
+      
+      it->second->key = getKey(&(it->second->pos[0]));
+      if (it->second->key == 0u) {
+	oob.insert(it->first);
+      } else {
+	if (use_weight) {
+	  // Floor effort flag to prevent divide-by-zero
+	  it->second->effort =
+	    std::max<double>(Particle::effort_default, it->second->effort);
+	  
+	  // Push onto vector
+	  keys.push_back(key_wght(it->second->key, it->second->effort));
+	  
+	  // Reset effort value with some hysteresis
+	  it->second->effort = hystrs*(1.0 - hystrs)*it->second->effort;
+	  
+	} else {
+	  keys.push_back(key_wght(it->second->key, 1.0));
+	}
+      }
+    }
+    
+    
+    if (checkDupes1("pHOT::Repartition: after new keys")) {
+      cout << "Process " << myid << " at T=" << tnow 
+	   << ", L=" << mlevel
+	   << ": duplicate check failed after new keys, cnt="
+	   << d1a << endl;
+    }
+    d1a++;
+
+    if (DEBUG_NOISY) 
+      std::cout << "Process " << std::left << std::setw(4) << myid 
+		<< ": part #="   << std::setw(10) << cc->Particles().size()
+		<< "  key size=" << std::setw(10) << keys.size()
+		<< "  oob size=" << std::setw(10) << oob.size() << endl;
+    
 #ifdef USE_GPTL
-  GPTLstop ("pHOT::Repartition::compute_keys");
-  GPTLstart("pHOT::Repartition::compute_keys_waiting");
-  (*barrier)("pHOT: repartition key wait", __FILE__, __LINE__);
-  GPTLstop ("pHOT::Repartition::compute_keys_waiting");
-  GPTLstart("pHOT::Repartition::spreadOOB");
+    GPTLstop ("pHOT::Repartition::compute_keys");
+    GPTLstart("pHOT::Repartition::compute_keys_waiting");
+    (*barrier)("pHOT: repartition key wait", __FILE__, __LINE__);
+    GPTLstop ("pHOT::Repartition::compute_keys_waiting");
+    GPTLstart("pHOT::Repartition::spreadOOB");
 #endif
 
-  timer_keygenr.stop();
-  timer_keysort.start();
+    timer_keygenr.stop();
+    timer_keysort.start();
 
-  spreadOOB();
+    spreadOOB();
 
 #ifdef USE_GPTL
-  GPTLstop ("pHOT::Repartition::spreadOOB");
-  GPTLstart("pHOT::Repartition::partitionKeys");
+    GPTLstop ("pHOT::Repartition::spreadOOB");
+    GPTLstart("pHOT::Repartition::partitionKeys");
 #endif
 
-  partitionKeys(keys, kbeg, kfin);
-
+    partitionKeys(keys, kbeg, kfin);
+    
 #ifdef USE_GPTL
-  GPTLstop ("pHOT::Repartition::partitionKeys");
-  GPTLstart("pHOT::bodyList");
+    GPTLstop ("pHOT::Repartition::partitionKeys");
+    GPTLstart("pHOT::bodyList");
 #endif
 
-  timer_keysort.stop();
+    timer_keysort.stop();
 
-#endif
+  } // END: not have_cuda
   
   timer_prepare.start();
-
 
   //
   // Nodes compute send list
@@ -2504,15 +2513,15 @@ void pHOT::Repartition(unsigned mlevel)
     timer_diagdbg.stop();
   }
 
-#if HAVE_LIBCUDA != 1
-  if (checkDupes1("pHOT::Repartition: after exchange")) {
-    cout << "Process " << myid << " at T=" << tnow 
-	 << ", L=" << mlevel
-	 << ": duplicate check failed after exchange, cnt=" 
-	 << d1b << endl;
+  if (not use_cuda or not have_cuda) {
+    if (checkDupes1("pHOT::Repartition: after exchange")) {
+      cout << "Process " << myid << " at T=" << tnow 
+	   << ", L=" << mlevel
+	   << ": duplicate check failed after exchange, cnt=" 
+	   << d1b << endl;
+    }
+    d1b++;
   }
-  d1b++;
-#endif
 
   timer_repartn.stop();
 
