@@ -2,6 +2,8 @@
 #include <numerical.h>
 #include <Vector.h>
 
+#include <Eigen/Eigen>
+
 extern "C" {
   void dsyevd_(char* jobz, char* uplo, int* n, double* a, int* lda, double *w,
 	       double* work, int* lwork, int *iwork, int* liwork, int* info);
@@ -211,3 +213,49 @@ Vector Symmetric_Eigenvalues_SYEVD(Matrix& a, Matrix& ef, int M)
 
   return ev;
 }
+
+Vector Symmetric_Eigenvalues_SVD(Matrix& a, Matrix& ef, int M, bool Large)
+{
+  int lo = a.getrlow();
+  int hi = a.getrhigh();
+  int n = hi - lo + 1;
+
+  // Eigen comparison
+  Eigen::MatrixXd mm(n, n);
+  for (int i=0; i<n; i++) {
+    for (int j=i; j<n; j++) {
+      mm(i, j) = a[i+lo][j+lo];
+      if (i!=j) mm(j, i) = mm(i, j);
+    }
+  }
+  
+  M = std::min<double>(n, M);
+
+  Vector ev(1, M);
+  ef.setsize(1, M, lo, hi);
+
+  Eigen::MatrixXd V;
+  Eigen::VectorXd S;
+
+  if (Large) {
+    Eigen::BDCSVD<Eigen::MatrixXd> svd(mm, Eigen::ComputeThinU | Eigen::ComputeThinV);
+
+    V = svd.matrixV();
+    S = svd.singularValues();
+
+  } else {
+
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(mm, Eigen::ComputeThinU | Eigen::ComputeThinV);
+
+    V = svd.matrixV();
+    S = svd.singularValues();
+  }
+
+  for (int i=0; i<M; i++) {
+    ev[i+1] = S[i];
+    for (int j=0; j<n; j++) ef[i+1][j+lo] = V(j, i);
+  }
+
+  return ev;
+}
+

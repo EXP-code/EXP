@@ -246,25 +246,28 @@ public:
     Plummer
   };
 
-  //! TRUE if density is computed
+  //! TRUE if density is computed (default: false)
   static bool DENS;
 
-  //! TRUE if signal-to-noise methods are on
+  //! TRUE for SVD computation of symmetric eigenproblem (default: false)
+  static bool USESVD;
+
+  //! TRUE if signal-to-noise methods are on (default: false)
   static bool PCAVAR;
 
-  //! TRUE if VTK diagnostics are on
+  //! TRUE if VTK diagnostics are on (default: false)
   static bool PCAVTK;
 
-  //! TRUE if EOF diagnostics are on
+  //! TRUE if EOF diagnostics are on (default: false)
   static bool PCAEOF;
 
-  //! VTK diagnostic frequency
+  //! VTK diagnostic frequency (default: false)
   static unsigned VTKFRQ;
 
-  //! TRUE if we are using coordinate mapping
+  //! TRUE if we are using coordinate mapping (default: false)
   static bool CMAP;
 
-  //! TRUE if mapping is logarithmic
+  //! TRUE if mapping is logarithmic (default: false)
   static bool logarithmic;
 
   //! No extrapolating beyond grid (default: false)

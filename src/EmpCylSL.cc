@@ -35,6 +35,8 @@ extern int VERBOSE;
 #include <VtkGrid.H>
 
 extern Vector Symmetric_Eigenvalues_SYEVD(Matrix& a, Matrix& ef, int M);
+extern Vector Symmetric_Eigenvalues_SVD  (Matrix& a, Matrix& ef, int M,
+					  bool Large=true);
 
 #undef  TINY
 #define TINY 1.0e-16
@@ -44,6 +46,7 @@ bool     EmpCylSL::DENS            = false;
 bool     EmpCylSL::PCAVAR          = false;
 bool     EmpCylSL::PCAVTK          = false;
 bool     EmpCylSL::PCAEOF          = false;
+bool     EmpCylSL::USESVD          = false;
 bool     EmpCylSL::CMAP            = false;
 bool     EmpCylSL::logarithmic     = false;
 bool     EmpCylSL::enforce_limits  = false;
@@ -2051,7 +2054,12 @@ void EmpCylSL::make_eof(void)
 	  timer.reset();
 	  timer.start();
 	}
-	ev = Symmetric_Eigenvalues_SYEVD(var[M], ef, NORDER);
+
+	if (USESVD)
+	  ev = Symmetric_Eigenvalues_SVD  (var[M], ef, NORDER);
+	else
+	  ev = Symmetric_Eigenvalues_SYEVD(var[M], ef, NORDER);
+
 	if (VFLAG & 16) {
 	  cout << "Process " << setw(4) << myid 
 	       << ": completed eigenproblem in " 
@@ -2107,13 +2115,19 @@ void EmpCylSL::make_eof(void)
 	  timer.reset();
 	  timer.start();
 	}
-	ev = Symmetric_Eigenvalues_SYEVD(var[M], ef, NORDER);
+
+	if (USESVD)
+	  ev = Symmetric_Eigenvalues_SVD  (var[M], ef, NORDER);
+	else
+	  ev = Symmetric_Eigenvalues_SYEVD(var[M], ef, NORDER);
+
 	if (VFLAG & 16) {
 	  cout << "Process " << setw(4) << myid 
 	       << ": completed eigenproblem in " 
 	       << timer.stop() << " seconds"
 	       << endl;
 	}
+
       }
 
       if (VFLAG & 2)
