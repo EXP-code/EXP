@@ -3999,12 +3999,17 @@ double CollideIon::crossSectionWeight
 //                      |
 //                      v
 static bool DEBUG_CRS = true;
-void CollideIon::trap_crs(double& cross, const CollideIon::InterTypes type)
+void CollideIon::trap_crs(double& cross, const CollideIon::InterTypes type,
+			  double extra)
 {
   if (std::isnan(cross)) {
     std::cout << "Cross section for <"
       << interLabels[type] << " is NaN" << std::endl;
     cross = 0.0;
+  }
+  if (std::isnan(extra)) {
+    std::cout << "Cross section for <"
+	      << interLabels[type] << " has extra value NaN" << std::endl;
   }
 }
 
@@ -4211,13 +4216,13 @@ double CollideIon::crossSectionHybrid
 				// atomic radius
 	double crs1 = geometric(Z1) * cfac;
 	
-	if (DEBUG_CRS) trap_crs(crs1, neut_neut);
+	if (DEBUG_CRS) trap_crs(crs1, neut_neut, crossfac*cscl_[Z1]);
 	
 	cross += crs1*crossfac*cscl_[Z1];
 
 	double crs2 = geometric(Z2) * cfac;
 
-	if (DEBUG_CRS) trap_crs(crs2, neut_neut);
+	if (DEBUG_CRS) trap_crs(crs2, neut_neut, crossfac*cscl_[Z2]);
 	
 	cross += crs2*crossfac*cscl_[Z2];
 	
@@ -4988,7 +4993,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 				// Double counting
 	if (Z == ZZ) crs *= 0.5;
 
-	if (DEBUG_CRS) trap_crs(crs, neut_neut);
+	if (DEBUG_CRS) trap_crs(crs, neut_neut, crossfac);
 
 	cross += crs*crossfac;
 
