@@ -3998,11 +3998,13 @@ double CollideIon::crossSectionWeight
 // For debugging.  Set to false for production
 //                      |
 //                      v
-static bool DEBUG_CRS = false;
-void trap_crs(double cross)
+static bool DEBUG_CRS = true;
+void CollideIon::trap_crs(double& cross, const CollideIon::InterTypes type)
 {
   if (std::isnan(cross)) {
-    std::cout << "Cross section is NaN" << std::endl;
+    std::cout << "Cross section for <"
+      << interLabels[type] << " is NaN" << std::endl;
+    cross = 0.0;
   }
 }
 
@@ -4209,13 +4211,13 @@ double CollideIon::crossSectionHybrid
 				// atomic radius
 	double crs1 = geometric(Z1) * cfac;
 	
-	if (DEBUG_CRS) trap_crs(crs1*crossfac*cscl_[Z1]);
+	if (DEBUG_CRS) trap_crs(crs1, neut_neut);
 	
 	cross += crs1*crossfac*cscl_[Z1];
 
 	double crs2 = geometric(Z2) * cfac;
 
-	if (DEBUG_CRS) trap_crs(crs2*crossfac*cscl_[Z2]);
+	if (DEBUG_CRS) trap_crs(crs2, neut_neut);
 	
 	cross += crs2*crossfac*cscl_[Z2];
 	
@@ -4239,7 +4241,7 @@ double CollideIon::crossSectionHybrid
 	  elastic(Z1, kEe1[id]) * eVel2 *
 	  C2 * crossfac * cscl_[Z1] * cfac;
 	
-	if (DEBUG_CRS) trap_crs(crs);
+	if (DEBUG_CRS) trap_crs(crs, neut_elec);
 
 	Interact::T t
 	{ neut_elec, {Interact::ion, speciesKey(Z1, C1+1)}, {Interact::electron, speciesKey(Z2, 0)} };
@@ -4257,7 +4259,7 @@ double CollideIon::crossSectionHybrid
 	  elastic(Z2, kEe2[id]) * eVel1 *
 	  C1 * crossfac * cscl_[Z2] * cfac;
 	
-	if (DEBUG_CRS) trap_crs(crs);
+	if (DEBUG_CRS) trap_crs(crs, neut_elec);
 
 	Interact::T t
 	{ neut_elec, {Interact::electron, speciesKey(Z1, 0)}, {Interact::ion, speciesKey(Z2, C2+1)} };
@@ -4293,7 +4295,7 @@ double CollideIon::crossSectionHybrid
 	    M_PI*b*b * eVel2 *
 	    C2 * crossfac * cscl_[Z1] * mfac * cfac;
 	
-	  if (DEBUG_CRS) trap_crs(crs);
+	  if (DEBUG_CRS) trap_crs(crs, ion_elec);
 	
 	  Interact::T t
 	  { ion_elec, {Interact::ion, speciesKey(Z1, C1+1)}, {Interact::electron, speciesKey(Z2, 0)} };
@@ -4323,7 +4325,7 @@ double CollideIon::crossSectionHybrid
 	    M_PI*b*b * eVel2 *
 	    C1 * crossfac * cscl_[Z2] * mfac * cfac;
 	
-	  if (DEBUG_CRS) trap_crs(crs);
+	  if (DEBUG_CRS) trap_crs(crs, ion_elec);
 	
 	  Interact::T t
 	  { ion_elec, {Interact::electron, speciesKey(Z1, 0)}, {Interact::ion, speciesKey(Z2, C2+1)} };
@@ -4345,7 +4347,7 @@ double CollideIon::crossSectionHybrid
 	double crs1 = elastic(Z1, kEi[id], Elastic::proton) *
 	  crossfac * cscl_[Z1] * cfac;
 	
-	if (DEBUG_CRS) trap_crs(crs1);
+	if (DEBUG_CRS) trap_crs(crs1, neut_prot);
 	
 	Interact::T t
 	{ neut_prot, {Interact::neutral, speciesKey(Z1, C1+1)}, {Interact::ion, speciesKey(Z2, C2+1)} };
@@ -4361,7 +4363,7 @@ double CollideIon::crossSectionHybrid
 	double crs1 = elastic(Z2, kEi[id], Elastic::proton) *
 	  crossfac * cscl_[Z2] * cfac;
 	
-	if (DEBUG_CRS) trap_crs(crs1);
+	if (DEBUG_CRS) trap_crs(crs1, neut_prot);
 	
 	Interact::T t
 	{ neut_prot, {Interact::ion, speciesKey(Z1, C1+1)}, {Interact::neutral, speciesKey(Z2, C2+1)} };
@@ -4432,7 +4434,7 @@ double CollideIon::crossSectionHybrid
 	CEvector CE = ch.IonList[Q1]->collExciteCross(ke, id);
 	double crs  = eVel2 * C2 * CE.back().first * cfac * nselRat[id];
 	
-	if (DEBUG_CRS) trap_crs(crs);
+	if (DEBUG_CRS) trap_crs(crs, colexcite);
 	
 	if (crs > 0.0) {
 	  Interact::T t
@@ -4453,7 +4455,7 @@ double CollideIon::crossSectionHybrid
 	CEvector CE = ch.IonList[Q2]->collExciteCross(ke, id);
 	double crs  = eVel1 * C1 * CE.back().first * cfac * nselRat[id];
 	
-	if (DEBUG_CRS) trap_crs(crs);
+	if (DEBUG_CRS) trap_crs(crs, colexcite);
 	
 	if (crs > 0.0) {
 	  Interact::T t
@@ -4479,7 +4481,7 @@ double CollideIon::crossSectionHybrid
 	double DI  = ch.IonList[Q1]->directIonCross(ke, id);
 	double crs = eVel2 * C2 * DI * cfac * nselRat[id];
 	
-	if (DEBUG_CRS) trap_crs(crs);
+	if (DEBUG_CRS) trap_crs(crs, ionize);
 	
 	if (crs > 0.0) {
 	  Interact::T t
@@ -4500,7 +4502,7 @@ double CollideIon::crossSectionHybrid
 	double DI  = ch.IonList[Q2]->directIonCross(ke, id);
 	double crs = eVel1 * C1 * DI * cfac * nselRat[id];
 	
-	if (DEBUG_CRS) trap_crs(crs);
+	if (DEBUG_CRS) trap_crs(crs, ionize);
 	
 	if (crs > 0.0) {
 	  Interact::T t
@@ -4529,7 +4531,7 @@ double CollideIon::crossSectionHybrid
 	  std::vector<double> RE = ch.IonList[Q1]->radRecombCross(ke, id);
 	  double crs = sVel1 * C1 * RE.back() * cfac * nselRat[id];
 	
-	  if (DEBUG_CRS) trap_crs(crs);
+	  if (DEBUG_CRS) trap_crs(crs, recomb);
 	
 	  if (crs > 0.0) {
 	    Interact::T t
@@ -4549,7 +4551,7 @@ double CollideIon::crossSectionHybrid
 	  std::vector<double> RE = ch.IonList[Q2]->radRecombCross(ke, id);
 	  double crs = sVel2 * C2 * RE.back() * cfac * nselRat[id];
 	  
-	  if (DEBUG_CRS) trap_crs(crs);
+	  if (DEBUG_CRS) trap_crs(crs, recomb);
 	  
 	  if (crs > 0.0) {
 	    Interact::T t
@@ -4573,7 +4575,7 @@ double CollideIon::crossSectionHybrid
 
 	    double crs = eVel2 * C2 * RE.back() * cfac * nselRat[id];
 	    
-	    if (DEBUG_CRS) trap_crs(crs);
+	    if (DEBUG_CRS) trap_crs(crs, recomb);
 	
 	    if (crs > 0.0) {
 	      Interact::T t
@@ -4594,7 +4596,7 @@ double CollideIon::crossSectionHybrid
 
 	    double crs = eVel1 * C1 * RE.back() * cfac * nselRat[id];
 	    
-	    if (DEBUG_CRS) trap_crs(crs);
+	    if (DEBUG_CRS) trap_crs(crs, recomb);
 	    
 	    if (crs > 0.0) {
 	      Interact::T t
@@ -4986,7 +4988,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 				// Double counting
 	if (Z == ZZ) crs *= 0.5;
 
-	if (DEBUG_CRS) trap_crs(crs*crossfac);
+	if (DEBUG_CRS) trap_crs(crs, neut_neut);
 
 	cross += crs*crossfac;
 
@@ -5007,7 +5009,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double crs1 = elastic(Z, kEi[id], Elastic::proton) *
 	  crossfac * cscl_[Z] * fac1 * fac2;
 	
-	if (DEBUG_CRS) trap_crs(crs1);
+	if (DEBUG_CRS) trap_crs(crs1, neut_prot);
 	
 	Interact::T t
 	{ neut_prot, {Interact::neutral, k}, {Interact::ion, kk} };
@@ -5022,7 +5024,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double crs1 = elastic(ZZ, kEi[id], Elastic::proton) *
 	  crossfac * cscl_[ZZ] * fac1 * fac2;
 	
-	if (DEBUG_CRS) trap_crs(crs1);
+	if (DEBUG_CRS) trap_crs(crs1, neut_prot);
 	
 	Interact::T t
 	{ neut_prot, Ion, {Interact::neutral, kk} };
@@ -5066,7 +5068,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       double crs = elastic(Z, kEe1[id]) * gVel2 * Eta2 *
 	crossfac * cscl_[Z] * fac1;
 
-      if (DEBUG_CRS) trap_crs(crs);
+      if (DEBUG_CRS) trap_crs(crs, neut_elec);
 
       Interact::T t { neut_elec, Ion, Interact::edef };
 
@@ -5083,7 +5085,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       double crs = elastic(Z, kEe2[id]) * gVel1 * Eta1 *
 	crossfac * cscl_[Z] * fac2;
 	
-      if (DEBUG_CRS) trap_crs(crs);
+      if (DEBUG_CRS) trap_crs(crs, neut_elec);
 
       Interact::T t { neut_elec, Interact::edef, Ion };
       
@@ -5122,7 +5124,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	}
 	
 	if (crs>0.0 and not std::isnan(crs)) {
-	  if (DEBUG_CRS) trap_crs(crs);
+	  if (DEBUG_CRS) trap_crs(crs, ion_elec);
 	
 	  Interact::T t { ion_elec, Ion, Interact::edef };
 	
@@ -5154,7 +5156,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	}
 	
 	if (crs>0.0 and not std::isnan(crs)) {
-	  if (DEBUG_CRS) trap_crs(crs);
+	  if (DEBUG_CRS) trap_crs(crs, ion_elec);
 	
 	  Interact::T t { ion_elec, Interact::edef, Ion };
 	  
@@ -5236,7 +5238,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
       double   crs = gVel2 * Eta2 * CE.back().first * fac1;
       
-      if (DEBUG_CRS) trap_crs(crs);
+      if (DEBUG_CRS) trap_crs(crs, colexcite);
       
       if (crs > 0.0) {
 	Interact::T t { colexcite, Ion, Interact::edef };
@@ -5263,7 +5265,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
       double   crs = gVel1 * Eta1 * CE.back().first * fac2;
       
-      if (DEBUG_CRS) trap_crs(crs);
+      if (DEBUG_CRS) trap_crs(crs, colexcite);
       
       if (crs > 0.0) {
 	Interact::T t { colexcite, Interact::edef, Ion };
@@ -5295,7 +5297,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
       double crs   = gVel2 * Eta2 * DI * fac1;
       
-      if (DEBUG_CRS) trap_crs(crs);
+      if (DEBUG_CRS) trap_crs(crs, ionize);
       
       if (crs > 0.0) {
 	Interact::T t { ionize, Ion, Interact::edef };
@@ -5322,7 +5324,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
       double crs   = gVel1 * Eta1 * DI * fac2;
       
-      if (DEBUG_CRS) trap_crs(crs);
+      if (DEBUG_CRS) trap_crs(crs, ionize);
       
       if (crs > 0.0) {
 	Interact::T t { ionize, Interact::edef, Ion };
@@ -5369,7 +5371,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  }
 	}
 
-	if (DEBUG_CRS) trap_crs(crs);
+	if (DEBUG_CRS) trap_crs(crs, recomb);
 	
 	if (crs > 0.0) {
 	  Interact::T t { recomb, Ion, Interact::edef };
@@ -5405,7 +5407,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  }
 	}
 
-	if (DEBUG_CRS) trap_crs(crs);
+	if (DEBUG_CRS) trap_crs(crs, recomb);
 	  
 	if (crs > 0.0) {
 	  Interact::T t { recomb, Interact::edef, Ion };
@@ -5445,7 +5447,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	    }
 	  }
 
-	  if (DEBUG_CRS) trap_crs(crs);
+	  if (DEBUG_CRS) trap_crs(crs, recomb);
 	  
 	  if (crs > 0.0) {
 	    Interact::T t { recomb, Ion, Interact::edef };
@@ -5483,7 +5485,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	    }
 	  }
 	  
-	  if (DEBUG_CRS) trap_crs(crs);
+	  if (DEBUG_CRS) trap_crs(crs, recomb);
 	  
 	  if (crs > 0.0) {
 	    Interact::T t { recomb, Interact::edef, Ion };
@@ -5875,6 +5877,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
     ctd1->eV_av[id] += kEe1[id];
     if (std::isnan(ctd1->eV_av[id])) {
       std::cout << "NAN eV_N[1]=" << ctd1->eV_N[id]
+		<< ", KE=" << kEe1[id]
 		<< ", prior=" << std::boolalpha << prior << std::endl;
     }
     ctd1->eV_N[id]++;
@@ -5897,6 +5900,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
     ctd2->eV_av[id] += kEe2[id];
     if (std::isnan(ctd2->eV_av[id])) {
       std::cout << "NAN eV_N[2]=" << ctd2->eV_N[id]
+		<< ", KE=" << kEe2[id]
 		<< ", prior=" << std::boolalpha << prior << std::endl;
     }
     ctd2->eV_N[id]++;
@@ -6918,6 +6922,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
     ctd1->eV_av[id] += kEe1[id];
     if (std::isnan(ctd2->eV_av[id])) {
       std::cout << "NAN eV_N=" << ctd1->eV_N[id]
+		<< ", KE=" << kEe1[id]
 		<< ", prior=" << std::boolalpha << prior << std::endl;
     }
     ctd1->eV_N[id]++;
@@ -6938,6 +6943,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
     ctd2->eV_av[id] += kEe2[id];
     if (std::isnan(ctd2->eV_av[id])) {
       std::cout << "NAN eV_N=" << ctd2->eV_N[id]
+		<< ", KE=" << kEe2[id]
 		<< ", prior=" << std::boolalpha << prior << std::endl;
     }
     ctd2->eV_N[id]++;
@@ -9174,6 +9180,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	ctd2->eV_av[id] += kEe2[id] * Prob;
 	if (std::isnan(ctd2->eV_av[id])) {
 	  std::cout << "NAN eV_N[2]=" << ctd2->eV_N[id]
+		    << ", KE=" << kEe2[id]
+		    << ", Pr=" << Prob
 		    << ", prior=" << std::boolalpha << prior << std::endl;
 	}
 	ctd2->eV_N[id] += Prob;
@@ -9188,6 +9196,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	ctd1->eV_av[id] += kEe1[id] * Prob;
 	if (std::isnan(ctd1->eV_av[id])) {
 	  std::cout << "NAN eV_N[1]=" << ctd1->eV_N[id]
+		    << ", KE=" << kEe1[id]
+		    << ", Pr=" << Prob
 		    << ", prior=" << std::boolalpha << prior << std::endl;
 	}
 	ctd1->eV_N[id] += Prob;
@@ -11070,6 +11080,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     double XS          = I.crs;
     double Prob        = XS/totalXS;
 
+    // Debugging check
+    //
+    if (DEBUG_CRS and std::isnan(Prob)) {
+      std::cout << "Prob is NaN, total=" << totalXS << " I="
+		<< interLabels[interFlag] << std::endl;
+      Prob = 0.0;
+    }
+
     if (Prob < 1.0e-14) continue;
 
     // The interaction
@@ -11711,6 +11729,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	ctd->eV_av[id] += kEe2[id] * Prob;
 	if (std::isnan(ctd->eV_av[id])) {
 	  std::cout << "NAN eV_N[2]=" << ctd->eV_N[id]
+		    << ", KE=" << kEe2[id]
+		    << ", Pr=" << Prob
 		    << ", prior=" << std::boolalpha << prior << std::endl;
 	}
 	ctd->eV_N[id] += Prob;
@@ -11725,6 +11745,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	ctd->eV_av[id] += kEe1[id] * Prob;
 	if (std::isnan(ctd->eV_av[id])) {
 	  std::cout << "NAN eV_N[1]=" << ctd->eV_N[id]
+		    << ", KE=" << kEe1[id]
+		    << ", Pr=" << Prob
 		    << ", prior=" << std::boolalpha << prior << std::endl;
 	}
 	ctd->eV_N[id] += Prob;

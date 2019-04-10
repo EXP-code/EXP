@@ -603,6 +603,9 @@ private:
     recomb_2    = 209
   };    
 
+  //! For debugging
+  void trap_crs(double& cross, const InterTypes type);
+
   //! Default electron-electron interaction type
   static NTC::Interact::T elecElec;
 
