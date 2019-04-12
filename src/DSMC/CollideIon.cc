@@ -2703,16 +2703,19 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 	n_{ij} is the density of atomic species i, with positive ionic charge c_j
       */
 
-      double ni  = numbP * dfac;
-      double ne  = massE * dfac;
-      double cj  = massI * dfac;
+      double ni   = numbP * dfac;
+      double ne   = massE * dfac;
+      double cj   = massI * dfac;
       
       double dfac = TreeDSMC::Munit/amu / (pow(TreeDSMC::Lunit, 3.0)*volc);
 
-      double Ni  = numbP*TreeDSMC::Munit/amu;
-      double Ne  = massE*TreeDSMC::Munit/amu;
-      double KEi = ivel2*TreeDSMC::Eunit / Ni;
-      double KEe = evel2*TreeDSMC::Eunit * atomic_weights[0] / Ne;
+      double Ni   = numbP*TreeDSMC::Munit/amu;
+      double Ne   = massE*TreeDSMC::Munit/amu;
+      double KEi  = 0.0;
+      double KEe  = 0.0;
+
+      if (Ni>0.0) KEi = ivel2*TreeDSMC::Eunit / Ni;
+      if (Ne>0.0) kEe = evel2*TreeDSMC::Eunit * atomic_weights[0] / Ne;
 
       debye[id]  = 1.0/sqrt(6.0*M_PI*esu*esu*(ne/KEe + ni/KEi));
       debye[id] /= TreeDSMC::Lunit;
