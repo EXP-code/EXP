@@ -208,7 +208,7 @@ Vector Symmetric_Eigenvalues_SYEVD(Matrix& a, Matrix& ef, int M)
 
   if (info != 0) {
     std::cout << "Symmetric_Eigenvalues_SYEVD: failed to converge with i="
-	      << i << std::endl;
+	      << info << std::endl;
   }
 
   delete [] A;
