@@ -604,7 +604,7 @@ private:
   };    
 
   //! For debugging
-  void trap_crs(double& cross, const InterTypes type);
+  void trap_crs(double& cross, const InterTypes type, double extra=0.0);
 
   //! Default electron-electron interaction type
   static NTC::Interact::T elecElec;
