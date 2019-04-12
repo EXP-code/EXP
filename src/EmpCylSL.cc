@@ -34,10 +34,6 @@ extern int VERBOSE;
 #include <EmpCylSL.h>
 #include <VtkGrid.H>
 
-extern Vector Symmetric_Eigenvalues_SYEVD(Matrix& a, Matrix& ef, int M);
-extern Vector Symmetric_Eigenvalues_SVD  (Matrix& a, Matrix& ef, int M,
-					  bool Large=true);
-
 #undef  TINY
 #define TINY 1.0e-16
 
