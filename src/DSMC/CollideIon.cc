@@ -2715,7 +2715,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
       double KEe  = 0.0;
 
       if (Ni>0.0) KEi = ivel2*TreeDSMC::Eunit / Ni;
-      if (Ne>0.0) kEe = evel2*TreeDSMC::Eunit * atomic_weights[0] / Ne;
+      if (Ne>0.0) KEe = evel2*TreeDSMC::Eunit * atomic_weights[0] / Ne;
 
       debye[id]  = 1.0/sqrt(6.0*M_PI*esu*esu*(ne/KEe + ni/KEi));
       debye[id] /= TreeDSMC::Lunit;
