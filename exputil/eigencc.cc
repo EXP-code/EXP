@@ -206,6 +206,11 @@ Vector Symmetric_Eigenvalues_SYEVD(Matrix& a, Matrix& ef, int M)
     for (int j=0; j<N; j++) ef[i+1][j+lo] = A[N*(N-i-1) + j];
   }
 
+  if (info != 0) {
+    std::cout << "Symmetric_Eigenvalues_SYEVD: failed to converge with i="
+	      << i << std::endl;
+  }
+
   delete [] A;
   delete [] W;
   delete [] work;
