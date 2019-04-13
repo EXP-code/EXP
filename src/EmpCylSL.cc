@@ -1511,11 +1511,11 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
     progress = boost::make_shared<boost::progress_display>(numr*numt/numprocs);
   }
 
+  int cntr = 0;			// Loop counter for load balancing
+  
   // *** Radial quadrature loop
   //
   for (int qr=1; qr<=numr; qr++) { 
-
-    if (qr % numprocs != myid) continue;
 
     double xi = XMIN + (XMAX - XMIN) * lr.knot(qr);
     double rr = xi_to_r(xi);
@@ -1524,6 +1524,8 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
     // *** cos(theta) quadrature loop
     //
     for (int qt=1; qt<=numt; qt++) {
+
+      if (cntr++ % numprocs != myid) continue;
 
       double costh = -1.0 + 2.0*lt.knot(qt);
       double R = rr * sqrt(1.0 - costh*costh);
@@ -1619,13 +1621,13 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
       } // *** phi quadrature loop
 
-    } // *** cos(theta) quadrature loop
+      // Diagnostic timing output for MPI process loop
+      //
+      if (VFLAG & 16 && myid==0) {
+	++(*progress);
+      }    
 
-    // Diagnostic timing output
-    //
-    if (VFLAG & 16 && myid==0) {
-      ++(*progress);
-    }    
+    } // *** cos(theta) quadrature loop
 
   } // *** r quadrature loop
   
