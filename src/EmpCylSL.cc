@@ -34,10 +34,6 @@ extern int VERBOSE;
 #include <EmpCylSL.h>
 #include <VtkGrid.H>
 
-extern Vector Symmetric_Eigenvalues_SYEVD(Matrix& a, Matrix& ef, int M);
-extern Vector Symmetric_Eigenvalues_SVD  (Matrix& a, Matrix& ef, int M,
-					  bool Large=true);
-
 #undef  TINY
 #define TINY 1.0e-16
 
@@ -1512,7 +1508,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   boost::shared_ptr<boost::progress_display> progress;
   if (VFLAG & 16 && myid==0) {
     std::cout << std::endl << "Quadrature loop progress" << std::endl;
-    progress = boost::make_shared<boost::progress_display>(numr/numprocs);
+    progress = boost::make_shared<boost::progress_display>(numr*numt/numprocs);
   }
 
   // *** Radial quadrature loop
@@ -1527,23 +1523,23 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
     // *** cos(theta) quadrature loop
     //
-#pragma omp parallel for
     for (int qt=1; qt<=numt; qt++) {
-
-      int id = omp_get_thread_num();
 
       double costh = -1.0 + 2.0*lt.knot(qt);
       double R = rr * sqrt(1.0 - costh*costh);
       double z = rr * costh;
       
-      legendre_R(LMAX, costh, legs[id]);
+      legendre_R(LMAX, costh, legs[0]);
 
       double jfac = dphi*2.0*lt.weight(qt)*(XMAX - XMIN)*lr.weight(qr) 
 	* rr*rr / d_xi_to_r(xi);
       
       // *** Phi quadrature loop
       //
+#pragma omp parallel for
       for (int qp=0; qp<nump; qp++) {
+
+	int id = omp_get_thread_num();
 
 	double phi = dphi*qp;
 	sinecosine_R(LMAX, phi, cosm[id], sinm[id]);
@@ -1563,7 +1559,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	    for (int l=m; l<=LMAX; l++) {
 
 	      double ylm = sqrt((2.0*l+1.0)/(4.0*M_PI)) * pfac *
-		exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[id][l][m];
+		exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[0][l][m];
 
 	      if (m==0) {
 
