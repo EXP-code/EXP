@@ -29,7 +29,8 @@ static Timer timer_pot , timer_adj  , timer_tot;
 static unsigned tskip = 1;
 static bool timing = false;
 
-// Multistep algorithm variant test
+// Multistep algorithm variant test: only do step adjustment at the
+// end of top-level (largest) time step
 //
 static bool multistep_after = true;
 
@@ -197,36 +198,28 @@ void do_step(int n)
 	if (mstep==0) { // Print the level lists
 	  comp->print_level_lists(tlast);
 	}
-	
-	check_bad("after multistep advance");
+      }
 
+      check_bad("after multistep advance");
 				// DEBUG
 #ifdef DEBUG
-	comp->multistep_debug();
+      comp->multistep_debug();
 #endif
-      }
     }
 
     if (multistep_after) {
 
+      nvTracerPtr tPtr;
       if (cuda_prof) {
-	tPtr1.reset();
-	tPtr1 = nvTracerPtr(new nvTracer("Adjust multistep"));
+	tPtr = nvTracerPtr(new nvTracer("Adjust multistep"));
       }
       if (timing) timer_adj.start();
       adjust_multistep_level(true);
       if (timing) timer_adj.stop();
 
       if (mstep==0) { // Print the level lists
-	comp->print_level_lists(tlast);
+	comp->print_level_lists(tnow);
       }
-
-      check_bad("after multistep advance");
-
-				// DEBUG
-#ifdef DEBUG
-      comp->multistep_debug();
-#endif
     }
 				// COM update:
 				// Second velocity half-kick
