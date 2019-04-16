@@ -604,7 +604,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	     << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	     << setfill(' ') << right
 	     << setw(20) << "*** " << setw(30) << left << "fix pos" << ": " 
-	     << setw(18) << timer_fixp.getTime() << endl
+	     << setw(18) << left << timer_fixp.getTime() << endl
 	     << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	     << setfill(' ') << right
 	     << setw(20) << "Ang mom: "

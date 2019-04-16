@@ -393,10 +393,14 @@ class Three_Vector
 };
 
 
-Matrix Transpose(Matrix &m);
-double Trace(Matrix &m);
-Vector Symmetric_Eigenvalues(Matrix &m, Matrix &ev);
-Vector Symmetric_Eigenvalues_GHQL(Matrix &m, Matrix &ev);
+Matrix Transpose                   (Matrix &m);
+double Trace                       (Matrix &m);
+Vector Symmetric_Eigenvalues       (Matrix &m, Matrix &ev);
+Vector Symmetric_Eigenvalues_GHQL  (Matrix &m, Matrix &ev);
+Vector Symmetric_Eigenvalues_SYEVD (Matrix& a, Matrix& ef, int M);
+Vector Symmetric_Eigenvalues_SVD   (Matrix& a, Matrix& ef, int M, bool Large=true);
+
+
 void jacobi(double **, int, double *, double **, int *);
 void eigsrt(double *, double **, int);
 int SVD(Matrix &A, Matrix &U, Matrix &V, Vector &Z);

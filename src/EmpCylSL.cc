@@ -34,10 +34,6 @@ extern int VERBOSE;
 #include <EmpCylSL.h>
 #include <VtkGrid.H>
 
-extern Vector Symmetric_Eigenvalues_SYEVD(Matrix& a, Matrix& ef, int M);
-extern Vector Symmetric_Eigenvalues_SVD  (Matrix& a, Matrix& ef, int M,
-					  bool Large=true);
-
 #undef  TINY
 #define TINY 1.0e-16
 
@@ -1509,42 +1505,43 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   omp_set_dynamic(0);		// Explicitly disable dynamic teams
   omp_set_num_threads(nthrds);	// OpenMP set up
 
-  std::vector<int> cntr(nthrds, 0);
-
   boost::shared_ptr<boost::progress_display> progress;
   if (VFLAG & 16 && myid==0) {
     std::cout << std::endl << "Quadrature loop progress" << std::endl;
-    progress = boost::make_shared<boost::progress_display>(numr/nthrds);
+    progress = boost::make_shared<boost::progress_display>(numr*numt/numprocs);
   }
 
+  int cntr = 0;			// Loop counter for load balancing
+  
   // *** Radial quadrature loop
   //
-#pragma omp parallel for
   for (int qr=1; qr<=numr; qr++) { 
-    int id = omp_get_thread_num();
 
     double xi = XMIN + (XMAX - XMIN) * lr.knot(qr);
     double rr = xi_to_r(xi);
-    ortho->get_pot(table[id], rr/ASCALE);
+    ortho->get_pot(table[0], rr/ASCALE);
 
     // *** cos(theta) quadrature loop
     //
     for (int qt=1; qt<=numt; qt++) {
 
-      if (cntr[id]++ % numprocs != myid) continue;
+      if (cntr++ % numprocs != myid) continue;
 
       double costh = -1.0 + 2.0*lt.knot(qt);
       double R = rr * sqrt(1.0 - costh*costh);
       double z = rr * costh;
-
-      legendre_R(LMAX, costh, legs[id]);
+      
+      legendre_R(LMAX, costh, legs[0]);
 
       double jfac = dphi*2.0*lt.weight(qt)*(XMAX - XMIN)*lr.weight(qr) 
 	* rr*rr / d_xi_to_r(xi);
       
       // *** Phi quadrature loop
       //
+#pragma omp parallel for
       for (int qp=0; qp<nump; qp++) {
+
+	int id = omp_get_thread_num();
 
 	double phi = dphi*qp;
 	sinecosine_R(LMAX, phi, cosm[id], sinm[id]);
@@ -1568,13 +1565,13 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
 	      if (m==0) {
 
-		facC[id][ir][l-m] = ylm*table[id][l][ir];
-
+		facC[id][ir][l-m] = ylm*table[0][l][ir];
+		
 	      }
 	      else {
 	  
-		facC[id][ir][l-m] = ylm*table[id][l][ir]*cosm[id][m];
-		facS[id][ir][l-m] = ylm*table[id][l][ir]*sinm[id][m];
+		facC[id][ir][l-m] = ylm*table[0][l][ir]*cosm[id][m];
+		facS[id][ir][l-m] = ylm*table[0][l][ir]*sinm[id][m];
 
 	      }
 
@@ -1624,13 +1621,13 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
       } // *** phi quadrature loop
 
-    } // *** cos(theta) quadrature loop
+      // Diagnostic timing output for MPI process loop
+      //
+      if (VFLAG & 16 && myid==0) {
+	++(*progress);
+      }    
 
-    // Diagnostic timing output
-    //
-    if (VFLAG & 16 && myid==0 and id==0) {
-      ++(*progress);
-    }    
+    } // *** cos(theta) quadrature loop
 
   } // *** r quadrature loop
   
@@ -1717,7 +1714,7 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
       for (int l=m; l<=LMAX; l++) {
 
 	ylm = sqrt((2.0*l+1.0)/(4.0*M_PI)) * pfac *
-	  exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[0][l][m];
+	  exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[id][l][m];
 
 	if (m==0) {
 
