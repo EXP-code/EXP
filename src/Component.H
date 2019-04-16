@@ -313,9 +313,6 @@ protected:
     std::sort (keys.begin(), keys.end());
   }
 
-  //! Suppress cuda computation even if devices are available
-  bool use_cuda;
-
   //! Write binary component phase-space structure using MPI (blocking)
   void write_binary_mpi_b(MPI_File& out, MPI_Offset& offset, bool real4 = false);
 
