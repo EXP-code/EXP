@@ -30,7 +30,8 @@ static unsigned tskip = 1;
 static bool timing = false;
 
 // Multistep algorithm variant test: only do step adjustment at the
-// end of top-level (largest) time step
+// end of top-level (largest) time step.  This is the consistent and
+// conservative choice.
 //
 static bool multistep_after = true;
 
@@ -185,8 +186,7 @@ void do_step(int n)
       if (timing) timer_vel.stop();
 
 
-      if (not multistep_after) {
-
+      if (not multistep_after) { // For testing
 	if (cuda_prof) {
 	  tPtr1.reset();
 	  tPtr1 = nvTracerPtr(new nvTracer("Adjust multistep"));
@@ -195,7 +195,7 @@ void do_step(int n)
 	adjust_multistep_level(false);
 	if (timing) timer_adj.stop();
 	
-	if (mstep==0) { // Print the level lists
+	if (mstep==0) {		// Print the level lists
 	  comp->print_level_lists(tlast);
 	}
       }
@@ -208,7 +208,6 @@ void do_step(int n)
     }
 
     if (multistep_after) {
-
       nvTracerPtr tPtr;
       if (cuda_prof) {
 	tPtr = nvTracerPtr(new nvTracer("Adjust multistep"));
@@ -217,7 +216,7 @@ void do_step(int n)
       adjust_multistep_level(true);
       if (timing) timer_adj.stop();
 
-      if (mstep==0) { // Print the level lists
+      if (mstep==0) {		// Print the level lists
 	comp->print_level_lists(tnow);
       }
     }
