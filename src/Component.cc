@@ -1182,17 +1182,6 @@ void Component::read_bodies_and_distribute_ascii(void)
 
   double rmax1=0.0, r2;
 
-  if (nbodies_tot > nbodmax*numprocs) {
-    std::ostringstream sout;
-    if (myid==0) {
-      sout << "Not enough space on all processors to hold phase space "
-	   << "nbodmax is currently " << nbodmax*numprocs
-	   << " but should be at least "
-	   << (int)( (double)nbodies_tot/numprocs + 1);
-    }
-    throw GenericError(sout.str(), __FILE__, __LINE__);
-  }
-
   is_init = 1;
   setup_distribution();
   is_init = 0;
@@ -1427,17 +1416,6 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   } // END: parse and assign parameter info from PSP
   
   double rmax1=0.0, r2;
-
-  if (nbodies_tot > nbodmax*numprocs) {
-    std::ostringstream sout;
-    if (myid==0) {
-      sout << "Not enough space on all processors to hold phase space "
-	   << "nbodmax is currently " << nbodmax*numprocs
-	   << " but should be at least "
-	   << (int)( (double)nbodies_tot/numprocs + 1);
-    }
-    throw GenericError(sout.str(), __FILE__, __LINE__);
-  }
 
   is_init = 1;
   setup_distribution();
@@ -2707,7 +2685,6 @@ void Component::get_angmom(unsigned mlevel)
 int Component::round_up(double dnumb)
 {
   unsigned numb = (unsigned)(dnumb + 1.0);
-  if (numb >= nbodmax) numb = nbodmax;
   return numb;
 }
 

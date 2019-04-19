@@ -27,7 +27,6 @@
  
    KEYWORD        EXPLANATION                            DEFAULT
    ----------     ----------------------------           --------
-   nbodmax =      maximum # of bodies                    20000
    lmax =         maximum harmonic order                 4
    nmax =         maxinum radial order                   10
    nlog =         interval between log output            10

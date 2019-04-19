@@ -56,7 +56,6 @@ void initialize(void)
 
   if (_G) {
     
-    if (_G["nbodmax"])       nbodmax    = _G["nbodmax"].as<int>();
     if (_G["nsteps"])	     nsteps     = _G["nsteps"].as<int>();
     if (_G["nthrds"])	     nthrds     = std::max<int>(1, _G["nthrds"].as<int>());
     if (_G["nreport"])	     nreport    = _G["nreport"].as<int>();
@@ -283,7 +282,6 @@ void update_parm()
   try {
     YAML::Node conf = parse["Global"];
 
-    if (not conf["nbodmax"])    conf["nbodmax"]     = nbodmax;
     if (not conf["nsteps"])     conf["nsteps"]      = nsteps;
     if (not conf["nthrds"])     conf["nthrds"]      = nthrds;
     if (not conf["ngpus"])      conf["ngpus"]       = ngpus;

@@ -11,10 +11,6 @@
 
 				// Numerical parameters
 
-unsigned nbodmax = 1000000;	// Maximum number of bodies; this is not
-				// an intrinsic limitation just a sanity
-				// value
-
 int nsteps = 500;		// Number of steps to execute
 int nscale = 20;		// Number of steps between rescaling
 int nthrds = 2;			// Number of POSIX threads (minimum: 1)
