@@ -96,7 +96,7 @@ void incr_com_velocity(double dt);
 void write_parm(void);
 void initialize_multistep();
 void sync_eval_multistep();
-void adjust_multistep_level(bool);
+void adjust_multistep_level(bool all=true);
 
 
 #ifndef MAX
