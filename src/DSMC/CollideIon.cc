@@ -18163,25 +18163,46 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   //              +--- For correct Poisson statistics
   //
 
-  double  dfac = TreeDSMC::Munit/amu/pow(TreeDSMC::Lunit, 3.0) / molP1[id];
-  double  cfac = 0.0;
-  if (PiProb[id][0]>0.0) cfac += 1.0/PiProb[id][0];
-  if (PiProb[id][1]>0.0) cfac += 1.0/PiProb[id][1];
-  if (PiProb[id][2]>0.0) cfac += 1.0/PiProb[id][2];
-  double totPairs = num * dens * dfac * cfac;
-
-  totPairs = 0.5*(num + 0.5);
-
-  if (false) {
-    std::cout << "Npairs=" << totPairs << std::endl;
+  // Test whether cross section is dominated by Coulomb cross section
+  //
+  double coulombic = 0.0, maxCrs = 0.0, totCrs = 0.0;
+  XStup maxI;
+  for (auto I : hCross[id]) {
+    int interFlag = std::get<0>(I.t);
+    if (interFlag == ion_ion ) coulombic += I.crs;
+    if (interFlag == ion_elec) coulombic += I.crs;
+    if (maxCrs < I.crs) {
+      maxI   = I;
+      maxCrs = I.crs;
+    }
+    totCrs += I.crs;
   }
 
-  if (selcM<totPairs)
-    colCf[id] = selcM/totPairs;
-  else
-    colCf[id] = 1.0;
-  
-  selcM = totPairs;
+  // Coulombic cross section dominates?
+  //
+  if (coulombic > maxI.crs) {
+    double  dfac = TreeDSMC::Munit/amu/pow(TreeDSMC::Lunit, 3.0) / molP1[id];
+    double  cfac = 0.0;
+
+    if (PiProb[id][0]>0.0) cfac += 1.0/PiProb[id][0];
+    if (PiProb[id][1]>0.0) cfac += 1.0/PiProb[id][1];
+    if (PiProb[id][2]>0.0) cfac += 1.0/PiProb[id][2];
+
+    // Number of pairs: plasma cross section
+    //
+    double totPairs = num * dens * dfac * cfac;
+    
+    // Number of pairs: pair-wise cross section
+    // Correct for mean Coulombic
+    //
+    double corRat = corRat = (totCrs - coulombic)*crs_units + crossRat;
+    double ProbC  = dens * rateF * corRat;
+    double selcMC = (num-1) * ProbC * 0.5;
+
+    colCf[id] = selcMC/totPairs;
+
+    selcM = totPairs;
+  }
 
   colUps[id][0] += 1;
   colUps[id][1] += selcM;
