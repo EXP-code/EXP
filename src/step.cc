@@ -192,15 +192,10 @@ void do_step(int n)
     }
 
     if (timing) timer_adj.start();
-
-    adjust_multistep_level(true);
-    //                     ^
-    //                     |
-    // Do all particles----+
-
+    adjust_multistep_level();	// Do all particles
     if (timing) timer_adj.stop();
     
-    if (mstep==0) { // Print the level lists
+    if (mstep==0) {		// Print the level lists
       comp->print_level_lists(tnow);
     }
 				// COM update:
