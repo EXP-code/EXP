@@ -1686,14 +1686,16 @@ PartPtr * Component::get_particles(int* number)
       cout << "get_particles: process " << myid 
 	   << ": sent " << icount << " particles to master"
 	   << ", counter value=" << counter;
-      if (keys.size())
-	cout << ", nbodies_index=" << nbodies_index[node]
-	     << ", seq_beg=" << particles[*ibeg]->indx
-	     << ", seq_end=" << particles[*iend]->indx
-	     << ", number found =" << icount
-	     << ", first=" << particles[*keys.begin()]->indx
-	     << ", last=" << particles[*keys.rbegin()]->indx;
-      cout << endl << flush;
+      if (keys.size()) {
+	cout << ", nbodies_index=" << nbodies_index[node];
+	if (ibeg != keys.end()) 
+	  cout << ", seq_beg=" << particles[*ibeg]->indx;
+	if (iend != keys.end()) 
+	  cout << ", number found =" << icount
+	       << ", first=" << particles[*keys.begin()]->indx
+	       << ", last=" << particles[*keys.rbegin()]->indx;
+	cout << endl << flush;
+      }
 #endif    
 	
     }
