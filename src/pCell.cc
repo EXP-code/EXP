@@ -181,6 +181,7 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
 	cout << endl;
 	p++;
       }
+      cout << std::string(60, '-') << endl;
     }
 				// Move up the tree . . .
     return parent->Add(keypair, change);
