@@ -509,7 +509,7 @@ cuFP_t cudaGeometric(int Z)
 __device__
 cuFP_t cudaElasticInterp(cuFP_t E, cuFP_t Emin, cuFP_t H,
 			 dArray<cuFP_t> xsc,
-			 bool logval = false, bool pin = false)
+			 bool logval = false, bool pin = true)
 {
   // Bohr cross section (pi*a_0^2) in nm
   const cuFP_t b_cross = 0.00879735542978;
@@ -1791,6 +1791,10 @@ __global__ void initCurand(dArray<curandState> state,
     int c = tid*stride + s;
 
     if (c < count) {
+      if (c+offset >= state._s) { // Sanity check
+	printf("ERROR: c=%d offset=%d total=%d > %d\n",
+	       c, offset, c+offset, state._s);
+      }
       curand_init(seed, c+offset, 0, &state._v[c+offset]);
     }
   }
@@ -1878,7 +1882,7 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
 	for (int l=0; l<3; l++) {
 	  cuFP_t ve  = p.datr[epos+l];
 	  if (::isnan(ve)) {
-	    printf("Weird electron\n");
+	    printf("Weird electron, ve[%d]=%e\n", l, ve);
 	  }
 	  eVel2 += ve*ve;
 	  cuFP_t vi  = p.vel[l];
@@ -2136,17 +2140,26 @@ __global__ void crossSectionKernel(dArray<cudaParticle>   in,     // Particle ar
 	//
 	vel   = sqrt(vel)   * cuVunit;
 
-	eVel0 = sqrt(eVel0) * cuVunit / vel;
-	eVel1 = sqrt(eVel1) * cuVunit / vel;
-	eVel2 = sqrt(eVel2) * cuVunit / vel;
-	sVel1 = sqrt(sVel1) * cuVunit / vel;
-	sVel2 = sqrt(sVel2) * cuVunit / vel;
+	if (vel>0.0) {
+	  eVel0 = sqrt(eVel0) * cuVunit / vel;
+	  eVel1 = sqrt(eVel1) * cuVunit / vel;
+	  eVel2 = sqrt(eVel2) * cuVunit / vel;
+	  sVel1 = sqrt(sVel1) * cuVunit / vel;
+	  sVel2 = sqrt(sVel2) * cuVunit / vel;
+	} else {
+	  eVel0 = eVel1 = eVel2 = sVel1 = sVel2 = 0.0;
+	}
 	
+
 	// Pick scaled relative velocities for mean-mass algorithm
 	if (cuMeanMass) {
-	  gVel0 = sqrt(gVel0) * cuVunit / vel;
-	  gVel1 = sqrt(gVel1) * cuVunit / vel;
-	  gVel2 = sqrt(gVel2) * cuVunit / vel;
+	  if (vel>0.0) {
+	    gVel0 = sqrt(gVel0) * cuVunit / vel;
+	    gVel1 = sqrt(gVel1) * cuVunit / vel;
+	    gVel2 = sqrt(gVel2) * cuVunit / vel;
+	  } else {
+	    gVel0 = gVel1 = gVel2 = 0.0;
+	  }
 	}
 	// Pick true relative velocity for all other algorithms
 	else {
@@ -3610,7 +3623,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  // Upscale inelastic cross sections by ratio of cross-section
 	  // and plasma rate scattering
 	  //
-	  cuFP_t prob0 = Prob;	// For debugging only
+	  // cuFP_t prob0 = Prob;	// For debugging only
 	  Prob *= colCf;
 	  
 	  if (T == free_free) {
@@ -3618,7 +3631,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    dE = XE * Prob;
 	    // Sanity
 	    if (::isnan(dE)) {
-	      printf("Crazy dE value in free-free: XE=%e P=%e\n", XE, Prob);
+	      printf("Crazy dE=%e value in free-free: XE=%e P=%e\n", dE, XE, Prob);
 	      dE = 0.0;
 	    }
 	    
@@ -3636,7 +3649,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    dE = XE * Prob;
 	    // Sanity
 	    if (::isnan(dE)) {
-	      printf("Crazy dE value in col excite: XE=%e P=%e\n", XE, Prob);
+	      printf("Crazy dE=%e value in col excite: XE=%e P=%e\n", dE, XE, Prob);
 	      dE = 0.0;
 	    }
 	    
@@ -3656,7 +3669,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    dE = XE * Prob;
 	    // Sanity
 	    if (::isnan(dE)) {
-	      printf("Crazy dE value in col ionize: XE=%e P=%e\n", XE, Prob);
+	      printf("Crazy dE=%e value in col ionize: XE=%e P=%e ([%e, %e], [%e, %e]\n", dE, XE, Prob, IT.N1, IT.N2, IT.W1, IT.W2);
 	      dE = 0.0;
 	    }
 	    
@@ -3683,11 +3696,15 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      cuFP_t Echg = iE1 * Prob / cuda_atomic_weights[IT.Z1];
 	      
 	      // Energy for ionized electron comes from COM
-	      dE += Echg * cuEunit / (N0*eV);
+	      if (N0>0.0) dE += Echg * cuEunit / (N0*eV);
 	      
 	      // Sanity
 	      if (::isnan(dE)) {
-		printf("Crazy dE value in col ionize: XE=%e P=%e E=%e\n", XE, Prob, Echg);
+		printf("Crazy dE=%e value in col ionize: XE=%e P=%e iE1=%e E=%e N=%e (Z=[%e, %e], W=[%e, %e] Z=[%d, %d], C=[%d, %d], E=[%e, %e], I=[%d, %d])\n",
+		       dE, XE, Prob, iE1, Echg, N0,
+		       IT.N1, IT.N2, IT.W1, IT.W2,
+		       IT.Z1, IT.Z2, IT.C1, IT.C2, Eta1, Eta2, IT.I1, IT.I2
+		       );
 		dE = 0.0;
 	      }
 	      
@@ -3718,11 +3735,15 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      cuFP_t Echg = iE2 * Prob / cuda_atomic_weights[IT.Z2];
 	      
 	      // Energy for ionized electron comes from COM
-	      dE += Echg * cuEunit / (N0*eV);
+	      if (N0>0.0) dE += Echg * cuEunit / (N0*eV);
 	      
 	      // Sanity
 	      if (::isnan(dE)) {
-		printf("Crazy dE value in col ionize: XE=%e P=%e E=%e\n", XE, Prob, Echg);
+		printf("Crazy dE=%e value in col ionize: XE=%e P=%e iE2=%e E=%e N=%e (N=[%e, %e], W=[%e, %e] Z=[%d, %d], C=[%d, %d] E=[%e, %e], I=[%d, %d])\n",
+		       dE, XE, Prob, iE2, Echg, N0,
+		       IT.N1, IT.N2, IT.W1, IT.W2,
+		       IT.Z1, IT.Z2, IT.C1, IT.C2, Eta1, Eta2, IT.I1, IT.I2
+		       );
 		dE = 0.0;
 	      }
 	      
@@ -3734,7 +3755,9 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  
 	  if (T == recombine) {
 	    
+	    /*
 	    if (Prob > 1.0) printf("In recombine: crazy prob [%e] not possible: XS=%e totalXS=%e\n", Prob, XS, totalXS);
+	    */
 	    
 	    cuFP_t WW = Prob;
 	    
@@ -3754,11 +3777,13 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 		       xtype._v[K], J, numxc);
 	      }
 	      
+	      /*
 	      if (WW < 0.0 or WW > 1.0)
 		printf("Crazy W: Z1=%d C1=%d I1=%d Z2=%d C2=%d I2=%d: ww=%e f1=%e P0=%e cf=%e\n",
 		       IT.Z1, IT.C1, IT.I1, 
 		       IT.Z2, IT.C2, IT.I2,
 		       WW, FF1[IT.I1], prob0, colCf);
+	      */
 	      
 	      if (WW < FF1[IT.I1]) {
 		FF1[IT.I1]   -= WW;
@@ -3782,7 +3807,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      
 	      // Sanity
 	      if (::isnan(dE)) {
-		printf("Crazy dE value in recomb: P=%e\n", Prob);
+		printf("Crazy dE=%e value in recomb: P=%e\n", dE, Prob);
 		dE = 0.0;
 	      }
 	      
@@ -3807,11 +3832,13 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 		       xtype._v[K], J, numxc);
 	      }
 	      
+	      /*
 	      if (WW < 0.0 or WW > 1.0)
 		printf("Crazy W: Z1=%d C1=%d I1=%d Z2=%d C2=%d I2=%d: ww=%e f2=%e P0=%e cf=%e\n",
 		       IT.Z1, IT.C1, IT.I1, 
 		       IT.Z2, IT.C2, IT.I2,
 		       WW, FF2[IT.I2], prob0, colCf);
+	      */
 	      
 	      if (WW < FF2[IT.I2]) {
 		FF2[IT.I2]   -= WW;
@@ -3834,7 +3861,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      
 	      // Sanity
 	      if (::isnan(dE)) {
-		printf("Crazy dE value in recomb: P=%e\n", Prob);
+		printf("Crazy dE=%e value in recomb: P=%e\n", dE, Prob);
 		dE = 0.0;
 	      }
 	      
@@ -3985,10 +4012,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    p2.vel[k] = v2[k];
 	    // Sanity
 	    if (::isnan(v1[k])) {
-	      printf("Crazy value for p1.vel for J=0\n");
+	      printf("Crazy value for p1[%d]=%e for J=0\n", k, v1[k]);
 	    }
 	    if (::isnan(v2[k])) {
-	      printf("Crazy value for p2.vel for J=0\n");
+	      printf("Crazy value for p2[%d]=%e for J=0\n", k, v1[k]);
 	    }
 	  }
 	  
@@ -4039,14 +4066,14 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    p1.vel[k] = v1[k];
 	    // Sanity
 	    if (::isnan(v1[k])) {
-	      printf("Crazy value for p1.vel for J=1\n");
+	      printf("Crazy value for v1[%d]=%e for J=1\n", k, v1[k]);
 	    }
 	    
 	    // Particle 2 is the elctron
 	    p2.datr[epos+k] = v2[k];
 	    // Sanity
 	    if (::isnan(v2[k])) {
-	      printf("Crazy value for v2 for J=1\n");
+	      printf("Crazy value for v2[%d]=%e for J=1\n", k, v1[k]);
 	    }
 	  }
 	  
@@ -4097,14 +4124,14 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    // Sanity
 	    if (::isnan(v1[k])) {
-	      printf("Crazy value for v2 for J=2\n");
+	      printf("Crazy value for v1[%d]=%e for J=2, k=%d\n", k, v1[k]);
 	    }
 	    
 	    // Particle 2 is the ion
 	    p2.vel[k] = v2[k];
 	    // Sanity
 	    if (::isnan(v2[k])) {
-	      printf("Crazy value for p2.vel for J=2\n");
+	      printf("Crazy value for v2[%d]=%e for J=2, k=%d\n", k, v2[k]);
 	    }
 	  }
 	  
@@ -4160,203 +4187,210 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    m1 *= Eta1;
 	    m2 *= Eta2;
 	  }
-	  cuFP_t mt = m1 + m2;
-	  cuFP_t mu = m1 * m2 / mt;
-	  
-	  // Calculate pair's relative speed (pre-collision)
+
+	  // Positive electron masses (mean-mass algorithm)?
 	  //
-	  cuFP_t vcom[3], vrel[3], v1[3], v2[3];
-	  cuFP_t KEcom = 0.0;
-	  for (int k=0; k<3; k++) {
-	    v1[k]   = p1.datr[epos+k];
-	    v2[k]   = p2.datr[epos+k];
-	    vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
-	    vrel[k] = v1[k] - v2[k];
-	    KEcom  += vrel[k] * vrel[k];
-	  }
+	  if (m1 > 0.0 and m2 > 0.0) {
+	    
+	    cuFP_t mt = m1 + m2;
+	    cuFP_t mu = m1 * m2 / mt;
 	  
-	  // No point in inelastic collsion for zero velocity . . .
-	  //
-	  if (KEcom > 0.0) {
-	    
-	    // Relative speed
+	    // Calculate pair's relative speed (pre-collision)
 	    //
-	    cuFP_t vi = sqrt(KEcom);
-	    cuFP_t cr = vi * cuVunit;
-	    
-	    // COM KE
-	    //
-	    KEcom *= 0.5 * mu;
-	    
-	    // Kinetic energy in eV
-	    //
-	    double kEee = 0.5 * mu * amu * cr * cr / eV;
-	    
-	    double afac = esu*esu/( (2.0*kEee > cuFloorEV ? 2.0*kEee : cuFloorEV)*cuEV );
-	    cuFP_t dT   = spTau._v[cid] * cuTunit;
-	    cuFP_t Tau  = ABrate._v[cid*4+3] * afac*afac * cr * dT;
-	    
-	    if (cuMeanMass)
-	      cudaCoulombVector(vrel, 1.0, 1.0, Tau, state);
-	    else
-	      cudaCoulombVector(vrel, W1, W2, Tau, state);
-	    
-	    for (int k=0; k<3; k++) vrel[k] *= vi;
-	    
-	    if (cuMeanMass) {
-	      
-	      // Energy deficit correction
-	      //
-	      KEcom *= 0.5*mu;
-	      cuFP_t delE = p1.datr[epos+3] + p2.datr[epos+3];
-	      
-	      cuFP_t vfac = 0.0;
-	      if (KEcom>delE) {
-		vfac = sqrt(1.0 - delE/KEcom);
-		p1.datr[epos+3] = p2.datr[epos+3] = 0.0;
-	      } else {
-		p1.datr[epos+3] = p2.datr[epos+3] = 0.5*(delE - KEcom);
-	      }
-	      
-	      // Assign new electron velocities
-	      //
-	      for (int k=0; k<3; k++) {
-		p1.datr[epos+k] = vcom[k] + m2/mt*vrel[k] * vfac;
-		p2.datr[epos+k] = vcom[k] - m1/mt*vrel[k] * vfac;
-		// Sanity
-		if (::isnan(v1[k])) {
-		  printf("Crazy value for v1 for elec-elec\n");
-		}
-		if (::isnan(v2[k])) {
-		  printf("Crazy value for v2 for elec-elec\n");
-		}
-	      }
+	    cuFP_t vcom[3], vrel[3], v1[3], v2[3];
+	    cuFP_t KEcom = 0.0;
+	    for (int k=0; k<3; k++) {
+	      v1[k]   = p1.datr[epos+k];
+	      v2[k]   = p2.datr[epos+k];
+	      vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
+	      vrel[k] = v1[k] - v2[k];
+	      KEcom  += vrel[k] * vrel[k];
 	    }
-	    // Explicit energy conservation using splitting
+	    
+	    // No point in inelastic collsion for zero velocity . . .
 	    //
-	    else if (q < 1.0) {
+	    if (KEcom > 0.0) {
 	      
-	      cuFP_t vrat = 1.0;
-	      cuFP_t uu[3], vv[3];
-	      for (size_t k=0; k<3; k++) {
-		// New velocities in COM
-		uu[k] = vcom[k] + 0.5*vrel[k];
-		vv[k] = vcom[k] - 0.5*vrel[k];
-	      }
-	      
-	      cuFP_t v1i2 = 0.0, b1f2 = 0.0, b2f2 = 0.0;
-	      cuFP_t udif = 0.0, vcm2 = 0.0, v1u1 = 0.0;
-	      
-	      for (size_t k=0; k<3; k++) {
-		// Difference in Particle 1
-		udif += (v1[k] - uu[k]) * (v1[k] - uu[k]);
-		// COM norm
-		vcm2 += vcom[k] * vcom[k];
-		// Normalizations
-		v1i2 += v1[k]*v1[k];
-		b1f2 += uu[k]*uu[k];
-		b2f2 += vv[k]*vv[k];
-		v1u1 += v1[k]*uu[k];
-	      }
-	      
-	      
-	      cuFP_t qT = v1u1 * q;
-	      if (v1i2 > 0.0) qT /= v1i2;
-	      cuFP_t sgn = qT>=0.0 ? 1.0 : -1.0;
-	      vrat = ( -qT + sgn*sqrt(qT*qT + (1.0 - q)*(q*b1f2/v1i2 + 1.0) ) )/(1.0 - q);
-	      
-	      // New velocities in inertial frame
+	      // Relative speed
 	      //
-	      cuFP_t u1[3], u2[3];
-	      for (size_t k=0; k<3; k++) {
-		u1[k] = (1.0 - q)*v1[k]*vrat + q*uu[k];
-		u2[k] = vv[k];
-	      }
+	      cuFP_t vi = sqrt(KEcom);
+	      cuFP_t cr = vi * cuVunit;
 	      
-	      // Assign new electron velocities
+	      // COM KE
 	      //
-	      for (int k=0; k<3; k++) {
-		p1.datr[epos+k] = u1[k];
-		p2.datr[epos+k] = u2[k];
-		// Sanity
-		if (::isnan(u1[k])) {
-		  printf("Crazy value for u1 for elec-elec\n");
-		}
-		if (::isnan(u2[k])) {
-		  printf("Crazy value for u2 for elec-elec\n");
-		}
-	      }
-	    }
-	    // Explicit momentum conservation
-	    //
-	    else {
-	      bool equal = fabs(q - 1.0) < 1.0e-14;
+	      KEcom *= 0.5 * mu;
 	      
-	      double vfac = 1.0;
+	      // Kinetic energy in eV
+	      //
+	      double kEee = 0.5 * mu * amu * cr * cr / eV;
 	      
-	      if (equal) {
-		const cuFP_t tol = 0.95; // eps = 0.05, tol = 1 - eps
-		cuFP_t KE0 = 0.5*IT.W1*m1*m2/mt * vi*vi;
-		cuFP_t dKE = p1.datr[epos+3] + p2.datr[epos+3];
+	      double afac = esu*esu/( (2.0*kEee > cuFloorEV ? 2.0*kEee : cuFloorEV)*cuEV );
+	      cuFP_t dT   = spTau._v[cid] * cuTunit;
+	      cuFP_t Tau  = ABrate._v[cid*4+3] * afac*afac * cr * dT;
+	      
+	      if (cuMeanMass)
+		cudaCoulombVector(vrel, 1.0, 1.0, Tau, state);
+	      else
+		cudaCoulombVector(vrel, W1, W2, Tau, state);
+	      
+	      for (int k=0; k<3; k++) vrel[k] *= vi;
+	      
+	      if (cuMeanMass) {
 		
-		// Too much KE to be removed, clamp to tol*KE0
-		// 
-		if (dKE/KE0 > tol) {
-		  // Therefore, remaining excess is:
-		  // dKE' = dKE - tol*KE0 = dKE*(1 - tol*KE0/dKE);
-		  //
-		  cuFP_t ratk = tol*KE0/dKE;
-		  p1.datr[epos+3] *= (1.0 - ratk);
-		  p2.datr[epos+3] *= (1.0 - ratk);
-		  
-		  dKE = tol*KE0;
-		} else {
+		// Energy deficit correction
+		//
+		KEcom *= 0.5*mu;
+		cuFP_t delE = p1.datr[epos+3] + p2.datr[epos+3];
+		
+		cuFP_t vfac = 0.0;
+		if (KEcom>delE) {
+		  vfac = sqrt(1.0 - delE/KEcom);
 		  p1.datr[epos+3] = p2.datr[epos+3] = 0.0;
+		} else {
+		  p1.datr[epos+3] = p2.datr[epos+3] = 0.5*(delE - KEcom);
 		}
 		
-		vfac = sqrt(1.0 - dKE/KE0);
-	      }
-	      
-	      cuFP_t qKEfac  = 0.5*IT.W1*m1*q*(1.0 - q);
-	      cuFP_t deltaKE = 0.0;
-	      for (int k=0; k<3; k++) {
-		cuFP_t v0 = vcom[k] + m2/mt*vrel[k]*vfac;
-		deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
-		p1.datr[epos+k] = (1.0 - q)*v1[k] + q*v0;
-		p2.datr[epos+k] = vcom[k] - m1/mt*vrel[k]*vfac;
-		// Sanity
-		if (::isnan(p1.datr[epos+k])) {
-		  printf("Crazy value for p1 for elec-elec\n");
-		}
-		if (::isnan(p2.datr[epos+k])) {
-		  printf("Crazy value for p2 for elec-elec\n");
-		}
-	      }
-	      
-	      // Correct energy for conservation
-	      if (!equal) {
-		cuFP_t KE1e = 0.0, KE2e = 0.0;
+		// Assign new electron velocities
+		//
 		for (int k=0; k<3; k++) {
-		  KE1e += p1.datr[epos+k] * p1.datr[epos+k];
-		  KE2e += p2.datr[epos+k] * p2.datr[epos+k];
+		  p1.datr[epos+k] = vcom[k] + m2/mt*vrel[k] * vfac;
+		  p2.datr[epos+k] = vcom[k] - m1/mt*vrel[k] * vfac;
+		  // Sanity
+		  if (::isnan(p1.datr[epos+k])) {
+		    printf("Crazy value for v1[%d]=%e for elec-elec\n", k, p1.datr[epos+k]);
+		  }
+		  if (::isnan(p2.datr[epos+k])) {
+		    printf("Crazy value for v2[%d]=%e for elec-elec\n", k, p2.datr[epos+k]);
+		  }
+		}
+	      }
+	      // Explicit energy conservation using splitting
+	      //
+	      else if (q < 1.0) {
+		
+		cuFP_t vrat = 1.0;
+		cuFP_t uu[3], vv[3];
+		for (size_t k=0; k<3; k++) {
+		  // New velocities in COM
+		  uu[k] = vcom[k] + 0.5*vrel[k];
+		  vv[k] = vcom[k] - 0.5*vrel[k];
 		}
 		
-		KE1e *= 0.5 * p1.mass * Eta1/Mu1 * cuda_atomic_weights[0];
-		KE2e *= 0.5 * p2.mass * Eta2/Mu2 * cuda_atomic_weights[0];
+		cuFP_t v1i2 = 0.0, b1f2 = 0.0, b2f2 = 0.0;
+		cuFP_t udif = 0.0, vcm2 = 0.0, v1u1 = 0.0;
+	      
+		for (size_t k=0; k<3; k++) {
+		  // Difference in Particle 1
+		  udif += (v1[k] - uu[k]) * (v1[k] - uu[k]);
+		  // COM norm
+		  vcm2 += vcom[k] * vcom[k];
+		  // Normalizations
+		  v1i2 += v1[k]*v1[k];
+		  b1f2 += uu[k]*uu[k];
+		  b2f2 += vv[k]*vv[k];
+		  v1u1 += v1[k]*uu[k];
+		}
+	      
+	      
+		cuFP_t qT = v1u1 * q;
+		if (v1i2 > 0.0) qT /= v1i2;
+		cuFP_t sgn = qT>=0.0 ? 1.0 : -1.0;
+		vrat = ( -qT + sgn*sqrt(qT*qT + (1.0 - q)*(q*b1f2/v1i2 + 1.0) ) )/(1.0 - q);
 		
-		double wght1 = 0.5;
-		double wght2 = 0.5;
-		
-		wght1 = KE1e/(KE1e + KE2e);
-		wght2 = KE2e/(KE1e + KE2e);
-		
-		p1.datr[epos+3] -= deltaKE * wght1;
-		p2.datr[epos+3] -= deltaKE * wght2;
+		// New velocities in inertial frame
+		//
+		cuFP_t u1[3], u2[3];
+		for (size_t k=0; k<3; k++) {
+		  u1[k] = (1.0 - q)*v1[k]*vrat + q*uu[k];
+		  u2[k] = vv[k];
+		}
+	      
+		// Assign new electron velocities
+		//
+		for (int k=0; k<3; k++) {
+		  p1.datr[epos+k] = u1[k];
+		  p2.datr[epos+k] = u2[k];
+		  // Sanity
+		  if (::isnan(u1[k])) {
+		    printf("Crazy value for u1[%d]=%e for elec-elec\n", k, u1[k]);
+		  }
+		  if (::isnan(u2[k])) {
+		    printf("Crazy value for u2[%d]=%e for elec-elec\n", k, u2[k]);
+		  }
+		}
 	      }
-	    }
+	      // Explicit momentum conservation
+	      //
+	      else {
+		bool equal = fabs(q - 1.0) < 1.0e-14;
+	      
+		double vfac = 1.0;
+	      
+		if (equal) {
+		  const cuFP_t tol = 0.95; // eps = 0.05, tol = 1 - eps
+		  cuFP_t KE0 = 0.5*IT.W1*m1*m2/mt * vi*vi;
+		  cuFP_t dKE = p1.datr[epos+3] + p2.datr[epos+3];
+		  
+		  // Too much KE to be removed, clamp to tol*KE0
+		  // 
+		  if (dKE/KE0 > tol) {
+		    // Therefore, remaining excess is:
+		    // dKE' = dKE - tol*KE0 = dKE*(1 - tol*KE0/dKE);
+		    //
+		    cuFP_t ratk = tol*KE0/dKE;
+		    p1.datr[epos+3] *= (1.0 - ratk);
+		    p2.datr[epos+3] *= (1.0 - ratk);
+		  
+		    dKE = tol*KE0;
+		  } else {
+		    p1.datr[epos+3] = p2.datr[epos+3] = 0.0;
+		  }
+		
+		  vfac = sqrt(1.0 - dKE/KE0);
+		}
+	      
+		cuFP_t qKEfac  = 0.5*IT.W1*m1*q*(1.0 - q);
+		cuFP_t deltaKE = 0.0;
+		for (int k=0; k<3; k++) {
+		  cuFP_t v0 = vcom[k] + m2/mt*vrel[k]*vfac;
+		  deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
+		  p1.datr[epos+k] = (1.0 - q)*v1[k] + q*v0;
+		  p2.datr[epos+k] = vcom[k] - m1/mt*vrel[k]*vfac;
+		  // Sanity
+		  if (::isnan(p1.datr[epos+k])) {
+		    printf("Crazy value for p1[%d]=%e for elec-elec\n", k, p1.datr[epos+k]);
+		  }
+		  if (::isnan(p2.datr[epos+k])) {
+		    printf("Crazy value for p2[%d]=%e for elec-elec\n", k, p2.datr[epos+k]);
+		  }
+		}
+		
+		// Correct energy for conservation
+		if (!equal) {
+		  cuFP_t KE1e = 0.0, KE2e = 0.0;
+		  for (int k=0; k<3; k++) {
+		    KE1e += p1.datr[epos+k] * p1.datr[epos+k];
+		    KE2e += p2.datr[epos+k] * p2.datr[epos+k];
+		  }
+		  
+		  KE1e *= 0.5 * p1.mass * Eta1/Mu1 * cuda_atomic_weights[0];
+		  KE2e *= 0.5 * p2.mass * Eta2/Mu2 * cuda_atomic_weights[0];
+		  
+		  double wght1 = 0.5;
+		  double wght2 = 0.5;
+		  
+		  wght1 = KE1e/(KE1e + KE2e);
+		  wght2 = KE2e/(KE1e + KE2e);
+		  
+		  p1.datr[epos+3] -= deltaKE * wght1;
+		  p2.datr[epos+3] -= deltaKE * wght2;
+		}
+	      }
+	      
+	    } // end: momentum conservation
 	    
-	  } // end: momentum conservation
-	  
+	  } // end: positive electron mass
+
 	} // end: electron-electron
 	
       } // END: odd-even toggle
@@ -4707,7 +4741,14 @@ void * CollideIon::collide_thread_cuda(void * arg)
 
   // Finally, copy back particles to host
   // 
-  c0->host_particles = d_part;
+  if (true) {				    // Sanity check: use thrust copy
+    if (d_part.size() != c0->host_particles.size())
+      std::cout << "Particle copy size mismatch" << std::endl;
+    c0->host_particles.resize(d_part.size());
+    thrust::copy(d_part.begin(), d_part.end(), c0->host_particles.begin());
+  } else {
+    c0->host_particles = d_part;
+  }
 
 #ifdef MASS_DEBUG
   std::cout << "4th copy back" << std::endl
