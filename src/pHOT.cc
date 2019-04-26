@@ -642,14 +642,17 @@ void pHOT::makeTree()
   pCell* p = root;
   for (auto it : keybods) {
 
-    /*
-    if (it.first < key_min || it.first >= key_max) {
+    if (DEBUG_KEYS and (it.first < key_min || it.first >= key_max) ) {
+      double* pos = cc->Particles()[it.second]->pos;
+      key_type tkey = getKey(pos);
       cout << "Process " << myid << ": in makeTree, key=" 
-	   << hex << it.first
+	   << hex << it.first << ", tkey=" << tkey
 	   << "[" << key_min << ", " << key_max << "]"
-	   << endl << dec;
+	   << endl << dec
+	   << " pos = [" << pos[0] << ", " << pos[1] << ", "
+	   << pos[2] << "]" << endl;
     }
-    */
+
     p = p->Add(it);		// Do the work
   }
 
@@ -2225,6 +2228,22 @@ void pHOT::Repartition(unsigned mlevel)
 #endif
 
     timer_keysort.stop();
+
+    if (DEBUG_KEYS) {		// Deep debug output
+      static unsigned count = 0;
+      std::ostringstream sout;
+      sout << debugf << "." << myid << "." << count++;
+      ofstream out(sout.str());
+
+      for (unsigned i=0; i<keys.size(); i++) {
+	out << std::setw( 5) << i
+	    << std::setw(18) << hex << keys[i].first
+	    << std::setw(18) << dec << keys[i].second
+	    << std::endl;
+	if (i>0 and keys[i].first < keys[i-1].first)
+	  out << "####" << std::endl;
+      }
+    } // END: DEBUG_KEYS
 
   } // END: not have_cuda
   
