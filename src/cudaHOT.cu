@@ -11,7 +11,7 @@
 #include <pHOT.H>
 
 // Debug keys across all nodes (uses MPI calls)
-static bool DEBUG_KEYS    = false;
+static bool DEBUG_KEYS = false;
 
 
 __device__
@@ -107,9 +107,9 @@ void pHOT::keyProcessCuda(std::vector<key_wght> keywght)
 
     // Compute keys for in-bounds particles
     if (X>0.0 and Y>0.0 and Z>0.0 and X<1.0 and Y<1.0 and Z<1.0) {
-      x_h.push_back(v.second->pos[0]);
-      y_h.push_back(v.second->pos[1]);
-      z_h.push_back(v.second->pos[2]);
+      x_h.push_back(X);
+      y_h.push_back(Y);
+      z_h.push_back(Z);
     } else {
       mask[I] = false;
     }
@@ -160,43 +160,45 @@ void pHOT::keyProcessCuda(std::vector<key_wght> keywght)
 
   vector<key_wght> keylist(keys.size());
 
-  if (myid==0) {
-
-    for (unsigned i=0; i<keylist.size(); i++) {
-      keylist[i].first  = keys[i];
-      keylist[i].second = 1.0;
-    }
+  for (unsigned i=0; i<keylist.size(); i++) {
+    keylist[i].first  = keys[i];
+    keylist[i].second = 1.0;
+  }
 				// Accumulate weight list
-    for (unsigned i=1; i<keylist.size(); i++) 
-      keylist[i].second += keylist[i-1].second;
+  for (unsigned i=1; i<keylist.size(); i++) 
+    keylist[i].second += keylist[i-1].second;
     
 				// Normalize weight list
-    double ktop = keylist.back().second;
-    for (unsigned i=0; i<keylist.size(); i++)  keylist[i].second /= ktop;
+  double ktop = keylist.back().second;
+  for (unsigned i=0; i<keylist.size(); i++)  keylist[i].second /= ktop;
 
-    vector<double> frate(numprocs);
+  vector<double> frate(numprocs);
 
 				// Use an even rate
-    frate[0] = 1.0;
-    for (unsigned i=1; i<numprocs; i++) 
-      frate[i] = frate[i-1] + 1.0;
-    //                        ^
-    //                        |
-    //                        |
-    // Replace with the computation rate for the node <i>
-    // for load balancing
-    //
+  frate[0] = 1.0;
+  for (unsigned i=1; i<numprocs; i++) 
+    frate[i] = frate[i-1] + 1.0;
+  //                        ^
+  //                        |
+  //                        |
+  // Replace with the computation rate for the node <i>
+  // for load balancing
+  //
     
-    struct wghtDBL
-    {
-      bool operator()(const std::pair<key_type, double>& a, 
-		      const std::pair<key_type, double>& b)
-      { 
-	return (a.second < b.second); 
-      }
-    };
-				// The overhead for computing these is small so
-				// no matter if they are not used below
+  struct wghtDBL
+  {
+    bool operator()(const std::pair<key_type, double>& a, 
+		    const std::pair<key_type, double>& b)
+    { 
+      return (a.second < b.second); 
+    }
+  };
+
+  
+  if (myid==0) {
+
+    // The overhead for computing these is small so
+    // no matter if they are not used below
 
     vector<double>   wbeg(numprocs), wfin(numprocs); // Weights for debugging
     vector<unsigned> pbeg(numprocs), pfin(numprocs); // Counts  for debugging
@@ -303,6 +305,23 @@ void pHOT::keyProcessCuda(std::vector<key_wght> keywght)
   }
 
   timer_keysort.stop();
+
+  if (DEBUG_KEYS) {		// Deep debug output
+    static unsigned count = 0;
+    std::ostringstream sout;
+    sout << debugf << "." << myid << "." << count++;
+    ofstream out(sout.str());
+
+    for (unsigned i=0; i<keylist.size(); i++) {
+      out << std::setw( 5) << i
+	  << std::setw(18) << hex << keylist[i].first
+	  << std::setw(18) << dec << keylist[i].second
+	  << std::endl;
+      if (i>0 and keylist[i].first < keylist[i-1].first)
+	out << "####" << std::endl;
+    }
+  } // END: DEBUG_KEYS
+
 }
 
 //
@@ -429,12 +448,15 @@ void pHOT::parallelMergeOne(std::vector<key_type>& initl,
   // We are done, return the result
   //
 
-  final = data;
+  if (myid==0) final = data;
 
-  /*
-  if (myid == 0) 
-    std::cout << "pHOT::parallelMerge: data size=" << data.size() << std::endl;
-  */
+  unsigned sz = final.size();
+  MPI_Bcast(&sz, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+  if (myid) final.resize(sz);
+  MPI_Bcast(&final[0], sz, MPI_EXP_KEYTYPE, 0, MPI_COMM_WORLD);
+
+  std::cout << "[" << myid
+	    << "] pHOT::parallelMerge: data size=" << final.size() << std::endl;
 
   return;
 }
