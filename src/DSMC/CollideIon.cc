@@ -23,7 +23,7 @@
 // Version info
 //
 #define NAME_ID    "CollideIon"
-#define VERSION_ID "0.35 [08/01/18 Mean Mass test]"
+#define VERSION_ID "0.36 [04/29/19 Coulombic split test]"
 
 using namespace std;
 using namespace NTC;
@@ -766,6 +766,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   velER    .resize(nthrds);
   momD     .resize(nthrds);
   crsD     .resize(nthrds);
+  tauD     .resize(nthrds);
+  selD     .resize(nthrds);
   keER     .resize(nthrds);
   keIR     .resize(nthrds);
   elecOvr  .resize(nthrds, 0);
@@ -812,6 +814,10 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   recombA  .resize(nthrds);
   photoStat.resize(nthrds);
 
+  for (auto &v : tauD) {
+    v.resize(4);
+  }
+
   for (auto &v : Ediag) {
     for (auto &u : v) u = 0.0;
   }
@@ -827,6 +833,10 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   for (auto &v : velER) v.set_capacity(bufCap);
   for (auto &v : momD ) v.set_capacity(bufCap);
   for (auto &v : crsD ) v.set_capacity(bufCap);
+  for (auto &u : tauD ) {
+    for (auto &v : u) v.set_capacity(bufCap);
+  }
+  for (auto &v : selD ) v.set_capacity(bufCap);
   for (auto &v : keER ) v.set_capacity(bufCap);
   for (auto &v : keIR ) v.set_capacity(bufCap);
 
@@ -1054,7 +1064,7 @@ void CollideIon::cellMinMax(pCell* const cell, int id)
 /**
    Precompute all the necessary cross sections
 */
-void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
+void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, int id)
 {
   // Representative avg cell velocity in cgs
   //
@@ -2847,6 +2857,11 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 
     ABrate[id][3] = 2.0*M_PI * PiProb[id][3] * logL ;
 
+    // Coulombic scattering
+    //
+    coulombicScatterTrace(id, cell, tau);
+
+
     if (not use_ntcdb) {
 
       size_t nbods = cell->bods.size();
@@ -2870,9 +2885,9 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, int id)
 	  Count += 1.0;
 	}
       }
-
+      
       csections[id][Particle::defaultKey][Particle::defaultKey]() = Cross/Count;
-
+      
     } // END: not use_ntcdb
     
   } // END: Trace
@@ -5059,7 +5074,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       // *** Ion-ion scattering
       // --------------------------------------
       //
-      if (P>0 and PP>0) {
+      if (false and P>0 and PP>0) {
 	double kEc  = MeanKE ? Eion[id] : kEi[id];
 	double afac = esu*esu/std::max<double>(2.0*kEc*eV, FloorEv*eV) * 1.0e7;
 	double crs  = 0.0;
@@ -5120,7 +5135,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     // *** Ion-electron scattering
     // --------------------------------------
     //
-    if (P>0 and Eta2>0) {
+    if (false and P>0 and Eta2>0) {
 
       // Particle 1 ION, Particle 2 ELECTRON
       {
@@ -9396,39 +9411,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
     Jsav = J;
 
-    // Parse for Coulombic interaction
-    //
-    if (maxInterFlag==ion_elec or maxInterFlag==ion_ion) {
-    
-      KE.Coulombic = true;
-
-      double m1  = molP1[id]*amu;
-      double m2  = molP2[id]*amu;
-      double me  = atomic_weights[0]*amu;
-  
-      double mu0 = m1 * m2 / (m1 + m2);
-      double mu1 = m1 * me / (m1 + me);
-      double mu2 = me * m2 / (me + m2);
-
-      double dT  = spTau[id] * TreeDSMC::Tunit;
-
-      if (maxInterFlag == ion_elec) {
-	if (maxI1.first == Interact::electron) {
-	  double pVel = sqrt(2.0 * kEe2[id] * eV / mu2);
-	  double afac = esu*esu/std::max<double>(2.0*kEe2[id]*eV, FloorEv*eV);
-	  KE.Tau = ABrate[id][2]*afac*afac*pVel * dT;
-	} else {
-	  double pVel = sqrt(2.0 * kEe1[id] * eV / mu1);
-	  double afac = esu*esu/std::max<double>(2.0*kEe1[id]*eV, FloorEv*eV);
-	  KE.Tau = ABrate[id][1]*afac*afac*pVel * dT;
-	}
-      } else {
-	  double pVel = sqrt(2.0 * kEi[id] * eV / mu0);
-	  double afac = esu*esu/std::max<double>(2.0*kEi[id]*eV, FloorEv*eV);
-	  KE.Tau = ABrate[id][0]*afac*afac*pVel * dT;
-      }
-    }
-
     //
     // Apply neutral-neutral scattering and energy loss
     //
@@ -11975,92 +11957,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     }
     Jsav = J;
 
-
-    // Parse for Coulombic interaction
-    //
-    if (maxInterFlag==ion_elec or maxInterFlag==ion_ion) {
-    
-      KE.Coulombic = true;
-
-      double m1  = molP1[id]*amu;
-      double m2  = molP2[id]*amu;
-      double me  = atomic_weights[0]*amu;
-  
-      double mu0 = m1 * m2 / (m1 + m2);
-      double mu1 = m1 * me / (m1 + me);
-      double mu2 = me * m2 / (me + m2);
-
-      double dT  = spTau[id] * TreeDSMC::Tunit;
-
-      size_t nbods = c->bods.size();
-      double  volc = c->Volume(), eVel, afac, KE2;
-      double  dfac = TreeDSMC::Munit/amu/pow(TreeDSMC::Lunit, 3.0) * p1->mass/molP1[id];
-      
-      if (maxInterFlag == ion_elec) {
-	if (maxI1.first == Interact::electron) {
-	  KE2 = 2.0 * kEe2[id] * eV;
-	  eVel = sqrt(KE2 / mu2);
-	  afac = esu*esu/std::max<double>(KE2, FloorEv*eV);
-	  KE.Tau = ABrate[id][2]*afac*afac*eVel * dT;
-
-	  double Cfrac = 0.0;
-	  if (PiProb[id][2]>0.0)
-	    Cfrac = nbods * nbods * dfac/ (PiProb[id][2] * volc) / spNsel[id];
-	  
-	  tauIon[id][0] += 1;
-	  tauIon[id][1] += KE.Tau;
-	  tauIon[id][2] += KE.Tau * KE.Tau;
-	  tauIon[id][3] += Cfrac;
-	} else {
-	  KE2 = 2.0 * kEe1[id] * eV;
-	  eVel = sqrt(KE2 / mu1);
-	  afac = esu*esu/std::max<double>(KE2, FloorEv*eV);
-	  KE.Tau = ABrate[id][1]*afac*afac*eVel * dT;
-
-	  double Cfrac = 0.0;
-	  if (PiProb[id][1]>0.0)
-	    Cfrac = nbods * nbods * dfac/ (PiProb[id][1] * volc) / spNsel[id];
-	  
-	  tauIon[id][0] += 1;
-	  tauIon[id][1] += KE.Tau;
-	  tauIon[id][2] += KE.Tau * KE.Tau;
-	  tauIon[id][3] += Cfrac;
-	}
-      } else {
-	KE2 = 2.0 * kEi[id] * eV;
-	eVel = sqrt(KE2 / mu0);
-	afac = esu*esu/std::max<double>(KE2, FloorEv*eV);
-	KE.Tau = ABrate[id][0]*afac*afac*eVel * dT;
-
-	double Cfrac = 0.0;
-	if (PiProb[id][0]>0.0) 
-	  Cfrac = nbods * nbods * dfac/ (PiProb[id][0] * volc) / spNsel[id];
-	  
-	tauIon[id][0] += 1;
-	tauIon[id][1] += KE.Tau;
-	tauIon[id][2] += KE.Tau * KE.Tau;
-	tauIon[id][3] += Cfrac;
-      }
-
-      if (false) {
-	std::cout << " Tau="  << KE.Tau
-		  << " eVel=" << 0.5*KE2/eV
-		  << " afac=" << afac
-		  << " dT="   << dT
-		  << " AB1="  << ABrate[id][0]
-		  << " AB2="  << ABrate[id][1]
-		  << " AB3="  << ABrate[id][2]
-		  << " AB4="  << ABrate[id][3]
-		  << " Mu1="  << molP1[id]
-		  << " Mu2="  << molP2[id]
-		  << " KE1="  << kEe1[id]
-		  << " KE2="  << kEe2[id]
-		  << " tXS="  << totalXS
-		  << std::endl;
-      }
-
-    }
-
     if (false) {
       printf("ke1=%e ke2=%e\n", kEe1[id], kEe2[id]);
     }
@@ -12909,12 +12805,7 @@ void CollideIon::scatterTrace
     }
   }
 
-  // Assign interaction energy variables
-  //
-  if (KE.Coulombic)
-    vrel = coulomb_vector(vrel, pp->W1, pp->W2, KE.Tau);
-  else
-    vrel = unit_vector();
+  vrel = unit_vector();
   
   vi   = sqrt(vi);
   for (auto & v : vrel) v *= vi;
@@ -13208,6 +13099,192 @@ void CollideIon::scatterTrace
 } // END: CollideIon::scatterTrace
 
 
+void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
+{
+  auto nbods = c->bods.size();
+
+
+  // Can't have a collision with one body in the cell!
+  //
+  if (nbods<2) return;
+
+  std::vector<double> v1(3), v2(3);
+  std::vector< std::pair<int, int> > cpair;
+  int npair = 0;
+
+  if ( (nbods/2)*2 == nbods ) {	// Even
+    npair = nbods/2;
+    cpair.resize(npair);
+    for (auto n=0; n<npair; n++) {
+      cpair[n].first  = n*2;
+      cpair[n].second = n*2 + 1;
+    }
+  } else {			// Odd
+    npair = nbods/2 + 1;
+    cpair.resize(npair);
+    for (auto n=0; n<npair-1; n++) {
+      cpair[n].first  = n*2;
+      cpair[n].second = n*2 + 1;
+    }
+    cpair[nbods/2].first  = nbods-2;
+    cpair[nbods/2].second = nbods-1;
+  }
+
+  // Time step in physical units
+  //
+  dT *= TreeDSMC::Tunit;
+
+  // Do all pairs
+  //
+  for (auto p : cpair) {
+    Particle* const p1 = tree->Body(c->bods[p.first]);
+    Particle* const p2 = tree->Body(c->bods[p.second]);
+
+    // Proportional to number of true particles in each superparticle
+    //
+    double W1 = p1->mass/molP1[id];
+    double W2 = p2->mass/molP2[id];
+
+    std::array<PordPtr, 3> PP =
+      { PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_ion,      DBL_MAX) ),
+	PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_electron, DBL_MAX) ),
+	PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_ion, DBL_MAX) ) };
+
+    for (int l=0; l<3; l++) {
+
+      auto pp = PP[l];
+
+      double KE = 0.0;
+
+      if (l==0) {
+	for (int k=0; k<3; k++) {
+				// Particle 1 is an ion
+	  v1[k]  = p1->vel[k];
+				// Particle 2 is an
+	  v2[k]  = p2->vel[k];
+
+	  KE += (v1[k] - v2[k]) * (v1[k] - v2[k]);
+	}
+      } else if (l==1) {
+	for (int k=0; k<3; k++) {
+				// Particle 1 is the ion
+	  v1[k]  = p1->vel[k];
+				// Particle 2 is the electron
+	  v2[k]  = p2->dattrib[use_elec+k];
+
+	  KE += (v1[k] - v2[k]) * (v1[k] - v2[k]);
+	}
+      } else {
+	for (int k=0; k<3; k++) {
+				// Particle 2 is the ion
+	  v2[k]  = p2->vel[k];
+				// Particle 1 is the electron
+	  v1[k]  = p1->dattrib[use_elec+k];
+
+	  KE += (v1[k] - v2[k]) * (v1[k] - v2[k]);
+	}
+      }
+
+      if (pp->swap) zswap(v1, v2);
+
+      // Particle masses
+      //
+      double m1 = pp->m1;
+      double m2 = pp->m2;
+	
+      if (m1<1.0) m1 *= pp->eta1;
+      if (m2<1.0) m2 *= pp->eta2;
+	
+      m1 = std::max<double>(m1, 1.0e-12); 
+      m2 = std::max<double>(m2, 1.0e-12); 
+
+      // Total effective mass in the collision
+      //
+      double mt = m1 + m2;
+
+      // Reduced mass (atomic mass units)
+      //
+      double mu = m1 * m2 / mt;
+      
+      // KE
+      //
+      KE *= 0.5 * mu * TreeDSMC::Vunit * TreeDSMC::Vunit * eV;
+
+      // Coulombic rate
+      //
+      double pVel = sqrt(2.0*KE/mu/eV);
+      double afac = esu*esu/std::max<double>(2.0*KE*eV, FloorEv*eV);
+      double tau = ABrate[id][l+1]*afac*afac*pVel * dT;
+      
+      tauD[id][l+1].push_back(tau);
+
+      // Set COM frame
+      //
+      std::vector<double> vcom(3), vrel(3);
+      double vi = 0.0;
+	
+      for (size_t k=0; k<3; k++) {
+	vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
+	vrel[k] = v1[k] - v2[k];
+	vi += vrel[k] * vrel[k];
+      }
+      // Energy in COM
+      //
+      double kE = 0.5*pp->w2*mu*vi;
+
+      // KE is positive?
+      //
+      if (kE>0.0) {
+	// Assign interaction energy variables
+	//
+	vrel = coulomb_vector(vrel, 1.0, 1.0, tau);
+	
+	vi   = sqrt(vi);
+	for (auto & v : vrel) v *= vi;
+	//                         ^
+	//                         |
+	// Velocity in center of mass, computed from v1, v2 and adjusted
+	// according to the inelastic energy loss
+	//
+
+	for (size_t k=0; k<3; k++) {
+	  v1[k] = vcom[k] + m2/mt*vrel[k];
+	  v2[k] = vcom[k] - m1/mt*vrel[k];
+	}
+    
+	if (pp->swap) zswap(v1, v2);
+
+	if (l==0) {
+	  for (int k=0; k<3; k++) {
+				// Particle 1 is an ion
+	    p1->vel[k] = v1[k];
+				// Particle 2 is an ion
+	    p2->vel[k] = v2[k];
+	  }
+	} else if (l==1) {
+	  for (int k=0; k<3; k++) {
+				// Particle 1 is the ion
+	    p1->vel[k] = v1[k];
+				// Particle 2 is the electron
+	    p2->dattrib[use_elec+k] = v2[k];
+	  }
+	} else {
+	  for (int k=0; k<3; k++) {
+				// Particle 2 is the ion
+	    p2->vel[k] = v2[k];
+				// Particle 1 is the electron
+	    p1->dattrib[use_elec+k] = v1[k];
+	  }
+	} // l==2
+
+      } // kE>0.0
+
+    } // l loop
+
+  } // body loop
+
+} // END: CollideIon::coulombicScatterTrace
+
 void CollideIon::scatterTraceMM
 (PordPtr pp, KE_& KE, std::vector<double>* v1, std::vector<double>* v2, int id)
 {
@@ -13303,12 +13380,7 @@ void CollideIon::scatterTraceMM
     }
   }
 
-  // Assign interaction energy variables
-  //
-  if (KE.Coulombic)
-    vrel = coulomb_vector(vrel, 1.0, 1.0, KE.Tau);
-  else
-    vrel = unit_vector();
+  vrel = unit_vector();
   
   vi   = sqrt(vi);
   for (auto & v : vrel) v *= vi;
@@ -14448,6 +14520,8 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       tauElc[id][1] += tauE;
       tauElc[id][2] += tauE*tauE;
       tauElc[id][3] += Cfrac;
+
+      tauD[id][3].push_back(tauE);
     }
 
 
@@ -18111,11 +18185,9 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   //
   spCrm[id] = crm;
 
-
   // Cross section selection
   //
   double crossRat = csections[id][key][key](), crossRatDB = 0.0;
-
 
   // Use NTCdb?
   //
@@ -18163,46 +18235,7 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   //              +--- For correct Poisson statistics
   //
 
-  // Test whether cross section is dominated by Coulomb cross section
-  //
-  double coulombic = 0.0, maxCrs = 0.0, totCrs = 0.0;
-  XStup maxI;
-  for (auto I : hCross[id]) {
-    int interFlag = std::get<0>(I.t);
-    if (interFlag == ion_ion ) coulombic += I.crs;
-    if (interFlag == ion_elec) coulombic += I.crs;
-    if (maxCrs < I.crs) {
-      maxI   = I;
-      maxCrs = I.crs;
-    }
-    totCrs += I.crs;
-  }
-
-  // Coulombic cross section dominates?
-  //
-  if (coulombic > maxI.crs) {
-    double  dfac = TreeDSMC::Munit/amu/pow(TreeDSMC::Lunit, 3.0) / molP1[id];
-    double  cfac = 0.0;
-
-    if (PiProb[id][0]>0.0) cfac += 1.0/PiProb[id][0];
-    if (PiProb[id][1]>0.0) cfac += 1.0/PiProb[id][1];
-    if (PiProb[id][2]>0.0) cfac += 1.0/PiProb[id][2];
-
-    // Number of pairs: plasma cross section
-    //
-    double totPairs = num * dens * dfac * cfac;
-    
-    // Number of pairs: pair-wise cross section
-    // Correct for mean Coulombic
-    //
-    double corRat = corRat = (totCrs - coulombic)*crs_units + crossRat;
-    double ProbC  = dens * rateF * corRat;
-    double selcMC = (num-1) * ProbC * 0.5;
-
-    colCf[id] = selcMC/totPairs;
-
-    selcM = totPairs;
-  }
+  colCf[id] = 1.0;
 
   colUps[id][0] += 1;
   colUps[id][1] += selcM;
@@ -18235,6 +18268,8 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
 
   sKey2Amap ret;
   ret[Particle::defaultKey][Particle::defaultKey]() = selcM;
+
+  selD[id].push_back(selcM);
 
   return ret;
 }
@@ -19806,7 +19841,8 @@ void CollideIon::electronGather()
 
     // Accumulate from threads
     //
-    std::vector<double> loss, keE, keI, mom, crs;
+    std::vector<double> loss, keE, keI, mom, crs, nsl;
+    std::vector< std::vector<double> > ndt(4);
     unsigned Ovr=0, Acc=0, Tot=0, NumE=0;
     double RatE=0.0;
 
@@ -20030,9 +20066,14 @@ void CollideIon::electronGather()
     }
     
     if (aType==Trace) {
+				// Merge per-thread data
       for (int t=0; t<nthrds; t++) {
 	crs.insert(crs.end(), crsD[t].begin(), crsD[t].end());
+	nsl.insert(nsl.end(), selD[t].begin(), selD[t].end());
+	for (int n=0; n<4; n++)
+	  ndt[n].insert(ndt[n].end(), tauD[t][n].begin(), tauD[t][n].end());
       }
+
       energyD = energyA[0];
       for (int t=1; t<nthrds; t++) {
 	energyP & x = energyA[t];
@@ -20283,11 +20324,28 @@ void CollideIon::electronGather()
 
 	  if (eNum) MPI_Send(&crs[0], eNum, MPI_DOUBLE, 0, 447, MPI_COMM_WORLD);
 	  if (IDBG) dbg << " ... crs sent" << std::endl;
+
+	  for (int n=0; n<4; n++) {
+	    MPI_Send(&(eNum=ndt[n].size()), 1, MPI_UNSIGNED, 0, 508+n, MPI_COMM_WORLD);
+	    if (IDBG) dbg << std::setw(16) << "ndt[" << n << "].size() = " << std::setw(10) << eNum;
+
+	    if (eNum) MPI_Send(&ndt[n][0], eNum, MPI_DOUBLE, 0, 512+n, MPI_COMM_WORLD);
+	    if (IDBG) dbg << " ... ntau sent" << std::endl;
+	  }
+
+	  MPI_Send(&(eNum=nsl.size()), 1, MPI_UNSIGNED, 0, 548, MPI_COMM_WORLD);
+	  if (IDBG) dbg << std::setw(16) << "nsl.size() = " << std::setw(10) << eNum;
+
+	  if (eNum) MPI_Send(&nsl[0], eNum, MPI_DOUBLE, 0, 549, MPI_COMM_WORLD);
+	  if (IDBG) dbg << " ... nsl sent" << std::endl;
+
+
 	  if (IDBG) dbg << std::setw(16) << "energyD.size() = "
 			<< std::setw(10) << std::get<0>(energyD).size() + 1;
 	  MPI_Send(&std::get<0>(energyD)[0], 4, MPI_DOUBLE, 0, 621, MPI_COMM_WORLD);
 	  MPI_Send(&std::get<1>(energyD),    1, MPI_INT,    0, 622, MPI_COMM_WORLD);
 	  if (IDBG) dbg << " ... energyD sent" << std::endl;
+
 	}
 
 	unsigned Nspc = eIeVsp.size();
@@ -20452,6 +20510,47 @@ void CollideIon::electronGather()
 	    if (IDBG) dbg << std::endl;
 	  }
 
+
+	  for (int n=0; n<4; n++) {
+	    if (IDBG) dbg << "root in ndt[" << n << "] stanza" << std::endl;
+	    MPI_Recv(&eNum, 1, MPI_UNSIGNED, i, 508+n, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	    if (IDBG) dbg << "recvd from " << std::setw(4) << i
+			  << std::setw(16) << " ndt[" << n << "].size() = "
+			  << std::setw(10) << eNum;
+
+	    if (eNum) {
+	      vTmp.resize(eNum);
+
+	      MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE, i, 512+n, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	      ndt[n].insert(ndt[n].end(), vTmp.begin(), vTmp.end());
+	      
+	      if (IDBG) dbg << " ... ndt[" << n << "] recvd" << std::endl;
+	    } else {
+	      if (IDBG) dbg << std::endl;
+	    }
+	  }
+
+
+	  if (IDBG) dbg << "root in nsl stanza" << std::endl;
+	  MPI_Recv(&eNum, 1, MPI_UNSIGNED, i, 548, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	  if (IDBG) dbg << "recvd from " << std::setw(4) << i
+			<< std::setw(16) << " nsl.size() = "
+			<< std::setw(10) << eNum;
+
+	  if (eNum) {
+	    vTmp.resize(eNum);
+
+	    MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE, i, 549, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    nsl.insert(nsl.end(), vTmp.begin(), vTmp.end());
+
+	    if (IDBG) dbg << " ... nsl recvd" << std::endl;
+	  } else {
+	    if (IDBG) dbg << std::endl;
+	  }
+
+
 	  energyP tmpE;
 	  MPI_Recv(&std::get<0>(tmpE)[0], 4,  MPI_DOUBLE, i, 621, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  MPI_Recv(&std::get<1>(tmpE),    1,  MPI_INT,    i, 622, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -20564,7 +20663,17 @@ void CollideIon::electronGather()
       }
 
       if (crs.size()) {
-	crsH = ahistoDPtr(new AsciiHisto<double>(crs, 20, 0.01));
+	crsH = ahistoDPtr(new AsciiHisto<double>(crs, 20, 0.01, true));
+      }
+
+      for (int n=0; n<4; n++) {
+	if (ndt[n].size()) {
+	  tauH[n] = ahistoDPtr(new AsciiHisto<double>(ndt[n], 20, 0.01, true));
+	}
+      }
+
+      if (nsl.size()) {
+	selH = ahistoDPtr(new AsciiHisto<double>(nsl, 20, 0.01, true));
       }
 
     }
@@ -20779,6 +20888,45 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< std::setw(14) << " max(type)"  << std::setw(16) << interLabels[ilab % 100] << std::setw(6) << std::right << ilab << std::endl;
   }
 
+  if (tauH[0].get()) {
+    out << std::endl
+	<< std::string(53, '-')  << std::endl
+	<< "-----Coulomb scattering ion-ion tau val -------------" << std::endl
+	<< std::string(53, '-')  << std::endl;
+    (*tauH[0])(out);
+  }
+
+  if (tauH[1].get()) {
+    out << std::endl
+	<< std::string(53, '-')  << std::endl
+	<< "-----Coulomb scattering ion-elc tau val -------------" << std::endl
+	<< std::string(53, '-')  << std::endl;
+    (*tauH[1])(out);
+  }
+
+  if (tauH[2].get()) {
+    out << std::endl
+	<< std::string(53, '-')  << std::endl
+	<< "-----Coulomb scattering elc-ion tau val -------------" << std::endl
+	<< std::string(53, '-')  << std::endl;
+    (*tauH[2])(out);
+  }
+
+  if (tauH[3].get()) {
+    out << std::endl
+	<< std::string(53, '-')  << std::endl
+	<< "-----Coulomb scattering elc-elc tau val -------------" << std::endl
+	<< std::string(53, '-')  << std::endl;
+    (*tauH[3])(out);
+  }
+
+  if (selH.get()) {
+    out << std::endl
+	<< std::string(53, '-')  << std::endl
+	<< "-----Inelastic collision count per cell -------------" << std::endl
+	<< std::string(53, '-')  << std::endl;
+    (*selH)(out);
+  }
 
   if ((aType==Hybrid or aType==Trace) and collLim) {
     out << std::endl << std::string(53, '-') << std::endl

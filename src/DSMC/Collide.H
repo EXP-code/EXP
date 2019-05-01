@@ -366,7 +366,7 @@ protected:
 
   //! Initializes cross sections
   virtual void initialize_cell
-  (pCell* const cell, double vrelmax, int id) = 0;
+  (pCell* const cell, double vrelmax, double tau, int id) = 0;
   
   //! Additional DSMC-specific initialization
   virtual void initialize_cell_dsmc

@@ -121,7 +121,7 @@ CollideLTE::~CollideLTE()
   delete hc;
 }
 
-void CollideLTE::initialize_cell(pCell* cell, double rvmax, int id)
+void CollideLTE::initialize_cell(pCell* cell, double rvmax, double tau, int id)
 {
   // Compute geometric cross section
   //
