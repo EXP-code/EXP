@@ -626,8 +626,9 @@ private:
   const std::vector<double> qnt = {0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95};
   std::vector<double> elecV, ionV;
   const size_t bufCap = 16384;
-  std::vector< boost::circular_buffer<double> > velER, keER, keIR, momD, crsD;
-  ahistoDPtr elecT, elecH, ionsT, ionET, ionH, lossH, keEH, keIH, momH, crsH, Ecoll;
+  std::vector< boost::circular_buffer<double> > velER, keER, keIR, momD, crsD, selD;
+  std::vector< std::vector< boost::circular_buffer<double> > > tauD;
+  ahistoDPtr elecT, elecH, ionsT, ionET, ionH, lossH, keEH, keIH, momH, crsH, Ecoll, tauH[4], selH;
   std::map<unsigned short, ahistoDPtr> elecZH, ionZH;
   unsigned Ovr_s, Acc_s, Tot_s, CntE, Num_s;
   double RhoE, Rho2, RhoV, RhoN, Rat_s;
@@ -989,7 +990,8 @@ protected:
   //@}
 
   virtual void 
-  initialize_cell(pCell* const c, double rvmax, int id);
+  initialize_cell(pCell* const c, double rvmax, double tau,
+		  int id);
 
   virtual void 
   initialize_cell_dsmc(pCell* const c, sKey2Amap& nsel, 
@@ -1035,6 +1037,8 @@ protected:
   double crossSectionTrace(int id, pCell* const c, 
 			   Particle* const p1, Particle* const p2, 
 			   double crm);
+
+  void coulombicScatterTrace(int id, pCell* const c, double dT);
 
   int inelasticTrace(int id, pCell* const c, 
 		     Particle* const p1, Particle* const p2, 
@@ -1402,9 +1406,7 @@ protected:
 
   public:
     double miss, delta, delE, delE0, gamma, defer;
-    double totE, kE, dKE, vfac, vrat, o1, o2, Tau;
-    bool Coulombic;
-
+    double totE, kE, dKE, vfac, vrat, o1, o2;
 
     EnumBitset<KE_Flags> bs;
 
@@ -1414,8 +1416,6 @@ protected:
       for (auto & v : _f) v = 0.0;
       miss = delta = delE = delE0 = gamma = defer = 0.0;
       totE = kE = dKE = vfac = vrat = o1 = o2 = 0.0;
-      Coulombic = false;
-      Tau = 0.0;
     }
 
     KE_(double dE) : delE(dE), delE0(dE)
@@ -1424,8 +1424,6 @@ protected:
       for (auto & v : _f) v = 0.0;
       miss = delta = gamma = defer = 0.0;
       totE = kE = dKE = vfac = vrat = o1 = o2 = 0.0;
-      Coulombic = false;
-      Tau = 0.0;
     }
     
     double& i(int i) { return _i[i-1]; }

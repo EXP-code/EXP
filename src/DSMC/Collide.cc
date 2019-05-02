@@ -1117,7 +1117,7 @@ void * Collide::collide_thread(void * arg)
     
     // Cell initialization (generate cross sections)
     //
-    initialize_cell(c, crm, id);
+    initialize_cell(c, crm, tau, id);
 
     // Per species quantities
     //

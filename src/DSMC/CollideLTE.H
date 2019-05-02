@@ -39,7 +39,7 @@ protected:
   vector<double> deltaE;
 
   virtual void 
-  initialize_cell(pCell* const c, double vrelmax, int id);
+  initialize_cell(pCell* const c, double vrelmax, double tau, int id);
 
   virtual void 
   initialize_cell_dsmc
