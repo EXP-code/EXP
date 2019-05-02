@@ -1859,10 +1859,9 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
 	cuFP_t ee = 0.0;
 	for (int k=0; k<elems._s; k++) {
 	  cuIonElement& E = elems._v[k];
-
-	  cuFP_t ff       = p.datr[E.I];
-	  cuFP_t ww       = ff/cuda_atomic_weights[E.Z];
-	  cuFP_t qq       = E.C - 1;
+	  cuFP_t ff       = p.datr[E.I];                 // Mass fraction
+	  cuFP_t ww       = ff/cuda_atomic_weights[E.Z]; // Number fraction
+	  cuFP_t qq       = E.C - 1;			 // Charge
 
 	  // Mean number
 	  numbP += p.mass * ww;
@@ -1895,8 +1894,8 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
       }
   
       if (numbP>0.0) meanM       = massP/numbP;
-      if (massP>0.0) Ivel2._v[c] = ivel2/massP;
-      if (massE>0.0) Evel2._v[c] = evel2/massE;
+      if (numbP>0.0) Ivel2._v[c] = ivel2/numbP;
+      if (numbP>0.0) Evel2._v[c] = evel2/numbP;
       if (densQ>0.0) numQ2      /= densQ;
       
       cuFP_t ddfac = dfac/volC._v[c];
