@@ -3175,6 +3175,7 @@ void cudaScatterTrace
 
 __device__
 void computeCoulombicScatter(dArray<cudaParticle>   in,
+			     dArray<cuFP_t>         coul4,
 			     dArray<int>            cellI,
 			     dArray<int>            cellN,
 			     dArray<cuFP_t>         PiProb,
@@ -3330,6 +3331,8 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
       double afac = esu*esu/(KE2*eV);
       double tau  = ABrate._v[C*4 + l + 1]*afac*afac*pVel * dT;
       
+      dCoul._v[C*4+l] = tau;
+
       // Set COM frame
       //
       cuFP_t vcom[3], vrel[3];
@@ -3403,6 +3406,8 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
 //
 __global__ void partInteractions(dArray<cudaParticle>   in,
 				 dArray<curandState>    randS,
+				 dArray<cuFP_t>         coul4,
+				 dArray<cuFP_t>         Nsel,
 				 dArray<cuFP_t>         cross,
 				 dArray<cuFP_t>         delph,
 				 dArray<unsigned char>  xspcs,
@@ -3453,7 +3458,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
       // Compute Coulombic interactions
       //
-      computeCoulombicScatter(in, cellI, cellN, PiProb, ABrate, elems, spTau,
+      computeCoulombicScatter(in, Coul4, cellI, cellN, PiProb, ABrate, elems, spTau,
 			      state, cid, epos);
 
       // Compute total cross sections for interactions in this cell
@@ -3485,6 +3490,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       cuFP_t Prob = mtotal/vol * cuMunit/cuAmu * sqrt(Ivel2._v[cid]) * spTau._v[cid] * csection;
       cuFP_t selcM = (nbods-1) * Prob * 0.5;
       
+      Nsel._v[cid] = selcM;
+
       int npairs = floor(selcM);
       cuFP_t nexcess = selcM - npairs;
 
@@ -4269,6 +4276,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    cuFP_t dT   = spTau._v[cid] * cuTunit;
 	    cuFP_t Tau  = ABrate._v[cid*4+3] * afac*afac * cr * dT;
 	    
+	    dCoul._v[cid*4+3] = Tau;
+
 	    if (cuMeanMass)
 	      cudaCoulombVector(vrel, 1.0, 1.0, Tau, state);
 	    else
@@ -4674,11 +4683,13 @@ void * CollideIon::collide_thread_cuda(void * arg)
 
   thrust::device_vector<cuFP_t>         d_cross(N*totalXCsize);
   thrust::device_vector<cuFP_t>         d_delph(N*totalXCsize);
+  thrust::device_vector<cuFP_t>         d_Coul4(N*4), d_Nsel(N);
   thrust::device_vector<unsigned char>  d_xspcs(N*totalXCsize*6);
   thrust::device_vector<cudaInterTypes> d_xtype(N*totalXCsize);
 
   partInteractions<<<gridSize, BLOCK_SIZE>>>
     (toKernel(d_part),   toKernel(d_randS),
+     toKernel(d_Coul4),  toKernel(d_Nsel),
      toKernel(d_cross),  toKernel(d_delph),  toKernel(d_xspcs),
      toKernel(d_xtype),  toKernel(d_cellI),  toKernel(d_cellN),
      toKernel(d_volC),   toKernel(d_Ivel2),  toKernel(d_Evel2),
@@ -4789,6 +4800,16 @@ void * CollideIon::collide_thread_cuda(void * arg)
   // Diagnostics at end of cell loop
   //
   post_cell_loop(id);
+
+  // Copy diagnostics to host
+  //
+  thrust::host_vector<cuFP_t> h_Coul4 = d_Coul4;
+  thrust::host_vector<cuFP_t> h_Nsel  = d_Nsel;
+
+  for (int n=0; n<N; n++) {
+    for (int l=0; l<4; l++) tauH[l].push_back(h_Coul4[n*4+l]);
+    selH.push_back(h_Nsel[n]);
+  }
 
   thread_timing_end(id);
   
