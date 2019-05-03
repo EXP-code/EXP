@@ -13,15 +13,17 @@
 
 #include <cudaUtil.cuH>
 
+//! Swap value in device code
 template <class T>
 __device__
-void cuSwap(T & x, T & y)
+void cuSwapV(T & x, T & y)
 {
   T t = x;
   x   = y;
   y   = t;
 }
 
+//! Swap pointer in device code
 template <class T>
 __device__
 void cuSwapP(T * x, T * y)
@@ -1909,8 +1911,8 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
       }
   
       if (numbP>0.0) meanM       = massP/numbP;
-      if (numbP>0.0) Ivel2._v[c] = ivel2/numbP;
-      if (numbP>0.0) Evel2._v[c] = evel2/numbP;
+      if (massP>0.0) Ivel2._v[c] = ivel2/massP;
+      if (massE>0.0) Evel2._v[c] = evel2/massE;
       if (densQ>0.0) numQ2      /= densQ;
       
       cuFP_t ddfac = dfac/volC._v[c];
@@ -3011,6 +3013,8 @@ void cudaScatterTrace
     cuFP_t vfac = 1.0;
     totE = kE - delE;
     
+    printf("kE=%f delE=%f\n", kE, delE);
+
     // KE is positive
     //
     if (kE>0.0) {
@@ -3299,14 +3303,14 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
       }
 
       bool do_swap = false;
-
+      
       if (W2>W1) {
 	do_swap = true;
-	cuSwap(m1,   m2);
-	cuSwap(W1,   W2);
-	cuSwap(Mu1,  Mu2);
-	cuSwap(Eta1, Eta2);
-	cuSwapP(v1,  v2);
+	cuSwapV(m1,   m2);
+	cuSwapV(W1,   W2);
+	cuSwapV(Mu1,  Mu2);
+	cuSwapV(Eta1, Eta2);
+	cuSwapP(v1,   v2);
       }
 
       if (m1 < 1.0e-12) m1 = 1.0e-12;
@@ -3327,11 +3331,12 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
       // Coulombic rate
       //
       double pVel = sqrt(2.0*KE/mu/cuEV);
-      double KE2  = cuFloorEV;  if (2.0*KE > cuFloorEV) KE2 = 2.0*KE;
-      double afac = esu*esu/(KE2*eV);
+      double KE2  = cuFloorEV;
+      if (2.0*KE > cuFloorEV) KE2 = 2.0*KE;
+      double afac = esu*esu/(KE2*cuEV);
       double tau  = ABrate._v[C*4 + l + 1]*afac*afac*pVel * dT;
       
-      dCoul._v[C*4+l] = tau;
+      coul4._v[C*4+l] = tau;
 
       // Set COM frame
       //
@@ -3458,7 +3463,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
       // Compute Coulombic interactions
       //
-      computeCoulombicScatter(in, Coul4, cellI, cellN, PiProb, ABrate, elems, spTau,
+      computeCoulombicScatter(in, coul4, cellI, cellN, PiProb, ABrate, elems, spTau,
 			      state, cid, epos);
 
       // Compute total cross sections for interactions in this cell
@@ -3515,14 +3520,19 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	cuFP_t R2 = curand_uniform_double(state);
 #endif
 
-	int n1 = floor(R1*nbods) + n0;
-	if (n1>=in._s) n1 = in._s-1;
-
-	int n2 = floor(R2*(nbods-1)) + n0;
-	if (n2>=in._s-1) n2 = in._s-2;
-
+	int n1 = floor(R1*nbods);
+	int n2 = floor(R2*(nbods-1));
 	if (n2 >= n1) n2++;
 
+	if (n1 >= nbods) n1 = nbods-1;
+	if (n2 >= nbods) n2 = nbods-1;
+
+	if (n1==n2) {
+	  printf("Crazy error! n1[%d]=n2[%d] nbods=%d\n", n1, n2, nbods);
+	}
+
+	n1 += n0;
+	n2 += n0;
 
 	// Cross section computation
 	//
@@ -3598,6 +3608,9 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	cuFP_t mu0 = m1 * m2 / (m1 + m2);
 	cuFP_t mu1 = m1 * me / (m1 + me);
 	cuFP_t mu2 = me * m2 / (me + m2);
+	
+	cuFP_t W1  = p1.mass/Mu1;
+	cuFP_t W2  = p2.mass/Mu2;
 	
 	// Finalize the KEs
 	iE1 *= 0.5*p1.mass * cuda_atomic_weights[0];
@@ -3690,8 +3703,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  if (IT.I2<255) IT.W2 = p2.datr[IT.I2] / cuda_atomic_weights[IT.Z2];
 	  else           IT.W2 = Eta2;
 	  
-	  IT.N1 = IT.W1 * cuMunit / cuAmu;
-	  IT.N2 = IT.W2 * cuMunit / cuAmu;
+	  IT.N1 = p1.mass * IT.W1 * cuMunit / cuAmu;
+	  IT.N2 = p2.mass * IT.W2 * cuMunit / cuAmu;
 	  
 	  // Number of particles in active partition
 	  //
@@ -4037,12 +4050,12 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    u2[k] = v2[k]  = p2.vel[k];
 	  }
 	  
-	  if (IT.W1 >= IT.W2)
-	    cudaScatterTrace(Mu1, Mu2, Eta1, Eta2, IT.W1, IT.W2,
+	  if (W1 >= W2)
+	    cudaScatterTrace(Mu1, Mu2, Eta1, Eta2, W1, W2,
 			     &E1[0], &E2[0], totE,
 			     &v1[0], &v2[0], totalDE, state);
 	  else
-	    cudaScatterTrace(Mu2, Mu1, Eta2, Eta1, IT.W2, IT.W1,
+	    cudaScatterTrace(Mu2, Mu1, Eta2, Eta1, W2, W1,
 			     &E2[0], &E1[0], totE,
 			     &v2[0], &v1[0], totalDE, state);
 	  
@@ -4091,12 +4104,12 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  
 	  PE[1] = totalDE;
 	  
-	  if (IT.W1 >= IT.W2)
-	    cudaScatterTrace(Mu1, Mue, Eta1, Eta2, IT.W1, IT.W2,
+	  if (W1 >= W2)
+	    cudaScatterTrace(Mu1, Mue, Eta1, Eta2, W1, W2,
 			     &E1[0], &E2[0], totE,
 			     &v1[0], &v2[0], totalDE, state);
 	  else
-	    cudaScatterTrace(Mue, Mu1, Eta2, Eta1, IT.W2, IT.W1,
+	    cudaScatterTrace(Mue, Mu1, Eta2, Eta1, W2, W1,
 			     &E2[0], &E1[0], totE,
 			     &v2[0], &v1[0], totalDE, state);
 	  
@@ -4149,12 +4162,12 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  
 	  PE[2]  = totalDE;
 	  
-	  if (IT.W1 >= IT.W2)
-	    cudaScatterTrace(Mue, Mu2, Eta1, Eta2, IT.W1, IT.W2,
+	  if (W1 >= W2)
+	    cudaScatterTrace(Mue, Mu2, Eta1, Eta2, W1, W2,
 			     &E1[0], &E2[0], totE,
 			     &v1[0], &v2[0], totalDE, state);
 	  else
-	    cudaScatterTrace(Mu2, Mue, Eta2, Eta1, IT.W2, IT.W1,
+	    cudaScatterTrace(Mu2, Mue, Eta2, Eta1, W2, W1,
 			     &E2[0], &E1[0], totE,
 			     &v2[0], &v1[0], totalDE, state);
 	  
@@ -4276,7 +4289,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    cuFP_t dT   = spTau._v[cid] * cuTunit;
 	    cuFP_t Tau  = ABrate._v[cid*4+3] * afac*afac * cr * dT;
 	    
-	    dCoul._v[cid*4+3] = Tau;
+	    coul4._v[cid*4+3] = Tau;
 
 	    if (cuMeanMass)
 	      cudaCoulombVector(vrel, 1.0, 1.0, Tau, state);
@@ -4807,8 +4820,8 @@ void * CollideIon::collide_thread_cuda(void * arg)
   thrust::host_vector<cuFP_t> h_Nsel  = d_Nsel;
 
   for (int n=0; n<N; n++) {
-    for (int l=0; l<4; l++) tauH[l].push_back(h_Coul4[n*4+l]);
-    selH.push_back(h_Nsel[n]);
+    for (int l=0; l<4; l++) tauD[id][l].push_back(h_Coul4[n*4+l]);
+    selD[id].push_back(h_Nsel[n]);
   }
 
   thread_timing_end(id);
