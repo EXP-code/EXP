@@ -808,14 +808,6 @@ void chdata::cuda_initialize_textures()
       E.ceDelE = I->delCollideE;
       E.NColl  = I->NcollideGrid;
 
-      /*
-      std::cout << " k=" << k
-		<< " Emin=" << E.ceEmin
-		<< " Emax=" << E.ceEmax
-		<< " delE=" << E.ceDelE
-		<< std::endl;
-      */
-
       cudaTextureDesc texDesc;
       
       memset(&texDesc, 0, sizeof(texDesc));
@@ -1405,8 +1397,6 @@ void chdata::testCross(int Nenergy)
       testRadRecomb<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
 					      toKernel(xRC_d), cuIonElem[k]);
       
-    std::cout << "k=" << k << " delE=" << E.ceDelE << std::endl;
-
     thrust::host_vector<cuFP_t> eFF_h = eFF_d;
     thrust::host_vector<cuFP_t> xFF_h = xFF_d;
     thrust::host_vector<cuFP_t> eCE_h = eCE_d;
@@ -3013,8 +3003,6 @@ void cudaScatterTrace
     cuFP_t vfac = 1.0;
     totE = kE - delE;
     
-    printf("kE=%f delE=%f\n", kE, delE);
-
     // KE is positive
     //
     if (kE>0.0) {
