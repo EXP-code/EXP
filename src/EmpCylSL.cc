@@ -3631,6 +3631,29 @@ void EmpCylSL::set_coefs(int m1,
   }
 }
 
+void EmpCylSL::set_coefs(int m1,
+			 const std::vector<double>& cos1,
+			 const std::vector<double>& sin1, bool zero1)
+{
+  // Zero the coefficients
+  //
+  if (zero1) {
+    for (int mm=0; mm<=MMAX; mm++) accum_cos[mm].zero();
+    for (int mm=1; mm<=MMAX; mm++) accum_sin[mm].zero();
+
+    coefs_made = vector<short>(multistep+1, true);
+  }
+
+  int nmin = std::min<int>(rank3, cos1.size());
+  if (m1 <= MMAX) {
+    for (int j=0; j<nmin; j++) accum_cos[m1][j] = cos1[j];
+    if (m1) {
+      nmin = std::min<int>(rank3, sin1.size());
+      for (int j=0; j<nmin; j++) accum_sin[m1][j] = sin1[j];
+    }
+  }
+}
+
 
 #ifdef STANDALONE
 #include <coef.H>
