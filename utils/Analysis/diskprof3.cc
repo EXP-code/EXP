@@ -126,7 +126,7 @@ double get_max_dens(Vector& vv, double dz)
 				// Solution of 2nd order Lagrange interpolation
 				// formula
   double delta;
-  double del = vv[ipeak+1] - vv[ipeak-1];
+  double del  = vv[ipeak+1] - vv[ipeak-1];
   double ddel = vv[ipeak+1] + vv[ipeak-1] - 2.0*vv[ipeak];
 
   if (fabs(ddel) < 1.0e-4) 
