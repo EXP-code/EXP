@@ -97,8 +97,6 @@ static  double ZMAX;
 static  int    OUTR;
 static  int    OUTZ;
   
-static  bool AXIHGT;
-static  bool VHEIGHT;
 static  bool VOLUME;
 static  bool SURFACE;
 static  bool VSLICE;
@@ -462,7 +460,7 @@ CoefData get_coefficients(const std::string& coefs)
 int
 main(int argc, char **argv)
 {
-  int lmax=36, initc, partc, beg, end, stride, init;
+  int lmax=36, stride=1;
   double rcylmin, rcylmax, rscale, vscale;
   bool DENS, verbose = false, mask = false;
   std::string CACHEFILE;
@@ -499,30 +497,6 @@ main(int argc, char **argv)
     ("volume",
      po::value<bool>(&VOLUME)->default_value(false),
      "make volume for VTK rendering")
-    ("axihgt",
-     po::value<bool>(&AXIHGT)->default_value(false),
-     "compute midplane height profiles")
-    ("height",
-     po::value<bool>(&VHEIGHT)->default_value(false),
-     "compute height profiles")
-    ("initcomp",
-     po::value<int>(&initc)->default_value(1),
-     "train on Component (1=stars)")
-    ("partflag",
-     po::value<int>(&partc)->default_value(1),
-     "Wakes using Component(s) [1=stars | 2=gas]")
-    ("init",
-     po::value<int>(&init)->default_value(0),
-     "fiducial PSP index")
-    ("beg",
-     po::value<int>(&beg)->default_value(0),
-     "initial PSP index")
-    ("end",
-     po::value<int>(&end)->default_value(99999),
-     "final PSP index")
-    ("stride",
-     po::value<int>(&stride)->default_value(1),
-     "PSP index stride")
     ("outfile",
      po::value<std::string>(&outid)->default_value("diskprof2"),
      "Filename prefix")
@@ -535,6 +509,9 @@ main(int argc, char **argv)
     ("runtag",
      po::value<std::string>(&runtag)->default_value("run1"),
      "runtag for phase space files")
+    ("stride,s",
+     po::value<int>(&stride)->default_value(1), 
+     "stride for time output")
     ;
   
   po::variables_map vm;
@@ -573,28 +550,28 @@ main(int argc, char **argv)
   // *****Using MPI****
   // ==================================================
 
-  std::ifstream in(CACHEFILE);
-  if (!in) {
-    cerr << "mssaprof: error opening cache file <"
-	 << CACHEFILE << ">" << std::endl;
-    return 0;
-  }
-
   int mmax, numx, numy, nmax, norder, tmp;
   bool cmap=false, dens=false;
   double rmin, rmax, ascl, hscl;
 
-  in.read((char *)&mmax,   sizeof(int));
-  in.read((char *)&numx,   sizeof(int));
-  in.read((char *)&numy,   sizeof(int));
-  in.read((char *)&nmax,   sizeof(int));
-  in.read((char *)&norder, sizeof(int));
-  in.read((char *)&tmp,    sizeof(int));    if (tmp) dens = true;
-  in.read((char *)&tmp,    sizeof(int));    if (tmp) cmap = true;
-  in.read((char *)&rmin,   sizeof(double));
-  in.read((char *)&rmax,   sizeof(double));
-  in.read((char *)&ascl,   sizeof(double));
-  in.read((char *)&hscl,   sizeof(double));
+  std::ifstream in(CACHEFILE);
+  if (in) {
+    in.read((char *)&mmax,   sizeof(int));
+    in.read((char *)&numx,   sizeof(int));
+    in.read((char *)&numy,   sizeof(int));
+    in.read((char *)&nmax,   sizeof(int));
+    in.read((char *)&norder, sizeof(int));
+    in.read((char *)&tmp,    sizeof(int));    if (tmp) dens = true;
+    in.read((char *)&tmp,    sizeof(int));    if (tmp) cmap = true;
+    in.read((char *)&rmin,   sizeof(double));
+    in.read((char *)&rmax,   sizeof(double));
+    in.read((char *)&ascl,   sizeof(double));
+    in.read((char *)&hscl,   sizeof(double));
+  } else {
+    cerr << "mssaprof: error opening cache file <"
+	 << CACHEFILE << ">" << std::endl;
+    return 0;
+  }
 
   EmpCylSL::RMIN        = rmin;
   EmpCylSL::RMAX        = rmax;
@@ -607,7 +584,7 @@ main(int argc, char **argv)
 
 				// Create expansion
 				//
-  EmpCylSL ortho(nmax, lmax, mmax, norder, rscale, vscale);
+  EmpCylSL ortho(nmax, lmax, mmax, norder, ascl, hscl);
     
   std::vector<double> times;
 
@@ -629,43 +606,42 @@ main(int argc, char **argv)
   for (int indx=0; indx<data.size(); indx++) {
 
     std::vector<std::string> outfiles1, outfiles2, outfiles3;
+    std::vector<double> T;
+    int count = 0;
+
+    for (auto u : data[indx]) {
+
+      if (count++ % stride) continue;
+
+      ortho.set_coefs(u.second.m, u.second.cos, u.second.sin, true);
+
+      std::string file1, file2, file3;
     
-    for (auto v : data[indx]) {
-
-      int itim = 0;
-      for (auto u : data[indx]) {
-
-	ortho.set_coefs(u.second.m, u.second.cos, u.second.sin, true);
-
-	std::string file1, file2, file3;
+      if (myid==0) cout << "Writing output for indx=" << indx
+			<< ", T=" << u.first << " . . . " << flush;
+      write_output(ortho, indx, T.size(), u.first, file1, file2, file3);
+      MPI_Barrier(MPI_COMM_WORLD);
+      if (myid==0) cout << "done" << endl;
     
-	if (myid==0) cout << "Writing output . . . " << flush;
-	write_output(ortho, indx, itim, v.first, file1, file2, file3);
-	MPI_Barrier(MPI_COMM_WORLD);
-	if (myid==0) cout << "done" << endl;
-    
-	if (myid==0) {
-	  times.push_back(v.first);
-	  if (file1.size()) outfiles1.push_back(file1);
-	  if (file2.size()) outfiles2.push_back(file2);
-	  if (file3.size()) outfiles3.push_back(file3);
-	}
-
-	itim++;
-      }
-
-      // Create PVD file
-      //
       if (myid==0) {
-	std::ostringstream prefix;
-	prefix << runtag << "." << indx;
-	if (outfiles1.size()) writePVD(prefix.str()+".volume.pvd",  times, outfiles1);
-	if (outfiles2.size()) writePVD(prefix.str()+".surface.pvd", times, outfiles2);
-	if (outfiles3.size()) writePVD(prefix.str()+".height.pvd",  times, outfiles3);
+	if (file1.size()) outfiles1.push_back(file1);
+	if (file2.size()) outfiles2.push_back(file2);
+	if (file3.size()) outfiles3.push_back(file3);
       }
-    
+      
+      T.push_back(u.first);
     } // Time loop
-
+    
+    // Create PVD file
+    //
+    if (myid==0) {
+      std::ostringstream prefix;
+	prefix << runtag << "." << indx;
+	if (outfiles1.size()) writePVD(prefix.str()+".volume.pvd",  T, outfiles1);
+	if (outfiles2.size()) writePVD(prefix.str()+".surface.pvd", T, outfiles2);
+	if (outfiles3.size()) writePVD(prefix.str()+".height.pvd",  T, outfiles3);
+    }
+    
   } // PC loop
 
   // Shutdown MPI
