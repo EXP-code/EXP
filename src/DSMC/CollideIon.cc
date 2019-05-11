@@ -4996,6 +4996,9 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       unsigned short CC = kk.second;
       unsigned short PP = CC - 1;
 
+      double facS1 = p1->dattrib[ss.second] / atomic_weights[Z] / Sum1;
+      double facS2 = p2->dattrib[ss.second] / atomic_weights[Z] / Sum2;
+
       //--------------------------------------------------
       // Ion keys
       //--------------------------------------------------
@@ -5017,7 +5020,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double cross = 0.0;
 				// Geometric cross sections based on
 				// atomic radius
-	double crs = (geometric(Z)*cscl_[Z] + geometric(ZZ)*cscl_[ZZ]) * fac1 * fac2;
+	double crs = (geometric(Z)*cscl_[Z] + geometric(ZZ)*cscl_[ZZ]) * fac1 * facS2;
 	
 				// Double counting
 	if (Z == ZZ) crs *= 0.5;
@@ -5041,7 +5044,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
       if (P==0 and kk==proton) {
 	double crs1 = elastic(Z, kEi[id], Elastic::proton) *
-	  crossfac * cscl_[Z] * fac1 * fac2;
+	  crossfac * cscl_[Z] * fac1 * facS2;
 	
 	if (DEBUG_CRS) trap_crs(crs1, neut_prot);
 	
@@ -5056,7 +5059,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
       if (PP==0 and k==proton) {
 	double crs1 = elastic(ZZ, kEi[id], Elastic::proton) *
-	  crossfac * cscl_[ZZ] * fac1 * fac2;
+	  crossfac * cscl_[ZZ] * facS1 * fac2;
 	
 	if (DEBUG_CRS) trap_crs(crs1, neut_prot);
 	
@@ -11034,6 +11037,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   for (auto I : hCross[id]) {
     order.push_back(cnt++);
     totalXS += I.crs;
+    if (true) {
+      std::cout << std::setw(20) << interLabels[std::get<0>(I.t)]
+		<< std::setw(16) << I.crs << std::endl;
+    }
   }
 
   // Randomize interaction order to prevent bias
@@ -13096,10 +13103,25 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
     Particle* const p1 = tree->Body(c->bods[p.first]);
     Particle* const p2 = tree->Body(c->bods[p.second]);
 
+    // Mean molecular weight for each particle
+    //
+    double Mu1=0.0, Mu2=0.0;
+    for (auto s : SpList) {
+				// Number fraction of ions
+      double one = p1->dattrib[s.second] / atomic_weights[s.first.first];
+      double two = p2->dattrib[s.second] / atomic_weights[s.first.first];
+
+      Mu1 += one;
+      Mu2 += two;
+    }
+				// The molecular weight
+    Mu1 = 1.0/Mu1;
+    Mu2 = 1.0/Mu1;
+
     // Proportional to number of true particles in each superparticle
     //
-    double W1 = p1->mass/molP1[id];
-    double W2 = p2->mass/molP2[id];
+    double W1 = p1->mass/Mu1;
+    double W2 = p2->mass/Mu2;
 
     std::array<PordPtr, 3> PP =
       { PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_ion,      DBL_MAX) ),

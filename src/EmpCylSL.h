@@ -464,8 +464,13 @@ public:
   //! Print debug info
   void multistep_debug();
 
-  //! Set coefficients from input stream
+  //! Set coefficients from Vectors
   void set_coefs(int mm, const Vector& cos1, const Vector& sin1, bool zero);
+
+  //! Set coefficients from std::vectors
+  void set_coefs(int mm,
+		 const std::vector<double>& cos1,
+		 const std::vector<double>& sin1, bool zero);
 
   //! Dump out coefficients to output stream
   void dump_coefs(std::ostream& out);

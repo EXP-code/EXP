@@ -2,8 +2,8 @@
  *  Description:
  *  -----------
  *
- *  Read in coefficients and compute VTK slices, 
- *  and compute volume for VTK rendering
+ *  Read in coefficients and compute VTK slices, and compute volume
+ *  for VTK rendering from MSSA output
  *
  *
  *  Call sequence:
@@ -24,7 +24,7 @@
  *  By:
  *  --
  *
- *  MDW 11/28/08, 02/09/18, 07/11/18
+ *  MDW 05/08/19
  *
  ***************************************************************************/
 
@@ -72,7 +72,7 @@ namespace pt = boost::property_tree;
 
 typedef boost::shared_ptr<PSPDump> PSPDumpPtr;
 
-const std::string overview = "Compute disk potential, force and density profiles from\nPSP phase-space output files\n";
+const std::string overview = "Compute disk potential, force and density profiles from\nMSSA reconstructed coefficient files\n";
 
 				// Variables not used but needed for linking
 int VERBOSE = 4;
@@ -86,7 +86,7 @@ vector<int> stepL(1, 0), stepN(1, 1);
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 pthread_mutex_t coef_lock;
-string outdir, runtag;
+string outdir, runtag, coeffile;
 double tpos = 0.0;
 double tnow = 0.0;
   
@@ -94,285 +94,29 @@ double tnow = 0.0;
 static  string outid;
 static  double RMAX;
 static  double ZMAX;
-static  int OUTR;
-static  int OUTZ;
+static  int    OUTR;
+static  int    OUTZ;
   
-static  bool AXIHGT;
-static  bool VHEIGHT;
 static  bool VOLUME;
 static  bool SURFACE;
 static  bool VSLICE;
 
-				// Find peak density
 
-double get_max_dens(Vector& vv, double dz)
+void write_output(EmpCylSL& ortho, int indx, int icnt, double time,
+		  std::string& file1, std::string& file2, std::string& file3)
 {
-  int lo = vv.getlow();
-  int hi = vv.gethigh();
-
-  int ipeak=0;
-  double pvalue=-1.0e18;
-
-  for (int i=lo; i<=hi; i++) {
-    if (vv[i] > pvalue) {
-      ipeak = i;
-      pvalue = vv[i];
-    }
-  }
-
-  if (ipeak == lo) ipeak = lo+1;
-  if (ipeak == hi) ipeak = hi-1;
-
-				// Solution of 2nd order Lagrange interpolation
-				// formula
-  double delta;
-  double del  = vv[ipeak+1] - vv[ipeak-1];
-  double ddel = vv[ipeak+1] + vv[ipeak-1] - 2.0*vv[ipeak];
-
-  if (fabs(ddel) < 1.0e-4) 
-    delta = 0.0;		// We're at the peak!
-  else
-    delta = - 0.5*del/ddel;
-
-  return -ZMAX + dz*(ipeak + delta);
-
-}
-
-
-
-Vector get_quart(Vector& vv, double dz)
-{
-  int lo = vv.getlow();
-  int hi = vv.gethigh();
-
-  double next, prev=0.0;
-  Vector sum(lo, hi), zz(lo, hi);
-
-  for (int i=lo; i<=hi; i++) {
-
-    if (vv[i] > 0.0)
-      next = vv[i];
-    else
-      next = 0.0;
-    
-    zz [i] = -ZMAX + dz*(i-lo);
-    sum[i] = 0.5*(prev + next);	// Trapezoidal rule
-    if (i>lo) sum[i] += sum[i-1];
-    prev = next;
-  }
-
-  double max = sum[hi];
-  Vector ret(-1,1);
-  
-  ret[-1] = odd2(0.25*max, sum, zz);
-  ret[ 0] = odd2(0.50*max, sum, zz);
-  ret[ 1] = odd2(0.75*max, sum, zz);
-
-  return ret;
-}
-
-Vector get_quart_truncated(Vector& vv, double dz)
-{
-  int lo = vv.getlow();
-  int hi = vv.gethigh();
-
-  int ipeak=0;			// First find peak
-  double pvalue=-1.0e18;
-
-  for (int i=lo; i<=hi; i++) {
-    if (vv[i] > pvalue) {
-      ipeak = i;
-      pvalue = vv[i];
-    }
-  }
-				// Zero out above and below first zero
-				// from peak
-
-  int lo1 = ipeak;
-  int hi1 = ipeak;
-
-  for (; lo1>lo; lo1--) {
-    if (vv[lo1]<0.0) break;
-  }
-
-  for (; hi1<hi; hi1++) {
-    if (vv[hi1]<0.0) break;
-  }
-
-  double next, prev=0.0;
-  Vector sum(lo1, hi1), zz(lo1, hi1);
-
-  for (int i=lo1; i<=hi1; i++) {
-
-    if (vv[i] > 0.0)
-      next = vv[i];
-    else
-      next = 0.0;
-    
-    zz [i] = -ZMAX + dz*(i-lo);
-    sum[i] = 0.5*(prev + next);	// Trapezoidal rule
-    if (i>lo1) sum[i] += sum[i-1];
-    prev = next;
-  }
-
-  double max = sum[hi1];
-  Vector ret(-1,1);
-  
-  ret[-1] = odd2(0.25*max, sum, zz);
-  ret[ 0] = odd2(0.50*max, sum, zz);
-  ret[ 1] = odd2(0.75*max, sum, zz);
-
-  return ret;
-}
-
-
-std::string write_output(EmpCylSL& ortho, int icnt, double time)
-{
-  std::string retstr("nofile");
   unsigned ncnt = 0;
-  int nout;
+  int noutV = 7, noutS = 7;
   
   // ==================================================
   // Setup for output files
   // ==================================================
   
   ostringstream sstr;
-  sstr << "." << std::setfill('0') << std::setw(5) << icnt;
+  sstr << "." << std::setfill('0') << std::setw(5) << indx
+       << "." << std::setfill('0') << std::setw(5) << icnt;
 
-  nout = 7;
   string suffix[7] = {"p0", "p", "fr", "fz", "fp", "d0", "d"};
-
-  // ==================================================
-  // Axisymmetric structure (for GNUPLOT)
-  // ==================================================
-
-  if (AXIHGT) {
-    
-    double dR = RMAX/(OUTR-1);
-    double dz = ZMAX/(OUTZ-1);
-    double z, r, phi, hh, d0;
-    Vector vv(1, OUTZ);
-    Vector q;
-    
-    vector<double> indat(3*OUTR, 0.0), otdat(3*OUTR);
-    
-    for (int l=0; l<OUTR; l++) {
-      
-      if ( (ncnt++)%numprocs == myid ) {
-	
-	r = dR*l;
-	
-	for (int k=0; k<OUTZ; k++) {
-	  z = -ZMAX + dz*k;
-	  phi = 0.0;
-	  vv[k+1] = ortho.accumulated_dens_eval(r, z, phi, d0);
-	}
-	
-	indat[0*OUTR+l] = get_max_dens(vv, dz);
-	// q = get_quart(vv, dz);
-	q = get_quart_truncated(vv, dz);
-	indat[1*OUTR+l] = q[0];
-	indat[2*OUTR+l] = q[1] - q[-1];
-      }
-    }
-    
-    MPI_Reduce(&indat[0], &otdat[0], 3*OUTR, MPI_DOUBLE, MPI_SUM, 0, 
-	       MPI_COMM_WORLD);
-    
-    if (myid==0) {
-
-      std::string OUTF = runtag + "_" + outid + "_profile" + sstr.str();
-      std::ofstream out(OUTF.c_str(), ios::out | ios::app);
-      if (!out) {
-	cerr << "Error opening <" << OUTF << "> for output\n";
-	exit(-1);
-      }
-      out.setf(ios::scientific);
-      out.precision(5);
-
-      for (int l=0; l<OUTR; l++) {
-	r = dR*l;
-	out
-	  << setw(15) << time
-	  << setw(15) << r
-	  << setw(15) << otdat[0*OUTR+l]
-	  << setw(15) << otdat[1*OUTR+l]
-	  << setw(15) << otdat[2*OUTR+l]
-	  << endl;
-      }
-      out << endl;
-    }
-  }
-
-  
-  // ==================================================
-  // Write vertical position of peak
-  // ==================================================
-  
-  if (VHEIGHT) {
-    
-    double dR = 2.0*RMAX/(OUTR-1);
-    double dz = 2.0*ZMAX/(OUTZ-1);
-    double x, y, z, r, phi, hh, d0;
-    Vector vv(1, OUTZ);
-    Vector q;
-    std::vector<double> indat(3*OUTR*OUTR, 0.0), otdat(3*OUTR*OUTR);
-    
-    for (int j=0; j<OUTR; j++) {
-	
-      x = -RMAX + dR*j;
-	
-      for (int l=0; l<OUTR; l++) {
-      
-	y = -RMAX + dR*l;
-      
-	if ( (ncnt++)%numprocs == myid ) {
-	  
-	  r = sqrt(x*x + y*y);
-	  phi = atan2(y, x);
-	  
-	  for (int k=0; k<OUTZ; k++)
-	    vv[k+1] = ortho.accumulated_dens_eval(r, -ZMAX + dz*k, phi, d0);
-	  
-	  // q = get_quart(vv, dz);
-	  q = get_quart_truncated(vv, dz);
-	  
-	  indat[(0*OUTR + j)*OUTR + l] =  get_max_dens(vv, dz);
-	  indat[(1*OUTR + j)*OUTR + l] =  q[1] - q[-1];
-	  indat[(2*OUTR + j)*OUTR + l] =  q[0];
-	}
-      }
-    }
-      
-      
-    MPI_Reduce(&indat[0], &otdat[0], 3*OUTR*OUTR, MPI_DOUBLE, MPI_SUM, 0, 
-	       MPI_COMM_WORLD);
-      
-    if (myid==0) {
-
-      VtkGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
-
-      std::string names[3] = {"surf", "height", "mid"};
-      
-      std::vector<double> data(OUTR*OUTR);
-
-      for (int i=0; i<3; i++) {
-
-	for (int l=0; l<OUTR; l++) {
-	  for (int j=0; j<OUTR; j++) {
-	    data[i*OUTR + j] = otdat[(i*OUTR + l)*OUTR + j];
-	  }
-	}
-
-	vtk.Add(data, names[i]);
-      }
-
-      std::ostringstream sout;
-      sout << runtag + "_" + outid + "_posn" + sstr.str();
-      vtk.Write(sout.str());
-    }
-  }
-
 
   if (VOLUME) {
       
@@ -389,7 +133,7 @@ std::string write_output(EmpCylSL& ortho, int icnt, double time)
     double p0, d0, p, fr, fz, fp;
     
     size_t blSiz = OUTZ*OUTR*OUTR;
-    vector<double> indat(nout*blSiz, 0.0), otdat(nout*blSiz);
+    vector<double> indat(noutV*blSiz, 0.0), otdat(noutV*blSiz);
     
     for (int j=0; j<OUTR; j++) {
 	  
@@ -423,7 +167,7 @@ std::string write_output(EmpCylSL& ortho, int icnt, double time)
     }
     
     
-    MPI_Reduce(&indat[0], &otdat[0], nout*OUTZ*OUTR*OUTR, MPI_DOUBLE, MPI_SUM, 
+    MPI_Reduce(&indat[0], &otdat[0], noutV*OUTZ*OUTR*OUTR, MPI_DOUBLE, MPI_SUM, 
 	       0, MPI_COMM_WORLD);
     
     if (myid==0) {
@@ -432,7 +176,7 @@ std::string write_output(EmpCylSL& ortho, int icnt, double time)
 
       std::vector<double> data(OUTR*OUTR*OUTZ);
 
-      for (int n=0; n<nout; n++) {
+      for (int n=0; n<noutV; n++) {
 
 	for (int j=0; j<OUTR; j++) {
 	  for (int l=0; l<OUTR; l++) {
@@ -449,6 +193,7 @@ std::string write_output(EmpCylSL& ortho, int icnt, double time)
       std::ostringstream sout;
       sout << runtag +"_" + outid + "_volume" + sstr.str();
       vtk.Write(sout.str());
+      file1 = sout.str() + ".vtr";
     }
 
   }
@@ -467,7 +212,7 @@ std::string write_output(EmpCylSL& ortho, int icnt, double time)
     double x, y, z=0.0, r, phi;
     double p0, d0, p, fr, fz, fp;
     
-    vector<double> indat(nout*OUTR*OUTR, 0.0), otdat(nout*OUTR*OUTR);
+    vector<double> indat(noutS*OUTR*OUTR, 0.0), otdat(noutS*OUTR*OUTR);
     
     for (int j=0; j<OUTR; j++) {
 	
@@ -496,7 +241,7 @@ std::string write_output(EmpCylSL& ortho, int icnt, double time)
       }
     }
     
-    MPI_Reduce(&indat[0], &otdat[0], nout*OUTR*OUTR,
+    MPI_Reduce(&indat[0], &otdat[0], noutS*OUTR*OUTR,
 	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     
     
@@ -506,10 +251,10 @@ std::string write_output(EmpCylSL& ortho, int icnt, double time)
 
       std::vector<double> data(OUTR*OUTR);
 
-      for (int n=0; n<nout; n++) {
+      for (int n=0; n<noutS; n++) {
 	for (int j=0; j<OUTR; j++) {
 	  for (int l=0; l<OUTR; l++) {
-	    data[l*OUTR + j] = otdat[(n*OUTR+j)*OUTR+l];
+	    data[j*OUTR + l] = otdat[(n*OUTR+j)*OUTR+l];
 	  }
 	}
 	vtk.Add(data, suffix[n]);
@@ -518,8 +263,7 @@ std::string write_output(EmpCylSL& ortho, int icnt, double time)
       std::ostringstream sout;
       sout << runtag + "_" + outid + "_surface" + sstr.str();
       vtk.Write(sout.str());
-
-      retstr = sout.str();
+      file2 = sout.str() + ".vtr";
     }
   } // END: SURFACE
 
@@ -538,7 +282,7 @@ std::string write_output(EmpCylSL& ortho, int icnt, double time)
     double x, y=0, z, r, phi;
     double p0, d0, p, fr, fz, fp;
     
-    std::vector<double> indat(nout*OUTR*OUTR, 0.0), otdat(nout*OUTR*OUTR);
+    std::vector<double> indat(noutV*OUTR*OUTR, 0.0), otdat(noutV*OUTR*OUTR);
     
       for (int j=0; j<OUTR; j++) {
 	
@@ -567,7 +311,7 @@ std::string write_output(EmpCylSL& ortho, int icnt, double time)
       }
     }
     
-    MPI_Reduce(&indat[0], &otdat[0], nout*OUTR*OUTZ,
+    MPI_Reduce(&indat[0], &otdat[0], noutV*OUTR*OUTZ,
 	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     
     
@@ -577,7 +321,7 @@ std::string write_output(EmpCylSL& ortho, int icnt, double time)
 
       std::vector<double> data(OUTR*OUTZ);
 
-      for (int n=0; n<nout; n++) {
+      for (int n=0; n<noutV; n++) {
 	for (int j=0; j<OUTR; j++) {
 	  for (int l=0; l<OUTZ; l++) {
 	    data[j*OUTZ + l] = otdat[(n*OUTR+j)*OUTZ+l];
@@ -589,11 +333,12 @@ std::string write_output(EmpCylSL& ortho, int icnt, double time)
       std::ostringstream sout;
       sout << runtag + "_" + outid + "_vslice" + sstr.str();
       vtk.Write(sout.str());
+      file3 = sout.str() + ".vtr";
     }
   } // END: VSLICE
 
-  return retstr;
 }
+
 
 void writePVD(const std::string& filename,
 	      const std::vector<double>& times,
@@ -644,13 +389,81 @@ void writePVD(const std::string& filename,
 }
 
 
+const unsigned int magic_word = 0x5ecede5;
+
+struct CoefElem
+{
+  int m;
+  std::vector<double> cos, sin;
+};
+
+typedef std::vector<std::map<double, CoefElem>> CoefData;
+
+CoefData get_coefficients(const std::string& coefs)
+{
+  CoefData ret;
+
+  // Open coefficient file
+  //
+  std::ifstream in(coefs);
+  if (in.good()) {
+
+    // Check magic number
+    //
+    unsigned int test_magic;
+    in.read((char *)&test_magic, sizeof(unsigned int));
+    if (test_magic != magic_word) {
+      std::cout << "Unexpected data in coefficient file <" << coefs << "> . . . aborting"
+		<< std::endl;
+      exit(-2);
+    }
+
+    // Read rest of file
+    //
+    int MM, numT, nmax, npairs;
+    in.read((char *)&MM,         sizeof(int));
+    in.read((char *)&numT,       sizeof(int));
+    in.read((char *)&nmax,       sizeof(int));
+    in.read((char *)&npairs,     sizeof(int));
+    std::vector<double> times(numT);
+    in.read((char *)&times[0],   sizeof(double)*numT);
+      
+    // Allocate data base
+    //
+    ret.resize(npairs);
+    for (int p=0; p<npairs; p++) {
+      for (auto t : times) {
+	ret[p][t].m = MM;
+	ret[p][t].cos.resize(nmax, 0);
+	ret[p][t].sin.resize(nmax, 0);
+      }
+    }
+
+    for (int p=0; p<npairs; p++) {
+      for (auto t : times) {
+	for (int n=0; n<nmax; n++) {
+	  in.read((char *)&ret[p][t].cos[n], sizeof(double));
+	  in.read((char *)&ret[p][t].sin[n], sizeof(double));
+	}
+      }
+    }
+
+  } else {
+    std::cout << "Could not open coefficient file <" << coefs << "> . . . aborting"
+	      << std::endl;
+    exit(-3);
+  }
+
+  return ret;
+}
+
 int
 main(int argc, char **argv)
 {
-  int nice, cnt, nmax, lmax, mmax, nord;
-  bool HEIGHT, PVD, verbose = false, mask = false;
-  double time, rscale, vscale;
-  std::string CACHEFILE, COEFFILE;
+  int lmax=36, stride=1;
+  double rcylmin, rcylmax, rscale, vscale;
+  bool DENS, verbose = false, mask = false;
+  std::string CACHEFILE;
 
   //
   // Parse Command line
@@ -663,21 +476,6 @@ main(int argc, char **argv)
      "verbose output")
     ("mask,b",
      "blank empty cells")
-    ("nice",
-     po::value<int>(&nice)->default_value(0), 
-     "number of bins in x direction")
-    ("nmax,n",
-     po::value<int>(&nmax)->default_value(10), 
-     "maximum radial order")
-    ("lmax,l",
-     po::value<int>(&lmax)->default_value(36), 
-     "maximum harmonic order")
-    ("mmax,m",
-     po::value<int>(&mmax)->default_value(4), 
-     "maximum azimuthal order")
-    ("norder",
-     po::value<int>(&nord)->default_value(4), 
-     "maximum empirical radial order")
     ("RMAX,R",
      po::value<double>(&RMAX)->default_value(0.1),
      "maximum radius for output")
@@ -690,12 +488,6 @@ main(int argc, char **argv)
     ("outz",
      po::value<int>(&OUTZ)->default_value(40), 
      "number of vertical points for output")
-    ("rscale",
-     po::value<double>(&rscale)->default_value(0.01), 
-     "radial scale length for basis expansion")
-    ("vscale",
-     po::value<double>(&vscale)->default_value(0.001), 
-     "vertical scale length for basis expansion")
     ("surface",
      po::value<bool>(&SURFACE)->default_value(true),
      "make equatorial slices")
@@ -705,28 +497,21 @@ main(int argc, char **argv)
     ("volume",
      po::value<bool>(&VOLUME)->default_value(false),
      "make volume for VTK rendering")
-    ("axihgt",
-     po::value<bool>(&AXIHGT)->default_value(false),
-     "compute midplane height profiles")
-    ("height",
-     po::value<bool>(&HEIGHT)->default_value(false),
-     "compute height profiles")
     ("outfile",
      po::value<std::string>(&outid)->default_value("diskprof2"),
      "Filename prefix")
     ("cachefile",
      po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),
-     "basis cache file name")
+     "cachefile name")
     ("coeffile",
-     po::value<std::string>(&COEFFILE)->default_value("coef.file"),
-     "coefficient name")
-    ("pvd",
-     po::value<bool>(&PVD)->default_value(false),
-     "Compute PVD file for ParaView")
+     po::value<std::string>(&coeffile)->default_value("coef.file"),
+     "cachefile name")
     ("runtag",
      po::value<std::string>(&runtag)->default_value("run1"),
      "runtag for phase space files")
-    ;
+    ("stride,s",
+     po::value<int>(&stride)->default_value(1), 
+     "stride for time output")
     ;
   
   po::variables_map vm;
@@ -761,60 +546,103 @@ main(int argc, char **argv)
   local_init_mpi(argc, argv);
   
   // ==================================================
-  // Nice process
+  // All processes will now compute the basis functions
+  // *****Using MPI****
   // ==================================================
 
-  if (nice>0) setpriority(PRIO_PROCESS, 0, nice);
+  int mmax, numx, numy, nmax, norder, tmp;
+  bool cmap=false, dens=false;
+  double rmin, rmax, ascl, hscl;
 
+  std::ifstream in(CACHEFILE);
+  if (in) {
+    in.read((char *)&mmax,   sizeof(int));
+    in.read((char *)&numx,   sizeof(int));
+    in.read((char *)&numy,   sizeof(int));
+    in.read((char *)&nmax,   sizeof(int));
+    in.read((char *)&norder, sizeof(int));
+    in.read((char *)&tmp,    sizeof(int));    if (tmp) dens = true;
+    in.read((char *)&tmp,    sizeof(int));    if (tmp) cmap = true;
+    in.read((char *)&rmin,   sizeof(double));
+    in.read((char *)&rmax,   sizeof(double));
+    in.read((char *)&ascl,   sizeof(double));
+    in.read((char *)&hscl,   sizeof(double));
+  } else {
+    cerr << "mssaprof: error opening cache file <"
+	 << CACHEFILE << ">" << std::endl;
+    return 0;
+  }
 
-  // Create expansion
-  //
-  EmpCylSL ortho(nmax, lmax, mmax, nord, rscale, vscale);
- 
-  // Read EOF basis from saved file
-  //
-  ortho.read_eof_file(CACHEFILE);
+  EmpCylSL::RMIN        = rmin;
+  EmpCylSL::RMAX        = rmax;
+  EmpCylSL::NUMX        = numx;
+  EmpCylSL::NUMY        = numy;
+  EmpCylSL::CMAP        = cmap;
+  EmpCylSL::logarithmic = true;
+  EmpCylSL::DENS        = dens;
+  EmpCylSL::CACHEFILE   = CACHEFILE;
 
-  // Set coefficients
-  //
-  std::ifstream in(COEFFILE);
-
+				// Create expansion
+				//
+  EmpCylSL ortho(nmax, lmax, mmax, norder, ascl, hscl);
+    
   std::vector<double> times;
-  std::vector<std::string> outfiles;
+
+  // ==================================================
+  // Initialize and/or create basis
+  // ==================================================
   
-  cnt = 0;
+  if (ortho.read_cache()==0) {
+    std::cout << "Must have a valid cache  . . aborting" << std::endl;
+    exit(-4);
+  }
 
-  in >> time;
+  // ==================================================
+  // Read coefficients
+  // ==================================================
 
-  while (in) {
-    times.push_back(time);
+  auto data = get_coefficients(coeffile);
 
-    int M, nmax;
-    in >> M;
-    in >> nmax;
+  for (int indx=0; indx<data.size(); indx++) {
 
-    Vector cos1(0, nmax-1), sin1(0, nmax-1);
-    bool first = true;
+    std::vector<std::string> outfiles1, outfiles2, outfiles3;
+    std::vector<double> T;
+    int count = 0;
 
-    for (int j=0; j<nmax; j++) in >> cos1[j];
-    if (M) {
-      for (int j=0; j<nmax; j++) in >> sin1[j];
+    for (auto u : data[indx]) {
+
+      if (count++ % stride) continue;
+
+      ortho.set_coefs(u.second.m, u.second.cos, u.second.sin, true);
+
+      std::string file1, file2, file3;
+    
+      if (myid==0) cout << "Writing output for indx=" << indx
+			<< ", T=" << u.first << " . . . " << flush;
+      write_output(ortho, indx, T.size(), u.first, file1, file2, file3);
+      MPI_Barrier(MPI_COMM_WORLD);
+      if (myid==0) cout << "done" << endl;
+    
+      if (myid==0) {
+	if (file1.size()) outfiles1.push_back(file1);
+	if (file2.size()) outfiles2.push_back(file2);
+	if (file3.size()) outfiles3.push_back(file3);
+      }
+      
+      T.push_back(u.first);
+    } // Time loop
+    
+    // Create PVD file
+    //
+    if (myid==0) {
+      std::ostringstream prefix;
+	prefix << runtag << "." << indx;
+	if (outfiles1.size()) writePVD(prefix.str()+".volume.pvd",  T, outfiles1);
+	if (outfiles2.size()) writePVD(prefix.str()+".surface.pvd", T, outfiles2);
+	if (outfiles3.size()) writePVD(prefix.str()+".height.pvd",  T, outfiles3);
     }
-
-    ortho.set_coefs(M, cos1, sin1, cnt==0);
-
-    outfiles.push_back(write_output(ortho, cnt, time) + ".vtr");
-
-    cnt++;
-
-    in >> time;
-  }
-
-  // Create PVD file
-  //
-  if (myid==0 and PVD) {
-    writePVD(runtag+".pvd", times, outfiles);
-  }
+    
+  } // PC loop
 
   // Shutdown MPI
   //

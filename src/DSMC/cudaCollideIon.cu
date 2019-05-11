@@ -2192,6 +2192,9 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
       int PP = elem2.C - 1;
       int II = elem2.I;
 	    
+      cuFP_t facS1 = p1->datr[II] / cuda_atomic_weights[Z] / Sum1;
+      cuFP_t facS2 = p2->datr[II] / cuda_atomic_weights[Z] / Sum2;
+
       //--------------------------------------------------
       // Particle 1 interacts with Particle 2
       //--------------------------------------------------
@@ -2204,7 +2207,7 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 	      
 	// Geometric cross sections based on
 	// atomic radius
-	cuFP_t crs = (cudaGeometric(Z) + cudaGeometric(ZZ)) * fac1 * fac2 * cuCrossfac;
+	cuFP_t crs = (cudaGeometric(Z) + cudaGeometric(ZZ)) * fac1 * facS2 * cuCrossfac;
 	      
 	if (crs>0.0) {
 		
@@ -2238,10 +2241,10 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
       if (ZZ==1 and CC==2) {
 	
 	// Particle 1 is neutral hydrogen
-	if (Z==1 and P==0) crs1 = cudaElasticInterp(kEi, cuPH_Emin,  cuPH_H,  xsc_pH,  true) * cuCrossfac * fac1 * fac2;
+	if (Z==1 and P==0) crs1 = cudaElasticInterp(kEi, cuPH_Emin,  cuPH_H,  xsc_pH,  true) * cuCrossfac * fac1 * facS2;
 	
 	// Particle 1 is neutral helium
-	if (Z==2 and P==0) crs1 = cudaElasticInterp(kEi, cuPHe_Emin, cuPHe_H, xsc_pHe, true) * cuCrossfac * fac1 * fac2;
+	if (Z==2 and P==0) crs1 = cudaElasticInterp(kEi, cuPHe_Emin, cuPHe_H, xsc_pHe, true) * cuCrossfac * fac1 * facS2;
       }
 	    
       // Particle 1 is proton
@@ -2249,10 +2252,10 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
       if (Z==1 and C==2) {
 	
 	// Particle 2 is neutral hydrogen
-	if (ZZ==1 and PP==0) crs1 = cudaElasticInterp(kEi, cuPH_Emin,  cuPH_H,  xsc_pH,  true) * cuCrossfac * fac1 * fac2;
+	if (ZZ==1 and PP==0) crs1 = cudaElasticInterp(kEi, cuPH_Emin,  cuPH_H,  xsc_pH,  true) * cuCrossfac * facS1 * fac2;
 
 	// Particle 2 is neutral helium
-	if (ZZ==2 and PP==0) crs1 = cudaElasticInterp(kEi, cuPHe_Emin, cuPHe_H, xsc_pHe, true) * cuCrossfac * fac1 * fac2;
+	if (ZZ==2 and PP==0) crs1 = cudaElasticInterp(kEi, cuPHe_Emin, cuPHe_H, xsc_pHe, true) * cuCrossfac * facS1 * fac2;
       }
 	    
       if (crs1>0.0) {
@@ -4045,10 +4048,11 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 			     &E2[0], &E1[0], totE,
 			     &v2[0], &v1[0], totalDE, state);
 	  
-	  if (false)
-	    printf("part: J=0 v1={%f %f %f} v2={%f %f %f}\n",
-		   u1[0]-v1[0], u1[1]-v1[1], u1[2]-v1[2],
-		   u2[0]-v2[0], u2[1]-v2[1], u2[2]-v2[2]);
+	  if (false) {
+	    printf("part: J=0 u1={%f %f %f} v1={%f %f %f} u2={%f %f %f} v2={%f %f %f} \n",
+		   u1[0], u1[1], u1[2], v1[0], v1[1], v1[2],
+		   u2[0], u2[1], u2[2], v2[0], v2[1], v2[2]);
+	  }
 
 	  // Time-step computation
 	  //
@@ -4099,11 +4103,11 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 			     &E2[0], &E1[0], totE,
 			     &v2[0], &v1[0], totalDE, state);
 	  
-	  if (false)
-	    printf("part: J=1 v1={%f %f %f} v2={%f %f %f}\n",
-		   u1[0]-v1[0], u1[1]-v1[1], u1[2]-v1[2],
-		   u2[0]-v2[0], u2[1]-v2[1], u2[2]-v2[2]);
-	  
+	  if (false) {
+	    printf("part: J=1 u1={%f %f %f} v1={%f %f %f} u2={%f %f %f} v2={%f %f %f} \n",
+		   u1[0], u1[1], u1[2], v1[0], v1[1], v1[2],
+		   u2[0], u2[1], u2[2], v2[0], v2[1], v2[2]);
+	  }
 	  // Time-step computation
 	  //
 	  {
@@ -4157,10 +4161,11 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 			     &E2[0], &E1[0], totE,
 			     &v2[0], &v1[0], totalDE, state);
 	  
-	  if (false)
-	    printf("part: J=2 v1={%f %f %f} v2={%f %f %f}\n",
-		   u1[0]-v1[0], u1[1]-v1[1], u1[2]-v1[2],
-		   u2[0]-v2[0], u2[1]-v2[1], u2[2]-v2[2]);
+	  if (false) {
+	    printf("part: J=2 u1={%f %f %f} v1={%f %f %f} u2={%f %f %f} v2={%f %f %f} \n",
+		   u1[0], u1[1], u1[2], v1[0], v1[1], v1[2],
+		   u2[0], u2[1], u2[2], v2[0], v2[1], v2[2]);
+	  }
 
 	  // Time-step computation
 	  //
