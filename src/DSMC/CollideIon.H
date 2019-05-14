@@ -24,6 +24,9 @@
 #include "StatsMPI.H"
 #include "BN.H"
 
+// For debugging xc species: set XC_DEEP
+//
+
 //
 // Define operator()+ for std::accumulate
 //
@@ -1071,7 +1074,7 @@ protected:
     static bool norm_enforce;
 
     //! Interaction identifier
-    enum pType {ion_ion, ion_electron, electron_ion};
+    enum pType {ion_ion, ion_electron, electron_ion, electron_electron};
 
     Particle *     p1;
     Particle *     p2;

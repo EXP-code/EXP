@@ -982,6 +982,19 @@ void * Collide::collide_thread(void * arg)
   //
   cellTime[id].start();
   
+  // DEEP DEBUG
+  if (true) {
+    unsigned elem = 0, celltot = 0;
+    for (auto v : cellist) {
+      elem++;
+      celltot += v.size();
+    }
+
+    std::cout << "[" << myid << "] cells=" << celltot
+	      << "/" << elem << std::endl;
+  }
+  // END DEBUG
+
   // Loop over cells, processing collisions in each cell
   //
   for (unsigned j=0; j<cellist[id].size(); j++ ) {

@@ -1333,7 +1333,7 @@ void chdata::testCross(int Nenergy)
   thrust::host_vector<cuFP_t> energy_h(Nenergy), randsl_h(Nenergy);
 
   for (auto v : IonList) {
-
+    
     IonPtr I = v.second;
     cuIonElement& E = cuIonElem[k];
 
@@ -1393,6 +1393,8 @@ void chdata::testCross(int Nenergy)
     
     serial.start();
     
+    const bool debug = false;
+
     for (int i=0; i<Nenergy; i++) {
 				// Free-free
       auto retFF = I->freeFreeCrossTest(energy_h[i], randsl_h[i], 0);
@@ -1401,32 +1403,41 @@ void chdata::testCross(int Nenergy)
       if (retFF.second>0.0)
 	eFF_0[i]   = (eFF_h[i] - retFF.second)/retFF.second;
 
+      if (debug and retFF.first>0.0)
+	std::cout << std::setw(12) << "Free free"
+		  << std::setw( 4) << E.Z
+		  << std::setw( 4) << E.C
+		  << std::setw(14) << energy_h[i]
+		  << std::setw(14) << xFF_h[i]
+		  << std::setw(14) << retFF.first
+		  << std::endl;
+
 				// Collisional excitation
       auto retCE = I->collExciteCross(energy_h[i], 0).back();
       if (retCE.first>0.0) {
 	xCE_0[i]   = (xCE_h[i] - retCE.first )/retCE.first;
-	/*
-	std::cout << std::setw( 4) << cuZ[k]
-		  << std::setw( 4) << cuC[k]
-		  << std::setw(14) << energy_h[i]
-		  << std::setw(14) << xCE_h[i]
-		  << std::setw(14) << retCE.first
-		  << std::endl;
-	*/
+	if (debug)
+	  std::cout << std::setw(12) << "Excite"
+		    << std::setw( 4) << E.Z
+		    << std::setw( 4) << E.C
+		    << std::setw(14) << energy_h[i]
+		    << std::setw(14) << xCE_h[i]
+		    << std::setw(14) << retCE.first
+		    << std::endl;
       }
 				// Collisional ionization
 
       auto retCI = I->directIonCross(energy_h[i], 0);
       if (retCI>0.0) {
 	xCI_0[i]   = (xCI_h[i] - retCI)/retCI;
-	/*
-	std::cout << std::setw( 4) << cuZ[k]
-		  << std::setw( 4) << cuC[k]
-		  << std::setw(14) << energy_h[i]
-		  << std::setw(14) << xCI_h[i]
-		  << std::setw(14) << retCI
-		  << std::endl;
-	*/
+	if (debug)
+	  std::cout << std::setw(12) << "Ionize"
+		    << std::setw( 4) << E.Z
+		    << std::setw( 4) << E.C
+		    << std::setw(14) << energy_h[i]
+		    << std::setw(14) << xCI_h[i]
+		    << std::setw(14) << retCI
+		    << std::endl;
       }
 
 				// Radiative recombination
@@ -1434,14 +1445,14 @@ void chdata::testCross(int Nenergy)
       auto retRC = I->radRecombCross(energy_h[i], 0).back();
       if (retRC>0.0) {
 	xRC_0[i]   = (xRC_h[i] - retRC)/retRC;
-	/*
-	std::cout << std::setw( 4) << cuZ[k]
-		  << std::setw( 4) << cuC[k]
-		  << std::setw(14) << energy_h[i]
-		  << std::setw(14) << xRC_h[i]
-		  << std::setw(14) << retRC
-		  << std::endl;
-	*/
+	if (debug)
+	  std::cout << std::setw(12) << "Rad recomb"
+		    << std::setw( 4) << E.Z
+		    << std::setw( 4) << E.C
+		    << std::setw(14) << energy_h[i]
+		    << std::setw(14) << xRC_h[i]
+		    << std::setw(14) << retRC
+		    << std::endl;
       }
 
       /*
@@ -1467,6 +1478,24 @@ void chdata::testCross(int Nenergy)
     std::vector<double> quantiles = {0.01, 0.05, 0.1, 0.2, 0.5, 0.8, 0.9, 0.95, 0.99};
 
     std::cout << "Ion (" << I->Z << ", " << I->C << ")" << std::endl;
+
+    std::cout << std::setw(10) << "Quantile"
+	      << " | " << std::setw(14) << "ff xc"
+	      << " | " << std::setw(14) << "ff ph"
+	      << " | " << std::setw(14) << "CE xc"
+	      << " | " << std::setw(14) << "CE ph"
+	      << " | " << std::setw(14) << "CI_xc"
+	      << " | " << std::setw(14) << "RC_xc"
+	      << std::endl << std::setfill('-')
+	      <<          std::setw(10) << '-'
+	      << " + " << std::setw(14) << '-'
+	      << " + " << std::setw(14) << '-'
+	      << " + " << std::setw(14) << '-'
+	      << " + " << std::setw(14) << '-'
+	      << " + " << std::setw(14) << '-'
+	      << " + " << std::setw(14) << '-'
+	      << std::endl << std::setfill(' ');
+
     for (auto v : quantiles) {
       int indx = std::min<int>(std::floor(v*Nenergy+0.5), Nenergy-1);
       double FF_xc = 0.0, FF_ph = 0.0, CE_xc = 0.0, CE_ph = 0.0;
