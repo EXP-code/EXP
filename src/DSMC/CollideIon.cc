@@ -5156,12 +5156,6 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  crs = 0.0;
 	  if (PiProb[id][1]>0.0)
 	    crs = 2.0 * ABrate[id][1] * afac*afac * gVel2 / PiProb[id][1];
-
-	  if (false) {
-	    std::cout << "kEc1=" << kEc
-		      << " crs1=" << crs
-		      << std::endl;
-	  }
 	}
 	
 	if (crs>0.0 and not std::isnan(crs)) {
@@ -5190,12 +5184,6 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  crs = 0.0;
 	  if (PiProb[id][2]>0.0)
 	    crs = 2.0 * ABrate[id][2] * afac*afac * gVel1 / PiProb[id][2];
-
-	  if (false) {
-	    std::cout << "kEc2=" << kEc
-		      << " crs2=" << crs
-		      << std::endl;
-	  }
 	}
 	
 	if (crs>0.0 and not std::isnan(crs)) {
@@ -5591,26 +5579,6 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
   for (auto & v : CProb[id]) {
     v *= crs_units;
     totalXS += v;
-  }
-
-  if (false) {
-    double x[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-    for (auto X : hCross[id]) {
-      if (get<0>(X.t) == neut_neut) x[0] += X.crs; 
-      else if (get<0>(X.t) == neut_elec) x[1] += X.crs; 
-      else if (get<0>(X.t) == neut_prot) x[2] += X.crs; 
-      else if (get<0>(X.t) == ion_ion  ) x[3] += X.crs; 
-      else if (get<0>(X.t) == ion_elec ) x[4] += X.crs; 
-      else                               x[5] += X.crs;
-    }
-    std::cout << "nn="  << x[0]
-	      << " ne=" << x[1]
-	      << " np=" << x[2]
-	      << " ii=" << x[3]
-	      << " ie=" << x[4]
-	      << " ot=" << x[5]
-	      << " tt=" << totalXS/crs_units
-	      << std::endl;
   }
 
   return totalXS;
@@ -11124,12 +11092,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     }
   }
 
-  if (false) {
-    std::cout << "XS1=" << totalXS
-	      << " XS2=" << 0.0
-	      << std::endl;
-  }
-
   // Randomize interaction order to prevent bias
   //
   std::random_shuffle(order.begin(), order.end());
@@ -11237,6 +11199,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       //
       double N0 = PP[cid]->W2 * TreeDSMC::Munit / amu;
 
+      std::cout << "debug N0: " << N0 << std::endl;
+
       // Temporary debugging
       //
       if (scatter_check) {
@@ -11305,12 +11269,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  PE[1][0] += Prob;
 	}
 
-	if (false) {
-	  std::cout << "Prob=" << Prob
-		    << " ke1=" << kEe1[id]
-		    << " ke2=" << kEe2[id]
-		    << std::endl;
-	}
       }
       
       // Upscale inelastic cross sections by ratio of cross-section
@@ -18282,10 +18240,8 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   //
   unsigned num = static_cast<unsigned>(c->bods.size());
   
-  //
   // Cross-section debugging [BEGIN]
   //
-
   if (CROSS_DBG && id==0) {
     if (nextTime_dbg <= tnow && nCnt_dbg < nCel_dbg) {
       speciesKey i = c->count.begin()->first;

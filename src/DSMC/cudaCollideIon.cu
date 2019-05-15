@@ -3727,6 +3727,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	//
 	cuFP_t N0 = N1 > N2 ? N2 : N1;
 	
+	printf("debug N0: %e\n", N0);
+
 	// Select the maximum probability channel
 	//
 	if (Prob > maxP) {
