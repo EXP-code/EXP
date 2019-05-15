@@ -3652,7 +3652,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       struct Itype
       {
 	unsigned char Z1, Z2, C1, C2, P1, P2, I1, I2;
-	cuFP_t W1, W2, N1, N2;
       } IT;
 	
 				// G will be one beyond last good
@@ -3720,21 +3719,13 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	//
 	cuFP_t dE = 0.0;
 	
-	// Compute weights and number interacting atoms (255 is
-	// electron)
-	//
-	if (IT.I1<255) IT.W1 = p1->datr[IT.I1] / cuda_atomic_weights[IT.Z1];
-	else           IT.W1 = Eta1;
 	
-	if (IT.I2<255) IT.W2 = p2->datr[IT.I2] / cuda_atomic_weights[IT.Z2];
-	else           IT.W2 = Eta2;
-	
-	IT.N1 = p1->mass * IT.W1 * cuMunit / cuAmu;
-	IT.N2 = p2->mass * IT.W2 * cuMunit / cuAmu;
+	cuFP_t N1 = p1->mass * cuMunit / cuAmu;
+	cuFP_t N2 = p2->mass * cuMunit / cuAmu;
 	
 	// Number of particles in active partition
 	//
-	cuFP_t N0 = IT.N1 > IT.N2 ? IT.N2 : IT.N1;
+	cuFP_t N0 = N1 > N2 ? N2 : N1;
 	
 	// Select the maximum probability channel
 	//
@@ -3839,7 +3830,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  
 	  if (IT.I1<255) {	// Ion is p1
 	    
-	    cuFP_t WW = Prob / cuda_atomic_weights[IT.Z1];
+	    cuFP_t WW = Prob * cuda_atomic_weights[IT.Z1];
 	  
 	    if (IT.I1>Nsp-2) {
 	      printf("Crazy ionize I1=%d\n", IT.I1);
@@ -3879,7 +3870,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  } // END: ion-electron
 	  else {		// Ion is p2
 	    
-	    cuFP_t WW = Prob / cuda_atomic_weights[IT.Z2];
+	    cuFP_t WW = Prob * cuda_atomic_weights[IT.Z2];
 
 	    if (IT.I2 > Nsp-2) {
 	      printf("Crazy ionize I2=%d\n", IT.I2);
@@ -3926,7 +3917,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  
 	  if (IT.I1<255) {		// Ion is p1
 	    
-	    cuFP_t WW = Prob / cuda_atomic_weights[IT.Z1];
+	    cuFP_t WW = Prob * cuda_atomic_weights[IT.Z1];
 
 	    if (IT.C1<=1 or IT.I2!=255) {
 	      int K = cid*numxc + J;
@@ -3985,7 +3976,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  } // END: ion-electron
 	  else if (IT.I2<255) {		// Ion is p2
 	    
-	    cuFP_t WW = Prob / cuda_atomic_weights[IT.Z2];
+	    cuFP_t WW = Prob * cuda_atomic_weights[IT.Z2];
 	    
 	    if (IT.C2<=1 or IT.I1!=255) {
 	      int K = cid*numxc + J;
