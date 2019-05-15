@@ -11199,6 +11199,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       //
       double N0 = PP[cid]->W2 * TreeDSMC::Munit / amu;
 
+      std::cout << "debug N0: " << N0 << std::endl;
+
       // Temporary debugging
       //
       if (scatter_check) {
