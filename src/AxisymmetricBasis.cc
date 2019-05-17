@@ -496,7 +496,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
     }
   }
 
-  if (pcavar) {
+  if (pcavar and tk_type != None) {
 
     for (int l=L0, loffset=0, loffC=0; l<=Lmax; loffset+=(2*l+1), loffC+=(l+1), l++) {
     
@@ -521,8 +521,8 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	
 	inv = evec[indxC] * smth;
 	for (int n=1; n<=nmax; n++) {
-	  if (tk_type != None) expcoef[indx][n]  = inv[n];
 	  if (tk_type == Hall) expcoef[indx][n] *= b_Hall[indxC][n];
+	  else                 expcoef[indx][n]  = inv[n];
 	}
   
 	moffset++;
@@ -539,8 +539,8 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	  
 	  inv = evec[indxC] * smth;
 	  for (int n=1; n<=nmax; n++) {
-	    if (tk_type != None) expcoef[indx+1][n]  = inv[n];
 	    if (tk_type == Hall) expcoef[indx+1][n] *= b_Hall[indxC][n];
+	    else                 expcoef[indx+1][n]  = inv[n];
 	  }
 	  
 	  moffset++;

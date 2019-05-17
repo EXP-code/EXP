@@ -3065,7 +3065,7 @@ void EmpCylSL::pca_hall(bool compute)
 #endif
   }
     
-  if (PCAVAR) {
+  if (PCAVAR and tk_type != None) {
 
     if (pb==0) return;
 
