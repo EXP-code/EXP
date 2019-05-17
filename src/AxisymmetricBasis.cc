@@ -22,19 +22,19 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
   string val;
 
   try {
-    if (conf["Lmax"])     Lmax       = conf["Lmax"].as<int>();
-    if (conf["nmax"])     nmax       = conf["nmax"].as<int>();
-    if (conf["dof"])      dof        = conf["dof"].as<int>();
-    if (conf["npca"])     npca       = conf["npca"].as<int>();
-    if (conf["npca0"])    npca0      = conf["npca0"].as<int>();
-    if (conf["pcavar"])   pcavar     = conf["pcavar"].as<bool>();
-    if (conf["pcaeof"])   pcaeof     = conf["pcaeof"].as<bool>();
-    if (conf["pcadiag"])  pcadiag    = conf["pcadiag"].as<bool>();
-    if (conf["pcavtk"])   pcavtk     = conf["pcavtk"].as<bool>();
-    if (conf["vtkfreq"])  vtkfreq    = conf["vtkfreq"].as<int>();
-    if (conf["tksmooth"]) tksmooth   = conf["tksmooth"].as<double>();
-    if (conf["tkcum"])    tkcum      = conf["tkcum"].as<double>();
-    if (conf["tk_type"])  tk_type    = setTK(conf["tk_type"].as<std::string>());
+    if (conf["Lmax"])      Lmax       = conf["Lmax"].as<int>();
+    if (conf["nmax"])      nmax       = conf["nmax"].as<int>();
+    if (conf["dof"])       dof        = conf["dof"].as<int>();
+    if (conf["npca"])      npca       = conf["npca"].as<int>();
+    if (conf["npca0"])     npca0      = conf["npca0"].as<int>();
+    if (conf["pcavar"])    pcavar     = conf["pcavar"].as<bool>();
+    if (conf["pcaeof"])    pcaeof     = conf["pcaeof"].as<bool>();
+    if (conf["pcadiag"])   pcadiag    = conf["pcadiag"].as<bool>();
+    if (conf["pcavtk"])    pcavtk     = conf["pcavtk"].as<bool>();
+    if (conf["vtkfreq"])   vtkfreq    = conf["vtkfreq"].as<int>();
+    if (conf["tksmooth"])  tksmooth   = conf["tksmooth"].as<double>();
+    if (conf["tkcum"])     tkcum      = conf["tkcum"].as<double>();
+    if (conf["tk_type"])   tk_type    = setTK(conf["tk_type"].as<std::string>());
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in AxisymmetricBasis: "
