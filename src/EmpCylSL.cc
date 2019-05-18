@@ -2366,10 +2366,10 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
   
   unsigned whch;
   if (compute and PCAVAR) {
-    pthread_mutex_lock(&used_lock);
-    pthread_mutex_unlock(&used_lock);
     whch = seq % sampT;
+    pthread_mutex_lock(&used_lock);
     massT1[id][whch] += mass;
+    pthread_mutex_unlock(&used_lock);
   }
 
   get_pot(vc[id], vs[id], r, z);
@@ -3038,8 +3038,7 @@ void EmpCylSL::pca_hall(bool compute)
 #ifndef STANDALONE
     if (vtkpca) {
       std::ostringstream sout;
-      sout << hallfile << "_pca_"
-	   << std::setfill('0') << std::setw(5) << ocount++;
+      sout << hallfile << std::setfill('0') << std::setw(5) << ocount++;
       vtkpca->Write(sout.str());
     }
 #endif

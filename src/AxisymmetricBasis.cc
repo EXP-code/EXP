@@ -194,7 +194,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 
     if (pcavtk and myid==0) {
 
-      if (ocount==0) {		// Look for restart position.  This is
+      if (ocount==0) {	      // Look for restart position.  This is
 	while (1) {	      // time consuming but is only done once.
 	  std::ostringstream fileN;
 	  fileN << runtag << "_pca_" << cC->id << "_" << cC->name
@@ -485,15 +485,17 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	  }
 	}
 
-	if (vtkpca) {
-	  std::ostringstream sout;
-	  
-	  sout << runtag << "_pca_" << cC->id << "_" << cC->name
-	       << "_" << std::setfill('0') << std::setw(5) << ocount++;
-	  vtkpca->Write(sout.str());
-	}
       }
     }
+
+    if (vtkpca) {
+      std::ostringstream sout;
+      
+      sout << runtag << ".pcadiag." << cC->id << "." << cC->name
+	   << "_" << std::setfill('0') << std::setw(5) << ocount++;
+      vtkpca->Write(sout.str());
+    }
+
   }
 
   if (pcavar and tk_type != None) {
