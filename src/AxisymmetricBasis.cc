@@ -22,19 +22,19 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
   string val;
 
   try {
-    if (conf["Lmax"])     Lmax       = conf["Lmax"].as<int>();
-    if (conf["nmax"])     nmax       = conf["nmax"].as<int>();
-    if (conf["dof"])      dof        = conf["dof"].as<int>();
-    if (conf["npca"])     npca       = conf["npca"].as<int>();
-    if (conf["npca0"])    npca0      = conf["npca0"].as<int>();
-    if (conf["pcavar"])   pcavar     = conf["pcavar"].as<bool>();
-    if (conf["pcaeof"])   pcaeof     = conf["pcaeof"].as<bool>();
-    if (conf["pcadiag"])  pcadiag    = conf["pcadiag"].as<bool>();
-    if (conf["pcavtk"])   pcavtk     = conf["pcavtk"].as<bool>();
-    if (conf["vtkfreq"])  vtkfreq    = conf["vtkfreq"].as<int>();
-    if (conf["tksmooth"]) tksmooth   = conf["tksmooth"].as<double>();
-    if (conf["tkcum"])    tkcum      = conf["tkcum"].as<double>();
-    if (conf["tk_type"])  tk_type    = setTK(conf["tk_type"].as<std::string>());
+    if (conf["Lmax"])      Lmax       = conf["Lmax"].as<int>();
+    if (conf["nmax"])      nmax       = conf["nmax"].as<int>();
+    if (conf["dof"])       dof        = conf["dof"].as<int>();
+    if (conf["npca"])      npca       = conf["npca"].as<int>();
+    if (conf["npca0"])     npca0      = conf["npca0"].as<int>();
+    if (conf["pcavar"])    pcavar     = conf["pcavar"].as<bool>();
+    if (conf["pcaeof"])    pcaeof     = conf["pcaeof"].as<bool>();
+    if (conf["pcadiag"])   pcadiag    = conf["pcadiag"].as<bool>();
+    if (conf["pcavtk"])    pcavtk     = conf["pcavtk"].as<bool>();
+    if (conf["vtkfreq"])   vtkfreq    = conf["vtkfreq"].as<int>();
+    if (conf["tksmooth"])  tksmooth   = conf["tksmooth"].as<double>();
+    if (conf["tkcum"])     tkcum      = conf["tkcum"].as<double>();
+    if (conf["tk_type"])   tk_type    = setTK(conf["tk_type"].as<std::string>());
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in AxisymmetricBasis: "
@@ -194,7 +194,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 
     if (pcavtk and myid==0) {
 
-      if (ocount==0) {		// Look for restart position.  This is
+      if (ocount==0) {	      // Look for restart position.  This is
 	while (1) {	      // time consuming but is only done once.
 	  std::ostringstream fileN;
 	  fileN << runtag << "_pca_" << cC->id << "_" << cC->name
@@ -485,18 +485,20 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	  }
 	}
 
-	if (vtkpca) {
-	  std::ostringstream sout;
-	  
-	  sout << runtag << "_pca_" << cC->id << "_" << cC->name
-	       << "_" << std::setfill('0') << std::setw(5) << ocount++;
-	  vtkpca->Write(sout.str());
-	}
       }
     }
+
+    if (vtkpca) {
+      std::ostringstream sout;
+      
+      sout << runtag << ".pcadiag." << cC->id << "." << cC->name
+	   << "_" << std::setfill('0') << std::setw(5) << ocount++;
+      vtkpca->Write(sout.str());
+    }
+
   }
 
-  if (pcavar) {
+  if (pcavar and tk_type != None) {
 
     for (int l=L0, loffset=0, loffC=0; l<=Lmax; loffset+=(2*l+1), loffC+=(l+1), l++) {
     
@@ -521,8 +523,8 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	
 	inv = evec[indxC] * smth;
 	for (int n=1; n<=nmax; n++) {
-	  if (tk_type != None) expcoef[indx][n]  = inv[n];
 	  if (tk_type == Hall) expcoef[indx][n] *= b_Hall[indxC][n];
+	  else                 expcoef[indx][n]  = inv[n];
 	}
   
 	moffset++;
@@ -539,8 +541,8 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	  
 	  inv = evec[indxC] * smth;
 	  for (int n=1; n<=nmax; n++) {
-	    if (tk_type != None) expcoef[indx+1][n]  = inv[n];
 	    if (tk_type == Hall) expcoef[indx+1][n] *= b_Hall[indxC][n];
+	    else                 expcoef[indx+1][n]  = inv[n];
 	  }
 	  
 	  moffset++;
