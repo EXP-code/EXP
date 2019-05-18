@@ -2745,7 +2745,7 @@ void EmpCylSL::pca_hall(bool compute)
       if (ocount==0) {	       // Look for restart position; this is
 	while (1) {	       // time consuming but is only done once.
 	  std::ostringstream fileN;
-	  fileN << hallfile << "_pca_"
+	  fileN << hallfile << "_"
 		<< std::setfill('0') << std::setw(5) << ocount << ".vtr";
 	  std::cout << "File: " << fileN.str() << std::endl;
 	  std::ifstream infile(fileN.str());
@@ -3038,7 +3038,7 @@ void EmpCylSL::pca_hall(bool compute)
 #ifndef STANDALONE
     if (vtkpca) {
       std::ostringstream sout;
-      sout << hallfile << std::setfill('0') << std::setw(5) << ocount++;
+      sout << hallfile << "_" << std::setfill('0') << std::setw(5) << ocount++;
       vtkpca->Write(sout.str());
     }
 #endif
