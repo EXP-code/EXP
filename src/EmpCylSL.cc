@@ -2366,10 +2366,10 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
   
   unsigned whch;
   if (compute and PCAVAR) {
-    pthread_mutex_lock(&used_lock);
-    pthread_mutex_unlock(&used_lock);
     whch = seq % sampT;
+    pthread_mutex_lock(&used_lock);
     massT1[id][whch] += mass;
+    pthread_mutex_unlock(&used_lock);
   }
 
   get_pot(vc[id], vs[id], r, z);
@@ -2745,7 +2745,7 @@ void EmpCylSL::pca_hall(bool compute)
       if (ocount==0) {	       // Look for restart position; this is
 	while (1) {	       // time consuming but is only done once.
 	  std::ostringstream fileN;
-	  fileN << hallfile << "_pca_"
+	  fileN << hallfile << "_"
 		<< std::setfill('0') << std::setw(5) << ocount << ".vtr";
 	  std::cout << "File: " << fileN.str() << std::endl;
 	  std::ifstream infile(fileN.str());
@@ -3038,8 +3038,7 @@ void EmpCylSL::pca_hall(bool compute)
 #ifndef STANDALONE
     if (vtkpca) {
       std::ostringstream sout;
-      sout << hallfile << "_pca_"
-	   << std::setfill('0') << std::setw(5) << ocount++;
+      sout << hallfile << "_" << std::setfill('0') << std::setw(5) << ocount++;
       vtkpca->Write(sout.str());
     }
 #endif
