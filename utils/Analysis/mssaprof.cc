@@ -460,14 +460,20 @@ CoefData get_coefficients(const std::string& coefs)
 int
 main(int argc, char **argv)
 {
+  //--------------------------------------------------
+  // Command-line parsing
+  //--------------------------------------------------
+  std::string cmd_line;
+  for (int i=0; i<argc; i++) {
+    cmd_line += argv[i];
+    cmd_line += " ";
+  }
+
   int lmax=36, stride=1;
   double rcylmin, rcylmax, rscale, vscale;
   bool DENS, verbose = false, mask = false;
   std::string CACHEFILE;
 
-  //
-  // Parse Command line
-  //
   po::options_description desc("Allowed options");
   desc.add_options()
     ("help,h",
@@ -476,6 +482,8 @@ main(int argc, char **argv)
      "verbose output")
     ("mask,b",
      "blank empty cells")
+    ("noCommand,X",
+     "do not save command line")
     ("RMAX,R",
      po::value<double>(&RMAX)->default_value(0.1),
      "maximum radius for output")
@@ -497,16 +505,16 @@ main(int argc, char **argv)
     ("volume",
      po::value<bool>(&VOLUME)->default_value(false),
      "make volume for VTK rendering")
-    ("outfile",
-     po::value<std::string>(&outid)->default_value("diskprof2"),
-     "Filename prefix")
+    ("outid,o",
+     po::value<std::string>(&outid)->default_value("mssaprof"),
+     "Analysis id name")
     ("cachefile",
      po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),
      "cachefile name")
     ("coeffile",
      po::value<std::string>(&coeffile)->default_value("coef.file"),
      "cachefile name")
-    ("runtag",
+    ("runtag,r",
      po::value<std::string>(&runtag)->default_value("run1"),
      "runtag for phase space files")
     ("stride,s",
@@ -533,6 +541,19 @@ main(int argc, char **argv)
   if (vm.count("verbose")) verbose = true;
 
   if (vm.count("mask")) mask = true;
+
+  if (vm.count("noCommand")==0) {
+    std::string cmdFile = "mssaprof." + outid + ".cmd_line";
+    std::ofstream cmd(cmdFile.c_str());
+    if (!cmd) {
+      std::cerr << "mssaprof: error opening <" << cmdFile
+		<< "> for writing" << std::endl;
+    } else {
+      cmd << cmd_line << std::endl;
+    }
+    
+    cmd.close();
+  }
 
 
 #ifdef DEBUG
