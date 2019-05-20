@@ -39,6 +39,9 @@ void cuSwapP(T * x, T * y)
 __constant__ cuFP_t cuH_H, cuHe_H, cuPH_H, cuPHe_H;
 __constant__ cuFP_t cuH_Emin, cuHe_Emin, cuPH_Emin, cuPHe_Emin;
 
+// Charged particle type
+enum cudaElasticType { electron, proton };
+
 // Atomic radii in picometers from Clementi, E.; Raimond, D. L.;
 // Reinhardt, W. P. (1967). "Atomic Screening Constants from SCF
 // Functions. II. Atoms with 37 to 86 Electrons". Journal of Chemical
@@ -528,38 +531,64 @@ cuFP_t cudaGeometric(int Z)
 }
 		 
 __device__
-cuFP_t cudaElasticInterp(cuFP_t E, cuFP_t Emin, cuFP_t H,
-			 dArray<cuFP_t> xsc,
-			 bool logval = false, bool pin = true)
+cuFP_t cudaElasticInterp(cuFP_t E, dArray<cuFP_t> xsc, int Z,
+			 cudaElasticType etype = electron, bool pin = true)
 {
   // Bohr cross section (pi*a_0^2) in nm
   const cuFP_t b_cross = 0.00879735542978;
 
-  // Using log values . . . 
-  if (logval) E = log10(E);
+  cuFP_t Emin, H;
+  bool logV = false;
+  int N = xsc._s;
 
-  int indx = 0;
-  if (E >= Emin+H*(xsc._s-1)) indx = xsc._s - 2;
-  else if (E <  Emin)         indx = 0;
-  else                        indx = floor( (E - Emin)/H );
+  if (Z==1) {
+    if (etype == electron) {
+      H    = cuH_H;
+      Emin = cuH_Emin;
+    } else {
+      H    = cuPH_H;
+      Emin = cuPH_Emin;
+      E    = log10(E);
+      logV = true;
+    }
+  }
+  else if (Z==2)
+    if (etype == electron) {
+      H    = cuHe_H;
+      Emin = cuHe_Emin;
+    } else {
+      H    = cuPHe_H;
+      Emin = cuPHe_Emin;
+      E    = log10(E);
+      logV = true;
+    }
+  else {
+    return 0.0;
+  }
 
-  cuFP_t a = (E - Emin - H*(indx+0))/H;
-  cuFP_t b = (Emin + H*(indx+1) - E)/H;
+  cuFP_t Emax = Emin + N*H, val = 0.0;
 
   // Enforce return value to grid boundaries for off-grid ordinates.
   // Otherwise, values will be extrapolated.
-  if (pin) {
-    if (a < 0.0) return xsc._v[0];
-    if (b < 0.0) return xsc._v[xsc._s-1];
+  if (pin and E <= Emin)      val = xsc._v[0];
+  else if (pin and E >= Emax) val = xsc._v[N-1];
+  else {
+
+    int indx = 0;
+    if (E >= Emax)      indx = xsc._s - 2;
+    else if (E <= Emin) indx = 0;
+    else                indx = floor( (E - Emin)/H );
+    
+    cuFP_t a = (E - Emin - H*(indx+0))/H;
+    cuFP_t b = (Emin + H*(indx+1) - E)/H;
+    
+    val = a*xsc._v[indx] + b*xsc._v[indx+1];
   }
 
-  cuFP_t val = a*xsc._v[indx] + b*xsc._v[indx+1];
-
-  if (logval) val = pow(10.0, val);
+  if (logV) val = pow(10.0, val);
   
   return b_cross * val;
 }
-
 
 // Global symbols for coordinate transformation
 //
@@ -1972,8 +2001,6 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 			 dArray<cuFP_t>         delph,  // Inelastic energy change for each interaction
 			 dArray<unsigned char>  xspcs,  // Ionization state for each interaction
 			 dArray<cudaInterTypes> xtype,  // Interaction type for each interaction
-			 dArray<cuFP_t>         Ivel2,
-			 dArray<cuFP_t>         Evel2,
 			 dArray<cuFP_t>         xsc_H,
 			 dArray<cuFP_t>         xsc_He,
 			 dArray<cuFP_t>         xsc_pH,
@@ -2050,15 +2077,8 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
   Mu1 = 1.0/Sum1;
   Mu2 = 1.0/Sum2;
 	
-  // Number of atoms in each super particle
+  // Velocity and KE quantities
   //
-  // cuFP_t N1 = p1->mass*cuMunit/(Mu1*cuAmu);
-  // cuFP_t N2 = p2->mass*cuMunit/(Mu2*cuAmu);
-  // ^
-  // |
-  // +--- Not used in this implementation; originally for internal energy tracking
-  //
-	
   cuFP_t vel   = 0.0;
   cuFP_t eVel0 = 0.0, eVel1 = 0.0, eVel2 = 0.0;
   cuFP_t gVel0 = 0.0, gVel1 = 0.0, gVel2 = 0.0;
@@ -2138,29 +2158,9 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
   // Available COM energy
 
   cuFP_t kEi  = 0.5  * mu0 * vel * vel / cuEV;
-  
-  cuFP_t facE = 0.5  * cuAmu * cuVunit * cuVunit / cuEV;
-  
-  cuFP_t Eion = facE * Ivel2._v[C] * 0.5*(Mu1 + Mu2);
-  cuFP_t Eelc = facE * Evel2._v[C] * cuda_atomic_weights[0];
-  
   cuFP_t kEe1 = 0.5  * mu1 * eVel2*eVel2 * vel*vel / cuEV;
   cuFP_t kEe2 = 0.5  * mu2 * eVel1*eVel1 * vel*vel / cuEV;
 	
-  if (false) {
-    cuFP_t fac = 0.5 * cuVunit * cuVunit / cuEV;
-    iKE1 *= m1 * fac;
-    iKE2 *= m1 * fac;
-    eKE1 *= me * fac * Eta1;
-    eKE2 *= me * fac * Eta2;
-
-    printf("iKE1=%e iKE2=%e eKE1=%e eKE2=%e Eion=%e Eelc=%e\n", iKE1, iKE2, eKE1, eKE2, Eion, Eelc);
-  }
-
-  if (false) {
-    printf("Eion=%e Eelc=%e eVel1=%e eVel2=%e gVel1=%e gVel2=%e ke1=%e ke2=%e\n", Eion, Eelc, eVel1, eVel2, gVel1, gVel2, kEe1, kEe2);
-  }
-
   // Loop through all possible ion states
   //
   for (int k1=0; k1<Nsp; k1++) {
@@ -2204,7 +2204,9 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 	cuFP_t crs = (cudaGeometric(Z) + cudaGeometric(ZZ)) * fac1 * facS2 * cuCrossfac;
 	      
 	if (crs>0.0) {
-		
+#ifdef XC_DEEP
+	  printf("xsc: (Z, P)=(%d, %d) xnn=%e\n", Z, P, crs);
+#endif
 	  // Double counting
 	  if (Z == ZZ) crs *= 0.5;
 		
@@ -2235,10 +2237,10 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
       if (ZZ==1 and CC==2) {
 	
 	// Particle 1 is neutral hydrogen
-	if (Z==1 and P==0) crs1 = cudaElasticInterp(kEi, cuPH_Emin,  cuPH_H,  xsc_pH,  true) * cuCrossfac * fac1 * facS2;
+	if (Z==1 and P==0) crs1 = cudaElasticInterp(kEi, xsc_pH, Z, proton) * cuCrossfac * fac1 * facS2;
 	
 	// Particle 1 is neutral helium
-	if (Z==2 and P==0) crs1 = cudaElasticInterp(kEi, cuPHe_Emin, cuPHe_H, xsc_pHe, true) * cuCrossfac * fac1 * facS2;
+	if (Z==2 and P==0) crs1 = cudaElasticInterp(kEi, xsc_pHe, Z, proton) * cuCrossfac * fac1 * facS2;
       }
 	    
       // Particle 1 is proton
@@ -2246,13 +2248,18 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
       if (Z==1 and C==2) {
 	
 	// Particle 2 is neutral hydrogen
-	if (ZZ==1 and PP==0) crs1 = cudaElasticInterp(kEi, cuPH_Emin,  cuPH_H,  xsc_pH,  true) * cuCrossfac * facS1 * fac2;
+	if (ZZ==1 and PP==0) crs1 = cudaElasticInterp(kEi, xsc_pH, Z, proton) * cuCrossfac * facS1 * fac2;
 
 	// Particle 2 is neutral helium
-	if (ZZ==2 and PP==0) crs1 = cudaElasticInterp(kEi, cuPHe_Emin, cuPHe_H, xsc_pHe, true) * cuCrossfac * facS1 * fac2;
+	if (ZZ==2 and PP==0) crs1 = cudaElasticInterp(kEi, xsc_pHe, Z, proton) * cuCrossfac * facS1 * fac2;
       }
 	    
       if (crs1>0.0) {
+#ifdef XC_DEEP
+	printf("xsc: kEi=%e (Z, P)=(%d, %d) xnp=%e\n",
+	       kEi, Z, C, crs1);
+#endif
+
 	cross._v[K]   = crs1;
 	xspcs._v[L+0] = Z;
 	xspcs._v[L+1] = C;
@@ -2280,12 +2287,16 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 	    
       // Hydrogen
       //
-      if (Z==1) crs = cudaElasticInterp(kEe1, cuH_Emin, cuH_H, xsc_H) * gVel2 * Eta2 * cuCrossfac * fac1;
+      if (Z==1) crs = cudaElasticInterp(kEe1, xsc_H, Z, electron) * gVel2 * Eta2 * cuCrossfac * fac1;
       // Helium
       //
-      if (Z==2) crs = cudaElasticInterp(kEe1, cuHe_Emin, cuHe_H, xsc_He) * gVel2 * Eta2 * cuCrossfac * fac1;
+      if (Z==2) crs = cudaElasticInterp(kEe1, xsc_He, Z, electron) * gVel2 * Eta2 * cuCrossfac * fac1;
       
       if (crs>0.0) {
+#ifdef XC_DEEP
+	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xne=%e fac=%e\n",
+	       kEe1, Z, C, gVel2, Eta2, crs, fac1);
+#endif
 	cross._v[K]   = crs;
 	xspcs._v[L+0] = Z;
 	xspcs._v[L+1] = C;
@@ -2308,13 +2319,18 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 	    
       // Hydrogen
       //
-      if (Z==1) crs = cudaElasticInterp(kEe2, cuH_Emin, cuH_H, xsc_H) * gVel1 * Eta1 * cuCrossfac * fac2;
+      if (Z==1) crs = cudaElasticInterp(kEe2, xsc_H, Z, electron) * gVel1 * Eta1 * cuCrossfac * fac2;
       
       // Helium
       //
-      if (Z==2) crs = cudaElasticInterp(kEe2, cuHe_Emin, cuHe_H, xsc_He) * gVel1 * Eta1 * cuCrossfac * fac2;
+      if (Z==2) crs = cudaElasticInterp(kEe2, xsc_He, Z, electron) * gVel1 * Eta1 * cuCrossfac * fac2;
 	    
       if (crs>0.0) {
+#ifdef XC_DEEP
+	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xne=%e fac=%e\n",
+	       kEe2, Z, C, gVel1, Eta1, crs, fac2);
+#endif
+
 	cross._v[K]   = crs;
 	xspcs._v[L+0] = 0;
 	xspcs._v[L+1] = 0;
@@ -3493,7 +3509,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
     // Compute total cross sections for interactions in this cell
     //
-    cuFP_t csection = 0.0, mtotal = 0.0, xctot = 0.0;
+    cuFP_t csection = 0.0, mtotal = 0.0, xctot = 0.0, meanCr = 0.0;
     int count = 0;
 
     for (size_t i=0; i<nbods; i++) {
@@ -3503,12 +3519,19 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       for (size_t j=i+1; j<nbods; j++) {
 
 	computeCrossSection(in, cross, delph, xspcs, xtype,
-			    Ivel2, Evel2, xsc_H, xsc_He, xsc_pH, xsc_pHe, elems,
+			    xsc_H, xsc_He, xsc_pH, xsc_pHe, elems,
 			    cid, n0+i, n0+j, numxc, epos, state, &xctot);
 
 	count++;
 
 	csection += xctot;
+
+	cuFP_t cr = 0.0;
+	for (size_t k=0; k<3; k++) {
+	  cuFP_t dvel = in._v[n0+i].vel[k] - in._v[n0+j].vel[k];
+	  cr += dvel*dvel;
+	}
+	meanCr += sqrt(cr);
       }
     }
 
@@ -3516,6 +3539,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     // Compute probability of interaction (excepting Coulombic) in system units
     //
     if (count) csection *= 1e-14 / (cuLunit*cuLunit) / count;
+
+    // printf("crossRat=%e cr=%e size=%d\n", csection, meanCr/count, count);
 
     cuFP_t Prob = mtotal/vol * cuMunit/cuAmu * sqrt(Ivel2._v[cid]) * spTau._v[cid] * csection;
     cuFP_t selcM = (nbods-1) * Prob * 0.5;
@@ -3570,7 +3595,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       }
 
       computeCrossSection(in, cross, delph, xspcs, xtype,
-			  Ivel2, Evel2, xsc_H, xsc_He, xsc_pH, xsc_pHe, elems,
+			  xsc_H, xsc_He, xsc_pH, xsc_pHe, elems,
 			  cid, n1, n2, numxc, epos, state, &totalXS);
 	
       cudaParticle* p1 = &in._v[n1];
@@ -3719,15 +3744,12 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	//
 	cuFP_t dE = 0.0;
 	
-	
-	cuFP_t N1 = p1->mass * cuMunit / cuAmu;
-	cuFP_t N2 = p2->mass * cuMunit / cuAmu;
-	
 	// Number of particles in active partition
 	//
+	cuFP_t N1 = W1 * cuMunit / cuAmu;
+	cuFP_t N2 = W2 * cuMunit / cuAmu;
 	cuFP_t N0 = N1 > N2 ? N2 : N1;
 	
-	printf("debug N0: %e\n", N0);
 
 	// Select the maximum probability channel
 	//
