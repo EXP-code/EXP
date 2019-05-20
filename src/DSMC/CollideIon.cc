@@ -2865,7 +2865,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
     if (not use_ntcdb) {
 
       size_t nbods = cell->bods.size();
-      double Cross = 0.0, Count = 1.0e-18;
+      double Cross = 0.0, Count = 1.0e-18, testCr = 0.0;
 
       for (size_t i=0; i<nbods; i++) {
 	Particle *p1 = tree->Body(cell->bods[i]);
@@ -2883,11 +2883,18 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
 	  // Cross = std::max<double>(Cross, crossSectionTrace(id, cell, p1, p2, sqrt(cr)));
 	  Cross += crossSectionTrace(id, cell, p1, p2, sqrt(cr));
 	  Count += 1.0;
+	  testCr += sqrt(cr);
 	}
       }
       
       csections[id][Particle::defaultKey][Particle::defaultKey]() = Cross/Count;
       
+      /*
+      std::cout << "crossRat=" << Cross/Count
+		<< " cr=" << testCr/Count
+		<< " size=" << Count << std::endl;
+      */
+
     } // END: not use_ntcdb
     
   } // END: Trace
@@ -4757,12 +4764,6 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     eVelI += rvel * rvel;
   }
     
-  /*
-  if (fabs(cr*cr - eVelI) > 1.0e-8*cr*cr) {
-    std::cout << "CRAZY: " << cr << ", " << sqrt(eVelI) << std::endl;
-  }
-  */
-
   if (NO_VEL) {
     eVel0 = eVel1 = eVel2 = 1.0;
     gVel0 = gVel1 = gVel2 = 1.0;
@@ -5036,6 +5037,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	hCross[id].back().crs = cross;
 	
 	CProb[id][0] += cross;
+	
+#ifdef XC_DEEP
+	std::cout << "xsc: (Z, P)=(" << Z << ", " << P << ") xnn=" << crs
+		  << std::endl;
+#endif
       }
 
       // --------------------------------------
@@ -5055,6 +5061,12 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	hCross[id].back().crs = crs1;
 	
 	CProb[id][0] += crs1;
+	
+#ifdef XC_DEEP
+	std::cout << "xsc: kEi=" << kEi[id]
+		  << " (Z, P)=(" << Z << ", " << P << ") xnp=" << crs1
+		  << std::endl;
+#endif
       } // end: neutral-proton scattering
 
       if (PP==0 and k==proton) {
@@ -5070,6 +5082,12 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	hCross[id].back().crs = crs1;
 	
 	CProb[id][0] += crs1;
+
+#ifdef XC_DEEP
+	std::cout << "xsc: kEi=" << kEi[id]
+		  << " (Z, P)=(" << ZZ << ", " << PP << ") xnp=" << crs1
+		  << std::endl;
+#endif
       } // end: neutral-proton scattering
 
 
@@ -5115,6 +5133,12 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       hCross[id].back().crs = crs;
       
       CProb[id][1] += crs;
+
+#ifdef XC_DEEP
+      std::cout << "xsc: kEe=" << kEe1[id] << " (Z, P)=(" << Z << ", " << C
+		<< ") gVel=" << gVel2 << " eta=" << Eta2
+		<< " xne=" << crs << " fac=" << fac1 << std::endl;
+#endif
     }
 
     // Particle 2 ION, Particle 1 ELECTRON
@@ -5132,6 +5156,12 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       hCross[id].back().crs = crs;
       
       CProb[id][2] += crs;
+
+#ifdef XC_DEEP
+      std::cout << "xsc: kEe=" << kEe2[id] << " (Z, P)=(" << Z << ", " << C
+		<< ") gVel=" << gVel1 << " eta=" << Eta1
+		<< " xne=" << crs << " fac=" << fac2 << std::endl;
+#endif
     }
 
     // --------------------------------------
@@ -11198,8 +11228,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       // Number interacting atoms
       //
       double N0 = PP[cid]->W2 * TreeDSMC::Munit / amu;
-
-      std::cout << "debug N0: " << N0 << std::endl;
 
       // Temporary debugging
       //
