@@ -372,7 +372,8 @@ private:
   chdata* ch;
 
   //@{
-  //! Cache the spline instances for efficiency
+  //! Cache the spline abscissas and instances for efficiency
+  std::map<int, std::vector<double>> x_array;
   CacheSplList splUps;
   CacheSplList diSpln;
   //@}

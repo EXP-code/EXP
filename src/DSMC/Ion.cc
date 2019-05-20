@@ -891,13 +891,6 @@ Ion::Ion(const Ion &I)
 Ion::collType
 Ion::collExciteCrossSingle(double E, int id)
 {
-  const double x_array5[5] = {0, 0.25, 0.5, 0.75, 1.0};
-  const double x_array9[9] = {0, 0.125, 0.25 , 0.375, 0.5 , 
-			      0.625 , 0.75, 0.875, 1.0};
-
-  std::vector<double> x5(x_array5, x_array5+5);
-  std::vector<double> x9(x_array9, x_array9+9);
-  
 				// This will contain the cumulative
 				// cross section
   collType CEcum;
@@ -954,34 +947,29 @@ Ion::collExciteCrossSingle(double E, int id)
 
       // An extra couple of sanity checks for the interpolation
       //
-      assert(x >= 0 and x <= 1);
-      assert(splups[i].spline.size() == 5 or splups[i].spline.size() == 9);
       if (type > 4) break;
       
-      // Extra sanity check to make sure x is monotonic to make sure
-      // the arrays point to the right values
+      int nspl = splups[i].spline.size();
+
+      // Need at least 3 points for a spline
       //
-      for (int j = 1; j < 9; j++) {
-	if (j < 5) assert(x_array5[j] > x_array5[j-1]);
-	assert(x_array9[j] > x_array9[j-1]);
-      }
-      
+      if (nspl<3) break;
 
       CacheSplList::iterator it = splUps.find(i);
       CsplD2Ptr sp;
 
       if (it == splUps.end()) {
 
-	if (splups[i].spline.size() == 5) {
-	  sp = CsplD2Ptr(new CsplineD2(x5, splups[i].spline));
-	}
-      
-	if (splups[i].spline.size() == 9) {
-	  sp = CsplD2Ptr(new CsplineD2(x9, splups[i].spline));
+	if (x_array.find(nspl) == x_array.end()) {
+	  std::vector<double> t(nspl);
+	  double dx = 1.0/(nspl - 1);
+	  t[0] = 0.0;
+	  t[nspl-1] = 1.0;
+	  for (int n=1; n<nspl-1; n++) t[n] = dx*n;
+	  x_array[nspl] = t;
 	}
 
-	splUps[i] = sp;
-
+	splUps[i] = sp = CsplD2Ptr(new CsplineD2(x_array[nspl], splups[i].spline));
       } else {
 	sp = it->second;
       }
