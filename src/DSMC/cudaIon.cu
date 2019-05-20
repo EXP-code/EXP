@@ -4,6 +4,7 @@
 #include <iomanip>
 
 #include <Ion.H>
+#include <Elastic.H>
 #include <curand.h>
 #include <curand_kernel.h>
 
@@ -13,6 +14,9 @@
 thrust::device_vector<cuFP_t> xsc_H, xsc_He, xsc_pH, xsc_pHe;
 __constant__ cuFP_t cuH_H, cuHe_H, cuPH_H, cuPHe_H;
 __constant__ cuFP_t cuH_Emin, cuHe_Emin, cuPH_Emin, cuPHe_Emin;
+
+// Charged particle type
+enum cudaElasticType { electron, proton };
 
 // Atomic radii in picometers from Clementi, E.; Raimond, D. L.;
 // Reinhardt, W. P. (1967). "Atomic Screening Constants from SCF
@@ -54,6 +58,17 @@ resampleArray(const std::vector<cuFP_t>& x, const std::vector<cuFP_t>& y,
       auto a = (*ub - xx)/(*ub - *lb);
       auto b = (xx - *lb)/(*ub - *lb);
       yy = a*y[lb - x.begin()] + b*y[ub - x.begin()];
+      /*
+      std::cout << " a=" << std::setw(16) << a
+		<< " b=" << std::setw(16) << b
+		<< " E=" << std::setw(16) << xx
+		<< " y=" << std::setw(16) << yy
+		<< " l=" << std::setw(16) << y[lb - x.begin()]
+		<< " h=" << std::setw(16) << y[ub - x.begin()]
+		<< " min=" << std::setw(16) << x[0]
+		<< " max=" << std::setw(16) << x[0] + dx*numH
+		<< std::endl;
+      */
     }
     Y[i] = yy;
   }
@@ -384,10 +399,10 @@ void cudaElasticInit()
 
   xsc_He = resampleArray(eV_He, xs_He, dx);
 
-  cuda_safe_call(cudaMemcpyToSymbol(cuH_Emin, &eV_He[0], sizeof(cuFP_t)), 
+  cuda_safe_call(cudaMemcpyToSymbol(cuHe_Emin, &eV_He[0], sizeof(cuFP_t)), 
 		 __FILE__, __LINE__, "Error copying cuHe_Emin");
 
-  cuda_safe_call(cudaMemcpyToSymbol(cuH_H, &dx, sizeof(cuFP_t)), 
+  cuda_safe_call(cudaMemcpyToSymbol(cuHe_H, &dx, sizeof(cuFP_t)), 
 		 __FILE__, __LINE__, "Error copying cuHe_H");
 
   // Interpolated from Figure 1 of "Elastic scattering and charge
@@ -501,26 +516,58 @@ cuFP_t cudaGeometric(int Z)
   }
 }
 		 
+
 __device__
-cuFP_t cudaElasticInterp(cuFP_t E, cuFP_t Emin, cuFP_t H, dArray<cuFP_t> xsc,
+cuFP_t cudaElasticInterp(cuFP_t E, dArray<cuFP_t> xsc, int Z,
+			 cudaElasticType etype = electron,
 			 bool pin = true)
 {
-  int indx = 0;
-  if (E >= Emin+H*xsc._s) indx = xsc._s - 2;
-  if (E <  Emin)          indx = 0;
-  else                    indx = floor( (E - Emin)/H );
+  cuFP_t Emin, H;
+  bool logV = false;
 
-  cuFP_t a = (E - Emin - H*(indx+0))/H;
-  cuFP_t b = (Emin + H*(indx+1) - E)/H;
+  if (Z==1) {
+    if (etype == electron) {
+      Emin = cuH_Emin;
+      H    = cuH_H;
+    } else {
+      E = log10(E);
+      Emin = cuPH_Emin;
+      H    = cuPH_H;
+      logV = true;
+    }
+  }
+  else if (Z==2)
+    if (etype == electron) {
+      Emin = cuHe_Emin;
+      H    = cuHe_H;
+    } else {
+      E = log10(E);
+      Emin = cuPHe_Emin;
+      H    = cuPHe_H;
+      logV = true;
+    }
+  else {
+    return 0.0;
+  }
 
   // Enforce return value to grid boundaries for off-grid ordinates.
   // Otherwise, values will be extrapolated.
   if (pin) {
-    if (a < 0.0) return xsc._v[0];
-    if (b < 0.0) return xsc._v[xsc._s-1];
+    if (E <= Emin)          return xsc._v[0];
+    if (E >= Emin+H*xsc._s) return xsc._v[xsc._s-1];
   }
 
-  return a*xsc._v[indx] + b*xsc._v[indx+1];
+  int indx = floor( (E - Emin)/H );
+
+  cuFP_t a = (E - Emin - H*(indx+0))/H;
+  cuFP_t b = (Emin + H*(indx+1) - E)/H;
+
+  cuFP_t val = a*xsc._v[indx] + b*xsc._v[indx+1];
+
+  if (logV)
+    return pow(10.0, val);
+  else
+    return val;
 }
 
 
@@ -781,11 +828,13 @@ void chdata::cuda_initialize_textures()
       E.ceDelE = I->delCollideE;
       E.NColl  = I->NcollideGrid;
 
+      /*
       std::cout << " k=" << k
 		<< " Emin=" << E.ceEmin
 		<< " Emax=" << E.ceEmax
 		<< " delE=" << E.ceDelE
 		<< std::endl;
+      */
 
       cudaTextureDesc texDesc;
       
@@ -1101,6 +1150,39 @@ void computeFreeFree
 
 
 __global__
+void testElasticE
+(dArray<cuFP_t> energy,
+ dArray<cuFP_t> xc,
+ dArray<cuFP_t> xsc_H,
+ dArray<cuFP_t> xsc_He,
+ cuIonElement elem)
+{
+  // Thread ID
+  //
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
+
+  // Total number of evals
+  //
+  const unsigned int N = energy._s;
+
+  if (tid < N) {
+    if (elem.Z==1 and elem.C==1) {
+      xc._v[tid] = cudaElasticInterp(energy._v[tid], xsc_H, 1, cudaElasticType::electron);
+    } else if (elem.Z==2 and elem.C==1) {
+      xc._v[tid] = cudaElasticInterp(energy._v[tid], xsc_He, 2, cudaElasticType::electron);
+    }
+    else
+      xc._v[tid] = 0.0;
+
+    // Bohr cross section (pi*a_0^2) in nm
+    const double b_cross = 0.00879735542978;
+    xc._v[tid] *= b_cross;
+  }
+
+  __syncthreads();
+}
+
+__global__
 void testFreeFree
 (dArray<cuFP_t> energy,
  dArray<cuFP_t> randsl,
@@ -1332,6 +1414,8 @@ void chdata::testCross(int Nenergy)
 
   thrust::host_vector<cuFP_t> energy_h(Nenergy), randsl_h(Nenergy);
 
+  cudaElasticInit();
+
   for (auto v : IonList) {
     
     IonPtr I = v.second;
@@ -1350,6 +1434,7 @@ void chdata::testCross(int Nenergy)
 
     // Only free-free for non-neutral species
 
+    thrust::device_vector<cuFP_t> xEE_d(Nenergy);
     thrust::device_vector<cuFP_t> eFF_d(Nenergy), xFF_d(Nenergy);
     thrust::device_vector<cuFP_t> eCE_d(Nenergy), xCE_d(Nenergy);
     thrust::device_vector<cuFP_t> xCI_d(Nenergy), xRC_d(Nenergy);
@@ -1358,6 +1443,9 @@ void chdata::testCross(int Nenergy)
     if (Nenergy > gridSize*BLOCK_SIZE) gridSize++;
 
     cuda.start();
+
+    testElasticE<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), toKernel(xEE_d),
+					   toKernel(xsc_H), toKernel(xsc_He), cuIonElem[k]);
 
     if (E.C>1)
       testFreeFree<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), toKernel(randsl_d),
@@ -1376,8 +1464,9 @@ void chdata::testCross(int Nenergy)
       testRadRecomb<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
 					      toKernel(xRC_d), cuIonElem[k]);
       
-    std::cout << "k=" << k << " delE=" << E.ceDelE << std::endl;
+    // std::cout << "k=" << k << " delE=" << E.ceDelE << std::endl;
 
+    thrust::host_vector<cuFP_t> xEE_h = xEE_d;
     thrust::host_vector<cuFP_t> eFF_h = eFF_d;
     thrust::host_vector<cuFP_t> xFF_h = xFF_d;
     thrust::host_vector<cuFP_t> eCE_h = eCE_d;
@@ -1387,6 +1476,7 @@ void chdata::testCross(int Nenergy)
     
     cuda.stop();
     
+    std::vector<double> xEE_0(Nenergy, 0);
     std::vector<double> eFF_0(Nenergy, 0), xFF_0(Nenergy, 0);
     std::vector<double> eCE_0(Nenergy, 0), xCE_0(Nenergy, 0);
     std::vector<double> xCI_0(Nenergy, 0), xRC_0(Nenergy, 0);
@@ -1394,8 +1484,26 @@ void chdata::testCross(int Nenergy)
     serial.start();
     
     const bool debug = false;
+    const double b_cross = 0.00879735542978;
+
+    Elastic elastic;
 
     for (int i=0; i<Nenergy; i++) {
+				// Neutral-electron
+      auto retEE = 0.0;
+      if (E.C==1) retEE = elastic(E.Z, energy_h[i]);
+      if (retEE>0.0) {
+	xEE_0[i] = (xEE_h[i] - retEE)/retEE;
+	/*
+	std::cout << std::setw(16) << energy_h[i]
+		  << std::setw(16) << xEE_h[i]/b_cross
+		  << std::setw(16) << retEE/b_cross
+		  << std::setw(4)  << E.Z
+		  << std::setw(4)  << E.C
+		  << std::endl;
+	*/
+      }
+
 				// Free-free
       auto retFF = I->freeFreeCrossTest(energy_h[i], randsl_h[i], 0);
       if (retFF.first>0.0)
@@ -1468,6 +1576,7 @@ void chdata::testCross(int Nenergy)
 
     serial.stop();
 
+    std::sort(xEE_0.begin(), xEE_0.end());
     std::sort(xFF_0.begin(), xFF_0.end());
     std::sort(eFF_0.begin(), eFF_0.end());
     std::sort(xCE_0.begin(), xCE_0.end());
@@ -1480,6 +1589,7 @@ void chdata::testCross(int Nenergy)
     std::cout << "Ion (" << I->Z << ", " << I->C << ")" << std::endl;
 
     std::cout << std::setw(10) << "Quantile"
+	      << " | " << std::setw(14) << "ne xc"
 	      << " | " << std::setw(14) << "ff xc"
 	      << " | " << std::setw(14) << "ff ph"
 	      << " | " << std::setw(14) << "CE xc"
@@ -1487,6 +1597,7 @@ void chdata::testCross(int Nenergy)
 	      << " | " << std::setw(14) << "CI_xc"
 	      << " | " << std::setw(14) << "RC_xc"
 	      << std::endl << std::setfill('-')
+	      <<          std::setw(10) << '-'
 	      <<          std::setw(10) << '-'
 	      << " + " << std::setw(14) << '-'
 	      << " + " << std::setw(14) << '-'
@@ -1499,8 +1610,10 @@ void chdata::testCross(int Nenergy)
     for (auto v : quantiles) {
       int indx = std::min<int>(std::floor(v*Nenergy+0.5), Nenergy-1);
       double FF_xc = 0.0, FF_ph = 0.0, CE_xc = 0.0, CE_ph = 0.0;
-      double CI_xc = 0.0, RC_xc = 0.0;
+      double CI_xc = 0.0, RC_xc = 0.0, EE_xc = 0.0;
       
+      EE_xc = xEE_0[indx];
+
       if (E.C>1) {
 	FF_xc = xFF_0[indx];
 	FF_ph = eFF_0[indx];
@@ -1514,6 +1627,7 @@ void chdata::testCross(int Nenergy)
       }
 
       std::cout << std::setw(10) << v
+		<< " | " << std::setw(14) << EE_xc
 		<< " | " << std::setw(14) << FF_xc
 		<< " | " << std::setw(14) << FF_ph
 		<< " | " << std::setw(14) << CE_xc
