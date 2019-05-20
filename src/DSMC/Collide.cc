@@ -983,7 +983,7 @@ void * Collide::collide_thread(void * arg)
   cellTime[id].start();
   
   // DEEP DEBUG
-  if (true) {
+  if (false) {
     unsigned elem = 0, celltot = 0;
     for (auto v : cellist) {
       elem++;
