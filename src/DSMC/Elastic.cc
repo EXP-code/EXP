@@ -399,7 +399,8 @@ Geometric::Geometric()
   radii = atomic_radii;
 }
 
-bool Elastic::extrapolate = true;
+bool Elastic::pin         = true;
+bool Elastic::extrapolate = false;
 
 Elastic::Elastic()
 {
@@ -409,11 +410,15 @@ Elastic::Elastic()
   iondata[2]    = ProtonHelium;
 }
 
-double Elastic::interpolate(const std::map<double, double> &data,
-			    double x)
+double Elastic::interpolate(const std::map<double, double> &data, double x)
 {
   typedef std::map<double, double>::const_iterator i_t;
   
+  if (pin) {
+    if (x <= data. begin()->first) return data. begin()->second;
+    if (x >= data.rbegin()->first) return data.rbegin()->second;
+  }
+
   i_t i=data.upper_bound(x);
   
   if (i==data.begin())
@@ -442,7 +447,7 @@ double Elastic::interpolate(const std::map<double, double> &data,
 
   double delta = (x - l->first)/(i->first - l->first);
 
-  return delta*i->second + (1-delta)*l->second;
+  return delta*i->second + (1.0-delta)*l->second;
 }
 
 

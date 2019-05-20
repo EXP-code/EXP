@@ -16,6 +16,7 @@ public:
   //@}
 
   static bool extrapolate;
+  static bool pin;
 
 protected:
 
