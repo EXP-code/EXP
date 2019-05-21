@@ -341,11 +341,12 @@ void update_parm()
 
 void write_parm(void)
 {
+  std::ofstream out;
   int nOK = 0;
 
   if (myid==0) {
     string curparm(outdir + parmfile + "." + runtag + ".yml");
-    ofstream out(curparm.c_str());
+    out.open(curparm.c_str());
     if (!out) {
       std::cerr << "write_parm: could not open <" << parmfile << ">\n";
       nOK = 1;
