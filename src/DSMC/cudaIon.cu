@@ -618,12 +618,13 @@ void chdata::cuda_initialize_textures()
     cuIonElement& E = cuIonElem[k];
 
     // The free-free array
+    //
     if (E.C>1) {
       cudaTextureDesc texDesc;
 
       memset(&texDesc, 0, sizeof(texDesc));
-      texDesc.readMode = cudaReadModeElementType;
-      texDesc.filterMode = cudaFilterModePoint;
+      texDesc.readMode       = cudaReadModeElementType;
+      texDesc.filterMode     = cudaFilterModePoint;
       texDesc.addressMode[0] = cudaAddressModeClamp;
       texDesc.addressMode[1] = cudaAddressModeClamp;
       texDesc.addressMode[2] = cudaAddressModeClamp;
@@ -723,7 +724,7 @@ void chdata::cuda_initialize_textures()
       cudaChannelFormatDesc channelDesc1 = cudaCreateChannelDesc<int2>();
 #endif
       
-      std::cout << "Allocating cuF0array[" << k << "]" << std::endl;
+      // std::cout << "Allocating cuF0array[" << k << "]" << std::endl;
       cuda_safe_call(cudaMallocArray(&cuF0array[k], &channelDesc1, I->NfreeFreeGrid), __FILE__, __LINE__, "malloc cuArray");
 
       cuda_safe_call(cudaMemcpyToArray(cuF0array[k], 0, 0, &h_buffer0[0], tsize, cudaMemcpyHostToDevice), __FILE__, __LINE__, "copy texture to array");
@@ -821,7 +822,7 @@ void chdata::cuda_initialize_textures()
 
     // The collisional excitation array
 
-    if (E.C <= E.Z) {
+    if (E.C <= E.Z and I->NcollideGrid>0) {
 
       E.ceEmin = I->collideEmin;
       E.ceEmax = I->collideEmax;
@@ -833,6 +834,7 @@ void chdata::cuda_initialize_textures()
 		<< " Emin=" << E.ceEmin
 		<< " Emax=" << E.ceEmax
 		<< " delE=" << E.ceDelE
+		<< " nCol=" << E.NColl
 		<< std::endl;
       */
 
@@ -848,8 +850,10 @@ void chdata::cuda_initialize_textures()
       // Temporary storage
       //
       cuFP_t *d_Interp;
+      /*
       std::cout << "Size(" << I->Z << ", " << I->C << ")="
 		<< I->NcollideGrid << std::endl;
+      */
       cuda_safe_call(cudaMalloc((void **)&d_Interp, I->NcollideGrid*2*sizeof(cuFP_t)),
 		     __FILE__, __LINE__,
 		     "Error allocating d_Interp for texture construction");
@@ -901,6 +905,8 @@ void chdata::cuda_initialize_textures()
       cuda_safe_call(cudaFree(d_Interp), __FILE__, __LINE__, "Failure freeing device memory");
     }
 
+    // Collisional ionization texture (1-d)
+    //
     if (E.C <= E.Z) {
 
       E.ciEmin = I->ionizeEmin;
@@ -930,9 +936,10 @@ void chdata::cuda_initialize_textures()
       
       thrust::host_vector<cuFP_t> tt(I->NionizeGrid);
       
+      /*
       std::cout << "Size(" << I->Z << ", " << I->C << ")="
 		<< I->NionizeGrid << std::endl;
-
+      */
       cuda_safe_call(cudaMallocArray(&cuCIarray[k], &channelDesc, I->NionizeGrid), __FILE__, __LINE__, "malloc cuArray");
 
       // Copy to device memory some data located at address h_data
