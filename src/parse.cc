@@ -207,6 +207,8 @@ void initialize(void)
 
 				// Root node with check existence and try
 				// to create directory if need be . . .
+      int nOK = 0;
+
       if (myid == 0) {
 	struct stat sb;		// Stat buffer structure
 	if (stat(outdir.c_str(), &sb) == -1) {
@@ -218,8 +220,7 @@ void initialize(void)
 	    cout << "parse: error creating directory <" << outdir
 		 << ">, aborting" << endl;
 	    perror("mkdir");
-	    MPI_Abort(MPI_COMM_WORLD, 10);
-	    exit(EXIT_SUCCESS);
+	    nOK = 1;
 	  }
 	} else {
 	  cout << "parse: output path <" << outdir << "> is "; // 
@@ -237,6 +238,13 @@ void initialize(void)
 	  else    cout << " . . . very bad" << endl;
 	}
       }
+
+      MPI_Bcast(&nOK, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      if (nOK) {
+	MPI_Finalize();
+	exit(10);
+      }
+
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
@@ -268,9 +276,9 @@ void initialize(void)
     int iok = static_cast<int>(ok);
     MPI_Bcast(&iok, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-    if (!ok) {
-      MPI_Abort(MPI_COMM_WORLD, 11);
-      exit(255);
+    if (!iok) {
+      MPI_Finalize();
+      exit(11);
     }
 
   }
@@ -333,15 +341,25 @@ void update_parm()
 
 void write_parm(void)
 {
-  if (myid!=0) return;
-  string curparm(outdir + parmfile + "." + runtag + ".yml");
-  ofstream out(curparm.c_str());
-  if (!out) {
-    cerr << "write_parm: could not open <" << parmfile << ">\n";
-    MPI_Abort(MPI_COMM_WORLD, 102);
-    exit(EXIT_SUCCESS);
+  int nOK = 0;
+
+  if (myid==0) {
+    string curparm(outdir + parmfile + "." + runtag + ".yml");
+    ofstream out(curparm.c_str());
+    if (!out) {
+      std::cerr << "write_parm: could not open <" << parmfile << ">\n";
+      nOK = 1;
+    }
   }
   
+  MPI_Bcast(&nOK, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  if (nOK) {
+    MPI_Finalize();
+    exit(102);
+  }
+
+  if (myid!=0) return;
+
   update_parm();
 
   out << std::endl

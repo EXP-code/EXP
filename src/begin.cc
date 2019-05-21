@@ -26,12 +26,18 @@ void begin_run(void)
   // Make the Vector class mutex
   //===================================
   
-  int errcode = pthread_mutex_init(&mem_lock, NULL);
+  int errcode = pthread_mutex_init(&mem_lock, NULL), nOK = 0;
   if (errcode) {
     cerr << "Process " << myid 
 	 << ": failed to make the Vector class memory lock, errcode=" 
 	 << errcode << endl;
-    MPI_Abort(MPI_COMM_WORLD, 115);
+    nOK = 1;
+  }
+
+  MPI_Allreduce(&nOK, &errcode, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  if (errcode) {
+    MPI_Finalize();
+    exit(115);
   }
 
   //===================================

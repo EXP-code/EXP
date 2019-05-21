@@ -19,9 +19,10 @@ OutCalbr::OutCalbr(const YAML::Node& conf) : Output(conf)
 
   if (!tcomp) {
     if (myid==0) {
-      cerr << "OutCalbr: no component to trace\n";
-      MPI_Abort(MPI_COMM_WORLD, 112);
+      std::cerr << "OutCalbr: no component to trace\n";
     }
+    MPI_Finalize();
+    exit(112);
   }
 }
 

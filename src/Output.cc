@@ -12,6 +12,6 @@ Output::Output(const YAML::Node& CONF) : conf(CONF)
 
 void Output::bomb(const string& msg)
 {
-  cerr << "Output [" << id << ": " << msg << endl;
+  std::cerr << "Output [" << id << ": " << msg << endl;
   MPI_Abort(MPI_COMM_WORLD, 499);
 }

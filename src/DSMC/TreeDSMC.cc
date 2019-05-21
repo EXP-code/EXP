@@ -165,9 +165,13 @@ TreeDSMC::TreeDSMC(const YAML::Node& conf) : ExternalForce(conf)
   }
   
   if (!found) {
-    cerr << "TreeDSMC: process " << myid 
-	 << ": can't find fiducial component <" << comp_name << ">" << endl;
-    MPI_Abort(MPI_COMM_WORLD, 35);
+    if (myid==0) {
+      std::cerr << "TreeDSMC: process " << myid 
+		<< ": can't find fiducial component <" << comp_name << ">"
+		<< endl;
+    }
+    MPI_Finalize();
+    exit(35);
   }
   
   (*barrier)("TreeDSMC: BEFORE use checks", __FILE__, __LINE__);

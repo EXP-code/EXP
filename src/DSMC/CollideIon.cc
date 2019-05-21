@@ -16000,7 +16000,8 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
       std::cerr << "collDiag:CollDiag: species list or map is "
 		<< "not initialized" << std::endl;
     }
-    MPI_Abort(MPI_COMM_WORLD, 57);
+    MPI_Finalize();
+    exit(57);
   }
 
   Esum.resize(nthrds, 0.0);
@@ -16586,7 +16587,8 @@ void CollideIon::parseSpecies()
 		<< " . . . quitting"
 		<< std::endl;
     }
-    MPI_Abort(MPI_COMM_WORLD, 54);
+    MPI_Finalize();
+    exit(54);
   }
   
   std::string type;
@@ -16597,7 +16599,8 @@ void CollideIon::parseSpecies()
       std::cerr << "CollideIon::parseSpecies: no <type> key found . . . "
 		<< "quitting" << std::endl;
     }
-    MPI_Abort(MPI_COMM_WORLD, 55);
+    MPI_Finalize();
+    exit(55);
   }    
 
   //  ___  _            _   
@@ -16614,7 +16617,8 @@ void CollideIon::parseSpecies()
 	std::cerr << "CollideIon: species key position is not defined in "
 		  << "Component" << std::endl;
       }
-      MPI_Abort(MPI_COMM_WORLD, 56);
+      MPI_Finalize();
+      exit(56);
     }
 
     if (config["species_map"]["elec"]) {
@@ -16624,7 +16628,8 @@ void CollideIon::parseSpecies()
 	std::cerr << "CollideIon::parseSpecies: no <elec> key found . . . "
 		  << "quitting" << std::endl;
       }
-      MPI_Abort(MPI_COMM_WORLD, 57);
+      MPI_Finalize();
+      exit(57);
     }    
 
     if (config["species_map"]["elements"]) {
@@ -16635,7 +16640,8 @@ void CollideIon::parseSpecies()
 	std::cerr << "CollideIon::parseSpecies: no <elements> key found . . . "
 		  << "quitting" << std::endl;
       }
-      MPI_Abort(MPI_COMM_WORLD, 58);
+      MPI_Finalize();
+      exit(58);
     }    
   }
   // __      __   _      _   _   
@@ -16653,7 +16659,8 @@ void CollideIon::parseSpecies()
 	std::cerr << "CollideIon: species key position is not defined in "
 		  << "Component" << std::endl;
       }
-      MPI_Abort(MPI_COMM_WORLD, 58);
+      MPI_Finalize();
+      exit(58);
     }
 
     if (config["species_map"]["cons"]) {
@@ -16663,7 +16670,8 @@ void CollideIon::parseSpecies()
 	std::cerr << "CollideIon::parseSpecies: no <cons> key found . . . "
 		  << "quitting" << std::endl;
       }
-      MPI_Abort(MPI_COMM_WORLD, 59);
+      MPI_Finalize();
+      exit(59);
     }    
 
     if (config["species_map"]["elec"]) {
@@ -16673,7 +16681,8 @@ void CollideIon::parseSpecies()
 	std::cerr << "CollideIon::parseSpecies: no <elec> key found . . . "
 		  << "quitting" << std::endl;
       }
-      MPI_Abort(MPI_COMM_WORLD, 60);
+      MPI_Finalize();
+      exit(60);
     }    
 
 
@@ -16704,7 +16713,8 @@ void CollideIon::parseSpecies()
 	std::cerr << "CollideIon::parseSpecies: no <elements> key found . . . "
 		  << "quitting" << std::endl;
       }
-      MPI_Abort(MPI_COMM_WORLD, 61);
+      MPI_Finalize();
+      exit(61);
     }    
 
     // Find the largest weight (assume fiducial)
@@ -16731,7 +16741,8 @@ void CollideIon::parseSpecies()
 	std::cerr << "CollideIon: species key position is not defined in "
 		  << "Component" << std::endl;
       }
-      MPI_Abort(MPI_COMM_WORLD, 62);
+      MPI_Finalize();
+      exit(62);
     }
 
     if (config["species_map"]["cons"]) {
@@ -16741,7 +16752,8 @@ void CollideIon::parseSpecies()
 	std::cerr << "CollideIon::parseSpecies: no <cons> key found . . . "
 		  << "quitting" << std::endl;
       }
-      MPI_Abort(MPI_COMM_WORLD, 63);
+      MPI_Finalize();
+      exit(63);
     }    
 
     if (config["species_map"]["spos"]) {
@@ -16751,7 +16763,8 @@ void CollideIon::parseSpecies()
 	std::cerr << "CollideIon::parseSpecies: no <spos> key found . . . "
 		  << "quitting" << std::endl;
       }
-      MPI_Abort(MPI_COMM_WORLD, 64);
+      MPI_Finalize();
+      exit(64);
     }    
 
     if (config["species_map"]["elec"]) {
@@ -16761,7 +16774,8 @@ void CollideIon::parseSpecies()
 	std::cerr << "CollideIon::parseSpecies: no <elec> key found . . . "
 		  << "quitting" << std::endl;
       }
-      MPI_Abort(MPI_COMM_WORLD, 65);
+      MPI_Finalize();
+      exit(65);
     }    
 
 				// Print warning, not fatal
@@ -16797,7 +16811,8 @@ void CollideIon::parseSpecies()
 	std::cerr << "CollideIon::parseSpecies: no <elements> key found . . . "
 		  << "quitting" << std::endl;
       }
-      MPI_Abort(MPI_COMM_WORLD, 66);
+      MPI_Finalize();
+      exit(66);
     }    
     
     // Find the largest weight (assume fiducial)
@@ -16835,7 +16850,8 @@ void CollideIon::parseSpecies()
 	std::cerr << "CollideIon::parseSpecies: no <cons> key found . . . "
 		  << "quitting" << std::endl;
       }
-      MPI_Abort(MPI_COMM_WORLD, 67);
+      MPI_Finalize();
+      exit(67);
     }    
 
     if (config["species_map"]["elec"]) {
@@ -16845,7 +16861,8 @@ void CollideIon::parseSpecies()
 	std::cerr << "CollideIon::parseSpecies: no <elec> key found . . . "
 		  << "quitting" << std::endl;
       }
-      MPI_Abort(MPI_COMM_WORLD, 68);
+      MPI_Finalize();
+      exit(68);
     }    
 
     if (config["species_map"]["elements"]) {
@@ -16862,7 +16879,8 @@ void CollideIon::parseSpecies()
 	std::cerr << "CollideIon::parseSpecies: no <elements> key found . . . "
 		  << "quitting" << std::endl;
       }
-      MPI_Abort(MPI_COMM_WORLD, 69);
+      MPI_Finalize();
+      exit(69);
     }    
     
   } else {

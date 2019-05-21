@@ -88,6 +88,8 @@ void OutPSN::Run(int n, bool last)
 
   psdump = n;
 
+  int nOK = 0;
+
   if (myid==0) {
 				// Output name
     ostringstream fname;
@@ -97,22 +99,29 @@ void OutPSN::Run(int n, bool last)
     out = new ofstream(fname.str().c_str());
 
     if (!*out) {
-      cerr << "OutPSN: can't open file <" << fname.str() 
-	   << "> . . . quitting\n";
-      MPI_Abort(MPI_COMM_WORLD, 33);
+      std::cerr << "OutPSN: can't open file <" << fname.str() 
+		<< "> . . . quitting" << std::endl;
+      nOK = 1;
     }
 				// Used by OutCHKPT to not duplicate a dump
     // lastPS = fname.str();
 				// Open file and write master header
-    
-    struct MasterHeader header;
-    header.time  = tnow;
-    header.ntot  = comp->ntot;
-    header.ncomp = comp->ncomp;
+    if (nOK==0) {
+      struct MasterHeader header;
+      header.time  = tnow;
+      header.ntot  = comp->ntot;
+      header.ncomp = comp->ncomp;
 
-    out->write((char *)&header, sizeof(MasterHeader));
+      out->write((char *)&header, sizeof(MasterHeader));
+    }
   }
   
+  MPI_Bcast(&nOK, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  if (nOK) {
+    MPI_Finalize();
+    exit(33);
+  }
+
   for (auto c : comp->components) {
     c->write_binary(out, true);	// Write floats rather than doubles
   }

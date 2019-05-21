@@ -127,6 +127,7 @@ void OutCHKPT::Run(int n, bool last)
     MPI_Info   info;
     MPI_File   file;
     int        len;
+    int        nOK = 0;
 
     // Return info about errors (for debugging)
     //
@@ -145,11 +146,19 @@ void OutCHKPT::Run(int n, bool last)
 		    info, &file);
     
     if (ret != MPI_SUCCESS) {
-      cerr << "OutCHKPT:run: can't open file <" << filename << "> . . . quitting"
-	   << std::endl;
-      MPI_Abort(MPI_COMM_WORLD, 33);
+      std::cerr << "OutCHKPT:run: rank [" << yid << "] can't open file <"
+		<< filename << "> . . . quitting" << std::endl;
+      nOK = 1;
     }
     
+    int badCount = 0;
+    MPI_Allreduce(&nOK, &badCount, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
+    if (badCount) {
+      MPI_Finalize();
+      exit(33);
+    }
+
     MPI_Info_free(&info);
     
     // Write master header
@@ -211,30 +220,37 @@ void OutCHKPT::Run(int n, bool last)
   } else {
 
     ofstream *out;
+    int nOK = 0;
 
     if (myid==0) {
 				// Open file and write master header
       out = new ofstream(filename.c_str());
 
       if (!*out) {
-	cerr << "OutCHKPT: can't open file <" << filename.c_str() 
+	std::cerr << "OutCHKPT: can't open file <" << filename.c_str() 
 	     << "> . . . quitting\n";
-	MPI_Abort(MPI_COMM_WORLD, 33);
+	nOK = 1;
       }
 				// Open file and write master header
-    
-      struct MasterHeader header;
-      header.time  = tnow;
-      header.ntot  = comp->ntot;
-      header.ncomp = comp->ncomp;
+      if (!nOK) {
+	struct MasterHeader header;
+	header.time  = tnow;
+	header.ntot  = comp->ntot;
+	header.ncomp = comp->ncomp;
       
-      out->write((char *)&header, sizeof(MasterHeader));
+	out->write((char *)&header, sizeof(MasterHeader));
 #ifdef DEBUG
-      cout << "OutCHKPT: header written" << endl;
+	cout << "OutCHKPT: header written" << endl;
 #endif
-      
+      }
     }
     
+    MPI_Bcast(&nOK, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    if (nOK) {
+      MPI_Finalize();
+      exit(33);
+    }
+
     for (auto c : comp->components) {
 #ifdef DEBUG
       cout << "OutCHKPT: process " << myid << " trying to write name=" << c->name

@@ -62,27 +62,37 @@ void OutPS::Run(int n, bool last)
 
   psdump = n;
 
+  int nOK = 0;
+
   if (myid==0) {
 				// Open file and write master header
     out = new ofstream(filename.c_str(), ios::out | ios::app);
 
     if (!*out) {
       cerr << "OutPS: can't open file <" << filename.c_str() 
-	   << "> . . . quitting\n";
-      MPI_Abort(MPI_COMM_WORLD, 33);
+	   << "> . . . quitting" << std::endl;
+      nOK = 1;
     }
 
     // lastPS = filename;
 				// Open file and write master header
     
-    struct MasterHeader header;
-    header.time = tnow;
-    header.ntot = comp->ntot;
-    header.ncomp = comp->ncomp;
-
-    out->write((char *)&header, sizeof(MasterHeader));
+    if (nOK==0) {
+      struct MasterHeader header;
+      header.time = tnow;
+      header.ntot = comp->ntot;
+      header.ncomp = comp->ncomp;
+      
+      out->write((char *)&header, sizeof(MasterHeader));
+    }
   }
   
+  MPI_Bcast(&nOK, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  if (nOK) {
+    MPI_Finalize();
+    exit(33);
+  }
+
   for (auto c : comp->components) {
     c->write_binary(out, true);	// Write floats rather than doubles
   }

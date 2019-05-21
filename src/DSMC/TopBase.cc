@@ -15,7 +15,8 @@ void TopBase::readData()
     if (myid==0)
       std::cout << "Could not find TOPBASE_DATA environment variable"
 		<< " . . . exiting" << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 48);
+    MPI_Finalize();
+    exit(48);
   }
 
   std::string fileName(val);

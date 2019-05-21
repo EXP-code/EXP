@@ -2279,9 +2279,11 @@ void chdata::readMaster()
   char * val;
   if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
     if (myid==0)
-      std::cout << "Could not find CHIANTI_DATA environment variable"
+      std::cout << "chdata::readMaster: "
+		<< "could not find CHIANTI_DATA environment variable"
 		<< " . . . exiting" << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 51);
+    MPI_Finalize();
+    exit(51);
   }
 
   std::string fileName(val);
@@ -2300,9 +2302,10 @@ void chdata::readMaster()
     masterFile.close();
   }
   else {
-    if (myid==0) std::cout << "MASTER LIST FILE: "
-			   << fileName << " NOT FOUND" << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 46);
+    if (myid==0) std::cout << "chdata:readMaster: master list file <"
+			   << fileName << "> not found" << std::endl;
+    MPI_Finalize();
+    exit(46);
   }
   
 }
@@ -2316,20 +2319,25 @@ void chdata::readIp()
   char * val;
   if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
     if (myid==0)
-      std::cout << "Could not find CHIANTI_DATA environment variable"
+      std::cout << "chdata::readIp: "
+		<< "could not find CHIANTI_DATA environment variable"
 		<< " . . . exiting" << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 52);
+    MPI_Finalize();
+    exit(52);
   }
+
   std::string fileName(val);
   fileName.append("/ip/chianti.ip");
+  ifstream ipFile(fileName.c_str());
+  
   int count = 0;
   unsigned char Z, C;
   double ip;
   double convert = 1.239841875e-4;
   std::string lineIn;
-  ifstream ipFile(fileName.c_str());
-  
+
   if (ipFile.is_open() ) {
+
     while (ipFile.good() and count < 365) {
       getline(ipFile, lineIn);
       
@@ -2349,9 +2357,10 @@ void chdata::readIp()
     ipFile.close();
   }
   else {
-    if (myid==0) std::cout << "IP FILE: " 
-			   << fileName << " NOT FOUND" << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 47);
+    if (myid==0) std::cout << "chdata:readIp: file <" 
+			   << fileName << "> not found" << std::endl;
+    MPI_Finalize();
+    exit(47);
   }
 }
 
@@ -2365,9 +2374,11 @@ void chdata::readAbundanceAll()
   char * val;
   if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
     if (myid==0)
-      std::cout << "Could not find CHIANTI_DATA environment variable"
+      std::cout << "chdata::readAbundanceAll: "
+		<< "could not find CHIANTI_DATA environment variable"
 		<< " . . . exiting" << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 53);
+    MPI_Finalize();
+    exit(53);
   }
 
   std::string fileName(val);
@@ -2389,9 +2400,11 @@ void chdata::readAbundanceAll()
     abFile.close();
   }
   else {
-    if (myid==0) std::cout << "Abundance file: " 
-			   << fileName << " not found! " << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 48);
+    if (myid==0) std::cout << "chdata::readAbundanceAll: "
+			   << "abundance file <" 
+			   << fileName << "> not found! " << std::endl;
+    MPI_Finalize();
+    exit(48);
   }
   
 }

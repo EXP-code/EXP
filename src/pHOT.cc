@@ -3681,7 +3681,6 @@ bool pHOT::checkParticles(ostream& out, const std::string& msg, bool pc)
     perror("pHOT");
     ostringstream message;
     message << "error creating backup file <" << backfile1.str() << ">";
-    // bomb(membername, message.str());
   }
   
   ostringstream origfile2, backfile2;
@@ -3692,7 +3691,6 @@ bool pHOT::checkParticles(ostream& out, const std::string& msg, bool pc)
     perror("pHOT");
     ostringstream message;
     message << "error creating backup file <" << backfile2.str() << ">";
-    // bomb(membername, message.str());
   }
   
   ofstream out1(origfile1.str().c_str());

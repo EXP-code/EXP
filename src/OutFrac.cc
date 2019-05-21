@@ -22,19 +22,22 @@ OutFrac::OutFrac(const YAML::Node& conf) : Output(conf)
 
   if (!tcomp) {
     if (myid==0) {
-      cerr << "OutFrac: no component to trace\n";
-      MPI_Abort(MPI_COMM_WORLD, 112);
+      std::cerr << "OutFrac: no component to trace\n";
     }
+    MPI_Finalize();
+    exit(112);
   }
 
-  if (myid==0) {
-    if (numQuant==0) {
-      cerr << "OutFrac: no quantiles defined!\n";
-      MPI_Abort(MPI_COMM_WORLD, 113);
+  if (numQuant==0) {
+    if (myid==0) {
+      std::cerr << "OutFrac: no quantiles defined!\n";
     }
-    else
-      cout << "OutFrac: using " << numQuant << " quantiles\n";
+    MPI_Finalize();
+    exit(113);
   }
+  else if (myid==0)
+    std::cout << "OutFrac: using " << numQuant << " quantiles\n";
+
 
 				// If not a restart, make quantile header
   if (myid==0) {

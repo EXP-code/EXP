@@ -16,9 +16,10 @@ OutCoef::OutCoef(const YAML::Node& conf) : Output(conf)
 
   if (!tcomp) {
     if (myid==0) {
-      cerr << "OutCoef: no component to trace\n";
-      MPI_Abort(MPI_COMM_WORLD, 112);
+      std::cerr << "OutCoef: no component to trace\n";
     }
+    MPI_Finalize();
+    exit(112);
   }
 
   if (!(tcomp->force->HaveCoefDump())) {

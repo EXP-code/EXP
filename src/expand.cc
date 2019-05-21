@@ -412,8 +412,8 @@ main(int argc, char** argv)
   nslaves = new int [slaves];
   if (!nslaves) {
     cerr << "main: problem allocating <nslaves>\n";
-    MPI_Abort(MPI_COMM_WORLD, 10);
-    exit(-1);
+    MPI_Finalize();
+    exit(10);
   }
   for (n=1; n<numprocs; n++) nslaves[n-1] = n;
   MPI_Group_incl(world_group, slaves, nslaves, &slave_group);
@@ -450,7 +450,8 @@ main(int argc, char** argv)
     cerr << endl 
 	 << "Process " << myid
 	 << ": Error setting signal handler [TERM]" << endl;
-    MPI_Abort(MPI_COMM_WORLD, -1);
+    MPI_Finalize();
+    exit(11);
   }
 #ifdef DEBUG
   else {
@@ -464,7 +465,8 @@ main(int argc, char** argv)
     cerr << endl 
 	 << "Process " << myid
 	 << ": Error setting signal handler [HUP]" << endl;
-    MPI_Abort(MPI_COMM_WORLD, -1);
+    MPI_Finalize();
+    exit(12);
   }
 #ifdef DEBUG
   else {

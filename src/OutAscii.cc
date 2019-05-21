@@ -31,11 +31,12 @@ OutAscii::OutAscii(const YAML::Node& conf) : Output(conf)
     }
 
     if (!found) {
-      cerr << "Process " << myid << ": can't find desired component <"
-	   << name << ">" << endl;
-      MPI_Abort(MPI_COMM_WORLD, 35);
+      if (myid==0) 
+	std::cerr << "Process " << myid << ": can't find desired component <"
+		  << name << ">" << std::endl;
+      MPI_Finalize();
+      exit(35);
     }
-
   }
   else
     c0 = NULL;
@@ -96,6 +97,8 @@ void OutAscii::Run(int n, bool last)
 
   ofstream *out;
 
+  int nOK = 0;
+
   if (myid==0) {
 				// Output name
     ostringstream fname;
@@ -107,13 +110,21 @@ void OutAscii::Run(int n, bool last)
     if (!*out) {
       cerr << "OutAscii: can't open file <" << fname.str() 
 	   << "> . . . quitting\n";
-      MPI_Abort(MPI_COMM_WORLD, 33);
+      nOK = 1;
     }
     
-    *out << "# Time=" << tnow << "\n";
-    *out << setw(10) << c0->nbodies_tot
-	 << setw(10) << c0->niattrib
-	 << setw(10) << c0->ndattrib << "\n";
+    if (nOK == 0) {
+      *out << "# Time=" << tnow << "\n";
+      *out << setw(10) << c0->nbodies_tot
+	   << setw(10) << c0->niattrib
+	   << setw(10) << c0->ndattrib << "\n";
+    }
+  }
+
+  MPI_Bcast(&nOK, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  if (nOK) {
+    MPI_Finalize();
+    exit(33);
   }
 
   c0->write_ascii(out, accel);

@@ -62,21 +62,27 @@ void OutMulti::Run(int n, bool last)
   MPI_Reduce(&counts[0], &histo[0], multistep+1, MPI_UNSIGNED, MPI_SUM,
 	     0, MPI_COMM_WORLD);
 
+  int nOK = 0;
+
   if (myid==0) {
 				// Open file and write master header
     ofstream out(filename.c_str(), ios::out | ios::app);
 
     if (!out) {
-      cerr << "OutMulti: can't open file <" << filename.c_str() 
-	   << "> . . . quitting\n";
-      MPI_Abort(MPI_COMM_WORLD, 33);
+      std::cerr << "OutMulti: can't open file <" << filename.c_str() 
+		<< "> . . . quitting" << std::endl;
     }
-
 				// Dump the histogram
     for (int n=0; n<=multistep; n++)
       out << setw(18) << tnow << setw(5) << n 
 	  << setw(8) << histo[n] << endl;
     out << endl;
+  }
+
+  MPI_Bcast(&nOK, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  if (nOK) {
+    MPI_Finalize();
+    exit(33);
   }
 
   dump_signal = 0;

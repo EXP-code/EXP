@@ -159,7 +159,8 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
     eof      = 0;
 
     bool cache_ok = false;
-  
+    int  nOK      = 0;
+
     // Attempt to read EOF file from cache with override.  Will work
     // whether first time or restart.  Aborts if overridden cache is
     // not found.
@@ -176,11 +177,17 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	    std::cerr << "Cylinder: override specified . . ." << std::endl;
 	  } else {
 	    std::cerr << "Cylinder: shamelessly aborting . . ." << std::endl;
-	    MPI_Abort(MPI_COMM_WORLD, 12);
+	    nOK = 1;
 	  }
 	}
       }
     }
+
+    MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+    if (nOK)  {
+      MPI_Finalize();
+      exit(12);
+    } 
 
     // Attempt to read EOF file from cache on restart
     //
@@ -204,7 +211,8 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
       if (myid==0) 
 	std::cerr << "Cylinder: can not read cache file on restart ... aborting"
 		  << std::endl;
-      MPI_Abort(MPI_COMM_WORLD, 13);
+      MPI_Finalize();
+      exit(13);
     }
 
     // Genererate eof if needed
@@ -619,8 +627,9 @@ void Cylinder::determine_coefficients(void)
 				// otherwise, abort
       if (restart && !cache_ok) {
 	if (myid==0) 
-	  cerr << "Cylinder: can not read cache file on restart" << endl;
-	MPI_Abort(MPI_COMM_WORLD, -1);
+	  std::cerr << "Cylinder: can not read cache file on restart" << endl;
+	MPI_Finalize();
+	exit(-1);
       }
     }
 
