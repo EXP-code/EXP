@@ -146,7 +146,7 @@ void OutCHKPT::Run(int n, bool last)
 		    info, &file);
     
     if (ret != MPI_SUCCESS) {
-      std::cerr << "OutCHKPT:run: rank [" << yid << "] can't open file <"
+      std::cerr << "OutCHKPT:run: rank [" << myid << "] can't open file <"
 		<< filename << "> . . . quitting" << std::endl;
       nOK = 1;
     }
