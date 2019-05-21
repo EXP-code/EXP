@@ -98,6 +98,8 @@ int main (int ac, char **av)
 
   PeriodicTable pt;
 
+  Ion::setRRtype(RRtype);
+
   chdata ch;
 
   ch.createIonList(ZList);
@@ -106,8 +108,6 @@ int main (int ac, char **av)
     MPI_Finalize();
     return 0;
   }
-
-  Ion::setRRtype(RRtype);
 
   std::map<unsigned short, double> values = ch.fraction(Z, T, norder);
     
