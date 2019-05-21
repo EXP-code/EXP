@@ -105,16 +105,18 @@ void initialize(void)
     if (_G["main_wait"])     main_wait  = _G["main_wait"].as<bool>();
     if (_G["debug_wait"]) {
       debug_wait = _G["debug_wait"].as<bool>();
-      std::cout << "Found <debug_wait=" << std::boolalpha
-		<< debug_wait << ">" << std::endl;
-      if (debug_wait) {
-	std::cout << "----" << std::endl;
-	if (main_wait)
-	  std::cout << "----  Main process will wait in a loop until gdb is attached and the loop is freed" << std::endl;
-	else
-	  std::cout << "---- All processes will wait in a loop until gdb is attached and the loop is freed" << std::endl;
-	std::cout << "---- by setting 'debug_wait = false'" << std::endl
-		  << "----" << std::endl;
+      if (myid==0) {
+	std::cout << "Found <debug_wait=" << std::boolalpha
+		  << debug_wait << ">" << std::endl;
+	if (debug_wait) {
+	  std::cout << "----" << std::endl;
+	  if (main_wait)
+	    std::cout << "----  Main process will wait in a loop until gdb is attached and the loop is freed" << std::endl;
+	  else
+	    std::cout << "---- All processes will wait in a loop until gdb is attached and the loop is freed" << std::endl;
+	  std::cout << "---- by setting 'debug_wait = false'" << std::endl
+		    << "----" << std::endl;
+	}
       }
     }
     
