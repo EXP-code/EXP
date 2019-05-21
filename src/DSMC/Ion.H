@@ -78,17 +78,14 @@ class elvlc_data : public chianti_data
 public:
 
   int level;
-  int conf;
   std::string designation;
   int spin;
   int l;
   std::string l_str;
   double J;
-  int mult;
   double encm;
   double enry;
   double encmth;
-  double enryth;
 
   void synchronize();
 };
@@ -168,8 +165,10 @@ public:
   unsigned char C;
   int i;
   int j;
+  int nt;
   int type;
   double gf;
+  double Lim;
   double delERyd;
   double Const;
   std::vector<double> spline;

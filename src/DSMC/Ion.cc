@@ -225,17 +225,13 @@ void Ion::readelvlc()
 	  if (atoi(v[0].c_str()) == -1) break;
 	  
 	  e.level       = atoi(v[0].c_str());
-	  e.conf        = atoi(v[1].c_str());
-	  e.designation = v[2];
-	  e.spin        = atoi(v[3].c_str());
-	  e.l           = atoi(v[4].c_str());
-	  e.l_str       = v[5];
-	  e.J           = atof(v[6].c_str());
-	  e.mult        = atoi(v[7].c_str());
-	  e.encm        = atof(v[8].c_str());
-	  e.enry        = atof(v[9].c_str());
-	  e.encmth      = atof(v[10].c_str());
-	  e.enryth      = atof(v[11].c_str());
+	  e.designation = v[1];
+	  e.spin        = atoi(v[2].c_str());
+	  e.l_str       = v[3];
+	  e.J           = atof(v[4].c_str());
+	  e.encm        = atof(v[5].c_str());
+	  e.enry        = atof(v[6].c_str());
+	  e.encmth      = atof(v[7].c_str());
 	  
 	  elvlc[e.level] = e;
 	}
@@ -251,7 +247,15 @@ void Ion::readelvlc()
   }
 
   MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
-  if (nOK) MPI_Abort(MPI_COMM_WORLD, 42);
+
+  if (nOK)  {
+    if (myid == 0) {
+      std::cerr << "Ion::readelvlc: problem reading CHIANTI files "
+		<< "for Z=" << Z << " C=" << C << std::endl;
+    }
+    MPI_Finalize();
+    exit(44);
+  } 
 
   unsigned number = elvlc.size();
   MPI_Bcast(&number, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
@@ -329,9 +333,16 @@ void Ion::readwgfa()
     }
   }
 
-  
   MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
-  if (nOK) MPI_Abort(MPI_COMM_WORLD, 43);
+
+  if (nOK)  {
+    if (myid == 0) {
+      std::cerr << "Ion::readwgfa: problem reading CHIANTI files "
+		<< "for Z=" << Z << " C=" << C << std::endl;
+    }
+    MPI_Finalize();
+    exit(43);
+  } 
    
    unsigned number = wgfa.size();
    MPI_Bcast(&number, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
@@ -409,7 +420,15 @@ void Ion::readfblvl()
   }
 
   MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
-  if (nOK) MPI_Abort(MPI_COMM_WORLD, 44);
+
+  if (nOK)  {
+    if (myid == 0) {
+      std::cerr << "Ion::readfblvl: problem reading CHIANTI files "
+		<< "for Z=" << Z << " C=" << C << std::endl;
+    }
+    MPI_Finalize();
+    exit(44);
+  } 
 
   unsigned number = fblvl.size();
   MPI_Bcast(&number, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
@@ -441,7 +460,7 @@ void Ion::readSplups()
 
   if (myid==0) {
 
-    cFile ret = chiantiFile("splups");
+    cFile ret = chiantiFile("scups");
     
     nOK = ret.first;
 
@@ -465,13 +484,15 @@ void Ion::readSplups()
 	
 	  if(atoi(v[0].c_str()) == -1) break;
 	  
-	  s.Z       = atoi(v[0].c_str());
-	  s.C       = atoi(v[1].c_str());
-	  s.i       = atoi(v[2].c_str());
-	  s.j       = atoi(v[3].c_str());
-	  s.type    = atoi(v[4].c_str());
-	  s.gf      = atof(v[5].c_str());
-	  s.delERyd = atof(v[6].c_str());
+	  s.Z       = Z;
+	  s.C       = C;
+	  s.i       = atoi(v[0].c_str());
+	  s.j       = atoi(v[1].c_str());
+	  s.delERyd = atof(v[2].c_str());
+	  s.gf      = atof(v[3].c_str());
+	  s.Lim     = atof(v[4].c_str());
+	  s.nt      = atoi(v[5].c_str());
+	  s.type    = atoi(v[6].c_str());
 	  s.Const   = atof(v[7].c_str());
 
 				// Spline coefficients
@@ -494,7 +515,15 @@ void Ion::readSplups()
   }
 
   MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
-  if (nOK) MPI_Abort(MPI_COMM_WORLD, 45);
+
+  if (nOK)  {
+    if (myid == 0) {
+      std::cerr << "Ion::readSplups: problem reading CHIANTI files "
+		<< "for Z=" << Z << " C=" << C << std::endl;
+    }
+    MPI_Finalize();
+    exit(45);
+  } 
   
   unsigned number = splups.size();
   MPI_Bcast(&number, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
@@ -587,7 +616,16 @@ void Ion::readDi()
   }
 
   MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
-  if (nOK) MPI_Abort(MPI_COMM_WORLD, 46);
+
+  if (nOK)  {
+    if (myid == 0) {
+      std::cerr << "Ion::readDi: problem reading CHIANTI files "
+		<< "for Z=" << Z << " C=" << C << std::endl;
+
+    }
+    MPI_Finalize();
+    exit(46);
+  } 
 
   unsigned number = diSpline.size();
   MPI_Bcast(&number, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
@@ -909,7 +947,7 @@ Ion::collExciteCrossSingle(double E, int id)
   // state multiplicity, mult0, allows the ratio to be used in
   // computing Omega
 
-  double totalCross = 0.0, mult0 = elvlc[1].mult;
+  double totalCross = 0.0, mult0 = 2*elvlc[1].J + 1;
 
   for (size_t i=0; i<splups.size(); i++) {
 
@@ -1001,7 +1039,7 @@ Ion::collExciteCrossSingle(double E, int id)
       elvlcType::iterator eit = elvlc.find(splups[i].j-1);
       if (eit != elvlc.end()) {
 	double weight = 1.0;
-	if (mult0>0.0) weight = eit->second.mult/mult0;
+	if (mult0>0.0) weight = (2*eit->second.J+1)/mult0;
 	if (weight>0) {
 	  double crs1 = (M_PI*a0*a0*(CStrength/weight))/(E*Ion::eVtoRyd);
 	  if (std::isinf(crs1)) {
@@ -2189,17 +2227,14 @@ void Ion::printelvlc() {
   std::cout << "elvlc file for element " << MasterName <<std::endl;
   for(size_t i = 0; i < elvlc.size(); i++) {
     std::cout << elvlc[i].level       << "\t" 
-	      << elvlc[i].conf        << "\t" 
 	      << elvlc[i].designation << "\t"
 	      << elvlc[i].spin        << "\t" 
 	      << elvlc[i].l           << "\t" 
 	      << elvlc[i].l_str       << "\t"
 	      << elvlc[i].J           << "\t" 
-	      << elvlc[i].mult        << "\t" 
 	      << elvlc[i].encm        << "\t"
 	      << elvlc[i].enry        << "\t" 
-	      << elvlc[i].encmth      << "\t" 
-	      << elvlc[i].enryth      << std::endl;
+	      << elvlc[i].encmth      << std::endl;
   }
 }
 
@@ -2463,7 +2498,6 @@ void chianti_data::sync_vector(std::vector<double> &v)
 void elvlc_data::synchronize()
 {
   MPI_Bcast(&level,  1, MPI_INT,      0, MPI_COMM_WORLD);
-  MPI_Bcast(&conf,   1, MPI_INT,      0, MPI_COMM_WORLD);
 
   sync_string(designation);
 
@@ -2473,12 +2507,9 @@ void elvlc_data::synchronize()
   sync_string(l_str);
 
   MPI_Bcast(&J,      1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
-  MPI_Bcast(&mult,   1, MPI_INT,      0, MPI_COMM_WORLD);
   MPI_Bcast(&encm,   1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
   MPI_Bcast(&enry,   1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
   MPI_Bcast(&encmth, 1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
-  MPI_Bcast(&enryth, 1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
-  
 };
 
 void wgfa_data::synchronize()
@@ -2544,8 +2575,10 @@ void splups_data::synchronize()
   MPI_Bcast(&C,       1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
   MPI_Bcast(&i,       1, MPI_INT,           0, MPI_COMM_WORLD);
   MPI_Bcast(&j,       1, MPI_INT,           0, MPI_COMM_WORLD);
+  MPI_Bcast(&nt,      1, MPI_INT,           0, MPI_COMM_WORLD);
   MPI_Bcast(&type,    1, MPI_INT,           0, MPI_COMM_WORLD);
   MPI_Bcast(&gf,      1, MPI_DOUBLE,        0, MPI_COMM_WORLD);
+  MPI_Bcast(&Lim,     1, MPI_DOUBLE,        0, MPI_COMM_WORLD);
   MPI_Bcast(&delERyd, 1, MPI_DOUBLE,        0, MPI_COMM_WORLD);
   MPI_Bcast(&Const,   1, MPI_DOUBLE,        0, MPI_COMM_WORLD);
 
@@ -2652,8 +2685,15 @@ void VernerData::initialize(chdata* ch)
   }
   
   MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
-  if (nOK) MPI_Abort(MPI_COMM_WORLD, 59);
-  
+
+  if (nOK)  {
+    if (myid == 0) {
+      std::cerr << "VernerData: problem reading CHIANTI files" << std::endl;
+    }
+    MPI_Finalize();
+    exit(59);
+  } 
+
   if (myid==0) {
     
     if (data.size() != nVern)
@@ -3030,8 +3070,15 @@ void KLGFdata::initialize(chdata* ch)
   }
   
   MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
-  if (nOK) MPI_Abort(MPI_COMM_WORLD, 60);
-  
+
+  if (nOK)  {
+    if (myid == 0) {
+      std::cerr << "KLGFdata: problem reading CHIANTI files" << std::endl;
+    }
+    MPI_Finalize();
+    exit(60);
+  } 
+
   if (myid==0) {
     
     int sz = gfb.size();
