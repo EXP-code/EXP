@@ -1000,7 +1000,8 @@ Ion::collExciteCrossSingle(double E, int id)
       //
       elvlcType::iterator eit = elvlc.find(splups[i].j-1);
       if (eit != elvlc.end()) {
-	double weight = eit->second.mult/mult0;
+	double weight = 1.0;
+	if (mult0>0.0) weight = eit->second.mult/mult0;
 	if (weight>0) {
 	  double crs1 = (M_PI*a0*a0*(CStrength/weight))/(E*Ion::eVtoRyd);
 	  if (std::isinf(crs1)) {
@@ -1093,29 +1094,37 @@ void Ion::collExciteMakeGrid(int id)
 {
   exciteGridComputed = true;
 
-  // Get min/max energy
-  //
-  collideEmax = 0.0;
-  collideEmin = std::numeric_limits<double>::max();
-  for (size_t i=0; i<splups.size(); i++) {
-    double Elev = splups[i].delERyd*RydtoeV;
-    if (splups[i].i==1) {
-      collideEmin = std::min<double>(collideEmin, Elev);
-      collideEmax = std::max<double>(collideEmax, Elev);
+  if (splups.size()) {
+
+    // Get min/max energy
+    //
+    collideEmax = 0.0;
+    collideEmin = std::numeric_limits<double>::max();
+    for (size_t i=0; i<splups.size(); i++) {
+      double Elev = splups[i].delERyd*RydtoeV;
+      if (splups[i].i==1) {
+	collideEmin = std::min<double>(collideEmin, Elev);
+	collideEmax = std::max<double>(collideEmax, Elev);
+      }
     }
+
+    // Number of elements in energy grid
+    //
+    NcollideGrid = 1 + std::floor((collideEmax - collideEmin)/DeltaEGrid );
+    // NcollideGrid = std::max<int>(NcollideGrid, 10000);
+    NcollideGrid = std::max<int>(NcollideGrid, 100);
+    NcollideGrid = std::min<int>(NcollideGrid, 2000);
+    delCollideE  = (collideEmax - collideEmin)/(NcollideGrid-1);
+    
+    // Compute the grid
+    //
+    collideDataGrid.resize(NcollideGrid);
+    for (int n=0; n<NcollideGrid; n++) 
+      collideDataGrid[n] = collExciteCrossSingle(collideEmin + delCollideE*n, id);
+  } else {
+    collideEmax  = collideEmin = delCollideE = 0.0;
+    NcollideGrid = 0;
   }
-
-  // Number of elements in energy grid
-  //
-  NcollideGrid = 1 + std::floor((collideEmax - collideEmin)/DeltaEGrid );
-  NcollideGrid = std::max<int>(NcollideGrid, 10000);
-  delCollideE  = (collideEmax - collideEmin)/(NcollideGrid-1);
-
-  // Compute the grid
-  //
-  collideDataGrid.resize(NcollideGrid);
-  for (int n=0; n<NcollideGrid; n++) 
-    collideDataGrid[n] = collExciteCrossSingle(collideEmin + delCollideE*n, id);
 }
 
 //
@@ -2025,7 +2034,7 @@ std::vector<double> Ion::radRecombCrossMewe(double E, int id)
       double mult = f->mult;	// Level multiplicity
       double n    = f->lvl ;	// Principle quantum number
 
-      if (I >= 0) {
+      if (I >= 0 and n>0) {
 				// Total radiated photon energy (line
 				// + KE) in keV
 	double hnu    = E + I;
