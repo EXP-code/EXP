@@ -631,8 +631,8 @@ void chdata::cuda_initialize_textures()
       cudaTextureDesc texDesc;
 
       memset(&texDesc, 0, sizeof(texDesc));
-      texDesc.readMode = cudaReadModeElementType;
-      texDesc.filterMode = cudaFilterModePoint;
+      texDesc.readMode       = cudaReadModeElementType;
+      texDesc.filterMode     = cudaFilterModePoint;
       texDesc.addressMode[0] = cudaAddressModeClamp;
       texDesc.addressMode[1] = cudaAddressModeClamp;
       texDesc.addressMode[2] = cudaAddressModeClamp;
@@ -829,8 +829,8 @@ void chdata::cuda_initialize_textures()
     }
 
     // The collisional excitation array
-
-    if (E.C <= E.Z) {
+    //
+    if (E.C <= E.Z and I->NcollideGrid>0) {
 
       E.ceEmin = I->collideEmin;
       E.ceEmax = I->collideEmax;
@@ -900,6 +900,8 @@ void chdata::cuda_initialize_textures()
       cuda_safe_call(cudaFree(d_Interp), __FILE__, __LINE__, "Failure freeing device memory");
     }
 
+    // Collisional ionization texture (1-d)
+    //
     if (E.C <= E.Z) {
 
       E.ciEmin = I->ionizeEmin;
