@@ -495,8 +495,21 @@ void Ion::readSplups()
 	  s.type    = atoi(v[6].c_str());
 	  s.Const   = atof(v[7].c_str());
 
-				// Spline coefficients
-	  for(unsigned i = 8; i < v.size(); i++) {
+				// Discard scaled temp grid
+	  getline(sFile, inLine);
+
+				// Get spline coefficients
+	  getline(sFile, inLine);
+
+	  iss.clear();		// Restock input string stream
+	  iss.str(inLine);
+				// Erase and repopulate string vector
+	  v.clear();
+	  copy(istream_iterator<std::string>(iss), 
+	       istream_iterator<std::string>(), 
+	       back_inserter<vector<std::string> >(v));
+
+	  for (int i=0; i<s.nt; i++) {
 	    s.spline.push_back(atof(v[i].c_str()));
 	  }
 	
