@@ -216,14 +216,34 @@ void Ion::readelvlc()
 
 	while (elvlcFile.good()) {
 	  
-	  std::vector <std::string> v;
+	  std::vector <std::string> v(8);
 	  getline(elvlcFile, inLine);
-	  std::istringstream iss(inLine);
-	  copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(), 
-	       back_inserter<vector<std::string> >(v));
-	  
+
+	  /*
+	    1 i7    LVL   Level index
+	    2 a30   CONF  Configuration description
+	    3 a5    LABEL Level label string
+	    4 i5    2S+1  Spin multiplicity
+	    5 a5    L     Orbital angular momentum
+	    6 f5.1  J     Total angular momentum
+	    7 f15.3 Eo    Observed energy (cm−1)
+	    8 f15.3 Eb    ‘Best-guess’ theoretical energy (cm−1)
+	  */
+
+
+	  // Split according to fortran formats field widths
+	  //
+	  int c = 0;
+	  v[0] = inLine.substr(c,  7); c += 7;
 	  if (atoi(v[0].c_str()) == -1) break;
-	  
+	  v[1] = inLine.substr(c, 30); c += 30;
+	  v[2] = inLine.substr(c,  5); c += 5;
+	  v[3] = inLine.substr(c,  5); c += 5;
+	  v[4] = inLine.substr(c,  5); c += 5;
+	  v[5] = inLine.substr(c,  5); c += 5;
+	  v[6] = inLine.substr(c, 15); c += 15;
+	  v[7] = inLine.substr(c, 15); c += 15;
+
 	  e.level       = atoi(v[0].c_str());
 	  e.designation = v[1];
 	  e.spin        = atoi(v[2].c_str());
@@ -303,22 +323,53 @@ void Ion::readwgfa()
 	
 	while (wgfaFile.good()) {
 	  
-	  std::vector <std::string> v;
+	  std::vector <std::string> v(6);
 	  getline(wgfaFile, inLine);
-	  std::istringstream iss(inLine);
-	  copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(), 
-	       back_inserter<vector<std::string> >(v));
-	
+
+	  /*
+	    1. index of the lower energy level, format=i5 (consistent
+	       with the ordering in the .elvlc file)
+
+	    2. index of the upper energy level, format=i5
+
+	    3. wavelength in Angstroms, format=f15. If the wavelength
+	       does not connect 2 observed energy levels, the
+	       wavelength is given as a negative number. Generally
+	       wavelengths are given to three decimal places, with
+	       exceptions for very short and very long wavelength
+	       transitions. Two-photon transitions are given a zero
+	       wavelength. Also, the corrections to the inner-shell
+	       levels above the ionization limit due to autoionization
+	       are included as radiationless transitions to the ground
+	       state.
+
+	    4. gf value (weighted oscillator strength), format=e15
+
+	    5. A-value, format=e15. Generally this will be the
+	       radiative decay rate (or A-value) in units of s-1. It
+	       can also be the autoionization rate or the two-photon
+	       decay rate, both in units of s-1.
+
+	    6. In some cases additional columns have extra information
+	       on the transition.
+	  */
+
+	  // Split according to fortran formats field widths
+	  //
+	  int c = 0;
+	  v[0] = inLine.substr(c,  5); c += 5;
 	  if (atoi(v[0].c_str()) == -1) break;
-	
+	  v[1] = inLine.substr(c,  5); c += 5;
+	  v[2] = inLine.substr(c, 15); c += 15;
+	  v[3] = inLine.substr(c, 15); c += 15;
+	  v[4] = inLine.substr(c, 15); c += 15;
+	  v[5] = inLine.substr(c, 15); c += 15;
+
 	  w.lvl1    = atoi(v[0].c_str());
 	  w.lvl2    = atoi(v[1].c_str());
 	  w.wvl     = atof(v[2].c_str());
 	  w.gf      = atof(v[3].c_str());
 	  w.avalue  = atof(v[4].c_str());
-	  w.pretty1 = v[5].c_str();
-	  w.pretty2 = v[6].c_str();
-	  w.ref     = v[7].c_str();
 	  
 	  wgfa[lQ(w.lvl1, w.lvl2)] = w;
 	}
@@ -388,14 +439,21 @@ void Ion::readfblvl()
 	
 	while (fblvlFile.good()) {
 
-	  std::vector <std::string> v;
+	  std::vector <std::string> v(8);
 	  getline(fblvlFile, inLine);
-	  istringstream iss(inLine);
-	  copy(istream_iterator<std::string>(iss), 
-	       istream_iterator<std::string>(), 
-	       back_inserter<vector<std::string> >(v));
-	  
+
+	  // Split according to fortran formats field widths
+	  //
+	  int c = 0;
+	  v[0] = inLine.substr(c,  5); c += 5;
 	  if (atoi(v[0].c_str()) == -1) break;
+	  v[1] = inLine.substr(c, 20); c += 20;
+	  v[2] = inLine.substr(c,  5); c += 5;
+	  v[3] = inLine.substr(c,  5); c += 5;
+	  v[4] = inLine.substr(c,  3); c += 3;
+	  v[5] = inLine.substr(c, 20); c += 5;
+	  v[6] = inLine.substr(c, 20); c += 15;
+	  v[7] = inLine.substr(c, 15); c += 15;
 
 	  f.lvl      = atoi(v[0].c_str());
 	  f.conf     = v[1];
@@ -475,14 +533,33 @@ void Ion::readSplups()
 
 	while(sFile.good()) {
 
-	  std::vector <std::string> v;
+	  std::vector <std::string> v(8);
 	  getline(sFile, inLine);
 	  istringstream iss(inLine);
-	  copy(istream_iterator<std::string>(iss), 
-	       istream_iterator<std::string>(), 
-	       back_inserter<vector<std::string> >(v));
-	
+
+	  /*
+	    1 i7 L1 Lower level of transition (integer)
+	    2 i7 L2 Upper level of transition (integer)
+	    3 e12.3 DE Energy of transition, Rydberg (float)
+	    4 e12.3 GF Oscillator strength (float)
+	    5 e12.3 LIM High-temperature limit value (float)
+	    6 i5 NT Number of scaled temperatures
+	    7 i3 T TYPE BT92 Transition type (integer)
+	    8 e12.3 C VAL BT92 scaling parameter (float)
+	  */
+
+	  // Split according to fortran formats field widths
+	  //
+	  int c = 0;
+	  v[0] = inLine.substr(c,  7); c +=  7;
 	  if(atoi(v[0].c_str()) == -1) break;
+	  v[1] = inLine.substr(c,  7); c +=  7;
+	  v[2] = inLine.substr(c, 12); c += 12;
+	  v[3] = inLine.substr(c, 12); c += 12;
+	  v[4] = inLine.substr(c, 12); c += 12;
+	  v[5] = inLine.substr(c,  5); c +=  5;
+	  v[6] = inLine.substr(c,  5); c +=  5;
+	  v[7] = inLine.substr(c, 12); c += 12;
 	  
 	  s.Z       = Z;
 	  s.C       = C;
@@ -2545,10 +2622,6 @@ void wgfa_data::synchronize()
   MPI_Bcast(&wvl,    1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
   MPI_Bcast(&gf,     1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
   MPI_Bcast(&avalue, 1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
-
-  sync_string(pretty1);
-  sync_string(pretty2);
-  sync_string(ref);
 };
 
 void pe_data::synchronize()
