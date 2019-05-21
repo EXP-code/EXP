@@ -99,9 +99,6 @@ public:
   double wvl;			// wavelength in Angstroms
   double gf;			// weighted oscillator strength
   double avalue;		// Einstein A coefficient
-  std::string pretty1;		// Description (lower level)
-  std::string pretty2;		// Description (upper level)
-  std::string ref;		// References
 
   void synchronize();
 };
