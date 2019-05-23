@@ -3511,8 +3511,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
     // Compute total cross sections for interactions in this cell
     //
-    cuFP_t csection = 0.0, mtotal = 0.0, xctot = 0.0, meanCr = 0.0;
-    int count = 0;
+    cuFP_t csection = 0.0, mtotal = 0.0, xctot = 0.0;
 
     for (size_t i=0; i<nbods; i++) {
 
@@ -3524,23 +3523,14 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 			    xsc_H, xsc_He, xsc_pH, xsc_pHe, elems,
 			    cid, n0+i, n0+j, numxc, epos, state, &xctot);
 
-	count++;
-
-	csection += xctot;
-
-	cuFP_t cr = 0.0;
-	for (size_t k=0; k<3; k++) {
-	  cuFP_t dvel = in._v[n0+i].vel[k] - in._v[n0+j].vel[k];
-	  cr += dvel*dvel;
-	}
-	meanCr += sqrt(cr);
+	if (xctot > csectoin) csection = xctot;
       }
     }
 
 
     // Compute probability of interaction (excepting Coulombic) in system units
     //
-    if (count) csection *= 1e-14 / (cuLunit*cuLunit) / count;
+    csection *= 1e-14 / (cuLunit*cuLunit);
 
     // printf("crossRat=%e cr=%e size=%d\n", csection, meanCr/count, count);
 

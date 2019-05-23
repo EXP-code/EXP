@@ -2525,230 +2525,116 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
     //
     csections[id][Particle::defaultKey][Particle::defaultKey]() = 0.0;
 
-    if (use_ntcdb) {
-
-      // Compute mean weights in the cell
-      //
-      // In auto iterators below:
-      //    s is of type std::map<speciesKey, int>
-      //    b is of type std::vector<unsigned long>
-      //
-      // Per cell variables:
-      //    meanF[id][sp] is the mean number fraction for species sp
-      //    meanE[id]     is the mean number of electrons per particle
-      //    meanR[id]     is the mean effective cross-section radius
-      //    neutF[id]     is the neutral number fraction
-      //    meanM[id]     is the mean molecular weight
-      //    numEf[id]     is the effective number of particles
-      //    densE[id][sp] is the density of electrons in each cell per species sp
-      //    elecDen[id]   is the total density of electrons in each cell
-      //    elecDn2[id]   is the mean-squared density of electrons in each cell
-      //    elecCnt[id]   is the number of samples in elecDen and elecDn2
-      //
-      
 				// Mean fraction in trace species
 				//
-      for (auto s : SpList) meanF[id][s.first] = 0.0;
-      neutF[id] = meanE[id] = meanR[id] = meanM[id] = cellM[id] = 0.0;
+    for (auto s : SpList) meanF[id][s.first] = 0.0;
+    neutF[id] = meanE[id] = meanR[id] = meanM[id] = cellM[id] = 0.0;
+    meanM[id] = 0.0;
 
-				// Total mass of all particles and
-				// relative fraction of trace species
-				// and elctron number fraction in this
-				// cell
-      double massP = 0.0, numbP = 0.0;
-      for (auto b : cell->bods) {
-				// Particle mass accumulation
-	Particle *p = tree->Body(b);
-	massP      += p->mass;
-	// Mass-weighted trace fraction
-	for (auto s : SpList) {
-	  speciesKey k = s.first;
-	  double ee    = k.second - 1;
-	  double ww    = p->dattrib[s.second]/atomic_weights[k.first];
-	  
-	  // Mean number fraction
-	  meanF[id][s.first] += p->mass * ww;
-	  // Mean electron number
-	  meanE[id]          += p->mass * ww * ee;
-	  // Mean number
-	  numbP              += p->mass * ww;
-	  
-	  // For neutrals only
-	  if (ee==0) {
-	    // Mean particle radius
-	    meanR[id]        += p->mass * ww * geometric(k.first);
-	    neutF[id]        += p->mass * ww;
-	  }
-	}
+    size_t nbods = cell->bods.size();
+    double massP = 0.0, numbP = 0.0, massE = 0.0, massI = 0.0;
+    double evel2 = 0.0, ivel2 = 0.0, molW  = 0.0;
 
-      } // END: bods loop
-				// Normalize mass-weighted fraction
-				// and electron fraction
-				//
-      cellM[id] += massP;
-      if (massP>0.0) {
-	for (auto s : SpList) meanF[id][s.first] /= massP;
-	meanE[id] /= massP;
-	neutF[id] /= massP;
-      }
-      if (neutF[id]>0.0) meanR[id] /= neutF[id];
-      if (numbP    >0.0) meanM[id]  = massP/numbP;
-      
-				// Electron velocity factor for this
-				// cell
-      double eVel = sqrt(amu*meanM[id]/me);
-
-				// Compute neutral and Coulombic cross
-				// sections
-      for (auto s : SpList) {
-
-	speciesKey k = s.first;
-				// Reduced mass for this interation
-				//
-	double mu = 0.5*meanM[id];
-
-				// Cumulative cross section
-				//
-	double Cross = 0.0;
-
-				// This species is a neutral
-	if (k.second == 1) {
-				// Neutral-neutral scattering
-				// cross section
-	  double Radius = geometric(k.first) + meanR[id];
-	  Cross += neutF[id] * M_PI*Radius*Radius * crossfac;
-
-
-				// Neutral-charged elastic cross section
-	  if (meanE[id] > 0.0)	// (recall Eerg and EeV are the mean
-				// interparticle KE)
-	    Cross += elastic(k.first, EeV * mu) * eVel * meanE[id] * crossfac;
-
-	} else {		// This species is an ion
-
-				// Coulombic elastic scattering
-	  double b = 0.5*esu*esu*(k.second - 1) /
-	    std::max<double>(Eerg*mu, FloorEv*eV) * 1.0e7; // nm
-
-	  b = std::min<double>(b, ips);
-
-	  if (coulInter) {
-	    double b_max = sqrt(1.0/(M_PI*pow(numIf[id]*TreeDSMC::Munit/amu, 2.0/3.0)));
-	    std::min<double>(b, b_max);
-	  }
-
-	  double mfac = 4.0 * logL;
-	  double crs = M_PI*b*b * mfac;
-	  
-	  Cross += crs * eVel * meanE[id] * crossfac;
-	  if (coulScale) {
-	    coulCrs[id][k.second - 1][0] = crs;
-	    coulCrs[id][k.second - 1][1] = EeV * mu;
-	  }
-	}
-	
-	double tCross = Cross * crs_units * cscl_[k.first];
-
-	csections[id][Particle::defaultKey][Particle::defaultKey]() += tCross * meanF[id][k];
-      }
-    } // NTC per-cell cross section estimation
-    else {
-
-      meanM[id] = 0.0;
-
-      size_t nbods = cell->bods.size();
-      double massP = 0.0, numbP = 0.0, massE = 0.0, massI = 0.0;
-      double evel2 = 0.0, ivel2 = 0.0;
-
-      meanM[id] = 0.0;
-
-      for (size_t i=0; i<nbods; i++) {
+    for (size_t i=0; i<nbods; i++) {
 				// The particle
-	Particle *p = tree->Body(cell->bods[i]);
+      Particle *p = tree->Body(cell->bods[i]);
 
 				// Mass per cell
-	massP += p->mass;
+      massP += p->mass;
 	
 				// Mass-weighted trace fraction
-	double ee = 0.0, ii = 0.0;
-	for (auto s : SpList) {
-	  double ww    = p->dattrib[s.second]/atomic_weights[s.first.first];
+      double ee = 0.0, ii = 0.0;
+      for (auto s : SpList) {
+	speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
+
+	double ww    = p->dattrib[s.second]/atomic_weights[s.first.first];
 				// Mean number
-	  numbP += p->mass * ww;
+	numbP += p->mass * ww;
 				// Electron fraction
-	  unsigned short q = s.first.second - 1;
-	  ee += ww * q;
-	  ii += ww * q*q;
-	}
+	unsigned short q = s.first.second - 1;
+	ee += ww * q;
+	ii += ww * q*q;
 
-	double eVel2 = 0.0, iVel2 = 0.0;
-	for (int l=0; l<3; l++) {
-	  double ve  = p->dattrib[use_elec+l];
-	  eVel2     += ve*ve;
-	  double vi  = p->vel[l];
-	  iVel2     += vi*vi;
-	}
+	// Mean number fraction
+	meanF[id][s.first] += p->mass * ww;
 
-	evel2 += p->mass * ee * eVel2;
-	ivel2 += p->mass * iVel2;
-	massE += p->mass * ee;
-	massI += p->mass * ii;
+	// Mean electron number
+	meanE[id]          += p->mass * ww * ee;
+
+	// For neutrals only
+	if (ee==0) {
+	  // Mean particle radius
+	  meanR[id]        += p->mass * ww * geometric(k.first);
+	  neutF[id]        += p->mass * ww;
+	}
       }
 
-      // Estimate Debye length
-      /*
-	λ_D = [k_b/(4*pi*e^2*(n_e/T_e + ∑_{ij} n_{ij}*c_j^2/T_i))]^{1/2}
-	    = [4*pi*e^2*(n_e/(k_B*T_e) + ∑_{ij} n_{ij}*c_j^2/(k_B*T_i)]^{-1/2}
-	    = [4*pi*e^2*3/2*(n_e/KE_e + ∑_{ij} n_{ij}*c_j^2/KE_i]^{-1/2}
-	    = [6*pi*e^2*(n_e/KE_e + ∑_{ij} n_{ij}*c_j^2/KE_i]^{-1/2}
+      double eVel2 = 0.0, iVel2 = 0.0;
+      for (int l=0; l<3; l++) {
+	double ve  = p->dattrib[use_elec+l];
+	eVel2     += ve*ve;
+	double vi  = p->vel[l];
+	iVel2     += vi*vi;
+      }
 
-	where
+      evel2 += p->mass * ee * eVel2;
+      ivel2 += p->mass * iVel2;
+      massE += p->mass * ee;
+      massI += p->mass * ii;
+    }
 
-	λ_D is the Debye length,
-	e is the electric charge
-	k_b is Boltzmann's constant,
-	T_e and T_i are the temperatures of the electrons and ions, respectively,
-	KE_e and KE_i are the kinetic energies per particle of the electrons and ions, respectively,
-	n_e is the density of electrons,
-	n_{ij} is the density of atomic species i, with positive ionic charge c_j
-      */
-
-      double ni   = numbP * dfac;
-      double ne   = massE * dfac;
-      double cj   = massI * dfac;
+    // Estimate Debye length
+    /*
+      λ_D = [k_b/(4*pi*e^2*(n_e/T_e + ∑_{ij} n_{ij}*c_j^2/T_i))]^{1/2}
+      = [4*pi*e^2*(n_e/(k_B*T_e) + ∑_{ij} n_{ij}*c_j^2/(k_B*T_i)]^{-1/2}
+      = [4*pi*e^2*3/2*(n_e/KE_e + ∑_{ij} n_{ij}*c_j^2/KE_i]^{-1/2}
+      = [6*pi*e^2*(n_e/KE_e + ∑_{ij} n_{ij}*c_j^2/KE_i]^{-1/2}
       
-      double dfac = TreeDSMC::Munit/amu / (pow(TreeDSMC::Lunit, 3.0)*volc);
+      where
+      
+      λ_D is the Debye length,
+      e is the electric charge
+      k_b is Boltzmann's constant,
+      T_e and T_i are the temperatures of the electrons and ions, respectively,
+      KE_e and KE_i are the kinetic energies per particle of the electrons and ions, respectively,
+      n_e is the density of electrons,
+      n_{ij} is the density of atomic species i, with positive ionic charge c_j
+    */
+    
+    double ni   = numbP * dfac;
+    double ne   = massE * dfac;
+    double cj   = massI * dfac;
+    
+    double dfac = TreeDSMC::Munit/amu / (pow(TreeDSMC::Lunit, 3.0)*volc);
 
-      double Ni   = numbP*TreeDSMC::Munit/amu;
-      double Ne   = massE*TreeDSMC::Munit/amu;
-      double KEi  = 0.0;
-      double KEe  = 0.0;
+    double Ni   = numbP*TreeDSMC::Munit/amu;
+    double Ne   = massE*TreeDSMC::Munit/amu;
+    double KEi  = 0.0;
+    double KEe  = 0.0;
+    
+    if (Ni>0.0) KEi = ivel2*TreeDSMC::Eunit / Ni;
+    if (Ne>0.0) KEe = evel2*TreeDSMC::Eunit * atomic_weights[0] / Ne;
 
-      if (Ni>0.0) KEi = ivel2*TreeDSMC::Eunit / Ni;
-      if (Ne>0.0) KEe = evel2*TreeDSMC::Eunit * atomic_weights[0] / Ne;
+    double dbyfac = std::numeric_limits<double>::max();
+    if ((ne>0.0 and KEe>0.0) or (ni>0.0 and KEi>0.0)) {
+      dbyfac = 0.0;
+      if (KEe>0.0) dbyfac += ne/KEe;
+      if (KEi>0.0) dbyfac += ni/KEi;
+    }
 
-      double dbyfac = std::numeric_limits<double>::max();
-      if ((ne>0.0 and KEe>0.0) or (ni>0.0 and KEi>0.0)) {
-	dbyfac = 0.0;
-	if (KEe>0.0) dbyfac += ne/KEe;
-	if (KEi>0.0) dbyfac += ni/KEi;
-      }
-
-      debye[id]  = 1.0/sqrt(6.0*M_PI*esu*esu*dbyfac);
-      debye[id] /= TreeDSMC::Lunit;
-
-      if (numbP>0.0) meanM[id] = massP/numbP;
-      if (numbP>0.0) Ivel2[id] = ivel2/numbP;
-      if (numbP>0.0) Evel2[id] = evel2/numbP;
-
-    } // END: no NTC, estimate plasma cross section only
-
+    debye[id]  = 1.0/sqrt(6.0*M_PI*esu*esu*dbyfac);
+    debye[id] /= TreeDSMC::Lunit;
+    
+    if (numbP>0.0) meanM[id] = massP/numbP;
+    if (numbP>0.0) Ivel2[id] = ivel2/numbP;
+    if (numbP>0.0) Evel2[id] = evel2/numbP;
+    
     Eion[id] = Eelc[id] = 0.0;
-    double massP = 0.0, numbP = 0.0, molW = 0.0;
+
     for (auto b : cell->bods) {
       // Particle mass accumulation
-      Particle *p = tree->Body(b);
-      massP      += p->mass;
+      Particle *p  = tree->Body(b);
+      massP       += p->mass;
       double wghtE = 0.0;
       // Mass-weighted trace fraction
       for (auto s : SpList) {
@@ -2865,7 +2751,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
     if (not use_ntcdb) {
 
       size_t nbods = cell->bods.size();
-      double Cross = 0.0, Count = 1.0e-18, testCr = 0.0;
+      double Cross = 0.0;
 
       for (size_t i=0; i<nbods; i++) {
 	Particle *p1 = tree->Body(cell->bods[i]);
@@ -2880,21 +2766,12 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
 	  }
 	
 	  // Record the maximum cross section (already in system units)
-	  // Cross = std::max<double>(Cross, crossSectionTrace(id, cell, p1, p2, sqrt(cr)));
-	  Cross += crossSectionTrace(id, cell, p1, p2, sqrt(cr));
-	  Count += 1.0;
-	  testCr += sqrt(cr);
+	  Cross = std::max<double>(Cross, crossSectionTrace(id, cell, p1, p2, sqrt(cr)));
 	}
       }
       
-      csections[id][Particle::defaultKey][Particle::defaultKey]() = Cross/Count;
+      csections[id][Particle::defaultKey][Particle::defaultKey]() = Cross;
       
-      /*
-      std::cout << "crossRat=" << Cross/Count
-		<< " cr=" << testCr/Count
-		<< " size=" << Count << std::endl;
-      */
-
     } // END: not use_ntcdb
     
   } // END: Trace
@@ -14632,7 +14509,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       double eVel = sqrt(2.0 * kEee[id] * eV / (0.5*me) );
 
       double  dfac = TreeDSMC::Munit/amu/pow(TreeDSMC::Lunit, 3.0) /
-	molP1[id];
+	meanM[id];
 
       selcM = 0.0;
       if (PiProb[id][3]>0.0)
@@ -22339,6 +22216,13 @@ void CollideIon::processConfig()
     else {
       config["ntcFactor"]["desc"] = "Scaling factor NTC CrsVel";
       config["ntcFactor"]["value"] = Collide::ntcFactor = 1.0;
+    }
+
+    if (config["ntcNoDB"])
+      Collide::ntcFactor = config["ntcNoDB"]["value"].as<bool>();
+    else {
+      config["ntcNoDB"]["desc"] = "Use NTC without DB";
+      config["ntcNoDB"]["value"] = Collide::NTCnodb = false;
     }
 
     if (config["HandMcoef"])
