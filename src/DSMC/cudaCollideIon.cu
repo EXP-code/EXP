@@ -3532,8 +3532,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     //
     csection *= 1e-14 / (cuLunit*cuLunit);
 
-    // printf("crossRat=%e cr=%e size=%d\n", csection, meanCr/count, count);
-
     cuFP_t Prob = mtotal/vol * cuMunit/cuAmu * sqrt(Ivel2._v[cid]) * spTau._v[cid] * csection;
     cuFP_t selcM = (nbods-1) * Prob * 0.5;
     
