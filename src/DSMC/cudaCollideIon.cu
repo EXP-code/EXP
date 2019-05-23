@@ -3523,7 +3523,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 			    xsc_H, xsc_He, xsc_pH, xsc_pHe, elems,
 			    cid, n0+i, n0+j, numxc, epos, state, &xctot);
 
-	if (xctot > csectoin) csection = xctot;
+	if (xctot > csection) csection = xctot;
       }
     }
 
