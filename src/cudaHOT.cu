@@ -455,8 +455,10 @@ void pHOT::parallelMergeOne(std::vector<key_type>& initl,
   if (myid) final.resize(sz);
   MPI_Bcast(&final[0], sz, MPI_EXP_KEYTYPE, 0, MPI_COMM_WORLD);
 
+  /*
   std::cout << "[" << myid
 	    << "] pHOT::parallelMerge: data size=" << final.size() << std::endl;
+  */
 
   return;
 }
