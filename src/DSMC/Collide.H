@@ -529,6 +529,10 @@ public:
   //! Sample based on maximum (true) or estimate from variance (false);
   static bool NTC;	        
   
+  //! Sample based on maximum (true) or estimate from variance (false)
+  //! without database;
+  static bool NTCnodb;	        
+  
   //! Accumulate time step diagnostics (default: false)
   static bool TSDIAG;	        
   

@@ -88,7 +88,12 @@ bool Collide::MFPDIAG  = false;
 // Sample based on maximum (true) or estimate
 // from variance (false);
 //
-bool Collide::NTC      = true;
+bool Collide::NTC      = false;
+
+// Sample based on maximum (true) or estimate
+// from variance (false) with no db
+//
+bool Collide::NTCnodb  = false;
 
 // Use cpu work to augment per particle effort
 //
@@ -1502,7 +1507,7 @@ void * Collide::collide_thread(void * arg)
 	  double prod = cr * scrs;
 	  double targ = prod / crsvel;
 	  
-	  if (NTC)
+	  if (NTC or NTCnodb)
 	    ok = ( targ > (*unit)() );
 	  else
 	    ok = true;
