@@ -3,7 +3,9 @@
 #ifndef PARTICLE_CUH
 #define PARTICLE_CUH
 
-#define DATTRIB_CUDA 10
+// This has to be a fixed value for the Cuda API
+//
+#define DATTRIB_CUDA 12
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -58,7 +60,7 @@ struct LessCudaLev
 
 //! Copy EXP particle to CUDA particle structure.  Attributes will not
 //! be loaded if end==0.
-void ParticleHtoD(PartPtr h, cudaParticle & d, int beg=0, int end=0);
+int ParticleHtoD(PartPtr h, cudaParticle & d, int beg=0, int end=0);
 
 //! Copy CUDA particle structure to EXP particle.  Attributes will not
 //! be loaded if end==0.

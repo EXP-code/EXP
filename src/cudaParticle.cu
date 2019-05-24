@@ -3,7 +3,7 @@
 #include "cudaParticle.cuH"
 
 
-void ParticleHtoD(PartPtr h, cudaParticle & d, int beg, int end)
+int ParticleHtoD(PartPtr h, cudaParticle & d, int beg, int end)
 {
   d.mass = h->mass;
   for (int k=0; k<3; k++) {
@@ -18,21 +18,25 @@ void ParticleHtoD(PartPtr h, cudaParticle & d, int beg, int end)
   //
   if (end) {
     if (end - beg < DATTRIB_CUDA) {
-      if (end<h->dattrib.size()) {
+      if (end<=h->dattrib.size()) {
 	for (int n=beg; n<end; n++) d.datr[n-beg] = h->dattrib[n];
       } else {
 	std::cerr << "Wrong attribute size in ParticleHtoD" << std::endl;
+	return 1;
       }
     } else {
 	std::cerr << "Requested number of attributes ["
 		  << end - beg << "] in ParticleHtoD is larger than storage="
 		  << DATTRIB_CUDA << std::endl;
+	return 1;
     }
   }
 #endif
   d.dtreq  = h->dtreq;
   d.level  = h->level;
   d.indx   = h->indx;
+
+  return 0;
 }
 
 void ParticleDtoH(const cudaParticle & d, PartPtr h, int beg, int end)
