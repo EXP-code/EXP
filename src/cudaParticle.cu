@@ -18,7 +18,7 @@ int ParticleHtoD(PartPtr h, cudaParticle & d, int beg, int end)
   //
   if (end) {
     if (end - beg < DATTRIB_CUDA) {
-      if (end<=h->dattrib.size()) {
+      if (end <= h->dattrib.size()) {
 	for (int n=beg; n<end; n++) d.datr[n-beg] = h->dattrib[n];
       } else {
 	std::cerr << "Wrong attribute size in ParticleHtoD" << std::endl;
@@ -52,7 +52,7 @@ void ParticleDtoH(const cudaParticle & d, PartPtr h, int beg, int end)
 #if DATTRIB_CUDA>0
   if (end) {
     if (end - beg < DATTRIB_CUDA) {
-      if (end < h->dattrib.size()) {
+      if (end <= h->dattrib.size()) {
 	for (int n=beg; n<end; n++) h->dattrib[n] = d.datr[n-beg];
       } else {
 	std::cerr << "Wrong attribute size in ParticleDtoH" << std::endl;
