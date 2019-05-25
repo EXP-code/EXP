@@ -11840,6 +11840,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     PE[cid][1] *= N0;
   }
 
+#ifdef XC_DEEP
+  std::cout << "ctest:"
+    << " E0=" << PE[0][1]
+    << " E1=" << PE[1][1]
+    << " E2=" << PE[2][1]
+    << std::endl;
+#endif
+
   // Convert energy loss from eV to system units
   //
   for (auto & v : PE) v[1] *= eV / TreeDSMC::Eunit;
@@ -11917,6 +11925,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     }
     Jsav = J;
 
+#ifdef XC_DEEP
+    printf("jtest: PE[0]=%f PE[1]=%f PE[2]=%f J=%d\n", PE[0][0], PE[1][0], PE[2][0], J);
+#endif
+    
     if (false) {
       printf("ke1=%e ke2=%e\n", kEe1[id], kEe2[id]);
     }
@@ -11946,14 +11958,17 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
       double DE1 = p1->dattrib[use_cons];
       double DE2 = p2->dattrib[use_cons];
+
       p1->dattrib[use_cons] = 0.0;
       p2->dattrib[use_cons] = 0.0;
+
       clrE[id] -= DE1 + DE2;
       PE[0][2]  = totalDE + DE1 + DE2;
       
       KE.delE0 = totalDE;
       KE.delE  = PE[0][2];
       
+
       collD->addLost(KE.delE0, 0.0, id);
       dfrE[id] += KE.delE0;	// TRACE
       
@@ -18267,6 +18282,11 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   colUps[id][1] += selcM;
   colUps[id][2] += selcM * selcM;
   colUps[id][3] += colCf[id];
+
+#ifdef XC_DEEP
+  std::cout << "ctest: cross="
+	    << crossRat*TreeDSMC::Lunit*TreeDSMC::Lunit/1e-14 << std::endl;
+#endif
 
   if (collLim) {		// Sanity clamp
 
