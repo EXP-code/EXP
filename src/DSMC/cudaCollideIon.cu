@@ -718,10 +718,7 @@ void chdata::cuda_initialize_textures()
 	    double d = *ub - *lb;
 	    double a = (C - *lb) / d;
 	    double b = (*ub - C) / d;
-	    /*
-	    std::cout << "[a, b] = [" << a << ", " << b << "]"
-		      << ", c = " << C << std::endl;
-	    */
+
 	    kk  = a * I->kgrid[ii] + b * I->kgrid[jj];
 	  }
 
@@ -942,11 +939,6 @@ void chdata::cuda_initialize_textures()
       
       thrust::host_vector<cuFP_t> tt(I->NionizeGrid);
       
-      /*
-      std::cout << "Size(" << I->Z << ", " << I->C << ")="
-		<< I->NionizeGrid << std::endl;
-      */
-
       cuda_safe_call(cudaMallocArray(&cuCIarray[k], &channelDesc, I->NionizeGrid), __FILE__, __LINE__, "malloc cuArray");
 
       // Copy to device memory some data located at address h_data
@@ -1469,28 +1461,12 @@ void chdata::testCross(int Nenergy)
       auto retCE = I->collExciteCross(energy_h[i], 0).back();
       if (retCE.first>0.0) {
 	xCE_0[i]   = (xCE_h[i] - retCE.first )/retCE.first;
-	/*
-	std::cout << std::setw( 4) << cuZ[k]
-		  << std::setw( 4) << cuC[k]
-		  << std::setw(14) << energy_h[i]
-		  << std::setw(14) << xCE_h[i]
-		  << std::setw(14) << retCE.first
-		  << std::endl;
-	*/
       }
 				// Collisional ionization
 
       auto retCI = I->directIonCross(energy_h[i], 0);
       if (retCI>0.0) {
 	xCI_0[i]   = (xCI_h[i] - retCI)/retCI;
-	/*
-	std::cout << std::setw( 4) << cuZ[k]
-		  << std::setw( 4) << cuC[k]
-		  << std::setw(14) << energy_h[i]
-		  << std::setw(14) << xCI_h[i]
-		  << std::setw(14) << retCI
-		  << std::endl;
-	*/
       }
 
 				// Radiative recombination
@@ -1498,25 +1474,8 @@ void chdata::testCross(int Nenergy)
       auto retRC = I->radRecombCross(energy_h[i], 0).back();
       if (retRC>0.0) {
 	xRC_0[i]   = (xRC_h[i] - retRC)/retRC;
-	/*
-	std::cout << std::setw( 4) << cuZ[k]
-		  << std::setw( 4) << cuC[k]
-		  << std::setw(14) << energy_h[i]
-		  << std::setw(14) << xRC_h[i]
-		  << std::setw(14) << retRC
-		  << std::endl;
-	*/
       }
 
-      /*
-      if (retCE.second>0.0)
-	eCE_0[i]   = (eCE_h[i] - retCE.second)/retCE.second;
-
-      if (cuC[k]<=cuZ[k])
-	std::cout << std::setw(14) << xCE_h[i]
-		  << std::setw(14) << eCE_h[i]
-		  << std::endl;
-      */
     }
 
     serial.stop();
@@ -2098,12 +2057,14 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
     printf("cross section: i2 wanted %d/%d\n", I2, in._s);
   }
 
+  // Pointer to particle structure for convenience
+  //
   cudaParticle* p1 = &in._v[I1];
   cudaParticle* p2 = &in._v[I2];
 	
-  cuFP_t Eta1=0.0, Eta2=0.0, Mu1=0.0, Mu2=0.0, Sum1=0.0, Sum2=0.0;
-	
-  *xctot  = 0.0;	// Total cross section accumulator per pair
+  // Total cross section accumulator per pair
+  //
+  *xctot  = 0.0;
 	
   // Cross section position counter
   //
@@ -2117,6 +2078,10 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
     xtype._v[K+J] = nothing;
   }
 
+  // Superparticle stats
+  //
+  cuFP_t Eta1=0.0, Eta2=0.0, Mu1=0.0, Mu2=0.0, Sum1=0.0, Sum2=0.0;
+	
   for (int k=0; k<Nsp; k++) {
 
     cuIonElement* E = &elems._v[k];
@@ -3100,6 +3065,8 @@ void cudaScatterTrace
     if (m2<1.0) m2 *= eta2;
 
 #ifdef XC_DEEP
+    // KE debug check
+    //
     cuFP_t KEi = 0.0;
     {
       cuFP_t k1 = 0.0, k2 = 0.0;
@@ -3195,6 +3162,8 @@ void cudaScatterTrace
     }
     
 #ifdef XC_DEEP
+    // KE debug check
+    //
     {
       cuFP_t k1 = 0.0, k2 = 0.0;
       for (int k=0; k<3; k++) {
@@ -3630,7 +3599,12 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
 	computeCrossSection(in, cross, delph, xspcs, xtype,
 			    xsc_H, xsc_He, xsc_pH, xsc_pHe, elems,
-			    cid, n0+i, n0+j, numxc, state, &xctot, &EI);
+			    cid, n0+i, n0+j, numxc, state, &xctot,
+#ifdef XC_DEEP
+			    &EI);
+#else
+			    0x0);
+#endif
 
 	if (xctot > csection) csection = xctot;
       }
@@ -3647,12 +3621,12 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     //
     csection *= 1e-14 / (cuLunit*cuLunit);
 
-    cuFP_t Prob = mtotal/vol * cuMunit/cuAmu * sqrt(Ivel2._v[cid]) * spTau._v[cid] * csection;
+    cuFP_t Prob  = mtotal/vol * cuMunit/cuAmu * sqrt(Ivel2._v[cid]) * spTau._v[cid] * csection;
     cuFP_t selcM = (nbods-1) * Prob * 0.5;
     
     Nsel._v[cid] = selcM;
 
-    int npairs = floor(selcM);
+    int    npairs  = floor(selcM);
     cuFP_t nexcess = selcM - npairs;
 
     for (int r=0; r<=npairs; r++) {
@@ -3736,7 +3710,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
       // Random shuffle (Knuth Algorithm P)
       //
-      for (int i=0; i<G; i++) S[i] = i; // Identity sequence
+      for (int i=0; i<G; i++) S[i] = i;   // Identity sequence
       for (int i=G-1; i>0; i--) {	  // Backward version
 #if cuREAL == 4
 	cuFP_t u = curand_uniform(state);
@@ -3753,7 +3727,9 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       }
       
       for (int JJ=0; JJ<G; JJ++) {
-	int J = S[JJ];	// Use shuffled order to prevent bias
+	// Use shuffled order to prevent any weird bias
+	//
+	int J = S[JJ];
 	
 	cudaInterTypes T   = xtype._v[cid*numxc+J];
 	cuFP_t XS          = cross._v[cid*numxc+J];
@@ -3785,12 +3761,11 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	//
 	cuFP_t dE = 0.0;
 	
-	// Number of particles in active partition
+	// Number of particles in active partition with electrons
 	//
-	cuFP_t N1 = W1 * cuMunit / cuAmu;
-	cuFP_t N2 = W2 * cuMunit / cuAmu;
+	cuFP_t N1 = W1 * cuMunit / cuAmu * (IT.Z1 ? 1.0 : EI.Eta1);
+	cuFP_t N2 = W2 * cuMunit / cuAmu * (IT.Z2 ? 1.0 : EI.Eta2);
 	cuFP_t N0 = N1 > N2 ? N2 : N1;
-	
 
 	// Select the maximum probability channel
 	//
@@ -4174,7 +4149,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       //
       if (J==0) {
 	cuFP_t v1[3], v2[3];
-	cuFP_t u1[3], u2[3];
+	cuFP_t u1[3], u2[3];	// Used only for debugging
 	
 	for (int k=0; k<3; k++) {
 	  // Both particles are neutrals or ions
@@ -4238,7 +4213,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       //
       if (J==1) {
 	cuFP_t v1[3], v2[3];
-	cuFP_t u1[3], u2[3];
+	cuFP_t u1[3], u2[3];	// Used only for debugging
 	
 	for (int k=0; k<3; k++) {
 	  // Particle 1 is the ion
@@ -4259,6 +4234,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  cuFP_t DE2 = p2->datr[cuEcon];
 	  totalDE += DE2;
 	  p2->datr[cuEcon] = 0.0;
+	} else if (cuCons>=0) {
+	  cuFP_t DE2 = p2->datr[cuCons];
+	  totalDE += DE2;
+	  p2->datr[cuCons] = 0.0;
 	}
 
 	PE[1] = totalDE;
@@ -4310,7 +4289,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       //
       if (J==2) {
 	cuFP_t v1[3], v2[3];
-	cuFP_t u1[3], u2[3];
+	cuFP_t u1[3], u2[3];	// Used only for debugging
 	
 	for (int k=0; k<3; k++) {
 	  // Particle 1 is the elctron
@@ -4331,6 +4310,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  cuFP_t DE1 = p1->datr[cuEcon];
 	  totalDE += DE1;
 	  p1->datr[cuEcon] = 0.0;
+	} else if (cuCons>=0) {
+	  cuFP_t DE1 = p1->datr[cuCons];
+	  totalDE += DE1;
+	  p1->datr[cuCons] = 0.0;
 	}
 
 	PE[2]  = totalDE;
