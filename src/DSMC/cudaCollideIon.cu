@@ -2090,11 +2090,6 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 
   // Sanity checks
   //
-  if (cuEcon>=DATTRIB_CUDA)
-    printf("partInteractions: econs OAB, econs=%d/%d\n", cuEcon, DATTRIB_CUDA);
-
-  if (cuElec+3>=DATTRIB_CUDA)
-    printf("partInteractions: epos OAB, epos+3=%d/%d\n", cuElec+3, DATTRIB_CUDA);
   if (I1 >= in._s) {
     printf("cross section: i1 wanted %d/%d\n", I1, in._s);
   }
@@ -3594,14 +3589,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 {
   const int Nsp = elems._s;
   
-  // Sanity checks
-  //
-  if (cuEcon>=DATTRIB_CUDA)
-    printf("partInteractions: econs OAB, econs=%d/%d\n", cuEcon, DATTRIB_CUDA);
-
-  if (cuElec+3>=DATTRIB_CUDA)
-    printf("partInteractions: epos OAB, epos+3=%d/%d\n", cuElec+3, DATTRIB_CUDA);
-    
   // Cache new state weights for each particle
   //
   cuFP_t *FF1 = new cuFP_t [Nsp];
