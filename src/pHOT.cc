@@ -5245,8 +5245,10 @@ void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
 
   final = data;
 
+  /*
   if (myid == 0) 
     std::cout << "pHOT::parallelMerge: data size=" << data.size() << std::endl;
+  */
 
 #ifdef USE_GPTL
   GPTLstop("pHOT::parallelMerge");
