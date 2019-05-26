@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <numeric>
 
 #include <Ion.H>
 #include <Elastic.H>
@@ -616,6 +617,12 @@ void chdata::cuda_initialize_textures()
 
     IonPtr I = v.second;
     cuIonElement& E = cuIonElem[k];
+
+    E.IPval = 0.0;
+    if (E.C<= E.Z) {
+      lQ Q(I->Z, I->C);
+      E.IPval = I->getIP(Q);
+    }
 
     // The free-free array
     //
@@ -1279,11 +1286,12 @@ __global__ void testColExcite
 
 __device__
 void computeColIonize
-(cuFP_t E, cuFP_t& xc, cuIonElement& elem)
+(cuFP_t E, cuFP_t& ph, cuFP_t& xc, cuIonElement& elem)
 {
   if (E < elem.ciEmin or E > elem.ciEmax) {
 
     xc = 0.0;
+    ph = 0.0;
 
   } else {
 
@@ -1311,6 +1319,8 @@ void computeColIonize
       A*int2_as_double(tex1D<int2>(elem.ci_d, indx  )) +
       B*int2_as_double(tex1D<int2>(elem.ci_d, indx+1)) ;
 #endif
+
+    ph = elem.IPval;
   }
 }
 
@@ -1334,7 +1344,7 @@ void computePhotoIonize
 
 
 __global__ void testColIonize
-(dArray<cuFP_t> energy, dArray<cuFP_t> xc, cuIonElement elem)
+(dArray<cuFP_t> energy, dArray<cuFP_t> ph, dArray<cuFP_t> xc, cuIonElement elem)
 {
   // Thread ID
   //
@@ -1345,7 +1355,7 @@ __global__ void testColIonize
   const unsigned int N = energy._s;
 
   if (tid < N) {
-    computeColIonize(energy._v[tid], xc._v[tid], elem);
+    computeColIonize(energy._v[tid], ph._v[tid], xc._v[tid], elem);
   }
 
   __syncthreads();
@@ -1444,7 +1454,8 @@ void chdata::testCross(int Nenergy)
     thrust::device_vector<cuFP_t> xEE_d(Nenergy);
     thrust::device_vector<cuFP_t> eFF_d(Nenergy), xFF_d(Nenergy);
     thrust::device_vector<cuFP_t> eCE_d(Nenergy), xCE_d(Nenergy);
-    thrust::device_vector<cuFP_t> xCI_d(Nenergy), xRC_d(Nenergy);
+    thrust::device_vector<cuFP_t> eCI_d(Nenergy), xCI_d(Nenergy);
+    thrust::device_vector<cuFP_t> xRC_d(Nenergy);
 
     unsigned int gridSize  = Nenergy/BLOCK_SIZE;
     if (Nenergy > gridSize*BLOCK_SIZE) gridSize++;
@@ -1460,12 +1471,12 @@ void chdata::testCross(int Nenergy)
 					     cuIonElem[k]);
 
     if (E.C<=E.Z)
-      testColExcite<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
+      testColExcite<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d),
 					      toKernel(eCE_d), toKernel(xCE_d), cuIonElem[k]);
       
     if (E.C<=E.Z)
       testColIonize<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
-					      toKernel(xCI_d), cuIonElem[k]);
+					      toKernel(eCI_d), toKernel(xCI_d), cuIonElem[k]);
       
     if (E.C>1)
       testRadRecomb<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
@@ -1478,20 +1489,23 @@ void chdata::testCross(int Nenergy)
     thrust::host_vector<cuFP_t> xFF_h = xFF_d;
     thrust::host_vector<cuFP_t> eCE_h = eCE_d;
     thrust::host_vector<cuFP_t> xCE_h = xCE_d;
+    thrust::host_vector<cuFP_t> eCI_h = eCI_d;
     thrust::host_vector<cuFP_t> xCI_h = xCI_d;
     thrust::host_vector<cuFP_t> xRC_h = xRC_d;
     
     cuda.stop();
     
+    for (auto v : eCI_h) std::cout << v << std::endl;
+
+
     std::vector<double> xEE_0(Nenergy, 0);
     std::vector<double> eFF_0(Nenergy, 0), xFF_0(Nenergy, 0);
     std::vector<double> eCE_0(Nenergy, 0), xCE_0(Nenergy, 0);
-    std::vector<double> xCI_0(Nenergy, 0), xRC_0(Nenergy, 0);
+    std::vector<double> eCI_0(Nenergy, 0), xCI_0(Nenergy, 0), xRC_0(Nenergy, 0);
     
     serial.start();
     
     const bool debug = false;
-    const double b_cross = 0.00879735542978;
 
     Elastic elastic;
 
@@ -1589,6 +1603,7 @@ void chdata::testCross(int Nenergy)
     std::sort(xCE_0.begin(), xCE_0.end());
     std::sort(eCE_0.begin(), eCE_0.end());
     std::sort(xCI_0.begin(), xCI_0.end());
+    std::sort(eCI_0.begin(), eCI_0.end());
     std::sort(xRC_0.begin(), xRC_0.end());
     
     std::vector<double> quantiles = {0.01, 0.05, 0.1, 0.2, 0.5, 0.8, 0.9, 0.95, 0.99};
@@ -1602,10 +1617,12 @@ void chdata::testCross(int Nenergy)
 	      << " | " << std::setw(14) << "CE xc"
 	      << " | " << std::setw(14) << "CE ph"
 	      << " | " << std::setw(14) << "CI_xc"
+	      << " | " << std::setw(14) << "CI_ph"
 	      << " | " << std::setw(14) << "RC_xc"
 	      << std::endl << std::setfill('-')
 	      <<          std::setw(10) << '-'
 	      <<          std::setw(10) << '-'
+	      << " + " << std::setw(14) << '-'
 	      << " + " << std::setw(14) << '-'
 	      << " + " << std::setw(14) << '-'
 	      << " + " << std::setw(14) << '-'
@@ -1617,7 +1634,7 @@ void chdata::testCross(int Nenergy)
     for (auto v : quantiles) {
       int indx = std::min<int>(std::floor(v*Nenergy+0.5), Nenergy-1);
       double FF_xc = 0.0, FF_ph = 0.0, CE_xc = 0.0, CE_ph = 0.0;
-      double CI_xc = 0.0, RC_xc = 0.0, EE_xc = 0.0;
+      double CI_ph = 0.0, CI_xc = 0.0, RC_xc = 0.0, EE_xc = 0.0;
       
       EE_xc = xEE_0[indx];
 
@@ -1631,6 +1648,7 @@ void chdata::testCross(int Nenergy)
 	CE_xc = xCE_0[indx];
 	CE_ph = eCE_0[indx];
 	CI_xc = xCI_0[indx];
+	CI_ph = eCI_0[indx];
       }
 
       std::cout << std::setw(10) << v
@@ -1640,6 +1658,7 @@ void chdata::testCross(int Nenergy)
 		<< " | " << std::setw(14) << CE_xc
 		<< " | " << std::setw(14) << CE_ph
 		<< " | " << std::setw(14) << CI_xc
+		<< " | " << std::setw(14) << CI_ph
 		<< " | " << std::setw(14) << RC_xc
 		<< std::endl;
     }

@@ -201,7 +201,7 @@ struct cuIonElement
   int                 Z, C, I, NColl, NIonz;
   cuFP_t              ceEmin, ceEmax, ceDelE;
   cuFP_t              ciEmin, ciEmax, ciDelE;
-  cuFP_t              piTotl, *pi_0;
+  cuFP_t              piTotl, *pi_0,  IPval;
   cudaTextureObject_t ff_0, ff_d, rc_d, ce_d, ci_d;
 };
 
@@ -238,6 +238,9 @@ protected:
 
   //! Initialize the arrays
   void cuda_initialize();
+
+  //! Initialize the IP array
+  void cuda_initialize_IP();
 
   //! Initialize the textures
   void cuda_initialize_textures();
