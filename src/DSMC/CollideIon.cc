@@ -11196,14 +11196,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = IS.selectFFInteract(I.CF);
 
+	  dE = tmpE * Prob;
+
 #ifdef XC_DEEP2
-	  std::cout << "testT: ffDE=" << tmpE
+	  std::cout << "testT: ffDE=" << dE
 		    << " W=" << Prob
 		    << " Z=" << Q2.first
 		    << " C=" << Q2.second << std::endl;
 #endif
-	  dE = tmpE * Prob;
-
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_FF_E) dE = 0.0;
 	  
@@ -11225,14 +11225,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = IS.selectFFInteract(I.CF);
 
+	  dE = tmpE * Prob;
+
 #ifdef XC_DEEP2
-	  std::cout << "testT: ffDE=" << tmpE
+	  std::cout << "testT: ffDE=" << dE
 		    << " W=" << Prob
 		    << " Z=" << Q1.first
 		    << " C=" << Q1.second << std::endl;
 #endif
-	  dE = tmpE * Prob;
-
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_FF_E) dE = 0.0;
 	  
@@ -11260,14 +11260,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = IS.selectCEInteract(ch.IonList[Q2], I.CE);
 
+	  dE = tmpE * Prob;
+
 #ifdef XC_DEEP2
-	  std::cout << "testT: ceDE=" << tmpE
+	  std::cout << "testT: ceDE=" << dE
 		    << " W=" << Prob
 		    << " Z=" << Q2.first
 		    << " C=" << Q2.second << std::endl;
 #endif
-	  dE = tmpE * Prob;
-
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	    
 	  ctd->CE[id][0] += Prob;
@@ -11288,14 +11288,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = IS.selectCEInteract(ch.IonList[Q1], I.CE);
 
+	  dE = tmpE * Prob;
+
 #ifdef XC_DEEP2
-	  std::cout << "testT: ceDE=" << tmpE
+	  std::cout << "testT: ceDE=" << dE
 		    << " W=" << Prob
 		    << " Z=" << Q1.first
 		    << " C=" << Q1.second << std::endl;
 #endif
-	  dE = tmpE * Prob;
-
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  
 	  ctd->CE[id][0] += Prob;
@@ -11393,7 +11393,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 	  
 #ifdef XC_DEEP2
-	  std::cout << "testT: ciDE=" << (NO_ION_E ? 0.0 : tmpE)
+	  std::cout << "testT: ciDE=" << (NO_ION_E ? 0.0 : dE)
 		    << " W=" << Prob
 		    << " Z=" << Q2.first
 		    << " C=" << Q2.second << std::endl;
@@ -11476,7 +11476,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 
 #ifdef XC_DEEP2
-	  std::cout << "testT: ciDE=" << (NO_ION_E ? 0.0 : tmpE)
+	  std::cout << "testT: ciDE=" << (NO_ION_E ? 0.0 : dE)
 		    << " W=" << Prob
 		    << " Z=" << Q1.first
 		    << " C=" << Q1.second << std::endl;
@@ -11855,7 +11855,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     PE[cid][1] *= N0;
   }
 
-#ifdef XC_DEEP
+#ifdef XC_DEEP6
   std::cout << "ctest:"
     << " E0=" << PE[0][1]
     << " E1=" << PE[1][1]
@@ -18298,9 +18298,13 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
   colUps[id][2] += selcM * selcM;
   colUps[id][3] += colCf[id];
 
-#ifdef XC_DEEP
+#ifdef XC_DEEP5
   std::cout << "ctest: cross="
-	    << crossRat*TreeDSMC::Lunit*TreeDSMC::Lunit/1e-14 << std::endl;
+	    << crossRat*TreeDSMC::Lunit*TreeDSMC::Lunit/1e-14
+	    << " selcM=" << selcM
+	    << " Vel=" << crm
+	    << " Tau=" << tau
+	    << std::endl;
 #endif
 
   if (collLim) {		// Sanity clamp
@@ -22891,14 +22895,23 @@ void CollideIon::Pord::update()
     // Normalization check
     //
     double tot1 = 0.0, tot2 = 0.0;
+    // double dif1 = 0.0, dif2 = 0.0;
     size_t C = 0;
     for (auto s : caller->SpList) {
+      /*
+      double d1 = p1->dattrib[s.second] - f1[C]/sum1;
+      double d2 = p2->dattrib[s.second] - f2[C]/sum2;
+      dif1 += d1*d1;
+      dif2 += d2*d2;
+      */
       p1->dattrib[s.second] = f1[C]/sum1;
       p2->dattrib[s.second] = f2[C]/sum2;
       tot1 += p1->dattrib[s.second];
       tot2 += p2->dattrib[s.second];
       C++;
     }
+    
+    // std::cout << "FF1=" << sum1 << " FF2=" << sum2 << " D1=" << sqrt(dif1) << " D2=" << sqrt(dif2) << " T=" << tnow << std::endl;
 
     // Sanity check
     //
