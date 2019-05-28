@@ -1249,12 +1249,11 @@ __global__ void testColExcite
 
 __device__
 void computeColIonize
-(cuFP_t E, cuFP_t& ph, cuFP_t& xc, cuIonElement* elem)
+(cuFP_t E, cuFP_t& xc, cuIonElement* elem)
 {
   if (E < elem->ciEmin or E > elem->ciEmax) {
 
     xc = 0.0;
-    ph = 0.0;
 
   } else {
 
@@ -1282,8 +1281,6 @@ void computeColIonize
       A*int2_as_double(tex1D<int2>(elem->ci_d, indx  )) +
       B*int2_as_double(tex1D<int2>(elem->ci_d, indx+1)) ;
 #endif
-
-    ph = elem->IPval;
   }
 }
 
@@ -1318,7 +1315,8 @@ __global__ void testColIonize
   const unsigned int N = energy._s;
 
   if (tid < N) {
-    computeColIonize(energy._v[tid], ph._v[tid], xc._v[tid], elem);
+    computeColIonize(energy._v[tid], xc._v[tid], elem);
+    ph._v[tid] = elem->IPval;
   }
 
   __syncthreads();
@@ -1676,17 +1674,20 @@ void CollideIon::cuda_initialize()
     speciesKey k = s.first;
     int Z = k.first;
     int C = k.second;
+
     // Scan
     bool found = false;
+
     for (auto & E : ch.cuIonElem) {
       if (E.Z == Z and E.C == C) {
-	E.I = s.second;
+	E.I   = s.second;
 	minSp = std::min<int>(minSp, s.second);
 	elems.push_back(E);
 	found = true;
 	break;
       }
     }
+
     if (not found) {
       std::cout << "CollideIon::cuda_initialize: [Z, C] = ["
 		<< Z << ", " << C << "] not found" << std::endl;
@@ -1706,7 +1707,7 @@ void CollideIon::cuda_initialize()
 
   int consval = use_cons;
   int elecval = use_elec;
-  int elccons = -1;
+  int elccons = elc_cons;
 
   if (use_cons) consval = use_cons - minSp;
   if (use_elec) elecval = use_elec - minSp;
@@ -1856,6 +1857,7 @@ __global__ void initCurand(dArray<curandState> state,
 // This is a port of the cell initialization for the scalar version
 //
 __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all active)
+			       dArray<cuFP_t> crm,         // Mean ion collision speed (per cell)
 			       dArray<cuFP_t> Ivel2,       // Mean-squared ion velocity (per cell)
 			       dArray<cuFP_t> Evel2,       // Mean-squared electron velocity (per cell)
 			       dArray<cuFP_t> PiProb,      // Relative electron fraction for BN algorithm (per cell)
@@ -1889,6 +1891,9 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
     cuFP_t massP = 0.0, numbP = 0.0, massE = 0.0;
     cuFP_t evel2 = 0.0, ivel2 = 0.0, numQ2 = 0.0;
     cuFP_t meanM = 0.0, densQ = 0.0, densE = 0.0;
+
+    cuFP_t crm1[3], crm2[3];
+    for (int k=0; k<3; k++) crm1[k] = crm2[k] = 0.0;
 
     for (size_t i=0; i<nbods; i++) {
 	
@@ -1937,6 +1942,9 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
 	eVel2 += ve*ve;
 	cuFP_t vi  = p->vel[l];
 	iVel2 += vi*vi;
+
+	crm1[l] += p->mass * vi;
+	crm2[l] += p->mass * vi*vi;
       }
 	
       evel2 += p->mass * ee * eVel2;
@@ -1949,6 +1957,16 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
     if (massE>0.0) Evel2._v[c] = evel2/massE;
     if (densQ>0.0) numQ2      /= densQ;
       
+    if (massP>0.0) {
+      cuFP_t rvel = 0.0;
+      for (int k=0; k<3; k++) {
+	rvel += (crm2[k] - crm1[k]*crm1[k]/massP)/massP;
+      }
+      crm._v[c] = sqrt(fabs(rvel));
+    } else {
+      crm._v[c] = 0.0;
+    }
+
     cuFP_t ddfac = dfac/volC._v[c];
 
     double tmp1 = densQ, tmp2 = densE;
@@ -2254,7 +2272,7 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 	cuFP_t crs = (cudaGeometric(Z) + cudaGeometric(ZZ)) * fac1 * facS2 * cuCrossfac;
 	      
 	if (crs>0.0) {
-#ifdef XC_DEEP
+#ifdef XC_DEEP4
 	  printf("xsc: (Z, P)=(%d, %d) xnn=%e\n", Z, P, crs);
 #endif
 	  // Double counting
@@ -2305,9 +2323,8 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
       }
 	    
       if (crs1>0.0) {
-#ifdef XC_DEEP
-	printf("xsc: kEi=%e (Z, P)=(%d, %d) xnp=%e\n",
-	       kEi, Z, C, crs1);
+#ifdef XC_DEEP4
+	printf("xsc: kEi=%e (Z, P)=(%d, %d) xnp=%e\n", kEi, Z, C, crs1);
 #endif
 
 	cross._v[K]   = crs1;
@@ -2343,7 +2360,7 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
       if (Z==2) crs = cudaElasticInterp(kEe1, xsc_He, Z, electron) * gVel2 * Eta2 * cuCrossfac * fac1;
       
       if (crs>0.0) {
-#ifdef XC_DEEP
+#ifdef XC_DEEP4
 	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xne=%e fac=%e\n",
 	       kEe1, Z, C, gVel2, Eta2, crs, fac1);
 #endif
@@ -2376,7 +2393,7 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
       if (Z==2) crs = cudaElasticInterp(kEe2, xsc_He, Z, electron) * gVel1 * Eta1 * cuCrossfac * fac2;
 	    
       if (crs>0.0) {
-#ifdef XC_DEEP
+#ifdef XC_DEEP4
 	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xne=%e fac=%e\n",
 	       kEe2, Z, C, gVel1, Eta1, crs, fac2);
 #endif
@@ -2559,8 +2576,8 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
     //  V       V
     if (P<Z and Eta2>0) {
 	    
-      cuFP_t ke = kEe1 > cuFloorEV ? kEe1 : cuFloorEV, ph, xc;
-      computeColIonize(ke, ph, xc, elem);
+      cuFP_t ke = kEe1 > cuFloorEV ? kEe1 : cuFloorEV, xc;
+      computeColIonize(ke, xc, elem);
 	    
       cuFP_t crs = gVel2 * Eta2 * xc * fac1;
 	    
@@ -2570,7 +2587,7 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 	       kEe1, Z, C, gVel2, Eta2, xc, 0.0, fac1);
 #endif
 	cross._v[K]   = crs;
-	delph._v[K]   = ph;
+	delph._v[K]   = elem->IPval;
 	xspcs._v[L+0] = Z;
 	xspcs._v[L+1] = C;
 	xspcs._v[L+2] = I;
@@ -2594,8 +2611,8 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
     //  V       V
     if (P<Z and Eta1) {
 	    
-      cuFP_t ke = kEe2 > cuFloorEV ? kEe2 : cuFloorEV, ph, xc;
-      computeColIonize(ke, ph, xc, elem);
+      cuFP_t ke = kEe2 > cuFloorEV ? kEe2 : cuFloorEV, xc;
+      computeColIonize(ke, xc, elem);
 	    
       cuFP_t crs = gVel1 * Eta1 * xc * fac2;
 	    
@@ -2605,7 +2622,7 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 	       kEe2, Z, C, gVel1, Eta1, xc, 0.0, fac2);
 #endif
 	cross._v[K]   = crs;
-	delph._v[K]   = ph;
+	delph._v[K]   = elem->IPval;
 	xspcs._v[L+0] = 0;
 	xspcs._v[L+1] = 0;
 	xspcs._v[L+2] = 255;
@@ -2724,6 +2741,11 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 	  
 	  K++;
 	  L = K*6;
+
+#ifdef XC_DEEP
+	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e rc=%e dE=%e fac=%e\n",
+	       kEe1, Z, C, gVel2, Eta2, xc, 0.0, fac1);
+#endif
 	}
       }
 	    
@@ -2757,6 +2779,10 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 		
 	  K++;
 	  L = K*6;
+#ifdef XC_DEEP
+	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e rc=%e dE=%e fac=%e\n",
+	       kEe2, Z, C, gVel1, Eta1, xc, 0.0, fac2);
+#endif
 	}
       }
     } // end: original recomb algorithm
@@ -3073,7 +3099,7 @@ void cudaScatterTrace
     if (m1<1.0) m1 *= eta1;
     if (m2<1.0) m2 *= eta2;
 
-#ifdef XC_DEEP
+#ifdef XC_DEEP3
     // KE debug check
     //
     cuFP_t KEi = 0.0;
@@ -3170,7 +3196,7 @@ void cudaScatterTrace
 	     m1, m2, vi, vfac);
     }
     
-#ifdef XC_DEEP
+#ifdef XC_DEEP3
     // KE debug check
     //
     {
@@ -3553,6 +3579,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 				 dArray<int>            cellI,
 				 dArray<int>            cellN,
 				 dArray<cuFP_t>         volC,
+				 dArray<cuFP_t>         crm,
 				 dArray<cuFP_t>         Ivel2,
 				 dArray<cuFP_t>         Evel2,
 				 dArray<cuFP_t>         xsc_H,
@@ -3619,20 +3646,19 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       }
     }
 
-#ifdef XC_DEEP
-    printf("ctest: cross=%e\n", csection);
-    if (csection>10.0) {
-      printEI(csection, EI);
-    }
-#endif
-    
     // Compute probability of interaction (excepting Coulombic) in system units
     //
     csection *= 1e-14 / (cuLunit*cuLunit);
 
-    cuFP_t Prob  = mtotal/vol * cuMunit/cuAmu * sqrt(Ivel2._v[cid]) * spTau._v[cid] * csection;
+    cuFP_t Prob  = mtotal/vol * cuMunit/cuAmu * sqrt(2.0)*crm._v[cid] * spTau._v[cid] * csection;
     cuFP_t selcM = (nbods-1) * Prob * 0.5;
     
+#ifdef XC_DEEP5
+    printf("ctest: cross=%e selcM=%e Vel=%e Tau=%e\n", csection*cuLunit*cuLunit*1.0e14, selcM, sqrt(2.0)*crm._v[cid], spTau._v[cid]);
+    if (csection>10.0) printEI(csection, EI);
+#endif
+    
+
     Nsel._v[cid] = selcM;
 
     int    npairs  = floor(selcM);
@@ -3807,24 +3833,20 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	
 	if (T == free_free) {
 	  
-#ifdef XC_DEEP2
-	  if (IT.I1<255) {
-	    int Z = IT.Z1;
-	    int C = IT.C1;
-	    printf("testT: ffDE=%e W=%e Z=%d C=%d\n", XE, Prob, Z, C);
-	  } else {
-	    int Z = IT.Z2;
-	    int C = IT.C2;
-	    printf("testT: ffDE=%e W=%e Z=%d C=%d\n", XE, Prob, Z, C);
-	  }
-#endif
-	  
 	  dE = XE * Prob;
+
 	  // Sanity
 	  if (::isnan(dE)) {
 	    printf("Crazy dE value in free-free: XE=%e P=%e\n", XE, Prob);
 	    dE = 0.0;
 	  }
+
+#ifdef XC_DEEP2
+	  if (IT.I1<255)
+	    printf("testT: ffDE=%e W=%e Z=%d C=%d\n", dE, Prob, IT.Z1, IT.C1);
+	  else
+	    printf("testT: ffDE=%e W=%e Z=%d C=%d\n", dE, Prob, IT.Z2, IT.C2);
+#endif
 	  
 	  if (IT.I1<255) {	// Ion is p1
 	    PE[1] += Prob;
@@ -3837,25 +3859,20 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	
 	if (T == col_excite) {
 	  
-#ifdef XC_DEEP2
-	  if (IT.I1<255) {
-	    int Z = IT.Z1;
-	    int C = IT.C1;
-	    printf("testT: ceDE=%e W=%e Z=%d C=%d\n", XE, Prob, Z, C);
-	  } else {
-	    int Z = IT.Z2;
-	    int C = IT.C2;
-	    printf("testT: ceDE=%e W=%e Z=%d C=%d\n", XE, Prob, Z, C);
-	  }
-#endif
-	  
 	  dE = XE * Prob;
+
 	  // Sanity
 	  if (::isnan(dE)) {
 	    printf("Crazy dE value in col excite: XE=%e P=%e\n", XE, Prob);
 	    dE = 0.0;
 	  }
 	  
+#ifdef XC_DEEP2
+	  if (IT.I1<255)
+	    printf("testT: ceDE=%e W=%e Z=%d C=%d\n", dE, Prob, IT.Z1, IT.C1);
+	  else
+	    printf("testT: ceDE=%e W=%e Z=%d C=%d\n", dE, Prob, IT.Z2, IT.C2);
+#endif
 	  if (IT.I1<255) {	// Ion is p1
 	    PE[1] += Prob;
 	    EE[1] += dE * N0;
@@ -3866,13 +3883,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	} // END: col_excite
 	
 	if (T == col_ionize) {
-	  
-	  dE = XE * Prob;
-	  // Sanity
-	  if (::isnan(dE)) {
-	    printf("Crazy dE value in col ionize: XE=%e P=%e\n", XE, Prob);
-	    dE = 0.0;
-	  }
 	  
 	  if (IT.I1<255) {	// Ion is p1
 	    
@@ -3893,6 +3903,14 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    Prob = WW;
 	    
+	    dE = XE * Prob;
+
+	    // Sanity
+	    if (::isnan(dE)) {
+	      printf("Crazy dE value in col ionize: XE=%e P=%e\n", XE, Prob);
+	      dE = 0.0;
+	    }
+	    
 	    // The kinetic energy of the ionized electron is lost
 	    // from the COM KE
 	    //
@@ -3911,7 +3929,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    EE[1] += dE * N0;
 	    
 #ifdef XC_DEEP2
-	    printf("testT: ciDE=%e W=%e Z=%d C=%d\n", XE, Prob, IT.Z1, IT.C1);
+	    printf("testT: ciDE=%e W=%e Z=%d C=%d\n", dE, Prob, IT.Z1, IT.C1);
 #endif
 	  } // END: ion-electron
 	  else {		// Ion is p2
@@ -3933,6 +3951,15 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    Prob = WW;
 	    
+	    dE = XE * Prob;
+
+	    // Sanity
+	    if (::isnan(dE)) {
+	      printf("Crazy dE value in col ionize: XE=%e P=%e\n", XE, Prob);
+	      dE = 0.0;
+	    }
+	    
+
 	    // The kinetic energy of the ionized electron is lost
 	    // from the COM KE
 	    //
@@ -3951,7 +3978,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    EE[2] += dE * N0;
 
 #ifdef XC_DEEP2
-	    printf("testT: ciDE=%e W=%e Z=%d C=%d\n", XE, Prob, IT.Z2, IT.C2);
+	    printf("testT: ciDE=%e W=%e Z=%d C=%d\n", dE, Prob, IT.Z2, IT.C2);
 #endif
 	  } // END: electron-ion
 	  
@@ -4102,8 +4129,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	printf("%20s %16.8e %16.8e\n", cudaInterNames[maxT], maxP, totalXS);
       }
       
-#ifdef XC_DEEP
-      printf("ctest E0=%e E1=%e E2=%e\n", EE[0], EE[1], EE[2]);
+#ifdef XC_DEEP6
+      printf("ctest: E0=%e E1=%e E2=%e\n", EE[0], EE[1], EE[2]);
 #endif
       
       // Convert energy loss from eV to system units and
@@ -4162,10 +4189,21 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	}
 	for (int k=0; k<Nsp; k++) {
 	  cuIonElement& E = elems._v[k];
-	  
 	  p1->datr[E.I+cuSp0] = FF1[k]/sum1;
 	  p2->datr[E.I+cuSp0] = FF2[k]/sum2;
 	}
+
+	/*
+	cuFP_t dif1 = 0.0, dif2 = 0.0, d1, d2;
+	for (int k=0; k<Nsp; k++) {
+	  cuIonElement& E = elems._v[k];
+	  d1 = p1->datr[E.I+cuSp0] - FF1[k]/sum1;
+	  d2 = p2->datr[E.I+cuSp0] - FF2[k]/sum2;
+	  dif1 += d1*d1;
+	  dif2 += d2*d2;
+	}
+	printf("FF1=%e FF2=%e D1=%e D2=%e\n", sum1, sum2, sqrt(dif1), sqrt(dif2));
+	*/
       }
 
       //
@@ -4639,7 +4677,7 @@ void * CollideIon::collide_thread_cuda(void * arg)
   int gridSize = (N+BLOCK_SIZE*stride-1)/(BLOCK_SIZE*stride);
 
 				// These do not need copying back
-  thrust::device_vector<cuFP_t> d_Ivel2(N), d_Evel2(N);
+  thrust::device_vector<cuFP_t> d_crm(N), d_Ivel2(N), d_Evel2(N);
   thrust::device_vector<cuFP_t> d_PiProb(N*4), d_ABrate(N*4);
   thrust::device_vector<cuFP_t> d_volC(h_volC), d_tauC(h_tauC);
 
@@ -4647,6 +4685,7 @@ void * CollideIon::collide_thread_cuda(void * arg)
   //
   cellInitKernel<<<gridSize, BLOCK_SIZE>>>
     (toKernel(d_part),		// Particle array (input)
+     toKernel(d_crm),		// Mean relative ion speed (output)
      toKernel(d_Ivel2),		// Mean squared ion velocity (output)
      toKernel(d_Evel2),		// Mean squared electron velocity (output)
      toKernel(d_PiProb),	// For BN algorithm (output)
@@ -4686,8 +4725,8 @@ void * CollideIon::collide_thread_cuda(void * arg)
      toKernel(d_Coul4),  toKernel(d_Nsel),
      toKernel(d_cross),  toKernel(d_delph),  toKernel(d_xspcs),
      toKernel(d_xtype),  toKernel(d_cellI),  toKernel(d_cellN),
-     toKernel(d_volC),   toKernel(d_Ivel2),  toKernel(d_Evel2),
-     toKernel(xsc_H),    toKernel(xsc_He),
+     toKernel(d_volC),   toKernel(d_crm),    toKernel(d_Ivel2),
+     toKernel(d_Evel2),  toKernel(xsc_H),    toKernel(xsc_He),
      toKernel(xsc_pH),   toKernel(xsc_pHe),
      toKernel(d_PiProb), toKernel(d_ABrate),
      toKernel(cuElems),  toKernel(d_tauC),
