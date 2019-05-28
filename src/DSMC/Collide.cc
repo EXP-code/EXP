@@ -21,15 +21,17 @@ using namespace std;
 #include <signal.h>
 
 
-static bool CDEBUG     = false;	// Thread diagnostics, false for
-				// production
+static bool CDEBUG      = false; // Thread diagnostics, false for
+				 // production
 
-static bool CTIMER     = false;	// Thread timing diagnostics, false for
-				// production
+static bool CTIMER      = false; // Thread timing diagnostics, false
+				 // for production
 
-bool Collide::PULLIN   = false;	// Use the original Pullin velocity 
-				// selection algorithm
+bool Collide::PULLIN    = false; // Use the original Pullin velocity
+				 // selection algorithm
 
+bool Collide::SampleCRM = false; // Use sample cell for value of mean
+				 // collision velocity
 
 // Default NTC quantile threshold
 //
@@ -1082,12 +1084,22 @@ void * Collide::collide_thread(void * arg)
 
     double crm = 0.0;
     
-    if (samp) {
+    if (SampleCRM and samp) {
       if (samp->stotal[0]>0.0) {
 	for (unsigned k=0; k<3; k++) {
 	  crm += (samp->stotal[1+k] - 
 		  samp->stotal[4+k]*samp->stotal[4+k]/samp->stotal[0])
-	    /samp->stotal[0];}
+	    /samp->stotal[0];
+	}
+      }
+      crm  = crm>0.0 ? sqrt(2.0*crm) : 0.0;
+    } else {
+      if (c->stotal[0]>0.0) {
+	for (unsigned k=0; k<3; k++) {
+	  crm += (c->stotal[1+k] - 
+		  c->stotal[4+k]*c->stotal[4+k]/c->stotal[0])
+	    /c->stotal[0];
+	}
       }
       crm  = crm>0.0 ? sqrt(2.0*crm) : 0.0;
     }
