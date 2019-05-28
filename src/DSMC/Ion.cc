@@ -3563,6 +3563,7 @@ void chdata::cuda_initialize()
     E.ceEmin = E.ceEmax = E.ceDelE = 0;
     E.ciEmin = E.ciEmax = E.ciDelE = 0;
     E.ff_0 = E.ff_d = E.rc_d = E.ce_d = E.ci_d = 0;
+    E.IPval = ipdata[lQ(E.Z, E.C)];
 
     cuIonElem.push_back(E);
     
