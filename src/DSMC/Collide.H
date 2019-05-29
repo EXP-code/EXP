@@ -507,7 +507,7 @@ public:
   static bool PULLIN;		
 
   //! Use sample cell for value of mean collision velocity
-  static bool SampleCR;
+  static bool SampleCRM;
 
   //! Print out sorted cell parameters
   static bool SORTED;
