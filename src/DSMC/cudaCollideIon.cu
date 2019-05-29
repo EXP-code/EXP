@@ -1839,7 +1839,7 @@ void CollideIon::cuda_atomic_weights_init()
   cuda_safe_call(cudaMemcpyToSymbol(cuNoCool, &NOCOOL, sizeof(bool)), 
 		 __FILE__, __LINE__, "Error copying cuNoCool");
 
-  cuda_safe_call(cudaMemcpyToSymbol(cuRecombIP, &RECOMB_IP, sizeof(bool)), 
+  cuda_safe_call(cudaMemcpyToSymbol(cuRecombIP, &Recomb_IP, sizeof(bool)), 
 		 __FILE__, __LINE__, "Error copying cuRecombIP");
 }  
 
