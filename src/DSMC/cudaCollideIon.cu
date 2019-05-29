@@ -1570,7 +1570,7 @@ const int maxAtomicNumber = 15;
 __constant__ cuFP_t cuda_atomic_weights[maxAtomicNumber], cuFloorEV, cuEsu;
 __constant__ cuFP_t cuVunit, cuMunit, cuTunit, cuLunit, cuEunit;
 __constant__ cuFP_t cuAmu, cuEV, cuLogL, cuCrossfac;
-__constant__ bool   cuMeanKE, cuMeanMass, cuNewRecombAlg, cuNoCool;
+__constant__ bool   cuMeanKE, cuMeanMass, cuNewRecombAlg, cuNoCool, cuRecombIP;
 
 const int coulSelNumT = 2000;
 __constant__ cuFP_t coulSelA[coulSelNumT];
@@ -1600,6 +1600,10 @@ void testConstantsIon(int idev)
   printf("** eV  (cgs)  = %13.6e\n", cuEV                );
   printf("** esu (cgs)  = %13.6e\n", cuEsu               );
   printf("** Cross fac  = %13.6e\n", cuCrossfac          );
+  if (cuRecombIP) 
+    printf("** Rcmb IP    = true\n"                      );
+  else
+    printf("** Rcmb IP    = false\n"                     );
   if (cuMeanKE) 
     printf("** Mean KE    = true\n"                      );
   else
@@ -1834,6 +1838,9 @@ void CollideIon::cuda_atomic_weights_init()
 
   cuda_safe_call(cudaMemcpyToSymbol(cuNoCool, &NOCOOL, sizeof(bool)), 
 		 __FILE__, __LINE__, "Error copying cuNoCool");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuRecombIP, &RECOMB_IP, sizeof(bool)), 
+		 __FILE__, __LINE__, "Error copying cuRecombIP");
 }  
 
 
@@ -2587,7 +2594,10 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 	       kEe1, Z, C, gVel2, Eta2, xc, 0.0, fac1);
 #endif
 	cross._v[K]   = crs;
-	delph._v[K]   = elem->IPval;
+	if (cuRecombIP)
+	  delph._v[K] = elem->IPval;
+	else
+	  delph._v[K] = 0.0;
 	xspcs._v[L+0] = Z;
 	xspcs._v[L+1] = C;
 	xspcs._v[L+2] = I;
@@ -2622,7 +2632,10 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 	       kEe2, Z, C, gVel1, Eta1, xc, 0.0, fac2);
 #endif
 	cross._v[K]   = crs;
-	delph._v[K]   = elem->IPval;
+	if (cuRecombIP)
+	  delph._v[K] = elem->IPval;
+	else
+	  delph._v[K] = 0.0;
 	xspcs._v[L+0] = 0;
 	xspcs._v[L+1] = 0;
 	xspcs._v[L+2] = 255;

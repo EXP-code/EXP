@@ -211,10 +211,6 @@ static bool DBG_HSCAT           = false;
 //
 static bool debugFC             = false;
 
-// Tally ionization potential with energy loss during recombination
-//
-static bool RECOMB_IP           = false;
-
 // Cross-section debugging; set to false for production
 //
 static bool CROSS_DBG           = false;
@@ -300,6 +296,10 @@ static bool NO_ION_ELECTRON     = false;
 // Floor the minimum impact parameter for Coulombic scattering
 //
 static bool IPS                 = false;
+
+// Tally ionization potential with energy loss during recombination
+//
+bool CollideIon::Recomb_IP      = false;
 
 // This flag causes excess to be added to ion
 //
@@ -619,7 +619,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "CLONE_ELEC"
 	      << (CLONE_ELEC ? "on" : "off")            << std::endl
 	      <<  " " << std::setw(20) << std::left << "RECOMB_KE"
-	      << (RECOMB_IP ? "on" : "off")             << std::endl
+	      << (Recomb_IP ? "on" : "off")             << std::endl
 	      <<  " " << std::setw(20) << std::left << "KE_DEBUG"
 	      << (KE_DEBUG ? "on" : "off" )             << std::endl
 	      <<  " " << std::setw(20) << std::left << "NO_HSCAT"
@@ -5722,7 +5722,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
 
       // if (use_elec<0) delE = kEe1[id];
       delE = kEe1[id];
-      if (RECOMB_IP) delE += ch.IonList[lQ(Z2, C2-1)]->ip;
+      if (Recomb_IP) delE += ch.IonList[lQ(Z2, C2-1)]->ip;
 
       p1->iattrib[use_key] = k1.updateC(--C1);
       partflag      = 1;
@@ -5784,7 +5784,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
 
       // if (use_elec<0) delE = kEe2[id];
       delE = kEe2[id];
-      if (RECOMB_IP) delE += ch.IonList[lQ(Z2, C2-1)]->ip;
+      if (Recomb_IP) delE += ch.IonList[lQ(Z2, C2-1)]->ip;
 
       p2->iattrib[use_key] = k2.updateC(--C2);
       partflag     = 2;
@@ -6722,7 +6722,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
 
       // if (use_elec<0) delE = kEe1[id];
       delE = kEe1[id];
-      if (RECOMB_IP) delE += ch.IonList[lQ(Z1, C1)]->ip;
+      if (Recomb_IP) delE += ch.IonList[lQ(Z1, C1)]->ip;
 
       ctd1->RR[id][0] += 1;
       ctd1->RR[id][1] += Wb;
@@ -6806,7 +6806,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
 
       // if (use_elec<0) delE = kEe2[id];
       delE = kEe2[id];
-      if (RECOMB_IP) delE += ch.IonList[lQ(Z2, C2)]->ip;
+      if (Recomb_IP) delE += ch.IonList[lQ(Z2, C2)]->ip;
 
       ctd2->RR[id][0] += 1;
       ctd2->RR[id][1] += Wb;
@@ -9005,7 +9005,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  // Electron KE radiated in recombination
 	  double eE = iE2 * Pr * TreeDSMC::Eunit / (N0*eV);
 
-	  if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * Pr;
+	  if (Recomb_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * Pr;
 	  if (energy_scale > 0.0) dE *= energy_scale;
 
 	  ctd2->RR[id][0] += Prob;
@@ -9095,7 +9095,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  double eE = 0.0;
 	  eE = iE1 * Pr * TreeDSMC::Eunit / (N0*eV);
 
-	  if (RECOMB_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * Pr;
+	  if (Recomb_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * Pr;
 	  if (energy_scale > 0.0) dE *= energy_scale;
 
 	  ctd1->RR[id][0] += Prob;
@@ -11535,7 +11535,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // Electron KE radiated in recombination
 	  double eE = Echg * TreeDSMC::Eunit / (N0*eV);
 
-	  if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * Prob;
+	  if (Recomb_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * Prob;
 	  if (energy_scale > 0.0) dE *= energy_scale;
 
 	  ctd->RR[id][0] += Prob;
@@ -11639,7 +11639,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double eE = Echg * TreeDSMC::Eunit / (N0*eV);
 
-	  if (RECOMB_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * Prob;
+	  if (Recomb_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * Prob;
 	  if (energy_scale > 0.0) dE *= energy_scale;
 
 	  ctd->RR[id][0] += Prob;
@@ -15996,7 +15996,7 @@ double collDiag::addCellElec(pCell* cell, int ue, int id)
 
 void collDiag::addCellPotl(pCell* cell, int id)
 {
-  if (RECOMB_IP) {
+  if (CollideIon::Recomb_IP) {
 
     const double cvrt = TreeDSMC::Munit/amu * eV/TreeDSMC::Eunit;
     
@@ -16034,7 +16034,7 @@ void collDiag::addCellPotl(pCell* cell, int id)
       }
     } // END: body loop
 
-  } // END: RECOMB_IP
+  } // END: Recomb_IP
 
 } // END: addCellPotl
 
@@ -21811,11 +21811,11 @@ void CollideIon::processConfig()
       config["qCrit"]["value"] = qCrit = -1.0;
     }
 
-    if (config["RECOMB_IP"])
-      RECOMB_IP = config["RECOMB_IP"]["value"].as<bool>();
+    if (config["Recomb_IP"])
+      Recomb_IP = config["Recomb_IP"]["value"].as<bool>();
     else {
-      config["RECOMB_IP"]["desc"] = "Electronic binding energy is lost in recombination";
-      config["RECOMB_IP"]["value"] = RECOMB_IP = false;
+      config["Recomb_IP"]["desc"] = "Electronic binding energy is lost in recombination";
+      config["Recomb_IP"]["value"] = Recomb_IP = false;
     }
 
     if (config["CROSS_DBG"])

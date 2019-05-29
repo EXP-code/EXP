@@ -888,6 +888,9 @@ public:
   //@{
   //! TRACE algorithm default: adds excess energy to electron.  
 
+  //! Apply ionization potential to recombination energy loss
+  static bool Recomb_IP;
+
   //! This flag causes excess to be added to ion (default: false)
   static bool reverse_apply;
 
