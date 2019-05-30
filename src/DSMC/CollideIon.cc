@@ -2673,21 +2673,23 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
     double muee = atomic_weights[0]/2.0;
     double muie = atomic_weights[0] * meanM[id]/(atomic_weights[0] + meanM[id]);
 
-    if (false) {
-      std::cout << " MUii=" << muii
-		<< " MUee=" << muee
-		<< " MUie=" << muie
-		<< " denQ=" << densQtot
-		<< " denE=" << densEtot
-		<< " numQ=" << numQ2[id]
-		<< " Ivel2=" << Ivel2[id]
-		<< " Evel2=" << Evel2[id]
-		<< " volC=" << volc
-		<< " masC=" << massP
-		<< " numQ=" << tmp1
-		<< " numE=" << tmp2
-		<< std::endl;
-    }
+#ifdef XC_DEEP7
+    std::cout << "coulombic:"
+      << " MUii=" << muii
+      << " MUee=" << muee
+      << " MUie=" << muie
+      << " denQ=" << densQtot
+      << " denE=" << densEtot
+      << " numQ=" << numQ2[id]
+      << " Ivel2=" << Ivel2[id]
+      << " Evel2=" << Evel2[id]
+      << " volC=" << volc
+      << " masC=" << massP
+      << " nbod=" << nbods
+      << " numQ=" << tmp1
+      << " numE=" << tmp2
+      << std::endl;
+#endif
 
 				// Ion-Ion
     PiProb[id][0] = densQtot;
@@ -4917,7 +4919,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	
 	CProb[id][0] += cross;
 	
-#ifdef XC_DEEP
+#ifdef XC_DEEP1
+	std::cout << "xsc: xnn=" << crs << std::endl;
+#endif
+#ifdef XC_DEEP4
 	std::cout << "xsc: (Z, P)=(" << Z << ", " << P << ") xnn=" << crs
 		  << std::endl;
 #endif
@@ -4941,7 +4946,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	
 	CProb[id][0] += crs1;
 	
-#ifdef XC_DEEP
+#ifdef XC_DEEP1
+	std::cout << "xsc: xnp=" << crs1 << std::endl;
+#endif
+#ifdef XC_DEEP4
 	std::cout << "xsc: kEi=" << kEi[id]
 		  << " (Z, P)=(" << Z << ", " << P << ") xnp=" << crs1
 		  << std::endl;
@@ -4962,7 +4970,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	
 	CProb[id][0] += crs1;
 
-#ifdef XC_DEEP
+#ifdef XC_DEEP1
+	std::cout << "xsc: xnp=" << crs1 << std::endl;
+#endif
+#ifdef XC_DEEP4
 	std::cout << "xsc: kEi=" << kEi[id]
 		  << " (Z, P)=(" << ZZ << ", " << PP << ") xnp=" << crs1
 		  << std::endl;
@@ -5013,7 +5024,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       
       CProb[id][1] += crs;
 
-#ifdef XC_DEEP
+#ifdef XC_DEEP1
+	std::cout << "xsc: xne=" << crs << std::endl;
+#endif
+#ifdef XC_DEEP4
       std::cout << "xsc: kEe=" << kEe1[id] << " (Z, P)=(" << Z << ", " << C
 		<< ") gVel=" << gVel2 << " eta=" << Eta2
 		<< " xne=" << crs << " fac=" << fac1 << std::endl;
@@ -5036,7 +5050,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       
       CProb[id][2] += crs;
 
-#ifdef XC_DEEP
+#ifdef XC_DEEP1
+	std::cout << "xsc: xne=" << crs << std::endl;
+#endif
+#ifdef XC_DEEP4
       std::cout << "xsc: kEe=" << kEe2[id] << " (Z, P)=(" << Z << ", " << C
 		<< ") gVel=" << gVel1 << " eta=" << Eta1
 		<< " xne=" << crs << " fac=" << fac2 << std::endl;
@@ -5127,7 +5144,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	if (std::isinf(crs)) crs = 0.0; // Sanity check
 	
 	if (crs>0.0) {
-#ifdef XC_DEEP
+#ifdef XC_DEEP1
+	std::cout << "xsc: xf=" << crs << std::endl;
+#endif
+#ifdef XC_DEEP4
 	  std::cout << "xsc: kEe=" << kEe1[id]
 		    << " (Z, P)=(" << Z << ", " << C << ")"
 		    << " gVel=" << gVel2 << " eta=" << Eta2
@@ -5154,7 +5174,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	if (std::isinf(crs)) crs = 0.0; // Sanity check
 	  
 	if (crs>0.0) {
-#ifdef XC_DEEP
+#ifdef XC_DEEP1
+	std::cout << "xsc: xf=" << crs << std::endl;
+#endif
+#ifdef XC_DEEP4
 	  std::cout << "xsc: kEe=" << kEe2[id]
 		    << " (Z, P)=(" << Z << ", " << C << ")"
 		    << " gVel=" << gVel1 << " eta=" << Eta1
@@ -5193,7 +5216,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       if (DEBUG_CRS) trap_crs(crs, colexcite);
       
       if (crs > 0.0) {
-#ifdef XC_DEEP
+#ifdef XC_DEEP1
+	std::cout << "xsc: xc=" << crs << std::endl;
+#endif
+#ifdef XC_DEEP4
 	std::cout << "xsc: kEe=" << kEe1[id]
 		  << " (Z, P)=(" << Z << ", " << C << ")"
 		  << " gVel=" << gVel2 << " eta=" << Eta2
@@ -5228,7 +5254,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       if (DEBUG_CRS) trap_crs(crs, colexcite);
       
       if (crs > 0.0) {
-#ifdef XC_DEEP
+#ifdef XC_DEEP1
+	std::cout << "xsc: xc=" << crs << std::endl;
+#endif
+#ifdef XC_DEEP4
 	std::cout << "xsc: kEe=" << kEe2[id]
 		  << " (Z, P)=(" << Z << ", " << C << ")"
 		  << " gVel=" << gVel1 << " eta=" << Eta1
@@ -5268,8 +5297,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       if (DEBUG_CRS) trap_crs(crs, ionize);
       
       if (crs > 0.0) {
-#ifdef XC_DEEP
-	std::cout << "xsc: kEe=" << kE1s[id]
+#ifdef XC_DEEP1
+	std::cout << "xsc: io=" << crs << std::endl;
+#endif
+#ifdef XC_DEEP4
+	std::cout << "xsc: kEe=" << kEe1[id]
 		  << " (Z, P)=(" << Z << ", " << C << ")"
 		  << " gVel=" << gVel2 << " eta=" << Eta2
 		  << " io=" << DI << " dE=" << 0.0
@@ -5302,8 +5334,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       if (DEBUG_CRS) trap_crs(crs, ionize);
       
       if (crs > 0.0) {
-#ifdef XC_DEEP
-	std::cout << "xsc: kEe=" << kE1s[id]
+#ifdef XC_DEEP1
+	std::cout << "xsc: io=" << crs << std::endl;
+#endif
+#ifdef XC_DEEP4
+	std::cout << "xsc: kEe=" << kEe2[id]
 		  << " (Z, P)=(" << Z << ", " << C << ")"
 		  << " gVel=" << gVel1 << " eta=" << Eta1
 		  << " io=" << DI << " dE=" << 0.0
@@ -5438,6 +5473,17 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	    hCross[id].back().crs = crs;
 	    
 	    CProb[id][1] += crs;
+
+#ifdef XC_DEEP1
+	std::cout << "xsc: rc=" << crs << std::endl;
+#endif
+#ifdef XC_DEEP4
+	    std::cout << "xsc: kEe=" << kEe1[id]
+		      << " (Z, P)=(" << Z << ", " << C << ")"
+		      << " gVel=" << gVel2 << " eta=" << Eta2
+		      << " rc=" << crs << " dE=" << 0.0
+		      << " fac=" << fac1 << std::endl;
+#endif
 	  }
       }
 
@@ -5476,6 +5522,16 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	    hCross[id].back().crs = crs;
 	    
 	    CProb[id][2] += crs;
+#ifdef XC_DEEP1
+	std::cout << "xsc: rc=" << crs << std::endl;
+#endif
+#ifdef XC_DEEP4
+	    std::cout << "xsc: kEe=" << kEe2[id]
+		      << " (Z, P)=(" << Z << ", " << C << ")"
+		      << " gVel=" << gVel1 << " eta=" << Eta1
+		      << " rc=" << crs << " dE=" << 0.0
+		      << " fac=" << fac2 << std::endl;
+#endif
 	  }
 	  
       } // end: original recomb algorithm
@@ -11142,6 +11198,12 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	ctd->nn[id][1] += N0*Prob;
 	
 	PE[0][0] += Prob;
+#ifdef XC_DEEP2
+	std::cout << "testT: nnDE=" << 0.0
+		  << " W=" << Prob
+		  << " Z1=" << Q1.first
+		  << " Z2=" << Q2.first << std::endl;
+#endif
       }
 
       if (interFlag == neut_elec) {
@@ -11155,6 +11217,16 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  PE[1][0] += Prob;
 	}
 
+#ifdef XC_DEEP2
+	if (Q1.second==1)
+	  std::cout << "testT: neDE=" << 0.0
+		    << " W=" << Prob
+		    << " Z1=" << Q1.first << std::endl;
+	else
+	  std::cout << "testT: neDE=" << 0.0
+		    << " W=" << Prob
+		    << " Z2=" << Q2.first << std::endl;
+#endif
       }
 
       if (interFlag == neut_prot) {
@@ -11163,6 +11235,19 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	ctd->np[id][1] += N0*Prob;
 
 	PE[0][0] += Prob;
+
+#ifdef XC_DEEP2
+	if (Q1.first==1 and Q1.second==2)
+	  std::cout << "testT: npDE=" << 0.0
+		    << " W=" << Prob
+		    << " Z=" << Q2.first
+		    << " C=" << Q2.second << std::endl;
+	else
+	  std::cout << "testT: npDE=" << 0.0
+		    << " W=" << Prob
+		    << " Z=" << Q1.first
+		    << " C=" << Q1.second << std::endl;
+#endif
       }
 
       if (interFlag == ion_elec) {
@@ -22899,24 +22984,16 @@ void CollideIon::Pord::update()
     // Normalization check
     //
     double tot1 = 0.0, tot2 = 0.0;
-    // double dif1 = 0.0, dif2 = 0.0;
     size_t C = 0;
     for (auto s : caller->SpList) {
-      /*
-      double d1 = p1->dattrib[s.second] - f1[C]/sum1;
-      double d2 = p2->dattrib[s.second] - f2[C]/sum2;
-      dif1 += d1*d1;
-      dif2 += d2*d2;
-      */
       p1->dattrib[s.second] = f1[C]/sum1;
       p2->dattrib[s.second] = f2[C]/sum2;
+
       tot1 += p1->dattrib[s.second];
       tot2 += p2->dattrib[s.second];
       C++;
     }
     
-    // std::cout << "FF1=" << sum1 << " FF2=" << sum2 << " D1=" << sqrt(dif1) << " D2=" << sqrt(dif2) << " T=" << tnow << std::endl;
-
     // Sanity check
     //
     if (tot1 > 0.0) {

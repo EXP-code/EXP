@@ -1988,9 +1988,9 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
     cuFP_t muee = cuda_atomic_weights[0]/2.0;
     cuFP_t muie = cuda_atomic_weights[0] * meanM/(cuda_atomic_weights[0] + meanM);
     
-    if (false) {
-      printf("\nMUii=%e MUee=%e MUie=%e denQ=%e denE=%e numQ=%e Ivel2=%e Evel2=%e volC=%e masC=%e numQ=%e numE=%e\n", muii, muee, muie, densQ, densE, numQ2, Ivel2._v[c], Evel2._v[c], volC._v[c], massP, tmp1, tmp2);
-    }
+#ifdef XC_DEEP7
+    printf("coulombic: MUii=%e MUee=%e MUie=%e denQ=%e denE=%e numQ=%e Ivel2=%e Evel2=%e volC=%e masC=%e nbod=%d numQ=%e numE=%e\n", muii, muee, muie, densQ, densE, numQ2, Ivel2._v[c], Evel2._v[c], volC._v[c], massP, nbods, tmp1, tmp2);
+#endif
     
     // Ion-Ion
     PiProb._v[c*4 + 0] =
@@ -2279,6 +2279,9 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 	cuFP_t crs = (cudaGeometric(Z) + cudaGeometric(ZZ)) * fac1 * facS2 * cuCrossfac;
 	      
 	if (crs>0.0) {
+#ifdef XC_DEEP1
+	  printf("xsc: xnn=%e\n", crs);
+#endif
 #ifdef XC_DEEP4
 	  printf("xsc: (Z, P)=(%d, %d) xnn=%e\n", Z, P, crs);
 #endif
@@ -2330,6 +2333,9 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
       }
 	    
       if (crs1>0.0) {
+#ifdef XC_DEEP1
+	printf("xsc: xnp=%e\n", crs1);
+#endif
 #ifdef XC_DEEP4
 	printf("xsc: kEi=%e (Z, P)=(%d, %d) xnp=%e\n", kEi, Z, C, crs1);
 #endif
@@ -2367,6 +2373,9 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
       if (Z==2) crs = cudaElasticInterp(kEe1, xsc_He, Z, electron) * gVel2 * Eta2 * cuCrossfac * fac1;
       
       if (crs>0.0) {
+#ifdef XC_DEEP1
+	printf("xsc: xne=%e\n", crs);
+#endif
 #ifdef XC_DEEP4
 	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xne=%e fac=%e\n",
 	       kEe1, Z, C, gVel2, Eta2, crs, fac1);
@@ -2400,6 +2409,9 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
       if (Z==2) crs = cudaElasticInterp(kEe2, xsc_He, Z, electron) * gVel1 * Eta1 * cuCrossfac * fac2;
 	    
       if (crs>0.0) {
+#ifdef XC_DEEP1
+	printf("xsc: xne=%e\n", crs);
+#endif
 #ifdef XC_DEEP4
 	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xne=%e fac=%e\n",
 	       kEe2, Z, C, gVel1, Eta1, crs, fac2);
@@ -2440,7 +2452,10 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 	    
       if (crs>0.0) {
 	      
-#ifdef XC_DEEP
+#ifdef XC_DEEP1
+	printf("xsc: xf=%e\n", crs);
+#endif
+#ifdef XC_DEEP4
 	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xf=%e fac=%e dE=%e i=%d\n",
 	       kEe1, Z, C, gVel2, Eta2, ff, fac1, ph, p1->indx);
 #endif
@@ -2473,7 +2488,10 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
       crs = gVel1 * Eta1 * ff * fac2;
 	    
       if (crs>0.0) {
-#ifdef XC_DEEP
+#ifdef XC_DEEP1
+	printf("xsc: xf=%e\n", crs);
+#endif
+#ifdef XC_DEEP4
 	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xf=%e fac=%e dE=%e i=%d\n",
 	       kEe2, Z, C, gVel1, Eta1, ff, fac2, ph, p2->indx);
 #endif
@@ -2512,7 +2530,10 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
       cuFP_t crs = gVel2 * Eta2 * xc * fac1;
 	    
       if (crs > 0.0) {
-#ifdef XC_DEEP
+#ifdef XC_DEEP1
+	printf("xsc: xc=%e\n", crs);
+#endif
+#ifdef XC_DEEP4
 	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xc=%e dE=%e fac=%e\n",
 	       ke, Z, C, gVel2, Eta2, xc, ph, fac1);
 #endif
@@ -2549,7 +2570,10 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
       cuFP_t crs = gVel1 * Eta1 * xc * fac2;
 	    
       if (crs > 0.0) {
-#ifdef XC_DEEP
+#ifdef XC_DEEP1
+	printf("xsc: xc=%e\n", crs);
+#endif
+#ifdef XC_DEEP4
 	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xc=%e dE=%e fac=%e\n",
 	       ke, Z, C, gVel2, Eta2, xc, ph, fac2);
 #endif
@@ -2589,7 +2613,10 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
       cuFP_t crs = gVel2 * Eta2 * xc * fac1;
 	    
       if (crs > 0.0) {
-#ifdef XC_DEEP
+#ifdef XC_DEEP1
+	printf("xsc: io=%e\n", crs);
+#endif
+#ifdef XC_DEEP4
 	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e io=%e dE=%e fac=%e\n",
 	       kEe1, Z, C, gVel2, Eta2, xc, 0.0, fac1);
 #endif
@@ -2627,7 +2654,10 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
       cuFP_t crs = gVel1 * Eta1 * xc * fac2;
 	    
       if (crs > 0.0) {
-#ifdef XC_DEEP
+#ifdef XC_DEEP1
+	printf("xsc: io=%e\n", crs);
+#endif
+#ifdef XC_DEEP4
 	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e io=%e dE=%e fac=%e\n",
 	       kEe2, Z, C, gVel1, Eta1, xc, 0.0, fac2);
 #endif
@@ -2742,6 +2772,14 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 	else            crs *= sVel2;
 	      
 	if (crs > 0.0) {
+#ifdef XC_DEEP1
+	printf("xsc: rc=%e\n", crs);
+#endif
+#ifdef XC_DEEP4
+	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e rc=%e dE=%e fac=%e\n",
+	       kEe1, Z, C, gVel2, Eta2, xc, 0.0, fac1);
+#endif
+
 	  cross._v[K]   = crs;
 	  xspcs._v[L+0] = Z;
 	  xspcs._v[L+1] = C;
@@ -2755,7 +2793,10 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 	  K++;
 	  L = K*6;
 
-#ifdef XC_DEEP
+#ifdef XC_DEEP1
+	printf("xsc: rc=%e\n", crs);
+#endif
+#ifdef XC_DEEP4
 	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e rc=%e dE=%e fac=%e\n",
 	       kEe1, Z, C, gVel2, Eta2, xc, 0.0, fac1);
 #endif
@@ -2780,6 +2821,10 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 	else            crs *= sVel1;
 	      
 	if (crs > 0.0) {
+#ifdef XC_DEEP4
+	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e rc=%e dE=%e fac=%e\n",
+	       kEe2, Z, C, gVel1, Eta1, xc, 0.0, fac2);
+#endif
 	  cross._v[K]   = crs;
 	  xspcs._v[L+0] = 0;
 	  xspcs._v[L+1] = 0;
@@ -2792,7 +2837,7 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 		
 	  K++;
 	  L = K*6;
-#ifdef XC_DEEP
+#ifdef XC_DEEP4
 	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e rc=%e dE=%e fac=%e\n",
 	       kEe2, Z, C, gVel1, Eta1, xc, 0.0, fac2);
 #endif
@@ -3083,17 +3128,24 @@ void cudaDeferredEnergy
  cuFP_t *E1,  cuFP_t *E2
 )
 {
-  if (m1 < 1.0) {
-    E1[1] += a*E/(a + b);
-    E2[0] += b*E/(a + b);
-  }
-  else if (m2 < 1.0) {
-    E1[0] += a*E/(a + b);
-    E2[1] += b*E/(a + b);
-  }
-  else {
-    E1[0]  += a*E/(a + b);
-    E2[0]  += b*E/(a + b);
+  if (cuCons) {
+    if (not cuEcon) {
+      E1[0] += 0.5*E;
+      E2[0] += 0.5*E;
+    } else {
+      if (m1 < 1.0) {
+	E1[1] += a*E/(a + b);
+	E2[0] += b*E/(a + b);
+      }
+      else if (m2 < 1.0) {
+	E1[0] += a*E/(a + b);
+	E2[1] += b*E/(a + b);
+      }
+      else {
+	E1[0]  += a*E/(a + b);
+	E2[0]  += b*E/(a + b);
+      }
+    }
   }
 }
 
@@ -3828,15 +3880,30 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	
 	if (T == neut_neut) {
 	  PE[0] += Prob;
+#ifdef XC_DEEP2
+	  printf("testT: nnDE=%e W=%e Z1=%d Z2=%d\n", 0.0, Prob, IT.Z1, IT.Z2);
+#endif
 	}
 	
 	if (T == neut_elec) {
 	  if (IT.I1<255) PE[1] += Prob;
 	  else           PE[2] += Prob;
+#ifdef XC_DEEP2
+	  if (IT.I1<255)
+	    printf("testT: neDE=%e W=%e Z1=%d\n", 0.0, Prob, IT.Z1);
+	  else
+	    printf("testT: neDE=%e W=%e Z2=%d\n", 0.0, Prob, IT.Z2);
+#endif
 	}
 	
 	if (T == neut_prot) {
 	  PE[0] += Prob;
+#ifdef XC_DEEP2
+	  if (IT.Z1==1 and IT.C1==2)
+	    printf("testT: npDE=%e W=%e Z2=%d C2=%d\n", 0.0, Prob, IT.Z2, IT.C2);
+	  else
+	    printf("testT: npDE=%e W=%e Z1=%d C1=%d\n", 0.0, Prob, IT.Z1, IT.C1);
+#endif
 	}
 	
 	if (T == ion_elec) {
@@ -4449,7 +4516,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	p1->datr[cuCons] += E1[0];
 	p2->datr[cuCons] += E2[0];
       }
-      if (cuEcon>=0) {
+      if (cuCons>=0 and cuEcon>=0) {
 	p1->datr[cuEcon] += E1[1];
 	p2->datr[cuEcon] += E2[1];
       } else if (cuCons>=0) {
