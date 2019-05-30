@@ -4876,8 +4876,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       unsigned short CC = kk.second;
       unsigned short PP = CC - 1;
 
-      double facS1 = p1->dattrib[ss.second] / atomic_weights[Z] / Sum1;
-      double facS2 = p2->dattrib[ss.second] / atomic_weights[Z] / Sum2;
+      double facS1 = p1->dattrib[ss.second] / atomic_weights[ZZ] / Sum1;
+      double facS2 = p2->dattrib[ss.second] / atomic_weights[ZZ] / Sum2;
 
       //--------------------------------------------------
       // Ion keys
@@ -11353,7 +11353,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    PP[2]->normTest(2, sout.str());
 	  }
 	  
-	  Prob = WW;
+	  Prob = WW / atomic_weights[Z2];
 	  
 	  double tmpE = IS.DIInterLoss(ch.IonList[Q2]);
 	  dE = tmpE * Prob;
@@ -11361,7 +11361,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // The kinetic energy of the ionized electron is lost
 	  // from the COM KE
 	  //
-	  double Echg = iE2 * Prob / atomic_weights[Z2];
+	  double Echg = iE2 * Prob;
 	  ionExtra[1] += Echg;
 
 	  // Energy for ionized electron comes from COM
@@ -11436,7 +11436,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    PP[1]->normTest(2, sout.str());
 	  }
 	    
-	  Prob = WW;
+	  Prob = WW / atomic_weights[Z1];
 
 	  double tmpE = IS.DIInterLoss(ch.IonList[Q1]);
 	  dE = tmpE * Prob;
@@ -11444,7 +11444,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // The kinetic energy of the ionized electron is lost
 	  // from the COM KE
 	  //
-	  double Echg = iE1 * Prob / atomic_weights[Z1];
+	  double Echg = iE1 * Prob;
 	  ionExtra[0] += Echg;
 
 	  // Energy for ionized electron comes from COM
@@ -11524,12 +11524,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    PP[2]->normTest(2, sout.str());
 	  }
 	  
-	  Prob = WW;		// Update to truncated value
+	  // Update to truncated value
+	  //
+	  Prob = WW / atomic_weights[Z2];
 
 	  // Electron KE lost in recombination is radiated by does not
 	  // change COM energy
 	  //
-	  double Echg = iE2 * Prob / atomic_weights[Z2];
+	  double Echg = iE2 * Prob;
 	  rcbExtra[1] += Echg;
 
 	  // Electron KE radiated in recombination
@@ -11627,12 +11629,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    PP[1]->normTest(2, sout.str());
 	  }
 
-	  Prob = WW;		// Update to truncated value
+	  // Update to truncated value
+	  //
+	  Prob = WW  / atomic_weights[Z1];
 
 	  // Electron KE lost in recombination is radiated by does not
 	  // change COM energy
 	  //
-	  double Echg = iE1 * Prob / atomic_weights[Z1];
+	  double Echg = iE1 * Prob;
 	  rcbExtra[0] += Echg;
 
 	  // Electron KE fraction in recombination

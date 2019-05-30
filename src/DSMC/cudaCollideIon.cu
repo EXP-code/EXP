@@ -2261,8 +2261,8 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
       int PP = elem2->C - 1;
       int II = elem2->I;
 	    
-      cuFP_t facS1 = p1->datr[II+cuSp0] / cuda_atomic_weights[Z] / Sum1;
-      cuFP_t facS2 = p2->datr[II+cuSp0] / cuda_atomic_weights[Z] / Sum2;
+      cuFP_t facS1 = p1->datr[II+cuSp0] / cuda_atomic_weights[ZZ] / Sum1;
+      cuFP_t facS2 = p2->datr[II+cuSp0] / cuda_atomic_weights[ZZ] / Sum2;
 
       //--------------------------------------------------
       // Particle 1 interacts with Particle 2
@@ -2323,10 +2323,10 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
       if (Z==1 and C==2) {
 	
 	// Particle 2 is neutral hydrogen
-	if (ZZ==1 and PP==0) crs1 = cudaElasticInterp(kEi, xsc_pH, Z, proton) * cuCrossfac * facS1 * fac2;
+	if (ZZ==1 and PP==0) crs1 = cudaElasticInterp(kEi, xsc_pH, ZZ, proton) * cuCrossfac * facS1 * fac2;
 
 	// Particle 2 is neutral helium
-	if (ZZ==2 and PP==0) crs1 = cudaElasticInterp(kEi, xsc_pHe, Z, proton) * cuCrossfac * facS1 * fac2;
+	if (ZZ==2 and PP==0) crs1 = cudaElasticInterp(kEi, xsc_pHe, ZZ, proton) * cuCrossfac * facS1 * fac2;
       }
 	    
       if (crs1>0.0) {
@@ -3914,7 +3914,9 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      FF1[IT.I1+1] += WW;
 	    }
 	    
-	    Prob = WW;
+	    // Update to truncated value
+	    //
+	    Prob = WW  / cuda_atomic_weights[IT.Z1];
 	    
 	    dE = XE * Prob;
 
@@ -3927,7 +3929,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    // The kinetic energy of the ionized electron is lost
 	    // from the COM KE
 	    //
-	    cuFP_t Echg = EI.iE1 * Prob / cuda_atomic_weights[IT.Z1];
+	    cuFP_t Echg = EI.iE1 * Prob;
 	    
 	    // Energy for ionized electron comes from COM
 	    dE += Echg * cuEunit / (N0*eV);
@@ -3962,7 +3964,9 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      FF2[IT.I2+1] += WW;
 	    }
 	    
-	    Prob = WW;
+	    // Update to truncated value
+	    //
+	    Prob = WW / cuda_atomic_weights[IT.Z2];
 	    
 	    dE = XE * Prob;
 
@@ -3976,7 +3980,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    // The kinetic energy of the ionized electron is lost
 	    // from the COM KE
 	    //
-	    cuFP_t Echg = EI.iE2 * Prob / cuda_atomic_weights[IT.Z2];
+	    cuFP_t Echg = EI.iE2 * Prob;
 	    
 	    // Energy for ionized electron comes from COM
 	    dE += Echg * cuEunit / (N0*eV);
@@ -4034,12 +4038,14 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      FF1[IT.I1-1] += WW;
 	    }
 	    
-	    Prob = WW;		// Update to truncated value
+	    // Update to truncated value
+	    //
+	    Prob = WW  / cuda_atomic_weights[IT.Z1];
 	    
 	    // Electron KE lost in recombination is radiated by does not
 	    // change COM energy
 	    //
-	    // cuFP_t Echg = iE1 * Prob / cuda_atomic_weights[IT.Z1];
+	    // cuFP_t Echg = iE1 * Prob;
 	    
 	    // Electron KE fraction in recombination
 	    //
@@ -4093,7 +4099,9 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      FF2[IT.I2-1] += WW;
 	    }
 	    
-	    Prob = WW;		// Update to truncated value
+	    // Update to truncated value
+	    //
+	    Prob = WW / cuda_atomic_weights[IT.Z2];
 	    
 	    // Electron KE lost in recombination is radiated by does not
 	    // change COM energy
