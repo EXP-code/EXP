@@ -3754,7 +3754,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
   // For shuffling
   //  
   int *S = new int [numxc];
-
+  
   // Energy return info
   //
   cuEnergyInfo EI;
@@ -3763,49 +3763,49 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
   for (int cid = blockIdx.x * blockDim.x + threadIdx.x; 
        cid < cellI._s; 
        cid += blockDim.x * gridDim.x) {
-
+    
     curandState* state = &randS._v[cid];
-
+    
     int n0     = cellI._v[cid];
     int nbods  = cellN._v[cid];
     cuFP_t vol = volC ._v[cid];
-
+    
     // Compute Coulombic (plasma) interactions
     //
     computeCoulombicScatter(in, coul4, cellI, cellN, PiProb, ABrate, elems, spTau,
 			    state, cid);
-
+    
     // Compute total cross sections for interactions in this cell
     //
     cuFP_t csection = 0.0, mtotal = 0.0, xctot = 0.0;
-
+    
 #ifdef XC_DEEP8
     printf("nbods: N=%d\n", nbods);
 #endif
-
+    
     for (size_t i=0; i<nbods; i++) {
-
+      
       mtotal += in._v[n0+i].mass;
-
+      
       for (size_t j=i+1; j<nbods; j++) {
-
+	
 	computeCrossSection(in, cross, delph, xspcs, xtype,
 			    xsc_H, xsc_He, xsc_pH, xsc_pHe, elems,
 			    cid, n0+i, n0+j, numxc, state, &xctot,
 #ifdef XC_DEEP
 			    &EI);
 #else
-			    0x0);
+	0x0);
 #endif
-
-	if (xctot > csection) csection = xctot;
-      }
+      
+      if (xctot > csection) csection = xctot;
     }
 
+  
     // Compute probability of interaction (excepting Coulombic) in system units
     //
     csection *= 1e-14 / (cuLunit*cuLunit);
-
+    
     cuFP_t Prob  = mtotal/vol * cuMunit/cuAmu * sqrt(2.0)*crm._v[cid] * spTau._v[cid] * csection;
     cuFP_t selcM = (nbods-1) * Prob * 0.5;
     
@@ -3814,14 +3814,14 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     if (csection>10.0) printEI(csection, EI);
 #endif
     
-
+    
     Nsel._v[cid] = selcM;
-
+    
     int    npairs  = floor(selcM);
     cuFP_t nexcess = selcM - npairs;
-
+    
     for (int r=0; r<=npairs; r++) {
-	
+      
       if (r==npairs) {
 #if cuREAL == 4
 	if (nexcess<curand_uniform(state)) break;
@@ -3829,7 +3829,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	if (nexcess<curand_uniform_double(state)) break;
 #endif
       }
-
+      
       // Pick interaction pair
       //
 #if cuREAL == 4
@@ -3839,7 +3839,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       cuFP_t R1 = curand_uniform_double(state);
       cuFP_t R2 = curand_uniform_double(state);
 #endif
-
+      
       int n1 = floor(R1*nbods);
       int n2 = floor(R2*(nbods-1));
       if (n2 >= n1) n2++;
@@ -3850,55 +3850,55 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       if (n1==n2) {
 	printf("Crazy error! n1[%d]=n2[%d] nbods=%d\n", n1, n2, nbods);
       }
-
+      
       n1 += n0;
       n2 += n0;
-
+      
       // Cross section computation
       //
       cuFP_t totalXS;
-
+      
       for (int J=0; J<numxc; J++) {
 	cross._v[cid*numxc+J] = 0.0;
 	xtype._v[cid*numxc+J] = nothing;
 	delph._v[cid*numxc+J] = 0.0;
       }
-
+      
       computeCrossSection(in, cross, delph, xspcs, xtype,
 			  xsc_H, xsc_He, xsc_pH, xsc_pHe, elems,
 			  cid, n1, n2, numxc, state, &totalXS, &EI);
-	
+      
       cudaParticle* p1 = &in._v[n1];
       cudaParticle* p2 = &in._v[n2];
-	
+      
       cuFP_t PE[3] = {0, 0, 0}, EE[3] = {0, 0, 0};
       
       // Electron and molecular weight
       //
       for (int k=0; k<Nsp; k++) {
 	cuIonElement& E = elems._v[k];
-	  
+	
 	FF1[k] = p1->datr[E.I+cuSp0];
 	FF2[k] = p2->datr[E.I+cuSp0];
       }
-
+      
       cuFP_t W1  = p1->mass/EI.Mu1;
       cuFP_t W2  = p2->mass/EI.Mu2;
-	
+      
       cuFP_t maxP = 0.0;
       cudaInterTypes maxT = nothing;
-	
+      
       struct Itype
       {
 	unsigned char Z1, Z2, C1, C2, P1, P2, I1, I2;
       } IT;
-	
-				// G will be one beyond last good
+      
+      // G will be one beyond last good
       int G;			// cross section
       for (G=0; G<numxc; G++) {
 	if (xtype._v[cid*numxc+G] == nothing) break;
       }
-
+      
       // Random shuffle (Knuth Algorithm P)
       //
       for (int i=0; i<G; i++) S[i] = i;   // Identity sequence
@@ -3957,7 +3957,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	cuFP_t N1 = W1 * cuMunit / cuAmu * (IT.Z1 ? 1.0 : EI.Eta1);
 	cuFP_t N2 = W2 * cuMunit / cuAmu * (IT.Z2 ? 1.0 : EI.Eta2);
 	cuFP_t N0 = N1 > N2 ? N2 : N1;
-
+	
 	// Select the maximum probability channel
 	//
 	if (Prob > maxP) {
@@ -4017,13 +4017,13 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	if (T == free_free) {
 	  
 	  dE = XE * Prob;
-
+	  
 	  // Sanity
 	  if (::isnan(dE)) {
 	    printf("Crazy dE value in free-free: XE=%e P=%e\n", XE, Prob);
 	    dE = 0.0;
 	  }
-
+	  
 #ifdef XC_DEEP2
 	  if (IT.I1<255)
 	    printf("testT: ffDE=%e W=%e Z=%d C=%d\n", dE, Prob, IT.Z1, IT.C1);
@@ -4047,7 +4047,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	if (T == col_excite) {
 	  
 	  dE = XE * Prob;
-
+	  
 	  // Sanity
 	  if (::isnan(dE)) {
 	    printf("Crazy dE value in col excite: XE=%e P=%e\n", XE, Prob);
@@ -4075,10 +4075,15 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	
 	if (T == col_ionize) {
 	  
-	  if (IT.I1<255) {	// Ion is p1
+	  // Ion is p1, electron is p2
+	  //
+	  if (IT.I1<255) {
 	    
+	    // Convert from probability (relative number density) to
+	    // mass density
+	    //
 	    cuFP_t WW = Prob * cuda_atomic_weights[IT.Z1];
-	  
+	    
 	    if (IT.I1>Nsp-2) {
 	      printf("Crazy ionize I1=%d\n", IT.I1);
 	    }
@@ -4096,12 +4101,12 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    atomicAdd(&w_counter[T], 1ull);
 	    atomicAdd(&w_weight[T], WW);
 #endif
-	    // Update to truncated value
+	    // Convert back to number density
 	    //
 	    Prob = WW  / cuda_atomic_weights[IT.Z1];
 	    
 	    dE = XE * Prob;
-
+	    
 	    // Sanity
 	    if (::isnan(dE)) {
 	      printf("Crazy dE value in col ionize: XE=%e P=%e\n", XE, Prob);
@@ -4114,7 +4119,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    cuFP_t Echg = EI.iE1 * Prob;
 	    
 	    // Energy for ionized electron comes from COM
-	    // dE += Echg * cuEunit / (N0*eV);
+	    dE += Echg * cuEunit / (N0*eV);
 	    
 	    // Sanity
 	    if (::isnan(dE)) {
@@ -4129,10 +4134,12 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    printf("testT: ciDE=%e W=%e Z=%d C=%d\n", dE, Prob, IT.Z1, IT.C1);
 #endif
 	  } // END: ion-electron
-	  else {		// Ion is p2
+	  else {		// Ion is p2, electron is p1
 	    
+	    // Convert to mass density
+	    //
 	    cuFP_t WW = Prob * cuda_atomic_weights[IT.Z2];
-
+	    
 	    if (IT.I2 > Nsp-2) {
 	      printf("Crazy ionize I2=%d\n", IT.I2);
 	    }
@@ -4150,26 +4157,26 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    atomicAdd(&w_counter[T], 1ull);
 	    atomicAdd(&w_weight[T], WW);
 #endif
-	    // Update to truncated value
+	    // Convert back to number density
 	    //
 	    Prob = WW / cuda_atomic_weights[IT.Z2];
 	    
 	    dE = XE * Prob;
-
+	    
 	    // Sanity
 	    if (::isnan(dE)) {
 	      printf("Crazy dE value in col ionize: XE=%e P=%e\n", XE, Prob);
 	      dE = 0.0;
 	    }
 	    
-
+	    
 	    // The kinetic energy of the ionized electron is lost
 	    // from the COM KE
 	    //
 	    cuFP_t Echg = EI.iE2 * Prob;
 	    
 	    // Energy for ionized electron comes from COM
-	    // dE += Echg * cuEunit / (N0*eV);
+	    dE += Echg * cuEunit / (N0*eV);
 	    
 	    // Sanity
 	    if (::isnan(dE)) {
@@ -4179,7 +4186,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    PE[2] += Prob;
 	    EE[2] += dE * N0;
-
+	    
 #ifdef XC_DEEP2
 	    printf("testT: ciDE=%e W=%e Z=%d C=%d\n", dE, Prob, IT.Z2, IT.C2);
 #endif
@@ -4193,8 +4200,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  
 	  if (IT.I1<255) {		// Ion is p1
 	    
+	    // Convert probability to mass fraction
+	    //
 	    cuFP_t WW = Prob * cuda_atomic_weights[IT.Z1];
-
+	    
 	    if (IT.C1<=1 or IT.I2!=255) {
 	      int K = cid*numxc + J;
 	      int L = K*6;
@@ -4228,7 +4237,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    atomicAdd(&w_counter[T], 1ull);
 	    atomicAdd(&w_weight[T], WW);
 #endif
-	    // Update to truncated value
+	    // Convert back to probability
 	    //
 	    Prob = WW  / cuda_atomic_weights[IT.Z1];
 	    
@@ -4242,7 +4251,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    // cuFP_t eE = Echg * cuEunit / (N0*cuEV);
 	    
 	    // dE = XE * Prob;
-
+	    
 	    // Sanity
 	    if (::isnan(dE)) {
 	      printf("Crazy dE value in recomb: P=%e\n", Prob);
@@ -4251,13 +4260,15 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    PE[1] += Prob;
 	    EE[1] += dE * N0;
-
+	    
 #ifdef XC_DEEP2
 	    printf("testT: rcDE=%e W=%e Z=%d C=%d\n", XE, Prob, IT.Z1, IT.C1);
 #endif
 	  } // END: ion-electron
 	  else if (IT.I2<255) {		// Ion is p2
 	    
+	    // Convert from probability to mass fraction
+	    //
 	    cuFP_t WW = Prob * cuda_atomic_weights[IT.Z2];
 	    
 	    if (IT.C2<=1 or IT.I1!=255) {
@@ -4293,7 +4304,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    atomicAdd(&w_counter[T], 1ull);
 	    atomicAdd(&w_weight[T], WW);
 #endif
-	    // Update to truncated value
+	    // Convert back to number density
 	    //
 	    Prob = WW / cuda_atomic_weights[IT.Z2];
 	    
@@ -4306,7 +4317,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    // cuFP_t eE = Echg * cuEunit / (N0*eV);
 	    
 	    // dE = XE * Prob;
-
+	    
 	    // Sanity
 	    if (::isnan(dE)) {
 	      printf("Crazy dE value in recomb: P=%e\n", Prob);
@@ -4315,7 +4326,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    PE[2] += Prob;
 	    EE[2] += dE * N0;
-
+	    
 #ifdef XC_DEEP2
 	    printf("testT: rcDE=%e W=%e Z=%d C=%d\n", XE, Prob, IT.Z2, IT.C2);
 #endif
@@ -4394,7 +4405,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 #ifdef XC_DEEPJ
       printf("jtest: PE[0]=%f PE[1]=%f PE[2]=%f J=%d\n", PE[0], PE[1], PE[2], J);
 #endif
-      // Reassign weights and compute energies
+      // Recompute electron fraction from possibly new weights
       //
       {
 	cuFP_t sum1 = 0.0, sum2 = 0.0;
@@ -4402,7 +4413,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  sum1 += FF1[k];
 	  sum2 += FF2[k];
 	}
-
+	
 	cuFP_t Sum1 = 0.0, Sum2 = 0.0, Eta1 = 0.0, Eta2 = 0.0;
 	for (int k=0; k<Nsp; k++) {
 	  cuIonElement& E = elems._v[k];
@@ -4420,18 +4431,18 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  Sum1 += one;
 	  Sum2 += two;
 	}
-
+	
 	// Recompute the number of electrons per particle
 	//
 	EI.Eta1 = Eta1 /= Sum1;
 	EI.Eta2 = Eta2 /= Sum2;
       }
-
+      
       //
       // Apply neutral-neutral scattering and energy loss
       //
       if (J==0) {
-
+	
 	cuFP_t v1[3], v2[3];
 	cuFP_t u1[3], u2[3];	// Used only for debugging
 	
@@ -4450,9 +4461,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  p1->datr[cuCons] = 0.0;
 	  p2->datr[cuCons] = 0.0;
 	}	  
-
-	PE[1] = totalDE;
-
+	
 	if (W1 >= W2)
 	  cudaScatterTrace(EI.Mu1, EI.Mu2, EI.Eta1, EI.Eta2, W1, W2,
 			   &E1[0], &E2[0], totE,
@@ -4496,7 +4505,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       // Ion is Particle 1, Electron is Particle 2
       //
       if (J==1) {
-
+	
 	// Compute the initial energies
 	//
 	cuFP_t KEi_i = 0.0, KEe_i = 0.0;
@@ -4510,14 +4519,14 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  KEi_i *= 0.5 * W1 * EI.Mu1;
 	  KEe_i *= 0.5 * W2 * EI.Eta2 * Mue;
 	}
-
+	
 	cuFP_t v1[3], v2[3];
 	cuFP_t u1[3], u2[3];	// Used only for debugging
 	
 	for (int k=0; k<3; k++) {
-				// Particle 1 is the ion
+	  // Particle 1 is the ion
 	  u1[k] = v1[k]  = p1->vel[k];
-				// Particle 2 is the electron
+	  // Particle 2 is the electron
 	  u2[k] = v2[k]  = p2->datr[cuElec+k];
 	}
 	
@@ -4528,7 +4537,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  totalDE += DE1;
 	  p1->datr[cuCons] = 0.0;
 	}	  
-
+	
 	if (cuEcon>=0) {
 	  cuFP_t DE2 = p2->datr[cuEcon];
 	  totalDE += DE2;
@@ -4538,8 +4547,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  totalDE += DE2;
 	  p2->datr[cuCons] = 0.0;
 	}
-
-	PE[1] = totalDE;
 	
 	if (W1 >= W2)
 	  cudaScatterTrace(EI.Mu1, Mue, EI.Eta1, EI.Eta2, W1, W2,
@@ -4555,7 +4562,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 		 u1[0], u1[1], u1[2], v1[0], v1[1], v1[2],
 		 u2[0], u2[1], u2[2], v2[0], v2[1], v2[2]);
 	}
-
+	
 	// Compute the energy update
 	//
 	if (not cuMeanMass) {
@@ -4568,7 +4575,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  }
 	  KEi_f *= 0.5 * W1 * EI.Mu1;
 	  KEe_f *= 0.5 * W2 * EI.Eta2 * Mue;
-
+	  
 	  cuFP_t denom = KEi_f + KEe_f;
 	  cuFP_t testE = KEi_i + KEe_i - denom - totalDE;
 #ifdef XC_DEEP0
@@ -4577,7 +4584,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  E1[0] -= testE * KEi_f/denom;
 	  E2[1] -= testE * KEe_f/denom;
 	}
-
+	
 	// Time-step computation
 	//
 	{
@@ -4597,7 +4604,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  
 	  // Particle 2 is the elctron
 	  p2->datr[cuElec+k] = v2[k];
-
+	  
 	  // Sanity
 	  if (::isnan(v2[k])) {
 	    printf("Crazy value for v2 for J=1\n");
@@ -4610,7 +4617,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       // Ion is Particle 2, Electron is Particle 1
       //
       if (J==2) {
-
+	
 	// Compute the initial energies
 	//
 	cuFP_t KEi_i = 0.0, KEe_i = 0.0;
@@ -4624,7 +4631,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  KEi_i *= 0.5 * W2 * EI.Mu2;
 	  KEe_i *= 0.5 * W1 * EI.Eta1 * Mue;
 	}
-
+	
 	cuFP_t v1[3], v2[3];
 	cuFP_t u1[3], u2[3];	// Used only for debugging
 	
@@ -4642,7 +4649,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  totalDE += DE2;
 	  p2->datr[cuCons] = 0.0;
 	}	  
-
+	
 	if (cuEcon>=0) {
 	  cuFP_t DE1 = p1->datr[cuEcon];
 	  totalDE += DE1;
@@ -4652,8 +4659,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  totalDE += DE1;
 	  p1->datr[cuCons] = 0.0;
 	}
-
-	PE[2]  = totalDE;
 	
 	if (W1 >= W2)
 	  cudaScatterTrace(Mue, EI.Mu2, EI.Eta1, EI.Eta2, W1, W2,
@@ -4691,7 +4696,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  E2[0] -= testE * KEi_f/denom;
 	  E1[1] -= testE * KEe_f/denom;
 	}
-
+	
 	// Time-step computation
 	//
 	{
@@ -4718,7 +4723,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	}
 	
       } // END: Electron-Ion interaction
-
+      
       // Update energy conservation
       //
       if (cuCons>=0) {
@@ -4733,10 +4738,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	p1->datr[cuCons] += E1[1];
 	p2->datr[cuCons] += E2[1];
       }
-
-    } // END: odd-even toggle
+      
+    } // END: interactions with atoms AND electrons
     
-  } // END: interactions with atoms AND electrons
+  } // END: Grid stride loop
   
   delete [] FF1;
   delete [] FF2;
@@ -4770,7 +4775,7 @@ void CollideIon::cuda_random_init(int N)
     int gridSize = (count+BLOCK_SIZE*stride-1)/(BLOCK_SIZE*stride);
     
     unsigned long long seed = 11 + myid;
-
+    
     initCurand<<<gridSize, BLOCK_SIZE>>>
       (toKernel(d_randS), offset, count, seed);
   }
@@ -4796,11 +4801,11 @@ void * CollideIon::collide_thread_cuda(void * arg)
     sout << "Collide::collide: ENTERING cuda collide_thread, T=" << tnow;
     (*barrier)(sout.str(), __FILE__, __LINE__);
   }
-
+  
   // Initialize cell loop diagnostics
   //
   pre_cell_loop(id);
-
+  
   // Start execution timer
   //
   cellTime[id].start();
@@ -4808,28 +4813,28 @@ void * CollideIon::collide_thread_cuda(void * arg)
   // Number of cells to process
   //
   size_t Ncells = cellist[id].size();
-
+  
   // Structures for cell boundaries and counts
   //
   thrust::host_vector<int>    cellI, cellN;
   thrust::host_vector<cuFP_t> h_volC, h_tauC;
-
+  
   size_t Pcount = 0, Count = 0, Single = 0;
   typedef std::pair<long int, int> partIndex;
   std::vector<partIndex> bods;
-
+  
   if (true) {
     unsigned elem = 0, celltot = 0;
     for (auto v : cellist) {
       elem++;
       celltot += v.size();
     }
-
+    
     std::cout << "[" << myid << "] cells=" << celltot
 	      << "/" << elem << std::endl;
   }
   // END DEBUG
-
+  
   // Loop over cells to get count of bodies and cells to process.
   // This will be transferred to the GPU device.
   //
@@ -4838,35 +4843,35 @@ void * CollideIon::collide_thread_cuda(void * arg)
     // The current cell
     //
     pCell *c = cellist[id][j];
-
+    
     // Skip cell if this time has already been computed
     //
     if (c->time >= tnow) {
       continue;
     }
-
+    
     auto number = c->bods.size();
     if (number>1) {
-
+      
       cellI.push_back(Pcount);	//<--Offset into body list for this cell
       cellN.push_back(number);	//<--Number of bodies in this cell
-
+      
 				//<--Volume of this cell
       h_volC.push_back(c->Volume());
-				//<--Time step for this cell
+      //<--Time step for this cell
       h_tauC.push_back(dtime / (1<<c->maxplev));
-
+      
       Pcount += number;		//<--Augment offset for this cell
-
+      
 				//<--Create bodies list
       for (auto b : c->bods) bods.push_back(partIndex(b, j));
-
+      
       Count++;
     } else {
       Single++;
     }
   }
-
+  
   if (false) {
     std::cout << "TID=" << std::setw(2) << id
 	      << " # cells="  << cellist[id].size()
@@ -4875,12 +4880,12 @@ void * CollideIon::collide_thread_cuda(void * arg)
 	      << " # single=" << Single
 	      << std::endl;
   }
-
+  
   // Prepare for cudaParticle staging
   //
   if (c0->host_particles.capacity()<Pcount) c0->host_particles.reserve(Pcount);
   c0->host_particles.resize(Pcount);
-
+  
   // Species map info
   //
   int minSp = std::numeric_limits<int>::max(), maxSp = 0;
@@ -4894,7 +4899,7 @@ void * CollideIon::collide_thread_cuda(void * arg)
     if (k.first==1)  numProt++;
   }
   
-				// Augment species position counter
+  // Augment species position counter
   if (use_elec>=0) {		// for electrons
     minSp = std::min<int>(minSp, use_elec);
     if (elc_cons) maxSp = std::max<int>(maxSp, use_elec+4);
@@ -4902,20 +4907,20 @@ void * CollideIon::collide_thread_cuda(void * arg)
   } else {
     throw GenericError("use_elec must be set to use CUDA Trace implementation",  __FILE__, __LINE__);
   }
-
+  
   if (use_cons>=0) {
     minSp = std::min<int>(minSp, use_cons);
     maxSp = std::max<int>(maxSp, use_cons);
   }
-
+  
   // Make maxSP +1 beyond the last species weight
   //
   maxSp++;
-
+  
   // Electron position in cudaParticle datr for convenience
   //
   int ePos = use_elec - minSp;	
-
+  
   // Copy particles to DEVICE
   //
   thrust::host_vector<cuFP_t> h_tauP(Pcount);
@@ -4923,14 +4928,14 @@ void * CollideIon::collide_thread_cuda(void * arg)
   thrust::host_vector<cudaParticle>::iterator hit = c0->host_particles.begin();
   
   int nOK = 0;
-
+  
   for (auto b : bods) {
     PartPtr h = Particles()[b.first];
     nOK = ParticleHtoD(h, *(hit++), minSp, maxSp);
     if (nOK) break;
     *(pit++) = h_tauC[b.second];
   }
-
+  
   // Try to exit smoothly if particles can't be copied to cudaParticle
   // structures
   //
@@ -4943,42 +4948,42 @@ void * CollideIon::collide_thread_cuda(void * arg)
     MPI_Finalize();
     exit(34);
   }
-
+  
 #ifdef MASS_DEBUG
   std::cout << "Pcount = " << Pcount << ", Ncount = " << pc << std::endl
 	    << "Mass[0] = " << c0->host_particles.front().mass << std::endl
 	    << "Mass["  << c0->host_particles.size()-1 << "] = "
 	    << c0->host_particles.back().mass << std::endl;
 #endif
-
+  
   thrust::device_vector<cuFP_t>       d_tauP(h_tauP);
   thrust::device_vector<cudaParticle> d_part(c0->host_particles);
-
+  
 #ifdef MASS_DEBUG
   c0->host_particles = d_part;		// Check copy
-
+  
   std::cout << "1st copy back" << std::endl
 	    << "Mass[0] = " << c0->host_particles.front().mass << std::endl
 	    << "Mass["  << c0->host_particles.size()-1 << "] = "
 	    << c0->host_particles.back().mass << std::endl;
 #endif
-
+  
   // Copy cell boundaries and counts to DEVICE
   //
   thrust::device_vector<int>    d_cellI = cellI;
   thrust::device_vector<int>    d_cellN = cellN;
-
+  
   // Grid size computation
   //
   int N        = cellI.size();	// Number of cells
   int stride   = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
   int gridSize = (N+BLOCK_SIZE*stride-1)/(BLOCK_SIZE*stride);
-
-				// These do not need copying back
+  
+  // These do not need copying back
   thrust::device_vector<cuFP_t> d_crm(N), d_Ivel2(N), d_Evel2(N);
   thrust::device_vector<cuFP_t> d_PiProb(N*4), d_ABrate(N*4);
   thrust::device_vector<cuFP_t> d_volC(h_volC), d_tauC(h_tauC);
-
+  
   // Initialize per cell info
   //
   cellInitKernel<<<gridSize, BLOCK_SIZE>>>
@@ -4993,11 +4998,11 @@ void * CollideIon::collide_thread_cuda(void * arg)
      toKernel(d_cellI),		// Cell index (input)
      toKernel(d_cellN),		// Cell body count (input)
      toKernel(cuElems));	// Ionization state info (input)
-
-
+  
+  
 #ifdef MASS_DEBUG
   c0->host_particles = d_part;		// Check copy
-
+  
   std::cout << "2nd copy back" << std::endl
 	    << "Mass[0] = " << c0->host_particles.front().mass << std::endl
 	    << "Mass["  << c0->host_particles.size()-1 << "] = "
@@ -5007,17 +5012,17 @@ void * CollideIon::collide_thread_cuda(void * arg)
   // Update random number generators count
   //
   cuda_random_init(N);
-				// These do not need copying back
+  // These do not need copying back
   unsigned int totalXCsize =
     numNeut*numNeut + numNeut*2 + numNeut*numProt*2 + numIon*numIon + 
     numIon*5*2;
-
+  
   thrust::device_vector<cuFP_t>         d_cross(N*totalXCsize);
   thrust::device_vector<cuFP_t>         d_delph(N*totalXCsize);
   thrust::device_vector<cuFP_t>         d_Coul4(N*4), d_Nsel(N);
   thrust::device_vector<unsigned char>  d_xspcs(N*totalXCsize*6);
   thrust::device_vector<cudaInterTypes> d_xtype(N*totalXCsize);
-
+  
   partInteractions<<<gridSize, BLOCK_SIZE>>>
     (toKernel(d_part),   toKernel(d_randS),
      toKernel(d_Coul4),  toKernel(d_Nsel),
@@ -5029,7 +5034,7 @@ void * CollideIon::collide_thread_cuda(void * arg)
      toKernel(d_PiProb), toKernel(d_ABrate),
      toKernel(cuElems),  toKernel(d_tauC),
      totalXCsize);
-
+  
 #ifdef XC_DEEP9
   {
     cudaMemcpyFromSymbol(&xc_counter[0], w_counter, 11*sizeof(unsigned long long));
@@ -5045,18 +5050,18 @@ void * CollideIon::collide_thread_cuda(void * arg)
        toKernel(d_cellI), toKernel(d_cellN),
        toKernel(d_randS), toKernel(cuElems));
   }
-
+  
   // Finally, copy back particles to host
   // 
   c0->host_particles = d_part;
-
+  
 #ifdef MASS_DEBUG
   std::cout << "4th copy back" << std::endl
 	    << "Mass[0] = " << c0->host_particles.front().mass << std::endl
 	    << "Mass["  << c0->host_particles.size()-1 << "] = "
 	    << c0->host_particles.back().mass << std::endl;
 #endif
-
+  
   // Copy particles to HOST
   //
   unsigned velDiff = 0, velTotl = 0;
@@ -5092,7 +5097,7 @@ void * CollideIon::collide_thread_cuda(void * arg)
     }
     if (false) {
       bool diff = false;
-
+      
       for (int k=0; k<3; k++) {
 	if (fabs(p.vel[k] - h->vel[k]) >
 	    1.0e-10*(fabs(p.vel[k]) + fabs(h->vel[k])) ) diff = true;
@@ -5115,7 +5120,7 @@ void * CollideIon::collide_thread_cuda(void * arg)
     std::cout << "[" << myid << "] diffs=" << velDiff
 	      << "/" << velTotl << std::endl;
   }
-
+  
 #ifdef MASS_DEBUG
   std::cout << "After step" << std::endl
 	    << "Mass[0] = " << c0->host_particles.front().mass << std::endl
@@ -5125,29 +5130,29 @@ void * CollideIon::collide_thread_cuda(void * arg)
 	    << "Mass[" << iend << "] = " << Particles()[iend]->mass
 	    << std::endl;
 #endif
-
+  
   if (id==0) {
     std::ostringstream sout;
     sout << "Collide::collide: AFTER cell loop, T=" << tnow;
     (*barrier)(sout.str(), __FILE__, __LINE__);
   }
-
+  
   cellSoFar[id] = cellTime[id].stop();
-
+  
   // Diagnostics at end of cell loop
   //
   post_cell_loop(id);
-
+  
   // Copy diagnostics to host
   //
   thrust::host_vector<cuFP_t> h_Coul4 = d_Coul4;
   thrust::host_vector<cuFP_t> h_Nsel  = d_Nsel;
-
+  
   for (int n=0; n<N; n++) {
     for (int l=0; l<4; l++) tauD[id][l].push_back(h_Coul4[n*4+l]);
     selD[id].push_back(h_Nsel[n]);
   }
-
+  
   thread_timing_end(id);
   
   return (NULL);
