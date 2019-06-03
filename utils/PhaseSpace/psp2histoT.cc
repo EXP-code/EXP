@@ -107,6 +107,9 @@ bool readSpeciesFile(std::string file,
 {
   YAML::Node conf;
 
+  // Try to make a YAML config, fall back to old style species spec on
+  // failure
+  //
   try {
     conf = YAML::LoadFile(file);
   }
@@ -114,12 +117,13 @@ bool readSpeciesFile(std::string file,
     std::cout << "Error parsing component config.  Trying old-style PSP"
 	      << std::endl
 	      << error.what() << std::endl;
+
     return readSpeciesFileOld(file, SpList, ZList, elec);
   }
 
 
   // Check for species map
-  // -------------------
+  //
   if (conf["species_map"]) {
 
     YAML::Node cconf = conf["species_map"];
@@ -130,8 +134,7 @@ bool readSpeciesFile(std::string file,
       if (cconf["elec"]) {
 	elec = cconf["elec"].as<int>();
       } else {
-	std::cerr << "Error reading elec field for trace species"
-		  << std::endl;
+	std::cerr << "Error reading elec field for trace species" << std::endl;
 	return false;
       }
 
@@ -152,15 +155,13 @@ bool readSpeciesFile(std::string file,
       return true;
 
     } else {
-      std::cerr << "Method/map type is <" << type << ">, expected <trace>"
-		<< std::endl;
+      std::cerr << "Method/map type is <" << type << ">, expected <trace>" << std::endl;
       return false;
     }
 
   } else {
-    std::cerr << "Could not locate species_map in YAML file <" << file
-	      << ">" << std::endl;
-			return false;
+    std::cerr << "Could not locate species_map in YAML file <" << file << ">" << std::endl;
+    return false;
   }
 }
 
@@ -201,7 +202,7 @@ main(int ac, char **av)
      "use log scaling for energy range")
     ("flat",
      "use E^{3/2} scaling for energy range")
-    ("files,f",         po::value< std::vector<std::string> >(), 
+    ("files,f",         po::value< std::vector<std::string> >()->multitoken(), 
      "input files")
     ;
 
@@ -377,12 +378,19 @@ main(int ac, char **av)
     double etotal = 0.0, itotal = 0.0, mtotal = 0.0;
     int eIout = 0, eEout = 0, eIgrid = 0, eEgrid = 0, total = 0;
 
+    // Zero histogram bins
+    //
+    std::fill(Eion.begin(), Eion.end(), 0);
+    std::fill(Eelc.begin(), Eelc.end(), 0);
+    std::fill(Nion.begin(), Nion.end(), 0);
+    std::fill(Nelc.begin(), Nelc.end(), 0);
+
     for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
     
       if (stanza->name != cname) continue;
 
-				// Position to beginning of particles
-				// 
+      // Position to beginning of particles
+      // 
       in->seekg(stanza->pspos);
 
       for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
@@ -395,9 +403,8 @@ main(int ac, char **av)
 	  kEi += vi*vi;
 	}
 
-	// Molecular weight
+	// Molecular weight computation
 	//
-
 	double efrac = 0.0, mu = 0.0;
 	
 	for (auto v : SpList) {
@@ -527,7 +534,7 @@ main(int ac, char **av)
     cout << '#' << std::string(fw*5+sw*2-1, '-') << endl << endl;
 
 
-    } // END: file loop
+  } // END: file loop
 
 
   return 0;
