@@ -820,6 +820,11 @@ private:
   cudaDeviceProp                      deviceProp;
 #endif
 
+#ifdef XC_DEEP10
+  std::vector<long long int> xc_counter;
+  std::vector<double>        xc_weight;
+#endif
+
 public:
 
   typedef std::set<unsigned short> ZLtype;
@@ -1063,6 +1068,44 @@ protected:
   //! Coulombic scattering angle lookup
   boost::shared_ptr<coulombSelect> coulombSel;
 
+  class Fspc
+  {
+  private:
+    Particle            *p1, *p2;
+    std::vector<double> f1, f2;
+    CollideIon          *caller;
+    unsigned short      Z1, Z2;
+
+  protected:
+
+    //! Renormalize species weights for Trace method
+    static bool norm_enforce;
+
+  public:
+    //! Constructor
+    Fspc(CollideIon* c, Particle *P1, Particle *P2);
+
+    //! Access to ionization fraction
+    template<typename U, typename V>
+    double& operator()(U n, V j)
+    {
+      if      (n==1) return f1[j];
+      else if (n==2) return f2[j];
+      else {
+	std::cerr << "**ERROR: crazy value in Fspc: n=" << n
+		  << "; must be 1 or 2" << std::endl;
+	return f1[j];
+      }
+    }
+
+    //! Update ionization state fractions
+    void update(unsigned flag=0x3);
+
+    //! Check normalization of ionization state vector (for debugging)
+    void normTest(unsigned short n, const std::string& lab);
+
+  };
+
   class Pord
   {
   protected:
@@ -1070,11 +1113,6 @@ protected:
     void swapPs();
 
   public:
-    //! Stash of key index in Particle's integer array
-    static int key;
-
-    //! Renormalize species weights for Trace method
-    static bool norm_enforce;
 
     //! Interaction identifier
     enum pType {ion_ion, ion_electron, electron_ion, electron_electron};
@@ -1094,7 +1132,6 @@ protected:
     double         eta2;
 
     std::array<double, 2>  E1, E2, KE1, KE2;
-    std::vector<double>    f1, f2;
 
     //! Keep particle energies at current time
     struct Es
@@ -1123,9 +1160,6 @@ protected:
     Pord(CollideIon* c, Particle *P1, Particle *P2, double WW1, double WW2,
 	 pType p, double q_threshold);
 
-    //! Update ionization state fractions
-    void update();
-
     //! Compute initial energies
     void eInitial() { beg = compE(); }
 
@@ -1137,17 +1171,6 @@ protected:
 
     //! Switch weighting scheme (true: weighted by eta)
     void scheme(bool W);
-
-    //! Access to ionization fraction with swapping (Particle 1)
-    double& F(unsigned short n, int j)
-    {
-      if (swap) n++;
-      if (n%2==1) return f1[j];
-      return f2[j];
-    }
-
-    //! Check normalization of ionization state vector (for debugging)
-    void normTest(unsigned short n, const std::string& lab);
 
     //! Retrieve ionization fraction
     double Eta(unsigned short n)
