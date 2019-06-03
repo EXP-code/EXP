@@ -928,7 +928,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 
   // Collision weight debugging
   //
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
   xc_counter.resize(11, 0);
   xc_weight .resize(11, 0);
 #endif
@@ -11227,7 +11227,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		  << " Z1=" << Q1.first
 		  << " Z2=" << Q2.first << std::endl;
 #endif
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
 	xc_counter[interFlag] += 1;
 	xc_weight [interFlag] += Prob;
 #endif
@@ -11254,7 +11254,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		    << " W=" << Prob
 		    << " Z2=" << Q2.first << std::endl;
 #endif
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
 	xc_counter[interFlag] += 1;
 	xc_weight [interFlag] += Prob;
 #endif
@@ -11279,7 +11279,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		    << " Z=" << Q1.first
 		    << " C=" << Q1.second << std::endl;
 #endif
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
 	xc_counter[interFlag] += 1;
 	xc_weight [interFlag] += Prob;
 #endif
@@ -11324,7 +11324,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		    << " Z=" << Q2.first
 		    << " C=" << Q2.second << std::endl;
 #endif
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
 	  xc_weight [interFlag] += Prob;
 #endif
@@ -11357,7 +11357,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		    << " Z=" << Q1.first
 		    << " C=" << Q1.second << std::endl;
 #endif
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
 	  xc_weight [interFlag] += Prob;
 #endif
@@ -11396,7 +11396,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		    << " Z=" << Q2.first
 		    << " C=" << Q2.second << std::endl;
 #endif
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
 	  xc_weight [interFlag] += Prob;
 #endif
@@ -11428,7 +11428,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		    << " Z=" << Q1.first
 		    << " C=" << Q1.second << std::endl;
 #endif
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
 	  xc_weight [interFlag] += Prob;
 #endif
@@ -11481,7 +11481,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    F(2, pos+1) += WW;
 	  }
 
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
 	  xc_weight [interFlag] += WW;
 #endif
@@ -11568,7 +11568,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    F(1, pos+1) += WW;
 	  }
 
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
 	  xc_weight [interFlag] += WW;
 #endif
@@ -11659,7 +11659,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    F(2, pos-1) += WW;
 	  }
 	  
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
 	  xc_weight [interFlag] += WW;
 #endif
@@ -11769,7 +11769,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    F(1, pos-1) += WW;
 	  }
 	  
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
 	  xc_weight [interFlag] += WW;
 #endif
@@ -12053,7 +12053,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   double totalDE = 0.0;
   for (auto v : PE) totalDE += v[1];
 
-#ifdef XC_DEEP
+#ifdef XC_DEEP0
   printf("totalDE=%e\n", totalDE);
 #endif
 
@@ -12096,7 +12096,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     }
     Jsav = J;
 
-#ifdef XC_DEEP
+#ifdef XC_DEEPJ
     printf("jtest: PE[0]=%f PE[1]=%f PE[2]=%f J=%d\n", PE[0][0], PE[1][0], PE[2][0], J);
 #endif
     
@@ -13802,6 +13802,10 @@ void CollideIon::deferredEnergyTrace(PordPtr pp, const double E, int id)
     return;
   }
 
+#ifdef XC_DEEP0
+  printf("deferE=%e\n", E);
+#endif
+
   // Save energy adjustments for next interation.  Split between like
   // species ONLY.
   //
@@ -13896,6 +13900,10 @@ void CollideIon::updateEnergyTrace(PordPtr pp, KE_& KE)
   // For energy conservation checking
   //
   KE.defer -= testE;
+
+#ifdef XC_DEEP0
+  printf("testE=%e\n", testE);
+#endif
 
   // Add to electron deferred energy
   //
@@ -22731,7 +22739,7 @@ void CollideIon::post_cell_loop(int id)
     }
   } // END: Hybrid and NOCOOL
 
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
   if (aType == Trace) {
     std::vector<unsigned long long> tt_counter(11);
     std::vector<double>             tt_weight (11);

@@ -40,7 +40,7 @@ void cuSwapP(T * x, T * y)
 __constant__ cuFP_t cuH_H, cuHe_H, cuPH_H, cuPHe_H;
 __constant__ cuFP_t cuH_Emin, cuHe_Emin, cuPH_Emin, cuPHe_Emin;
 
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
 __device__ unsigned long long w_counter[11];
 __device__ cuFP_t w_weight[11];
 #endif
@@ -1793,7 +1793,7 @@ void CollideIon::cuda_initialize()
   if (myid==0)
     testConstantsIon<<<1, 1>>>(c0->cudaDevice);
 
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
   setCountersToZero<<<1, 1>>>();
 #endif
 }
@@ -3211,6 +3211,10 @@ void cudaDeferredEnergy
  cuFP_t *E1,  cuFP_t *E2
 )
 {
+#ifdef XC_DEEP0
+  printf("deferE=%e\n", E);
+#endif
+
   if (cuCons) {
     if (not cuEcon) {
       E1[0] += 0.5*E;
@@ -3970,7 +3974,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 #ifdef XC_DEEP2
 	  printf("testT: nnDE=%e W=%e Z1=%d Z2=%d\n", 0.0, Prob, IT.Z1, IT.Z2);
 #endif
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
 	  atomicAdd(&w_counter[T], 1ull);
 	  atomicAdd(&w_weight[T], Prob);
 #endif
@@ -3985,7 +3989,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  else
 	    printf("testT: neDE=%e W=%e Z2=%d\n", 0.0, Prob, IT.Z2);
 #endif
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
 	  atomicAdd(&w_counter[T], 1ull);
 	  atomicAdd(&w_weight[T], Prob);
 #endif
@@ -3999,7 +4003,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  else
 	    printf("testT: npDE=%e W=%e Z1=%d C1=%d\n", 0.0, Prob, IT.Z1, IT.C1);
 #endif
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
 	  atomicAdd(&w_counter[T], 1ull);
 	  atomicAdd(&w_weight[T], Prob);
 #endif
@@ -4026,7 +4030,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  else
 	    printf("testT: ffDE=%e W=%e Z=%d C=%d\n", dE, Prob, IT.Z2, IT.C2);
 #endif
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
 	  atomicAdd(&w_counter[T], 1ull);
 	  atomicAdd(&w_weight[T], Prob);
 #endif
@@ -4056,7 +4060,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  else
 	    printf("testT: ceDE=%e W=%e Z=%d C=%d\n", dE, Prob, IT.Z2, IT.C2);
 #endif
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
 	  atomicAdd(&w_counter[T], 1ull);
 	  atomicAdd(&w_weight[T], Prob);
 #endif
@@ -4088,7 +4092,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      FF1[IT.I1+1] += WW;
 	    }
 	    
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
 	    atomicAdd(&w_counter[T], 1ull);
 	    atomicAdd(&w_weight[T], WW);
 #endif
@@ -4142,7 +4146,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      FF2[IT.I2+1] += WW;
 	    }
 	    
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
 	    atomicAdd(&w_counter[T], 1ull);
 	    atomicAdd(&w_weight[T], WW);
 #endif
@@ -4220,7 +4224,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      FF1[IT.I1-1] += WW;
 	    }
 	    
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
 	    atomicAdd(&w_counter[T], 1ull);
 	    atomicAdd(&w_weight[T], WW);
 #endif
@@ -4285,7 +4289,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      FF2[IT.I2-1] += WW;
 	    }
 	    
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
 	    atomicAdd(&w_counter[T], 1ull);
 	    atomicAdd(&w_weight[T], WW);
 #endif
@@ -4355,7 +4359,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	}
       }
       
-#ifdef XC_DEEP
+#ifdef XC_DEEP0
       printf("totalDE=%e\n", totalDE);
 #endif
       
@@ -4387,10 +4391,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       cuFP_t E2[2] = {0.0, 0.0};
       cuFP_t totE  = 0.0;
       
-#ifdef XC_DEEP
+#ifdef XC_DEEPJ
       printf("jtest: PE[0]=%f PE[1]=%f PE[2]=%f J=%d\n", PE[0], PE[1], PE[2], J);
 #endif
-      // Reassign weights
+      // Reassign weights and compute energies
       //
       {
 	cuFP_t sum1 = 0.0, sum2 = 0.0;
@@ -4492,13 +4496,28 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       // Ion is Particle 1, Electron is Particle 2
       //
       if (J==1) {
+
+	// Compute the initial energies
+	//
+	cuFP_t KEi_i = 0.0, KEe_i = 0.0;
+	if (not cuMeanMass) {
+	  for (size_t k=0; k<3; k++) {
+	    KEi_i += p1->vel[k] * p1->vel[k];
+	    if (cuElec>=0) {
+	      KEe_i += p2->datr[cuElec+k] * p2->datr[cuElec+k];
+	    }
+	  }
+	  KEi_i *= 0.5 * W1 * EI.Mu1;
+	  KEe_i *= 0.5 * W2 * EI.Eta2 * Mue;
+	}
+
 	cuFP_t v1[3], v2[3];
 	cuFP_t u1[3], u2[3];	// Used only for debugging
 	
 	for (int k=0; k<3; k++) {
-	  // Particle 1 is the ion
+				// Particle 1 is the ion
 	  u1[k] = v1[k]  = p1->vel[k];
-	  // Particle 2 is the electron
+				// Particle 2 is the electron
 	  u2[k] = v2[k]  = p2->datr[cuElec+k];
 	}
 	
@@ -4536,6 +4555,29 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 		 u1[0], u1[1], u1[2], v1[0], v1[1], v1[2],
 		 u2[0], u2[1], u2[2], v2[0], v2[1], v2[2]);
 	}
+
+	// Compute the energy update
+	//
+	if (not cuMeanMass) {
+	  cuFP_t KEi_f = 0.0, KEe_f = 0.0;
+	  for (size_t k=0; k<3; k++) {
+	    KEi_f += p1->vel[k] * p1->vel[k];
+	    if (cuElec>=0) {
+	      KEe_f += p2->datr[cuElec+k] * p2->datr[cuElec+k];
+	    }
+	  }
+	  KEi_f *= 0.5 * W1 * EI.Mu1;
+	  KEe_f *= 0.5 * W2 * EI.Eta2 * Mue;
+
+	  cuFP_t denom = KEi_f + KEe_f;
+	  cuFP_t testE = KEi_i + KEe_i - denom - totalDE;
+#ifdef XC_DEEP0
+	  printf("testE=%e\n", testE);
+#endif
+	  E1[0] -= testE * KEi_f/denom;
+	  E2[1] -= testE * KEe_f/denom;
+	}
+
 	// Time-step computation
 	//
 	{
@@ -4568,6 +4610,21 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       // Ion is Particle 2, Electron is Particle 1
       //
       if (J==2) {
+
+	// Compute the initial energies
+	//
+	cuFP_t KEi_i = 0.0, KEe_i = 0.0;
+	if (not cuMeanMass) {
+	  for (size_t k=0; k<3; k++) {
+	    KEi_i += p2->vel[k] * p2->vel[k];
+	    if (cuElec>=0) {
+	      KEe_i += p1->datr[cuElec+k] * p1->datr[cuElec+k];
+	    }
+	  }
+	  KEi_i *= 0.5 * W2 * EI.Mu2;
+	  KEe_i *= 0.5 * W1 * EI.Eta1 * Mue;
+	}
+
 	cuFP_t v1[3], v2[3];
 	cuFP_t u1[3], u2[3];	// Used only for debugging
 	
@@ -4613,6 +4670,28 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 		 u2[0], u2[1], u2[2], v2[0], v2[1], v2[2]);
 	}
 	
+	// Compute the energy update
+	//
+	if (not cuMeanMass) {
+	  cuFP_t KEi_f = 0.0, KEe_f = 0.0;
+	  for (size_t k=0; k<3; k++) {
+	    KEi_f += p2->vel[k] * p2->vel[k];
+	    if (cuElec>=0) {
+	      KEe_f += p1->datr[cuElec+k] * p1->datr[cuElec+k];
+	    }
+	  }
+	  KEi_f *= 0.5 * W2 * EI.Mu2;
+	  KEe_f *= 0.5 * W1 * EI.Eta1 * Mue;
+	  
+	  cuFP_t denom = KEi_f + KEe_f;
+	  cuFP_t testE = KEi_i + KEe_i - denom - totalDE;
+#ifdef XC_DEEP0
+	  printf("testE=%e\n", testE);
+#endif
+	  E2[0] -= testE * KEi_f/denom;
+	  E1[1] -= testE * KEe_f/denom;
+	}
+
 	// Time-step computation
 	//
 	{
@@ -4646,6 +4725,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	p1->datr[cuCons] += E1[0];
 	p2->datr[cuCons] += E2[0];
       }
+      
       if (cuCons>=0 and cuEcon>=0) {
 	p1->datr[cuEcon] += E1[1];
 	p2->datr[cuEcon] += E2[1];
@@ -4950,7 +5030,7 @@ void * CollideIon::collide_thread_cuda(void * arg)
      toKernel(cuElems),  toKernel(d_tauC),
      totalXCsize);
 
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
   {
     cudaMemcpyFromSymbol(&xc_counter[0], w_counter, 11*sizeof(unsigned long long));
     cudaMemcpyFromSymbol(&xc_weight[0],  w_weight,  11*sizeof(cuFP_t));

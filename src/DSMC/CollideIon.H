@@ -820,7 +820,7 @@ private:
   cudaDeviceProp                      deviceProp;
 #endif
 
-#ifdef XC_DEEP10
+#ifdef XC_DEEP9
   std::vector<long long int> xc_counter;
   std::vector<double>        xc_weight;
 #endif
