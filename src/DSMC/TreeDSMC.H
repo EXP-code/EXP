@@ -17,16 +17,16 @@ class CollideIon;
 
     <h2> Introduction </h2>
 
-    Recall that the DSMC technique models a gas by following the
-    trajectories of gas molecules and computes the effects of
-    collisions between particles through probabilistically generated
-    encounters. One of the fundamental assumptions of the DSMC method
-    is that particle movement can be decoupled from collisional
-    behavior.  Particles then move along paths determined by the mean
-    force fields (gravitational and electromagnetic) with discrete
-    changes in velocity and energy caused by collisions. In order to
-    accomplish this, the simulation is broken up into time steps the
-    magnitude of which are small compared to the average time between
+    The DSMC technique models a gas by following the trajectories of
+    gas molecules and computes the effects of collisions between
+    particles through probabilistically generated encounters. One of
+    the fundamental assumptions of the DSMC method is that particle
+    movement can be decoupled from collisional behavior.  Particles
+    then move along paths determined by the mean force fields
+    (gravitational and electromagnetic) with discrete changes in
+    velocity and energy caused by collisions. In order to accomplish
+    this, the simulation is broken up into time steps the magnitude of
+    which are small compared to the average time between
     collisions. In this small interval of time, these two processes
     can realistically be treated as independent.
 
@@ -152,23 +152,40 @@ class CollideIon;
 
     <h2>Note on multiple species</h2>
 
-    There are two versions of the multispecies interactions:
+    There are two versions of the multispecies interactions.  Each method has two different variants.
     <ol>
-
     <li> Each particle acts as an individual ion (i.e. atom in a
     particular ionization state which may be neutral.  This version,
     the default, is chosen by specifying the <code>keypos</code>
-    attribute for the Component.
-
+    attribute for the Component.  The variants are:
+    <ol> 
+    <li> The <code>Direct</code> method.  This is closest to pure
+    DSMC.  Each particle represents the same number of atoms or ions.
+    <li> The <code>Weight</code> method.  All particle are assumed to
+    have the same mass but represent a different number of true
+    particles according their physical chemical abundance.
+    </ol>
     <li> Each particle represents a number of elements in various
-    charge states.  Here, one provides the 
+    charge states.  Use of multiple species is initiated by setting
+    the <code>species</code> flag to an integer \f$\ge0\f$.  The
+    argument indicates the position of the species index in the
+    per-particle integer parameter vector.  The species indices to not
+    have to be sequential, only unique.  They are stored in the code
+    using a STL <code>map</code> template.  This scheme as two variants:
+    <ol>
 
-    Use of multiple species is initiated by setting the
-    <code>species</code> flag to an integer \f$\ge0\f$.  The argument
-    indicates the position of the species index in the per-particle
-    integer parameter vector.  The species indices to not have to be
-    sequential, only unique.  They are stored in the code using a STL
-    <code>map</code> template.
+    <li> In the <code>Hybrid</code> variant, each particle has the same
+    mass but represents a different number of atoms or ions, as in the
+    <code>Weight</code> above.  However, the particle is divided into
+    pieces represented by the ionic level and the ionic level
+    fractions are represented using the <code>species</code> map as
+    described above.
+
+    <li> In the <code>Trace</code> variant, each particle has the same
+    mass divided into elements according to a predetemined chemical
+    abundance <i>and</i> ionic substates.
+    </ol> 
+    </ol>
 */
 class TreeDSMC : public ExternalForce
 {
