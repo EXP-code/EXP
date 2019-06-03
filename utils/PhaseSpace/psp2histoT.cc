@@ -18,6 +18,8 @@ using namespace std;
 #include <list>
 #include <map>
 
+#include <yaml-cpp/yaml.h>	// YAML support
+
 #include <Species.H>
 
 #include <StringTok.H>
@@ -36,10 +38,10 @@ char threading_on = 0;
 pthread_mutex_t mem_lock;
 string outdir, runtag;
 
-bool readSpeciesFile(std::string file,
-		     std::map<speciesKey, int>& SpList,
-		     std::list<unsigned short>& ZList,
-		     int& elec)
+bool readSpeciesFileOld(std::string file,
+			std::map<speciesKey, int>& SpList,
+			std::list<unsigned short>& ZList,
+			int& elec)
 {
   std::ifstream in(file);
   bool status = true;
@@ -96,6 +98,70 @@ bool readSpeciesFile(std::string file,
   }
 
   return status;
+}
+
+bool readSpeciesFile(std::string file,
+		     std::map<speciesKey, int>& SpList,
+		     std::list<unsigned short>& ZList,
+		     int& elec)
+{
+  YAML::Node conf;
+
+  try {
+    conf = YAML::LoadFile(file);
+  }
+  catch (YAML::Exception & error) {
+    std::cout << "Error parsing component config.  Trying old-style PSP"
+	      << std::endl
+	      << error.what() << std::endl;
+    return readSpeciesFileOld(file, SpList, ZList, elec);
+  }
+
+
+  // Check for species map
+  // -------------------
+  if (conf["species_map"]) {
+
+    YAML::Node cconf = conf["species_map"];
+    std::string type = cconf["type"].as<std::string>();
+
+    if (type.compare("trace")==0) {
+      
+      if (cconf["elec"]) {
+	elec = cconf["elec"].as<int>();
+      } else {
+	std::cerr << "Error reading elec field for trace species"
+		  << std::endl;
+	return false;
+      }
+
+      if (cconf["elements"]) {
+	YAML::Node elems = cconf["elements"];
+
+	for (YAML::const_iterator it=elems.begin(); it!=elems.end(); ++it) {
+	  auto dd = it->as<std::vector<int>>();
+	  speciesKey key(dd[0], dd[1]);
+	  SpList[key] = dd[2];
+	  ZList.push_back(key.first);
+	}
+      } else {
+	std::cerr << "No <elements> key found . . . quitting" << std::endl;
+	return false;
+      }
+
+      return true;
+
+    } else {
+      std::cerr << "Method/map type is <" << type << ">, expected <trace>"
+		<< std::endl;
+      return false;
+    }
+
+  } else {
+    std::cerr << "Could not locate species_map in YAML file <" << file
+	      << ">" << std::endl;
+			return false;
+  }
 }
 
 int
