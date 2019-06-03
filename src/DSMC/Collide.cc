@@ -651,7 +651,7 @@ void Collide::debug_list()
 	//  +--- Summary info
 	//  |
 	//  V
-	if (true) {
+	if (false) {
 	  std::cout << std::setw( 8) << std::right << "TID"
 		    << std::setw(12) << std::right << "# cells"
 		    << std::setw(12) << std::right << "# bodies"
