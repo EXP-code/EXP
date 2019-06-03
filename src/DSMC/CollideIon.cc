@@ -11468,6 +11468,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 
+	  // WW is a mass fraction
+	  //
 	  double WW = Prob * atomic_weights[Z2];
 
 	  int pos = SpList[k2] - SpList.begin()->second;
@@ -11493,6 +11495,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    F.normTest(2, sout.str());
 	  }
 	  
+	  // Convert back to number fraction
+	  //
 	  Prob = WW / atomic_weights[Z2];
 	  
 	  double tmpE = IS.DIInterLoss(ch.IonList[Q2]);
@@ -11555,6 +11559,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 
+	  // WW is a mass fraction
+	  //
 	  double WW = Prob * atomic_weights[Z1];
 
 	  int pos = SpList[k1] - SpList.begin()->second;
@@ -11580,6 +11586,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    F.normTest(2, sout.str());
 	  }
 	    
+	  // Convert back to number fraction
+	  //
 	  Prob = WW / atomic_weights[Z1];
 
 	  double tmpE = IS.DIInterLoss(ch.IonList[Q1]);
@@ -11646,6 +11654,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 	  
+	  // WW is a mass fraction
+	  //
 	  double WW = Prob * atomic_weights[Z2];
 
 	  int pos = SpList[k2] - SpList.begin()->second;
@@ -11672,7 +11682,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    F.normTest(2, sout.str());
 	  }
 	  
-	  // Update to truncated value
+	  // Convert back to number fraction
 	  //
 	  Prob = WW / atomic_weights[Z2];
 
@@ -11756,6 +11766,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 
+	  // WW is a mass fraction
+	  //
 	  double WW = Prob * atomic_weights[Z1];
 
 	  int pos = SpList[k1] - SpList.begin()->second;
@@ -11781,7 +11793,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    F.normTest(2, sout.str());
 	  }
 
-	  // Update to truncated value
+	  // Convert back to number fraction
 	  //
 	  Prob = WW  / atomic_weights[Z1];
 
