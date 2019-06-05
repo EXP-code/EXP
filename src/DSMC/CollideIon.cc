@@ -2722,13 +2722,14 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
 	densQtot * pow(2.0*Evel2[id], 1.5) * muee*muee * numQ2[id] /
 	(pow(Ivel2[id] + Evel2[id], 1.5) * muie*muie);
 
-    if (false) {
-      std::cout << " PP1=" << PiProb[id][0]
+#ifdef XC_DEEP10
+      std::cout << "coul2: "
+		<< " PP1=" << PiProb[id][0]
 		<< " PP2=" << PiProb[id][1]
 		<< " PP3=" << PiProb[id][2]
 		<< " PP4=" << PiProb[id][3]
 		<< std::endl;
-    }
+#endif
 				// Sanity check
     if (false) {
       double test1 = densQtot/PiProb[id][0] + densEtot/PiProb[id][1];
@@ -2746,6 +2747,15 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
     ABrate[id][2] = 2.0*M_PI * PiProb[id][2] * logL * pow(numQ2[id], 2.0);
 
     ABrate[id][3] = 2.0*M_PI * PiProb[id][3] * logL ;
+
+#ifdef XC_DEEP10
+      std::cout << "coul2: "
+		<< " AB1=" << ABrate[id][0]
+		<< " AB2=" << ABrate[id][1]
+		<< " AB3=" << ABrate[id][2]
+		<< " AB4=" << ABrate[id][3]
+		<< std::endl;
+#endif
 
     // Coulombic scattering
     //
@@ -11468,11 +11478,12 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 
+	  int pos = SpList[k2] - SpList.begin()->second;
+
 	  // WW is a mass fraction
 	  //
-	  double WW = Prob * atomic_weights[Z2];
-
-	  int pos = SpList[k2] - SpList.begin()->second;
+	  double ff = atomic_weights[Z2]/molP2[id];
+	  double WW = Prob * ff;
 
 	  if (WW < F(2, pos)) {
 	    F(2, pos  ) -= WW;
@@ -11497,7 +11508,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  
 	  // Convert back to number fraction
 	  //
-	  Prob = WW / atomic_weights[Z2];
+	  Prob = WW / ff;
 	  
 	  double tmpE = IS.DIInterLoss(ch.IonList[Q2]);
 	  dE = tmpE * Prob;
@@ -11559,11 +11570,12 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 
+	  int pos = SpList[k1] - SpList.begin()->second;
+
 	  // WW is a mass fraction
 	  //
-	  double WW = Prob * atomic_weights[Z1];
-
-	  int pos = SpList[k1] - SpList.begin()->second;
+	  double ff = atomic_weights[Z1]/molP1[id];
+	  double WW = Prob * ff;
 
 	  if (WW < F(1, pos)) {
 	    F(1, pos  ) -= WW;
@@ -11588,7 +11600,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    
 	  // Convert back to number fraction
 	  //
-	  Prob = WW / atomic_weights[Z1];
+	  Prob = WW / ff;
 
 	  double tmpE = IS.DIInterLoss(ch.IonList[Q1]);
 	  dE = tmpE * Prob;
@@ -11654,11 +11666,12 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 	  
+	  int pos = SpList[k2] - SpList.begin()->second;
+
 	  // WW is a mass fraction
 	  //
-	  double WW = Prob * atomic_weights[Z2];
-
-	  int pos = SpList[k2] - SpList.begin()->second;
+	  double ff = atomic_weights[Z2]/molP2[id];
+	  double WW = Prob * ff;
 
 	  if (WW < F(2, pos)) {
 	    F(2, pos  ) -= WW;
@@ -11684,7 +11697,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  
 	  // Convert back to number fraction
 	  //
-	  Prob = WW / atomic_weights[Z2];
+	  Prob = WW / ff;
 
 	  // Electron KE lost in recombination is radiated by does not
 	  // change COM energy
@@ -11766,11 +11779,12 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	  }
 
+	  int pos = SpList[k1] - SpList.begin()->second;
+
 	  // WW is a mass fraction
 	  //
-	  double WW = Prob * atomic_weights[Z1];
-
-	  int pos = SpList[k1] - SpList.begin()->second;
+	  double ff = atomic_weights[Z1]/molP1[id];
+	  double WW = Prob * ff;
 
 	  if (WW < F(1, pos)) {
 	    F(1, pos  ) -= WW;
@@ -11795,7 +11809,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // Convert back to number fraction
 	  //
-	  Prob = WW  / atomic_weights[Z1];
+	  Prob = WW  / ff;
 
 	  // Electron KE lost in recombination is radiated by does not
 	  // change COM energy
@@ -13315,6 +13329,11 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
       double afac = esu*esu/std::max<double>(2.0*KE*eV, FloorEv*eV);
       double tau = ABrate[id][l]*afac*afac*pVel * dT;
       
+#ifdef XC_DEEP11
+	printf("coul5: l=%d pVel=%e afac=%e dt=%e tau=%e mu=%e m1=%e m2=%e\n",
+	       l, pVel, afac, dT, tau, mu, m1, m2);
+#endif
+
       tauD[id][l].push_back(tau);
 
       // Set COM frame
@@ -22885,6 +22904,12 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
       W1 *= eta1;
       wght = true;
     }
+    break;
+  case electron_electron:
+    m1 = atomic_weights[0];
+    m2 = atomic_weights[0];
+    W1 *= eta1;
+    W2 *= eta2;
     break;
   }
   

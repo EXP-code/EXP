@@ -1664,13 +1664,15 @@ double cuCA_func(cuFP_t tau, cuFP_t x)
 
 // Initialization of counter array for debugging
 //
+#ifdef XC_DEEP9
 __global__ void setCountersToZero()
 {
   for (int T=0; T<11; T++) {
     w_counter[T] = 0;
-    w_weight[T]  = 0.0;
+    w_weight [T] = 0.0;
   }
 }
+#endif
 
 // Link static parameters from CollideIon.cc (decide how to link these
 // later)
@@ -2051,9 +2053,9 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
       (pow(Ivel2._v[c] + Evel2._v[c], 1.5) * muie*muie) +
       densE;
       
-    if (false) {
-      printf("PP1=%e PP2=%e PP3=%e PP4=%e\n", PiProb._v[c*4+0], PiProb._v[c*4+1], PiProb._v[c*4+2], PiProb._v[c*4+3]);
-    }
+#ifdef XC_DEEP10
+      printf("coul2: PP1=%e PP2=%e PP3=%e PP4=%e\n", PiProb._v[c*4+0], PiProb._v[c*4+1], PiProb._v[c*4+2], PiProb._v[c*4+3]);
+#endif
 
     // Rate coefficients
     ABrate._v[c*4 + 0] = 2.0*M_PI * PiProb._v[c*4 + 0] * cuLogL * pow(numQ2*numQ2, 2.0);
@@ -2063,6 +2065,10 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
     ABrate._v[c*4 + 2] = 2.0*M_PI * PiProb._v[c*4 + 2] * cuLogL * pow(numQ2, 2.0);
       
     ABrate._v[c*4 + 3] = 2.0*M_PI * PiProb._v[c*4 + 3] * cuLogL ;
+
+#ifdef XC_DEEP10
+      printf("coul2: AB1=%e AB2=%e AB3=%e AB4=%e\n", ABrate._v[c*4+0], ABrate._v[c*4+1], ABrate._v[c*4+2], ABrate._v[c*4+3]);
+#endif
 
   } // END: cell
 
@@ -3631,16 +3637,21 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
       
       // KE
       //
-      KE *= 0.5 * mu * cuVunit * cuEV;
+      KE *= 0.5 * mu * cuVunit * cuVunit * cuEV;
 
       // Coulombic rate
       //
       double pVel = sqrt(2.0*KE/mu/cuEV);
-      double KE2  = cuFloorEV;
-      if (2.0*KE > cuFloorEV) KE2 = 2.0*KE;
+      double KE2  = 2.0*KE;
+      if (KE2 < cuFloorEV) KE2 = cuFloorEV;
       double afac = esu*esu/(KE2*cuEV);
       double tau  = ABrate._v[C*4 + l]*afac*afac*pVel * dT;
       
+#ifdef XC_DEEP11
+	printf("coul5: l=%d pVel=%e afac=%e dt=%e tau=%e mu=%e\n",
+	       l, pVel, afac, dT, tau, mu);
+#endif
+
       coul4._v[C*4+l] = tau;
 
       // Set COM frame
@@ -3760,10 +3771,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
   cuEnergyInfo EI;
   cuFP_t Mue = cuda_atomic_weights[0];
   
-  for (int cid = blockIdx.x * blockDim.x + threadIdx.x; 
-       cid < cellI._s; 
-       cid += blockDim.x * gridDim.x) {
-    
+  for (int cid = blockIdx.x * blockDim.x + threadIdx.x; cid < cellI._s; cid += blockDim.x * gridDim.x) {
+
     curandState* state = &randS._v[cid];
     
     int n0     = cellI._v[cid];
@@ -3791,15 +3800,13 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	
 	computeCrossSection(in, cross, delph, xspcs, xtype,
 			    xsc_H, xsc_He, xsc_pH, xsc_pHe, elems,
-			    cid, n0+i, n0+j, numxc, state, &xctot,
-#ifdef XC_DEEP
-			    &EI);
-#else
-	0x0);
-#endif
-      
-      if (xctot > csection) csection = xctot;
-    }
+			    cid, n0+i, n0+j, numxc, state, &xctot, 0x0);
+
+	if (xctot > csection) csection = xctot;
+
+      } // END: inner body loop
+
+    } // END: outer body loop
 
   
     // Compute probability of interaction (excepting Coulombic) in system units
@@ -3814,12 +3821,13 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     if (csection>10.0) printEI(csection, EI);
 #endif
     
-    
     Nsel._v[cid] = selcM;
     
     int    npairs  = floor(selcM);
     cuFP_t nexcess = selcM - npairs;
     
+    // Compute interactions for all pairs
+    //
     for (int r=0; r<=npairs; r++) {
       
       if (r==npairs) {
@@ -3829,7 +3837,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	if (nexcess<curand_uniform_double(state)) break;
 #endif
       }
-      
+
       // Pick interaction pair
       //
 #if cuREAL == 4
@@ -4082,7 +4090,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    // Convert from probability (relative number density) to
 	    // mass density
 	    //
-	    cuFP_t WW = Prob * cuda_atomic_weights[IT.Z1];
+	    cuFP_t ff = cuda_atomic_weights[IT.Z1]/EI.Mu1;
+	    cuFP_t WW = Prob * ff;
 	    
 	    if (IT.I1>Nsp-2) {
 	      printf("Crazy ionize I1=%d\n", IT.I1);
@@ -4103,7 +4112,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 #endif
 	    // Convert back to number density
 	    //
-	    Prob = WW  / cuda_atomic_weights[IT.Z1];
+	    Prob = WW  / ff;
 	    
 	    dE = XE * Prob;
 	    
@@ -4138,7 +4147,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    // Convert to mass density
 	    //
-	    cuFP_t WW = Prob * cuda_atomic_weights[IT.Z2];
+	    cuFP_t ff = cuda_atomic_weights[IT.Z2]/EI.Mu2;
+	    cuFP_t WW = Prob * ff;
 	    
 	    if (IT.I2 > Nsp-2) {
 	      printf("Crazy ionize I2=%d\n", IT.I2);
@@ -4159,7 +4169,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 #endif
 	    // Convert back to number density
 	    //
-	    Prob = WW / cuda_atomic_weights[IT.Z2];
+	    Prob = WW / ff;
 	    
 	    dE = XE * Prob;
 	    
@@ -4202,7 +4212,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    // Convert probability to mass fraction
 	    //
-	    cuFP_t WW = Prob * cuda_atomic_weights[IT.Z1];
+	    cuFP_t ff = cuda_atomic_weights[IT.Z1]/EI.Mu1;
+	    cuFP_t WW = Prob * ff;
 	    
 	    if (IT.C1<=1 or IT.I2!=255) {
 	      int K = cid*numxc + J;
@@ -4239,7 +4250,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 #endif
 	    // Convert back to probability
 	    //
-	    Prob = WW  / cuda_atomic_weights[IT.Z1];
+	    Prob = WW  / ff;
 	    
 	    // Electron KE lost in recombination is radiated by does not
 	    // change COM energy
@@ -4269,7 +4280,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    // Convert from probability to mass fraction
 	    //
-	    cuFP_t WW = Prob * cuda_atomic_weights[IT.Z2];
+	    cuFP_t ff = cuda_atomic_weights[IT.Z2]/EI.Mu2;
+	    cuFP_t WW = Prob * ff;
 	    
 	    if (IT.C2<=1 or IT.I1!=255) {
 	      int K = cid*numxc + J;
@@ -4306,8 +4318,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 #endif
 	    // Convert back to number density
 	    //
-	    Prob = WW / cuda_atomic_weights[IT.Z2];
-	    
+	    Prob = WW / ff;
+
 	    // Electron KE lost in recombination is radiated by does not
 	    // change COM energy
 	    //
@@ -4348,7 +4360,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	} // END: recomb
 	
       } // END: interaction loop
-      
+
       // Deep debug
       //
       if (false) {
@@ -4747,6 +4759,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
   delete [] FF2;
   delete [] S;
 }
+
 
 // Allocate one generator per particle (overkill, could be tuned to
 // save memory)
