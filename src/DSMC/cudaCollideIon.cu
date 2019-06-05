@@ -2683,10 +2683,10 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 	    
       if (crs > 0.0) {
 #ifdef XC_DEEP1
-	printf("xsc: io=%e\n", crs);
+	printf("xsc: [ie] io=%e\n", crs);
 #endif
 #ifdef XC_DEEP4
-	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e io=%e dE=%e fac=%e\n",
+	printf("xsc: [ie] kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e io=%e dE=%e fac=%e\n",
 	       kEe1, Z, C, gVel2, Eta2, xc, 0.0, fac1);
 #endif
 	cross._v[K]   = crs;
@@ -2728,10 +2728,10 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 	    
       if (crs > 0.0) {
 #ifdef XC_DEEP1
-	printf("xsc: io=%e\n", crs);
+	printf("xsc: [ei] io=%e\n", crs);
 #endif
 #ifdef XC_DEEP4
-	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e io=%e dE=%e fac=%e\n",
+	printf("xsc: [ei] kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e io=%e dE=%e fac=%e\n",
 	       kEe2, Z, C, gVel1, Eta1, xc, 0.0, fac2);
 #endif
 	cross._v[K]   = crs;
@@ -2856,11 +2856,11 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 	      
 	if (crs > 0.0) {
 #ifdef XC_DEEP1
-	printf("xsc: rc=%e\n", crs);
+	  printf("xsc: [ie] rc=%e eta1=%e eta2=%e\n", crs, Eta1, Eta2);
 #endif
 #ifdef XC_DEEP4
-	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e rc=%e dE=%e fac=%e\n",
-	       kEe1, Z, C, gVel2, Eta2, xc, 0.0, fac1);
+	  printf("xsc: [ie] kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e rc=%e dE=%e fac=%e\n",
+		 kEe1, Z, C, gVel2, Eta2, xc, 0.0, fac1);
 #endif
 
 	  cross._v[K]   = crs;
@@ -2878,14 +2878,6 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 	  
 	  K++;
 	  L = K*6;
-
-#ifdef XC_DEEP1
-	printf("xsc: rc=%e\n", crs);
-#endif
-#ifdef XC_DEEP4
-	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e rc=%e dE=%e fac=%e\n",
-	       kEe1, Z, C, gVel2, Eta2, xc, 0.0, fac1);
-#endif
 	}
       }
 	    
@@ -2898,7 +2890,7 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
       //  V       V
       if (P>0 and Eta1>0.0) {
 	      
-	cuFP_t ke = kEe2/cuEV > cuFloorEV ? kEe2/cuEV : cuFloorEV, xc;
+	cuFP_t ke = kEe2 > cuFloorEV ? kEe2 : cuFloorEV, xc;
 	computeRadRecomb(ke, xc, elem);
 	      
 	cuFP_t crs = Eta1 * xc * fac2;
@@ -2907,9 +2899,12 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 	else            crs *= sVel1;
 	      
 	if (crs > 0.0) {
+#ifdef XC_DEEP1
+	  printf("xsc: [ei] rc=%e eta1=%e eta2=%e\n", crs, Eta1, Eta2);
+#endif
 #ifdef XC_DEEP4
-	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e rc=%e dE=%e fac=%e\n",
-	       kEe2, Z, C, gVel1, Eta1, xc, 0.0, fac2);
+	  printf("xsc: [ei] kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e rc=%e dE=%e fac=%e\n",
+		 kEe2, Z, C, gVel1, Eta1, xc, 0.0, fac2);
 #endif
 	  cross._v[K]   = crs;
 
@@ -2926,10 +2921,6 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 		
 	  K++;
 	  L = K*6;
-#ifdef XC_DEEP4
-	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e rc=%e dE=%e fac=%e\n",
-	       kEe2, Z, C, gVel1, Eta1, xc, 0.0, fac2);
-#endif
 	}
       }
     } // end: original recomb algorithm
@@ -4090,7 +4081,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    // Convert from probability (relative number density) to
 	    // mass density
 	    //
-	    cuFP_t ff = cuda_atomic_weights[IT.Z1]/EI.Mu1;
+	    // cuFP_t ff = cuda_atomic_weights[IT.Z1]/EI.Mu1;
+	    cuFP_t ff = cuda_atomic_weights[IT.Z1];
 	    cuFP_t WW = Prob * ff;
 	    
 	    if (IT.I1>Nsp-2) {
@@ -4108,7 +4100,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 #ifdef XC_DEEP9
 	    atomicAdd(&w_counter[T], 1ull);
-	    atomicAdd(&w_weight[T], WW);
+	    atomicAdd(&w_weight[T], Prob);
 #endif
 	    // Convert back to number density
 	    //
@@ -4147,7 +4139,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    // Convert to mass density
 	    //
-	    cuFP_t ff = cuda_atomic_weights[IT.Z2]/EI.Mu2;
+	    // cuFP_t ff = cuda_atomic_weights[IT.Z2]/EI.Mu2;
+	    cuFP_t ff = cuda_atomic_weights[IT.Z2];
 	    cuFP_t WW = Prob * ff;
 	    
 	    if (IT.I2 > Nsp-2) {
@@ -4165,7 +4158,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 #ifdef XC_DEEP9
 	    atomicAdd(&w_counter[T], 1ull);
-	    atomicAdd(&w_weight[T], WW);
+	    atomicAdd(&w_weight[T], Prob);
 #endif
 	    // Convert back to number density
 	    //
@@ -4212,7 +4205,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    // Convert probability to mass fraction
 	    //
-	    cuFP_t ff = cuda_atomic_weights[IT.Z1]/EI.Mu1;
+	    // cuFP_t ff = cuda_atomic_weights[IT.Z1]/EI.Mu1;
+	    cuFP_t ff = cuda_atomic_weights[IT.Z1];
 	    cuFP_t WW = Prob * ff;
 	    
 	    if (IT.C1<=1 or IT.I2!=255) {
@@ -4246,7 +4240,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 #ifdef XC_DEEP9
 	    atomicAdd(&w_counter[T], 1ull);
-	    atomicAdd(&w_weight[T], WW);
+	    atomicAdd(&w_weight[T], Prob);
 #endif
 	    // Convert back to probability
 	    //
@@ -4280,6 +4274,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    // Convert from probability to mass fraction
 	    //
+	    // cuFP_t ff = cuda_atomic_weights[IT.Z2];
 	    cuFP_t ff = cuda_atomic_weights[IT.Z2]/EI.Mu2;
 	    cuFP_t WW = Prob * ff;
 	    
@@ -4314,7 +4309,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 #ifdef XC_DEEP9
 	    atomicAdd(&w_counter[T], 1ull);
-	    atomicAdd(&w_weight[T], WW);
+	    atomicAdd(&w_weight[T], Prob);
 #endif
 	    // Convert back to number density
 	    //
@@ -5052,6 +5047,8 @@ void * CollideIon::collide_thread_cuda(void * arg)
   {
     cudaMemcpyFromSymbol(&xc_counter[0], w_counter, 11*sizeof(unsigned long long));
     cudaMemcpyFromSymbol(&xc_weight[0],  w_weight,  11*sizeof(cuFP_t));
+
+    setCountersToZero<<<1, 1>>>();
   }
 #endif
   
