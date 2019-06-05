@@ -1495,9 +1495,6 @@ void chdata::testCross(int Nenergy)
     
     cuda.stop();
     
-    for (auto v : eCI_h) std::cout << v << std::endl;
-
-
     std::vector<double> xEE_0(Nenergy, 0);
     std::vector<double> eFF_0(Nenergy, 0), xFF_0(Nenergy, 0);
     std::vector<double> eCE_0(Nenergy, 0), xCE_0(Nenergy, 0);
