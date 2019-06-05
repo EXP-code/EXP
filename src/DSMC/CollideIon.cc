@@ -5318,10 +5318,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       
       if (crs > 0.0) {
 #ifdef XC_DEEP1
-	std::cout << "xsc: io=" << crs << std::endl;
+	std::cout << "xsc: [ie] io=" << crs << std::endl;
 #endif
 #ifdef XC_DEEP4
-	std::cout << "xsc: kEe=" << kEe1[id]
+	std::cout << "xsc: [ie] kEe=" << kEe1[id]
 		  << " (Z, P)=(" << Z << ", " << C << ")"
 		  << " gVel=" << gVel2 << " eta=" << Eta2
 		  << " io=" << DI << " dE=" << 0.0
@@ -5355,10 +5355,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       
       if (crs > 0.0) {
 #ifdef XC_DEEP1
-	std::cout << "xsc: io=" << crs << std::endl;
+	std::cout << "xsc: [ei] io=" << crs << std::endl;
 #endif
 #ifdef XC_DEEP4
-	std::cout << "xsc: kEe=" << kEe2[id]
+	std::cout << "xsc: [ei] kEe=" << kEe2[id]
 		  << " (Z, P)=(" << Z << ", " << C << ")"
 		  << " gVel=" << gVel1 << " eta=" << Eta1
 		  << " io=" << DI << " dE=" << 0.0
@@ -5495,10 +5495,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	    CProb[id][1] += crs;
 
 #ifdef XC_DEEP1
-	std::cout << "xsc: rc=" << crs << std::endl;
+	std::cout << "xsc: [ie] rc=" << crs << std::endl;
 #endif
 #ifdef XC_DEEP4
-	    std::cout << "xsc: kEe=" << kEe1[id]
+	    std::cout << "xsc: [ie] kEe=" << kEe1[id]
 		      << " (Z, P)=(" << Z << ", " << C << ")"
 		      << " gVel=" << gVel2 << " eta=" << Eta2
 		      << " rc=" << crs << " dE=" << 0.0
@@ -5543,10 +5543,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	    
 	    CProb[id][2] += crs;
 #ifdef XC_DEEP1
-	std::cout << "xsc: rc=" << crs << std::endl;
+	std::cout << "xsc: [ei] rc=" << crs << std::endl;
 #endif
 #ifdef XC_DEEP4
-	    std::cout << "xsc: kEe=" << kEe2[id]
+	    std::cout << "xsc: [ei] kEe=" << kEe2[id]
 		      << " (Z, P)=(" << Z << ", " << C << ")"
 		      << " gVel=" << gVel1 << " eta=" << Eta1
 		      << " rc=" << crs << " dE=" << 0.0
@@ -11482,7 +11482,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // WW is a mass fraction
 	  //
-	  double ff = atomic_weights[Z2]/molP2[id];
+	  // double ff = atomic_weights[Z2]/molP2[id];
+	  double ff = atomic_weights[Z2];
 	  double WW = Prob * ff;
 
 	  if (WW < F(2, pos)) {
@@ -11496,7 +11497,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 #ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
-	  xc_weight [interFlag] += WW;
+	  xc_weight [interFlag] += Prob;
 #endif
 	  if (use_normtest) {
 	    std::ostringstream sout;
@@ -11574,7 +11575,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // WW is a mass fraction
 	  //
-	  double ff = atomic_weights[Z1]/molP1[id];
+	  // double ff = atomic_weights[Z1]/molP1[id];
+	  double ff = atomic_weights[Z1];
 	  double WW = Prob * ff;
 
 	  if (WW < F(1, pos)) {
@@ -11588,7 +11590,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 #ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
-	  xc_weight [interFlag] += WW;
+	  xc_weight [interFlag] += Prob;
 #endif
 	  if (use_normtest) {
 	    std::ostringstream sout;
@@ -11670,7 +11672,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // WW is a mass fraction
 	  //
-	  double ff = atomic_weights[Z2]/molP2[id];
+	  // double ff = atomic_weights[Z2]/molP2[id];
+	  double ff = atomic_weights[Z2];
 	  double WW = Prob * ff;
 
 	  if (WW < F(2, pos)) {
@@ -11684,7 +11687,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  
 #ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
-	  xc_weight [interFlag] += WW;
+	  xc_weight [interFlag] += Prob;
 #endif
 	  if (use_normtest) {
 	    std::ostringstream sout;
@@ -11783,7 +11786,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // WW is a mass fraction
 	  //
-	  double ff = atomic_weights[Z1]/molP1[id];
+	  // double ff = atomic_weights[Z1]/molP1[id];
+	  double ff = atomic_weights[Z1];
 	  double WW = Prob * ff;
 
 	  if (WW < F(1, pos)) {
@@ -11797,7 +11801,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  
 #ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
-	  xc_weight [interFlag] += WW;
+	  xc_weight [interFlag] += Prob;
 #endif
 	  if (use_normtest) {
 	    std::ostringstream sout;
@@ -22778,18 +22782,31 @@ void CollideIon::post_cell_loop(int id)
     MPI_Reduce(&xc_counter[0], &tt_counter[0], 11,
 	       MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
 
-    MPI_Reduce(&xc_weight[0],  &tt_counter[0], 11,
+    MPI_Reduce(&xc_weight[0],  &tt_weight[0], 11,
 	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
+    std::fill(xc_counter.begin(), xc_counter.end(), 0);
+    std::fill(xc_weight.begin(), xc_weight.end(), 0);
+
     if (myid==0) {
+      std::cout << std::string(50, '-') << std::endl
+		<< "Interaction tallies for last step" << std::endl
+		<< std::string(50, '-') << std::endl
+		<< std::left << std::setw(22) << "Interaction type"
+		<< std::left << std::setw(16) << "| Total prob"
+		<< std::left << std::setw(12) << "| Total count"
+		<< std::endl
+		<< std::left << std::setw(22) << "----------------"
+		<< std::left << std::setw(16) << "| --------------"
+		<< std::left << std::setw(12) << "| --------------"
+		<< std::endl;
       for (int T=0; T<11; T++) {
-	std::cout << "typeT: {" << std::left
-		  << std::setw(22) << interLabels[T] << "} "
-		  << std::setw(16) << xc_weight[T]
-		  << std::setw(12) << xc_counter[T]
-		  << std::setw(16) << (xc_counter[T]>0 ? xc_weight[T]/xc_counter[T] : 0)
+	std::cout << std::left << std::setw(22) << interLabels[T]
+		  << std::left << std::setw(16) << tt_weight[T]
+		  << std::left << std::setw(12) << tt_counter[T]
 		  << std::endl;
       }
+      std::cout << std::string(50, '-') << std::endl;
     }
   }
 #endif
