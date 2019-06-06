@@ -22789,9 +22789,12 @@ void CollideIon::post_cell_loop(int id)
     std::fill(xc_weight.begin(), xc_weight.end(), 0);
 
     if (myid==0) {
-      std::cout << std::string(56, '-') << std::endl
-		<< "Interaction tallies for last step" << std::endl
-		<< std::string(56, '-') << std::endl
+      std::cout << std::endl << std::string(56, '-') << std::endl
+		<< "Short-range collision tallies for last step" << std::endl
+		<< std::left << std::setw(22) << "----------------------"
+		<< "-+-" << std::left << std::setw(16) << "----------------"
+		<< "-+-" << std::left << std::setw(12) << "------------"
+		<< std::endl
 		<< std::left << std::setw(22) << "Interaction type"
 		<< " | " << std::left << std::setw(16) << "Total prob"
 		<< " | " << std::left << std::setw(12) << "Total count"
@@ -22806,7 +22809,10 @@ void CollideIon::post_cell_loop(int id)
 		  << "   " << std::left << std::setw(12) << tt_counter[T]
 		  << std::endl;
       }
-      std::cout << std::string(56, '-') << std::endl;
+      std::cout << std::left << std::setw(22) << "----------------------"
+		<< "-+-" << std::left << std::setw(16) << "----------------"
+		<< "-+-" << std::left << std::setw(12) << "------------"
+		<< std::endl;
     }
   }
 #endif
