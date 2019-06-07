@@ -4588,8 +4588,13 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 #ifdef XC_DEEP0
 	  printf("testE=%e\n", testE);
 #endif
-	  E1[0] -= testE * KEi_f/denom;
-	  E2[1] -= testE * KEe_f/denom;
+	  if (denom>0.0) {
+	    E1[0] -= testE * KEi_f/denom;
+	    E2[1] -= testE * KEe_f/denom;
+	  } else {
+	    E1[0] -= testE * 0.5;
+	    E2[1] -= testE * 0.5;
+	  }
 	}
 	
 	// Time-step computation

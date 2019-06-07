@@ -13976,8 +13976,10 @@ void CollideIon::updateEnergyTrace(PordPtr pp, KE_& KE)
       double wght1 = 0.5, wght2 = 0.5;
       if (ke_weight) {
 	double denom = pp->KE1[1] + pp->KE2[0];
-	wght1 = pp->KE1[1]/denom;
-	wght2 = pp->KE2[0]/denom;
+	if (denom>0.0) {
+	  wght1 = pp->KE1[1]/denom;
+	  wght2 = pp->KE2[0]/denom;
+	}
       }
 
       if (elec_balance) {
