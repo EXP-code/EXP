@@ -990,8 +990,8 @@ void * Collide::collide_thread(void * arg)
   cellTime[id].start();
   
   // DEEP DEBUG
-  if (false) {
-    unsigned elem = 0, celltot = 0;
+  if (true) {
+    unsigned elem = 0, celltot = 0, cellsum = 0;
     for (auto v : cellist) {
       elem++;
       celltot += v.size();
@@ -999,8 +999,12 @@ void * Collide::collide_thread(void * arg)
 
     std::cout << "[" << myid << "] cells=" << celltot
 	      << "/" << elem << std::endl;
+
+    MPI_Reduce(&celltot, &cellsum, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    if (myid==0) std::cout << "[sum] cells=" << cellsum << std::endl;
   }
   // END DEBUG
+
 
   // Loop over cells, processing collisions in each cell
   //

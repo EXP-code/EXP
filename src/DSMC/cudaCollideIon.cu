@@ -4836,8 +4836,10 @@ void * CollideIon::collide_thread_cuda(void * arg)
   typedef std::pair<long int, int> partIndex;
   std::vector<partIndex> bods;
   
+
+  // DEEP DEBUG
   if (true) {
-    unsigned elem = 0, celltot = 0;
+    unsigned elem = 0, celltot = 0, cellsum = 0;
     for (auto v : cellist) {
       elem++;
       celltot += v.size();
@@ -4845,6 +4847,8 @@ void * CollideIon::collide_thread_cuda(void * arg)
     
     std::cout << "[" << myid << "] cells=" << celltot
 	      << "/" << elem << std::endl;
+    MPI_Reduce(&celltot, &cellsum, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    if (myid==0) std::cout << "[sum] cells=" << cellsum << std::endl;
   }
   // END DEBUG
   
