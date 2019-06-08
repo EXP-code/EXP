@@ -12894,7 +12894,7 @@ void CollideIon::scatterTrace
     } else {
       // Apply delE to COM
       //
-      vi = -2.0*KE.delE/(pp->W1*mu);
+      vi = -2.0*KE.delE/(pp->W2*mu);
     }
   }
 
@@ -13504,7 +13504,7 @@ void CollideIon::scatterTraceMM
     } else {
       // Apply delE to COM
       //
-      vi = -2.0*KE.delE/(pp->w1*mu);
+      vi = -2.0*KE.delE/(pp->w2*mu);
     }
   }
 
@@ -22826,7 +22826,7 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
 		       double WW1, double WW2, pType p, double T) :
   caller(c), p1(P1), p2(P2), w1(WW1), w2(WW2), P(p),
   thresh(T), swap(false), wght(false),
-  E1({0, 0}), E2({0, 0}), KE1({0, 0}), KE2({0, 0}), 
+  E1({0, 0}), E2({0, 0}), KE1({0, 0}), KE2({0, 0})
 {
   // Assign weights (proportional to number of true ion/atom particles)
   //
