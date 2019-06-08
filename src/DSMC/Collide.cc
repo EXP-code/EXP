@@ -997,8 +997,10 @@ void * Collide::collide_thread(void * arg)
       celltot += v.size();
     }
 
+    /*
     std::cout << "[" << myid << "] cells=" << celltot
 	      << "/" << elem << std::endl;
+    */
 
     MPI_Reduce(&celltot, &cellsum, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     if (myid==0) std::cout << "[sum] cells=" << cellsum << std::endl;
