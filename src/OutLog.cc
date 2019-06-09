@@ -80,6 +80,8 @@ void OutLog::initialize()
     
     if (Output::conf["freq"])
       nint = Output::conf["freq"].as<int>();
+    else if (Output::conf["nint"])
+      nint = Output::conf["nint"].as<int>();
     else
       nint = 1;
   }
