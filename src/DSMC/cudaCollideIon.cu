@@ -41,7 +41,7 @@ __constant__ cuFP_t cuH_H, cuHe_H, cuPH_H, cuPHe_H;
 __constant__ cuFP_t cuH_Emin, cuHe_Emin, cuPH_Emin, cuPHe_Emin;
 
 #ifdef XC_DEEP9
-__device__ unsigned long long w_counter[11];
+__device__ unsigned long long w_countr[11];
 __device__ cuFP_t w_weight[11];
 #endif
 
@@ -1618,6 +1618,10 @@ void testConstantsIon(int idev)
   printf("** eV  (cgs)  = %13.6e\n", cuEV                );
   printf("** esu (cgs)  = %13.6e\n", cuEsu               );
   printf("** Cross fac  = %13.6e\n", cuCrossfac          );
+  if (cuMeanMass) 
+    printf("** Mean mass  = true\n"                      );
+  else
+    printf("** Mean mass  = false\n"                     );
   if (cuRecombIP) 
     printf("** Rcmb IP    = true\n"                      );
   else
@@ -1668,8 +1672,8 @@ double cuCA_func(cuFP_t tau, cuFP_t x)
 __global__ void setCountersToZero()
 {
   for (int T=0; T<11; T++) {
-    w_counter[T] = 0;
-    w_weight [T] = 0.0;
+    w_countr[T] = 0;
+    w_weight[T] = 0.0;
   }
 }
 #endif
@@ -3258,7 +3262,7 @@ void cudaScatterTrace
 	k1 += v1[k]*v1[k];
 	k2 += v2[k]*v2[k];
       }
-      KEi = 0.5*m1*k1 + 0.5*m2*k2;
+      KEi = 0.5*W1*m1*k1 + 0.5*W2*m2*k2;
     }
 #endif
 
@@ -3288,8 +3292,13 @@ void cudaScatterTrace
     // Energy reduced by loss
     //
     cuFP_t vfac = 1.0;
+
     totE = kE - delE;
-    
+
+#ifdef XC_DEEP3
+    cuFP_t fixE = 0.0;
+#endif
+
     // KE is positive
     //
     if (kE>0.0) {
@@ -3299,6 +3308,9 @@ void cudaScatterTrace
 	// Add to energy bucket for these particles
 	//
 	cudaDeferredEnergy(-totE, m1, m2, W1, W2, E1, E2);
+#ifdef XC_DEEP3
+	fixE = -totE;
+#endif
 	totE = 0.0;
       }
       // Update the outgoing energy in COM
@@ -3311,11 +3323,14 @@ void cudaScatterTrace
 	// Defer all energy loss
 	//
 	cudaDeferredEnergy(delE, m1, m2, W1, W2, E1, E2);
+#ifdef XC_DEEP3
+	fixE = delE;
+#endif
 	delE = 0.0;
       } else {
 	// Apply delE to COM
 	//
-	vi = -2.0*delE/(W1*mu);
+	vi = -2.0*delE/(W2*mu);
       }
     }
     
@@ -3354,11 +3369,11 @@ void cudaScatterTrace
 	k1 += v1[k]*v1[k];
 	k2 += v2[k]*v2[k];
       }
-      cuFP_t KEf = 0.5*m1*k1 + 0.5*m2*k2;
-      cuFP_t KEd = KEi - KEf;
+      cuFP_t KEf = 0.5*W1*m1*k1 + 0.5*W2*m2*k2;
+      cuFP_t KEd = KEi - KEf - delE + fixE;
       cuFP_t KEm = 0.5*(KEi + KEf);
       if (fabs(KEd)/KEm > 1.0e-8) {
-	printf("deltaE: KEi=%e KEf=%e dKE=%e\n", KEi, KEf, KEd);
+	printf("deltaE: KEi=%e KEf=%e dKE=%e delE=%e fixE=%e\n", KEi, KEf, KEd, delE, fixE);
       }
     }
 #endif
@@ -3366,6 +3381,20 @@ void cudaScatterTrace
   // END:   MeanMass
   // BEGIN: Energy conservation
   else {
+
+#ifdef XC_DEEP3
+    // KE debug check
+    //
+    cuFP_t KEi = 0.0;
+    {
+      cuFP_t k1 = 0.0, k2 = 0.0;
+      for (int k=0; k<3; k++) {
+	k1 += v1[k]*v1[k];
+	k2 += v2[k]*v2[k];
+      }
+      KEi = 0.5*W1*m1*k1 + 0.5*W2*m2*k2;
+    }
+#endif
 
     // Total effective mass in the collision (atomic mass units)
     //
@@ -3390,6 +3419,10 @@ void cudaScatterTrace
 				// Energy reduced by loss
     cuFP_t totE = kE - delE;
 
+#ifdef XC_DEEP3
+    cuFP_t fixE = 0.0;
+#endif
+
     // KE is positive
     //
     if (kE>0.0) {
@@ -3399,6 +3432,9 @@ void cudaScatterTrace
 	// Add to energy bucket for these particles
 	//
 	cudaDeferredEnergy(-totE, m1, m2, W1, W2, E1, E2);
+#ifdef XC_DEEP3
+	fixE = -totE;
+#endif
 	totE = 0.0;
       }
       // Update the outgoing energy in COM
@@ -3411,6 +3447,9 @@ void cudaScatterTrace
 	// Defer all energy loss
 	//
 	cudaDeferredEnergy(delE, m1, m2, W1, W2, E1, E2);
+#ifdef XC_DEEP3
+	fixE = delE;
+#endif
 	delE = 0.0;
       } else {
 	// Apply delE to COM
@@ -3464,6 +3503,25 @@ void cudaScatterTrace
       v1[i] = cq*v1[i]*vrat + q*v0;
       v2[i] = vcom[i] - m1/mt*vrel[i]*vfac;
     }
+
+#ifdef XC_DEEP3
+    // KE debug check
+    //
+    {
+      cuFP_t k1 = 0.0, k2 = 0.0;
+      for (int k=0; k<3; k++) {
+	k1 += v1[k]*v1[k];
+	k2 += v2[k]*v2[k];
+      }
+      cuFP_t KEf = 0.5*W1*m1*k1 + 0.5*W2*m2*k2;
+      cuFP_t KEd = KEi - KEf - delE + fixE;
+      cuFP_t KEm = 0.5*(KEi + KEf);
+      if (fabs(KEd)/KEm > 1.0e-8) {
+	printf("deltaE: KEi=%e KEf=%e dKE=%e delE=%e fixE=%e\n", KEi, KEf, KEd, delE, fixE);
+      }
+    }
+#endif
+
   } // END: Energy conservation algorithm
     
 } // END: cudaScatterTrace
@@ -3762,6 +3820,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
   cuEnergyInfo EI;
   cuFP_t Mue = cuda_atomic_weights[0];
   
+  // Cell loop with grid stride
+  //
   for (int cid = blockIdx.x * blockDim.x + threadIdx.x; cid < cellI._s; cid += blockDim.x * gridDim.x) {
 
     curandState* state = &randS._v[cid];
@@ -3881,8 +3941,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	FF2[k] = p2->datr[E.I+cuSp0];
       }
       
-      cuFP_t W1  = p1->mass/EI.Mu1;
-      cuFP_t W2  = p2->mass/EI.Mu2;
+      cuFP_t w1  = p1->mass/EI.Mu1;
+      cuFP_t w2  = p2->mass/EI.Mu2;
+      cuFP_t W1  = w1;
+      cuFP_t W2  = w2;
       
       cuFP_t maxP = 0.0;
       cudaInterTypes maxT = nothing;
@@ -3953,10 +4015,16 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	
 	// Number of particles in active partition with electrons
 	//
-	cuFP_t N1 = W1 * cuMunit / cuAmu * (IT.Z1 ? 1.0 : EI.Eta1);
-	cuFP_t N2 = W2 * cuMunit / cuAmu * (IT.Z2 ? 1.0 : EI.Eta2);
-	cuFP_t N0 = N1 > N2 ? N2 : N1;
+	if (not cuMeanMass) {
+	  if (IT.Z1==0) W1 *= EI.Eta1;
+	  if (IT.Z2==0) W2 *= EI.Eta2;
+	}
+
+	cuFP_t N1 = W1 * cuMunit / cuAmu;
+	cuFP_t N2 = W2 * cuMunit / cuAmu;
 	
+	cuFP_t N0 = N1 > N2 ? N2 : N1;
+
 	// Select the maximum probability channel
 	//
 	if (Prob > maxP) {
@@ -3974,7 +4042,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  printf("testT: nnDE=%e W=%e Z1=%d Z2=%d\n", 0.0, Prob, IT.Z1, IT.Z2);
 #endif
 #ifdef XC_DEEP9
-	  atomicAdd(&w_counter[T], 1ull);
+	  atomicAdd(&w_countr[T], 1ull);
 	  atomicAdd(&w_weight[T], Prob);
 #endif
 	}
@@ -3989,7 +4057,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    printf("testT: neDE=%e W=%e Z2=%d\n", 0.0, Prob, IT.Z2);
 #endif
 #ifdef XC_DEEP9
-	  atomicAdd(&w_counter[T], 1ull);
+	  atomicAdd(&w_countr[T], 1ull);
 	  atomicAdd(&w_weight[T], Prob);
 #endif
 	}
@@ -4003,7 +4071,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    printf("testT: npDE=%e W=%e Z1=%d C1=%d\n", 0.0, Prob, IT.Z1, IT.C1);
 #endif
 #ifdef XC_DEEP9
-	  atomicAdd(&w_counter[T], 1ull);
+	  atomicAdd(&w_countr[T], 1ull);
 	  atomicAdd(&w_weight[T], Prob);
 #endif
 	}
@@ -4030,7 +4098,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    printf("testT: ffDE=%e W=%e Z=%d C=%d\n", dE, Prob, IT.Z2, IT.C2);
 #endif
 #ifdef XC_DEEP9
-	  atomicAdd(&w_counter[T], 1ull);
+	  atomicAdd(&w_countr[T], 1ull);
 	  atomicAdd(&w_weight[T], Prob);
 #endif
 	  
@@ -4060,7 +4128,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    printf("testT: ceDE=%e W=%e Z=%d C=%d\n", dE, Prob, IT.Z2, IT.C2);
 #endif
 #ifdef XC_DEEP9
-	  atomicAdd(&w_counter[T], 1ull);
+	  atomicAdd(&w_countr[T], 1ull);
 	  atomicAdd(&w_weight[T], Prob);
 #endif
 	  if (IT.I1<255) {	// Ion is p1
@@ -4099,7 +4167,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    }
 	    
 #ifdef XC_DEEP9
-	    atomicAdd(&w_counter[T], 1ull);
+	    atomicAdd(&w_countr[T], 1ull);
 	    atomicAdd(&w_weight[T], Prob);
 #endif
 	    // Convert back to number density
@@ -4157,7 +4225,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    }
 	    
 #ifdef XC_DEEP9
-	    atomicAdd(&w_counter[T], 1ull);
+	    atomicAdd(&w_countr[T], 1ull);
 	    atomicAdd(&w_weight[T], Prob);
 #endif
 	    // Convert back to number density
@@ -4239,7 +4307,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    }
 	    
 #ifdef XC_DEEP9
-	    atomicAdd(&w_counter[T], 1ull);
+	    atomicAdd(&w_countr[T], 1ull);
 	    atomicAdd(&w_weight[T], Prob);
 #endif
 	    // Convert back to probability
@@ -4308,7 +4376,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    }
 	    
 #ifdef XC_DEEP9
-	    atomicAdd(&w_counter[T], 1ull);
+	    atomicAdd(&w_countr[T], 1ull);
 	    atomicAdd(&w_weight[T], Prob);
 #endif
 	    // Convert back to number density
@@ -4443,6 +4511,14 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	//
 	EI.Eta1 = Eta1 /= Sum1;
 	EI.Eta2 = Eta2 /= Sum2;
+
+	// Reassign the weights for standard Trace algorithm
+	//
+	if (not cuMeanMass) {
+	  if (IT.Z1==0) W1 = w1 * EI.Eta1;
+	  if (IT.Z2==0) W2 = w2 * EI.Eta2;
+	}
+
       }
       
       //
@@ -5054,8 +5130,8 @@ void * CollideIon::collide_thread_cuda(void * arg)
   
 #ifdef XC_DEEP9
   {
-    cudaMemcpyFromSymbol(&xc_counter[0], w_counter, 11*sizeof(unsigned long long));
-    cudaMemcpyFromSymbol(&xc_weight[0],  w_weight,  11*sizeof(cuFP_t));
+    cudaMemcpyFromSymbol(&xc_counter[0], w_countr, 11*sizeof(unsigned long long));
+    cudaMemcpyFromSymbol(&xc_weight[0],  w_weight, 11*sizeof(cuFP_t));
 
     setCountersToZero<<<1, 1>>>();
   }

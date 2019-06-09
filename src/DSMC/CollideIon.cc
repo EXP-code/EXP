@@ -13536,8 +13536,8 @@ void CollideIon::scatterTraceMM
   //
   if (KE_DEBUG) {
 
-    double M1 = 0.5 * pp->W1 * pp->m1;
-    double M2 = 0.5 * pp->W2 * pp->m2;
+    double M1 = 0.5 * pp->w1 * m1;
+    double M2 = 0.5 * pp->w2 * m2;
 
     // Initial KE
     //
@@ -13620,8 +13620,6 @@ void CollideIon::scatterTraceMM
 		<< " vfac = " << KE.vfac
 		<< "   w1 = " << pp->w1
 		<< "   w2 = " << pp->w2
-		<< "   W1 = " << pp->W1
-		<< "   W2 = " << pp->W2
 		<< " flg = " << KE.decode()
 		<< std::endl;
     } else {
@@ -13632,8 +13630,8 @@ void CollideIon::scatterTraceMM
 		  << " rel = "  << std::setw(22) << delEt/KEi << " kE = " << std::setw(22) << kE
 		  << "   m1 = " << std::setw(22)  << m1
 		  << "   m2 = " << std::setw(22)  << m2
-		  << "   W1 = " << std::setw(22)  << pp->W1
-		  << "   W2 = " << std::setw(22)  << pp->W2
+		  << "   w1 = " << std::setw(22)  << pp->w1
+		  << "   w2 = " << std::setw(22)  << pp->w2
 		  << "  Ei1 = " << std::setw(22)  << KE1i
 		  << "  Ef1 = " << std::setw(22)  << KE1f
 		  << "  Ei2 = " << std::setw(22)  << KE2i
@@ -13681,7 +13679,7 @@ void CollideIon::scatterPhotoTrace
 
   // Number interacting atoms
   //
-  double N0 = p->mass * TreeDSMC::Munit * Pr/ (atomic_weights[Q.first] * amu);
+  double N0 = p->mass * TreeDSMC::Munit * Pr / (atomic_weights[Q.first] * amu);
 
   // Convert from eV per particle to system units per
   // superparticle
@@ -22911,32 +22909,45 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
     
   }
 
-  switch (P) {
-  case ion_ion:
-    if (w2/w1 < thresh) {
-      wght = true;
+  if (caller->MeanMass) {
+
+    switch (P) {
+    case ion_electron:
+      m2 = atomic_weights[0];
+      break;
+    case electron_ion:
+      m1  = atomic_weights[0];
+      break;
+    case electron_electron:
+      m1 = atomic_weights[0];
+      m2 = atomic_weights[0];
+      break;
     }
-    break;
-  case ion_electron:
-    m2 = atomic_weights[0];
-    if (w2*eta2/w1 < thresh) {
-      W2 *= eta2;
-      wght = true;
-    }
-    break;
-  case electron_ion:
-    m1  = atomic_weights[0];
-    if (w1*eta1/w2 < thresh) {
+
+  } else {
+
+    switch (P) {
+    case ion_electron:
+      m2 = atomic_weights[0];
+      if (w2*eta2/w1 < thresh) {
+	W2 *= eta2;
+	wght = true;
+      }
+      break;
+    case electron_ion:
+      m1  = atomic_weights[0];
+      if (w1*eta1/w2 < thresh) {
+	W1 *= eta1;
+	wght = true;
+      }
+      break;
+    case electron_electron:
+      m1 = atomic_weights[0];
+      m2 = atomic_weights[0];
       W1 *= eta1;
-      wght = true;
+      W2 *= eta2;
+      break;
     }
-    break;
-  case electron_electron:
-    m1 = atomic_weights[0];
-    m2 = atomic_weights[0];
-    W1 *= eta1;
-    W2 *= eta2;
-    break;
   }
   
   // Swap needed?
@@ -22986,6 +22997,8 @@ void CollideIon::Pord::swapPs()
 
 void CollideIon::Pord::scheme(bool W)
 {
+  if (caller->MeanMass) return;	// Do not use weighted scheme
+
   if (wght == W) return;	// Okay as is
 
   W1 = w1;			// For unweighted (e.g. was weighted
@@ -23055,8 +23068,6 @@ CollideIon::Pord::Epair CollideIon::Pord::compE()
     W2 = w2;
 				// Now update weights if necessary
     switch (P) {
-    case ion_ion:
-      break;
     case ion_electron:
       if (swap)	W1 *= eta1;
       else	W2 *= eta2;
@@ -23076,6 +23087,8 @@ CollideIon::Pord::Epair CollideIon::Pord::compE()
     if (W1 < W2) {
       swapPs();
     }
+
+    q = W2/W1;
   }
 				// Compute KE
   for (size_t k=0; k<3; k++) {
