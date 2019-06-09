@@ -4149,8 +4149,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    // Convert from probability (relative number density) to
 	    // mass density
 	    //
-	    // cuFP_t ff = cuda_atomic_weights[IT.Z1]/EI.Mu1;
-	    cuFP_t ff = cuda_atomic_weights[IT.Z1];
+	    cuFP_t ff = cuda_atomic_weights[IT.Z1]/EI.Mu1;
 	    cuFP_t WW = Prob * ff;
 	    
 	    if (IT.I1>Nsp-2) {
@@ -4185,7 +4184,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    // The kinetic energy of the ionized electron is lost
 	    // from the COM KE
 	    //
-	    cuFP_t Echg = EI.iE1 * Prob;
+	    cuFP_t Echg = EI.iE1 * WW / cuda_atomic_weights[IE.Z1];
 	    
 	    // Energy for ionized electron comes from COM
 	    dE += Echg * cuEunit / (N0*eV);
@@ -4207,8 +4206,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    // Convert to mass density
 	    //
-	    // cuFP_t ff = cuda_atomic_weights[IT.Z2]/EI.Mu2;
-	    cuFP_t ff = cuda_atomic_weights[IT.Z2];
+	    cuFP_t ff = cuda_atomic_weights[IT.Z2]/EI.Mu2;
 	    cuFP_t WW = Prob * ff;
 	    
 	    if (IT.I2 > Nsp-2) {
@@ -4244,7 +4242,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    // The kinetic energy of the ionized electron is lost
 	    // from the COM KE
 	    //
-	    cuFP_t Echg = EI.iE2 * Prob;
+	    cuFP_t Echg = EI.iE2 * WW / cuda_atomic_weights[IE.Z2];
 	    
 	    // Energy for ionized electron comes from COM
 	    dE += Echg * cuEunit / (N0*eV);
@@ -4273,8 +4271,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    // Convert probability to mass fraction
 	    //
-	    // cuFP_t ff = cuda_atomic_weights[IT.Z1]/EI.Mu1;
-	    cuFP_t ff = cuda_atomic_weights[IT.Z1];
+	    cuFP_t ff = cuda_atomic_weights[IT.Z1]/EI.Mu1;
 	    cuFP_t WW = Prob * ff;
 	    
 	    if (IT.C1<=1 or IT.I2!=255) {
@@ -4342,7 +4339,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    // Convert from probability to mass fraction
 	    //
-	    // cuFP_t ff = cuda_atomic_weights[IT.Z2];
 	    cuFP_t ff = cuda_atomic_weights[IT.Z2]/EI.Mu2;
 	    cuFP_t WW = Prob * ff;
 	    

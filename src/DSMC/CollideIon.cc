@@ -11482,8 +11482,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // WW is a mass fraction
 	  //
-	  // double ff = atomic_weights[Z2]/molP2[id];
-	  double ff = atomic_weights[Z2];
+	  double ff = atomic_weights[Z2]/molP2[id];
 	  double WW = Prob * ff;
 
 	  if (WW < F(2, pos)) {
@@ -11517,7 +11516,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // The kinetic energy of the ionized electron is lost
 	  // from the COM KE
 	  //
-	  double Echg = iE2 * Prob;
+	  double Echg = iE2 * WW / atomic_weights[Z2];
 	  ionExtra[1] += Echg;
 
 	  // Energy for ionized electron comes from COM
@@ -11575,8 +11574,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // WW is a mass fraction
 	  //
-	  // double ff = atomic_weights[Z1]/molP1[id];
-	  double ff = atomic_weights[Z1];
+	  double ff = atomic_weights[Z1]/molP1[id];
 	  double WW = Prob * ff;
 
 	  if (WW < F(1, pos)) {
@@ -11610,7 +11608,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // The kinetic energy of the ionized electron is lost
 	  // from the COM KE
 	  //
-	  double Echg = iE1 * Prob;
+	  double Echg = iE1 * WW / atomic_weights[Z1];
 	  ionExtra[0] += Echg;
 
 	  // Energy for ionized electron comes from COM
@@ -11672,8 +11670,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // WW is a mass fraction
 	  //
-	  // double ff = atomic_weights[Z2]/molP2[id];
-	  double ff = atomic_weights[Z2];
+	  double ff = atomic_weights[Z2]/molP2[id];
 	  double WW = Prob * ff;
 
 	  if (WW < F(2, pos)) {
@@ -11705,7 +11702,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // Electron KE lost in recombination is radiated by does not
 	  // change COM energy
 	  //
-	  double Echg = iE2 * Prob;
+	  double Echg = iE2 * WW / atomic_weights[Z2];
 	  rcbExtra[1] += Echg;
 
 	  // Electron KE radiated in recombination
@@ -11786,8 +11783,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // WW is a mass fraction
 	  //
-	  // double ff = atomic_weights[Z1]/molP1[id];
-	  double ff = atomic_weights[Z1];
+	  double ff = atomic_weights[Z1]/molP1[id];
 	  double WW = Prob * ff;
 
 	  if (WW < F(1, pos)) {
@@ -11818,7 +11814,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // Electron KE lost in recombination is radiated by does not
 	  // change COM energy
 	  //
-	  double Echg = iE1 * Prob;
+	  double Echg = iE1 * WW / atomic_weights[Z1];
 	  rcbExtra[0] += Echg;
 
 	  // Electron KE fraction in recombination
