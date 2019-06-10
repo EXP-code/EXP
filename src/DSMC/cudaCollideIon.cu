@@ -4184,7 +4184,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    // The kinetic energy of the ionized electron is lost
 	    // from the COM KE
 	    //
-	    cuFP_t Echg = EI.iE1 * WW / cuda_atomic_weights[IE.Z1];
+	    cuFP_t Echg = EI.iE1 * WW / cuda_atomic_weights[IT.Z1];
 	    
 	    // Energy for ionized electron comes from COM
 	    dE += Echg * cuEunit / (N0*eV);
@@ -4242,7 +4242,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    // The kinetic energy of the ionized electron is lost
 	    // from the COM KE
 	    //
-	    cuFP_t Echg = EI.iE2 * WW / cuda_atomic_weights[IE.Z2];
+	    cuFP_t Echg = EI.iE2 * WW / cuda_atomic_weights[IT.Z2];
 	    
 	    // Energy for ionized electron comes from COM
 	    dE += Echg * cuEunit / (N0*eV);
