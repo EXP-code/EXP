@@ -894,9 +894,17 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
 	
 	std::ostringstream ostr;
 	ostr << outdir << runtag << ".collide.effort";
-	ofstream out(ostr.str().c_str(), ios::app);
 
-	if (out) {
+	ofstream out;
+	try {
+	  out.open(ostr.str().c_str(), ios::app);
+	}
+	catch (std::ios_base::failure& e) {
+	  std::cerr << "Collide::collide, error opening <"
+		    << ostr.str() << ">: " << e.what() << std::endl;
+	}
+
+	if (out.good()) {
 	  static bool firstTime = true;
 	  
 	  if (firstTime) {
@@ -945,7 +953,7 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
   
   // Persist NTC database
   //
-  if (mlevel==0) ntcdb.update();
+  if (mlevel==0 and use_ntcdb) ntcdb.update();
 
   {
     std::ostringstream sout;
