@@ -2545,7 +2545,6 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
 				// Mass-weighted trace fraction
       double ee = 0.0, ii = 0.0;
       for (auto s : SpList) {
-	speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
 
 	double ww    = p->dattrib[s.second]/atomic_weights[s.first.first];
 				// Mean number
@@ -2564,7 +2563,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
 	// For neutrals only
 	if (ee==0) {
 	  // Mean particle radius
-	  meanR[id]        += p->mass * ww * geometric(k.first);
+	  meanR[id]        += p->mass * ww * geometric(s.first.first);
 	  neutF[id]        += p->mass * ww;
 	}
       }
