@@ -137,7 +137,7 @@ void * adjust_multistep_level_thread(void *ptr)
       dtd = dynfracD * 1.0/sqrt(vtot+eps);
       dtv = dynfracV * sqrt(vtot/(atot+eps));
       dta = dynfracA * ptot/(fabs(dtr)+eps);
-      dtA = dynfracP * sqrt(ptot/(atot*atot+eps));
+      dtA = dynfracP * sqrt(ptot/(atot+eps));
     }
 
     map<double, int> dseq;
