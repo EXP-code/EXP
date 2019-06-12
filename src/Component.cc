@@ -1139,20 +1139,20 @@ void Component::bomb(const string& msg)
 void Component::read_bodies_and_distribute_ascii(void)
 {
 				// Open file
-  ifstream *fin;
+  std::ifstream fin;
   const int nline = 2048;
   char line[nline];
   
   if (myid == 0) {
-    fin = new ifstream(pfile.c_str());
+    fin.open(pfile);
 
-    if (!*fin) {
+    if (fin.fail()) {
       std::ostringstream sout;
       sout << "Couldn't open " << pfile << " . . . quitting";
       throw GenericError(sout.str(), __FILE__, __LINE__);
     }
 
-    fin->getline(line, nline);
+    fin.getline(line, nline);
     istringstream ins(line);
     
     ins >> nbodies_tot;		
@@ -1198,7 +1198,7 @@ void Component::read_bodies_and_distribute_ascii(void)
 
       PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
 
-      part->readAscii(aindex, i, fin);
+      part->readAscii(aindex, i, &fin);
 				// Get the radius
       double r2 = 0.0;
       for (int j=0; j<3; j++) r2 += part->pos[j]*part->pos[j];
@@ -1222,7 +1222,7 @@ void Component::read_bodies_and_distribute_ascii(void)
 	PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
 
 	int i = nbodies_index[n-1] + 1 + icount;
-	part->readAscii(aindex, i, fin);
+	part->readAscii(aindex, i, &fin);
 
 	r2 = 0.0;
 	for (int k=0; k<3; k++) r2 += part->pos[k]*part->pos[k];
@@ -1263,7 +1263,16 @@ void Component::read_bodies_and_distribute_ascii(void)
   MPI_Bcast(&rmax, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 				// COM HERE?
-  if (myid==0) delete fin;
+  if (myid==0) {
+    try {
+      fin.close();
+    }
+    catch (const ofstream::failure& e) {
+      std::cout << "Component: exception closing file <" << pfile
+		<< ": " << e.what() << std::endl;
+    }
+  }
+
 
 #ifdef DEBUG
   if (particles.size()) {
@@ -2693,7 +2702,7 @@ int Component::round_up(double dnumb)
 
 void Component::setup_distribution(void)
 {
-  ofstream *out;
+  std::ofstream out;
   int n;
 
 				// Needed for both master and slaves
@@ -2724,11 +2733,12 @@ void Component::setup_distribution(void)
 
     string outrates = outdir + "current.processor.rates." + runtag;
 
-    out = new ofstream(outrates.c_str(), ios::out | ios::app);
-    if (out) {
-      *out << "# " << endl;
-      *out << "# Time=" << tnow << " Component=" << name << endl;
-      *out << "# " 
+    out.open(outrates, ios::out | ios::app);
+
+    if (out.good()) {
+      out << "# " << endl;
+      out << "# Time=" << tnow << " Component=" << name << endl;
+      out << "# " 
 	  << setw(15) << "Norm rate"
 	  << setw(15) << "Delta rate"
 	  << setw(15) << "Index"
@@ -2742,14 +2752,14 @@ void Component::setup_distribution(void)
 	  << endl;
       
       for (n=0; n<numprocs; n++)
-	*out << "  "
+	out << "  "
 	    << setw(15) << comp->rates[n]
 	    << setw(15) << 1.0 - comp->rates[n]*nbodies_tot/nbodies_table[n]
 	    << setw(15) << nbodies_index[n]
 	    << setw(15) << nbodies_table[n]
 	    << endl;
 
-      delete out;
+      out.close();
     }
 
   }
@@ -2765,13 +2775,13 @@ void Component::load_balance(void)
   MPI_Status status;
   vector<unsigned int> nbodies_index1(numprocs);
   vector<unsigned int> nbodies_table1(numprocs);
-  ofstream *out, *log;
+  std::ofstream out, log;
 
 
   if (myid == 0) {
 
-    vector<double> orates1(numprocs);
-    vector<double> trates1(numprocs);
+    std::vector<double> orates1(numprocs);
+    std::vector<double> trates1(numprocs);
 
     for (int n=0; n<numprocs; n++) {
 
@@ -2790,41 +2800,41 @@ void Component::load_balance(void)
 
     }
 
-    string outrates = outdir + "current.processor.rates." + runtag;
-    string rateslog = outdir + "current.processor.rates.log." + runtag;
+    std::string outrates = outdir + "current.processor.rates." + runtag;
+    std::string rateslog = outdir + "current.processor.rates.log." + runtag;
 
-    out = new ofstream(outrates.c_str(), ios::out | ios::app);
-    log = new ofstream(rateslog.c_str(), ios::out | ios::app);
+    out.open(outrates, ios::out | ios::app);
+    log.open(rateslog, ios::out | ios::app);
 
-    if (*out) {
-      *out << "# " << endl;
-      *out << "# Time=" << tnow << " Component=" << name << endl;
-      *out << "# " 
-	   << setw(15) << "Norm rate"
-	   << setw(15) << "Delta rate"
-	   << setw(15) << "Index"
-	   << setw(15) << "Current #"
-	   << setw(15) << "Old Index"
-	   << setw(15) << "Previous #"
-	   << endl
-	   << "# "
-	   << setw(15) << "--------"
-	   << setw(15) << "----------"
-	   << setw(15) << "--------"
-	   << setw(15) << "---------"
-	   << setw(15) << "---------"
-	   << setw(15) << "---------"
-	   << endl;
+    if (out) {
+      out << "# " << endl;
+      out << "# Time=" << tnow << " Component=" << name << endl;
+      out << "# " 
+	  << setw(15) << "Norm rate"
+	  << setw(15) << "Delta rate"
+	  << setw(15) << "Index"
+	  << setw(15) << "Current #"
+	  << setw(15) << "Old Index"
+	  << setw(15) << "Previous #"
+	  << endl
+	  << "# "
+	  << setw(15) << "--------"
+	  << setw(15) << "----------"
+	  << setw(15) << "--------"
+	  << setw(15) << "---------"
+	  << setw(15) << "---------"
+	  << setw(15) << "---------"
+	  << endl;
       
       for (int n=0; n<numprocs; n++)
-	*out << "  "
-	     << setw(15) << comp->rates[n]
-	     << setw(15) << 1.0 - comp->rates[n]*nbodies_tot/nbodies_table1[n]
-	     << setw(15) << nbodies_index1[n]
-	     << setw(15) << nbodies_table1[n]
-	     << setw(15) << nbodies_index[n]
-	     << setw(15) << nbodies_table[n]
-	     << endl;
+	out << "  "
+	    << setw(15) << comp->rates[n]
+	    << setw(15) << 1.0 - comp->rates[n]*nbodies_tot/nbodies_table1[n]
+	    << setw(15) << nbodies_index1[n]
+	    << setw(15) << nbodies_table1[n]
+	    << setw(15) << nbodies_index[n]
+	    << setw(15) << nbodies_table[n]
+	    << endl;
     }
 
   }
@@ -2847,60 +2857,60 @@ void Component::load_balance(void)
 
   sort(loadb.begin(), loadb.end(), less_loadb);
 
-  if (myid==0 && *log) 
+  if (myid==0 && log.good()) 
     {
-      *log << setw(72) << setfill('.') << ".\n" << setfill(' ');
-      *log << "Time=" << tnow << " Component=" << name << endl;
-      *log << endl;
-      *log << "List:\n";
-      log->setf(ios::left);
-      *log << setw(4) << "N"
-	   << setw(6) << "Index"
-	   << setw(10) << "Old"
-	   << setw(10) << "New"
-	   << endl;
+      log << setw(72) << setfill('.') << ".\n" << setfill(' ');
+      log << "Time=" << tnow << " Component=" << name << endl;
+      log << endl;
+      log << "List:\n";
+      log.setf(ios::left);
+      log << setw(4) << "N"
+	  << setw(6) << "Index"
+	  << setw(10) << "Old"
+	  << setw(10) << "New"
+	  << endl;
 
-      char c = log->fill('-');
-      *log << setw(4) << "|"
-	   << setw(6) << "|"
-	   << setw(10) << "|"
-	   << setw(10) << "|"
-	   << endl;
-      log->fill(c);
+      char c = log.fill('-');
+      log << setw(4) << "|"
+	  << setw(6) << "|"
+	  << setw(10) << "|"
+	  << setw(10) << "|"
+	  << endl;
+      log.fill(c);
       
       for (int i=0; i<2*numprocs; i++) {
 	
-	*log << setw(4) << i
-	     << setw(6) << loadb[i].indx;
+	log << setw(4) << i
+	    << setw(6) << loadb[i].indx;
 	if (loadb[i].s)
-	  *log << setw(10) << " " << setw(10) << loadb[i].top;
+	  log << setw(10) << " " << setw(10) << loadb[i].top;
 	else 
-	  *log << setw(10) << loadb[i].top;
-	*log << endl;
+	  log << setw(10) << loadb[i].top;
+	log << endl;
       }
 
     }
 
 
-  if (myid==0 && *log) 
+  if (myid==0 && log.good()) 
     {
-      *log << "\nAnalysis:\n";
-      log->setf(ios::left);
-      *log << setw(10) << "Interval"
-	   << setw(10) << "Number"
-	   << setw(10) << "Old"
-	   << setw(10) << "New"
-	   << setw(10) << "Action"
-	   << endl;
-
-      char c = log->fill('-');
-      *log << setw(10) << "|"
-	   << setw(10) << "|"
-	   << setw(10) << "|"
-	   << setw(10) << "|"
-	   << setw(10) << "|"
-	   << endl;
-      log->fill(c);
+      log << "\nAnalysis:\n";
+      log.setf(ios::left);
+      log << setw(10) << "Interval"
+	  << setw(10) << "Number"
+	  << setw(10) << "Old"
+	  << setw(10) << "New"
+	  << setw(10) << "Action"
+	  << endl;
+      
+      char c = log.fill('-');
+      log << setw(10) << "|"
+	  << setw(10) << "|"
+	  << setw(10) << "|"
+	  << setw(10) << "|"
+	  << setw(10) << "|"
+	  << endl;
+      log.fill(c);
     }
 
 
@@ -2909,9 +2919,9 @@ void Component::load_balance(void)
 				// Offset will keep track of position in
 				// original vector
   int nump;
-  vector<int> loc(numprocs, 0);
+  std::vector<int> loc(numprocs, 0);
 
-  vector<int> nlist;
+  std::vector<int> nlist;
 
   for (int i=0; i<2*numprocs-2; i++) {
 
@@ -2919,16 +2929,16 @@ void Component::load_balance(void)
     if (loadb[i].s) inew = loadb[i].indx+1;
     else            iold = loadb[i].indx+1;
     
-    if (myid==0 && *log)
-      *log << setw(10) << i
-	   << setw(10) << loadb[i+1].top - loadb[i].top
-	   << setw(10) << iold
-	   << setw(10) << inew;
+    if (myid==0 && log.good())
+      log << setw(10) << i
+	  << setw(10) << loadb[i+1].top - loadb[i].top
+	  << setw(10) << iold
+	  << setw(10) << inew;
     
 				// Number of particles to be shifted
     nump = loadb[i+1].top - loadb[i].top;
     
-    ostringstream msg;
+    std::ostringstream msg;
     
     if (inew==iold || nump==0) 
       msg << "Do nothing";
@@ -2997,7 +3007,7 @@ void Component::load_balance(void)
 
     }
 
-    if (myid==0 && *log) *log << setw(10) << msg.str() << endl;
+    if (myid==0 && log.good()) log << setw(10) << msg.str() << endl;
   }
 
   
@@ -3010,8 +3020,9 @@ void Component::load_balance(void)
     
     char msgbuf[200];		// Only need 31 characters . . .
 
-    if (myid==0) *log << endl << "Post load-balance sequence check:" 
-		      << endl << endl;
+    if (myid==0 and log.good())
+      log << endl << "Post load-balance sequence check:" 
+	  << endl << endl;
 
     for (int i=0; i<numprocs; i++) {
       if (myid==i) {
@@ -3028,9 +3039,8 @@ void Component::load_balance(void)
 	if (myid!=i)
 	  MPI_Recv(msgbuf, 200, MPI_CHAR, i, 81, MPI_COMM_WORLD, &status);
 
-	*log << msgbuf << endl;
+	if (log.good()) log << msgbuf << endl;
       }
-      
 
     }
 
@@ -3059,15 +3069,19 @@ void Component::load_balance(void)
       throw GenericError(sout.str(), __FILE__, __LINE__);
     }
     
-    if (myid==0) *log << "\nSequence check ok!\n";
+    if (myid==0 and log.good()) log << "\nSequence check ok!\n";
   }
 
 
   if (myid==0) {
-    out->close();
-    delete out;
-    log->close();
-    delete log;
+    try {
+      out.close();
+      log.close();
+    }
+    catch (const ofstream::failure& e) {
+      std::cout << "Component: exception closing out and log files: "
+		<< e.what() << std::endl;
+    }
   }
 
 }

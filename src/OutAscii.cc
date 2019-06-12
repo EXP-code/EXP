@@ -95,29 +95,29 @@ void OutAscii::Run(int n, bool last)
   if (n % nint && !last) return;
   if (!c0) return;
 
-  ofstream *out;
+  std::ofstream out;
 
   int nOK = 0;
 
   if (myid==0) {
 				// Output name
-    ostringstream fname;
+    std::ostringstream fname;
     fname << filename << "." << setw(5) << setfill('0') << nbeg++;
 
 				// Open file and write master header
-    out = new ofstream(fname.str().c_str());
+    out.open(fname.str());
 
-    if (!*out) {
-      cerr << "OutAscii: can't open file <" << fname.str() 
-	   << "> . . . quitting\n";
+    if (out.fail()) {
+      std::cerr << "OutAscii: can't open file <" << fname.str() 
+		<< "> . . . quitting\n";
       nOK = 1;
     }
     
     if (nOK == 0) {
-      *out << "# Time=" << tnow << "\n";
-      *out << setw(10) << c0->nbodies_tot
-	   << setw(10) << c0->niattrib
-	   << setw(10) << c0->ndattrib << "\n";
+      out << "# Time=" << tnow << "\n";
+      out << setw(10) << c0->nbodies_tot
+	  << setw(10) << c0->niattrib
+	  << setw(10) << c0->ndattrib << "\n";
     }
   }
 
@@ -127,11 +127,16 @@ void OutAscii::Run(int n, bool last)
     exit(33);
   }
 
-  c0->write_ascii(out, accel);
+  c0->write_ascii(&out, accel);
 
   if (myid==0) {
-    out->close();
-    delete out;
+    try {
+      out.close();
+    }
+    catch (const ofstream::failure& e) {
+      std::cout << "OutAscii: exception closing file: "
+		<< e.what() << std::endl;
+    }
   }
 
 }

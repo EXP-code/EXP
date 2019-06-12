@@ -687,7 +687,7 @@ ResPot::ReturnCode ResPot::coord(double* pos, double* vel,
 				 double I1, double I2, double beta,
 				 double w1, double w2, double w3)
 {
-  ofstream* out = 0;
+  std::ofstream out;
 
   // Linear interpolation coefficients
   // ---------------------------------
@@ -942,14 +942,15 @@ ResPot::ReturnCode ResPot::coord(double* pos, double* vel,
       )
     {
       pthread_mutex_lock(&iolock);
-      out = new ofstream(string(outdir+dbgFILE).c_str(), ios::app);
-      *out <<  "Coord: vel variable is NaN or Inf: vr=" << vr 
-	   << " vt=" << vt << " psi=" << psi 
-	   << " w3=" << w3 << " r=" << r 
-	   << endl;
-      delete out;
+      out.open(outdir+dbgFILE, ios::app);
+      if (out.good()) {
+	out <<  "Coord: vel variable is NaN or Inf: vr=" << vr 
+	    << " vt=" << vt << " psi=" << psi 
+	    << " w3=" << w3 << " r=" << r 
+	    << std::endl;
+	out.close();
+      }
       pthread_mutex_unlock(&iolock);
-      out = 0;
     }
   
 
@@ -996,7 +997,7 @@ ResPot::ReturnCode ResPot::Update2(double dt,
 				   double* posI, double* velI,
 				   double* posO, double* velO)
 {
-  ofstream* out = 0;
+  std::ofstream out;
   
   compute_grid();
   
@@ -1141,15 +1142,15 @@ ResPot::ReturnCode ResPot::Update2(double dt,
 	   << i << endl;
       
       pthread_mutex_lock(&iolock);
-      out = new ofstream((outdir + dbgFILE).c_str(), ios::app);
-      *out <<  "I1 or I2 is NaN: Is0=" 
-	   << Is[0] << " Is1=" << Is[1] << " If=" 
-	   << If << " Is2=" << Is[2] << " i=" 
-	   << i << endl;
-      
-      delete out;;
+      out.open(outdir + dbgFILE, ios::app);
+      if (out.good()) {
+	out <<  "I1 or I2 is NaN: Is0=" 
+	    << Is[0] << " Is1=" << Is[1] << " If=" 
+	    << If << " Is2=" << Is[2] << " i=" 
+	    << i << endl;
+	out.close();
+      }
       pthread_mutex_unlock(&iolock);
-      out = 0;
     }
     
     
@@ -1197,26 +1198,27 @@ ResPot::ReturnCode ResPot::Update2(double dt,
 	   << " i="	<< i << endl;
       
       pthread_mutex_lock(&iolock);
-      out = new ofstream(string(outdir+dbgFILE).c_str(), ios::app);
-      *out  << "Fw or FI is NaN, dJm=" << dJm 
-	    << " Ul="	<< Ul 
-	    << " dUldE="	<< dUldE 
-	    << " dUldK="	<< dUldK 
-	    << " dEIs="	<< dEIs 
-	    << " dKIs="	<< dKIs 
-	    << " O1="	<< O1 
-	    << " O2="	<< O2 
-	    << " Omega="	<< Omega 
-	    << " P0="	<< Phase[0]
-	    << " P2="	<< Phase[2]
-	    << " dt="	<< dt
-	    << " ws="	<< ws[1]
-	    << " ws0="	<< ws[0]
-	    << " ws2="	<< ws[2]
-	    << " i="	<< i << endl;
-      delete out;;
+      out.open(outdir+dbgFILE, ios::app);
+      if (out.good()) {
+	out  << "Fw or FI is NaN, dJm=" << dJm 
+	     << " Ul="		<< Ul 
+	     << " dUldE="	<< dUldE 
+	     << " dUldK="	<< dUldK 
+	     << " dEIs="	<< dEIs 
+	     << " dKIs="	<< dKIs 
+	     << " O1="		<< O1 
+	     << " O2="		<< O2 
+	     << " Omega="	<< Omega 
+	     << " P0="		<< Phase[0]
+	     << " P2="		<< Phase[2]
+	     << " dt="		<< dt
+	     << " ws="		<< ws[1]
+	     << " ws0="		<< ws[0]
+	     << " ws2="		<< ws[2]
+	     << " i="		<< i << endl;
+	out.close();
+      }
       pthread_mutex_unlock(&iolock);
-      out = 0;
     }
     
     // Update
@@ -1233,14 +1235,15 @@ ResPot::ReturnCode ResPot::Update2(double dt,
 	   << " i="	<< i << endl;
       
       pthread_mutex_lock(&iolock);
-      out = new ofstream(string(outdir+dbgFILE).c_str(), ios::app);
-      *out  << "ws2 is NaN, Fw=" << Fw.real()
-	    << " ws0=" << ws[0]
-	    << " dt=" << dt
-	    << " i="	<< i << endl;
-      delete out;;
+      out.open(outdir+dbgFILE, ios::app);
+      if (out.good()) {
+	out  << "ws2 is NaN, Fw=" << Fw.real()
+	     << " ws0=" << ws[0]
+	     << " dt=" << dt
+	     << " i="	<< i << endl;
+	out.close();
+      }
       pthread_mutex_unlock(&iolock);
-      out = 0;
     }
     
     
@@ -1265,27 +1268,28 @@ ResPot::ReturnCode ResPot::Update2(double dt,
   
   if (!done) {
     pthread_mutex_lock(&iolock);
-    out = new ofstream(string(outdir+dbgFILE).c_str(), ios::app);
-    *out << "Update iteration: "
-	 << "Phase, E, K, I1, I2, DI, Dw, Ul, dUldE, dUldK, dEIs, dKIs = " 
-	 << Phase[1]
-	 << ", " << E
-	 << ", " << Kupd
-	 << ", " << I1
-	 << ", " << I2
-	 << ", " << Is[2]-Is[1]
-	 << ", " << ws[2]-ws[1]
-	 << ", " << Is[2]-Is[3]
-	 << ", " << ws[2]-ws[3]
-	 << ", " << Ul
-	 << ", " << dUldE
-	 << ", " << dUldK
-	 << ", " << dEIs
-	 << ", " << dKIs
-	 << endl;
-    delete out;
+    out.open(outdir+dbgFILE, ios::app);
+    if (out.good()) {
+      out << "Update iteration: "
+	  << "Phase, E, K, I1, I2, DI, Dw, Ul, dUldE, dUldK, dEIs, dKIs = " 
+	  << Phase[1]
+	  << ", " << E
+	  << ", " << Kupd
+	  << ", " << I1
+	  << ", " << I2
+	  << ", " << Is[2]-Is[1]
+	  << ", " << ws[2]-ws[1]
+	  << ", " << Is[2]-Is[3]
+	  << ", " << ws[2]-ws[3]
+	  << ", " << Ul
+	  << ", " << dUldE
+	  << ", " << dUldK
+	  << ", " << dEIs
+	  << ", " << dKIs
+	  << endl;
+      out.close();
+    }
     pthread_mutex_unlock(&iolock);
-    out = 0;
     ret = UpdateIterate;
   }
   
@@ -1345,7 +1349,7 @@ ResPot::ReturnCode ResPot::Update3(double dt,
 				   double* posI, double* velI,
 				   double* posO, double* velO)
 {
-  ofstream* out = 0;
+  std::ofstream out;
   
   compute_grid();
   
@@ -1483,15 +1487,15 @@ ResPot::ReturnCode ResPot::Update3(double dt,
 	   << i << endl;
       
       pthread_mutex_lock(&iolock);
-      out = new ofstream(string(outdir+dbgFILE).c_str(), ios::app);
-      *out <<  "I1 or I2 is NaN: Is0=" 
-	   << Is[0] << " Is1=" << Is[1] << " If1=" 
-	   << If1 << " If2=" << If2 << " Is2=" << Is[2] << " i=" 
-	   << i << endl;
-      
-      delete out;;
+      out.open(outdir+dbgFILE, ios::app);
+      if (out.good()) {
+	out <<  "I1 or I2 is NaN: Is0=" 
+	    << Is[0] << " Is1=" << Is[1] << " If1=" 
+	    << If1 << " If2=" << If2 << " Is2=" << Is[2] << " i=" 
+	    << i << endl;
+	out.close();
+      }
       pthread_mutex_unlock(&iolock);
-      out = 0;
     }
     
     
@@ -1534,26 +1538,27 @@ ResPot::ReturnCode ResPot::Update3(double dt,
 	   << " i="	<< i << endl;
       
       pthread_mutex_lock(&iolock);
-      out = new ofstream(string(outdir+dbgFILE).c_str(), ios::app);
-      *out  << "Fw or FI is NaN, dJm=" << dJm 
-	    << " Ul="	<< Ul 
-	    << " dUldE="	<< dUldE 
-	    << " dUldK="	<< dUldK 
-	    << " dEIs="	<< dEIs 
-	    << " dKIs="	<< dKIs 
-	    << " O1="	<< O1 
-	    << " O2="	<< O2 
-	    << " Omega="	<< Omega 
-	    << " P0="	<< Phase[0]
-	    << " P0="	<< Phase[2]
-	    << " dt="	<< dt
-	    << " ws="	<< ws[1]
-	    << " ws0="	<< ws[0]
-	    << " ws2="	<< ws[2]
-	    << " i="	<< i << endl;
-      delete out;;
+      out.open(outdir+dbgFILE, ios::app);
+      if (out.good()) {
+	out  << "Fw or FI is NaN, dJm=" << dJm 
+	     << " Ul="	<< Ul 
+	     << " dUldE="	<< dUldE 
+	     << " dUldK="	<< dUldK 
+	     << " dEIs="	<< dEIs 
+	     << " dKIs="	<< dKIs 
+	     << " O1="	<< O1 
+	     << " O2="	<< O2 
+	     << " Omega="	<< Omega 
+	     << " P0="	<< Phase[0]
+	     << " P0="	<< Phase[2]
+	     << " dt="	<< dt
+	     << " ws="	<< ws[1]
+	     << " ws0="	<< ws[0]
+	     << " ws2="	<< ws[2]
+	     << " i="	<< i << endl;
+	out.close();
+      }
       pthread_mutex_unlock(&iolock);
-      out = 0;
     }
     
     // Update
@@ -1570,14 +1575,15 @@ ResPot::ReturnCode ResPot::Update3(double dt,
 	   << " i="	<< i << endl;
       
       pthread_mutex_lock(&iolock);
-      out = new ofstream(string(outdir+dbgFILE).c_str(), ios::app);
-      *out  << "ws2 is NaN, Fw=" << Fw.real()
-	    << " ws0=" << ws[0]
-	    << " dt=" << dt
-	    << " i="	<< i << endl;
-      delete out;;
+      out.open(outdir+dbgFILE, ios::app);
+      if (out.good()) {
+	out  << "ws2 is NaN, Fw=" << Fw.real()
+	     << " ws0=" << ws[0]
+	     << " dt=" << dt
+	     << " i="	<< i << endl;
+	out.close();
+      }
       pthread_mutex_unlock(&iolock);
-      out = 0;
     }
     
     
@@ -1601,27 +1607,28 @@ ResPot::ReturnCode ResPot::Update3(double dt,
   
   if (!done) {
     pthread_mutex_lock(&iolock);
-    out = new ofstream(string(outdir+dbgFILE).c_str(), ios::app);
-    *out << "Update iteration: "
-	 << "Phase, E, K, I1, I2, DI, Dw, Ul, dUldE, dUldK, dEIs, dKIs = " 
-	 << Phase[1]
-	 << ", " << E
-	 << ", " << Kupd
-	 << ", " << I1
-	 << ", " << I2
-	 << ", " << Is[2]-Is[1]
-	 << ", " << ws[2]-ws[1]
-	 << ", " << Is[2]-Is[3]
-	 << ", " << ws[2]-ws[3]
-	 << ", " << Ul
-	 << ", " << dUldE
-	 << ", " << dUldK
-	 << ", " << dEIs
-	 << ", " << dKIs
-	 << endl;
-    delete out;
+    out.open(outdir+dbgFILE, ios::app);
+    if (out.good()) {
+      out << "Update iteration: "
+	  << "Phase, E, K, I1, I2, DI, Dw, Ul, dUldE, dUldK, dEIs, dKIs = " 
+	  << Phase[1]
+	  << ", " << E
+	  << ", " << Kupd
+	  << ", " << I1
+	  << ", " << I2
+	  << ", " << Is[2]-Is[1]
+	  << ", " << ws[2]-ws[1]
+	  << ", " << Is[2]-Is[3]
+	  << ", " << ws[2]-ws[3]
+	  << ", " << Ul
+	  << ", " << dUldE
+	  << ", " << dUldK
+	  << ", " << dEIs
+	  << ", " << dKIs
+	  << endl;
+      out.close();
+    }
     pthread_mutex_unlock(&iolock);
-    out = 0;
     ret = UpdateIterate;
   }
   

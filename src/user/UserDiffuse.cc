@@ -155,8 +155,8 @@ void UserDiffuse::initialize()
     if (myid==0) {
 				// Open output stream for writing
       check_file = outdir + runtag + ".check_ev";
-      ofstream out(check_file.c_str(), ios::out | ios::app);
-      if (out) {
+      std::ofstream out(check_file.c_str(), ios::out | ios::app);
+      if (out.good()) {
 	out.setf(ios::left);
 	out << "# " << setw(14) << "Time"
 	    << "| " << setw(14) << "Mean (1*V)"
@@ -235,8 +235,8 @@ void UserDiffuse::determine_acceleration_and_potential(void)
     
     if (myid==0) {
 				// Open output stream for writing
-      ofstream out(check_file.c_str(), ios::out | ios::app);
-      if (out) {
+      std::ofstream out(check_file.c_str(), ios::out | ios::app);
+      if (out.good()) {
 	out.setf(ios::left);
 	out << setw(16) << tnow;
 	for (int k=0; k<6; k++) {
@@ -526,28 +526,29 @@ void UserDiffuse::compute_diffuse()
   // Dump grid to file
   // =================================================================== 
 
-  ofstream *out = NULL;
+  std::ofstream out;
   if (myid==0) {
     string outfile = outdir + "diffusion.grid" + runtag;
-    out = new ofstream(outfile.c_str());
+    out.open(outfile);
+    if (out.good()) {
+      out.setf(ios::left);
 
-    out->setf(ios::left);
+      out << setw(15) << "# Radius" 
+	  << setw(15) << "Velocity"
+	  << setw(15) << "D(para)"
+	  << setw(15) << "D(para^2)"
+	  << setw(15) << "D(perp^2)"
+	  << endl;
 
-    *out << setw(15) << "# Radius" 
-	 << setw(15) << "Velocity"
-	 << setw(15) << "D(para)"
-	 << setw(15) << "D(para^2)"
-	 << setw(15) << "D(perp^2)"
-	 << endl;
-
-    char c = out->fill('-');
-    *out << setw(15) << "#-1" 
-	 << setw(15) << "|-2"
-	 << setw(15) << "|-3"
-	 << setw(15) << "|-4"
-	 << setw(15) << "|-5"
-	 << endl;
-    out->fill(c);
+      char c = out.fill('-');
+      out << setw(15) << "#-1" 
+	  << setw(15) << "|-2"
+	  << setw(15) << "|-3"
+	  << setw(15) << "|-4"
+	  << setw(15) << "|-5"
+	  << endl;
+      out.fill(c);
+    }
   }
 
   // ===================================================================
@@ -595,23 +596,29 @@ void UserDiffuse::compute_diffuse()
       dVpara2[i][j] = 2.0*(F0 + F2)/3.0;
       dVperp2[i][j] = 2.0*(2.0*F0 + 3.0*F1 - F2)/3.0;
     
-      if (myid==0)
-	*out << setw(15) << R[i] 
-	     << setw(15) << V
-	     << setw(15) << dVpara1[i][j]
-	     << setw(15) << dVpara2[i][j]
-	     << setw(15) << dVperp2[i][j]
-	     << endl;
+      if (myid==0 and out.good())
+	out << setw(15) << R[i] 
+	    << setw(15) << V
+	    << setw(15) << dVpara1[i][j]
+	    << setw(15) << dVpara2[i][j]
+	    << setw(15) << dVperp2[i][j]
+	    << endl;
 
     } // End V loop
 
-    if (myid==0) *out << endl;
+    if (myid==0 and out.good()) out << endl;
 
   } // End R loop
 
   if (myid==0) {
-    out->close();
-    delete out;
+    try {
+      out.close();
+    }
+    catch (const ofstream::failure& e) {
+      std::cout << "UserDiffuse: exception closing file <"
+		<< outdir + "diffusion.grid" + runtag
+		<< ": " << e.what() << std::endl;
+    }
   }
 
 }

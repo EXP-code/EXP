@@ -66,19 +66,19 @@ void ComponentContainer::initialize(void)
   if (restart) {
 
     struct MasterHeader master;
-    ifstream *in = NULL;
+    ifstream in;
 
 				// Open file
     if (myid==0) {
 
       string resfile = outdir + infile;
-      in = new ifstream(resfile.c_str());
-      if (!*in) {
+      in.open(resfile);
+      if (in.fail()) {
 	throw FileOpenError(resfile, __FILE__, __LINE__);
       }
 
-      in->read((char *)&master, sizeof(MasterHeader));
-      if (!*in) {
+      in.read((char *)&master, sizeof(MasterHeader));
+      if (in.fail()) {
 	std::ostringstream sout;
 	sout << "ComponentContainer::initialize: "
 	     << "could not read master header from <"
@@ -108,12 +108,18 @@ void ComponentContainer::initialize(void)
     if (comp.IsSequence()) {
       for (int i=0; i<ncomp; i++) {
 	YAML::Node cur = comp[i];
-	components.push_back(new Component(cur, in));
+	components.push_back(new Component(cur, &in));
 	// Could reassign "comp[ncomp] = cur" to capture defaults
       }
     }
       
-    delete in;
+    try {
+      in.close();
+    }
+    catch (const ifstream::failure& e) {
+      std::cout << "ComponentContainer: exception closing file <"
+		<< outdir + infile << ">: " << e.what() << std::endl;
+    }
 
   } else {
     

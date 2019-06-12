@@ -3870,11 +3870,11 @@ void EmpCylSL::dump_images(const string& OUTFILE,
   //============
   // Open files
   //============
-  ofstream *out = new ofstream [Number];
+  std::ofstream out[Number];
   for (int j=0; j<Number; j++) {
     Name = OUTFILE + Types[j] + ".eof_recon";
     out[j].open(Name.c_str());
-    if (!out[j]) {
+    if (out[j].fail()) {
       cerr << "Couldn't open <" << Name << ">" << endl;
       break;
     }
@@ -4073,8 +4073,16 @@ void EmpCylSL::dump_images(const string& OUTFILE,
   //
   // Close current files and delete
   //
-  for (int j=0; j<Number2; j++) out[j].close();
-  delete [] out;
+  for (int j=0; j<Number2; j++) {
+    try {
+      out[j].close();
+    }
+    catch (const ofstream::failure& e) {
+      std::cout << "EmpCylSL: exception closing file <"
+		<< OUTFILE + Types[j] + ".eof_recon>"
+		<< ": " << e.what() << std::endl;
+    }
+  }
 }
 
 

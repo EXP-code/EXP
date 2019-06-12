@@ -432,8 +432,8 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   // Debugging output
   //=================
   if (VERBOSE>3 && myid==1 && component->EJ) {
-    string toutfile = homedir + "test.orientation." + runtag;
-    ofstream debugf(toutfile.c_str(), ios::app);
+    std::string toutfile = homedir + "test.orientation." + runtag;
+    std::ofstream debugf(toutfile.c_str(), ios::app);
     Vector axis = component->orient->currentAxis();
     debugf << tnow << " "
 	   << component->orient->currentAxis()[1] << " " 
@@ -899,7 +899,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 
 #ifdef DEBUG
   static bool firstime = true;
-  ofstream out;
+  std::ofstream out;
   int flg;
   if (firstime && myid==0 && id==0) out.open("debug.tst");
 #endif
@@ -1201,19 +1201,19 @@ void Cylinder::dump_mzero(const string& name, int step)
 
   float zz;
   string label[] = {".dens0.", ".pot0.", ".fr0.", ".fz0."};
-  ofstream** out = new ofstream* [4];
+  std::ofstream out[4];
 
   for (int i=0; i<4; i++) {
     ostringstream ins;
     ins << name << label[i] << step;
-    out[i] = new ofstream(ins.str().c_str());
+    out[i].open(ins.str());
 
-    out[i]->write((char *)&ncylnx, sizeof(int));
-    out[i]->write((char *)&ncylny, sizeof(int));
-    out[i]->write((char *)&(zz=  0.0), sizeof(float));
-    out[i]->write((char *)&(zz= RMAX), sizeof(float));
-    out[i]->write((char *)&(zz=-ZMAX), sizeof(float));
-    out[i]->write((char *)&(zz= ZMAX), sizeof(float));
+    out[i].write((char *)&ncylnx, sizeof(int));
+    out[i].write((char *)&ncylny, sizeof(int));
+    out[i].write((char *)&(zz=  0.0), sizeof(float));
+    out[i].write((char *)&(zz= RMAX), sizeof(float));
+    out[i].write((char *)&(zz=-ZMAX), sizeof(float));
+    out[i].write((char *)&(zz= ZMAX), sizeof(float));
   }
 
 
@@ -1229,21 +1229,27 @@ void Cylinder::dump_mzero(const string& name, int step)
       r = dr*j;
 
       zz = ortho->accumulated_dens_eval(r, z, 0.0, d0);
-      out[0]->write((char *)&zz, sizeof(float));
+      out[0].write((char *)&zz, sizeof(float));
 
       ortho->accumulated_eval(r, z, 0.0, p0, p, fr, fz, fp);
-      out[1]->write((char *)&(zz=p ), sizeof(float));
-      out[2]->write((char *)&(zz=fr), sizeof(float));
-      out[3]->write((char *)&(zz=fz), sizeof(float));
+      out[1].write((char *)&(zz=p ), sizeof(float));
+      out[2].write((char *)&(zz=fr), sizeof(float));
+      out[3].write((char *)&(zz=fz), sizeof(float));
     }
   }
 
 				// Close and delete streams
   for (int i=0; i<4; i++) {
-    out[i]->close();
-    delete out[i];
+    try {
+      out[i].close();
+    }
+    catch (const ofstream::failure& e) {
+      std::cout << "Cylinder: exception closing file <"
+		<< name << label[i] << step << ">: "
+		<< e.what() << std::endl;
+    }
+
   }
-  delete [] out;
 
 }
 
