@@ -104,7 +104,6 @@ void OutLog::Run(int n, bool last)
 {
   std::ofstream out;
   const int cwid = 20;
-  static unsigned int instances = 0;
 
   if (myid==0) {
 				// Open output stream for writing
@@ -116,8 +115,6 @@ void OutLog::Run(int n, bool last)
       out.close();
       return;
     }
-
-    instances++;
   }
 
 				// Generate header line
@@ -189,8 +186,6 @@ void OutLog::Run(int n, bool last)
 		    << " on restart: " << e.what() << std::endl;
 	}
 
-	instances--;
-
 	// Backup up old file
 	string backupfile = filename + ".bak";
 
@@ -214,8 +209,6 @@ void OutLog::Run(int n, bool last)
 	  bomb(message.str());
 	}
 	  
-	instances++;
-
 	// Open old file for reading
 	std::ifstream in(backupfile.c_str());
 
@@ -498,7 +491,7 @@ void OutLog::Run(int n, bool last)
     // =============
 
 				// Current time
-    out << setw(cwid) << tnow;
+    out << std::setw(cwid) << tnow;
 
     double mtot0 = 0.0;
     for (int i=0; i<comp->ncomp; i++) mtot0 += mtot[i];
@@ -603,15 +596,11 @@ void OutLog::Run(int n, bool last)
 
     try {
       out.close();
-      instances--;
-      std::cout << "OutLog: file <" << filename << "> closed, instances="
-		<< instances << std::endl;
     }
     catch (const ofstream::failure& e) {
       std::cout << "OutLog: exception closing file <" << filename
 		<< ": " << e.what() << std::endl;
     }
-
   }
 
 }
