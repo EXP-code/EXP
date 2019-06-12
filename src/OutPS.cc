@@ -58,7 +58,7 @@ void OutPS::Run(int n, bool last)
   std::chrono::high_resolution_clock::time_point beg, end;
   if (timer) beg = std::chrono::high_resolution_clock::now();
 
-  ofstream *out;
+  std::ofstream out;
 
   psdump = n;
 
@@ -66,11 +66,11 @@ void OutPS::Run(int n, bool last)
 
   if (myid==0) {
 				// Open file and write master header
-    out = new ofstream(filename.c_str(), ios::out | ios::app);
+    out.open(filename, ios::out | ios::app);
 
-    if (!*out) {
-      cerr << "OutPS: can't open file <" << filename.c_str() 
-	   << "> . . . quitting" << std::endl;
+    if (out.fail()) {
+      std::cout << "OutPS: can't open file <" << filename
+		<< "> . . . quitting" << std::endl;
       nOK = 1;
     }
 
@@ -83,7 +83,7 @@ void OutPS::Run(int n, bool last)
       header.ntot = comp->ntot;
       header.ncomp = comp->ncomp;
       
-      out->write((char *)&header, sizeof(MasterHeader));
+      out.write((char *)&header, sizeof(MasterHeader));
     }
   }
   
@@ -94,12 +94,17 @@ void OutPS::Run(int n, bool last)
   }
 
   for (auto c : comp->components) {
-    c->write_binary(out, true);	// Write floats rather than doubles
+    c->write_binary(&out, true);	// Write floats rather than doubles
   }
 
   if (myid==0) {
-    out->close();
-    delete out;
+    try {
+      out.close();
+    }
+    catch (const ofstream::failure& e) {
+      std::cout << "OutPS: exception closing file <" << filename
+		<< ": " << e.what() << std::endl;
+    }
   }
 
   chktimer.mark();

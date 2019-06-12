@@ -219,15 +219,15 @@ void OutCHKPT::Run(int n, bool last)
 
   } else {
 
-    ofstream *out;
+    std::ofstream out;
     int nOK = 0;
 
     if (myid==0) {
 				// Open file and write master header
-      out = new ofstream(filename.c_str());
+      out.open(filename);
 
-      if (!*out) {
-	std::cerr << "OutCHKPT: can't open file <" << filename.c_str() 
+      if (out.fail()) {
+	std::cerr << "OutCHKPT: can't open file <" << filename
 	     << "> . . . quitting\n";
 	nOK = 1;
       }
@@ -238,7 +238,7 @@ void OutCHKPT::Run(int n, bool last)
 	header.ntot  = comp->ntot;
 	header.ncomp = comp->ncomp;
       
-	out->write((char *)&header, sizeof(MasterHeader));
+	out.write((char *)&header, sizeof(MasterHeader));
 #ifdef DEBUG
 	cout << "OutCHKPT: header written" << endl;
 #endif
@@ -256,15 +256,20 @@ void OutCHKPT::Run(int n, bool last)
       cout << "OutCHKPT: process " << myid << " trying to write name=" << c->name
 	   << " force=" << c->id << endl;
 #endif
-      c->write_binary(out);
+      c->write_binary(&out);
 #ifdef DEBUG
       cout << "OutCHKPT: process " << myid << " write completed on " << c->name << endl;
 #endif
     }
     
     if (myid==0) {
-      out->close();
-      delete out;
+      try {
+	out.close();
+      }
+      catch (const ofstream::failure& e) {
+	std::cout << "OutCHKPT: exception closing file <" << filename
+		  << ": " << e.what() << std::endl;
+      }
     }
 
   }

@@ -937,6 +937,8 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
 	  cerr << "Process " << myid 
 	       << ": error opening <" << ostr.str() << ">" << endl;
 	}
+
+	out.close();
       }
 
       // Reset the list

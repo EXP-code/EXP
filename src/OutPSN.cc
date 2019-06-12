@@ -84,7 +84,8 @@ void OutPSN::Run(int n, bool last)
   std::chrono::high_resolution_clock::time_point beg, end;
   if (timer) beg = std::chrono::high_resolution_clock::now();
   
-  ofstream *out;
+  std::ofstream out;
+  std::ostringstream fname;
 
   psdump = n;
 
@@ -92,13 +93,12 @@ void OutPSN::Run(int n, bool last)
 
   if (myid==0) {
 				// Output name
-    ostringstream fname;
     fname << filename << "." << setw(5) << setfill('0') << nbeg++;
 
 				// Open file and write master header
-    out = new ofstream(fname.str().c_str());
+    out.open(fname.str());
 
-    if (!*out) {
+    if (out.fail()) {
       std::cerr << "OutPSN: can't open file <" << fname.str() 
 		<< "> . . . quitting" << std::endl;
       nOK = 1;
@@ -112,7 +112,7 @@ void OutPSN::Run(int n, bool last)
       header.ntot  = comp->ntot;
       header.ncomp = comp->ncomp;
 
-      out->write((char *)&header, sizeof(MasterHeader));
+      out.write((char *)&header, sizeof(MasterHeader));
     }
   }
   
@@ -123,12 +123,18 @@ void OutPSN::Run(int n, bool last)
   }
 
   for (auto c : comp->components) {
-    c->write_binary(out, true);	// Write floats rather than doubles
+				// Write floats rather than doubles
+    c->write_binary(&out, true);
   }
 
   if (myid==0) {
-    out->close();
-    delete out;
+    try {
+      out.close();
+    }
+    catch (const ofstream::failure& e) {
+      std::cout << "OutPSN: exception closing file <" << fname.str()
+		<< ": " << e.what() << std::endl;
+    }
   }
 
   chktimer.mark();

@@ -102,16 +102,22 @@ void OutLog::initialize()
 
 void OutLog::Run(int n, bool last)
 {
-  ofstream *out = 0;
+  std::ofstream out;
   const int cwid = 20;
+  static unsigned int instances = 0;
 
   if (myid==0) {
 				// Open output stream for writing
-    out = new ofstream(filename.c_str(), ios::out | ios::app);
-    if (!out) {
-      cerr << "OutLog: error opening <" << filename << "> for append\n";
+    out.open(filename, ios::out | ios::app);
+
+    if (out.fail()) {
+      std::cout << "OutLog: failure on opening <" << filename
+		<< "> for append (failbit)" << std::endl;
+      out.close();
       return;
     }
+
+    instances++;
   }
 
 				// Generate header line
@@ -119,63 +125,71 @@ void OutLog::Run(int n, bool last)
 
     firstime = false;
 
-    nbodies  = vector<int>(comp->ncomp);
-    nbodies1 = vector<int>(comp->ncomp);
+    nbodies  = std::vector<int>(comp->ncomp);
+    nbodies1 = std::vector<int>(comp->ncomp);
 
-    used     = vector<int>(comp->ncomp);
-    used1    = vector<int>(comp->ncomp);
+    used     = std::vector<int>(comp->ncomp);
+    used1    = std::vector<int>(comp->ncomp);
 
-    mtot     = vector<double>(comp->ncomp);
-    mtot1    = vector<double>(comp->ncomp);
+    mtot     = std::vector<double>(comp->ncomp);
+    mtot1    = std::vector<double>(comp->ncomp);
 
-    com      = vector<dvector>(comp->ncomp);
-    com1     = vector<dvector>(comp->ncomp);
+    com      = std::vector<dvector>(comp->ncomp);
+    com1     = std::vector<dvector>(comp->ncomp);
 
-    cov      = vector<dvector>(comp->ncomp);
-    cov1     = vector<dvector>(comp->ncomp);
+    cov      = std::vector<dvector>(comp->ncomp);
+    cov1     = std::vector<dvector>(comp->ncomp);
 
-    angm     = vector<dvector>(comp->ncomp);
-    angm1    = vector<dvector>(comp->ncomp);
+    angm     = std::vector<dvector>(comp->ncomp);
+    angm1    = std::vector<dvector>(comp->ncomp);
 
-    ctr = vector<dvector>(comp->ncomp);
+    ctr = std::vector<dvector>(comp->ncomp);
 
     for (int i=0; i<comp->ncomp; i++) {
-      com   [i] = vector<double>(3);
-      com1  [i] = vector<double>(3);
-      cov   [i] = vector<double>(3);
-      cov1  [i] = vector<double>(3);
-      angm  [i] = vector<double>(3);
-      angm1 [i] = vector<double>(3);
-      ctr   [i] = vector<double>(3);
+      com   [i] = std::vector<double>(3);
+      com1  [i] = std::vector<double>(3);
+      cov   [i] = std::vector<double>(3);
+      cov1  [i] = std::vector<double>(3);
+      angm  [i] = std::vector<double>(3);
+      angm1 [i] = std::vector<double>(3);
+      ctr   [i] = std::vector<double>(3);
     }
 
-    com0      = vector<double>(3);
-    cov0      = vector<double>(3);
-    angmG     = vector<double>(3);
-    angm0     = vector<double>(3);
-    pos0      = vector<double>(3);
-    vel0      = vector<double>(3);
+    com0      = std::vector<double>(3);
+    cov0      = std::vector<double>(3);
+    angmG     = std::vector<double>(3);
+    angm0     = std::vector<double>(3);
+    pos0      = std::vector<double>(3);
+    vel0      = std::vector<double>(3);
 	                         
-    posL      = vector<double>(3);
-    velL      = vector<double>(3);
+    posL      = std::vector<double>(3);
+    velL      = std::vector<double>(3);
     	                         
-    comG      = vector<double>(3);
-    covG      = vector<double>(3);
+    comG      = std::vector<double>(3);
+    covG      = std::vector<double>(3);
     
-    ektot     = vector<double>(comp->ncomp);
-    ektot1    = vector<double>(comp->ncomp);
-    eptot     = vector<double>(comp->ncomp);
-    eptot1    = vector<double>(comp->ncomp);
-    eptotx    = vector<double>(comp->ncomp);
-    eptotx1   = vector<double>(comp->ncomp);
-    clausius  = vector<double>(comp->ncomp);
-    clausius1 = vector<double>(comp->ncomp);
+    ektot     = std::vector<double>(comp->ncomp);
+    ektot1    = std::vector<double>(comp->ncomp);
+    eptot     = std::vector<double>(comp->ncomp);
+    eptot1    = std::vector<double>(comp->ncomp);
+    eptotx    = std::vector<double>(comp->ncomp);
+    eptotx1   = std::vector<double>(comp->ncomp);
+    clausius  = std::vector<double>(comp->ncomp);
+    clausius1 = std::vector<double>(comp->ncomp);
 
     if (myid==0) {
 
       if (restart) {
 
-	out->close();
+	try {
+	  out.close();
+	}
+	catch (const ofstream::failure& e) {
+	  std::cout << "OutLog:: exception closing file <" << filename
+		    << " on restart: " << e.what() << std::endl;
+	}
+
+	instances--;
 
 	// Backup up old file
 	string backupfile = filename + ".bak";
@@ -183,7 +197,7 @@ void OutLog::Run(int n, bool last)
 	try {
 	  fs::rename(filename, backupfile);
 	} catch (const boost::filesystem::filesystem_error& e) {
-	  ostringstream message;
+	  std::ostringstream message;
 	  message << "OutLog::Run(): error creating backup file <" 
 		  << backupfile << "> from <" << filename 
 		  << ">, BOOST message: " << e.code().message();
@@ -191,17 +205,21 @@ void OutLog::Run(int n, bool last)
 	}
 
 	// Open new output stream for writing
-	out = new ofstream(filename.c_str());
-	if (!*out) {
-	  ostringstream message;
+	out.open(filename);
+
+	if (!out) {
+	  std::ostringstream message;
 	  message << "OutLog: error opening new log file <" 
 		  << filename << "> for writing";
 	  bomb(message.str());
 	}
 	  
+	instances++;
+
 	// Open old file for reading
-	ifstream in(backupfile.c_str());
-	if (!in) {
+	std::ifstream in(backupfile.c_str());
+
+	if (in.fail()) {
 	  ostringstream message;
 	  message << "OutLog: error opening original log file <" 
 		  << backupfile << "> for reading";
@@ -217,7 +235,7 @@ void OutLog::Run(int n, bool last)
 	  in.getline(cbuffer, cbufsiz);
 	  if (!in) break;
 	  string line(cbuffer);
-	  *out << cbuffer << "\n";
+	  out << cbuffer << "\n";
 	  if (line.find_first_of("Time") != string::npos) break;
 	}
 	
@@ -229,107 +247,113 @@ void OutLog::Run(int n, bool last)
 	  StringTok<string> toks(line);
 	  ttim  = atof(toks(" ").c_str());
 	  if (tnow < ttim) break;
-	  *out << cbuffer << "\n";
+	  out << cbuffer << "\n";
 	}
 	
-	in.close();
+	try {
+	  in.close();
+	}
+	catch (const ifstream::failure& e) {
+	  std::cout << "OutLog:: exception closing input file <" << filename
+		    << " on restart: " << e.what() << std::endl;
+	}
 
       } else {
 
 	string field;
 				// Global stanza
-	*out << setfill('-') << setw(cwid) << "Global stats";
+	out << setfill('-') << setw(cwid) << "Global stats";
 	for (int i=1; i<num_global; i++) 
-	  *out << "|" << setfill(' ') << setw(cwid) << " ";
+	  out << "|" << setfill(' ') << setw(cwid) << " ";
 
       
 				// Component stanzas
 	for (auto c : comp->components) {
-	  *out << "|" << setw(cwid) << c->id.c_str();
+	  out << "|" << setw(cwid) << c->id.c_str();
 	  for (int i=1; i<num_component; i++) 
-	    *out << "|" << setfill(' ') << setw(cwid) << " ";
+	    out << "|" << setfill(' ') << setw(cwid) << " ";
 	}
-	*out << endl;
+	out << endl;
     
 				// Global divider
-	*out << setfill('-') << setw(cwid) << "-";
+	out << setfill('-') << setw(cwid) << "-";
 	for (int i=1; i<num_global; i++) 
-	  *out << "+" << setfill('-') << setw(cwid)  << "-";
+	  out << "+" << setfill('-') << setw(cwid)  << "-";
       
 				// Component dividers
 	for (auto c : comp->components) {
 	  for (int i=0; i<num_component; i++) 
-	    *out << "+" << setfill('-') << setw(cwid) << "-";
+	    out << "+" << setfill('-') << setw(cwid) << "-";
 	}
-	*out << endl << setfill(' ');
+	out << endl << setfill(' ');
 
 
 				// Global labels
-	*out << setfill(' ') << setw(cwid) << lab_global[0];
-	for (int i=1; i<num_global; i++) *out << "|" << setw(cwid) << lab_global[i];
+	out << setfill(' ') << setw(cwid) << lab_global[0];
+	for (int i=1; i<num_global; i++) out << "|" << setw(cwid) << lab_global[i];
     
 				// Component labels
 	for (auto c : comp->components) {
 	  for (int i=0; i<num_component; i++) {
 	    string label = c->name + " " + lab_component[i];
 	    if (label.size()<=cwid)
-	      *out << "|" << setw(cwid) << label.c_str();
+	      out << "|" << setw(cwid) << label.c_str();
 	    else
-	      *out << "|" << label;
+	      out << "|" << label;
 	  }
 	}
-	*out << endl;
+	out << endl;
 
 				// Global divider
-	*out << setfill('-') << setw(cwid) << "-";
+	out << setfill('-') << setw(cwid) << "-";
 	for (int i=1; i<num_global; i++) 
-	  *out << "+" << setfill('-') << setw(cwid) << "-";
+	  out << "+" << setfill('-') << setw(cwid) << "-";
 	
 				// Component dividers
 	for (auto c : comp->components) {
 	  for (int i=0; i<num_component; i++) 
-	    *out << "+" << setfill('-') << setw(cwid) << "-";
+	    out << "+" << setfill('-') << setw(cwid) << "-";
 	}
-	*out << endl << setfill(' ');
+	out << endl << setfill(' ');
 	
 				// Global count
 	int count=0;
 	{
 	  ostringstream slab;
 	  slab << "[" << ++count << "]";
-	  *out << setfill(' ') << setw(cwid) << slab.str();
+	  out << setfill(' ') << setw(cwid) << slab.str();
 	}
 	for (int i=1; i<num_global; i++) {
 	  ostringstream slab;
 	  slab << "[" << ++count << "]";
-	  *out << "|" << setw(cwid) << slab.str();
+	  out << "|" << setw(cwid) << slab.str();
 	}    
 				// Component count
 	for (auto c : comp->components) {
 	  for (int i=0; i<num_component; i++) {
 	    ostringstream slab;
 	    slab << "[" << ++count << "]";
-	    *out << "|" << setw(cwid) << slab.str();
+	    out << "|" << setw(cwid) << slab.str();
 	  }
 	}
-	*out << endl;
+	out << endl;
 
 				// Global divider
-	*out << setfill('-') << setw(cwid) << "-";
+	out << setfill('-') << setw(cwid) << "-";
 	for (int i=1; i<num_global; i++) 
-	  *out << "+" << setfill('-') << setw(cwid) << "-";
+	  out << "+" << setfill('-') << setw(cwid) << "-";
 	
 				// Component dividers
 	for (auto c : comp->components) {
 	  for (int i=0; i<num_component; i++) 
-	    *out << "+" << setfill('-') << setw(cwid) << "-";
+	    out << "+" << setfill('-') << setw(cwid) << "-";
 	}
-	*out << endl << setfill(' ');
+	out << endl << setfill(' ');
 	
       }
     }
     
-  }
+  } // END: firstime
   
   if (n % nint && !last) return;
 
@@ -474,62 +498,62 @@ void OutLog::Run(int n, bool last)
     // =============
 
 				// Current time
-    *out << setw(cwid) << tnow;
+    out << setw(cwid) << tnow;
 
     double mtot0 = 0.0;
     for (int i=0; i<comp->ncomp; i++) mtot0 += mtot[i];
 
 				// Total mass
-    *out << "|" << setw(cwid) << mtot0;
+    out << "|" << setw(cwid) << mtot0;
 
 				// Total number
     int nbodies0 = 0;
     for (int i=0; i<comp->ncomp; i++) nbodies0 += nbodies[i];
-    *out << "|" << setw(cwid) << nbodies0;
+    out << "|" << setw(cwid) << nbodies0;
 
 				// COM
     for (int j=0; j<3; j++)
       if (mtot0>0.0)
-	*out << "|" << setw(cwid) << com0[j]/mtot0;
+	out << "|" << setw(cwid) << com0[j]/mtot0;
       else
-	*out << "|" << setw(cwid) << 0.0;
+	out << "|" << setw(cwid) << 0.0;
 
 
 				// COV
     for (int j=0; j<3; j++)
       if (mtot0>0.0)
-	*out << "|" << setw(cwid) << cov0[j];
+	out << "|" << setw(cwid) << cov0[j];
       else
-	*out << "|" << setw(cwid) << 0.0;
+	out << "|" << setw(cwid) << 0.0;
 	
 				// Ang mom
     for (int j=0; j<3; j++)
-      *out << "|" << setw(cwid) << angm0[j];
+      out << "|" << setw(cwid) << angm0[j];
     
 				// KE
     double ektot0 = 0.0;
     for (int i=0; i<comp->ncomp; i++) ektot0 += ektot[i];
-    *out << "|" << setw(cwid) << ektot0;
+    out << "|" << setw(cwid) << ektot0;
       
 				// PE
     double eptot0 = 0.0;
     for (int i=0; i<comp->ncomp; i++) eptot0 += eptot[i] + 0.5*eptotx[i];
-    *out << "|" << setw(cwid) << eptot0;
+    out << "|" << setw(cwid) << eptot0;
      
 				// Clausius, Total, 2T/VC
     double clausius0 = 0.0;
     for (int i=0; i<comp->ncomp; i++) clausius0 += clausius[i];
-    *out << "|" << setw(cwid) << clausius0;
-    *out << "|" << setw(cwid) << ektot0 + clausius0;
+    out << "|" << setw(cwid) << clausius0;
+    out << "|" << setw(cwid) << ektot0 + clausius0;
     if (clausius0 != 0.0)
-      *out << "|" << setw(cwid) << -2.0*ektot0/clausius0;
+      out << "|" << setw(cwid) << -2.0*ektot0/clausius0;
     else
-      *out << "|" << setw(cwid) << 0.0;
+      out << "|" << setw(cwid) << 0.0;
 
-    *out << "|" << setw(cwid) << wtime;
+    out << "|" << setw(cwid) << wtime;
     int usedT = 0;
     for (int i=0; i<comp->ncomp; i++) usedT += used[i];
-    *out << "|" << setw(cwid) << usedT;
+    out << "|" << setw(cwid) << usedT;
 
 
     // =============
@@ -539,22 +563,22 @@ void OutLog::Run(int n, bool last)
 
     for (int i=0; i<comp->ncomp; i++) {
 
-      *out << "|" << setw(cwid) << mtot[i];
-      *out << "|" << setw(cwid) << nbodies[i];
+      out << "|" << setw(cwid) << mtot[i];
+      out << "|" << setw(cwid) << nbodies[i];
       for (int j=0; j<3; j++)
 	if (mtot[i]>0.0)
-	  *out << "|" << setw(cwid) << com[i][j]/mtot[i];
+	  out << "|" << setw(cwid) << com[i][j]/mtot[i];
 	else
-	  *out << "|" << setw(cwid) << 0.0;
+	  out << "|" << setw(cwid) << 0.0;
       for (int j=0; j<3; j++)
 	if (mtot[i]>0.0)
-	  *out << "|" << setw(cwid) << cov[i][j]/mtot[i];
+	  out << "|" << setw(cwid) << cov[i][j]/mtot[i];
 	else
-	  *out << "|" << setw(cwid) << 0.0;
+	  out << "|" << setw(cwid) << 0.0;
       for (int j=0; j<3; j++)
-	*out << "|" << setw(cwid) << angm[i][j];
+	out << "|" << setw(cwid) << angm[i][j];
       for (int j=0; j<3; j++)
-	*out << "|" << setw(cwid) << ctr[i][j];
+	out << "|" << setw(cwid) << ctr[i][j];
 
       double vbar2=0.0;		// Kinetic energy in per component
       if (mtot[i]>0.0) {	// center of velocity frame
@@ -564,21 +588,30 @@ void OutLog::Run(int n, bool last)
       }
       ektot[i] -= 0.5*mtot[i]*vbar2; // Update KE
       
-      *out << "|" << setw(cwid) << ektot[i];
-      *out << "|" << setw(cwid) << eptot[i] + eptotx[i];
-      *out << "|" << setw(cwid) << clausius[i];
-      *out << "|" << setw(cwid) << ektot[i] + clausius[i];
+      out << "|" << setw(cwid) << ektot[i];
+      out << "|" << setw(cwid) << eptot[i] + eptotx[i];
+      out << "|" << setw(cwid) << clausius[i];
+      out << "|" << setw(cwid) << ektot[i] + clausius[i];
       if (clausius[i] != 0.0)
-	*out << "|" << setw(cwid) << -2.0*ektot[i]/clausius[i];
+	out << "|" << setw(cwid) << -2.0*ektot[i]/clausius[i];
       else
-	*out << "|" << setw(cwid) << 0.0;
-      *out << "|" << setw(cwid) << used[i];
+	out << "|" << setw(cwid) << 0.0;
+      out << "|" << setw(cwid) << used[i];
     }
 
-    *out << endl;
+    out << std::endl;
 
-    out->close();
-    delete out;
+    try {
+      out.close();
+      instances--;
+      std::cout << "OutLog: file <" << filename << "> closed, instances="
+		<< instances << std::endl;
+    }
+    catch (const ofstream::failure& e) {
+      std::cout << "OutLog: exception closing file <" << filename
+		<< ": " << e.what() << std::endl;
+    }
+
   }
 
 }
