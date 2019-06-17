@@ -13,7 +13,7 @@
 
 int nsteps = 500;		// Number of steps to execute
 int nscale = 20;		// Number of steps between rescaling
-int nthrds = 2;			// Number of POSIX threads (minimum: 1)
+int nthrds = 1;			// Number of POSIX threads (minimum: 1)
 int ngpus  = 0;	                // Number of GPUs per node (0 means use all available)
 int nbalance = 0;		// Steps between load balancing
 int nreport = 0;		// Steps between particle reporting
