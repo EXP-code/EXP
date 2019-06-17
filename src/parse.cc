@@ -30,7 +30,10 @@ void exp_usage(char *prog)
 
 void initialize(void)
 {
-  if (myid==0) {
+  //  +---Do not dump yaml config to standard output unless VERRBOSE >= 7
+  //  |
+  //  V
+  if (VERBOSE>6 and myid==0) {
     cout << std::string(72, '=')  << std::endl
 	 << "Parameter database:" << std::endl
 	 << "-------------------" << std::endl << std::endl
