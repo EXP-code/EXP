@@ -11447,9 +11447,12 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  double Echg2 = iE2 * WW / atomic_weights[Z2];
 
 	  ionExtra[1] += Echg2;
+	  if (NoDelC & 0x02)
+	    ionExtra[1] += tmpE*Prob * N0*eV/TreeDSMC::Eunit;
 
 	  // Energy for ionized electron comes from COM
-	  dE += Echg1 * TreeDSMC::Eunit / (N0*eV);
+	  //
+	  dE += Echg2 * TreeDSMC::Eunit / (N0*eV);
 
 	  if (std::isinf(Echg1) or std::isinf(Echg2)) {
 	    std::cout << "**ERROR: crazy ion energy [2]=" << iE2
@@ -11541,9 +11544,12 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  double Echg2 = iE2 * WW / atomic_weights[Z1];
 
 	  ionExtra[0] += Echg1;
+	  if (NoDelC & 0x02)
+	    ionExtra[0] += tmpE*Prob * N0*eV/TreeDSMC::Eunit;
 
 	  // Energy for ionized electron comes from COM
-	  dE += Echg2 * TreeDSMC::Eunit / (N0*eV);
+	  //
+	  dE += Echg1 * TreeDSMC::Eunit / (N0*eV);
 
 	  if (std::isinf(iE1 * Prob)) {
 	    std::cout << "**ERROR: crazy ion energy [1]=" << iE1
@@ -11640,7 +11646,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  double Echg2 = iE2 * WW / atomic_weights[Z2];
 
 	  // Energy for ionized electron comes from COM
-	  dE += (Echg1 - Echg2) * TreeDSMC::Eunit / (N0*eV);
+	  //
+	  dE += Echg2 * TreeDSMC::Eunit / (N0*eV);
 
 	  rcbExtra[1] += Echg2;
 
@@ -11757,9 +11764,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  double Echg2 = iE2 * WW / atomic_weights[Z1];
 
 	  // Energy for ionized electron comes from COM
-	  dE += (Echg2 - Echg1) * TreeDSMC::Eunit / (N0*eV);
+	  dE += Echg1 * TreeDSMC::Eunit / (N0*eV);
 
-	  rcbExtra[0] += Echg1;
+	  rcbExtra[0] = Echg1;
 
 	  // Electron KE fraction in recombination
 	  //
@@ -12050,7 +12057,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     double ionElec = ionExtra[0] + ionExtra[1];
     double rcbElec = rcbExtra[0] + rcbExtra[1];
 
-    totalDE += ionElec + rcbElec;
+    totalDE += ionElec - rcbElec;
   }
   
   //
@@ -16079,10 +16086,12 @@ void collDiag::addCellPotl(pCell* cell, int id)
 	for (auto t : p->SpList) {
 	  speciesKey     k = t.first;
 	  unsigned short Z = k.first;
-	  unsigned short P = k.second - 1;
-	  double emfac     = s->mass/Collide::atomic_weights[Z] * cvrt;
-	  double IP        = p->ch.IonList[lQ(Z, P)]->ip;
-	  Epot[id]        += emfac * IP * s->dattrib[t.second];
+	  unsigned short C = k.second;
+	  if (C <= Z) {
+	    double emfac     = s->mass/Collide::atomic_weights[Z] * cvrt;
+	    double IP        = p->ch.IonList[lQ(Z, C)]->ip;
+	    Epot[id]        += emfac * IP * s->dattrib[t.second];
+	  }
 	}
       }
       else if (p->aType == CollideIon::Hybrid) {
@@ -16262,72 +16271,72 @@ void collDiag::initialize()
 
 	// Species labels
 	//
-	out << "#" << std::setw(11+12*2) << std::right << "Species==>" << " | ";
+	out << "#" << std::setw(15+16*2) << std::right << "Species==>" << " | ";
 	for (auto it : *this) {
 	  ostringstream sout, sout2;
 	  sout  << "(" << it.first.first << ", " << it.first.second << ")";
-	  size_t w =17*12, l = sout.str().size();
+	  size_t w =17*16, l = sout.str().size();
 	  sout2 << std::setw((w-l)/2) << ' ' << sout.str();
 	  out   << std::setw(w) << sout2.str() << " | ";
 	}
-	out << std::setw(18*12) << ' ' << " |" << std::endl;
+	out << std::setw(18*16) << ' ' << " |" << std::endl;
 
 	// Header line
 	//
 	out << std::setfill('-') << std::right;
-	out << "#" << std::setw(11) << '+'
-	    << std::setw(12) << '+' << std::setw(12) << '+' << " | ";
+	out << "#" << std::setw(15) << '+'
+	    << std::setw(16) << '+' << std::setw(16) << '+' << " | ";
 	for (auto it : *this) {
-	  for (int i=0; i<17; i++) out << std::setw(12) << '+';
+	  for (int i=0; i<17; i++) out << std::setw(16) << '+';
 	  out << " | ";
 	}
-	for (int i=0; i<18; i++)  out << std::setw(12) << '+';
+	for (int i=0; i<18; i++)  out << std::setw(16) << '+';
 	out << " |" << std::setfill(' ') << std::endl;
 
 	// Column labels
 	//
 	out << "#"
-	    << std::setw(11) << "Time |"
-	    << std::setw(12) << "Temp |"
-	    << std::setw(12) << "Disp |" << " | ";
+	    << std::setw(15) << "Time |"
+	    << std::setw(16) << "Temp |"
+	    << std::setw(16) << "Disp |" << " | ";
 	for (auto it : *this) {
-	  out << std::setw(12) << "N(nn) |"
-	      << std::setw(12) << "N(ne) |"
-	      << std::setw(12) << "N(np) |"
-	      << std::setw(12) << "N(ie) |"
-	      << std::setw(12) << "N(ff) |"
-	      << std::setw(12) << "W(ff) |"
-	      << std::setw(12) << "E(ff) |"
-	      << std::setw(12) << "N(ce) |"
-	      << std::setw(12) << "W(ce) |"
-	      << std::setw(12) << "E(ce) |"
-	      << std::setw(12) << "N(ci) |"
-	      << std::setw(12) << "W(ci) |"
-	      << std::setw(12) << "E(ci) |"
-	      << std::setw(12) << "N(rr) |"
-	      << std::setw(12) << "W(rr) |"
-	      << std::setw(12) << "E(rr) |"
-	      << std::setw(12) << "d(KE) |"
+	  out << std::setw(16) << "N(nn) |"
+	      << std::setw(16) << "N(ne) |"
+	      << std::setw(16) << "N(np) |"
+	      << std::setw(16) << "N(ie) |"
+	      << std::setw(16) << "N(ff) |"
+	      << std::setw(16) << "W(ff) |"
+	      << std::setw(16) << "E(ff) |"
+	      << std::setw(16) << "N(ce) |"
+	      << std::setw(16) << "W(ce) |"
+	      << std::setw(16) << "E(ce) |"
+	      << std::setw(16) << "N(ci) |"
+	      << std::setw(16) << "W(ci) |"
+	      << std::setw(16) << "E(ci) |"
+	      << std::setw(16) << "N(rr) |"
+	      << std::setw(16) << "W(rr) |"
+	      << std::setw(16) << "E(rr) |"
+	      << std::setw(16) << "d(KE) |"
 	      << " | ";
 	}
-	out << std::setw(12) << "Elost |"
-	    << std::setw(12) << "ElosC |"
-	    << std::setw(12) << "Klost |"
-	    << std::setw(12) << "KlosC |"
-	    << std::setw(12) << "EkeI  |"
-	    << std::setw(12) << "EkeE  |"
-	    << std::setw(12) << "PotI  |"
-	    << std::setw(12) << "delI  |"
-	    << std::setw(12) << "delE  |"
-	    << std::setw(12) << "clrE  |"
-	    << std::setw(12) << "misE  |"
-	    << std::setw(12) << "dfrE  |"
-	    << std::setw(12) << "updE  |"
-	    << std::setw(12) << "Ncol  |"
-	    << std::setw(12) << "Nmis  |"
-	    << std::setw(12) << "EdspE |"
-	    << std::setw(12) << "Efrac |"
-	    << std::setw(12) << "Etotl |"
+	out << std::setw(16) << "Elost |"
+	    << std::setw(16) << "ElosC |"
+	    << std::setw(16) << "Klost |"
+	    << std::setw(16) << "KlosC |"
+	    << std::setw(16) << "EkeI  |"
+	    << std::setw(16) << "EkeE  |"
+	    << std::setw(16) << "PotI  |"
+	    << std::setw(16) << "delI  |"
+	    << std::setw(16) << "delE  |"
+	    << std::setw(16) << "clrE  |"
+	    << std::setw(16) << "misE  |"
+	    << std::setw(16) << "dfrE  |"
+	    << std::setw(16) << "updE  |"
+	    << std::setw(16) << "Ncol  |"
+	    << std::setw(16) << "Nmis  |"
+	    << std::setw(16) << "EdspE |"
+	    << std::setw(16) << "Efrac |"
+	    << std::setw(16) << "Etotl |"
 	    << " | " << std::endl;
 
 	// Column numbers
@@ -16335,25 +16344,25 @@ void collDiag::initialize()
 	std::ostringstream st;
 	unsigned int cnt = 0;
 	st << "[" << ++cnt << "] |";
-	out << "#" << std::setw(11) << st.str();
+	out << "#" << std::setw(15) << st.str();
 	st.str("");
 	st << "[" << ++cnt << "] |";
-	out << std::setw(12) << st.str();
+	out << std::setw(16) << st.str();
 	st.str("");
 	st << "[" << ++cnt << "] |";
-	out << std::setw(12) << st.str() << " | ";
+	out << std::setw(16) << st.str() << " | ";
 	for (auto it : *this) {
 	  for (size_t l=0; l<17; l++) {
 	    st.str("");
 	    st << "[" << ++cnt << "] |";
-	    out << std::setw(12) << std::right << st.str();
+	    out << std::setw(16) << std::right << st.str();
 	  }
 	  out << " | ";
 	}
 	for (size_t l=0; l<18; l++) {
 	  st.str("");
 	  st << "[" << ++cnt << "] |";
-	  out << std::setw(12) << std::right << st.str();
+	  out << std::setw(16) << std::right << st.str();
 	}
 	out << " |" << std::endl;
 
@@ -16362,10 +16371,10 @@ void collDiag::initialize()
 	out << std::setfill('-') << std::right;
 	out << "#" << std::setw(11+12+12) << '+' << " | ";
 	for (auto it : *this) {
-	  for (int i=0; i<17; i++) out << std::setw(12) << '+';
+	  for (int i=0; i<17; i++) out << std::setw(16) << '+';
 	  out << " | ";
 	}
-	for (int i=0; i<18; i++)  out << std::setw(12) << '+';
+	for (int i=0; i<18; i++)  out << std::setw(16) << '+';
 	out << " |" << std::setfill(' ') << std::endl;
       }
     }
@@ -16396,11 +16405,11 @@ void collDiag::initialize()
 	    << "#"                                         << std::endl;
 
 				// Species labels
-	out << "#" << std::setw(11) << "Species==>" << " | ";
+	out << "#" << std::setw(15) << "Species==>" << " | ";
 	for (auto it : *this) {
 	  ostringstream sout, sout2;
 	  sout  << "(" << it.first.first << ", " << it.first.second << ")";
-	  size_t w = 5*12, l = sout.str().size();
+	  size_t w = 5*16, l = sout.str().size();
 	  sout2 << std::setw((w-l)/2) << ' ' << sout.str();
 	  out   << std::setw(w) << sout2.str() << " | ";
 	}
@@ -16409,22 +16418,22 @@ void collDiag::initialize()
 	// Header line
 	//
 	out << std::setfill('-') << std::right;
-	out << "#" << std::setw(11) << '+' << " | ";
+	out << "#" << std::setw(15) << '+' << " | ";
 	for (auto it : *this) {
-	  for (int i=0; i<5; i++) out << std::setw(12) << '+';
+	  for (int i=0; i<5; i++) out << std::setw(16) << '+';
 	  out << " | ";
 	}
 	out << std::setfill(' ') << std::endl;
 
 	// Column labels
 	//
-	out << "#" << std::setw(11) << "Time" << " | ";
+	out << "#" << std::setw(15) << "Time" << " | ";
 	for (auto it : *this) {
-	  out << std::setw(12) << "avg |"
-	      << std::setw(12) << "num |"
-	      << std::setw(12) << "min |"
-	      << std::setw(12) << "max |"
-	      << std::setw(12) << "over10 |"
+	  out << std::setw(16) << "avg |"
+	      << std::setw(16) << "num |"
+	      << std::setw(16) << "min |"
+	      << std::setw(16) << "max |"
+	      << std::setw(16) << "over10 |"
 	      << " | ";
 	}
 	out << std::endl;
@@ -16434,12 +16443,12 @@ void collDiag::initialize()
 	std::ostringstream st;
 	unsigned int cnt = 0;
 	st << "[" << ++cnt << "] |";
-	out << "#" << std::setw(11) << st.str() << " | ";
+	out << "#" << std::setw(15) << st.str() << " | ";
 	for (auto it : *this) {
 	  for (size_t l=0; l<5; l++) {
 	    st.str("");
 	    st << "[" << ++cnt << "] |";
-	    out << std::setw(12) << std::right << st.str();
+	    out << std::setw(16) << std::right << st.str();
 	  }
 	  out << " | ";
 	}
@@ -16448,9 +16457,9 @@ void collDiag::initialize()
 	// Header line
 	//
 	out << std::setfill('-') << std::right;
-	out << "#" << std::setw(11) << '+' << " | ";
+	out << "#" << std::setw(15) << '+' << " | ";
 	for (auto it : *this) {
-	  for (int i=0; i<5; i++) out << std::setw(12) << '+';
+	  for (int i=0; i<5; i++) out << std::setw(16) << '+';
 	  out << " | ";
 	}
 	out << std::setfill(' ') << std::endl;
@@ -16467,36 +16476,36 @@ void collDiag::print()
 
   {
     std::ofstream out(coll_file_debug.c_str(), ios::out | ios::app);
-    out << std::scientific << std::setprecision(3);
+    out << std::scientific << std::setprecision(6);
     if (out) {
       double cvrt   = eV/TreeDSMC::Eunit;
 
-      out << std::setw(12) << tnow
-	  << std::setw(12) << p->tM[0]
-	  << std::setw(12) << p->tM[1] << " | ";
+      out << std::setw(16) << tnow
+	  << std::setw(16) << p->tM[0]
+	  << std::setw(16) << p->tM[1] << "   ";
       for (auto it : *this) {
 	collTDPtr ctd = it.second;
-	out << std::setw(12) << ctd->nn_s[0]
-	    << std::setw(12) << ctd->ne_s[0]
-	    << std::setw(12) << ctd->np_s[0]
-	    << std::setw(12) << ctd->ie_s[0]
-	    << std::setw(12) << ctd->ff_s[0]
-	    << std::setw(12) << ctd->ff_s[1]
-	    << std::setw(12) << ctd->ff_s[2] * cvrt
-	    << std::setw(12) << ctd->CE_s[0]
-	    << std::setw(12) << ctd->CE_s[1]
-	    << std::setw(12) << ctd->CE_s[2] * cvrt
-	    << std::setw(12) << ctd->CI_s[0]
-	    << std::setw(12) << ctd->CI_s[1]
-	    << std::setw(12) << ctd->CI_s[2] * cvrt
-	    << std::setw(12) << ctd->RR_s[0]
-	    << std::setw(12) << ctd->RR_s[1]
-	    << std::setw(12) << ctd->RR_s[2] * cvrt;
+	out << std::setw(16) << ctd->nn_s[0]
+	    << std::setw(16) << ctd->ne_s[0]
+	    << std::setw(16) << ctd->np_s[0]
+	    << std::setw(16) << ctd->ie_s[0]
+	    << std::setw(16) << ctd->ff_s[0]
+	    << std::setw(16) << ctd->ff_s[1]
+	    << std::setw(16) << ctd->ff_s[2] * cvrt
+	    << std::setw(16) << ctd->CE_s[0]
+	    << std::setw(16) << ctd->CE_s[1]
+	    << std::setw(16) << ctd->CE_s[2] * cvrt
+	    << std::setw(16) << ctd->CI_s[0]
+	    << std::setw(16) << ctd->CI_s[1]
+	    << std::setw(16) << ctd->CI_s[2] * cvrt
+	    << std::setw(16) << ctd->RR_s[0]
+	    << std::setw(16) << ctd->RR_s[1]
+	    << std::setw(16) << ctd->RR_s[2] * cvrt;
 
 	if (ctd->dv_s[1]>0.0)
-	  out << std::setw(12) << ctd->dv_s[2]/ctd->dv_s[1] << " | ";
+	  out << std::setw(16) << ctd->dv_s[2]/ctd->dv_s[1] << "   ";
 	else
-	  out << std::setw(12) << 0.0 << " | ";
+	  out << std::setw(16) << 0.0 << "   ";
       }
 
       double Elost = Elos_s;
@@ -16504,40 +16513,40 @@ void collDiag::print()
 
       Etot_c += Elos_s;
       Ktot_c += Klos_s;
-      out << std::setw(12) << Elost
-	  << std::setw(12) << Etot_c
-	  << std::setw(12) << Klos_s
-	  << std::setw(12) << Ktot_c
-	  << std::setw(12) << Esum_s
-	  << std::setw(12) << Elec_s
-	  << std::setw(12) << Epot_s
-	  << std::setw(12) << delI_s
-	  << std::setw(12) << delE_s
-	  << std::setw(12) << clrE_s
-	  << std::setw(12) << misE_s
-	  << std::setw(12) << dfrE_s
-	  << std::setw(12) << updE_s
-	  << std::setw(12) << Ncol_s
-	  << std::setw(12) << Nmis_s
-	  << std::setw(12) << Edsp_s
-	  << std::setw(12) << (Emas_s>0.0 ? Efrc_s/Emas_s : 0.0)
-	  << std::setw(12) << Etot_c + Ktot_c + Esum_s + Elec_s - delI_s - delE_s
-	  << " |" << std::endl;
+      out << std::setw(16) << Elost
+	  << std::setw(16) << Etot_c
+	  << std::setw(16) << Klos_s
+	  << std::setw(16) << Ktot_c
+	  << std::setw(16) << Esum_s
+	  << std::setw(16) << Elec_s
+	  << std::setw(16) << Epot_s
+	  << std::setw(16) << delI_s
+	  << std::setw(16) << delE_s
+	  << std::setw(16) << clrE_s
+	  << std::setw(16) << misE_s
+	  << std::setw(16) << dfrE_s
+	  << std::setw(16) << updE_s
+	  << std::setw(16) << Ncol_s
+	  << std::setw(16) << Nmis_s
+	  << std::setw(16) << Edsp_s
+	  << std::setw(16) << (Emas_s>0.0 ? Efrc_s/Emas_s : 0.0)
+	  << std::setw(16) << Etot_c + Ktot_c + Esum_s + Elec_s - delI_s - delE_s
+	  << "  " << std::endl;
     }
   }
 
   {
     std::ofstream out(energy_file_debug.c_str(), ios::out | ios::app);
     if (out) {
-      out << std::setw(12) << tnow << " | ";
+      out << std::setw(16) << tnow << "   ";
       for (auto it : *this) {
 	collTDPtr ctd = it.second;
-	out << std::setw(12) << (ctd->eV_N_s ? ctd->eV_av_s/ctd->eV_N_s : 0.0)
-	    << std::setw(12) << ctd->eV_N_s
-	    << std::setw(12) << ctd->eV_min_s
-	    << std::setw(12) << ctd->eV_max_s
-	    << std::setw(12) << ctd->eV_10_s
-	    << " | ";
+	out << std::setw(16) << (ctd->eV_N_s ? ctd->eV_av_s/ctd->eV_N_s : 0.0)
+	    << std::setw(16) << ctd->eV_N_s
+	    << std::setw(16) << ctd->eV_min_s
+	    << std::setw(16) << ctd->eV_max_s
+	    << std::setw(16) << ctd->eV_10_s
+	    << "   ";
       }
       out << std::endl;
     }
@@ -23454,3 +23463,208 @@ std::vector<double>& CollideIon::coulomb_vector(std::vector<double>& rel,
   return rel;
 }
 
+#if HAVE_LIBCUDA==1
+
+void CollideIon::cuda_part_stats_initialize()
+{
+  if (myid) return;
+
+  {
+    // Generate the file name
+    std::ostringstream sout;
+    sout << outdir << runtag << ".ION_diag";
+    stats_file_debug = sout.str();
+
+    // Check for existence
+    std::ifstream in(stats_file_debug.c_str());
+
+    if (in.fail()) {
+
+      // Write a new file
+      std::ofstream out(stats_file_debug.c_str());
+
+      if (out.good()) {
+	
+	out << "# Variable      key                      " << std::endl
+	    << "# ------------  -------------------------" << std::endl
+	    << "# ionF          ion fraction             " << std::endl
+	    << "# elecF         electron fraction        " << std::endl
+	    << "# EkeI          ion kinetic energy       " << std::endl
+	    << "# EkeE          electron kinetic energy  " << std::endl
+	    << "# delI          ion excess energy        " << std::endl
+	    << "# delE          electron excess energy   " << std::endl
+	    << "# potE          electron potential energy" << std::endl
+	    << "# totKE         total kinetic energy     " << std::endl
+	    << "# Etotl         total energy             " << std::endl
+	    << "#"                                         << std::endl;
+
+	// Header line
+	//
+	out << std::setfill('-') << std::right;
+	out << "#" << std::setw(15) << '+';
+	for (int i=0; i<9; i++) out << std::setw(16) << '+';
+	out << std::endl << std::setfill(' ');
+
+	// Column labels
+	//
+	out << "#"
+	    << std::setw(15) << "Time |"
+	    << std::setw(16) << "Ifrc |"
+	    << std::setw(16) << "Efrc |"
+	    << std::setw(16) << "EkeI |"
+	    << std::setw(16) << "EkeE |"
+	    << std::setw(16) << "delI |"
+	    << std::setw(16) << "delE |"
+	    << std::setw(16) << "potE |"
+	    << std::setw(16) << "totKE |"
+	    << std::setw(16) << "Etotl |"
+	    << std::endl;
+
+	// Column numbers
+	//
+	std::ostringstream st;
+	unsigned int cnt = 0;
+	st << "[" << ++cnt << "] |";
+	out << "#" << std::setw(15) << st.str();
+	for (size_t l=0; l<9; l++) {
+	  st.str("");
+	  st << "[" << ++cnt << "] |";
+	  out << std::setw(16) << std::right << st.str();
+	}
+	out << std::endl;
+
+	// Header line
+	//
+	out << std::setfill('-') << std::right;
+	out << "#" << std::setw(15) << '+';
+	for (int i=0; i<9; i++) out << std::setw(16) << '+';
+      }
+      out << std::endl;
+    }
+    in.close();
+  }
+}
+  
+
+void CollideIon::cuda_part_stats_gather()
+{
+  cudaStats cs;
+
+  cs.zero();
+
+  for (auto p : c0->Particles()) {
+
+    Particle * s = p.second.get();
+
+    double keE = 0.0;
+    double keI = 0.0;
+
+    for (size_t j=0; j<3; j++) {
+      double v = s->dattrib[use_elec+j];
+      keE += v*v;
+      v = s->vel[j];
+      keI += v*v;
+    }
+
+    cs.Mass += s->mass;
+    cs.Eion += 0.5 * s->mass * keI;
+    cs.Icon += s->dattrib[use_cons];
+    cs.Econ += s->dattrib[use_elec+3];
+
+    double mass = 0.0;
+
+    if (aType == Trace) {
+      for (auto t : SpList) {
+	unsigned short Z = t.first.first;
+	unsigned short P = t.first.second - 1;
+	mass += s->mass * atomic_weights[0]/atomic_weights[Z] *
+	  s->dattrib[t.second] * P;
+      }
+      
+      cs.Efrc += mass;
+      cs.Elec += 0.5 * mass * keE;
+    } else {
+      speciesKey k = KeyConvert(s->iattrib[use_key]).getKey();
+      unsigned short Z = k.first;
+
+      mass = s->mass * atomic_weights[0]/atomic_weights[Z];
+
+      if (aType == Hybrid) {
+	double cnt = 0.0;
+	for (unsigned short C=1; C<=Z; C++)
+	  cnt += s->dattrib[spc_pos+1]*C;
+	mass *= cnt;
+      } else {
+	mass *= static_cast<double>(k.second - 1);
+      }
+
+      cs.Efrc += mass;
+      cs.Elec += 0.5 * mass * keE;
+    }
+
+    const double cvrt = TreeDSMC::Munit/amu * eV/TreeDSMC::Eunit;
+    
+    // Ion electronic potential energy
+    //
+    if (aType == Trace) {
+      for (auto t : SpList) {
+	speciesKey     k = t.first;
+	unsigned short Z = k.first;
+	unsigned short C = k.second;
+	if (C <= Z) {
+	  double emfac     = s->mass/atomic_weights[Z] * cvrt;
+	  double IP        = ch.IonList[lQ(Z, C)]->ip;
+	  cs.Epot         += emfac * IP * s->dattrib[t.second];
+	}
+      }
+    }
+    else if (aType == Hybrid) {
+      speciesKey k     = KeyConvert(s->iattrib[use_key]).getKey();
+      unsigned short Z = k.first;
+      double emfac     = s->mass/atomic_weights[Z] * cvrt;
+      for (unsigned short CC=Z+1; CC>1; CC--) {
+	double IP = ch.IonList[lQ(Z, CC-1)]->ip;
+	cs.Epot  += emfac * IP * s->dattrib[spc_pos+CC-1] ;
+      }
+    } else {
+      speciesKey k     = KeyConvert(s->iattrib[use_key]).getKey();
+      unsigned short Z = k.first, C = k.second;
+      double emfac     = s->mass/atomic_weights[Z] * cvrt;
+      for (unsigned short CC=C; CC>1; CC--) {
+	cs.Epot += emfac * ch.IonList[lQ(Z, CC-1)]->ip;
+      }
+    }
+    
+  } // END: body loop
+
+  MPI_Reduce(&cs,  &cs0, 7, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+
+} // END: cuda_part_stats_gather
+
+void CollideIon::cuda_part_stats_print()
+{
+  if (myid) return;
+
+  {
+    std::ofstream out(stats_file_debug, ios::out | ios::app);
+    out << std::scientific << std::setprecision(7);
+    if (out) {
+      double cvrt   = eV/TreeDSMC::Eunit;
+
+      out << std::setw(16) << tnow
+	  << std::setw(16) << cs0.Mass
+	  << std::setw(16) << cs0.Efrc
+	  << std::setw(16) << cs0.Eion
+	  << std::setw(16) << cs0.Elec
+	  << std::setw(16) << cs0.Icon
+	  << std::setw(16) << cs0.Econ
+	  << std::setw(16) << cs0.Epot
+	  << std::setw(16) << cs0.Eion + cs0.Elec
+	  << std::setw(16) << cs0.Eion + cs0.Elec + cs0.Icon + cs0.Econ
+	  << std::endl;
+    }
+  }
+}
+
+#endif
