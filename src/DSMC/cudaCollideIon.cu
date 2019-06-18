@@ -1580,7 +1580,7 @@ static std::string interLabels[] =
 
 // use_cons value
 //
-__constant__ int    cuSp0, cuCons, cuElec, cuEcon, cuNoDel;
+__constant__ int    cuSp0, cuCons, cuElec, cuEcon, cuNoDel, cuMinMass;
 
 const int maxAtomicNumber = 15;
 __constant__ cuFP_t cuda_atomic_weights[maxAtomicNumber], cuFloorEV, cuEsu;
@@ -1616,8 +1616,11 @@ void testConstantsIon(int idev)
   printf("** eV  (cgs)  = %13.6e\n", cuEV                );
   printf("** esu (cgs)  = %13.6e\n", cuEsu               );
   printf("** NoDel      = %d\n",     cuNoDel             );
-  if (cuMeanMass) 
+
+  if (cuMeanMass) {
     printf("** Mean mass  = true\n"                      );
+    printf("** MinMass    = %13.6e\n", cuMinMass         );
+  }
   else
     printf("** Mean mass  = false\n"                     );
   if (cuRecombIP) 
@@ -1886,6 +1889,11 @@ void CollideIon::cuda_atomic_weights_init()
 
   cuda_safe_call(cudaMemcpyToSymbol(cuNoDel, &NoDelC, sizeof(int)), 
 		 __FILE__, __LINE__, "Error copying cuNoDel");
+
+  cuFP_t minMass = 1.0e-2;
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuMinMass, &minMass, sizeof(cuFP_t)), 
+		 __FILE__, __LINE__, "Error copying cuMinMass");
 }  
 
 
@@ -3219,8 +3227,10 @@ void cudaScatterTrace
     if (m1<1.0) m1 *= eta1;
     if (m2<1.0) m2 *= eta2;
 
-    if (m1<1.0e-12) m1 = 1.0e-12;
-    if (m2<1.0e-12) m2 = 1.0e-12;
+    cuFP_t minMass = cuda_atomic_weights[0]*cuMinMass;
+
+    if (m1<minMass) m1 = minMass;
+    if (m2<minMass) m2 = minMass;
 
 #ifdef XC_DEEP3
     // KE debug check
@@ -3645,8 +3655,10 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
 	cuSwapP(v1,   v2);
       }
 
-      if (m1 < 1.0e-12) m1 = 1.0e-12;
-      if (m2 < 1.0e-12) m2 = 1.0e-12;
+      cuFP_t minMass = cuda_atomic_weights[0]*cuMinMass;
+
+      if (m1 < minMass) m1 = minMass;
+      if (m2 < minMass) m2 = minMass;
 
       // Total effective mass in the collision
       //
@@ -4936,6 +4948,10 @@ void CollideIon::cuda_random_init(int N)
 //
 void * CollideIon::collide_thread_cuda(void * arg)
 {
+  // Return if no cuda device is assigned by the Component instance
+  //
+  if (c0->cudaDevice<0) return(NULL);
+
   // This will only be done once
   //
   cuda_initialize();
