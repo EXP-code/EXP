@@ -3219,6 +3219,9 @@ void cudaScatterTrace
     if (m1<1.0) m1 *= eta1;
     if (m2<1.0) m2 *= eta2;
 
+    if (m1<1.0e-12) m1 = 1.0e-12;
+    if (m2<1.0e-12) m2 = 1.0e-12;
+
 #ifdef XC_DEEP3
     // KE debug check
     //
@@ -4498,15 +4501,48 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       {
 	cuFP_t sum1 = 0.0, sum2 = 0.0;
 	for (int k=0; k<Nsp; k++) {
-	  if (F1._v[fP+k]<0.0) { printf("ERROR: F1[%d]=%e\n", k, F1._v[fP+k]); }
-	  if (F2._v[fP+k]<0.0) { printf("ERROR: F2[%d]=%e\n", k, F2._v[fP+k]); }
+
+	  if (F1._v[fP+k]<0.0)
+	    printf("**ERROR: F1[%d]=%e\n", k, F1._v[fP+k]);
+
+	  if (F2._v[fP+k]<0.0)
+	    printf("**ERROR: F2[%d]=%e\n", k, F2._v[fP+k]);
+
 	  sum1 += F1._v[fP+k];
 	  sum2 += F2._v[fP+k];
 	}
 	
 	// Sanity check
-	if (fabs(sum1 - 1.0) > 1.0e-6) { printf("ERROR: sum1=%e\n", sum1); }
-	if (fabs(sum2 - 1.0) > 1.0e-6) { printf("ERROR: sum2=%e\n", sum2); }
+	//
+	if (fabs(sum1 - 1.0) > 1.0e-6) {
+	  printf("**ERROR: sum1=%e\n", sum1);
+	  for (int k=0; k<Nsp; k++) {
+	    cuIonElement& E = elems._v[k];
+	    printf("**[%d]=%13.6e  %13.6e\n", k, F1._v[fP+k], p1->datr[E.I+cuSp0]);
+	  }
+	}
+
+	if (fabs(sum2 - 1.0) > 1.0e-6) {
+	  printf("**ERROR: sum2=%e\n", sum2);
+	  for (int k=0; k<Nsp; k++) {
+	    cuIonElement& E = elems._v[k];
+	    printf("**[%d]=%13.6e  %13.6e\n", k, F2._v[fP+k], p2->datr[E.I+cuSp0]);
+	  }
+	}
+
+	// Deep sanity check
+	//
+	for (int k=0; k<Nsp; k++) {
+	  cuIonElement& E = elems._v[k];
+	  cuFP_t dif = fabs(F1._v[fP+k] - p1->datr[E.I+cuSp0]);
+	  if (dif > 0.05) {
+	    printf("**ERROR dF1[%d]=%13.6  %13.6e  %13.6e\n", k, dif, F1._v[fP+k], p1->datr[E.I+cuSp0]);
+	  }
+	  dif = fabs(F2._v[fP+k] - p2->datr[E.I+cuSp0]);
+	  if (dif > 0.05) {
+	    printf("**ERROR dF2[%d]=%13.6  %13.6e  %13.6e\n", k, dif, F2._v[fP+k], p2->datr[E.I+cuSp0]);
+	  }
+	}
 
 	cuFP_t Sum1 = 0.0, Sum2 = 0.0, Eta1 = 0.0, Eta2 = 0.0;
 	for (int k=0; k<Nsp; k++) {
@@ -4514,7 +4550,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
 	  p1->datr[E.I+cuSp0] = F1._v[fP+k]/sum1;
 	  p2->datr[E.I+cuSp0] = F2._v[fP+k]/sum2;
-
 
 	  // Number fraction of ions
 	  cuFP_t one = p1->datr[E.I+cuSp0] / cuda_atomic_weights[E.Z];
