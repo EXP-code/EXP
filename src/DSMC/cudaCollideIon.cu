@@ -1580,12 +1580,12 @@ static std::string interLabels[] =
 
 // use_cons value
 //
-__constant__ int    cuSp0, cuCons, cuElec, cuEcon, cuNoDel, cuMinMass;
+__constant__ int    cuSp0, cuCons, cuElec, cuEcon, cuNoDel;
 
 const int maxAtomicNumber = 15;
 __constant__ cuFP_t cuda_atomic_weights[maxAtomicNumber], cuFloorEV, cuEsu;
 __constant__ cuFP_t cuVunit, cuMunit, cuTunit, cuLunit, cuEunit;
-__constant__ cuFP_t cuAmu, cuEV, cuLogL, cuCrossfac;
+__constant__ cuFP_t cuAmu, cuEV, cuLogL, cuCrossfac, cuMinMass;
 __constant__ bool   cuMeanKE, cuMeanMass, cuNewRecombAlg, cuNoCool, cuRecombIP;
 
 const int coulSelNumT = 2000;
