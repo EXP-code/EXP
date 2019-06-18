@@ -1072,27 +1072,41 @@ void Component::initialize(void)
     //
     if (deviceCount>0) {
 
-      if (ngpus>0) deviceCount = std::min<int>(deviceCount, ngpus);
+      int totalCount = std::max<int>(deviceCount, ngpus);
 
-      int myCount = 0, curCount = 0; // Get my local rank in sibling
-      for (auto v : siblingList) {   // processes
+      // Get my local rank in sibling processes
+      //
+      int myCount = 0, curCount = 0;
+      for (auto v : siblingList) {
 	if (myid==v) myCount = curCount;
 	curCount++;
       }
 	
-      if (myCount < deviceCount) cudaDevice = myCount;
+      // Allow GPU to be used by multiple MPI processes
+      //
+      if (myCount < totalCount) cudaDevice = myCount % deviceCount;
+      
+      // Set device; exit on failure
+      //
       if (cudaDevice>=0) {
-	// Set device; exit on failure
-	//
+
 	cuda_safe_call_mpi(cudaSetDevice(cudaDevice), __FILE__, __LINE__,
 			   myid, "cudaSetDevice failure");
 
 	std::cout << "Component <" << name << ">: "
 		  << "setting CUDA device on Rank [" << myid
-		  << "] on [" << processor_name << "] to [" << cudaDevice << "]"
+		  << "] on [" << processor_name << "] to ["
+		  << cudaDevice << "/" << deviceCount << "]"
 		  << std::endl;
 
 	cuda_initialize();
+      } else {
+	
+	std::cout << "Component <" << name << ">: "
+		  << "could not CUDA device on Rank [" << myid
+		  << "] on [" << processor_name << "] . . . "
+		  << "this is okay for n-body but will cause a failure in TreeDSMC" << std::endl;
+	
       }
 
     } else {
