@@ -22887,7 +22887,7 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
 	eta2 += p2->dattrib[caller->spc_pos+C]*C;
     }
     
-  }
+  } // END: all methods method besides Trace
 
   if (caller->MeanMass) {
 
@@ -22904,7 +22904,8 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
       break;
     }
 
-  } else {
+  } // END: MeanMass
+  else {
 
     switch (P) {
     case ion_electron:
@@ -23038,7 +23039,8 @@ CollideIon::Pord::Epair CollideIon::Pord::compE()
     eta2 = 0.0;
     for (unsigned short C=1; C<=Z2; C++)
       eta2 += p2->dattrib[caller->spc_pos+C]*C;
-  }
+
+  } // END: All methods besides Trace
 
 
   // Using weighted interaction?
@@ -23069,8 +23071,10 @@ CollideIon::Pord::Epair CollideIon::Pord::compE()
     }
 
     q = W2/W1;
-  }
-				// Compute KE
+  } // END: wght == true
+
+  // Compute KE
+  //
   for (size_t k=0; k<3; k++) {
     ret[0].KEi += p1->vel[k] * p1->vel[k];
     ret[1].KEi += p2->vel[k] * p2->vel[k];
