@@ -11423,7 +11423,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 #ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
-	  xc_weight [interFlag] += Prob;
+	  xc_weight [interFlag] += WW;
 #endif
 	  if (use_normtest) {
 	    std::ostringstream sout;
@@ -11520,7 +11520,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 #ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
-	  xc_weight [interFlag] += Prob;
+	  xc_weight [interFlag] += WW;
 #endif
 	  if (use_normtest) {
 	    std::ostringstream sout;
@@ -11621,7 +11621,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  
 #ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
-	  xc_weight [interFlag] += Prob;
+	  xc_weight [interFlag] += WW;
 #endif
 	  if (use_normtest) {
 	    std::ostringstream sout;
@@ -11743,7 +11743,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  
 #ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
-	  xc_weight [interFlag] += Prob;
+	  xc_weight [interFlag] += WW;
 #endif
 	  if (use_normtest) {
 	    std::ostringstream sout;

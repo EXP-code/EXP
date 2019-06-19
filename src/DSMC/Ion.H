@@ -191,7 +191,8 @@ typedef std::pair<unsigned short, unsigned short> lQ;
 
 class Ion;
 
-//! Number of grid points in cumulative grid
+//! Number of grid points in cumulative grid used for cuda
+//! implementation only
 #define CHCUMK 100
 
 #if HAVE_LIBCUDA==1
@@ -338,8 +339,14 @@ public:
   //! Cuda texture interpolation descriptions
   std::vector<cuIonElement> cuIonElem;
 
-  //! Test cross sections
+  //! Test cross sections using stand-alone test routine
   void testCross(int Nenergy);
+
+  //! Test cross sections in production kernel
+  void testCross(int Nenergy,
+		 thrust::device_vector<cuIonElement> & cuElems,
+		 thrust::device_vector<cuFP_t> & x1,
+		 thrust::device_vector<cuFP_t> & x2);
 #endif
   
 };
