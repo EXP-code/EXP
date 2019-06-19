@@ -61,6 +61,7 @@ void initialize(void)
     
     if (_G["nsteps"])	     nsteps     = _G["nsteps"].as<int>();
     if (_G["nthrds"])	     nthrds     = std::max<int>(1, _G["nthrds"].as<int>());
+    if (_G["ngpus"])	     ngpus      = _G["ngpus"].as<int>();
     if (_G["nreport"])	     nreport    = _G["nreport"].as<int>();
     if (_G["nbalance"])      nbalance   = _G["nbalance"].as<int>();
     if (_G["dbthresh"])      dbthresh   = _G["dbthresh"].as<int>();

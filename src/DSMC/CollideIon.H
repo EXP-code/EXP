@@ -818,6 +818,24 @@ private:
   thrust::device_vector<cuFP_t>       xsc_H, xsc_He, xsc_pH, xsc_pHe;
   thrust::device_vector<curandState>  d_randS;
   cudaDeviceProp                      deviceProp;
+
+  //! For diagnostic output
+  //@{
+  void cuda_part_stats_initialize();
+  void cuda_part_stats_gather();
+  void cuda_part_stats_print();
+
+  struct cudaStats
+  {
+    double Mass, Efrc, Eion, Elec, Icon, Econ, Epot;
+
+    void zero() {
+      Mass = Efrc = Eion = Elec = Icon = Econ = Epot = 0.0;
+    }
+  } cs0;
+
+  std::string stats_file_debug;
+  //@}
 #endif
 
 #ifdef XC_DEEP9
@@ -1587,9 +1605,31 @@ public:
 
   //@{
   //! Gather and print collision statistics
-  virtual void printCollGather()  { collD->gather(); }
-  virtual void printCollSummary() { collD->print (); }
-  virtual void resetColls()       { collD->reset (); electronReset(); }
+  virtual void printCollGather()  {
+#if HAVE_LIBCUDA==1
+    if (use_cuda and aType == Trace)
+      cuda_part_stats_gather();
+    else
+#endif
+    collD->gather();
+  }
+  virtual void printCollSummary() {
+#if HAVE_LIBCUDA==1
+    if (use_cuda and aType == Trace)
+      cuda_part_stats_print();
+    else
+#endif
+    collD->print ();
+  }
+  virtual void resetColls() {
+#if HAVE_LIBCUDA==1
+    if (not use_cuda or aType != Trace)
+#endif
+      {
+	collD->reset();
+	electronReset();
+      }
+  }
   //@}
 
   //@{
