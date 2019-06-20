@@ -9,7 +9,12 @@
 class EXPException : public std::exception
 {
   public:
-  //! Constructor for base
+  /** Constructor for base
+      @param exceptionname   Human-readable identifier for the error
+      @param message         Error details for the user
+      @param sourefilename   File where the thrower resides
+      @param sourelinenumber Line number in the source for the thrower
+  */
   EXPException(const std::string exceptionname, const std::string message,
 	       const std::string sourcefilename, int sourcelinenumber)
   {
@@ -21,13 +26,18 @@ class EXPException : public std::exception
     msg_ = getErrorMessage();
   }
 
-  //! Destructor for base
+  //! Destructor for base.  Virtual to permit derived classes.
   virtual ~EXPException() {}
 
-  //! Returns an error message suitable for printing to the user.
+  /** 
+      Returns an error message suitable for printing to the user.
+      Also called by derived classes to assemble the error message for
+      std::exception::what() 
+  */
   std::string getErrorMessage()
   {
     // This combines the error name, error message, and the throw locations
+    //
     std::ostringstream wholemessage;
     wholemessage << exceptionname << ": " << errormessage;
     wholemessage << "Thrown from " << sourcefilename << ":" << sourcelinenumber;
@@ -35,13 +45,21 @@ class EXPException : public std::exception
     return wholemessage.str();
   }
 
-  //! std::exception member
+  /**  std::exception member returns a pointer to the error message
+
+       @return A pointer to a const char*. 
+
+       The std::string "buffer" used for assembling and passing the
+       message to std::exception will be deleted when the exception is
+       deleted.
+  */
   virtual const char* what() const throw ()
   {
     return msg_.c_str();
   }
   
 protected:
+
   //! Protected so it is only called by properly implemented classes
   EXPException(const std::string sourcefile, int linenumber)
   {
@@ -82,12 +100,13 @@ public:
     std::ostringstream ostr; ostr << "Error details: " << msg << ".";
     errormessage = ostr.str();
 
+    // Assemble and store the error message
     msg_ = getErrorMessage();
   }
   //@}
 };
 
-//! Used when execution reaches a point it should not reach.
+//! Used when execution reaches a point it should not reach
 class InternalError : public EXPException
 {
 public:
