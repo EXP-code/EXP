@@ -194,7 +194,7 @@ main(int ac, char **av)
      "Temperature in kelvins")
     ("bins,b",	        po::value<int>(&numb)->default_value(40),
      "number of bins")
-    ("species,s",	po::value<std::string>(&spfile)->default_value("species.spec"),
+    ("species,s",	po::value<std::string>(&spfile)->default_value("species.yml"),
      "species definition file")
     ("name,c",	        po::value<std::string>(&cname)->default_value("gas"),
      "component name")
