@@ -4332,13 +4332,15 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      printf("Crazy ionize I1=%d\n", IT.I1);
 	    }
 #endif
-	    if (WW < F1._v[fP+IT.I1]) {
-	      F1._v[fP+IT.I1  ] -= WW;
-	      F1._v[fP+IT.I1+1] += WW;
+	    int pos = fP + IT.I1;
+
+	    if (WW < F1._v[pos]) {
+	      F1._v[pos  ] -= WW;
+	      F1._v[pos+1] += WW;
 	    } else {
-	      WW = F1._v[fP+IT.I1];
-	      F1._v[fP+IT.I1  ]  = 0.0;
-	      F1._v[fP+IT.I1+1] += WW;
+	      WW = F1._v[pos];
+	      F1._v[pos  ]  = 0.0;
+	      F1._v[pos+1] += WW;
 	    }
 	    
 #ifdef XC_DEEP9
@@ -4400,13 +4402,15 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      printf("Crazy ionize I2=%d\n", IT.I2);
 	    }
 #endif
-	    if (WW < F2._v[fP+IT.I2]) {
-	      F2._v[fP+IT.I2  ] -= WW;
-	      F2._v[fP+IT.I2+1] += WW;
+	    int pos = fP + IT.I2;
+
+	    if (WW < F2._v[pos]) {
+	      F2._v[pos  ] -= WW;
+	      F2._v[pos+1] += WW;
 	    } else {
-	      WW = F2._v[fP+IT.I2];
-	      F2._v[fP+IT.I2  ]  = 0.0;
-	      F2._v[fP+IT.I2+1] += WW;
+	      WW = F2._v[pos];
+	      F2._v[pos  ]  = 0.0;
+	      F2._v[pos+1] += WW;
 	    }
 	    
 #ifdef XC_DEEP9
@@ -4476,6 +4480,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    cuFP_t ff = cuda_atomic_weights[IT.Z1]/EI.Mu1;
 	    cuFP_t WW = Prob * ff;
 	    
+	    int pos = fP + IT.I1;
+	    
 #ifdef SANITY_DEBUG
 	    if (IT.C1<=1 or IT.I2!=255) {
 	      int K = cid*numxc + J;
@@ -4496,15 +4502,15 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      printf("Crazy W: Z1=%d C1=%d I1=%d Z2=%d C2=%d I2=%d: ww=%e f1=%e P0=%e\n",
 		     IT.Z1, IT.C1, IT.I1, 
 		     IT.Z2, IT.C2, IT.I2,
-		     WW, F1._v[fP+IT.I1], Prob);
+		     WW, F1._v[pos], Prob);
 #endif
-	    if (WW < F1._v[fP+IT.I1]) {
-	      F1._v[fP+IT.I1  ] -= WW;
-	      F1._v[fP+IT.I1-1] += WW;
+	    if (WW < F1._v[pos]) {
+	      F1._v[pos  ] -= WW;
+	      F1._v[pos-1] += WW;
 	    } else {
-	      WW = F1._v[fP+IT.I1];
-	      F1._v[fP+IT.I1  ]  = 0.0;
-	      F1._v[fP+IT.I1-1] += WW;
+	      WW = F1._v[pos];
+	      F1._v[pos  ]  = 0.0;
+	      F1._v[pos-1] += WW;
 	    }
 	    
 #ifdef XC_DEEP9
@@ -4549,6 +4555,9 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    //
 	    cuFP_t ff = cuda_atomic_weights[IT.Z2]/EI.Mu2;
 	    cuFP_t WW = Prob * ff;
+
+	    int pos = fP + IT.I2;
+
 #ifdef SANITY_DEBUG
 	    if (IT.C2<=1 or IT.I1!=255) {
 	      int K = cid*numxc + J;
@@ -4568,15 +4577,15 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      printf("Crazy W: Z1=%d C1=%d I1=%d Z2=%d C2=%d I2=%d: ww=%e f2=%e P0=%e cf=%e\n",
 		     IT.Z1, IT.C1, IT.I1, 
 		     IT.Z2, IT.C2, IT.I2,
-		     WW, F2._v[fP+IT.I2], Prob);
+		     WW, F2._v[pos], Prob);
 #endif	    
-	    if (WW < F2._v[fP+IT.I2]) {
-	      F2._v[fP+IT.I2  ] -= WW;
-	      F2._v[fP+IT.I2-1] += WW;
+	    if (WW < F2._v[pos]) {
+	      F2._v[pos  ] -= WW;
+	      F2._v[pos-1] += WW;
 	    } else {
-	      WW = F2._v[fP+IT.I2];
-	      F2._v[fP+IT.I2  ]  = 0.0;
-	      F2._v[fP+IT.I2-1] += WW;
+	      WW = F2._v[pos];
+	      F2._v[pos  ]  = 0.0;
+	      F2._v[pos-1] += WW;
 	    }
 	    
 #ifdef XC_DEEP9
