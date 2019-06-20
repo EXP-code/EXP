@@ -170,7 +170,7 @@ main(int ac, char **av)
 {
   char *prog = av[0];
   double time, Emin, Emax, Lunit, Tunit, Temp;
-  bool verbose = false, logE = false, flat = false;
+  bool verbose = false, logE = false, flat = false, meanmass = false;
   std:: string cname, spfile;
   int numb, comp;
 
@@ -198,6 +198,8 @@ main(int ac, char **av)
      "species definition file")
     ("name,c",	        po::value<std::string>(&cname)->default_value("gas"),
      "component name")
+    ("meanMass",
+     "use mean-mass algorithm for electron energy computation")
     ("logE",
      "use log scaling for energy range")
     ("flat",
@@ -225,6 +227,10 @@ main(int ac, char **av)
   if (vm.count("flat")) {
     logE = false;
     flat = true;
+  }
+
+  if (vm.count("meanMass")) {
+    meanmass = true;
   }
 
   if (vm.count("help")) {
@@ -410,6 +416,8 @@ main(int ac, char **av)
 
 	kEe *= KEfac * atomic_mass[0];
 	kEi *= KEfac * mu;
+
+	if (meanmass) kEe *= efrac;
 
 	if (logE) {
 	  kEe = log(kEe);
