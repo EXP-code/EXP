@@ -82,7 +82,7 @@ bool   Ion::useIonizeGrid    = true;
 bool   Ion::GridDebug        = false; // Set to true for debugging
 int    Ion::GridReport       = 10000; // Used for debugging only
 double Ion::EminGrid         = 0.001; // eV
-double Ion::EmaxGrid         = 50.0;  // eV
+double Ion::EmaxGrid         = 500.0; // eV
 double Ion::DeltaEGrid       = 0.05;  // eV
 
 // Chianti element list
