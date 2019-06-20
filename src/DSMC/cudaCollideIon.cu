@@ -528,11 +528,13 @@ void CollideIon::cudaElasticInit()
 		 __FILE__, __LINE__, "Error copying cuPHe_H");
 
 #ifdef XC_COMPARE
-    if (myid==0) {
-      const int Nenergy = 1000;
-      ch.testCross(Nenergy, cuElems, xsc_H, xsc_He);
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
+  // Compares the cross-section evaluation between CPU and GPU
+  //
+  if (myid==0) {
+    const int Nenergy = 1000;
+    ch.testCross(Nenergy, cuElems, xsc_H, xsc_He);
+  }
+  MPI_Barrier(MPI_COMM_WORLD);
 #endif
 }
 
@@ -554,6 +556,7 @@ cuFP_t cudaElasticInterp(cuFP_t E, dArray<cuFP_t> xsc, int Z,
 			 bool pin = true)
 {
   // Bohr cross section (pi*a_0^2) in nm
+  //
   const cuFP_t b_cross = 0.00879735542978;
 
   cuFP_t Emin, H;
@@ -589,6 +592,7 @@ cuFP_t cudaElasticInterp(cuFP_t E, dArray<cuFP_t> xsc, int Z,
 
   // Enforce return value to grid boundaries for off-grid ordinates.
   // Otherwise, values will be extrapolated.
+  //
   if      (pin and E <= Emin) val = xsc._v[0];
   else if (pin and E >= Emax) val = xsc._v[N-1];
   else {
@@ -629,6 +633,9 @@ cuFP_t ionEminGrid, ionEmaxGrid, ionDeltaEGrid;
 __device__ __constant__
 int ionEgridNumber, ionRadRecombNumber;
 
+// The grid energy ranges are set in Ion.cc as Ion class static
+// variables
+//
 void chdata::cuda_initialize_textures()
 {
   size_t ionSize = IonList.size();
@@ -767,13 +774,12 @@ void chdata::cuda_initialize_textures()
       cudaChannelFormatDesc channelDesc1 = cudaCreateChannelDesc<int2>();
 #endif
       
-      // std::cout << "Allocating cuF0array[" << k << "]" << std::endl;
       cuda_safe_call(cudaMallocArray(&cuF0array[k], &channelDesc1, I->NfreeFreeGrid), __FILE__, __LINE__, "malloc cuArray");
 
       cuda_safe_call(cudaMemcpyToArray(cuF0array[k], 0, 0, &h_buffer0[0], tsize, cudaMemcpyHostToDevice), __FILE__, __LINE__, "copy texture to array");
 
       // Specify 1-d texture
-
+      //
       cudaResourceDesc resDesc;
 
       memset(&resDesc, 0, sizeof(cudaResourceDesc));
