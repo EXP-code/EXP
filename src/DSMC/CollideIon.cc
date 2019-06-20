@@ -23,7 +23,7 @@
 // Version info
 //
 #define NAME_ID    "CollideIon"
-#define VERSION_ID "0.36 [04/29/19 Coulombic split test]"
+#define VERSION_ID "0.37 [06/19/19 Coulombic trace]"
 
 using namespace std;
 using namespace NTC;
