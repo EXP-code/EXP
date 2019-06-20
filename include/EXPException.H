@@ -13,53 +13,53 @@ class EXPException : public std::exception
   EXPException(const std::string exceptionname, const std::string message,
 	       const std::string sourcefilename, int sourcelinenumber)
   {
-    errormessage = new std::ostringstream;
     this->sourcefilename   = sourcefilename;
     this->sourcelinenumber = sourcelinenumber; 
-    this->exceptionname = exceptionname;
-    (*errormessage) << message;
+    this->exceptionname    = exceptionname;
+    this->errormessage     = message;
+
+    msg_ = getErrorMessage();
   }
 
   //! Destructor for base
-  virtual ~EXPException()
-  {
-    delete errormessage;
-    errormessage = 0;
-  }
+  virtual ~EXPException() {}
 
   //! Returns an error message suitable for printing to the user.
-  const std::string getErrorMessage() const
+  std::string getErrorMessage()
   {
-    // This combines the error name, error message, and the throw locations.
-    std::string buffer = (*errormessage).str();
-
+    // This combines the error name, error message, and the throw locations
     std::ostringstream wholemessage;
-    wholemessage << exceptionname << ": " << buffer;
+    wholemessage << exceptionname << ": " << errormessage;
     wholemessage << "Thrown from " << sourcefilename << ":" << sourcelinenumber;
-    return wholemessage.str();  // stringstream returns a const std::string
+
+    return wholemessage.str();
   }
 
   //! std::exception member
   virtual const char* what() const throw ()
   {
-    return getErrorMessage().c_str();
+    return msg_.c_str();
   }
   
 protected:
   //! Protected so it is only called by properly implemented classes
   EXPException(const std::string sourcefile, int linenumber)
   {
-    errormessage = new std::ostringstream;
-    this->sourcefilename   = sourcefilename;
-    this->sourcelinenumber = sourcelinenumber; 
+    this->sourcefilename   = sourcefile;
+    this->sourcelinenumber = linenumber; 
+
+    msg_ = getErrorMessage();
   }
 
   //! Friendly name of the exception
   std::string exceptionname;
 
   //! Error message describing the error in more detail
-  std::ostringstream * errormessage;
-  
+  std::string errormessage;
+
+  //! Message buffer
+  std::string msg_;
+
 private:
   //! Source file where throw occured
   std::string sourcefilename;
@@ -79,7 +79,10 @@ public:
     : EXPException(sourcefilename, sourcelinenumber)
   {
     exceptionname = "Execution exception";
-    (*errormessage) << "Error details: " << msg << ".";
+    std::ostringstream ostr; ostr << "Error details: " << msg << ".";
+    errormessage = ostr.str();
+
+    msg_ = getErrorMessage();
   }
   //@}
 };
@@ -95,17 +98,20 @@ public:
     : EXPException(sourcefilename, sourcelinenumber)
   {
     exceptionname = "Internal Error Exception";
-    (*errormessage) << "Execution reached a state that should not reachable.";
+    errormessage  = "Execution reached a state that should not reachable.";
+
+    msg_ = getErrorMessage();
   }
 
   InternalError
-  (const std::string msg, const std::string sourcefilename,
-   int sourcelinenumber)
+  (const std::string msg, const std::string sourcefilename, int sourcelinenumber)
     : EXPException(sourcefilename, sourcelinenumber)
   {
     exceptionname = "Internal Error Exception";
-    (*errormessage) << "Execution reached a state that should not reachable. "
-		    << msg << ".";
+    errormessage  = "Execution reached a state that should not reachable. "
+      +  msg + ".";
+
+    msg_ = getErrorMessage();
   }
   //@}
 };
@@ -120,8 +126,11 @@ public:
     : EXPException(sourcefilename, sourcelinenumber)
   {
     exceptionname = "Requested index is not in PartMap: ";
-    (*errormessage) << "Invalid index: " << index 
-		    << " out of " << num << " particles";
+    std::ostringstream sout;
+    sout << "Invalid index: " << index << " out of " << num << " particles";
+    errormessage = sout.str();
+
+    msg_ = getErrorMessage();
   }
 
 };
@@ -136,7 +145,9 @@ public:
   : EXPException(sourcefilename, sourcelinenumber)
   {
     exceptionname = "Cannot create new file";
-    (*errormessage) << "File name is <" << filename << ">";
+    errormessage  = "File name is <" + filename + ">";
+
+    msg_ = getErrorMessage();
   }
 
   //! Constructor with method string
@@ -145,7 +156,9 @@ public:
   : EXPException(sourcefilename, sourcelinenumber)
   {
     exceptionname = "Cannot create new file in " + method;
-    (*errormessage) << "File name is <" << filename << ">";
+    errormessage  = "File name is <" + filename + ">";
+
+    msg_ = getErrorMessage();
   }
 
 };
@@ -160,7 +173,9 @@ public:
     : EXPException(sourcefilename, sourcelinenumber)
   {
     exceptionname = "Cannot open existing file";
-    (*errormessage) << "File name is <" << filename << ">";
+    errormessage  = "File name is <" + filename + ">";
+
+    msg_ = getErrorMessage();
   }
 
   //! Constructor with method string
@@ -169,7 +184,9 @@ public:
     : EXPException(sourcefilename, sourcelinenumber)
   {
     exceptionname = "Cannot open existing file in " + method;
-    (*errormessage) << "File name is <" << filename << ">";
+    errormessage  = "File name is <" + filename + ">";
+
+    msg_ = getErrorMessage();
   }
 };
 
