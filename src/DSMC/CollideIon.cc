@@ -11766,7 +11766,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // Energy for ionized electron comes from COM
 	  dE += Echg1 * TreeDSMC::Eunit / (N0*eV);
 
-	  rcbExtra[0] = Echg1;
+	  rcbExtra[0] += Echg1;
 
 	  // Electron KE fraction in recombination
 	  //
@@ -23182,9 +23182,9 @@ void CollideIon::Fspc::update(unsigned flag)
     // Sanity check
     //
     if (sum1 > 0.0) {
-      if (fabs(sum1-1.0) > 1.0e-6) {
+      if (fabs(sum1-1.0) > 1.0e-12) {
 	std::cout << "**ERROR [" << myid << "] Fspc:"
-		  << " Unexpected f1 sum=" << sum1
+		  << " Unexpected f1 sum=" << sum1-1.0
 		  << ", T=" << tnow << ", ";
 	for (auto v : f1) std::cout << std::setw(18) << v;
 	std::cout << std::endl;
@@ -23194,9 +23194,9 @@ void CollideIon::Fspc::update(unsigned flag)
     // Sanity check
     //
     if (sum2 > 0.0) {
-      if (fabs(sum2-1.0) > 1.0e-6) {
+      if (fabs(sum2-1.0) > 1.0e-12) {
 	std::cout << "**ERROR [" << myid << "] Fspc:"
-		  << " Unexpected f2 sum=" << sum2
+		  << " Unexpected f2 sum=" << sum2-1.0
 		  << ", T=" << tnow << ", ";
 	for (auto v : f2 ) std::cout << std::setw(18) << v;
 	std::cout << std::endl;
