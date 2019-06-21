@@ -4105,11 +4105,20 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       
       // Electron and molecular weight
       //
-      for (int k=0; k<Nsp; k++) {
-	cuIonElement& E = elems._v[k];
+      {
+	cuFP_t sum1 = 0.0, sum2 = 0.0;
+	for (int k=0; k<Nsp; k++) {
+	  cuIonElement& E = elems._v[k];
 	
-	F1._v[fP+k] = p1->datr[E.I+cuSp0];
-	F2._v[fP+k] = p2->datr[E.I+cuSp0];
+	  F1._v[fP+k] = p1->datr[E.I+cuSp0];
+	  F2._v[fP+k] = p2->datr[E.I+cuSp0];
+	  sum1 += F1._v[fP+k];
+	  sum2 += F2._v[fP+k];
+	}
+	for (int k=0; k<Nsp; k++) {
+	  F1._v[fP+k] /= sum1;
+	  F2._v[fP+k] /= sum2;
+	}
       }
       
       cuFP_t w1  = p1->mass/EI.Mu1;
@@ -4183,7 +4192,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       
       // For electron energy conservation during ionization level change
       //
-      cuFP_t elecAdj = 0.0;
+      cuFP_t elecAdj[2] = {0.0, 0.0};
 
       for (int JJ=0; JJ<G; JJ++) {
 	// Use shuffled order to prevent any weird bias
@@ -4406,7 +4415,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 #ifdef SANITY_DEBUG
 	    cuFP_t Echg2 = EI.iE2 * WW / cuda_atomic_weights[IT.Z1];
 #endif
-	    elecAdj += Echg1;
+	    elecAdj[0] += Echg1;
 
 	    // Energy for ionized electron comes from COM
 	    //
@@ -4478,7 +4487,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 #endif
 	    cuFP_t Echg2 = EI.iE2 * WW / cuda_atomic_weights[IT.Z2];
 	    
-	    elecAdj += Echg2;
+	    elecAdj[0] += Echg2;
 
 	    // Energy for ionized electron comes from COM
 	    //
@@ -4565,9 +4574,9 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    cuFP_t Echg1 = EI.iE1 * WW / cuda_atomic_weights[IT.Z1];
 	    // cuFP_t Echg2 = EI.iE2 * WW / cuda_atomic_weights[IT.Z1];
 	    
-	    // Echg1 is lost from the COM by the algorithm
+	    // Echg1 is lost from the electron pool by algorithm
 	    //
-	    elecAdj -= Echg1;
+	    elecAdj[1] += Echg1;
 
 	    // KE Echg2 + IP is radiated.  Echg2 is lost from the COM
 	    // but Echg1 is used as a proxy to conserve internal energy
@@ -4637,12 +4646,12 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
 	    // Electron KE lost in recombination is radiated
 	    //
-	    // cuFP_t Echg1 = EI.iE1 * Prob / cuda_atomic_weights[IT.Z2];
-	    cuFP_t Echg2 = EI.iE2 * Prob / cuda_atomic_weights[IT.Z2];
+	    // cuFP_t Echg1 = EI.iE1 * WW / cuda_atomic_weights[IT.Z2];
+	    cuFP_t Echg2 = EI.iE2 * WW / cuda_atomic_weights[IT.Z2];
 	    
-	    // Echg1 is lost from the COM by the algorithm
+	    // Echg1 is lost from the electron pool by the algorithm
 	    //
-	    elecAdj -= Echg2;
+	    elecAdj[1] += Echg2;
 
 	    // Echg1 + IP is radiated.  Echg1 is lost from the COM
 	    // but Echg2 is used as a proxy to conserve internal energy
@@ -4696,7 +4705,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       //
       cuFP_t totalDE = 0.0;
       if (cuNoCool) {
-	totalDE = elecAdj;
+	totalDE = elecAdj[0] - elecAdj[1];
       } else {
 	for (int i=0; i<3; i++) {
 	  EE[i] *= cuEV / cuEunit;
@@ -5175,9 +5184,9 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	if (cuEcon)
 	  tEC_f += p1->datr[cuEcon] + p2->datr[cuEcon];
       }
-      cuFP_t Etoti = tKEi_i + tKEe_i + tEC_i;
-      cuFP_t Etotf = tKEi_f + tKEe_f + tEC_f;
-      if (fabs(Etoti - Etotf) > 1.0e-8*Etoti) {
+      cuFP_t Etoti = tKEi_i + tKEe_i - tEC_i;
+      cuFP_t Etotf = tKEi_f + tKEe_f - tEC_f;
+      if (fabs(Etoti - Etotf) > 1.0e-12*Etoti) {
 	printf("**ERROR dE=%e dE/E=%e cons=[%e, %e] del=%e\n",
 	       Etoti - Etotf, 1.0 - Etotf/Etoti, tEC_i, tEC_f, totalDE);
       }

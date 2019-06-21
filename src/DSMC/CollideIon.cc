@@ -12107,10 +12107,13 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       printf("ke1=%e ke2=%e\n", kEe1[id], kEe2[id]);
     }
 
+    // This recomputes the ionization-state dependent values such eta
+    //
     F.update();
-    PP[0]->eUpdate();
-    PP[1]->eUpdate();
-    PP[2]->eUpdate();
+
+    // This computes the energy in the pair from scratch, updating eta values
+    //
+    for (int k=0; k<3; k++) PP[k]->eUpdate();
 
     //
     // Apply neutral-neutral scattering and energy loss
@@ -12673,6 +12676,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     double delE1   = KEinitl - KEfinal - deltaSum - delEsum + delEmis + delEdfr;
     double delE2   = KEinitl - KEfinal - deltaSum - dConSum - delEsum - PPsav1 - PPsav2 - EconsUpI - EconsUpE;
     double delE3   = KEinitl - KEfinal - dConSum - totalDE - delEfnl;
+
+    // For temporary test comparison with cuda version
+    //
+    delE1 = KEinitl - KEfinal - dConSum;
 
     if (fabs(delE1) > tolE*KE_initl_check) {
       std::cout << "**ERROR inelasticTrace dE = " << delE1 << ", " << delE2
