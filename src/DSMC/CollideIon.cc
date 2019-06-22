@@ -18364,8 +18364,7 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
 
   // For Collide diagnostics
   //
-  // meanLambda = 1.0/crossM;
-  meanLambda = debye[id];
+  meanLambda = 1.0/crossM;
   meanCollP  = collPM;
 
   double Prob  = dens * rateF * crossRat;
