@@ -2604,21 +2604,19 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
     double ne   = massE * dfac;
     double cj   = massI * dfac;
     
-    double dfac = TreeDSMC::Munit/amu / (pow(TreeDSMC::Lunit, 3.0)*volc);
-
     double Ni   = numbP*TreeDSMC::Munit/amu;
     double Ne   = massE*TreeDSMC::Munit/amu;
     double KEi  = 0.0;
     double KEe  = 0.0;
     
-    if (Ni>0.0) KEi = ivel2*TreeDSMC::Eunit / Ni;
-    if (Ne>0.0) KEe = evel2*TreeDSMC::Eunit * atomic_weights[0] / Ne;
+    if (Ni>0.0) KEi = 0.5*ivel2*TreeDSMC::Eunit / Ni;
+    if (Ne>0.0) KEe = 0.5*evel2*TreeDSMC::Eunit * atomic_weights[0] / Ne;
 
     double dbyfac = std::numeric_limits<double>::max();
     if ((ne>0.0 and KEe>0.0) or (ni>0.0 and KEi>0.0)) {
       dbyfac = 0.0;
       if (KEe>0.0) dbyfac += ne/KEe;
-      if (KEi>0.0) dbyfac += ni/KEi;
+      if (KEi>0.0) dbyfac += cj/KEi;
     }
 
     debye[id]  = 1.0/sqrt(6.0*M_PI*esu*esu*dbyfac);
@@ -18366,7 +18364,8 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
 
   // For Collide diagnostics
   //
-  meanLambda = 1.0/crossM;
+  // meanLambda = 1.0/crossM;
+  meanLambda = debye[id];
   meanCollP  = collPM;
 
   double Prob  = dens * rateF * crossRat;
