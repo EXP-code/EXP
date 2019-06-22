@@ -9,57 +9,75 @@
 class EXPException : public std::exception
 {
   public:
-  //! Constructor for base
+  /** Constructor for base
+      @param exceptionname   Human-readable identifier for the error
+      @param message         Error details for the user
+      @param sourefilename   File where the thrower resides
+      @param sourelinenumber Line number in the source for the thrower
+  */
   EXPException(const std::string exceptionname, const std::string message,
 	       const std::string sourcefilename, int sourcelinenumber)
   {
-    errormessage = new std::ostringstream;
     this->sourcefilename   = sourcefilename;
     this->sourcelinenumber = sourcelinenumber; 
-    this->exceptionname = exceptionname;
-    (*errormessage) << message;
+    this->exceptionname    = exceptionname;
+    this->errormessage     = message;
+
+    msg_ = getErrorMessage();
   }
 
-  //! Destructor for base
-  virtual ~EXPException()
-  {
-    delete errormessage;
-    errormessage = 0;
-  }
+  //! Destructor for base.  Virtual to permit derived classes.
+  virtual ~EXPException() {}
 
-  //! Returns an error message suitable for printing to the user.
-  const std::string getErrorMessage() const
+  /** 
+      Returns an error message suitable for printing to the user.
+      Also called by derived classes to assemble the error message for
+      std::exception::what() 
+  */
+  std::string getErrorMessage()
   {
-    // This combines the error name, error message, and the throw locations.
-    std::string buffer = (*errormessage).str();
-
+    // This combines the error name, error message, and the throw locations
+    //
     std::ostringstream wholemessage;
-    wholemessage << exceptionname << ": " << buffer;
+    wholemessage << exceptionname << ": " << errormessage;
     wholemessage << "Thrown from " << sourcefilename << ":" << sourcelinenumber;
-    return wholemessage.str();  // stringstream returns a const std::string
+
+    return wholemessage.str();
   }
 
-  //! std::exception member
+  /**  std::exception member returns a pointer to the error message
+
+       @return A pointer to a const char*. 
+
+       The std::string "buffer" used for assembling and passing the
+       message to std::exception will be deleted when the exception is
+       deleted.
+  */
   virtual const char* what() const throw ()
   {
-    return getErrorMessage().c_str();
+    return msg_.c_str();
   }
   
 protected:
+
   //! Protected so it is only called by properly implemented classes
   EXPException(const std::string sourcefile, int linenumber)
   {
-    errormessage = new std::ostringstream;
-    this->sourcefilename   = sourcefilename;
-    this->sourcelinenumber = sourcelinenumber; 
+    this->sourcefilename   = sourcefile;
+    this->sourcelinenumber = linenumber; 
+
+    msg_ = getErrorMessage();
   }
 
   //! Friendly name of the exception
   std::string exceptionname;
 
   //! Error message describing the error in more detail
-  std::ostringstream * errormessage;
-  
+  std::string errormessage;
+
+  //! Message buffer
+  std::string msg_;
+
 private:
   //! Source file where throw occured
   std::string sourcefilename;
@@ -79,12 +97,16 @@ public:
     : EXPException(sourcefilename, sourcelinenumber)
   {
     exceptionname = "Execution exception";
-    (*errormessage) << "Error details: " << msg << ".";
+    std::ostringstream ostr; ostr << "Error details: " << msg << ".";
+    errormessage = ostr.str();
+
+    // Assemble and store the error message
+    msg_ = getErrorMessage();
   }
   //@}
 };
 
-//! Used when execution reaches a point it should not reach.
+//! Used when execution reaches a point it should not reach
 class InternalError : public EXPException
 {
 public:
@@ -95,17 +117,20 @@ public:
     : EXPException(sourcefilename, sourcelinenumber)
   {
     exceptionname = "Internal Error Exception";
-    (*errormessage) << "Execution reached a state that should not reachable.";
+    errormessage  = "Execution reached a state that should not reachable.";
+
+    msg_ = getErrorMessage();
   }
 
   InternalError
-  (const std::string msg, const std::string sourcefilename,
-   int sourcelinenumber)
+  (const std::string msg, const std::string sourcefilename, int sourcelinenumber)
     : EXPException(sourcefilename, sourcelinenumber)
   {
     exceptionname = "Internal Error Exception";
-    (*errormessage) << "Execution reached a state that should not reachable. "
-		    << msg << ".";
+    errormessage  = "Execution reached a state that should not reachable. "
+      +  msg + ".";
+
+    msg_ = getErrorMessage();
   }
   //@}
 };
@@ -120,8 +145,11 @@ public:
     : EXPException(sourcefilename, sourcelinenumber)
   {
     exceptionname = "Requested index is not in PartMap: ";
-    (*errormessage) << "Invalid index: " << index 
-		    << " out of " << num << " particles";
+    std::ostringstream sout;
+    sout << "Invalid index: " << index << " out of " << num << " particles";
+    errormessage = sout.str();
+
+    msg_ = getErrorMessage();
   }
 
 };
@@ -136,7 +164,9 @@ public:
   : EXPException(sourcefilename, sourcelinenumber)
   {
     exceptionname = "Cannot create new file";
-    (*errormessage) << "File name is <" << filename << ">";
+    errormessage  = "File name is <" + filename + ">";
+
+    msg_ = getErrorMessage();
   }
 
   //! Constructor with method string
@@ -145,7 +175,9 @@ public:
   : EXPException(sourcefilename, sourcelinenumber)
   {
     exceptionname = "Cannot create new file in " + method;
-    (*errormessage) << "File name is <" << filename << ">";
+    errormessage  = "File name is <" + filename + ">";
+
+    msg_ = getErrorMessage();
   }
 
 };
@@ -160,7 +192,9 @@ public:
     : EXPException(sourcefilename, sourcelinenumber)
   {
     exceptionname = "Cannot open existing file";
-    (*errormessage) << "File name is <" << filename << ">";
+    errormessage  = "File name is <" + filename + ">";
+
+    msg_ = getErrorMessage();
   }
 
   //! Constructor with method string
@@ -169,7 +203,9 @@ public:
     : EXPException(sourcefilename, sourcelinenumber)
   {
     exceptionname = "Cannot open existing file in " + method;
-    (*errormessage) << "File name is <" << filename << ">";
+    errormessage  = "File name is <" + filename + ">";
+
+    msg_ = getErrorMessage();
   }
 };
 

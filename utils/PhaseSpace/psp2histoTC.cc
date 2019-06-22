@@ -326,8 +326,6 @@ main(int ac, char **av)
   //
   std::vector<std::string> files = vm["files"].as< std::vector<std::string> >();
 
-  bool first = true;
-  
   for (auto file : files ) {
 
     ifstream *in = new ifstream(file.c_str());
@@ -383,13 +381,6 @@ main(int ac, char **av)
     double dkE = Emax/numb;
     double etotal = 0.0, itotal = 0.0, mtotal = 0.0;
     int eIout = 0, eEout = 0, eIgrid = 0, eEgrid = 0, total = 0;
-
-    // Zero histogram bins
-    //
-    std::fill(Eion.begin(), Eion.end(), 0);
-    std::fill(Eelc.begin(), Eelc.end(), 0);
-    std::fill(Nion.begin(), Nion.end(), 0);
-    std::fill(Nelc.begin(), Nelc.end(), 0);
 
     for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
     
@@ -469,80 +460,74 @@ main(int ac, char **av)
 		<< eIout << " ion oab"
 		<< std::endl;
 
-    } // END: stanza loop
-
-
-    //
-    // Normalize
-    //
-    double normI=0.0, normE=0.0;
-    for (auto  v : Eion) normI += v;
-    for (auto  v : Eelc) normE += v;
-    for (auto& v : Eion) v /= normI;
-    for (auto& v : Eelc) v /= normE;
-
-    //
-    // Output
-    //
-    const size_t fw = 14;
-    const size_t sw =  9;
-    double Time = psp.CurrentTime();
-
-    if (first) {
-      std::cout << "# "
-		<< setw(fw) << "Time"
-		<< setw(fw) << "Energy"
-		<< setw(fw) << "Ions"
-		<< setw(sw) << "N(ion)"
-		<< setw(fw) << "Electrons"
-		<< setw(sw) << "N(elc)"
-		<< setw(fw) << "Exact"
-		<< std::endl;
-      
-
-      std::cout << "# "
-		<< setw(fw) << std::string(fw-1, '-')
-		<< setw(fw) << std::string(fw-1, '-')
-		<< setw(fw) << std::string(fw-1, '-')
-		<< setw(sw) << std::string(sw-1, '-')
-		<< setw(fw) << std::string(fw-1, '-')
-		<< setw(sw) << std::string(sw-1, '-')
-		<< setw(fw) << std::string(fw-1, '-')
-		<< std::endl;
-
-      first = false;
     }
+    // END: stanza loop
 
-    double norm = M_2_SQRTPI*pow(kT, -1.5);
-    for (int i=0; i<nEbin; i++) {
-      double Energy = E[i];
-      double exact  = norm * sqrt(Energy) * exp(-Energy/kT);
 
-      if (logE) {
-	Energy = exp(Energy);
-	exact  = norm * pow(Energy, 1.5) * exp(-Energy/kT);
-      }
+  }
+  // END: file loop
 
-      if (flat) {
-	Energy = pow(Energy, 2.0/3.0);
-	exact  = norm * 2.0/3.0 * exp(-Energy/kT);
-      }
 
-      cout << "  "
-	   << setw(fw) << Time
-	   << setw(fw) << Energy
-	   << setw(fw) << Eion[i]
-	   << setw(sw) << Nion[i]
-	   << setw(fw) << Eelc[i]
-	   << setw(sw) << Nelc[i]
-	   << setw(fw) << exact * dE
-	   << std::endl;
+  //
+  // Normalize
+  //
+  double normI=0.0, normE=0.0;
+  for (auto  v : Eion) normI += v;
+  for (auto  v : Eelc) normE += v;
+  for (auto& v : Eion) v /= normI;
+  for (auto& v : Eelc) v /= normE;
+  
+  //
+  // Output
+  //
+  const size_t fw = 14;
+  const size_t sw =  9;
+  
+  std::cout << "# "
+	    << setw(fw) << "Energy"
+	    << setw(fw) << "Ions"
+	    << setw(sw) << "N(ion)"
+	    << setw(fw) << "Electrons"
+	    << setw(sw) << "N(elc)"
+	    << setw(fw) << "Exact"
+	    << std::endl;
+    
+    
+  std::cout << "# "
+	    << setw(fw) << std::string(fw-1, '-')
+	    << setw(fw) << std::string(fw-1, '-')
+	    << setw(sw) << std::string(sw-1, '-')
+	    << setw(fw) << std::string(fw-1, '-')
+	    << setw(sw) << std::string(sw-1, '-')
+	    << setw(fw) << std::string(fw-1, '-')
+	    << std::endl;
+  
+  double norm = M_2_SQRTPI*pow(kT, -1.5);
+  for (int i=0; i<nEbin; i++) {
+    double Energy = E[i];
+    double exact  = norm * sqrt(Energy) * exp(-Energy/kT);
+
+    if (logE) {
+      Energy = exp(Energy);
+      exact  = norm * pow(Energy, 1.5) * exp(-Energy/kT);
     }
-
-    cout << '#' << std::string(fw*5+sw*2-1, '-') << endl << endl;
-
-
-  } // END: file loop
+    
+    if (flat) {
+      Energy = pow(Energy, 2.0/3.0);
+      exact  = norm * 2.0/3.0 * exp(-Energy/kT);
+    }
+    
+    cout << "  "
+	 << setw(fw) << Energy
+	 << setw(fw) << Eion[i]
+	 << setw(sw) << Nion[i]
+	 << setw(fw) << Eelc[i]
+	 << setw(sw) << Nelc[i]
+	 << setw(fw) << exact * dE
+	 << std::endl;
+  }
+  
+  cout << '#' << std::string(fw*5+sw*2-1, '-') << endl << endl;
 
 
   return 0;

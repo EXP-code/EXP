@@ -23,7 +23,7 @@
 // Version info
 //
 #define NAME_ID    "CollideIon"
-#define VERSION_ID "0.36 [04/29/19 Coulombic split test]"
+#define VERSION_ID "0.37 [06/19/19 Coulombic trace]"
 
 using namespace std;
 using namespace NTC;
@@ -2604,21 +2604,19 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
     double ne   = massE * dfac;
     double cj   = massI * dfac;
     
-    double dfac = TreeDSMC::Munit/amu / (pow(TreeDSMC::Lunit, 3.0)*volc);
-
     double Ni   = numbP*TreeDSMC::Munit/amu;
     double Ne   = massE*TreeDSMC::Munit/amu;
     double KEi  = 0.0;
     double KEe  = 0.0;
     
-    if (Ni>0.0) KEi = ivel2*TreeDSMC::Eunit / Ni;
-    if (Ne>0.0) KEe = evel2*TreeDSMC::Eunit * atomic_weights[0] / Ne;
+    if (Ni>0.0) KEi = 0.5*ivel2*TreeDSMC::Eunit / Ni;
+    if (Ne>0.0) KEe = 0.5*evel2*TreeDSMC::Eunit * atomic_weights[0] / Ne;
 
     double dbyfac = std::numeric_limits<double>::max();
     if ((ne>0.0 and KEe>0.0) or (ni>0.0 and KEi>0.0)) {
       dbyfac = 0.0;
       if (KEe>0.0) dbyfac += ne/KEe;
-      if (KEi>0.0) dbyfac += ni/KEi;
+      if (KEi>0.0) dbyfac += cj/KEi;
     }
 
     debye[id]  = 1.0/sqrt(6.0*M_PI*esu*esu*dbyfac);
@@ -11423,7 +11421,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 #ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
-	  xc_weight [interFlag] += Prob;
+	  xc_weight [interFlag] += WW;
 #endif
 	  if (use_normtest) {
 	    std::ostringstream sout;
@@ -11520,7 +11518,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 #ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
-	  xc_weight [interFlag] += Prob;
+	  xc_weight [interFlag] += WW;
 #endif
 	  if (use_normtest) {
 	    std::ostringstream sout;
@@ -11621,7 +11619,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  
 #ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
-	  xc_weight [interFlag] += Prob;
+	  xc_weight [interFlag] += WW;
 #endif
 	  if (use_normtest) {
 	    std::ostringstream sout;
@@ -11743,7 +11741,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  
 #ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
-	  xc_weight [interFlag] += Prob;
+	  xc_weight [interFlag] += WW;
 #endif
 	  if (use_normtest) {
 	    std::ostringstream sout;
@@ -11766,7 +11764,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // Energy for ionized electron comes from COM
 	  dE += Echg1 * TreeDSMC::Eunit / (N0*eV);
 
-	  rcbExtra[0] = Echg1;
+	  rcbExtra[0] += Echg1;
 
 	  // Electron KE fraction in recombination
 	  //
@@ -12107,10 +12105,13 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       printf("ke1=%e ke2=%e\n", kEe1[id], kEe2[id]);
     }
 
+    // This recomputes the ionization-state dependent values such eta
+    //
     F.update();
-    PP[0]->eUpdate();
-    PP[1]->eUpdate();
-    PP[2]->eUpdate();
+
+    // This computes the energy in the pair from scratch, updating eta values
+    //
+    for (int k=0; k<3; k++) PP[k]->eUpdate();
 
     //
     // Apply neutral-neutral scattering and energy loss
@@ -12673,6 +12674,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     double delE1   = KEinitl - KEfinal - deltaSum - delEsum + delEmis + delEdfr;
     double delE2   = KEinitl - KEfinal - deltaSum - dConSum - delEsum - PPsav1 - PPsav2 - EconsUpI - EconsUpE;
     double delE3   = KEinitl - KEfinal - dConSum - totalDE - delEfnl;
+
+    // For temporary test comparison with cuda version
+    //
+    delE1 = KEinitl - KEfinal - dConSum;
 
     if (fabs(delE1) > tolE*KE_initl_check) {
       std::cout << "**ERROR inelasticTrace dE = " << delE1 << ", " << delE2
@@ -18359,7 +18364,8 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
 
   // For Collide diagnostics
   //
-  meanLambda = 1.0/crossM;
+  // meanLambda = 1.0/crossM;
+  meanLambda = debye[id];
   meanCollP  = collPM;
 
   double Prob  = dens * rateF * crossRat;
@@ -22887,7 +22893,7 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
 	eta2 += p2->dattrib[caller->spc_pos+C]*C;
     }
     
-  }
+  } // END: all methods method besides Trace
 
   if (caller->MeanMass) {
 
@@ -22904,7 +22910,8 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
       break;
     }
 
-  } else {
+  } // END: MeanMass
+  else {
 
     switch (P) {
     case ion_electron:
@@ -23038,7 +23045,8 @@ CollideIon::Pord::Epair CollideIon::Pord::compE()
     eta2 = 0.0;
     for (unsigned short C=1; C<=Z2; C++)
       eta2 += p2->dattrib[caller->spc_pos+C]*C;
-  }
+
+  } // END: All methods besides Trace
 
 
   // Using weighted interaction?
@@ -23069,8 +23077,10 @@ CollideIon::Pord::Epair CollideIon::Pord::compE()
     }
 
     q = W2/W1;
-  }
-				// Compute KE
+  } // END: wght == true
+
+  // Compute KE
+  //
   for (size_t k=0; k<3; k++) {
     ret[0].KEi += p1->vel[k] * p1->vel[k];
     ret[1].KEi += p2->vel[k] * p2->vel[k];
@@ -23178,9 +23188,9 @@ void CollideIon::Fspc::update(unsigned flag)
     // Sanity check
     //
     if (sum1 > 0.0) {
-      if (fabs(sum1-1.0) > 1.0e-6) {
+      if (fabs(sum1-1.0) > 1.0e-12) {
 	std::cout << "**ERROR [" << myid << "] Fspc:"
-		  << " Unexpected f1 sum=" << sum1
+		  << " Unexpected f1 sum=" << sum1-1.0
 		  << ", T=" << tnow << ", ";
 	for (auto v : f1) std::cout << std::setw(18) << v;
 	std::cout << std::endl;
@@ -23190,9 +23200,9 @@ void CollideIon::Fspc::update(unsigned flag)
     // Sanity check
     //
     if (sum2 > 0.0) {
-      if (fabs(sum2-1.0) > 1.0e-6) {
+      if (fabs(sum2-1.0) > 1.0e-12) {
 	std::cout << "**ERROR [" << myid << "] Fspc:"
-		  << " Unexpected f2 sum=" << sum2
+		  << " Unexpected f2 sum=" << sum2-1.0
 		  << ", T=" << tnow << ", ";
 	for (auto v : f2 ) std::cout << std::setw(18) << v;
 	std::cout << std::endl;

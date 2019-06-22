@@ -86,90 +86,90 @@ public:
 
   SParticle() : s(0) {}
 
-  double mass() throw(std::string) {
+  double mass() throw(std::runtime_error) {
     if (f.get()) return f->mass;
     if (d.get()) return d->mass;
-    throw std::string("Particle not initialized");
+    throw std::runtime_error("Particle not initialized");
     return 0.0;
   }
 
-  double pos(int i) throw(std::string) {
+  double pos(int i) throw(std::runtime_error) {
     if (f.get()) return f->pos[i];
     if (d.get()) return d->pos[i];
-    throw std::string("Particle not initialized");
+    throw std::runtime_error("Particle not initialized");
     return 0.0;
   }
 
-  double vel(int i) throw(std::string) {
+  double vel(int i) throw(std::runtime_error) {
     if (f.get()) return f->vel[i];
     if (d.get()) return d->vel[i];
-    throw std::string("Particle not initialized");
+    throw std::runtime_error("Particle not initialized");
     return 0.0;
   }
 
-  int niatr() throw (std::string) {
+  int niatr() throw (std::runtime_error) {
     if (f.get()) return f->iatr.size();
     if (d.get()) return d->iatr.size();
-    throw std::string("Particle not initialized");
+    throw std::runtime_error("Particle not initialized");
     return 0;
   }
 
-  int ndatr() throw (std::string) {
+  int ndatr() throw (std::runtime_error) {
     if (f.get()) return f->datr.size();
     if (d.get()) return d->datr.size();
-    throw std::string("Particle not initialized");
+    throw std::runtime_error("Particle not initialized");
     return 0;
   }
 
-  int iatr(int i) throw(std::string) {
+  int iatr(int i) throw(std::runtime_error) {
     if (f.get()) {
       if (i<f->iatr.size()) return f->iatr[i];
       else {
-	throw std::string("Invalid index");
+	throw std::runtime_error("Invalid index");
 	return 0;
       }
     }
     if (d.get()) {
       if (i<d->iatr.size()) return d->iatr[i];
       else {
-	throw std::string("Invalid index");
+	throw std::runtime_error("Invalid index");
 	return 0;
       }
     }
-    throw std::string("Particle not initialized");
+    throw std::runtime_error("Particle not initialized");
     return 0;
   }
 
-  double datr(int i) throw(std::string) {
+  double datr(int i) throw(std::runtime_error) {
     if (f.get()) {
       if (i<f->datr.size()) return f->datr[i];
       else {
-	throw std::string("Invalid index");
+	throw std::runtime_error("Invalid index");
 	return 0.0;
       }
     }
     if (d.get()) {
       if (i<d->datr.size()) return d->datr[i];
       else {
-	throw std::string("Invalid index");
+	throw std::runtime_error("Invalid index");
 	return 0.0;
       }
     }
-    throw std::string("Particle not initialized");
+    throw std::runtime_error("Particle not initialized");
     return 0.0;
   }
 
-  double phi() throw(std::string) {
+  double phi() throw(std::runtime_error) {
     if (f.get()) return f->phi;
     if (d.get()) return d->phi;
-    throw std::string("Particle not initialized");
+    throw std::runtime_error("Particle not initialized");
     return 0.0;
   }
 
-  int indx() throw(std::string) {
+  int indx() throw(std::runtime_error) {
     if (f.get()) return f->indx;
     if (d.get()) return d->indx;
-    throw std::string("Particle not initialized");
+    throw std::runtime_error("Particle not initialized");
     return 0;
   }
 

@@ -12,7 +12,6 @@
 #include <Timer.h>
 #include <cudaUtil.cuH>
 
-thrust::device_vector<cuFP_t> xsc_H, xsc_He, xsc_pH, xsc_pHe;
 __constant__ cuFP_t cuH_H, cuHe_H, cuPH_H, cuPHe_H;
 __constant__ cuFP_t cuH_Emin, cuHe_Emin, cuPH_Emin, cuPHe_Emin;
 
@@ -80,7 +79,10 @@ resampleArray(const std::vector<cuFP_t>& x, const std::vector<cuFP_t>& y,
 // Initialize cross-section look up and interpolation arrays.  Data
 // input could be generalized here . . . for later.
 //
-void cudaElasticInit()
+void cudaElasticInit(thrust::device_vector<cuFP_t> & xsc_H,
+		     thrust::device_vector<cuFP_t> & xsc_He,
+		     thrust::device_vector<cuFP_t> & xsc_pH,
+		     thrust::device_vector<cuFP_t> & xsc_pHe)
 {
   std::vector<int> radii(numRadii, 0);
 
@@ -245,7 +247,7 @@ void cudaElasticInit()
   eV_H.push_back(12.9858496735092);	xs_H.push_back(6.40788);
   eV_H.push_back(13.2163710158414);	xs_H.push_back(6.25682);
   eV_H.push_back(13.4212320116212);	xs_H.push_back(6.10568);
-  eV_H.push_back(13.600541506433);	xs_H.push_back(5.9924);;
+  eV_H.push_back(13.600541506433);	xs_H.push_back(5.9924);
 
   cuFP_t dx;
 
@@ -507,6 +509,7 @@ void cudaElasticInit()
 		 __FILE__, __LINE__, "Error copying cuPHe_H");
 }
 
+
 __device__
 cuFP_t cudaGeometric(int Z)
 {
@@ -523,52 +526,71 @@ cuFP_t cudaElasticInterp(cuFP_t E, dArray<cuFP_t> xsc, int Z,
 			 cudaElasticType etype = electron,
 			 bool pin = true)
 {
+  // Bohr cross section (pi*a_0^2) in nm
+  const cuFP_t b_cross = 0.00879735542978;
+
   cuFP_t Emin, H;
   bool logV = false;
+  int N = xsc._s;
 
   if (Z==1) {
     if (etype == electron) {
-      Emin = cuH_Emin;
       H    = cuH_H;
+      Emin = cuH_Emin;
     } else {
-      E = log10(E);
-      Emin = cuPH_Emin;
       H    = cuPH_H;
+      Emin = cuPH_Emin;
+      E    = log10(E);
       logV = true;
     }
   }
   else if (Z==2)
     if (etype == electron) {
-      Emin = cuHe_Emin;
       H    = cuHe_H;
+      Emin = cuHe_Emin;
     } else {
-      E = log10(E);
-      Emin = cuPHe_Emin;
       H    = cuPHe_H;
+      Emin = cuPHe_Emin;
+      E    = log10(E);
       logV = true;
     }
   else {
     return 0.0;
   }
 
+  cuFP_t Emax = Emin + N*H, val = 0.0;
+
   // Enforce return value to grid boundaries for off-grid ordinates.
   // Otherwise, values will be extrapolated.
-  if (pin) {
-    if (E <= Emin)          return xsc._v[0];
-    if (E >= Emin+H*xsc._s) return xsc._v[xsc._s-1];
+  if      (pin and E <= Emin) val = xsc._v[0];
+  else if (pin and E >= Emax) val = xsc._v[N-1];
+  else {
+
+    int indx = 0;
+    if (E >= Emax)      indx = xsc._s - 2;
+    else if (E <= Emin) indx = 0;
+    else                indx = floor( (E - Emin)/H );
+    
+    // Sanity
+    if (indx<0) indx = 0;
+    if (indx>xsc._s - 2) indx = xsc._s - 2;
+
+    cuFP_t a = (E - Emin - H*(indx+0))/H;
+    cuFP_t b = (Emin + H*(indx+1) - E)/H;
+    
+    val = a*xsc._v[indx] + b*xsc._v[indx+1];
+
+    if ((logV and val>3.0) or val>80.0) {
+      if (pin)
+	printf("E=%e a=%e b=%e val=%e [pinned]\n", E, a, b, val);
+      else
+	printf("E=%e a=%e b=%e val=%e [extrap]\n", E, a, b, val);
+    }
   }
 
-  int indx = floor( (E - Emin)/H );
-
-  cuFP_t a = (E - Emin - H*(indx+0))/H;
-  cuFP_t b = (Emin + H*(indx+1) - E)/H;
-
-  cuFP_t val = a*xsc._v[indx] + b*xsc._v[indx+1];
-
-  if (logV)
-    return pow(10.0, val);
-  else
-    return val;
+  if (logV) val = pow(10.0, val);
+  
+  return b_cross * val;
 }
 
 
@@ -626,7 +648,7 @@ void chdata::cuda_initialize_textures()
 
     // The free-free array
     //
-    if (E.C>1) {
+    if (E.C>1) {		// Must NOT BE neutral
       cudaTextureDesc texDesc;
 
       memset(&texDesc, 0, sizeof(texDesc));
@@ -828,7 +850,7 @@ void chdata::cuda_initialize_textures()
     }
 
     // The collisional excitation array
-
+    //
     if (E.C <= E.Z and I->NcollideGrid>0) {
 
       E.ceEmin = I->collideEmin;
@@ -1096,7 +1118,7 @@ void chdata::cuda_initialize_grid_constants()
 
 __device__
 void computeFreeFree
-(cuFP_t E, cuFP_t rr, cuFP_t& ph, cuFP_t& xc, cuIonElement& elem)
+(cuFP_t E, cuFP_t rr, cuFP_t& ph, cuFP_t& xc, const cuIonElement elem)
 {
   // value of h-bar * c in eV*nm
   //
@@ -1127,10 +1149,10 @@ void computeFreeFree
   // Interpolate the cross section array
   //
 #if cuREAL == 4
-  k[0]  = tex3D<float>(elem.ff_d, indx,   lb  , 0);
-  k[1]  = tex3D<float>(elem.ff_d, indx+1, lb  , 0);
-  k[2]  = tex3D<float>(elem.ff_d, indx,   lb+1, 0);
-  k[3]  = tex3D<float>(elem.ff_d, indx+1, lb+1, 0);
+  k[0]  = tex3D<float>(elem->ff_d, indx,   lb  , 0);
+  k[1]  = tex3D<float>(elem->ff_d, indx+1, lb  , 0);
+  k[2]  = tex3D<float>(elem->ff_d, indx,   lb+1, 0);
+  k[3]  = tex3D<float>(elem->ff_d, indx+1, lb+1, 0);
 #else
   k[0] = int2_as_double(tex3D<int2>(elem.ff_d, indx,   lb  , 0));
   k[1] = int2_as_double(tex3D<int2>(elem.ff_d, indx+1, lb  , 0));
@@ -1169,7 +1191,7 @@ void testElasticE
  dArray<cuFP_t> xc,
  dArray<cuFP_t> xsc_H,
  dArray<cuFP_t> xsc_He,
- cuIonElement elem)
+ const cuIonElement elem)
 {
   // Thread ID
   //
@@ -1187,10 +1209,6 @@ void testElasticE
     }
     else
       xc._v[tid] = 0.0;
-
-    // Bohr cross section (pi*a_0^2) in nm
-    const double b_cross = 0.00879735542978;
-    xc._v[tid] *= b_cross;
   }
 
   __syncthreads();
@@ -1201,7 +1219,7 @@ void testFreeFree
 (dArray<cuFP_t> energy,
  dArray<cuFP_t> randsl,
  dArray<cuFP_t> ph, dArray<cuFP_t> xc,
- cuIonElement elem)
+ const cuIonElement elem)
 {
   // Thread ID
   //
@@ -1222,12 +1240,12 @@ void testFreeFree
 
 __device__
 void computeColExcite
-(cuFP_t E, cuFP_t& ph, cuFP_t& xc, cuIonElement& elem)
+(cuFP_t E, cuFP_t& ph, cuFP_t& xc, const cuIonElement elem)
 {
   if (E < elem.ceEmin or E > elem.ceEmax) {
 
     xc = 0.0;
-    ph= 0.0;
+    ph = 0.0;
 
   } else {
 
@@ -1267,7 +1285,7 @@ void computeColExcite
 
 __global__ void testColExcite
 (dArray<cuFP_t> energy,
- dArray<cuFP_t> ph, dArray<cuFP_t> xc, cuIonElement elem)
+ dArray<cuFP_t> ph, dArray<cuFP_t> xc, const cuIonElement elem)
 {
   // Thread ID
   //
@@ -1286,12 +1304,11 @@ __global__ void testColExcite
 
 __device__
 void computeColIonize
-(cuFP_t E, cuFP_t& ph, cuFP_t& xc, cuIonElement& elem)
+(cuFP_t E, cuFP_t& xc, const cuIonElement elem)
 {
   if (E < elem.ciEmin or E > elem.ciEmax) {
 
     xc = 0.0;
-    ph = 0.0;
 
   } else {
 
@@ -1302,7 +1319,7 @@ void computeColIonize
     // Sanity check
     //
     if (indx > elem.NIonz-2) indx = elem.NIonz - 2;
-    if (indx < 0)            indx = 0;
+    if (indx < 0)             indx = 0;
     
     double eA   = elem.ciEmin + elem.ciDelE*indx;
     double eB   = elem.ciEmin + elem.ciDelE*(indx+1);
@@ -1319,15 +1336,13 @@ void computeColIonize
       A*int2_as_double(tex1D<int2>(elem.ci_d, indx  )) +
       B*int2_as_double(tex1D<int2>(elem.ci_d, indx+1)) ;
 #endif
-
-    ph = elem.IPval;
   }
 }
 
 
 __device__
 void computePhotoIonize
-(cuFP_t rr, cuFP_t& ph, cuFP_t& xc, cuIonElement& elem)
+(cuFP_t rr, cuFP_t& ph, cuFP_t& xc, const cuIonElement elem)
 {
   constexpr cuFP_t dC = 1.0/CHCUMK;
   int indx  = rr/dC;
@@ -1344,7 +1359,7 @@ void computePhotoIonize
 
 
 __global__ void testColIonize
-(dArray<cuFP_t> energy, dArray<cuFP_t> ph, dArray<cuFP_t> xc, cuIonElement elem)
+(dArray<cuFP_t> energy, dArray<cuFP_t> ph, dArray<cuFP_t> xc, const cuIonElement elem)
 {
   // Thread ID
   //
@@ -1355,7 +1370,8 @@ __global__ void testColIonize
   const unsigned int N = energy._s;
 
   if (tid < N) {
-    computeColIonize(energy._v[tid], ph._v[tid], xc._v[tid], elem);
+    computeColIonize(energy._v[tid], xc._v[tid], elem);
+    ph._v[tid] = elem.IPval;
   }
 
   __syncthreads();
@@ -1363,7 +1379,7 @@ __global__ void testColIonize
 
 __device__
 void computeRadRecomb
-(cuFP_t E, cuFP_t& xc, cuIonElement& elem)
+(cuFP_t E, cuFP_t& xc, const cuIonElement elem)
 {
   if (E < ionEminGrid or E > ionEmaxGrid) {
 
@@ -1401,7 +1417,7 @@ void computeRadRecomb
 
 __global__
 void testRadRecomb
-(dArray<cuFP_t> energy, dArray<cuFP_t> xc, cuIonElement elem)
+(dArray<cuFP_t> energy, dArray<cuFP_t> xc, const cuIonElement elem)
 {
   // Thread ID
   //
@@ -1419,11 +1435,25 @@ void testRadRecomb
 }
 
 
+// This is the production version
+//
+void chdata::testCross(int Nenergy,
+		       thrust::device_vector<cuIonElement>& cuElems,
+		       thrust::device_vector<cuFP_t>& x1,
+		       thrust::device_vector<cuFP_t>& x2) {}
+
 void chdata::testCross(int Nenergy)
 {
   // Timers
   //
   Timer serial, cuda;
+
+  // Initial header
+  //
+  std::string separator(10+(14+3)*8, '-');
+  std::cout << separator << std::endl
+	    << " Cross-section comparison for " << Nenergy << " samples"
+	    << std::endl << separator << std::endl;
 
   // Loop over ions and tabulate statistics
   //
@@ -1431,7 +1461,9 @@ void chdata::testCross(int Nenergy)
 
   thrust::host_vector<cuFP_t> energy_h(Nenergy), randsl_h(Nenergy);
 
-  cudaElasticInit();
+  thrust::device_vector<cuFP_t> xsc_H, xsc_He, xsc_pH, xsc_pHe;
+
+  cudaElasticInit(xsc_H, xsc_He, xsc_pH, xsc_pHe);
 
   for (auto v : IonList) {
     
@@ -1450,12 +1482,11 @@ void chdata::testCross(int Nenergy)
     thrust::device_vector<cuFP_t> randsl_d = randsl_h;
 
     // Only free-free for non-neutral species
-
-    thrust::device_vector<cuFP_t> xEE_d(Nenergy);
+    //
     thrust::device_vector<cuFP_t> eFF_d(Nenergy), xFF_d(Nenergy);
     thrust::device_vector<cuFP_t> eCE_d(Nenergy), xCE_d(Nenergy);
     thrust::device_vector<cuFP_t> eCI_d(Nenergy), xCI_d(Nenergy);
-    thrust::device_vector<cuFP_t> xRC_d(Nenergy);
+    thrust::device_vector<cuFP_t> xRC_d(Nenergy), xEE_d(Nenergy);
 
     unsigned int gridSize  = Nenergy/BLOCK_SIZE;
     if (Nenergy > gridSize*BLOCK_SIZE) gridSize++;
@@ -1463,20 +1494,21 @@ void chdata::testCross(int Nenergy)
     cuda.start();
 
     testElasticE<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), toKernel(xEE_d),
-					   toKernel(xsc_H), toKernel(xsc_He), cuIonElem[k]);
-
+					   toKernel(xsc_H), toKernel(xsc_He),
+					   cuIonElem[k]);
     if (E.C>1)
       testFreeFree<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), toKernel(randsl_d),
 					     toKernel(eFF_d), toKernel(xFF_d),
 					     cuIonElem[k]);
+    if (E.C<=E.Z)
+      testColExcite<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
+					      toKernel(eCE_d), toKernel(xCE_d),
+					      cuIonElem[k]);
 
     if (E.C<=E.Z)
-      testColExcite<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d),
-					      toKernel(eCE_d), toKernel(xCE_d), cuIonElem[k]);
-      
-    if (E.C<=E.Z)
       testColIonize<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
-					      toKernel(eCI_d), toKernel(xCI_d), cuIonElem[k]);
+					      toKernel(eCI_d), toKernel(xCI_d),
+					      cuIonElem[k]);
       
     if (E.C>1)
       testRadRecomb<<<gridSize, BLOCK_SIZE>>>(toKernel(energy_d), 
@@ -1618,7 +1650,7 @@ void chdata::testCross(int Nenergy)
 	      << " | " << std::setw(14) << "RC_xc"
 	      << std::endl << std::setfill('-')
 	      <<          std::setw(10) << '-'
-	      <<          std::setw(10) << '-'
+	      << " + " << std::setw(14) << '-'
 	      << " + " << std::setw(14) << '-'
 	      << " + " << std::setw(14) << '-'
 	      << " + " << std::setw(14) << '-'
@@ -1664,7 +1696,8 @@ void chdata::testCross(int Nenergy)
 
   } // END: Ion list
 
-  std::cout << std::endl
+  std::cout << separator << std::endl
 	    << "Serial time: " << serial() << std::endl
-	    << "Cuda time  : " << cuda()   << std::endl;
+	    << "Cuda time  : " << cuda()   << std::endl
+	    << separator << std::endl;
 }
