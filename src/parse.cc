@@ -22,7 +22,7 @@ void exp_usage(char *prog)
        << "where" << endl << endl
        << "  -f file   specifies the input parameter file" << endl
        << "  -d        displays a default parameter file"  << endl
-       << "  -v        displays verbose version info"      << endl
+       << "  -v        displays verbose GIT version info"  << endl
        << "  -h        shows this help"                    << endl  << endl
        << "See EXP/doc/html/index.html for extensive documentation" << endl
        << endl;
@@ -31,8 +31,14 @@ void exp_usage(char *prog)
 
 void exp_version()
 {
-  cout << "current git branch is:   " << GIT_BRANCH << endl;
-  cout << "last git commit hash is: " << GIT_COMMIT << endl;
+  cout << std::setw(25) << std::left << "Repository info:" << std::endl
+       << std::setw(25) << std::left << "----------------" << std::endl
+       << std::setw(25) << std::left << "GIT repository URL"
+       << " | " << PACKAGE_URL << std::endl
+       << std::setw(25) << std::left << "Current GIT branch"
+       << " | " << GIT_BRANCH << std::endl
+       << std::setw(25) << std::left << "Current GIT commit"
+       << " | " << GIT_COMMIT << std::endl;
 
 }
 
