@@ -155,11 +155,9 @@ if test x$havevtk = xyes; then
 
    AS_IF([test "${VTK_POST_7_1}" != "-1"], AC_MSG_RESULT([VTK post 7.1: yes]), AC_MSG_RESULT([VTK post 7.1: no]))
 
-   if test "${VTK_POST_7_1}" != "-1"; then
-      exp_vtk_ldlib="-lvtkCommonCore$vtk_libval -lvtkCommonDataModel$vtk_libval -lvtkIOXML$vtk_libval"
+   exp_vtk_ldlib="-lvtkCommonCore$vtk_libval -lvtkCommonDataModel$vtk_libval -lvtkIOXML$vtk_libval"
 
-   else
-      exp_vtk_ldlib="-lvtkHybrid$vtk_libval -lvtkRendering$vtk_libval -lvtkGraphics$vtk_libval -lvtkFiltering$vtk_libval -lvtkImaging$vtk_libval -lvtkCommon$vtk_libval -lvtkIO$vtk_libval"
+   if test "${VTK_POST_7_1}" == "-1"; then
 
       if test x$ac_cv_lib_png_main = xyes; then
       	 exp_vtk_ldlib="$exp_vtk_ldlib -lpng"
@@ -176,7 +174,7 @@ if test x$havevtk = xyes; then
       if test x$ac_cv_lib_ftgl_main = xyes; then
       	 exp_vtk_ldlib="$exp_vtk_ldlib -lftgl"
       else
-	 exp_vtk_ldlib="$exp_vtk_ldlib -lvtkftgl"
+	 exp_vtk_ldlib="$exp_vtk_ldlib -lvtkftgl$vtk_libval"
       fi
    fi
 
