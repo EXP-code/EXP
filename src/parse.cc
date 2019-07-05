@@ -22,11 +22,19 @@ void exp_usage(char *prog)
        << "where" << endl << endl
        << "  -f file   specifies the input parameter file" << endl
        << "  -d        displays a default parameter file"  << endl
+       << "  -v        displays verbose version info"      << endl
        << "  -h        shows this help"                    << endl  << endl
        << "See EXP/doc/html/index.html for extensive documentation" << endl
        << endl;
 }
 
+
+void exp_version()
+{
+  cout << "current git branch is:   " << GIT_BRANCH << endl;
+  cout << "last git commit hash is: " << GIT_COMMIT << endl;
+
+}
 
 void initialize(void)
 {
@@ -414,6 +422,10 @@ void YAML_parse_args(int argc, char** argv)
 	break;
       case 'd':
 	print_default();
+	done = 1;
+	break;
+      case 'v':
+	exp_version();
 	done = 1;
 	break;
       case '?':
