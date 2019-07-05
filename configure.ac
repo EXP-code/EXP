@@ -155,7 +155,7 @@ if test x$havevtk = xyes; then
 
    AS_IF([test "${VTK_POST_7_1}" != "-1"], AC_MSG_RESULT([VTK post 7.1: yes]), AC_MSG_RESULT([VTK post 7.1: no]))
 
-   if test "${VTK_POST_7_1}" != "1"; then
+   if test "${VTK_POST_7_1}" != "-1"; then
       exp_vtk_ldlib="-lvtkCommonCore$vtk_libval -lvtkCommonDataModel$vtk_libval -lvtkIOXML$vtk_libval"
 
    else
