@@ -31,14 +31,15 @@ void exp_usage(char *prog)
 
 void exp_version()
 {
-  cout << std::setw(25) << std::left << "Repository info:" << std::endl
-       << std::setw(25) << std::left << "----------------" << std::endl
-       << std::setw(25) << std::left << "GIT repository URL"
-       << " | " << PACKAGE_URL << std::endl
-       << std::setw(25) << std::left << "Current GIT branch"
-       << " | " << GIT_BRANCH << std::endl
-       << std::setw(25) << std::left << "Current GIT commit"
-       << " | " << GIT_COMMIT << std::endl;
+  std::cout << std::setw(25) << std::left << "%%%%%%%%%%%%%%%%%%%%%%%%%%%" << std::endl
+	    << std::setw(25) << std::left << "%%%%% Repository info %%%%%" << std::endl
+	    << std::setw(25) << std::left << "%%%%%%%%%%%%%%%%%%%%%%%%%%%" << std::endl << std::endl
+	    << std::setw(25) << std::left << "GIT repository URL"
+	    << " | " << PACKAGE_URL << std::endl
+	    << std::setw(25) << std::left << "Current GIT branch"
+	    << " | " << GIT_BRANCH << std::endl
+	    << std::setw(25) << std::left << "Current GIT commit"
+	    << " | " << GIT_COMMIT << std::endl;
 
 }
 
