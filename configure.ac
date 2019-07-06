@@ -1,17 +1,35 @@
 dnl ==========================================================================
 dnl Process this file with autoconf to produce a configure script.
 dnl ==========================================================================
-AC_INIT(EXP, 7.605)
+AC_INIT(EXP, 7.606, [mdw@umass.edu], [], [https://mdweinberg@bitbucket.org/mdweinberg/exp.git])
+
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SRCDIR(src/expand.cc)
 AM_INIT_AUTOMAKE
 
 AC_DEFINE([NEED_MAIN], 1, [Define if a function `main' is needed.])
 
+dnl ==========================================================================
+dnl Add info from git repo
+dnl ==========================================================================
+
+m4_append([git_commit], ["])
+m4_append([git_commit], [m4_esyscmd_s([git describe --always])])
+m4_append([git_commit], ["])
+
+m4_append([git_branch], ["])
+m4_append([git_branch], [m4_esyscmd_s([git branch | grep \* | cut -d ' ' -f2])])
+m4_append([git_branch], ["])
+
+AC_DEFINE([GIT_COMMIT], [ git_commit ], [current git commit hash for verbose option])
+AC_DEFINE([GIT_BRANCH], [ git_branch ], [current git branch for verbose option])
+
+AC_REVISION([m4_esyscmd_s([git describe --always])])
 
 dnl ==========================================================================
-dnl Checks for programs.
+dnl Checks for programs
 dnl ==========================================================================
+
 AC_PROG_AWK
 AC_PROG_CC(mpicc gcc cc)
 AC_PROG_F77(mpif77 mpiF77 g77 f77)
@@ -155,11 +173,9 @@ if test x$havevtk = xyes; then
 
    AS_IF([test "${VTK_POST_7_1}" != "-1"], AC_MSG_RESULT([VTK post 7.1: yes]), AC_MSG_RESULT([VTK post 7.1: no]))
 
-   if test "${VTK_POST_7_1}" != "1"; then
-      exp_vtk_ldlib="-lvtkCommonCore$vtk_libval -lvtkCommonDataModel$vtk_libval -lvtkIOXML$vtk_libval"
+   exp_vtk_ldlib="-lvtkCommonCore$vtk_libval -lvtkCommonDataModel$vtk_libval -lvtkIOXML$vtk_libval"
 
-   else
-      exp_vtk_ldlib="-lvtkHybrid$vtk_libval -lvtkRendering$vtk_libval -lvtkGraphics$vtk_libval -lvtkFiltering$vtk_libval -lvtkImaging$vtk_libval -lvtkCommon$vtk_libval -lvtkIO$vtk_libval"
+   if test "${VTK_POST_7_1}" == "-1"; then
 
       if test x$ac_cv_lib_png_main = xyes; then
       	 exp_vtk_ldlib="$exp_vtk_ldlib -lpng"
@@ -176,7 +192,7 @@ if test x$havevtk = xyes; then
       if test x$ac_cv_lib_ftgl_main = xyes; then
       	 exp_vtk_ldlib="$exp_vtk_ldlib -lftgl"
       else
-	 exp_vtk_ldlib="$exp_vtk_ldlib -lvtkftgl"
+	 exp_vtk_ldlib="$exp_vtk_ldlib -lvtkftgl$vtk_libval"
       fi
    fi
 

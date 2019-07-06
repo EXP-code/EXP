@@ -22,11 +22,26 @@ void exp_usage(char *prog)
        << "where" << endl << endl
        << "  -f file   specifies the input parameter file" << endl
        << "  -d        displays a default parameter file"  << endl
+       << "  -v        displays verbose GIT version info"  << endl
        << "  -h        shows this help"                    << endl  << endl
        << "See EXP/doc/html/index.html for extensive documentation" << endl
        << endl;
 }
 
+
+void exp_version()
+{
+  std::cout << std::setw(25) << std::left << "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" << std::endl
+	    << std::setw(25) << std::left << "%%%%% GIT repository info %%%%%" << std::endl
+	    << std::setw(25) << std::left << "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" << std::endl << std::endl
+	    << std::setw(25) << std::left << "Repository URL"
+	    << " | " << PACKAGE_URL << std::endl
+	    << std::setw(25) << std::left << "Current branch"
+	    << " | " << GIT_BRANCH << std::endl
+	    << std::setw(25) << std::left << "Current commit"
+	    << " | " << GIT_COMMIT << std::endl;
+
+}
 
 void initialize(void)
 {
@@ -414,6 +429,10 @@ void YAML_parse_args(int argc, char** argv)
 	break;
       case 'd':
 	print_default();
+	done = 1;
+	break;
+      case 'v':
+	exp_version();
 	done = 1;
 	break;
       case '?':

@@ -171,8 +171,8 @@ main(int ac, char **av)
   char *prog = av[0];
   double time, Emin, Emax, Lunit, Tunit, Temp;
   bool verbose = false, logE = false, flat = false, meanmass = false;
-  std:: string cname, spfile;
-  int numb, comp;
+  std:: string cname, spfile, runtag;
+  int numb, comp, ibeg, iend;
 
   // Parse command line
 
@@ -198,6 +198,12 @@ main(int ac, char **av)
      "species definition file")
     ("name,c",	        po::value<std::string>(&cname)->default_value("gas"),
      "component name")
+    ("runtag,r",	po::value<std::string>(&runtag)->default_value("run"),
+     "runtag for using a range of PSP files")
+    ("beg",		po::value<int>(&ibeg)->default_value(100),
+     "initial value for PSP file sequence")
+    ("end",		po::value<int>(&iend)->default_value(200),
+     "final value for PSP file sequence")
     ("meanMass",
      "use mean-mass algorithm for electron energy computation")
     ("logE",
@@ -324,7 +330,17 @@ main(int ac, char **av)
 
   // Get file arguments
   //
-  std::vector<std::string> files = vm["files"].as< std::vector<std::string> >();
+  std::vector<std::string> files;
+  if (vm.count("runtag")) {
+    for (int i=ibeg; i<=iend; i++) {
+      std::ostringstream str;
+      str << "OUT." << runtag << "."
+	  << std::setw(5) << std::setfill('0') << std::right << i;
+      files.push_back(str.str());
+    }
+  } else {
+    files = vm["files"].as< std::vector<std::string> >();
+  }
 
   for (auto file : files ) {
 
