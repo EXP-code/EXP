@@ -37,7 +37,7 @@ double runtime = 72.0;		// Total alloted runtime
 				// Files
 string homedir = "./";
 string infile = "restart.in";
-string parmfile = "PARAM";
+string parmfile = "PARAM.yml";
 string ratefile = "processor.rates";
 string outdir = "./";
 string runtag = "newrun";
