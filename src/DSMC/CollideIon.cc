@@ -22419,6 +22419,28 @@ void CollideIon::processConfig()
       }
     }
 
+    if (config["EminGrid"])
+      Ion::EminGrid = config["EminGrid"]["value"].as<double>();
+    else {
+      config["EminGrid"]["desc"] = "Set minimum energy boundary for collisional ionization and free-free grid in eV";
+      config["EminGrid"]["value"] = Ion::EminGrid;
+    }
+
+    if (config["EmaxGrid"])
+      Ion::EmaxGrid = config["EmaxGrid"]["value"].as<double>();
+    else {
+      config["EmaxGrid"]["desc"] = "Set maximum energy boundary for collisional ionization and free-free grid in eV";
+      config["EmaxGrid"]["value"] = Ion::EmaxGrid;
+    }
+
+    if (config["DeltaEGrid"])
+      Ion::DeltaEGrid = config["DeltaEGrid"]["value"].as<double>();
+    else {
+      config["DeltaEGrid"]["desc"] = "Set energy grid spacing for collisional ionization and free-free grid in eV";
+      config["DeltaEGrid"]["value"] = Ion::DeltaEGrid;
+    }
+
+
     if (config["MFP"]) 
       {
 	std::string name = config["MFP"]["value"].as<std::string>();
