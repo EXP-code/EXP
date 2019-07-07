@@ -150,7 +150,22 @@ int main(int argc, char**argv)
 
   double Vconv = 120*1e5;
 
-  po::options_description desc("Allowed options");
+  // Construct help string
+  //
+  std::ostringstream sout;
+  sout << std::string(60, '-') << std::endl
+       << "This utility computes VTK volume files (rectangular grids)"
+       << std::endl
+       << "of density, velocity, and possible gas properties for"
+       << std::endl
+       << "specified components.  You can specify restricted ranges"
+       << std::endl
+       << "ranges of particle indices for each component"
+       << std::endl
+       << std::string(60, '-') << std::endl
+       << std::endl << "Allowed options";
+
+  po::options_description desc(sout.str());
   desc.add_options()
     ("help,h", "produce this help message")
     ("verbose,v", "verbose output")

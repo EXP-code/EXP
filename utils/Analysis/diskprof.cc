@@ -46,7 +46,6 @@ using namespace std;
 
 namespace po = boost::program_options;
 
-
                                 // System libs
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -731,7 +730,7 @@ main(int argc, char **argv)
   // Parse command line or input parameter file
   // ==================================================
   
-  po::options_description desc("Compute disk potential, force and density profiles from PSP phase-space output files\nAllowed options");
+  po::options_description desc("Compute disk potential, force and density profiles\nfrom PSP phase-space output files\n\nAllowed options");
   desc.add_options()
     ("help,h",                                                                          "Print this help message")
     ("NICE",                po::value<int>(&NICE)->default_value(0),
@@ -793,7 +792,7 @@ main(int argc, char **argv)
     ("INFILE",              po::value<string>(&INFILE)->default_value("OUT"),
      "Phase space file")
     ("INDEX",               po::value<string>(&INDEX)->default_value("frame.indx"),
-     "File containing desirecd indices for PSP output")
+     "File containing desired indices for PSP output")
     ;
   
   // ==================================================
@@ -812,6 +811,12 @@ main(int argc, char **argv)
     exit(-1);
   }
 
+  if (vm.count("help")) {
+    std::cout << std::string(60, '-') << std::endl;
+    std::cout << desc << std::endl;
+    return 1;
+  }
+ 
 
   // ==================================================
   // Nice process

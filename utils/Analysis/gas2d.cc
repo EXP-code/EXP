@@ -2,8 +2,8 @@
  *  Description:
  *  -----------
  *
- *  Read in PSP files for a run and compute
- *  2-d gas distribution histogram
+ *  Read in PSP files for a run and compute 2-d gas distribution
+ *  histogram
  *
  *
  *  Call sequence:
@@ -95,7 +95,7 @@ main(int argc, char **argv)
   // Parse command line or input parameter file
   // ==================================================
   
-  po::options_description desc("Compute disk potential, force and density profiles from PSP phase-space output files\nAllowed options");
+  po::options_description desc("Compute disk potential, force and density profiles\nfrom PSP phase-space output files\n\nAllowed options");
   desc.add_options()
     ("help,h",                                                                          "Print this help message")
     ("RMAX",                po::value<double>(&RMAX)->default_value(0.1),
@@ -141,6 +141,15 @@ main(int argc, char **argv)
   } catch (po::error& e) {
     if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
+  }
+
+  // ==================================================
+  // Print help message and exit
+  // ==================================================
+
+  if (vm.count("help")) {
+    std::cout << std::endl << desc << std::endl;
+    return 0;
   }
 
   // ==================================================

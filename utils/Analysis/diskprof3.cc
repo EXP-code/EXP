@@ -72,7 +72,7 @@ namespace pt = boost::property_tree;
 
 typedef boost::shared_ptr<PSPDump> PSPDumpPtr;
 
-const std::string overview = "Compute disk potential, force and density profiles from\nPSP phase-space output files\n";
+const std::string overview = "Compute disk potential, force and density profiles from\nPSP phase-space output files";
 
 				// Variables not used but needed for linking
 int VERBOSE = 4;
@@ -360,7 +360,7 @@ std::string write_output(EmpCylSL& ortho, int icnt, double time)
 
 	for (int l=0; l<OUTR; l++) {
 	  for (int j=0; j<OUTR; j++) {
-	    data[i*OUTR + j] = otdat[(i*OUTR + l)*OUTR + j];
+	    data[l*OUTR + j] = otdat[(i*OUTR + l)*OUTR + j];
 	  }
 	}
 
@@ -740,7 +740,9 @@ main(int argc, char **argv)
   }
 
   if (vm.count("help")) {
+    std::cout << std::string(60, '-') << std::endl;
     std::cout << overview << std::endl;
+    std::cout << std::string(60, '-') << std::endl << std::endl;
     std::cout << desc     << std::endl;
     return 1;
   }

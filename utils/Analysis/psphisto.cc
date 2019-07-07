@@ -2,8 +2,8 @@
  *  Description:
  *  -----------
  *
- *  Read in PSP files for a run and compute
- *  spherical or cylindrical particle distribution
+ *  Read in PSP files for a run and compute spherical or cylindrical
+ *  particle distribution
  *
  *
  *  Call sequence:
@@ -96,7 +96,7 @@ main(int argc, char **argv)
   // Parse command line or input parameter file
   // ==================================================
   
-  po::options_description desc("Compute disk potential, force and density profiles from PSP phase-space output files\nAllowed options");
+  po::options_description desc("\nCompute disk potential, force and density profiles\nfrom PSP phase-space output files\n\nAllowed options");
   desc.add_options()
     ("help,h",                                                                          "Print this help message")
     ("RMIN",                po::value<double>(&rmin)->default_value(0.0),
@@ -104,9 +104,9 @@ main(int argc, char **argv)
     ("RMAX",                po::value<double>(&rmax)->default_value(0.1),
      "maximum radius for output")
     ("ZCENTER",             po::value<double>(&zcen)->default_value(0.0),
-     "gas disk midplane")
+     "disk midplane")
     ("ZWIDTH",              po::value<double>(&zwid)->default_value(0.05),
-     "gas disk halfwidth")
+     "disk halfwidth")
     ("NBINS",               po::value<int>(&nbins)->default_value(40),
      "number of bins")
     ("IBEG",                po::value<int>(&ibeg)->default_value(0),
@@ -123,16 +123,16 @@ main(int argc, char **argv)
      "use logarithmic scaling for radial axis")
     ("PROJ",                po::value<int>(&proj)->default_value(1),
      "projection (1=cyl)")
-    ("COMP",                po::value<string>(&comp)->default_value("gas disk"),
+    ("COMP",                po::value<string>(&comp)->default_value("disk"),
      "component name")
      ("LOG",                po::value<bool>(&logr)->default_value(false),
      "use logarithmic scaling for radial axis")
-    ("OUTFILE",             po::value<string>(&outfile)->default_value("gasprof"),
+    ("OUTFILE",             po::value<string>(&outfile)->default_value("histo"),
      "filename prefix")
     ("INFILE",              po::value<string>(&infile)->default_value("OUT"),
-     "phase space file")
+     "phase space file prefix")
     ("RUNTAG",              po::value<string>(&runtag)->default_value("run"),
-     "file containing desired indices for PSP output")
+     "EXP run tag")
      ;
   
   
@@ -150,6 +150,15 @@ main(int argc, char **argv)
   } catch (po::error& e) {
     if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
+  }
+
+  // ==================================================
+  // Print help message and exit
+  // ==================================================
+
+  if (vm.count("help")) {
+    std::cout << std::endl << desc << std::endl;
+    return 0;
   }
 
   // ==================================================

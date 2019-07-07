@@ -603,7 +603,14 @@ main(int argc, char **argv)
   // Parse command line or input parameter file
   // ==================================================
   
-  po::options_description desc("Compute disk potential, force and density profiles from PSP phase-space output files\nAllowed options");
+  std::ostringstream sout;
+  sout << std::string(60, '-') << std::endl
+       << "Compute disk potential, force and density profiles from" << std::endl
+       << "PSP phase-space output files" << std::endl
+       << std::string(60, '-') << std::endl << std::endl
+       << "Allowed options";
+  
+  po::options_description desc(sout.str());
   desc.add_options()
     ("help,h",                                                                          "Print this help message")
     ("NICE",                po::value<int>(&NICE)->default_value(0),
@@ -668,7 +675,7 @@ main(int argc, char **argv)
   // ==================================================
 
   if (vm.count("help")) {
-    std::cout << desc << std::endl;
+    std::cout << std::endl << desc << std::endl;
     return 0;
   }
 

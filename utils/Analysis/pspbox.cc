@@ -99,7 +99,7 @@ main(int argc, char **argv)
   // Parse command line or input parameter file
   // ==================================================
   
-  po::options_description desc("Compute disk potential, force and density profiles from PSP phase-space output files\nAllowed options");
+  po::options_description desc("Compute disk potential, force and density profiles\nfrom PSP phase-space output files\n\nAllowed options");
   desc.add_options()
     ("help,h",                                                                          "Print this help message")
     ("RMIN",                po::value<double>(&RMAX)->default_value(0.0),
@@ -154,7 +154,19 @@ main(int argc, char **argv)
     exit(-1);
   }
 
-  
+  // ==================================================
+  // Print help message and exit
+  // ==================================================
+
+  if (vm.count("help")) {
+    std::cout << std::endl << desc << std::endl;
+    return 0;
+  }
+
+  // ==================================================
+  // Get projection
+  // ==================================================
+
   ProjectionType proj = Spherical;
   if (vm.count("PROJ")) {
     if (PROJ.compare("Cylindrical") == 0) proj = Cylindrical;
