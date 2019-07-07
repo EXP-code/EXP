@@ -18,7 +18,7 @@ void exp_usage(char *prog)
 {
   cerr << "Usage" << endl
        << "-----" << endl << endl
-       << "[mpirun -np N ...] " << prog << " [-f file -d -h]" << endl << endl
+       << "[mpirun -np N ...] " << prog << " [ [-f file] [-d] [-v] [-h] ]" << endl << endl
        << "where" << endl << endl
        << "  -f file   specifies the input parameter file" << endl
        << "  -d        displays a default parameter file"  << endl
@@ -33,6 +33,7 @@ void exp_version()
 {
   std::cout << std::setw(25) << std::left << "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" << std::endl
 	    << std::setw(25) << std::left << "%%%%% GIT repository info %%%%%" << std::endl
+	    << std::setw(25) << std::left << "%%%%% from last configure %%%%%" << std::endl
 	    << std::setw(25) << std::left << "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" << std::endl << std::endl
 	    << std::setw(25) << std::left << "Repository URL"
 	    << " | " << PACKAGE_URL << std::endl
