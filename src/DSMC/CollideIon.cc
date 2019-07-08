@@ -233,6 +233,8 @@ static bool scatter_check       = false;
 
 static bool recomb_check        = false;
 
+static bool ionize_check        = false;
+
 // Decrease the interacton probability by electron fraction used for
 // dominant subspcies for the NTC rate
 //
@@ -804,6 +806,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   PiProb   .resize(nthrds);
   ABrate   .resize(nthrds);
   energyA  .resize(nthrds);
+  ionizeA  .resize(nthrds);
   recombA  .resize(nthrds);
   photoStat.resize(nthrds);
 
@@ -5271,6 +5274,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
       double crs   = eVel2 * Eta2 * DI * fac1;
       
+      if (scatter_check and ionize_check) {
+	double val = eVel2 * vel * 1.0e-14 * DI;
+	ionizeA[id].add(k, Eta2, val);
+      }
+
       if (DEBUG_CRS) trap_crs(crs, ionize);
       
       if (crs > 0.0) {
@@ -5308,6 +5316,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
       double crs   = eVel1 * Eta1 * DI * fac2;
       
+      if (scatter_check and ionize_check) {
+	double val = eVel1 * vel * 1.0e-14 * DI;
+	ionizeA[id].add(k, Eta1, val);
+      }
+
       if (DEBUG_CRS) trap_crs(crs, ionize);
       
       if (crs > 0.0) {
@@ -18458,6 +18471,64 @@ void CollideIon::gatherSpecies()
   std::array<DTup, 3> a_0 = {dtup_0, dtup_0, dtup_0};
   ZTup ztup_0(a_0, 0.0);
 
+  // Ionization diagnostics
+  //
+  if (scatter_check and ionize_check) {
+    StatsMPI::Return ionz = ionizeA[0].stats();
+
+    for (int n=1; n<nthrds; n++) { // Merge into first thread
+      StatsMPI::Return ret = ionizeA[n].stats();
+      for (auto u : ret) {
+	speciesKey k = u.first;
+	if (ionz.find(k) == ionz.end()) {
+	  ionz[k] = u.second;
+	} else {
+	  for (int j=0; j<4; j++) ionz[k][j] += u.second[j];
+	}
+      }
+    }
+    
+    // Reset the counters
+    //
+    for (auto & v : ionizeA) v.clear();
+
+    ionizeTally.clear();
+    if (myid==0) ionizeTally = ionz;
+
+    for (int n=1; n<numprocs; n++) {
+      if (myid==n) {
+	int num = ionz.size();
+	MPI_Send(&num,               1, MPI_INT,           0, 3000, MPI_COMM_WORLD);
+	for (auto v : ionz) {
+	  unsigned short Q[2];
+	  Q[0] = v.first.first;
+	  Q[1] = v.first.second;
+	  MPI_Send(&Q[0],        2, MPI_UNSIGNED_SHORT,    0, 3001, MPI_COMM_WORLD);
+	  MPI_Send(&v.second[0], 4, MPI_DOUBLE,            0, 3002, MPI_COMM_WORLD);
+	}
+      }
+      
+      if (myid==0) {
+	int num;
+	MPI_Recv(&num,           1, MPI_INT,              n, 3000, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	for (int i=0; i<num; i++) {
+	  unsigned short Q[2];
+	  std::array<double, 4> v3;
+	  MPI_Recv(&Q[0],        2, MPI_UNSIGNED_SHORT,   n, 3001, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&v3,          4, MPI_DOUBLE,           n, 3002, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  
+	  speciesKey k(Q[0], Q[1]);
+	  if (ionizeTally.find(k) == ionizeTally.end()) {
+	    for (int j=0; j<4; j++) ionizeTally[k][j]  = v3[j];
+	  } else {
+	    for (int j=0; j<4; j++) ionizeTally[k][j] += v3[j];
+	  }
+	}
+      }
+    }
+  }
+  // END: ionize_check
+
   // Recombination diagnostics
   //
   if (scatter_check and recomb_check) {
@@ -18475,8 +18546,9 @@ void CollideIon::gatherSpecies()
       }
     }
     
-    for (int n=0; n<nthrds; n++) // Reset the counters
-      recombA[n].clear();
+    // Reset the counters
+    //
+    for (auto & v : recombA) v.clear();
 
     recombTally.clear();
     if (myid==0) recombTally = comb;
@@ -18513,6 +18585,7 @@ void CollideIon::gatherSpecies()
       }
     }
   }
+  // END: recomb_check
 
   // specM is the mass in each internal state
   //
@@ -19501,6 +19574,41 @@ void CollideIon::gatherSpecies()
       }
       std::cout << std::string(24, '-') << std::endl;
 
+      // Ionization diagnostics
+      //
+      if (ionize_check and ionizeTally.size()) {
+	std::cout << std::endl
+		  << std::string(8+4*16, '-') << std::endl
+		  << "---- Ionization coefficient" << std::endl
+		  << std::string(8+4*16, '-') << std::endl
+		  << std::setw( 8) << "Species"
+		  << std::setw(16) << "Weight"
+		  << std::setw(16) << "Mean"
+		  << std::setw(16) << "Min"
+		  << std::setw(16) << "Max"
+		  << std::endl
+		  << std::setw( 8) << "-------"
+		  << std::setw(16) << "-------"
+		  << std::setw(16) << "-------"
+		  << std::setw(16) << "-------"
+		  << std::setw(16) << "-------"
+		  << std::endl;
+	for (auto v : ionizeTally) {
+	  std::ostringstream slab;
+	  double wgt = v.second[0], avg = 0.0;
+	  if (wgt>0.0) avg = v.second[1]/wgt;
+	  slab << v.first.first << ", " << v.first.second;
+	  std::cout << std::setw( 8) << slab.str()
+		    << std::setw(16) << wgt
+		    << std::setw(16) << avg
+		    << std::setw(16) << v.second[2]
+		    << std::setw(16) << v.second[3]
+		    << std::endl;
+	}
+	std::cout << std::string(8+4*16, '-') << std::endl;
+      }
+      // End: ionization
+
       // Recombination diagnostics
       //
       if (recomb_check and recombTally.size()) {
@@ -19553,8 +19661,9 @@ void CollideIon::gatherSpecies()
 	}
 
       }
-      // End: recombination
+      // END: recombination
     }
+    // END: myid==0
     
     // Clear the counters
     //
@@ -22156,6 +22265,13 @@ void CollideIon::processConfig()
     else {
       config["recombCheck"]["desc"] = "Print recombination coefficient for all active species";
       config["recombCheck"]["value"] = recomb_check = false;
+    }
+
+    if (config["ionizeCheck"])
+      ionize_check = config["ionizeCheck"]["value"].as<bool>();
+    else {
+      config["ionizeCheck"]["desc"] = "Print ionization coefficient for all active species";
+      config["ionizeCheck"]["value"] = ionize_check = false;
     }
 
     if (config["NO_ION_ION"])

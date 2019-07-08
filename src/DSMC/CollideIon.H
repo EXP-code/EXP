@@ -548,6 +548,7 @@ private:
   std::vector< std::array<double, 4> >               PiProb;
   std::vector< std::array<double, 4> >               ABrate;
   std::vector< StatsMPI >                            recombA;
+  std::vector< StatsMPI >                            ionizeA;
   std::vector< phStatMap >                           photoStat;
   //@{
 
@@ -1352,7 +1353,7 @@ protected:
   const CollCounts ccZ = {{0, 0}};
   std::vector<CollCountMap> collCount;
 
-  StatsMPI::Return recombTally;
+  StatsMPI::Return recombTally, ionizeTally;
   //@}
 
   //! For debugging
