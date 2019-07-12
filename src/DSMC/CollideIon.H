@@ -493,13 +493,13 @@ private:
 		     std::array<double, 3> >         CVels;
 
   struct XStup {
-    NTC::Interact::T t;
-    double           crs;
-    CEvector         CE;
-    CFreturn         CF;
+    NTC::T     t;
+    double     crs;
+    CEvector   CE;
+    CFreturn   CF;
 
     XStup() {}
-    XStup(const NTC::Interact::T& t) : t(t) {}
+    XStup(const NTC::T& t) : t(t) {}
   };
 
   typedef std::vector<XStup>                         InterXS;
@@ -611,7 +611,7 @@ private:
   void trap_crs(double& cross, const InterTypes type, double extra=0.0);
 
   //! Default electron-electron interaction type
-  static NTC::Interact::T elecElec;
+  static NTC::T elecElec;
 
   //@{
   //! Specify the electron scattering algorithm
@@ -1082,11 +1082,11 @@ protected:
 
   double crossSectionHybrid(int id, pCell* const c, 
 			    Particle* const p1, Particle* const p2, 
-			    double crm, const NTC::Interact::T& ityp);
+			    double crm, const NTC::T& ityp);
 
   int inelasticHybrid(int id, pCell* const c, 
 		      Particle* const p1, Particle* const p2, 
-		      double *crm, const NTC::Interact::T& itype, double weight);
+		      double *crm, const NTC::T& itype, double weight);
 
   //! Coulombic scattering angle lookup
   boost::shared_ptr<coulombSelect> coulombSel;
@@ -1229,7 +1229,7 @@ protected:
 
   virtual double crossSection(int id,  pCell* const c,
 			      Particle* const p1, Particle* const p2, 
-			      double crm, const NTC::Interact::T& itype)
+			      double crm, const NTC::T& itype)
   {
     if (aType == Direct)
       return crossSectionDirect(id, c, p1, p2, crm);
@@ -1249,7 +1249,7 @@ protected:
 
   virtual int 
   inelastic(int id, pCell* const c, Particle* const p1, Particle* const p2, 
-	    double *crm, const NTC::Interact::T& itype, double prob)
+	    double *crm, const NTC::T& itype, double prob)
   {
     if (aType == Direct)
       return inelasticDirect(id, c, p1, p2, crm);
@@ -1325,8 +1325,8 @@ protected:
 					    double& meanLambda, double& meanCollP, 
 					    double& totalNsel);
 
-  virtual NTC::Interact generateSelectionHybridSub(int id, Particle* const p1, Particle* const p2, 
-						   NTC::Interact::T& maxT, sKeyDmap* const Fn,
+  virtual NTC::InteractD generateSelectionHybridSub(int id, Particle* const p1, Particle* const p2, 
+						    NTC::T& maxT, sKeyDmap* const Fn,
 						   double *cr, double tau);
 
   //@{
@@ -1651,7 +1651,7 @@ public:
 				      double& totalNsel);
 
   //! Generate subdominate interaction rates
-  virtual NTC::Interact generateSelectionSub(int id, Particle* const p1, Particle* const p2, NTC::Interact::T& maxT,
+  virtual NTC::InteractD generateSelectionSub(int id, Particle* const p1, Particle* const p2, NTC::T& maxT,
 					sKeyDmap* const Fn, double *cr, double tau);
 
 

@@ -73,45 +73,61 @@ std::ostream& operator<< (std::ostream& out, const sKeyPair& t);
 
 namespace NTC
 {
+  //! Type of particle in interaction
+  enum pType {simple, neutral, ion, electron};
+
+  //! Interaction element: interaction species and charge
+  typedef std::pair<pType, speciesKey> pElem;
+
+  //! Interaction type with interaction elements
+  typedef std::tuple<unsigned short, pElem, pElem> T;
+
+  //! Default null pElem
+  extern pElem const pdef;
+
+  //! Default electron pElem
+  extern pElem const edef;
+  
+  //! Default ion pElem
+  extern pElem const idef;
+
+  //! Default interaction key for singleton
+  extern T const single;
+
+  class pTypeLabel
+  {
+  private:
+    std::map<pType, std::string> data;
+
+  public:
+
+    //! Constructor
+    pTypeLabel()
+    {
+      data = {
+	{pType::simple,   "Simple"},
+	{pType::neutral,  "Neutral"},
+	{pType::ion,      "Ion"},
+	{pType::electron, "Electron"}
+      };
+    }
+
+    const std::string& operator()(pElem t) { return data[t.first]; }
+  };
+
+
   //! Container for interaction list to add UI to data types
+  template <class U>
   class Interact
   {
 
   public:
 
-    //! Type of particle in interaction
-    enum pType {simple, neutral, ion, electron};
-
-    //! Interaction element: interaction species and charge
-    typedef std::pair<pType, speciesKey> pElem;
-
-    //! Interaction type with interaction elements
-    typedef std::tuple<unsigned short, pElem, pElem> T;
-
-    //! Default null pElem
-    static pElem const pdef;
-
-    //! Default electron pElem
-    static pElem const edef;
-
-    //! Default ion pElem
-    static pElem const idef;
-
-    //! Default interaction key for singleton
-    static T single;
-
-  private:
-
-    //! For labeling output
-    static std::map<pType, std::string> pLabs;
-
-  public:
-
     //! Array-like data implemented by a map
-    std::map<T, double> v;
+    std::map<T, U> v;
 
-    //! Single double value
-    double d;
+    //! Single datum
+    U d;
 
     //! Constructor (for initialization)
     Interact() : d(0) {}
@@ -120,13 +136,10 @@ namespace NTC
     bool operator!() { return v.size() == 0; }
 
     //! Get double from the map
-    double& operator[](T t) { return v[t]; }
+    U& operator[](T t) { return v[t]; }
 
     //! Get single double
-    double& operator()() { return d; }
-
-    //! Return interaction label
-    static const std::string& label(const pElem& t) { return pLabs[t.first]; }
+    U& operator()() { return d; }
 
   };
 
@@ -136,11 +149,6 @@ namespace NTC
     friend class NTCdb;
     
   public:
-
-    typedef NTC::Interact::T T;
-
-    //! Default interaction key for singleton
-    static T single;
 
     //@{
     //! NTC structures
@@ -722,6 +730,10 @@ namespace NTC
     }
 
   };
+
+  typedef Interact<double> InteractD;
+  typedef Interact<std::vector<std::pair<double, unsigned long>>> InteractVP;
+
 
 } // End: namespace NTC
 

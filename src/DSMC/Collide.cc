@@ -14,6 +14,8 @@ using namespace std;
 #include "TreeDSMC.H"
 #include "Collide.H"
 
+extern NTC::pTypeLabel ntcPL;	// Label instance
+
 #ifdef USE_GPTL
 #include <gptl.h>
 #endif
@@ -1222,8 +1224,8 @@ void * Collide::collide_thread(void * arg)
 	    for (auto j : i2.second.v) {
 	      std::ostringstream sout2;
 	      sout2 << "("  << labels[std::get<0>(j.first)]
-		    << ", " << NTC::Interact::label(std::get<1>(j.first))
-		    << ", " << NTC::Interact::label(std::get<2>(j.first))
+		    << ", " << ntcPL(std::get<1>(j.first))
+		    << ", " << ntcPL(std::get<2>(j.first))
 		    << ")";
 	      std::cout << std::left << std::setw(20) << sout1.str()
 			<< std::left << std::setw(30) << sout2.str()
@@ -1412,7 +1414,7 @@ void * Collide::collide_thread(void * arg)
 
 	sKeyPair k(i1, i2);
 				// Default to single interaction type
-	NTC::Interact::T maxT = NTC::Interact::single;
+	NTC::T maxT = NTC::single;
 	unsigned nselTot = 0;
 
 	// Single interaction type?
@@ -1454,7 +1456,7 @@ void * Collide::collide_thread(void * arg)
 	  if ((*unit)() < fracP) nselTot++;
 
 	  // Algorithm debug
-	  if (maxT == NTC::NTCitem::single) {
+	  if (maxT == NTC::single) {
 	    std::cout << "ntc singleton" << std::endl;
 	  }
 
@@ -1465,8 +1467,8 @@ void * Collide::collide_thread(void * arg)
 
 	    sout << ", [" << i1.first << ", " << i2.first << "] "
 		 << "("  << labels[std::get<0>(maxT)]
-		 << ", " << NTC::Interact::label(std::get<1>(maxT))
-		 << ", " << NTC::Interact::label(std::get<2>(maxT))
+		 << ", " << ntcPL(std::get<1>(maxT))
+		 << ", " << ntcPL(std::get<2>(maxT))
 		 << ")";
 	    
 	    out << "Time = " << std::setw(10) << tnow
@@ -1556,7 +1558,7 @@ void * Collide::collide_thread(void * arg)
 	    pthread_mutex_lock(&tlock);
 	    ntcdb[samp->mykey].Add(k, maxT, prod);
 	    pthread_mutex_unlock(&tlock);
-	    if (maxT == NTC::NTCitem::single) {
+	    if (maxT == NTC::single) {
 	      std::cout << "ntc singleton" << std::endl;
 	    }
 
@@ -1648,10 +1650,10 @@ void * Collide::collide_thread(void * arg)
 	    Particle* const p2 = tree->Body(bmap[i2][l2]);
 	  
 	    double cr = 0.0;
-	    NTC::Interact iact = generateSelectionSub(id, p1, p2, maxT, Fn, &cr, tau);
+	    NTC::InteractD iact = generateSelectionSub(id, p1, p2, maxT, Fn, &cr, tau);
 
 	    // iact.v is a map of all allowed interation types using
-	    // the NTC::Interact::T key
+	    // the NTC::InteractD::T key
 	    //
 	    for (auto v : iact.v) {
 
@@ -3696,7 +3698,7 @@ void Collide::NTCgather()
 	    int base = 230;
 	    
 	    for (auto j : i.second) {
-	      NTC::Interact::T val = j.first;
+	      NTC::T val = j.first;
 	      unsigned num = j.second.size();
 	      unsigned short uuu[7] = {std::get<0>(val),
 				       std::get<1>(val).first,
@@ -3769,10 +3771,10 @@ void Collide::NTCgather()
 	      MPI_Recv(&num, 1, MPI_UNSIGNED, n, base+1, MPI_COMM_WORLD, 
 		       MPI_STATUS_IGNORE);
 
-	      NTC::Interact::T utup {
+	      NTC::T utup {
 		uuu[0],
-		{static_cast<NTC::Interact::pType>(uuu[1]), speciesKey(uuu[2], uuu[3])},
-		{static_cast<NTC::Interact::pType>(uuu[4]), speciesKey(uuu[5], uuu[6])}
+		{static_cast<NTC::pType>(uuu[1]), speciesKey(uuu[2], uuu[3])},
+		{static_cast<NTC::pType>(uuu[4]), speciesKey(uuu[5], uuu[6])}
 	      };
 
 	      if (num) {
@@ -3916,8 +3918,8 @@ void Collide::NTCstats(std::ostream& out)
 	      out << std::endl << std::string(spc, '-') << std::endl
 		  << std::left << std::fixed << sout.str() << std::endl
 		  << " Interact: (" << labels[std::get<0>(v.first)]
-		  << ", " << NTC::Interact::label(std::get<1>(v.first))
-		  << ", " << NTC::Interact::label(std::get<2>(v.first))
+		  << ", " << ntcPL(std::get<1>(v.first))
+		  << ", " << ntcPL(std::get<2>(v.first))
 		  << ")" << std::endl
 		  << " Quantile: " << j.first << std::endl
 		  << std::string(spc, '-') << std::endl

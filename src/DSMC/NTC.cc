@@ -42,35 +42,27 @@ double   NTCitem::Min = 1.0e-24;
 // Count live instances
 unsigned NTCitem::instance  = 0;
 
-// Label database
-std::map<Interact::pType, std::string>
-Interact::pLabs = {
-  {Interact::simple,   "Simple"},
-  {Interact::neutral,  "Neutral"},
-  {Interact::ion,      "Ion"},
-  {Interact::electron, "Electron"}
-};
-
 // Default null pElem
-constexpr Interact::pElem const Interact::pdef {Interact::simple, speciesKey(0, 0)};
+pElem const NTC::pdef {pType::simple, speciesKey(0, 0)};
 
 // Default electron pElem
-constexpr Interact::pElem const Interact::edef {Interact::electron, speciesKey(0, 0)};
+pElem const NTC::edef {pType::electron, speciesKey(0, 0)};
 
 // Default ion pElem
-constexpr Interact::pElem const Interact::idef {Interact::ion, speciesKey(0, 0)};
+pElem const NTC::idef {pType::ion, speciesKey(0, 0)};
 
 // Default interaction key for singleton
-Interact::T Interact::single(0, Interact::pdef, Interact::pdef);
+static unsigned short singleVal = std::numeric_limits<unsigned short>::max();
 
 // Default interaction key for singleton
-constexpr static unsigned short singleVal = std::numeric_limits<unsigned short>::max();
-Interact::T NTCitem::single {singleVal, Interact::pdef, Interact::pdef};
+T const NTC::single {singleVal, pdef, pdef};
 
-std::ostream& operator<< (std::ostream& out, const Interact::pElem& e)
+pTypeLabel ntcPL;		// Global-scope instance
+
+std::ostream& operator<< (std::ostream& out, const pElem& e)
 {
   std::ostringstream sout;
-  sout << Interact::label(e)
+  sout << ntcPL(e)
        << " [" << e.second.first << ", " << e.second.second << "]";
   out << sout.str();
   return out;

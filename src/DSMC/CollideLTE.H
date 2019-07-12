@@ -66,12 +66,11 @@ protected:
 
   virtual double crossSection(int id, pCell* const c,
 			      Particle* const p1, Particle* const p2, double crm, 
-			      const NTC::Interact::T& ityp=NTC::Interact::single);
+			      const NTC::T& ityp=NTC::single);
 
   virtual int inelastic(int id, pCell* const cell, 
 			Particle* const p1, Particle* const p2, double *crm, 
-			const NTC::Interact::T& ityp=NTC::Interact::single,
-			double weight=-1);
+			const NTC::T& ityp=NTC::single,	double weight=-1);
 
   double getCoolingRate(int id) { return coolheat[id]; }
 

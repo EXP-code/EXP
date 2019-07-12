@@ -188,7 +188,7 @@ public:
 
   //@{
   //! Types for crossSection and generateSelection with interaction index
-  typedef std::map<speciesKey,  NTC::Interact>  sKey1Amap;
+  typedef std::map<speciesKey,  NTC::Interact<double>>  sKey1Amap;
   typedef std::map<speciesKey,      sKey1Amap>  sKey2Amap;
   //@}
 
@@ -321,7 +321,7 @@ protected:
   std::vector<double>   Vdbl, Vdbl1, Vdbl0;
   std::vector< vector<double> > VdblT;
 
-  std::vector<NTC::Interact> retCrs;
+  std::vector<NTC::Interact<double>> retCrs;
 
   std::vector< vector<pCell*> > cellist;
   
@@ -392,7 +392,7 @@ protected:
   virtual double crossSection(int id, pCell* const c, 
 			      Particle* const p1, Particle* const p2,
 			      double cr,
-			      const NTC::Interact::T& ityp=NTC::Interact::single) = 0;
+			      const NTC::T& ityp=NTC::single) = 0;
   
   //! Return the particle selection matrix
   virtual sKey2Amap generateSelection
@@ -401,10 +401,10 @@ protected:
 
   //! Return the subdominant particle selection array.  Return empty
   //! container by default.
-  virtual NTC::Interact generateSelectionSub
-  (int id, Particle* const p1, Particle* const p2, NTC::Interact::T& maxT,
+  virtual NTC::Interact<double> generateSelectionSub
+  (int id, Particle* const p1, Particle* const p2, NTC::T& maxT,
    sKeyDmap* const Fn, double *cr, double tau)
-  { return NTC::Interact(); }
+  { return NTC::Interact<double>(); }
 
   //! Check whether subdominant interactions are defined.  Override
   //! in derived classes.
@@ -413,7 +413,7 @@ protected:
   //! Do the inelastic computation
   virtual int inelastic(int id, pCell* const cell, 
 			Particle* const p1, Particle* const p2, double *cr, 
-			const NTC::Interact::T& ityp=NTC::Interact::single, 
+			const NTC::T& ityp=NTC::single, 
 			double weight=-1) = 0;
   
   virtual void 
@@ -728,10 +728,10 @@ public:
 
   //@{
   //! Cell distribution of average (cross*vel)
-  typedef std::map<NTC::Interact::T, std::map<float, ahistoDPtr> > NTCuuHist;
+  typedef std::map<NTC::T, std::map<float, ahistoDPtr> > NTCuuHist;
   typedef std::map<double, std::vector<double> > dvMap;
   typedef std::map<sKeyPair, NTCuuHist> NTCqqHist;
-  typedef std::map<NTC::Interact::T, dvMap> qqMap;
+  typedef std::map<NTC::T, dvMap> qqMap;
   typedef std::map<sKeyPair, qqMap> CrsVelMap;
 
   //! Desired quantiles
