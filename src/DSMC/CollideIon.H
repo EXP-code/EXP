@@ -909,6 +909,10 @@ public:
   //! (default: true)
   static bool coulInter;
 
+  //! Accumulate and redistribute excess ionization or recombination
+  //! weight using the bodies in the collision cell (default: false)
+  static bool stateXS;
+
   //@{
   //! TRACE algorithm default: adds excess energy to electron.  
 

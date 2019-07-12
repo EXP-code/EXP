@@ -63,6 +63,7 @@ unsigned CollideIon::maxCoul    = UINT_MAX;
 double   CollideIon::logL       = 5.0/(16.0*M_PI); // energy transfer factor
 bool     CollideIon::TSESUM     = true;
 bool     CollideIon::coulInter  = true;
+bool     CollideIon::stateXS    = false;
 double   CollideIon::TSCOOL     = 0.05;
 double   CollideIon::TSFLOOR    = 0.001;
 double   CollideIon::scatFac1   = 1.0; // Hybrid algorithm
@@ -669,6 +670,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (Ion::useExciteGrid ? "on" : "off") << std::endl
 	      <<  " " << std::setw(20) << std::left << "Coll ionize cache"
 	      << (Ion::useIonizeGrid ? "on" : "off") << std::endl;
+    if (aType == Trace)
+    std::cout <<  " " << std::setw(20) << std::left << "stateXS"
+	      << (stateXS ? "on" : "off")           << std::endl;
     if (use_ntcdb)
     std::cout <<  " " << std::setw(20) << std::left << "ntcThresh"
 	      << ntcThresh                              << std::endl
@@ -5410,7 +5414,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	}
       }
       
-    } // end: new recomb algorithm
+    }
+    // END: new recomb algorithm
     else {
       // Particle 1 is ION, Particle 2 has ELECTRON
       //
@@ -5423,10 +5428,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  double ke              = std::max<double>(kEe1[id], FloorEv);
 	  std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
 
-	  double crs = sVel2 * Eta2 * RE.back() * fac1;
+	  double crs = eVel2 * Eta2 * RE.back() * fac1;
 
 	  if (scatter_check and recomb_check) {
-	    double val = sVel2 * vel * 1.0e-14 * RE.back();
+	    double val = eVel2 * vel * 1.0e-14 * RE.back();
 	    recombA[id].add(k, Eta2, val);
 	  }
 
@@ -5464,10 +5469,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double ke = std::max<double>(kEe2[id], FloorEv);
 	  std::vector<double> RE = ch.IonList[Q]->radRecombCross(ke, id);
 	  
-	  double crs = sVel1 * Eta1 * RE.back() * fac2;
+	  double crs = eVel1 * Eta1 * RE.back() * fac2;
 	  
 	  if (scatter_check and recomb_check) {
-	    double val = sVel1 * vel * 1.0e-14 * RE.back();
+	    double val = eVel1 * vel * 1.0e-14 * RE.back();
 	    recombA[id].add(k, Eta1, val);
 	  }
 	  
@@ -10954,6 +10959,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_electron, DBL_MAX) ),
       PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_ion, DBL_MAX) ) };
 
+  // For redistributing ionization and recombination redistribution excesses
+  //
+  std::vector<double> ion_rr_excess(SpList.size(), 0.0);
+
   // For manipulating species fractions
   //
   Fspc F(this, p1, p2);
@@ -11423,19 +11432,20 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  double ff = atomic_weights[Z2]/molP2[id];
 	  double WW = Prob * ff;
 
+#ifdef XC_DEEP9
+	  xc_counter[interFlag] += 1;
+	  xc_weight [interFlag] += WW;
+#endif
 	  if (WW < F(2, pos)) {
 	    F(2, pos  ) -= WW;
 	    F(2, pos+1) += WW;
 	  } else {
+	    if (stateXS) ion_rr_excess[pos] -= WW - F(2, pos);
 	    WW = F(2, pos);
 	    F(2, pos  )  = 0.0;
 	    F(2, pos+1) += WW;
 	  }
 
-#ifdef XC_DEEP9
-	  xc_counter[interFlag] += 1;
-	  xc_weight [interFlag] += WW;
-#endif
 	  if (use_normtest) {
 	    std::ostringstream sout;
 	    sout << "[After ionize]: C2=" << C2-1 << ", Pr=" << WW
@@ -11520,19 +11530,20 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  double ff = atomic_weights[Z1]/molP1[id];
 	  double WW = Prob * ff;
 
+#ifdef XC_DEEP9
+	  xc_counter[interFlag] += 1;
+	  xc_weight [interFlag] += WW;
+#endif
 	  if (WW < F(1, pos)) {
 	    F(1, pos  ) -= WW;
 	    F(1, pos+1) += WW;
 	  } else {
+	    if (stateXS) ion_rr_excess[pos] -= WW - F(1, pos);
 	    WW = F(1, pos);
 	    F(1, pos  )  = 0.0;
 	    F(1, pos+1) += WW;
 	  }
 
-#ifdef XC_DEEP9
-	  xc_counter[interFlag] += 1;
-	  xc_weight [interFlag] += WW;
-#endif
 	  if (use_normtest) {
 	    std::ostringstream sout;
 	    sout << "[After ionize]: C1=" << C1-1 << ", Pr=" << WW
@@ -11621,19 +11632,20 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  double ff = atomic_weights[Z2]/molP2[id];
 	  double WW = Prob * ff;
 
+#ifdef XC_DEEP9
+	  xc_counter[interFlag] += 1;
+	  xc_weight [interFlag] += WW;
+#endif
 	  if (WW < F(2, pos)) {
 	    F(2, pos  ) -= WW;
 	    F(2, pos-1) += WW;
 	  } else {
+	    if (stateXS) ion_rr_excess[pos] += WW - F(2, pos);
 	    WW = F(2, pos);
 	    F(2, pos  )  = 0.0;
 	    F(2, pos-1) += WW;
 	  }
 	  
-#ifdef XC_DEEP9
-	  xc_counter[interFlag] += 1;
-	  xc_weight [interFlag] += WW;
-#endif
 	  if (use_normtest) {
 	    std::ostringstream sout;
 	    sout << "[After recomb]: C2=" << C2 << ", Pr=" << WW
@@ -11743,19 +11755,20 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  double ff = atomic_weights[Z1]/molP1[id];
 	  double WW = Prob * ff;
 
+#ifdef XC_DEEP9
+	  xc_counter[interFlag] += 1;
+	  xc_weight [interFlag] += WW;
+#endif
 	  if (WW < F(1, pos)) {
 	    F(1, pos  ) -= WW;
 	    F(1, pos-1) += WW;
 	  } else {
+	    if (stateXS) ion_rr_excess[pos] += WW - F(1, pos);
 	    WW = F(1, pos);
 	    F(1, pos  )  = 0.0;
 	    F(1, pos-1) += WW;
 	  }
 	  
-#ifdef XC_DEEP9
-	  xc_counter[interFlag] += 1;
-	  xc_weight [interFlag] += WW;
-#endif
 	  if (use_normtest) {
 	    std::ostringstream sout;
 	    sout << "[After recomb]: C1=" << C1 << ", Pr=" << WW
@@ -12788,8 +12801,113 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       }
     }
 
-  } // End: photoionizing background
+  }
+  // END: photoionizing background
 
+  // Redistribute recombination and ionization state adjustment
+  //
+  if (stateXS) {
+
+    bool adjust = false;
+    for (int pos=0; pos<SpList.size(); pos++) {
+      if (ion_rr_excess[pos] != 0.0) adjust = true;
+    }
+
+    if (adjust) {
+
+      int pos0 = SpList.begin()->second;
+    
+      std::vector<double> sp_test_init(SpList.size(), 0.0);
+      std::vector<double> sp_test_finl(SpList.size(), 0.0);
+      std::vector<double> deferred    (SpList.size(), 0.0);
+      
+      for (auto b : c->bods) {
+	Particle *p = tree->Body(b);
+	for (int pos=0; pos<SpList.size(); pos++)
+	  sp_test_init[pos] += p->dattrib[pos0+pos];
+      }
+      
+      for (int pos=0; pos<SpList.size(); pos++) {
+	
+	// Ionization
+	//
+	if (ion_rr_excess[pos] != 0.0) {
+	  
+	  // Negative is ionization and positive is recombination
+	  //
+	  int s = copysign(1.0, ion_rr_excess[pos]);
+	  
+	  // How much weight to change overall
+	  //
+	  double exs = fabs(ion_rr_excess[pos]);
+	  
+	  // Shuffle using built-in random generator
+	  //
+	  std::vector<unsigned long> bods1(c->bods);
+	  std::random_shuffle(bods1.begin(), bods1.end());
+	  
+	  // Remove excess from remaining particles in
+	  // cell, until gone or out of state weight
+	  //
+	  for (auto b : bods1) {
+	    Particle *p = tree->Body(b);
+	    int    indx = pos0 + pos;
+	    double valu = p->dattrib[indx];
+	    
+	    if (valu < exs) {
+	      p->dattrib[indx  ]  = 0.0;
+	      p->dattrib[indx-s] += valu;
+	      exs -= valu;
+	    } else {
+	      p->dattrib[indx  ] -= exs;
+	      p->dattrib[indx-s] += exs;
+	      exs = 0.0;
+	      break;
+	    }
+	  }
+	  
+	  if (exs>0.0) {
+	    deferred[pos] += exs;
+	    if (s>0) std::cout << "Recombination ";
+	    else     std::cout << "Ionization    ";
+	    std::cout << "[pos=" << pos << "]: incomplete excess "
+		      << std::scientific << std::setprecision(4)
+		      << std::left  << std::setw(12) << exs/fabs(ion_rr_excess[pos]) << " = "
+		      << std::right << std::setw(12) << exs << " / "
+		      << std::left  << std::setw(12) << fabs(ion_rr_excess[pos])
+		      << std::endl  << std::fixed;
+	  }
+	}
+      }
+
+      for (auto b : c->bods) {
+	Particle *p = tree->Body(b);
+	for (int pos=0; pos<SpList.size(); pos++)
+	  sp_test_finl[pos] += p->dattrib[pos0+pos];
+      }
+      
+      std::cout << std::string(16*3+3, '-') << std::endl;
+      std::cout << std::setw(3)  << "#"
+		<< std::setw(16) << "Defer"
+		<< std::setw(16) << "Initial"
+		<< std::setw(16) << "Final"
+		<< std::setw(16) << "Delta"
+		<< std::endl;
+      std::cout << std::string(16*3+3, '-') << std::endl;
+      for (int pos=0; pos<SpList.size(); pos++) {
+	std::cout << std::setw(3)  << pos
+		  << std::setw(16) << deferred[pos]
+		  << std::setw(16) << sp_test_init[pos]
+		  << std::setw(16) << sp_test_finl[pos]
+		  << std::setw(16) << sp_test_finl[pos] - sp_test_init[pos]
+		  << std::endl;
+      }
+      std::cout << std::string(16*3+3, '-') << std::endl;
+    }
+    // END: adjust==true
+  }
+  //
+  // END: recombination/ionization state adjustment
 
   return ret;
 
@@ -19490,7 +19608,7 @@ void CollideIon::gatherSpecies()
 	  if (v == 0.0) v = 1.0e-18;
 	}
 
-	std::cout << std::endl
+	std::cout << std::endl << std::left
 		  << std::string(20+4*14, '-' ) << std::endl
 		  << std::setw(20) << "Type"
 		  << std::setw(14) << "Sum"
@@ -22329,6 +22447,14 @@ void CollideIon::processConfig()
       config["ESthresh"]["desc"] = "Ionization threshold for electron-electron scattering";
       config["ESthresh"]["value"] = ESthresh = 1.0e-10;
     }
+
+    if (config["stateXS"])
+      coulInter = config["stateXS"]["value"].as<bool>();
+    else {
+      config["stateXS"]["desc"] = "Accumulate and redistribute excess ionization or recombination weight using the bodies in the collision cell";
+      config["stateXS"]["value"] = stateXS = false;
+    }
+
 
     if (config["photoIB"])
       photoIB = config["photoIB"]["value"].as<std::string>();
