@@ -186,13 +186,6 @@ public:
 
   //@}
 
-  //@{
-  //! Types for crossSection and generateSelection with interaction index
-  typedef std::map<speciesKey,  NTC::Interact<double>>  sKey1Amap;
-  typedef std::map<speciesKey,      sKey1Amap>  sKey2Amap;
-  //@}
-
-
   //! Interaction-type labels
   class Labels : public std::map<int, std::string>
   {
@@ -371,11 +364,11 @@ protected:
   //! Additional DSMC-specific initialization
   virtual void initialize_cell_dsmc
   (pCell* const cell, 
-   sKey2Amap& nsel, double vrelmax, double tau, int id) = 0;
+   NTC::InteractVP& nsel, double vrelmax, double tau, int id) = 0;
   
   //! Additional EPSM-specific initialization
   virtual void initialize_cell_epsm
-  (pCell* const cell, sKey2Amap& nsel, 
+  (pCell* const cell, NTC::InteractVP& nsel, 
    double vrelmax, double tau, int id) = 0;
   
   //! Compute energy adjustments diagnostics for the cell after
@@ -386,25 +379,25 @@ protected:
   
   //! Return total scattering + elastic cross section "matrix" for
   //! species-species interactions
-  virtual sKey2Amap& totalCrossSections(int id) = 0;
+  virtual NTC::InteractVP& totalCrossSections(int id) = 0;
 
   //! Return the full cross section for particle selection computation
   virtual double crossSection(int id, pCell* const c, 
 			      Particle* const p1, Particle* const p2,
-			      double cr,
+			      speciesKey& k1, speciesKey& k2,  double cr,
 			      const NTC::T& ityp=NTC::single) = 0;
   
   //! Return the particle selection matrix
-  virtual sKey2Amap generateSelection
+  virtual NTC::InteractVP generateSelection
   (pCell* const c, sKeyDmap* const Fn, double crm, double tau, int id,
    double& meanLambda, double& meanCollP, double& totalNsel) = 0;
 
   //! Return the subdominant particle selection array.  Return empty
   //! container by default.
-  virtual NTC::Interact<double> generateSelectionSub
+  virtual NTC::InteractD generateSelectionSub
   (int id, Particle* const p1, Particle* const p2, NTC::T& maxT,
    sKeyDmap* const Fn, double *cr, double tau)
-  { return NTC::Interact<double>(); }
+  { return NTC::InteractD(); }
 
   //! Check whether subdominant interactions are defined.  Override
   //! in derived classes.
@@ -729,10 +722,10 @@ public:
   //@{
   //! Cell distribution of average (cross*vel)
   typedef std::map<NTC::T, std::map<float, ahistoDPtr> > NTCuuHist;
-  typedef std::map<double, std::vector<double> > dvMap;
-  typedef std::map<sKeyPair, NTCuuHist> NTCqqHist;
-  typedef std::map<NTC::T, dvMap> qqMap;
-  typedef std::map<sKeyPair, qqMap> CrsVelMap;
+  typedef std::map<double, std::vector<double> >         dvMap;
+  typedef std::map<sKeyPair, NTCuuHist>                  NTCqqHist;
+  typedef std::map<NTC::T, dvMap>                        qqMap;
+  typedef std::map<sKeyPair, qqMap>                      CrsVelMap;
 
   //! Desired quantiles
   const std::vector<double> qv = {0.01, 0.05, 0.1, 0.2, 0.5, 0.8, 0.9, 0.95, 0.99};

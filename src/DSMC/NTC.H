@@ -135,10 +135,10 @@ namespace NTC
     //! Is map empty?
     bool operator!() { return v.size() == 0; }
 
-    //! Get double from the map
+    //! Get datum from the map
     U& operator[](T t) { return v[t]; }
 
-    //! Get single double
+    //! Get single datum
     U& operator()() { return d; }
 
   };
@@ -731,8 +731,10 @@ namespace NTC
 
   };
 
-  typedef Interact<double> InteractD;
-  typedef Interact<std::vector<std::pair<double, unsigned long>>> InteractVP;
+  typedef Interact<double>                        InteractD;
+  typedef std::pair<unsigned long, unsigned long> InterPair;
+  typedef std::pair<double, InterPair>            InterElem;
+  typedef Interact<std::vector<InterElem>>        InteractVP;
 
 
 } // End: namespace NTC

@@ -12,7 +12,7 @@ private:
 
 protected:
   //! List of cross-sections per thread
-  std::vector<sKey2Amap> csections;
+  std::vector<NTC::InteractVP> csections;
 
   //@{
   //! For debugging
@@ -43,11 +43,11 @@ protected:
 
   virtual void 
   initialize_cell_dsmc
-  (pCell* const c, sKey2Amap& nsel, double vrelmax, double tau, int id);
+  (pCell* const c, NTC::InteractVP& nsel, double vrelmax, double tau, int id);
 
   virtual void
   initialize_cell_epsm
-  (pCell* const c, sKey2Amap& nsel, double vrelmax, double tau, int id) 
+  (pCell* const c, NTC::InteractVP& nsel, double vrelmax, double tau, int id) 
   {
     initialize_cell_dsmc(c, nsel, vrelmax, tau, id);  
   }
@@ -55,7 +55,7 @@ protected:
   virtual void 
   finalize_cell(pCell* c, sKeyDmap* const Fn, double kedsp, double tau, int id);
 
-  virtual sKey2Amap& totalCrossSections(int id)
+  virtual NTC::InteractVP& totalCrossSections(int id)
   {    
     return csections[id];
   }
@@ -65,7 +65,8 @@ protected:
   bool hasHeatCool() { return true; }
 
   virtual double crossSection(int id, pCell* const c,
-			      Particle* const p1, Particle* const p2, double crm, 
+			      Particle* const p1, Particle* const p2,
+			      speciesKey& k1, speciesKey& k2, double crm, 
 			      const NTC::T& ityp=NTC::single);
 
   virtual int inelastic(int id, pCell* const cell, 
@@ -106,7 +107,7 @@ public:
 
   virtual void Elost(double* collide, double* epsm);
 
-  virtual sKey2Amap generateSelection(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+  virtual NTC::InteractVP generateSelection(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
 				      double& meanLambda, double& meanCollP, 
 				      double& totalNsel);
 

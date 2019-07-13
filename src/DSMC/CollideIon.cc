@@ -475,8 +475,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 
   // Cross-section storage
   //
-  csections  = std::vector<sKey2Amap> (nthrds);
-  csectionsH = std::vector<sKey2Amap> (nthrds);
+  csections  = std::vector<NTC::InteractVP> (nthrds);
+  csectionsH = std::vector<NTC::InteractVP> (nthrds);
 
   // Random variable generators
   //

@@ -937,7 +937,16 @@ protected:
   void processConfig();
 
   //! List of cross sections (separate for each thread)
-  std::vector<sKey2Amap> csections, csectionsH;
+  //! 
+  //! InteractMap is a std::list<NTC::InteractVP>.  Interact maintains
+  //! a map indxed by the triple interaction type, and two species
+  //! keys.  The VP version is a vector of pairs containing cross
+  //! sections and the particle index.
+  //!
+  //! NB: the same structure is used by generateSelection to return a
+  //! cumulative probability distribution used for selecting particle
+  //! pairs
+  std::vector<NTC::InteractVP> csections, csectionsH;
 
   boost::shared_ptr<collDiag> collD;
 
@@ -1028,11 +1037,11 @@ protected:
 		  int id);
 
   virtual void 
-  initialize_cell_dsmc(pCell* const c, sKey2Amap& nsel, 
+  initialize_cell_dsmc(pCell* const c, NTC::InteractVP& nsel, 
 		       double rvmax, double tau, int id) {}
 
   virtual void 
-  initialize_cell_epsm(pCell* const c, sKey2Amap& nsel, 
+  initialize_cell_epsm(pCell* const c, NTC::InteractVP& nsel, 
 		       double rvmax, double tau, int id) 
   {
     std::cout << "NO EPSM implemented!" << std::endl;
@@ -1044,13 +1053,13 @@ protected:
 		sKeyDmap* const Fn, double kedsp, double tau, int id);
 
   
-  virtual sKey2Amap& totalCrossSections(int id)
+  virtual NTC::InteractVP& totalCrossSections(int id)
   {    
     return csections[id];
   }
 
   //! Currently, only used to estimate necessary time step
-  sKey2Amap& totalScatteringCrossSections(double crm, pCell* const c, int id);
+  NTC::InteractVP& totalScatteringCrossSections(double crm, pCell* const c, int id);
 
   double crossSectionDirect(int id, pCell* const c, 
 			    Particle* const p1, Particle* const p2, 
@@ -1070,7 +1079,7 @@ protected:
 
   double crossSectionTrace(int id, pCell* const c, 
 			   Particle* const p1, Particle* const p2, 
-			   double crm);
+			   speciesKey& k1, speciesKey& k2, double crm);
 
   void coulombicScatterTrace(int id, pCell* const c, double dT);
 
@@ -1082,6 +1091,7 @@ protected:
 
   double crossSectionHybrid(int id, pCell* const c, 
 			    Particle* const p1, Particle* const p2, 
+			    speciesKey& k1, speciesKey& k2,
 			    double crm, const NTC::T& ityp);
 
   int inelasticHybrid(int id, pCell* const c, 
@@ -1229,6 +1239,7 @@ protected:
 
   virtual double crossSection(int id,  pCell* const c,
 			      Particle* const p1, Particle* const p2, 
+			      speciesKey& k1, speciesKey& k2,
 			      double crm, const NTC::T& itype)
   {
     if (aType == Direct)
@@ -1238,10 +1249,10 @@ protected:
       return crossSectionWeight(id, c, p1, p2, crm);
 
     if (aType == Trace)
-      return crossSectionTrace (id, c, p1, p2, crm);
+      return crossSectionTrace (id, c, p1, p2, k1, k2, crm);
 
     if (aType == Hybrid)
-      return crossSectionHybrid(id, c, p1, p2, crm, itype);
+      return crossSectionHybrid(id, c, p1, p2, k1, k2, crm, itype);
 
     return 0.0;
   }
@@ -1305,22 +1316,22 @@ protected:
   //@}
 
 
-  virtual sKey2Amap generateSelectionDirect(pCell* const c, sKeyDmap* const Fn,
+  virtual NTC::InteractVP generateSelectionDirect(pCell* const c, sKeyDmap* const Fn,
 					    double crm, double tau, int id,
 					    double& meanLambda, double& meanCollP, 
 					    double& totalNsel);
 
-  virtual sKey2Amap generateSelectionWeight(pCell* const c, sKeyDmap* const Fn,
+  virtual NTC::InteractVP generateSelectionWeight(pCell* const c, sKeyDmap* const Fn,
 					    double crm, double tau, int id,
 					    double& meanLambda, double& meanCollP, 
 					    double& totalNsel);
 
-  virtual sKey2Amap generateSelectionTrace(pCell* const c, sKeyDmap* const Fn, 
+  virtual NTC::InteractVP generateSelectionTrace(pCell* const c, sKeyDmap* const Fn, 
 					   double crm, double tau, int id,
 					   double& meanLambda, double& meanCollP, 
 					   double& totalNsel);
 
-  virtual sKey2Amap generateSelectionHybrid(pCell* const c, sKeyDmap* const Fn, 
+  virtual NTC::InteractVP generateSelectionHybrid(pCell* const c, sKeyDmap* const Fn, 
 					    double crm, double tau, int id,
 					    double& meanLambda, double& meanCollP, 
 					    double& totalNsel);
@@ -1645,14 +1656,14 @@ public:
   //@}
 
   //! Select particle numbers for interaction
-  virtual sKey2Amap generateSelection(pCell* c, sKeyDmap* Fn,
-				      double crm, double tau, int id,
-				      double& meanLambda, double& meanCollP,
-				      double& totalNsel);
+  virtual NTC::InteractVP generateSelection(pCell* c, sKeyDmap* Fn,
+					double crm, double tau, int id,
+					double& meanLambda, double& meanCollP,
+					double& totalNsel);
 
   //! Generate subdominate interaction rates
   virtual NTC::InteractD generateSelectionSub(int id, Particle* const p1, Particle* const p2, NTC::T& maxT,
-					sKeyDmap* const Fn, double *cr, double tau);
+					   sKeyDmap* const Fn, double *cr, double tau);
 
 
   //! Check whether subdominant interactions are defined (currently

@@ -78,7 +78,7 @@ CollideLTE::CollideLTE(ExternalForce *force, Component *comp,
   avgT      = vector<double>(nthrds, 0.0);
   dispT     = vector<double>(nthrds, 0.0);
   tlist     = vector< vector<double> >(nthrds);
-  csections = vector<sKey2Amap> (nthrds);
+  csections = vector<NTC::InteractVP> (nthrds);
 
   debug_enabled = true;
 
@@ -137,13 +137,18 @@ void CollideLTE::initialize_cell(pCell* cell, double rvmax, double tau, int id)
       speciesKey i2 = it2.first;
       double Z2 = i2.first;
 
-      csections[id][i1][i2]() = cross * std::max<double>(Z1*Z1, Z2*Z2);
+      NTC::T T(0, NTC::pElem(NTC::simple, i1), NTC::pElem(NTC::simple, i2));
+
+      NTC::InterElem elem(cross * std::max<double>(Z1*Z1, Z2*Z2),
+			  NTC::InterPair(it1.second, it2.second));
+
+      csections[id][T].push_back(elem);
     }
   }
 }
 
 void CollideLTE::initialize_cell_dsmc
-(pCell* cell, sKey2Amap& nsel, double rvmax, double tau, int id)
+(pCell* cell, NTC::InteractVP& nsel, double rvmax, double tau, int id)
 {
   sCell *samp = cell->sample;
 				// Cell temperature and mass (cgs)
@@ -174,9 +179,9 @@ void CollideLTE::initialize_cell_dsmc
   double h0      = 0.0;
 
 				// Total number of encounters
-  unsigned number = 0;
-  for (auto it1 : nsel) {
-    for (auto it2 : it1.second) number += it2.second();
+  double number = 0.0;
+  for (auto v : nsel.v) {
+    number += v.second.back().first;
   }
     
 				// Volume in real cell
@@ -422,14 +427,26 @@ void CollideLTE::initialize_cell_dsmc
 
 
 double CollideLTE::crossSection(int id, pCell* const c,
-				Particle* const p1, Particle* const p2, double cr,
-				const NTC::T& ityp)
+				Particle* const p1, Particle* const p2,
+				speciesKey& k1, speciesKey& k2,
+				double cr, const NTC::T& ityp)
 {
-  // Species keys
-  //
-  KeyConvert k1(p1->iattrib[use_key]), k2(p2->iattrib[use_key]);
+  NTC::T T(0, NTC::pElem(NTC::simple, k1), NTC::pElem(NTC::simple, k2));
+  NTC::InterPair i1(p1->indx, p2->indx), i2(p2->indx, p1->indx);
 
-  return csections[id][k1.getKey()][k2.getKey()]();
+  double ret = 0.0;
+
+  // Search for cross section in list . . . this is not the most
+  // efficient way to do this
+  //
+  for (auto v : csections[id][T]) {
+    if (v.second == i1 or v.second == i2) {
+      ret = v.first;
+      break;
+    }
+  }
+    
+  return ret;
 }
 
 
@@ -776,12 +793,12 @@ void CollideLTE::finalize_cell(pCell* const cell,
 }
 
 
-Collide::sKey2Amap CollideLTE::generateSelection
+NTC::InteractVP CollideLTE::generateSelection
 (pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
  double& meanLambda, double& meanCollP, double& totalNsel)
 {
   sKeyDmap            densM, collPM, lambdaM, crossM;
-  sKey2Amap           selcM;
+  NTC::InteractVP     selcM;
   sKeyUmap::iterator  it1, it2;
     
   // Volume in the cell
@@ -805,24 +822,24 @@ Collide::sKey2Amap CollideLTE::generateSelection
     for (auto it2 : c->count) {
 
       speciesKey i2 = it2.first;
+      
+      NTC::T T;
 
       if (i2>=i1) {
-	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i1][i2]();
-      } else
-	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i2][i1]();
+	T = NTC::T(0, NTC::pElem(NTC::simple, i1), NTC::pElem(NTC::simple, i2));
+      } else {
+	T = NTC::T(0, NTC::pElem(NTC::simple, i2), NTC::pElem(NTC::simple, i1));
+      }
       
-      if (csections[id][i1][i2]() <= 0.0 || std::isnan(csections[id][i1][i2]())) {
-	cout << "INVALID CROSS SECTION! :: " << csections[id][i1][i2]()
+      double xcs = csections[id][T].back().first;
+
+      crossM[i1] += (*Fn)[i2]*densM[i2]*xcs;
+
+      if (xcs <= 0.0 || std::isnan(xcs)) {
+	cout << "INVALID CROSS SECTION! :: " << xcs
 	     << " #1 = (" << i1.first << ", " << i1.second << ")"
 	     << " #2 = (" << i2.first << ", " << i2.second << ")";
       }
-	    
-      if (csections[id][i2][i1]() <= 0.0 || std::isnan(csections[id][i2][i1]())) {
-	cout << "INVALID CROSS SECTION! :: " << csections[id][i2][i1]()
-	     << " #1 = (" << i2.first << ", " << i2.second << ")"
-	     << " #2 = (" << i1.first << ", " << i1.second << ")";
-      }
-	
     }
       
     if (it1.second>0 && (crossM[i1] == 0 || std::isnan(crossM[i1]))) {
@@ -852,23 +869,35 @@ Collide::sKey2Amap CollideLTE::generateSelection
   // This is the per-species N_{coll}
   //
   totalNsel = 0.0;
-  for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
-    speciesKey i1 = it1->first;
-    
-    for (it2=it1; it2!=c->count.end(); it2++) {
-      speciesKey i2 = it2->first;
-      
+
+  for (auto T : csections[id].v) {
+
+    speciesKey i1 = std::get<1>(T.first).second;
+    speciesKey i2 = std::get<2>(T.first).second;
+
+    // Generate
+    //
+    for (auto v : T.second) {
+
       // Probability of an interaction of between particles of type 1
       // and 2 for a given particle of type 2
-      double Prob = (*Fn)[i2] * densM[i2] * csections[id][i1][i2]() * crm * tau;
+      double Prob = (*Fn)[i2] * densM[i2] * v.first * crm * tau;
       
       if (i1==i2)
-	selcM[i1][i2]() = 0.5 * (it1->second-1) *  Prob;
+	v.first = 0.5 * (c->count[i1]-1) *  Prob;
       else
-	selcM[i1][i2]() = it1->second * Prob;
+	v.first = c->count[i1] * Prob;
+
+      selcM[T.first].push_back(v);
       
-      totalNsel += selcM[i1][i2]();
+      totalNsel += v.first;
     }
+
+    // Cumulate
+    //
+    for (size_t i=1; i<selcM[T.first].size(); i++) 
+      selcM[T.first][i].first += selcM[T.first][i-1].first;
+
   }
   
   return selcM;
