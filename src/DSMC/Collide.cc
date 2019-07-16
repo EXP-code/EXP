@@ -91,7 +91,7 @@ bool Collide::NTC      = false;
 // Sample based on maximum (true) or estimate
 // from variance (false) with no db
 //
-bool Collide::NTCnodb  = false;
+bool Collide::NTCnodb  = true;
 
 // Use cpu work to augment per particle effort
 //
