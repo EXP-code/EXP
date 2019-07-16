@@ -479,8 +479,6 @@ private:
   typedef std::map<speciesKey, std::vector<double> > keyCross;
   typedef std::map<speciesKey, std::vector<int>    > keyInter;
   typedef std::map<speciesKey, CEvector>             keyColEx;
-  typedef std::map<lQ, CEvector>                     CEmap;
-  typedef std::map<lQ, CFreturn>                     CFmap;
   typedef Icont<std::map, unsigned short, double>    TypeMap0;
   typedef Icont<std::map, unsigned, std::array<unsigned, 3> >
                                                      TypeMap1;
@@ -508,38 +506,27 @@ private:
   typedef std::map<lQ, std::array<double, 4> >       phStatMap;
   typedef std::array<double, 4>                      AvgRpt;
 
-  std::vector< std::vector<dKey>   >                 kInter;
   std::vector< std::vector<double> >                 dCross;
-  std::vector< InterXS >                             hCross;
-  std::vector< std::vector<double> >                 dCfrac;
   std::vector< std::vector<int>    >                 dInter;
-  std::vector< keyCross >                            sCross; 
   std::vector< keyWghts >                            meanF, densE, photoW, photoN;
-  std::vector< keyInter >                            sInter;
   std::vector< CEvector >                            CE1, CE2;
   std::vector< CFreturn >                            FF1, FF2;
-  std::vector< ChProb >                              CProb;
-  std::vector< CEmap >                               CEm;
-  std::vector< CFmap >                               FFm;
+  std::vector< double >                              xcross;
 
-  std::vector< keyColEx >                            kCE;
   std::vector< double >                              meanE, neutF, meanR, meanM, cellM, debye;
- std::vector< double >                              numIf, numEf, numQ2, colSc, elecDen, elecDn2, numIf0, numEf0, colCf;
-  std::vector< double >                              kEi, kEe1, kEe2, kEee, clrE, misE, dfrE, updE;
-  std::vector< double >                              kE1s, kE2s, Ein1, Ein2, Evel, nselRat, Evel2, Ivel2, Eelc, Eion;
-  std::vector< double >                              spCrm, spTau, spProb, spEdel, spEmax, spFtau;
-  std::vector< double >                              molP1, molP2, etaP1, etaP2;
-  std::vector< double >                              rhoSigV, rhoSigN, spNsel, elecRat;
+ std::vector< double >                               numIf, numEf, numQ2, colSc, elecDen, elecDn2, numIf0, numEf0, colCf;
+  std::vector< double >                              kEi, kEe1, kEe2, kEee, clrE, misE, dfrE, updE, spEdel, spEmax, spTau;
+  std::vector< double >                              kE1s, kE2s, Ein1, Ein2, Evel, Evel2, Ivel2, Eelc, Eion;
+  std::vector< double >                              molP1, molP2, etaP1, etaP2, sumP1, sumP2, eVelP1, eVelP2, sVelP1, sVelP2;
+  std::vector< double >                              rhoSigV, rhoSigN;
   std::vector< AvgRpt >                              tauIon, tauElc, colUps;
-  std::vector< unsigned >                            elecCnt, elecNum, spNcol;
-  std::vector< unsigned >                            elecOvr, elecAcc, elecTot, testCnt;
+  std::vector< unsigned >                            elecCnt, elecOvr, elecAcc, elecTot, testCnt;
   std::vector< unsigned >                            Nwght, Njsel, Ncol, Nmis;
   std::vector< unsigned >                            crZero, crMiss, crTotl;
   std::vector< TypeMap0 >                            Escat, Etotl;
   std::vector< TypeMap1 >                            TotlU;
   std::vector< TypeMap2 >                            TotlD;
   std::vector< std::map<int, TypeMap2 > >            Italy;
-  std::vector< TypeMap3 >                            coulCrs;
   std::vector< std::array<double, 3> >               Ediag, Vdiag;
   std::vector< std::array<double, 5> >               testKE;
   std::vector< CVels >                               cVels;
@@ -938,15 +925,14 @@ protected:
 
   //! List of cross sections (separate for each thread)
   //! 
-  //! InteractMap is a std::list<NTC::InteractVP>.  Interact maintains
-  //! a map indxed by the triple interaction type, and two species
-  //! keys.  The VP version is a vector of pairs containing cross
-  //! sections and the particle index.
+  //! InteractD is a wrapper of std::map<NTC::T, double> InteractD
+  //! maintains a map indxed by the triple interaction type, and two
+  //! species keys.  The InteractD version's object is a double.
   //!
   //! NB: the same structure is used by generateSelection to return a
   //! cumulative probability distribution used for selecting particle
   //! pairs
-  std::vector<NTC::InteractVP> csections, csectionsH;
+  std::vector<NTC::InteractD> csections;
 
   boost::shared_ptr<collDiag> collD;
 
@@ -1037,11 +1023,11 @@ protected:
 		  int id);
 
   virtual void 
-  initialize_cell_dsmc(pCell* const c, NTC::InteractVP& nsel, 
+  initialize_cell_dsmc(pCell* const c, NTC::InteractD& nsel, 
 		       double rvmax, double tau, int id) {}
 
   virtual void 
-  initialize_cell_epsm(pCell* const c, NTC::InteractVP& nsel, 
+  initialize_cell_epsm(pCell* const c, NTC::InteractD& nsel, 
 		       double rvmax, double tau, int id) 
   {
     std::cout << "NO EPSM implemented!" << std::endl;
@@ -1053,50 +1039,69 @@ protected:
 		sKeyDmap* const Fn, double kedsp, double tau, int id);
 
   
-  virtual NTC::InteractVP& totalCrossSections(int id)
-  {    
-    return csections[id];
-  }
+  virtual void 
+  pairInfoDirect(int id, pCell* const c,
+		 Particle* const p1, Particle* const p2, double cr) {}
 
-  //! Currently, only used to estimate necessary time step
-  NTC::InteractVP& totalScatteringCrossSections(double crm, pCell* const c, int id);
+  virtual void 
+  pairInfoWeight(int id, pCell* const c,
+		 Particle* const p1, Particle* const p2, double cr) {}
+
+  virtual void 
+  pairInfoHybrid(int id, pCell* const c,
+		 Particle* const p1, Particle* const p2, double cr) {}
+
+  virtual void 
+  pairInfoTrace(int id, pCell* const c,
+		Particle* const p1, Particle* const p2, double cr);
+
+
+  virtual void
+  pairInfo(int id, pCell* const c,
+	   Particle* const p1, Particle* const p2, double cr);
+
+  virtual NTC::InteractD& totalCrossSections(pCell* const c, double crm, int id);
 
   double crossSectionDirect(int id, pCell* const c, 
 			    Particle* const p1, Particle* const p2, 
-			    double crm);
+			    double crm, const NTC::T& type);
   
   int inelasticDirect(int id, pCell* const c, 
 		      Particle* const p1, Particle* const p2, 
-		      double *crm);
+		      double *crm, const NTC::T& type);
 
   double crossSectionWeight(int id, pCell* const c, 
 			    Particle* const p1, Particle* const p2, 
-			    double crm);
+			    double crm, const NTC::T& type);
   
   int inelasticWeight(int id, pCell* const c, 
 		      Particle* const p1, Particle* const p2, 
-		      double *crm);
+		      double *crm, const NTC::T& type);
 
   double crossSectionTrace(int id, pCell* const c, 
 			   Particle* const p1, Particle* const p2, 
-			   speciesKey& k1, speciesKey& k2, double crm);
+			   double crm, const NTC::T& type);
 
+  virtual void coulombicScatter(int id, pCell* const c, double dT);
+
+  void coulombicScatterDirect(int id, pCell* const c, double dT);
+  void coulombicScatterWeight(int id, pCell* const c, double dT);
+  void coulombicScatterHybrid(int id, pCell* const c, double dT);
   void coulombicScatterTrace(int id, pCell* const c, double dT);
 
   int inelasticTrace(int id, pCell* const c, 
 		     Particle* const p1, Particle* const p2, 
-		     double *crm);
+		     double *crm, const NTC::T& type);
 
   void secondaryScatter(Particle *p);
 
   double crossSectionHybrid(int id, pCell* const c, 
 			    Particle* const p1, Particle* const p2, 
-			    speciesKey& k1, speciesKey& k2,
-			    double crm, const NTC::T& ityp);
+			    double crm, const NTC::T& type);
 
   int inelasticHybrid(int id, pCell* const c, 
 		      Particle* const p1, Particle* const p2, 
-		      double *crm, const NTC::T& itype, double weight);
+		      double *crm, const NTC::T& itype);
 
   //! Coulombic scattering angle lookup
   boost::shared_ptr<coulombSelect> coulombSel;
@@ -1239,20 +1244,19 @@ protected:
 
   virtual double crossSection(int id,  pCell* const c,
 			      Particle* const p1, Particle* const p2, 
-			      speciesKey& k1, speciesKey& k2,
 			      double crm, const NTC::T& itype)
   {
     if (aType == Direct)
-      return crossSectionDirect(id, c, p1, p2, crm);
+      return crossSectionDirect(id, c, p1, p2, crm, itype);
 
     if (aType == Weight)
-      return crossSectionWeight(id, c, p1, p2, crm);
+      return crossSectionWeight(id, c, p1, p2, crm, itype);
 
     if (aType == Trace)
-      return crossSectionTrace (id, c, p1, p2, k1, k2, crm);
+      return crossSectionTrace (id, c, p1, p2, crm, itype);
 
     if (aType == Hybrid)
-      return crossSectionHybrid(id, c, p1, p2, k1, k2, crm, itype);
+      return crossSectionHybrid(id, c, p1, p2, crm, itype);
 
     return 0.0;
   }
@@ -1260,21 +1264,19 @@ protected:
 
   virtual int 
   inelastic(int id, pCell* const c, Particle* const p1, Particle* const p2, 
-	    double *crm, const NTC::T& itype, double prob)
+	    double *crm, const NTC::T& itype)
   {
     if (aType == Direct)
-      return inelasticDirect(id, c, p1, p2, crm);
+      return inelasticDirect(id, c, p1, p2, crm, itype);
 
     if (aType == Weight)
-      return inelasticWeight(id, c, p1, p2, crm);
+      return inelasticWeight(id, c, p1, p2, crm, itype);
 
     if (aType == Trace)
-      return inelasticTrace (id, c, p1, p2, crm);
+      return inelasticTrace (id, c, p1, p2, crm, itype);
 
     if (aType == Hybrid)
-      return inelasticHybrid(id, c, p1, p2, crm, itype, prob);
-
-    spNcol[id] += 1;
+      return inelasticHybrid(id, c, p1, p2, crm, itype);
 
     return 1;
   }
@@ -1304,41 +1306,21 @@ protected:
   void list_sizes_proc(ostream*);
   //@}
   
-  //@{
-  //! Cross-section debugging
-  std::string cross_debug;
-  std::vector<double> cross1_dbg, cross2_dbg;
-  double nextTime_dbg, vavg_dbg;
-  int nCnt_dbg;
-  static constexpr double delTime_dbg = 0.001;
-  static constexpr int nCel_dbg = 10;
-  void write_cross_debug();
-  //@}
+  virtual NTC::InteractD generateSelectionDirect(pCell* const c, double crm, sKeyDmap* const Fn,
+						  double tau, double& meanLambda, double& meanCollP, 
+						  double& totalNsel, int id);
 
+  virtual NTC::InteractD generateSelectionWeight(pCell* const c, double crm, sKeyDmap* const Fn,
+						  double tau, double& meanLambda, double& meanCollP, 
+						  double& totalNsel, int id);
 
-  virtual NTC::InteractVP generateSelectionDirect(pCell* const c, sKeyDmap* const Fn,
-					    double crm, double tau, int id,
-					    double& meanLambda, double& meanCollP, 
-					    double& totalNsel);
+  virtual NTC::InteractD generateSelectionTrace(pCell* const c, double crm, sKeyDmap* const Fn, 
+						 double tau, double& meanLambda, double& meanCollP, 
+						 double& totalNsel, int id);
 
-  virtual NTC::InteractVP generateSelectionWeight(pCell* const c, sKeyDmap* const Fn,
-					    double crm, double tau, int id,
-					    double& meanLambda, double& meanCollP, 
-					    double& totalNsel);
-
-  virtual NTC::InteractVP generateSelectionTrace(pCell* const c, sKeyDmap* const Fn, 
-					   double crm, double tau, int id,
-					   double& meanLambda, double& meanCollP, 
-					   double& totalNsel);
-
-  virtual NTC::InteractVP generateSelectionHybrid(pCell* const c, sKeyDmap* const Fn, 
-					    double crm, double tau, int id,
-					    double& meanLambda, double& meanCollP, 
-					    double& totalNsel);
-
-  virtual NTC::InteractD generateSelectionHybridSub(int id, Particle* const p1, Particle* const p2, 
-						    NTC::T& maxT, sKeyDmap* const Fn,
-						   double *cr, double tau);
+  virtual NTC::InteractD generateSelectionHybrid(pCell* const c, double crm, sKeyDmap* const Fn, 
+						  double tau, double& meanLambda, double& meanCollP, 
+						  double& totalNsel, int id);
 
   //@{
   //! Trace species maps for diagnostics
@@ -1516,9 +1498,6 @@ protected:
 
   };
 
-  //! Debug routine
-  void checkProb(int id, bool norm=true, double t=0.0);
-
   //! Compute the interaction for the hybrid weighted method
   void scatterHybrid
   (double P, PordPtr pp, KE_& KE,
@@ -1656,15 +1635,9 @@ public:
   //@}
 
   //! Select particle numbers for interaction
-  virtual NTC::InteractVP generateSelection(pCell* c, sKeyDmap* Fn,
-					double crm, double tau, int id,
-					double& meanLambda, double& meanCollP,
-					double& totalNsel);
-
-  //! Generate subdominate interaction rates
-  virtual NTC::InteractD generateSelectionSub(int id, Particle* const p1, Particle* const p2, NTC::T& maxT,
-					   sKeyDmap* const Fn, double *cr, double tau);
-
+  virtual NTC::InteractD generateSelection(pCell* const c, double crm, sKeyDmap* const Fn,
+					   double tau, double& meanLambda, double& meanCollP, 
+					   double& totalNsel, int id);
 
   //! Check whether subdominant interactions are defined (currently
   //! only implemented for hybrid method)

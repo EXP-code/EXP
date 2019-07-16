@@ -12,7 +12,7 @@ private:
 
 protected:
   //! List of cross-sections per thread
-  std::vector<NTC::InteractVP> csections;
+  std::vector<NTC::InteractD> csections;
 
   //@{
   //! For debugging
@@ -43,11 +43,11 @@ protected:
 
   virtual void 
   initialize_cell_dsmc
-  (pCell* const c, NTC::InteractVP& nsel, double vrelmax, double tau, int id);
+  (pCell* const c, NTC::InteractD& nsel, double vrelmax, double tau, int id);
 
   virtual void
   initialize_cell_epsm
-  (pCell* const c, NTC::InteractVP& nsel, double vrelmax, double tau, int id) 
+  (pCell* const c, NTC::InteractD& nsel, double vrelmax, double tau, int id) 
   {
     initialize_cell_dsmc(c, nsel, vrelmax, tau, id);  
   }
@@ -55,7 +55,7 @@ protected:
   virtual void 
   finalize_cell(pCell* c, sKeyDmap* const Fn, double kedsp, double tau, int id);
 
-  virtual NTC::InteractVP& totalCrossSections(int id)
+  virtual NTC::InteractD& totalCrossSections(pCell* c, double cr, int id)
   {    
     return csections[id];
   }
@@ -66,12 +66,11 @@ protected:
 
   virtual double crossSection(int id, pCell* const c,
 			      Particle* const p1, Particle* const p2,
-			      speciesKey& k1, speciesKey& k2, double crm, 
-			      const NTC::T& ityp=NTC::single);
+			      double crm, const NTC::T& ityp=NTC::single);
 
   virtual int inelastic(int id, pCell* const cell, 
 			Particle* const p1, Particle* const p2, double *crm, 
-			const NTC::T& ityp=NTC::single,	double weight=-1);
+			const NTC::T& ityp=NTC::single);
 
   double getCoolingRate(int id) { return coolheat[id]; }
 
@@ -107,9 +106,13 @@ public:
 
   virtual void Elost(double* collide, double* epsm);
 
-  virtual NTC::InteractVP generateSelection(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
-				      double& meanLambda, double& meanCollP, 
-				      double& totalNsel);
+  virtual void
+  pairInfo(int id, pCell* const c,
+	   Particle* const p1, Particle* const p2, double cr) {}
+
+  virtual NTC::InteractD generateSelection(pCell* c, double crm, sKeyDmap* Fn, double tau,
+					   double& meanLambda, double& meanCollP, 
+					   double& totalNsel, int id);
 
   void Debug(double t);
 };

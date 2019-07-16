@@ -364,11 +364,11 @@ protected:
   //! Additional DSMC-specific initialization
   virtual void initialize_cell_dsmc
   (pCell* const cell, 
-   NTC::InteractVP& nsel, double vrelmax, double tau, int id) = 0;
+   NTC::InteractD& nsel, double vrelmax, double tau, int id) = 0;
   
   //! Additional EPSM-specific initialization
   virtual void initialize_cell_epsm
-  (pCell* const cell, NTC::InteractVP& nsel, 
+  (pCell* const cell, NTC::InteractD& nsel, 
    double vrelmax, double tau, int id) = 0;
   
   //! Compute energy adjustments diagnostics for the cell after
@@ -379,35 +379,28 @@ protected:
   
   //! Return total scattering + elastic cross section "matrix" for
   //! species-species interactions
-  virtual NTC::InteractVP& totalCrossSections(int id) = 0;
+  virtual NTC::InteractD& totalCrossSections(pCell* const c, double cr, int id) = 0;
 
   //! Return the full cross section for particle selection computation
   virtual double crossSection(int id, pCell* const c, 
 			      Particle* const p1, Particle* const p2,
-			      speciesKey& k1, speciesKey& k2,  double cr,
-			      const NTC::T& ityp=NTC::single) = 0;
+			      double cr, const NTC::T& ityp=NTC::single) = 0;
   
+  //! Initialize quantities for cross-section computation
+  virtual void
+  pairInfo(int id, pCell* const c,
+	   Particle* const p1, Particle* const p2, double cr) = 0;
+
+
   //! Return the particle selection matrix
-  virtual NTC::InteractVP generateSelection
-  (pCell* const c, sKeyDmap* const Fn, double crm, double tau, int id,
-   double& meanLambda, double& meanCollP, double& totalNsel) = 0;
-
-  //! Return the subdominant particle selection array.  Return empty
-  //! container by default.
-  virtual NTC::InteractD generateSelectionSub
-  (int id, Particle* const p1, Particle* const p2, NTC::T& maxT,
-   sKeyDmap* const Fn, double *cr, double tau)
-  { return NTC::InteractD(); }
-
-  //! Check whether subdominant interactions are defined.  Override
-  //! in derived classes.
-  virtual bool selectSub() { return false; }
+  virtual NTC::InteractD generateSelection
+  (pCell* const c, double crm, sKeyDmap* const Fn, double tau,
+   double& meanLambda, double& meanCollP, double& totalNsel, int id) = 0;
 
   //! Do the inelastic computation
   virtual int inelastic(int id, pCell* const cell, 
 			Particle* const p1, Particle* const p2, double *cr, 
-			const NTC::T& ityp=NTC::single, 
-			double weight=-1) = 0;
+			const NTC::T& ityp=NTC::single) = 0;
   
   virtual void 
   velocityUpdate(Particle* const p1, Particle* const p2, double cr);
@@ -490,9 +483,6 @@ protected:
 
 public:
   
-  //! NTC mean cross-section multiplcative factor
-  static double NTCfac;
-
   //! Integrate the cooling solution
   static bool ESOL;		
   

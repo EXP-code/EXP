@@ -14,8 +14,6 @@ using namespace std;
 #include "TreeDSMC.H"
 #include "Collide.H"
 
-extern NTC::pTypeLabel ntcPL;	// Label instance
-
 #ifdef USE_GPTL
 #include <gptl.h>
 #endif
@@ -43,10 +41,6 @@ double Collide::ntcThreshDef = 0.95;
 // Debugging cell length--MFP ratio
 //
 bool Collide::MFPCL    = true;
-
-// NTC mean cross-section multiplcative factor
-//
-double Collide::NTCfac = 3.0;
 
 // Use the explicit energy solution
 //
@@ -1163,17 +1157,20 @@ void * Collide::collide_thread(void * arg)
     double cL = pow(volc, 0.33333333);
     
     
-    // Cell initialization (generate cross sections)
+    // Cell initialization
     //
     initialize_cell(c, crm, tau, id);
 
+    // Number of bodies in the cell
+    //
+    int nbods = c->bods.size();
+
     // Per species quantities
     //
-    double            meanLambda, meanCollP, totalNsel;
-    NTC::InteractVP       crossIJ = totalCrossSections(id);
-    NTC::InteractVP       nselM   = generateSelection(c, Fn, crm, tau, id, 
-						      meanLambda, meanCollP, 
-						      totalNsel);
+    double         meanLambda, meanCollP, totalNsel;
+    NTC::InteractD crossIJ = totalCrossSections(c, crm, id);
+    NTC::InteractD nselM   = generateSelection (c, crm, Fn, tau,
+						meanLambda, meanCollP, totalNsel, id);
     
 
     // True for intensive debugging only
@@ -1183,12 +1180,9 @@ void * Collide::collide_thread(void * arg)
       
       const double cunit = 1e-14/(TreeDSMC::Lunit*TreeDSMC::Lunit);
 
-      // nselM is an NTC::InteractVP. NTC::InteractVP is a
-      // std::list<NTC::InteractVP> Interact is a map that takes a
-      // triple consisting of the interactype type and the two
-      // interaction pairs along with their particles types, which are
-      // {simple, neutral, ion, electron}.  Simple is used as a Null
-      // value while the others have their obvious physical meaning.
+      // nselM is an NTC::InteractD. NTC::InteractD is an interface to
+      // a std::map<NTC::T, double>.  NTC::T is a tuple of the
+      // interaction type and the two speciesKey values.
 
       std::cout << std::left << setw(20) << "Species"
 		<< std::left << setw(30) << "Interaction"
@@ -1203,19 +1197,16 @@ void * Collide::collide_thread(void * arg)
 
       for (auto v : nselM.v) {
 	std::ostringstream sout1;
-	sout1 << "[(" << std::get<1>(v.first).second.first
-	      << ", " << std::get<1>(v.first).second.second
-	      << ")(" << std::get<2>(v.first).second.first
-	      << ", " << std::get<2>(v.first).second.second
+	sout1 << "[(" << std::get<1>(v.first).first
+	      << ", " << std::get<1>(v.first).second
+	      << ")(" << std::get<2>(v.first).first
+	      << ", " << std::get<2>(v.first).second
 	      << ")]";
-
-	double sum = 0.0;
-	for (auto xc : crossIJ[v.first]) sum += xc.first;
 
 	std::cout << std::left << std::setw(20) << sout1.str()
 		  << std::left << std::setw(30) << labels[std::get<0>(v.first)]
-		  << std::left << std::setw(18) << sum
-		  << std::left << std::setw(18) << v.second.back().first
+		  << std::left << std::setw(18) << crossIJ[v.first]()
+		  << std::left << std::setw(18) << v.second()
 		  << std::endl;
       }
     }
@@ -1368,77 +1359,69 @@ void * Collide::collide_thread(void * arg)
     
     for (auto v : nselM.v) {
 
-      std::vector<NTC::InterPair> pairs; // Interaction pairs
-      NTC::InterPair tmp(0, 0);
-
-      double curP = v.second.back().first;
-      int totalCount = floor(curP) + 1;
-      int activCount = totalCount;
+      int totalCount = ceil(v.second());
       
+      NTC::T T = v.first;
 
-      for (auto v : nselM.v) {
-
-	NTC::T maxT = v.first;
-
-	speciesKey i1(std::get<1>(v.first).second.first,
-		      std::get<1>(v.first).second.second);
-
-	speciesKey i2(std::get<2>(v.first).second.first,
-		      std::get<2>(v.first).second.second);
+      int        tt = std::get<0>(T); // For debugging only
+      speciesKey i1 = std::get<1>(T);
+      speciesKey i2 = std::get<2>(T);
 	
-	sKeyPair k(i1, i2);
+      sKeyPair k(i1, i2);
 
-	for (int np=0; np<totalCount; np++) {
+      for (int np=0; np<totalCount; np++) {
 
-	  double selV = (*unit)()*activCount;
-	  if (selV < curP) {
-	    auto pp = std::lower_bound(v.second.begin(), v.second.end(),
-				       NTC::InterElem(selV, tmp));
-	    if (pp != v.second.end()) {
-	      pairs.push_back(pp->second);
-	      auto last = pp;
-	      double diff = pp->first;
-	      if (last != v.second.begin()) diff -= (pp-1)->first;
-	      for (auto k=pp; k!=v.second.end(); k++) k->first -= diff;
-	      v.second.erase(pp);
-	      activCount--;
-	    }
-	  }
+	// Fractional check
+	//
+	double frc = v.second() - np;
+	if (frc<1.0 and (*unit)() > frc) break;
+	//     ^                  ^
+	//     |                  |
+	//     |                  +--- select with probability frc
+	//     |
+	//     +--- Only use fractional part on final candidate
+
+	// Pick a pair of particles from the cell
+	//
+	int i1 = std::min<int>(int(floor((*unit)()*nbods)), nbods-1);
+	int i2 = std::min<int>(int(floor((*unit)()*(nbods-1))), nbods-2);
+	if (i2 >= i1) i2++;
+
+	// Get index from body map for the cell
+	//
+	Particle* const p1 = tree->Body(c->bods[i1]);
+	Particle* const p2 = tree->Body(c->bods[i2]);
+	
+	// Calculate pair's relative speed (pre-collision)
+	//
+	vector<double> crel(3);
+	double cr = 0.0;
+	for (int j=0; j<3; j++) {
+	  crel[j] = p1->vel[j] - p2->vel[j];
+	  cr += crel[j]*crel[j];
 	}
+	cr = sqrt(cr);
 
-	for (auto pp : pairs) {
-				// Default to single interaction type
-	  unsigned nselTot = 0;
+	// No point in inelastic collsion for zero velocity . . . 
+	//
+	if (cr == 0.0) continue;
 
-	  // Get index from body map for the cell
-	  //
-	  Particle* const p1 = tree->Body(pp.first);
-	  Particle* const p2 = tree->Body(pp.second);
+	// Per particle initializatio for cross section
+	//
+	pairInfo(id, c, p1, p2, cr);
+	
+	// Accept or reject candidate pair according to relative speed
+	//
+	const double cunit = 1e-14/(TreeDSMC::Lunit*TreeDSMC::Lunit);
+	double Cross = crossSection(id, c, p1, p2, cr, T);
+	bool ok = false;
 	  
-	  // Calculate pair's relative speed (pre-collision)
-	  //
-	  vector<double> crel(3);
-	  double cr = 0.0;
-	  for (int j=0; j<3; j++) {
-	    crel[j] = p1->vel[j] - p2->vel[j];
-	    cr += crel[j]*crel[j];
-	  }
-	  cr = sqrt(cr);
-
-	  // No point in inelastic collsion for zero velocity . . . 
-	  //
-	  if (cr == 0.0) continue;
-
-	  // Accept or reject candidate pair according to relative speed
-	  //
-	  const double cunit = 1e-14/(TreeDSMC::Lunit*TreeDSMC::Lunit);
-	  double Cross = crossSection(id, c, p1, p2, i1, i2, cr, maxT);
-	  bool ok = false;
-	  
-	  double crsvel  = crossIJ[v.first].back().first/cunit * cr * NTCfac;
-	  if (use_ntcdb and ntcdb[samp->mykey].Ready(k, maxT)) {
-	    crsvel = ntcdb[samp->mykey].CrsVel(k, maxT, ntcThresh) * ntcFactor;
-	  }
+	double crsvel  = crossIJ[v.first]()/cunit * cr;
+	if (use_ntcdb and ntcdb[samp->mykey].Ready(k, T)) {
+	  crsvel = ntcdb[samp->mykey].CrsVel(k, T, ntcThresh) * ntcFactor;
+	}
+	
+	if (crsvel > 0.0) {
 
 	  double scrs = Cross / cunit;
 	  double prod = cr * scrs;
@@ -1463,9 +1446,9 @@ void * Collide::collide_thread(void * arg)
 
 				// Accumulate average
 	    pthread_mutex_lock(&tlock);
-	    ntcdb[samp->mykey].Add(k, maxT, prod);
+	    ntcdb[samp->mykey].Add(k, T, prod);
 	    pthread_mutex_unlock(&tlock);
-	    if (maxT == NTC::single) {
+	    if (T == NTC::single) {
 	      std::cout << "ntc singleton" << std::endl;
 	    }
 
@@ -1473,18 +1456,18 @@ void * Collide::collide_thread(void * arg)
 	    if (numSanityMsg and 
 		ntcAcc[id] >= numSanityVal and 	
 		ntcAcc[id] %  numSanityFreq == 0) {
-
+	      
 	      std::ostringstream sout;
 	      sout << "<"
 		   << k.first .first << "," << k.first .second << "|"
 		   << k.second.first << "," << k.second.second << ">";
-
+	      
 	      std::cout << "Proc " << myid << " thread=" << id 
 			<< ": cell="  << c->mykey
 			<< ", count=" << c->bods.size()
 			<< ", targ="  << targ
 			<< ", mfpCL=" << mfpCL
-			<< ", nselM=" << nselTot
+			<< ", nselM=" << v.second()
 			<< ", ntcOvr=" << ntcOvr[id]
 			<< " for "    << sout.str() << std::endl
 			<< " has logged " << ntcAcc[id] << " collisions!"
@@ -1493,102 +1476,35 @@ void * Collide::collide_thread(void * arg)
 			<< std::endl;
 	    }
 	  } // End: NTC
-
-	  if (ok) {
-
-	    // Counter for time-step selection
-	    //
-	    acceptCount++;
-
-	    elasTime[id].start();
+	} else {
+	  ok = false;
+	}
 	    
-	    // If pair accepted, select post-collision velocities
-	    //
-	    colc++;			// Collision counter
-	    
-	    // Do inelastic stuff
-	    //
-	    error1T[id] += inelastic(id, c, p1, p2, &cr, maxT);
-	    
-	    // Update the particle velocity
-	    //
-	    velocityUpdate(p1, p2, cr);
+	if (ok) {
 
-	  } // Inelastic computation
-
-	} // Loop over trial pairs (fiducial interaction)
-	
-	//------------------------------------------------------------
-	// Subdominant interaction types
-	//------------------------------------------------------------
-	// Cycle through all ions and randomly choose electron-donor
-	// pairs.  For this loop, i1 is assumed to be ion and i2 is
-	// assumed to be electron.
-	//
-	//  +----- Boolean indicator defined by derived classes
-	//  |
-	//  v
-	if (selectSub()) {
-	
-	  // Step through all ions in cell
+	  // Counter for time-step selection
 	  //
-	  size_t num1 = bmap[i1].size();
-	  size_t num2 = bmap[i2].size();
-	  size_t l1, l2;
+	  acceptCount++;
 
-	  // For each particle, l1, randomly pick an interaction
-	  // companion, l2
-	  //
-	  for (l1=0; l1<num1; l1++) {
-
-	    if (i1 == i2) {	// Same species: l1 == l2
-	      l2 = static_cast<size_t>(floor((*unit)()*(num2-1)));
-				// Sanity
-	      l2 = std::min<size_t>(l2, num2-2);
-				// Get random l2 != l1
-	      l2 = (l2 + l1 + 1) % num2;
-	    } else {
-	      l2 = static_cast<size_t>(floor((*unit)()*num2));
-				// Sanity
-	      l2 = std::min<size_t>(l2, num2-1);
-	    }
-	  
-	    Particle* const p1 = tree->Body(bmap[i1][l1]);
-	    Particle* const p2 = tree->Body(bmap[i2][l2]);
-	  
-	    double cr = 0.0;
-	    NTC::InteractD iact =
-	      generateSelectionSub(id, p1, p2, maxT, Fn, &cr, tau);
-
-	    // iact.v is a map of all allowed interation types using
-	    // the NTC::InteractD::T key
-	    //
-	    for (auto v : iact.v) {
-
-	      // Skip dominant interation which has been done
-	      if (v.first == maxT) continue;
-
-	      // Probability of interaction
-	      //
-	      double Prob = v.second;
-
-	      // Do inelastic stuff
-	      //
-	      error1T[id] += inelastic(id, c, p1, p2, &cr, v.first, Prob);
-	      
-	      // For tabulated diagnostic
-	      //
-	      wgtVal[id].push_back(Prob);
-	      
-	    } // Inelastic computation for subspecies
+	  elasTime[id].start();
 	    
-	  } // Loop over subspecies
-
-	} // Secondary species stanza
+	  // If pair accepted, select post-collision velocities
+	  //
+	  colc++;			// Collision counter
 	  
-      } // Next species 2 particle
+	  // Do inelastic stuff
+	  //
+	  error1T[id] += inelastic(id, c, p1, p2, &cr, T);
+	  
+	  // Update the particle velocity
+	  //
+	  velocityUpdate(p1, p2, cr);
+	  
+	} // Inelastic computation
 
-    } // Next species 1 particle
+      } // Particle loop
+
+    } // Species loop
     
     elasSoFar[id] = elasTime[id].stop();
     
@@ -1603,9 +1519,11 @@ void * Collide::collide_thread(void * arg)
     // selection
     //
     if (acceptCount > 0) {
+      /*
       double scale = static_cast<double>(totalCount)/acceptCount; 
       meanLambda *= scale;
       meanCollP  /= scale;
+      */
       if (MFPTS) {
 	pthread_mutex_lock(&tlock);
 	selMFP[c] = meanLambda;
@@ -3608,15 +3526,13 @@ void Collide::NTCgather()
 	    for (auto j : i.second) {
 	      NTC::T val = j.first;
 	      unsigned num = j.second.size();
-	      unsigned short uuu[7] = {std::get<0>(val),
+	      unsigned short uuu[5] = {std::get<0>(val),
 				       std::get<1>(val).first,
-				       std::get<1>(val).second.first,
-				       std::get<1>(val).second.second,
+				       std::get<1>(val).second,
 				       std::get<2>(val).first,
-				       std::get<2>(val).second.first,
-				       std::get<2>(val).second.second};
+				       std::get<2>(val).second};
 
-	      MPI_Send(&uuu, 7, MPI_UNSIGNED_SHORT, 0, base+0, MPI_COMM_WORLD);
+	      MPI_Send(&uuu, 5, MPI_UNSIGNED_SHORT, 0, base+0, MPI_COMM_WORLD);
 	      MPI_Send(&num, 1, MPI_UNSIGNED,       0, base+1, MPI_COMM_WORLD);
 
 	      double z;		// temporary
@@ -3637,7 +3553,7 @@ void Collide::NTCgather()
 	if (myid==0) {
 	  
 	  std::vector<double> v;
-	  unsigned short uuu[7];
+	  unsigned short uuu[5];
 	  unsigned sz, num, num2;
 	  double dval;
 	  int i1, i2, i3;
@@ -3673,17 +3589,13 @@ void Collide::NTCgather()
 
 	    for (int w=0; w<i3; w++) {
 
-	      MPI_Recv(&uuu, 7, MPI_UNSIGNED_SHORT, n, base+0, MPI_COMM_WORLD, 
+	      MPI_Recv(&uuu, 5, MPI_UNSIGNED_SHORT, n, base+0, MPI_COMM_WORLD, 
 		       MPI_STATUS_IGNORE);
 
 	      MPI_Recv(&num, 1, MPI_UNSIGNED, n, base+1, MPI_COMM_WORLD, 
 		       MPI_STATUS_IGNORE);
 
-	      NTC::T utup {
-		uuu[0],
-		{static_cast<NTC::pType>(uuu[1]), speciesKey(uuu[2], uuu[3])},
-		{static_cast<NTC::pType>(uuu[4]), speciesKey(uuu[5], uuu[6])}
-	      };
+	      NTC::T utup {uuu[0], speciesKey(uuu[2], uuu[3]), speciesKey(uuu[5], uuu[6])};
 
 	      if (num) {
 
@@ -3826,8 +3738,8 @@ void Collide::NTCstats(std::ostream& out)
 	      out << std::endl << std::string(spc, '-') << std::endl
 		  << std::left << std::fixed << sout.str() << std::endl
 		  << " Interact: (" << labels[std::get<0>(v.first)]
-		  << ", " << ntcPL(std::get<1>(v.first))
-		  << ", " << ntcPL(std::get<2>(v.first))
+		  << ", [" << std::setw(3) << std::get<1>(v.first).first << ", " << std::setw(3) << std::get<1>(v.first).second << "]"
+		  << ", [" << std::setw(3) << std::get<1>(v.first).first << ", " << std::setw(3) << std::get<1>(v.first).second << "]"
 		  << ")" << std::endl
 		  << " Quantile: " << j.first << std::endl
 		  << std::string(spc, '-') << std::endl

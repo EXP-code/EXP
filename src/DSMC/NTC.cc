@@ -42,28 +42,35 @@ double   NTCitem::Min = 1.0e-24;
 // Count live instances
 unsigned NTCitem::instance  = 0;
 
-// Default null pElem
-pElem const NTC::pdef {pType::simple, speciesKey(0, 0)};
+// Default null
+speciesKey const NTC::nullKey {speciesKey(0, 0)};
 
-// Default electron pElem
-pElem const NTC::edef {pType::electron, speciesKey(0, 0)};
+// Default interaction key for electron
+static unsigned short elecVal = std::numeric_limits<unsigned short>::max();
 
-// Default ion pElem
-pElem const NTC::idef {pType::ion, speciesKey(0, 0)};
+// Default electron
+speciesKey const NTC::electron {speciesKey(elecVal, elecVal)};
+
+// Default electron
+speciesKey const NTC::proton {speciesKey(1, 2)};
 
 // Default interaction key for singleton
-static unsigned short singleVal = std::numeric_limits<unsigned short>::max();
+T const NTC::single {0, nullKey, nullKey};
 
-// Default interaction key for singleton
-T const NTC::single {singleVal, pdef, pdef};
-
-pTypeLabel ntcPL;		// Global-scope instance
-
-std::ostream& operator<< (std::ostream& out, const pElem& e)
+std::ostream& operator<< (std::ostream& out, const speciesKey& k)
 {
   std::ostringstream sout;
-  sout << ntcPL(e)
-       << " [" << e.second.first << ", " << e.second.second << "]";
+  sout << " [" << k.first << ", " << k.second << "]";
+  out << sout.str();
+  return out;
+}
+
+std::ostream& operator<< (std::ostream& out, const NTC::T& e)
+{
+  std::ostringstream sout;
+  sout << std::get<0>(e)
+       << std::get<1>(e)
+       << std::get<2>(e);
   out << sout.str();
   return out;
 }

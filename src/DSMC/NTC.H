@@ -73,48 +73,20 @@ std::ostream& operator<< (std::ostream& out, const sKeyPair& t);
 
 namespace NTC
 {
-  //! Type of particle in interaction
-  enum pType {simple, neutral, ion, electron};
-
-  //! Interaction element: interaction species and charge
-  typedef std::pair<pType, speciesKey> pElem;
-
   //! Interaction type with interaction elements
-  typedef std::tuple<unsigned short, pElem, pElem> T;
+  typedef std::tuple<unsigned short, speciesKey, speciesKey> T;
 
-  //! Default null pElem
-  extern pElem const pdef;
+  //! Default null
+  extern speciesKey const nullKey;
 
-  //! Default electron pElem
-  extern pElem const edef;
+  //! Default electron
+  extern speciesKey const electron;
   
-  //! Default ion pElem
-  extern pElem const idef;
+  //! Default proton
+  extern speciesKey const proton;
 
-  //! Default interaction key for singleton
+  //! Default interaction key
   extern T const single;
-
-  class pTypeLabel
-  {
-  private:
-    std::map<pType, std::string> data;
-
-  public:
-
-    //! Constructor
-    pTypeLabel()
-    {
-      data = {
-	{pType::simple,   "Simple"},
-	{pType::neutral,  "Neutral"},
-	{pType::ion,      "Ion"},
-	{pType::electron, "Electron"}
-      };
-    }
-
-    const std::string& operator()(pElem t) { return data[t.first]; }
-  };
-
 
   //! Container for interaction list to add UI to data types
   template <class U>
@@ -421,12 +393,12 @@ namespace NTC
 	  MPI_Send(&(u=std::get<0>(q.first)),         1, MPI_UNSIGNED_SHORT, 0, 1117, MPI_COMM_WORLD);
 
 	  MPI_Send(&(u=std::get<1>(q.first).first),   1, MPI_UNSIGNED_SHORT, 0, 1118, MPI_COMM_WORLD);
-	  tk = std::get<1>(q.first).second;
+	  tk = std::get<1>(q.first);
 	  MPI_Send(&tk.first,                         1, MPI_UNSIGNED_SHORT, 0, 1119, MPI_COMM_WORLD);
 	  MPI_Send(&tk.second,                        1, MPI_UNSIGNED_SHORT, 0, 1120, MPI_COMM_WORLD);
 
 	  MPI_Send(&(u=std::get<2>(q.first).first),   1, MPI_UNSIGNED_SHORT, 0, 1121, MPI_COMM_WORLD);
-	  tk = std::get<2>(q.first).second;
+	  tk = std::get<2>(q.first);
 	  MPI_Send(&tk.first,                         1, MPI_UNSIGNED_SHORT, 0, 1122, MPI_COMM_WORLD);
 	  MPI_Send(&tk.second,                        1, MPI_UNSIGNED_SHORT, 0, 1123, MPI_COMM_WORLD);
 
@@ -483,12 +455,12 @@ namespace NTC
 	  MPI_Recv(&(get<1>(t).first),  1, MPI_UNSIGNED_SHORT, id, 1118, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  MPI_Recv(&tk.first,           1, MPI_UNSIGNED_SHORT, id, 1119, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  MPI_Recv(&tk.second,          1, MPI_UNSIGNED_SHORT, id, 1120, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  std::get<1>(t).second = tk;
+	  std::get<1>(t) = tk;
 
 	  MPI_Recv(&(get<2>(t).first),  1, MPI_UNSIGNED_SHORT, id, 1121, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  MPI_Recv(&tk.first,           1, MPI_UNSIGNED_SHORT, id, 1122, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  MPI_Recv(&tk.second,          1, MPI_UNSIGNED_SHORT, id, 1123, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  std::get<2>(t).second = tk;
+	  std::get<2>(t) = tk;
 
 	  db[key][t].recv(id);
 
@@ -731,11 +703,31 @@ namespace NTC
 
   };
 
-  typedef Interact<double>                        InteractD;
-  typedef std::pair<unsigned long, unsigned long> InterPair;
-  typedef std::pair<double, InterPair>            InterElem;
-  typedef Interact<std::vector<InterElem>>        InteractVP;
+  //! Maintains a maximum value as a mapped object
+  class maxDouble
+  {
+  private:
+    double value;
 
+  public:
+    //! Constructor and assign initial value
+    maxDouble(double init=0.0) : value(init) {}
+
+    //! Maximum operator
+    void operator[](double val)
+    {
+      if (val>value) value = val;
+    }
+
+    //! Get current value
+    double& operator()()
+    {
+      return value;
+    }
+
+  };
+
+  typedef Interact<maxDouble> InteractD;
 
 } // End: namespace NTC
 

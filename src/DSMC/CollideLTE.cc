@@ -70,6 +70,7 @@ CollideLTE::CollideLTE(ExternalForce *force, Component *comp,
   coolheat = vector<double>(nthrds, 0.0);
 
   HeatCool::initialize();
+
   hc = new HeatCool(Nmin, Nmax, Tmin, Tmax, Nnum, Tnum, cache);
 
   cellcnt   = vector<unsigned>(nthrds, 0);
@@ -78,13 +79,13 @@ CollideLTE::CollideLTE(ExternalForce *force, Component *comp,
   avgT      = vector<double>(nthrds, 0.0);
   dispT     = vector<double>(nthrds, 0.0);
   tlist     = vector< vector<double> >(nthrds);
-  csections = vector<NTC::InteractVP> (nthrds);
+  csections = vector<NTC::InteractD>  (nthrds);
 
   debug_enabled = true;
 
-  numt = 20;
+  numt = 40;
   tmin = log(5000.0);
-  tmax = log(200000.0);
+  tmax = log(1000000.0);
   dtmp = (tmax - tmin)/(numt - 1);
   for (unsigned n=0; n<numt; n++) {
     thisto1.push_back(tmin + dtmp*n);
@@ -137,18 +138,15 @@ void CollideLTE::initialize_cell(pCell* cell, double rvmax, double tau, int id)
       speciesKey i2 = it2.first;
       double Z2 = i2.first;
 
-      NTC::T T(0, NTC::pElem(NTC::simple, i1), NTC::pElem(NTC::simple, i2));
+      NTC::T T(0, i1, i2);
 
-      NTC::InterElem elem(cross * std::max<double>(Z1*Z1, Z2*Z2),
-			  NTC::InterPair(it1.second, it2.second));
-
-      csections[id][T].push_back(elem);
+      csections[id][T][cross * std::max<double>(Z1*Z1, Z2*Z2)];
     }
   }
 }
 
 void CollideLTE::initialize_cell_dsmc
-(pCell* cell, NTC::InteractVP& nsel, double rvmax, double tau, int id)
+(pCell* cell, NTC::InteractD& nsel, double rvmax, double tau, int id)
 {
   sCell *samp = cell->sample;
 				// Cell temperature and mass (cgs)
@@ -180,9 +178,7 @@ void CollideLTE::initialize_cell_dsmc
 
 				// Total number of encounters
   double number = 0.0;
-  for (auto v : nsel.v) {
-    number += v.second.back().first;
-  }
+  for (auto v : nsel.v) number += v.second();
     
 				// Volume in real cell
   double CellVolume = volumeC * pow(TreeDSMC::Lunit, 3);
@@ -428,32 +424,16 @@ void CollideLTE::initialize_cell_dsmc
 
 double CollideLTE::crossSection(int id, pCell* const c,
 				Particle* const p1, Particle* const p2,
-				speciesKey& k1, speciesKey& k2,
-				double cr, const NTC::T& ityp)
+				double cr, const NTC::T& T)
 {
-  NTC::T T(0, NTC::pElem(NTC::simple, k1), NTC::pElem(NTC::simple, k2));
-  NTC::InterPair i1(p1->indx, p2->indx), i2(p2->indx, p1->indx);
-
-  double ret = 0.0;
-
-  // Search for cross section in list . . . this is not the most
-  // efficient way to do this
-  //
-  for (auto v : csections[id][T]) {
-    if (v.second == i1 or v.second == i2) {
-      ret = v.first;
-      break;
-    }
-  }
-    
-  return ret;
+  return csections[id][T]();
 }
 
 
 
 int CollideLTE::inelastic(int id, pCell* const cell, 
 			  Particle* const p1, Particle* const p2, 
-			  double *cr, const NTC::T& ityp, double weight)
+			  double *cr, const NTC::T& ityp)
 
 {
   int ret = 0;			// No error (flag)
@@ -793,13 +773,13 @@ void CollideLTE::finalize_cell(pCell* const cell,
 }
 
 
-NTC::InteractVP CollideLTE::generateSelection
-(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
- double& meanLambda, double& meanCollP, double& totalNsel)
+NTC::InteractD CollideLTE::generateSelection
+(pCell* c, double crm, sKeyDmap* Fn, double tau, 
+ double& meanLambda, double& meanCollP, double& totalNsel, int id)
 {
-  sKeyDmap            densM, collPM, lambdaM, crossM;
-  NTC::InteractVP     selcM;
-  sKeyUmap::iterator  it1, it2;
+  sKeyDmap           densM, collPM, lambdaM, crossM;
+  NTC::InteractD     selcM;
+  sKeyUmap::iterator it1, it2;
     
   // Volume in the cell
   //
@@ -826,12 +806,12 @@ NTC::InteractVP CollideLTE::generateSelection
       NTC::T T;
 
       if (i2>=i1) {
-	T = NTC::T(0, NTC::pElem(NTC::simple, i1), NTC::pElem(NTC::simple, i2));
+	T = NTC::T(0, i1, i2);
       } else {
-	T = NTC::T(0, NTC::pElem(NTC::simple, i2), NTC::pElem(NTC::simple, i1));
+	T = NTC::T(0, i2, i1);
       }
       
-      double xcs = csections[id][T].back().first;
+      double xcs = csections[id][T]();
 
       crossM[i1] += (*Fn)[i2]*densM[i2]*xcs;
 
@@ -872,33 +852,26 @@ NTC::InteractVP CollideLTE::generateSelection
 
   for (auto T : csections[id].v) {
 
-    speciesKey i1 = std::get<1>(T.first).second;
-    speciesKey i2 = std::get<2>(T.first).second;
+    speciesKey i1 = std::get<1>(T.first);
+    speciesKey i2 = std::get<2>(T.first);
 
     // Generate
     //
-    for (auto v : T.second) {
 
-      // Probability of an interaction of between particles of type 1
-      // and 2 for a given particle of type 2
-      double Prob = (*Fn)[i2] * densM[i2] * v.first * crm * tau;
+    // Probability of an interaction of between particles of type 1
+    // and 2 for a given particle of type 2
+    double Prob = (*Fn)[i2] * densM[i2] * T.second() * crm * tau;
+    double selN = 0.0;
       
-      if (i1==i2)
-	v.first = 0.5 * (c->count[i1]-1) *  Prob;
-      else
-	v.first = c->count[i1] * Prob;
+    if (i1==i2)
+      selN = 0.5 * (c->count[i1]-1) *  Prob;
+    else
+      selN = c->count[i1] * Prob;
 
-      selcM[T.first].push_back(v);
+    selcM[T.first][selN];
       
-      totalNsel += v.first;
-    }
-
-    // Cumulate
-    //
-    for (size_t i=1; i<selcM[T.first].size(); i++) 
-      selcM[T.first][i].first += selcM[T.first][i-1].first;
-
+    totalNsel += selN;
   }
-  
+
   return selcM;
 }
