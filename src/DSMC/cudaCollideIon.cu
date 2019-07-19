@@ -20,6 +20,20 @@
 // Cross section test output
 // #define XC_COMPARE
 
+//! Some thrust definitions for species handling
+//@{
+typedef thrust::pair<unsigned short, unsigned short> cuSpeciesKey;
+
+struct cuSpeciesDef
+{
+  cuSpeciesKey sp;
+  int k, I;
+};
+
+typedef thrust::tuple<int, cuSpeciesDef, cuSpeciesDef, cuFP_t> cuInteract;
+
+//@}
+
 //! Swap value in device code
 template <class T>
 __device__
@@ -537,7 +551,6 @@ void CollideIon::cudaElasticInit()
   MPI_Barrier(MPI_COMM_WORLD);
 #endif
 }
-
 
 __device__
 cuFP_t cudaGeometric(int Z)
@@ -1069,6 +1082,9 @@ void chdata::cuda_initialize_textures()
   } // END: IonList
 
 }
+
+
+
 
 void chdata::cuda_initialize_grid_constants()
 {
@@ -2094,7 +2110,6 @@ __global__ void initCurand(dArray<curandState> state,
 // This is a port of the cell initialization for the scalar version
 //
 __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all active)
-			       dArray<cuFP_t> crm,         // Mean ion collision speed (per cell)
 			       dArray<cuFP_t> Ivel2,       // Mean-squared ion velocity (per cell)
 			       dArray<cuFP_t> Evel2,       // Mean-squared electron velocity (per cell)
 			       dArray<cuFP_t> PiProb,      // Relative electron fraction for BN algorithm (per cell)
@@ -2197,16 +2212,6 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
     if (massP>0.0) Evel2._v[c] = evel2/massP;
     if (densQ>0.0) numQ2      /= densQ;
       
-    if (massP>0.0) {
-      cuFP_t rvel = 0.0;
-      for (int k=0; k<3; k++) {
-	rvel += (crm2[k] - crm1[k]*crm1[k]/massP)/massP;
-      }
-      crm._v[c] = sqrt(fabs(rvel));
-    } else {
-      crm._v[c] = 0.0;
-    }
-
     cuFP_t ddfac = dfac/volC._v[c];
 
 #ifdef XC_DEEP7
@@ -2281,7 +2286,9 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
 struct cuEnergyInfo
 {
   cuFP_t Eta1, Eta2, Mu1, Mu2;
-  cuFP_t iE1, iE2;
+  cuFP_t kEi, kEe1, kEe2;
+  cuFP_t vel, eVel1, eVel2, sVel1, sVel2;
+  cuFP_t iE1, iE2, Sum1, Sum2;
 };
 
 // STL container pretty-print for std::array
@@ -2297,25 +2304,14 @@ void printEI(cuFP_t xc, cuEnergyInfo& E)
 // Computes the cross section for a pair of particles
 //
 __device__
-void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
-			 dArray<cuFP_t>         cross,  // Cross section for each interaction
-			 dArray<cuFP_t>         delph,  // Inelastic energy change for each interaction
-			 dArray<unsigned char>  xspcs,  // Ionization state for each interaction
-			 dArray<cudaInterTypes> xtype,  // Interaction type for each interaction
-			 dArray<cuFP_t>         xsc_H,
-			 dArray<cuFP_t>         xsc_He,
-			 dArray<cuFP_t>         xsc_pH,
-			 dArray<cuFP_t>         xsc_pHe,
-			 const
-			 dArray<cuIonElement>   elems,
-			 int                    C,       // Cell index
-			 int                    I1,      // Index of Particle 1
-			 int                    I2,      // Index of Particle 2
-			 int                    numxc,   // Number of possible cross sections
-			 curandState*           state,   // Random number generator
-			 cuFP_t*                xctot,   // Total cross section per pair
-			 cuEnergyInfo*          Einfo    // Return computed particle info
-			 )
+void setupCrossSection(dArray<cudaParticle>   in,      // Particle array
+		       dArray<cuIonElement>   elems,   // Info for all trace species
+		       int                    C,       // Cell index
+		       int                    I1,      // Index of Particle 1
+		       int                    I2,      // Index of Particle 2
+		       curandState*           state,   // Random number generator
+		       cuEnergyInfo*          Einfo    // Return computed particle info
+		       )
 {
   const int Nsp = elems._s;
 
@@ -2334,22 +2330,6 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
   cudaParticle* p1 = &in._v[I1];
   cudaParticle* p2 = &in._v[I2];
 	
-  // Total cross section accumulator per pair
-  //
-  *xctot  = 0.0;
-	
-  // Cross section position counter
-  //
-  int K = C*numxc;	// Cell array location
-  int L = K*6;		// xspc array location
-	
-  // Zero the cross-section type
-  //
-  for (int J=0; J<numxc; J++) {
-    cross._v[K+J] = 0.0;
-    xtype._v[K+J] = nothing;
-  }
-
   // Superparticle stats
   //
   cuFP_t Eta1=0.0, Eta2=0.0, Mu1=0.0, Mu2=0.0, Sum1=0.0, Sum2=0.0;
@@ -2444,155 +2424,189 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
   // Assign energy info for return
   //
   if (Einfo != 0x0) {
-    Einfo->Eta1 = Eta1;
-    Einfo->Eta2 = Eta2;
-    Einfo->Mu1  = Mu1;
-    Einfo->Mu2  = Mu2;
-    Einfo->iE1  = eKE1 * 0.5*p1->mass * cuda_atomic_weights[0];
-    Einfo->iE2  = eKE2 * 0.5*p2->mass * cuda_atomic_weights[0];
+    Einfo->Eta1  = Eta1;
+    Einfo->Eta2  = Eta2;
+
+    Einfo->Sum1  = Sum1;
+    Einfo->Sum2  = Sum2;
+
+    Einfo->Mu1   = Mu1;
+    Einfo->Mu2   = Mu2;
+
+    Einfo->vel   = vel/cuVunit;
+    Einfo->eVel1 = eVel1;
+    Einfo->eVel2 = eVel2;
+
+    Einfo->sVel1 = sVel1;
+    Einfo->sVel2 = sVel2;
+
+    Einfo->kEi   = kEi;
+    Einfo->kEe1  = kEe1;
+    Einfo->kEe2  = kEe2;
+
+    Einfo->iE1   = eKE1 * 0.5*p1->mass * cuda_atomic_weights[0];
+    Einfo->iE2   = eKE2 * 0.5*p2->mass * cuda_atomic_weights[0];
+  }
+}
+
+// Computes the cross section for a pair of particles
+//
+__device__
+cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
+			  dArray<cuIonElement>   elems,   // Info for all trace species
+			  cuFP_t*                delph,   // Inelastic energy change
+			  dArray<cuFP_t>         xsc_H,	  // Cross section arrays
+			  dArray<cuFP_t>         xsc_He,  // ..
+			  dArray<cuFP_t>         xsc_pH,  // ..
+			  dArray<cuFP_t>         xsc_pHe, // ..
+			  int                    C,       // Cell index
+			  int                    I1,      // Index of Particle 1
+			  int                    I2,      // Index of Particle 2
+			  int                    T,	  // Interaction type
+			  cuSpeciesDef*          J1,      // Particle state info
+			  cuSpeciesDef*          J2,	  // ..
+			  curandState*           state,   // Random number generator
+			  cuEnergyInfo*          Einfo    // Return computed particle info
+			  )
+{
+  // For convenience in checking species
+  //
+  const cuSpeciesKey cuProton    {1, 2};
+  const cuSpeciesKey cuElectron  {0xffff, 0xffff};
+  //                              ^       ^
+  //                              |       |
+  // 2^16-1 is max ushort---------+-------+
+  // as defined in NTC.H
+
+  // Pointer to particle structure for convenience
+  //
+  cudaParticle* p1 = &in._v[I1];
+  cudaParticle* p2 = &in._v[I2];
+	
+  // Zero return energy by default
+  //
+  *delph = 0.0;
+
+  // Species info
+  //
+  auto Z1 = J1->sp.first;
+  auto C1 = J1->sp.second;
+  auto P1 = C1 - 1;
+
+  auto Z2 = J2->sp.first;
+  auto C2 = J2->sp.second;
+  auto P2 = C2 - 1;
+
+  cuFP_t fac1 = 0.0, fac2 = 0.0;
+
+  if (J1->sp != cuElectron) {
+    fac1 = p1->datr[J1->I+cuSp0] / cuda_atomic_weights[Z1] / Einfo->Sum1;
   }
 
-  // Loop through all possible ion states
-  //
-  for (int k1=0; k1<Nsp; k1++) {
-	  
-    const cuIonElement& elem = elems._v[k1];
-	  
-    int Z = elem.Z;
-    int C = elem.C;
-    int P = elem.C - 1;
-    int I = elem.I;
-	  
-    cuFP_t fac1 = p1->datr[I+cuSp0] / cuda_atomic_weights[Z] / Sum1;
-    cuFP_t fac2 = p2->datr[I+cuSp0] / cuda_atomic_weights[Z] / Sum2;
-	  
-    // Loop through all possible ion states for second ion
+  if (J2->sp != cuElectron) {
+    fac2 = p2->datr[J2->I+cuSp0] / cuda_atomic_weights[Z2] / Einfo->Sum2;
+  }
+
+  //-------------------------------
+  // *** Both particles neutral
+  //-------------------------------
+  if (T == neut_neut) {
+
+    // Geometric cross sections based on atomic radius
     //
-    for (int kk=0; kk<Nsp; kk++) {
-      
-      const cuIonElement& elem2 = elems._v[kk];
-	    
-      int ZZ = elem2.Z;
-      int CC = elem2.C;
-      int PP = elem2.C - 1;
-      int II = elem2.I;
-	    
-      cuFP_t facS1 = p1->datr[II+cuSp0] / cuda_atomic_weights[ZZ] / Sum1;
-      cuFP_t facS2 = p2->datr[II+cuSp0] / cuda_atomic_weights[ZZ] / Sum2;
-
-      //--------------------------------------------------
-      // Particle 1 interacts with Particle 2
-      //--------------------------------------------------
-      
-      //-------------------------------
-      // *** Both particles neutral
-      //-------------------------------
-      
-      if (P==0 and PP==0) {
+    cuFP_t crs = (cudaGeometric(Z1) + cudaGeometric(Z2)) * fac1 * fac2 * cuCrossfac;
 	      
-	// Geometric cross sections based on
-	// atomic radius
-	cuFP_t crs = (cudaGeometric(Z) + cudaGeometric(ZZ)) * fac1 * facS2 * cuCrossfac;
-	      
-	if (crs>0.0) {
+    if (crs>0.0) {
 #ifdef XC_DEEP1
-	  printf("xsc: xnn=%e\n", crs);
+      printf("xsc: xnn=%e\n", crs);
 #endif
 #ifdef XC_DEEP4
-	  printf("xsc: (Z, P)=(%d, %d) xnn=%e\n", Z, P, crs);
+      printf("xsc: (Z, P)=(%d, %d) xnn=%e\n", J1->Z, J1->P, crs);
 #endif
-	  // Double counting
-	  if (Z == ZZ) crs *= 0.5;
-		
-	  cross._v[K]   = crs;
+      // Double counting
+      if (Z1 == Z2) crs *= 0.5;
+    }
 
-	  xspcs._v[L+0] = Z;
-	  xspcs._v[L+1] = C;
-	  xspcs._v[L+2] = I;
+    return crs;
+  }
 
-	  xspcs._v[L+3] = ZZ;
-	  xspcs._v[L+4] = CC;
-	  xspcs._v[L+5] = II;
+  // --------------------------------------
+  // *** Neutral atom-proton scattering
+  // --------------------------------------
 
-	  xtype._v[K]   = neut_neut;
-	  *xctot       += crs;
-		
-	  // Increment interaction counter
-	  K++;
-	  L = K*6;
-	}
-      }
+  if (T == neut_prot) {
 	    
-      // --------------------------------------
-      // *** Neutral atom-proton scattering
-      // --------------------------------------
+    cuFP_t crs = 0;
 	    
-      cuFP_t crs1 = 0;
-	    
-      // Particle 2 is proton
-      //
-      if (ZZ==1 and CC==2) {
+    // Particle 2 is proton
+    //
+    if (J2->sp == cuProton) {
 	
-	// Particle 1 is neutral hydrogen
-	if (Z==1 and P==0) crs1 = cudaElasticInterp(kEi, xsc_pH, Z, proton) * cuCrossfac * fac1 * facS2;
-	
-	// Particle 1 is neutral helium
-	if (Z==2 and P==0) crs1 = cudaElasticInterp(kEi, xsc_pHe, Z, proton) * cuCrossfac * fac1 * facS2;
-      }
-	    
-      // Particle 1 is proton
-      //
-      if (Z==1 and C==2) {
-	
-	// Particle 2 is neutral hydrogen
-	if (ZZ==1 and PP==0) crs1 = cudaElasticInterp(kEi, xsc_pH, ZZ, proton) * cuCrossfac * facS1 * fac2;
+      // Particle 1 is neutral hydrogen
+      if (Z1==1 and P1==0)
+	crs = cudaElasticInterp(Einfo->kEi, xsc_pH, 1, proton) * cuCrossfac * fac1 * fac2;
+      
+      // Particle 1 is neutral helium
+      if (Z1==2 and P1==0)
+	crs = cudaElasticInterp(Einfo->kEi, xsc_pHe, 2, proton) * cuCrossfac * fac1 * fac2;
 
-	// Particle 2 is neutral helium
-	if (ZZ==2 and PP==0) crs1 = cudaElasticInterp(kEi, xsc_pHe, ZZ, proton) * cuCrossfac * facS1 * fac2;
-      }
-	    
-      if (crs1>0.0) {
+      if (crs>0.0) {
 #ifdef XC_DEEP1
-	printf("xsc: xnp=%e\n", crs1);
+	printf("xsc: xnp=%e\n", crs);
 #endif
 #ifdef XC_DEEP4
-	printf("xsc: kEi=%e (Z, P)=(%d, %d) xnp=%e\n", kEi, Z, C, crs1);
+	printf("xsc: kEi=%e (Z, P)=(%d, %d) xnp=%e\n", Einfo->kEi, Z1, C1, crs);
 #endif
-
-	cross._v[K]   = crs1;
-
-	xspcs._v[L+0] = Z;
-	xspcs._v[L+1] = C;
-	xspcs._v[L+2] = I;
-
-	xspcs._v[L+3] = ZZ;
-	xspcs._v[L+4] = CC;
-	xspcs._v[L+5] = II;
-
-	xtype._v[K]   = neut_prot;
-	*xctot       += crs1;
-	      
-	K++;
-	L = K*6;
       }
+    }
 	    
-    } // End of inner species loop
-	  
-    // --------------------------------------
-    // *** Neutral atom-electron scattering
-    // --------------------------------------
-	  
+    // Particle 1 is proton
+    //
+    if (J1->sp == cuProton) {
+	
+      // Particle 2 is neutral hydrogen
+      if (Z2==1 and P2==0)
+	crs = cudaElasticInterp(Einfo->kEi, xsc_pH, 1, proton) * cuCrossfac * fac1 * fac2;
+
+      // Particle 2 is neutral helium
+      if (Z2==2 and P2==0)
+	crs = cudaElasticInterp(Einfo->kEi, xsc_pHe, 2, proton) * cuCrossfac * fac1 * fac2;
+
+      if (crs>0.0) {
+#ifdef XC_DEEP1
+	printf("xsc: xnp=%e\n", crs);
+#endif
+#ifdef XC_DEEP4
+	printf("xsc: kEi=%e (Z, P)=(%d, %d) xnp=%e\n", Einfo->kEi, Z2, C2, crs);
+#endif
+      }
+    }
+
+    return crs;
+  }
+  // END: neut_prot
+
+  // --------------------------------------
+  // *** Neutral atom-electron scattering
+  // --------------------------------------
+  
+  if (T == neut_elec) {
+
+    cuFP_t crs = 0;
+
     // Particle 1 ION, Particle 2 ELECTRON
     //
-    if (Z<=2 and P==0 and Eta2>0.0) {
-      cuFP_t crs = 0.0;
-	    
+    if (Z1<=2 and P1==0 and J2->sp==cuElectron) {
+    
       // Hydrogen
       //
-      if (Z==1) crs = cudaElasticInterp(kEe1, xsc_H,  Z, electron) * eVel2 * Eta2 * cuCrossfac * fac1;
+      if (Z1==1)
+	crs = cudaElasticInterp(Einfo->kEe1, xsc_H,  1, electron) * Einfo->eVel2 * Einfo->Eta2 * cuCrossfac * fac1;
+      
       // Helium
       //
-      if (Z==2) crs = cudaElasticInterp(kEe1, xsc_He, Z, electron) * eVel2 * Eta2 * cuCrossfac * fac1;
+      if (Z1==2)
+	crs = cudaElasticInterp(Einfo->kEe1, xsc_He, 2, electron) * Einfo->eVel2 * Einfo->Eta2 * cuCrossfac * fac1;
       
       if (crs>0.0) {
 #ifdef XC_DEEP1
@@ -2600,38 +2614,25 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 #endif
 #ifdef XC_DEEP4
 	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xne=%e fac=%e\n",
-	       kEe1, Z, C, eVel2, Eta2, crs, fac1);
+	       Einfo->kEe1, Z1, C1, Einfo->eVel2, Einfo->Eta2, crs, fac1);
 #endif
-	cross._v[K]   = crs;
-
-	xspcs._v[L+0] = Z;
-	xspcs._v[L+1] = C;
-	xspcs._v[L+2] = I;
-
-	xspcs._v[L+3] = 0;
-	xspcs._v[L+4] = 0;
-	xspcs._v[L+5] = 255;
-
-	xtype._v[K]   = neut_elec;
-	*xctot       += crs;
-	      
-	K++;
-	L = K*6;
       }
     }
+    
 	  
     // Particle 2 ION, Particle 1 ELECTRON
     //
-    if (P==0 and Eta1>0.0) {
-      cuFP_t crs = 0.0;
-	    
+    if (Z2<=2 and P2==0 and J1->sp==cuElectron) {
+
       // Hydrogen
       //
-      if (Z==1) crs = cudaElasticInterp(kEe2, xsc_H, Z, electron) * eVel1 * Eta1 * cuCrossfac * fac2;
+      if (Z2==1)
+	crs = cudaElasticInterp(Einfo->kEe2, xsc_H, 1, electron) * Einfo->eVel1 * Einfo->Eta1 * cuCrossfac * fac2;
       
       // Helium
       //
-      if (Z==2) crs = cudaElasticInterp(kEe2, xsc_He, Z, electron) * eVel1 * Eta1 * cuCrossfac * fac2;
+      if (Z2==2)
+	crs = cudaElasticInterp(Einfo->kEe2, xsc_He, 2, electron) * Einfo->eVel1 * Einfo->Eta1 * cuCrossfac * fac2;
 	    
       if (crs>0.0) {
 #ifdef XC_DEEP1
@@ -2639,157 +2640,111 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
 #endif
 #ifdef XC_DEEP4
 	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xne=%e fac=%e\n",
-	       kEe2, Z, C, eVel1, Eta1, crs, fac2);
+	       Einfo->kEe2, Z2, C2, Einfo->eVel1, Einfo->Eta1, crs, fac2);
 #endif
-
-	cross._v[K]   = crs;
-
-	xspcs._v[L+0] = 0;
-	xspcs._v[L+1] = 0;
-	xspcs._v[L+2] = 255;
-
-	xspcs._v[L+3] = Z;
-	xspcs._v[L+4] = C;
-	xspcs._v[L+5] = I;
-
-	xtype._v[K]   = neut_elec;
-	*xctot       += crs;
-	      
-	K++;
-	L = K*6;
       }
     }
+
+    return crs;
+  }
+
 	  
-    //-------------------------------
-    // *** Free-free
-    //-------------------------------
-    
-    if (C>1 and Eta1>0.0 and Eta2>0.0) {
-      
-      // Particle 1 ION, Particle 2 ELECTRON
-      cuFP_t ke = kEe1 > cuFloorEV ? kEe1 : cuFloorEV, ff, ph;
+  //-------------------------------
+  // *** Free-free
+  //-------------------------------
+  if (T == free_free) {
+  
+    cuFP_t crs = 0, rn;
+
+    // Particle 1 ION, Particle 2 ELECTRON
+    //
+    if (C1>1 and J2->sp==cuElectron) {
+      cuFP_t ke = Einfo->kEe1 > cuFloorEV ? Einfo->kEe1 : cuFloorEV, ff, ph;
       cuFP_t rn;
 #if cuREAL == 4
       rn = curand_uniform(state);
 #else
       rn = curand_uniform_double(state);
 #endif
-      computeFreeFree(ke, rn, ph, ff, elems, k1);
+      computeFreeFree(ke, rn, ph, ff, elems, J1->k);
 	    
-      cuFP_t crs  = eVel2 * Eta2 * ff * fac1;
+      crs  = Einfo->eVel2 * Einfo->Eta2 * ff * fac1;
 	    
       if (crs>0.0) {
+	*delph = ph;
 	      
 #ifdef XC_DEEP1
 	printf("xsc: xf=%e\n", crs);
 #endif
 #ifdef XC_DEEP4
 	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xf=%e fac=%e dE=%e i=%d\n",
-	       kEe1, Z, C, eVel2, Eta2, ff, fac1, ph, p1->indx);
+	       Einfo->kEe1, Z1, C1, Einfo->eVel2, Einfo->Eta2, ff, fac1, ph, p1->indx);
 #endif
-
-	cross._v[K]   = crs;
-
-	delph._v[K]   = ph;
-
-	xspcs._v[L+0] = Z;
-	xspcs._v[L+1] = C;
-	xspcs._v[L+2] = I;
-
-	xspcs._v[L+3] = 0;
-	xspcs._v[L+4] = 0;
-	xspcs._v[L+5] = 255;
-
-	xtype._v[K]   = free_free;
-	*xctot       += crs;
-	      
-	K++;
-	L = K*6;
       }
+    }
 	    
-      // Particle 2 ION, Particle 1 ELECTRON
-      ke = kEe2 > cuFloorEV ? kEe2 : cuFloorEV;
+    // Particle 2 ION, Particle 1 ELECTRON
+    if (C2>1 and J1->sp==cuElectron) {
+
+      cuFP_t ke = Einfo->kEe2 > cuFloorEV ? Einfo->kEe2 : cuFloorEV;
       
 #if cuREAL == 4
       rn = curand_uniform(state);
 #else
       rn = curand_uniform_double(state);
 #endif
-      computeFreeFree(ke, rn, ph, ff, elems, k1);
+      cuFP_t ff, ph;
+      computeFreeFree(ke, rn, ph, ff, elems, J2->k);
 	    
-      crs = eVel1 * Eta1 * ff * fac2;
+      crs = Einfo->eVel1 * Einfo->Eta1 * ff * fac2;
 	    
       if (crs>0.0) {
+	*delph = ph;
 #ifdef XC_DEEP1
 	printf("xsc: xf=%e\n", crs);
 #endif
 #ifdef XC_DEEP4
 	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xf=%e fac=%e dE=%e i=%d\n",
-	       kEe2, Z, C, eVel1, Eta1, ff, fac2, ph, p2->indx);
+	       Einfo->kEe2, Z1, C2, Einfo->eVel1, Einfo->Eta1, ff, fac2, ph, p2->indx);
 #endif
-	cross._v[K]   = crs;
-
-	delph._v[K]   = ph;
-
-	xspcs._v[L+0] = 0;
-	xspcs._v[L+1] = 0;
-	xspcs._v[L+2] = 255;
-
-	xspcs._v[L+3] = Z;
-	xspcs._v[L+4] = C;
-	xspcs._v[L+5] = I;
-
-	xtype._v[K]   = free_free;
-	*xctot       += crs;
-	
-	K++;
-	L = K*6;
       }
     }
-    // end: free-free 
+
+    return crs;
+  }
+  // END: free-free 
 	  
-    //-------------------------------
-    // *** Collisional excitation
-    //-------------------------------
+  //-------------------------------
+  // *** Collisional excitation
+  //-------------------------------
+
+  if (T == col_excite) {
     
+    cuFP_t crs = 0;
+
     // Particle 1 nucleus has BOUND ELECTRON, Particle 2 has FREE ELECTRON
     //
     //  +--- Charge of the current subspecies
     //  |
-    //  |       +--- Electron fraction of partner
-    //  |       |
-    //  V       V
-    if (P<Z and Eta2>0.0) {
-      cuFP_t ke = kEe1 > cuFloorEV ? kEe1 : cuFloorEV, ph, xc;
-      computeColExcite(ke, ph, xc, elems, k1);
+    //  |         +--- Partner is an electron
+    //  |         |
+    //  V         V
+    if (P1<Z1 and J2->sp==cuElectron) {
+      cuFP_t ke = Einfo->kEe1 > cuFloorEV ? Einfo->kEe1 : cuFloorEV, ph, xc;
+
+      computeColExcite(ke, ph, xc, elems, J1->k);
 	    
-      cuFP_t crs = eVel2 * Eta2 * xc * fac1;
+      crs = Einfo->eVel2 * Einfo->Eta2 * xc * fac1;
 	    
       if (crs > 0.0) {
+	*delph = ph;
 #ifdef XC_DEEP1
 	printf("xsc: xc=%e\n", crs);
 #endif
 #ifdef XC_DEEP4
 	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xc=%e dE=%e fac=%e\n",
-	       ke, Z, C, eVel2, Eta2, xc, ph, fac1);
+	       ke, J1->Z, J1->C, Einfo->eVel2, Einfo->Eta2, xc, ph, fac1);
 #endif
-	cross._v[K]   = crs;
-
-	delph._v[K]   = ph;
-
-	xspcs._v[L+0] = Z;
-	xspcs._v[L+1] = C;
-	xspcs._v[L+2] = I;
-
-	xspcs._v[L+3] = 0;
-	xspcs._v[L+4] = 0;
-	xspcs._v[L+5] = 255;
-
-	xtype._v[K]   = col_excite;
-	*xctot       += crs;
-	      
-	K++;
-	L = K*6;
       }
     }
 	  
@@ -2798,361 +2753,200 @@ void computeCrossSection(dArray<cudaParticle>   in,     // Particle array
     //
     //  +--- Charge of the current subspecies
     //  |
-    
-    //  |       +--- Electron fraction of partner
-    //  |       |
-    //  V       V
-    if (P<Z and Eta1>0) {
+    //  |         +--- Partner is an electron
+    //  |         |
+    //  V         V
+    if (P2<Z2 and J1->sp==cuElectron) {
 	    
-      cuFP_t ke = kEe2 > cuFloorEV ? kEe2 : cuFloorEV, ph, xc;
-      computeColExcite(ke, ph, xc, elems, k1);
+      cuFP_t ke = Einfo->kEe2 > cuFloorEV ? Einfo->kEe2 : cuFloorEV, ph, xc;
+
+      computeColExcite(ke, ph, xc, elems, J2->k);
 	    
-      cuFP_t crs = eVel1 * Eta1 * xc * fac2;
+      crs = Einfo->eVel1 * Einfo->Eta1 * xc * fac2;
 	    
       if (crs > 0.0) {
+	*delph = ph;
 #ifdef XC_DEEP1
 	printf("xsc: xc=%e\n", crs);
 #endif
 #ifdef XC_DEEP4
 	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xc=%e dE=%e fac=%e\n",
-	       ke, Z, C, eVel2, Eta2, xc, ph, fac2);
+	       ke, Z2, C2, Einfo->eVel2, Einfo->Eta2, xc, ph, fac2);
 #endif
-	cross._v[K]   = crs;
-
-	delph._v[K]   = ph;
-
-	xspcs._v[L+0] = 0;
-	xspcs._v[L+1] = 0;
-	xspcs._v[L+2] = 255;
-
-	xspcs._v[L+3] = Z;
-	xspcs._v[L+4] = C;
-	xspcs._v[L+5] = I;
-
-	xtype._v[K]   = col_excite;
-	*xctot       += crs;
-	      
-	K++;
-	L = K*6;
       }
-    }	  
-    // end: colexcite
-	  
-    //-------------------------------
-    // *** Ionization cross section
-    //-------------------------------
-	  
+    }
+
+    return crs;
+  }
+  // END: colexcite
+
+  //-------------------------------
+  // *** Ionization cross section
+  //-------------------------------
+  
+  if (T == col_ionize) {
+
+    cuFP_t crs = 0;
+
     // Particle 1 nucleus has BOUND ELECTRON, Particle 2 has FREE ELECTRON
     //
-    //  +--- Charge of the current subspecies
+    //  +--- Charge of the current subspecies, must have a bound electron
     //  |
-    //  |       +--- Electron fraction of partner
-    //  |       |
-    //  V       V
-    if (P<Z and Eta2>0) {
+    //  |         +--- Partner is an electron
+    //  |         |
+    //  V         V
+    if (P1<Z1 and J2->sp==cuElectron) {
+      
+      cuFP_t ke = Einfo->kEe1 > cuFloorEV ? Einfo->kEe1 : cuFloorEV, xc;
+
+      computeColIonize(ke, xc, elems, J1->k);
 	    
-      cuFP_t ke = kEe1 > cuFloorEV ? kEe1 : cuFloorEV, xc;
-      computeColIonize(ke, xc, elems, k1);
-	    
-      cuFP_t crs = eVel2 * Eta2 * xc * fac1;
-	    
+      crs = Einfo->eVel2 * Einfo->Eta2 * xc * fac1;
+      
       if (crs > 0.0) {
+	*delph = elems._v[J1->k].IPval;
 #ifdef XC_DEEP1
 	printf("xsc: [ie] io=%e\n", crs);
 #endif
 #ifdef XC_DEEP4
 	printf("xsc: [ie] kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e io=%e dE=%e fac=%e\n",
-	       kEe1, Z, C, eVel2, Eta2, xc, 0.0, fac1);
+	       Einfo->kEe1, J1->Z, J1->C, Einfo->eVel2, Einfo->Eta2, xc, 0.0, fac1);
 #endif
-	cross._v[K]   = crs;
-
-	delph._v[K]   = elem.IPval;
-
-	xspcs._v[L+0] = Z;
-	xspcs._v[L+1] = C;
-	xspcs._v[L+2] = I;
-
-	xspcs._v[L+3] = 0;
-	xspcs._v[L+4] = 0;
-	xspcs._v[L+5] = 255;
-
-	xtype._v[K]   = col_ionize;
-	*xctot       += crs;
-	      
-	K++;
-	L = K*6;
       }
     }
 	  
     // Particle 2 nucleus has BOUND ELECTRON, Particle 1 has FREE ELECTRON
     //
-    //  +--- Charge of the current subspecies
+    //  +--- Charge of the current subspecies, must have a bound electron
     //  |
-    //  |       +--- Electron fraction of partner
-    //  |       |
-    //  V       V
-    if (P<Z and Eta1) {
+    //  |         +--- Partner is an electron
+    //  |         |
+    //  V         V
+    if (P2<Z2 and J1->sp==cuElectron) {
 	    
-      cuFP_t ke = kEe2 > cuFloorEV ? kEe2 : cuFloorEV, xc;
-      computeColIonize(ke, xc, elems, k1);
+      cuFP_t ke = Einfo->kEe2 > cuFloorEV ? Einfo->kEe2 : cuFloorEV, xc;
+      computeColIonize(ke, xc, elems, J2->k);
 	    
-      cuFP_t crs = eVel1 * Eta1 * xc * fac2;
-	    
+      crs = Einfo->eVel1 * Einfo->Eta1 * xc * fac2;
+      
       if (crs > 0.0) {
+	*delph = elems._v[J2->k].IPval;
 #ifdef XC_DEEP1
 	printf("xsc: [ei] io=%e\n", crs);
 #endif
 #ifdef XC_DEEP4
 	printf("xsc: [ei] kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e io=%e dE=%e fac=%e\n",
-	       kEe2, Z, C, eVel1, Eta1, xc, 0.0, fac2);
+	       Einfo->kEe2, Z2, C2, Einfo->eVel1, Einfo->Eta1, xc, 0.0, fac2);
 #endif
-	cross._v[K]   = crs;
-
-	delph._v[K]   = elem.IPval;
-
-	xspcs._v[L+0] = 0;
-	xspcs._v[L+1] = 0;
-	xspcs._v[L+2] = 255;
-
-	xspcs._v[L+3] = Z;
-	xspcs._v[L+4] = C;
-	xspcs._v[L+5] = I;
-
-	xtype._v[K]   = col_ionize;
-	*xctot       += crs;
-	      
-	K++;
-	L = K*6;
       }
     }
-    // end: ionize
+      
+    return crs;
+  }
 	  
-    //-------------------------------
-    // *** Radiative recombination
-    //-------------------------------
+  //-------------------------------
+  // *** Radiative recombination
+  //-------------------------------
 	  
+  if (T == recombine) {
+
+    cuFP_t crs = 0;
+
     // The "new" algorithm uses the electron energy of the ion's
     // electron rather than the standard particle partner.
     //
-	  
     if (cuNewRecombAlg) {
-	    
+
       // Particle 1 is ION, Particle 2 has ELECTRON
       //
-      //  +--- Ion charge
+      //  +--- Ion charge, must not be neutral
       //  |
-      //  v
-      if (P>0) {
+      //  |        +--- Partner is an electron
+      //  |        |
+      //  v        v
+      if (P1>0 and J2->sp==cuElectron) {
 	      
-	cuFP_t ke = kEe1 > cuFloorEV ? kEe1 : cuFloorEV, xc;
-	computeRadRecomb(ke, xc, elems, k1);
-	      
-	cuFP_t crs = sVel1 * Eta1 * xc * fac1;
-	      
-	if (crs > 0.0) {
-	  cross._v[K]   = crs;
-
-	  xspcs._v[L+0] = Z;
-	  xspcs._v[L+1] = C;
-	  xspcs._v[L+2] = I;
-
-	  xspcs._v[L+3] = 0;
-	  xspcs._v[L+4] = 0;
-	  xspcs._v[L+5] = 255;
-
-	  xtype._v[K]   = recombine;
-	  *xctot       += crs;
+	cuFP_t ke = Einfo->kEe1 > cuFloorEV ? Einfo->kEe1 : cuFloorEV, xc;
+	computeRadRecomb(ke, xc, elems, J1->k);
 	  
-	  K++;
-	  L = K*6;
-	}
+	crs = Einfo->sVel1 * Einfo->Eta1 * xc * fac1;
       }
 	    
       // Particle 2 is ION, Particle 1 has ELECTRON
       //
-      //  +--- Ion charge
+      //  +--- Ion charge, must not be neutral
       //  |
-      //  v
-      if (P>0) {
+      //  |        +--- Partner is an electron
+      //  |        |
+      //  v        v
+      if (P2>0 and J1->sp==cuElectron) {
 	
-	cuFP_t ke = kEe2 > cuFloorEV ? kEe2 : cuFloorEV, xc;
-	computeRadRecomb(ke, xc, elems, k1);
+	cuFP_t ke = Einfo->kEe2 > cuFloorEV ? Einfo->kEe2 : cuFloorEV, xc;
+	computeRadRecomb(ke, xc, elems, J2->k);
 	
-	cuFP_t crs = sVel2 * Eta2 * xc * fac2;
-	
-	if (crs > 0.0) {
-	  cross._v[K]   = crs;
+	crs = Einfo->sVel2 * Einfo->Eta2 * xc * fac2;
+      }
 
-	  xspcs._v[L+0] = 0;
-	  xspcs._v[L+1] = 0;
-	  xspcs._v[L+2] = 255;
-
-	  xspcs._v[L+3] = Z;
-	  xspcs._v[L+4] = C;
-	  xspcs._v[L+5] = I;
-
-	  xtype._v[K]   = recombine;
-	  *xctot       += crs;
-		
-	  K++;
-	  L = K*6;
-	}
-	    }
-    } // end: new recomb algorithm
+    }
+    // END: new recomb algorithm
     else {
       // Particle 1 is ION, Particle 2 has ELECTRON
       //
-      //  +--- Charge of the current subspecies
+      //  +--- Charge of the current subspecies, not neutral
       //  |
-      //  |       +--- Electron fraction of partner
-      //  |       |
-      //  V       V
-      if (P>0 and Eta2>0.0) {
+      //  |        +--- Partner is an electron
+      //  |        |
+      //  V        V
+      if (P1>0 and J2->sp==cuElectron) {
+	
+	cuFP_t ke = Einfo->kEe1 > cuFloorEV ? Einfo->kEe1 : cuFloorEV, xc;
+	computeRadRecomb(ke, xc, elems, J1->k);
 	      
-	cuFP_t ke = kEe1 > cuFloorEV ? kEe1 : cuFloorEV, xc;
-	computeRadRecomb(ke, xc, elems, k1);
-	      
-	cuFP_t crs = sVel2 * Eta2 * xc * fac1;
+	crs = Einfo->eVel2 * Einfo->Eta2 * xc * fac1;
 
 	if (crs > 0.0) {
 #ifdef XC_DEEP1
-	  printf("xsc: [ie] rc=%e eta1=%e eta2=%e\n", crs, Eta1, Eta2);
+	  printf("xsc: [ie] rc=%e eta1=%e eta2=%e\n", crs, Einfo->Eta1, Einfo->Eta2);
 #endif
 #ifdef XC_DEEP4
 	  printf("xsc: [ie] kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e rc=%e dE=%e fac=%e\n",
-		 kEe1, Z, C, eVel2, Eta2, xc, 0.0, fac1);
+		 Einfo->kEe1, Z1, C1, Einfo->eVel2, Einfo->Eta2, xc, 0.0, fac1);
 #endif
-
-	  cross._v[K]   = crs;
-
-	  xspcs._v[L+0] = Z;
-	  xspcs._v[L+1] = C;
-	  xspcs._v[L+2] = I;
-
-	  xspcs._v[L+3] = 0;
-	  xspcs._v[L+4] = 0;
-	  xspcs._v[L+5] = 255;
-
-	  xtype._v[K]   = recombine;
-	  *xctot       += crs;
-	  
-	  K++;
-	  L = K*6;
 	}
       }
 	    
       // Particle 2 is ION, Particle 1 has ELECTRON
       //
-      //  +--- Charge of the current subspecies
+      //  +--- Charge of the current subspecies, not neutral
       //  |
-      //  |       +--- Electron fraction of partner
-      //  |       |
-      //  V       V
-      if (P>0 and Eta1>0.0) {
+      //  |        +--- Partner is an electron
+      //  |        |
+      //  V        V
+      if (P2>0 and J1->sp==cuElectron) {
 	      
-	cuFP_t ke = kEe2 > cuFloorEV ? kEe2 : cuFloorEV, xc;
-	computeRadRecomb(ke, xc, elems, k1);
+	cuFP_t ke = Einfo->kEe2 > cuFloorEV ? Einfo->kEe2 : cuFloorEV, xc;
+	computeRadRecomb(ke, xc, elems, J2->k);
 	      
-	cuFP_t crs = sVel1 * Eta1 * xc * fac2;
+	crs = Einfo->eVel1 * Einfo->Eta1 * xc * fac2;
 	      
 	if (crs > 0.0) {
 #ifdef XC_DEEP1
-	  printf("xsc: [ei] rc=%e eta1=%e eta2=%e\n", crs, Eta1, Eta2);
+	  printf("xsc: [ei] rc=%e eta1=%e eta2=%e\n", crs, Einfo->Eta1, Einfo->Eta2);
 #endif
 #ifdef XC_DEEP4
 	  printf("xsc: [ei] kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e rc=%e dE=%e fac=%e\n",
-		 kEe2, Z, C, eVel1, Eta1, xc, 0.0, fac2);
+		 Einfo->kEe2, Z2, C2, Einfo->eVel1, Einfo->Eta1, xc, 0.0, fac2);
 #endif
-	  cross._v[K]   = crs;
-
-	  xspcs._v[L+0] = 0;
-	  xspcs._v[L+1] = 0;
-	  xspcs._v[L+2] = 255;
-
-	  xspcs._v[L+3] = Z;
-	  xspcs._v[L+4] = C;
-	  xspcs._v[L+5] = I;
-
-	  xtype._v[K]   = recombine;
-	  *xctot       += crs;
-		
-	  K++;
-	  L = K*6;
 	}
       }
-    } // end: original recomb algorithm
-	  
-  } // end: outer ionization state loop
-	
-  cuFP_t test = 0.0;
-  for (int j=0; j<numxc; j++) {
-    K = C*numxc+j;
-    L = K*6;
-    auto T = xtype._v[K];
-    if (T == nothing) break;
-    test += cross._v[K];
-    if (T == recombine) {	// Electron-Ion
-      if (xspcs._v[L+2] == 255) {
-	if (xspcs._v[L+4] < 2) {
-	  printf("Recombine crazy logic [e-i]: [%d %d %d] [%d %d %d] j=%d J=%d/%d\n",
-		 xspcs._v[L+0],
-		 xspcs._v[L+1],
-		 xspcs._v[L+2],
-		 xspcs._v[L+3],
-		 xspcs._v[L+4],
-		 xspcs._v[L+5], j, K-C*numxc, numxc);
-	}
-      } 
-      else if (xspcs._v[L+5] == 255) {
-	// Ion-Electron
-	if (xspcs._v[L+1] < 2) {
-	  printf("Recombine crazy logic [i-e]: [%d %d %d] [%d %d %d] j=%d J=%d/%d\n",
-		 xspcs._v[L+0],
-		 xspcs._v[L+1],
-		 xspcs._v[L+2],
-		 xspcs._v[L+3],
-		 xspcs._v[L+4],
-		 xspcs._v[L+5], j, K-C*numxc, numxc);
-	}
-      } else {		// Ion-Ion
-	printf("Recombine crazy logic [i-i]: [%d %d %d] [%d %d %d] j=%d J=%d/%d T=%d\n",
-	       xspcs._v[L+0],
-	       xspcs._v[L+1],
-	       xspcs._v[L+2],
-	       xspcs._v[L+3],
-	       xspcs._v[L+4],
-	       xspcs._v[L+5], j, K-C*numxc, numxc, T);
-      }
-    } // END: T == recombine
-  }
-  
-#ifdef SANITY_DEBUG
-  if (fabs(test - *xctot)/test > 1.0e-18) {
-    printf("Crazy mismatch in crossSection: sum=%e tot=%e dif=%e\n", test, *xctot, test - *xctot);
-  }
-#endif
-
-  if (false and *xctot>100.0) {
-    printf("------------------------------\n");
-    printf("kEi=%e kEe1=%e kEe2=%e\n", kEi, kEe1, kEe2);
-    printf("vel=%e gV1=%e gV2=%e\n", vel, eVel1, eVel2);
-    printf("------------------------------\n");
-    for (int j=0; j<numxc; j++) {
-      K = C*numxc+j;
-      auto T = xtype._v[K];
-      if (T == nothing   ) break;
-      if (T == neut_neut ) printf("Geometric   %e\n", cross._v[K]);
-      if (T == neut_elec ) printf("Neut elec   %e\n", cross._v[K]);
-      if (T == neut_prot ) printf("Neut prot   %e\n", cross._v[K]);
-      if (T == ion_elec  ) printf("Ion elec    %e\n", cross._v[K]);
-      if (T == ion_ion   ) printf("Ion Ion     %e\n", cross._v[K]);
-      if (T == free_free ) printf("Free-free   %e\n", cross._v[K]);
-      if (T == col_excite) printf("Col excite  %e\n", cross._v[K]);
-      if (T == col_ionize) printf("Col ionize  %e\n", cross._v[K]);
-      if (T == recombine ) printf("Recombine   %e\n", cross._v[K]);
     }
-    printf("------------------------------\n");
+    // END: original recomb algorithm
+    
+    return crs;
   }
+  // END: recombination
+
+  return 0.0;
 }
 
 
@@ -3844,6 +3638,9 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
       if (m1 < minMass) m1 = minMass;
       if (m2 < minMass) m2 = minMass;
 
+      m1 *= cuAmu;
+      m2 *= cuAmu;
+
       // Total effective mass in the collision
       //
       cuFP_t mt = m1 + m2;
@@ -3854,19 +3651,19 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
       
       // KE
       //
-      KE *= 0.5 * mu * cuVunit * cuVunit * cuEV;
+      KE *= 0.5 * mu * cuVunit * cuVunit;
 
       // Coulombic rate
       //
-      cuFP_t pVel = sqrt(2.0*KE/mu/cuEV);
+      cuFP_t pVel = sqrt(2.0*KE/mu);
       cuFP_t KE2  = 2.0*KE;
-      if (KE2 < cuFloorEV) KE2 = cuFloorEV;
-      cuFP_t afac = esu*esu/(KE2*cuEV);
+      if (KE2/cuEV < cuFloorEV) KE2 = cuFloorEV * cuEV;
+      cuFP_t afac = esu*esu/KE2;
       cuFP_t tau  = ABrate._v[C*4 + l]*afac*afac*pVel * dT;
       
 #ifdef XC_DEEP11
 	printf("coul5: l=%d pVel=%e afac=%e dt=%e tau=%e mu=%e\n",
-	       l, pVel, afac, dT, tau, mu);
+	       l, pVel, afac, dT, tau, mu/cuAmu);
 #endif
 
       coul4._v[C*4+l] = tau;
@@ -3951,15 +3748,10 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
 __global__ void partInteractions(dArray<cudaParticle>   in,
 				 dArray<curandState>    randS,
 				 dArray<cuFP_t>         coul4,
-				 dArray<cuFP_t>         Nsel,
-				 dArray<cuFP_t>         cross,
-				 dArray<cuFP_t>         delph,
-				 dArray<unsigned char>  xspcs,
-				 dArray<cudaInterTypes> xtype,
+				 dArray<cuInteract>     cross,
 				 dArray<int>            cellI,
 				 dArray<int>            cellN,
 				 dArray<cuFP_t>         volC,
-				 dArray<cuFP_t>         crm,
 				 dArray<cuFP_t>         Ivel2,
 				 dArray<cuFP_t>         Evel2,
 				 dArray<cuFP_t>         xsc_H,
@@ -3971,13 +3763,22 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 				 const
 				 dArray<cuIonElement>   elems,
 				 dArray<cuFP_t>         spTau,
+				 dArray<cuInteract>     iK,
 				 dArray<cuFP_t>         F1,
-				 dArray<cuFP_t>         F2,
-				 dArray<int>            S,
-				 int                    numxc)
+				 dArray<cuFP_t>         F2)
 {
-  const int Nsp = elems._s;
+  const int Nsp   = elems._s;
+  const int numxc = iK._s;
   
+  // For convenience in checking species
+  //
+  const cuSpeciesKey cuProton    {1, 2};
+  const cuSpeciesKey cuElectron  {0xffff, 0xffff};
+  //                              ^       ^
+  //                              |       |
+  // 2^16-1 is max ushort---------+-------+
+  // as defined in NTC.H
+
   // Energy return info
   //
   cuEnergyInfo EI;
@@ -4007,8 +3808,15 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     
     // Compute total cross sections for interactions in this cell
     //
-    cuFP_t csection = 0.0, mtotal = 0.0, xctot = 0.0;
+    cuFP_t mtotal = 0.0;
     
+    // Zero the cross section list
+    //
+    for (int k=0; k<numxc; k++) {
+      cross._v[sP+k] = iK._v[k];
+      thrust::get<3>(cross._v[sP+k]) = 0.0;
+    }
+
 #ifdef XC_DEEP8
     printf("nbods: N=%d\n", nbods);
 #endif
@@ -4019,249 +3827,258 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       
       for (size_t j=i+1; j<nbods; j++) {
 	
-	computeCrossSection(in, cross, delph, xspcs, xtype,
-			    xsc_H, xsc_He, xsc_pH, xsc_pHe, elems,
-			    cid, n0+i, n0+j, numxc, state, &xctot, 0x0);
+	setupCrossSection(in, elems, cid, n0+i, n0+j, state, &EI);
 
-	if (xctot > csection) csection = xctot;
+	for (int k=0; k<numxc; k++) {
 
+	  int           T = thrust::get<0>(cross._v[sP+k]);
+	  cuSpeciesDef J1 = thrust::get<1>(cross._v[sP+k]);
+	  cuSpeciesDef J2 = thrust::get<2>(cross._v[sP+k]);
+
+	  cuFP_t ph, xc, cur;
+	  
+	  xc = singleCrossSection(in, elems, &ph, xsc_H, xsc_He, xsc_pH, xsc_pHe,
+				  cid, n0+i, n0+j, T, &J1, &J2, state, &EI) * EI.vel;
+
+	  cur = thrust::get<3>(cross._v[sP+k]);
+	  if (cur < xc) thrust::get<3>(cross._v[sP+k]) = xc;
+
+	  if (J1.sp != J2.sp)
+	    xc = singleCrossSection(in, elems, &ph, xsc_H, xsc_He, xsc_pH, xsc_pHe,
+				    cid, n0+i, n0+j, T, &J2, &J1, state, &EI) * EI.vel;
+
+	  cur = thrust::get<3>(cross._v[sP+k]);
+	  if (cur < xc) thrust::get<3>(cross._v[sP+k]) = xc;
+	}
+	  
       } // END: inner body loop
 
     } // END: outer body loop
 
-  
-    // Compute probability of interaction (excepting Coulombic) in system units
+    // Deep debug for implementation check only
     //
-    csection *= 1e-14 / (cuLunit*cuLunit);
-    
-    cuFP_t Prob  = mtotal/vol * cuMunit/cuAmu * sqrt(2.0)*crm._v[cid] * spTau._v[cid] * csection;
-    cuFP_t selcM = (nbods-1) * Prob * 0.5;
-    
-#ifdef XC_DEEP5
-    printf("ctest: cross=%e selcM=%e Vel=%e Tau=%e\n", csection*cuLunit*cuLunit*1.0e14, selcM, sqrt(2.0)*crm._v[cid], spTau._v[cid]);
-    if (csection>10.0) printEI(csection, EI);
-#endif
-    
-    Nsel._v[cid] = selcM;
-    
-    int    npairs  = floor(selcM);
-    cuFP_t nexcess = selcM - npairs;
-    
-    // Compute interactions for all pairs
-    //
-    for (int r=0; r<=npairs; r++) {
-      
-      if (r==npairs) {
-#if cuREAL == 4
-	if (nexcess<curand_uniform(state)) break;
-#else
-	if (nexcess<curand_uniform_double(state)) break;
-#endif
-      }
+    if (false) {
+      printf("--------------------------------------------\n");
+      for (int k=0; k<numxc; k++) {
+	int           T = thrust::get<0>(cross._v[sP+k]);
+	cuSpeciesDef J1 = thrust::get<1>(cross._v[sP+k]);
+	cuSpeciesDef J2 = thrust::get<2>(cross._v[sP+k]);
+	cuFP_t       xc = thrust::get<3>(cross._v[sP+k]);
 
-      // Pick interaction pair
+	cuFP_t Prob  = mtotal/vol * cuMunit/cuAmu *
+	  spTau._v[cid] * xc  * 1e-14 / (cuLunit*cuLunit);
+
+	cuFP_t nsel = 0.5 * (nbods-1) * Prob;
+
+	if (J1.sp == cuElectron) 
+	  printf("%16s (%d, %d) electron: %13.6e %8.4f\n",
+		 cudaInterNames[T],
+		 J2.sp.first, J2.sp.second,
+		 xc, nsel);
+	else if (J2.sp == cuElectron)
+	  printf("%16s (%d, %d) electron: %13.6e %8.4f\n",
+		 cudaInterNames[T],
+		 J1.sp.first, J1.sp.second,
+		 xc, nsel);
+	else
+	  printf("%16s (%d, %d) (%d, %d): %13.6e %8.4f\n",
+		 cudaInterNames[T],
+		 J1.sp.first, J1.sp.second,
+		 J2.sp.first, J2.sp.second,
+		 xc, nsel);
+      }
+      printf("--------------------------------------------\n");
+    }
+
+    // Run down the species list and perform interactions
+    //
+    for (int k=0; k<numxc; k++) {
+
+      cuInteract elem = cross._v[sP+k];
+
+      int           T = thrust::get<0>(cross._v[sP+k]);
+      cuSpeciesDef J1 = thrust::get<1>(cross._v[sP+k]);
+      cuSpeciesDef J2 = thrust::get<2>(cross._v[sP+k]);
+      cuFP_t xcvelmax = thrust::get<3>(elem);
+
+      if (xcvelmax <= 0.0) continue;
+
+      // Interaction probability
+      cuFP_t Prob  = mtotal/vol * cuMunit/cuAmu *
+	spTau._v[cid] * xcvelmax * 1e-14 / (cuLunit*cuLunit);
+
+      // Number of interaction candidate pairs
+      cuFP_t nsel = 0.5 * (nbods-1) * Prob;
+
+      int    npairs  = floor(nsel);
+      cuFP_t nexcess = nsel - npairs;
+    
+      // Compute interactions for all pairs
       //
+      for (int r=0; r<=npairs; r++) {
+	
+	if (r==npairs) {
 #if cuREAL == 4
-      cuFP_t R1 = curand_uniform(state);
-      cuFP_t R2 = curand_uniform(state);
+	  if (nexcess<curand_uniform(state)) break;
 #else
-      cuFP_t R1 = curand_uniform_double(state);
-      cuFP_t R2 = curand_uniform_double(state);
+	  if (nexcess<curand_uniform_double(state)) break;
 #endif
-      
-      int n1 = floor(R1*nbods);
-      int n2 = floor(R2*(nbods-1));
-      if (n2 >= n1) n2++;
-      
-      if (n1 >= nbods) n1 = nbods-1;
-      if (n2 >= nbods) n2 = nbods-1;
-      
+	}
+
+	// Pick interaction pair
+	//
+#if cuREAL == 4
+	cuFP_t R1 = curand_uniform(state);
+	cuFP_t R2 = curand_uniform(state);
+#else
+	cuFP_t R1 = curand_uniform_double(state);
+	cuFP_t R2 = curand_uniform_double(state);
+#endif
+	
+	int n1 = floor(R1*nbods);
+	int n2 = floor(R2*(nbods-1));
+	if (n2 >= n1) n2++;
+	
+	if (n1 >= nbods) n1 = nbods-1;
+	if (n2 >= nbods) n2 = nbods-1;
+	
 #ifdef SANITY_DEBUG
-      if (n1==n2) {
-	printf("Crazy error! n1[%d]=n2[%d] nbods=%d\n", n1, n2, nbods);
+	if (n1==n2) {
+	  printf("Crazy error! n1[%d]=n2[%d] nbods=%d\n", n1, n2, nbods);
       }
 #endif
-      n1 += n0;
-      n2 += n0;
+	n1 += n0;
+	n2 += n0;
       
-      // Cross section computation
-      //
-      cuFP_t totalXS;
-      
-      for (int J=0; J<numxc; J++) {
-	cross._v[cid*numxc+J] = 0.0;
-	xtype._v[cid*numxc+J] = nothing;
-	delph._v[cid*numxc+J] = 0.0;
-      }
-      
-      computeCrossSection(in, cross, delph, xspcs, xtype,
-			  xsc_H, xsc_He, xsc_pH, xsc_pHe, elems,
-			  cid, n1, n2, numxc, state, &totalXS, &EI);
-      
-      cudaParticle* p1 = &in._v[n1];
-      cudaParticle* p2 = &in._v[n2];
-      
-      cuFP_t PE[3] = {0, 0, 0}, EE[3] = {0, 0, 0};
-      
-      // Electron and molecular weight
-      //
-      {
-	cuFP_t sum1 = 0.0, sum2 = 0.0;
-	for (int k=0; k<Nsp; k++) {
-	  cuIonElement& E = elems._v[k];
-	
-	  F1._v[fP+k] = p1->datr[E.I+cuSp0];
-	  F2._v[fP+k] = p2->datr[E.I+cuSp0];
-	  sum1 += F1._v[fP+k];
-	  sum2 += F2._v[fP+k];
-	}
-	for (int k=0; k<Nsp; k++) {
-	  F1._v[fP+k] /= sum1;
-	  F2._v[fP+k] /= sum2;
-	}
-      }
-      
-      cuFP_t w1  = p1->mass/EI.Mu1;
-      cuFP_t w2  = p2->mass/EI.Mu2;
-      cuFP_t W1  = w1;
-      cuFP_t W2  = w2;
-      
-#ifdef XC_KEDEBUG
-      // Energy debug
-      //
-      cuFP_t tKEi_i = 0.0, tKEe_i = 0.0, tEC_i = 0.0;
-      {
-	cuFP_t ke1i = 0.0, ke1e = 0.0, v1;
-	cuFP_t ke2i = 0.0, ke2e = 0.0, v2;
-	for (int k=0; k<3; k++) {
-	  v1 = p1->vel[k];
-	  v2 = p2->vel[k];
+	setupCrossSection(in, elems, cid, n1, n2, state, &EI);
 
-	  ke1i += v1*v1;
-	  ke2i += v2*v2;
-
-	  v1 = p1->datr[cuElec+k];
-	  v2 = p2->datr[cuElec+k];
-
-	  ke1e += v1*v1;
-	  ke2e += v2*v2;
-	}
-	tKEi_i = 0.5*p1->mass*ke1i + 0.5*p2->mass*ke2i;
-	tKEe_i =
-	  0.5*p1->mass*ke1e*EI.Eta1*cuda_atomic_weights[0]/EI.Mu1 +
-	  0.5*p2->mass*ke2e*EI.Eta2*cuda_atomic_weights[0]/EI.Mu2 ;
-
-	if (cuCons)
-	  tEC_i += p1->datr[cuCons] + p2->datr[cuCons];
-	if (cuEcon)
-	  tEC_i += p1->datr[cuEcon] + p2->datr[cuEcon];
-      }
+	cuFP_t dE=0, EE=0, ph;
+	cuFP_t curXC =
+	  singleCrossSection(in, elems, &ph, 
+			     xsc_H, xsc_He, xsc_pH, xsc_pHe,
+			     cid, n1, n2, T, &J1, &J2, state, &EI);
+      
+#ifdef XC_DEEP5
+	printf("ctest: cross=%e selcM=%e Vel=%e Tau=%e\n", xc*cuLunit*cuLunit*1.0e14, nsel, EI.vel, spTau._v[cid]);
 #endif
+	cuFP_t crsvel = curXC * EI.vel;
 
-      cuFP_t maxP = 0.0;
-      cudaInterTypes maxT = nothing;
-      
-      struct Itype
-      {
-	unsigned char Z1, Z2, C1, C2, P1, P2, I1, I2;
-      } IT;
-      
-      // G will be one beyond last good cross section
-      int G;
-      for (G=0; G<numxc; G++) {
-	if (xtype._v[cid*numxc+G] == nothing) break;
-      }
-      
-      // Random shuffle (Knuth Algorithm P)
-      //
-      for (int i=0; i<G; i++) S._v[sP+i] = i;   // Identity sequence
-      for (int i=G-1; i>0; i--) {	  // Backward version
 #if cuREAL == 4
-	cuFP_t u = curand_uniform(state);
+	cuFP_t unit = curand_uniform(state);
 #else
-	cuFP_t u = curand_uniform_double(state);
+	cuFP_t unit = curand_uniform_double(state);
 #endif
-	int j = i;		// Identity by default
-	if (u<1.0) j = floor(u*(i+1));
-	if (j < i) {		// Swap
-	  int tmp = S._v[sP+j];
-	  S._v[sP+j] = S._v[sP+i];
-	  S._v[sP+i] = tmp;
-	}
-      }
+	double targ = crsvel / xcvelmax;
+	
+	if ( targ < unit ) continue;
+
+	cudaParticle* p1 = &in._v[n1];
+	cudaParticle* p2 = &in._v[n2];
       
-      // For electron energy conservation during ionization level change
-      //
-      cuFP_t elecAdj[2] = {0.0, 0.0};
-
-      for (int JJ=0; JJ<G; JJ++) {
-	// Use shuffled order to prevent any weird bias
+	// Electron and molecular weight
 	//
-	int J = S._v[sP+JJ];
+	{
+	  cuFP_t sum1 = 0.0, sum2 = 0.0;
+	  for (int k=0; k<Nsp; k++) {
+	    cuIonElement& E = elems._v[k];
 	
-	cudaInterTypes T   = xtype._v[cid*numxc+J];
-	cuFP_t XS          = cross._v[cid*numxc+J];
-	cuFP_t XE          = delph._v[cid*numxc+J];
-	cuFP_t Prob        = XS/totalXS;
-	
-	// Test suppression of ionization level changes
-	//
-	if (cuNoDel & 0x1 and T == recombine ) continue;
-	if (cuNoDel & 0x2 and T == col_ionize) continue;
-
-	if (Prob < 1.0e-14) continue;
-	if (Prob > 1.0) printf("Crazy prob [%e] not possible: XS=%e totalXS=%e\n", Prob, XS, totalXS);
-	
-	// Atomic number and array loc for each member of the pair
-	//
-	int K = cid*numxc+J;
-	int L = K*6;
-	
-	IT.Z1 = xspcs._v[L+0];
-	IT.C1 = xspcs._v[L+1];
-	IT.I1 = xspcs._v[L+2];
-	
-	IT.Z2 = xspcs._v[L+3];
-	IT.C2 = xspcs._v[L+4];
-	IT.I2 = xspcs._v[L+5];
-	
-	// Traditional ionization state (e.g. C1=1 is neutral)
-	//
-	IT.P1 = IT.C1 - 1;
-	IT.P2 = IT.C2 - 1;
-	
-	// Energy loss
-	//
-	cuFP_t dE = 0.0;
-	
-
-	// Number of particles in active partition with electrons
-	//
-	if (not cuMeanMass) {
-	  if (IT.Z1==0) W1 *= EI.Eta1;
-	  if (IT.Z2==0) W2 *= EI.Eta2;
-	}
-
-	cuFP_t N1 = W1 * cuMunit / cuAmu;
-	cuFP_t N2 = W2 * cuMunit / cuAmu;
-	
-	cuFP_t N0 = N1 > N2 ? N2 : N1;
-
-	// Select the maximum probability channel
-	//
-	if (Prob > maxP) {
-	  maxT  = T;
-	  maxP  = Prob;
+	    F1._v[fP+k] = p1->datr[E.I+cuSp0];
+	    F2._v[fP+k] = p2->datr[E.I+cuSp0];
+	    sum1 += F1._v[fP+k];
+	    sum2 += F2._v[fP+k];
+	  }
+	  for (int k=0; k<Nsp; k++) {
+	    F1._v[fP+k] /= sum1;
+	    F2._v[fP+k] /= sum2;
+	  }
 	}
 	
+	cuFP_t w1  = p1->mass/EI.Mu1;
+	cuFP_t w2  = p2->mass/EI.Mu2;
+	cuFP_t W1  = w1;
+	cuFP_t W2  = w2;
+	
+#ifdef XC_KEDEBUG
+	// Energy debug
+	//
+	cuFP_t tKEi_i = 0.0, tKEe_i = 0.0, tEC_i = 0.0;
+	{
+	  cuFP_t ke1i = 0.0, ke1e = 0.0, v1;
+	  cuFP_t ke2i = 0.0, ke2e = 0.0, v2;
+	  for (int k=0; k<3; k++) {
+	    v1 = p1->vel[k];
+	    v2 = p2->vel[k];
+
+	    ke1i += v1*v1;
+	    ke2i += v2*v2;
+
+	    v1 = p1->datr[cuElec+k];
+	    v2 = p2->datr[cuElec+k];
+	    
+	    ke1e += v1*v1;
+	    ke2e += v2*v2;
+	  }
+	  tKEi_i = 0.5*p1->mass*ke1i + 0.5*p2->mass*ke2i;
+	  tKEe_i =
+	    0.5*p1->mass*ke1e*EI.Eta1*cuda_atomic_weights[0]/EI.Mu1 +
+	    0.5*p2->mass*ke2e*EI.Eta2*cuda_atomic_weights[0]/EI.Mu2 ;
+	  
+	  if (cuCons)
+	    tEC_i += p1->datr[cuCons] + p2->datr[cuCons];
+	  if (cuEcon)
+	    tEC_i += p1->datr[cuEcon] + p2->datr[cuEcon];
+	}
+#endif
+	
+	// For electron energy conservation during ionization level change
+	//
+	cuFP_t elecAdj[2] = {0.0, 0.0};
+
+	unsigned short Z1 = J1.sp.first;
+	unsigned short Z2 = J2.sp.first;
+
+	unsigned short C1 = J1.sp.second;
+	unsigned short C2 = J2.sp.second;
+
+	if (J2.sp==cuElectron) W2 *= EI.Eta2;
+	if (J1.sp==cuElectron) W1 *= EI.Eta1;
+
+	cuFP_t N0 = cuMunit/cuAmu;
+
+	if (W1>W2) N0 *= W2;
+	else       N0 *= W1;
+
+	int cid = -1;
+
+	if (J2.sp == cuElectron and
+	    J1.sp != cuElectron) {
+	  cid = 1;
+	  Prob = p1->datr[J1.I+cuSp0] / cuda_atomic_weights[Z1] / EI.Sum1 * EI.Eta2;
+	}
+	else if (J1.sp == cuElectron and
+		 J2.sp != cuElectron) {
+	  cid = 2;
+	  Prob = p2->datr[J2.I+cuSp0] / cuda_atomic_weights[Z1] / EI.Sum2 * EI.Eta1;
+	}
+	else if (J1.sp != cuElectron and
+		 J2.sp != cuElectron) {
+	  cid = 0;
+	  Prob =
+	    p1->datr[J1.I+cuSp0] / cuda_atomic_weights[Z1] / EI.Sum1 *
+	    p2->datr[J2.I+cuSp0] / cuda_atomic_weights[Z2] / EI.Sum2 ;
+	}
+	else if (J1.sp == cuElectron and
+		 J2.sp == cuElectron) {
+	  printf("CRAZY pair: two electrons\n");
+	}
+
 	//-----------------------------
 	// Parse each interaction type
 	//-----------------------------
 	
 	if (T == neut_neut) {
-	  PE[0] += Prob;
 #ifdef XC_DEEP2
-	  printf("testT: nnDE=%e W=%e Z1=%d Z2=%d\n", 0.0, Prob, IT.Z1, IT.Z2);
+	  printf("testT: nnDE=%e W=%e Z1=%d Z2=%d\n", 0.0, Prob, Z1, Z2);
 #endif
 #ifdef XC_DEEP9
 	  atomicAdd(&w_countr[T], 1ull);
@@ -4270,8 +4087,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	}
 	
 	if (T == neut_elec) {
-	  if (IT.I1<255) PE[1] += Prob;
-	  else           PE[2] += Prob;
 #ifdef XC_DEEP2
 	  if (IT.I1<255)
 	    printf("testT: neDE=%e W=%e Z1=%d\n", 0.0, Prob, IT.Z1);
@@ -4285,7 +4100,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	}
 	
 	if (T == neut_prot) {
-	  PE[0] += Prob;
 #ifdef XC_DEEP2
 	  if (IT.Z1==1 and IT.C1==2)
 	    printf("testT: npDE=%e W=%e Z2=%d C2=%d\n", 0.0, Prob, IT.Z2, IT.C2);
@@ -4298,89 +4112,72 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 #endif
 	}
 	
-	if (T == ion_elec) {
-	  if (IT.I1<255) PE[1] += Prob;
-	  else           PE[2] += Prob;
-	}
-	
 	if (T == free_free) {
 	  
-	  dE = XE * Prob;
+	  dE = ph * Prob;
 	  
 	  // Sanity
 #ifdef SANITY_DEBUG
 	  if (::isnan(dE)) {
-	    printf("Crazy dE value in free-free: XE=%e P=%e\n", XE, Prob);
+	    printf("Crazy dE value in free-free: XE=%e P=%e\n", dE, Prob);
 	    dE = 0.0;
 	  }
 #endif	  
 #ifdef XC_DEEP2
-	  if (IT.I1<255)
-	    printf("testT: ffDE=%e W=%e Z=%d C=%d\n", dE, Prob, IT.Z1, IT.C1);
+	  if (J2.sp == cuElectron)
+	    printf("testT: ffDE=%e W=%e Z=%d C=%d\n", dE, Prob, Z1, C1);
 	  else
-	    printf("testT: ffDE=%e W=%e Z=%d C=%d\n", dE, Prob, IT.Z2, IT.C2);
+	    printf("testT: ffDE=%e W=%e Z=%d C=%d\n", dE, Prob, Z2, C2);
 #endif
 #ifdef XC_DEEP9
 	  atomicAdd(&w_countr[T], 1ull);
 	  atomicAdd(&w_weight[T], Prob);
 #endif
 	  
-	  if (IT.I1<255) {	// Ion is p1
-	    PE[1] += Prob;
-	    EE[1] += dE * N0;
-	  } else {		// Ion is p2
-	    PE[2] += Prob;
-	    EE[2] += dE * N0;
-	  }
+	  EE = dE * N0;
 	}
 	
 	if (T == col_excite) {
 	  
-	  dE = XE * Prob;
+	  dE = ph * Prob;
 	  
 	  // Sanity
 #ifdef SANITY_DEBUG
 	  if (::isnan(dE)) {
-	    printf("Crazy dE value in col excite: XE=%e P=%e\n", XE, Prob);
+	    printf("Crazy dE value in col excite: XE=%e P=%e\n", ph, Prob);
 	    dE = 0.0;
 	  }
 #endif
 #ifdef XC_DEEP2
-	  if (IT.I1<255)
-	    printf("testT: ceDE=%e W=%e Z=%d C=%d\n", dE, Prob, IT.Z1, IT.C1);
+	  if (J2.sp == cuElectron)
+	    printf("testT: ceDE=%e W=%e Z=%d C=%d\n", dE, Prob, Z1, C1);
 	  else
-	    printf("testT: ceDE=%e W=%e Z=%d C=%d\n", dE, Prob, IT.Z2, IT.C2);
+	    printf("testT: ceDE=%e W=%e Z=%d C=%d\n", dE, Prob, Z2, C2);
 #endif
 #ifdef XC_DEEP9
 	  atomicAdd(&w_countr[T], 1ull);
 	  atomicAdd(&w_weight[T], Prob);
 #endif
-	  if (IT.I1<255) {	// Ion is p1
-	    PE[1] += Prob;
-	    EE[1] += dE * N0;
-	  } else {		// Ion is p2
-	    PE[2] += Prob;
-	    EE[2] += dE * N0;
-	  }
+	  EE += dE * N0;
 	} // END: col_excite
 	
 	if (T == col_ionize) {
 	  
 	  // Ion is p1, electron is p2
 	  //
-	  if (IT.I1<255) {
+	  if (J2.sp == cuElectron) {
 	    
 	    // Convert from probability (relative number density) to
 	    // mass density
 	    //
-	    cuFP_t ff = cuda_atomic_weights[IT.Z1]/EI.Mu1;
+	    cuFP_t ff = cuda_atomic_weights[Z1]/EI.Mu1;
 	    cuFP_t WW = Prob * ff;
 #ifdef SANITY_DEBUG
-	    if (IT.I1>Nsp-2) {
-	      printf("Crazy ionize I1=%d\n", IT.I1);
+	    if (J1.I>Nsp-2) {
+	      printf("Crazy ionize I1=%d\n", J1.I);
 	    }
 #endif
-	    int pos = fP + IT.I1;
+	    int pos = fP + J1.I;
 
 	    if (WW < F1._v[pos]) {
 	      F1._v[pos  ] -= WW;
@@ -4399,21 +4196,21 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    //
 	    Prob = WW  / ff;
 	    
-	    dE = XE * Prob;
+	    dE = ph * Prob;
 	    
 	    // Sanity
 #ifdef SANITY_DEBUG
 	    if (::isnan(dE)) {
-	      printf("Crazy dE value in col ionize: XE=%e P=%e\n", XE, Prob);
+	      printf("Crazy dE value in col ionize: XE=%e P=%e\n", ph, Prob);
 	      dE = 0.0;
 	    }
 #endif	    
 	    // The kinetic energy of the ionized electron is lost
 	    // from the COM KE
 	    //
-	    cuFP_t Echg1 = EI.iE1 * WW / cuda_atomic_weights[IT.Z1];
+	    cuFP_t Echg1 = EI.iE1 * WW / cuda_atomic_weights[Z1];
 #ifdef SANITY_DEBUG
-	    cuFP_t Echg2 = EI.iE2 * WW / cuda_atomic_weights[IT.Z1];
+	    cuFP_t Echg2 = EI.iE2 * WW / cuda_atomic_weights[Z1];
 #endif
 	    elecAdj[0] += Echg1;
 
@@ -4424,33 +4221,32 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    // Sanity
 #ifdef SANITY_DEBUG
 	    if (::isnan(dE)) {
-	      printf("Crazy dE value in col ionize: XE=%e P=%e E1=%e E2=%e\n", XE, Prob, Echg1, Echg2);
+	      printf("Crazy dE value in col ionize: XE=%e P=%e E1=%e E2=%e\n", ph, Prob, Echg1, Echg2);
 	      dE = 0.0;
 	    }
 #endif	    
-	    PE[1] += Prob;
-	    EE[1] += dE * N0;
+	    EE = dE * N0;
 	    
 #ifdef XC_DEEP2
-	    printf("testT: ciDE=%e W=%e Z=%d C=%d\n", dE, Prob, IT.Z1, IT.C1);
+	    printf("testT: ciDE=%e W=%e Z=%d C=%d\n", dE, Prob, Z1, C1);
 #endif
 	  } // END: ion-electron
 
 	  // Ion is p2, electron is p1
 	  //
-	  else if (IT.I2<255) {
+	  else if (J1.sp == cuElectron) {
 	    
 	    // Convert to mass density
 	    //
-	    cuFP_t ff = cuda_atomic_weights[IT.Z2]/EI.Mu2;
+	    cuFP_t ff = cuda_atomic_weights[Z2]/EI.Mu2;
 	    cuFP_t WW = Prob * ff;
 	    
 #ifdef SANITY_DEBUG
-	    if (IT.I2 > Nsp-2) {
-	      printf("Crazy ionize I2=%d\n", IT.I2);
+	    if (J2.I > Nsp-2) {
+	      printf("Crazy ionize I2=%d\n", J2.I);
 	    }
 #endif
-	    int pos = fP + IT.I2;
+	    int pos = fP + J2.I;
 
 	    if (WW < F2._v[pos]) {
 	      F2._v[pos  ] -= WW;
@@ -4469,7 +4265,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    //
 	    Prob = WW / ff;
 	    
-	    dE = XE * Prob;
+	    dE = ph * Prob;
 	    
 	    // Sanity
 #ifdef SANITY_DEBUG
@@ -4483,9 +4279,9 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    // from the COM KE
 	    //
 #ifdef SANITY_DEBUG
-	    cuFP_t Echg1 = EI.iE1 * WW / cuda_atomic_weights[IT.Z2];
+	    cuFP_t Echg1 = EI.iE1 * WW / cuda_atomic_weights[Z2];
 #endif
-	    cuFP_t Echg2 = EI.iE2 * WW / cuda_atomic_weights[IT.Z2];
+	    cuFP_t Echg2 = EI.iE2 * WW / cuda_atomic_weights[Z2];
 	    
 	    elecAdj[0] += Echg2;
 
@@ -4500,11 +4296,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      dE = 0.0;
 	    }
 #endif	    
-	    PE[2] += Prob;
-	    EE[2] += dE * N0;
+	    EE = dE * N0;
 	    
 #ifdef XC_DEEP2
-	    printf("testT: ciDE=%e W=%e Z=%d C=%d\n", dE, Prob, IT.Z2, IT.C2);
+	    printf("testT: ciDE=%e W=%e Z=%d C=%d\n", dE, Prob, Z2, C2);
 #endif
 	  }
 	  // END: electron-ion
@@ -4512,44 +4307,37 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  // Sanity check
 	  //
 	  else {
-	    printf("**ERROR: col_ionize without a valid state: p1=[%d, %d, %d] p2=[%d, %d, %d]\n", IT.Z1, IT.C1, IT.P1, IT.Z2, IT.C2, IT.P2);
+	    printf("**ERROR: col_ionize without a valid state: p1=[%d, %d, %d] p2=[%d, %d, %d]\n", Z1, C1, J1.I, Z2, C2, J2.I);
 	  }
 	  
 	} // END: ionize
 	
 	if (T == recombine) {
 	  
-	  if (Prob > 1.0) printf("In recombine: crazy prob [%e] not possible: XS=%e totalXS=%e\n", Prob, XS, totalXS);
+	  if (Prob > 1.0) {
+	    printf("In recombine: crazy prob [%e] not possible: Prob=%e\n", Prob);
+	  }
 	  
-	  if (IT.I1<255) {		// Ion is p1
+	  if (J2.sp == cuElectron) {		// Ion is p1
 	    
 	    // Convert probability to mass fraction
 	    //
-	    cuFP_t ff = cuda_atomic_weights[IT.Z1]/EI.Mu1;
+	    cuFP_t ff = cuda_atomic_weights[Z1]/EI.Mu1;
 	    cuFP_t WW = Prob * ff;
 	    
-	    int pos = fP + IT.I1;
+	    int pos = fP + J1.I;
 	    
 #ifdef SANITY_DEBUG
-	    if (IT.C1<=1 or IT.I2!=255) {
-	      int K = cid*numxc + J;
-	      int L = K*6;
+	    if (C1<=1 or Z2!=0) {
 
-	      printf("Crazy recombine [p1] (%d %d %d) (%d %d %d) (%d %d) T=%d J=%d N=%d\n",
-		     xspcs._v[L+0],
-		     xspcs._v[L+1],
-		     xspcs._v[L+2],
-		     xspcs._v[L+3],
-		     xspcs._v[L+4],
-		     xspcs._v[L+5],
-		     IT.C1, IT.C2,
-		     xtype._v[K], J, numxc);
-	    }
+	      printf("Crazy recombine [p1] (%d %d %d) (%d %d %d) (%d %d) T=%d N=%d\n",
+		     Z1, C1, J1.I, Z2, C2, J2.I, T, numxc)
+		}
 	    
 	    if (WW < 0.0 or WW > 1.0)
 	      printf("Crazy W: Z1=%d C1=%d I1=%d Z2=%d C2=%d I2=%d: ww=%e f1=%e P0=%e\n",
-		     IT.Z1, IT.C1, IT.I1, 
-		     IT.Z2, IT.C2, IT.I2,
+		     Z1, C1, J1.I, 
+		     Z2, C2, J2.I,
 		     WW, F1._v[pos], Prob);
 #endif
 	    if (WW < F1._v[pos]) {
@@ -4571,8 +4359,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    // Electron KE lost in recombination is radiated
 	    //
-	    cuFP_t Echg1 = EI.iE1 * WW / cuda_atomic_weights[IT.Z1];
-	    // cuFP_t Echg2 = EI.iE2 * WW / cuda_atomic_weights[IT.Z1];
+	    cuFP_t Echg1 = EI.iE1 * WW / cuda_atomic_weights[Z1];
+	    // cuFP_t Echg2 = EI.iE2 * WW / cuda_atomic_weights[Z1];
 	    
 	    // Echg1 is lost from the electron pool by algorithm
 	    //
@@ -4590,41 +4378,31 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      dE = 0.0;
 	    }
 #endif	    
-	    PE[1] += Prob;
-	    EE[1] += dE * N0;
+	    EE = dE * N0;
 	    
 #ifdef XC_DEEP2
-	    printf("testT: rcDE=%e W=%e Z=%d C=%d\n", XE, Prob, IT.Z1, IT.C1);
+	    printf("testT: rcDE=%e W=%e Z=%d C=%d\n", ph, Prob, Z1, C1);
 #endif
 	  } // END: ion-electron
-	  else if (IT.I2<255) {		// Ion is p2
+	  else if (J1.sp == cuElectron) { // Ion is p2
 	    
 	    // Convert from probability to mass fraction
 	    //
-	    cuFP_t ff = cuda_atomic_weights[IT.Z2]/EI.Mu2;
+	    cuFP_t ff = cuda_atomic_weights[Z2]/EI.Mu2;
 	    cuFP_t WW = Prob * ff;
 
-	    int pos = fP + IT.I2;
+	    int pos = fP + J2.I;
 
 #ifdef SANITY_DEBUG
-	    if (IT.C2<=1 or IT.I1!=255) {
-	      int K = cid*numxc + J;
-	      int L = K*6;
-	      printf("Crazy recombine [p2] (%d %d %d) (%d %d %d) (%d %d) T=%d J=%d N=%d\n",
-		     xspcs._v[L+0],
-		     xspcs._v[L+1],
-		     xspcs._v[L+2],
-		     xspcs._v[L+3],
-		     xspcs._v[L+4],
-		     xspcs._v[L+5],
-		     IT.C1, IT.C2,
-		     xtype._v[K], J, numxc);
+	    if (C2<=1 or Z1!=0) {
+	      printf("Crazy recombine [p2] (%d %d %d) (%d %d %d) (%d %d) T=%d N=%d\n",
+		     Z1, C1, J1.I, Z2, C2, J2.I, T, numxc);
 	    }
 	    
 	    if (WW < 0.0 or WW > 1.0)
 	      printf("Crazy W: Z1=%d C1=%d I1=%d Z2=%d C2=%d I2=%d: ww=%e f2=%e P0=%e cf=%e\n",
-		     IT.Z1, IT.C1, IT.I1, 
-		     IT.Z2, IT.C2, IT.I2,
+		     Z1, C1, J1.I, 
+		     Z2, C2, J2.I,
 		     WW, F2._v[pos], Prob);
 #endif	    
 	    if (WW < F2._v[pos]) {
@@ -4646,8 +4424,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
 	    // Electron KE lost in recombination is radiated
 	    //
-	    // cuFP_t Echg1 = EI.iE1 * WW / cuda_atomic_weights[IT.Z2];
-	    cuFP_t Echg2 = EI.iE2 * WW / cuda_atomic_weights[IT.Z2];
+	    // cuFP_t Echg1 = EI.iE1 * WW / cuda_atomic_weights[Z2];
+	    cuFP_t Echg2 = EI.iE2 * WW / cuda_atomic_weights[Z2];
 	    
 	    // Echg1 is lost from the electron pool by the algorithm
 	    //
@@ -4665,537 +4443,499 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      dE = 0.0;
 	    }
 #endif	    
-	    PE[2] += Prob;
-	    EE[2] += dE * N0;
+	    EE = dE * N0;
 	    
 #ifdef XC_DEEP2
-	    printf("testT: rcDE=%e W=%e Z=%d C=%d\n", XE, Prob, IT.Z2, IT.C2);
+	    printf("testT: rcDE=%e W=%e Z=%d C=%d\n", ph, Prob, Z2, C2);
 #endif
 	  } // END: electron-ion
 	  else {
-	    int K = cid*numxc+J;
-	    int L = K*6;
 	    printf("Crazy recombine [no e] (%d %d %d) (%d %d %d) (%d %d) T=%d J=%d N=%d\n",
-		   xspcs._v[L+0],
-		   xspcs._v[L+1],
-		   xspcs._v[L+2],
-		   xspcs._v[L+3],
-		   xspcs._v[L+4],
-		   xspcs._v[L+5],
-		   IT.C1, IT.C2,
-		   xtype._v[K], J, numxc);
+		   Z1, C1, J1.I, Z2, C2, J2.I, T, numxc);
 	  } // END: unexpected
 	  
 	} // END: recomb
 	
-      } // END: interaction loop
 
-      // Deep debug
-      //
-      if (false) {
-	printf("%20s %16.8e %16.8e\n", cudaInterNames[maxT], maxP, totalXS);
-      }
-      
 #ifdef XC_DEEP6
-      printf("ctest: E0=%e E1=%e E2=%e\n", EE[0], EE[1], EE[2]);
+	printf("ctest: E=%e\n", EE);
 #endif
       
-      // Convert energy loss from eV to system units and
-      // total energy change for all interation
-      //
-      cuFP_t totalDE = 0.0;
-      if (cuNoCool) {
-	totalDE = elecAdj[0] - elecAdj[1];
-      } else {
-	for (int i=0; i<3; i++) {
-	  EE[i] *= cuEV / cuEunit;
-	  totalDE += EE[i];
+	// Convert energy loss from eV to system units and
+	// total energy change for all interation
+	//
+	cuFP_t totalDE = 0.0;
+	if (cuNoCool) {
+	  totalDE = elecAdj[0] - elecAdj[1];
+	} else {
+	  for (int i=0; i<3; i++) {
+	    EE *= cuEV / cuEunit;
+	    totalDE += EE;
+	  }
 	}
-      }
       
 #ifdef XC_DEEP0
-      printf("totalDE=%e\n", totalDE);
+	printf("totalDE=%e\n", totalDE);
 #endif
       
-      // Normalize probabilities and sum inelastic energy changes
-      //
-      cuFP_t probTot = 0.0;
-      for (int i=0; i<3; i++) probTot += PE[i];
-      
-      if (probTot > 0.0) {
-	for (int i=0; i<3; i++) PE[i] /= probTot;
-      }
-      
-      //
-      // Select interaction
-      //
-      cuFP_t Pr;
-#if cuREAL == 4
-      Pr = curand_uniform(state);
-#else
-      Pr = curand_uniform_double(state);
-#endif
-      unsigned int J = 2;
-      if      (Pr < PE[0])         J = 0;
-      else if (Pr < PE[0] + PE[1]) J = 1;
-      
-      // Deferred energy
-      //
-      cuFP_t E1[2] = {0.0, 0.0};
-      cuFP_t E2[2] = {0.0, 0.0};
-      cuFP_t totE  = 0.0;
-      
-#ifdef XC_DEEPJ
-      printf("jtest: PE[0]=%f PE[1]=%f PE[2]=%f J=%d\n", PE[0], PE[1], PE[2], J);
-#endif
-      // Recompute electron fraction from possibly new weights
-      //
-      {
-	cuFP_t sum1 = 0.0, sum2 = 0.0;
-	for (int k=0; k<Nsp; k++) {
-
-	  if (F1._v[fP+k]<0.0)
-	    printf("**ERROR: F1[%d]=%e\n", k, F1._v[fP+k]);
-
-	  if (F2._v[fP+k]<0.0)
-	    printf("**ERROR: F2[%d]=%e\n", k, F2._v[fP+k]);
-
-	  sum1 += F1._v[fP+k];
-	  sum2 += F2._v[fP+k];
-	}
-	
-	// Sanity check
+	// Deferred energy
 	//
-	if (fabs(sum1 - 1.0) > 1.0e-10) {
-	  printf("**ERROR: sum1=%e\n", sum1-1.0);
+	cuFP_t E1[2] = {0.0, 0.0};
+	cuFP_t E2[2] = {0.0, 0.0};
+	cuFP_t totE  = 0.0;
+      
+	// Recompute electron fraction from possibly new weights
+	//
+	{
+	  cuFP_t sum1 = 0.0, sum2 = 0.0;
+	  for (int k=0; k<Nsp; k++) {
+
+	    if (F1._v[fP+k]<0.0)
+	      printf("**ERROR: F1[%d]=%e\n", k, F1._v[fP+k]);
+	    
+	    if (F2._v[fP+k]<0.0)
+	      printf("**ERROR: F2[%d]=%e\n", k, F2._v[fP+k]);
+	    
+	    sum1 += F1._v[fP+k];
+	    sum2 += F2._v[fP+k];
+	  }
+	
+	  // Sanity check
+	  //
+	  if (fabs(sum1 - 1.0) > 1.0e-10) {
+	    printf("**ERROR: sum1=%e\n", sum1-1.0);
+	    for (int k=0; k<Nsp; k++) {
+	      cuIonElement& E = elems._v[k];
+	      printf("**[%d]=%13.6e  %13.6e\n", k, F1._v[fP+k], p1->datr[E.I+cuSp0]);
+	    }
+	  }
+
+	  if (fabs(sum2 - 1.0) > 1.0e-10) {
+	    printf("**ERROR: sum2=%e\n", sum2-1.0);
+	    for (int k=0; k<Nsp; k++) {
+	      cuIonElement& E = elems._v[k];
+	      printf("**[%d]=%13.6e  %13.6e\n", k, F2._v[fP+k], p2->datr[E.I+cuSp0]);
+	    }
+	  }
+
+	  // Deep sanity check
+	  //
+	  if (false) {
+	    for (int k=0; k<Nsp; k++) {
+	      cuIonElement& E = elems._v[k];
+	      cuFP_t dif = fabs(F1._v[fP+k] - p1->datr[E.I+cuSp0]);
+	      if (dif > 0.2) {
+		printf("**WARNING: dF1[%d]=%13.6e  new=%13.6e  old=%13.6e\n", k, dif, F1._v[fP+k], p1->datr[E.I+cuSp0]);
+	      }
+	      dif = fabs(F2._v[fP+k] - p2->datr[E.I+cuSp0]);
+	      if (dif > 0.2) {
+		printf("**WARNING: dF2[%d]=%13.6e  new=%13.6e  old=%13.6e\n", k, dif, F2._v[fP+k], p2->datr[E.I+cuSp0]);
+	      }
+	    }
+	  }
+
+	  cuFP_t Sum1 = 0.0, Sum2 = 0.0, Eta1 = 0.0, Eta2 = 0.0;
 	  for (int k=0; k<Nsp; k++) {
 	    cuIonElement& E = elems._v[k];
-	    printf("**[%d]=%13.6e  %13.6e\n", k, F1._v[fP+k], p1->datr[E.I+cuSp0]);
-	  }
-	}
-
-	if (fabs(sum2 - 1.0) > 1.0e-10) {
-	  printf("**ERROR: sum2=%e\n", sum2-1.0);
-	  for (int k=0; k<Nsp; k++) {
-	    cuIonElement& E = elems._v[k];
-	    printf("**[%d]=%13.6e  %13.6e\n", k, F2._v[fP+k], p2->datr[E.I+cuSp0]);
-	  }
-	}
-
-	// Deep sanity check
-	//
-	for (int k=0; k<Nsp; k++) {
-	  cuIonElement& E = elems._v[k];
-	  cuFP_t dif = fabs(F1._v[fP+k] - p1->datr[E.I+cuSp0]);
-	  if (dif > 0.2) {
-	    printf("**WARNING: dF1[%d]=%13.6e  new=%13.6e  old=%13.6e\n", k, dif, F1._v[fP+k], p1->datr[E.I+cuSp0]);
-	  }
-	  dif = fabs(F2._v[fP+k] - p2->datr[E.I+cuSp0]);
-	  if (dif > 0.2) {
-	    printf("**WARNING: dF2[%d]=%13.6e  new=%13.6e  old=%13.6e\n", k, dif, F2._v[fP+k], p2->datr[E.I+cuSp0]);
-	  }
-	}
-
-	cuFP_t Sum1 = 0.0, Sum2 = 0.0, Eta1 = 0.0, Eta2 = 0.0;
-	for (int k=0; k<Nsp; k++) {
-	  cuIonElement& E = elems._v[k];
-
-	  p1->datr[E.I+cuSp0] = F1._v[fP+k]/sum1;
-	  p2->datr[E.I+cuSp0] = F2._v[fP+k]/sum2;
-
-	  // Number fraction of ions
-	  cuFP_t one = p1->datr[E.I+cuSp0] / cuda_atomic_weights[E.Z];
-	  cuFP_t two = p2->datr[E.I+cuSp0] / cuda_atomic_weights[E.Z];
+	    
+	    p1->datr[E.I+cuSp0] = F1._v[fP+k]/sum1;
+	    p2->datr[E.I+cuSp0] = F2._v[fP+k]/sum2;
+	    
+	    // Number fraction of ions
+	    cuFP_t one = p1->datr[E.I+cuSp0] / cuda_atomic_weights[E.Z];
+	    cuFP_t two = p2->datr[E.I+cuSp0] / cuda_atomic_weights[E.Z];
 	  
-	  // Electron number fraction
-	  Eta1 += one * (E.C - 1);
-	  Eta2 += two * (E.C - 1);
+	    // Electron number fraction
+	    Eta1 += one * (E.C - 1);
+	    Eta2 += two * (E.C - 1);
 	  
-	  Sum1 += one;
-	  Sum2 += two;
-	}
+	    Sum1 += one;
+	    Sum2 += two;
+	  }
 	
-	// Recompute the number of electrons per particle
-	//
-	EI.Eta1 = Eta1 /= Sum1;
-	EI.Eta2 = Eta2 /= Sum2;
+	  // Recompute the number of electrons per particle
+	  //
+	  EI.Eta1 = Eta1 /= Sum1;
+	  EI.Eta2 = Eta2 /= Sum2;
 
-	// Reassign the weights for standard Trace algorithm
-	//
-	if (not cuMeanMass) {
-	  if (IT.Z1==0) W1 = w1 * EI.Eta1;
-	  if (IT.Z2==0) W2 = w2 * EI.Eta2;
+	  // Reassign the weights for standard Trace algorithm
+	  //
+	  if (not cuMeanMass) {
+	    if (J1.sp==cuElectron) W1 = w1 * EI.Eta1;
+	    if (J2.sp==cuElectron) W2 = w2 * EI.Eta2;
+	  }
+	  
 	}
-
-      }
       
-      //
-      // Apply neutral-neutral scattering and energy loss
-      //
-      if (J==0) {
-	
-	cuFP_t v1[3], v2[3];
-	cuFP_t u1[3], u2[3];	// Used only for debugging
-	
-	for (int k=0; k<3; k++) {
-	  // Both particles are neutrals or ions
-	  u1[k] = v1[k] = p1->vel[k];
-	  u2[k] = v2[k] = p2->vel[k];
-	}
-	
-	// Apply energy excess/deficit
 	//
-	if (cuCons>=0) {
-	  cuFP_t DE1 = p1->datr[cuCons];
-	  cuFP_t DE2 = p2->datr[cuCons];
-	  totalDE += DE1 + DE2;
-	  p1->datr[cuCons] = 0.0;
-	  p2->datr[cuCons] = 0.0;
-	}	  
-	
-	if (W1 >= W2)
-	  cudaScatterTrace(EI.Mu1, EI.Mu2, EI.Eta1, EI.Eta2, W1, W2,
-			   &E1[0], &E2[0], totE,
-			   &v1[0], &v2[0], totalDE, state);
-	else
-	  cudaScatterTrace(EI.Mu2, EI.Mu1, EI.Eta2, EI.Eta1, W2, W1,
-			   &E2[0], &E1[0], totE,
-			   &v2[0], &v1[0], totalDE, state);
-	
-	if (false) {
-	  printf("part: J=0 u1={%f %f %f} v1={%f %f %f} u2={%f %f %f} v2={%f %f %f} \n",
-		 u1[0], u1[1], u1[2], v1[0], v1[1], v1[2],
-		 u2[0], u2[1], u2[2], v2[0], v2[1], v2[2]);
-	}
-	
-	// Time-step computation
+	// Apply neutral-neutral scattering and energy loss
 	//
-	{
-	  cuFP_t dt = totE/totalDE;
-	  p1->dtreq = dt < p1->dtreq ? dt : p1->dtreq;
-	  p2->dtreq = dt < p2->dtreq ? dt : p2->dtreq;
-	}
+	if (cid == 0) {
 	
-	for (int k=0; k<3; k++) {
-	  // Both particles are ions
-	  p1->vel[k] = v1[k];
-	  p2->vel[k] = v2[k];
-	  // Sanity
+	  cuFP_t v1[3], v2[3];
+	  cuFP_t u1[3], u2[3];	// Used only for debugging
+	
+	  for (int k=0; k<3; k++) {
+	    // Both particles are neutrals or ions
+	    u1[k] = v1[k] = p1->vel[k];
+	    u2[k] = v2[k] = p2->vel[k];
+	  }
+	  
+	  // Apply energy excess/deficit
+	  //
+	  if (cuCons>=0) {
+	    cuFP_t DE1 = p1->datr[cuCons];
+	    cuFP_t DE2 = p2->datr[cuCons];
+	    totalDE += DE1 + DE2;
+	    p1->datr[cuCons] = 0.0;
+	    p2->datr[cuCons] = 0.0;
+	  }	  
+	
+	  if (W1 >= W2)
+	    cudaScatterTrace(EI.Mu1, EI.Mu2, EI.Eta1, EI.Eta2, W1, W2,
+			     &E1[0], &E2[0], totE,
+			     &v1[0], &v2[0], totalDE, state);
+	  else
+	    cudaScatterTrace(EI.Mu2, EI.Mu1, EI.Eta2, EI.Eta1, W2, W1,
+			     &E2[0], &E1[0], totE,
+			     &v2[0], &v1[0], totalDE, state);
+	
+	  if (false) {
+	    printf("part: J=0 u1={%f %f %f} v1={%f %f %f} u2={%f %f %f} v2={%f %f %f} \n",
+		   u1[0], u1[1], u1[2], v1[0], v1[1], v1[2],
+		   u2[0], u2[1], u2[2], v2[0], v2[1], v2[2]);
+	  }
+	
+	  // Time-step computation
+	  //
+	  {
+	    cuFP_t dt = totE/totalDE;
+	    p1->dtreq = dt < p1->dtreq ? dt : p1->dtreq;
+	    p2->dtreq = dt < p2->dtreq ? dt : p2->dtreq;
+	  }
+	  
+	  for (int k=0; k<3; k++) {
+	    // Both particles are ions
+	    p1->vel[k] = v1[k];
+	    p2->vel[k] = v2[k];
+	    // Sanity
 #ifdef SANITY_DEBUG
-	  if (::isnan(v1[k])) {
-	    printf("Crazy value for p1->vel for J=0\n");
-	  }
-	  if (::isnan(v2[k])) {
-	    printf("Crazy value for p2->vel for J=0\n");
-	  }
+	    if (::isnan(v1[k])) {
+	      printf("Crazy value for p1->vel for J=0\n");
+	    }
+	    if (::isnan(v2[k])) {
+	      printf("Crazy value for p2->vel for J=0\n");
+	    }
 #endif
-	}
+	  }
 	
-      } // END: Atom-atom interaction
+	} // END: Atom-atom interaction
       
       
-      // Apply ion/neutral-electron scattering and energy loss
-      // Ion is Particle 1, Electron is Particle 2
-      //
-      if (J==1) {
-	
-	// Compute the initial energies
+	// Apply ion/neutral-electron scattering and energy loss
+	// Ion is Particle 1, Electron is Particle 2
 	//
-	cuFP_t KEi_i = 0.0, KEe_i = 0.0;
-	if (not cuMeanMass) {
-	  for (size_t k=0; k<3; k++) {
-	    KEi_i += p1->vel[k] * p1->vel[k];
-	    if (cuElec>=0) {
-	      KEe_i += p2->datr[cuElec+k] * p2->datr[cuElec+k];
-	    }
-	  }
-	  KEi_i *= 0.5 * W1 * EI.Mu1;
-	  KEe_i *= 0.5 * W2 * EI.Eta2 * Mue;
-	}
-	
-	cuFP_t v1[3], v2[3];
-	cuFP_t u1[3], u2[3];	// Used only for debugging
-	
-	for (int k=0; k<3; k++) {
-	  // Particle 1 is the ion
-	  u1[k] = v1[k] = p1->vel[k];
-	  // Particle 2 is the electron
-	  u2[k] = v2[k] = p2->datr[cuElec+k];
-	}
-	
-	// Apply energy excess/deficit
-	//
-	if (cuCons>=0) {
-	  cuFP_t DE1 = p1->datr[cuCons];
-	  totalDE += DE1;
-	  p1->datr[cuCons] = 0.0;
-	}	  
-	
-	if (cuEcon>=0) {
-	  cuFP_t DE2 = p2->datr[cuEcon];
-	  totalDE += DE2;
-	  p2->datr[cuEcon] = 0.0;
-	} else if (cuCons>=0) {
-	  cuFP_t DE2 = p2->datr[cuCons];
-	  totalDE += DE2;
-	  p2->datr[cuCons] = 0.0;
-	}
-	
-	if (W1 >= W2)
-	  cudaScatterTrace(EI.Mu1, Mue, EI.Eta1, EI.Eta2, W1, W2,
-			   &E1[0], &E2[0], totE,
-			   &v1[0], &v2[0], totalDE, state);
-	else
-	  cudaScatterTrace(Mue, EI.Mu1, EI.Eta2, EI.Eta1, W2, W1,
-			   &E2[0], &E1[0], totE,
-			   &v2[0], &v1[0], totalDE, state);
-	
-	if (false) {
-	  printf("part: J=1 u1={%f %f %f} v1={%f %f %f} u2={%f %f %f} v2={%f %f %f} \n",
-		 u1[0], u1[1], u1[2], v1[0], v1[1], v1[2],
-		 u2[0], u2[1], u2[2], v2[0], v2[1], v2[2]);
-	}
-	
-	// Compute the energy update
-	//
-	if (not cuMeanMass) {
-	  cuFP_t KEi_f = 0.0, KEe_f = 0.0;
-	  for (size_t k=0; k<3; k++) {
-	    KEi_f += p1->vel[k] * p1->vel[k];
-	    if (cuElec>=0) {
-	      KEe_f += p2->datr[cuElec+k] * p2->datr[cuElec+k];
-	    }
-	  }
-	  KEi_f *= 0.5 * W1 * EI.Mu1;
-	  KEe_f *= 0.5 * W2 * EI.Eta2 * Mue;
+	if (cid == 1) {
 	  
-	  cuFP_t denom = KEi_f + KEe_f;
-	  cuFP_t testE = KEi_i + KEe_i - denom - totalDE;
+	  // Compute the initial energies
+	  //
+	  cuFP_t KEi_i = 0.0, KEe_i = 0.0;
+	  if (not cuMeanMass) {
+	    for (size_t k=0; k<3; k++) {
+	      KEi_i += p1->vel[k] * p1->vel[k];
+	      if (cuElec>=0) {
+		KEe_i += p2->datr[cuElec+k] * p2->datr[cuElec+k];
+	      }
+	    }
+	    KEi_i *= 0.5 * W1 * EI.Mu1;
+	    KEe_i *= 0.5 * W2 * EI.Eta2 * Mue;
+	  }
+	  
+	  cuFP_t v1[3], v2[3];
+	  cuFP_t u1[3], u2[3];	// Used only for debugging
+	
+	  for (int k=0; k<3; k++) {
+	    // Particle 1 is the ion
+	    u1[k] = v1[k] = p1->vel[k];
+	    // Particle 2 is the electron
+	    u2[k] = v2[k] = p2->datr[cuElec+k];
+	  }
+	  
+	  // Apply energy excess/deficit
+	  //
+	  if (cuCons>=0) {
+	    cuFP_t DE1 = p1->datr[cuCons];
+	    totalDE += DE1;
+	    p1->datr[cuCons] = 0.0;
+	  }	  
+	  
+	  if (cuEcon>=0) {
+	    cuFP_t DE2 = p2->datr[cuEcon];
+	    totalDE += DE2;
+	    p2->datr[cuEcon] = 0.0;
+	  } else if (cuCons>=0) {
+	    cuFP_t DE2 = p2->datr[cuCons];
+	    totalDE += DE2;
+	    p2->datr[cuCons] = 0.0;
+	  }
+	  
+	  if (W1 >= W2)
+	    cudaScatterTrace(EI.Mu1, Mue, EI.Eta1, EI.Eta2, W1, W2,
+			     &E1[0], &E2[0], totE,
+			     &v1[0], &v2[0], totalDE, state);
+	  else
+	    cudaScatterTrace(Mue, EI.Mu1, EI.Eta2, EI.Eta1, W2, W1,
+			     &E2[0], &E1[0], totE,
+			     &v2[0], &v1[0], totalDE, state);
+	  
+	  if (false) {
+	    printf("part: J=1 u1={%f %f %f} v1={%f %f %f} u2={%f %f %f} v2={%f %f %f} \n",
+		   u1[0], u1[1], u1[2], v1[0], v1[1], v1[2],
+		   u2[0], u2[1], u2[2], v2[0], v2[1], v2[2]);
+	  }
+	  
+	  // Compute the energy update
+	  //
+	  if (not cuMeanMass) {
+	    cuFP_t KEi_f = 0.0, KEe_f = 0.0;
+	    for (size_t k=0; k<3; k++) {
+	      KEi_f += p1->vel[k] * p1->vel[k];
+	      if (cuElec>=0) {
+		KEe_f += p2->datr[cuElec+k] * p2->datr[cuElec+k];
+	      }
+	    }
+	    KEi_f *= 0.5 * W1 * EI.Mu1;
+	    KEe_f *= 0.5 * W2 * EI.Eta2 * Mue;
+	  
+	    cuFP_t denom = KEi_f + KEe_f;
+	    cuFP_t testE = KEi_i + KEe_i - denom - totalDE;
 #ifdef XC_DEEP0
-	  printf("testE=%e\n", testE);
+	    printf("testE=%e\n", testE);
 #endif
-	  if (denom>0.0) {
-	    E1[0] -= testE * KEi_f/denom;
-	    E2[1] -= testE * KEe_f/denom;
-	  } else {
-	    E1[0] -= testE * 0.5;
-	    E2[1] -= testE * 0.5;
-	  }
-	}
-	
-	// Time-step computation
-	//
-	{
-	  cuFP_t dt = totE/totalDE;
-	  p1->dtreq = dt < p1->dtreq ? dt : p1->dtreq;
-	  p2->dtreq = dt < p2->dtreq ? dt : p2->dtreq;
-	}
-	
-	
-	for (int k=0; k<3; k++) {
-	  // Particle 1 is the ion
-	  p1->vel[k] = v1[k];
-	  // Sanity
-#ifdef SANITY_DEBUG
-	  if (::isnan(v1[k])) {
-	    printf("Crazy value for p1->vel for J=1\n");
-	  }
-#endif	  
-	  // Particle 2 is the elctron
-	  p2->datr[cuElec+k] = v2[k];
-	  
-	  // Sanity
-#ifdef SANITY_DEBUG
-	  if (::isnan(v2[k])) {
-	    printf("Crazy value for v2 for J=1\n");
-	  }
-#endif
-	}
-	
-      } // END: PE[1] (Ion-electron interaction)
-      
-      // Apply ion/neutral-electron scattering and energy loss
-      // Ion is Particle 2, Electron is Particle 1
-      //
-      if (J==2) {
-	
-	// Compute the initial energies
-	//
-	cuFP_t KEi_i = 0.0, KEe_i = 0.0;
-	if (not cuMeanMass) {
-	  for (size_t k=0; k<3; k++) {
-	    KEi_i += p2->vel[k] * p2->vel[k];
-	    if (cuElec>=0) {
-	      KEe_i += p1->datr[cuElec+k] * p1->datr[cuElec+k];
+	    if (denom>0.0) {
+	      E1[0] -= testE * KEi_f/denom;
+	      E2[1] -= testE * KEe_f/denom;
+	    } else {
+	      E1[0] -= testE * 0.5;
+	      E2[1] -= testE * 0.5;
 	    }
 	  }
-	  KEi_i *= 0.5 * W2 * EI.Mu2;
-	  KEe_i *= 0.5 * W1 * EI.Eta1 * Mue;
+	
+	  // Time-step computation
+	  //
+	  {
+	    cuFP_t dt = totE/totalDE;
+	    p1->dtreq = dt < p1->dtreq ? dt : p1->dtreq;
+	    p2->dtreq = dt < p2->dtreq ? dt : p2->dtreq;
+	  }
+	
+	
+	  for (int k=0; k<3; k++) {
+	    // Particle 1 is the ion
+	    p1->vel[k] = v1[k];
+	    // Sanity
+#ifdef SANITY_DEBUG
+	    if (::isnan(v1[k])) {
+	      printf("Crazy value for p1->vel for J=1\n");
+	    }
+#endif	  
+	    // Particle 2 is the elctron
+	    p2->datr[cuElec+k] = v2[k];
+	  
+	    // Sanity
+#ifdef SANITY_DEBUG
+	    if (::isnan(v2[k])) {
+	      printf("Crazy value for v2 for J=1\n");
+	    }
+#endif
+	  }
+	  
+	} // END: Ion-electron interaction
+      
+	// Apply ion/neutral-electron scattering and energy loss
+	// Ion is Particle 2, Electron is Particle 1
+	//
+	if (cid == 2) {
+	  
+	  // Compute the initial energies
+	  //
+	  cuFP_t KEi_i = 0.0, KEe_i = 0.0;
+	  if (not cuMeanMass) {
+	    for (size_t k=0; k<3; k++) {
+	      KEi_i += p2->vel[k] * p2->vel[k];
+	      if (cuElec>=0) {
+		KEe_i += p1->datr[cuElec+k] * p1->datr[cuElec+k];
+	      }
+	    }
+	    KEi_i *= 0.5 * W2 * EI.Mu2;
+	    KEe_i *= 0.5 * W1 * EI.Eta1 * Mue;
+	  }
+	
+	  cuFP_t v1[3], v2[3];
+	  cuFP_t u1[3], u2[3];	// Used only for debugging
+	
+	  for (int k=0; k<3; k++) {
+	    // Particle 1 is the electron
+	    u1[k] = v1[k] = p1->datr[cuElec+k];
+	    // Particle 2 is the ion
+	    u2[k] = v2[k] = p2->vel[k];
+	  }
+	  
+	  // Apply energy excess/deficit
+	  //
+	  if (cuCons>=0) {
+	    cuFP_t DE2 = p2->datr[cuCons];
+	    totalDE += DE2;
+	    p2->datr[cuCons] = 0.0;
+	  }	  
+	  
+	  if (cuEcon>=0) {
+	    cuFP_t DE1 = p1->datr[cuEcon];
+	    totalDE += DE1;
+	    p1->datr[cuEcon] = 0.0;
+	  } else if (cuCons>=0) {
+	    cuFP_t DE1 = p1->datr[cuCons];
+	    totalDE += DE1;
+	    p1->datr[cuCons] = 0.0;
+	  }
+	
+	  if (W1 >= W2)
+	    cudaScatterTrace(Mue, EI.Mu2, EI.Eta1, EI.Eta2, W1, W2,
+			     &E1[0], &E2[0], totE,
+			     &v1[0], &v2[0], totalDE, state);
+	  else
+	    cudaScatterTrace(EI.Mu2, Mue, EI.Eta2, EI.Eta1, W2, W1,
+			     &E2[0], &E1[0], totE,
+			     &v2[0], &v1[0], totalDE, state);
+	
+	  if (false) {
+	    printf("part: J=2 u1={%f %f %f} v1={%f %f %f} u2={%f %f %f} v2={%f %f %f} \n",
+		   u1[0], u1[1], u1[2], v1[0], v1[1], v1[2],
+		   u2[0], u2[1], u2[2], v2[0], v2[1], v2[2]);
+	  }
+	
+	  // Compute the energy update
+	  //
+	  if (not cuMeanMass) {
+	    cuFP_t KEi_f = 0.0, KEe_f = 0.0;
+	    for (size_t k=0; k<3; k++) {
+	      KEi_f += p2->vel[k] * p2->vel[k];
+	      if (cuElec>=0) {
+		KEe_f += p1->datr[cuElec+k] * p1->datr[cuElec+k];
+	      }
+	    }
+	    KEi_f *= 0.5 * W2 * EI.Mu2;
+	    KEe_f *= 0.5 * W1 * EI.Eta1 * Mue;
+	  
+	    cuFP_t denom = KEi_f + KEe_f;
+	    cuFP_t testE = KEi_i + KEe_i - denom - totalDE;
+#ifdef XC_DEEP0
+	    printf("testE=%e\n", testE);
+#endif
+	    E2[0] -= testE * KEi_f/denom;
+	    E1[1] -= testE * KEe_f/denom;
+	  }
+	
+	  // Time-step computation
+	  //
+	  {
+	    cuFP_t dt = totE/totalDE;
+	    p1->dtreq = dt < p1->dtreq ? dt : p1->dtreq;
+	    p2->dtreq = dt < p2->dtreq ? dt : p2->dtreq;
+	  }
+	
+	  for (int k=0; k<3; k++) {
+	    // Particle 1 is the electron
+	    p1->datr[cuElec+k] = v1[k];
+	    
+	    // Sanity
+#ifdef SANITY_DEBUG
+	    if (::isnan(v1[k])) {
+	      printf("Crazy value for v2 for J=2\n");
+	    }
+#endif	  
+	    // Particle 2 is the ion
+	    p2->vel[k] = v2[k];
+	    // Sanity
+#ifdef SANITY_DEBUG
+	    if (::isnan(v2[k])) {
+	      printf("Crazy value for p2->vel for J=2\n");
+	    }
+#endif
+	  }
+	  
 	}
-	
-	cuFP_t v1[3], v2[3];
-	cuFP_t u1[3], u2[3];	// Used only for debugging
-	
-	for (int k=0; k<3; k++) {
-	  // Particle 1 is the electron
-	  u1[k] = v1[k] = p1->datr[cuElec+k];
-	  // Particle 2 is the ion
-	  u2[k] = v2[k] = p2->vel[k];
-	}
-	
-	// Apply energy excess/deficit
+	// END: Electron-Ion interaction
+      
+	// Update energy conservation
 	//
 	if (cuCons>=0) {
-	  cuFP_t DE2 = p2->datr[cuCons];
-	  totalDE += DE2;
-	  p2->datr[cuCons] = 0.0;
-	}	  
-	
+	  p1->datr[cuCons] += E1[0];
+	  p2->datr[cuCons] += E2[0];
+	}
+      
 	if (cuEcon>=0) {
-	  cuFP_t DE1 = p1->datr[cuEcon];
-	  totalDE += DE1;
-	  p1->datr[cuEcon] = 0.0;
+	  p1->datr[cuEcon] += E1[1];
+	  p2->datr[cuEcon] += E2[1];
 	} else if (cuCons>=0) {
-	  cuFP_t DE1 = p1->datr[cuCons];
-	  totalDE += DE1;
-	  p1->datr[cuCons] = 0.0;
+	  p1->datr[cuCons] += E1[1];
+	  p2->datr[cuCons] += E2[1];
 	}
-	
-	if (W1 >= W2)
-	  cudaScatterTrace(Mue, EI.Mu2, EI.Eta1, EI.Eta2, W1, W2,
-			   &E1[0], &E2[0], totE,
-			   &v1[0], &v2[0], totalDE, state);
-	else
-	  cudaScatterTrace(EI.Mu2, Mue, EI.Eta2, EI.Eta1, W2, W1,
-			   &E2[0], &E1[0], totE,
-			   &v2[0], &v1[0], totalDE, state);
-	
-	if (false) {
-	  printf("part: J=2 u1={%f %f %f} v1={%f %f %f} u2={%f %f %f} v2={%f %f %f} \n",
-		 u1[0], u1[1], u1[2], v1[0], v1[1], v1[2],
-		 u2[0], u2[1], u2[2], v2[0], v2[1], v2[2]);
-	}
-	
-	// Compute the energy update
-	//
-	if (not cuMeanMass) {
-	  cuFP_t KEi_f = 0.0, KEe_f = 0.0;
-	  for (size_t k=0; k<3; k++) {
-	    KEi_f += p2->vel[k] * p2->vel[k];
-	    if (cuElec>=0) {
-	      KEe_f += p1->datr[cuElec+k] * p1->datr[cuElec+k];
-	    }
-	  }
-	  KEi_f *= 0.5 * W2 * EI.Mu2;
-	  KEe_f *= 0.5 * W1 * EI.Eta1 * Mue;
-	  
-	  cuFP_t denom = KEi_f + KEe_f;
-	  cuFP_t testE = KEi_i + KEe_i - denom - totalDE;
-#ifdef XC_DEEP0
-	  printf("testE=%e\n", testE);
-#endif
-	  E2[0] -= testE * KEi_f/denom;
-	  E1[1] -= testE * KEe_f/denom;
-	}
-	
-	// Time-step computation
-	//
-	{
-	  cuFP_t dt = totE/totalDE;
-	  p1->dtreq = dt < p1->dtreq ? dt : p1->dtreq;
-	  p2->dtreq = dt < p2->dtreq ? dt : p2->dtreq;
-	}
-	
-	for (int k=0; k<3; k++) {
-	  // Particle 1 is the electron
-	  p1->datr[cuElec+k] = v1[k];
-	  
-	  // Sanity
-#ifdef SANITY_DEBUG
-	  if (::isnan(v1[k])) {
-	    printf("Crazy value for v2 for J=2\n");
-	  }
-#endif	  
-	  // Particle 2 is the ion
-	  p2->vel[k] = v2[k];
-	  // Sanity
-#ifdef SANITY_DEBUG
-	  if (::isnan(v2[k])) {
-	    printf("Crazy value for p2->vel for J=2\n");
-	  }
-#endif
-	}
-	
-      } // END: Electron-Ion interaction
-      
-      // Update energy conservation
-      //
-      if (cuCons>=0) {
-	p1->datr[cuCons] += E1[0];
-	p2->datr[cuCons] += E2[0];
-      }
-      
-      if (cuEcon>=0) {
-	p1->datr[cuEcon] += E1[1];
-	p2->datr[cuEcon] += E2[1];
-      } else if (cuCons>=0) {
-	p1->datr[cuCons] += E1[1];
-	p2->datr[cuCons] += E2[1];
-      }
       
 #ifdef XC_KEDEBUG
-      // Energy debug
-      //
-      cuFP_t tKEi_f = 0.0, tKEe_f = 0.0, tEC_f = 0.0;
-      {
-	cuFP_t Eta1 = 0.0, Eta2 = 0.0;
-	for (int k=0; k<Nsp; k++) {
-	  cuIonElement& E = elems._v[k];
+	// Energy debug
+	//
+	cuFP_t tKEi_f = 0.0, tKEe_f = 0.0, tEC_f = 0.0;
+	{
+	  cuFP_t Eta1 = 0.0, Eta2 = 0.0;
+	  for (int k=0; k<Nsp; k++) {
+	    cuIonElement& E = elems._v[k];
+	    
+	    cuFP_t one = p1->datr[E.I+cuSp0] / cuda_atomic_weights[E.Z];
+	    cuFP_t two = p2->datr[E.I+cuSp0] / cuda_atomic_weights[E.Z];
+	    
+	    Eta1 += one * (E.C - 1);
+	    Eta2 += two * (E.C - 1);
+	  }
+	  
+	  cuFP_t ke1i = 0.0, ke1e = 0.0, v1;
+	  cuFP_t ke2i = 0.0, ke2e = 0.0, v2;
+	  for (int k=0; k<3; k++) {
+	    v1 = p1->vel[k];
+	    v2 = p2->vel[k];
 
-	  cuFP_t one = p1->datr[E.I+cuSp0] / cuda_atomic_weights[E.Z];
-	  cuFP_t two = p2->datr[E.I+cuSp0] / cuda_atomic_weights[E.Z];
+	    ke1i += v1*v1;
+	    ke2i += v2*v2;
 
-	  Eta1 += one * (E.C - 1);
-	  Eta2 += two * (E.C - 1);
-	}
+	    v1 = p1->datr[cuElec+k];
+	    v2 = p2->datr[cuElec+k];
+
+	    ke1e += v1*v1;
+	    ke2e += v2*v2;
+	  }
+	  tKEi_f = 0.5*p1->mass*ke1i + 0.5*p2->mass*ke2i;
+	  tKEe_f =
+	    0.5*p1->mass*ke1e*Eta1*cuda_atomic_weights[0] +
+	    0.5*p2->mass*ke2e*Eta2*cuda_atomic_weights[0] ;
 	
-	cuFP_t ke1i = 0.0, ke1e = 0.0, v1;
-	cuFP_t ke2i = 0.0, ke2e = 0.0, v2;
-	for (int k=0; k<3; k++) {
-	  v1 = p1->vel[k];
-	  v2 = p2->vel[k];
-
-	  ke1i += v1*v1;
-	  ke2i += v2*v2;
-
-	  v1 = p1->datr[cuElec+k];
-	  v2 = p2->datr[cuElec+k];
-
-	  ke1e += v1*v1;
-	  ke2e += v2*v2;
+	  if (cuCons)
+	    tEC_f += p1->datr[cuCons] + p2->datr[cuCons];
+	  if (cuEcon)
+	    tEC_f += p1->datr[cuEcon] + p2->datr[cuEcon];
 	}
-	tKEi_f = 0.5*p1->mass*ke1i + 0.5*p2->mass*ke2i;
-	tKEe_f =
-	  0.5*p1->mass*ke1e*Eta1*cuda_atomic_weights[0] +
-	  0.5*p2->mass*ke2e*Eta2*cuda_atomic_weights[0] ;
-	
-	if (cuCons)
-	  tEC_f += p1->datr[cuCons] + p2->datr[cuCons];
-	if (cuEcon)
-	  tEC_f += p1->datr[cuEcon] + p2->datr[cuEcon];
-      }
-      cuFP_t Etoti = tKEi_i + tKEe_i - tEC_i;
-      cuFP_t Etotf = tKEi_f + tKEe_f - tEC_f;
-      if (fabs(Etoti - Etotf) > 1.0e-12*Etoti) {
-	printf("**ERROR dE=%e dE/E=%e cons=[%e, %e] del=%e\n",
-	       Etoti - Etotf, 1.0 - Etotf/Etoti, tEC_i, tEC_f, totalDE);
-      }
+	cuFP_t Etoti = tKEi_i + tKEe_i - tEC_i;
+	cuFP_t Etotf = tKEi_f + tKEe_f - tEC_f;
+	if (fabs(Etoti - Etotf) > 1.0e-12*Etoti) {
+	  printf("**ERROR dE=%e dE/E=%e cons=[%e, %e] del=%e\n",
+		 Etoti - Etotf, 1.0 - Etotf/Etoti, tEC_i, tEC_f, totalDE);
+	}
 #endif
-
-    } // END: interactions with atoms AND electrons
-    
-  } // END: Grid stride loop
-  
+      }
+      // END: pair loop
+    }
+    // END: interaction loop
+  }
+  // END: Grid stride loop for cells
 }
 
 
@@ -5245,6 +4985,17 @@ void * CollideIon::collide_thread_cuda(void * arg)
   //
   cuda_initialize();
   
+
+  // Species constants as defined on device
+  //
+  const cuSpeciesKey cuProton    {1, 2};
+  const cuSpeciesKey cuElectron  {0xffff, 0xffff};
+  //                              ^       ^
+  //                              |       |
+  // 2^16-1 is max ushort---------+-------+
+  // as defined in NTC.H
+  const cuSpeciesDef electronDef {cuElectron, 0, 0};
+
   // Get the thread id
   //
   int id = static_cast<int>(((thrd_pass_arguments*)arg)->id);
@@ -5348,16 +5099,14 @@ void * CollideIon::collide_thread_cuda(void * arg)
   // Species map info
   //
   int minSp = std::numeric_limits<int>::max(), maxSp = 0;
-  int numNeut = 0, numProt = 0, numIon = 0;
+
   for (auto s : SpList) {
-    speciesKey k = s.first;
     minSp = std::min<int>(minSp, s.second);
     maxSp = std::max<int>(maxSp, s.second);
-    if (k.second==1) numNeut++;
-    else             numIon++;
-    if (k.first==1)  numProt++;
   }
   
+  int minSp0 = minSp;
+
   // Augment species position counter
   if (use_elec>=0) {		// for electrons
     minSp = std::min<int>(minSp, use_elec);
@@ -5376,6 +5125,65 @@ void * CollideIon::collide_thread_cuda(void * arg)
   //
   maxSp++;
   
+  thrust::host_vector<cuInteract> ilist;
+  for (auto s : SpList) {
+    speciesKey k = s.first;
+    cuSpeciesKey cuk(k);
+
+    int kpos = 0;
+    for (kpos=0; kpos<ch.cuIonElem.size(); kpos++)
+      if (ch.cuIonElem[kpos].I == s.second) break;
+
+    cuSpeciesDef def1 {cuk, kpos, s.second-minSp0};
+
+    for (auto ss : SpList) {
+      speciesKey kk = ss.first;
+      cuSpeciesKey cukk(kk);
+
+      if (kk<k) continue;	// Prevent duplication
+
+      for (kpos=0; kpos<ch.cuIonElem.size(); kpos++)
+	if (ch.cuIonElem[kpos].I == ss.second) break;
+
+      cuSpeciesDef def2 {cukk, kpos, ss.second-minSp0};
+
+      if (k.second==1) {
+	if (kk.second==1)
+	  ilist.push_back({neut_neut, def1, def2, 0.0});
+				    
+	// H
+	if (k.first==1 and kk.first==1 and kk.second==2)
+	  ilist.push_back({neut_prot, def1, def2, 0.0});
+
+	// He
+	if (k.first==2 and kk.first==1 and kk.second==2)
+	  ilist.push_back({neut_prot, def1, def2, 0.0});
+      }
+    }
+
+    // The rest are electron interactions
+
+    if (k.second==1)
+      ilist.push_back({neut_elec, def1, electronDef, 0.0});
+
+
+    // Free-free ion must be charged
+    if (k.second>1)
+      ilist.push_back({free_free, def1, electronDef, 0.0});
+
+    // Atom must have at least one electron for collisional excitation
+    // or ionization
+    if (k.second <= k.first) {
+      ilist.push_back({col_excite, def1, electronDef, 0.0});
+      ilist.push_back({col_ionize, def1, electronDef, 0.0});
+    }
+
+    // Must be charged for recombination
+    if (k.second>1)
+      ilist.push_back({recombine, def1, electronDef, 0.0});
+  }
+
+
   // Electron position in cudaParticle datr for convenience
   //
   int ePos = use_elec - minSp;	
@@ -5423,7 +5231,7 @@ void * CollideIon::collide_thread_cuda(void * arg)
   int gridSize = (N+BLOCK_SIZE*stride-1)/(BLOCK_SIZE*stride);
   
   // These do not need copying back
-  thrust::device_vector<cuFP_t> d_crm(N), d_Ivel2(N), d_Evel2(N);
+  thrust::device_vector<cuFP_t> d_Ivel2(N), d_Evel2(N);
   thrust::device_vector<cuFP_t> d_PiProb(N*4), d_ABrate(N*4);
   thrust::device_vector<cuFP_t> d_volC(h_volC), d_tauC(h_tauC);
   
@@ -5431,7 +5239,6 @@ void * CollideIon::collide_thread_cuda(void * arg)
   //
   cellInitKernel<<<gridSize, BLOCK_SIZE>>>
     (toKernel(d_part),		// Particle array (input)
-     toKernel(d_crm),		// Mean relative ion speed (output)
      toKernel(d_Ivel2),		// Mean squared ion velocity (output)
      toKernel(d_Evel2),		// Mean squared electron velocity (output)
      toKernel(d_PiProb),	// For BN algorithm (output)
@@ -5449,32 +5256,23 @@ void * CollideIon::collide_thread_cuda(void * arg)
 
   // These are all for device storage do not need copying back
   //
-  unsigned int totalXCsize =
-    numNeut*numNeut + numNeut*2 + numNeut*numProt*2 + numIon*numIon + 
-    numIon*5*2;
+  unsigned int XCsize = ilist.size();
   
-  thrust::device_vector<cuFP_t>         d_cross(N*totalXCsize);
-  thrust::device_vector<cuFP_t>         d_delph(N*totalXCsize);
-  thrust::device_vector<cuFP_t>         d_Coul4(N*4), d_Nsel(N);
-  thrust::device_vector<unsigned char>  d_xspcs(N*totalXCsize*6);
-  thrust::device_vector<cudaInterTypes> d_xtype(N*totalXCsize);
+  thrust::device_vector<cuInteract> d_cross(N*XCsize);
+  thrust::device_vector<cuFP_t>     d_delph(N), d_Coul4(N*4), d_Nsel(N);
 
   int esz = cuElems.size();
-  thrust::device_vector<cuFP_t>         d_F1(N*esz), d_F2(N*esz);
-  thrust::device_vector<int>            d_S (N*totalXCsize);
+  thrust::device_vector<cuFP_t>     d_F1(N*esz), d_F2(N*esz);
+  thrust::device_vector<cuInteract> d_Init(ilist);
 
   partInteractions<<<gridSize, BLOCK_SIZE>>>
-    (toKernel(d_part),   toKernel(d_randS),
-     toKernel(d_Coul4),  toKernel(d_Nsel),
-     toKernel(d_cross),  toKernel(d_delph),  toKernel(d_xspcs),
-     toKernel(d_xtype),  toKernel(d_cellI),  toKernel(d_cellN),
-     toKernel(d_volC),   toKernel(d_crm),    toKernel(d_Ivel2),
-     toKernel(d_Evel2),  toKernel(xsc_H),    toKernel(xsc_He),
-     toKernel(xsc_pH),   toKernel(xsc_pHe),
-     toKernel(d_PiProb), toKernel(d_ABrate),
-     toKernel(cuElems),  toKernel(d_tauC),
-     toKernel(d_F1),     toKernel(d_F2),     toKernel(d_S),
-     totalXCsize);
+    (toKernel(d_part),   toKernel(d_randS),  toKernel(d_Coul4),
+     toKernel(d_cross),  toKernel(d_cellI),  toKernel(d_cellN),
+     toKernel(d_volC),   toKernel(d_Ivel2),  toKernel(d_Evel2),
+     toKernel(xsc_H),    toKernel(xsc_He),   toKernel(xsc_pH),
+     toKernel(xsc_pHe),  toKernel(d_PiProb), toKernel(d_ABrate),
+     toKernel(cuElems),  toKernel(d_tauC),   toKernel(d_Init),
+     toKernel(d_F1),     toKernel(d_F2));
   
 #ifdef XC_DEEP9
   {
