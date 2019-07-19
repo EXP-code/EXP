@@ -4383,6 +4383,27 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 #ifdef XC_DEEP2
 	    printf("testT: rcDE=%e W=%e Z=%d C=%d\n", ph, Prob, Z1, C1);
 #endif
+
+	    // Add the KE from the recombined electron back to the
+	    // free pool
+	    //
+	    if (cuNoCool and C2==1 and cuCons>=0) {
+	      double lKE = 0.0, fE = 0.5*W1*cuda_atomic_weights[0];
+	      for (size_t k=0; k<3; k++) {
+		double t = p2->datr[cuElec+k];
+		lKE += fE*t*t;
+	      }
+	      lKE *= Prob;
+	    
+	      if (W2/W1 != 1.0)
+		p2->datr[cuCons] += lKE;
+	      else {
+		p1->datr[cuCons] += lKE * 0.5;
+		p2->datr[cuCons] += lKE * 0.5;
+	      }
+	    }
+	    // END: nocool energy conservation
+
 	  } // END: ion-electron
 	  else if (J1.sp == cuElectron) { // Ion is p2
 	    
@@ -4448,6 +4469,26 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 #ifdef XC_DEEP2
 	    printf("testT: rcDE=%e W=%e Z=%d C=%d\n", ph, Prob, Z2, C2);
 #endif
+	    // Add the KE from the recombined electron back to the
+	    // free pool
+	    //
+	    if (cuNoCool and C1==1 and cuCons>=0) {
+	      double lKE = 0.0, fE = 0.5*W1*cuda_atomic_weights[0];
+	      for (size_t k=0; k<3; k++) {
+		double t = p1->datr[cuElec+k];
+		lKE += fE*t*t;
+	      }
+	      lKE *= Prob;
+	    
+	      if (W2/W1 != 1.0)
+		p1->datr[cuCons] += lKE;
+	      else {
+		p1->datr[cuCons] += lKE * 0.5;
+		p2->datr[cuCons] += lKE * 0.5;
+	      }
+	    }
+	    // END: nocool energy conservation
+
 	  } // END: electron-ion
 	  else {
 	    printf("Crazy recombine [no e] (%d %d %d) (%d %d %d) (%d %d) T=%d J=%d N=%d\n",
