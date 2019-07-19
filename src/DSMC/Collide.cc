@@ -1383,7 +1383,7 @@ void * Collide::collide_thread(void * arg)
 
 	// Pick a pair of particles from the cell
 	//
-	int i1 = std::min<int>(int(floor((*unit)()*nbods)), nbods-1);
+	int i1 = std::min<int>(int(floor((*unit)()* nbods   )), nbods-1);
 	int i2 = std::min<int>(int(floor((*unit)()*(nbods-1))), nbods-2);
 	if (i2 >= i1) i2++;
 
@@ -1406,7 +1406,7 @@ void * Collide::collide_thread(void * arg)
 	//
 	if (cr == 0.0) continue;
 
-	// Per particle initializatio for cross section
+	// Per particle initialization for cross section
 	//
 	pairInfo(id, c, p1, p2, cr);
 	
@@ -1416,7 +1416,7 @@ void * Collide::collide_thread(void * arg)
 	double Cross = crossSection(id, c, p1, p2, cr, T);
 	bool ok = false;
 	  
-	double crsvel  = crossIJ[v.first]()/cunit * cr;
+	double crsvel  = crossIJ[v.first]()/cunit;
 	if (use_ntcdb and ntcdb[samp->mykey].Ready(k, T)) {
 	  crsvel = ntcdb[samp->mykey].CrsVel(k, T, ntcThresh) * ntcFactor;
 	}
