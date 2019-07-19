@@ -9164,10 +9164,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     elecEVsub[id].push_back(std::max<double>(kEe1[id], kEe2[id]));
   }
 
-  // NOCOOL debugging
-  //
-  double NCXTRA = 0.0;
-
   /*
   Notes on the recombination/ionization tracking logic:
 
@@ -9810,8 +9806,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	    lKE *= Prob;
 	    
-	    NCXTRA += lKE;
-	    
 	    if (PP->q<1)
 	      p2->dattrib[use_cons] += lKE;
 	    else {
@@ -9927,8 +9921,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    }
 	    lKE *= Prob;
 	    
-	    NCXTRA += lKE;
-
 	    if (PP->q<1)
 	      p1->dattrib[use_cons] += lKE;
 	    else {
