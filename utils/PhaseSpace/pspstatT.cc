@@ -67,7 +67,7 @@ main(int ac, char **av)
      "component name")
     ("Lunit,L",         po::value<double>(&Lunit)->default_value(1.0),
      "physical length unit in pc")
-    ("Munit,M",         po::value<double>(&Munit)->default_value(0.1),
+    ("Munit,M",         po::value<double>(&Munit)->default_value(1.0),
      "physical mass unit in solar masses")
     ("Tunit,T",         po::value<double>(&Tunit)->default_value(1.0e+03),
      "physical time unit in years")
@@ -230,6 +230,10 @@ main(int ac, char **av)
     double mass=0.0, KEi=0.0, KEe=0.0, Icons=0.0, Econs=0.0, Numb=0.0;
     unsigned int N=0;
 
+				// Quantiles for printing rank
+				// ---------------------------
+    const std::vector<double> pval = {0.01, 0.05, 0.1, 0.2, 0.5, 0.8, 0.9, 0.95, 0.99};
+
     PSPstanza *stanza;
     SParticle* part;
     double rtmp;
@@ -272,6 +276,8 @@ main(int ac, char **av)
 		<< setw(10) << stanza->comp.ndatr 
 		<< endl;
 
+      std::vector<double> evel, ivel;
+
 
 				// Position to beginning of particles
       in->seekg(stanza->pspos);
@@ -295,40 +301,37 @@ main(int ac, char **av)
 	PE1 += 0.5*ms*part->phi();
 	Iv2 += ms*rtmp;
 
-
-	for (auto u : SpList) {
-	  speciesKey k = u.first;
-	  int        I = u.second;
-
-	  double ke = 0.0;
-	  for (int i=0; i<3; i++) {
-	    double t = part->datr(use_elec+i);
-	    covE[i] += ms*t;
-	    dspE[i] += ms*t*t;
-	    ke += t*t;
-	  }
-
-	  EE1 += ke * 0.5*ms*atomic_mass[0]/mu0;
-	  Ev2 += ms * ke;
-
-	  // Mass
-	  mass += ms;
-
-	  // Ion KE
-	  KEi  += 0.5 * ms * rtmp * Eunit;
-
-	  // Electron KE
-	  KEe  += 0.5 * ke * ms * atomic_mass[0]/mu0 * Eunit;
-
-	  // True particle number
-	  Numb += ms * Munit/(mu0*amu);
-
-	  // Ion energy conservation
-	  if (icons>=0) Icons += part->datr(icons) * Eunit;
-
-	  // Electron energy conservation
-	  if (econs>=0) Econs += part->datr(econs) * Eunit;
+	double ke = 0.0;
+	for (int i=0; i<3; i++) {
+	  double t = part->datr(use_elec+i);
+	  covE[i] += ms*t;
+	  dspE[i] += ms*t*t;
+	  ke += t*t;
 	}
+
+	EE1 += ke * 0.5*ms*atomic_mass[0]/mu0;
+	Ev2 += ms * ke;
+
+	ivel.push_back(0.5*mu0*amu*rtmp*Vunit*Vunit/eV);
+	evel.push_back(0.5*me*ke*Vunit*Vunit/eV);
+
+	// Mass
+	mass += ms;
+
+	// Ion KE
+	KEi  += 0.5 * ms * rtmp * Eunit;
+
+	// Electron KE
+	KEe  += 0.5 * ke * ms * atomic_mass[0]/mu0 * Eunit;
+
+	// True particle number
+	Numb += ms * Munit/(mu0*amu);
+
+	// Ion energy conservation
+	if (icons>=0) Icons += part->datr(icons) * Eunit;
+	
+	// Electron energy conservation
+	if (econs>=0) Econs += part->datr(econs) * Eunit;
 
 	// Superparticle count
 	N++;
@@ -382,6 +385,39 @@ main(int ac, char **av)
 	cout << "     dE/E(elec)\t\t"       << Econs/KEe     << std::endl;
       }
       cout   << "     N(spart)\t\t"         << N             << std::endl;
+
+      std::cout << std::endl
+		<< "------------------------" << std::endl
+		<< "Ranked energies" << std::endl
+		<< "------------------------" << std::endl << std::left
+		<< std::setw(8) << "Rank" << std::setw(18) << "Ion (eV)"
+		<< std::setw(18) << "Elec (eV)"
+		<< std::endl
+		<< std::setw(8) << "----" << std::setw(18) << "-----------"
+		<< std::setw(18) << "-----------"
+		<< std::endl;
+      
+      std::sort(ivel.begin(), ivel.end());
+      std::sort(evel.begin(), evel.end());
+
+      for (int i=0; i<5; i++) {
+	std::cout << std::setw( 8) << i
+		  << std::setw(18) << ivel[i]
+		  << std::setw(18) << evel[i] << std::endl;
+      }
+
+      for (auto v : pval) {
+	int I = floor(v*evel.size());
+	std::cout << std::setw( 8) << I
+		  << std::setw(18) << ivel[I]
+		  << std::setw(18) << evel[I] << std::endl;
+      }
+
+      for (int i=evel.size()-5; i<evel.size(); i++) {
+	std::cout << std::setw( 8) << i
+		  << std::setw(18) << ivel[i]
+		  << std::setw(18) << evel[i] << std::endl;
+      }
 
     }
 
