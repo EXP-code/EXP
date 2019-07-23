@@ -76,8 +76,6 @@ main(int ac, char **av)
     ;
 
 
-  double mu0 = 1.0/(0.76/atomic_mass[1] + 0.24/atomic_mass[2]);
-
   po::variables_map vm;
 
   try {
@@ -270,10 +268,10 @@ main(int ac, char **av)
 				// Print the header
 
       std::cout << "Comp name: " << stanza->name << endl << endl
-		<< "     Bodies\t\t"
+		<< "     Bodies\t\t" << std::left
 		<< setw(15) << stanza->comp.nbod 
-		<< setw(10) << stanza->comp.niatr 
-		<< setw(10) << stanza->comp.ndatr 
+		<< setw(15) << stanza->comp.niatr 
+		<< setw(15) << stanza->comp.ndatr 
 		<< endl;
 
       std::vector<double> evel, ivel;
@@ -284,17 +282,36 @@ main(int ac, char **av)
 
       for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
 
+	//
+	// Accumulate statistics
+	//
+
+				// Molectural weight and electron
+				// fraction
+	double Mu=0.0, Eta=0.0;
+	for (auto v : SpList) {
+	  speciesKey k = v.first;
+	  double   one = part->datr(v.second)/atomic_mass[k.first];
+	  Mu  += one;
+	  Eta += one * (k.second - 1);
+	}
+	Eta /= Mu;
+	Mu   = 1.0/Mu;
+
+	double ms = part->mass();
+	mass1 += ms;
+
+	// Angular momentum
+	//
 	mom[0] = part->pos(1)*part->vel(2) - part->pos(2)*part->vel(1);
 	mom[1] = part->pos(2)*part->vel(0) - part->pos(0)*part->vel(2);
 	mom[2] = part->pos(0)*part->vel(1) - part->pos(1)*part->vel(0);
 
-				// Accumulate statistics
-	double ms = part->mass();
-	mass1 += ms;
 	for (int i=0; i<3; i++) com1[i] += ms*part->pos(i);
 	for (int i=0; i<3; i++) cov1[i] += ms*part->vel(i);
 	for (int i=0; i<3; i++) dsp1[i] += ms*part->vel(i)*part->vel(i);
 	for (int i=0; i<3; i++) ang1[i] += ms*mom[i];
+
 	rtmp = 0.0;
 	for (int i=0; i<3; i++) rtmp += part->vel(i)*part->vel(i);
 	KE1 += 0.5*ms*rtmp;
@@ -309,10 +326,10 @@ main(int ac, char **av)
 	  ke += t*t;
 	}
 
-	EE1 += ke * 0.5*ms*atomic_mass[0]/mu0;
+	EE1 += ke * 0.5*ms*atomic_mass[0]*Eta/Mu;
 	Ev2 += ms * ke;
 
-	ivel.push_back(0.5*mu0*amu*rtmp*Vunit*Vunit/eV);
+	ivel.push_back(0.5*Mu*amu*rtmp*Vunit*Vunit/eV);
 	evel.push_back(0.5*me*ke*Vunit*Vunit/eV);
 
 	// Mass
@@ -322,10 +339,10 @@ main(int ac, char **av)
 	KEi  += 0.5 * ms * rtmp * Eunit;
 
 	// Electron KE
-	KEe  += 0.5 * ke * ms * atomic_mass[0]/mu0 * Eunit;
+	KEe  += 0.5 * ke * ms * atomic_mass[0] * Eta/Mu * Eunit;
 
 	// True particle number
-	Numb += ms * Munit/(mu0*amu);
+	Numb += ms * Munit/(Mu*amu);
 
 	// Ion energy conservation
 	if (icons>=0) Icons += part->datr(icons) * Eunit;
@@ -384,6 +401,7 @@ main(int ac, char **av)
 	cout << "     dE(elec)\t\t"         << Econs         << std::endl;
 	cout << "     dE/E(elec)\t\t"       << Econs/KEe     << std::endl;
       }
+      cout   << "     Total energy\t"       << KEi + KEe + Econs + Icons << std::endl;
       cout   << "     N(spart)\t\t"         << N             << std::endl;
 
       std::cout << std::endl
