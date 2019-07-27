@@ -1614,7 +1614,7 @@ public:
       cuda_part_stats_print();
     else
 #endif
-    collD->print ();
+    collD->print();
   }
   virtual void resetColls() {
 #if HAVE_LIBCUDA==1
