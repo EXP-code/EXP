@@ -225,7 +225,7 @@ main(int ac, char **av)
 
 				// Will contain array for each gas species
 				// ---------------------------------------
-    double mass=0.0, KEi=0.0, KEe=0.0, Icons=0.0, Econs=0.0, Numb=0.0;
+    double mass=0.0, KEi=0.0, KEe=0.0, Icons=0.0, Econs=0.0, NumbI=0.0, NumbE=0.0;
     unsigned int N=0;
 
 				// Quantiles for printing rank
@@ -341,8 +341,11 @@ main(int ac, char **av)
 	// Electron KE
 	KEe  += 0.5 * ke * ms * atomic_mass[0] * Eta/Mu * Eunit;
 
-	// True particle number
-	Numb += ms * Munit/(Mu*amu);
+	// True ion number
+	NumbI += ms * Munit/(Mu*amu);
+
+	// True ion number
+	NumbE += ms * Munit/(Mu*amu) * Eta;
 
 	// Ion energy conservation
 	if (icons>=0) Icons += part->datr(icons) * Eunit;
@@ -391,8 +394,10 @@ main(int ac, char **av)
       cout << "     Mass\t\t"               << mass          << std::endl
 	   << "     KE(ion)\t\t"            << KEi           << std::endl
 	   << "     KE(elec)\t\t"           << KEe           << std::endl
-	   << "     T(ion)\t\t"             << KEi/(1.5*Numb*boltz) << std::endl
-	   << "     T(elec)\t\t"            << KEe/(1.5*Numb*boltz) << std::endl;
+	   << "     T(ion)\t\t"             << KEi/(1.5*NumbI*boltz) << std::endl
+	   << "     T(elec)\t\t"            << KEe/(1.5*NumbE*boltz) << std::endl
+	   << "     N(ion)\t\t"             << NumbI         << std::endl
+	   << "     N(elec)\t\t"            << NumbE         << std::endl;
       if (icons>=0) {
 	cout << "     dE(ion)\t\t"          << Icons         << std::endl;
 	cout << "     dE/E(ion)\t\t"        << Icons/KEi     << std::endl;
