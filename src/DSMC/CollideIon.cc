@@ -275,7 +275,7 @@ static bool HybridWeightSwitch  = false;
 
 // Debugging newHybrid
 //
-static bool DBG_NewTest         = false;
+static bool DBG_NewTest         = true;
 
 // This is for debugging; set to "false" for production
 //
@@ -6848,8 +6848,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       iE1 += p1->dattrib[use_elec+k] * p1->dattrib[use_elec+k];
       iE2 += p2->dattrib[use_elec+k] * p2->dattrib[use_elec+k];
     }
-    iE1 *= 0.5*p1->mass * atomic_weights[0]/atomic_weights[Z1];
-    iE2 *= 0.5*p2->mass * atomic_weights[0]/atomic_weights[Z2];
+    iE1 *= 0.5 * atomic_weights[0] * amu / eV;
+    iE2 *= 0.5 * atomic_weights[0] * amu / eV;
   }
 
   // Ion KE
@@ -7236,7 +7236,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	ionExtra[0] += iE1 * Prob;
 
 	// Energy for ionized electron comes from COM
-	dE += iE1 * Prob * TreeDSMC::Eunit / (N0*eV);
+	dE += iE1 * Prob;
 
 	if (std::isinf(iE1 * Prob)) {
 	  std::cout << "**ERROR: crazy ion energy [1]=" << iE1
@@ -7297,7 +7297,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	rcbExtra[1] += iE2 * Prob;
 	
 	// Electron KE radiated in recombination
-	double eE = iE2 * Prob * TreeDSMC::Eunit / (N0*eV);
+	double eE = iE2 * Prob;
 
 	if (Recomb_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * Prob;
 	if (energy_scale > 0.0) dE *= energy_scale;
@@ -7518,10 +7518,16 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   //
   if (SAME_IONS_SCAT and Z1 != Z2) return ret;
 
-  // Work vectors
-  //
-  std::vector<double> vrel(3), vcom(3), v1(3), v2(3);
 
+  // Convert energy loss from eV to system units
+  //
+  PE[1] *= eV / TreeDSMC::Eunit;
+
+  for (int j=0; j<2; j++) {
+    ionExtra[j] *= N0 * eV / TreeDSMC::Eunit;
+    rcbExtra[j] *= N0 * eV / TreeDSMC::Eunit;
+  }
+  
   // Artifically prevent cooling by setting the energy removed from
   // the COM frame to zero
   //
@@ -7531,9 +7537,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     collD->addNoCool(Encl, id);
   }
 
-  // Convert energy loss from eV to system units
+  // Work vectors
   //
-  PE[1] *= eV / TreeDSMC::Eunit;
+  std::vector<double> vrel(3), vcom(3), v1(3), v2(3);
 
   KE_ KE;
 
@@ -9101,8 +9107,13 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       iE1 += p1->dattrib[use_elec+k] * p1->dattrib[use_elec+k];
       iE2 += p2->dattrib[use_elec+k] * p2->dattrib[use_elec+k];
     }
-    iE1 *= 0.5*p1->mass * atomic_weights[0];
-    iE2 *= 0.5*p2->mass * atomic_weights[0];
+    iE1 *= 0.5 * atomic_weights[0] * TreeDSMC::Vunit*TreeDSMC::Vunit * amu / eV;
+    iE2 *= 0.5 * atomic_weights[0] * TreeDSMC::Vunit*TreeDSMC::Vunit * amu / eV;
+
+    if (MeanMass) {
+      iE1 *= etaP1[id];
+      iE2 *= etaP2[id];
+    }
   }
 
   // Ion KE
@@ -9227,7 +9238,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_electron, DBL_MAX));
       cid = 1;
       int pos = SpList[k1];
-      Prob = p1->dattrib[pos] / atomic_weights[Z1] / sumP1[id] * etaP2[id];
+      Prob = p1->dattrib[pos];
     }
   
   else if (k1 == NTC::electron and
@@ -9236,7 +9247,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_ion, DBL_MAX));
       cid = 2;
       int pos = SpList[k2];
-      Prob = p2->dattrib[pos] / atomic_weights[Z2] / sumP2[id] * etaP1[id];
+      Prob = p2->dattrib[pos];
     }
   
   else if (k1 != NTC::electron and
@@ -9530,8 +9541,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // WW is a mass fraction
 	  //
-	  double ff = atomic_weights[Z2]/molP2[id];
-	  double WW = Prob * ff;
+	  double WW = Prob;
 
 #ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
@@ -9555,31 +9565,29 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    F.normTest(2, sout.str());
 	  }
 	  
-	  // Convert back to number fraction
-	  //
-	  Prob = WW / ff;
+	  Prob = WW;
 	  
 	  double tmpE = IS.DIInterLoss(ch.IonList[Q2]);
 	  dE = tmpE * Prob;
 
 	  // The kinetic energy of the ionized electron is lost
 	  // from the COM KE
-	  //
-	  double Echg1 = iE1 * WW / atomic_weights[Z2];
-	  double Echg2 = iE2 * WW / atomic_weights[Z2];
 
-	  ionExtra[1] += Echg2;
 	  if (NoDelC & 0x02)
 	    ionExtra[1] += tmpE*Prob * N0*eV/TreeDSMC::Eunit;
 
 	  // Energy for ionized electron comes from COM
 	  //
-	  dE += Echg2 * TreeDSMC::Eunit / (N0*eV);
 
-	  if (std::isinf(Echg1) or std::isinf(Echg2)) {
-	    std::cout << "**ERROR: crazy ion energy [2]=" << iE2
-		      << ", Pr=" << Prob << std::endl;
-	  }
+	  double Echg = iE2*WW/atomic_weights[Z2]*p2->mass*TreeDSMC::Munit/amu;
+	  if (MeanMass) Echg *= molP2[id]/etaP2[id];
+
+#ifdef XC_DEEP0
+	  printf("Ionize[2]: W=%e E=%e eV=%e sys=%e\n", WW, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
+#endif
+
+	  dE += Echg/N0;
+	  ionExtra[1] += Echg/N0;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
@@ -9606,7 +9614,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		    << " C=" << Q2.second << std::endl;
 #endif
 	} // END: electron-ion
-	else {
+	else if (k2 == NTC::electron) {
+
 	  //
 	  // Ion is p1
 	  //
@@ -9626,8 +9635,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // WW is a mass fraction
 	  //
-	  double ff = atomic_weights[Z1]/molP1[id];
-	  double WW = Prob * ff;
+	  double WW = Prob;
 
 #ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
@@ -9651,9 +9659,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    F.normTest(2, sout.str());
 	  }
 	    
-	  // Convert back to number fraction
-	  //
-	  Prob = WW / ff;
+	  Prob = WW;
 
 	  double tmpE = IS.DIInterLoss(ch.IonList[Q1]);
 	  dE = tmpE * Prob;
@@ -9661,21 +9667,21 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // The kinetic energy of the ionized electron is lost
 	  // from the COM KE
 	  //
-	  double Echg1 = iE1 * WW / atomic_weights[Z1];
-	  double Echg2 = iE2 * WW / atomic_weights[Z1];
 
-	  ionExtra[0] += Echg1;
 	  if (NoDelC & 0x02)
 	    ionExtra[0] += tmpE*Prob * N0*eV/TreeDSMC::Eunit;
 
 	  // Energy for ionized electron comes from COM
 	  //
-	  dE += Echg1 * TreeDSMC::Eunit / (N0*eV);
+	  double Echg = iE1*WW/atomic_weights[Z1]*p1->mass*TreeDSMC::Munit/amu;
+	  if (MeanMass) Echg *= molP1[id]/etaP1[id];
 
-	  if (std::isinf(iE1 * Prob)) {
-	    std::cout << "**ERROR: crazy ion energy [1]=" << iE1
-		      << ", Pr=" << Prob << std::endl;
-	  }
+#ifdef XC_DEEP0
+	  printf("Ionize[1]: W=%e E=%e eV=%e sys=%e\n", WW, iE1, Echg, Echg*eV/TreeDSMC::Eunit);
+#endif
+
+	  dE += Echg/N0;
+	  ionExtra[0] += Echg/N0;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
@@ -9701,7 +9707,13 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		    << " Z=" << Q1.first
 		    << " C=" << Q1.second << std::endl;
 #endif
+	} else {
+	  std::cout << "**ERROR: crazy ionize without a valid state [no e]:"
+		    << " p1=(" << Z1 << ", " << C1 << ")"
+		    << " p2=(" << Z2 << ", " << C2 << ")"
+		    << std::endl;
 	}
+	
       }
 	
       if (interFlag == recomb) {
@@ -9723,11 +9735,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 	  
 	  int pos = SpList[k2] - SpList.begin()->second;
-
+	  
 	  // WW is a mass fraction
 	  //
-	  double ff = atomic_weights[Z2]/molP2[id];
-	  double WW = Prob * ff;
+	  double WW = Prob;
 
 #ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
@@ -9752,27 +9763,31 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    F.normTest(2, sout.str());
 	  }
 	  
-	  // Convert back to number fraction
-	  //
-	  Prob = WW / ff;
+	  Prob = WW;
 
-	  // The IP lost in recombination is radiated and has already been
-	  // subtracted from the KE
+	  // The IP lost in recombination is radiated and has already
+	  // been subtracted from the KE
 	  //
-	  // However, the difference between the ion and pair electron KE
-	  // must be subtraced from the KE
+	  // However, the difference between the ion and pair electron
+	  // KE must be subtraced from the KE
 	  
-	  double Echg1 = iE1 * WW / atomic_weights[Z2];
-	  double Echg2 = iE2 * WW / atomic_weights[Z2];
-
 	  // Energy for ionized electron comes from COM
 	  //
-	  dE += Echg2 * TreeDSMC::Eunit / (N0*eV);
 
-	  rcbExtra[1] += Echg2;
+	  double Echg = iE2*WW/atomic_weights[Z2]*p2->mass*TreeDSMC::Munit/amu;
+	  if (MeanMass) Echg *= molP2[id]/etaP2[id];
 
+	  rcbExtra[1] += Echg/N0;
+
+#ifdef XC_DEEP0
+	  printf("Recombine[2]: W=%e E=%e eV=%e sys=%e\n", WW, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
+#endif
 	  // Electron KE radiated in recombination
-	  double eE = Echg1 * TreeDSMC::Eunit / (N0*eV);
+
+	  Echg = iE1*WW/atomic_weights[Z1]*p1->mass*TreeDSMC::Munit/amu;
+	  if (MeanMass) Echg *= molP1[id]/etaP1[id];
+
+	  double eE = Echg / (N0*eV);
 
 	  if (Recomb_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * Prob;
 	  if (energy_scale > 0.0) dE *= energy_scale;
@@ -9826,7 +9841,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		    << " C=" << C2 << std::endl;
 #endif
 	} // END: swapped
-	else {
+	else if (k2 == NTC::electron) {
 	  //
 	  // Ion is p1
 	  //
@@ -9845,8 +9860,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // WW is a mass fraction
 	  //
-	  double ff = atomic_weights[Z1]/molP1[id];
-	  double WW = Prob * ff;
+	  double WW = Prob;
 
 #ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
@@ -9870,24 +9884,28 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    F.normTest(2, sout.str());
 	  }
 
-	  // Convert back to number fraction
-	  //
-	  Prob = WW  / ff;
+	  Prob = WW;
 
 	  // Electron KE lost in recombination is radiated by does not
 	  // change COM energy
 	  //
-	  double Echg1 = iE1 * WW / atomic_weights[Z1];
-	  double Echg2 = iE2 * WW / atomic_weights[Z1];
 
 	  // Energy for ionized electron comes from COM
-	  dE += Echg1 * TreeDSMC::Eunit / (N0*eV);
+	  double Echg = iE1*WW/atomic_weights[Z1]*p1->mass*TreeDSMC::Munit/amu;
+	  if (MeanMass) Echg *= molP1[id]/etaP1[id];
 
-	  rcbExtra[0] += Echg1;
+	  dE += Echg / N0;
+	  rcbExtra[0] += Echg / N0;
 
+#ifdef XC_DEEP0
+	  printf("Recombine[1]: W=%e E=%e eV=%e sys=%e\n", WW, iE1, Echg, Echg*eV/TreeDSMC::Eunit);
+#endif
 	  // Electron KE fraction in recombination
 	  //
-	  double eE = Echg2 * TreeDSMC::Eunit / (N0*eV);
+	  Echg = iE2*WW/atomic_weights[Z2]*p2->mass*TreeDSMC::Munit/amu;
+	  if (MeanMass) Echg *= molP2[id]/etaP2[id];
+	  
+	  double eE = Echg / (N0*eV);
 
 	  if (Recomb_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * Prob;
 	  if (energy_scale > 0.0) dE *= energy_scale;
@@ -9940,6 +9958,11 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		    << " Z=" << Z1
 		    << " C=" << C1 << std::endl;
 #endif
+	} else {
+	  std::cout << "**ERROR: crazy recombine without a valid state [no e]:"
+		    << " p1=(" << Z1 << ", " << C1 << ")"
+		    << " p2=(" << Z2 << ", " << C2 << ")"
+		    << std::endl;
 	}
 	
       } // END: recomb
@@ -10081,7 +10104,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
   // Convert energy loss from eV to system units
   //
-  double PE  = dE * eV / TreeDSMC::Eunit;
+  double PE  = dE * N0 * eV / TreeDSMC::Eunit;
   double PE2 = 0.0;
 
   // Work vectors
@@ -10126,6 +10149,11 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     //   is the loss of the ion's fraction of its electron KE
     //
 
+    for (int j=0; j<2; j++) {
+      ionExtra[j] *= N0 * eV / TreeDSMC::Eunit;
+      rcbExtra[j] *= N0 * eV / TreeDSMC::Eunit;
+    }
+    
     double ionElec = ionExtra[0] + ionExtra[1];
     double rcbElec = rcbExtra[0] + rcbExtra[1];
 
@@ -11653,20 +11681,16 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
       double m1 = pp->m1;
       double m2 = pp->m2;
 
-      double Q1 = 1.0;
-      double Q2 = 1.0;
+      double Q1 = pp->eta1;
+      double Q2 = pp->eta2;
 	
-      if (aType == Trace) {
-
+      if (MeanMass) {
 	if (m1<1.0) m1 *= pp->eta1;
 	if (m2<1.0) m2 *= pp->eta2;
-	
-	m1 = std::max<double>(m1, 1.0e-12); 
-	m2 = std::max<double>(m2, 1.0e-12); 
-      } else {
-	Q1 = pp->eta1;
-	Q2 = pp->eta2;
       }
+	
+      m1 = std::max<double>(m1, 1.0e-12); 
+      m2 = std::max<double>(m2, 1.0e-12); 
 
       // In cgs (grams)
       //
@@ -11689,7 +11713,7 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
       //
       double pVel = sqrt(2.0*KE/mu);
       double afac = esu*esu*Q1*Q2/std::max<double>(2.0*KE, FloorEv*eV);
-      double tau = ABrate[id][l]*afac*afac*pVel * dT;
+      double tau  = ABrate[id][l]*afac*afac*pVel * dT;
       
 #ifdef XC_DEEP11
 	printf("coul5: l=%d pVel=%e afac=%e dt=%e tau=%e mu=%e m1=%e m2=%e\n",
@@ -11717,10 +11741,10 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
       if (kE>0.0) {
 	// Assign interaction energy variables
 	//
-	if (aType == Trace)
+	if (MeanMass)
 	  vrel = coulomb_vector(vrel, 1.0, 1.0, tau);
 	else
-	  vrel = coulomb_vector(vrel, W1, W2, tau);
+	  vrel = coulomb_vector(vrel, W1,  W2,  tau);
 	
 	vi   = sqrt(vi);
 	for (auto & v : vrel) v *= vi;
@@ -11982,6 +12006,8 @@ void CollideIon::scatterTraceMM
 		<< " vfac = " << KE.vfac
 		<< "   w1 = " << pp->w1
 		<< "   w2 = " << pp->w2
+		<< "   m1 = " << m1
+		<< "   m2 = " << m2
 		<< " flg = " << KE.decode()
 		<< std::endl;
     } else {
