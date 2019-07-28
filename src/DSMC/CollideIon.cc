@@ -9580,8 +9580,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 
 	  double Echg = iE2*WW/atomic_weights[Z2]*p2->mass*TreeDSMC::Munit/amu;
-	  if (MeanMass) Echg *= molP2[id]/etaP2[id];
-
 #ifdef XC_DEEP0
 	  printf("Ionize[2]: W=%e E=%e eV=%e sys=%e\n", WW, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
 #endif
@@ -9674,8 +9672,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // Energy for ionized electron comes from COM
 	  //
 	  double Echg = iE1*WW/atomic_weights[Z1]*p1->mass*TreeDSMC::Munit/amu;
-	  if (MeanMass) Echg *= molP1[id]/etaP1[id];
-
 #ifdef XC_DEEP0
 	  printf("Ionize[1]: W=%e E=%e eV=%e sys=%e\n", WW, iE1, Echg, Echg*eV/TreeDSMC::Eunit);
 #endif
@@ -9775,7 +9771,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 
 	  double Echg = iE2*WW/atomic_weights[Z2]*p2->mass*TreeDSMC::Munit/amu;
-	  if (MeanMass) Echg *= molP2[id]/etaP2[id];
 
 	  rcbExtra[1] += Echg/N0;
 
@@ -9785,7 +9780,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // Electron KE radiated in recombination
 
 	  Echg = iE1*WW/atomic_weights[Z1]*p1->mass*TreeDSMC::Munit/amu;
-	  if (MeanMass) Echg *= molP1[id]/etaP1[id];
 
 	  double eE = Echg / (N0*eV);
 
@@ -9892,7 +9886,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // Energy for ionized electron comes from COM
 	  double Echg = iE1*WW/atomic_weights[Z1]*p1->mass*TreeDSMC::Munit/amu;
-	  if (MeanMass) Echg *= molP1[id]/etaP1[id];
 
 	  dE += Echg / N0;
 	  rcbExtra[0] += Echg / N0;
@@ -9903,7 +9896,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // Electron KE fraction in recombination
 	  //
 	  Echg = iE2*WW/atomic_weights[Z2]*p2->mass*TreeDSMC::Munit/amu;
-	  if (MeanMass) Echg *= molP2[id]/etaP2[id];
 	  
 	  double eE = Echg / (N0*eV);
 
