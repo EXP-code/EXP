@@ -3804,6 +3804,7 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
 __global__ void partInteractions(dArray<cudaParticle>   in,
 				 dArray<curandState>    randS,
 				 dArray<cuFP_t>         coul4,
+				 dArray<cuFP_t>         nSel,
 				 dArray<cuInteract>     cross,
 				 dArray<int>            cellI,
 				 dArray<int>            cellN,
@@ -3850,7 +3851,12 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     int nbods  = cellN._v[cid];
     cuFP_t vol = volC ._v[cid];
     
+    // For selection diagnostics
+    //
+    nSel._v[cid] = 0.0;
+
     // For species state indexing
+    //
     int fP = cid*Nsp;
 
     // For shuffling
@@ -3967,6 +3973,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       int    npairs  = floor(nsel);
       cuFP_t nexcess = nsel - npairs;
     
+      nSel._v[cid] += nsel;
+
       // Compute interactions for all pairs
       //
       for (int r=0; r<=npairs; r++) {
@@ -5363,12 +5371,12 @@ void * CollideIon::collide_thread_cuda(void * arg)
 
   partInteractions<<<gridSize, BLOCK_SIZE>>>
     (toKernel(d_part),   toKernel(d_randS),  toKernel(d_Coul4),
-     toKernel(d_cross),  toKernel(d_cellI),  toKernel(d_cellN),
-     toKernel(d_volC),   toKernel(d_Ivel2),  toKernel(d_Evel2),
-     toKernel(xsc_H),    toKernel(xsc_He),   toKernel(xsc_pH),
-     toKernel(xsc_pHe),  toKernel(d_PiProb), toKernel(d_ABrate),
-     toKernel(cuElems),  toKernel(d_tauC),   toKernel(d_Init),
-     toKernel(d_F1),     toKernel(d_F2));
+     toKernel(d_Nsel),   toKernel(d_cross),  toKernel(d_cellI),
+     toKernel(d_cellN),  toKernel(d_volC),   toKernel(d_Ivel2),
+     toKernel(d_Evel2),  toKernel(xsc_H),    toKernel(xsc_He),
+     toKernel(xsc_pH),   toKernel(xsc_pHe),  toKernel(d_PiProb),
+     toKernel(d_ABrate), toKernel(cuElems),  toKernel(d_tauC),
+     toKernel(d_Init),   toKernel(d_F1),     toKernel(d_F2)    );
   
 #ifdef XC_DEEP9
   {
