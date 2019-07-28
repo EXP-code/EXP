@@ -2439,11 +2439,6 @@ void setupCrossSection(dArray<cudaParticle>   in,      // Particle array
     cuFP_t kfac  = 0.5 * cuda_atomic_weights[0] * cuVunit*cuVunit*cuAmu/cuEV;
     Einfo->iE1   = eKE1 * kfac;
     Einfo->iE2   = eKE2 * kfac;
-
-    if (cuMeanMass) {
-      Einfo->iE1 *= Eta1;
-      Einfo->iE2 *= Eta2;
-    }
   }
 }
 
@@ -4721,6 +4716,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  for (int k=0; k<3; k++) {
 	    // Particle 1 is the ion
 	    u1[k] = v1[k] = p1->vel[k];
+
 	    // Particle 2 is the electron
 	    u2[k] = v2[k] = p2->datr[cuElec+k];
 	  }
@@ -4794,6 +4790,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  }
 	
 	
+	  // Reassign post-scattering velocity
+	  //
 	  for (int k=0; k<3; k++) {
 	    // Particle 1 is the ion
 	    p1->vel[k] = v1[k];
@@ -4841,6 +4839,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  for (int k=0; k<3; k++) {
 	    // Particle 1 is the electron
 	    u1[k] = v1[k] = p1->datr[cuElec+k];
+
 	    // Particle 2 is the ion
 	    u2[k] = v2[k] = p2->vel[k];
 	  }
@@ -4908,6 +4907,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    p2->dtreq = dt < p2->dtreq ? dt : p2->dtreq;
 	  }
 	
+	  // Reassign post-scattering velocity
+	  //
 	  for (int k=0; k<3; k++) {
 	    // Particle 1 is the electron
 	    p1->datr[cuElec+k] = v1[k];
@@ -4951,7 +4952,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	//
 	cuFP_t tKEi_f1 = 0.0, tKEi_f2 = 0.0;
 	cuFP_t tKEe_f1 = 0.0, tKEe_f2 = 0.0;
-	cuFP_t tEC_f = 0.0;
+	cuFP_t iE1_f = 0.0, iE2_f = 0.0, tEC_f = 0.0;
 	{
 	  cuFP_t ke1i = 0.0, ke1e = 0.0, v1;
 	  cuFP_t ke2i = 0.0, ke2e = 0.0, v2;
@@ -4975,6 +4976,12 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  tKEe_f1 = 0.5*p1->mass*ke1e*EI.Eta1*cuda_atomic_weights[0]/EI.Mu1;
 	  tKEe_f2 = 0.5*p2->mass*ke2e*EI.Eta2*cuda_atomic_weights[0]/EI.Mu2;
 
+	  cuFP_t kfac =  0.5 * cuda_atomic_weights[0] *
+	    cuVunit*cuVunit*cuAmu/cuEV;
+	  
+	  iE1_f = ke1e * kfac;
+	  iE2_f = ke2e * kfac;
+
 	  if (cuCons>=0)
 	    tEC_f += p1->datr[cuCons] + p2->datr[cuCons];
 	  if (cuEcon>=0)
@@ -4986,19 +4993,19 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	cuFP_t delC  = tEC_i - tEC_f;
 
 	if (fabs(Etoti - Etotf- delC) > 1.0e-10*Etoti) {
-	  printf("**ERROR dE=%e dE/E=%e ke_i=[i:(%e, %e) e:(%e, %e)] ke_f=[i:(%e, %e) e:(%e, %e)] eta_i=[%e, %e] eta_f=[%e, %e] cons=[%e, %e] P=%e del=%e type=%s\n",
-		 Etoti - Etotf - delC, 1.0 - Etotf/Etoti - delC/Etoti,
+	  printf("**ERROR [%d] dE=%e dE/E=%e ke_i=[i:(%e, %e) e:(%e, %e)] ke_f=[i:(%e, %e) e:(%e, %e)] kEe=[%e, %e] eta_i=[%e, %e] eta_f=[%e, %e] cons=[%e, %e] P=%e del=%e type=%s\n",
+		 cid, Etoti - Etotf - delC, 1.0 - Etotf/Etoti - delC/Etoti,
 		 tKEi_i1, tKEi_i2, tKEe_i1, tKEe_i2,
 		 tKEi_f1, tKEi_f2, tKEe_f1, tKEe_f2,
-		 Eta10, Eta20, EI.Eta1, EI.Eta2, tEC_i, tEC_f,
-		 Prob, totalDE, cudaInterNames[T]);
+		 iE1_f, iE2_f, Eta10, Eta20, EI.Eta1, EI.Eta2,
+		 tEC_i, tEC_f, Prob, totalDE, cudaInterNames[T]);
 	} else if (T==col_ionize or T==recombine) {
-	  printf("**OK dE=%e dE/E=%e ke_i=[i:(%e, %e) e:(%e, %e)] ke_f=[i:(%e, %e) e:(%e, %e)] eta_i=[%e, %e] eta_f=[%e, %e] cons=[%e, %e] P=%e del=%e type=%s\n",
-		 Etoti - Etotf - delC, 1.0 - Etotf/Etoti - delC/Etoti,
+	  printf("**OK [%d] dE=%e dE/E=%e ke_i=[i:(%e, %e) e:(%e, %e)] ke_f=[i:(%e, %e) e:(%e, %e)] kEe=[%e, %e] eta_i=[%e, %e] eta_f=[%e, %e] cons=[%e, %e] P=%e del=%e type=%s\n",
+		 cid, Etoti - Etotf - delC, 1.0 - Etotf/Etoti - delC/Etoti,
 		 tKEi_i1, tKEi_i2, tKEe_i1, tKEe_i2,
 		 tKEi_f1, tKEi_f2, tKEe_f1, tKEe_f2,
-		 Eta10, Eta20, EI.Eta1, EI.Eta2, tEC_i, tEC_f,
-		 Prob, totalDE, cudaInterNames[T]);
+		 iE1_f, iE2_f, Eta10, Eta20, EI.Eta1, EI.Eta2,
+		 tEC_i, tEC_f, Prob, totalDE, cudaInterNames[T]);
 	}
 #endif
       }
