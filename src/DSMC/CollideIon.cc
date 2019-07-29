@@ -8314,6 +8314,7 @@ void CollideIon::KEcheck
   if (KE_DEBUG) {
     double KE_inter_check = energyInPair(pp->p1, pp->p2);
     double KDif = KE_initl_check - KE_inter_check;
+    double dKE  = KDif;
 
     if (aType == Trace) {
       KDif += ionExtra[0] - rcbExtra[0];
@@ -8330,6 +8331,9 @@ void CollideIon::KEcheck
     if (fabs(KDif) > tolE*KE_initl_check) {
       std::cout << "**ERROR: KE energy check: del=" << KDif
 		<< ", rel=" << KDif/KE_initl_check
+		<< ", dKE=" << dKE
+		<< ", ion=[" << ionExtra[0] << ", " << ionExtra[1] << "]"
+		<< ", rcb=[" << rcbExtra[0] << ", " << rcbExtra[1] << "]"
 		<< std::endl;
     }
   }
@@ -9162,11 +9166,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     }
     iE1 *= 0.5 * atomic_weights[0] * TreeDSMC::Vunit*TreeDSMC::Vunit * amu / eV;
     iE2 *= 0.5 * atomic_weights[0] * TreeDSMC::Vunit*TreeDSMC::Vunit * amu / eV;
-
-    if (MeanMass) {
-      iE1 *= etaP1[id];
-      iE2 *= etaP2[id];
-    }
   }
 
   // Ion KE
