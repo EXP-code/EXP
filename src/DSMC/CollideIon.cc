@@ -1845,6 +1845,30 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    csections[id][Tord(T)][crossSectionWeight(id, c, p1, p2, cr, T)*cr];
 	}
 	      
+	// Neutral-electron
+	//
+	if (C1==1 and C2>1) {
+	  std::get<0>(T) = neut_elec;
+	  std::get<1>(T) = k1;
+	  std::get<2>(T) = k2;
+	  
+	  if (aType==Direct)
+	    csections[id][Tord(T)][crossSectionDirect(id, c, p1, p2, cr, T)*cr];
+	  else
+	    csections[id][Tord(T)][crossSectionWeight(id, c, p1, p2, cr, T)*cr];
+	}
+	      
+	if (C2==1 and C1>1) {
+	  std::get<0>(T) = neut_elec;
+	  std::get<1>(T) = k1;
+	  std::get<2>(T) = k2;
+	  
+	  if (aType==Direct)
+	    csections[id][Tord(T)][crossSectionDirect(id, c, p1, p2, cr, T)*cr];
+	  else
+	    csections[id][Tord(T)][crossSectionWeight(id, c, p1, p2, cr, T)*cr];
+	}
+
 	// Neutral-proton
 	//
 	if (C1==1 and Z2==1 and C2==2) {
@@ -2004,7 +2028,21 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	  }
 	  // END: inner species loop
 
+	  // Neutral-electron
+	  //
+	  if (C1==1) {
+	    std::get<0>(T) = neut_elec;
+	    std::get<1>(T) = k1;
+	    std::get<2>(T) = NTC::electron;
+	      
+	    csections[id][Tord(T)][crossSectionHybrid(id, c, p1, p2, cr, T)*cr];
 
+	    std::get<1>(T) = NTC::electron;
+	    std::get<2>(T) = k2;
+	    
+	    csections[id][Tord(T)][crossSectionHybrid(id, c, p1, p2, cr, T)*cr];
+	  }
+	  
 	  // Free-Free
 	  //
 	  if (C1>1) {
@@ -2117,6 +2155,21 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    
 	  }
 	  // END: inner species loop
+
+	  // Neutral-electron
+	  //
+	  if (C1==1) {
+	    std::get<0>(T) = neut_elec;
+	    std::get<1>(T) = k1;
+	    std::get<2>(T) = NTC::electron;
+	    
+	    csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
+	      
+	    std::get<1>(T) = NTC::electron;
+	    std::get<2>(T) = k1;
+	      
+	    csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
+	  }
 
 	  // Free-Free
 	  //
@@ -15508,7 +15561,7 @@ NTC::InteractD CollideIon::generateSelectionTrace
   double totSelcM = 0.0, totProb = 0.0;
   double rateF = (*Fn)[key] * tau; // Rate factor
 
-  for (auto v : selcM.v) {
+  for (auto & v : selcM.v) {
     totProb += v.second() * dens * rateF * crs_units;
     v.second() *= 0.5 * (num - 1) * dens * rateF * crs_units;
     //             ^
