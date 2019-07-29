@@ -3920,6 +3920,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     // Deep debug for implementation check only
     //
     if (false) {
+
       for (int k=0; k<numxc; k++) {
 	int           T = thrust::get<0>(cross._v[sP+k]);
 	cuSpeciesDef J1 = thrust::get<1>(cross._v[sP+k]);
@@ -3932,17 +3933,17 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	cuFP_t nsel = 0.5 * (nbods-1) * Prob;
 
 	if (J1.sp == cuElectron) 
-	  printf("%16s (%d, %d) electron: %13.6e %10.8f\n",
+	  printf("%20s (%d, %d) electron: %13.6e %13.6e\n",
 		 cudaInterNames[T],
 		 J2.sp.first, J2.sp.second,
 		 xc, nsel);
 	else if (J2.sp == cuElectron)
-	  printf("%16s (%d, %d) electron: %13.6e %10.8f\n",
+	  printf("%20s (%d, %d) electron: %13.6e %13.6e\n",
 		 cudaInterNames[T],
 		 J1.sp.first, J1.sp.second,
 		 xc, nsel);
 	else
-	  printf("%16s (%d, %d) (%d, %d):   %13.6e %10.8f\n",
+	  printf("%20s (%d, %d) (%d, %d):   %13.6e %13.6e\n",
 		 cudaInterNames[T],
 		 J1.sp.first, J1.sp.second,
 		 J2.sp.first, J2.sp.second,
