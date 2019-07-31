@@ -18585,9 +18585,6 @@ void CollideIon::printSpeciesTrace()
   if (tM[1]>0.0)       Ti = Tfac*tM[0]/tM[1];
   if (tM[3]>0.0)       Te = Tfac*tM[2]/tM[3];
 
-  std::cout << "TEST: KEi=" << tM[0] << " KEe=" << tM[2]
-	    << " dEi=" << consE << " dEe=" << consG << std::endl;
-  
   // Open for append
   //
   if (!dout.is_open())
@@ -18601,7 +18598,7 @@ void CollideIon::printSpeciesTrace()
   if (use_elec>=0)
     dout << std::setw(18) << std::right << Te
 	 << std::setw(18) << std::right << tM[2]
-	 << std::setw(18) << std::right << tM[0] + tM[2] + consE + consG;
+	 << std::setw(18) << std::right << tM[0] + tM[2] - consE - consG;
   for (spDItr it=specM.begin(); it != specM.end(); it++)
     dout << std::setw(18) << std::right << it->second;
   dout << std::endl;
