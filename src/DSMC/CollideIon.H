@@ -1568,6 +1568,7 @@ public:
   static bool       AlgOrth;
   static bool       AlgWght;
   static bool       MeanMass;
+  static bool       SpreadDef;
   static bool       DebugE;
   static bool       collLim;
   static bool       collCor;

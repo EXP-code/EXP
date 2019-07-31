@@ -1771,6 +1771,7 @@ __constant__ cuFP_t cuda_atomic_weights[maxAtomicNumber], cuFloorEV, cuEsu;
 __constant__ cuFP_t cuVunit, cuMunit, cuTunit, cuLunit, cuEunit;
 __constant__ cuFP_t cuAmu, cuEV, cuLogL, cuCrossfac, cuMinMass;
 __constant__ bool   cuMeanKE, cuMeanMass, cuNewRecombAlg, cuNoCool, cuRecombIP;
+__constant__ bool   cuSpreadDef;
 
 const int coulSelNumT = 2000;
 __constant__ cuFP_t coulSelA[coulSelNumT];
@@ -1818,6 +1819,10 @@ void testConstantsIon(int idev)
     printf("** No cool    = true\n"                      );
   else
     printf("** No cool    = false\n"                     );
+  if (cuSpreadDef) 
+    printf("** Spread def = true\n"                      );
+  else
+    printf("** Spread def = false\n"                     );
   printf("** -----------------------------------------\n");
 }
 
@@ -2065,6 +2070,9 @@ void CollideIon::cuda_atomic_weights_init()
 
   cuda_safe_call(cudaMemcpyToSymbol(cuMeanMass, &MeanMass, sizeof(bool)), 
 		 __FILE__, __LINE__, "Error copying cuMeanMass");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuSpreadDef, &SpreadDef, sizeof(bool)), 
+		 __FILE__, __LINE__, "Error copying cuSpreadDef");
 
   cuda_safe_call(cudaMemcpyToSymbol(cuNewRecombAlg, &newRecombAlg, sizeof(bool)), 
 		 __FILE__, __LINE__, "Error copying cuNewRecombAlg");
@@ -5000,17 +5008,20 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	cuFP_t Etoti = tKEi_i1 + tKEi_i2 + tKEe_i1 + tKEe_i2;
 	cuFP_t Etotf = tKEi_f1 + tKEi_f2 + tKEe_f1 + tKEe_f2;
 	cuFP_t delC  = tEC_i - tEC_f;
+	cuFP_t tally = Etoti - Etotf- delC;
 
-	if (fabs(Etoti - Etotf- delC) > 1.0e-10*Etoti) {
+	if (not cuNoCool) tally -= totalDE + (elecAdj[1] - elecAdj[0]) * cuEV / cuEunit;
+
+	if (fabs(tally) > 1.0e-10*Etoti) {
 	  printf("**ERROR [%d] dE=%e dE/E=%e ke_i=[i:(%e, %e) e:(%e, %e)] ke_f=[i:(%e, %e) e:(%e, %e)] kEe=[%e, %e] eta_i=[%e, %e] eta_f=[%e, %e] cons=[%e, %e] P=%e del=%e type=%s\n",
-		 cid, Etoti - Etotf - delC, 1.0 - Etotf/Etoti - delC/Etoti,
+		 cid, tally, tally/Etoti,
 		 tKEi_i1, tKEi_i2, tKEe_i1, tKEe_i2,
 		 tKEi_f1, tKEi_f2, tKEe_f1, tKEe_f2,
 		 iE1_f, iE2_f, Eta10, Eta20, EI.Eta1, EI.Eta2,
 		 tEC_i, tEC_f, Prob, totalDE, cudaInterNames[T]);
 	} else if (T==col_ionize or T==recombine) {
 	  printf("**OK [%d] dE=%e dE/E=%e ke_i=[i:(%e, %e) e:(%e, %e)] ke_f=[i:(%e, %e) e:(%e, %e)] kEe=[%e, %e] eta_i=[%e, %e] eta_f=[%e, %e] cons=[%e, %e] P=%e del=%e type=%s\n",
-		 cid, Etoti - Etotf - delC, 1.0 - Etotf/Etoti - delC/Etoti,
+		 cid, tally, tally/Etoti,
 		 tKEi_i1, tKEi_i2, tKEe_i1, tKEe_i2,
 		 tKEi_f1, tKEi_f2, tKEe_f1, tKEe_f2,
 		 iE1_f, iE2_f, Eta10, Eta20, EI.Eta1, EI.Eta2,
@@ -5024,7 +5035,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
     // Spread deferred (test)
     //
-    if (false) {
+    if (cuSpreadDef) {
       cuFP_t totCons = 0.0, totEcon = 0.0;
       for (size_t i=0; i<nbods; i++) {
 	cudaParticle* p = &in._v[n0+i];

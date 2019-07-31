@@ -42,6 +42,7 @@ bool     CollideIon::NoExact    = true;
 bool     CollideIon::AlgOrth    = false;
 bool     CollideIon::AlgWght    = false;
 bool     CollideIon::MeanMass   = false; // Mean-mass algorithm
+bool     CollideIon::SpreadDef  = false; // Spread deferred energy
 bool     CollideIon::DebugE     = false;
 bool     CollideIon::collLim    = false;
 bool     CollideIon::collCor    = false;
@@ -555,6 +556,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << AlgorithmLabels[aType]                 << std::endl
 	      << " " << std::setw(20) << std::left  << "MEAN_MASS"
 	      << (MeanMass ? "on" : "off")              << std::endl
+	      << " " << std::setw(20) << std::left  << "SPREAD_DEF"
+	      << (SpreadDef ? "on" : "off")             << std::endl
 	      << " " << std::setw(20) << std::left  << "ENERGY_ES"
 	      << (ExactE ? "on" : "off")                << std::endl
 	      <<  " " << std::setw(20) << std::left << "NO_EXACT"
@@ -14112,6 +14115,25 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
   
 
   //======================================================================
+  // Spread deferred energy to all particles in the current cell
+  //======================================================================
+  //
+  if (SpreadDef and (use_cons>=0 or elc_cons)) {
+    cuFP_t totCons = 0.0, totEcon = 0.0;
+    for (auto b : cell->bods) {
+      Particle *p = tree->Body(b);
+      if (use_cons>=0) totCons += p->dattrib[use_cons];
+      if (elc_cons)    totEcon += p->dattrib[use_elec+3];
+    }
+    int nbods = cell->bods.size();
+    for (auto b : cell->bods) {
+      Particle *p = tree->Body(b);
+      if (use_cons>=0) p->dattrib[use_cons] = totCons/nbods;
+      if (elc_cons)    p->dattrib[elc_cons] = totEcon/nbods;
+    }
+  }
+
+  //======================================================================
   // For debugging
   //======================================================================
   //
@@ -18521,8 +18543,9 @@ void CollideIon::printSpeciesTrace()
 	     << std::setw(18) << std::right << "Temp_i"
 	     << std::setw(18) << std::right << "KE_i"
 	     << std::setw(18) << std::right << "Temp_e"
-	     << std::setw(18) << std::right << "KE_e";
-	nhead = 4;
+	     << std::setw(18) << std::right << "KE_e"
+	     << std::setw(18) << std::right << "Tot_E";
+	nhead = 5;
       } else {
 	dout << "# "
 	     << std::setw(18) << std::right << "Time  "
@@ -18559,8 +18582,11 @@ void CollideIon::printSpeciesTrace()
     TreeDSMC::Munit/boltz;
   
   double Ti = 0.0, Te = 0.0;
-  if (tM[1]>0.0) Ti = Tfac*tM[0]/tM[1];
-  if (tM[3]>0.0) Te = Tfac*tM[2]/tM[3];
+  if (tM[1]>0.0)       Ti = Tfac*tM[0]/tM[1];
+  if (tM[3]>0.0)       Te = Tfac*tM[2]/tM[3];
+
+  std::cout << "TEST: KEi=" << tM[0] << " KEe=" << tM[2]
+	    << " dEi=" << consE << " dEe=" << consG << std::endl;
   
   // Open for append
   //
@@ -18574,7 +18600,8 @@ void CollideIon::printSpeciesTrace()
        << std::setw(18) << std::right << tM[0];
   if (use_elec>=0)
     dout << std::setw(18) << std::right << Te
-	 << std::setw(18) << std::right << tM[2];
+	 << std::setw(18) << std::right << tM[2]
+	 << std::setw(18) << std::right << tM[0] + tM[2] + consE + consG;
   for (spDItr it=specM.begin(); it != specM.end(); it++)
     dout << std::setw(18) << std::right << it->second;
   dout << std::endl;
@@ -18912,6 +18939,13 @@ void CollideIon::processConfig()
     else {
       config["MEAN_MASS"]["desc"] = "Mean mass, energy and momentum conserving algorithm";
       config["MEAN_MASS"]["value"] = MeanMass = false;
+    }
+
+    if (config["SPREAD_DEF"])
+      SpreadDef = config["SPREAD_DEF"]["value"].as<bool>();
+    else {
+      config["SPREAD_DEF"]["desc"] = "Spread deferred conserved energy to all bodies in cell";
+      config["SPREAD_DEF"]["value"] = SpreadDef = false;
     }
 
     if (config["ENERGY_ORTHO"])
