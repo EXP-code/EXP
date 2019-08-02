@@ -2132,9 +2132,14 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    //
 	    if (C1==1 and C2==1) {
 	      std::get<0>(T) = neut_neut;
-	      std::get<1>(T) = k1;
-	      std::get<2>(T) = k2;
-	      
+	      if (k1<=k2) {
+		std::get<1>(T) = k1;
+		std::get<2>(T) = k2;
+	      } else {
+		std::get<1>(T) = k2;
+		std::get<2>(T) = k1;
+	      }
+
 	      csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
 	    }
 	      
@@ -2142,16 +2147,13 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    //
 	    if (C1==1 and Z2==1 and C2==2) {
 	      std::get<0>(T) = neut_prot;
-	      std::get<1>(T) = k1;
-	      std::get<2>(T) = k2;
-	      
-	      csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
-	    }
-	    
-	    if (C2==1 and Z1==1 and C1==2) {
-	      std::get<0>(T) = neut_prot;
-	      std::get<1>(T) = k1;
-	      std::get<2>(T) = k2;
+	      if (k1<=k2) {
+		std::get<1>(T) = k1;
+		std::get<2>(T) = k2;
+	      } else {
+		std::get<1>(T) = k2;
+		std::get<2>(T) = k1;
+	      }
 	      
 	      csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
 	    }
@@ -2167,11 +2169,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<2>(T) = NTC::electron;
 	    
 	    csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
-	      
-	    std::get<1>(T) = NTC::electron;
-	    std::get<2>(T) = k1;
-	      
-	    csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
+	    csections[id][Tord(T)][crossSectionTrace(id, c, p2, p1, cr, T)*cr];
 	  }
 
 	  // Free-Free
@@ -2182,11 +2180,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<2>(T) = NTC::electron;
 	    
 	    csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
-	      
-	    std::get<1>(T) = NTC::electron;
-	    std::get<2>(T) = k1;
-	      
-	    csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
+	    csections[id][Tord(T)][crossSectionTrace(id, c, p2, p1, cr, T)*cr];
 	  }
 	  
 	  // Collisional excitation
@@ -2197,11 +2191,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<2>(T) = NTC::electron;
 	    
 	    csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
-	      
-	    std::get<1>(T) = NTC::electron;
-	    std::get<2>(T) = k1;
-	      
-	    csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
+	    csections[id][Tord(T)][crossSectionTrace(id, c, p2, p1, cr, T)*cr];
 	  }
 	    
 	  // Collisional ionization
@@ -2212,11 +2202,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<2>(T) = NTC::electron;
 	    
 	    csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
-	    
-	    std::get<1>(T) = NTC::electron;
-	    std::get<2>(T) = k1;
-	    
-	    csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
+	    csections[id][Tord(T)][crossSectionTrace(id, c, p2, p1, cr, T)*cr];
 	  }
 
 	  // Radiative recombination
@@ -2227,11 +2213,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<2>(T) = NTC::electron;
 	    
 	    csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
-	      
-	    std::get<1>(T) = NTC::electron;
-	    std::get<2>(T) = k1;
-	    
-	    csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
+	    csections[id][Tord(T)][crossSectionTrace(id, c, p2, p1, cr, T)*cr];
 	  }
 	}
 	// END: outer species loop
@@ -2241,6 +2223,34 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
     // END: inner body loop
   }
   // END: outer body loop
+
+  // For deep debugging, only print on first call
+  //
+  static bool firstime = true;
+  //                        ^
+  //                        |
+  // False for production --+
+  //
+  if (firstime and myid==0) {
+    std::cout << std::string(60, '-') << std::endl
+	      << "Interactions" << std::endl
+	      << "------------" << std::endl;
+    for (auto p : csections[id].v) {
+      auto TT = std::get<0>(p.first);
+      auto k1 = std::get<1>(p.first);
+      auto k2 = std::get<2>(p.first);
+      std::cout << std::left
+		<< std::setw(20) << interLabels[TT]
+		<< " [" << std::setw(6) << k1.first
+		<< ", " << std::setw(6) << k1.second << "]"
+		<< " [" << std::setw(6) << k2.first
+		<< ", " << std::setw(6) << k2.second << "]"
+		<< std::endl;
+    }
+    std::cout << std::string(60, '-') << std::endl << std::endl;
+    firstime = false;
+  }
+
 
   return csections[id];
 }
@@ -2379,11 +2389,14 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
   if (C1==1 and C2==1) {
 				// Geometric cross sections based on
 				// atomic radius
-    cross12 = geometric(Z1);
+    double rad = geometric(Z1) + geometric(Z2);
+    double crs = M_PI*rad*rad;
+
+    cross12 = crs;
     dCross[id].push_back(cross12*crossfac*cscl_[Z1]);
     dInter[id].push_back(neut_neut_1);
 
-    cross21 = geometric(Z2);
+    cross21 = crs;
     dCross[id].push_back(cross21*crossfac*cscl_[Z2]);
     dInter[id].push_back(neut_neut_2);
   }
@@ -2798,11 +2811,14 @@ double CollideIon::crossSectionWeight
   if (C1==1 and C2==1) {
 				// Geometric cross sections based on
 				// atomic radius
-    cross12 = geometric(Z1);
+    double rad = geometric(Z1) + geometric(Z2);
+    double crs = M_PI*rad*rad;
+
+    cross12 = crs;
     dCross[id].push_back(cross12*crossfac*cscl_[Z1]);
     dInter[id].push_back(neut_neut_1);
 
-    cross21 = geometric(Z2);
+    cross21 = crs;
     dCross[id].push_back(cross21*crossfac*cscl_[Z2]);
     dInter[id].push_back(neut_neut_2);
   }
@@ -3207,13 +3223,16 @@ double CollideIon::crossSectionHybrid
 
     // Geometric cross sections based on
     // atomic radius
-    double crs1 = geometric(Z1) * cfac;
+    double rad = geometric(Z1) + geometric(Z2);
+    double crs = M_PI*rad*rad;
+
+    double crs1 = crs * cfac;
 	
     if (DEBUG_CRS) trap_crs(crs1, neut_neut, crossfac*cscl_[Z1]);
 	
     cross += crs1*crossfac*cscl_[Z1];
 
-    double crs2 = geometric(Z2) * cfac;
+    double crs2 = crs * cfac;
 
     if (DEBUG_CRS) trap_crs(crs2, neut_neut, crossfac*cscl_[Z2]);
 	
@@ -3526,8 +3545,8 @@ void CollideIon::pairInfoTrace(int id, pCell* const c,
   double sVel1 = 0.0;
   double sVel2 = 0.0;
   
-  double iKE1  = 0.0;
-  double iKE2  = 0.0;
+  double iKE1  = 0.0;		// Debug only
+  double iKE2  = 0.0;		// Debug only
   double eKE1  = 0.0;
   double eKE2  = 0.0;
 
@@ -3565,8 +3584,8 @@ void CollideIon::pairInfoTrace(int id, pCell* const c,
       sVel1 += rvel1*rvel1;
       sVel2 += rvel2*rvel2;
 
-      iKE1 += p1->vel[i] * p1->vel[i];
-      iKE2 += p2->vel[i] * p2->vel[i];
+      iKE1 += p1->vel[i] * p1->vel[i]; // Debug only
+      iKE2 += p2->vel[i] * p2->vel[i]; // Debug only
       eKE1 += p1->dattrib[use_elec+i] * p1->dattrib[use_elec+i];
       eKE2 += p2->dattrib[use_elec+i] * p2->dattrib[use_elec+i];
     }
@@ -3616,15 +3635,14 @@ void CollideIon::pairInfoTrace(int id, pCell* const c,
 				// p2 ion : p2 electron
   kE2s[id] = 0.5  * mu2 * vel*vel * sVel2*sVel2 * Eta2;
 
-  if (false) {
-    std::cout << " Eion=" << Eion[id]
-	      << " Eelc=" << Eelc[id]
+#ifdef XC_DEEP13
+    std::cout << "ETEST:"
 	      << " eVel1=" << eVel1
 	      << " eVel2=" << eVel2
 	      << " ke1=" << kEe1[id]/eV
 	      << " ke2=" << kEe2[id]/eV
 	      << std::endl;
-  }
+#endif
 
   if (std::isnan(kEe1[id]) or std::isnan(kEe2[id])) {
     std::cout << "KE NaN: "
@@ -3733,7 +3751,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     
     // Geometric cross sections based on
     // atomic radius
-    double crs = (geometric(Z1)*cscl_[Z1] + geometric(Z2)*cscl_[Z2]) * fac1 * fac2;
+    double rad = geometric(Z1) + geometric(Z2);
+    double crs = M_PI*rad*rad * fac1 * fac2;
 	
     // Double counting
     if (Z1 == Z2) crs *= 0.5;
@@ -3743,7 +3762,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     cross += crs*crossfac;
 
 #ifdef XC_DEEP1
-    std::cout << "xsc: xnn=" << crs << std::endl;
+    std::cout << "xsc: xnn=" << crs << " cv=" << crs*cr << std::endl;
 #endif
 #ifdef XC_DEEP4
     std::cout << "xsc: (Z, P)=(" << Z1 << ", " << P1 << ") xnn=" << crs
@@ -3768,10 +3787,17 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       crs1 = elastic(Z1, kEi[id], Elastic::proton) *
 	crossfac * cscl_[Z1] * fac1 * fac2;
 	
+#ifdef XC_DEEP12
+      if (Z1==1)
+	printf("H TEST: xnn=%e cv=%e\n", crs1, crs1*cr);
+      if (Z1==2)
+	printf("He TEST: xnn=%e cv=%e\n", crs1, crs1*cr);
+#endif
+
       if (DEBUG_CRS) trap_crs(crs1, neut_prot);
 	
 #ifdef XC_DEEP1
-      std::cout << "xsc: xnp=" << crs1 << std::endl;
+      std::cout << "xsc: xnp=" << crs1 << " cv=" << crs1*cr << std::endl;
 #endif
 #ifdef XC_DEEP4
       std::cout << "xsc: kEi=" << kEi[id]
@@ -3785,10 +3811,17 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       crs1 = elastic(Z2, kEi[id], Elastic::proton) *
 	crossfac * cscl_[Z2] * fac1 * fac2;
       
+#ifdef XC_DEEP12
+      if (Z2==1)
+	printf("H TEST: xnn=%e cv=%e\n", crs1, crs1*cr);
+      if (Z2==2)
+	printf("He TEST: xnn=%e cv=%e\n", crs1, crs1*cr);
+#endif
+
       if (DEBUG_CRS) trap_crs(crs1, neut_prot);
       
 #ifdef XC_DEEP1
-      std::cout << "xsc: xnp=" << crs1 << std::endl;
+      std::cout << "xsc: xnp=" << crs1 << " cv=" << crs1*cr << std::endl;
 #endif
 #ifdef XC_DEEP4
       std::cout << "xsc: kEi=" << kEi[id]
@@ -3818,7 +3851,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       if (DEBUG_CRS) trap_crs(crs, neut_elec);
 
 #ifdef XC_DEEP1
-      std::cout << "xsc: xne=" << crs << std::endl;
+      std::cout << "xsc: xne=" << crs << " cv=" << crs*cr << std::endl;
 #endif
 #ifdef XC_DEEP4
       std::cout << "xsc: kEe=" << kEe1[id] << " (Z, P)=(" << Z1 << ", " << C1
@@ -3839,7 +3872,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       if (DEBUG_CRS) trap_crs(crs, neut_elec);
 
 #ifdef XC_DEEP1
-      std::cout << "xsc: xne=" << crs << std::endl;
+      std::cout << "xsc: xne=" << crs << " cv=" << crs*cr << std::endl;
 #endif
 #ifdef XC_DEEP4
       std::cout << "xsc: kEe=" << kEe2[id] << " (Z, P)=(" << Z2 << ", " << C2
@@ -3875,7 +3908,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       
       if (crs>0.0) {
 #ifdef XC_DEEP1
-	std::cout << "xsc: xf=" << crs << std::endl;
+	std::cout << "xsc: xf=" << crs << " cv=" << crs*cr << std::endl;
 #endif
 #ifdef XC_DEEP4
 	std::cout << "xsc: kEe=" << kEe1[id]
@@ -3898,7 +3931,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  
 	if (crs>0.0) {
 #ifdef XC_DEEP1
-	std::cout << "xsc: xf=" << crs << std::endl;
+	std::cout << "xsc: xf=" << crs << " cv=" << crs*cr << std::endl;
 #endif
 #ifdef XC_DEEP4
 	  std::cout << "xsc: kEe=" << kEe2[id]
@@ -3941,7 +3974,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       
       if (crs > 0.0) {
 #ifdef XC_DEEP1
-	std::cout << "xsc: xc=" << crs << std::endl;
+	std::cout << "xsc: xc=" << crs << " cv=" << crs*cr << std::endl;
 #endif
 #ifdef XC_DEEP4
 	std::cout << "xsc: kEe=" << kEe1[id]
@@ -3968,7 +4001,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       
       if (crs > 0.0) {
 #ifdef XC_DEEP1
-	std::cout << "xsc: xc=" << crs << std::endl;
+	std::cout << "xsc: xc=" << crs << " cv=" << crs*cr << std::endl;
 #endif
 #ifdef XC_DEEP4
 	std::cout << "xsc: kEe=" << kEe2[id]
@@ -4016,7 +4049,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       
       if (crs > 0.0) {
 #ifdef XC_DEEP1
-	std::cout << "xsc: [ie] io=" << crs << std::endl;
+	std::cout << "xsc: [ie] io=" << crs << " cv=" << crs*cr << std::endl;
 #endif
 #ifdef XC_DEEP4
 	std::cout << "xsc: [ie] kEe=" << kEe1[id]
@@ -4047,7 +4080,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       
       if (crs > 0.0) {
 #ifdef XC_DEEP1
-	std::cout << "xsc: [ei] io=" << crs << std::endl;
+	std::cout << "xsc: [ei] io=" << crs << " cv=" << crs*cr << std::endl;
 #endif
 #ifdef XC_DEEP4
 	std::cout << "xsc: [ei] kEe=" << kEe2[id]
@@ -4150,7 +4183,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  
 	if (crs > 0.0) {
 #ifdef XC_DEEP1
-	  std::cout << "xsc: [ie] rc=" << crs << std::endl;
+	  std::cout << "xsc: [ie] rc=" << crs << " cv=" << crs*cr << std::endl;
 #endif
 #ifdef XC_DEEP4
 	  std::cout << "xsc: [ie] kEe=" << kEe1[id]
@@ -4188,7 +4221,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  
 	if (crs > 0.0) {
 #ifdef XC_DEEP1
-	  std::cout << "xsc: [ei] rc=" << crs << std::endl;
+	  std::cout << "xsc: [ei] rc=" << crs << " cv=" << crs*cr << std::endl;
 #endif
 #ifdef XC_DEEP4
 	  std::cout << "xsc: [ei] kEe=" << kEe2[id]
@@ -9633,7 +9666,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // Energy for ionized electron comes from COM
 	  //
-
 	  double Echg = iE2*WW/atomic_weights[Z2]*p2->mass*TreeDSMC::Munit/amu;
 #ifdef XC_DEEP0
 	  printf("Ionize[2]: W=%e E=%e eV=%e sys=%e\n", WW, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
@@ -9825,9 +9857,11 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // Energy for ionized electron comes from COM
 	  //
 
+	  double Edel = (iE1 - iE2)*WW/atomic_weights[Z2]*p2->mass*TreeDSMC::Munit/amu;
 	  double Echg = iE2*WW/atomic_weights[Z2]*p2->mass*TreeDSMC::Munit/amu;
 
-	  rcbExtra[1] += Echg/N0;
+	  dE += Edel / N0;
+	  rcbExtra[1] += Echg / N0;
 
 #ifdef XC_DEEP0
 	  printf("Recombine[2]: W=%e E=%e eV=%e sys=%e\n", WW, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
@@ -9940,9 +9974,11 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 
 	  // Energy for ionized electron comes from COM
+
+	  double Edel = (iE2 - iE1)*WW/atomic_weights[Z1]*p1->mass*TreeDSMC::Munit/amu;
 	  double Echg = iE1*WW/atomic_weights[Z1]*p1->mass*TreeDSMC::Munit/amu;
 
-	  dE += Echg / N0;
+	  dE += Edel / N0;
 	  rcbExtra[0] += Echg / N0;
 
 #ifdef XC_DEEP0
@@ -10173,7 +10209,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   double totalDE = PE;
 
 #ifdef XC_DEEP0
-  printf("totalDE=%e\n", totalDE);
+  printf("totalDE=%e T=%d\n", totalDE, interFlag);
 #endif
 
   if (NOCOOL) {

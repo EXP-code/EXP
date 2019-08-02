@@ -1027,6 +1027,10 @@ void * Collide::collide_thread(void * arg)
       continue;
     }
 
+#ifdef XC_DEEPT
+  std::cout << "**TIME=" << tnow << std::endl;
+#endif
+
 #ifdef USE_GPTL
     GPTLstart("Collide::bodylist");
 #endif
@@ -1195,6 +1199,7 @@ void * Collide::collide_thread(void * arg)
 		<< std::left << setw(18) << "---------"
 		<< std::endl;
 
+      double totalNsel = 0.0;
       for (auto v : nselM.v) {
 	std::ostringstream sout1;
 	sout1 << "[(" << std::get<1>(v.first).first
@@ -1208,7 +1213,10 @@ void * Collide::collide_thread(void * arg)
 		  << std::left << std::setw(18) << crossIJ[v.first]()
 		  << std::left << std::setw(18) << v.second()
 		  << std::endl;
+
+	totalNsel += v.second();
       }
+      std::cout << "Total Nsel=" << totalNsel << std::endl;
     }
 
 #ifdef USE_GPTL
@@ -1369,17 +1377,25 @@ void * Collide::collide_thread(void * arg)
 	
       sKeyPair k(i1, i2);
 
+#ifdef XC_DEEP12
+      printf("NPAIR=%8d NSEL=%13.6e T=%d\n", totalCount, v.second(), tt);
+#endif
+
       for (int np=0; np<totalCount; np++) {
 
 	// Fractional check
 	//
 	double frc = v.second() - np;
-	if (frc<1.0 and (*unit)() > frc) break;
-	//     ^                  ^
-	//     |                  |
-	//     |                  +--- select with probability frc
-	//     |
-	//     +--- Only use fractional part on final candidate
+	double  R0 = (*unit)();
+#ifdef XC_DEEP12
+	printf("FRC=%13.6e R=%13.6e T=%d\n", frc, R0, tt);
+#endif
+	if (frc < 1.0 and R0 > frc) break;
+	//      ^            ^
+	//      |            |
+	//      |            +--- select with probability frc
+	//      |
+	//      +--- Only use fractional part on final candidate
 
 	// Pick a pair of particles from the cell
 	//
@@ -1427,6 +1443,9 @@ void * Collide::collide_thread(void * arg)
 	  double prod = cr * scrs;
 	  double targ = prod / crsvel;
 	  
+#ifdef XC_DEEP12
+	  std::cout << "TARG=" << targ << " T=" << tt << std::endl;
+#endif
 	  if (NTC or NTCnodb)
 	    ok = ( targ > (*unit)() );
 	  else
@@ -1482,6 +1501,9 @@ void * Collide::collide_thread(void * arg)
 	    
 	if (ok) {
 
+#ifdef XC_DEEP12
+	  printf("SELECTED %d\n", tt);
+#endif
 	  // Counter for time-step selection
 	  //
 	  acceptCount++;
