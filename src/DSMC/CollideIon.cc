@@ -14155,7 +14155,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
   //======================================================================
   //
   if (SpreadDef and (use_cons>=0 or elc_cons)) {
-    cuFP_t totCons = 0.0, totEcon = 0.0;
+    double totCons = 0.0, totEcon = 0.0;
     for (auto b : cell->bods) {
       Particle *p = tree->Body(b);
       if (use_cons>=0) totCons += p->dattrib[use_cons];
