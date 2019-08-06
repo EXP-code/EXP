@@ -296,6 +296,15 @@ dnl ==========================================================================
 AC_PATH_PROG(DOXYGEN, doxygen, notfound)
 AM_CONDITIONAL(DOXYGEN_FOUND, test x$DOXYGEN != xnotfound)
 
+AC_SUBST(SUBDIR_DOXY)
+
+SUBDIR_DOXY=""
+doxygen_make=""
+if test x$DOXYGEN != xnotfound; then
+   SUBDIR_DOXY="doc"
+   doxygen_make="doc/Makefile"
+fi
+
 dnl ==========================================================================
 dnl Checks for libraries.
 dnl ==========================================================================
@@ -347,7 +356,7 @@ AM_CONDITIONAL(ENABLE_DMALLOC, test "$enable_dmalloc" = "yes")
 dnl ==========================================================================
 dnl Make the makefiles
 dnl ==========================================================================
-AC_OUTPUT(expgnu/Makefile exputil/Makefile src/Makefile Makefile doc/Makefile src/user/Makefile $dsmc_make utils/Makefile utils/PhaseSpace/Makefile utils/SL/Makefile utils/Test/Makefile utils/ICs/Makefile utils/Cooling/Makefile utils/Analysis/Makefile)
+AC_OUTPUT(expgnu/Makefile exputil/Makefile src/Makefile Makefile $doxygen_make src/user/Makefile $dsmc_make utils/Makefile utils/PhaseSpace/Makefile utils/SL/Makefile utils/Test/Makefile utils/ICs/Makefile utils/Cooling/Makefile utils/Analysis/Makefile)
 
 echo "----------------------------------------------------------------"
 echo "Now type: "
