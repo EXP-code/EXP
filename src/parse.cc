@@ -414,7 +414,7 @@ void YAML_parse_args(int argc, char** argv)
   int myid;
   char file[128];
   int c;
-  string curparm(outdir + parmfile + "." + runtag);
+  string curparm("config.yml");	// Default config file if none specified
 
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
   
