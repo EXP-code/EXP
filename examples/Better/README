@@ -11,9 +11,14 @@ details on these parameters.
 Run as follows.  First, change the ldlibdir parameter to point at your
 library install directory.  Then, execute the command:
 
-mpirun -np 6 exp -f IN.FILE
+mpirun -np 6 exp -f config.yml
 
-assuming that you have a machine with 6 cores.
+or
+
+mpirun -np 6 exp
+
+assuming that you have a machine with 6 cores.  Note: 'config.yml' is
+the default name.  You only need '-f file' for alternate file names.
 
 An EOF cache file is provided, produced in the x86_64 architecture.
 
