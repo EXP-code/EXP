@@ -184,6 +184,16 @@ void do_step(int n)
 #ifdef DEBUG
       comp->multistep_debug();
 #endif
+      if (mstep==0) {
+				// Do particles at top level
+	if (timing) timer_adj.start();
+	adjust_multistep_level(true);
+	if (timing) timer_adj.stop();
+    
+				// Print the level lists
+	comp->print_level_lists(tnow);
+      }
+
     }
 
     nvTracerPtr tPtr;
@@ -191,13 +201,6 @@ void do_step(int n)
       tPtr = nvTracerPtr(new nvTracer("Adjust multistep"));
     }
 
-    if (timing) timer_adj.start();
-    adjust_multistep_level();	// Do all particles
-    if (timing) timer_adj.stop();
-    
-    if (mstep==0) {		// Print the level lists
-      comp->print_level_lists(tnow);
-    }
 				// COM update:
 				// Second velocity half-kick
     if (timing) timer_vel.start();
