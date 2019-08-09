@@ -10190,6 +10190,11 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   double PE  = dE * N0 * eV / TreeDSMC::Eunit;
   double PE2 = 0.0;
 
+  for (int j=0; j<2; j++) {
+    ionExtra[j] *= N0 * eV / TreeDSMC::Eunit;
+    rcbExtra[j] *= N0 * eV / TreeDSMC::Eunit;
+  }
+
   // Work vectors
   //
   std::vector<double> vrel(3), vcom(3), v1(3), v2(3);
@@ -10232,11 +10237,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     //   is the loss of the ion's fraction of its electron KE
     //
 
-    for (int j=0; j<2; j++) {
-      ionExtra[j] *= N0 * eV / TreeDSMC::Eunit;
-      rcbExtra[j] *= N0 * eV / TreeDSMC::Eunit;
-    }
-    
     double ionElec = ionExtra[0] + ionExtra[1];
     double rcbElec = rcbExtra[0] + rcbExtra[1];
 
@@ -10841,9 +10841,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
     // For temporary test comparison with cuda version
     //
-    delE1 = KEinitl - KEfinal - dConSum;
+    double delE0 = delE1;
+    if (NOCOOL) delE0 = delE3;
 
-    if (fabs(delE1) > tolE*KE_initl_check) {
+    if (fabs(delE0) > tolE*KE_initl_check) {
       std::cout << "**ERROR inelasticTrace dE = " << delE1 << ", " << delE2
 		<< ", rel1 = " << delE1/KE_initl_check
 		<< ", rel2 = " << delE2/KE_initl_check
@@ -15604,7 +15605,7 @@ NTC::InteractD CollideIon::generateSelectionTrace
   // Compute collision rates in system units
   //
   double crossM = (*Fn)[key] * dens * crossRat / crm;
-  double collPM = crossM * tau;
+  double collPM = crossM * crm * tau;
 
   // Cache time step for estimating "over" cooling timestep is use_delt>=0
   //
