@@ -6,7 +6,9 @@ directory will build a higher resolution, more accurate basis.
 Run as follows.  First, change the ldlibdir parameter to point at your
 library install directory.  Then, execute the command:
 
-mpirun -np 6 exp -f IN.FILE
+mpirun -np 6 exp -f config.yml
 
-assuming that you have a machine with 6 cores.
+assuming that you have a machine with 6 cores.  Since config.yml is
+the default, you simply execute the simpler command:
 
+mpirun -np 6 exp

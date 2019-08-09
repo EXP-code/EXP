@@ -13,7 +13,7 @@
 //
 // #define OFF_GRID_ALERT
 // #define BOUNDS_CHECK
-// #define VERBOSE
+// #define VERBOSE_CTR
 // #define NAN_CHECK
 
 // Global symbols for coordinate transformation in SphericalBasis
@@ -989,9 +989,9 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
     if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
-#ifdef VERBOSE
-    static debug_max_count = 10;
-    static debug_cur_count = 0;
+#ifdef VERBOSE_CTR
+    static int debug_max_count = 10;
+    static int debug_cur_count = 0;
     if (debug_cur_count++ < debug_max_count) {
       std::cout << std::endl << "**" << std::endl
 		<< "** N      = " << N          << std::endl
@@ -1669,9 +1669,9 @@ void SphericalBasis::determine_acceleration_cuda()
 
       unsigned int Nthread = gridSize*BLOCK_SIZE;
 
-#ifdef VERBOSE
-      static debug_max_count = 10;
-      static debug_cur_count = 0;
+#ifdef VERBOSE_CTR
+      static int debug_max_count = 10;
+      static int debug_cur_count = 0;
       if (debug_cur_count++ < debug_max_count) {
 	std::cout << std::endl << "**" << std::endl
 		  << "** N      = " << N          << std::endl
