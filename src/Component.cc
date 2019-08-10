@@ -139,7 +139,7 @@ Component::Component(YAML::Node& CONF)
   rtrunc      = 1.0e20;
   rcom        = 1.0e20;
   consp       = false;
-  tidal       = 0;
+  tidal       = -1;
 
   com_system  = false;
   com_log     = false;
@@ -226,12 +226,12 @@ void Component::set_default_values()
   if (!cconf["rcom"])            cconf["rcom"]        = rcom;
   if (!cconf["consp"])           cconf["consp"]       = consp;
   if (!cconf["tidal"])           cconf["tidal"]       = tidal;
-  if (!cconf["com_system"])      cconf["com_system"]  = com_system;
   if (!cconf["comlog"])          cconf["comlog"]      = com_log;
 #if HAVE_LIBCUDA==1
   if (!cconf["bunch"])           cconf["bunch"]       = bunchSize;
 #endif
   if (!cconf["timers"])          cconf["timers"]      = timers;
+  if (!cconf["com_system"])      cconf["com_system"]  = com_system;
   if (!cconf["com"])             cconf["com"]         = com_system;
   if (!cconf["scheck"])          cconf["scheck"]      = seq_check;
   if (!cconf["indexing"])        cconf["indexing"]    = indexing;
@@ -595,7 +595,7 @@ Component::Component(YAML::Node& CONF, istream *in) : conf(CONF)
   rtrunc      = 1.0e20;
   rcom        = 1.0e20;
   consp       = false;
-  tidal       = 0;
+  tidal       = -1;
 
   com_system  = false;
   com_log     = false;
@@ -2222,8 +2222,8 @@ struct thrd_pass_posn
 {
   int id;
   Component *c;
+  int  tidal;
   bool consp;
-  bool tidal;
   bool com_system;
   unsigned mlevel;
   vector<double> com,  cov,  coa,  mtot;
@@ -2237,8 +2237,8 @@ void * fix_positions_thread(void *ptr)
   int id          =   static_cast<thrd_pass_posn*>(ptr)->id;
   Component *c    =   static_cast<thrd_pass_posn*>(ptr)->c;
 
+  int  tidal      =   static_cast<thrd_pass_posn*>(ptr)->tidal;
   bool consp      =   static_cast<thrd_pass_posn*>(ptr)->consp;
-  bool tidal      =   static_cast<thrd_pass_posn*>(ptr)->tidal;
   bool com_system =   static_cast<thrd_pass_posn*>(ptr)->com_system;
 
   unsigned mlevel =   static_cast<thrd_pass_posn*>(ptr)->mlevel;
@@ -2268,7 +2268,7 @@ void * fix_positions_thread(void *ptr)
       unsigned long n = c->levlist[mm][q];
       Particle     *p = c->Part(n);
 
-      if (consp) {
+      if (consp and tidal>=0) {
 	if (c->escape_com(*p) && p->iattrib[tidal]==0) {
 				// Set flag indicating escaped particle
 	  p->iattrib[tidal] = 1;
