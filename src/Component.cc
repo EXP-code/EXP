@@ -666,7 +666,7 @@ void Component::initialize(void)
 
     if (cconf["tidal"]) {
       tidal = cconf["tidal"].as<int>();
-      if (tidal) consp = true;
+      consp = true;
     }
 
     if (cconf["EJ"      ])         EJ  = cconf["EJ"].as<int>();
