@@ -29,14 +29,14 @@ Global:
 # ------------------------------------------------------------------------
 Components:
   - name       : dark halo
-    parameters : {nlevel: 1, use_cuda: false}
+    parameters : {nlevel: 1}
     bodyfile   : halo.bod
     force :
       id : sphereSL
       parameters : {rmax=27.5}
 
   - name       : star disk
-    parameters : {nlevel: 1, use_cuda: false}
+    parameters : {nlevel: 1}
     bodyfile   : disk.bod
     force :
       id : cylinder
