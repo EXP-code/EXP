@@ -137,4 +137,4 @@ bool ignore_info   = false;
 
 int  rlimit_val    = 0;
 int  cuStreams     = 3;
-bool use_cuda      = true;
+bool use_cuda      = false;

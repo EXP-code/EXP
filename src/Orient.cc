@@ -422,15 +422,37 @@ void Orient::accumulate(double time, Component *c)
     }
   }
 
+
+  std::vector<double> ee;
+  for (auto it = angm.begin(); it != angm.end(); it++) ee.push_back(it->E);
+  
+  for (int n=1; n<numprocs; n++) {
+    if (n==myid) {
+      unsigned nsiz = ee.size();
+      // Size trim approximation; 3x the target size
+      nsiz = std::min<unsigned>(nsiz, 3.0*tkeep/numprocs);
+      // Send to root node for sorting
+      MPI_Send(&nsiz,     1, MPI_UNSIGNED, 0, 331, MPI_COMM_WORLD);
+      MPI_Send(&ee[0], nsiz, MPI_DOUBLE,   0, 332, MPI_COMM_WORLD);
+    }
+    if (0==myid) {
+      unsigned nsiz;
+      MPI_Recv(&nsiz, 1, MPI_UNSIGNED, n, 331, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      std::vector<double> tt(nsiz);
+      MPI_Recv(&tt[0], nsiz, MPI_DOUBLE, n, 332, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      ee.insert(ee.end(), tt.begin(), tt.end());
+    }
+  }
+
+  if (myid==0) {
+    std::sort(ee.begin(), ee.end());
+    Ecurr = *(ee.begin()+tkeep);
+  }
+
   // Propagate minimum energy and current cached low energy particles
   // with nodes
-  double Emin0, Emin1=angm.begin()->E, Emax1=angm.rbegin()->E;
 
-  MPI_Allreduce(&Emin1, &Emin0, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-  MPI_Allreduce(&Emax1, &Ecurr, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-				//
-				// Ecurr is now the mean of Emax on all nodes
-  Ecurr /= numprocs;
+  MPI_Bcast(&Ecurr, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 				// Compute values for this step
   axis1.zero();
@@ -468,8 +490,8 @@ void Orient::accumulate(double time, Component *c)
 	for (int k=1; k<=3; k++) 
 	  cout << setw(18) << angm.begin()->R[k]/angm.begin()->M;
 
-	cout << setw(18) << Emin0 << setw(18) << Ecurr 
-	     << setw(18) << Emin1 << setw(18) << Emax1 << endl;
+	cout << setw(18) << angm.begin()->E << setw(18) << Ecurr
+	     << setw(18) << angm.end()  ->E << setw(18) << endl;
       }
       MPI_Barrier(MPI_COMM_WORLD);
     }

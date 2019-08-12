@@ -109,21 +109,22 @@ void initialize(void)
 	cout << "parse: using original (old) time-step algorithm" << endl;
     }
     
-    if (_G["use_cwd"])       use_cwd    = _G["use_cwd"].as<bool>();
-    if (_G["eqmotion"])      eqmotion   = _G["eqmotion"].as<bool>();
-    if (_G["global_cov"])    global_cov = _G["global_cov"].as<bool>();
-    if (_G["cuda_prof"])     cuda_prof  = _G["cuda_prof"].as<bool>();
-    if (_G["cuda"])          use_cuda   = _G["cuda"].as<bool>();
+    if (_G["use_cwd"])         use_cwd       = _G["use_cwd"].as<bool>();
+    if (_G["eqmotion"])        eqmotion      = _G["eqmotion"].as<bool>();
+    if (_G["global_cov"])      global_cov    = _G["global_cov"].as<bool>();
+    if (_G["cuda_prof"])       cuda_prof     = _G["cuda_prof"].as<bool>();
+    if (_G["cuda"])            use_cuda      = _G["cuda"].as<bool>();
+    if (_G["use_cuda"])        use_cuda      = _G["use_cuda"].as<bool>();
 
-    if (_G["barrier_check"]) barrier_check = _G["barrier_check"].as<bool>();
-    if (_G["barrier_debug"]) barrier_debug = _G["barrier_debug"].as<bool>();
-    if (_G["barrier_extra"]) barrier_extra = _G["barrier_extra"].as<bool>();
-    if (_G["barrier_label"]) barrier_extra = _G["barrier_label"].as<bool>();
-    if (_G["barrier_heavy"]) barrier_extra = _G["barrier_heavy"].as<bool>();
-    if (_G["barrier_quiet"]) barrier_quiet = _G["barrier_quiet"].as<bool>();
+    if (_G["barrier_check"])   barrier_check = _G["barrier_check"].as<bool>();
+    if (_G["barrier_debug"])   barrier_debug = _G["barrier_debug"].as<bool>();
+    if (_G["barrier_extra"])   barrier_extra = _G["barrier_extra"].as<bool>();
+    if (_G["barrier_label"])   barrier_extra = _G["barrier_label"].as<bool>();
+    if (_G["barrier_heavy"])   barrier_extra = _G["barrier_heavy"].as<bool>();
+    if (_G["barrier_quiet"])   barrier_quiet = _G["barrier_quiet"].as<bool>();
     if (_G["barrier_verbose"]) barrier_quiet = not _G["barrier_quiet"].as<bool>();
 
-    if (_G["main_wait"])     main_wait  = _G["main_wait"].as<bool>();
+    if (_G["main_wait"])       main_wait  = _G["main_wait"].as<bool>();
     if (_G["debug_wait"]) {
       debug_wait = _G["debug_wait"].as<bool>();
       if (myid==0) {
