@@ -7155,7 +7155,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	//
 	double tmpE = IS.selectFFInteract(FF2[id]);
 
-	tmpE * Prob;
+	dE = tmpE * Prob;
 	
 	if (energy_scale > 0.0) dE *= energy_scale;
 	if (NO_FF_E) dE = 0.0;
@@ -10212,6 +10212,11 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   printf("totalDE=%e T=%d\n", totalDE, interFlag);
 #endif
 
+  for (int j=0; j<2; j++) {
+    ionExtra[j] *= N0 * eV / TreeDSMC::Eunit;
+    rcbExtra[j] *= N0 * eV / TreeDSMC::Eunit;
+  }
+
   if (NOCOOL) {
     // Ionization
     // ----------
@@ -10232,11 +10237,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     //   is the loss of the ion's fraction of its electron KE
     //
 
-    for (int j=0; j<2; j++) {
-      ionExtra[j] *= N0 * eV / TreeDSMC::Eunit;
-      rcbExtra[j] *= N0 * eV / TreeDSMC::Eunit;
-    }
-    
     double ionElec = ionExtra[0] + ionExtra[1];
     double rcbElec = rcbExtra[0] + rcbExtra[1];
 
@@ -10841,10 +10841,13 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
     // For temporary test comparison with cuda version
     //
-    delE1 = KEinitl - KEfinal - dConSum;
+    double delE0 = delE2;
+    if (NOCOOL) delE0 = KEinitl - KEfinal - dConSum;
 
-    if (fabs(delE1) > tolE*KE_initl_check) {
-      std::cout << "**ERROR inelasticTrace dE = " << delE1 << ", " << delE2
+    if (fabs(delE0) > tolE*KE_initl_check) {
+      std::cout << "**ERROR inelasticTrace dE = " << delE0
+		<< ", " << delE1
+		<< ", " << delE2
 		<< ", rel1 = " << delE1/KE_initl_check
 		<< ", rel2 = " << delE2/KE_initl_check
 		<< ", rel3 = " << delE3/KE_initl_check
@@ -15621,9 +15624,13 @@ NTC::InteractD CollideIon::generateSelectionTrace
   for (auto & v : selcM.v) {
     totProb += v.second() * dens * rateF * crs_units;
     v.second() *= 0.5 * (num - 1) * dens * rateF * crs_units;
-    //             ^
-    //             |
-    //             +---For correct Poisson statistics
+
+    auto k1 = std::get<1>(v.first);
+    auto k2 = std::get<2>(v.first);
+    if (k1 == k2) v.second() *= 0.5;
+    //                          ^
+    //                          |
+    // For correct Poisson statistics
     //
     totSelcM += v.second();
   }
