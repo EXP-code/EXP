@@ -8,10 +8,10 @@
 
 using namespace std;
 
-#include <values.h>
-#include <stdlib.h>
-#include <limits.h>
-#include <assert.h>
+#include <climits>
+#include <cfloat>
+#include <cstdlib>
+#include <cassert>
 
 #include "global.H"
 #include "HeatCool.H"
@@ -540,17 +540,17 @@ HeatCool::HeatCool(double nmin, double nmax, double tmin, double tmax,
       if (crate > 0.0) 
 	r.crate = log(crate);
       else
-	r.crate = log(MINDOUBLE);
+	r.crate = log(DBL_MIN);
 
       if (hrate > 0.0)
 	r.hrate = log(hrate);
       else
-	r.hrate = log(MINDOUBLE);
+	r.hrate = log(DBL_MIN);
 
       if (cmpcrate > 0.0)
 	r.cmpcrate = cmpcrate;
       else
-	r.cmpcrate = log(MINDOUBLE);
+	r.cmpcrate = log(DBL_MIN);
 
       r.trate = trate;
 

@@ -1,9 +1,8 @@
 
-#include <math.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <cmath>
+#include <cstdlib>
+
 #include <time.h>
-#include <malloc.h>
 #include <numerical.h>
 #include <Vector.h>
 

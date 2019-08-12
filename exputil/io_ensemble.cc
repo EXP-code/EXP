@@ -3,8 +3,8 @@
 #include <cmath>
 #include <iostream>
 #include <sstream>
+
 #include <time.h>
-#include <malloc.h>
 #include <numerical.h>
 #include <Vector.h>
 

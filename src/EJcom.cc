@@ -1,4 +1,4 @@
-#include <values.h>
+#include <limits.h>
 
 #include "expand.h"
 

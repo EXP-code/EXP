@@ -1,11 +1,10 @@
-// C++
-#include <unistd.h>
-#include <stdlib.h>
-#include <values.h>
-#include <math.h>
-#include <Vector.h>
-
 #include <iostream>
+#include <cstdlib>
+#include <cmath>
+
+#include <limits.h>
+
+#include <Vector.h>
 
 using namespace std;
 

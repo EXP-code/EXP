@@ -1,7 +1,6 @@
-#include <execinfo.h>
 #include <unistd.h>
+#include <execinfo.h>
 #include <cxxabi.h>
-#include <malloc.h>
 #include <signal.h>
 #include <fenv.h>
 
