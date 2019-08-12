@@ -23,14 +23,14 @@ ADD_CFLAGS4  = -DUSE_GPTL $(gptl_include)
 ADD_LIBS4    = $(gptl_lib) -lgptl
 endif
 
-AM_CFLAGS = -D_REENTRANT -fPIC -fopenmp $(ADD_CFLAGS1) $(ADD_CFLAGS2)	\
+AM_CFLAGS = -D_REENTRANT -fPIC $(OPENMP_CXXFLAGS) $(ADD_CFLAGS1) $(ADD_CFLAGS2)	\
 $(ADD_CFLAGS3) $(ADD_CFLAGS4) $(CUDA_CFLAGS)
 
 AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/include			\
 -I$(top_srcdir)/exputil -I$(top_srcdir)/expgnu -I$(top_srcdir)/src	\
  $(INCLUDE_DSMC) -I/usr/include/mpi
 
-AM_CXXFLAGS  = -std=c++11 -D_REENTRANT -fopenmp $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4) @exp_vtk_include@  $(CUDA_CFLAGS)
+AM_CXXFLAGS  = -std=c++11 -D_REENTRANT $(OPENMP_CXXFLAGS) $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4) @exp_vtk_include@  $(CUDA_CFLAGS)
 
 bin_PROGRAMS = exp
 

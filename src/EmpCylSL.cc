@@ -9,8 +9,6 @@
 #include <boost/make_shared.hpp>
 #include <boost/progress.hpp>	// Progress bar
 
-#include <omp.h>		// For multithreading basis construction
-
 #include <interp.h>
 #include <Timer.h>
 #include <thread>
@@ -27,6 +25,13 @@ extern int nthrds;
 extern double tnow;
 extern unsigned multistep;
 extern int VERBOSE;
+
+#include "config.h"
+
+#endif
+
+#ifdef HAVE_OPENMP
+#include <omp.h>		// For multithreading basis construction
 #endif
 
 #include <numerical.h>
@@ -1502,8 +1507,10 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   double dphi = 2.0*M_PI/nump;
 
 
+#ifdef HAVE_OPENMP
   omp_set_dynamic(0);		// Explicitly disable dynamic teams
   omp_set_num_threads(nthrds);	// OpenMP set up
+#endif
 
   boost::shared_ptr<boost::progress_display> progress;
   if (VFLAG & 16 && myid==0) {
@@ -1541,8 +1548,11 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 #pragma omp parallel for
       for (int qp=0; qp<nump; qp++) {
 
+#ifdef HAVE_OPENMP
 	int id = omp_get_thread_num();
-
+#else
+	int id = 0;
+#endif
 	double phi = dphi*qp;
 	sinecosine_R(LMAX, phi, cosm[id], sinm[id]);
 
