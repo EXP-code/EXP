@@ -20,6 +20,7 @@ Global:
   nreport    : 1
   infile     : OUT.run0.chkpt
   VERBOSE    : 0
+  cuda       : false
 
 # ------------------------------------------------------------------------
 # This is a sequence of components.  The parameters for the force are
@@ -46,7 +47,7 @@ Components:
 #
 #       parameters :
 #         nlevel   : 1
-#         use_cuda : false
+#
 
 # ------------------------------------------------------------------------
 # This is a sequence of outputs
