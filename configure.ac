@@ -57,7 +57,17 @@ AC_CHECK_HEADER(hash_map,[AC_DEFINE([HAVE_HASH],[],["Have GNU C++"])],[])
 dnl ==========================================================================
 dnl Check for OpenMP
 dnl ==========================================================================
+
 AC_OPENMP
+
+haveomp = no
+AC_CHECK_HEADERS(omp.h,[haveomp=[yes]])
+
+if test x$haveomp = xyes; then
+   exp_omp_lib="-lgomp"
+fi
+
+AC_SUBST(exp_omp_lib)
 
 dnl ==========================================================================
 dnl Look for BOOST libraries
