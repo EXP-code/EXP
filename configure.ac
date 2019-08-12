@@ -134,7 +134,7 @@ AC_CHECK_FILE([/usr/include/vtk$vtk_suffix/vtkMapper.h],
 	[havevtk=[yes]; VTK_HEADER_LOCATION=[/usr/include/vtk$vtk_suffix]])
 AC_CHECK_FILE([/usr/local/include/vtk/vtkMapper.h],
 	[havevtk=[yes]; VTK_HEADER_LOCATION=[/usr/local/include/vtk]])
-AC_CHECK_FILE([/usr/locl/include/vtk$vtk_suffix/vtkMapper.h],
+AC_CHECK_FILE([/usr/local/include/vtk$vtk_suffix/vtkMapper.h],
 	[havevtk=[yes]; VTK_HEADER_LOCATION=[/usr/local/include/vtk$vtk_suffix]])
 AC_CHECK_FILE([$VTK_PREFIX/include/vtk$vtk_suffix/vtkMapper.h],
 	[havevtk=[yes]; VTK_HEADER_LOCATION=[$VTK_PREFIX/include/vtk$vtk_suffix]])
