@@ -793,7 +793,7 @@ void ComponentContainer::multistep_reset()
 void ComponentContainer::print_level_list_header()
 {
   ostringstream ofil;
-  ofil << runtag << ".levels";
+  ofil << outdir << runtag << ".levels";
 
   ifstream in(ofil.str().c_str());
   if (!in) {

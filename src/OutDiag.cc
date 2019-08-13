@@ -108,7 +108,7 @@ void OutDiag::Run(int n, bool last)
   double potl0, potl, potr, pott, potp;
     
   ostringstream outs;
-  outs << filename.c_str() << "." << n;
+  outs << outdir << filename.c_str() << "." << n;
   ofstream out(outs.str().c_str());
   if (!out) return;
 
