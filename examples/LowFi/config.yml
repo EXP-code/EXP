@@ -34,14 +34,14 @@ Components:
     bodyfile   : halo.bod
     force :
       id : sphereSL
-      parameters : {rmax=27.5}
+      parameters : {rmax: 9.95}
 
   - name       : star disk
     parameters : {nlevel: 1}
     bodyfile   : disk.bod
     force :
       id : cylinder
-      parameters : {acyl: 1.0, nmax: 8, mmax: 2, hcyl=0.05}
+      parameters : {acyl: 1.0, nmax: 8, mmax: 2, hcyl: 0.05}
 #
 # The parameters could be expressed like this, equivalently:
 #
@@ -73,7 +73,7 @@ External:
   # - id : usertest
   #   parameters : {parm: 3}
   # - id : userbar
-  #   parameters : {U5=1.0, comname=sphereSL}
+  #   parameters : {U5: 1.0, comname: sphereSL}
     
 
 

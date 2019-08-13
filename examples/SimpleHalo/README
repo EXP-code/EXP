@@ -25,3 +25,7 @@ mpirun -np 6 exp
 
 assuming that you have a machine with 6 cores.  Note: 'config.yml' is
 the default name.  You only need '-f file' for alternate file names.
+
+There is a second test config file in this directory: 'fixed.yml'.
+This one runs the component in a fixed potential using the 'userhalo'
+external potential.
