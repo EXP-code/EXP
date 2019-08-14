@@ -23,7 +23,7 @@ lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la	\
 	libebars.la libwake.la libsatfixorb.la libebarn.la	\
 	libperiodic.la libatmos.la libreflect.la libsatwake.la	\
 	libpst.la libuserslab.la libtrigger.la libshear.la	\
-	libsnheat.la libprofile.la
+	libsnheat.la libprofile.la libmndisk.la
 
 #
 # Convenience library for duplicated source components (static)
@@ -36,7 +36,7 @@ noinst_HEADERS = BarForcing.H Perturbation.H UserDiffuse.H		\
 	TwoBodyDiffuse.H UserEBarS.H UserWake.H EllipForce.H		\
 	UserBar.H UserHalo.H UserLogPot.H UserDiffRot.H UserRPtest.H	\
 	UserAtmos.H UserReflect.H UserPST.H UserShear.H UserSNheat.H	\
-	UserProfile.H
+	UserProfile.H UserMNdisk.H
 
 libcommon_a_SOURCES = ResPot.cc ResPotOrb.cc BarForcing.cc	\
 	Perturbation.cc EllipForce.cc SatelliteOrbit.cc		\
@@ -79,6 +79,8 @@ libdiffrot_la_SOURCES = UserDiffRot.cc
 liblogpot_la_SOURCES = UserLogPot.cc
 
 libdisk_la_SOURCES = UserDisk.cc
+
+libmndisk_la_SOURCES = UserMNdisk.cc
 
 libhalo_la_SOURCES = UserHalo.cc
 
