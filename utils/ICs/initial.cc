@@ -93,9 +93,9 @@
 void local_init_mpi(int argc, char **argv);
 
                                 // Parameters
-int LMAX=4;
-int NMAX=10;
-int NUMR=2000;
+int    LMAX=4;
+int    NMAX=10;
+int    NUMR=2000;
 double RMIN=0.005;
 double RCYLMIN=0.001;
 double RCYLMAX=20.0;
