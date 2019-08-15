@@ -1,5 +1,10 @@
 #include <values.h>
+
+#include "config.h"
+
+#ifdef HAVE_OPENMP
 #include <omp.h>
+#endif
 
 #include <cstdlib>
 #include <cstdio>
@@ -153,7 +158,9 @@ pHOT::pHOT(Component *C, sKeySet spec_list)
 {
   qtile_initialize();		// Quantile set up
 
+#ifdef HAVE_OPENMP
   omp_set_num_threads(nthrds);	// OpenMP set up
+#endif
 
   cc = C;			// Register the calling component
 
@@ -3518,8 +3525,13 @@ void pHOT::adjustTree(unsigned mlevel)
       clevlst.erase(c);
       if (DEBUG_CHECK) {
 	if (clevels[m].find(c) == clevels[m].end()) {
+#ifdef HAVE_OPENMP
 	  std::cout << "pHOT::adjustTree(REMOVE) [" << omp_get_thread_num()
 		    << "]: cell=" << std::hex << c
+#else
+	  std::cout << "pHOT::adjustTree(REMOVE) [" << 1
+		    << "]: cell=" << std::hex << c
+#endif
 		    << std::dec << " not in level " << m << std::endl;
 	}
       }

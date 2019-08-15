@@ -4,8 +4,9 @@
 
 */
 
-#include <values.h>
-#include <math.h>
+#include <cfloat>
+#include <cmath>
+
 #include <Vector.h>
 
 #ifndef _OrthoPoly_h
@@ -55,7 +56,7 @@ class GenLagu : public OrthoPoly
   
   GenLagu(double A) {
     a = 0.0;
-    b = MAXDOUBLE;
+    b = DBL_MAX;
     alpha = A; 
     param = &alpha;
   }
@@ -81,7 +82,7 @@ class Legendre : public OrthoPoly
   
   Legendre(void) {
     a = -1.0;
-    b = 1.0;
+    b =  1.0;
     param = 0;
   }
 
@@ -188,8 +189,8 @@ class Hermite : public OrthoPoly
  public:
   
   Hermite(void) {
-    a = -MAXDOUBLE;
-    b = MAXDOUBLE;
+    a = -DBL_MAX;
+    b =  DBL_MAX;
     param = 0;
   }
   

@@ -1,14 +1,15 @@
 // This may look like C code, but it is really -*- C++ -*-
 
-#include <stdlib.h>
-#include <math.h>
-#include <values.h>
+#include <cstdlib>
+#include <cmath>
 
 #include <iostream>
 #include <fstream>
 
 #include <string>
 #include <vector>
+
+#include <limits.h>
 
 #include <numerical.h>
 #include <Vector.h>

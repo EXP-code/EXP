@@ -10,7 +10,7 @@ extern int myid;
 #define ROTATE(a,i,j,k,l) g=a[i][j];h=a[k][l];a[i][j]=g-s*(h+g*tau);\
 	a[k][l]=h+s*(g-h*tau);
 
-void jacobi(double **a, int n,double *d, double **v, int *nrot) 
+void jacobi_eig(double **a, int n,double *d, double **v, int *nrot) 
 {
   int j, iq, ip, i;
   double tresh, theta, tau, t, sm, s, h, g, c, *b, *z;
@@ -18,13 +18,13 @@ void jacobi(double **a, int n,double *d, double **v, int *nrot)
   b = new double[n];
   if (!b)
     {
-      std::cerr << "cannot allocate b in jacobi()\n";
+      std::cerr << "cannot allocate b in jacobi_eig()\n";
     }
   b--;
   z = new double[n];
   if (!z)
     {
-      std::cerr << "cannot allocate z in jacobi()\n";
+      std::cerr << "cannot allocate z in jacobi_eig()\n";
     }
   z--;
   

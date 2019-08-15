@@ -1,10 +1,8 @@
 // This may look like C code, but it is really -*- C++ -*-
 
-const char rcsid[] = "$Id$";
-
-#include <stdlib.h>
-#include <math.h>
-#include <values.h>
+#include <cstdlib>
+#include <cfloat>
+#include <cmath>
 
 #include <iostream>
 #include <iomanip>
@@ -12,6 +10,8 @@ const char rcsid[] = "$Id$";
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include <limits.h>
 
 #include <massmodel.h>
 #include <interp.h>
@@ -96,7 +96,7 @@ SphericalModelTable::SphericalModelTable
     mass.x[i] = radius;
     pot.x[i] = radius;
     if (DIVERGE)
-      density.y[i] *= pow(radius+MINDOUBLE,DIVERGE_RFAC);
+      density.y[i] *= pow(radius+DBL_MIN, DIVERGE_RFAC);
   }
   
   Spline(density.x, density.y, 0.0, 0.0, density.y2);
@@ -164,7 +164,7 @@ SphericalModelTable::SphericalModelTable(int NUM,
     pot.x[i] = radius;
 
     if (DIVERGE)
-      density.y[i] *= pow(radius+MINDOUBLE,DIVERGE_RFAC);
+      density.y[i] *= pow(radius+DBL_MIN, DIVERGE_RFAC);
   }
   
   Spline(density.x, density.y, 0.0, 0.0, density.y2);

@@ -1,17 +1,13 @@
 
-#include <math.h>
-#include <stdlib.h>
-#include <stdio.h>
+#include <cmath>
+#include <cstdlib>
+#include <cstdio>
+
 #include <time.h>
-#include <malloc.h>
 #include <numerical.h>
 #include <Vector.h>
 
 #include "phase.h"
-
-
-
-
 
 
 /*

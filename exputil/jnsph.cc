@@ -9,11 +9,11 @@
 *
 *		MDW: 12/26/1987
 **************************************************************************/
-#include <math.h>
+#include <cmath>
 
 /* test routine
 
-#include <iostream.h>
+#include <iostream>
 
 main()
 {

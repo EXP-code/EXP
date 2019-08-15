@@ -8,11 +8,11 @@ if ENABLE_GPTL
   ADD_CFLAGS4  = -DUSE_GPTL $(gptl_include)
 endif
 
-AM_CFLAGS = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) -fopenmp
-AM_FFLAGS = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) -fopenmp
+AM_CFLAGS = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) $(OPENMP_CXXFLAGS)
+AM_FFLAGS = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) $(OPENMP_CXXFLAGS)
 AM_CXXFLAGS = -std=c++11 -fPIC -fno-inline-small-functions -Wall	\
--D_REENTRANT -Wno-non-virtual-dtor $(ADD_CFLAGS4) -fopenmp
-AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil -lgomp
+-D_REENTRANT -Wno-non-virtual-dtor $(ADD_CFLAGS4) $(OPENMP_CXXFLAGS)
+AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil @exp_omp_lib@
 
 libdir = $(prefix)/lib/user
 
@@ -23,7 +23,7 @@ lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la	\
 	libebars.la libwake.la libsatfixorb.la libebarn.la	\
 	libperiodic.la libatmos.la libreflect.la libsatwake.la	\
 	libpst.la libuserslab.la libtrigger.la libshear.la	\
-	libsnheat.la libprofile.la
+	libsnheat.la libprofile.la libmndisk.la
 
 #
 # Convenience library for duplicated source components (static)
@@ -36,7 +36,7 @@ noinst_HEADERS = BarForcing.H Perturbation.H UserDiffuse.H		\
 	TwoBodyDiffuse.H UserEBarS.H UserWake.H EllipForce.H		\
 	UserBar.H UserHalo.H UserLogPot.H UserDiffRot.H UserRPtest.H	\
 	UserAtmos.H UserReflect.H UserPST.H UserShear.H UserSNheat.H	\
-	UserProfile.H
+	UserProfile.H UserMNdisk.H
 
 libcommon_a_SOURCES = ResPot.cc ResPotOrb.cc BarForcing.cc	\
 	Perturbation.cc EllipForce.cc SatelliteOrbit.cc		\
@@ -79,6 +79,8 @@ libdiffrot_la_SOURCES = UserDiffRot.cc
 liblogpot_la_SOURCES = UserLogPot.cc
 
 libdisk_la_SOURCES = UserDisk.cc
+
+libmndisk_la_SOURCES = UserMNdisk.cc
 
 libhalo_la_SOURCES = UserHalo.cc
 

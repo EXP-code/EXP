@@ -401,7 +401,7 @@ Vector Symmetric_Eigenvalues_SYEVD (Matrix& a, Matrix& ef, int M);
 Vector Symmetric_Eigenvalues_SVD   (Matrix& a, Matrix& ef, int M, bool Large=true);
 
 
-void jacobi(double **, int, double *, double **, int *);
+void jacobi_eig(double **, int, double *, double **, int *);
 void eigsrt(double *, double **, int);
 int SVD(Matrix &A, Matrix &U, Matrix &V, Vector &Z);
 

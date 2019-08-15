@@ -31,11 +31,12 @@
  ***************************************************************************/
 
 
-#include <iostream.h>
-#include <iomanip.h>
-#include <GetOpt.h>
+#include <iostream>
+#include <iomanip>
 #include <string>
-#include <math.h>
+#include <cmath>
+
+#include <GetOpt.h>
 
 #include <numerical.h>
 #include <Vector.h>

@@ -11,7 +11,9 @@
 
 #include <fenv.h>
 #include <signal.h>
+#ifdef HAVE_FPU_CONTROL_H
 #include <fpu_control.h>
+#endif
 
 /// Global to hold error code
 volatile int my_err;
@@ -46,8 +48,8 @@ void set_fpu_handler(void)
     std::cout << "EXP: Floating point-exception handler installed" << std::endl;
   }
 
+#ifdef HAVE_FPU_CONTROL_H
   feenableexcept(FE_ALL_EXCEPT & ~FE_INEXACT);
-
   //
   // Print enabled flags to root node
   //
@@ -66,6 +68,7 @@ void set_fpu_handler(void)
     }
     std::cout << "\b>" << std::endl;
   }
+#endif
   
 }
 

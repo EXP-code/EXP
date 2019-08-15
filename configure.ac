@@ -55,6 +55,21 @@ AC_CHECK_HEADER(unordered_map,[AC_DEFINE([HAVE_CXX0X],[],["Have C++0x"])],[])
 AC_CHECK_HEADER(hash_map,[AC_DEFINE([HAVE_HASH],[],["Have GNU C++"])],[])
 
 dnl ==========================================================================
+dnl Check for OpenMP
+dnl ==========================================================================
+
+AC_OPENMP
+
+haveomp = no
+AC_CHECK_HEADERS(omp.h,[haveomp=[yes]])
+
+if test x$haveomp = xyes; then
+   exp_omp_lib="-lgomp"
+fi
+
+AC_SUBST(exp_omp_lib)
+
+dnl ==========================================================================
 dnl Look for BOOST libraries
 dnl ==========================================================================
 
@@ -134,7 +149,7 @@ AC_CHECK_FILE([/usr/include/vtk$vtk_suffix/vtkMapper.h],
 	[havevtk=[yes]; VTK_HEADER_LOCATION=[/usr/include/vtk$vtk_suffix]])
 AC_CHECK_FILE([/usr/local/include/vtk/vtkMapper.h],
 	[havevtk=[yes]; VTK_HEADER_LOCATION=[/usr/local/include/vtk]])
-AC_CHECK_FILE([/usr/locl/include/vtk$vtk_suffix/vtkMapper.h],
+AC_CHECK_FILE([/usr/local/include/vtk$vtk_suffix/vtkMapper.h],
 	[havevtk=[yes]; VTK_HEADER_LOCATION=[/usr/local/include/vtk$vtk_suffix]])
 AC_CHECK_FILE([$VTK_PREFIX/include/vtk$vtk_suffix/vtkMapper.h],
 	[havevtk=[yes]; VTK_HEADER_LOCATION=[$VTK_PREFIX/include/vtk$vtk_suffix]])

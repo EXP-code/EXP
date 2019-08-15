@@ -202,7 +202,7 @@ Vector Matrix::Symmetric_Eigenvalues(Matrix &EigenVec)
   
   // call numerical recipes eigenroutines
   
-  jacobi(a, n, d, v, &niters);
+  jacobi_eig(a, n, d, v, &niters);
   eigsrt(d, v, n);
   
   

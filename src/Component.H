@@ -627,9 +627,8 @@ public:
 	  ret[j] += comI[j];
 	else if (flags & Inertial) 
 	  ret[j] -= com0[j] - comI[j];
-
-	if (flags & Centered) ret[j] += center[j];
       }
+      if (flags & Centered) ret[j] += center[j];
     }
 
     return ret;

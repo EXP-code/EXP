@@ -2,10 +2,11 @@
 #include <iostream>
 #include <cmath>
 
+#include <cstdlib>
+
+#include <limits.h>
+
 #include <interp.h>
-#include <values.h>
-#include <unistd.h>
-#include <stdlib.h>
 
 
 double	Trapsum(const Vector& x, const Vector& y)
