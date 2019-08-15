@@ -21,4 +21,7 @@ assuming that you have a machine with 6 cores.  Note: 'config.yml' is
 the default name.  You only need '-f file' for alternate file names.
 
 An EOF cache file is provided, produced in the x86_64 architecture.
-
+This cache file contains a pre-made set of disk basis functions.  It
+will be read from the 'outdir' directory.  If you'd like to have a
+different outdir from this current working dir, please move the
+.eof.cache.run0 to your 'outdir'.
