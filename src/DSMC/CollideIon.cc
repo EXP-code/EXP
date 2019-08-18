@@ -3636,12 +3636,13 @@ void CollideIon::pairInfoTrace(int id, pCell* const c,
   kE2s[id] = 0.5  * mu2 * vel*vel * sVel2*sVel2 * Eta2;
 
 #ifdef XC_DEEP13
-    std::cout << "ETEST:"
-	      << " eVel1=" << eVel1
-	      << " eVel2=" << eVel2
-	      << " ke1=" << kEe1[id]/eV
-	      << " ke2=" << kEe2[id]/eV
-	      << std::endl;
+  std::cout << "ETEST:"
+	    << " time=" << tnow
+	    << " eVel1=" << eVel1
+	    << " eVel2=" << eVel2
+	    << " ke1=" << kEe1[id]/eV
+	    << " ke2=" << kEe2[id]/eV
+	    << std::endl;
 #endif
 
   if (std::isnan(kEe1[id]) or std::isnan(kEe2[id])) {
@@ -9484,7 +9485,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  dE = tmpE * Prob;
 
 #ifdef XC_DEEP2
-	  std::cout << "testT: ffDE=" << dE
+	  std::cout << "testT: ffDE=" << tmpE
 		    << " W=" << Prob
 		    << " Z=" << Q2.first
 		    << " C=" << Q2.second << std::endl;
@@ -9515,7 +9516,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  dE = tmpE * Prob;
 
 #ifdef XC_DEEP2
-	  std::cout << "testT: ffDE=" << dE
+	  std::cout << "testT: ffDE=" << tmpE
 		    << " W=" << Prob
 		    << " Z=" << Q1.first
 		    << " C=" << Q1.second << std::endl;
@@ -9552,7 +9553,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  dE = tmpE * Prob;
 
 #ifdef XC_DEEP2
-	  std::cout << "testT: ceDE=" << dE
+	  std::cout << "testT: ceDE=" << tmpE
 		    << " W=" << Prob
 		    << " Z=" << Q2.first
 		    << " C=" << Q2.second << std::endl;
@@ -9581,8 +9582,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  dE = tmpE * Prob;
 
-#ifdef XC_DEEP2
-	  std::cout << "testT: ceDE=" << dE
+#ifdef XC_DEEP2n
+	  std::cout << "testT: ceDE=" << tmpE
 		    << " W=" << Prob
 		    << " Z=" << Q1.first
 		    << " C=" << Q1.second << std::endl;
@@ -9693,7 +9694,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 	  
 #ifdef XC_DEEP2
-	  std::cout << "testT: ciDE=" << (NO_ION_E ? 0.0 : dE)
+	  std::cout << "testT: ciDE=" << (NO_ION_E ? 0.0 : tmpE)
 		    << " W=" << Prob
 		    << " Z=" << Q2.first
 		    << " C=" << Q2.second << std::endl;
@@ -9785,7 +9786,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 
 #ifdef XC_DEEP2
-	  std::cout << "testT: ciDE=" << (NO_ION_E ? 0.0 : dE)
+	  std::cout << "testT: ciDE=" << (NO_ION_E ? 0.0 : tmpE)
 		    << " W=" << Prob
 		    << " Z=" << Q1.first
 		    << " C=" << Q1.second << std::endl;
