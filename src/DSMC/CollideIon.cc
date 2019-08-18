@@ -15629,7 +15629,7 @@ NTC::InteractD CollideIon::generateSelectionTrace
 
   for (auto & v : selcM.v) {
     totProb += v.second() * dens * rateF * crs_units;
-    v.second() *= 0.5 * (num - 1) * dens * rateF * crs_units;
+    v.second() *= (num - 1) * dens * rateF * crs_units;
 
     auto k1 = std::get<1>(v.first);
     auto k2 = std::get<2>(v.first);
