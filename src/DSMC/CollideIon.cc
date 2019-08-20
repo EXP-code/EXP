@@ -9582,7 +9582,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  dE = tmpE * Prob;
 
-#ifdef XC_DEEP2n
+#ifdef XC_DEEP2
 	  std::cout << "testT: ceDE=" << tmpE
 		    << " W=" << Prob
 		    << " Z=" << Q1.first
@@ -19694,7 +19694,7 @@ void CollideIon::processConfig()
       Collide::NTCnodb = config["ntcNoDB"]["value"].as<bool>();
     else {
       config["ntcNoDB"]["desc"] = "Use NTC without DB";
-      config["ntcNoDB"]["value"] = Collide::NTCnodb = false;
+      config["ntcNoDB"]["value"] = Collide::NTCnodb = true;
     }
 
     if (config["HandMcoef"])
