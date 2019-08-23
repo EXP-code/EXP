@@ -250,6 +250,9 @@ private:
 
 protected:
 
+  //! Set configuration and force
+  void configure(void);
+
   /** Initialize parameters (called by ComponentContainer after component
       instantiation */
   void initialize(void);

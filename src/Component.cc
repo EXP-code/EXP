@@ -177,8 +177,6 @@ Component::Component(YAML::Node& CONF)
 
   set_default_values();
 
-  read_bodies_and_distribute_ascii();
-
   mdt_ctr = vector< vector<unsigned> > (multistep+1);
   for (unsigned n=0; n<=multistep; n++) mdt_ctr[n] = vector<unsigned>(mdtDim, 0);
 
@@ -188,8 +186,6 @@ Component::Component(YAML::Node& CONF)
   coa_lev     = vector<double>(3*(multistep+1), 0);
   com_mas     = vector<double>(multistep+1, 0);
 
-  reset_level_lists();
-
   tree = 0;
 
   pbuf.resize(PFbufsz);
@@ -197,6 +193,13 @@ Component::Component(YAML::Node& CONF)
   // Enter unset defaults in YAML conf
   //
   if (CONF["parameters"]) CONF["parameters"] = cconf;
+
+  configure();
+
+  read_bodies_and_distribute_ascii();
+
+  reset_level_lists();
+
 }
 
 void Component::set_default_values()
@@ -633,6 +636,8 @@ Component::Component(YAML::Node& CONF, istream *in) : conf(CONF)
   pBufSiz     = 100000;
   blocking    = false;
 
+  configure();
+
   read_bodies_and_distribute_binary(in);
 
   mdt_ctr = vector< vector<unsigned> > (multistep+1);
@@ -651,8 +656,7 @@ Component::Component(YAML::Node& CONF, istream *in) : conf(CONF)
   pbuf.resize(PFbufsz);
 }
 
-
-void Component::initialize(void)
+void Component::configure(void)
 {
   // Load parameters from YAML configuration node
   try {
@@ -728,6 +732,7 @@ void Component::initialize(void)
     exit(-1);
   }
 
+
   // Instantiate the force ("reflection" by hand)
   //
   if ( !id.compare("bessel") ) {
@@ -778,7 +783,11 @@ void Component::initialize(void)
   dim = force->dof;
 
   force->RegisterComponent(this);
+}
 
+
+void Component::initialize(void)
+{
   com    = new double [3];
   center = new double [3];
   cov    = new double [3];
@@ -1199,8 +1208,6 @@ void Component::read_bodies_and_distribute_ascii(void)
   is_init = 1;
   setup_distribution();
   is_init = 0;
-  initialize();
-
 				// Initialize the particle ferry
 				// instance with dynamic attribute
 				// sizes
@@ -1287,6 +1294,7 @@ void Component::read_bodies_and_distribute_ascii(void)
     }
   }
 
+  initialize();
 
 #ifdef DEBUG
   if (particles.size()) {
