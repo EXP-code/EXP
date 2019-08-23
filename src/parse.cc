@@ -168,7 +168,7 @@ void initialize(void)
 	std::cout << "Found <fpe_trap=" << std::boolalpha
 		  << fpe_trap << ">" << std::endl;
 	if (fpe_trap) std::cout << "----" << std::endl
-				<< "---- Set a breakpoint in fpetrap.h:21 to catch and debug FP errors" << std::endl
+				<< "---- Set a breakpoint in fpetrap.h:25 to catch and debug FP errors" << std::endl
 				<< "----" << std::endl;
       }
     }
