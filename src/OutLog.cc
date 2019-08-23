@@ -515,7 +515,7 @@ void OutLog::Run(int n, bool last)
 				// COV
     for (int j=0; j<3; j++)
       if (mtot0>0.0)
-	out << "|" << setw(cwid) << cov0[j];
+	out << "|" << setw(cwid) << cov0[j]/mtot0;
       else
 	out << "|" << setw(cwid) << 0.0;
 	
