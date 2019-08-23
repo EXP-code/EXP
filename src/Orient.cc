@@ -537,7 +537,7 @@ void Orient::accumulate(double time, Component *c)
 	 << center1[3] << endl;
   }
 
-  if (static_cast<int>(sumsA.size()) > keep) {
+  if (static_cast<int>(sumsA.size()) > keep + 1) {
 
     sumsA.pop_front();
 
@@ -568,7 +568,7 @@ void Orient::accumulate(double time, Component *c)
 
     slope     = (sumXY*N - sumX*sumY)/(sumX2*N - sumX*sumX);
     intercept = (sumX2*sumY - sumX*sumXY)/(sumX2*N - sumX*sumX);
-    axis      = intercept + slope*damp*time;
+    axis      = intercept + slope*(damp*time + (1.0 - damp)*sumsA.front().first);
     
     i = 0;
     sigA = 0.0;
@@ -591,7 +591,7 @@ void Orient::accumulate(double time, Component *c)
 
   if (sumsC.size() > 1) {
     
-    if (static_cast<int>(sumsC.size()) > keep) sumsC.pop_front();
+    if (static_cast<int>(sumsC.size()) > keep+1) sumsC.pop_front();
 
     double x;
     int i = 0;
@@ -630,7 +630,7 @@ void Orient::accumulate(double time, Component *c)
     
     slope     = (sumXY*N - sumX*sumY)/(sumX2*N - sumX*sumX);
     intercept = (sumX2*sumY - sumX*sumXY)/(sumX2*N - sumX*sumX);
-    center    = intercept + slope*damp*time;
+    center    = intercept + slope*(damp*time + (1.0 - damp)*sumsC.front().first);
     
     i = 0;
     sigC = 0.0;
