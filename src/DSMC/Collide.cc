@@ -1371,14 +1371,14 @@ void * Collide::collide_thread(void * arg)
       
       NTC::T T = v.first;
 
-      int        tt = std::get<0>(T); // For debugging only
+      int        TT = std::get<0>(T); // For debugging only
       speciesKey i1 = std::get<1>(T);
       speciesKey i2 = std::get<2>(T);
 	
       sKeyPair k(i1, i2);
 
 #ifdef XC_DEEP12
-      printf("NPAIR=%8d NSEL=%13.6e T=%d\n", totalCount, v.second(), tt);
+      printf("NPAIR=%8d NSEL=%13.6e T=%d\n", totalCount, v.second(), TT);
 #endif
 
       for (int np=0; np<totalCount; np++) {
@@ -1388,7 +1388,7 @@ void * Collide::collide_thread(void * arg)
 	double frc = v.second() - np;
 	double  R0 = (*unit)();
 #ifdef XC_DEEP12
-	printf("FRC=%13.6e R=%13.6e T=%d\n", frc, R0, tt);
+	printf("FRC=%13.6e R=%13.6e T=%d\n", frc, R0, TT);
 #endif
 	if (frc < 1.0 and R0 > frc) break;
 	//      ^            ^
@@ -1444,7 +1444,7 @@ void * Collide::collide_thread(void * arg)
 	  double targ = prod / crsvel;
 	  
 #ifdef XC_DEEP12
-	  std::cout << "TARG=" << targ << " T=" << tt << std::endl;
+	  std::cout << "TARG=" << targ << " T=" << TT << std::endl;
 #endif
 	  if (NTC or NTCnodb)
 	    ok = ( targ > (*unit)() );
@@ -1452,6 +1452,17 @@ void * Collide::collide_thread(void * arg)
 	    ok = true;
 	  
 
+#ifdef XC_DEEP14
+	  static long tally = 0, accept = 0;
+	  if (TT==7) {
+	    if (ok) accept++; tally++;
+	    std::cout << "col_excite: targ=" << targ
+		      << " accept=" << accept
+		      << " tally=" << tally
+		      << " ratio=" << (double)accept/tally
+		      << std::endl;
+	  }
+#endif
 	  // Update v_max and cross_max for NTC
 	  //
 	  if (NTC) {
@@ -1502,7 +1513,7 @@ void * Collide::collide_thread(void * arg)
 	if (ok) {
 
 #ifdef XC_DEEP12
-	  printf("SELECTED %d\n", tt);
+	  printf("SELECTED %d\n", TT);
 #endif
 	  // Counter for time-step selection
 	  //
