@@ -3915,8 +3915,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	std::cout << "xsc: kEe=" << kEe1[id]
 		  << " (Z, P)=(" << Z1 << ", " << C2 << ")"
 		  << " gVel=" << eVelP2[id] << " eta=" << etaP2[id]
-		  << " xf=" << ff.first << " fac=" << fac1
-		  << " dE=" << ff.second << std::endl;
+		  << " xf=" << FF1[id].first << " fac=" << fac1
+		  << " dE=" << FF1[id].second << std::endl;
 #endif
       }
       
@@ -3936,10 +3936,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 #endif
 #ifdef XC_DEEP4
 	  std::cout << "xsc: kEe=" << kEe2[id]
-		    << " (Z, P)=(" << Z << ", " << C << ")"
+		    << " (Z, P)=(" << Z2 << ", " << C2 << ")"
 		    << " gVel=" << eVelP1[id] << " eta=" << etaP1[id]
-		    << " xf=" << ff.first << " fac=" << fac2
-		    << " dE=" << ff.second << std::endl;
+		    << " xf=" << FF2[id].first << " fac=" << fac2
+		    << " dE=" << FF2[id].second << std::endl;
 #endif
 	}
       }
@@ -3973,19 +3973,19 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       
       if (DEBUG_CRS) trap_crs(crs, colexcite);
       
-      if (crs > 0.0) {
+      // if (crs > 0.0) {
 #ifdef XC_DEEP1
 	std::cout << "xsc: xc=" << crs << " cv=" << crs*cr << std::endl;
 #endif
 #ifdef XC_DEEP4
 	std::cout << "xsc: kEe=" << kEe1[id]
-		  << " (Z, P)=(" << Z << ", " << C << ")"
+		  << " (Z, P)=(" << Z1 << ", " << C1 << ")"
 		  << " gVel=" << eVelP2[id] << " eta=" << etaP2[id]
-		  << " xc=" << CE.back().first
-		  << " dE=" << IS.selectCEInteract(ch.IonList[Q], CE)
+		  << " xc=" << CE1[id].back().first
+		  << " dE=" << IS.selectCEInteract(ch.IonList[Q1], CE1[id])
 		  << " fac=" << fac1 << std::endl;
 #endif
-      }
+	// }
 
       return crs;
     }
@@ -4000,19 +4000,19 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       
       if (DEBUG_CRS) trap_crs(crs, colexcite);
       
-      if (crs > 0.0) {
+      // if (crs > 0.0) {
 #ifdef XC_DEEP1
 	std::cout << "xsc: xc=" << crs << " cv=" << crs*cr << std::endl;
 #endif
 #ifdef XC_DEEP4
 	std::cout << "xsc: kEe=" << kEe2[id]
-		  << " (Z, P)=(" << Z << ", " << C << ")"
-		  << " gVel=" << eVelP1[id] << " eta=" << EtaP1[id]
-		  << " xc=" << CE.back().first
-		  << " dE=" << IS.selectCEInteract(ch.IonList[Q], CE)
+		  << " (Z, P)=(" << Z2 << ", " << C2 << ")"
+		  << " gVel=" << eVelP1[id] << " eta=" << etaP1[id]
+		  << " xc=" << CE2[id].back().first
+		  << " dE=" << IS.selectCEInteract(ch.IonList[Q2], CE2[id])
 		  << " fac=" << fac2 << std::endl;
 #endif
-      }
+	// }
       return crs;
     }
   }
@@ -4054,7 +4054,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 #endif
 #ifdef XC_DEEP4
 	std::cout << "xsc: [ie] kEe=" << kEe1[id]
-		  << " (Z, P)=(" << Z << ", " << C << ")"
+		  << " (Z, P)=(" << Z2 << ", " << C2 << ")"
 		  << " gVel=" << eVelP2[id] << " eta=" << etaP2[id]
 		  << " io=" << DI << " dE=" << 0.0
 		  << " fac=" << fac1 << std::endl;
@@ -4085,8 +4085,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 #endif
 #ifdef XC_DEEP4
 	std::cout << "xsc: [ei] kEe=" << kEe2[id]
-		  << " (Z, P)=(" << Z << ", " << C << ")"
-		  << " gVel=" << eVel1 << " eta=" << Eta1
+		  << " (Z, P)=(" << Z2 << ", " << C2 << ")"
+		  << " gVel=" << eVelP1[id] << " eta=" << etaP1[id]
 		  << " io=" << DI << " dE=" << 0.0
 		  << " fac=" << fac2 << std::endl;
 #endif
@@ -4182,18 +4182,18 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	
 	if (DEBUG_CRS) trap_crs(crs, recomb);
 	  
-	if (crs > 0.0) {
+	// if (crs > 0.0) {
 #ifdef XC_DEEP1
 	  std::cout << "xsc: [ie] rc=" << crs << " cv=" << crs*cr << std::endl;
 #endif
 #ifdef XC_DEEP4
 	  std::cout << "xsc: [ie] kEe=" << kEe1[id]
-		    << " (Z, P)=(" << Z << ", " << C << ")"
+		    << " (Z, P)=(" << Z1 << ", " << C1 << ")"
 		    << " gVel=" << eVelP2[id] << " eta=" << etaP2[id]
 		    << " rc=" << crs << " dE=" << 0.0
 		    << " fac=" << fac1 << std::endl;
 #endif
-	}
+	  // }
 	return crs;
       }
 
@@ -4226,7 +4226,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 #endif
 #ifdef XC_DEEP4
 	  std::cout << "xsc: [ei] kEe=" << kEe2[id]
-		    << " (Z, P)=(" << Z << ", " << C << ")"
+		    << " (Z, P)=(" << Z2 << ", " << C2 << ")"
 		    << " gVel=" << eVelP1[id] << " eta=" << etaP1[id]
 		    << " rc=" << crs << " dE=" << 0.0
 		    << " fac=" << fac2 << std::endl;
@@ -9555,6 +9555,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 #ifdef XC_DEEP2
 	  std::cout << "testT: ceDE=" << tmpE
 		    << " W=" << Prob
+		    << " N=" << N0
 		    << " Z=" << Q2.first
 		    << " C=" << Q2.second << std::endl;
 #endif
@@ -9585,6 +9586,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 #ifdef XC_DEEP2
 	  std::cout << "testT: ceDE=" << tmpE
 		    << " W=" << Prob
+		    << " N=" << N0
 		    << " Z=" << Q1.first
 		    << " C=" << Q1.second << std::endl;
 #endif
