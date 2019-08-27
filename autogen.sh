@@ -34,10 +34,10 @@ if test ! -x `which libtoolize`
 then echo you need libtoolize to generate the Makefile
 fi
 
-aclocal -I m4
 autoheader
-libtoolize
-automake --add-missing
+aclocal -I m4
+libtoolize --ltdl --copy --force
+automake --add-missing --copy
 automake
 autoconf
 ./configure $*
