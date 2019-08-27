@@ -3737,10 +3737,12 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
   double fac1 = 0.0, fac2 = 0.0;
 
   if (K1 != NTC::electron) 
-    fac1 = _p1->dattrib[SpList[K1]] / atomic_weights[Z1] / sumP1[id];
+    fac1 = 1.0;
+    // fac1 = _p1->dattrib[SpList[K1]] / atomic_weights[Z1] / sumP1[id];
 
   if (K2 != NTC::electron) 
-    fac2 = _p2->dattrib[SpList[K2]] / atomic_weights[Z2] / sumP2[id];
+    fac2 = 1.0;
+    // fac2 = _p2->dattrib[SpList[K2]] / atomic_weights[Z2] / sumP2[id];
 
   //-------------------------------
   // *** Both particles neutral
@@ -9327,7 +9329,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_electron, DBL_MAX));
       cid = 1;
       int pos = SpList[k1];
-      Prob = p1->dattrib[pos];
+      Prob = p1->dattrib[pos]/atomic_weights[k1.first];
     }
   
   else if (k1 == NTC::electron and
@@ -9336,7 +9338,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_ion, DBL_MAX));
       cid = 2;
       int pos = SpList[k2];
-      Prob = p2->dattrib[pos];
+      Prob = p2->dattrib[pos]/atomic_weights[k2.first];
     }
   
   else if (k1 != NTC::electron and
@@ -9346,7 +9348,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       cid = 0;
       int pos1 = SpList[k1];
       int pos2 = SpList[k2];
-      Prob = p1->dattrib[pos1] * p2->dattrib[pos2];
+      Prob =
+	p1->dattrib[pos1]/atomic_weights[k1.first] *
+	p2->dattrib[pos2]/atomic_weights[k2.first] ;
     }
 
   else if (k1 == NTC::electron and
