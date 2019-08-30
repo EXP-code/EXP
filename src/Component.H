@@ -611,15 +611,12 @@ public:
     }
     double val = tp->second->pos[j];
     if (com_system) {
-      if (flags & Centered)	// Prefer Orient center, if available
-	val -= center[j];
-      else if (flags & Local)
+      if (flags & Local)
 	val -= comI[j];
       else if (flags & Inertial) 
 	val += com0[j] - comI[j];
-    } else {
-      if (flags & Centered) val -= center[j];
     }
+    if (flags & Centered) val -= center[j];
     return val;
   }
 
@@ -629,15 +626,12 @@ public:
     std::vector<double> ret(3, 0.0);
     for (int j=0; j<3; j++) {
       if (com_system) {
-	if (flags & Centered)	// Prefer Orient center, if available
-	  ret[j] += center[j];
-	else if (flags & Local)
+	if (flags & Local)
 	  ret[j] += comI[j];
 	else if (flags & Inertial) 
 	  ret[j] -= com0[j] - comI[j];
-      } else {
-	if (flags & Centered) ret[j] += center[j];
       }
+      if (flags & Centered) ret[j] += center[j];
     }
 
     return ret;
@@ -668,15 +662,12 @@ public:
     for (int k=0; k<3; k++) {
       pos[k] = tp->second->pos[k];
       if (com_system) {
-	if (flags & Centered)	// Prefer Orient center, if available
-	  pos[k] -= center[k];
-	else if (flags & Local) 
+	if (flags & Local) 
 	  pos[k] -= comI[k];
 	else if (flags & Inertial) 
 	  pos[k] += com0[k] - comI[k];
-      } else {
-	if (flags & Centered) pos[k] -= center[k];
       }
+      if (flags & Centered) pos[k] -= center[k];
     }
   }
 
@@ -702,13 +693,10 @@ public:
     if (flags & Inertial) return;
     for (int k=0; k<3; k++) {
       if (com_system) {
-	if (flags & Centered)	// Prefer Orient center, if available
-	  pos[k] -= center[k];
-	else if (flags & Local)
+	if (flags & Local)
 	  pos[k] -= com0[k]; 
-      } else {
-	if (flags & Centered) pos[k] -= center[k];
       }
+      if (flags & Centered) pos[k] -= center[k];
     }
   }
 
