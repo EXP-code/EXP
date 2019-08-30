@@ -1180,7 +1180,7 @@ void * Collide::collide_thread(void * arg)
     // True for intensive debugging only
     //  +------------------------------|
     //  v
-    if (false) {
+    if (true) {
       
       const double cunit = 1e-14/(TreeDSMC::Lunit*TreeDSMC::Lunit);
 
