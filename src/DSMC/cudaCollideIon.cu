@@ -2508,7 +2508,9 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
   auto C2 = J2->sp.second;
   auto P2 = C2 - 1;
 
-  cuFP_t fac1 = 0.0, fac2 = 0.0;
+  cuFP_t fac1 = 1.0, fac2 = 1.0;
+
+  /*
 
   if (J1->sp != cuElectron) {
     fac1 = p1->datr[J1->I+cuSp0] / cuda_atomic_weights[Z1] / Einfo->Sum1;
@@ -2517,6 +2519,8 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
   if (J2->sp != cuElectron) {
     fac2 = p2->datr[J2->I+cuSp0] / cuda_atomic_weights[Z2] / Einfo->Sum2;
   }
+
+  */
 
   //-------------------------------
   // *** Both particles neutral
@@ -4116,8 +4120,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    }
 	  }
 	  
-	  cuFP_t w1  = p1->mass/EI.Mu1;
-	  cuFP_t w2  = p2->mass/EI.Mu2;
+	  cuFP_t w1  = p1->mass;
+	  cuFP_t w2  = p2->mass;
 	  cuFP_t W1  = w1;
 	  cuFP_t W2  = w2;
 	
