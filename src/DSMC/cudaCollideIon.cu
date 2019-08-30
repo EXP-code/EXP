@@ -4010,7 +4010,9 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	spTau._v[cid] * xcvelmax * 1e-14 / (cuLunit*cuLunit);
 
       // Number of interaction candidate pairs
-      cuFP_t nsel   = 0.5 * (nbods-1) * Prob;
+      cuFP_t nsel = Prob * (nbods-1);
+
+      if (J1.sp == J2.sp) nsel *= 0.5;
 #if cuREAL == 4
       int    npairs = ceilf(nsel);
 #else
