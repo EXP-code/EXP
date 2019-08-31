@@ -9460,7 +9460,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     
   // Energy loss
   //
-  double dE = 0.0;
+  double dE = 0.0, wEta = 0.0;
 
 
   // Following the selection logic above, do this interaction!
@@ -9751,13 +9751,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // Energy for ionized electron comes from COM
 	  //
-	  double Echg = iE2*WW/atomic_weights[Z2]*p2->mass*TreeDSMC::Munit/amu;
+	  wEta = F.eta(2)/etaP2[id] - 1.0;
+	  double Echg = iE2 * wEta;
 #ifdef XC_DEEP0
-	  printf("Ionize[2]: W=%e E=%e eV=%e sys=%e\n", WW, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
+	  printf("Ionize[2]: W=%e E=%e eV=%e sys=%e\n", wEta, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
 #endif
 
-	  dE += Echg/N0;
-	  ionExtra[1] += Echg/N0;
+	  dE += Echg;
+	  ionExtra[1] += Echg;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
@@ -9843,13 +9844,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // Energy for ionized electron comes from COM
 	  //
-	  double Echg = iE1*WW/atomic_weights[Z1]*p1->mass*TreeDSMC::Munit/amu;
+	  wEta = F.eta(1)/etaP1[id] - 1.0;
+	  double Echg = iE1 * wEta;
 #ifdef XC_DEEP0
-	  printf("Ionize[1]: W=%e E=%e eV=%e sys=%e\n", WW, iE1, Echg, Echg*eV/TreeDSMC::Eunit);
+	  printf("Ionize[1]: W=%e E=%e eV=%e sys=%e\n", wEta, iE1, Echg, Echg*eV/TreeDSMC::Eunit);
 #endif
 
-	  dE += Echg/N0;
-	  ionExtra[0] += Echg/N0;
+	  dE += Echg;
+	  ionExtra[0] += Echg;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
@@ -9941,21 +9943,21 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  
 	  // Energy for ionized electron comes from COM
 	  //
+	  wEta = 1.0 - F.eta(2)/etaP2[id];
+	  double Edel = (iE1 - iE2) * wEta;
+	  double Echg = iE2 * wEta;
 
-	  double Edel = (iE1 - iE2)*WW/atomic_weights[Z2]*p2->mass*TreeDSMC::Munit/amu;
-	  double Echg = iE2*WW/atomic_weights[Z2]*p2->mass*TreeDSMC::Munit/amu;
-
-	  dE += Edel / N0;
-	  rcbExtra[1] += Echg / N0;
+	  dE += Edel;
+	  rcbExtra[1] += Echg;
 
 #ifdef XC_DEEP0
-	  printf("Recombine[2]: W=%e E=%e eV=%e sys=%e\n", WW, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
+	  printf("Recombine[2]: W=%e E=%e eV=%e sys=%e\n", wEta, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
 #endif
 	  // Electron KE radiated in recombination
 
-	  Echg = iE1*WW/atomic_weights[Z1]*p1->mass*TreeDSMC::Munit/amu;
+	  Echg = iE1 * wEta;
 
-	  double eE = Echg / (N0*eV);
+	  double eE = Echg / eV;
 
 	  if (Recomb_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * Prob;
 	  if (energy_scale > 0.0) dE *= energy_scale;
@@ -10059,21 +10061,21 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 
 	  // Energy for ionized electron comes from COM
+	  wEta = 1.0 - F.eta(1)/etaP1[id];
+	  double Edel = (iE2 - iE1) * wEta;
+	  double Echg = iE1 * wEta;
 
-	  double Edel = (iE2 - iE1)*WW/atomic_weights[Z1]*p1->mass*TreeDSMC::Munit/amu;
-	  double Echg = iE1*WW/atomic_weights[Z1]*p1->mass*TreeDSMC::Munit/amu;
-
-	  dE += Edel / N0;
-	  rcbExtra[0] += Echg / N0;
+	  dE += Edel;
+	  rcbExtra[0] += Echg;
 
 #ifdef XC_DEEP0
 	  printf("Recombine[1]: W=%e E=%e eV=%e sys=%e\n", WW, iE1, Echg, Echg*eV/TreeDSMC::Eunit);
 #endif
 	  // Electron KE fraction in recombination
 	  //
-	  Echg = iE2*WW/atomic_weights[Z2]*p2->mass*TreeDSMC::Munit/amu;
+	  Echg = iE2 * wEta;
 	  
-	  double eE = Echg / (N0*eV);
+	  double eE = Echg / eV;
 
 	  if (Recomb_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * Prob;
 	  if (energy_scale > 0.0) dE *= energy_scale;
@@ -10301,11 +10303,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 #ifdef XC_DEEP0
   printf("totalDE=%e T=%d\n", totalDE, interFlag);
 #endif
-
-  for (int j=0; j<2; j++) {
-    ionExtra[j] *= N0 * eV / TreeDSMC::Eunit;
-    rcbExtra[j] *= N0 * eV / TreeDSMC::Eunit;
-  }
 
   if (NOCOOL) {
     // Ionization
@@ -20594,7 +20591,8 @@ CollideIon::Pord::Epair CollideIon::Pord::compE()
 }
 
 
-CollideIon::Fspc::Fspc(CollideIon* c, Particle *P1, Particle *P2) : caller(c), p1(P1), p2(P2)
+CollideIon::Fspc::Fspc(CollideIon* c, Particle *P1, Particle *P2) :
+  caller(c), p1(P1), p2(P2)
 {
   // Cache ionization fractions
   //
@@ -20755,6 +20753,37 @@ void CollideIon::Fspc::update(unsigned flag)
     }
   }
 
+}
+
+
+double CollideIon::Fspc::eta(int n)
+{
+  if (caller->use_elec<0) return 0.0;
+
+  double Eta = 0.0, Sum = 0.0, fac;
+
+  if (caller->aType == Trace) {
+    size_t C = 0;
+    for (auto s : caller->SpList) {
+      if (n==1) fac = f1[C] / atomic_weights[s.first.first];
+      else      fac = f2[C] / atomic_weights[s.first.first];
+      Eta += fac * (s.first.second - 1);
+      Sum += fac;
+      C++;
+    }
+
+  } else {
+    int Z = (n==1) ? Z1 : Z2;
+    for (unsigned short C=0; C<=Z; C++) {
+      if (n==1) fac = f1[C];
+      else      fac = f2[C];
+      Eta += fac * C;
+      Sum += fac;
+    }
+  }
+
+  if (Sum>0.0) Eta /= Sum;
+  return Eta;
 }
 
 

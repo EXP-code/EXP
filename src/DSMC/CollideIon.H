@@ -1142,6 +1142,9 @@ protected:
     //! Check normalization of ionization state vector (for debugging)
     void normTest(unsigned short n, const std::string& lab);
 
+    //! Return current charge
+    double eta(int n);
+
   };
 
   class Pord
