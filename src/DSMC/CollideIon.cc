@@ -6817,10 +6817,66 @@ double CollideIon::energyInPart(Particle *p)
   return KEi + KEe;
 }
 
+CollideIon::PrPair CollideIon::energyInPartSplit(Particle *p)
+{
+  double ee = 0.0;
+
+  if (aType == Trace) {
+    for (auto s : SpList) {
+      speciesKey k = s.first;
+      unsigned short P = k.second - 1;
+      ee += p->dattrib[s.second]*P/atomic_weights[k.first];
+    }
+
+    ee *= atomic_weights[0];
+  } else {
+    unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
+
+    for (unsigned short C=1; C<=Z; C++) ee += p->dattrib[spc_pos+C]*C;
+
+    ee *= atomic_weights[0]/atomic_weights[Z];
+  }
+
+  if (false and DBG_NewTest)
+    std::cout << "energyInPart: eta="
+	      << std::setprecision(14) << std::setw(22) << ee << std::endl;
+
+
+  double KEi = 0.0, KEe = 0.0;
+  for (size_t k =0; k<3; k++) {
+    KEi += p->vel[k] * p->vel[k];
+    if (use_elec>=0) {
+      KEe += p->dattrib[use_elec+k] * p->dattrib[use_elec+k];
+    }
+  }
+
+  if (false and DBG_NewTest)
+    std::cout << "energyInPart: vi2="
+	      << std::setprecision(14) << std::setw(22) << KEi
+	      << " ve2=" << std::setw(22) << KEe << std::endl;
+
+  KEi *= 0.5*p->mass;
+  KEe *= 0.5*p->mass*ee;
+
+  if (false and DBG_NewTest)
+    std::cout << "energyInPart: KEi="
+	      << std::setprecision(14) << std::setw(22) << KEi
+	      << " KEe=" << std::setw(22) << KEe
+	      << " KEt=" << std::setw(22) << KEi + KEe << std::endl;
+
+  return {KEi, KEe};
+}
+
 
 double CollideIon::energyInPair(Particle *p1, Particle *p2)
 {
   return energyInPart(p1) + energyInPart(p2);
+}
+
+std::array<CollideIon::PrPair, 2>
+CollideIon::energyInPairSplit(Particle *p1, Particle *p2)
+{
+  return {energyInPartSplit(p1), energyInPartSplit(p2)};
 }
 
 std::pair<double, double>
@@ -7746,7 +7802,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
       if (KE_DEBUG and not NoExact) {
 
-	double KE_final_check = energyInPair(p1, p2);
+	auto KE_final_array = energyInPairSplit(p1, p2);
+	double KE_final_check = 0.0;
+	for (auto u1 : KE_final_array)
+	  for (auto u2 : u1) KE_final_check += u2;
 
 	std::pair<double, double> KEfinal;
 	if (DBG_NewTest) 
@@ -7939,7 +7998,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       }
 
       if (KE_DEBUG and not NoExact) {
-	double KE_final_check = energyInPair(p1, p2);
+	auto KE_final_array = energyInPairSplit(p1, p2);
+	double KE_final_check = 0.0;
+	for (auto u1 : KE_final_array)
+	  for (auto u2 : u1) KE_final_check += u2;
 
 	std::pair<double, double> KEfinal;
 	if (DBG_NewTest) 
@@ -8134,7 +8196,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       }
 
       if (KE_DEBUG and not NoExact) {
-	double KE_final_check = energyInPair(p1, p2);
+	auto KE_final_array = energyInPairSplit(p1, p2);
+	double KE_final_check = 0.0;
+	for (auto u1 : KE_final_array)
+	  for (auto u2 : u1) KE_final_check += u2;
 
 	std::pair<double, double> KEfinal;
 	if (DBG_NewTest) 
@@ -8281,7 +8346,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // + Deferred energy applied to the center-of-mass interaction
   //
   if (KE_DEBUG and not NoExact) {
-    double KE_final_check = energyInPair(p1, p2);
+
+    auto KE_final_array = energyInPairSplit(p1, p2);
+
+    double KE_final_check = 0.0;
+    for (auto u1 : KE_final_array)
+      for (auto u2 : u1) KE_final_check += u2;
+
     std::array<double, 2> KE_final_econs = {0.0, 0.0};
 
     if (use_cons>=0)
@@ -9205,6 +9276,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     }
     iE1 *= 0.5 * atomic_weights[0] * TreeDSMC::Vunit*TreeDSMC::Vunit * amu / eV;
     iE2 *= 0.5 * atomic_weights[0] * TreeDSMC::Vunit*TreeDSMC::Vunit * amu / eV;
+    if (MeanMass) {
+      iE1 *= etaP1[id];
+      iE2 *= etaP2[id];
+    }
   }
 
   // Ion KE
@@ -9222,7 +9297,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   double deltaSum = 0.0, delEsum = 0.0, delEmis = 0.0, delEdfr = 0.0;
   double delEloss = 0.0, delEfnl = 0.0;
   
-  KE_initl_check = energyInPair(p1, p2);
+  auto KE_initl_array = energyInPairSplit(p1, p2);
+  for (auto u1 : KE_initl_array)
+    for (auto u2 : u1) KE_initl_check += u2;
 
   if (KE_DEBUG) {
     if (use_cons>=0)
@@ -9332,7 +9409,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_electron, DBL_MAX));
       cid = 1;
       int pos = SpList[k1];
-      Prob = p1->dattrib[pos]/atomic_weights[k1.first];
+      Prob = p1->dattrib[pos];
     }
   
   else if (k1 == NTC::electron and
@@ -9341,7 +9418,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_ion, DBL_MAX));
       cid = 2;
       int pos = SpList[k2];
-      Prob = p2->dattrib[pos]/atomic_weights[k2.first];
+      Prob = p2->dattrib[pos];
     }
   
   else if (k1 != NTC::electron and
@@ -9351,9 +9428,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       cid = 0;
       int pos1 = SpList[k1];
       int pos2 = SpList[k2];
-      Prob =
-	p1->dattrib[pos1]/atomic_weights[k1.first] *
-	p2->dattrib[pos2]/atomic_weights[k2.first] ;
+      Prob = p1->dattrib[pos1] * p2->dattrib[pos2];
     }
 
   else if (k1 == NTC::electron and
@@ -10359,7 +10434,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       
       if (KE_DEBUG) {
 
-	double KE_final_check = energyInPair(p1, p2);
+	auto KE_final_array = energyInPairSplit(p1, p2);
+	double KE_final_check = 0.0;
+	for (auto u1 : KE_final_array)
+	  for (auto u2 : u1) KE_final_check += u2;
 	
 	std::pair<double, double> KEfinal;
 	if (DBG_NewTest) 
@@ -10481,7 +10559,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       
       if (KE_DEBUG) {
 
-	double KE_final_check = energyInPair(p1, p2);
+	auto KE_final_array = energyInPairSplit(p1, p2);
+	double KE_final_check = 0.0;
+	for (auto u1 : KE_final_array)
+	  for (auto u2 : u1) KE_final_check += u2;
 
 	std::pair<double, double> KEfinal;
 	if (DBG_NewTest) 
@@ -10605,7 +10686,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
       if (KE_DEBUG) {
 
-	double KE_final_check = energyInPair(p1, p2);
+	auto KE_final_array = energyInPairSplit(p1, p2);
+	double KE_final_check = 0.0;
+	for (auto u1 : KE_final_array)
+	  for (auto u2 : u1) KE_final_check += u2;
 
 	std::pair<double, double> KEfinal;
 	if (DBG_NewTest) 
@@ -10836,7 +10920,11 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   // + Deferred energy applied to the center-of-mass interaction
   //
   if (KE_DEBUG) {
-    double KE_final_check = energyInPair(p1, p2);
+    auto KE_final_array = energyInPairSplit(p1, p2);
+    double KE_final_check = 0.0;
+    for (auto u1 : KE_final_array)
+      for (auto u2 : u1) KE_final_check += u2;
+    
     std::array<double, 2> KE_final_econs = {0.0, 0.0};
 
     if (use_cons>=0)

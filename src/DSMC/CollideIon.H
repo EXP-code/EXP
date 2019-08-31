@@ -1426,6 +1426,9 @@ protected:
   //! Hybrid algorithm support routines
   double energyInPart(Particle *);
   double energyInPair(Particle *, Particle *);
+  typedef std::array<double, 2> PrPair;
+  PrPair energyInPartSplit(Particle *);
+  std::array<PrPair, 2> energyInPairSplit(Particle *, Particle *);
   std::pair<double, double>
   energyInPairPartial(Particle *, Particle *, HybridColl,
 		      const std::string& msg="");
