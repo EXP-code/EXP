@@ -1142,6 +1142,9 @@ protected:
     //! Check normalization of ionization state vector (for debugging)
     void normTest(unsigned short n, const std::string& lab);
 
+    //! Return current charge
+    double eta(int n);
+
   };
 
   class Pord
@@ -1426,6 +1429,9 @@ protected:
   //! Hybrid algorithm support routines
   double energyInPart(Particle *);
   double energyInPair(Particle *, Particle *);
+  typedef std::array<double, 2> PrPair;
+  PrPair energyInPartSplit(Particle *);
+  std::array<PrPair, 2> energyInPairSplit(Particle *, Particle *);
   std::pair<double, double>
   energyInPairPartial(Particle *, Particle *, HybridColl,
 		      const std::string& msg="");

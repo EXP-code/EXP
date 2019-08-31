@@ -6817,10 +6817,66 @@ double CollideIon::energyInPart(Particle *p)
   return KEi + KEe;
 }
 
+CollideIon::PrPair CollideIon::energyInPartSplit(Particle *p)
+{
+  double ee = 0.0;
+
+  if (aType == Trace) {
+    for (auto s : SpList) {
+      speciesKey k = s.first;
+      unsigned short P = k.second - 1;
+      ee += p->dattrib[s.second]*P/atomic_weights[k.first];
+    }
+
+    ee *= atomic_weights[0];
+  } else {
+    unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
+
+    for (unsigned short C=1; C<=Z; C++) ee += p->dattrib[spc_pos+C]*C;
+
+    ee *= atomic_weights[0]/atomic_weights[Z];
+  }
+
+  if (false and DBG_NewTest)
+    std::cout << "energyInPart: eta="
+	      << std::setprecision(14) << std::setw(22) << ee << std::endl;
+
+
+  double KEi = 0.0, KEe = 0.0;
+  for (size_t k =0; k<3; k++) {
+    KEi += p->vel[k] * p->vel[k];
+    if (use_elec>=0) {
+      KEe += p->dattrib[use_elec+k] * p->dattrib[use_elec+k];
+    }
+  }
+
+  if (false and DBG_NewTest)
+    std::cout << "energyInPart: vi2="
+	      << std::setprecision(14) << std::setw(22) << KEi
+	      << " ve2=" << std::setw(22) << KEe << std::endl;
+
+  KEi *= 0.5*p->mass;
+  KEe *= 0.5*p->mass*ee;
+
+  if (false and DBG_NewTest)
+    std::cout << "energyInPart: KEi="
+	      << std::setprecision(14) << std::setw(22) << KEi
+	      << " KEe=" << std::setw(22) << KEe
+	      << " KEt=" << std::setw(22) << KEi + KEe << std::endl;
+
+  return {KEi, KEe};
+}
+
 
 double CollideIon::energyInPair(Particle *p1, Particle *p2)
 {
   return energyInPart(p1) + energyInPart(p2);
+}
+
+std::array<CollideIon::PrPair, 2>
+CollideIon::energyInPairSplit(Particle *p1, Particle *p2)
+{
+  return {energyInPartSplit(p1), energyInPartSplit(p2)};
 }
 
 std::pair<double, double>
@@ -7746,7 +7802,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
       if (KE_DEBUG and not NoExact) {
 
-	double KE_final_check = energyInPair(p1, p2);
+	auto KE_final_array = energyInPairSplit(p1, p2);
+	double KE_final_check = 0.0;
+	for (auto u1 : KE_final_array)
+	  for (auto u2 : u1) KE_final_check += u2;
 
 	std::pair<double, double> KEfinal;
 	if (DBG_NewTest) 
@@ -7939,7 +7998,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       }
 
       if (KE_DEBUG and not NoExact) {
-	double KE_final_check = energyInPair(p1, p2);
+	auto KE_final_array = energyInPairSplit(p1, p2);
+	double KE_final_check = 0.0;
+	for (auto u1 : KE_final_array)
+	  for (auto u2 : u1) KE_final_check += u2;
 
 	std::pair<double, double> KEfinal;
 	if (DBG_NewTest) 
@@ -8134,7 +8196,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       }
 
       if (KE_DEBUG and not NoExact) {
-	double KE_final_check = energyInPair(p1, p2);
+	auto KE_final_array = energyInPairSplit(p1, p2);
+	double KE_final_check = 0.0;
+	for (auto u1 : KE_final_array)
+	  for (auto u2 : u1) KE_final_check += u2;
 
 	std::pair<double, double> KEfinal;
 	if (DBG_NewTest) 
@@ -8281,7 +8346,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // + Deferred energy applied to the center-of-mass interaction
   //
   if (KE_DEBUG and not NoExact) {
-    double KE_final_check = energyInPair(p1, p2);
+
+    auto KE_final_array = energyInPairSplit(p1, p2);
+
+    double KE_final_check = 0.0;
+    for (auto u1 : KE_final_array)
+      for (auto u2 : u1) KE_final_check += u2;
+
     std::array<double, 2> KE_final_econs = {0.0, 0.0};
 
     if (use_cons>=0)
@@ -9205,6 +9276,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     }
     iE1 *= 0.5 * atomic_weights[0] * TreeDSMC::Vunit*TreeDSMC::Vunit * amu / eV;
     iE2 *= 0.5 * atomic_weights[0] * TreeDSMC::Vunit*TreeDSMC::Vunit * amu / eV;
+    if (MeanMass) {
+      iE1 *= etaP1[id];
+      iE2 *= etaP2[id];
+    }
   }
 
   // Ion KE
@@ -9222,7 +9297,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   double deltaSum = 0.0, delEsum = 0.0, delEmis = 0.0, delEdfr = 0.0;
   double delEloss = 0.0, delEfnl = 0.0;
   
-  KE_initl_check = energyInPair(p1, p2);
+  auto KE_initl_array = energyInPairSplit(p1, p2);
+  for (auto u1 : KE_initl_array)
+    for (auto u2 : u1) KE_initl_check += u2;
 
   if (KE_DEBUG) {
     if (use_cons>=0)
@@ -9383,7 +9460,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     
   // Energy loss
   //
-  double dE = 0.0;
+  double dE = 0.0, wEta = 0.0;
 
 
   // Following the selection logic above, do this interaction!
@@ -9674,13 +9751,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // Energy for ionized electron comes from COM
 	  //
-	  double Echg = iE2*WW/atomic_weights[Z2]*p2->mass*TreeDSMC::Munit/amu;
+	  wEta = F.eta(2)/etaP2[id] - 1.0;
+	  double Echg = iE2 * wEta;
 #ifdef XC_DEEP0
-	  printf("Ionize[2]: W=%e E=%e eV=%e sys=%e\n", WW, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
+	  printf("Ionize[2]: W=%e E=%e eV=%e sys=%e\n", wEta, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
 #endif
 
-	  dE += Echg/N0;
-	  ionExtra[1] += Echg/N0;
+	  dE += Echg;
+	  ionExtra[1] += Echg;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
@@ -9766,13 +9844,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // Energy for ionized electron comes from COM
 	  //
-	  double Echg = iE1*WW/atomic_weights[Z1]*p1->mass*TreeDSMC::Munit/amu;
+	  wEta = F.eta(1)/etaP1[id] - 1.0;
+	  double Echg = iE1 * wEta;
 #ifdef XC_DEEP0
-	  printf("Ionize[1]: W=%e E=%e eV=%e sys=%e\n", WW, iE1, Echg, Echg*eV/TreeDSMC::Eunit);
+	  printf("Ionize[1]: W=%e E=%e eV=%e sys=%e\n", wEta, iE1, Echg, Echg*eV/TreeDSMC::Eunit);
 #endif
 
-	  dE += Echg/N0;
-	  ionExtra[0] += Echg/N0;
+	  dE += Echg;
+	  ionExtra[0] += Echg;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
@@ -9864,21 +9943,21 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  
 	  // Energy for ionized electron comes from COM
 	  //
+	  wEta = 1.0 - F.eta(2)/etaP2[id];
+	  double Edel = (iE1 - iE2) * wEta;
+	  double Echg = iE2 * wEta;
 
-	  double Edel = (iE1 - iE2)*WW/atomic_weights[Z2]*p2->mass*TreeDSMC::Munit/amu;
-	  double Echg = iE2*WW/atomic_weights[Z2]*p2->mass*TreeDSMC::Munit/amu;
-
-	  dE += Edel / N0;
-	  rcbExtra[1] += Echg / N0;
+	  dE += Edel;
+	  rcbExtra[1] += Echg;
 
 #ifdef XC_DEEP0
-	  printf("Recombine[2]: W=%e E=%e eV=%e sys=%e\n", WW, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
+	  printf("Recombine[2]: W=%e E=%e eV=%e sys=%e\n", wEta, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
 #endif
 	  // Electron KE radiated in recombination
 
-	  Echg = iE1*WW/atomic_weights[Z1]*p1->mass*TreeDSMC::Munit/amu;
+	  Echg = iE1 * wEta;
 
-	  double eE = Echg / (N0*eV);
+	  double eE = Echg / eV;
 
 	  if (Recomb_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * Prob;
 	  if (energy_scale > 0.0) dE *= energy_scale;
@@ -9982,21 +10061,21 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 
 	  // Energy for ionized electron comes from COM
+	  wEta = 1.0 - F.eta(1)/etaP1[id];
+	  double Edel = (iE2 - iE1) * wEta;
+	  double Echg = iE1 * wEta;
 
-	  double Edel = (iE2 - iE1)*WW/atomic_weights[Z1]*p1->mass*TreeDSMC::Munit/amu;
-	  double Echg = iE1*WW/atomic_weights[Z1]*p1->mass*TreeDSMC::Munit/amu;
-
-	  dE += Edel / N0;
-	  rcbExtra[0] += Echg / N0;
+	  dE += Edel;
+	  rcbExtra[0] += Echg;
 
 #ifdef XC_DEEP0
 	  printf("Recombine[1]: W=%e E=%e eV=%e sys=%e\n", WW, iE1, Echg, Echg*eV/TreeDSMC::Eunit);
 #endif
 	  // Electron KE fraction in recombination
 	  //
-	  Echg = iE2*WW/atomic_weights[Z2]*p2->mass*TreeDSMC::Munit/amu;
+	  Echg = iE2 * wEta;
 	  
-	  double eE = Echg / (N0*eV);
+	  double eE = Echg / eV;
 
 	  if (Recomb_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * Prob;
 	  if (energy_scale > 0.0) dE *= energy_scale;
@@ -10225,11 +10304,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   printf("totalDE=%e T=%d\n", totalDE, interFlag);
 #endif
 
-  for (int j=0; j<2; j++) {
-    ionExtra[j] *= N0 * eV / TreeDSMC::Eunit;
-    rcbExtra[j] *= N0 * eV / TreeDSMC::Eunit;
-  }
-
   if (NOCOOL) {
     // Ionization
     // ----------
@@ -10357,7 +10431,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       
       if (KE_DEBUG) {
 
-	double KE_final_check = energyInPair(p1, p2);
+	auto KE_final_array = energyInPairSplit(p1, p2);
+	double KE_final_check = 0.0;
+	for (auto u1 : KE_final_array)
+	  for (auto u2 : u1) KE_final_check += u2;
 	
 	std::pair<double, double> KEfinal;
 	if (DBG_NewTest) 
@@ -10479,7 +10556,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       
       if (KE_DEBUG) {
 
-	double KE_final_check = energyInPair(p1, p2);
+	auto KE_final_array = energyInPairSplit(p1, p2);
+	double KE_final_check = 0.0;
+	for (auto u1 : KE_final_array)
+	  for (auto u2 : u1) KE_final_check += u2;
 
 	std::pair<double, double> KEfinal;
 	if (DBG_NewTest) 
@@ -10603,7 +10683,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
       if (KE_DEBUG) {
 
-	double KE_final_check = energyInPair(p1, p2);
+	auto KE_final_array = energyInPairSplit(p1, p2);
+	double KE_final_check = 0.0;
+	for (auto u1 : KE_final_array)
+	  for (auto u2 : u1) KE_final_check += u2;
 
 	std::pair<double, double> KEfinal;
 	if (DBG_NewTest) 
@@ -10834,7 +10917,11 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   // + Deferred energy applied to the center-of-mass interaction
   //
   if (KE_DEBUG) {
-    double KE_final_check = energyInPair(p1, p2);
+    auto KE_final_array = energyInPairSplit(p1, p2);
+    double KE_final_check = 0.0;
+    for (auto u1 : KE_final_array)
+      for (auto u2 : u1) KE_final_check += u2;
+    
     std::array<double, 2> KE_final_econs = {0.0, 0.0};
 
     if (use_cons>=0)
@@ -20504,7 +20591,8 @@ CollideIon::Pord::Epair CollideIon::Pord::compE()
 }
 
 
-CollideIon::Fspc::Fspc(CollideIon* c, Particle *P1, Particle *P2) : caller(c), p1(P1), p2(P2)
+CollideIon::Fspc::Fspc(CollideIon* c, Particle *P1, Particle *P2) :
+  caller(c), p1(P1), p2(P2)
 {
   // Cache ionization fractions
   //
@@ -20665,6 +20753,37 @@ void CollideIon::Fspc::update(unsigned flag)
     }
   }
 
+}
+
+
+double CollideIon::Fspc::eta(int n)
+{
+  if (caller->use_elec<0) return 0.0;
+
+  double Eta = 0.0, Sum = 0.0, fac;
+
+  if (caller->aType == Trace) {
+    size_t C = 0;
+    for (auto s : caller->SpList) {
+      if (n==1) fac = f1[C] / atomic_weights[s.first.first];
+      else      fac = f2[C] / atomic_weights[s.first.first];
+      Eta += fac * (s.first.second - 1);
+      Sum += fac;
+      C++;
+    }
+
+  } else {
+    int Z = (n==1) ? Z1 : Z2;
+    for (unsigned short C=0; C<=Z; C++) {
+      if (n==1) fac = f1[C];
+      else      fac = f2[C];
+      Eta += fac * C;
+      Sum += fac;
+    }
+  }
+
+  if (Sum>0.0) Eta /= Sum;
+  return Eta;
 }
 
 

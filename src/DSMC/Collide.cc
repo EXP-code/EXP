@@ -1202,10 +1202,10 @@ void * Collide::collide_thread(void * arg)
       double totalNsel = 0.0;
       for (auto v : nselM.v) {
 	std::ostringstream sout1;
-	sout1 << "[(" << std::get<1>(v.first).first
-	      << ", " << std::get<1>(v.first).second
-	      << ")(" << std::get<2>(v.first).first
-	      << ", " << std::get<2>(v.first).second
+	sout1 << "[(" << (short)std::get<1>(v.first).first
+	      << ", " << (short)std::get<1>(v.first).second
+	      << ")(" << (short)std::get<2>(v.first).first
+	      << ", " << (short)std::get<2>(v.first).second
 	      << ")]";
 
 	std::cout << std::left << std::setw(20) << sout1.str()
