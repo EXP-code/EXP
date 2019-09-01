@@ -10465,6 +10465,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		    << ", pasR = " << pasR
 		    << ", actA = " << KEdif.first
 		    << ", pasA = " << KEdif.second
+		    << ", type = " << labels[interFlag]
 		    << std::endl;
 	} else {
 	  if (DBG_NewTest)
@@ -10475,6 +10476,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		      << ", pasR = " << pasR
 		      << ", actA = " << KEdif.first
 		      << ", pasA = " << KEdif.second
+		      << ", type = " << labels[interFlag]
 		      << std::endl;
 	}
 	
@@ -10591,6 +10593,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		    << ", pasR = " << pasR
 		    << ", actA = " << KEdif.first
 		    << ", pasA = " << KEdif.second
+		    << ", type = " << labels[interFlag]
 		    << std::endl;
 	} else {
 	  if (DBG_NewTest)
@@ -10601,6 +10604,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		      << ", pasR = " << pasR
 		      << ", actA = " << KEdif.first
 		      << ", pasA = " << KEdif.second
+		      << ", type = " << labels[interFlag]
 		      << std::endl;
 	}
       } // END: KE debug
@@ -10718,6 +10722,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		    << ", pasR = " << pasR
 		    << ", actA = " << KEdif.first
 		    << ", pasA = " << KEdif.second
+		    << ", type = " << labels[interFlag]
 		    << std::endl;
 	} else {
 	  if (DBG_NewTest)
@@ -10728,6 +10733,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		      << ", pasR = " << pasR
 		      << ", actA = " << KEdif.first
 		      << ", pasA = " << KEdif.second
+		      << ", type = " << labels[interFlag]
 		      << std::endl;
 	}
 
@@ -10965,6 +10971,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		<< ", defr = " << delEdfr
 		<< ", clrE = " << clrE[id]
 		<< ", q = "    << PP->q
+		<< ", type = " << labels[interFlag]
 		<< std::endl;
     } else {
       if (DBG_NewTest)
@@ -10986,6 +10993,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		  << ", defr = " << delEdfr
 		  << ", clrE = " << clrE[id]
 		  << ", Jsav = " << Jsav
+		  << ", type = " << labels[interFlag]
 		  << std::endl;
     }    
   }
