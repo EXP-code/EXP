@@ -9310,11 +9310,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
   // Proportional to number of true particles in each superparticle
   //
-  // double W1 = p1->mass/molP1[id];
-  // double W2 = p2->mass/molP2[id];
-
-  double W1 = p1->mass;
-  double W2 = p2->mass;
+  double W1 = p1->mass/molP1[id];
+  double W2 = p2->mass/molP2[id];
 
   // For redistributing ionization and recombination redistribution excesses
   //
