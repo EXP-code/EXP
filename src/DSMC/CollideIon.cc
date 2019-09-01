@@ -8370,8 +8370,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     double delE2   = KEinitl - KEfinal - deltaSum - dConSum - delEsum - PPsav1 - PPsav2 - EconsUpI - EconsUpE;
     double delE3   = KEinitl - KEfinal - dConSum - PE[1] - delEfnl;
 
-    if (fabs(delE3) > tolE*KE_initl_check) {
-      std::cout << "**ERROR inelasticHybrid dE = " << delE1 << ", " << delE2
+    double delE0   = std::min({fabs(delE1), fabs(delE2), fabs(delE3)});
+
+    if (delE0 > tolE*KE_initl_check) {
+      std::cout << "**ERROR inelasticHybrid dE = "
+	        << delE1 << ", " << delE2 << ", " << delE3
 		<< ", rel1 = " << delE1/KE_initl_check
 		<< ", rel2 = " << delE2/KE_initl_check
 		<< ", rel3 = " << delE3/KE_initl_check
@@ -8392,9 +8395,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 		<< std::endl;
     } else {
       if (DBG_NewTest)
-	std::cout << "**GOOD inelasticHybrid dE = " << delE1 << ", " << delE2
+	std::cout << "**GOOD inelasticHybrid dE = " << delE1 << ", " << delE2 << ", " << delE3
 		  << ", rel1 = " << delE1/KE_initl_check
 		  << ", rel2 = " << delE2/KE_initl_check
+		  << ", rel3 = " << delE3/KE_initl_check
 		  << ",  dKE = " << KEinitl - KEfinal
 		  << ", dCn1 = " << dCons[0]
 		  << ", dCn2 = " << dCons[1]
@@ -10944,13 +10948,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
     // For temporary test comparison with cuda version
     //
-    double delE0 = delE2;
-    if (NOCOOL) delE0 = KEinitl - KEfinal - dConSum;
+    double delE0 = std::min({fabs(delE1), fabs(delE2), fabs(delE3)});
+    if (NOCOOL) delE0 = fabs(KEinitl - KEfinal - dConSum);
 
-    if (fabs(delE0) > tolE*KE_initl_check) {
-      std::cout << "**ERROR inelasticTrace dE = " << delE0
+    if (delE0 > tolE*KE_initl_check) {
+      std::cout << "**ERROR inelasticTrace dE = "
 		<< ", " << delE1
 		<< ", " << delE2
+		<< ", " << delE3
 		<< ", rel1 = " << delE1/KE_initl_check
 		<< ", rel2 = " << delE2/KE_initl_check
 		<< ", rel3 = " << delE3/KE_initl_check
@@ -10972,7 +10977,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		<< std::endl;
     } else {
       if (DBG_NewTest)
-	std::cout << "**GOOD inelasticTrace dE = " << delE1 << ", " << delE2
+	std::cout << "**GOOD inelasticTrace dE = "
+	          << delE1 << ", " << delE2 << ", " << delE3
 		  << ", rel1 = " << delE1/KE_initl_check
 		  << ", rel2 = " << delE2/KE_initl_check
 		  << ",  dKE = " << KEinitl - KEfinal
