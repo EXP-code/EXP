@@ -2093,7 +2093,7 @@ void CollideIon::cuda_atomic_weights_init()
   cuda_safe_call(cudaMemcpyToSymbol(cuRecombIP, &Recomb_IP, sizeof(bool)), 
 		 __FILE__, __LINE__, "Error copying cuRecombIP");
 
-  cuFP_t minMass = 1.0e-2;
+  cuFP_t minMass = 1.0e-12;
 
   cuda_safe_call(cudaMemcpyToSymbol(cuMinMass, &minMass, sizeof(cuFP_t)), 
 		 __FILE__, __LINE__, "Error copying cuMinMass");
@@ -2454,6 +2454,11 @@ void setupCrossSection(dArray<cudaParticle>   in,      // Particle array
     Einfo->iE1   = eKE1 * kfac;
     Einfo->iE2   = eKE2 * kfac;
 
+    if (cuMeanMass) {
+      Einfo->iE1 *= Eta1;
+      Einfo->iE2 *= Eta2;
+    }
+
 #ifdef XC_DEEP13
     printf("ETEST: eVel1=%e eVel2=%e ke1=%e ke2=%e\n", eVel1, eVel2, kEe1, kEe2);
 #endif
@@ -2489,11 +2494,6 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
   // 2^16-1 is max ushort---------+-------+
   // as defined in NTC.H
 
-  // Pointer to particle structure for convenience
-  //
-  cudaParticle* p1 = &in._v[I1];
-  cudaParticle* p2 = &in._v[I2];
-	
   // Zero return energy by default
   //
   *delph = 0.0;
@@ -2508,20 +2508,6 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
   auto C2 = J2->sp.second;
   auto P2 = C2 - 1;
 
-  cuFP_t fac1 = 1.0, fac2 = 1.0;
-
-  /*
-
-  if (J1->sp != cuElectron) {
-    fac1 = p1->datr[J1->I+cuSp0] / cuda_atomic_weights[Z1] / Einfo->Sum1;
-  }
-
-  if (J2->sp != cuElectron) {
-    fac2 = p2->datr[J2->I+cuSp0] / cuda_atomic_weights[Z2] / Einfo->Sum2;
-  }
-
-  */
-
   //-------------------------------
   // *** Both particles neutral
   //-------------------------------
@@ -2530,7 +2516,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
     // Geometric cross sections based on atomic radius
     //
     double rad = cudaGeometric(Z1) + cudaGeometric(Z2);
-    cuFP_t crs = M_PI*rad*rad * fac1 * fac2 * cuCrossfac;
+    cuFP_t crs = M_PI*rad*rad * cuCrossfac;
 	      
     if (crs>0.0) {
 #ifdef XC_DEEP1
@@ -2560,7 +2546,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	
       // Particle 1 is neutral hydrogen
       if (Z1==1 and P1==0) {
-	crs = cudaElasticInterp(Einfo->kEi, xsc_pH, 1, proton) * cuCrossfac * fac1 * fac2;
+	crs = cudaElasticInterp(Einfo->kEi, xsc_pH, 1, proton) * cuCrossfac;
 #ifdef XC_DEEP12
 	printf("H TEST: xnn=%e cv=%e\n", crs, crs*Einfo->vel);
 #endif
@@ -2568,7 +2554,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
       
       // Particle 1 is neutral helium
       if (Z1==2 and P1==0) {
-	crs = cudaElasticInterp(Einfo->kEi, xsc_pHe, 2, proton) * cuCrossfac * fac1 * fac2;
+	crs = cudaElasticInterp(Einfo->kEi, xsc_pHe, 2, proton) * cuCrossfac;
 #ifdef XC_DEEP12
 	printf("He TEST: xnn=%e cv=%e\n", crs, crs*Einfo->vel);
 #endif
@@ -2590,11 +2576,11 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	
       // Particle 2 is neutral hydrogen
       if (Z2==1 and P2==0)
-	crs = cudaElasticInterp(Einfo->kEi, xsc_pH, 1, proton) * cuCrossfac * fac1 * fac2;
+	crs = cudaElasticInterp(Einfo->kEi, xsc_pH, 1, proton) * cuCrossfac;
 
       // Particle 2 is neutral helium
       if (Z2==2 and P2==0)
-	crs = cudaElasticInterp(Einfo->kEi, xsc_pHe, 2, proton) * cuCrossfac * fac1 * fac2;
+	crs = cudaElasticInterp(Einfo->kEi, xsc_pHe, 2, proton) * cuCrossfac;
 
       if (crs>0.0) {
 #ifdef XC_DEEP1
@@ -2625,20 +2611,20 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
       // Hydrogen
       //
       if (Z1==1)
-	crs = cudaElasticInterp(Einfo->kEe1, xsc_H,  1, electron) * Einfo->eVel2 * Einfo->Eta2 * cuCrossfac * fac1;
+	crs = cudaElasticInterp(Einfo->kEe1, xsc_H,  1, electron) * Einfo->eVel2 * Einfo->Eta2 * cuCrossfac;
       
       // Helium
       //
       if (Z1==2)
-	crs = cudaElasticInterp(Einfo->kEe1, xsc_He, 2, electron) * Einfo->eVel2 * Einfo->Eta2 * cuCrossfac * fac1;
+	crs = cudaElasticInterp(Einfo->kEe1, xsc_He, 2, electron) * Einfo->eVel2 * Einfo->Eta2 * cuCrossfac;
       
       if (crs>0.0) {
 #ifdef XC_DEEP1
 	printf("xsc: xne=%e cv=%e\n", crs, crs*Einfo->vel);
 #endif
 #ifdef XC_DEEP4
-	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xne=%e fac=%e\n",
-	       Einfo->kEe1, Z1, C1, Einfo->eVel2, Einfo->Eta2, crs, fac1);
+	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xne=%e\n",
+	       Einfo->kEe1, Z1, C1, Einfo->eVel2, Einfo->Eta2, crs);
 #endif
       }
     }
@@ -2651,20 +2637,20 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
       // Hydrogen
       //
       if (Z2==1)
-	crs = cudaElasticInterp(Einfo->kEe2, xsc_H, 1, electron) * Einfo->eVel1 * Einfo->Eta1 * cuCrossfac * fac2;
+	crs = cudaElasticInterp(Einfo->kEe2, xsc_H, 1, electron) * Einfo->eVel1 * Einfo->Eta1 * cuCrossfac;
       
       // Helium
       //
       if (Z2==2)
-	crs = cudaElasticInterp(Einfo->kEe2, xsc_He, 2, electron) * Einfo->eVel1 * Einfo->Eta1 * cuCrossfac * fac2;
+	crs = cudaElasticInterp(Einfo->kEe2, xsc_He, 2, electron) * Einfo->eVel1 * Einfo->Eta1 * cuCrossfac;
 	    
       if (crs>0.0) {
 #ifdef XC_DEEP1
 	printf("xsc: xne=%e cv=%e\n", crs, crs*Einfo->vel);
 #endif
 #ifdef XC_DEEP4
-	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xne=%e fac=%e\n",
-	       Einfo->kEe2, Z2, C2, Einfo->eVel1, Einfo->Eta1, crs, fac2);
+	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xne=%e\n",
+	       Einfo->kEe2, Z2, C2, Einfo->eVel1, Einfo->Eta1, crs);
 #endif
       }
     }
@@ -2692,7 +2678,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 #endif
       computeFreeFree(ke, rn, ph, ff, elems, J1->k);
 	    
-      crs  = Einfo->eVel2 * Einfo->Eta2 * ff * fac1;
+      crs  = Einfo->eVel2 * Einfo->Eta2 * ff;
 	    
       if (crs>0.0) {
 	*delph = ph;
@@ -2701,8 +2687,8 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	printf("xsc: xf=%e cv=%e\n", crs, crs*Einfo->vel);
 #endif
 #ifdef XC_DEEP4
-	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xf=%e fac=%e dE=%e i=%d\n",
-	       Einfo->kEe1, Z1, C1, Einfo->eVel2, Einfo->Eta2, ff, fac1, ph, p1->indx);
+	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xf=%e dE=%e i=%d\n",
+	       Einfo->kEe1, Z1, C1, Einfo->eVel2, Einfo->Eta2, ff, ph, p1->indx);
 #endif
       }
     }
@@ -2720,7 +2706,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
       cuFP_t ff, ph;
       computeFreeFree(ke, rn, ph, ff, elems, J2->k);
 	    
-      crs = Einfo->eVel1 * Einfo->Eta1 * ff * fac2;
+      crs = Einfo->eVel1 * Einfo->Eta1 * ff;
 	    
       if (crs>0.0) {
 	*delph = ph;
@@ -2728,8 +2714,8 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	printf("xsc: xf=%e cv=%e\n", crs, crs*Einfo->vel);
 #endif
 #ifdef XC_DEEP4
-	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xf=%e fac=%e dE=%e i=%d\n",
-	       Einfo->kEe2, Z1, C2, Einfo->eVel1, Einfo->Eta1, ff, fac2, ph, p2->indx);
+	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xf=%e dE=%e i=%d\n",
+	       Einfo->kEe2, Z1, C2, Einfo->eVel1, Einfo->Eta1, ff, ph, p2->indx);
 #endif
       }
     }
@@ -2758,7 +2744,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 
       computeColExcite(ke, ph, xc, elems, J1->k);
 	    
-      crs = Einfo->eVel2 * Einfo->Eta2 * xc * fac1;
+      crs = Einfo->eVel2 * Einfo->Eta2 * xc;
 	    
       if (crs > 0.0) {
 	*delph = ph;
@@ -2766,8 +2752,8 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	printf("xsc: xc=%e cv=%e\n", crs, crs*Einfo->vel);
 #endif
 #ifdef XC_DEEP4
-	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xc=%e dE=%e fac=%e\n",
-	       ke, J1->Z, J1->C, Einfo->eVel2, Einfo->Eta2, xc, ph, fac1);
+	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xc=%e dE=%e\n",
+	       ke, J1->Z, J1->C, Einfo->eVel2, Einfo->Eta2, xc, ph);
 #endif
       }
     }
@@ -2786,7 +2772,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 
       computeColExcite(ke, ph, xc, elems, J2->k);
 	    
-      crs = Einfo->eVel1 * Einfo->Eta1 * xc * fac2;
+      crs = Einfo->eVel1 * Einfo->Eta1 * xc;
 	    
       if (crs > 0.0) {
 	*delph = ph;
@@ -2794,8 +2780,8 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	printf("xsc: xc=%e cv=%e\n", crs, crs*Einfo->vel);
 #endif
 #ifdef XC_DEEP4
-	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xc=%e dE=%e fac=%e\n",
-	       ke, Z2, C2, Einfo->eVel2, Einfo->Eta2, xc, ph, fac2);
+	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xc=%e dE=%e\n",
+	       ke, Z2, C2, Einfo->eVel2, Einfo->Eta2, xc, ph);
 #endif
       }
     }
@@ -2825,7 +2811,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 
       computeColIonize(ke, xc, elems, J1->k);
 	    
-      crs = Einfo->eVel2 * Einfo->Eta2 * xc * fac1;
+      crs = Einfo->eVel2 * Einfo->Eta2 * xc;
       
       if (crs > 0.0) {
 	*delph = elems._v[J1->k].IPval;
@@ -2833,8 +2819,8 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	printf("xsc: [ie] io=%e cv=%e\n", crs, crs*Einfo->vel);
 #endif
 #ifdef XC_DEEP4
-	printf("xsc: [ie] kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e io=%e dE=%e fac=%e\n",
-	       Einfo->kEe1, J1->Z, J1->C, Einfo->eVel2, Einfo->Eta2, xc, 0.0, fac1);
+	printf("xsc: [ie] kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e io=%e dE=%e\n",
+	       Einfo->kEe1, J1->Z, J1->C, Einfo->eVel2, Einfo->Eta2, xc, 0.0);
 #endif
       }
     }
@@ -2851,7 +2837,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
       cuFP_t ke = Einfo->kEe2 > cuFloorEV ? Einfo->kEe2 : cuFloorEV, xc;
       computeColIonize(ke, xc, elems, J2->k);
 	    
-      crs = Einfo->eVel1 * Einfo->Eta1 * xc * fac2;
+      crs = Einfo->eVel1 * Einfo->Eta1 * xc;
       
       if (crs > 0.0) {
 	*delph = elems._v[J2->k].IPval;
@@ -2859,8 +2845,8 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	printf("xsc: [ei] io=%e cv=%e\n", crs, crs*Einfo->vel);
 #endif
 #ifdef XC_DEEP4
-	printf("xsc: [ei] kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e io=%e dE=%e fac=%e\n",
-	       Einfo->kEe2, Z2, C2, Einfo->eVel1, Einfo->Eta1, xc, 0.0, fac2);
+	printf("xsc: [ei] kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e io=%e dE=%e\n",
+	       Einfo->kEe2, Z2, C2, Einfo->eVel1, Einfo->Eta1, xc, 0.0);
 #endif
       }
     }
@@ -2893,7 +2879,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	cuFP_t ke = Einfo->kEe1 > cuFloorEV ? Einfo->kEe1 : cuFloorEV, xc;
 	computeRadRecomb(ke, xc, elems, J1->k);
 	  
-	crs = Einfo->sVel1 * Einfo->Eta1 * xc * fac1;
+	crs = Einfo->sVel1 * Einfo->Eta1 * xc;
       }
 	    
       // Particle 2 is ION, Particle 1 has ELECTRON
@@ -2908,7 +2894,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	cuFP_t ke = Einfo->kEe2 > cuFloorEV ? Einfo->kEe2 : cuFloorEV, xc;
 	computeRadRecomb(ke, xc, elems, J2->k);
 	
-	crs = Einfo->sVel2 * Einfo->Eta2 * xc * fac2;
+	crs = Einfo->sVel2 * Einfo->Eta2 * xc;
       }
 
     }
@@ -2926,15 +2912,15 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	cuFP_t ke = Einfo->kEe1 > cuFloorEV ? Einfo->kEe1 : cuFloorEV, xc;
 	computeRadRecomb(ke, xc, elems, J1->k);
 	      
-	crs = Einfo->eVel2 * Einfo->Eta2 * xc * fac1;
+	crs = Einfo->eVel2 * Einfo->Eta2 * xc;
 
 	if (crs > 0.0) {
 #ifdef XC_DEEP1
 	  printf("xsc: [ie] rc=%e cv=%e eta1=%e eta2=%e\n", crs, crs*Einfo->vel, Einfo->Eta1, Einfo->Eta2);
 #endif
 #ifdef XC_DEEP4
-	  printf("xsc: [ie] kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e rc=%e dE=%e fac=%e\n",
-		 Einfo->kEe1, Z1, C1, Einfo->eVel2, Einfo->Eta2, xc, 0.0, fac1);
+	  printf("xsc: [ie] kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e rc=%e dE=%e\n",
+		 Einfo->kEe1, Z1, C1, Einfo->eVel2, Einfo->Eta2, xc, 0.0);
 #endif
 	}
       }
@@ -2951,15 +2937,15 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	cuFP_t ke = Einfo->kEe2 > cuFloorEV ? Einfo->kEe2 : cuFloorEV, xc;
 	computeRadRecomb(ke, xc, elems, J2->k);
 	      
-	crs = Einfo->eVel1 * Einfo->Eta1 * xc * fac2;
+	crs = Einfo->eVel1 * Einfo->Eta1 * xc;
 	      
 	if (crs > 0.0) {
 #ifdef XC_DEEP1
 	  printf("xsc: [ei] rc=%e cv=%e eta1=%e eta2=%e\n", crs, crs*Einfo->vel, Einfo->Eta1, Einfo->Eta2);
 #endif
 #ifdef XC_DEEP4
-	  printf("xsc: [ei] kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e rc=%e dE=%e fac=%e\n",
-		 Einfo->kEe2, Z2, C2, Einfo->eVel1, Einfo->Eta1, xc, 0.0, fac2);
+	  printf("xsc: [ei] kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e rc=%e dE=%e\n",
+		 Einfo->kEe2, Z2, C2, Einfo->eVel1, Einfo->Eta1, xc, 0.0);
 #endif
 	}
       }
@@ -3229,10 +3215,8 @@ void cudaScatterTrace
     if (m1<1.0) m1 *= eta1;
     if (m2<1.0) m2 *= eta2;
 
-    cuFP_t minMass = cuda_atomic_weights[0] * cuMinMass;
-
-    if (m1<minMass) m1 = minMass;
-    if (m2<minMass) m2 = minMass;
+    if (m1<cuMinMass) m1 = cuMinMass;
+    if (m2<cuMinMass) m2 = cuMinMass;
 
 #ifdef XC_DEEP3
     // KE debug check
@@ -3692,10 +3676,8 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
       double Q1 = Eta1;
       double Q2 = Eta2;
 	
-      cuFP_t minMass = cuda_atomic_weights[0]*cuMinMass;
-
-      if (m1 < minMass) m1 = minMass;
-      if (m2 < minMass) m2 = minMass;
+      if (m1 < cuMinMass) m1 = cuMinMass;
+      if (m2 < cuMinMass) m2 = cuMinMass;
 
       m1 *= amu;
       m2 *= amu;
@@ -3828,6 +3810,36 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
 
 } // END: computeCoulombicScatter
 
+
+__device__
+void computeEta(cuFP_t*                F,
+		cuFP_t*                Eta,
+		const
+		dArray<cuIonElement>   elems
+		)
+{
+  int    Nsp = elems._s;
+  cuFP_t Sum = 0.0;
+  *Eta = 0.0;
+
+  for (int k=0; k<Nsp; k++) {
+
+    cuIonElement* E = &elems._v[k];
+	  
+    // Number fraction of ions
+    //
+    cuFP_t fac = F[E->I] / cuda_atomic_weights[E->Z];
+	  
+    // Electron number fraction
+    //
+    *Eta += fac * (E->C - 1);
+    Sum  += fac;
+  }
+
+  // The number of electrons per particle
+  //
+  *Eta /= Sum;
+}
 
 // Compute particle interactions for each cell given the computed
 // cross sections
@@ -4122,8 +4134,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    }
 	  }
 	  
-	  cuFP_t w1  = p1->mass;
-	  cuFP_t w2  = p2->mass;
+	  cuFP_t w1  = p1->mass/EI.Mu1;
+	  cuFP_t w2  = p2->mass/EI.Mu2;
 	  cuFP_t W1  = w1;
 	  cuFP_t W2  = w2;
 	
@@ -4332,15 +4344,19 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      // The kinetic energy of the ionized electron is lost
 	      // from the COM KE
 	      //
-	      cuFP_t Echg1 = EI.iE1 * WW / cuda_atomic_weights[Z1] * p1->mass * GG;
+	      cuFP_t wEta;
+	      computeEta(&F1._v[fP], &wEta, elems);
+	      wEta = wEta/EI.Eta1 - 1.0;
+
+	      cuFP_t Echg = EI.iE1 * wEta;
 #ifdef XC_DEEP0
-	      printf("Ionize[1]: W=%e E=%e (%e) eV=%e sys=%e\n", WW, EI.iE1, EI.iE2, Echg1, Echg1*eV/cuEunit);
+	      printf("Ionize[1]: W=%e E=%e (%e) eV=%e sys=%e\n", wEta, EI.iE1, EI.iE2, Echg);
 #endif
-	      elecAdj[0] += Echg1;
+	      elecAdj[0] += Echg;
 	      
 	      // Energy for ionized electron comes from COM
 	      //
-	      dE += Echg1 / N0;
+	      dE += Echg;
 	      
 	      // Sanity
 #ifdef SANITY_DEBUG
@@ -4396,15 +4412,19 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      // The kinetic energy of the ionized electron is lost
 	      // from the COM KE
 	      //
-	      cuFP_t Echg2 = EI.iE2 * WW / cuda_atomic_weights[Z2] * p2->mass * GG;
+	      cuFP_t wEta;
+	      computeEta(&F2._v[fP], &wEta, elems);
+	      wEta = wEta/EI.Eta2 - 1.0;
+
+	      cuFP_t Echg = EI.iE2 * wEta;
 #ifdef XC_DEEP0
-	      printf("Ionize[2]: W=%e E=%e (%e) eV=%e sys=%e\n", WW, EI.iE2, EI.iE1, Echg2, Echg2*eV/cuEunit);
+	      printf("Ionize[2]: W=%e E=%e (%e) eV=%e\n", wEta, EI.iE2, EI.iE1, Echg);
 #endif
-	      elecAdj[0] += Echg2;
+	      elecAdj[0] += Echg;
 	      
 	      // Energy for ionized electron comes from COM
 	      //
-	      dE += Echg2 / N0;
+	      dE += Echg;
 	      
 	      // Sanity
 #ifdef SANITY_DEBUG
@@ -4470,21 +4490,19 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      
 	      // Electron KE lost in recombination is radiated
 	      //
-	      cuFP_t Edel  = (EI.iE2 - EI.iE1) * WW / cuda_atomic_weights[Z1] * p1->mass * GG;
-	      cuFP_t Echg1 = EI.iE1 * WW / cuda_atomic_weights[Z1] * p1->mass * GG;
-	      /*
-		cuFP_t Echg2 = EI.iE2 * WW / cuda_atomic_weights[Z2] * p2->mass * GG;
-	      */
+	      cuFP_t wEta;
+	      computeEta(&F1._v[fP], &wEta, elems);
+	      wEta = 1.0 - wEta/EI.Eta1;
+
+	      cuFP_t Edel = (EI.iE2 - EI.iE1) * wEta;
+	      cuFP_t Echg = EI.iE1 * wEta;
 	      
 #ifdef XC_DEEP0
-	      printf("Recombine[1]: W=%e E=%e eV=%e sys=%e\n", WW, EI.iE1, Echg1, Echg1*eV/cuEunit);
+	      printf("Recombine[1]: W=%e E=%e eV=%e\n", wEta, EI.iE1, Echg);
 #endif
-	      // cuFP_t Echg2 = EI.iE2 * WW / cuda_atomic_weights[Z1];
-	      // Echg1 is lost from the electron pool by algorithm
-	      //
 	      
-	      dE += Edel / N0;
-	      elecAdj[1] += Echg1;
+	      dE += Edel;
+	      elecAdj[1] += Echg;
 	      
 	      // KE Echg2 + IP is radiated.  Echg2 is lost from the COM
 	      // but Echg1 is used as a proxy to conserve internal energy
@@ -4538,19 +4556,20 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      
 	      // Electron KE lost in recombination is radiated
 	      //
-	      cuFP_t Edel  = (EI.iE1 - EI.iE2) * WW / cuda_atomic_weights[Z2] * p2->mass * GG;
-	      /*
-		cuFP_t Echg1 = EI.iE1 * WW / cuda_atomic_weights[Z1] * p1->mass * GG;
-	      */
-	      cuFP_t Echg2 = EI.iE2 * WW / cuda_atomic_weights[Z2] * p2->mass * GG;
+	      cuFP_t wEta;
+	      computeEta(&F2._v[fP], &wEta, elems);
+	      wEta = 1.0 - wEta/EI.Eta2;
+
+	      cuFP_t Edel = (EI.iE1 - EI.iE2) * wEta;
+	      cuFP_t Echg = EI.iE2 * wEta;
 	      
 	      // Echg2 is lost from the electron pool by the algorithm
 	      //
-	      dE += Edel / N0;
-	      elecAdj[1] += Echg2;
+	      dE += Edel;
+	      elecAdj[1] += Echg;
 	      
 #ifdef XC_DEEP0
-	      printf("Recombine[2]: W=%e E=%e ke=%e eV=%e sys=%e\n", WW, EI.iE2, Echg2, Echg2*eV/cuEunit);
+	      printf("Recombine[2]: W=%e E=%e ke=%e eV=%e sys=%e\n", wEta, EI.iE2, Echg);
 #endif
 	      // Echg1 + IP is radiated.  Echg1 is lost from the COM but
 	      // Echg2 is used as a proxy to conserve internal energy
@@ -4586,7 +4605,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  cuFP_t totalDE = 0.0;
 	  if (cuNoCool) {
 	    PE = 0.0;
-	    totalDE = (elecAdj[0] - elecAdj[1]) * eV / cuEunit;
+	    totalDE = (elecAdj[0] - elecAdj[1]) * N0 * eV / cuEunit;
 	  } else {
 	    totalDE += PE;
 	  }
@@ -5049,11 +5068,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    tKEe_f1 = 0.5*p1->mass*ke1e*EI.Eta1*cuda_atomic_weights[0]/EI.Mu1;
 	    tKEe_f2 = 0.5*p2->mass*ke2e*EI.Eta2*cuda_atomic_weights[0]/EI.Mu2;
 	    
-	    cuFP_t kfac =  0.5 * cuda_atomic_weights[0] *
-	      cuVunit*cuVunit*amu/eV;
+	    cuFP_t kfac =  0.5 * cuda_atomic_weights[0] * cuVunit*cuVunit*amu/eV;
 	    
-	    iE1_f = ke1e * kfac;
-	    iE2_f = ke2e * kfac;
+	    iE1_f = ke1e * kfac * EI.Eta1;
+	    iE2_f = ke2e * kfac * EI.Eta2;
 	    
 	    if (cuCons>=0)
 	      tEC_f += p1->datr[cuCons] + p2->datr[cuCons];
@@ -5064,24 +5082,28 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  cuFP_t Etoti = tKEi_i1 + tKEi_i2 + tKEe_i1 + tKEe_i2;
 	  cuFP_t Etotf = tKEi_f1 + tKEi_f2 + tKEe_f1 + tKEe_f2;
 	  cuFP_t delC  = tEC_i - tEC_f;
-	  cuFP_t tally = Etoti - Etotf- delC;
+	  cuFP_t tally = Etoti - Etotf - delC;
 	  
-	  if (not cuNoCool) tally -= totalDE + (elecAdj[1] - elecAdj[0]) * eV / cuEunit;
+	  if (not cuNoCool) tally -= totalDE + (elecAdj[1] - elecAdj[0]) * N0 * eV / cuEunit;
 	  
 	  if (fabs(tally) > 1.0e-10*Etoti) {
-	    printf("**ERROR [%d] dE=%e dE/E=%e ke_i=[i:(%e, %e) e:(%e, %e)] ke_f=[i:(%e, %e) e:(%e, %e)] kEe=[%e, %e] eta_i=[%e, %e] eta_f=[%e, %e] cons=[%e, %e] P=%e del=%e type=%s\n",
+	    printf("**ERROR [%d] dE=%e dE/E=%e ke_i=[i:(%e, %e) e:(%e, %e)] ke_f=[i:(%e, %e) e:(%e, %e)] kEe=[%e, %e] eta_i=[%e, %e] eta_f=[%e, %e] cons=[%e, %e] P=%e del=%e Adj=%e type=%s\n",
 		   cid, tally, tally/Etoti,
 		   tKEi_i1, tKEi_i2, tKEe_i1, tKEe_i2,
 		   tKEi_f1, tKEi_f2, tKEe_f1, tKEe_f2,
 		   iE1_f, iE2_f, Eta10, Eta20, EI.Eta1, EI.Eta2,
-		   tEC_i, tEC_f, Prob, totalDE, cudaInterNames[T]);
+		   tEC_i, tEC_f, Prob, totalDE,
+		   (elecAdj[0] - elecAdj[1]) * N0 * eV / cuEunit,
+		   cudaInterNames[T]);
 	  } else if (T==col_ionize or T==recombine) {
-	    printf("**OK [%d] dE=%e dE/E=%e ke_i=[i:(%e, %e) e:(%e, %e)] ke_f=[i:(%e, %e) e:(%e, %e)] kEe=[%e, %e] eta_i=[%e, %e] eta_f=[%e, %e] cons=[%e, %e] P=%e del=%e type=%s\n",
+	    printf("**OK [%d] dE=%e dE/E=%e ke_i=[i:(%e, %e) e:(%e, %e)] ke_f=[i:(%e, %e) e:(%e, %e)] kEe=[%e, %e] eta_i=[%e, %e] eta_f=[%e, %e] cons=[%e, %e] P=%e del=%e Adj=%e type=%s\n",
 		   cid, tally, tally/Etoti,
 		   tKEi_i1, tKEi_i2, tKEe_i1, tKEe_i2,
 		   tKEi_f1, tKEi_f2, tKEe_f1, tKEe_f2,
 		   iE1_f, iE2_f, Eta10, Eta20, EI.Eta1, EI.Eta2,
-		   tEC_i, tEC_f, Prob, totalDE, cudaInterNames[T]);
+		   tEC_i, tEC_f, Prob, totalDE,
+		   (elecAdj[0] - elecAdj[1]) * N0 * eV / cuEunit,
+		   cudaInterNames[T]);
 	  }
 #endif
 	}

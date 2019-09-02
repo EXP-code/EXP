@@ -1295,7 +1295,7 @@ void InitializeSpeciesTrace
  std::vector<double>& sF, std::vector<double>& M,
  std::vector< std::map<unsigned char, double> >& T,
  std::vector<double>& L,
- Mtype model, int sp, int ne, bool mm)
+ Mtype model, int sp, int ne)
 {
   size_t Ncomp = T.size();
 
@@ -1488,35 +1488,33 @@ void InitializeSpeciesTrace
     }
   }
   
-  std::vector<double> eta(Ncomp, 1.0);
+  std::vector<double> eta(Ncomp);
 
-  // Setup for mean-mass correction
+  // Compute ionization fraction and molecular weights
   //
-  if (mm) {
-    std::cout << std::string(70, '-') << std::endl;
+  std::cout << std::string(70, '-') << std::endl;
 
-    for (size_t nc=0; nc<Ncomp; nc++) {
-      eta[nc] = 0.0;
-      double nrm = 0.0;
-      for (int indx=0; indx<NS; indx++) { 
-	int C = 0;
-	for (auto v : frac[nc][indx])  {
-	  double wgt = sF[indx]/PT[sZ[indx]]->weight() * v;
-	  eta[nc] += wgt * C++;
-	  nrm     += wgt;
-	}
+  for (size_t nc=0; nc<Ncomp; nc++) {
+    eta[nc] = 0.0;
+    double nrm = 0.0;
+    for (int indx=0; indx<NS; indx++) { 
+      int C = 0;
+      for (auto v : frac[nc][indx])  {
+	double wgt = sF[indx]/PT[sZ[indx]]->weight() * v;
+	eta[nc] += wgt * C++;
+	nrm     += wgt;
       }
-      if (nrm>0.0) eta[nc] /= nrm;
-      std::ostringstream lab; lab << "Eta (" << nc << "):";
-      std::cout << std::left << std::setw(13) << lab.str()
-		<< eta[0] << std::endl;
-      lab.str(""); lab << "Mol (" << nc << "):";
-      std::cout << std::left << std::setw(13) << lab.str()
-		<< 1.0/nrm << std::endl;
     }
+    if (nrm>0.0) eta[nc] /= nrm;
+    std::ostringstream lab; lab << "Eta (" << nc << "):";
+    std::cout << std::left << std::setw(13) << lab.str()
+	      << eta[0] << std::endl;
+    lab.str(""); lab << "Mol (" << nc << "):";
+    std::cout << std::left << std::setw(13) << lab.str()
+	      << 1.0/nrm << std::endl;
   }
   
-  double tKEi = 0.0, tKEe = 0.0, numb = 0.0;
+  double tKEi = 0.0, tKEe = 0.0, numb = 0.0, nume = 0.0;
 
   for (int i=0; i<N; i++) {
     
@@ -1546,10 +1544,8 @@ void InitializeSpeciesTrace
     double KEi = 0.0, KEe = 0.0;
     for (int k=0; k<3; k++) {
       KEi += particles[i].vel[k] * particles[i].vel[k];
-      if (ne>=0) {
-	particles[i].dattrib[ne+k] /= sqrt(eta[wh]); // mean-mass correction
+      if (ne>=0)
 	KEe += particles[i].dattrib[ne+k] * particles[i].dattrib[ne+k];
-      }
     }
       
     if (particles[i].dattrib.size()>2) particles[i].dattrib[2] = KEi;
@@ -1562,6 +1558,10 @@ void InitializeSpeciesTrace
     // Ion number
     //
     numb += particles[i].mass/molW * Munit / amu;
+
+    // Electron number
+    //
+    nume += particles[i].mass/molW * Munit / amu * eta[wh];
   }
   
   if (use_yaml) {
@@ -1625,7 +1625,7 @@ void InitializeSpeciesTrace
 	    << std::string(70, '-')    << std::endl
 	    << "MolW:        " << molW << std::endl
 	    << "T (ion):     " << tKEi*Eunit/(1.5*numb*boltz) << std::endl
-	    << "T (elec):    " << tKEe*Eunit/(1.5*numb*boltz) << std::endl
+	    << "T (elec):    " << tKEe*Eunit/(1.5*nume*boltz) << std::endl
 	    << std::string(70, '-')    << std::endl;
 
 } // END: writeParticles
@@ -1652,7 +1652,6 @@ main (int ac, char **av)
   desc.add_options()
     ("help,h",		"produce help message")
     ("electrons",       "set up for weighted or hybrid species with electrons")
-    ("meanmass",        "set up for the mean-mass algorithm")
     ("yaml",            "write YAML species config file")
     ("old",             "write old-style species config file")
     ("CHIANTI,C",	po::value<bool>(&use_chianti)->default_value(false),
@@ -1709,11 +1708,6 @@ main (int ac, char **av)
     return 1;
   }
   
-  bool mm = false;
-  if (vm.count("meanmass")) {
-    mm = true;
-  }
-
   if (vm.count("yaml")) {
     use_yaml = true;
   }
@@ -1962,7 +1956,7 @@ main (int ac, char **av)
     InitializeSpeciesWeight(particles, sZ, sF, sI, Mass, T, sp, ne);
     break;
   case Trace:
-    InitializeSpeciesTrace (particles, sZ, sF, Mass, T, LL, model, sp, ne, mm);
+    InitializeSpeciesTrace (particles, sZ, sF, Mass, T, LL, model, sp, ne);
     // Compute molecular weight
     molW = 0.0;
     for (size_t k=0; k<sZ.size(); k++) molW += sF[k]/PT[sZ[k]]->weight();
