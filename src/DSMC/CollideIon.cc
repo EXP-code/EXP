@@ -480,7 +480,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 
   // Random variable generators
   //
-  gen  = new ACG(11+myid);
+  gen  = new ACG(acg_seed+myid);
   unit = new Uniform(0.0, 1.0, gen);
 
   // Energy diagnostics
@@ -10465,6 +10465,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		    << ", pasR = " << pasR
 		    << ", actA = " << KEdif.first
 		    << ", pasA = " << KEdif.second
+		    << ", type = " << labels[interFlag]
 		    << std::endl;
 	} else {
 	  if (DBG_NewTest)
@@ -10591,6 +10592,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		    << ", pasR = " << pasR
 		    << ", actA = " << KEdif.first
 		    << ", pasA = " << KEdif.second
+		    << ", type = " << labels[interFlag]
 		    << std::endl;
 	} else {
 	  if (DBG_NewTest)
@@ -10718,6 +10720,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		    << ", pasR = " << pasR
 		    << ", actA = " << KEdif.first
 		    << ", pasA = " << KEdif.second
+		    << ", type = " << labels[interFlag]
 		    << std::endl;
 	} else {
 	  if (DBG_NewTest)
@@ -10965,6 +10968,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 		<< ", defr = " << delEdfr
 		<< ", clrE = " << clrE[id]
 		<< ", q = "    << PP->q
+		<< ", type = " << labels[interFlag]
 		<< std::endl;
     } else {
       if (DBG_NewTest)
@@ -19046,6 +19050,13 @@ void CollideIon::printSpeciesElectrons
 void CollideIon::processConfig()
 {
   try {
+    if (config["SEED"])
+      acg_seed = config["SEED"]["value"].as<uint_32>();
+    else {
+      config["SEED"]["desc"]  = "Seed for random number generator";
+      config["SEED"]["value"] = acg_seed = 11;
+    }
+
     if (config["NO_EXACT"])
       NoExact = config["NO_EXACT"]["value"].as<bool>();
     else {

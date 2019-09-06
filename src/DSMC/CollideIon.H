@@ -831,6 +831,9 @@ private:
   std::vector<double>        xc_weight;
 #endif
 
+  // ACG seed
+  uint32_t acg_seed;
+
 public:
 
   typedef std::set<unsigned short> ZLtype;
