@@ -574,7 +574,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "COLL_SPECIES"
 	      << (COLL_SPECIES ? "on" : "off")          << std::endl
 	      <<  " " << std::setw(20) << std::left << "COLL_LIMIT"
-	      << (collLim ? "on" : "off")               << std::endl;
+	      << (collLim ? "on" : "off")               << std::endl
+	      << " " << std::setw(20) << std::left  << "SEED"
+	      << acg_seed                               << std::endl;
     if (use_photoIB)		// print photoIB parameters
     std::cout <<  " " << std::setw(20) << std::left << "photoIB model"
 	      << photoIB                                << std::endl
@@ -19071,7 +19073,7 @@ void CollideIon::processConfig()
 {
   try {
     if (config["SEED"])
-      acg_seed = config["SEED"]["value"].as<uint_32>();
+      acg_seed = config["SEED"]["value"].as<unsigned>();
     else {
       config["SEED"]["desc"]  = "Seed for random number generator";
       config["SEED"]["value"] = acg_seed = 11;
