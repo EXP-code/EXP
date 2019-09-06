@@ -744,6 +744,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   molP2    .resize(nthrds);	     // Trace
   etaP1    .resize(nthrds);	     // Trace
   etaP2    .resize(nthrds);	     // Trace
+  maxP1    .resize(nthrds);	     // Trace
+  maxP2    .resize(nthrds);	     // Trace
   sumP1    .resize(nthrds);	     // Trace
   sumP2    .resize(nthrds);	     // Trace
   eVelP1   .resize(nthrds);	     // Trace
@@ -1801,7 +1803,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
   csections[id].v.clear();
   
   size_t nbods = c->bods.size();
-  double Cross = 0.0;
+  double Cross = 0.0, crsvel;
 
 #ifdef XC_DEEP8
   std::cout << "nbods: N=" << nbods << std::endl;
@@ -1842,10 +1844,9 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	  std::get<1>(T) = k1;
 	  std::get<2>(T) = k2;
 	  
-	  if (aType==Direct)
-	    csections[id][Tord(T)][crossSectionDirect(id, c, p1, p2, cr, T)*cr];
-	  else
-	    csections[id][Tord(T)][crossSectionWeight(id, c, p1, p2, cr, T)*cr];
+	  if (aType==Direct) crsvel = crossSectionDirect(id, c, p1, p2, cr, T) * cr;
+	  else	             crsvel = crossSectionWeight(id, c, p1, p2, cr, T) * cr;
+	  if (crsvel>0.0)    csections[id][Tord(T)][crsvel];
 	}
 	      
 	// Neutral-electron
@@ -1855,10 +1856,9 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	  std::get<1>(T) = k1;
 	  std::get<2>(T) = k2;
 	  
-	  if (aType==Direct)
-	    csections[id][Tord(T)][crossSectionDirect(id, c, p1, p2, cr, T)*cr];
-	  else
-	    csections[id][Tord(T)][crossSectionWeight(id, c, p1, p2, cr, T)*cr];
+	  if (aType==Direct) crsvel = crossSectionDirect(id, c, p1, p2, cr, T) * cr;
+	  else               crsvel = crossSectionWeight(id, c, p1, p2, cr, T) * cr;
+	  if (crsvel>0.0)    csections[id][Tord(T)][crsvel];
 	}
 	      
 	if (C2==1 and C1>1) {
@@ -1866,10 +1866,9 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	  std::get<1>(T) = k1;
 	  std::get<2>(T) = k2;
 	  
-	  if (aType==Direct)
-	    csections[id][Tord(T)][crossSectionDirect(id, c, p1, p2, cr, T)*cr];
-	  else
-	    csections[id][Tord(T)][crossSectionWeight(id, c, p1, p2, cr, T)*cr];
+	  if (aType==Direct) crsvel = crossSectionDirect(id, c, p1, p2, cr, T)*cr;
+	  else               crsvel = crossSectionWeight(id, c, p1, p2, cr, T)*cr;
+	  if (crsvel>0.0)    csections[id][Tord(T)][crsvel];
 	}
 
 	// Neutral-proton
@@ -1879,10 +1878,9 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	  std::get<1>(T) = k1;
 	  std::get<2>(T) = k2;
 	  
-	  if (aType==Direct)
-	    csections[id][Tord(T)][crossSectionDirect(id, c, p1, p2, cr, T)*cr];
-	  else
-	    csections[id][Tord(T)][crossSectionWeight(id, c, p1, p2, cr, T)*cr];
+	  if (aType==Direct) crsvel = crossSectionDirect(id, c, p1, p2, cr, T) * cr;
+	  else               crsvel = crossSectionWeight(id, c, p1, p2, cr, T) * cr;
+	  if (crsvel>0.0)    csections[id][Tord(T)][crsvel];
 	}
 	      
 	if (C2==1 and Z1==1 and C1==2) {
@@ -1890,10 +1888,9 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	  std::get<1>(T) = k1;
 	  std::get<2>(T) = k2;
 	  
-	  if (aType==Direct)
-	    csections[id][Tord(T)][crossSectionDirect(id, c, p1, p2, cr, T)*cr];
-	  else
-	    csections[id][Tord(T)][crossSectionWeight(id, c, p1, p2, cr, T)*cr];
+	  if (aType==Direct) crsvel = crossSectionDirect(id, c, p1, p2, cr, T) * cr;
+	  else               crsvel = crossSectionWeight(id, c, p1, p2, cr, T) * cr;
+	  if (crsvel>0.0)    csections[id][Tord(T)][crsvel];
 	}
 
 	// Free-Free
@@ -1903,18 +1900,16 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	  std::get<1>(T) = k1;
 	  std::get<2>(T) = NTC::electron;
 	  
-	  if (aType==Direct)
-	    csections[id][Tord(T)][crossSectionDirect(id, c, p1, p2, cr, T)*cr];
-	  else
-	    csections[id][Tord(T)][crossSectionWeight(id, c, p1, p2, cr, T)*cr];
+	  if (aType==Direct) crsvel = crossSectionDirect(id, c, p1, p2, cr, T) * cr;
+	  else               crsvel = crossSectionWeight(id, c, p1, p2, cr, T) * cr;
+	  if (crsvel>0.0)    csections[id][Tord(T)][crsvel];
 	  
 	  std::get<1>(T) = NTC::electron;
 	  std::get<2>(T) = k1;
 	  
-	  if (aType==Direct)
-	    csections[id][Tord(T)][crossSectionDirect(id, c, p1, p2, cr, T)*cr];
-	  else
-	    csections[id][Tord(T)][crossSectionWeight(id, c, p1, p2, cr, T)*cr];
+	  if (aType==Direct) crsvel = crossSectionDirect(id, c, p1, p2, cr, T) * cr;
+	  else               crsvel = crossSectionWeight(id, c, p1, p2, cr, T) * cr;
+	  if (crsvel>0.0)    csections[id][Tord(T)][crsvel];
 	}
       
 	// Collisional excitation
@@ -1924,18 +1919,16 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	  std::get<1>(T) = k1;
 	  std::get<2>(T) = NTC::electron;
 	  
-	  if (aType==Direct)
-	    csections[id][Tord(T)][crossSectionDirect(id, c, p1, p2, cr, T)*cr];
-	  else
-	    csections[id][Tord(T)][crossSectionWeight(id, c, p1, p2, cr, T)*cr];
+	  if (aType==Direct) crsvel = crossSectionDirect(id, c, p1, p2, cr, T) * cr;
+	  else               crsvel = crossSectionWeight(id, c, p1, p2, cr, T) * cr;
+	  if (crsvel>0.0)    csections[id][Tord(T)][crsvel];
 	  
 	  std::get<1>(T) = NTC::electron;
 	  std::get<2>(T) = k1;
 	  
-	  if (aType==Direct)
-	    csections[id][Tord(T)][crossSectionDirect(id, c, p1, p2, cr, T)*cr];
-	  else
-	    csections[id][Tord(T)][crossSectionWeight(id, c, p1, p2, cr, T)*cr];
+	  if (aType==Direct) crsvel = crossSectionDirect(id, c, p1, p2, cr, T) * cr;
+	  else               crsvel = crossSectionWeight(id, c, p1, p2, cr, T) * cr;
+	  if (crsvel>0.0)    csections[id][Tord(T)][crsvel];
 	}
 	
 	// Collisional ionization
@@ -1945,18 +1938,16 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	  std::get<1>(T) = k1;
 	  std::get<2>(T) = NTC::electron;
 	  
-	  if (aType==Direct)
-	    csections[id][Tord(T)][crossSectionDirect(id, c, p1, p2, cr, T)*cr];
-	  else
-	    csections[id][Tord(T)][crossSectionWeight(id, c, p1, p2, cr, T)*cr];
+	  if (aType==Direct) crsvel = crossSectionDirect(id, c, p1, p2, cr, T) * cr;
+	  else               crsvel = crossSectionWeight(id, c, p1, p2, cr, T) * cr;
+	  if (crsvel>0.0)    csections[id][Tord(T)][crsvel];
 	  
 	  std::get<1>(T) = NTC::electron;
 	  std::get<2>(T) = k1;
 	  
-	  if (aType==Direct)
-	    csections[id][Tord(T)][crossSectionDirect(id, c, p1, p2, cr, T)*cr];
-	  else
-	    csections[id][Tord(T)][crossSectionWeight(id, c, p1, p2, cr, T)*cr];
+	  if (aType==Direct) crsvel = crossSectionDirect(id, c, p1, p2, cr, T) * cr;
+	  else               crsvel = crossSectionWeight(id, c, p1, p2, cr, T) * cr;
+	  if (crsvel>0.0)    csections[id][Tord(T)][crsvel];
 	}
 	
 	// Radiative recombination
@@ -1966,18 +1957,16 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	  std::get<1>(T) = k1;
 	  std::get<2>(T) = NTC::electron;
 	  
-	  if (aType==Direct)
-	    csections[id][Tord(T)][crossSectionDirect(id, c, p1, p2, cr, T)*cr];
-	  else
-	    csections[id][Tord(T)][crossSectionWeight(id, c, p1, p2, cr, T)*cr];
+	  if (aType==Direct) crsvel = crossSectionDirect(id, c, p1, p2, cr, T) * cr;
+	  else               crsvel = crossSectionWeight(id, c, p1, p2, cr, T) * cr;
+	  if (crsvel>0.0)    csections[id][Tord(T)][crsvel];
 	  
 	  std::get<1>(T) = NTC::electron;
 	  std::get<2>(T) = k1;
 	  
-	  if (aType==Direct)
-	    csections[id][Tord(T)][crossSectionDirect(id, c, p1, p2, cr, T)*cr];
-	  else
-	    csections[id][Tord(T)][crossSectionWeight(id, c, p1, p2, cr, T)*cr];
+	  if (aType==Direct) crsvel = crossSectionDirect(id, c, p1, p2, cr, T) * cr;
+	  else               crsvel = crossSectionWeight(id, c, p1, p2, cr, T) * cr;
+	  if (crsvel>0.0)    csections[id][Tord(T)][crsvel];
 	}
 
       }
@@ -2007,7 +1996,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	      std::get<1>(T) = k1;
 	      std::get<2>(T) = k2;
 	      
-	      csections[id][Tord(T)][crossSectionHybrid(id, c, p1, p2, cr, T)*cr];
+	      if ((crsvel=crossSectionHybrid(id, c, p1, p2, cr, T)*cr) > 0.0) csections[id][Tord(T)][crsvel];
 	    }
 	      
 	    // Neutral-proton
@@ -2017,7 +2006,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	      std::get<1>(T) = k1;
 	      std::get<2>(T) = k2;
 	      
-	      csections[id][Tord(T)][crossSectionHybrid(id, c, p1, p2, cr, T)*cr];
+	      if ((crsvel=crossSectionHybrid(id, c, p1, p2, cr, T)*cr) > 0.0) csections[id][Tord(T)][crsvel];
 	    }
 	    
 	    if (C2==1 and Z1==1 and C1==2) {
@@ -2025,7 +2014,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	      std::get<1>(T) = k1;
 	      std::get<2>(T) = k2;
 	      
-	      csections[id][Tord(T)][crossSectionHybrid(id, c, p1, p2, cr, T)*cr];
+	      if ((crsvel=crossSectionHybrid(id, c, p1, p2, cr, T)*cr) > 0.0) csections[id][Tord(T)][crsvel];
 	    }
 	    
 	  }
@@ -2038,12 +2027,13 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<1>(T) = k1;
 	    std::get<2>(T) = NTC::electron;
 	      
-	    csections[id][Tord(T)][crossSectionHybrid(id, c, p1, p2, cr, T)*cr];
+	    crsvel = crossSectionHybrid(id, c, p1, p2, cr, T) * cr;
+	    if (crsvel>0.0) csections[id][Tord(T)][crsvel];
 
 	    std::get<1>(T) = NTC::electron;
 	    std::get<2>(T) = k2;
 	    
-	    csections[id][Tord(T)][crossSectionHybrid(id, c, p1, p2, cr, T)*cr];
+	    if ((crsvel=crossSectionHybrid(id, c, p1, p2, cr, T)*cr) > 0.0) csections[id][Tord(T)][crsvel];
 	  }
 	  
 	  // Free-Free
@@ -2053,12 +2043,13 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<1>(T) = k1;
 	    std::get<2>(T) = NTC::electron;
 	      
-	    csections[id][Tord(T)][crossSectionHybrid(id, c, p1, p2, cr, T)*cr];
+	    crsvel = crossSectionHybrid(id, c, p1, p2, cr, T) * cr;
+	    if (crsvel>0.0) csections[id][Tord(T)][crsvel];
 	
 	    std::get<1>(T) = NTC::electron;
 	    std::get<2>(T) = k1;
 	
-	    csections[id][Tord(T)][crossSectionHybrid(id, c, p1, p2, cr, T)*cr];
+	    if ((crsvel=crossSectionHybrid(id, c, p1, p2, cr, T)*cr) > 0.0) csections[id][Tord(T)][crsvel];
 	  }
       
 	  // Collisional excitation
@@ -2068,12 +2059,12 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<1>(T) = k1;
 	    std::get<2>(T) = NTC::electron;
 	
-	    csections[id][Tord(T)][crossSectionHybrid(id, c, p1, p2, cr, T)*cr];
+	    if ((crsvel=crossSectionHybrid(id, c, p1, p2, cr, T)*cr) > 0.0) csections[id][Tord(T)][crsvel];
 	
 	    std::get<1>(T) = NTC::electron;
 	    std::get<2>(T) = k1;
 	
-	    csections[id][Tord(T)][crossSectionHybrid(id, c, p1, p2, cr, T)*cr];
+	    if ((crsvel=crossSectionHybrid(id, c, p1, p2, cr, T)*cr) > 0.0) csections[id][Tord(T)][crsvel];
 	  }
 	    
 	  // Collisional ionization
@@ -2083,12 +2074,14 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<1>(T) = k1;
 	    std::get<2>(T) = NTC::electron;
 	    
-	    csections[id][Tord(T)][crossSectionHybrid(id, c, p1, p2, cr, T)*cr];
+	    crsvel = crossSectionHybrid(id, c, p1, p2, cr, T) * cr;
+	    if (crsvel>0.0) csections[id][Tord(T)][crsvel];
 	
 	    std::get<1>(T) = NTC::electron;
 	    std::get<2>(T) = k1;
 	
-	    csections[id][Tord(T)][crossSectionHybrid(id, c, p1, p2, cr, T)*cr];
+	    crsvel = crossSectionHybrid(id, c, p1, p2, cr, T) * cr;
+	    if (crsvel>0.0) csections[id][Tord(T)][crsvel];
 	  }
       
 	  // Radiative recombination
@@ -2098,12 +2091,12 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<1>(T) = k1;
 	    std::get<2>(T) = NTC::electron;
 	    
-	    csections[id][Tord(T)][crossSectionHybrid(id, c, p1, p2, cr, T)*cr];
+	    if ((crsvel=crossSectionHybrid(id, c, p1, p2, cr, T)*cr) > 0.0) csections[id][Tord(T)][crsvel];
 	
 	    std::get<1>(T) = NTC::electron;
 	    std::get<2>(T) = k1;
 	    
-	    csections[id][Tord(T)][crossSectionHybrid(id, c, p1, p2, cr, T)*cr];
+	    if ((crsvel=crossSectionHybrid(id, c, p1, p2, cr, T)*cr) > 0.0) csections[id][Tord(T)][crsvel];
 	  }
 	  
 	}
@@ -2140,7 +2133,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 		std::get<2>(T) = k1;
 	      }
 
-	      csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
+	      if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) csections[id][Tord(T)][crsvel];
 	    }
 	      
 	    // Neutral-proton
@@ -2155,7 +2148,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 		std::get<2>(T) = k1;
 	      }
 	      
-	      csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
+	      if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) csections[id][Tord(T)][crsvel];
 	    }
 	    
 	  }
@@ -2168,8 +2161,8 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<1>(T) = k1;
 	    std::get<2>(T) = NTC::electron;
 	    
-	    csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
-	    csections[id][Tord(T)][crossSectionTrace(id, c, p2, p1, cr, T)*cr];
+	    if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) csections[id][Tord(T)][crsvel];
+	    if ((crsvel=crossSectionTrace(id, c, p2, p1, cr, T)*cr) > 0.0) csections[id][Tord(T)][crsvel];
 	  }
 
 	  // Free-Free
@@ -2179,8 +2172,8 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<1>(T) = k1;
 	    std::get<2>(T) = NTC::electron;
 	    
-	    csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
-	    csections[id][Tord(T)][crossSectionTrace(id, c, p2, p1, cr, T)*cr];
+	    if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) csections[id][Tord(T)][crsvel];
+	    if ((crsvel=crossSectionTrace(id, c, p2, p1, cr, T)*cr) > 0.0) csections[id][Tord(T)][crsvel];
 	  }
 	  
 	  // Collisional excitation
@@ -2190,8 +2183,8 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<1>(T) = k1;
 	    std::get<2>(T) = NTC::electron;
 	    
-	    csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
-	    csections[id][Tord(T)][crossSectionTrace(id, c, p2, p1, cr, T)*cr];
+	    if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) csections[id][Tord(T)][crsvel];
+	    if ((crsvel=crossSectionTrace(id, c, p2, p1, cr, T)*cr) > 0.0) csections[id][Tord(T)][crsvel];
 	  }
 	    
 	  // Collisional ionization
@@ -2201,8 +2194,8 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<1>(T) = k1;
 	    std::get<2>(T) = NTC::electron;
 	    
-	    csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
-	    csections[id][Tord(T)][crossSectionTrace(id, c, p2, p1, cr, T)*cr];
+	    if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) csections[id][Tord(T)][crsvel];
+	    if ((crsvel=crossSectionTrace(id, c, p2, p1, cr, T)*cr) > 0.0) csections[id][Tord(T)][crsvel];
 	  }
 
 	  // Radiative recombination
@@ -2212,8 +2205,8 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    std::get<1>(T) = k1;
 	    std::get<2>(T) = NTC::electron;
 	    
-	    csections[id][Tord(T)][crossSectionTrace(id, c, p1, p2, cr, T)*cr];
-	    csections[id][Tord(T)][crossSectionTrace(id, c, p2, p1, cr, T)*cr];
+	    if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) csections[id][Tord(T)][crsvel];
+	    if ((crsvel=crossSectionTrace(id, c, p2, p1, cr, T)*cr) > 0.0) csections[id][Tord(T)][crsvel];
 	  }
 	}
 	// END: outer species loop
@@ -3495,6 +3488,7 @@ void CollideIon::pairInfoTrace(int id, pCell* const c,
   // Electron fraction and mean molecular weight for each particle
   //
   double Eta1=0.0, Eta2=0.0, Mu1=0.0, Mu2=0.0, Sum1=0.0, Sum2=0.0;
+  double Max1=0.0, Max2=0.0, sm1=0.0, sm2=0.0;
 
   for (auto s : SpList) {
 				// Number fraction of ions
@@ -3507,6 +3501,14 @@ void CollideIon::pairInfoTrace(int id, pCell* const c,
 
     Sum1 += one;
     Sum2 += two;
+
+    if (s.first.second==1) sm1 = sm2 = 0.0;
+    sm1 += one;
+    sm2 += two;
+    if (s.first.second>s.first.first) {
+      Max1 += sm1*s.first.first;
+      Max2 += sm2*s.first.first;
+    }
   }
 				// The number of electrons per particle
   Eta1 /= Sum1;
@@ -3523,6 +3525,9 @@ void CollideIon::pairInfoTrace(int id, pCell* const c,
 
   sumP1[id] = Sum1;
   sumP2[id] = Sum2;
+
+  maxP1[id] = Max1/Sum1;
+  maxP2[id] = Max2/Sum1;
 
   // Number of atoms in each super particle
   //
@@ -3555,7 +3560,7 @@ void CollideIon::pairInfoTrace(int id, pCell* const c,
     double rvel = p1->vel[i] - p2->vel[i];
     eVelI += rvel * rvel;
   }
-    
+
   if (NO_VEL) {
     eVel0 = eVel1 = eVel2 = 1.0;
   } else if (use_elec) {
@@ -3625,15 +3630,15 @@ void CollideIon::pairInfoTrace(int id, pCell* const c,
 				// p1 ion : p2 ion
   kEi [id] = 0.5  * mu0 * vel*vel;
 				// p1 ion : p2 electron
-  kEe1[id] = 0.5  * mu1 * vel*vel * eVel2*eVel2 * Eta2;
+  kEe1[id] = 0.5  * mu1 * vel*vel * eVel2*eVel2;
 				// p2 ion : p1 electron
-  kEe2[id] = 0.5  * mu2 * vel*vel * eVel1*eVel1 * Eta1;
+  kEe2[id] = 0.5  * mu2 * vel*vel * eVel1*eVel1;
 				// p1 electron : p2 electron
   kEee[id] = 0.25 * me  * vel*vel * eVel0*eVel0;
 				// p1 ion : p1 electron
-  kE1s[id] = 0.5  * mu1 * vel*vel * sVel1*sVel1 * Eta1;
+  kE1s[id] = 0.5  * mu1 * vel*vel * sVel1*sVel1;
 				// p2 ion : p2 electron
-  kE2s[id] = 0.5  * mu2 * vel*vel * sVel2*sVel2 * Eta2;
+  kE2s[id] = 0.5  * mu2 * vel*vel * sVel2*sVel2;
 
 #ifdef XC_DEEP13
   std::cout << "ETEST:"
@@ -3660,8 +3665,8 @@ void CollideIon::pairInfoTrace(int id, pCell* const c,
     double fac = 0.5 * TreeDSMC::Vunit * TreeDSMC::Vunit / eV;
     iKE1 *= m1 * fac;
     iKE2 *= m1 * fac;
-    eKE1 *= me * fac * Eta1;
-    eKE2 *= me * fac * Eta2;
+    eKE1 *= me * fac;
+    eKE2 *= me * fac;
 
     std::cout << "iKE1="  << iKE1
 	      << " iKE2=" << iKE2
@@ -3848,7 +3853,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     //
     if (K2 == NTC::electron) {
 
-      double crs = elastic(Z1, kEe1[id]) * eVelP2[id] * etaP2[id] *
+      double crs = elastic(Z1, kEe1[id]) * eVelP2[id] *
 	crossfac * cscl_[Z1] * fac1;
 
       if (DEBUG_CRS) trap_crs(crs, neut_elec);
@@ -3869,7 +3874,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     //
     if (K1 == NTC::electron) {
 
-      double crs = elastic(Z2, kEe2[id]) * eVelP1[id] * etaP1[id] *
+      double crs = elastic(Z2, kEe2[id]) * eVelP1[id] *
 	crossfac * cscl_[Z2] * fac2;
 	
       if (DEBUG_CRS) trap_crs(crs, neut_elec);
@@ -3905,7 +3910,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       double ke  = std::max<double>(kEe1[id], FloorEv);
       FF1[id]    = ch.IonList[Q1]->freeFreeCross(ke, id);
 
-      crs = eVelP2[id] * etaP2[id] * FF1[id].first * fac1;
+      crs = eVelP2[id] * FF1[id].first * fac1;
 	
       if (std::isinf(crs)) crs = 0.0; // Sanity check
       
@@ -3928,7 +3933,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double ke = std::max<double>(kEe2[id], FloorEv);
 	FF2[id] = ch.IonList[Q2]->freeFreeCross(ke, id);
 	
-	crs  = eVelP1[id] * etaP1[id] * FF2[id].first * fac2;
+	crs  = eVelP1[id] * FF2[id].first * fac2;
 	
 	if (std::isinf(crs)) crs = 0.0; // Sanity check
 	  
@@ -3971,7 +3976,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       double ke = std::max<double>(kEe1[id], FloorEv);
       CE1[id] = ch.IonList[Q1]->collExciteCross(ke, id);
 
-      double crs = eVelP2[id] * etaP2[id] * CE1[id].back().first * fac1;
+      double crs = eVelP2[id] * CE1[id].back().first * fac1;
       
       if (DEBUG_CRS) trap_crs(crs, colexcite);
       
@@ -3998,7 +4003,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       double ke = std::max<double>(kEe2[id], FloorEv);
       CE2[id] = ch.IonList[Q2]->collExciteCross(ke, id);
 
-      double crs = eVelP1[id] * etaP1[id] * CE2[id].back().first * fac2;
+      double crs = eVelP1[id] * CE2[id].back().first * fac2;
       
       if (DEBUG_CRS) trap_crs(crs, colexcite);
       
@@ -4039,7 +4044,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
       double    ke = std::max<double>(kEe1[id], FloorEv);
       double    DI = ch.IonList[Q1]->directIonCross(ke, id);
-      double   crs = eVelP2[id] * etaP2[id] * DI * fac1;
+      double   crs = eVelP2[id] * DI * fac1;
 
       xcross[id]   = crs;	// Cache cross-section value
 
@@ -4070,7 +4075,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
       double ke    = std::max<double>(kEe2[id], FloorEv);
       double DI    = ch.IonList[Q2]->directIonCross(ke, id);
-      double crs   = eVelP1[id] * etaP1[id] * DI * fac2;
+      double crs   = eVelP1[id] * DI * fac2;
 
       xcross[id]   = crs;	// Cache cross-section value
 
@@ -4120,7 +4125,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double              ke = std::max<double>(kE1s[id], FloorEv);
 	std::vector<double> RE = ch.IonList[Q1]->radRecombCross(ke, id);
 
-	double crs = sVelP1[id] * etaP1[id] * RE.back() * fac1;
+	double crs = sVelP1[id] * RE.back() * fac1;
 
 	xcross[id] = crs;
 	
@@ -4144,7 +4149,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double              ke = std::max<double>(kE2s[id], FloorEv);
 	std::vector<double> RE = ch.IonList[Q2]->radRecombCross(ke, id);
 
-	double crs = sVelP2[id] * etaP2[id] * RE.back() * fac2;
+	double crs = sVelP2[id] * RE.back() * fac2;
 
 	xcross[id] = crs;
 
@@ -4173,7 +4178,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double              ke = std::max<double>(kEe1[id], FloorEv);
 	std::vector<double> RE = ch.IonList[Q1]->radRecombCross(ke, id);
 
-	double crs = eVelP2[id] * etaP2[id] * RE.back() * fac1;
+	double crs = eVelP2[id] * RE.back() * fac1;
 
 	xcross[id] = crs;
 
@@ -4211,7 +4216,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double              ke = std::max<double>(kEe2[id], FloorEv);
 	std::vector<double> RE = ch.IonList[Q2]->radRecombCross(ke, id);
 	  
-	double crs = eVelP1[id] * etaP1[id] * RE.back() * fac2;
+	double crs = eVelP1[id] * RE.back() * fac2;
 	  
 	xcross[id] = crs;
 
@@ -9280,10 +9285,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     }
     iE1 *= 0.5 * atomic_weights[0] * TreeDSMC::Vunit*TreeDSMC::Vunit * amu / eV;
     iE2 *= 0.5 * atomic_weights[0] * TreeDSMC::Vunit*TreeDSMC::Vunit * amu / eV;
-    if (MeanMass) {
-      iE1 *= etaP1[id];
-      iE2 *= etaP2[id];
-    }
   }
 
   // Ion KE
@@ -9410,7 +9411,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_electron, DBL_MAX));
       cid = 1;
       int pos = SpList[k1];
-      Prob = p1->dattrib[pos];
+      // Prob = p1->dattrib[pos] * etaP2[id]/maxP2[id];
+      Prob = p1->dattrib[pos] * etaP2[id];
+      // Prob = p1->dattrib[pos];
     }
   
   else if (k1 == NTC::electron and
@@ -9419,7 +9422,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_ion, DBL_MAX));
       cid = 2;
       int pos = SpList[k2];
-      Prob = p2->dattrib[pos];
+      // Prob = p2->dattrib[pos] * etaP1[id]/maxP1[id];
+      Prob = p2->dattrib[pos] * etaP1[id];
+      // Prob = p2->dattrib[pos];
     }
   
   else if (k1 != NTC::electron and
@@ -14971,7 +14976,8 @@ void collDiag::initialize()
 	// Header line
 	//
 	out << std::setfill('-') << std::right;
-	out << "#" << std::setw(11+12+12) << '+' << " | ";
+	out << "#" << std::setw(15) << '+'
+	    << std::setw(16) << '+' << std::setw(16) << '+' << " | ";
 	for (auto it : *this) {
 	  for (int i=0; i<17; i++) out << std::setw(16) << '+';
 	  out << " | ";
@@ -16043,7 +16049,7 @@ void CollideIon::gatherSpecies()
 	  KEe += 0.5 * countE * atomic_weights[0] * ve*ve;
 	}
 
-	numbE += mu;
+	numbE += countE;
       }
       // END: body loop
 
@@ -18212,6 +18218,10 @@ void CollideIon::electronGather()
 	elecH = ahistoDPtr(new AsciiHisto<double>(eVel, 20, 0.01));
 	ionH  = ahistoDPtr(new AsciiHisto<double>(iVel, 20, 0.01));
 
+	elecT_max = *std::max_element(eEeV.begin(), eEeV.end());
+	ionsT_max = *std::max_element(eIeV.begin(), eIeV.end());
+	ionET_max = *std::max_element(eJeV.begin(), eJeV.end());
+
 	for (auto v : eEeVsp) {
 	  elecZH[v.first] = ahistoDPtr(new AsciiHisto<double>(v.second, 20, 0.01));
 	}
@@ -18385,6 +18395,7 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< "-----Electron energy (in eV) distribution------------" << std::endl
 	<< std::string(53, '-')  << std::endl;
     (*elecT)(out);
+    out << std::endl << "Max ev=" << elecT_max << std::endl;
   }
 
   if (ionsT.get()) {
@@ -18393,6 +18404,7 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< "-----Ion energy (in eV) distribution-----------------" << std::endl
 	<< std::string(53, '-')  << std::endl;
     (*ionsT)(out);
+    out << std::endl << "Max ev=" << ionsT_max << std::endl;
   }
 
   if (ionET.get()) {
@@ -18401,6 +18413,7 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< "-----Ion-electron energy (in eV) distribution--------" << std::endl
 	<< std::string(53, '-')  << std::endl;
     (*ionET)(out);
+    out << std::endl << "Max ev=" << ionET_max << std::endl;
   }
 
   for (auto v : elecZH) {

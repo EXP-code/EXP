@@ -1178,7 +1178,8 @@ void * Collide::collide_thread(void * arg)
     
 
     // True for intensive debugging only
-    //  +------------------------------|
+    //  +------------------------------+
+    //  |
     //  v
     if (true) {
       
