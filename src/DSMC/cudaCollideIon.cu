@@ -2611,12 +2611,12 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
       // Hydrogen
       //
       if (Z1==1)
-	crs = cudaElasticInterp(Einfo->kEe1, xsc_H,  1, electron) * Einfo->eVel2 * Einfo->Eta2 * cuCrossfac;
+	crs = cudaElasticInterp(Einfo->kEe1, xsc_H,  1, electron) * Einfo->eVel2 * cuCrossfac;
       
       // Helium
       //
       if (Z1==2)
-	crs = cudaElasticInterp(Einfo->kEe1, xsc_He, 2, electron) * Einfo->eVel2 * Einfo->Eta2 * cuCrossfac;
+	crs = cudaElasticInterp(Einfo->kEe1, xsc_He, 2, electron) * Einfo->eVel2 * cuCrossfac;
       
       if (crs>0.0) {
 #ifdef XC_DEEP1
@@ -2637,12 +2637,12 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
       // Hydrogen
       //
       if (Z2==1)
-	crs = cudaElasticInterp(Einfo->kEe2, xsc_H, 1, electron) * Einfo->eVel1 * Einfo->Eta1 * cuCrossfac;
+	crs = cudaElasticInterp(Einfo->kEe2, xsc_H, 1, electron) * Einfo->eVel1 * cuCrossfac;
       
       // Helium
       //
       if (Z2==2)
-	crs = cudaElasticInterp(Einfo->kEe2, xsc_He, 2, electron) * Einfo->eVel1 * Einfo->Eta1 * cuCrossfac;
+	crs = cudaElasticInterp(Einfo->kEe2, xsc_He, 2, electron) * Einfo->eVel1 * cuCrossfac;
 	    
       if (crs>0.0) {
 #ifdef XC_DEEP1
@@ -2678,7 +2678,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 #endif
       computeFreeFree(ke, rn, ph, ff, elems, J1->k);
 	    
-      crs  = Einfo->eVel2 * Einfo->Eta2 * ff;
+      crs  = Einfo->eVel2 * ff;
 	    
       if (crs>0.0) {
 	*delph = ph;
@@ -2706,7 +2706,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
       cuFP_t ff, ph;
       computeFreeFree(ke, rn, ph, ff, elems, J2->k);
 	    
-      crs = Einfo->eVel1 * Einfo->Eta1 * ff;
+      crs = Einfo->eVel1 * ff;
 	    
       if (crs>0.0) {
 	*delph = ph;
@@ -2744,7 +2744,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 
       computeColExcite(ke, ph, xc, elems, J1->k);
 	    
-      crs = Einfo->eVel2 * Einfo->Eta2 * xc;
+      crs = Einfo->eVel2 * xc;
 	    
       if (crs > 0.0) {
 	*delph = ph;
@@ -2772,7 +2772,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 
       computeColExcite(ke, ph, xc, elems, J2->k);
 	    
-      crs = Einfo->eVel1 * Einfo->Eta1 * xc;
+      crs = Einfo->eVel1 * xc;
 	    
       if (crs > 0.0) {
 	*delph = ph;
@@ -2811,7 +2811,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 
       computeColIonize(ke, xc, elems, J1->k);
 	    
-      crs = Einfo->eVel2 * Einfo->Eta2 * xc;
+      crs = Einfo->eVel2 * xc;
       
       if (crs > 0.0) {
 	*delph = elems._v[J1->k].IPval;
@@ -2837,7 +2837,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
       cuFP_t ke = Einfo->kEe2 > cuFloorEV ? Einfo->kEe2 : cuFloorEV, xc;
       computeColIonize(ke, xc, elems, J2->k);
 	    
-      crs = Einfo->eVel1 * Einfo->Eta1 * xc;
+      crs = Einfo->eVel1 * xc;
       
       if (crs > 0.0) {
 	*delph = elems._v[J2->k].IPval;
@@ -2879,7 +2879,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	cuFP_t ke = Einfo->kEe1 > cuFloorEV ? Einfo->kEe1 : cuFloorEV, xc;
 	computeRadRecomb(ke, xc, elems, J1->k);
 	  
-	crs = Einfo->sVel1 * Einfo->Eta1 * xc;
+	crs = Einfo->sVel1 * xc;
       }
 	    
       // Particle 2 is ION, Particle 1 has ELECTRON
@@ -2894,7 +2894,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	cuFP_t ke = Einfo->kEe2 > cuFloorEV ? Einfo->kEe2 : cuFloorEV, xc;
 	computeRadRecomb(ke, xc, elems, J2->k);
 	
-	crs = Einfo->sVel2 * Einfo->Eta2 * xc;
+	crs = Einfo->sVel2 * xc;
       }
 
     }
@@ -2912,7 +2912,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	cuFP_t ke = Einfo->kEe1 > cuFloorEV ? Einfo->kEe1 : cuFloorEV, xc;
 	computeRadRecomb(ke, xc, elems, J1->k);
 	      
-	crs = Einfo->eVel2 * Einfo->Eta2 * xc;
+	crs = Einfo->eVel2 * xc;
 
 	if (crs > 0.0) {
 #ifdef XC_DEEP1
@@ -2937,7 +2937,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	cuFP_t ke = Einfo->kEe2 > cuFloorEV ? Einfo->kEe2 : cuFloorEV, xc;
 	computeRadRecomb(ke, xc, elems, J2->k);
 	      
-	crs = Einfo->eVel1 * Einfo->Eta1 * xc;
+	crs = Einfo->eVel1 * xc;
 	      
 	if (crs > 0.0) {
 #ifdef XC_DEEP1
@@ -4199,12 +4199,12 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  if (J2.sp == cuElectron and
 	      J1.sp != cuElectron) {
 	    cid = 1;
-	    Prob = p1->datr[J1.I+cuSp0];
+	    Prob = p1->datr[J1.I+cuSp0] * EI.Eta2;
 	  }
 	  else if (J1.sp == cuElectron and
 		   J2.sp != cuElectron) {
 	    cid = 2;
-	    Prob = p2->datr[J2.I+cuSp0];
+	    Prob = p2->datr[J2.I+cuSp0] * EI.Eta1;
 	  }
 	  else if (J1.sp != cuElectron and
 		   J2.sp != cuElectron) {
@@ -5095,7 +5095,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 		   tEC_i, tEC_f, Prob, totalDE,
 		   (elecAdj[0] - elecAdj[1]) * N0 * eV / cuEunit,
 		   cudaInterNames[T]);
-	  } else if (T==col_ionize or T==recombine) {
+	  } else if (false) {
 	    printf("**OK [%d] dE=%e dE/E=%e ke_i=[i:(%e, %e) e:(%e, %e)] ke_f=[i:(%e, %e) e:(%e, %e)] kEe=[%e, %e] eta_i=[%e, %e] eta_f=[%e, %e] cons=[%e, %e] P=%e del=%e Adj=%e type=%s\n",
 		   cid, tally, tally/Etoti,
 		   tKEi_i1, tKEi_i2, tKEe_i1, tKEe_i2,
