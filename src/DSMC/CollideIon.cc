@@ -19071,7 +19071,7 @@ void CollideIon::processConfig()
 {
   try {
     if (config["SEED"])
-      acg_seed = config["SEED"]["value"].as<uint_32>();
+      acg_seed = config["SEED"]["value"].as<unsigned>();
     else {
       config["SEED"]["desc"]  = "Seed for random number generator";
       config["SEED"]["value"] = acg_seed = 11;
