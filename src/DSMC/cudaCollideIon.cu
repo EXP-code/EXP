@@ -2454,11 +2454,6 @@ void setupCrossSection(dArray<cudaParticle>   in,      // Particle array
     Einfo->iE1   = eKE1 * kfac;
     Einfo->iE2   = eKE2 * kfac;
 
-    if (cuMeanMass) {
-      Einfo->iE1 *= Eta1;
-      Einfo->iE2 *= Eta2;
-    }
-
 #ifdef XC_DEEP13
     printf("ETEST: eVel1=%e eVel2=%e ke1=%e ke2=%e\n", eVel1, eVel2, kEe1, kEe2);
 #endif
