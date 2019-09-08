@@ -13432,8 +13432,8 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	  W1 = p1->mass/molW[i1];
 	  W2 = p2->mass/molW[i2];
 	} else {
-	  W1 = p1->mass*Eta1[i1]/molW[i1];
-	  W2 = p2->mass*Eta1[i2]/molW[i2];
+	  W1 = p1->mass*Eta[i1]/molW[i1];
+	  W2 = p2->mass*Eta[i2]/molW[i2];
 	}
       } else {
 	if (SAME_ELEC_SCAT) if (k1.Z() != k2.Z()) continue;
