@@ -100,5 +100,6 @@ sledge.o:	sledge.f
 		f77 -g -o sledge.o -c sledge.f
 
 SUBDIRS = user $(SUBDIR_DSMC)
+DIST_SUBDIRS = user DSMC
 
 ## src/Makefile.am ends here

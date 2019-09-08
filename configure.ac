@@ -318,6 +318,7 @@ doxygen_make=""
 if test x$DOXYGEN != xnotfound; then
    SUBDIR_DOXY="doc"
    doxygen_make="doc/Makefile"
+   AC_CONFIG_FILES([doc/Makefile])
 fi
 
 dnl ==========================================================================
