@@ -4786,16 +4786,14 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    // Compute the initial energies
 	    //
 	    cuFP_t KEi_i = 0.0, KEe_i = 0.0;
-	    if (not cuMeanMass) {
-	      for (size_t k=0; k<3; k++) {
-		KEi_i += p1->vel[k] * p1->vel[k];
-		if (cuElec>=0) {
-		  KEe_i += p2->datr[cuElec+k] * p2->datr[cuElec+k];
-		}
+	    for (size_t k=0; k<3; k++) {
+	      KEi_i += p1->vel[k] * p1->vel[k];
+	      if (cuElec>=0) {
+		KEe_i += p2->datr[cuElec+k] * p2->datr[cuElec+k];
 	      }
-	      KEi_i *= 0.5 * W1 * EI.Mu1;
-	      KEe_i *= 0.5 * W2 * EI.Eta2 * Mue;
 	    }
+	    KEi_i *= 0.5 * W1 * EI.Mu1;
+	    KEe_i *= 0.5 * W2 * EI.Eta2 * Mue;
 	    
 	    cuFP_t v1[3], v2[3];
 	    cuFP_t u1[3], u2[3];	// Used only for debugging
@@ -4843,29 +4841,27 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    // Compute the energy update
 	    //
-	    if (not cuMeanMass) {
-	      cuFP_t KEi_f = 0.0, KEe_f = 0.0;
-	      for (size_t k=0; k<3; k++) {
-		KEi_f += p1->vel[k] * p1->vel[k];
-		if (cuElec>=0) {
-		  KEe_f += p2->datr[cuElec+k] * p2->datr[cuElec+k];
-		}
+	    cuFP_t KEi_f = 0.0, KEe_f = 0.0;
+	    for (size_t k=0; k<3; k++) {
+	      KEi_f += p1->vel[k] * p1->vel[k];
+	      if (cuElec>=0) {
+		KEe_f += p2->datr[cuElec+k] * p2->datr[cuElec+k];
 	      }
-	      KEi_f *= 0.5 * W1 * EI.Mu1;
-	      KEe_f *= 0.5 * W2 * EI.Eta2 * Mue;
+	    }
+	    KEi_f *= 0.5 * W1 * EI.Mu1;
+	    KEe_f *= 0.5 * W2 * EI.Eta2 * Mue;
 	      
-	      cuFP_t denom = KEi_f + KEe_f;
-	      cuFP_t testE = KEi_i + KEe_i - denom - totalDE;
+	    cuFP_t denom = KEi_f + KEe_f;
+	    cuFP_t testE = KEi_i + KEe_i - denom - totalDE;
 #ifdef XC_DEEP0
-	      printf("testE=%e\n", testE);
+	    printf("testE=%e\n", testE);
 #endif
-	      if (denom>0.0) {
-		E1[0] -= testE * KEi_f/denom;
-		E2[1] -= testE * KEe_f/denom;
-	      } else {
-		E1[0] -= testE * 0.5;
-		E2[1] -= testE * 0.5;
-	      }
+	    if (denom>0.0) {
+	      E1[0] -= testE * KEi_f/denom;
+	      E2[1] -= testE * KEe_f/denom;
+	    } else {
+	      E1[0] -= testE * 0.5;
+	      E2[1] -= testE * 0.5;
 	    }
 	    
 	    // Time-step computation
@@ -4909,16 +4905,14 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    // Compute the initial energies
 	    //
 	    cuFP_t KEi_i = 0.0, KEe_i = 0.0;
-	    if (not cuMeanMass) {
-	      for (size_t k=0; k<3; k++) {
-		KEi_i += p2->vel[k] * p2->vel[k];
-		if (cuElec>=0) {
-		  KEe_i += p1->datr[cuElec+k] * p1->datr[cuElec+k];
-		}
+	    for (size_t k=0; k<3; k++) {
+	      KEi_i += p2->vel[k] * p2->vel[k];
+	      if (cuElec>=0) {
+		KEe_i += p1->datr[cuElec+k] * p1->datr[cuElec+k];
 	      }
-	      KEi_i *= 0.5 * W2 * EI.Mu2;
-	      KEe_i *= 0.5 * W1 * EI.Eta1 * Mue;
 	    }
+	    KEi_i *= 0.5 * W2 * EI.Mu2;
+	    KEe_i *= 0.5 * W1 * EI.Eta1 * Mue;
 	    
 	    cuFP_t v1[3], v2[3];
 	    cuFP_t u1[3], u2[3];	// Used only for debugging
@@ -4966,25 +4960,23 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    // Compute the energy update
 	    //
-	    if (not cuMeanMass) {
-	      cuFP_t KEi_f = 0.0, KEe_f = 0.0;
-	      for (size_t k=0; k<3; k++) {
-		KEi_f += p2->vel[k] * p2->vel[k];
-		if (cuElec>=0) {
-		  KEe_f += p1->datr[cuElec+k] * p1->datr[cuElec+k];
-		}
+	    cuFP_t KEi_f = 0.0, KEe_f = 0.0;
+	    for (size_t k=0; k<3; k++) {
+	      KEi_f += p2->vel[k] * p2->vel[k];
+	      if (cuElec>=0) {
+		KEe_f += p1->datr[cuElec+k] * p1->datr[cuElec+k];
 	      }
-	      KEi_f *= 0.5 * W2 * EI.Mu2;
-	      KEe_f *= 0.5 * W1 * EI.Eta1 * Mue;
-	      
-	      cuFP_t denom = KEi_f + KEe_f;
-	      cuFP_t testE = KEi_i + KEe_i - denom - totalDE;
-#ifdef XC_DEEP0
-	      printf("testE=%e\n", testE);
-#endif
-	      E2[0] -= testE * KEi_f/denom;
-	      E1[1] -= testE * KEe_f/denom;
 	    }
+	    KEi_f *= 0.5 * W2 * EI.Mu2;
+	    KEe_f *= 0.5 * W1 * EI.Eta1 * Mue;
+	    
+	    cuFP_t denom = KEi_f + KEe_f;
+	    cuFP_t testE = KEi_i + KEe_i - denom - totalDE;
+#ifdef XC_DEEP0
+	    printf("testE=%e\n", testE);
+#endif
+	    E2[0] -= testE * KEi_f/denom;
+	    E1[1] -= testE * KEe_f/denom;
 	    
 	    // Time-step computation
 	    //
