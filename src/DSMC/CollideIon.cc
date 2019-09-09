@@ -9411,9 +9411,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_electron, DBL_MAX));
       cid = 1;
       int pos = SpList[k1];
-      // Prob = p1->dattrib[pos] * etaP2[id]/maxP2[id];
       Prob = p1->dattrib[pos] * etaP2[id];
-      // Prob = p1->dattrib[pos];
     }
   
   else if (k1 == NTC::electron and
@@ -9422,9 +9420,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_ion, DBL_MAX));
       cid = 2;
       int pos = SpList[k2];
-      // Prob = p2->dattrib[pos] * etaP1[id]/maxP1[id];
       Prob = p2->dattrib[pos] * etaP1[id];
-      // Prob = p2->dattrib[pos];
     }
   
   else if (k1 != NTC::electron and
@@ -20390,14 +20386,14 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
 
     switch (P) {
     case ion_electron:
-      m2 = atomic_weights[0];
+      m2 = atomic_weights[0] * eta2;
       break;
     case electron_ion:
-      m1  = atomic_weights[0];
+      m1  = atomic_weights[0] * eta1;
       break;
     case electron_electron:
-      m1 = atomic_weights[0];
-      m2 = atomic_weights[0];
+      m1 = atomic_weights[0] * eta1;
+      m2 = atomic_weights[0] * eta2;
       break;
     }
 
