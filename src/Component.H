@@ -257,6 +257,9 @@ protected:
       instantiation */
   void initialize(void);
 
+  //! Enumerate and initialize cuda devices
+  void initialize_cuda(void);
+
   //! Slab parameters
   double azcm_slab;
 

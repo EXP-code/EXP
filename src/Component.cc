@@ -196,6 +196,8 @@ Component::Component(YAML::Node& CONF)
 
   configure();
 
+  initialize_cuda();
+
   read_bodies_and_distribute_ascii();
 
   reset_level_lists();
@@ -638,6 +640,8 @@ Component::Component(YAML::Node& CONF, istream *in) : conf(CONF)
 
   configure();
 
+  initialize_cuda();
+
   read_bodies_and_distribute_binary(in);
 
   mdt_ctr = vector< vector<unsigned> > (multistep+1);
@@ -1065,6 +1069,11 @@ void Component::initialize(void)
     cout << endl << endl;
   }
   
+}
+
+void Component::initialize_cuda()
+{
+
 #if HAVE_LIBCUDA==1
   int deviceCount = 0;
 
@@ -1128,7 +1137,6 @@ void Component::initialize(void)
 #endif
 
 }
-
 
 Component::~Component(void)
 {
@@ -1293,6 +1301,8 @@ void Component::read_bodies_and_distribute_ascii(void)
 		<< ": " << e.what() << std::endl;
     }
   }
+
+  initialize();
 
 #ifdef DEBUG
   if (particles.size()) {
