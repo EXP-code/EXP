@@ -20388,14 +20388,14 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
 
     switch (P) {
     case ion_electron:
-      m2 = atomic_weights[0] * eta2;
+      m2 = atomic_weights[0];
       break;
     case electron_ion:
-      m1  = atomic_weights[0] * eta1;
+      m1 = atomic_weights[0];
       break;
     case electron_electron:
-      m1 = atomic_weights[0] * eta1;
-      m2 = atomic_weights[0] * eta2;
+      m1 = atomic_weights[0];
+      m2 = atomic_weights[0];
       break;
     }
 
