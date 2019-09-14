@@ -3169,7 +3169,7 @@ void cudaDeferredEnergy
  cuFP_t *E1,  cuFP_t *E2
 )
 {
-#ifdef XC_DEEP0
+#ifdef XC_DEEP14
   printf("deferE=%e\n", E);
 #endif
 
@@ -3338,9 +3338,10 @@ void cudaScatterTrace
       cuFP_t KEd  = KEi1 + KEi2 - KEf1 - KEf2 - delE + fixE;
       cuFP_t KEm  = 0.5*(KEi1 + KEi2 + KEf1 + KEf2);
       if (fabs(KEd)/KEm > 1.0e-10) {
-	printf("ERROR deltaE: R=%e KEi=[%e, %e] KEf=[%e, %e] m=[%e, %e] dKE=%e delE=%e fixE=%e\n", KEd/KEm, KEi1, KEi2, KEf1, KEf2, m1, m2, KEd, delE, fixE);
-      } else {
-	printf("OK deltaE: R=%e KEi=[%e, %e] KEf=[%e, %e] m=[%e, %e] dKE=%e delE=%e fixE=%e\n", KEd/KEm, KEi1, KEi2, KEf1, KEf2, m1, m2, KEd, delE, fixE);
+	printf("**ERROR deltaE: R=%e KEi=[%e, %e] KEf=[%e, %e] m=[%e, %e] dKE=%e kE=%e delE=%e fixE=%e\n", KEd/KEm, KEi1, KEi2, KEf1, KEf2, m1, m2, KEd, kE, delE, fixE);
+      }
+      else if (false) {
+	printf("OK deltaE: R=%e KEi=[%e, %e] KEf=[%e, %e] m=[%e, %e] dKE=%e kE=%e delE=%e fixE=%e\n", KEd/KEm, KEi1, KEi2, KEf1, KEf2, m1, m2, KEd, kE, delE, fixE);
       }
     }
 #endif
@@ -3486,7 +3487,10 @@ void cudaScatterTrace
       cuFP_t KEd = KEi - KEf - delE + fixE;
       cuFP_t KEm = 0.5*(KEi + KEf);
       if (fabs(KEd)/KEm > 1.0e-10) {
-	printf("deltaE: R=%e KEi=%e KEf=%e dKE=%e delE=%e fixE=%e\n", KEd/KEm, KEi, KEf, KEd, delE, fixE);
+	printf("**ERROR deltaE: R=%e KEi=%e KEf=%e dKE=%e kE=%e delE=%e fixE=%e\n", KEd/KEm, KEi, KEf, KEd, kE, delE, fixE);
+      }
+      else if (false) {
+	printf("OK deltaE: R=%e KEi=%e KEf=%e dKE=%e kE=%e delE=%e fixE=%e\n", KEd/KEm, KEi, KEf, KEd, kE, delE, fixE);
       }
     }
 #endif
@@ -3654,20 +3658,6 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
 	}
       }
 
-      /*
-      bool do_swap = false;
-      
-      if (W2>W1) {
-	do_swap = true;
-
-	cuSwap(m1,   m2);
-	cuSwap(W1,   W2);
-	cuSwap(Mu1,  Mu2);
-	cuSwap(Eta1, Eta2);
-	cuSwap(v1,   v2);
-      }
-      */
-
       double Q1 = Eta1;
       double Q2 = Eta2;
 	
@@ -3742,8 +3732,6 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
 	  v2[k] = vcom[k] - m1/mt*vrel[k];
 	}
     
-	// if (do_swap) cuSwap(v1, v2);
-
 	if (l==0) {
 	  for (int k=0; k<3; k++) {
 				// Particle 1 is an ion
@@ -4161,10 +4149,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    tKEe_i1 = 0.5*p1->mass*ke1e*EI.Eta1*cuda_atomic_weights[0]/EI.Mu1;
 	    tKEe_i2 = 0.5*p2->mass*ke2e*EI.Eta2*cuda_atomic_weights[0]/EI.Mu2;
 	    
-	    if (cuCons>=0)
-	      tEC_i += p1->datr[cuCons] + p2->datr[cuCons];
-	    if (cuEcon>=0)
-	      tEC_i += p1->datr[cuEcon] + p2->datr[cuEcon];
 	  }
 #endif
 	
@@ -4227,10 +4211,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  
 	  if (T == neut_elec) {
 #ifdef XC_DEEP2
-	    if (IT.I1<255)
-	      printf("testT: neDE=%e W=%e Z1=%d\n", 0.0, Prob, IT.Z1);
+	    if (J1.sp != cuElectron)
+	      printf("testT: neDE=%e W=%e Z1=%d\n", 0.0, Prob, Z1);
 	    else
-	      printf("testT: neDE=%e W=%e Z2=%d\n", 0.0, Prob, IT.Z2);
+	      printf("testT: neDE=%e W=%e Z2=%d\n", 0.0, Prob, Z2);
 #endif
 #ifdef XC_DEEP9
 	    atomicAdd(&w_countr[T], 1ull);
@@ -4240,10 +4224,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  
 	  if (T == neut_prot) {
 #ifdef XC_DEEP2
-	    if (IT.Z1==1 and IT.C1==2)
-	      printf("testT: npDE=%e W=%e Z2=%d C2=%d\n", 0.0, Prob, IT.Z2, IT.C2);
+	    if (Z1==1 and C1==2)
+	      printf("testT: npDE=%e W=%e Z2=%d C2=%d\n", 0.0, Prob, Z2, C2);
 	    else
-	      printf("testT: npDE=%e W=%e Z1=%d C1=%d\n", 0.0, Prob, IT.Z1, IT.C1);
+	      printf("testT: npDE=%e W=%e Z1=%d C1=%d\n", 0.0, Prob, Z1, C1);
 #endif
 #ifdef XC_DEEP9
 	    atomicAdd(&w_countr[T], 1ull);
@@ -4345,7 +4329,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
 	      cuFP_t Echg = EI.iE1 * wEta;
 #ifdef XC_DEEP0
-	      printf("Ionize[1]: W=%e E=%e (%e) eV=%e sys=%e\n", wEta, EI.iE1, EI.iE2, Echg);
+	      printf("Ionize[1]: W=%e eV=%e,%e sys=%e\n", wEta, EI.iE1, EI.iE2, Echg*N0*eV/cuEunit);
 #endif
 	      elecAdj[0] += Echg;
 	      
@@ -4413,7 +4397,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
 	      cuFP_t Echg = EI.iE2 * wEta;
 #ifdef XC_DEEP0
-	      printf("Ionize[2]: W=%e E=%e (%e) eV=%e\n", wEta, EI.iE2, EI.iE1, Echg);
+	      printf("Ionize[2]: W=%e eV=%e,%e sys=%e\n", wEta, EI.iE2, EI.iE1, Echg*N0*eV/cuEunit);
 #endif
 	      elecAdj[0] += Echg;
 	      
@@ -4564,7 +4548,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      elecAdj[1] += Echg;
 	      
 #ifdef XC_DEEP0
-	      printf("Recombine[2]: W=%e E=%e ke=%e eV=%e sys=%e\n", wEta, EI.iE2, Echg);
+	      printf("Recombine[2]: W=%e E=%e ke=%e eV=%e sys=%e\n", wEta, EI.iE2, Echg*N0*eV/cuEunit);
 #endif
 	      // Echg1 + IP is radiated.  Echg1 is lost from the COM but
 	      // Echg2 is used as a proxy to conserve internal energy
@@ -4598,14 +4582,15 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  //
 	  cuFP_t PE = dE * N0 * eV / cuEunit;
 	  cuFP_t totalDE = 0.0;
+	  cuFP_t delS  = (elecAdj[1] - elecAdj[0]) * N0 * eV / cuEunit;
 	  if (cuNoCool) {
 	    PE = 0.0;
-	    totalDE = (elecAdj[0] - elecAdj[1]) * N0 * eV / cuEunit;
+	    totalDE = -delS;
 	  } else {
 	    totalDE += PE;
 	  }
 	  
-#ifdef XC_DEEP0
+#ifdef XC_DEEP15
 	  printf("totalDE=%e T=%d\n", totalDE, T);
 #endif
 	  
@@ -4701,8 +4686,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    // Recompute the number of electrons per particle
 	    //
-	    EI.Eta1 = Eta1 /= Sum1;
-	    EI.Eta2 = Eta2 /= Sum2;
+	    EI.Eta1 = (Eta1 /= Sum1);
+	    EI.Eta2 = (Eta2 /= Sum2);
 	    
 	    // Reassign the weights for standard Trace algorithm
 	    //
@@ -4737,6 +4722,13 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      p2->datr[cuCons] = 0.0;
 	    }	  
 	    
+#ifdef XC_KEDEBUG
+	    if (cuCons>=0)
+	      tEC_i += p1->datr[cuCons] + p2->datr[cuCons];
+	    if (cuEcon>=0)
+	      tEC_i += p1->datr[cuEcon] + p2->datr[cuEcon];
+#endif
+
 	    if (W1 >= W2)
 	      cudaScatterTrace(EI.Mu1, EI.Mu2, EI.Eta1, EI.Eta2, W1, W2,
 			       &E1[0], &E2[0], totE,
@@ -4824,6 +4816,13 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      p2->datr[cuCons] = 0.0;
 	    }
 	    
+#ifdef XC_KEDEBUG
+	    if (cuCons>=0)
+	      tEC_i += p1->datr[cuCons] + p2->datr[cuCons];
+	    if (cuEcon>=0)
+	      tEC_i += p1->datr[cuEcon] + p2->datr[cuEcon];
+#endif
+
 	    if (W1 >= W2)
 	      cudaScatterTrace(EI.Mu1, Mue, EI.Eta1, EI.Eta2, W1, W2,
 			       &E1[0], &E2[0], totE,
@@ -4853,9 +4852,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      
 	    cuFP_t denom = KEi_f + KEe_f;
 	    cuFP_t testE = KEi_i + KEe_i - denom - totalDE;
-#ifdef XC_DEEP0
+#ifdef XC_DEEP15
 	    printf("testE=%e\n", testE);
 #endif
+	    /*
 	    if (denom>0.0) {
 	      E1[0] -= testE * KEi_f/denom;
 	      E2[1] -= testE * KEe_f/denom;
@@ -4863,6 +4863,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      E1[0] -= testE * 0.5;
 	      E2[1] -= testE * 0.5;
 	    }
+	    */
 	    
 	    // Time-step computation
 	    //
@@ -4943,6 +4944,13 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      p1->datr[cuCons] = 0.0;
 	    }
 	    
+#ifdef XC_KEDEBUG
+	    if (cuCons>=0)
+	      tEC_i += p1->datr[cuCons] + p2->datr[cuCons];
+	    if (cuEcon>=0)
+	      tEC_i += p1->datr[cuEcon] + p2->datr[cuEcon];
+#endif
+
 	    if (W1 >= W2)
 	      cudaScatterTrace(Mue, EI.Mu2, EI.Eta1, EI.Eta2, W1, W2,
 			       &E1[0], &E2[0], totE,
@@ -4972,11 +4980,11 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    cuFP_t denom = KEi_f + KEe_f;
 	    cuFP_t testE = KEi_i + KEe_i - denom - totalDE;
-#ifdef XC_DEEP0
+#ifdef XC_DEEP15
 	    printf("testE=%e\n", testE);
 #endif
-	    E2[0] -= testE * KEi_f/denom;
-	    E1[1] -= testE * KEe_f/denom;
+	    // E2[0] -= testE * KEi_f/denom;
+	    // E1[1] -= testE * KEe_f/denom;
 	    
 	    // Time-step computation
 	    //
@@ -5069,28 +5077,30 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  cuFP_t Etoti = tKEi_i1 + tKEi_i2 + tKEe_i1 + tKEe_i2;
 	  cuFP_t Etotf = tKEi_f1 + tKEi_f2 + tKEe_f1 + tKEe_f2;
 	  cuFP_t delC  = tEC_i - tEC_f;
-	  cuFP_t tally = Etoti - Etotf - delC;
+	  cuFP_t tally = Etoti - Etotf - totalDE;
 	  
-	  if (not cuNoCool) tally -= totalDE + (elecAdj[1] - elecAdj[0]) * N0 * eV / cuEunit;
-	  
-	  if (fabs(tally) > 1.0e-10*Etoti) {
-	    printf("**ERROR [%d] dE=%e dE/E=%e ke_i=[i:(%e, %e) e:(%e, %e)] ke_f=[i:(%e, %e) e:(%e, %e)] kEe=[%e, %e] eta_i=[%e, %e] eta_f=[%e, %e] cons=[%e, %e] P=%e del=%e Adj=%e type=%s\n",
-		   cid, tally, tally/Etoti,
+	  cuFP_t delE1 = tally;
+	  cuFP_t delE2 = tally - delC;
+	  cuFP_t delE3 = tally - delS;
+	  cuFP_t delE4 = tally - delC - delS;
+	  cuFP_t delE0 = fabs(delE1) < fabs(delE2) ? fabs(delE1) : fabs(delE2);
+	  delE0 = fabs(delE3) < fabs(delE0) ? fabs(delE3) : fabs(delE0);
+	  delE0 = fabs(delE4) < fabs(delE0) ? fabs(delE4) : fabs(delE0);
+
+	  if (fabs(delE0) > 1.0e-10*Etoti) {
+	    printf("**ERROR [%d] dE1=%e dE2=%e dE3=%e dE4=%e dE/E=%e ke_i=[i:(%e, %e) e:(%e, %e)] ke_f=[i:(%e, %e) e:(%e, %e)] kEe=[%e, %e] eta_i=[%e, %e] eta_f=[%e, %e] cons=[%e, %e] P=%e del=%e Adj=%e type=%s\n",
+		   cid, delE1, delE2, delE3, delE4, delE0/Etoti,
 		   tKEi_i1, tKEi_i2, tKEe_i1, tKEe_i2,
 		   tKEi_f1, tKEi_f2, tKEe_f1, tKEe_f2,
 		   iE1_f, iE2_f, Eta10, Eta20, EI.Eta1, EI.Eta2,
-		   tEC_i, tEC_f, Prob, totalDE,
-		   (elecAdj[0] - elecAdj[1]) * N0 * eV / cuEunit,
-		   cudaInterNames[T]);
+		   tEC_i, tEC_f, Prob, totalDE, delS, cudaInterNames[T]);
 	  } else if (false) {
 	    printf("**OK [%d] dE=%e dE/E=%e ke_i=[i:(%e, %e) e:(%e, %e)] ke_f=[i:(%e, %e) e:(%e, %e)] kEe=[%e, %e] eta_i=[%e, %e] eta_f=[%e, %e] cons=[%e, %e] P=%e del=%e Adj=%e type=%s\n",
-		   cid, tally, tally/Etoti,
+		   cid, delE0, delE0/Etoti,
 		   tKEi_i1, tKEi_i2, tKEe_i1, tKEe_i2,
 		   tKEi_f1, tKEi_f2, tKEe_f1, tKEe_f2,
 		   iE1_f, iE2_f, Eta10, Eta20, EI.Eta1, EI.Eta2,
-		   tEC_i, tEC_f, Prob, totalDE,
-		   (elecAdj[0] - elecAdj[1]) * N0 * eV / cuEunit,
-		   cudaInterNames[T]);
+		   tEC_i, tEC_f, Prob, totalDE, delS, cudaInterNames[T]);
 	  }
 #endif
 	}
