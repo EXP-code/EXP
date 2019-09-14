@@ -1294,8 +1294,6 @@ void Component::read_bodies_and_distribute_ascii(void)
     }
   }
 
-  initialize();
-
 #ifdef DEBUG
   if (particles.size()) {
     unsigned long imin = std::numeric_limits<unsigned long>::max();
@@ -1451,8 +1449,6 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   is_init = 1;
   setup_distribution();
   is_init = 0;
-  initialize();
-
 				// Initialize the particle ferry
 				// instance with dynamic attribute
 				// sizes
@@ -1526,6 +1522,8 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 				// Default: set to max radius
   rmax = sqrt(fabs(rmax1));
   MPI_Bcast(&rmax, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+  initialize();
 
 #ifdef DEBUG
   unsigned long imin = std::numeric_limits<unsigned long>::max();
