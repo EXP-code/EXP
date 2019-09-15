@@ -3964,7 +3964,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	cuFP_t Prob  = mtotal/vol * cuMunit/amu *
 	  spTau._v[cid] * xc  * 1e-14 / (cuLunit*cuLunit);
 
-	cuFP_t nsel = 0.5 * (nbods-1) * Prob;
+	cuFP_t nsel = Prob * (nbods-1);
+	if (J1 == J2) nsel *= 0.5;
 	totalNsel += nsel;
 
 	if (J1.sp == cuElectron) 
@@ -4838,33 +4839,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 		     u2[0], u2[1], u2[2], v2[0], v2[1], v2[2]);
 	    }
 	    
-	    // Compute the energy update
-	    //
-	    cuFP_t KEi_f = 0.0, KEe_f = 0.0;
-	    for (size_t k=0; k<3; k++) {
-	      KEi_f += p1->vel[k] * p1->vel[k];
-	      if (cuElec>=0) {
-		KEe_f += p2->datr[cuElec+k] * p2->datr[cuElec+k];
-	      }
-	    }
-	    KEi_f *= 0.5 * W1 * EI.Mu1;
-	    KEe_f *= 0.5 * W2 * EI.Eta2 * Mue;
-	      
-	    cuFP_t denom = KEi_f + KEe_f;
-	    cuFP_t testE = KEi_i + KEe_i - denom - totalDE;
-#ifdef XC_DEEP15
-	    printf("testE=%e\n", testE);
-#endif
-	    /*
-	    if (denom>0.0) {
-	      E1[0] -= testE * KEi_f/denom;
-	      E2[1] -= testE * KEe_f/denom;
-	    } else {
-	      E1[0] -= testE * 0.5;
-	      E2[1] -= testE * 0.5;
-	    }
-	    */
-	    
 	    // Time-step computation
 	    //
 	    {
@@ -4965,26 +4939,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 		     u1[0], u1[1], u1[2], v1[0], v1[1], v1[2],
 		     u2[0], u2[1], u2[2], v2[0], v2[1], v2[2]);
 	    }
-	    
-	    // Compute the energy update
-	    //
-	    cuFP_t KEi_f = 0.0, KEe_f = 0.0;
-	    for (size_t k=0; k<3; k++) {
-	      KEi_f += p2->vel[k] * p2->vel[k];
-	      if (cuElec>=0) {
-		KEe_f += p1->datr[cuElec+k] * p1->datr[cuElec+k];
-	      }
-	    }
-	    KEi_f *= 0.5 * W2 * EI.Mu2;
-	    KEe_f *= 0.5 * W1 * EI.Eta1 * Mue;
-	    
-	    cuFP_t denom = KEi_f + KEe_f;
-	    cuFP_t testE = KEi_i + KEe_i - denom - totalDE;
-#ifdef XC_DEEP15
-	    printf("testE=%e\n", testE);
-#endif
-	    // E2[0] -= testE * KEi_f/denom;
-	    // E1[1] -= testE * KEe_f/denom;
 	    
 	    // Time-step computation
 	    //
