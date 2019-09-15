@@ -725,6 +725,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   kEi      .resize(nthrds);	     // Direct
   kEe1     .resize(nthrds);	     // All
   kEe2     .resize(nthrds);	     // All
+  kEp1     .resize(nthrds);	     // All
+  kEp2     .resize(nthrds);	     // All
   kEee     .resize(nthrds);	     // All
   kE1s     .resize(nthrds);	     // Hybrid, Trace
   kE2s     .resize(nthrds);	     // Hybrid, Trace
@@ -2730,6 +2732,9 @@ double CollideIon::crossSectionWeight
   double eVel1 = sqrt(m1/me/dof1);
   double eVel2 = sqrt(m2/me/dof2);
 
+  double Evel1 = 0.0;
+  double Evel2 = 0.0;
+
   if (NO_VEL) {
     eVel0 = eVel1 = eVel2 = 1.0;
   } else if (use_elec) {
@@ -2741,6 +2746,9 @@ double CollideIon::crossSectionWeight
       eVel0 += rvel0*rvel0;
       eVel1 += rvel1*rvel1;
       eVel2 += rvel2*rvel2;
+
+      Evel1 += p1->dattrib[use_elec+i]*p1->dattrib[use_elec+i];
+      Evel2 += p2->dattrib[use_elec+i]*p2->dattrib[use_elec+i];
     }
     eVel0 = sqrt(eVel0) * TreeDSMC::Vunit;
     eVel1 = sqrt(eVel1) * TreeDSMC::Vunit;
@@ -2758,6 +2766,11 @@ double CollideIon::crossSectionWeight
   kEe1[id] = 0.5 * mu1 * vel*vel * eVel2*eVel2/dof2;
   kEe2[id] = 0.5 * mu2 * vel*vel * eVel1*eVel1/dof1;
   kEee[id] = 0.25 * me * vel*vel * eVel0*eVel0;
+
+  // Electron energy
+  //
+  kEp1[id] = 0.5  * me * Evel1 * Evel1 * TreeDSMC::Vunit*TreeDSMC::Vunit;
+  kEp2[id] = 0.5  * me * Evel2 * Evel2 * TreeDSMC::Vunit*TreeDSMC::Vunit;
 
   // Internal energy per particle
   //
@@ -2777,7 +2790,9 @@ double CollideIon::crossSectionWeight
     kEe2[id] /= eV;
   }
 
-  kEi[id] /= eV;
+  kEi [id] /= eV;
+  kEp1[id] /= eV;
+  kEp2[id] /= eV;
 
   // Save the per-interaction cross sections
   //
@@ -3741,16 +3756,6 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
   lQ Q1(Z1, C1), Q2(Z2, C2);
 
-  double fac1 = 0.0, fac2 = 0.0;
-
-  if (K1 != NTC::electron) 
-    fac1 = 1.0;
-    // fac1 = _p1->dattrib[SpList[K1]] / atomic_weights[Z1] / sumP1[id];
-
-  if (K2 != NTC::electron) 
-    fac2 = 1.0;
-    // fac2 = _p2->dattrib[SpList[K2]] / atomic_weights[Z2] / sumP2[id];
-
   //-------------------------------
   // *** Both particles neutral
   //-------------------------------
@@ -3762,7 +3767,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     // Geometric cross sections based on
     // atomic radius
     double rad = geometric(Z1) + geometric(Z2);
-    double crs = M_PI*rad*rad * fac1 * fac2;
+    double crs = M_PI*rad*rad;
 	
     // Double counting
     if (Z1 == Z2) crs *= 0.5;
@@ -3794,8 +3799,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
     if (P1==0 and K2==proton) {
 
-      crs1 = elastic(Z1, kEi[id], Elastic::proton) *
-	crossfac * cscl_[Z1] * fac1 * fac2;
+      crs1 = elastic(Z1, kEi[id], Elastic::proton) * crossfac * cscl_[Z1];
 	
 #ifdef XC_DEEP12
       if (Z1==1)
@@ -3818,8 +3822,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
     if (P2==0 and K1==proton) {
 
-      crs1 = elastic(Z2, kEi[id], Elastic::proton) *
-	crossfac * cscl_[Z2] * fac1 * fac2;
+      crs1 = elastic(Z2, kEi[id], Elastic::proton) * crossfac * cscl_[Z2];
       
 #ifdef XC_DEEP12
       if (Z2==1)
@@ -3855,8 +3858,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     //
     if (K2 == NTC::electron) {
 
-      double crs = elastic(Z1, kEe1[id]) * eVelP2[id] *
-	crossfac * cscl_[Z1] * fac1;
+      double crs = elastic(Z1, kEe1[id]) * eVelP2[id] *	crossfac * cscl_[Z1];
 
       if (DEBUG_CRS) trap_crs(crs, neut_elec);
 
@@ -3866,7 +3868,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 #ifdef XC_DEEP4
       std::cout << "xsc: kEe=" << kEe1[id] << " (Z, P)=(" << Z1 << ", " << C1
 		<< ") gVel=" << eVelP2[id] << " eta=" << etaP2[id]
-		<< " xne=" << crs << " fac=" << fac1 << std::endl;
+		<< " xne=" << crs << std::endl;
 #endif
 
       return crs;
@@ -3876,8 +3878,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     //
     if (K1 == NTC::electron) {
 
-      double crs = elastic(Z2, kEe2[id]) * eVelP1[id] *
-	crossfac * cscl_[Z2] * fac2;
+      double crs = elastic(Z2, kEe2[id]) * eVelP1[id] * crossfac * cscl_[Z2];
 	
       if (DEBUG_CRS) trap_crs(crs, neut_elec);
 
@@ -3887,7 +3888,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 #ifdef XC_DEEP4
       std::cout << "xsc: kEe=" << kEe2[id] << " (Z, P)=(" << Z2 << ", " << C2
 		<< ") gVel=" << eVelP1[id] << " eta=" << etaP1[id]
-		<< " xne=" << crs << " fac=" << fac2 << std::endl;
+		<< " xne=" << crs << std::endl;
 #endif
 
       return crs;
@@ -3912,7 +3913,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       double ke  = std::max<double>(kEe1[id], FloorEv);
       FF1[id]    = ch.IonList[Q1]->freeFreeCross(ke, id);
 
-      crs = eVelP2[id] * FF1[id].first * fac1;
+      crs = eVelP2[id] * FF1[id].first;
 	
       if (std::isinf(crs)) crs = 0.0; // Sanity check
       
@@ -3924,7 +3925,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	std::cout << "xsc: kEe=" << kEe1[id]
 		  << " (Z, P)=(" << Z1 << ", " << C2 << ")"
 		  << " gVel=" << eVelP2[id] << " eta=" << etaP2[id]
-		  << " xf=" << FF1[id].first << " fac=" << fac1
+		  << " xf=" << FF1[id].first 
 		  << " dE=" << FF1[id].second << std::endl;
 #endif
       }
@@ -3935,7 +3936,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double ke = std::max<double>(kEe2[id], FloorEv);
 	FF2[id] = ch.IonList[Q2]->freeFreeCross(ke, id);
 	
-	crs  = eVelP1[id] * FF2[id].first * fac2;
+	crs  = eVelP1[id] * FF2[id].first;
 	
 	if (std::isinf(crs)) crs = 0.0; // Sanity check
 	  
@@ -3947,8 +3948,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  std::cout << "xsc: kEe=" << kEe2[id]
 		    << " (Z, P)=(" << Z2 << ", " << C2 << ")"
 		    << " gVel=" << eVelP1[id] << " eta=" << etaP1[id]
-		    << " xf=" << FF2[id].first << " fac=" << fac2
-		    << " dE=" << FF2[id].second << std::endl;
+		    << " xf=" << FF2[id].first << " dE=" << FF2[id].second
+		    << std::endl;
 #endif
 	}
       }
@@ -3975,10 +3976,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     //  V                     V
     if (K2==NTC::electron and P1<Z1) {
 
-      double ke = std::max<double>(kEe1[id], FloorEv);
+      // double ke = std::max<double>(kEe1[id], FloorEv);
+      double ke = std::max<double>(kEp1[id], FloorEv); // TEST
       CE1[id] = ch.IonList[Q1]->collExciteCross(ke, id);
 
-      double crs = eVelP2[id] * CE1[id].back().first * fac1;
+      double crs = eVelP2[id] * CE1[id].back().first;
       
       if (DEBUG_CRS) trap_crs(crs, colexcite);
       
@@ -3992,7 +3994,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 		  << " gVel=" << eVelP2[id] << " eta=" << etaP2[id]
 		  << " xc=" << CE1[id].back().first
 		  << " dE=" << IS.selectCEInteract(ch.IonList[Q1], CE1[id])
-		  << " fac=" << fac1 << std::endl;
+		  << std::endl;
 #endif
 	// }
 
@@ -4002,10 +4004,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
     if (K1==NTC::electron and P2<Z2) {
 
-      double ke = std::max<double>(kEe2[id], FloorEv);
+      // double ke = std::max<double>(kEe2[id], FloorEv);
+      double ke = std::max<double>(kEp2[id], FloorEv);
       CE2[id] = ch.IonList[Q2]->collExciteCross(ke, id);
 
-      double crs = eVelP1[id] * CE2[id].back().first * fac2;
+      double crs = eVelP1[id] * CE2[id].back().first;
       
       if (DEBUG_CRS) trap_crs(crs, colexcite);
       
@@ -4019,7 +4022,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 		  << " gVel=" << eVelP1[id] << " eta=" << etaP1[id]
 		  << " xc=" << CE2[id].back().first
 		  << " dE=" << IS.selectCEInteract(ch.IonList[Q2], CE2[id])
-		  << " fac=" << fac2 << std::endl;
+		  << std::endl;
 #endif
 	// }
       return crs;
@@ -4046,7 +4049,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
       double    ke = std::max<double>(kEe1[id], FloorEv);
       double    DI = ch.IonList[Q1]->directIonCross(ke, id);
-      double   crs = eVelP2[id] * DI * fac1;
+      double   crs = eVelP2[id] * DI;
 
       xcross[id]   = crs;	// Cache cross-section value
 
@@ -4066,7 +4069,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 		  << " (Z, P)=(" << Z2 << ", " << C2 << ")"
 		  << " gVel=" << eVelP2[id] << " eta=" << etaP2[id]
 		  << " io=" << DI << " dE=" << 0.0
-		  << " fac=" << fac1 << std::endl;
+		  << std::endl;
 #endif
       }
       return crs;
@@ -4077,7 +4080,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
       double ke    = std::max<double>(kEe2[id], FloorEv);
       double DI    = ch.IonList[Q2]->directIonCross(ke, id);
-      double crs   = eVelP1[id] * DI * fac2;
+      double crs   = eVelP1[id] * DI;
 
       xcross[id]   = crs;	// Cache cross-section value
 
@@ -4097,7 +4100,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 		  << " (Z, P)=(" << Z2 << ", " << C2 << ")"
 		  << " gVel=" << eVelP1[id] << " eta=" << etaP1[id]
 		  << " io=" << DI << " dE=" << 0.0
-		  << " fac=" << fac2 << std::endl;
+		  << std::endl;
 #endif
       }
       return crs;
@@ -4127,7 +4130,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double              ke = std::max<double>(kE1s[id], FloorEv);
 	std::vector<double> RE = ch.IonList[Q1]->radRecombCross(ke, id);
 
-	double crs = sVelP1[id] * RE.back() * fac1;
+	double crs = sVelP1[id] * RE.back();
 
 	xcross[id] = crs;
 	
@@ -4151,7 +4154,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double              ke = std::max<double>(kE2s[id], FloorEv);
 	std::vector<double> RE = ch.IonList[Q2]->radRecombCross(ke, id);
 
-	double crs = sVelP2[id] * RE.back() * fac2;
+	double crs = sVelP2[id] * RE.back();
 
 	xcross[id] = crs;
 
@@ -4180,7 +4183,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double              ke = std::max<double>(kEe1[id], FloorEv);
 	std::vector<double> RE = ch.IonList[Q1]->radRecombCross(ke, id);
 
-	double crs = eVelP2[id] * RE.back() * fac1;
+	double crs = eVelP2[id] * RE.back();
 
 	xcross[id] = crs;
 
@@ -4200,7 +4203,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 		    << " (Z, P)=(" << Z1 << ", " << C1 << ")"
 		    << " gVel=" << eVelP2[id] << " eta=" << etaP2[id]
 		    << " rc=" << crs << " dE=" << 0.0
-		    << " fac=" << fac1 << std::endl;
+		    << std::endl;
 #endif
 	  // }
 	return crs;
@@ -4218,7 +4221,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	double              ke = std::max<double>(kEe2[id], FloorEv);
 	std::vector<double> RE = ch.IonList[Q2]->radRecombCross(ke, id);
 	  
-	double crs = eVelP1[id] * RE.back() * fac2;
+	double crs = eVelP1[id] * RE.back();
 	  
 	xcross[id] = crs;
 
