@@ -2507,7 +2507,7 @@ void Component::fix_positions(unsigned mlevel)
     
     for (int i=0; i<3; i++) {
       comI[i] = (mtot0*comI[i] - comE[i])/(mtot0 - mtotE);
-      com0[i] = (mtot0*comI[i] - comE[i])/(mtot0 - mtotE);
+      com0[i] = (mtot0*com0[i] - comE[i])/(mtot0 - mtotE);
       covI[i] = (mtot0*covI[i] - covE[i])/(mtot0 - mtotE);
       cov0[i] = (mtot0*cov0[i] - covE[i])/(mtot0 - mtotE);
     }
