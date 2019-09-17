@@ -915,7 +915,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
   //
   size_t psize  = cC->Particles().size();
 
-  PartMap::iterator begin = cC->Particles().begin()
+  PartMap::iterator begin = cC->Particles().begin();
   PartMap::iterator first = begin;
   PartMap::iterator last  = begin;
   PartMap::iterator end   = cC->Particles().end();
@@ -1575,15 +1575,11 @@ void Cylinder::determine_acceleration_cuda()
 		   __FILE__, __LINE__, "Error copying cylOrig");
   }
 
-  // Copy particles to host vector
-  //
-  cC->ParticlesToCuda();
-
   // Loop over bunches
   //
-  size_t psize  = cC->Particles.size();
+  size_t psize  = cC->Particles().size();
 
-  PartMap::iterator begin = cC->Particles().begin()
+  PartMap::iterator begin = cC->Particles().begin();
   PartMap::iterator first = begin;
   PartMap::iterator last  = begin;
   PartMap::iterator end   = cC->Particles().end();
@@ -1673,24 +1669,6 @@ void Cylinder::determine_acceleration_cuda()
     //
     ++cr;			// Component
 				// Force method ring not needed here
-  }
-
-  // DEBUGGING TEST
-  if (false) {
-    std::cout << std::string(10+7*16, '-') << std::endl;
-    std::cout << "---- Acceleration in Cylinder [T=" << tnow
-	      << ", N=" << Ntot << ", level=" << mlevel
-	      << ", mass=" << cylmass
-	      << ", name=" << cC->name << "]" << std::endl;
-    std::cout << std::string(10+7*16, '-') << std::endl;
-    first = last = begin;
-    std::advance(last, 5);
-    std::copy(first, last, std::ostream_iterator<cudaParticle>(std::cout, "\n"));
-    first = begin;
-    last  = end;
-    std::advance(first, psize-5);
-    std::copy(first, last, std::ostream_iterator<cudaParticle>(std::cout, "\n"));
-    std::cout << std::string(10+7*16, '-') << std::endl;
   }
 }
 

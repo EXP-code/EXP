@@ -952,7 +952,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
   //
   size_t psize  = cC->Particles().size();
 
-  PartMap::iterator begin = cC->Particles().begin()
+  PartMap::iterator begin = cC->Particles().begin();
   PartMap::iterator first = begin;
   PartMap::iterator last  = begin;
   PartMap::iterator end   = cC->Particles().end();
@@ -1626,9 +1626,9 @@ void SphericalBasis::determine_acceleration_cuda()
   
   // Loop over bunches
   //
-  size_t psize  = cC->Particles.size();
+  size_t psize  = cC->Particles().size();
 
-  PartMap::iterator begin = cC->Particles().begin()
+  PartMap::iterator begin = cC->Particles().begin();
   PartMap::iterator first = begin;
   PartMap::iterator last  = begin;
   PartMap::iterator end   = cC->Particles().end();
@@ -1719,23 +1719,6 @@ void SphericalBasis::determine_acceleration_cuda()
     //
     ++cr;			// Component
     ++ar;			// Force method
-  }
-
-  // DEBUGGING TEST
-  if (false) {
-    std::cout << std::string(10+7*16, '-') << std::endl;
-    std::cout << "---- Acceleration in SphericalBasis [T=" << tnow
-	      << ", N=" << Ntot << ", level=" << mlevel
-	      << ", name=" << cC->name << "]" << std::endl;
-    std::cout << std::string(10+7*16, '-') << std::endl;
-    first = last = begin;
-    std::advance(last, 5);
-    std::copy(first, last, std::ostream_iterator<cudaParticle>(std::cout, "\n"));
-    first = begin;
-    last  = end;
-    std::advance(first, psize-5);
-    std::copy(first, last, std::ostream_iterator<cudaParticle>(std::cout, "\n"));
-    std::cout << std::string(10+7*16, '-') << std::endl;
   }
 }
 

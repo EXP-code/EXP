@@ -169,7 +169,10 @@ void Component::DevToHost(Component::cuRingType cr)
 
 void Component::CudaToParticles(hostPartItr beg, hostPartItr end)
 {
-  for (auto v=beg; v!=end; v++) ParticleDtoH(*v, particles[v->indx]);
+  for (hostPartItr v=beg; v!=end; v++) {
+    cudaParticle & p = *v;
+    ParticleDtoH(p, particles[p.indx]);
+  }
 }
 
 struct cudaZeroAcc : public thrust::unary_function<cudaParticle, cudaParticle>
@@ -190,18 +193,14 @@ void Component::ZeroPotAccel(int minlev)
   return;			// Don't need this now, since this
 				// duplicates zeroing performed on
 				// host
-  // Copy particles to host vector
-  //
-  ParticlesToCuda();
-
   // Loop over bunches
   //
-  size_t psize  = host_particles.size();
+  size_t psize  = particles.size();
 
-  Component::hostPartItr begin = host_particles.begin();
-  Component::hostPartItr first = begin;
-  Component::hostPartItr last  = begin;
-  Component::hostPartItr end   = host_particles.end();
+  PartMap::iterator begin = particles.begin();
+  PartMap::iterator first = begin;
+  PartMap::iterator last  = begin;
+  PartMap::iterator end   = particles.end();
 
   if (psize <= bunchSize) last = end;
   else std::advance(last, bunchSize);
@@ -210,8 +209,12 @@ void Component::ZeroPotAccel(int minlev)
 
   while (thrust::distance(first, last)) {
     
-    cr->first = first;
-    cr->last  = last;
+    // Copy particles to host vector
+    //
+    ParticlesToCuda(first, last);
+
+    cr->first = host_particles.begin();
+    cr->last  = host_particles.end();
 
     // Copy bunch to device
     //
@@ -234,6 +237,10 @@ void Component::ZeroPotAccel(int minlev)
     //
     DevToHost(cr);
 
+    // Do copy from host to component
+    //
+    CudaToParticles(cr->first, cr->last);
+
     // Advance iterators
     //
     first = last;
@@ -246,5 +253,4 @@ void Component::ZeroPotAccel(int minlev)
     cr++;
   }
 
-  CudaToParticles();
 }
