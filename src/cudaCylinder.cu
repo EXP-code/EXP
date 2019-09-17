@@ -935,6 +935,8 @@ void Cylinder::determine_coefficients_cuda(bool compute)
     //
     cC->ParticlesToCuda(first, last);
 
+    // Assign host vector boundary iterators
+    //
     cr->first = cC->host_particles.begin();
     cr->last  = cC->host_particles.end();
     cr->id    = ++dbg_id;
@@ -1595,6 +1597,8 @@ void Cylinder::determine_acceleration_cuda()
     //
     cC->ParticlesToCuda(first, last);
 
+    // Assign host vector boundary iterators
+    //
     cr->first = cC->host_particles.begin();
     cr->last  = cC->host_particles.end();
     cr->id    = ++dbg_id;
