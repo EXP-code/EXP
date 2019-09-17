@@ -196,6 +196,8 @@ Component::Component(YAML::Node& CONF)
 
   configure();
 
+  initialize_cuda();
+
   read_bodies_and_distribute_ascii();
 
   reset_level_lists();
@@ -638,6 +640,8 @@ Component::Component(YAML::Node& CONF, istream *in) : conf(CONF)
 
   configure();
 
+  initialize_cuda();
+
   read_bodies_and_distribute_binary(in);
 
   mdt_ctr = vector< vector<unsigned> > (multistep+1);
@@ -1065,6 +1069,11 @@ void Component::initialize(void)
     cout << endl << endl;
   }
   
+}
+
+void Component::initialize_cuda()
+{
+
 #if HAVE_LIBCUDA==1
   int deviceCount = 0;
 
@@ -1128,7 +1137,6 @@ void Component::initialize(void)
 #endif
 
 }
-
 
 Component::~Component(void)
 {
@@ -1451,8 +1459,6 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   is_init = 1;
   setup_distribution();
   is_init = 0;
-  initialize();
-
 				// Initialize the particle ferry
 				// instance with dynamic attribute
 				// sizes
@@ -1526,6 +1532,8 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 				// Default: set to max radius
   rmax = sqrt(fabs(rmax1));
   MPI_Bcast(&rmax, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+  initialize();
 
 #ifdef DEBUG
   unsigned long imin = std::numeric_limits<unsigned long>::max();
@@ -2499,7 +2507,7 @@ void Component::fix_positions(unsigned mlevel)
     
     for (int i=0; i<3; i++) {
       comI[i] = (mtot0*comI[i] - comE[i])/(mtot0 - mtotE);
-      com0[i] = (mtot0*comI[i] - comE[i])/(mtot0 - mtotE);
+      com0[i] = (mtot0*com0[i] - comE[i])/(mtot0 - mtotE);
       covI[i] = (mtot0*covI[i] - covE[i])/(mtot0 - mtotE);
       cov0[i] = (mtot0*cov0[i] - covE[i])/(mtot0 - mtotE);
     }
