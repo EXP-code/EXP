@@ -900,7 +900,7 @@ public:
   //@}
 
   //! Copy particles from Component C to the cuda structure for this component
-  void ParticlesToCuda();
+  void ParticlesToCuda(PartMap::iterator beg, PartMap::iterator fin);
 
   //! Copy particles host to device for ring entry
   void HostToDev(cuRingType cr);
@@ -909,7 +909,7 @@ public:
   void DevToHost(cuRingType cr);
   
   //! Copy cuda device particles for this component back Component C
-  void CudaToParticles();
+  void CudaToParticles(hostPartItr beg, hostPartItr end);
 
   //! Sort the device vector by sequence
   void CudaSortBySequence(cuRingType cr);

@@ -948,18 +948,14 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
   //
   zero_coefs();
 
-  // Copy particles to host vector
-  //
-  cC->ParticlesToCuda();
-
   // Loop over bunches
   //
-  size_t psize  = cC->host_particles.size();
+  size_t psize  = cC->Particles().size();
 
-  Component::hostPartItr begin = cC->host_particles.begin();
-  Component::hostPartItr first = begin;
-  Component::hostPartItr last  = begin;
-  Component::hostPartItr end   = cC->host_particles.end();
+  PartMap::iterator begin = cC->Particles().begin()
+  PartMap::iterator first = begin;
+  PartMap::iterator last  = begin;
+  PartMap::iterator end   = cC->Particles().end();
 
   if (psize <= cC->bunchSize) last = end;
   else std::advance(last, cC->bunchSize);
@@ -969,8 +965,13 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
   while (std::distance(first, last)) {
     
-    cr->first = first;
-    cr->last  = last;
+    // Copy particles to host vector
+    //
+    cC->ParticlesToCuda(first, last);
+
+
+    cr->first = cC->host_particles.begin();
+    cr->last  = cC->host_particles.end();
     cr->id    = ++dbg_id;
 
     // Copy bunch to device
@@ -1623,18 +1624,14 @@ void SphericalBasis::determine_acceleration_cuda()
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying sphCen");
   
-  // Copy particles to host vector
-  //
-  cC->ParticlesToCuda();
-
   // Loop over bunches
   //
-  size_t psize  = cC->host_particles.size();
+  size_t psize  = cC->Particles.size();
 
-  Component::hostPartItr begin = cC->host_particles.begin();
-  Component::hostPartItr first = begin;
-  Component::hostPartItr last  = begin;
-  Component::hostPartItr end   = cC->host_particles.end();
+  PartMap::iterator begin = cC->Particles().begin()
+  PartMap::iterator first = begin;
+  PartMap::iterator last  = begin;
+  PartMap::iterator end   = cC->Particles().end();
 
   if (psize <= cC->bunchSize) last = end;
   else std::advance(last, cC->bunchSize);
@@ -1643,8 +1640,12 @@ void SphericalBasis::determine_acceleration_cuda()
 
   while (std::distance(first, last)) {
 
-    cr->first = first;
-    cr->last  = last;
+    // Copy particles to host vector
+    //
+    cC->ParticlesToCuda(first, last);
+
+    cr->first = cC->host_particles.begin();
+    cr->last  = cC->host_particles.end();
     cr->id    = ++dbg_id;
 
     // Copy bunch to device
@@ -1703,6 +1704,10 @@ void SphericalBasis::determine_acceleration_cuda()
       cC->DevToHost(cr);
     }
 
+    // Do copy from host to component
+    //
+    cC->CudaToParticles(cr->first, cr->last);
+
     // Advance iterators
     //
     first = last;
@@ -1715,10 +1720,6 @@ void SphericalBasis::determine_acceleration_cuda()
     ++cr;			// Component
     ++ar;			// Force method
   }
-
-  // Finally, do copy from host to component
-  //
-  cC->CudaToParticles();
 
   // DEBUGGING TEST
   if (false) {
