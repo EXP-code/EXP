@@ -3965,7 +3965,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  spTau._v[cid] * xc  * 1e-14 / (cuLunit*cuLunit);
 
 	cuFP_t nsel = Prob * (nbods-1);
-	if (J1 == J2) nsel *= 0.5;
+	if (J1.sp == J2.sp) nsel *= 0.5;
 	totalNsel += nsel;
 
 	if (J1.sp == cuElectron) 

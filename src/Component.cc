@@ -1121,9 +1121,9 @@ void Component::initialize_cuda()
       } else {
 	
 	std::cout << "Component <" << name << ">: "
-		  << "could not CUDA device on Rank [" << myid
+		  << "could not set CUDA device on Rank [" << myid
 		  << "] on [" << processor_name << "] . . . "
-		  << "this is okay for n-body but will cause a failure in TreeDSMC" << std::endl;
+		  << "this cause a failure" << std::endl;
 	
       }
 

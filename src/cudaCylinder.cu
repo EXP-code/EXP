@@ -911,18 +911,14 @@ void Cylinder::determine_coefficients_cuda(bool compute)
   //
   cuFP_t rmax = rcylmax * acyl * M_SQRT1_2;
 
-  // Copy particles to host vector
-  //
-  cC->ParticlesToCuda();
-
   // Loop over bunches
   //
-  size_t psize  = cC->host_particles.size();
+  size_t psize  = cC->Particles().size();
 
-  Component::hostPartItr begin = cC->host_particles.begin();
-  Component::hostPartItr first = begin;
-  Component::hostPartItr last  = begin;
-  Component::hostPartItr end   = cC->host_particles.end();
+  PartMap::iterator begin = cC->Particles().begin();
+  PartMap::iterator first = begin;
+  PartMap::iterator last  = begin;
+  PartMap::iterator end   = cC->Particles().end();
 
   if (psize <= cC->bunchSize) last = end;
   else std::advance(last, cC->bunchSize);
@@ -935,8 +931,14 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
   while (std::distance(first, last)) {
     
-    cr->first = first;
-    cr->last  = last;
+    // Copy particles to host vector
+    //
+    cC->ParticlesToCuda(first, last);
+
+    // Assign host vector boundary iterators
+    //
+    cr->first = cC->host_particles.begin();
+    cr->last  = cC->host_particles.end();
     cr->id    = ++dbg_id;
 
     // Copy bunch to device
@@ -1575,18 +1577,14 @@ void Cylinder::determine_acceleration_cuda()
 		   __FILE__, __LINE__, "Error copying cylOrig");
   }
 
-  // Copy particles to host vector
-  //
-  cC->ParticlesToCuda();
-
   // Loop over bunches
   //
-  size_t psize  = cC->host_particles.size();
+  size_t psize  = cC->Particles().size();
 
-  Component::hostPartItr begin = cC->host_particles.begin();
-  Component::hostPartItr first = begin;
-  Component::hostPartItr last  = begin;
-  Component::hostPartItr end   = cC->host_particles.end();
+  PartMap::iterator begin = cC->Particles().begin();
+  PartMap::iterator first = begin;
+  PartMap::iterator last  = begin;
+  PartMap::iterator end   = cC->Particles().end();
 
   if (psize <= cC->bunchSize) last = end;
   else std::advance(last, cC->bunchSize);
@@ -1595,8 +1593,14 @@ void Cylinder::determine_acceleration_cuda()
 
   while (std::distance(first, last)) {
 
-    cr->first = first;
-    cr->last  = last;
+    // Copy particles to host vector
+    //
+    cC->ParticlesToCuda(first, last);
+
+    // Assign host vector boundary iterators
+    //
+    cr->first = cC->host_particles.begin();
+    cr->last  = cC->host_particles.end();
     cr->id    = ++dbg_id;
 
     // Copy bunch to device
@@ -1654,6 +1658,10 @@ void Cylinder::determine_acceleration_cuda()
       cC->DevToHost(cr);
     }
       
+    // Do copy from host to component
+    //
+    cC->CudaToParticles(cr->first, cr->last);
+
     // Advance iterators
     //
     first = last;
@@ -1665,26 +1673,6 @@ void Cylinder::determine_acceleration_cuda()
     //
     ++cr;			// Component
 				// Force method ring not needed here
-  }
-
-  cC->CudaToParticles();
-
-  // DEBUGGING TEST
-  if (false) {
-    std::cout << std::string(10+7*16, '-') << std::endl;
-    std::cout << "---- Acceleration in Cylinder [T=" << tnow
-	      << ", N=" << Ntot << ", level=" << mlevel
-	      << ", mass=" << cylmass
-	      << ", name=" << cC->name << "]" << std::endl;
-    std::cout << std::string(10+7*16, '-') << std::endl;
-    first = last = begin;
-    std::advance(last, 5);
-    std::copy(first, last, std::ostream_iterator<cudaParticle>(std::cout, "\n"));
-    first = begin;
-    last  = end;
-    std::advance(first, psize-5);
-    std::copy(first, last, std::ostream_iterator<cudaParticle>(std::cout, "\n"));
-    std::cout << std::string(10+7*16, '-') << std::endl;
   }
 }
 
