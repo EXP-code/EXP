@@ -725,8 +725,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   kEi      .resize(nthrds);	     // Direct
   kEe1     .resize(nthrds);	     // All
   kEe2     .resize(nthrds);	     // All
-  kEp1     .resize(nthrds);	     // All
-  kEp2     .resize(nthrds);	     // All
   kEee     .resize(nthrds);	     // All
   kE1s     .resize(nthrds);	     // Hybrid, Trace
   kE2s     .resize(nthrds);	     // Hybrid, Trace
@@ -2732,9 +2730,6 @@ double CollideIon::crossSectionWeight
   double eVel1 = sqrt(m1/me/dof1);
   double eVel2 = sqrt(m2/me/dof2);
 
-  double Evel1 = 0.0;
-  double Evel2 = 0.0;
-
   if (NO_VEL) {
     eVel0 = eVel1 = eVel2 = 1.0;
   } else if (use_elec) {
@@ -2746,9 +2741,6 @@ double CollideIon::crossSectionWeight
       eVel0 += rvel0*rvel0;
       eVel1 += rvel1*rvel1;
       eVel2 += rvel2*rvel2;
-
-      Evel1 += p1->dattrib[use_elec+i]*p1->dattrib[use_elec+i];
-      Evel2 += p2->dattrib[use_elec+i]*p2->dattrib[use_elec+i];
     }
     eVel0 = sqrt(eVel0) * TreeDSMC::Vunit;
     eVel1 = sqrt(eVel1) * TreeDSMC::Vunit;
@@ -2766,11 +2758,6 @@ double CollideIon::crossSectionWeight
   kEe1[id] = 0.5 * mu1 * vel*vel * eVel2*eVel2/dof2;
   kEe2[id] = 0.5 * mu2 * vel*vel * eVel1*eVel1/dof1;
   kEee[id] = 0.25 * me * vel*vel * eVel0*eVel0;
-
-  // Electron energy
-  //
-  kEp1[id] = 0.5  * me * Evel1 * Evel1 * TreeDSMC::Vunit*TreeDSMC::Vunit;
-  kEp2[id] = 0.5  * me * Evel2 * Evel2 * TreeDSMC::Vunit*TreeDSMC::Vunit;
 
   // Internal energy per particle
   //
@@ -2791,8 +2778,6 @@ double CollideIon::crossSectionWeight
   }
 
   kEi [id] /= eV;
-  kEp1[id] /= eV;
-  kEp2[id] /= eV;
 
   // Save the per-interaction cross sections
   //
@@ -3976,8 +3961,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     //  V                     V
     if (K2==NTC::electron and P1<Z1) {
 
-      // double ke = std::max<double>(kEe1[id], FloorEv);
-      double ke = std::max<double>(kEp1[id], FloorEv); // TEST
+      double ke = std::max<double>(kEe1[id], FloorEv);
       CE1[id] = ch.IonList[Q1]->collExciteCross(ke, id);
 
       double crs = eVelP2[id] * CE1[id].back().first;
@@ -4004,8 +3988,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
     if (K1==NTC::electron and P2<Z2) {
 
-      // double ke = std::max<double>(kEe2[id], FloorEv);
-      double ke = std::max<double>(kEp2[id], FloorEv);
+      double ke = std::max<double>(kEe2[id], FloorEv);
       CE2[id] = ch.IonList[Q2]->collExciteCross(ke, id);
 
       double crs = eVelP1[id] * CE2[id].back().first;
@@ -9642,11 +9625,17 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  dE = tmpE * Prob;
 
 #ifdef XC_DEEP2
-	  std::cout << "testT: ceDE=" << tmpE
-		    << " W=" << Prob
-		    << " N=" << N0
-		    << " Z=" << Q2.first
-		    << " C=" << Q2.second << std::endl;
+	  {
+	    double kEi = 0.0;
+	    for (int k=0; k<3; k++) kEi += 0.5*p2->mass*p2->vel[k]*p2->vel[k];
+	    std::cout << "testT: ceDE=" << tmpE
+		      << " W="  << Prob
+		      << " N="  << N0
+		      << " dE=" << tmpE * eV * N0 / TreeDSMC::Eunit
+		      << " kE=" << kEi
+		      << " Z="  << Q2.first
+		      << " C="  << Q2.second << std::endl;
+	  }
 #endif
 #ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
@@ -9673,11 +9662,18 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  dE = tmpE * Prob;
 
 #ifdef XC_DEEP2
+	  {
+	    double kEi = 0.0;
+	    for (int k=0; k<3; k++) kEi += 0.5*p1->mass*p1->vel[k]*p1->vel[k];
+
 	  std::cout << "testT: ceDE=" << tmpE
-		    << " W=" << Prob
-		    << " N=" << N0
+		    << " W="  << Prob
+		    << " N="  << N0
+		    << " dE=" << tmpE * eV * N0 / TreeDSMC::Eunit
+		    << " kE=" << kEi
 		    << " Z=" << Q1.first
 		    << " C=" << Q1.second << std::endl;
+	  }
 #endif
 #ifdef XC_DEEP9
 	  xc_counter[interFlag] += 1;
