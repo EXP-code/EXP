@@ -75,7 +75,7 @@ void UserMNdisk::initialize()
 {
   try {
     if (conf["ctrname"])   ctr_name    = conf["ctrname"].as<string>();
-    if (conf["a"])         a           = conf["a"].as<double>();
+    if (conf["b"])         a           = conf["a"].as<double>();
     if (conf["a"])         b           = conf["b"].as<double>();
     if (conf["mass"])      mass        = conf["mass"].as<double>();
     if (conf["Ton"])       Ton         = conf["Ton"].as<double>();
