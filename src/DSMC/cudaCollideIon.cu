@@ -4326,7 +4326,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      //
 	      cuFP_t wEta;
 	      computeEta(&F1._v[fP], &wEta, elems);
-	      wEta = wEta/EI.Eta1 - 1.0;
+	      wEta = wEta - EI.Eta1;
 
 	      cuFP_t Echg = EI.iE1 * wEta;
 #ifdef XC_DEEP0
@@ -4394,7 +4394,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      //
 	      cuFP_t wEta;
 	      computeEta(&F2._v[fP], &wEta, elems);
-	      wEta = wEta/EI.Eta2 - 1.0;
+	      wEta = wEta - EI.Eta2;
 
 	      cuFP_t Echg = EI.iE2 * wEta;
 #ifdef XC_DEEP0
@@ -4472,7 +4472,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      //
 	      cuFP_t wEta;
 	      computeEta(&F1._v[fP], &wEta, elems);
-	      wEta = 1.0 - wEta/EI.Eta1;
+	      wEta = EI.Eta1 - wEta;
 
 	      cuFP_t Edel = (EI.iE2 - EI.iE1) * wEta;
 	      cuFP_t Echg = EI.iE1 * wEta;
@@ -4538,7 +4538,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      //
 	      cuFP_t wEta;
 	      computeEta(&F2._v[fP], &wEta, elems);
-	      wEta = 1.0 - wEta/EI.Eta2;
+	      wEta = EI.Eta2 - wEta;
 
 	      cuFP_t Edel = (EI.iE1 - EI.iE2) * wEta;
 	      cuFP_t Echg = EI.iE2 * wEta;
