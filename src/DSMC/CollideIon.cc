@@ -9754,7 +9754,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // Energy for ionized electron comes from COM
 	  //
-	  wEta = F.eta(2)/etaP2[id] - 1.0;
+	  wEta = F.eta(2) - etaP2[id];
 	  double Echg = iE2 * wEta;
 #ifdef XC_DEEP0
 	  printf("Ionize[2]: W=%e E=%e eV=%e sys=%e\n", wEta, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
@@ -9847,7 +9847,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  // Energy for ionized electron comes from COM
 	  //
-	  wEta = F.eta(1)/etaP1[id] - 1.0;
+	  wEta = F.eta(1) - etaP1[id];
 	  double Echg = iE1 * wEta;
 #ifdef XC_DEEP0
 	  printf("Ionize[1]: W=%e E=%e eV=%e sys=%e\n", wEta, iE1, Echg, Echg*eV/TreeDSMC::Eunit);
@@ -9946,7 +9946,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  
 	  // Energy for ionized electron comes from COM
 	  //
-	  wEta = 1.0 - F.eta(2)/etaP2[id];
+	  wEta = etaP2[id] - F.eta(2);
 	  double Edel = (iE1 - iE2) * wEta;
 	  double Echg = iE2 * wEta;
 
@@ -10064,7 +10064,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 
 	  // Energy for ionized electron comes from COM
-	  wEta = 1.0 - F.eta(1)/etaP1[id];
+	  wEta = etaP1[id] - F.eta(1);
 	  double Edel = (iE2 - iE1) * wEta;
 	  double Echg = iE1 * wEta;
 
@@ -12422,8 +12422,10 @@ void CollideIon::deferredEnergyTrace(PordPtr pp, const double E, int id)
     return;
   }
 
-#ifdef XC_DEEP0
-  printf("deferE=%e\n", E);
+#ifdef XC_DEEP15
+  printf("deferE=%e 1=[%e, %e]\n", E,
+	 pp->KE1[0], pp->KE1[1],
+	 pp->KE2[0], pp->KE2[1]);
 #endif
 
   // Save energy adjustments for next interation.  Split between like
