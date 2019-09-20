@@ -332,7 +332,7 @@ protected:
 public:
 
   //! Describe the phase space coordinates
-  enum PSTYPE {Inertial=1, Local=2, Centered=4};
+  enum PSTYPE {Inertial=1, Local=2, Centered=4, Origin=8};
 
   //! Configuration for this component
   YAML::Node conf;
@@ -606,7 +606,7 @@ public:
   }
 
   //! Access to positions
-  inline double Pos(int i, int j, unsigned flags=Inertial)
+  inline double Pos(int i, int j, unsigned flags=Origin)
   {
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
