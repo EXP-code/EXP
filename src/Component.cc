@@ -1018,12 +1018,14 @@ void Component::initialize(void)
     if (restart && (EJ & Orient::CENTER)) {
       for (int i=0; i<3; i++) center[i] = (orient->currentCenter())[i+1];
     } else {
-      orient -> set_center(EJx0, EJy0, EJz0);
-      orient -> set_cenvel(EJu0, EJv0, EJw0);
       if (EJlinear) orient -> set_linear();
-      center[0] = EJx0;
-      center[1] = EJy0;
-      center[2] = EJz0;
+      if (not com_system) {
+	orient -> set_center(EJx0, EJy0, EJz0);
+	orient -> set_cenvel(EJu0, EJv0, EJw0);
+	center[0] = EJx0;
+	center[1] = EJy0;
+	center[2] = EJz0;
+      }
     }
 
     if (EJdiag) cout << "Process " << myid << ": Orient successful\n";
@@ -1036,11 +1038,17 @@ void Component::initialize(void)
 	   << center[0] << ", " 
 	   << center[1] << ", " 
 	   << center[2] << std::endl;
-    else
+    else if (not com_system) {
       cout << ">: user specified initial center: x, y, z: " 
 	   << EJx0 << ", " 
 	   << EJy0 << ", " 
 	   << EJz0 << std::endl;
+    } else {
+      cout << ">: default center relative to com: x, y, z: " 
+	   << 0.0 << ", " 
+	   << 0.0 << ", " 
+	   << 0.0 << std::endl;
+    }
 
     cout << "Component <" << name << ">: ";
 
