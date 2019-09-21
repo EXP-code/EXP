@@ -161,8 +161,6 @@ Component::Component(YAML::Node& CONF)
   com0        = 0;
   cov0        = 0;
   acc0        = 0;
-  comI        = 0;
-  covI        = 0;
 
   seq_check   = false;
   indexing    = false;
@@ -624,8 +622,6 @@ Component::Component(YAML::Node& CONF, istream *in) : conf(CONF)
   com0        = 0;
   cov0        = 0;
   acc0        = 0;
-  comI        = 0;
-  covI        = 0;
 
   seq_check   = false;
   indexing    = false;
@@ -803,14 +799,11 @@ void Component::initialize(void)
   com0   = new double[3];
   cov0   = new double[3];
   acc0   = new double[3];
-  comI   = new double[3];
-  covI   = new double[3];
 
-  for (int k=0; k<3; k++) 
-    com[k] = center[k] = cov[k] = coa[k] = 
-      com0[k] = cov0[k] = acc0[k] = 
-      comI[k] = covI[k] = angmom[k] = 0.0;
-  
+  for (int k=0; k<3; k++) {
+    com[k]  = center[k] = cov[k]  = coa[k]    = 0.0;
+    com0[k] = cov0[k]   = acc0[k] = angmom[k] = 0.0;
+  }  
 
   if (com_system) {
 
@@ -828,14 +821,14 @@ void Component::initialize(void)
       if (consp) cout << ", conserving com momentum [iattr #=" << tidal << "]";
       cout << ", computed COM system:";
       cout << endl << "\t\t(x, y, z)=("
-	   << setw(15) << comI[0] << ", "
-	   << setw(15) << comI[1] << ", "
-	   << setw(15) << comI[2] << ") "
+	   << setw(15) << com0[0] << ", "
+	   << setw(15) << com0[1] << ", "
+	   << setw(15) << com0[2] << ") "
 	   << endl << "\t\t"
 	   << "(u, v, w)=("
-	   << setw(15) << covI[0] << ", "
-	   << setw(15) << covI[1] << ", "
-	   << setw(15) << covI[2] << ") "
+	   << setw(15) << cov0[0] << ", "
+	   << setw(15) << cov0[1] << ", "
+	   << setw(15) << cov0[2] << ") "
 	   << endl;
       
       if (com_log) {
@@ -897,8 +890,10 @@ void Component::initialize(void)
 		if (first_data) {
 		  istringstream istr(line);
 		  istr >> ttim0;
-		  for (int k=0; k<3; k++) istr >> comI[k];
-		  for (int k=0; k<3; k++) istr >> covI[k];
+		  for (int k=0; k<3; k++) istr >> com0[k];
+		  for (int k=0; k<3; k++) istr >> cov0[k];
+		  for (int k=0; k<3; k++) istr >> acc0[k];
+		  for (int k=0; k<3; k++) istr >> center[k];
 		  first_data = false;
 		}
 
@@ -928,18 +923,6 @@ void Component::initialize(void)
 		       << setw(15) << cov0[0] << ", "
 		       << setw(15) << cov0[1] << ", "
 		       << setw(15) << cov0[2] << ") "
-		       << endl;
-
-		  cout << "\t\tInitial com at T=" << ttim0 << " is:";
-		  cout << endl << "\t\t(x, y, z)=("
-		       << setw(15) << comI[0] << ", "
-		       << setw(15) << comI[1] << ", "
-		       << setw(15) << comI[2] << ") "
-		       << endl << "\t\t"
-		       << "(u, v, w)=("
-		       << setw(15) << covI[0] << ", "
-		       << setw(15) << covI[1] << ", "
-		       << setw(15) << covI[2] << ") "
 		       << endl;
 
 		  newfile = false;
@@ -1154,8 +1137,6 @@ Component::~Component(void)
   delete [] com0;
   delete [] cov0;
   delete [] acc0;
-  delete [] comI;
-  delete [] covI;
 
   delete tree;
 }
@@ -1862,7 +1843,7 @@ void Component::write_binary(ostream* out, bool real4)
 
     if (myid == 0) {
       for (int k=0; k<number; k++) {
-	p[k]->writeBinary(rsize, com0, comI, cov0, covI, indexing, out);
+	p[k]->writeBinary(rsize, indexing, out);
       }
     }
 				// Next bunch of particles
@@ -1980,7 +1961,7 @@ void Component::write_binary_mpi_b(MPI_File& out, MPI_Offset& offset, bool real4
   char *buf = &buffer[0], *bufl;
 
   for (auto & p : particles) {
-    buf += p.second->writeBinaryMPI(buf, rsize, com0, comI, cov0, covI, indexing);
+    buf += p.second->writeBinaryMPI(buf, rsize, indexing);
     count++;
 
     if (count==pBufSiz) {
@@ -2085,7 +2066,7 @@ void Component::write_binary_mpi_i(MPI_File& out, MPI_Offset& offset, bool real4
   size_t count = 0;
 
   for (auto & p : particles) {
-    buf += p.second->writeBinaryMPI(buf, rsize, com0, comI, cov0, covI, indexing);
+    buf += p.second->writeBinaryMPI(buf, rsize, indexing);
     count++;
 
     if (count==pBufSiz) {
@@ -2155,7 +2136,7 @@ void Component::write_ascii(ostream* out, bool accel)
   while (p) {
     if (myid == 0) {
       for (int k=0; k<number; k++) {
-	p[k]->writeAscii(com0, comI, cov0, covI, indexing, accel, out);
+	p[k]->writeAscii(indexing, accel, out);
       }
     }
 
@@ -2199,8 +2180,6 @@ void Component::initialize_com_system()
   }
 
   for (int k=0; k<dim; k++) {
-    comI[k]   = com0[k];
-    covI[k]   = cov0[k];
     center[k] = 0.0;
   }
 
@@ -2212,23 +2191,10 @@ void Component::restart_com_system()
 {
   MPI_Bcast(&com_restart, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (com_restart) {
-    MPI_Bcast(&comI[0],   3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&covI[0],   3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&com0[0],   3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&cov0[0],   3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&acc0[0],   3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&center[0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-				// Particle loop
-    PartMapItr p, pend = particles.end();
-    for (p=particles.begin(); p != pend; p++) {
-
-      for (int i=0; i<3; i++) {
-	p->second->pos[i] -= com0[i] - comI[i];
-	p->second->vel[i] -= cov0[i] - covI[i];
-      }
-    }
-
   }
 
 }
@@ -2264,12 +2230,13 @@ void * fix_positions_thread(void *ptr)
   double *coa     = &(static_cast<thrd_pass_posn*>(ptr)->coa[0]);
   double *mtot    = &(static_cast<thrd_pass_posn*>(ptr)->mtot[0]);
 
+
   double *comE, *covE, *mtotE;
 
   if (consp && com_system) {
-    comE          = &(static_cast<thrd_pass_posn*>(ptr)->com[0]);
-    covE          = &(static_cast<thrd_pass_posn*>(ptr)->cov[0]);
-    mtotE         = &(static_cast<thrd_pass_posn*>(ptr)->mtot[0]);
+    comE          = &(static_cast<thrd_pass_posn*>(ptr)->comE[0]);
+    covE          = &(static_cast<thrd_pass_posn*>(ptr)->covE[0]);
+    mtotE         = &(static_cast<thrd_pass_posn*>(ptr)->mtotE[0]);
   }
 
   for (unsigned mm=mlevel; mm<=multistep; mm++) {
@@ -2302,6 +2269,8 @@ void * fix_positions_thread(void *ptr)
 	
 	if (p->iattrib[tidal]==1) continue;
       }
+
+      if (c->freeze(q)) continue;
 
       mtot[mm] += p->mass;
 
@@ -2506,9 +2475,7 @@ void Component::fix_positions(unsigned mlevel)
     MPI_Allreduce(&cov1[0], &covE[0], 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     
     for (int i=0; i<3; i++) {
-      comI[i] = (mtot0*comI[i] - comE[i])/(mtot0 - mtotE);
       com0[i] = (mtot0*com0[i] - comE[i])/(mtot0 - mtotE);
-      covI[i] = (mtot0*covI[i] - covE[i])/(mtot0 - mtotE);
       cov0[i] = (mtot0*cov0[i] - covE[i])/(mtot0 - mtotE);
     }
     mtot0 -= mtotE;
@@ -2520,6 +2487,11 @@ void Component::fix_positions(unsigned mlevel)
     for (int k=0; k<dim; k++) com[k]  /= mtot;
     for (int k=0; k<dim; k++) cov[k]  /= mtot;
     for (int k=0; k<dim; k++) coa[k]  /= mtot;
+  }
+
+  if (com_system and not consp) {
+    for (int k=0; k<dim; k++) com0[k] = com[k];
+    for (int k=0; k<dim; k++) cov0[k] = cov[k];
   }
 
   if (com_system) {	   // Use local center of accel for com update
@@ -3177,8 +3149,8 @@ bool Component::freeze(unsigned indx)
 {
   double r2 = 0.0;
   for (int i=0; i<3; i++) r2 += 
-			    (particles[indx]->pos[i] - comI[i] - center[i])*
-			    (particles[indx]->pos[i] - comI[i] - center[i]);
+			    (particles[indx]->pos[i] - com0[i] - center[i])*
+			    (particles[indx]->pos[i] - com0[i] - center[i]);
   if (r2 > rtrunc*rtrunc) return true;
   else return false;
 }
@@ -3187,8 +3159,8 @@ bool Component::escape_com(const Particle& p)
 {
   double r2 = 0.0;
   for (int i=0; i<3; i++) r2 += 
-			    (p.pos[i] - comI[i] - center[i])*
-			    (p.pos[i] - comI[i] - center[i]);
+			    (p.pos[i] - com0[i] - center[i])*
+			    (p.pos[i] - com0[i] - center[i]);
   if (r2 > rcom*rcom) return true;
   else return false;
 }

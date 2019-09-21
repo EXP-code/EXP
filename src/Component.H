@@ -332,7 +332,7 @@ protected:
 public:
 
   //! Describe the phase space coordinates
-  enum PSTYPE {Inertial=1, Local=2, Centered=4, Origin=8};
+  enum PSTYPE {Inertial=1, Local=2, Centered=4};
 
   //! Configuration for this component
   YAML::Node conf;
@@ -399,8 +399,6 @@ public:
   //@{
   //! System mass, center of mass, center of velocity and acceleration
   double mtot0, *com0, *cov0, *acc0;
-  //! Initial center of mass and velocity
-  double *comI, *covI;
   //! Maximum radius for contribution to center-of-mass computation
   double rcom;
 
@@ -606,7 +604,7 @@ public:
   }
 
   //! Access to positions
-  inline double Pos(int i, int j, unsigned flags=Origin)
+  inline double Pos(int i, int j, unsigned flags=Inertial)
   {
     PartMap::iterator tp = particles.find(i);
     if (tp == particles.end()) {
@@ -614,10 +612,7 @@ public:
     }
     double val = tp->second->pos[j];
     if (com_system) {
-      if (flags & Local)
-	val -= comI[j];
-      else if (flags & Inertial) 
-	val += com0[j] - comI[j];
+      if (flags & Local) val -= com0[j];
     }
     if (flags & Centered) val -= center[j];
     return val;
@@ -629,10 +624,7 @@ public:
     std::vector<double> ret(3, 0.0);
     for (int j=0; j<3; j++) {
       if (com_system) {
-	if (flags & Local)
-	  ret[j] += comI[j];
-	else if (flags & Inertial) 
-	  ret[j] -= com0[j] - comI[j];
+	if (flags & Local) ret[j] += com0[j];
       }
       if (flags & Centered) ret[j] += center[j];
     }
@@ -648,10 +640,7 @@ public:
     }
     double val = tp->second->vel[j];
     if (com_system) {
-      if (flags & Local)
-	val -= covI[j];
-      else if (flags & Inertial) 
-	val += cov0[j] - covI[j];
+      if (flags & Local) val -= cov0[j];
     }
     return val;
   }
@@ -665,10 +654,7 @@ public:
     for (int k=0; k<3; k++) {
       pos[k] = tp->second->pos[k];
       if (com_system) {
-	if (flags & Local) 
-	  pos[k] -= comI[k];
-	else if (flags & Inertial) 
-	  pos[k] += com0[k] - comI[k];
+	if (flags & Local) pos[k] -= com0[k];
       }
       if (flags & Centered) pos[k] -= center[k];
     }
@@ -683,10 +669,7 @@ public:
     for (int k=0; k<3; k++) {
       vel[k] = tp->second->vel[k];
       if (com_system) {
-	if (flags & Local)
-	  vel[k] -= covI[k];
-	else if (flags & Inertial) 
-	  vel[k] += cov0[k] - covI[k];
+	if (flags & Local) vel[k] -= cov0[k];
       }
     }
   }
@@ -696,21 +679,18 @@ public:
     if (flags & Inertial) return;
     for (int k=0; k<3; k++) {
       if (com_system) {
-	if (flags & Local)
-	  pos[k] -= com0[k]; 
+	if (flags & Local) pos[k] -= com0[k]; 
       }
       if (flags & Centered) pos[k] -= center[k];
     }
   }
-
+  
   //! Convert velocities from inertial to local
   inline void ConvertVel(double* vel, unsigned flags=Local | Centered) {
     if (flags & Inertial) return;
     for (int k=0; k<3; k++) {
       if (com_system) {	
-	if (flags & Local) 
-	  vel[k] -= cov0[k]; 
-
+	if (flags & Local) vel[k] -= cov0[k]; 
       }
     }
   }

@@ -200,9 +200,9 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 	   << center[2] << ", "
 	   << center[3] << endl;
       
-      MPI_Bcast(&Ecurr, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&axis[1], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&center[1], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&Ecurr,      1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&axis[1],    3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&center[1],  3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
       MPI_Bcast(&center0[1], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
       
       int howmany = max<int>(sumsA.size(), sumsC.size());
@@ -729,7 +729,7 @@ void Orient::logEntry(double time, Component *c)
     for (int k=0; k<3; k++) outl << setw(15) << c->com[k];
 
     // Columns 22 - 24
-    for (int k=0; k<3; k++) outl << setw(15) << c->com0[k] - c->comI[k];
+    for (int k=0; k<3; k++) outl << setw(15) << c->com0[k];
 
     outl << endl;
   }

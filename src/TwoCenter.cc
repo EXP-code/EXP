@@ -109,7 +109,7 @@ void TwoCenter::determine_coefficients(Component *c)
   for (int k=0; k<3; k++) {
     inner[k] = component->center[k];
     if (component->com_system) 
-      outer[k] = component->comI[k];
+      outer[k] = component->com0[k];
     else 
       outer[k] = component->com[k];
   }
@@ -127,7 +127,7 @@ void TwoCenter::determine_coefficients(void)
   for (int k=0; k<3; k++) {
     inner[k] = component->center[k];
     if (component->com_system) 
-      outer[k] = component->comI[k];
+      outer[k] = component->com0[k];
     else
       outer[k] = component->com[k];
   }
@@ -151,7 +151,7 @@ void TwoCenter::get_acceleration_and_potential(Component* curComp)
   for (int k=0; k<3; k++) {
     inner[k] = component->center[k];
     if (component->com_system) 
-      outer[k] = component->comI[k];
+      outer[k] = component->com0[k];
     else 
       outer[k] = component->com[k];
   }

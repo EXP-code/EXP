@@ -59,7 +59,7 @@ void * incr_position_thread(void *ptr)
 
       Particle *p = c->Part(indx);
       for (int k=0; k<c->dim; k++) 
-	p->pos[k] += (p->vel[k] - c->covI[k])*dt;
+	p->pos[k] += p->vel[k]*dt;
     }
   }
 

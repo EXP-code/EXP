@@ -159,7 +159,7 @@ void * UserReflect::determine_acceleration_and_potential_thread(void * arg)
 				// Shift the coordinate center
       for (int k=0; k<3; k++) {
 	pos[k] = p->pos[k] - cC->center[k];
-	if (cC->com_system) pos[k] -= cC->comI[k];
+	if (cC->com_system) pos[k] -= cC->com0[k];
       }
 
 				// Compute the radius
@@ -175,7 +175,7 @@ void * UserReflect::determine_acceleration_and_potential_thread(void * arg)
 				// Shift the velocity center
       for (int k=0; k<3; k++) {
 	vel[k] = p->vel[k];
-	if (cC->com_system) vel[k] -= cC->covI[k];
+	if (cC->com_system) vel[k] -= cC->cov0[k];
       }
 
       rv = 0.0;
@@ -192,7 +192,7 @@ void * UserReflect::determine_acceleration_and_potential_thread(void * arg)
 
 				// Undo the center shift and reassign
 	for (int k=0; k<3; k++) {
-	  if (cC->com_system) vel[k] += cC->covI[k];
+	  if (cC->com_system) vel[k] += cC->cov0[k];
 	  p->vel[k] = vel[k];
 	}
 
@@ -218,7 +218,7 @@ void * UserReflect::determine_acceleration_and_potential_thread(void * arg)
 				// Undo the center shifts and reassign
       for (int k=0; k<3; k++) {
 	pos[k] += cC->center[k];
-	if (cC->com_system) pos[k] += cC->comI[k];
+	if (cC->com_system) pos[k] += cC->com0[k];
 	p->pos[k] = pos[k];
       }
 

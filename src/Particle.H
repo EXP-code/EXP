@@ -97,21 +97,13 @@ public:
   void readBinary(unsigned rsize, bool indexing, int seq, std::istream *in);
 
   //! Write a particle in ascii format
-  void writeAscii(double* com0, double* comI, 
-		  double* cov0, double* covI, 
-		  bool indexing, bool accel, std::ostream* out);
+  void writeAscii(bool indexing, bool accel, std::ostream* out);
 
   //! Write a particle in binary format (PSP)
-  void writeBinary(unsigned rsize, 
-		   double* com0, double* comI,
-		   double* cov0, double* covI,
-		   bool indexing, std::ostream *out);
+  void writeBinary(unsigned rsize, bool indexing, std::ostream *out);
 
   //! Write a particle in binary format (PSP) to buffer for MPI
-  int writeBinaryMPI(char* buf, unsigned rsize, 
-		     double* com0, double* comI,
-		     double* cov0, double* covI,
-		     bool indexing);
+  int writeBinaryMPI(char* buf, unsigned rsize, bool indexing);
   
   //! Particle buffer size
   unsigned getMPIBufSize(unsigned rsize, bool indexing)

@@ -140,8 +140,6 @@ void Particle::readBinary(unsigned rsize, bool indexing, int seq,
 
 
 void Particle::writeBinary(unsigned rsize, 
-			   double* com0, double* comI,
-			   double* cov0, double* covI,
 			   bool indexing, std::ostream *out)
 {
   // Working variable
@@ -158,7 +156,7 @@ void Particle::writeBinary(unsigned rsize,
     out->write((const char *)&(mass), sizeof(double));
   
   for (int i=0; i<3; i++) {
-    double pv = pos[i] + com0[i] - comI[i];
+    double pv = pos[i];
     if (rsize == sizeof(float)) {
       tf = static_cast<float>(pv);
       out->write((const char *)&tf, sizeof(float));
@@ -168,7 +166,7 @@ void Particle::writeBinary(unsigned rsize,
   }
   
   for (int i=0; i<3; i++) {
-    double pv = vel[i] + cov0[i] - covI[i];
+    double pv = vel[i];
     if (rsize == sizeof(float)) {
       tf = static_cast<float>(pv);
       out->write((const char *)&tf, sizeof(float));
@@ -199,10 +197,7 @@ void Particle::writeBinary(unsigned rsize,
 }
 
 
-int Particle::writeBinaryMPI(char *buf, unsigned rsize, 
-			     double* com0, double* comI,
-			     double* cov0, double* covI,
-			     bool indexing)
+int Particle::writeBinaryMPI(char *buf, unsigned rsize, bool indexing)
 {
   // Pointer offset
   int p = 0;
@@ -225,7 +220,7 @@ int Particle::writeBinaryMPI(char *buf, unsigned rsize,
   p += rsize;
   
   for (int i=0; i<3; i++) {
-    double pv = pos[i] + com0[i] - comI[i];
+    double pv = pos[i];
     if (rsize == sizeof(float)) {
       tf = static_cast<float>(pv);
       memcpy (buf+p, &tf, rsize);
@@ -237,7 +232,7 @@ int Particle::writeBinaryMPI(char *buf, unsigned rsize,
   }
   
   for (int i=0; i<3; i++) {
-    double pv = vel[i] + cov0[i] - covI[i];
+    double pv = vel[i];
     if (rsize == sizeof(float)) {
       tf = static_cast<float>(pv);
       memcpy (buf+p, &tf, rsize);
@@ -318,14 +313,12 @@ void Particle::readAscii(bool indexing, int seq, std::istream* fin)
   }
 }
 
-void Particle::writeAscii(double* com0, double* comI, 
-			  double* cov0, double* covI, 
-			  bool indexing, bool accel, std::ostream* out)
+void Particle::writeAscii(bool indexing, bool accel, std::ostream* out)
 {
   if (indexing) *out << std::setw(12) << indx;
   *out << std::setw(18) << mass;
-  for (int i=0; i<3; i++) *out << std::setw(18) << pos[i]+com0[i]-comI[i];
-  for (int i=0; i<3; i++) *out << std::setw(18) << vel[i]+cov0[i]-covI[i];
+  for (int i=0; i<3; i++) *out << std::setw(18) << pos[i];
+  for (int i=0; i<3; i++) *out << std::setw(18) << vel[i];
   if (accel)
     for (int i=0; i<3; i++) *out << std::setw(18) << acc[i];
     
