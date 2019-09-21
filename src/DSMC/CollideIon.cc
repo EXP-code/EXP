@@ -11177,6 +11177,8 @@ void CollideIon::scatterTrace
     return;
   }
 
+  if (pp->W2 == 0.0) return;
+
   // Make v1 correspond to the primary, W1>W2
   //
   std::vector<double>* v1 = V1;
@@ -11243,21 +11245,16 @@ void CollideIon::scatterTrace
   // KE is zero (limiting case)
   //
   else {
+    // Defer all energy loss
+    //
     KE.vfac = 1.0;
     KE.kE   = kE;
     KE.totE = totE;
 
-    if (KE.delE>0.0) {
-      KE.miss = KE.delE;
-      // Defer all energy loss
-      //
-      deferredEnergyTrace(pp, KE.delE, id);
-      KE.delE = 0.0;
-    } else {
-      // Apply delE to COM
-      //
-      vi = -2.0*KE.delE/(pp->W2*mu);
-    }
+    deferredEnergyTrace(pp, KE.delE, id);
+
+    KE.miss = KE.delE;
+    KE.delE = 0.0;
   }
 
   vrel = unit_vector();
