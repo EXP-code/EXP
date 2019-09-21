@@ -111,6 +111,9 @@ Particle.H:		$(top_srcdir)/src/Particle.H
 			cp $(top_srcdir)/src/$@ .
 			ln -s Particle.H Particle.h
 
+Particle.h:		Particle.H
+			ln -s Particle.H Particle.h
+
 Species.H:		$(top_srcdir)/src/Species.H
 			cp $(top_srcdir)/src/$@ .
 
