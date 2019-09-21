@@ -2270,7 +2270,7 @@ void * fix_positions_thread(void *ptr)
 	if (p->iattrib[tidal]==1) continue;
       }
 
-      if (c->freeze(q)) continue;
+      if (c->freeze(n)) continue;
 
       mtot[mm] += p->mass;
 
