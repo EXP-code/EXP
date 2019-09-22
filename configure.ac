@@ -204,11 +204,11 @@ if test x$havevtk = xyes; then
       	 exp_vtk_ldlib="$exp_vtk_ldlib -lfreetype"
       fi
 
-      if test x$ac_cv_lib_ftgl_main = xyes; then
-      	 exp_vtk_ldlib="$exp_vtk_ldlib -lftgl"
-      else
-	 exp_vtk_ldlib="$exp_vtk_ldlib -lvtkftgl$vtk_libval"
-      fi
+      dnl if test x$ac_cv_lib_ftgl_main = xyes; then
+      dnl 	 exp_vtk_ldlib="$exp_vtk_ldlib -lftgl"
+      dnl else
+      dnl 	 exp_vtk_ldlib="$exp_vtk_ldlib -lvtkftgl$vtk_libval"
+      dnl fi
    fi
 
    CFLAGS=$OLD_CFLAGS
