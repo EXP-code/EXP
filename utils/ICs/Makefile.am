@@ -109,9 +109,9 @@ Particle.cc:		$(top_srcdir)/src/Particle.cc Particle.H
 
 Particle.H:		$(top_srcdir)/src/Particle.H
 			cp $(top_srcdir)/src/$@ .
-			ln -s Particle.H Particle.h
 
 Particle.h:		Particle.H
+			rm -rf Particle.h
 			ln -s Particle.H Particle.h
 
 Species.H:		$(top_srcdir)/src/Species.H
