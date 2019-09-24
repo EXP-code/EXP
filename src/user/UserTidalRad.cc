@@ -10,10 +10,11 @@
 UserTidalRad::UserTidalRad(const YAML::Node &conf) : ExternalForce(conf)
 {
   id = "TidalRadius";
-
-  filename = outdir + "TidalRad." + runtag; // Output file name
+				// Output file name
+  filename = outdir + runtag + ".TidalRad";
 
   comp_name = "";		// Default component for com
+  rtrunc = 1.0;			// Default tidal truncation
   
   initialize();
 
@@ -78,14 +79,13 @@ UserTidalRad::UserTidalRad(const YAML::Node &conf) : ExternalForce(conf)
       in.getline(line, linesize); // Discard header
       in.getline(line, linesize); // Next line
       
-      double lasttime, radius, energy;
+      double lasttime, radius;
       
       while (in) {
 	istringstream ins(line);
 	
 	ins >> lasttime;
 	ins >> radius;
-	ins >> energy;
 
 	if (lasttime >= tnow) break;
 
@@ -104,9 +104,17 @@ UserTidalRad::UserTidalRad(const YAML::Node &conf) : ExternalForce(conf)
 
       ofstream out(filename.c_str(), ios::out);
 
-      out << setw(15) << "# Time"
-	  << setw(15) << "Radius"
-	  << setw(15) << "Energy"
+      out << std::left
+	  << setw(16) << "# Time"
+	  << setw(16) << "Radius"
+	  << setw(16) << "Energy"
+	  << setw(16) << "u"
+	  << setw(16) << "v"
+	  << setw(16) << "w"
+	  << setw(16) << "E_min"
+	  << setw(16) << "E_max"
+	  << setw(10) << "Index"
+	  << setw(10) << "Number"
 	  << std::endl;
     }
   }
@@ -138,6 +146,7 @@ void UserTidalRad::initialize()
 {
   try {
     if (conf["compname"]) comp_name = conf["compname"].as<std::string>();
+    if (conf["rtrunc"])   rtrunc    = conf["rtrunc"].as<double>();
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in UserTidalRad: "
@@ -182,6 +191,20 @@ void UserTidalRad::determine_acceleration_and_potential(void)
 
   exp_thread_fork(false);
 
+  for (int n=1; n<nthrds; n++) {
+    for (int k=0; k<3; k++) cov[k] += cov[3*n+k];
+    mas[0] += mas[n];
+  }
+
+  // Compute center of velocity
+  //
+  MPI_Allreduce(MPI_IN_PLACE, &cov[0], 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, &mas[0], 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+  if (mas[0]>0.0) {
+    for (int k=0; k<3; k++) cov[k] /= mas[0];
+  }
+
   // Find maximum radius with bound energy
   //
   std::sort(erg.begin(), erg.end());
@@ -196,16 +219,25 @@ void UserTidalRad::determine_acceleration_and_potential(void)
 
   if (myid==0) {
     // Open output stream for writing
+    //
     std::ofstream out(filename.c_str(), ios::out | ios::app);
     if (out.good()) {
-      out.setf(ios::left);
-      out << setw(16) << tnow
+      out << std::left
+	  << setw(16) << tnow
 	  << setw(16) << rt_cur
 	  << setw(16) << max_en
+	  << setw(16) << cov[0]
+	  << setw(16) << cov[1]
+	  << setw(16) << cov[2]
+	  << setw(16) << *(erg.begin())
+	  << setw(16) << *(erg.end())
+	  << setw(10) << indx
+	  << setw(10) << c0->Number()
 	  << std::endl;
-    } else
+    } else {
       std::cerr << "UserTidalRad: error opening <" << filename
 		<< "> for append" << std::endl;
+    }
   }
 }
 
