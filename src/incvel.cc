@@ -57,13 +57,13 @@ void * incr_velocity_thread(void *ptr)
       
       Particle *p = c->Part(indx);
 
-      if (c->com_system) {
-	for (int k=0; k<c->dim; k++) 
-	  p->vel[k] += (p->acc[k] - c->acc0[k])*dt;
-      } else {
+      // if (c->com_system) {
+      // 	for (int k=0; k<c->dim; k++) 
+      // 	  p->vel[k] += (p->acc[k] - c->acc0[k])*dt;
+      // } else {
 	for (int k=0; k<c->dim; k++) 
 	  p->vel[k] += p->acc[k]*dt;
-      }
+	// }
 
     }
       
