@@ -185,19 +185,14 @@ void UserTidalRad::determine_acceleration_and_potential(void)
 
   exp_thread_fork(false);
 
-  // Binding energy pass
+
+  // Compute center of velocity
   //
-  pass = 1;
-
-  exp_thread_fork(false);
-
   for (int n=1; n<nthrds; n++) {
     for (int k=0; k<3; k++) cov[k] += cov[3*n+k];
     mas[0] += mas[n];
   }
 
-  // Compute center of velocity
-  //
   MPI_Allreduce(MPI_IN_PLACE, &cov[0], 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(MPI_IN_PLACE, &mas[0], 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
@@ -205,12 +200,19 @@ void UserTidalRad::determine_acceleration_and_potential(void)
     for (int k=0; k<3; k++) cov[k] /= mas[0];
   }
 
+  // Binding energy pass
+  //
+  pass = 1;
+
+  exp_thread_fork(false);
+
   // Find maximum radius with bound energy
   //
   std::sort(erg.begin(), erg.end());
   auto it = std::lower_bound(erg.begin(), erg.end(), 0.0);
   if (it != erg.begin()) it--;
   auto indx = std::distance(erg.begin(), it);
+  if (it == erg.end()) indx = c0->Number()-1;
 
   double maxrad1 = rad[indx];
   double maxerg1 = erg[indx], max_en;
