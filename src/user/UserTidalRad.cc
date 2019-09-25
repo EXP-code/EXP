@@ -14,7 +14,8 @@ UserTidalRad::UserTidalRad(const YAML::Node &conf) : ExternalForce(conf)
   filename = outdir + runtag + ".TidalRad";
 
   comp_name = "";		// Default component for com
-  rtrunc = 1.0;			// Default tidal truncation
+  rtrunc    = 1.0;		// Default tidal truncation
+  rfactor   = 1.0;		// Fraction of rtruc for setting the scale
   
   initialize();
 
@@ -147,6 +148,7 @@ void UserTidalRad::initialize()
   try {
     if (conf["compname"]) comp_name = conf["compname"].as<std::string>();
     if (conf["rtrunc"])   rtrunc    = conf["rtrunc"].as<double>();
+    if (conf["rfactor"])  rfactor   = conf["rfactor"].as<double>();
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in UserTidalRad: "
