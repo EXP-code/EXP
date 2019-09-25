@@ -221,6 +221,10 @@ void UserTidalRad::determine_acceleration_and_potential(void)
   MPI_Allreduce(&maxrad1, &rt_cur, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
   MPI_Allreduce(&maxerg1, &max_en, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
+  // Update rtrunc in the component
+  //
+  c0->rtrunc = rt_cur;
+
   if (myid==0) {
     // Open output stream for writing
     //
