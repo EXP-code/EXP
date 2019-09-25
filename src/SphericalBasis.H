@@ -204,9 +204,6 @@ protected:
   //! The maximum radius
   double rmax;
 
-  //! Radial scale factor
-  double scale;
-
   //! Flag self_consitency
   bool self_consistent;
 

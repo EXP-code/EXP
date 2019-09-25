@@ -178,6 +178,7 @@ PotAccel::PotAccel(const YAML::Node& CONF) : conf(CONF)
   compute      = false;
   dof          = 3;
   mlevel       = 0;
+  scale        = 1.0;
 
   // Per thread counter
   try {

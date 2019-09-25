@@ -73,6 +73,9 @@ protected:
   //! For thread timing
   TList timer_list;
 
+  //! Length scaling (not used for all methods)
+  double scale;
+
 public:
 
   //! For timing data
@@ -178,6 +181,9 @@ public:
 
   //! Print debug info
   virtual void multistep_debug() {}
+
+  //! Set length scale
+  virtual void setScale(double s) { scale = s; }
 
   //! For timing the fraction spent in threaded force methods
   //@{

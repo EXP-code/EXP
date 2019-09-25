@@ -24,7 +24,8 @@ private:
 
   std::string filename;
   std::vector<double> rad, erg, cov, mas;
-  double rt_cur;
+  double rt_cur, rt_cur0;
+  bool firsttime;
   int pass;
   
   void userinfo();

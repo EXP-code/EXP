@@ -16,6 +16,7 @@ UserTidalRad::UserTidalRad(const YAML::Node &conf) : ExternalForce(conf)
   comp_name = "";		// Default component for com
   rtrunc    = 1.0;		// Default tidal truncation
   rfactor   = 1.0;		// Fraction of rtruc for setting the scale
+  firsttime = true;		// Used to set fiducial scale on first pass
   
   initialize();
 
@@ -223,7 +224,16 @@ void UserTidalRad::determine_acceleration_and_potential(void)
 
   // Update rtrunc in the component
   //
-  c0->rtrunc = rt_cur;
+  c0->rtrunc = rt_cur*rfactor;
+
+  // Update scale in force
+  //
+  if (firsttime) {
+    rt_cur0 = rt_cur;
+    firsttime = false;
+  }
+
+  c0->force->setScale(rt_cur/rt_cur0);
 
   if (myid==0) {
     // Open output stream for writing

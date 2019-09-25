@@ -367,8 +367,7 @@ public:
   //! Spherical geometry
   bool sphere;
   
-
-  //! Maximum initial particle radious
+  //! Maximum initial particle radius
   double rmax;
 
   //! Species key position in particle integer attribute vector
@@ -611,9 +610,7 @@ public:
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
     double val = tp->second->pos[j];
-    if (com_system) {
-      if (flags & Local) val -= com0[j];
-    }
+    if (com_system and flags & Local) val -= com0[j];
     if (flags & Centered) val -= center[j];
     return val;
   }
@@ -623,9 +620,7 @@ public:
   {
     std::vector<double> ret(3, 0.0);
     for (int j=0; j<3; j++) {
-      if (com_system) {
-	if (flags & Local) ret[j] += com0[j];
-      }
+      if (com_system and flags & Local) ret[j] += com0[j];
       if (flags & Centered) ret[j] += center[j];
     }
 
@@ -639,9 +634,7 @@ public:
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
     double val = tp->second->vel[j];
-    if (com_system) {
-      if (flags & Local) val -= cov0[j];
-    }
+    if (com_system and flags & Local) val -= cov0[j];
     return val;
   }
   
@@ -653,9 +646,7 @@ public:
     }
     for (int k=0; k<3; k++) {
       pos[k] = tp->second->pos[k];
-      if (com_system) {
-	if (flags & Local) pos[k] -= com0[k];
-      }
+      if (com_system and flags & Local) pos[k] -= com0[k];
       if (flags & Centered) pos[k] -= center[k];
     }
   }
@@ -668,9 +659,7 @@ public:
     }
     for (int k=0; k<3; k++) {
       vel[k] = tp->second->vel[k];
-      if (com_system) {
-	if (flags & Local) vel[k] -= cov0[k];
-      }
+      if (com_system and flags & Local) vel[k] -= cov0[k];
     }
   }
   
@@ -678,9 +667,7 @@ public:
   inline void ConvertPos(double* pos, unsigned flags=Local | Centered) {
     if (flags & Inertial) return;
     for (int k=0; k<3; k++) {
-      if (com_system) {
-	if (flags & Local) pos[k] -= com0[k]; 
-      }
+      if (com_system and flags & Local) pos[k] -= com0[k]; 
       if (flags & Centered) pos[k] -= center[k];
     }
   }
@@ -689,9 +676,7 @@ public:
   inline void ConvertVel(double* vel, unsigned flags=Local | Centered) {
     if (flags & Inertial) return;
     for (int k=0; k<3; k++) {
-      if (com_system) {	
-	if (flags & Local) vel[k] -= cov0[k]; 
-      }
+      if (com_system and flags & Local) vel[k] -= cov0[k]; 
     }
   }
 
@@ -702,7 +687,7 @@ public:
       throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
     }
     double val = tp->second->acc[j];
-    if (com_system && (flags & Inertial)) val += acc0[j];
+    if (com_system and flags & Inertial) val += acc0[j];
     return val;
   }
   
