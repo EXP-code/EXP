@@ -15,7 +15,7 @@ class UserTidalRad : public ExternalForce
 private:
   
   std::string comp_name;
-  double rtrunc;
+  double rtrunc, rfactor;
   Component *c0;
 
   void determine_acceleration_and_potential(void);
