@@ -907,7 +907,7 @@ void TreeDSMC::determine_acceleration_and_potential(void)
   //
   // Only run diagnostics every nsteps
   //
-  bool diagstep = nsteps>0 && (mstep % nsteps == 0);
+  bool diagstep = nsteps>0 && (stepnum % nsteps == 0);
   
   //
   // Diagnostics run at levels <= msteps (takes prececdence over nsteps)
@@ -1846,6 +1846,8 @@ void TreeDSMC::determine_acceleration_and_potential(void)
 
   } // END: diagstep
   
+  if (cuda_prof) tPtr2.reset();
+
   
 #ifdef USE_GPTL
   GPTLstop("TreeDSMC::determine_acceleration_and_potential");
