@@ -796,6 +796,10 @@ private:
   //! (default: false)
   bool IonElecRate;
 
+  //! Scale factor for trace selection
+  //! (default: 1.0)
+  double upscale;
+
 #if HAVE_LIBCUDA==1
   virtual void *collide_thread_cuda(void *arg);
   void cuda_initialize();

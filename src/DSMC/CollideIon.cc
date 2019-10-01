@@ -15733,11 +15733,16 @@ NTC::InteractD CollideIon::generateSelectionTrace
   meanLambda = 1.0/crossM;
   meanCollP  = collPM;
 
-  double totSelcM = 0.0, totProb = 0.0;
-  double rateF = (*Fn)[key] * tau; // Rate factor
+  // Rate factor
+  //
+  double rateF = (*Fn)[key] * tau * upscale; 
+
+  // Accumulate total number
+  //
+  double totSelcM = 0.0;
 
   for (auto & v : selcM.v) {
-    totProb += v.second() * dens * rateF * crs_units;
+    
     v.second() *= (num - 1) * dens * rateF * crs_units;
 
     auto k1 = std::get<1>(v.first);
@@ -19720,6 +19725,13 @@ void CollideIon::processConfig()
     else {
       config["ION_ELEC_RATE"]["desc"] = "Use ion-ion relative speed to compute electron-electron interaction rate";
       config["ION_ELEC_RATE"]["value"] = IonElecRate = false;
+    }
+
+    if (config["TRACE_UPSCALE"])
+      upscale = config["TRACE_UPSCALE"]["value"].as<double>();
+    else {
+      config["TRACE_UPSCALE"]["desc"] = "Increase (or decrease) the number candidate collisions for each physical interaction";
+      config["TRACE_UPSCALE"]["value"] = upscale = 1.0;
     }
 
     if (config["REVERSE_APPLY"])
