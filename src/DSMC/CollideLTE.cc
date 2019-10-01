@@ -433,7 +433,7 @@ double CollideLTE::crossSection(int id, pCell* const c,
 
 int CollideLTE::inelastic(int id, pCell* const cell, 
 			  Particle* const p1, Particle* const p2, 
-			  double *cr, const NTC::T& ityp)
+			  double *cr, double wght, const NTC::T& ityp)
 
 {
   int ret = 0;			// No error (flag)

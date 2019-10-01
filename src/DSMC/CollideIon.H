@@ -1094,7 +1094,7 @@ protected:
 
   int inelasticTrace(int id, pCell* const c, 
 		     Particle* const p1, Particle* const p2, 
-		     double *crm, const NTC::T& type);
+		     double *crm, double wght, const NTC::T& type);
 
   void secondaryScatter(Particle *p);
 
@@ -1270,7 +1270,7 @@ protected:
 
   virtual int 
   inelastic(int id, pCell* const c, Particle* const p1, Particle* const p2, 
-	    double *crm, const NTC::T& itype)
+	    double *crm, double wght, const NTC::T& itype)
   {
     if (aType == Direct)
       return inelasticDirect(id, c, p1, p2, crm, itype);
@@ -1279,7 +1279,7 @@ protected:
       return inelasticWeight(id, c, p1, p2, crm, itype);
 
     if (aType == Trace)
-      return inelasticTrace (id, c, p1, p2, crm, itype);
+      return inelasticTrace (id, c, p1, p2, crm, wght, itype);
 
     if (aType == Hybrid)
       return inelasticHybrid(id, c, p1, p2, crm, itype);

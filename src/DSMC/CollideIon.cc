@@ -9249,7 +9249,7 @@ void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
 */
 int CollideIon::inelasticTrace(int id, pCell* const c,
 			       Particle* const _p1, Particle* const _p2,
-			       double *cr, const NTC::T& T)
+			       double *cr, double wght, const NTC::T& T)
 {
   int ret         =  0;		// No error (flag)
 
@@ -9427,6 +9427,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       std::cout << "CRAZY pair: two electrons" << std::endl;
       cid = 0;
     }
+
+  Prob *= wght;
 
   bool ok = false;		// Reject all interactions by default
 

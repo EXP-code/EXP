@@ -400,7 +400,7 @@ protected:
   //! Do the inelastic computation
   virtual int inelastic(int id, pCell* const cell, 
 			Particle* const p1, Particle* const p2, double *cr, 
-			const NTC::T& ityp=NTC::single) = 0;
+			double wght, const NTC::T& ityp=NTC::single) = 0;
   
   virtual void 
   velocityUpdate(Particle* const p1, Particle* const p2, double cr);

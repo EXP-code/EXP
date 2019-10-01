@@ -70,7 +70,7 @@ protected:
 
   virtual int inelastic(int id, pCell* const cell, 
 			Particle* const p1, Particle* const p2, double *crm, 
-			const NTC::T& ityp=NTC::single);
+			double wght, const NTC::T& ityp=NTC::single);
 
   double getCoolingRate(int id) { return coolheat[id]; }
 

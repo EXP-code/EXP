@@ -1386,17 +1386,22 @@ void * Collide::collide_thread(void * arg)
 
 	// Fractional check
 	//
-	double frc = v.second() - np;
+	double frc = v.second() - np, wght = 1.0;
 	double  R0 = (*unit)();
 #ifdef XC_DEEP12
 	printf("FRC=%13.6e R=%13.6e T=%d\n", frc, R0, TT);
 #endif
+
+#ifdef WEIGHTED
+	if (frc < 1.0) wght = frc;
+#else
 	if (frc < 1.0 and R0 > frc) break;
 	//      ^            ^
 	//      |            |
 	//      |            +--- select with probability frc
 	//      |
 	//      +--- Only use fractional part on final candidate
+#endif
 
 	// Pick a pair of particles from the cell
 	//
@@ -1528,7 +1533,7 @@ void * Collide::collide_thread(void * arg)
 	  
 	  // Do inelastic stuff
 	  //
-	  error1T[id] += inelastic(id, c, p1, p2, &cr, T);
+	  error1T[id] += inelastic(id, c, p1, p2, &cr, wght, T);
 	  
 	  // Update the particle velocity
 	  //
