@@ -1380,8 +1380,6 @@ void * Collide::collide_thread(void * arg)
       speciesKey i1 = std::get<1>(T);
       speciesKey i2 = std::get<2>(T);
 	
-      if (TT < 6 and TT > 7) continue; // For debugging only
-
       sKeyPair k(i1, i2);
 
 #ifdef XC_DEEP12
