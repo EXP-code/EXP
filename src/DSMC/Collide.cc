@@ -167,6 +167,10 @@ bool Collide::DEBUG_NTC         = false;
 //
 bool Collide::NTC_DIST          = false;
 
+// Oversampling factor for TESTSPREAD
+//
+int Collide::TestSpreadCount    = 40;
+
 // For logging output
 //
 std::string Collide::printDivider(80, '-');
@@ -1376,10 +1380,20 @@ void * Collide::collide_thread(void * arg)
       speciesKey i1 = std::get<1>(T);
       speciesKey i2 = std::get<2>(T);
 	
+      if (TT < 6 and TT > 7) continue; // For debugging only
+
       sKeyPair k(i1, i2);
 
 #ifdef XC_DEEP12
       printf("NPAIR=%8d NSEL=%13.6e T=%d\n", totalCount, v.second(), TT);
+#endif
+
+#ifdef TESTSPREAD
+      double tfrac = 1.0;
+      if (TT>=6 and v.second()<10.0) {
+	totalCount = TestSpreadCount;
+	tfrac = v.second()/totalCount;
+      }
 #endif
 
       for (int np=0; np<totalCount; np++) {
@@ -1388,11 +1402,15 @@ void * Collide::collide_thread(void * arg)
 	//
 	double frc = v.second() - np, wght = 1.0;
 	double  R0 = (*unit)();
-#ifdef XC_DEEP12
+#ifdef  XC_DEEP12
 	printf("FRC=%13.6e R=%13.6e T=%d\n", frc, R0, TT);
 #endif
 
-#ifdef WEIGHTED
+#ifdef  TESTSPREAD
+	wght = tfrac;
+#else
+
+#ifdef  WEIGHTED
 	if (frc < 1.0) wght = frc;
 #else
 	if (frc < 1.0 and R0 > frc) break;
@@ -1401,6 +1419,8 @@ void * Collide::collide_thread(void * arg)
 	//      |            +--- select with probability frc
 	//      |
 	//      +--- Only use fractional part on final candidate
+#endif
+
 #endif
 
 	// Pick a pair of particles from the cell
