@@ -9396,28 +9396,25 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   if (k2 == NTC::electron and
       k1 != NTC::electron)
     {
-      // PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_electron, DBL_MAX));
-      PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_electron, 0.0));
+      PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_electron, DBL_MAX));
       cid = 1;
       int pos = SpList[k1];
-      Prob = p1->dattrib[pos] * etaP2[id];
+      Prob = p1->dattrib[pos];
     }
   
   else if (k1 == NTC::electron and
       k2 != NTC::electron)
     {
-      // PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_ion, DBL_MAX));
-      PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_ion, 0.0));
+      PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_ion, DBL_MAX));
       cid = 2;
       int pos = SpList[k2];
-      Prob = p2->dattrib[pos] * etaP1[id];
+      Prob = p2->dattrib[pos];
     }
   
   else if (k1 != NTC::electron and
       k2 != NTC::electron)
     {
-      // PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_ion, DBL_MAX));
-      PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_ion, 0.0));
+      PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_ion, DBL_MAX));
       cid = 0;
       int pos1 = SpList[k1];
       int pos2 = SpList[k2];
