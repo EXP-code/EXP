@@ -15735,7 +15735,7 @@ NTC::InteractD CollideIon::generateSelectionTrace
 
   // Rate factor
   //
-  double rateF = (*Fn)[key] * tau * upscale; 
+  double rateF = (*Fn)[key] * tau;
 
   // Accumulate total number
   //
@@ -19725,13 +19725,6 @@ void CollideIon::processConfig()
     else {
       config["ION_ELEC_RATE"]["desc"] = "Use ion-ion relative speed to compute electron-electron interaction rate";
       config["ION_ELEC_RATE"]["value"] = IonElecRate = false;
-    }
-
-    if (config["TRACE_UPSCALE"])
-      upscale = config["TRACE_UPSCALE"]["value"].as<double>();
-    else {
-      config["TRACE_UPSCALE"]["desc"] = "Increase (or decrease) the number candidate collisions for each physical interaction";
-      config["TRACE_UPSCALE"]["value"] = upscale = 1.0;
     }
 
     if (config["REVERSE_APPLY"])
