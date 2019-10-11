@@ -80,15 +80,15 @@ phConv_SOURCES = ph_conv.cc
 phConv_LDFLAGS = $(COMMON_LIBS) $(EXPFLAGS) $(BOOST_LDFLAGS)
 phConv_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS)
 
-initial.cc:		Particle.H
+initial.cc:		Particle.H Particle.h
 
-initial2.cc:		Particle.H
+initial2.cc:		Particle.H Particle.h
 
-initial3.cc:		Particle.H
+initial3.cc:		Particle.H Particle.h
 
-empinfo.cc:		Particle.H
+empinfo.cc:		Particle.H Particle.h
 
-empdump.cc:		Particle.H
+empdump.cc:		Particle.H Particle.h
 
 makeIonIC.cc:		atomic_constants.H
 
@@ -98,7 +98,7 @@ CylindricalDisk.cc:	$(top_srcdir)/utils/SL/CylindricalDisk.cc
 SLSphere.cc:		$(top_srcdir)/utils/SL/SLSphere.cc
 			cp $(top_srcdir)/utils/SL/$@ .
 
-EmpCylSL.cc:		$(top_srcdir)/src/EmpCylSL.cc Particle.H
+EmpCylSL.cc:		$(top_srcdir)/src/EmpCylSL.cc Particle.h
 			cp $(top_srcdir)/src/$@ .
 
 localmpi.cc:		$(top_srcdir)/exputil/localmpi.cc
