@@ -565,6 +565,9 @@ public:
   //! Target number of collisions per cell (for time step selection)
   static unsigned collTnum;
 
+  //! Testspread over sampling factor (default: 40)
+  static int TestSpreadCount;	        
+  
   /** Constructor
       @param force is the caller
       @param comp is the fiducial component

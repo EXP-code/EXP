@@ -9399,7 +9399,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_electron, DBL_MAX));
       cid = 1;
       int pos = SpList[k1];
-      Prob = p1->dattrib[pos] * etaP2[id];
+      Prob = p1->dattrib[pos];
     }
   
   else if (k1 == NTC::electron and
@@ -9408,7 +9408,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       PP = PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_ion, DBL_MAX));
       cid = 2;
       int pos = SpList[k2];
-      Prob = p2->dattrib[pos] * etaP1[id];
+      Prob = p2->dattrib[pos];
     }
   
   else if (k1 != NTC::electron and
@@ -15735,7 +15735,7 @@ NTC::InteractD CollideIon::generateSelectionTrace
 
   // Rate factor
   //
-  double rateF = (*Fn)[key] * tau * upscale; 
+  double rateF = (*Fn)[key] * tau;
 
   // Accumulate total number
   //
@@ -19727,13 +19727,6 @@ void CollideIon::processConfig()
       config["ION_ELEC_RATE"]["value"] = IonElecRate = false;
     }
 
-    if (config["TRACE_UPSCALE"])
-      upscale = config["TRACE_UPSCALE"]["value"].as<double>();
-    else {
-      config["TRACE_UPSCALE"]["desc"] = "Increase (or decrease) the number candidate collisions for each physical interaction";
-      config["TRACE_UPSCALE"]["value"] = upscale = 1.0;
-    }
-
     if (config["REVERSE_APPLY"])
       reverse_apply = config["REVERSE_APPLY"]["value"].as<bool>();
     else {
@@ -19830,6 +19823,13 @@ void CollideIon::processConfig()
     else {
       config["ntcNoDB"]["desc"] = "Use NTC without DB";
       config["ntcNoDB"]["value"] = Collide::NTCnodb = true;
+    }
+
+    if (config["TestSpreadCount"])
+      Collide::NTCnodb = config["TestSpreadCount"]["value"].as<int>();
+    else {
+      config["TestSpreadCount"]["desc"] = "TESTSPREAD oversampling factor";
+      config["TestSpreadCount"]["value"] = Collide::TestSpreadCount = 40;
     }
 
     if (config["HandMcoef"])
