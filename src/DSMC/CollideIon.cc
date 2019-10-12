@@ -9957,7 +9957,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  double Echg = iE2 * wEta;
 
 	  dE += Edel;
-	  rcbExtra[1] += Echg;
+
+	  if (MeanMass) rcbExtra[1] += Echg;
+	  else          rcbExtra[1] += Echg/PP->eta2;
 
 #ifdef XC_DEEP0
 	  printf("Recombine[2]: W=%e E=%e eV=%e sys=%e\n", wEta, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
@@ -10075,7 +10077,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  double Echg = iE1 * wEta;
 
 	  dE += Edel;
-	  rcbExtra[0] += Echg;
+
+	  if (MeanMass) rcbExtra[0] += Echg;
+	  else          rcbExtra[0] += Echg/PP->eta2;
 
 #ifdef XC_DEEP0
 	  printf("Recombine[1]: W=%e E=%e eV=%e sys=%e\n", WW, iE1, Echg, Echg*eV/TreeDSMC::Eunit);
