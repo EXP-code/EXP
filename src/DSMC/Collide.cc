@@ -1017,6 +1017,19 @@ void * Collide::collide_thread(void * arg)
   }
   // END DEBUG
 
+  // Store counters for collisional excitation counting (for TESTING)
+  //
+#ifdef TESTSPREAD
+  static std::tuple<double, double, double, double, int, int, int> running_tally = {0, 0, 0, 0, 0, 0, 0};
+  //                                                                                ^  ^  ^  ^  ^  ^  ^
+  // 0 Accepted collisions----------------------------------------------------------+  |  |  |  |  |  |
+  // 1 Proposed collisions-------------------------------------------------------------+  |  |  |  |  |
+  // 2 Cross section----------------------------------------------------------------------+  |  |  |  |
+  // 3 Target ratio--------------------------------------------------------------------------+  |  |  |
+  // 4 Cumulated pairs--------------------------------------------------------------------------+  |  |
+  // 5 Number of trials----------------------------------------------------------------------------+  |
+  // 6 Number accepted--------------------------------------------------------------------------------+
+#endif
 
   // Loop over cells, processing collisions in each cell
   //
@@ -1185,7 +1198,7 @@ void * Collide::collide_thread(void * arg)
     //  +------------------------------+
     //  |
     //  v
-    if (true) {
+    if (false) {
       
       const double cunit = 1e-14/(TreeDSMC::Lunit*TreeDSMC::Lunit);
 
@@ -1388,9 +1401,14 @@ void * Collide::collide_thread(void * arg)
 
 #ifdef TESTSPREAD
       double tfrac = 1.0;
-      if (TT>=6 and v.second()<10.0) {
+      if (TT>=6 and v.second()<TestSpreadCount) {
 	totalCount = TestSpreadCount;
 	tfrac = v.second()/totalCount;
+      }
+
+      if (TT == 7) {
+	std::get<1>(running_tally) += v.second();
+	std::get<4>(running_tally) += nbods*(nbods-1)/2;
       }
 #endif
 
@@ -1474,7 +1492,18 @@ void * Collide::collide_thread(void * arg)
 	    ok = ( targ > (*unit)() );
 	  else
 	    ok = true;
-	  
+
+#ifdef TESTSPREAD
+	  if (TT == 7 and Cross > 0.0) {
+	    std::get<0>(running_tally) += tfrac;
+	    std::get<2>(running_tally) += Cross;
+	    std::get<3>(running_tally) += targ;
+	    std::get<5>(running_tally) += 1;
+	    if (ok) std::get<6>(running_tally) += 1;
+
+	  }
+#endif
+
 
 #ifdef XC_DEEP14
 	  static long tally = 0, accept = 0;
@@ -1685,6 +1714,22 @@ void * Collide::collide_thread(void * arg)
     }
     
   } // Loop over cells
+
+#ifdef TESTSPREAD
+  if (std::get<1>(running_tally)>0.0) {
+    std::cout << "COLEXCITE tally:"
+	      << " acp:" << std::setw(16) << std::get<0>(running_tally)
+	      << " pro:" << std::setw(16) << std::get<1>(running_tally)
+	      << " crs:" << std::setw(10) << std::get<4>(running_tally)
+	      << " a/p:" << std::setw(16) << std::get<0>(running_tally)/std::get<1>(running_tally)
+	      << " cvg: " << std::setw(16) << std::get<2>(running_tally)/std::get<1>(running_tally)
+	      << " num: " << std::setw(10) << std::get<6>(running_tally);
+    if (std::get<5>(running_tally)>0)
+      std::cout << " trg: "
+		<< std::setw(16) << std::get<3>(running_tally)/std::get<5>(running_tally);
+    std::cout << std::endl;
+  }
+#endif
 
   if (id==0) {
     std::ostringstream sout;
