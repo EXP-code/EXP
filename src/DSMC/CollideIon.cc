@@ -19826,7 +19826,7 @@ void CollideIon::processConfig()
     }
 
     if (config["TestSpreadCount"])
-      Collide::NTCnodb = config["TestSpreadCount"]["value"].as<int>();
+      Collide::TestSpreadCount = config["TestSpreadCount"]["value"].as<int>();
     else {
       config["TestSpreadCount"]["desc"] = "TESTSPREAD oversampling factor";
       config["TestSpreadCount"]["value"] = Collide::TestSpreadCount = 40;
