@@ -319,6 +319,10 @@ bool CollideIon::ke_weight      = true;
 //
 bool CollideIon::MeanKE         = true;
 
+// Minimum electron fraction for weighting
+//
+double CollideIon::Pord::minF   = 1.0e-10;
+
 
 // Per-species cross-section scale factor for testing
 //
@@ -20418,22 +20422,22 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
     case ion_electron:
       m2 = atomic_weights[0];
       if (w2*eta2/w1 < thresh) {
-	W2 *= eta2;
+	W2 *= std::max<double>(eta2, minF);
 	wght = true;
       }
       break;
     case electron_ion:
       m1  = atomic_weights[0];
       if (w1*eta1/w2 < thresh) {
-	W1 *= eta1;
+	W1 *= std::max<double>(eta1, minF);
 	wght = true;
       }
       break;
     case electron_electron:
       m1 = atomic_weights[0];
       m2 = atomic_weights[0];
-      W1 *= eta1;
-      W2 *= eta2;
+      W1 *= std::max<double>(eta1, minF);
+      W2 *= std::max<double>(eta2, minF);
       break;
     }
   }
@@ -20497,16 +20501,16 @@ void CollideIon::Pord::scheme(bool W)
     case ion_ion:
       break;
     case ion_electron:
-      if (swap)	W1 *= eta1;
-      else	W2 *= eta2;
+      if (swap)	W1 *= std::max<double>(eta1, minF);
+      else	W2 *= std::max<double>(eta2, minF);
       break;
     case electron_ion:
-      if (swap) W2 *= eta2;
-      else      W1 *= eta1;
+      if (swap) W2 *= std::max<double>(eta2, minF);
+      else      W1 *= std::max<double>(eta1, minF);
       break;
     case electron_electron:
-      W1 *= eta1;
-      w2 *= eta2;
+      W1 *= std::max<double>(eta1, minF);
+      w2 *= std::max<double>(eta2, minF);
     }
   }
 
