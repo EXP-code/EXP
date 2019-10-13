@@ -1381,7 +1381,7 @@ void * Collide::collide_thread(void * arg)
       }
     }
     
-    int totalCount = 0, acceptCount = 0;
+    int acceptCount = 0;
     
     for (auto v : nselM.v) {
 
@@ -1598,7 +1598,7 @@ void * Collide::collide_thread(void * arg)
     // Count collisions
     //
     colcntT[id].push_back(colc);
-    sel1T[id] += totalCount;
+    sel1T[id] += acceptCount;
     col1T[id] += colc;
       
     // Cache acceptance fraction for scaling MFP for time step
