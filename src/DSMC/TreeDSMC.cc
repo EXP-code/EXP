@@ -34,7 +34,7 @@ static bool levelst_debug = false;
 //
 // Version string for log file stamping
 //
-const std::string TreeDSMC::version = "0.43 [08/30/19 cuda trace]";
+const std::string TreeDSMC::version = "0.44 [10/10/19 cuda trace]";
 
 //
 // Simulation units
