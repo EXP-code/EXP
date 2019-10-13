@@ -321,7 +321,7 @@ bool CollideIon::MeanKE         = true;
 
 // Minimum electron fraction for weighting
 //
-double CollideIon::Pord::minF   = 1.0e-10;
+double CollideIon::Pord::minF   = 1.0e-18;
 
 
 // Per-species cross-section scale factor for testing
@@ -7067,6 +7067,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     exit(-1);
   }
 
+  // Sanity check
+  //
+  if (PP->W2 <= 0.0) return ret;
+
   // For manipulating species fractions
   //
   Fspc F(this, p1, p2);
@@ -9432,6 +9436,11 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       cid = 0;
     }
 
+
+  // Sanity check
+  //
+  if (PP->W2 <= 0.0) return ret;
+
   Prob *= wght;
 
   bool ok = false;		// Reject all interactions by default
@@ -9767,7 +9776,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 #endif
 
 	  dE += Echg;
-	  ionExtra[1] += Echg;
+
+	  if (MeanMass) ionExtra[1] += Echg;
+	  else          ionExtra[1] += PP->eta2>0.0 ? Echg/PP->eta2 : 0.0;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
@@ -9860,7 +9871,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 #endif
 
 	  dE += Echg;
-	  ionExtra[0] += Echg;
+
+	  if (MeanMass) ionExtra[0] += Echg;
+	  else          ionExtra[0] += PP->eta2>0.0 ? Echg/PP->eta2 : 0.0;
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
@@ -9959,7 +9972,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  dE += Edel;
 
 	  if (MeanMass) rcbExtra[1] += Echg;
-	  else          rcbExtra[1] += Echg/PP->eta2;
+	  else          rcbExtra[1] += PP->eta2 ? Echg/PP->eta2 : 0.0;
 
 #ifdef XC_DEEP0
 	  printf("Recombine[2]: W=%e E=%e eV=%e sys=%e\n", wEta, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
@@ -10079,7 +10092,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  dE += Edel;
 
 	  if (MeanMass) rcbExtra[0] += Echg;
-	  else          rcbExtra[0] += Echg/PP->eta2;
+	  else          rcbExtra[0] += PP->eta2>0.0 ? Echg/PP->eta2 : 0.0;
 
 #ifdef XC_DEEP0
 	  printf("Recombine[1]: W=%e E=%e eV=%e sys=%e\n", WW, iE1, Echg, Echg*eV/TreeDSMC::Eunit);
