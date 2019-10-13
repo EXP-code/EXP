@@ -1303,10 +1303,7 @@ void * Collide::collide_thread(void * arg)
 	VdblT[id][c->level*nvold+5] += number*number;
       }
     }
-    // Selection number per particle
-    if (MFPDIAG)
-      tselnT[id].push_back(totalNsel/number);
-    
+
     stat2SoFar[id] = stat2Time[id].stop();
     
     // Species map for collisions
@@ -1601,6 +1598,11 @@ void * Collide::collide_thread(void * arg)
     sel1T[id] += acceptCount;
     col1T[id] += colc;
       
+    // Selection number per particle
+    //
+    if (MFPDIAG and nbods>0)
+      tselnT[id].push_back(acceptCount/nbods);
+    
     // Cache acceptance fraction for scaling MFP for time step
     // selection
     //
