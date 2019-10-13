@@ -9467,6 +9467,11 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   //
   double dE = 0.0, wEta = 0.0;
 
+  double befQ  = PP->q;
+  double befE1 = PP->eta1;
+  double befE2 = PP->eta2;
+  double befW1 = PP->W1;
+  double befW2 = PP->W2;
 
   // Following the selection logic above, do this interaction!
   //
@@ -9774,11 +9779,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 #ifdef XC_DEEP0
 	  printf("Ionize[2]: W=%e E=%e eV=%e sys=%e\n", wEta, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
 #endif
-
-	  dE += Echg;
-
-	  if (MeanMass) ionExtra[1] += Echg;
-	  else          ionExtra[1] += PP->eta2>0.0 ? Echg/PP->eta2 : 0.0;
+	  if (PP->eta2>0.0) {
+	    dE += Echg/PP->eta2;
+	    ionExtra[1] += Echg;
+	  }
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
@@ -9869,11 +9873,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 #ifdef XC_DEEP0
 	  printf("Ionize[1]: W=%e E=%e eV=%e sys=%e\n", wEta, iE1, Echg, Echg*eV/TreeDSMC::Eunit);
 #endif
-
-	  dE += Echg;
-
-	  if (MeanMass) ionExtra[0] += Echg;
-	  else          ionExtra[0] += PP->eta2>0.0 ? Echg/PP->eta2 : 0.0;
+	  if (PP->eta2>0.0) {
+	    dE += Echg/PP->eta2;
+	    ionExtra[0] += Echg;
+	  }
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
 	  if (NO_ION_E) dE = 0.0;
@@ -9963,16 +9966,26 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // However, the difference between the ion and pair electron
 	  // KE must be subtraced from the KE
 	  
-	  // Energy for ionized electron comes from COM
+	  // Energy for ionized electron comes from COM.  This is the
+	  // fractional change in electron KE
 	  //
 	  wEta = etaP2[id] - F.eta(2);
+
+	  // This is the loss term: the difference between the
+	  // radiative loss from the incoming electron and the loss
+	  // from changing the state of the ion
+	  //
 	  double Edel = (iE1 - iE2) * wEta;
+
+	  // This is the negative KE energy in change in the ion's
+	  // electron
+	  //
 	  double Echg = iE2 * wEta;
 
-	  dE += Edel;
-
-	  if (MeanMass) rcbExtra[1] += Echg;
-	  else          rcbExtra[1] += PP->eta2 ? Echg/PP->eta2 : 0.0;
+	  if (PP->eta2 > 0.0) {
+	    dE += Edel/PP->eta2;
+	    rcbExtra[1] += Echg;
+	  }
 
 #ifdef XC_DEEP0
 	  printf("Recombine[2]: W=%e E=%e eV=%e sys=%e\n", wEta, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
@@ -10084,15 +10097,26 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // change COM energy
 	  //
 
-	  // Energy for ionized electron comes from COM
+	  // Energy for ionized electron comes from COM.  This is the
+	  // fractional change in electron KE
+	  //
 	  wEta = etaP1[id] - F.eta(1);
+
+	  // This is the loss term: the difference between the
+	  // radiative loss from the incoming electron and the loss
+	  // from changing the state of the ion
+	  //
 	  double Edel = (iE2 - iE1) * wEta;
+
+	  // This is the negative KE energy in change in the ion's
+	  // electron
+	  //
 	  double Echg = iE1 * wEta;
 
-	  dE += Edel;
-
-	  if (MeanMass) rcbExtra[0] += Echg;
-	  else          rcbExtra[0] += PP->eta2>0.0 ? Echg/PP->eta2 : 0.0;
+	  if (PP->eta2 > 0.0) {
+	    dE += Edel/PP->eta2;
+	    rcbExtra[0] += Echg;
+	  }
 
 #ifdef XC_DEEP0
 	  printf("Recombine[1]: W=%e E=%e eV=%e sys=%e\n", WW, iE1, Echg, Echg*eV/TreeDSMC::Eunit);
@@ -10291,6 +10315,12 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   //
   double N0 = PP->W2 * TreeDSMC::Munit / amu;
   double PN = Prob * N0;
+
+  double aftQ  = PP->q;
+  double aftE1 = PP->eta1;
+  double aftE2 = PP->eta2;
+  double aftW1 = PP->W1;
+  double aftW2 = PP->W2;
 
 #ifdef XC_DEEP6
   std::cout << "ctest:"
@@ -10595,7 +10625,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	else
 	  KEfinal = energyInPairPartial(p1, p2, Ion1);
       
-	double delE = KE_initl_check - KE_final_check
+	double delE1 = KE_initl_check - KE_final_check
 	  - (deltaSum += KE.delta)
 	  - (delEsum  += KE.delE - ionExtra[0] + rcbExtra[0] - ionExtra[1] + rcbExtra[1])
 	  + (delEdfr  += KE.defer);
@@ -10611,9 +10641,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	double pasR = KEdif.second;
 	pasR = KEinit.second>0.0 ? pasR/KEinit.second : pasR;
 
-	if (fabs(delE) > tolE*KE_initl_check) {
+	double delE2 = KEdif.first - KE.delE;
+
+	double delE  = std::min<double>(fabs(delE1), fabs(delE2));
+
+	if (delE > tolE*KE_initl_check) {
 	  std::cout << "**ERROR [after Ion1] dE = " << delE
-		    << ", rel = "  << delE/KE_initl_check
+		    << ", rel1 = " << delE1/KE_initl_check
+		    << ", rel2 = " << delE2/KE_initl_check
 		    << ", dKE = "  << deltaSum
 		    << ", actR = " << actR
 		    << ", pasR = " << pasR
@@ -10724,7 +10759,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	else
 	  KEfinal = energyInPairPartial(p1, p2, Ion2);
 
-	double delE = KE_initl_check - KE_final_check
+	double delE1 = KE_initl_check - KE_final_check
 	  - (deltaSum += KE.delta)
 	  - (delEsum  += KE.delE - ionExtra[0] + rcbExtra[0] - ionExtra[1] + rcbExtra[1])
 	  + (delEdfr  += KE.defer);
@@ -10740,9 +10775,14 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	double pasR = KEdif.second;
 	pasR = KEinit.second>0.0 ? pasR/KEinit.second : pasR;
 
-	if (fabs(delE) > tolE*KE_initl_check) {
+	double delE2 = KEdif.second - KE.delE;
+
+	double delE = std::min<double>(fabs(delE1), fabs(delE2));
+
+	if (delE > tolE*KE_initl_check) {
 	  std::cout << "**ERROR [after Ion2] dE = " << delE
-		    << ", rel = "  << delE/KE_initl_check
+		    << ", rel1 = " << delE1/KE_initl_check
+		    << ", rel2 = " << delE2/KE_initl_check
 		    << ", dKE = "  << deltaSum
 		    << ", actR = " << actR
 		    << ", pasR = " << pasR
