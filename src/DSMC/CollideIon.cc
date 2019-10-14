@@ -9781,7 +9781,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 #endif
 	  if (PP->eta2>0.0) {
 	    dE += Echg/PP->eta2;
-	    ionExtra[1] += Echg;
+	    ionExtra[1] += Echg/PP->eta2;
 	  }
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
@@ -9875,7 +9875,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 #endif
 	  if (PP->eta2>0.0) {
 	    dE += Echg/PP->eta2;
-	    ionExtra[0] += Echg;
+	    ionExtra[0] += Echg/PP->eta2;
 	  }
 
 	  if (energy_scale > 0.0) dE *= energy_scale;
@@ -9984,7 +9984,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  if (PP->eta2 > 0.0) {
 	    dE += Edel/PP->eta2;
-	    rcbExtra[1] += Echg;
+	    rcbExtra[1] += Echg/PP->eta2;
 	  }
 
 #ifdef XC_DEEP0
@@ -10115,7 +10115,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  if (PP->eta2 > 0.0) {
 	    dE += Edel/PP->eta2;
-	    rcbExtra[0] += Echg;
+	    rcbExtra[0] += Echg/PP->eta2;
 	  }
 
 #ifdef XC_DEEP0
