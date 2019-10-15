@@ -1158,9 +1158,6 @@ protected:
 
   public:
 
-    //! Minimum electron fraction for weighting (1.0e-10)
-    static double minF;
-
     //! Interaction identifier
     enum pType {ion_ion, ion_electron, electron_ion, electron_electron};
 
