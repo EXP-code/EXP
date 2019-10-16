@@ -1514,12 +1514,12 @@ protected:
 
   //! Compute the interaction for the trace method
   void scatterTrace
-  (PordPtr pp, KE_& KE,
+  (PordPtr pp, KE_& KE, double W,
    std::vector<double>* V1, std::vector<double>* V2, int id);
 
   //! Compute the interaction for the trace method using the mean-mass algorithm
   void scatterTraceMM
-  (PordPtr pp, KE_& KE,
+  (PordPtr pp, KE_& KE, double W,
    std::vector<double>* v1, std::vector<double>* v2, int id);
 
   //! For photoionization ion-electron recoil

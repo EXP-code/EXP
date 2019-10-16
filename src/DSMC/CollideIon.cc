@@ -190,7 +190,6 @@ static bool NO_FF               = false;
 // Artifically suppress energy loss due to free-free
 //
 static bool NO_FF_E             = false;
-
 // KE debugging: checks energy bookkeeping. Set to false for
 // production
 //
@@ -10431,7 +10430,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       collD->addLost(KE.delE0, 0.0, id);
       dfrE[id] += KE.delE0;	// TRACE
       
-      scatterTrace(PP, KE, &v1, &v2, id);
+      scatterTrace(PP, KE, Prob, &v1, &v2, id);
 
       // Time-step computation
       //
@@ -10558,7 +10557,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	
       auto s1 = v1, s2 = v2;
 
-      scatterTrace(PP, KE, &v1, &v2, id);
+      scatterTrace(PP, KE, Prob, &v1, &v2, id);
 
       // Time-step computation
       //
@@ -10693,7 +10692,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       collD->addLost(KE.delE0, rcbExtra[1] - ionExtra[1], id);
       dfrE[id] += KE.delE0;	// TRACE
       
-      scatterTrace(PP, KE, &v1, &v2, id);
+      scatterTrace(PP, KE, Prob, &v1, &v2, id);
 
       // Time-step computation
       //
@@ -11206,12 +11205,13 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 
 void CollideIon::scatterTrace
-(PordPtr pp, KE_& KE, std::vector<double>* V1, std::vector<double>* V2, int id)
+(PordPtr pp, KE_& KE, double W,
+ std::vector<double>* V1, std::vector<double>* V2, int id)
 {
   if (NO_HSCAT) return;
 
   if (MeanMass) {
-    scatterTraceMM(pp, KE, V1, V2, id);
+    scatterTraceMM(pp, KE, W, V1, V2, id);
     return;
   }
 
@@ -11255,7 +11255,7 @@ void CollideIon::scatterTrace
     vi += vrel[k] * vrel[k];
   }
 				// Energy in COM
-  double kE = 0.5*pp->W2*mu*vi;
+  double kE = 0.5*pp->W2*W*mu*vi;
 				// Energy reduced by loss
   double totE = kE - KE.delE;
 
@@ -11318,160 +11318,137 @@ void CollideIon::scatterTrace
 
   KE.delta = 0.0;
 
+  // Define particle fractions for both energy and momentum
+  // conservation algorithms
+  //
+  double q   = pp->q * W;
+  double cq  = 1.0 - q;
+  double cW  = 1.0 - W;
+  double gam = 0.0, gam1, gam2, rad;
+  
+  std::vector<double> uu(3), vv(3);
+
   if (ExactE) {
 
     // BEGIN: energy conservation algorithm
 
     KE.bs.set(KE_Flags::ExQ);
 
-    std::vector<double> uu(3), vv(3), w1(3, 0.0);
-    double v1i2 = 0.0, b1f2 = 0.0;
-    double qT   = 0.0, vrat = 1.0, q = pp->q, cq = 1.0 - pp->q;
-    double udif = 0.0, gamm = 0.0, vcm2 = 0.0;
+    double q2   = 2.0 - q;
+    double W2   = 2.0 - W;
+    double mrat = pp->m2/pp->m1;
+    double v1i2 = 0.0, v2i2 = 0.0, b1f2 = 0.0, b2f2 = 0.0;
+    double wT   = 0.0, qT   = 0.0;
     bool  algok = false;
-
-    // For deep checking/debugging
-    //
-    if (DBG_HSCAT) {
-      static bool first = true;
-      static double m1T, m2T, W1T, W2T;
-      if (pp->m1 < 1 or pp->m2 < 1) {
-	if (first) {
-	  m1T = pp->m1;
-	  m2T = pp->m2;
-	  W1T = pp->W1;
-	  W2T = pp->W2;
-	  first = false;
-	  std::cout << "INITIAL [" << std::setw(3) << myid << "]:"
-		    << "  m1=" << m1T << " , " << pp->m1 << " : " << m1T - pp->m1
-		    << "  m2=" << m2T << " , " << pp->m2 << " : " << m2T - pp->m2
-		    << "  W1=" << W1T << " , " << pp->W1 << " : " << W1T - pp->W1
-		    << "  W2=" << W2T << " , " << pp->W2 << " : " << W1T - pp->W2
-		    << "  KE.vfac=" << KE.vfac << "  vrat=" << vrat
-		    << std::endl;
-	} else {
-	  bool err = false;
-	  if (fabs(m1T - pp->m1) > 1.0e-12) err = true;
-	  if (fabs(m2T - pp->m2) > 1.0e-12) err = true;
-	  if (fabs(W1T - pp->W1) > 1.0e-12) err = true;
-	  if (fabs(W2T - pp->W2) > 1.0e-12) err = true;
-	  if (fabs(KE.vfac -1.0) > 1.0e-12) err = true;
-	  if (fabs(vrat    -1.0) > 1.0e-12) err = true;
-	  if (err) {
-	    std::cout << "MISMATCH [" << std::setw(3) << myid << "]:"
-		      << "  m1=" << m1T << " , " << pp->m1 << " : " << m1T - pp->m1
-		      << "  m2=" << m2T << " , " << pp->m2 << " : " << m2T - pp->m2
-		      << "  W1=" << W1T << " , " << pp->W1 << " : " << W1T - pp->W1
-		      << "  W2=" << W2T << " , " << pp->W2 << " : " << W1T - pp->W2
-		      << "  KE.vfac=" << KE.vfac << "  vrat=" << vrat
-		      << std::endl;
-	  }
-	}
-      }
-    }
 
     if (cq > 0.0 and q < 1.0) {
 
       for (size_t i=0; i<3; i++) {
-	uu[i] = vcom[i] + pp->m2/mt*vrel[i]*KE.vfac;
-	vv[i] = vcom[i] - pp->m1/mt*vrel[i]*KE.vfac;
-	vcm2 += vcom[i] * vcom[i];
+
+	uu[i] = vcom[i] + pp->m2/mt*vrel[i];
+	vv[i] = vcom[i] - pp->m1/mt*vrel[i];
+
 	v1i2 += (*v1)[i] * (*v1)[i];
+	v2i2 += (*v2)[i] * (*v2)[i];
+
 	b1f2 += uu[i] * uu[i];
+	b2f2 += vv[i] * vv[i];
+
 	qT   += (*v1)[i] * uu[i];
-	udif += ((*v1)[i] - uu[i]) * ((*v1)[i] - uu[i]);
+	wT   += (*v2)[i] * vv[i];
       }
-      
-      // Alternative "orthogonal" energy algorithm
-      //
-      if (AlgOrth) {
 
-	KE.bs.set(KE_Flags::AlgO);
-
-	// Cross product to determine orthgonal direction
-	//
-	w1 = uu ^ (*v1);
-
-	// Normalize
-	//
-	double wnrm = 0.0;
-	for (auto v : w1) wnrm += v*v;
+      if (false) {
 	
-	// Version with checks for tiny norm
-	//
-	if (false) {
+	double B2A = cq + q*qT/v1i2;
 
-	  const double tol = 1.0e-12;
-
-	  // Generate random vector if |u|~0 or |v1|~0
-	  if (v1i2 < tol*b1f2 or b1f2 < tol*v1i2) {
-	    for (auto & v : w1) v = (*norm)();
-	  }
-	  
-	  // Choose random orthogonal vector if uu || v1
-	  else if (wnrm < tol*v1i2) {
-	    auto t3 = zorder(*v1);
-	    int i0 = std::get<0>(t3), i1 = std::get<1>(t3), i2 = std::get<2>(t3);
-	    w1[i0] = (*norm)();
-	    w1[i1] = (*norm)();
-	    w1[i2] = -(w1[i0]*(*v1)[i0] + w1[i1]*(*v1)[i1])/(*v1)[i2];
-	    wnrm = 0.0; for (auto v : w1) wnrm += v*v;
-	  }
-
-	  // Sanity check on norm |w|
-	  if (wnrm > tol*sqrt(vcm2)) {
-	    for (auto & v : w1) v *= 1.0/sqrt(wnrm);
-	    gamm = sqrt(q*(1.0 - q)*udif);
-	    algok = true;
-	  }
-
-	} else {		// No norm checks . . . 
-	  wnrm = 1.0/sqrt(wnrm);
-	  if ((*unit)()<0.5) wnrm *= -1.0;
-	  if (not std::isinf(wnrm)) {
-	    for (auto & v : w1) v *= wnrm;
-	    gamm = sqrt(q*(1.0 - q)*udif);
-	    algok = true;
-	  }
+	double CA =
+	  q*(-q2 + 2.0*cq*qT/v1i2 + q*b1f2/v1i2) +
+	  mrat*q*(-W2*v2i2/v1i2 + 2.0*cW*wT/v1i2 + W*b2f2/v1i2);
+	
+	double DA = 2.0*KE.delE/(pp->W1*pp->m1*v1i2);
+	
+	rad = B2A*B2A - CA - DA;
+	
+	if (rad < 0.0) {
+	  double dEmax = 0.5*pp->m1*pp->W1*v1i2*(B2A*B2A - CA);
+	  KE.miss = KE.delE - dEmax;
+	  // Add to energy bucket for these particles
+	  //
+	  deferredEnergyTrace(pp, KE.delE - dEmax, id);
+	  KE.delE = dEmax;
+	  rad = 0.0;
 	}
-      }
+	
+	gam1 = -B2A + sqrt(rad);
+	gam2 = -B2A - sqrt(rad);
+	
+	if (fabs(gam1) < fabs(gam2))
+	  gam = gam1;
+	else 
+	  gam = gam2;
+	
+	for (int i=0; i<3; i++) {
+	  (*v1)[i] = (cq + gam)*(*v1)[i] + q*uu[i];
+	  (*v2)[i] = cW        *(*v2)[i] + W*vv[i];
+	}
 
-      // Standard "parallel" energy algorithm
-      //
-      if (!AlgOrth or !algok) {
-      
-	if (v1i2 > 0.0 and b1f2 > 0.0) qT *= q/v1i2;
-      
-	vrat = 
-	  ( -qT + std::copysign(1.0, qT)*sqrt(qT*qT + cq*(q*b1f2/v1i2 + 1.0)) )/cq;
-      }
+      } // END: v1 adjustment
+      else {
+	
+	double B2A = cW + W*wT/v2i2;
+	
+	double CA =
+	  W*(-W2 + 2.0*cW*wT/v2i2 + W*b2f2/v2i2) +
+	  W/mrat*(-q2*v1i2/v2i2 + 2.0*cq*qT/v2i2 + q*b1f2/v2i2);
+	
+	double DA = 2.0*KE.delE/(pp->W2*pp->m2*v2i2);
+	
+	rad = B2A*B2A - CA - DA;
+	
+	if (rad < 0.0) {
+	  double dEmax = 0.5*pp->m2*pp->W2*v2i2*(B2A*B2A - CA);
+	  KE.miss = KE.delE - dEmax;
+	  // Add to energy bucket for these particles
+	  //
+	  deferredEnergyTrace(pp, KE.delE - dEmax, id);
+	  KE.delE = dEmax;
+	  rad = 0.0;
+	}
+	
+	gam1 = -B2A + sqrt(rad);
+	gam2 = -B2A - sqrt(rad);
+	
+	if (fabs(gam1) < fabs(gam2))
+	  gam = gam1;
+	else 
+	  gam = gam2;
 
-      if (std::isnan(vrat)) {
-	std::cout << "Vrat problem" << std::endl;
-      }
-    }
+	for (int i=0; i<3; i++) {
+	  (*v1)[i] = cq        *(*v1)[i] + q*uu[i];
+	  (*v2)[i] = (cW + gam)*(*v2)[i] + W*vv[i];
+	}
+      } // END: v2 adjustment
 
-    // Assign new velocities
-    //
-    for (int i=0; i<3; i++) {
-      double v0 = vcom[i] + pp->m2/mt*vrel[i]*KE.vfac;
-    
-      (*v1)[i] = cq*(*v1)[i]*vrat + q*v0 + w1[i]*gamm;
-      (*v2)[i] = vcom[i] - pp->m1/mt*vrel[i]*KE.vfac;
-    }
-    
-    // END: energy conservation algorithm
-  } else {
+    } // cq and q check
+  }
+  // END: energy conservation algorithm
+  else {
 
     // BEGIN: momentum conservation algorithm
 
     KE.bs.set(KE_Flags::momC);
 
-    for (size_t k=0; k<3; k++) {
-      (*v1)[k] = vcom[k] + pp->m2/mt*vrel[k] * KE.vfac;
-      (*v2)[k] = vcom[k] - pp->m1/mt*vrel[k] * KE.vfac;
+    // Assign new velocities
+    //
+    for (int i=0; i<3; i++) {
+      uu[i] = vcom[i] + pp->m2/mt*vrel[i]*KE.vfac;
+      vv[i] = vcom[i] - pp->m1/mt*vrel[i]*KE.vfac;
+
+      (*v1)[i] = cq*(*v1)[i] + q*uu[i];
+      (*v2)[i] = cW*(*v2)[i] + W*vv[i];
     }
-    
+
     // END: momentum conservation algorithm
   }
 
@@ -11479,7 +11456,7 @@ void CollideIon::scatterTrace
 
   // Temporary deep debug
   //
-  if (KE_DEBUG) {
+  if (ExactE and KE_DEBUG) {
 
     double M1 = 0.5 * pp->W1 * pp->m1;
     double M2 = 0.5 * pp->W2 * pp->m2;
@@ -12045,7 +12022,8 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 // END: CollideIon::coulombicScatterTrace
 
 void CollideIon::scatterTraceMM
-(PordPtr pp, KE_& KE, std::vector<double>* v1, std::vector<double>* v2, int id)
+(PordPtr pp, KE_& KE, double W,
+ std::vector<double>* v1, std::vector<double>* v2, int id)
 {
   // Swap velocities?
   //
