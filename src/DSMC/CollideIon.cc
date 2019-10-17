@@ -9435,6 +9435,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
   Prob *= wght;
 
+  if (Prob <= 0.0) return ret;
+
   bool ok = false;		// Reject all interactions by default
 
   // Logic for selecting allowed interaction types
@@ -11328,6 +11330,9 @@ void CollideIon::scatterTrace
   
   std::vector<double> uu(3), vv(3);
 
+  enum ConsAlg {PreferV1, PreferV2, Prime};
+  ConsAlg Method = Prime;
+
   if (ExactE) {
 
     // BEGIN: energy conservation algorithm
@@ -11358,78 +11363,125 @@ void CollideIon::scatterTrace
 	wT   += (*v2)[i] * vv[i];
       }
 
-      if (false) {
-	
-	double B2A = cq + q*qT/v1i2;
+      switch (Method) {
 
-	double CA =
-	  q*(-q2 + 2.0*cq*qT/v1i2 + q*b1f2/v1i2) +
-	  mrat*q*(-W2*v2i2/v1i2 + 2.0*cW*wT/v1i2 + W*b2f2/v1i2);
+      case PreferV1:
+	{
+	  double B2A = cq + q*qT/v1i2;
+
+	  double CA =
+	    q*(-q2 + 2.0*cq*qT/v1i2 + q*b1f2/v1i2) +
+	    mrat*q*(-W2*v2i2/v1i2 + 2.0*cW*wT/v1i2 + W*b2f2/v1i2);
 	
-	double DA = 2.0*KE.delE/(pp->W1*pp->m1*v1i2);
+	  double DA = 2.0*KE.delE/(pp->W1*pp->m1*v1i2);
 	
-	rad = B2A*B2A - CA - DA;
-	
-	if (rad < 0.0) {
-	  double dEmax = 0.5*pp->m1*pp->W1*v1i2*(B2A*B2A - CA);
-	  KE.miss = KE.delE - dEmax;
-	  // Add to energy bucket for these particles
-	  //
-	  deferredEnergyTrace(pp, KE.delE - dEmax, id);
-	  KE.delE = dEmax;
+	  rad = B2A*B2A - CA - DA;
+	  
+	  if (rad < 0.0) {
+	    double dEmax = 0.5*pp->m1*pp->W1*v1i2*(B2A*B2A - CA);
+	    KE.miss = KE.delE - dEmax;
+	    // Add to energy bucket for these particles
+	    //
+	    deferredEnergyTrace(pp, KE.delE - dEmax, id);
+	    KE.delE = dEmax;
 	  rad = 0.0;
-	}
-	
-	gam1 = -B2A + sqrt(rad);
-	gam2 = -B2A - sqrt(rad);
-	
-	if (fabs(gam1) < fabs(gam2))
+	  }
+	  
+	  gam1 = -B2A + sqrt(rad);
+	  gam2 = -B2A - sqrt(rad);
+	  
+	  if (fabs(gam1) < fabs(gam2))
 	  gam = gam1;
-	else 
-	  gam = gam2;
+	  else 
+	    gam = gam2;
+	  
+	  for (int i=0; i<3; i++) {
+	    (*v1)[i] = (cq + gam)*(*v1)[i] + q*uu[i];
+	    (*v2)[i] = cW        *(*v2)[i] + W*vv[i];
+	  }
+	}
+	  
+	break;
+
+	// END: v1 adjustment
 	
-	for (int i=0; i<3; i++) {
-	  (*v1)[i] = (cq + gam)*(*v1)[i] + q*uu[i];
-	  (*v2)[i] = cW        *(*v2)[i] + W*vv[i];
+      case PreferV2:
+	{
+	  double B2A = cW + W*wT/v2i2;
+	  
+	  double CA =
+	    W*(-W2 + 2.0*cW*wT/v2i2 + W*b2f2/v2i2) +
+	    W/mrat*(-q2*v1i2/v2i2 + 2.0*cq*qT/v2i2 + q*b1f2/v2i2);
+	  
+	  double DA = 2.0*KE.delE/(pp->W2*pp->m2*v2i2);
+	  
+	  rad = B2A*B2A - CA - DA;
+	  
+	  if (rad < 0.0) {
+	    double dEmax = 0.5*pp->m2*pp->W2*v2i2*(B2A*B2A - CA);
+	    KE.miss = KE.delE - dEmax;
+	    // Add to energy bucket for these particles
+	    //
+	    deferredEnergyTrace(pp, KE.delE - dEmax, id);
+	    KE.delE = dEmax;
+	    rad = 0.0;
+	  }
+	
+	  gam1 = -B2A + sqrt(rad);
+	  gam2 = -B2A - sqrt(rad);
+	
+	  if (fabs(gam1) < fabs(gam2))
+	    gam = gam1;
+	  else 
+	    gam = gam2;
+	  
+	  for (int i=0; i<3; i++) {
+	    (*v1)[i] = cq        *(*v1)[i] + q*uu[i];
+	    (*v2)[i] = (cW + gam)*(*v2)[i] + W*vv[i];
+	  }
 	}
 
-      } // END: v1 adjustment
-      else {
-	
-	double B2A = cW + W*wT/v2i2;
-	
-	double CA =
-	  W*(-W2 + 2.0*cW*wT/v2i2 + W*b2f2/v2i2) +
-	  W/mrat*(-q2*v1i2/v2i2 + 2.0*cq*qT/v2i2 + q*b1f2/v2i2);
-	
-	double DA = 2.0*KE.delE/(pp->W2*pp->m2*v2i2);
-	
-	rad = B2A*B2A - CA - DA;
-	
-	if (rad < 0.0) {
-	  double dEmax = 0.5*pp->m2*pp->W2*v2i2*(B2A*B2A - CA);
-	  KE.miss = KE.delE - dEmax;
-	  // Add to energy bucket for these particles
-	  //
-	  deferredEnergyTrace(pp, KE.delE - dEmax, id);
-	  KE.delE = dEmax;
-	  rad = 0.0;
-	}
-	
-	gam1 = -B2A + sqrt(rad);
-	gam2 = -B2A - sqrt(rad);
-	
-	if (fabs(gam1) < fabs(gam2))
-	  gam = gam1;
-	else 
-	  gam = gam2;
+	break;
+	// END: v2 adjustment
 
-	for (int i=0; i<3; i++) {
-	  (*v1)[i] = cq        *(*v1)[i] + q*uu[i];
-	  (*v2)[i] = (cW + gam)*(*v2)[i] + W*vv[i];
-	}
-      } // END: v2 adjustment
+      case Prime:
+	{
+	  double B = pp->m1*cq*qT + pp->m2*cW*wT;
+	  double A = pp->m1*q*b1f2 + pp->m2*W*b2f2;
+	  double C = (q2*pp->m1*v1i2 + W2*pp->m2*v2i2);
+	  double D = 2.0*KE.delE/(pp->W1*q);
+	
+	  rad = (B/A)*(B/A) + C/A - D/A;
+	
+	  if (rad < 0.0) {
+	    double dEmax = 0.5*pp->W1*q * C;
+	    KE.miss = KE.delE - dEmax;
+	    // Add to energy bucket for these particles
+	    //
+	    deferredEnergyTrace(pp, KE.delE - dEmax, id);
+	    KE.delE = dEmax;
+	    rad = 0.0;
+	  }
+	
+	  gam1 = -B/A + sqrt(rad);
+	  gam2 = -B/A - sqrt(rad);
+	
+	  if (fabs(gam1) < fabs(gam2))
+	    gam = gam1;
+	  else 
+	    gam = gam2;
 
+	  for (int i=0; i<3; i++) {
+	    (*v1)[i] = cq*(*v1)[i] + q*gam*uu[i];
+	    (*v2)[i] = cW*(*v2)[i] + W*gam*vv[i];
+	  }
+	}
+
+	break;
+	// END: joint adjustment
+
+      } // END: switch
+      
     } // cq and q check
   }
   // END: energy conservation algorithm
