@@ -12547,35 +12547,64 @@ void CollideIon::updateEnergyTrace(PordPtr pp, KE_& KE)
   //
   pp->eFinal();
 
-  if (MeanMass or ExactE)     return;
-  if (pp->P == Pord::ion_ion) return;
+  if (MeanMass or ExactE) return;
 
   double tKEi = 0.0;		// Total pre collision KE
   double tKEf = 0.0;		// Total post collision KE
   double eta  = 0.0;
   bool error  = false;
 
-  if (pp->P == Pord::ion_electron) {
-    tKEi = pp->mid[0].KEi + pp->mid[1].KEw;
-    tKEf = pp->end[0].KEi + pp->end[1].KEw;
+  if (pp->P == Pord::ion_ion) {
+    tKEi = pp->mid[0].KEi + pp->mid[1].KEi;
+    tKEf = pp->end[0].KEi + pp->end[1].KEi;
     //             ^                ^
     //             |                |
     // Particle 1/ion               |
     //                              |
-    // Particle 2/electron----------+
+    // Particle 2/ion---------------+
+  }
+
+  if (pp->P == Pord::ion_electron) {
+    if (pp->swap) {
+      tKEi = pp->mid[1].KEi + pp->mid[0].KEw;
+      tKEf = pp->end[1].KEi + pp->end[0].KEw;
+      //             ^                ^
+      //             |                |
+      // Particle 1/ion               |
+      //                              |
+      // Particle 2/electron----------+
+    } else {
+      tKEi = pp->mid[0].KEi + pp->mid[1].KEw;
+      tKEf = pp->end[0].KEi + pp->end[1].KEw;
+      //             ^                ^
+      //             |                |
+      // Particle 1/ion               |
+      //                              |
+      // Particle 2/electron----------+
+    }
 
     eta = pp->eta2;
     if (eta<0.0) error = true;
   }
 
   if (pp->P == Pord::electron_ion) {
-    tKEi = pp->mid[0].KEw + pp->mid[1].KEi;
-    tKEf = pp->end[0].KEw + pp->end[1].KEi;
-    //             ^                ^
-    //             |                |
-    // Particle 1/electron          |
-    //                              |
-    // Particle 2/ion---------------+
+    if (pp->swap) {
+      tKEi = pp->mid[1].KEw + pp->mid[0].KEi;
+      tKEf = pp->end[1].KEw + pp->end[0].KEi;
+      //             ^                ^
+      //             |                |
+      // Particle 1/electron          |
+      //                              |
+      // Particle 2/ion---------------+
+    } else {
+      tKEi = pp->mid[0].KEw + pp->mid[1].KEi;
+      tKEf = pp->end[0].KEw + pp->end[1].KEi;
+      //             ^                ^
+      //             |                |
+      // Particle 1/electron          |
+      //                              |
+      // Particle 2/ion---------------+
+    }
     
     eta = pp->eta1;
     if (eta<0.0) error = true;
