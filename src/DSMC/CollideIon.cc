@@ -11212,6 +11212,8 @@ void CollideIon::scatterTrace
 {
   if (NO_HSCAT) return;
 
+  // MeanMass is almost certainly deprecated . . . will remove when I'm sure
+  //
   if (MeanMass) {
     scatterTraceMM(pp, KE, W, V1, V2, id);
     return;
@@ -11331,6 +11333,17 @@ void CollideIon::scatterTrace
   std::vector<double> uu(3), vv(3);
 
   enum ConsAlg {PreferV1, PreferV2, Prime};
+
+  // [PreferV1] adjusts the non-interacting partition of the particle
+  // mass with the largest weight to enforce energy conservation
+
+  // [PreferV2] adjusts the non-interacting partition of the particle
+  // mass with the smallest weight to enforce energy conservation
+
+  // [Prime] adjusts both particles interacting velocities to conserve
+  // energy including the inelastic energy loss. Prime is the most
+  // sensible variant.
+
   ConsAlg Method = Prime;
 
   if (ExactE) {
