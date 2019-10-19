@@ -19849,7 +19849,7 @@ void CollideIon::processConfig()
     if (config["REVERSE_APPLY"])
       reverse_apply = config["REVERSE_APPLY"]["value"].as<bool>();
     else {
-      config["REVERSE_APPLY"]["desc"] = "Add energy excess from momentum conservation ion only";
+      config["REVERSE_APPLY"]["desc"] = "Add energy excess from momentum conservation to ion only";
       config["REVERSE_APPLY"]["value"] = reverse_apply = false;
     }
 
