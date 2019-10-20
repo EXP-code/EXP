@@ -19309,7 +19309,7 @@ void CollideIon::processConfig()
       if (v>4) v = 4;
       ConsAlgMethod = static_cast<ConsAlg>(v);
     } else {
-      config["ConsAlg"]["desc"] = "Trace method energy update selection for momentum conservation [Prime=0, Prime1=1, Prime2=2, PreferV1=3, PreferV2=4]";
+      config["ConsAlg"]["desc"] = "Trace method algorithm selection for explicit energy conservation [Prime=0, Prime1=1, Prime2=2, PreferV1=3, PreferV2=4]";
       config["ConsAlg"]["value"] = static_cast<int>(ConsAlg::Prime);
     }
 
