@@ -765,6 +765,33 @@ private:
   //@}
 
   //@{
+  //! Trace method energy update for momentum conservation
+  enum class ConsAlg {
+      Prime,    /*!< adjusts both particles interacting velocities to
+		  conserve energy including the inelastic energy
+		  loss. Prime is the most sensible variant. */
+      Prime1,   /*!< adjusts only the Particle 1 interacting
+		  velocities to conserve energy including the
+		  inelastic energy loss. */
+      Prime2,   /*!< adjusts only the Particle 2 interacting
+		  velocities to conserve energy including the
+		  inelastic energy loss. */
+      PreferV1, /*!< adjusts the non-interacting partition of the
+		  particle mass with the largest weight to enforce
+		  energy conservation */
+      PreferV2  /*!< adjusts the non-interacting partition of the
+		  particle mass with the smallest weight to enforce
+		  energy conservation */
+      };
+
+  //! Use electron-mass toggle
+  bool ConsAlgToggle;
+  
+  //! ConsAlg method selection
+  ConsAlg ConsAlgMethod;
+  //@}
+
+  //@{
   //! Photon spectrum
   bool use_spectrum, logSpect, wvlSpect;
   double flrSpect, minSpect, maxSpect, delSpect;
