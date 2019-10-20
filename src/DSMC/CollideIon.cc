@@ -575,6 +575,14 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (collLim ? "on" : "off")               << std::endl
 	      << " " << std::setw(20) << std::left  << "SEED"
 	      << acg_seed                               << std::endl;
+    if (ExactE) {
+      if (ConsAlgToggle)
+	std::cout <<  " " << std::setw(20) << std::left << "ConsAlgToggle"
+		  <<  "on" << std::endl;
+      else
+	std::cout <<  " " << std::setw(20) << std::left << "ConsAlg type"
+		  << ConsAlgLabel[ConsAlgMethod] << std::endl;
+    }
     if (use_photoIB)		// print photoIB parameters
     std::cout <<  " " << std::setw(20) << std::left << "photoIB model"
 	      << photoIB                                << std::endl

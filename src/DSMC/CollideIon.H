@@ -784,6 +784,17 @@ private:
 		  energy conservation */
       };
 
+  //! Labels for diagnostic output
+  std::map<ConsAlg, std::string> ConsAlgLabel =
+    {
+      {ConsAlg::Prime,    "Prime"   },
+      {ConsAlg::Prime1,   "Prime1"  },
+      {ConsAlg::Prime2,   "Prime2"  },
+      {ConsAlg::PreferV1, "PreferV1"},
+      {ConsAlg::PreferV2, "PreferF2"},
+    };
+
+
   //! Use electron-mass toggle
   bool ConsAlgToggle;
   
