@@ -11332,24 +11332,17 @@ void CollideIon::scatterTrace
   
   std::vector<double> uu(3), vv(3);
 
-  enum ConsAlg {PreferV1, PreferV2, Prime};
+  ConsAlg Method = ConsAlgMethod;
 
-  // [PreferV1] adjusts the non-interacting partition of the particle
-  // mass with the largest weight to enforce energy conservation
-
-  // [PreferV2] adjusts the non-interacting partition of the particle
-  // mass with the smallest weight to enforce energy conservation
-
-  // [Prime] adjusts both particles interacting velocities to conserve
-  // energy including the inelastic energy loss. Prime is the most
-  // sensible variant.
-
-  ConsAlg Method = Prime;
-
+  // BEGIN: energy conservation algorithm
+  //
   if (ExactE) {
 
-    // BEGIN: energy conservation algorithm
-
+    if (ConsAlgToggle) {
+      if (pp->m1<1.0) Method = ConsAlg::Prime2;
+      if (pp->m2<1.0) Method = ConsAlg::Prime1;
+    }
+    
     KE.bs.set(KE_Flags::ExQ);
 
     double q2   = 2.0 - q;
@@ -11378,7 +11371,7 @@ void CollideIon::scatterTrace
 
       switch (Method) {
 
-      case PreferV1:
+      case ConsAlg::PreferV1:
 	{
 	  double B2A = cq + q*qT/v1i2;
 
@@ -11418,7 +11411,7 @@ void CollideIon::scatterTrace
 
 	// END: v1 adjustment
 	
-      case PreferV2:
+      case ConsAlg::PreferV2:
 	{
 	  double B2A = cW + W*wT/v2i2;
 	  
@@ -11457,7 +11450,7 @@ void CollideIon::scatterTrace
 	break;
 	// END: v2 adjustment
 
-      case Prime:
+      case ConsAlg::Prime:
 	{
 	  double B = pp->m1*cq*qT + pp->m2*cW*wT;
 	  double A = pp->m1*q*b1f2 + pp->m2*W*b2f2;
@@ -11493,7 +11486,81 @@ void CollideIon::scatterTrace
 	break;
 	// END: joint adjustment
 
-      } // END: switch
+      case ConsAlg::Prime1:
+	{
+	  double A = pp->m1*q*b1f2;
+	  double B = pp->m1*cq*qT;
+	  double C = q2*pp->m1*v1i2 + W2*pp->m2*v2i2
+	    - 2.0*pp->m2*cW*wT - pp->m2*W*b2f2;
+	  double D = 2.0*KE.delE/(pp->W1*q);
+	
+	  rad = (B/A)*(B/A) + C/A - D/A;
+	
+	  if (rad < 0.0) {
+	    double dEmax = 0.5*pp->W1*q * C;
+	    KE.miss = KE.delE - dEmax;
+	    // Add to energy bucket for these particles
+	    //
+	    deferredEnergyTrace(pp, KE.delE - dEmax, id);
+	    KE.delE = dEmax;
+	    rad = 0.0;
+	  }
+	
+	  gam1 = -B/A + sqrt(rad);
+	  gam2 = -B/A - sqrt(rad);
+	
+	  if (fabs(gam1) < fabs(gam2))
+	    gam = gam1;
+	  else 
+	    gam = gam2;
+
+	  for (int i=0; i<3; i++) {
+	    (*v1)[i] = cq*(*v1)[i] + q*gam*uu[i];
+	    (*v2)[i] = cW*(*v2)[i] + W*    vv[i];
+	  }
+	}
+
+	break;
+	// END: adjust low mass P1
+
+      case ConsAlg::Prime2:
+	{
+	  double A = pp->m2*W*b2f2;
+	  double B = pp->m2*cW*wT;
+	  double C = (q2*pp->m1*v1i2 + W2*pp->m2*v2i2
+		      - 2.0*pp->m1*cq*qT - pp->m1*q*b1f2);
+	  double D = 2.0*KE.delE/(pp->W1*q);
+	
+	  rad = (B/A)*(B/A) + C/A - D/A;
+	
+	  if (rad < 0.0) {
+	    double dEmax = 0.5*pp->W1*q * C;
+	    KE.miss = KE.delE - dEmax;
+	    // Add to energy bucket for these particles
+	    //
+	    deferredEnergyTrace(pp, KE.delE - dEmax, id);
+	    KE.delE = dEmax;
+	    rad = 0.0;
+	  }
+	
+	  gam1 = -B/A + sqrt(rad);
+	  gam2 = -B/A - sqrt(rad);
+	
+	  if (fabs(gam1) < fabs(gam2))
+	    gam = gam1;
+	  else 
+	    gam = gam2;
+
+	  for (int i=0; i<3; i++) {
+	    (*v1)[i] = cq*(*v1)[i] + q*    uu[i];
+	    (*v2)[i] = cW*(*v2)[i] + W*gam*vv[i];
+	  }
+	}
+
+	break;
+	// END: adjust low mass P2
+
+      } // END: ConsAlg switch
       
     } // cq and q check
   }
@@ -19232,6 +19299,25 @@ void CollideIon::processConfig()
     else {
       config["MEAN_MASS"]["desc"] = "Mean mass, energy and momentum conserving algorithm";
       config["MEAN_MASS"]["value"] = MeanMass = false;
+    }
+
+    if (config["ConsAlg"]) {	// YAML doesn't handle enum classes
+				// directly so we need some type
+				// checking . . .
+      int v = config["ConsAlg"]["value"].as<int>();
+      if (v<0) v = 0;
+      if (v>4) v = 4;
+      ConsAlgMethod = static_cast<ConsAlg>(v);
+    } else {
+      config["ConsAlg"]["desc"] = "Trace method energy update selection for momentum conservation [Prime=0, Prime1=1, Prime2=2, PreferV1=3, PreferV2=4]";
+      config["ConsAlg"]["value"] = static_cast<int>(ConsAlg::Prime);
+    }
+
+    if (config["ConsAlgToggle"])
+      ConsAlgToggle = config["ConsAlgToggle"]["value"].as<bool>();
+    else {
+      config["ConsAlgToggle"]["desc"] = "Apply energy conservation enforcement to the electron particle";
+      config["ConsAlgToggle"]["value"] = false;
     }
 
     if (config["SPREAD_DEF"])
