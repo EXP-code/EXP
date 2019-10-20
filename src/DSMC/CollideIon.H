@@ -765,7 +765,7 @@ private:
   //@}
 
   //@{
-  //! Trace method energy update for momentum conservation
+  //! Trace method energy update for explicit energy conservation
   enum class ConsAlg {
       Prime,    /*!< adjusts both particles interacting velocities to
 		  conserve energy including the inelastic energy
