@@ -19355,7 +19355,7 @@ void CollideIon::processConfig()
       ConsAlgMethod = static_cast<ConsAlg>(v);
     } else {
       config["ConsAlg"]["desc"] = "Trace method algorithm selection for explicit energy conservation [Active=0, Active1=1, Active2=2, Inert=3, Inert1=4, Inert2=5]";
-      config["ConsAlg"]["value"] = static_cast<int>(ConsAlg::Active);
+      config["ConsAlg"]["value"] = static_cast<int>(ConsAlg::Inert2);
     }
 
     if (config["ConsAlgToggle"])
