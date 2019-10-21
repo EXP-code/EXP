@@ -23,7 +23,7 @@
 // Version info
 //
 #define NAME_ID    "CollideIon"
-#define VERSION_ID "0.39 [10/11/19 trace revert]"
+#define VERSION_ID "0.40 [10/11/19 trace ConsAlg]"
 
 using namespace std;
 using namespace NTC;
