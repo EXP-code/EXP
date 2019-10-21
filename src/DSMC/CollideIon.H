@@ -767,31 +767,34 @@ private:
   //@{
   //! Trace method energy update for momentum conservation
   enum class ConsAlg {
-      Prime,    /*!< adjusts both particles interacting velocities to
-		  conserve energy including the inelastic energy
-		  loss. Prime is the most sensible variant. */
-      Prime1,   /*!< adjusts only the Particle 1 interacting
-		  velocities to conserve energy including the
-		  inelastic energy loss. */
-      Prime2,   /*!< adjusts only the Particle 2 interacting
-		  velocities to conserve energy including the
-		  inelastic energy loss. */
-      PreferV1, /*!< adjusts the non-interacting partition of the
-		  particle mass with the largest weight to enforce
-		  energy conservation */
-      PreferV2  /*!< adjusts the non-interacting partition of the
-		  particle mass with the smallest weight to enforce
-		  energy conservation */
+      Active,    /*!< adjusts both particles interacting velocities to
+		   conserve energy including the inelastic energy
+		   loss. Active is the most sensible variant. */
+      Active1,   /*!< adjusts only the Particle 1 interacting
+		   velocities to conserve energy including the
+		   inelastic energy loss. */
+      Active2,   /*!< adjusts only the Particle 2 interacting
+		   velocities to conserve energy including the
+		   inelastic energy loss. */
+      Inert,     /*!< adjusts the non-interacting partition of both
+		   particles to enforce energy conservation */
+      Inert1,    /*!< adjusts the non-interacting partition of the
+		   particle mass with the largest weight to enforce
+		   energy conservation */
+      Inert2     /*!< adjusts the non-interacting partition of the
+		   particle mass with the smallest weight to enforce
+		   energy conservation */
       };
 
   //! Labels for diagnostic output
   std::map<ConsAlg, std::string> ConsAlgLabel =
     {
-      {ConsAlg::Prime,    "Prime"   },
-      {ConsAlg::Prime1,   "Prime1"  },
-      {ConsAlg::Prime2,   "Prime2"  },
-      {ConsAlg::PreferV1, "PreferV1"},
-      {ConsAlg::PreferV2, "PreferF2"},
+      {ConsAlg::Active,   "Active"   },
+      {ConsAlg::Active1,  "Active P1"},
+      {ConsAlg::Active2,  "Active P2"},
+      {ConsAlg::Inert,    "Inert"    },
+      {ConsAlg::Inert1,   "Inert P1" },
+      {ConsAlg::Inert2,   "Inert P2" },
     };
 
 

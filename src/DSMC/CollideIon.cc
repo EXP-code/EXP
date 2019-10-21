@@ -11347,8 +11347,8 @@ void CollideIon::scatterTrace
   if (ExactE) {
 
     if (ConsAlgToggle) {
-      if (pp->m1<1.0) Method = ConsAlg::Prime2;
-      if (pp->m2<1.0) Method = ConsAlg::Prime1;
+      if (pp->m1<1.0) Method = ConsAlg::Active2;
+      if (pp->m2<1.0) Method = ConsAlg::Active1;
     }
     
     KE.bs.set(KE_Flags::ExQ);
@@ -11379,7 +11379,44 @@ void CollideIon::scatterTrace
 
       switch (Method) {
 
-      case ConsAlg::PreferV1:
+      case ConsAlg::Inert:
+	{
+	  double A  = pp->m1*v1i2*cq*cq/q + pp->m2*v2i2*cW*cW/W;
+	  double BA = (pp->m1*cq*qT + pp->m2*cW*wT)/A;
+	  double CA = (pp->m1*(v1i2/q - b1f2*q) + pp->m2*(v2i2/W - b2f2*W))/A;
+	  double DA = 2.0*KE.delE/(pp->W1*q*A);
+	
+	  rad = BA*BA + CA - DA;
+	  
+	  if (rad < 0.0) {
+	    double dEmax = 0.5*pp->m1*pp->W1*q*A*(BA*BA + CA);
+	    KE.miss = KE.delE - dEmax;
+	    // Add to energy bucket for these particles
+	    //
+	    deferredEnergyTrace(pp, KE.delE - dEmax, id);
+	    KE.delE = dEmax;
+	    rad = 0.0;
+	  }
+	  
+	  gam1 = -BA + sqrt(rad);
+	  gam2 = -BA - sqrt(rad);
+	  
+	  if (fabs(gam1) < fabs(gam2))
+	  gam = gam1;
+	  else 
+	    gam = gam2;
+	  
+	  for (int i=0; i<3; i++) {
+	    (*v1)[i] = cq*gam*(*v1)[i] + q*uu[i];
+	    (*v2)[i] = cW*gam*(*v2)[i] + W*vv[i];
+	  }
+	}
+	  
+	break;
+
+	// END: v1 and v2 adjustment
+	
+      case ConsAlg::Inert1:
 	{
 	  double B2A = cq + q*qT/v1i2;
 
@@ -11419,7 +11456,7 @@ void CollideIon::scatterTrace
 
 	// END: v1 adjustment
 	
-      case ConsAlg::PreferV2:
+      case ConsAlg::Inert2:
 	{
 	  double B2A = cW + W*wT/v2i2;
 	  
@@ -11458,7 +11495,7 @@ void CollideIon::scatterTrace
 	break;
 	// END: v2 adjustment
 
-      case ConsAlg::Prime:
+      case ConsAlg::Active:
 	{
 	  double B = pp->m1*cq*qT + pp->m2*cW*wT;
 	  double A = pp->m1*q*b1f2 + pp->m2*W*b2f2;
@@ -11494,7 +11531,7 @@ void CollideIon::scatterTrace
 	break;
 	// END: joint adjustment
 
-      case ConsAlg::Prime1:
+      case ConsAlg::Active1:
 	{
 	  double A = pp->m1*q*b1f2;
 	  double B = pp->m1*cq*qT;
@@ -11531,7 +11568,7 @@ void CollideIon::scatterTrace
 	break;
 	// END: adjust low mass P1
 
-      case ConsAlg::Prime2:
+      case ConsAlg::Active2:
 	{
 	  double A = pp->m2*W*b2f2;
 	  double B = pp->m2*cW*wT;
@@ -19317,8 +19354,8 @@ void CollideIon::processConfig()
       if (v>4) v = 4;
       ConsAlgMethod = static_cast<ConsAlg>(v);
     } else {
-      config["ConsAlg"]["desc"] = "Trace method algorithm selection for explicit energy conservation [Prime=0, Prime1=1, Prime2=2, PreferV1=3, PreferV2=4]";
-      config["ConsAlg"]["value"] = static_cast<int>(ConsAlg::Prime);
+      config["ConsAlg"]["desc"] = "Trace method algorithm selection for explicit energy conservation [Active=0, Active1=1, Active2=2, Inert=3, Inert1=4, Inert2=5]";
+      config["ConsAlg"]["value"] = static_cast<int>(ConsAlg::Active);
     }
 
     if (config["ConsAlgToggle"])
