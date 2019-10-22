@@ -767,6 +767,8 @@ private:
   //@{
   //! Trace method energy update for explicit energy conservation
   enum class ConsAlg {
+      Original,  /*!< adjusts */
+      New,       /*!< adjusts */
       Active,    /*!< adjusts both particles interacting velocities to
 		   conserve energy including the inelastic energy
 		   loss. Active is the most sensible variant. */
@@ -789,6 +791,8 @@ private:
   //! Labels for diagnostic output
   std::map<ConsAlg, std::string> ConsAlgLabel =
     {
+      {ConsAlg::Original, "Original" },
+      {ConsAlg::New,      "New"      },
       {ConsAlg::Active,   "Active"   },
       {ConsAlg::Active1,  "Active P1"},
       {ConsAlg::Active2,  "Active P2"},
@@ -797,6 +801,8 @@ private:
       {ConsAlg::Inert2,   "Inert P2" },
     };
 
+  //! Mixture parameter for Inert algorithm
+  double ConsAlgMix;
 
   //! Use electron-mass toggle
   bool ConsAlgToggle;

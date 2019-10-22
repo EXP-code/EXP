@@ -579,9 +579,13 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
       if (ConsAlgToggle)
 	std::cout <<  " " << std::setw(20) << std::left << "ConsAlgToggle"
 		  <<  "on" << std::endl;
-      else
+      else {
 	std::cout <<  " " << std::setw(20) << std::left << "ConsAlg type"
 		  << ConsAlgLabel[ConsAlgMethod] << std::endl;
+	if (ConsAlgMethod == ConsAlg::Inert)
+	std::cout <<  " " << std::setw(20) << std::left << "ConsAlgMix"
+		  << ConsAlgMix << std::endl;
+      }
     }
     if (use_photoIB)		// print photoIB parameters
     std::cout <<  " " << std::setw(20) << std::left << "photoIB model"
@@ -11267,7 +11271,9 @@ void CollideIon::scatterTrace
     vi += vrel[k] * vrel[k];
   }
 				// Energy in COM
-  double kE = 0.5*pp->W2*W*mu*vi;
+  double kE = 0.5*pp->W2*mu*vi;
+  if (!ExactE or ConsAlgMethod!=ConsAlg::Original) kE *= W;
+  
 				// Energy reduced by loss
   double totE = kE - KE.delE;
 
@@ -11360,12 +11366,22 @@ void CollideIon::scatterTrace
     double wT   = 0.0, qT   = 0.0;
     bool  algok = false;
 
+    if (Method==ConsAlg::Original) {
+      q  = pp->q;
+      cq = 1.0 - q;
+    }
+    
     if (cq > 0.0 and q < 1.0) {
 
       for (size_t i=0; i<3; i++) {
 
-	uu[i] = vcom[i] + pp->m2/mt*vrel[i];
-	vv[i] = vcom[i] - pp->m1/mt*vrel[i];
+	if (Method==ConsAlg::Original or Method==ConsAlg::New) {
+	  uu[i] = vcom[i] + pp->m2/mt*vrel[i]*KE.vfac;
+	  vv[i] = vcom[i] - pp->m1/mt*vrel[i]*KE.vfac;
+	} else {
+	  uu[i] = vcom[i] + pp->m2/mt*vrel[i];
+	  vv[i] = vcom[i] - pp->m1/mt*vrel[i];
+	}
 
 	v1i2 += (*v1)[i] * (*v1)[i];
 	v2i2 += (*v2)[i] * (*v2)[i];
@@ -11379,10 +11395,109 @@ void CollideIon::scatterTrace
 
       switch (Method) {
 
+      case ConsAlg::Original:
+	{
+	  if (v1i2 > 0.0 and b1f2 > 0.0) qT *= q/v1i2;
+
+	  gam = ( -qT +
+		  std::copysign(1.0, qT)*
+		  sqrt(qT*qT + cq*(q*b1f2/v1i2 + 1.0)) )/cq;
+
+	  for (int i=0; i<3; i++) {
+	    double v0 = vcom[i] + pp->m2/mt*vrel[i]*KE.vfac;
+	    (*v1)[i] = cq*gam*(*v1)[i] + q*v0;
+	    (*v2)[i] = vcom[i] - pp->m1/mt*vrel[i]*KE.vfac;
+	  }
+	}
+
+	break;
+
+	// END: original adjustment
+
+      case ConsAlg::New:
+	{
+	  double KE1i=0.0, KE2i=0.0, KE1f=0.0, KE2f=0.0;
+	  double w1[3], w2[3];
+
+	  for (int i=0; i<3; i++) {
+	    KE1i += (*v1)[i] * (*v1)[i];
+	    KE2i += (*v2)[i] * (*v2)[i];
+
+	    double s1 = vcom[i] + pp->m2/mt*vrel[i]*KE.vfac;
+	    double s2 = vcom[i] - pp->m1/mt*vrel[i]*KE.vfac;
+
+	    w1[i] = cq*(*v1)[i] + q*s1;
+	    w2[i] = cW*(*v2)[i] + W*s2;
+
+	    KE1f += w1[i]*w1[i];
+	    KE2f += w2[i]*w2[i];
+	  }
+
+	  KE1i *= 0.5*pp->m1*pp->W1;
+	  KE2i *= 0.5*pp->m2*pp->W2;
+
+	  KE1f *= 0.5*pp->m1*pp->W1;
+	  KE2f *= 0.5*pp->m2*pp->W2;
+
+	  double deltaE = KE1i + KE2i - KE1f - KE2f - KE.delE;
+
+	  /* Need to decrease total energy by ratio:
+
+	     deltaE/(KE1f+KE2f)
+
+	     Let change be proprotional, e.g.:
+
+	     dE1 = deltaE*KE1f*(1-e)/(KE1f*(1-e)+KE2f*e)
+	     dE2 = deltaE*KE2f*e/(KE1f*(1-e)+KE2f*e)
+
+	     dE1 + dE2 = deltaE
+
+	     dQ1 = deltaE*(1-e)/(KE1f*(1-e)+KE2f*e)
+	     dQ2 = deltaE*e/(KE1f*(1-e)+KE2f*e)
+
+	     dQ1 + dQ2 = deltaE/(KE1f*(1-e)+KE2f*e)
+	     dQ1*KE1f + dQ2*KE2f = deltaE
+
+	     dV1 = sqrt(2.0*dE1/(pp->m1*pp->W1))
+	     dV2 = sqrt(2.0*dE2/(pp->m2*pp->W2))
+
+	     Let v1 -> v1*(1.0 + dE1/KE1f)^(1/2)
+	         v1 -> v1*(1.0 + dQ1)^(1/2)
+	     
+	         v2 -> v2*(1.0 + dE2/KE2f)^(1/2)
+	         v2 -> v2*(1.0 + dQ2)^(1/2)
+
+	     So:
+
+	     KE1adj = 0.5*pp->m1*pp->W1*v1^2*(1 + dQ1)
+	            = KE1f + dQ1*KE1f
+	     KE2adj = 0.5*pp->m2*pp->W2*v2^2*(1 + dQ2)
+	            = KE2f + dQ2*KE2f
+	  */
+
+	  double c1   = 1.0 - ConsAlgMix;
+	  double c2   = ConsAlgMix;
+	  double del  = deltaE/(c1*KE1f + c2*KE2f);
+	  double fac1 = sqrt(1.0 + del*c1);
+	  double fac2 = sqrt(1.0 + del*c2);
+
+	  for (int i=0; i<3; i++) {
+	    (*v1)[i] = w1[i]*fac1;
+	    (*v2)[i] = w2[i]*fac2;
+	  }
+	}
+
+	break;
+
+	// END: new algorithm
+
       case ConsAlg::Inert:
 	{
-	  double A  = pp->m1*v1i2*cq*cq/q + pp->m2*v2i2*cW*cW/W;
-	  double BA = (pp->m1*cq*qT + pp->m2*cW*wT)/A;
+	  double Mu = 2.0*(1.0 - ConsAlgMix);
+	  double Nu = 2.0*ConsAlgMix;
+
+	  double A  = Mu*Mu*pp->m1*v1i2*cq*cq/q + Nu*Nu*pp->m2*v2i2*cW*cW/W;
+	  double BA = (Mu*pp->m1*cq*qT + Nu*pp->m2*cW*wT)/A;
 	  double CA = (pp->m1*(v1i2/q - b1f2*q) + pp->m2*(v2i2/W - b2f2*W))/A;
 	  double DA = 2.0*KE.delE/(pp->W1*q*A);
 	
@@ -11407,8 +11522,8 @@ void CollideIon::scatterTrace
 	    gam = gam2;
 	  
 	  for (int i=0; i<3; i++) {
-	    (*v1)[i] = cq*gam*(*v1)[i] + q*uu[i];
-	    (*v2)[i] = cW*gam*(*v2)[i] + W*vv[i];
+	    (*v1)[i] = cq*gam*Mu*(*v1)[i] + q*uu[i];
+	    (*v2)[i] = cW*gam*Nu*(*v2)[i] + W*vv[i];
 	  }
 	}
 	  
@@ -19351,11 +19466,18 @@ void CollideIon::processConfig()
 				// checking . . .
       int v = config["ConsAlg"]["value"].as<int>();
       if (v<0) v = 0;
-      if (v>5) v = 5;
+      if (v>6) v = 6;
       ConsAlgMethod = static_cast<ConsAlg>(v);
     } else {
-      config["ConsAlg"]["desc"] = "Trace method algorithm selection for explicit energy conservation [Active=0, Active1=1, Active2=2, Inert=3, Inert1=4, Inert2=5]";
+      config["ConsAlg"]["desc"] = "Trace method algorithm selection for explicit energy conservation [Original=0, Active=1, Active1=2, Active2=3, Inert=4, Inert1=5, Inert2=6]";
       config["ConsAlg"]["value"] = static_cast<int>(ConsAlg::Inert2);
+    }
+
+    if (config["ConsAlgMix"])
+      ConsAlgMix = config["ConsAlgMix"]["value"].as<double>();
+    else {
+      config["ConsAlgMix"]["desc"] = "Mixture parameter for Inert algorithm [0 is all P1 and 1 is all P2]";
+      config["ConsAlgMix"]["value"] = ConsAlgMix = 0.5;
     }
 
     if (config["ConsAlgToggle"])
