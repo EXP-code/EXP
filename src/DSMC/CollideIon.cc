@@ -11251,18 +11251,20 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
   auto nbods = c->bods.size();
   if (nbods==0) return;
 
-  // Compute mean weight
+  // Compute mean number of particles
+  //
   double meanW  = 0.0;
-  double deferE = 0.0;
+  double deferE = 0.0;		// Accmulated deferred energy change
+
   for (auto b : c->bods) {
 
     Particle* const p = tree->Body(b);
 
-    double Mu=0.0;
+    double Imu=0.0;
     for (auto s : SpList) {
-      Mu += p->dattrib[s.second] / atomic_weights[s.first.first];
+      Imu += p->dattrib[s.second] / atomic_weights[s.first.first];
     }
-    meanW += p->mass*Mu;
+    meanW += p->mass*Imu;
     
     if (use_cons>=0) {
       deferE += p->dattrib[use_cons];
@@ -11272,16 +11274,23 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
 
   meanW /= nbods;
 
+  // Loop over all interaction types
+  //
   for (auto v : accumData[id]) {
 
-    double dE = 0.0;
+    // Number of pairs
+    //
     int n_p = std::ceil(std::get<1>(v.second)/meanW);
+    if (n_p<=0) continue;
 
-    if (v.first == AccumType::ion_electron)
-      dE = (std::get<0>(v.second) + deferE)/n_p;
-    else
-      dE = std::get<0>(v.second)/n_p;
+    // Mean inelastic energy change
+    //
+    double dE = std::get<0>(v.second);
+    if (v.first == AccumType::ion_electron) dE += deferE;
+    dE /= n_p;
 
+    // Loop over number of pairs
+    //
     for (int n=0; n<n_p; n++) {
 
       // Pick a pair of particles from the cell
@@ -11367,7 +11376,6 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
       //                         |
       // Velocity in center of mass, computed from v1, v2 and adjusted
       // according to the inelastic energy loss
-      //
 
       for (size_t k=0; k<3; k++) {
 	v1[k] = vcom[k] + m2/mt*vrel[k] * vfac;
