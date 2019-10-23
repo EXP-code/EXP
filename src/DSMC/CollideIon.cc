@@ -1787,14 +1787,15 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
     ABrate[id][3] = 2.0*M_PI * PiProb[id][3] * logL ;
 
 #ifdef XC_DEEP10
-      std::cout << "coul2: "
-		<< " AB1=" << ABrate[id][0]
-		<< " AB2=" << ABrate[id][1]
-		<< " AB3=" << ABrate[id][2]
-		<< " AB4=" << ABrate[id][3]
-		<< std::endl;
+    std::cout << "coul2: "
+	      << " AB1=" << ABrate[id][0]
+	      << " AB2=" << ABrate[id][1]
+	      << " AB3=" << ABrate[id][2]
+	      << " AB4=" << ABrate[id][3]
+	      << std::endl;
 #endif
-
+    
+    if (TraceAccum) accumReset(id);
   }
   // END: Trace
 
@@ -11232,15 +11233,15 @@ void CollideIon::accumTrace(PordPtr pp, KE_& KE, double W, int id)
 {
   if (pp->P == Pord::ion_ion)
     {
-      std::get<0>(accumData[id][AccumType::ion_ion]) += KE.delE;
-      std::get<1>(accumData[id][AccumType::ion_ion]) += pp->W1*pp->q*W;
+      std::get<0>(accumData[id][AccumType::ion_ion]) += pp->W1*pp->q*W;
+      std::get<1>(accumData[id][AccumType::ion_ion]) += KE.delE;
     }
 
   if (pp->P == Pord::ion_electron or
       pp->P == Pord::electron_ion)
     {
-      std::get<0>(accumData[id][AccumType::ion_electron]) += KE.delE;
-      std::get<1>(accumData[id][AccumType::ion_electron]) += pp->W1*pp->q*W;
+      std::get<0>(accumData[id][AccumType::ion_electron]) += pp->W1*pp->q*W;
+      std::get<1>(accumData[id][AccumType::ion_electron]) += KE.delE;
     }
 }
 
@@ -11280,12 +11281,12 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
 
     // Number of pairs
     //
-    int n_p = std::ceil(std::get<1>(v.second)/meanW);
+    int n_p = std::ceil(std::get<0>(v.second)/meanW);
     if (n_p<=0) continue;
 
     // Mean inelastic energy change
     //
-    double dE = std::get<0>(v.second);
+    double dE = std::get<1>(v.second);
     if (v.first == AccumType::ion_electron) dE += deferE;
     dE /= n_p;
 
@@ -11312,7 +11313,8 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
       m1 = 1.0/m1;
       m2 = 1.0/m2;
 
-      double v1[3], v2[3];
+      double v1[3], v2[3], W1=p1->mass/m1, W2=p2->mass/m2;
+      double WW = W1>W2 ? W2 : W1;
       
       // Particle 1 is always Ion
       for (int k=0; k<3; k++) v1[k] = p1->vel[k];
@@ -11347,7 +11349,7 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
       }
 
       // Energy in COM
-      double kE = 0.5*meanW*mu*vi;
+      double kE = 0.5*WW*mu*vi;
 				// Energy reduced by loss
       double totE = kE - dE;
       double vfac = 0.0;
