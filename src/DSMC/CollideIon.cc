@@ -11305,14 +11305,14 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
 
       double v1[3], v2[3];
       
-      // Ion always particle 1
+      // Particle 1 is always Ion
       for (int k=0; k<3; k++) v1[k] = p1->vel[k];
 				
-      // Ion
+      // Particle 2 is Ion
       if (v.first == AccumType::ion_ion) {
 	for (int k=0; k<3; k++) v2[k] = p2->vel[k];
       }
-      // Electron
+      // Particle  is Electron
       else {			
 	m2 = atomic_weights[0];
 	for (int k=0; k<3; k++) v2[k] = p2->dattrib[use_elec+k];
@@ -11374,20 +11374,21 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
 	v2[k] = vcom[k] - m1/mt*vrel[k] * vfac;
       }
 
+      // Particle 1 is always Ion
       for (int k=0; k<3; k++) p1->vel[k] = v1[k];
-
 				
-      // Ion
+      // Particle 2 is Ion
       if (v.first == AccumType::ion_ion) {
 	for (int k=0; k<3; k++) p2->vel[k] = v2[k];
       }
-      // Electron
+      // Particle 1 is Electron
       else {
 	for (int k=0; k<3; k++) p2->dattrib[use_elec+k] = v2[k];
       }
     }
   }
 }
+// END: CollideIon::accumTraceScatter
 
 void CollideIon::scatterTrace
 (PordPtr pp, KE_& KE, double W,
