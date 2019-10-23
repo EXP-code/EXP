@@ -42,6 +42,7 @@ bool     CollideIon::NoExact    = true;
 bool     CollideIon::AlgOrth    = false;
 bool     CollideIon::AlgWght    = false;
 bool     CollideIon::MeanMass   = false; // Mean-mass algorithm
+bool     CollideIon::TraceAccum = false; // Trace accumulation algorithm
 bool     CollideIon::SpreadDef  = false; // Spread deferred energy
 bool     CollideIon::DebugE     = false;
 bool     CollideIon::collLim    = false;
@@ -554,6 +555,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << AlgorithmLabels[aType]                 << std::endl
 	      << " " << std::setw(20) << std::left  << "MEAN_MASS"
 	      << (MeanMass ? "on" : "off")              << std::endl
+	      << " " << std::setw(20) << std::left  << "TraceAccum"
+	      << (TraceAccum ? "on" : "off")              << std::endl
 	      << " " << std::setw(20) << std::left  << "SPREAD_DEF"
 	      << (SpreadDef ? "on" : "off")             << std::endl
 	      << " " << std::setw(20) << std::left  << "ENERGY_ES"
@@ -579,9 +582,13 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
       if (ConsAlgToggle)
 	std::cout <<  " " << std::setw(20) << std::left << "ConsAlgToggle"
 		  <<  "on" << std::endl;
-      else
+      else {
 	std::cout <<  " " << std::setw(20) << std::left << "ConsAlg type"
 		  << ConsAlgLabel[ConsAlgMethod] << std::endl;
+	if (ConsAlgMethod == ConsAlg::Inert)
+	std::cout <<  " " << std::setw(20) << std::left << "ConsAlgMix"
+		  << ConsAlgMix << std::endl;
+      }
     }
     if (use_photoIB)		// print photoIB parameters
     std::cout <<  " " << std::setw(20) << std::left << "photoIB model"
@@ -812,6 +819,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   energyA  .resize(nthrds);	     // Trace
   ionizeA  .resize(nthrds);	     // Trace
   recombA  .resize(nthrds);	     // Trace
+  accumData.resize(nthrds);	     // Trace
   photoStat.resize(nthrds);	     // Photoionize
 
   for (auto &v : tauD) {
@@ -1779,14 +1787,15 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
     ABrate[id][3] = 2.0*M_PI * PiProb[id][3] * logL ;
 
 #ifdef XC_DEEP10
-      std::cout << "coul2: "
-		<< " AB1=" << ABrate[id][0]
-		<< " AB2=" << ABrate[id][1]
-		<< " AB3=" << ABrate[id][2]
-		<< " AB4=" << ABrate[id][3]
-		<< std::endl;
+    std::cout << "coul2: "
+	      << " AB1=" << ABrate[id][0]
+	      << " AB2=" << ABrate[id][1]
+	      << " AB3=" << ABrate[id][2]
+	      << " AB4=" << ABrate[id][3]
+	      << std::endl;
 #endif
-
+    
+    if (TraceAccum) accumReset(id);
   }
   // END: Trace
 
@@ -2219,11 +2228,16 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	}
 	// END: outer species loop
       }
+
       // END: Trace
     }
     // END: inner body loop
   }
   // END: outer body loop
+
+  if (aType==Trace and TraceAccum) {
+    
+  }
 
   // For deep debugging, only print on first call
   //
@@ -11214,6 +11228,178 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 } // END: inelasticTrace
 
 
+// Accumulate energy change and weights for TraceAccum method
+void CollideIon::accumTrace(PordPtr pp, KE_& KE, double W, int id)
+{
+  if (pp->P == Pord::ion_ion)
+    {
+      std::get<0>(accumData[id][AccumType::ion_ion]) += pp->W1*pp->q*W;
+      std::get<1>(accumData[id][AccumType::ion_ion]) += KE.delE;
+    }
+
+  if (pp->P == Pord::ion_electron or
+      pp->P == Pord::electron_ion)
+    {
+      std::get<0>(accumData[id][AccumType::ion_electron]) += pp->W1*pp->q*W;
+      std::get<1>(accumData[id][AccumType::ion_electron]) += KE.delE;
+    }
+}
+
+// Compute the interaction for the TraceAccum method
+//
+void CollideIon::accumTraceScatter(pCell* const c, int id)
+{
+  auto nbods = c->bods.size();
+  if (nbods==0) return;
+
+  // Compute mean number of particles
+  //
+  double meanW  = 0.0;
+  double deferE = 0.0;		// Accmulated deferred energy change
+
+  for (auto b : c->bods) {
+
+    Particle* const p = tree->Body(b);
+
+    double Imu=0.0;
+    for (auto s : SpList) {
+      Imu += p->dattrib[s.second] / atomic_weights[s.first.first];
+    }
+    meanW += p->mass*Imu;
+    
+    if (use_cons>=0) {
+      deferE += p->dattrib[use_cons];
+      p->dattrib[use_cons] = 0.0;
+    }
+  }
+
+  meanW /= nbods;
+
+  // Loop over all interaction types
+  //
+  for (auto v : accumData[id]) {
+
+    // Number of pairs
+    //
+    int n_p = std::ceil(std::get<0>(v.second)/meanW);
+    if (n_p<=0) continue;
+
+    // Mean inelastic energy change
+    //
+    double dE = std::get<1>(v.second);
+    if (v.first == AccumType::ion_electron) dE += deferE;
+    dE /= n_p;
+
+    // Loop over number of pairs
+    //
+    for (int n=0; n<n_p; n++) {
+
+      // Pick a pair of particles from the cell
+      //
+      int i1 = std::min<int>(int(floor((*unit)()* nbods   )), nbods-1);
+      int i2 = std::min<int>(int(floor((*unit)()*(nbods-1))), nbods-2);
+      if (i2 >= i1) i2++;
+
+      // Get index from body map for the cell
+      //
+      Particle* const p1 = tree->Body(c->bods[i1]);
+      Particle* const p2 = tree->Body(c->bods[i2]);
+      
+      double m1 = 0.0, m2 = 0.0;
+      for (auto s : SpList) {
+	m1 += p1->dattrib[s.second] / atomic_weights[s.first.first];
+	m2 += p2->dattrib[s.second] / atomic_weights[s.first.first];
+      }
+      m1 = 1.0/m1;
+      m2 = 1.0/m2;
+
+      double v1[3], v2[3], W1=p1->mass/m1, W2=p2->mass/m2;
+      double WW = W1>W2 ? W2 : W1;
+      
+      // Particle 1 is always Ion
+      for (int k=0; k<3; k++) v1[k] = p1->vel[k];
+				
+      // Particle 2 is Ion
+      if (v.first == AccumType::ion_ion) {
+	for (int k=0; k<3; k++) v2[k] = p2->vel[k];
+      }
+      // Particle  is Electron
+      else {			
+	m2 = atomic_weights[0];
+	for (int k=0; k<3; k++) v2[k] = p2->dattrib[use_elec+k];
+      }
+
+      // Total effective mass in the collision
+      //
+      double mt = m1 + m2;
+
+      // Reduced mass (atomic mass units)
+      //
+      double mu = m1 * m2 / mt;
+      
+      // Set COM frame
+      //
+      std::vector<double> vcom(3), vrel(3);
+      double vi = 0.0;
+  
+      for (size_t k=0; k<3; k++) {
+	vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
+	vrel[k] = v1[k] - v2[k];
+	vi += vrel[k] * vrel[k];
+      }
+
+      // Energy in COM
+      double kE = 0.5*WW*mu*vi;
+				// Energy reduced by loss
+      double totE = kE - dE;
+      double vfac = 0.0;
+      
+      // KE is positive
+      //
+      if (kE>0.0) {
+	// More loss energy requested than available?
+	//
+	if (totE < 0.0) {
+	  if (use_cons>=0) {
+	    p1->dattrib[use_cons] += 0.5*(-totE);
+	    p2->dattrib[use_cons] += 0.5*(-totE);
+	  }
+	  totE = 0.0;
+	}
+
+	vfac = sqrt(totE/kE);
+      }
+
+      vrel = unit_vector();
+  
+      vi   = sqrt(vi);
+      for (auto & v : vrel) v *= vi;
+      //                         ^
+      //                         |
+      // Velocity in center of mass, computed from v1, v2 and adjusted
+      // according to the inelastic energy loss
+
+      for (size_t k=0; k<3; k++) {
+	v1[k] = vcom[k] + m2/mt*vrel[k] * vfac;
+	v2[k] = vcom[k] - m1/mt*vrel[k] * vfac;
+      }
+
+      // Particle 1 is always Ion
+      for (int k=0; k<3; k++) p1->vel[k] = v1[k];
+				
+      // Particle 2 is Ion
+      if (v.first == AccumType::ion_ion) {
+	for (int k=0; k<3; k++) p2->vel[k] = v2[k];
+      }
+      // Particle 1 is Electron
+      else {
+	for (int k=0; k<3; k++) p2->dattrib[use_elec+k] = v2[k];
+      }
+    }
+  }
+}
+// END: CollideIon::accumTraceScatter
+
 void CollideIon::scatterTrace
 (PordPtr pp, KE_& KE, double W,
  std::vector<double>* V1, std::vector<double>* V2, int id)
@@ -11228,6 +11414,11 @@ void CollideIon::scatterTrace
   }
 
   if (pp->W2 == 0.0) return;
+
+  if (TraceAccum) {
+    accumTrace(pp, KE, W, id);
+    return;
+  }
 
   // Make v1 correspond to the primary, W1>W2
   //
@@ -11267,7 +11458,9 @@ void CollideIon::scatterTrace
     vi += vrel[k] * vrel[k];
   }
 				// Energy in COM
-  double kE = 0.5*pp->W2*W*mu*vi;
+  double kE = 0.5*pp->W2*mu*vi;
+  if (!ExactE or ConsAlgMethod!=ConsAlg::Original) kE *= W;
+  
 				// Energy reduced by loss
   double totE = kE - KE.delE;
 
@@ -11360,12 +11553,22 @@ void CollideIon::scatterTrace
     double wT   = 0.0, qT   = 0.0;
     bool  algok = false;
 
+    if (Method==ConsAlg::Original) {
+      q  = pp->q;
+      cq = 1.0 - q;
+    }
+    
     if (cq > 0.0 and q < 1.0) {
 
       for (size_t i=0; i<3; i++) {
 
-	uu[i] = vcom[i] + pp->m2/mt*vrel[i];
-	vv[i] = vcom[i] - pp->m1/mt*vrel[i];
+	if (Method==ConsAlg::Original or Method==ConsAlg::New) {
+	  uu[i] = vcom[i] + pp->m2/mt*vrel[i]*KE.vfac;
+	  vv[i] = vcom[i] - pp->m1/mt*vrel[i]*KE.vfac;
+	} else {
+	  uu[i] = vcom[i] + pp->m2/mt*vrel[i];
+	  vv[i] = vcom[i] - pp->m1/mt*vrel[i];
+	}
 
 	v1i2 += (*v1)[i] * (*v1)[i];
 	v2i2 += (*v2)[i] * (*v2)[i];
@@ -11379,10 +11582,109 @@ void CollideIon::scatterTrace
 
       switch (Method) {
 
+      case ConsAlg::Original:
+	{
+	  if (v1i2 > 0.0 and b1f2 > 0.0) qT *= q/v1i2;
+
+	  gam = ( -qT +
+		  std::copysign(1.0, qT)*
+		  sqrt(qT*qT + cq*(q*b1f2/v1i2 + 1.0)) )/cq;
+
+	  for (int i=0; i<3; i++) {
+	    double v0 = vcom[i] + pp->m2/mt*vrel[i]*KE.vfac;
+	    (*v1)[i] = cq*gam*(*v1)[i] + q*v0;
+	    (*v2)[i] = vcom[i] - pp->m1/mt*vrel[i]*KE.vfac;
+	  }
+	}
+
+	break;
+
+	// END: original adjustment
+
+      case ConsAlg::New:
+	{
+	  double KE1i=0.0, KE2i=0.0, KE1f=0.0, KE2f=0.0;
+	  double w1[3], w2[3];
+
+	  for (int i=0; i<3; i++) {
+	    KE1i += (*v1)[i] * (*v1)[i];
+	    KE2i += (*v2)[i] * (*v2)[i];
+
+	    double s1 = vcom[i] + pp->m2/mt*vrel[i]*KE.vfac;
+	    double s2 = vcom[i] - pp->m1/mt*vrel[i]*KE.vfac;
+
+	    w1[i] = cq*(*v1)[i] + q*s1;
+	    w2[i] = cW*(*v2)[i] + W*s2;
+
+	    KE1f += w1[i]*w1[i];
+	    KE2f += w2[i]*w2[i];
+	  }
+
+	  KE1i *= 0.5*pp->m1*pp->W1;
+	  KE2i *= 0.5*pp->m2*pp->W2;
+
+	  KE1f *= 0.5*pp->m1*pp->W1;
+	  KE2f *= 0.5*pp->m2*pp->W2;
+
+	  double deltaE = KE1i + KE2i - KE1f - KE2f - KE.delE;
+
+	  /* Need to decrease total energy by ratio:
+
+	     deltaE/(KE1f+KE2f)
+
+	     Let change be proprotional, e.g.:
+
+	     dE1 = deltaE*KE1f*(1-e)/(KE1f*(1-e)+KE2f*e)
+	     dE2 = deltaE*KE2f*e/(KE1f*(1-e)+KE2f*e)
+
+	     dE1 + dE2 = deltaE
+
+	     dQ1 = deltaE*(1-e)/(KE1f*(1-e)+KE2f*e)
+	     dQ2 = deltaE*e/(KE1f*(1-e)+KE2f*e)
+
+	     dQ1 + dQ2 = deltaE/(KE1f*(1-e)+KE2f*e)
+	     dQ1*KE1f + dQ2*KE2f = deltaE
+
+	     dV1 = sqrt(2.0*dE1/(pp->m1*pp->W1))
+	     dV2 = sqrt(2.0*dE2/(pp->m2*pp->W2))
+
+	     Let v1 -> v1*(1.0 + dE1/KE1f)^(1/2)
+	         v1 -> v1*(1.0 + dQ1)^(1/2)
+	     
+	         v2 -> v2*(1.0 + dE2/KE2f)^(1/2)
+	         v2 -> v2*(1.0 + dQ2)^(1/2)
+
+	     So:
+
+	     KE1adj = 0.5*pp->m1*pp->W1*v1^2*(1 + dQ1)
+	            = KE1f + dQ1*KE1f
+	     KE2adj = 0.5*pp->m2*pp->W2*v2^2*(1 + dQ2)
+	            = KE2f + dQ2*KE2f
+	  */
+
+	  double c1   = 1.0 - ConsAlgMix;
+	  double c2   = ConsAlgMix;
+	  double del  = deltaE/(c1*KE1f + c2*KE2f);
+	  double fac1 = sqrt(1.0 + del*c1);
+	  double fac2 = sqrt(1.0 + del*c2);
+
+	  for (int i=0; i<3; i++) {
+	    (*v1)[i] = w1[i]*fac1;
+	    (*v2)[i] = w2[i]*fac2;
+	  }
+	}
+
+	break;
+
+	// END: new algorithm
+
       case ConsAlg::Inert:
 	{
-	  double A  = pp->m1*v1i2*cq*cq/q + pp->m2*v2i2*cW*cW/W;
-	  double BA = (pp->m1*cq*qT + pp->m2*cW*wT)/A;
+	  double Mu = 2.0*(1.0 - ConsAlgMix);
+	  double Nu = 2.0*ConsAlgMix;
+
+	  double A  = Mu*Mu*pp->m1*v1i2*cq*cq/q + Nu*Nu*pp->m2*v2i2*cW*cW/W;
+	  double BA = (Mu*pp->m1*cq*qT + Nu*pp->m2*cW*wT)/A;
 	  double CA = (pp->m1*(v1i2/q - b1f2*q) + pp->m2*(v2i2/W - b2f2*W))/A;
 	  double DA = 2.0*KE.delE/(pp->W1*q*A);
 	
@@ -11407,8 +11709,8 @@ void CollideIon::scatterTrace
 	    gam = gam2;
 	  
 	  for (int i=0; i<3; i++) {
-	    (*v1)[i] = cq*gam*(*v1)[i] + q*uu[i];
-	    (*v2)[i] = cW*gam*(*v2)[i] + W*vv[i];
+	    (*v1)[i] = cq*gam*Mu*(*v1)[i] + q*uu[i];
+	    (*v2)[i] = cW*gam*Nu*(*v2)[i] + W*vv[i];
 	  }
 	}
 	  
@@ -13047,6 +13349,10 @@ double CollideIon::electronEnergy(pCell* const cell, int dbg)
 void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 			       double kedsp, double tau, int id)
 {
+  if (aType == Trace and TraceAccum) {
+    accumTraceScatter(cell, id);
+  }
+
   if (mlev==0) {		// Add electronic potential energy
     collD->addCellPotl(cell, id);
   }
@@ -19346,16 +19652,30 @@ void CollideIon::processConfig()
       config["MEAN_MASS"]["value"] = MeanMass = false;
     }
 
+    if (config["TraceAccum"])
+      TraceAccum = config["TraceAccum"]["value"].as<bool>();
+    else {
+      config["TraceAccum"]["desc"] = "Use the accumulation method for Trace scattering";
+      config["TraceAccum"]["value"] = TraceAccum = false;
+    }
+
     if (config["ConsAlg"]) {	// YAML doesn't handle enum classes
 				// directly so we need some type
 				// checking . . .
       int v = config["ConsAlg"]["value"].as<int>();
       if (v<0) v = 0;
-      if (v>5) v = 5;
+      if (v>6) v = 6;
       ConsAlgMethod = static_cast<ConsAlg>(v);
     } else {
-      config["ConsAlg"]["desc"] = "Trace method algorithm selection for explicit energy conservation [Active=0, Active1=1, Active2=2, Inert=3, Inert1=4, Inert2=5]";
+      config["ConsAlg"]["desc"] = "Trace method algorithm selection for explicit energy conservation [Original=0, Active=1, Active1=2, Active2=3, Inert=4, Inert1=5, Inert2=6]";
       config["ConsAlg"]["value"] = static_cast<int>(ConsAlg::Inert2);
+    }
+
+    if (config["ConsAlgMix"])
+      ConsAlgMix = config["ConsAlgMix"]["value"].as<double>();
+    else {
+      config["ConsAlgMix"]["desc"] = "Mixture parameter for Inert algorithm [0 is all P1 and 1 is all P2]";
+      config["ConsAlgMix"]["value"] = ConsAlgMix = 0.5;
     }
 
     if (config["ConsAlgToggle"])
