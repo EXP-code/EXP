@@ -608,6 +608,14 @@ private:
   static esMapType esMap;
   //@}
 
+  //@{
+  //! Variables for Trace accumulation algorithm
+  enum class AccumType {ion_ion, ion_electron};
+  typedef std::tuple<double, double> accumTypeData;
+  typedef std::map<AccumType, accumTypeData> accumTypeMap;
+  std::vector<accumTypeMap> accumData;
+  //@}
+
   //! Mnemonic for the type of algorithm selected by the user
   enum AlgorithmType { Direct, Weight, Trace, Hybrid };
   const char* AlgorithmLabels[4] = {"Direct", "Weight", "Trace", "Hybrid"};
@@ -1572,6 +1580,15 @@ protected:
   //! For photoionization ion-electron recoil
   void scatterPhotoTrace(Particle* p, lQ Q, double Pr, double dE);
 
+  //! Reset TraceAccum accumulation counters for energy change and weights
+  void accumReset(int id) { accumData[id].clear(); }
+
+  //! Accumulate energy change and weights for TraceAccum method
+  void accumTrace(PordPtr pp, KE_& KE, double W, int id);
+
+  //! Compute the interaction for the TraceAccum method
+  void accumTraceScatter(pCell* const c, int id);
+
   //! For deep debugging
   void KEcheck(PordPtr pp, double& KE_initl_check,
 	       std::array<double, 2>& ion, std::array<double, 2>& rcb);
@@ -1624,6 +1641,7 @@ public:
   static bool       AlgOrth;
   static bool       AlgWght;
   static bool       MeanMass;
+  static bool       TraceAccum;
   static bool       SpreadDef;
   static bool       DebugE;
   static bool       collLim;
