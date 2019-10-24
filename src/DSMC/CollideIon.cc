@@ -11281,13 +11281,26 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
 
     // Number of pairs
     //
-    int n_p = std::ceil(std::get<0>(v.second)/meanW);
+    double dn_p = std::get<0>(v.second)/meanW;
+    int     n_p = std::ceil(dn_p);
+
+    // Select for fractional scatter at random, if we can defer
+    // inelastic energy change.  Otherwise, stick with n_p rounded up.
+    //
+    if (use_cons>=0 and (*unit)() > dn_p - n_p) {
+      deferE += std::get<1>(v.second);
+      n_p--;
+    }
+
     if (n_p<=0) continue;
 
     // Mean inelastic energy change
     //
     double dE = std::get<1>(v.second);
-    if (v.first == AccumType::ion_electron) dE += deferE;
+    if (v.first == AccumType::ion_electron) {
+      dE += deferE;
+      deferE = 0.0;
+    }
     dE /= n_p;
 
     // Loop over number of pairs
@@ -11397,6 +11410,16 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
       }
     }
   }
+
+  // Redistribute deferred energy
+  //
+  if (use_cons>=0) {
+    for (auto b : c->bods) {
+      Particle* const p = tree->Body(b);
+      p->dattrib[use_cons] = deferE/nbods;
+    }
+  }
+
 }
 // END: CollideIon::accumTraceScatter
 
