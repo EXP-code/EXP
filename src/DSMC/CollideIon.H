@@ -614,6 +614,9 @@ private:
   typedef std::tuple<double, double> accumTypeData;
   typedef std::map<AccumType, accumTypeData> accumTypeMap;
   std::vector<accumTypeMap> accumData;
+
+  typedef std::tuple<Particle*, Particle*, double> PairXC;
+  std::vector< std::vector<PairXC> > accumIIxc, accumIExc;
   //@}
 
   //! Mnemonic for the type of algorithm selected by the user
@@ -1581,7 +1584,11 @@ protected:
   void scatterPhotoTrace(Particle* p, lQ Q, double Pr, double dE);
 
   //! Reset TraceAccum accumulation counters for energy change and weights
-  void accumReset(int id) { accumData[id].clear(); }
+  void accumReset(int id) {
+    accumData[id].clear();
+    accumIIxc[id].clear();
+    accumIExc[id].clear();
+  }
 
   //! Accumulate energy change and weights for TraceAccum method
   void accumTrace(PordPtr pp, KE_& KE, double W, int id);
