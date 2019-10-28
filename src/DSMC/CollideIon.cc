@@ -23,7 +23,7 @@
 // Version info
 //
 #define NAME_ID    "CollideIon"
-#define VERSION_ID "0.39 [10/11/19 trace revert]"
+#define VERSION_ID "0.40 [10/11/19 trace ConsAlg]"
 
 using namespace std;
 using namespace NTC;
@@ -42,7 +42,7 @@ bool     CollideIon::NoExact    = true;
 bool     CollideIon::AlgOrth    = false;
 bool     CollideIon::AlgWght    = false;
 bool     CollideIon::MeanMass   = false; // Mean-mass algorithm
-bool     CollideIon::TraceAccum = false; // Trace accumulation algorithm
+bool     CollideIon::TraceAccum = true;  // Trace accumulation algorithm
 bool     CollideIon::SpreadDef  = false; // Spread deferred energy
 bool     CollideIon::DebugE     = false;
 bool     CollideIon::collLim    = false;
@@ -194,7 +194,7 @@ static bool NO_FF_E             = false;
 // KE debugging: checks energy bookkeeping. Set to false for
 // production
 //
-static bool KE_DEBUG            = true;
+static bool KE_DEBUG            = false;
 
 // For debugging only: suppress scattering in Trace method.  Set to
 // false for production
@@ -2299,10 +2299,6 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
     // END: inner body loop
   }
   // END: outer body loop
-
-  if (aType==Trace and TraceAccum) {
-    
-  }
 
   // For deep debugging, only print on first call
   //
@@ -19766,7 +19762,7 @@ void CollideIon::processConfig()
       TraceAccum = config["TraceAccum"]["value"].as<bool>();
     else {
       config["TraceAccum"]["desc"] = "Use the accumulation method for Trace scattering";
-      config["TraceAccum"]["value"] = TraceAccum = false;
+      config["TraceAccum"]["value"] = TraceAccum = true;
     }
 
     if (config["ConsAlg"]) {	// YAML doesn't handle enum classes
@@ -19999,7 +19995,7 @@ void CollideIon::processConfig()
       KE_DEBUG = config["KE_DEBUG"]["value"].as<bool>();
     else {
       config["KE_DEBUG"]["desc"] = "Check energy bookkeeping for debugging";
-      config["KE_DEBUG"]["value"] = KE_DEBUG = true;
+      config["KE_DEBUG"]["value"] = KE_DEBUG = false;
     }
 
     if (config["NO_HSCAT"])
