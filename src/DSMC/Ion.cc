@@ -54,7 +54,7 @@ Ion::IB_Lab Ion::ib_lab = {
 Ion::IB_Type Ion::ib_type = Ion::none;
 
 bool Ion::use_VFKY = true;
-bool Ion::gs_only  = false;
+bool Ion::gs_only  = true;
 
 // Free-free grid
 //
@@ -2889,9 +2889,16 @@ double VernerData::cross(const lQ& Q, double EeV)
       gf = ch->radGF(scaledE, v.second.pqn, v.second.l);
     } 
 				// Cross section x Gaunt factor
+    /*
     double cross = crossPh * gf * 
 				// Milne relation
       0.5*Eph*Eph/(mec2*EeV) * static_cast<double>(v.second.mult) / mult0;
+    */
+
+				// Cross section x Gaunt factor
+    double cross = crossPh * gf *
+				// Milne relation
+      Eph*Eph/(mec2*EeV) * static_cast<double>(v.second.mult) / mult0;
     
 				// For testing ground state only
     if (Ion::gs_only and v.second.pqn>1) continue;
