@@ -26,13 +26,24 @@ src		Source for nbody code
 Compile hints:
 --------------
 
-Set LAMHOME environment variable.  Then, for production:
+Run: 
 
-aclocal
-autoconf
+libtoolize
+aclocal -I m4
+autoheader
+automake -a
 automake
-./configure
-make
+autoconf
+
+And then configure using the following:
+
+./configure --with-vtk-version=6.3 --prefix=/home/someuser --with-boost-libdir=/usr/lib/x86_64-linux-gnu LDFLAGS=-lmpi --with-vtk-lib-suffix=6.3 --with-dsmc=yes
+
+When configuring alter /home/someuser in the above command to your desired prefix.
+Finally run make:
+
+make LDFLAGS="-L." CXXFLAGS="-O3 -DOMPI_SKIP_MPICXX" CFLAGS="-O3" NVCC_EXTRA="-O3" -j16
+make install
 
 For checking/verification:
 
