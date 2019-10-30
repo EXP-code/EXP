@@ -258,7 +258,7 @@ double TopBase::sigmaFB(const iKey& key, double E)
 
 	// Compute the cross section
 	//
-	double crossi = l->wght/mult0 * Erat * crs;
+	double crossi = mult0/l->wght * Erat * crs;
 
 	cross += crossi;
       }

@@ -2173,7 +2173,7 @@ std::vector<double> Ion::radRecombCrossMewe(double E, int id)
 				// Apply Milne relation
 				//
 	double Erat   = (hnu*hnu)/(2.0*mec2*E);
-	double crossi = mult/mult0 * Erat * sigmaP;
+	double crossi = mult0/mult * Erat * sigmaP;
 
 	cross += crossi;
 
@@ -2240,7 +2240,7 @@ std::vector<double> Ion::radRecombCrossSpitzer(double E, int id)
       double n    = static_cast<double>(f->lvl );
       double Ephot  = E + Ej;
       double Erat   = Ej / Ephot;
-      double crossn = coef * (Ej / Ephot) * (0.5*Ephot/E) * (mult/n);
+      double crossn = coef * (Ej / Ephot) * (0.5*Ephot/E) * (1.0/(mult*n));
 
       cross += crossn;
 
@@ -2866,37 +2866,41 @@ double VernerData::cross(const lQ& Q, double EeV)
     mult0 = origI->fblvl.begin()->second.mult;
   }
 
-  vrPtr  vdata   = data[rQ];
   double ip      = combI->ip;
   double vCross  = 0.0;
   
-  double Egs     = EeV + ip;	// Energy to ground state
-  double crossPh = crossPhotoIon(rQ, Egs);
-
   for (auto v : combI->fblvl) {
     
     double Eiz = ip - v.second.encm * incmEv;
     double Eph = EeV + Eiz;
     double gf  = 1.0;
 
-    if (v.second.pqn>1) {
-
-      double scaledE = log(Eph/Eiz);
+    double scaledE = log(Eph/Eiz);
       
-      crossPh = 7.90706903681e-04 * pow(Eiz/ryd, 2.0)*
+    if (v.second.pqn==1) {
+      double crossPh  = crossPhotoIon(rQ, Eph);
+
+				// Cross section
+      double cross = crossPh * 
+				// Milne relation
+	0.5*Eph*Eph/(mec2*EeV) * mult0/static_cast<double>(v.second.mult);
+
+      vCross += cross;
+    }
+    else if (not Ion::gs_only) {
+
+      double crossPh = 7.90706903681e-04 * pow(Eiz/ryd, 2.0)*
 	pow(ryd/Eph, 3.0)/v.second.pqn;
       
       gf = ch->radGF(scaledE, v.second.pqn, v.second.l);
-    } 
-				// Cross section x Gaunt factor
-    double cross = crossPh * gf * 
-				// Milne relation
-      0.5*Eph*Eph/(mec2*EeV) * static_cast<double>(v.second.mult) / mult0;
-    
-				// For testing ground state only
-    if (Ion::gs_only and v.second.pqn>1) continue;
 
-    vCross += cross;
+				// Cross section x Gaunt factor
+      double cross = crossPh * gf *
+				// Milne relation
+	0.5*Eph*Eph/(mec2*EeV) * mult0/static_cast<double>(v.second.mult);
+    
+      vCross += cross;
+    }
   }
 
   return vCross;
@@ -2940,7 +2944,7 @@ VernerData::crossV(const lQ& Q, double EeV)
 				// Cross section
     double cross = crossPhotoIon(rQ, Eph) * 
 				// Milne relation
-      0.5*Eph*Eph/(mec2*EeV) * static_cast<double>(v.second.mult) / mult0;
+      0.5*Eph*Eph/(mec2*EeV) * mult0/static_cast<double>(v.second.mult);
     
     vCross.push_back(elemV(v.second.lvl, cross));
   }

@@ -196,14 +196,14 @@ int main (int ac, char **av)
     for (size_t ne=0; ne<NE; ne++) {
       if (val3.size()) {
 	std::map<unsigned short, std::vector<double> > valT =
-	  ch.recombEquil(Z, T, Emin+dE*ne, Emax+dE*(ne+1), norder, use_log);
+	  ch.recombEquil(Z, T, Emin+dE*ne, Emin+dE*(ne+1), norder, use_log);
 	for (auto v : val3) {
 	  unsigned short C = v.first;
 	  size_t sz = v.second.size();
 	  for (size_t k=0; k<sz; k++) val3[C][k] += valT[C][k];
 	}
       } else {
-	val3 = ch.recombEquil(Z, T, Emin+dE*ne, Emax+dE*(ne+1), norder, use_log);
+	val3 = ch.recombEquil(Z, T, Emin+dE*ne, Emin+dE*(ne+1), norder, use_log);
       }
     }
 
@@ -264,7 +264,8 @@ int main (int ac, char **av)
 	  unsigned short C = v.first;
 	  for (size_t j=1; j<3; j++) {
 	    if (rates) {
-	      mat << std::setw(16) << valH[C][j]
+	      mat << std::setw( 3) << C
+		  << std::setw(16) << valH[C][j]
 		  << std::setw(16) << val0[C][j]
 		  << std::setw(16) << val1[ne][C][j];
 	    } else if (val0[C][j]>0.0) {
