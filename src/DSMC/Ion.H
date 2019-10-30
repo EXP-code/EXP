@@ -454,8 +454,11 @@ public:
   //! Use Verner et al. fortran subroutine (default: true)
   static bool use_VFKY;
 
-  //! Recombine into ground state only for Verner cross sections
+  //! Recombine into ground state only for Verner cross sections (default: false)
   static bool gs_only;
+
+  //! Use Karzas and Latter gs cross section rather than Verner (default: false)
+  static bool no_verner;
 
   //! Ionization background parameters
   //@{

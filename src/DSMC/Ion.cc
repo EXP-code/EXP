@@ -53,8 +53,9 @@ Ion::IB_Lab Ion::ib_lab = {
 
 Ion::IB_Type Ion::ib_type = Ion::none;
 
-bool Ion::use_VFKY = true;
-bool Ion::gs_only  = false;
+bool Ion::use_VFKY  = true;
+bool Ion::gs_only   = false;
+bool Ion::no_verner = false;
 
 // Free-free grid
 //
@@ -2877,7 +2878,7 @@ double VernerData::cross(const lQ& Q, double EeV)
 
     double scaledE = log(Eph/Eiz);
       
-    if (v.second.pqn==1) {
+    if (v.second.pqn==1 and not Ion::no_verner) {
       double crossPh  = crossPhotoIon(rQ, Eph);
 
 				// Cross section
