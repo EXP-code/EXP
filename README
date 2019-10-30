@@ -26,13 +26,41 @@ src		Source for nbody code
 Compile hints:
 --------------
 
-Set LAMHOME environment variable.  Then, for production:
+Run: 
 
-aclocal
-autoconf
+libtoolize
+aclocal -I m4
+autoheader
+automake -a
 automake
-./configure
-make
+autoconf
+
+And then configure using the following:
+
+./configure --with-vtk-version=6.3 --prefix=/home/someuser --with-boost-libdir=/usr/lib/x86_64-linux-gnu LDFLAGS=-lmpi --with-vtk-lib-suffix=6.3 --with-dsmc
+
+where the --with-vtk* flags are necessary if your distribution uses versioned VTK.  In this example, the VTK version is 6.3.  You will only need the 
+--with-dsmc if you are working with DSMC.
+
+When configuring alter /home/someuser in the above command to your desired prefix.
+Finally run make:
+
+make LDFLAGS="-L." CXXFLAGS="-O3 -DOMPI_SKIP_MPICXX" CFLAGS="-O3" NVCC_EXTRA="-O3" -j16
+make install
+
+If you are using DSMC, download and install the CHIANTI database from https://www.chiantidatabase.org
+
+Add the path to where you install it by adding the following to your .bashrc file:
+
+export CHIANTI_DATA=/path_to_install_location/CHIANTI/dbase
+
+replacing the path_to_install_location as apropriate.
+
+Also set the LD_LIBRARY_PATH by adding the following to your .bashrc file:
+
+export LD_LIBRARY_PATH=${HOME}/lib:${LD_LIBRARY_PATH}
+
+Log out and then back in in order for this to take effect.
 
 For checking/verification:
 
