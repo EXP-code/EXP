@@ -2875,16 +2875,13 @@ double VernerData::cross(const lQ& Q, double EeV)
     double Eiz = ip - v.second.encm * incmEv;
     double Eph = EeV + Eiz;
     double gf  = 1.0;
+				// Milne relation
+    double Milne = 0.5*Eph*Eph/(mec2*EeV) * mult0/static_cast<double>(v.second.mult);
 
-    double scaledE = log(Eph/Eiz);
-      
     if (v.second.pqn==1 and not Ion::no_verner) {
       double crossPh  = crossPhotoIon(rQ, Eph);
-
 				// Cross section
-      double cross = crossPh * 
-				// Milne relation
-	0.5*Eph*Eph/(mec2*EeV) * mult0/static_cast<double>(v.second.mult);
+      double cross = crossPh * Milne;
 
       vCross += cross;
     }
@@ -2892,14 +2889,12 @@ double VernerData::cross(const lQ& Q, double EeV)
 
       double crossPh = 7.90706903681e-04 * pow(Eiz/ryd, 2.0)*
 	pow(ryd/Eph, 3.0)/v.second.pqn;
-      
+				// Gaunt factor
+      double scaledE = log(Eph/Eiz);
       gf = ch->radGF(scaledE, v.second.pqn, v.second.l);
-
 				// Cross section x Gaunt factor
-      double cross = crossPh * gf *
-				// Milne relation
-	0.5*Eph*Eph/(mec2*EeV) * mult0/static_cast<double>(v.second.mult);
-    
+      double cross = crossPh * gf * Milne;
+
       vCross += cross;
     }
   }
@@ -2912,6 +2907,8 @@ VernerData::crossV(const lQ& Q, double EeV)
 {
   typedef std::tuple<int, double> elemV;
   std::vector<elemV> vCross;
+				// 1 Rydberg in eV
+  constexpr double ryd = 27.2113845/2.0;
 
 				// 1 inverse cm = 1.239.. eV
   constexpr double incmEv = 1.0/8.06554465e+03;
@@ -2940,14 +2937,31 @@ VernerData::crossV(const lQ& Q, double EeV)
   
   for (auto v : combI->fblvl) {
     
-    double Eph = EeV + ip - v.second.encm * incmEv;
-
-				// Cross section
-    double cross = crossPhotoIon(rQ, Eph) * 
+    double Eiz = ip - v.second.encm * incmEv;
+    double Eph = EeV + Eiz;
+    double gf  = 1.0;
 				// Milne relation
-      0.5*Eph*Eph/(mec2*EeV) * mult0/static_cast<double>(v.second.mult);
+    double Milne = 0.5*Eph*Eph/(mec2*EeV) * mult0/static_cast<double>(v.second.mult);
+
+    if (v.second.pqn==1 and not Ion::no_verner) {
+      double crossPh  = crossPhotoIon(rQ, Eph);
+				// Cross section
+      double cross = crossPh * Milne;
+
+      vCross.push_back(elemV(v.second.lvl, cross));
+    }
+    else if (not Ion::gs_only) {
+
+      double crossPh = 7.90706903681e-04 * pow(Eiz/ryd, 2.0)*
+	pow(ryd/Eph, 3.0)/v.second.pqn;
+				// Gaunt factor
+      double scaledE = log(Eph/Eiz);
+      gf = ch->radGF(scaledE, v.second.pqn, v.second.l);
+				// Cross section x Gaunt factor
+      double cross = crossPh * gf * Milne;
     
-    vCross.push_back(elemV(v.second.lvl, cross));
+      vCross.push_back(elemV(v.second.lvl, cross));
+    }
   }
 
   return vCross;
