@@ -37,9 +37,10 @@ autoconf
 
 And then configure using the following:
 
-./configure --with-vtk-version=6.3 --prefix=/home/someuser --with-boost-libdir=/usr/lib/x86_64-linux-gnu LDFLAGS=-lmpi --with-vtk-lib-suffix=6.3
+./configure --with-vtk-version=6.3 --prefix=/home/someuser --with-boost-libdir=/usr/lib/x86_64-linux-gnu LDFLAGS=-lmpi --with-vtk-lib-suffix=6.3 --with-dsmc
 
-where the --with-vtk* flags are necessary if your distribution uses versioned VTK.  In this example, the VTK version is 6.3.
+where the --with-vtk* flags are necessary if your distribution uses versioned VTK.  In this example, the VTK version is 6.3.  You will only need the 
+--with-dsmc if you are working with DSMC.
 
 When configuring alter /home/someuser in the above command to your desired prefix.
 Finally run make:
@@ -47,7 +48,7 @@ Finally run make:
 make LDFLAGS="-L." CXXFLAGS="-O3 -DOMPI_SKIP_MPICXX" CFLAGS="-O3" NVCC_EXTRA="-O3" -j16
 make install
 
-Download and install the CHIANTI database from https://www.chiantidatabase.org
+If you are using DSMC, download and install the CHIANTI database from https://www.chiantidatabase.org
 
 Add the path to where you install it by adding the following to your .bashrc file:
 
