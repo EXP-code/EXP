@@ -37,7 +37,9 @@ autoconf
 
 And then configure using the following:
 
-./configure --with-vtk-version=6.3 --prefix=/home/someuser --with-boost-libdir=/usr/lib/x86_64-linux-gnu LDFLAGS=-lmpi --with-vtk-lib-suffix=6.3 --with-dsmc=yes
+./configure --with-vtk-version=6.3 --prefix=/home/someuser --with-boost-libdir=/usr/lib/x86_64-linux-gnu LDFLAGS=-lmpi --with-vtk-lib-suffix=6.3
+
+where the --with-vtk* flags are necessary if your distribution uses versioned VTK.  In this example, the VTK version is 6.3.
 
 When configuring alter /home/someuser in the above command to your desired prefix.
 Finally run make:
