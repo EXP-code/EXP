@@ -29,6 +29,7 @@
 #include <cudaUtil.cuH>
 #endif
 
+#include <localmpi.h>		// For myid
 
 // Structures for caching the Cspline instances for each Ion instance
 //
@@ -777,14 +778,19 @@ public:
   double         getIP(const lQ& Q) const { return ch->ipdata[Q]; }
   //@}
 
-  //! Set cross-section type for all instances
+  //! Set cross-section type for all instances. This is left in case
+  //! alternative cross sections are useful in the future, but AFAICT,
+  //! Verner should be used for everything at this point.
   static int setRRtype(const std::string& rr) 
   {
     if (rr_map.find(rr) == rr_map.end()) {
-      rr_type = Ion::mewe;	// Default type
+      rr_type = Ion::verner;	// Default type
       return 1;			// Failure
     } else { 			// Set request
       rr_type = rr_map[rr];
+      if (myid==0 and rr_type != Ion::verner) {
+	std::cout << "WARNING: you probably really want the Verner cross section not " << rr_lab[rr_type] << std::endl;
+      }
       return 0;			// Success
     }
   }

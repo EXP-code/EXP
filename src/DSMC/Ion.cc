@@ -35,7 +35,7 @@ Ion::RR_Lab Ion::rr_lab = {
     { Ion::verner,  "Verner"  }
 };
 
-Ion::RR_Type Ion::rr_type = Ion::mewe;
+Ion::RR_Type Ion::rr_type = Ion::verner;
 
 // For setting ionization background type (c++-11 initialization style)
 //
