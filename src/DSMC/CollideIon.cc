@@ -20522,13 +20522,6 @@ void CollideIon::processConfig()
       config["HandMexpon"]["value"] = Ion::HandM_expon = -0.5;
     }
 
-    if (config["radRecombGS"])
-      Ion::gs_only = config["radRecombGS"]["value"].as<bool>();
-    else {
-      config["radRecombGS"]["desc"] = "Cross section for recombination into the ground state only";
-      config["radRecombGS"]["value"] = Ion::gs_only = false;
-    }
-
     if (config["freeFreeCache"])
       Ion::useFreeFreeGrid = config["freeFreeCache"]["value"].as<bool>();
     else {
