@@ -2779,7 +2779,7 @@ void VernerData::initialize(chdata* ch)
 	      std::getline(vdFile, inLine);
 	    // Handle eof
 	    if (inLine.size()>2) {
-	      for (int i=10; i<29; i++) inLine[i] = ' ';
+	      std::fill(&inLine[10], &inLine[29], ' ');
 	      inLine = inLine.substr(2, std::string::npos);
 	    }
 	  }
