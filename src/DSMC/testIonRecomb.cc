@@ -140,13 +140,23 @@ int main (int ac, char **av)
     }
   }
 
-  std::ofstream mat;
+  std::ofstream mat, tab;
   if (numE>1) {
     mat.open(prefix + ".matrix", ios::out);
     if (mat.bad()) {
       std::cerr << "testIonRecomb: error opening <" << prefix + ".matrix"
 		<< "> for writing" << std::endl;
       exit(-1);
+    }
+
+    if (rates) {
+
+      tab.open(prefix + ".table", ios::out);
+      if (tab.bad()) {
+	std::cerr << "testIonRecomb: error opening <" << prefix + ".table"
+		  << "> for writing" << std::endl;
+	exit(-1);
+      }
     }
   }
 
@@ -183,27 +193,47 @@ int main (int ac, char **av)
   double tmax = log(Tmax);
   double dT   = (tmax - tmin)/numT;
 
+  bool logE = false;
+  if (Emin>0.0) {
+    Emin = log(Emin);
+    Emax = log(Emax);
+    logE = true;
+  }
+  const size_t NE = 100;
+  double dE = (Emax - Emin)/NE;
+
   for (int nt=0; nt<=numT; nt++) {
 
     double T = exp(tmin + dT*nt);
 
     std::map<unsigned short, std::vector<double> > val1 = ch.recombEquil(Z, T, norder);
-    std::map<unsigned short, std::vector<double> > val2 = ch.recombEquil(Z, T, Emin, Emax, norder*3, use_log);
+
+    double emin0 = Emin;
+    double emax0 = Emax;
+    if (logE) {
+      emin0 = exp(emin0);
+      emax0 = exp(emax0);
+    }
+    std::map<unsigned short, std::vector<double> > val2 = ch.recombEquil(Z, T, emin0, emax0, norder, use_log);
 
     std::map<unsigned short, std::vector<double> > val3;
-    const size_t NE = 100;
-    double dE = (Emax - Emin)/NE;
     for (size_t ne=0; ne<NE; ne++) {
+      double Eb = Emin + dE*ne;
+      double Ef = Emin + dE*(ne+1);
+      if (logE) {
+	Eb = exp(Eb);
+	Ef = exp(Ef);
+      }
       if (val3.size()) {
 	std::map<unsigned short, std::vector<double> > valT =
-	  ch.recombEquil(Z, T, Emin+dE*ne, Emin+dE*(ne+1), norder, use_log);
+	  ch.recombEquil(Z, T, Eb, Ef, norder, use_log);
 	for (auto v : val3) {
 	  unsigned short C = v.first;
 	  size_t sz = v.second.size();
 	  for (size_t k=0; k<sz; k++) val3[C][k] += valT[C][k];
 	}
       } else {
-	val3 = ch.recombEquil(Z, T, Emin+dE*ne, Emin+dE*(ne+1), norder, use_log);
+	val3 = ch.recombEquil(Z, T, Eb, Ef, norder, use_log);
       }
     }
 
@@ -234,31 +264,38 @@ int main (int ac, char **av)
       rateMap valH, val0;
       std::vector<rateMap> val1(numE);
       
-      if (rates) valH = ch.recombEquil(Z, T, norder*10);
+      if (rates) valH = ch.recombEquil(Z, T, norder);
 
       for (int ne=0; ne<numE; ne++) {
 	
-	double emax = Emin + dE*(ne + 1);
-	double emin = Emin + dE*ne;
+	double Eb = Emin + dE*ne;
+	double Ef = Emin + dE*(ne+1);
+	if (logE) {
+	  Eb = exp(Eb);
+	  Ef = exp(Ef);
+	}
 
 	if (val0.size()) {
 	  std::map<unsigned short, std::vector<double> >
-	    valT = ch.recombEquil(Z, T, emin, emax, norder);
+	    valT = ch.recombEquil(Z, T, Eb, Ef, norder);
 	  for (auto v : val0) {
 	    unsigned short C = v.first;
 	    size_t        sz = v.second.size();
 	    for (size_t j=0; j<sz; j++) val0[C][j] += valT[C][j];
 	  }
 	} else {
-	  val0 = ch.recombEquil(Z, T, emin, emax, norder);
+	  val0 = ch.recombEquil(Z, T, Ef, Eb, norder);
 	}
 	val1[ne] = val0;
       }
       
       for (int ne=0; ne<numE; ne++) {
 	
+	double Ef = Emin + dE*(ne+1);
+	if (logE) Ef = exp(Ef);
+
 	mat << std::setw(16) << T 
-	    << std::setw(16) << Emin + dE*(ne+1);
+	    << std::setw(16) << Ef;
 
 	for (auto v : val1[ne]) {
 	  unsigned short C = v.first;
@@ -278,8 +315,22 @@ int main (int ac, char **av)
 	mat << std::endl;
       }
       mat << std::endl;
-    }
 
+      if (rates) {
+
+	tab << std::setw(16) << T ;
+	for (auto v : val1.back()) {
+	  unsigned short C = v.first;
+	  for (size_t j=1; j<3; j++) {
+	    tab << std::setw( 3) << C
+		<< std::setw(16) << valH[C][j]
+		<< std::setw(16) << val0[C][j]
+		<< std::setw(16) << v.second[j];
+	  }
+	}
+	tab << std::endl;
+      }
+    }
   }
 
 
