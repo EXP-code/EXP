@@ -454,10 +454,9 @@ public:
   //! Use Verner et al. fortran subroutine (default: true)
   static bool use_VFKY;
 
-  //! Recombine into ground state only for Verner cross sections (default: false)
-  static bool gs_only;
-
-  //! Use Karzas and Latter gs cross section rather than Verner (default: false)
+  //! Use Karzas and Latter gs cross section rather than Verner
+  //! (default: false). This will only be used for hydrogen
+  //! recombination.  For all others, we use the Verner table.
   static bool no_verner;
 
   //! Ionization background parameters
@@ -757,10 +756,6 @@ public:
 
   //! Photoionization rate
   std::pair<double, double> photoIonizationRate();
-
-  /** Radiative recombination cross section using Verner (for
-      debugging */
-  std::vector< std::tuple<int, double> > recombCrossV (double E, int id);
 
   //! Calculate the QRP value as in Fontes, Sampson, Zhang 1999
   double qrp(double u);
