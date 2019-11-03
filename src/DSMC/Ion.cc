@@ -2856,7 +2856,6 @@ void VernerData::initialize(chdata* ch)
       // Enter in database
       data[lQ(v->n, v->n-v->io+1)].push_back(v);
       //      ^     ^
-      //      |     |
       //  Z-- +     |
       //  C---------+
     }
@@ -2876,6 +2875,7 @@ void VernerData::initialize(chdata* ch)
       v->sync();
       // Enter in database
       data[lQ(v->n, v->n-v->io+1)].push_back(v);
+      //  key(Z,    C           )
     }
   }
 
