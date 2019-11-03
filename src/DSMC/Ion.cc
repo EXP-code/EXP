@@ -2840,8 +2840,12 @@ void VernerData::initialize(chdata* ch)
       }
     }
     
-    for (auto v : indat) {
+    // Broadcast the number of Verner-Yakovlev table entries
+    //
+    int vsiz = indat.size();
+    MPI_Bcast(&vsiz,  1, MPI_INT, 0, MPI_COMM_WORLD);
 
+    for (auto v : indat) {
       v->sync();
 
       int Z = v->n;
@@ -2854,13 +2858,17 @@ void VernerData::initialize(chdata* ch)
       data[key].push_back(v);
     }
     
-    unsigned short done = 0;
-    MPI_Bcast(&done,  1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-    
   } else {
     lQ key;
     
-    while (1) {
+    // Receive the number of Verner-Yakovlev table entries
+    //
+    int vsiz;
+    MPI_Bcast(&vsiz,  1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    // Look over data sync
+    //
+    for (int i=0; i<vsiz; i++) {
       vrPtr dat(new VernerRec);
       dat->sync();
 
@@ -2871,13 +2879,9 @@ void VernerData::initialize(chdata* ch)
 
       data[key].push_back(dat);
     }
-    
-    if (data.size() != nVern)
-      std::cout << "Node " << myid << ": "
-		<< " Verner data size=" << data.size() 
-		<< ", expected: " << nVern << std::endl;
   }
-}
+
+} // END: VernerData::initialize()
 
 
 /**
