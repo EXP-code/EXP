@@ -2791,7 +2791,8 @@ void VernerData::initialize(chdata* ch)
 	  
 	  if (v.size() < 10) break;
 	  
-	  vrPtr dat(new VernerRec);
+	  vrPtr dat = boost::make_shared<VernerRec>();
+
 	  dat->n    = atoi(v[0].c_str());
 	  dat->io   = atoi(v[1].c_str());
 	  dat->pql  = atoi(v[2].c_str());
@@ -2815,7 +2816,8 @@ void VernerData::initialize(chdata* ch)
     }
   }
 
-  
+  // Distribute file-read status
+  //
   MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
 
   if (nOK)  {
@@ -2826,6 +2828,8 @@ void VernerData::initialize(chdata* ch)
     exit(59);
   } 
 
+  // Distribute table to all nodes
+  //
   if (myid==0) {
     
     if (extended) {
@@ -2843,41 +2847,35 @@ void VernerData::initialize(chdata* ch)
     // Broadcast the number of Verner-Yakovlev table entries
     //
     int vsiz = indat.size();
-    MPI_Bcast(&vsiz,  1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&vsiz, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     for (auto v : indat) {
+      // Sync data record with all processes
       v->sync();
 
-      int Z = v->n;
-      int C = v->n - v->io + 1;
-	  
-      // Stage: 1 is neutral, etc.
-
-      lQ key(Z, C);
-
-      data[key].push_back(v);
+      // Enter in database
+      data[lQ(v->n, v->n-v->io+1)].push_back(v);
+      //      ^     ^
+      //      |     |
+      //  Z-- +     |
+      //  C---------+
     }
     
   } else {
-    lQ key;
-    
     // Receive the number of Verner-Yakovlev table entries
     //
     int vsiz;
-    MPI_Bcast(&vsiz,  1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&vsiz, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     // Look over data sync
     //
     for (int i=0; i<vsiz; i++) {
-      vrPtr dat(new VernerRec);
-      dat->sync();
-
-      int Z = dat->n;
-      int C = dat->n - dat->io + 1;
-	  
-      lQ key(Z, C);
-
-      data[key].push_back(dat);
+      // Generate new element
+      vrPtr v = boost::make_shared<VernerRec>(); 
+      // Get data from root process
+      v->sync();
+      // Enter in database
+      data[lQ(v->n, v->n-v->io+1)].push_back(v);
     }
   }
 
