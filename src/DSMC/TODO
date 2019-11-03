@@ -1,0 +1,10 @@
+o TraceAccum method is now default for Trace algorithm implementation.
+
+o The unstable energy conservation algorithm remains in the Weighted
+  and Hybrid method.  Perhaps this should be propagated the same way?
+  Or perhaps the energy conservation method works for Hybrid and not
+  Trace.  Check this?
+
+o More generally, all algorithms (Direct, Weighted, Hybrid and Trace)
+  would have regression tests ideally.
+  
