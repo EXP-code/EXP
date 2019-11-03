@@ -6,7 +6,7 @@ import sys
 import operator
 
 from numpy import *
-import chianti.core as ch
+import ChiantiPy.core as ch
 from optparse import OptionParser
 
 def accumulate(iterable, func=operator.add):
@@ -26,16 +26,16 @@ def getIoneq(ofile, T=1.0e+04, numBeg=1, numEnd=2):
         file.write('{0:4d} {1:4d} {2:15.6e}\n'.format(numBeg, numEnd, T))
         for n in range(numBeg, numEnd+1):
                 atom = ch.ioneq(n)
-                atom.calculate(T)
+                atom.calculate([T, T])
                 f = atom.Ioneq
                 z = list(accumulate(f))
                 z /= z[-1]      # Normalization, should not be needed
                 file.write('{0:4d} {1:4d}\n'.format(n, len(z)))
                 for v in f:
-                        file.write('{0:15.6e}'.format(v))
+                    file.write('{0:15.6e}'.format(v[0]))
                 file.write('\n')
                 for v in z:
-                        file.write('{0:15.6e}'.format(v))
+                    file.write('{0:15.6e}'.format(v[0]))
                 file.write('\n')
 
 def main():
