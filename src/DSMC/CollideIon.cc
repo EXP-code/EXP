@@ -41,8 +41,6 @@ bool     CollideIon::ExactE     = false;
 bool     CollideIon::NoExact    = true;
 bool     CollideIon::AlgOrth    = false;
 bool     CollideIon::AlgWght    = false;
-bool     CollideIon::MeanMass   = false; // Mean-mass algorithm
-bool     CollideIon::TraceAccum = true;  // Trace accumulation algorithm
 bool     CollideIon::SpreadDef  = false; // Spread deferred energy
 bool     CollideIon::DebugE     = false;
 bool     CollideIon::collLim    = false;
@@ -314,11 +312,6 @@ bool CollideIon::elec_balance   = true;
 //
 bool CollideIon::ke_weight      = true;
 
-
-// Coulombic cross section computed from mean KE
-//
-bool CollideIon::MeanKE         = true;
-
 // Per-species cross-section scale factor for testing
 //
 static std::vector<double> cscl_;
@@ -553,10 +546,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << "************************************" << std::endl
 	      << " " << std::setw(20) << std::left  << "Algorithm type"
 	      << AlgorithmLabels[aType]                 << std::endl
-	      << " " << std::setw(20) << std::left  << "MEAN_MASS"
-	      << (MeanMass ? "on" : "off")              << std::endl
-	      << " " << std::setw(20) << std::left  << "TraceAccum"
-	      << (TraceAccum ? "on" : "off")              << std::endl
 	      << " " << std::setw(20) << std::left  << "SPREAD_DEF"
 	      << (SpreadDef ? "on" : "off")             << std::endl
 	      << " " << std::setw(20) << std::left  << "ENERGY_ES"
@@ -1797,7 +1786,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
 	      << std::endl;
 #endif
     
-    if (TraceAccum) accumReset(id);
+    accumReset(id);
   }
   // END: Trace
 
@@ -8499,6 +8488,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 }
 
 // This does not change the state of the particles.  Check only.
+//
 void CollideIon::KEcheck
 (PordPtr pp, double& KE_initl_check,
  std::array<double, 2>& ionExtra, std::array<double, 2>& rcbExtra)
@@ -9314,20 +9304,17 @@ void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
 
 /*
   Algorithm for Trace
-
-
   -------------------
 
-  1) All superparticles have the same mixture of elements (although the ionization
-     state may vary particle to particle). Therefore, mean molecular weight is the 
-     same for each particle.
+  1) All superparticles have the same mixture of elements (although
+     the ionization state may vary particle to particle). Therefore,
+     mean molecular weight is the same for each particle.
 
-  2) Ion-ion scattering is equal mass.
+  2) Interaction fractions from each physical interaction with
+     subparticles in the mixture are accumulated for each pair.
 
-  3) Ion-electron scattering is performed with equal weights with
-     cross section scaled by electron fraction
-
-  This implementation is based on the hybrid algorithm, rather than the original.
+  3) Final scattering is computed with equal weight particles in
+     finalize_cell
 
 */
 int CollideIon::inelasticTrace(int id, pCell* const c,
@@ -9366,23 +9353,12 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   iI1 *= 0.5*p1->mass;
   iI2 *= 0.5*p2->mass;
 
-  // Debug energy conservation
+  // For energy-loss diagnostic
   //
   double KE_initl_check = 0.0;
-  std::array<double, 2> KE_initl_econs = {0.0, 0.0};
-  double deltaSum = 0.0, delEsum = 0.0, delEmis = 0.0, delEdfr = 0.0;
-  double delEloss = 0.0, delEfnl = 0.0;
-  
   auto KE_initl_array = energyInPairSplit(p1, p2);
   for (auto u1 : KE_initl_array)
     for (auto u2 : u1) KE_initl_check += u2;
-
-  if (KE_DEBUG) {
-    if (use_cons>=0)
-      KE_initl_econs[0] += p1->dattrib[use_cons  ] + p2->dattrib[use_cons  ];
-    if (use_elec>=0 and elc_cons)
-      KE_initl_econs[1] += p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
-  }
 
   // Proportional to number of true particles in each superparticle
   //
@@ -10525,8 +10501,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE0);
       }
       
-      if (KE_DEBUG) testCnt[id]++;
-
       if (scatter_check) {
 	TotlU[id][1][0]++;
       }
@@ -10541,59 +10515,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       
       testKE[id][3] += PE;
       testKE[id][4] += PE;
-      
-      if (KE_DEBUG) {
-
-	auto KE_final_array = energyInPairSplit(p1, p2);
-	double KE_final_check = 0.0;
-	for (auto u1 : KE_final_array)
-	  for (auto u2 : u1) KE_final_check += u2;
-	
-	std::pair<double, double> KEfinal;
-	if (DBG_NewTest) 
-	  KEfinal = energyInPairPartial(p1, p2, Neutral, "After neutral");
-	else
-	  KEfinal = energyInPairPartial(p1, p2, Neutral);
-	
-	double delE = KE_initl_check - KE_final_check
-	  - (deltaSum += KE.delta)
-	  - (delEsum  += KE.delE - ionExtra[0] + rcbExtra[0] - ionExtra[1] + rcbExtra[1])
-	  + (delEdfr  += KE.defer);
-	
-	delEloss += KE.delE0;
-	
-	std::pair<double, double> KEdif = KEinit - KEfinal;
-	
-	double actR = KEdif.first - KE.delta;
-	actR = KEinit.first >0.0 ? actR/KEinit.first : actR;
-	
-	double pasR = KEdif.second;
-	pasR = KEinit.second>0.0 ? pasR/KEinit.second : pasR;
-	
-	if (fabs(delE) > tolE*KE_initl_check) {
-	  std::cout << "**ERROR [after neutral] dE = " << delE
-		    << ", rel = "  << delE/KE_initl_check
-		    << ", dKE = "  << deltaSum
-		    << ", actR = " << actR
-		    << ", pasR = " << pasR
-		    << ", actA = " << KEdif.first
-		    << ", pasA = " << KEdif.second
-		    << ", type = " << labels[interFlag]
-		    << std::endl;
-	} else {
-	  if (DBG_NewTest)
-	    std::cout << "**GOOD [after neutral] dE = " << delE
-		      << ", rel = "  << delE/KE_initl_check
-		      << ", dKE = "  << KE.delta
-		      << ", actR = " << actR
-		      << ", pasR = " << pasR
-		      << ", actA = " << KEdif.first
-		      << ", pasA = " << KEdif.second
-		      << ", type = " << labels[interFlag]
-		      << std::endl;
-	}
-	
-      } // END: KE debug
       
     } // END: Atom-atom interaction
 
@@ -10652,8 +10573,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  spEmax[id]  = std::min<double>(spEmax[id], KE.totE/KE.delE0);
       }
       
-      if (KE_DEBUG) testCnt[id]++;
-      
       if (scatter_check) {
 	TotlU[id][1][1]++;
       }
@@ -10671,64 +10590,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       testKE[id][3] += PE - ionExtra[0] + rcbExtra[0] - ionExtra[1] + rcbExtra[1];
       testKE[id][4] += PE;
       
-      if (KE_DEBUG) {
-
-	auto KE_final_array = energyInPairSplit(p1, p2);
-	double KE_final_check = 0.0;
-	for (auto u1 : KE_final_array)
-	  for (auto u2 : u1) KE_final_check += u2;
-
-	std::pair<double, double> KEfinal;
-	if (DBG_NewTest) 
-	  KEfinal = energyInPairPartial(p1, p2, Ion1, "After Ion1");
-	else
-	  KEfinal = energyInPairPartial(p1, p2, Ion1);
-      
-	double delE1 = KE_initl_check - KE_final_check
-	  - (deltaSum += KE.delta)
-	  - (delEsum  += KE.delE - ionExtra[0] + rcbExtra[0] - ionExtra[1] + rcbExtra[1])
-	  + (delEdfr  += KE.defer);
-      
-	delEfnl  += rcbExtra[0] - ionExtra[0];
-	delEloss += KE.delE0;
-	
-	std::pair<double, double> KEdif = KEinit - KEfinal;
-	
-	double actR = KEdif.first - KE.delta;
-	actR = KEinit.first>0.0 ? actR/KEinit.first : actR;
-
-	double pasR = KEdif.second;
-	pasR = KEinit.second>0.0 ? pasR/KEinit.second : pasR;
-
-	double delE2 = KEdif.first - KE.delE;
-
-	double delE  = std::min<double>(fabs(delE1), fabs(delE2));
-
-	if (delE > tolE*KE_initl_check) {
-	  std::cout << "**ERROR [after Ion1] dE = " << delE
-		    << ", rel1 = " << delE1/KE_initl_check
-		    << ", rel2 = " << delE2/KE_initl_check
-		    << ", dKE = "  << deltaSum
-		    << ", actR = " << actR
-		    << ", pasR = " << pasR
-		    << ", actA = " << KEdif.first
-		    << ", pasA = " << KEdif.second
-		    << ", type = " << labels[interFlag]
-		    << std::endl;
-	} else {
-	  if (DBG_NewTest)
-	    std::cout << "**GOOD [after Ion1] dE = " << delE
-		      << ", rel = "  << delE/KE_initl_check
-		      << ", dKE = "  << deltaSum
-		      << ", actR = " << actR
-		      << ", pasR = " << pasR
-		      << ", actA = " << KEdif.first
-		      << ", pasA = " << KEdif.second
-		      << ", type = " << labels[interFlag]
-		      << std::endl;
-	}
-      } // END: KE debug
-    
       // Secondary electron-ion scattering
       //
       for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p1);
@@ -10787,8 +10648,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  spEmax[id]  = std::min<double>(spEmax[id], KE.kE/KE.delE0);
       }
       
-      if (KE_DEBUG) testCnt[id]++;
-	
       if (scatter_check) {
 	TotlU[id][1][2]++;
       }
@@ -10804,65 +10663,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
       testKE[id][3] += PE - ionExtra[1] + rcbExtra[1] - ionExtra[0] + rcbExtra[0];
       testKE[id][4] += PE;
-
-      if (KE_DEBUG) {
-
-	auto KE_final_array = energyInPairSplit(p1, p2);
-	double KE_final_check = 0.0;
-	for (auto u1 : KE_final_array)
-	  for (auto u2 : u1) KE_final_check += u2;
-
-	std::pair<double, double> KEfinal;
-	if (DBG_NewTest) 
-	  KEfinal = energyInPairPartial(p1, p2, Ion2, "After Ion2");
-	else
-	  KEfinal = energyInPairPartial(p1, p2, Ion2);
-
-	double delE1 = KE_initl_check - KE_final_check
-	  - (deltaSum += KE.delta)
-	  - (delEsum  += KE.delE - ionExtra[0] + rcbExtra[0] - ionExtra[1] + rcbExtra[1])
-	  + (delEdfr  += KE.defer);
-
-	delEfnl  += rcbExtra[1] - ionExtra[1];
-	delEloss += KE.delE0;
-
-	std::pair<double, double> KEdif = KEinit - KEfinal;
-	
-	double actR = KEdif.first - KE.delta;
-	actR = KEinit.first>0.0 ? actR/KEinit.first : actR;
-
-	double pasR = KEdif.second;
-	pasR = KEinit.second>0.0 ? pasR/KEinit.second : pasR;
-
-	double delE2 = KEdif.second - KE.delE;
-
-	double delE = std::min<double>(fabs(delE1), fabs(delE2));
-
-	if (delE > tolE*KE_initl_check) {
-	  std::cout << "**ERROR [after Ion2] dE = " << delE
-		    << ", rel1 = " << delE1/KE_initl_check
-		    << ", rel2 = " << delE2/KE_initl_check
-		    << ", dKE = "  << deltaSum
-		    << ", actR = " << actR
-		    << ", pasR = " << pasR
-		    << ", actA = " << KEdif.first
-		    << ", pasA = " << KEdif.second
-		    << ", type = " << labels[interFlag]
-		    << std::endl;
-	} else {
-	  if (DBG_NewTest)
-	    std::cout << "**GOOD [after Ion2] dE = " << delE
-		      << ", rel = "  << delE/KE_initl_check
-		      << ", dKE = "  << deltaSum
-		      << ", actR = " << actR
-		      << ", pasR = " << pasR
-		      << ", actA = " << KEdif.first
-		      << ", pasA = " << KEdif.second
-		      << ", type = " << labels[interFlag]
-		      << std::endl;
-	}
-
-      } // END: KE debug
       
       // Secondary electron-ion scattering
       //
@@ -11039,92 +10839,6 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     // end sanity check
   }
 
-  // Debug energy conservation
-  // -------------------------
-  // After the step, the energy of a single pair may have changed in
-  // the following ways:
-  // + Energy lost to the internal state or radiated
-  // + Energy change owing to change in ionization state
-  // + Deferred energy applied to the center-of-mass interaction
-  //
-  if (KE_DEBUG) {
-    auto KE_final_array = energyInPairSplit(p1, p2);
-    double KE_final_check = 0.0;
-    for (auto u1 : KE_final_array)
-      for (auto u2 : u1) KE_final_check += u2;
-    
-    std::array<double, 2> KE_final_econs = {0.0, 0.0};
-
-    if (use_cons>=0)
-      KE_final_econs[0] += p1->dattrib[use_cons  ] + p2->dattrib[use_cons  ];
-
-    if (use_elec>=0 and elc_cons)
-      KE_final_econs[1] += p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
-
-    std::array<double, 2> dCons = KE_initl_econs - KE_final_econs;
-    double dConSum = dCons[0] + dCons[1];
-
-    double KEinitl = KE_initl_check;
-    double KEfinal = KE_final_check;
-    double delE1   = KEinitl - KEfinal - deltaSum - delEsum + delEmis + delEdfr;
-    double delE2   = KEinitl - KEfinal - deltaSum - dConSum - delEsum - PPsav1 - PPsav2 - EconsUpI - EconsUpE;
-    double delE3   = KEinitl - KEfinal - dConSum - totalDE - delEfnl;
-
-    // For temporary test comparison with cuda version
-    //
-    double delE0 = std::min({fabs(delE1), fabs(delE2), fabs(delE3)});
-    if (NOCOOL) delE0 = fabs(KEinitl - KEfinal - dConSum);
-
-    if (delE0 > tolE*KE_initl_check) {
-      std::cout << "**ERROR inelasticTrace dE = "
-		<< ", " << delE1
-		<< ", " << delE2
-		<< ", " << delE3
-		<< ", rel1 = " << delE1/KE_initl_check
-		<< ", rel2 = " << delE2/KE_initl_check
-		<< ", rel3 = " << delE3/KE_initl_check
-		<< ",  dKE = " << KEinitl - KEfinal
-		<< ", dCn1 = " << dCons[0]
-		<< ", dCn2 = " << dCons[1]
-		<< ", PPs1 = " << PPsav1
-		<< ", PPs2 = " << PPsav2
-		<< ", EcnI = " << EconsUpI
-		<< ", EcnE = " << EconsUpE
-		<< ", Elos = " << delEloss
-		<< ", delS = " << deltaSum
-		<< ", Esum = " << delEsum
-		<< ", miss = " << delEmis
-		<< ", defr = " << delEdfr
-		<< ", clrE = " << clrE[id]
-		<< ", q = "    << PP->q
-		<< ", type = " << labels[interFlag]
-		<< std::endl;
-    } else {
-      if (DBG_NewTest)
-	std::cout << "**GOOD inelasticTrace dE = "
-	          << delE1 << ", " << delE2 << ", " << delE3
-		  << ", rel1 = " << delE1/KE_initl_check
-		  << ", rel2 = " << delE2/KE_initl_check
-		  << ",  dKE = " << KEinitl - KEfinal
-		  << ", dCn1 = " << dCons[0]
-		  << ", dCn2 = " << dCons[1]
-		  << ", PPs1 = " << PPsav1
-		  << ", PPs2 = " << PPsav2
-		  << ", EcnI = " << EconsUpI
-		  << ", EcnE = " << EconsUpE
-		  << ", Elos = " << delEloss
-		  << ", Efnl = " << delEfnl
-		  << ", delS = " << deltaSum
-		  << ", Esum = " << delEsum
-		  << ", miss = " << delEmis
-		  << ", defr = " << delEdfr
-		  << ", clrE = " << clrE[id]
-		  << ", Jsav = " << Jsav
-		  << ", type = " << labels[interFlag]
-		  << std::endl;
-    }    
-  }
-
   if (use_photoIB and photoIBType == perCollision) {
 
     std::map<void *, double> dT;
@@ -11289,24 +11003,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 } // END: inelasticTrace
 
 
-// Accumulate energy change and weights for TraceAccum method
-void CollideIon::accumTrace(PordPtr pp, KE_& KE, double W, int id)
-{
-  if (pp->P == Pord::ion_ion)
-    {
-      std::get<0>(accumData[id][AccumType::ion_ion]) += pp->W1*pp->q*W;
-      std::get<1>(accumData[id][AccumType::ion_ion]) += KE.delE;
-    }
-
-  if (pp->P == Pord::ion_electron or
-      pp->P == Pord::electron_ion)
-    {
-      std::get<0>(accumData[id][AccumType::ion_electron]) += pp->W1*pp->q*W;
-      std::get<1>(accumData[id][AccumType::ion_electron]) += KE.delE;
-    }
-}
-
-// Compute the interaction for the TraceAccum method
+// Compute the interaction for the Trace method
 //
 void CollideIon::accumTraceScatter(pCell* const c, int id)
 {
@@ -11512,652 +11209,20 @@ void CollideIon::scatterTrace
 {
   if (NO_HSCAT) return;
 
-  // MeanMass is almost certainly deprecated . . . will remove when I'm sure
-  //
-  if (MeanMass) {
-    scatterTraceMM(pp, KE, W, V1, V2, id);
-    return;
-  }
-
   if (pp->W2 == 0.0) return;
 
-  if (TraceAccum) {
-    accumTrace(pp, KE, W, id);
-    return;
-  }
-
-  // Make v1 correspond to the primary, W1>W2
-  //
-  std::vector<double>* v1 = V1;
-  std::vector<double>* v2 = V2;
-
-  if (pp->swap) zswap(v1, v2);
-
-  // For energy conservation debugging
-  //
-  if (KE_DEBUG) {
-    KE.i(1) = KE.i(2) = 0.0;
-    for (auto v : *v1) KE.i(1) += v*v;
-    for (auto v : *v2) KE.i(2) += v*v;
-  }
-  
-  // Reset bit flags
-  //
-  KE.bs.reset();
-
-  // Total effective mass in the collision (atomic mass units)
-  //
-  double mt = pp->m1 + pp->m2;
-
-  // Reduced mass (atomic mass units)
-  //
-  double mu = pp->m1 * pp->m2 / mt;
-
-  // Set COM frame
-  //
-  std::vector<double> vcom(3), vrel(3);
-  double vi = 0.0;
-
-  for (size_t k=0; k<3; k++) {
-    vcom[k] = (pp->m1*(*v1)[k] + pp->m2*(*v2)[k])/mt;
-    vrel[k] = (*v1)[k] - (*v2)[k];
-    vi += vrel[k] * vrel[k];
-  }
-				// Energy in COM
-  double kE = 0.5*pp->W2*mu*vi;
-  if (!ExactE or ConsAlgMethod!=ConsAlg::Original) kE *= W;
-  
-				// Energy reduced by loss
-  double totE = kE - KE.delE;
-
-  // KE is positive
-  //
-  if (kE>0.0) {
-    // More loss energy requested than available?
-    //
-    if (totE < 0.0) {
-      KE.miss = -totE;
-      // Add to energy bucket for these particles
-      //
-      deferredEnergyTrace(pp, -totE, id);
-      KE.delE += totE;
-      totE = 0.0;
-    }
-    // Too much energy gain
-    //
-    const double kEfac = 2.0;
-    if (totE > kEfac*kE) {
-      KE.miss = KE.delE - kEfac*kE;
-      // Add to energy bucket for these particles
-      //
-      deferredEnergyTrace(pp, totE - kEfac*kE, id);
-      KE.delE = kE - kEfac*kE;
-      totE = kEfac*kE;
-    }
-    // Update the outgoing energy in COM
-    //
-    KE.vfac = sqrt(totE/kE);
-    KE.kE   = kE;
-    KE.totE = totE;
-    KE.bs.set(KE_Flags::Vfac);
-    KE.bs.set(KE_Flags::KEpos);
-  }
-  // KE is zero (limiting case)
-  //
-  else {
-    // Defer all energy loss
-    //
-    KE.vfac = 1.0;
-    KE.kE   = kE;
-    KE.totE = totE;
-
-    deferredEnergyTrace(pp, KE.delE, id);
-
-    KE.miss = KE.delE;
-    KE.delE = 0.0;
-  }
-
-  vrel = unit_vector();
-  
-  vi   = sqrt(vi);
-  for (auto & v : vrel) v *= vi;
-  //                         ^
-  //                         |
-  // Velocity in center of mass, computed from v1, v2 and adjusted
-  // according to the inelastic energy loss
-  //
-
-  KE.delta = 0.0;
-
-  // Define particle fractions for both energy and momentum
-  // conservation algorithms
-  //
-  double q   = pp->q * W;
-  double cq  = 1.0 - q;
-  double cW  = 1.0 - W;
-  double gam = 0.0, gam1, gam2, rad;
-  
-  std::vector<double> uu(3), vv(3);
-
-  ConsAlg Method = ConsAlgMethod;
-
-  // BEGIN: energy conservation algorithm
-  //
-  if (ExactE) {
-
-    if (ConsAlgToggle) {
-      if (pp->m1<1.0) Method = ConsAlg::Active2;
-      if (pp->m2<1.0) Method = ConsAlg::Active1;
-    }
-    
-    KE.bs.set(KE_Flags::ExQ);
-
-    double q2   = 2.0 - q;
-    double W2   = 2.0 - W;
-    double mrat = pp->m2/pp->m1;
-    double v1i2 = 0.0, v2i2 = 0.0, b1f2 = 0.0, b2f2 = 0.0;
-    double wT   = 0.0, qT   = 0.0;
-    bool  algok = false;
-
-    if (Method==ConsAlg::Original) {
-      q  = pp->q;
-      cq = 1.0 - q;
-    }
-    
-    if (cq > 0.0 and q < 1.0) {
-
-      for (size_t i=0; i<3; i++) {
-
-	if (Method==ConsAlg::Original or Method==ConsAlg::New) {
-	  uu[i] = vcom[i] + pp->m2/mt*vrel[i]*KE.vfac;
-	  vv[i] = vcom[i] - pp->m1/mt*vrel[i]*KE.vfac;
-	} else {
-	  uu[i] = vcom[i] + pp->m2/mt*vrel[i];
-	  vv[i] = vcom[i] - pp->m1/mt*vrel[i];
-	}
-
-	v1i2 += (*v1)[i] * (*v1)[i];
-	v2i2 += (*v2)[i] * (*v2)[i];
-
-	b1f2 += uu[i] * uu[i];
-	b2f2 += vv[i] * vv[i];
-
-	qT   += (*v1)[i] * uu[i];
-	wT   += (*v2)[i] * vv[i];
-      }
-
-      switch (Method) {
-
-      case ConsAlg::Original:
-	{
-	  if (v1i2 > 0.0 and b1f2 > 0.0) qT *= q/v1i2;
-
-	  gam = ( -qT +
-		  std::copysign(1.0, qT)*
-		  sqrt(qT*qT + cq*(q*b1f2/v1i2 + 1.0)) )/cq;
-
-	  for (int i=0; i<3; i++) {
-	    double v0 = vcom[i] + pp->m2/mt*vrel[i]*KE.vfac;
-	    (*v1)[i] = cq*gam*(*v1)[i] + q*v0;
-	    (*v2)[i] = vcom[i] - pp->m1/mt*vrel[i]*KE.vfac;
-	  }
-	}
-
-	break;
-
-	// END: original adjustment
-
-      case ConsAlg::New:
-	{
-	  double KE1i=0.0, KE2i=0.0, KE1f=0.0, KE2f=0.0;
-	  double w1[3], w2[3];
-
-	  for (int i=0; i<3; i++) {
-	    KE1i += (*v1)[i] * (*v1)[i];
-	    KE2i += (*v2)[i] * (*v2)[i];
-
-	    double s1 = vcom[i] + pp->m2/mt*vrel[i]*KE.vfac;
-	    double s2 = vcom[i] - pp->m1/mt*vrel[i]*KE.vfac;
-
-	    w1[i] = cq*(*v1)[i] + q*s1;
-	    w2[i] = cW*(*v2)[i] + W*s2;
-
-	    KE1f += w1[i]*w1[i];
-	    KE2f += w2[i]*w2[i];
-	  }
-
-	  KE1i *= 0.5*pp->m1*pp->W1;
-	  KE2i *= 0.5*pp->m2*pp->W2;
-
-	  KE1f *= 0.5*pp->m1*pp->W1;
-	  KE2f *= 0.5*pp->m2*pp->W2;
-
-	  double deltaE = KE1i + KE2i - KE1f - KE2f - KE.delE;
-
-	  /* Need to decrease total energy by ratio:
-
-	     deltaE/(KE1f+KE2f)
-
-	     Let change be proprotional, e.g.:
-
-	     dE1 = deltaE*KE1f*(1-e)/(KE1f*(1-e)+KE2f*e)
-	     dE2 = deltaE*KE2f*e/(KE1f*(1-e)+KE2f*e)
-
-	     dE1 + dE2 = deltaE
-
-	     dQ1 = deltaE*(1-e)/(KE1f*(1-e)+KE2f*e)
-	     dQ2 = deltaE*e/(KE1f*(1-e)+KE2f*e)
-
-	     dQ1 + dQ2 = deltaE/(KE1f*(1-e)+KE2f*e)
-	     dQ1*KE1f + dQ2*KE2f = deltaE
-
-	     dV1 = sqrt(2.0*dE1/(pp->m1*pp->W1))
-	     dV2 = sqrt(2.0*dE2/(pp->m2*pp->W2))
-
-	     Let v1 -> v1*(1.0 + dE1/KE1f)^(1/2)
-	         v1 -> v1*(1.0 + dQ1)^(1/2)
-	     
-	         v2 -> v2*(1.0 + dE2/KE2f)^(1/2)
-	         v2 -> v2*(1.0 + dQ2)^(1/2)
-
-	     So:
-
-	     KE1adj = 0.5*pp->m1*pp->W1*v1^2*(1 + dQ1)
-	            = KE1f + dQ1*KE1f
-	     KE2adj = 0.5*pp->m2*pp->W2*v2^2*(1 + dQ2)
-	            = KE2f + dQ2*KE2f
-	  */
-
-	  double c1   = 1.0 - ConsAlgMix;
-	  double c2   = ConsAlgMix;
-	  double del  = deltaE/(c1*KE1f + c2*KE2f);
-	  double fac1 = sqrt(1.0 + del*c1);
-	  double fac2 = sqrt(1.0 + del*c2);
-
-	  for (int i=0; i<3; i++) {
-	    (*v1)[i] = w1[i]*fac1;
-	    (*v2)[i] = w2[i]*fac2;
-	  }
-	}
-
-	break;
-
-	// END: new algorithm
-
-      case ConsAlg::Inert:
-	{
-	  double Mu = 2.0*(1.0 - ConsAlgMix);
-	  double Nu = 2.0*ConsAlgMix;
-
-	  double A  = Mu*Mu*pp->m1*v1i2*cq*cq/q + Nu*Nu*pp->m2*v2i2*cW*cW/W;
-	  double BA = (Mu*pp->m1*cq*qT + Nu*pp->m2*cW*wT)/A;
-	  double CA = (pp->m1*(v1i2/q - b1f2*q) + pp->m2*(v2i2/W - b2f2*W))/A;
-	  double DA = 2.0*KE.delE/(pp->W1*q*A);
-	
-	  rad = BA*BA + CA - DA;
-	  
-	  if (rad < 0.0) {
-	    double dEmax = 0.5*pp->m1*pp->W1*q*A*(BA*BA + CA);
-	    KE.miss = KE.delE - dEmax;
-	    // Add to energy bucket for these particles
-	    //
-	    deferredEnergyTrace(pp, KE.delE - dEmax, id);
-	    KE.delE = dEmax;
-	    rad = 0.0;
-	  }
-	  
-	  gam1 = -BA + sqrt(rad);
-	  gam2 = -BA - sqrt(rad);
-	  
-	  if (fabs(gam1) < fabs(gam2))
-	  gam = gam1;
-	  else 
-	    gam = gam2;
-	  
-	  for (int i=0; i<3; i++) {
-	    (*v1)[i] = cq*gam*Mu*(*v1)[i] + q*uu[i];
-	    (*v2)[i] = cW*gam*Nu*(*v2)[i] + W*vv[i];
-	  }
-	}
-	  
-	break;
-
-	// END: v1 and v2 adjustment
-	
-      case ConsAlg::Inert1:
-	{
-	  double B2A = cq + q*qT/v1i2;
-
-	  double CA =
-	    q*(-q2 + 2.0*cq*qT/v1i2 + q*b1f2/v1i2) +
-	    mrat*q*(-W2*v2i2/v1i2 + 2.0*cW*wT/v1i2 + W*b2f2/v1i2);
-	
-	  double DA = 2.0*KE.delE/(pp->W1*pp->m1*v1i2);
-	
-	  rad = B2A*B2A - CA - DA;
-	  
-	  if (rad < 0.0) {
-	    double dEmax = 0.5*pp->m1*pp->W1*v1i2*(B2A*B2A - CA);
-	    KE.miss = KE.delE - dEmax;
-	    // Add to energy bucket for these particles
-	    //
-	    deferredEnergyTrace(pp, KE.delE - dEmax, id);
-	    KE.delE = dEmax;
-	  rad = 0.0;
-	  }
-	  
-	  gam1 = -B2A + sqrt(rad);
-	  gam2 = -B2A - sqrt(rad);
-	  
-	  if (fabs(gam1) < fabs(gam2))
-	  gam = gam1;
-	  else 
-	    gam = gam2;
-	  
-	  for (int i=0; i<3; i++) {
-	    (*v1)[i] = (cq + gam)*(*v1)[i] + q*uu[i];
-	    (*v2)[i] = cW        *(*v2)[i] + W*vv[i];
-	  }
-	}
-	  
-	break;
-
-	// END: v1 adjustment
-	
-      case ConsAlg::Inert2:
-	{
-	  double B2A = cW + W*wT/v2i2;
-	  
-	  double CA =
-	    W*(-W2 + 2.0*cW*wT/v2i2 + W*b2f2/v2i2) +
-	    W/mrat*(-q2*v1i2/v2i2 + 2.0*cq*qT/v2i2 + q*b1f2/v2i2);
-	  
-	  double DA = 2.0*KE.delE/(pp->W2*pp->m2*v2i2);
-	  
-	  rad = B2A*B2A - CA - DA;
-	  
-	  if (rad < 0.0) {
-	    double dEmax = 0.5*pp->m2*pp->W2*v2i2*(B2A*B2A - CA);
-	    KE.miss = KE.delE - dEmax;
-	    // Add to energy bucket for these particles
-	    //
-	    deferredEnergyTrace(pp, KE.delE - dEmax, id);
-	    KE.delE = dEmax;
-	    rad = 0.0;
-	  }
-	
-	  gam1 = -B2A + sqrt(rad);
-	  gam2 = -B2A - sqrt(rad);
-	
-	  if (fabs(gam1) < fabs(gam2))
-	    gam = gam1;
-	  else 
-	    gam = gam2;
-	  
-	  for (int i=0; i<3; i++) {
-	    (*v1)[i] = cq        *(*v1)[i] + q*uu[i];
-	    (*v2)[i] = (cW + gam)*(*v2)[i] + W*vv[i];
-	  }
-	}
-
-	break;
-	// END: v2 adjustment
-
-      case ConsAlg::Active:
-	{
-	  double B = pp->m1*cq*qT + pp->m2*cW*wT;
-	  double A = pp->m1*q*b1f2 + pp->m2*W*b2f2;
-	  double C = (q2*pp->m1*v1i2 + W2*pp->m2*v2i2);
-	  double D = 2.0*KE.delE/(pp->W1*q);
-	
-	  rad = (B/A)*(B/A) + C/A - D/A;
-	
-	  if (rad < 0.0) {
-	    double dEmax = 0.5*pp->W1*q * C;
-	    KE.miss = KE.delE - dEmax;
-	    // Add to energy bucket for these particles
-	    //
-	    deferredEnergyTrace(pp, KE.delE - dEmax, id);
-	    KE.delE = dEmax;
-	    rad = 0.0;
-	  }
-	
-	  gam1 = -B/A + sqrt(rad);
-	  gam2 = -B/A - sqrt(rad);
-	
-	  if (fabs(gam1) < fabs(gam2))
-	    gam = gam1;
-	  else 
-	    gam = gam2;
-
-	  for (int i=0; i<3; i++) {
-	    (*v1)[i] = cq*(*v1)[i] + q*gam*uu[i];
-	    (*v2)[i] = cW*(*v2)[i] + W*gam*vv[i];
-	  }
-	}
-
-	break;
-	// END: joint adjustment
-
-      case ConsAlg::Active1:
-	{
-	  double A = pp->m1*q*b1f2;
-	  double B = pp->m1*cq*qT;
-	  double C = q2*pp->m1*v1i2 + W2*pp->m2*v2i2
-	    - 2.0*pp->m2*cW*wT - pp->m2*W*b2f2;
-	  double D = 2.0*KE.delE/(pp->W1*q);
-	
-	  rad = (B/A)*(B/A) + C/A - D/A;
-	
-	  if (rad < 0.0) {
-	    double dEmax = 0.5*pp->W1*q * C;
-	    KE.miss = KE.delE - dEmax;
-	    // Add to energy bucket for these particles
-	    //
-	    deferredEnergyTrace(pp, KE.delE - dEmax, id);
-	    KE.delE = dEmax;
-	    rad = 0.0;
-	  }
-	
-	  gam1 = -B/A + sqrt(rad);
-	  gam2 = -B/A - sqrt(rad);
-	
-	  if (fabs(gam1) < fabs(gam2))
-	    gam = gam1;
-	  else 
-	    gam = gam2;
-
-	  for (int i=0; i<3; i++) {
-	    (*v1)[i] = cq*(*v1)[i] + q*gam*uu[i];
-	    (*v2)[i] = cW*(*v2)[i] + W*    vv[i];
-	  }
-	}
-
-	break;
-	// END: adjust low mass P1
-
-      case ConsAlg::Active2:
-	{
-	  double A = pp->m2*W*b2f2;
-	  double B = pp->m2*cW*wT;
-	  double C = (q2*pp->m1*v1i2 + W2*pp->m2*v2i2
-		      - 2.0*pp->m1*cq*qT - pp->m1*q*b1f2);
-	  double D = 2.0*KE.delE/(pp->W1*q);
-	
-	  rad = (B/A)*(B/A) + C/A - D/A;
-	
-	  if (rad < 0.0) {
-	    double dEmax = 0.5*pp->W1*q * C;
-	    KE.miss = KE.delE - dEmax;
-	    // Add to energy bucket for these particles
-	    //
-	    deferredEnergyTrace(pp, KE.delE - dEmax, id);
-	    KE.delE = dEmax;
-	    rad = 0.0;
-	  }
-	
-	  gam1 = -B/A + sqrt(rad);
-	  gam2 = -B/A - sqrt(rad);
-	
-	  if (fabs(gam1) < fabs(gam2))
-	    gam = gam1;
-	  else 
-	    gam = gam2;
-
-	  for (int i=0; i<3; i++) {
-	    (*v1)[i] = cq*(*v1)[i] + q*    uu[i];
-	    (*v2)[i] = cW*(*v2)[i] + W*gam*vv[i];
-	  }
-	}
-
-	break;
-	// END: adjust low mass P2
-
-      } // END: ConsAlg switch
-      
-    } // cq and q check
-  }
-  // END: energy conservation algorithm
-  else {
-
-    // BEGIN: momentum conservation algorithm
-
-    KE.bs.set(KE_Flags::momC);
-
-    // Assign new velocities
-    //
-    for (int i=0; i<3; i++) {
-      uu[i] = vcom[i] + pp->m2/mt*vrel[i]*KE.vfac;
-      vv[i] = vcom[i] - pp->m1/mt*vrel[i]*KE.vfac;
-
-      (*v1)[i] = cq*(*v1)[i] + q*uu[i];
-      (*v2)[i] = cW*(*v2)[i] + W*vv[i];
+  if (pp->P == Pord::ion_ion)
+    {
+      std::get<0>(accumData[id][AccumType::ion_ion]) += pp->W1*pp->q*W;
+      std::get<1>(accumData[id][AccumType::ion_ion]) += KE.delE;
     }
 
-    // END: momentum conservation algorithm
-  }
-
-  misE[id] += KE.miss;
-
-  // Temporary deep debug
-  //
-  if (ExactE and KE_DEBUG) {
-
-    double M1 = 0.5 * pp->W1 * pp->m1;
-    double M2 = 0.5 * pp->W2 * pp->m2;
-
-    // Initial KE
-    //
-    double KE1i = M1 * KE.i(1);
-    double KE2i = M2 * KE.i(2);
-
-    double KE1f = 0.0, KE2f = 0.0;
-    for (auto v : *v1) KE1f += v*v;
-    for (auto v : *v2) KE2f += v*v;
-
-    // Final KE
-    //
-    KE1f *= M1;
-    KE2f *= M2;
-      
-    // KE differences
-    //
-    double KEi   = KE1i + KE2i;
-    double KEf   = KE1f + KE2f;
-    double delEt = KEi  - KEf - KE.delta - std::min<double>(kE, KE.delE);
-    
-    // Sanity test
-    //
-    double Ii1 = 0.0, Ii2 = 0.0, Ie1 = 0.0, Ie2 = 0.0;
-    for (size_t k=0; k<3; k++) {
-      Ii1 += pp->p1->vel[k] * pp->p1->vel[k];
-      Ii2 += pp->p2->vel[k] * pp->p2->vel[k];
-      if (use_elec>=0) {
-	size_t K = use_elec + k;
-	Ie1 += pp->p1->dattrib[K] * pp->p1->dattrib[K];
-	Ie2 += pp->p2->dattrib[K] * pp->p2->dattrib[K];
-      }
+  if (pp->P == Pord::ion_electron or
+      pp->P == Pord::electron_ion)
+    {
+      std::get<0>(accumData[id][AccumType::ion_electron]) += pp->W1*pp->q*W;
+      std::get<1>(accumData[id][AccumType::ion_electron]) += KE.delE;
     }
-
-    Ii1 *= 0.5 * pp->p1->mass;
-    Ii2 *= 0.5 * pp->p2->mass;
-    Ie1 *= 0.5 * pp->p1->mass * pp->eta1 * atomic_weights[0]/molP1[id];
-    Ie2 *= 0.5 * pp->p2->mass * pp->eta2 * atomic_weights[0]/molP2[id];
-
-    double Fi1 = Ii1, Fi2 = Ii2, Fe1 = Ie1, Fe2 = Ie2;
-
-    if (pp->P == Pord::ion_ion) {
-      Fi1 = 0.0; for (auto v : *v1) Fi1 += v*v;
-      Fi2 = 0.0; for (auto v : *v2) Fi2 += v*v;
-      Fi1 *= 0.5 * pp->p1->mass;
-      Fi2 *= 0.5 * pp->p2->mass;
-    }
-
-    if (pp->P == Pord::ion_electron) {
-      Fi1 = 0.0; for (auto v : *v1) Fi1 += v*v;
-      Fe2 = 0.0; for (auto v : *v2) Fe2 += v*v;
-      Fi1 *= 0.5 * pp->p1->mass;
-      Fe2 *= 0.5 * pp->p2->mass * pp->eta2 * atomic_weights[0]/molP2[id];
-    }
-
-    if (pp->P == Pord::electron_ion) {
-      Fe1 = 0.0; for (auto v : *v1) Fe1 += v*v;
-      Fi2 = 0.0; for (auto v : *v2) Fi2 += v*v;
-      Fe1 *= 0.5 * pp->p1->mass * pp->eta1 * atomic_weights[0]/molP1[id];
-      Fi2 *= 0.5 * pp->p2->mass;
-    }
-
-    if ( fabs(delEt)/std::min<double>(KEi, KEf) > tolE) {
-      std::cout << "**ERROR scatter: delEt = " << delEt
-		<< " rel = "  << delEt/KEi
-		<< " KEi = "  << KEi
-		<< " KEf = "  << KEf
-		<< " dif = "  << KEi - KEf
-		<< "  kE = "  << kE
-		<< "  dE = "  << KE.delE
-		<< " dvf = "  << KE.delE/kE
-		<< " tot = "  << totE
-		<< " vfac = " << KE.vfac
-		<< "   w1 = " << pp->w1
-		<< "   w2 = " << pp->w2
-		<< "   W1 = " << pp->W1
-		<< "   W2 = " << pp->W2
-		<< " flg = " << KE.decode()
-		<< std::endl;
-    } else {
-      if (DBG_NewTest)
-	std::cout << "**GOOD scatter: delEt = "
-		  << std::setprecision(14) << std::scientific
-		  << std::setw(22) << delEt
-		  << " rel = "  << std::setw(22) << delEt/KEi << " kE = " << std::setw(22) << kE
-		  << "   W1 = " << std::setw(22) << pp->W1
-		  << "   W2 = " << std::setw(22) << pp->W2
-		  << "  Ei1 = " << std::setw(22) << KE1i
-		  << "  Ef1 = " << std::setw(22) << KE1f
-		  << "  Ii1 = " << std::setw(22) << Ii1
-		  << "  Ie1 = " << std::setw(22) << Ie1
-		  << "  Ei2 = " << std::setw(22) << KE2i
-		  << "  Ef2 = " << std::setw(22) << KE2f
-		  << "  Ii2 = " << std::setw(22) << Ii2
-		  << "  Ie2 = " << std::setw(22) << Ie2
-		  << " delE = " << std::setw(22) << KE.delE
-		  << std::setprecision(5)  << std::endl;
-    }
-
-  } // END: temporary deep debug
-
-  // Sanity check
-  if (pp->W2 > pp->W1) {
-    std::cout << "Backwards: w1=" << pp->w1
-	      << " w2=" << pp->w2
-	      << " W1=" << pp->W1
-	      << " W2=" << pp->W2
-	      << " m1=" << pp->m1
-	      << " m2=" << pp->m2
-	      << " M1=" << pp->p1->mass
-	      << " M2=" << pp->p2->mass
-	      << std::endl;
-  }
       
 } // END: CollideIon::scatterTrace
 
@@ -12491,14 +11556,6 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
       double Q1 = pp->eta1;
       double Q2 = pp->eta2;
 	
-      if (MeanMass) {
-	if (m1<1.0) m1 *= pp->eta1;
-	if (m2<1.0) m2 *= pp->eta2;
-      }
-	
-      m1 = std::max<double>(m1, 1.0e-12); 
-      m2 = std::max<double>(m2, 1.0e-12); 
-
       // In cgs (grams)
       //
       m1 *= amu;
@@ -12548,10 +11605,7 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
       if (kE>0.0) {
 	// Assign interaction energy variables
 	//
-	if (MeanMass)
-	  vrel = coulomb_vector(vrel, 1.0, 1.0, tau);
-	else
-	  vrel = coulomb_vector(vrel, W1,  W2,  tau);
+	vrel = coulomb_vector(vrel, W1,  W2,  tau);
 	
 	vi   = sqrt(vi);
 	for (auto & v : vrel) v *= vi;
@@ -13080,8 +12134,6 @@ void CollideIon::updateEnergyTrace(PordPtr pp, KE_& KE)
   //
   pp->eFinal();
 
-  if (MeanMass or ExactE) return;
-
   double tKEi = 0.0;		// Total pre collision KE
   double tKEf = 0.0;		// Total post collision KE
   double eta  = 0.0;
@@ -13455,7 +12507,7 @@ double CollideIon::electronEnergy(pCell* const cell, int dbg)
 void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 			       double kedsp, double tau, int id)
 {
-  if (aType == Trace and TraceAccum) {
+  if (aType == Trace) {
     accumTraceScatter(cell, id);
   }
 
@@ -14067,13 +13119,8 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       double W1, W2;
 
       if (aType == Trace) {
-	if (MeanMass) {
-	  W1 = p1->mass/molW[i1];
-	  W2 = p2->mass/molW[i2];
-	} else {
-	  W1 = p1->mass*Eta[i1]/molW[i1];
-	  W2 = p2->mass*Eta[i2]/molW[i2];
-	}
+	W1 = p1->mass*Eta[i1]/molW[i1];
+	W2 = p2->mass*Eta[i2]/molW[i2];
       } else {
 	if (SAME_ELEC_SCAT) if (k1.Z() != k2.Z()) continue;
 	if (DIFF_ELEC_SCAT) if (k1.Z() == k2.Z()) continue;
@@ -14155,7 +13202,6 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       double  q = W2 / W1;
       double m1 = atomic_weights[0];
       double m2 = atomic_weights[0];
-      if (MeanMass) { m1 *= ne1; m2 *= ne2; }
       double mt = m1 + m2;
       double mu = m1 * m2 / mt;
 
@@ -14300,71 +13346,16 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	  double afac = esu*esu/std::max<double>(2.0*kEee*eV, FloorEv*eV);
 	  double Tau  = ABrate[id][3] * afac*afac * cr * tau * TreeDSMC::Tunit;
 
-	  if (MeanMass)
-	    vrel = coulomb_vector(vrel, 1.0, 1.0, Tau);
-	  else
-	    vrel = coulomb_vector(vrel, W1, W2, Tau);
+	  vrel = coulomb_vector(vrel, W1, W2, Tau);
 	}
 	else
 	  vrel = unit_vector();
 
 	for (auto & v : vrel) v *= vi;
-
-	if (MeanMass) {
-	  
-	  // Set COM frame
-	  //
-	  std::vector<double> vcom(3), vrel(3);
-	  double KEcom = 0.0;
-	  
-	  for (size_t k=0; k<3; k++) {
-	    vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
-	    vrel[k] = v1[k] - v2[k];
-	    KEcom += vrel[k] * vrel[k];
-	  }
-
-	  // Energy deficit correction
-	  //
-	  KEcom *= 0.5*mu;
-	  double delE = 0.0;
-	  if (elc_cons)
-	    delE = p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
-	  else
-	    delE = p1->dattrib[use_cons  ] + p2->dattrib[use_cons  ];
-
-	  double vfac = 1.0;
-
-	  if (delE != 0.0) {
-	    if (KEcom>delE) {
-	      vfac = sqrt(1.0 - delE/KEcom);
-	      if (elc_cons)
-		p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.0;
-	      else
-		p1->dattrib[use_cons  ] = p2->dattrib[use_cons  ] = 0.0;
-	      
-	      dKEcons = delE;
-	    } else {
-	      vfac = 0.0;
-	      if (elc_cons)
-		p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.5*(delE - KEcom);
-	      else
-		p1->dattrib[use_cons  ] = p2->dattrib[use_cons  ] = 0.5*(delE - KEcom);
-	      dKEcons = KEcom;
-	    }
-	  }
-
-	  // Assign new electron velocities
-	  //
-	  for (int k=0; k<3; k++) {
-	    p1->dattrib[use_elec+k] = vcom[k] + m2/mt*vrel[k] * vfac;
-	    p2->dattrib[use_elec+k] = vcom[k] - m1/mt*vrel[k] * vfac;
-	  }
-
-	  vfSave = vfac;
-	}
+	
 	// Explicit energy conservation using splitting
 	//
-	else if (ExactE and q < 1.0) {
+	if (ExactE and q < 1.0) {
 
 	  bool  algok = false;
 	  double vrat = 1.0;
@@ -14801,43 +13792,6 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
       } // end: scatter
       
-      if (KE_DEBUG) {
-
-	double KEf1 = 0.0;
-	double KEf2 = 0.0;
-
-	for (int k=0; k<3; k++) {
-	  double v1 = p1->dattrib[use_elec+k];
-	  double v2 = p2->dattrib[use_elec+k];
-	  KEf1 += v1*v1;
-	  KEf2 += v2*v2;
-	}
-
-	KEf1 *= 0.5*W1*m1;
-	KEf2 *= 0.5*W2*m2;
-
-	double KEi = KEi1 + KEi2;
-	double KEf = KEf1 + KEf2;
-
-	double mmConv = 0.0;
-	if (MeanMass) mmConv = dKEcons * (m1 + m2) * W1*W2/(m1*W1 + m2*W2);
-
-	double testE = KEi - KEf - deltaKE - dKE - mmConv;
-
-	if (fabs(testE) > tolE*KEi) {
-	  std::cout << "**ERROR delta E elec ("
-		    << k1.Z() << ","
-		    << k2.Z() << ") = "
-		    << std::setw(14) << testE
-		    << ", KEi=" << std::setw(14) << KEi
-		    << ", KEf=" << std::setw(14) << KEf
-		    << ", exs=" << std::setw(14) << deltaKE
-		    << ", dKE=" << std::setw(14) << dKE
-		    << std::endl;
-	}
-
-      }
-
     } // loop over particles
 
     // nselM and reporting
@@ -19751,20 +18705,6 @@ void CollideIon::processConfig()
       config["ENERGY_ES_DBG"]["value"] = DebugE = true;
     }
 
-    if (config["MEAN_MASS"])
-      MeanMass = config["MEAN_MASS"]["value"].as<bool>();
-    else {
-      config["MEAN_MASS"]["desc"] = "Mean mass, energy and momentum conserving algorithm";
-      config["MEAN_MASS"]["value"] = MeanMass = false;
-    }
-
-    if (config["TraceAccum"])
-      TraceAccum = config["TraceAccum"]["value"].as<bool>();
-    else {
-      config["TraceAccum"]["desc"] = "Use the accumulation method for Trace scattering";
-      config["TraceAccum"]["value"] = TraceAccum = true;
-    }
-
     if (config["ConsAlg"]) {	// YAML doesn't handle enum classes
 				// directly so we need some type
 				// checking . . .
@@ -21065,46 +20005,27 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
     
   } // END: all methods method besides Trace
 
-  if (caller->MeanMass) {
-
-    switch (P) {
-    case ion_electron:
-      m2 = atomic_weights[0];
-      break;
-    case electron_ion:
-      m1 = atomic_weights[0];
-      break;
-    case electron_electron:
-      m1 = atomic_weights[0];
-      m2 = atomic_weights[0];
-      break;
-    }
-
-  } // END: MeanMass
-  else {
-
-    switch (P) {
-    case ion_electron:
-      m2 = atomic_weights[0];
-      if (w2*eta2/w1 < thresh) {
-	W2 *= eta2;
-	wght = true;
-      }
-      break;
-    case electron_ion:
-      m1  = atomic_weights[0];
-      if (w1*eta1/w2 < thresh) {
-	W1 *= eta1;
-	wght = true;
-      }
-      break;
-    case electron_electron:
-      m1 = atomic_weights[0];
-      m2 = atomic_weights[0];
-      W1 *= eta1;
+  switch (P) {
+  case ion_electron:
+    m2 = atomic_weights[0];
+    if (w2*eta2/w1 < thresh) {
       W2 *= eta2;
-      break;
+      wght = true;
     }
+    break;
+  case electron_ion:
+    m1  = atomic_weights[0];
+    if (w1*eta1/w2 < thresh) {
+      W1 *= eta1;
+      wght = true;
+    }
+    break;
+  case electron_electron:
+    m1 = atomic_weights[0];
+    m2 = atomic_weights[0];
+    W1 *= eta1;
+    W2 *= eta2;
+    break;
   }
   
   // Swap needed?
@@ -21155,8 +20076,6 @@ void CollideIon::Pord::swapPs()
 
 void CollideIon::Pord::scheme(bool W)
 {
-  if (caller->MeanMass) return;	// Do not use weighted scheme
-
   if (wght == W) return;	// Okay as is
 
   W1 = w1;			// For unweighted (e.g. was weighted
