@@ -19529,6 +19529,12 @@ void CollideIon::processConfig()
       config["DeltaEGrid"]["value"] = Ion::DeltaEGrid;
     }
 
+    if (config["VFKY"])
+      Ion::use_VFKY = config["VFKY"]["value"].as<bool>();
+    else {
+      config["VFKY"]["desc"] = "Use the partial photoionization cross-section Fortran routine from Verner, Yakovlev, 1995 and Verner, Ferland, Korista, Yakovlev, 1996.";
+      config["VFKY"]["value"] = Ion::use_VFKY;
+    }
 
     if (config["MFP"]) 
       {

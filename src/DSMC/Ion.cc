@@ -2871,11 +2871,15 @@ void VernerData::initialize(chdata* ch)
     for (int i=0; i<vsiz; i++) {
       // Generate new element
       vrPtr v = boost::make_shared<VernerRec>(); 
+
       // Get data from root process
       v->sync();
+
       // Enter in database
       data[lQ(v->n, v->n-v->io+1)].push_back(v);
-      //  key(Z,    C           )
+      //      ^     ^
+      //  Z-- +     |
+      //  C---------+
     }
   }
 
