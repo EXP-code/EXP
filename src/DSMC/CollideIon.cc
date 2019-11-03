@@ -23,7 +23,7 @@
 // Version info
 //
 #define NAME_ID    "CollideIon"
-#define VERSION_ID "0.40 [10/11/19 trace ConsAlg]"
+#define VERSION_ID "0.41 [10/21/19 trace accum]"
 
 using namespace std;
 using namespace NTC;
@@ -18670,9 +18670,10 @@ void CollideIon::printSpeciesElectrons
 void CollideIon::processConfig()
 {
   try {
-    if (config["SEED"])
+				// Look for key "SEED" and read value if it
+    if (config["SEED"])		// exists in the YAML dictionary
       acg_seed = config["SEED"]["value"].as<unsigned>();
-    else {
+    else {			// Otherwise, write the desc and current value
       config["SEED"]["desc"]  = "Seed for random number generator";
       config["SEED"]["value"] = acg_seed = 11;
     }
@@ -19570,8 +19571,12 @@ void CollideIon::processConfig()
 	TreeDSMC::atomic_weights[0] = atomic_weights[0] = mass;
       }
 
+    // Write name, version id, runtag and timestamp to the config.
+    // This will become part of the config.runtag.* parameter file.
+    //
     if (myid==0) {
-      config["_description"] = "CollideIon configuration, tag=" + runtag;
+      config["_description"] = std::string(NAME_ID) + " configuration, version="
+	+ std::string(VERSION_ID) + " tag=" + runtag;
       time_t t = time(0);   // get current time
 
       struct tm * now = localtime( & t );
