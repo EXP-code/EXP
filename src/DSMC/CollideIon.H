@@ -755,13 +755,6 @@ private:
   //@}
 
   //@{
-  //! Count electron-electron and ion-electron scattering in EPSM
-  //! limit for each cell
-  std::vector<unsigned> totlES, epsmES;
-  unsigned totlES0, epsmES0;
-  //@}
-
-  //@{
   //! Count ion-electron scattering in EPSM limit for each cell
   std::vector<unsigned> totlIE, epsmIE;
   unsigned totlIE0, epsmIE0;
@@ -926,12 +919,6 @@ public:
 
   //! Critical weight ratio for electron subspecies computation (default: 0.1)
   static double qCrit;
-
-  //! Electron-scatering threshold
-  static double ESthresh;
-
-  //! Use EPSM algorithm for electron scattering (default: false)
-  static bool ElectronEPSM;
 
   //! Enforce momentum conservation in each cell when using ExactE and
   //! Hybrid method (default: false)

@@ -735,11 +735,8 @@ void TreeDSMC::initialize()
       if (conf["equiptn"]) CollideIon::equiptn  = conf["equiptn"].as<bool>();
       if (conf["scatter"]) CollideIon::scatter  = conf["scatter"].as<bool>();
       if (conf["nodelC"])  CollideIon::NoDelC   = conf["nodelC"].as<int>();
-      if (conf["esnum"])   CollideIon::esNum    = conf["esnum"].as<int>();
-      if (conf["esthr"])   CollideIon::esThr    = conf["esthr"].as<double>();
       if (conf["logL"])    CollideIon::logL     = conf["logL"].as<double>();
       if (conf["config"])  CollideIon::config   = conf["config"];
-      if (conf["eEPSM"])   CollideIon::ElectronEPSM  = conf["eEPSM"].as<bool>();
     }
   }
   catch (YAML::Exception & error) {

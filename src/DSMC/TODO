@@ -7,4 +7,6 @@ o The unstable energy conservation algorithm remains in the Weighted
 
 o More generally, all algorithms (Direct, Weighted, Hybrid and Trace)
   would have regression tests ideally.
-  
+
+o Implement Fokker-Planck-Landau collsiions for all methods in
+  addition to Trace

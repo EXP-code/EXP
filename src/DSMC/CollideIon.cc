@@ -55,9 +55,6 @@ bool     CollideIon::ntcDist    = false;
 bool     CollideIon::enforceMOM = false;
 bool     CollideIon::coulScale  = false;
 double   CollideIon::coulPow    = 2.0;
-unsigned CollideIon::esNum      = 100;
-double   CollideIon::esThr      = 0.0;
-double   CollideIon::ESthresh   = 1.0e-10;
 unsigned CollideIon::NoDelC     = 0;
 unsigned CollideIon::maxCoul    = UINT_MAX;
 double   CollideIon::logL       = 5.0/(16.0*M_PI); // energy transfer factor
@@ -786,8 +783,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   cMoms    .resize(nthrds);	     // All
   collCount.resize(nthrds);	     // Direct, Weight
   clampdat .resize(nthrds);	     // Hybrid, Trace
-  epsmES   .resize(nthrds, 0);	     // EPSM
-  totlES   .resize(nthrds, 0);	     // EPSM
   epsmIE   .resize(nthrds, 0);	     // EPSM
   totlIE   .resize(nthrds, 0);	     // EPSM, Trace, Hybrid
   KElost   .resize(nthrds);	     // All
@@ -14393,16 +14388,6 @@ void CollideIon::gatherSpecies()
   } // end: cell loop
 
     
-  if (ElectronEPSM) {
-				// Get combined counts from all threads
-    unsigned totl = 0, epsm = 0;
-    for (auto & v : totlES) { totl += v; v = 0; }
-    for (auto & v : epsmES) { epsm += v; v = 0; }
-				// Accumulate at root
-    MPI_Reduce(&totl, &totlES0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&epsm, &epsmES0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-  }
-
   if ( (aType==Hybrid or aType==Trace) and maxCoul < UINT_MAX) {
 				// Get combined counts from all threads
     unsigned totl = 0, epsm = 0;
@@ -14828,11 +14813,7 @@ void CollideIon::gatherSpecies()
       std::cout << std::endl
 		<< std::string(4+10+10+12, '-')   << std::endl
 		<< "Scatter check: time=" << tnow << std::endl;
-      if (ElectronEPSM) {
-	double R = totlES0>0 ? static_cast<double>(epsmES0)/totlES0 : epsmES0; 
-	std::cout << "Electron EPSM: " << epsmES0 << "/" << totlES0 << " [="
-		  << R << "]" << std::endl;
-      }
+
       if ((aType==Hybrid or aType==Trace) and maxCoul < UINT_MAX) {
 	double R = totlIE0>0 ? static_cast<double>(epsmIE0)/totlIE0 : epsmIE0;
 	std::cout << "Ion-Elec EPSM: " << epsmIE0 << "/" << totlIE0 << " [="
@@ -17899,13 +17880,6 @@ void CollideIon::processConfig()
     else {
       config["delEvSpect"]["desc"] = "Energy or wavelength bin width for tabulated emission spectrum (eV)";
       config["delEvSpect"]["value"] = delSpect = 100.0;
-    }
-
-    if (config["ESthresh"])
-      ESthresh = config["ESthresh"]["value"].as<double>();
-    else {
-      config["ESthresh"]["desc"] = "Ionization threshold for electron-electron scattering";
-      config["ESthresh"]["value"] = ESthresh = 1.0e-10;
     }
 
     if (config["stateXS"])
