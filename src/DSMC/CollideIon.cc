@@ -41,7 +41,6 @@ bool     CollideIon::ExactE     = false;
 bool     CollideIon::NoExact    = true;
 bool     CollideIon::AlgOrth    = false;
 bool     CollideIon::AlgWght    = false;
-bool     CollideIon::MeanMass   = false; // Mean-mass algorithm
 bool     CollideIon::SpreadDef  = false; // Spread deferred energy
 bool     CollideIon::DebugE     = false;
 bool     CollideIon::collLim    = false;
@@ -547,8 +546,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << "************************************" << std::endl
 	      << " " << std::setw(20) << std::left  << "Algorithm type"
 	      << AlgorithmLabels[aType]                 << std::endl
-	      << " " << std::setw(20) << std::left  << "MEAN_MASS"
-	      << (MeanMass ? "on" : "off")              << std::endl
 	      << " " << std::setw(20) << std::left  << "SPREAD_DEF"
 	      << (SpreadDef ? "on" : "off")             << std::endl
 	      << " " << std::setw(20) << std::left  << "ENERGY_ES"
@@ -11501,13 +11498,6 @@ void CollideIon::scatterTrace
 {
   if (NO_HSCAT) return;
 
-  // MeanMass is almost certainly deprecated . . . will remove when I'm sure
-  //
-  if (MeanMass) {
-    scatterTraceMM(pp, KE, W, V1, V2, id);
-    return;
-  }
-
   if (pp->W2 == 0.0) return;
 
   accumTrace(pp, KE, W, id);
@@ -11845,11 +11835,6 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
       double Q1 = pp->eta1;
       double Q2 = pp->eta2;
 	
-      if (MeanMass) {
-	if (m1<1.0) m1 *= pp->eta1;
-	if (m2<1.0) m2 *= pp->eta2;
-      }
-	
       m1 = std::max<double>(m1, 1.0e-12); 
       m2 = std::max<double>(m2, 1.0e-12); 
 
@@ -11902,10 +11887,7 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
       if (kE>0.0) {
 	// Assign interaction energy variables
 	//
-	if (MeanMass)
-	  vrel = coulomb_vector(vrel, 1.0, 1.0, tau);
-	else
-	  vrel = coulomb_vector(vrel, W1,  W2,  tau);
+	vrel = coulomb_vector(vrel, W1,  W2,  tau);
 	
 	vi   = sqrt(vi);
 	for (auto & v : vrel) v *= vi;
@@ -12434,7 +12416,7 @@ void CollideIon::updateEnergyTrace(PordPtr pp, KE_& KE)
   //
   pp->eFinal();
 
-  if (MeanMass or ExactE) return;
+  if (ExactE) return;
 
   double tKEi = 0.0;		// Total pre collision KE
   double tKEf = 0.0;		// Total post collision KE
@@ -13421,13 +13403,8 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       double W1, W2;
 
       if (aType == Trace) {
-	if (MeanMass) {
-	  W1 = p1->mass/molW[i1];
-	  W2 = p2->mass/molW[i2];
-	} else {
-	  W1 = p1->mass*Eta[i1]/molW[i1];
-	  W2 = p2->mass*Eta[i2]/molW[i2];
-	}
+	W1 = p1->mass*Eta[i1]/molW[i1];
+	W2 = p2->mass*Eta[i2]/molW[i2];
       } else {
 	if (SAME_ELEC_SCAT) if (k1.Z() != k2.Z()) continue;
 	if (DIFF_ELEC_SCAT) if (k1.Z() == k2.Z()) continue;
@@ -13509,7 +13486,6 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
       double  q = W2 / W1;
       double m1 = atomic_weights[0];
       double m2 = atomic_weights[0];
-      if (MeanMass) { m1 *= ne1; m2 *= ne2; }
       double mt = m1 + m2;
       double mu = m1 * m2 / mt;
 
@@ -13654,71 +13630,16 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	  double afac = esu*esu/std::max<double>(2.0*kEee*eV, FloorEv*eV);
 	  double Tau  = ABrate[id][3] * afac*afac * cr * tau * TreeDSMC::Tunit;
 
-	  if (MeanMass)
-	    vrel = coulomb_vector(vrel, 1.0, 1.0, Tau);
-	  else
-	    vrel = coulomb_vector(vrel, W1, W2, Tau);
+	  vrel = coulomb_vector(vrel, W1, W2, Tau);
 	}
 	else
 	  vrel = unit_vector();
 
 	for (auto & v : vrel) v *= vi;
 
-	if (MeanMass) {
-	  
-	  // Set COM frame
-	  //
-	  std::vector<double> vcom(3), vrel(3);
-	  double KEcom = 0.0;
-	  
-	  for (size_t k=0; k<3; k++) {
-	    vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
-	    vrel[k] = v1[k] - v2[k];
-	    KEcom += vrel[k] * vrel[k];
-	  }
-
-	  // Energy deficit correction
-	  //
-	  KEcom *= 0.5*mu;
-	  double delE = 0.0;
-	  if (elc_cons)
-	    delE = p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
-	  else
-	    delE = p1->dattrib[use_cons  ] + p2->dattrib[use_cons  ];
-
-	  double vfac = 1.0;
-
-	  if (delE != 0.0) {
-	    if (KEcom>delE) {
-	      vfac = sqrt(1.0 - delE/KEcom);
-	      if (elc_cons)
-		p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.0;
-	      else
-		p1->dattrib[use_cons  ] = p2->dattrib[use_cons  ] = 0.0;
-	      
-	      dKEcons = delE;
-	    } else {
-	      vfac = 0.0;
-	      if (elc_cons)
-		p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.5*(delE - KEcom);
-	      else
-		p1->dattrib[use_cons  ] = p2->dattrib[use_cons  ] = 0.5*(delE - KEcom);
-	      dKEcons = KEcom;
-	    }
-	  }
-
-	  // Assign new electron velocities
-	  //
-	  for (int k=0; k<3; k++) {
-	    p1->dattrib[use_elec+k] = vcom[k] + m2/mt*vrel[k] * vfac;
-	    p2->dattrib[use_elec+k] = vcom[k] - m1/mt*vrel[k] * vfac;
-	  }
-
-	  vfSave = vfac;
-	}
 	// Explicit energy conservation using splitting
 	//
-	else if (ExactE and q < 1.0) {
+	if (ExactE and q < 1.0) {
 
 	  bool  algok = false;
 	  double vrat = 1.0;
@@ -14173,10 +14094,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	double KEi = KEi1 + KEi2;
 	double KEf = KEf1 + KEf2;
 
-	double mmConv = 0.0;
-	if (MeanMass) mmConv = dKEcons * (m1 + m2) * W1*W2/(m1*W1 + m2*W2);
-
-	double testE = KEi - KEf - deltaKE - dKE - mmConv;
+	double testE = KEi - KEf - deltaKE - dKE;
 
 	if (fabs(testE) > tolE*KEi) {
 	  std::cout << "**ERROR delta E elec ("
@@ -19105,13 +19023,6 @@ void CollideIon::processConfig()
       config["ENERGY_ES_DBG"]["value"] = DebugE = true;
     }
 
-    if (config["MEAN_MASS"])
-      MeanMass = config["MEAN_MASS"]["value"].as<bool>();
-    else {
-      config["MEAN_MASS"]["desc"] = "Mean mass, energy and momentum conserving algorithm";
-      config["MEAN_MASS"]["value"] = MeanMass = false;
-    }
-
     if (config["ConsAlg"]) {	// YAML doesn't handle enum classes
 				// directly so we need some type
 				// checking . . .
@@ -20419,46 +20330,27 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
     
   } // END: all methods method besides Trace
 
-  if (caller->MeanMass) {
-
-    switch (P) {
-    case ion_electron:
-      m2 = atomic_weights[0];
-      break;
-    case electron_ion:
-      m1 = atomic_weights[0];
-      break;
-    case electron_electron:
-      m1 = atomic_weights[0];
-      m2 = atomic_weights[0];
-      break;
-    }
-
-  } // END: MeanMass
-  else {
-
-    switch (P) {
-    case ion_electron:
-      m2 = atomic_weights[0];
-      if (w2*eta2/w1 < thresh) {
-	W2 *= eta2;
-	wght = true;
-      }
-      break;
-    case electron_ion:
-      m1  = atomic_weights[0];
-      if (w1*eta1/w2 < thresh) {
-	W1 *= eta1;
-	wght = true;
-      }
-      break;
-    case electron_electron:
-      m1 = atomic_weights[0];
-      m2 = atomic_weights[0];
-      W1 *= eta1;
+  switch (P) {
+  case ion_electron:
+    m2 = atomic_weights[0];
+    if (w2*eta2/w1 < thresh) {
       W2 *= eta2;
-      break;
+      wght = true;
     }
+    break;
+  case electron_ion:
+    m1  = atomic_weights[0];
+    if (w1*eta1/w2 < thresh) {
+      W1 *= eta1;
+      wght = true;
+    }
+    break;
+  case electron_electron:
+    m1 = atomic_weights[0];
+    m2 = atomic_weights[0];
+    W1 *= eta1;
+    W2 *= eta2;
+    break;
   }
   
   // Swap needed?
@@ -20509,8 +20401,6 @@ void CollideIon::Pord::swapPs()
 
 void CollideIon::Pord::scheme(bool W)
 {
-  if (caller->MeanMass) return;	// Do not use weighted scheme
-
   if (wght == W) return;	// Okay as is
 
   W1 = w1;			// For unweighted (e.g. was weighted

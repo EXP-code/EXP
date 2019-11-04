@@ -1787,7 +1787,7 @@ const int maxAtomicNumber = 15;
 __constant__ cuFP_t cuda_atomic_weights[maxAtomicNumber], cuFloorEV;
 __constant__ cuFP_t cuVunit, cuMunit, cuTunit, cuLunit, cuEunit;
 __constant__ cuFP_t cuLogL, cuCrossfac, cuMinMass;
-__constant__ bool   cuMeanKE, cuMeanMass, cuNewRecombAlg, cuNoCool, cuRecombIP;
+__constant__ bool   cuMeanKE, cuNewRecombAlg, cuNoCool, cuRecombIP;
 __constant__ bool   cuSpreadDef;
 
 const int coulSelNumT = 2000;
@@ -1817,12 +1817,6 @@ void testConstantsIon(int idev)
   printf("** log Lambda = %13.6e\n", cuLogL              );
   printf("** cross fac  = %13.6e\n", cuCrossfac          );
 
-  if (cuMeanMass) {
-    printf("** Mean mass  = true\n"                      );
-    printf("** MinMass    = %13.6e\n", cuMinMass         );
-  }
-  else
-    printf("** Mean mass  = false\n"                     );
   if (cuRecombIP) 
     printf("** Rcmb IP    = true\n"                      );
   else
@@ -2077,9 +2071,6 @@ void CollideIon::cuda_atomic_weights_init()
   v = esu;
   cuda_safe_call(cudaMemcpyToSymbol(cuMeanKE, &MeanKE, sizeof(bool)), 
 		 __FILE__, __LINE__, "Error copying cuMeanKE");
-
-  cuda_safe_call(cudaMemcpyToSymbol(cuMeanMass, &MeanMass, sizeof(bool)), 
-		 __FILE__, __LINE__, "Error copying cuMeanMass");
 
   cuda_safe_call(cudaMemcpyToSymbol(cuSpreadDef, &SpreadDef, sizeof(bool)), 
 		 __FILE__, __LINE__, "Error copying cuSpreadDef");
@@ -3205,150 +3196,8 @@ void cudaScatterTrace
  curandState *state
  )
 {
-  if (cuMeanMass) {
-
-    if (m1<1.0) m1 *= eta1;
-    if (m2<1.0) m2 *= eta2;
-
-    if (m1<cuMinMass) m1 = cuMinMass;
-    if (m2<cuMinMass) m2 = cuMinMass;
-
-#ifdef XC_DEEP3
-    // KE debug check
-    //
-    cuFP_t KEi1 = 0.0, KEi2 = 0.0;
-    {
-      cuFP_t k1 = 0.0, k2 = 0.0;
-      for (int k=0; k<3; k++) {
-	k1 += v1[k]*v1[k];
-	k2 += v2[k]*v2[k];
-      }
-      KEi1 = 0.5*W1*m1*k1;
-      KEi2 = 0.5*W2*m2*k2;
-    }
-#endif
-
-    // Total effective mass in the collision
-    //
-    cuFP_t mt = m1 + m2;
-
-    // Reduced mass (atomic mass units)
-    //
-    cuFP_t mu = m1 * m2 / mt;
-    
-    // Set COM frame
-    //
-    cuFP_t vcom[3], vrel[3], vrl0[3];
-    cuFP_t vi = 0.0;
-    
-    for (size_t k=0; k<3; k++) {
-      vcom[k] = (m1*v1[k] + m2*v2[k])/mt;
-      vrl0[k] = vrel[k] = v1[k] - v2[k];
-      vi += vrel[k] * vrel[k];
-    }
-
-    // Energy in COM
-    //
-    cuFP_t kE = 0.5*W2*mu*vi;
-
-    // Energy reduced by loss
-    //
-    cuFP_t vfac = 1.0;
-
-    totE = kE - delE;
-
-#ifdef XC_DEEP3
-    cuFP_t fixE = 0.0;
-#endif
-
-    // KE is positive
-    //
-    if (kE>0.0) {
-      // More loss energy requested than available?
-      //
-      if (totE < 0.0) {
-	// Add to energy bucket for these particles
-	//
-	cudaDeferredEnergy(-totE, m1, m2, W1, W2, E1, E2);
-#ifdef XC_DEEP3
-	fixE = -totE;
-#endif
-	totE = 0.0;
-      }
-      // Update the outgoing energy in COM
-      vfac = sqrt(totE/kE);
-    }
-    // KE is zero (limiting case)
-    //
-    else {
-      if (delE>0.0) {
-	// Defer all energy loss
-	//
-	cudaDeferredEnergy(delE, m1, m2, W1, W2, E1, E2);
-#ifdef XC_DEEP3
-	fixE = delE;
-#endif
-	delE = 0.0;
-      } else {
-	// Apply delE to COM
-	//
-	vi = -2.0*delE/(W2*mu);
-      }
-    }
-    
-    // Assign interaction energy variables
-    //
-    cudaUnitVector(vrel, state);
-    
-    vi   = sqrt(vi);
-    for (auto & v : vrel) v *= vi;
-    //                         ^
-    //                         |
-    // Velocity in center of mass, computed from v1, v2 and adjusted
-    // according to the inelastic energy lossr
-    //
-    bool crazy = false;
-    for (size_t k=0; k<3; k++) {
-      v1[k] = vcom[k] + m2/mt*vrel[k] * vfac;
-      v2[k] = vcom[k] - m1/mt*vrel[k] * vfac;
-#ifdef SANITY_DEBUG
-      if (::isnan(v1[k]) or ::isnan(v2[k])) crazy = true;
-#endif
-    }
-
-    if (crazy) {
-      printf("scatter: vcom={%f %f %f} vrel={%f %f %f} vrel0={%f, %f, %f} m1=%f m2=%f vi=%f ff=%f\n",
-	     vcom[0], vcom[1], vcom[2],
-	     vrel[0], vrel[1], vrel[2],
-	     vrl0[0], vrl0[1], vrl0[2],
-	     m1, m2, vi, vfac);
-    }
-
-#ifdef XC_DEEP3
-    // KE debug check
-    //
-    {
-      cuFP_t k1 = 0.0, k2 = 0.0;
-      for (int k=0; k<3; k++) {
-	k1 += v1[k]*v1[k];
-	k2 += v2[k]*v2[k];
-      }
-      cuFP_t KEf1 = 0.5*W1*m1*k1;
-      cuFP_t KEf2 = 0.5*W2*m2*k2;
-      cuFP_t KEd  = KEi1 + KEi2 - KEf1 - KEf2 - delE + fixE;
-      cuFP_t KEm  = 0.5*(KEi1 + KEi2 + KEf1 + KEf2);
-      if (fabs(KEd)/KEm > 1.0e-10) {
-	printf("**ERROR deltaE: R=%e KEi=[%e, %e] KEf=[%e, %e] m=[%e, %e] dKE=%e kE=%e delE=%e fixE=%e\n", KEd/KEm, KEi1, KEi2, KEf1, KEf2, m1, m2, KEd, kE, delE, fixE);
-      }
-      else if (false) {
-	printf("OK deltaE: R=%e KEi=[%e, %e] KEf=[%e, %e] m=[%e, %e] dKE=%e kE=%e delE=%e fixE=%e\n", KEd/KEm, KEi1, KEi2, KEf1, KEf2, m1, m2, KEd, kE, delE, fixE);
-      }
-    }
-#endif
-  }
-  // END:   MeanMass
   // BEGIN: Energy conservation
-  else {
+  {
 
 #ifdef XC_DEEP3
     // KE debug check
@@ -3714,10 +3563,7 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
       if (kE>0.0) {
 	// Assign interaction energy variables
 	//
-	if (cuMeanMass)
-	  cudaCoulombVector(vrel, 1.0, 1.0, tau, state);
-	else
-	  cudaCoulombVector(vrel, W1,  W2,  tau, state);
+	cudaCoulombVector(vrel, W1,  W2,  tau, state);
 	
 	vi   = sqrt(vi);
 	for (size_t k=0; k<3; k++) vrel[k] *= vi;
@@ -4163,10 +4009,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  unsigned short C1 = J1.sp.second;
 	  unsigned short C2 = J2.sp.second;
 	  
-	  if (not cuMeanMass) {
-	    if (J1.sp==cuElectron) W1 *= EI.Eta1;
-	    if (J2.sp==cuElectron) W2 *= EI.Eta2;
-	  }
+	  if (J1.sp==cuElectron) W1 *= EI.Eta1;
+	  if (J2.sp==cuElectron) W2 *= EI.Eta2;
 
 	  cuFP_t GG = cuMunit/amu;
 	  cuFP_t N0 = GG;
@@ -4692,11 +4536,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	    
 	    // Reassign the weights for standard Trace algorithm
 	    //
-	    if (not cuMeanMass) {
-	      if (J1.sp==cuElectron) W1 = w1 * EI.Eta1;
-	      if (J2.sp==cuElectron) W2 = w2 * EI.Eta2;
-	    }
-	    
+	    if (J1.sp==cuElectron) W1 = w1 * EI.Eta1;
+	    if (J2.sp==cuElectron) W2 = w2 * EI.Eta2;
 	  }
 	  
 	  //
