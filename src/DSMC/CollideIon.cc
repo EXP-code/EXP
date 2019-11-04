@@ -9314,8 +9314,7 @@ void CollideIon::updateEnergyHybrid(PordPtr pp, KE_& KE)
      subparticles in the mixture are accumulated for each pair.
 
   3) Final scattering is computed with equal weight particles in
-     finalize_cell
-
+     finalize_cell()
 */
 int CollideIon::inelasticTrace(int id, pCell* const c,
 			       Particle* const _p1, Particle* const _p2,
@@ -11223,7 +11222,7 @@ void CollideIon::scatterTrace
       std::get<0>(accumData[id][AccumType::ion_electron]) += pp->W1*pp->q*W;
       std::get<1>(accumData[id][AccumType::ion_electron]) += KE.delE;
     }
-      
+  
 } // END: CollideIon::scatterTrace
 
 
@@ -11556,6 +11555,9 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
       double Q1 = pp->eta1;
       double Q2 = pp->eta2;
 	
+      m1 = std::max<double>(m1, 1.0e-12); 
+      m2 = std::max<double>(m2, 1.0e-12); 
+
       // In cgs (grams)
       //
       m1 *= amu;
@@ -11659,258 +11661,6 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 
 }
 // END: CollideIon::coulombicScatterTrace
-
-void CollideIon::scatterTraceMM
-(PordPtr pp, KE_& KE, double W,
- std::vector<double>* v1, std::vector<double>* v2, int id)
-{
-  // Swap velocities?
-  //
-  if (pp->swap) zswap(v1, v2);
-
-  // For energy conservation debugging
-  //
-  if (KE_DEBUG) {
-    KE.i(1) = KE.i(2) = 0.0;
-    for (auto v : *v1) KE.i(1) += v*v;
-    for (auto v : *v2) KE.i(2) += v*v;
-  }
-  
-  // Reset bit flags
-  //
-  KE.bs.reset();
-
-  // Particle masses
-  //
-  double m1 = pp->m1;
-  double m2 = pp->m2;
-
-  if (m1<1.0) m1 *= pp->eta1;
-  if (m2<1.0) m2 *= pp->eta2;
-
-  m1 = std::max<double>(m1, 1.0e-12); 
-  m2 = std::max<double>(m2, 1.0e-12); 
-
-  // Total effective mass in the collision
-  //
-  double mt = m1 + m2;
-
-  // Reduced mass (atomic mass units)
-  //
-  double mu = m1 * m2 / mt;
-
-  // Set COM frame
-  //
-  std::vector<double> vcom(3), vrel(3);
-  double vi = 0.0;
-
-  for (size_t k=0; k<3; k++) {
-    vcom[k] = (m1*(*v1)[k] + m2*(*v2)[k])/mt;
-    vrel[k] = (*v1)[k] - (*v2)[k];
-    vi += vrel[k] * vrel[k];
-  }
-				// Energy in COM
-  double kE = 0.5*pp->w2*mu*vi;
-				// Energy reduced by loss
-  double totE = kE - KE.delE;
-  double totE0 = totE, kE0 = kE, delE0 = KE.delE;
-
-  // KE is positive
-  //
-  if (kE>0.0) {
-    // More loss energy requested than available?
-    //
-    if (totE < 0.0) {
-      KE.miss = -totE;
-      // Add to energy bucket for these particles
-      //
-      deferredEnergyTrace(pp, -totE, id);
-      KE.delE = kE;
-      totE = 0.0;
-    }
-    // Update the outgoing energy in COM
-    //
-    KE.vfac = sqrt(totE/kE);
-    KE.kE   = kE;
-    KE.totE = totE;
-    KE.bs.set(KE_Flags::Vfac);
-    KE.bs.set(KE_Flags::KEpos);
-  }
-  // KE is zero (limiting case)
-  //
-  else {
-    KE.vfac = 1.0;
-    KE.kE   = kE;
-    KE.totE = totE;
-
-    if (KE.delE>0.0) {
-      KE.miss = KE.delE;
-      // Defer all energy loss
-      //
-      deferredEnergyTrace(pp, KE.delE, id);
-      KE.delE = 0.0;
-    } else {
-      // Apply delE to COM
-      //
-      vi = -2.0*KE.delE/(pp->w2*mu);
-    }
-  }
-
-  vrel = unit_vector();
-  
-  vi   = sqrt(vi);
-  for (auto & v : vrel) v *= vi;
-  //                         ^
-  //                         |
-  // Velocity in center of mass, computed from v1, v2 and adjusted
-  // according to the inelastic energy loss
-  //
-
-  KE.delta = 0.0;
-
-  
-  // BEGIN: momentum conservation algorithm
-
-  KE.bs.set(KE_Flags::momC);
-
-  for (size_t k=0; k<3; k++) {
-    (*v1)[k] = vcom[k] + m2/mt*vrel[k] * KE.vfac;
-    (*v2)[k] = vcom[k] - m1/mt*vrel[k] * KE.vfac;
-  }
-    
-  misE[id] += KE.miss;
-
-  // Temporary deep debug
-  //
-  if (KE_DEBUG) {
-
-    double M1 = 0.5 * pp->w1 * m1;
-    double M2 = 0.5 * pp->w2 * m2;
-
-    // Initial KE
-    //
-    double KE1i = M1 * KE.i(1);
-    double KE2i = M2 * KE.i(2);
-
-    double KE1f = 0.0, KE2f = 0.0;
-    for (auto v : *v1) KE1f += v*v;
-    for (auto v : *v2) KE2f += v*v;
-
-    // Final KE
-    //
-    KE1f *= M1;
-    KE2f *= M2;
-      
-    // KE differences
-    //
-    double KEi   = KE1i + KE2i;
-    double KEf   = KE1f + KE2f;
-    double delEt = KEi  - KEf - KE.delta - std::min<double>(kE, KE.delE);
-    
-    // Sanity test
-    //
-    double Ii1 = 0.0, Ii2 = 0.0, Ie1 = 0.0, Ie2 = 0.0;
-    for (size_t k=0; k<3; k++) {
-      Ii1 += pp->p1->vel[k] * pp->p1->vel[k];
-      Ii2 += pp->p2->vel[k] * pp->p2->vel[k];
-      if (use_elec>=0) {
-	size_t K = use_elec + k;
-	Ie1 += pp->p1->dattrib[K] * pp->p1->dattrib[K];
-	Ie2 += pp->p2->dattrib[K] * pp->p2->dattrib[K];
-      }
-    }
-
-    Ii1 *= 0.5 * pp->p1->mass;
-    Ii2 *= 0.5 * pp->p2->mass;
-    Ie1 *= 0.5 * pp->p1->mass * pp->eta1 * atomic_weights[0]/molP1[id];
-    Ie2 *= 0.5 * pp->p2->mass * pp->eta2 * atomic_weights[0]/molP2[id];
-
-    double Fi1 = Ii1, Fi2 = Ii2, Fe1 = Ie1, Fe2 = Ie2;
-
-    if (pp->P == Pord::ion_ion) {
-      Fi1 = 0.0; for (auto v : *v1) Fi1 += v*v;
-      Fi2 = 0.0; for (auto v : *v2) Fi2 += v*v;
-      Fi1 *= 0.5 * pp->p1->mass;
-      Fi2 *= 0.5 * pp->p2->mass;
-    }
-
-    if (pp->P == Pord::ion_electron) {
-      Fi1 = 0.0; for (auto v : *v1) Fi1 += v*v;
-      Fe2 = 0.0; for (auto v : *v2) Fe2 += v*v;
-      Fi1 *= 0.5 * pp->p1->mass;
-      Fe2 *= 0.5 * pp->p2->mass * pp->eta2 * atomic_weights[0]/molP2[id];
-    }
-
-    if (pp->P == Pord::electron_ion) {
-      Fe1 = 0.0; for (auto v : *v1) Fe1 += v*v;
-      Fi2 = 0.0; for (auto v : *v2) Fi2 += v*v;
-      Fe1 *= 0.5 * pp->p1->mass * pp->eta1 * atomic_weights[0]/molP1[id];
-      Fi2 *= 0.5 * pp->p2->mass;
-    }
-
-    if (pp->P == Pord::electron_electron) {
-      Fe1 = 0.0; for (auto v : *v1) Fe1 += v*v;
-      Fi2 = 0.0; for (auto v : *v2) Fi2 += v*v;
-      Fe1 *= 0.5 * pp->p1->mass * pp->eta1 * atomic_weights[0]/molP1[id];
-      Fi2 *= 0.5 * pp->p2->mass * pp->eta2 * atomic_weights[0]/molP2[id];
-    }
-
-    if ( fabs(delEt)/std::min<double>(KEi, KEf) > tolE) {
-      std::cout << "**ERROR scatter: delEt = " << delEt
-		<< " rel = "  << delEt/KEi
-		<< " KEi = "  << KEi
-		<< " KEf = "  << KEf
-		<< " dif = "  << KEi - KEf
-		<< "  kE = "  << kE
-		<< "  dE = "  << KE.delE
-		<< " dvf = "  << KE.delE/kE
-		<< " tot = "  << totE
-		<< " vfac = " << KE.vfac
-		<< "   w1 = " << pp->w1
-		<< "   w2 = " << pp->w2
-		<< "   m1 = " << m1
-		<< "   m2 = " << m2
-		<< " flg = " << KE.decode()
-		<< std::endl;
-    } else {
-      if (DBG_NewTest)
-	std::cout << "**GOOD scatter: delEt = "
-		  << std::setprecision(14) << std::scientific
-		  << std::setw(22) << delEt
-		  << " rel = "  << std::setw(22) << delEt/KEi << " kE = " << std::setw(22) << kE
-		  << "   m1 = " << std::setw(22)  << m1
-		  << "   m2 = " << std::setw(22)  << m2
-		  << "   w1 = " << std::setw(22)  << pp->w1
-		  << "   w2 = " << std::setw(22)  << pp->w2
-		  << "  Ei1 = " << std::setw(22)  << KE1i
-		  << "  Ef1 = " << std::setw(22)  << KE1f
-		  << "  Ei2 = " << std::setw(22)  << KE2i
-		  << "  Ef2 = " << std::setw(22)  << KE2f
-		  << "  Ii1 = " << std::setw(22)  << Ii1
-		  << "  Ie1 = " << std::setw(22)  << Ie1
-		  << "  Ii2 = " << std::setw(22)  << Ii2
-		  << "  Ie2 = " << std::setw(22)  << Ie2
-		  << " delE = " << std::setw(22)  << KE.delE
-		  << " swap = " << std::boolalpha << pp->swap
-		  << std::setprecision(5)  << std::endl;
-    }
-
-  } // END: temporary deep debug
-
-  // Sanity check
-  if (pp->W2 > pp->W1) {
-    std::cout << "Backwards: w1=" << pp->w1
-	      << " w2=" << pp->w2
-	      << " W1=" << pp->W1
-	      << " W2=" << pp->W2
-	      << " m1=" << pp->m1
-	      << " m2=" << pp->m2
-	      << " M1=" << pp->p1->mass
-	      << " M2=" << pp->p2->mass
-	      << std::endl;
-  }
-      
-} // END: CollideIon::scatterTraceMM
 
 
 void CollideIon::scatterPhotoTrace
@@ -12133,6 +11883,8 @@ void CollideIon::updateEnergyTrace(PordPtr pp, KE_& KE)
   // Compute final energy
   //
   pp->eFinal();
+
+  if (ExactE) return;
 
   double tKEi = 0.0;		// Total pre collision KE
   double tKEf = 0.0;		// Total post collision KE
@@ -13352,7 +13104,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	  vrel = unit_vector();
 
 	for (auto & v : vrel) v *= vi;
-	
+
 	// Explicit energy conservation using splitting
 	//
 	if (ExactE and q < 1.0) {
@@ -13792,6 +13544,40 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 
       } // end: scatter
       
+      if (KE_DEBUG) {
+
+	double KEf1 = 0.0;
+	double KEf2 = 0.0;
+
+	for (int k=0; k<3; k++) {
+	  double v1 = p1->dattrib[use_elec+k];
+	  double v2 = p2->dattrib[use_elec+k];
+	  KEf1 += v1*v1;
+	  KEf2 += v2*v2;
+	}
+
+	KEf1 *= 0.5*W1*m1;
+	KEf2 *= 0.5*W2*m2;
+
+	double KEi = KEi1 + KEi2;
+	double KEf = KEf1 + KEf2;
+
+	double testE = KEi - KEf - deltaKE - dKE;
+
+	if (fabs(testE) > tolE*KEi) {
+	  std::cout << "**ERROR delta E elec ("
+		    << k1.Z() << ","
+		    << k2.Z() << ") = "
+		    << std::setw(14) << testE
+		    << ", KEi=" << std::setw(14) << KEi
+		    << ", KEf=" << std::setw(14) << KEf
+		    << ", exs=" << std::setw(14) << deltaKE
+		    << ", dKE=" << std::setw(14) << dKE
+		    << std::endl;
+	}
+
+      }
+
     } // loop over particles
 
     // nselM and reporting
@@ -19533,7 +19319,7 @@ void CollideIon::processConfig()
     if (config["VFKY"])
       Ion::use_VFKY = config["VFKY"]["value"].as<bool>();
     else {
-      config["VFKY"]["desc"] = "Use the partial photoionization cross-section Fortran routine from Verner, Yakovlev, 1995 and Verner, Ferland, Korista, Yakovlev, 1996.";
+      config["VFKY"]["desc"] = "Use Verner's photoionization cross-section code based on Verner, Ferland, Korista, Yakovlev (1996) and Verner and Yakovlev (1995)";
       config["VFKY"]["value"] = Ion::use_VFKY;
     }
 
@@ -19575,8 +19361,8 @@ void CollideIon::processConfig()
     // This will become part of the config.runtag.* parameter file.
     //
     if (myid==0) {
-      config["_description"] = std::string(NAME_ID) + " configuration, version="
-	+ std::string(VERSION_ID) + " tag=" + runtag;
+      config["_description"] = std::string(NAME_ID) + " configuration, "
+	+ "version=" + std::string(VERSION_ID) + ", tag=" + runtag;
       time_t t = time(0);   // get current time
 
       struct tm * now = localtime( & t );

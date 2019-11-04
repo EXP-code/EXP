@@ -2744,9 +2744,10 @@ void VernerData::initialize(chdata* ch)
     if ( (val = getenv("VERNER_DATA")) != 0x0) {
       extended = true;
     } else {
-      std::cout << "Could not find VERNER_DATA environment variable"
-		<< "for the extended Verner-Yakovlev table . . . "
-		<< "will look for the CHIANTI version" << std::endl;
+      std::cout << "EXP could not find VERNER_DATA environment variable "
+		<< "for the extended Verner-Yakovlev table. We will use "
+		<< "the CHIANTI version.  This is NOT a problem . . .  "
+		<< std::endl;
     }
 
     // Use CHIANTI version of extended version is not found
