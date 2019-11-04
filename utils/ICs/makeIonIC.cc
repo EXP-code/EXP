@@ -41,6 +41,7 @@ namespace po = boost::program_options;
 #include "Species.H"
 #include "atomic_constants.H"
 
+#include <errno.h>
 #include <sys/stat.h>
 
 //
@@ -204,7 +205,9 @@ void writeScript(void)
   if (not file_exists(file)) {
     std::ofstream out(file);
     out << py;
-    chmod(file.c_str(), 0x755);
+    if (chmod(file.c_str(), 0x755)) {
+      perror("Error in chmod:");
+    }
   }
 }
 

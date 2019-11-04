@@ -5,6 +5,11 @@ import re
 import sys
 import operator
 
+# Try to prevent ChiantiPy from grabbing the mouse
+#
+import matplotlib as mpl
+mpl.use('Agg')
+
 from numpy import *
 import ChiantiPy.core as ch
 from optparse import OptionParser

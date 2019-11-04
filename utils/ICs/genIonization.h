@@ -1,11 +1,14 @@
-R"(
-
-#!/usr/bin/python
+R"(#!/usr/bin/python
 
 import os
 import re
 import sys
 import operator
+
+# Try to prevent ChiantiPy from grabbing the mouse
+#
+import matplotlib as mpl
+mpl.use('Agg')
 
 from numpy import *
 import ChiantiPy.core as ch
@@ -68,5 +71,4 @@ def main():
 
 if __name__ == "__main__":
         main()
-
 )"
