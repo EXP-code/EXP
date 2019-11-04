@@ -9,6 +9,7 @@
 #include <map>
 
 #include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 #include <boost/multi_array.hpp>
 
 #include <atomic_constants.H>
@@ -29,6 +30,7 @@
 #include <cudaUtil.cuH>
 #endif
 
+#include <localmpi.h>		// For myid
 
 // Structures for caching the Cspline instances for each Ion instance
 //
@@ -454,10 +456,9 @@ public:
   //! Use Verner et al. fortran subroutine (default: true)
   static bool use_VFKY;
 
-  //! Recombine into ground state only for Verner cross sections (default: false)
-  static bool gs_only;
-
-  //! Use Karzas and Latter gs cross section rather than Verner (default: false)
+  //! Use Karzas and Latter gs cross section rather than Verner
+  //! (default: false). This will only be used for hydrogen
+  //! recombination.  For all others, we use the Verner table.
   static bool no_verner;
 
   //! Ionization background parameters
@@ -758,10 +759,6 @@ public:
   //! Photoionization rate
   std::pair<double, double> photoIonizationRate();
 
-  /** Radiative recombination cross section using Verner (for
-      debugging */
-  std::vector< std::tuple<int, double> > recombCrossV (double E, int id);
-
   //! Calculate the QRP value as in Fontes, Sampson, Zhang 1999
   double qrp(double u);
   
@@ -782,14 +779,19 @@ public:
   double         getIP(const lQ& Q) const { return ch->ipdata[Q]; }
   //@}
 
-  //! Set cross-section type for all instances
+  //! Set cross-section type for all instances. This is left in case
+  //! alternative cross sections are useful in the future, but AFAICT,
+  //! Verner should be used for everything at this point.
   static int setRRtype(const std::string& rr) 
   {
     if (rr_map.find(rr) == rr_map.end()) {
-      rr_type = Ion::mewe;	// Default type
+      rr_type = Ion::verner;	// Default type
       return 1;			// Failure
     } else { 			// Set request
       rr_type = rr_map[rr];
+      if (myid==0 and rr_type != Ion::verner) {
+	std::cout << "WARNING: you probably really want the Verner cross section not " << rr_lab[rr_type] << std::endl;
+      }
       return 0;			// Success
     }
   }

@@ -224,18 +224,7 @@ int main (int ac, char **av)
 
     std::vector<double> PI1 = ch.IonList[Q]->photoIonizationCross(EeV, 0);
 
-    std::vector< std::tuple<int, double> >
-      REv = ch.IonList[Q]->recombCrossV(EeV, 0);
-
-    std::sort(begin(REv), end(REv), TupleCompare<0>());
-    double sum = 0.0;
-    std::vector<double> cum;
-    for (auto t : REv) {
-      double val = std::get<1>(t);
-      sum += val;
-      cum.push_back(val);
-    }
-    for (auto & t : cum) t /= sum;
+    double sum = ch.VernerXC.cross(Q, EeV);
 
     int ZZ  = Z;
     int Nel = Z - C + 1;
@@ -258,9 +247,9 @@ int main (int ac, char **av)
 	      << std::setw(16) << ionz       * 1.0e+04 // Mb
 	      << std::setw(16) << RE1.back() * 1.0e+04 // Mb
 	      << std::setw(16) << PI1.back() * 1.0e+04 // Mb
-	      << std::setw(16) << csum;		       // Mb
-    for (auto t : cum) std::cout << std::setw(16) << t;
-    std::cout << std::endl;
+	      << std::setw(16) << csum		       // Mb
+	      << std::setw(16) << sum		       // Mb
+	      << std::endl;
   }
 
   MPI_Finalize();

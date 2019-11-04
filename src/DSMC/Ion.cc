@@ -35,7 +35,7 @@ Ion::RR_Lab Ion::rr_lab = {
     { Ion::verner,  "Verner"  }
 };
 
-Ion::RR_Type Ion::rr_type = Ion::mewe;
+Ion::RR_Type Ion::rr_type = Ion::verner;
 
 // For setting ionization background type (c++-11 initialization style)
 //
@@ -54,8 +54,7 @@ Ion::IB_Lab Ion::ib_lab = {
 Ion::IB_Type Ion::ib_type = Ion::none;
 
 bool Ion::use_VFKY  = true;
-bool Ion::gs_only   = false;
-bool Ion::no_verner = false;
+bool Ion::no_verner = true;
 
 // Free-free grid
 //
@@ -77,7 +76,7 @@ double Ion::HandM_expon = -0.5;
 // Energy grids (in eV)
 //
 bool   Ion::useFreeFreeGrid  = true;
-bool   Ion::useRadRecombGrid = true;
+bool   Ion::useRadRecombGrid = false;
 bool   Ion::useExciteGrid    = true;
 bool   Ion::useIonizeGrid    = true;
 bool   Ion::GridDebug        = false; // Set to true for debugging
@@ -2174,7 +2173,7 @@ std::vector<double> Ion::radRecombCrossMewe(double E, int id)
 				// Apply Milne relation
 				//
 	double Erat   = (hnu*hnu)/(2.0*mec2*E);
-	double crossi = mult0/mult * Erat * sigmaP;
+	double crossi = mult/mult0 * Erat * sigmaP;
 
 	cross += crossi;
 
@@ -2290,7 +2289,7 @@ std::vector<double> Ion::radRecombCrossTopBase(double E, int id)
 }
 
 // 
-// recombination cross sections using the Verner relation
+// Summed recombination cross sections using the Verner relation
 //
 std::vector<double> Ion::radRecombCrossVerner(double E, int id) 
 {
@@ -2710,6 +2709,8 @@ void Ion::di_head::synchronize()
 */
 void VernerData::VernerRec::sync(int nid) 
 {
+  MPI_Bcast(&n,    1, MPI_INT,    nid, MPI_COMM_WORLD);
+  MPI_Bcast(&io,   1, MPI_INT,    nid, MPI_COMM_WORLD);
   MPI_Bcast(&pql,  1, MPI_INT,    nid, MPI_COMM_WORLD);
   MPI_Bcast(&l,    1, MPI_INT,    nid, MPI_COMM_WORLD);
   MPI_Bcast(&eth,  1, MPI_DOUBLE, nid, MPI_COMM_WORLD);
@@ -2723,27 +2724,47 @@ void VernerData::VernerRec::sync(int nid)
 void VernerData::initialize(chdata* ch)
 {
   this->ch = ch;
-  
-  unsigned nVern = 465;
   int nOK = 0;
   
+  // Only used by root process
+  //@{
+  unsigned nVern = 465, nVernExt = 1677;
+  bool extended = false;
+  //@}
+  
+  std::vector<vrPtr> indat;
+
+
   if (myid==0) {
     
     char * val;
-    if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
+
+    // Look for extended Verner file
+    //
+    if ( (val = getenv("VERNER_DATA")) != 0x0) {
+      extended = true;
+    } else {
+      std::cout << "Could not find VERNER_DATA environment variable"
+		<< "for the extended Verner-Yakovlev table . . . "
+		<< "will look for the CHIANTI version" << std::endl;
+    }
+
+    // Use CHIANTI version of extended version is not found
+    //
+    if (not extended and (val = getenv("CHIANTI_DATA")) == 0x0) {
       std::cout << "Could not find CHIANTI_DATA environment variable"
 		<< " . . . exiting" << std::endl;
       nOK = 1;
+    } else {
+      nOK = 0;
     }
-    
+
     if (nOK == 0) {
-      
-      std::string fileName(val);
-      
-      fileName.append("/continuum/verner_short.txt");
-      
-      std::string inLine;
-      std::ifstream vdFile(fileName.c_str());
+
+      std::string inLine, fileName(val);
+      if (not extended) fileName.append("/continuum/verner_short.txt");
+
+      std::ifstream vdFile(fileName);
       
       if (vdFile.is_open()) {
 	
@@ -2751,6 +2772,18 @@ void VernerData::initialize(chdata* ch)
 	  
 	  std::vector<std::string> v;
 	  std::getline(vdFile, inLine);
+	  
+	  if (extended) {
+	    // Handle header
+	    if (inLine.find("ELE") != std::string::npos)
+	      std::getline(vdFile, inLine);
+	    // Handle eof
+	    if (inLine.size()>2) {
+	      std::fill(&inLine[10], &inLine[29], ' ');
+	      inLine = inLine.substr(2, std::string::npos);
+	    }
+	  }
+
 	  std::istringstream iss(inLine);
 	  std::copy(std::istream_iterator<std::string>(iss), 
 		    std::istream_iterator<std::string>(), 
@@ -2758,16 +2791,10 @@ void VernerData::initialize(chdata* ch)
 	  
 	  if (v.size() < 10) break;
 	  
-	  int z   = atoi(v[0].c_str());
-	  int nel = atoi(v[1].c_str());
-	  int stg = z - nel + 1;
-	  
-	  // Stage: 1 is neutral, etc.
+	  vrPtr dat = boost::make_shared<VernerRec>();
 
-	  lQ key(z, stg);
-	  
-	  vrPtr dat(new VernerRec);
-	  
+	  dat->n    = atoi(v[0].c_str());
+	  dat->io   = atoi(v[1].c_str());
 	  dat->pql  = atoi(v[2].c_str());
 	  dat->l    = atoi(v[3].c_str());
 	  dat->eth  = atof(v[4].c_str());
@@ -2777,58 +2804,86 @@ void VernerData::initialize(chdata* ch)
 	  dat->p    = atof(v[8].c_str());
 	  dat->yw   = atof(v[9].c_str());
 	  
-	  data[key] = dat;
+	  indat.push_back(dat);
 	}
+
+	vdFile.close();
+      } else {
+	std::cout << "Could not open the Verner data file <"
+		  << fileName << ">" << std::endl;
+	nOK = 1;
       }
-      vdFile.close();
     }
   }
-  
+
+  // Distribute file-read status
+  //
   MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
 
   if (nOK)  {
     if (myid == 0) {
-      std::cerr << "VernerData: problem reading CHIANTI files" << std::endl;
+      std::cerr << "VernerData: problem reading VERNER data file" << std::endl;
     }
     MPI_Finalize();
     exit(59);
   } 
 
+  // Distribute table to all nodes
+  //
   if (myid==0) {
     
-    if (data.size() != nVern)
-      std::cout << "Root node: Verner data size=" << data.size() 
-		<< ", expected: " << nVern << std::endl;
-    
-    for (auto v : data) {
-      lQ k = v.first;
-      MPI_Bcast(&k.first,  1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&k.second, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-      v.second->sync();
+    if (extended) {
+      if (indat.size() != nVernExt) {
+	std::cout << "Root node: Verner short data size=" << data.size() 
+		  << ", expected: " << nVernExt << std::endl;
+      }
+    } else {
+      if (indat.size() != nVern) {
+	std::cout << "Root node: Verner extended data size=" << data.size() 
+		  << ", expected: " << nVern << std::endl;
+      }
     }
     
-    unsigned short done = 0;
-    MPI_Bcast(&done,  1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
+    // Broadcast the number of Verner-Yakovlev table entries
+    //
+    int vsiz = indat.size();
+    MPI_Bcast(&vsiz, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    for (auto v : indat) {
+      // Sync data record with all processes
+      v->sync();
+
+      // Enter in database
+      data[lQ(v->n, v->n-v->io+1)].push_back(v);
+      //      ^     ^
+      //  Z-- +     |
+      //  C---------+
+    }
     
   } else {
-    lQ key;
-    
-    while (1) {
-      MPI_Bcast(&key.first,  1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-      if (key.first==0) break;
-      MPI_Bcast(&key.second, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
-      
-      vrPtr dat(new VernerRec);
-      dat->sync();
-      data[key] = dat;
+    // Receive the number of Verner-Yakovlev table entries
+    //
+    int vsiz;
+    MPI_Bcast(&vsiz, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    // Look over data sync
+    //
+    for (int i=0; i<vsiz; i++) {
+      // Generate new element
+      vrPtr v = boost::make_shared<VernerRec>(); 
+
+      // Get data from root process
+      v->sync();
+
+      // Enter in database
+      data[lQ(v->n, v->n-v->io+1)].push_back(v);
+      //      ^     ^
+      //  Z-- +     |
+      //  C---------+
     }
-    
-    if (data.size() != nVern)
-      std::cout << "Node " << myid << ": "
-		<< " Verner data size=" << data.size() 
-		<< ", expected: " << nVern << std::endl;
   }
-}
+
+} // END: VernerData::initialize()
 
 
 /**
@@ -2843,6 +2898,7 @@ void VernerData::initialize(chdata* ch)
 
 double VernerData::cross(const lQ& Q, double EeV)
 {
+				// Rydberg in eV
   constexpr double ryd = 27.2113845/2.0;
 
 				// 1 inverse cm = 1.239.. eV
@@ -2859,41 +2915,45 @@ double VernerData::cross(const lQ& Q, double EeV)
   //
   if (data.find(rQ) == data.end()) return 0.0;
 
-  Ion*  origI  = ch->IonList[ Q].get();
-  Ion*  combI  = ch->IonList[rQ].get();
-
-  double mult0 = 1.0;		// If fully ionized;
-  if (origI->fblvl.size()) {	// Otherwise . . .
-    mult0 = origI->fblvl.begin()->second.mult;
-  }
-
-  double ip      = combI->ip;
-  double vCross  = 0.0;
+  double mult0  = 2.0;
+  if (Q.second > Q.first) mult0 = 1.0;
   
-  for (auto v : combI->fblvl) {
+  double vCross = 0.0;
+  
+  if (Ion::no_verner and Q.first==1 and Q.second==2) {
+
+    for (int n=1; n<11; n++) {
     
-    double Eiz = ip - v.second.encm * incmEv;
-    double Eph = EeV + Eiz;
-    double gf  = 1.0;
+      double Eiz = ryd/(n*n);	// These energies are now in eV
+      double Eph = EeV + Eiz;
+
+      for (int l=0; l<n; l++) {
 				// Milne relation
-    double Milne = 0.5*Eph*Eph/(mec2*EeV) * mult0/static_cast<double>(v.second.mult);
+	double Milne = 0.5*Eph*Eph/(mec2*EeV)*2.0*(2.0*l+1.0)/mult0;
 
-    if (v.second.pqn==1 and not Ion::no_verner) {
-      double crossPh  = crossPhotoIon(rQ, Eph);
-				// Cross section
-      double cross = crossPh * Milne;
+	double crossPh = 7.90706903681e-04 * pow(Eiz/ryd, 2.0)*
+	  pow(ryd/Eph, 3.0)/n;
 
-      vCross += cross;
-    }
-    else if (not Ion::gs_only) {
-
-      double crossPh = 7.90706903681e-04 * pow(Eiz/ryd, 2.0)*
-	pow(ryd/Eph, 3.0)/v.second.pqn;
 				// Gaunt factor
-      double scaledE = log(Eph/Eiz);
-      gf = ch->radGF(scaledE, v.second.pqn, v.second.l);
+	double scaledE = log(Eph/Eiz);
+	double gf = ch->radGF(scaledE, n, l);
 				// Cross section x Gaunt factor
-      double cross = crossPh * gf * Milne;
+	double cross = crossPh * gf * Milne;
+	
+	vCross += cross;
+      }
+    }
+
+  } else {
+
+    for (auto u : data[rQ]) {
+      double Eiz = u->eth;
+      double Eph = EeV + Eiz;
+				// Milne relation
+      double Milne = 0.5*Eph*Eph/(mec2*EeV)*2.0*(2.0*u->l+1.0)/mult0;
+
+      double crossPh = crossPhotoIon(u, Eph);
+      double cross   = crossPh * Milne;
 
       vCross += cross;
     }
@@ -2901,82 +2961,23 @@ double VernerData::cross(const lQ& Q, double EeV)
 
   return vCross;
 }
-
-std::vector< std::tuple<int, double> >
-VernerData::crossV(const lQ& Q, double EeV)
-{
-  typedef std::tuple<int, double> elemV;
-  std::vector<elemV> vCross;
-				// 1 Rydberg in eV
-  constexpr double ryd = 27.2113845/2.0;
-
-				// 1 inverse cm = 1.239.. eV
-  constexpr double incmEv = 1.0/8.06554465e+03;
-
-				// Electron rest mass in eV
-  constexpr double mec2 = 510.998896 * 1.0e3;
-  
-  // The ion after recombination
-  //
-  lQ rQ(Q.first, Q.second-1);
-
-  // No data for this ion
-  //
-  if (data.find(rQ) == data.end()) return vCross;
-
-  Ion*  origI  = ch->IonList[ Q].get();
-  Ion*  combI  = ch->IonList[rQ].get();
-
-  double mult0 = 1.0;		// If fully ionized;
-  if (origI->fblvl.size()) {	// Otherwise . . .
-    mult0 = origI->fblvl.begin()->second.mult;
-  }
-
-  vrPtr  vdata  = data[rQ];
-  double ip     = combI->ip;
-  
-  for (auto v : combI->fblvl) {
-    
-    double Eiz = ip - v.second.encm * incmEv;
-    double Eph = EeV + Eiz;
-    double gf  = 1.0;
-				// Milne relation
-    double Milne = 0.5*Eph*Eph/(mec2*EeV) * mult0/static_cast<double>(v.second.mult);
-
-    if (v.second.pqn==1 and not Ion::no_verner) {
-      double crossPh  = crossPhotoIon(rQ, Eph);
-				// Cross section
-      double cross = crossPh * Milne;
-
-      vCross.push_back(elemV(v.second.lvl, cross));
-    }
-    else if (not Ion::gs_only) {
-
-      double crossPh = 7.90706903681e-04 * pow(Eiz/ryd, 2.0)*
-	pow(ryd/Eph, 3.0)/v.second.pqn;
-				// Gaunt factor
-      double scaledE = log(Eph/Eiz);
-      gf = ch->radGF(scaledE, v.second.pqn, v.second.l);
-				// Cross section x Gaunt factor
-      double cross = crossPh * gf * Milne;
-    
-      vCross.push_back(elemV(v.second.lvl, cross));
-    }
-  }
-
-  return vCross;
-}
-
 
 // 
 // Ground-state photoionization cross section
 //
 std::vector<double> Ion::photoIonizationCross(double E, int id)
 {
+  double val = 0.0;
+
   // Call for the cross section
   //
   lQ Q(Z, C);
-  std::vector<double> ret(1, ch->VernerXC.crossPhotoIon(Q, E));
+  auto ion = ch->VernerXC.data.find(Q);
+  if (ion != ch->VernerXC.data.end()) {
+    val = ch->VernerXC.crossPhotoIon(*(ion->second.begin()), E);
+  }
+  
+  std::vector<double> ret(1, val);
   return ret;
 }
 
@@ -3073,35 +3074,12 @@ std::pair<double, double> Ion::photoIonizationRate()
   }
 }
 
-std::vector< std::tuple<int, double> > Ion::recombCrossV (double E, int id)
+double VernerData::crossPhotoIon(vrPtr vdata, double Eph)
 {
-  // Call for the cross section
-  //
-  lQ Q(Z, C);
-  std::vector< std::tuple<int, double> > ret = ch->VernerXC.crossV(Q, E);
-  return ret;
-}
-  
-double VernerData::crossPhotoIon(const lQ& Q, double EeV)
-{
-  if (Ion::use_VFKY) return crossPhotoIon_VFKY(Q, EeV);
+  if (Ion::use_VFKY) return crossPhotoIon_VFKY(vdata, Eph);
 
-  // The Verner stage is 1 for neutral for consistency with CHIANTI
-  //
-  lQ rQ(Q.first, Q.second);
-
-  // No data for this ion
-  //
-  if (data.find(rQ) == data.end()) return 0.0;
-
-  Ion* I = ch->IonList[ Q].get();
-
-  vrPtr  vdata  = data[rQ];
-  double ip     = I->ip;
-  
-  double Eph    = EeV + ip;
-  double y      = Eph/vdata->e0;
-  double y1     = y - 1.0;
+  double y    = Eph/vdata->e0;
+  double y1   = y - 1.0;
     
   // Verner and Yakolev, equation 1
   //
@@ -3500,11 +3478,11 @@ chdata::recombEquil(unsigned short Z, double T,
       for (int i=1; i<=norder; i++) {
 	if (use_log) {
 	  double y = exp(ymin + dy*Lege->knot(i));
-	  v.second += Lege->weight(i) * dy * K * y*exp(-y) *
+	  v.second += Lege->weight(i) * dy * K * y*y*exp(-y) *
 	    IonList[v.first]->directIonCross(y*kTeV, 0);
 	} else {
 	  double y = ymin + dy*Lege->knot(i);
-	  v.second += Lege->weight(i) * dy * K * y*y*exp(-y) *
+	  v.second += Lege->weight(i) * dy * K * y*exp(-y) *
 	    IonList[v.first]->directIonCross(y*kTeV, 0);
 	}
       }

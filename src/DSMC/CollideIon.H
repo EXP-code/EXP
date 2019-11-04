@@ -1648,13 +1648,11 @@ public:
   static bool       AlgOrth;
   static bool       AlgWght;
   static bool       MeanMass;
-  static bool       TraceAccum;
   static bool       SpreadDef;
   static bool       DebugE;
   static bool       collLim;
   static bool       collCor;
   static bool       E_split;
-  static bool       MeanKE;
   static YAML::Node config;
 
   //! Constructor
