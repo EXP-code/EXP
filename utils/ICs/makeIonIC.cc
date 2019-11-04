@@ -41,6 +41,8 @@ namespace po = boost::program_options;
 #include "Species.H"
 #include "atomic_constants.H"
 
+#include <sys/stat.h>
+
 //
 // Boost random types
 //
@@ -181,6 +183,31 @@ void set_fpu_gdb_handler(void)
 
 #endif
 
+//===========================================
+// Write ChiantiPy script
+//===========================================
+
+bool file_exists(const std::string& fileName)
+{
+  std::ifstream infile(fileName);
+  return infile.good();
+}
+
+void writeScript(void)
+{
+  const char *py =
+#include "genIonization.h"
+    ;
+
+  const std::string file("genIonization");
+
+  if (not file_exists(file)) {
+    std::ofstream out(file);
+    out << py;
+    chmod(file.c_str(), 0x755);
+  }
+}
+
 double Lunit;
 double Tunit;
 double Vunit;
@@ -207,7 +234,7 @@ std::map<std::string, Itype> Types
 
 // Use CHIANTI or ION for ionization-recombination equilibrium
 //
-bool use_chianti   = false;
+bool use_chianti   = true;
 bool use_init_file = false;
 bool use_yaml      = true;
 
@@ -1734,6 +1761,8 @@ main (int ac, char **av)
     }
   }
   
+  if (use_chianti) writeScript();
+
 #ifdef DEBUG                    // For gdb . . . 
   sleep(20);
   // set_fpu_handler();         // Make gdb trap FPU exceptions
