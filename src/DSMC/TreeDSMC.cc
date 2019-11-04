@@ -34,7 +34,7 @@ static bool levelst_debug = false;
 //
 // Version string for log file stamping
 //
-const std::string TreeDSMC::version = "0.45 [10/21/19 cuda trace accum]";
+const std::string TreeDSMC::version = "0.47 [11/03/19 cuda trace purged]";
 
 //
 // Simulation units
@@ -558,13 +558,6 @@ void TreeDSMC::userinfo()
       cout << ", scattering only is ON";
     else
       cout << ", scattering only is OFF";
-    const std::string eslab = CollideIon::getEStype();
-    cout << ", electron algorithm is <" << eslab << ">";
-    if (eslab.compare("limited")==0) {
-      cout << ", electron collision limit is " << CollideIon::esNum;
-      if (CollideIon::esThr > 0.0)
-	cout << ", q-threshold is "     << CollideIon::esThr;
-    }
   }
   
   cout << endl;
@@ -747,7 +740,6 @@ void TreeDSMC::initialize()
       if (conf["logL"])    CollideIon::logL     = conf["logL"].as<double>();
       if (conf["config"])  CollideIon::config   = conf["config"];
       if (conf["eEPSM"])   CollideIon::ElectronEPSM  = conf["eEPSM"].as<bool>();
-      if (conf["estype"])  CollideIon::setEStype(conf["estype"].as<std::string>());
     }
   }
   catch (YAML::Exception & error) {

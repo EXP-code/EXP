@@ -601,14 +601,6 @@ private:
   static NTC::T elecElec;
 
   //@{
-  //! Specify the electron scattering algorithm
-  enum ElectronScatter {none, always, classical, limited, fixed};
-  typedef std::map<std::string, ElectronScatter> esMapType;
-  static ElectronScatter esType;
-  static esMapType esMap;
-  //@}
-
-  //@{
   //! Variables for Trace accumulation algorithm
   enum class AccumType {ion_ion, ion_electron};
   typedef std::tuple<double, double> accumTypeData;
@@ -1720,33 +1712,6 @@ public:
 
   //! Compute/retrieve mean molecular weight for this cell
   virtual double molWeight(pCell *c);
-
-  //! Set electron scattering type
-  static void setEStype(const std::string& type)
-  {
-    esMapType::const_iterator it = esMap.find(type);
-    if (it != esMap.end())
-      esType = it->second;
-    else {
-      if (myid==0) {
-	std::cout << "CollideIon::setEStype: could not identify type <"
-		  << type << ">, defaulting to <always>" << std::endl;
-				// Be verbose here for clarity
-	std::cout << "--- Available types ---" << std::endl;
-	for (auto s : esMap) std::cout << "  " << s.first << std::endl;
-	std::cout << "-----------------------" << std::endl;
-      }
-      esType = always;
-    }
-  }
-
-  //! Get electron scattering type
-  static std::string getEStype()
-  {
-    for (auto i : esMap)
-      if (esType == i.second) return i.first;
-    return "unknown";
-  }
 
 };
 
