@@ -205,7 +205,7 @@ void writeScript(void)
   if (not file_exists(file)) {
     std::ofstream out(file);
     out << py;
-    if (chmod(file.c_str(), 0x755)) {
+    if (chmod(file.c_str(), S_IWUSR | S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
       perror("Error in chmod:");
     }
   }
