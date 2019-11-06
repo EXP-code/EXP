@@ -2147,7 +2147,9 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 
 	      if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) {
 		csections[id][Tord(T)][crsvel];
-		std::get<2>(IIxc) += crsvel * p1->dattrib[s1.second] * p2->dattrib[s2.second];
+		std::get<2>(IIxc) += crsvel *
+		  p1->dattrib[s1.second] / atomic_weights[Z1] *
+		  p2->dattrib[s2.second] / atomic_weights[Z2] ;
 	      }
 	    }
 	      
@@ -2165,7 +2167,9 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	      
 	      if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) {
 		csections[id][Tord(T)][crsvel];
-		std::get<2>(IIxc) += crsvel * p1->dattrib[s1.second] * p2->dattrib[s2.second];
+		std::get<2>(IIxc) += crsvel *
+		  p1->dattrib[s1.second] / atomic_weights[Z1] *
+		  p2->dattrib[s2.second] / atomic_weights[Z2] ;
 	      }
 	    }
 	    
@@ -2181,11 +2185,13 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    
 	    if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) {
 	      csections[id][Tord(T)][crsvel];
-	      std::get<2>(IExc12) += crsvel * p1->dattrib[s1.second] * Eta2;
+	      std::get<2>(IExc12) += crsvel *
+		p1->dattrib[s1.second] / atomic_weights[Z1] * Eta2;
 	    }
 	    if ((crsvel=crossSectionTrace(id, c, p2, p1, cr, T)*cr) > 0.0) {
 	      csections[id][Tord(T)][crsvel];
-	      std::get<2>(IExc21) += crsvel * p2->dattrib[s1.second] * Eta1;
+	      std::get<2>(IExc21) += crsvel *
+		p2->dattrib[s1.second] / atomic_weights[Z1] * Eta1;
 	    }
 	  }
 
@@ -2198,11 +2204,13 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    
 	    if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) {
 	      csections[id][Tord(T)][crsvel];
-	      std::get<2>(IExc12) += crsvel * p1->dattrib[s1.second] * Eta2;
+	      std::get<2>(IExc12) += crsvel *
+		p1->dattrib[s1.second] / atomic_weights[Z1] * Eta2;
 	    }
 	    if ((crsvel=crossSectionTrace(id, c, p2, p1, cr, T)*cr) > 0.0) {
 	      csections[id][Tord(T)][crsvel];
-	      std::get<2>(IExc21) += crsvel * p2->dattrib[s1.second] * Eta1;
+	      std::get<2>(IExc21) += crsvel *
+		p2->dattrib[s1.second] / atomic_weights[Z1] * Eta1;
 	    }
 	  }
 	  
@@ -2215,11 +2223,13 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    
 	    if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) {
 	      csections[id][Tord(T)][crsvel];
-	      std::get<2>(IExc12) += crsvel * p1->dattrib[s1.second] * Eta2;
+	      std::get<2>(IExc12) += crsvel *
+		p1->dattrib[s1.second] / atomic_weights[Z1] * Eta2;
 	    }
 	    if ((crsvel=crossSectionTrace(id, c, p2, p1, cr, T)*cr) > 0.0) {
 	      csections[id][Tord(T)][crsvel];
-	      std::get<2>(IExc21) += crsvel * p2->dattrib[s1.second] * Eta1;
+	      std::get<2>(IExc21) += crsvel *
+		p2->dattrib[s1.second] / atomic_weights[Z1] * Eta1;
 	    }
 	  }
 	    
@@ -2232,11 +2242,13 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    
 	    if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) {
 	      csections[id][Tord(T)][crsvel];
-	      std::get<2>(IExc12) += crsvel * p1->dattrib[s1.second] * Eta2;
+	      std::get<2>(IExc12) += crsvel *
+		p1->dattrib[s1.second] / atomic_weights[Z1] * Eta2;
 	    }
 	    if ((crsvel=crossSectionTrace(id, c, p2, p1, cr, T)*cr) > 0.0) {
 	      csections[id][Tord(T)][crsvel];
-	      std::get<2>(IExc21) += crsvel * p2->dattrib[s1.second] * Eta1;
+	      std::get<2>(IExc21) += crsvel *
+		p2->dattrib[s1.second] / atomic_weights[Z1] * Eta1;
 	    }
 	  }
 
@@ -2249,11 +2261,13 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    
 	    if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) {
 	      csections[id][Tord(T)][crsvel];
-	      std::get<2>(IExc12) += crsvel * p1->dattrib[s1.second] * Eta2;
+	      std::get<2>(IExc12) += crsvel *
+		p1->dattrib[s1.second] / atomic_weights[Z1] * Eta2;
 	    }
 	    if ((crsvel=crossSectionTrace(id, c, p2, p1, cr, T)*cr) > 0.0) {
 	      csections[id][Tord(T)][crsvel];
-	      std::get<2>(IExc21) += crsvel * p2->dattrib[s1.second] * Eta1;
+	      std::get<2>(IExc21) += crsvel *
+		p2->dattrib[s1.second] / atomic_weights[Z1] * Eta1;
 	    }
 	  }
 	}
