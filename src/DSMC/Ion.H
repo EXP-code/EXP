@@ -335,6 +335,14 @@ public:
   std::map<unsigned short, std::vector<double> >
   recombEquil(unsigned short Z, double Temperature, double Emin, double Emax, 
 	      int norder=40, bool use_log=false);
+
+  double
+  collEmiss(unsigned short Z, unsigned short C, double T, 
+	    double Emax, int norder=40);
+
+  double
+  freeFreeEmiss(unsigned short Z, unsigned short C, double T, 
+		double Emax, int norder=40);
   //@}
 
 #if HAVE_LIBCUDA==1
@@ -535,6 +543,7 @@ protected:
   collType collExciteCrossSingle(double E, int id);
   collType collExciteCrossGrid  (double E, int id);
   void     collExciteMakeGrid   (int id);
+  double   collExciteOneLine    (double E, int j, int id);
   //@}
 
   //@{
@@ -709,6 +718,9 @@ public:
     return freeFreeCrossEvGridTest(E, rnd, id);
   }
 
+
+  //! Free-free integrated emission for debugging
+  double freeFreeEmission(double Ei, int id) ;
 
   //! Get the collisional excitation cross section
   collType collExciteCross(double E, int id)

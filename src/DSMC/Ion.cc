@@ -1155,6 +1155,138 @@ Ion::collExciteCrossSingle(double E, int id)
   return CEcum;
 }
 
+/** 
+    Calculate the collision excitation cross sections for a single
+    line from the ground state (i=1)
+*/
+double Ion::collExciteOneLine(double E, int j, int id)
+{
+				// If the data is missing, assume zero
+				// cross section
+  if (splups.size() == 0) {
+    return 0.0;
+  }
+
+  // The collision strengths have already by divided by the
+  // statistical weight of the ground level 2j+1.  Saving the ground
+  // state multiplicity, mult0, allows the ratio to be used in
+  // computing Omega
+
+  double totalCross = 0.0, mult0 = 2*elvlc[1].J + 1;
+
+  for (size_t i=0; i<splups.size(); i++) {
+
+    double EijEv = splups[i].delERyd*RydtoeV;
+    double Const = splups[i].Const;
+
+    if (splups[i].i==1 and splups[i].j==j and E >= EijEv) {
+
+      assert(splups[i].i == 1);
+      assert(splups[i].spline.size() != 0);
+      
+      // Following Burgess & Tully (BT), 1992, Section 3
+      //
+      double Ej = E - EijEv, x = 0, y = 0;
+      int  type = splups[i].type;
+      
+				// BT eq. 5, eq. 13
+      if (type==1 or type==4) {
+	x = 1.0 - (log(Const)/(log((Ej/EijEv) + Const)));
+      }
+				// BT eq. 9, eq. 11
+      if (type==2 or type==3) {
+	x = (Ej/EijEv)/((Ej/EijEv) + Const);
+      }
+				// BT eq. 11
+
+      // xmin is 0 and xmax is 1, so this if statement is to make sure
+      // x is within the bounds of interpolation
+      //
+      if ( x < 0 or x > 1.0) {
+	std::cout << "ERROR IN EXCITATION CROSS: Ej = " << Ej
+		  << " Eij = " << EijEv << " x = " << x
+		  << " [Node ID=" << myid << "]" << std::endl;
+      }
+
+      // An extra couple of sanity checks for the interpolation
+      //
+      if (type > 4) break;
+      
+      int nspl = splups[i].spline.size();
+
+      // Need at least 3 points for a spline
+      //
+      if (nspl<3) break;
+
+      CacheSplList::iterator it = splUps.find(i);
+      CsplD2Ptr sp;
+
+      if (it == splUps.end()) {
+
+	if (x_array.find(nspl) == x_array.end()) {
+	  std::vector<double> t(nspl);
+	  double dx = 1.0/(nspl - 1);
+	  t[0] = 0.0;
+	  t[nspl-1] = 1.0;
+	  for (int n=1; n<nspl-1; n++) t[n] = dx*n;
+	  x_array[nspl] = t;
+	}
+
+	splUps[i] = sp = CsplD2Ptr(new CsplineD2(x_array[nspl], splups[i].spline));
+      } else {
+	sp = it->second;
+      }
+
+      y = (*sp)(x);
+
+      // Calculate the collision strength from the interpolated value
+      double CStrength = 0.0;
+				// BT, eq. 6
+      if (type == 1) {
+	CStrength = y * log((Ej/EijEv) + M_E);
+      }
+				// BT, eq. 10
+      if (type == 2) {
+	CStrength = y;
+      }
+				// BT, eq. 12
+      if (type == 3) {
+	double fac = Ej/EijEv + 1.0;
+	CStrength = y/(fac*fac);
+      }
+				// BT, eq. 14
+      if (type == 4) {
+	CStrength = y * log((Ej/EijEv) + C);
+      }
+      
+      // From Dere et al. 1997 
+      //
+      elvlcType::iterator eit = elvlc.find(splups[i].j-1);
+      if (eit != elvlc.end()) {
+	double weight = 1.0;
+	if (mult0>0.0) weight = (2*eit->second.J+1)/mult0;
+	if (weight>0) {
+	  double crs1 = (M_PI*a0*a0*(CStrength/weight))/(E*Ion::eVtoRyd);
+	  if (std::isinf(crs1)) {
+	    std::cout << "crs1 is Inf: weight=" << weight << ", E="
+		      << E << std::endl;
+	  } else {
+	    return crs1;
+	  }
+	} else {
+	  std::cout << "Coll crs for level=" << splups[i].j-1
+		    << " at (Z, C)=(" << Z << ", " << C << ")"
+		    << " has zero weight" << std::endl;
+	}
+      }
+      return 0.0;
+    }
+    
+  }
+  
+  return 0.0;
+}
+
 Ion::collType
 Ion::collExciteCrossGrid(double E, int id)
 {
@@ -1460,9 +1592,9 @@ std::pair<double, double> Ion::freeFreeCrossSingle(double Ei, int id)
   //
   if (C==1) return std::pair<double, double>(0.0, 0.0);
 
-  // Scaled inverse energy (initial)
+  // Initial scaled momentum
   //
-  double ni       = sqrt( RydtoeV*(C-1)*(C-1)/Ei );
+  double pi       = sqrt(Ei*1.0e-6/mec2*(Ei*1.0e-6/mec2 + 2.0));
 
   // Integration variables
   //
@@ -1488,19 +1620,19 @@ std::pair<double, double> Ion::freeFreeCrossSingle(double Ei, int id)
     if (Ef <= 0.0) break;
 
     //
-    // Scaled inverse energy (final)
+    // Final scaled momentum
     //
-    double nf     = sqrt( RydtoeV*(C-1)*(C-1)/Ef );
+    double pf     = sqrt(Ef*1.0e-6/mec2*(Ef*1.0e-6/mec2 + 2.0));
 
     //
     // Elwert factor
     //
-    double corr   = (1.0 - exp(-2.0*M_PI*ni))/(1.0 - exp(-2.0*M_PI*nf));
+    double corr   = pi/pf*(1.0 - exp(-2.0*M_PI*Z*afs/pi))/(1.0 - exp(-2.0*M_PI*Z*afs/pf));
 
     //
-    // Differential cross section contribution
+    // Differential cross section contribution (logarithmic integral)
     //
-    double dsig   = A * ni*nf * log((nf + ni)/(nf - ni)) * corr * dk;
+    double dsig   = r0*r0*Z*Z*afs/(pi*pi) * 16.0/3.0 * log((pi + pf)/(pi - pf))/k * corr * dk;
 
     cum = cum + dsig;
 
@@ -1566,6 +1698,61 @@ std::pair<double, double> Ion::freeFreeCrossSingle(double Ei, int id)
   }
 
   return std::pair<double, double>(phi, ffWaveCross);
+}
+
+// Compute the integrated emission for free-free emissivity test
+//
+double Ion::freeFreeEmission(double Ei, int id) 
+{
+  // No free-free with a neutral
+  //
+  if (C==1) return 0.0;
+  double P = C - 1;
+
+  // Initial scaled momentum
+  //
+  double pi       = sqrt(Ei*1.0e-6/mec2*(Ei*1.0e-6/mec2 + 2.0));
+
+  // Integration variables
+  //
+  double cum      = 0;
+  double dk       = (kgrid[1] - kgrid[0])*log(10.0);
+
+  for (int j = 0; j < kffsteps; j++) {
+    //
+    // Photon energy in eV
+    //
+    double k      = kgr10[j];
+
+    //
+    // Final kinetic energy
+    //
+    double Ef     = Ei - k;
+
+    //
+    // Can't emit a photon if not enough KE!
+    //
+    if (Ef <= 0.0) break;
+
+    //
+    // Final scaled momentum
+    //
+    double pf     = sqrt(Ef*1.0e-6/mec2*(Ef*1.0e-6/mec2 + 2.0));
+
+    //
+    // Elwert factor
+    //
+    double corr   = pi/pf*(1.0 - exp(-2.0*M_PI*P*afs/pi))/(1.0 - exp(-2.0*M_PI*P*afs/pf));
+
+    //
+    // Differential cross section * photon energy
+    //
+    double dsig   = r0*r0*P*P*afs/(pi*pi) * 16.0/3.0 * log((pi + pf)/(pi - pf)) * corr * dk * k;
+
+    cum = cum + dsig;
+  }
+
+  return cum;
 }
 
 
@@ -2921,11 +3108,14 @@ double VernerData::cross(const lQ& Q, double EeV)
   
   double vCross = 0.0;
   
-  if (Ion::no_verner and Q.first==1 and Q.second==2) {
+  unsigned short Z = Q.first, C = Q.second;
+  
+
+  if (Ion::no_verner and Z==C-1) {
 
     for (int n=1; n<11; n++) {
     
-      double Eiz = ryd/(n*n);	// These energies are now in eV
+      double Eiz = ryd*Z*Z/(n*n);	// These energies are now in eV
       double Eph = EeV + Eiz;
 
       for (int l=0; l<n; l++) {
@@ -3521,6 +3711,119 @@ chdata::recombEquil(unsigned short Z, double T,
   for (unsigned short C=2; C<Z+1; C++) 
     ret[C] = {nn[C-1]/norm, ionize[lQ(Z, C)], recomb[lQ(Z, C)]};
   ret[Z+1] = {nn[Z]/norm, 0.0, recomb[lQ(Z, Z+1)]};
+  return ret;
+}
+
+double
+chdata::collEmiss(unsigned short Z, unsigned short C, double T, 
+		  double Emax, int norder)
+{
+  // Laguerre weights and knots
+  //
+  if (Lagu.get() == 0) 
+    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+  else if (Lagu->n != norder) 
+    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+
+  // Check for and retrieve the Ion
+  //
+  boost::shared_ptr<Ion> I;
+  lQ Q(Z, C);
+  auto itr = IonList.find(Q);
+
+  if (itr == IonList.end()) return 0.0;
+  else I = itr->second;
+
+
+  // Make a line list
+  //
+  typedef std::tuple<int, double, double> lElem;
+  std::vector<lElem> llist;
+
+  for (size_t i=0; i<I->splups.size(); i++) {
+
+    double EijEv = I->splups[i].delERyd*Ion::RydtoeV;
+    double Const = I->splups[i].Const;
+
+    if (I->splups[i].i==1) {
+
+      assert(I->splups[i].i == 1);
+      assert(I->splups[i].spline.size() != 0);
+      
+      llist.push_back(lElem(I->splups[i].j, EijEv, 0.0));
+    }
+  }
+  
+  // Excitation loop
+  //
+  const double beta = 0.5*me/(boltz*T);
+  const double K    = 2.0/sqrt(M_PI*beta);
+  const double kTeV = boltzEv*T;
+
+  for (auto & v : llist) {
+    
+    double ymax = Emax/kTeV;	// Scaled min and max energy
+    double ymin = std::get<1>(v)/kTeV; 
+
+    for (int i=1; i<=norder; i++) {
+
+      double y = Lagu->knot(i);
+      double w = Lagu->weight(i);
+
+      std::get<2>(v) += w * (ymin + y) *
+	I->collExciteOneLine((ymin + y)*kTeV, std::get<0>(v), 0);
+    }
+
+    std::get<2>(v) *= exp(-ymin) * K * std::get<1>(v)*eV;
+  }
+
+  // Sum up the entire spectrum
+  //
+  double ret = 0.0;
+  for (auto v : llist) ret += std::get<2>(v);
+
+  return ret;
+}
+
+double
+chdata::freeFreeEmiss(unsigned short Z, unsigned short C, double T, 
+		      double Emax, int norder)
+{
+  // No free free from neutral
+  //
+  if (C==1) return 0.0;
+
+  // Laguerre weights and knots
+  //
+  if (Lagu.get() == 0) 
+    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+  else if (Lagu->n != norder) 
+    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+
+  // Check for and retrieve the Ion
+  //
+  boost::shared_ptr<Ion> I;
+  lQ Q(Z, C);
+  auto itr = IonList.find(Q);
+
+  if (itr == IonList.end()) return 0.0;
+  else I = itr->second;
+
+  
+  const double beta = 0.5*me/(boltz*T);
+  const double K    = 2.0/sqrt(M_PI*beta);
+  const double kTeV = boltzEv*T;
+
+  double ret = 0.0;
+
+  for (int i=1; i<=norder; i++) {
+
+    double y = Lagu->knot(i);
+    double w = Lagu->weight(i);
+
+    ret += w * y * I->freeFreeEmission(y*kTeV, 0) * K * eV;
+  }
+
   return ret;
 }
 
