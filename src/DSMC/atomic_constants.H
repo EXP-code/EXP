@@ -1,6 +1,9 @@
 #ifndef _atomic_constants_H
 #define _atomic_constants_H
 
+// Fine structure constant
+const double afs       = 0.0072973525693;
+
 // Proton mass (g)
 const double mp        = 1.67262158e-24;
 
