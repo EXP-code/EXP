@@ -2147,9 +2147,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 
 	      if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) {
 		csections[id][Tord(T)][crsvel];
-		std::get<2>(IIxc) += crsvel *
-		  p1->dattrib[s1.second] / atomic_weights[Z1] *
-		  p2->dattrib[s2.second] / atomic_weights[Z2] ;
+		std::get<2>(IIxc) += crsvel * p1->dattrib[s1.second] * p2->dattrib[s2.second];
 	      }
 	    }
 	      
@@ -2167,9 +2165,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	      
 	      if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) {
 		csections[id][Tord(T)][crsvel];
-		std::get<2>(IIxc) += crsvel *
-		  p1->dattrib[s1.second] / atomic_weights[Z1] *
-		  p2->dattrib[s2.second] / atomic_weights[Z2] ;
+		std::get<2>(IIxc) += crsvel * p1->dattrib[s1.second] * p2->dattrib[s2.second];
 	      }
 	    }
 	    
@@ -2185,13 +2181,11 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    
 	    if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) {
 	      csections[id][Tord(T)][crsvel];
-	      std::get<2>(IExc12) += crsvel *
-		p1->dattrib[s1.second] / atomic_weights[Z1] * Eta2;
+	      std::get<2>(IExc12) += crsvel * p1->dattrib[s1.second] * Eta2;
 	    }
 	    if ((crsvel=crossSectionTrace(id, c, p2, p1, cr, T)*cr) > 0.0) {
 	      csections[id][Tord(T)][crsvel];
-	      std::get<2>(IExc21) += crsvel *
-		p2->dattrib[s1.second] / atomic_weights[Z1] * Eta1;
+	      std::get<2>(IExc21) += crsvel * p2->dattrib[s1.second] * Eta1;
 	    }
 	  }
 
@@ -2204,13 +2198,11 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    
 	    if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) {
 	      csections[id][Tord(T)][crsvel];
-	      std::get<2>(IExc12) += crsvel *
-		p1->dattrib[s1.second] / atomic_weights[Z1] * Eta2;
+	      std::get<2>(IExc12) += crsvel * p1->dattrib[s1.second] * Eta2;
 	    }
 	    if ((crsvel=crossSectionTrace(id, c, p2, p1, cr, T)*cr) > 0.0) {
 	      csections[id][Tord(T)][crsvel];
-	      std::get<2>(IExc21) += crsvel *
-		p2->dattrib[s1.second] / atomic_weights[Z1] * Eta1;
+	      std::get<2>(IExc21) += crsvel * p2->dattrib[s1.second] * Eta1;
 	    }
 	  }
 	  
@@ -2223,13 +2215,11 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    
 	    if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) {
 	      csections[id][Tord(T)][crsvel];
-	      std::get<2>(IExc12) += crsvel *
-		p1->dattrib[s1.second] / atomic_weights[Z1] * Eta2;
+	      std::get<2>(IExc12) += crsvel * p1->dattrib[s1.second] * Eta2;
 	    }
 	    if ((crsvel=crossSectionTrace(id, c, p2, p1, cr, T)*cr) > 0.0) {
 	      csections[id][Tord(T)][crsvel];
-	      std::get<2>(IExc21) += crsvel *
-		p2->dattrib[s1.second] / atomic_weights[Z1] * Eta1;
+	      std::get<2>(IExc21) += crsvel * p2->dattrib[s1.second] * Eta1;
 	    }
 	  }
 	    
@@ -2242,13 +2232,11 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    
 	    if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) {
 	      csections[id][Tord(T)][crsvel];
-	      std::get<2>(IExc12) += crsvel *
-		p1->dattrib[s1.second] / atomic_weights[Z1] * Eta2;
+	      std::get<2>(IExc12) += crsvel * p1->dattrib[s1.second] * Eta2;
 	    }
 	    if ((crsvel=crossSectionTrace(id, c, p2, p1, cr, T)*cr) > 0.0) {
 	      csections[id][Tord(T)][crsvel];
-	      std::get<2>(IExc21) += crsvel *
-		p2->dattrib[s1.second] / atomic_weights[Z1] * Eta1;
+	      std::get<2>(IExc21) += crsvel * p2->dattrib[s1.second] * Eta1;
 	    }
 	  }
 
@@ -2261,13 +2249,11 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
 	    
 	    if ((crsvel=crossSectionTrace(id, c, p1, p2, cr, T)*cr) > 0.0) {
 	      csections[id][Tord(T)][crsvel];
-	      std::get<2>(IExc12) += crsvel *
-		p1->dattrib[s1.second] / atomic_weights[Z1] * Eta2;
+	      std::get<2>(IExc12) += crsvel * p1->dattrib[s1.second] * Eta2;
 	    }
 	    if ((crsvel=crossSectionTrace(id, c, p2, p1, cr, T)*cr) > 0.0) {
 	      csections[id][Tord(T)][crsvel];
-	      std::get<2>(IExc21) += crsvel *
-		p2->dattrib[s1.second] / atomic_weights[Z1] * Eta1;
+	      std::get<2>(IExc21) += crsvel * p2->dattrib[s1.second] * Eta1;
 	    }
 	  }
 	}
@@ -9573,7 +9559,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = IS.selectFFInteract(FF2[id]);
 
-	  dE = tmpE * Prob * etaP1[id];
+	  dE = tmpE * Prob/atomic_weights[Z2] * etaP1[id];
 
 #ifdef XC_DEEP2
 	  std::cout << "testT: ffDE=" << tmpE
@@ -9604,7 +9590,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = IS.selectFFInteract(FF1[id]);
 
-	  dE = tmpE * Prob * etaP2[id];
+	  dE = tmpE * Prob/atomic_weights[Z1] * etaP2[id];
 
 #ifdef XC_DEEP2
 	  std::cout << "testT: ffDE=" << tmpE
@@ -9641,7 +9627,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = IS.selectCEInteract(ch.IonList[Q2], CE2[id]);
 
-	  dE = tmpE * Prob * etaP1[id];
+	  dE = tmpE * Prob/atomic_weights[Z2] * etaP1[id];
 
 #ifdef XC_DEEP2
 	  {
@@ -9678,7 +9664,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  double tmpE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]);
 
-	  dE = tmpE * Prob * etaP2[id];
+	  dE = tmpE * Prob/atomic_weights[Z1] * etaP2[id];
 
 #ifdef XC_DEEP2
 	  {
@@ -9763,7 +9749,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  Prob = WW;
 	  
 	  double tmpE = IS.DIInterLoss(ch.IonList[Q2]);
-	  dE = tmpE * Prob * etaP1[id];
+	  dE = tmpE * Prob/atomic_weights[Z2] * etaP1[id];
 
 	  // The kinetic energy of the ionized electron is lost
 	  // from the COM KE
@@ -9854,7 +9840,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  Prob = WW;
 
 	  double tmpE = IS.DIInterLoss(ch.IonList[Q1]);
-	  dE = tmpE * Prob * etaP2[id];
+	  dE = tmpE * Prob/atomic_weights[Z1] * etaP2[id];
 	  
 	  // The kinetic energy of the ionized electron is lost
 	  // from the COM KE
@@ -9989,7 +9975,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
 	  double eE = Echg / eV;
 
-	  if (Recomb_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * Prob * etaP1[id];
+	  if (Recomb_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * Prob/atomic_weights[Z1] * etaP1[id];
 	  if (energy_scale > 0.0) dE *= energy_scale;
 
 	  ctd->RR[id][0] += Prob * etaP1[id];
@@ -10118,7 +10104,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  
 	  double eE = Echg / eV;
 
-	  if (Recomb_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * Prob * etaP2[id];
+	  if (Recomb_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * Prob/atomic_weights[Z1] * etaP2[id];
 	  if (energy_scale > 0.0) dE *= energy_scale;
 
 	  ctd->RR[id][0] += Prob * etaP2[id];
