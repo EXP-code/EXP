@@ -341,8 +341,7 @@ public:
 	    double Emax, int norder=40);
 
   double
-  freeFreeEmiss(unsigned short Z, unsigned short C, double T, 
-		double Emax, int norder=40);
+  freeFreeEmiss(unsigned short Z, unsigned short C, double T);
   //@}
 
 #if HAVE_LIBCUDA==1
@@ -717,10 +716,6 @@ public:
   {
     return freeFreeCrossEvGridTest(E, rnd, id);
   }
-
-
-  //! Free-free integrated emission for debugging
-  double freeFreeEmission(double Ei, int id) ;
 
   //! Get the collisional excitation cross section
   collType collExciteCross(double E, int id)

@@ -1700,61 +1700,6 @@ std::pair<double, double> Ion::freeFreeCrossSingle(double Ei, int id)
   return std::pair<double, double>(phi, ffWaveCross);
 }
 
-// Compute the integrated emission for free-free emissivity test
-//
-double Ion::freeFreeEmission(double Ei, int id) 
-{
-  // No free-free with a neutral
-  //
-  if (C==1) return 0.0;
-  double P = C - 1;
-
-  // Initial scaled momentum
-  //
-  double pi       = sqrt(Ei*1.0e-6/mec2*(Ei*1.0e-6/mec2 + 2.0));
-
-  // Integration variables
-  //
-  double cum      = 0;
-  double dk       = (kgrid[1] - kgrid[0])*log(10.0);
-
-  for (int j = 0; j < kffsteps; j++) {
-    //
-    // Photon energy in eV
-    //
-    double k      = kgr10[j];
-
-    //
-    // Final kinetic energy
-    //
-    double Ef     = Ei - k;
-
-    //
-    // Can't emit a photon if not enough KE!
-    //
-    if (Ef <= 0.0) break;
-
-    //
-    // Final scaled momentum
-    //
-    double pf     = sqrt(Ef*1.0e-6/mec2*(Ef*1.0e-6/mec2 + 2.0));
-
-    //
-    // Elwert factor
-    //
-    double corr   = pi/pf*(1.0 - exp(-2.0*M_PI*P*afs/pi))/(1.0 - exp(-2.0*M_PI*P*afs/pf));
-
-    //
-    // Differential cross section * photon energy
-    //
-    double dsig   = r0*r0*P*P*afs/(pi*pi) * 16.0/3.0 * log((pi + pf)/(pi - pf)) * corr * dk * k;
-
-    cum = cum + dsig;
-  }
-
-  return cum;
-}
-
 
 void Ion::freeFreeMakeEvGrid(int id)
 {
@@ -3786,43 +3731,15 @@ chdata::collEmiss(unsigned short Z, unsigned short C, double T,
 }
 
 double
-chdata::freeFreeEmiss(unsigned short Z, unsigned short C, double T, 
-		      double Emax, int norder)
+chdata::freeFreeEmiss(unsigned short Z, unsigned short C, double T)
 {
   // No free free from neutral
   //
   if (C==1) return 0.0;
 
-  // Laguerre weights and knots
-  //
-  if (Lagu.get() == 0) 
-    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
-  else if (Lagu->n != norder) 
-    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
-
-  // Check for and retrieve the Ion
-  //
-  boost::shared_ptr<Ion> I;
-  lQ Q(Z, C);
-  auto itr = IonList.find(Q);
-
-  if (itr == IonList.end()) return 0.0;
-  else I = itr->second;
-
-  
   const double beta = 0.5*me/(boltz*T);
-  const double K    = 2.0/sqrt(M_PI*beta);
-  const double kTeV = boltzEv*T;
 
-  double ret = 0.0;
-
-  for (int i=1; i<=norder; i++) {
-
-    double y = Lagu->knot(i);
-    double w = Lagu->weight(i);
-
-    ret += w * y * I->freeFreeEmission(y*kTeV, 0) * K * eV;
-  }
+  double ret = Ion::r0*Ion::r0*(C-1)*(C-1)*afs*mec2*1.0e6* 16.0/3.0 / sqrt(beta) * eV;
 
   return ret;
 }

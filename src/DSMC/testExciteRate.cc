@@ -167,8 +167,9 @@ int main (int ac, char **av)
 
       for (int z=zmin; z<=zmax; z++) {
 	for (int c=1; c<z+1; c++) {
-	  n_elc += abund[z] * frac[z-1][c]*c/pt[z]->weight();
-	  ffE   += ch.freeFreeEmiss(z, c+1, T, 100.0, nc);
+	  double nd = abund[z] * frac[z-1][c]/pt[z]->weight();
+	  n_elc += nd*c;
+	  ffE   += nd*ch.freeFreeEmiss(z, c+1, T);
 	}
       }
 	
@@ -176,7 +177,7 @@ int main (int ac, char **av)
 	  << std::setw(16) << n_ion
 	  << std::setw(16) << n_elc
 	  << std::setw(16) << ch.collEmiss(Z, C, T, 100.0, 40)*n_ion*n_elc
-	  << std::setw(16) << ffE*n_ion*n_elc
+	  << std::setw(16) << ffE*n_elc
 	  << std::endl;
     }
   }
