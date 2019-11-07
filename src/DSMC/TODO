@@ -10,3 +10,8 @@ o More generally, all algorithms (Direct, Weighted, Hybrid and Trace)
 
 o Implement Fokker-Planck-Landau collsiions for all methods in
   addition to Trace
+
+o Port recent changes of accumulated interaction Trace algorithm to CUDA
+
+o Parallel CUDA domain decomposition
+
