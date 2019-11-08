@@ -463,10 +463,9 @@ public:
   //! Use Verner et al. fortran subroutine (default: true)
   static bool use_VFKY;
 
-  //! Use Karzas and Latter gs cross section rather than Verner
-  //! (default: false). This will only be used for hydrogen
-  //! recombination.  For all others, we use the Verner table.
-  static bool no_verner;
+  //! Use Karzas and Latter gs cross section for all atoms (default:
+  //! false).
+  static bool pseudoH;
 
   //! Ionization background parameters
   //@{
