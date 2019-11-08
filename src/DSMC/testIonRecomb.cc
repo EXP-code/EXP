@@ -58,9 +58,9 @@ int main (int ac, char **av)
      "minimum temperature")
     ("Tmax,T",		po::value<double>(&Tmax)->default_value(1000000.0),
      "maximum temperature")
-    ("Emin,e",		po::value<double>(&Emin)->default_value(0.01),
+    ("Emin,e",		po::value<double>(&Emin)->default_value(0.001),
      "minimum energy in eV")
-    ("Emax,E",		po::value<double>(&Emax)->default_value(100.0),
+    ("Emax,E",		po::value<double>(&Emax)->default_value(1000.0),
      "maximum energy in eV")
     ("NumT,N",		po::value<int>(&numT)->default_value(200),
      "number of temperature points")
@@ -160,9 +160,11 @@ int main (int ac, char **av)
     }
   }
 
+  bool first_table = true;
+
+
   // Initialize CHIANTI
   //
-
   std::set<unsigned short> ZList = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16};
 
   if (ZList.find(Z) == ZList.end()) {
@@ -318,12 +320,53 @@ int main (int ac, char **av)
 
       if (rates) {
 
-	tab << std::setw(16) << T ;
+	if (first_table) {
+	  tab << "#" << std::endl
+	      << "#" << std::setw(15) << "temp";
+	  for (auto v : val1.back()) {
+	    tab << std::setw(6) << "C";
+	    std::ostringstream sout;
+	    for (int i=1; i<=3; i++) {
+	      sout.str(""); sout << "ionize[" << i << "]";
+	      tab << std::setw(16) << sout.str();
+	    }
+	    for (int i=1; i<=3; i++) {
+	      sout.str(""); sout << "recomb[" << i << "]";
+	      tab << std::setw(16) << sout.str();
+	    }
+	  }
+	  tab << std::endl;
+
+	  int cnt = 1;
+	  tab << "#" << std::setw(15) << cnt++;
+	  for (auto v : val1.back()) {
+	    std::ostringstream sout;
+	    sout.str(""); sout << "[" << cnt++ << "]";
+	    tab << std::setw(6) << sout.str();
+	    for (size_t j=0; j<6; j++) {
+	      sout.str(""); sout << "[" << cnt++ << "]";
+	      tab << std::setw(16) << sout.str();
+	    }
+	  }
+	  tab << std::endl;
+
+	  tab << "#" << std::setw(15) << "----------";
+	  for (auto v : val1.back()) {
+	    tab << std::setw(6) << "----";
+	    for (size_t j=0; j<6; j++)
+	      tab << std::setw(16) << "----------";
+	  }
+	  tab << std::endl;
+
+	  first_table = false;
+	}
+
+	tab << std::setw(16) << T;
 	for (auto v : val1.back()) {
 	  unsigned short C = v.first;
+	  tab << std::setw(6) << C;
 	  for (size_t j=1; j<3; j++) {
-	    tab << std::setw( 3) << C
-		<< std::setw(16) << valH[C][j]
+	    tab << std::setw(16) << valH[C][j]
 		<< std::setw(16) << val0[C][j]
 		<< std::setw(16) << v.second[j];
 	  }
