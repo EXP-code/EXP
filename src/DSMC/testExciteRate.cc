@@ -91,6 +91,12 @@ int main (int ac, char **av)
     return 1;
   }
 
+  // Sanity check
+  if (Z<zmin or Z>zmax) {
+    std::cout << "Your requested value for the base element must in your requested range of [" << zmin << ", " << zmax << "]" << std::endl;
+    return -2;
+  }
+
   std::ofstream out("testExciteRate.out");
 
   std::map<unsigned short, double> abund = {{1, 0.76}, {2, 0.24}};
