@@ -53,8 +53,7 @@ Ion::IB_Lab Ion::ib_lab = {
 
 Ion::IB_Type Ion::ib_type = Ion::none;
 
-bool Ion::use_VFKY  = true;
-bool Ion::pseudoH   = true;
+bool Ion::use_VFKY  = false;
 
 // Free-free grid
 //
@@ -3078,31 +3077,6 @@ double VernerData::cross(const lQ& Q, double EeV)
 	vCross += cross;
       }
     }
-  } else if (Ion::pseudoH) {
-
-    // 1 inverse cm = 1.239.. eV
-    const double incmEv = 1.239842e-4;
-
-    double IP = ch->ipdata[rQ];
-    Ion*    N = ch->IonList[rQ].get();
-
-    for (auto f : N->fblvl) {
-
-      // These energies are now in eV
-      double Eiz = IP - f.second.encmth * incmEv;
-      double Eph = EeV + Eiz;
-      
-      // Milne relation
-      double Milne = 0.5*Eph*Eph/(mec2*EeV)*2.0*f.second.mult/mult0;
-
-      double crossPh = 7.90706903681e-04 * pow(Eiz/ryd, 2.0)*
-	pow(ryd/Eph, 3.0)/f.second.pqn;
-
-      double cross = crossPh * Milne;
-	
-      vCross += cross;
-    }
-
   } else {
 
     for (auto u : data[rQ]) {

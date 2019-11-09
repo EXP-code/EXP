@@ -463,10 +463,6 @@ public:
   //! Use Verner et al. fortran subroutine (default: true)
   static bool use_VFKY;
 
-  //! Use Karzas and Latter gs cross section for all atoms (default:
-  //! false).
-  static bool pseudoH;
-
   //! Ionization background parameters
   //@{
   static double HandM_coef;
