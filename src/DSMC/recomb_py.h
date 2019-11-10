@@ -1,5 +1,12 @@
 R"(#!/usr/bin/python3
 
+# Try to prevent ChiantiPy from grabbing the mouse                              
+#
+import matplotlib as mpl
+mpl.use('Agg')
+
+# Now import ChiantiPy
+#
 import ChiantiPy.core as ch
 import numpy as np
 import matplotlib.pyplot as plt
