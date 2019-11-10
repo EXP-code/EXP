@@ -537,6 +537,12 @@ private:
   std::vector< StatsMPI >                            recombA;
   std::vector< StatsMPI >                            ionizeA;
   std::vector< phStatMap >                           photoStat;
+
+  typedef std::map<unsigned short, std::vector<double>>
+  recombRatioMap;
+
+  std::vector< recombRatioMap >                      recombR;
+
   //@{
 
   //! Trace-species velocity factors including reduced mass for a
@@ -876,6 +882,51 @@ private:
 
   // ACG seed
   uint32_t acg_seed;
+
+  //@{
+  //! Use recombination ratio tables
+  static bool use_ratio;
+
+  //! Recombination ratio class for maintaining table
+  class RecombRatio
+  {
+  private:
+    unsigned short Z;
+    double Tmn, Tmx, dT;
+    int numT;
+
+    // Data tables
+    std::vector<std::vector<double>> cdata;
+
+    // Write Python script to working directory
+    void writeScript();
+
+    //@{
+    //! Default integration values
+    const double Emin0 = 1.0e-3; // Minimum energy in eV
+    const double Emax0 = 4000.0; // Maximum energy in eV
+    const int    numE0 = 200;	 // Intervals in log energy
+    const int   norder = 100;	 // Number of Legendre knots
+    //@}
+
+  public:
+
+    /** Constructor
+	@param Z is the atomic element number
+	@param ch is the Chianti data instance
+	@param Tmin is the minimum temperature in the table (degrees K)
+	@param Tmax is the maximum temperature in the table (degrees K)
+	@param numT is the number of temperature knots in the table
+    */
+    RecombRatio(unsigned short Z, chdata& ch, double Tmin, double Tmax, int numT);
+
+    //! Interpolate the ratio from the table
+    double operator()(unsigned short C, double T);
+  };
+
+  std::map<unsigned short, boost::shared_ptr<RecombRatio>> recombRatio;
+  //@}
+
 
 public:
 
@@ -1606,8 +1657,7 @@ public:
   static double     Nmax;
   static double     Tmin;
   static double     Tmax;
-  static unsigned   Nnum;
-  static unsigned   Tnum;
+  static unsigned   numT;
   static unsigned   maxSel;
   static unsigned   NoDelC;
   static unsigned   maxCoul;

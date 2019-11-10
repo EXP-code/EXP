@@ -13,6 +13,9 @@
 
 #include <boost/filesystem.hpp>
 
+#include <errno.h>
+#include <sys/stat.h>
+
 #include "global.H"
 #include "TreeDSMC.H"
 #include "CollideIon.H"
@@ -23,7 +26,7 @@
 // Version info
 //
 #define NAME_ID    "CollideIon"
-#define VERSION_ID "0.41 [10/21/19 trace accum]"
+#define VERSION_ID "0.42 [11/10/19 trace ratio]"
 
 using namespace std;
 using namespace NTC;
@@ -31,9 +34,8 @@ using namespace NTC;
 double   CollideIon::Nmin       = 1.0e-08;
 double   CollideIon::Nmax       = 1.0e+25;
 double   CollideIon::Tmin       = 1.0e+03;
-double   CollideIon::Tmax       = 1.0e+08;
-unsigned CollideIon::Nnum       = 400;
-unsigned CollideIon::Tnum       = 200;
+double   CollideIon::Tmax       = 1.0e+07;
+unsigned CollideIon::numT       = 400;
 string   CollideIon::cache      = ".HeatCool";
 bool     CollideIon::equiptn    = false;
 bool     CollideIon::scatter    = false;
@@ -67,6 +69,7 @@ double   CollideIon::scatFac1   = 1.0; // Hybrid algorithm
 double   CollideIon::scatFac2   = 1.0; // Hybrid algorithm
 double   CollideIon::tolE       = 1.0e-05;
 double   CollideIon::tolCS      = 1.0;
+bool     CollideIon::use_ratio  = false;
 
 
 // The recommended value for qCrit is now -1 (that is, turn it off).
@@ -795,6 +798,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   accumIIxc.resize(nthrds);	     // Trace
   accumIExc.resize(nthrds);	     // Trace
   photoStat.resize(nthrds);	     // Photoionize
+  recombR  .resize(nthrds);	     // Trace (so far . . .)
 
   for (auto &v : tauD) {
     v.resize(4);
@@ -884,6 +888,16 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   }
 
   spectrumSetup();
+
+
+  // Recombination ratio
+  //
+  if (use_ratio and aType == Trace) {
+				// Loop through element list
+    for (auto Z : ZList) {	// and make ratio tables
+      recombRatio[Z] = boost::make_shared<RecombRatio>(Z, ch, Tmin, Tmax, numT);
+    }
+  }
 
   // Collision weight debugging
   //
@@ -1224,6 +1238,9 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
   //
   double crs_units = 1e-14 / (TreeDSMC::Lunit*TreeDSMC::Lunit);
 
+  // Mean temperature for recombination ratio
+  //
+  double meanTemp = 0.0;
 
   if (aType == Direct or aType == Weight or aType == Hybrid) {
 
@@ -1627,6 +1644,10 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
     if (Ni>0.0) KEi = 0.5*ivel2*TreeDSMC::Eunit / Ni;
     if (Ne>0.0) KEe = 0.5*evel2*TreeDSMC::Eunit * atomic_weights[0] / Ne;
 
+    // Compute mean temperature
+    //
+    meanTemp = (ivel2 + evel2*atomic_weights[0])*TreeDSMC::Eunit / (Ni + Ne) / (3.0*boltz);
+
     double dbyfac = std::numeric_limits<double>::max();
     if ((ne>0.0 and KEe>0.0) or (ni>0.0 and KEi>0.0)) {
       dbyfac = 0.0;
@@ -1777,6 +1798,29 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
   //
   coulombicScatter(id, cell, tau);
 
+  // Recombination ratio
+  //
+  if (use_ratio and aType == Trace) {
+				// Loop through element list
+    for (auto Z : ZList) {
+      recombR[id][Z].resize(Z);	// Enforce storage size
+      
+      auto p = recombRatio.find(Z);
+				// Sanity check
+      if (p == recombRatio.end()) {
+	std::cerr << "RecombRatio for " << Z
+		  << " not found in map!  This is a logic error."
+		  << std::endl;
+	MPI_Finalize();
+	exit(59);
+      }
+				// Compute the ratios for this temperature
+      for (unsigned short C=2; C<=Z+1; C++)
+	recombR[id][Z][C-2] = (*p->second)(C, meanTemp);
+    }
+  }
+
+  // END: initialize_cell
 }
 
 
@@ -4177,6 +4221,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
 	if (DEBUG_CRS) trap_crs(crs, recomb);
 
+	if (use_ratio) crs *= recombR[id][Z1][C1-2];
+
 	return crs;
       }
       
@@ -4201,6 +4247,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
 	if (DEBUG_CRS) trap_crs(crs, recomb);
 	  
+	if (use_ratio) crs *= recombR[id][Z1][C1-2];
+
 	return crs;
       }
       
@@ -4242,6 +4290,9 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 		    << std::endl;
 #endif
 	  // }
+
+	if (use_ratio) crs *= recombR[id][Z1][C1-2];
+	
 	return crs;
       }
 
@@ -4280,6 +4331,9 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 		    << " fac=" << fac2 << std::endl;
 #endif
 	}
+
+	if (use_ratio) crs *= recombR[id][Z1][C1-2];
+
 	return crs;
       }
       // END: Particle 2 is ion
@@ -17951,6 +18005,13 @@ void CollideIon::processConfig()
       config["KE_WEIGHT"]["value"] = ke_weight = true;
     }
 
+    if (config["RECOMB_RATIO"])
+      use_ratio = config["RECOMB_RATIO"]["value"].as<bool>();
+    else {
+      config["RECOMB_RATIO"]["desc"] = "Upscale Verner recombintation cross sections by thermal rate coefficient ratio";
+      config["RECOMB_RATIO"]["value"] = use_ratio = false;
+    }
+
     if (config["DEBUG_NTC"])
       Collide::DEBUG_NTC = config["DEBUG_NTC"]["value"].as<bool>();
     else {
@@ -19190,6 +19251,179 @@ std::vector<double>& CollideIon::coulomb_vector(std::vector<double>& rel,
   }
 
   return rel;
+}
+
+CollideIon::RecombRatio::RecombRatio(unsigned short Z, chdata& ch,
+				     double Tmin, double Tmax, int numT) :
+Z(Z), Tmn(Tmin), Tmx(Tmax), numT(numT)
+{
+  std::vector<std::vector<double>> rdata;
+
+  // Get recombationation rates from ChiantiPy
+  //
+  std::ostringstream sout;
+  sout << "RecombRatio.in." << myid;
+  std::string inFile(sout.str());
+
+  writeScript();		// Check for existence of script
+  sout.str("");
+
+  sout << "python3 ./recomb.py"
+       << " -Z " << Z
+       << " -t " << Tmn
+       << " -T " << Tmx
+       << " -n " << numT
+       << " -o " << inFile;
+
+  std::cout << sout.str() << std::endl;
+
+  system(&sout.str()[0]);
+
+  std::ifstream in(inFile);
+
+  // For temperature data
+  //
+  std::vector<double> temp(numT);
+
+  // For recombination rate data
+  //
+  rdata.resize(Z);
+  cdata.resize(Z);
+  for (int C=2; C<=Z+1; C++) {
+    rdata[C-2].resize(numT);
+    cdata[C-2].resize(numT);
+  }
+
+  // Get data from generated file
+  //
+  for (int nt=0; nt<numT; nt++) {
+    std::string line;
+    if (std::getline(in, line)) {
+      std::istringstream ins(line);
+      ins >> temp[nt];
+      for (int C=2; C<=Z+1; C++) ins >> rdata[C-2][nt];
+    }
+  }
+
+  // Log ranges for temperature/ratio grid
+  //
+  Tmn = log(Tmn);
+  Tmx = log(Tmx);
+  dT  = (Tmx - Tmn)/(numT-1);
+
+  // Log ranges for energy integration with a minimum interval
+  //
+  double Emin = log(Emin0);
+  double Emax = log(Emax0);
+  int    numE = std::max<int>(numE0, 10);
+
+  typedef std::map<unsigned short, std::vector<double> > rateMap;
+
+  double dE = (Emax - Emin)/numE;
+
+  for (int nt=0; nt<numT; nt++) {
+
+    double T = temp[nt];
+
+    rateMap val0;
+    std::vector<rateMap> val1(numE);
+    
+    for (int ne=0; ne<numE; ne++) {
+      
+      double Eb = Emin + dE*ne;
+      double Ef = Emin + dE*(ne+1);
+
+      Eb = exp(Eb);
+      Ef = exp(Ef);
+      
+      if (val0.size()) {
+	std::map<unsigned short, std::vector<double> >
+	  valT = ch.recombEquil(Z, T, Eb, Ef, norder);
+	for (auto v : val0) {
+	  unsigned short C = v.first;
+	  size_t        sz = v.second.size();
+	  for (size_t j=0; j<sz; j++) val0[C][j] += valT[C][j];
+	}
+      } else {
+	val0 = ch.recombEquil(Z, T, Ef, Eb, norder);
+      }
+      val1[ne] = val0;
+    }
+      
+    for (auto v : val1.back()) {
+      unsigned short C = v.first;
+      if (C>1) {
+	if (v.second[2]>0.0)
+	  cdata[C-2][nt] = rdata[C-2][nt]/(v.second[2]*1.0e-14);
+	else
+	  cdata[C-2][nt] = 0.0;
+      }
+    }
+  }
+}
+
+double CollideIon::RecombRatio::operator()(unsigned short C, double T)
+{
+  // Sanity checks
+  //
+  if (C<=1 or C>Z+1 or T<=0.0) return 0.0;
+
+  // Log-scaled temperature
+  //
+  T = log(T);
+
+  // Compute interpolation coefficients
+  //
+  int lo, hi;
+  double A, B;
+  if (T<=Tmn) {
+    lo = 0;
+    hi = 1;
+
+    A = (T - Tmn)/dT;
+    B = (Tmn + dT - T)/dT;	// 1.0 - A
+  } else if (T>=Tmx) {
+    lo = numT-2;
+    hi = numT-1;
+
+    A = (T - Tmx + dT)/dT;
+    B = (Tmx - T)/dT;		// 1.0 - A
+  } else {
+    lo = static_cast<int>(floor((T - Tmn)/dT));
+    hi = lo + 1;
+
+    A = (T - Tmn - dT*lo)/dT;
+    B = (Tmn + dT*hi - T)/dT;
+  }
+
+  double val = A*cdata[C-2][lo] + B*cdata[C-2][hi];
+
+  return val;
+}
+
+bool file_exists(const std::string& fileName)
+{
+  std::ifstream infile(fileName);
+  return infile.good();
+}
+
+// Write ChiantiPy script, if necessary
+//
+void CollideIon::RecombRatio::writeScript()
+{
+  const char *py =
+#include "recomb_py.h"
+    ;
+
+  const std::string file("recomb.py");
+    
+  if (not file_exists(file)) {
+    std::ofstream out(file);
+    out << py;
+    if (chmod(file.c_str(), S_IWUSR | S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
+      perror("Error in chmod:");
+    }
+  }
 }
 
 #if HAVE_LIBCUDA==1
