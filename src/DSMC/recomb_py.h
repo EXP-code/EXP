@@ -5,13 +5,24 @@ R"(#!/usr/bin/python3
 import matplotlib as mpl
 mpl.use('Agg')
 
+# Get rid of all the ChiantiPy verbosity
+#
+import os
+import sys
+
+fnull = open(os.devnull, 'w')
+sys.stdout = fnull
+sys.stderr = fnull
+
 # Now import ChiantiPy
 #
 import ChiantiPy.core as ch
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+
 from optparse import OptionParser
+
 
 elementList = {1:"h", 2:"he", 3:"li", 4:"be", 5:"b", 6:"c", 7:"n", 8:"o",9:"f",10:"ne", 11:"na", 12:"mg", 13:"al", 14:"si", 15:"p", 16:"s", 17:"cl", 18:"ar", 19:"k", 20:"ca", 21:"sc", 22:"ti", 23:"v", 24:"cr", 25:"mn", 26:"fe", 27:"co", 28:"ni", 29:"cu", 30:"zn", 31:"ga", 32:"ge", 33:"as", 34:"se", 35:"br", 36:"kr"}
 
