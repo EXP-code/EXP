@@ -31,12 +31,9 @@
 using namespace std;
 using namespace NTC;
 
-double   CollideIon::Nmin       = 1.0e-08;
-double   CollideIon::Nmax       = 1.0e+25;
 double   CollideIon::Tmin       = 1.0e+03;
 double   CollideIon::Tmax       = 1.0e+07;
 unsigned CollideIon::numT       = 400;
-string   CollideIon::cache      = ".HeatCool";
 bool     CollideIon::equiptn    = false;
 bool     CollideIon::scatter    = false;
 bool     CollideIon::ExactE     = false;

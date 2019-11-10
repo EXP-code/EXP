@@ -1606,15 +1606,13 @@ protected:
   //@}
 
 public:
-  static double     Nmin;
-  static double     Nmax;
+
   static double     Tmin;
   static double     Tmax;
   static unsigned   numT;
   static unsigned   maxSel;
   static unsigned   NoDelC;
   static unsigned   maxCoul;
-  static string     cache;
   static bool       equiptn;
   static bool       scatter;
   static bool       ExactE;
