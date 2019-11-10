@@ -767,53 +767,6 @@ private:
   //@}
 
   //@{
-  //! Trace method energy update for explicit energy conservation
-  enum class ConsAlg {
-      Original,  /*!< adjusts */
-      New,       /*!< adjusts */
-      Active,    /*!< adjusts both particles interacting velocities to
-		   conserve energy including the inelastic energy
-		   loss. Active is the most sensible variant. */
-      Active1,   /*!< adjusts only the Particle 1 interacting
-		   velocities to conserve energy including the
-		   inelastic energy loss. */
-      Active2,   /*!< adjusts only the Particle 2 interacting
-		   velocities to conserve energy including the
-		   inelastic energy loss. */
-      Inert,     /*!< adjusts the non-interacting partition of both
-		   particles to enforce energy conservation */
-      Inert1,    /*!< adjusts the non-interacting partition of the
-		   particle mass with the largest weight to enforce
-		   energy conservation */
-      Inert2     /*!< adjusts the non-interacting partition of the
-		   particle mass with the smallest weight to enforce
-		   energy conservation */
-      };
-
-  //! Labels for diagnostic output
-  std::map<ConsAlg, std::string> ConsAlgLabel =
-    {
-      {ConsAlg::Original, "Original" },
-      {ConsAlg::New,      "New"      },
-      {ConsAlg::Active,   "Active"   },
-      {ConsAlg::Active1,  "Active P1"},
-      {ConsAlg::Active2,  "Active P2"},
-      {ConsAlg::Inert,    "Inert"    },
-      {ConsAlg::Inert1,   "Inert P1" },
-      {ConsAlg::Inert2,   "Inert P2" },
-    };
-
-  //! Mixture parameter for Inert algorithm
-  double ConsAlgMix;
-
-  //! Use electron-mass toggle
-  bool ConsAlgToggle;
-  
-  //! ConsAlg method selection
-  ConsAlg ConsAlgMethod;
-  //@}
-
-  //@{
   //! Photon spectrum
   bool use_spectrum, logSpect, wvlSpect;
   double flrSpect, minSpect, maxSpect, delSpect;

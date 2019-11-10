@@ -557,18 +557,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (collLim ? "on" : "off")               << std::endl
 	      << " " << std::setw(20) << std::left  << "SEED"
 	      << acg_seed                               << std::endl;
-    if (ExactE) {
-      if (ConsAlgToggle)
-	std::cout <<  " " << std::setw(20) << std::left << "ConsAlgToggle"
-		  <<  "on" << std::endl;
-      else {
-	std::cout <<  " " << std::setw(20) << std::left << "ConsAlg type"
-		  << ConsAlgLabel[ConsAlgMethod] << std::endl;
-	if (ConsAlgMethod == ConsAlg::Inert)
-	std::cout <<  " " << std::setw(20) << std::left << "ConsAlgMix"
-		  << ConsAlgMix << std::endl;
-      }
-    }
     if (use_photoIB)		// print photoIB parameters
     std::cout <<  " " << std::setw(20) << std::left << "photoIB model"
 	      << photoIB                                << std::endl
@@ -17351,32 +17339,6 @@ void CollideIon::processConfig()
     else {
       config["ENERGY_ES_DBG"]["desc"] = "Enable explicit energy conservation checking";
       config["ENERGY_ES_DBG"]["value"] = DebugE = true;
-    }
-
-    if (config["ConsAlg"]) {	// YAML doesn't handle enum classes
-				// directly so we need some type
-				// checking . . .
-      int v = config["ConsAlg"]["value"].as<int>();
-      if (v<0) v = 0;
-      if (v>6) v = 6;
-      ConsAlgMethod = static_cast<ConsAlg>(v);
-    } else {
-      config["ConsAlg"]["desc"] = "Trace method algorithm selection for explicit energy conservation [Original=0, Active=1, Active1=2, Active2=3, Inert=4, Inert1=5, Inert2=6]";
-      config["ConsAlg"]["value"] = static_cast<int>(ConsAlg::Inert2);
-    }
-
-    if (config["ConsAlgMix"])
-      ConsAlgMix = config["ConsAlgMix"]["value"].as<double>();
-    else {
-      config["ConsAlgMix"]["desc"] = "Mixture parameter for Inert algorithm [0 is all P1 and 1 is all P2]";
-      config["ConsAlgMix"]["value"] = ConsAlgMix = 0.5;
-    }
-
-    if (config["ConsAlgToggle"])
-      ConsAlgToggle = config["ConsAlgToggle"]["value"].as<bool>();
-    else {
-      config["ConsAlgToggle"]["desc"] = "Apply energy conservation enforcement to the electron particle";
-      config["ConsAlgToggle"]["value"] = false;
     }
 
     if (config["SPREAD_DEF"])
