@@ -19263,7 +19263,9 @@ Z(Z), Tmn(Tmin), Tmx(Tmax), numT(numT)
   //
   const char *inFile = tmpnam(0);
 
-  writeScript();		// Check for existence of script
+  // Check for existence of script and write file if needed
+  //
+  writeScript();
 
   std::ostringstream sout;
 
@@ -19274,7 +19276,9 @@ Z(Z), Tmn(Tmin), Tmx(Tmax), numT(numT)
        << " -n " << numT
        << " -o " << inFile;
 
-  std::cout << sout.str() << std::endl;
+  // Print out command for debugging
+  //
+  // std::cout << sout.str() << std::endl;
 
   system(&sout.str()[0]);
 
