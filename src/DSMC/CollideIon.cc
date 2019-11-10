@@ -19261,12 +19261,11 @@ Z(Z), Tmn(Tmin), Tmx(Tmax), numT(numT)
 
   // Get recombationation rates from ChiantiPy
   //
-  std::ostringstream sout;
-  sout << "RecombRatio.in." << myid;
-  std::string inFile(sout.str());
+  const char *inFile = tmpnam(0);
 
   writeScript();		// Check for existence of script
-  sout.str("");
+
+  std::ostringstream sout;
 
   sout << "python3 ./recomb.py"
        << " -Z " << Z
@@ -19304,6 +19303,11 @@ Z(Z), Tmn(Tmin), Tmx(Tmax), numT(numT)
       for (int C=2; C<=Z+1; C++) ins >> rdata[C-2][nt];
     }
   }
+
+  // Close and remove temporary file
+  //
+  in.close();
+  remove(inFile);
 
   // Log ranges for temperature/ratio grid
   //
