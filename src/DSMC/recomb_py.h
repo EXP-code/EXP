@@ -23,16 +23,21 @@ import math
 
 from optparse import OptionParser
 
-
 elementList = {1:"h", 2:"he", 3:"li", 4:"be", 5:"b", 6:"c", 7:"n", 8:"o",9:"f",10:"ne", 11:"na", 12:"mg", 13:"al", 14:"si", 15:"p", 16:"s", 17:"cl", 18:"ar", 19:"k", 20:"ca", 21:"sc", 22:"ti", 23:"v", 24:"cr", 25:"mn", 26:"fe", 27:"co", 28:"ni", 29:"cu", 30:"zn", 31:"ga", 32:"ge", 33:"as", 34:"se", 35:"br", 36:"kr"}
 
 def getRecomb(ofile='recomb.dat', Z=1, tmin=1.0e+03, tmax=1.0e+07, num=200):
-    """ Use ChiantiPy to get the recombination rates"""
+    """Use ChiantiPy to get the recombination rates for element 'Z' and
+    write them to a file specified by the 'ofile' parameter.  'tmin',
+    'tmax', and 'num' are the minimum and maximum temperatures, the
+    number of tables entries, respectively.
+
+    """
 
     if Z not in elementList:
         print("Element {} is not in list".format(Z))
         return
 
+    # Open the output file
     file = open(ofile, 'w')
 
     Tmin = math.log(tmin)
@@ -43,12 +48,14 @@ def getRecomb(ofile='recomb.dat', Z=1, tmin=1.0e+03, tmax=1.0e+07, num=200):
 
     data = []
 
+    # Create the charged ionization levels and append to the database
     for z in range(2,Z+2):
         name = '{}_{}'.format(elementList[Z], z)
         v = ch.ion(name, temperature=temp)
         v.recombRate()
         data.append(v.RecombRate['rate'])
 
+    # Write the database to the 'ofile'
     for i in range(num+1):
         print("{:16.8e}".format(temp[i]), end='', file=file)
         for z in range(2,Z+2):
