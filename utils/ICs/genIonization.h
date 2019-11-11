@@ -1,4 +1,4 @@
-R"(#!/usr/bin/python
+R"(#!/usr/bin/python3
 
 import os
 import re
