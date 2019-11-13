@@ -39,9 +39,9 @@ int
 main(int argc, char **argv)
 {
   char *prog = argv[0];
-  std::string runtag, inoutdir, outfile;
-  bool verbose = false;
-  int seq;
+  std::string runtag, inoutdir, outfile, prefix;
+  bool verbose = false, range = false;
+  int seq, bseq, fseq;
 
   // Parse command line
 
@@ -50,11 +50,17 @@ main(int argc, char **argv)
     ("help,h",		"produce help message")
     ("verbose,v",       "verbose output")
     ("wd,d",	        po::value<std::string>(&inoutdir)->default_value("."),
-     "working directory")
+     "working directory for input and output files")
     ("runtag,r",	po::value<std::string>(&runtag)->default_value("run0"),
-     "component name")
+     "EXP runtag name")
+    ("prefix,p",	po::value<std::string>(&prefix)->default_value("OUT"),
+     "leading name of PSP output files")
     ("seq,s",		po::value<int>(&seq)->default_value(0),
-     "sequence counter")
+     "SPL sequence counter")
+    ("first,1",		po::value<int>(&bseq)->default_value(0),
+     "initial index in SPL sequence")
+    ("last,2",		po::value<int>(&fseq)->default_value(10000),
+     "final index in SPL sequence")
     ;
 
 
@@ -76,6 +82,14 @@ main(int argc, char **argv)
     return 1;
   }
 
+  if (vm.count("first")) {
+    range = true;
+  }
+
+  if (vm.count("last")) {
+    range = true;
+  }
+
   if (vm.count("verbose")) {
     verbose = true;
   }
@@ -86,135 +100,159 @@ main(int argc, char **argv)
   const static unsigned long mmask = 0xf;
   const static unsigned long nmask = ~mmask;
 
+  if (not range) {		// Logic for writing a single PSP file
+    bseq = seq;
+    fseq = seq;
+  }
+
+				// Begin sequence range loop
+				// -------------------------
+  for (seq=bseq; seq<=fseq; seq++) {
+
 				// Open the master file
 				// --------------------
-  std::ostringstream mfile;
-  mfile << inoutdir << "/SPL." << runtag << "." << std::setw(5) << std::setfill('0') << seq;
+    std::ostringstream mfile;
+    mfile << inoutdir << "/SPL." << runtag << "." << std::setw(5) << std::setfill('0') << seq;
+    
+    std::ifstream master(mfile.str());
 
-  std::ifstream master(mfile.str());
-
-  if (master.fail()) {
-    std::cerr << "psp2whole: can't open master file <" << mfile.str() 
-	      << "> . . . quitting" << std::endl;
-    exit(-1);
-  }
-
+    if (master.fail()) {
+      std::cerr << "spl2psp: can't open master file <" << mfile.str() 
+		<< "> . . . quitting" << std::endl;
+      exit(-1);
+    }
+    
 				// Open the output file
 				// --------------------
-  std::ostringstream ofile;
-  ofile << inoutdir << "/OUT." << runtag << "."
-	<< std::setw(5) << std::setfill('0') << seq;
-
-  std::ofstream wholef(ofile.str());
-
-  if (wholef.fail()) {
-    std::cerr << "psp2whole: can't open output file <" << ofile.str() 
-	      << "> . . . quitting" << std::endl;
-    exit(-1);
-  }
+    std::ostringstream ofile;
+    ofile << inoutdir << "/" << prefix << "." << runtag << "."
+	  << std::setw(5) << std::setfill('0') << seq;
+    
+    std::ofstream wholef(ofile.str());
+    
+    if (wholef.fail()) {
+      std::cerr << "spl2psp: can't open output file <" << ofile.str() 
+		<< "> . . . quitting" << std::endl;
+      exit(-1);
+    }
 				// Now read and write the header
 				// -----------------------------
-  struct MasterHeader header;
+    struct MasterHeader header;
   
-  master.read ((char *)      &header, sizeof(MasterHeader));
-  wholef.write((const char *)&header, sizeof(MasterHeader));
+    master.read ((char *)      &header, sizeof(MasterHeader));
+    wholef.write((const char *)&header, sizeof(MasterHeader));
 
-  unsigned long cmagic;
-  unsigned rsize;
+    unsigned long cmagic;
+    unsigned rsize;
 
-  for (int c=0; c<header.ncomp; c++) {
+    for (int c=0; c<header.ncomp; c++) {
+      
+      master.read((char*)&cmagic, sizeof(unsigned long));
+      if ( (cmagic & nmask) != magic ) {
+	std::string msg("Error identifying new PSP.  Is this an old PSP?");
+	std::cerr << msg << std::endl;
+      }
+      rsize = cmagic & mmask;
 
-    master.read((char*)&cmagic, sizeof(unsigned long));
-    if ( (cmagic & nmask) != magic ) {
-      std::string msg("Error identifying new PSP.  Is this an old PSP?");
-      std::cerr << msg << std::endl;
-    }
-    rsize = cmagic & mmask;
+      int nprocs;
+      master.read((char*)&nprocs, sizeof(int));
 
-    int nprocs;
-    master.read((char*)&nprocs, sizeof(int));
+      ComponentHeader header;
+      if (!header.read(&master)) {
+	std::string msg("ComponentHeader: error reading particle header");
+	std::cerr << msg << std::endl;
+	exit(-2);
+      }
 
-    ComponentHeader header;
-    if (!header.read(&master)) {
-      std::string msg("ComponentHeader: error reading particle header");
-      std::cerr << msg << std::endl;
-      exit(-2);
-    }
+      wholef.write((const char*)&cmagic, sizeof(unsigned long));
 
-    wholef.write((const char*)&cmagic, sizeof(unsigned long));
-
-    if (!header.write(&wholef)) {
-      std::string msg("ComponentHeader: error writing particle header");
-      std::cerr << msg << std::endl;
-      exit(-3);
-    }
+      if (!header.write(&wholef)) {
+	std::string msg("ComponentHeader: error writing particle header");
+	std::cerr << msg << std::endl;
+	exit(-3);
+      }
 
 				// Parse info field to get 
 				// id and parameter strings
-    YAML::Node config;
+      YAML::Node config;
 
-    std::istringstream sin(header.info.get());
-    config = YAML::Load(sin);
+      std::istringstream sin(header.info.get());
+      config = YAML::Load(sin);
+      
+      YAML::Node cconf;
+      std::string name;
 
-    YAML::Node cconf;
-    std::string name;
-
-    try {
-      name = config["name"].as<std::string>();
-      cconf = config["parameters"];
-    }
-    catch (YAML::Exception & error) {
-      if (myid==0) std::cout << "Error parsing YAML in PSP file: "
-			     << error.what() << std::endl
-			     << std::string(60, '-') << std::endl
-			     << "Config node"        << std::endl
-			     << std::string(60, '-') << std::endl
-			     << config               << std::endl
-			     << std::string(60, '-') << std::endl;
-      exit(-4);
-    }
-
-    std::cout << "Read component header <" << name << ">" << std::endl;
-
-    bool indexing = false;
-    if (cconf["indexing"])
-      indexing = cconf["indexing"].as<bool>();
-
-    const size_t PBUF_SIZ = 1024;
-    char buf [PBUF_SIZ];
-
-    int seq = 0;
+      try {
+	name = config["name"].as<std::string>();
+	cconf = config["parameters"];
+      }
+      catch (YAML::Exception & error) {
+	if (myid==0) std::cout << "Error parsing YAML in PSP file: "
+			       << error.what() << std::endl
+			       << std::string(60, '-') << std::endl
+			       << "Config node"        << std::endl
+			       << std::string(60, '-') << std::endl
+			       << config               << std::endl
+			       << std::string(60, '-') << std::endl;
+	exit(-4);
+      }
+      
+      bool indexing = false;
+      if (cconf["indexing"])
+	indexing = cconf["indexing"].as<bool>();
+      
+				// File name buffer from master file
+      const size_t PBUF_SIZ = 1024;
+      char buf [PBUF_SIZ];
+      
+      int cnt = 0;
 				// Read particles from each component file
-    for (int n=0; n<nprocs; n++) {
-
+      for (int n=0; n<nprocs; n++) {
+	
 	master.read((char*)buf, PBUF_SIZ);
-
+	
 	std::ifstream fcomp(buf);
-
+	
 	if (fcomp.fail()) {
-	  std::cerr << "psp2whole: can't open component file <" << buf
+	  std::cerr << "spl2psp: can't open component file <" << buf
 		    << "> . . . quitting" << std::endl;
 	  exit(-5);
 	}
 
-
+	// Get number of particles
 	unsigned int N;
 	fcomp.read((char*)&N, sizeof(unsigned int));
 
+	// Read and write particle by particle
 	Particle p;
 	for (int k=0; k<N; k++) {
-	  p.readBinary(rsize, indexing, seq++, &fcomp);
+	  p.readBinary(rsize, indexing, cnt++, &fcomp);
 	  p.writeBinary(rsize, indexing, &wholef);
 	}
 	// Loop over particles
 
-	std::cout << seq << " particles written" << std::endl;
+      }
+      // Loop over file chunk
 
+      if (verbose)
+	std::cout << cnt << " particles written in component <"
+		  << name << ">" << std::endl;
     }
-    // Loop over file chunk
+    // Loop over headers
 
+    try {
+      wholef.close();
+    }
+    catch (const ofstream::failure& e) {
+      std::cout << "spl2psp: exception closing file <" << ofile.str()
+		<< ": " << e.what() << std::endl;
+    }
+
+    std::cout << "Successfully wrote PSP file <" << ofile.str() << ">"
+	      << std::endl;
   }
-  // Loop over headers
+  // Loop over sequence indices
+
 
   return 0;
 }
