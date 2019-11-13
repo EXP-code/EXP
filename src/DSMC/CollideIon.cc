@@ -19220,7 +19220,7 @@ Z(Z), Tmn(Tmin), Tmx(Tmax), numT(numT)
 
   // Get recombationation rates from ChiantiPy
   //
-  const char *inFile = tmpnam(0);
+  const char *inFile = std::tmpnam(0);
 
   // Check for existence of script and write file if needed
   //
