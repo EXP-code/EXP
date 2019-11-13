@@ -151,6 +151,10 @@ void OutPSQ::Run(int n, bool last)
       nOK = 1;
     } else {
       c->write_binary_particles(&pout, real4);
+      if (pout.fail()) {
+	std::cout << "OutPSQ: error writing binary particles to <"
+		  << cname.str() << std::endl;
+      }
     }
 
     
@@ -165,6 +169,11 @@ void OutPSQ::Run(int n, bool last)
   }
 
   if (myid==0) {
+    if (out.fail()) {
+      std::cout << "OutPSQ: error writing component to master <" << fname.str()
+		<< std::endl;
+    }
+
     try {
       out.close();
     }
