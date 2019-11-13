@@ -18,7 +18,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
 bin_PROGRAMS = pspinfo pspstat psp2tipsy pspsplit psp2ascii ascii2psp	\
 		tipstd2psp psp2ta pspgas psp2histo psp2histo1d		\
 		psp2histoE psp2histoH pspreal pspstatS psp2range	\
-		psp2eHisto psp2histoT psp2histoTC pspstatT
+		psp2eHisto psp2histoT psp2histoTC pspstatT psp2whole
 
 COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ $(YAML)
 
@@ -107,6 +107,11 @@ psp2range_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
 psp2range_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
 psp2range_LDADD   = $(COMMON_LIBS) $(BOOST_LIBS)
 
+psp2whole_SOURCES  = psp2whole.cc PSP.cc header.cc header.H Particle.cc
+psp2whole_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
+psp2whole_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
+psp2whole_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS)
+
 *.cc:		header.H
 
 header.H:	$(top_srcdir)/src/header.H
@@ -115,6 +120,9 @@ header.H:	$(top_srcdir)/src/header.H
 header.cc:	$(top_srcdir)/src/header.cc
 		cp $(top_srcdir)/src/$@ .
 
-CLEANFILES	= header.cc header.H
+Particle.cc:	$(top_srcdir)/src/Particle.cc
+		cp $(top_srcdir)/src/$@ .
+
+CLEANFILES	= header.cc header.H Particle.cc
 
 ## utils/PhaseSpace/Makefile.am ends here

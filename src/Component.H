@@ -522,6 +522,12 @@ public:
   //! Write binary component phase-space structure
   void write_binary(ostream *out, bool real4 = false);
   
+  //! Write header for per-node writes
+  void write_binary_header(ostream* out, bool real4, std::string prefix);
+
+  //! Write particles for per-node writes
+  void write_binary_particles(ostream* out, bool real4);
+
   //! Write binary component phase-space structure using MPI
   void write_binary_mpi(MPI_File& out, MPI_Offset& offset, bool real4 = false)
   {

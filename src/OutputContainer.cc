@@ -9,6 +9,7 @@
 #include <OutPS.H>
 #include <OutPSN.H>
 #include <OutPSP.H>
+#include <OutPSQ.H>
 #include <OutAscii.H>
 #include <OutCHKPT.H>
 #include <OutCoef.H>
@@ -52,6 +53,10 @@ void OutputContainer::initialize(void)
     
       else if ( !name.compare("outpsp") ) {
 	out.push_back(new OutPSP(node));
+      }
+    
+      else if ( !name.compare("outpsq") ) {
+	out.push_back(new OutPSQ (node));
       }
     
       else if ( !name.compare("outascii") ) {

@@ -53,14 +53,14 @@ exp_SOURCES = Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc	\
      ScatterMFP.cc SphericalBasis.cc AxisymmetricBasis.cc Sphere.cc	\
      TwoCenter.cc EJcom.cc global.cc begin.cc ddplgndr.cc Direct.cc	\
      Shells.cc NoForce.cc end.cc OutputContainer.cc OutPS.cc		\
-     OutPSN.cc OutPSP.cc OutCHKPT.cc Output.cc header.cc expand.cc	\
-     externalShock.cc generateRelaxation.cc HaloBulge.cc incpos.cc	\
-     incvel.cc ComponentContainer.cc OutAscii.cc OutMulti.cc		\
-     OutRelaxation.cc OrbTrace.cc OutDiag.cc OutLog.cc OutCoef.cc	\
-     multistep.cc parse.cc Slab.cc SlabSL.cc step.cc sbessj.cc		\
-     sbessz.cc tidalField.cc ultra.cc ultrasphere.cc MPL.cc zbrent.cc	\
-     OutFrac.cc OutCalbr.cc ParticleFerry.cc pCell.cc chkSlurm.c	\
-     chkTimer.cc pHOT.cc VtkPCA.cc $(ADD_CUDA)
+     OutPSQ.cc OutPSN.cc OutPSP.cc OutCHKPT.cc Output.cc header.cc	\
+     expand.cc externalShock.cc generateRelaxation.cc HaloBulge.cc	\
+     incpos.cc incvel.cc ComponentContainer.cc OutAscii.cc		\
+     OutMulti.cc OutRelaxation.cc OrbTrace.cc OutDiag.cc OutLog.cc	\
+     OutCoef.cc multistep.cc parse.cc Slab.cc SlabSL.cc step.cc		\
+     sbessj.cc sbessz.cc tidalField.cc ultra.cc ultrasphere.cc MPL.cc	\
+     zbrent.cc OutFrac.cc OutCalbr.cc ParticleFerry.cc pCell.cc		\
+     chkSlurm.c chkTimer.cc pHOT.cc VtkPCA.cc $(ADD_CUDA)
 exp_DEPENDENCIES = $(EXPADD_DSMC)
 
 BOOST_LIBS = $(BOOST_FILESYSTEM_LIB) $(BOOST_SERIALIZATION_LIB) $(BOOST_SYSTEM_LIB)

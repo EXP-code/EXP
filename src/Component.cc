@@ -1861,6 +1861,77 @@ void Component::write_binary(ostream* out, bool real4)
     
 }
 
+void Component::write_binary_header(ostream* out, bool real4, const std::string prefix)
+{
+  ComponentHeader header;
+
+  if (myid == 0) {
+
+    header.nbod  = nbodies_tot;
+    header.niatr = niattrib;
+    header.ndatr = ndattrib;
+  
+    std::ostringstream outs;
+    if (conf.Type() != YAML::NodeType::Null) outs << conf << std::endl;
+
+    // Resize info string, if necessary
+    size_t infosz = outs.str().size() + 4;
+    if (header.ninfochar < outs.str().size()) {
+      header.ninfochar = outs.str().size();
+      header.info = boost::shared_array<char>(new char [header.ninfochar]);
+    }
+
+    // Copy to info string
+    strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
+
+    // DEBUGGING
+    if (false and myid==0) {
+      std::cout << std::string(72, '-') << std::endl
+		<< "Serialized YAML header looks like this:" << std::endl
+		<< std::string(72, '-') << std::endl
+		<< outs.str() << std::endl
+		<< "Cur size=" << outs.str().size()
+		<< " max size=" << header.ninfochar << std::endl
+		<< std::string(72, '-') << std::endl;
+    }
+
+    if (real4) rsize = sizeof(float);
+    else       rsize = sizeof(double);
+    unsigned long cmagic = magic + rsize;
+
+    out->write((const char*)&cmagic,   sizeof(unsigned long));
+    out->write((const char*)&numprocs, sizeof(int));
+
+    if (!header.write(out)) {
+      std::string msg("Component::write_binary: Error writing particle header");
+      throw GenericError(msg, __FILE__, __LINE__);
+    }
+
+    const size_t PBUF_SIZ = 1024;
+    char buf [PBUF_SIZ];
+
+    for (int n=0; n<numprocs; n++) {
+      std::ostringstream sout;
+      sout << prefix << "-" << n << '\0';
+      sout.str().copy(buf, sout.str().size());
+      out->write((const char*)buf, PBUF_SIZ);
+    }
+  }
+
+}
+
+void Component::write_binary_particles(ostream* out, bool real4)
+{
+  unsigned int N = particles.size();
+  out->write((const char*)&N, sizeof(unsigned int));
+
+  if (real4) rsize = sizeof(float);
+  else       rsize = sizeof(double);
+
+  for (auto p : particles) p.second->writeBinary(rsize, indexing, out);
+}
+
+
 // Helper class that manages two buffers that can be swapped to
 // support non-blocking MPI-IO writes
 //
