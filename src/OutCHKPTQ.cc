@@ -42,11 +42,6 @@ void OutCHKPTQ::initialize()
       timer = Output::conf["timer"].as<bool>();
     else
       timer = false;
-
-    if (Output::conf["nagg"])
-      nagg = Output::conf["nagg"].as<std::string>();
-    else
-      nagg = "1";
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in OutCHKPTQ: "
@@ -277,13 +272,12 @@ void OutCHKPTQ::Run(int n, bool last)
 
   chktimer.mark();
 
-
   if (timer) {
     end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> intvl = end - beg;
-      if (myid==0)
-	std::cout << "OutCHKPTQ [T=" << tnow << "] timing=" << intvl.count()
-		  << std::endl;
+    if (myid==0)
+      std::cout << "OutCHKPTQ [T=" << tnow << "] timing=" << intvl.count()
+		<< std::endl;
   }
 }
 

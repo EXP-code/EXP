@@ -281,13 +281,12 @@ void OutCHKPT::Run(int n, bool last)
 
   chktimer.mark();
 
-
   if (timer) {
     end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> intvl = end - beg;
-      if (myid==0)
-	std::cout << "OutCHKPT [T=" << tnow << "] timing=" << intvl.count()
-		  << std::endl;
+    if (myid==0)
+      std::cout << "OutCHKPT [T=" << tnow << "] timing=" << intvl.count()
+		<< std::endl;
   }
 }
 
