@@ -20,7 +20,7 @@
     @param filename is the name of the output file
     @param nint is the number of steps between dumps
     @param nbeg is suffix of the first phase space %dump
-    @param real4 indicates floats for real PS quantities, otherwise doubles
+    @param real4 indicates floats for real PS quantities
     @param nagg is the number of MPI-IO aggregators
 */
 class OutPSP : public Output

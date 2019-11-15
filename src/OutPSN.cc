@@ -36,6 +36,11 @@ void OutPSN::initialize()
     else
       nbeg = 0;
 
+    if (Output::conf["real4"])
+      real4 = Output::conf["real4"].as<bool>();
+    else
+      real4 = false;
+
     if (Output::conf["timer"])
       timer = Output::conf["timer"].as<bool>();
     else
@@ -104,7 +109,8 @@ void OutPSN::Run(int n, bool last)
       nOK = 1;
     }
 				// Used by OutCHKPT to not duplicate a dump
-    // lastPS = fname.str();
+    if (not real4) lastPS = fname.str();
+
 				// Open file and write master header
     if (nOK==0) {
       struct MasterHeader header;
@@ -124,7 +130,7 @@ void OutPSN::Run(int n, bool last)
 
   for (auto c : comp->components) {
 				// Write floats rather than doubles
-    c->write_binary(&out, true);
+    c->write_binary(&out, real4);
   }
 
   if (myid==0) {

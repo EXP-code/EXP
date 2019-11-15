@@ -39,7 +39,7 @@ void OutPSP::initialize()
     if (Output::conf["real4"])
       real4 = Output::conf["real4"].as<bool>();
     else
-      real4 = false;
+      real4 = true;
 
     if (Output::conf["timer"])
       timer = Output::conf["timer"].as<bool>();

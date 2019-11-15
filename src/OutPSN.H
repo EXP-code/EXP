@@ -11,6 +11,7 @@
     @param filename is the name of the output file
     @param nint is the number of steps between dumps
     @param nbeg is suffix of the first phase space %dump
+    @param real4 indicates floats for real PS quantities
     @param timer set to true turns on wall-clock timer for PS output
 */
 class OutPSN : public Output
@@ -19,7 +20,7 @@ class OutPSN : public Output
 private:
 
   std::string filename;
-  bool timer;
+  bool real4, timer;
   int nbeg;
   void initialize(void);
 
