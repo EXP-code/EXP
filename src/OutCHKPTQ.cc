@@ -61,7 +61,6 @@ void OutCHKPTQ::initialize()
   }
 }
 
-
 void OutCHKPTQ::Run(int n, bool last)
 {
   if (n % nint && !last) return;
@@ -85,6 +84,7 @@ void OutCHKPTQ::Run(int n, bool last)
 	       << backfile << ">" << endl;
 	}
       }
+
       if (rename(filename.c_str(), backfile.c_str())) {
 	if (VERBOSE>5) perror("OutCHKPTQ::Run()");
 	cout << "OutCHKPTQ: renaming backup file <" 
@@ -95,17 +95,22 @@ void OutCHKPTQ::Run(int n, bool last)
 	       << filename << "> to <" << backfile << ">" << endl;
 	}
       }
-      if (symlink(lastPSQ.c_str(), filename.c_str())) {
-	if (VERBOSE>5) perror("OutCHKPTQ::Run()");
-	cout << "OutCHKPTQ::Run(): no file <" << lastPSQ
-	     << "> to link, we will create a new checkpoint" << endl;
-	returnStatus = 0;
-      } else {
-	if (VERBOSE>5) {
-	  cout << "OutCHKPTQ::Run(): successfully linked <"
-	       << lastPSQ << "> to new backup file <" 
-	       << filename << ">" << endl;
+
+      if (lastPSQ.size()) {
+	if (symlink(lastPSQ.c_str(), filename.c_str())) {
+	  if (VERBOSE>5) perror("OutCHKPTQ::Run()");
+	  cout << "OutCHKPTQ::Run(): no file <" << lastPSQ
+	       << "> to link, we will create a new checkpoint" << endl;
+	  returnStatus = 0;
+	} else {
+	  if (VERBOSE>5) {
+	    cout << "OutCHKPTQ::Run(): successfully linked <"
+		 << lastPSQ << "> to new backup file <" 
+		 << filename << ">" << endl;
+	  }
 	}
+      } else {
+	returnStatus = 0;
       }
 
       int count = 0;
@@ -144,21 +149,25 @@ void OutCHKPTQ::Run(int n, bool last)
 	    }
 	  }
 
-	  std::ostringstream sout2;
-	  sout2 << lastPSQ << "_" << count << "-" << n;
-	  std::string lastN = sout2.str();
+	  if (lastPSQ.size()) {
+	    std::ostringstream sout2;
+	    sout2 << lastPSQ << "_" << count << "-" << n;
+	    std::string lastN = sout2.str();
 	  
-	  if (symlink(lastN.c_str(), fileN.c_str())) {
-	    if (VERBOSE>5) perror("OutCHKPTQ::Run()");
-	    cout << "OutCHKPTQ::Run(): no file <" << lastN
-		 << "> to link, we will create a new checkpoint" << endl;
-	    returnStatus = 0;
-	  } else {
-	    if (VERBOSE>5) {
-	      cout << "OutCHKPTQ::Run(): successfully linked <"
-		   << lastN << "> to new backup file <" 
-		   << fileN << ">" << endl;
+	    if (symlink(lastN.c_str(), fileN.c_str())) {
+	      if (VERBOSE>5) perror("OutCHKPTQ::Run()");
+	      cout << "OutCHKPTQ::Run(): no file <" << lastN
+		   << "> to link, we will create a new checkpoint" << endl;
+	      returnStatus = 0;
+	    } else {
+	      if (VERBOSE>5) {
+		cout << "OutCHKPTQ::Run(): successfully linked <"
+		     << lastN << "> to new backup file <" 
+		     << fileN << ">" << endl;
+	      }
 	    }
+	  } else {
+	    returnStatus = 0;
 	  }
 	} // END: process loop
 
