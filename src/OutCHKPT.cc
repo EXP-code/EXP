@@ -95,17 +95,22 @@ void OutCHKPT::Run(int n, bool last)
 	       << filename << "> to <" << backfile << ">" << endl;
 	}
       }
-      if (symlink(lastPS.c_str(), filename.c_str())) {
-	if (VERBOSE>5) perror("OutCHKPT::Run()");
-	cout << "OutCHKPT::Run(): no file <" << lastPS
-	     << "> to link, we will create a new checkpoint" << endl;
-	returnStatus = 0;
-      } else {
-	if (VERBOSE>5) {
-	  cout << "OutCHKPT::Run(): successfully linked <"
-	       << lastPS << "> to new backup file <" 
-	       << filename << ">" << endl;
+
+      if (lastPS.size()) {
+	if (symlink(lastPS.c_str(), filename.c_str())) {
+	  if (VERBOSE>5) perror("OutCHKPT::Run()");
+	  cout << "OutCHKPT::Run(): no file <" << lastPS
+	       << "> to link, we will create a new checkpoint" << endl;
+	  returnStatus = 0;
+	} else {
+	  if (VERBOSE>5) {
+	    cout << "OutCHKPT::Run(): successfully linked <"
+		 << lastPS << "> to new backup file <" 
+		 << filename << ">" << endl;
+	  }
 	}
+      } else {
+	returnStatus = 0;
       }
     }
   }

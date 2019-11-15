@@ -129,23 +129,25 @@ void OutCHKPTQ::Run(int n, bool last)
 	  std::string backN = sout1.str();
 
 	  if (unlink(backN.c_str())) {
-	    if (VERBOSE>5) perror("OutCHKPTQ::Run()");
-	    cout << "OutCHKPTQ::Run(): error unlinking old backup file <" 
-		 << backN << ">, it may not exist" << endl;
+	    if (VERBOSE>15) perror("OutCHKPTQ::Run()");
+	    if (VERBOSE>10)
+	      cout << "OutCHKPTQ::Run(): error unlinking old backup file <" 
+		   << backN << ">, it may not exist" << endl;
 	  } else {
-	    if (VERBOSE>5) {
+	    if (VERBOSE>15) {
 	      cout << "OutCHKPTQ::Run(): successfully unlinked <"
 		   << backN << ">" << endl;
 	    }
 	  }
 	  if (rename(fileN.c_str(), backN.c_str())) {
-	    if (VERBOSE>5) perror("OutCHKPTQ::Run()");
-	    cout << "OutCHKPTQ: renaming backup file <" 
-		 << backN << ">, it may not exist" << endl;
+	    if (VERBOSE>15) perror("OutCHKPTQ::Run()");
+	    if (VERBOSE>10)
+	      cout << "OutCHKPTQ: renaming backup file <" 
+		   << backN << ">, it may not exist" << endl;
 	  } else {
-	    if (VERBOSE>5) {
-	    cout << "OutCHKPTQ::Run(): successfully renamed <"
-		 << filename << "> to <" << backN << ">" << endl;
+	    if (VERBOSE>15) {
+	      cout << "OutCHKPTQ::Run(): successfully renamed <"
+		   << filename << "> to <" << backN << ">" << endl;
 	    }
 	  }
 
@@ -155,12 +157,13 @@ void OutCHKPTQ::Run(int n, bool last)
 	    std::string lastN = sout2.str();
 	  
 	    if (symlink(lastN.c_str(), fileN.c_str())) {
-	      if (VERBOSE>5) perror("OutCHKPTQ::Run()");
-	      cout << "OutCHKPTQ::Run(): no file <" << lastN
-		   << "> to link, we will create a new checkpoint" << endl;
+	      if (VERBOSE>15) perror("OutCHKPTQ::Run()");
+	      if (VERBOSE>10)
+		cout << "OutCHKPTQ::Run(): no file <" << lastN
+		     << "> to link, we will create a new checkpoint" << endl;
 	      returnStatus = 0;
 	    } else {
-	      if (VERBOSE>5) {
+	      if (VERBOSE>15) {
 		cout << "OutCHKPTQ::Run(): successfully linked <"
 		     << lastN << "> to new backup file <" 
 		     << fileN << ">" << endl;
