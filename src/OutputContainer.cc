@@ -12,6 +12,7 @@
 #include <OutPSQ.H>
 #include <OutAscii.H>
 #include <OutCHKPT.H>
+#include <OutCHKPTQ.H>
 #include <OutCoef.H>
 #include <OutFrac.H>
 #include <OutCalbr.H>
@@ -65,6 +66,10 @@ void OutputContainer::initialize(void)
     
       else if ( !name.compare("outchkpt") ) {
 	out.push_back(new OutCHKPT(node));
+      }
+
+      else if ( !name.compare("outchkptq") ) {
+	out.push_back(new OutCHKPTQ(node));
       }
 
       else if ( !name.compare("outcoef") ) {

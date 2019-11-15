@@ -109,7 +109,7 @@ void OutPSQ::Run(int n, bool last)
       nOK = 1;
     }
 				// Used by OutCHKPT to not duplicate a dump
-    // lastPS = fname.str();
+    if (not real4) lastPSQ = fname.str();
 				// Open file and write master header
     if (nOK==0) {
       struct MasterHeader header;
