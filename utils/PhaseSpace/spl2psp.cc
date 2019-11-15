@@ -40,8 +40,8 @@ main(int argc, char **argv)
 {
   char *prog = argv[0];
   std::string runtag, inoutdir, outfile, prefix;
-  bool verbose = false, range = false;
-  int seq, bseq, fseq;
+  bool verbose = false, range = false, checkpt = false;
+  int seq, bseq=0, fseq=10000;
 
   // Parse command line
 
@@ -49,6 +49,7 @@ main(int argc, char **argv)
   desc.add_options()
     ("help,h",		"produce help message")
     ("verbose,v",       "verbose output")
+    ("checkpoint,c",    "reassemble a checkpoint PSP file")
     ("wd,d",	        po::value<std::string>(&inoutdir)->default_value("."),
      "working directory for input and output files")
     ("runtag,r",	po::value<std::string>(&runtag)->default_value("run0"),
@@ -57,9 +58,9 @@ main(int argc, char **argv)
      "leading name of PSP output files")
     ("seq,s",		po::value<int>(&seq)->default_value(0),
      "SPL sequence counter")
-    ("first,1",		po::value<int>(&bseq)->default_value(0),
+    ("first,1",		po::value<int>(&bseq),
      "initial index in SPL sequence")
-    ("last,2",		po::value<int>(&fseq)->default_value(10000),
+    ("last,2",		po::value<int>(&fseq),
      "final index in SPL sequence")
     ;
 
@@ -83,11 +84,18 @@ main(int argc, char **argv)
   }
 
   if (vm.count("first")) {
+    bseq = vm["first"].as<bool>();
     range = true;
   }
 
   if (vm.count("last")) {
+    fseq = vm["last"].as<bool>();
     range = true;
+  }
+
+  if (vm.count("checkpoint")) {
+    checkpt = true;
+    range   = false;
   }
 
   if (vm.count("verbose")) {
@@ -104,7 +112,6 @@ main(int argc, char **argv)
     bseq = seq;
     fseq = seq;
   }
-
 				// Begin sequence range loop
 				// -------------------------
   for (seq=bseq; seq<=fseq; seq++) {
@@ -112,7 +119,11 @@ main(int argc, char **argv)
 				// Open the master file
 				// --------------------
     std::ostringstream mfile;
-    mfile << inoutdir << "/SPL." << runtag << "." << std::setw(5) << std::setfill('0') << seq;
+    if (checkpt)
+      mfile << inoutdir << "/SPL." << runtag << ".chkpt";
+    else
+      mfile << inoutdir << "/SPL." << runtag << "."
+	    << std::setw(5) << std::setfill('0') << seq;
     
     std::ifstream master(mfile.str());
 
@@ -125,8 +136,11 @@ main(int argc, char **argv)
 				// Open the output file
 				// --------------------
     std::ostringstream ofile;
-    ofile << inoutdir << "/" << prefix << "." << runtag << "."
-	  << std::setw(5) << std::setfill('0') << seq;
+    if (checkpt)
+      ofile << inoutdir << "/" << prefix << "." << runtag << ".chkpt";
+    else
+      ofile << inoutdir << "/" << prefix << "." << runtag << "."
+	    << std::setw(5) << std::setfill('0') << seq;
     
     std::ofstream wholef(ofile.str());
     
