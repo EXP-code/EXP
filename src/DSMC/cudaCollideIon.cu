@@ -44,7 +44,7 @@ void cuSwap(T & x, T & y)
   y   = t;
 }
 
-__constant__ cuFP_t cuH_H, cuHe_H, cuPH_H, cuPHe_H;
+__constant__ cuFP_t cuH_H, cuHe_H, cuPH_H, cuPHe_H, cuEsu;
 __constant__ cuFP_t cuH_Emin, cuHe_Emin, cuPH_Emin, cuPHe_Emin;
 
 #ifdef XC_DEEP9
@@ -1787,7 +1787,7 @@ const int maxAtomicNumber = 15;
 __constant__ cuFP_t cuda_atomic_weights[maxAtomicNumber], cuFloorEV;
 __constant__ cuFP_t cuVunit, cuMunit, cuTunit, cuLunit, cuEunit;
 __constant__ cuFP_t cuLogL, cuCrossfac, cuMinMass;
-__constant__ bool   cuMeanKE, cuNewRecombAlg, cuNoCool, cuRecombIP;
+__constant__ bool   cuNewRecombAlg, cuNoCool, cuRecombIP;
 __constant__ bool   cuSpreadDef;
 
 const int coulSelNumT = 2000;
@@ -1821,10 +1821,6 @@ void testConstantsIon(int idev)
     printf("** Rcmb IP    = true\n"                      );
   else
     printf("** Rcmb IP    = false\n"                     );
-  if (cuMeanKE) 
-    printf("** Mean KE    = true\n"                      );
-  else
-    printf("** Mean KE    = false\n"                     );
   if (cuNoCool) 
     printf("** No cool    = true\n"                      );
   else
@@ -2069,8 +2065,8 @@ void CollideIon::cuda_atomic_weights_init()
   cuda_safe_call(cudaMemcpyToSymbol(cuFloorEV, &v, sizeof(cuFP_t)), 
 		 __FILE__, __LINE__, "Error copying cuFloorEV");
   v = esu;
-  cuda_safe_call(cudaMemcpyToSymbol(cuMeanKE, &MeanKE, sizeof(bool)), 
-		 __FILE__, __LINE__, "Error copying cuMeanKE");
+  cuda_safe_call(cudaMemcpyToSymbol(cuEsu, &v, sizeof(cuFP_t)), 
+		 __FILE__, __LINE__, "Error copying cuEsu");
 
   cuda_safe_call(cudaMemcpyToSymbol(cuSpreadDef, &SpreadDef, sizeof(bool)), 
 		 __FILE__, __LINE__, "Error copying cuSpreadDef");
@@ -3533,7 +3529,7 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
       cuFP_t pVel = sqrt(2.0*KE/mu);
       cuFP_t KE2  = 2.0*KE;
       if (KE2/eV < cuFloorEV) KE2 = cuFloorEV * eV;
-      cuFP_t afac = esu*esu*Q1*Q2/KE2;
+      cuFP_t afac = cuEsu*cuEsu*Q1*Q2/KE2;
       cuFP_t tau  = ABrate._v[C*4 + l]*afac*afac*pVel * dT;
 
 #ifdef XC_DEEP11
