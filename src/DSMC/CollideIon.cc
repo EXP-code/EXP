@@ -13417,7 +13417,8 @@ void CollideIon::parseSpecies()
   //
   if (not config["species_map"]) {
     if (myid==0) {
-      std::cerr << "CollideIon::parseSpecies: no species map in config"
+      std::cerr << "**ERROR "
+	        << "CollideIon::parseSpecies: no species map in config"
 		<< " . . . quitting"
 		<< std::endl;
     }
@@ -13430,12 +13431,17 @@ void CollideIon::parseSpecies()
     type = config["species_map"]["type"].as<std::string>();
   } else {
     if (myid==0) {
-      std::cerr << "CollideIon::parseSpecies: no <type> key found . . . "
+      std::cerr << "**ERROR "
+		<< "CollideIon::parseSpecies: no <type> key found . . . "
 		<< "quitting" << std::endl;
     }
     MPI_Finalize();
     exit(55);
   }    
+
+  // Grab first particle for checking consistency
+  //
+  PartPtr p = c0->Particles().begin()->second;
 
   //  ___  _            _   
   // |   \(_)_ _ ___ __| |_ 
@@ -13448,18 +13454,41 @@ void CollideIon::parseSpecies()
 
     if (use_key<0) {
       if (myid==0) {
-	std::cerr << "CollideIon: species key position is not defined in "
-		  << "Component" << std::endl;
+	std::cerr << "**ERROR "
+		  << "CollideIon: species key position for Direct is"
+	          << " not defined in Component" << std::endl;
       }
       MPI_Finalize();
       exit(56);
+    } else {
+      if (use_key>=p->iattrib.size()) {
+	if (myid==0) {
+	  std::cerr << "**ERROR "
+		    << "CollideIon: species key pos in Direct is too large"
+		    << ", iattrib size is " << p->iattrib.size()
+		    << ", CHECK your [species_map] . . . quitting" << std::endl;
+	}
+	MPI_Finalize();
+	exit(156);
+      }
     }
 
     if (config["species_map"]["elec"]) {
       use_elec = config["species_map"]["elec"].as<int>();
+      if (use_elec+3>=p->dattrib.size()) {
+	if (myid==0) {
+	  std::cerr << "**ERROR "
+		    << "CollideIon: use_elec pos in Direct is too large"
+		    << ", dattrib size is " << p->dattrib.size()
+		    << ", CHECK your [species_map] . . . quitting" << std::endl;
+	}
+	MPI_Finalize();
+	exit(157);
+      }
     } else {
       if (myid==0) {
-	std::cerr << "CollideIon::parseSpecies: no <elec> key found . . . "
+	std::cerr << "**ERROR "
+		  << "CollideIon::parseSpecies: no <elec> key found . . . "
 		  << "quitting" << std::endl;
       }
       MPI_Finalize();
@@ -13471,7 +13500,8 @@ void CollideIon::parseSpecies()
       for (auto Z : zz) ZList.insert(Z);
     } else {
       if (myid==0) {
-	std::cerr << "CollideIon::parseSpecies: no <elements> key found . . . "
+	std::cerr << "**ERROR "
+		  << "CollideIon::parseSpecies: no <elements> key found . . . "
 		  << "quitting" << std::endl;
       }
       MPI_Finalize();
@@ -13490,18 +13520,42 @@ void CollideIon::parseSpecies()
 
     if (use_key<0) {
       if (myid==0) {
-	std::cerr << "CollideIon: species key position is not defined in "
+	std::cerr << "**ERROR "
+		  << "CollideIon: species key pos in Weight is not defined in "
 		  << "Component" << std::endl;
       }
       MPI_Finalize();
       exit(58);
+    } else {
+      if (use_key>=p->iattrib.size()) {
+	if (myid==0) {
+	  std::cerr << "**ERROR "
+		    << "CollideIon: species key pos in Weight is too large"
+		    << ", iattrib size is " << p->iattrib.size()
+		    << ", CHECK your [species_map] . . . quitting" << std::endl;
+
+	}
+	MPI_Finalize();
+	exit(158);
+      }
     }
 
     if (config["species_map"]["cons"]) {
       use_cons = config["species_map"]["cons"].as<int>();
+      if (use_cons>=p->dattrib.size()) {
+	if (myid==0) {
+	  std::cerr << "**ERROR "
+		    << "CollideIon: use_cons pos in Weight is too large, "
+		    << ", dattrib size is " << p->dattrib.size()
+		    << ", CHECK your [species_map] . . . quitting" << std::endl;
+	}
+	MPI_Finalize();
+	exit(159);
+      }
     } else {
       if (myid==0) {
-	std::cerr << "CollideIon::parseSpecies: no <cons> key found . . . "
+	std::cerr << "**ERROR "
+		  << "CollideIon::parseSpecies: no <cons> key found . . . "
 		  << "quitting" << std::endl;
       }
       MPI_Finalize();
@@ -13510,9 +13564,20 @@ void CollideIon::parseSpecies()
 
     if (config["species_map"]["elec"]) {
       use_elec = config["species_map"]["elec"].as<int>();
+      if (use_elec+3>=p->dattrib.size()) {
+	if (myid==0) {
+	  std::cerr << "**ERROR "
+		    << "CollideIon: use_elec pos in Weight is too large"
+		    << ", dattrib size is " << p->dattrib.size()
+		    << ", CHECK your [species_map] . . . quitting" << std::endl;
+	}
+	MPI_Finalize();
+	exit(160);
+      }
     } else {
       if (myid==0) {
-	std::cerr << "CollideIon::parseSpecies: no <elec> key found . . . "
+	std::cerr << "**ERROR "
+		  << "CollideIon::parseSpecies: no <elec> key found . . . "
 		  << "quitting" << std::endl;
       }
       MPI_Finalize();
@@ -13522,13 +13587,13 @@ void CollideIon::parseSpecies()
 
     // Print warning, not fatal
     if (use_cons<0 and myid==0) {
-      std::cout << "CollideIon: energy key position is not defined, "
+      std::cout << "CollideIon: energy key pos in Weight is not defined, "
 		<< "you are using weighting but NOT imposing energy conservation"
 		<< std::endl;
     }
 
     if (use_elec<0 and myid==0) {
-      std::cout << "CollideIon: electron key position is not defined, "
+      std::cout << "CollideIon: electron key pos in Weight is not defined, "
 		<< "you are using weighting WITHOUT explicit electron velocities"
 		<< std::endl;
     }
@@ -13544,7 +13609,8 @@ void CollideIon::parseSpecies()
       }
     } else {
       if (myid==0) {
-	std::cerr << "CollideIon::parseSpecies: no <elements> key found . . . "
+	std::cerr << "**ERROR "
+		  << "CollideIon::parseSpecies: no <elements> key found . . . "
 		  << "quitting" << std::endl;
       }
       MPI_Finalize();
@@ -13572,18 +13638,42 @@ void CollideIon::parseSpecies()
 
     if (use_key<0) {
       if (myid==0) {
-	std::cerr << "CollideIon: species key position is not defined in "
+	std::cerr << "**ERROR "
+		  << "CollideIon: species key pos is Hybrid not defined in "
 		  << "Component" << std::endl;
       }
       MPI_Finalize();
       exit(62);
+    } else {
+      if (use_key>=p->iattrib.size()) {
+	if (myid==0) {
+	  std::cerr << "**ERROR "
+		    << "CollideIon: species key pos is too large for Hybrid"
+		    << ", iattrib size is " << p->iattrib.size()
+		    << ", CHECK your [species_map] . . . quitting" << std::endl;
+	}
+	MPI_Finalize();
+	exit(162);
+      }
     }
 
     if (config["species_map"]["cons"]) {
       use_cons = config["species_map"]["cons"].as<int>();
+      if (use_cons>=p->dattrib.size()) {
+	if (myid==0) {
+	  std::cerr << "**ERROR "
+		    << "CollideIon: use_cons pos in Hybrid is too large"
+		    << ", dattrib size is " << p->dattrib.size()
+		    << ", CHECK your [species_map] . . . quitting" << std::endl;
+
+	}
+	MPI_Finalize();
+	exit(159);
+      }
     } else {
       if (myid==0) {
-	std::cerr << "CollideIon::parseSpecies: no <cons> key found . . . "
+	std::cerr << "**ERROR "
+		  << "CollideIon::parseSpecies: no <cons> key found . . . "
 		  << "quitting" << std::endl;
       }
       MPI_Finalize();
@@ -13592,9 +13682,20 @@ void CollideIon::parseSpecies()
 
     if (config["species_map"]["spos"]) {
       spc_pos = config["species_map"]["spos"].as<int>();
+      if (spc_pos>=p->dattrib.size()) {
+	if (myid==0) {
+	  std::cerr << "**ERROR "
+		    << "CollideIon: spc_pos in Hybrid is too large"
+		    << ", dattrib size is " << p->dattrib.size()
+		    << ", CHECK your [species_map] . . . quitting" << std::endl;
+	}
+	MPI_Finalize();
+	exit(164);
+      }
     } else {
       if (myid==0) {
-	std::cerr << "CollideIon::parseSpecies: no <spos> key found . . . "
+	std::cerr << "**ERROR "
+		  << "CollideIon::parseSpecies: no <spos> key found . . . "
 		  << "quitting" << std::endl;
       }
       MPI_Finalize();
@@ -13603,9 +13704,20 @@ void CollideIon::parseSpecies()
 
     if (config["species_map"]["elec"]) {
       use_elec = config["species_map"]["elec"].as<int>();
+      if (use_elec+3>=p->dattrib.size()) {
+	if (myid==0) {
+	  std::cerr << "**ERROR "
+		    << "CollideIon: use_elec pos in Hybrid is too large"
+		    << ", dattrib size is " << p->dattrib.size()
+		    << ", CHECK your [species_map] . . . quitting" << std::endl;
+	}
+	MPI_Finalize();
+	exit(165);
+      }
     } else {
       if (myid==0) {
-	std::cerr << "CollideIon::parseSpecies: no <elec> key found . . . "
+	std::cerr << "**ERROR "
+		  << "CollideIon::parseSpecies: no <elec> key found . . . "
 		  << "quitting" << std::endl;
       }
       MPI_Finalize();
@@ -13614,9 +13726,20 @@ void CollideIon::parseSpecies()
 
 				// Print warning, not fatal
     if (use_cons<0 and myid==0) {
-      std::cout << "CollideIon: energy key position is not defined, "
+      std::cout << "CollideIon: energy key pos in Hybrid is not defined, "
 		<< "you are using hybrid weighting but NOT imposing energy conservation"
 		<< std::endl;
+    } else {
+      if (use_cons>=p->dattrib.size()) {
+	if (myid==0) {
+	  std::cerr << "**ERROR "
+		    << "CollideIon: use_cons pos in Hybrid is too large"
+		    << ", dattrib size is " << p->dattrib.size()
+		    << ", CHECK your [species_map] . . . quitting" << std::endl;
+	}
+	MPI_Finalize();
+	exit(166);
+      }
     }
 
     if (use_elec<0 and myid==0) {
@@ -13626,7 +13749,8 @@ void CollideIon::parseSpecies()
     }
 
     if (spc_pos<0 and myid==0) {
-      std::cout << "CollideIon: ionization start index for hybrid algorithm is not defined, "
+      std::cout << "**ERROR "
+		<< "CollideIon: ionization start index for hybrid algorithm is not defined, "
 		<< "this is fatal!"
 		<< std::endl;
     }
@@ -13642,7 +13766,8 @@ void CollideIon::parseSpecies()
       }
     } else {
       if (myid==0) {
-	std::cerr << "CollideIon::parseSpecies: no <elements> key found . . . "
+	std::cerr << "**ERROR "
+		  << "CollideIon::parseSpecies: no <elements> key found . . . "
 		  << "quitting" << std::endl;
       }
       MPI_Finalize();
@@ -13669,7 +13794,8 @@ void CollideIon::parseSpecies()
     // Sanity check
     if (c0->keyPos >= 0) {
       std::ostringstream sout;
-      sout << "[" << myid 
+      sout << "**ERROR "
+	   << "[" << myid 
 	   << "] CollideIon::parse_species: method <trace> is requested but keyPos="
 	   << c0->keyPos << " and should be < 0 for consistency" << std::endl;
       throw std::runtime_error(sout.str());
@@ -13679,6 +13805,16 @@ void CollideIon::parseSpecies()
 
     if (config["species_map"]["cons"]) {
       use_cons = config["species_map"]["cons"].as<int>();
+      if (use_cons>=p->dattrib.size()) {
+	if (myid==0) {
+	  std::cerr << "**ERROR "
+		    << "CollideIon: use_cons pos in Trace is too large"
+		    << ", dattrib size is " << p->dattrib.size()
+		    << ", CHECK your [species_map] . . . quitting" << std::endl;
+	}
+	MPI_Finalize();
+	exit(167);
+      }
     } else {
       if (myid==0) {
 	std::cerr << "CollideIon::parseSpecies: no <cons> key found . . . "
@@ -13690,9 +13826,20 @@ void CollideIon::parseSpecies()
 
     if (config["species_map"]["elec"]) {
       use_elec = config["species_map"]["elec"].as<int>();
+      if (use_elec+3>=p->dattrib.size()) {
+	if (myid==0) {
+	  std::cerr << "**ERROR "
+		    << "CollideIon: use_elec pos in Trace is too large"
+		    << ", dattrib size is " << p->dattrib.size()
+		    << ", CHECK your [species_map] . . . quitting" << std::endl;
+	}
+	MPI_Finalize();
+	exit(168);
+      }
     } else {
       if (myid==0) {
-	std::cerr << "CollideIon::parseSpecies: no <elec> key found . . . "
+	std::cerr << "**ERROR "
+		  << "CollideIon::parseSpecies: no <elec> key found . . . "
 		  << "quitting" << std::endl;
       }
       MPI_Finalize();
@@ -13710,7 +13857,8 @@ void CollideIon::parseSpecies()
       }
     } else {
       if (myid==0) {
-	std::cerr << "CollideIon::parseSpecies: no <elements> key found . . . "
+	std::cerr << "**ERROR "
+		  << "CollideIon::parseSpecies: no <elements> key found . . . "
 		  << "quitting" << std::endl;
       }
       MPI_Finalize();
@@ -13718,9 +13866,14 @@ void CollideIon::parseSpecies()
     }    
     
   } else {
-    std::cerr << "CollideIon::parseSpecies: implementation type <"
-	      << type << "> is not recognized . . . quitting"
-	      << std::endl;
+      if (myid==0) {
+	std::cerr << "**ERROR "
+		  << "CollideIon::parseSpecies: implementation type <"
+		  << type << "> is not recognized . . . quitting"
+		  << std::endl;
+      }
+      MPI_Finalize();
+      exit(70);
   }
   
   // Sanity check.  So far, the full pair-wise cross-section census is
