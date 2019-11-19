@@ -1,4 +1,17 @@
+
+#ifndef STANDALONE
 #include "expand.h"
+#else
+#include <iostream>
+#include <iomanip>
+#include <sstream>
+#include <cstring>
+
+// Needed from EXP/src . . .
+extern unsigned multistep;
+typedef std::pair<unsigned short, unsigned short>  speciesKey;
+
+#endif
 
 #include <Particle.H>
 
