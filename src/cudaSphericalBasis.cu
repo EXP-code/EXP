@@ -733,7 +733,6 @@ public:
   }
 };
 
-static bool initialize_cuda_sph = true;
 static unsigned dbg_id = 0;
 
 void SphericalBasis::cudaStorage::resize_coefs
@@ -885,6 +884,9 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
     for (auto & v : massT1)    v = 0;
   }
 
+  // Only do this once but copying mapping coefficients and textures
+  // must be done every time
+  //
   if (initialize_cuda_sph) {
     initialize_cuda();
     initialize_cuda_sph = false;
@@ -1599,6 +1601,9 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
 void SphericalBasis::determine_acceleration_cuda()
 {
+  // Only do this once but copying mapping coefficients and textures
+  // must be done every time
+  //
   if (initialize_cuda_sph) {
     initialize_cuda();
     initialize_cuda_sph = false;

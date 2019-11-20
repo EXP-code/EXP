@@ -828,11 +828,13 @@ void Cylinder::zero_coefs()
   }
 }
 
-static bool initialize_cuda_cyl = true;
 static unsigned dbg_id = 0;
 
 void Cylinder::determine_coefficients_cuda(bool compute)
 {
+  // Only do this once but copying mapping coefficients and textures
+  // must be done every time
+  //
   if (initialize_cuda_cyl) {
     initialize_cuda();
     initialize_cuda_cyl = false;
@@ -1536,6 +1538,9 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
 void Cylinder::determine_acceleration_cuda()
 {
+  // Only do this once but copying mapping coefficients and textures
+  // must be done every time
+  //
   if (initialize_cuda_cyl) {
     initialize_cuda();
     initialize_cuda_cyl = false;

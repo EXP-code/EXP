@@ -99,6 +99,8 @@ protected:
   std::vector<cudaArray_t> cuInterpArray;
   thrust::host_vector<cudaTextureObject_t> tex;
 
+  bool initialize_cuda_cyl;
+
   virtual void initialize_cuda()
   {
     sampT = floor(sqrt(component->nbodies_tot));

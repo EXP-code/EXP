@@ -56,6 +56,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 
   // Initialize the circular storage container 
   cuda_initialize();
+  initialize_cuda_cyl = true;
 
 #endif
 
