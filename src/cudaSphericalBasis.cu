@@ -887,13 +887,16 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
   if (initialize_cuda_sph) {
     initialize_cuda();
-    initialize_mapping_constants();
     initialize_cuda_sph = false;
-
-    // Copy texture objects to device
-    //
-    t_d = tex;
   }
+
+  // Copy coordinate mapping constants to device
+  //
+  initialize_mapping_constants();
+
+  // Copy texture objects to device
+  //
+  t_d = tex;
 
   std::cout << std::scientific;
 
@@ -1598,13 +1601,16 @@ void SphericalBasis::determine_acceleration_cuda()
 {
   if (initialize_cuda_sph) {
     initialize_cuda();
-    initialize_mapping_constants();
     initialize_cuda_sph = false;
-
-    // Copy texture objects to device
-    //
-    t_d = tex;
   }
+
+  // Copy coordinate mapping constants to device
+  //
+  initialize_mapping_constants();
+
+  // Copy texture objects to device
+  //
+  t_d = tex;
 
   std::cout << std::scientific;
 
