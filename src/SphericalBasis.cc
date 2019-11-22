@@ -21,6 +21,7 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
 
   // Initialize the circular storage container 
   cuda_initialize();
+  initialize_cuda_sph = true;
 
 #endif
 
