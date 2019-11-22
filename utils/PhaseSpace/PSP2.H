@@ -1,5 +1,6 @@
-#ifndef _PSP_H
+#ifndef _PSP2_H
 
+#include <stdexcept>
 #include <algorithm>
 #include <iostream>
 #include <fstream>
@@ -18,13 +19,23 @@ class PSPstanza
 {
 public:
   ComponentHeader comp;
-  streampos pos, pspos;
-  string name;
-  string id;
-  string cparam;
-  string fparam;
-  string ttype;
+  std::string name;
+  std::string id;
+  std::string cparam;
+  std::string fparam;
   size_t index_size, r_size;
+
+  streampos pos, pspos;
+  std::vector<std::string> nparts;
+
+  bool operator==(const PSPstanza& x) const
+  {
+    if(name.compare(x.name) == 0)
+      return true;
+    else
+      return false;
+  }
+
 };
   
 template <typename real>
@@ -40,12 +51,12 @@ public:
   vector<real>   datr;
   unsigned long  indx;
 
-  void read(std::istream* in, int pcount, list<PSPstanza>::iterator spos) 
+  void read(std::istream& in, int pcount, list<PSPstanza>::iterator spos) 
   {
     // Sequence value
     // --------------
     if (spos->index_size) 
-      in->read((char *)&indx, sizeof(unsigned long));
+      in.read((char *)&indx, sizeof(unsigned long));
     else
       indx = pcount;
 
@@ -63,17 +74,18 @@ public:
 
     // Read the rest
     // -------------
-    in->read((char *)&mass, sizeof(real));
-    for (int i=0; i<3; i++) in->read((char *)&pos[i], sizeof(real));
-    for (int i=0; i<3; i++) in->read((char *)&vel[i], sizeof(real));
-    in->read((char *)&phi, sizeof(real));
+    in.read((char *)&mass, sizeof(real));
+    for (int i=0; i<3; i++) in.read((char *)&pos[i], sizeof(real));
+    for (int i=0; i<3; i++) in.read((char *)&vel[i], sizeof(real));
+    in.read((char *)&phi, sizeof(real));
     for (int i=0; i<spos->comp.niatr; i++) 
-      in->read((char *)&iatr[i], sizeof(int));
+      in.read((char *)&iatr[i], sizeof(int));
     for (int i=0; i<spos->comp.ndatr; i++) 
-      in->read((char *)&datr[i], sizeof(real));
+      in.read((char *)&datr[i], sizeof(real));
   }
 
 };
+
 
 class SParticle
 {
@@ -195,7 +207,7 @@ public:
       d = boost::shared_ptr< PParticle<double> >( new PParticle<double>() );
   }
 
-  void read(std::istream* in, unsigned rsize, int pcount, 
+  void read(std::istream& in, unsigned rsize, int pcount, 
 	    list<PSPstanza>::iterator spos) 
   {
     setSize(rsize);
@@ -205,89 +217,114 @@ public:
       d->read(in, pcount, spos);
   }
 
-  void write(std::ostream* out, bool real4, size_t isiz);
-
+  void write(std::ostream& out, bool real4, size_t isiz);
 };
 
-class Dump 
-{
-public:
-  streampos pos;
-  MasterHeader header;
-  list<PSPstanza> stanzas;
-  
-  int ngas, ndark, nstar, ntot;
-  list<PSPstanza> gas, dark, star;
-  
-  Dump () : ngas(0), ndark(0), nstar(0), ntot(0) {}
-
-  //! Add replace cparam field
-  void add_cparam(void);
-};
-
-class PSPDump 
+class PSP
 {
 
-private:
+protected:
 
   const static unsigned long magic = 0xadbfabc0;
   const static unsigned long mmask = 0xf;
   const static unsigned long nmask = ~mmask;
 
-  list<Dump> dumps;
-  bool TIPSY, VERBOSE;
-  
-  list<Dump>::iterator sdump;
-  Dump *fid;
+  MasterHeader header;
 
+  bool VERBOSE;
+  
+  list<PSPstanza> stanzas;
   list<PSPstanza>::iterator spos;
   PSPstanza *cur;
 
   SParticle part;
   int pcount;
 
+  std::ifstream in;
+
   //! Temporaries for stanza statistics
   float mtot;
   std::vector<float> pmin, pmed, pmax;
   std::vector<float> vmin, vmed, vmax;
-  void ComputeStats(std::ifstream *in);
-  void write_binary(std::ifstream* in, std::ostream* out, 
+  void ComputeStats();
+  void write_binary(std::ostream& out,
 		    list<PSPstanza>::iterator its, bool real4);
 
 public:
 
-  PSPDump(ifstream *in, bool tipsy=false, bool verbose=false);
+  PSP(bool verbose) : VERBOSE(verbose) {}
 
-  double SetTime(double time);
-  double CurrentTime() {return fid->header.time;}
-  void PrintSummaryCurrent(ifstream *in, ostream &out, bool stats=false, bool timeonly=false);
-  void PrintSummary       (ifstream *in, ostream &out, bool stats=false, bool timeonly=false);
+  double CurrentTime()    {return header.time;}
+  void   PrintSummary     (ostream &out, bool stats=false, bool timeonly=false);
 
-  Dump *CurrentDump() {return fid;}
+  //! Set stanza to name
+  virtual PSPstanza *GetNamed(const std::string& name)
+  {
+    PSPstanza x;
+    x.name = name;
+    auto it = std::find(stanzas.begin(), stanzas.end(), x);
+    if (it == stanzas.end()) return 0;
+    spos = it;
+    return &(*spos);
+  }
 
-  Dump *GetDump();
-  Dump *NextDump();
+  //! Reset to beginning of stanza list and return null if no stanzas.
+  virtual PSPstanza *GetStanza();
 
-  PSPstanza *GetStanza();
-  PSPstanza *NextStanza();
+  //! Get next stanza in list and return null at end;
+  virtual PSPstanza *NextStanza();
 
-  PSPstanza *GetGas();
-  PSPstanza *NextGas();
+  //! Reset to beginning of particles for this component
+  virtual SParticle *GetParticle () = 0;
 
-  PSPstanza *GetDark();
-  PSPstanza *NextDark();
+  //! Get next particle and return null at end.
+  virtual SParticle *NextParticle() = 0;
 
-  PSPstanza *GetStar();
-  PSPstanza *NextStar();
-
-  SParticle *GetParticle (std::ifstream* in);
-  SParticle *NextParticle(std::ifstream* in);
-
-  void writePSP(std::ifstream* in, std::ostream* out, bool real4);
+  //! Write a new PSP file
+  void writePSP(std::ostream& out,  bool real4);
 
 };
 
-extern string trimLeft(const string);
-extern string trimRight(const string);
+
+
+class PSPout : public PSP
+{
+private:
+  streampos pos;
+
+public:
+  PSPout(const std::string& file, bool verbose=false);
+
+  //! Destructor
+  virtual ~PSPout() { in.close(); }
+
+  virtual SParticle* GetParticle ();
+  virtual SParticle* NextParticle();
+};
+
+class PSPspl : public PSP
+{
+private:
+  unsigned int N;
+  unsigned int fcount;
+  std::vector<std::string>::iterator fit;
+
+  //! Open next file part
+  void openNextBlob();
+
+public:
+  //! Constuctor
+  PSPspl(const std::string& file, bool verbose=false);
+
+  //! Destructor
+  virtual ~PSPspl() { in.close(); }
+
+  virtual SParticle* GetParticle ();
+  virtual SParticle* NextParticle();
+
+};
+
+extern std::string trimLeft(const string);
+extern std::string trimRight(const string);
 
 #endif

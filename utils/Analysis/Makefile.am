@@ -25,7 +25,7 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
-bin_PROGRAMS = diskprof haloprof slabprof psphisto gas2d gas2dcyl makegrid pspbox eofpeek diskprof2 pcatest diskprof3 mssaprof readcoefs pcatest
+bin_PROGRAMS = diskprof haloprof slabprof psphisto gas2d gas2dcyl makegrid pspbox eofpeek diskprof2 pcatest diskprof3 mssaprof readcoefs pcatest diskprof4
 
 diskprof_SOURCES = PSP.cc header.cc diskprof.cc EmpCylSL.cc localmpi.cc Particle.cc
 diskprof_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
@@ -81,6 +81,10 @@ readcoefs_SOURCES = readcoefs.cc
 readcoefs_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
 readcoefs_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB)
 
+diskprof4_SOURCES = PSP2.cc header.cc diskprof4.cc EmpCylSL.cc localmpi.cc Particle.cc
+diskprof4_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
+diskprof4_LDADD   = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
+
 EmpCylSL.cc:	$(top_srcdir)/src/EmpCylSL.cc
 	cp $(top_srcdir)/src/$@ .
 
@@ -89,6 +93,12 @@ PSP.H:	$(top_srcdir)/utils/PhaseSpace/PSP.H
 
 PSP.cc:	$(top_srcdir)/utils/PhaseSpace/PSP.cc header.cc header.H PSP.H
 	cp $(top_srcdir)/utils/PhaseSpace/PSP.cc .
+
+PSP2.H:	$(top_srcdir)/utils/PhaseSpace/PSP2.H
+	cp $(top_srcdir)/utils/PhaseSpace/PSP2.H .
+
+PSP2.cc:	$(top_srcdir)/utils/PhaseSpace/PSP2.cc header.cc header.H PSP2.H #
+	cp $(top_srcdir)/utils/PhaseSpace/PSP2.cc .
 
 header.cc:	$(top_srcdir)/utils/PhaseSpace/header.cc header.H
 	cp $(top_srcdir)/utils/PhaseSpace/header.cc .
