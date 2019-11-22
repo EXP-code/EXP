@@ -132,7 +132,7 @@ void OutPSQ::Run(int n, bool last)
 				// Check for open failures
     nOK = 0;
 
-				// Component file
+				// Write component header
     std::ostringstream cname;
     cname << fname.str() << "_" << count++;
     
@@ -142,7 +142,7 @@ void OutPSQ::Run(int n, bool last)
 
     cname << "-" << myid;
     
-				// Open file and write master header
+				// Open particle file and write
     std::ofstream pout(cname.str());
 
     if (pout.fail()) {
