@@ -2,8 +2,8 @@
  *  Description:
  *  -----------
  *
- *  Read in coefficients and compute VTK slices, 
- *  and compute volume for VTK rendering
+ *  Read in coefficients and compute VTK slices, and compute volume
+ *  for VTK rendering
  *
  *
  *  Call sequence:
@@ -24,7 +24,7 @@
  *  By:
  *  --
  *
- *  MDW 11/28/08, 02/09/18
+ *  MDW 11/28/08, 02/09/18, 11/21/19
  *
  ***************************************************************************/
 
@@ -900,7 +900,7 @@ main(int argc, char **argv)
   int nice, numx, numy, lmax, mmax, nmax, norder;
   int beg, end, stride, init;
   double rcylmin, rcylmax, rscale, vscale;
-  bool DENS, PCA, PVD, verbose = false, mask = false;
+  bool DENS, PCA, PVD, verbose = false, mask = false, cmap, logl;
   std::string CACHEFILE, cname, pname;
 
   //
@@ -1014,6 +1014,12 @@ main(int argc, char **argv)
     ("runtag",
      po::value<std::string>(&runtag)->default_value("run1"),
      "runtag for phase space files")
+    ("cmap",
+     po::value<bool>(&cmap)->default_value(true),
+     "map radius into semi-infinite interval in cylindrical grid computation")
+    ("logl",
+     po::value<bool>(&logl)->default_value(true),
+     "use logarithmic radius scale in cylindrical grid computation")
     ;
   
   po::variables_map vm;
@@ -1093,8 +1099,8 @@ main(int argc, char **argv)
   EmpCylSL::RMAX        = rcylmax;
   EmpCylSL::NUMX        = numx;
   EmpCylSL::NUMY        = numy;
-  EmpCylSL::CMAP        = true;
-  EmpCylSL::logarithmic = true;
+  EmpCylSL::CMAP        = cmap;
+  EmpCylSL::logarithmic = logl;
   EmpCylSL::DENS        = DENS;
   EmpCylSL::CACHEFILE   = CACHEFILE;
 
@@ -1120,28 +1126,23 @@ main(int argc, char **argv)
   
   if (ortho.read_cache()==0) {
     
-    //------------------------------------------------------------ 
-
     if (myid==0) {
-      if (SPL)
-	psp = PSPptr(new PSPspl (s0.str(), true));
-      else
-	psp = PSPptr(new PSPout (s0.str(), true));
-      cout << "Beginning disk partition [time="
-	   << psp->CurrentTime()
-	   << "] . . . " << flush;
+      if (SPL) psp = PSPptr(new PSPspl (s0.str(), true));
+      else     psp = PSPptr(new PSPout (s0.str(), true));
+      std::cout << "Beginning disk partition [time="
+		<< psp->CurrentTime()
+		<< "] . . . " << std::flush;
     }
       
     partition(psp, cname, particles, histo);
-    if (myid==0) cout << "done" << endl;
 
-    if (myid==0) {
-      cout << endl
-	   << setw(4) << "#" << "  " << setw(8) << "Number" << endl 
-	   << setfill('-')
-	   << setw(4) << "-" << "  " << setw(8) << "-" << endl
-	   << setfill(' ');
-    }
+    if (myid==0)
+      std::cout << "done" << endl << endl
+		<< setw(4) << "#" << "  " << setw(8) << "Number" << endl 
+		<< setfill('-')
+		<< setw(4) << "-" << "  " << setw(8) << "-" << endl
+		<< setfill(' ');
+
     for (int n=0; n<numprocs; n++) {
       if (n==myid) {
 	cout << setw(4) << myid << "  "
@@ -1186,11 +1187,12 @@ main(int argc, char **argv)
 
     iok = 1;
     if (myid==0) {
-      s1.str("");		// Clear
+      s1.str("");		// Clear stringstream
       if (SPL) s1 << "SPL.";
       else     s1 << "OUT.";
       s1 << runtag << "."<< std::setw(5) << std::setfill('0') << indx;
       
+				// Check for existence of next file
       std::ifstream in(s1.str());
       if (!in) {
 	cerr << "Error opening <" << s1.str() << ">" << endl;
@@ -1204,18 +1206,11 @@ main(int argc, char **argv)
     // ==================================================
     // Open frame list
     // ==================================================
-    
-    if (SPL)
-      psp = PSPptr(new PSPspl(s1.str(), true));
-    else
-      psp = PSPptr(new PSPout(s1.str(), true));
-
-    
-    int icnt = 0;
-    
-    //------------------------------------------------------------ 
-
     if (myid==0) {
+
+      if (SPL) psp = PSPptr(new PSPspl(s1.str(), true));
+      else     psp = PSPptr(new PSPout(s1.str(), true));
+
       tnow = psp->CurrentTime();
       cout << "Beginning disk partition [time=" << tnow
 	   << ", index=" << indx << "] . . . "  << flush;
@@ -1248,7 +1243,9 @@ main(int argc, char **argv)
     //------------------------------------------------------------ 
       
     if (myid==0) cout << "Writing output . . . " << flush;
-    write_output(ortho, indx, psp->CurrentTime(), histo);
+    double time = 0.0;
+    if (myid==0) time = psp->CurrentTime();
+    write_output(ortho, indx, time, histo);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
     
