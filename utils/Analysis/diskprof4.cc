@@ -910,6 +910,8 @@ main(int argc, char **argv)
   desc.add_options()
     ("help,h",
      "produce this help message")
+    ("noCommand,X",
+     "do not save command line")
     ("verbose,v",
      "verbose output")
     ("mask,b",
@@ -1006,7 +1008,7 @@ main(int argc, char **argv)
      po::value<int>(&stride)->default_value(1),
      "PSP index stride")
     ("outfile",
-     po::value<std::string>(&outid)->default_value("diskprof2"),
+     po::value<std::string>(&outid)->default_value("diskprof4"),
      "Filename prefix")
     ("cachefile",
      po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),
@@ -1048,6 +1050,23 @@ main(int argc, char **argv)
   if (vm.count("SPL")) SPL = true;
   if (vm.count("OUT")) SPL = false;
 
+  if (vm.count("noCommand")==0) {
+    std::string cmdFile = runtag + "." + outid + ".cmd_line";
+    std::ofstream cmd(cmdFile);
+    if (!cmd) {
+      std::cerr << "diskprof4: error opening <" << cmdFile
+		<< "> for writing" << std::endl;
+    } else {
+      std::string cmd_line;
+      for (int i=0; i<argc; i++) {
+	cmd_line += argv[i];
+	cmd_line += " ";
+      }
+      cmd << cmd_line << std::endl;
+    }
+    
+    cmd.close();
+  }
 
 #ifdef DEBUG
   sleep(20);
