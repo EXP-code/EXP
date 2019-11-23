@@ -2,8 +2,8 @@
  *  Description:
  *  -----------
  *
- *  Read in coefficients and compute VTK slices, 
- *  and compute volume for VTK rendering
+ *  Read in coefficients and compute VTK slices, and compute volume
+ *  for VTK rendering
  *
  *
  *  Call sequence:
