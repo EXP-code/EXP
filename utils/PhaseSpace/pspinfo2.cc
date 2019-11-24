@@ -77,7 +77,11 @@ main(int argc, char *argv[])
 
   if (optind >= argc) Usage(argv[0]);
 
-  cerr << "Filename: " << argv[optind] << endl;
+  std::string file(argv[optind]);
+
+  cerr << "Filename: " << file << endl;
+
+  if (not spl and file.find("SPL")!=std::string::npos) spl = true;
 
   std::shared_ptr<PSP> psp;
   if (spl) psp = std::make_shared<PSPspl>(argv[optind], verbose);
