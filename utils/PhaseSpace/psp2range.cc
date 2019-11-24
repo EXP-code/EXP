@@ -41,7 +41,7 @@ main(int ac, char **av)
 {
   bool verbose = false;
   char *prog = av[0];
-  std:: string cname;
+  std:: string cname, new_dir("");
   double time;
   int sindx;
 
@@ -57,6 +57,8 @@ main(int ac, char **av)
      "component name")
     ("files,f",         po::value< std::vector<std::string> >(), 
      "input files")
+    ("dir,d",           po::value<std::string>(&new_dir), 
+     "replacement SPL file directory")
     ;
 
 
@@ -101,7 +103,7 @@ main(int ac, char **av)
 				// ------------------
     PSPptr psp;
     if (file.find("SPL") != std::string::npos)
-      psp = std::make_shared<PSPspl>(file);
+      psp = std::make_shared<PSPspl>(file, new_dir);
     else
       psp = std::make_shared<PSPout>(file);
 

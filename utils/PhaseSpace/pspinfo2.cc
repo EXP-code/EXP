@@ -43,6 +43,7 @@ main(int argc, char *argv[])
   bool stats = false;
   bool timeonly = false;
   bool verbose = false;
+  std::string new_dir("");
   int c;
   
   while (1) {
@@ -67,6 +68,11 @@ main(int argc, char *argv[])
       timeonly = true;
       break;
 
+    case 'd':
+      new_dir.erase();
+      new_dir = string(optarg);
+      break;
+
     case 'h':
     case '?':
     default:
@@ -84,7 +90,7 @@ main(int argc, char *argv[])
   if (not spl and file.find("SPL")!=std::string::npos) spl = true;
 
   std::shared_ptr<PSP> psp;
-  if (spl) psp = std::make_shared<PSPspl>(argv[optind], verbose);
+  if (spl) psp = std::make_shared<PSPspl>(argv[optind], new_dir, verbose);
   else     psp = std::make_shared<PSPout>(argv[optind], verbose);
 
   psp->PrintSummary(cout, stats, timeonly);

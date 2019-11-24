@@ -24,7 +24,7 @@ bool badstatus(istream& in)
 }
 
 
-PSPout::PSPout(const std::string& infile, bool verbose) : PSP(verbose)
+PSPout::PSPout(const std::string& infile, bool verbose) : PSP(verbose, "")
 {
   // Open the file
   // -------------
@@ -192,7 +192,7 @@ PSPout::PSPout(const std::string& infile, bool verbose) : PSP(verbose)
 }
 
 
-PSPspl::PSPspl(const std::string& master, bool verbose) : PSP(verbose)
+PSPspl::PSPspl(const std::string& master, const std::string dir, bool verbose) : PSP(verbose, dir)
 {
   // Open the file
   // -------------
@@ -435,11 +435,24 @@ void PSPspl::openNextBlob()
 {
   in.close();			// Close current file
 
+  std::string curfile(*fit);
+
   try {
-    in.open(*fit);
+    if (new_dir.size()) {
+      auto pos = curfile.find_last_of("/");
+      if (pos != std::string::npos) // Rewrite leading directory
+	curfile = new_dir + curfile.substr(pos);
+    }
+    in.open(curfile);
   } catch (...) {
     std::ostringstream sout;
-    sout << "Could not open SPL blob <" << *fit << ">";
+    sout << "Could not open SPL blob <" << curfile << ">";
+    throw std::runtime_error(sout.str());
+  }
+
+  if (not in.good()) {
+    std::ostringstream sout;
+    sout << "Could not open SPL blob <" << curfile << ">";
     throw std::runtime_error(sout.str());
   }
 
@@ -447,7 +460,7 @@ void PSPspl::openNextBlob()
     in.read((char*)&N, sizeof(unsigned int));
   } catch (...) {
     std::ostringstream sout;
-    sout << "Could not get particle count from <" << *fit << ">";
+    sout << "Could not get particle count from <" << curfile << ">";
     throw std::runtime_error(sout.str());
   }
 

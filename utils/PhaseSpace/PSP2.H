@@ -251,9 +251,11 @@ protected:
   void write_binary(std::ostream& out,
 		    list<PSPstanza>::iterator its, bool real4);
 
+  std::string new_dir;
+
 public:
 
-  PSP(bool verbose) : VERBOSE(verbose) {}
+  PSP(bool verbose, std::string new_dir) : VERBOSE(verbose), new_dir(new_dir) {}
 
   double CurrentTime()    {return header.time;}
   void   PrintSummary     (ostream &out, bool stats=false, bool timeonly=false);
@@ -314,8 +316,8 @@ private:
   void openNextBlob();
 
 public:
-  //! Constuctor
-  PSPspl(const std::string& file, bool verbose=false);
+  //! Constuctors
+  PSPspl(const std::string& file, const std::string dir = "", bool verbose=false);
 
   //! Destructor
   virtual ~PSPspl() { in.close(); }

@@ -39,7 +39,7 @@ int
 main(int argc, char **argv)
 {
   char *prog = argv[0];
-  std::string runtag, inoutdir, outfile, prefix;
+  std::string runtag, inoutdir, outfile, prefix, new_dir("");
   bool verbose = false, range = false, checkpt = false;
   int seq, bseq=0, fseq=10000;
 

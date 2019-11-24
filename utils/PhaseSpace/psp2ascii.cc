@@ -36,6 +36,7 @@ void Usage(char* prog) {
   cerr << prog << ": [-t time -v -h] filename\n\n";
   cerr << "    -o name         prefix name for each component (default: comp)\n";
   cerr << "    -a              use input format\n";
+  cerr << "    -d dir          replacement SPL file directory\n";
   cerr << "    -h              print this help message\n";
   cerr << "    -v              verbose output\n\n";
   exit(0);
@@ -49,7 +50,7 @@ main(int argc, char **argv)
   double time=1e20;
   bool verbose = false;
   bool input   = false;
-  string cname("comp");
+  string cname("comp"), new_dir("");
 
   // Parse command line
 
@@ -68,6 +69,11 @@ main(int argc, char **argv)
     case 'o':
       cname.erase();
       cname = string(optarg);
+      break;
+
+    case 'd':
+      new_dir.erase();
+      new_dir = string(optarg);
       break;
 
     case 'a':
@@ -104,7 +110,7 @@ main(int argc, char **argv)
 				// ------------------
   PSPptr psp;
   if (filename.find("SPL") != std::string::npos)
-    psp = std::make_shared<PSPspl>(filename);
+    psp = std::make_shared<PSPspl>(filename, new_dir);
   else
     psp = std::make_shared<PSPout>(filename);
 

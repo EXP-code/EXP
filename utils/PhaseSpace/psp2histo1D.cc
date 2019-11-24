@@ -42,7 +42,7 @@ main(int ac, char **av)
   bool snorm   = false;
   bool use_sph = false;
   bool use_cyl = false;
-  std:: string cname;
+  std::string cname, new_dir;
   int axis, numb, comp;
   double pmin, pmax;
 
@@ -71,6 +71,8 @@ main(int ac, char **av)
      "histogram along desired axis: x=1, y=2, z=3")
     ("files,f",         po::value< std::vector<std::string> >(), 
      "input files")
+    ("dir,d",           po::value<std::string>(&new_dir),
+     "rewrite directory location for SPL files")
     ;
 
 
@@ -137,7 +139,7 @@ main(int ac, char **av)
 				// ------------------
     PSPptr psp;
     if (file.find("SPL") != std::string::npos)
-      psp = std::make_shared<PSPspl>(file);
+      psp = std::make_shared<PSPspl>(file, new_dir);
     else
       psp = std::make_shared<PSPout>(file);
 

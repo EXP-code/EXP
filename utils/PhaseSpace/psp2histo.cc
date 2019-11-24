@@ -44,6 +44,7 @@ void Usage(char* prog) {
   cerr << "    -2 numy         number of bins in y direction\n";
   cerr << "    -o name         component name (default: comp)\n";
   cerr << "    -c comp         value index\n";
+  cerr << "    -d dir          replacement SPL file directory\n";
   cerr << "    -r              spherical radius\n";
   cerr << "    -R              cylindrical radius\n";
   cerr << "    -A              areal average\n";
@@ -64,7 +65,7 @@ main(int argc, char **argv)
   bool nweight = false;
   bool areal   = false;
   bool verbose = false;
-  std::string cname("comp");
+  std::string cname("comp"), new_dir("");
   double xmin = 0.0, xmax = 1.0;
   double ymin = 0.0, ymax = 1.0;
   double zmin = -100.0, zmax = 100.0;
@@ -141,6 +142,11 @@ main(int argc, char **argv)
       cname = string(optarg);
       break;
 
+    case 'd':
+      new_dir.erase();
+      new_dir = string(optarg);
+      break;
+
     case '?':
     case 'h':
     default:
@@ -171,7 +177,7 @@ main(int argc, char **argv)
 				// ------------------
   PSPptr psp;
   if (file.find("SPL") != std::string::npos)
-    psp = std::make_shared<PSPspl>(file);
+    psp = std::make_shared<PSPspl>(file, new_dir);
   else
     psp = std::make_shared<PSPout>(file);
 

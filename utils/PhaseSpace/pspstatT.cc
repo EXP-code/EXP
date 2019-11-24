@@ -44,7 +44,7 @@ main(int ac, char **av)
   char *prog = av[0];
   double Lunit, Munit, Tunit;
   int sindx, eindx, icons, econs;
-  std::string cname, species;
+  std::string cname, species, new_dir("");
   bool verbose = false;
 
   // Parse command line
@@ -63,6 +63,8 @@ main(int ac, char **av)
      "position of electron conservation (-1 to ignore)")
     ("name,c",	        po::value<std::string>(&cname)->default_value("gas"),
      "component name")
+    ("dir,d",	        po::value<std::string>(&new_dir),
+     "rewrite data directory for SPL files")
     ("Lunit,L",         po::value<double>(&Lunit)->default_value(1.0),
      "physical length unit in pc")
     ("Munit,M",         po::value<double>(&Munit)->default_value(1.0),
@@ -204,7 +206,7 @@ main(int ac, char **av)
     if (file.find("SPL") != std::string::npos)
       psp = std::make_shared<PSPout>(file);
     else
-      psp = std::make_shared<PSPspl>(file);
+      psp = std::make_shared<PSPspl>(file, new_dir);
 
 				// Now write a summary
 				// -------------------
