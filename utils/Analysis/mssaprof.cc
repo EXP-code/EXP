@@ -55,7 +55,6 @@ namespace pt = boost::property_tree;
 #include <Vector.h>
 #include <numerical.h>
 #include "Particle.h"
-#include <PSP.H>
 #include <interp.h>
 #include <EmpCylSL.h>
 
@@ -63,14 +62,6 @@ namespace pt = boost::property_tree;
 #include <foarray.H>
 
 #include <VtkGrid.H>
-
-#ifdef DEBUG
-#ifndef _REDUCED
-#pragma message "NOT using reduced particle structure"
-#endif
-#endif
-
-typedef boost::shared_ptr<PSPDump> PSPDumpPtr;
 
 const std::string overview = "Compute disk potential, force and density profiles from\nMSSA reconstructed coefficient files\n";
 
