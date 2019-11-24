@@ -1,7 +1,7 @@
 /*
   Compute min and max for all fields
 
-  MDWeinberg 08/26/11
+  MDWeinberg 08/26/11, 11/24/19
 */
 
 using namespace std;
@@ -21,7 +21,7 @@ using namespace std;
 #include <Species.H>
 
 #include <header.H>
-#include <PSP.H>
+#include <PSP2.H>
 #include <InitContainer.H>
 
 #include <boost/program_options.hpp>
@@ -51,8 +51,6 @@ main(int ac, char **av)
   desc.add_options()
     ("help,h",		"produce help message")
     ("verbose,v",       "verbose output")
-    ("time,t",		 po::value<double>(&time)->default_value(1.0e20),
-     "find closest time slice to requested value")
     ("species,s",	po::value<int>(&sindx)->default_value(-1),
      "position of species index")
     ("name,c",	        po::value<std::string>(&cname)->default_value("comp"),
@@ -90,8 +88,8 @@ main(int ac, char **av)
   
   for (auto file : files ) {
 
-    ifstream *in = new ifstream(file.c_str());
-    if (!*in) {
+    std::ifstream in(file);
+    if (!in) {
       cerr << "Error opening file <" << file << "> for input\n";
       exit(-1);
     }
@@ -101,27 +99,24 @@ main(int ac, char **av)
 
 				// Parse the PSP file
 				// ------------------
-    PSPDump psp(in);
-
-    in->close();
+    PSPptr psp;
+    if (file.find("SPL") != std::string::npos)
+      psp = std::make_shared<PSPspl>(file);
+    else
+      psp = std::make_shared<PSPout>(file);
 
 				// Now write a summary
 				// -------------------
     if (verbose) {
       
-      psp.PrintSummary(in, cerr);
+      psp->PrintSummary(cerr);
     
-      cerr << "\nBest fit dump to <" << time << "> has time <" 
-	   << psp.SetTime(time) << ">\n";
-    } else 
-      psp.SetTime(time);
+      cerr << "\nPSP file <" << file << "> has time <" 
+	   << psp->CurrentTime() << ">\n";
+    }
 
 				// Dump ascii for each component
 				// -----------------------------
-    delete in;
-    in = new ifstream(file);
-    
-  
     vector<double> pos(3), vel(3);
     int itmp, icnt, iv;
 
@@ -138,15 +133,11 @@ main(int ac, char **av)
     std::map< speciesKey, std::vector<int> >     iavmin, iavmax;
     std::map< speciesKey, std::vector<double> >  davmin, davmax;
 
-    for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
+    for (stanza=psp->GetStanza(); stanza!=0; stanza=psp->NextStanza()) {
     
       if (stanza->name != cname) continue;
 
-
-				// Position to beginning of particles
-      in->seekg(stanza->pspos);
-
-      for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
+      for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
 
 	double mass = part->mass();
 
@@ -204,20 +195,20 @@ main(int ac, char **av)
       // Output
       //
       const size_t fw = 18;
-      double Time = psp.CurrentTime();
+      double Time = psp->CurrentTime();
 
       std::cout << "Time=" << Time << std::endl << std::endl;
 
       std::cout << std::string(4*fw, '-') << std::endl;
 
-      std::cout << std::right
-		<< std::setw(fw) << "Key"
-		<< std::setw(fw) << "Value"
+      std::cout << std::right;
+      if (sindx>=0) std::cout << std::setw(fw) << "Key";
+      std::cout << std::setw(fw) << "Value"
 		<< std::setw(fw) << "Min"
 		<< std::setw(fw) << "Max"
-		<< std::endl
-		<< std::setw(fw) << "------"
-		<< std::setw(fw) << "------"
+		<< std::endl;
+      if (sindx>=0) std::cout << std::setw(fw) << "------";
+      std::cout << std::setw(fw) << "------"
 		<< std::setw(fw) << "------"
 		<< std::setw(fw) << "------"
 		<< std::endl;
@@ -226,9 +217,9 @@ main(int ac, char **av)
 	std::ostringstream skey;
 	skey << "<" << key.first << ", " << key.second << ">";
 	
-	std::cout << std::right
-		  << std::setw(fw) << skey.str()
-		  << std::setw(fw) << "Mass"
+	std::cout << std::right;
+	if (sindx >= 0) std::cout << std::setw(fw) << skey.str();
+	std::cout << std::setw(fw) << "Mass"
 		  << std::setw(fw) << masmin[key]
 		  << std::setw(fw) << masmax[key]
 		  << std::endl;
@@ -236,9 +227,9 @@ main(int ac, char **av)
 	for (int k=0; k<3; k++) {
 	  std::ostringstream snam;
 	  snam << "pos(" << k+1 << ")";
-	  std::cout << std::right
-		    << std::setw(fw) << skey.str()
-		    << std::setw(fw) << snam.str()
+	  std::cout << std::right;
+	  if (sindx >= 0) std::cout << std::setw(fw) << skey.str();
+	  std::cout << std::setw(fw) << snam.str()
 		    << std::setw(fw) << posmin[key][k]
 		    << std::setw(fw) << posmax[key][k]
 		    << std::endl;
@@ -247,17 +238,17 @@ main(int ac, char **av)
 	for (int k=0; k<3; k++) {
 	  std::ostringstream snam;
 	  snam << "vel(" << k+1 << ")";
-	  std::cout << std::right
-		    << std::setw(fw) << skey.str()
-		    << std::setw(fw) << snam.str()
+	  std::cout << std::right;
+	  if (sindx >= 0) std::cout << std::setw(fw) << skey.str();
+	  std::cout << std::setw(fw) << snam.str()
 		    << std::setw(fw) << velmin[key][k]
 		    << std::setw(fw) << velmax[key][k]
 		    << std::endl;
 	}
 	
-	std::cout << std::right
-		  << std::setw(fw) << skey.str()
-		  << std::setw(fw) << "Phi"
+	std::cout << std::right;
+	if (sindx >= 0) std::cout << std::setw(fw) << skey.str();
+	std::cout << std::setw(fw) << "Phi"
 		  << std::setw(fw) << phimin[key]
 		  << std::setw(fw) << phimax[key]
 		  << std::endl;
@@ -266,9 +257,10 @@ main(int ac, char **av)
 	for (size_t k=0; k<iavmin[key].size(); k++) {
 	  std::ostringstream snam;
 	  snam << "iatr(" << k << ")";
-	  std::cout << std::right
-		    << std::setw(fw) << skey.str()
-		    << std::setw(fw) << snam.str()
+
+	  std::cout << std::right;
+	  if (sindx >= 0) std::cout << std::setw(fw) << skey.str();
+	  std::cout << std::setw(fw) << snam.str()
 		    << std::setw(fw) << iavmin[key][k]
 		    << std::setw(fw) << iavmax[key][k]
 		    << std::endl;
@@ -277,9 +269,9 @@ main(int ac, char **av)
 	for (size_t k=0; k<davmin[key].size(); k++) {
 	  std::ostringstream snam;
 	  snam << "datr(" << k << ")";
-	  std::cout << std::right
-		    << std::setw(fw) << skey.str()
-		    << std::setw(fw) << snam.str()
+	  std::cout << std::right;
+	  if (sindx >= 0) std::cout << std::setw(fw) << skey.str();
+	  std::cout << std::setw(fw) << snam.str()
 		    << std::setw(fw) << davmin[key][k]
 		    << std::setw(fw) << davmax[key][k]
 		    << std::endl;

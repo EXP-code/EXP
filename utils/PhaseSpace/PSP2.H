@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iomanip>
 #include <vector>
+#include <memory>
 #include <string>
 #include <cmath>
 #include <list>
@@ -326,5 +327,7 @@ public:
 
 extern std::string trimLeft(const string);
 extern std::string trimRight(const string);
+
+typedef std::shared_ptr<PSP> PSPptr;
 
 #endif

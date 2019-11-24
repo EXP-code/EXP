@@ -1,7 +1,7 @@
 /*
   Compute simple statistics from psp dump
 
-  MDWeinberg 06/10/02
+  MDWeinberg 06/10/02, 11/24/19
 */
 
 using namespace std;
@@ -15,11 +15,12 @@ using namespace std;
 #include <iomanip>
 #include <vector>
 #include <string>
+#include <memory>
 #include <list>
 
 #include <StringTok.H>
 #include <header.H>
-#include <PSP.H>
+#include <PSP2.H>
 
 				// Globals for exputil library
 				// Unused here
@@ -34,7 +35,6 @@ string outdir, runtag;
 
 void Usage(char* prog) {
   cerr << prog << ": [-t time -v -h] filename\n\n";
-  cerr << "    -t time         use dump closest to <time>\n";
   cerr << "    -o name         prefix name for each component (default: comp)\n";
   cerr << "    -h              print this help message\n";
   cerr << "    -v              verbose output\n\n";
@@ -54,15 +54,11 @@ main(int argc, char **argv)
 
   while (1) {
 
-    int c = getopt(argc, argv, "t:o:vh");
+    int c = getopt(argc, argv, "o:vh");
 
     if (c == -1) break;
 
     switch (c) {
-
-    case 't':
-      time = atof(optarg);
-      break;
 
     case 'v':
       verbose = true;
@@ -81,43 +77,39 @@ main(int argc, char **argv)
 
   }
 
-  ifstream *in;
+  std::ifstream in;
+  std::string filename;
 
   if (optind < argc) {
 
-    ifstream *in2 = new ifstream(argv[optind]);
-    if (!*in2) {
-      cerr << "Error opening file <" << argv[optind] << "> for input\n";
+    filename = std::string(argv[optind]);
+
+    std::ifstream in2(filename);
+    if (!in2) {
+      cerr << "Error opening file <" << filename << "> for input\n";
       exit(-1);
     }
 
-    if (verbose) cerr << "Using filename: " << argv[optind] << endl;
-
-				// Assign file stream to input stream
-    in = in2;
-
+    if (verbose) cerr << "Using filename: " << filename << endl;
   }
-
 
 				// Parse the PSP file
 				// ------------------
-  PSPDump psp(in);
-
-  in->close();
-  delete in;
+  PSPptr psp;
+  if (filename.find("SPL") != std::string::npos)
+    psp = std::make_shared<PSPspl>(filename);
+  else
+    psp = std::make_shared<PSPout>(filename);
+  
 
 				// Now write a summary
 				// -------------------
   if (verbose) {
-
-    psp.PrintSummary(in, cerr);
+    psp->PrintSummary(cerr);
     
-    cerr << "\nBest fit dump to <" << time << "> has time <" 
-	 << psp.SetTime(time) << ">\n";
-  } else 
-    psp.SetTime(time);
-
-
+    std::cout << std::endl << "PSP file <" << filename << "> has time <" 
+	      << psp->CurrentTime() << ">" << std::endl;
+  }
 
 				// Setup stats for all components
 				// ------------------------------
@@ -130,13 +122,11 @@ main(int argc, char **argv)
   double mass   = 0.0;
   int   totbod  = 0;
   
-  in = new ifstream(argv[optind]);
-
   PSPstanza *stanza;
   SParticle* part;
   double rtmp;
 
-  for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
+  for (stanza=psp->GetStanza(); stanza!=0; stanza=psp->NextStanza()) {
 
 
 				// Setup stats for each component
@@ -182,10 +172,7 @@ main(int argc, char **argv)
 
     totbod += stanza->comp.nbod;
 
-				// Position to beginning of particles
-    in->seekg(stanza->pspos);
-
-    for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
+    for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
 
       mom[0] = part->pos(1)*part->vel(2) - part->pos(2)*part->vel(1);
       mom[1] = part->pos(2)*part->vel(0) - part->pos(0)*part->vel(2);

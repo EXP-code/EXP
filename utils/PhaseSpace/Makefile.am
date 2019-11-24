@@ -37,7 +37,7 @@ pspinfo_LDADD   = $(COMMON_LIBS)
 pspinfo2_SOURCES = pspinfo2.cc PSP2.cc header.cc header.H
 pspinfo2_LDADD   = $(COMMON_LIBS)
 
-pspstat_SOURCES  = pspstat.cc PSP.cc header.cc header.H
+pspstat_SOURCES  = pspstat.cc PSP2.cc header.cc header.H
 pspstat_LDADD    = $(COMMON_LIBS)
 
 pspstatS_SOURCES  = pspstatS.cc PSP.cc header.cc header.H
@@ -45,7 +45,7 @@ pspstatS_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
 pspstatS_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
 pspstatS_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS)
 
-pspstatT_SOURCES  = pspstatT.cc PSP.cc header.cc header.H
+pspstatT_SOURCES  = pspstatT.cc PSP2.cc header.cc header.H
 pspstatT_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
 pspstatT_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
 pspstatT_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS)
@@ -59,7 +59,7 @@ psp2ta_LDADD   = $(COMMON_LIBS)
 pspsplit_SOURCES = pspsplit.cc PSP.cc header.cc header.H
 pspsplit_LDADD   = $(COMMON_LIBS) $(EXPFLAGS)
 
-psp2ascii_SOURCES = psp2ascii.cc PSP.cc header.cc header.H
+psp2ascii_SOURCES = psp2ascii.cc PSP2.cc header.cc header.H
 psp2ascii_LDADD   = $(COMMON_LIBS)
 
 ascii2psp_SOURCES = ascii2psp.cc PSP.cc header.cc header.H
@@ -106,7 +106,7 @@ psp2eHisto_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS) $(EXPLIBS)
 pspreal_SOURCES = pspreal.cc PSP.cc header.cc header.H
 pspreal_LDADD   = $(COMMON_LIBS)
 
-psp2range_SOURCES = psp2range.cc PSP.cc header.cc header.H
+psp2range_SOURCES = psp2range.cc PSP2.cc header.cc header.H
 psp2range_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
 psp2range_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
 psp2range_LDADD   = $(COMMON_LIBS) $(BOOST_LIBS)
