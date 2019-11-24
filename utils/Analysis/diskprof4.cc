@@ -70,8 +70,6 @@ namespace pt = boost::property_tree;
 #endif
 #endif
 
-typedef boost::shared_ptr<PSP> PSPptr;
-
 const std::string overview = "Compute disk potential, force and density profiles from\nPSP phase-space output files";
 
 				// Variables not used but needed for linking
