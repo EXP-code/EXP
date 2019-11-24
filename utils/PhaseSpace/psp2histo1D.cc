@@ -17,9 +17,6 @@ using namespace std;
 #include <list>
 #include <map>
 
-#include <Species.H>
-
-#include <StringTok.H>
 #include <header.H>
 #include <PSP2.H>
 
@@ -41,10 +38,12 @@ main(int ac, char **av)
   char *prog = av[0];
   bool verbose = false;
   bool areal   = false;
+  bool vnorm   = false;
+  bool snorm   = false;
   bool use_sph = false;
   bool use_cyl = false;
   std:: string cname;
-  int axis, numb, comp, sindx, eindx;
+  int axis, numb, comp;
   double pmin, pmax;
 
   // Parse command line
@@ -55,6 +54,8 @@ main(int ac, char **av)
     ("radial,r",        "use spherical radius")
     ("cylindrical,R",   "cylindrical radius")
     ("areal,A",         "areal average")
+    ("vnorm,V",         "compute density for radial bins")
+    ("snorm,S",         "compute surface density for cylindrical bins")
     ("verbose,v",       "verbose output")
     ("pmin,p",	        po::value<double>(&pmin)->default_value(-100.0),
      "minimum position along axis")
@@ -94,11 +95,15 @@ main(int ac, char **av)
   if (vm.count("radial")) {
     use_sph = true;
     use_cyl = false;
+    snorm   = false;
+    if (vm.count("vnorm")) vnorm = true;
   }
 
   if (vm.count("cylindrical")) {
     use_sph = false;
     use_cyl = true;
+    if (vm.count("snorm")) snorm = true;
+    vnorm   = false;
   }
 
   if (vm.count("areal")) {
@@ -108,8 +113,6 @@ main(int ac, char **av)
   if (vm.count("verbose")) {
     verbose = true;
   }
-
-
 				// Axis sanity check 
 				// ------------------
   if (axis<1) axis = 1;
@@ -164,8 +167,6 @@ main(int ac, char **av)
     PSPstanza *stanza;
     SParticle* part;
 
-    std::map< speciesKey, std::vector<float> > shist;
-
     for (stanza=psp->GetStanza(); stanza!=0; stanza=psp->NextStanza()) {
     
       if (stanza->name != cname) continue;
@@ -189,8 +190,10 @@ main(int ac, char **av)
 	  val = part->pos(axis-1);
 	}
 
-	if (val<pmin || val>=pmax) continue;
 	iv = static_cast<int>( floor( (part->pos(axis-1) - pmin)/dp ) );
+
+	if (iv < 0 || iv >= numb) continue;
+
 	
 	double mass = part->mass();
 	
@@ -209,14 +212,6 @@ main(int ac, char **av)
 	  value[iv] += fac*part->iatr(comp-8);
 	else if (part->ndatr())
 	  value[iv] += fac*part->datr(comp-8-part->niatr());
-	
-	if (sindx >= 0) {
-	  KeyConvert k(part->iatr(sindx));
-	  if (shist.find(k.getKey()) == shist.end()) 
-	    shist[k.getKey()].resize(numb, 0);
-	  shist[k.getKey()][iv] += fac;
-	}
-
       }
     
     }
@@ -226,32 +221,18 @@ main(int ac, char **av)
     //
     const size_t fw = 12;
     const size_t sw =  9;
-    double Time = psp->CurrentTime();
     float p, f, m=0.0;
 
     if (first) {
-      std::cout << setw(fw) << "Time"
-		<< setw(fw) << "Position"
+      std::cout << setw(fw) << "Position"
 		<< setw(fw) << "Value"
-		<< setw(fw) << "Mass";
-      
-      for (auto v : shist) {
-	speciesKey k = v.first;
-	ostringstream str;
-	str << "(" << k.first << ", " << k.second << ")";
-	cout << setw(fw) << str.str();
-      }
-      cout << std::endl;
+		<< setw(fw) << "Mass"
+		<< std::endl;
 
       std::cout << setw(fw) << std::string(sw, '-')
 		<< setw(fw) << std::string(sw, '-')
 		<< setw(fw) << std::string(sw, '-')
-		<< setw(fw) << std::string(sw, '-');
-
-      for (auto v : shist) {
-	cout << setw(fw) << std::string(sw, '-');
-      }
-      cout << std::endl;
+		<< std::endl;
 
       first = false;
     }
@@ -260,26 +241,23 @@ main(int ac, char **av)
       p  = pmin + dp*(0.5+i);
       f  = 0.0;
       m += bmass[i];
-      if (areal)  {
+      if (vnorm) {
+	double rmax3 = pow(pmin+dp*(1.0+i), 3.0);
+	double rmin3 = pow(pmin+dp*(0.0+i), 3.0);
+	f = value[i]/(4.0*M_PI/3.0*(rmax3 - rmin3));
+      } else if (snorm) {
+	double rmax2 = pow(pmin+dp*(1.0+i), 2.0);
+	double rmin2 = pow(pmin+dp*(0.0+i), 2.0);
+	f = value[i]/(M_PI*(rmax2 - rmin2));
+      } else if (areal) {
 	f = value[i]/dp;
       } else {
 	if (bmass[i] > 0.0) f = value[i]/bmass[i];
       }
-      cout << setw(fw) << Time 
-	   << setw(fw) << p
+      cout << setw(fw) << p
 	   << setw(fw) << f
-	   << setw(fw) << m;
-      if (sindx>=0) {
-	for (auto v : shist) {
-	  double z = v.second[i];
-	  if (areal) 
-	    z /= dp;
-	  else if (bmass[i] > 0.0) 
-	    z /= bmass[i];
-	  cout << setw(fw) << z;
-	}
-      }
-      cout << endl;
+	   << setw(fw) << m
+	   << endl;
     }
     cout << endl;
   }
