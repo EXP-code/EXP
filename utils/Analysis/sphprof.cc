@@ -577,7 +577,7 @@ main(int argc, char **argv)
 #endif  
   
   int NICE, LMAX, NMAX, ibeg, iend;
-  std::string MODFILE, runtag, cname;
+  std::string MODFILE, runtag, cname, dir("");
   bool ALL;
 
   // ==================================================
@@ -630,6 +630,8 @@ main(int argc, char **argv)
      "Filename prefix")
     ("runtag",              po::value<string>(&runtag)->default_value("run0"),
      "Run tag id")
+    ("dir,d",               po::value<std::string>(&dir),
+     "directory for SPL files")
     ("MODFILE",             po::value<string>(&MODFILE)->default_value("SLGridSph.model"),
      "Halo model file")
     ("beg",                 po::value<int>(&ibeg)->default_value(0),
@@ -737,7 +739,7 @@ main(int argc, char **argv)
 
     if (myid==0) {
 
-      if (SPL) psp = PSPptr(new PSPspl(s0.str(), true));
+      if (SPL) psp = PSPptr(new PSPspl(s0.str(), dir, true));
       else     psp = PSPptr(new PSPout(s0.str(), true));
 
       tnow = psp->CurrentTime();

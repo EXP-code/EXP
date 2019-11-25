@@ -899,7 +899,7 @@ main(int argc, char **argv)
   int beg, end, stride, init;
   double rcylmin, rcylmax, rscale, vscale;
   bool DENS, PCA, PVD, verbose = false, mask = false, cmap, logl;
-  std::string CACHEFILE, cname, pname;
+  std::string CACHEFILE, cname, pname, dir("");
 
   //
   // Parse Command line
@@ -1014,6 +1014,9 @@ main(int argc, char **argv)
     ("runtag",
      po::value<std::string>(&runtag)->default_value("run1"),
      "runtag for phase space files")
+    ("dir,d",
+     po::value<std::string>(&dir),
+     "directory for SPL files")
     ("cmap",
      po::value<bool>(&cmap)->default_value(true),
      "map radius into semi-infinite interval in cylindrical grid computation")
@@ -1144,7 +1147,7 @@ main(int argc, char **argv)
   if (ortho.read_cache()==0) {
     
     if (myid==0) {
-      if (SPL) psp = PSPptr(new PSPspl (s0.str(), true));
+      if (SPL) psp = PSPptr(new PSPspl (s0.str(), dir, true));
       else     psp = PSPptr(new PSPout (s0.str(), true));
       std::cout << "Beginning disk partition [time="
 		<< psp->CurrentTime()
@@ -1225,7 +1228,7 @@ main(int argc, char **argv)
     // ==================================================
     if (myid==0) {
 
-      if (SPL) psp = PSPptr(new PSPspl(s1.str(), true));
+      if (SPL) psp = PSPptr(new PSPspl(s1.str(), dir, true));
       else     psp = PSPptr(new PSPout(s1.str(), true));
 
       tnow = psp->CurrentTime();
