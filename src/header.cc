@@ -93,9 +93,12 @@ bool ComponentHeader::read(istream *in)
 
   if (ninfo != ninfochar) {
     ninfochar = ninfo;
-    info = boost::shared_array<char>(new char [ninfochar]);
+    info = boost::shared_array<char>(new char [ninfochar+1]);
+    // This ensures that info is null terminated
+    std::fill(info.get(), info.get() + ninfochar + 1, '\0');
   }
-  in->read((char *)info.get(), ninfochar*sizeof(char));	if (!*in) return false;
+  in->read((char *)info.get(), ninfochar*sizeof(char));
+  if (!*in) return false;
 
   return true;
 }

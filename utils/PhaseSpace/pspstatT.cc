@@ -21,7 +21,7 @@ using namespace std;
 #include <yaml-cpp/yaml.h>
 
 #include <header.H>
-#include <PSP.H>
+#include <PSP2.H>
 
 #include "atomic_constants.H"
 
@@ -42,9 +42,9 @@ int
 main(int ac, char **av)
 {
   char *prog = av[0];
-  double time, Lunit, Munit, Tunit;
+  double Lunit, Munit, Tunit;
   int sindx, eindx, icons, econs;
-  std::string cname, species;
+  std::string cname, species, new_dir("");
   bool verbose = false;
 
   // Parse command line
@@ -53,8 +53,6 @@ main(int ac, char **av)
   desc.add_options()
     ("help,h",		"produce help message")
     ("verbose,v",       "verbose output")
-    ("time,t",		po::value<double>(&time)->default_value(1.0e20),
-     "find closest time slice to requested value")
     ("species",		po::value<std::string>(&species)->default_value("species.yml"),
      "position of species index")
     ("electrons,e",	po::value<int>(&eindx)->default_value(10),
@@ -65,6 +63,8 @@ main(int ac, char **av)
      "position of electron conservation (-1 to ignore)")
     ("name,c",	        po::value<std::string>(&cname)->default_value("gas"),
      "component name")
+    ("dir,d",	        po::value<std::string>(&new_dir),
+     "rewrite data directory for SPL files")
     ("Lunit,L",         po::value<double>(&Lunit)->default_value(1.0),
      "physical length unit in pc")
     ("Munit,M",         po::value<double>(&Munit)->default_value(1.0),
@@ -202,26 +202,15 @@ main(int ac, char **av)
 
 				// Parse the PSP file
 				// ------------------
-    PSPDump psp(in);
-
-    in->close();
+    std::shared_ptr<PSP> psp;
+    if (file.find("SPL") != std::string::npos)
+      psp = std::make_shared<PSPout>(file);
+    else
+      psp = std::make_shared<PSPspl>(file, new_dir);
 
 				// Now write a summary
 				// -------------------
-    if (verbose) {
-
-      psp.PrintSummary(in, cerr);
-    
-      cerr << "\nBest fit dump to <" << time << "> has time <" 
-	   << psp.SetTime(time) << ">\n";
-    } else 
-      psp.SetTime(time);
-
-
-				// Reopen file for data input
-				// --------------------------
-    delete in;
-    in = new ifstream(file);
+    if (verbose) psp->PrintSummary(cerr);
 
 				// Will contain array for each gas species
 				// ---------------------------------------
@@ -236,10 +225,9 @@ main(int ac, char **av)
     SParticle* part;
     double rtmp;
 
-    for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
+    for (stanza=psp->GetStanza(); stanza!=0; stanza=psp->NextStanza()) {
       
       if (stanza->name != cname) continue;
-
 
 				// Setup stats for each component
 				// -----------------------------
@@ -276,11 +264,7 @@ main(int ac, char **av)
 
       std::vector<double> evel, ivel;
 
-
-				// Position to beginning of particles
-      in->seekg(stanza->pspos);
-
-      for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
+      for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
 
 	//
 	// Accumulate statistics
@@ -378,7 +362,7 @@ main(int ac, char **av)
       
       // Get the system time from the PSP header
       //
-      double systime = psp.CurrentDump()->header.time;
+      double systime = psp->CurrentTime();
 
       cout << "     System time\t\t"        << systime       << std::endl
 	   << "     Kinetic energy\t\t"     << KE1           << std::endl

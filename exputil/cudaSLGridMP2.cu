@@ -14,10 +14,6 @@
 
 #include <cudaUtil.cuH>
 
-__constant__ cuFP_t cuRscale, cuXmin, cuXmax, cuDxi;
-__constant__ int    cuNumr, cuCmap;
-
-
 __global__
 void testFetchSph(dArray<cudaTextureObject_t> T, dArray<cuFP_t> f,
 		  int l, int j, int nmax, int numr)

@@ -1,7 +1,7 @@
 /*
   Separate a psp structure and make a histogram
 
-  MDWeinberg 03/15/10
+  MDWeinberg 03/15/10, 11/24/19
 */
 
 using namespace std;
@@ -18,7 +18,7 @@ using namespace std;
 
 #include <StringTok.H>
 #include <header.H>
-#include <PSP.H>
+#include <PSP2.H>
 
 				// Globals for exputil library
 				// Unused here
@@ -42,8 +42,11 @@ void Usage(char* prog) {
   cerr << "    -Z zmax         maximum z component\n";
   cerr << "    -1 numx         number of bins in x direction\n";
   cerr << "    -2 numy         number of bins in y direction\n";
-  cerr << "    -c comp         value index\n";
   cerr << "    -o name         component name (default: comp)\n";
+  cerr << "    -c comp         value index\n";
+  cerr << "    -d dir          replacement SPL file directory\n";
+  cerr << "    -r              spherical radius\n";
+  cerr << "    -R              cylindrical radius\n";
   cerr << "    -A              areal average\n";
   cerr << "    -m              mass-weighted values\n";
   cerr << "    -n              number-weighted values\n";
@@ -62,7 +65,7 @@ main(int argc, char **argv)
   bool nweight = false;
   bool areal   = false;
   bool verbose = false;
-  string cname("comp");
+  std::string cname("comp"), new_dir("");
   double xmin = 0.0, xmax = 1.0;
   double ymin = 0.0, ymax = 1.0;
   double zmin = -100.0, zmax = 100.0;
@@ -74,15 +77,11 @@ main(int argc, char **argv)
 
   while (1) {
 
-    int c = getopt(argc, argv, "t:x:X:y:Y:z:Z:1:2:c:o:mnAvh");
+    int c = getopt(argc, argv, "x:X:y:Y:z:Z:1:2:c:o:mnAvrRh");
 
     if (c == -1) break;
 
     switch (c) {
-
-    case 't':
-      time = atof(optarg);
-      break;
 
     case 'x':
       xmin = atof(optarg);
@@ -143,6 +142,11 @@ main(int argc, char **argv)
       cname = string(optarg);
       break;
 
+    case 'd':
+      new_dir.erase();
+      new_dir = string(optarg);
+      break;
+
     case '?':
     case 'h':
     default:
@@ -151,20 +155,18 @@ main(int argc, char **argv)
 
   }
 
-  ifstream *in;
+  std::string file;
 
   if (optind < argc) {
 
-    ifstream *in2 = new ifstream(argv[optind]);
-    if (!*in2) {
-      cerr << "Error opening file <" << argv[optind] << "> for input\n";
+    file = std::string(argv[optind]);
+    std::ifstream in(file);
+    if (!in) {
+      std::cerr << "Error opening file <" << file << "> for input\n";
       exit(-1);
     }
 
-    if (verbose) cerr << "Using filename: " << argv[optind] << endl;
-
-				// Assign file stream to input stream
-    in = in2;
+    if (verbose) cerr << "Using filename: " << file << endl;
 
   } else {
     Usage(prog);
@@ -173,26 +175,25 @@ main(int argc, char **argv)
 
 				// Parse the PSP file
 				// ------------------
-  PSPDump psp(in);
+  PSPptr psp;
+  if (file.find("SPL") != std::string::npos)
+    psp = std::make_shared<PSPspl>(file, new_dir);
+  else
+    psp = std::make_shared<PSPout>(file);
 
-  in->close();
 
 				// Now write a summary
 				// -------------------
   if (verbose) {
 
-    psp.PrintSummary(in, cerr);
+    psp->PrintSummary(cerr);
     
-    cerr << "\nBest fit dump to <" << time << "> has time <" 
-	 << psp.SetTime(time) << ">\n";
-  } else 
-    psp.SetTime(time);
+    cerr << "\nPSP file named <" << file << "> has time <" 
+	 << psp->CurrentTime() << ">\n";
+  }
 
 				// Dump ascii for each component
 				// -----------------------------
-  delete in;
-  in = new ifstream(argv[optind]);
-
   
   double rtmp, mass, fac, val, dx=(xmax - xmin)/numx, dy=(ymax - ymin)/numy;
   vector<double> pos(3), vel(3);
@@ -210,15 +211,11 @@ main(int argc, char **argv)
   PSPstanza *stanza;
   SParticle* part;
 
-  for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
+  for (stanza=psp->GetStanza(); stanza!=0; stanza=psp->NextStanza()) {
     
     if (stanza->name != cname) continue;
 
-
-				// Position to beginning of particles
-    in->seekg(stanza->pspos);
-
-    for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
+    for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
 
       if (part->pos(0)<xmin || part->pos(0)>=xmax) continue;
       if (part->pos(1)<ymin || part->pos(1)>=ymax) continue;

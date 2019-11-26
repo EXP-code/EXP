@@ -8,15 +8,15 @@ bool badstatus(istream& in)
   ios::iostate i = in.rdstate();
   
   if (i & ios::eofbit) {
-    cout << "EOF encountered" << endl;
+    std::cout << "EOF encountered" << std::endl;
     return true;
   }
   else if(i & ios::failbit) {
-    cout << "Non-Fatal I/O error" << endl;;
+    std::cout << "Non-Fatal I/O error" << std::endl;;
     return true;
   }  
   else if(i & ios::badbit) {
-    cout << "Fatal I/O error" << endl;
+    std::cout << "Fatal I/O error" << std::endl;
     return true;
   }
   else
@@ -24,7 +24,7 @@ bool badstatus(istream& in)
 }
 
 
-PSPout::PSPout(const std::string& infile, bool verbose) : PSP(verbose)
+PSPout::PSPout(const std::string& infile, bool verbose) : PSP(verbose, "")
 {
   // Open the file
   // -------------
@@ -153,7 +153,7 @@ PSPout::PSPout(const std::string& infile, bool verbose) : PSP(verbose)
 	
 	// No equals sign?!!
 	if (pos2 == string::npos) {
-	  cerr << "Bad syntax in component parameter string" << endl;
+	  cerr << "Bad syntax in component parameter string" << std::endl;
 	  exit(-1);
 	}
 	
@@ -192,7 +192,7 @@ PSPout::PSPout(const std::string& infile, bool verbose) : PSP(verbose)
 }
 
 
-PSPspl::PSPspl(const std::string& master, bool verbose) : PSP(verbose)
+PSPspl::PSPspl(const std::string& master, const std::string dir, bool verbose) : PSP(verbose, dir)
 {
   // Open the file
   // -------------
@@ -278,8 +278,6 @@ PSPspl::PSPspl(const std::string& master, bool verbose) : PSP(verbose)
     else
       fsout << "<undefined>";
     
-    std::cout << "cconf=" << csout.str() << std::endl;
-
     stanza.name       = conf["name"].as<std::string>(); 
     if (fconf.IsMap())
       stanza.id       = fconf["id"].as<std::string>();
@@ -322,10 +320,10 @@ PSPspl::PSPspl(const std::string& master, bool verbose) : PSP(verbose)
 
 void PSP::PrintSummary(ostream &out, bool stats, bool timeonly)
 {
-  out << "Time=" << header.time << endl;
+  out << "Time=" << header.time << std::endl;
   if (!timeonly) {
-    out << "   Total particle number: " << header.ntot  << endl;
-    out << "   Number of components:  " << header.ncomp << endl;
+    out << "   Total particle number: " << header.ntot  << std::endl;
+    out << "   Number of components:  " << header.ncomp << std::endl;
     
     int cnt=1;
     
@@ -333,43 +331,43 @@ void PSP::PrintSummary(ostream &out, bool stats, bool timeonly)
       
       // Print the info for this stanza
       // ------------------------------
-      out << setw(60) << setfill('-') << "-" << endl << setfill(' ');
-      out << "--- Component #" << setw(2) << cnt++          << endl;
-      out << setw(20) << " name :: "      << s.name         << endl
-	  << setw(20) << " id :: "        << s.id           << endl
-	  << setw(20) << " cparam :: "    << s.cparam       << endl
-	  << setw(20) << " fparam :: "    << s.fparam       << endl
-	  << setw(20) << " nbod :: "      << s.comp.nbod    << endl
-	  << setw(20) << " niatr :: "     << s.comp.niatr   << endl
-	  << setw(20) << " ndatr :: "     << s.comp.ndatr   << endl
-	  << setw(20) << " rsize :: "     << s.r_size       << endl;
-      out << setw(60) << setfill('-')     << "-" << endl << setfill(' ');
+      out << std::setw(60) << std::setfill('-') << "-" << std::endl << std::setfill(' ');
+      out << "--- Component #" << std::setw(2) << cnt++          << std::endl;
+      out << std::setw(20) << " name :: "      << s.name         << std::endl
+	  << std::setw(20) << " id :: "        << s.id           << std::endl
+	  << std::setw(20) << " cparam :: "    << s.cparam       << std::endl
+	  << std::setw(20) << " fparam :: "    << s.fparam       << std::endl
+	  << std::setw(20) << " nbod :: "      << s.comp.nbod    << std::endl
+	  << std::setw(20) << " niatr :: "     << s.comp.niatr   << std::endl
+	  << std::setw(20) << " ndatr :: "     << s.comp.ndatr   << std::endl
+	  << std::setw(20) << " rsize :: "     << s.r_size       << std::endl;
+      out << std::setw(60) << std::setfill('-')     << "-" << std::endl << std::setfill(' ');
       if (stats) {
 	ComputeStats();
-	out << endl << setw(20) << "*** Position" 
-	    << setw(15) << "X" << setw(15) << "Y" << setw(15) << "Z"
-	    << endl;
-	out << setw(20) << "Min :: ";
-	for (unsigned k=0; k<3; k++) out << setw(15) << pmin[k];
-	out << endl;
-	out << setw(20) << "Med :: ";
-	for (unsigned k=0; k<3; k++) out << setw(15) << pmed[k];
-	out << endl;
-	out << setw(20) << "Max :: ";
-	for (unsigned k=0; k<3; k++) out << setw(15) << pmax[k];
-	out << endl;
-	out << endl << setw(20) << "*** Velocity"
-	    << setw(15) << "U" << setw(15) << "Vn" << setw(15) << "W"
-	    << endl;
-	out << setw(20) << "Min :: ";
-	for (unsigned k=0; k<3; k++) out << setw(15) << vmin[k];
-	out << endl;
-	out << setw(20) << "Med :: ";
-	for (unsigned k=0; k<3; k++) out << setw(15) << vmed[k];
-	out << endl;
-	out << setw(20) << "Max :: ";
-	for (unsigned k=0; k<3; k++) out << setw(15) << vmax[k];
-	out << endl;
+	out << std::endl << std::setw(20) << "*** Position" 
+	    << std::setw(15) << "X" << std::setw(15) << "Y" << std::setw(15) << "Z"
+	    << std::endl;
+	out << std::setw(20) << "Min :: ";
+	for (unsigned k=0; k<3; k++) out << std::setw(15) << pmin[k];
+	out << std::endl;
+	out << std::setw(20) << "Med :: ";
+	for (unsigned k=0; k<3; k++) out << std::setw(15) << pmed[k];
+	out << std::endl;
+	out << std::setw(20) << "Max :: ";
+	for (unsigned k=0; k<3; k++) out << std::setw(15) << pmax[k];
+	out << std::endl;
+	out << std::endl << std::setw(20) << "*** Velocity"
+	    << std::setw(15) << "U" << std::setw(15) << "Vn" << std::setw(15) << "W"
+	    << std::endl;
+	out << std::setw(20) << "Min :: ";
+	for (unsigned k=0; k<3; k++) out << std::setw(15) << vmin[k];
+	out << std::endl;
+	out << std::setw(20) << "Med :: ";
+	for (unsigned k=0; k<3; k++) out << std::setw(15) << vmed[k];
+	out << std::endl;
+	out << std::setw(20) << "Max :: ";
+	for (unsigned k=0; k<3; k++) out << std::setw(15) << vmax[k];
+	out << std::endl;
       }      
     }
   }
@@ -437,11 +435,24 @@ void PSPspl::openNextBlob()
 {
   in.close();			// Close current file
 
+  std::string curfile(*fit);
+
   try {
-    in.open(*fit);
+    if (new_dir.size()) {
+      auto pos = curfile.find_last_of("/");
+      if (pos != std::string::npos) // Rewrite leading directory
+	curfile = new_dir + curfile.substr(pos);
+    }
+    in.open(curfile);
   } catch (...) {
     std::ostringstream sout;
-    sout << "Could not open SPL blob <" << *fit << ">";
+    sout << "Could not open SPL blob <" << curfile << ">";
+    throw std::runtime_error(sout.str());
+  }
+
+  if (not in.good()) {
+    std::ostringstream sout;
+    sout << "Could not open SPL blob <" << curfile << ">";
     throw std::runtime_error(sout.str());
   }
 
@@ -449,7 +460,7 @@ void PSPspl::openNextBlob()
     in.read((char*)&N, sizeof(unsigned int));
   } catch (...) {
     std::ostringstream sout;
-    sout << "Could not get particle count from <" << *fit << ">";
+    sout << "Could not get particle count from <" << curfile << ">";
     throw std::runtime_error(sout.str());
   }
 
