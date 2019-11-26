@@ -163,7 +163,7 @@ Component::Component(YAML::Node& CONF)
   acc0        = 0;
 
   seq_check   = false;
-  indexing    = false;
+  indexing    = true;
   aindex      = false;
   umagic      = true;
 
@@ -624,7 +624,7 @@ Component::Component(YAML::Node& CONF, istream *in) : conf(CONF)
   acc0        = 0;
 
   seq_check   = false;
-  indexing    = false;
+  indexing    = true;
   aindex      = false;
   umagic      = true;
 
