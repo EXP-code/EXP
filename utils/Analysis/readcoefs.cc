@@ -51,8 +51,8 @@ bool Coefs::read(std::istream& in)
 int main(int argc, char **argv)
 {
   std::string file;
-  int nmax, mmax;
-  bool verbose;
+  int nmin, nmax, mmax;
+  bool verbose=false, angle=false;
 
   //
   // Parse Command line
@@ -61,8 +61,13 @@ int main(int argc, char **argv)
   desc.add_options()
     ("help,h",
      "produce this help message")
+    ("PA,p",
+     "compute position angle rather than amplitude")
     ("verbose,v",
      "verbose output")
+    ("nmin",
+     po::value<int>(&nmin)->default_value(0), 
+     "minimum order for radial coefficients")
     ("nmax",
      po::value<int>(&nmax)->default_value(6), 
      "maximum order for radial coefficients")
@@ -94,6 +99,8 @@ int main(int argc, char **argv)
 
   if (vm.count("verbose")) verbose = true;
 
+  if (vm.count("PA")) angle = true;
+
   std::ifstream in(file);
   if (not in) {
     std::cout << "Error opening <" << file << ">" << std::endl;
@@ -113,14 +120,22 @@ int main(int argc, char **argv)
   for (auto c : coefs) {
     for (int mm=0; mm<=std::min<int>(mmax, c.second->mmax); mm++) {
       std::cout << std::setw(18) << c.first << std::setw(5) << mm;
-      for (int nn=0; nn<=std::min<int>(nmax, c.second->nmax); nn++) {
-	if (mm==0)
-	  std::cout << std::setw(18) << fabs(c.second->cos_c[mm][nn]);
-	else {
-	  double amp =
-	    c.second->cos_c[mm][nn] * c.second->cos_c[mm][nn] +
-	    c.second->sin_c[mm][nn] * c.second->sin_c[mm][nn] ;
-	  std::cout << std::setw(18) << sqrt(amp);
+      for (int nn=std::max<int>(nmin, 0); nn<=std::min<int>(nmax, c.second->nmax); nn++) {
+	if (mm==0) {
+	  if (angle)
+	    std::cout << std::setw(18) << 0.0;
+	  else
+	    std::cout << std::setw(18) << fabs(c.second->cos_c[mm][nn]);
+	} else {
+	  if (angle) {
+	    double arg = atan2(c.second->sin_c[mm][nn], c.second->cos_c[mm][nn]);
+	    std::cout << std::setw(18) << arg;
+	  } else {
+	    double amp =
+	      c.second->cos_c[mm][nn] * c.second->cos_c[mm][nn] +
+	      c.second->sin_c[mm][nn] * c.second->sin_c[mm][nn] ;
+	    std::cout << std::setw(18) << sqrt(amp);
+	  }
 	}
       }
       std::cout << std::endl;
