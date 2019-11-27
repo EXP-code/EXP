@@ -71,7 +71,7 @@ main(int ac, char **av)
      "histogram along desired axis: x=1, y=2, z=3")
     ("files,f",         po::value< std::vector<std::string> >(), 
      "input files")
-    ("dir,d",           po::value<std::string>(&new_dir),
+    ("dir,d",           po::value<std::string>(&new_dir)->default_value("./"),
      "rewrite directory location for SPL files")
     ;
 
@@ -125,13 +125,6 @@ main(int ac, char **av)
   bool first = true;
   
   for (auto file : files ) {
-
-    std::ifstream in(file);
-    if (!in) {
-      std::cerr << "Error opening file <" << file << "> for input" << std::endl;
-      exit(-1);
-    }
-    in.close();
 
     if (verbose) cerr << "Using filename: " << file << endl;
 

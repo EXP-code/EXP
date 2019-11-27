@@ -251,13 +251,23 @@ protected:
   void write_binary(std::ostream& out,
 		    list<PSPstanza>::iterator its, bool real4);
 
+  //! Append '/' if necessary
+  void check_dirname();
   std::string new_dir;
 
 public:
 
-  PSP(bool verbose, std::string new_dir) : VERBOSE(verbose), new_dir(new_dir) {}
+  //! Default constructor
+  PSP(bool verbose) : VERBOSE(verbose), new_dir("./") {}
 
+  //! Constructor specifying current working data directory
+  PSP(bool verbose, std::string new_dir) : VERBOSE(verbose), new_dir(new_dir)
+  { check_dirname(); }
+
+  //! Get snapshot time
   double CurrentTime()    {return header.time;}
+  
+  //! Print summary phase-space info
   void   PrintSummary     (ostream &out, bool stats=false, bool timeonly=false);
 
   //! Set stanza to name
@@ -290,6 +300,9 @@ public:
 
 
 
+/**
+   Class to access a full PSP file (OUT)
+ */
 class PSPout : public PSP
 {
 private:
@@ -305,6 +318,9 @@ public:
   virtual SParticle* NextParticle();
 };
 
+/**
+   Class to access a SPLIT PSP file (SPL)
+ */
 class PSPspl : public PSP
 {
 private:

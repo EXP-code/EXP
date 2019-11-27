@@ -39,7 +39,7 @@ int
 main(int argc, char **argv)
 {
   char *prog = argv[0];
-  std::string runtag, inoutdir, outfile, prefix, new_dir("");
+  std::string runtag, inoutdir, outfile, prefix, new_dir("./");
   bool verbose = false, range = false, checkpt = false;
   int seq, bseq=0, fseq=10000;
 
@@ -225,7 +225,7 @@ main(int argc, char **argv)
 	
 	master.read((char*)buf, PBUF_SIZ);
 	
-	std::ifstream fcomp(buf);
+	std::ifstream fcomp(inoutdir + "/" + buf);
 	
 	if (fcomp.fail()) {
 	  std::cerr << "spl2psp: can't open component file <" << buf

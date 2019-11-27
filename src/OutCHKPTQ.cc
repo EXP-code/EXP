@@ -30,7 +30,7 @@ void OutCHKPTQ::initialize()
       filename = Output::conf["filename"].as<std::string>();
     else {
       filename.erase();
-      filename = outdir + "SPL." + runtag + ".chkpt";
+      filename = "SPL." + runtag + ".chkpt";
     }
     
     if (Output::conf["nint"])
@@ -68,7 +68,8 @@ void OutCHKPTQ::Run(int n, bool last)
   if (n == psdump) {       
 
     if (myid==0) {
-      string backfile = filename + ".bak";
+      string currfile = outdir + filename;
+      string backfile = currfile + ".bak";
       if (unlink(backfile.c_str())) {
 	if (VERBOSE>5) perror("OutCHKPTQ::Run()");
 	cout << "OutCHKPTQ::Run(): error unlinking old backup file <" 
@@ -80,19 +81,19 @@ void OutCHKPTQ::Run(int n, bool last)
 	}
       }
 
-      if (rename(filename.c_str(), backfile.c_str())) {
+      if (rename(currfile.c_str(), backfile.c_str())) {
 	if (VERBOSE>5) perror("OutCHKPTQ::Run()");
 	cout << "OutCHKPTQ: renaming backup file <" 
 	     << backfile << ">, it may not exist" << endl;
       } else {
 	if (VERBOSE>5) {
 	  cout << "OutCHKPTQ::Run(): successfully renamed <"
-	       << filename << "> to <" << backfile << ">" << endl;
+	       << currfile << "> to <" << backfile << ">" << endl;
 	}
       }
 
       if (lastPSQ.size()) {
-	if (symlink(lastPSQ.c_str(), filename.c_str())) {
+	if (symlink(lastPSQ.c_str(), currfile.c_str())) {
 	  if (VERBOSE>5) perror("OutCHKPTQ::Run()");
 	  cout << "OutCHKPTQ::Run(): no file <" << lastPSQ
 	       << "> to link, we will create a new checkpoint" << endl;
@@ -101,7 +102,7 @@ void OutCHKPTQ::Run(int n, bool last)
 	  if (VERBOSE>5) {
 	    cout << "OutCHKPTQ::Run(): successfully linked <"
 		 << lastPSQ << "> to new backup file <" 
-		 << filename << ">" << endl;
+		 << currfile << ">" << endl;
 	  }
 	}
       } else {
@@ -112,7 +113,7 @@ void OutCHKPTQ::Run(int n, bool last)
       for (auto c : comp->components) {
 				// Component file
 	std::ostringstream cname;
-	cname << filename << "_" << count;
+	cname << outdir << filename << "_" << count;
     
 	for (int n=0; n<numprocs; n++) {
 
@@ -190,10 +191,11 @@ void OutCHKPTQ::Run(int n, bool last)
 
   if (myid==0) {
 				// Open file and write master header
-    out.open(filename);
+    std::string master = outdir + filename;
+    out.open(master);
 
     if (out.fail()) {
-      std::cerr << "OutCHKPTQ: can't open file <" << filename
+      std::cerr << "OutCHKPTQ: can't open file <" << master
 		<< "> . . . quitting" << std::endl;
       nOK = 1;
     }
@@ -229,11 +231,12 @@ void OutCHKPTQ::Run(int n, bool last)
 
     cname << "-" << myid;
     
-				// Open file and write master header
-    std::ofstream pout(cname.str());
+				// Open file and write component header
+    std::string blobfile = outdir + cname.str();
+    std::ofstream pout(blobfile);
 
     if (pout.fail()) {
-      std::cerr << "[" << myid << "] OutCHKPTQ: can't open file <" << cname.str() 
+      std::cerr << "[" << myid << "] OutCHKPTQ: can't open file <" << blobfile 
 		<< "> . . . quitting" << std::endl;
       nOK = 1;
     } else {
@@ -257,15 +260,15 @@ void OutCHKPTQ::Run(int n, bool last)
 
   if (myid==0) {
     if (out.fail()) {
-      std::cout << "OutCHKPTQ: error writing component to master <" << filename
-		<< std::endl;
+      std::cout << "OutCHKPTQ: error writing component to master <"
+		<< outdir + filename << std::endl;
     }
 
     try {
       out.close();
     }
     catch (const ofstream::failure& e) {
-      std::cout << "OutCHKPTQ: exception closing file <" << filename
+      std::cout << "OutCHKPTQ: exception closing file <" << outdir + filename
 		<< ": " << e.what() << std::endl;
     }
   }

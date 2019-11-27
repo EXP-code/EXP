@@ -41,7 +41,7 @@ main(int ac, char **av)
 {
   bool verbose = false;
   char *prog = av[0];
-  std:: string cname, new_dir("");
+  std:: string cname, new_dir("./");
   double time;
   int sindx;
 
@@ -89,12 +89,6 @@ main(int ac, char **av)
   bool first = true;
   
   for (auto file : files ) {
-
-    std::ifstream in(file);
-    if (!in) {
-      cerr << "Error opening file <" << file << "> for input\n";
-      exit(-1);
-    }
 
     if (verbose) cerr << "Using filename: " << file << endl;
 
