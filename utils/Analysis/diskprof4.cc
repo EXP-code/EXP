@@ -1284,7 +1284,7 @@ main(int argc, char **argv)
   // Create PVD file
   //
   if (myid==0 and PVD) {
-    writePVD(runtag+".pvd", times, outfiles);
+    writePVD(runtag+"." + outid + ".pvd", times, outfiles);
   }
 
   // Shutdown MPI
