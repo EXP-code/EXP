@@ -105,31 +105,44 @@ class Histogram
 {
 public:
 
-  std::vector<double> dataXY;
+  std::vector<double> dataXY, dataXZ;
   std::vector<std::vector<double>> dataZ;
   int N;
   double R, dR, rmax;
+  double Z, dZ, zmax;
   
   Histogram(int N, double R) : N(N), R(R)
   {
     dR = 2.0*R/(N+1);
-    dataXY.resize(N*N, 0.0);
-    dataZ .resize(N*N);
+    dZ = 2.0*Z/(N+1);
+
     rmax = R + 0.5*dR;
+    zmax = Z + 0.5*dZ;
+
+    dataXY.resize(N*N, 0.0);
+    dataXZ.resize(N*N, 0.0);
+    dataZ .resize(N*N);
   }
 
   void Reset() {
     std::fill(dataXY.begin(), dataXY.end(), 0.0);
+    std::fill(dataXZ.begin(), dataXZ.end(), 0.0);
     for (auto & v : dataZ) v.clear();
   }
 
   void Syncr() { 
-    if (myid==0)
+    if (myid==0) {
       MPI_Reduce(MPI_IN_PLACE, &dataXY[0], dataXY.size(), MPI_DOUBLE, MPI_SUM, 0,
 		 MPI_COMM_WORLD);
-    else
+      MPI_Reduce(MPI_IN_PLACE, &dataXZ[0], dataXZ.size(), MPI_DOUBLE, MPI_SUM, 0,
+		 MPI_COMM_WORLD);
+    }
+    else {
       MPI_Reduce(&dataXY[0],   &dataXY[0], dataXY.size(), MPI_DOUBLE, MPI_SUM, 0,
 		 MPI_COMM_WORLD);
+      MPI_Reduce(&dataXZ[0],   &dataXZ[0], dataXZ.size(), MPI_DOUBLE, MPI_SUM, 0,
+		 MPI_COMM_WORLD);
+    }
 
     std::vector<double> work;
     int nz;
@@ -163,11 +176,14 @@ public:
 
     int indX = static_cast<int>(floor((x + rmax)/dR));
     int indY = static_cast<int>(floor((y + rmax)/dR));
+    int indZ = static_cast<int>(floor((z + zmax)/dZ));
 
     indX = std::min<int>(indX, N-1);
     indY = std::min<int>(indY, N-1);
+    indZ = std::min<int>(indZ, N-1);
 
     dataXY[indY*N + indX] += m;
+    dataXZ[indZ*N + indX] += m;
     dataZ [indY*N + indX].push_back(z);
   }
 };
@@ -750,25 +766,45 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 	}
       }
 
-      VtkGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
+      VtkGrid vtkXY(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
 
-      std::vector<double> data(OUTR*OUTR);
+      std::vector<double> dataXY(OUTR*OUTR);
 
       for (int n=0; n<noutS; n++) {
 	for (int j=0; j<OUTR; j++) {
 	  for (int l=0; l<OUTR; l++) {
-	    data[j*OUTR + l] = otdat[(n*OUTR+j)*OUTR+l];
+	    dataXY[j*OUTR + l] = otdat[(n*OUTR+j)*OUTR+l];
 	  }
 	}
-	vtk.Add(data, suffix[n]);
+	vtkXY.Add(dataXY, suffix[n]);
       }
 
-      vtk.Add(histo.dataXY, "histo");
+      vtkXY.Add(histo.dataXY, "histoXY");
 
       std::ostringstream sout;
       sout << runtag + "_" + outid + "_surface" + sstr.str();
-      vtk.Write(sout.str());
+      vtkXY.Write(sout.str());
+      
+      VtkGrid vtkXZ(OUTR, OUTZ, 1, -RMAX, RMAX, -ZMAX, ZMAX, 0, 0);
+
+      std::vector<double> dataXZ(OUTR*OUTZ);
+
+      for (int n=0; n<noutS; n++) {
+	for (int l=0; l<OUTZ; l++) {
+	  for (int j=0; j<OUTR; j++) {
+	    dataXZ[j*OUTR + l] = histo.dataXZ[l*OUTR+j];
+	  }
+	}
+	vtkXZ.Add(dataXZ, suffix[n]);
+      }
+
+      vtkXZ.Add(dataXZ, "histoXZ");
+
+      sout.str("");
+      sout << runtag + "_" + outid + "_vsurface" + sstr.str();
+      vtkXZ.Write(sout.str());
     }
+
   } // END: SURFACE
 
   if (VSLICE) {
