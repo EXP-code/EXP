@@ -28,8 +28,10 @@ void usage(char *prog)
   cout << setw(70) << setfill('-') << '-' << endl;
   cout << "Dump the entire disk orthgonal function file in ascii" << endl;
   cout << setw(70) << setfill('-') << '-' << endl;
-  cout << "Usage: " << prog << " emp_file" << endl;
+  cout << "Usage: " << prog << " emp_file dump_file" << endl;
   cout << setw(70) << setfill('-') << '-' << endl;
+
+  MPI_Finalize();
   exit(-1);
 }
 
@@ -46,14 +48,15 @@ main(int argc, char **argv)
   // Parse command line 
   //====================
 
-  if (argc != 2) usage(argv[0]);
-
+  if (argc != 3)         usage(argv[0]);
   if (argv[1][0] == '-') usage(argv[0]);
 
   std::ifstream in(argv[1]);
   if (not in.good()) {
     std::cerr << std::endl << argv[0] << ": error opening eof file <"
 	      << argv[1] << ">" << std::endl;
+    MPI_Finalize();
+    exit(-1);
   }
   in.close();
 
@@ -63,6 +66,8 @@ main(int argc, char **argv)
   string dmp_file(argv[2]);
 
   test.dump_eof_file(eof_file, dmp_file);
+
+  MPI_Finalize();
 
   return 0;
 }
