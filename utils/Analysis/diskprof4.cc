@@ -935,7 +935,7 @@ main(int argc, char **argv)
   int beg, end, stride, init;
   double rcylmin, rcylmax, rscale, vscale;
   bool DENS, PCA, PVD, verbose = false, mask = false, cmap, logl;
-  std::string CACHEFILE, cname, pname, dir("");
+  std::string CACHEFILE, cname, pname, dir("./");
 
   //
   // Parse Command line
@@ -1105,6 +1105,12 @@ main(int argc, char **argv)
     cmd.close();
   }
 
+  // ==================================================
+  // Check directory for trailing '/'
+  // ==================================================
+  //
+  if (dir.back() != '/') dir += '/';
+
 #ifdef DEBUG
   sleep(20);
 #endif  
@@ -1133,9 +1139,11 @@ main(int argc, char **argv)
     else     s0 << "OUT.";
     s0 << runtag << "."
        << std::setw(5) << std::setfill('0') << init;
-    std::ifstream in(s0.str());
+
+    std::string file = dir + s0.str();
+    std::ifstream in(file);
     if (!in) {
-      cerr << "Error opening <" << s0.str() << ">" << endl;
+      cerr << "Error opening <" << file << ">" << endl;
       iok = 0;
     }
   }
@@ -1183,8 +1191,8 @@ main(int argc, char **argv)
   if (ortho.read_cache()==0) {
     
     if (myid==0) {
-      if (SPL) psp = PSPptr(new PSPspl (s0.str(), dir, true));
-      else     psp = PSPptr(new PSPout (s0.str(), true));
+      if (SPL) psp = std::make_shared<PSPspl>(s0.str(), dir, true);
+      else     psp = std::make_shared<PSPout>(s0.str(), true);
       std::cout << "Beginning disk partition [time="
 		<< psp->CurrentTime()
 		<< "] . . . " << std::flush;
@@ -1264,8 +1272,8 @@ main(int argc, char **argv)
     // ==================================================
     if (myid==0) {
 
-      if (SPL) psp = PSPptr(new PSPspl(s1.str(), dir, true));
-      else     psp = PSPptr(new PSPout(s1.str(), true));
+      if (SPL) psp = std::make_shared<PSPspl>(s1.str(), dir, true);
+      else     psp = std::make_shared<PSPout>(s1.str(), true);
 
       tnow = psp->CurrentTime();
       cout << "Beginning disk partition [time=" << tnow

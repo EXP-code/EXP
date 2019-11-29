@@ -23,7 +23,7 @@ void OutPSQ::initialize()
       filename = Output::conf["filename"].as<std::string>();
     else{
       filename.erase();
-      filename = outdir + "SPL." + runtag;
+      filename = "SPL." + runtag;
     }
     
     if (Output::conf["nint"])
@@ -67,7 +67,7 @@ void OutPSQ::initialize()
 
 				// Output name
       ostringstream fname;
-      fname << filename << "." << setw(5) << setfill('0') << nbeg;
+      fname << outdir << filename << "." << setw(5) << setfill('0') << nbeg;
 
 				// See if we can open file
       ifstream in(fname.str().c_str());
@@ -95,16 +95,19 @@ void OutPSQ::Run(int n, bool last)
   // Output name prefix
   fname << filename << "." << setw(5) << setfill('0') << nbeg++;
 
+  // Master file name
+  std::string master = outdir + fname.str();
+
   psdump = n;
 
   int nOK = 0;
 
   if (myid==0) {
 				// Open file and write master header
-    out.open(fname.str());
+    out.open(master);
 
     if (out.fail()) {
-      std::cerr << "OutPSQ: can't open file <" << fname.str() 
+      std::cerr << "OutPSQ: can't open file <" << master
 		<< "> . . . quitting" << std::endl;
       nOK = 1;
     }
@@ -143,7 +146,8 @@ void OutPSQ::Run(int n, bool last)
     cname << "-" << myid;
     
 				// Open particle file and write
-    std::ofstream pout(cname.str());
+    std::string blobfile = outdir + cname.str();
+    std::ofstream pout(blobfile);
 
     if (pout.fail()) {
       std::cerr << "[" << myid << "] OutPSQ: can't open file <" << cname.str() 
@@ -153,7 +157,7 @@ void OutPSQ::Run(int n, bool last)
       c->write_binary_particles(&pout, real4);
       if (pout.fail()) {
 	std::cout << "OutPSQ: error writing binary particles to <"
-		  << cname.str() << std::endl;
+		  << blobfile << std::endl;
       }
     }
 
@@ -170,7 +174,7 @@ void OutPSQ::Run(int n, bool last)
 
   if (myid==0) {
     if (out.fail()) {
-      std::cout << "OutPSQ: error writing component to master <" << fname.str()
+      std::cout << "OutPSQ: error writing component to master <" << master
 		<< std::endl;
     }
 
@@ -178,7 +182,7 @@ void OutPSQ::Run(int n, bool last)
       out.close();
     }
     catch (const ofstream::failure& e) {
-      std::cout << "OutPSQ: exception closing file <" << fname.str()
+      std::cout << "OutPSQ: exception closing file <" << master
 		<< ": " << e.what() << std::endl;
     }
   }

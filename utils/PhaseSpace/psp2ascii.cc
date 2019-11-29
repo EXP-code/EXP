@@ -50,7 +50,7 @@ main(int argc, char **argv)
   double time=1e20;
   bool verbose = false;
   bool input   = false;
-  string cname("comp"), new_dir("");
+  string cname("comp"), new_dir("./");
 
   // Parse command line
 

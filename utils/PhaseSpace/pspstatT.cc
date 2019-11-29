@@ -44,7 +44,7 @@ main(int ac, char **av)
   char *prog = av[0];
   double Lunit, Munit, Tunit;
   int sindx, eindx, icons, econs;
-  std::string cname, species, new_dir("");
+  std::string cname, species, new_dir("./");
   bool verbose = false;
 
   // Parse command line
@@ -191,14 +191,7 @@ main(int ac, char **av)
   
   for (auto file : files ) {
 
-    ifstream *in = new ifstream(file.c_str());
-    if (!*in) {
-      cerr << "Error opening file <" << file << "> for input\n";
-      exit(-1);
-    }
-
     if (verbose) cerr << "Using filename: " << file << endl;
-
 
 				// Parse the PSP file
 				// ------------------

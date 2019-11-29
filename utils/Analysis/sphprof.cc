@@ -577,7 +577,7 @@ main(int argc, char **argv)
 #endif  
   
   int NICE, LMAX, NMAX, ibeg, iend;
-  std::string MODFILE, runtag, cname, dir("");
+  std::string MODFILE, runtag, cname, dir("./");
   bool ALL;
 
   // ==================================================
@@ -691,6 +691,13 @@ main(int argc, char **argv)
   }
 
   // ==================================================
+  // Check directory for trailing '/'
+  // ==================================================
+  //
+  if (dir.back() != '/') dir += '/';
+
+
+  // ==================================================
   // Nice process
   // ==================================================
 
@@ -721,9 +728,10 @@ main(int argc, char **argv)
       else     s0 << "OUT.";
       s0 << runtag << "." << std::setw(5) << std::setfill('0') << n;
 
-      std::ifstream in(s0.str());
+      std::string file = dir + s0.str();
+      std::ifstream in(file);
       if (!in) {
-	cerr << "Error opening <" << s0.str() << ">" << endl;
+	cerr << "Error opening <" << file << ">" << endl;
 	iok = 0;
       }
     }

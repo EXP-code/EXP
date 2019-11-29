@@ -43,7 +43,7 @@ main(int argc, char *argv[])
   bool stats = false;
   bool timeonly = false;
   bool verbose = false;
-  std::string new_dir("");
+  std::string new_dir("./");
   int c;
   
   while (1) {

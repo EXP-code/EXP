@@ -19428,7 +19428,7 @@ Z(Z), Tmn(Tmin), Tmx(Tmax), numT(numT)
 {
   std::vector<std::vector<double>> rdata;
 
-  // Get recombationation rates from ChiantiPy
+  // Get recombination rates from ChiantiPy
   //
   const char *inFile = std::tmpnam(0);
 

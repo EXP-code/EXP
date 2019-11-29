@@ -35,7 +35,6 @@ string outdir, runtag;
 
 void Usage(char* prog) {
   cerr << prog << ": [-t time -v -h] filename\n\n";
-  cerr << "    -o name         prefix name for each component (default: comp)\n";
   cerr << "    -d dir          replacement SPL file directory\n";
   cerr << "    -h              print this help message\n";
   cerr << "    -v              verbose output\n\n";
@@ -49,13 +48,13 @@ main(int argc, char **argv)
   char *prog = argv[0];
   double time=1e20;
   bool verbose = false;
-  string cname("comp"), new_dir("");
+  std::string new_dir("./");
 
   // Parse command line
 
   while (1) {
 
-    int c = getopt(argc, argv, "o:vh");
+    int c = getopt(argc, argv, "o:d:vh");
 
     if (c == -1) break;
 
@@ -63,11 +62,6 @@ main(int argc, char **argv)
 
     case 'v':
       verbose = true;
-      break;
-
-    case 'o':
-      cname.erase();
-      cname = string(optarg);
       break;
 
     case 'd':
@@ -90,13 +84,12 @@ main(int argc, char **argv)
 
     filename = std::string(argv[optind]);
 
-    std::ifstream in2(filename);
-    if (!in2) {
-      cerr << "Error opening file <" << filename << "> for input\n";
-      exit(-1);
-    }
-
     if (verbose) cerr << "Using filename: " << filename << endl;
+
+  } else {
+
+    Usage(argv[0]);
+
   }
 
 				// Parse the PSP file
@@ -152,21 +145,6 @@ main(int argc, char **argv)
     double vel[3];
     double mom[3];
     double pot;
-
-				// Open an output file
-				// -------------------
-
-    ostringstream oname;
-    oname << cname << "." << stanza->name << '\0';
-    ofstream out(oname.str().c_str());
-    out.setf(ios::scientific);
-    out.precision(10);
-
-    if (!out) {
-      cerr << "Couldn't open output name <" << oname.str() << ">\n";
-      exit(-1);
-    }
-
 				// Print the header
 
     cout << "Comp name: " << stanza->name << endl

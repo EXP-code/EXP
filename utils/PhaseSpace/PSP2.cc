@@ -197,10 +197,10 @@ PSPspl::PSPspl(const std::string& master, const std::string dir, bool verbose) :
   // Open the file
   // -------------
   try {
-    in.open(master);
+    in.open(new_dir+master);
   } catch (...) {
     std::ostringstream sout;
-    sout << "Could not open the master SPL file <" << master << ">";
+    sout << "Could not open the master SPL file <" << new_dir + master << ">";
     throw std::runtime_error(sout.str());
   }
 
@@ -315,6 +315,14 @@ PSPspl::PSPspl(const std::string& master, const std::string dir, bool verbose) :
   in.close();
   
   spos = stanzas.begin();
+}
+
+
+void PSP::check_dirname()
+{
+  if (new_dir.size()>0) {
+    if (new_dir.back() != '/') new_dir += '/';
+  }
 }
 
 
@@ -442,6 +450,8 @@ void PSPspl::openNextBlob()
       auto pos = curfile.find_last_of("/");
       if (pos != std::string::npos) // Rewrite leading directory
 	curfile = new_dir + curfile.substr(pos);
+      else
+	curfile = new_dir + curfile;
     }
     in.open(curfile);
   } catch (...) {

@@ -65,7 +65,7 @@ main(int argc, char **argv)
   bool nweight = false;
   bool areal   = false;
   bool verbose = false;
-  std::string cname("comp"), new_dir("");
+  std::string cname("comp"), new_dir("./");
   double xmin = 0.0, xmax = 1.0;
   double ymin = 0.0, ymax = 1.0;
   double zmin = -100.0, zmax = 100.0;
