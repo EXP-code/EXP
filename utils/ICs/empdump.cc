@@ -48,6 +48,15 @@ main(int argc, char **argv)
 
   if (argc != 2) usage(argv[0]);
 
+  if (argv[1][0] == '-') usage(argv[0]);
+
+  std::ifstream in(argv[1]);
+  if (not in.good()) {
+    std::cerr << std::endl << argv[0] << ": error opening eof file <"
+	      << argv[1] << ">" << std::endl;
+  }
+  in.close();
+
   EmpCylSL test;
 
   string eof_file(argv[1]);
