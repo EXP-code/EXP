@@ -67,8 +67,8 @@ empdump_LDFLAGS = $(EXPFLAGS)
 empdump_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 eofbasis_SOURCES = eof_basis.cc EmpCylSL.cc localmpi.cc
-eofbasis_LDFLAGS = $(EXPFLAGS)
-eofbasis_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+eofbasis_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
+eofbasis_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(BOOST_LIBs) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 makeIon_SOURCES = makeIonIC.cc Particle.cc Particle.H Species.H \
 	atomic_constants.H atomic_constants.cc
