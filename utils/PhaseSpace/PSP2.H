@@ -278,7 +278,8 @@ public:
     auto it = std::find(stanzas.begin(), stanzas.end(), x);
     if (it == stanzas.end()) return 0;
     spos = it;
-    return &(*spos);
+    cur  = &(*spos);
+    return cur;
   }
 
   //! Reset to beginning of stanza list and return null if no stanzas.

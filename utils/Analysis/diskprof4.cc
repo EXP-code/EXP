@@ -336,8 +336,10 @@ void partition(PSPptr psp, std::string& name, vector<Particle>& p, Histogram& h)
 
   if (myid==0) {
     stanza = psp->GetNamed(name);
-    if (stanza==0) iok = 0;
-    nbods = stanza->comp.nbod;
+    if (stanza==0)
+      iok = 0;
+    else
+      nbods = stanza->comp.nbod;
   }
 
   MPI_Bcast(&iok, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -792,7 +794,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
       for (int n=0; n<noutS; n++) {
 	for (int l=0; l<OUTZ; l++) {
 	  for (int j=0; j<OUTR; j++) {
-	    dataXZ[j*OUTR + l] = histo.dataXZ[l*OUTR+j];
+	    dataXZ[j*OUTZ + l] = histo.dataXZ[l*OUTR+j];
 	  }
 	}
 	vtkXZ.Add(dataXZ, suffix[n]);

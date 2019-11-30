@@ -29,7 +29,7 @@ VtkGrid::VtkGrid(int nx, int ny, int nz,
     YY->InsertTuple(k, &f);
   }
 
-  if (nz==1) {
+  if (nz<2) {
     ZZ->InsertTuple(0, &(f=0));
   } else {
     k = 0;
@@ -55,7 +55,7 @@ void VtkGrid::Add(const std::vector<double>& data, const std::string& name)
   // Insert grid data
   //
 
-  if (nz==0) {
+  if (nz<2) {
 
     for (int i=0; i<nx; i++) {
       float x = xmin + (xmax - xmin)*i/(nx-1);
