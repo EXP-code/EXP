@@ -105,43 +105,43 @@ class Histogram
 {
 public:
 
-  std::vector<double> dataXY, dataXZ;
+  std::vector<double> dataXY, dataXZ, dataYZ;
   std::vector<std::vector<double>> dataZ;
-  int N;
+  int N, M;
   double R, dR, rmax;
   double Z, dZ, zmax;
   
-  Histogram(int N, double R) : N(N), R(R)
+  Histogram(int N, int M, double R, double Z) : N(N), M(M)
   {
     dR = 2.0*R/(N+1);
-    dZ = 2.0*Z/(N+1);
+    dZ = 2.0*Z/(M+1);
 
     rmax = R + 0.5*dR;
     zmax = Z + 0.5*dZ;
 
     dataXY.resize(N*N, 0.0);
-    dataXZ.resize(N*N, 0.0);
+    dataXZ.resize(N*M, 0.0);
+    dataYZ.resize(N*M, 0.0);
     dataZ .resize(N*N);
   }
 
   void Reset() {
     std::fill(dataXY.begin(), dataXY.end(), 0.0);
     std::fill(dataXZ.begin(), dataXZ.end(), 0.0);
+    std::fill(dataYZ.begin(), dataYZ.end(), 0.0);
     for (auto & v : dataZ) v.clear();
   }
 
   void Syncr() { 
     if (myid==0) {
-      MPI_Reduce(MPI_IN_PLACE, &dataXY[0], dataXY.size(), MPI_DOUBLE, MPI_SUM, 0,
-		 MPI_COMM_WORLD);
-      MPI_Reduce(MPI_IN_PLACE, &dataXZ[0], dataXZ.size(), MPI_DOUBLE, MPI_SUM, 0,
-		 MPI_COMM_WORLD);
+      MPI_Reduce(MPI_IN_PLACE, &dataXY[0], dataXY.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(MPI_IN_PLACE, &dataXZ[0], dataXZ.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(MPI_IN_PLACE, &dataYZ[0], dataYZ.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     }
     else {
-      MPI_Reduce(&dataXY[0],   &dataXY[0], dataXY.size(), MPI_DOUBLE, MPI_SUM, 0,
-		 MPI_COMM_WORLD);
-      MPI_Reduce(&dataXZ[0],   &dataXZ[0], dataXZ.size(), MPI_DOUBLE, MPI_SUM, 0,
-		 MPI_COMM_WORLD);
+      MPI_Reduce(&dataXY[0],   &dataXY[0], dataXY.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(&dataXZ[0],   &dataXZ[0], dataXZ.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(&dataYZ[0],   &dataYZ[0], dataXZ.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     }
 
     std::vector<double> work;
@@ -172,7 +172,8 @@ public:
   void Add(double x, double y, double z, double m)
   {
     if (x < -rmax or x >= rmax or
-	y < -rmax or y >= rmax  ) return;
+	y < -rmax or y >= rmax or
+	z < -zmax or z >= zmax) return;
 
     int indX = static_cast<int>(floor((x + rmax)/dR));
     int indY = static_cast<int>(floor((y + rmax)/dR));
@@ -180,10 +181,11 @@ public:
 
     indX = std::min<int>(indX, N-1);
     indY = std::min<int>(indY, N-1);
-    indZ = std::min<int>(indZ, N-1);
+    indZ = std::min<int>(indZ, M-1);
 
     dataXY[indY*N + indX] += m;
-    dataXZ[indZ*N + indX] += m;
+    dataXZ[indX*M + indZ] += m;
+    dataYZ[indY*M + indZ] += m;
     dataZ [indY*N + indX].push_back(z);
   }
 };
@@ -336,8 +338,10 @@ void partition(PSPptr psp, std::string& name, vector<Particle>& p, Histogram& h)
 
   if (myid==0) {
     stanza = psp->GetNamed(name);
-    if (stanza==0) iok = 0;
-    nbods = stanza->comp.nbod;
+    if (stanza==0)
+      iok = 0;
+    else
+      nbods = stanza->comp.nbod;
   }
 
   MPI_Bcast(&iok, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -785,24 +789,14 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
       sout << runtag + "_" + outid + "_surface" + sstr.str();
       vtkXY.Write(sout.str());
       
-      VtkGrid vtkXZ(OUTR, OUTZ, 1, -RMAX, RMAX, -ZMAX, ZMAX, 0, 0);
+      VtkGrid vtkZ(OUTR, OUTZ, 1, -RMAX, RMAX, -ZMAX, ZMAX, 0, 0);
 
-      std::vector<double> dataXZ(OUTR*OUTZ);
-
-      for (int n=0; n<noutS; n++) {
-	for (int l=0; l<OUTZ; l++) {
-	  for (int j=0; j<OUTR; j++) {
-	    dataXZ[j*OUTR + l] = histo.dataXZ[l*OUTR+j];
-	  }
-	}
-	vtkXZ.Add(dataXZ, suffix[n]);
-      }
-
-      vtkXZ.Add(dataXZ, "histoXZ");
+      vtkZ.Add(histo.dataXZ, "histoXZ");
+      vtkZ.Add(histo.dataYZ, "histoYZ");
 
       sout.str("");
-      sout << runtag + "_" + outid + "_vsurface" + sstr.str();
-      vtkXZ.Write(sout.str());
+      sout << runtag + "_" + outid + "_vsurf" + sstr.str();
+      vtkZ.Write(sout.str());
     }
 
   } // END: SURFACE
@@ -1179,7 +1173,7 @@ main(int argc, char **argv)
 
   vector<Particle> particles;
   PSPptr psp;
-  Histogram histo(OUTR, RMAX);
+  Histogram histo(OUTR, OUTZ, RMAX, ZMAX);
   
   std::vector<double> times;
   std::vector<std::string> outfiles;
