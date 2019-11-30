@@ -4,7 +4,10 @@ VtkGrid::VtkGrid(int nx, int ny, int nz,
 		 double xmin, double xmax,
 		 double ymin, double ymax,
 		 double zmin, double zmax) :
-  nx(nx), ny(ny), nz(nz), xmin(xmin), xmax(xmax), ymin(ymin), ymax(ymax), zmin(zmin), zmax(zmax)
+  nx(nx), ny(ny), nz(nz),
+  xmin(xmin), xmax(xmax),
+  ymin(ymin), ymax(ymax),
+  zmin(zmin), zmax(zmax)
 {
   // Set knots
   auto XX   = vtkFloatArray::New();
@@ -64,7 +67,7 @@ void VtkGrid::Add(const std::vector<double>& data, const std::string& name)
 	vtkIdType n = dataSet->FindPoint(x, y, 0);
 
 	if (n>=0) {
-	  float f = static_cast<float>(data[i*nx + j]);
+	  float f = static_cast<float>(data[i*ny + j]);
 	  T->InsertTuple(n, &f);
 	} else {
 	  std::cout << "Could not find point at (" << x << ", " << y << ")"
