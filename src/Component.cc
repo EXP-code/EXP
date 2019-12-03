@@ -1787,8 +1787,8 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
 
 				// Check particle count in current split file
       if (++fcount == N) {
-	openNextBlob(fin, fit, N);
-	fcount = 0;
+	fcount = N = 0;		// Maybe last particle . . .
+	if (fit != parts.end()) openNextBlob(fin, fit, N);
       }
 
       r2 = 0.0;
@@ -1818,8 +1818,8 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
 
 				// Check particle count in current split file
 	if (++fcount == N) {
-	  openNextBlob(fin, fit, N);
-	  fcount = 0;
+	  fcount = N = 0;	// May be last particle . . .
+	  if (fit != parts.end()) openNextBlob(fin, fit, N);
 	}
 
 	r2 = 0.0;
