@@ -59,23 +59,31 @@ void OutPSQ::initialize()
   }
 
 
-				// Determine last file
+  // Determine last file
+  // 
+  if (restart && nbeg==0) {
+    if (myid==0) {
 
-  if (restart && nbeg==0 && myid==0) {
+      for (nbeg=0; nbeg<100000; nbeg++) {
+	// Output name
+	//
+	ostringstream fname;
+	fname << outdir << filename << "." << setw(5) << setfill('0') << nbeg;
 
-    for (nbeg=0; nbeg<100000; nbeg++) {
+	// See if we can open file
+	//
+	ifstream in(fname.str().c_str());
 
-				// Output name
-      ostringstream fname;
-      fname << outdir << filename << "." << setw(5) << setfill('0') << nbeg;
-
-				// See if we can open file
-      ifstream in(fname.str().c_str());
-
-      if (!in) {
-	cout << "OutPSQ: will begin with nbeg=" << nbeg << endl;
-	break;
+	if (!in) {
+	  cout << "OutPSQ: will begin with nbeg=" << nbeg << endl;
+	  break;
+	}
       }
+    }
+
+    MPI_Bcast(&nbeg, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    for (int n=0; n<numprocs; n++) {
+      if (n==myid) std::cout << "OutPSQ[" << myid << "]: nbeg=" << nbeg << std::endl;
     }
   }
 }
