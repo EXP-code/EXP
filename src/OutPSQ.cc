@@ -62,6 +62,9 @@ void OutPSQ::initialize()
   // Determine last file
   // 
   if (restart && nbeg==0) {
+
+    // Only root node looks for files
+    //
     if (myid==0) {
 
       for (nbeg=0; nbeg<100000; nbeg++) {
@@ -81,9 +84,9 @@ void OutPSQ::initialize()
       }
     }
 
+    // Communicate starting file to all nodes
+    //
     MPI_Bcast(&nbeg, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    for (int n=0; n<numprocs; n++) {
-      if (n==myid) std::cout << "OutPSQ[" << myid << "]: nbeg=" << nbeg << std::endl;
     }
   }
 }
