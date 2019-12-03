@@ -491,7 +491,7 @@ void Component::print_level_lists(double T)
   }
 }
 
-Component::Component(YAML::Node& CONF, istream *in) : conf(CONF)
+Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
 {
   // Make a copy
   conf = CONF;
@@ -638,7 +638,8 @@ Component::Component(YAML::Node& CONF, istream *in) : conf(CONF)
 
   initialize_cuda();
 
-  read_bodies_and_distribute_binary(in);
+  if (SPL) read_bodies_and_distribute_binary_spl(in);
+  else     read_bodies_and_distribute_binary_out(in);
 
   mdt_ctr = vector< vector<unsigned> > (multistep+1);
   for (unsigned n=0; n<=multistep; n++) mdt_ctr[n] = vector<unsigned>(mdtDim, 0);
@@ -1315,7 +1316,7 @@ void Component::read_bodies_and_distribute_ascii(void)
 #endif
 }
 
-void Component::read_bodies_and_distribute_binary(istream *in)
+void Component::read_bodies_and_distribute_binary_out(istream *in)
 {
 				// Get component header
   ComponentHeader header;
@@ -1533,7 +1534,336 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     kmin = std::min<unsigned long>(kmin, p.second->indx);
     kmax = std::max<unsigned long>(kmax, p.second->indx);
   }
-  cout << "read_bodies_and_distribute_binary: process " << myid 
+  cout << "read_bodies_and_distribute_binary_out: process " << myid 
+       << " name=" << name << " bodies [" << kmin << ", "
+       << kmax << "], [" << imin << ", " << imax << "]"
+       << " #=" << particles.size() << endl;
+#endif
+}
+
+
+void Component::openNextBlob(std::ifstream& in,
+			     std::list<std::string>::iterator& fit,
+			     int& N)
+{
+  in.close();			// Close current file
+
+  std::string curfile;
+
+  try {
+    if (outdir.back() != '/')	// Check whether directory has trailing '/'
+      curfile = outdir + '/' + *fit;
+    else
+      curfile = outdir + *fit;
+    
+    in.open(curfile);
+  } catch (...) {
+    std::ostringstream sout;
+    sout << "Could not open SPL blob <" << curfile << ">";
+    throw std::runtime_error(sout.str());
+  }
+
+				// Double check file status
+  if (not in.good()) {
+    std::ostringstream sout;
+    sout << "Could not open SPL blob <" << curfile << ">";
+    throw std::runtime_error(sout.str());
+  }
+
+				// Get particle count
+  try {
+    in.read((char*)&N, sizeof(unsigned int));
+  } catch (...) {
+    std::ostringstream sout;
+    sout << "Could not get particle count from <" << curfile << ">";
+    throw std::runtime_error(sout.str());
+  }
+
+  // Advance filename iterator
+  //
+  fit++;
+}
+
+
+void Component::read_bodies_and_distribute_binary_spl(istream *in)
+{
+  // Will contain the component header
+  //
+  ComponentHeader header;
+
+  // Node local parameter buffer
+  //
+  int ninfochar;
+  boost::shared_array<char> info;
+  
+  // Number of split files
+  int number = 0;
+
+  if (myid == 0) {
+
+    rsize = sizeof(double);
+
+    unsigned long cmagic;
+    try {
+      in->read((char*)&cmagic, sizeof(unsigned long));
+      in->read((char*)&number, sizeof(int));
+    } catch (...) {
+      std::ostringstream sout;
+      sout << "Error reading magic info and file count from master";
+      throw std::runtime_error(sout.str());
+    }
+
+    if (umagic) {
+      if ( (cmagic & nmask) != magic ) {
+	std::string msg("Error identifying new PSP.  Is this an old PSP?");
+	throw GenericError(msg, __FILE__, __LINE__);
+      }
+      rsize = cmagic & mmask;
+    }
+
+    if (!header.read(in)) {
+      std::string msg("Error reading component header");
+      throw GenericError(msg, __FILE__, __LINE__);
+    }
+
+    nbodies_tot = header.nbod;
+    niattrib    = header.niatr;
+    ndattrib    = header.ndatr;
+    ninfochar   = header.ninfochar;
+
+    info = boost::shared_array<char>(new char [ninfochar+1]);
+
+    // Zero fill array
+    //
+    std::fill(info.get(), info.get() + (ninfochar+1), 0);
+
+    // Copy into array
+    //
+    memcpy(info.get(), header.info.get(), ninfochar);
+  }
+
+  if (umagic)
+    MPI_Bcast(&rsize, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
+  // Broadcast attributes for this phase-space component
+  //
+  MPI_Bcast(&nbodies_tot, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&niattrib,    1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&ndattrib,    1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&ninfochar,   1, MPI_INT, 0, MPI_COMM_WORLD);
+  if (myid) {
+    info = boost::shared_array<char>(new char [ninfochar+1]);
+
+    // Zero fill array
+    //
+    std::fill(info.get(), info.get() + (ninfochar+1), 0);
+  }
+  MPI_Bcast(info.get(), ninfochar, MPI_CHAR, 0, MPI_COMM_WORLD);
+
+  // Parse info field to get id and parameter strings
+  //
+  YAML::Node config;
+
+  if (ignore_info and VERBOSE>3) { // Ignore parameter info
+    if (myid==0) std::cout << std::string(60, '-') << std::endl
+			   << "ignore_info debug"  << std::endl
+			   << std::string(60, '-') << std::endl
+			   << conf                 << std::endl
+			   << std::string(60, '-') << std::endl;
+    config = conf;
+  } else {			// Use parameter info
+    std::istringstream sin(info.get());
+    config = YAML::Load(sin);
+
+    try {
+      name  = config["name"].as<std::string>();
+      cconf = config["parameters"];
+      pfile = config["bodyfile"].as<std::string>();
+    }
+    catch (YAML::Exception & error) {
+      if (myid==0) std::cout << "Error parsing YAML in PSP file: "
+			     << error.what() << std::endl
+			     << std::string(60, '-') << std::endl
+			     << "Config node"        << std::endl
+			     << std::string(60, '-') << std::endl
+			     << config               << std::endl
+			     << std::string(60, '-') << std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
+
+    YAML::Node force;
+    
+    try {
+      force = config["force"];
+      id    = force["id"].as<std::string>();
+      fconf = force["parameters"];
+    }
+    catch (YAML::Exception & error) {
+      if (myid==0) std::cout << "Error parsing YAML force stanza in PSP file: "
+			     << error.what() << std::endl
+			     << std::string(60, '-') << std::endl
+			     << "Config node"        << std::endl
+			     << std::string(60, '-') << std::endl
+			     << config               << std::endl
+			     << std::string(60, '-') << std::endl;
+      
+      MPI_Finalize();
+      exit(-1);
+    }
+
+    // Assign local conf
+    //
+    conf["name"]       = name;
+    conf["parameters"] = cconf;
+    conf["bodyfile"]   = pfile;
+    conf["force"]      = force;
+				// Informational output
+    if (myid==0)  {
+      cconf.SetStyle(YAML::EmitterStyle::Flow);
+      fconf.SetStyle(YAML::EmitterStyle::Flow);
+
+      cout << std::string(60, '-') << endl
+	   << "--- New Component"  << endl
+	   << setw(20) << " name   :: " << name        << endl
+	   << setw(20) << " id     :: " << id          << endl
+	   << setw(20) << " cparam :: " << cconf       << endl
+	   << setw(20) << " fparam :: " << fconf       << endl
+	   << std::string(60, '-') << endl;
+    }
+  }
+  // END: parse and assign parameter info from PSP
+  
+  // Get file names for split PSP parts
+  //
+  std::list<std::string> parts;
+
+  if (myid==0) {
+    const size_t PBUF_SIZ = 1024;
+    char buf [PBUF_SIZ];
+
+    for (int n=0; n<number; n++) {
+      in->read((char *)buf, PBUF_SIZ);
+      parts.push_back(buf);
+    }
+  }
+
+  double rmax1=0.0, r2;
+
+  is_init = 1;
+  setup_distribution();
+  is_init = 0;
+				// Initialize the particle ferry
+				// instance with dynamic attribute
+				// sizes
+  if (not pf) pf = ParticleFerryPtr(new ParticleFerry(niattrib, ndattrib));
+
+				// Form cumulative and differential
+				// bodies list
+  unsigned int ipart=0;
+
+  if (myid==0) {
+
+				// Set iterator to beginning of split list
+    auto fit = parts.begin();
+
+    std::ifstream fin;		// Open file stream
+    int N;			// Number of particles in this stream
+
+				// Get next blob (which is the first blob here)
+    openNextBlob(fin, fit, N);
+
+    int fcount = 0;		// Count number of particles read from this stream
+
+				// Read root node particles
+    seq_cur = 0;
+
+    rmax1 = 0.0;
+    for (unsigned i=1; i<=nbodies_table[0]; i++)
+    {
+      PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
+      
+      part->readBinary(rsize, indexing, ++seq_cur, &fin);
+
+				// Check particle count in current split file
+      if (++fcount == N) {
+	openNextBlob(fin, fit, N);
+	fcount = 0;
+      }
+
+      r2 = 0.0;
+      for (int j=0; j<3; j++) r2 += part->pos[j]*part->pos[j];
+      rmax1 = max<double>(r2, rmax1);
+
+				// Load the particle
+      particles[part->indx] = part;
+    }
+
+    nbodies = nbodies_table[0];
+
+
+				// Now load the other nodes
+    unsigned icount;
+    for (int n=1; n<numprocs; n++) {
+
+      cout << "Component [" << name << "]: loading node <" << n << ">\n";
+
+      pf->ShipParticles(n, 0, nbodies_table[n]);
+
+      icount = 0;
+      while (icount < nbodies_table[n]) {
+	PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
+
+	part->readBinary(rsize, indexing, ++seq_cur, &fin);
+
+				// Check particle count in current split file
+	if (++fcount == N) {
+	  openNextBlob(fin, fit, N);
+	  fcount = 0;
+	}
+
+	r2 = 0.0;
+	for (int k=0; k<3; k++) 
+	  r2 += part->pos[k]*part->pos[k];
+
+	rmax1 = max<double>(r2, rmax1);
+
+	icount++;		// Send the particle
+	pf->SendParticle(part);
+
+      }
+
+    }
+
+  } else {
+
+    pf->ShipParticles(myid, 0, nbodies);
+      
+    int icount = 0;
+    PartPtr part;
+    while (part=pf->RecvParticle()) {
+      particles[part->indx] = part;
+      icount++;
+    }
+  }
+
+
+				// Default: set to max radius
+  rmax = sqrt(fabs(rmax1));
+  MPI_Bcast(&rmax, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+  initialize();
+
+#ifdef DEBUG
+  unsigned long imin = std::numeric_limits<unsigned long>::max();
+  unsigned long imax = 0, kmin = imax, kmax = 0;
+  for (auto p : particles) {
+    imin = std::min<unsigned long>(imin, p.first);
+    imax = std::max<unsigned long>(imax, p.first);
+    kmin = std::min<unsigned long>(kmin, p.second->indx);
+    kmax = std::max<unsigned long>(kmax, p.second->indx);
+  }
+  cout << "read_bodies_and_distribute_binary_spl: process " << myid 
        << " name=" << name << " bodies [" << kmin << ", "
        << kmax << "], [" << imin << ", " << imax << "]"
        << " #=" << particles.size() << endl;
