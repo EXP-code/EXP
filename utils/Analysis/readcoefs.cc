@@ -51,7 +51,7 @@ bool Coefs::read(std::istream& in)
 int main(int argc, char **argv)
 {
   std::string file;
-  int nmin, nmax, mmax;
+  int nmin, nmax, mmin, mmax;
   bool verbose=false, angle=false;
 
   //
@@ -71,6 +71,9 @@ int main(int argc, char **argv)
     ("nmax",
      po::value<int>(&nmax)->default_value(6), 
      "maximum order for radial coefficients")
+    ("mmin",
+     po::value<int>(&mmin)->default_value(0), 
+     "minimum azimuthal order")
     ("mmax",
      po::value<int>(&mmax)->default_value(4), 
      "maximum azimuthal order")
@@ -99,7 +102,10 @@ int main(int argc, char **argv)
 
   if (vm.count("verbose")) verbose = true;
 
-  if (vm.count("PA")) angle = true;
+  if (vm.count("PA")) {
+    angle = true;
+    mmin = std::max<int>(mmin, 1);
+  }
 
   std::ifstream in(file);
   if (not in) {
@@ -118,7 +124,7 @@ int main(int argc, char **argv)
   }
   
   for (auto c : coefs) {
-    for (int mm=0; mm<=std::min<int>(mmax, c.second->mmax); mm++) {
+    for (int mm=mmin; mm<=std::min<int>(mmax, c.second->mmax); mm++) {
       std::cout << std::setw(18) << c.first << std::setw(5) << mm;
       for (int nn=std::max<int>(nmin, 0); nn<=std::min<int>(nmax, c.second->nmax); nn++) {
 	if (mm==0) {

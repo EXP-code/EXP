@@ -59,24 +59,34 @@ void OutPSQ::initialize()
   }
 
 
-				// Determine last file
+  // Determine last file
+  // 
+  if (restart && nbeg==0) {
 
-  if (restart && nbeg==0 && myid==0) {
+    // Only root node looks for files
+    //
+    if (myid==0) {
 
-    for (nbeg=0; nbeg<100000; nbeg++) {
+      for (nbeg=0; nbeg<100000; nbeg++) {
+	// Output name
+	//
+	ostringstream fname;
+	fname << outdir << filename << "." << setw(5) << setfill('0') << nbeg;
 
-				// Output name
-      ostringstream fname;
-      fname << outdir << filename << "." << setw(5) << setfill('0') << nbeg;
+	// See if we can open file
+	//
+	ifstream in(fname.str().c_str());
 
-				// See if we can open file
-      ifstream in(fname.str().c_str());
-
-      if (!in) {
-	cout << "OutPSQ: will begin with nbeg=" << nbeg << endl;
-	break;
+	if (!in) {
+	  cout << "OutPSQ: will begin with nbeg=" << nbeg << endl;
+	  break;
+	}
       }
     }
+
+    // Communicate starting file to all nodes
+    //
+    MPI_Bcast(&nbeg, 1, MPI_INT, 0, MPI_COMM_WORLD);
   }
 }
 
