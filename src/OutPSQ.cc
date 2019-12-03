@@ -87,7 +87,6 @@ void OutPSQ::initialize()
     // Communicate starting file to all nodes
     //
     MPI_Bcast(&nbeg, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    }
   }
 }
 
