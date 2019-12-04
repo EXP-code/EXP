@@ -18,7 +18,10 @@
 #include <OutCalbr.H>
 #include <OutMulti.H>
 
-OutputContainer::OutputContainer() {}
+OutputContainer::OutputContainer()
+{
+  last = tnow - 0.5*dtime;
+}
 
 void OutputContainer::initialize(void)
 {
@@ -111,6 +114,12 @@ OutputContainer::~OutputContainer()
 
 void OutputContainer::Run(int n, bool final)
 {
+  // Don't rerun a step . . . 
+  //
+  if (fabs(tnow - last) < 0.5*dtime) return;
+
+  // Loop through all instances
+  //
   for (auto it : out) it->Run(n, final);
   if (myid==0) {
 #ifdef DEBUG
@@ -123,4 +132,8 @@ void OutputContainer::Run(int n, bool final)
 #endif
     if (final) cout << "\n";
   }
+
+  // Step ran at this time
+  //
+  last = tnow
 }
