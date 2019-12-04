@@ -20,7 +20,7 @@ UserMassEvo::UserMassEvo(const YAML::Node &conf) : ExternalForce(conf)
 
   initialize();
 
-  last = fct(tnow);
+  last = fct(tnow);		// Cache value for initial time
 
   if (comp_name.size()>0) {
 				// Look for the fiducial component

@@ -194,9 +194,14 @@ class Component
 private:
 
   //! Parallel distribute and particle io
-  void read_bodies_and_distribute_ascii(void);
-  void read_bodies_and_distribute_binary(istream *);
   void load_balance(void);
+  void read_bodies_and_distribute_ascii(void);
+  void read_bodies_and_distribute_binary_out(istream *);
+  void read_bodies_and_distribute_binary_spl(istream *);
+
+  //! Helper for split-PSP-file particle consumer
+  void openNextBlob(std::ifstream& in,
+		    std::list<std::string>::iterator& fit, int& N);
 
 
   //! For magic number checking
@@ -502,7 +507,7 @@ public:
   Component(YAML::Node& conf);
 
   //! Initialize from file
-  Component(YAML::Node&, istream *in);
+  Component(YAML::Node&, istream *in, bool SPL);
 
   //! Destructor
   ~Component();
