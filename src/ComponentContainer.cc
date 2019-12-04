@@ -44,10 +44,10 @@ void ComponentContainer::initialize(void)
   read_rates();			// Read initial processor rates
 
 
-				// Look for a restart file
-  bool SPL = false;
+  bool SPL = false;		// Indicate whether file has SPL prefix
   unsigned char ir  = 0;
   unsigned char is = 0;
+				// Look for a restart file
   if (myid==0) {
     string resfile = outdir + infile;
     ifstream in(resfile.c_str());
