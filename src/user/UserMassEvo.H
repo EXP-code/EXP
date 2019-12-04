@@ -17,6 +17,13 @@
     @param a1 is the linear term (0 by default)
     @param a2 is the quadratic term (0 by default)
     @param a3 is the cubic term (0 by default)
+
+    For example, to linearly increase the mass of a particle by a
+    factor of 10 over 5 time units use:
+    t0 = 0
+    a0 = 1
+    a1 = 2.5
+    a2 = a3 = 0
 */
 class UserMassEvo : public ExternalForce
 {
