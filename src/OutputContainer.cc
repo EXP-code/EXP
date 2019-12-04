@@ -20,7 +20,13 @@
 
 OutputContainer::OutputContainer()
 {
-  last = tnow - 0.5*dtime;
+  // Mark time ahead of current time on restart
+  //
+  if (restart) last = tnow + 0.6*dtime;
+  //
+  // and behind current time on restart
+  //
+  else         last = tnow - 0.6*dtime;
 }
 
 void OutputContainer::initialize(void)
@@ -109,6 +115,8 @@ void OutputContainer::initialize(void)
   
 OutputContainer::~OutputContainer()
 {
+  // Delete all Output instances
+  //
   for (auto it : out) delete it;
 }
 
@@ -121,6 +129,9 @@ void OutputContainer::Run(int n, bool final)
   // Loop through all instances
   //
   for (auto it : out) it->Run(n, final);
+
+  // Root node output
+  //
   if (myid==0) {
 #ifdef DEBUG
     cout << setw(60) << setfill('=') << "=" << endl
@@ -133,7 +144,7 @@ void OutputContainer::Run(int n, bool final)
     if (final) cout << "\n";
   }
 
-  // Step ran at this time
+  // Mark: step ran at this time
   //
-  last = tnow
+  last = tnow;
 }
