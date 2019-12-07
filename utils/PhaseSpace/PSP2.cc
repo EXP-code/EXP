@@ -204,6 +204,12 @@ PSPspl::PSPspl(const std::string& master, const std::string dir, bool verbose) :
     throw std::runtime_error(sout.str());
   }
 
+  if (!in.good()) {
+    std::ostringstream sout;
+    sout << "Error opening master SPL file <" << new_dir + master << ">";
+    throw std::runtime_error(sout.str());
+  }
+
   // Read the header, quit on failure
   // --------------------------------
   try {
