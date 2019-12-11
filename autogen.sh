@@ -34,8 +34,8 @@ if test ! -x `which libtoolize`
 then echo you need libtoolize to generate the Makefile
 fi
 
-autoheader
 aclocal -I m4
+autoheader
 libtoolize --ltdl --copy --force
 automake --add-missing --copy
 automake
