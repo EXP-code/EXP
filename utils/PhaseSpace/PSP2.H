@@ -255,14 +255,24 @@ protected:
   void check_dirname();
   std::string new_dir;
 
+  //! Stream init
+  void init()
+  {
+    // Prepare <in> to throw if failbit gets set
+    in.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+  }
+
 public:
 
   //! Default constructor
-  PSP(bool verbose) : VERBOSE(verbose), new_dir("./") {}
+  PSP(bool verbose) : VERBOSE(verbose), new_dir("./") { init(); }
 
   //! Constructor specifying current working data directory
   PSP(bool verbose, std::string new_dir) : VERBOSE(verbose), new_dir(new_dir)
-  { check_dirname(); }
+  { init(); check_dirname(); }
+
+  //! Destructor
+  virtual ~PSP() { if (in.is_open()) in.close(); }
 
   //! Get snapshot time
   double CurrentTime()    {return header.time;}
@@ -313,7 +323,7 @@ public:
   PSPout(const std::string& file, bool verbose=false);
 
   //! Destructor
-  virtual ~PSPout() { in.close(); }
+  virtual ~PSPout() {}
 
   virtual SParticle* GetParticle ();
   virtual SParticle* NextParticle();
@@ -337,7 +347,7 @@ public:
   PSPspl(const std::string& file, const std::string dir = "", bool verbose=false);
 
   //! Destructor
-  virtual ~PSPspl() { in.close(); }
+  virtual ~PSPspl() {}
 
   virtual SParticle* GetParticle ();
   virtual SParticle* NextParticle();

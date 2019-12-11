@@ -28,11 +28,12 @@ string outdir, runtag;
 //-------------
 
 void Usage(char* prog) {
-  cerr << prog << ": [-v -t] filename\n";
-  cerr << "        -v    verbose output\n";
-  cerr << "        -S    assume split PSP files\n";
-  cerr << "        -s    particle and velocity statistics\n";
-  cerr << "        -T    print time info only\n";
+  cerr << prog << ": [[-v] [-S] [-s] [-T] [-d data_dir]] filename\n";
+  cerr << "        -v      verbose output\n";
+  cerr << "        -S      assume split PSP files\n";
+  cerr << "        -s      particle and velocity statistics\n";
+  cerr << "        -T      print time info only\n";
+  cerr << "        -d dir  data directory\n";
   exit(-1);
 }
 
@@ -47,7 +48,7 @@ main(int argc, char *argv[])
   int c;
   
   while (1) {
-    c = getopt(argc, argv, "vsSTh");
+    c = getopt(argc, argv, "vsSTd:h");
     if (c == -1) break;
 
     switch (c) {
@@ -85,13 +86,23 @@ main(int argc, char *argv[])
 
   std::string file(argv[optind]);
 
-  cerr << "Filename: " << file << endl;
-
   if (not spl and file.find("SPL")!=std::string::npos) spl = true;
 
   std::shared_ptr<PSP> psp;
-  if (spl) psp = std::make_shared<PSPspl>(argv[optind], new_dir, verbose);
-  else     psp = std::make_shared<PSPout>(argv[optind], verbose);
+  try {
+    if (spl) psp = std::make_shared<PSPspl>(argv[optind], new_dir, verbose);
+    else     psp = std::make_shared<PSPout>(argv[optind], verbose);
+  }
+  catch (const std::exception& e)  {
+    std::cout << "pspinfo runtime error: " << e.what() << std::endl;
+    exit(-1);
+  }
+  catch (...) {
+    std::cout << "pspinfo unknown error" << std::endl;
+    exit(-2);
+  }
+
+  cerr << "Filename: " << file << endl;
 
   psp->PrintSummary(cout, stats, timeonly);
 
