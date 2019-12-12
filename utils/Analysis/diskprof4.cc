@@ -1237,6 +1237,8 @@ main(int argc, char **argv)
   }
 
 
+  std::string file;
+
   for (int indx=beg; indx<=end; indx+=stride) {
 
     // ==================================================
@@ -1251,9 +1253,10 @@ main(int argc, char **argv)
       s1 << runtag << "."<< std::setw(5) << std::setfill('0') << indx;
       
 				// Check for existence of next file
-      std::ifstream in(s1.str());
+      file = dir + s1.str();
+      std::ifstream in(file);
       if (!in) {
-	cerr << "Error opening <" << s1.str() << ">" << endl;
+	cerr << "Error opening <" << file << ">" << endl;
 	iok = 0;
       }
     }
@@ -1267,7 +1270,7 @@ main(int argc, char **argv)
     if (myid==0) {
 
       if (SPL) psp = std::make_shared<PSPspl>(s1.str(), dir, true);
-      else     psp = std::make_shared<PSPout>(s1.str(), true);
+      else     psp = std::make_shared<PSPout>(file, true);
 
       tnow = psp->CurrentTime();
       cout << "Beginning disk partition [time=" << tnow
