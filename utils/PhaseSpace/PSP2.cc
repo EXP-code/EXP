@@ -318,7 +318,9 @@ PSPspl::PSPspl(const std::string& master, const std::string dir, bool verbose) :
   }
   // END: component loop
 
-  in.close();
+  // Close current file
+  //
+  if (in.is_open()) in.close();
   
   spos = stanzas.begin();
 }
@@ -447,7 +449,9 @@ SParticle* PSPspl::GetParticle()
 
 void PSPspl::openNextBlob()
 {
-  in.close();			// Close current file
+  // Close current file
+  //
+  if (in.is_open()) in.close();
 
   std::string curfile(*fit);
 
