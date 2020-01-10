@@ -19,7 +19,7 @@ bin_PROGRAMS = pspinfo pspstat psp2tipsy pspsplit psp2ascii ascii2psp	\
 		tipstd2psp psp2ta pspgas psp2histo psp2histo1d		\
 		psp2histo1D psp2histoE psp2histoH pspreal pspstatS	\
 		psp2range psp2eHisto psp2histoT psp2histoTC pspstatT	\
-		spl2psp pspinfo2
+		spl2psp pspinfo2 ascii2psp2
 
 COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ $(YAML)
 
@@ -64,6 +64,9 @@ psp2ascii_LDADD   = $(COMMON_LIBS)
 
 ascii2psp_SOURCES = ascii2psp.cc PSP.cc header.cc header.H
 ascii2psp_LDADD   = $(COMMON_LIBS)
+
+ascii2psp2_SOURCES = ascii2psp2.cc PSP2.cc header.cc header.H
+ascii2psp2_LDADD   = $(COMMON_LIBS)
 
 tipstd2psp_SOURCES = tipstd2psp.cc PSP.cc header.cc header.H tipsyxdr.c
 tipstd2psp_LDADD   = $(COMMON_LIBS)
