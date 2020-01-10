@@ -1,15 +1,13 @@
 /*
-  Translate from standard tipsy components into PSP
+  Translate from ascii components into PSP using supplied header info
 
-  MDWeinberg 05/15/04
+  MDWeinberg 05/15/04, 12/12/19
 */
 
 using namespace std;
 
 #include <cstdlib>
 #include <cstring>
-
-#include "tipsydefs.h"
 
 #include <iostream>
 #include <fstream>
@@ -97,7 +95,7 @@ main(int argc, char **argv)
   sin >> N;
   
   for (int i=0; i<N; i++) {
-    cout << "Name[" << i << "]: ";
+    cout << "File name[" << i << "]: ";
     cin.getline(buf, lenbuf);
     if (cin)
       names.push_back(buf);
