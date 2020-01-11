@@ -101,11 +101,15 @@ static  bool VOLUME;
 static  bool SURFACE;
 static  bool VSLICE;
 
+std::vector<double> c0 = {0.0, 0.0, 0.0};
+
+// Temporary center offset
+// std::vector<double> c0 = {0.0, 0.0, -0.00217};
+
 class Histogram
 {
 public:
 
-  std::vector<double> c0;
   std::vector<double> dataXY, dataXZ, dataYZ;
   std::vector<std::vector<double>> dataZ;
   int N, M;
@@ -125,8 +129,6 @@ public:
     dataYZ.resize(N*M, 0.0);
     dataZ .resize(N*N);
 
-    c0.resize(3, 0.0);
-    // c0[2] = -0.00217;		// Temporary center offset
   }
 
   void Reset() {
@@ -175,10 +177,6 @@ public:
 
   void Add(double x, double y, double z, double m)
   {
-    x -= c0[0];
-    y -= c0[1];
-    z -= c0[2];
-
     if (x < -rmax or x >= rmax or
 	y < -rmax or y >= rmax or
 	z < -zmax or z >= zmax) return;
@@ -228,7 +226,7 @@ void add_particles(PSPptr psp, int& nbods, vector<Particle>& p, Histogram& h)
       // Make a Particle
       //
       bod.mass = part->mass();
-      for (int k=0; k<3; k++) bod.pos[k] = part->pos(k);
+      for (int k=0; k<3; k++) bod.pos[k] = part->pos(k) - c0[k];
       for (int k=0; k<3; k++) bod.vel[k] = part->vel(k);
       bod.indx = part->indx();
       p.push_back(bod);
@@ -237,7 +235,10 @@ void add_particles(PSPptr psp, int& nbods, vector<Particle>& p, Histogram& h)
 
       // Add to histogram
       //
-      if (part) h.Add(part->pos(0), part->pos(1), part->pos(2), part->mass());
+      if (part) h.Add(part->pos(0) - c0[0],
+		      part->pos(1) - c0[1],
+		      part->pos(2) - c0[2],
+		      part->mass());
     }
 
     //
@@ -252,7 +253,7 @@ void add_particles(PSPptr psp, int& nbods, vector<Particle>& p, Histogram& h)
 	  exit(-1);
 	}
 	t[i].mass = part->mass();
-	for (int k=0; k<3; k++) t[i].pos[k] = part->pos(k);
+	for (int k=0; k<3; k++) t[i].pos[k] = part->pos(k) - c0[k];
 	for (int k=0; k<3; k++) t[i].vel[k] = part->vel(k);
 	part = psp->NextParticle();
       }
@@ -959,6 +960,15 @@ main(int argc, char **argv)
     ("nice",
      po::value<int>(&nice)->default_value(0), 
      "number of bins in x direction")
+    ("x,x",
+     po::value<double>(&c0[0])->default_value(0.0), 
+     "x-position offset for phase space")
+    ("y,y",
+     po::value<double>(&c0[1])->default_value(0.0), 
+     "y-position offset for phase space")
+    ("z,z",
+     po::value<double>(&c0[2])->default_value(0.0), 
+     "x-position offset for phase space")
     ("RMAX,R",
      po::value<double>(&RMAX)->default_value(0.1),
      "maximum radius for output")
