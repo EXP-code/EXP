@@ -105,6 +105,7 @@ class Histogram
 {
 public:
 
+  std::vector<double> c0;
   std::vector<double> dataXY, dataXZ, dataYZ;
   std::vector<std::vector<double>> dataZ;
   int N, M;
@@ -123,6 +124,9 @@ public:
     dataXZ.resize(N*M, 0.0);
     dataYZ.resize(N*M, 0.0);
     dataZ .resize(N*N);
+
+    c0.resize(3, 0.0);
+    // c0[2] = -0.00217;		// Temporary center offset
   }
 
   void Reset() {
@@ -171,6 +175,10 @@ public:
 
   void Add(double x, double y, double z, double m)
   {
+    x -= c0[0];
+    y -= c0[1];
+    z -= c0[2];
+
     if (x < -rmax or x >= rmax or
 	y < -rmax or y >= rmax or
 	z < -zmax or z >= zmax) return;
