@@ -4,6 +4,9 @@
                                 // C++/STL headers
 #include <string>
 
+				// Option parsing
+#include <boost/program_options.hpp>
+
                                 // MDW classes
 #include <EmpCylSL.h>
 #include <localmpi.h>
@@ -38,18 +41,41 @@ void usage(char *prog)
 int 
 main(int argc, char **argv)
 {
-  //====================
-  // Inialize MPI stuff
-  //====================
+  std::string eof, tag;
+  double rmin, zmax;
+  int nout;
 
-  local_init_mpi(argc, argv);
+  po::options_description desc("Allowed options");
+  desc.add_options()
+    ("help,h",
+     "produce this help message")
+    ("eof,i",      po::value<std::string>(&eof)->default_value(".eof.cache.file")
+     "the EOF cache file")
+    ("out,o",      po::value<std::string>(&tag)->default_value("eof_basis")
+     "output prefix for basis functions")
+    ("Rmax,R",     po::value<double>(&rmax)->default_value(0.05), 
+     "Extent in cylindrical radius")
+    ("Zmax,Z",     po::value<double>(&zmax)->default_value(0.005), 
+     "Extent in vertical distance above and below plane")
+    ("nout,n",     po::value<int>(&nout)->default_value(40), 
+     "number of grid points in each dimension")
+    ;
   
-  //====================
-  // Parse command line 
-  //====================
+  po::variables_map vm;
 
-  if (argc != 3)         usage(argv[0]);
-  if (argv[1][0] == '-') usage(argv[0]);
+  try {
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::notify(vm);    
+  } catch (po::error& e) {
+    std::cout << "Option error: " << e.what() << std::endl;
+    exit(-1);
+  }
+
+  if (vm.count("help")) {
+    std::cout << desc << "\n";
+    return 1;
+  }
+
 
   std::ifstream in(argv[1]);
   if (not in.good()) {

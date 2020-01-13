@@ -343,6 +343,9 @@ public:
   //! Read basis from cache file
   int read_cache(void);
 
+  //! Parameter access: get mmax
+  int get_mmax(void) {return MMAX;}
+
   //! Parameter access: get norder
   int get_order(void) {return NORDER;}
 

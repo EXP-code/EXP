@@ -11,16 +11,17 @@
 
 /** Enforce periodic boundary conditions in a rectangular prism (box)
     @param ctrname is the name of the component whose particles will be subject to the boundary condition
-    @param sx is the cube size in the x-direction
-    @param sy is the cube size in the y-direction
-    @param sz is the cube size in the z-direction
+    @param sx is the edge size in the x-direction
+    @param sy is the edge size in the y-direction
+    @param sz is the edge size in the z-direction
     @param cx is the center offset in the x-direction
     @param cy is the center offset in the y-direction
     @param cz is the center offset in the z-direction
-    @param btype is a string of length that defines the type of boundary condition for each dimension ('r' for reflection bc and 'p' for periodic bc)
+    @param btype is a string of length that defines the type of boundary condition for each dimension ('r' for reflection bc, 'p' for periodic bc, 'v' is vacuum, and 't' is thermal)
     @param nbin is the number of bins in the x-direction (0 signals no trace)
     @param dT is the time step for binned density/temp trace
     @param tcol is the double attribute index for the temperature data (ignored if < 0)
+    @param temp is the temperature of the wall for 'thermal' boundary conditions (ignored for r, p, and v boundaries)
 */
 class UserPeriodic : public ExternalForce
 {

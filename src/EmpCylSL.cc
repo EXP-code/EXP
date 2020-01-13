@@ -7,6 +7,7 @@
 
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
+#include <boost/multi_array.hpp>
 #include <boost/progress.hpp>	// Progress bar
 
 #include <interp.h>
@@ -2638,6 +2639,12 @@ void EmpCylSL::make_coefficients(bool compute)
 
 				// Begin distribution loop
 
+  howmany. resize(multistep+1);	// Resize and zero, if empty
+  howmany1.resize(multistep+1);
+  for (unsigned M=0; M<=multistep; M++) {
+    for (int nth=0; nth<nthrds; nth++) howmany1[M].resize(nthrds, 0);
+  }
+
   for (unsigned M=0; M<=multistep; M++) {
 
     if (coefs_made[M]) continue;
@@ -4614,17 +4621,17 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
   in.read((char *)&hscl, sizeof(double));
   
   out << setw(70) << setfill('-') << '-' << setfill(' ') << endl;
-  out << setw(20) << left << "MMAX"   << " : " << MMAX << endl;
-  out << setw(20) << left << "NUMX"   << " : " << NUMX << endl;
-  out << setw(20) << left << "NUMY"   << " : " << NUMY << endl;
-  out << setw(20) << left << "NMAX"   << " : " << NMAX << endl;
-  out << setw(20) << left << "NORDER" << " : " << NORDER << endl;
-  out << setw(20) << left << "DENS"   << " : " << DENS << endl;
-  out << setw(20) << left << "CMAP"   << " : " << CMAP << endl;
-  out << setw(20) << left << "RMIN"   << " : " << RMIN << endl;
-  out << setw(20) << left << "RMAX"   << " : " << RMAX << endl;
-  out << setw(20) << left << "ASCALE" << " : " << ASCALE << endl;
-  out << setw(20) << left << "HSCALE" << " : " << HSCALE << endl;
+  out << setw(20) << left << "MMAX"   << " : " << mmax << endl;
+  out << setw(20) << left << "NUMX"   << " : " << numx << endl;
+  out << setw(20) << left << "NUMY"   << " : " << numy << endl;
+  out << setw(20) << left << "NMAX"   << " : " << nmax << endl;
+  out << setw(20) << left << "NORDER" << " : " << norder << endl;
+  out << setw(20) << left << "DENS"   << " : " << std::boolalpha << dens << endl;
+  out << setw(20) << left << "CMAP"   << " : " << std::boolalpha << cmap << endl;
+  out << setw(20) << left << "RMIN"   << " : " << rmin << endl;
+  out << setw(20) << left << "RMAX"   << " : " << rmax << endl;
+  out << setw(20) << left << "ASCALE" << " : " << ascl << endl;
+  out << setw(20) << left << "HSCALE" << " : " << hscl << endl;
   out << setw(70) << setfill('-') << '-' << setfill(' ') << endl;
     
   double time;
@@ -4639,41 +4646,39 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
   int nfield = 3;
   if (DENS) nfield += 1;
   
-  vector< vector< vector<double> > > mat(nfield);
-  for (int n=0; n<nfield; n++) {
-    mat[n] = vector< vector<double> >(NUMX);
-    for (int j=0; j<NUMX; j++) mat[n][j] = vector<double>(NUMY);
-  }
+  typedef boost::multi_array<double, 3> array_type;
+  typedef array_type::index index;
+  array_type mat(boost::extents[nfield][numx+1][numy+1]);
 
-  for (int m=0; m<=MMAX; m++) {
+  for (index m=0; m<=mmax; m++) {
     
-    for (int v=0; v<rank3; v++) {
+    for (index v=0; v<norder; v++) {
 
-      for (int ix=0; ix<=NUMX; ix++)
-	for (int iy=0; iy<=NUMY; iy++) {
+      for (index ix=0; ix<=numx; ix++)
+	for (index iy=0; iy<=numy; iy++) {
 	  in.read((char *)&mat[0][ix][iy], sizeof(double));
 	}
       
-      for (int ix=0; ix<=NUMX; ix++)
-	for (int iy=0; iy<=NUMY; iy++)
+      for (index ix=0; ix<=numx; ix++)
+	for (index iy=0; iy<=numy; iy++)
 	  in.read((char *)&mat[1][ix][iy], sizeof(double));
       
-      for (int ix=0; ix<=NUMX; ix++)
-	for (int iy=0; iy<=NUMY; iy++)
+      for (index ix=0; ix<=numx; ix++)
+	for (index iy=0; iy<=numy; iy++)
 	  in.read((char *)&mat[2][ix][iy], sizeof(double));
       
       if (DENS) {
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    in.read((char *)&mat[v][ix][iy], sizeof(double));
+	for (index ix=0; ix<=numx; ix++)
+	  for (index iy=0; iy<=numy; iy++)
+	    in.read((char *)&mat[3][ix][iy], sizeof(double));
 	
       }
       
-      for (int ix=0; ix<NUMX; ix++) {
-	for (int iy=0; iy<NUMY; iy++) {
+      for (index ix=0; ix<numx; ix++) {
+	for (index iy=0; iy<numy; iy++) {
 	  out << left << setw(4) << m << setw(4) << v 
 	      << setw(4) << ix << setw(4) << iy;
-	  for (int n=0; n<nfield; n++) out << setw(16) << mat[n][ix][iy]; 
+	  for (index n=0; n<nfield; n++) out << setw(16) << mat[n][ix][iy]; 
 	  out << endl;
 	}
 	
@@ -4684,33 +4689,33 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
 
   }
 
-  for (int m=1; m<=MMAX; m++) {
+  for (index m=1; m<=mmax; m++) {
     
-    for (int v=0; v<rank3; v++) {
+    for (index v=0; v<norder; v++) {
       
-      for (int ix=0; ix<=NUMX; ix++)
-	for (int iy=0; iy<=NUMY; iy++)
+      for (index ix=0; ix<=numx; ix++)
+	for (index iy=0; iy<=numy; iy++)
 	  in.read((char *)&mat[0][ix][iy], sizeof(double));
       
-      for (int ix=0; ix<=NUMX; ix++)
-	for (int iy=0; iy<=NUMY; iy++)
+      for (index ix=0; ix<=numx; ix++)
+	for (index iy=0; iy<=numy; iy++)
 	  in.read((char *)&mat[1][ix][iy], sizeof(double));
       
-      for (int ix=0; ix<=NUMX; ix++)
-	for (int iy=0; iy<=NUMY; iy++)
+      for (index ix=0; ix<=numx; ix++)
+	for (index iy=0; iy<=numy; iy++)
 	  in.read((char *)&mat[2][ix][iy], sizeof(double));
       
       if (DENS) {
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
+	for (index ix=0; ix<=numx; ix++)
+	  for (index iy=0; iy<=numy; iy++)
 	    in.read((char *)&mat[3][ix][iy], sizeof(double));
       }
 
-      for (int ix=0; ix<NUMX; ix++) {
-	for (int iy=0; iy<NUMY; iy++) {
+      for (index ix=0; ix<numx; ix++) {
+	for (index iy=0; iy<numy; iy++) {
 	  out << left << setw(4) << m << setw(4) << v 
 	      << setw(4) << ix << setw(4) << iy;
-	  for (int n=0; n<nfield; n++) out << setw(16) << mat[n][ix][iy]; 
+	  for (index n=0; n<nfield; n++) out << setw(16) << mat[n][ix][iy]; 
 	  out << endl;
 	}
       }

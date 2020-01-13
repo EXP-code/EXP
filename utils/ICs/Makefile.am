@@ -29,7 +29,7 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 noinst_HEADERS =
 
 bin_PROGRAMS = gendisk shrinkics gendisk2 gsphere pstmod gendisk3	\
-	empinfo empdump makeIon phIon phConv
+	empinfo empdump eofbasis makeIon phIon phConv
 
 shrinkics_SOURCES = shrinkics.cc
 shrinkics_LDADD = $(EXPLIBS)
@@ -65,6 +65,10 @@ empinfo_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(
 empdump_SOURCES = empdump.cc EmpCylSL.cc localmpi.cc
 empdump_LDFLAGS = $(EXPFLAGS)
 empdump_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+
+eofbasis_SOURCES = eof_basis.cc EmpCylSL.cc localmpi.cc
+eofbasis_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
+eofbasis_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(BOOST_LIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 makeIon_SOURCES = makeIonIC.cc Particle.cc Particle.H Species.H \
 	atomic_constants.H atomic_constants.cc

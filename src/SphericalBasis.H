@@ -182,6 +182,9 @@ protected:
   boost::shared_ptr<cuRingType> cuRing;
   //@}
   
+  //! Only initialize once
+  bool initialize_cuda_sph;
+
   //! Initialize the container
   void cuda_initialize();
 

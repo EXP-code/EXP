@@ -9,6 +9,9 @@ class OutputContainer
 {
 private:
 
+  //! Last run time
+  double last;
+
 public:
   //! List of output methods currently active
   list<Output*> out;

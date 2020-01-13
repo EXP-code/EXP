@@ -1,7 +1,7 @@
 /*
   Separate a psp structure to ascii components
 
-  MDWeinberg 06/10/02
+  MDWeinberg 06/10/02, 11/24/19
 */
 
 using namespace std;
@@ -19,7 +19,7 @@ using namespace std;
 
 #include <StringTok.H>
 #include <header.H>
-#include <PSP.H>
+#include <PSP2.H>
 
 				// Globals for exputil library
 				// Unused here
@@ -34,9 +34,9 @@ string outdir, runtag;
 
 void Usage(char* prog) {
   cerr << prog << ": [-t time -v -h] filename\n\n";
-  cerr << "    -t time         use dump closest to <time>\n";
   cerr << "    -o name         prefix name for each component (default: comp)\n";
   cerr << "    -a              use input format\n";
+  cerr << "    -d dir          replacement SPL file directory\n";
   cerr << "    -h              print this help message\n";
   cerr << "    -v              verbose output\n\n";
   exit(0);
@@ -50,7 +50,7 @@ main(int argc, char **argv)
   double time=1e20;
   bool verbose = false;
   bool input   = false;
-  string cname("comp");
+  string cname("comp"), new_dir("./");
 
   // Parse command line
 
@@ -62,10 +62,6 @@ main(int argc, char **argv)
 
     switch (c) {
 
-    case 't':
-      time = atof(optarg);
-      break;
-
     case 'v':
       verbose = true;
       break;
@@ -73,6 +69,11 @@ main(int argc, char **argv)
     case 'o':
       cname.erase();
       cname = string(optarg);
+      break;
+
+    case 'd':
+      new_dir.erase();
+      new_dir = string(optarg);
       break;
 
     case 'a':
@@ -87,20 +88,19 @@ main(int argc, char **argv)
 
   }
 
-  ifstream *in;
+  std::string filename;
 
   if (optind < argc) {
 
-    ifstream *in2 = new ifstream(argv[optind]);
-    if (!*in2) {
-      cerr << "Error opening file <" << argv[optind] << "> for input\n";
+    filename = std::string(argv[optind]);
+    
+    std::ifstream in(filename);
+    if (!in) {
+      cerr << "Error opening file <" << filename << "> for input\n";
       exit(-1);
     }
 
-    if (verbose) cerr << "Using filename: " << argv[optind] << endl;
-
-				// Assign file stream to input stream
-    in = in2;
+    if (verbose) cerr << "Using filename: " << filename << endl;
 
   } else {
     Usage(prog);
@@ -108,30 +108,28 @@ main(int argc, char **argv)
 
 				// Parse the PSP file
 				// ------------------
-  PSPDump psp(in);
+  PSPptr psp;
+  if (filename.find("SPL") != std::string::npos)
+    psp = std::make_shared<PSPspl>(filename, new_dir);
+  else
+    psp = std::make_shared<PSPout>(filename);
 
-  in->close();
-  delete in;
 				// Now write a summary
 				// -------------------
   if (verbose) {
 
-    psp.PrintSummary(in, cerr);
+    psp->PrintSummary(cerr);
     
-    cerr << "\nBest fit dump to <" << time << "> has time <" 
-	 << psp.SetTime(time) << ">\n";
-  } else 
-    psp.SetTime(time);
+    cerr << "\nPSP file <" << filename << "> has time <" 
+	 << psp->CurrentTime() << ">\n";
+  }
 
 				// Dump ascii for each component
 				// -----------------------------
-  in = new ifstream(argv[optind]);
-
-  
   PSPstanza *stanza;
   SParticle* part;
 
-  for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
+  for (stanza=psp->GetStanza(); stanza!=0; stanza=psp->NextStanza()) {
     
 				// Open an output file for this stanza
 				// -----------------------------------
@@ -152,11 +150,7 @@ main(int argc, char **argv)
 	<< setw(10) << stanza->comp.ndatr 
 	<< endl;
 
-				// Position to beginning of particles
-				// ----------------------------------
-    in->seekg(stanza->pspos);
-
-    for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
+    for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
 
       if (stanza->index_size) out << std::setw(18) << part->indx();
       out << std::setw(18) << part->mass();

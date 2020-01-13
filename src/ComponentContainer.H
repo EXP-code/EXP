@@ -41,6 +41,14 @@ public:
    @param restart set to 1 instructs all the components and force
    methods to restart the simulation from phase space checkpoints and
    log files
+
+  <br>
+  Restarting:
+
+  If the <em>infile</em> parameter contains a valid PSP file name, the
+  simulation will resume using the file as an PSP body file.  If the
+  <em>infile</em> begins with or contains the string 'SPL', a
+  split-PSP format will be assumed.
 */
 class ComponentContainer
 {

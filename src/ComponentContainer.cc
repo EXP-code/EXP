@@ -44,8 +44,10 @@ void ComponentContainer::initialize(void)
   read_rates();			// Read initial processor rates
 
 
+  bool SPL = false;		// Indicate whether file has SPL prefix
+  unsigned char ir  = 0;
+  unsigned char is = 0;
 				// Look for a restart file
-  unsigned char ir = 0;
   if (myid==0) {
     string resfile = outdir + infile;
     ifstream in(resfile.c_str());
@@ -58,10 +60,14 @@ void ComponentContainer::initialize(void)
 	   << resfile << ">, assuming a new run" << endl;
       ir = 0;
     }
+    if (infile.find("SPL") != std::string::npos) is = 1;
   }
 
   MPI_Bcast(&ir, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&is, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+
   restart = ir ? true : false;
+  SPL     = is ? true : false;
 
   if (restart) {
 
@@ -108,7 +114,7 @@ void ComponentContainer::initialize(void)
     if (comp.IsSequence()) {
       for (int i=0; i<ncomp; i++) {
 	YAML::Node cur = comp[i];
-	components.push_back(new Component(cur, &in));
+	components.push_back(new Component(cur, &in, SPL));
 	// Could reassign "comp[ncomp] = cur" to capture defaults
       }
     }
