@@ -3,22 +3,13 @@
 #include <fstream>
 #include <string>
 
+#include <boost/program_options.hpp>
 #include <yaml-cpp/yaml.h>
 
-void usage(char * prog)
-{
-  std::cout << "USAGE:" << std::endl
-	    << prog << " <fiducial file> <comparison file>" << std::endl
-	    << std::endl
-	    << "This routine recursively checks every node in the 'fiducial file' against the " << std::endl
-	    << "nodes in the 'comparison file' and missing nodes and different values." << std::endl
-	    << "Different values in the comparison file will be printed as \e[1;31m != value\e[0m," << std::endl
-	    << "while missing nodes in the comparison file will be denoted by the suffix \e[1;34m[***]\e[0m" << std::endl << std::endl
-	    << "It may be useful to reverse the order of the files for a full comparsion." << std::endl << std::endl
-	    << "Example: " << prog << " file1.yaml file2.yaml | less -R" << std::endl << std::endl;
-  exit(-1);
-}
+namespace po = boost::program_options;
 
+#define NAME_ID    "yaml_diff"
+#define VERSION_ID "0.1"
 
 const int indent = 2;
 
@@ -85,15 +76,59 @@ void recurse(YAML::Node& config1, YAML::Node& config2, int level)
 
 int main(int argc, char** argv)
 {
-  if (argc != 3) usage(argv[0]);
+  po::options_description description(std::string(NAME_ID) + " usage");
 
+  description.add_options()
+    ("help,h", "Display this help message")
+    ("version,v", "Display version number")
+    ("input-files", po::value<std::vector<std::string>>(), "Input files");
+  
+  po::positional_options_description p;
+  p.add("input-files", -1);
+
+  po::variables_map vm;
+  po::store(po::command_line_parser(argc, argv).options(description).positional(p).run(), vm);
+  po::notify(vm);
+
+  if (vm.count("help")) {
+    std::cout << description;
+    
+    std::cout << std::endl
+	      << "This routine recursively checks every node in the 'fiducial file' against the " << std::endl
+	      << "nodes in the 'comparison file' and missing nodes and different values." << std::endl
+	      << "Different values in the comparison file will be printed as \e[1;31m != value\e[0m," << std::endl
+	      << "while missing nodes in the comparison file will be denoted by the suffix \e[1;34m[***]\e[0m" << std::endl << std::endl
+	      << "It may be useful to reverse the order of the files for a full comparsion." << std::endl << std::endl
+	      << "Example: " << argv[0] << " file1.yaml file2.yaml | less -R" << std::endl << std::endl;
+    return 0;
+  }
+  
+  if (vm.count("version")) {
+    std::cout << NAME_ID << " version " << VERSION_ID << std::endl;
+    
+    return 0;
+  }
+  
+  
+  std::vector<std::string> files;
+
+  if (vm.count("input-files")){
+    files = vm["input-files"].as<std::vector<std::string>>();
+    if (files.size() != 2) {
+      std::cout << std::endl
+		<< "You must provide exactly 2 file names!"
+		<< std::endl << std::endl << description << std::endl;
+      return 0;
+    }
+  }
+  
   std::ifstream InFile1, InFile2;
   InFile1.exceptions(std::ios::failbit);
   InFile2.exceptions(std::ios::failbit);
 
   try {
-    InFile1.open(argv[1]);
-    InFile2.open(argv[2]);
+    InFile1.open(files[0]);
+    InFile2.open(files[1]);
 
     YAML::Node      config1 = YAML::Load(InFile1);
     YAML::Node      config2 = YAML::Load(InFile2);
