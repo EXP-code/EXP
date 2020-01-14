@@ -27,7 +27,7 @@ noinst_HEADERS =
 
 bin_PROGRAMS = diskprof haloprof slabprof psphisto gas2d gas2dcyl	\
 makegrid pspbox eofpeek diskprof2 pcatest diskprof3 mssaprof		\
-readcoefs pcatest diskprof4 sphprof
+readcoefs pcatest diskprof4 sphprof yaml_diff
 
 diskprof_SOURCES = PSP.cc header.cc diskprof.cc EmpCylSL.cc localmpi.cc Particle.cc
 diskprof_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
@@ -91,6 +91,9 @@ sphprof_SOURCES = PSP2.cc header.cc sphprof.cc SphereSL.cc	\
 			localmpi.cc Particle.cc
 sphprof_LDFLAGS   = $(EXPFLAGS) $(BOOST_LDFLAGS)
 sphprof_LDADD     = $(EXPLIBS)
+
+yaml_diff_SOURCES = yaml_diff.cc
+yaml_diff_LDADD   = -lyaml-cpp
 
 EmpCylSL.cc:	$(top_srcdir)/src/EmpCylSL.cc
 	cp $(top_srcdir)/src/$@ .
