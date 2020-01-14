@@ -7655,9 +7655,14 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	tK *= 0.5*PP->W1*PP->q*mu;
 
-	Italy[id][Z1*100+Z2][interFlag][0] += Prob;
-	Italy[id][Z1*100+Z2][interFlag][1] += dE * Escl;
-	Italy[id][Z1*100+Z2][interFlag][2] += tK;
+	{
+	  int z1 = Z1, z2 = Z2;
+	  if (z1 == 65535) z1 = 0;
+	  if (z2 == 65535) z2 = 0;
+	  Italy[id][z1*100+z2][interFlag][0] += Prob;
+	  Italy[id][z1*100+z2][interFlag][1] += dE * Escl;
+	  Italy[id][z1*100+z2][interFlag][2] += tK;
+	}
       }
     }
       
@@ -7673,9 +7678,14 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	tK *= 0.5*PP->W1*PP->q*mu;
 	
-	Italy[id][Z1*100+Z2][interFlag][0] += Prob;
-	Italy[id][Z1*100+Z2][interFlag][1] += dE * Escl;
-	Italy[id][Z1*100+Z2][interFlag][2] += tK;
+	{
+	  int z1 = Z1, z2 = Z2;
+	  if (z1 == 65535) z1 = 0;
+	  if (z2 == 65535) z2 = 0;
+	  Italy[id][z1*100+z2][interFlag][0] += Prob;
+	  Italy[id][z1*100+z2][interFlag][1] += dE * Escl;
+	  Italy[id][z1*100+z2][interFlag][2] += tK;
+	}
       }
     }
       
@@ -7694,9 +7704,15 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	tK *= 0.5*PP->W1*PP->q*mu;
 
-	Italy[id][Z1*100+Z2][interFlag][0] += Prob;
-	Italy[id][Z1*100+Z2][interFlag][1] += dE * Escl;
-	Italy[id][Z1*100+Z2][interFlag][2] += tK;
+	{
+	  int z1 = Z1, z2 = Z2;
+	  if (z1 == 65535) z1 = 0;
+	  if (z2 == 65535) z2 = 0;
+
+	  Italy[id][z1*100+z2][interFlag][0] += Prob;
+	  Italy[id][z1*100+z2][interFlag][1] += dE * Escl;
+	  Italy[id][z1*100+z2][interFlag][2] += tK;
+	}
       }
     }
       
@@ -10259,10 +10275,16 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 	  tK *= 0.5*PP->W1*PP->q*mu;
 
-	  Italy[id][Z1*100+Z2][interFlag][0] += Prob;
-	  Italy[id][Z1*100+Z2][interFlag][1] += dE * Escl;
-	  Italy[id][Z1*100+Z2][interFlag][2] += tK;
-	  Italy[id][Z1*100+Z2][interFlag][3] += 1;
+	  {
+	    int z1 = Z1, z2 = Z2;
+	    if (z1 == 65535) z1 = 0;
+	    if (z2 == 65535) z2 = 0;
+	    
+	    Italy[id][z1*100+z2][interFlag][0] += Prob;
+	    Italy[id][z1*100+z2][interFlag][1] += dE * Escl;
+	    Italy[id][z1*100+z2][interFlag][2] += tK;
+	    Italy[id][z1*100+z2][interFlag][3] += 1;
+	  }
 	}
       }
       
@@ -10278,10 +10300,16 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 	  tK *= 0.5*PP->W1*PP->q*mu;
 
-	  Italy[id][Z1*100+Z2][interFlag][0] += Prob;
-	  Italy[id][Z1*100+Z2][interFlag][1] += dE * Escl;
-	  Italy[id][Z1*100+Z2][interFlag][2] += tK;
-	  Italy[id][Z1*100+Z2][interFlag][3] += 1;
+	  {
+	    int z1 = Z1, z2 = Z2;
+	    if (z1 == 65535) z1 = 0;
+	    if (z2 == 65535) z2 = 0;
+	    
+	    Italy[id][z1*100+z2][interFlag][0] += Prob;
+	    Italy[id][z1*100+z2][interFlag][1] += dE * Escl;
+	    Italy[id][z1*100+z2][interFlag][2] += tK;
+	    Italy[id][z1*100+z2][interFlag][3] += 1;
+	  }
 	}
       }
       
@@ -10300,10 +10328,16 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 	  tK *= 0.5*PP->W1*PP->q*mu;
 
-	  Italy[id][Z1*100+Z2][interFlag][0] += Prob;
-	  Italy[id][Z1*100+Z2][interFlag][1] += dE * Escl;
-	  Italy[id][Z1*100+Z2][interFlag][2] += tK;
-	  Italy[id][Z1*100+Z2][interFlag][3] += 1;
+	  {
+	    int z1 = Z1, z2 = Z2;
+	    if (z1 == 65535) z1 = 0;
+	    if (z2 == 65535) z2 = 0;
+	    
+	    Italy[id][z1*100+z2][interFlag][0] += Prob;
+	    Italy[id][z1*100+z2][interFlag][1] += dE * Escl;
+	    Italy[id][z1*100+z2][interFlag][2] += tK;
+	    Italy[id][z1*100+z2][interFlag][3] += 1;
+	  }
 	}
       }
   } // END: compute this interaction [ok]
