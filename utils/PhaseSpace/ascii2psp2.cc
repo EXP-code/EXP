@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <vector>
 #include <string>
+#include <cstring>
 
 #include <boost/shared_array.hpp>
 
@@ -113,7 +114,7 @@ main(int argc, char **argv)
   }
 
   YAML::Node cconf  = conf["Components"];
-  
+
   if (not cconf.IsSequence()) {
     std::cout << "Problem reading config file <" << config << ">"
 	      << std::endl;
@@ -136,7 +137,7 @@ main(int argc, char **argv)
       std::cerr << "Error opening file <" << bodies << "> for input\n";
       exit(-1);
     }
-    
+
     in[i].getline(buf, lenbuf);
     if (!in[i]) {
       cerr << "Error reading header from  <" << bodies << ">\n";
@@ -148,7 +149,7 @@ main(int argc, char **argv)
     ins >> headers[i].nbod;
     ins >> headers[i].niatr;
     ins >> headers[i].ndatr;
-    
+
     ntot += headers[i].nbod;
 
     std::ostringstream outs;
@@ -183,12 +184,12 @@ main(int argc, char **argv)
   // Write master header
   //
   out.write((char *)&master, sizeof(MasterHeader));
-  
-  
+
+
   double mass, pos[3], vel[3], pot=0.0;
 
   for (int i=0; i<cconf.size(); i++) {
-    
+
     const static unsigned long magic = 0xadbfabc0;
     unsigned long rsize;
     if (real4) rsize = sizeof(float);
@@ -202,7 +203,7 @@ main(int argc, char **argv)
       sout << "Error writing particle header at " << __FILE__ << ":" << __LINE__;
       throw std::runtime_error(sout.str());
     }
-    
+
     std::vector<int>     ivec(max<int>(1, headers[i].niatr));
     std::vector<double>  dvec(max<int>(1, headers[i].ndatr));
     float                fv;
@@ -219,7 +220,7 @@ main(int argc, char **argv)
 
       for (int j=0; j<headers[i].niatr; j++) ins >> ivec[j];
       for (int j=0; j<headers[i].ndatr; j++) ins >> dvec[j];
-      
+
       // Write phase space
       //
 
@@ -233,18 +234,18 @@ main(int argc, char **argv)
 	for (int j=0; j<3; j++) out.write((char *)&(fv=pos[j]), sizeof(float));
 	for (int j=0; j<3; j++) out.write((char *)&(fv=vel[j]), sizeof(float));
 	out.write((char *)&(fv=pot), sizeof(float));
-	for (int j=0; j<headers[i].niatr; j++) 
+	for (int j=0; j<headers[i].niatr; j++)
 	  out.write((char *)&(ivec[j]), sizeof(int));
-	for (int j=0; j<headers[i].ndatr; j++) 
+	for (int j=0; j<headers[i].ndatr; j++)
 	  out.write((char *)&(fv=dvec[j]), sizeof(float));
       } else {
 	out.write((char *)&mass, sizeof(double));
 	for (int j=0; j<3; j++) out.write((char *)&(pos[j]), sizeof(double));
 	for (int j=0; j<3; j++) out.write((char *)&(vel[j]), sizeof(double));
 	out.write((char *)&pot, sizeof(double));
-	for (int j=0; j<headers[i].niatr; j++) 
+	for (int j=0; j<headers[i].niatr; j++)
 	  out.write((char *)&(ivec[j]), sizeof(int));
-	for (int j=0; j<headers[i].ndatr; j++) 
+	for (int j=0; j<headers[i].ndatr; j++)
 	  out.write((char *)&(dvec[j]), sizeof(double));
       }
 
@@ -258,4 +259,3 @@ main(int argc, char **argv)
 
   return 0;
 }
-  
