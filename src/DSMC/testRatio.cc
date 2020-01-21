@@ -10,12 +10,43 @@
 #include <tuple>
 
 #include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
+
+#include <errno.h>
+#include <sys/stat.h>
 
 #include "Ion.H"
 
 namespace po = boost::program_options;
 
 #include <mpi.h>
+
+bool file_exists(const std::string& fileName)
+{
+  std::ifstream infile(fileName);
+  return infile.good();
+}
+
+
+// Write ChiantiPy script, if necessary
+//
+void writeScript()
+{
+  const char *py =
+#include "recomb_py.h"
+    ;
+
+  const std::string file("recomb.py");
+    
+  if (not file_exists(file)) {
+    std::ofstream out(file);
+    out << py;
+    if (chmod(file.c_str(), S_IWUSR | S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
+      perror("Error in chmod:");
+    }
+  }
+}
+
 
 // Global variables (not all used but needed for EXP libraries)
 
@@ -27,6 +58,8 @@ pthread_mutex_t mem_lock;
 
 int main (int ac, char **av)
 {
+  writeScript();
+
   //===================
   // MPI preliminaries 
   //===================
@@ -185,14 +218,14 @@ int main (int ac, char **av)
 
   typedef std::map<unsigned short, std::vector<double> > rateMap;
 
+  numE = std::max<int>(numE, 10);
+  
   double dE = (Emax - Emin)/numE;
 
   for (int nt=0; nt<numT; nt++) {
 
     double T = temp[nt];
 
-    numE = std::max<int>(numE, 10);
-    
     rateMap val0;
     std::vector<rateMap> val1(numE);
     
