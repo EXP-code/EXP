@@ -95,11 +95,12 @@ int main(int argc, char** argv)
     
     std::cout << std::endl
 	      << "This routine recursively checks every node in the 'fiducial file' against the " << std::endl
-	      << "nodes in the 'comparison file' and missing nodes and different values." << std::endl
-	      << "Different values in the comparison file will be printed as \e[1;31m != value\e[0m," << std::endl
-	      << "while missing nodes in the comparison file will be denoted by the suffix \e[1;34m[***]\e[0m" << std::endl << std::endl
-	      << "It may be useful to reverse the order of the files for a full comparsion." << std::endl << std::endl
-	      << "Example: " << argv[0] << " file1.yaml file2.yaml | less -R" << std::endl << std::endl;
+	      << "nodes in the 'comparison file' and missing nodes and different values.  This  " << std::endl
+	      << "provides a tool for differing configuration files for EXP.  Different values  " << std::endl
+	      << "in the comparison file will be printed as \e[1;31m != value\e[0m, while missing nodes " << std::endl
+	      << "in the comparison file will be denoted by the suffix \e[1;34m[***]\e[0m."       << std::endl << std::endl
+	      << "It may be useful to reverse the order of the files for a full comparsion."      << std::endl << std::endl
+	      << "Example: " << argv[0] << " config1.yaml config2.yaml | less -R" << std::endl << std::endl;
     return 0;
   }
   
@@ -112,14 +113,13 @@ int main(int argc, char** argv)
   
   std::vector<std::string> files;
 
-  if (vm.count("input-files")){
+  if (vm.count("input-files") != 2) {
+    std::cout << std::endl
+	      << "You must provide exactly 2 file names!"
+	      << std::endl << std::endl << description << std::endl;
+    return 0;
+  } else {
     files = vm["input-files"].as<std::vector<std::string>>();
-    if (files.size() != 2) {
-      std::cout << std::endl
-		<< "You must provide exactly 2 file names!"
-		<< std::endl << std::endl << description << std::endl;
-      return 0;
-    }
   }
   
   std::ifstream InFile1, InFile2;
