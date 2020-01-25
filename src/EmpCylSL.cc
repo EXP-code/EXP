@@ -679,6 +679,27 @@ int EmpCylSL::read_cache(void)
 }
 
 
+template <typename U>
+std::string compare_out(std::string str, U one, U two)
+{
+  std::ostringstream sout, sout1, sout2;
+
+  // First token
+  std::transform(str.begin(), str.end(),str.begin(), ::toupper);
+  sout1 << str << "=" << one;
+
+  // Second token
+  std::transform(str.begin(), str.end(),str.begin(), ::tolower);
+  sout2 << str << "=" << two;
+
+  // The entire line
+  sout << std::setw(25) << sout1.str()
+       << std::setw(25) << sout2.str()
+       << std::endl;
+
+  return sout.str();
+}
+
 int EmpCylSL::cache_grid(int readwrite, string cachefile)
 {
 
@@ -805,17 +826,25 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 	 (fabs(hscl-HSCALE)>1.0e-12 )
 	 ) 
       {
-	cout << "MMAX="   << MMAX   << " mmax=" << mmax << endl;
-	cout << "NUMX="   << NUMX   << " numx=" << numx << endl;
-	cout << "NUMY="   << NUMY   << " numy=" << numy << endl;
-	cout << "NMAX="   << NMAX   << " nmax=" << nmax << endl;
-	cout << "NORDER=" << NORDER << " norder=" << norder << endl;
-	cout << "DENS="   << DENS   << " dens=" << dens << endl;
-	cout << "CMAP="   << CMAP   << " cmap=" << cmap << endl;
-	cout << "RMIN="   << RMIN   << " rmin=" << rmin << endl;
-	cout << "RMAX="   << RMAX   << " rmax=" << rmax << endl;
-	cout << "ASCALE=" << ASCALE << " ascale=" << ascl << endl;
-	cout << "HSCALE=" << HSCALE << " hscale=" << hscl << endl;
+	cout << std::setw(25) << "Wanted"
+	     << std::setw(25) << "Cached"
+	     << std::endl
+	     << std::setw(25) << "------"
+	     << std::setw(25) << "------"
+	     << std::endl;
+
+	cout << compare_out("mmax",   MMAX,   mmax);
+	cout << compare_out("numx",   NUMX,   numx);
+	cout << compare_out("numy",   NUMY,   numy);
+	cout << compare_out("nmax",   NMAX,   nmax);
+	cout << compare_out("norder", NORDER, norder);
+	cout << compare_out("dens",   DENS,   dens);
+	cout << compare_out("cmap",   CMAP,   cmap);
+	cout << compare_out("rmin",   RMIN,   rmin);
+	cout << compare_out("rmax",   RMAX,   rmax);
+	cout << compare_out("ascale", ASCALE, ascl);
+	cout << compare_out("hscale", HSCALE, hscl);
+
 	return 0;
       }
     
