@@ -346,6 +346,7 @@ main(int ac, char **av)
   bool         CMAP;
   bool         LOGR;
   bool         CHEBY;
+  int          NCHEB;
   int          NDR;
   int          NDZ;
   int          NHR;
@@ -429,6 +430,7 @@ main(int ac, char **av)
     ("SVD",             po::value<bool>(&SVD)->default_value(false),                    "Use svd for symmetric eigenvalue problesm")
     ("LOGR",            po::value<bool>(&LOGR)->default_value(false),                   "Make a logarithmic coordinate mapping")
     ("CHEBY",           po::value<bool>(&CHEBY)->default_value(false),                  "Use Chebyshev smoothing for epicyclic and asymmetric drift")
+    ("NCHEB",           po::value<int>(&NCHEB)->default_value(16),                  "Chebyshev order for smoothing")
     ("NDR",             po::value<int>(&NDR)->default_value(1600),                      "Number of points in DiskHalo radial table for disk")
     ("NDZ",             po::value<int>(&NDZ)->default_value(400),                       "Number of points in DiskHalo vertical table for disk")
     ("NHR",             po::value<int>(&NHR)->default_value(1600),                      "Number of points in DiskHalo radial table for halo")
@@ -672,6 +674,7 @@ main(int ac, char **av)
   DiskHalo::SEED        = SEED;
   DiskHalo::VFLAG       = static_cast<unsigned int>(DFLAG);
   DiskHalo::CHEBY       = CHEBY;
+  DiskHalo::NCHEB       = NCHEB;
   if (suffix.size())
     DiskHalo::RUNTAG    = suffix;
   
