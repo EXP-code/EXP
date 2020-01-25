@@ -12,8 +12,6 @@
 
 namespace po = boost::program_options;
 
-#include <getopt.h>		// For long options
-
 #include <localmpi.h>
 #include <SLSphere.H>		// Defines biorthogonal SL class
 #include <gaussQ.h>		// Gauss-Legendre quadrature
