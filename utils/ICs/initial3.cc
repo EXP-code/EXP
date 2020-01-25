@@ -69,6 +69,7 @@ namespace po = boost::program_options;
 int          LMAX;
 int          NMAX;
 int          NUMR;
+int          SCMAP;
 double       RMIN;
 double       RCYLMIN;
 double       RCYLMAX;
@@ -242,6 +243,8 @@ main(int argc, char **argv)
      "Minimum disk radius")
     ("RCYLMAX",             po::value<double>(&RCYLMAX)->default_value(20.0),
      "Maximum disk radius")
+    ("SCMAP",               po::value<int>(&SCMAP)->default_value(1),
+     "Turn on Spherical SL coordinate mapping (1=on, 0=off")
     ("SCSPH",               po::value<double>(&SCSPH)->default_value(1.0),
      "Scale for Spherical SL coordinate mapping")
     ("RSPHSL",              po::value<double>(&RSPHSL)->default_value(47.5),
@@ -485,7 +488,7 @@ main(int argc, char **argv)
                                 // Create expansion only if needed . . .
   SphericalSL *expandh = NULL;
   if (n_particlesH) {
-    expandh = new SphericalSL(LMAX, NMAX, SCSPH);
+    expandh = new SphericalSL(nthrds, LMAX, NMAX, SCMAP, SCSPH);
 #ifdef DEBUG
     string dumpname("debug");
     expandh->dump_basis(dumpname);

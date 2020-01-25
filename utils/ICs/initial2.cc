@@ -324,6 +324,7 @@ main(int ac, char **av)
   int          LMAX;
   int          NMAX;
   int          NUMR;
+  int          SCMAP;
   double       RMIN;
   double       RCYLMIN;
   double       RCYLMAX;
@@ -411,6 +412,8 @@ main(int ac, char **av)
     ("RMIN",            po::value<double>(&RMIN)->default_value(0.005),                 "Minimum halo radius")
     ("RCYLMIN",         po::value<double>(&RCYLMIN)->default_value(0.001),              "Minimum disk radius")
     ("RCYLMAX",         po::value<double>(&RCYLMAX)->default_value(20.0),               "Maximum disk radius")
+    ("SCMAP",           po::value<int>(&SCMAP)->default_value(1),
+        "Turn on Spherical SL coordinate mapping (1=on, 0=off")
     ("SCSPH",           po::value<double>(&SCSPH)->default_value(1.0),                  "Scale for Spherical SL coordinate mapping")
     ("RSPHSL",          po::value<double>(&RSPHSL)->default_value(47.5),                "Maximum halo expansion radius")
     ("ASCALE",          po::value<double>(&ASCALE)->default_value(1.0),                 "Radial scale length for disk basis construction")
@@ -692,7 +695,7 @@ main(int ac, char **av)
   // Create expansion only if needed . . .
   SphericalSL *expandh = NULL;
   if (n_particlesH) {
-    expandh = new SphericalSL(nthrds, LMAX, NMAX, SCSPH);
+    expandh = new SphericalSL(nthrds, LMAX, NMAX, SCMAP, SCSPH);
 #ifdef DEBUG
     expandh->dump_basis(runtag);
 #endif

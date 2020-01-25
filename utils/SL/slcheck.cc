@@ -3,7 +3,14 @@
 #include <string>
 #include <cmath>
 
-#include <getopt.h>
+// Boost stuff
+//
+#include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
+
+namespace po = boost::program_options;
 
 #include <localmpi.h>
 #include <SLGridMP2.h>
@@ -13,143 +20,49 @@ char threading_on = 0;
 pthread_mutex_t mem_lock;
 string outdir, runtag;
 
-
-//===========================================================================
-
-void usage(char *prog)
-{
-  cout << "Usage:" << endl << endl
-       << prog << " [options]" << endl << endl
-       << setw(15) << "Option" << setw(10) << "Argument" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Description" << endl
-       << resetiosflags(ios::left)
-       << endl
-       << setw(15) << "-m or --mpi" << setw(10) << "No" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Turn on MPI for SL computation" << endl
-       << resetiosflags(ios::left)
-       << setw(15) << "-c or --cmap" << setw(10) << "Yes" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Use mapped rather than linear coordinates (0|1|2)" << endl
-       << resetiosflags(ios::left)
-       << setw(15) << "-n or --numr" << setw(10) << "Yes" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Number of points in radial table" << endl
-       << resetiosflags(ios::left)
-       << setw(15) << "-s or --cache" << setw(10) << ".slgrid_sph_cache" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "SL cache filename" << endl
-       << resetiosflags(ios::left)
-       << setw(15) << "-i or --file" << setw(10) << "SLGridSph.model" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Model profile" << endl
-       << resetiosflags(ios::left)
-       << setw(15) << "-l or --logr" << setw(10) << "No" << setw(10) << " " 
-       << setiosflags(ios::left)
-       << setw(40) << "Turn on log spacing in radius" << endl
-       << resetiosflags(ios::left)
-       << endl;
-
-  exit(0);
-}
-
 int main(int argc, char** argv)
 {
-  bool use_mpi = false;
-  bool use_logr = false;
-  int cmap = 0;
-  double scale = 1.0;
-  int numr = 10000;
-  int diverge = 0;
-  double dfac = 1.0;
-  string filename = "SLGridSph.model";
-  string cachefile = ".slgrid_sph_cache";
+  bool use_mpi, use_logr;
+  double scale, rmin, rmax, rs, dfac;
+  int numr, cmap, diverge, Lmax, nmax;
+  string filename, cachefile;
 
-  int c;
-  while (1) {
-    int this_option_optind = optind ? optind : 1;
-    int option_index = 0;
-    static struct option long_options[] = {
-      {"mpi", 0, 0, 0},
-      {"logr", 0, 0, 0},
-      {"cmap", 1, 0, 0},
-      {"numr", 1, 0, 0},
-      {"dfac", 1, 0, 0},
-      {"cache", 1, 0, 0},
-      {"file", 1, 0, 0},
-      {0, 0, 0, 0}
-    };
+  //====================
+  // Parse command line
+  //====================
 
-    c = getopt_long (argc, argv, "c:lmn:d:i:s:h",
-		     long_options, &option_index);
-
-    if (c == -1) break;
-
-    switch (c) {
-    case 0:
-      {
-	string optname(long_options[option_index].name);
-
-	if (!optname.compare("mpi")) {
-	  use_mpi = true;
-	} else if (!optname.compare("cmap")) {
-	  cmap = atoi(optarg);
-	} else if (!optname.compare("logr")) {
-	  use_logr = true;
-	} else if (!optname.compare("numr")) {
-	  numr = atoi(optarg);
-	} else if (!optname.compare("dfac")) {
-	  diverge = 1;
-	  dfac = atof(optarg);
-	} else if (!optname.compare("cache")) {
-	  cachefile = optarg;
-	} else if (!optname.compare("file")) {
-	  filename = optarg;
-	} else {
-	  cout << "Option " << long_options[option_index].name;
-	  if (optarg) cout << " with arg " << optarg;
-	  cout << " is not defined " << endl;
-	  exit(0);
-	}
-      }
-      break;
-
-    case 'c':
-      cmap = atoi(optarg);
-      break;
-
-    case 'l':
-      use_logr = true;
-      break;
-
-    case 'm':
-      use_mpi = true;
-      break;
-
-    case 'n':
-      numr = atoi(optarg);
-      break;
-
-    case 'd':
-      diverge = 1;
-      dfac = atof(optarg);
-      break;
-
-    case 'i':
-      filename = optarg;
-      break;
-
-    case 's':
-      cachefile = optarg;
-      break;
-
-    case 'h':
-    default:
-      usage(argv[0]);
-    }
-
-  }
+  po::options_description desc("Check the consistency a spherical SL basis\nAllowed options");
+  desc.add_options()
+    ("help,h",                                                                          "Print this help message")
+    ("mpi",                 po::value<bool>(&use_mpi)->default_value(false),
+     "using parallel computation")
+    ("logr",                po::value<bool>(&use_logr)->default_value(false),
+     "logarithmic spacing for orthogonality check")
+    ("cmap",                po::value<int>(&cmap)->default_value(0),
+     "coordinates in SphereSL: use mapped (1) or linear(0) coordinates")
+    ("scale",               po::value<double>(&scale)->default_value(1.0),
+     "scaling from real coordinates to table")
+    ("Lmax",                po::value<int>(&Lmax)->default_value(2),
+     "maximum number of angular harmonics in the expansion")
+    ("nmax",                po::value<int>(&nmax)->default_value(10),
+     "maximum number of radial harmonics in the expansion")
+    ("numr",                po::value<int>(&numr)->default_value(1000),
+     "radial knots in the shift operator")
+    ("rmin",                po::value<double>(&rmin)->default_value(0.0001),
+     "minimum radius for the shift operator")
+    ("rmax",                po::value<double>(&rmax)->default_value(1.95),
+     "maximum radius for the shift operator")
+    ("rs",                  po::value<double>(&rs)->default_value(0.067),
+     "cmap scale factor")
+    ("diverge",             po::value<int>(&diverge)->default_value(0),
+     "cusp divergence for spherical model")
+    ("dfac",                po::value<double>(&dfac)->default_value(1.0),
+     "cusp divergence exponent for spherical model")
+    ("filename",            po::value<string>(&filename)->default_value("SLGridSph.model"),
+     "model file")
+    ("cache",               po::value<string>(&cachefile)->default_value(".slgrid_sph_cache"),
+     "cache file")
+    ;
 
   //===================
   // MPI preliminaries 
@@ -158,42 +71,36 @@ int main(int argc, char** argv)
     local_init_mpi(argc, argv);
   }
 
-
   //===================
-  // Get info
+  // Parse options
   //===================
-
-  int Lmax, nmax;
-  double rmin, rmax, rs;
+  po::variables_map vm;
   
-  if (!use_mpi || myid==0) {
-
-				// Get info from user
-    cout << "Lmax, Nmax? ";
-    cin >> Lmax;
-    cin >> nmax;
-    
-    cout << "Rmin, Rmax, Rs? ";
-    cin >> rmin;
-    cin >> rmax;
-    cin >> rs;
+  // Parse command line for control and critical parameters
+  //
+  try {
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::notify(vm);    
+  } catch (po::error& e) {
+    if (myid==0) std::cout << "Option error on command line: "
+			   << e.what() << std::endl;
+    MPI_Finalize();
+    return -1;
+  }
+  
+  // Print help message and exit
+  //
+  if (vm.count("help")) {
+    if (myid == 0) {
+      std::cout << desc << std::endl << std::endl;
+    }
+    if (use_mpi) MPI_Finalize();
+    return 1;
   }
 
   if (use_mpi) {
-
-    MPI_Bcast(&Lmax, 1, MPI_INT,    0, MPI_COMM_WORLD);
-    MPI_Bcast(&nmax, 1, MPI_INT,    0, MPI_COMM_WORLD);
-    MPI_Bcast(&rmin, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&rmax, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&rs,   1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-    MPI_Bcast(&Lmax, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-
     SLGridSph::mpi = 1;		// Turn on MPI
-
   } else {
-
     SLGridSph::mpi = 0;		// Turn off MPI
   }
 
@@ -201,13 +108,13 @@ int main(int argc, char** argv)
   SLGridSph::model_file_name = filename;
   SLGridSph::sph_cache_name = cachefile;
 
-  cout << "Model=" << filename << endl;
-  cout << "CMAP=" << cmap << endl;
-
 				// Generate Sturm-Liouville grid
-  SLGridSph *ortho = new SLGridSph(Lmax, nmax, numr, rmin, rmax, 
-				   cmap, rs, diverge, dfac);
-
+  auto ortho = boost::make_shared<SLGridSph>(Lmax, nmax, numr, rmin, rmax, 
+					     true, cmap, rs, true);
+  //                                         |               |
+  // Use cache file--------------------------+               |
+  //                                                         |
+  // Turn on diagnostic output in SL creation----------------+
 
 				// Slaves exit
   if (use_mpi && myid>0) {
@@ -230,10 +137,10 @@ int main(int argc, char** argv)
     switch(iwhich) {
     case 1:
       {
-	string filename;
+	std::string filename;
 	cout << "Filename? ";
 	cin >> filename;
-	ofstream out (filename.c_str());
+	std::ofstream out (filename.c_str());
 	if (!out) {
 	  cout << "Can't open <" << filename << "> for output" << endl;
 	  break;
@@ -243,10 +150,14 @@ int main(int argc, char** argv)
 	int num;
 	cin >> num;
 
-	cout << "L, N? ";
-	int L, N;
+	cout << "L, Nmin, Nmax? ";
+	int L, Nmin, Nmax;
 	cin >> L;
-	cin >> N;
+	cin >> Nmin;
+	cin >> Nmax;
+
+	Nmin = std::max<int>(Nmin, 0);
+	Nmax = std::min<int>(Nmax, nmax);
 
 	double ximin = ortho->r_to_xi(rmin);
 	double ximax = ortho->r_to_xi(rmax);
@@ -261,6 +172,57 @@ int main(int argc, char** argv)
 	  }
 	}
 
+	// ==================
+	// BEGIN: file header
+	// ==================
+
+	out << "# "
+	    << std::setw(13) << " x |"
+	    << std::setw(15) << " r |";
+	for (int n=Nmin; n<=Nmax; n++) {
+	  std::ostringstream sout1, sout2, sout3;
+	  sout1 << " Pot(r, " << n << ") |";
+	  sout2 << " Force(r, " << n << ") |";
+	  sout3 << " Dens(r, " << n << ") |";
+	  out << std::setw(15) << sout1.str()
+	      << std::setw(15) << sout2.str()
+	      << std::setw(15) << sout3.str();
+	}
+	out << std::endl;
+
+	out << "# "
+	    << std::setw(13) << " [1] |"
+	    << std::setw(15) << " [2] |";
+	int cntr = 3;
+	for (int n=Nmin; n<=Nmax; n++) {
+	  std::ostringstream sout1, sout2, sout3;
+	  sout1 << "[" << cntr++ << "] |";
+	  sout2 << "[" << cntr++ << "] |";
+	  sout3 << "[" << cntr++ << "] |";
+	  out << std::setw(15) << sout1.str()
+	      << std::setw(15) << sout2.str()
+	      << std::setw(15) << sout3.str();
+	}
+	out << std::endl;
+
+	out << "# "
+	    << std::setw(13) << std::setfill('-') << "+"
+	    << std::setw(15) << std::setfill('-') << "+";
+	for (int n=Nmin; n<=Nmax; n++) {
+	  out << std::setw(15) << std::setfill('-') << "+"
+	      << std::setw(15) << std::setfill('-') << "+"
+	      << std::setw(15) << std::setfill('-') << "+";
+	}
+	out << std::endl << std::setfill(' ');
+
+	// ================
+	// END: file header
+	// ================
+
+	// =================
+	// Begin radial loop
+	// =================
+
 	for (int i=0; i<num; i++) {
 
 	  if (use_logr)
@@ -270,11 +232,12 @@ int main(int argc, char** argv)
 
 	  r = ortho->xi_to_r(x);
 	  out << setw(15) << x
-	      << setw(15) << r
-	      << setw(15) << ortho->get_pot(x, L, N, 0)
-	      << setw(15) << ortho->get_force(x, L, N, 0)
-	      << setw(15) << ortho->get_dens(x, L, N, 0)
-	      << endl;
+	      << setw(15) << r;
+	  for (int n=Nmin; n<=Nmax; n++)
+	    out << setw(15) << ortho->get_pot  (x, L, n, 0)
+		<< setw(15) << ortho->get_force(x, L, n, 0)
+		<< setw(15) << ortho->get_dens (x, L, n, 0);
+	  out << endl;
 	}
       }
 
@@ -321,8 +284,6 @@ int main(int argc, char** argv)
 
     if (done) break;
   }
-
-  delete ortho;
 
   if (use_mpi) MPI_Finalize();
 

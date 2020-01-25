@@ -76,10 +76,10 @@ public:
 
 				// Constructors
   SphericalSL(void);
-  SphericalSL(int Nth, int lmax, int nmax, double SCALE=1.0);
+  SphericalSL(int Nth, int lmax, int nmax, int CMAP, double SCALE=1.0);
   ~SphericalSL(void);
 
-  void reset(int Nth, int lmax, int nmax, double SCALE);
+  void reset(int Nth, int lmax, int nmax, int CMAP, double SCALE);
 
 				// Parameter access
   int get_maxNR(void) {return NMAX;}

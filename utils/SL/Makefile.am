@@ -34,7 +34,7 @@ noinst_HEADERS =
 
 slcheck_SOURCES = slcheck.cc localmpi.cc
 slcheck_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
-slcheck_LDADD = $(EXPLIBS) $(CUDA_LIBFLAGS)
+slcheck_LDADD = $(EXPLIBS) $(CUDA_LIBFLAGS) $(BOOST_LIBS)
 
 slshift_SOURCES = slshift.cc SLSphere.cc localmpi.cc
 slshift_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
