@@ -389,6 +389,7 @@ main(int ac, char **av)
   bool         zero;
   bool         report;
   bool         ignore;
+  bool         halob;
   int          nhalo;
   int          ndisk;
   int          ngas;
@@ -495,6 +496,7 @@ main(int ac, char **av)
     ("cachefile",       po::value<string>(&cachefile)->default_value(".eof.cache.file"),        "Name of EOF cache file")
     ("runtag",          po::value<string>(&runtag)->default_value("run000"),                    "Label prefix for diagnostic images")
     ("report",          po::value<bool>(&report)->default_value(true),                  "Report particle progress in EOF computation")
+    ("halobods",        po::value<bool>(&halob)->default_value(false),                  "Use existing halo body file given by <hbods>")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
     ;
         
@@ -859,17 +861,64 @@ main(int ac, char **av)
 
   //=================Make the phase space coordinates==========================
 
-  if (n_particlesH) {
-    if (multi) {
-      if (myid==0) cout << "Generating halo phase space . . . " << flush;
-      diskhalo->set_halo(hparticles, nhalo, n_particlesH);
+  if (halob) {
+    std::ifstream hin(hbods);
+    if (hin) {
+      int niatr, ndatr;
+      hin >> nhalo;
+      hin >> niatr;
+      hin >> ndatr;
+      
+      // Divvy up the particles by core
+      //
+      n_particlesH = nhalo/numprocs;
+      int ibeg, iend;
+      if (myid==0) {
+	ibeg = 0;
+	iend = n_particlesH = nhalo - n_particlesH*(numprocs-1);
+      } else {
+	ibeg = n_particlesH = nhalo - n_particlesH*(numprocs+myid-2);
+	iend = n_particlesH = nhalo - n_particlesH*(numprocs+myid-1);
+      }
+      
+      std::string line;
+      
+      if (myid>0) {
+	for (int i=0; i<ibeg; i++) std::getline(hin, line);
+      }
+
+      for (int i=ibeg; i<iend; i++) {
+	std::getline(hin, line);
+	std::istringstream sin(line);
+	Particle P(niatr, ndatr);
+	sin >> P.mass;
+	for (int k=0; k<3; k++)     sin >> P.pos[k];
+	for (int k=0; k<3; k++)     sin >> P.vel[k];
+	for (int k=0; k<niatr; k++) sin >> P.iattrib[k];
+	for (int k=0; k<ndatr; k++) sin >> P.dattrib[k];
+	hparticles.push_back(P);
+      }
+
     } else {
-      if (myid==0) cout << "Generating halo coordinates . . . " << flush;
-      diskhalo->set_halo_coordinates(hparticles, nhalo, n_particlesH);
-      MPI_Barrier(MPI_COMM_WORLD);
+      if (myid==0)
+	std::cout << "Could not read halo file <" << hbods
+		  << "> . . . quitting" << std::endl;
+      MPI_Finalize();
+      exit(-1);
     }
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done\n";
+  } else {
+    if (n_particlesH) {
+      if (multi) {
+	if (myid==0) cout << "Generating halo phase space . . . " << flush;
+	diskhalo->set_halo(hparticles, nhalo, n_particlesH);
+      } else {
+	if (myid==0) cout << "Generating halo coordinates . . . " << flush;
+	diskhalo->set_halo_coordinates(hparticles, nhalo, n_particlesH);
+	MPI_Barrier(MPI_COMM_WORLD);
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+      if (myid==0) cout << "done\n";
+    }
   }
 
   if (n_particlesD) {
