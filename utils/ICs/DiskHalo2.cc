@@ -2195,14 +2195,9 @@ void DiskHalo::write_record(ostream &out, SParticle &p)
   out << endl;
 }
 
-
-void DiskHalo::write_file(ostream &fou_halo,  ostream &fou_disk,
-			  vector<Particle>& hpart, vector<Particle>& dpart)
+void DiskHalo::write_file(ostream &fou, vector<Particle>& part)
 {
-  int l  = hpart.size();
-  int l1 = dpart.size();
-  
-  vector<SParticle> buf(NBUF);
+  std::vector<SParticle> buf(NBUF);
   
   // Make MPI datatype
   //
@@ -2210,42 +2205,31 @@ void DiskHalo::write_file(ostream &fou_halo,  ostream &fou_disk,
   
   // Get particle totals
   //
-  int ndisk=0, nhalo=0;
-  MPI_Reduce(&l,  &nhalo, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&l1, &ndisk, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+  int npart=0, l = part.size();
+
+  MPI_Reduce(&l,  &npart, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
   
   if (myid==0) {
     
     if (VFLAG & 1)
-      cout << endl
-	   << "Total number of particles: nhalo=" << nhalo
-	   << " ndisk=" << ndisk << endl;
+      std::cout << std::endl
+		<< "Total number of particles: n=" << npart << std::endl;
     
-    fou_halo.setf(ios::scientific);
-    fou_disk.setf(ios::scientific);
+    fou.setf(ios::scientific);
     
-    fou_halo << nhalo << " " << 0 << " " << 0 << endl;
-    fou_disk << ndisk << " " << 0 << " " << 0 << endl;
+    fou << npart << " " << 0 << " " << 0 << endl;
     
     if (VFLAG & 1) {
-      cout << "Halo stream is ";
-      if (fou_halo.good()) cout << "GOOD\n";
-      else cout << "BAD\n";
-
-      cout << "Disk stream is ";
-      if (fou_disk.good()) cout << "GOOD\n";
+      cout << "Particle stream is ";
+      if (fou.good()) cout << "GOOD\n";
       else cout << "BAD\n";
     }
 
     for (int i=0; i<l; i++)
-      write_record(fou_halo, hpart[i]);
-    
-    for (int i=0; i<l1; i++)
-      write_record(fou_disk, dpart[i]);
+      write_record(fou, part[i]);
     
     if (VFLAG & 1) {
-      cout << "Wrote " << l  << " HALO particles from Node 0" << endl;
-      cout << "Wrote " << l1 << " DISK particles fron Node 0" << endl;
+      cout << "Wrote " << l  << " particles from Node 0" << endl;
     }
 
     int imany, icur, ccnt;
@@ -2257,24 +2241,13 @@ void DiskHalo::write_file(ostream &fou_halo,  ostream &fou_disk,
       while (ccnt<imany) {
 	MPI_Recv(&icur, 1, MPI_INT, n, 11, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	MPI_Recv(&buf[0], icur, spt(), n, 12, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	for (int i=0; i<icur; i++) write_record(fou_halo, buf[i]);
+	for (int i=0; i<icur; i++) write_record(fou, buf[i]);
 	ccnt += icur;
       }
       
       if (VFLAG & 1)
-	cout << "Wrote " << ccnt << " HALO particles from Node " << n << endl;
+	cout << "Wrote " << ccnt << " particles from Node " << n << endl;
 
-      MPI_Recv(&imany, 1, MPI_INT, n, 13, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      ccnt = 0;
-      while (ccnt<imany) {
-	MPI_Recv(&icur, 1, MPI_INT, n, 14, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	MPI_Recv(&buf[0], icur, spt(), n, 15, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	for (int i=0; i<icur; i++) write_record(fou_disk, buf[i]);
-	ccnt += icur;
-      }
-      
-      if (VFLAG & 1)
-	cout << "Wrote " << ccnt << " DISK particles from Node " << n << endl;
 
       MPI_Barrier(MPI_COMM_WORLD);
     }
@@ -2291,29 +2264,16 @@ void DiskHalo::write_file(ostream &fou_halo,  ostream &fou_disk,
 	icur = 0;
 	while (icur<l) {
 	  ipack = min<int>(l-icur, NBUF);
-	  for (int j=0; j<ipack; j++) buf[j][hpart[icur+j]];
+	  for (int j=0; j<ipack; j++) buf[j][part[icur+j]];
 	  MPI_Send(&ipack, 1, MPI_INT, 0, 11, MPI_COMM_WORLD);
 	  MPI_Send(&buf[0], ipack, spt(), 0, 12, MPI_COMM_WORLD);
 	  icur += ipack;
 	}
 
 	if (VFLAG & 1)
-	  cout << "Sent " << icur << " HALO particles from Node " << n << endl;
-
-	MPI_Send(&l1, 1, MPI_INT, 0, 13, MPI_COMM_WORLD);
-	icur = 0;
-	while (icur<l1) {
-	  ipack = min<int>(l1-icur, NBUF);
-	  for (int j=0; j<ipack; j++) buf[j][dpart[icur+j]];
-	  MPI_Send(&ipack, 1, MPI_INT, 0, 14, MPI_COMM_WORLD);
-	  MPI_Send(&buf[0], ipack, spt(), 0, 15, MPI_COMM_WORLD);
-	  icur += ipack;
-	}
-
-	if (VFLAG & 1)
-	  cout << "Sent " << icur << " DISK particles from Node " << n << endl;
-
+	  cout << "Sent " << icur << " particles from Node " << n << endl;
       }
+
       MPI_Barrier(MPI_COMM_WORLD);
     }
   }

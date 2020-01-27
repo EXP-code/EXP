@@ -842,13 +842,15 @@ main(int ac, char **av)
 
                                 // Open output file (make sure it exists
                                 // before realizing a large phase space)
-  ofstream out_halo, out_disk;
+  std::ofstream out_halo, out_disk;
   if (myid==0) {
-    out_halo.open(hbods.c_str());
-    if (!out_halo) {
-      cout << "Could not open <" << hbods << "> for output\n";
-      MPI_Abort(MPI_COMM_WORLD, 4);
-      exit(0);
+    if (not halob) {
+      out_halo.open(hbods.c_str());
+      if (!out_halo) {
+	cout << "Could not open <" << hbods << "> for output\n";
+	MPI_Abort(MPI_COMM_WORLD, 4);
+	exit(0);
+      }
     }
 
     out_disk.open(dbods.c_str());
@@ -1151,12 +1153,16 @@ main(int ac, char **av)
 
   //====================All done: write it out=================================
 
-  if (myid==0) cout << "Writing phase space file . . . " << flush;
+  if (not halob) {
+    if (myid==0) cout << "Writing phase space file for halo . . . " << flush;
+    diskhalo->write_file(out_halo, hparticles);
+    if (myid==0) cout << "done\n";
+    out_halo.close();
+  }
 
-  diskhalo->write_file(out_halo, out_disk, hparticles, dparticles);
+  if (myid==0) cout << "Writing phase space file for disk . . . " << flush;
+  diskhalo->write_file(out_disk, dparticles);
   if (myid==0) cout << "done\n";
-
-  out_halo.close();
   out_disk.close();
                                 // Diagnostic . . .
   diskhalo->virial_ratio(hparticles, dparticles);

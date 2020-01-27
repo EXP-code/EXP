@@ -246,8 +246,7 @@ class DiskHalo
 
   void set_vel_halo(vector<Particle>& part);
 
-  void write_file(ostream &fou_halo, ostream &fou_disk,
-		  vector<Particle>& hpart, vector<Particle>& dpart);
+  void write_file(ostream &fou, vector<Particle>& part);
 
   void virial_ratio(vector<Particle>& hpart, vector<Particle>& dpart);
 
