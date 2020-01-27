@@ -115,5 +115,6 @@ public:
 
 };
 
+typedef boost::shared_ptr<SphericalSL> SphericalSLptr;
 
 #endif

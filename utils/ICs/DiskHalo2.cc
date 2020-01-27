@@ -77,7 +77,7 @@ DiskHalo()
 }
 
 DiskHalo::
-DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
+DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
 	 double H, double A, double DMass, 
 	 string& filename, int DF1, int DIVERGE, double DIVERGE_RFAC,
 	 DiskGenType type)
@@ -158,10 +158,10 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
 }
 
 DiskHalo::
-DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
+DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
 	 double H, double A, double DMass, 
-	 string& filename1, int DIVERGE, double DIVERGE_RFAC,
-	 string& filename2, int DIVERGE2, double DIVERGE_RFAC2,
+	 std::string& filename1, int DIVERGE, double DIVERGE_RFAC,
+	 std::string& filename2, int DIVERGE2, double DIVERGE_RFAC2,
 	 DiskGenType type)
 {
   disktableP = NULL;

@@ -52,8 +52,8 @@ class DiskHalo
   double scalelength, scaleheight, dmass;
   double center_pos[3], center_vel[3];
 
-  SphericalSL* expandh;
-  EmpCylSL* expandd;
+  SphericalSLptr expandh;
+  EmpCylSLptr    expandd;
 
   Matrix *disktableP, *disktableN, epitable, dv2table, asytable;
   double dP, dR, dZ;
@@ -171,13 +171,13 @@ class DiskHalo
   DiskHalo();
 
   //! Constructor: equal mass
-  DiskHalo(SphericalSL* expandh, EmpCylSL* expandd,
+  DiskHalo(SphericalSLptr expandh, EmpCylSLptr expandd,
 	   double H, double A, double DMass,
 	   string& filename, int DF=0, int DIVERGE=0, double DIVERGE_RFAC=1.0,
 	   DiskGenType type=Asymmetric);
 
   //! Constructor: multi mass
-  DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
+  DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
 	   double H, double A, double DMass, 
 	   string& filename1, int DIVERGE,  double DIVERGE_RFAC,
 	   string& filename2, int DIVERGE2, double DIVERGE_RFAC2,

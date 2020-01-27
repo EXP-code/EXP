@@ -695,9 +695,9 @@ main(int ac, char **av)
   SphericalSL::RMAX = RSPHSL;
   SphericalSL::NUMR = NUMR;
   // Create expansion only if needed . . .
-  SphericalSL *expandh = NULL;
+  boost::shared_ptr<SphericalSL> expandh;
   if (n_particlesH) {
-    expandh = new SphericalSL(nthrds, LMAX, NMAX, SCMAP, SCSPH);
+    expandh = boost::make_shared<SphericalSL>(nthrds, LMAX, NMAX, SCMAP, SCSPH);
 #ifdef DEBUG
     expandh->dump_basis(runtag);
 #endif
@@ -724,11 +724,13 @@ main(int ac, char **av)
   if (basis) EmpCylSL::DENS = true;
 
                                 // Create expansion only if needed . . .
-  EmpCylSL* expandd  = NULL;
-  bool      save_eof = false;
+  boost::shared_ptr<EmpCylSL> expandd;
+  bool save_eof = false;
 
   if (n_particlesD) {
-    expandd = new EmpCylSL(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE);
+
+    expandd = boost::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE);
+
 #ifdef DEBUG
     cout << "Process " << myid << ": "
 	 << " rmin=" << EmpCylSL::RMIN
@@ -771,33 +773,36 @@ main(int ac, char **av)
 
   //====================Create the disk & halo model===========================
 
-  DiskHalo *diskhalo;
+  boost::shared_ptr<DiskHalo> diskhalo;
 
   if (multi) {
     if (myid==0) cout << "Initializing a MULTIMASS halo . . . " << flush;
-    diskhalo = new DiskHalo (expandh, expandd,
-			     scale_height, scale_length, disk_mass, 
-			     halofile1, DIVERGE,  DIVERGE_RFAC,
-			     halofile2, DIVERGE2, DIVERGE_RFAC2,
-			     DiskHalo::Asymmetric);
-    //                       DiskHalo::Epicyclic);
-    //			     DiskHalo::Jeans);
+    diskhalo =
+      boost::make_shared<DiskHalo>
+      (expandh, expandd,
+       scale_height, scale_length, disk_mass, 
+       halofile1, DIVERGE,  DIVERGE_RFAC,
+       halofile2, DIVERGE2, DIVERGE_RFAC2,
+       DiskHalo::Asymmetric);
+    // DiskHalo::Epicyclic);
+    // DiskHalo::Jeans);
     if (myid==0) cout << "done" << endl;
 
   } else {
 
     if (myid==0) cout << "Initializing a SINGLE halo . . . " << flush;
-    diskhalo = new DiskHalo (expandh, expandd,
-			     scale_height, scale_length, 
-			     disk_mass, halofile1,
-			     DF, DIVERGE, DIVERGE_RFAC,
-			     DiskHalo::Asymmetric);
-    //                       DiskHalo::Epicyclic);
-    //			     DiskHalo::Jeans);
+    diskhalo = boost::make_shared<DiskHalo>
+      (expandh, expandd,
+       scale_height, scale_length, 
+       disk_mass, halofile1,
+       DF, DIVERGE, DIVERGE_RFAC,
+       DiskHalo::Asymmetric);
+    // DiskHalo::Epicyclic);
+    // DiskHalo::Jeans);
     if (myid==0) cout << "done" << endl;
   }
   
-  ifstream center(centerfile.c_str());
+  std::ifstream center(centerfile.c_str());
   if (center) {
 
     bool ok = true;
@@ -864,6 +869,9 @@ main(int ac, char **av)
   //=================Make the phase space coordinates==========================
 
   if (evolved_halo) {
+				// ---------------------------
+				// Use existing halo body file
+				// ---------------------------
     std::ifstream hin(hbods);
     if (hin) {
       int niatr, ndatr;
@@ -908,7 +916,11 @@ main(int ac, char **av)
       MPI_Finalize();
       exit(-1);
     }
+
   } else {
+				// ---------------------------
+				// Generate new halo body file
+				// ---------------------------
     if (n_particlesH) {
       if (multi) {
 	if (myid==0) cout << "Generating halo phase space . . . " << flush;
@@ -1525,12 +1537,10 @@ main(int ac, char **av)
   }
 
   //===========================================================================
+  // Shutdown MPI
+  //===========================================================================
 
   MPI_Barrier(MPI_COMM_WORLD);
-
-  delete expandh;
-  delete expandd;
-
   MPI_Finalize();
 
   return 0;

@@ -672,6 +672,7 @@ extern void legendre_R(int lmax, double x, Matrix& p);
 extern void dlegendre_R(int lmax, double x, Matrix &p, Matrix &dp);
 extern void sinecosine_R(int mmax, double phi, Vector& c, Vector& s);
 
+typedef boost::shared_ptr<EmpCylSL> EmpCylSLptr;
 
 #endif
 
