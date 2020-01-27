@@ -389,7 +389,7 @@ main(int ac, char **av)
   bool         zero;
   bool         report;
   bool         ignore;
-  bool         halob;
+  bool         evolved_halo;
   int          nhalo;
   int          ndisk;
   int          ngas;
@@ -496,7 +496,7 @@ main(int ac, char **av)
     ("cachefile",       po::value<string>(&cachefile)->default_value(".eof.cache.file"),        "Name of EOF cache file")
     ("runtag",          po::value<string>(&runtag)->default_value("run000"),                    "Label prefix for diagnostic images")
     ("report",          po::value<bool>(&report)->default_value(true),                  "Report particle progress in EOF computation")
-    ("halobods",        po::value<bool>(&halob)->default_value(false),                  "Use existing halo body file given by <hbods>")
+    ("evolved",         po::value<bool>(&evolved_halo)->default_value(false),           "Use existing halo body file given by <hbods>")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
     ;
         
@@ -844,7 +844,7 @@ main(int ac, char **av)
                                 // before realizing a large phase space)
   std::ofstream out_halo, out_disk;
   if (myid==0) {
-    if (not halob) {
+    if (not evolved_halo) {
       out_halo.open(hbods.c_str());
       if (!out_halo) {
 	cout << "Could not open <" << hbods << "> for output\n";
@@ -863,7 +863,7 @@ main(int ac, char **av)
 
   //=================Make the phase space coordinates==========================
 
-  if (halob) {
+  if (evolved_halo) {
     std::ifstream hin(hbods);
     if (hin) {
       int niatr, ndatr;
@@ -1153,7 +1153,7 @@ main(int ac, char **av)
 
   //====================All done: write it out=================================
 
-  if (not halob) {
+  if (not evolved_halo) {
     if (myid==0) cout << "Writing phase space file for halo . . . " << flush;
     diskhalo->write_file(out_halo, hparticles);
     if (myid==0) cout << "done\n";
