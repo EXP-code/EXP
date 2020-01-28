@@ -917,6 +917,9 @@ main(int ac, char **av)
       exit(-1);
     }
 
+    std::cout << "Process " << myid << " has " << hparticles.size()
+	      << " halo particles" << std::endl;
+
   } else {			// ---------------------------
 				// Generate new halo body file
     if (n_particlesH) {		// ---------------------------

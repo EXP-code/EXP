@@ -2217,12 +2217,12 @@ void DiskHalo::write_file(ostream &fou, vector<Particle>& part)
     
     fou.setf(ios::scientific);
     
-    fou << npart << " " << 0 << " " << 0 << endl;
+    fou << npart << " " << 0 << " " << 0 << std::endl;
     
     if (VFLAG & 1) {
       cout << "Particle stream is ";
-      if (fou.good()) cout << "GOOD\n";
-      else cout << "BAD\n";
+      if (fou.good()) cout << "GOOD" << std::endl;
+      else std::cout << "BAD" << std::endl;
     }
 
     for (int i=0; i<l; i++)
@@ -2247,7 +2247,6 @@ void DiskHalo::write_file(ostream &fou, vector<Particle>& part)
       
       if (VFLAG & 1)
 	cout << "Wrote " << ccnt << " particles from Node " << n << endl;
-
 
       MPI_Barrier(MPI_COMM_WORLD);
     }
