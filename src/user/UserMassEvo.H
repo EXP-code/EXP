@@ -12,7 +12,7 @@
 
     m *= a0 + a1*(t - t0) + a2*(t - t0)**2 + a3*(t - t0)**3
 
-    @param comp_name is the component and must be specified
+    @param compname is the component and must be specified
     @param t0 is the zero time (0 by default)
     @param a0 is the constant term (1 by default)
     @param a1 is the linear term (0 by default)
