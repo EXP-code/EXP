@@ -642,13 +642,16 @@ main(int ac, char **av)
   
   
 #ifdef DEBUG  
-  cout << "Processor " << myid << ": n_particlesH=" << n_particlesH << "\n";
-  cout << "Processor " << myid << ": n_particlesD=" << n_particlesD << "\n";
-  cout << "Processor " << myid << ": n_particlesG=" << n_particlesG << "\n";
+  std::cout << "Processor " << myid << ": n_particlesH=" << n_particlesH
+	    << std::endl
+	    << "Processor " << myid << ": n_particlesD=" << n_particlesD
+	    << std::endl
+	    << "Processor " << myid << ": n_particlesG=" << n_particlesG
+	    << std::endl;
 #endif
   
   if (n_particlesH + n_particlesD + n_particlesG <= 0) {
-    if (myid==0) cout << "You have specified zero particles!\n";
+    if (myid==0) std::cout << "You have specified zero particles!" << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 3);
     exit(0);
   }
@@ -732,16 +735,16 @@ main(int ac, char **av)
     expandd = boost::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE);
 
 #ifdef DEBUG
-    cout << "Process " << myid << ": "
-	 << " rmin=" << EmpCylSL::RMIN
-	 << " rmax=" << EmpCylSL::RMAX
-	 << " a=" << ASCALE
-	 << " h=" << HSCALE
-	 << " nmax2=" << NMAX2
-	 << " lmax2=" << LMAX2
-	 << " mmax=" << MMAX
-	 << " nordz=" << NORDER
-	 << endl << flush;
+   std::cout << "Process " << myid << ": "
+	     << " rmin=" << EmpCylSL::RMIN
+	     << " rmax=" << EmpCylSL::RMAX
+	     << " a=" << ASCALE
+	     << " h=" << HSCALE
+	     << " nmax2=" << NMAX2
+	     << " lmax2=" << LMAX2
+	     << " mmax=" << MMAX
+	     << " nordz=" << NORDER
+	     << std::endl << std::flush;
 #endif
 
     // Try to read existing cache to get EOF
@@ -776,7 +779,7 @@ main(int ac, char **av)
   boost::shared_ptr<DiskHalo> diskhalo;
 
   if (multi) {
-    if (myid==0) cout << "Initializing a MULTIMASS halo . . . " << flush;
+    if (myid==0) std::cout << "Initializing a MULTIMASS halo . . . " << std::flush;
     diskhalo =
       boost::make_shared<DiskHalo>
       (expandh, expandd,
@@ -786,11 +789,11 @@ main(int ac, char **av)
        DiskHalo::Asymmetric);
     // DiskHalo::Epicyclic);
     // DiskHalo::Jeans);
-    if (myid==0) cout << "done" << endl;
+    if (myid==0) std::cout << "done" << std::endl;
 
   } else {
 
-    if (myid==0) cout << "Initializing a SINGLE halo . . . " << flush;
+    if (myid==0) std::cout << "Initializing a SINGLE halo . . . " << std::flush;
     diskhalo = boost::make_shared<DiskHalo>
       (expandh, expandd,
        scale_height, scale_length, 
@@ -799,7 +802,7 @@ main(int ac, char **av)
        DiskHalo::Asymmetric);
     // DiskHalo::Epicyclic);
     // DiskHalo::Jeans);
-    if (myid==0) cout << "done" << endl;
+    if (myid==0) std::cout << "done" << std::endl;
   }
   
   std::ifstream center(centerfile.c_str());
@@ -818,8 +821,8 @@ main(int ac, char **av)
 
     if (ok) {
       diskhalo->set_pos_origin(X0, Y0, Z0);
-      if (myid==0) cout << "Using position origin: " 
-			<< X0 << ", " << Y0 << ", " << Z0 << endl;
+      if (myid==0) std::cout << "Using position origin: " 
+			     << X0 << ", " << Y0 << ", " << Z0 << std::endl;
     }
 
     center >> U0;
@@ -833,8 +836,8 @@ main(int ac, char **av)
 
     if (ok) {
       diskhalo->set_vel_origin(U0, V0, W0);
-      if (myid==0) cout << "Using velocity origin: " 
-			<< U0 << ", " << V0 << ", " << W0 << endl;
+      if (myid==0) std::cout << "Using velocity origin: " 
+			     << U0 << ", " << V0 << ", " << W0 << std::endl;
     }
   }
 
@@ -860,7 +863,7 @@ main(int ac, char **av)
 
     out_disk.open(dbods.c_str());
     if (!out_disk) {
-      cout << "Could not open <" << dbods << "> for output\n";
+      std::cout << "Could not open <" << dbods << "> for output" << std::endl;
       MPI_Abort(MPI_COMM_WORLD, 4);
       exit(0);
     }
@@ -868,39 +871,36 @@ main(int ac, char **av)
 
   //=================Make the phase space coordinates==========================
 
-  if (evolved_halo) {
-				// ---------------------------
+  if (evolved_halo) {		// ---------------------------
 				// Use existing halo body file
-				// ---------------------------
-    std::ifstream hin(hbods);
+    std::ifstream hin(hbods);	// ---------------------------
+    
     if (hin) {
       int niatr, ndatr;
       hin >> nhalo;
       hin >> niatr;
       hin >> ndatr;
       
-      // Divvy up the particles by core
+      // Divvy up the particles by core.  The root node gets any
+      // remainder.
       //
       n_particlesH = nhalo/numprocs;
-      int ibeg, iend;
-      if (myid==0) {
-	ibeg = 0;
-	iend = n_particlesH = nhalo - n_particlesH*(numprocs-1);
-      } else {
-	ibeg = n_particlesH = nhalo - n_particlesH*(numprocs+myid-2);
-	iend = n_particlesH = nhalo - n_particlesH*(numprocs+myid-1);
-      }
+
+      int ibeg = 0;
+      int iend = nhalo - n_particlesH*(numprocs-myid-1);
       
       std::string line;
       
       if (myid>0) {
+	ibeg = nhalo - n_particlesH*(numprocs-myid);
 	for (int i=0; i<ibeg; i++) std::getline(hin, line);
       }
+
+      Particle P(niatr, ndatr);
 
       for (int i=ibeg; i<iend; i++) {
 	std::getline(hin, line);
 	std::istringstream sin(line);
-	Particle P(niatr, ndatr);
 	sin >> P.mass;
 	for (int k=0; k<3; k++)     sin >> P.pos[k];
 	for (int k=0; k<3; k++)     sin >> P.vel[k];
@@ -917,40 +917,38 @@ main(int ac, char **av)
       exit(-1);
     }
 
-  } else {
-				// ---------------------------
+  } else {			// ---------------------------
 				// Generate new halo body file
-				// ---------------------------
-    if (n_particlesH) {
+    if (n_particlesH) {		// ---------------------------
       if (multi) {
-	if (myid==0) cout << "Generating halo phase space . . . " << flush;
+	if (myid==0) std::cout << "Generating halo phase space . . . " << std::flush;
 	diskhalo->set_halo(hparticles, nhalo, n_particlesH);
       } else {
-	if (myid==0) cout << "Generating halo coordinates . . . " << flush;
+	if (myid==0) std::cout << "Generating halo coordinates . . . " << std::flush;
 	diskhalo->set_halo_coordinates(hparticles, nhalo, n_particlesH);
 	MPI_Barrier(MPI_COMM_WORLD);
       }
       MPI_Barrier(MPI_COMM_WORLD);
-      if (myid==0) cout << "done\n";
+      if (myid==0) std::cout << "done" << std::endl;
     }
   }
 
   if (n_particlesD) {
-    if (myid==0) cout << "Generating disk coordinates . . . " << flush;
+    if (myid==0) std::cout << "Generating disk coordinates . . . " << std::flush;
     diskhalo->set_disk_coordinates(dparticles, ndisk, n_particlesD);
     MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done\n";
+    if (myid==0) std::cout << "done" << std::endl;
   }
 
   if (n_particlesH) {
-    if (myid==0) cout << "Beginning halo accumulation . . . " << flush;
+    if (myid==0) std::cout << "Beginning halo accumulation . . . " << std::flush;
     expandh->accumulate(hparticles);
     MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done\n";
+    if (myid==0)std::cout << "done" << std::endl;
   }
   
   if (n_particlesD) {
-    if (myid==0) cout << "Beginning disk accumulation . . . " << flush;
+    if (myid==0) std::cout << "Beginning disk accumulation . . . " << std::flush;
     expandd->setup_accumulation();
     if (!save_eof and !expcond) {
       expandd->setup_eof();
@@ -960,20 +958,20 @@ main(int ac, char **av)
 	expandd->accumulate_eof(dparticles, report);
       MPI_Barrier(MPI_COMM_WORLD);
 
-      if (myid==0) cout << "done\n";
+      if (myid==0) std::cout << "done" << std::endl;
   
-      if (myid==0) cout << "Making the EOF . . . " << flush;
+      if (myid==0) std::cout << "Making the EOF . . . " << std::flush;
       expandd->make_eof();
       MPI_Barrier(MPI_COMM_WORLD);
-      if (myid==0) cout << "done\n";
+      if (myid==0)std::cout << "done" << std::endl;
     }
   
-    if (myid==0) cout << "Making disk coefficients . . . " << flush;
+    if (myid==0) std::cout << "Making disk coefficients . . . " << std::flush;
     expandd->make_coefficients();
     MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done\n";
+    if (myid==0) std::cout << "done" << std::endl;
 
-    if (myid==0) cout << "Reexpand . . . " << flush;
+    if (myid==0) std::cout << "Reexpand . . . " << std::flush;
 
     if (nthrds>1)
       expandd->accumulate_thread(dparticles, 0, report);
@@ -983,31 +981,31 @@ main(int ac, char **av)
     expandd->make_coefficients();
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) {
-      cout << "done\n";
+      std::cout << "done" << std::endl;
       if (DUMPCOEF) {
-	cout << "Dumping coefficients . . . " << flush;
+	std::cout << "Dumping coefficients . . . " << std::flush;
 	ostringstream sout;
 	sout << "disk_coefs.";
 	if (suffix.size()>0) sout << suffix;
-	else                 sout <<"dump";
+	else                 sout << "dump";
 	ofstream out(sout.str().c_str());
 	if (out) expandd->dump_coefs(out);
-	cout << "done\n";
+	std::cout << "done" << std::endl;
       }
     }
     if (NORDER1<NORDER) {
-      if (myid==0) cout << "Restricting order from " << NORDER 
-			<< " to " << NORDER1 << " . . . " << flush;
+      if (myid==0) std::cout << "Restricting order from " << NORDER 
+			     << " to " << NORDER1 << " . . . " << std::flush;
       expandd->restrict_order(NORDER1);
-      if (myid==0) cout << "done\n";
+      if (myid==0) std::cout << "done" << std::endl;
     }
 
     if (images && myid==0) {
-      cout << "Images . . . " << flush;
-      ostringstream dumpname;
+      std::cout << "Images . . . " << std::flush;
+      std::ostringstream dumpname;
       dumpname << "images.0";
       expandd->dump_images(dumpname.str(), 5.0*ASCALE, 5.0*HSCALE, 64, 64, true);
-      cout << "done\n";
+      std::cout << "done" << std::endl;
     }
   }
   
@@ -1016,10 +1014,9 @@ main(int ac, char **av)
 
                                 // For examining the coverage, etc.
                                 // Images can be contoured in SM using
-                                // the "ch" file type
-  if (myid==0 && basis) {
+  if (myid==0 && basis) {	// the "ch" file type
     
-    cout << "Dumping basis images . . . " << flush;
+    std::cout << "Dumping basis images . . . " << std::flush;
     
     if (n_particlesD) {
       int nout = 200;
@@ -1145,7 +1142,7 @@ main(int ac, char **av)
       delete [] out;
     }
     
-    cout << "done\n";
+    std::cout << "done" << std::endl;
   }
   
   MPI_Barrier(MPI_COMM_WORLD);
@@ -1153,39 +1150,39 @@ main(int ac, char **av)
   //====================Make the phase space velocities========================
 
   if (!multi) {
-    if (myid==0) cout << "Generating halo velocities . . . " << flush;
+    if (myid==0) std::cout << "Generating halo velocities . . . " << std::flush;
     diskhalo->set_vel_halo(hparticles);
-    if (myid==0) cout << "done\n";
+    if (myid==0) std::cout << "done" << std::endl;
   }
   
-  if (myid==0) cout << "Generating disk velocities . . . " << flush;
+  if (myid==0) std::cout << "Generating disk velocities . . . " << std::flush;
   diskhalo->set_vel_disk(dparticles);
-  if (myid==0) cout << "done\n";
+  if (myid==0) std::cout << "done" << std::endl;
   
 
   //====================All done: write it out=================================
 
   if (not evolved_halo) {
-    if (myid==0) cout << "Writing phase space file for halo . . . " << flush;
+    if (myid==0) std::cout << "Writing phase space file for halo . . . " << std::flush;
     diskhalo->write_file(out_halo, hparticles);
-    if (myid==0) cout << "done\n";
+    if (myid==0) std::cout << "done" << std::endl;
     out_halo.close();
   }
 
-  if (myid==0) cout << "Writing phase space file for disk . . . " << flush;
+  if (myid==0) std::cout << "Writing phase space file for disk . . . " << std::flush;
   diskhalo->write_file(out_disk, dparticles);
-  if (myid==0) cout << "done\n";
+  if (myid==0) std::cout << "done" << std::endl;
   out_disk.close();
                                 // Diagnostic . . .
   diskhalo->virial_ratio(hparticles, dparticles);
 
-  ofstream outprof("profile.diag");
+  std::ofstream outprof("profile.diag");
   diskhalo->profile(outprof, dparticles, 3.0e-3*ASCALE, 5.0*ASCALE, 100);
 
   //====================Compute gas particles==================================
 
   if (myid==0 && n_particlesG) {
-    cout << "Computing gas particles . . . " << endl;
+    std::cout << "Computing gas particles . . . " << std::endl;
 
 				// UNITS
 				// -------------------
@@ -1238,7 +1235,7 @@ main(int ac, char **av)
 
     double p0, p, fr, fz, fp, dens, potl, potr, pott, potp;
 
-    cout << "Const_height=" << (const_height ? "True" : "False") << endl;
+    std::cout << "Const_height=" << (const_height ? "True" : "False") << std::endl;
 
     if (const_height) {
 
@@ -1284,8 +1281,8 @@ main(int ac, char **av)
       // Vertical table
       //
       string ztable("ztable.dat");
-      cout << "Writing " << setw(15) << right << ztable
-	   << " [gas] . . . " << flush;
+      std::cout << "Writing " << setw(15) << right << ztable
+		<< " [gas] . . . " << std::flush;
       ofstream ztest(ztable.c_str());
       for (int i=0; i<nrint; i++) {
 	for (int j=0; j<nzint; j++) {
@@ -1300,7 +1297,7 @@ main(int ac, char **av)
 	ztest << endl;
       }
       ztest.close();
-      cout << "done" << endl;
+      std::cout << "done" << std::endl;
       
     } else {
 
@@ -1362,8 +1359,8 @@ main(int ac, char **av)
       //
       // Vertical table
       //
-      cout << "Writing ztable.dat [gas] . . . " << flush;
-      ofstream ztest("ztable.dat");
+      std::cout << "Writing ztable.dat [gas] . . . " << std::flush;
+      std::ofstream ztest("ztable.dat");
       for (int i=0; i<nrint; i++) {
 	for (int j=0; j<nzint; j++) {
 	  ztest << setw(15) << rmin + dR*i
@@ -1376,7 +1373,7 @@ main(int ac, char **av)
 	ztest << endl;
       }
       ztest.close();
-      cout << "done" << endl;
+      std::cout << "done" << std::endl;
       
     }
 
@@ -1521,19 +1518,19 @@ main(int ac, char **av)
 
       VC += gmass*(-rr*potr + R*fr + z*fz);
 
-      if (!((n+1)%NREPORT)) cout << "\r." << n+1 << flush;
+      if (!((n+1)%NREPORT)) std::cout << "\r." << n+1 << std::flush;
     }
 
-    cout << endl << "Done!" << endl;
+    std::cout << endl << "Done!" << std::endl;
 
-    cout << "****************************" << endl
-	 << "  Gas disk" << endl
-	 << "----------------------------" << endl
-	 << "  KE       = " << KE << endl
-	 << "  VC       = " << VC << endl;
+    std::cout << "****************************" << std::endl
+	      << "  Gas disk"                   << std::endl
+	      << "----------------------------" << std::endl
+	      << "  KE       = " << KE << std::endl
+	      << "  VC       = " << VC << std::endl;
     if (VC<0.0)
-      cout << " -2T/W     = " << -2.0*KE/VC << endl;
-    cout << "****************************" << endl;
+      std::cout << " -2T/W     = " << -2.0*KE/VC << std::endl;
+    std::cout << "****************************"  << std::endl;
   }
 
   //===========================================================================
