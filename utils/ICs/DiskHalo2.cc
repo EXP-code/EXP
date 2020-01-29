@@ -2823,8 +2823,8 @@ void DiskHalo::profile(ostream &out, vector<Particle>& dpart,
 	double vt = velT[i]/mass[i];
 	out << setw(15) << vr
 	    << setw(15) << vt
-	    << setw(15) << sqrt(sigR[i]/mass[i] - vr*vr)
-	    << setw(15) << sqrt(sigT[i]/mass[i] - vt*vt)
+	    << setw(15) << sqrt(fabs(sigR[i]/mass[i] - vr*vr))
+	    << setw(15) << sqrt(fabs(sigT[i]/mass[i] - vt*vt))
 	    << endl;
       } else {
 	out << setw(15) << 0.0
