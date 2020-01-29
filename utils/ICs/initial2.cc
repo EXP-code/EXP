@@ -778,7 +778,7 @@ main(int ac, char **av)
 
   boost::shared_ptr<DiskHalo> diskhalo;
 
-  if (multi) {
+  if (!evolved_halo and multi) {
     if (myid==0) std::cout << "Initializing a MULTIMASS halo . . . " << std::flush;
     diskhalo =
       boost::make_shared<DiskHalo>
@@ -919,6 +919,8 @@ main(int ac, char **av)
 
     std::cout << "Process " << myid << " has " << hparticles.size()
 	      << " halo particles" << std::endl;
+
+    multi = false;
 
   } else {			// ---------------------------
 				// Generate new halo body file
@@ -1152,9 +1154,13 @@ main(int ac, char **av)
 
   //====================Make the phase space velocities========================
 
-  if (!multi) {
+  if (!multi and !evolved_halo) {
     if (myid==0) std::cout << "Generating halo velocities . . . " << std::flush;
     diskhalo->set_vel_halo(hparticles);
+    if (myid==0) std::cout << "done" << std::endl;
+  } else {
+    if (myid==0) std::cout << "Generating halo table . . . " << std::flush;
+    diskhalo->table_halo(hparticles);
     if (myid==0) std::cout << "done" << std::endl;
   }
   
