@@ -638,18 +638,108 @@ void SphericalSL::get_dens_coefs(int l, Vector& coef, double *p, int id)
 }
 				/* Dump coefficients to a file */
 
-void SphericalSL::dump_coefs(ofstream& out)
+void SphericalSL::dump_coefs(ofstream& out, bool binary)
 {
   double tnow = 0.0;
-  int ir, l;
 
-  out.write((char *)&tnow, sizeof(double));
+  if (binary) {
 
-  for (ir=1; ir<=NMAX; ir++) {
-    for (l=0; l<=LMAX*(LMAX+2); l++)
-      out.write((char *)&expcoef[l][ir], sizeof(double));
+    out.write((char *)&tnow, sizeof(double));
+
+    for (int ir=1; ir<=NMAX; ir++) {
+      for (int l=0; l<=LMAX*(LMAX+2); l++)
+	out.write((char *)&expcoef[l][ir], sizeof(double));
+    }
   }
+  else {
 
+    // BEGIN: header
+    out << "# n |" << std::right;
+
+    for (int l=0, loffset=0; l<=LMAX; loffset+=(2*l+1), l++) {
+      for (int m=0, moffset=0; m<=l; m++) {
+	if (m==0) {
+	  std::ostringstream sout;
+	  sout << "(" << l << " " << m << "c ) |";
+	  out << std::setw(18) << sout.str();
+	  moffset++;
+	} else {
+	  std::ostringstream soutC, soutS;
+	  soutC << "(" << l << " " << m << "c ) |";
+	  soutS << "(" << l << " " << m << "s ) |";
+	  out << std::setw(18) << soutC.str()
+	      << std::setw(18) << soutS.str();
+	  moffset += 2;
+	}
+      }
+    }
+    out << std::endl;
+
+    out << "#[1]|" << std::right;
+
+    int cnt = 2;
+    for (int l=0, loffset=0; l<=LMAX; loffset+=(2*l+1), l++) {
+      // m loop
+      //
+      for (int m=0, moffset=0; m<=l; m++) {
+	if (m==0) {
+	  std::ostringstream sout;
+	  sout << "[" << cnt++ << "] |";
+	  out << std::setw(18) << sout.str();
+	  moffset++;
+	} else {
+	  std::ostringstream soutC, soutS;
+	  soutC << "[" << cnt++ << "] |";
+	  soutS << "[" << cnt++ << "] |";
+	  out << std::setw(18) << soutC.str()
+	      << std::setw(18) << soutS.str();
+	  moffset += 2;
+	}
+      }
+    }
+    out << std::endl;
+
+    out << "#---+" << std::right << std::setfill('-');
+
+    for (int l=0, loffset=0; l<=LMAX; loffset+=(2*l+1), l++) {
+      for (int m=0, moffset=0; m<=l; m++) {
+	if (m==0) {
+	  out << std::setw(18) << "+";
+	  moffset++;
+	} else {
+	  out << std::setw(18) << "+"
+	      << std::setw(18) << "+";
+	  moffset += 2;
+	}
+      }
+    }
+    out << std::endl << std::setfill(' ');
+
+    // END: header
+
+    // n loop
+    //
+    for (int n=1; n<=NMAX; n++) {
+      out << std::setw(5) << n;
+      // l loop
+      //
+      for (int l=0, loffset=0; l<=LMAX; loffset+=(2*l+1), l++) {
+	// m loop
+	//
+	for (int m=0, moffset=0; m<=l; m++) {
+	  if (m==0) {
+	    out << std::setw(18) << expcoef[loffset+moffset][n];
+	    moffset++;
+	  } else {
+	    out << std::setw(18) << expcoef[loffset+moffset+0][n]
+		<< std::setw(18) << expcoef[loffset+moffset+1][n];
+	    moffset += 2;
+	  }
+	}
+      }
+      out << std::endl;
+    }
+  }
 }
 
 void SphericalSL::parallel_gather_coefficients
