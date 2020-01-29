@@ -1088,8 +1088,6 @@ void SphericalSL::pca_hall
 
 void SphericalSL::dump_basis(string& dumpname)
 {
-  static string labels ="pot.";
-  
   double rmax = 0.33*RMAX;
   int numr = 400;
   double r, dr = rmax/numr;
