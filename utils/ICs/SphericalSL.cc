@@ -1088,11 +1088,12 @@ void SphericalSL::pca_hall
 
 void SphericalSL::dump_basis(string& dumpname)
 {
-  static string labels ="pot.";
-  
-  double rmax = 0.33*RMAX;
+  double xmin = ortho->r_to_xi(RMIN);
+  double xmax = ortho->r_to_xi(RMAX*0.33);
+
   int numr = 400;
-  double r, dr = rmax/numr;
+  
+  double r, x, dx = (xmax - xmin)/(numr-1);
 
   for (int L=0; L<=LMAX; L++) {
     
@@ -1104,13 +1105,15 @@ void SphericalSL::dump_basis(string& dumpname)
     out.setf(ios::scientific);
 
     for (int i=0; i<numr; i++) {
-      r = dr*(0.5+i);
+      x = xmin + dx*i;
+      r = ortho->xi_to_r(x);
 
+      out << setw(12) << x;
       out << setw(12) << r;
-      for (int n=1; n<=min<int>(NMAX, 3); n++) {
+      for (int n=1; n<=min<int>(NMAX, 4); n++) {
 	out
-	  << setw(12) << ortho->get_pot(r, L, n, 1)
-	  << setw(12) << ortho->get_dens(r, L, n, 1)
+	  << setw(12) << ortho->get_pot  (r, L, n, 1)
+	  << setw(12) << ortho->get_dens (r, L, n, 1)
 	  << setw(12) << ortho->get_force(r, L, n, 1);
       }
       out << endl;
