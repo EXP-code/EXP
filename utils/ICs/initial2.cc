@@ -61,12 +61,9 @@
 
  Multimass gas disk 11/08 by MDW
 
-*/
-                                // System libs
-#include <unistd.h>
-#include <getopt.h>
-#include <values.h>
+ Updates for constructing disk velocities from an evolved halo 01/20 by MDW
 
+*/
                                 // C++/STL headers
 #include <cmath>
 #include <cstdlib>
@@ -907,9 +904,12 @@ main(int ac, char **av)
       }
 
     } else {
+      // Error message
       if (myid==0)
 	std::cout << "Could not read halo file <" << hbods
 		  << "> . . . quitting" << std::endl;
+
+      MPI_Barrier(MPI_COMM_WORLD);
       MPI_Finalize();
       exit(-1);
     }
@@ -917,7 +917,9 @@ main(int ac, char **av)
     std::cout << "Process " << myid << " has " << hparticles.size()
 	      << " halo particles" << std::endl;
 
-    if (myid==0) std::cout << "Generating halo tables for input halo . . . " << std::flush;
+    if (myid==0)
+      std::cout << "Generating halo tables for input halo . . . "
+		<< std::flush;
 
     if (multi) {
       diskhalo->set_halo_table_multi(hparticles);
@@ -975,6 +977,7 @@ main(int ac, char **av)
   if (n_particlesD) {
     if (myid==0) std::cout << "Beginning disk accumulation . . . " << std::flush;
     expandd->setup_accumulation();
+
     if (!save_eof and !expcond) {
       expandd->setup_eof();
       if (nthrds>1)
@@ -988,15 +991,20 @@ main(int ac, char **av)
       if (myid==0) std::cout << "Making the EOF . . . " << std::flush;
       expandd->make_eof();
       MPI_Barrier(MPI_COMM_WORLD);
-      if (myid==0)std::cout << "done" << std::endl;
     }
-  
-    if (myid==0) std::cout << "Making disk coefficients . . . " << std::flush;
+
+    if (myid==0) {
+      std::cout << "done" << std::endl;
+      std::cout << "Making disk coefficients . . . " << std::flush;
+    }
+
     expandd->make_coefficients();
     MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) std::cout << "done" << std::endl;
 
-    if (myid==0) std::cout << "Reexpand . . . " << std::flush;
+    if (myid==0) {
+      std::cout << "done" << std::endl;
+      std::cout << "Reexpand . . . " << std::flush;
+    }
 
     if (nthrds>1)
       expandd->accumulate_thread(dparticles, 0, report);
@@ -1018,6 +1026,7 @@ main(int ac, char **av)
 	std::cout << "done" << std::endl;
       }
     }
+
     if (NORDER1<NORDER) {
       if (myid==0) std::cout << "Restricting order from " << NORDER 
 			     << " to " << NORDER1 << " . . . " << std::flush;
@@ -1209,9 +1218,8 @@ main(int ac, char **av)
   if (myid==0 && n_particlesG) {
     std::cout << "Computing gas particles . . . " << std::endl;
 
-				// UNITS
-				// -------------------
-
+    // UNITS
+    // -------------------
 				// cm
     const double pc = 3.08568025e18;
 				// proton mass
@@ -1252,8 +1260,9 @@ main(int ac, char **av)
     double rmin = RMIN;
     double rmax = 10.0*gscal_length;
     double zmin = 0.001*scale_height;
-    int nrint = 200;
-    int nzint = 400;
+    int   nrint = 200;
+    int   nzint = 400;
+    
     vector< vector<double> > zrho, zmas, vcir;
     double r, R, dR = (rmax - rmin)/(nrint-1);
     double z, dz = (log(rmax) - log(zmin))/(nzint-1);
