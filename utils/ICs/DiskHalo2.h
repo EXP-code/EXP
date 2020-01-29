@@ -193,6 +193,9 @@ class DiskHalo
   void set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart);
   void set_disk_coordinates(vector<Particle>& pdisk, int ndisk, int npart);
 
+  void set_halo_table_single(vector<Particle>& phalo);
+  void set_halo_table_multi (vector<Particle>& phalo);
+
   void set_pos_origin(double& x, double& y, double& z) 
     { 
       center_pos[0] = x;

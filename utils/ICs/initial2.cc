@@ -389,7 +389,7 @@ main(int ac, char **av)
   bool         zero;
   bool         report;
   bool         ignore;
-  bool         evolved_halo;
+  bool         evolved;
   int          nhalo;
   int          ndisk;
   int          ngas;
@@ -496,7 +496,7 @@ main(int ac, char **av)
     ("cachefile",       po::value<string>(&cachefile)->default_value(".eof.cache.file"),        "Name of EOF cache file")
     ("runtag",          po::value<string>(&runtag)->default_value("run000"),                    "Label prefix for diagnostic images")
     ("report",          po::value<bool>(&report)->default_value(true),                  "Report particle progress in EOF computation")
-    ("evolved",         po::value<bool>(&evolved_halo)->default_value(false),           "Use existing halo body file given by <hbods>")
+    ("evolved",         po::value<bool>(&evolved)->default_value(false),           "Use existing halo body file given by <hbods> and do not create a new halo")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
     ;
         
@@ -701,9 +701,6 @@ main(int ac, char **av)
   boost::shared_ptr<SphericalSL> expandh;
   if (n_particlesH) {
     expandh = boost::make_shared<SphericalSL>(nthrds, LMAX, NMAX, SCMAP, SCSPH);
-#ifdef DEBUG
-    expandh->dump_basis(runtag);
-#endif
   }
 
   //===========================Cylindrical expansion===========================
@@ -778,8 +775,8 @@ main(int ac, char **av)
 
   boost::shared_ptr<DiskHalo> diskhalo;
 
-  if (!evolved_halo and multi) {
-    if (myid==0) std::cout << "Initializing a MULTIMASS halo . . . " << std::flush;
+  if (multi) {
+    if (myid==0) std::cout << "Initializing for a MULTI-MASS halo . . . " << std::flush;
     diskhalo =
       boost::make_shared<DiskHalo>
       (expandh, expandd,
@@ -793,7 +790,7 @@ main(int ac, char **av)
 
   } else {
 
-    if (myid==0) std::cout << "Initializing a SINGLE halo . . . " << std::flush;
+    if (myid==0) std::cout << "Initializing for a SINGLE-MASS halo . . . " << std::flush;
     diskhalo = boost::make_shared<DiskHalo>
       (expandh, expandd,
        scale_height, scale_length, 
@@ -852,7 +849,7 @@ main(int ac, char **av)
                                 // before realizing a large phase space)
   std::ofstream out_halo, out_disk;
   if (myid==0) {
-    if (not evolved_halo) {
+    if (not evolved) {
       out_halo.open(hbods.c_str());
       if (!out_halo) {
 	cout << "Could not open <" << hbods << "> for output\n";
@@ -871,7 +868,7 @@ main(int ac, char **av)
 
   //=================Make the phase space coordinates==========================
 
-  if (evolved_halo) {		// ---------------------------
+  if (evolved) {		// ---------------------------
 				// Use existing halo body file
     std::ifstream hin(hbods);	// ---------------------------
     
@@ -920,7 +917,16 @@ main(int ac, char **av)
     std::cout << "Process " << myid << " has " << hparticles.size()
 	      << " halo particles" << std::endl;
 
-    multi = false;
+    if (myid==0) std::cout << "Generating halo tables for input halo . . . " << std::flush;
+
+    if (multi) {
+      diskhalo->set_halo_table_multi(hparticles);
+    } else {
+      diskhalo->set_halo_table_single(hparticles);
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (myid==0) std::cout << "done" << std::endl;
 
   } else {			// ---------------------------
 				// Generate new halo body file
@@ -1168,13 +1174,9 @@ main(int ac, char **av)
 
   //====================Make the phase space velocities========================
 
-  if (!multi and !evolved_halo) {
+  if (!multi and !evolved) {
     if (myid==0) std::cout << "Generating halo velocities . . . " << std::flush;
     diskhalo->set_vel_halo(hparticles);
-    if (myid==0) std::cout << "done" << std::endl;
-  } else {
-    if (myid==0) std::cout << "Generating halo table . . . " << std::flush;
-    diskhalo->table_halo(hparticles);
     if (myid==0) std::cout << "done" << std::endl;
   }
   
@@ -1185,7 +1187,7 @@ main(int ac, char **av)
 
   //====================All done: write it out=================================
 
-  if (not evolved_halo) {
+  if (not evolved) {
     if (myid==0) std::cout << "Writing phase space file for halo . . . " << std::flush;
     diskhalo->write_file(out_halo, hparticles);
     if (myid==0) std::cout << "done" << std::endl;

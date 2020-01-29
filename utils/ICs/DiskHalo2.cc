@@ -502,6 +502,66 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
   }
 }      
 
+void DiskHalo::set_halo_table_multi(vector<Particle>& phalo)
+{
+  if (!MULTI) {
+    string msg("DiskHalo::set_halo is only valid if MULTI is true");
+    throw DiskHaloException(msg, __FILE__, __LINE__);
+  }
+
+  double rmin = max<double>(halo->get_min_radius(), RHMIN);
+  double rmax = halo->get_max_radius();
+  double mmin = halo->get_mass(rmin);
+  double mtot = halo->get_mass(rmax);
+
+				// Diagnostics
+  double radmin1=1e30, radmax1=0.0, radmin, radmax;
+  vector<double>   DD(nh+1, 0.0), DD0(nh+1);
+  vector<unsigned> NN(nh+1, 0),   NN0(nh+1);
+
+  // Particle loop for existing particles
+  //
+  for (auto p : phalo) {
+
+    double r = 0.0;
+    for (int k=0; k<3; k++) r += p.pos[k]*p.pos[k];
+    r = sqrt(r);
+
+    // Mass distribution in spherial shells
+    unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
+    if (indx>0 && indx<=nh) {
+      NN[indx]++;
+      DD[indx] += p.mass;
+    }
+
+    radmin1 = min<double>(radmin1, r);
+    radmax1 = max<double>(radmax1, r);
+  }
+  
+  MPI_Reduce(&radmin1, &radmin, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&radmax1, &radmax, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+
+  if (myid==0) std::cout << "     *****"
+			 << "  min(r)=" << radmin 
+			 << "  max(r)=" << radmax
+			 << std::endl;
+  
+  // Make dispersion vector
+  //
+  table_halo_disp();
+
+  if (VFLAG & 1)
+    cout << "Process " << myid << ": made " << phalo.size() << " particles"
+	 << endl;
+
+  MPI_Allreduce(&NN[0], &NN0[0], nh+1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&DD[0], &DD0[0], nh+1, MPI_DOUBLE,   MPI_SUM, MPI_COMM_WORLD);
+  for (unsigned i=0; i<=nh; i++) {
+    nhN[i] += NN0[i];
+    nhD[i] += DD0[i];
+  }
+}      
+
 void DiskHalo::
 set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
 {
@@ -536,7 +596,7 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
 
   for (int i=0; i<npart; i++) {
     targetmass = mmin + (mtot - mmin)*(*rndU)();
-
+    
     r = zbrent(mass_func, rmin, rmax, tol);
     
     phi = 2.0*M_PI*(*rndU)();
@@ -596,6 +656,56 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
   if (VFLAG & 1)
     cout << "Process " << myid << ": made " << phalo.size() << " particles"
 	 << endl;
+
+  MPI_Allreduce(&NN[0], &NN0[0], nh+1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&DD[0], &DD0[0], nh+1, MPI_DOUBLE,   MPI_SUM, MPI_COMM_WORLD);
+  for (unsigned i=0; i<=nh; i++) {
+    nhN[i] += NN0[i];
+    nhD[i] += DD0[i];
+  }
+}
+
+void DiskHalo::
+set_halo_table_single(vector<Particle>& phalo)
+{
+  const double tol = 1.0e-12;
+  double rmin = max<double>(halo->get_min_radius(), RHMIN);
+  double rmax = halo->get_max_radius();
+  double mmin = halo->get_mass(rmin);
+  double mtot = halo->get_mass(rmax);
+
+				// Diagnostics
+  double radmin1=1.0e30, radmax1=0.0, radmin, radmax;
+  vector<double>   DD(nh+1, 0.0), DD0(nh+1);
+  vector<unsigned> NN(nh+1, 0),   NN0(nh+1);
+
+  if (myid==0 && VFLAG & 1) cout << "  rmin=" << rmin
+				 << "  rmax=" << rmax
+				 << "  mmin=" << mmin
+				 << "  mtot=" << mtot;
+
+  for (auto p : phalo) {
+
+    double r = 0.0;
+    for (int k=0; k<3; k++) r += p.pos[k] * p.pos[k];
+    r = sqrt(r);
+
+    // Mass distribution in spherial shells
+    unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
+    if (indx>0 && indx<=nh) {
+      NN[indx]++;
+      DD[indx] += p.mass;
+    }
+
+    radmin1 = min<double>(radmin1, r);
+    radmax1 = max<double>(radmax1, r);
+  }
+
+  MPI_Reduce(&radmin1, &radmin, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&radmax1, &radmax, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+  
+  if (myid==0) cout << "  min(r)=" << radmin 
+		    << "  max(r)=" << radmax;
 
   MPI_Allreduce(&NN[0], &NN0[0], nh+1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(&DD[0], &DD0[0], nh+1, MPI_DOUBLE,   MPI_SUM, MPI_COMM_WORLD);
