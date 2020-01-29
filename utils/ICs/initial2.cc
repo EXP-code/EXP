@@ -870,10 +870,14 @@ main(int ac, char **av)
     std::ifstream hin(hbods);	// ---------------------------
     
     if (hin) {
+      std::string line;
+      std::getline(hin, line);
+      std::istringstream sin(line);
+
       int niatr, ndatr;
-      hin >> nhalo;
-      hin >> niatr;
-      hin >> ndatr;
+      sin >> nhalo;
+      sin >> niatr;
+      sin >> ndatr;
       
       // Divvy up the particles by core.  The root node gets any
       // remainder.
@@ -882,8 +886,6 @@ main(int ac, char **av)
 
       int ibeg = 0;
       int iend = nhalo - n_particlesH*(numprocs-myid-1);
-      
-      std::string line;
       
       if (myid>0) {
 	ibeg = nhalo - n_particlesH*(numprocs-myid);
