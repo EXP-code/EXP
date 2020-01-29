@@ -427,10 +427,12 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
     r = sqrt(r);
 
     // Mass distribution in spherial shells
-    unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
-    if (indx>0 && indx<=nh) {
-      NN[indx]++;
-      DD[indx] += p.mass;
+    if (r >= rmin) {
+      unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
+      if (indx>0 && indx<=nh) {
+	NN[indx]++;
+	DD[indx] += p.mass;
+      }
     }
 
     radmin1 = min<double>(radmin1, r);
@@ -528,10 +530,12 @@ void DiskHalo::set_halo_table_multi(vector<Particle>& phalo)
     r = sqrt(r);
 
     // Mass distribution in spherial shells
-    unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
-    if (indx>0 && indx<=nh) {
-      NN[indx]++;
-      DD[indx] += p.mass;
+    if (r >= rmin) {
+      unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
+      if (indx>0 && indx<=nh) {
+	NN[indx]++;
+	DD[indx] += p.mass;
+      }
     }
 
     radmin1 = min<double>(radmin1, r);
@@ -617,10 +621,12 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
     r = sqrt(r);
 
     // Mass distribution in spherial shells
-    unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
-    if (indx>0 && indx<=nh) {
-      NN[indx]++;
-      DD[indx] += p.mass;
+    if (r >= rmin) {
+      unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
+      if (indx>0 && indx<=nh) {
+	NN[indx]++;
+	DD[indx] += p.mass;
+      }
     }
 
     radmin1 = min<double>(radmin1, r);
@@ -691,10 +697,12 @@ set_halo_table_single(vector<Particle>& phalo)
     r = sqrt(r);
 
     // Mass distribution in spherial shells
-    unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
-    if (indx>0 && indx<=nh) {
-      NN[indx]++;
-      DD[indx] += p.mass;
+    if (r >= rmin) {
+      unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
+      if (indx>0 && indx<=nh) {
+	NN[indx]++;
+	DD[indx] += p.mass;
+      }
     }
 
     radmin1 = min<double>(radmin1, r);
@@ -769,10 +777,12 @@ set_disk_coordinates(vector<Particle>& pdisk, int ndisk, int npart)
     r = sqrt(r);
 
     // Mass distribution in spherial shells
-    unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
-    if (indx>0 && indx<=nh) {
-      NN[indx]++;
-      DD[indx] += p.mass;
+    if (r >= rmin) {
+      unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
+      if (indx>0 && indx<=nh) {
+	NN[indx]++;
+	DD[indx] += p.mass;
+      }
     }
 
     radmin1 = min<double>(radmin1, r);
