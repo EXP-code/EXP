@@ -1518,10 +1518,16 @@ table_disk(vector<Particle>& part)
 double DiskHalo::vp_disp2(double xp, double yp, double zp)
 {
   double R     = sqrt(xp*xp + yp*yp) + MINDOUBLE;
-  double omp   = v_circ(xp, yp, zp)/R;
+  double vc    = v_circ(xp, yp, zp);
+  double omp   = vc/R;
   double kappa = epi(xp, yp, zp);
   
-  return vr_disp2(xp, yp, zp) * kappa*kappa/(4.0*omp*omp);
+				// Bounds limit
+  double fraction = kappa*kappa/(4.0*omp*omp);
+  if (fraction > 1.0)  fraction = 1.0;
+  if (fraction < 0.25) fraction = 0.25;
+
+  return vr_disp2(xp, yp, zp) * fraction;
 }
 
 
