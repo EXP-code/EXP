@@ -61,12 +61,9 @@
 
  Multimass gas disk 11/08 by MDW
 
-*/
-                                // System libs
-#include <unistd.h>
-#include <getopt.h>
-#include <values.h>
+ Updates for constructing disk velocities from an evolved halo 01/20 by MDW
 
+*/
                                 // C++/STL headers
 #include <cmath>
 #include <cstdlib>
@@ -389,7 +386,7 @@ main(int ac, char **av)
   bool         zero;
   bool         report;
   bool         ignore;
-  bool         evolved_halo;
+  bool         evolved;
   int          nhalo;
   int          ndisk;
   int          ngas;
@@ -496,7 +493,7 @@ main(int ac, char **av)
     ("cachefile",       po::value<string>(&cachefile)->default_value(".eof.cache.file"),        "Name of EOF cache file")
     ("runtag",          po::value<string>(&runtag)->default_value("run000"),                    "Label prefix for diagnostic images")
     ("report",          po::value<bool>(&report)->default_value(true),                  "Report particle progress in EOF computation")
-    ("evolved",         po::value<bool>(&evolved_halo)->default_value(false),           "Use existing halo body file given by <hbods>")
+    ("evolved",         po::value<bool>(&evolved)->default_value(false),           "Use existing halo body file given by <hbods> and do not create a new halo")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
     ;
         
@@ -701,9 +698,6 @@ main(int ac, char **av)
   boost::shared_ptr<SphericalSL> expandh;
   if (n_particlesH) {
     expandh = boost::make_shared<SphericalSL>(nthrds, LMAX, NMAX, SCMAP, SCSPH);
-#ifdef DEBUG
-    expandh->dump_basis(runtag);
-#endif
   }
 
   //===========================Cylindrical expansion===========================
@@ -778,8 +772,8 @@ main(int ac, char **av)
 
   boost::shared_ptr<DiskHalo> diskhalo;
 
-  if (!evolved_halo and multi) {
-    if (myid==0) std::cout << "Initializing a MULTIMASS halo . . . " << std::flush;
+  if (multi) {
+    if (myid==0) std::cout << "Initializing for a MULTI-MASS halo . . . " << std::flush;
     diskhalo =
       boost::make_shared<DiskHalo>
       (expandh, expandd,
@@ -793,7 +787,7 @@ main(int ac, char **av)
 
   } else {
 
-    if (myid==0) std::cout << "Initializing a SINGLE halo . . . " << std::flush;
+    if (myid==0) std::cout << "Initializing for a SINGLE-MASS halo . . . " << std::flush;
     diskhalo = boost::make_shared<DiskHalo>
       (expandh, expandd,
        scale_height, scale_length, 
@@ -852,7 +846,7 @@ main(int ac, char **av)
                                 // before realizing a large phase space)
   std::ofstream out_halo, out_disk;
   if (myid==0) {
-    if (not evolved_halo) {
+    if (not evolved) {
       out_halo.open(hbods.c_str());
       if (!out_halo) {
 	cout << "Could not open <" << hbods << "> for output\n";
@@ -871,15 +865,19 @@ main(int ac, char **av)
 
   //=================Make the phase space coordinates==========================
 
-  if (evolved_halo) {		// ---------------------------
+  if (evolved) {		// ---------------------------
 				// Use existing halo body file
     std::ifstream hin(hbods);	// ---------------------------
     
     if (hin) {
+      std::string line;
+      std::getline(hin, line);
+      std::istringstream sin(line);
+
       int niatr, ndatr;
-      hin >> nhalo;
-      hin >> niatr;
-      hin >> ndatr;
+      sin >> nhalo;
+      sin >> niatr;
+      sin >> ndatr;
       
       // Divvy up the particles by core.  The root node gets any
       // remainder.
@@ -888,8 +886,6 @@ main(int ac, char **av)
 
       int ibeg = 0;
       int iend = nhalo - n_particlesH*(numprocs-myid-1);
-      
-      std::string line;
       
       if (myid>0) {
 	ibeg = nhalo - n_particlesH*(numprocs-myid);
@@ -910,9 +906,12 @@ main(int ac, char **av)
       }
 
     } else {
+      // Error message
       if (myid==0)
 	std::cout << "Could not read halo file <" << hbods
 		  << "> . . . quitting" << std::endl;
+
+      MPI_Barrier(MPI_COMM_WORLD);
       MPI_Finalize();
       exit(-1);
     }
@@ -920,7 +919,18 @@ main(int ac, char **av)
     std::cout << "Process " << myid << " has " << hparticles.size()
 	      << " halo particles" << std::endl;
 
-    multi = false;
+    if (myid==0)
+      std::cout << "Generating halo tables for input halo . . . "
+		<< std::flush;
+
+    if (multi) {
+      diskhalo->set_halo_table_multi(hparticles);
+    } else {
+      diskhalo->set_halo_table_single(hparticles);
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (myid==0) std::cout << "done" << std::endl;
 
   } else {			// ---------------------------
 				// Generate new halo body file
@@ -969,6 +979,7 @@ main(int ac, char **av)
   if (n_particlesD) {
     if (myid==0) std::cout << "Beginning disk accumulation . . . " << std::flush;
     expandd->setup_accumulation();
+
     if (!save_eof and !expcond) {
       expandd->setup_eof();
       if (nthrds>1)
@@ -982,15 +993,20 @@ main(int ac, char **av)
       if (myid==0) std::cout << "Making the EOF . . . " << std::flush;
       expandd->make_eof();
       MPI_Barrier(MPI_COMM_WORLD);
-      if (myid==0)std::cout << "done" << std::endl;
     }
-  
-    if (myid==0) std::cout << "Making disk coefficients . . . " << std::flush;
+
+    if (myid==0) {
+      std::cout << "done" << std::endl;
+      std::cout << "Making disk coefficients . . . " << std::flush;
+    }
+
     expandd->make_coefficients();
     MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) std::cout << "done" << std::endl;
 
-    if (myid==0) std::cout << "Reexpand . . . " << std::flush;
+    if (myid==0) {
+      std::cout << "done" << std::endl;
+      std::cout << "Reexpand . . . " << std::flush;
+    }
 
     if (nthrds>1)
       expandd->accumulate_thread(dparticles, 0, report);
@@ -1012,6 +1028,7 @@ main(int ac, char **av)
 	std::cout << "done" << std::endl;
       }
     }
+
     if (NORDER1<NORDER) {
       if (myid==0) std::cout << "Restricting order from " << NORDER 
 			     << " to " << NORDER1 << " . . . " << std::flush;
@@ -1168,13 +1185,9 @@ main(int ac, char **av)
 
   //====================Make the phase space velocities========================
 
-  if (!multi and !evolved_halo) {
+  if (!multi and !evolved) {
     if (myid==0) std::cout << "Generating halo velocities . . . " << std::flush;
     diskhalo->set_vel_halo(hparticles);
-    if (myid==0) std::cout << "done" << std::endl;
-  } else {
-    if (myid==0) std::cout << "Generating halo table . . . " << std::flush;
-    diskhalo->table_halo(hparticles);
     if (myid==0) std::cout << "done" << std::endl;
   }
   
@@ -1185,7 +1198,7 @@ main(int ac, char **av)
 
   //====================All done: write it out=================================
 
-  if (not evolved_halo) {
+  if (not evolved) {
     if (myid==0) std::cout << "Writing phase space file for halo . . . " << std::flush;
     diskhalo->write_file(out_halo, hparticles);
     if (myid==0) std::cout << "done" << std::endl;
@@ -1207,9 +1220,8 @@ main(int ac, char **av)
   if (myid==0 && n_particlesG) {
     std::cout << "Computing gas particles . . . " << std::endl;
 
-				// UNITS
-				// -------------------
-
+    // UNITS
+    // -------------------
 				// cm
     const double pc = 3.08568025e18;
 				// proton mass
@@ -1250,8 +1262,9 @@ main(int ac, char **av)
     double rmin = RMIN;
     double rmax = 10.0*gscal_length;
     double zmin = 0.001*scale_height;
-    int nrint = 200;
-    int nzint = 400;
+    int   nrint = 200;
+    int   nzint = 400;
+    
     vector< vector<double> > zrho, zmas, vcir;
     double r, R, dR = (rmax - rmin)/(nrint-1);
     double z, dz = (log(rmax) - log(zmin))/(nzint-1);

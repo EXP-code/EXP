@@ -654,19 +654,19 @@ void SphericalSL::dump_coefs(ofstream& out, bool binary)
   else {
 
     // BEGIN: header
-    out << "# n |" << std::right;
+    out << "#   n |" << std::right;
 
     for (int l=0, loffset=0; l<=LMAX; loffset+=(2*l+1), l++) {
       for (int m=0, moffset=0; m<=l; m++) {
 	if (m==0) {
 	  std::ostringstream sout;
-	  sout << "(" << l << " " << m << "c ) |";
+	  sout << "(" << l << " " << m << " c ) |";
 	  out << std::setw(18) << sout.str();
 	  moffset++;
 	} else {
 	  std::ostringstream soutC, soutS;
-	  soutC << "(" << l << " " << m << "c ) |";
-	  soutS << "(" << l << " " << m << "s ) |";
+	  soutC << "(" << l << " " << m << " c ) |";
+	  soutS << "(" << l << " " << m << " s ) |";
 	  out << std::setw(18) << soutC.str()
 	      << std::setw(18) << soutS.str();
 	  moffset += 2;
@@ -675,7 +675,7 @@ void SphericalSL::dump_coefs(ofstream& out, bool binary)
     }
     out << std::endl;
 
-    out << "#[1]|" << std::right;
+    out << "# [1] |" << std::right;
 
     int cnt = 2;
     for (int l=0, loffset=0; l<=LMAX; loffset+=(2*l+1), l++) {
@@ -699,7 +699,7 @@ void SphericalSL::dump_coefs(ofstream& out, bool binary)
     }
     out << std::endl;
 
-    out << "#---+" << std::right << std::setfill('-');
+    out << "#-----+" << std::right << std::setfill('-');
 
     for (int l=0, loffset=0; l<=LMAX; loffset+=(2*l+1), l++) {
       for (int m=0, moffset=0; m<=l; m++) {
@@ -720,7 +720,7 @@ void SphericalSL::dump_coefs(ofstream& out, bool binary)
     // n loop
     //
     for (int n=1; n<=NMAX; n++) {
-      out << std::setw(5) << n;
+      out << std::setw(7) << n;
       // l loop
       //
       for (int l=0, loffset=0; l<=LMAX; loffset+=(2*l+1), l++) {

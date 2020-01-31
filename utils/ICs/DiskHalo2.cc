@@ -175,7 +175,7 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
 
   for (int k=0; k<3; k++) center_pos[k] = center_vel[k] = 0.0;
 
-  DF          = false;
+  DF          = true;
   MULTI       = true;
 
   dmass       = DMass;
@@ -427,10 +427,12 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
     r = sqrt(r);
 
     // Mass distribution in spherial shells
-    unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
-    if (indx>0 && indx<=nh) {
-      NN[indx]++;
-      DD[indx] += p.mass;
+    if (r >= rmin) {
+      unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
+      if (indx>0 && indx<=nh) {
+	NN[indx]++;
+	DD[indx] += p.mass;
+      }
     }
 
     radmin1 = min<double>(radmin1, r);
@@ -502,6 +504,68 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
   }
 }      
 
+void DiskHalo::set_halo_table_multi(vector<Particle>& phalo)
+{
+  if (!MULTI) {
+    string msg("DiskHalo::set_halo is only valid if MULTI is true");
+    throw DiskHaloException(msg, __FILE__, __LINE__);
+  }
+
+  double rmin = max<double>(halo->get_min_radius(), RHMIN);
+  double rmax = halo->get_max_radius();
+  double mmin = halo->get_mass(rmin);
+  double mtot = halo->get_mass(rmax);
+
+				// Diagnostics
+  double radmin1=1e30, radmax1=0.0, radmin, radmax;
+  vector<double>   DD(nh+1, 0.0), DD0(nh+1);
+  vector<unsigned> NN(nh+1, 0),   NN0(nh+1);
+
+  // Particle loop for existing particles
+  //
+  for (auto p : phalo) {
+
+    double r = 0.0;
+    for (int k=0; k<3; k++) r += p.pos[k]*p.pos[k];
+    r = sqrt(r);
+
+    // Mass distribution in spherial shells
+    if (r >= rmin) {
+      unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
+      if (indx>0 && indx<=nh) {
+	NN[indx]++;
+	DD[indx] += p.mass;
+      }
+    }
+
+    radmin1 = min<double>(radmin1, r);
+    radmax1 = max<double>(radmax1, r);
+  }
+  
+  MPI_Reduce(&radmin1, &radmin, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&radmax1, &radmax, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+
+  if (myid==0) std::cout << "     *****"
+			 << "  min(r)=" << radmin 
+			 << "  max(r)=" << radmax
+			 << std::endl;
+  
+  // Make dispersion vector
+  //
+  table_halo_disp();
+
+  if (VFLAG & 1)
+    cout << "Process " << myid << ": made " << phalo.size() << " particles"
+	 << endl;
+
+  MPI_Allreduce(&NN[0], &NN0[0], nh+1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&DD[0], &DD0[0], nh+1, MPI_DOUBLE,   MPI_SUM, MPI_COMM_WORLD);
+  for (unsigned i=0; i<=nh; i++) {
+    nhN[i] += NN0[i];
+    nhD[i] += DD0[i];
+  }
+}      
+
 void DiskHalo::
 set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
 {
@@ -536,7 +600,7 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
 
   for (int i=0; i<npart; i++) {
     targetmass = mmin + (mtot - mmin)*(*rndU)();
-
+    
     r = zbrent(mass_func, rmin, rmax, tol);
     
     phi = 2.0*M_PI*(*rndU)();
@@ -557,10 +621,12 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
     r = sqrt(r);
 
     // Mass distribution in spherial shells
-    unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
-    if (indx>0 && indx<=nh) {
-      NN[indx]++;
-      DD[indx] += p.mass;
+    if (r >= rmin) {
+      unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
+      if (indx>0 && indx<=nh) {
+	NN[indx]++;
+	DD[indx] += p.mass;
+      }
     }
 
     radmin1 = min<double>(radmin1, r);
@@ -596,6 +662,58 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
   if (VFLAG & 1)
     cout << "Process " << myid << ": made " << phalo.size() << " particles"
 	 << endl;
+
+  MPI_Allreduce(&NN[0], &NN0[0], nh+1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&DD[0], &DD0[0], nh+1, MPI_DOUBLE,   MPI_SUM, MPI_COMM_WORLD);
+  for (unsigned i=0; i<=nh; i++) {
+    nhN[i] += NN0[i];
+    nhD[i] += DD0[i];
+  }
+}
+
+void DiskHalo::
+set_halo_table_single(vector<Particle>& phalo)
+{
+  const double tol = 1.0e-12;
+  double rmin = max<double>(halo->get_min_radius(), RHMIN);
+  double rmax = halo->get_max_radius();
+  double mmin = halo->get_mass(rmin);
+  double mtot = halo->get_mass(rmax);
+
+				// Diagnostics
+  double radmin1=1.0e30, radmax1=0.0, radmin, radmax;
+  vector<double>   DD(nh+1, 0.0), DD0(nh+1);
+  vector<unsigned> NN(nh+1, 0),   NN0(nh+1);
+
+  if (myid==0 && VFLAG & 1) cout << "  rmin=" << rmin
+				 << "  rmax=" << rmax
+				 << "  mmin=" << mmin
+				 << "  mtot=" << mtot;
+
+  for (auto p : phalo) {
+
+    double r = 0.0;
+    for (int k=0; k<3; k++) r += p.pos[k] * p.pos[k];
+    r = sqrt(r);
+
+    // Mass distribution in spherial shells
+    if (r >= rmin) {
+      unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
+      if (indx>0 && indx<=nh) {
+	NN[indx]++;
+	DD[indx] += p.mass;
+      }
+    }
+
+    radmin1 = min<double>(radmin1, r);
+    radmax1 = max<double>(radmax1, r);
+  }
+
+  MPI_Reduce(&radmin1, &radmin, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&radmax1, &radmax, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+  
+  if (myid==0) cout << "  min(r)=" << radmin 
+		    << "  max(r)=" << radmax;
 
   MPI_Allreduce(&NN[0], &NN0[0], nh+1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(&DD[0], &DD0[0], nh+1, MPI_DOUBLE,   MPI_SUM, MPI_COMM_WORLD);
@@ -659,10 +777,12 @@ set_disk_coordinates(vector<Particle>& pdisk, int ndisk, int npart)
     r = sqrt(r);
 
     // Mass distribution in spherial shells
-    unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
-    if (indx>0 && indx<=nh) {
-      NN[indx]++;
-      DD[indx] += p.mass;
+    if (r >= rmin) {
+      unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
+      if (indx>0 && indx<=nh) {
+	NN[indx]++;
+	DD[indx] += p.mass;
+      }
     }
 
     radmin1 = min<double>(radmin1, r);
@@ -1398,10 +1518,16 @@ table_disk(vector<Particle>& part)
 double DiskHalo::vp_disp2(double xp, double yp, double zp)
 {
   double R     = sqrt(xp*xp + yp*yp) + MINDOUBLE;
-  double omp   = v_circ(xp, yp, zp)/R;
+  double vc    = v_circ(xp, yp, zp);
+  double omp   = vc/R;
   double kappa = epi(xp, yp, zp);
   
-  return vr_disp2(xp, yp, zp) * kappa*kappa/(4.0*omp*omp);
+				// Bounds limit
+  double fraction = kappa*kappa/(4.0*omp*omp);
+  if (fraction > 1.0)  fraction = 1.0;
+  if (fraction < 0.25) fraction = 0.25;
+
+  return vr_disp2(xp, yp, zp) * fraction;
 }
 
 
@@ -2703,8 +2829,8 @@ void DiskHalo::profile(ostream &out, vector<Particle>& dpart,
 	double vt = velT[i]/mass[i];
 	out << setw(15) << vr
 	    << setw(15) << vt
-	    << setw(15) << sqrt(sigR[i]/mass[i] - vr*vr)
-	    << setw(15) << sqrt(sigT[i]/mass[i] - vt*vt)
+	    << setw(15) << sqrt(fabs(sigR[i]/mass[i] - vr*vr))
+	    << setw(15) << sqrt(fabs(sigT[i]/mass[i] - vt*vt))
 	    << endl;
       } else {
 	out << setw(15) << 0.0
