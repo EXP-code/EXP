@@ -451,7 +451,7 @@ main(int ac, char **av)
     ("NORDER1",         po::value<int>(&NORDER1)->default_value(1000),                  "Restricts disk basis function to NORDER1<NORDER after basis construction for testing")
     ("NOUT",            po::value<int>(&NOUT)->default_value(1000),                      "Number of radial basis functions to output for each harmonic order")
     ("SELECT",          po::value<bool>(&SELECT)->default_value(false),                 "Enable significance selection in coefficient computation")
-    ("DUMPCOEF",        po::value<bool>(&DUMPCOEF)->default_value(false),               "Dump disk coefficients")
+    ("DUMPCOEF",        po::value<bool>(&DUMPCOEF)->default_value(false),               "Dump coefficients")
     ("DIVERGE",         po::value<int>(&DIVERGE)->default_value(0),                     "Cusp extrapolation for primary halo model")
     ("DIVERGE_RFAC",    po::value<double>(&DIVERGE_RFAC)->default_value(1.0),           "Extrapolation exponent for primary mass model")
     ("DIVERGE2",        po::value<int>(&DIVERGE2)->default_value(0),                    "Cusp extrapolation for number model")
@@ -778,7 +778,7 @@ main(int ac, char **av)
 
   boost::shared_ptr<DiskHalo> diskhalo;
 
-  if (multi) {
+  if (!evolved_halo and multi) {
     if (myid==0) std::cout << "Initializing a MULTIMASS halo . . . " << std::flush;
     diskhalo =
       boost::make_shared<DiskHalo>
@@ -920,6 +920,8 @@ main(int ac, char **av)
     std::cout << "Process " << myid << " has " << hparticles.size()
 	      << " halo particles" << std::endl;
 
+    multi = false;
+
   } else {			// ---------------------------
 				// Generate new halo body file
     if (n_particlesH) {		// ---------------------------
@@ -947,7 +949,21 @@ main(int ac, char **av)
     if (myid==0) std::cout << "Beginning halo accumulation . . . " << std::flush;
     expandh->accumulate(hparticles);
     MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0)std::cout << "done" << std::endl;
+
+    if (myid==0) {
+      std::cout << "done" << std::endl;
+      if (DUMPCOEF) {
+	std::cout << "Dumping coefficients halo . . . " << std::flush;
+	ostringstream sout;
+	sout << "halo_coefs.";
+	if (suffix.size()>0) sout << suffix;
+	else                 sout << "dump";
+	ofstream out(sout.str().c_str());
+	if (out) expandh->dump_coefs(out, false);
+	std::cout << "done" << std::endl;
+      }
+    }
+
   }
   
   if (n_particlesD) {
@@ -1152,9 +1168,13 @@ main(int ac, char **av)
 
   //====================Make the phase space velocities========================
 
-  if (!multi) {
+  if (!multi and !evolved_halo) {
     if (myid==0) std::cout << "Generating halo velocities . . . " << std::flush;
     diskhalo->set_vel_halo(hparticles);
+    if (myid==0) std::cout << "done" << std::endl;
+  } else {
+    if (myid==0) std::cout << "Generating halo table . . . " << std::flush;
+    diskhalo->table_halo(hparticles);
     if (myid==0) std::cout << "done" << std::endl;
   }
   

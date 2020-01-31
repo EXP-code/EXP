@@ -107,7 +107,7 @@ public:
   void get_dens_coefs(int l, Vector& coef, double *p, int id=0);
   void get_pot_coefs (int l, Vector& coef, double *p, double *dp, int id=0);
 
-  void dump_coefs(ofstream& out);
+  void dump_coefs(ofstream& out, bool binary);
   void dump_basis(string& dumpname);
 
   void set_compute()   { compute = 1;}
