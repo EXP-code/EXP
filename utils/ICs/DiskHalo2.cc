@@ -1,3 +1,6 @@
+#define LOGCHEBY		// Test smoothing using log scaling
+				// from Mike P
+
 				// System
 #include <values.h>
 				// C++/STL
@@ -42,10 +45,11 @@ double DiskHalo::DR_DF       = 5.0;
 int    DiskHalo::LOGSCALE    = 0;
 bool   DiskHalo::LOGR        = true;
 
-int    DiskHalo::NCHEB       = 16;
-bool   DiskHalo::CHEBY       = false;
+// these appear to be good settings, but may not be the best. use with caution!
+int    DiskHalo::NCHEB       = 8;
+bool   DiskHalo::CHEBY       = true; //false;
 
-unsigned DiskHalo::VFLAG     = 0;
+unsigned DiskHalo::VFLAG     = 7;
 unsigned DiskHalo::NBUF      = 65568;
 
 string DiskHalo::RUNTAG      = "debug";
@@ -218,6 +222,10 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
     char debugname[] = "df.debug";
     halo2->print_df(debugname);
   }
+
+  if (myid==0) cout << "DF MADE" << endl;
+
+  MPI_Barrier(MPI_COMM_WORLD);
 
   //
   // Generate "fake" profile
@@ -1146,6 +1154,10 @@ table_disk(vector<Particle>& part)
   Vector workE2(0, NDR-1);
   Vector workQ (0, NDR-1);
   Vector workQ2(0, NDR-1);
+#ifdef LOGCHEBY
+  Vector workQ2log   (0, NDR-1);
+  Vector workQ2smooth(0, NDR-1);
+#endif
 
   Matrix workV (0, 4, 0, NDR-1);
 
@@ -1311,7 +1323,22 @@ table_disk(vector<Particle>& part)
 
     }
 
-    if (CHEBY) cheb = new Cheby1d(workR, workQ2, NCHEB);
+    if (CHEBY) {
+#ifdef LOGCHEBY
+      // try a log formula due to crazy numbers
+      for (int j=0; j<NDR; j++) {
+	workQ2log[j] = log(workQ2[j]);
+      }
+
+      cheb = new Cheby1d(workR, workQ2log, NCHEB);
+
+      for (int j=0; j<NDR; j++) {
+	workQ2smooth[j] = exp(cheb->eval(workR[j]));
+      }
+#else
+      cheb = new Cheby1d(workR, workQ2, NCHEB);
+#endif
+    }
 
 				// Compute epicylic freqs
     for (int j=0; j<NDR; j++) {
@@ -1323,15 +1350,22 @@ table_disk(vector<Particle>& part)
       }
 
       if (CHEBY)
-	epitable[i][j] = cheb->deriv(workR[j]);
+#ifdef LOGCHEBY
+	epitable[i][j] = drv2(workR[j], workV[0], workQ2smooth);
+#else
+        epitable[i][j] = cheb->deriv(workR[j]);
+#endif
       else
 	epitable[i][j] = drv2(workR[j], workV[0], workQ2);
+
 
       if (i==0) workD[1][j] = epitable[0][j];
       epitable[i][j] *= 2.0*workQ[j]/exp(2.0*workR[j]);
       if (i==0) workD[2][j] = epitable[0][j];
       if (i==0) workD[3][j] = epitable[0][j];
     }
+
+    
     
 				// Cylindrical Jeans' equations
     for (int j=0; j<NDR; j++) {
@@ -1391,7 +1425,11 @@ table_disk(vector<Particle>& part)
       rhs = -r*r*deriv/rho;
 
       if (CHEBY)
-	deriv2 = cheb->deriv(workQ2[j]);
+#ifdef LOGCHEBY
+	deriv2 = drv2(workR[j], workV[0], workQ2smooth);
+#else
+        deriv2 = cheb->deriv(workQ2[j]);
+#endif
       else
         deriv2 = drv2(workR[j], workR, workQ2);
 	
