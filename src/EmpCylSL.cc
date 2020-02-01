@@ -826,11 +826,11 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 	 (fabs(hscl-HSCALE)>1.0e-12 )
 	 ) 
       {
-	cout << std::setw(25) << "Wanted"
-	     << std::setw(25) << "Cached"
+	cout << std::setw(25) << std::right << "Wanted"
+	     << std::setw(25) << std::right << "Cached"
 	     << std::endl
-	     << std::setw(25) << "------"
-	     << std::setw(25) << "------"
+	     << std::setw(25) << std::right << "------"
+	     << std::setw(25) << std::right << "------"
 	     << std::endl;
 
 	cout << compare_out("mmax",   MMAX,   mmax);
