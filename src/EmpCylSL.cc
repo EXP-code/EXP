@@ -76,6 +76,7 @@ EmpCylSL::EmpCylSL(void)
   sampT      = 0;
   tk_type    = None;
   EVEN_M     = false;
+  MLIM       = std::numeric_limits<int>::max();
   
   if (DENS)
     MPItable = 4;
@@ -213,10 +214,12 @@ EmpCylSL::~EmpCylSL(void)
 EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord, 
 		   double ascale, double hscale)
 {
-  NMAX = nmax;
-  MMAX = mmax;
-  LMAX = lmax;
+  NMAX   = nmax;
+  MMAX   = mmax;
+  LMAX   = lmax;
   NORDER = nord;
+  MLIM   = std::numeric_limits<int>::max();
+
 
   ASCALE = ascale;
   HSCALE = hscale;
@@ -264,10 +267,11 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
 void EmpCylSL::reset(int numr, int lmax, int mmax, int nord, 
 		     double ascale, double hscale)
 {
-  NMAX = numr;
-  MMAX = mmax;
-  LMAX = lmax;
+  NMAX   = numr;
+  MMAX   = mmax;
+  LMAX   = lmax;
   NORDER = nord;
+  MLIM   = std::numeric_limits<int>::max();
 
   ASCALE = ascale;
   HSCALE = hscale;
@@ -682,19 +686,13 @@ int EmpCylSL::read_cache(void)
 template <typename U>
 std::string compare_out(std::string str, U one, U two)
 {
-  std::ostringstream sout, sout1, sout2;
+  std::ostringstream sout;
 
-  // First token
   std::transform(str.begin(), str.end(),str.begin(), ::toupper);
-  sout1 << str << "=" << one;
 
-  // Second token
-  std::transform(str.begin(), str.end(),str.begin(), ::tolower);
-  sout2 << str << "=" << two;
-
-  // The entire line
-  sout << std::setw(25) << sout1.str()
-       << std::setw(25) << sout2.str()
+  sout << std::setw(15) << std::right << str
+       << std::setw(15) << std::right << one
+       << std::setw(15) << std::right << two
        << std::endl;
 
   return sout.str();
@@ -826,11 +824,13 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 	 (fabs(hscl-HSCALE)>1.0e-12 )
 	 ) 
       {
-	cout << std::setw(25) << std::right << "Wanted"
-	     << std::setw(25) << std::right << "Cached"
+	cout << std::setw(15) << std::right << "Key"
+	     << std::setw(15) << std::right << "Wanted"
+	     << std::setw(15) << std::right << "Cached"
 	     << std::endl
-	     << std::setw(25) << std::right << "------"
-	     << std::setw(25) << std::right << "------"
+	     << std::setw(15) << std::right << "------"
+	     << std::setw(15) << std::right << "------"
+	     << std::setw(15) << std::right << "------"
 	     << std::endl;
 
 	cout << compare_out("mmax",   MMAX,   mmax);
@@ -3216,7 +3216,7 @@ void EmpCylSL::accumulated_eval(double r, double z, double phi,
   
   double ccos, ssin=0.0, fac;
   
-  for (int mm=0; mm<=MMAX; mm++) {
+  for (int mm=0; mm<=std::min<int>(MLIM, MMAX); mm++) {
     
     // Suppress odd M terms?
     if (EVEN_M && (mm/2)*2 != mm) continue;
@@ -3365,14 +3365,13 @@ double EmpCylSL::accumulated_dens_eval(double r, double z, double phi,
   double c11 = delx1*dely1;
 
   double ccos, ssin=0.0, fac;
-  int n, mm;
 
-  for (mm=0; mm<=MMAX; mm++) {
+  for (int mm=0; mm<=std::min<int>(MLIM, MMAX); mm++) {
 
     ccos = cos(phi*mm);
     ssin = sin(phi*mm);
 
-    for (n=0; n<rank3; n++) {
+    for (int n=0; n<rank3; n++) {
 
       fac = accum_cos[mm][n]*ccos;
 
@@ -3452,7 +3451,7 @@ void EmpCylSL::get_pot(Matrix& Vc, Matrix& Vs, double r, double z)
 
   double fac = 1.0;
 
-  for (int mm=0; mm<=MMAX; mm++) {
+  for (int mm=0; mm<=std::min<int>(MLIM, MMAX); mm++) {
     
     // Suppress odd M terms?
     if (EVEN_M && (mm/2)*2 != mm) continue;

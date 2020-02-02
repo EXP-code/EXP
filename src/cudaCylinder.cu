@@ -433,7 +433,8 @@ __global__ void coefKernelCyl
 __global__ void
 forceKernelCyl(dArray<cudaParticle> in, dArray<cuFP_t> coef,
 	       dArray<cudaTextureObject_t> tex,
-	       int stride, unsigned int mmax, unsigned int nmax, PII lohi,
+	       int stride, unsigned int mmax, unsigned int mlim,
+	       unsigned int nmax, PII lohi,
 	       cuFP_t rmax, cuFP_t cylmass, bool external)
 {
   // Thread ID
@@ -450,6 +451,8 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<cuFP_t> coef,
 
     if (npart < lohi.second) {
       
+      int muse = mmax > mlim ? mlim : mmax;
+
 #ifdef BOUNDS_CHECK
       if (npart>=in._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
@@ -529,7 +532,7 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<cuFP_t> coef,
 	cuFP_t ccos = 1.0;
 	cuFP_t ssin = 0.0;
 
-	for (int mm=0; mm<=mmax; mm++) {
+	for (int mm=0; mm<=muse; mm++) {
 
 	  for (int n=0; n<nmax; n++) {
       
@@ -1666,7 +1669,7 @@ void Cylinder::determine_acceleration_cuda()
       //
       forceKernelCyl<<<gridSize, BLOCK_SIZE, sMemSize, cr->stream>>>
 	(toKernel(cr->cuda_particles), toKernel(dev_coefs), toKernel(t_d),
-	 stride, mmax, ncylorder, lohi, rmax, cylmass, use_external);
+	 stride, mmax, mlim, ncylorder, lohi, rmax, cylmass, use_external);
       
       // Copy particles back to host
       //
