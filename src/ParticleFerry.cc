@@ -371,11 +371,13 @@ PartPtr ParticleFerry::RecvParticle()
   part = boost::make_shared<Particle>(nimax, ndmax);
   particleUnpack(part, &buf[bufpos]);
   if (part->indx==0 || part->mass<=0.0 || std::isnan(part->mass)) {
-    cout << "BAD MASS!" << endl;
+    std::cout << "BAD MASS! [indx=" << part->indx
+	 << ", mass=" << part->mass << "]" << std::endl;
   }
 #ifdef DEBUG
   if (part->indx==0) {
-    cout << "ParticleFerry: process " << myid << " error in sequence" << endl;
+    std::cout << "ParticleFerry: process " << myid << " error in sequence"
+	      << std::endl;
   }
 #endif
   return part;
