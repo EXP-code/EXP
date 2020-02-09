@@ -84,7 +84,7 @@ double tnow = 0.0;
 string OUTFILE, INFILE;
 double RMIN, RMAX, TIME;
 int OUTR, NICE, LMAX, NMAX, MMAX, PARTFLAG, L1, L2;
-bool ALL, VOLUME, SURFACE, PROBE;
+bool VOLUME, SURFACE, PROBE;
 
 std::vector<double> c0 = {0.0, 0.0, 0.0};
 
@@ -481,64 +481,17 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
     
     if (myid==0) {
       
-      string name = OUTFILE + ".surf";
+      VtkGrid vtkXY(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
 
-      ofstream out(name.c_str());
+      std::vector<double> dataXY(OUTR*OUTR);
 
-      if (out) {
-
-	// ==================================================
-	// Horizontal line
-	// ==================================================
-	for (int n=0; n<nout2+2; n++)
-	  if (n==0) out << "#" << setw(17) << setfill('-') << '-';
-	  else out << "|" << setw(17) << setfill('-') << '-';
-	out << endl << setfill(' ');
-	// ==================================================
-	// Field names
-	// ==================================================
-	out << "# " << setw(16) << left << "x"
-	    << "| " << setw(16) << left << "y";
-	for (int n=0; n<nout2; n++)
-	  out << "| " << setw(16) << left << suffix[n];
-	out << endl;
-	// ==================================================
-	// Field index
-	// ==================================================
-	for (int n=0; n<nout2+2; n++)
-	  if (n==0) out << "# " << setw(16) << n+1;
-	  else out << "| " << setw(16) << n+1;
-	out << endl;
-	// ==================================================
-	// Horizontal line
-	// ==================================================
-	for (int n=0; n<nout2+2; n++)
-	  if (n==0) out << "#" << setw(17) << setfill('-') << '-';
-	  else out << "|" << setw(17) << setfill('-') << '-';
-	out << endl << setfill(' ');
-	
-	// ==================================================
-	// Surface data in GNUPLOT format
-	// ==================================================
-	for (int l=0; l<OUTR; l++) {
-	  y = -RMAX + dR*l;
-	
-	  for (int j=0; j<OUTR; j++) {
-	    x = -RMAX + dR*j;
-	    
-	    out << setw(18) << x << setw(18) << y;
-	    for (int n=0; n<nout2; n++)
-	      out << setw(18) << otdat[(n*OUTR+l)*OUTR+j];
-	    out << endl;
+      for (int n=0; n<nout2; n++) {
+	for (int j=0; j<OUTR; j++) {
+	  for (int l=0; l<OUTR; l++) {
+	    dataXY[j*OUTR + l] = otdat[(n*OUTR+j)*OUTR+l];
 	  }
-
-	  out << endl;
-
 	}
-
-      } else {
-	cout << "Error opening surface file <" << name << "> for output"
-	     << endl;
+	vtkXY.Add(dataXY, suffix[n]);
       }
     }
   }
@@ -633,13 +586,11 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
     MPI_Reduce(&indat[0], &otdat[0], 3*nout1*OUTR, MPI_DOUBLE, MPI_SUM, 
 	       0, MPI_COMM_WORLD);
     
-    
     if (myid==0) {
       
       vector<string> names(nout1);
       for (int i=0; i<nout1; i++) {
-	names[i] = OUTFILE + "." + suffix[i] + ".cut";
-	if (ALL) names[i] += sstr.str();
+	names[i] = OUTFILE + "." + suffix[i] + ".cut" + sstr.str();
       }
 
       foarray out(names, true);
@@ -676,7 +627,6 @@ main(int argc, char **argv)
   int NICE, LMAX, NMAX, PARTFLAG;
   int beg, end, stride, init;
   std::string MODFILE, INDEX, INFILE, dir("./"), cname;
-  bool ALL;
 
   // ==================================================
   // Parse command line or input parameter file
@@ -684,7 +634,7 @@ main(int argc, char **argv)
   
   std::ostringstream sout;
   sout << std::string(60, '-') << std::endl
-       << "Compute disk potential, force and density profiles from" << std::endl
+       << "Compute halo potential, force and density profiles from" << std::endl
        << "PSP phase-space output files" << std::endl
        << std::string(60, '-') << std::endl << std::endl
        << "Allowed options";
@@ -716,19 +666,17 @@ main(int argc, char **argv)
      "maximum l harmonic")
     ("OUTR",                po::value<int>(&OUTR)->default_value(40),
      "Number of radial points for output")
-    ("PROBE",               po::value<bool>(&PROBE)->default_value(true),
+    ("PROBE",               po::value<bool>(&PROBE)->default_value(false),
      "Make traces along axes")
     ("SURFACE",             po::value<bool>(&SURFACE)->default_value(true),
      "Make equitorial and vertical slices")
     ("VOLUME",              po::value<bool>(&VOLUME)->default_value(false),
      "Make volume for VTK")
-    ("ALL",                 po::value<bool>(&ALL)->default_value(false),
-     "Compute output for every time slice")
     ("PARTFLAG",            po::value<int>(&PARTFLAG)->default_value(4),
      "Wakes using Component(s) [1=stars | 2=gas | 4=halo]")
     ("OUTFILE",             po::value<string>(&OUTFILE)->default_value("haloprof"),
      "Filename prefix")
-    ("INFILE",              po::value<string>(&INFILE)->default_value("OUT"),
+    ("runtag",              po::value<string>(&runtag)->default_value("run1"),
      "Phase space file")
     ("MODFILE",             po::value<string>(&MODFILE)->default_value("SLGridSph.model"),
      "Halo model file")
@@ -832,7 +780,7 @@ main(int argc, char **argv)
       else     psp = std::make_shared<PSPout>(file, true);
 
       tnow = psp->CurrentTime();
-      cout << "Beginning disk partition [time=" << tnow
+      cout << "Beginning partition [time=" << tnow
 	   << ", index=" << indx << "] . . . "  << flush;
     }
 
@@ -844,7 +792,8 @@ main(int argc, char **argv)
 
     //------------------------------------------------------------ 
 
-    if (myid==0) cout << "Accumulating for basis . . . " << flush;
+    if (myid==0) cout << "Accumulating particle positions . . . " << flush;
+
     ortho.reset_coefs();
     for (auto &i : particles) {
       ortho.accumulate(i.pos[0], i.pos[1], i.pos[2], i.mass);
@@ -861,8 +810,12 @@ main(int argc, char **argv)
 
     //------------------------------------------------------------ 
 
-    if (myid==0) cout << "Writing output . . . " << flush;
-    write_output(ortho, indx, psp->CurrentTime(), histo);
+    double time = 0.0;
+    if (myid==0) {
+      cout << "Writing output . . . " << flush;
+      time = psp->CurrentTime();
+    }
+    write_output(ortho, indx, time, histo);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
 
