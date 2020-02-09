@@ -493,6 +493,10 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
 	}
 	vtkXY.Add(dataXY, suffix[n]);
       }
+
+      std::ostringstream sout;
+      sout << runtag + "_" + OUTFILE + "_surface" + sstr.str();
+      vtkXY.Write(sout.str());
     }
   }
 
