@@ -96,10 +96,10 @@ class Histogram
 public:
 
   std::vector<double> dataXY, dataXZ, dataYZ;
-  int N;
   double R, dR, rmax;
+  int N;
   
-  Histogram(int N, double R) : N(N)
+  Histogram(int N, double R) : N(N), R(R)
   {
     dR = 2.0*R/(N+1);
 
@@ -145,11 +145,12 @@ public:
     indZ = std::min<int>(indZ, N-1);
 
     dataXY[indY*N + indX] += m;
-    dataXZ[indX*N + indZ] += m;
-    dataYZ[indY*N + indZ] += m;
+    dataXZ[indZ*N + indX] += m;
+    dataYZ[indZ*N + indY] += m;
   }
 
 };
+
 
 void add_particles(PSPptr psp, int& nbods, vector<Particle>& p, Histogram& h)
 {
@@ -787,7 +788,7 @@ main(int argc, char **argv)
       cout << "Beginning partition [time=" << tnow
 	   << ", index=" << indx << "] . . . "  << flush;
     }
-
+    
     Histogram histo(OUTR, RMAX);
     std::vector<Particle> particles;
 
