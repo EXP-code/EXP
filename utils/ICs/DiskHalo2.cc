@@ -1445,7 +1445,7 @@ table_disk(vector<Particle>& part)
 	  << setw(14) << vrq0                   // #7
 	  << setw(14) << vrq1                   // #8
 	  << setw(14) << v_circ(r, 0.0, 0.0)    // #9
-	  << setw(14) << workD[0][j]		// #10   dV(tot)/dR
+	  << setw(14) << workD[0][j]		// #10  dV(tot)/dR
 	  << setw(14) << workD[1][j]		// #11  d^2V(tot)/dlnR
 	  << setw(14) << workD[2][j]		// #12  d^2V(tot)/dlnR + 3V(tot)
 	  << setw(14) << workD[3][j]		// #13  kappa^2
@@ -2830,17 +2830,17 @@ void DiskHalo::profile(ostream &out, vector<Particle>& dpart,
   
   if (myid==0) {
     out << "#"      << right 
-	<< setw(14) << "Radius"
-	<< setw(15) << "Mass"
-	<< setw(15) << "S(mass)"
-	<< setw(15) << "Density"
-	<< setw(15) << "V_c"
-	<< setw(15) << "kappa"
-	<< setw(15) << "Omega"
-	<< setw(15) << "V_R"
-	<< setw(15) << "V_T"
-	<< setw(15) << "Sig_R"
-	<< setw(15) << "Sig_T"
+	<< setw(14) << "Radius"	 // #1
+	<< setw(15) << "Mass"	 // #2
+	<< setw(15) << "S(mass)" // #3
+	<< setw(15) << "Density" // #4
+	<< setw(15) << "V_c"	 // #5
+	<< setw(15) << "kappa"	 // #6
+	<< setw(15) << "Omega"	 // #7
+	<< setw(15) << "V_R"	 // #8
+	<< setw(15) << "V_T"	 // #9
+	<< setw(15) << "Sig_R"	 // #10
+	<< setw(15) << "Sig_T"	 // #11
 	<< endl;
 
     double smass = 0.0, rin, rout, ravg;
