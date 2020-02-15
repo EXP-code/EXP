@@ -411,7 +411,7 @@ main(int ac, char **av)
     ("RCYLMIN",         po::value<double>(&RCYLMIN)->default_value(0.001),              "Minimum disk radius")
     ("RCYLMAX",         po::value<double>(&RCYLMAX)->default_value(20.0),               "Maximum disk radius")
     ("SCMAP",           po::value<int>(&SCMAP)->default_value(1),
-        "Turn on Spherical SL coordinate mapping (1=on, 0=off")
+        "Turn on Spherical SL coordinate mapping (1, 2, 0=off")
     ("SCSPH",           po::value<double>(&SCSPH)->default_value(1.0),                  "Scale for Spherical SL coordinate mapping")
     ("RSPHSL",          po::value<double>(&RSPHSL)->default_value(47.5),                "Maximum halo expansion radius")
     ("ASCALE",          po::value<double>(&ASCALE)->default_value(1.0),                 "Radial scale length for disk basis construction")
