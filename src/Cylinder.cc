@@ -77,6 +77,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   nmax            = 20;
   lmax            = 36;
   mmax            = 4;
+  mlim            = -1;
   hcyl            = 1.0;
   ncylorder       = 10;
   ncylrecomp      = -1;
@@ -136,6 +137,10 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   //
   ortho = new EmpCylSL(nmax, lmax, mmax, ncylorder, acyl, hcyl);
   
+  // Set azimuthal harmonic order restriction?
+  //
+  if (mlim>=0) ortho->set_mlim(mlim);
+
   try {
     if (conf["tk_type"]) ortho->setTK(conf["tk_type"].as<std::string>());
   }
@@ -237,6 +242,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	   << " nmax="        << nmax
 	   << " lmax="        << lmax
 	   << " mmax="        << mmax
+	   << " mlim="        << mlim
 	   << " ncylorder="   << ncylorder
 	   << " rcylmin="     << rcylmin
 	   << " rcylmax="     << rcylmax
@@ -263,6 +269,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	 << " nmax="        << nmax
 	 << " lmax="        << lmax
 	 << " mmax="        << mmax
+	 << " mlim="        << mlim
 	 << " ncylorder="   << ncylorder
 	 << " rcylmin="     << rcylmin
 	 << " rcylmax="     << rcylmax
@@ -318,6 +325,7 @@ void Cylinder::initialize()
     if (conf["nmax"      ])       nmax  = conf["nmax"      ].as<int>();
     if (conf["lmax"      ])       lmax  = conf["lmax"      ].as<int>();
     if (conf["mmax"      ])       mmax  = conf["mmax"      ].as<int>();
+    if (conf["mlim"      ])       mlim  = conf["mlim"      ].as<int>();
     if (conf["ncylnx"    ])     ncylnx  = conf["ncylnx"    ].as<int>();
     if (conf["ncylny"    ])     ncylny  = conf["ncylny"    ].as<int>();
     if (conf["ncylr"     ])      ncylr  = conf["ncylr"     ].as<int>();

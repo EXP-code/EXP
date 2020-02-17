@@ -1,3 +1,6 @@
+#define LOGCHEBY		// Test smoothing using log scaling
+				// from Mike P
+
 				// System
 #include <values.h>
 				// C++/STL
@@ -42,10 +45,11 @@ double DiskHalo::DR_DF       = 5.0;
 int    DiskHalo::LOGSCALE    = 0;
 bool   DiskHalo::LOGR        = true;
 
-int    DiskHalo::NCHEB       = 16;
-bool   DiskHalo::CHEBY       = false;
+// these appear to be good settings, but may not be the best. use with caution!
+int    DiskHalo::NCHEB       = 8;
+bool   DiskHalo::CHEBY       = true; //false;
 
-unsigned DiskHalo::VFLAG     = 0;
+unsigned DiskHalo::VFLAG     = 7;
 unsigned DiskHalo::NBUF      = 65568;
 
 string DiskHalo::RUNTAG      = "debug";
@@ -175,7 +179,7 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
 
   for (int k=0; k<3; k++) center_pos[k] = center_vel[k] = 0.0;
 
-  DF          = false;
+  DF          = true;
   MULTI       = true;
 
   dmass       = DMass;
@@ -218,6 +222,10 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
     char debugname[] = "df.debug";
     halo2->print_df(debugname);
   }
+
+  if (myid==0) cout << "DF MADE" << endl;
+
+  MPI_Barrier(MPI_COMM_WORLD);
 
   //
   // Generate "fake" profile
@@ -1146,6 +1154,10 @@ table_disk(vector<Particle>& part)
   Vector workE2(0, NDR-1);
   Vector workQ (0, NDR-1);
   Vector workQ2(0, NDR-1);
+#ifdef LOGCHEBY
+  Vector workQ2log   (0, NDR-1);
+  Vector workQ2smooth(0, NDR-1);
+#endif
 
   Matrix workV (0, 4, 0, NDR-1);
 
@@ -1311,7 +1323,22 @@ table_disk(vector<Particle>& part)
 
     }
 
-    if (CHEBY) cheb = new Cheby1d(workR, workQ2, NCHEB);
+    if (CHEBY) {
+#ifdef LOGCHEBY
+      // try a log formula due to crazy numbers
+      for (int j=0; j<NDR; j++) {
+	workQ2log[j] = log(workQ2[j]);
+      }
+
+      cheb = new Cheby1d(workR, workQ2log, NCHEB);
+
+      for (int j=0; j<NDR; j++) {
+	workQ2smooth[j] = exp(cheb->eval(workR[j]));
+      }
+#else
+      cheb = new Cheby1d(workR, workQ2, NCHEB);
+#endif
+    }
 
 				// Compute epicylic freqs
     for (int j=0; j<NDR; j++) {
@@ -1323,15 +1350,22 @@ table_disk(vector<Particle>& part)
       }
 
       if (CHEBY)
-	epitable[i][j] = cheb->deriv(workR[j]);
+#ifdef LOGCHEBY
+	epitable[i][j] = drv2(workR[j], workV[0], workQ2smooth);
+#else
+        epitable[i][j] = cheb->deriv(workR[j]);
+#endif
       else
 	epitable[i][j] = drv2(workR[j], workV[0], workQ2);
+
 
       if (i==0) workD[1][j] = epitable[0][j];
       epitable[i][j] *= 2.0*workQ[j]/exp(2.0*workR[j]);
       if (i==0) workD[2][j] = epitable[0][j];
       if (i==0) workD[3][j] = epitable[0][j];
     }
+
+    
     
 				// Cylindrical Jeans' equations
     for (int j=0; j<NDR; j++) {
@@ -1391,7 +1425,11 @@ table_disk(vector<Particle>& part)
       rhs = -r*r*deriv/rho;
 
       if (CHEBY)
-	deriv2 = cheb->deriv(workQ2[j]);
+#ifdef LOGCHEBY
+	deriv2 = drv2(workR[j], workV[0], workQ2smooth);
+#else
+        deriv2 = cheb->deriv(workQ2[j]);
+#endif
       else
         deriv2 = drv2(workR[j], workR, workQ2);
 	
@@ -1407,7 +1445,7 @@ table_disk(vector<Particle>& part)
 	  << setw(14) << vrq0                   // #7
 	  << setw(14) << vrq1                   // #8
 	  << setw(14) << v_circ(r, 0.0, 0.0)    // #9
-	  << setw(14) << workD[0][j]		// #10   dV(tot)/dR
+	  << setw(14) << workD[0][j]		// #10  dV(tot)/dR
 	  << setw(14) << workD[1][j]		// #11  d^2V(tot)/dlnR
 	  << setw(14) << workD[2][j]		// #12  d^2V(tot)/dlnR + 3V(tot)
 	  << setw(14) << workD[3][j]		// #13  kappa^2
@@ -2792,17 +2830,17 @@ void DiskHalo::profile(ostream &out, vector<Particle>& dpart,
   
   if (myid==0) {
     out << "#"      << right 
-	<< setw(14) << "Radius"
-	<< setw(15) << "Mass"
-	<< setw(15) << "S(mass)"
-	<< setw(15) << "Density"
-	<< setw(15) << "V_c"
-	<< setw(15) << "kappa"
-	<< setw(15) << "Omega"
-	<< setw(15) << "V_R"
-	<< setw(15) << "V_T"
-	<< setw(15) << "Sig_R"
-	<< setw(15) << "Sig_T"
+	<< setw(14) << "Radius"	 // #1
+	<< setw(15) << "Mass"	 // #2
+	<< setw(15) << "S(mass)" // #3
+	<< setw(15) << "Density" // #4
+	<< setw(15) << "V_c"	 // #5
+	<< setw(15) << "kappa"	 // #6
+	<< setw(15) << "Omega"	 // #7
+	<< setw(15) << "V_R"	 // #8
+	<< setw(15) << "V_T"	 // #9
+	<< setw(15) << "Sig_R"	 // #10
+	<< setw(15) << "Sig_T"	 // #11
 	<< endl;
 
     double smass = 0.0, rin, rout, ravg;

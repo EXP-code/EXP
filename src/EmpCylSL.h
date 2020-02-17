@@ -49,6 +49,7 @@ private:
   int NMAX;
   int LMAX;
   int MMAX;
+  int MLIM;
   int NORDER;
   int NKEEP;
 
@@ -346,10 +347,11 @@ public:
   //! Parameter access: get mmax
   int get_mmax(void) {return MMAX;}
 
+  //! Set limit to mmax for testing
+  void set_mlim(int mlim) {MLIM = mlim;}
+
   //! Parameter access: get norder
   int get_order(void) {return NORDER;}
-
-				// Z coordinate transformation
 
   //! Compute non-dimensional vertical coordinate from Z
   double z_to_y(double z) { return z/(fabs(z)+DBL_MIN)*asinh(fabs(z/HSCALE)); }

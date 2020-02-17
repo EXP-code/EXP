@@ -42,7 +42,7 @@ private:
 
 				// Parameters
   double rcylmin, rcylmax, zmax, acyl;
-  int nmax, lmax, mmax;
+  int nmax, lmax, mmax, mlim;
   int ncylnx, ncylny, ncylr;
   double hcyl;
   int ncylorder, ncylrecomp, npca, npca0, nvtk;
@@ -189,6 +189,7 @@ public:
   //! \param nmax is the radial order for the underlying spherical basis
   //! \param lmax is the harmonic order for the underlying spherical basis
   //! \param mmax is the azimuthal harmonic order for final cylindrical expansion
+  //! \param mlim restricts the azimuthal harmonic order for testing
   //! \param ncylnx is the radial grid in the basis function table
   //! \param ncylny is the vertical grid in the basis function table
   //! \param ncylr is the size of the spherical radial grid used to construct the cylindrical basis
