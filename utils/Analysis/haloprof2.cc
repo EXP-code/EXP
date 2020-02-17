@@ -81,15 +81,16 @@ double tnow = 0.0;
   
 // Globals
 //
-string OUTFILE, INFILE;
-double RMIN, RMAX, TIME;
-int OUTR, NICE, LMAX, NMAX, MMAX, PARTFLAG, L1, L2;
+string OUTFILE;
+double RMIN, RMAX;
+int OUTR, LMAX, NMAX, MMAX, L1, L2;
 bool VOLUME, SURFACE, PROBE;
-
-std::vector<double> c0 = {0.0, 0.0, 0.0};
 
 // Temporary center offset
 // std::vector<double> c0 = {0.0, 0.0, -0.00217};
+
+std::vector<double> c0 = {0.0, 0.0, 0.0};
+
 
 class Histogram
 {
@@ -634,9 +635,9 @@ main(int argc, char **argv)
   sleep(20);
 #endif  
   
-  int NICE, LMAX, NMAX, PARTFLAG;
+  int NICE, LMAX, NMAX;
   int beg, end, stride, init;
-  std::string MODFILE, INDEX, INFILE, dir("./"), cname;
+  std::string MODFILE, INDEX, dir("./"), cname;
 
   // ==================================================
   // Parse command line or input parameter file
@@ -662,8 +663,6 @@ main(int argc, char **argv)
      "minimum radius for output")
     ("RMAX",                po::value<double>(&RMAX)->default_value(0.1),
      "maximum radius for output")
-    ("TIME",                po::value<double>(&TIME)->default_value(0.0),
-     "Desired time slice")
     ("LMAX",                po::value<int>(&LMAX)->default_value(4),
      "Maximum harmonic order for spherical expansion")
     ("NMAX",                po::value<int>(&NMAX)->default_value(12),
@@ -682,8 +681,6 @@ main(int argc, char **argv)
      "Make equitorial and vertical slices")
     ("VOLUME",              po::value<bool>(&VOLUME)->default_value(false),
      "Make volume for VTK")
-    ("PARTFLAG",            po::value<int>(&PARTFLAG)->default_value(4),
-     "Wakes using Component(s) [1=stars | 2=gas | 4=halo]")
     ("OUTFILE",             po::value<string>(&OUTFILE)->default_value("haloprof"),
      "Filename prefix")
     ("runtag",              po::value<string>(&runtag)->default_value("run1"),
