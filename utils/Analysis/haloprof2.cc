@@ -96,18 +96,18 @@ class Histogram
 public:
 
   std::vector<double> dataXY, dataXZ, dataYZ;
-  double R, dR, rmax;
+  double R, dR;
   int N;
   
   Histogram(int N, double R) : N(N), R(R)
   {
-    dR = 2.0*R/(N+1);
+    dR = 2.0*R/N;
 
-    rmax = R + 0.5*dR;
+    dataXY.resize(N*N);
+    dataXZ.resize(N*N);
+    dataYZ.resize(N*N);
 
-    dataXY.resize(N*N, 0.0);
-    dataXZ.resize(N*N, 0.0);
-    dataYZ.resize(N*N, 0.0);
+    Reset();
   }
 
   void Reset() {
@@ -123,22 +123,26 @@ public:
       MPI_Reduce(MPI_IN_PLACE, &dataYZ[0], dataYZ.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     }
     else {
-      MPI_Reduce(&dataXY[0],   &dataXY[0], dataXY.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-      MPI_Reduce(&dataXZ[0],   &dataXZ[0], dataXZ.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-      MPI_Reduce(&dataYZ[0],   &dataYZ[0], dataXZ.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(&dataXY[0],         NULL, dataXY.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(&dataXZ[0],         NULL, dataXZ.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(&dataYZ[0],         NULL, dataYZ.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     }
 
   }
 
   void Add(double x, double y, double z, double m)
   {
-    if (x < -rmax or x >= rmax or
-	y < -rmax or y >= rmax or
-	z < -rmax or z >= rmax) return;
+    if (x < -R or x >= R or
+	y < -R or y >= R or
+	z < -R or z >= R) return;
 
-    int indX = static_cast<int>(floor((x + rmax)/dR));
-    int indY = static_cast<int>(floor((y + rmax)/dR));
-    int indZ = static_cast<int>(floor((z + rmax)/dR));
+    int indX = static_cast<int>(floor((x + R)/dR));
+    int indY = static_cast<int>(floor((y + R)/dR));
+    int indZ = static_cast<int>(floor((z + R)/dR));
+
+    indX = std::max<int>(indX, 0);
+    indY = std::max<int>(indY, 0);
+    indZ = std::max<int>(indZ, 0);
 
     indX = std::min<int>(indX, N-1);
     indY = std::min<int>(indY, N-1);
@@ -320,22 +324,9 @@ void partition(PSPptr psp, std::string& name, vector<Particle>& p, Histogram& h)
   add_particles(psp, nbods, p, h);
 }
 
-
-typedef struct {
-  double  x;
-  double  y;
-  double  z;
-  double  value;
-  int valid;
-} Node;
-
-
 void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
 {
   unsigned ncnt = 0;
-  Node node;
-  
-  node.valid = 1;
 
   // ==================================================
   // Setup for output files
@@ -362,8 +353,7 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
     double x, y, z, r, phi, costh;
     double p0, p1, d0, d1, pl, fr, ft, fp;
     
-    std::vector<double> indat(nout1*OUTR*OUTR*OUTR, 0.0);
-    std::vector<double> otdat(nout1*OUTR*OUTR*OUTR);
+    std::vector<double> data(nout1*OUTR*OUTR*OUTR, 0.0);
     
     for (int k=0; k<OUTR; k++) {
       
@@ -383,40 +373,44 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
 	  
 	  ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp, L1, L2);
 	  
-	  indat[((0*OUTR + k)*OUTR + l)*OUTR + j] = p0;
-	  indat[((1*OUTR + k)*OUTR + l)*OUTR + j] = p1;
-	  indat[((2*OUTR + k)*OUTR + l)*OUTR + j] = fr;
-	  indat[((3*OUTR + k)*OUTR + l)*OUTR + j] = ft;
-	  indat[((4*OUTR + k)*OUTR + l)*OUTR + j] = fp;
-	  indat[((5*OUTR + k)*OUTR + l)*OUTR + j] = d0;
-	  indat[((6*OUTR + k)*OUTR + l)*OUTR + j] = d1;
+	  data[((0*OUTR + k)*OUTR + l)*OUTR + j] = p0;
+	  data[((1*OUTR + k)*OUTR + l)*OUTR + j] = p1;
+	  data[((2*OUTR + k)*OUTR + l)*OUTR + j] = fr;
+	  data[((3*OUTR + k)*OUTR + l)*OUTR + j] = ft;
+	  data[((4*OUTR + k)*OUTR + l)*OUTR + j] = fp;
+	  data[((5*OUTR + k)*OUTR + l)*OUTR + j] = d0;
+	  data[((6*OUTR + k)*OUTR + l)*OUTR + j] = d1;
 	  if (d0>0.0)
-	    indat[((7*OUTR + k)*OUTR + l)*OUTR + j] = d1/d0;
+	    data[((7*OUTR + k)*OUTR + l)*OUTR + j] = d1/d0;
 	  else
-	    indat[((7*OUTR + k)*OUTR + l)*OUTR + j] = 0.0;
+	    data[((7*OUTR + k)*OUTR + l)*OUTR + j] = 0.0;
 	}
       }
     }
     
     
-    MPI_Reduce(&indat[0], &otdat[0], nout1*OUTR*OUTR*OUTR, MPI_DOUBLE, MPI_SUM, 
+    if (myid==0)
+      MPI_Reduce(MPI_IN_PLACE, &data[0], nout1*OUTR*OUTR*OUTR, MPI_DOUBLE, MPI_SUM, 
+		 0, MPI_COMM_WORLD);
+    
+    MPI_Reduce(&data[0], NULL, nout1*OUTR*OUTR*OUTR, MPI_DOUBLE, MPI_SUM, 
 	       0, MPI_COMM_WORLD);
     
     if (myid==0) {
 
       VtkGrid vtk(OUTR, OUTR, OUTR, -RMAX, RMAX, -RMAX, RMAX, -RMAX, RMAX);
 
-      std::vector<double> data(OUTR*OUTR*OUTR);
+      std::vector<double> tmp(OUTR*OUTR*OUTR);
 
       for (int n=0; n<nout1; n++) {
 	for (int k=0; k<OUTR; k++) {
 	  for (int l=0; l<OUTR; l++) {
 	    for (int j=0; j<OUTR; j++) {
-	      data[(j*OUTR + l)*OUTR + k] = otdat[((n*OUTR + k)*OUTR + l)*OUTR + j];
+	      tmp[(j*OUTR + l)*OUTR + k] = data[((n*OUTR + k)*OUTR + l)*OUTR + j];
 	    }
 	  }
 	}
-	vtk.Add(data, suffix[n]);
+	vtk.Add(tmp, suffix[n]);
       }
 
       std::ostringstream sout;
@@ -436,21 +430,21 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
     double v;
     float f;
     
-    double dR = 2.0*RMAX/(OUTR-1);
+    double dR = 2.0*RMAX/OUTR;
     double x, y, z=0.0, r, phi, costh;
     double p0, p1, d0, d1, fr, ft, fp;
     
-    vector<double> indat(nout2*OUTR*OUTR, 0.0), otdat(nout2*OUTR*OUTR);
+    vector<double> data(nout1*OUTR*OUTR, 0.0);
     
     for (int l=0; l<OUTR; l++) {
       
-      y = -RMAX + dR*l;
+      y = -RMAX + dR*(0.5+l);
       
       for (int j=0; j<OUTR; j++) {
 	
 	if ((ncnt++)%numprocs == myid) {
 	  
-	  x = -RMAX + dR*j;
+	  x = -RMAX + dR*(0.5+j);
 	  
 	  r = sqrt(x*x + y*y + z*z) + 1.0e-18;
 	  costh = z/r;
@@ -458,46 +452,53 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
 
 	  ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp);
 	  
-	  indat[(0*OUTR+l)*OUTR+j] = p0;
-	  indat[(1*OUTR+l)*OUTR+j] = p1;
-	  indat[(2*OUTR+l)*OUTR+j] = fr;
-	  indat[(3*OUTR+l)*OUTR+j] = ft;
-	  indat[(4*OUTR+l)*OUTR+j] = fp;
-	  indat[(5*OUTR+l)*OUTR+j] = d0;
-	  indat[(6*OUTR+l)*OUTR+j] = d1;
+	  data[(0*OUTR+l)*OUTR+j] = p0;
+	  data[(1*OUTR+l)*OUTR+j] = p1;
+	  data[(2*OUTR+l)*OUTR+j] = fr;
+	  data[(3*OUTR+l)*OUTR+j] = ft;
+	  data[(4*OUTR+l)*OUTR+j] = fp;
+	  data[(5*OUTR+l)*OUTR+j] = d0;
+	  data[(6*OUTR+l)*OUTR+j] = d1;
+
 	  if (d0>0.0)
-	    indat[(7*OUTR+l)*OUTR+j] = d1/d0;
+	    data[(7*OUTR+l)*OUTR+j] = d1/d0;
 	  else
-	    indat[(7*OUTR+l)*OUTR+j] = 0.0;
-	  indat[( 8*OUTR+l)*OUTR+j] = histo.dataXY[OUTR*l+j];
-	  indat[( 9*OUTR+l)*OUTR+j] = histo.dataXZ[OUTR*l+j];
-	  indat[(10*OUTR+l)*OUTR+j] = histo.dataYZ[OUTR*l+j];
+	    data[(7*OUTR+l)*OUTR+j] = 0.0;
 	}
       }
     }
     
-    MPI_Reduce(&indat[0], &otdat[0], nout2*OUTR*OUTR,
-	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    if (myid==0) 
+      MPI_Reduce(MPI_IN_PLACE, &data[0], nout1*OUTR*OUTR,
+		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    else
+      MPI_Reduce(&data[0], NULL, nout1*OUTR*OUTR,
+		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     
     
     if (myid==0) {
       
-      VtkGrid vtkXY(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
-
       std::vector<double> dataXY(OUTR*OUTR);
 
-      for (int n=0; n<nout2; n++) {
+      VtkGrid vtkXY(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
+
+      for (int n=0; n<nout1; n++) {
 	for (int j=0; j<OUTR; j++) {
 	  for (int l=0; l<OUTR; l++) {
-	    dataXY[j*OUTR + l] = otdat[(n*OUTR+j)*OUTR+l];
+	    dataXY[j*OUTR + l] = data[(n*OUTR+j)*OUTR+l];
 	  }
 	}
 	vtkXY.Add(dataXY, suffix[n]);
       }
 
+      vtkXY.Add(histo.dataXY, suffix[ 8]);
+      vtkXY.Add(histo.dataXZ, suffix[ 9]);
+      vtkXY.Add(histo.dataYZ, suffix[10]);
+
       std::ostringstream sout;
       sout << runtag + "_" + OUTFILE + "_surface" + sstr.str();
       vtkXY.Write(sout.str());
+
     }
   }
 
@@ -524,7 +525,7 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
     double p0, p1, d0, d1, fr, ft, fp;
     int indx;
     
-    vector<double> indat(3*nout1*OUTR, 0.0), otdat(3*nout1*OUTR);
+    vector<double> data(3*nout1*OUTR, 0.0);
     
     for (int l=0; l<OUTR; l++) {
       
@@ -539,56 +540,60 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
 	phi   = 0.0;
 	ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp);
 	  
-	indat[indx + 0] = p0;
-	indat[indx + 1] = p1;
-	indat[indx + 2] = fr;
-	indat[indx + 3] = ft;
-	indat[indx + 4] = fp;
-	indat[indx + 5] = d0;
-	indat[indx + 6] = d1;
+	data[indx + 0] = p0;
+	data[indx + 1] = p1;
+	data[indx + 2] = fr;
+	data[indx + 3] = ft;
+	data[indx + 4] = fp;
+	data[indx + 5] = d0;
+	data[indx + 6] = d1;
 	if (d0>0.0)
-	  indat[indx + 7] = d1/d0;
+	  data[indx + 7] = d1/d0;
 	else
-	  indat[indx + 7] = 0.0;
+	  data[indx + 7] = 0.0;
 
 	costh = 0.0;
 	phi   = 0.5*M_PI;
 	ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp);
 	  
 	indx += nout1;
-	indat[indx + 0] = p0;
-	indat[indx + 1] = p1;
-	indat[indx + 2] = fr;
-	indat[indx + 3] = ft;
-	indat[indx + 4] = fp;
-	indat[indx + 5] = d0;
-	indat[indx + 6] = d1;
+	data[indx + 0] = p0;
+	data[indx + 1] = p1;
+	data[indx + 2] = fr;
+	data[indx + 3] = ft;
+	data[indx + 4] = fp;
+	data[indx + 5] = d0;
+	data[indx + 6] = d1;
 	if (d0>0.0)
-	  indat[indx + 7] = d1/d0;
+	  data[indx + 7] = d1/d0;
 	else
-	  indat[indx + 7] = 0.0;
+	  data[indx + 7] = 0.0;
 
 	costh = 1.0;
 	phi   = 0.0;
 	ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp);
 	  
 	indx += nout1;
-	indat[indx + 0] = p0;
-	indat[indx + 1] = p1;
-	indat[indx + 2] = fr;
-	indat[indx + 3] = ft;
-	indat[indx + 4] = fp;
-	indat[indx + 5] = d0;
-	indat[indx + 6] = d1;
+	data[indx + 0] = p0;
+	data[indx + 1] = p1;
+	data[indx + 2] = fr;
+	data[indx + 3] = ft;
+	data[indx + 4] = fp;
+	data[indx + 5] = d0;
+	data[indx + 6] = d1;
 	if (d0>0.0)
-	  indat[indx + 7] = d1/d0;
+	  data[indx + 7] = d1/d0;
 	else
-	  indat[indx + 7] = 0.0;
+	  data[indx + 7] = 0.0;
 
       }
     }
     
-    MPI_Reduce(&indat[0], &otdat[0], 3*nout1*OUTR, MPI_DOUBLE, MPI_SUM, 
+    if (myid==0)
+      MPI_Reduce(MPI_IN_PLACE, &data[0], 3*nout1*OUTR, MPI_DOUBLE, MPI_SUM, 
+	       0, MPI_COMM_WORLD);
+    else
+      MPI_Reduce(&data[0], NULL, 3*nout1*OUTR, MPI_DOUBLE, MPI_SUM, 
 	       0, MPI_COMM_WORLD);
     
     if (myid==0) {
@@ -609,9 +614,9 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
 	
 	for (int n=0; n<nout1; n++)
 	  out[n] << setw(18) << time << setw(18) << r
-		 << setw(18) << otdat[indx + 0*nout1 + n]
-		 << setw(18) << otdat[indx + 1*nout1 + n]
-		 << setw(18) << otdat[indx + 2*nout1 + n]
+		 << setw(18) << data[indx + 0*nout1 + n]
+		 << setw(18) << data[indx + 1*nout1 + n]
+		 << setw(18) << data[indx + 2*nout1 + n]
 		 << endl;
       }
       
