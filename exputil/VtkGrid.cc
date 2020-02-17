@@ -60,14 +60,16 @@ void VtkGrid::Add(const std::vector<double>& data, const std::string& name)
 
   if (nz<2) {
 
-    for (int i=0; i<nx; i++) {
-      float x = xmin + (xmax - xmin)*i/(nx-1);
-      for (int j=0; j<ny; j++) {
-	float y = ymin + (ymax - ymin)*j/(ny-1);
+    for (int j=0; j<ny; j++) {
+      float y = ymin + (ymax - ymin)*j/(ny-1);
+
+      for (int i=0; i<nx; i++) {
+	float x = xmin + (xmax - xmin)*i/(nx-1);
+
 	vtkIdType n = dataSet->FindPoint(x, y, 0);
 
 	if (n>=0) {
-	  float f = static_cast<float>(data[i*ny + j]);
+	  float f = static_cast<float>(data[j*nx + i]);
 	  T->InsertTuple(n, &f);
 	} else {
 	  std::cout << "Could not find point at (" << x << ", " << y << ")"
@@ -78,17 +80,18 @@ void VtkGrid::Add(const std::vector<double>& data, const std::string& name)
 
   } else {
 
-    for (int i=0; i<nx; i++) {
-      float x = xmin + (xmax - xmin)*i/(nx-1);
+    for (int k=0; k<nz; k++) {
+      float z = zmin + (zmax - zmin)*k/(nz-1);
+
       for (int j=0; j<ny; j++) {
 	float y = ymin + (ymax - ymin)*j/(ny-1);
-	for (int k=0; k<nz; k++) {
-	  float z = zmin + (zmax - zmin)*k/(nz-1);
 
+	for (int i=0; i<nx; i++) {
+	  float x = xmin + (xmax - xmin)*i/(nx-1);
 	  vtkIdType n = dataSet->FindPoint(x, y, z);
-
+	  
 	  if (n>=0) {
-	    float f = static_cast<float>(data[(i*ny+j)*nz + k]);
+	    float f = static_cast<float>(data[(k*ny+j)*nx + i]);
 	    T->InsertTuple(n, &f);
 	  } else {
 	    std::cout << "Could not find point at (" << x << ", " << y << ", "<< z << ")"
