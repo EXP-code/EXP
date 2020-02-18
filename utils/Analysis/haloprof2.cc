@@ -334,7 +334,7 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
   // ==================================================
   
   ostringstream sstr;
-  sstr << "." << icnt;
+  sstr << "." << std::setw(4) << std::setfill('0') << std::right << icnt;
 
   const int nout1 = 8;
   const int nout2 = 11;
