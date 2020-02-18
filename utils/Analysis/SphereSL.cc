@@ -58,8 +58,8 @@ void SphereSL::bomb(char *s)
 
 void SphereSL::reset_coefs(void)
 {
-  if (expcoef.getrlow()>0 && expcoef.getrhigh()>0) expcoef.zero();
-  if (compute_covar && cc.getrlow()>0 && cc.getrhigh()>0) cc.zero();
+  if (expcoef.getnrows()>0 && expcoef.getncols()>0) expcoef.zero();
+  if (compute_covar && cc.getnrows()>0 && cc.getncols()>0) cc.zero();
 }
 
 
