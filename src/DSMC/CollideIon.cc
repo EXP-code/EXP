@@ -4119,7 +4119,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       xcross[id]   = crs;	// Cache cross-section value
 
       if (scatter_check and ionize_check) {
-	double val = eVelP2[id] * cr * 1.0e-14 * DI;
+	double val = eVelP2[id] * cr * TreeDSMC::Vunit * 1.0e-14 * DI;
 	ionizeA[id].add(K1, etaP2[id], val);
       }
 
@@ -4150,7 +4150,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       xcross[id]   = crs;	// Cache cross-section value
 
       if (scatter_check and ionize_check) {
-	double val = eVelP1[id] * cr * 1.0e-14 * DI;
+	double val = eVelP1[id] * cr * TreeDSMC::Vunit * 1.0e-14 * DI;
 	ionizeA[id].add(K2, etaP1[id], val);
       }
 
@@ -4200,7 +4200,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	xcross[id] = crs;
 	
 	if (scatter_check and recomb_check) {
-	  double val = sVelP1[id] * cr * 1.0e-14 * RE.back();
+	  double val = sVelP1[id] * cr * TreeDSMC::Vunit * 1.0e-14 * RE.back();
 	  recombA[id].add(K1, etaP1[id], val);
 	}
 
@@ -4226,7 +4226,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	xcross[id] = crs;
 
 	if (scatter_check and recomb_check) {
-	  double val = sVelP2[id] * cr * 1.0e-14 * RE.back();
+	  double val = sVelP2[id] * cr * TreeDSMC::Vunit * 1.0e-14 * RE.back();
 	  recombA[id].add(K2, etaP2[id], val);
 	}
 
@@ -4257,7 +4257,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	xcross[id] = crs;
 
 	if (scatter_check and recomb_check) {
-	  double val = eVelP2[id] * cr * 1.0e-14 * RE.back();
+	  double val = eVelP2[id] * cr * TreeDSMC::Vunit * 1.0e-14 * RE.back();
 	  recombA[id].add(K1, etaP2[id], val);
 	}
 	
@@ -4298,7 +4298,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	xcross[id] = crs;
 
 	if (scatter_check and recomb_check) {
-	  double val = eVelP1[id] * cr * 1.0e-14 * RE.back();
+	  double val = eVelP1[id] * cr * TreeDSMC::Vunit * 1.0e-14 * RE.back();
 	  recombA[id].add(K2, etaP1[id], val);
 	}
 	  
