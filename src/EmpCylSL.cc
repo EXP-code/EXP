@@ -1536,49 +1536,6 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   LegeQuad lt(numt);
   double dphi = 2.0*M_PI/nump;
 
-  if (VFLAG & 8) {
-    if (myid==0) {
-      std::ofstream ltf("gauss_knots.test");
-      double sum = 0.0;
-      for (int qt=1; qt<=numt; qt++) {
-	sum += lt.weight(qt);
-
-	ltf << std::setw( 4) << qt
-	    << std::setw(14) << -1.0 + 2.0*lt.knot(qt)
-	    << std::setw(14) << lt.knot(qt)
-	    << std::setw(14) << lt.weight(qt)
-	    << std::setw(14) << sum
-	    << std::endl;
-      }
-    } // myid==0
-
-				// Zero check
-
-    bool okayC = true;
-    bool okayS = true;
-
-    for (int nth=0; nth<nthrds; nth++) {
-      for (int m=0; m<=MMAX; m++)  {
-	for (int i=1; i<=NMAX*(LMAX-m+1); i++)  {
-	  for (int j=1; j<=NMAX*(LMAX-m+1); j++)  {
-	    if (SC[nth][m][i][j] != 0.0) okayC = false;
-	    if (m>0) if (SS[nth][m][i][j] != 0.0) okayS = false;
-	  }
-	}
-      }
-    }
-    if (not okayC) {
-      std::cout << "[" << myid << "] SC not zero to start" << std::endl;
-    }
-    if (not okayS) {
-      std::cout << "[" << myid << "] SS not zero to start" << std::endl;
-    }
-
-  } // END DEBUG with VFLAG & 8
-
-  std::vector<double> test1;
-  if (VFLAG & 8) test1.resize(numt, 0.0);
-
 
 #ifdef HAVE_OPENMP
   omp_set_dynamic(0);		// Explicitly disable dynamic teams
@@ -1593,13 +1550,6 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
   int cntr = 0;			// Loop counter for load balancing
   
-  std::ofstream testOne, testTwo;
-  if (myid==0) {
-    testOne.open("test.one");
-    testTwo.open("test.two");
-  }
-
-
   // *** Radial quadrature loop
   //
   for (int qr=1; qr<=numr; qr++) { 
@@ -1608,22 +1558,11 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
     double rr = xi_to_r(xi);
     ortho->get_pot(table[0], rr/ASCALE);
 
-    if (qr==5) {
-      for (int ir=1; ir<=NMAX; ir++) {
-	testTwo << std::setw(4)  << ir
-		<< std::setw(16) << table[0][0][ir]
-		<< std::setw(16) << table[0][1][ir]
-		<< std::endl;
-      }
-    }
-	  
     // *** cos(theta) quadrature loop
     //
     for (int qt=1; qt<=numt; qt++) {
 
-      if (myid) continue;
-
-      // if (cntr++ % numprocs != myid) continue;
+      if (cntr++ % numprocs != myid) continue;
 
       double costh = -1.0 + 2.0*lt.knot(qt);
       double R = rr * sqrt(1.0 - costh*costh);
@@ -1650,7 +1589,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	// *** m loop
 	//
 	for (int m=0; m<=MMAX; m++) {
-	  
+
 	  double dens = (*func)(R, z, phi, m) * jfac;
 
 	  // *** ir loop
@@ -1685,34 +1624,15 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	    for (int l1=m; l1<=LMAX; l1++) {
 
 	      int nn1 = ir1 + NMAX*(l1-m);
-	      
+
 	      if (m==0) {
 		
 		for (int ir2=1; ir2<=NMAX; ir2++) {
-	
 		  for (int l2=m; l2<=LMAX; l2++) {
-
 		    int nn2 = ir2 + NMAX*(l2-m);
 		    
 		    SC[id][m][nn1][nn2] += 
 		      facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
-
-		    if (VFLAG & 8) {
-		      // if (l1==0 and l2==1 and ir1==1 and ir2==1)
-		      // if (l1==0 and l2==1 and ir1==3 and ir2==3)
-		      if (l1==0 and l2==1) {
-			test1[qt-1] += facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
-			if (qp==0 and qr==5) {
-			  testOne << std::setw(4) << qt
-				  << std::setw(4) << ir1
-				  << std::setw(4) << ir2
-				  << std::setw(16) << facC[id][ir1][l1-m]
-				  << std::setw(16) << facC[id][ir2][l2-m]
-				  << std::endl;
-			}
-		      }
-		    }
-
 		  }
 		}
 		
@@ -1741,24 +1661,6 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
       } // *** phi quadrature loop
 
-      if (VFLAG & 8) {
-	std::ostringstream sout;
-	sout << "testq." << myid << ".debug";
-	std::ofstream testq(sout.str());
-	if (testq) {
-	  for (int qt=1; qt<=numt; qt++) {
-	    double costh = -1.0 + 2.0*lt.knot(qt);
-	    testq << std::setw( 4) << qt
-		  << std::setw(14) << costh
-		  << std::setw(14) << test1[qt-1]
-		  << std::setw(14) << (*func)(0.01, 0.01*costh, 0.0, 0)
-		  << std::endl;
-	  }
-	} else {
-	  std::cerr << "Could not open <" << sout.str() << ">" << std::endl;
-	}
-      }
-
       // Diagnostic timing output for MPI process loop
       //
       if (VFLAG & 16 && myid==0) {
@@ -1769,10 +1671,6 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
   } // *** r quadrature loop
   
-  if (VFLAG & 8) {
-    parityCheck("partial");
-  }
-
   if (VFLAG & 16) {
     auto t = timer.stop();
     if (myid==0) {
@@ -1912,134 +1810,6 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
   
 }
 
-bool checkParity(int i, int j)
-{
-  if (i % 2 == 0) {
-    if (j % 2 == 0) return true;
-  } else {
-    if (j % 2 != 0) return true;
-  }
-  return false;
-}
-
-void EmpCylSL::parityCheck(const std::string& prefix)
-{
-  std::ostringstream sout;
-  sout << prefix << "_eof_parity." << myid << ".dat";
-  std::ofstream test(sout.str());
-  
-  if (test) {
-    
-    for (int m=0; m<=MMAX; m++) {
-      
-      double scsqr = 0.0, sssqr = 0.0;
-      double sccnt = 0.0, sscnt = 0.0;
-      
-      for (int ir1=1; ir1<=NMAX; ir1++) {
-	for (int l1=m; l1<=LMAX; l1++) {
-	  int nn1 = ir1 + NMAX*(l1-m);
-	  
-	  if (m==0) {
-	    
-	    for (int ir2=1; ir2<=NMAX; ir2++) {
-	      for (int l2=m; l2<=LMAX; l2++) {
-		int nn2 = ir2 + NMAX*(l2-m);
-		
-		if (checkParity(l1+m, l2+m)) {
-		  for (int nth=0; nth<nthrds; nth++) {
-		    scsqr += SC[nth][m][nn1][nn2]*SC[nth][m][nn1][nn2];
-		  }
-		  sccnt += 1.0;
-		}
-	      }
-	    }
-	  } else {
-	    for (int ir2=1; ir2<=NMAX; ir2++) {
-	      for (int l2=m; l2<=LMAX; l2++) {
-		int nn2 = ir2 + NMAX*(l2-m);
-		
-		if (checkParity(l1+m, l2+m)) {
-		  for (int nth=0; nth<nthrds; nth++) {
-		    scsqr += SC[nth][m][nn1][nn2]*SC[nth][m][nn1][nn2];
-		    sssqr += SS[nth][m][nn1][nn2]*SS[nth][m][nn1][nn2];
-		  }
-		  sccnt += 1.0;
-		  sscnt += 1.0;
-		}
-	      }
-	    }
-	  }
-	}
-      }
-      
-      scsqr = sqrt(scsqr/sccnt);
-      sssqr = sqrt(sssqr/sscnt);
-      
-      for (int ir1=1; ir1<=NMAX; ir1++) {
-	for (int l1=m; l1<=LMAX; l1++) {
-	  int nn1 = ir1 + NMAX*(l1-m);
-	  
-	  if (m==0) {
-	    
-	    for (int ir2=1; ir2<=NMAX; ir2++) {
-	      for (int l2=m; l2<=LMAX; l2++) {
-		int nn2 = ir2 + NMAX*(l2-m);
-		
-		if (not checkParity(l1+m, l2+m)) {
-
-		  double sc=0.0;
-		  for (int nth=0; nth<nthrds; nth++) {
-		    sc += SC[nth][m][nn1][nn2];
-		  }
-		  
-		  test << std::setw(4)  << m
-		       << std::setw(4)  << l1
-		       << std::setw(4)  << l2
-		       << std::setw(4)  << ir1
-		       << std::setw(4)  << ir2
-		       << std::setw(18) << sc
-		       << std::setw(18) << sc/scsqr
-		       << std::setw(18) << 0.0
-		       << std::setw(18) << 0.0
-		       << std::endl;
-		}
-	      }
-	    }
-	  } else {
-	    for (int ir2=1; ir2<=NMAX; ir2++) {
-	      for (int l2=m; l2<=LMAX; l2++) {
-		int nn2 = ir2 + NMAX*(l2-m);
-		
-		if (not checkParity(l1+m, l2+m)) {
-		  double sc=0.0, ss=0.0;
-		  for (int nth=0; nth<nthrds; nth++) {
-		    sc += SC[nth][m][nn1][nn2];
-		    ss += SS[nth][m][nn1][nn2];
-		  }
-
-		  test << std::setw(4)  << m
-		       << std::setw(4)  << l1
-		       << std::setw(4)  << l2
-		       << std::setw(4)  << ir1
-		       << std::setw(4)  << ir2
-		       << std::setw(18) << sc
-		       << std::setw(18) << sc/scsqr
-		       << std::setw(18) << ss
-		       << std::setw(18) << ss/sssqr
-		       << std::endl;
-		}
-	      } // l loop 2
-	    } // rloop 2
-	  } // m toggle
-	} // l loop 1
-      } // r loop 1
-    } // m loop
-  } else {
-    std::cerr << "parityCheck: error opening <" << sout.str()
-	      << ">" << std::endl;
-  }
-}
-
 void EmpCylSL::make_eof(void)
 {
   Timer timer;
@@ -2175,8 +1945,6 @@ void EmpCylSL::make_eof(void)
       }
       MPI_Barrier(MPI_COMM_WORLD);
     }
-
-    if (myid==0) parityCheck("final");
 
   }
 
@@ -5139,3 +4907,184 @@ void EmpCylSL::dump_images_basis_eof(const string& runtag,
 }
 
 
+void EmpCylSL::compare_basis(const EmpCylSL *p)
+{
+  std::map<std::string, std::vector<int> > DBdif;
+  std::map<std::string, std::vector<int> > DBmax;
+  
+  std::vector<std::string> labs =
+    {"potC", "potS", "densC", "densS",
+     "rforceC", "rforceS", "zforceC", "zforceS"};
+  
+  for (int m=0; m<=MMAX; m++) {	// Initialize values in DB
+    for (auto s : labs) {
+      DBdif[s].resize(MMAX+1, 0.0);
+      DBmax[s].resize(MMAX+1, 0.0);
+    }
+  }
+  
+				// Compute cosine dif and maxf
+  for (int m=0; m<=MMAX; m++) {
+
+    for (int v=0; v<rank3; v++) {
+
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++) {
+
+	  double one = potC[m][v][ix][iy];
+	  double two = p->potC[m][v][ix][iy];
+	  
+	  double cur = DBdif["potC"][m];
+	  double dif = fabs(one-two);
+	  DBdif["potC"][m] = dif>cur ? dif : cur;
+	  
+	  cur = DBmax["potC"][m];
+	  dif = fabs(one);
+	  DBmax["potC"][m] = dif>cur ? dif : cur;
+	}
+      
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++) {
+
+	  double one = rforceC[m][v][ix][iy];
+	  double two = p->rforceC[m][v][ix][iy];
+	  
+	  double cur = DBdif["rforceC"][m];
+	  double dif = fabs(one-two);
+	  DBdif["rforceC"][m] = dif>cur ? dif : cur;
+	  
+	  cur = DBmax["rforceC"][m];
+	  dif = fabs(one);
+	  DBmax["rforceC"][m] = dif>cur ? dif : cur;
+	}
+      
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++) {
+
+	  double one = zforceC[m][v][ix][iy];
+	  double two = p->zforceC[m][v][ix][iy];
+	  
+	  double cur = DBdif["zforceC"][m];
+	  double dif = fabs(one-two);
+	  DBdif["zforceC"][m] = dif>cur ? dif : cur;
+	  
+	  cur = DBmax["zforceC"][m];
+	  dif = fabs(one);
+	  DBmax["zforceC"][m] = dif>cur ? dif : cur;
+	}
+      
+      if (DENS) {
+	for (int ix=0; ix<=NUMX; ix++)
+	  for (int iy=0; iy<=NUMY; iy++) {
+
+	    double one = densC[m][v][ix][iy];
+	    double two = p->densC[m][v][ix][iy];
+	    
+	    double cur = DBdif["densC"][m];
+	    double dif = fabs(one-two);
+	    DBdif["densC"][m] = dif>cur ? dif : cur;
+	    
+	    cur = DBmax["densC"][m];
+	    dif = fabs(one);
+	    DBmax["densC"][m] = dif>cur ? dif : cur;
+	  }
+      }
+      
+    }
+    
+  }
+  // END: cosine terms
+  
+				// Compute cosine dif and maxf
+  for (int m=1; m<=MMAX; m++) {
+    
+    for (int v=0; v<rank3; v++) {
+      
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++) {
+	  
+	  double one = potS[m][v][ix][iy];
+	  double two = p->potS[m][v][ix][iy];
+	  
+	  double cur = DBdif["potS"][m];
+	  double dif = fabs(one-two);
+	  DBdif["potS"][m] = dif>cur ? dif : cur;
+	  
+	  cur = DBmax["potS"][m];
+	  dif = fabs(one);
+	  DBmax["potS"][m] = dif>cur ? dif : cur;
+	}
+      
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++) {
+	  double one = rforceS[m][v][ix][iy];
+	  double two = p->rforceS[m][v][ix][iy];
+	  
+	  double cur = DBdif["rforceS"][m];
+	  double dif = fabs(one-two);
+	  DBdif["rforceS"][m] = dif>cur ? dif : cur;
+	  
+	  cur = DBmax["rforceS"][m];
+	  dif = fabs(one);
+	  DBmax["rforceS"][m] = dif>cur ? dif : cur;
+	}
+      
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++) {
+	  double one = zforceS[m][v][ix][iy];
+	  double two = p->zforceS[m][v][ix][iy];
+	  
+	  double cur = DBdif["zforceS"][m];
+	  double dif = fabs(one-two);
+	  DBdif["zforceS"][m] = dif>cur ? dif : cur;
+	  
+	  cur = DBmax["zforceS"][m];
+	  dif = fabs(one);
+	  DBmax["zforceS"][m] = dif>cur ? dif : cur;
+	}
+      
+      if (DENS) {
+	for (int ix=0; ix<=NUMX; ix++)
+	  for (int iy=0; iy<=NUMY; iy++) {
+	    double one = densS[m][v][ix][iy];
+	    double two = p->densS[m][v][ix][iy];
+	    
+	    double cur = DBdif["densS"][m];
+	    double dif = fabs(one-two);
+	    DBdif["densS"][m] = dif>cur ? dif : cur;
+	    
+	    cur = DBmax["densS"][m];
+	    dif = fabs(one);
+	    DBmax["densS"][m] = dif>cur ? dif : cur;
+	  }
+      }
+      
+    }
+    
+  }
+
+  std::cout << "Difference values" << std::endl
+	    << "-----------------" << std::endl
+	    << std::setw(10) << std::right << "Table"
+	    << std::setw( 5) << std::right << "m"
+	    << std::setw(18) << std::right << "Dif"
+	    << std::setw(18) << std::right << "Max"
+	    << std::endl
+	    << std::setw(10) << std::right << "------"
+	    << std::setw( 5) << std::right << "--"
+	    << std::setw(18) << std::right << "------"
+	    << std::setw(18) << std::right << "------"
+	    << std::endl;
+
+  for (auto v : DBdif) {
+    std::cout << std::setw(10) << std::right << v.first << std::endl;
+    for (int m=0; m<=MMAX; m++) {
+      std::cout << std::setw(10) << ""
+		<< std::setw( 5) << std::right << m
+		<< std::setw(18) << std::right << v.second[m]
+		<< std::setw(18) << std::right << DBmax[v.first][m]
+		<< std::endl;
+    }
+  }
+  
+}
