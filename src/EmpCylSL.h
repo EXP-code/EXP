@@ -509,6 +509,9 @@ public:
 			     int OUTR, int OUTZ, int M, int N, int cnt,
 			     Vector& tp);
 
+  //! Compare current basis with another for debugging
+  void compare_basis(const EmpCylSL *p);
+
   //! Restrict order
   void restrict_order(int n);
 
