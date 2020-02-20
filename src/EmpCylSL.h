@@ -146,6 +146,7 @@ private:
   void receive_eof     (int request_id, int m);
   void compute_eof_grid(int request_id, int m);
   void setup_eof_grid(void);
+  void parityCheck(const std::string& prefix);
 
 				// 1=write, 0=read
 				// return: 0=failure
