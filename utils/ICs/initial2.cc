@@ -328,6 +328,7 @@ main(int ac, char **av)
   double       SCSPH;
   double       RSPHSL;
   double       DMFAC;
+  double       ECUT;
   double       X0;
   double       Y0;
   double       Z0;
@@ -376,6 +377,7 @@ main(int ac, char **av)
   double       ToomreQ;
   double       Temp;
   double       Tmin;
+  double       gen_ecut;
   bool         const_height;
   bool         images;
   bool         multi;
@@ -413,6 +415,7 @@ main(int ac, char **av)
     ("SCMAP",           po::value<int>(&SCMAP)->default_value(1),
         "Turn on Spherical SL coordinate mapping (1, 2, 0=off")
     ("SCSPH",           po::value<double>(&SCSPH)->default_value(1.0),                  "Scale for Spherical SL coordinate mapping")
+    ("ECUT",            po::value<double>(&ECUT)->default_value(1.0),                  "Energy cutoff for multimass ratio grid")
     ("RSPHSL",          po::value<double>(&RSPHSL)->default_value(47.5),                "Maximum halo expansion radius")
     ("ASCALE",          po::value<double>(&ASCALE)->default_value(1.0),                 "Radial scale length for disk basis construction")
     ("ASHIFT",          po::value<double>(&ASHIFT)->default_value(0.0),                 "Fraction of scale length for shift in conditioning function")
@@ -676,6 +679,7 @@ main(int ac, char **av)
   DiskHalo::Q           = ToomreQ;
   DiskHalo::R_DF        = R_DF;
   DiskHalo::DR_DF       = DR_DF;
+  DiskHalo::ECUT_DF     = ECUT;
   DiskHalo::SEED        = SEED;
   DiskHalo::VFLAG       = static_cast<unsigned int>(DFLAG);
   DiskHalo::CHEBY       = CHEBY;

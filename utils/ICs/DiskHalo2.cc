@@ -41,6 +41,7 @@ int    DiskHalo::RNUM        = 4000;
 
 double DiskHalo::R_DF        = 20.0;
 double DiskHalo::DR_DF       = 5.0;
+double DiskHalo::ECUT_DF     = 1.0;
 
 int    DiskHalo::LOGSCALE    = 0;
 bool   DiskHalo::LOGR        = true;
@@ -408,7 +409,8 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
   Vector ps(0, 6);
   int ierr;
 
-  int count1=0, count=0;
+  unsigned int count1=0, count=0;
+  unsigned int badms1=0, badms=0;
 
   for (int i=0; i<npart; i++) {
 
@@ -417,6 +419,7 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
       if (ierr) count1++;
     } while (ierr);
     
+    if (ps[0]<0.0) badms1++;
     p.mass = meanmass * ps[0];
     
     for (int i=1; i<=3; i++) {
@@ -447,17 +450,24 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
     radmax1 = max<double>(radmax1, r);
   }
   
-  MPI_Reduce(&count1,  &count,  1, MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&radmin1, &radmin, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&radmax1, &radmax, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&count1,  &count,  1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&badms1,  &badms,  1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&radmin1, &radmin, 1, MPI_DOUBLE,   MPI_MIN, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&radmax1, &radmax, 1, MPI_DOUBLE,   MPI_MAX, 0, MPI_COMM_WORLD);
 
-  if (myid==0) cout << "     *****"
-		    << "  min(r)=" << radmin 
-		    << "  max(r)=" << radmax
-		    << endl;
-
-  if (myid==0 && count) cout << "DiskHalo::set_halo: " 
-			     << count << " selection failures" << endl;
+  if (myid==0)
+    std::cout << "     *****"
+	      << "  min(r)=" << radmin 
+	      << "  max(r)=" << radmax
+	      << std::endl;
+  
+  if (myid==0 && count)
+    std::cout << "DiskHalo::set_halo: " 
+	      << count << " selection failures" << std::endl;
+  
+  if (myid==0 && badms)
+    std::cout << "DiskHalo::set_halo: " 
+	      << badms << " NEGATIVE masses" << std::endl;
   
   MPI_Allreduce(&massp1, &massp, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(pos1,    pos,    3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
