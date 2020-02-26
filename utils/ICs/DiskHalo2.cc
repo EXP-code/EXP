@@ -51,7 +51,7 @@ bool   DiskHalo::LOGR        = true;
 
 // these appear to be good settings, but may not be the best. use with caution!
 int    DiskHalo::NCHEB       = 8;
-bool   DiskHalo::CHEBY       = true; //false;
+bool   DiskHalo::CHEBY       = false;
 
 unsigned DiskHalo::VFLAG     = 7;
 unsigned DiskHalo::NBUF      = 65568;
@@ -59,8 +59,11 @@ unsigned DiskHalo::NBUF      = 65568;
 string DiskHalo::RUNTAG      = "debug";
 
 // lower-case string to enum map for setting disk-velocity type
-std::map<std::string, DiskHalo::DiskGenType> DiskHalo::getDiskGenType =
-  boost::assign::map_list_of("jeans", DiskHalo::Jeans)("asymmetric", DiskHalo::Asymmetric)("epicyclic", DiskHalo::Epicyclic);
+std::map<std::string, DiskHalo::DiskGenType>
+DiskHalo::getDiskGenType = boost::assign::map_list_of
+  ("jeans",      DiskHalo::Jeans)
+  ("asymmetric", DiskHalo::Asymmetric)
+  ("epicyclic",  DiskHalo::Epicyclic);
 
 static AxiSymModel *model;
 double targetmass;
