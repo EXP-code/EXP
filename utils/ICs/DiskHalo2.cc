@@ -58,8 +58,9 @@ unsigned DiskHalo::NBUF      = 65568;
 
 string DiskHalo::RUNTAG      = "debug";
 
+// lower-case string to enum map for setting disk-velocity type
 std::map<std::string, DiskHalo::DiskGenType> DiskHalo::getDiskGenType =
-  boost::assign::map_list_of("Jean", DiskHalo::Jeans)("Asymmetric", DiskHalo::Asymmetric)("Epicyclic", DiskHalo::Epicyclic);
+  boost::assign::map_list_of("jeans", DiskHalo::Jeans)("asymmetric", DiskHalo::Asymmetric)("epicyclic", DiskHalo::Epicyclic);
 
 static AxiSymModel *model;
 double targetmass;

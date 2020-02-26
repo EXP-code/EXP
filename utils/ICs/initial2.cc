@@ -615,6 +615,9 @@ main(int ac, char **av)
   
   // Check DiskGenType
   //
+  std::transform(gentype.begin(), gentype.end(), gentype.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+
   if (DiskHalo::getDiskGenType.find(gentype) == DiskHalo::getDiskGenType.end()) {
     if (myid==0) {
       std::cout << "DiskGenType error in configuraton file" << std::endl;
@@ -815,9 +818,7 @@ main(int ac, char **av)
        scale_height, scale_length, 
        disk_mass, halofile1,
        DF, DIVERGE, DIVERGE_RFAC,
-       DiskHalo::Asymmetric);
-    // DiskHalo::Epicyclic);
-    // DiskHalo::Jeans);
+       DiskHalo::getDiskGenType[gentype]);
     if (myid==0) std::cout << "done" << std::endl;
   }
   
