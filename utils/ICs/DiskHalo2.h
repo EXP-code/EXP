@@ -98,6 +98,7 @@ class DiskHalo
 
  public:
   enum DiskGenType { Jeans, Asymmetric, Epicyclic };
+  static std::map<std::string, DiskGenType> getDiskGenType;
 
   static int NDP;		// Number of knots in disk table phi grid
 				// Default: 16

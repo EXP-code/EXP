@@ -402,6 +402,7 @@ main(int ac, char **av)
   string       halofile2;
   string       cachefile;
   string       config;
+  string       gentype;
   
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -495,6 +496,7 @@ main(int ac, char **av)
     ("halofile2",       po::value<string>(&halofile2)->default_value("SLGridSph.model.fake"),   "File with input halo model for multimass")
     ("cachefile",       po::value<string>(&cachefile)->default_value(".eof.cache.file"),        "Name of EOF cache file")
     ("runtag",          po::value<string>(&runtag)->default_value("run000"),                    "Label prefix for diagnostic images")
+    ("gentype",         po::value<string>(&gentype)->default_value("Asymmetric"),               "DiskGenType string for velocity initialization (Jeans, Asymmetric, or Epicyclic)")
     ("report",          po::value<bool>(&report)->default_value(true),                  "Report particle progress in EOF computation")
     ("evolved",         po::value<bool>(&evolved)->default_value(false),           "Use existing halo body file given by <hbods> and do not create a new halo")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
@@ -611,6 +613,19 @@ main(int ac, char **av)
     }
   }
   
+  // Check DiskGenType
+  //
+  if (DiskHalo::getDiskGenType.find(gentype) == DiskHalo::getDiskGenType.end()) {
+    if (myid==0) {
+      std::cout << "DiskGenType error in configuraton file" << std::endl;
+      std::cout << "Valid options are: ";
+      for (auto v : DiskHalo::getDiskGenType) std::cout << v.first << " ";
+      std::cout << std::endl;
+    }
+    MPI_Finalize();
+    return -1;
+  }
+
   //====================
   // Okay, now begin ...
   //====================
@@ -664,7 +679,10 @@ main(int ac, char **av)
   //
   // Disk halo grid parameters
   //
-  DiskHalo::RDMIN       = RCYLMIN*scale_length;
+  //      Prevent model evaulation inside of either grid---------+
+  //                                       |                     |
+  //                                       V                     V
+  DiskHalo::RDMIN       = std::max<double>(RCYLMIN*scale_length, RMIN);
   DiskHalo::RHMIN       = RMIN;
   DiskHalo::RHMAX       = RSPHSL;
   DiskHalo::RDMAX       = RCYLMAX*scale_length;

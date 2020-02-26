@@ -9,6 +9,9 @@
 #include <sstream>
 #include <algorithm>
 #include <vector>
+				// Boost
+#include <boost/assign/list_of.hpp>
+
 				// MDW
 #include <interp.h>
 #include <numerical.h>
@@ -54,6 +57,9 @@ unsigned DiskHalo::VFLAG     = 7;
 unsigned DiskHalo::NBUF      = 65568;
 
 string DiskHalo::RUNTAG      = "debug";
+
+std::map<std::string, DiskHalo::DiskGenType> DiskHalo::getDiskGenType =
+  boost::assign::map_list_of("Jean", DiskHalo::Jeans)("Asymmetric", DiskHalo::Asymmetric)("Epicyclic", DiskHalo::Epicyclic);
 
 static AxiSymModel *model;
 double targetmass;
