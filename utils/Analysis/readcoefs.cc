@@ -22,8 +22,8 @@ typedef std::shared_ptr<Coefs> CoefPtr;
 
 bool Coefs::read(std::istream& in)
 {
-  CoefHeader2 header;
-  in.read((char *)&header, sizeof(CoefHeader2));
+  CylCoefHeader2 header;
+  in.read((char *)&header, sizeof(CylCoefHeader2));
   if (not in) return false;
 
   time = header.time;

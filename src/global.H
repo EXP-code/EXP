@@ -246,10 +246,12 @@ extern std::vector<int> siblingList;
 
 /** @name Coefficient header on each output dump */
 //@{
-//! Header type 1
-extern CoefHeader coefheader;
-//! Header type 2
-extern struct CoefHeader2 coefheader2;
+//! Cylindrical header type 1
+extern struct CylCoefHeader  coefheader;
+//! Cylindrical header type 2
+extern struct CylCoefHeader2 coefheader2;
+//! Spherical header
+extern struct SphCoefHeader  coefheader3;
 //@}
 
 //! @name Theading variables

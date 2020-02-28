@@ -2,7 +2,8 @@
 #define _coef_H 1
 
 //! Header structure for cylindrical expansion
-struct CoefHeader {
+struct CylCoefHeader
+{
   //! Time for this dump
   double time;
   //! Maximum polar harmonic order
@@ -15,7 +16,8 @@ struct CoefHeader {
 
 
 //! Header structure for cylindrical expansion
-struct CoefHeader2 {
+struct CylCoefHeader2
+{
   //! Time for this dump
   double time;
   //! Number of azimuthal orders kept
@@ -23,5 +25,16 @@ struct CoefHeader2 {
   //! Number of functions per azimuthal order
   int nmax;
 };
+
+//! Header structure for spherical expansion
+struct SphCoefHeader
+{
+  char   id[64];
+  double tnow;
+  double scale;
+  int    nmax;
+  int    Lmax;
+};
+
 
 #endif /* _coef_H */
