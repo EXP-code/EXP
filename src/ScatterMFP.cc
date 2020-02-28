@@ -282,4 +282,5 @@ void * ScatterMFP::determine_acceleration_and_potential_thread(void * arg)
     }
   }
 
+  return (NULL);
 }

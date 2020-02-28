@@ -251,8 +251,10 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
     pthread_mutex_unlock(&iolock);
   }
 #endif
+
+  return (NULL);
 }
 
 void Direct::determine_coefficients(void) {}
-void * Direct::determine_coefficients_thread(void *arg) {}
+void * Direct::determine_coefficients_thread(void *arg) { return (NULL); }
 
