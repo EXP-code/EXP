@@ -6,20 +6,6 @@ struct CylCoefHeader
 {
   //! Time for this dump
   double time;
-  //! Maximum polar harmonic order
-  int mmax;		
-  //! Order for each eof
-  int nord;
-  //! Radial order (needs updating?)
-  int nmax;
-};
-
-
-//! Header structure for cylindrical expansion
-struct CylCoefHeader2
-{
-  //! Time for this dump
-  double time;
   //! Number of azimuthal orders kept
   int mmax;
   //! Number of functions per azimuthal order

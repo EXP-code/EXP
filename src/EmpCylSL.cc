@@ -3701,17 +3701,16 @@ void EmpCylSL::set_coefs(int m1,
 
 #ifdef STANDALONE
 #include <coef.H>
-static CylCoefHeader coefheader;
-static CylCoefHeader2 coefheader2;
+static CylCoefHeader coefheadercyl;
 #endif
 
 void EmpCylSL::dump_coefs_binary(ostream& out, double time)
 {
-  coefheader2.time = time;
-  coefheader2.mmax = MMAX;
-  coefheader2.nmax = rank3;
+  coefheadercyl.time = time;
+  coefheadercyl.mmax = MMAX;
+  coefheadercyl.nmax = rank3;
 
-  out.write((const char *)&coefheader2, sizeof(CylCoefHeader2));
+  out.write((const char *)&coefheadercyl, sizeof(CylCoefHeader));
 
   for (int mm=0; mm<=MMAX; mm++) {
 

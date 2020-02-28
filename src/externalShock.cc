@@ -81,6 +81,7 @@ void * externalShock::determine_acceleration_and_potential_thread(void * arg)
       cC->AddPotExt(i, 0.5*w2*z*z );
     }
 
+  return (NULL);
 }
 
 
