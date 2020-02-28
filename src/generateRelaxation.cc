@@ -47,6 +47,8 @@ void * generateRelaxation::determine_acceleration_and_potential_thread
   }
   
   done = 1;
+
+  return (NULL);
 }
 
 
