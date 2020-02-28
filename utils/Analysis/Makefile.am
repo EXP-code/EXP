@@ -27,7 +27,7 @@ noinst_HEADERS =
 
 bin_PROGRAMS = diskprof haloprof haloprof2 slabprof psphisto gas2d    \
 gas2dcyl makegrid pspbox eofpeek diskprof2 pcatest diskprof3 mssaprof \
-readcoefs pcatest diskprof4 sphprof yaml_diff
+readcoefs readcoefs2 pcatest diskprof4 sphprof yaml_diff
 
 diskprof_SOURCES = PSP.cc header.cc diskprof.cc EmpCylSL.cc localmpi.cc Particle.cc
 diskprof_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
@@ -86,6 +86,10 @@ diskprof3_LDADD   = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp
 readcoefs_SOURCES = readcoefs.cc
 readcoefs_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
 readcoefs_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB)
+
+readcoefs2_SOURCES = readcoefs2.cc
+readcoefs2_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
+readcoefs2_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB)
 
 diskprof4_SOURCES = PSP2.cc header.cc diskprof4.cc EmpCylSL.cc localmpi.cc Particle.cc
 diskprof4_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
