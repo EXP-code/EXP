@@ -85,7 +85,6 @@ double tnow = 0.0;
 				// Globals
 static  string outid;
 static  double RMAX;
-static  double ZMAX;
 static  int    OUTR;
   
 static  bool VOLUME;
@@ -132,9 +131,9 @@ void write_output(SphereSL& ortho, int indx, int icnt, double time,
 	
 	for (int k=0; k<OUTR; k++) {
       
-	  z = -ZMAX + dR*k;
+	  z = -RMAX + dR*k;
 
-	  r = sqrt(x*x + y*y);
+	  r = sqrt(x*x + y*y + z*z);
 	  costh = z/r;
 	  phi = atan2(y, x);
 	  
