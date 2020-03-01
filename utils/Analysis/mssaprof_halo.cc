@@ -87,7 +87,6 @@ static  string outid;
 static  double RMAX;
 static  double ZMAX;
 static  int    OUTR;
-static  int    OUTZ;
   
 static  bool VOLUME;
 static  bool SURFACE;
@@ -117,11 +116,10 @@ void write_output(SphereSL& ortho, int indx, int icnt, double time,
     // ==================================================
     
     double dR = 2.0*RMAX/(OUTR-1);
-    double dz = 2.0*ZMAX/(OUTZ-1);
     double x, y, z, r, costh, phi;
     double p0, d0, p, fr, ft, fp, d;
     
-    size_t blSiz = OUTZ*OUTR*OUTR;
+    size_t blSiz = OUTR*OUTR*OUTR;
     vector<double> indat(noutV*blSiz, 0.0), otdat(noutV*blSiz);
     
     for (int j=0; j<OUTR; j++) {
@@ -132,15 +130,15 @@ void write_output(SphereSL& ortho, int indx, int icnt, double time,
 	
 	y = -RMAX + dR*l;
 	
-	for (int k=0; k<OUTZ; k++) {
+	for (int k=0; k<OUTR; k++) {
       
-	  z = -ZMAX + dz*k;
+	  z = -ZMAX + dR*k;
 
 	  r = sqrt(x*x + y*y);
 	  costh = z/r;
 	  phi = atan2(y, x);
 	  
-	  ortho.all_eval(r, costh, phi, d, d0, p0, p, fr, ft, fp);
+	  ortho.all_eval(r, costh, phi, d0, d, p0, p, fr, ft, fp);
 	  
 	  size_t indx = (OUTR*j + l)*OUTR + k;
 
@@ -156,20 +154,20 @@ void write_output(SphereSL& ortho, int indx, int icnt, double time,
     }
     
     
-    MPI_Reduce(&indat[0], &otdat[0], noutV*OUTZ*OUTR*OUTR, MPI_DOUBLE, MPI_SUM, 
+    MPI_Reduce(&indat[0], &otdat[0], noutV*OUTR*OUTR*OUTR, MPI_DOUBLE, MPI_SUM, 
 	       0, MPI_COMM_WORLD);
     
     if (myid==0) {
 
       VtkGrid vtk(OUTR, OUTR, OUTR, -RMAX, RMAX, -RMAX, RMAX, -RMAX, RMAX);
 
-      std::vector<double> data(OUTR*OUTR*OUTZ);
+      std::vector<double> data(OUTR*OUTR*OUTR);
 
       for (int n=0; n<noutV; n++) {
 
 	for (int j=0; j<OUTR; j++) {
 	  for (int l=0; l<OUTR; l++) {
-	    for (int k=0; k<OUTZ; k++) {
+	    for (int k=0; k<OUTR; k++) {
 	      size_t indx = (j*OUTR + l)*OUTR + k;
 
 	      data[indx] = otdat[n*blSiz + indx];
@@ -282,18 +280,18 @@ void write_output(SphereSL& ortho, int indx, int icnt, double time,
 
 	  ortho.all_eval(r, costh, phi, d, d0, p0, p, fr, ft, fp);
 
-	  indat[(0*OUTR+j)*OUTZ+l] = p0;
-	  indat[(1*OUTR+j)*OUTZ+l] = p;
-	  indat[(2*OUTR+j)*OUTZ+l] = fr;
-	  indat[(3*OUTR+j)*OUTZ+l] = ft;
-	  indat[(4*OUTR+j)*OUTZ+l] = fp;
-	  indat[(5*OUTR+j)*OUTZ+l] = d0;
-	  indat[(6*OUTR+j)*OUTZ+l] = d;
+	  indat[(0*OUTR+j)*OUTR+l] = p0;
+	  indat[(1*OUTR+j)*OUTR+l] = p;
+	  indat[(2*OUTR+j)*OUTR+l] = fr;
+	  indat[(3*OUTR+j)*OUTR+l] = ft;
+	  indat[(4*OUTR+j)*OUTR+l] = fp;
+	  indat[(5*OUTR+j)*OUTR+l] = d0;
+	  indat[(6*OUTR+j)*OUTR+l] = d;
 	}
       }
     }
     
-    MPI_Reduce(&indat[0], &otdat[0], noutV*OUTR*OUTZ,
+    MPI_Reduce(&indat[0], &otdat[0], noutV*OUTR*OUTR,
 	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     
     
@@ -407,10 +405,11 @@ get_coefficients(const std::string& coefs)
 
     // Read rest of file
     //
-    int LMsize, numT, npairs;
+    int LMsize, numT, numW, npairs;
     in.read((char *)&LMsize,     sizeof(int));
     in.read((char *)&numT,       sizeof(int));
     in.read((char *)&nmax,       sizeof(int));
+    in.read((char *)&numW,       sizeof(int));
     in.read((char *)&npairs,     sizeof(int));
     std::vector<double> times(numT);
     in.read((char *)&times[0],   sizeof(double)*numT);
@@ -493,7 +492,10 @@ main(int argc, char **argv)
      "number of radial points for output")
     ("surface",
      po::value<bool>(&SURFACE)->default_value(true),
-     "make equatorial slices")
+     "make surface equitorial slices")
+    ("vslice",
+     po::value<bool>(&VSLICE)->default_value(false),
+     "make surface vertical slices")
     ("volume",
      po::value<bool>(&VOLUME)->default_value(false),
      "make volume for VTK rendering")
@@ -502,7 +504,7 @@ main(int argc, char **argv)
      "Analysis id name")
     ("coeffile",
      po::value<std::string>(&coeffile)->default_value("coef.file"),
-     "cachefile name")
+     "coefficient file name from exp_mssa")
     ("modfile",
      po::value<std::string>(&modelfile)->default_value("SLGridSph.model"),
      "SL model filename")
