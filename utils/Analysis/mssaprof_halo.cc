@@ -103,8 +103,8 @@ void write_output(SphereSL& ortho, int indx, int icnt, double time,
   // ==================================================
   
   ostringstream sstr;
-  sstr << "." << std::setfill('0') << std::setw(5) << indx
-       << "." << std::setfill('0') << std::setw(5) << icnt;
+  if (indx>=0) sstr << "." << std::setfill('0') << std::setw(5) << indx;
+  sstr << "." << std::setfill('0') << std::setw(5) << icnt;
 
   string suffix[7] = {"p0", "p", "fr", "ft", "fp", "d0", "d"};
 
@@ -469,7 +469,7 @@ main(int argc, char **argv)
     cmd_line += " ";
   }
 
-  bool DENS, verbose = false, mask = false;
+  bool DENS, verbose = false, mask = false, All, PCs = false;
   std::string modelfile;
   int stride;
 
@@ -483,6 +483,11 @@ main(int argc, char **argv)
      "blank empty cells")
     ("noCommand,X",
      "do not save command line")
+    ("PC,p",
+     "make rendering for each PC")
+    ("All,a",
+     po::value<bool>(&All)->default_value(true),
+     "make rendering for all PCs")
     ("RMAX,R",
      po::value<double>(&RMAX)->default_value(0.1),
      "maximum radius for output")
@@ -535,6 +540,8 @@ main(int argc, char **argv)
 
   if (vm.count("mask")) mask = true;
 
+  if (vm.count("PCs")) PCs = true;
+
   if (vm.count("noCommand")==0) {
     std::string cmdFile = "mssaprof." + outid + ".cmd_line";
     std::ofstream cmd(cmdFile.c_str());
@@ -548,7 +555,6 @@ main(int argc, char **argv)
     cmd.close();
   }
 
-
 #ifdef DEBUG
   sleep(20);
 #endif  
@@ -559,6 +565,12 @@ main(int argc, char **argv)
 
   local_init_mpi(argc, argv);
   
+  if (not PCs and not All) {
+    if (myid==0) std::cout << "All output is off . . . exiting" << std::endl;
+    exit(0);
+  }
+
+
   // ==================================================
   // All processes will now compute the basis functions
   // *****Using MPI****
@@ -585,45 +597,143 @@ main(int argc, char **argv)
   SphereSL::NUMR = 4000;
   SphereSL ortho(&halo, lmax, nmax);
   
-  for (int indx=0; indx<coefs.size(); indx++) {
+  if (PCs) {
 
-    std::vector<std::string> outfiles1, outfiles2, outfiles3;
-    std::vector<double> T;
-    Matrix expcoef;
+    for (int indx=0; indx<coefs.size(); indx++) {
 
-    int count = 0;
-
-    for (auto u : coefs[indx]) {
-
-      if (count++ % stride) continue;
-
-      expcoef.setsize(0, lmax*(lmax+2), 1, nmax);
-      expcoef.zero();
-
-      int lindx = 0;
-      for (int l=0; l<=lmax; l++) {
-	for (int m=0; m<=l; m++) {
-	  LM lm = {l, m};
-	  if (LMset.find(lm) != LMset.end()) {
-	    for (int n=0; n<nmax; n++)
-	      expcoef[lindx][n+1] = u.second[lm].cos[n];
-	    lindx++;
-	    if (m) {
+      std::vector<std::string> outfiles1, outfiles2, outfiles3;
+      std::vector<double> T;
+      Matrix expcoef;
+      
+      int count = 0;
+      
+      for (auto u : coefs[indx]) {
+	
+	if (count++ % stride) continue;
+	
+	expcoef.setsize(0, lmax*(lmax+2), 1, nmax);
+	expcoef.zero();
+	
+	int lindx = 0;
+	for (int l=0; l<=lmax; l++) {
+	  for (int m=0; m<=l; m++) {
+	    LM lm = {l, m};
+	    if (LMset.find(lm) != LMset.end()) {
 	      for (int n=0; n<nmax; n++)
-		expcoef[lindx][n+1] = u.second[lm].sin[n];
+		expcoef[lindx][n+1] = u.second[lm].cos[n];
 	      lindx++;
+	      if (m) {
+		for (int n=0; n<nmax; n++)
+		  expcoef[lindx][n+1] = u.second[lm].sin[n];
+		lindx++;
+	      }
+	    }
+	  }
+	}
+	
+	ortho.install_coefs(expcoef);
+	
+	std::string file1, file2, file3;
+	
+	if (myid==0) cout << "Writing output for indx=" << indx
+			  << ", T=" << u.first << " . . . " << flush;
+	write_output(ortho, indx, T.size(), u.first, file1, file2, file3);
+	MPI_Barrier(MPI_COMM_WORLD);
+	if (myid==0) cout << "done" << endl;
+	
+	if (myid==0) {
+	  if (file1.size()) outfiles1.push_back(file1);
+	  if (file2.size()) outfiles2.push_back(file2);
+	  if (file3.size()) outfiles3.push_back(file3);
+	}
+	
+	T.push_back(u.first);
+	
+      } // Time loop
+      
+      // Create PVD file
+      //
+      if (myid==0) {
+	std::ostringstream prefix;
+	prefix << runtag << "." << indx;
+	if (outfiles1.size()) writePVD(prefix.str()+".volume.pvd",  T, outfiles1);
+	if (outfiles2.size()) writePVD(prefix.str()+".surface.pvd", T, outfiles2);
+	if (outfiles3.size()) writePVD(prefix.str()+".vslice.pvd",  T, outfiles3);
+      }
+    
+    } // PC loop
+
+  } // Output PCs
+
+  // Sum over all PCs
+  if (All) {
+    std::vector<std::string> outfiles1, outfiles2, outfiles3;
+    std::map<double, Matrix> expcoef;
+    
+    if (myid==0)
+      std::cout << "Size of coefficient array: " << coefs.size() << std::endl;
+
+    for (int indx=0; indx<coefs.size(); indx++) {
+    
+      if (myid==0)
+	std::cout << "Index: " << indx << std::endl;
+
+      int count = 0;
+      for (auto u : coefs[indx]) {
+	
+	if (count++ % stride) continue;
+
+				// Find the time in the amp
+	double time = u.first;
+	std::map<double, Matrix>::iterator expc = expcoef.find(time);
+
+				// Create the coefficient array
+	if (expc == expcoef.end()) {
+	  expcoef[time].setsize(0, lmax*(lmax+2), 1, nmax);
+	  expcoef[time].zero();
+	  expc = expcoef.find(time);
+	  if (myid==0)
+	    std::cout << "Index=" << indx << ", starting T=" << time
+		      << ", size=" << expcoef.size() << std::endl;
+	} else {
+	  if (myid==0)
+	    std::cout << "Index=" << indx << ", found T=" << time << std::endl;
+	}
+
+	int lindx = 0;
+	for (int l=0; l<=lmax; l++) {
+	  for (int m=0; m<=l; m++) {
+	    LM lm = {l, m};
+	    if (LMset.find(lm) != LMset.end()) {
+	      for (int n=0; n<nmax; n++)
+		expc->second[lindx][n+1] += u.second[lm].cos[n];
+	      lindx++;
+	      if (m) {
+		for (int n=0; n<nmax; n++)
+		  expc->second[lindx][n+1] += u.second[lm].sin[n];
+		lindx++;
+	      }
 	    }
 	  }
 	}
       }
+    }
 
-      ortho.install_coefs(expcoef);
-
+    int count = 0;
+    std::vector<double> T;
+    for (auto expc : expcoef) {
+      double time = expc.first;
+      ortho.install_coefs(expc.second);
+	
       std::string file1, file2, file3;
     
-      if (myid==0) cout << "Writing output for indx=" << indx
-			<< ", T=" << u.first << " . . . " << flush;
-      write_output(ortho, indx, T.size(), u.first, file1, file2, file3);
+      if (myid==0) cout << "Writing TOTAL output for  T=" << time
+			<< " . . . " << flush;
+      write_output(ortho, -1, count++, time, file1, file2, file3);
+      //                   ^
+      //                   |
+      // Will not write index into file name
+      //
       MPI_Barrier(MPI_COMM_WORLD);
       if (myid==0) cout << "done" << endl;
     
@@ -633,20 +743,21 @@ main(int argc, char **argv)
 	if (file3.size()) outfiles3.push_back(file3);
       }
       
-      T.push_back(u.first);
-    } // Time loop
-    
+      T.push_back(time);
+    }
+    // Time loop
+
     // Create PVD file
     //
     if (myid==0) {
       std::ostringstream prefix;
-	prefix << runtag << "." << indx;
-	if (outfiles1.size()) writePVD(prefix.str()+".volume.pvd",  T, outfiles1);
-	if (outfiles2.size()) writePVD(prefix.str()+".surface.pvd", T, outfiles2);
-	if (outfiles3.size()) writePVD(prefix.str()+".height.pvd",  T, outfiles3);
+      prefix << runtag << ".total";
+      if (outfiles1.size()) writePVD(prefix.str()+".volume.pvd",  T, outfiles1);
+      if (outfiles2.size()) writePVD(prefix.str()+".surface.pvd", T, outfiles2);
+      if (outfiles3.size()) writePVD(prefix.str()+".vslice.pvd",  T, outfiles3);
     }
     
-  } // PC loop
+  } // Sum over all PC
 
   // Shutdown MPI
   //
