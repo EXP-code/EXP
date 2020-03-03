@@ -404,12 +404,11 @@ get_coefficients(const std::string& coefs)
 
     // Read rest of file
     //
-    int LMsize, numT, numW, npairs;
+    int LMsize, numT, ngrps;
     in.read((char *)&LMsize,     sizeof(int));
     in.read((char *)&numT,       sizeof(int));
     in.read((char *)&nmax,       sizeof(int));
-    in.read((char *)&numW,       sizeof(int));
-    in.read((char *)&npairs,     sizeof(int));
+    in.read((char *)&ngrps,      sizeof(int));
     std::vector<double> times(numT);
     in.read((char *)&times[0],   sizeof(double)*numT);
       
@@ -425,8 +424,8 @@ get_coefficients(const std::string& coefs)
 
     // Allocate data base
     //
-    ret.resize(npairs);
-    for (int p=0; p<npairs; p++) {
+    ret.resize(ngrps);
+    for (int p=0; p<ngrps; p++) {
       for (auto t : times) {
 	for (auto lm : LMset) {
 	  ret[p][t][lm].l = lm.first;
@@ -437,7 +436,7 @@ get_coefficients(const std::string& coefs)
       }
     }
 
-    for (int p=0; p<npairs; p++) {
+    for (int p=0; p<ngrps; p++) {
       for (auto t : times) {
 	for (auto lm : LMset) {
 	  for (int n=0; n<nmax; n++) {
@@ -540,7 +539,7 @@ main(int argc, char **argv)
 
   if (vm.count("mask")) mask = true;
 
-  if (vm.count("PCs")) PCs = true;
+  if (vm.count("PC")) PCs = true;
 
   if (vm.count("noCommand")==0) {
     std::string cmdFile = "mssaprof." + outid + ".cmd_line";
@@ -619,7 +618,7 @@ main(int argc, char **argv)
 	  for (int m=0; m<=l; m++) {
 	    LM lm = {l, m};
 	    if (LMset.find(lm) != LMset.end()) {
-	      for (int n=0; n<nmax; n++)
+	      for (int n=0; n<nmax; n++) 
 		expcoef[lindx][n+1] = u.second[lm].cos[n];
 	      lindx++;
 	      if (m) {
@@ -671,13 +670,11 @@ main(int argc, char **argv)
     std::map<double, Matrix> expcoef;
     
     if (myid==0)
-      std::cout << "Size of coefficient array: " << coefs.size() << std::endl;
+      std::cout << "Number of groups in coefficient array:"
+		<< coefs.size() << std::endl;
 
     for (int indx=0; indx<coefs.size(); indx++) {
     
-      if (myid==0)
-	std::cout << "Index: " << indx << std::endl;
-
       int count = 0;
       for (auto u : coefs[indx]) {
 	
@@ -692,12 +689,6 @@ main(int argc, char **argv)
 	  expcoef[time].setsize(0, lmax*(lmax+2), 1, nmax);
 	  expcoef[time].zero();
 	  expc = expcoef.find(time);
-	  if (myid==0)
-	    std::cout << "Index=" << indx << ", starting T=" << time
-		      << ", size=" << expcoef.size() << std::endl;
-	} else {
-	  if (myid==0)
-	    std::cout << "Index=" << indx << ", found T=" << time << std::endl;
 	}
 
 	int lindx = 0;
