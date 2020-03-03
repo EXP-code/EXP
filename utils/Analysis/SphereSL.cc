@@ -567,3 +567,27 @@ void SphereSL::install_coefs(Matrix& newcoef)
   expcoef = newcoef;
 }
 
+
+void SphereSL::dump_coefs(double time, ostream& out)
+{
+  ostringstream sout;
+  sout << "SphereSL";
+
+  char buf[64];
+  for (int i=0; i<64; i++) {
+    if (i<sout.str().length())  buf[i] = sout.str().c_str()[i];
+    else                        buf[i] = '\0';
+  }
+
+  out.write((char *)&buf,64*sizeof(char));
+  out.write((char *)&time , sizeof(double));
+  out.write((char *)&rscl,  sizeof(double));
+  out.write((char *)&nmax,  sizeof(int));
+  out.write((char *)&lmax,  sizeof(int));
+
+  for (int ir=1; ir<=nmax; ir++) {
+    for (int l=0; l<=lmax*(lmax+2); l++)
+      out.write((char *)&expcoef[l][ir], sizeof(double));
+  }
+
+}

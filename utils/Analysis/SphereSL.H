@@ -110,6 +110,9 @@ public:
   //! Access to basis
   SLGridSph *basis(void) { return sl; }
 
+  //! Dump coefficients using the standard header
+  void dump_coefs(double time, std::ostream& out);
+
 };
 
 

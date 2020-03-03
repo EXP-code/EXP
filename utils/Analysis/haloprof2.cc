@@ -637,7 +637,7 @@ main(int argc, char **argv)
   
   int NICE, LMAX, NMAX;
   int beg, end, stride, init;
-  std::string MODFILE, INDEX, dir("./"), cname;
+  std::string MODFILE, INDEX, dir("./"), cname, coefs;
 
   // ==================================================
   // Parse command line or input parameter file
@@ -657,6 +657,8 @@ main(int argc, char **argv)
      "assume original, single binary PSP files as input")
     ("SPL",
      "assume new split binary PSP files as input")
+    ("CONLY",
+     "make coefficient file only")
     ("NICE",                po::value<int>(&NICE)->default_value(0),
      "system priority")
     ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
@@ -699,6 +701,8 @@ main(int argc, char **argv)
      "train on Component (default=stars)")
     ("dir,d",               po::value<std::string>(&dir),
      "directory for SPL files")
+    ("coefs,c",               po::value<std::string>(&coefs),
+     "file of computed coefficients")
     ;
   
   
@@ -727,6 +731,11 @@ main(int argc, char **argv)
     return 0;
   }
 
+  bool rendering = true;
+  if (vm.count("coefs") and vm.count("CONLY")) {
+    rendering = false;
+  }
+
   bool SPL = false;
   if (vm.count("SPL")) SPL = true;
   if (vm.count("OUT")) SPL = false;
@@ -748,6 +757,20 @@ main(int argc, char **argv)
   SphereSL ortho(&halo, LMAX, NMAX);
   
   std::string file;
+
+  std::ofstream outcoef;	// Coefficient file
+
+  if (vm.count("coefs")) {
+    std::string coeffile = OUTFILE + ".coefs";
+				// Set exceptions to be thrown on failure
+    outcoef.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+
+    try {
+      outcoef.open(coeffile);
+    } catch (std::system_error& e) {
+      std::cerr << e.code().message() << std::endl;
+    }
+  }
 
   for (int indx=beg; indx<=end; indx+=stride) {
 
@@ -821,8 +844,15 @@ main(int argc, char **argv)
     if (myid==0) {
       cout << "Writing output . . . " << flush;
       time = psp->CurrentTime();
+      if (outcoef.good()) {
+	try {
+	  ortho.dump_coefs(time, outcoef);
+	} catch (std::system_error& e) {
+	  std::cerr << e.code().message() << std::endl;
+	}
+      }
     }
-    write_output(ortho, indx, time, histo);
+    if (rendering) write_output(ortho, indx, time, histo);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
 
