@@ -2391,8 +2391,14 @@ void DiskHalo::write_file(ostream &fou, vector<Particle>& part)
   //
   int npart=0, l = part.size();
 
-  MPI_Reduce(&l,  &npart, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+  // Return if there are no particles to write
+  //
+  MPI_Allreduce(&l, &npart, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
+  if (npart==0) return;
   
+  // Begin writing loop
+  //
   if (myid==0) {
     
     if (VFLAG & 1)

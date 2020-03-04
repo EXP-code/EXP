@@ -869,7 +869,7 @@ main(int ac, char **av)
                                 // before realizing a large phase space)
   std::ofstream out_halo, out_disk;
   if (myid==0) {
-    if (not evolved) {
+    if (not evolved and n_particlesH) {
       out_halo.open(hbods.c_str());
       if (!out_halo) {
 	cout << "Could not open <" << hbods << "> for output\n";
@@ -878,11 +878,13 @@ main(int ac, char **av)
       }
     }
 
-    out_disk.open(dbods.c_str());
-    if (!out_disk) {
-      std::cout << "Could not open <" << dbods << "> for output" << std::endl;
-      MPI_Abort(MPI_COMM_WORLD, 4);
-      exit(0);
+    if (n_particlesD) {
+      out_disk.open(dbods.c_str());
+      if (!out_disk) {
+	std::cout << "Could not open <" << dbods << "> for output" << std::endl;
+	MPI_Abort(MPI_COMM_WORLD, 4);
+	exit(0);
+      }
     }
   }
 
