@@ -14,12 +14,12 @@ struct SphCoefs
   SphCoefHeader header;
   std::vector< std::vector<double> > coefs;
 
-  bool read(std::istream& in);
+  bool read(std::istream& in, bool exp_type);
 };
 
 typedef std::shared_ptr<SphCoefs> SphCoefsPtr;
 
-bool SphCoefs::read(std::istream& in)
+bool SphCoefs::read(std::istream& in, bool exp_type)
 {
   in.read((char *)&header, sizeof(SphCoefHeader));
   if (not in) return false;
@@ -32,6 +32,28 @@ bool SphCoefs::read(std::istream& in)
       in.read((char *)&coefs[l][ir], sizeof(double));
   }
 
+  if (exp_type) {
+    int k = 0;
+    for (int l=0; l<=header.Lmax; l++) {
+      for (int m=0; m<=l; m++) {
+	double fac = sqrt( (0.5*l+0.25)/M_PI * 
+			   exp(lgamma(1.0+l-m) - lgamma(1.0+l+m)) );
+
+	if (m != 0) fac *= M_SQRT2;
+
+	// Cosine terms
+	for (int ir=0; ir<header.nmax; ir++) coefs[k][ir] *= fac;
+	k++;
+
+	// Sine terms
+	if (m != 0) {
+	  for (int ir=0; ir<header.nmax; ir++) coefs[k][ir] *= fac;
+	  k++;
+	}
+      }
+    }
+  }
+
   return true;
 }
 
@@ -40,7 +62,7 @@ int main(int argc, char **argv)
 {
   std::string file;
   int nmin, nmax, lmin, lmax;
-  bool verbose=false, angle=false;
+  bool verbose=false, angle=false, exp_type = true;
 
   //
   // Parse Command line
@@ -53,6 +75,8 @@ int main(int argc, char **argv)
      "compute position angle rather than amplitude")
     ("verbose,v",
      "verbose output")
+    ("readcoef",
+     "using readcoef output")
     ("nmin",
      po::value<int>(&nmin)->default_value(0), 
      "minimum order for radial coefficients")
@@ -95,6 +119,8 @@ int main(int argc, char **argv)
     lmin = std::max<int>(lmin, 1);
   }
 
+  if (vm.count("readcoef")) exp_type = false;
+
   std::ifstream in(file);
   if (not in) {
     std::cout << "Error opening <" << file << ">" << std::endl;
@@ -106,7 +132,7 @@ int main(int argc, char **argv)
 
   while (in) {
     SphCoefsPtr c = std::make_shared<SphCoefs>();
-    if (not c->read(in)) break;
+    if (not c->read(in, exp_type)) break;
 
     coefs[c->header.tnow] = c;
   }
