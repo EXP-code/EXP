@@ -143,7 +143,7 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
 	  expcoef[loffset+moffset  ][n] += fac1 * fac4 * mass;
 	  expcoef[loffset+moffset+1][n] += fac2 * fac4 * mass;
 	  if (compute_covar) {
-	    cw[(loffset+moffset  )*nmax + n] =  fac1 * fac4;
+	    cw[(loffset+moffset  )*nmax + n] = fac1 * fac4;
 	    cw[(loffset+moffset+1)*nmax + n] = fac2 * fac4;
 	  }
 	}
