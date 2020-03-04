@@ -842,19 +842,23 @@ main(int argc, char **argv)
 
     double time = 0.0;
     if (myid==0) {
-      cout << "Writing output . . . " << flush;
       time = psp->CurrentTime();
       if (outcoef.good()) {
+	cout << "Writing coefficients . . . " << flush;
 	try {
 	  ortho.dump_coefs(time, outcoef);
 	} catch (std::system_error& e) {
 	  std::cerr << e.code().message() << std::endl;
 	}
+	cout << "done" << endl;
       }
     }
-    if (rendering) write_output(ortho, indx, time, histo);
+    if (rendering) {
+      if (myid==0) cout << "Writing output . . . " << flush;
+      write_output(ortho, indx, time, histo);
+      if (myid==0) cout << "done" << endl;
+    }
     MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done" << endl;
 
     //------------------------------------------------------------ 
 
