@@ -281,9 +281,9 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 
     if (in_ok) {
 
-      MPI_Bcast(&Ecurr, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&axis[1], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&center[1], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&Ecurr,      1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&axis[1],    3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&center[1],  3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
       MPI_Bcast(&center0[1], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
       int howmany;
