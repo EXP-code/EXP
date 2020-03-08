@@ -115,7 +115,6 @@ UserTidalRad::UserTidalRad(const YAML::Node &conf) : ExternalForce(conf)
 	  << setw(16) << "w"
 	  << setw(16) << "E_min"
 	  << setw(16) << "E_max"
-	  << setw(10) << "Index"
 	  << setw(10) << "Number"
 	  << std::endl;
     }
@@ -175,8 +174,8 @@ void UserTidalRad::determine_acceleration_and_potential(void)
 				// Only compute for top level
   if (multistep && mlevel>0) return;
 
-  rad.resize(c0->Number());	// Resize storage vectors
-  erg.resize(c0->Number());
+				// Resize storage vectors
+  erg_rad.resize(c0->Number());
 
 				// Initialize storage with zeros
   std::fill(cov.begin(), cov.end(), 0.0);
@@ -211,14 +210,14 @@ void UserTidalRad::determine_acceleration_and_potential(void)
 
   // Find maximum radius with bound energy
   //
-  std::sort(erg.begin(), erg.end());
-  auto it = std::lower_bound(erg.begin(), erg.end(), 0.0);
-  if (it != erg.begin()) it--;
-  auto indx = std::distance(erg.begin(), it);
-  if (it == erg.end()) indx = c0->Number()-1;
+  std::sort(erg_rad.begin(), erg_rad.end());
+  std::pair<double, double> zero(0.0, 0.0);
+  auto it = std::lower_bound(erg_rad.begin(), erg_rad.end(), zero);
+  if (it != erg_rad.begin()) it--;
+  if (it == erg_rad.end())   it--;
 
-  double maxrad1 = rad[indx];
-  double maxerg1 = erg[indx], max_en;
+  double maxrad1 = it->second;
+  double maxerg1 = it->first, max_en;
   MPI_Allreduce(&maxrad1, &rt_cur, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
   MPI_Allreduce(&maxerg1, &max_en, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
@@ -233,6 +232,8 @@ void UserTidalRad::determine_acceleration_and_potential(void)
     firsttime = false;
   }
 
+  // Change force scale to account for change in radial scale
+  //
   c0->force->setScale(rt_cur/rt_cur0);
 
   if (myid==0) {
@@ -247,9 +248,8 @@ void UserTidalRad::determine_acceleration_and_potential(void)
 	  << setw(16) << cov[0]
 	  << setw(16) << cov[1]
 	  << setw(16) << cov[2]
-	  << setw(16) << *(erg.begin())
-	  << setw(16) << *(erg.end())
-	  << setw(10) << indx
+	  << setw(16) << erg_rad.begin()->first
+	  << setw(16) << (--erg_rad.end())->first
 	  << setw(10) << c0->Number()
 	  << std::endl;
     } else {
@@ -284,8 +284,8 @@ void * UserTidalRad::determine_acceleration_and_potential_thread(void * arg)
 	double pos = c0->Pos(i, k, Component::Local | Component::Centered);
 	rr += pos*pos;
       }
-    
-      rad[q] = rr = sqrt(rr);
+				// Radius for index q
+      erg_rad[q].second = rr = sqrt(rr);
       
       if (rr < rt_cur) {
 	mas[id] += c0->Part(i)->mass;
@@ -299,7 +299,8 @@ void * UserTidalRad::determine_acceleration_and_potential_thread(void * arg)
 	double dv = c0->Part(i)->vel[k] - cov[k];
 	v2 += dv*dv;
       }
-      erg[q] = 0.5*v2 + c0->Part(i)->pot;
+				// Energy for index q
+      erg_rad[q].first = 0.5*v2 + c0->Part(i)->pot;
     }
   }
 

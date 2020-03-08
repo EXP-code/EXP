@@ -9,6 +9,8 @@
 
     @param comp_name is the component and must be specified
     @param rtrunc is the initial truncation radius
+    @param rfactor multiplies the computed truncation radius for setting 
+    the Component truncation
 */
 class UserTidalRad : public ExternalForce
 {
@@ -23,7 +25,8 @@ private:
   void initialize();
 
   std::string filename;
-  std::vector<double> rad, erg, cov, mas;
+  std::vector<double> cov, mas;
+  std::vector<std::pair<double, double>> erg_rad;
   double rt_cur, rt_cur0;
   bool firsttime;
   int pass;
