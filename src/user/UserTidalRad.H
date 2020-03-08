@@ -25,9 +25,8 @@ private:
   void initialize();
 
   std::string filename;
-  std::vector<double> cov, mas;
-  std::vector<std::pair<double, double>> erg_rad;
-  double rt_cur, rt_cur0;
+  std::vector<double> cov, mas, erg, rad;
+  double rt_cur, rt_cur0, rt_erg;
   bool firsttime;
   int pass;
   

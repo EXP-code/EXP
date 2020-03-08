@@ -175,7 +175,10 @@ void UserTidalRad::determine_acceleration_and_potential(void)
   if (multistep && mlevel>0) return;
 
 				// Resize storage vectors
-  erg_rad.resize(c0->Number());
+  erg.resize(c0->Number());
+  rad.resize(c0->Number());
+  std::fill(erg.begin(), erg.end(), 0.0);
+  std::fill(rad.begin(), rad.end(), 0.0);
 
 				// Initialize storage with zeros
   std::fill(cov.begin(), cov.end(), 0.0);
@@ -208,18 +211,44 @@ void UserTidalRad::determine_acceleration_and_potential(void)
 
   exp_thread_fork(false);
 
+  // Compbine at root node
+  //
+  if (myid) {
+    MPI_Reduce(&rad[0], NULL, c0->Number(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&erg[0], NULL, c0->Number(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  } else {
+    MPI_Reduce(MPI_IN_PLACE, &rad[0], c0->Number(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, &erg[0], c0->Number(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  }
+  
+
   // Find maximum radius with bound energy
   //
-  std::sort(erg_rad.begin(), erg_rad.end());
-  std::pair<double, double> zero(0.0, 0.0);
-  auto it = std::lower_bound(erg_rad.begin(), erg_rad.end(), zero);
-  if (it != erg_rad.begin()) it--;
-  if (it == erg_rad.end())   it--;
+  double min_erg, max_erg;
 
-  double maxrad1 = it->second;
-  double maxerg1 = it->first, max_en;
-  MPI_Allreduce(&maxrad1, &rt_cur, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-  MPI_Allreduce(&maxerg1, &max_en, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  if (myid==0) {
+
+    std::vector<std::pair<double, double>> erg_rad(c0->Number());
+
+    for (size_t n=0; n<c0->Number(); n++) {
+      erg_rad[n] = {erg[n], rad[n]};
+    }
+
+    std::sort(erg_rad.begin(), erg_rad.end());
+    std::pair<double, double> zero(0.0, 0.0);
+    auto it = std::lower_bound(erg_rad.begin(), erg_rad.end(), zero);
+    if (it != erg_rad.begin()) it--;
+    if (it == erg_rad.end())   it--;
+    
+    rt_erg = it->first;
+    rt_cur = it->second;
+
+    min_erg = erg_rad.begin()->first;
+    max_erg = erg_rad.rbegin()->first;
+  }
+
+  MPI_Bcast(&rt_erg, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&rt_cur, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
   // Update rtrunc in the component
   //
@@ -244,12 +273,12 @@ void UserTidalRad::determine_acceleration_and_potential(void)
       out << std::left
 	  << setw(16) << tnow
 	  << setw(16) << rt_cur
-	  << setw(16) << max_en
+	  << setw(16) << rt_erg
 	  << setw(16) << cov[0]
 	  << setw(16) << cov[1]
 	  << setw(16) << cov[2]
-	  << setw(16) << erg_rad.begin()->first
-	  << setw(16) << (--erg_rad.end())->first
+	  << setw(16) << min_erg
+	  << setw(16) << max_erg
 	  << setw(10) << c0->Number()
 	  << std::endl;
     } else {
@@ -285,7 +314,7 @@ void * UserTidalRad::determine_acceleration_and_potential_thread(void * arg)
 	rr += pos*pos;
       }
 				// Radius for index q
-      erg_rad[q].second = rr = sqrt(rr);
+      rad[q] = rr = sqrt(rr);
       
       if (rr < rt_cur) {
 	mas[id] += c0->Part(i)->mass;
@@ -300,7 +329,7 @@ void * UserTidalRad::determine_acceleration_and_potential_thread(void * arg)
 	v2 += dv*dv;
       }
 				// Energy for index q
-      erg_rad[q].first = 0.5*v2 + c0->Part(i)->pot;
+      erg[q] = 0.5*v2 + c0->Part(i)->pot;
     }
   }
 
