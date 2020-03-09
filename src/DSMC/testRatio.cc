@@ -148,7 +148,7 @@ int main (int ac, char **av)
        << " -o " << inFile << '\0';
 
   std::cout << "Command: " << &sout.str()[0] << std::endl;
-  system(&sout.str()[0]);
+  int sret = system(&sout.str()[0]);
 
   std::ifstream in(inFile);
 

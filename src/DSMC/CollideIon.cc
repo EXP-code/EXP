@@ -19483,7 +19483,7 @@ Z(Z), Tmn(Tmin), Tmx(Tmax), numT(numT)
   //
   // std::cout << sout.str() << std::endl;
 
-  system(&sout.str()[0]);
+  int sret = system(&sout.str()[0]);
 
   std::ifstream in(inFile);
 
