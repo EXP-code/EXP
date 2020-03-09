@@ -47,11 +47,11 @@ int main(int argc, char** argv)
     ("nmax",                po::value<int>(&nmax)->default_value(10),
      "maximum number of radial harmonics in the expansion")
     ("numr",                po::value<int>(&numr)->default_value(1000),
-     "radial knots in the shift operator")
+     "radial knots for the SL grid")
     ("rmin",                po::value<double>(&rmin)->default_value(0.0001),
-     "minimum radius for the shift operator")
+     "minimum radius for the SL grid")
     ("rmax",                po::value<double>(&rmax)->default_value(1.95),
-     "maximum radius for the shift operator")
+     "maximum radius for the SL grid")
     ("rs",                  po::value<double>(&rs)->default_value(0.067),
      "cmap scale factor")
     ("diverge",             po::value<int>(&diverge)->default_value(0),
