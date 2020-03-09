@@ -1,11 +1,13 @@
-#include <math.h>
 #include <sstream>
+#include <numeric>
+#include <cmath>
 
 #include "expand.h"
 #include <localmpi.h>
 #include <gaussQ.h>
 
 #include <UserTidalRad.H>
+
 
 UserTidalRad::UserTidalRad(const YAML::Node &conf) : ExternalForce(conf)
 {
@@ -15,10 +17,23 @@ UserTidalRad::UserTidalRad(const YAML::Node &conf) : ExternalForce(conf)
 
   comp_name = "";		// Default component for com
   rtrunc    = 1.0;		// Default tidal truncation
-  rfactor   = 1.0;		// Fraction of rtruc for setting the scale
+  rfactor   = 2.0;		// Fraction of rtruc for setting the scale
   firsttime = true;		// Used to set fiducial scale on first pass
+  dryrun    = false;		// Do not change fiducial scale (testing)
+  debug     = false;		// Print mean percentile radii (testing)
+  pctile    = 0.9;              // Percentile for radial average
+
+  pcnbin    = 0;		// Number of points on either side of
+				// percential target for averaging. Set
+				// from simulation, if zero.
+
+  boxcar    = 1;		// Number of steps in time series average
+  update    = 1;		// Number of steps for update
   
   initialize();
+
+  boxcar = std::max<unsigned>(1, boxcar);
+  update = std::max<int>(1, update);
 
   if (comp_name.size()>0) {
 				// Look for the fiducial component
@@ -89,6 +104,8 @@ UserTidalRad::UserTidalRad(const YAML::Node &conf) : ExternalForce(conf)
 	ins >> lasttime;
 	ins >> radius;
 
+	radsol.push_back(radius);
+
 	if (lasttime >= tnow) break;
 
 	out << line;
@@ -118,7 +135,75 @@ UserTidalRad::UserTidalRad(const YAML::Node &conf) : ExternalForce(conf)
 	  << setw(10) << "Number"
 	  << std::endl;
     }
+
+    // Radial averages for debugging
+    //
+    if (debug) {
+      // Open output stream for writing
+      //
+      std::ofstream dbg("TidalRadDebug." + runtag, ios::out);
+      if (dbg.good()) {
+	const std::vector<double> pct = {0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95};
+	// Labels
+	//
+	dbg << "# " << std::setw(14) << std::left << "Time |";
+	for (auto p : pct) {
+	  std::ostringstream sout1, sout2;
+	  sout1 << "E(" << p << ") |";
+	  sout2 << "R(" << p << ") |";
+	  dbg << std::setw(16) << std::left << sout1.str()
+	      << std::setw(16) << std::left << sout2.str();
+	}
+	{
+	  std::ostringstream sout1, sout2;
+	  sout1 << "E(" << 1.0 << ") |";
+	  sout2 << "R(" << 1.0 << ") |";
+	  dbg << std::setw(16) << std::left << sout1.str()
+	      << std::setw(16) << std::left << sout2.str()
+	      << std::endl;
+	}
+	dbg << std::endl;
+
+	// Column numbers
+	//
+	int coln = 1;
+	std::ostringstream sout;
+	sout << "[" << coln++ << "] |";
+	dbg << "# " << std::setw(14) << std::left << sout.str();
+	for (size_t n=0; n<pct.size(); n++) {
+	  std::ostringstream sout1, sout2;
+	  sout1 << "[" << coln++ << "] |";
+	  sout2 << "[" << coln++ << "] |";
+	  dbg << std::setw(16) << std::left << sout1.str()
+	      << std::setw(16) << std::left << sout2.str();
+	}
+	{
+	  std::ostringstream sout1, sout2;
+	  sout1 << "[" << coln++ << "] |";
+	  sout2 << "[" << coln++ << "] |";
+	  dbg << std::setw(16) << std::left << sout1.str()
+	      << std::setw(16) << std::left << sout2.str()
+	      << std::endl;
+	}
+	dbg << std::endl;
+
+	// Seperators
+	//
+	dbg << "# " << std::setw(14) << std::setfill('-') << '+';
+	for (size_t n=0; n<pct.size(); n++) {
+	  dbg << std::setw(16) << std::setfill('-') << '+'
+	      << std::setw(16) << std::setfill('-') << '+';
+	}
+	{
+	  dbg << std::setw(16) << std::setfill('-') << '+'
+	      << std::setw(16) << std::setfill('-') << '+';
+	}
+	dbg << std::endl;
+      }
+    }
+    // Debug radial percentile file stanza
   }
+  // File initialization loop
 
   MPI_Bcast(&rt_cur, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
@@ -138,7 +223,9 @@ void UserTidalRad::userinfo()
   print_divider();
 
   cout << "** User routine TIDAL RADIUS initialized "
-       << "using component <" << comp_name << ">" << std::endl;
+       << "using component <" << comp_name << "> "
+       << "with boxcar=" << boxcar << " and update=" << update
+       << std::endl;
 
   print_divider();
 }
@@ -147,8 +234,14 @@ void UserTidalRad::initialize()
 {
   try {
     if (conf["compname"]) comp_name = conf["compname"].as<std::string>();
-    if (conf["rtrunc"])   rtrunc    = conf["rtrunc"].as<double>();
-    if (conf["rfactor"])  rfactor   = conf["rfactor"].as<double>();
+    if (conf["rtrunc"])   rtrunc    = conf["rtrunc"].  as<double>();
+    if (conf["rfactor"])  rfactor   = conf["rfactor"]. as<double>();
+    if (conf["dryrun"])   dryrun    = conf["dryrun"].  as<bool>();
+    if (conf["pctile"])   pctile    = conf["pctile"].  as<double>();
+    if (conf["pcnbin"])   pcnbin    = conf["pcnbin"].  as<int>();
+    if (conf["boxcar"])   boxcar    = conf["boxcar"].  as<unsigned>();
+    if (conf["update"])   update    = conf["update"].  as<int>();
+    if (conf["debug"])    debug     = conf["debug"].   as<bool>();
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in UserTidalRad: "
@@ -164,6 +257,19 @@ void UserTidalRad::initialize()
 
   cov.resize(3*nthrds);
   mas.resize(nthrds);
+}
+
+
+double UserTidalRad::radavg()
+{
+  if (radsol.size()>boxcar) {
+    size_t old = radsol.size() - boxcar;
+    radsol.erase(radsol.begin(), radsol.begin() + old);
+  }
+
+  double ret = std::accumulate(radsol.begin(), radsol.end(), 0.0);
+  if (radsol.size()) ret /= radsol.size();
+  return ret;
 }
 
 
@@ -213,46 +319,131 @@ void UserTidalRad::determine_acceleration_and_potential(void)
 
   // Compbine at root node
   //
+  std::vector<int> Ns, Nd;
+  std::vector<double> totErg, totRad;
+  int Ntot = 0.0, N = c0->Number();
+  double min_erg, max_erg, rt_erg;
+
   if (myid) {
-    MPI_Reduce(&rad[0], NULL, c0->Number(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&erg[0], NULL, c0->Number(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+				// Gather number of particles on each
+				// node to the root
+    MPI_Gather(&N, 1, MPI_INT, NULL, 1, MPI_INT, 0, MPI_COMM_WORLD);
+				// Gather energy and radius vectors
+				// from each node to the root
+    MPI_Gatherv(&erg[0], N, MPI_DOUBLE, NULL, NULL, NULL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Gatherv(&rad[0], N, MPI_DOUBLE, NULL, NULL, NULL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
   } else {
-    MPI_Reduce(MPI_IN_PLACE, &rad[0], c0->Number(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(MPI_IN_PLACE, &erg[0], c0->Number(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  }
-  
+				// Gather number of particles on each
+				// node
+    Ns.resize(numprocs);
+    Nd.resize(numprocs);
+    MPI_Gather(&N, 1, MPI_INT, &Ns[0], 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-  // Find maximum radius with bound energy
-  //
-  double min_erg, max_erg;
-
-  if (myid==0) {
-
-    std::vector<std::pair<double, double>> erg_rad(c0->Number());
-
-    for (size_t n=0; n<c0->Number(); n++) {
-      erg_rad[n] = {erg[n], rad[n]};
+				// Compute totals and displacements
+				// 
+    for (int n=0; n<numprocs; n++) {
+      Nd[n] = Ntot;
+      Ntot += Ns[n];
     }
+    totErg.resize(Ntot);
+    totRad.resize(Ntot);
 
+				// Gather total energy and radius vectors
+				//
+    MPI_Gatherv(&erg[0], N, MPI_DOUBLE, &totErg[0], &Ns[0], &Nd[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    MPI_Gatherv(&rad[0], N, MPI_DOUBLE, &totRad[0], &Ns[0], &Nd[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  
+				// Find maximum radius with bound energy
+				//
+
+				// Energy, radius pairs for sorting
+    std::vector<std::pair<double, double>> erg_rad(Ntot);
+
+    for (int n=0; n<Ntot; n++) {
+      erg_rad[n] = {totErg[n], totRad[n]};
+    }
+    
+				// Sort the energy-radius pairs and
+				// find the energy zero index
     std::sort(erg_rad.begin(), erg_rad.end());
     std::pair<double, double> zero(0.0, 0.0);
     auto it = std::lower_bound(erg_rad.begin(), erg_rad.end(), zero);
     if (it != erg_rad.begin()) it--;
     if (it == erg_rad.end())   it--;
-    
-    rt_erg = it->first;
-    rt_cur = it->second;
 
-    min_erg = erg_rad.begin()->first;
+				// Compute the average radius for the
+				// target percentile
+
+    int nbin = 100;		// [The default minimum number per bin]
+    if (pcnbin) nbin = std::max<int>(nbin, pcnbin);
+    else        nbin = std::max<int>(nbin, sqrt(c0->Number()));
+    int edge = std::distance(erg_rad.begin(), it);
+    size_t k = static_cast<size_t>(edge*pctile);
+    size_t kmin = k-nbin/2, kmax = k+nbin/2;
+    kmin = std::max<size_t>(kmin, 0);
+    kmax = std::min<size_t>(kmax, erg_rad.size());
+    rt_cur = 0.0;
+    for (size_t j=kmin; j<kmax; j++) rt_cur += erg_rad[j].second;
+    rt_erg = erg_rad[k].first;
+    if (kmax > kmin) rt_cur /= kmax - kmin;
+    else std::cout << "UserTidalRad logic error: kmax=" << kmax
+		   << " !> kmin=" << kmin << " erg=" << rt_erg
+		   <<  std::endl;
+
+    radsol.push_back(rt_cur);
+    rt_cur = radavg();
+
+    // Append radial averages to file for debugging
+    //
+    if (debug) {
+      // Open output stream for writing
+      //
+      std::ofstream dbg("TidalRadDebug." + runtag, ios::out | ios::app);
+      if (dbg.good()) {
+	const std::vector<double> pct = {0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95};
+	int edge = std::distance(erg_rad.begin(), it);
+	dbg << std::setw(16) << tnow;
+	for (auto p : pct) {
+	  size_t k = static_cast<size_t>(edge*p);
+	  size_t kmin = k-nbin/2, kmax = k+nbin/2;
+	  kmin = std::max<size_t>(kmin, 0);
+	  kmax = std::min<size_t>(kmax, erg_rad.size());
+	  double rcur=0;
+	  for (size_t j=kmin; j<kmax; j++) rcur += erg_rad[j].second;
+	  dbg << std::setw(16) << erg_rad[k].first
+	      << std::setw(16) << rcur/(kmax - kmin);
+	}
+	dbg << std::setw(16) << it->first
+	    << std::setw(16) << it->second
+	    << std::endl;
+      }
+    }
+
+    // Diagnostic values
+    //
+    min_erg = erg_rad.begin() ->first;
     max_erg = erg_rad.rbegin()->first;
   }
 
-  MPI_Bcast(&rt_erg, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  // Finally, communicate the rt_cur value to all nodes
+  //
   MPI_Bcast(&rt_cur, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
   // Update rtrunc in the component
   //
-  c0->rtrunc = rt_cur*rfactor;
+  if (not dryrun and this_step % update==0) {
+    if (myid==0) {
+      std::ofstream out("TidalRad." + runtag + ".trunc", ios::out | ios::app);
+      if (out.good())
+	out << std::setw(18) << tnow
+	    << std::setw(18) << rt_cur*rfactor
+	    << std::endl;
+    }
+
+    c0->rtrunc = rt_cur*rfactor;
+  }
 
   // Update scale in force
   //
@@ -263,7 +454,17 @@ void UserTidalRad::determine_acceleration_and_potential(void)
 
   // Change force scale to account for change in radial scale
   //
-  c0->force->setScale(rt_cur/rt_cur0);
+  if (not dryrun and this_step % update==0) {
+    if (myid==0) {
+      std::ofstream out("TidalRad." + runtag + ".scale", ios::out | ios::app);
+      if (out.good())
+	out << std::setw(18) << tnow
+	    << std::setw(18) << rt_cur/rt_cur0
+	    << std::endl;
+    }
+      
+    // c0->force->setScale(rt_cur/rt_cur0);
+  }
 
   if (myid==0) {
     // Open output stream for writing
