@@ -52,6 +52,8 @@ private:
 
   void get_potl(int lmax, int nmax, double r, Matrix& p, int tid);
 
+  void make_model();
+
 #if HAVE_LIBCUDA==1
   virtual void initialize_cuda()
   {
@@ -73,12 +75,14 @@ private:
   double rsphSL;
   double rmin;
   double rs;
-  int numr;
-  int cmap;
-  int diverge;
+  double tnext, dtime;
+  int    numr;
+  int    cmap;
+  int    diverge;
   double dfac;
   string model_file;
   string cache_file;
+  bool   recompute;
 
 public:
 				// Global parameters
@@ -95,12 +99,20 @@ public:
       @param dfac is the power of the "divergent" cusp
       @param modelname is the file containing the input background model profile
       @param cachename is the name for the SL grid cache file
-
+      @param dtime is the interval between basis recomputations (<=0 for never)
   */
   Sphere(const YAML::Node& conf, MixtureBasis* m=0);
 
   //! Destructor
   virtual ~Sphere();
+
+  //! Override to redetermine basis, as desired
+  virtual void determine_coefficients(void)
+  {
+    if (recompute and tnow >= tnext) make_model();
+    SphericalBasis::determine_coefficients();
+  }
+
 };
 
 #endif
