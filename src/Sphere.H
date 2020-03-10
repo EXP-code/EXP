@@ -1,8 +1,12 @@
 #ifndef _Sphere_H
 #define _Sphere_H
 
+#include <boost/make_shared.hpp>
+
 #include <SLGridMP2.h>
 #include <SphericalBasis.H>
+
+typedef boost::shared_ptr<SLGridSph> SLGridSphPtr;
 
 #if HAVE_LIBCUDA==1
 #include <cudaUtil.cuH>
@@ -44,7 +48,7 @@ class Sphere : public SphericalBasis
 
 private:
 
-  SLGridSph* ortho;
+  SLGridSphPtr ortho;
 
   void initialize(void);
 

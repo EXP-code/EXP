@@ -39,8 +39,8 @@ Sphere::Sphere(const YAML::Node& conf, MixtureBasis* m) : SphericalBasis(conf, m
   
 
 				// Generate Sturm-Liouville grid
-  ortho = new SLGridSph(Lmax, nmax, numr, rmin, rmax, true,
-			cmap, rs, diverge, dfac);
+  ortho = boost::make_shared<SLGridSph>(Lmax, nmax, numr, rmin, rmax, true,
+					cmap, rs, diverge, dfac);
 
   setup();
 }
@@ -74,7 +74,7 @@ void Sphere::initialize()
 
 Sphere::~Sphere(void)
 {
-  delete ortho;
+  // NADA
 }
 
 
@@ -112,24 +112,56 @@ void Sphere::make_model()
 
   std::vector<double> histo(numr, 0.0);
 
-  for (int i=0; i<component->Particles().size(); i++) {
+  bool not_done = true;
 
-    double rr = 0.0;
-    for (int k=0; k<3; k++) {
-      double pos = component->Pos(i, k, Component::Local | Component::Centered);
-      rr += pos*pos;
-    }
-    rr = sqrt(rr);
+  while (not_done) {
+
+    for (int i=0; i<component->Particles().size(); i++) {
+
+      double rr = 0.0;
+      for (int k=0; k<3; k++) {
+	double pos = component->Pos(i, k, Component::Local | Component::Centered);
+	rr += pos*pos;
+      }
+      rr = sqrt(rr);
       
-    if (rr < rmax) {
-      int id = (rr - Rmin)/dr;
-      histo[id] += component->Part(i)->mass;
+      if (rr < Rmax) {
+	int id = (rr - Rmin)/dr;
+	histo[id] += component->Part(i)->mass;
+      }
+    }
+    
+    // All processes get complete mass histogram
+    //
+    MPI_Allreduce(MPI_IN_PLACE, &histo[0], numr, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+    // Check for zero mass bins
+    //
+    int n = 0;
+    for (; n<numr; n++) {
+      if (histo[n]<=0.0) break;
+    }
+
+    // No zero mass bins
+    //
+    if (n==numr) {
+      not_done = false;
+    }
+    // Found a zero mass bin
+    //
+    else {
+      double lastR = Rmax;
+      Rmax = Rmin + dr*(n-1);
+      dr = (Rmax - Rmin)/numr;
+
+      // Diagnostic warning
+      //
+      if (myid==0 and Rmax/lastR > 2.0) {
+	std::cout << "Sphere::make_model at T=" << tnow << " has small radius "
+		  << Rmax << "/" << lastR << std::endl;
+      }
     }
   }
-
-  // All processes get complete mass histogram
-  //
-  MPI_Allreduce(MPI_IN_PLACE, &histo[0], numr, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
   std::vector<double> R(numr), D(numr), M(numr), P(numr), P1(numr);
 
@@ -157,12 +189,15 @@ void Sphere::make_model()
 
   for (int i=0; i<numr; i++) P[i] *= -1.0;
 
+  // Create a new spherical model
+  //
   SphModTblPtr mod = boost::make_shared<SphericalModelTable>(numr, &R[0]-1, &D[0]-1, &M[0]-1, &P[0]-1);
 
-				// Regenerate Sturm-Liouville grid
-  delete ortho;
-  ortho = new SLGridSph(Lmax, nmax, numr, Rmin, Rmax, mod, false);
+  // Regenerate Sturm-Liouville grid
+  //
+  ortho = boost::make_shared<SLGridSph>(Lmax, nmax, numr, Rmin, Rmax, mod, false);
 
-				// Update time trigger
+  // Update time trigger
+  //
   tnext = tnow + dtime;
 }
