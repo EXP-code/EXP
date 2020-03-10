@@ -116,7 +116,9 @@ void Sphere::make_model()
 
   while (not_done) {
 
-    for (int i=0; i<component->Particles().size(); i++) {
+    for (auto v : component->Particles()) {
+      // Get the particle index
+      auto i = v.first;
 
       double rr = 0.0;
       for (int k=0; k<3; k++) {
