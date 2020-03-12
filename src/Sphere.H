@@ -1,6 +1,7 @@
 #ifndef _Sphere_H
 #define _Sphere_H
 
+#include <map>
 #include <boost/make_shared.hpp>
 
 #include <SLGridMP2.h>
@@ -56,7 +57,16 @@ private:
 
   void get_potl(int lmax, int nmax, double r, Matrix& p, int tid);
 
-  void make_model();
+  double mapIntrp(const std::map<double, double> &data, double x);
+  double mapDeriv(const std::map<double, double> &data, double x);
+
+  void make_model() {
+    if (plummer) make_model_plummer();
+    else         make_model_bin();
+  }
+  
+  void make_model_bin();
+  void make_model_plummer();
 
 #if HAVE_LIBCUDA==1
   virtual void initialize_cuda()
@@ -81,12 +91,15 @@ private:
   double rs;
   double tnext, dtime;
   int    numr;
+  int    nums;
   int    cmap;
   int    diverge;
   double dfac;
   string model_file;
   string cache_file;
   bool   recompute;
+  bool   plummer;
+  bool   logr;
 
 public:
 				// Global parameters
