@@ -766,7 +766,7 @@ main(int argc, char **argv)
     outcoef.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 
     try {
-      outcoef.open(coeffile);
+      outcoef.open(coeffile, std::ofstream::out | std::ofstream::app);
     } catch (std::system_error& e) {
       std::cerr << e.code().message() << std::endl;
     }
