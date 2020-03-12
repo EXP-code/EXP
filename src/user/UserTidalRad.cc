@@ -442,17 +442,20 @@ void UserTidalRad::determine_acceleration_and_potential(void)
   //
   MPI_Bcast(&rt_cur, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-  // Update rtrunc in the component
+  // Tidal radius diagnostics
   //
   if (diag>0 and myid==0 and this_step % diag==0) {
     std::ofstream out("TidalRad." + runtag + ".trunc", ios::out | ios::app);
     if (out.good())
       out << std::setw(18) << tnow
+	  << std::setw(18) << rt_cur
 	  << std::setw(18) << rt_cur/rtorig
 	  << std::setw(18) << rt_cur/rtorig * rtrunc * rfactor
 	  << std::endl;
   }
 
+  // Update rtrunc in the component
+  //
   if (dtTrunc>0.0 and tnow >= tnextT) {
     c0->rtrunc = rt_cur/rtorig * rtrunc * rfactor;
     tnextT += dtTrunc;
@@ -460,14 +463,6 @@ void UserTidalRad::determine_acceleration_and_potential(void)
 
   // Change force scale to account for change in radial scale
   //
-  if (diag>0 and myid==0 and this_step % diag==0) {
-    std::ofstream out("TidalRad." + runtag + ".scale", ios::out | ios::app);
-    if (out.good())
-      out << std::setw(18) << tnow
-	  << std::setw(18) << rt_cur/rtorig
-	  << std::endl;
-  }
-      
   if (dtScale>0.0 and tnow >= tnextS) {
     c0->force->setScale(rt_cur/rtorig);
     tnextS += dtScale;
