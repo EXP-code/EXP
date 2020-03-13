@@ -1,8 +1,13 @@
 #ifndef _Sphere_H
 #define _Sphere_H
 
+#include <map>
+#include <boost/make_shared.hpp>
+
 #include <SLGridMP2.h>
 #include <SphericalBasis.H>
+
+typedef boost::shared_ptr<SLGridSph> SLGridSphPtr;
 
 #if HAVE_LIBCUDA==1
 #include <cudaUtil.cuH>
@@ -44,13 +49,24 @@ class Sphere : public SphericalBasis
 
 private:
 
-  SLGridSph* ortho;
+  SLGridSphPtr ortho;
 
   void initialize(void);
 
   void get_dpotl(int lmax, int nmax, double r, Matrix& p, Matrix& dp, int tid);
 
   void get_potl(int lmax, int nmax, double r, Matrix& p, int tid);
+
+  double mapIntrp(const std::map<double, double> &data, double x);
+  double mapDeriv(const std::map<double, double> &data, double x);
+
+  void make_model() {
+    if (plummer) make_model_plummer();
+    else         make_model_bin();
+  }
+  
+  void make_model_bin();
+  void make_model_plummer();
 
 #if HAVE_LIBCUDA==1
   virtual void initialize_cuda()
@@ -73,12 +89,17 @@ private:
   double rsphSL;
   double rmin;
   double rs;
-  int numr;
-  int cmap;
-  int diverge;
+  double tnext, dtime;
+  int    numr;
+  int    nums;
+  int    cmap;
+  int    diverge;
   double dfac;
   string model_file;
   string cache_file;
+  bool   recompute;
+  bool   plummer;
+  bool   logr;
 
 public:
 				// Global parameters
@@ -95,12 +116,20 @@ public:
       @param dfac is the power of the "divergent" cusp
       @param modelname is the file containing the input background model profile
       @param cachename is the name for the SL grid cache file
-
+      @param dtime is the interval between basis recomputations (<=0 for never)
   */
   Sphere(const YAML::Node& conf, MixtureBasis* m=0);
 
   //! Destructor
   virtual ~Sphere();
+
+  //! Override to redetermine basis, as desired
+  virtual void determine_coefficients(void)
+  {
+    if (recompute and tnow >= tnext) make_model();
+    SphericalBasis::determine_coefficients();
+  }
+
 };
 
 #endif
