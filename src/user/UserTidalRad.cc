@@ -17,9 +17,10 @@ UserTidalRad::UserTidalRad(const YAML::Node &conf) : ExternalForce(conf)
 
   comp_name = "";		// Default component for com
   rtrunc    = 1.0;		// Default tidal truncation
-  rfactor   = 2.0;		// Fraction of rtruc for setting the scale
-  firsttime = true;		// Used to set fiducial scale on first pass
-  dryrun    = false;		// Do not change fiducial scale (testing)
+  rfactor   = 1.0;		// Fraction of rtruc for setting the scale
+  rtorig    = 0.5;		// Original percentile radius target
+  dtTrunc   = 0.0;		// Truncation setting interval (zero: skip)
+  dtScale   = 0.0;		// Force scale setting interval (zero: skip)
   debug     = false;		// Print mean percentile radii (testing)
   pctile    = 0.9;              // Percentile for radial average
 
@@ -28,12 +29,11 @@ UserTidalRad::UserTidalRad(const YAML::Node &conf) : ExternalForce(conf)
 				// from simulation, if zero.
 
   boxcar    = 1;		// Number of steps in time series average
-  update    = 1;		// Number of steps for update
+  diag      = 0;		// Diagnostic output stride (0 means never)
   
   initialize();
 
   boxcar = std::max<unsigned>(1, boxcar);
-  update = std::max<int>(1, update);
 
   if (comp_name.size()>0) {
 				// Look for the fiducial component
@@ -207,6 +207,14 @@ UserTidalRad::UserTidalRad(const YAML::Node &conf) : ExternalForce(conf)
 
   MPI_Bcast(&rt_cur, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
+  // Set next truncation time
+  //
+  if (dtTrunc>0.0) tnextT = tnow + dtTrunc;
+
+  // Set next scale change time
+  //
+  if (dtScale>0.0) tnextS = tnow + dtScale;
+
   userinfo();
 
 }
@@ -224,7 +232,8 @@ void UserTidalRad::userinfo()
 
   cout << "** User routine TIDAL RADIUS initialized "
        << "using component <" << comp_name << "> "
-       << "with boxcar=" << boxcar << " and update=" << update
+       << "with boxcar=" << boxcar << ", dtTrunc=" << dtTrunc
+       << ", dtScale=" << dtScale << ", diag=" << diag
        << std::endl;
 
   print_divider();
@@ -236,11 +245,13 @@ void UserTidalRad::initialize()
     if (conf["compname"]) comp_name = conf["compname"].as<std::string>();
     if (conf["rtrunc"])   rtrunc    = conf["rtrunc"].  as<double>();
     if (conf["rfactor"])  rfactor   = conf["rfactor"]. as<double>();
-    if (conf["dryrun"])   dryrun    = conf["dryrun"].  as<bool>();
+    if (conf["rtorig"])   rtorig    = conf["rtorig"].  as<double>();
     if (conf["pctile"])   pctile    = conf["pctile"].  as<double>();
     if (conf["pcnbin"])   pcnbin    = conf["pcnbin"].  as<int>();
     if (conf["boxcar"])   boxcar    = conf["boxcar"].  as<unsigned>();
-    if (conf["update"])   update    = conf["update"].  as<int>();
+    if (conf["dtTrunc"])  dtTrunc   = conf["dtTrunc"]. as<double>();
+    if (conf["dtScale"])  dtScale   = conf["dtScale"]. as<double>();
+    if (conf["diag"])     diag      = conf["diag"].    as<int>();
     if (conf["debug"])    debug     = conf["debug"].   as<bool>();
   }
   catch (YAML::Exception & error) {
@@ -431,39 +442,30 @@ void UserTidalRad::determine_acceleration_and_potential(void)
   //
   MPI_Bcast(&rt_cur, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-  // Update rtrunc in the component
+  // Tidal radius diagnostics
   //
-  if (not dryrun and this_step % update==0) {
-    if (myid==0) {
-      std::ofstream out("TidalRad." + runtag + ".trunc", ios::out | ios::app);
-      if (out.good())
-	out << std::setw(18) << tnow
-	    << std::setw(18) << rt_cur*rfactor
-	    << std::endl;
-    }
-
-    c0->rtrunc = rt_cur*rfactor;
+  if (diag>0 and myid==0 and this_step % diag==0) {
+    std::ofstream out("TidalRad." + runtag + ".trunc", ios::out | ios::app);
+    if (out.good())
+      out << std::setw(18) << tnow
+	  << std::setw(18) << rt_cur
+	  << std::setw(18) << rt_cur/rtorig
+	  << std::setw(18) << rt_cur/rtorig * rtrunc * rfactor
+	  << std::endl;
   }
 
-  // Update scale in force
+  // Update rtrunc in the component
   //
-  if (firsttime) {
-    rt_cur0 = rt_cur;
-    firsttime = false;
+  if (dtTrunc>0.0 and tnow >= tnextT) {
+    c0->rtrunc = rt_cur/rtorig * rtrunc * rfactor;
+    tnextT += dtTrunc;
   }
 
   // Change force scale to account for change in radial scale
   //
-  if (not dryrun and this_step % update==0) {
-    if (myid==0) {
-      std::ofstream out("TidalRad." + runtag + ".scale", ios::out | ios::app);
-      if (out.good())
-	out << std::setw(18) << tnow
-	    << std::setw(18) << rt_cur/rt_cur0
-	    << std::endl;
-    }
-      
-    // c0->force->setScale(rt_cur/rt_cur0);
+  if (dtScale>0.0 and tnow >= tnextS) {
+    c0->force->setScale(rt_cur/rtorig);
+    tnextS += dtScale;
   }
 
   if (myid==0) {
