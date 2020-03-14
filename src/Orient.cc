@@ -41,24 +41,24 @@ Matrix return_euler_slater(double PHI, double THETA, double PSI, int BODY);
 Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 	       string Logfile, double dt, double damping)
 {
-  keep = n;
+  keep    = n;
   current = 0;
-  many = nwant;
-  oflags = Oflg;
-  cflags = Cflg;
+  many    = nwant;
+  oflags  = Oflg;
+  cflags  = Cflg;
   logfile = Logfile;
-  deltaT = dt;
-  Nlast = 0;
-  damp = damping;
-  linear = false;
+  deltaT  = dt;
+  Nlast   = 0;
+  damp    = damping;
+  linear  = false;
 
 				// Work vectors
-  axis1.setsize(1, 3);
-  center1.setsize(1, 3);
-  sumY.setsize(1, 3);
-  sumXY.setsize(1, 3);
-  sumY2.setsize(1, 3);
-  slope.setsize(1, 3);
+  axis1    .setsize(1, 3);
+  center1  .setsize(1, 3);
+  sumY     .setsize(1, 3);
+  sumXY    .setsize(1, 3);
+  sumY2    .setsize(1, 3);
+  slope    .setsize(1, 3);
   intercept.setsize(1, 3);
 
   lasttime = -1.0e+30;
@@ -68,14 +68,15 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
   vel = vector<double>(3);
 
 				// Center and axis
-  axis.setsize(1, 3);
-  center.setsize(1, 3);
+  axis   .setsize(1, 3);
+  center .setsize(1, 3);
   center0.setsize(1, 3);
   cenvel0.setsize(1, 3);
-  center.zero();
+
+  center .zero();
   center0.zero();
   cenvel0.zero();
-  axis.zero();
+  axis   .zero();
 
   axis[3] = 1;
 
@@ -281,9 +282,9 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 
     if (in_ok) {
 
-      MPI_Bcast(&Ecurr, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&axis[1], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&center[1], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&Ecurr,      1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&axis[1],    3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&center[1],  3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
       MPI_Bcast(&center0[1], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
       int howmany;
