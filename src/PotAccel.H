@@ -182,8 +182,11 @@ public:
   //! Print debug info
   virtual void multistep_debug() {}
 
-  //! Set length scale
+  //! Set new length scale (default: 1.0)
   virtual void setScale(double s) { scale = s; }
+
+  //! Get current length scale
+  virtual double getScale() { return scale; }
 
   //! For timing the fraction spent in threaded force methods
   //@{
