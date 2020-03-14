@@ -49,6 +49,11 @@ namespace pt = boost::property_tree;
 
 using vtkFloatArrayP            = vtkSmartPointer<vtkFloatArray>;
 
+// KD tree for density computation
+//
+#include <KDtree.H>
+
+
 typedef std::vector< std::vector<unsigned> > I2Vector;
 
 void writePVD(const std::string& filename,
@@ -111,7 +116,7 @@ int
 main(int ac, char **av)
 {
   char *prog = av[0];
-  int ibeg, iend, istride;
+  int ibeg, iend, istride, Ndens;
   double time, Emin, Emax, dE, Xmin, Xmax, dX, Lunit, Tunit;
   bool verbose = false, logE = false, PVD = false;
   std::string cname, rtag;
@@ -134,6 +139,8 @@ main(int ac, char **av)
      "final sequence counter")
     ("stride",		po::value<int>(&istride)->default_value(1),
      "sequence counter stride")
+    ("Ndens",		po::value<int>(&Ndens)->default_value(0),
+     "KD density estimate count")
     ;
 
 
@@ -256,6 +263,39 @@ main(int ac, char **av)
 
       vtkSmartPointer<vtkCellArray> conn = vtkSmartPointer<vtkCellArray>::New();
     
+
+      // Compute density based on N-pt balls
+      //
+      vtkFloatArrayP dens = vtkFloatArrayP::New();
+      mas->SetNumberOfComponents(1);
+      mas->SetName("density");
+
+      if (Ndens) {
+	in->seekg(stanza->pspos); // Move to beginning of particles
+
+	typedef point <double, 3> point3;
+	typedef kdtree<double, 3> tree3;
+
+	std::vector<double> mass;
+	std::vector<point3> points;
+
+	for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
+	  points.push_back({part->pos(0), part->pos(1), part->pos(2)});
+	  mass.push_back(part->mass());
+	}
+	  
+	tree3 tree(points.begin(), points.end());
+
+	for (int k=0; k<points.size(); k++) {
+	  auto ret = tree.nearestN(points[k], Ndens);
+	    
+	  double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
+	  if (volume>0.0)
+	    dens->InsertNextValue(mass[k]*Ndens/volume);
+	  else
+	    dens->InsertNextValue(1.0e-18);
+	}
+      }
 				// Position to beginning of particles
 				// ----------------------------------
       in->seekg(stanza->pspos);
@@ -292,6 +332,11 @@ main(int ac, char **av)
       // Add the particle masses
       //
       uGrid->GetPointData()->AddArray(mas);
+
+      // Add density
+      //
+      if (dens->GetNumberOfTuples()) 
+	uGrid->GetPointData()->AddArray(dens);
 
       // Add the atrribute fields
       //
