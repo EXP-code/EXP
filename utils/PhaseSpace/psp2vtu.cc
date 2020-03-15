@@ -139,7 +139,7 @@ main(int ac, char **av)
      "final sequence counter")
     ("stride",		po::value<int>(&istride)->default_value(1),
      "sequence counter stride")
-    ("Ndens",		po::value<int>(&Ndens)->default_value(0),
+    ("Ndens,n",		po::value<int>(&Ndens)->default_value(0),
      "KD density estimate count")
     ;
 
@@ -267,8 +267,8 @@ main(int ac, char **av)
       // Compute density based on N-pt balls
       //
       vtkFloatArrayP dens = vtkFloatArrayP::New();
-      mas->SetNumberOfComponents(1);
-      mas->SetName("density");
+      dens->SetNumberOfComponents(1);
+      dens->SetName("density");
 
       if (Ndens) {
 	in->seekg(stanza->pspos); // Move to beginning of particles
@@ -288,7 +288,7 @@ main(int ac, char **av)
 
 	for (int k=0; k<points.size(); k++) {
 	  auto ret = tree.nearestN(points[k], Ndens);
-	    
+
 	  double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
 	  if (volume>0.0)
 	    dens->InsertNextValue(mass[k]*Ndens/volume);
