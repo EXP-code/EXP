@@ -128,18 +128,18 @@ main(int ac, char **av)
   desc.add_options()
     ("help,h",		"produce help message")
     ("verbose,v",       "verbose output")
-    ("PVD",		"create a ParaView PVD file")
+    ("PVD,P",		"create a ParaView PVD file")
     ("name,c",	        po::value<std::string>(&cname)->default_value("gas"),
      "component name")
     ("rtag,t",		po::value<std::string>(&rtag)->default_value("run"), 
      "runtag name")
-    ("begin",		po::value<int>(&ibeg)->default_value(0),
+    ("begin,1",		po::value<int>(&ibeg)->default_value(0),
      "initial sequence counter")
-    ("final",		po::value<int>(&iend)->default_value(1000000),
+    ("final,2",		po::value<int>(&iend)->default_value(1000000),
      "final sequence counter")
-    ("stride",		po::value<int>(&istride)->default_value(1),
+    ("stride,s",	po::value<int>(&istride)->default_value(1),
      "sequence counter stride")
-    ("Ndens,n",		po::value<int>(&Ndens)->default_value(0),
+    ("Ndens,N",		po::value<int>(&Ndens)->default_value(0),
      "KD density estimate count")
     ;
 

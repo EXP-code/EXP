@@ -445,11 +445,12 @@ void UserTidalRad::determine_acceleration_and_potential(void)
   // Tidal radius diagnostics
   //
   if (diag>0 and myid==0 and this_step % diag==0) {
-    std::ofstream out("TidalRad." + runtag + ".trunc", ios::out | ios::app);
+    std::ofstream out("TidalRadDiag." + runtag, ios::out | ios::app);
     if (out.good())
       out << std::setw(18) << tnow
 	  << std::setw(18) << rt_cur
 	  << std::setw(18) << rt_cur/rtorig
+	  << std::setw(18) << rt_cur/rtorig * rfactor
 	  << std::setw(18) << rt_cur/rtorig * rtrunc * rfactor
 	  << std::endl;
   }
@@ -464,7 +465,7 @@ void UserTidalRad::determine_acceleration_and_potential(void)
   // Change force scale to account for change in radial scale
   //
   if (dtScale>0.0 and tnow >= tnextS) {
-    c0->force->setScale(rt_cur/rtorig);
+    c0->force->setScale(rt_cur/rtorig * rfactor);
     tnextS += dtScale;
   }
 
