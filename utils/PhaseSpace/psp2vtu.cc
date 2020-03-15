@@ -187,7 +187,9 @@ main(int ac, char **av)
       break;
     }
 
-    if (verbose) cerr << "Using filename: " << file.str() << endl;
+    if (verbose) std::cerr << "Using filename: " << file.str() << std::endl;
+    else         std::cout << "Begin file " << file.str()
+			   << " . . . " << std::flush;
 
 
 				// Parse the PSP file
@@ -367,6 +369,8 @@ main(int ac, char **av)
       times.push_back(T);
       outfiles.push_back(fileName.str());
     }
+
+    if (not verbose) std::cout << "done" << std::endl;
 
     C++;
 
