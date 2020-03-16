@@ -4259,6 +4259,21 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	if (scatter_check and recomb_check) {
 	  double val = eVelP2[id] * cr * TreeDSMC::Vunit * 1.0e-14 * RE.back();
 	  recombA[id].add(K1, etaP2[id], val);
+#ifdef EBUG_RECOMB_CHECK
+	  if (myid==0) {
+	    std::ofstream tst("recombCheck.dat", std::ios::out | std::ios::app);
+	    if (tst) {
+	      tst << std::setw(16) << etaP2[id]
+		  << std::setw(16) << eVelP2[id]
+		  << std::setw(16) << kEe1[id]
+		  << std::setw(16) << cr * TreeDSMC::Vunit
+		  << std::setw(16) << eVelP2[id] * cr * TreeDSMC::Vunit
+		  << std::setw(16) << 1.0e-14 * RE.back()
+		  << std::setw(16) << eVelP2[id] * cr * TreeDSMC::Vunit * 1.0e-14 * RE.back()
+		  << std::endl;
+	    }
+	  }
+#endif
 	}
 	
 	if (DEBUG_CRS) trap_crs(crs, recomb);
@@ -4300,6 +4315,21 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	if (scatter_check and recomb_check) {
 	  double val = eVelP1[id] * cr * TreeDSMC::Vunit * 1.0e-14 * RE.back();
 	  recombA[id].add(K2, etaP1[id], val);
+#ifdef EBUG_RECOMB_CHECK
+	  if (myid==0) {
+	    std::ofstream tst("recombCheck.dat", std::ios::out | std::ios::app);
+	    if (tst) {
+	      tst << std::setw(16) << etaP1[id]
+		  << std::setw(16) << eVelP1[id]
+		  << std::setw(16) << kEe2[id]
+		  << std::setw(16) << cr * TreeDSMC::Vunit
+		  << std::setw(16) << eVelP1[id] * cr * TreeDSMC::Vunit
+		  << std::setw(16) << 1.0e-14 * RE.back()
+		  << std::setw(16) << eVelP1[id] * cr * TreeDSMC::Vunit * 1.0e-14 * RE.back()
+		  << std::endl;
+	    }
+	  }
+#endif
 	}
 	  
 	if (DEBUG_CRS) trap_crs(crs, recomb);
