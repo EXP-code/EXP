@@ -220,6 +220,7 @@ void * SlabSL::determine_coefficients_thread(void * arg)
     }
   }
     
+  return (NULL);
 }
 
 void SlabSL::get_acceleration_and_potential(Component* C)
@@ -317,6 +318,8 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
     else
       cC->AddPot(i, Re(potl));
   }
+
+  return (NULL);
 }
 
 void SlabSL::dump_coefs(ostream& out)
