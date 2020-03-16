@@ -128,18 +128,18 @@ main(int ac, char **av)
   desc.add_options()
     ("help,h",		"produce help message")
     ("verbose,v",       "verbose output")
-    ("PVD",		"create a ParaView PVD file")
+    ("PVD,P",		"create a ParaView PVD file")
     ("name,c",	        po::value<std::string>(&cname)->default_value("gas"),
      "component name")
     ("rtag,t",		po::value<std::string>(&rtag)->default_value("run"), 
      "runtag name")
-    ("begin",		po::value<int>(&ibeg)->default_value(0),
+    ("begin,1",		po::value<int>(&ibeg)->default_value(0),
      "initial sequence counter")
-    ("final",		po::value<int>(&iend)->default_value(1000000),
+    ("final,2",		po::value<int>(&iend)->default_value(1000000),
      "final sequence counter")
-    ("stride",		po::value<int>(&istride)->default_value(1),
+    ("stride,s",	po::value<int>(&istride)->default_value(1),
      "sequence counter stride")
-    ("Ndens",		po::value<int>(&Ndens)->default_value(0),
+    ("Ndens,N",		po::value<int>(&Ndens)->default_value(0),
      "KD density estimate count")
     ;
 
@@ -187,7 +187,9 @@ main(int ac, char **av)
       break;
     }
 
-    if (verbose) cerr << "Using filename: " << file.str() << endl;
+    if (verbose) std::cerr << "Using filename: " << file.str() << std::endl;
+    else         std::cout << "Begin file " << file.str()
+			   << " . . . " << std::flush;
 
 
 				// Parse the PSP file
@@ -267,8 +269,8 @@ main(int ac, char **av)
       // Compute density based on N-pt balls
       //
       vtkFloatArrayP dens = vtkFloatArrayP::New();
-      mas->SetNumberOfComponents(1);
-      mas->SetName("density");
+      dens->SetNumberOfComponents(1);
+      dens->SetName("density");
 
       if (Ndens) {
 	in->seekg(stanza->pspos); // Move to beginning of particles
@@ -288,7 +290,7 @@ main(int ac, char **av)
 
 	for (int k=0; k<points.size(); k++) {
 	  auto ret = tree.nearestN(points[k], Ndens);
-	    
+
 	  double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
 	  if (volume>0.0)
 	    dens->InsertNextValue(mass[k]*Ndens/volume);
@@ -367,6 +369,8 @@ main(int ac, char **av)
       times.push_back(T);
       outfiles.push_back(fileName.str());
     }
+
+    if (not verbose) std::cout << "done" << std::endl;
 
     C++;
 
