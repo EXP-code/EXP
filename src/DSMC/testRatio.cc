@@ -82,6 +82,7 @@ int main (int ac, char **av)
   po::options_description desc("Allowed options");
   desc.add_options()
     ("help,h",		"produce help message")
+    ("long,l",          "long output: print each rate and ratio")
     ("Z,Z",		po::value<unsigned short>(&Z)->default_value(2),
      "atomic number")
     ("Tmin,t",		po::value<double>(&Tmin)->default_value(1000.0),
@@ -256,10 +257,17 @@ int main (int ac, char **av)
     for (auto v : val1.back()) {
       unsigned short C = v.first;
       if (C>1) {
-	if (cdata[C-2][nt]>0.0)
-	  rcb << std::setw(16) << v.second[2]*1.0e-14/cdata[C-2][nt];
-	else
-	  rcb << std::setw(16) << 0.0;
+	if (cdata[C-2][nt]>0.0) {
+	  if (vm.count("long"))
+	    rcb << std::setw(16) << v.second[2]*1.0e-14
+		<< std::setw(16) << cdata[C-2][nt];
+	  rcb 	<< std::setw(16) << v.second[2]*1.0e-14/cdata[C-2][nt];
+	} else {
+	  if (vm.count("long"))
+	    rcb << std::setw(16) << v.second[2]*1.0e-14
+		<< std::setw(16) << cdata[C-2][nt];
+	  rcb 	<< std::setw(16) << 0.0;
+	}
       }
     }
     rcb << std::endl;
