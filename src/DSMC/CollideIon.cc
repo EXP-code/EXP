@@ -3726,11 +3726,11 @@ void CollideIon::pairInfoTrace(int id, pCell* const c,
 
 #ifdef XC_DEEP13
   std::cout << "ETEST:"
-	    << " time=" << tnow
+	    << " time="  << tnow
 	    << " eVel1=" << eVel1
 	    << " eVel2=" << eVel2
-	    << " ke1=" << kEe1[id]/eV
-	    << " ke2=" << kEe2[id]/eV
+	    << " ke1="   << kEe1[id]/eV
+	    << " ke2="   << kEe2[id]/eV
 	    << std::endl;
 #endif
 
@@ -4261,7 +4261,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  recombA[id].add(K1, etaP2[id], val);
 #ifdef EBUG_RECOMB_CHECK
 	  if (myid==0) {
-	    std::ofstream tst("recombCheck.dat", std::ios::out | std::ios::app);
+	    std::ofstream tst(runtag + ".recombCheck", std::ios::out | std::ios::app);
 	    if (tst) {
 	      tst << std::setw(16) << etaP2[id]
 		  << std::setw(16) << eVelP2[id]
@@ -4317,7 +4317,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  recombA[id].add(K2, etaP1[id], val);
 #ifdef EBUG_RECOMB_CHECK
 	  if (myid==0) {
-	    std::ofstream tst("recombCheck.dat", std::ios::out | std::ios::app);
+	    std::ofstream tst(runtag + ".recombCheck", std::ios::out | std::ios::app);
 	    if (tst) {
 	      tst << std::setw(16) << etaP1[id]
 		  << std::setw(16) << eVelP1[id]
@@ -5263,8 +5263,10 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
   if (NoDelC)  {
     // Pass events that are NOT ionization
     // or recombination, or both
-    if (NoDelC & 0x1 and interFlag % 100 == recomb) return ret;
-    if (NoDelC & 0x2 and interFlag % 100 == ionize) return ret;
+    if (NoDelC & 0x1 and interFlag % 100 == recomb)    return ret;
+    if (NoDelC & 0x2 and interFlag % 100 == ionize)    return ret;
+    if (NoDelC & 0x4 and interFlag % 100 == free_free) return ret;
+    if (NoDelC & 0x8 and interFlag % 100 == colexcite) return ret;
     
   } else if (scatter) {
     // Only pass elastic scattering events
@@ -7185,8 +7187,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     ok = true;
 				// Pass events that are NOT ionization
 				// or recombination, or both
-    if (NoDelC & 0x1 and interFlag == recomb) ok = false;
-    if (NoDelC & 0x2 and interFlag == ionize) ok = false;
+    if (NoDelC & 0x1 and interFlag == recomb)    ok = false;
+    if (NoDelC & 0x2 and interFlag == ionize)    ok = false;
+    if (NoDelC & 0x4 and interFlag == free_free) ok = false;
+    if (NoDelC & 0x8 and interFlag == colexcite) ok = false;
 
   } else if (scatter) {
 				// Only pass elastic scattering events
@@ -9525,10 +9529,13 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   //
   if (NoDelC)  {
     ok = true;
-				// Pass events that are NOT ionization
-				// or recombination, or both
-    if (NoDelC & 0x1 and interFlag == recomb) ok = false;
-    if (NoDelC & 0x2 and interFlag == ionize) ok = false;
+				// Event skipping:
+				// NoDelC 15 means skip all inelastic
+    if (NoDelC & 0x1 and interFlag == recomb)    ok = false;
+    if (NoDelC & 0x2 and interFlag == ionize)    ok = false;
+    if (NoDelC & 0x4 and interFlag == free_free) ok = false;
+    if (NoDelC & 0x8 and interFlag == colexcite) ok = false;
+
 
   } else if (scatter) {
 				// Only pass elastic scattering events
