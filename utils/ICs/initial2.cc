@@ -341,7 +341,6 @@ main(int ac, char **av)
   int          VFLAG;
   int          DFLAG;
   bool         expcond;
-  bool         PLUMMER;
   bool         CMAP;
   bool         LOGR;
   bool         CHEBY;
@@ -490,7 +489,6 @@ main(int ac, char **av)
     ("expcond",         po::value<bool>(&expcond)->default_value(true),                 "Use analytic density function for computing EmpCylSL basis")
     ("CONSTANT",        po::value<bool>(&CONSTANT)->default_value(false),               "Check basis with a constant density")
     ("GAUSSIAN",        po::value<bool>(&GAUSSIAN)->default_value(false),               "Use Gaussian disk profile rather than exponential disk profile")
-    ("PLUMMER",         po::value<bool>(&PLUMMER)->default_value(false),                "Use Plummer disk profile rather than exponential disk profile")
     ("centerfile",      po::value<string>(&centerfile)->default_value("center.dat"),    "Read position and velocity center from this file")
     ("halofile1",       po::value<string>(&halofile1)->default_value("SLGridSph.model"),        "File with input halo model")
     ("halofile2",       po::value<string>(&halofile2)->default_value("SLGridSph.model.fake"),   "File with input halo model for multimass")
@@ -742,6 +740,9 @@ main(int ac, char **av)
   EmpCylSL::PCAVAR      = SELECT;
   EmpCylSL::CACHEFILE   = cachefile;
 
+  // An example use redefinition of mtype for EmpCylSL
+  //
+  // EmpCylSL::mtype = EmpCylSL::Plummer;
 
   if (basis) EmpCylSL::DENS = true;
 
