@@ -402,6 +402,7 @@ main(int ac, char **av)
   string       cachefile;
   string       config;
   string       gentype;
+  string       mtype;
   
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -495,6 +496,7 @@ main(int ac, char **av)
     ("cachefile",       po::value<string>(&cachefile)->default_value(".eof.cache.file"),        "Name of EOF cache file")
     ("runtag",          po::value<string>(&runtag)->default_value("run000"),                    "Label prefix for diagnostic images")
     ("gentype",         po::value<string>(&gentype)->default_value("Asymmetric"),               "DiskGenType string for velocity initialization (Jeans, Asymmetric, or Epicyclic)")
+    ("mtype",           po::value<string>(&mtype),                                              "Spherical deprojection model for EmpCylSL (one of: Exponential, Gaussian, Plummer)")
     ("report",          po::value<bool>(&report)->default_value(true),                  "Report particle progress in EOF computation")
     ("evolved",         po::value<bool>(&evolved)->default_value(false),           "Use existing halo body file given by <hbods> and do not create a new halo")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
@@ -611,6 +613,25 @@ main(int ac, char **av)
     }
   }
   
+  // Set EmpCylSL mtype
+  //
+  EmpCylSL::mtype = EmpCylSL::Exponential;
+  if (vm.count("mtype")) {
+    if (mtype.compare("Exponential")==0)
+      EmpCylSL::mtype = EmpCylSL::Exponential;
+    else if (mtype.compare("Gaussian")==0)
+      EmpCylSL::mtype = EmpCylSL::Gaussian;
+    else if (mtype.compare("Plummer")==0)
+      EmpCylSL::mtype = EmpCylSL::Plummer;
+    else {
+      if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
+			     << mtype << ">, valid types are: "
+			     << "Exponential, Gaussian, Plummer" << std::endl;
+      MPI_Finalize();
+      return -1;
+    }
+  }
+
   // Check DiskGenType
   //
   std::transform(gentype.begin(), gentype.end(), gentype.begin(),
