@@ -342,7 +342,6 @@ main(int ac, char **av)
   int          VFLAG;
   int          DFLAG;
   bool         expcond;
-  bool         PLUMMER;
   bool         CMAP;
   bool         LOGR;
   bool         CHEBY;
@@ -405,6 +404,7 @@ main(int ac, char **av)
   string       config;
   string       gentype;
   string       dmodel;
+  string       mtype;
   
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -493,13 +493,13 @@ main(int ac, char **av)
     ("expcond",         po::value<bool>(&expcond)->default_value(true),                 "Use analytic density function for computing EmpCylSL basis")
     ("CONSTANT",        po::value<bool>(&CONSTANT)->default_value(false),               "Check basis with a constant density")
     ("GAUSSIAN",        po::value<bool>(&GAUSSIAN)->default_value(false),               "Use Gaussian disk profile rather than exponential disk profile")
-    ("PLUMMER",         po::value<bool>(&PLUMMER)->default_value(false),                "Use Plummer disk profile rather than exponential disk profile")
     ("centerfile",      po::value<string>(&centerfile)->default_value("center.dat"),    "Read position and velocity center from this file")
     ("halofile1",       po::value<string>(&halofile1)->default_value("SLGridSph.model"),        "File with input halo model")
     ("halofile2",       po::value<string>(&halofile2)->default_value("SLGridSph.model.fake"),   "File with input halo model for multimass")
     ("cachefile",       po::value<string>(&cachefile)->default_value(".eof.cache.file"),        "Name of EOF cache file")
     ("runtag",          po::value<string>(&runtag)->default_value("run000"),                    "Label prefix for diagnostic images")
     ("gentype",         po::value<string>(&gentype)->default_value("Asymmetric"),               "DiskGenType string for velocity initialization (Jeans, Asymmetric, or Epicyclic)")
+    ("mtype",           po::value<string>(&mtype),                                              "Spherical deprojection model for EmpCylSL (one of: Exponential, Gaussian, Plummer)")
     ("report",          po::value<bool>(&report)->default_value(true),                  "Report particle progress in EOF computation")
     ("evolved",         po::value<bool>(&evolved)->default_value(false),           "Use existing halo body file given by <hbods> and do not create a new halo")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
@@ -616,6 +616,25 @@ main(int ac, char **av)
     }
   }
   
+  // Set EmpCylSL mtype
+  //
+  EmpCylSL::mtype = EmpCylSL::Exponential;
+  if (vm.count("mtype")) {
+    if (mtype.compare("Exponential")==0)
+      EmpCylSL::mtype = EmpCylSL::Exponential;
+    else if (mtype.compare("Gaussian")==0)
+      EmpCylSL::mtype = EmpCylSL::Gaussian;
+    else if (mtype.compare("Plummer")==0)
+      EmpCylSL::mtype = EmpCylSL::Plummer;
+    else {
+      if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
+			     << mtype << ">, valid types are: "
+			     << "Exponential, Gaussian, Plummer" << std::endl;
+      MPI_Finalize();
+      return -1;
+    }
+  }
+
   // Check DiskGenType
   //
   std::transform(gentype.begin(), gentype.end(), gentype.begin(),
@@ -744,7 +763,6 @@ main(int ac, char **av)
   EmpCylSL::USESVD      = SVD;
   EmpCylSL::PCAVAR      = SELECT;
   EmpCylSL::CACHEFILE   = cachefile;
-
 
   if (basis) EmpCylSL::DENS = true;
 
