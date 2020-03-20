@@ -789,11 +789,18 @@ main(int ac, char **av)
     // Use these user models to deproject for the EOF spherical basis
     //
     if (vm.count("condition")) {
-      EmpCylSL::AxiDiskPtr model;
+      // The scale in EmpCylSL is assumed to be 1 so we compute the
+      // height relative to the length
+      //
       double H = scale_height/scale_length;
-      if (dmodel.compare("MN")==0)
+
+      // The model instance (you can add others in DiskModels.H
+      //
+      EmpCylSL::AxiDiskPtr model;
+
+      if (dmodel.compare("MN")==0) // Miyamoto-Nagai
 	model = boost::make_shared<MNdisk>(1.0, H);
-      else
+      else			// Default to exponential
 	model = boost::make_shared<Exponential>(1.0, H);
 
       expandd->create_deprojection(H, NUMR, RNUM, model);

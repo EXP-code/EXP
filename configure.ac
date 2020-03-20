@@ -1,7 +1,7 @@
 dnl ==========================================================================
 dnl Process this file with autoconf to produce a configure script.
 dnl ==========================================================================
-AC_INIT(EXP, 7.615, [mdw@umass.edu], [], [https://mdweinberg@bitbucket.org/mdweinberg/exp.git])
+AC_INIT(EXP, 7.616, [mdw@umass.edu], [], [https://mdweinberg@bitbucket.org/mdweinberg/exp.git])
 
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SRCDIR(src/expand.cc)
