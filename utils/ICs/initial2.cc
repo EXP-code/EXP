@@ -232,8 +232,16 @@ const double f_H = 0.76;
 
 // Global variables
 //
-bool         CONSTANT;
-bool         GAUSSIAN;
+enum DiskType { constant, gaussian, mn, exponential };
+
+std::map<std::string, DiskType> dtlookup =
+  { {"constant",    DiskType::constant},
+    {"gaussian",    DiskType::gaussian},
+    {"mn",          DiskType::mn},
+    {"exponential", DiskType::exponential}
+  };
+
+DiskType     dtype;
 double       ASCALE;
 double       ASHIFT;
 double       HSCALE;
@@ -260,22 +268,35 @@ double DiskDens(double R, double z, double phi)
 {
   double ans = 0.0;
 
-  if (CONSTANT) {
+  switch (dtype) {
       
+  constant:
     if (R < ASCALE && fabs(z) < HSCALE)
       ans = 1.0/(2.0*HSCALE*M_PI*ASCALE*ASCALE);
-  }
-  else if (GAUSSIAN) {
-      
+    break;
+  
+  gaussian:
     if (fabs(z) < HSCALE)
       ans = 1.0/(2.0*HSCALE*2.0*M_PI*ASCALE*ASCALE)*
 	exp(-R*R/(2.0*ASCALE*ASCALE));
+    break;
     
-  } else {			// EXPONENTIAL
+  mn:
+    {
+      double Z2 = z*z + HSCALE*HSCALE;
+      double Z  = sqrt(Z2);
+      double Q  = ASCALE + Z;
+      ans = 0.25*HSCALE*HSCALE/M_PI*(ASCALE*R*R + (ASCALE + 3.0*Z)*Q*Q)/( pow(R*R + Q*Q, 2.5) * Z * Z2 );
+    }
+    break;
 
-    double f = cosh(z/HSCALE);
-    ans = exp(-R/ASCALE)/(4.0*M_PI*ASCALE*ASCALE*HSCALE*f*f);
-    
+  default:
+  exponential:
+    {
+      double f = cosh(z/HSCALE);
+      ans = exp(-R/ASCALE)/(4.0*M_PI*ASCALE*ASCALE*HSCALE*f*f);
+    }
+    break;
   }
 
   return ans;
@@ -403,6 +424,7 @@ main(int ac, char **av)
   string       cachefile;
   string       config;
   string       gentype;
+  string       dtype;
   string       dmodel;
   string       mtype;
   
@@ -491,8 +513,6 @@ main(int ac, char **av)
     ("DFLAG",           po::value<int>(&DFLAG)->default_value(0),                       "Output flags for DiskHalo")
     ("threads",         po::value<int>(&nthrds)->default_value(1),                      "Number of lightweight threads")
     ("expcond",         po::value<bool>(&expcond)->default_value(true),                 "Use analytic density function for computing EmpCylSL basis")
-    ("CONSTANT",        po::value<bool>(&CONSTANT)->default_value(false),               "Check basis with a constant density")
-    ("GAUSSIAN",        po::value<bool>(&GAUSSIAN)->default_value(false),               "Use Gaussian disk profile rather than exponential disk profile")
     ("centerfile",      po::value<string>(&centerfile)->default_value("center.dat"),    "Read position and velocity center from this file")
     ("halofile1",       po::value<string>(&halofile1)->default_value("SLGridSph.model"),        "File with input halo model")
     ("halofile2",       po::value<string>(&halofile2)->default_value("SLGridSph.model.fake"),   "File with input halo model for multimass")
@@ -500,6 +520,7 @@ main(int ac, char **av)
     ("runtag",          po::value<string>(&runtag)->default_value("run000"),                    "Label prefix for diagnostic images")
     ("gentype",         po::value<string>(&gentype)->default_value("Asymmetric"),               "DiskGenType string for velocity initialization (Jeans, Asymmetric, or Epicyclic)")
     ("mtype",           po::value<string>(&mtype),                                              "Spherical deprojection model for EmpCylSL (one of: Exponential, Gaussian, Plummer)")
+    ("dtype",           po::value<string>(&dtype),                                              "Disk type for condition (one of: constant, gaussian, mn, exponential)")
     ("report",          po::value<bool>(&report)->default_value(true),                  "Report particle progress in EOF computation")
     ("evolved",         po::value<bool>(&evolved)->default_value(false),           "Use existing halo body file given by <hbods> and do not create a new halo")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
@@ -635,21 +656,25 @@ main(int ac, char **av)
     }
   }
 
-  // Check DiskGenType
+  // Set DiskType
   //
-  std::transform(gentype.begin(), gentype.end(), gentype.begin(),
+  std::transform(dtype.begin(), dtype.end(), dtype.begin(),
 		 [](unsigned char c){ return std::tolower(c); });
 
-  if (DiskHalo::getDiskGenType.find(gentype) == DiskHalo::getDiskGenType.end()) {
+  auto dit = dtlookup.find(dtype);
+
+  if (dit == dtlookup.end()) {
     if (myid==0) {
-      std::cout << "DiskGenType error in configuraton file" << std::endl;
+      std::cout << "DiskType error in configuraton file" << std::endl;
       std::cout << "Valid options are: ";
-      for (auto v : DiskHalo::getDiskGenType) std::cout << v.first << " ";
+      for (auto v : dtlookup) std::cout << v.first << " ";
       std::cout << std::endl;
     }
     MPI_Finalize();
     return -1;
   }
+
+  dtype = dit->second;
 
   //====================
   // Okay, now begin ...
