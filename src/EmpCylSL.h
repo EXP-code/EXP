@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <gaussQ.h>
+#include <interp.h>
 #include <math.h>
 #include <values.h>
 
@@ -156,6 +157,8 @@ private:
   double massR(double R);
   double densR(double R);
 
+  Linear1d densRg, massRg;
+
   //! Data for each harmonic subspace
   class PCAelement
   {
@@ -245,8 +248,27 @@ public:
   enum EmpModel {
     Exponential,
     Gaussian, 
-    Plummer
+    Plummer,
+    condition,
   };
+
+  //! Axisymmetric disk density function for deprojection
+  class AxiDisk
+  {
+  protected:
+
+    double M;
+
+  public:
+
+    //! Constructor
+    AxiDisk(double M=1) : M(M) {}
+
+    //! Density function
+    virtual double operator()(double R, double z) = 0;
+  };
+  
+  typedef boost::shared_ptr<AxiDisk> AxiDiskPtr;
 
   //! TRUE if density is computed (default: false)
   static bool DENS;
@@ -362,6 +384,12 @@ public:
 
   //! For measure transformation
   double d_y_to_z(double y) { return HSCALE*cosh(y); }
+
+  /** Compute deprojection of axisymmetric disk for and use this
+      generate the EOF spherical basis.  The scale length must be O(1)
+      with scale height H in scale length units.
+   */
+  void create_deprojection(double H, int numR, int numI, AxiDiskPtr func);
 
   /** Generate EOF by direct integration conditioned on a user
       supplied function

@@ -309,6 +309,83 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   mpi_double_buf3 = 0;
 }
 
+void EmpCylSL::create_deprojection(double H, int NUMR, int NINT,
+				   AxiDiskPtr func)
+{
+  LegeQuad lq(NINT);
+
+  std::vector<double> rr(NUMR), rl(NUMR), sigI(NUMR), rhoI(NUMR, 0.0);
+
+  double Rmin = log(RMIN);
+  double Rmax = log(RMAX);
+
+  double dr = (Rmax - Rmin)/(NUMR-1);
+
+  // Compute surface mass density, Sigma(R)
+  //
+  for (int i=0; i<NUMR; i++) {
+    double r = RMIN + dr*i;
+
+    // Save for finite difference
+    //
+    rl[i] = r;
+    r = exp(r);
+    rr[i] = r;
+
+    // Interval by Legendre
+    //
+    sigI[i] = 0.0;
+    for (int n=1; n<=NINT; n++) {
+      double y   = lq.knot(n);
+      double y12 = 1.0 - y*y;
+      double z   = y/sqrt(y12)*H;
+
+      sigI[i] += lq.weight(n)*2.0*H*pow(y12, -1.5)*(*func)(r, z);
+    }
+  }
+
+  Linear1d surf(rl, sigI);
+  
+  // Now, compute Abel inverion integral
+  //
+  for (int i=0; i<NUMR; i++) {
+    double r = rr[i];
+
+    // Interval by Legendre
+    //
+    rhoI[i] = 0.0;
+    for (int n=1; n<=NINT; n++) {
+      double x   = lq.knot(n);
+      double x12 = 1.0 - x*x;
+      double z   = x/sqrt(x12);
+      double R   = sqrt(z*z + r*r);
+      double lR  = log(R);
+
+      rhoI[i]   += lq.weight(n)*2.0*pow(x12, -1.5)*surf.eval(lR);
+    }
+  }
+
+  std::vector<double> rho(NUMR), mass(NUMR);
+
+  Linear1d intgr(rl, rhoI);
+
+  for (int i=0; i<NUMR; i++)
+    rho[i] = -intgr.deriv(rl[i])/(2.0*M_PI*rr[i]*rr[i]);
+
+  mass[0] = 0.0;
+  for (int i=1; i<NUMR; i++) {
+    double rlst = rr[i-1], rcur = rr[i];
+    mass[i] = mass[i-1] + 2.0*M_PI*(rlst*rlst*rho[i-1] + rcur*rcur*rho[i])*(rcur - rlst);
+  }
+
+  // Finalize
+  //
+  densRg = Linear1d(rl, rho);
+  massRg = Linear1d(rl, mass);
+  mtype  = condition;
+}
+
+
 /*
   Note that the produced by the following three routines
   are in dimensionless units
@@ -328,6 +405,11 @@ double EmpCylSL::massR(double R)
   case Plummer:
     fac = R/(1.0+R);
     ans = pow(fac, 3.0);
+    break;
+  case condition:
+    if (R < RMIN) ans = 0.0;
+    else if (R>=RMAX) ans = massRg.eval(RMAX);
+    else ans = massRg.eval(log(R));
     break;
   }
 
@@ -349,6 +431,11 @@ double EmpCylSL::densR(double R)
   case Plummer:
     fac = 1.0/(1.0+R);
     ans = 3.0*pow(fac, 4.0)/(4.0*M_PI);
+    break;
+  case condition:
+    if (R < RMIN) ans = densRg.eval(RMIN);
+    else if (R>=RMAX) ans = 0.0;
+    else ans = densRg.eval(log(R));
     break;
   }
 
