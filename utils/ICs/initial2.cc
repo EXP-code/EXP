@@ -241,7 +241,7 @@ std::map<std::string, DiskType> dtlookup =
     {"exponential", DiskType::exponential}
   };
 
-DiskType     dtype;
+DiskType     DTYPE;
 double       ASCALE;
 double       ASHIFT;
 double       HSCALE;
@@ -268,7 +268,7 @@ double DiskDens(double R, double z, double phi)
 {
   double ans = 0.0;
 
-  switch (dtype) {
+  switch (DTYPE) {
       
   constant:
     if (R < ASCALE && fabs(z) < HSCALE)
@@ -661,9 +661,10 @@ main(int ac, char **av)
   std::transform(dtype.begin(), dtype.end(), dtype.begin(),
 		 [](unsigned char c){ return std::tolower(c); });
 
-  auto dit = dtlookup.find(dtype);
-
-  if (dit == dtlookup.end()) {
+  try {
+    DTYPE = dtlookup.at(dtype);
+  }
+  catch (const std::out_of_range& err) {
     if (myid==0) {
       std::cout << "DiskType error in configuraton file" << std::endl;
       std::cout << "Valid options are: ";
@@ -673,8 +674,6 @@ main(int ac, char **av)
     MPI_Finalize();
     return -1;
   }
-
-  dtype = dit->second;
 
   //====================
   // Okay, now begin ...
