@@ -556,7 +556,7 @@ main(int ac, char **av)
 		<< "\t" << av[0] << "--LMAX=8 --conf=template.config" << std::endl << std::endl;
     }
     MPI_Finalize();
-    return 1;
+    return 0;
   }
 
   // Write template config file in INI style and exit
@@ -569,7 +569,7 @@ main(int ac, char **av)
 	std::cerr << av[0] << ": config file <" << config
 		  << "> exists, will not overwrite" << std::endl;
       MPI_Finalize();
-      return 2;
+      return 0;
     }
 
     NOUT = std::min<int>(NOUT, NORDER);
@@ -619,7 +619,7 @@ main(int ac, char **av)
       }
     }
     MPI_Finalize();
-    return 3;
+    return 0;
   }
 
   // Read parameters fron the config file
@@ -633,7 +633,7 @@ main(int ac, char **av)
       if (myid==0) std::cout << "Option error in configuraton file: "
 			     << e.what() << std::endl;
       MPI_Finalize();
-      return -1;
+      return 0;
     }
   }
   
@@ -652,7 +652,7 @@ main(int ac, char **av)
 			     << mtype << ">, valid types are: "
 			     << "Exponential, Gaussian, Plummer" << std::endl;
       MPI_Finalize();
-      return -1;
+      return 0;
     }
   }
 
@@ -672,7 +672,7 @@ main(int ac, char **av)
       std::cout << std::endl;
     }
     MPI_Finalize();
-    return -1;
+    return 0;
   }
 
   //====================
@@ -824,7 +824,7 @@ main(int ac, char **av)
       }
       if (not save_eof) {
 	MPI_Finalize();
-	return 4;
+	return 0;
       }
     }
 
