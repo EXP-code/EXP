@@ -658,11 +658,12 @@ main(int ac, char **av)
 
   // Set DiskType
   //
+				// Convert to lower case
   std::transform(dtype.begin(), dtype.end(), dtype.begin(),
 		 [](unsigned char c){ return std::tolower(c); });
 
-  try {
-    DTYPE = dtlookup.at(dtype);
+  try {				// Check for map entry, will through if the 
+    DTYPE = dtlookup.at(dtype);	// key is not in the map.
   }
   catch (const std::out_of_range& err) {
     if (myid==0) {
