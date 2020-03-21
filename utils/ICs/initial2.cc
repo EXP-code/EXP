@@ -433,7 +433,7 @@ main(int ac, char **av)
     ("help,h",                                                                          "Print this help message")
     ("conf,c",          po::value<string>(&config),                                     "Write template options file with current and all default values")
     ("input,f",         po::value<string>(&config),                                     "Parameter configuration file")
-    ("condition",       po::value<string>(&dmodel),                                     "Condition EmpCylSL deprojection from specified disk model (EXP or MN)")
+    ("deproject",       po::value<string>(&dmodel),                                     "The EmpCylSL deprojection from specified disk model (EXP or MN)")
     ("NUMR",            po::value<int>(&NUMR)->default_value(2000),                     "Size of radial grid for Spherical SL")
     ("RMIN",            po::value<double>(&RMIN)->default_value(0.005),                 "Minimum halo radius")
     ("RCYLMIN",         po::value<double>(&RCYLMIN)->default_value(0.001),              "Minimum disk radius")
@@ -520,7 +520,7 @@ main(int ac, char **av)
     ("runtag",          po::value<string>(&runtag)->default_value("run000"),                    "Label prefix for diagnostic images")
     ("gentype",         po::value<string>(&gentype)->default_value("Asymmetric"),               "DiskGenType string for velocity initialization (Jeans, Asymmetric, or Epicyclic)")
     ("mtype",           po::value<string>(&mtype),                                              "Spherical deprojection model for EmpCylSL (one of: Exponential, Gaussian, Plummer)")
-    ("dtype",           po::value<string>(&dtype),                                              "Disk type for condition (one of: constant, gaussian, mn, exponential)")
+    ("condition",       po::value<string>(&dtype)->default_value("exponential"),                "Disk type for condition (one of: constant, gaussian, mn, exponential)")
     ("report",          po::value<bool>(&report)->default_value(true),                  "Report particle progress in EOF computation")
     ("evolved",         po::value<bool>(&evolved)->default_value(false),           "Use existing halo body file given by <hbods> and do not create a new halo")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
@@ -830,7 +830,7 @@ main(int ac, char **av)
 
     // Use these user models to deproject for the EOF spherical basis
     //
-    if (vm.count("condition")) {
+    if (vm.count("deproject")) {
       // The scale in EmpCylSL is assumed to be 1 so we compute the
       // height relative to the length
       //
