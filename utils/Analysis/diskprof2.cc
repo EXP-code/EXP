@@ -903,7 +903,7 @@ main(int argc, char **argv)
   int nice, numx, numy, lmax, mmax, nmax, norder;
   int initc, partc, beg, end, stride, init;
   double rcylmin, rcylmax, rscale, vscale;
-  bool DENS, PCA, PVD, verbose = false, mask = false;
+  bool DENS, PCA, PVD, verbose = false, mask = false, ignore, cmap, logl;
   std::string CACHEFILE;
 
   //
@@ -1010,6 +1010,15 @@ main(int argc, char **argv)
     ("cachefile",
      po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),
      "cachefile name")
+    ("cmap",
+     po::value<bool>(&cmap)->default_value(true),
+     "map radius into semi-infinite interval in cylindrical grid computation")
+    ("logl",
+     po::value<bool>(&logl)->default_value(true),
+     "use logarithmic radius scale in cylindrical grid computation")
+    ("ignore",
+     po::value<bool>(&ignore)->default_value(false),
+     "rebuild EOF grid if input parameters do not match the cachefile")
     ("runtag",
      po::value<std::string>(&runtag)->default_value("run1"),
      "runtag for phase space files")
@@ -1083,12 +1092,50 @@ main(int argc, char **argv)
   // *****Using MPI****
   // ==================================================
 
+  if (not ignore) {
+
+    std::ifstream in(CACHEFILE);
+    if (!in) {
+      std::cerr << "Error opening cachefile named <" 
+		<< CACHEFILE << "> . . ."
+		<< std::endl
+		<< "I will build <" << CACHEFILE
+		<< "> but it will take some time."
+		<< std::endl
+		<< "If this is NOT what you want, "
+		<< "stop this routine and specify the correct file."
+		<< std::endl;
+    } else {
+
+      int tmp;
+    
+      in.read((char *)&mmax,    sizeof(int));
+      in.read((char *)&numx,    sizeof(int));
+      in.read((char *)&numy,    sizeof(int));
+      in.read((char *)&nmax,    sizeof(int));
+      in.read((char *)&norder,  sizeof(int));
+      
+      in.read((char *)&tmp,     sizeof(int)); 
+      if (tmp) DENS = true;
+      else     DENS = false;
+
+      in.read((char *)&tmp,     sizeof(int)); 
+      if (tmp) cmap = true;
+      else     cmap = false;
+
+      in.read((char *)&rcylmin, sizeof(double));
+      in.read((char *)&rcylmax, sizeof(double));
+      in.read((char *)&rscale,  sizeof(double));
+      in.read((char *)&vscale,  sizeof(double));
+    }
+  }
+
   EmpCylSL::RMIN        = rcylmin;
   EmpCylSL::RMAX        = rcylmax;
   EmpCylSL::NUMX        = numx;
   EmpCylSL::NUMY        = numy;
-  EmpCylSL::CMAP        = true;
-  EmpCylSL::logarithmic = true;
+  EmpCylSL::CMAP        = cmap;
+  EmpCylSL::logarithmic = logl;
   EmpCylSL::DENS        = DENS;
   EmpCylSL::CACHEFILE   = CACHEFILE;
 
