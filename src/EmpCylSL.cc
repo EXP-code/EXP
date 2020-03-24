@@ -5195,3 +5195,32 @@ void EmpCylSL::compare_basis(const EmpCylSL *p)
   }
   
 }
+
+
+// Compute non-dimensional vertical coordinate from Z
+double EmpCylSL::z_to_y(double z)
+{
+  if (CMAP)
+    return z/(fabs(z)+DBL_MIN)*asinh(fabs(z/HSCALE));
+  else
+    return z;
+}
+
+// Compute Z from non-dimensional vertical coordinate
+double EmpCylSL::y_to_z(double y)
+{
+  if (CMAP)
+    return HSCALE*sinh(y);
+  else
+    return y;
+}
+
+// For measure transformation in vertical coordinate
+double EmpCylSL::d_y_to_z(double y)
+{
+  if (CMAP)
+    return HSCALE*cosh(y);
+  else
+    return 1.0;
+}
+

@@ -380,13 +380,13 @@ public:
   int get_order(void) {return NORDER;}
 
   //! Compute non-dimensional vertical coordinate from Z
-  double z_to_y(double z) { return z/(fabs(z)+DBL_MIN)*asinh(fabs(z/HSCALE)); }
+  double z_to_y(double z);
 
   //! Compute Z from non-dimensional vertical coordinate
-  double y_to_z(double y) { return HSCALE*sinh(y); }
+  double y_to_z(double y);
 
   //! For measure transformation
-  double d_y_to_z(double y) { return HSCALE*cosh(y); }
+  double d_y_to_z(double y);
 
   /** Compute deprojection of axisymmetric disk for and use this
       generate the EOF spherical basis.  The scale length must be O(1)
