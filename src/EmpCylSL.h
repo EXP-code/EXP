@@ -252,7 +252,7 @@ public:
     Exponential,
     Gaussian, 
     Plummer,
-    condition,
+    Deproject,
   };
 
   //! Axisymmetric disk density function for deprojection

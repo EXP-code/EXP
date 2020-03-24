@@ -376,7 +376,7 @@ void EmpCylSL::create_deprojection(double H, int NUMR, int NINT,
   //
   densRg = Linear1d(rl, rho);
   massRg = Linear1d(rl, mass);
-  mtype  = condition;
+  mtype  = Deproject;
 
 }
 
@@ -401,7 +401,7 @@ double EmpCylSL::massR(double R)
     fac = R/(1.0+R);
     ans = pow(fac, 3.0);
     break;
-  case condition:
+  case Deproject:
     if (R < RMIN) ans = 0.0;
     else if (R>=RMAX) ans = massRg.eval(RMAX);
     else ans = massRg.eval(log(R));
@@ -427,7 +427,7 @@ double EmpCylSL::densR(double R)
     fac = 1.0/(1.0+R);
     ans = 3.0*pow(fac, 4.0)/(4.0*M_PI);
     break;
-  case condition:
+  case Deproject:
     if (R < RMIN) ans = densRg.eval(RMIN);
     else if (R>=RMAX) ans = 0.0;
     else ans = densRg.eval(log(R));
@@ -457,10 +457,10 @@ SphModTblPtr EmpCylSL::make_sl()
       { {Exponential, "Exponential"},
 	{Gaussian,    "Gaussian"   },
 	{Plummer,     "Plummer"    },
-	{condition,   "condition"  }
+	{Deproject,   "Deproject"  }
       };
-    std::cout << "EmpCylSL::make_sl(): remaking SLGridSph with <"
-	      << labs[mtype] << "> deprojection model" << std::endl;
+    std::cout << "EmpCylSL::make_sl(): making SLGridSph with <"
+	      << labs[mtype] << "> model" << std::endl;
   }
 
 				// ------------------------------------------
