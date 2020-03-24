@@ -29,7 +29,7 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 noinst_HEADERS =
 
 bin_PROGRAMS = gendisk shrinkics gendisk2 gsphere pstmod gendisk3	\
-	empinfo empdump eofbasis makeIon phIon phConv eofcomp
+	empinfo empdump eofbasis makeIon phIon phConv eofcomp testcoefs
 
 shrinkics_SOURCES = shrinkics.cc
 shrinkics_LDADD = $(EXPLIBS)
@@ -87,6 +87,11 @@ phIon_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) $(FLIBS)
 phConv_SOURCES = ph_conv.cc
 phConv_LDFLAGS = $(COMMON_LIBS) $(EXPFLAGS) $(BOOST_LDFLAGS)
 phConv_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS)
+
+testcoefs_SOURCES = check_coefs.cc EmpCylSL.cc SphericalSL.cc	\
+	legendre.cc sinecosine.cc localmpi.cc
+testcoefs_LDFLAGS = $(COMMON_LIBS) $(EXPFLAGS) $(BOOST_LDFLAGS)
+testcoefs_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) @exp_omp_lib@
 
 initial.cc:		Particle.H Particle.h
 

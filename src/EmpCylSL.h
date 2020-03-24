@@ -5,6 +5,8 @@
 
 #include <vector>
 
+#include <boost/make_shared.hpp>
+
 #include <gaussQ.h>
 #include <interp.h>
 #include <math.h>
@@ -43,8 +45,9 @@ class EmpCylSL
 public:
 
   typedef boost::shared_ptr<SphericalModelTable> SphModTblPtr;
-  typedef boost::shared_ptr<Vector> VectorP;
-  typedef boost::shared_ptr<Matrix> MatrixP;
+  typedef boost::shared_ptr<SLGridSph>           SLGridSphPtr;
+  typedef boost::shared_ptr<Vector>              VectorP;
+  typedef boost::shared_ptr<Matrix>              MatrixP;
 
 private:
   int NMAX;
@@ -95,7 +98,7 @@ private:
   Vector *cosm, *sinm;
   Matrix *legs, *dlegs;
 
-  SLGridSph *ortho;
+  SLGridSphPtr ortho;
 
   double Rtable, XMIN, XMAX;
 

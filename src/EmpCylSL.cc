@@ -86,8 +86,6 @@ EmpCylSL::EmpCylSL(void)
   SC = 0;
   SS = 0;
 
-  ortho = 0;
-
   accum_cos = 0;
   accum_sin = 0;
 
@@ -103,8 +101,6 @@ EmpCylSL::EmpCylSL(void)
 
 EmpCylSL::~EmpCylSL(void)
 {
-  delete ortho;
-
   if (SC) {
 
     for (int m=0; m<=MMAX; m++) {
@@ -232,8 +228,8 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
 				// Enable MPI code for more than one node
   if (numprocs>1) SLGridSph::mpi = 1;
 
-  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 
-			false, 1, 1.0);
+  ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
+					make_sl(),  false, 1, 1.0);
   if (DENS)
     MPItable = 4;
   else
@@ -280,8 +276,8 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   dfac = ffac/ascale;
 
   SLGridSph::mpi = 1;		// Turn on MPI
-  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 
-			false, 1, 1.0);
+  ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
+					make_sl(), false, 1, 1.0);
 
   SC = 0;
   SS = 0;
@@ -383,6 +379,12 @@ void EmpCylSL::create_deprojection(double H, int NUMR, int NINT,
   densRg = Linear1d(rl, rho);
   massRg = Linear1d(rl, mass);
   mtype  = condition;
+
+  // Recompute SLGridSph
+  //
+  ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
+					make_sl(), false, 1, 1.0);
+
 }
 
 
@@ -453,6 +455,20 @@ SphModTblPtr EmpCylSL::make_sl()
 
   vector<double> mm(number);
   vector<double> pw(number);
+
+				// ------------------------------------------
+				// Debug sanity check
+				// ------------------------------------------
+  if (myid==0) {
+    std::map<EmpModel, std::string> labs =
+      { {Exponential, "Exponential"},
+	{Gaussian,    "Gaussian"   },
+	{Plummer,     "Plummer"    },
+	{condition,   "condition"  }
+      };
+    std::cout << "EmpCylSL::make_sl(): remaking SLGridSph with <"
+	      << labs[mtype] << "> deprojection model" << std::endl;
+  }
 
 				// ------------------------------------------
 				// Make radial, density and mass array
@@ -721,9 +737,8 @@ int EmpCylSL::read_eof_file(const string& eof_file)
   dfac = ffac/ASCALE;
 
   SLGridSph::mpi = 1;		// Turn on MPI
-  delete ortho;
-  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 
-			false, 1, 1.0);
+  ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
+					make_sl(), false, 1, 1.0);
 
   setup_eof();
   setup_accumulation();
