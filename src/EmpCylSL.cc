@@ -228,8 +228,6 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
 				// Enable MPI code for more than one node
   if (numprocs>1) SLGridSph::mpi = 1;
 
-  ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
-					make_sl(),  false, 1, 1.0);
   if (DENS)
     MPItable = 4;
   else
@@ -379,11 +377,6 @@ void EmpCylSL::create_deprojection(double H, int NUMR, int NINT,
   densRg = Linear1d(rl, rho);
   massRg = Linear1d(rl, mass);
   mtype  = condition;
-
-  // Recompute SLGridSph
-  //
-  ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
-					make_sl(), false, 1, 1.0);
 
 }
 
@@ -1132,6 +1125,13 @@ void EmpCylSL::receive_eof(int request_id, int MM)
 
 void EmpCylSL::compute_eof_grid(int request_id, int m)
 {
+  // check for ortho
+  //
+  if (not ortho)
+    ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
+					  make_sl(), false, 1, 1.0);
+
+
   //  Read in coefficient matrix or
   //  make grid if needed
 
@@ -1632,6 +1632,9 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   Timer timer;
   if (VFLAG & 16) timer.start();
 
+  if (not ortho)
+    ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
+					  make_sl(), false, 1, 1.0);
   setup_eof();
 
   LegeQuad lr(numr);
@@ -1826,6 +1829,9 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass, 
 			      int id, int mlevel)
 {
+  if (not ortho)
+    ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
+					  make_sl(), false, 1, 1.0);
   if (eof_made) {
     if (VFLAG & 2)
       cerr << "accumulate_eof: Process " << setw(4) << myid << ", Thread " 
