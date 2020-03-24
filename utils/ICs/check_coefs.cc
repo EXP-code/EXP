@@ -656,6 +656,13 @@ main(int ac, char **av)
   std::vector<double> coefs(NORDER, 0.0);
   LegeQuad lq(NINT);
 
+  std::cout << "A   =" << ASCALE << std::endl
+	    << "H   =" << HSCALE << std::endl
+	    << "Rmin=" << RCYLMIN << std::endl
+	    << "Rmax=" << RCYLMAX << std::endl
+	    << "RMIN=" << RMIN << std::endl
+	    << "RMAX=" << RMAX << std::endl;
+
   double xmin = r_to_x(RMIN, ASCALE);
   double xmax = r_to_x(RMAX, ASCALE);
   double ymin = r_to_x(ZMIN, HSCALE);
@@ -726,6 +733,9 @@ main(int ac, char **av)
 	 << std::setw(18) << -fr
 	 << std::setw(18) << FR
 	 << std::setw(18) << (-fr - FR)/FR
+	 << std::setw(18) << p
+	 << std::setw(18) << 1.0/dn
+	 << std::setw(18) << (p - 1.0/dn)*dn
 	 << std::endl;
   }
 
