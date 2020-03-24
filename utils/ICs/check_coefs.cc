@@ -309,9 +309,9 @@ main(int ac, char **av)
   int          TNUM;
   int          VFLAG;
   bool         expcond;
-  bool         CMAP;
   bool         LOGR;
   bool         CHEBY;
+  int          CMAP;
   int          NCHEB;
   int          NDR;
   int          NDZ;
@@ -355,7 +355,7 @@ main(int ac, char **av)
     ("RNUM",            po::value<int>(&RNUM)->default_value(200),                      "Number of radial knots for EmpCylSL basis construction quadrature")
     ("PNUM",            po::value<int>(&PNUM)->default_value(80),                       "Number of azimthal knots for EmpCylSL basis construction quadrature")
     ("TNUM",            po::value<int>(&TNUM)->default_value(80),                       "Number of cos(theta) knots for EmpCylSL basis construction quadrature")
-    ("CMAP",            po::value<bool>(&CMAP)->default_value(false),                   "Map coordinates from radius to tabled grid")
+    ("CMAP",            po::value<int>(&CMAP)->default_value(2),                        "Map coordinates from radius to tabled grid")
     ("SVD",             po::value<bool>(&SVD)->default_value(false),                    "Use svd for symmetric eigenvalue problesm")
     ("LOGR",            po::value<bool>(&LOGR)->default_value(false),                   "Make a logarithmic coordinate mapping")
     ("LMAX",            po::value<int>(&LMAX)->default_value(6),                        "Number of harmonics for Spherical SL for halo/spheroid")
@@ -572,10 +572,7 @@ main(int ac, char **av)
       if (tmp) DENS = true;
       else     DENS = false;
       
-      in.read((char *)&tmp,     sizeof(int)); 
-      if (tmp) CMAP = true;
-      else     CMAP = false;
-
+      in.read((char *)&CMAP,    sizeof(int)); 
       in.read((char *)&RCYLMIN, sizeof(double));
       in.read((char *)&RCYLMAX, sizeof(double));
       in.read((char *)&ASCALE,  sizeof(double));

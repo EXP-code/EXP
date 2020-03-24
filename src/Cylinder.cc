@@ -94,7 +94,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   self_consistent = true;
   firstime        = true;
   expcond         = true;
-  cmap            = true;
+  cmap            = 2;
   logarithmic     = false;
   pcavar          = false;
   pcavtk          = false;
@@ -350,7 +350,7 @@ void Cylinder::initialize()
     if (conf["pcadiag"   ])    pcadiag  = conf["pcadiag"   ].as<bool>();
     if (conf["try_cache" ])  try_cache  = conf["try_cache" ].as<bool>();
     if (conf["density"   ])    density  = conf["density"   ].as<bool>();
-    if (conf["cmap"      ])       cmap  = conf["cmap"      ].as<bool>();
+    if (conf["cmap"      ])       cmap  = conf["cmap"      ].as<int>();
     
     if (conf["self_consistent"])
       self_consistent = conf["self_consistent"].as<bool>();

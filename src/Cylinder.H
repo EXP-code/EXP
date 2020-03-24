@@ -45,10 +45,10 @@ private:
   int nmax, lmax, mmax, mlim;
   int ncylnx, ncylny, ncylr;
   double hcyl;
-  int ncylorder, ncylrecomp, npca, npca0, nvtk;
+  int ncylorder, ncylrecomp, npca, npca0, nvtk, cmap;
   string eof_file;
   bool self_consistent, logarithmic, density, pcavar, pcainit, pcavtk, pcadiag, pcaeof, eof_over;
-  bool cmap, try_cache, firstime, dump_basis, compute, firstime_coef;
+  bool try_cache, firstime, dump_basis, compute, firstime_coef;
 
   // These should be ok for all derived classes, hence declared private
 
@@ -212,7 +212,7 @@ public:
   //! \param try_cache set to true means try to read basis from cache (default: true)
   //! \param dump_basis set to true outputs basis into file
   //! \param density set to true means compute density basis in addition to potential (default: false)
-  //! \param cmap set to true means use coordinate mapping (default: true)
+  //! \param cmap selects the coordinate mapping (default: 2, power mapping)
   //!
   Cylinder(const YAML::Node& conf, MixtureBasis *m=0);
 

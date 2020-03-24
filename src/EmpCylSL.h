@@ -291,8 +291,9 @@ public:
   //! VTK diagnostic frequency (default: false)
   static unsigned VTKFRQ;
 
-  //! TRUE if we are using coordinate mapping (default: false)
-  static bool CMAP;
+  //! TRUE if we are using coordinate mapping (default: 0=no, 1 for
+  //! vertical hyberbolic mapping, 2 for power mampping)
+  static int CMAP;
 
   //! TRUE if mapping is logarithmic (default: false)
   static bool logarithmic;
