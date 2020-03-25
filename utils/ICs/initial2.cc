@@ -269,29 +269,29 @@ double DiskDens(double R, double z, double phi)
   double ans = 0.0;
 
   switch (DTYPE) {
-      
-  constant:
+
+  case DiskType::constant:
     if (R < ASCALE && fabs(z) < HSCALE)
       ans = 1.0/(2.0*HSCALE*M_PI*ASCALE*ASCALE);
     break;
-  
-  gaussian:
+
+  case DiskType::gaussian:
     if (fabs(z) < HSCALE)
       ans = 1.0/(2.0*HSCALE*2.0*M_PI*ASCALE*ASCALE)*
 	exp(-R*R/(2.0*ASCALE*ASCALE));
     break;
-    
-  mn:
+
+  case DiskType::mn:
     {
       double Z2 = z*z + HSCALE*HSCALE;
       double Z  = sqrt(Z2);
-      double Q  = ASCALE + Z;
-      ans = 0.25*HSCALE*HSCALE/M_PI*(ASCALE*R*R + (ASCALE + 3.0*Z)*Q*Q)/( pow(R*R + Q*Q, 2.5) * Z * Z2 );
+      double Q2 = (ASCALE + Z)*(ASCALE + Z);
+      ans = 0.25*HSCALE*HSCALE/M_PI*(ASCALE*R*R + (ASCALE + 3.0*Z)*Q2)/( pow(R*R + Q2, 2.5) * Z*Z2 );
     }
     break;
 
+  case DiskType::exponential:
   default:
-  exponential:
     {
       double f = cosh(z/HSCALE);
       ans = exp(-R/ASCALE)/(4.0*M_PI*ASCALE*ASCALE*HSCALE*f*f);

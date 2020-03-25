@@ -35,8 +35,8 @@ public:
   {
     double Z2 = z*z + h*h;
     double Z  = sqrt(Z2);
-    double Q  = a + Z;
-    return 0.25*h*h*M/M_PI*(a*R*R + (a + 3.0*Z)*Q*Q)/( pow(R*R + Q*Q, 2.5) * Z * Z2 );
+    double Q2 = (a + Z)*(a + Z);
+    return 0.25*h*h*M/M_PI*(a*R*R + (a + 3.0*Z)*Q2)/( pow(R*R + Q2, 2.5) * Z*Z2 );
   }
 
 };
