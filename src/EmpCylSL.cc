@@ -318,7 +318,7 @@ void EmpCylSL::create_deprojection(double H, int NUMR, int NINT,
   // Compute surface mass density, Sigma(R)
   //
   for (int i=0; i<NUMR; i++) {
-    double r = RMIN + dr*i;
+    double r = Rmin + dr*i;
 
     // Save for finite difference
     //
