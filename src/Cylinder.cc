@@ -94,7 +94,8 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   self_consistent = true;
   firstime        = true;
   expcond         = true;
-  cmap            = 2;
+  cmap            = true;
+  cmaptype        = 1;
   logarithmic     = false;
   pcavar          = false;
   pcavtk          = false;
@@ -119,7 +120,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   EmpCylSL::NUMX        = ncylnx;
   EmpCylSL::NUMY        = ncylny;
   EmpCylSL::NUMR        = ncylr;
-  EmpCylSL::CMAP        = cmap;
+  EmpCylSL::CMAP        = cmaptype;
   EmpCylSL::logarithmic = logarithmic;
   EmpCylSL::CACHEFILE   = outdir + ".eof.cache." + runtag;
   EmpCylSL::VFLAG       = vflag;
@@ -350,10 +351,13 @@ void Cylinder::initialize()
     if (conf["pcadiag"   ])    pcadiag  = conf["pcadiag"   ].as<bool>();
     if (conf["try_cache" ])  try_cache  = conf["try_cache" ].as<bool>();
     if (conf["density"   ])    density  = conf["density"   ].as<bool>();
-    if (conf["cmap"      ])       cmap  = conf["cmap"      ].as<int>();
+    if (conf["cmap"      ])       cmap  = conf["cmap"      ].as<bool>();
+    if (conf["cmaptype"  ])    cmaptype = conf["cmaptype"  ].as<int>();
     
     if (conf["self_consistent"])
       self_consistent = conf["self_consistent"].as<bool>();
+
+    if (not cmap) cmaptype = 0;
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing Cylinder parameters: "

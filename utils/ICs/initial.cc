@@ -415,7 +415,7 @@ main(int argc, char **argv)
   EmpCylSL::RMAX = RCYLMAX;
   EmpCylSL::NUMX = NUMX;
   EmpCylSL::NUMY = NUMY;
-  EmpCylSL::CMAP = true;
+  EmpCylSL::CMAP = 1;
 
   if (basis)
     EmpCylSL::DENS = true;

@@ -45,9 +45,9 @@ private:
   int nmax, lmax, mmax, mlim;
   int ncylnx, ncylny, ncylr;
   double hcyl;
-  int ncylorder, ncylrecomp, npca, npca0, nvtk, cmap;
+  int ncylorder, ncylrecomp, npca, npca0, nvtk, cmaptype;
   string eof_file;
-  bool self_consistent, logarithmic, density, pcavar, pcainit, pcavtk, pcadiag, pcaeof, eof_over;
+  bool self_consistent, logarithmic, density, pcavar, pcainit, pcavtk, pcadiag, pcaeof, eof_over, cmap;
   bool try_cache, firstime, dump_basis, compute, firstime_coef;
 
   // These should be ok for all derived classes, hence declared private

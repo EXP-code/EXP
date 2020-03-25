@@ -97,6 +97,7 @@ bool         PLUMMER;
 bool         CMAP;
 bool         LOGR;
 bool         CHEBY;
+int          CMTYPE;
 int          NDR;
 int          NDZ;
 int          NHR;
@@ -277,6 +278,7 @@ main(int argc, char **argv)
      "Number of cos(theta) knots for EmpCylSL basis construction quadrature")
     ("CMAP",                po::value<bool>(&CMAP)->default_value(false),
      "Map coordinates from radius to tabled grid")
+    ("CMAPTYPE",        po::value<int>(&CMTYPE)->default_value(1),                    "Coordinate mapping type (0=none, 1=original, 2=power in R and z")
     ("LOGR",                po::value<bool>(&LOGR)->default_value(false),
      "Make a logarithmic coordinate mapping")
     ("CHEBY",               po::value<bool>(&CHEBY)->default_value(false),
@@ -409,6 +411,11 @@ main(int argc, char **argv)
     return 1;
   }
 
+  // Set mapping type
+  //
+  if (not CMAP) CMTYPE = 0;
+
+
 #ifdef DEBUG                    // For gdb . . . 
   sleep(20);
   set_fpu_handler();            // Make gdb trap FPU exceptions
@@ -503,7 +510,7 @@ main(int argc, char **argv)
   EmpCylSL::NUMX        = NUMX;
   EmpCylSL::NUMY        = NUMY;
   EmpCylSL::NUMR        = NUMR;
-  EmpCylSL::CMAP        = CMAP;
+  EmpCylSL::CMAP        = CMTYPE;
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
   EmpCylSL::DENS        = DENS;

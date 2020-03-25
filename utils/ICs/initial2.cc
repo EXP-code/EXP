@@ -365,8 +365,9 @@ main(int ac, char **av)
   bool         expcond;
   bool         LOGR;
   bool         CHEBY;
+  bool         CMAP;
   int          NCHEB;
-  int          CMAP;
+  int          CMTYPE;
   int          NDR;
   int          NDZ;
   int          NHR;
@@ -456,7 +457,8 @@ main(int ac, char **av)
     ("RNUM",            po::value<int>(&RNUM)->default_value(200),                      "Number of radial knots for EmpCylSL basis construction quadrature")
     ("PNUM",            po::value<int>(&PNUM)->default_value(80),                       "Number of azimthal knots for EmpCylSL basis construction quadrature")
     ("TNUM",            po::value<int>(&TNUM)->default_value(80),                       "Number of cos(theta) knots for EmpCylSL basis construction quadrature")
-    ("CMAP",            po::value<int>(&CMAP)->default_value(2),                         "Map coordinates from radius to tabled grid")
+    ("CMAP",            po::value<bool>(&CMAP)->default_value(true),                     "Map coordinates from radius to tabled grid")
+    ("CMTYPE",          po::value<int>(&CMTYPE)->default_value(1),                       "Coordinate mapping type (0=none, 1=original, 2=power in R and z")
     ("SVD",             po::value<bool>(&SVD)->default_value(false),                    "Use svd for symmetric eigenvalue problesm")
     ("LOGR",            po::value<bool>(&LOGR)->default_value(false),                   "Make a logarithmic coordinate mapping")
     ("CHEBY",           po::value<bool>(&CHEBY)->default_value(false),                  "Use Chebyshev smoothing for epicyclic and asymmetric drift")
@@ -676,6 +678,10 @@ main(int ac, char **av)
     return 0;
   }
 
+  // Set mapping type
+  //
+  if (not CMAP) CMTYPE = 0;
+
   //====================
   // Okay, now begin ...
   //====================
@@ -781,7 +787,7 @@ main(int ac, char **av)
   EmpCylSL::NUMY        = NUMY;
   EmpCylSL::NUMR        = NUMR;
   EmpCylSL::NOUT        = NOUT;
-  EmpCylSL::CMAP        = CMAP;
+  EmpCylSL::CMAP        = CMTYPE;
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
   EmpCylSL::DENS        = DENS;
