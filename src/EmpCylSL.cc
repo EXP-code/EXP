@@ -372,6 +372,21 @@ void EmpCylSL::create_deprojection(double H, int NUMR, int NINT,
     mass[i] = mass[i-1] + 2.0*M_PI*(rlst*rlst*rho[i-1] + rcur*rcur*rho[i])*(rcur - rlst);
   }
 
+  // Debug
+  //
+  if (VFLAG & 1) {
+    std::ostringstream outf; outf << "deproject_sl." << myid;
+    std::ofstream out(outf.str());
+    if (out) {
+      for (int i=0; i<NUMR; i++)
+	out << std::setw(18) << rl[i]
+	    << std::setw(18) << rr[i]
+	    << std::setw(18) << rho[i]
+	    << std::setw(18) << mass[i]
+	    << std::endl;
+    }
+  }
+
   // Finalize
   //
   densRg = Linear1d(rl, rho);
