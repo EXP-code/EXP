@@ -5224,7 +5224,7 @@ double EmpCylSL::z_to_y(double z)
 // Compute Z from non-dimensional vertical coordinate
 double EmpCylSL::y_to_z(double y)
 {
-  if (CMAP)
+  if (CMAP==1)
     return HSCALE*sinh(y);
   else if (CMAP==2) {
     if (y<-1.0) throw GenericError("y < -1!", __FILE__, __LINE__);
