@@ -678,9 +678,15 @@ main(int ac, char **av)
     return 0;
   }
 
+  // Report DiskType
+  //
+  if (myid==0)
+    std::cout << "DiskType is <" << dtype << ">" << std::endl;
+
   // Set mapping type
   //
   if (not CMAP) CMTYPE = 0;
+
 
   //====================
   // Okay, now begin ...
