@@ -208,21 +208,22 @@ double DiskDens(double R, double z, double phi)
 
   switch (dtype) {
       
+
   case DiskType::constant:
-    if (firsttime) std::cout << "DiskDens: constant" << std::endl;
+    if (firsttime) std::cout << "Dens = constant" << std::endl;
     if (R < AA && fabs(z) < HH)
       ans = 1.0/(2.0*HH*M_PI*AA*AA);
     break;
   
   case DiskType::gaussian:
-    if (firsttime) std::cout << "DiskDens: gaussian" << std::endl;
+    if (firsttime) std::cout << "Dens = gaussian" << std::endl;
     if (fabs(z) < HH)
       ans = 1.0/(2.0*HH*2.0*M_PI*AA*AA)*
 	exp(-R*R/(2.0*AA*AA));
     break;
     
   case DiskType::mn:
-    if (firsttime) std::cout << "DiskDens: mn" << std::endl;
+    if (firsttime) std::cout << "Dens = mn" << std::endl;
     {
       double Z2 = z*z + HH*HH;
       double Z  = sqrt(Z2);
@@ -233,7 +234,7 @@ double DiskDens(double R, double z, double phi)
 
   default:
   case DiskType::exponential:
-    if (firsttime) std::cout << "DiskDens: exponential" << std::endl;
+    if (firsttime) std::cout << "Dens = exponential" << std::endl;
     {
       double f = cosh(z/HH);
       ans = exp(-R/AA)/(4.0*M_PI*AA*AA*HH*f*f);
@@ -681,12 +682,13 @@ main(int ac, char **av)
   AA = AEXP;
   HH = HEXP;
 
-  std::cout << "A    =" << ASCALE  << std::endl
-	    << "H    =" << HSCALE  << std::endl
-	    << "AA   =" << AA      << std::endl
-	    << "HH   =" << HH      << std::endl
-	    << "Rmin =" << RCYLMIN << std::endl
-	    << "Rmax =" << RCYLMAX << std::endl;
+  std::cout << "A    = " << ASCALE  << std::endl
+	    << "H    = " << HSCALE  << std::endl
+	    << "AA   = " << AA      << std::endl
+	    << "HH   = " << HH      << std::endl
+	    << "Rmin = " << RCYLMIN << std::endl
+	    << "Rmax = " << RCYLMAX << std::endl
+	    << "Nord = " << NORDER  << std::endl;
 
   double xmin = r_to_x(RCYLMIN*AA, AA);
   double xmax = r_to_x(RCYLMAX*AA, AA);
@@ -821,11 +823,19 @@ main(int ac, char **av)
   std::ofstream fout("testcoefs.compare");
 
   for (int j=0; j<NFRC; j++) {
-    double p0, p, fr, fz, fp, d;
+    double p0, p, fr, fz, fp, d, d0, d1;
     double r = x_to_r(xmin + dx*j, AA);
 
     expandd->accumulated_eval(r, z, phi, p0, p, fr, fz, fp);
     expandd->accumulated_dens_eval(r, z, phi, d);
+
+    // Get density for n=0, 1
+    {
+      double p1, fr1, fz1, fp1;	// Dummy variables
+      expandd->get_all(0, 0, r, z, 0.0, p1, d0, fr1, fz1, fp1);
+      expandd->get_all(0, NORDER-1, r, z, 0.0, p1, d1, fr1, fz1, fp1);
+    }
+
     
     double D, P, FR;
 
@@ -861,6 +871,8 @@ main(int ac, char **av)
 	 << std::setw(18) << (p - P)/P	  // 7
 	 << std::setw(18) << d		  // 8
 	 << std::setw(18) << D		  // 9
+	 << std::setw(18) << d0		  // 10
+	 << std::setw(18) << d1		  // 11
 	 << std::endl;
   }
 
