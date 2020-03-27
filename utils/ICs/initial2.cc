@@ -635,7 +635,7 @@ main(int ac, char **av)
       po::store(po::parse_config_file(in, desc), vm);
       po::notify(vm);    
     } catch (po::error& e) {
-      if (myid==0) std::cout << "Option error in configuraton file: "
+      if (myid==0) std::cout << "Option error in configuration file: "
 			     << e.what() << std::endl;
       MPI_Finalize();
       return 0;
