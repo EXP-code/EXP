@@ -350,6 +350,7 @@ main(int ac, char **av)
   double       SCSPH;
   double       RSPHSL;
   double       DMFAC;
+  double       RFACTOR;
   double       ECUT;
   double       X0;
   double       Y0;
@@ -390,6 +391,7 @@ main(int ac, char **av)
   int          DF;
   double       R_DF;
   double       DR_DF;
+  double       Hratio;
   double       scale_height;
   double       scale_length;
   double       scale_lenfkN;
@@ -448,6 +450,7 @@ main(int ac, char **av)
     ("ASHIFT",          po::value<double>(&ASHIFT)->default_value(0.0),                 "Fraction of scale length for shift in conditioning function")
     ("HSCALE",          po::value<double>(&HSCALE)->default_value(0.1),                 "Vertical scale length for disk basis construction")
     ("DMFAC",           po::value<double>(&DMFAC)->default_value(1.0),                  "Disk mass scaling factor for spherical deprojection model")
+    ("RFACTOR",         po::value<double>(&RFACTOR)->default_value(1.0),                "Disk radial scaling factor for spherical deprojection model")
     ("X0",              po::value<double>(&X0)->default_value(0.0),                     "Disk-Halo x center position")
     ("Y0",              po::value<double>(&Y0)->default_value(0.0),                     "Disk-Halo y center position")
     ("Z0",              po::value<double>(&Z0)->default_value(0.0),                     "Disk-Halo z center position")
@@ -666,6 +669,9 @@ main(int ac, char **av)
 
   try {				// Check for map entry, will through if the 
     DTYPE = dtlookup.at(dtype);	// key is not in the map.
+
+    if (myid==0)		// Report DiskType
+      std::cout << "DiskType is <" << dtype << ">" << std::endl;
   }
   catch (const std::out_of_range& err) {
     if (myid==0) {
@@ -678,15 +684,9 @@ main(int ac, char **av)
     return 0;
   }
 
-  // Report DiskType
-  //
-  if (myid==0)
-    std::cout << "DiskType is <" << dtype << ">" << std::endl;
-
   // Set mapping type
   //
   if (not CMAP) CMTYPE = 0;
-
 
   //====================
   // Okay, now begin ...
@@ -858,7 +858,7 @@ main(int ac, char **av)
       else			// Default to exponential
 	model = boost::make_shared<Exponential>(1.0, H);
 
-      expandd->create_deprojection(H, NUMR, RNUM, model);
+      expandd->create_deprojection(H, RFACTOR, NUMR, RNUM, model);
     }
 
     // Regenerate EOF from analytic density

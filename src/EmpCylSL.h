@@ -393,7 +393,8 @@ public:
       generate the EOF spherical basis.  The scale length must be O(1)
       with scale height H in scale length units.
    */
-  void create_deprojection(double H, int numR, int numI, AxiDiskPtr func);
+  void create_deprojection(double H, double Rfactor,
+			   int numR, int numI, AxiDiskPtr func);
 
   /** Generate EOF by direct integration conditioned on a user
       supplied function

@@ -303,7 +303,7 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   mpi_double_buf3 = 0;
 }
 
-void EmpCylSL::create_deprojection(double H, int NUMR, int NINT,
+void EmpCylSL::create_deprojection(double H, double Rf, int NUMR, int NINT,
 				   AxiDiskPtr func)
 {
   LegeQuad lq(NINT);
@@ -334,7 +334,7 @@ void EmpCylSL::create_deprojection(double H, int NUMR, int NINT,
       double y12 = 1.0 - y*y;
       double z   = y/sqrt(y12)*H;
 
-      sigI[i] += lq.weight(n)*2.0*H*pow(y12, -1.5)*(*func)(r, z);
+      sigI[i] += lq.weight(n)*2.0*H*pow(y12, -1.5)*(*func)(r*Rf, z);
     }
   }
 

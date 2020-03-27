@@ -15,6 +15,7 @@
 
 // Boost stuff
 //
+#include <boost/math/special_functions/bessel.hpp>
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 
@@ -179,9 +180,8 @@ std::map<std::string, DiskType> dtlookup =
   };
 
 DiskType     dtype;
-double       ASCALE;
+double       AA, HH;
 double       ASHIFT;
-double       HSCALE;
 
 #include <Particle.H>
 
@@ -204,37 +204,44 @@ string outdir, runtag;
 double DiskDens(double R, double z, double phi)
 {
   double ans = 0.0;
+  static bool firsttime = true;
 
   switch (dtype) {
       
-  constant:
-    if (R < ASCALE && fabs(z) < HSCALE)
-      ans = 1.0/(2.0*HSCALE*M_PI*ASCALE*ASCALE);
+  case DiskType::constant:
+    if (firsttime) std::cout << "DiskDens: constant" << std::endl;
+    if (R < AA && fabs(z) < HH)
+      ans = 1.0/(2.0*HH*M_PI*AA*AA);
     break;
   
-  gaussian:
-    if (fabs(z) < HSCALE)
-      ans = 1.0/(2.0*HSCALE*2.0*M_PI*ASCALE*ASCALE)*
-	exp(-R*R/(2.0*ASCALE*ASCALE));
+  case DiskType::gaussian:
+    if (firsttime) std::cout << "DiskDens: gaussian" << std::endl;
+    if (fabs(z) < HH)
+      ans = 1.0/(2.0*HH*2.0*M_PI*AA*AA)*
+	exp(-R*R/(2.0*AA*AA));
     break;
     
-  mn:
+  case DiskType::mn:
+    if (firsttime) std::cout << "DiskDens: mn" << std::endl;
     {
-      double Z2 = z*z + HSCALE*HSCALE;
+      double Z2 = z*z + HH*HH;
       double Z  = sqrt(Z2);
-      double Q  = ASCALE + Z;
-      ans = 0.25*HSCALE*HSCALE/M_PI*(ASCALE*R*R + (ASCALE + 3.0*Z)*Q*Q)/( pow(R*R + Q*Q, 2.5) * Z * Z2 );
+      double Q  = AA + Z;
+      ans = 0.25*HH*HH/M_PI*(AA*R*R + (AA + 3.0*Z)*Q*Q)/( pow(R*R + Q*Q, 2.5) * Z * Z2 );
     }
     break;
 
   default:
-  exponential:
+  case DiskType::exponential:
+    if (firsttime) std::cout << "DiskDens: exponential" << std::endl;
     {
-      double f = cosh(z/HSCALE);
-      ans = exp(-R/ASCALE)/(4.0*M_PI*ASCALE*ASCALE*HSCALE*f*f);
+      double f = cosh(z/HH);
+      ans = exp(-R/AA)/(4.0*M_PI*AA*AA*HH*f*f);
     }
     break;
   }
+
+  firsttime = false;
 
   return ans;
 }
@@ -258,7 +265,7 @@ double dcond(double R, double z, double phi, int M)
   //
   // Apply a shift along the x-axis
   //
-  double x = R*cos(phiS) - ASHIFT*ASCALE;
+  double x = R*cos(phiS) - ASHIFT*AA;
   double y = R*sin(phiS);
 
   return DiskDens(sqrt(x*x + y*y), z, atan2(y, x));
@@ -298,18 +305,20 @@ main(int ac, char **av)
   int          NMAX;
   int          NUMR;
   int          SCMAP;
-  double       ZMIN;
-  double       ZMAX;
-  double       RMIN;
-  double       RMAX;
   double       RCYLMIN;
   double       RCYLMAX;
+  double       ASCALE;
+  double       HSCALE;
+  double       RFACTOR;
+  double       AEXP;
+  double       HEXP;
   int          RNUM;
   int          PNUM;
   int          TNUM;
   int          VFLAG;
   bool         expcond;
   bool         LOGR;
+  bool         LOGR2;
   bool         CHEBY;
   bool         CMAP;
   int          CMTYPE;
@@ -332,7 +341,7 @@ main(int ac, char **av)
   bool         ignore;
   string       cachefile;
   string       config;
-  string       dtype;
+  string       disktype;
   string       dmodel;
   string       mtype;
   
@@ -344,15 +353,14 @@ main(int ac, char **av)
     ("condition",       po::value<string>(&dmodel),                                     "Condition EmpCylSL deprojection from specified disk model (EXP or MN)")
     ("NINT",            po::value<int>(&NINT)->default_value(40),                       "Number of Gauss-Legendre knots")
     ("NUMR",            po::value<int>(&NUMR)->default_value(2000),                     "Size of radial grid for Spherical SL")
-    ("RMIN",            po::value<double>(&RMIN)->default_value(0.0),                   "Minimum cylindrical radius")
-    ("RMAX",            po::value<double>(&RMAX)->default_value(0.1),                   "Maximum cylindrical radius")
-    ("ZMIN",            po::value<double>(&ZMIN)->default_value(0.0),                   "Minimum vertical height")
-    ("ZMAX",            po::value<double>(&ZMAX)->default_value(0.1),                   "Maximum vertical height")
     ("RCYLMIN",         po::value<double>(&RCYLMIN)->default_value(0.001),              "Minimum disk radius")
     ("RCYLMAX",         po::value<double>(&RCYLMAX)->default_value(20.0),               "Maximum disk radius")
     ("ASCALE",          po::value<double>(&ASCALE)->default_value(1.0),                 "Radial scale length for disk basis construction")
     ("ASHIFT",          po::value<double>(&ASHIFT)->default_value(0.0),                 "Fraction of scale length for shift in conditioning function")
     ("HSCALE",          po::value<double>(&HSCALE)->default_value(0.1),                 "Vertical scale length for disk basis construction")
+    ("RFACTOR",         po::value<double>(&RFACTOR)->default_value(1.0),                "Disk radial scaling for deprojection computation")
+    ("AEXP",            po::value<double>(&AEXP)->default_value(1.0),                 "Radial scale length for disk basis test")
+    ("HEXP",            po::value<double>(&HEXP)->default_value(0.1),                 "Vertical scale length for disk basis test")
     ("RNUM",            po::value<int>(&RNUM)->default_value(200),                      "Number of radial knots for EmpCylSL basis construction quadrature")
     ("PNUM",            po::value<int>(&PNUM)->default_value(80),                       "Number of azimthal knots for EmpCylSL basis construction quadrature")
     ("TNUM",            po::value<int>(&TNUM)->default_value(80),                       "Number of cos(theta) knots for EmpCylSL basis construction quadrature")
@@ -360,6 +368,7 @@ main(int ac, char **av)
     ("CMAPTYPE",        po::value<int>(&CMTYPE)->default_value(1),                    "Coordinate mapping type (0=none, 1=original, 2=power in R and z")
     ("SVD",             po::value<bool>(&SVD)->default_value(false),                    "Use svd for symmetric eigenvalue problesm")
     ("LOGR",            po::value<bool>(&LOGR)->default_value(false),                   "Make a logarithmic coordinate mapping")
+    ("LOGR2",           po::value<bool>(&LOGR2)->default_value(false),                   "Make a logarithmic coordinate mapping for coefficient eval")
     ("LMAX",            po::value<int>(&LMAX)->default_value(6),                        "Number of harmonics for Spherical SL for halo/spheroid")
     ("NMAX",            po::value<int>(&NMAX)->default_value(12),                       "Number of radial basis functions in Spherical SL for halo/spheroid")
     ("MMAX",            po::value<int>(&MMAX)->default_value(4),                        "Number of azimuthal harmonics for disk basis")
@@ -377,7 +386,7 @@ main(int ac, char **av)
     ("scale_height",    po::value<double>(&scale_height)->default_value(0.1),           "Scale height for disk realization")
     ("scale_length",    po::value<double>(&scale_length)->default_value(2.0),           "Scale length for disk realization")
     ("mtype",           po::value<string>(&mtype),                                              "Spherical deprojection model for EmpCylSL (one of: Exponential, Gaussian, Plummer)")
-    ("DTYPE",           po::value<string>(&dtype)->default_value("exponential"),                 "Disk type for condition (one of: constant, gaussian, mn, exponential)")
+    ("DTYPE",           po::value<string>(&disktype)->default_value("exponential"),             "Disk type for condition (one of: constant, gaussian, mn, exponential)")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
     ;
         
@@ -513,15 +522,15 @@ main(int ac, char **av)
 
   // Set DiskType
   //
-  std::transform(dtype.begin(), dtype.end(), dtype.begin(),
+  std::transform(disktype.begin(), disktype.end(), disktype.begin(),
 		 [](unsigned char c){ return std::tolower(c); });
 
-  auto dit = dtlookup.find(dtype);
+  auto dit = dtlookup.find(disktype);
 
   if (dit == dtlookup.end()) {
     if (myid==0) {
       std::cout << "DiskType error in configuration file: "
-		<< dtype << std::endl;
+		<< disktype << std::endl;
       std::cout << "Valid options are: ";
       for (auto v : dtlookup) std::cout << v.first << " ";
       std::cout << std::endl;
@@ -531,6 +540,11 @@ main(int ac, char **av)
   }
 
   dtype = dit->second;
+
+  // Report dtype
+  //
+  if (myid==0)
+    std::cout << "DiskType is <" << disktype << ">" << std::endl;
 
   // Set mapping type
   //
@@ -599,6 +613,10 @@ main(int ac, char **av)
   EmpCylSL::USESVD      = SVD;
   EmpCylSL::CACHEFILE   = cachefile;
 
+				// For DiskDens
+  AA = ASCALE;
+  HH = HSCALE;
+
                                 // Create expansion only if needed . . .
   bool save_eof = false;
 
@@ -640,7 +658,7 @@ main(int ac, char **av)
       else			// Default to exponential
 	model = boost::make_shared<Exponential>(1.0, H);
       
-      expandd->create_deprojection(H, NUMR, RNUM, model);
+      expandd->create_deprojection(H, RFACTOR, NUMR, RNUM, model);
     }
     
     // Regenerate EOF from analytic density
@@ -649,7 +667,6 @@ main(int ac, char **av)
       expandd->generate_eof(RNUM, PNUM, TNUM, dcond);
       save_eof = true;
     }
-
   }
   
   //===========================================================================
@@ -659,39 +676,116 @@ main(int ac, char **av)
   std::vector<double> coefs(NORDER, 0.0);
   LegeQuad lq(NINT);
 
-  std::cout << "A   =" << ASCALE << std::endl
-	    << "H   =" << HSCALE << std::endl
-	    << "Rmin=" << RCYLMIN << std::endl
-	    << "Rmax=" << RCYLMAX << std::endl
-	    << "RMIN=" << RMIN << std::endl
-	    << "RMAX=" << RMAX << std::endl;
+  // Reassign DiskDens scales
+  //
+  AA = AEXP;
+  HH = HEXP;
 
-  double xmin = r_to_x(RMIN, ASCALE);
-  double xmax = r_to_x(RMAX, ASCALE);
-  double ymin = r_to_x(ZMIN, HSCALE);
-  double ymax = r_to_x(ZMAX, HSCALE);
+  std::cout << "A    =" << ASCALE  << std::endl
+	    << "H    =" << HSCALE  << std::endl
+	    << "AA   =" << AA      << std::endl
+	    << "HH   =" << HH      << std::endl
+	    << "Rmin =" << RCYLMIN << std::endl
+	    << "Rmax =" << RCYLMAX << std::endl;
 
-  for (int i=1; i<=NINT; i++) {	// Radial
+  double xmin = r_to_x(RCYLMIN*AA, AA);
+  double xmax = r_to_x(RCYLMAX*AA, AA);
+  double ymax = r_to_x(RCYLMAX*AA, HH);
 
-    double x = xmin + (xmax - xmin) * lq.knot(i);
-    double R = x_to_r(x, ASCALE);
 
-    double facX = lq.weight(i) * 2.0 * M_PI * R * drdx(x, ASCALE) * (xmax - xmin);
+  std::map<std::pair<int, int>, double> orthochk;
 
-    for (int j=1; j<=NINT; j++) { // Vertical
+  double totM = 0.0;
 
-      double y = ymin + (ymax - ymin)*lq.knot(j);
-      double z = x_to_r(y, HSCALE);
+  if (LOGR2) {
+    
+    double Rmin = log(RCYLMIN*AA);
+    double Rmax = log(RCYLMAX*AA);
+    double Zmin = log(RCYLMIN*HH);
+    double Zmax = log(RCYLMAX*AA);
 
-      double fac = facX * lq.weight(j) * 2.0 * drdx(y, HSCALE) * (ymax - ymin);
+    for (int i=1; i<=NINT; i++) {	// Radial
 
-      for (int n=0; n<NORDER; n++) {
-	double p, d, fr, fz, fp;
-	expandd->get_all(0, n, R, z, 0.0, p, d, fr, fz, fp);
-	coefs[n] += fac * p * DiskDens(R, z, 0.0) * 4.0*M_PI;
+      double x = Rmin + (Rmax - Rmin) * lq.knot(i);
+      double R = exp(x);
+
+      double facX = lq.weight(i) * 2.0*M_PI * R * R * (Rmax - Rmin);
+
+      for (int j=1; j<=NINT; j++) { // Vertical
+	
+	double y = Zmin + (Zmax - Zmin) * lq.knot(j);
+	double z = exp(y);
+	
+	double fac = facX * lq.weight(j) * z * (Zmax - Zmin);
+	double den = DiskDens(R, z, 0.0);
+	totM += 2.0 * fac * den;
+
+	fac *= -1.0;
+
+	for (int n=0; n<NORDER; n++) {
+	  double p, p2, d, d2, fr, fz, fp;
+	  expandd->get_all(0, n, R, z, 0.0, p, d, fr, fz, fp);
+	  coefs[n] += fac * p * den * 4.0*M_PI;
+	  
+	  for (int n2=n; n2<NORDER; n2++) {
+	    if (n2>n) expandd->get_all(0, n2, R, z, 0.0, p2, d2, fr, fz, fp);
+	    else      d2 = d;
+	    orthochk[{n, n2}] += fac * p * d2 * 4.0*M_PI;
+	  }
+	}
+	
+	for (int n=0; n<NORDER; n++) {
+	  double p, p2, d, d2, fr, fz, fp;
+	  expandd->get_all(0, n, R, -z, 0.0, p, d, fr, fz, fp);
+	  coefs[n] += fac * p * den * 4.0*M_PI;
+
+	  for (int n2=n; n2<NORDER; n2++) {
+	    if (n2>n) expandd->get_all(0, n2, R, -z, 0.0, p2, d2, fr, fz, fp);
+	    else      d2 = d;
+	    orthochk[{n, n2}] += fac * p * d2 * 4.0*M_PI;
+	  }
+	}
+      }
+    }
+
+  } else {
+
+    for (int i=1; i<=NINT; i++) {	// Radial
+
+      double x = xmin + (xmax - xmin) * lq.knot(i);
+      double R = x_to_r(x, AA);
+
+      double facX = lq.weight(i) * 2.0 * M_PI * R * drdx(x, AA) * (xmax - xmin);
+
+      for (int j=1; j<=NINT; j++) { // Vertical
+	
+	double y = ymax*(2.0*lq.knot(j) - 1.0);
+	double z = x_to_r(y, HH);
+	
+	double fac = facX * lq.weight(j) * drdx(y, HH) * 2.0*ymax;
+
+	double den = DiskDens(R, z, 0.0);
+	totM += fac * den;
+
+	fac *= -1.0;
+
+	for (int n=0; n<NORDER; n++) {
+	  double p, p2, d, d2, fr, fz, fp;
+	  expandd->get_all(0, n, R, z, 0.0, p, d, fr, fz, fp);
+	  coefs[n] += fac * p * den * 4.0*M_PI;
+
+	  for (int n2=n; n2<NORDER; n2++) {
+	    if (n2>n) expandd->get_all(0, n2, R, z, 0.0, p2, d2, fr, fz, fp);
+	    else      d2 = d;
+	    orthochk[{n, n2}] += fac * p * d2 * 4.0*M_PI;
+	  }
+	}
       }
     }
   }
+
+  std::cout << std::endl << "Total integrated mass: " << totM
+	    << std::endl << std::endl;
 
   double cum = 0.0;
   for (int n=0; n<NORDER; n++) {
@@ -703,6 +797,14 @@ main(int ac, char **av)
 	      << std::endl;
   }
 
+  std::cout << std::endl;
+
+  for (auto v : orthochk)
+    std::cout << std::setw( 3) << v.first.first
+	      << std::setw( 3) << v.first.second
+	      << std::setw(18) << v.second
+	      << std::endl;
+
   // Set coefficients from std::vectors
   //
   std::vector<double> zero(NORDER, 0.0);
@@ -711,7 +813,7 @@ main(int ac, char **av)
 
   // Quick radial force check
   //
-  double dr   = (RMAX - RMIN)/(NFRC-1);
+  double dx   = (xmax - xmin)/(NFRC-1);
   double z    = 0.0;
   double phi  = 0.0;
   double mass = 1.0;
@@ -719,26 +821,46 @@ main(int ac, char **av)
   std::ofstream fout("testcoefs.compare");
 
   for (int j=0; j<NFRC; j++) {
-    double p0, p, fr, fz, fp;
-    double r = RMIN + dr*j;
+    double p0, p, fr, fz, fp, d;
+    double r = x_to_r(xmin + dx*j, AA);
 
     expandd->accumulated_eval(r, z, phi, p0, p, fr, fz, fp);
+    expandd->accumulated_dens_eval(r, z, phi, d);
     
-    double zb = sqrt( z*z + HSCALE*HSCALE );
-    double ab = ASCALE + zb;
-    double dn = sqrt( r*r + ab*ab );
-    
-    double PP = -mass/dn;
-    double FR = -mass*r/(dn*dn*dn);
-    double FZ = -mass*z*ab/(zb*dn*dn*dn);
+    double D, P, FR;
 
-    fout << std::setw(18) << r
-	 << std::setw(18) << -fr
-	 << std::setw(18) << FR
-	 << std::setw(18) << (-fr - FR)/FR
-	 << std::setw(18) << p
-	 << std::setw(18) << 1.0/dn
-	 << std::setw(18) << (p - 1.0/dn)*dn
+    if (dmodel.compare("MN")==0) { // Miyamoto-Nagai
+      double zb = sqrt( z*z + HH*HH );
+      double ab = AA + zb;
+      double dn = sqrt( r*r + ab*ab );
+      
+      P  = -mass/dn;
+      // double FZ = -mass*z*ab/(zb*dn*dn*dn);
+      FR = -mass*r/(dn*dn*dn);
+      D  = 0.25*HH*HH/M_PI*(AA*r*r + (AA + 3.0*zb)*ab*ab)/( pow(r*r + ab*ab, 2.5) * zb*zb*zb );
+
+    } else {			// Default to exponential
+      double y = r/(2.0*AA);
+      double i0 = boost::math::cyl_bessel_i(0, y);
+      double k0 = boost::math::cyl_bessel_k(0, y);
+      double i1 = boost::math::cyl_bessel_i(1, y);
+      double k1 = boost::math::cyl_bessel_k(1, y);
+      P  = -0.5*mass*r/(AA*AA) * (i0*k1 - i1*k0);
+      FR = -y/(AA*AA)*(i0*k0 - i1*k1);
+
+      double f = cosh(z/HH);
+      D  = exp(-r/AA)/(4.0*M_PI*AA*AA*HH*f*f);
+    }
+
+    fout << std::setw(18) << r	          // 1
+	 << std::setw(18) << fr	          // 2
+	 << std::setw(18) << FR	          // 3
+	 << std::setw(18) << (fr - FR)/FR // 4
+	 << std::setw(18) << p		  // 5
+	 << std::setw(18) << P		  // 6
+	 << std::setw(18) << (p - P)/P	  // 7
+	 << std::setw(18) << d		  // 8
+	 << std::setw(18) << D		  // 9
 	 << std::endl;
   }
 
