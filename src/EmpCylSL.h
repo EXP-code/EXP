@@ -252,6 +252,7 @@ public:
     Exponential,
     Gaussian, 
     Plummer,
+    Power,
     Deproject,
   };
 
@@ -325,6 +326,9 @@ public:
 
   //! Maximum radial value for basis
   static double RMAX;
+
+  //! Power exponent for EOF conditioning density function
+  static double PPOW;
 
   //! Name of cache file
   static string CACHEFILE;

@@ -389,6 +389,7 @@ main(int ac, char **av)
   int          DIVERGE2;
   double       DIVERGE_RFAC2;
   int          DF;
+  double       PPower;
   double       R_DF;
   double       DR_DF;
   double       Hratio;
@@ -499,6 +500,7 @@ main(int ac, char **av)
     ("ToomreQ",         po::value<double>(&ToomreQ)->default_value(1.2),                "Toomre Q parameter for stellar disk generation")
     ("Temp",            po::value<double>(&Temp)->default_value(2000.0),                "Gas temperature (in K)")
     ("Tmin",            po::value<double>(&Tmin)->default_value(500.0),                 "Temperature floor (in K) for gas disk generation")
+    ("PPOW",            po::value<double>(&PPower)->default_value(5.0),                 "Power exponent in spherical model for deprojection")
     ("const_height",    po::value<bool>(&const_height)->default_value(true),            "Use constant disk scale height")
     ("images",          po::value<bool>(&images)->default_value(false),                 "Print out reconstructed disk profiles")
     ("multi",           po::value<bool>(&multi)->default_value(false),                  "Use multimass halo")
@@ -524,7 +526,7 @@ main(int ac, char **av)
     ("cachefile",       po::value<string>(&cachefile)->default_value(".eof.cache.file"),        "Name of EOF cache file")
     ("runtag",          po::value<string>(&runtag)->default_value("run000"),                    "Label prefix for diagnostic images")
     ("gentype",         po::value<string>(&gentype)->default_value("Asymmetric"),               "DiskGenType string for velocity initialization (Jeans, Asymmetric, or Epicyclic)")
-    ("mtype",           po::value<string>(&mtype),                                              "Spherical deprojection model for EmpCylSL (one of: Exponential, Gaussian, Plummer)")
+    ("mtype",           po::value<string>(&mtype),                                              "Spherical deprojection model for EmpCylSL (one of: Exponential, Gaussian, Plummer, Power)")
     ("condition",       po::value<string>(&dtype)->default_value("exponential"),                "Disk type for condition (one of: constant, gaussian, mn, exponential)")
     ("report",          po::value<bool>(&report)->default_value(true),                  "Report particle progress in EOF computation")
     ("evolved",         po::value<bool>(&evolved)->default_value(false),           "Use existing halo body file given by <hbods> and do not create a new halo")
@@ -652,7 +654,10 @@ main(int ac, char **av)
       EmpCylSL::mtype = EmpCylSL::Gaussian;
     else if (mtype.compare("Plummer")==0)
       EmpCylSL::mtype = EmpCylSL::Plummer;
-    else {
+    else if (mtype.compare("Power")==0) {
+      EmpCylSL::mtype = EmpCylSL::Power;
+      EmpCylSL::PPOW  = PPower;
+    } else {
       if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
 			     << mtype << ">, valid types are: "
 			     << "Exponential, Gaussian, Plummer" << std::endl;

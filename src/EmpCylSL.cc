@@ -61,6 +61,7 @@ unsigned EmpCylSL::VTKFRQ          = 1;
 double   EmpCylSL::RMIN            = 0.001;
 double   EmpCylSL::RMAX            = 20.0;
 double   EmpCylSL::HFAC            = 0.2;
+double   EmpCylSL::PPOW            = 4.0;
 string   EmpCylSL::CACHEFILE       = ".eof.cache.file";
  
 
@@ -416,6 +417,17 @@ double EmpCylSL::massR(double R)
     fac = R/(1.0+R);
     ans = pow(fac, 3.0);
     break;
+  case Power:
+    {
+      double z  = R + 1.0;
+      double a1 = PPOW - 1.0;
+      double a2 = PPOW - 2.0;
+      double a3 = PPOW - 3.0;
+      ans =  0.5*a1*a2*a3 * ( (1.0 - pow(z, -a3))/a3 -
+			      (1.0 - pow(z, -a2))/a2 * 2.0 +
+			      (1.0 - pow(z, -a1))/a1 );
+    }
+    break;
   case Deproject:
     if (R < RMIN) ans = 0.0;
     else if (R>=RMAX) ans = massRg.eval(RMAX);
@@ -441,6 +453,15 @@ double EmpCylSL::densR(double R)
   case Plummer:
     fac = 1.0/(1.0+R);
     ans = 3.0*pow(fac, 4.0)/(4.0*M_PI);
+    break;
+  case Power:
+    {
+      double z  = R + 1.0;
+      double a1 = PPOW - 1.0;
+      double a2 = PPOW - 2.0;
+      double a3 = PPOW - 3.0;
+      ans =  0.125*a1*a2*a3/M_PI * pow(z, -PPOW);
+    }
     break;
   case Deproject:
     if (R < RMIN) ans = densRg.eval(RMIN);
@@ -472,6 +493,7 @@ SphModTblPtr EmpCylSL::make_sl()
       { {Exponential, "Exponential"},
 	{Gaussian,    "Gaussian"   },
 	{Plummer,     "Plummer"    },
+	{Power,       "Power"      },
 	{Deproject,   "Deproject"  }
       };
     std::cout << "EmpCylSL::make_sl(): making SLGridSph with <"
