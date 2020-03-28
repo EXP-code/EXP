@@ -336,10 +336,12 @@ main(int ac, char **av)
   int          NORDER;
   double       scale_height;
   double       scale_length;
+  double       ppower;
   bool         SVD;
   int          NINT;
   bool         DENS;
   bool         ignore;
+  bool         orthotst;
   string       cachefile;
   string       config;
   string       disktype;
@@ -386,9 +388,11 @@ main(int ac, char **av)
     ("runtag",          po::value<string>(&runtag)->default_value("run000"),                    "Label prefix for diagnostic images")
     ("scale_height",    po::value<double>(&scale_height)->default_value(0.1),           "Scale height for disk realization")
     ("scale_length",    po::value<double>(&scale_length)->default_value(2.0),           "Scale length for disk realization")
-    ("mtype",           po::value<string>(&mtype),                                              "Spherical deprojection model for EmpCylSL (one of: Exponential, Gaussian, Plummer)")
+    ("mtype",           po::value<string>(&mtype),                                              "Spherical deprojection model for EmpCylSL (one of: Exponential, Gaussian, Plummer, Power)")
     ("DTYPE",           po::value<string>(&disktype)->default_value("exponential"),             "Disk type for condition (one of: constant, gaussian, mn, exponential)")
+    ("PPOW",            po::value<double>(&ppower)->default_value(5.0),             "Power-law density exponent for general Plummer density for EMP construction")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
+    ("ortho",           po::value<bool>(&orthotst)->default_value(false),               "Check basis orthogonality by scalar product")
     ;
         
   po::variables_map vm;
@@ -510,9 +514,10 @@ main(int ac, char **av)
       EmpCylSL::mtype = EmpCylSL::Exponential;
     else if (mtype.compare("Gaussian")==0)
       EmpCylSL::mtype = EmpCylSL::Gaussian;
-    else if (mtype.compare("Plummer")==0)
+    else if (mtype.compare("Plummer")==0) {
       EmpCylSL::mtype = EmpCylSL::Plummer;
-    else {
+      EmpCylSL::PPOW  = ppower;
+    } else {
       if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
 			     << mtype << ">, valid types are: "
 			     << "Exponential, Gaussian, Plummer" << std::endl;
@@ -729,10 +734,12 @@ main(int ac, char **av)
 	  expandd->get_all(0, n, R, z, 0.0, p, d, fr, fz, fp);
 	  coefs[n] += fac * p * den * 4.0*M_PI;
 	  
-	  for (int n2=n; n2<NORDER; n2++) {
-	    if (n2>n) expandd->get_all(0, n2, R, z, 0.0, p2, d2, fr, fz, fp);
-	    else      d2 = d;
-	    orthochk[{n, n2}] += fac * p * d2 * 4.0*M_PI;
+	  if (orthotst) {
+	    for (int n2=n; n2<NORDER; n2++) {
+	      if (n2>n) expandd->get_all(0, n2, R, z, 0.0, p2, d2, fr, fz, fp);
+	      else      d2 = d;
+	      orthochk[{n, n2}] += fac * p * d2 * 4.0*M_PI;
+	    }
 	  }
 	}
 	
@@ -741,10 +748,12 @@ main(int ac, char **av)
 	  expandd->get_all(0, n, R, -z, 0.0, p, d, fr, fz, fp);
 	  coefs[n] += fac * p * den * 4.0*M_PI;
 
-	  for (int n2=n; n2<NORDER; n2++) {
-	    if (n2>n) expandd->get_all(0, n2, R, -z, 0.0, p2, d2, fr, fz, fp);
-	    else      d2 = d;
-	    orthochk[{n, n2}] += fac * p * d2 * 4.0*M_PI;
+	  if (orthotst) {
+	    for (int n2=n; n2<NORDER; n2++) {
+	      if (n2>n) expandd->get_all(0, n2, R, -z, 0.0, p2, d2, fr, fz, fp);
+	      else      d2 = d;
+	      orthochk[{n, n2}] += fac * p * d2 * 4.0*M_PI;
+	    }
 	  }
 	}
       }
@@ -776,10 +785,12 @@ main(int ac, char **av)
 	  expandd->get_all(0, n, R, z, 0.0, p, d, fr, fz, fp);
 	  coefs[n] += fac * p * den * 4.0*M_PI;
 
-	  for (int n2=n; n2<NORDER; n2++) {
-	    if (n2>n) expandd->get_all(0, n2, R, z, 0.0, p2, d2, fr, fz, fp);
-	    else      d2 = d;
-	    orthochk[{n, n2}] += fac * p * d2 * 4.0*M_PI;
+	  if (orthotst) {
+	    for (int n2=n; n2<NORDER; n2++) {
+	      if (n2>n) expandd->get_all(0, n2, R, z, 0.0, p2, d2, fr, fz, fp);
+	      else      d2 = d;
+	      orthochk[{n, n2}] += fac * p * d2 * 4.0*M_PI;
+	    }
 	  }
 	}
       }
