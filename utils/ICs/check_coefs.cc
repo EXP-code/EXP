@@ -833,18 +833,21 @@ main(int ac, char **av)
   
   std::ofstream fout("testcoefs.compare");
 
+  int nmin = std::min<int>(NORDER, 5);
+
   for (int j=0; j<NFRC; j++) {
-    double p0, p, fr, fz, fp, d, d0, d1;
+    std::vector<double> dd(nmin);
+    double p0, p, fr, fz, fp, d;
     double r = x_to_r(xmin + dx*j, AA);
 
     expandd->accumulated_eval(r, z, phi, p0, p, fr, fz, fp);
     expandd->accumulated_dens_eval(r, z, phi, d);
 
-    // Get density for n=0, 1
+    // Get density for n=0, 1, ... , nmin
     {
       double p1, fr1, fz1, fp1;	// Dummy variables
-      expandd->get_all(0, 0, r, z, 0.0, p1, d0, fr1, fz1, fp1);
-      expandd->get_all(0, NORDER-1, r, z, 0.0, p1, d1, fr1, fz1, fp1);
+      for (int nn=0; nn<nmin; nn++) 
+	expandd->get_all(0, nn, r, z, 0.0, p1, dd[nn], fr1, fz1, fp1);
     }
 
     
@@ -881,10 +884,10 @@ main(int ac, char **av)
 	 << std::setw(18) << P		  // 6
 	 << std::setw(18) << (p - P)/P	  // 7
 	 << std::setw(18) << d		  // 8
-	 << std::setw(18) << D		  // 9
-	 << std::setw(18) << d0		  // 10
-	 << std::setw(18) << d1		  // 11
-	 << std::endl;
+	 << std::setw(18) << D;		  // 9
+    for (int nn=0; nn<nmin; nn++)
+      fout << std::setw(18) << dd[nn];	  // 10+nn
+    fout << std::endl;
   }
 
 
