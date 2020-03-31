@@ -61,12 +61,9 @@
 
  Multimass gas disk 11/08 by MDW
 
-*/
-                                // System libs
-#include <unistd.h>
-#include <getopt.h>
-#include <values.h>
+ Updates for constructing disk velocities from an evolved halo 01/20 by MDW
 
+*/
                                 // C++/STL headers
 #include <cmath>
 #include <cstdlib>
@@ -97,6 +94,7 @@ namespace po = boost::program_options;
 #include <SphericalSL.h>
 #include <interp.h>
 #include <EmpCylSL.h>
+#include <DiskModels.H>
 
 #include <norminv.H>
 
@@ -234,8 +232,16 @@ const double f_H = 0.76;
 
 // Global variables
 //
-bool         CONSTANT;
-bool         GAUSSIAN;
+enum DiskType { constant, gaussian, mn, exponential };
+
+std::map<std::string, DiskType> dtlookup =
+  { {"constant",    DiskType::constant},
+    {"gaussian",    DiskType::gaussian},
+    {"mn",          DiskType::mn},
+    {"exponential", DiskType::exponential}
+  };
+
+DiskType     DTYPE;
 double       ASCALE;
 double       ASHIFT;
 double       HSCALE;
@@ -262,22 +268,35 @@ double DiskDens(double R, double z, double phi)
 {
   double ans = 0.0;
 
-  if (CONSTANT) {
-      
+  switch (DTYPE) {
+
+  case DiskType::constant:
     if (R < ASCALE && fabs(z) < HSCALE)
       ans = 1.0/(2.0*HSCALE*M_PI*ASCALE*ASCALE);
-  }
-  else if (GAUSSIAN) {
-      
+    break;
+
+  case DiskType::gaussian:
     if (fabs(z) < HSCALE)
       ans = 1.0/(2.0*HSCALE*2.0*M_PI*ASCALE*ASCALE)*
 	exp(-R*R/(2.0*ASCALE*ASCALE));
-    
-  } else {			// EXPONENTIAL
+    break;
 
-    double f = cosh(z/HSCALE);
-    ans = exp(-R/ASCALE)/(4.0*M_PI*ASCALE*ASCALE*HSCALE*f*f);
-    
+  case DiskType::mn:
+    {
+      double Z2 = z*z + HSCALE*HSCALE;
+      double Z  = sqrt(Z2);
+      double Q2 = (ASCALE + Z)*(ASCALE + Z);
+      ans = 0.25*HSCALE*HSCALE/M_PI*(ASCALE*R*R + (ASCALE + 3.0*Z)*Q2)/( pow(R*R + Q2, 2.5) * Z*Z2 );
+    }
+    break;
+
+  case DiskType::exponential:
+  default:
+    {
+      double f = cosh(z/HSCALE);
+      ans = exp(-R/ASCALE)/(4.0*M_PI*ASCALE*ASCALE*HSCALE*f*f);
+    }
+    break;
   }
 
   return ans;
@@ -324,12 +343,15 @@ main(int ac, char **av)
   int          LMAX;
   int          NMAX;
   int          NUMR;
+  int          SCMAP;
   double       RMIN;
   double       RCYLMIN;
   double       RCYLMAX;
   double       SCSPH;
   double       RSPHSL;
   double       DMFAC;
+  double       RFACTOR;
+  double       ECUT;
   double       X0;
   double       Y0;
   double       Z0;
@@ -342,10 +364,11 @@ main(int ac, char **av)
   int          VFLAG;
   int          DFLAG;
   bool         expcond;
-  bool         PLUMMER;
-  bool         CMAP;
   bool         LOGR;
   bool         CHEBY;
+  bool         CMAP;
+  int          NCHEB;
+  int          CMTYPE;
   int          NDR;
   int          NDZ;
   int          NHR;
@@ -366,8 +389,10 @@ main(int ac, char **av)
   int          DIVERGE2;
   double       DIVERGE_RFAC2;
   int          DF;
+  double       PPower;
   double       R_DF;
   double       DR_DF;
+  double       Hratio;
   double       scale_height;
   double       scale_length;
   double       scale_lenfkN;
@@ -377,6 +402,7 @@ main(int ac, char **av)
   double       ToomreQ;
   double       Temp;
   double       Tmin;
+  double       gen_ecut;
   bool         const_height;
   bool         images;
   bool         multi;
@@ -387,6 +413,7 @@ main(int ac, char **av)
   bool         zero;
   bool         report;
   bool         ignore;
+  bool         evolved;
   int          nhalo;
   int          ndisk;
   int          ngas;
@@ -400,22 +427,31 @@ main(int ac, char **av)
   string       halofile2;
   string       cachefile;
   string       config;
+  string       gentype;
+  string       dtype;
+  string       dmodel;
+  string       mtype;
   
   po::options_description desc("Allowed options");
   desc.add_options()
     ("help,h",                                                                          "Print this help message")
     ("conf,c",          po::value<string>(&config),                                     "Write template options file with current and all default values")
     ("input,f",         po::value<string>(&config),                                     "Parameter configuration file")
+    ("deproject",       po::value<string>(&dmodel),                                     "The EmpCylSL deprojection from specified disk model (EXP or MN)")
     ("NUMR",            po::value<int>(&NUMR)->default_value(2000),                     "Size of radial grid for Spherical SL")
     ("RMIN",            po::value<double>(&RMIN)->default_value(0.005),                 "Minimum halo radius")
     ("RCYLMIN",         po::value<double>(&RCYLMIN)->default_value(0.001),              "Minimum disk radius")
     ("RCYLMAX",         po::value<double>(&RCYLMAX)->default_value(20.0),               "Maximum disk radius")
+    ("SCMAP",           po::value<int>(&SCMAP)->default_value(1),
+        "Turn on Spherical SL coordinate mapping (1, 2, 0=off")
     ("SCSPH",           po::value<double>(&SCSPH)->default_value(1.0),                  "Scale for Spherical SL coordinate mapping")
+    ("ECUT",            po::value<double>(&ECUT)->default_value(1.0),                   "Energy cutoff for multimass ratio grid")
     ("RSPHSL",          po::value<double>(&RSPHSL)->default_value(47.5),                "Maximum halo expansion radius")
     ("ASCALE",          po::value<double>(&ASCALE)->default_value(1.0),                 "Radial scale length for disk basis construction")
     ("ASHIFT",          po::value<double>(&ASHIFT)->default_value(0.0),                 "Fraction of scale length for shift in conditioning function")
     ("HSCALE",          po::value<double>(&HSCALE)->default_value(0.1),                 "Vertical scale length for disk basis construction")
     ("DMFAC",           po::value<double>(&DMFAC)->default_value(1.0),                  "Disk mass scaling factor for spherical deprojection model")
+    ("RFACTOR",         po::value<double>(&RFACTOR)->default_value(1.0),                "Disk radial scaling factor for spherical deprojection model")
     ("X0",              po::value<double>(&X0)->default_value(0.0),                     "Disk-Halo x center position")
     ("Y0",              po::value<double>(&Y0)->default_value(0.0),                     "Disk-Halo y center position")
     ("Z0",              po::value<double>(&Z0)->default_value(0.0),                     "Disk-Halo z center position")
@@ -425,17 +461,19 @@ main(int ac, char **av)
     ("RNUM",            po::value<int>(&RNUM)->default_value(200),                      "Number of radial knots for EmpCylSL basis construction quadrature")
     ("PNUM",            po::value<int>(&PNUM)->default_value(80),                       "Number of azimthal knots for EmpCylSL basis construction quadrature")
     ("TNUM",            po::value<int>(&TNUM)->default_value(80),                       "Number of cos(theta) knots for EmpCylSL basis construction quadrature")
-    ("CMAP",            po::value<bool>(&CMAP)->default_value(false),                   "Map coordinates from radius to tabled grid")
+    ("CMAP",            po::value<bool>(&CMAP)->default_value(true),                     "Map coordinates from radius to tabled grid")
+    ("CMTYPE",          po::value<int>(&CMTYPE)->default_value(1),                       "Coordinate mapping type (0=none, 1=original, 2=power in R and z")
     ("SVD",             po::value<bool>(&SVD)->default_value(false),                    "Use svd for symmetric eigenvalue problesm")
     ("LOGR",            po::value<bool>(&LOGR)->default_value(false),                   "Make a logarithmic coordinate mapping")
     ("CHEBY",           po::value<bool>(&CHEBY)->default_value(false),                  "Use Chebyshev smoothing for epicyclic and asymmetric drift")
+    ("NCHEB",           po::value<int>(&NCHEB)->default_value(16),                      "Chebyshev order for smoothing")
     ("NDR",             po::value<int>(&NDR)->default_value(1600),                      "Number of points in DiskHalo radial table for disk")
     ("NDZ",             po::value<int>(&NDZ)->default_value(400),                       "Number of points in DiskHalo vertical table for disk")
     ("NHR",             po::value<int>(&NHR)->default_value(1600),                      "Number of points in DiskHalo radial table for halo")
     ("NHT",             po::value<int>(&NHT)->default_value(200),                       "Number of points in DiskHalo cos(theta) table for halo")
     ("SHFAC",           po::value<double>(&SHFAC)->default_value(16.0),                 "Scale height factor for assigning vertical table size")
-    ("LMAX",            po::value<int>(&LMAX)->default_value(6),                       "Number of harmonics for Spherical SL for halo/spheroid")
-    ("NMAX",            po::value<int>(&NMAX)->default_value(12),                      "Number of radial basis functions in Spherical SL for halo/spheroid")
+    ("LMAX",            po::value<int>(&LMAX)->default_value(6),                        "Number of harmonics for Spherical SL for halo/spheroid")
+    ("NMAX",            po::value<int>(&NMAX)->default_value(12),                       "Number of radial basis functions in Spherical SL for halo/spheroid")
     ("NMAX2",           po::value<int>(&NMAX2)->default_value(36),                      "Number of radial basis functions in Spherical SL for determining disk basis")
     ("LMAX2",           po::value<int>(&LMAX2)->default_value(36),                      "Number of harmonics for Spherical SL for determining disk basis")
     ("MMAX",            po::value<int>(&MMAX)->default_value(4),                        "Number of azimuthal harmonics for disk basis")
@@ -443,16 +481,16 @@ main(int ac, char **av)
     ("NUMY",            po::value<int>(&NUMY)->default_value(128),                      "Vertical grid size for disk basis table")
     ("NORDER",          po::value<int>(&NORDER)->default_value(16),                     "Number of disk basis functions per M-order")
     ("NORDER1",         po::value<int>(&NORDER1)->default_value(1000),                  "Restricts disk basis function to NORDER1<NORDER after basis construction for testing")
-    ("NOUT",            po::value<int>(&NOUT)->default_value(1000),                      "Number of radial basis functions to output for each harmonic order")
+    ("NOUT",            po::value<int>(&NOUT)->default_value(1000),                     "Number of radial basis functions to output for each harmonic order")
     ("SELECT",          po::value<bool>(&SELECT)->default_value(false),                 "Enable significance selection in coefficient computation")
-    ("DUMPCOEF",        po::value<bool>(&DUMPCOEF)->default_value(false),               "Dump disk coefficients")
+    ("DUMPCOEF",        po::value<bool>(&DUMPCOEF)->default_value(false),               "Dump coefficients")
     ("DIVERGE",         po::value<int>(&DIVERGE)->default_value(0),                     "Cusp extrapolation for primary halo model")
     ("DIVERGE_RFAC",    po::value<double>(&DIVERGE_RFAC)->default_value(1.0),           "Extrapolation exponent for primary mass model")
     ("DIVERGE2",        po::value<int>(&DIVERGE2)->default_value(0),                    "Cusp extrapolation for number model")
     ("DIVERGE_RFAC2",   po::value<double>(&DIVERGE_RFAC2)->default_value(1.0),          "Extrapolation exponent for number model")
     ("DF",              po::value<int>(&DF)->default_value(0),                          "Use change-over from Jeans to Eddington")
     ("R_DF",            po::value<double>(&R_DF)->default_value(20.0),                  "Change over radius for Eddington")
-    ("DR_DF",           po::value<double>(&DR_DF)->default_value(5.0),  "               Width of change for to Eddington")
+    ("DR_DF",           po::value<double>(&DR_DF)->default_value(5.0),                  "Width of change for to Eddington")
     ("scale_height",    po::value<double>(&scale_height)->default_value(0.1),           "Scale height for disk realization")
     ("scale_length",    po::value<double>(&scale_length)->default_value(2.0),           "Scale length for disk realization")
     ("scale_lenfkN",    po::value<double>(&scale_lenfkN)->default_value(-1.0),          "Scale for multimass gas")
@@ -462,6 +500,7 @@ main(int ac, char **av)
     ("ToomreQ",         po::value<double>(&ToomreQ)->default_value(1.2),                "Toomre Q parameter for stellar disk generation")
     ("Temp",            po::value<double>(&Temp)->default_value(2000.0),                "Gas temperature (in K)")
     ("Tmin",            po::value<double>(&Tmin)->default_value(500.0),                 "Temperature floor (in K) for gas disk generation")
+    ("PPOW",            po::value<double>(&PPower)->default_value(5.0),                 "Power exponent in spherical model for deprojection")
     ("const_height",    po::value<bool>(&const_height)->default_value(true),            "Use constant disk scale height")
     ("images",          po::value<bool>(&images)->default_value(false),                 "Print out reconstructed disk profiles")
     ("multi",           po::value<bool>(&multi)->default_value(false),                  "Use multimass halo")
@@ -481,15 +520,16 @@ main(int ac, char **av)
     ("DFLAG",           po::value<int>(&DFLAG)->default_value(0),                       "Output flags for DiskHalo")
     ("threads",         po::value<int>(&nthrds)->default_value(1),                      "Number of lightweight threads")
     ("expcond",         po::value<bool>(&expcond)->default_value(true),                 "Use analytic density function for computing EmpCylSL basis")
-    ("CONSTANT",        po::value<bool>(&CONSTANT)->default_value(false),               "Check basis with a constant density")
-    ("GAUSSIAN",        po::value<bool>(&GAUSSIAN)->default_value(false),               "Use Gaussian disk profile rather than exponential disk profile")
-    ("PLUMMER",         po::value<bool>(&PLUMMER)->default_value(false),                "Use Plummer disk profile rather than exponential disk profile")
     ("centerfile",      po::value<string>(&centerfile)->default_value("center.dat"),    "Read position and velocity center from this file")
     ("halofile1",       po::value<string>(&halofile1)->default_value("SLGridSph.model"),        "File with input halo model")
     ("halofile2",       po::value<string>(&halofile2)->default_value("SLGridSph.model.fake"),   "File with input halo model for multimass")
     ("cachefile",       po::value<string>(&cachefile)->default_value(".eof.cache.file"),        "Name of EOF cache file")
     ("runtag",          po::value<string>(&runtag)->default_value("run000"),                    "Label prefix for diagnostic images")
+    ("gentype",         po::value<string>(&gentype)->default_value("Asymmetric"),               "DiskGenType string for velocity initialization (Jeans, Asymmetric, or Epicyclic)")
+    ("mtype",           po::value<string>(&mtype),                                              "Spherical deprojection model for EmpCylSL (one of: Exponential, Gaussian, Plummer, Power)")
+    ("condition",       po::value<string>(&dtype)->default_value("exponential"),                "Disk type for condition (one of: constant, gaussian, mn, exponential)")
     ("report",          po::value<bool>(&report)->default_value(true),                  "Report particle progress in EOF computation")
+    ("evolved",         po::value<bool>(&evolved)->default_value(false),           "Use existing halo body file given by <hbods> and do not create a new halo")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
     ;
         
@@ -523,7 +563,7 @@ main(int ac, char **av)
 		<< "\t" << av[0] << "--LMAX=8 --conf=template.config" << std::endl << std::endl;
     }
     MPI_Finalize();
-    return 1;
+    return 0;
   }
 
   // Write template config file in INI style and exit
@@ -536,7 +576,7 @@ main(int ac, char **av)
 	std::cerr << av[0] << ": config file <" << config
 		  << "> exists, will not overwrite" << std::endl;
       MPI_Finalize();
-      return 2;
+      return 0;
     }
 
     NOUT = std::min<int>(NOUT, NORDER);
@@ -586,7 +626,7 @@ main(int ac, char **av)
       }
     }
     MPI_Finalize();
-    return 3;
+    return 0;
   }
 
   // Read parameters fron the config file
@@ -597,13 +637,62 @@ main(int ac, char **av)
       po::store(po::parse_config_file(in, desc), vm);
       po::notify(vm);    
     } catch (po::error& e) {
-      if (myid==0) std::cout << "Option error in configuraton file: "
+      if (myid==0) std::cout << "Option error in configuration file: "
 			     << e.what() << std::endl;
       MPI_Finalize();
-      return -1;
+      return 0;
     }
   }
   
+  // Set EmpCylSL mtype
+  //
+  EmpCylSL::mtype = EmpCylSL::Exponential;
+  if (vm.count("mtype")) {
+    if (mtype.compare("Exponential")==0)
+      EmpCylSL::mtype = EmpCylSL::Exponential;
+    else if (mtype.compare("Gaussian")==0)
+      EmpCylSL::mtype = EmpCylSL::Gaussian;
+    else if (mtype.compare("Plummer")==0)
+      EmpCylSL::mtype = EmpCylSL::Plummer;
+    else if (mtype.compare("Power")==0) {
+      EmpCylSL::mtype = EmpCylSL::Power;
+      EmpCylSL::PPOW  = PPower;
+    } else {
+      if (myid==0) std::cout << "No EmpCylSL EmpModel named <"
+			     << mtype << ">, valid types are: "
+			     << "Exponential, Gaussian, Plummer" << std::endl;
+      MPI_Finalize();
+      return 0;
+    }
+  }
+
+  // Set DiskType
+  //
+				// Convert to lower case
+  std::transform(dtype.begin(), dtype.end(), dtype.begin(),
+		 [](unsigned char c){ return std::tolower(c); });
+
+  try {				// Check for map entry, will through if the 
+    DTYPE = dtlookup.at(dtype);	// key is not in the map.
+
+    if (myid==0)		// Report DiskType
+      std::cout << "DiskType is <" << dtype << ">" << std::endl;
+  }
+  catch (const std::out_of_range& err) {
+    if (myid==0) {
+      std::cout << "DiskType error in configuraton file" << std::endl;
+      std::cout << "Valid options are: ";
+      for (auto v : dtlookup) std::cout << v.first << " ";
+      std::cout << std::endl;
+    }
+    MPI_Finalize();
+    return 0;
+  }
+
+  // Set mapping type
+  //
+  if (not CMAP) CMTYPE = 0;
+
   //====================
   // Okay, now begin ...
   //====================
@@ -635,13 +724,16 @@ main(int ac, char **av)
   
   
 #ifdef DEBUG  
-  cout << "Processor " << myid << ": n_particlesH=" << n_particlesH << "\n";
-  cout << "Processor " << myid << ": n_particlesD=" << n_particlesD << "\n";
-  cout << "Processor " << myid << ": n_particlesG=" << n_particlesG << "\n";
+  std::cout << "Processor " << myid << ": n_particlesH=" << n_particlesH
+	    << std::endl
+	    << "Processor " << myid << ": n_particlesD=" << n_particlesD
+	    << std::endl
+	    << "Processor " << myid << ": n_particlesG=" << n_particlesG
+	    << std::endl;
 #endif
   
   if (n_particlesH + n_particlesD + n_particlesG <= 0) {
-    if (myid==0) cout << "You have specified zero particles!\n";
+    if (myid==0) std::cout << "You have specified zero particles!" << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 3);
     exit(0);
   }
@@ -654,7 +746,10 @@ main(int ac, char **av)
   //
   // Disk halo grid parameters
   //
-  DiskHalo::RDMIN       = RCYLMIN*scale_length;
+  //      Prevent model evaulation inside of either grid---------+
+  //                                       |                     |
+  //                                       V                     V
+  DiskHalo::RDMIN       = std::max<double>(RCYLMIN*scale_length, RMIN);
   DiskHalo::RHMIN       = RMIN;
   DiskHalo::RHMAX       = RSPHSL;
   DiskHalo::RDMAX       = RCYLMAX*scale_length;
@@ -669,9 +764,11 @@ main(int ac, char **av)
   DiskHalo::Q           = ToomreQ;
   DiskHalo::R_DF        = R_DF;
   DiskHalo::DR_DF       = DR_DF;
+  DiskHalo::ECUT_DF     = ECUT;
   DiskHalo::SEED        = SEED;
   DiskHalo::VFLAG       = static_cast<unsigned int>(DFLAG);
   DiskHalo::CHEBY       = CHEBY;
+  DiskHalo::NCHEB       = NCHEB;
   if (suffix.size())
     DiskHalo::RUNTAG    = suffix;
   
@@ -687,12 +784,9 @@ main(int ac, char **av)
   SphericalSL::RMAX = RSPHSL;
   SphericalSL::NUMR = NUMR;
   // Create expansion only if needed . . .
-  SphericalSL *expandh = NULL;
+  boost::shared_ptr<SphericalSL> expandh;
   if (n_particlesH) {
-    expandh = new SphericalSL(nthrds, LMAX, NMAX, SCSPH);
-#ifdef DEBUG
-    expandh->dump_basis(runtag);
-#endif
+    expandh = boost::make_shared<SphericalSL>(nthrds, LMAX, NMAX, SCMAP, SCSPH);
   }
 
   //===========================Cylindrical expansion===========================
@@ -704,7 +798,7 @@ main(int ac, char **av)
   EmpCylSL::NUMY        = NUMY;
   EmpCylSL::NUMR        = NUMR;
   EmpCylSL::NOUT        = NOUT;
-  EmpCylSL::CMAP        = CMAP;
+  EmpCylSL::CMAP        = CMTYPE;
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
   EmpCylSL::DENS        = DENS;
@@ -712,26 +806,27 @@ main(int ac, char **av)
   EmpCylSL::PCAVAR      = SELECT;
   EmpCylSL::CACHEFILE   = cachefile;
 
-
   if (basis) EmpCylSL::DENS = true;
 
                                 // Create expansion only if needed . . .
-  EmpCylSL* expandd  = NULL;
-  bool      save_eof = false;
+  boost::shared_ptr<EmpCylSL> expandd;
+  bool save_eof = false;
 
   if (n_particlesD) {
-    expandd = new EmpCylSL(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE);
+
+    expandd = boost::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE);
+
 #ifdef DEBUG
-    cout << "Process " << myid << ": "
-	 << " rmin=" << EmpCylSL::RMIN
-	 << " rmax=" << EmpCylSL::RMAX
-	 << " a=" << ASCALE
-	 << " h=" << HSCALE
-	 << " nmax2=" << NMAX2
-	 << " lmax2=" << LMAX2
-	 << " mmax=" << MMAX
-	 << " nordz=" << NORDER
-	 << endl << flush;
+   std::cout << "Process " << myid << ": "
+	     << " rmin=" << EmpCylSL::RMIN
+	     << " rmax=" << EmpCylSL::RMAX
+	     << " a=" << ASCALE
+	     << " h=" << HSCALE
+	     << " nmax2=" << NMAX2
+	     << " lmax2=" << LMAX2
+	     << " mmax=" << MMAX
+	     << " nordz=" << NORDER
+	     << std::endl << std::flush;
 #endif
 
     // Try to read existing cache to get EOF
@@ -747,8 +842,28 @@ main(int ac, char **av)
       }
       if (not save_eof) {
 	MPI_Finalize();
-	return 4;
+	return 0;
       }
+    }
+
+    // Use these user models to deproject for the EOF spherical basis
+    //
+    if (vm.count("deproject")) {
+      // The scale in EmpCylSL is assumed to be 1 so we compute the
+      // height relative to the length
+      //
+      double H = scale_height/scale_length;
+
+      // The model instance (you can add others in DiskModels.H
+      //
+      EmpCylSL::AxiDiskPtr model;
+
+      if (dmodel.compare("MN")==0) // Miyamoto-Nagai
+	model = boost::make_shared<MNdisk>(1.0, H);
+      else			// Default to exponential
+	model = boost::make_shared<Exponential>(1.0, H);
+
+      expandd->create_deprojection(H, RFACTOR, NUMR, RNUM, model);
     }
 
     // Regenerate EOF from analytic density
@@ -763,33 +878,34 @@ main(int ac, char **av)
 
   //====================Create the disk & halo model===========================
 
-  DiskHalo *diskhalo;
+  boost::shared_ptr<DiskHalo> diskhalo;
 
   if (multi) {
-    if (myid==0) cout << "Initializing a MULTIMASS halo . . . " << flush;
-    diskhalo = new DiskHalo (expandh, expandd,
-			     scale_height, scale_length, disk_mass, 
-			     halofile1, DIVERGE,  DIVERGE_RFAC,
-			     halofile2, DIVERGE2, DIVERGE_RFAC2,
-			     DiskHalo::Asymmetric);
-    //                       DiskHalo::Epicyclic);
-    //			     DiskHalo::Jeans);
-    if (myid==0) cout << "done" << endl;
+    if (myid==0) std::cout << "Initializing for a MULTI-MASS halo . . . " << std::flush;
+    diskhalo =
+      boost::make_shared<DiskHalo>
+      (expandh, expandd,
+       scale_height, scale_length, disk_mass, 
+       halofile1, DIVERGE,  DIVERGE_RFAC,
+       halofile2, DIVERGE2, DIVERGE_RFAC2,
+       DiskHalo::Asymmetric);
+    // DiskHalo::Epicyclic);
+    // DiskHalo::Jeans);
+    if (myid==0) std::cout << "done" << std::endl;
 
   } else {
 
-    if (myid==0) cout << "Initializing a SINGLE halo . . . " << flush;
-    diskhalo = new DiskHalo (expandh, expandd,
-			     scale_height, scale_length, 
-			     disk_mass, halofile1,
-			     DF, DIVERGE, DIVERGE_RFAC,
-			     DiskHalo::Asymmetric);
-    //                       DiskHalo::Epicyclic);
-    //			     DiskHalo::Jeans);
-    if (myid==0) cout << "done" << endl;
+    if (myid==0) std::cout << "Initializing for a SINGLE-MASS halo . . . " << std::flush;
+    diskhalo = boost::make_shared<DiskHalo>
+      (expandh, expandd,
+       scale_height, scale_length, 
+       disk_mass, halofile1,
+       DF, DIVERGE, DIVERGE_RFAC,
+       DiskHalo::getDiskGenType[gentype]);
+    if (myid==0) std::cout << "done" << std::endl;
   }
   
-  ifstream center(centerfile.c_str());
+  std::ifstream center(centerfile.c_str());
   if (center) {
 
     bool ok = true;
@@ -805,8 +921,8 @@ main(int ac, char **av)
 
     if (ok) {
       diskhalo->set_pos_origin(X0, Y0, Z0);
-      if (myid==0) cout << "Using position origin: " 
-			<< X0 << ", " << Y0 << ", " << Z0 << endl;
+      if (myid==0) std::cout << "Using position origin: " 
+			     << X0 << ", " << Y0 << ", " << Z0 << std::endl;
     }
 
     center >> U0;
@@ -820,8 +936,8 @@ main(int ac, char **av)
 
     if (ok) {
       diskhalo->set_vel_origin(U0, V0, W0);
-      if (myid==0) cout << "Using velocity origin: " 
-			<< U0 << ", " << V0 << ", " << W0 << endl;
+      if (myid==0) std::cout << "Using velocity origin: " 
+			     << U0 << ", " << V0 << ", " << W0 << std::endl;
     }
   }
 
@@ -834,55 +950,144 @@ main(int ac, char **av)
 
                                 // Open output file (make sure it exists
                                 // before realizing a large phase space)
-  ofstream out_halo, out_disk;
+  std::ofstream out_halo, out_disk;
   if (myid==0) {
-    out_halo.open(hbods.c_str());
-    if (!out_halo) {
-      cout << "Could not open <" << hbods << "> for output\n";
-      MPI_Abort(MPI_COMM_WORLD, 4);
-      exit(0);
+    if (not evolved and n_particlesH) {
+      out_halo.open(hbods.c_str());
+      if (!out_halo) {
+	cout << "Could not open <" << hbods << "> for output\n";
+	MPI_Abort(MPI_COMM_WORLD, 4);
+	exit(0);
+      }
     }
 
-    out_disk.open(dbods.c_str());
-    if (!out_disk) {
-      cout << "Could not open <" << dbods << "> for output\n";
-      MPI_Abort(MPI_COMM_WORLD, 4);
-      exit(0);
+    if (n_particlesD) {
+      out_disk.open(dbods.c_str());
+      if (!out_disk) {
+	std::cout << "Could not open <" << dbods << "> for output" << std::endl;
+	MPI_Abort(MPI_COMM_WORLD, 4);
+	exit(0);
+      }
     }
   }
 
   //=================Make the phase space coordinates==========================
 
-  if (n_particlesH) {
-    if (multi) {
-      if (myid==0) cout << "Generating halo phase space . . . " << flush;
-      diskhalo->set_halo(hparticles, nhalo, n_particlesH);
+  if (evolved) {		// ---------------------------
+				// Use existing halo body file
+    std::ifstream hin(hbods);	// ---------------------------
+    
+    if (hin) {
+      std::string line;
+      std::getline(hin, line);
+      std::istringstream sin(line);
+
+      int niatr, ndatr;
+      sin >> nhalo;
+      sin >> niatr;
+      sin >> ndatr;
+      
+      // Divvy up the particles by core.  The root node gets any
+      // remainder.
+      //
+      n_particlesH = nhalo/numprocs;
+
+      int ibeg = 0;
+      int iend = nhalo - n_particlesH*(numprocs-myid-1);
+      
+      if (myid>0) {
+	ibeg = nhalo - n_particlesH*(numprocs-myid);
+	for (int i=0; i<ibeg; i++) std::getline(hin, line);
+      }
+
+      Particle P(niatr, ndatr);
+
+      for (int i=ibeg; i<iend; i++) {
+	std::getline(hin, line);
+	std::istringstream sin(line);
+	sin >> P.mass;
+	for (int k=0; k<3; k++)     sin >> P.pos[k];
+	for (int k=0; k<3; k++)     sin >> P.vel[k];
+	for (int k=0; k<niatr; k++) sin >> P.iattrib[k];
+	for (int k=0; k<ndatr; k++) sin >> P.dattrib[k];
+	hparticles.push_back(P);
+      }
+
     } else {
-      if (myid==0) cout << "Generating halo coordinates . . . " << flush;
-      diskhalo->set_halo_coordinates(hparticles, nhalo, n_particlesH);
+      // Error message
+      if (myid==0)
+	std::cout << "Could not read halo file <" << hbods
+		  << "> . . . quitting" << std::endl;
+
       MPI_Barrier(MPI_COMM_WORLD);
+      MPI_Finalize();
+      exit(-1);
     }
+
+    std::cout << "Process " << myid << " has " << hparticles.size()
+	      << " halo particles" << std::endl;
+
+    if (myid==0)
+      std::cout << "Generating halo tables for input halo . . . "
+		<< std::flush;
+
+    if (multi) {
+      diskhalo->set_halo_table_multi(hparticles);
+    } else {
+      diskhalo->set_halo_table_single(hparticles);
+    }
+
     MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done\n";
+    if (myid==0) std::cout << "done" << std::endl;
+
+  } else {			// ---------------------------
+				// Generate new halo body file
+    if (n_particlesH) {		// ---------------------------
+      if (multi) {
+	if (myid==0) std::cout << "Generating halo phase space . . . " << std::flush;
+	diskhalo->set_halo(hparticles, nhalo, n_particlesH);
+      } else {
+	if (myid==0) std::cout << "Generating halo coordinates . . . " << std::flush;
+	diskhalo->set_halo_coordinates(hparticles, nhalo, n_particlesH);
+	MPI_Barrier(MPI_COMM_WORLD);
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+      if (myid==0) std::cout << "done" << std::endl;
+    }
   }
 
   if (n_particlesD) {
-    if (myid==0) cout << "Generating disk coordinates . . . " << flush;
+    if (myid==0) std::cout << "Generating disk coordinates . . . " << std::flush;
     diskhalo->set_disk_coordinates(dparticles, ndisk, n_particlesD);
     MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done\n";
+    if (myid==0) std::cout << "done" << std::endl;
   }
 
   if (n_particlesH) {
-    if (myid==0) cout << "Beginning halo accumulation . . . " << flush;
+    if (myid==0) std::cout << "Beginning halo accumulation . . . " << std::flush;
     expandh->accumulate(hparticles);
     MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done\n";
+
+    if (myid==0) {
+      std::cout << "done" << std::endl;
+      if (DUMPCOEF) {
+	std::cout << "Dumping coefficients halo . . . " << std::flush;
+	ostringstream sout;
+	sout << "halo_coefs.";
+	if (suffix.size()>0) sout << suffix;
+	else                 sout << "dump";
+	ofstream out(sout.str().c_str());
+	if (out) expandh->dump_coefs(out, false);
+	std::cout << "done" << std::endl;
+      }
+    }
+
   }
   
   if (n_particlesD) {
-    if (myid==0) cout << "Beginning disk accumulation . . . " << flush;
+    if (myid==0) std::cout << "Beginning disk accumulation . . . " << std::flush;
     expandd->setup_accumulation();
+
     if (!save_eof and !expcond) {
       expandd->setup_eof();
       if (nthrds>1)
@@ -891,20 +1096,25 @@ main(int ac, char **av)
 	expandd->accumulate_eof(dparticles, report);
       MPI_Barrier(MPI_COMM_WORLD);
 
-      if (myid==0) cout << "done\n";
+      if (myid==0) std::cout << "done" << std::endl;
   
-      if (myid==0) cout << "Making the EOF . . . " << flush;
+      if (myid==0) std::cout << "Making the EOF . . . " << std::flush;
       expandd->make_eof();
       MPI_Barrier(MPI_COMM_WORLD);
-      if (myid==0) cout << "done\n";
     }
-  
-    if (myid==0) cout << "Making disk coefficients . . . " << flush;
+
+    if (myid==0) {
+      std::cout << "done" << std::endl;
+      std::cout << "Making disk coefficients . . . " << std::flush;
+    }
+
     expandd->make_coefficients();
     MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done\n";
 
-    if (myid==0) cout << "Reexpand . . . " << flush;
+    if (myid==0) {
+      std::cout << "done" << std::endl;
+      std::cout << "Reexpand . . . " << std::flush;
+    }
 
     if (nthrds>1)
       expandd->accumulate_thread(dparticles, 0, report);
@@ -914,31 +1124,32 @@ main(int ac, char **av)
     expandd->make_coefficients();
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) {
-      cout << "done\n";
+      std::cout << "done" << std::endl;
       if (DUMPCOEF) {
-	cout << "Dumping coefficients . . . " << flush;
+	std::cout << "Dumping coefficients . . . " << std::flush;
 	ostringstream sout;
 	sout << "disk_coefs.";
 	if (suffix.size()>0) sout << suffix;
-	else                 sout <<"dump";
+	else                 sout << "dump";
 	ofstream out(sout.str().c_str());
 	if (out) expandd->dump_coefs(out);
-	cout << "done\n";
+	std::cout << "done" << std::endl;
       }
     }
+
     if (NORDER1<NORDER) {
-      if (myid==0) cout << "Restricting order from " << NORDER 
-			<< " to " << NORDER1 << " . . . " << flush;
+      if (myid==0) std::cout << "Restricting order from " << NORDER 
+			     << " to " << NORDER1 << " . . . " << std::flush;
       expandd->restrict_order(NORDER1);
-      if (myid==0) cout << "done\n";
+      if (myid==0) std::cout << "done" << std::endl;
     }
 
     if (images && myid==0) {
-      cout << "Images . . . " << flush;
-      ostringstream dumpname;
+      std::cout << "Images . . . " << std::flush;
+      std::ostringstream dumpname;
       dumpname << "images.0";
       expandd->dump_images(dumpname.str(), 5.0*ASCALE, 5.0*HSCALE, 64, 64, true);
-      cout << "done\n";
+      std::cout << "done" << std::endl;
     }
   }
   
@@ -947,10 +1158,9 @@ main(int ac, char **av)
 
                                 // For examining the coverage, etc.
                                 // Images can be contoured in SM using
-                                // the "ch" file type
-  if (myid==0 && basis) {
+  if (myid==0 && basis) {	// the "ch" file type
     
-    cout << "Dumping basis images . . . " << flush;
+    std::cout << "Dumping basis images . . . " << std::flush;
     
     if (n_particlesD) {
       int nout = 200;
@@ -1076,47 +1286,50 @@ main(int ac, char **av)
       delete [] out;
     }
     
-    cout << "done\n";
+    std::cout << "done" << std::endl;
   }
   
   MPI_Barrier(MPI_COMM_WORLD);
 
   //====================Make the phase space velocities========================
 
-  if (!multi) {
-    if (myid==0) cout << "Generating halo velocities . . . " << flush;
+  if (!multi and !evolved) {
+    if (myid==0) std::cout << "Generating halo velocities . . . " << std::flush;
     diskhalo->set_vel_halo(hparticles);
-    if (myid==0) cout << "done\n";
+    if (myid==0) std::cout << "done" << std::endl;
   }
   
-  if (myid==0) cout << "Generating disk velocities . . . " << flush;
+  if (myid==0) std::cout << "Generating disk velocities . . . " << std::flush;
   diskhalo->set_vel_disk(dparticles);
-  if (myid==0) cout << "done\n";
+  if (myid==0) std::cout << "done" << std::endl;
   
 
   //====================All done: write it out=================================
 
-  if (myid==0) cout << "Writing phase space file . . . " << flush;
+  if (not evolved) {
+    if (myid==0) std::cout << "Writing phase space file for halo . . . " << std::flush;
+    diskhalo->write_file(out_halo, hparticles);
+    if (myid==0) std::cout << "done" << std::endl;
+    out_halo.close();
+  }
 
-  diskhalo->write_file(out_halo, out_disk, hparticles, dparticles);
-  if (myid==0) cout << "done\n";
-
-  out_halo.close();
+  if (myid==0) std::cout << "Writing phase space file for disk . . . " << std::flush;
+  diskhalo->write_file(out_disk, dparticles);
+  if (myid==0) std::cout << "done" << std::endl;
   out_disk.close();
                                 // Diagnostic . . .
   diskhalo->virial_ratio(hparticles, dparticles);
 
-  ofstream outprof("profile.diag");
+  std::ofstream outprof("profile.diag");
   diskhalo->profile(outprof, dparticles, 3.0e-3*ASCALE, 5.0*ASCALE, 100);
 
   //====================Compute gas particles==================================
 
   if (myid==0 && n_particlesG) {
-    cout << "Computing gas particles . . . " << endl;
+    std::cout << "Computing gas particles . . . " << std::endl;
 
-				// UNITS
-				// -------------------
-
+    // UNITS
+    // -------------------
 				// cm
     const double pc = 3.08568025e18;
 				// proton mass
@@ -1157,15 +1370,16 @@ main(int ac, char **av)
     double rmin = RMIN;
     double rmax = 10.0*gscal_length;
     double zmin = 0.001*scale_height;
-    int nrint = 200;
-    int nzint = 400;
+    int   nrint = 200;
+    int   nzint = 400;
+    
     vector< vector<double> > zrho, zmas, vcir;
     double r, R, dR = (rmax - rmin)/(nrint-1);
     double z, dz = (log(rmax) - log(zmin))/(nzint-1);
 
     double p0, p, fr, fz, fp, dens, potl, potr, pott, potp;
 
-    cout << "Const_height=" << (const_height ? "True" : "False") << endl;
+    std::cout << "Const_height=" << (const_height ? "True" : "False") << std::endl;
 
     if (const_height) {
 
@@ -1211,8 +1425,8 @@ main(int ac, char **av)
       // Vertical table
       //
       string ztable("ztable.dat");
-      cout << "Writing " << setw(15) << right << ztable
-	   << " [gas] . . . " << flush;
+      std::cout << "Writing " << setw(15) << right << ztable
+		<< " [gas] . . . " << std::flush;
       ofstream ztest(ztable.c_str());
       for (int i=0; i<nrint; i++) {
 	for (int j=0; j<nzint; j++) {
@@ -1227,7 +1441,7 @@ main(int ac, char **av)
 	ztest << endl;
       }
       ztest.close();
-      cout << "done" << endl;
+      std::cout << "done" << std::endl;
       
     } else {
 
@@ -1289,8 +1503,8 @@ main(int ac, char **av)
       //
       // Vertical table
       //
-      cout << "Writing ztable.dat [gas] . . . " << flush;
-      ofstream ztest("ztable.dat");
+      std::cout << "Writing ztable.dat [gas] . . . " << std::flush;
+      std::ofstream ztest("ztable.dat");
       for (int i=0; i<nrint; i++) {
 	for (int j=0; j<nzint; j++) {
 	  ztest << setw(15) << rmin + dR*i
@@ -1303,7 +1517,7 @@ main(int ac, char **av)
 	ztest << endl;
       }
       ztest.close();
-      cout << "done" << endl;
+      std::cout << "done" << std::endl;
       
     }
 
@@ -1448,28 +1662,26 @@ main(int ac, char **av)
 
       VC += gmass*(-rr*potr + R*fr + z*fz);
 
-      if (!((n+1)%NREPORT)) cout << "\r." << n+1 << flush;
+      if (!((n+1)%NREPORT)) std::cout << "\r." << n+1 << std::flush;
     }
 
-    cout << endl << "Done!" << endl;
+    std::cout << endl << "Done!" << std::endl;
 
-    cout << "****************************" << endl
-	 << "  Gas disk" << endl
-	 << "----------------------------" << endl
-	 << "  KE       = " << KE << endl
-	 << "  VC       = " << VC << endl;
+    std::cout << "****************************" << std::endl
+	      << "  Gas disk"                   << std::endl
+	      << "----------------------------" << std::endl
+	      << "  KE       = " << KE << std::endl
+	      << "  VC       = " << VC << std::endl;
     if (VC<0.0)
-      cout << " -2T/W     = " << -2.0*KE/VC << endl;
-    cout << "****************************" << endl;
+      std::cout << " -2T/W     = " << -2.0*KE/VC << std::endl;
+    std::cout << "****************************"  << std::endl;
   }
 
   //===========================================================================
+  // Shutdown MPI
+  //===========================================================================
 
   MPI_Barrier(MPI_COMM_WORLD);
-
-  delete expandh;
-  delete expandd;
-
   MPI_Finalize();
 
   return 0;

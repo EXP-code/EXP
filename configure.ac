@@ -1,7 +1,7 @@
 dnl ==========================================================================
 dnl Process this file with autoconf to produce a configure script.
 dnl ==========================================================================
-AC_INIT(EXP, 7.612, [mdw@umass.edu], [], [https://mdweinberg@bitbucket.org/mdweinberg/exp.git])
+AC_INIT(EXP, 7.617, [mdw@umass.edu], [], [https://mdweinberg@bitbucket.org/mdweinberg/exp.git])
 
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SRCDIR(src/expand.cc)
@@ -58,7 +58,7 @@ dnl ==========================================================================
 dnl Check for OpenMP
 dnl ==========================================================================
 
-AC_OPENMP
+AX_OPENMP
 
 haveomp = no
 AC_CHECK_HEADERS(omp.h,[haveomp=[yes]])

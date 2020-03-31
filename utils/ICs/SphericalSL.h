@@ -76,10 +76,10 @@ public:
 
 				// Constructors
   SphericalSL(void);
-  SphericalSL(int Nth, int lmax, int nmax, double SCALE=1.0);
+  SphericalSL(int Nth, int lmax, int nmax, int CMAP, double SCALE=1.0);
   ~SphericalSL(void);
 
-  void reset(int Nth, int lmax, int nmax, double SCALE);
+  void reset(int Nth, int lmax, int nmax, int CMAP, double SCALE);
 
 				// Parameter access
   int get_maxNR(void) {return NMAX;}
@@ -107,7 +107,7 @@ public:
   void get_dens_coefs(int l, Vector& coef, double *p, int id=0);
   void get_pot_coefs (int l, Vector& coef, double *p, double *dp, int id=0);
 
-  void dump_coefs(ofstream& out);
+  void dump_coefs(ofstream& out, bool binary);
   void dump_basis(string& dumpname);
 
   void set_compute()   { compute = 1;}
@@ -115,5 +115,6 @@ public:
 
 };
 
+typedef boost::shared_ptr<SphericalSL> SphericalSLptr;
 
 #endif

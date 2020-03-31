@@ -58,8 +58,8 @@ void SphereSL::bomb(char *s)
 
 void SphereSL::reset_coefs(void)
 {
-  if (expcoef.getrlow()>0 && expcoef.getrhigh()>0) expcoef.zero();
-  if (compute_covar && cc.getrlow()>0 && cc.getrhigh()>0) cc.zero();
+  if (expcoef.getnrows()>0 && expcoef.getncols()>0) expcoef.zero();
+  if (compute_covar && cc.getnrows()>0 && cc.getncols()>0) cc.zero();
 }
 
 
@@ -143,7 +143,7 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
 	  expcoef[loffset+moffset  ][n] += fac1 * fac4 * mass;
 	  expcoef[loffset+moffset+1][n] += fac2 * fac4 * mass;
 	  if (compute_covar) {
-	    cw[(loffset+moffset  )*nmax + n] =  fac1 * fac4;
+	    cw[(loffset+moffset  )*nmax + n] = fac1 * fac4;
 	    cw[(loffset+moffset+1)*nmax + n] = fac2 * fac4;
 	  }
 	}
@@ -567,3 +567,27 @@ void SphereSL::install_coefs(Matrix& newcoef)
   expcoef = newcoef;
 }
 
+
+void SphereSL::dump_coefs(double time, ostream& out)
+{
+  ostringstream sout;
+  sout << "SphereSL";
+
+  char buf[64];
+  for (int i=0; i<64; i++) {
+    if (i<sout.str().length())  buf[i] = sout.str().c_str()[i];
+    else                        buf[i] = '\0';
+  }
+
+  out.write((char *)&buf,64*sizeof(char));
+  out.write((char *)&time , sizeof(double));
+  out.write((char *)&rscl,  sizeof(double));
+  out.write((char *)&nmax,  sizeof(int));
+  out.write((char *)&lmax,  sizeof(int));
+
+  for (int ir=1; ir<=nmax; ir++) {
+    for (int l=0; l<=lmax*(lmax+2); l++)
+      out.write((char *)&expcoef[l][ir], sizeof(double));
+  }
+
+}

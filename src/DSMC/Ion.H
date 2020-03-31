@@ -30,6 +30,7 @@
 #include <cudaUtil.cuH>
 #endif
 
+#include <Species.H>		// For speciesKey
 #include <localmpi.h>		// For myid
 
 // Structures for caching the Cspline instances for each Ion instance
@@ -776,6 +777,7 @@ public:
   
   //@{
   // Return constant data
+  speciesKey     getK()             const { return {Z, C}; }
   unsigned short getZ()             const { return Z; }
   unsigned short getC()             const { return C; }
   double         getIP(const lQ& Q) const { return ch->ipdata[Q]; }

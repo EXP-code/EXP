@@ -169,6 +169,7 @@ main(int argc, char **argv)
   bool zero = false;
   int nhalo = 1000;             // Halo particles
   int ndisk = 1000;             // Disk particles
+  int scmap = 1;		// Halo coordinate mapping by default
 
   //========================= Parse command line ==============================
 
@@ -195,7 +196,7 @@ main(int argc, char **argv)
       };
 
       c = getopt_long (argc, argv, 
-		       "H:D:L:M:X:N:n:f:Q:A:Z:m:r:R:1:2:s:S:bBzh",
+		       "H:D:L:M:X:N:n:f:Q:A:Z:m:r:R:1:2:s:S:c:bBzh",
 		       long_options, &option_index);
       if (c == -1)
         break;
@@ -208,13 +209,14 @@ main(int argc, char **argv)
 	  optname = string(long_options[option_index].name);
 	  if (!optname.compare("rcylmin")) RCYLMIN = atof(optarg);
 	  if (!optname.compare("rcylmax")) RCYLMAX = atof(optarg);
-	  if (!optname.compare("rmin"))    RMIN = atof(optarg);
-	  if (!optname.compare("scsph"))   SCSPH = atof(optarg);
-	  if (!optname.compare("ascale"))  ASCALE = atof(optarg);
-	  if (!optname.compare("hscale"))  HSCALE = atof(optarg);
-	  if (!optname.compare("numr"))    NUMR = atoi(optarg);
-	  if (!optname.compare("norder"))  NORDER = atoi(optarg);
-	  if (!optname.compare("seed"))    SEED = atoi(optarg);
+	  if (!optname.compare("rmin"))    RMIN    = atof(optarg);
+	  if (!optname.compare("scmap"))   scmap   = atof(optarg);
+	  if (!optname.compare("scsph"))   SCSPH   = atof(optarg);
+	  if (!optname.compare("ascale"))  ASCALE  = atof(optarg);
+	  if (!optname.compare("hscale"))  HSCALE  = atof(optarg);
+	  if (!optname.compare("numr"))    NUMR    = atoi(optarg);
+	  if (!optname.compare("norder"))  NORDER  = atoi(optarg);
+	  if (!optname.compare("seed"))    SEED    = atoi(optarg);
 	  if (!optname.compare("cfile"))   centerfile = string(optarg);
 	  break;
 
@@ -289,6 +291,10 @@ main(int argc, char **argv)
           basis = true;
           break;
 
+        case 'c':
+          scmap = atoi(optarg);
+          break;
+
         case 'z':
           zero = true;
           break;
@@ -315,6 +321,7 @@ main(int argc, char **argv)
                << "  -m mass    disk mass (1.0)\n"
                << "  -r rsphsl  edge for SL expansion (47.5)\n"
                << "  -R expon   power law divergence exponent (unset)\n"
+	       << "  -c (0/1)   coordinate mapping for halo SL\n"
                << "  -s scale   halo coordinate scale\n"
                << "  -1 rmin    minimum radius for change over to DF\n"
                << "  -2 rmax    maximum radius for change over to DF\n"
@@ -394,7 +401,7 @@ main(int argc, char **argv)
                                 // Create expansion only if needed . . .
   SphericalSL *expandh = NULL;
   if (n_particlesH) {
-    expandh = new SphericalSL(LMAX, NMAX, SCSPH);
+    expandh = new SphericalSL(nthrds, LMAX, NMAX, SCSPH);
 #ifdef DEBUG
     string dumpname("debug");
     expandh->dump_basis(dumpname);
@@ -408,7 +415,7 @@ main(int argc, char **argv)
   EmpCylSL::RMAX = RCYLMAX;
   EmpCylSL::NUMX = NUMX;
   EmpCylSL::NUMY = NUMY;
-  EmpCylSL::CMAP = true;
+  EmpCylSL::CMAP = 1;
 
   if (basis)
     EmpCylSL::DENS = true;

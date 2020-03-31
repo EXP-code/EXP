@@ -80,13 +80,13 @@ void initialize(void)
     if (_G["ngpus"])	     ngpus      = _G["ngpus"].as<int>();
     if (_G["nreport"])	     nreport    = _G["nreport"].as<int>();
     if (_G["nbalance"])      nbalance   = _G["nbalance"].as<int>();
-    if (_G["dbthresh"])      dbthresh   = _G["dbthresh"].as<int>();
+    if (_G["dbthresh"])      dbthresh   = _G["dbthresh"].as<double>();
     
     if (_G["time"])          tnow       = _G["time"].as<double>();
     if (_G["dtime"])         dtime      = _G["dtime"].as<double>();
     if (_G["nbits"])         nbits      = _G["nbits"].as<int>();
     if (_G["pkbits"])        pkbits     = _G["pkbits"].as<int>();
-    if (_G["PFbufsz"])       PFbufsz    = _G["PFbusz"].as<int>();
+    if (_G["PFbufsz"])       PFbufsz    = _G["PFbufsz"].as<int>();
     if (_G["NICE"])          NICE       = _G["NICE"].as<int>();
     if (_G["VERBOSE"])       VERBOSE    = _G["VERBOSE"].as<int>();
     if (_G["rlimit"])        rlimit_val = _G["rlimit"].as<int>();

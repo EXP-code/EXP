@@ -19,7 +19,7 @@ bin_PROGRAMS = pspinfo pspstat psp2tipsy pspsplit psp2ascii ascii2psp	\
 		tipstd2psp psp2ta pspgas psp2histo psp2histo1d		\
 		psp2histo1D psp2histoE psp2histoH pspreal pspstatS	\
 		psp2range psp2eHisto psp2histoT psp2histoTC pspstatT	\
-		spl2psp pspinfo2 ascii2psp2
+		spl2psp pspinfo2 ascii2psp2 psp2vtu
 
 COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ $(YAML)
 
@@ -123,6 +123,11 @@ spl2psp_SOURCES  = spl2psp.cc PSP.cc header.cc header.H Particle.cc
 spl2psp_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
 spl2psp_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
 spl2psp_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS)
+
+psp2vtu_SOURCES  = psp2vtu.cc PSP.cc header.cc header.H Particle.cc
+psp2vtu_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
+psp2vtu_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
+psp2vtu_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS)
 
 *.cc:		header.H
 

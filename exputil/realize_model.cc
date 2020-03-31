@@ -1253,6 +1253,8 @@ Vector SphericalModelMulti::gen_point(int& ierr)
   cosp = cos(phi);
   sinp = sin(phi);
 
+  eee = std::min<double>(eee, gen_ecut);
+
   out[0] = real->distf(eee, r*vt)/fake->distf(eee, r*vt);
   out[1] = r * sint*cosp;
   out[2] = r * sint*sinp;

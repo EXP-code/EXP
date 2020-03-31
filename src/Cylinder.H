@@ -42,13 +42,13 @@ private:
 
 				// Parameters
   double rcylmin, rcylmax, zmax, acyl;
-  int nmax, lmax, mmax;
+  int nmax, lmax, mmax, mlim;
   int ncylnx, ncylny, ncylr;
   double hcyl;
-  int ncylorder, ncylrecomp, npca, npca0, nvtk;
+  int ncylorder, ncylrecomp, npca, npca0, nvtk, cmaptype;
   string eof_file;
-  bool self_consistent, logarithmic, density, pcavar, pcainit, pcavtk, pcadiag, pcaeof, eof_over;
-  bool cmap, try_cache, firstime, dump_basis, compute, firstime_coef;
+  bool self_consistent, logarithmic, density, pcavar, pcainit, pcavtk, pcadiag, pcaeof, eof_over, cmap;
+  bool try_cache, firstime, dump_basis, compute, firstime_coef;
 
   // These should be ok for all derived classes, hence declared private
 
@@ -189,6 +189,7 @@ public:
   //! \param nmax is the radial order for the underlying spherical basis
   //! \param lmax is the harmonic order for the underlying spherical basis
   //! \param mmax is the azimuthal harmonic order for final cylindrical expansion
+  //! \param mlim restricts the azimuthal harmonic order for testing
   //! \param ncylnx is the radial grid in the basis function table
   //! \param ncylny is the vertical grid in the basis function table
   //! \param ncylr is the size of the spherical radial grid used to construct the cylindrical basis
@@ -211,7 +212,7 @@ public:
   //! \param try_cache set to true means try to read basis from cache (default: true)
   //! \param dump_basis set to true outputs basis into file
   //! \param density set to true means compute density basis in addition to potential (default: false)
-  //! \param cmap set to true means use coordinate mapping (default: true)
+  //! \param cmap selects the coordinate mapping (default: 2, power mapping)
   //!
   Cylinder(const YAML::Node& conf, MixtureBasis *m=0);
 

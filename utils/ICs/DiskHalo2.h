@@ -52,8 +52,8 @@ class DiskHalo
   double scalelength, scaleheight, dmass;
   double center_pos[3], center_vel[3];
 
-  SphericalSL* expandh;
-  EmpCylSL* expandd;
+  SphericalSLptr expandh;
+  EmpCylSLptr    expandd;
 
   Matrix *disktableP, *disktableN, epitable, dv2table, asytable;
   double dP, dR, dZ;
@@ -98,6 +98,7 @@ class DiskHalo
 
  public:
   enum DiskGenType { Jeans, Asymmetric, Epicyclic };
+  static std::map<std::string, DiskGenType> getDiskGenType;
 
   static int NDP;		// Number of knots in disk table phi grid
 				// Default: 16
@@ -135,6 +136,7 @@ class DiskHalo
 
   static double R_DF;		// Change over points for DF and Jeans
   static double DR_DF;
+  static double ECUT_DF;	// Mass ratio cutoff in energy
 
   static int LOGSCALE;		// Log DF in SphericalModelTable
 
@@ -171,13 +173,13 @@ class DiskHalo
   DiskHalo();
 
   //! Constructor: equal mass
-  DiskHalo(SphericalSL* expandh, EmpCylSL* expandd,
+  DiskHalo(SphericalSLptr expandh, EmpCylSLptr expandd,
 	   double H, double A, double DMass,
 	   string& filename, int DF=0, int DIVERGE=0, double DIVERGE_RFAC=1.0,
 	   DiskGenType type=Asymmetric);
 
   //! Constructor: multi mass
-  DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
+  DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
 	   double H, double A, double DMass, 
 	   string& filename1, int DIVERGE,  double DIVERGE_RFAC,
 	   string& filename2, int DIVERGE2, double DIVERGE_RFAC2,
@@ -192,6 +194,9 @@ class DiskHalo
   void set_halo(vector<Particle>& phalo, int nhalo, int npart);
   void set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart);
   void set_disk_coordinates(vector<Particle>& pdisk, int ndisk, int npart);
+
+  void set_halo_table_single(vector<Particle>& phalo);
+  void set_halo_table_multi (vector<Particle>& phalo);
 
   void set_pos_origin(double& x, double& y, double& z) 
     { 
@@ -246,8 +251,7 @@ class DiskHalo
 
   void set_vel_halo(vector<Particle>& part);
 
-  void write_file(ostream &fou_halo, ostream &fou_disk,
-		  vector<Particle>& hpart, vector<Particle>& dpart);
+  void write_file(ostream &fou, vector<Particle>& part);
 
   void virial_ratio(vector<Particle>& hpart, vector<Particle>& dpart);
 

@@ -152,7 +152,8 @@ main(int argc, char **argv)
 
     for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
 
-      if (stanza->index_size) out << std::setw(18) << part->indx();
+      if (not input and stanza->index_size)
+	out << std::setw(18) << part->indx();
       out << std::setw(18) << part->mass();
       for (int i=0; i<3; i++) out << std::setw(18) << part->pos(i);
       for (int i=0; i<3; i++) out << std::setw(18) << part->vel(i);

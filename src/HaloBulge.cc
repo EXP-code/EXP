@@ -101,6 +101,8 @@ void * HaloBulge::determine_acceleration_and_potential_thread(void * arg)
     cC->AddPotExt(i,  potl + potlB );
     
   }
+
+  return (NULL);
 }
 
 

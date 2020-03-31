@@ -88,7 +88,7 @@ protected:
   bool gen_firstime_jeans;
   Vector gen_rloc, gen_mass, gen_fmax;
   SphericalOrbit gen_orb;
-  double gen_fomax;
+  double gen_fomax, gen_ecut;
   //@}
 
   Vector gen_point_2d(int& ierr);
@@ -136,6 +136,7 @@ public:
     gen_firstime = true;
     gen_firstime_E = true;
     gen_firstime_jeans = true;
+    gen_ecut = 1.0;
   }
   
   //! Destructor
@@ -176,6 +177,9 @@ public:
   virtual double d2fde2(double, double) = 0;
   //@}
   
+  //! Set cutoff on multimass realization grid
+  void set_Ecut(double cut) { gen_ecut = cut; }
+
   //! Generate a phase-space point
   virtual Vector gen_point(int& ierr) {
     if (dof()==2)

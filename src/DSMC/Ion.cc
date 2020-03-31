@@ -80,9 +80,9 @@ bool   Ion::useExciteGrid    = true;
 bool   Ion::useIonizeGrid    = true;
 bool   Ion::GridDebug        = false; // Set to true for debugging
 int    Ion::GridReport       = 10000; // Used for debugging only
-double Ion::EminGrid         = 0.001; // eV
-double Ion::EmaxGrid         = 2000.; // eV
-double Ion::DeltaEGrid       = 0.5;  // eV
+double Ion::EminGrid         = -3.0;  // log_10 eV
+double Ion::EmaxGrid         =  3.5;  // log_10 eV
+double Ion::DeltaEGrid       =  0.1;  // log_10 eV
 
 // Chianti element list
 //
@@ -1710,17 +1710,19 @@ void Ion::freeFreeMakeEvGrid(int id)
   //
   double dk       = (kgrid[1] - kgrid[0])*log(10.0);
 
-  // Energy grid
+  // Energy grid (logarithmic)
+  //
   NfreeFreeGrid = 1 + std::floor( (EmaxGrid - EminGrid)/DeltaEGrid );
 
   // Allocate storage for grid
+  //
   freeFreeGrid.resize(NfreeFreeGrid);
 
   for (size_t n = 0; n < NfreeFreeGrid; n++) {
 
     // Energy in eV
     //
-    double Ei = EminGrid + DeltaEGrid*n;
+    double Ei = exp10(EminGrid + DeltaEGrid*n);
 
     // Scaled inverse energy
     //
@@ -1779,7 +1781,10 @@ std::pair<double, double> Ion::freeFreeCrossEvGrid(double E, int id)
 
   if (not freeFreeGridComputed) freeFreeMakeEvGrid(id);
 
-  double eMin = EminGrid, eMax = EminGrid + DeltaEGrid*(NfreeFreeGrid-1);
+  // Convert from log10(E) to E
+  //
+  double eMin = exp10(EminGrid);
+  double eMax = exp10(EminGrid + DeltaEGrid*(NfreeFreeGrid-1));
 
   bool gridProc = false;
   if (GridDebug and myid==0 and id==0) {
@@ -1811,11 +1816,14 @@ std::pair<double, double> Ion::freeFreeCrossEvGrid(double E, int id)
 
   double phi = 0.0, ffWaveCross = 0.0;
 
-  size_t indx = std::floor( (E - eMin)/DeltaEGrid );
-  double eA   = eMin + DeltaEGrid*indx, eB = eMin + DeltaEGrid*(indx+1);
+  // Interpolate on grid of log10(E)
+  //
+  double lE   = log10(E);
+  size_t indx = std::floor( (lE - EminGrid)/DeltaEGrid );
+  double eA   = EminGrid + DeltaEGrid*indx, eB = EminGrid + DeltaEGrid*(indx+1);
 
-  double A = (eB - E)/DeltaEGrid;
-  double B = (E - eA)/DeltaEGrid;
+  double A = (eB - lE)/DeltaEGrid;
+  double B = (lE - eA)/DeltaEGrid;
 
   std::array<double, 2> cum
   { freeFreeGrid[indx+0].back(), freeFreeGrid[indx+1].back()};
@@ -1834,7 +1842,6 @@ std::pair<double, double> Ion::freeFreeCrossEvGrid(double E, int id)
 
       // Interpolate the cross section array
       //
-    
       if (rn*cum[i] < freeFreeGrid[indx+i].front()) {
 	
 	k[i] = kgrid[0];
@@ -1908,7 +1915,10 @@ std::pair<double, double> Ion::freeFreeCrossEvGridTest(double E, double rn, int 
 
   if (not freeFreeGridComputed) freeFreeMakeEvGrid(id);
 
-  double eMin = EminGrid, eMax = EminGrid + DeltaEGrid*(NfreeFreeGrid-1);
+  // Convert from log10(E) to E
+  //
+  double eMin = exp10(EminGrid);
+  double eMax = exp10(EminGrid + DeltaEGrid*(NfreeFreeGrid-1));
 
   bool gridProc = false;
   if (GridDebug and myid==0 and id==0) {
@@ -1940,11 +1950,14 @@ std::pair<double, double> Ion::freeFreeCrossEvGridTest(double E, double rn, int 
 
   double phi = 0.0, ffWaveCross = 0.0;
 
-  size_t indx = std::floor( (E - eMin)/DeltaEGrid );
-  double eA   = eMin + DeltaEGrid*indx, eB = eMin + DeltaEGrid*(indx+1);
+  // Interpolate on grid of log10(E)
+  //
+  double lE   = log10(E);
+  size_t indx = std::floor( (lE - EminGrid)/DeltaEGrid );
+  double eA   = EminGrid + DeltaEGrid*indx, eB = EminGrid + DeltaEGrid*(indx+1);
 
-  double A = (eB - E)/DeltaEGrid;
-  double B = (E - eA)/DeltaEGrid;
+  double A = (eB - lE)/DeltaEGrid;
+  double B = (lE - eA)/DeltaEGrid;
 
   std::array<double, 2> cum
   { freeFreeGrid[indx+0].back(), freeFreeGrid[indx+1].back()};
@@ -2032,15 +2045,18 @@ void Ion::radRecombMakeEvGrid(int id)
 {
   radRecombGridComputed = true;
 
-  // Energy grid
+  // Energy grid (logarithmic)
+  //
   NradRecombGrid = 1 + std::floor( (EmaxGrid - EminGrid)/DeltaEGrid );
 
   // Allocate storage for grid
+  //
   radRecombGrid.resize(NradRecombGrid);
 
   // Compute grid
+  //
   for (size_t n = 0; n < NradRecombGrid; n++) {
-    double Ei = EminGrid + DeltaEGrid*n;
+    double Ei = exp10(EminGrid + DeltaEGrid*n);
     radRecombGrid[n] = radRecombCrossSingle(Ei, id).back();
   }
 }
@@ -2053,7 +2069,10 @@ std::vector<double> Ion::radRecombCrossEvGrid(double E, int id)
 
   if (not radRecombGridComputed) radRecombMakeEvGrid(id);
 
-  double eMin = EminGrid, eMax = EminGrid + DeltaEGrid*(NradRecombGrid-1);
+  // Convert from log10(E) to E
+  //
+  double eMin = exp10(EminGrid);
+  double eMax = exp10(EminGrid + DeltaEGrid*(NradRecombGrid-1));
 
   bool gridProc = false;
   if (GridDebug and myid==0 and id==0) {
@@ -2083,11 +2102,14 @@ std::vector<double> Ion::radRecombCrossEvGrid(double E, int id)
     radRecombMissMax = 0;
   }
 
-  size_t indx = std::floor( (E - eMin)/DeltaEGrid );
-  double eA   = eMin + DeltaEGrid*indx, eB = eMin + DeltaEGrid*(indx+1);
+  // Interpolate on grid of log10(E)
+  //
+  double lE   = log10(E);
+  size_t indx = std::floor( (lE - EminGrid)/DeltaEGrid );
+  double eA   = EminGrid + DeltaEGrid*indx, eB = EminGrid + DeltaEGrid*(indx+1);
 
-  double A = (eB - E)/DeltaEGrid;
-  double B = (E - eA)/DeltaEGrid;
+  double A = (eB - lE)/DeltaEGrid;
+  double B = (lE - eA)/DeltaEGrid;
 
   return std::vector<double>(1, A*radRecombGrid[indx] + B*radRecombGrid[indx+1]);
 }

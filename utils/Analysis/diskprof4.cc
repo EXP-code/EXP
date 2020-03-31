@@ -100,6 +100,7 @@ static  bool VHEIGHT;
 static  bool VOLUME;
 static  bool SURFACE;
 static  bool VSLICE;
+static  bool PROBE;
 
 std::vector<double> c0 = {0.0, 0.0, 0.0};
 
@@ -879,6 +880,91 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
     }
   } // END: VSLICE
 
+
+  if (PROBE) {
+    
+    // ==================================================
+    // Write 1d prob parallel and perpendicular to
+    // to disk plane
+    // ==================================================
+    
+    double v;
+    float f;
+    
+    double dR = RMAX/OUTR;
+    double z=0, r=0, phi=0;
+    double p0, d0, p, fr, fz, fp;
+    
+    std::vector<double> indat(3*OUTR, 0.0), otdat(3*OUTR);
+    
+    for (int j=1; j<=OUTR; j++) {
+      r = dR*j;
+
+      if ((ncnt++)%numprocs == myid) {
+	  
+	phi = 0.0;
+	ortho.accumulated_eval(r, z, phi, p0, p, fr, fz, fp);
+	
+	indat[0*OUTR + j] = fr;
+	
+	phi = 0.5*M_PI;
+	ortho.accumulated_eval(r, z, phi, p0, p, fr, fz, fp);
+	indat[1*OUTR + j] = fr;
+	
+	phi = 0.0;
+	ortho.accumulated_eval(z, r, phi, p0, p, fr, fz, fp);
+	
+	indat[2*OUTR + j] = fz;
+      }
+    }
+    
+    MPI_Reduce(&indat[0], &otdat[0], 3*OUTR,
+	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    
+    
+    if (myid==0) {
+      
+      std::ostringstream sout;
+      sout << runtag + "_" + outid + ".probe";
+      std::ofstream out(sout.str());
+      if (out) {
+	// Begin: header
+	//
+	out << std::right
+	    << "# " << std::setw(14) << "r |"
+	    << std::setw(16) << "f_r(phi=0) |"
+	    << std::setw(16) << "f_r(phi=pi/2) |"
+	    << std::setw(16) << "f_z(r=0) |"
+	    << std::endl;
+
+	out << std::right
+	    << "# " << std::setw(14) << "[1] |"
+	    << std::setw(16) << "[2] |"
+	    << std::setw(16) << "[3] |"
+	    << std::setw(16) << "[4] |"
+	    << std::endl;
+
+	out << std::right
+	    << "#" << std::setfill('-') << std::setw(15) << "+"
+	    << std::setw(16) << "+"
+	    << std::setw(16) << "+"
+	    << std::setw(16) << "+"
+	    << std::endl << std::setfill(' ');
+	//
+	// END: header
+
+	for (int j=1; j<=OUTR; j++) {
+	  r = dR*j;
+	  out << std::setw(16) << r
+	      << std::setw(16) << otdat[0*OUTR + j]
+	      << std::setw(16) << otdat[1*OUTR + j]
+	      << std::setw(16) << otdat[2*OUTR + j]
+	      << std::endl;
+	}
+      }
+    }
+  } // END: PROBE
+
 }
 
 
@@ -937,7 +1023,7 @@ main(int argc, char **argv)
   int nice, numx, numy, lmax, mmax, nmax, norder;
   int beg, end, stride, init;
   double rcylmin, rcylmax, rscale, vscale;
-  bool DENS, PCA, PVD, verbose = false, mask = false, cmap, logl;
+  bool DENS, PCA, PVD, verbose = false, mask = false, cmap, logl, ignore;
   std::string CACHEFILE, cname, pname, dir("./");
 
   //
@@ -1017,6 +1103,9 @@ main(int argc, char **argv)
     ("vslice",
      po::value<bool>(&VSLICE)->default_value(true),
      "make vertical slices")
+    ("probe",
+     po::value<bool>(&PROBE)->default_value(true),
+     "make 1d cuts in and perpendicular to the equitorial plane")
     ("volume",
      po::value<bool>(&VOLUME)->default_value(false),
      "make volume for VTK rendering")
@@ -1068,6 +1157,9 @@ main(int argc, char **argv)
     ("cmap",
      po::value<bool>(&cmap)->default_value(true),
      "map radius into semi-infinite interval in cylindrical grid computation")
+    ("ignore",
+     po::value<bool>(&ignore)->default_value(false),
+     "rebuild EOF grid if input parameters do not match the cachefile")
     ("logl",
      po::value<bool>(&logl)->default_value(true),
      "use logarithmic radius scale in cylindrical grid computation")
@@ -1170,6 +1262,46 @@ main(int argc, char **argv)
   // All processes will now compute the basis functions
   // *****Using MPI****
   // ==================================================
+
+  // Set parameters from the given CACHEFILE
+  //
+  if (not ignore) {
+
+    std::ifstream in(CACHEFILE);
+    if (!in) {
+      std::cerr << "Error opening cachefile named <" 
+		<< CACHEFILE << "> . . ."
+		<< std::endl
+		<< "I will build <" << CACHEFILE
+		<< "> but it will take some time."
+		<< std::endl
+		<< "If this is NOT what you want, "
+		<< "stop this routine and specify the correct file."
+		<< std::endl;
+    } else {
+
+      int tmp;
+    
+      in.read((char *)&mmax,    sizeof(int));
+      in.read((char *)&numx,    sizeof(int));
+      in.read((char *)&numy,    sizeof(int));
+      in.read((char *)&nmax,    sizeof(int));
+      in.read((char *)&norder,  sizeof(int));
+      
+      in.read((char *)&tmp,     sizeof(int)); 
+      if (tmp) DENS = true;
+      else     DENS = false;
+      
+      in.read((char *)&tmp,     sizeof(int)); 
+      if (tmp) cmap = true;
+      else     cmap = false;
+
+      in.read((char *)&rcylmin, sizeof(double));
+      in.read((char *)&rcylmax, sizeof(double));
+      in.read((char *)&rscale,  sizeof(double));
+      in.read((char *)&vscale,  sizeof(double));
+    }
+  }
 
   EmpCylSL::RMIN        = rcylmin;
   EmpCylSL::RMAX        = rcylmax;

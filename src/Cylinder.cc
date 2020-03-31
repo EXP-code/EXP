@@ -77,6 +77,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   nmax            = 20;
   lmax            = 36;
   mmax            = 4;
+  mlim            = -1;
   hcyl            = 1.0;
   ncylorder       = 10;
   ncylrecomp      = -1;
@@ -94,6 +95,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   firstime        = true;
   expcond         = true;
   cmap            = true;
+  cmaptype        = 1;
   logarithmic     = false;
   pcavar          = false;
   pcavtk          = false;
@@ -118,7 +120,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   EmpCylSL::NUMX        = ncylnx;
   EmpCylSL::NUMY        = ncylny;
   EmpCylSL::NUMR        = ncylr;
-  EmpCylSL::CMAP        = cmap;
+  EmpCylSL::CMAP        = cmaptype;
   EmpCylSL::logarithmic = logarithmic;
   EmpCylSL::CACHEFILE   = outdir + ".eof.cache." + runtag;
   EmpCylSL::VFLAG       = vflag;
@@ -136,6 +138,10 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   //
   ortho = new EmpCylSL(nmax, lmax, mmax, ncylorder, acyl, hcyl);
   
+  // Set azimuthal harmonic order restriction?
+  //
+  if (mlim>=0) ortho->set_mlim(mlim);
+
   try {
     if (conf["tk_type"]) ortho->setTK(conf["tk_type"].as<std::string>());
   }
@@ -237,6 +243,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	   << " nmax="        << nmax
 	   << " lmax="        << lmax
 	   << " mmax="        << mmax
+	   << " mlim="        << mlim
 	   << " ncylorder="   << ncylorder
 	   << " rcylmin="     << rcylmin
 	   << " rcylmax="     << rcylmax
@@ -263,6 +270,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	 << " nmax="        << nmax
 	 << " lmax="        << lmax
 	 << " mmax="        << mmax
+	 << " mlim="        << mlim
 	 << " ncylorder="   << ncylorder
 	 << " rcylmin="     << rcylmin
 	 << " rcylmax="     << rcylmax
@@ -318,6 +326,7 @@ void Cylinder::initialize()
     if (conf["nmax"      ])       nmax  = conf["nmax"      ].as<int>();
     if (conf["lmax"      ])       lmax  = conf["lmax"      ].as<int>();
     if (conf["mmax"      ])       mmax  = conf["mmax"      ].as<int>();
+    if (conf["mlim"      ])       mlim  = conf["mlim"      ].as<int>();
     if (conf["ncylnx"    ])     ncylnx  = conf["ncylnx"    ].as<int>();
     if (conf["ncylny"    ])     ncylny  = conf["ncylny"    ].as<int>();
     if (conf["ncylr"     ])      ncylr  = conf["ncylr"     ].as<int>();
@@ -343,9 +352,12 @@ void Cylinder::initialize()
     if (conf["try_cache" ])  try_cache  = conf["try_cache" ].as<bool>();
     if (conf["density"   ])    density  = conf["density"   ].as<bool>();
     if (conf["cmap"      ])       cmap  = conf["cmap"      ].as<bool>();
+    if (conf["cmaptype"  ])    cmaptype = conf["cmaptype"  ].as<int>();
     
     if (conf["self_consistent"])
       self_consistent = conf["self_consistent"].as<bool>();
+
+    if (not cmap) cmaptype = 0;
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing Cylinder parameters: "

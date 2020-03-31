@@ -49,9 +49,9 @@ bool     EmpCylSL::PCAVAR          = false;
 bool     EmpCylSL::PCAVTK          = false;
 bool     EmpCylSL::PCAEOF          = false;
 bool     EmpCylSL::USESVD          = false;
-bool     EmpCylSL::CMAP            = false;
 bool     EmpCylSL::logarithmic     = false;
 bool     EmpCylSL::enforce_limits  = false;
+int      EmpCylSL::CMAP            = 0;
 int      EmpCylSL::NUMX            = 256;
 int      EmpCylSL::NUMY            = 128;
 int      EmpCylSL::NOUT            = 12;
@@ -61,6 +61,7 @@ unsigned EmpCylSL::VTKFRQ          = 1;
 double   EmpCylSL::RMIN            = 0.001;
 double   EmpCylSL::RMAX            = 20.0;
 double   EmpCylSL::HFAC            = 0.2;
+double   EmpCylSL::PPOW            = 4.0;
 string   EmpCylSL::CACHEFILE       = ".eof.cache.file";
  
 
@@ -76,6 +77,7 @@ EmpCylSL::EmpCylSL(void)
   sampT      = 0;
   tk_type    = None;
   EVEN_M     = false;
+  MLIM       = std::numeric_limits<int>::max();
   
   if (DENS)
     MPItable = 4;
@@ -84,8 +86,6 @@ EmpCylSL::EmpCylSL(void)
 
   SC = 0;
   SS = 0;
-
-  ortho = 0;
 
   accum_cos = 0;
   accum_sin = 0;
@@ -102,8 +102,6 @@ EmpCylSL::EmpCylSL(void)
 
 EmpCylSL::~EmpCylSL(void)
 {
-  delete ortho;
-
   if (SC) {
 
     for (int m=0; m<=MMAX; m++) {
@@ -213,10 +211,12 @@ EmpCylSL::~EmpCylSL(void)
 EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord, 
 		   double ascale, double hscale)
 {
-  NMAX = nmax;
-  MMAX = mmax;
-  LMAX = lmax;
+  NMAX   = nmax;
+  MMAX   = mmax;
+  LMAX   = lmax;
   NORDER = nord;
+  MLIM   = std::numeric_limits<int>::max();
+
 
   ASCALE = ascale;
   HSCALE = hscale;
@@ -229,8 +229,6 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
 				// Enable MPI code for more than one node
   if (numprocs>1) SLGridSph::mpi = 1;
 
-  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 
-			false, 1, 1.0);
   if (DENS)
     MPItable = 4;
   else
@@ -264,10 +262,11 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
 void EmpCylSL::reset(int numr, int lmax, int mmax, int nord, 
 		     double ascale, double hscale)
 {
-  NMAX = numr;
-  MMAX = mmax;
-  LMAX = lmax;
+  NMAX   = numr;
+  MMAX   = mmax;
+  LMAX   = lmax;
   NORDER = nord;
+  MLIM   = std::numeric_limits<int>::max();
 
   ASCALE = ascale;
   HSCALE = hscale;
@@ -276,8 +275,8 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   dfac = ffac/ascale;
 
   SLGridSph::mpi = 1;		// Turn on MPI
-  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 
-			false, 1, 1.0);
+  ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
+					make_sl(), false, 1, 1.0);
 
   SC = 0;
   SS = 0;
@@ -305,6 +304,99 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   mpi_double_buf3 = 0;
 }
 
+void EmpCylSL::create_deprojection(double H, double Rf, int NUMR, int NINT,
+				   AxiDiskPtr func)
+{
+  LegeQuad lq(NINT);
+
+  std::vector<double> rr(NUMR), rl(NUMR), sigI(NUMR), rhoI(NUMR, 0.0);
+
+  double Rmin = log(RMIN);
+  double Rmax = log(RMAX);
+
+  double dr = (Rmax - Rmin)/(NUMR-1);
+
+  // Compute surface mass density, Sigma(R)
+  //
+  for (int i=0; i<NUMR; i++) {
+    double r = Rmin + dr*i;
+
+    // Save for finite difference
+    //
+    rl[i] = r;
+    r = exp(r);
+    rr[i] = r;
+
+    // Interval by Legendre
+    //
+    sigI[i] = 0.0;
+    for (int n=1; n<=NINT; n++) {
+      double y   = lq.knot(n);
+      double y12 = 1.0 - y*y;
+      double z   = y/sqrt(y12)*H;
+
+      sigI[i] += lq.weight(n)*2.0*H*pow(y12, -1.5)*(*func)(r*Rf, z);
+    }
+  }
+
+  Linear1d surf(rl, sigI);
+  
+  // Now, compute Abel inverion integral
+  //
+  for (int i=0; i<NUMR; i++) {
+    double r = rr[i];
+
+    // Interval by Legendre
+    //
+    rhoI[i] = 0.0;
+    for (int n=1; n<=NINT; n++) {
+      double x   = lq.knot(n);
+      double x12 = 1.0 - x*x;
+      double z   = x/sqrt(x12);
+      double R   = sqrt(z*z + r*r);
+      double lR  = log(R);
+
+      rhoI[i]   += lq.weight(n)*2.0*pow(x12, -1.5)*surf.eval(lR);
+    }
+  }
+
+  std::vector<double> rho(NUMR), mass(NUMR);
+
+  Linear1d intgr(rl, rhoI);
+
+  for (int i=0; i<NUMR; i++)
+    rho[i] = -intgr.deriv(rl[i])/(2.0*M_PI*rr[i]*rr[i]);
+
+  mass[0] = 0.0;
+  for (int i=1; i<NUMR; i++) {
+    double rlst = rr[i-1], rcur = rr[i];
+    mass[i] = mass[i-1] + 2.0*M_PI*(rlst*rlst*rho[i-1] + rcur*rcur*rho[i])*(rcur - rlst);
+  }
+
+  // Debug
+  //
+  if (VFLAG & 1) {
+    std::ostringstream outf; outf << "deproject_sl." << myid;
+    std::ofstream out(outf.str());
+    if (out) {
+      for (int i=0; i<NUMR; i++)
+	out << std::setw(18) << rl[i]
+	    << std::setw(18) << rr[i]
+	    << std::setw(18) << rho[i]
+	    << std::setw(18) << mass[i]
+	    << std::endl;
+    }
+  }
+
+  // Finalize
+  //
+  densRg = Linear1d(rl, rho);
+  massRg = Linear1d(rl, mass);
+  mtype  = Deproject;
+
+}
+
+
 /*
   Note that the produced by the following three routines
   are in dimensionless units
@@ -324,6 +416,22 @@ double EmpCylSL::massR(double R)
   case Plummer:
     fac = R/(1.0+R);
     ans = pow(fac, 3.0);
+    break;
+  case Power:
+    {
+      double z  = R + 1.0;
+      double a1 = PPOW - 1.0;
+      double a2 = PPOW - 2.0;
+      double a3 = PPOW - 3.0;
+      ans =  0.5*a1*a2*a3 * ( (1.0 - pow(z, -a3))/a3 -
+			      (1.0 - pow(z, -a2))/a2 * 2.0 +
+			      (1.0 - pow(z, -a1))/a1 );
+    }
+    break;
+  case Deproject:
+    if (R < RMIN) ans = 0.0;
+    else if (R>=RMAX) ans = massRg.eval(RMAX);
+    else ans = massRg.eval(log(R));
     break;
   }
 
@@ -346,6 +454,20 @@ double EmpCylSL::densR(double R)
     fac = 1.0/(1.0+R);
     ans = 3.0*pow(fac, 4.0)/(4.0*M_PI);
     break;
+  case Power:
+    {
+      double z  = R + 1.0;
+      double a1 = PPOW - 1.0;
+      double a2 = PPOW - 2.0;
+      double a3 = PPOW - 3.0;
+      ans =  0.125*a1*a2*a3/M_PI * pow(z, -PPOW);
+    }
+    break;
+  case Deproject:
+    if (R < RMIN) ans = densRg.eval(RMIN);
+    else if (R>=RMAX) ans = 0.0;
+    else ans = densRg.eval(log(R));
+    break;
   }
 
   return ans;
@@ -362,6 +484,21 @@ SphModTblPtr EmpCylSL::make_sl()
 
   vector<double> mm(number);
   vector<double> pw(number);
+
+				// ------------------------------------------
+				// Debug sanity check
+				// ------------------------------------------
+  if (myid==0) {
+    std::map<EmpModel, std::string> labs =
+      { {Exponential, "Exponential"},
+	{Gaussian,    "Gaussian"   },
+	{Plummer,     "Plummer"    },
+	{Power,       "Power"      },
+	{Deproject,   "Deproject"  }
+      };
+    std::cout << "EmpCylSL::make_sl(): making SLGridSph with <"
+	      << labs[mtype] << "> model" << std::endl;
+  }
 
 				// ------------------------------------------
 				// Make radial, density and mass array
@@ -593,8 +730,7 @@ int EmpCylSL::read_eof_header(const string& eof_file)
   in.read((char *)&NORDER, sizeof(int));
   in.read((char *)&tmp,    sizeof(int)); 
   if (tmp) DENS = true; else DENS = false;
-  in.read((char *)&tmp,    sizeof(int)); 
-  if (tmp) CMAP = true; else CMAP = false;
+  in.read((char *)&CMAP,   sizeof(int)); 
   in.read((char *)&RMIN,   sizeof(double));
   in.read((char *)&RMAX,   sizeof(double));
   in.read((char *)&ASCALE, sizeof(double));
@@ -630,9 +766,8 @@ int EmpCylSL::read_eof_file(const string& eof_file)
   dfac = ffac/ASCALE;
 
   SLGridSph::mpi = 1;		// Turn on MPI
-  delete ortho;
-  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 
-			false, 1, 1.0);
+  ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
+					make_sl(), false, 1, 1.0);
 
   setup_eof();
   setup_accumulation();
@@ -679,6 +814,21 @@ int EmpCylSL::read_cache(void)
 }
 
 
+template <typename U>
+std::string compare_out(std::string str, U one, U two)
+{
+  std::ostringstream sout;
+
+  std::transform(str.begin(), str.end(),str.begin(), ::toupper);
+
+  sout << std::setw(15) << std::right << str
+       << std::setw(15) << std::right << one
+       << std::setw(15) << std::right << two
+       << std::endl;
+
+  return sout.str();
+}
+
 int EmpCylSL::cache_grid(int readwrite, string cachefile)
 {
 
@@ -695,21 +845,20 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
     const int one  = 1;
     const int zero = 0;
 
-    out.write((const char *)&MMAX, sizeof(int));
-    out.write((const char *)&NUMX, sizeof(int));
-    out.write((const char *)&NUMY, sizeof(int));
-    out.write((const char *)&NMAX, sizeof(int));
-    out.write((const char *)&NORDER, sizeof(int));
+    out.write((const char *)&MMAX,    sizeof(int));
+    out.write((const char *)&NUMX,    sizeof(int));
+    out.write((const char *)&NUMY,    sizeof(int));
+    out.write((const char *)&NMAX,    sizeof(int));
+    out.write((const char *)&NORDER,  sizeof(int));
     if (DENS) out.write((const char *)&one, sizeof(int));
     else      out.write((const char *)&zero, sizeof(int));
-    if (CMAP) out.write((const char *)&one, sizeof(int));
-    else      out.write((const char *)&zero, sizeof(int));
-    out.write((const char *)&RMIN, sizeof(double));
-    out.write((const char *)&RMAX, sizeof(double));
-    out.write((const char *)&ASCALE, sizeof(double));
-    out.write((const char *)&HSCALE, sizeof(double));
+    out.write((const char *)&CMAP,    sizeof(int));
+    out.write((const char *)&RMIN,    sizeof(double));
+    out.write((const char *)&RMAX,    sizeof(double));
+    out.write((const char *)&ASCALE,  sizeof(double));
+    out.write((const char *)&HSCALE,  sizeof(double));
     out.write((const char *)&cylmass, sizeof(double));
-    out.write((const char *)&tnow, sizeof(double));
+    out.write((const char *)&tnow,    sizeof(double));
 
 				// Write table
 
@@ -775,8 +924,8 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
       return 0;
     }
 
-    int mmax, numx, numy, nmax, norder, tmp;
-    bool cmap=false, dens=false;
+    int mmax, numx, numy, nmax, norder, tmp, cmap;
+    bool dens=false;
     double rmin, rmax, ascl, hscl;
 
     in.read((char *)&mmax,   sizeof(int));
@@ -785,7 +934,7 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
     in.read((char *)&nmax,   sizeof(int));
     in.read((char *)&norder, sizeof(int));
     in.read((char *)&tmp,    sizeof(int));    if (tmp) dens = true;
-    in.read((char *)&tmp,    sizeof(int));    if (tmp) cmap = true;
+    in.read((char *)&cmap,   sizeof(int));
     in.read((char *)&rmin,   sizeof(double));
     in.read((char *)&rmax,   sizeof(double));
     in.read((char *)&ascl,   sizeof(double));
@@ -805,17 +954,27 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 	 (fabs(hscl-HSCALE)>1.0e-12 )
 	 ) 
       {
-	cout << "MMAX="   << MMAX   << " mmax=" << mmax << endl;
-	cout << "NUMX="   << NUMX   << " numx=" << numx << endl;
-	cout << "NUMY="   << NUMY   << " numy=" << numy << endl;
-	cout << "NMAX="   << NMAX   << " nmax=" << nmax << endl;
-	cout << "NORDER=" << NORDER << " norder=" << norder << endl;
-	cout << "DENS="   << DENS   << " dens=" << dens << endl;
-	cout << "CMAP="   << CMAP   << " cmap=" << cmap << endl;
-	cout << "RMIN="   << RMIN   << " rmin=" << rmin << endl;
-	cout << "RMAX="   << RMAX   << " rmax=" << rmax << endl;
-	cout << "ASCALE=" << ASCALE << " ascale=" << ascl << endl;
-	cout << "HSCALE=" << HSCALE << " hscale=" << hscl << endl;
+	cout << std::setw(15) << std::right << "Key"
+	     << std::setw(15) << std::right << "Wanted"
+	     << std::setw(15) << std::right << "Cached"
+	     << std::endl
+	     << std::setw(15) << std::right << "------"
+	     << std::setw(15) << std::right << "------"
+	     << std::setw(15) << std::right << "------"
+	     << std::endl;
+
+	cout << compare_out("mmax",   MMAX,   mmax);
+	cout << compare_out("numx",   NUMX,   numx);
+	cout << compare_out("numy",   NUMY,   numy);
+	cout << compare_out("nmax",   NMAX,   nmax);
+	cout << compare_out("norder", NORDER, norder);
+	cout << compare_out("dens",   DENS,   dens);
+	cout << compare_out("cmap",   CMAP,   cmap);
+	cout << compare_out("rmin",   RMIN,   rmin);
+	cout << compare_out("rmax",   RMAX,   rmax);
+	cout << compare_out("ascale", ASCALE, ascl);
+	cout << compare_out("hscale", HSCALE, hscl);
+
 	return 0;
       }
     
@@ -1001,6 +1160,13 @@ void EmpCylSL::receive_eof(int request_id, int MM)
 
 void EmpCylSL::compute_eof_grid(int request_id, int m)
 {
+  // check for ortho
+  //
+  if (not ortho)
+    ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
+					  make_sl(), false, 1, 1.0);
+
+
   //  Read in coefficient matrix or
   //  make grid if needed
 
@@ -1501,6 +1667,9 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   Timer timer;
   if (VFLAG & 16) timer.start();
 
+  if (not ortho)
+    ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
+					  make_sl(), false, 1, 1.0);
   setup_eof();
 
   LegeQuad lr(numr);
@@ -1695,6 +1864,9 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass, 
 			      int id, int mlevel)
 {
+  if (not ortho)
+    ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
+					  make_sl(), false, 1, 1.0);
   if (eof_made) {
     if (VFLAG & 2)
       cerr << "accumulate_eof: Process " << setw(4) << myid << ", Thread " 
@@ -3187,7 +3359,7 @@ void EmpCylSL::accumulated_eval(double r, double z, double phi,
   
   double ccos, ssin=0.0, fac;
   
-  for (int mm=0; mm<=MMAX; mm++) {
+  for (int mm=0; mm<=std::min<int>(MLIM, MMAX); mm++) {
     
     // Suppress odd M terms?
     if (EVEN_M && (mm/2)*2 != mm) continue;
@@ -3336,14 +3508,13 @@ double EmpCylSL::accumulated_dens_eval(double r, double z, double phi,
   double c11 = delx1*dely1;
 
   double ccos, ssin=0.0, fac;
-  int n, mm;
 
-  for (mm=0; mm<=MMAX; mm++) {
+  for (int mm=0; mm<=std::min<int>(MLIM, MMAX); mm++) {
 
     ccos = cos(phi*mm);
     ssin = sin(phi*mm);
 
-    for (n=0; n<rank3; n++) {
+    for (int n=0; n<rank3; n++) {
 
       fac = accum_cos[mm][n]*ccos;
 
@@ -3423,7 +3594,7 @@ void EmpCylSL::get_pot(Matrix& Vc, Matrix& Vs, double r, double z)
 
   double fac = 1.0;
 
-  for (int mm=0; mm<=MMAX; mm++) {
+  for (int mm=0; mm<=std::min<int>(MLIM, MMAX); mm++) {
     
     // Suppress odd M terms?
     if (EVEN_M && (mm/2)*2 != mm) continue;
@@ -3673,17 +3844,16 @@ void EmpCylSL::set_coefs(int m1,
 
 #ifdef STANDALONE
 #include <coef.H>
-static CoefHeader coefheader;
-static CoefHeader2 coefheader2;
+static CylCoefHeader coefheadercyl;
 #endif
 
 void EmpCylSL::dump_coefs_binary(ostream& out, double time)
 {
-  coefheader2.time = time;
-  coefheader2.mmax = MMAX;
-  coefheader2.nmax = rank3;
+  coefheadercyl.time = time;
+  coefheadercyl.mmax = MMAX;
+  coefheadercyl.nmax = rank3;
 
-  out.write((const char *)&coefheader2, sizeof(CoefHeader2));
+  out.write((const char *)&coefheadercyl, sizeof(CylCoefHeader));
 
   for (int mm=0; mm<=MMAX; mm++) {
 
@@ -4228,7 +4398,7 @@ void EmpCylSL::dump_images_basis(const string& OUTFILE,
 
 double EmpCylSL::r_to_xi(double r)
 {
-  if (CMAP) {
+  if (CMAP>0) {
     if (r<0.0) {
       ostringstream msg;
       msg << "radius=" << r << " < 0! [mapped]";
@@ -4247,7 +4417,7 @@ double EmpCylSL::r_to_xi(double r)
     
 double EmpCylSL::xi_to_r(double xi)
 {
-  if (CMAP) {
+  if (CMAP>0) {
     if (xi<-1.0) throw GenericError("xi < -1!", __FILE__, __LINE__);
     if (xi>=1.0) throw GenericError("xi >= 1!", __FILE__, __LINE__);
 
@@ -4260,7 +4430,7 @@ double EmpCylSL::xi_to_r(double xi)
 
 double EmpCylSL::d_xi_to_r(double xi)
 {
-  if (CMAP) {
+  if (CMAP>0) {
     if (xi<-1.0) throw GenericError("xi < -1!", __FILE__, __LINE__);
     if (xi>=1.0) throw GenericError("xi >= 1!", __FILE__, __LINE__);
 
@@ -4604,8 +4774,8 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
     return;
   }
 
-  int mmax, numx, numy, nmax, norder, tmp;
-  bool cmap=false, dens=false;
+  int mmax, numx, numy, nmax, norder, tmp, cmap;
+  bool dens=false;
   double rmin, rmax, ascl, hscl;
 
   in.read((char *)&mmax, sizeof(int));
@@ -4613,8 +4783,8 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
   in.read((char *)&numy, sizeof(int));
   in.read((char *)&nmax, sizeof(int));
   in.read((char *)&norder, sizeof(int));
-  in.read((char *)&tmp, sizeof(int)); if (tmp) dens = true;
-  in.read((char *)&tmp, sizeof(int)); if (tmp) cmap = true;
+  in.read((char *)&tmp,  sizeof(int)); if (tmp) dens = true;
+  in.read((char *)&cmap, sizeof(int));
   in.read((char *)&rmin, sizeof(double));
   in.read((char *)&rmax, sizeof(double));
   in.read((char *)&ascl, sizeof(double));
@@ -4627,7 +4797,7 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
   out << setw(20) << left << "NMAX"   << " : " << nmax << endl;
   out << setw(20) << left << "NORDER" << " : " << norder << endl;
   out << setw(20) << left << "DENS"   << " : " << std::boolalpha << dens << endl;
-  out << setw(20) << left << "CMAP"   << " : " << std::boolalpha << cmap << endl;
+  out << setw(20) << left << "CMAP"   << " : " << cmap << endl;
   out << setw(20) << left << "RMIN"   << " : " << rmin << endl;
   out << setw(20) << left << "RMAX"   << " : " << rmax << endl;
   out << setw(20) << left << "ASCALE" << " : " << ascl << endl;
@@ -4878,4 +5048,225 @@ void EmpCylSL::dump_images_basis_eof(const string& runtag,
   vtk.Write(sout.str());
 }
 
+
+void EmpCylSL::compare_basis(const EmpCylSL *p)
+{
+  std::map<std::string, std::vector<int> > DBdif;
+  std::map<std::string, std::vector<int> > DBmax;
+  
+  std::vector<std::string> labs =
+    {"potC", "potS", "densC", "densS",
+     "rforceC", "rforceS", "zforceC", "zforceS"};
+  
+  for (int m=0; m<=MMAX; m++) {	// Initialize values in DB
+    for (auto s : labs) {
+      DBdif[s].resize(MMAX+1, 0.0);
+      DBmax[s].resize(MMAX+1, 0.0);
+    }
+  }
+  
+				// Compute cosine dif and maxf
+  for (int m=0; m<=MMAX; m++) {
+
+    for (int v=0; v<rank3; v++) {
+
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++) {
+
+	  double one = potC[m][v][ix][iy];
+	  double two = p->potC[m][v][ix][iy];
+	  
+	  double cur = DBdif["potC"][m];
+	  double dif = fabs(one-two);
+	  DBdif["potC"][m] = dif>cur ? dif : cur;
+	  
+	  cur = DBmax["potC"][m];
+	  dif = fabs(one);
+	  DBmax["potC"][m] = dif>cur ? dif : cur;
+	}
+      
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++) {
+
+	  double one = rforceC[m][v][ix][iy];
+	  double two = p->rforceC[m][v][ix][iy];
+	  
+	  double cur = DBdif["rforceC"][m];
+	  double dif = fabs(one-two);
+	  DBdif["rforceC"][m] = dif>cur ? dif : cur;
+	  
+	  cur = DBmax["rforceC"][m];
+	  dif = fabs(one);
+	  DBmax["rforceC"][m] = dif>cur ? dif : cur;
+	}
+      
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++) {
+
+	  double one = zforceC[m][v][ix][iy];
+	  double two = p->zforceC[m][v][ix][iy];
+	  
+	  double cur = DBdif["zforceC"][m];
+	  double dif = fabs(one-two);
+	  DBdif["zforceC"][m] = dif>cur ? dif : cur;
+	  
+	  cur = DBmax["zforceC"][m];
+	  dif = fabs(one);
+	  DBmax["zforceC"][m] = dif>cur ? dif : cur;
+	}
+      
+      if (DENS) {
+	for (int ix=0; ix<=NUMX; ix++)
+	  for (int iy=0; iy<=NUMY; iy++) {
+
+	    double one = densC[m][v][ix][iy];
+	    double two = p->densC[m][v][ix][iy];
+	    
+	    double cur = DBdif["densC"][m];
+	    double dif = fabs(one-two);
+	    DBdif["densC"][m] = dif>cur ? dif : cur;
+	    
+	    cur = DBmax["densC"][m];
+	    dif = fabs(one);
+	    DBmax["densC"][m] = dif>cur ? dif : cur;
+	  }
+      }
+      
+    }
+    
+  }
+  // END: cosine terms
+  
+				// Compute cosine dif and maxf
+  for (int m=1; m<=MMAX; m++) {
+    
+    for (int v=0; v<rank3; v++) {
+      
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++) {
+	  
+	  double one = potS[m][v][ix][iy];
+	  double two = p->potS[m][v][ix][iy];
+	  
+	  double cur = DBdif["potS"][m];
+	  double dif = fabs(one-two);
+	  DBdif["potS"][m] = dif>cur ? dif : cur;
+	  
+	  cur = DBmax["potS"][m];
+	  dif = fabs(one);
+	  DBmax["potS"][m] = dif>cur ? dif : cur;
+	}
+      
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++) {
+	  double one = rforceS[m][v][ix][iy];
+	  double two = p->rforceS[m][v][ix][iy];
+	  
+	  double cur = DBdif["rforceS"][m];
+	  double dif = fabs(one-two);
+	  DBdif["rforceS"][m] = dif>cur ? dif : cur;
+	  
+	  cur = DBmax["rforceS"][m];
+	  dif = fabs(one);
+	  DBmax["rforceS"][m] = dif>cur ? dif : cur;
+	}
+      
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++) {
+	  double one = zforceS[m][v][ix][iy];
+	  double two = p->zforceS[m][v][ix][iy];
+	  
+	  double cur = DBdif["zforceS"][m];
+	  double dif = fabs(one-two);
+	  DBdif["zforceS"][m] = dif>cur ? dif : cur;
+	  
+	  cur = DBmax["zforceS"][m];
+	  dif = fabs(one);
+	  DBmax["zforceS"][m] = dif>cur ? dif : cur;
+	}
+      
+      if (DENS) {
+	for (int ix=0; ix<=NUMX; ix++)
+	  for (int iy=0; iy<=NUMY; iy++) {
+	    double one = densS[m][v][ix][iy];
+	    double two = p->densS[m][v][ix][iy];
+	    
+	    double cur = DBdif["densS"][m];
+	    double dif = fabs(one-two);
+	    DBdif["densS"][m] = dif>cur ? dif : cur;
+	    
+	    cur = DBmax["densS"][m];
+	    dif = fabs(one);
+	    DBmax["densS"][m] = dif>cur ? dif : cur;
+	  }
+      }
+      
+    }
+    
+  }
+
+  std::cout << "Difference values" << std::endl
+	    << "-----------------" << std::endl
+	    << std::setw(10) << std::right << "Table"
+	    << std::setw( 5) << std::right << "m"
+	    << std::setw(18) << std::right << "Dif"
+	    << std::setw(18) << std::right << "Max"
+	    << std::endl
+	    << std::setw(10) << std::right << "------"
+	    << std::setw( 5) << std::right << "--"
+	    << std::setw(18) << std::right << "------"
+	    << std::setw(18) << std::right << "------"
+	    << std::endl;
+
+  for (auto v : DBdif) {
+    std::cout << std::setw(10) << std::right << v.first << std::endl;
+    for (int m=0; m<=MMAX; m++) {
+      std::cout << std::setw(10) << ""
+		<< std::setw( 5) << std::right << m
+		<< std::setw(18) << std::right << v.second[m]
+		<< std::setw(18) << std::right << DBmax[v.first][m]
+		<< std::endl;
+    }
+  }
+  
+}
+
+
+// Compute non-dimensional vertical coordinate from Z
+double EmpCylSL::z_to_y(double z)
+{
+  if (CMAP==1)
+    return z/(fabs(z)+DBL_MIN)*asinh(fabs(z/HSCALE));
+  else if (CMAP==2)
+    return z/sqrt(z*z + HSCALE*HSCALE);
+  else
+    return z;
+}
+
+// Compute Z from non-dimensional vertical coordinate
+double EmpCylSL::y_to_z(double y)
+{
+  if (CMAP==1)
+    return HSCALE*sinh(y);
+  else if (CMAP==2) {
+    if (y<-1.0) throw GenericError("y < -1!", __FILE__, __LINE__);
+    if (y>=1.0) throw GenericError("y >= 1!", __FILE__, __LINE__);
+    return y * HSCALE/sqrt(1.0 - y*y);
+  }
+  else
+    return y;
+}
+
+// For measure transformation in vertical coordinate
+double EmpCylSL::d_y_to_z(double y)
+{
+  if (CMAP==1)
+    return HSCALE*cosh(y);
+  else if (CMAP==2) {
+    if (y<-1.0) throw GenericError("y < -1!", __FILE__, __LINE__);
+    if (y>=1.0) throw GenericError("y >= 1!", __FILE__, __LINE__);
+    return HSCALE*pow(1.0-y*y, -1.5);
+  } else
+    return 1.0;
+}
 

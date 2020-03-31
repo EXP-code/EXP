@@ -348,6 +348,8 @@ void * Shells::determine_coefficients_thread(void *arg)
     igridT[id].push_back(j);
     usedT[id]++;
   }
+
+  return (NULL);
 }
 
 //

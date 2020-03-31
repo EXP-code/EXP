@@ -3726,11 +3726,11 @@ void CollideIon::pairInfoTrace(int id, pCell* const c,
 
 #ifdef XC_DEEP13
   std::cout << "ETEST:"
-	    << " time=" << tnow
+	    << " time="  << tnow
 	    << " eVel1=" << eVel1
 	    << " eVel2=" << eVel2
-	    << " ke1=" << kEe1[id]/eV
-	    << " ke2=" << kEe2[id]/eV
+	    << " ke1="   << kEe1[id]/eV
+	    << " ke2="   << kEe2[id]/eV
 	    << std::endl;
 #endif
 
@@ -4119,7 +4119,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       xcross[id]   = crs;	// Cache cross-section value
 
       if (scatter_check and ionize_check) {
-	double val = eVelP2[id] * cr * 1.0e-14 * DI;
+	double val = eVelP2[id] * cr * TreeDSMC::Vunit * 1.0e-14 * DI;
 	ionizeA[id].add(K1, etaP2[id], val);
       }
 
@@ -4150,7 +4150,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       xcross[id]   = crs;	// Cache cross-section value
 
       if (scatter_check and ionize_check) {
-	double val = eVelP1[id] * cr * 1.0e-14 * DI;
+	double val = eVelP1[id] * cr * TreeDSMC::Vunit * 1.0e-14 * DI;
 	ionizeA[id].add(K2, etaP1[id], val);
       }
 
@@ -4200,7 +4200,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	xcross[id] = crs;
 	
 	if (scatter_check and recomb_check) {
-	  double val = sVelP1[id] * cr * 1.0e-14 * RE.back();
+	  double val = sVelP1[id] * cr * TreeDSMC::Vunit * 1.0e-14 * RE.back();
 	  recombA[id].add(K1, etaP1[id], val);
 	}
 
@@ -4226,7 +4226,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	xcross[id] = crs;
 
 	if (scatter_check and recomb_check) {
-	  double val = sVelP2[id] * cr * 1.0e-14 * RE.back();
+	  double val = sVelP2[id] * cr * TreeDSMC::Vunit * 1.0e-14 * RE.back();
 	  recombA[id].add(K2, etaP2[id], val);
 	}
 
@@ -4257,8 +4257,23 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	xcross[id] = crs;
 
 	if (scatter_check and recomb_check) {
-	  double val = eVelP2[id] * cr * 1.0e-14 * RE.back();
+	  double val = eVelP2[id] * cr * TreeDSMC::Vunit * 1.0e-14 * RE.back();
 	  recombA[id].add(K1, etaP2[id], val);
+#ifdef EBUG_RECOMB_CHECK
+	  if (myid==0) {
+	    std::ofstream tst(runtag + ".recombCheck", std::ios::out | std::ios::app);
+	    if (tst) {
+	      tst << std::setw(16) << etaP2[id]
+		  << std::setw(16) << eVelP2[id]
+		  << std::setw(16) << kEe1[id]
+		  << std::setw(16) << cr * TreeDSMC::Vunit
+		  << std::setw(16) << eVelP2[id] * cr * TreeDSMC::Vunit
+		  << std::setw(16) << 1.0e-14 * RE.back()
+		  << std::setw(16) << eVelP2[id] * cr * TreeDSMC::Vunit * 1.0e-14 * RE.back()
+		  << std::endl;
+	    }
+	  }
+#endif
 	}
 	
 	if (DEBUG_CRS) trap_crs(crs, recomb);
@@ -4298,8 +4313,23 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	xcross[id] = crs;
 
 	if (scatter_check and recomb_check) {
-	  double val = eVelP1[id] * cr * 1.0e-14 * RE.back();
+	  double val = eVelP1[id] * cr * TreeDSMC::Vunit * 1.0e-14 * RE.back();
 	  recombA[id].add(K2, etaP1[id], val);
+#ifdef EBUG_RECOMB_CHECK
+	  if (myid==0) {
+	    std::ofstream tst(runtag + ".recombCheck", std::ios::out | std::ios::app);
+	    if (tst) {
+	      tst << std::setw(16) << etaP1[id]
+		  << std::setw(16) << eVelP1[id]
+		  << std::setw(16) << kEe2[id]
+		  << std::setw(16) << cr * TreeDSMC::Vunit
+		  << std::setw(16) << eVelP1[id] * cr * TreeDSMC::Vunit
+		  << std::setw(16) << 1.0e-14 * RE.back()
+		  << std::setw(16) << eVelP1[id] * cr * TreeDSMC::Vunit * 1.0e-14 * RE.back()
+		  << std::endl;
+	    }
+	  }
+#endif
 	}
 	  
 	if (DEBUG_CRS) trap_crs(crs, recomb);
@@ -5233,8 +5263,10 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
   if (NoDelC)  {
     // Pass events that are NOT ionization
     // or recombination, or both
-    if (NoDelC & 0x1 and interFlag % 100 == recomb) return ret;
-    if (NoDelC & 0x2 and interFlag % 100 == ionize) return ret;
+    if (NoDelC & 0x1 and interFlag % 100 == recomb)    return ret;
+    if (NoDelC & 0x2 and interFlag % 100 == ionize)    return ret;
+    if (NoDelC & 0x4 and interFlag % 100 == free_free) return ret;
+    if (NoDelC & 0x8 and interFlag % 100 == colexcite) return ret;
     
   } else if (scatter) {
     // Only pass elastic scattering events
@@ -7155,8 +7187,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     ok = true;
 				// Pass events that are NOT ionization
 				// or recombination, or both
-    if (NoDelC & 0x1 and interFlag == recomb) ok = false;
-    if (NoDelC & 0x2 and interFlag == ionize) ok = false;
+    if (NoDelC & 0x1 and interFlag == recomb)    ok = false;
+    if (NoDelC & 0x2 and interFlag == ionize)    ok = false;
+    if (NoDelC & 0x4 and interFlag == free_free) ok = false;
+    if (NoDelC & 0x8 and interFlag == colexcite) ok = false;
 
   } else if (scatter) {
 				// Only pass elastic scattering events
@@ -7655,9 +7689,14 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	tK *= 0.5*PP->W1*PP->q*mu;
 
-	Italy[id][Z1*100+Z2][interFlag][0] += Prob;
-	Italy[id][Z1*100+Z2][interFlag][1] += dE * Escl;
-	Italy[id][Z1*100+Z2][interFlag][2] += tK;
+	{
+	  int z1 = Z1, z2 = Z2;
+	  if (z1 == 65535) z1 = 0;
+	  if (z2 == 65535) z2 = 0;
+	  Italy[id][z1*100+z2][interFlag][0] += Prob;
+	  Italy[id][z1*100+z2][interFlag][1] += dE * Escl;
+	  Italy[id][z1*100+z2][interFlag][2] += tK;
+	}
       }
     }
       
@@ -7673,9 +7712,14 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	tK *= 0.5*PP->W1*PP->q*mu;
 	
-	Italy[id][Z1*100+Z2][interFlag][0] += Prob;
-	Italy[id][Z1*100+Z2][interFlag][1] += dE * Escl;
-	Italy[id][Z1*100+Z2][interFlag][2] += tK;
+	{
+	  int z1 = Z1, z2 = Z2;
+	  if (z1 == 65535) z1 = 0;
+	  if (z2 == 65535) z2 = 0;
+	  Italy[id][z1*100+z2][interFlag][0] += Prob;
+	  Italy[id][z1*100+z2][interFlag][1] += dE * Escl;
+	  Italy[id][z1*100+z2][interFlag][2] += tK;
+	}
       }
     }
       
@@ -7694,9 +7738,15 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	tK *= 0.5*PP->W1*PP->q*mu;
 
-	Italy[id][Z1*100+Z2][interFlag][0] += Prob;
-	Italy[id][Z1*100+Z2][interFlag][1] += dE * Escl;
-	Italy[id][Z1*100+Z2][interFlag][2] += tK;
+	{
+	  int z1 = Z1, z2 = Z2;
+	  if (z1 == 65535) z1 = 0;
+	  if (z2 == 65535) z2 = 0;
+
+	  Italy[id][z1*100+z2][interFlag][0] += Prob;
+	  Italy[id][z1*100+z2][interFlag][1] += dE * Escl;
+	  Italy[id][z1*100+z2][interFlag][2] += tK;
+	}
       }
     }
       
@@ -9479,10 +9529,13 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
   //
   if (NoDelC)  {
     ok = true;
-				// Pass events that are NOT ionization
-				// or recombination, or both
-    if (NoDelC & 0x1 and interFlag == recomb) ok = false;
-    if (NoDelC & 0x2 and interFlag == ionize) ok = false;
+				// Event skipping:
+				// NoDelC 15 means skip all inelastic
+    if (NoDelC & 0x1 and interFlag == recomb)    ok = false;
+    if (NoDelC & 0x2 and interFlag == ionize)    ok = false;
+    if (NoDelC & 0x4 and interFlag == free_free) ok = false;
+    if (NoDelC & 0x8 and interFlag == colexcite) ok = false;
+
 
   } else if (scatter) {
 				// Only pass elastic scattering events
@@ -10259,10 +10312,16 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 	  tK *= 0.5*PP->W1*PP->q*mu;
 
-	  Italy[id][Z1*100+Z2][interFlag][0] += Prob;
-	  Italy[id][Z1*100+Z2][interFlag][1] += dE * Escl;
-	  Italy[id][Z1*100+Z2][interFlag][2] += tK;
-	  Italy[id][Z1*100+Z2][interFlag][3] += 1;
+	  {
+	    int z1 = Z1, z2 = Z2;
+	    if (z1 == 65535) z1 = 0;
+	    if (z2 == 65535) z2 = 0;
+	    
+	    Italy[id][z1*100+z2][interFlag][0] += Prob;
+	    Italy[id][z1*100+z2][interFlag][1] += dE * Escl;
+	    Italy[id][z1*100+z2][interFlag][2] += tK;
+	    Italy[id][z1*100+z2][interFlag][3] += 1;
+	  }
 	}
       }
       
@@ -10278,10 +10337,16 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 	  tK *= 0.5*PP->W1*PP->q*mu;
 
-	  Italy[id][Z1*100+Z2][interFlag][0] += Prob;
-	  Italy[id][Z1*100+Z2][interFlag][1] += dE * Escl;
-	  Italy[id][Z1*100+Z2][interFlag][2] += tK;
-	  Italy[id][Z1*100+Z2][interFlag][3] += 1;
+	  {
+	    int z1 = Z1, z2 = Z2;
+	    if (z1 == 65535) z1 = 0;
+	    if (z2 == 65535) z2 = 0;
+	    
+	    Italy[id][z1*100+z2][interFlag][0] += Prob;
+	    Italy[id][z1*100+z2][interFlag][1] += dE * Escl;
+	    Italy[id][z1*100+z2][interFlag][2] += tK;
+	    Italy[id][z1*100+z2][interFlag][3] += 1;
+	  }
 	}
       }
       
@@ -10300,10 +10365,16 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  }
 	  tK *= 0.5*PP->W1*PP->q*mu;
 
-	  Italy[id][Z1*100+Z2][interFlag][0] += Prob;
-	  Italy[id][Z1*100+Z2][interFlag][1] += dE * Escl;
-	  Italy[id][Z1*100+Z2][interFlag][2] += tK;
-	  Italy[id][Z1*100+Z2][interFlag][3] += 1;
+	  {
+	    int z1 = Z1, z2 = Z2;
+	    if (z1 == 65535) z1 = 0;
+	    if (z2 == 65535) z2 = 0;
+	    
+	    Italy[id][z1*100+z2][interFlag][0] += Prob;
+	    Italy[id][z1*100+z2][interFlag][1] += dE * Escl;
+	    Italy[id][z1*100+z2][interFlag][2] += tK;
+	    Italy[id][z1*100+z2][interFlag][3] += 1;
+	  }
 	}
       }
   } // END: compute this interaction [ok]
@@ -19449,7 +19520,7 @@ Z(Z), Tmn(Tmin), Tmx(Tmax), numT(numT)
   //
   // std::cout << sout.str() << std::endl;
 
-  system(&sout.str()[0]);
+  int sret = system(&sout.str()[0]);
 
   std::ifstream in(inFile);
 

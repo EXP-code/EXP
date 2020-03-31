@@ -5,7 +5,10 @@
 
 #include <vector>
 
+#include <boost/make_shared.hpp>
+
 #include <gaussQ.h>
+#include <interp.h>
 #include <math.h>
 #include <values.h>
 
@@ -42,13 +45,15 @@ class EmpCylSL
 public:
 
   typedef boost::shared_ptr<SphericalModelTable> SphModTblPtr;
-  typedef boost::shared_ptr<Vector> VectorP;
-  typedef boost::shared_ptr<Matrix> MatrixP;
+  typedef boost::shared_ptr<SLGridSph>           SLGridSphPtr;
+  typedef boost::shared_ptr<Vector>              VectorP;
+  typedef boost::shared_ptr<Matrix>              MatrixP;
 
 private:
   int NMAX;
   int LMAX;
   int MMAX;
+  int MLIM;
   int NORDER;
   int NKEEP;
 
@@ -93,7 +98,7 @@ private:
   Vector *cosm, *sinm;
   Matrix *legs, *dlegs;
 
-  SLGridSph *ortho;
+  SLGridSphPtr ortho;
 
   double Rtable, XMIN, XMAX;
 
@@ -145,6 +150,7 @@ private:
   void receive_eof     (int request_id, int m);
   void compute_eof_grid(int request_id, int m);
   void setup_eof_grid(void);
+  void parityCheck(const std::string& prefix);
 
 				// 1=write, 0=read
 				// return: 0=failure
@@ -153,6 +159,8 @@ private:
   void   get_pot(Matrix&, Matrix&, double, double);
   double massR(double R);
   double densR(double R);
+
+  Linear1d densRg, massRg;
 
   //! Data for each harmonic subspace
   class PCAelement
@@ -243,8 +251,28 @@ public:
   enum EmpModel {
     Exponential,
     Gaussian, 
-    Plummer
+    Plummer,
+    Power,
+    Deproject,
   };
+
+  //! Axisymmetric disk density function for deprojection
+  class AxiDisk
+  {
+  protected:
+
+    double M;
+
+  public:
+
+    //! Constructor
+    AxiDisk(double M=1) : M(M) {}
+
+    //! Density function
+    virtual double operator()(double R, double z) = 0;
+  };
+  
+  typedef boost::shared_ptr<AxiDisk> AxiDiskPtr;
 
   //! TRUE if density is computed (default: false)
   static bool DENS;
@@ -264,8 +292,9 @@ public:
   //! VTK diagnostic frequency (default: false)
   static unsigned VTKFRQ;
 
-  //! TRUE if we are using coordinate mapping (default: false)
-  static bool CMAP;
+  //! TRUE if we are using coordinate mapping (default: 0=no, 1 for
+  //! vertical hyberbolic mapping, 2 for power mampping)
+  static int CMAP;
 
   //! TRUE if mapping is logarithmic (default: false)
   static bool logarithmic;
@@ -297,6 +326,9 @@ public:
 
   //! Maximum radial value for basis
   static double RMAX;
+
+  //! Power exponent for EOF conditioning density function
+  static double PPOW;
 
   //! Name of cache file
   static string CACHEFILE;
@@ -346,19 +378,27 @@ public:
   //! Parameter access: get mmax
   int get_mmax(void) {return MMAX;}
 
+  //! Set limit to mmax for testing
+  void set_mlim(int mlim) {MLIM = mlim;}
+
   //! Parameter access: get norder
   int get_order(void) {return NORDER;}
 
-				// Z coordinate transformation
-
   //! Compute non-dimensional vertical coordinate from Z
-  double z_to_y(double z) { return z/(fabs(z)+DBL_MIN)*asinh(fabs(z/HSCALE)); }
+  double z_to_y(double z);
 
   //! Compute Z from non-dimensional vertical coordinate
-  double y_to_z(double y) { return HSCALE*sinh(y); }
+  double y_to_z(double y);
 
   //! For measure transformation
-  double d_y_to_z(double y) { return HSCALE*cosh(y); }
+  double d_y_to_z(double y);
+
+  /** Compute deprojection of axisymmetric disk for and use this
+      generate the EOF spherical basis.  The scale length must be O(1)
+      with scale height H in scale length units.
+   */
+  void create_deprojection(double H, double Rfactor,
+			   int numR, int numI, AxiDiskPtr func);
 
   /** Generate EOF by direct integration conditioned on a user
       supplied function
@@ -505,6 +545,9 @@ public:
 			     double XYOUT, double ZOUT, 
 			     int OUTR, int OUTZ, int M, int N, int cnt,
 			     Vector& tp);
+
+  //! Compare current basis with another for debugging
+  void compare_basis(const EmpCylSL *p);
 
   //! Restrict order
   void restrict_order(int n);
@@ -672,6 +715,7 @@ extern void legendre_R(int lmax, double x, Matrix& p);
 extern void dlegendre_R(int lmax, double x, Matrix &p, Matrix &dp);
 extern void sinecosine_R(int mmax, double phi, Vector& c, Vector& s);
 
+typedef boost::shared_ptr<EmpCylSL> EmpCylSLptr;
 
 #endif
 

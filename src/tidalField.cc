@@ -69,4 +69,6 @@ void * tidalField::determine_acceleration_and_potential_thread(void * arg)
 		      0.25*w2*(pp*(c+s)*x*x + pp*(s-c)*y*y - pm*(x*x+y*y) ) );
       }
   }
+
+  return (NULL);
 }

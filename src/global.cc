@@ -100,8 +100,8 @@ std::vector<int> siblingList;
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 
-CoefHeader coefheader;
-CoefHeader2 coefheader2;
+CylCoefHeader  coefheadercyl;
+SphCoefHeader  coefheadersph;
 
 ComponentContainer *comp = 0;
 ExternalCollection *external = 0;
