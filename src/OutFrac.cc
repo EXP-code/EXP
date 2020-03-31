@@ -130,18 +130,22 @@ void OutFrac::initialize()
 {
   try {
 				// Get file name
-    filename = conf["filename"].as<std::string>();
-    nint     = conf["nint"]    .as<int>();
+    if (Output::conf["filename"])
+      filename = Output::conf["filename"].as<std::string>();
+
+    if (Output::conf["nint"])
+      nint     = Output::conf["nint"]    .as<int>();
 				// Search for desired component
-    if (conf["name"]) {
-      std::string tmp = conf["name"].as<std::string>();
+    if (Output::conf["name"]) {
+      std::string tmp = Output::conf["name"].as<std::string>();
       for (auto c : comp->components) {
 	if (!(c->name.compare(tmp))) tcomp  = c;
       }
     }
 
-				// Get quantiles
-    if (conf["frac"])  Quant = conf["frac"].as<std::vector<double>>();
+    // Get quantiles
+    if (Output::conf["frac"])
+      Quant = Output::conf["frac"].as<std::vector<double>>();
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in OutFrac: "
@@ -185,8 +189,7 @@ void OutFrac::Run(int n, bool last)
   unsigned long j;
 
   for (int n=0; n<tcomp->Number(); n++) {
-    j = it->first;
-    it++;
+    j = it++->first;
     tcomp->Pos(pos, j, Component::Centered);
     r = 0.0;
     for (int j=0; j<3; j++) r += pos[j]*pos[j];
