@@ -245,6 +245,8 @@ DiskType     DTYPE;
 double       ASCALE;
 double       ASHIFT;
 double       HSCALE;
+double       RTRUNC = 1.0;
+double       RWIDTH = 0.0;
 
 #include <Particle.H>
 
@@ -298,6 +300,8 @@ double DiskDens(double R, double z, double phi)
     }
     break;
   }
+
+  if (RWIDTH>0.0) ans *= erf((RTRUNC-R)/RWIDTH);
 
   return ans;
 }
@@ -450,6 +454,8 @@ main(int ac, char **av)
     ("ASCALE",          po::value<double>(&ASCALE)->default_value(1.0),                 "Radial scale length for disk basis construction")
     ("ASHIFT",          po::value<double>(&ASHIFT)->default_value(0.0),                 "Fraction of scale length for shift in conditioning function")
     ("HSCALE",          po::value<double>(&HSCALE)->default_value(0.1),                 "Vertical scale length for disk basis construction")
+    ("RTRUNC",          po::value<double>(&RTRUNC)->default_value(0.1),                 "Maximum disk radius for erf truncation of EOF conditioning density")
+    ("RWIDTH",          po::value<double>(&RWIDTH)->default_value(0.0),                 "Width for erf truncationofr EOF conditioning density (ignored if zero)")
     ("DMFAC",           po::value<double>(&DMFAC)->default_value(1.0),                  "Disk mass scaling factor for spherical deprojection model")
     ("RFACTOR",         po::value<double>(&RFACTOR)->default_value(1.0),                "Disk radial scaling factor for spherical deprojection model")
     ("X0",              po::value<double>(&X0)->default_value(0.0),                     "Disk-Halo x center position")
@@ -644,7 +650,9 @@ main(int ac, char **av)
     }
   }
   
-  // Set EmpCylSL mtype
+  // Set EmpCylSL mtype.  This is the spherical function used to
+  // generate the EOF basis.  If "deproject" is set, this will be
+  // overriden in EmpCylSL.
   //
   EmpCylSL::mtype = EmpCylSL::Exponential;
   if (vm.count("mtype")) {
@@ -666,9 +674,10 @@ main(int ac, char **av)
     }
   }
 
-  // Set DiskType
+  // Set DiskType.  This is the functional form for the disk used to
+  // condition the basis.
   //
-				// Convert to lower case
+				// Convert dtype string to lower case
   std::transform(dtype.begin(), dtype.end(), dtype.begin(),
 		 [](unsigned char c){ return std::tolower(c); });
 
@@ -689,7 +698,7 @@ main(int ac, char **av)
     return 0;
   }
 
-  // Set mapping type
+  // Set mapping type for EOF table
   //
   if (not CMAP) CMTYPE = 0;
 
@@ -854,7 +863,8 @@ main(int ac, char **av)
       //
       double H = scale_height/scale_length;
 
-      // The model instance (you can add others in DiskModels.H
+      // The model instance (you can add others in DiskModels.H).
+      // It's MN or Exponential if not MN.
       //
       EmpCylSL::AxiDiskPtr model;
 
@@ -888,9 +898,7 @@ main(int ac, char **av)
        scale_height, scale_length, disk_mass, 
        halofile1, DIVERGE,  DIVERGE_RFAC,
        halofile2, DIVERGE2, DIVERGE_RFAC2,
-       DiskHalo::Asymmetric);
-    // DiskHalo::Epicyclic);
-    // DiskHalo::Jeans);
+       DiskHalo::getDiskGenType[gentype]);
     if (myid==0) std::cout << "done" << std::endl;
 
   } else {
