@@ -825,6 +825,17 @@ main(int ac, char **av)
   expandd->set_coefs(0, coefs, zero, true);
 
 
+  // Evaluate force using multipole expansion
+  //
+  EmpCylSL::AxiDiskPtr modl;
+      
+  if (dmodel.compare("MN")==0) // Miyamoto-Nagai
+    modl = boost::make_shared<MNdisk>(AA, HH);
+  else			// Default to exponential
+    modl = boost::make_shared<Exponential>(AA, HH);
+
+  DiskEval test(modl, RCYLMIN*AA, RCYLMAX*HH, 128, 2000, 400);
+
   // Quick radial force check
   //
   double dx   = (xmax - xmin)/(NFRC-1);
@@ -852,30 +863,20 @@ main(int ac, char **av)
     }
 
     
-    double D, P, FR;
+    double D;
 
     if (dmodel.compare("MN")==0) { // Miyamoto-Nagai
       double zb = sqrt( z*z + HH*HH );
       double ab = AA + zb;
-      double dn = sqrt( r*r + ab*ab );
       
-      P  = -mass/dn;
-      // double FZ = -mass*z*ab/(zb*dn*dn*dn);
-      FR = -mass*r/(dn*dn*dn);
       D  = 0.25*HH*HH/M_PI*(AA*r*r + (AA + 3.0*zb)*ab*ab)/( pow(r*r + ab*ab, 2.5) * zb*zb*zb );
-
     } else {			// Default to exponential
-      double y = r/(2.0*AA);
-      double i0 = boost::math::cyl_bessel_i(0, y);
-      double k0 = boost::math::cyl_bessel_k(0, y);
-      double i1 = boost::math::cyl_bessel_i(1, y);
-      double k1 = boost::math::cyl_bessel_k(1, y);
-      P  = -0.5*mass*r/(AA*AA) * (i0*k1 - i1*k0);
-      FR = -y/(AA*AA)*(i0*k0 - i1*k1);
-
       double f = cosh(z/HH);
       D  = exp(-r/AA)/(4.0*M_PI*AA*AA*HH*f*f);
     }
+
+    auto ret = test(r, z);
+    double P = std::get<0>(ret), FR = std::get<1>(ret);
 
     fout << std::setw(18) << r	          // 1
 	 << std::setw(18) << fr	          // 2
