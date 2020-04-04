@@ -873,6 +873,14 @@ main(int ac, char **av)
       else			// Default to exponential
 	model = boost::make_shared<Exponential>(1.0, H);
 
+      if (RWIDTH>0.0) {
+	model = boost::make_shared<Truncated>(RTRUNC/scale_length,
+					      RWIDTH/scale_length,
+					      model);
+	std::cout << "Made truncated model with R=" << RTRUNC/scale_length
+		  << " and W=" << RWIDTH/scale_length << std::endl;
+      }
+
       expandd->create_deprojection(H, RFACTOR, NUMR, RNUM, model);
     }
 

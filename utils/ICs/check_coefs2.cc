@@ -338,6 +338,8 @@ main(int ac, char **av)
   double       scale_height;
   double       scale_length;
   double       ppower;
+  double       rtrunc;
+  double       rwidth;
   bool         SVD;
   int          NINT;
   bool         DENS;
@@ -392,6 +394,8 @@ main(int ac, char **av)
     ("mtype",           po::value<string>(&mtype),                                              "Spherical deprojection model for EmpCylSL (one of: Exponential, Gaussian, Plummer, Power)")
     ("DTYPE",           po::value<string>(&disktype)->default_value("exponential"),             "Disk type for condition (one of: constant, gaussian, mn, exponential)")
     ("PPOW",            po::value<double>(&ppower)->default_value(5.0),             "Power-law density exponent for general Plummer density for EMP construction")
+    ("rtrunc",          po::value<double>(&rtrunc)->default_value(0.1),             "Truncation radius for error-function density tapir")
+    ("rwidth",          po::value<double>(&rwidth)->default_value(0.0),             "Width for error-function density tapir")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
     ("ortho",           po::value<bool>(&orthotst)->default_value(false),               "Check basis orthogonality by scalar product")
     ;
@@ -833,6 +837,12 @@ main(int ac, char **av)
     modl = boost::make_shared<MNdisk>(AA, HH);
   else			// Default to exponential
     modl = boost::make_shared<Exponential>(AA, HH);
+
+  if (rwidth>0.0) {
+    modl = boost::make_shared<Truncated>(rtrunc, rwidth, modl);
+    std::cout << "Made truncated model with R=" << rtrunc
+	      << " and W=" << rwidth<< std::endl;
+  }
 
   DiskEval test(modl, RCYLMIN*AA, RCYLMAX*HH, 128, 2000, 400);
 

@@ -38,6 +38,27 @@ public:
     double Q2 = (a + Z)*(a + Z);
     return 0.25*h*h*M/M_PI*(a*R*R + (a + 3.0*Z)*Q2)/( pow(R*R + Q2, 2.5) * Z*Z2 );
   }
+};
+
+//! Truncate a AxiDisk
+class Truncated : public EmpCylSL::AxiDisk
+{
+  typedef boost::shared_ptr<EmpCylSL::AxiDisk> AxiDiskPtr;
+  
+private:
+  
+  AxiDiskPtr model;
+  double rt, rw;
+
+public:
+
+  Truncated(double R, double W, AxiDiskPtr p) :
+    rt(R), rw(W), model(p) {}
+
+  double operator()(double R, double z)
+  {
+    return (*model)(R, z) * erf( (rt - sqrt(R*R + z*z))/rw );
+  }
 
 };
 
