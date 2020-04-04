@@ -877,8 +877,9 @@ main(int ac, char **av)
 	model = boost::make_shared<Truncated>(RTRUNC/scale_length,
 					      RWIDTH/scale_length,
 					      model);
-	std::cout << "Made truncated model with R=" << RTRUNC/scale_length
-		  << " and W=" << RWIDTH/scale_length << std::endl;
+	if (myid==0)
+	  std::cout << "Made truncated model with R=" << RTRUNC/scale_length
+		    << " and W=" << RWIDTH/scale_length << std::endl;
       }
 
       expandd->create_deprojection(H, RFACTOR, NUMR, RNUM, model);
