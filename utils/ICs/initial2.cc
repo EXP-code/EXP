@@ -827,15 +827,15 @@ main(int ac, char **av)
 
 #ifdef DEBUG
    std::cout << "Process " << myid << ": "
-	     << " rmin=" << EmpCylSL::RMIN
-	     << " rmax=" << EmpCylSL::RMAX
-	     << " a=" << ASCALE
-	     << " h=" << HSCALE
-	     << " nmax2=" << NMAX2
-	     << " lmax2=" << LMAX2
-	     << " mmax=" << MMAX
-	     << " nordz=" << NORDER
-	     << std::endl << std::flush;
+	     << " rmin="   << EmpCylSL::RMIN
+	     << " rmax="   << EmpCylSL::RMAX
+	     << " a="      << ASCALE
+	     << " h="      << HSCALE
+	     << " nmax2="  << NMAX2
+	     << " lmax2="  << LMAX2
+	     << " mmax="   << MMAX
+	     << " nordz="  << NORDER
+	     << std::endl  << std::flush;
 #endif
 
     // Try to read existing cache to get EOF
