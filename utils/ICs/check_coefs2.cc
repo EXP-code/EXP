@@ -844,7 +844,7 @@ main(int ac, char **av)
 	      << " and W=" << rwidth<< std::endl;
   }
 
-  DiskEval test(modl, RCYLMIN*AA, RCYLMAX*HH, 128, 2000, 400);
+  DiskEval test(modl, RCYLMIN*AA, RCYLMAX*AA, 128, 2000, 400);
 
   // Quick radial force check
   //
@@ -857,8 +857,66 @@ main(int ac, char **av)
 
   int nmin = std::min<int>(NORDER, 5);
 
+  // File column descriptions
+  //
+  fout << "#"
+       << std::setw(17) << "R |"          // 1
+       << std::setw(18) << "f_r(exp) |"   // 2
+       << std::setw(18) << "f_r(thr) |"   // 3
+       << std::setw(18) << "del(f_r) |"   // 4
+       << std::setw(18) << "p(exp) |"	  // 5
+       << std::setw(18) << "p(thr) |"	  // 6
+       << std::setw(18) << "del(p) |"	  // 7
+       << std::setw(18) << "dens(exp) |"  // 8
+       << std::setw(18) << "dens(thr) |"; // 9
+  for (int nn=0; nn<nmin; nn++) {
+    std::ostringstream pstr, dstr;
+    pstr << "p_basis(" << nn << ") |";
+    dstr << "d_basis(" << nn << ") |";
+    fout << std::setw(18) << pstr.str()	  // 10+2*nn
+	 << std::setw(18) << dstr.str();  // 10+2*nn+1
+  }
+  fout << std::endl;
+
+  // File column counter
+  //
+  fout << "#" << std::setw(17) << "[1] |";
+  int icnt = 2;
+  for (int i=2; i<10; i++) {
+    std::ostringstream lab;
+    lab << "[" << icnt++ << "] |";
+    fout << std::setw(18) << lab.str();
+  }
+  for (int nn=0; nn<nmin; nn++) {
+    std::ostringstream lab;
+    lab << "[" << icnt++ << "] |";
+    fout << std::setw(18) << lab.str();
+    lab.str("");
+    lab << "[" << icnt++ << "] |";
+    fout << std::setw(18) << lab.str();
+  }
+  fout << std::endl;
+
+  // File column separator
+  //
+  fout << "#" << std::setfill('-')
+       << std::setw(17) << "+";
+  for (int i=2; i<10; i++) {
+    fout << std::setw(18) << "+";
+  }
+  for (int nn=0; nn<nmin; nn++) {
+    fout << std::setw(18) << "+";
+    fout << std::setw(18) << "+";
+  }
+  fout << std::endl << std::setfill(' ');
+  //
+  // END: file header
+
+
+  // Compute and write expansion values
+  //
   for (int j=0; j<NFRC; j++) {
-    std::vector<double> dd(nmin);
+    std::vector<double> pp(nmin), dd(nmin);
     double p0, p, fr, fz, fp, d;
     double r = x_to_r(xmin + dx*j, AA);
 
@@ -869,7 +927,7 @@ main(int ac, char **av)
     {
       double p1, fr1, fz1, fp1;	// Dummy variables
       for (int nn=0; nn<nmin; nn++) 
-	expandd->get_all(0, nn, r, z, 0.0, p1, dd[nn], fr1, fz1, fp1);
+	expandd->get_all(0, nn, r, z, 0.0, pp[nn], dd[nn], fr1, fz1, fp1);
     }
 
     
@@ -898,7 +956,8 @@ main(int ac, char **av)
 	 << std::setw(18) << d		  // 8
 	 << std::setw(18) << D;		  // 9
     for (int nn=0; nn<nmin; nn++)
-      fout << std::setw(18) << dd[nn];	  // 10+nn
+      fout << std::setw(18) << pp[nn]	  // 10+2*nn
+	   << std::setw(18) << dd[nn];	  // 10+2*nn+1
     fout << std::endl;
   }
 
