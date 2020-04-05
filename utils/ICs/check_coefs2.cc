@@ -338,6 +338,8 @@ main(int ac, char **av)
   double       scale_height;
   double       scale_length;
   double       ppower;
+  double       rtrunc;
+  double       rwidth;
   bool         SVD;
   int          NINT;
   bool         DENS;
@@ -392,6 +394,8 @@ main(int ac, char **av)
     ("mtype",           po::value<string>(&mtype),                                              "Spherical deprojection model for EmpCylSL (one of: Exponential, Gaussian, Plummer, Power)")
     ("DTYPE",           po::value<string>(&disktype)->default_value("exponential"),             "Disk type for condition (one of: constant, gaussian, mn, exponential)")
     ("PPOW",            po::value<double>(&ppower)->default_value(5.0),             "Power-law density exponent for general Plummer density for EMP construction")
+    ("rtrunc",          po::value<double>(&rtrunc)->default_value(0.1),             "Truncation radius for error-function density tapir")
+    ("rwidth",          po::value<double>(&rwidth)->default_value(0.0),             "Width for error-function density tapir")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
     ("ortho",           po::value<bool>(&orthotst)->default_value(false),               "Check basis orthogonality by scalar product")
     ;
@@ -841,7 +845,13 @@ main(int ac, char **av)
   else			// Default to exponential
     modl = boost::make_shared<Exponential>(AA, HH);
 
-  DiskEval test(modl, RCYLMIN*AA, RCYLMAX*HH, 128, 2000, 400);
+  if (rwidth>0.0) {
+    modl = boost::make_shared<Truncated>(rtrunc, rwidth, modl);
+    std::cout << "Made truncated model with R=" << rtrunc
+	      << " and W=" << rwidth<< std::endl;
+  }
+
+  DiskEval test(modl, RCYLMIN*AA, RCYLMAX*AA, 128, 2000, 400);
 
   // Quick radial force check
   //
@@ -854,8 +864,66 @@ main(int ac, char **av)
 
   int nmin = std::min<int>(NOUT, 5);
 
+  // File column descriptions
+  //
+  fout << "#"
+       << std::setw(17) << "R |"          // 1
+       << std::setw(18) << "f_r(exp) |"   // 2
+       << std::setw(18) << "f_r(thr) |"   // 3
+       << std::setw(18) << "del(f_r) |"   // 4
+       << std::setw(18) << "p(exp) |"	  // 5
+       << std::setw(18) << "p(thr) |"	  // 6
+       << std::setw(18) << "del(p) |"	  // 7
+       << std::setw(18) << "dens(exp) |"  // 8
+       << std::setw(18) << "dens(thr) |"; // 9
+  for (int nn=0; nn<nmin; nn++) {
+    std::ostringstream pstr, dstr;
+    pstr << "p_basis(" << nn << ") |";
+    dstr << "d_basis(" << nn << ") |";
+    fout << std::setw(18) << pstr.str()	  // 10+2*nn
+	 << std::setw(18) << dstr.str();  // 10+2*nn+1
+  }
+  fout << std::endl;
+
+  // File column counter
+  //
+  fout << "#" << std::setw(17) << "[1] |";
+  int icnt = 2;
+  for (int i=2; i<10; i++) {
+    std::ostringstream lab;
+    lab << "[" << icnt++ << "] |";
+    fout << std::setw(18) << lab.str();
+  }
+  for (int nn=0; nn<nmin; nn++) {
+    std::ostringstream lab;
+    lab << "[" << icnt++ << "] |";
+    fout << std::setw(18) << lab.str();
+    lab.str("");
+    lab << "[" << icnt++ << "] |";
+    fout << std::setw(18) << lab.str();
+  }
+  fout << std::endl;
+
+  // File column separator
+  //
+  fout << "#" << std::setfill('-')
+       << std::setw(17) << "+";
+  for (int i=2; i<10; i++) {
+    fout << std::setw(18) << "+";
+  }
+  for (int nn=0; nn<nmin; nn++) {
+    fout << std::setw(18) << "+";
+    fout << std::setw(18) << "+";
+  }
+  fout << std::endl << std::setfill(' ');
+  //
+  // END: file header
+
+
+  // Compute and write expansion values
+  //
   for (int j=0; j<NFRC; j++) {
-    std::vector<double> dd(nmin);
+    std::vector<double> pp(nmin), dd(nmin);
     double p0, p, fr, fz, fp, d;
     double r = x_to_r(xmin + dx*j, AA);
 
@@ -866,7 +934,7 @@ main(int ac, char **av)
     {
       double p1, fr1, fz1, fp1;	// Dummy variables
       for (int nn=0; nn<nmin; nn++) 
-	expandd->get_all(0, nn, r, z, 0.0, p1, dd[nn], fr1, fz1, fp1);
+	expandd->get_all(0, nn, r, z, 0.0, pp[nn], dd[nn], fr1, fz1, fp1);
     }
 
     
@@ -895,7 +963,8 @@ main(int ac, char **av)
 	 << std::setw(18) << d		  // 8
 	 << std::setw(18) << D;		  // 9
     for (int nn=0; nn<nmin; nn++)
-      fout << std::setw(18) << dd[nn];	  // 10+nn
+      fout << std::setw(18) << pp[nn]	  // 10+2*nn
+	   << std::setw(18) << dd[nn];	  // 10+2*nn+1
     fout << std::endl;
   }
 
