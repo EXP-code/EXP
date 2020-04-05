@@ -548,7 +548,7 @@ SphModTblPtr EmpCylSL::make_sl()
     out.close();
   }
 
-  return SphModTblPtr( new SphericalModelTable(number, &r[0]-1, &d[0]-1, &m[0]-1, &p[0]-1) );
+  return boost::make_shared<SphericalModelTable>(number, &r[0]-1, &d[0]-1, &m[0]-1, &p[0]-1);
 }
 
 void EmpCylSL::send_eof_grid()
