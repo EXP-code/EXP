@@ -70,8 +70,6 @@ EmpCylSL::EmpModel EmpCylSL::mtype = Exponential;
 EmpCylSL::EmpCylSL(void)
 {
   NORDER     = 0;
-  MPIset     = false;
-  MPIset_eof = false;
   coefs_made = vector<short>(multistep+1, false);
   eof_made   = false;
   sampT      = 0;
@@ -84,127 +82,16 @@ EmpCylSL::EmpCylSL(void)
   else
     MPItable = 3;
 
-  SC = 0;
-  SS = 0;
-
-  accum_cos = 0;
-  accum_sin = 0;
-
   cylmass = 0.0;
   cylmass_made = false;
   cylmass1 = vector<double>(nthrds);
-
-  mpi_double_buf2 = 0;
-  mpi_double_buf3 = 0;
 
   hallfile = "";
 }
 
 EmpCylSL::~EmpCylSL(void)
 {
-  if (SC) {
-
-    for (int m=0; m<=MMAX; m++) {
-      delete [] potC[m];
-      delete [] rforceC[m];
-      delete [] zforceC[m];
-      if (DENS) delete [] densC[m];
-      if (m) {
-	delete [] potS[m];
-	delete [] rforceS[m];
-	delete [] zforceS[m];
-	if (DENS) delete [] densS[m];
-      }
-    }
-
-
-    delete [] potC;
-    delete [] rforceC;
-    delete [] zforceC;
-    if (DENS) delete [] densC;
-
-    delete [] potS;
-    delete [] rforceS;
-    delete [] zforceS;
-    if (DENS) delete [] densS;
-
-    delete [] tpot;
-    delete [] trforce;
-    delete [] tzforce;
-    if (DENS) delete [] tdens;
-
-    delete [] mpi_double_buf2;
-    delete [] mpi_double_buf3;
-
-    for (int nth=0; nth<nthrds; nth++) {
-
-      for (int mm=0; mm<=MMAX; mm++) {
-      
-	for (int j1=1; j1<=NMAX*(LMAX-mm+1); j1++) {
-
-	  delete [] &SC[nth][mm][j1][1];
-	  if (mm) delete [] &SS[nth][mm][j1][1];
-	}
-	  
-	delete [] &SC[nth][mm][1];
-	if (mm) delete [] &SS[nth][mm][1];
-      }
-	
-      delete [] SC[nth];
-      delete [] SS[nth];
-    }
-    
-    delete [] SC;
-    delete [] SS;
-
-    delete [] vc;
-    delete [] vs;
-    delete [] var;
-
-    delete [] cosm;
-    delete [] sinm;
-    delete [] legs;
-    delete [] dlegs;
-
-    delete [] table;
-    delete [] facC;
-    delete [] facS;
-  }
-
-  if (accum_cos) {
-
-    delete [] accum_cos;
-    delete [] accum_sin;
-
-  }
-  
-  for (unsigned M=0; M<accum_cosL.size(); M++) {
-    
-    for (int nth=0; nth<nthrds; nth++) {
-      delete [] accum_cosL[M][nth];
-      delete [] accum_sinL[M][nth];
-
-      delete [] accum_cosN[M][nth];
-      delete [] accum_sinN[M][nth];
-    }
-
-    delete [] accum_cosL[M];
-    delete [] accum_sinL[M];
-
-    delete [] accum_cosN[M];
-    delete [] accum_sinN[M];
-  }
-
-  if (MPIset) {
-    delete [] MPIin;
-    delete [] MPIout;
-  }
-
-  if (MPIset_eof) {
-    delete [] MPIin_eof;
-    delete [] MPIout_eof;
-  }
-
+  // Nothing . . . 
 }
 
 
@@ -234,16 +121,8 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   else
     MPItable = 3;
 
-  SC = 0;
-  SS = 0;
-
-  MPIset     = false;
-  MPIset_eof = false;
   coefs_made = vector<short>(multistep+1, false);
   eof_made   = false;
-
-  accum_cos    = 0;
-  accum_sin    = 0;
 
   sampT        = 0;
   tk_type      = None;
@@ -251,9 +130,6 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   cylmass      = 0.0;
   cylmass1     = vector<double>(nthrds);
   cylmass_made = false;
-
-  mpi_double_buf2 = 0;
-  mpi_double_buf3 = 0;
 
   hallfile  = "";
 }
@@ -278,11 +154,6 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
 					make_sl(), false, 1, 1.0);
 
-  SC = 0;
-  SS = 0;
-
-  MPIset = false;
-  MPIset_eof = false;
   coefs_made = vector<short>(multistep+1, false);
   eof_made = false;
 
@@ -291,17 +162,11 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   else
     MPItable = 3;
 
-  accum_cos = 0;
-  accum_sin = 0;
-
-  sampT     = 0;
+  sampT = 0;
 
   cylmass = 0.0;
-  cylmass1 = vector<double>(nthrds);
+  cylmass1.resize(nthrds);
   cylmass_made = false;
-
-  mpi_double_buf2 = 0;
-  mpi_double_buf3 = 0;
 }
 
 void EmpCylSL::create_deprojection(double H, double Rf, int NUMR, int NINT,
@@ -1332,26 +1197,33 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 
 void EmpCylSL::setup_accumulation(int mlevel)
 {
-  if (!accum_cos) {		// First time only
+  if (accum_cos.size()==0) {	// First time only
 
-    accum_cos = new Vector [MMAX+1];
-    accum_sin = new Vector [MMAX+1];
+    accum_cos.resize(MMAX+1);
+    accum_sin.resize(MMAX+1);
+
+    cosL.resize(multistep+1);
+    cosN.resize(multistep+1);
+    sinL.resize(multistep+1);
+    sinN.resize(multistep+1);
+
+    howmany1.resize(multistep+1);
+    howmany .resize(multistep+1, 0);
 
     for (unsigned M=0; M<=multistep; M++) {
-      accum_cosL.push_back(new Vector* [nthrds]);
-      accum_cosN.push_back(new Vector* [nthrds]);
-      accum_sinL.push_back(new Vector* [nthrds]);
-      accum_sinN.push_back(new Vector* [nthrds]);
+      cosL[M] = boost::make_shared<VectorD2>(nthrds);
+      cosN[M] = boost::make_shared<VectorD2>(nthrds);
+      sinL[M] = boost::make_shared<VectorD2>(nthrds);
+      sinN[M] = boost::make_shared<VectorD2>(nthrds);
       
       for (int nth=0; nth<nthrds; nth++) {
-	accum_cosL[M][nth] = new Vector [MMAX+1];
-	accum_cosN[M][nth] = new Vector [MMAX+1];
-	accum_sinL[M][nth] = new Vector [MMAX+1];
-	accum_sinN[M][nth] = new Vector [MMAX+1];
+	cosL(M)[nth].resize(MMAX+1);
+	cosN(M)[nth].resize(MMAX+1);
+	sinL(M)[nth].resize(MMAX+1);
+	sinN(M)[nth].resize(MMAX+1);
       }
 
-      howmany1.push_back(vector<unsigned>(nthrds, 0));
-      howmany.push_back(0);
+      howmany1[M].resize(nthrds, 0);
     }
 
     if (VFLAG & 8)
@@ -1379,12 +1251,12 @@ void EmpCylSL::setup_accumulation(int mlevel)
 	
 	for (int m=0; m<=MMAX; m++) {
 	  
-	  accum_cosN[M][nth][m].setsize(0, NORDER-1);
-	  accum_cosL[M][nth][m].setsize(0, NORDER-1);
+	  cosN(M)[nth][m].setsize(0, NORDER-1);
+	  cosL(M)[nth][m].setsize(0, NORDER-1);
 	  
 	  if (m>0) {
-	    accum_sinN[M][nth][m].setsize(0, NORDER-1);
-	    accum_sinL[M][nth][m].setsize(0, NORDER-1);
+	    sinN(M)[nth][m].setsize(0, NORDER-1);
+	    sinL(M)[nth][m].setsize(0, NORDER-1);
 	  }
 	}
       }
@@ -1399,8 +1271,8 @@ void EmpCylSL::setup_accumulation(int mlevel)
       for (int nth=0; nth<nthrds; nth++) {
 	for (unsigned T=0; T<sampT; T++) {
 	  massT1[nth][T] = 0.0;
-	  accum_cos2[nth][T]->setsize(0, MMAX, 0, NORDER-1);
-	  accum_sin2[nth][T]->setsize(0, MMAX, 0, NORDER-1);
+	  cos2[nth][T]->setsize(0, MMAX, 0, NORDER-1);
+	  sin2[nth][T]->setsize(0, MMAX, 0, NORDER-1);
 	}
       }
     }
@@ -1424,8 +1296,8 @@ void EmpCylSL::setup_accumulation(int mlevel)
 
 	for (unsigned T=0; T<sampT; T++) {
 	  massT1[nth][T] = 0.0;
-	  accum_cos2[nth][T]->zero();
-	  accum_sin2[nth][T]->zero();
+	  cos2[nth][T]->zero();
+	  sin2[nth][T]->zero();
 	}
       }
     }
@@ -1439,15 +1311,13 @@ void EmpCylSL::setup_accumulation(int mlevel)
     //
     // Swap buffers
     //
-    Vector **p;
+    auto p  = cosL[M];
+    cosL[M] = cosN[M];
+    cosN[M] = p;
     
-    p = accum_cosL[M];
-    accum_cosL[M] = accum_cosN[M];
-    accum_cosN[M] = p;
-    
-    p = accum_sinL[M];
-    accum_sinL[M] = accum_sinN[M];
-    accum_sinN[M] = p;
+    p       = sinL[M];
+    sinL[M] = sinN[M];
+    sinN[M] = p;
     
     //
     // Clean current coefficient files
@@ -1457,8 +1327,8 @@ void EmpCylSL::setup_accumulation(int mlevel)
       howmany1[M][nth] = 0;
       
       for (int m=0; m<=MMAX; m++) {
-	accum_cosN[M][nth][m].zero();
-	if (m>0) accum_sinN[M][nth][m].zero();
+	cosN(M)[nth][m].zero();
+	if (m>0) sinN(M)[nth][m].zero();
       }
     }
     
@@ -1478,28 +1348,28 @@ void EmpCylSL::init_pca()
       tvar.resize(nthrds);
 
     if (PCAVAR) {
-      accum_cos2.resize(nthrds);
-      accum_sin2.resize(nthrds);
-      massT1    .resize(nthrds);
-      massT     .resize(sampT, 0);
+      cos2  .resize(nthrds);
+      sin2  .resize(nthrds);
+      massT1.resize(nthrds);
+      massT .resize(sampT, 0);
     }
 
     for (int nth=0; nth<nthrds;nth++) {
       if (PCAEOF) {
 	tvar[nth].resize(MMAX + 1);
 	for (auto & v : tvar[nth])
-	  v = MatrixP(new Matrix(1, rank3, 1, rank3));
+	  v = boost::make_shared<Matrix>(1, rank3, 1, rank3);
       }
 
       if (PCAVAR) {
 
 	massT1[nth].resize(sampT, 0);
 
-	accum_cos2[nth].resize(sampT);
-	accum_sin2[nth].resize(sampT);
+	cos2[nth].resize(sampT);
+	sin2[nth].resize(sampT);
 	for (unsigned T=0; T<sampT; T++) {
-	  accum_cos2[nth][T] = MatrixP(new Matrix(0, MMAX, 0, rank3-1));
-	  accum_sin2[nth][T] = MatrixP(new Matrix(0, MMAX, 0, rank3-1));
+	  cos2[nth][T] = boost::make_shared<Matrix>(0, MMAX, 0, rank3-1);
+	  sin2[nth][T] = boost::make_shared<Matrix>(0, MMAX, 0, rank3-1);
 	}
       }
     }
@@ -1508,7 +1378,7 @@ void EmpCylSL::init_pca()
 
 void EmpCylSL::setup_eof()
 {
-  if (!SC) {
+  if (SC.size()==0) {
 
     rank2   = NMAX*(LMAX+1);
     rank3   = NORDER;
@@ -1522,22 +1392,22 @@ void EmpCylSL::setup_eof()
     YMAX    = z_to_y( Rtable*ASCALE);
     dY      = (YMAX - YMIN)/NUMY;
 
-    potC    = new Matrix* [MMAX+1];
-    rforceC = new Matrix* [MMAX+1];
-    zforceC = new Matrix* [MMAX+1];
-    if (DENS) densC = new Matrix* [MMAX+1];
+    potC   .resize(MMAX+1);
+    rforceC.resize(MMAX+1);
+    zforceC.resize(MMAX+1);
+    if (DENS) densC.resize(MMAX+1);
 
-    potS    = new Matrix* [MMAX+1];
-    rforceS = new Matrix* [MMAX+1];
-    zforceS = new Matrix* [MMAX+1];
-    if (DENS) densS = new Matrix* [MMAX+1];
+    potS   .resize(MMAX+1);
+    rforceS.resize(MMAX+1);
+    zforceS.resize(MMAX+1);
+    if (DENS) densS.resize(MMAX+1);
 
     for (int m=0; m<=MMAX; m++) {
 
-      potC[m]    = new Matrix [rank3];
-      rforceC[m] = new Matrix [rank3];
-      zforceC[m] = new Matrix [rank3];
-      if (DENS) densC[m] = new Matrix [rank3];
+      potC[m]   .resize(rank3);
+      rforceC[m].resize(rank3);
+      zforceC[m].resize(rank3);
+      if (DENS) densC[m].resize(rank3);
 
       for (int v=0; v<rank3; v++) {
 	potC   [m][v].setsize(0, NUMX, 0, NUMY);
@@ -1551,10 +1421,10 @@ void EmpCylSL::setup_eof()
 
     for (int m=1; m<=MMAX; m++) {
 
-      potS[m]    = new Matrix [rank3];
-      rforceS[m] = new Matrix [rank3];
-      zforceS[m] = new Matrix [rank3];
-      if (DENS) densS[m] = new Matrix [rank3];
+      potS[m]   .resize(rank3);
+      rforceS[m].resize(rank3);
+      zforceS[m].resize(rank3);
+      if (DENS) densS[m].resize(rank3);
 
       for (int v=0; v<rank3; v++) {
 	potS   [m][v].setsize(0, NUMX, 0, NUMY);
@@ -1565,10 +1435,10 @@ void EmpCylSL::setup_eof()
 
     }
 
-    tpot = new Matrix [NORDER];
-    trforce = new Matrix [NORDER];
-    tzforce = new Matrix [NORDER];
-    if (DENS) tdens = new Matrix [NORDER];
+    tpot   .resize(NORDER);
+    trforce.resize(NORDER);
+    tzforce.resize(NORDER);
+    if (DENS) tdens.resize(NORDER);
 
     for (int n=0; n<NORDER; n++) {
       tpot[n].setsize(0, NUMX, 0, NUMY);
@@ -1577,22 +1447,22 @@ void EmpCylSL::setup_eof()
       if (DENS) tdens[n].setsize(0, NUMX, 0, NUMY);
     }
 
-    SC = new double*** [nthrds];
-    SS = new double*** [nthrds];
+    SC.resize(nthrds);
+    SS.resize(nthrds);
 
     for (int nth=0; nth<nthrds; nth++) {
-      SC[nth] = new double** [MMAX+1];
-      SS[nth] = new double** [MMAX+1];
+      SC[nth].resize(MMAX+1);
+      SS[nth].resize(MMAX+1);
     }
 
-    vc = new Matrix [nthrds];
-    vs = new Matrix [nthrds];
+    vc.resize(nthrds);
+    vs.resize(nthrds);
     for (int i=0; i<nthrds; i++) {
       vc[i].setsize(0, max<int>(1,MMAX), 0, rank3-1);
       vs[i].setsize(0, max<int>(1,MMAX), 0, rank3-1);
     }
 
-    var = new Matrix[MMAX+1];
+    var.resize(MMAX+1);
     for (int m=0; m<=MMAX; m++)
       var[m].setsize(1, NMAX*(LMAX-m+1), 1, NMAX*(LMAX-m+1));
       
@@ -1600,10 +1470,10 @@ void EmpCylSL::setup_eof()
     dpot.setsize(0, LMAX, 1, NMAX);
     dend.setsize(0, LMAX, 1, NMAX);
 
-    cosm = new Vector [nthrds];
-    sinm = new Vector [nthrds];
-    legs = new Matrix [nthrds];
-    dlegs = new Matrix [nthrds];
+    cosm .resize(nthrds);
+    sinm .resize(nthrds);
+    legs .resize(nthrds);
+    dlegs.resize(nthrds);
     for (int i=0; i<nthrds; i++) {
       cosm[i].setsize(0, LMAX);
       sinm[i].setsize(0, LMAX);
@@ -1616,13 +1486,13 @@ void EmpCylSL::setup_eof()
 
       for (int m=0; m<=MMAX; m++) {
 
-	SC[nth][m] = new double* [NMAX*(LMAX-m+1)] - 1;
-	if (m) SS[nth][m] = new double* [NMAX*(LMAX-m+1)] - 1;
+	SC[nth][m].resize(NMAX*(LMAX-m+1));
+	if (m) SS[nth][m].resize(NMAX*(LMAX-m+1));
 
-	for (int i=1; i<=NMAX*(LMAX-m+1); i++) {
+	for (int i=0; i<NMAX*(LMAX-m+1); i++) {
 
-	  SC[nth][m][i] = new double [NMAX*(LMAX-m+1)] - 1;
-	  if (m) SS[nth][m][i] = new double [NMAX*(LMAX-m+1)] - 1;
+	  SC[nth][m][i].resize(NMAX*(LMAX-m+1));
+	  if (m) SS[nth][m][i].resize(NMAX*(LMAX-m+1));
 
 	}
 
@@ -1630,9 +1500,9 @@ void EmpCylSL::setup_eof()
     
     }
 
-    table = new Matrix [nthrds];
-    facC  = new Matrix [nthrds];
-    facS  = new Matrix [nthrds];
+    table.resize(nthrds);
+    facC .resize(nthrds);
+    facS .resize(nthrds);
     for (int i=0; i<nthrds; i++) {
       table[i].setsize(0, LMAX, 1, NMAX);
       facC [i].setsize(1, NMAX, 0, LMAX);
@@ -1641,14 +1511,14 @@ void EmpCylSL::setup_eof()
 
     MPIbufsz = (NUMX+1)*(NUMY+1);
 
-    mpi_double_buf2 = new double [MPIbufsz*NORDER*MPItable];
-    mpi_double_buf3 = new double [rank3];
+    mpi_double_buf2.resize(MPIbufsz*NORDER*MPItable);
+    mpi_double_buf3.resize(rank3);
   }
 
   for (int nth=0; nth<nthrds; nth++) {
     for (int m=0; m<=MMAX; m++)  {
-      for (int i=1; i<=NMAX*(LMAX-m+1); i++)  {
-	for (int j=1; j<=NMAX*(LMAX-m+1); j++)  {
+      for (int i=0; i<NMAX*(LMAX-m+1); i++)  {
+	for (int j=0; j<NMAX*(LMAX-m+1); j++)  {
 	  SC[nth][m][i][j] = 0.0;
 	  if (m>0) SS[nth][m][i][j] = 0.0;
 	}
@@ -1763,13 +1633,13 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
 	    for (int l1=m; l1<=LMAX; l1++) {
 
-	      int nn1 = ir1 + NMAX*(l1-m);
+	      int nn1 = ir1 - 1 + NMAX*(l1-m);
 
 	      if (m==0) {
 		
 		for (int ir2=1; ir2<=NMAX; ir2++) {
 		  for (int l2=m; l2<=LMAX; l2++) {
-		    int nn2 = ir2 + NMAX*(l2-m);
+		    int nn2 = ir2 - 1 + NMAX*(l2-m);
 		    
 		    SC[id][m][nn1][nn2] += 
 		      facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
@@ -1782,7 +1652,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
 		  for (int l2=m; l2<=LMAX; l2++) {
 		    
-		    int nn2 = ir2 + NMAX*(l2-m);
+		    int nn2 = ir2 - 1 + NMAX*(l2-m);
 
 		    SC[id][m][nn1][nn2] += 
 		      facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
@@ -1917,13 +1787,13 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
 
     for (int ir1=1; ir1<=NMAX; ir1++) {
       for (int l1=m; l1<=LMAX; l1++) {
-	nn1 = ir1 + NMAX*(l1-m);
+	nn1 = ir1 - 1 + NMAX*(l1-m);
 
 	if (m==0) {
 	  
 	  for (int ir2=1; ir2<=NMAX; ir2++) {
 	    for (int l2=m; l2<=LMAX; l2++) {
-	      nn2 = ir2 + NMAX*(l2-m);
+	      nn2 = ir2 - 1 + NMAX*(l2-m);
 
 	      SC[id][m][nn1][nn2] += 
 		facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * mass;
@@ -1959,10 +1829,9 @@ void EmpCylSL::make_eof(void)
   int icnt;
   double tmp;
 
-  if (!MPIset_eof) {
-    MPIin_eof  = new double [rank2*(rank2+1)/2];
-    MPIout_eof = new double [rank2*(rank2+1)/2];
-    MPIset_eof = true;
+  if (MPIin_eof.size()==0) {
+    MPIin_eof .resize(rank2*(rank2+1)/2);
+    MPIout_eof.resize(rank2*(rank2+1)/2);
   }
   
   //
@@ -1973,16 +1842,16 @@ void EmpCylSL::make_eof(void)
 
     for (int mm=0; mm<=MMAX; mm++) {
 
-      for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
-	for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
+      for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+	for (int j=i; j<NMAX*(LMAX-mm+1); j++)
 	  SC[0][mm][i][j] += SC[nth][mm][i][j];
   
     }
 
     for (int mm=1; mm<=MMAX; mm++) {
 
-      for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
-	for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
+      for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+	for (int j=i; j<NMAX*(LMAX-mm+1); j++)
 	  SS[0][mm][i][j] += SS[nth][mm][i][j];
   
     }
@@ -1993,8 +1862,8 @@ void EmpCylSL::make_eof(void)
 
     for (int mm=0; mm<=MMAX; mm++) {
       bool bad = false;
-      for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
-	for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
+      for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+	for (int j=i; j<NMAX*(LMAX-mm+1); j++)
 	  if (std::isnan(SC[0][mm][i][j])) bad = true;
       
       if (bad) {
@@ -2005,8 +1874,8 @@ void EmpCylSL::make_eof(void)
     
     for (int mm=1; mm<=MMAX; mm++) {
       bool bad = false;
-      for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
-	for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
+      for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+	for (int j=i; j<NMAX*(LMAX-mm+1); j++)
 	  if (std::isnan(SS[0][mm][i][j])) bad = true;
       
       if (bad) {
@@ -2023,16 +1892,16 @@ void EmpCylSL::make_eof(void)
   for (int mm=0; mm<=MMAX; mm++) {
 
     icnt=0;
-    for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
-      for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
+    for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+      for (int j=i; j<NMAX*(LMAX-mm+1); j++)
 	MPIin_eof[icnt++] = SC[0][mm][i][j];
     
-    MPI_Allreduce ( MPIin_eof, MPIout_eof, 
+    MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
 		    NMAX*(LMAX-mm+1)*(NMAX*(LMAX-mm+1)+1)/2,
 		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     icnt=0;
-    for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
-      for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
+    for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+      for (int j=i; j<NMAX*(LMAX-mm+1); j++)
 	SC[0][mm][i][j] = MPIout_eof[icnt++];
     
   }
@@ -2040,16 +1909,16 @@ void EmpCylSL::make_eof(void)
   for (int mm=1; mm<=MMAX; mm++) {
 
     icnt=0;
-    for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
-      for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
+    for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+      for (int j=i; j<NMAX*(LMAX-mm+1); j++)
 	MPIin_eof[icnt++] = SS[0][mm][i][j];
   
-    MPI_Allreduce ( MPIin_eof, MPIout_eof, 
+    MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
 		    NMAX*(LMAX-mm+1)*(NMAX*(LMAX-mm+1)+1)/2,
 		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     icnt=0;
-    for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
-      for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
+    for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+      for (int j=i; j<NMAX*(LMAX-mm+1); j++)
 	SS[0][mm][i][j] = MPIout_eof[icnt++];
   }
 
@@ -2064,8 +1933,8 @@ void EmpCylSL::make_eof(void)
       if (myid==n) {
 	for (int mm=0; mm<=MMAX; mm++) {
 	  bool bad = false;
-	  for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
-	    for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
+	  for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+	    for (int j=i; j<NMAX*(LMAX-mm+1); j++)
 	      if (std::isnan(SC[0][mm][i][j])) bad = true;
 	
 	  if (bad) {
@@ -2076,8 +1945,8 @@ void EmpCylSL::make_eof(void)
 	
 	for (int mm=1; mm<=MMAX; mm++) {
 	  bool bad = false;
-	  for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
-	    for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
+	  for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+	    for (int j=i; j<NMAX*(LMAX-mm+1); j++)
 	      if (std::isnan(SS[0][mm][i][j])) bad = true;
 	  
 	  if (bad) {
@@ -2192,14 +2061,14 @@ void EmpCylSL::make_eof(void)
       if (request_id) {
 				// Complete symmetric part
 
-	for (int i=1; i<NMAX*(LMAX-M+1); i++) {
+	for (int i=1; i<=NMAX*(LMAX-M+1); i++) {
 	  for (int j=i; j<=NMAX*(LMAX-M+1); j++)
-	    var[M][i][j] = SC[0][M][i][j];
+	    var[M][i][j] = SC[0][M][i-1][j-1];
 	}
 
 	for (int i=1; i<NMAX*(LMAX-M+1); i++) {
 	  for (int j=i+1; j<=NMAX*(LMAX-M+1); j++) {
-	    var[M][j][i] = SC[0][M][i][j];
+	    var[M][j][i] = SC[0][M][i-1][j-1];
 	  }
 	}
     
@@ -2252,14 +2121,14 @@ void EmpCylSL::make_eof(void)
 				// Complete symmetric part
     
 
-	for (int i=1; i<NMAX*(LMAX-M+1); i++) {
+	for (int i=1; i<=NMAX*(LMAX-M+1); i++) {
 	  for (int j=i; j<=NMAX*(LMAX-M+1); j++)
-	    var[M][i][j] = SS[0][M][i][j];
+	    var[M][i][j] = SS[0][M][i-1][j-1];
 	}
 
 	for (int i=1; i<NMAX*(LMAX-M+1); i++) {
 	  for (int j=i+1; j<=NMAX*(LMAX-M+1); j++) {
-	    var[M][j][i] = SS[0][M][i][j];
+	    var[M][j][i] = SS[0][M][i-1][j-1];
 	  }
 	}
     
@@ -2565,14 +2434,14 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
     for (int nn=0; nn<rank3; nn++) {
       double hold = norm * mass * mcos * vc[id][mm][nn];
 
-      accum_cosN[mlevel][id][mm][nn] += hold;
+      cosN(mlevel)[id][mm][nn] += hold;
 
-      if (compute and PCAVAR) (*accum_cos2[id][whch])[mm][nn] += hold;
+      if (compute and PCAVAR) cos2(id, whch)[mm][nn] += hold;
 
       if (mm>0) {
 	hold = norm * mass * msin * vs[id][mm][nn];
-	accum_sinN[mlevel][id][mm][nn] += hold;
-	if (compute and PCAVAR) (*accum_sin2[id][whch])[mm][nn] += hold;
+	sinN(mlevel)[id][mm][nn] += hold;
+	if (compute and PCAVAR) sin2(id, whch)[mm][nn] += hold;
       }
 
       if (compute and PCAEOF) {
@@ -2596,10 +2465,9 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 
 void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 {
-  if (!MPIset) {
-    MPIin  = new double [rank3*(MMAX+1)];
-    MPIout = new double [rank3*(MMAX+1)];
-    MPIset = true;
+  if (MPIin.size()==0) {
+    MPIin .resize(rank3*(MMAX+1));
+    MPIout.resize(rank3*(MMAX+1));
   }
   
 
@@ -2615,43 +2483,43 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 
       for (int mm=0; mm<=MMAX; mm++)
 	for (int nn=0; nn<rank3; nn++) {
-	  accum_cosN[M][0][mm][nn] += accum_cosN[M][nth][mm][nn];
+	  cosN(M)[0][mm][nn] += cosN(M)[nth][mm][nn];
 	}
       
       for (int mm=1; mm<=MMAX; mm++)
 	for (int nn=0; nn<rank3; nn++) {
-	  accum_sinN[M][0][mm][nn] += accum_sinN[M][nth][mm][nn];
+	  sinN(M)[0][mm][nn] += sinN(M)[nth][mm][nn];
 	}
     }
 				// Begin distribution loop
 				//
     for (int mm=0; mm<=MMAX; mm++)
       for (int nn=0; nn<rank3; nn++)
-	MPIin[mm*rank3 + nn] = accum_cosN[M][0][mm][nn];
+	MPIin[mm*rank3 + nn] = cosN(M)[0][mm][nn];
     
-    MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
+    MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
 		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
     for (int mm=0; mm<=MMAX; mm++)
       for (int nn=0; nn<rank3; nn++)
 	if (multistep)
-	  accum_cosN[M][0][mm][nn] = MPIout[mm*rank3 + nn];
+	  cosN(M)[0][mm][nn] = MPIout[mm*rank3 + nn];
 	else
 	  accum_cos[mm][nn] = MPIout[mm*rank3 + nn];
     
 
     for (int mm=1; mm<=MMAX; mm++)
       for (int nn=0; nn<rank3; nn++)
-	MPIin[mm*rank3 + nn] = accum_sinN[M][0][mm][nn];
+	MPIin[mm*rank3 + nn] = sinN(M)[0][mm][nn];
     
-    MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
+    MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
 		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   
 
     for (int mm=1; mm<=MMAX; mm++)
       for (int nn=0; nn<rank3; nn++)
 	if (multistep)
-	  accum_sinN[M][0][mm][nn] = MPIout[mm*rank3 + nn];
+	  sinN(M)[0][mm][nn] = MPIout[mm*rank3 + nn];
 	else
 	  accum_sin[mm][nn] = MPIout[mm*rank3 + nn];
     
@@ -2676,11 +2544,11 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 
 	for (int mm=0; mm<=MMAX; mm++)
 	  for (int nn=0; nn<rank3; nn++)
-	    (*accum_cos2[0][T])[mm][nn] += (*accum_cos2[nth][T])[mm][nn];
+	    cos2(0, T)[mm][nn] += cos2(nth, T)[mm][nn];
 	
 	for (int mm=1; mm<=MMAX; mm++)
 	  for (int nn=0; nn<rank3; nn++)
-	    (*accum_sin2[0][T])[mm][nn] += (*accum_sin2[nth][T])[mm][nn];
+	    sin2(0, T)[mm][nn] += sin2(nth, T)[mm][nn];
 
       } // T loop
       
@@ -2706,7 +2574,7 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 	  for (int oo=0; oo<rank3; oo++)
 	    MPIinT[mm*rank3*rank3 + nn*rank3 + oo] = (*tvar[0][mm])[nn+1][oo+1];
   
-      MPI_Allreduce ( &MPIinT[0], &MPIotT[0], rank3*rank3*(MMAX+1),
+      MPI_Allreduce ( MPIinT.data(), MPIotT.data(), rank3*rank3*(MMAX+1),
 		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
       
       for (int mm=0; mm<=MMAX; mm++)
@@ -2721,27 +2589,28 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
       
       for (int mm=0; mm<=MMAX; mm++)
 	for (int nn=0; nn<rank3; nn++)
-	  MPIin[mm*rank3 + nn] = (*accum_cos2[0][T])[mm][nn];
+	  MPIin[mm*rank3 + nn] = cos2(0, T)[mm][nn];
   
-      MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
+      MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
 		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
       for (int mm=0; mm<=MMAX; mm++)
 	for (int nn=0; nn<rank3; nn++)
-	  (*accum_cos2[0][T])[mm][nn] = MPIout[mm*rank3 + nn];
+	  cos2(0, T)[mm][nn] = MPIout[mm*rank3 + nn];
       
       for (int mm=1; mm<=MMAX; mm++)
 	for (int nn=0; nn<rank3; nn++)
-	  MPIin[mm*rank3 + nn] = (*accum_sin2[0][T])[mm][nn];
+	  MPIin[mm*rank3 + nn] = sin2(0, T)[mm][nn];
       
-      MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
+      MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
 		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
       
       for (int mm=1; mm<=MMAX; mm++)
 	for (int nn=0; nn<rank3; nn++)
-	  (*accum_sin2[0][T])[mm][nn] = MPIout[mm*rank3 + nn];
+	  sin2(0, T)[mm][nn] = MPIout[mm*rank3 + nn];
       
-    } // T loop
+    }
+    // T loop
     
   }
 }
@@ -2767,10 +2636,9 @@ void EmpCylSL::make_coefficients(bool compute)
   
   if (coefs_made_all()) return;
 
-  if (!MPIset) {
-    MPIin  = new double [rank3*(MMAX+1)];
-    MPIout = new double [rank3*(MMAX+1)];
-    MPIset = true;
+  if (MPIin.size()==0) {
+    MPIin .resize(rank3*(MMAX+1));
+    MPIout.resize(rank3*(MMAX+1));
   }
 				// Sum up over threads
 				// 
@@ -2788,20 +2656,20 @@ void EmpCylSL::make_coefficients(bool compute)
       
       for (int mm=0; mm<=MMAX; mm++) {
 	for (int nn=0; nn<rank3; nn++) {
-	  accum_cosN[M][0][mm][nn] += accum_cosN[M][nth][mm][nn];
+	  cosN(M)[0][mm][nn] += cosN(M)[nth][mm][nn];
 	  if (compute and PCAVAR) {
 	    for (unsigned T=0; T<sampT; T++) 
-	      (*accum_cos2[0][T])[mm][nn] += (*accum_cos2[nth][T])[mm][nn];
+	      cos2(0, T)[mm][nn] += cos2(nth, T)[mm][nn];
 	  }
 	}
       }
 
       for (int mm=1; mm<=MMAX; mm++) {
 	for (int nn=0; nn<rank3; nn++) {
-	  accum_sinN[M][0][mm][nn] += accum_sinN[M][nth][mm][nn];
+	  sinN(M)[0][mm][nn] += sinN(M)[nth][mm][nn];
 	  if (compute and PCAVAR) {
 	    for (unsigned T=0; T<sampT; T++) 
-	      (*accum_sin2[0][T])[mm][nn] += (*accum_sin2[nth][T])[mm][nn];
+	      sin2(0, T)[mm][nn] += sin2(nth, T)[mm][nn];
 	  }
 	}
       }
@@ -2827,15 +2695,15 @@ void EmpCylSL::make_coefficients(bool compute)
 
     for (int mm=0; mm<=MMAX; mm++)
       for (int nn=0; nn<rank3; nn++)
-	MPIin[mm*rank3 + nn] = accum_cosN[M][0][mm][nn];
+	MPIin[mm*rank3 + nn] = cosN(M)[0][mm][nn];
   
-    MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
+    MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
 		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
     for (int mm=0; mm<=MMAX; mm++)
       for (int nn=0; nn<rank3; nn++)
 	if (multistep)
-	  accum_cosN[M][0][mm][nn] = MPIout[mm*rank3 + nn];
+	  cosN(M)[0][mm][nn] = MPIout[mm*rank3 + nn];
 	else
 	  accum_cos[mm][nn] = MPIout[mm*rank3 + nn];
   }
@@ -2845,14 +2713,14 @@ void EmpCylSL::make_coefficients(bool compute)
     for (unsigned T=0; T<sampT; T++) {
       for (int mm=0; mm<=MMAX; mm++)
 	for (int nn=0; nn<rank3; nn++)
-	  MPIin[mm*rank3 + nn] = (*accum_cos2[0][T])[mm][nn];
+	  MPIin[mm*rank3 + nn] = cos2(0, T)[mm][nn];
   
-      MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
+      MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
 		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
       for (int mm=0; mm<=MMAX; mm++)
 	for (int nn=0; nn<rank3; nn++)
-	  (*accum_cos2[0][T])[mm][nn] = MPIout[mm*rank3 + nn];
+	  cos2(0, T)[mm][nn] = MPIout[mm*rank3 + nn];
 
     } // T loop
 
@@ -2865,16 +2733,16 @@ void EmpCylSL::make_coefficients(bool compute)
 
     for (int mm=1; mm<=MMAX; mm++)
       for (int nn=0; nn<rank3; nn++)
-	MPIin[mm*rank3 + nn] = accum_sinN[M][0][mm][nn];
+	MPIin[mm*rank3 + nn] = sinN(M)[0][mm][nn];
   
-    MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
+    MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
 		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   
 
     for (int mm=1; mm<=MMAX; mm++)
       for (int nn=0; nn<rank3; nn++)
 	if (multistep)
-	  accum_sinN[M][0][mm][nn] = MPIout[mm*rank3 + nn];
+	  sinN(M)[0][mm][nn] = MPIout[mm*rank3 + nn];
 	else
 	  accum_sin[mm][nn] = MPIout[mm*rank3 + nn];
   }
@@ -2885,14 +2753,14 @@ void EmpCylSL::make_coefficients(bool compute)
 
       for (int mm=1; mm<=MMAX; mm++)
 	for (int nn=0; nn<rank3; nn++)
-	  MPIin[mm*rank3 + nn] = (*accum_sin2[0][T])[mm][nn];
+	  MPIin[mm*rank3 + nn] = sin2(0, T)[mm][nn];
   
-      MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
+      MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
 		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
       for (int mm=1; mm<=MMAX; mm++)
 	for (int nn=0; nn<rank3; nn++)
-	  (*accum_sin2[0][T])[mm][nn] = MPIout[mm*rank3 + nn];
+	  sin2(0, T)[mm][nn] = MPIout[mm*rank3 + nn];
 
     } // T loop
 
@@ -3033,21 +2901,21 @@ void EmpCylSL::pca_hall(bool compute)
 	
 	  for (int nn=0; nn<rank3; nn++) { // Order
 	  
-	    double modn = (*accum_cos2[0][T])[mm][nn] * (*accum_cos2[0][T])[mm][nn];
+	    double modn = cos2(0, T)[mm][nn] * cos2(0, T)[mm][nn];
 	    if (mm)
-	      modn += (*accum_sin2[0][T])[mm][nn] * (*accum_sin2[0][T])[mm][nn];
+	      modn += sin2(0, T)[mm][nn] * sin2(0, T)[mm][nn];
 	    modn = sqrt(modn);
 	    
 	    (*pb)[mm]->meanJK[nn+1] += modn;
 	    
-	    meanJK1[nn] += (*accum_cos2[0][T])[mm][nn];
-	    if (mm) meanJK2[nn] += (*accum_sin2[0][T])[mm][nn];
+	    meanJK1[nn] += cos2(0, T)[mm][nn];
+	    if (mm) meanJK2[nn] += sin2(0, T)[mm][nn];
 	    
 	    for (int oo=0; oo<rank3; oo++) { // Order
 	    
-	      double modo = (*accum_cos2[0][T])[mm][oo] * (*accum_cos2[0][T])[mm][oo];
+	      double modo = cos2(0, T)[mm][oo] * cos2(0, T)[mm][oo];
 	      if (mm)
-		modo += (*accum_sin2[0][T])[mm][oo] * (*accum_sin2[0][T])[mm][oo];
+		modo += sin2(0, T)[mm][oo] * sin2(0, T)[mm][oo];
 	      modo = sqrt(modo);
 	    
 	      (*pb)[mm]->covrJK[nn+1][oo+1] +=  modn * modo * sampT;
@@ -3242,8 +3110,8 @@ void EmpCylSL::pca_hall(bool compute)
       if (PCAVAR) {
 	for (unsigned T=0; T<sampT; T++) {
 	  massT1[nth][T] = 0.0;
-	  accum_cos2[nth][T]->zero();
-	  accum_sin2[nth][T]->zero();
+	  cos2[nth][T]->zero();
+	  sin2[nth][T]->zero();
 	}
       }
     }
@@ -4677,9 +4545,9 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
 
     for (int mm=0; mm<=MMAX; mm++) {
       for (int nn=0; nn<rank3; nn++) {
-	accum_cos[mm][nn] += a*accum_cosL[M][0][mm][nn] + b*accum_cosN[M][0][mm][nn];
+	accum_cos[mm][nn] += a*cosL(M)[0][mm][nn] + b*cosN(M)[0][mm][nn];
 	if (mm)
-	  accum_sin[mm][nn] += a*accum_sinL[M][0][mm][nn] + b*accum_sinN[M][0][mm][nn];
+	  accum_sin[mm][nn] += a*sinL(M)[0][mm][nn] + b*sinN(M)[0][mm][nn];
       }
     }
     // Sanity debug check
@@ -4695,9 +4563,9 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
   for (unsigned M=mlevel; M<=multistep; M++) {
     for (int mm=0; mm<=MMAX; mm++) {
       for (int nn=0; nn<rank3; nn++) {
-	accum_cos[mm][nn] += accum_cosN[M][0][mm][nn];
+	accum_cos[mm][nn] += cosN(M)[0][mm][nn];
 	if (mm)
-	  accum_sin[mm][nn] += accum_sinN[M][0][mm][nn];
+	  accum_sin[mm][nn] += sinN(M)[0][mm][nn];
       }
     }
   }
@@ -4724,32 +4592,32 @@ void EmpCylSL::multistep_debug()
 
 	cout << "   M=" << M << ", m=0, C_N: ";
 	for (int j=0; j<NORDER; j++) 
-	  cout << setprecision(2) << setw(10) << accum_cosN[M][0][0][j];
+	  cout << setprecision(2) << setw(10) << cosN(M)[0][0][j];
 	cout << endl;
 
 	cout << "   M=" << M << ", m=0, C_L: ";
 	for (int j=0; j<NORDER; j++) 
-	  cout << setprecision(2) << setw(10) << accum_cosL[M][0][0][j];
+	  cout << setprecision(2) << setw(10) << cosL(M)[0][0][j];
 	cout << endl;
 
 	cout << "   M=" << M << ", m=1, C_N: ";
 	for (int j=0; j<NORDER; j++) 
-	  cout << setprecision(2) << setw(10) << accum_cosN[M][0][1][j];
+	  cout << setprecision(2) << setw(10) << cosN(M)[0][1][j];
 	cout << endl;
 
 	cout << "   M=" << M << ", m=1, C_L: ";
 	for (int j=0; j<NORDER; j++) 
-	  cout << setprecision(2) << setw(10) << accum_cosL[M][0][1][j];
+	  cout << setprecision(2) << setw(10) << cosL(M)[0][1][j];
 	cout << endl;
 
 	cout << "   M=" << M << ", m=1, S_N: ";
 	for (int j=0; j<NORDER; j++) 
-	  cout << setprecision(2) << setw(10) << accum_sinN[M][0][1][j];
+	  cout << setprecision(2) << setw(10) << sinN(M)[0][1][j];
 	cout << endl;
 
 	cout << "   M=" << M << ", m=1, S_L: ";
 	for (int j=0; j<NORDER; j++) 
-	  cout << setprecision(2) << setw(10) << accum_sinL[M][0][1][j];
+	  cout << setprecision(2) << setw(10) << sinL(M)[0][1][j];
 	cout << endl;
 
 	cout.precision(c);
