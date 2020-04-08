@@ -3,12 +3,17 @@
 
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
+#include <boost/progress.hpp>	// Progress bar
 
 #include <DiskEval.H>
 
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
+
 DiskEval::DiskEval
 (EmpCylSL::AxiDiskPtr model, double rmin, double rmax,
- int lmax, int numr, int nint) :
+ int lmax, int numr, int nint, bool use_progress) :
   model(model), rmin(rmin), rmax(rmax), lmax(lmax), numr(numr)
 {
   // Assign grid parameters
@@ -32,7 +37,30 @@ DiskEval::DiskEval
   //
   boost::shared_ptr<LegeQuad> lq = boost::make_shared<LegeQuad>(nint);
 
+  int numthrd = 1, tid = 0;
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+  {
+    numthrd = omp_get_num_threads();
+  }
+#endif
+
+  boost::shared_ptr<boost::progress_display> progress;
+  if (use_progress) {
+    std::cout << std::endl << "Begin: exact force evaluation"
+	      << std::endl << "-----------------------------"
+	      << std::endl;
+      
+    std::cout << std::endl << "Multipole density coefficients"
+	      << std::endl;
+    progress = boost::make_shared<boost::progress_display>(numr/numthrd);
+  }
+  
+#pragma omp parallel for
   for (int i=0; i<numr; i++) {
+#ifdef HAVE_OPENMP
+    tid = omp_get_thread_num();
+#endif
     double r = rmin + dr*i;
     if (logr) r = exp(r);
 
@@ -50,6 +78,10 @@ DiskEval::DiskEval
 	rho[ll][i] += Ylm(l, 0, cosx) * dens * fac;
       }
     }
+
+    // Progress bar
+    //
+    if (progress and tid==0) ++(*progress);
   }
 
   // Compute Term1 and Term2 by quadrature
@@ -60,6 +92,18 @@ DiskEval::DiskEval
   T2.resize(lmax+1);
   for (auto & v : T2) v.resize(numr);
   
+
+  int numrads = 0;
+  for (int l=0; l<=lmax; l+=2) numrads++;
+  numrads *= numr;
+  numrads /= numthrd;
+
+  if (use_progress) {
+    std::cout << std::endl << "Quadrature loop multipole expansion"
+	      << std::endl;
+    progress = boost::make_shared<boost::progress_display>(numrads);
+  }
+  
   // l loop
   //
   for (int l=0; l<=lmax; l+=2) {
@@ -67,7 +111,11 @@ DiskEval::DiskEval
 
     // Outer r loop
     //
+#pragma omp parallel for
     for (int i=0; i<numr; i++) {
+#ifdef HAVE_OPENMP
+      tid = omp_get_thread_num();
+#endif
       double rr = rmin + dr*(i-1);
       if (logr) rr = exp(rr);
 
@@ -119,8 +167,13 @@ DiskEval::DiskEval
       //
       T1[ll][i] = sum1;
       T2[ll][i] = sum2;
+
+      // Progress bar
+      //
+      if (progress and tid==0) ++(*progress);
     }
     // END: outer loop over r
+
   }
   // END: loop over l
   

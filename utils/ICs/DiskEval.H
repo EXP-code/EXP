@@ -22,6 +22,8 @@
 #include <EmpCylSL.h>
 #include <DiskModels.H>
 
+#include "config.h"
+
 double  plgndr(int l, int m, double x);
 double dplgndr(int l, int m, double x);
 
@@ -72,7 +74,7 @@ public:
 
   //! Constructor
   DiskEval(EmpCylSL::AxiDiskPtr model, double rmin, double rmax,
-	   int lmax, int numr, int nint);
+	   int lmax, int numr, int nint, bool progress=true);
 
   //! Evaluation where the return tuple is potential, dphi/dR, dphi/dz
   std::tuple<double, double, double> operator()(double R, double z);
