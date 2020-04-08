@@ -101,7 +101,7 @@ testcoefs2_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) @exp_omp_lib@
 
 testdeval_SOURCES = test_deval.cc DiskEval.cc
 testdeval_LDFLAGS = $(COMMON_LIBS) $(EXPFLAGS) $(BOOST_LDFLAGS)
-testdeval_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS)
+testdeval_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) @exp_omp_lib@
 
 initial.cc:		Particle.H Particle.h
 
