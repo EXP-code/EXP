@@ -18,6 +18,7 @@
 #include <boost/math/special_functions/bessel.hpp>
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/progress.hpp>	// Progress bar
 
 namespace po = boost::program_options;
 
@@ -345,6 +346,7 @@ main(int ac, char **av)
   bool         DENS;
   bool         ignore;
   bool         orthotst;
+  bool         use_progress;
   string       cachefile;
   string       config;
   string       disktype;
@@ -396,8 +398,9 @@ main(int ac, char **av)
     ("PPOW",            po::value<double>(&ppower)->default_value(5.0),             "Power-law density exponent for general Plummer density for EMP construction")
     ("rtrunc",          po::value<double>(&rtrunc)->default_value(0.1),             "Truncation radius for error-function density tapir")
     ("rwidth",          po::value<double>(&rwidth)->default_value(0.0),             "Width for error-function density tapir")
-    ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
-    ("ortho",           po::value<bool>(&orthotst)->default_value(false),               "Check basis orthogonality by scalar product")
+    ("ignore",          po::value<bool>(&ignore)->default_value(false),              "Ignore any existing cache file and recompute the EOF")
+    ("ortho",           po::value<bool>(&orthotst)->default_value(false),            "Check basis orthogonality by scalar product")
+    ("progress",        po::value<bool>(&use_progress)->default_value(false),        "Print progress bar")
     ;
         
   po::variables_map vm;
@@ -851,7 +854,23 @@ main(int ac, char **av)
 	      << " and W=" << rwidth<< std::endl;
   }
 
-  DiskEval test(modl, RCYLMIN*AA, RCYLMAX*AA, 128, 2000, 400);
+  DiskEval test(modl, RCYLMIN*AA, RCYLMAX*AA, 128, 8000, 400, use_progress);
+  //                                               ^     ^
+  //                                               |     |
+  // Number of radial grid points -----------------+     |
+  //                                                     |
+  // Number of elevation knots---------------------------+
+
+  boost::shared_ptr<boost::progress_display> progress;
+  if (use_progress) {
+    std::cout << std::endl << "Begin: grid evaluation"
+	      << std::endl << "----------------------"
+	      << std::endl;
+      
+    std::cout << std::endl << "Midplane force evaluation"
+	      << std::endl;
+    progress = boost::make_shared<boost::progress_display>(NFRC);
+  }
 
   // Quick radial force check
   //
@@ -966,8 +985,124 @@ main(int ac, char **av)
       fout << std::setw(18) << pp[nn]	  // 10+2*nn
 	   << std::setw(18) << dd[nn];	  // 10+2*nn+1
     fout << std::endl;
+
+    if (use_progress) ++(*progress);
   }
 
+
+  std::ofstream zout("testcoefs.plane");
+
+  // File column descriptions
+  //
+  zout << "#"
+       << std::setw(17) << "R |"          // 1
+       << std::setw(18) << "z |"          // 2
+       << std::setw(18) << "f_R(exp) |"   // 3
+       << std::setw(18) << "f_R(thr) |"   // 4
+       << std::setw(18) << "del(f_R) |"   // 5
+       << std::setw(18) << "f_z(exp) |"   // 6
+       << std::setw(18) << "f_z(thr) |"   // 7
+       << std::setw(18) << "del(f_z) |"   // 8
+       << std::setw(18) << "p(exp) |"	  // 9
+       << std::setw(18) << "p(thr) |"	  // 10
+       << std::setw(18) << "del(p) |";	  // 11;
+  for (int nn=0; nn<nmin; nn++) {
+    std::ostringstream pstr, dstr;
+    pstr << "p_basis(" << nn << ") |";
+    dstr << "d_basis(" << nn << ") |";
+    zout << std::setw(18) << pstr.str()	  // 12+2*nn
+	 << std::setw(18) << dstr.str();  // 12+2*nn+1
+  }
+  zout << std::endl;
+
+  // File column counter
+  //
+  zout << "#" << std::setw(17) << "[1] |";
+  icnt = 2;
+  for (int i=2; i<12; i++) {
+    std::ostringstream lab;
+    lab << "[" << icnt++ << "] |";
+    zout << std::setw(18) << lab.str();
+  }
+  for (int nn=0; nn<nmin; nn++) {
+    std::ostringstream lab;
+    lab << "[" << icnt++ << "] |";
+    zout << std::setw(18) << lab.str();
+    lab.str("");
+    lab << "[" << icnt++ << "] |";
+    zout << std::setw(18) << lab.str();
+  }
+  zout << std::endl;
+
+  // File column separator
+  //
+  zout << "#" << std::setfill('-')
+       << std::setw(17) << "+";
+  for (int i=2; i<12; i++) {
+    zout << std::setw(18) << "+";
+  }
+  for (int nn=0; nn<nmin; nn++) {
+    zout << std::setw(18) << "+";
+    zout << std::setw(18) << "+";
+  }
+  zout << std::endl << std::setfill(' ');
+  //
+  // END: file header
+
+
+  if (use_progress) {
+    std::cout << std::endl << "Meridional force evaluation"
+	      << std::endl;
+    progress = boost::make_shared<boost::progress_display>(NFRC);
+  }
+
+  double zmin = -8.0*HH;
+  double zmax =  8.0*HH;
+
+  // Compute and write expansion values
+  //
+  for (int j=0; j<NFRC; j++) {
+    double r = x_to_r(xmin + dx*j, AA);
+
+    for (int j=0; j<NFRC; j++) {
+      double z = zmin + (zmax - zmin)*j/(NFRC - 1);
+
+      std::vector<double> pp(nmin), dd(nmin);
+      double p0, p, fR, fz, fp, d;
+
+      expandd->accumulated_eval(r, z, phi, p0, p, fR, fz, fp);
+      expandd->accumulated_dens_eval(r, z, phi, d);
+
+      // Get density for n=0, 1, ... , nmin
+      {
+	double p1, fR1, fz1, fp1;	// Dummy variables
+	for (int nn=0; nn<nmin; nn++) 
+	  expandd->get_all(0, nn, r, z, 0.0, pp[nn], dd[nn], fR1, fz1, fp1);
+      }
+      
+      auto ret = test(r, z);
+      double P = std::get<0>(ret), FR = std::get<1>(ret), Fz = std::get<2>(ret);
+
+      zout << std::setw(18) << r	          // 1
+	   << std::setw(18) << z	          // 2
+	   << std::setw(18) << fR	          // 3
+	   << std::setw(18) << FR	          // 4
+	   << std::setw(18) << (fR - FR)/FR	  // 5
+	   << std::setw(18) << fz	          // 6
+	   << std::setw(18) << Fz	          // 7
+	   << std::setw(18) << (fz - Fz)/Fz	  // 8
+	   << std::setw(18) << p		  // 9
+	   << std::setw(18) << P		  // 10
+	   << std::setw(18) << (p - P)/P;	  // 11
+	for (int nn=0; nn<nmin; nn++)
+	  zout << std::setw(18) << pp[nn]         // 12+2*nn
+	       << std::setw(18) << dd[nn];	  // 12+2*nn+1
+      zout << std::endl;
+    }
+    zout << std::endl;
+
+    if (use_progress) ++(*progress);
+  }
 
   //===========================================================================
   // shutdown MPI
