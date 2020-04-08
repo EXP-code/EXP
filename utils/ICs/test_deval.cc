@@ -115,11 +115,18 @@ main(int ac, char **av)
 
 	auto ret = test(R, z);
 
+	double thrpot = 0.0;	// Miyamoto-Nagai test
+	if (dmodel.compare("MN")==0) {
+	  double s = A + sqrt(z*z + H*H);
+	  thrpot = -1.0/sqrt(R*R + s*s);
+	}
+
 	out << std::setw(18) << R
 	    << std::setw(18) << z
 	    << std::setw(18) << std::get<0>(ret)
 	    << std::setw(18) << std::get<1>(ret)
 	    << std::setw(18) << std::get<2>(ret)
+	    << std::setw(18) << thrpot
 	    << std::endl;
       }
       out << std::endl;
