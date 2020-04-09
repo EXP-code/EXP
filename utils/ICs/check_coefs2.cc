@@ -1056,16 +1056,27 @@ main(int ac, char **av)
     progress = boost::make_shared<boost::progress_display>(NFRC);
   }
 
-  double zmin = -8.0*HH;
-  double zmax =  8.0*HH;
+  double Xmin =  r_to_x(0.1*HH, AA);
+  double Xmax =  r_to_x(5.0*AA, AA);
+  double Zmin = -5.0*HH;
+  double Zmax =  5.0*HH;
+
+  double dX = (Xmax - Xmin)/(NFRC-1);
+  double dZ = (Zmax - Zmin)/(NFRC-1);
+
+  double FR0 = 1.0;		// Compute radial force a one scale length
+  {				// for comparison
+    double tmp;
+    expandd->accumulated_eval(AA, 0.0, 0.0, tmp, tmp, FR0, tmp, tmp);
+  }
 
   // Compute and write expansion values
   //
   for (int j=0; j<NFRC; j++) {
-    double r = x_to_r(xmin + dx*j, AA);
+    double r = x_to_r(Xmin + dX*j, AA);
 
-    for (int j=0; j<NFRC; j++) {
-      double z = zmin + (zmax - zmin)*j/(NFRC - 1);
+    for (int k=0; k<NFRC; k++) {
+      double z = Zmin + dZ*k;
 
       std::vector<double> pp(nmin), dd(nmin);
       double p0, p, fR, fz, fp, d;
@@ -1073,11 +1084,23 @@ main(int ac, char **av)
       expandd->accumulated_eval(r, z, phi, p0, p, fR, fz, fp);
       expandd->accumulated_dens_eval(r, z, phi, d);
 
-      // Get density for n=0, 1, ... , nmin
-      {
-	double p1, fR1, fz1, fp1;	// Dummy variables
+      double FZ0 = 1.0;
+
+      {				// Dummy variables
+	double p1, d1, fR1, fz1, fp1;	
+
+	// Get density for n=0, 1, ... , nmin
+	//
 	for (int nn=0; nn<nmin; nn++) 
 	  expandd->get_all(0, nn, r, z, 0.0, pp[nn], dd[nn], fR1, fz1, fp1);
+
+	// Compute vertical force at one scale height
+	//
+	if (z>0.0)
+	  expandd->accumulated_eval(r,  HH, 0.0, p1, d1, fR1, FZ0, fp1);
+	else
+	  expandd->accumulated_eval(r, -HH, 0.0, p1, d1, fR1, FZ0, fp1);
+	  
       }
       
       auto ret = test(r, z);
@@ -1087,10 +1110,10 @@ main(int ac, char **av)
 	   << std::setw(18) << z	          // 2
 	   << std::setw(18) << fR	          // 3
 	   << std::setw(18) << FR	          // 4
-	   << std::setw(18) << (fR - FR)/FR	  // 5
+	   << std::setw(18) << (fR - FR)/FR0	  // 5
 	   << std::setw(18) << fz	          // 6
 	   << std::setw(18) << Fz	          // 7
-	   << std::setw(18) << (fz - Fz)/Fz	  // 8
+	   << std::setw(18) << (fz - Fz)/FZ0	  // 8
 	   << std::setw(18) << p		  // 9
 	   << std::setw(18) << P		  // 10
 	   << std::setw(18) << (p - P)/P;	  // 11
