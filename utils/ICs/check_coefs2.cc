@@ -1,6 +1,8 @@
 /*
-  Check coefficients for cylindrical basis
+  Check coefficient expansion for cylindrical basis and compare to a
+  high-order multipole expansion for force and potential
 */
+
                                 // C++/STL headers
 #include <cmath>
 #include <cstdlib>
@@ -338,6 +340,7 @@ main(int ac, char **av)
   int          NORDER;
   double       scale_height;
   double       scale_length;
+  double       NSCL;
   double       ppower;
   double       rtrunc;
   double       rwidth;
@@ -352,6 +355,7 @@ main(int ac, char **av)
   string       disktype;
   string       dmodel;
   string       mtype;
+  string       prefix;
   
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -385,6 +389,7 @@ main(int ac, char **av)
     ("NORDER",          po::value<int>(&NORDER)->default_value(16),                     "Number of disk basis functions per M-order")
     ("NOUT",            po::value<int>(&NOUT)->default_value(1000),                     "Number of radial basis functions to output for each harmonic order")
     ("NFRC",            po::value<int>(&NFRC)->default_value(100),                     "Number of radial knots for force check")
+    ("NSCL",            po::value<double>(&NSCL)->default_value(8.0),                  "Number of scales for 2-d plane output")
     ("DENS",            po::value<bool>(&DENS)->default_value(true),                    "Compute the density basis functions")
     ("VFLAG",           po::value<int>(&VFLAG)->default_value(0),                       "Output flags for EmpCylSL")
     ("threads",         po::value<int>(&nthrds)->default_value(1),                      "Number of lightweight threads")
@@ -400,6 +405,7 @@ main(int ac, char **av)
     ("rwidth",          po::value<double>(&rwidth)->default_value(0.0),             "Width for error-function density tapir")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),              "Ignore any existing cache file and recompute the EOF")
     ("ortho",           po::value<bool>(&orthotst)->default_value(false),            "Check basis orthogonality by scalar product")
+    ("prefix",          po::value<std::string>(&prefix)->default_value("testcoefs"), "Output file prefix")
     ("progress",        po::value<bool>(&use_progress)->default_value(false),        "Print progress bar")
     ;
         
@@ -879,7 +885,7 @@ main(int ac, char **av)
   double phi  = 0.0;
   double mass = 1.0;
   
-  std::ofstream fout("testcoefs.compare");
+  std::ofstream fout(prefix + ".compare");
 
   int nmin = std::min<int>(NOUT, 5);
 
@@ -990,7 +996,7 @@ main(int ac, char **av)
   }
 
 
-  std::ofstream zout("testcoefs.plane");
+  std::ofstream zout(prefix + ".plane");
 
   // File column descriptions
   //
@@ -1056,24 +1062,25 @@ main(int ac, char **av)
     progress = boost::make_shared<boost::progress_display>(NFRC);
   }
 
-  double Xmin =  r_to_x(0.1*HH, AA);
-  double Xmax =  r_to_x(5.0*AA, AA);
-  double Zmin = -5.0*HH;
-  double Zmax =  5.0*HH;
+  double Rmin =  0.1*HH;
+  double Rmax =  NSCL*AA;
+  double Zmin = -NSCL*HH;
+  double Zmax =  NSCL*HH;
 
-  double dX = (Xmax - Xmin)/(NFRC-1);
+  double dR = (Rmax - Rmin)/(NFRC-1);
   double dZ = (Zmax - Zmin)/(NFRC-1);
 
-  double FR0 = 1.0;		// Compute radial force a one scale length
-  {				// for comparison
+  double FR0 = 1.0, FZH = 1.0; // Compute radial force a one scale length
+  {			       // for comparison
     double tmp;
     expandd->accumulated_eval(AA, 0.0, 0.0, tmp, tmp, FR0, tmp, tmp);
+    expandd->accumulated_eval(AA, HH,  0.0, tmp, tmp, FZH, tmp, tmp);
   }
 
   // Compute and write expansion values
   //
   for (int j=0; j<NFRC; j++) {
-    double r = x_to_r(Xmin + dX*j, AA);
+    double r = Rmin + dR*j;
 
     for (int k=0; k<NFRC; k++) {
       double z = Zmin + dZ*k;
@@ -1085,7 +1092,6 @@ main(int ac, char **av)
       expandd->accumulated_dens_eval(r, z, phi, d);
 
       double FZ0 = 1.0;
-
       {				// Dummy variables
 	double p1, d1, fR1, fz1, fp1;	
 
@@ -1096,11 +1102,8 @@ main(int ac, char **av)
 
 	// Compute vertical force at one scale height
 	//
-	if (z>0.0)
-	  expandd->accumulated_eval(r,  HH, 0.0, p1, d1, fR1, FZ0, fp1);
-	else
-	  expandd->accumulated_eval(r, -HH, 0.0, p1, d1, fR1, FZ0, fp1);
-	  
+	if (z>0.0) FZ0 =  FZH;
+	else       FZ0 = -FZH;
       }
       
       auto ret = test(r, z);
