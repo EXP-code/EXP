@@ -63,6 +63,7 @@ void * incr_position_thread(void *ptr)
     }
   }
 
+  return (NULL);
 }
 
 
