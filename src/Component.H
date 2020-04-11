@@ -213,7 +213,7 @@ private:
 
   //@{
   //! Internal data for sequence checking
-  bool seq_check, ordered, indexing, aindex, umagic;
+  bool indexing, aindex, umagic;
   int seq_beg, seq_end, seq_cur;
   //@}
 
@@ -239,7 +239,7 @@ private:
 
   // For load balancing
   vector <loadb_datum> loadb;
-  void add_particles(int from, int to, vector<int>& plist);
+  void add_particles(int from, int to, std::vector<PartPtr>& plist);
 
   // Compute initial com position and velocity from phase space
   void initialize_com_system();
@@ -309,21 +309,6 @@ protected:
   //! Level occupation output
   int nlevel;
 
-  //! For use with unordered map to order list by key value
-  typedef std::vector<unsigned long> KeyList;
-  KeyList keys;
-
-  //! Sort the key list
-  void makeKeyList()
-  {
-    keys.clear();
-    keys.reserve(particles.size());
-    for (auto it : particles) {
-      keys.push_back(it.first);
-    }
-    std::sort (keys.begin(), keys.end());
-  }
-
   //! Write binary component phase-space structure using MPI (blocking)
   void write_binary_mpi_b(MPI_File& out, MPI_Offset& offset, bool real4 = false);
 
@@ -332,8 +317,16 @@ protected:
 
   //! Set default, unset parameters in config
   void set_default_values();
-
   
+  //! Particles waiting for a new index
+  std::list<PartPtr> new_particles;
+
+  //! Maximum sequence value so far
+  unsigned long top_seq;
+
+  //! Update sequence number of added particles
+  void seq_new_particles();
+
 public:
 
   //! Describe the phase space coordinates
@@ -598,6 +591,15 @@ public:
     }
     return tp->second.get();
   }
+
+  //! Generate new particle: this adds a new particle and returns a
+  //! pointer to the same particle.  It is the caller's responsbility
+  //! to populate the phase space and particle attributes with sane
+  //! values.
+  Particle *GetNewPart();
+
+  //! Remove a particle from the component
+  void KillPart(PartPtr p);
 
   //! Particle vector size
   unsigned Number() {
