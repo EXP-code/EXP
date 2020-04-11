@@ -1518,7 +1518,7 @@ void TreeDSMC::determine_acceleration_and_potential(void)
       
       if (epsm>0) mout << setw(6) << " " << setw(20) << epsm_total 
 		       << "EPSM particles ("
-		       << 100.0*epsm_total/c0->nbodies_tot << "%)" 
+		       << 100.0*epsm_total/c0->CurTotal() << "%)" 
 		       << scientific << endl;
       mout << setw(6) << " " << setw(20) << mlevel     << "multi level" << endl
 	   << setw(6) << " " << setw(20) << medianNumb << "number/cell" << endl

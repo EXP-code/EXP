@@ -29,12 +29,14 @@ SatFixOrb::SatFixOrb(const YAML::Node& conf) : ExternalForce(conf)
     MPI_Abort(MPI_COMM_WORLD, 35);
   }
 
+  unsigned total = c0->CurTotal();
+
   // Find out who has particles, make sure that there are an even number
   //
-  if (2*(c0->nbodies_tot/2) != c0->nbodies_tot) {
+  if (2*(total/2) != total) {
     if (myid==0) cerr << "SatFixOrb: component <" << comp_nam 
 		      << "> has an odd number of particles!!! nbodies_tot=" 
-		      << c0->nbodies_tot << "\n";
+		      << total << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 36);
   }
 

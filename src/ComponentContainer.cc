@@ -158,12 +158,12 @@ void ComponentContainer::initialize(void)
   }
 
 				// Initialize interactions between components
-  string value;
+  std::string value;
   ntot = 0;
   
   for (auto c : components) {
 				// Use this loop, BTW, to sum up all bodies
-    ntot += c->nbodies_tot;
+    ntot += c->NewTotal();
     
 				// A new interaction list for THIS component
     Interaction *curr = new Interaction;
@@ -538,6 +538,14 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   
 
   state = NONE;
+
+  //
+  // Update total number of particles for master header
+  //
+  this->ntot = 0;
+  for (auto c : components) {
+    this->ntot += c->NewTotal();
+  }
 
   //
   // Compute new center(s)

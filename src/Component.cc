@@ -200,6 +200,7 @@ Component::Component(YAML::Node& CONF)
 
   reset_level_lists();
 
+  modified = 0;
 }
 
 void Component::set_default_values()
@@ -3469,6 +3470,8 @@ Particle* Component::GetNewPart()
   //
   new_particles.push_back(newp);
 
+  modified++;
+
   return newp.get();
 }
 
@@ -3480,7 +3483,15 @@ void Component::seq_new_particles()
   MPI_Allreduce(&newCur, &newTot, 1, MPI_UNSIGNED, MPI_SUM,
 		MPI_COMM_WORLD);
 
-  if (newTot==0) return;
+  if (newTot==0) {
+    if (modified>0) {		// Update total number of bodies
+      nbodies = particles.size();
+      MPI_Allreduce(&nbodies, &nbodies_tot, 1, MPI_UNSIGNED, MPI_SUM,
+		    MPI_COMM_WORLD);
+      modified = 0;
+    }
+    return;
+  }
 
   // Begin sequence numbering
   //
@@ -3509,6 +3520,7 @@ void Component::seq_new_particles()
   MPI_Allreduce(&nbodies, &nbodies_tot, 1, MPI_UNSIGNED, MPI_SUM,
 		MPI_COMM_WORLD);
 
+  modified = 0;
 }
 
 
@@ -3516,4 +3528,5 @@ void Component::KillPart(PartPtr p)
 {
   particles.erase(p->indx);
   nbodies--;
+  modified++;
 }

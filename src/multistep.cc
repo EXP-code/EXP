@@ -492,7 +492,7 @@ void adjust_multistep_level(bool all)
 	    ostringstream sout;
 	    sout << "Component <" << c->name << ">";
 	    cout << setw(30) << sout.str() << " |   low: "
-		 << offlo[c] << "/" << c->nbodies_tot << endl;
+		 << offlo[c] << "/" << c->CurTotal() << endl;
 	  }
 	}
 
@@ -501,7 +501,7 @@ void adjust_multistep_level(bool all)
 	    ostringstream sout;
 	    sout << "Component <" << c->name << ">";
 	    cout << setw(30) << sout.str() << " |  high: "
-		 << offhi[c] << "/" << c->nbodies_tot << endl;
+		 << offhi[c] << "/" << c->CurTotal() << endl;
 	  }
 	}
 

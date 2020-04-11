@@ -19,11 +19,13 @@ SatFix::SatFix(const YAML::Node& conf) : ExternalForce(conf)
     }
   }
 
+  unsigned total = c0->CurTotal();
+
   // Find out who has particles, make sure that there are an even number
-  if (2*(c0->nbodies_tot/2) != c0->nbodies_tot) {
+  if (2*(total/2) != total) {
     if (myid==0) cerr << "SatFix: component <" << comp_name 
 		      << "> has an odd number of particles!!! nbodies_tot=" 
-		      << c0->nbodies_tot << "\n";
+		      << total << "\n";
     MPI_Abort(MPI_COMM_WORLD, 36);
   }
 
@@ -33,7 +35,7 @@ SatFix::SatFix(const YAML::Node& conf) : ExternalForce(conf)
     MPI_Abort(MPI_COMM_WORLD, 35);
   }
 
-  owner = vector<int>(c0->nbodies_tot);
+  owner = std::vector<int>(total);
 
   userinfo();
 }
@@ -83,7 +85,9 @@ void SatFix::get_acceleration_and_potential(Component* C)
   //
   // Begin list
   //
-  for (unsigned n=0; n<c0->nbodies_tot-1; n+=2) {
+  unsigned total = c0->CurTotal();
+
+  for (unsigned n=0; n<total-1; n+=2) {
 
 				// Who has the odd particle?
     if (myid==owner[n]) {
@@ -132,18 +136,20 @@ void SatFix::get_acceleration_and_potential(Component* C)
 
 void SatFix::compute_list()
 {
+  unsigned total = c0->CurTotal();
+
 				// Get body list
-  for (unsigned n=0; n<c0->nbodies_tot; n++) {
+  for (unsigned n=0; n<total; n++) {
     if (c0->Particles().find(n+1) != c0->Particles().end())
       owner[n] = myid+1;
     else
       owner[n] = 0;
   }
 
-  MPI_Allreduce(MPI_IN_PLACE, &owner[0], c0->nbodies_tot, MPI_UNSIGNED,
+  MPI_Allreduce(MPI_IN_PLACE, &owner[0], total, MPI_UNSIGNED,
 		MPI_SUM, MPI_COMM_WORLD);
   
-  for (unsigned n=0; n<c0->nbodies_tot; n++) {
+  for (unsigned n=0; n<total; n++) {
     owner[n] -= 1;
     if (owner[n]<0) {
       cout << "SatFix: error in ownership list" << endl;

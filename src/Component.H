@@ -271,6 +271,9 @@ protected:
   //! Bodies on this node
   unsigned int nbodies;
 
+  //! Bodies on all nodes
+  unsigned nbodies_tot;
+
   /** Used by gather and distribution routines to define a particle
       structure to MPI */
   MPI_Datatype Particletype;
@@ -326,6 +329,9 @@ protected:
 
   //! Update sequence number of added particles
   void seq_new_particles();
+
+  //! Particle number update is needed
+  unsigned modified;
 
 public:
 
@@ -406,9 +412,6 @@ public:
 
   //! Dimension of the phase space
   int dim;
-
-  //! Bodies on all nodes
-  unsigned nbodies_tot;
 
   /** Particle list per level
       This will be a sorted list for each level.  We use a vector rather
@@ -604,6 +607,21 @@ public:
   //! Particle vector size
   unsigned Number() {
     return particles.size();
+  }
+
+  //! Return the last particle total (no MPI)
+  unsigned CurTotal()
+  {
+    return nbodies_tot;
+  }
+
+  //! Update total number of particles in component.  Should be called
+  //! after adding or killing particles.  Uses MPI.
+  unsigned NewTotal() {
+    MPI_Allreduce(MPI_IN_PLACE, &modified, 1, MPI_UNSIGNED, MPI_SUM,
+		  MPI_COMM_WORLD);
+    if (modified) seq_new_particles();
+    return nbodies_tot;
   }
 
   //! Access to mass

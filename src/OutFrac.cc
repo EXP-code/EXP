@@ -223,7 +223,7 @@ void OutFrac::Run(int n, bool last)
 
   if (myid==0) {
 
-    if (tcomp->nbodies_tot != rtot.size()) {
+    if (tcomp->CurTotal() != rtot.size()) {
       cerr << "OutFrac: body count mismatch!\n";
     }
 

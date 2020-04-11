@@ -115,7 +115,7 @@ void OutAscii::Run(int n, bool last)
     
     if (nOK == 0) {
       out << "# Time=" << tnow << "\n";
-      out << setw(10) << c0->nbodies_tot
+      out << setw(10) << c0->NewTotal()
 	  << setw(10) << c0->niattrib
 	  << setw(10) << c0->ndattrib << "\n";
     }

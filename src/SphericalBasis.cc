@@ -505,7 +505,7 @@ void SphericalBasis::determine_coefficients(void)
   if (compute) {
 
     if (sampT == 0) {		// Allocate storage
-      sampT = floor(sqrt(cC->nbodies_tot));
+      sampT = floor(sqrt(cC->CurTotal()));
       massT    .resize(sampT, 0);
       massT1   .resize(sampT, 0);
       

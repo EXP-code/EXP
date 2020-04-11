@@ -664,7 +664,7 @@ void Cylinder::determine_coefficients(void)
     std::ostringstream sout;
     if (pcadiag) 
       sout << runtag << ".pcadiag." << cC->id << "." << cC->name;
-    ortho->setHall(sout.str(), component->nbodies_tot);
+    ortho->setHall(sout.str(), component->NewTotal());
     if (myid==0) {
       std::cout << "Cylinder: PCA initialized";
       if (pcadiag) 
@@ -942,7 +942,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 
       unsigned indx = cC->levlist[lev][q];
 
-      if (indx<1 || indx>cC->nbodies_tot) {
+      if (indx<1 || indx>cC->CurTotal()) {
 	cout << "Process " << myid << " id=" << id 
 	     << ": index error in Cylinder q=" << q
 	     << " indx=" << indx << endl;

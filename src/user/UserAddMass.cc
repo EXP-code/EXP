@@ -10,15 +10,21 @@
 
 #include <UserAddMass.H>
 
+// For parsing parameters: Algorithm type
+//
 std::map<std::string, UserAddMass::Algorithm> UserAddMass::AlgMap
 { {"Disk", UserAddMass::Algorithm::Disk},
   {"Halo", UserAddMass::Algorithm::Halo} };
 
+// For printing parameters: Algorithm type
+//
 std::map<UserAddMass::Algorithm, std::string> UserAddMass::AlgMapInv
 { {UserAddMass::Algorithm::Disk, "Disk"},
   {UserAddMass::Algorithm::Halo, "Halo"} };
 
 
+// Compute cross product for two 3 std::arrays
+//
 std::array<double, 3> xprod(const std::array<double, 3>& a,
 			    const std::array<double, 3>& b)
 {
@@ -31,6 +37,8 @@ std::array<double, 3> xprod(const std::array<double, 3>& a,
   return ret;
 }
 
+// Compute cross product for two 3 C-style arrays
+//
 std::array<double, 3> xprod(const double* a, const double* b)
 {
   std::array<double, 3> ret =
@@ -42,6 +50,8 @@ std::array<double, 3> xprod(const double* a, const double* b)
   return ret;
 }
 
+// Compute the norm of a std::array<double, 3>
+//
 double xnorm(const std::array<double, 3>& a)
 {
   return sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
@@ -178,6 +188,8 @@ void UserAddMass::initialize()
 
 void UserAddMass::clear_bins()
 {
+  // Mass bins
+  //
   for (auto & v : mas_bins) {
     std::fill(v.begin(), v.end(), 0.0);
   }
@@ -186,11 +198,13 @@ void UserAddMass::clear_bins()
 
   switch (alg) {
   case Algorithm::Halo:
+    // Mean and squared velocity bins
     for (auto & v : vl_bins) std::fill(v.begin(), v.end(), zero);
     for (auto & v : v2_bins) std::fill(v.begin(), v.end(), zero);
     break;
   case Algorithm::Disk:
   default:
+    // Angular momentum bins
     for (auto & v : L3_bins) std::fill(v.begin(), v.end(), zero);
     break;
   }
@@ -203,11 +217,11 @@ void UserAddMass::determine_acceleration_and_potential(void)
 				// Only compute for top level
   if (multistep && mlevel>0) return;
 
-  clear_bins();
+  clear_bins();			// Clean for tabulation
 
-  exp_thread_fork(false);
+  exp_thread_fork(false);	// Tabulate one-d radial bins
 
-  // Thread reduce
+  // Thread reduce the bins
   //
   for (int n=1; n<nthrds; n++) {
 
@@ -227,6 +241,8 @@ void UserAddMass::determine_acceleration_and_potential(void)
     }
   }
 
+  // Reduce the bins across all nodes
+  //
   std::vector<double> mas(numr), pack(numr*3);
 
   MPI_Allreduce(mas_bins[0].data(), mas.data(), numr, MPI_DOUBLE, MPI_SUM,
@@ -295,9 +311,9 @@ void UserAddMass::determine_acceleration_and_potential(void)
     for (auto & v : ee[2]) v /= norm;
   }
 
-  // Finally, we are ready to generate the particles
+  // Finally, we are ready to generate the new particles
   //
-  int numgen = number/numprocs;
+  int numgen = number/numprocs;	// Number ot generate
   if (myid==numprocs-1) numgen = number - numgen*(numprocs-1);
 
   for (int n=0; n<numgen; n++) {
@@ -370,14 +386,16 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	double cosp = cos(phi), sinp = sin(phi);
 	for (int k=0; k<3; k++) P->pos[k] = rr*(ee[1][k]*cosp + ee[2][k]*sinp);
 	
-	// (r X v) X r
+	// Use angular momentum to get tangential velocity.
+	// E.g. L X v/r^2 = (r X v) X r/r^2 = v - r/|r| * (v.r/|r|) = v_t
 	//
 	auto rv = L3_bins[0][indx];
 	for (auto & v : rv) v /= mas_bins[0][indx];
 	std::array<double, 3> xyz = {P->pos[0], P->pos[1], P->pos[2]};
 	auto v3 = xprod(rv, xyz);
 	for (auto & v : v3) v /= rr*rr;
-	double vtan = 0.0;
+
+	double vtan = 0.0;	// Magnitude of v_t
 	for (auto v : v3) vtan += v*v;
 	vtan = sqrt(vtan);
 	
@@ -407,7 +425,7 @@ void * UserAddMass::determine_acceleration_and_potential_thread(void * arg)
 
   for (int q=0   ; q<nbeg; q++) it++;
 
-  for (int q=nbeg; q<nend; q++) {
+  for (int q=nbeg; q<nend; q++, it++) {
 
     auto P = it->second;
 
@@ -421,12 +439,12 @@ void * UserAddMass::determine_acceleration_and_potential_thread(void * arg)
     //
     int indx = -1;		// Off grid, by default
 
-    if (logr) {
-      if (r>0.0) {
+    if (logr) {			// Log binning:
+      if (r>0.0) {		// ignore if r==0.0 in
 	r = log(r);
 	if (r >= rmin) indx = floor( (r - rmin)/dr );
       }
-    } else {
+    } else {			// Linear binning
       if (r >= rmin) indx = floor( (r - rmin)/dr );
     }
 
@@ -437,18 +455,18 @@ void * UserAddMass::determine_acceleration_and_potential_thread(void * arg)
 
       switch (alg) {
       case Algorithm::Halo:
-	for (int k=0; k<3; k++)
+	for (int k=0; k<3; k++)	// Mean velocity
 	  vl_bins[id][indx][k] += P->mass * P->vel[k];
-	for (int k=0; k<3; k++)
+	for (int k=0; k<3; k++)	// Square velocity
 	  v2_bins[id][indx][k] += P->mass * P->vel[k]*P->vel[k];
 	break;
-      case Algorithm::Disk:
+      case Algorithm::Disk:	// Angular momentum
       default:
 	L3_bins[id][indx][0] += P->mass * (P->pos[1]*P->vel[2] - P->pos[2]*P->vel[1]);
 	L3_bins[id][indx][1] += P->mass * (P->pos[2]*P->vel[0] - P->pos[0]*P->vel[2]);
 	L3_bins[id][indx][2] += P->mass * (P->pos[0]*P->vel[1] - P->pos[1]*P->vel[0]);
+	break;
       }
-      break;
     }
   }
 
