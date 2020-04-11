@@ -1895,77 +1895,105 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
 
 PartPtr * Component::get_particles(int* number)
 {
-  static unsigned counter = 1;	// Sequence begins at 1
-  static bool seq_state_ok = true;
+  static std::vector<unsigned> totals;
+  static unsigned counter = 0;	// Counter for all
+  static int      node    = 0;	// Current node
   
-  int curcount = 0;		// Counter for this bunch
-  
-				// Add new particles, if any
-  seq_new_particles();
-
 				// Reset
   if (*number < 0) {
-    counter = 1;
+    counter = 0;
+    node    = 0;
   }
 				// Done?
-  if (counter > nbodies_tot) {
+  if (counter == nbodies_tot) {
     *number = 0;
     return 0;
   }
 
+  int curcount = 0;		// Counter for this bunch
+
+				// Do this on first call ONLY
+  if (counter == 0) {
+				// Add new particles to sequence
+    seq_new_particles();
+				// Every process report particle numbers
+    totals.resize(numprocs);
+    MPI_Allgather(&nbodies, 1, MPI_UNSIGNED, &totals[0], 1, MPI_UNSIGNED,
+		  MPI_COMM_WORLD);
+				// Cumulate
+    for (int n=1; n<numprocs; n++) totals[n] += totals[n-1];
+  }
+
+
   std::map<unsigned long, PartPtr> tlist;
 
   unsigned icount;
+  unsigned beg = counter;
+  unsigned end = counter + PFbufsz;
 
-  pbuf.resize(particles.size());
+  bool complete = false;
+  if (end >= totals[node]) {
+    complete = true;
+    end = totals[node];
+  }
 
-  for (int node=0; node<numprocs; node++) {
-    
-    if (myid==0) {
+
+  if (myid==0) {
 				// Do root's particle first
-      if (node==0) {
-      
+    if (node==0) {
+
+	auto itb = particles.begin();
+	auto ite = particles.begin();
+	
+	std::advance(itb, beg);
+	if (complete) ite = particles.end();
+	else          std::advance(ite, end);
+
 	icount = 0;
-	for (auto p : particles) pbuf[icount++] = p.second;
+	for (auto it=itb; it!=ite; it++) pbuf[icount++] = it->second;
 
 #ifdef DEBUG
 	cout << "get_particles: master loaded " 
 	     << icount << " of its own particles" << endl << flush;
 #endif    
 
-      } else {
-	  
-	unsigned number;
-	pf->ShipParticles(0, node, number);
-
-	icount = 0;
-	while (PartPtr part=pf->RecvParticle()) pbuf[icount++] = part;
+    } else {
+      
+      unsigned number;
+      pf->ShipParticles(0, node, number);
+      
+      icount = 0;
+      while (PartPtr part=pf->RecvParticle()) pbuf[icount++] = part;
 #ifdef DEBUG
-	cout << "Process " << myid 
-	     << ": received " << icount << " particles from Slave " << node
-	     << ", expected " << number
-	     << endl << flush;
+      cout << "Process " << myid 
+	   << ": received " << icount << " particles from Slave " << node
+	   << ", expected " << number
+	   << endl << flush;
 #endif    
-      }
-
-      // Load the ordered array
-      for (unsigned n=0; n<icount; n++) {
-	tlist[pbuf[n]->indx] = pbuf[n];
-	curcount++;
-	counter++;
-      }
-      
-				// Nodes send particles to master
-    } else if (myid == node) {
-      
-      unsigned number = particles.size();
-      pf->ShipParticles(0, myid, number);
-
-      for (auto p : particles) pf->SendParticle(p.second);
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    // Load the array
+    for (unsigned n=0; n<icount; n++) {
+      tlist[pbuf[n]->indx] = pbuf[n];
+      curcount++;
+      counter++;
+    }
+				// Nodes send particles to master
+  } else if (myid == node) {
+      
+    auto itb = particles.begin();
+    auto ite = particles.begin();
 
+    std::advance(itb, beg - totals[node-1]);
+    if (complete) ite = particles.end();
+    else          std::advance(ite, end - totals[node-1]);
+    
+    icount = 0;
+    for (auto it=itb; it!=ite; it++) pbuf[icount++] = it->second;
+
+    pf->ShipParticles(0, myid, icount);
+
+    for (auto p : particles) pf->SendParticle(p.second);
   }
 
   MPI_Bcast(&counter, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -1980,8 +2008,12 @@ PartPtr * Component::get_particles(int* number)
   }
 #endif
 
-  int n=0;
+  int n = 0;
   for (auto cur : tlist) pbuf[n++] = cur.second;
+  
+  // Move to next node?
+  //
+  if (complete) node++;
 
 #ifdef DEBUG
   cout << "Process " << myid 
@@ -3473,8 +3505,8 @@ void Component::seq_new_particles()
 
   // Update total number of bodies
   //
-  unsigned curnum = particles.size();
-  MPI_Allreduce(&curnum, &nbodies_tot, 1, MPI_UNSIGNED, MPI_SUM,
+  nbodies = particles.size();
+  MPI_Allreduce(&nbodies, &nbodies_tot, 1, MPI_UNSIGNED, MPI_SUM,
 		MPI_COMM_WORLD);
 
 }
