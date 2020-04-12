@@ -602,7 +602,7 @@ public:
   Particle *GetNewPart();
 
   //! Remove a particle from the component
-  void KillPart(PartPtr p);
+  void DestroyPart(PartPtr p);
 
   //! Particle vector size
   unsigned Number() {

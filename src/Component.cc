@@ -3500,8 +3500,12 @@ void Component::seq_new_particles()
     //
     if (myid==n) {
       for (auto p : new_particles) {
-	p->indx = ++top_seq;
+	p->indx  = ++top_seq;
+	p->level = multistep;
 	particles[p->indx] = p;
+				// Add to level list:
+				// last element by construction
+	levlist[p->level].push_back(p->indx); 
       }
     }
 
@@ -3520,13 +3524,39 @@ void Component::seq_new_particles()
   MPI_Allreduce(&nbodies, &nbodies_tot, 1, MPI_UNSIGNED, MPI_SUM,
 		MPI_COMM_WORLD);
 
+  // Reset the change counter
+  //
   modified = 0;
 }
 
 
-void Component::KillPart(PartPtr p)
+void Component::DestroyPart(PartPtr p)
 {
   particles.erase(p->indx);
+
+  // Remove from level list
+  //
+  bool success = false;		// For sanity check . . .
+  for (auto & v : levlist) {
+    auto it = std::find(v.begin(), v.end(), p->indx);
+    if (it != v.end()) {
+      v.erase(it);
+      success = true;
+      break;
+    }
+  }
+
+  // Levlist sanity check
+  //
+  if (not success) {
+    std::cout << "***ERROR*** "
+	      << "Component::DestroyPart: could not find indx=" << p->indx
+	      << " in levlist in any of " << multistep+1 << " levels"
+	      << std::endl;
+  }
+
+  // Update counters
+  //
   nbodies--;
   modified++;
 }
