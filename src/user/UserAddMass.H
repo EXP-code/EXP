@@ -10,8 +10,19 @@
 
 /** Add mass to component
 
+    The particle positions are computing using either the spherical
+    (Halo algorithm) or projected cylindrical (Disk algorithm) mass
+    profile from the phase space.
+
+    For the Disk algorithm, the particles are added to the mean disk
+    midplane based on a real-time rotation curve estimate.  For the
+    Halo algorithm, the velocity is chosen isotropically based on the
+    mean velocity dispersion in spherical shells.
+
     @param compname is the component and must be specified
-    @param number is the number of particles to add per time step
+    @param tstart is the first time when particles are added
+    @param dtime is the time interval between particle additions
+    @param number is the number of particles to add per addition
     @param mass is the particle mass to add
     @param algorithm specifies the particle selection method
     @param rmin lower bin radius
@@ -30,7 +41,7 @@ private:
 
   bool logr;
   unsigned number, numr;
-  double mass, rmin, rmax, dr;
+  double mass, rmin, rmax, dr, tnext, dtime;
   long int seed;
 
   std::vector< std::vector<double> > mas_bins;

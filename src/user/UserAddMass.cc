@@ -61,14 +61,16 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
 {
   id = "AddMass";
 
-  comp_name = "";		// Default component for com
-  rmin = 1.0e-4;		// Default inner radius
-  rmax = 1.0;			// Default outer radius
-  numr = 100;			// Default number of radial bins
-  number = 10;			// Default number of particles added
-  mass = 1.0e-10;		// Default mass of new particles
-  logr = true;			// Logaritmic binning
-  seed = 11;			// Random number seed
+  comp_name = "";               // Default component for com
+  rmin   = 1.0e-4;              // Default inner radius
+  rmax   = 1.0;                 // Default outer radius
+  numr   = 100;                 // Default number of radial bins
+  number = 10;                  // Default number of particles added
+  mass   = 1.0e-10;             // Default mass of new particles
+  logr   = true;                // Logaritmic binning
+  seed   = 11;                  // Random number seed
+  dtime  = 0.012;               // Time interval between particle additions
+  tnext  = dtime;               // Time to begin adding particles
 
   initialize();
 
@@ -169,7 +171,8 @@ void UserAddMass::initialize()
     if (conf["logr"])       logr      = conf["logr"].as<bool>();
     if (conf["seed"])       seed      = conf["logr"].as<long int>();
     if (conf["number"])     number    = conf["number"].as<unsigned>();
-    if (conf["mass"])       mass      = conf["mass"].as<double>();
+    if (conf["tstart"])     tnext     = conf["tstart"].as<double>();
+    if (conf["dtime"])      dtime     = conf["dtime"].as<double>();
     if (conf["algorithm"])  alg       = AlgMap[conf["algorithm"].as<std::string>()];
   }
   catch (YAML::Exception & error) {
@@ -216,6 +219,11 @@ void UserAddMass::determine_acceleration_and_potential(void)
 
 				// Only compute for top level
   if (multistep && mlevel>0) return;
+
+				// Have we completed the interval?
+  if (tnow < tnext) return;
+
+  tnext += dtime;		// Increment the target time
 
   clear_bins();			// Clean for tabulation
 
