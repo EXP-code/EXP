@@ -313,8 +313,13 @@ void UserAddMass::determine_acceleration_and_potential(void)
 
   // Finally, we are ready to generate the new particles
   //
-  int numgen = number/numprocs;	// Number ot generate
-  if (myid==numprocs-1) numgen = number - numgen*(numprocs-1);
+  int numgen = 1;
+  if (number<numprocs) {	// Fewer particles than processes
+    if (myid >= number) numgen = 0;
+  } else {			// Otherwise . . .
+    numgen = number/numprocs;
+    if (myid==numprocs-1) numgen = number - numgen*(numprocs-1);
+  }
 
   for (int n=0; n<numgen; n++) {
 
