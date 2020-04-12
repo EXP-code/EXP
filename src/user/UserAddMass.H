@@ -41,7 +41,7 @@ private:
 
   bool logr;
   unsigned number, numr;
-  double mass, rmin, rmax, dr, tnext, dtime;
+  double mass, rmin, rmax, lrmin, lrmax, dr, tnext, dtime;
   long int seed;
 
   std::vector< std::vector<double> > mas_bins;

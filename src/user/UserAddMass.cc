@@ -103,11 +103,15 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
 				// Sanity
   if (rmin == 0.0 and logr) logr = false;
 
+  lrmin = rmin;
+  lrmax = rmax;
+
   if (logr) {
-    rmin = log(rmin);
-    rmax = log(rmax);
+    lrmin = log(rmin);
+    lrmax = log(rmax);
   }
-  dr = (rmax - rmin)/(numr - 1);
+
+  dr = (lrmax - lrmin)/(numr - 1);
 
   mas_bins.resize(nthrds);
   vl_bins.resize(nthrds);
@@ -344,7 +348,7 @@ void UserAddMass::determine_acceleration_and_potential(void)
       while (mas_bins[0][indx] == 0.0 and indx < numr) indx++;
     }
 
-    double rr = rmin + dr*((*urand)() + indx);
+    double rr = lrmin + dr*((*urand)() + indx);
     if (logr) rr = exp(rr);
 
     Particle *P =  c0->GetNewPart();
@@ -471,10 +475,10 @@ void * UserAddMass::determine_acceleration_and_potential_thread(void * arg)
     if (logr) {			// Log binning:
       if (r>0.0) {		// ignore if r==0.0 in
 	r = log(r);
-	if (r >= rmin) indx = floor( (r - rmin)/dr );
+	if (r >= lrmin) indx = floor( (r - lrmin)/dr );
       }
     } else {			// Linear binning
-      if (r >= rmin) indx = floor( (r - rmin)/dr );
+      if (r >= lrmin) indx = floor( (r - lrmin)/dr );
     }
 
     // Add value to bin
