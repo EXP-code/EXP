@@ -3113,11 +3113,24 @@ void Component::load_balance(void)
 
     }
 
-    std::string outrates = outdir + "current.processor.rates." + runtag;
-    std::string rateslog = outdir + "current.processor.rates.log." + runtag;
+    std::string outrates =
+      outdir + "current.processor.rates." + name + "." + runtag;
+
+    std::string rateslog =
+      outdir + "current.processor.rates.log." + name + "." + runtag;
 
     out.open(outrates, ios::out | ios::app);
     log.open(rateslog, ios::out | ios::app);
+
+    if (not out.good()) {
+      std::cout << "*** ERROR: Component::load_balance error opening <"
+		<< outrates << ">" << std::endl;
+    }
+
+    if (not log.good()) {
+      std::cout << "*** ERROR: Component::load_balance error opening <"
+		<< rateslog << ">" << std::endl;
+    }
 
     if (out) {
       out << "# " << endl;
@@ -3306,6 +3319,17 @@ void Component::load_balance(void)
 }
 
 
+template< typename T >
+typename std::vector<T>::iterator 
+insert_sorted( std::vector<T> & vec, T const& item )
+{
+  return vec.insert
+    ( 
+     std::upper_bound( vec.begin(), vec.end(), item ),
+     item 
+      );
+}
+
 void Component::add_particles(int from, int to, std::vector<PartPtr>& plist)
 {
   unsigned number = plist.size();
@@ -3323,6 +3347,28 @@ void Component::add_particles(int from, int to, std::vector<PartPtr>& plist)
       while (icount < PFbufsz && counter < number) {
 
 	pf->SendParticle(*it);
+
+	// Remove particle from lev list
+	//
+	bool success = false;	// Sanity check
+	for (auto & v : levlist) {
+	  auto jt = std::find(v.begin(), v.end(), (*it)->indx);
+	  if (jt != v.end()) {
+	    v.erase(jt);
+	    success = true;
+	    break;
+	  }
+	}
+
+	// Levlist sanity check
+	//
+	if (not success) {
+	  std::cout << "***ERROR*** "
+		    << "Component::add_particles: could not find indx="
+		    << (*it)->indx << " in levlist in any of "
+		    << multistep+1 << " levels" << std::endl;
+	}
+
 	particles.erase((*it)->indx);
       
 	icount++;
@@ -3346,6 +3392,7 @@ void Component::add_particles(int from, int to, std::vector<PartPtr>& plist)
 
       while (PartPtr temp=pf->RecvParticle()) {
 	particles[temp->indx] = temp;
+	insert_sorted<int>(levlist[temp->level], temp->indx);
 	counter++;
       }
 
