@@ -29,7 +29,7 @@ private:
   Component *c0;
 
   bool logr;
-  int number, numr;
+  unsigned number, numr;
   double mass, rmin, rmax, dr;
   long int seed;
 

@@ -165,10 +165,10 @@ void UserAddMass::initialize()
     if (conf["compname"])   comp_name = conf["compname"].as<std::string>();
     if (conf["rmin"])       rmin      = conf["rmin"].as<double>();
     if (conf["rmax"])       rmax      = conf["rmax"].as<double>();
-    if (conf["numr"])       numr      = conf["numr"].as<int>();
+    if (conf["numr"])       numr      = conf["numr"].as<unsigned>();
     if (conf["logr"])       logr      = conf["logr"].as<bool>();
     if (conf["seed"])       seed      = conf["logr"].as<long int>();
-    if (conf["number"])     number    = conf["number"].as<int>();
+    if (conf["number"])     number    = conf["number"].as<unsigned>();
     if (conf["mass"])       mass      = conf["mass"].as<double>();
     if (conf["algorithm"])  alg       = AlgMap[conf["algorithm"].as<std::string>()];
   }
@@ -225,7 +225,7 @@ void UserAddMass::determine_acceleration_and_potential(void)
   //
   for (int n=1; n<nthrds; n++) {
 
-    for (int i=0; i<numr; i++) {
+    for (unsigned i=0; i<numr; i++) {
       mas_bins[0][i] += mas_bins[n][i];
 
       switch (alg) {
@@ -250,30 +250,30 @@ void UserAddMass::determine_acceleration_and_potential(void)
 
   switch (alg) {
   case Algorithm::Halo:
-    for (int i=0; i<numr; i++) {
+    for (unsigned i=0; i<numr; i++) {
       for (int k=0; k<3; k++) pack[i*3+k] = vl_bins[0][i][k];
     }
     MPI_Allreduce(MPI_IN_PLACE, pack.data(), numr*3, MPI_DOUBLE, MPI_SUM,
 		  MPI_COMM_WORLD);
-    for (int i=0; i<numr; i++) {
+    for (unsigned i=0; i<numr; i++) {
       for (int k=0; k<3; k++) vl_bins[0][i][k] = pack[i*3+k];
       for (int k=0; k<3; k++) pack[i*3+k] = v2_bins[0][i][k];
     }
     MPI_Allreduce(MPI_IN_PLACE, pack.data(), numr*3, MPI_DOUBLE, MPI_SUM,
 		  MPI_COMM_WORLD);
-    for (int i=0; i<numr; i++) {
+    for (unsigned i=0; i<numr; i++) {
       for (int k=0; k<3; k++) v2_bins[0][i][k] = pack[i*3+k];
     }
 
     break;
   case Algorithm::Disk:
   default:
-    for (int i=0; i<numr; i++) {
+    for (unsigned i=0; i<numr; i++) {
       for (int k=0; k<3; k++) pack[i*3+k] = L3_bins[0][i][k];
     }
     MPI_Allreduce(MPI_IN_PLACE, pack.data(), numr*3, MPI_DOUBLE, MPI_SUM,
 		  MPI_COMM_WORLD);
-    for (int i=0; i<numr; i++) {
+    for (unsigned i=0; i<numr; i++) {
       for (int k=0; k<3; k++) L3_bins[0][i][k] = pack[i*3+k];
     }
     break;
@@ -282,14 +282,14 @@ void UserAddMass::determine_acceleration_and_potential(void)
   // Compute cumulative mass
   //
   std::vector<double> wght(mas_bins[0]);
-  for (int i=1; i<numr; i++) wght[i] += wght[i-1];
+  for (unsigned i=1; i<numr; i++) wght[i] += wght[i-1];
 
   // Compute total angular momentum
   //
   std::array<std::array<double, 3>, 3> ee;
 
   if (alg == Algorithm::Disk) {
-    for (int i=0; i<numr; i++) {
+    for (unsigned i=0; i<numr; i++) {
       for (int k=0; k<3; k++) ee[0][k] += L3_bins[0][i][k];
     }
 
@@ -314,8 +314,9 @@ void UserAddMass::determine_acceleration_and_potential(void)
   // Finally, we are ready to generate the new particles
   //
   int numgen = 1;
-  if (number<numprocs) {	// Fewer particles than processes
-    if (myid >= number) numgen = 0;
+				// Fewer particles than processes
+  if (static_cast<int>(number) < numprocs) {	
+    if (myid >= static_cast<int>(number)) numgen = 0;
   } else {			// Otherwise . . .
     numgen = number/numprocs;
     if (myid==numprocs-1) numgen = number - numgen*(numprocs-1);
@@ -329,6 +330,11 @@ void UserAddMass::determine_acceleration_and_potential(void)
     unsigned indx = numr-1;
     if (it != wght.end()) indx = std::distance(wght.begin(), it);
     if (indx>0) indx--;
+
+				// Do not use zero mass bin
+    if (mas_bins[0][indx] == 0.0) {
+      while (mas_bins[0][indx] == 0.0 and indx < numr) indx++;
+    }
 
     double rr = rmin + dr*((*urand)() + indx);
     if (logr) rr = exp(rr);
@@ -455,7 +461,7 @@ void * UserAddMass::determine_acceleration_and_potential_thread(void * arg)
 
     // Add value to bin
     //
-    if (indx >= 0 and indx < numr) {
+    if (indx >= 0 and indx < static_cast<int>(numr)) {
       mas_bins[id][indx] += P->mass;
 
       switch (alg) {
