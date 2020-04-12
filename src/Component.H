@@ -195,6 +195,7 @@ private:
 
   //! Parallel distribute and particle io
   void load_balance(void);
+  void update_indices(void);
   void read_bodies_and_distribute_ascii(void);
   void read_bodies_and_distribute_binary_out(istream *);
   void read_bodies_and_distribute_binary_spl(istream *);

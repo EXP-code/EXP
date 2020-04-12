@@ -3016,9 +3016,6 @@ int Component::round_up(double dnumb)
 
 void Component::setup_distribution(void)
 {
-  std::ofstream out;
-  int n;
-
 				// Needed for both master and slaves
   nbodies_index = vector<unsigned int>(numprocs);
   nbodies_table = vector<unsigned int>(numprocs);
@@ -3028,7 +3025,7 @@ void Component::setup_distribution(void)
     orates = vector<double>(numprocs);
     trates = vector<double>(numprocs);
 
-    for (n=0; n<numprocs; n++) {
+    for (int n=0; n<numprocs; n++) {
 
       if (n == 0)
 	nbodies_table[n] = nbodies_index[n] = 
@@ -3045,9 +3042,9 @@ void Component::setup_distribution(void)
 
     }
 
-    string outrates = outdir + "current.processor.rates." + runtag;
+    std::string outrates = outdir + "current.processor.rates." + runtag;
 
-    out.open(outrates, ios::out | ios::app);
+    std::ofstream out(outrates, ios::out | ios::app);
 
     if (out.good()) {
       out << "# " << endl;
@@ -3065,7 +3062,7 @@ void Component::setup_distribution(void)
 	  << setw(15) << "---------"
 	  << endl;
       
-      for (n=0; n<numprocs; n++)
+      for (int n=0; n<numprocs; n++)
 	out << "  "
 	    << setw(15) << comp->rates[n]
 	    << setw(15) << 1.0 - comp->rates[n]*nbodies_tot/nbodies_table[n]
@@ -3084,6 +3081,24 @@ void Component::setup_distribution(void)
 
 }
 
+void Component::update_indices(void)
+{
+  nbodies_index.resize(numprocs);
+  nbodies_table.resize(numprocs);
+
+  // Gather current size from all processes
+  //
+  unsigned int mysize = particles.size();
+  MPI_Allgather(&mysize, 1, MPI_UNSIGNED, nbodies_table.data(), 1, MPI_UNSIGNED,
+		MPI_COMM_WORLD);
+
+  // Cumulate
+  //
+  nbodies_index[0] = nbodies_table[0];
+  for (int n=0; n<numprocs; n++)
+    nbodies_index[n] = nbodies_index[n-1] + nbodies_table[n];
+}
+
 void Component::load_balance(void)
 {
   MPI_Status status;
@@ -3091,6 +3106,7 @@ void Component::load_balance(void)
   vector<unsigned int> nbodies_table1(numprocs);
   std::ofstream out, log;
 
+  update_indices();
 
   if (myid == 0) {
 
