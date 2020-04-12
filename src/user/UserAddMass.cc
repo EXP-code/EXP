@@ -450,7 +450,7 @@ void * UserAddMass::determine_acceleration_and_potential_thread(void * arg)
     // Convert to center reference frame
     //
     cC->ConvertPos(pos.data());
-    cC->ConvertVel(vel>data());
+    cC->ConvertVel(vel.data());
 
     // Compute radius
     //
