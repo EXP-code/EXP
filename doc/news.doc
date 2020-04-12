@@ -1,21 +1,25 @@
-/*! \page news Recent News and Changes
+/*! \page news Recent Additions and Changes
 \par April 12, 2020
 
-     Added members to <code>Component</code> for particle spawning and
+     Added members to Component for particle spawning and
      destroying.
 
      Updated load balancing algorithms for efficiency.
+
+     Added a test user module (useraddmass) demonstrating
+     particle spawing.
 
 \par April 6, 2020
 
      Removed insane pointer gymnastics from EmpCylSL.
 
      Added additional diagnostics for force accuracy checking in
-     <code>user/ICs</code>.
+     user/ICs.
 
 \par March 20, 2020
 
-     Added additional deprojection algorithms to EmpCylSL.
+     Added additional deprojection algorithms to
+     EmpCylSL.
 
 \par March 7, 2020
 
