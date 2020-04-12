@@ -1,0 +1,45 @@
+/*! \page news Recent News and Changes
+\par April 12, 2020
+
+     Added members to <code>Component</code> for particle spawning and
+     destroying.
+
+     Updated load balancing algorithms for efficiency.
+
+\par April 6, 2020
+
+     Removed insane pointer gymnastics from EmpCylSL.
+
+     Added additional diagnostics for force accuracy checking in
+     <code>user/ICs</code>.
+
+\par March 20, 2020
+
+     Added additional deprojection algorithms to EmpCylSL.
+
+\par March 7, 2020
+
+     Improved tidal radius computation.
+
+\par February 20, 2020
+
+     Fixed broken OpenMP detection in autoconf methods.
+
+     More changes from pointers to shared pointers for safety.
+
+\par January 10, 2020
+
+     Updated PSP conversion utilities for YAML parameter lists 
+
+\par November 26, 2019
+
+     All PSP particles are indexed by default.  However, indexing can
+     be turned off manually, if desired.
+
+     Removed unused CUDA constants.
+
+     Added PSP multiple file writes (SPL format).
+
+     Additional changes for new PSP yaml parameters.
+
+*/
