@@ -434,17 +434,27 @@ void * UserAddMass::determine_acceleration_and_potential_thread(void * arg)
 
   PartMapItr it = cC->Particles().begin();
 
+  std::array<double, 3> pos, vel, angm;
+
   for (int q=0   ; q<nbeg; q++) it++;
 
   for (int q=nbeg; q<nend; q++, it++) {
 
     auto P = it->second;
 
+    for (int k=0; k<3; k++) {
+      pos[k] = P->pos[k];
+      vel[k] = P->vel[k];
+    }
+	
+    // Convert to center reference frame
+    //
+    cC->ConvertPos(pos.data());
+    cC->ConvertVel(vel>data());
+
     // Compute radius
     //
-    double r = 0.0;
-    for (int i=0; i<3; i++) r += P->pos[i] * P->pos[i];
-    r = sqrt(r);
+    double r = xnorm(pos);
 
     // Compute bin number
     //
@@ -467,15 +477,16 @@ void * UserAddMass::determine_acceleration_and_potential_thread(void * arg)
       switch (alg) {
       case Algorithm::Halo:
 	for (int k=0; k<3; k++)	// Mean velocity
-	  vl_bins[id][indx][k] += P->mass * P->vel[k];
+	  vl_bins[id][indx][k] += P->mass * vel[k];
 	for (int k=0; k<3; k++)	// Square velocity
-	  v2_bins[id][indx][k] += P->mass * P->vel[k]*P->vel[k];
+	  v2_bins[id][indx][k] += P->mass * vel[k]*vel[k];
 	break;
       case Algorithm::Disk:	// Angular momentum
       default:
-	L3_bins[id][indx][0] += P->mass * (P->pos[1]*P->vel[2] - P->pos[2]*P->vel[1]);
-	L3_bins[id][indx][1] += P->mass * (P->pos[2]*P->vel[0] - P->pos[0]*P->vel[2]);
-	L3_bins[id][indx][2] += P->mass * (P->pos[0]*P->vel[1] - P->pos[1]*P->vel[0]);
+	angm = xprod(pos, vel);
+	L3_bins[id][indx][0] += P->mass * angm[0];
+	L3_bins[id][indx][1] += P->mass * angm[1];
+	L3_bins[id][indx][2] += P->mass * angm[2];
 	break;
       }
     }
