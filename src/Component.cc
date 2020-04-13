@@ -1917,6 +1917,13 @@ PartPtr * Component::get_particles(int* number)
   if (counter == 0) {
 				// Add new particles to sequence
     seq_new_particles();
+
+#ifdef DEBUG
+    std::cout << "get_particles: Node " << myid
+	      << " # part=" << particles.size() << " nbodies=" << nbodies
+		  << std::endl << std::flush;
+#endif    
+
 				// Every process report particle numbers
     totals.resize(numprocs);
     MPI_Allgather(&nbodies, 1, MPI_UNSIGNED, &totals[0], 1, MPI_UNSIGNED,
@@ -1954,8 +1961,12 @@ PartPtr * Component::get_particles(int* number)
 	for (auto it=itb; it!=ite; it++) pbuf[icount++] = it->second;
 
 #ifdef DEBUG
-	cout << "get_particles: master loaded " 
-	     << icount << " of its own particles" << endl << flush;
+	std::cout << "get_particles: master loaded " 
+		  << icount << " of its own particles"
+		  << ", beg=" << beg << ", iend=" << end
+		  << ", dist=" << std::distance(itb, ite)
+		  << ", expected=" << totals[0]
+		  << std::endl << std::flush;
 #endif    
 
     } else {
@@ -1966,10 +1977,10 @@ PartPtr * Component::get_particles(int* number)
       icount = 0;
       while (PartPtr part=pf->RecvParticle()) pbuf[icount++] = part;
 #ifdef DEBUG
-      cout << "Process " << myid 
+      std::cout << "Process " << myid 
 	   << ": received " << icount << " particles from Slave " << node
-	   << ", expected " << number
-	   << endl << flush;
+		<< ", expected " << number << ", total=" << totals[node]
+		<< std::endl << std::flush;
 #endif    
     }
 
@@ -2004,8 +2015,8 @@ PartPtr * Component::get_particles(int* number)
 
 #ifdef DEBUG
   if (myid==0) {
-    cout << "get_particles: master size of tlist=" << tlist.size() 
-    	 << " current count=" << curcount << endl;
+    std::cout << "get_particles: master size of tlist=" << tlist.size() 
+	      << " current count=" << curcount << std::endl;
   }
 #endif
 
@@ -2017,11 +2028,11 @@ PartPtr * Component::get_particles(int* number)
   if (complete) node++;
 
 #ifdef DEBUG
-  cout << "Process " << myid 
-       << ": received next counter=" << counter
-       << " icount=" << icount;
+  std::cout << "Process " << myid 
+       << ": received next counter=" << counter;
   if (counter > nbodies_tot) cout << " [this means we are done]";
-  cout << endl << flush;
+  std::cout << std::endl << std::flush;
+  MPI_Barrier(MPI_COMM_WORLD);
 #endif    
 
   return &pbuf[0];
@@ -3540,6 +3551,12 @@ Particle* Component::GetNewPart()
 
 void Component::seq_new_particles()
 {
+  // Update total number of bodies
+  //
+  nbodies = particles.size();
+  MPI_Allreduce(&nbodies, &nbodies_tot, 1, MPI_UNSIGNED, MPI_SUM,
+		MPI_COMM_WORLD);
+
   // Are there new particles to sequence?
   //
   unsigned newTot, newCur = new_particles.size();
@@ -3547,12 +3564,7 @@ void Component::seq_new_particles()
 		MPI_COMM_WORLD);
 
   if (newTot==0) {
-    if (modified>0) {		// Update total number of bodies
-      nbodies = particles.size();
-      MPI_Allreduce(&nbodies, &nbodies_tot, 1, MPI_UNSIGNED, MPI_SUM,
-		    MPI_COMM_WORLD);
-      modified = 0;
-    }
+    modified = 0;
     return;
   }
 
@@ -3586,6 +3598,11 @@ void Component::seq_new_particles()
   nbodies = particles.size();
   MPI_Allreduce(&nbodies, &nbodies_tot, 1, MPI_UNSIGNED, MPI_SUM,
 		MPI_COMM_WORLD);
+
+#ifdef DEBUG
+  std::cout << "seq_new_particles [Node " << myid << "] # part="
+	    << particles.size() << ", nbodies=" << nbodies << std::endl;
+#endif
 
   // Reset the change counter
   //
