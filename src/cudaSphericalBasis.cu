@@ -867,7 +867,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
   if (pcavar) {
 
     if (sampT == 0) {		// Allocate storage
-      sampT = floor(sqrt(cC->nbodies_tot));
+      sampT = floor(sqrt(cC->CurTotal()));
       massT    .resize(sampT, 0);
       massT1   .resize(sampT, 0);
 
