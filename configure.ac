@@ -105,7 +105,7 @@ dnl ==========================================================================
 dnl Added macro to allow list of CUDA compute capabilities
 dnl ==========================================================================
 
-sm_vers="35 60 61 70"
+sm_vers="35 37 60 61 70"
 
 AC_ARG_WITH([cuda-capabilities],
 	[AC_HELP_STRING([--with-cuda-capabilities=LIST],
@@ -209,6 +209,16 @@ if test x$havevtk = xyes; then
       dnl else
       dnl 	 exp_vtk_ldlib="$exp_vtk_ldlib -lvtkftgl$vtk_libval"
       dnl fi
+   fi
+
+   dnl Compare supplied version to check whether >=8.0 libraries are needed
+   CMPV="8.0"
+   AS_VERSION_COMPARE(${vtk_version}, ${CMPV}, [VTK_POST_8_0=-1], [VTK_POST_8_0=0],[VTK_POST_8_0=1])
+
+   AS_IF([test "${VTK_POST_8_0}" != "-1"], AC_MSG_RESULT([VTK post 8.0: yes]), AC_MSG_RESULT([VTK post 8.0: no]))
+
+   if test "${VTK_POST_8_0}" != "-1"; then
+      exp_vtk_ldlib="-lvtkCommonCore$vtk_libval -lvtkCommonDataModel$vtk_libval -lvtkIOXML$vtk_libval"
    fi
 
    CFLAGS=$OLD_CFLAGS
