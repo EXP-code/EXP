@@ -1681,7 +1681,7 @@ main (int ac, char **av)
   po::options_description desc("Allowed options");
   desc.add_options()
     ("help,h",		"produce help message")
-    ("electrons",       "set up for weighted or hybrid species with electrons")
+    ("electrons",       "set up for trace, weighted or hybrid species with electrons")
     ("meanmass",        "set up for the mean-mass algorithm")
     ("yaml",            "write YAML species config file")
     ("old",             "write old-style species config file")
