@@ -103,7 +103,7 @@ protected:
 
   virtual void initialize_cuda()
   {
-    sampT = floor(sqrt(component->nbodies_tot));
+    sampT = floor(sqrt(component->CurTotal()));
     ortho->initialize_cuda(cuInterpArray, tex);
   }
 
