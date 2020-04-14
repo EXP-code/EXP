@@ -709,9 +709,9 @@ public:
       throw std::runtime_error("n>=norder");
 
     if (c == 'c')
-      return accum_cosN[mlevel][0][m][n];
+      return cosN(mlevel)[0][m][n];
     else
-      return accum_sinN[mlevel][0][m][n];
+      return sinN(mlevel)[0][m][n];
   }
 
   double& set_coefT(int T, int m, int n, char c)
