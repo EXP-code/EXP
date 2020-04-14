@@ -861,7 +861,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
   host_coefs.resize((2*mmax+1)*ncylorder);
 
   if (pcavar) {
-    sampT = floor(sqrt(component->nbodies_tot));
+    sampT = floor(sqrt(component->CurTotal()));
     host_coefsT.resize(sampT);
     for (int T=0; T<sampT; T++) host_coefsT[T].resize((2*mmax+1)*ncylorder);
     host_massT.resize(sampT);
