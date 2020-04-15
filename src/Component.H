@@ -273,7 +273,7 @@ protected:
   unsigned int nbodies;
 
   //! Bodies on all nodes
-  unsigned nbodies_tot;
+  unsigned int nbodies_tot;
 
   /** Used by gather and distribution routines to define a particle
       structure to MPI */

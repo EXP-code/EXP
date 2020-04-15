@@ -3106,8 +3106,8 @@ void Component::update_indices(void)
 
   // Gather current size from all processes
   //
-  unsigned int mysize = particles.size();
-  MPI_Allgather(&mysize, 1, MPI_UNSIGNED, nbodies_table.data(), 1, MPI_UNSIGNED,
+  nbodies = particles.size();
+  MPI_Allgather(&nbodies, 1, MPI_UNSIGNED, nbodies_table.data(), 1, MPI_UNSIGNED,
 		MPI_COMM_WORLD);
 
   // Cumulate
@@ -3115,6 +3115,7 @@ void Component::update_indices(void)
   nbodies_index[0] = nbodies_table[0];
   for (int n=0; n<numprocs; n++)
     nbodies_index[n] = nbodies_index[n-1] + nbodies_table[n];
+
 }
 
 void Component::load_balance(void)
