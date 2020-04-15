@@ -396,23 +396,26 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	double phi = 2.0*M_PI*(*urand)();
 	double cosp = cos(phi), sinp = sin(phi);
 	for (int k=0; k<3; k++) P->pos[k] = rr*(ee[1][k]*cosp + ee[2][k]*sinp);
+	//                                      ^               ^
+	// These are perpendicular to the       |               |
+	// mean angular momemtnum vector -------+---------------+
 	
 	// Use angular momentum to get tangential velocity.
-	// E.g. L X v/r^2 = (r X v) X r/r^2 = v - r/|r| * (v.r/|r|) = v_t
+	// E.g. L X r/r^2 = (r X v) X r/r^2 = v - r/|r| * (v.r/|r|) = v_t
 	//
 	auto rv = L3_bins[0][indx];
 	for (auto & v : rv) v /= mas_bins[0][indx];
+
 	std::array<double, 3> xyz = {P->pos[0], P->pos[1], P->pos[2]};
 	auto v3 = xprod(rv, xyz);
 	for (auto & v : v3) v /= rr*rr;
 
-	double vtan = 0.0;	// Magnitude of v_t
-	for (auto v : v3) vtan += v*v;
-	vtan = sqrt(vtan);
-	
+	// v3 is now the mean tangential velocity perpendicular to
+	// radius
+
 	// Velocities
 	//
-	for (int k=0; k<3; k++) P->vel[k] = vtan*(-ee[1][k]*sinp + ee[2][k]*cosp);
+	for (int k=0; k<3; k++) P->vel[k] = v3[k];
       }
 
       break;
