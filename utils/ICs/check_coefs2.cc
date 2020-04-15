@@ -336,7 +336,8 @@ main(int ac, char **av)
   int          NUMX;
   int          NUMY;
   int          NOUT;
-  int          NFRC;
+  int          NFRC1D;
+  int          NFRC2D;
   int          NORDER;
   double       scale_height;
   double       scale_length;
@@ -388,7 +389,8 @@ main(int ac, char **av)
     ("NUMY",            po::value<int>(&NUMY)->default_value(128),                      "Vertical grid size for disk basis table")
     ("NORDER",          po::value<int>(&NORDER)->default_value(16),                     "Number of disk basis functions per M-order")
     ("NOUT",            po::value<int>(&NOUT)->default_value(1000),                     "Number of radial basis functions to output for each harmonic order")
-    ("NFRC",            po::value<int>(&NFRC)->default_value(100),                     "Number of radial knots for force check")
+    ("NFRC1D",          po::value<int>(&NFRC1D)->default_value(1000),                   "Number of radial knots for force check for 1-d trace")
+    ("NFRC2D",          po::value<int>(&NFRC2D)->default_value(100),                    "Number of radial knots for force check for 2-d plane")
     ("NSCL",            po::value<double>(&NSCL)->default_value(8.0),                  "Number of scales for 2-d plane output")
     ("DENS",            po::value<bool>(&DENS)->default_value(true),                    "Compute the density basis functions")
     ("VFLAG",           po::value<int>(&VFLAG)->default_value(0),                       "Output flags for EmpCylSL")
@@ -875,12 +877,12 @@ main(int ac, char **av)
       
     std::cout << std::endl << "Midplane force evaluation"
 	      << std::endl;
-    progress = boost::make_shared<boost::progress_display>(NFRC);
+    progress = boost::make_shared<boost::progress_display>(NFRC1D);
   }
 
   // Quick radial force check
   //
-  double dx   = (xmax - xmin)/(NFRC-1);
+  double dx   = (xmax - xmin)/(NFRC1D-1);
   double z    = 0.0;
   double phi  = 0.0;
   double mass = 1.0;
@@ -947,7 +949,7 @@ main(int ac, char **av)
 
   // Compute and write expansion values
   //
-  for (int j=0; j<NFRC; j++) {
+  for (int j=0; j<NFRC1D; j++) {
     std::vector<double> pp(nmin), dd(nmin);
     double p0, p, fr, fz, fp, d;
     double r = x_to_r(xmin + dx*j, AA);
@@ -1059,7 +1061,7 @@ main(int ac, char **av)
   if (use_progress) {
     std::cout << std::endl << "Meridional force evaluation"
 	      << std::endl;
-    progress = boost::make_shared<boost::progress_display>(NFRC);
+    progress = boost::make_shared<boost::progress_display>(NFRC2D);
   }
 
   double Rmin =  0.1*HH;
@@ -1067,8 +1069,8 @@ main(int ac, char **av)
   double Zmin = -NSCL*HH;
   double Zmax =  NSCL*HH;
 
-  double dR = (Rmax - Rmin)/(NFRC-1);
-  double dZ = (Zmax - Zmin)/(NFRC-1);
+  double dR = (Rmax - Rmin)/(NFRC2D-1);
+  double dZ = (Zmax - Zmin)/(NFRC2D-1);
 
   double FR0 = 1.0, FZH = 1.0; // Compute radial force a one scale length
   {			       // for comparison
@@ -1079,10 +1081,10 @@ main(int ac, char **av)
 
   // Compute and write expansion values
   //
-  for (int j=0; j<NFRC; j++) {
+  for (int j=0; j<NFRC2D; j++) {
     double r = Rmin + dR*j;
 
-    for (int k=0; k<NFRC; k++) {
+    for (int k=0; k<NFRC2D; k++) {
       double z = Zmin + dZ*k;
 
       std::vector<double> pp(nmin), dd(nmin);
