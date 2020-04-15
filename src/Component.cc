@@ -2008,8 +2008,7 @@ PartPtr * Component::get_particles(int* number)
 
 #ifdef DEBUG
       std::cout << "Process " << myid 
-	   << ": sent " << icount << " particles from Slave " << node
-		<< ", expected " << number << ", total=" << totals[node]
+		<< ": sent " << icount << " particles from Slave " << node
 		<< std::endl << std::flush;
 #endif    
   }
