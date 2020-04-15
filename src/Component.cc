@@ -2000,12 +2000,18 @@ PartPtr * Component::get_particles(int* number)
     if (complete) ite = particles.end();
     else          std::advance(ite, end - totals[node-1]);
     
-    icount = 0;
-    for (auto it=itb; it!=ite; it++) pbuf[icount++] = it->second;
 
+    icount = std::distance(itb, ite);
     pf->ShipParticles(0, myid, icount);
 
-    for (auto p : particles) pf->SendParticle(p.second);
+    for (auto it=itb; it!=ite; it++) pf->SendParticle(it->second);
+
+#ifdef DEBUG
+      std::cout << "Process " << myid 
+	   << ": sent " << icount << " particles from Slave " << node
+		<< ", expected " << number << ", total=" << totals[node]
+		<< std::endl << std::flush;
+#endif    
   }
 
   MPI_Bcast(&counter, 1, MPI_INT, 0, MPI_COMM_WORLD);
