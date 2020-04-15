@@ -3083,6 +3083,8 @@ void Component::setup_distribution(void)
 
 void Component::update_indices(void)
 {
+  // Make sure arrays have correct size
+  //
   nbodies_index.resize(numprocs);
   nbodies_table.resize(numprocs);
 
@@ -3106,7 +3108,7 @@ void Component::load_balance(void)
   vector<unsigned int> nbodies_table1(numprocs);
   std::ofstream out, log;
 
-  update_indices();
+  update_indices();		// Refresh particle counts
 
   if (myid == 0) {
 
