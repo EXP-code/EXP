@@ -182,7 +182,7 @@ main(int ac, char **av)
     if (!*in) {
       cerr << "Error opening file <" << file.str() << "> for input."
 	   << std::endl
-	   << "Assuming end of sequence . . . continuing."
+	   << "Assuming end of sequence . . . finalizing."
 	   << std::endl;
       break;
     }
@@ -357,7 +357,7 @@ main(int ac, char **av)
 
       // Append the default extension to the file name
       //
-      fileName << rtag << "_" << std::setw(5) << std::setfill('0') << C
+      fileName << rtag << "_" << std::setw(5) << std::setfill('0') << n
 	       << "." << writer->GetDefaultFileExtension();
       writer->SetFileName((fileName.str()).c_str());
       writer->SetInputData(uGrid);

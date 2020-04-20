@@ -2000,12 +2000,17 @@ PartPtr * Component::get_particles(int* number)
     if (complete) ite = particles.end();
     else          std::advance(ite, end - totals[node-1]);
     
-    icount = 0;
-    for (auto it=itb; it!=ite; it++) pbuf[icount++] = it->second;
 
+    icount = std::distance(itb, ite);
     pf->ShipParticles(0, myid, icount);
 
-    for (auto p : particles) pf->SendParticle(p.second);
+    for (auto it=itb; it!=ite; it++) pf->SendParticle(it->second);
+
+#ifdef DEBUG
+      std::cout << "Process " << myid 
+		<< ": sent " << icount << " particles from Slave " << node
+		<< std::endl << std::flush;
+#endif    
   }
 
   MPI_Bcast(&counter, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -3094,13 +3099,15 @@ void Component::setup_distribution(void)
 
 void Component::update_indices(void)
 {
+  // Make sure arrays have correct size
+  //
   nbodies_index.resize(numprocs);
   nbodies_table.resize(numprocs);
 
   // Gather current size from all processes
   //
-  unsigned int mysize = particles.size();
-  MPI_Allgather(&mysize, 1, MPI_UNSIGNED, nbodies_table.data(), 1, MPI_UNSIGNED,
+  nbodies = particles.size();
+  MPI_Allgather(&nbodies, 1, MPI_UNSIGNED, nbodies_table.data(), 1, MPI_UNSIGNED,
 		MPI_COMM_WORLD);
 
   // Cumulate
@@ -3108,6 +3115,7 @@ void Component::update_indices(void)
   nbodies_index[0] = nbodies_table[0];
   for (int n=0; n<numprocs; n++)
     nbodies_index[n] = nbodies_index[n-1] + nbodies_table[n];
+
 }
 
 void Component::load_balance(void)
@@ -3117,7 +3125,7 @@ void Component::load_balance(void)
   vector<unsigned int> nbodies_table1(numprocs);
   std::ofstream out, log;
 
-  update_indices();
+  update_indices();		// Refresh particle counts
 
   if (myid == 0) {
 

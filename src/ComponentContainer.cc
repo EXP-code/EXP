@@ -544,7 +544,8 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   //
   this->ntot = 0;
   for (auto c : components) {
-    this->ntot += c->NewTotal();
+    c->seq_new_particles();	// Add new particles to active lists
+    this->ntot += c->CurTotal();
   }
 
   //
