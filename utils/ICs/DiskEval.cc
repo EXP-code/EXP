@@ -39,11 +39,12 @@ DiskEval::DiskEval
 
   int numthrd = 1, tid = 0;
 #ifdef HAVE_OPENMP
-  // omp_set_dynamic(0);		// Explicitly disable dynamic teams
-  // omp_set_num_threads(4);	// OpenMP set up
 #pragma omp parallel
   {
     numthrd = omp_get_num_threads();
+    int myid = omp_get_thread_num();
+    if (myid==0)
+      std::cout << "Number of threads=" << numthrd << std::endl;
   }
 #endif
 

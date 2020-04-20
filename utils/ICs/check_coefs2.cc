@@ -15,6 +15,11 @@
 
 #include <fenv.h>
 
+#include <config.h>
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
+
 // Boost stuff
 //
 #include <boost/math/special_functions/bessel.hpp>
@@ -208,26 +213,20 @@ string outdir, runtag;
 double DiskDens(double R, double z, double phi)
 {
   double ans = 0.0;
-  static bool firsttime = true;
 
   switch (dtype) {
-      
-
+    
   case DiskType::constant:
-    if (firsttime) std::cout << "Dens = constant" << std::endl;
     if (R < AA && fabs(z) < HH)
       ans = 1.0/(2.0*HH*M_PI*AA*AA);
     break;
   
   case DiskType::gaussian:
-    if (firsttime) std::cout << "Dens = gaussian" << std::endl;
     if (fabs(z) < HH)
-      ans = 1.0/(2.0*HH*2.0*M_PI*AA*AA)*
-	exp(-R*R/(2.0*AA*AA));
+      ans = 1.0/(2.0*HH*2.0*M_PI*AA*AA) * exp(-R*R/(2.0*AA*AA));
     break;
     
   case DiskType::mn:
-    if (firsttime) std::cout << "Dens = mn" << std::endl;
     {
       double Z2 = z*z + HH*HH;
       double Z  = sqrt(Z2);
@@ -238,15 +237,12 @@ double DiskDens(double R, double z, double phi)
 
   default:
   case DiskType::exponential:
-    if (firsttime) std::cout << "Dens = exponential" << std::endl;
     {
       double f = cosh(z/HH);
       ans = exp(-R/AA)/(4.0*M_PI*AA*AA*HH*f*f);
     }
     break;
   }
-
-  firsttime = false;
 
   return ans;
 }
@@ -725,7 +721,44 @@ main(int ac, char **av)
 
   std::map<std::pair<int, int>, double> orthochk;
 
+  switch (dtype) {
+  case DiskType::constant:
+    std::cout << "Dens = constant" << std::endl;
+    break;
+  
+  case DiskType::gaussian:
+    std::cout << "Dens = gaussian" << std::endl;
+    break;
+    
+  case DiskType::mn:
+    std::cout << "Dens = mn" << std::endl;
+    break;
+
+  default:
+  case DiskType::exponential:
+    std::cout << "Dens = exponential" << std::endl;
+    break;
+  }
+
   double totM = 0.0;
+  int nomp = 1;
+
+#ifdef HAVE_OPENMP
+  omp_set_dynamic(0);		// Explicitly disable dynamic teams
+  omp_set_num_threads(nthrds);	// OpenMP set up
+#pragma omp parallel
+  {
+    nomp = omp_get_num_threads();
+  }
+#endif
+
+  boost::shared_ptr<boost::progress_display> progress;
+  if (use_progress) {
+    std::cout << std::endl << "Begin: coefficient eval"
+	      << std::endl << "-----------------------"
+	      << std::endl;
+    progress = boost::make_shared<boost::progress_display>(NINT/nomp);
+  }
 
   if (LOGR2) {
     
@@ -734,7 +767,9 @@ main(int ac, char **av)
     double Zmin = log(RCYLMIN*HH);
     double Zmax = log(RCYLMAX*AA);
 
+#pragma omp parallel for
     for (int i=1; i<=NINT; i++) {	// Radial
+      int tid = omp_get_thread_num();
 
       double x = Rmin + (Rmax - Rmin) * lq.knot(i);
       double R = exp(x);
@@ -755,12 +790,15 @@ main(int ac, char **av)
 	for (int n=0; n<NOUT; n++) {
 	  double p, p2, d, d2, fr, fz, fp;
 	  expandd->get_all(0, n, R, z, 0.0, p, d, fr, fz, fp);
-	  coefs[n] += fac * p * den * 4.0*M_PI;
+	  double value = fac * p * den * 4.0*M_PI;
+#pragma omp atomic
+	  coefs[n] += value;
 	  
 	  if (orthotst) {
 	    for (int n2=n; n2<NOUT; n2++) {
 	      if (n2>n) expandd->get_all(0, n2, R, z, 0.0, p2, d2, fr, fz, fp);
 	      else      d2 = d;
+#pragma omp critical
 	      orthochk[{n, n2}] += fac * p * d2 * 4.0*M_PI;
 	    }
 	  }
@@ -769,22 +807,29 @@ main(int ac, char **av)
 	for (int n=0; n<NOUT; n++) {
 	  double p, p2, d, d2, fr, fz, fp;
 	  expandd->get_all(0, n, R, -z, 0.0, p, d, fr, fz, fp);
-	  coefs[n] += fac * p * den * 4.0*M_PI;
+	  double value = fac * p * den * 4.0*M_PI;
+#pragma omp atomic
+	  coefs[n] += value;
 
 	  if (orthotst) {
 	    for (int n2=n; n2<NOUT; n2++) {
 	      if (n2>n) expandd->get_all(0, n2, R, -z, 0.0, p2, d2, fr, fz, fp);
 	      else      d2 = d;
+#pragma omp critical
 	      orthochk[{n, n2}] += fac * p * d2 * 4.0*M_PI;
 	    }
 	  }
 	}
       }
+
+      if (use_progress and tid==0) ++(*progress);
     }
 
   } else {
 
+#pragma omp parallel for
     for (int i=1; i<=NINT; i++) {	// Radial
+      int tid = omp_get_thread_num();
 
       double x = xmin + (xmax - xmin) * lq.knot(i);
       double R = x_to_r(x, AA);
@@ -799,24 +844,30 @@ main(int ac, char **av)
 	double fac = facX * lq.weight(j) * drdx(y, HH) * 2.0*ymax;
 
 	double den = DiskDens(R, z, 0.0);
-	totM += fac * den;
+	double val = fac * den;
+#pragma omp atomic
+	totM += val;
 
 	fac *= -1.0;
 
 	for (int n=0; n<NOUT; n++) {
 	  double p, p2, d, d2, fr, fz, fp;
 	  expandd->get_all(0, n, R, z, 0.0, p, d, fr, fz, fp);
-	  coefs[n] += fac * p * den * 4.0*M_PI;
+	  double value = fac * p * den * 4.0*M_PI;
+#pragma omp atomic
+	  coefs[n] += value;
 
 	  if (orthotst) {
 	    for (int n2=n; n2<NOUT; n2++) {
 	      if (n2>n) expandd->get_all(0, n2, R, z, 0.0, p2, d2, fr, fz, fp);
 	      else      d2 = d;
+#pragma omp critical
 	      orthochk[{n, n2}] += fac * p * d2 * 4.0*M_PI;
 	    }
 	  }
 	}
       }
+      if (use_progress and tid==0) ++(*progress);
     }
   }
 
@@ -869,7 +920,6 @@ main(int ac, char **av)
   //                                                     |
   // Number of elevation knots---------------------------+
 
-  boost::shared_ptr<boost::progress_display> progress;
   if (use_progress) {
     std::cout << std::endl << "Begin: grid evaluation"
 	      << std::endl << "----------------------"
