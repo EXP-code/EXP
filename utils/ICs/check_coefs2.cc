@@ -913,7 +913,7 @@ main(int ac, char **av)
 	      << " and W=" << rwidth<< std::endl;
   }
 
-  DiskEval test(modl, RCYLMIN*AA, RCYLMAX*AA, AA, 128, 8000, 400, use_progress);
+  DiskEval test(modl, RCYLMIN*AA, RCYLMAX*AA, AA, 400, 8000, 400, use_progress);
   //                                          ^    ^    ^     ^
   //                                          |    |    |     |
   // Disk scale for mapping-------------------+    |    |     |
