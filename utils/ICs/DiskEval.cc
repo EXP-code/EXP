@@ -21,22 +21,22 @@ DiskEval::DiskEval
 
   // Assign grid parameters
   //
-  if (xscl) {
+  if (xscl) {			// x = r/a(1 + r/a) scaling
     xmin = r_to_x(rmin);
     xmax = r_to_x(rmax);
   } else {
-    if (rmin > 0.0) {
+    if (rmin > 0.0) {		// Log scaling
       xmin = log(rmin);
       xmax = log(rmax);
       logr = true;
-    } else {
+    } else {			// Linear scaling
       xmin = rmin;
       xmax = rmax;
       logr = false;
     }
   }
 
-  dx = (xmax - xmin)/(numr-1);
+  dx = (xmax - xmin)/(numr-1);	// Radial grid spacing
 
   // First: compute the disk density components
   //
@@ -69,6 +69,8 @@ DiskEval::DiskEval
     progress = boost::make_shared<boost::progress_display>(numr/numthrd);
   }
   
+  // Compute \rho_{lm} on radial grid
+  //
 #pragma omp parallel for
   for (int i=0; i<numr; i++) {
 #ifdef HAVE_OPENMP
@@ -93,6 +95,9 @@ DiskEval::DiskEval
 
       double fac = 2.0*M_PI * 2.0*lq->weight(n);
 
+      // Even terms only--------+
+      //                        |
+      //                        v
       for (int l=0; l<=lmax; l+=2) {
 	int ll = l/2;
 	rho[ll][i] += Ylm(l, 0, cosx) * dens * fac;
@@ -137,7 +142,7 @@ DiskEval::DiskEval
       tid = omp_get_thread_num();
 #endif
 
-      double xx = xmin + dx*(i-1), rr;
+      double xx = xmin + dx*i, rr;
 
       if (xscl) {
 	rr = x_to_r(xx);
@@ -150,39 +155,41 @@ DiskEval::DiskEval
       //
       double sum1 = 0.0, sum2 = 0.0;
 
-      for (int j=1; j<=i; j++) {
+      if (i>0) {
+	for (int j=0; j<=i; j++) {
 
-	double xl = xmin + dx*(j-1);
-	double xp = xmin + dx*j;
-	double rl = xl;
-	double rp = xp;
+	  double xl = xmin + dx*(j-1);
+	  double xp = xmin + dx*j;
+	  double rl = xl;
+	  double rp = xp;
 
-	if (xscl) {
-	  rl = x_to_r(xl);
-	  rp = x_to_r(xp);
-	} else {
-	  if (logr) {
-	    rl = exp(xl);
-	    rp = exp(xp);
-	  }
-	}
-
-	// Trapezoidal rule for Term 1
-	//
-	if (xscl) {
-	  sum1 += 0.5*(rho[ll][j-1]*pow(rl/rr, l+2)*dr_to_dx(xl) +
-		       rho[ll][j  ]*pow(rp/rr, l+2)*dr_to_dx(xp)) * dx;
-	} else {
-	  if (logr) {
-	    sum1 += 0.5*(rho[ll][j-1]*pow(rl/rr, l+3) +
-			 rho[ll][j  ]*pow(rp/rr, l+3)) * rr * dx;
+	  if (xscl) {
+	    rl = x_to_r(xl);
+	    rp = x_to_r(xp);
 	  } else {
-	    sum1 += 0.5*(rho[ll][j-1]*pow(rl/rr, l+2) +
-			 rho[ll][j  ]*pow(rp/rr, l+2)) * dx;
+	    if (logr) {
+	      rl = exp(xl);
+	      rp = exp(xp);
+	    }
+	  }
+	  
+	  // Trapezoidal rule for Term 1
+	  //
+	  if (xscl) {
+	    sum1 += 0.5*(rho[ll][j-1]*pow(rl/rr, l+2)*dr_to_dx(xl) +
+			 rho[ll][j  ]*pow(rp/rr, l+2)*dr_to_dx(xp)) * dx;
+	  } else {
+	    if (logr) {
+	      sum1 += 0.5*(rho[ll][j-1]*pow(rl/rr, l+3) +
+			   rho[ll][j  ]*pow(rp/rr, l+3)) * rr * dx;
+	    } else {
+	      sum1 += 0.5*(rho[ll][j-1]*pow(rl/rr, l+2) +
+			   rho[ll][j  ]*pow(rp/rr, l+2)) * dx;
+	    }
 	  }
 	}
       }
-
+	
       // Integral over r to inf
       //
       for (int j=i; j<numr-1; j++) {
