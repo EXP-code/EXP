@@ -115,10 +115,15 @@ main(int ac, char **av)
 
 	auto ret = test(R, z);
 
-	double thrpot = 0.0;	// Miyamoto-Nagai test
+	// Miyamoto-Nagai test
+	//
+	double pot_t = 0.0, FR_t = 0.0, Fz_t = 0.0;
 	if (dmodel.compare("MN")==0) {
-	  double s = A + sqrt(z*z + H*H);
-	  thrpot = -1.0/sqrt(R*R + s*s);
+	  double zb = sqrt(z*z + H*H);
+	  double s  = A + zb;
+	  pot_t = -1.0/sqrt(R*R + s*s);
+	  FR_t  = -R*pow(R*R + s*s, -1.5);
+	  Fz_t  = -z/zb*s*pow(R*R + s*s, -1.5);
 	}
 
 	out << std::setw(18) << R
@@ -126,7 +131,9 @@ main(int ac, char **av)
 	    << std::setw(18) << std::get<0>(ret)
 	    << std::setw(18) << std::get<1>(ret)
 	    << std::setw(18) << std::get<2>(ret)
-	    << std::setw(18) << thrpot
+	    << std::setw(18) << pot_t
+	    << std::setw(18) << FR_t
+	    << std::setw(18) << Fz_t
 	    << std::endl;
       }
       out << std::endl;
