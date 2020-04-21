@@ -913,12 +913,16 @@ main(int ac, char **av)
 	      << " and W=" << rwidth<< std::endl;
   }
 
-  DiskEval test(modl, RCYLMIN*AA, RCYLMAX*AA, 128, 8000, 400, use_progress);
-  //                                               ^     ^
-  //                                               |     |
-  // Number of radial grid points -----------------+     |
-  //                                                     |
-  // Number of elevation knots---------------------------+
+  DiskEval test(modl, RCYLMIN*AA, RCYLMAX*AA, AA, 128, 8000, 400, use_progress);
+  //                                          ^    ^    ^     ^
+  //                                          |    |    |     |
+  // Disk scale for mapping-------------------+    |    |     |
+  //                                               |    |     |
+  // Maximum harmonic order------------------------+    |     |
+  //                                                    |     |
+  // Number of radial grid points ----------------------+     |
+  //                                                          |
+  // Number of elevation knots--------------------------------+
 
   if (use_progress) {
     std::cout << std::endl << "Begin: grid evaluation"
