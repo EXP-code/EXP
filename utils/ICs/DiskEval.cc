@@ -12,21 +12,31 @@
 #endif
 
 DiskEval::DiskEval
-(EmpCylSL::AxiDiskPtr model, double rmin, double rmax,
+(EmpCylSL::AxiDiskPtr model, double rmin, double rmax, double ascl,
  int lmax, int numr, int nint, bool use_progress) :
-  model(model), rmin(rmin), rmax(rmax), lmax(lmax), numr(numr)
+  model(model), ascl(ascl), lmax(lmax), numr(numr)
 {
+  if (ascl>0.0) xscl = true;
+  else          xscl = false;
+
   // Assign grid parameters
   //
-  if (rmin > 0.0) {
-    this->rmin = rmin = log(rmin);
-    this->rmax = rmax = log(rmax);
-    logr = true;
+  if (xscl) {
+    xmin = r_to_x(rmin);
+    xmax = r_to_x(rmax);
   } else {
-    logr = false;
+    if (rmin > 0.0) {
+      xmin = log(rmin);
+      xmax = log(rmax);
+      logr = true;
+    } else {
+      xmin = rmin;
+      xmax = rmax;
+      logr = false;
+    }
   }
-  
-  dr = (rmax - rmin)/(numr-1);
+
+  dx = (xmax - xmin)/(numr-1);
 
   // First: compute the disk density components
   //
@@ -64,8 +74,15 @@ DiskEval::DiskEval
 #ifdef HAVE_OPENMP
     tid = omp_get_thread_num();
 #endif
-    double r = rmin + dr*i;
-    if (logr) r = exp(r);
+
+    double x = xmin + dx*i, r;
+
+    if (xscl) {
+      r = x_to_r(x);
+    } else {
+      if (logr) r = exp(x);
+      else      r = x;
+    }
 
     for (int n=1; n<=nint; n++) {
       double cosx = lq->knot(n); // Assume rho(R, z) = rho(R, -z);
@@ -119,50 +136,85 @@ DiskEval::DiskEval
 #ifdef HAVE_OPENMP
       tid = omp_get_thread_num();
 #endif
-      double rr = rmin + dr*(i-1);
-      if (logr) rr = exp(rr);
+
+      double xx = xmin + dx*(i-1), rr;
+
+      if (xscl) {
+	rr = x_to_r(xx);
+      } else {
+	if (logr) rr = exp(xx);
+	else      rr = xx;
+      }
 
       // Integral over 0 to r
       //
       double sum1 = 0.0, sum2 = 0.0;
 
       for (int j=1; j<=i; j++) {
-	double rl = rmin + dr*(j-1);
-	double rp = rmin + dr*j;
-	if (logr) {
-	  rl = exp(rl);
-	  rp = exp(rp);
+
+	double xl = xmin + dx*(j-1);
+	double xp = xmin + dx*j;
+	double rl = xl;
+	double rp = xp;
+
+	if (xscl) {
+	  rl = x_to_r(xl);
+	  rp = x_to_r(xp);
+	} else {
+	  if (logr) {
+	    rl = exp(xl);
+	    rp = exp(xp);
+	  }
 	}
 
-	// Trapezoidal rule
+	// Trapezoidal rule for Term 1
 	//
-	if (logr) {
-	  sum1 += 0.5*(rho[ll][j-1]*pow(rl/rr, l+3) +
-		       rho[ll][j  ]*pow(rp/rr, l+3)) * rr * dr;
+	if (xscl) {
+	  sum1 += 0.5*(rho[ll][j-1]*pow(rl/rr, l+2)*dr_to_dx(xl) +
+		       rho[ll][j  ]*pow(rp/rr, l+2)*dr_to_dx(xp)) * dx;
 	} else {
-	  sum1 += 0.5*(rho[ll][j-1]*pow(rl/rr, l+2) +
-		       rho[ll][j  ]*pow(rp/rr, l+2)) * dr;
+	  if (logr) {
+	    sum1 += 0.5*(rho[ll][j-1]*pow(rl/rr, l+3) +
+			 rho[ll][j  ]*pow(rp/rr, l+3)) * rr * dx;
+	  } else {
+	    sum1 += 0.5*(rho[ll][j-1]*pow(rl/rr, l+2) +
+			 rho[ll][j  ]*pow(rp/rr, l+2)) * dx;
+	  }
 	}
       }
 
       // Integral over r to inf
       //
-      for (int j=i; j<numr; j++) {
-	double rl = rmin + dr*(j-1);
-	double rp = rmin + dr*j;
-	if (logr) {
-	  rl = exp(rl);
-	  rp = exp(rp);
+      for (int j=i; j<numr-1; j++) {
+
+	double xl = xmin + dx*j;
+	double xp = xmin + dx*(j+1);
+	double rl = xl;
+	double rp = xp;
+
+	if (xscl) {
+	  rl = x_to_r(xl);
+	  rp = x_to_r(xp);
+	} else {
+	  if (logr) {
+	    rl = exp(xl);
+	    rp = exp(xp);
+	  }
 	}
 
 	// Trapezoidal rule
 	//
-	if (logr) {
-	  sum2 += 0.5*(rho[ll][j-1]*pow(rl/rr, 2-l) +
-		       rho[ll][j  ]*pow(rp/rr, 2-l)) * rr * dr;
+	if (xscl) {
+	  sum2 += 0.5*(rho[ll][j  ]*pow(rl/rr, 1-l) * dr_to_dx(xl) +
+		       rho[ll][j+1]*pow(rp/rr, 1-l) * dr_to_dx(xp)) * dx;
 	} else {
-	  sum2 += 0.5*(rho[ll][j-1]*pow(rl, 1-l) +
-		       rho[ll][j  ]*pow(rp, 1-l)) * dr;
+	  if (logr) {
+	    sum2 += 0.5*(rho[ll][j  ]*pow(rl/rr, 2-l) +
+			 rho[ll][j+1]*pow(rp/rr, 2-l)) * rr * dx;
+	  } else {
+	    sum2 += 0.5*(rho[ll][j  ]*pow(rl/rr, 1-l) +
+			 rho[ll][j+1]*pow(rp/rr, 1-l)) * dx;
+	  }
 	}
       }
 
@@ -187,9 +239,17 @@ DiskEval::DiskEval
   //
   std::ofstream test("DiskEval.rho");
   if (test) {
+
     for (int i=0; i<numr; i++) {
-      double r = rmin + dr*i;
-      if (logr) r = exp(r);
+
+      double r, x = xmin + dx*i;
+
+      if (xscl) {
+	r = x_to_r(x);
+      } else {
+	if (logr) r = exp(x);
+	else      r = x;
+      }
 
       test << std::setw(18) << r;
       for (int l=0; l<=lmax; l+=2) {
@@ -204,8 +264,15 @@ DiskEval::DiskEval
   test.open("DiskEval.t1");
   if (test) {
     for (int i=0; i<numr; i++) {
-      double r = rmin + dr*i;
-      if (logr) r = exp(r);
+
+      double r, x = xmin + dx*i;
+
+      if (xscl) {
+	r = x_to_r(x);
+      } else {
+	if (logr) r = exp(x);
+	else      r = x;
+      }
 
       test << std::setw(18) << r;
       for (int l=0; l<=lmax; l+=2) {
@@ -220,8 +287,13 @@ DiskEval::DiskEval
   test.open("DiskEval.t2");
   if (test) {
     for (int i=0; i<numr; i++) {
-      double r = rmin + dr*i;
-      if (logr) r = exp(r);
+      double r, x = xmin + dx*i;
+      if (xscl) {
+	r = x_to_r(x);
+      } else {
+	if (logr) r = exp(x);
+	else      r = x;
+      }
 
       test << std::setw(18) << r;
       for (int l=0; l<=lmax; l+=2) {
@@ -244,26 +316,32 @@ std::tuple<double, double, double> DiskEval::operator()(double R, double z)
 
   // Grid interpolation values
   //
-  double lr = r;
-  if (logr) lr = log(r);
-
+  double x;
   int i1, i2;
-  if (lr<rmin) {
+
+  if (xscl) {
+    x = r_to_x(r);
+  } else {
+    if (logr) x = log(r);
+    else      x = r;
+  }
+
+  if (x<xmin) {
     i1 = 0;
     i2 = 1;
-  } else if (lr>=rmax) {
+  } else if (x>=xmax) {
     i1 = numr - 2;
     i2 = numr - 1;
   } else {
-    i1 = (lr - rmin)/dr;
+    i1 = (x - xmin)/dx;
     i2 = i1 + 1;
   }
 
   i1 = std::max<int>(i1, 0);	// Sanity checks
   i2 = std::min<int>(i2, numr-1);
 
-  double A = (rmin + dr*i2 - lr)/dr;
-  double B = (lr - rmin - dr*i1)/dr;
+  double A = (xmin + dx*i2 - x)/dx;
+  double B = (x - xmin - dx*i1)/dx;
 
   // Evaluation
   //

@@ -46,6 +46,7 @@ main(int ac, char **av)
   double       H;
   double       rmin;
   double       rmax;
+  double       rinn;
   double       rout;
   double       zout;
   string       dmodel;
@@ -53,6 +54,7 @@ main(int ac, char **av)
   po::options_description desc("Allowed options");
   desc.add_options()
     ("help,h",                                                                          "Print this help message")
+    ("logr,L",                                                                          "Use log grid for DiskEval")
     ("dmodel",          po::value<std::string>(&dmodel)->default_value("exponential"),  "Target model type (MN or exponential)")
     ("nint",            po::value<int>(&nint)->default_value(40),                       "Number of Gauss-Legendre knots for theta integration")
     ("numr",            po::value<int>(&numr)->default_value(1000),                     "Size of radial grid")
@@ -61,9 +63,10 @@ main(int ac, char **av)
     ("rmax",            po::value<double>(&rmax)->default_value(1.0),                    "Maximum radius for grid")
     ("A",               po::value<double>(&A)->default_value(0.01),                      "Radial scale length for disk basis construction")
     ("H",               po::value<double>(&H)->default_value(0.001),                     "Vertical scale length for disk basis construction")
-    ("R",               po::value<double>(&rout)->default_value(0.3),                     "Maximum cylindrical radius for test output")
-    ("Z",               po::value<double>(&zout)->default_value(0.1),                     "Maximum height for testoutput") 
-    ("N",               po::value<int>(&nout)->default_value(60),                         "Number of grid points for test plane");
+    ("r",               po::value<double>(&rinn)->default_value(0.0001),                 "Minimum cylindrical radius for test output")
+    ("R",               po::value<double>(&rout)->default_value(0.3),                    "Maximum cylindrical radius for test output")
+    ("Z",               po::value<double>(&zout)->default_value(0.1),                    "Maximum height for testoutput") 
+    ("N",               po::value<int>(&nout)->default_value(60),                        "Number of grid points for test plane");
        
   po::variables_map vm;
   
@@ -88,6 +91,13 @@ main(int ac, char **av)
   }
 
   
+  bool logr = false;
+  if (vm.count("logr")) logr = true;
+
+  // Sanity check for inner logarithmic radius
+  //
+  if (rinn<=0.0) rinn = 1.0e-4;
+
   // The model instance (you can add others in DiskModels.H)
   //
   EmpCylSL::AxiDiskPtr model;
@@ -97,18 +107,19 @@ main(int ac, char **av)
   else			// Default to exponential
     model = boost::make_shared<Exponential>(A, H);
       
-  DiskEval test(model, rmin, rmax, lmax, numr, nint);
+  DiskEval test(model, rmin, rmax, A, lmax, numr, nint, true);
 
   // Plot potential and force plane evaluation in gnuplot format
   //
   std::ofstream out("testdeval.eval");
 
   if (out) {
-    double dR = (log(rout) - log(rmin))/(nout - 1);
+				// Logarithmic output grid in radius
+    double dR = (log(rout) - log(rinn))/(nout - 1);
     double dz = 2.0*zout/(nout - 1);
 
     for (int i=0; i<nout; i++) {
-      double R = rmin*exp(dR*i);
+      double R = rinn*exp(dR*i);
 
       for (int j=0; j<nout; j++) {
 	double z = -zout + dz*j;
@@ -147,10 +158,10 @@ main(int ac, char **av)
   out.open("testdeval.midplane");
 
   if (out) {
-    double dR = (log(rout) - log(rmin))/(nout - 1);
+    double dR = (log(rout) - log(rinn))/(nout - 1);
     
     for (int i=0; i<nout; i++) {
-      double R = rmin*exp(dR*i);
+      double R = rinn*exp(dR*i);
 
       auto ret = test(R, 0);
 

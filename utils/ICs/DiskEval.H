@@ -27,13 +27,55 @@
 double  plgndr(int l, int m, double x);
 double dplgndr(int l, int m, double x);
 
+/** Compute the axisymmetric force of a three-dimensional disk density
+    using the multipole expansion
+
+    @param model is the target model for potential computation
+    @param rmin is the minimum radius for potential evaluation
+    @param rmax is the maximum radius for potential evaluation
+    @param ascl is the scale radius for maping r to the unit interval.
+    This is only used if ascl>0, otherwise it is linear if rmin=0 or
+    logarithmic if rmin>0.
+    @param lmax is the maximum order of the spherical harmonics
+    @param numr is the number of grid points in the radial table
+    @param nint is the number of quadrature knots for the x=cos(theta) integral
+    @parm progress set to true prints a progress bar
+
+    \note{Mathematics}
+
+    Using the standard multipole formula
+    \f[
+    \Phi(\mathbf{r}) = -4\pi G \sum_{lm} Y_{lm}(\mathbf{\Omega})
+    \left[
+    \frac{1}{r^{l+1}}\int_0^r da a^{l+2}\rho_{lm}(a) +
+    r^l\int_r^{\infty} da \frac{\rho_{lm}(a)}{a^{l-1}}
+    \right]
+    \f]
+    where
+    \f[
+    \rho_{lm} = \int d\mathbf{\Omega}Y_{lm}(\mathbf{\Omega}) \rho(\mathbf{r}).
+    \f]
+
+    The forces follow by analytic differentiation. Specifically, the
+    forces follows by differentiation of \f$\Phi(\mathbf{r})\f$
+    with respect to \f$r\f$ and \f$\theta\f$ where:
+    \f[
+    F_R = -\frac{\partial\Phi}{\partial r} \frac{R}{r} - 
+    \frac{\partial\Phi}{\partial\theta} \frac{z}{r^2}
+    \f]
+    and
+    \f[
+    F_z = -\frac{\partial\Phi}{\partial r} \frac{z}{r} +
+    \frac{\partial\Phi}{\partial\theta} \frac{R}{r^2}
+    \f]
+*/    
 class DiskEval
 {
 private:
   EmpCylSL::AxiDiskPtr model;
-  double rmin, rmax, dr;
+  double xmin, xmax, dx, ascl;
   int    lmax, numr;
-  bool   logr;
+  bool   logr, xscl;
 
   //! Rho(l, r), Term1(l, r), Term2(l, r)
   std::vector< std::vector<double> > rho, T1, T2;
@@ -70,11 +112,26 @@ private:
     return -Nlm(l, M) * dplm * pow(-1.0, M) * sqrt(1.0 - cosx*cosx);
   }
 
+  double x_to_r(double x)
+  {
+    return ascl * x/(1.0 - x);
+  }
+
+  double r_to_x(double r)
+  {
+    return r/(r + ascl);
+  }
+
+  double dr_to_dx(double x)
+  {
+    return ascl/(1.0 - x)/(1.0 - x);
+  }
+
 public:
 
   //! Constructor
   DiskEval(EmpCylSL::AxiDiskPtr model, double rmin, double rmax,
-	   int lmax, int numr, int nint, bool progress=true);
+	   double ascl, int lmax, int numr, int nint, bool progress=true);
 
   //! Evaluation where the return tuple is potential, dphi/dR, dphi/dz
   std::tuple<double, double, double> operator()(double R, double z);
