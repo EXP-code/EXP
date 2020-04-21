@@ -180,6 +180,8 @@ DiskEval::DiskEval
   }
   // END: loop over l
   
+  if (progress and tid==0) std::cout << std::endl;
+
 
   // Test output
   //
