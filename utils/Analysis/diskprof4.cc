@@ -193,7 +193,14 @@ public:
     dataXY[indY*N + indX] += m;
     dataXZ[indX*M + indZ] += m;
     dataYZ[indY*M + indZ] += m;
+
     dataZ [indY*N + indX].push_back(z);
+    /*
+    dataXY[indX*N + indY] += m;
+    dataXZ[indX*M + indZ] += m;
+    dataYZ[indY*M + indZ] += m;
+    dataZ [indX*N + indY].push_back(z);
+    */
   }
 };
 
@@ -1321,10 +1328,10 @@ main(int argc, char **argv)
       ortho.setHall(runtag + "_" + outid + ".pca", 1);
   }
 
+  Histogram histo(OUTR, OUTZ, RMAX, ZMAX);
   vector<Particle> particles;
   PSPptr psp;
-  Histogram histo(OUTR, OUTZ, RMAX, ZMAX);
-  
+
   std::vector<double> times;
   std::vector<std::string> outfiles;
 
