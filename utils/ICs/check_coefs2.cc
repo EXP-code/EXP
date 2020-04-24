@@ -917,7 +917,7 @@ main(int ac, char **av)
   //
   // DiskEval test(modl, RCYLMIN*AA, RCYLMAX*AA, AA, 400, 8000, 400, use_progress);
   
-  DiskEval test(modl, RCYLMIN*AA, RCYLMAX*AA, AA, 100, 1000, 200, use_progress);
+  DiskEval test(modl, RCYLMIN*AA, RCYLMAX*AA, AA, 200, 1000, 400, use_progress);
   //                                          ^    ^    ^     ^
   //                                          |    |    |     |
   // Disk scale for mapping-------------------+    |    |     |
