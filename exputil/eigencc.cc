@@ -1,5 +1,7 @@
 #include <cmath>
 #include <numerical.h>
+
+#include <config.h>
 #include <Vector.h>
 
 #include <Eigen/Eigen>
@@ -242,14 +244,16 @@ Vector Symmetric_Eigenvalues_SVD(Matrix& a, Matrix& ef, int M, bool Large)
   Eigen::MatrixXd V;
   Eigen::VectorXd S;
 
+#ifdef HAVE_EIGEN3_BDCSVD
   if (Large) {
     Eigen::BDCSVD<Eigen::MatrixXd> svd(mm, Eigen::ComputeThinU | Eigen::ComputeThinV);
 
     V = svd.matrixV();
     S = svd.singularValues();
 
-  } else {
-
+  } else
+  #endif
+  {
     Eigen::JacobiSVD<Eigen::MatrixXd> svd(mm, Eigen::ComputeThinU | Eigen::ComputeThinV);
 
     V = svd.matrixV();

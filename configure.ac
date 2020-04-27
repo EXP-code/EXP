@@ -232,7 +232,33 @@ dnl ==========================================================================
 dnl Use pkg-config to check for eigen3
 dnl ==========================================================================
 
-PKG_CHECK_MODULES([EIGEN3], [eigen3])
+AC_CHECK_FILE([/usr/include/eigen3/Eigen],
+	[eigen3_include=[-I/usr/include/eigen3]])
+
+AC_CHECK_FILE([/usr/local/include/eigen3/Eigen],
+	[eigen3_include=[-I/usr/local/include/eigen3]])
+
+EIGEN3_LOCATION=""
+EIGEN3_NO_BDC=""
+
+AC_ARG_WITH(eigen3,
+	[  --with-eigen3=DIR       location of Eigen3 library],
+    	[   EIGEN3_LOCATION="$withval"])
+
+AC_ARG_WITH(no-bdc,
+	[  --with-no-bdc           do not use BDCSVD in Eigen3],
+	[   EIGEN3_NO_BDC="true"])
+
+if test "$EIGEN3_LOCATION" != ""; then
+   eigen3_include="-I$EIGEN3_LOCATION"
+fi
+
+if test "$EIGEN3_NO_BDC" == ""; then
+   AC_DEFINE([HAVE_EIGEN3_BDCSVD], [1], [Compile code for Eigen::BDCSVD])
+fi
+
+AC_SUBST(eigen3_include) 
+
 
 dnl ==========================================================================
 dnl Arguments
