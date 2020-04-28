@@ -453,7 +453,16 @@ get_coefficients(const std::string& coefs)
     exit(-3);
   }
 
+#if __GNUC__ > 6
   return {lmax, nmax, ret};
+#else
+  std::tuple<int, int, CoefData > rdat;
+  std::get<0>(rdat) = lmax;
+  std::get<1>(rdat) = nmax;
+  std::get<2>(rdat) = ret;
+  return rdat;
+#endif
+
 }
 
 int
