@@ -226,6 +226,11 @@ void do_step(int n)
       if (chk) cerr << "Incremental steps OK at T=" << tnow << std::endl;
     }
 #endif
+                                // Write multistep output
+    nvTracerPtr tPtr;
+    if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
+    output->Run(Mstep*n + mstep); // note: this will change the nint values for ALL outputs
+
 
   } else {
 				// Time at the end of the step
@@ -269,14 +274,19 @@ void do_step(int n)
     incr_velocity(0.5*dtime);
     incr_com_velocity(0.5*dtime);
     if (timing) timer_vel.stop();
+                                 // Write output
+    nvTracerPtr tPtr;
+    if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
+    output->Run(n);
+
   }
 
   if (timing) timer_tot.stop();
 
 				// Write output
-  nvTracerPtr tPtr;
-  if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
-  output->Run(n);
+  //nvTracerPtr tPtr;
+  //if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
+  //output->Run(n);
 
 				// Summarize processor particle load
   comp->report_numbers();

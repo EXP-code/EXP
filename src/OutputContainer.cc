@@ -122,9 +122,9 @@ OutputContainer::~OutputContainer()
 
 void OutputContainer::Run(int n, bool final)
 {
-  // Don't rerun a step . . . 
+  // Don't rerun a step . . . but allow for multisteps to be run
   //
-  if (fabs(tnow - last) < 0.5*dtime) return;
+  if (fabs(tnow - last) < 0.5*dtime/Mstep) return;
 
   // Loop through all instances
   //
