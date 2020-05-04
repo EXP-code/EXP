@@ -70,6 +70,10 @@ void do_step(int n)
 
   if (timing) timer_tot.start();
 
+  // set up CUDA tracer
+  nvTracerPtr tPtr;
+
+
   if (multistep) {
     
     double dt = dtime/Mstep;	// Smallest time step
@@ -194,9 +198,13 @@ void do_step(int n)
 	comp->print_level_lists(tnow);
       }
 
+                                // Write multistep output
+    if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
+    output->Run(n, mstep);
+
+
     }
 
-    nvTracerPtr tPtr;
     if (cuda_prof) {
       tPtr = nvTracerPtr(new nvTracer("Adjust multistep"));
     }
@@ -226,11 +234,6 @@ void do_step(int n)
       if (chk) cerr << "Incremental steps OK at T=" << tnow << std::endl;
     }
 #endif
-                                // Write multistep output
-    nvTracerPtr tPtr;
-    if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
-    output->Run(Mstep*n + mstep); // note: this will change the nint values for ALL outputs
-
 
   } else {
 				// Time at the end of the step

@@ -60,7 +60,7 @@ void OutRelaxation::initialize()
 
 }
 
-void OutRelaxation::Run(int n, bool final)
+void OutRelaxation::Run(int n, int mstep, bool final)
 {
   double delta_e, e_average=0.0, e_absolute=0.0, variance=0.0;
   double e_average1=0.0, e_absolute1=0.0, variance1=0.0, esave;

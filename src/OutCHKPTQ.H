@@ -38,7 +38,7 @@ public:
     \param last should be true on final step to force phase space dump
     indepentently of whether or not the frequency criterion is met
   */
-  void Run(int nstep, bool last);
+  void Run(int nstep, int mstep, bool last);
 
 };
 

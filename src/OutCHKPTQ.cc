@@ -37,7 +37,12 @@ void OutCHKPTQ::initialize()
       nint = Output::conf["nint"].as<int>();
     else
       nint = 100;
-    
+
+ if (Output::conf["nintsub"])    
+      nintsub  = Output::conf["nintsub"].as<int>();
+    else
+      nintsub  = std::numeric_limits<int>::max();
+
     if (Output::conf["timer"])
       timer = Output::conf["timer"].as<bool>();
     else
@@ -56,12 +61,14 @@ void OutCHKPTQ::initialize()
   }
 }
 
-void OutCHKPTQ::Run(int n, bool last)
+void OutCHKPTQ::Run(int n, int mstep, bool last)
 {
   if (n % nint && !last) return;
   if (VERBOSE>5 && myid==0) {
     cout << " OutCHKPTQ::Run(): n=" << n << " psdump=" << psdump << endl;
   }
+  if (mstep % nintsub !=0) return;
+
 
   int returnStatus = 1;
   

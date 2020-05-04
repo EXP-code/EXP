@@ -9,6 +9,7 @@
 OutCoef::OutCoef(const YAML::Node& conf) : Output(conf)
 {
   nint = 10;
+  nintsub = std::numeric_limits<int>::max();
   filename = outdir + "outcoef." + runtag;
   tcomp = NULL;
 
@@ -35,6 +36,7 @@ void OutCoef::initialize()
   try {
     if (conf["filename"])     filename = conf["filename"].as<std::string>();
     if (conf["nint"])         nint     = conf["nint"].as<int>();
+    if (conf["nintsub"])    nintsub  = conf["nintsub"].as<int>();
     if (conf["name"])
       {				// Search for desired component
 	std::string tmp = conf["name"].as<std::string>();
@@ -56,10 +58,11 @@ void OutCoef::initialize()
   }
 }
 
-void OutCoef::Run(int n, bool last)
+void OutCoef::Run(int n, int mstep, bool last)
 {
   if (!(tcomp->force->HaveCoefDump())) return;
   if (n % nint != 0 && !last) return;
+  if (mstep % nintsub !=0) return;
 
   MPI_Status status;
 

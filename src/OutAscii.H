@@ -14,6 +14,7 @@
 
     @param filename is the name of the output file
     @param nint is the number of steps between dumps
+    @param nintsub is the substep number to perform outputs
     @param nbeg is suffix of the first phase space %dump
     @param name of the desired component
     @param accel set to 1 means print out accelerations
@@ -44,7 +45,7 @@ public:
     \param last should be true on final step to force phase space %dump
     indepentently of whether or not the frequency criterion is met
   */
-  void Run(int nstep, bool last);
+  void Run(int nstep, int mstep, bool last);
 
 };
 
