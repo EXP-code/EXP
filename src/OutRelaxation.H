@@ -25,9 +25,10 @@ public:
   //! Do some output
   /*!
     \param nstep is the current time step index
+    \param mstep is the current multistep level to decide whether or not to dump multisteps
     \param final should be true on last step to force output
   */
-  void Run(int nstep, bool final=false);
+  void Run(int nstep, int mstep, bool final=false);
 
 };
 

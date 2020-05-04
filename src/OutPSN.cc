@@ -31,6 +31,11 @@ void OutPSN::initialize()
     else
       nint = 100;
 
+    if (Output::conf["nintsub"])
+      nintsub = Output::conf["nintsub"].as<int>();
+    else
+      nintsub = std::numeric_limits<int>::max();
+
     if (Output::conf["nbeg"])
       nbeg = Output::conf["nbeg"].as<int>();
     else
@@ -81,10 +86,12 @@ void OutPSN::initialize()
 }
 
 
-void OutPSN::Run(int n, bool last)
+void OutPSN::Run(int n, int mstep, bool last)
 {
   if (n % nint && !last && !dump_signal) return;
   if (restart  && n==0  && !dump_signal) return;
+  if (mstep % nintsub !=0 && !dump_signal) return;
+
 
   std::chrono::high_resolution_clock::time_point beg, end;
   if (timer) beg = std::chrono::high_resolution_clock::now();

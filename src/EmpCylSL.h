@@ -16,7 +16,10 @@
 #include <dmalloc.h>
 #endif
 
+
 #include <SLGridMP2.h>
+
+#include "coef.H"
 
 #ifndef STANDALONE
 #include <global.H>
@@ -50,6 +53,9 @@ public:
   typedef boost::shared_ptr<Matrix>              MatrixP;
 
 private:
+
+  struct CylCoefHeader coefheadercyl;
+
   int NMAX;
   int LMAX;
   int MMAX;
