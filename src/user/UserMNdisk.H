@@ -8,7 +8,7 @@
 /** Potential and force of the Miyamoto-Nagai disk.
 
     @param a is the disk scale length parameter
-    @param a is the disk scale heigh parameter
+    @param b is the disk scale heigh parameter
     @param mass is the total mass of the disk
     @param Ton is the time at the center of the <code>erf</code> turn on
     @param Toff is the time at the center of the <code>erf</code> turn off
