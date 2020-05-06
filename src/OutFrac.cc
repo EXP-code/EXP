@@ -13,6 +13,7 @@ const double default_quant[] = {0.001, 0.003, 0.01, 0.03, 0.1, 0.2, 0.4, 0.5, 0.
 OutFrac::OutFrac(const YAML::Node& conf) : Output(conf)
 {
   nint = 10;
+  nintsub = std::numeric_limits<int>::max();
   filename = outdir + "OUTFRAC." + runtag;
   tcomp = NULL;
   numQuant = sizeof(default_quant)/sizeof(double);
@@ -135,6 +136,11 @@ void OutFrac::initialize()
 
     if (Output::conf["nint"])
       nint     = Output::conf["nint"]    .as<int>();
+
+
+    if (Output::conf["nintsub"])
+      nintsub     = Output::conf["nintsub"]    .as<int>();
+
 				// Search for desired component
     if (Output::conf["name"]) {
       std::string tmp = Output::conf["name"].as<std::string>();
@@ -161,9 +167,10 @@ void OutFrac::initialize()
 
 }
 
-void OutFrac::Run(int n, bool last)
+void OutFrac::Run(int n, int mstep, bool last)
 {
   if (n % nint != 0 && !last) return;
+  if (mstep % nintsub !=0) return;
 
   MPI_Status status;
 

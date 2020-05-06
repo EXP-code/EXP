@@ -11,6 +11,7 @@
 OutCalbr::OutCalbr(const YAML::Node& conf) : Output(conf)
 {
   nint = 10;
+  nintsub = std::numeric_limits<int>::max();
   filename = outdir + "OUTCALBR." + runtag;
   tcomp = NULL;
   num = 10;
@@ -128,6 +129,7 @@ void OutCalbr::initialize()
   try {
     if (conf["filename"])      filename = conf["filename"].as<std::string>();
     if (conf["nint"])          nint     = conf["nint"].as<int>();
+    if (conf["nintsub"])    nintsub  = conf["nintsub"].as<int>();
     if (conf["N"])             num      = conf["N"].as<int>();
   
     // Search for desired component
@@ -152,11 +154,12 @@ void OutCalbr::initialize()
   }
 }
 
-void OutCalbr::Run(int ns, bool last)
+void OutCalbr::Run(int ns, int mstep, bool last)
 {
   if (ns==0) set_energies();
 
   if (ns % nint != 0 && !last) return;
+  if (mstep % nintsub !=0) return;
 
   MPI_Status status;
 

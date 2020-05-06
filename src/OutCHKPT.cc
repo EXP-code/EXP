@@ -38,6 +38,11 @@ void OutCHKPT::initialize()
     else
       nint = 100;
     
+    if (Output::conf["nintsub"])
+      nintsub  = Output::conf["nintsub"].as<int>();
+    else
+      nintsub = std::numeric_limits<int>::max();
+
     if (Output::conf["timer"])
       timer = Output::conf["timer"].as<bool>();
     else
@@ -62,12 +67,15 @@ void OutCHKPT::initialize()
 }
 
 
-void OutCHKPT::Run(int n, bool last)
+void OutCHKPT::Run(int n, int mstep, bool last)
 {
   if (n % nint && !last) return;
   if (VERBOSE>5 && myid==0) {
     cout << " OutCHKPT::Run(): n=" << n << " psdump=" << psdump << endl;
   }
+  
+  if (mstep % nintsub !=0) return;
+
 
   int returnStatus = 1;
 

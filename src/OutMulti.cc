@@ -28,6 +28,12 @@ void OutMulti::initialize()
       nint = Output::conf["nint"].as<int>();
     else
       nint = 100;
+
+    if (Output::conf["nintsub"])
+      nintsub = Output::conf["nintsub"].as<int>();
+    else
+      nintsub = std::numeric_limits<int>::max();
+
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in OutMulti: "
@@ -44,10 +50,12 @@ void OutMulti::initialize()
 }
 
 
-void OutMulti::Run(int n, bool last)
+void OutMulti::Run(int n, int mstep, bool last)
 {
   if (n % nint && !last && !dump_signal) return;
   if (restart  && n==0  && !dump_signal) return;
+  if (mstep % nintsub !=0 && !dump_signal) return;
+
 
   ofstream *out;
   

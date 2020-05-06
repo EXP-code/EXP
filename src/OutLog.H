@@ -94,10 +94,11 @@ public:
       \param nstep 
              the current step number (used e.g. to decide whether
 	     or not to write output
+      \param mstep is the current multistep level to decide whether or not to dump multisteps
       \param last 
       	     if true, output is generated independent of the step number
   */
-  void Run(int nstep, bool last);
+  void Run(int nstep, int mstep, bool last);
 
 };
 

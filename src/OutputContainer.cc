@@ -120,26 +120,26 @@ OutputContainer::~OutputContainer()
   for (auto it : out) delete it;
 }
 
-void OutputContainer::Run(int n, bool final)
+void OutputContainer::Run(int nstep, int mstep, bool final)
 {
-  // Don't rerun a step . . . 
+  // Don't rerun a step . . . but allow for multisteps to be run
   //
-  if (fabs(tnow - last) < 0.5*dtime) return;
+  if (fabs(tnow - last) < 0.5*dtime/Mstep) return;
 
   // Loop through all instances
   //
-  for (auto it : out) it->Run(n, final);
+  for (auto it : out) it->Run(nstep, mstep, final);
 
   // Root node output
   //
   if (myid==0) {
 #ifdef DEBUG
     cout << setw(60) << setfill('=') << "=" << endl
-	 << "====== Step " << n << endl
+	 << "====== Step " << nstep << endl
 	 << setw(60) << setfill('=') << "=" << endl
 	 << setfill(' ');
 #else
-    cout << "." << n << flush;
+    cout << "." << nstep << flush;
 #endif
     if (final) cout << "\n";
   }

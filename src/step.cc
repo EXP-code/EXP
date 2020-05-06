@@ -70,6 +70,10 @@ void do_step(int n)
 
   if (timing) timer_tot.start();
 
+  // set up CUDA tracer
+  nvTracerPtr tPtr;
+
+
   if (multistep) {
     
     double dt = dtime/Mstep;	// Smallest time step
@@ -194,9 +198,13 @@ void do_step(int n)
 	comp->print_level_lists(tnow);
       }
 
+                                // Write multistep output
+    if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
+    output->Run(n, mstep);
+
+
     }
 
-    nvTracerPtr tPtr;
     if (cuda_prof) {
       tPtr = nvTracerPtr(new nvTracer("Adjust multistep"));
     }
@@ -269,14 +277,19 @@ void do_step(int n)
     incr_velocity(0.5*dtime);
     incr_com_velocity(0.5*dtime);
     if (timing) timer_vel.stop();
+                                 // Write output
+    nvTracerPtr tPtr;
+    if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
+    output->Run(n);
+
   }
 
   if (timing) timer_tot.stop();
 
 				// Write output
-  nvTracerPtr tPtr;
-  if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
-  output->Run(n);
+  //nvTracerPtr tPtr;
+  //if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
+  //output->Run(n);
 
 				// Summarize processor particle load
   comp->report_numbers();
