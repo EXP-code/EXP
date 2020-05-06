@@ -1,0 +1,25 @@
+Makefile
+*.lo
+*.a
+*.la
+*.in
+*.m4
+autom4te.cache/
+compile
+config.guess
+config.h
+config.status
+config.sub
+configure
+depcomp
+.deps
+.libs
+libtool
+ltmain.sh
+stamp-h1
+
+# Other generated files
+exputil/sledge.f
+src/user/CylindricalDisk.cc
+src/user/EllipsoidForce.cc
+src/user/SLSphere.cc
