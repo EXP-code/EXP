@@ -21,6 +21,7 @@
 #include <FileUtils.H>
 
 #include <boost/program_options.hpp>
+#include <boost/progress.hpp>
 
 namespace po = boost::program_options;
 
@@ -193,6 +194,8 @@ main(int ac, char **av)
     out.write((const char *)&b, sizeof(double));
   }
 
+  boost::progress_display progress(iend - ibeg + 1);
+
   for (int n=ibeg; n<=iend; n++) {
 
     std::ostringstream fname;
@@ -207,6 +210,7 @@ main(int ac, char **av)
     }
 
     if (verbose) cerr << "Using filename: " << file << endl;
+    else ++progress;
 
 				// Parse the PSP file
 				// ------------------
@@ -229,10 +233,7 @@ main(int ac, char **av)
 
 				// Dump ascii for each component
 				// -----------------------------
-  
-    double rtmp, mass, fac;
     std::vector<double> pos(3), vel(3);
-    int itmp, icnt, iv;
 
 				// Make the arrays
 				// ---------------
@@ -257,7 +258,7 @@ main(int ac, char **av)
 	for (int k=0; k<2; k++) val += part->pos(k) * part->pos(k);
 	val = sqrt(val);
 
-	iv = static_cast<int>( floor( (part->pos(axis-1) - pmin)/dp ) );
+	int iv = static_cast<int>( floor( (val - pmin)/dp ) );
 
 	if (iv < 0 || iv >= numb) continue;
 
@@ -312,6 +313,7 @@ main(int ac, char **av)
 
     rings.write(out);
   }
+  std::cout << std::endl;
 
   return 0;
 }
