@@ -135,11 +135,14 @@ void OutputContainer::Run(int nstep, int mstep, bool final)
   if (myid==0) {
 #ifdef DEBUG
     cout << setw(60) << setfill('=') << "=" << endl
-	 << "====== Step " << nstep << endl
+	 << "====== Step " << nstep << "/" << mstep << endl
 	 << setw(60) << setfill('=') << "=" << endl
 	 << setfill(' ');
 #else
-    cout << "." << nstep << flush;
+    if (mstep==0)
+      cout << "." << nstep << flush;
+    else
+      cout << "." << flush;
 #endif
     if (final) cout << "\n";
   }

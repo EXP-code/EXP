@@ -20,7 +20,6 @@ stamp-h1
 
 # Other generated files
 src/exp
-exputil/sledge.f
 src/user/CylindricalDisk.cc
 src/user/EllipsoidForce.cc
 src/user/SLSphere.cc
