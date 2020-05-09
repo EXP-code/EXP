@@ -97,7 +97,7 @@ main(int ac, char **av)
 {
   char *prog = av[0];
   bool verbose = false;
-  std::string cname, tname, new_dir, suffix;
+  std::string cname, tname, new_dir, suffix, work_dir;
   int axis, numb, comp, mmin, mmax, ibeg, iend;
   double pmin, pmax;
 
@@ -125,6 +125,8 @@ main(int ac, char **av)
      "component name")
     ("dir,d",           po::value<std::string>(&new_dir)->default_value("./"),
      "rewrite directory location for SPL files")
+    ("work,w",          po::value<std::string>(&work_dir)->default_value("."),
+     "working directory for output file")
     ("type,t",          po::value<std::string>(&tname)->default_value("OUT"),
      "PSP output type (OUT or SPL)")
     ("runtag,T",        po::value<std::string>(&runtag)->default_value("run0"),
@@ -174,7 +176,7 @@ main(int ac, char **av)
   std::cerr << "Assuming last file has index <" << iend << ">"
 	    << std::endl;
 
-  std::string outcoefs = runtag + "." + suffix;
+  std::string outcoefs = work_dir + "/" + runtag + "." + suffix;
   std::ofstream out(outcoefs);
   if (!out) {
     std::cerr << "Error opening file <" << outcoefs << "> for output"
