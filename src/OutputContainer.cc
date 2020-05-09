@@ -132,7 +132,7 @@ void OutputContainer::Run(int nstep, int mstep, bool final)
 
   // Root node output
   //
-  if (myid==0) {
+  if (myid==0 and mstep==0) {
 #ifdef DEBUG
     cout << setw(60) << setfill('=') << "=" << endl
 	 << "====== Step " << nstep << endl
