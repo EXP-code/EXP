@@ -40,7 +40,7 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
   seedN            = 11;
   ssfrac           = 0.0;
   subset           = false;
-  coefMaster       = false;
+  coefMaster       = true;
 
   try {
     if (conf["scale"]) 

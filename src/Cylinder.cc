@@ -109,7 +109,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   dump_basis      = false;
   compute         = false;
   firstime_coef   = true;
-  coefMaster      = false;
+  coefMaster      = true;
   eof_over        = false;
   eof_file        = "";
 

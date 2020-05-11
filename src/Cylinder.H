@@ -176,7 +176,10 @@ protected:
   //! Coefficient playback
   std::shared_ptr<CylindricalCoefs> playback;
 
-  //! Master node ships coefficients to hosts
+  /** Master node ships coefficients to hosts.  True (default) implies
+      that only the master node caches the coefficients for playback
+      to save core memory
+  */
   bool coefMaster;
 
 public:
