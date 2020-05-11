@@ -60,6 +60,7 @@ void OutCoef::initialize()
 
 void OutCoef::Run(int n, int mstep, bool last)
 {
+  if (tcomp->force->PlayBack()) return;
   if (!(tcomp->force->HaveCoefDump())) return;
   if (n % nint != 0 && !last) return;
   if (mstep % nintsub !=0) return;

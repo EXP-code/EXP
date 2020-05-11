@@ -80,6 +80,45 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
       // Check for sane value
       if (ssfrac>0.0 && ssfrac<1.0) subset = true;
     }
+
+    if (conf["playback"]) {
+      std::string file = conf["playback"].as<std::string>();
+				// Check the file exists
+      {
+	std::ifstream test(file);
+	if (not test) {
+	  std::cerr << "SphericalBasis: process " << myid << " cannot open <"
+		    << file << "> for reading" << std::endl;
+	  MPI_Finalize();
+	  exit(-1);
+	}
+      }
+
+      playback = std::make_shared<SphericalCoefs>(file);
+
+      if (playback->nmax != nmax) {
+	if (myid==0) {
+	  std::cerr << "SphericalBasis: nmax for playback [" << playback->nmax
+		    << "] does not match specification [" << nmax << "]"
+		    << std::endl;
+	}
+	MPI_Finalize();
+	exit(-1);
+      }
+
+      if (playback->lmax != Lmax) {
+	if (myid==0) {
+	  std::cerr << "SphericalBasis: Lmax for playback [" << playback->lmax
+		    << "] does not match specification [" << Lmax << "]"
+		    << std::endl;
+	}
+	MPI_Finalize();
+	exit(-1);
+      }
+
+      play_back = true;
+    }
+
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in SphericalBasis: "
@@ -480,6 +519,18 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
 void SphericalBasis::determine_coefficients(void)
 {
+  // Playback basis coefficients
+  //
+  if (playback and play_back) {
+    auto ret = playback->interpolate(tnow);
+    expcoef.setsize(0, Lmax*(Lmax+2), 1, nmax);
+    for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
+      for (int n=0; n<nmax; n++) expcoef[l][n+1] = ret[l][n];
+    }
+
+    return;
+  }
+
   nvTracerPtr tPtr;
   if (cuda_prof)
     tPtr = nvTracerPtr(new nvTracer("SphericalBasis::determine_coefficients"));

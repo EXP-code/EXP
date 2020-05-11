@@ -5,6 +5,7 @@
 #include <Orient.H>
 #include <Basis.H>
 #include <EmpCylSL.h>
+#include <CylindricalCoefs.H>
 
 #include "config.h"
 
@@ -171,6 +172,9 @@ protected:
 
 
 #endif
+
+  //! Coefficient playback
+  std::shared_ptr<CylindricalCoefs> playback;
 
 public:
 

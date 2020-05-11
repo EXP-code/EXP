@@ -4,6 +4,7 @@
 #include <ACG.h>
 #include <Normal.h>
 #include <AxisymmetricBasis.H>
+#include <SphericalCoefs.H>
 
 #include "config.h"
 
@@ -267,6 +268,9 @@ protected:
   void dump_coefs_all(ostream &);
 
   MixtureBasis *mix;
+
+  //! Coefficient playback
+  std::shared_ptr<SphericalCoefs> playback;
 
 public:
 

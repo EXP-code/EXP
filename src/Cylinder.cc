@@ -358,6 +358,46 @@ void Cylinder::initialize()
       self_consistent = conf["self_consistent"].as<bool>();
 
     if (not cmap) cmaptype = 0;
+
+    if (conf["playback"]) {
+      std::string file = conf["playback"].as<std::string>();
+
+      // Check that the file exists
+      {
+	std::ifstream test(file);
+	if (not test) {
+	  std::cerr << "Cylinder: process " << myid << " cannot open <"
+		    << file << "> for reading" << std::endl;
+	  MPI_Finalize();
+	  exit(-1);
+	}
+      }
+
+      playback = std::make_shared<CylindricalCoefs>(file);
+
+      if (playback->nmax != nmax) {
+	if (myid==0) {
+	  std::cerr << "Cylinder: nmax for playback [" << playback->nmax
+		    << "] does not match specification [" << nmax << "]"
+		    << std::endl;
+	}
+	MPI_Finalize();
+	exit(-1);
+      }
+
+      if (playback->mmax != mmax) {
+	if (myid==0) {
+	  std::cerr << "Cylinder: mmax for playback [" << playback->mmax
+		    << "] does not match specification [" << mmax << "]"
+		    << std::endl;
+	}
+	MPI_Finalize();
+	exit(-1);
+      }
+
+      play_back = true;
+    }
+
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing Cylinder parameters: "
@@ -619,6 +659,20 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 
 void Cylinder::determine_coefficients(void)
 {
+  // Playback basis coefficients
+  //
+  if (playback and play_back) {
+    auto ret = playback->interpolate(tnow);
+
+    for (int m=0; m<=mmax; m++) {
+      bool zero = false;
+      if (m==0) zero = true;
+      ortho->set_coefs(m, ret.first[m], ret.second[m], zero);
+    }
+
+    return;
+  }
+
   nvTracerPtr tPtr;
   if (cuda_prof)
     tPtr = nvTracerPtr(new nvTracer("Cylinder::determine_coefficients"));
@@ -626,6 +680,7 @@ void Cylinder::determine_coefficients(void)
   std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
 
   start0 = std::chrono::high_resolution_clock::now();
+
 
   static char routine[] = "determine_coefficients_Cylinder";
 
