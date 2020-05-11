@@ -110,11 +110,11 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   compute         = false;
   firstime_coef   = true;
   coefMaster      = true;
+  lastPlayTime    = -std::numeric_limits<double>::max();
   eof_over        = false;
   eof_file        = "";
 
   initialize();
-
 
   EmpCylSL::RMIN        = rcylmin;
   EmpCylSL::RMAX        = rcylmax;
@@ -376,10 +376,10 @@ void Cylinder::initialize()
 
       playback = std::make_shared<CylindricalCoefs>(file);
 
-      if (playback->nmax != nmax) {
+      if (playback->nmax != ncylorder) {
 	if (myid==0) {
-	  std::cerr << "Cylinder: nmax for playback [" << playback->nmax
-		    << "] does not match specification [" << nmax << "]"
+	  std::cerr << "Cylinder: norder for playback [" << playback->nmax
+		    << "] does not match specification [" << ncylorder << "]"
 		    << std::endl;
 	}
 	MPI_Finalize();
@@ -665,6 +665,9 @@ void Cylinder::determine_coefficients(void)
   // Playback basis coefficients
   //
   if (playback and play_back) {
+				// Do we need new coefficients?
+    if (tnow <= lastPlayTime) return;
+    lastPlayTime = tnow;
 
     if (coefMaster) {
 

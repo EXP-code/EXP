@@ -283,6 +283,9 @@ protected:
   */
   bool coefMaster;
 
+  //! Last playback coefficient evaluation time
+  double lastPlayTime;
+
 public:
 
   //! Constructor (<code>line</code> contains the paramter list)

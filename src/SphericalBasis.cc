@@ -41,6 +41,7 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
   ssfrac           = 0.0;
   subset           = false;
   coefMaster       = true;
+  lastPlayTime     = -std::numeric_limits<double>::max();
 
   try {
     if (conf["scale"]) 
@@ -525,6 +526,10 @@ void SphericalBasis::determine_coefficients(void)
   // Playback basis coefficients
   //
   if (playback and play_back) {
+				// Do we need new coefficients?
+    if (tnow <= lastPlayTime) return;
+    lastPlayTime = tnow;
+
 				// Set coefficient matrix size
     expcoef.setsize(0, Lmax*(Lmax+2), 1, nmax);
 

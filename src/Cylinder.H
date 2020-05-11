@@ -186,6 +186,9 @@ protected:
   */
   bool coefMaster;
 
+  //! Last playback coefficient evaluation time
+  double lastPlayTime;
+
 public:
 
   //! Mutexes for multithreading
