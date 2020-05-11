@@ -109,6 +109,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   dump_basis      = false;
   compute         = false;
   firstime_coef   = true;
+  coefMaster      = false;
   eof_over        = false;
   eof_file        = "";
 
@@ -398,6 +399,8 @@ void Cylinder::initialize()
       play_back = true;
     }
 
+    if (conf["coefMaster"]) coefMaster = conf["coefMaster"].as<bool>();
+
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing Cylinder parameters: "
@@ -662,12 +665,28 @@ void Cylinder::determine_coefficients(void)
   // Playback basis coefficients
   //
   if (playback and play_back) {
-    auto ret = playback->interpolate(tnow);
 
-    for (int m=0; m<=mmax; m++) {
-      bool zero = false;
-      if (m==0) zero = true;
-      ortho->set_coefs(m, ret.first[m], ret.second[m], zero);
+    if (myid==0 or not coefMaster) {
+      auto ret = playback->interpolate(tnow);
+
+      for (int m=0; m<=mmax; m++) {
+	MPI_Bcast(ret.first [m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Bcast(ret.second[m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+	bool zero = false;
+	if (m==0) zero = true;
+	ortho->set_coefs(m, ret.first[m], ret.second[m], zero);
+      }
+    } else {
+      std::vector<double> cosm(nmax), sinm(nmax);
+      for (int m=0; m<=mmax; m++) {
+	MPI_Bcast(cosm.data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Bcast(sinm.data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+	bool zero = false;
+	if (m==0) zero = true;
+	ortho->set_coefs(m, cosm, sinm, zero);
+      }
     }
 
     return;

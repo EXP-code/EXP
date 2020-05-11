@@ -40,6 +40,7 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
   seedN            = 11;
   ssfrac           = 0.0;
   subset           = false;
+  coefMaster       = false;
 
   try {
     if (conf["scale"]) 
@@ -118,6 +119,8 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
 
       play_back = true;
     }
+
+    if (conf["coefMaster"]) coefMaster = conf["coefMaster"].as<bool>();
 
   }
   catch (YAML::Exception & error) {
@@ -522,12 +525,19 @@ void SphericalBasis::determine_coefficients(void)
   // Playback basis coefficients
   //
   if (playback and play_back) {
-    auto ret = playback->interpolate(tnow);
     expcoef.setsize(0, Lmax*(Lmax+2), 1, nmax);
-    for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
-      for (int n=0; n<nmax; n++) expcoef[l][n+1] = ret[l][n];
-    }
 
+    if (myid==0 or not coefMaster) {
+      auto ret = playback->interpolate(tnow);
+      for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
+	for (int n=0; n<nmax; n++) expcoef[l][n+1] = ret[l][n];
+	MPI_Bcast(&expcoef[l][1], nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      }
+    } else {
+      for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
+	MPI_Bcast(&expcoef[l][1], nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      }
+    }
     return;
   }
 

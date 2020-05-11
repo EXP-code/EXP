@@ -176,6 +176,9 @@ protected:
   //! Coefficient playback
   std::shared_ptr<CylindricalCoefs> playback;
 
+  //! Master node ships coefficients to hosts
+  bool coefMaster;
+
 public:
 
   //! Mutexes for multithreading

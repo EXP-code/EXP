@@ -272,6 +272,9 @@ protected:
   //! Coefficient playback
   std::shared_ptr<SphericalCoefs> playback;
 
+  //! Master node ships coefficients to hosts
+  bool coefMaster;
+
 public:
 
   //! Constructor (<code>line</code> contains the paramter list)
