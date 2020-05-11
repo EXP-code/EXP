@@ -525,17 +525,26 @@ void SphericalBasis::determine_coefficients(void)
   // Playback basis coefficients
   //
   if (playback and play_back) {
+				// Set coefficient matrix size
     expcoef.setsize(0, Lmax*(Lmax+2), 1, nmax);
 
-    if (myid==0 or not coefMaster) {
+    if (coefMaster) {
+
+      if (myid==0) {
+	auto ret = playback->interpolate(tnow);
+	for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
+	  for (int n=0; n<nmax; n++) expcoef[l][n+1] = ret[l][n];
+	  MPI_Bcast(&expcoef[l][1], nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	}
+      } else {
+	for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
+	  MPI_Bcast(&expcoef[l][1], nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	}
+      }
+    } else {
       auto ret = playback->interpolate(tnow);
       for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
 	for (int n=0; n<nmax; n++) expcoef[l][n+1] = ret[l][n];
-	MPI_Bcast(&expcoef[l][1], nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      }
-    } else {
-      for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
-	MPI_Bcast(&expcoef[l][1], nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
       }
     }
     return;
