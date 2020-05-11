@@ -36,7 +36,7 @@ void OutCoef::initialize()
   try {
     if (conf["filename"])     filename = conf["filename"].as<std::string>();
     if (conf["nint"])         nint     = conf["nint"].as<int>();
-    if (conf["nintsub"])    nintsub  = conf["nintsub"].as<int>();
+    if (conf["nintsub"])      nintsub  = conf["nintsub"].as<int>();
     if (conf["name"])
       {				// Search for desired component
 	std::string tmp = conf["name"].as<std::string>();
@@ -60,14 +60,26 @@ void OutCoef::initialize()
 
 void OutCoef::Run(int n, int mstep, bool last)
 {
-  if (tcomp->force->PlayBack()) return;
+  // No coefficient output if 'playback'
+  //
+  if (tcomp->force->PlayBack())        return;
+
+  // No coefficient output defined for this force
+  //
   if (!(tcomp->force->HaveCoefDump())) return;
-  if (n % nint != 0 && !last) return;
-  if (mstep % nintsub !=0) return;
+
+  // Skip this master step
+  //
+  if (n % nint != 0 && !last)          return;
+
+  // Skip this sub step
+  //
+  if (mstep % nintsub !=0)             return;
 
   MPI_Status status;
 
-				// Open output file
+  // Open output file
+  //
   ofstream out;
   if (myid==0) {
     out.open(filename.c_str(), ios::out | ios::app);
