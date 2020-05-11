@@ -78,8 +78,8 @@ private:
   //! Reset used particle counter and mass registers
   virtual void multistep_reset();
 
+  //! For massive satellite simulations
   MixtureBasis *mix;
-
 
 protected:
 
@@ -173,12 +173,16 @@ protected:
 
 #endif
 
-  //! Coefficient playback
+  /** Coefficient playback instance.  Using shared_ptr to avoid
+      constructing a simple pointer or null instance
+  */
   std::shared_ptr<CylindricalCoefs> playback;
 
   /** Master node ships coefficients to hosts.  True (default) implies
       that only the master node caches the coefficients for playback
-      to save core memory
+      to save core memory.  This is set in the config input using the
+      'coefMaster: bool' parameter. Once I am sure that there are no
+      algorithmic issues, I will remove this as an option.
   */
   bool coefMaster;
 
