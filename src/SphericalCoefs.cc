@@ -6,7 +6,7 @@ bool SphericalCoefs::Coefs::read(std::istream& in)
   SphCoefHeader header;
   in.read((char *)&header, sizeof(SphCoefHeader));
   if (not in) return false;
-    
+  
   time = header.tnow;
   nmax = header.nmax;
   lmax = header.Lmax;
@@ -17,10 +17,12 @@ bool SphericalCoefs::Coefs::read(std::istream& in)
       
       cos_c[key].resize(nmax);
       in.read((char *)&cos_c[key][0], sizeof(double)*nmax);
-      
+      if (not in) return false;
+    
       if (mm) {
 	sin_c[key].resize(nmax);
 	in.read((char *)&sin_c[key][0], sizeof(double)*nmax);
+	if (not in) return false;
       }
     }
   }

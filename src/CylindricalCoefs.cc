@@ -18,10 +18,12 @@ bool CylindricalCoefs::Coefs::read(std::istream& in)
 
     cos_c[mm].resize(nmax);
     in.read((char *)&cos_c[mm][0], sizeof(double)*nmax);
+    if (not in) return false;
 
     if (mm) {
       sin_c[mm].resize(nmax);
       in.read((char *)&sin_c[mm][0], sizeof(double)*nmax);
+      if (not in) return false;
     }
   }
 
