@@ -1,0 +1,45 @@
+#ifndef _CYLINDRICAL_COEFS_H
+#define _CYLINDRICAL_COEFS_H
+
+#include <iostream>
+#include <iomanip>
+#include <fstream>
+#include <memory>
+#include <vector>
+#include <map>
+
+#include "coef.H"
+
+class CylindricalCoefs
+{
+public:
+
+  struct Coefs
+  {
+    double time;
+    int nmax, mmax;
+    std::vector< std::vector<double> > cos_c, sin_c;
+    
+    bool read(std::istream& in);
+  };
+
+  using CoefPtr= std::shared_ptr<Coefs>;
+
+public:
+  int mmax, nmax, ntimes;
+  
+  using Dvector  = std::vector<double>;
+  using D2vector = std::vector<Dvector>;
+  using D2pair   = std::pair<D2vector, D2vector>;
+
+  std::map<double, CoefPtr> data;
+  
+  std::vector<double> times;
+
+  CylindricalCoefs(const std::string& file, unsigned stride=1);
+
+  D2pair  operator()(const double time);
+  D2pair interpolate(const double time);
+};
+
+#endif
