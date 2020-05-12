@@ -80,8 +80,8 @@ CylindricalCoefs::D2pair CylindricalCoefs::interpolate(const double time)
   ret.first .resize(mmax+1);
   ret.second.resize(mmax+1);
   for (int m=0; m<mmax+1; m++) {
-    ret.first[m].resize(nmax, 0.0);
-    if (m) ret.second[m].resize(nmax, 0.0);
+    ret.first [m].resize(nmax, 0.0);
+    ret.second[m].resize(nmax, 0.0);
   }
 
   for (int m=0; m<mmax+1; m++) {
@@ -102,9 +102,9 @@ CylindricalCoefs::D2pair CylindricalCoefs::operator()(const double time)
   D2pair ret;
   ret.first .resize(mmax+1);
   ret.second.resize(mmax+1);
-  for (int m=0; m<mmax+1; m++) {
-    ret.first[m].resize(nmax, 0.0);
-    if (m) ret.second[m].resize(nmax, 0.0);
+  for (int m= 0; m<mmax+1; m++) {
+    ret.first [m].resize(nmax, 0.0);
+    ret.second[m].resize(nmax, 0.0);
   }
 
   auto it = data.find(time);
