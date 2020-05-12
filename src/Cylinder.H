@@ -69,6 +69,8 @@ private:
   */
   void compute_multistep_coefficients() 
   {
+    if (play_back) return;
+    
     nvTracerPtr tPtr;
     if (cuda_prof)
       tPtr = nvTracerPtr(new nvTracer("Cylinder::compute_multistep_coefficients"));
