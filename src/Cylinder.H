@@ -261,11 +261,15 @@ public:
   */
   //@{
   virtual void multistep_update_begin() { 
-    if (self_consistent) ortho->multistep_update_begin(); }
+    if (play_back) return;
+    if (self_consistent) ortho->multistep_update_begin();
+  }
 
   virtual void multistep_update(int cur, int next, Component* c, int i, int id);
   virtual void multistep_update_finish() { 
-    if (self_consistent) ortho->multistep_update_finish(); }
+    if (play_back) return;
+    if (self_consistent) ortho->multistep_update_finish();
+  }
   //@}
 
   //! Print debug info

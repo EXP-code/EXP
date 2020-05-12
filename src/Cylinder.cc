@@ -1358,9 +1358,9 @@ void Cylinder::dump_mzero(const string& name, int step)
 
 void Cylinder::multistep_update(int from, int to, Component* c, int i, int id)
 {
+  if (play_back)        return;
   if (!self_consistent) return;
-
-  if (c->freeze(i)) return;
+  if (c->freeze(i))     return;
 
   double mass = c->Mass(i) * component->Adiabatic();
 

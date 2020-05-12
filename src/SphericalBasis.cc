@@ -831,6 +831,7 @@ void SphericalBasis::multistep_reset()
 
 void SphericalBasis::multistep_update_begin()
 {
+  if (play_back) return;
 				// Clear the update matricies
   for (int n=0; n<nthrds; n++) {
     for (int M=mfirst[mstep]; M<=multistep; M++) {
@@ -846,6 +847,8 @@ void SphericalBasis::multistep_update_begin()
 
 void SphericalBasis::multistep_update_finish()
 {
+  if (play_back) return;
+
 				// Combine the update matricies
 				// from all nodes
   unsigned sz = (multistep - mfirst[mstep]+1)*(Lmax+1)*(Lmax+1)*nmax;
@@ -885,7 +888,7 @@ void SphericalBasis::multistep_update_finish()
 
 void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int id)
 {
-  
+  if (play_back)    return;
   if (c->freeze(i)) return;
 
   double mass = c->Mass(i) * component->Adiabatic();
