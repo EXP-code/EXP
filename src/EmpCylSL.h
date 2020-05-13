@@ -568,6 +568,12 @@ public:
 		 const std::vector<double>& cos1,
 		 const std::vector<double>& sin1, bool zero);
 
+  //! Set cylmass manually
+  void set_mass(double mass) {
+    cylmass_made = true;
+    cylmass = mass;
+  }
+
   //! Dump out coefficients to output stream
   void dump_coefs(std::ostream& out);
 
