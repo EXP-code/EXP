@@ -709,16 +709,6 @@ void Cylinder::determine_coefficients(void)
 	if (m==0) zero = true;
 	ortho->set_coefs(m, ret.first[m], ret.second[m], zero);
       }
-
-      if (myid==0) {
-	for (int m=0; m<=mmax; m++) {
-	  std::cout << "**  " << std::setw(18) << tnow
-		    << std::setw(4) << m;
-	  for (int i=0; i<4; i++) 
-	    std::cout << std::setw(18) << ret.first[m][i];
-	  std::cout << std::endl;
-	}
-      }
     }
 
     return;
@@ -1212,17 +1202,6 @@ void Cylinder::determine_acceleration_and_potential(void)
   exp_thread_fork(false);
 #endif
 
-  if (true) {
-    for (int m=0; m<=mmax; m++) {
-      std::cout << std::setw(4 ) << myid
-		<< std::setw(18) << tnow
-		<< std::setw(4 ) << m;
-	for (int i=0; i<4; i++)
-	  std::cout << std::setw(18) << ortho->get_coef(m, i, 'c');
-      std::cout << std::endl;
-    }
-  }
-  
 #ifdef DEBUG
   cout << "Cylinder: process " << myid << " returned from fork" << endl;
   int offtot=0;
