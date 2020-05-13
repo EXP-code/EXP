@@ -12,6 +12,16 @@
 
 class CylindricalCoefs
 {
+private:
+
+  int ndigits;
+
+  double to_ndigits(double x)
+  { 
+    double scale = std::pow(10.0, ndigits);
+    return std::round(x * scale) / scale;
+  }
+
 public:
 
   struct Coefs
@@ -36,7 +46,7 @@ public:
   
   std::vector<double> times;
 
-  CylindricalCoefs(const std::string& file, unsigned stride=1);
+  CylindricalCoefs(const std::string& file, int ndigits=10, unsigned stride=1);
 
   D2pair  operator()(const double time);
   D2pair interpolate(const double time);

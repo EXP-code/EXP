@@ -37,34 +37,45 @@ SphericalCoefs::SphericalCoefs(const std::string& file, unsigned stride)
 
   unsigned counter = 0;
 
+  std::vector<CoefPtr> cvec;
+
   while (in.good()) {
     CoefPtr c = std::make_shared<Coefs>();
     if (not c->read(in)) break;
-    if (counter++ % stride == 0) data[c->time] = c;
+    if (counter++ % stride == 0) cvec.push_back(c);
   }
 
-  lmax   = data.begin()->second->lmax;
-  nmax   = data.begin()->second->nmax;
-  ntimes = data.size();
+  ndigits = 1 - std::log10(cvec[1]->time - cvec[0]->time);
+    
+  for (auto v : cvec) {		// Convert to fixed point for safer
+				// use of float as map key
+    double T = to_ndigits(v->time);
+    times.push_back(T);
+    data[T] = v;
 
-  for (auto v : data) {
-    double Time = v.second->time;
-    times.push_back(Time);
-    coefs[Time].resize((lmax+1)*(lmax+1));
+    int lmax = v->lmax;
+    coefs[T].resize((lmax+1)*(lmax+1));
 
     int cnt = 0;
     for (int l=0; l<=lmax; l++) {
       for (int m=0; m<=l; m++) {
 	LMkey lmk  = {l, m};
-	coefs[Time][cnt++] = data[Time]->cos_c[lmk];
-	if (m) coefs[Time][cnt++] = data[Time]->sin_c[lmk];
+	coefs[T][cnt++] = data[T]->cos_c[lmk];
+	if (m) coefs[T][cnt++] = data[T]->sin_c[lmk];
       }
     }
   }
+
+  lmax   = data.begin()->second->lmax;
+  nmax   = data.begin()->second->nmax;
+  ntimes = data.size();
 }
 
-SphericalCoefs::D2vector SphericalCoefs::interpolate(const double time)
+
+SphericalCoefs::D2vector SphericalCoefs::interpolate(const double T)
 {
+  double time = to_ndigits(T);
+
   if (time < times.front() or time > times.back()) {
     std::cerr << "Time=" << time << " is offgrid [" << times.front()
 	      << ", " << times.back() << "]" << std::endl;

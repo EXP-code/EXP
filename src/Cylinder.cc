@@ -11,6 +11,10 @@ using namespace std;
 #include <MixtureBasis.H>
 #include <Timer.h>
 
+#ifdef HAVE_OPENMP
+#include <omp.h>		// For multithreading playback intialization
+#endif
+
 Timer timer_debug;
 
 double EXPSCALE=1.0, HSCALE=1.0, ASHIFT=0.25;
@@ -665,6 +669,8 @@ void Cylinder::determine_coefficients(void)
   // Playback basis coefficients
   //
   if (playback and play_back) {
+    compute_grid_mass();	// Only performed once to start
+
 				// Do we need new coefficients?
     if (tnow <= lastPlayTime) return;
     lastPlayTime = tnow;
@@ -702,6 +708,16 @@ void Cylinder::determine_coefficients(void)
 	bool zero = false;
 	if (m==0) zero = true;
 	ortho->set_coefs(m, ret.first[m], ret.second[m], zero);
+      }
+
+      if (myid==0) {
+	for (int m=0; m<=mmax; m++) {
+	  std::cout << "**  " << std::setw(18) << tnow
+		    << std::setw(4) << m;
+	  for (int i=0; i<4; i++) 
+	    std::cout << std::setw(18) << ret.first[m][i];
+	  std::cout << std::endl;
+	}
       }
     }
 
@@ -1196,6 +1212,17 @@ void Cylinder::determine_acceleration_and_potential(void)
   exp_thread_fork(false);
 #endif
 
+  if (true) {
+    for (int m=0; m<=mmax; m++) {
+      std::cout << std::setw(4 ) << myid
+		<< std::setw(18) << tnow
+		<< std::setw(4 ) << m;
+	for (int i=0; i<4; i++)
+	  std::cout << std::setw(18) << ortho->get_coef(m, i, 'c');
+      std::cout << std::endl;
+    }
+  }
+  
 #ifdef DEBUG
   cout << "Cylinder: process " << myid << " returned from fork" << endl;
   int offtot=0;
@@ -1379,6 +1406,8 @@ void Cylinder::multistep_update(int from, int to, Component* c, int i, int id)
 
 void Cylinder::multistep_reset() 
 { 
+  if (play_back) return;
+  
   used    = 0; 
   cylmass = 0.0;
   resetT  = tnow;
@@ -1415,3 +1444,61 @@ void Cylinder::multistep_debug()
   
   idbg++;
 }
+
+
+void Cylinder::compute_grid_mass()
+{
+  static bool done = false;
+  
+  if (done) return;
+  done = true;
+
+  // Compute used and cylmass for playback (this means that cylmass
+  // will not be the same as the original simulation but it should be
+  // close unless the original grid was inappropriate.
+  //
+  std::vector<double> cylms(nthrds, 0.0);
+  std::vector<int>    cylnn(nthrds, 0);
+    
+  double Rmax2 = rcylmax*rcylmax*acyl*acyl;
+  auto   nsize = cC->Particles().size();
+  
+  auto p = cC->Particles();
+
+#pragma omp parallel for
+  for (auto it=p.begin(); it!=p.end(); it++) {
+    auto n = it->first;
+#ifdef HAVE_OPENMP
+    int id = omp_get_thread_num();
+#else
+    int id = 0;
+#endif
+
+    double R2 = 0.0;
+    for (int j=0; j<3; j++)  {
+      double pos = cC->Pos(n, j, Component::Local | Component::Centered);
+      R2 += pos*pos;
+    }
+    
+    if ( R2 < Rmax2) {
+      cylms[id] += cC->Mass(n);
+      cylnn[id] += 1;
+    } 
+  } // END: parallel for
+  
+  cylmass = 0.0;
+  used    = 0;
+  for (int t=0; t<nthrds; t++) {
+    cylmass += cylms[t];
+    used    += cylnn[t];
+  }
+  
+  MPI_Allreduce(MPI_IN_PLACE, &cylmass, 1, MPI_DOUBLE, MPI_SUM,
+		MPI_COMM_WORLD);
+
+  MPI_Allreduce(MPI_IN_PLACE, &used, 1, MPI_INT, MPI_SUM,
+		MPI_COMM_WORLD);
+
+  ortho->set_mass(cylmass);
+}
+

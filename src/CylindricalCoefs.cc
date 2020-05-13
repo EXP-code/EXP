@@ -1,4 +1,5 @@
 
+#include <cmath>
 #include "CylindricalCoefs.H"
 
 bool CylindricalCoefs::Coefs::read(std::istream& in)
@@ -17,12 +18,12 @@ bool CylindricalCoefs::Coefs::read(std::istream& in)
   for (int mm=0; mm<=mmax; mm++) {
 
     cos_c[mm].resize(nmax);
-    in.read((char *)&cos_c[mm][0], sizeof(double)*nmax);
+    in.read((char *)cos_c[mm].data(), sizeof(double)*nmax);
     if (not in) return false;
 
     if (mm) {
       sin_c[mm].resize(nmax);
-      in.read((char *)&sin_c[mm][0], sizeof(double)*nmax);
+      in.read((char *)sin_c[mm].data(), sizeof(double)*nmax);
       if (not in) return false;
     }
   }
@@ -31,29 +32,38 @@ bool CylindricalCoefs::Coefs::read(std::istream& in)
 }
 
 
-CylindricalCoefs::CylindricalCoefs(const std::string& file, unsigned stride)
+CylindricalCoefs::CylindricalCoefs(const std::string& file, int nd, unsigned stride)
 {
   std::ifstream in(file);
 
   unsigned counter = 0;
   
+  std::vector<CoefPtr> cvec;
+
   while (in.good()) {
     CoefPtr c = std::make_shared<Coefs>();
     if (not c->read(in)) break;
-    if (counter++ % stride == 0) data[c->time] = c;
+    if (counter++ % stride == 0) cvec.push_back(c);
   }
 
+  ndigits = 1 - std::log10(cvec[1]->time - cvec[0]->time);
+    
+  for (auto v : cvec) {		// Convert to fixed point for safer
+				// use of float as map key
+    double T = to_ndigits(v->time);
+    times.push_back(T);
+    data[T] = v;
+  }
+    
   mmax   = data.begin()->second->mmax;
   nmax   = data.begin()->second->nmax;
   ntimes = data.size();
-
-  for (auto v : data) {
-    times.push_back(v.second->time);
-  }
 }
 
-CylindricalCoefs::D2pair CylindricalCoefs::interpolate(const double time)
+CylindricalCoefs::D2pair CylindricalCoefs::interpolate(const double T)
 {
+  double time = to_ndigits(T);
+
   if (time < times.front() or time > times.back()) {
     std::cerr << "Time=" << time << " is offgrid [" << times.front()
 	      << ", " << times.back() << "]" << std::endl;

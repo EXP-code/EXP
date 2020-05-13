@@ -7,12 +7,23 @@
 #include <memory>
 #include <vector>
 #include <tuple>
+#include <cmath>
 #include <map>
 
 #include "coef.H"
 
 class SphericalCoefs
 {
+private:
+
+  int ndigits;
+
+  double to_ndigits(double x)
+  { 
+    double scale = std::pow(10.0, ndigits);
+    return std::round(x * scale) / scale;
+  }
+
 public:
   using LMkey = std::tuple<unsigned, unsigned>;
 

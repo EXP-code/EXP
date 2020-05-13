@@ -83,6 +83,9 @@ private:
   //! For massive satellite simulations
   MixtureBasis *mix;
 
+  //! Manual computation of on-grid mass
+  void compute_grid_mass();
+
 protected:
 
   //! CUDA method for coefficient accumulation
