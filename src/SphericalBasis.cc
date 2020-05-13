@@ -958,6 +958,8 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int
 
 void SphericalBasis::compute_multistep_coefficients()
 {
+  if (play_back) return;
+
 #ifdef TMP_DEBUG
   Matrix tmpcoef = expcoef;
 #endif
