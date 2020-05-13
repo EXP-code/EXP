@@ -18,16 +18,16 @@ UserHalo::UserHalo(const YAML::Node& conf) : ExternalForce(conf)
   q3 = 1.0;			// Flattening of the Galactic Potentail to Z-axis
   diverge = 0;			// Use analytic divergence (true/false)
   diverge_rfac = 1.0;		// Exponent for profile divergence
-  ctr_name = "";		// Default component for center
+  comp_name = "";		// Default component name
+  c0 = NULL;			// Default component pointer
 
   initialize();
 
-  if (ctr_name.size()>0) {
-				// Look for the fiducial component for
-				// centering
+  if (comp_name.size()>0) {
+				// Look for the fiducial component
     bool found = false;
     for (auto c : comp->components) {
-      if ( !ctr_name.compare(c->name) ) {
+      if ( !comp_name.compare(c->name) ) {
 	c0 = c;
 	found = true;
       break;
@@ -36,14 +36,11 @@ UserHalo::UserHalo(const YAML::Node& conf) : ExternalForce(conf)
 
     if (!found) {
       cerr << "Process " << myid << ": can't find desired component <"
-	   << ctr_name << ">" << endl;
+	   << comp_name << ">" << endl;
       MPI_Abort(MPI_COMM_WORLD, 35);
     }
 
   }
-  else
-    c0 = NULL;
-
 
   model = new SphericalModelTable(model_file, diverge, diverge_rfac);
 
@@ -65,7 +62,7 @@ void UserHalo::userinfo()
   cout << "Filename=" << model_file << "  diverge=" << diverge
        << "  diverge_rfac=" << diverge_rfac;
   if (c0) 
-    cout << ", center on component <" << ctr_name << ">";
+    cout << ", using component <" << comp_name << ">";
   else
     cout << ", using inertial center";
   cout << endl;
@@ -87,7 +84,7 @@ void UserHalo::initialize()
     if (conf["q3"])             q3                 = conf["q3"].as<double>();
     if (conf["diverge"])        diverge            = conf["diverge"].as<int>();
     if (conf["diverge_rfac"])   diverge_rfac       = conf["diverge_rfac"].as<double>();
-    if (conf["ctrname"])        ctr_name           = conf["ctrname"].as<string>();
+    if (conf["comp_name"])      comp_name          = conf["comp_name"].as<string>();
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in UserHalo: "
@@ -104,6 +101,8 @@ void UserHalo::initialize()
 
 void UserHalo::determine_acceleration_and_potential(void)
 {
+  if (c0 and cC != c0) return; // Check that this component is the target
+
   exp_thread_fork(false);
 
   print_timings("UserHalo: accleration timings");
