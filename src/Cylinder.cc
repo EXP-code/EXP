@@ -1444,6 +1444,32 @@ void Cylinder::compute_grid_mass()
   
   auto p = cC->Particles();
 
+#pragma omp parallel 
+  {
+#ifdef HAVE_OPENMP
+    int nthrd = omp_get_num_threads();
+    int id    = omp_get_thread_num();
+#else
+    int nthrd = 1;
+    int id    = 0;
+#endif
+
+    size_t chunk_size = p.size() / nthrd;
+    auto begin = p.begin();
+    std::advance(begin, id * chunk_size);
+    auto end = begin;
+
+    // last thread iterates the remaining sequence
+    if (id = nthrd - 1)
+      end = p.end();
+    else
+      std::advance(end, chunk_size);
+    
+#pragma omp barrier
+    for (auto it = begin; it != end; ++it) {
+      auto n = it->first;
+
+    /*
 #pragma omp parallel for
   for (auto it=p.begin(); it!=p.end(); it++) {
     auto n = it->first;
@@ -1452,18 +1478,20 @@ void Cylinder::compute_grid_mass()
 #else
     int id = 0;
 #endif
-
-    double R2 = 0.0;
-    for (int j=0; j<3; j++)  {
-      double pos = cC->Pos(n, j, Component::Local | Component::Centered);
-      R2 += pos*pos;
-    }
+    */
     
-    if ( R2 < Rmax2) {
-      cylms[id] += cC->Mass(n);
-      cylnn[id] += 1;
-    } 
-  } // END: parallel for
+      double R2 = 0.0;
+      for (int j=0; j<3; j++)  {
+	double pos = cC->Pos(n, j, Component::Local | Component::Centered);
+	R2 += pos*pos;
+      }
+      
+      if ( R2 < Rmax2) {
+	cylms[id] += cC->Mass(n);
+	cylnn[id] += 1;
+      } 
+    } // END: for
+  } // END: parallel
   
   cylmass = 0.0;
   used    = 0;
