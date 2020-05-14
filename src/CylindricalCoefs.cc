@@ -58,9 +58,19 @@ CylindricalCoefs::CylindricalCoefs(const std::string& file, int nd, unsigned str
   mmax   = data.begin()->second->mmax;
   nmax   = data.begin()->second->nmax;
   ntimes = data.size();
+
+  ret = std::make_shared<D2pair>();
+
+  ret->first .resize(mmax+1);
+  ret->second.resize(mmax+1);
+  for (int m=0; m<mmax+1; m++) {
+    ret->first [m].resize(nmax, 0.0);
+    ret->second[m].resize(nmax, 0.0);
+  }
+
 }
 
-CylindricalCoefs::D2pair CylindricalCoefs::interpolate(const double T)
+CylindricalCoefs::DataPtr CylindricalCoefs::interpolate(const double T)
 {
   double time = to_ndigits(T);
 
@@ -86,43 +96,27 @@ CylindricalCoefs::D2pair CylindricalCoefs::interpolate(const double T)
   auto cA = data[times[iA]];
   auto cB = data[times[iB]];
 
-  D2pair ret;
-  ret.first .resize(mmax+1);
-  ret.second.resize(mmax+1);
-  for (int m=0; m<mmax+1; m++) {
-    ret.first [m].resize(nmax, 0.0);
-    ret.second[m].resize(nmax, 0.0);
-  }
-
   for (int m=0; m<mmax+1; m++) {
     for (int n=0; n<nmax; n++)
-      ret.first[m][n] = A*cA->cos_c[m][n] + B*cB->cos_c[m][n];
+      ret->first[m][n] = A*cA->cos_c[m][n] + B*cB->cos_c[m][n];
     
     if (m) {
       for (int n=0; n<nmax; n++)
-	ret.second[m][n] = A*cA->sin_c[m][n] + B*cB->sin_c[m][n];
+	ret->second[m][n] = A*cA->sin_c[m][n] + B*cB->sin_c[m][n];
     }    
   }
 
   return ret;
 }
 
-CylindricalCoefs::D2pair CylindricalCoefs::operator()(const double time)
+CylindricalCoefs::DataPtr CylindricalCoefs::operator()(const double time)
 {
-  D2pair ret;
-  ret.first .resize(mmax+1);
-  ret.second.resize(mmax+1);
-  for (int m=0; m<mmax+1; m++) {
-    ret.first [m].resize(nmax, 0.0);
-    ret.second[m].resize(nmax, 0.0);
-  }
-
   auto it = data.find(time);
   if (it == data.end()) return ret;
 
   for (int m=0; m<mmax+1; m++) {
-    ret.first[m] = it->second->cos_c[m];
-    if (m) ret.second[m] = it->second->sin_c[m];
+    ret->first[m] = it->second->cos_c[m];
+    if (m) ret->second[m] = it->second->sin_c[m];
   }
 
   return ret;

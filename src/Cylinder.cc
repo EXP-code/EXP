@@ -681,12 +681,12 @@ void Cylinder::determine_coefficients(void)
 	auto ret = playback->interpolate(tnow);
 
 	for (int m=0; m<=mmax; m++) {
-	  MPI_Bcast(ret.first [m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	  MPI_Bcast(ret.second[m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast(ret->first [m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast(ret->second[m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 	  bool zero = false;
 	  if (m==0) zero = true;
-	  ortho->set_coefs(m, ret.first[m], ret.second[m], zero);
+	  ortho->set_coefs(m, ret->first[m], ret->second[m], zero);
 	}
       } else {
 	std::vector<double> cosm(nmax), sinm(nmax);
@@ -707,7 +707,7 @@ void Cylinder::determine_coefficients(void)
       for (int m=0; m<=mmax; m++) {
 	bool zero = false;
 	if (m==0) zero = true;
-	ortho->set_coefs(m, ret.first[m], ret.second[m], zero);
+	ortho->set_coefs(m, ret->first[m], ret->second[m], zero);
       }
     }
 

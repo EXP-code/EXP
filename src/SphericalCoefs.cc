@@ -69,10 +69,13 @@ SphericalCoefs::SphericalCoefs(const std::string& file, unsigned stride)
   lmax   = data.begin()->second->lmax;
   nmax   = data.begin()->second->nmax;
   ntimes = data.size();
+
+  ret = std::make_shared<D2vector>((lmax+1)*(lmax+1));
+  for (auto & v : *ret) v.resize(nmax);
 }
 
 
-SphericalCoefs::D2vector SphericalCoefs::interpolate(const double T)
+SphericalCoefs::DataPtr SphericalCoefs::interpolate(const double T)
 {
   double time = to_ndigits(T);
 
@@ -98,11 +101,9 @@ SphericalCoefs::D2vector SphericalCoefs::interpolate(const double T)
   D2vector & cA = coefs[times[iA]];
   D2vector & cB = coefs[times[iB]];
 
-  D2vector ret((lmax+1)*(lmax+1));
-
   for (int i=0; i<(lmax+1)*(lmax+1); i++) {
-    ret[i].resize(nmax);
-    for (int n=0; n<nmax; n++) ret[i][n] = A*cA[i][n] + B*cB[i][n];
+    (*ret)[i].resize(nmax);
+    for (int n=0; n<nmax; n++) (*ret)[i][n] = A*cA[i][n] + B*cB[i][n];
   }
 
   return ret;
