@@ -740,10 +740,12 @@ void InitializeSpeciesDirect
   
   int N = particles.size();
   
-  // Compute cumulative species
-  // distribution
+  // Compute cumulative species distribution
+  //
   size_t NS = sF.size();
+
   // Normalize sF
+  //
   double norm = std::accumulate(sF.begin(), sF.end(), 0.0);
   if (fabs(norm - 1.0)>1.0e-16) {
     std::cout << "Normalization change: " << norm << std::endl;
@@ -1097,6 +1099,7 @@ void InitializeSpeciesHybrid
 (std::vector<Particle> & particles, 
  std::vector<unsigned char>& sZ, 
  std::vector<double>& sF, 
+ std::map<unsigned char, unsigned char> sC,
  std::vector< std::vector<double> >& sI,
  std::vector<double>& M,
  std::vector< std::map<unsigned char, double> >& T,
@@ -1153,6 +1156,13 @@ void InitializeSpeciesHybrid
 	  
 	  std::vector<double> v;
 	  for (auto i : s) v.push_back(::atof(i.c_str()));
+
+	  if (sC.find(n) != sC.end()) {
+	    std::vector<double> vv;
+	    for (int i=0; i<sC[n]; i++) vv.push_back(v[i]);
+	    v = vv;
+	  }
+
 	  frac[Z] = v;
 	}
 	
@@ -1168,6 +1178,13 @@ void InitializeSpeciesHybrid
 	  std::vector<double> v;
 	  for (vString::iterator i=s.begin(); i!=s.end(); i++)
 	    v.push_back(::atof(i->c_str()));
+
+	  if (sC.find(n) != sC.end()) {
+	    std::vector<double> vv;
+	    for (int i=0; i<sC[n]; i++) vv.push_back(v[i]);
+	    v = vv;
+	  }
+
 	  cuml.push_back(v);
 	}
       }
@@ -1204,6 +1221,13 @@ void InitializeSpeciesHybrid
 	
 	std::vector<double> v;
 	for (auto i : s) v.push_back(::atof(i.c_str()));
+
+	if (sC.find(n) != sC.end()) {
+	  std::vector<double> vv;
+	  for (int i=0; i<sC[n]; i++) vv.push_back(v[i]);
+	  v = vv;
+	}
+
 	frac[n] = v;
 	
 	double norm = 0.0;
@@ -1322,7 +1346,9 @@ void InitializeSpeciesHybrid
 void InitializeSpeciesTrace
 (std::vector<Particle> & particles, 
  std::vector<unsigned char>& sZ, 
- std::vector<double>& sF, std::vector<double>& M,
+ std::vector<double>& sF,
+ std::map<unsigned char, unsigned char> sC,
+ std::vector<double>& M,
  std::vector< std::map<unsigned char, double> >& T,
  std::vector<double>& L,
  Mtype model, int sp, int ne, bool mm)
@@ -1354,7 +1380,9 @@ void InitializeSpeciesTrace
       for (auto n : sZ) {
 	double sum = 0.0;
 	std::vector<double> V;
-	for (int C=0; C<n; C++) {
+	int Cmax = n;
+	if (sC.find(n)!=sC.end()) Cmax = sC[n]-1;
+	for (int C=0; C<Cmax; C++) {
 	  sum += v[cnt];
 	  V.push_back(v[cnt]);
 	  cnt++;
@@ -1424,6 +1452,13 @@ void InitializeSpeciesTrace
 	      std::vector<double> v;
 	      for (vString::iterator i=s.begin(); i!=s.end(); i++)
 		v.push_back(::atof(i->c_str()));
+
+	      if (sC.find(n) != sC.end()) {
+		std::vector<double> vv;
+		for (int i=0; i<sC[n]; i++) vv.push_back(v[i]);
+		v = vv;
+	      }
+
 	      frac[nc].push_back(v);
 	    }
 	  
@@ -1439,6 +1474,13 @@ void InitializeSpeciesTrace
 	      std::vector<double> v;
 	      for (vString::iterator i=s.begin(); i!=s.end(); i++)
 		v.push_back(::atof(i->c_str()));
+
+	      if (sC.find(n) != sC.end()) {
+		std::vector<double> vv;
+		for (int i=0; i<sC[n]; i++) vv.push_back(v[i]);
+		v = vv;
+	      }
+
 	      cuml[nc].push_back(v);
 	    }
 	  }
@@ -1473,6 +1515,13 @@ void InitializeSpeciesTrace
 	    
 	    std::vector<double> v;
 	    for (auto i : s) v.push_back(::atof(i.c_str()));
+
+	    if (sC.find(n) != sC.end()) {
+	      std::vector<double> vv;
+	      for (int i=0; i<sC[n]; i++) vv.push_back(v[i]);
+	      v = vv;
+	    }
+
 	    frac[nc].push_back(v);
 	  
 	    double norm = 0.0;
@@ -1495,8 +1544,8 @@ void InitializeSpeciesTrace
   
   int N = particles.size();
   
-  // Compute cumulative species
-  // distribution
+  // Compute cumulative species distribution
+  //
   int NS = sF.size();
 
   double molW = 0.0;
@@ -1505,6 +1554,7 @@ void InitializeSpeciesTrace
   molW = 1.0/molW;
   
   // Normalize sF
+  //
   double norm = std::accumulate(sF.begin(), sF.end(), 0.0);
   if (fabs(norm - 1.0)>1.0e-16) {
     std::cout << "Normalization change: " << norm << std::endl;
@@ -1558,6 +1608,7 @@ void InitializeSpeciesTrace
     particles[i].mass  = M[wh]/N;
     
     // Sanity check
+    //
     double test = 0.0;
 
     int cur = sp;
@@ -1566,7 +1617,11 @@ void InitializeSpeciesTrace
     for (int indx=0; indx<NS; indx++) { 
       // Get the ionization state
       //
-      for (int j=0; j<sZ[indx]+1; j++) {
+      int maxC = sZ[indx]+1;	// Enforce upper ionization-state limit
+      auto it = sC.find(sZ[indx]);
+      if (it != sC.end()) maxC = it->second;
+
+      for (int j=0; j<maxC; j++) {
 	particles[i].dattrib[cur++] = sF[indx]*frac[wh][indx][j];
 	test += sF[indx] * frac[wh][indx][j];
       }
@@ -1583,7 +1638,7 @@ void InitializeSpeciesTrace
     }
       
     if (particles[i].dattrib.size()>2) particles[i].dattrib[2] = KEi;
-
+    
     // Kinetic energies
     //
     tKEi += 0.5*particles[i].mass * KEi;
@@ -1611,7 +1666,11 @@ void InitializeSpeciesTrace
   
     int cntr = sp;
     for (int indx=0; indx<NS; indx++) { 
-      for (int j=0; j<sZ[indx]+1; j++) {
+      int maxC = sZ[indx]+1;	// Enforce upper ionization-state limit
+      auto it = sC.find(sZ[indx]);
+      if (it != sC.end()) maxC = it->second;
+
+      for (int j=0; j<maxC; j++) {
 	out << YAML::Flow << YAML::BeginSeq 
 	    << static_cast<unsigned>(sZ[indx])
 	    << j + 1
@@ -1638,7 +1697,11 @@ void InitializeSpeciesTrace
     //
     int cntr = sp;
     for (int indx=0; indx<NS; indx++) { 
-      for (int j=0; j<sZ[indx]+1; j++) {
+      int maxC = sZ[indx]+1;	// Enforce upper ionization-state limit
+      auto it = sC.find(sZ[indx]);
+      if (it != sC.end()) maxC = it->second;
+
+      for (int j=0; j<maxC; j++) {
 	out << std::setw(6) << static_cast<unsigned>(sZ[indx])
 	    << std::setw(6) << j + 1
 	    << std::setw(6) << cntr++
@@ -1794,6 +1857,9 @@ main (int ac, char **av)
   std::vector<unsigned char> sZ;
   std::vector<double>        sF;
 
+  // Maximum ionization level
+  std::map<unsigned char, unsigned char> sC;
+
   // Temperatures
   std::vector< std::map<unsigned char, double> > T;
   std::vector<double> rho;
@@ -1864,7 +1930,9 @@ main (int ac, char **av)
       } else if (row.second.count("mfrac")) {
 	sF.push_back(row.second.get<double>("mfrac"));
 	norm += sF.back();
-      } else {
+      } else if (row.second.count("cmax")) {
+	sC[i] = row.second.get<unsigned char>("cmax");
+    } else {
 	std::cerr << "Missing element definition for atomic number " << i
 		  << std::endl;
 	exit(-3);
@@ -1915,7 +1983,11 @@ main (int ac, char **av)
 
 				// Augment for species number
       for (size_t indx=0; indx<sF.size(); indx++) { 
-	for (int j=0; j<sZ[indx]+1; j++) nd++;
+	int maxC = sZ[indx]+1;	// Enforce upper ionization-state limit
+	auto it = sC.find(sZ[indx]);
+	if (it != sC.end()) maxC = it->second;
+
+	for (int j=0; j<maxC; j++) nd++;
       }
 
       // Electron velocities and cons
@@ -1988,13 +2060,13 @@ main (int ac, char **av)
   //
   switch (type) {
   case Hybrid:
-    InitializeSpeciesHybrid(particles, sZ, sF, sI, Mass, T, sp, ne);
+    InitializeSpeciesHybrid(particles, sZ, sF, sC, sI, Mass, T, sp, ne);
     break;
   case Weight:
     InitializeSpeciesWeight(particles, sZ, sF, sI, Mass, T, sp, ne);
     break;
   case Trace:
-    InitializeSpeciesTrace (particles, sZ, sF, Mass, T, LL, model, sp, ne, mm);
+    InitializeSpeciesTrace (particles, sZ, sF, sC, Mass, T, LL, model, sp, ne, mm);
     // Compute molecular weight
     molW = 0.0;
     for (size_t k=0; k<sZ.size(); k++) molW += sF[k]/PT[sZ[k]]->weight();
