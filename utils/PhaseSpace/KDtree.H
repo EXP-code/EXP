@@ -36,6 +36,9 @@ class point
 {
 public:
   // Null initializer
+  point() {}
+  
+  // Main constructor
   point(std::array<coordinate_type, dimensions> c) : coords_(c) {}
   
   // List constructor
@@ -265,9 +268,17 @@ public:
     best_.resize(N);
     visited_ = 0;
     nearestN(root_, pt, 0, N);
+#if __GNUC__ > 6
     return {best_.begin()->second->point_,
-	    (best_.begin()++)->second->point_,
-	    std::sqrt(best_.rbegin()->first)};
+	(best_.begin()++)->second->point_,
+	std::sqrt(best_.rbegin()->first)};
+#else
+    std::tuple<point_type, point_type, double> ret;
+    std::get<0>(ret) = best_.begin()->second->point_;
+    std::get<1>(ret) = (best_.begin()++)->second->point_;
+    std::get<2>(ret) = std::sqrt(best_.rbegin()->first);
+    return ret;
+#endif
   }
 
   std::vector<double> getDist()

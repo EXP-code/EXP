@@ -158,12 +158,12 @@ void ComponentContainer::initialize(void)
   }
 
 				// Initialize interactions between components
-  string value;
+  std::string value;
   ntot = 0;
   
   for (auto c : components) {
 				// Use this loop, BTW, to sum up all bodies
-    ntot += c->nbodies_tot;
+    ntot += c->NewTotal();
     
 				// A new interaction list for THIS component
     Interaction *curr = new Interaction;
@@ -443,6 +443,17 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       inter->c->force->get_acceleration_and_potential(other);
       inter->c->force->ClearExternal();
       other->time_so_far.stop();
+
+      if (false) {	     // Some deep debugging for playback . . .
+	std::vector<double> cen1 = inter->c->getCenter(Component::Local);
+	std::vector<double> cen2 = other->getCenter(Component::Local);
+
+	std::cout << "ComponentContainer [" << myid << "], centers for [" << inter->c->name
+		  << "-->" << other->name << "] c1=("
+		  << cen1[0] << ", " << cen1[1] << ", " << cen1[2] << ") c2=("
+		  << cen2[0] << ", " << cen2[1] << ", " << cen2[2] << std::endl;
+      }
+
       if (timing) {
 	timer_accel.stop();
 	itmr->second.stop();
@@ -538,6 +549,15 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   
 
   state = NONE;
+
+  //
+  // Update total number of particles for master header
+  //
+  this->ntot = 0;
+  for (auto c : components) {
+    c->seq_new_particles();	// Add new particles to active lists
+    this->ntot += c->CurTotal();
+  }
 
   //
   // Compute new center(s)

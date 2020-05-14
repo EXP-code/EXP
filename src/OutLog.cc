@@ -84,6 +84,12 @@ void OutLog::initialize()
       nint = Output::conf["nint"].as<int>();
     else
       nint = 1;
+
+if (Output::conf["nintsub"])
+      nintsub = Output::conf["nintsub"].as<int>();
+    else
+      nintsub = std::numeric_limits<int>::max();
+
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in OutLog: "
@@ -100,7 +106,7 @@ void OutLog::initialize()
 
 
 
-void OutLog::Run(int n, bool last)
+void OutLog::Run(int n, int mstep, bool last)
 {
   std::ofstream out;
   const int cwid = 20;
@@ -348,7 +354,9 @@ void OutLog::Run(int n, bool last)
     
   } // END: firstime
   
+
   if (n % nint && !last) return;
+  if (mstep % nintsub !=0) return;
 
 
 				// Use MPI wall clock to time step

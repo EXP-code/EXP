@@ -16,7 +16,10 @@
 #include <dmalloc.h>
 #endif
 
+
 #include <SLGridMP2.h>
+
+#include "coef.H"
 
 #ifndef STANDALONE
 #include <global.H>
@@ -50,6 +53,9 @@ public:
   typedef boost::shared_ptr<Matrix>              MatrixP;
 
 private:
+
+  struct CylCoefHeader coefheadercyl;
+
   int NMAX;
   int LMAX;
   int MMAX;
@@ -73,70 +79,117 @@ private:
   double HSCALE;
   double pfac, dfac, ffac;
 
-  Matrix *facC, *facS;
+  std::vector<Matrix> facC, facS;
   
   int rank2, rank3;
 
-  double *MPIin, *MPIout;
-  double *MPIin_eof, *MPIout_eof;
-  double *mpi_double_buf2, *mpi_double_buf3;
-  int MPIbufsz, MPItable;
-  bool MPIset, MPIset_eof;
-  MPI_Status status;
-
   //@{
-  //! All of this should be rewritten more safely, at some point, sorry.
-  double**** SC;
-  double**** SS;
+  //! Storage buffers for MPI
+  std::vector<double> MPIin, MPIout;
+  std::vector<double> MPIin_eof, MPIout_eof;
+
+  std::vector<double> mpi_double_buf2, mpi_double_buf3;
+  int MPIbufsz, MPItable;
+  MPI_Status status;
   //@}
 
-  Matrix *var;
+  //@{
+  //! EOF variance computation
+  std::vector< std::vector< std::vector< std::vector<double> > > > SC;
+  std::vector< std::vector< std::vector< std::vector<double> > > > SS;
+  //@}
+
+  std::vector<Matrix> var;
 
   Vector ev;
   Matrix ef;
   Matrix potd, dpot, dend;
-  Vector *cosm, *sinm;
-  Matrix *legs, *dlegs;
+  std::vector<Vector> cosm, sinm;
+  std::vector<Matrix> legs, dlegs;
 
   SLGridSphPtr ortho;
 
   double Rtable, XMIN, XMAX;
 
-  Matrix** potC;
-  Matrix** densC;
-  Matrix** rforceC;
-  Matrix** zforceC;
+  std::vector< std::vector<Matrix> > potC;
+  std::vector< std::vector<Matrix> > densC;
+  std::vector< std::vector<Matrix> > rforceC;
+  std::vector< std::vector<Matrix> > zforceC;
 
-  Matrix** potS;
-  Matrix** densS;
-  Matrix** rforceS;
-  Matrix** zforceS;
+  std::vector< std::vector<Matrix> > potS;
+  std::vector< std::vector<Matrix> > densS;
+  std::vector< std::vector<Matrix> > rforceS;
+  std::vector< std::vector<Matrix> > zforceS;
 
-  Matrix* table;
+  std::vector<Matrix> table;
 
-  Matrix* tpot;
-  Matrix* tdens;
-  Matrix* trforce;
-  Matrix* tzforce;
+  std::vector<Matrix> tpot;
+  std::vector<Matrix> tdens;
+  std::vector<Matrix> trforce;
+  std::vector<Matrix> tzforce;
+  
+  typedef std::vector<std::vector<Vector>> VectorD2;
+  typedef boost::shared_ptr<VectorD2> VectorD2ptr;
 
-  vector<Vector**> accum_cosL, accum_cosN;
-  vector<Vector**> accum_sinL, accum_sinN;
-  vector< vector<unsigned> > howmany1;
-  vector<unsigned> howmany;
+  /** Some syntactic sugar for array of shared pointers: define an
+      operator to the object of the shared pointer.  That is, for:
 
-  Vector* accum_cos;
-  Vector* accum_sin;
+      MstepArray step(N);
 
-  std::vector< std::vector<MatrixP> > tvar; // Test for eof trim
+      One can use:
 
-  std::vector< std::vector<MatrixP> > accum_cos2;
-  std::vector< std::vector<MatrixP> > accum_sin2;
+      step(n)[j][k] = ...
+
+      instead of
+
+      (*step[n])[j][k] = ...
+
+      to access elements.
+  */
+  struct MstepArray : public std::vector<VectorD2ptr>
+  {
+    VectorD2 & operator()(int M) { return (*(*this)[M]); }
+  };
+
+  MstepArray cosL, cosN, sinL, sinN;
+
+  std::vector<std::vector<unsigned>> howmany1;
+  std::vector<unsigned> howmany;
+
+  std::vector<Vector> accum_cos;
+  std::vector<Vector> accum_sin;
+
+  /** More syntactic sugar for array of shared pointers: define an
+      operator to the object of the shared pointer.  That is, for:
+
+      MatrixArray arr(N);
+      for (auto & v : arr) v.resize(M);
+
+      One can use:
+
+      arr(n, m)[j][k] = ...
+
+      instead of
+
+      (*arr[n][m])[j][k] = ...
+
+      to access elements.
+  */
+  struct MatrixArray : public std::vector<std::vector<MatrixP>>
+  {
+    Matrix & operator()(int i, unsigned j) { return (*(*this)[i][j]); }
+  };
+
+
+  MatrixArray tvar;		// Test for eof trim
+  MatrixArray cos2, sin2;
+
   std::vector< std::vector<double>  > massT1;
   std::vector<double> massT;
   unsigned sampT;
 
 
-  Matrix *vc, *vs;
+  std::vector<Matrix> vc, vs;
 
   Matrix tabp, tabf, tabd;
 
@@ -515,6 +568,12 @@ public:
 		 const std::vector<double>& cos1,
 		 const std::vector<double>& sin1, bool zero);
 
+  //! Set cylmass manually
+  void set_mass(double mass) {
+    cylmass_made = true;
+    cylmass = mass;
+  }
+
   //! Dump out coefficients to output stream
   void dump_coefs(std::ostream& out);
 
@@ -662,9 +721,9 @@ public:
       throw std::runtime_error("n>=norder");
 
     if (c == 'c')
-      return accum_cosN[mlevel][0][m][n];
+      return cosN(mlevel)[0][m][n];
     else
-      return accum_sinN[mlevel][0][m][n];
+      return sinN(mlevel)[0][m][n];
   }
 
   double& set_coefT(int T, int m, int n, char c)
@@ -679,9 +738,9 @@ public:
       throw std::runtime_error("T>=sampT");
 
     if (c == 'c')
-      return (*accum_cos2[0][T])[m][n];
+      return cos2(0, T)[m][n];
     else
-      return (*accum_sin2[0][T])[m][n];
+      return sin2(0, T)[m][n];
   }
 
   double& set_tvar(int m, int i, int j)

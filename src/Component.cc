@@ -162,13 +162,13 @@ Component::Component(YAML::Node& CONF)
   cov0        = 0;
   acc0        = 0;
 
-  seq_check   = false;
   indexing    = true;
   aindex      = false;
   umagic      = true;
 
   nlevel      = -1;
   keyPos      = -1;
+  top_seq     = 0;
 
   pBufSiz     = 100000;		// Default number particles in MPI-IO buffer
   blocking    = false;		// Default for MPI_File_write blocking
@@ -200,6 +200,7 @@ Component::Component(YAML::Node& CONF)
 
   reset_level_lists();
 
+  modified = 0;
 }
 
 void Component::set_default_values()
@@ -236,7 +237,6 @@ void Component::set_default_values()
   if (!cconf["timers"])          cconf["timers"]      = timers;
   if (!cconf["com_system"])      cconf["com_system"]  = com_system;
   if (!cconf["com"])             cconf["com"]         = com_system;
-  if (!cconf["scheck"])          cconf["scheck"]      = seq_check;
   if (!cconf["indexing"])        cconf["indexing"]    = indexing;
   if (!cconf["aindex"])          cconf["aindex"]      = aindex;
   if (!cconf["umagic"])          cconf["umagic"]      = umagic;
@@ -623,7 +623,6 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
   cov0        = 0;
   acc0        = 0;
 
-  seq_check   = false;
   indexing    = true;
   aindex      = false;
   umagic      = true;
@@ -695,7 +694,6 @@ void Component::configure(void)
     if (cconf["rmax"    ])       rmax  = cconf["rmax"    ].as<double>();
     if (cconf["rtrunc"  ])     rtrunc  = cconf["rtrunc"  ].as<double>();
     if (cconf["rcom"    ])       rcom  = cconf["rcom"    ].as<double>();
-    if (cconf["scheck"  ])  seq_check  = cconf["scheck"  ].as<bool>();
     if (cconf["magic"   ])     umagic  = cconf["magic"   ].as<bool>();
     if (cconf["indexing"])   indexing  = cconf["indexing"].as<bool>();
     if (cconf["aindex"  ])     aindex  = cconf["aindex"  ].as<bool>();
@@ -1216,7 +1214,7 @@ void Component::read_bodies_and_distribute_ascii(void)
     for (unsigned i=1; i<=nbodies_table[0]; i++) {
 
       PartPtr part = boost::make_shared<Particle>(niattrib, ndattrib);
-
+      
       part->readAscii(aindex, i, &fin);
 				// Get the radius
       double r2 = 0.0;
@@ -1225,6 +1223,9 @@ void Component::read_bodies_and_distribute_ascii(void)
       
 				// Load the particle
       particles[part->indx] = part;
+
+				// Record top_seq
+      top_seq = std::max<unsigned long>(part->indx, top_seq);
     }
 
     nbodies = nbodies_table[0];
@@ -1250,6 +1251,8 @@ void Component::read_bodies_and_distribute_ascii(void)
 	pf->SendParticle(part);
 	icount++;
 
+				// Record top_seq
+	top_seq = std::max<unsigned long>(part->indx, top_seq);
       }
 
     }
@@ -1280,6 +1283,9 @@ void Component::read_bodies_and_distribute_ascii(void)
 
   rmax = sqrt(fabs(rmax1));
   MPI_Bcast(&rmax, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+				// Send top_seq to all nodes
+  MPI_Bcast(&top_seq, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
 
 				// COM HERE?
   if (myid==0) {
@@ -1475,6 +1481,9 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
 
 				// Load the particle
       particles[part->indx] = part;
+
+				// Record top_seq
+      top_seq = std::max<unsigned long>(part->indx, top_seq);
     }
 
     nbodies = nbodies_table[0];
@@ -1502,6 +1511,9 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
 
 	icount++;
 	pf->SendParticle(part);
+
+				// Record top_seq
+	top_seq = std::max<unsigned long>(part->indx, top_seq);
       }
 
     }
@@ -1522,6 +1534,9 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
 				// Default: set to max radius
   rmax = sqrt(fabs(rmax1));
   MPI_Bcast(&rmax, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+				// Send top_seq to all nodes
+  MPI_Bcast(&top_seq, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
 
   initialize();
 
@@ -1797,6 +1812,9 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
 
 				// Load the particle
       particles[part->indx] = part;
+
+				// Record top_seq
+      top_seq = std::max<unsigned long>(part->indx, top_seq);
     }
 
     nbodies = nbodies_table[0];
@@ -1831,6 +1849,8 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
 	icount++;		// Send the particle
 	pf->SendParticle(part);
 
+				// Record top_seq
+	top_seq = std::max<unsigned long>(part->indx, top_seq);
       }
 
     }
@@ -1851,6 +1871,9 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
 				// Default: set to max radius
   rmax = sqrt(fabs(rmax1));
   MPI_Bcast(&rmax, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+				// Send top_seq to all nodes
+  MPI_Bcast(&top_seq, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
 
   initialize();
 
@@ -1873,193 +1896,121 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
 
 PartPtr * Component::get_particles(int* number)
 {
-  static unsigned counter = 1;	// Sequence begins at 1
-  static bool seq_state_ok = true;
+  static std::vector<unsigned> totals;
+  static unsigned counter = 0;	// Counter for all
+  static int      node    = 0;	// Current node
   
-  int curcount = 0;		// Counter for this bunch
-  
-#ifdef DEBUG
-  if (*number < 0) {
-
-    if (particles.size()) {
-      makeKeyList();
-
-      unsigned long imin = std::numeric_limits<unsigned long>::max();
-      unsigned long imax = 0, kmin = imax, kmax = 0;
-      for (auto p : particles) {
-	imin = std::min<unsigned long>(imin, p.first);
-	imax = std::max<unsigned long>(imax, p.first);
-	kmin = std::min<unsigned long>(kmin, p.second->indx);
-	kmax = std::max<unsigned long>(kmax, p.second->indx);
-      }
-
-      cout << "get_particles: process " << myid 
-	   << " <name=" << name << "> bodies ["
-	   << kmin << ", " << kmax << "], ["
-	   << imin << ", " << imax << "]" 
-	   << " #=" << keys.size() << endl;
-    } else {
-      cout << "get_particles: process " << myid 
-	   << " <name=" << name << "> #=" 
-	   << keys.size() << endl;
-    }
-  }
-#endif
 				// Reset
   if (*number < 0) {
-    counter = 1;
-    makeKeyList();		// Make the sorted key list
-    seq_state_ok = true;
+    counter = 0;
+    node    = 0;
   }
 				// Done?
-  if (counter > nbodies_tot) {
+  if (counter == nbodies_tot) {
     *number = 0;
     return 0;
   }
 
-  map<unsigned int, PartPtr> tlist;
+  int curcount = 0;		// Counter for this bunch
+
+				// Do this on first call ONLY
+  if (counter == 0) {
+				// Add new particles to sequence
+    seq_new_particles();
+
+#ifdef DEBUG
+    std::cout << "get_particles: Node " << myid
+	      << " # part=" << particles.size() << " nbodies=" << nbodies
+		  << std::endl << std::flush;
+#endif    
+
+				// Every process report particle numbers
+    totals.resize(numprocs);
+    MPI_Allgather(&nbodies, 1, MPI_UNSIGNED, &totals[0], 1, MPI_UNSIGNED,
+		  MPI_COMM_WORLD);
+				// Cumulate
+    for (int n=1; n<numprocs; n++) totals[n] += totals[n-1];
+  }
+
+
+  std::map<unsigned long, PartPtr> tlist;
 
   unsigned icount;
-  int beg = counter;
-  int end = counter + PFbufsz - 1;
+  unsigned beg = counter;
+  unsigned end = counter + PFbufsz;
 
-  MPI_Bcast(&beg, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&end, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  bool complete = false;
+  if (end >= totals[node]) {
+    complete = true;
+    end = totals[node];
+  }
 
-#ifdef DEBUG
-  cout << "get_particles: process " << myid 
-       << " particles=<" << name << ">"
-       << " number=" << particles.size()
-       << " beg=" << beg
-       << " end=" << end 
-       << endl;
-#endif
 
-  KeyList::iterator icur, ibeg, iend;
-
-  for (int node=0; node<numprocs; node++) {
-    
-    if (myid==0) {
+  if (myid==0) {
 				// Do root's particle first
-      if (node==0) {
-      
-	ibeg = std::lower_bound(keys.begin(), keys.end(), beg  );
-	iend = std::lower_bound(keys.begin(), keys.end(), end+1);
+    if (node==0) {
+
+	auto itb = particles.begin();
+	auto ite = particles.begin();
+	
+	std::advance(itb, beg);
+	if (complete) ite = particles.end();
+	else          std::advance(ite, end);
 
 	icount = 0;
-	for (icur=ibeg; icur!=iend; icur++)
-	  pbuf[icount++] = particles[*icur];
+	for (auto it=itb; it!=ite; it++) pbuf[icount++] = it->second;
+
 #ifdef DEBUG
-	cout << "get_particles: master loaded " 
-	     << icount << " of its own particles" << endl << flush;
+	std::cout << "get_particles: master loaded " 
+		  << icount << " of its own particles"
+		  << ", beg=" << beg << ", iend=" << end
+		  << ", dist=" << std::distance(itb, ite)
+		  << ", expected=" << totals[0]
+		  << std::endl << std::flush;
 #endif    
 
-#ifdef SANITY
-	cout << "Process " << myid << ": count=" << icount
-	     << ": want [" << beg << ", " << end << "]";
-	if (keys.size()) {
-	  cout << ": have [";
-	  if (ibeg != keys.end()) cout << *ibeg << ", ";
-	  else cout << "end, ";
-	  if (iend != keys.end()) cout << *iend << "]";
-	  else cout << "end)";
-	  cout << ": cnts [" << keys.begin() << ", " << keys.rbegin() << "]"
-	       << endl;
-	} else {
-	  cout << ": have none!" << endl;
-	}
-#endif
-
-      } else {
-	  
-	unsigned number;
-	pf->ShipParticles(0, node, number);
-
-	icount = 0;
-	while (PartPtr part=pf->RecvParticle()) pbuf[icount++] = part;
-#ifdef DEBUG
-	cout << "Process " << myid 
-	     << ": received " << icount << " particles from Slave " << node
-	     << ", expected " << number
-	     << endl << flush;
-#endif    
-      }
-
-      // Load the ordered array
-      for (unsigned n=0; n<icount; n++) {
-	tlist[pbuf[n]->indx] = pbuf[n];
-	curcount++;
-	counter++;
-      }
+    } else {
       
-				// Nodes send particles to master
-    } else if (myid == node) {
+      unsigned number;
+      pf->ShipParticles(0, node, number);
       
-	
-      ibeg = std::lower_bound(keys.begin(), keys.end(), beg  );
-      iend = std::lower_bound(keys.begin(), keys.end(), end+1);
-
       icount = 0;
-      for (icur=ibeg; icur!=iend; icur++) icount++;
-
-#ifdef SANITY
-				// Sanity
-      cout << "Process " << myid << ": count=" << icount
-	   << ": want [" << beg << ", " << end << "]";
-      if (keys.size()) {
-	cout << ": have [";
-	if (ibeg != keys.end()) cout << *ibeg << ", ";
-	else cout << "end, ";
-	if (iend != keys.end()) cout << *iend << "]";
-	else cout << "end)";
-	cout << ": cnts [" << keys.begin() << ", " << keys.rbegin() << "]"
-	     << endl;
-      } else {
-	cout << ": have none!" << endl;
-      }
-#endif
-
-      pf->ShipParticles(0, myid, icount);
-
+      while (PartPtr part=pf->RecvParticle()) pbuf[icount++] = part;
 #ifdef DEBUG
-      icount = 0;
-#endif
-      for (icur=ibeg; icur!=iend; icur++) {
-#ifdef DEBUG
-	if (icount<2) {
-	  Particle *pp = particles[*icur].get();
-	  cout << "Component [" << myid << "]: sending ";
-	  cout << setw(3) << icount
-	       << setw(14) << pp->mass
-	       << setw(18) << hex << pp->key << dec;
-	  for (int k=0; k<3; k++) cout << setw(14) << pp->pos[k];
-	  cout << endl;
-	}
-	icount++;
-#endif
-	pf->SendParticle(particles[*icur]);
-      }
-
-#ifdef DEBUG
-      cout << "get_particles: process " << myid 
-	   << ": sent " << icount << " particles to master"
-	   << ", counter value=" << counter;
-      if (keys.size()) {
-	cout << ", nbodies_index=" << nbodies_index[node];
-	if (ibeg != keys.end()) 
-	  cout << ", seq_beg=" << particles[*ibeg]->indx;
-	if (iend != keys.end()) 
-	  cout << ", number found =" << icount
-	       << ", first=" << particles[*keys.begin()]->indx
-	       << ", last=" << particles[*keys.rbegin()]->indx;
-	cout << endl << flush;
-      }
+      std::cout << "Process " << myid 
+	   << ": received " << icount << " particles from Slave " << node
+		<< ", expected " << number << ", total=" << totals[node]
+		<< std::endl << std::flush;
 #endif    
-	
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    // Load the array
+    for (unsigned n=0; n<icount; n++) {
+      tlist[pbuf[n]->indx] = pbuf[n];
+      curcount++;
+      counter++;
+    }
+				// Nodes send particles to master
+  } else if (myid == node) {
+      
+    auto itb = particles.begin();
+    auto ite = particles.begin();
 
+    std::advance(itb, beg - totals[node-1]);
+    if (complete) ite = particles.end();
+    else          std::advance(ite, end - totals[node-1]);
+    
+
+    icount = std::distance(itb, ite);
+    pf->ShipParticles(0, myid, icount);
+
+    for (auto it=itb; it!=ite; it++) pf->SendParticle(it->second);
+
+#ifdef DEBUG
+      std::cout << "Process " << myid 
+		<< ": sent " << icount << " particles from Slave " << node
+		<< std::endl << std::flush;
+#endif    
   }
 
   MPI_Bcast(&counter, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -2069,57 +2020,25 @@ PartPtr * Component::get_particles(int* number)
 
 #ifdef DEBUG
   if (myid==0) {
-    cout << "get_particles: master size of tlist=" << tlist.size() 
-    	 << " current count=" << curcount << endl;
+    std::cout << "get_particles: master size of tlist=" << tlist.size() 
+	      << " current count=" << curcount << std::endl;
   }
 #endif
 
-  int n=0;
+  int n = 0;
   for (auto cur : tlist) pbuf[n++] = cur.second;
+  
+  // Move to next node?
+  //
+  if (complete) node++;
 
 #ifdef DEBUG
-  cout << "Process " << myid 
-       << ": received next counter=" << counter
-       << " icount=" << icount;
+  std::cout << "Process " << myid 
+       << ": received next counter=" << counter;
   if (counter > nbodies_tot) cout << " [this means we are done]";
-  cout << endl << flush;
+  std::cout << std::endl << std::flush;
+  MPI_Barrier(MPI_COMM_WORLD);
 #endif    
-
-  if (myid==0 && seq_check && seq_state_ok) {
-    bool seq_ok = true;
-    unsigned n = beg;
-    for (auto cur : tlist) {
-      if (cur.first != n++) {
-	cout << "get_particles sequence error:"
-	     << " expected=" << n
-	     << " found=" << cur.first
-	     << endl << flush;
-	unsigned n = beg;
-	cout << setw(90) << setfill('-') << '-' << endl << setfill(' ');
-	cout << setw(10) << "Expect" << setw(10) << "Found" << endl;
-	for (auto cur : tlist)
-	  cout << setw(10) << n++ << setw(10) << cur.first << endl;
-	cout << setw(90) << setfill('-') << '-' << endl << setfill(' ');
-	seq_ok = false;
-	break;
-      }
-    }
-
-    if (!seq_ok && seq_state_ok) {
-      cout << "get_particles sequence failure in [" << beg
-	   << ", " << end << "]" << endl;
-      seq_state_ok = false;
-    }
-
-    if (counter > nbodies_tot) {
-#ifdef DEBUG
-      if (seq_state_ok)
-	cout << "get_particles [" << name << "]: GOOD sequence!" << endl;
-#endif
-      if (!seq_state_ok)
-	cout << "get_particles [" << name << "]: sequence ERROR!" << endl;
-    }
-  }
 
   return &pbuf[0];
 }
@@ -3113,9 +3032,6 @@ int Component::round_up(double dnumb)
 
 void Component::setup_distribution(void)
 {
-  std::ofstream out;
-  int n;
-
 				// Needed for both master and slaves
   nbodies_index = vector<unsigned int>(numprocs);
   nbodies_table = vector<unsigned int>(numprocs);
@@ -3125,7 +3041,7 @@ void Component::setup_distribution(void)
     orates = vector<double>(numprocs);
     trates = vector<double>(numprocs);
 
-    for (n=0; n<numprocs; n++) {
+    for (int n=0; n<numprocs; n++) {
 
       if (n == 0)
 	nbodies_table[n] = nbodies_index[n] = 
@@ -3142,9 +3058,9 @@ void Component::setup_distribution(void)
 
     }
 
-    string outrates = outdir + "current.processor.rates." + runtag;
+    std::string outrates = outdir + "current.processor.rates." + runtag;
 
-    out.open(outrates, ios::out | ios::app);
+    std::ofstream out(outrates, ios::out | ios::app);
 
     if (out.good()) {
       out << "# " << endl;
@@ -3162,7 +3078,7 @@ void Component::setup_distribution(void)
 	  << setw(15) << "---------"
 	  << endl;
       
-      for (n=0; n<numprocs; n++)
+      for (int n=0; n<numprocs; n++)
 	out << "  "
 	    << setw(15) << comp->rates[n]
 	    << setw(15) << 1.0 - comp->rates[n]*nbodies_tot/nbodies_table[n]
@@ -3181,6 +3097,27 @@ void Component::setup_distribution(void)
 
 }
 
+void Component::update_indices(void)
+{
+  // Make sure arrays have correct size
+  //
+  nbodies_index.resize(numprocs);
+  nbodies_table.resize(numprocs);
+
+  // Gather current size from all processes
+  //
+  nbodies = particles.size();
+  MPI_Allgather(&nbodies, 1, MPI_UNSIGNED, nbodies_table.data(), 1, MPI_UNSIGNED,
+		MPI_COMM_WORLD);
+
+  // Cumulate
+  //
+  nbodies_index[0] = nbodies_table[0];
+  for (int n=0; n<numprocs; n++)
+    nbodies_index[n] = nbodies_index[n-1] + nbodies_table[n];
+
+}
+
 void Component::load_balance(void)
 {
   MPI_Status status;
@@ -3188,6 +3125,7 @@ void Component::load_balance(void)
   vector<unsigned int> nbodies_table1(numprocs);
   std::ofstream out, log;
 
+  update_indices();		// Refresh particle counts
 
   if (myid == 0) {
 
@@ -3198,11 +3136,10 @@ void Component::load_balance(void)
 
       if (n == 0)
 	nbodies_table1[n] = nbodies_index1[n] = 
-	  max<int>(1, min<int>((int)(comp->rates[n] * nbodies_tot), nbodies_tot));
+	  std::max<int>(1, min<int>((int)(comp->rates[n] * nbodies_tot), nbodies_tot));
       else {
 	if (n < numprocs-1)
-	  nbodies_index1[n] = (int)(comp->rates[n] * nbodies_tot) + 
-	    nbodies_index1[n-1];
+	  nbodies_index1[n] = (int)(comp->rates[n] * nbodies_tot) +  nbodies_index1[n-1];
 	else
 	  nbodies_index1[n] = nbodies_tot;
       
@@ -3211,11 +3148,24 @@ void Component::load_balance(void)
 
     }
 
-    std::string outrates = outdir + "current.processor.rates." + runtag;
-    std::string rateslog = outdir + "current.processor.rates.log." + runtag;
+    std::string outrates =
+      outdir + "current.processor.rates." + name + "." + runtag;
+
+    std::string rateslog =
+      outdir + "current.processor.rates.log." + name + "." + runtag;
 
     out.open(outrates, ios::out | ios::app);
     log.open(rateslog, ios::out | ios::app);
+
+    if (not out.good()) {
+      std::cout << "*** ERROR: Component::load_balance error opening <"
+		<< outrates << ">" << std::endl;
+    }
+
+    if (not log.good()) {
+      std::cout << "*** ERROR: Component::load_balance error opening <"
+		<< rateslog << ">" << std::endl;
+    }
 
     if (out) {
       out << "# " << endl;
@@ -3332,7 +3282,7 @@ void Component::load_balance(void)
   int nump;
   std::vector<int> loc(numprocs, 0);
 
-  std::vector<int> nlist;
+  std::vector<PartPtr> nlist;
 
   for (int i=0; i<2*numprocs-2; i++) {
 
@@ -3358,32 +3308,14 @@ void Component::load_balance(void)
       
       nlist.clear();
 
-      KeyList::reverse_iterator it = keys.rbegin();
+      PartMap::iterator it = particles.begin();
       for (int n=0; n<nump; n++) {
-	nlist.push_back(*it);
+	nlist.push_back(it->second);
 	it++;
       }
       
       add_particles(iold, inew, nlist);
       
-#ifdef DEBUG
-      if (myid==iold) {
-	if (particles.size()) {
-	  unsigned long kmin = std::numeric_limits<unsigned long>::max();
-	  unsigned long kmax = 0;
-	  for (auto p : particles) {
-	    kmin = std::min<unsigned long>(kmin, p.second->indx);
-	    kmax = std::max<unsigned long>(kmax, p.second->indx);
-	  }
-	  cout << "Process " << myid << ": new ends :"
-	       << "  beg seq=" << kmin
-	       << "  end seq=" << kmax
-	       << endl;
-	} else
-	  cout << "Process " << myid << ": no particles!"
-	       << endl;
-      }
-#endif
     } else if (iold>inew) {
       msg << "Add " << nump << " from #" << iold << " to #" << inew;
 
@@ -3391,30 +3323,11 @@ void Component::load_balance(void)
 
       PartMapItr it = particles.begin();
       for (int n=0; n<nump; n++) {
-	nlist.push_back(it->first);
+	nlist.push_back(it->second);
 	it++;
       }
 
       add_particles(iold, inew, nlist);
-
-#ifdef DEBUG
-      if (myid==iold) {
-	if (particles.size()) {
-	  unsigned long kmin = std::numeric_limits<unsigned long>::max();
-	  unsigned long kmax = 0;
-	  for (auto p : particles) {
-	    kmin = std::min<unsigned long>(kmin, p.second->indx);
-	    kmax = std::max<unsigned long>(kmax, p.second->indx);
-	  }
-	  cout << "Process " << myid << ": new ends :"
-	       << "  beg seq=" << kmin
-	       << "  end seq=" << kmax
-	       << endl;
-	} else
-	  cout << "Process " << myid << ": no particles!"
-	       << endl;
-      }
-#endif
 
     }
 
@@ -3427,63 +3340,6 @@ void Component::load_balance(void)
   nbodies_index = nbodies_index1;
   nbodies_table = nbodies_table1;
   
-  if (seq_check) {
-    
-    char msgbuf[200];		// Only need 31 characters . . .
-
-    if (myid==0 and log.good())
-      log << endl << "Post load-balance sequence check:" 
-	  << endl << endl;
-
-    for (int i=0; i<numprocs; i++) {
-      if (myid==i) {
-	ostringstream msg;
-	msg << "Process " << setw(4) << myid << ":"
-	    << setw(9) << particles[0]->indx
-	    << setw(9) << particles[nbodies-1]->indx;
-	strcpy(msgbuf, msg.str().c_str());
-	if (myid!=0) 
-	  MPI_Send(msgbuf, 200, MPI_CHAR, 0, 81, MPI_COMM_WORLD);
-      }
-      
-      if (myid==0) {
-	if (myid!=i)
-	  MPI_Recv(msgbuf, 200, MPI_CHAR, i, 81, MPI_COMM_WORLD, &status);
-
-	if (log.good()) log << msgbuf << endl;
-      }
-
-    }
-
-    if (myid==0) seq_beg = 1;
-    else         seq_beg = nbodies_index[myid-1]+1;
-    
-				// Explicit check
-    int nbad1 = 0, nbad=0;
-    for (unsigned i=0; i<nbodies; i++) {
-      if (particles[i]->indx != static_cast<int>(seq_beg+i)) {
-	cout << "Process " << myid << ": sequence error on load balance,"
-	     << " component=" << name
-	     << " i=" << i
-	     << " seq=" << particles[i]->indx
-	     << " expected=" << seq_beg+i
-	     << endl << flush;
-	nbad1++;
-      }
-    }
-
-    MPI_Allreduce(&nbad1, &nbad, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-
-    if (nbad) {
-      std::ostringstream sout;
-      if (myid==0) sout << nbad << " bad states";
-      throw GenericError(sout.str(), __FILE__, __LINE__);
-    }
-    
-    if (myid==0 and log.good()) log << "\nSequence check ok!\n";
-  }
-
-
   if (myid==0) {
     try {
       out.close();
@@ -3498,10 +3354,21 @@ void Component::load_balance(void)
 }
 
 
-void Component::add_particles(int from, int to, vector<int>& plist)
+template< typename T >
+typename std::vector<T>::iterator 
+insert_sorted( std::vector<T> & vec, T const& item )
+{
+  return vec.insert
+    ( 
+     std::upper_bound( vec.begin(), vec.end(), item ),
+     item 
+      );
+}
+
+void Component::add_particles(int from, int to, std::vector<PartPtr>& plist)
 {
   unsigned number = plist.size();
-  vector<int>::iterator it=plist.begin();
+  std::vector<PartPtr>::iterator it=plist.begin();
 
   unsigned icount, counter=0;
 
@@ -3514,8 +3381,30 @@ void Component::add_particles(int from, int to, vector<int>& plist)
       icount = 0;
       while (icount < PFbufsz && counter < number) {
 
-	pf->SendParticle(particles[*it]);
-	particles.erase(*it);
+	pf->SendParticle(*it);
+
+	// Remove particle from lev list
+	//
+	bool success = false;	// Sanity check
+	for (auto & v : levlist) {
+	  auto jt = std::find(v.begin(), v.end(), (*it)->indx);
+	  if (jt != v.end()) {
+	    v.erase(jt);
+	    success = true;
+	    break;
+	  }
+	}
+
+	// Levlist sanity check
+	//
+	if (not success) {
+	  std::cout << "***ERROR*** "
+		    << "Component::add_particles: could not find indx="
+		    << (*it)->indx << " in levlist in any of "
+		    << multistep+1 << " levels" << std::endl;
+	}
+
+	particles.erase((*it)->indx);
       
 	icount++;
 	counter++;
@@ -3538,6 +3427,7 @@ void Component::add_particles(int from, int to, vector<int>& plist)
 
       while (PartPtr temp=pf->RecvParticle()) {
 	particles[temp->indx] = temp;
+	insert_sorted<int>(levlist[temp->level], temp->indx);
 	counter++;
       }
 
@@ -3645,4 +3535,116 @@ void Component::redistributeByList(vector<int>& redist)
     
   } // Next stanza
 
+}
+
+
+Particle* Component::GetNewPart()
+{
+  // Create new particle
+  //
+  PartPtr newp = boost::make_shared<Particle>(niattrib, ndattrib);
+
+  // Denote unsequenced particle
+  //
+  newp->indx = -1;
+  
+  // Add to new particle list
+  //
+  new_particles.push_back(newp);
+
+  modified++;
+
+  return newp.get();
+}
+
+void Component::seq_new_particles()
+{
+  // Update total number of bodies
+  //
+  nbodies = particles.size();
+  MPI_Allreduce(&nbodies, &nbodies_tot, 1, MPI_UNSIGNED, MPI_SUM,
+		MPI_COMM_WORLD);
+
+  // Are there new particles to sequence?
+  //
+  unsigned newTot, newCur = new_particles.size();
+  MPI_Allreduce(&newCur, &newTot, 1, MPI_UNSIGNED, MPI_SUM,
+		MPI_COMM_WORLD);
+
+  if (newTot==0) {
+    modified = 0;
+    return;
+  }
+
+  // Begin sequence numbering
+  //
+  for (int n=0; n<numprocs; n++) {
+    // Run through the unsequenced loop
+    //
+    if (myid==n) {
+      for (auto p : new_particles) {
+	p->indx  = ++top_seq;
+	p->level = multistep;
+	particles[p->indx] = p;
+				// Add to level list:
+				// last element by construction
+	levlist[p->level].push_back(p->indx); 
+      }
+    }
+
+    // Share top_seq with all processes
+    //
+    MPI_Bcast(&top_seq, 1, MPI_UNSIGNED_LONG, n, MPI_COMM_WORLD);
+  }
+
+  // Erase the new particle list
+  //
+  new_particles.clear();
+
+  // Update total number of bodies
+  //
+  nbodies = particles.size();
+  MPI_Allreduce(&nbodies, &nbodies_tot, 1, MPI_UNSIGNED, MPI_SUM,
+		MPI_COMM_WORLD);
+
+#ifdef DEBUG
+  std::cout << "seq_new_particles [Node " << myid << "] # part="
+	    << particles.size() << ", nbodies=" << nbodies << std::endl;
+#endif
+
+  // Reset the change counter
+  //
+  modified = 0;
+}
+
+
+void Component::DestroyPart(PartPtr p)
+{
+  particles.erase(p->indx);
+
+  // Remove from level list
+  //
+  bool success = false;		// For sanity check . . .
+  for (auto & v : levlist) {
+    auto it = std::find(v.begin(), v.end(), p->indx);
+    if (it != v.end()) {
+      v.erase(it);
+      success = true;
+      break;
+    }
+  }
+
+  // Levlist sanity check
+  //
+  if (not success) {
+    std::cout << "***ERROR*** "
+	      << "Component::DestroyPart: could not find indx=" << p->indx
+	      << " in levlist in any of " << multistep+1 << " levels"
+	      << std::endl;
+  }
+
+  // Update counters
+  //
+  nbodies--;
+  modified++;
 }

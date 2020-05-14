@@ -14,6 +14,7 @@ using namespace std;
 OutAscii::OutAscii(const YAML::Node& conf) : Output(conf)
 {
   nint = 100;
+  nintsub = std::numeric_limits<int>::max();
   nbeg = 0;
   name = "";
   accel = false;
@@ -46,6 +47,7 @@ void OutAscii::initialize()
 {
   try {
     if (Output::conf["nint"])    nint  = Output::conf["nint"].as<int>();
+    if (Output::conf["nintsub"])    nintsub  = Output::conf["nintsub"].as<int>();
     if (Output::conf["nbeg"])    nbeg  = Output::conf["nbeg"].as<int>();
     if (Output::conf["name"])    name  = Output::conf["name"].as<std::string>();
     if (Output::conf["accel"])   accel = Output::conf["name"].as<bool>();
@@ -90,9 +92,10 @@ void OutAscii::initialize()
 }
 
 
-void OutAscii::Run(int n, bool last)
+void OutAscii::Run(int n, int mstep, bool last)
 {
   if (n % nint && !last) return;
+  if (mstep % nintsub !=0) return;
   if (!c0) return;
 
   std::ofstream out;
@@ -115,7 +118,7 @@ void OutAscii::Run(int n, bool last)
     
     if (nOK == 0) {
       out << "# Time=" << tnow << "\n";
-      out << setw(10) << c0->nbodies_tot
+      out << setw(10) << c0->NewTotal()
 	  << setw(10) << c0->niattrib
 	  << setw(10) << c0->ndattrib << "\n";
     }

@@ -210,7 +210,7 @@ void write_output(SphereSL& ortho, int indx, int icnt, double time,
 	  r = sqrt(x*x + y*y);
 	  phi = atan2(y, x);
 	  
-	  ortho.all_eval(r, costh, phi, d, d0, p0, p, fr, ft, fp);
+	  ortho.all_eval(r, costh, phi, d0, d, p0, p, fr, ft, fp);
 	  
 	  indat[(0*OUTR+j)*OUTR+l] = p0;
 	  indat[(1*OUTR+j)*OUTR+l] = p;
@@ -277,7 +277,7 @@ void write_output(SphereSL& ortho, int indx, int icnt, double time,
 	  if (x>=0) phi = 0.0;
 	  else      phi = M_PI;
 
-	  ortho.all_eval(r, costh, phi, d, d0, p0, p, fr, ft, fp);
+	  ortho.all_eval(r, costh, phi, d0, d, p0, p, fr, ft, fp);
 
 	  indat[(0*OUTR+j)*OUTR+l] = p0;
 	  indat[(1*OUTR+j)*OUTR+l] = p;
@@ -453,7 +453,16 @@ get_coefficients(const std::string& coefs)
     exit(-3);
   }
 
+#if __GNUC__ > 6
   return {lmax, nmax, ret};
+#else
+  std::tuple<int, int, CoefData > rdat;
+  std::get<0>(rdat) = lmax;
+  std::get<1>(rdat) = nmax;
+  std::get<2>(rdat) = ret;
+  return rdat;
+#endif
+
 }
 
 int
@@ -620,13 +629,13 @@ main(int argc, char **argv)
 	    if (LMset.find(lm) != LMset.end()) {
 	      for (int n=0; n<nmax; n++) 
 		expcoef[lindx][n+1] = u.second[lm].cos[n];
-	      lindx++;
 	      if (m) {
 		for (int n=0; n<nmax; n++)
-		  expcoef[lindx][n+1] = u.second[lm].sin[n];
-		lindx++;
+		  expcoef[lindx+1][n+1] = u.second[lm].sin[n];
 	      }
 	    }
+	    if (m) lindx += 2;
+	    else   lindx += 1;
 	  }
 	}
 	
@@ -698,13 +707,13 @@ main(int argc, char **argv)
 	    if (LMset.find(lm) != LMset.end()) {
 	      for (int n=0; n<nmax; n++)
 		expc->second[lindx][n+1] += u.second[lm].cos[n];
-	      lindx++;
 	      if (m) {
 		for (int n=0; n<nmax; n++)
-		  expc->second[lindx][n+1] += u.second[lm].sin[n];
-		lindx++;
+		  expc->second[lindx+1][n+1] += u.second[lm].sin[n];
 	      }
 	    }
+	    if (m) lindx += 2;
+	    else   lindx += 1;
 	  }
 	}
       }

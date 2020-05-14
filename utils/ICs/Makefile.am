@@ -10,7 +10,7 @@ ADD_LIBS3 = -ldmallocth -ldmallocthcxx
 endif
 
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
-AM_CXXFLAGS = -fPIC -std=c++11 -D_REENTRANT -DSTANDALONE $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) @exp_vtk_include@ $(BOOST_CPPFLAGS) $(OPENMP_CXXFLAGS)
+AM_CXXFLAGS = -fPIC -std=c++11 -D_REENTRANT -DSTANDALONE $(OPENMP_CXXFLAGS) $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) @exp_vtk_include@ $(BOOST_CPPFLAGS) $(OPENMP_CXXFLAGS)
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src -I$(top_srcdir)/utils/SL $(CUDA_CFLAGS)
 
 if ENABLE_CUDA
@@ -29,7 +29,8 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 noinst_HEADERS =
 
 bin_PROGRAMS = gendisk shrinkics gendisk2 gsphere pstmod gendisk3	\
-	empinfo empdump eofbasis makeIon phIon phConv eofcomp testcoefs
+	empinfo empdump eofbasis makeIon phIon phConv eofcomp testcoefs \
+	testcoefs2 testdeval
 
 shrinkics_SOURCES = shrinkics.cc
 shrinkics_LDADD = $(EXPLIBS)
@@ -92,6 +93,15 @@ testcoefs_SOURCES = check_coefs.cc EmpCylSL.cc SphericalSL.cc	\
 	legendre.cc sinecosine.cc localmpi.cc
 testcoefs_LDFLAGS = $(COMMON_LIBS) $(EXPFLAGS) $(BOOST_LDFLAGS)
 testcoefs_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) @exp_omp_lib@
+
+testcoefs2_SOURCES = check_coefs2.cc DiskEval.cc EmpCylSL.cc	\
+	SphericalSL.cc legendre.cc sinecosine.cc localmpi.cc
+testcoefs2_LDFLAGS = $(COMMON_LIBS) $(EXPFLAGS) $(BOOST_LDFLAGS)
+testcoefs2_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) @exp_omp_lib@
+
+testdeval_SOURCES = test_deval.cc DiskEval.cc
+testdeval_LDFLAGS = $(COMMON_LIBS) $(EXPFLAGS) $(BOOST_LDFLAGS)
+testdeval_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) @exp_omp_lib@
 
 initial.cc:		Particle.H Particle.h
 

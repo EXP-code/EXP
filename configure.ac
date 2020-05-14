@@ -1,7 +1,7 @@
 dnl ==========================================================================
 dnl Process this file with autoconf to produce a configure script.
 dnl ==========================================================================
-AC_INIT(EXP, 7.617, [mdw@umass.edu], [], [https://mdweinberg@bitbucket.org/mdweinberg/exp.git])
+AC_INIT(EXP, 7.621, [mdw@umass.edu], [], [https://mdweinberg@bitbucket.org/mdweinberg/exp.git])
 
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SRCDIR(src/expand.cc)
@@ -105,7 +105,7 @@ dnl ==========================================================================
 dnl Added macro to allow list of CUDA compute capabilities
 dnl ==========================================================================
 
-sm_vers="35 60 61 70"
+sm_vers="35 37 60 61 70"
 
 AC_ARG_WITH([cuda-capabilities],
 	[AC_HELP_STRING([--with-cuda-capabilities=LIST],
@@ -211,6 +211,16 @@ if test x$havevtk = xyes; then
       dnl fi
    fi
 
+   dnl Compare supplied version to check whether >=8.0 libraries are needed
+   CMPV="8.0"
+   AS_VERSION_COMPARE(${vtk_version}, ${CMPV}, [VTK_POST_8_0=-1], [VTK_POST_8_0=0],[VTK_POST_8_0=1])
+
+   AS_IF([test "${VTK_POST_8_0}" != "-1"], AC_MSG_RESULT([VTK post 8.0: yes]), AC_MSG_RESULT([VTK post 8.0: no]))
+
+   if test "${VTK_POST_8_0}" != "-1"; then
+      exp_vtk_ldlib="-lvtkCommonCore$vtk_libval -lvtkCommonDataModel$vtk_libval -lvtkIOXML$vtk_libval"
+   fi
+
    CFLAGS=$OLD_CFLAGS
    CXXFLAGS=$OLD_CXXFLAGS
    LDFLAGS=$OLD_LDFLAGS
@@ -222,7 +232,33 @@ dnl ==========================================================================
 dnl Use pkg-config to check for eigen3
 dnl ==========================================================================
 
-PKG_CHECK_MODULES([EIGEN3], [eigen3])
+AC_CHECK_FILE([/usr/include/eigen3/Eigen],
+	[eigen3_include=[-I/usr/include/eigen3]])
+
+AC_CHECK_FILE([/usr/local/include/eigen3/Eigen],
+	[eigen3_include=[-I/usr/local/include/eigen3]])
+
+EIGEN3_LOCATION=""
+EIGEN3_NO_BDC=""
+
+AC_ARG_WITH(eigen3,
+	[  --with-eigen3=DIR       location of Eigen3 library],
+    	[   EIGEN3_LOCATION="$withval"])
+
+AC_ARG_WITH(no-bdc,
+	[  --with-no-bdc           do not use BDCSVD in Eigen3],
+	[   EIGEN3_NO_BDC="true"])
+
+if test "$EIGEN3_LOCATION" != ""; then
+   eigen3_include="-I$EIGEN3_LOCATION"
+fi
+
+if test "$EIGEN3_NO_BDC" == ""; then
+   AC_DEFINE([HAVE_EIGEN3_BDCSVD], [1], [Compile code for Eigen::BDCSVD])
+fi
+
+AC_SUBST(eigen3_include) 
+
 
 dnl ==========================================================================
 dnl Arguments

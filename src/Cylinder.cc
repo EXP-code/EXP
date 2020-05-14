@@ -1,5 +1,3 @@
-using namespace std;
-
 #include <sstream>
 #include <chrono>
 #include <limits>
@@ -109,11 +107,12 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   dump_basis      = false;
   compute         = false;
   firstime_coef   = true;
+  coefMaster      = true;
+  lastPlayTime    = -std::numeric_limits<double>::max();
   eof_over        = false;
   eof_file        = "";
 
   initialize();
-
 
   EmpCylSL::RMIN        = rcylmin;
   EmpCylSL::RMAX        = rcylmax;
@@ -358,6 +357,48 @@ void Cylinder::initialize()
       self_consistent = conf["self_consistent"].as<bool>();
 
     if (not cmap) cmaptype = 0;
+
+    if (conf["playback"]) {
+      std::string file = conf["playback"].as<std::string>();
+
+      // Check that the file exists
+      {
+	std::ifstream test(file);
+	if (not test) {
+	  std::cerr << "Cylinder: process " << myid << " cannot open <"
+		    << file << "> for reading" << std::endl;
+	  MPI_Finalize();
+	  exit(-1);
+	}
+      }
+
+      playback = std::make_shared<CylindricalCoefs>(file);
+
+      if (playback->nmax != ncylorder) {
+	if (myid==0) {
+	  std::cerr << "Cylinder: norder for playback [" << playback->nmax
+		    << "] does not match specification [" << ncylorder << "]"
+		    << std::endl;
+	}
+	MPI_Finalize();
+	exit(-1);
+      }
+
+      if (playback->mmax != mmax) {
+	if (myid==0) {
+	  std::cerr << "Cylinder: mmax for playback [" << playback->mmax
+		    << "] does not match specification [" << mmax << "]"
+		    << std::endl;
+	}
+	MPI_Finalize();
+	exit(-1);
+      }
+
+      play_back = true;
+    }
+
+    if (conf["coefMaster"]) coefMaster = conf["coefMaster"].as<bool>();
+
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing Cylinder parameters: "
@@ -619,6 +660,54 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 
 void Cylinder::determine_coefficients(void)
 {
+  // Playback basis coefficients
+  //
+  if (play_back) {
+    compute_grid_mass();	// Only performed once to start
+
+				// Do we need new coefficients?
+    if (tnow <= lastPlayTime) return;
+    lastPlayTime = tnow;
+
+    if (coefMaster) {
+
+      if (myid==0) {
+	auto C = playback->interpolate(tnow);
+
+	for (int m=0; m<=mmax; m++) {
+	  MPI_Bcast(std::get<0>(*C)[m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast(std::get<1>(*C)[m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+	  bool zero = false;
+	  if (m==0) zero = true;
+	  ortho->set_coefs(m, std::get<0>(*C)[m], std::get<1>(*C)[m], zero);
+	}
+      } else {
+	std::vector<double> cosm(nmax), sinm(nmax);
+	
+	for (int m=0; m<=mmax; m++) {
+	  MPI_Bcast(cosm.data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast(sinm.data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+	  bool zero = false;
+	  if (m==0) zero = true;
+	  ortho->set_coefs(m, cosm, sinm, zero);
+	}
+      }
+
+    } else {
+      auto C = playback->interpolate(tnow);
+
+      for (int m=0; m<=mmax; m++) {
+	bool zero = false;
+	if (m==0) zero = true;
+	ortho->set_coefs(m, std::get<0>(*C)[m], std::get<1>(*C)[m], zero);
+      }
+    }
+
+    return;
+  }
+
   nvTracerPtr tPtr;
   if (cuda_prof)
     tPtr = nvTracerPtr(new nvTracer("Cylinder::determine_coefficients"));
@@ -626,6 +715,7 @@ void Cylinder::determine_coefficients(void)
   std::chrono::high_resolution_clock::time_point start0, start1, finish0, finish1;
 
   start0 = std::chrono::high_resolution_clock::now();
+
 
   static char routine[] = "determine_coefficients_Cylinder";
 
@@ -664,7 +754,7 @@ void Cylinder::determine_coefficients(void)
     std::ostringstream sout;
     if (pcadiag) 
       sout << runtag << ".pcadiag." << cC->id << "." << cC->name;
-    ortho->setHall(sout.str(), component->nbodies_tot);
+    ortho->setHall(sout.str(), component->NewTotal());
     if (myid==0) {
       std::cout << "Cylinder: PCA initialized";
       if (pcadiag) 
@@ -743,7 +833,7 @@ void Cylinder::determine_coefficients(void)
 				// communication barrier
   MPL_stop_timer();
 
-  if (tnow==resetT) {
+  if (not play_back and tnow==resetT) {
 
     MPI_Allreduce ( &use1, &use0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce ( &cylmassT1, &cylmassT0, 1, MPI_DOUBLE, MPI_SUM, 
@@ -942,7 +1032,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 
       unsigned indx = cC->levlist[lev][q];
 
-      if (indx<1 || indx>cC->nbodies_tot) {
+      if (indx<1 || indx>cC->CurTotal()) {
 	cout << "Process " << myid << " id=" << id 
 	     << ": index error in Cylinder q=" << q
 	     << " indx=" << indx << endl;
@@ -1268,9 +1358,9 @@ void Cylinder::dump_mzero(const string& name, int step)
 
 void Cylinder::multistep_update(int from, int to, Component* c, int i, int id)
 {
+  if (play_back)        return;
   if (!self_consistent) return;
-
-  if (c->freeze(i)) return;
+  if (c->freeze(i))     return;
 
   double mass = c->Mass(i) * component->Adiabatic();
 
@@ -1289,6 +1379,8 @@ void Cylinder::multistep_update(int from, int to, Component* c, int i, int id)
 
 void Cylinder::multistep_reset() 
 { 
+  if (play_back) return;
+  
   used    = 0; 
   cylmass = 0.0;
   resetT  = tnow;
@@ -1325,3 +1417,47 @@ void Cylinder::multistep_debug()
   
   idbg++;
 }
+
+
+void Cylinder::compute_grid_mass()
+{
+  static bool done = false;
+  
+  if (done) return;
+  done = true;
+
+  // Compute used and cylmass for playback (this means that cylmass
+  // will not be the same as the original simulation but it should be
+  // close unless the original grid was inappropriate.
+  //
+  cylmass = 0.0;
+  used    = 0;
+    
+  double Rmax2 = rcylmax*rcylmax*acyl*acyl;
+  
+  auto p = cC->Particles();
+  
+  for (auto it=p.begin(); it!=p.end(); ++it) {
+    auto n = it->first;
+
+    double R2 = 0.0;
+    for (int j=0; j<3; j++)  {
+      double pos = cC->Pos(n, j, Component::Local | Component::Centered);
+      R2 += pos*pos;
+    }
+      
+    if ( R2 < Rmax2) {
+      cylmass += cC->Mass(n);
+      used    += 1;
+    } 
+  } // END: particle loop
+
+  MPI_Allreduce(MPI_IN_PLACE, &cylmass, 1, MPI_DOUBLE, MPI_SUM,
+		MPI_COMM_WORLD);
+
+  MPI_Allreduce(MPI_IN_PLACE, &used, 1, MPI_INT, MPI_SUM,
+		MPI_COMM_WORLD);
+
+  ortho->set_mass(cylmass);
+}
+

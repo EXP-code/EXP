@@ -3888,7 +3888,9 @@ bool pHOT::checkDupes2()
   if (dup) {
     cout << "Process " << myid << ": pHOT::checkDupes, dup=" << dup << endl;
     return false;
-  } else true;
+  }
+
+  return true;
 }
 
 

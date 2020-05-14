@@ -51,6 +51,11 @@ void OutDiag::initialize()
     else
       nint = 1;
 
+if (Output::conf["nintsub"])
+      nintsub = Output::conf["nintsub"].as<int>();
+    else
+      nintsub = std::numeric_limits<int>::max();
+
     if (Output::conf["RMIN"])
       RMIN = Output::conf["RMIN"].as<double>();
 
@@ -99,10 +104,12 @@ void OutDiag::header(ostream& out)
 }
 
 
-void OutDiag::Run(int n, bool last)
+void OutDiag::Run(int n, int mstep, bool last)
 {
   if (myid) return;
   if (n % nint && !last) return;
+  if (mstep % nintsub !=0) return;
+
 
   double r, dr, dens, dens0;
   double potl0, potl, potr, pott, potp;

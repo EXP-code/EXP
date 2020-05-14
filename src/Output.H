@@ -36,6 +36,9 @@ protected:
   //! Output frequency (should be used by derived classes)
   int nint;
 
+  //! Multistep output frequency (also used by derived classes)
+  int nintsub;
+
   //! Use output timer
   bool timer;
 
@@ -57,7 +60,7 @@ public:
   virtual ~Output() {}
 
   //! Provided by derived class to generate some output
-  virtual void Run(int nstep, bool final) = 0;
+  virtual void Run(int nstep, int mstep, bool final) = 0;
 
   //! Error
   void bomb(const string& msg);

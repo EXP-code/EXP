@@ -17,9 +17,9 @@ AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
 
 bin_PROGRAMS = pspinfo pspstat psp2tipsy pspsplit psp2ascii ascii2psp	\
 		tipstd2psp psp2ta pspgas psp2histo psp2histo1d		\
-		psp2histo1D psp2histoE psp2histoH pspreal pspstatS	\
+		psp2histo1D2 psp2histoE psp2histoH pspreal pspstatS	\
 		psp2range psp2eHisto psp2histoT psp2histoTC pspstatT	\
-		spl2psp pspinfo2 ascii2psp2 psp2vtu
+		spl2psp pspinfo2 ascii2psp2 psp2vtu psp2rings
 
 COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ $(YAML)
 
@@ -77,10 +77,10 @@ pspgas_LDADD   = $(COMMON_LIBS)
 psp2histo_SOURCES = psp2histo.cc PSP2.cc header.cc header.H
 psp2histo_LDADD   = $(COMMON_LIBS)
 
-psp2histo1D_SOURCES  = psp2histo1D.cc PSP2.cc header.cc header.H
-psp2histo1D_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
-psp2histo1D_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
-psp2histo1D_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS) $(EXPLIBS)
+psp2histo1D2_SOURCES  = psp2histo1D_2.cc PSP2.cc header.cc header.H
+psp2histo1D2_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
+psp2histo1D2_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
+psp2histo1D2_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS) $(EXPLIBS)
 
 psp2histo1d_SOURCES  = psp2histo1d.cc PSP.cc header.cc header.H
 psp2histo1d_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
@@ -128,6 +128,11 @@ psp2vtu_SOURCES  = psp2vtu.cc PSP.cc header.cc header.H Particle.cc
 psp2vtu_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
 psp2vtu_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
 psp2vtu_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS)
+
+psp2rings_SOURCES  = psp2rings.cc PSP2.cc header.cc header.H
+psp2rings_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
+psp2rings_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
+psp2rings_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS) $(EXPLIBS)
 
 *.cc:		header.H
 

@@ -24,6 +24,7 @@ to link your code, e.g.: <code>libfoo_la_LDFLAGS = -lstdc++</code>
 </ol>
 
 <h3> Notes on writing your module</h3>
+
 A good place to start is the code already in the <code>src/user</code>
 directory. The simplest code is UserTest.cc; this does
 nothing but print messages but illustrates all of the necessary
@@ -50,5 +51,21 @@ can then be invoked by name in the code to create an instance of your
 class.  You can simply copy this to your own source (changing
 <code>makerTest</code> to <code>makerFoo</code> or someother unique
 name).
+
+<h3> Add and destroying particles</h3>
+
+User modules can add and destroy particles from any component.
+
+You can add a particle by calling the
+<code>Component::GetNewPart()</code> member function.  This function
+returns a pointer to the new particle and enters the particle in the
+component's particle list.  It is the responsibility of the user
+module to add the mass, positions, velocities, and any required
+auxialliary attributtes.
+
+You can add a particle with shared pointer <code>p</code> by calling
+the <code>Component::DestroyPart(PartPtr p)</code> member function.
+This function removes the particle from the component's particle list
+and level list structures.
 
 */

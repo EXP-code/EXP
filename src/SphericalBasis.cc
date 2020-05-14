@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <sstream>
+
 #include <SphericalBasis.H>
 #include <MixtureBasis.H>
 
@@ -40,6 +41,8 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
   seedN            = 11;
   ssfrac           = 0.0;
   subset           = false;
+  coefMaster       = true;
+  lastPlayTime     = -std::numeric_limits<double>::max();
 
   try {
     if (conf["scale"]) 
@@ -80,6 +83,47 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
       // Check for sane value
       if (ssfrac>0.0 && ssfrac<1.0) subset = true;
     }
+
+    if (conf["playback"]) {
+      std::string file = conf["playback"].as<std::string>();
+				// Check the file exists
+      {
+	std::ifstream test(file);
+	if (not test) {
+	  std::cerr << "SphericalBasis: process " << myid << " cannot open <"
+		    << file << "> for reading" << std::endl;
+	  MPI_Finalize();
+	  exit(-1);
+	}
+      }
+
+      playback = std::make_shared<SphericalCoefs>(file);
+
+      if (playback->nmax != nmax) {
+	if (myid==0) {
+	  std::cerr << "SphericalBasis: nmax for playback [" << playback->nmax
+		    << "] does not match specification [" << nmax << "]"
+		    << std::endl;
+	}
+	MPI_Finalize();
+	exit(-1);
+      }
+
+      if (playback->lmax != Lmax) {
+	if (myid==0) {
+	  std::cerr << "SphericalBasis: Lmax for playback [" << playback->lmax
+		    << "] does not match specification [" << Lmax << "]"
+		    << std::endl;
+	}
+	MPI_Finalize();
+	exit(-1);
+      }
+
+      play_back = true;
+    }
+
+    if (conf["coefMaster"]) coefMaster = conf["coefMaster"].as<bool>();
+
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in SphericalBasis: "
@@ -480,6 +524,38 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
 void SphericalBasis::determine_coefficients(void)
 {
+  // Playback basis coefficients
+  //
+  if (play_back) {
+				// Do we need new coefficients?
+    if (tnow <= lastPlayTime) return;
+    lastPlayTime = tnow;
+
+				// Set coefficient matrix size
+    expcoef.setsize(0, Lmax*(Lmax+2), 1, nmax);
+
+    if (coefMaster) {
+
+      if (myid==0) {
+	auto ret = playback->interpolate(tnow);
+	for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
+	  for (int n=0; n<nmax; n++) expcoef[l][n+1] = (*ret)[l][n];
+	  MPI_Bcast(&expcoef[l][1], nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	}
+      } else {
+	for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
+	  MPI_Bcast(&expcoef[l][1], nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	}
+      }
+    } else {
+      auto ret = playback->interpolate(tnow);
+      for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
+	for (int n=0; n<nmax; n++) expcoef[l][n+1] = (*ret)[l][n];
+      }
+    }
+    return;
+  }
+
   nvTracerPtr tPtr;
   if (cuda_prof)
     tPtr = nvTracerPtr(new nvTracer("SphericalBasis::determine_coefficients"));
@@ -505,7 +581,7 @@ void SphericalBasis::determine_coefficients(void)
   if (compute) {
 
     if (sampT == 0) {		// Allocate storage
-      sampT = floor(sqrt(cC->nbodies_tot));
+      sampT = floor(sqrt(cC->CurTotal()));
       massT    .resize(sampT, 0);
       massT1   .resize(sampT, 0);
       
@@ -749,6 +825,8 @@ void SphericalBasis::determine_coefficients(void)
 
 void SphericalBasis::multistep_reset()
 {
+  if (play_back) return;
+
   used   = 0;
   resetT = tnow;
 }
@@ -756,6 +834,7 @@ void SphericalBasis::multistep_reset()
 
 void SphericalBasis::multistep_update_begin()
 {
+  if (play_back) return;
 				// Clear the update matricies
   for (int n=0; n<nthrds; n++) {
     for (int M=mfirst[mstep]; M<=multistep; M++) {
@@ -771,6 +850,8 @@ void SphericalBasis::multistep_update_begin()
 
 void SphericalBasis::multistep_update_finish()
 {
+  if (play_back) return;
+
 				// Combine the update matricies
 				// from all nodes
   unsigned sz = (multistep - mfirst[mstep]+1)*(Lmax+1)*(Lmax+1)*nmax;
@@ -810,7 +891,7 @@ void SphericalBasis::multistep_update_finish()
 
 void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int id)
 {
-  
+  if (play_back)    return;
   if (c->freeze(i)) return;
 
   double mass = c->Mass(i) * component->Adiabatic();
@@ -828,8 +909,8 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int
   if (r<rmax) {
 
     double costh = zz/r;
-    double phi = atan2(yy,xx);
-    double rs = r/scale;
+    double phi   = atan2(yy,xx);
+    double rs    = r/scale;
     double val, val1, val2, fac0=4.0*M_PI, fac1, fac2;
     int moffset;
 
@@ -879,6 +960,8 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int
 
 void SphericalBasis::compute_multistep_coefficients()
 {
+  if (play_back) return;
+
 #ifdef TMP_DEBUG
   Matrix tmpcoef = expcoef;
 #endif

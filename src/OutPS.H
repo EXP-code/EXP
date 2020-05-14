@@ -28,11 +28,12 @@ public:
   /*!
     \param nstep is the current time step used to decide whether or not
     to dump
+    \param mstep is the current multistep level to decide whether or not to dump multisteps
     \param last should be true on final step to force phase space dump
     indepentently of whether or not the frequency criterion is met
     \param timer set to true turns on wall-clock timer for PS output
   */
-  void Run(int nstep, bool last);
+  void Run(int nstep, int mstep, bool last);
 
 };
 

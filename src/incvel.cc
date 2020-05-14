@@ -69,6 +69,7 @@ void * incr_velocity_thread(void *ptr)
       
   }
 
+  return (NULL);
 }
 
 void incr_velocity(double dt, int mlevel)

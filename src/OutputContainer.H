@@ -26,7 +26,7 @@ public:
   void initialize();
 
   //! Execute the all methods in the container
-  void Run(int n, bool last=false);
+  void Run(int nstep, int mstep=std::numeric_limits<int>::max(), bool last=false);
 };
 
 #endif

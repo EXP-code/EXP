@@ -33,6 +33,7 @@ namespace po = boost::program_options;
 #include <interp.h>
 #include <EmpCylSL.h>
 #include <DiskModels.H>
+#include <DiskEval.H>
 
 #include <norminv.H>
 
@@ -441,8 +442,6 @@ main(int ac, char **av)
       return 2;
     }
 
-    NOUT = std::min<int>(NOUT, NORDER);
-
     // Write template file
     //
     if (myid==0) {
@@ -606,6 +605,13 @@ main(int ac, char **av)
     }
   }
 
+  // Limit value of NOUT
+  //
+  NOUT = std::min<int>(NOUT, NORDER);
+
+
+  // Assign parameters
+  //
   EmpCylSL::RMIN        = RCYLMIN;
   EmpCylSL::RMAX        = RCYLMAX;
   EmpCylSL::NUMX        = NUMX;
@@ -679,7 +685,7 @@ main(int ac, char **av)
   // Compute coefficients
   //===========================================================================
 
-  std::vector<double> coefs(NORDER, 0.0);
+  std::vector<double> coefs(NOUT, 0.0);
   LegeQuad lq(NINT);
 
   // Reassign DiskDens scales
@@ -693,7 +699,7 @@ main(int ac, char **av)
 	    << "HH   = " << HH      << std::endl
 	    << "Rmin = " << RCYLMIN << std::endl
 	    << "Rmax = " << RCYLMAX << std::endl
-	    << "Nord = " << NORDER  << std::endl;
+	    << "Nord = " << NOUT    << std::endl;
 
   double xmin = r_to_x(RCYLMIN*AA, AA);
   double xmax = r_to_x(RCYLMAX*AA, AA);
@@ -729,13 +735,13 @@ main(int ac, char **av)
 
 	fac *= -1.0;
 
-	for (int n=0; n<NORDER; n++) {
+	for (int n=0; n<NOUT; n++) {
 	  double p, p2, d, d2, fr, fz, fp;
 	  expandd->get_all(0, n, R, z, 0.0, p, d, fr, fz, fp);
 	  coefs[n] += fac * p * den * 4.0*M_PI;
 	  
 	  if (orthotst) {
-	    for (int n2=n; n2<NORDER; n2++) {
+	    for (int n2=n; n2<NOUT; n2++) {
 	      if (n2>n) expandd->get_all(0, n2, R, z, 0.0, p2, d2, fr, fz, fp);
 	      else      d2 = d;
 	      orthochk[{n, n2}] += fac * p * d2 * 4.0*M_PI;
@@ -743,13 +749,13 @@ main(int ac, char **av)
 	  }
 	}
 	
-	for (int n=0; n<NORDER; n++) {
+	for (int n=0; n<NOUT; n++) {
 	  double p, p2, d, d2, fr, fz, fp;
 	  expandd->get_all(0, n, R, -z, 0.0, p, d, fr, fz, fp);
 	  coefs[n] += fac * p * den * 4.0*M_PI;
 
 	  if (orthotst) {
-	    for (int n2=n; n2<NORDER; n2++) {
+	    for (int n2=n; n2<NOUT; n2++) {
 	      if (n2>n) expandd->get_all(0, n2, R, -z, 0.0, p2, d2, fr, fz, fp);
 	      else      d2 = d;
 	      orthochk[{n, n2}] += fac * p * d2 * 4.0*M_PI;
@@ -780,13 +786,13 @@ main(int ac, char **av)
 
 	fac *= -1.0;
 
-	for (int n=0; n<NORDER; n++) {
+	for (int n=0; n<NOUT; n++) {
 	  double p, p2, d, d2, fr, fz, fp;
 	  expandd->get_all(0, n, R, z, 0.0, p, d, fr, fz, fp);
 	  coefs[n] += fac * p * den * 4.0*M_PI;
 
 	  if (orthotst) {
-	    for (int n2=n; n2<NORDER; n2++) {
+	    for (int n2=n; n2<NOUT; n2++) {
 	      if (n2>n) expandd->get_all(0, n2, R, z, 0.0, p2, d2, fr, fz, fp);
 	      else      d2 = d;
 	      orthochk[{n, n2}] += fac * p * d2 * 4.0*M_PI;
@@ -801,7 +807,7 @@ main(int ac, char **av)
 	    << std::endl << std::endl;
 
   double cum = 0.0;
-  for (int n=0; n<NORDER; n++) {
+  for (int n=0; n<NOUT; n++) {
     cum += coefs[n]*coefs[n];
     std::cout << std::setw( 8) << n
 	      << std::setw(18) << coefs[n]
@@ -820,7 +826,7 @@ main(int ac, char **av)
 
   // Set coefficients from std::vectors
   //
-  std::vector<double> zero(NORDER, 0.0);
+  std::vector<double> zero(NOUT, 0.0);
   expandd->set_coefs(0, coefs, zero, true);
 
 
@@ -833,18 +839,21 @@ main(int ac, char **av)
   
   std::ofstream fout("testcoefs.compare");
 
+  int nmin = std::min<int>(NOUT, 5);
+
   for (int j=0; j<NFRC; j++) {
-    double p0, p, fr, fz, fp, d, d0, d1;
+    std::vector<double> dd(nmin);
+    double p0, p, fr, fz, fp, d;
     double r = x_to_r(xmin + dx*j, AA);
 
     expandd->accumulated_eval(r, z, phi, p0, p, fr, fz, fp);
     expandd->accumulated_dens_eval(r, z, phi, d);
 
-    // Get density for n=0, 1
+    // Get density for n=0, 1, ... , nmin
     {
       double p1, fr1, fz1, fp1;	// Dummy variables
-      expandd->get_all(0, 0, r, z, 0.0, p1, d0, fr1, fz1, fp1);
-      expandd->get_all(0, NORDER-1, r, z, 0.0, p1, d1, fr1, fz1, fp1);
+      for (int nn=0; nn<nmin; nn++) 
+	expandd->get_all(0, nn, r, z, 0.0, p1, dd[nn], fr1, fz1, fp1);
     }
 
     
@@ -881,10 +890,10 @@ main(int ac, char **av)
 	 << std::setw(18) << P		  // 6
 	 << std::setw(18) << (p - P)/P	  // 7
 	 << std::setw(18) << d		  // 8
-	 << std::setw(18) << D		  // 9
-	 << std::setw(18) << d0		  // 10
-	 << std::setw(18) << d1		  // 11
-	 << std::endl;
+	 << std::setw(18) << D;		  // 9
+    for (int nn=0; nn<nmin; nn++)
+      fout << std::setw(18) << dd[nn];	  // 10+nn
+    fout << std::endl;
   }
 
 

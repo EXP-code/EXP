@@ -195,6 +195,7 @@ private:
 
   //! Parallel distribute and particle io
   void load_balance(void);
+  void update_indices(void);
   void read_bodies_and_distribute_ascii(void);
   void read_bodies_and_distribute_binary_out(istream *);
   void read_bodies_and_distribute_binary_spl(istream *);
@@ -213,7 +214,7 @@ private:
 
   //@{
   //! Internal data for sequence checking
-  bool seq_check, ordered, indexing, aindex, umagic;
+  bool indexing, aindex, umagic;
   int seq_beg, seq_end, seq_cur;
   //@}
 
@@ -239,7 +240,7 @@ private:
 
   // For load balancing
   vector <loadb_datum> loadb;
-  void add_particles(int from, int to, vector<int>& plist);
+  void add_particles(int from, int to, std::vector<PartPtr>& plist);
 
   // Compute initial com position and velocity from phase space
   void initialize_com_system();
@@ -270,6 +271,9 @@ protected:
 
   //! Bodies on this node
   unsigned int nbodies;
+
+  //! Bodies on all nodes
+  unsigned int nbodies_tot;
 
   /** Used by gather and distribution routines to define a particle
       structure to MPI */
@@ -309,21 +313,6 @@ protected:
   //! Level occupation output
   int nlevel;
 
-  //! For use with unordered map to order list by key value
-  typedef std::vector<unsigned long> KeyList;
-  KeyList keys;
-
-  //! Sort the key list
-  void makeKeyList()
-  {
-    keys.clear();
-    keys.reserve(particles.size());
-    for (auto it : particles) {
-      keys.push_back(it.first);
-    }
-    std::sort (keys.begin(), keys.end());
-  }
-
   //! Write binary component phase-space structure using MPI (blocking)
   void write_binary_mpi_b(MPI_File& out, MPI_Offset& offset, bool real4 = false);
 
@@ -332,8 +321,19 @@ protected:
 
   //! Set default, unset parameters in config
   void set_default_values();
-
   
+  //! Particles waiting for a new index
+  std::list<PartPtr> new_particles;
+
+  //! Maximum sequence value so far
+  unsigned long top_seq;
+
+  //! Update sequence number of added particles
+  void seq_new_particles();
+
+  //! Particle number update is needed
+  unsigned modified;
+
 public:
 
   //! Describe the phase space coordinates
@@ -413,9 +413,6 @@ public:
 
   //! Dimension of the phase space
   int dim;
-
-  //! Bodies on all nodes
-  unsigned nbodies_tot;
 
   /** Particle list per level
       This will be a sorted list for each level.  We use a vector rather
@@ -599,9 +596,33 @@ public:
     return tp->second.get();
   }
 
+  //! Generate new particle: this adds a new particle and returns a
+  //! pointer to the same particle.  It is the caller's responsbility
+  //! to populate the phase space and particle attributes with sane
+  //! values.
+  Particle *GetNewPart();
+
+  //! Remove a particle from the component
+  void DestroyPart(PartPtr p);
+
   //! Particle vector size
   unsigned Number() {
     return particles.size();
+  }
+
+  //! Return the last particle total (no MPI)
+  unsigned CurTotal()
+  {
+    return nbodies_tot;
+  }
+
+  //! Update total number of particles in component.  Should be called
+  //! after adding or killing particles.  Uses MPI.
+  unsigned NewTotal() {
+    MPI_Allreduce(MPI_IN_PLACE, &modified, 1, MPI_UNSIGNED, MPI_SUM,
+		  MPI_COMM_WORLD);
+    if (modified) seq_new_particles();
+    return nbodies_tot;
   }
 
   //! Access to mass

@@ -5,6 +5,7 @@
 #include <Orient.H>
 #include <Basis.H>
 #include <EmpCylSL.h>
+#include <CylindricalCoefs.H>
 
 #include "config.h"
 
@@ -68,6 +69,8 @@ private:
   */
   void compute_multistep_coefficients() 
   {
+    if (play_back) return;
+    
     nvTracerPtr tPtr;
     if (cuda_prof)
       tPtr = nvTracerPtr(new nvTracer("Cylinder::compute_multistep_coefficients"));
@@ -77,8 +80,11 @@ private:
   //! Reset used particle counter and mass registers
   virtual void multistep_reset();
 
+  //! For massive satellite simulations
   MixtureBasis *mix;
 
+  //! Manual computation of on-grid mass
+  void compute_grid_mass();
 
 protected:
 
@@ -103,7 +109,7 @@ protected:
 
   virtual void initialize_cuda()
   {
-    sampT = floor(sqrt(component->nbodies_tot));
+    sampT = floor(sqrt(component->CurTotal()));
     ortho->initialize_cuda(cuInterpArray, tex);
   }
 
@@ -171,6 +177,22 @@ protected:
 
 
 #endif
+
+  /** Coefficient playback instance.  Using shared_ptr to avoid
+      constructing a simple pointer or null instance
+  */
+  std::shared_ptr<CylindricalCoefs> playback;
+
+  /** Master node ships coefficients to hosts.  True (default) implies
+      that only the master node caches the coefficients for playback
+      to save core memory.  This is set in the config input using the
+      'coefMaster: bool' parameter. Once I am sure that there are no
+      algorithmic issues, I will remove this as an option.
+  */
+  bool coefMaster;
+
+  //! Last playback coefficient evaluation time
+  double lastPlayTime;
 
 public:
 
@@ -244,11 +266,15 @@ public:
   */
   //@{
   virtual void multistep_update_begin() { 
-    if (self_consistent) ortho->multistep_update_begin(); }
+    if (play_back) return;
+    if (self_consistent) ortho->multistep_update_begin();
+  }
 
   virtual void multistep_update(int cur, int next, Component* c, int i, int id);
   virtual void multistep_update_finish() { 
-    if (self_consistent) ortho->multistep_update_finish(); }
+    if (play_back) return;
+    if (self_consistent) ortho->multistep_update_finish();
+  }
   //@}
 
   //! Print debug info
