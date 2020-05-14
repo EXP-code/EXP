@@ -51,28 +51,30 @@ SphericalCoefs::SphericalCoefs(const std::string& file, unsigned stride)
 				// use of float as map key
     double T = to_ndigits(v->time);
     times.push_back(T);
-    data[T] = v;
 
-    int lmax = v->lmax;
+    lmax = v->lmax;
+    nmax = v->nmax;
+
     coefs[T].resize((lmax+1)*(lmax+1));
 
     int cnt = 0;
     for (int l=0; l<=lmax; l++) {
       for (int m=0; m<=l; m++) {
 	LMkey lmk  = {l, m};
-	coefs[T][cnt++] = data[T]->cos_c[lmk];
-	if (m) coefs[T][cnt++] = data[T]->sin_c[lmk];
+	coefs[T][cnt++] = v->cos_c[lmk];
+	if (m) coefs[T][cnt++] = v->sin_c[lmk];
       }
     }
   }
 
-  lmax   = data.begin()->second->lmax;
-  nmax   = data.begin()->second->nmax;
-  ntimes = data.size();
+  ntimes = times.size();
+
+  ret = std::make_shared<Dvector>((lmax+1)*(lmax+1));
+  for (auto & v : *ret) v.resize(nmax);
 }
 
 
-SphericalCoefs::D2vector SphericalCoefs::interpolate(const double T)
+SphericalCoefs::DataPtr SphericalCoefs::interpolate(const double T)
 {
   double time = to_ndigits(T);
 
@@ -89,21 +91,39 @@ SphericalCoefs::D2vector SphericalCoefs::interpolate(const double T)
     lo = hi - 1;
   } else hi++;
 
-  double A = (*hi - time)/(*hi - *lo);
-  double B = (time - *lo)/(*hi - *lo);
+  double A = (*hi - T)/(*hi - *lo);
+  double B = (T - *lo)/(*hi - *lo);
 
   int iA = std::distance(times.begin(), lo);
   int iB = std::distance(times.begin(), hi);
 
-  D2vector & cA = coefs[times[iA]];
-  D2vector & cB = coefs[times[iB]];
+  Dvector & cA = coefs[times[iA]];
+  Dvector & cB = coefs[times[iB]];
 
-  D2vector ret((lmax+1)*(lmax+1));
-
-  for (int i=0; i<(lmax+1)*(lmax+1); i++) {
-    ret[i].resize(nmax);
-    for (int n=0; n<nmax; n++) ret[i][n] = A*cA[i][n] + B*cB[i][n];
+  for (int lm=0; lm<ret->size(); lm++) {
+    for (int n=0; n<nmax; n++) (*ret)[lm][n] = A*cA[lm][n] + B*cB[lm][n];
   }
+
+  return ret;
+}
+
+SphericalCoefs::DataPtr SphericalCoefs::zero_ret()
+{
+  for (auto & v : *ret) {
+    std::fill(v.begin(), v.end(), 0.0);
+  }
+
+  return ret;
+}
+
+SphericalCoefs::DataPtr SphericalCoefs::operator()(const double T)
+{
+  double time = to_ndigits(T);
+
+  auto it = coefs.find(time);
+  if (it == coefs.end()) return zero_ret();
+
+  *ret = it->second;
 
   return ret;
 }

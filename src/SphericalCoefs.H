@@ -14,6 +14,11 @@
 
 class SphericalCoefs
 {
+public:
+
+  using Dvector = std::vector<std::vector<double>>;
+  using DataPtr  = std::shared_ptr<Dvector>;
+
 private:
 
   int ndigits;
@@ -23,6 +28,9 @@ private:
     double scale = std::pow(10.0, ndigits);
     return std::round(x * scale) / scale;
   }
+
+  DataPtr ret;
+  DataPtr zero_ret();
 
 public:
   using LMkey = std::tuple<unsigned, unsigned>;
@@ -41,17 +49,14 @@ public:
 public:
   int lmax, nmax, ntimes;
   
-  using Dvector  = std::vector<double>;
-  using D2vector = std::vector<Dvector>;
-
-  std::map<double, CoefPtr>  data;
-  std::map<double, D2vector> coefs;
+  std::map<double, Dvector> coefs;
   
   std::vector<double> times;
 
   SphericalCoefs(const std::string& file, unsigned stride=1);
 
-  D2vector interpolate(const double time);
+  DataPtr operator() (const double time);
+  DataPtr interpolate(const double time);
 };
 
 #endif

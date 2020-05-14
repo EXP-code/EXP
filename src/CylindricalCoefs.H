@@ -6,12 +6,19 @@
 #include <fstream>
 #include <memory>
 #include <vector>
+#include <tuple>
 #include <map>
 
 #include "coef.H"
 
 class CylindricalCoefs
 {
+public:
+  
+  using Dvector  = std::vector<std::vector<double>>;
+  using Dpair    = std::tuple<Dvector, Dvector>;
+  using DataPtr  = std::shared_ptr<Dpair>;
+
 private:
 
   int ndigits;
@@ -21,6 +28,8 @@ private:
     double scale = std::pow(10.0, ndigits);
     return std::round(x * scale) / scale;
   }
+
+  DataPtr ret;
 
 public:
 
@@ -38,18 +47,14 @@ public:
 public:
   int mmax, nmax, ntimes;
   
-  using Dvector  = std::vector<double>;
-  using D2vector = std::vector<Dvector>;
-  using D2pair   = std::pair<D2vector, D2vector>;
-
   std::map<double, CoefPtr> data;
   
   std::vector<double> times;
 
   CylindricalCoefs(const std::string& file, int ndigits=10, unsigned stride=1);
 
-  D2pair  operator()(const double time);
-  D2pair interpolate(const double time);
+  DataPtr operator() (const double time);
+  DataPtr interpolate(const double time);
 };
 
 #endif

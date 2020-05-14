@@ -539,7 +539,7 @@ void SphericalBasis::determine_coefficients(void)
       if (myid==0) {
 	auto ret = playback->interpolate(tnow);
 	for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
-	  for (int n=0; n<nmax; n++) expcoef[l][n+1] = ret[l][n];
+	  for (int n=0; n<nmax; n++) expcoef[l][n+1] = (*ret)[l][n];
 	  MPI_Bcast(&expcoef[l][1], nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	}
       } else {
@@ -550,7 +550,7 @@ void SphericalBasis::determine_coefficients(void)
     } else {
       auto ret = playback->interpolate(tnow);
       for (int l=0; l<(Lmax+1)*(Lmax+1); l++) {
-	for (int n=0; n<nmax; n++) expcoef[l][n+1] = ret[l][n];
+	for (int n=0; n<nmax; n++) expcoef[l][n+1] = (*ret)[l][n];
       }
     }
     return;
@@ -909,8 +909,8 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int
   if (r<rmax) {
 
     double costh = zz/r;
-    double phi = atan2(yy,xx);
-    double rs = r/scale;
+    double phi   = atan2(yy,xx);
+    double rs    = r/scale;
     double val, val1, val2, fac0=4.0*M_PI, fac1, fac2;
     int moffset;
 

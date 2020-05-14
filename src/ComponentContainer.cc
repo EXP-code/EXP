@@ -443,6 +443,17 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       inter->c->force->get_acceleration_and_potential(other);
       inter->c->force->ClearExternal();
       other->time_so_far.stop();
+
+      if (false) {	     // Some deep debugging for playback . . .
+	std::vector<double> cen1 = inter->c->getCenter(Component::Local);
+	std::vector<double> cen2 = other->getCenter(Component::Local);
+
+	std::cout << "ComponentContainer [" << myid << "], centers for [" << inter->c->name
+		  << "-->" << other->name << "] c1=("
+		  << cen1[0] << ", " << cen1[1] << ", " << cen1[2] << ") c2=("
+		  << cen2[0] << ", " << cen2[1] << ", " << cen2[2] << std::endl;
+      }
+
       if (timing) {
 	timer_accel.stop();
 	itmr->second.stop();
