@@ -1291,12 +1291,16 @@ void SphericalBasis::determine_acceleration_and_potential(void)
     std::string tmpout = runtag + ".tmpcoefs";
     std::ofstream out(tmpout, ios::app | ios::out);
     if (out) {
-      for (int lm=0; lm<4; lm++)
+      for (int lm=0; lm<4; lm++) {
 	out << std::setw(5 ) << lm
 	    << std::setw(14) << tnow;
-      for (int n=1; n<=nmax; n++) 
-	out << std::setw(14) << expcoef[lm][n];
-      out << std::endl;
+	for (int n=1; n<=nmax; n++) 
+	  out << std::setw(14) << expcoef[lm][n];
+	out << std::endl;
+      }
+    } else {
+      std::cerr << "SphericalBasis: error opening <" << tmpout << ">"
+		<< std::endl;
     }
   }
 

@@ -39,7 +39,7 @@ public:
   {
     double time;
     int nmax, lmax;
-    std::map<LMkey, std::vector<double> > cos_c, sin_c;
+    std::vector<std::vector<double>> data;
     
     bool read(std::istream& in);
   };

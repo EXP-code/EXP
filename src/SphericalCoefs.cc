@@ -11,19 +11,13 @@ bool SphericalCoefs::Coefs::read(std::istream& in)
   nmax = header.nmax;
   lmax = header.Lmax;
   
-  for (int ll=0; ll<=lmax; ll++) {
-    for (int mm=0; mm<=ll; mm++) {
-      LMkey key(ll, mm);
-      
-      cos_c[key].resize(nmax);
-      in.read((char *)&cos_c[key][0], sizeof(double)*nmax);
+  data.resize((lmax+1)*(lmax+1));
+  for (auto & v : data) data.resize(nmax);
+
+  for (int n=0; n<nmax; n++) {
+    for (int ll=0; ll<(lmax+1)*(lmax+1); ll++) {
+      in.read((char *)&data[ll][n], sizeof(double));
       if (not in) return false;
-    
-      if (mm) {
-	sin_c[key].resize(nmax);
-	in.read((char *)&sin_c[key][0], sizeof(double)*nmax);
-	if (not in) return false;
-      }
     }
   }
   
@@ -55,16 +49,7 @@ SphericalCoefs::SphericalCoefs(const std::string& file, unsigned stride)
     lmax = v->lmax;
     nmax = v->nmax;
 
-    coefs[T].resize((lmax+1)*(lmax+1));
-
-    int cnt = 0;
-    for (int l=0; l<=lmax; l++) {
-      for (int m=0; m<=l; m++) {
-	LMkey lmk  = {l, m};
-	coefs[T][cnt++] = v->cos_c[lmk];
-	if (m) coefs[T][cnt++] = v->sin_c[lmk];
-      }
-    }
+    coefs[T] = v->data;
   }
 
   ntimes = times.size();
