@@ -13,7 +13,7 @@ bool SphericalCoefs::Coefs::read(std::istream& in)
   lmax = header.Lmax;
   
   data.resize((lmax+1)*(lmax+1));
-  for (auto & v : data) data.resize(nmax);
+  for (auto & v : data) v.resize(nmax);
 
   // These coefficients are written in "fortran order".  Why?
   //
