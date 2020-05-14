@@ -11,10 +11,6 @@ using namespace std;
 #include <MixtureBasis.H>
 #include <Timer.h>
 
-#ifdef HAVE_OPENMP
-#include <omp.h>		// For multithreading playback intialization
-#endif
-
 Timer timer_debug;
 
 double EXPSCALE=1.0, HSCALE=1.0, ASHIFT=0.25;
@@ -678,15 +674,15 @@ void Cylinder::determine_coefficients(void)
     if (coefMaster) {
 
       if (myid==0) {
-	auto ret = playback->interpolate(tnow);
+	auto C = playback->interpolate(tnow);
 
 	for (int m=0; m<=mmax; m++) {
-	  MPI_Bcast(ret->first [m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	  MPI_Bcast(ret->second[m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast(std::get<0>(*C)[m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast(std::get<1>(*C)[m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 	  bool zero = false;
 	  if (m==0) zero = true;
-	  ortho->set_coefs(m, ret->first[m], ret->second[m], zero);
+	  ortho->set_coefs(m, std::get<0>(*C)[m], std::get<1>(*C)[m], zero);
 	}
       } else {
 	std::vector<double> cosm(nmax), sinm(nmax);
@@ -702,12 +698,12 @@ void Cylinder::determine_coefficients(void)
       }
 
     } else {
-      auto ret = playback->interpolate(tnow);
+      auto C = playback->interpolate(tnow);
 
       for (int m=0; m<=mmax; m++) {
 	bool zero = false;
 	if (m==0) zero = true;
-	ortho->set_coefs(m, ret->first[m], ret->second[m], zero);
+	ortho->set_coefs(m, std::get<0>(*C)[m], std::get<1>(*C)[m], zero);
       }
     }
 
@@ -839,7 +835,7 @@ void Cylinder::determine_coefficients(void)
 				// communication barrier
   MPL_stop_timer();
 
-  if (tnow==resetT) {
+  if (not play_back and tnow==resetT) {
 
     MPI_Allreduce ( &use1, &use0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce ( &cylmassT1, &cylmassT0, 1, MPI_DOUBLE, MPI_SUM, 
@@ -1436,70 +1432,28 @@ void Cylinder::compute_grid_mass()
   // will not be the same as the original simulation but it should be
   // close unless the original grid was inappropriate.
   //
-  std::vector<double> cylms(nthrds, 0.0);
-  std::vector<int>    cylnn(nthrds, 0);
-    
-  double Rmax2 = rcylmax*rcylmax*acyl*acyl;
-  auto   nsize = cC->Particles().size();
-  
-  auto p = cC->Particles();
-
-#pragma omp parallel 
-  {
-#ifdef HAVE_OPENMP
-    int nthrd = omp_get_num_threads();
-    int id    = omp_get_thread_num();
-#else
-    int nthrd = 1;
-    int id    = 0;
-#endif
-
-    size_t chunk_size = p.size() / nthrd;
-    auto begin = p.begin();
-    std::advance(begin, id * chunk_size);
-    auto end = begin;
-
-    // last thread iterates the remaining sequence
-    if (id = nthrd - 1)
-      end = p.end();
-    else
-      std::advance(end, chunk_size);
-    
-#pragma omp barrier
-    for (auto it = begin; it != end; ++it) {
-      auto n = it->first;
-
-    /*
-#pragma omp parallel for
-  for (auto it=p.begin(); it!=p.end(); it++) {
-    auto n = it->first;
-#ifdef HAVE_OPENMP
-    int id = omp_get_thread_num();
-#else
-    int id = 0;
-#endif
-    */
-    
-      double R2 = 0.0;
-      for (int j=0; j<3; j++)  {
-	double pos = cC->Pos(n, j, Component::Local | Component::Centered);
-	R2 += pos*pos;
-      }
-      
-      if ( R2 < Rmax2) {
-	cylms[id] += cC->Mass(n);
-	cylnn[id] += 1;
-      } 
-    } // END: for
-  } // END: parallel
-  
   cylmass = 0.0;
   used    = 0;
-  for (int t=0; t<nthrds; t++) {
-    cylmass += cylms[t];
-    used    += cylnn[t];
-  }
+    
+  double Rmax2 = rcylmax*rcylmax*acyl*acyl;
   
+  auto p = cC->Particles();
+  
+  for (auto it=p.begin(); it!=p.end(); ++it) {
+    auto n = it->first;
+
+    double R2 = 0.0;
+    for (int j=0; j<3; j++)  {
+      double pos = cC->Pos(n, j, Component::Local | Component::Centered);
+      R2 += pos*pos;
+    }
+      
+    if ( R2 < Rmax2) {
+      cylmass += cC->Mass(n);
+      used    += 1;
+    } 
+  } // END: particle loop
+
   MPI_Allreduce(MPI_IN_PLACE, &cylmass, 1, MPI_DOUBLE, MPI_SUM,
 		MPI_COMM_WORLD);
 

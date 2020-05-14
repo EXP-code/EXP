@@ -909,8 +909,8 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int
   if (r<rmax) {
 
     double costh = zz/r;
-    double phi = atan2(yy,xx);
-    double rs = r/scale;
+    double phi   = atan2(yy,xx);
+    double rs    = r/scale;
     double val, val1, val2, fac0=4.0*M_PI, fac1, fac2;
     int moffset;
 
@@ -1286,6 +1286,14 @@ void SphericalBasis::determine_acceleration_and_potential(void)
 #else
 
   exp_thread_fork(false);
+
+  if (false) {			// Deep debugging for playback
+    std::cout << std::setw(4 ) << myid
+	      << std::setw(16) << tnow
+	      << std::setw(16) << cC->name;
+    for (int i=0; i<4; i++) std::cout << std::setw(16) << expcoef[0][i+1];
+    std::cout << std::endl;
+  }
 
 #endif
 

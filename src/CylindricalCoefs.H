@@ -6,6 +6,7 @@
 #include <fstream>
 #include <memory>
 #include <vector>
+#include <tuple>
 #include <map>
 
 #include "coef.H"
@@ -14,10 +15,9 @@ class CylindricalCoefs
 {
 public:
   
-  using Dvector  = std::vector<double>;
-  using D2vector = std::vector<Dvector>;
-  using D2pair   = std::pair<D2vector, D2vector>;
-  using DataPtr  = std::shared_ptr<D2pair>;
+  using Dvector  = std::vector<std::vector<double>>;
+  using Dpair    = std::tuple<Dvector, Dvector>;
+  using DataPtr  = std::shared_ptr<Dpair>;
 
 private:
 

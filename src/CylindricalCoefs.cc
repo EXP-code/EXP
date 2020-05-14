@@ -59,13 +59,21 @@ CylindricalCoefs::CylindricalCoefs(const std::string& file, int nd, unsigned str
   nmax   = data.begin()->second->nmax;
   ntimes = data.size();
 
-  ret = std::make_shared<D2pair>();
+  // Create and initialize cached return buffer
+  //
+  ret = std::make_shared<Dpair>();
 
-  ret->first .resize(mmax+1);
-  ret->second.resize(mmax+1);
-  for (int m=0; m<mmax+1; m++) {
-    ret->first [m].resize(nmax, 0.0);
-    ret->second[m].resize(nmax, 0.0);
+  std::get<0>(*ret).resize(mmax+1);
+  std::get<1>(*ret).resize(mmax+1);
+
+  for (auto & v : std::get<0>(*ret)) {
+    v.resize(nmax);
+    std::fill(v.begin(), v.end(), 0.0);
+  }
+
+  for (auto & v : std::get<1>(*ret)) {
+    v.resize(nmax);
+    std::fill(v.begin(), v.end(), 0.0);
   }
 
 }
@@ -87,8 +95,8 @@ CylindricalCoefs::DataPtr CylindricalCoefs::interpolate(const double T)
     lo = hi - 1;
   } else hi++;
 
-  double A = (*hi - time)/(*hi - *lo);
-  double B = (time - *lo)/(*hi - *lo);
+  double A = (*hi - T)/(*hi - *lo);
+  double B = (T - *lo)/(*hi - *lo);
 
   int iA = std::distance(times.begin(), lo);
   int iB = std::distance(times.begin(), hi);
@@ -98,11 +106,11 @@ CylindricalCoefs::DataPtr CylindricalCoefs::interpolate(const double T)
 
   for (int m=0; m<mmax+1; m++) {
     for (int n=0; n<nmax; n++)
-      ret->first[m][n] = A*cA->cos_c[m][n] + B*cB->cos_c[m][n];
+      std::get<0>(*ret)[m][n] = A*cA->cos_c[m][n] + B*cB->cos_c[m][n];
     
     if (m) {
       for (int n=0; n<nmax; n++)
-	ret->second[m][n] = A*cA->sin_c[m][n] + B*cB->sin_c[m][n];
+	std::get<1>(*ret)[m][n] = A*cA->sin_c[m][n] + B*cB->sin_c[m][n];
     }    
   }
 
@@ -115,8 +123,8 @@ CylindricalCoefs::DataPtr CylindricalCoefs::operator()(const double time)
   if (it == data.end()) return ret;
 
   for (int m=0; m<mmax+1; m++) {
-    ret->first[m] = it->second->cos_c[m];
-    if (m) ret->second[m] = it->second->sin_c[m];
+    std::get<0>(*ret)[m] = it->second->cos_c[m];
+    if (m) std::get<1>(*ret)[m] = it->second->sin_c[m];
   }
 
   return ret;
