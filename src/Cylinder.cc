@@ -668,7 +668,7 @@ void Cylinder::determine_coefficients(void)
 {
   // Playback basis coefficients
   //
-  if (playback and play_back) {
+  if (play_back) {
     compute_grid_mass();	// Only performed once to start
 
 				// Do we need new coefficients?

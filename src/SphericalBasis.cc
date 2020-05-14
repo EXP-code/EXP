@@ -526,7 +526,7 @@ void SphericalBasis::determine_coefficients(void)
 {
   // Playback basis coefficients
   //
-  if (playback and play_back) {
+  if (play_back) {
 				// Do we need new coefficients?
     if (tnow <= lastPlayTime) return;
     lastPlayTime = tnow;
@@ -1286,6 +1286,19 @@ void SphericalBasis::determine_acceleration_and_potential(void)
 #else
 
   exp_thread_fork(false);
+
+  if (true and myid==0) {
+    std::string tmpout = runtag + ".tmpcoefs";
+    std::ofstream out(tmpout, ios::app | ios::out);
+    if (out) {
+      for (int lm=0; lm<4; lm++)
+	out << std::setw(5 ) << lm
+	    << std::setw(14) << tnow;
+      for (int n=1; n<=nmax; n++) 
+	out << std::setw(14) << expcoef[lm][n];
+      out << std::endl;
+    }
+  }
 
 #endif
 
