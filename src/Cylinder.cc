@@ -839,7 +839,7 @@ void Cylinder::determine_coefficients(void)
 				// communication barrier
   MPL_stop_timer();
 
-  if (tnow==resetT) {
+  if (not play_back and tnow==resetT) {
 
     MPI_Allreduce ( &use1, &use0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce ( &cylmassT1, &cylmassT0, 1, MPI_DOUBLE, MPI_SUM, 

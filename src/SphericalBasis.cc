@@ -825,6 +825,8 @@ void SphericalBasis::determine_coefficients(void)
 
 void SphericalBasis::multistep_reset()
 {
+  if (play_back) return;
+
   used   = 0;
   resetT = tnow;
 }
