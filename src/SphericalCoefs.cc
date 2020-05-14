@@ -1,3 +1,4 @@
+#include <localmpi.h>
 
 #include "SphericalCoefs.H"
 
@@ -14,6 +15,8 @@ bool SphericalCoefs::Coefs::read(std::istream& in)
   data.resize((lmax+1)*(lmax+1));
   for (auto & v : data) data.resize(nmax);
 
+  // These coefficients are written in "fortran order".  Why?
+  //
   for (int n=0; n<nmax; n++) {
     for (int ll=0; ll<(lmax+1)*(lmax+1); ll++) {
       in.read((char *)&data[ll][n], sizeof(double));
@@ -46,9 +49,30 @@ SphericalCoefs::SphericalCoefs(const std::string& file, unsigned stride)
     double T = to_ndigits(v->time);
     times.push_back(T);
 
-    lmax = v->lmax;
-    nmax = v->nmax;
+    // Sanity check
+    //
+    if (times.size()==1) {
+      lmax = v->lmax;
+      nmax = v->nmax;
+    } else {
 
+      if (lmax != v->lmax) {
+	std::cout << "SphericalCoefs: [" << myid << "] "
+		  << "coefficient stanza rank mismatch: lmax=" << v->lmax
+		  << ", expected " << lmax << std::endl;
+	MPI_Finalize();
+	exit(-31);
+      }
+
+      if (nmax != v->nmax) {
+	std::cout << "SphericalCoefs: [" << myid << "] "
+		  << "coefficient stanza rank mismatch: nmax=" << v->nmax
+		  << ", expected " << nmax << std::endl;
+	MPI_Finalize();
+	exit(-32);
+      }
+    } 
+    
     coefs[T] = v->data;
   }
 
