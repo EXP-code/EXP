@@ -1,5 +1,6 @@
-
 #include <cmath>
+
+#include <localmpi.h>
 #include "CylindricalCoefs.H"
 
 bool CylindricalCoefs::Coefs::read(std::istream& in)
@@ -58,6 +59,29 @@ CylindricalCoefs::CylindricalCoefs(const std::string& file, int nd, unsigned str
   mmax   = data.begin()->second->mmax;
   nmax   = data.begin()->second->nmax;
   ntimes = data.size();
+
+  // Sanity check
+  //
+  for (auto v : data) {
+    auto p = v.second;
+
+    if (mmax != p->mmax) {
+      std::cout << "CylindricalCoefs: [" << myid << "] "
+		<< "coefficient stanza rank mismatch: lmax=" << p->mmax
+		<< ", expected " << mmax << std::endl;
+      MPI_Finalize();
+      exit(-33);
+    }
+
+    if (nmax != p->nmax) {
+      std::cout << "CylindricalCoefs: [" << myid << "] "
+		<< "coefficient stanza rank mismatch: nmax=" << p->nmax
+		<< ", expected " << nmax << std::endl;
+      MPI_Finalize();
+      exit(-34);
+    }
+  }
+
 
   // Create and initialize cached return buffer
   //
