@@ -124,12 +124,7 @@ main(int ac, char **av)
     exit(-2);
   }
   int nbods = 0;
-  {
-    std::string line;
-    while (getline(in, line)) nbods++;
-    in.clear();			// Clear fail bit
-    in.seekg(0);		// Rewind
-  }
+  in.read((char *)&nbods, sizeof(int));
     
   double dR = (rout - rinn)/(nout-1);
   double dZ = 2.0*zout/(nout-1);
@@ -156,11 +151,12 @@ main(int ac, char **av)
     std::getline(in, line);
 
     if (in.good()) {
-      std::istringstream sin(line);
       double m, pos[3], acc[3];
-      sin >> m;
-      for (int k=0; k<3; k++) sin >> pos[k];
-      for (int k=0; k<3; k++) sin >> acc[k];
+
+      in.read((char *)&m, sizeof(double));
+      in.read((char *)&pos[0], sizeof(double)*3);
+      in.read((char *)&acc[0], sizeof(double)*3);
+      if (not in.good()) break;
 
       double R  = std::sqrt(pos[0]*pos[0] + pos[1]*pos[1]);
       double z  = pos[2];
