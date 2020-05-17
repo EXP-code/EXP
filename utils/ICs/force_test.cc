@@ -53,6 +53,7 @@ main(int ac, char **av)
   double       zout;
   string       dmodel;
   string       fdata;
+  string       outfile;
   
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -60,6 +61,7 @@ main(int ac, char **av)
     ("logr,L",                                                                          "Use log grid for DiskEval")
     ("dmodel",          po::value<std::string>(&dmodel)->default_value("exponential"),  "Target model type (MN or exponential)")
     ("force",           po::value<std::string>(&fdata)->default_value("force.data"),  "Force data from N-body evluation")
+    ("out",             po::value<std::string>(&outfile)->default_value("testforce.dat"),  "Output force test grid data")
     ("dmass",           po::value<double>(&dmass)->default_value(0.025),  "Total disk mass")
     ("nint",            po::value<int>(&nint)->default_value(40),                       "Number of Gauss-Legendre knots for theta integration")
     ("numr",            po::value<int>(&numr)->default_value(1000),                     "Size of radial grid")
@@ -121,6 +123,13 @@ main(int ac, char **av)
     std::cout << "Error opening <" << fdata << ">" << std::endl;
     exit(-2);
   }
+  int nbods = 0;
+  {
+    std::string line;
+    while (getline(in, line)) nbods++;
+    in.clear();			// Clear fail bit
+    in.seekg(0);		// Rewind
+  }
     
   double dR = (rout - rinn)/(nout-1);
   double dZ = 2.0*zout/(nout-1);
@@ -137,7 +146,7 @@ main(int ac, char **av)
 	    << std::endl << "-----------------------------"
 	    << std::endl;
   
-  boost::progress_display progress(1000000);
+  boost::progress_display progress(nbods);
 
   while (true) {
 
@@ -184,7 +193,7 @@ main(int ac, char **av)
 
   // Plot potential and force plane evaluation in gnuplot format
   //
-  std::ofstream out("testforce.dat");
+  std::ofstream out(outfile);
 
   if (out) {
     
