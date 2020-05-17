@@ -147,15 +147,12 @@ main(int ac, char **av)
 
     ++progress;
 
-    std::string line;
-    std::getline(in, line);
-
     if (in.good()) {
-      double m, pos[3], acc[3];
+      float m, pos[3], acc[3];
 
-      in.read((char *)&m, sizeof(double));
-      in.read((char *)&pos[0], sizeof(double)*3);
-      in.read((char *)&acc[0], sizeof(double)*3);
+      in.read((char *)&m, sizeof(float));
+      in.read((char *)&pos[0], sizeof(float)*3);
+      in.read((char *)&acc[0], sizeof(float)*3);
       if (not in.good()) break;
 
       double R  = std::sqrt(pos[0]*pos[0] + pos[1]*pos[1]);
