@@ -3,7 +3,6 @@ Makefile
 *.a
 *.la
 *.in
-*.m4
 autom4te.cache/
 compile
 config.guess
