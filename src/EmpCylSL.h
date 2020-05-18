@@ -313,16 +313,20 @@ public:
   class AxiDisk
   {
   protected:
+    std::string ID;
 
     double M;
 
   public:
 
     //! Constructor
-    AxiDisk(double M=1) : M(M) {}
+    AxiDisk(double M=1, std::string id="AxiDisk") : M(M), ID(id) {}
 
     //! Density function
     virtual double operator()(double R, double z) = 0;
+
+    //! Get ID
+    std::string getID() { return ID; }
   };
   
   typedef boost::shared_ptr<AxiDisk> AxiDiskPtr;

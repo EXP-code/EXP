@@ -126,6 +126,10 @@ main(int ac, char **av)
   int nbods = 0;
   in.read((char *)&nbods, sizeof(int));
     
+  // Make sure that nout is even to prevent divide by zero
+  //
+  if (2*(nout/2) != nout) nout++;
+
   double dR = (rout - rinn)/(nout-1);
   double dZ = 2.0*zout/(nout-1);
 
@@ -190,6 +194,32 @@ main(int ac, char **av)
 
   if (out) {
     
+    // Headers
+    out << "#"
+	<< std::setw(15) << std::right << "R |"
+	<< std::setw(16) << std::right << "z |"
+	<< std::setw(16) << std::right << "D(f_R)/f_R |"
+	<< std::setw(16) << std::right << "D(f_z)/f_z |"
+	<< std::setw(16) << std::right << "D(f_R)/scl |"
+	<< std::setw(16) << std::right << "D(f_z)/scl |"
+	<< std::endl
+	<< "#"
+	<< std::setw(15) << std::right << "[1] |"
+	<< std::setw(16) << std::right << "[2] |"
+	<< std::setw(16) << std::right << "[3] |"
+	<< std::setw(16) << std::right << "[4] |"
+	<< std::setw(16) << std::right << "[5] |"
+	<< std::setw(16) << std::right << "[6] |"
+	<< std::endl
+	<< "#" << std::setfill('-')
+	<< std::setw(15) << std::right << "+"
+	<< std::setw(16) << std::right << "+"
+	<< std::setw(16) << std::right << "+"
+	<< std::setw(16) << std::right << "+"
+	<< std::setw(16) << std::right << "+"
+	<< std::setw(16) << std::right << "+"
+	<< std::endl << std::setfill(' ');
+
     std::cout << std::endl << "Begin: force bin evaluation  "
 	      << std::endl << "-----------------------------"
 	      << std::endl;
@@ -201,22 +231,25 @@ main(int ac, char **av)
     double fR_0 = std::fabs(std::get<1>(ret)) * dmass;
 
     for (int i=0; i<nout; i++) {
-      double R = rinn + dR*i;
+      double R = rinn + dR*(0.5+i);
 
       auto ret = test(R, H);
 
       double fz_0 = std::fabs(std::get<2>(ret)) * dmass;
 
       for (int j=0; j<nout; j++) {
-	double z = -zout + dZ*j;
+	double z = -zout + dZ*(0.5+j);
 
 	double ms = mass[i][j] + 1.0e-18;
 	double stdFR = std::sqrt(meanFR2[i][j]/ms);
 	double stdFZ = std::sqrt(meanFz2[i][j]/ms);
+
+	auto ret1 = test(R, z);
+
 	out << std::setw(16) << R
 	    << std::setw(16) << z
-	    << std::setw(16) << stdFR
-	    << std::setw(16) << stdFZ
+	    << std::setw(16) << stdFR/fabs(std::get<1>(ret1)*dmass)
+	    << std::setw(16) << stdFZ/fabs(std::get<2>(ret1)*dmass)
 	    << std::setw(16) << stdFR/fR_0
 	    << std::setw(16) << stdFZ/fz_0
 	    << std::endl;

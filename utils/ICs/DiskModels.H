@@ -11,7 +11,8 @@ private:
 
 public:
 
-  Exponential(double a, double h, double M=1) : a(a), h(h), EmpCylSL::AxiDisk(M) {}
+  Exponential(double a, double h, double M=1) :
+    a(a), h(h), EmpCylSL::AxiDisk(M, "Exponential") {}
 
   double operator()(double R, double z)
   {
@@ -29,7 +30,8 @@ private:
 
 public:
 
-  MNdisk(double a, double h, double M=1) : a(a), h(h), EmpCylSL::AxiDisk(M) {}
+  MNdisk(double a, double h, double M=1) :
+    a(a), h(h), EmpCylSL::AxiDisk(M, "Miyamoto-Nagai") {}
 
   double operator()(double R, double z)
   {
@@ -53,7 +55,10 @@ private:
 public:
 
   Truncated(double R, double W, AxiDiskPtr p) :
-    rt(R), rw(W), model(p) {}
+    rt(R), rw(W), model(p)
+  {
+    ID = p->getID() + " [truncated]";
+  }
 
   double operator()(double R, double z)
   {

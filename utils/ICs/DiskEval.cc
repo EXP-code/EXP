@@ -11,6 +11,8 @@
 #include <omp.h>
 #endif
 
+const std::string DiskEval::cachefile = ".DiskEval.cache";
+
 DiskEval::DiskEval
 (EmpCylSL::AxiDiskPtr model, double rmin, double rmax, double ascl,
  int lmax, int numr, int nint, bool use_progress) :
@@ -24,6 +26,7 @@ DiskEval::DiskEval
   if (xscl) {			// x = r/a(1 + r/a) scaling
     xmin = r_to_x(rmin);
     xmax = r_to_x(rmax);
+    logr = false;
   } else {
     if (rmin > 0.0) {		// Log scaling
       xmin = log(rmin);
@@ -37,6 +40,8 @@ DiskEval::DiskEval
   }
 
   dx = (xmax - xmin)/(numr-1);	// Radial grid spacing
+
+  if (read_cache()) return;
 
   // First: compute the disk density components
   //
@@ -311,6 +316,7 @@ DiskEval::DiskEval
     }
   }
 
+  write_cache();
 }
 
 
@@ -375,3 +381,158 @@ std::tuple<double, double, double> DiskEval::operator()(double R, double z)
   return std::tuple<double, double, double>(pot, FR, Fz);
 }
 
+void DiskEval::write_cache()
+{
+  std::ofstream cache(cachefile);
+  if (cache) {
+    char str[32];
+    std::fill(str, str+32, 0);
+    std::string id = model->getID();
+    int idlen = id.size();
+    strncpy(str, id.c_str(), idlen);
+    unsigned char clogr = 0, cxscl = 0;
+    if (logr) clogr = 1;
+    if (xscl) cxscl = 1;
+
+    // Parameters
+    //
+    cache.write((const char *)str,    sizeof(char)*32);
+    cache.write((const char *)&xmin,  sizeof(double));
+    cache.write((const char *)&xmax,  sizeof(double));
+    cache.write((const char *)&dx,    sizeof(double));
+    cache.write((const char *)&ascl,  sizeof(double));
+    cache.write((const char *)&lmax,  sizeof(int   ));
+    cache.write((const char *)&numr,  sizeof(int   ));
+    cache.write((const char *)&clogr, sizeof(unsigned char));
+    cache.write((const char *)&cxscl, sizeof(unsigned char));
+
+    // Cache Term1 and Term2 from the multipole expansion
+    //
+    for (auto v : T1) {
+      cache.write((const char *)v.data(), sizeof(double)*numr);
+    }
+    for (auto v : T2) {
+      cache.write((const char *)v.data(), sizeof(double)*numr);
+    }
+
+  } else {
+    std::cerr << "DiskEval: could not open cache file <"
+	      << cachefile << "> for writing" << std::endl;
+  }
+
+  std::cerr << "DiskEval: wrote cache file <"
+	    << cachefile << ">" << std::endl;
+}
+
+bool DiskEval::read_cache()
+{
+  std::ifstream cache(cachefile);
+  if (cache) {
+    char str[32];
+    double xmin1, xmax1, dx1, ascl1;
+    int lmax1, numr1;
+    unsigned char clogr, cxscl;
+    bool logr1 = false, xscl1 = false;
+
+    // Parameters
+    //
+    cache.read((char *)str,    sizeof(char)*32);
+    cache.read((char *)&xmin1, sizeof(double));
+    cache.read((char *)&xmax1, sizeof(double));
+    cache.read((char *)&dx1,   sizeof(double));
+    cache.read((char *)&ascl1, sizeof(double));
+    cache.read((char *)&lmax1, sizeof(int   ));
+    cache.read((char *)&numr1, sizeof(int   ));
+    cache.read((char *)&clogr, sizeof(unsigned char));
+    cache.read((char *)&cxscl, sizeof(unsigned char));
+
+    if (clogr) logr1 = true;
+    if (cxscl) xscl1 = true;
+
+    std::string ID1(str);
+
+    // Check parameters
+    bool okay = true;
+   
+    if (ID1.compare(model->getID()))  {
+      okay = false;
+      std::cout << "DiskEval:read_cache: model ID mismatch <"
+		<< ID1 << "> != <" << model->getID() << ">"
+		<< std::endl;
+    }
+    if (fabs(xmin1 - xmin) > 1.0e-18) {
+      okay = false;
+      std::cout << "DiskEval:read_cache: xmin mismatch <"
+		<< xmin1 << "> != <" << xmin << ">"
+		<< std::endl;
+    }
+
+    if (fabs(xmax1 - xmax) > 1.0e-18) {
+      okay = false;
+      std::cout << "DiskEval:read_cache: xmax mismatch <"
+		<< xmax1 << "> != <" << xmax << ">"
+		<< std::endl;
+    }
+    
+    if (fabs(dx1 - dx)     > 1.0e-18) {
+      okay = false;
+      std::cout << "DiskEval:read_cache: dx mismatch <"
+		<< dx1 << "> != <" << dx << ">"
+		<< std::endl;
+    }
+    
+    if (lmax1 != lmax) {
+      okay = false;
+      std::cout << "DiskEval:read_cache: lmax mismatch <"
+		<< lmax1 << "> != <" << lmax << ">"
+		<< std::endl;
+    }
+    
+    if (numr1 != numr) {
+      okay = false;
+      std::cout << "DiskEval:read_cache: numr mismatch <"
+		<< numr1 << "> != <" << numr << ">"
+		<< std::endl;
+    }
+    
+    if ((logr1 and not logr) or (not logr1 and logr)) {
+      okay = false;
+      std::cout << "DiskEval:read_cache: logr mismatch <"
+		<< std::boolalpha << logr1 << "> != <"
+		<< std::boolalpha << logr << ">" << std::endl;
+      
+    }
+    
+    if ((xscl1 and not xscl) or (not xscl1 and xscl)) {
+      okay = false;
+      std::cout << "DiskEval:read_cache: xscl mismatch <"
+		<< std::boolalpha << xscl1 << "> != <"
+		<< std::boolalpha << xscl << ">" << std::endl;
+    }
+    
+    if (not okay) return false;
+    
+    // Read multipole expansion terms
+    //
+    T1.resize(lmax+1);
+    T2.resize(lmax+1);
+    
+    for (auto & v : T1) {
+      v.resize(numr);
+      cache.read((char *)v.data(), sizeof(double)*numr);
+    }
+    
+    for (auto & v : T2) {
+      v.resize(numr);
+      cache.read((char *)v.data(), sizeof(double)*numr);
+    }
+    
+  } else {
+    std::cerr << "DiskEval: could not open cache file <"
+	      << cachefile << "> for reading" << std::endl
+	      << std::endl;
+    return false;
+  }
+
+  return true;
+}

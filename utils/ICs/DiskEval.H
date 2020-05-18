@@ -77,6 +77,8 @@ private:
   int    lmax, numr;
   bool   logr, xscl;
 
+  static const std::string cachefile;
+
   //! Rho(l, r), Term1(l, r), Term2(l, r)
   std::vector< std::vector<double> > rho, T1, T2;
 
@@ -126,6 +128,9 @@ private:
   {
     return ascl/(1.0 - x)/(1.0 - x);
   }
+
+  bool read_cache();
+  void write_cache();
 
 public:
 
