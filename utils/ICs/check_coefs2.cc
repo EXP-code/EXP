@@ -917,7 +917,7 @@ main(int ac, char **av)
   //
   // DiskEval test(modl, RCYLMIN*AA, RCYLMAX*AA, AA, 400, 8000, 400, use_progress);
   
-  DiskEval test(modl, RCYLMIN*AA, RCYLMAX*AA, AA, 200, 1000, 400, use_progress);
+  DiskEval test(modl, RCYLMIN*AA, RCYLMAX*AA, AA, 200, 1000, 800, use_progress);
   //                                          ^    ^    ^     ^
   //                                          |    |    |     |
   // Disk scale for mapping-------------------+    |    |     |
@@ -1173,10 +1173,10 @@ main(int ac, char **av)
 	   << std::setw(18) << z	          // 2
 	   << std::setw(18) << fR	          // 3
 	   << std::setw(18) << FR	          // 4
-	   << std::setw(18) << (fR - FR)/FR0	  // 5
+	   << std::setw(18) << (fR - FR)/FR	  // 5
 	   << std::setw(18) << fz	          // 6
 	   << std::setw(18) << Fz	          // 7
-	   << std::setw(18) << (fz - Fz)/FZ0	  // 8
+	   << std::setw(18) << (fz - Fz)/Fz	  // 8
 	   << std::setw(18) << p		  // 9
 	   << std::setw(18) << P		  // 10
 	   << std::setw(18) << (p - P)/P;	  // 11
