@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <memory>
 
 #include <ACG.h>
 #include <Uniform.h>
@@ -19,33 +20,34 @@
 #include <localmpi.h>
 #include <Vector.h>
 
-#include "AddDisk.h"
-#include "SphericalSL.h"
+#include <AddDisk.H>
+#include <SphericalSL.H>
 #include "EmpCylSL.h"
 #include "SParticle.H"
 
 class DiskHalo
 {
  private:
-  AddDisk *newmod;
-  SphericalModelTable *halo, *halo2;
-  ExponentialDisk *disk;
+  std::shared_ptr<AddDisk> newmod;
+  std::shared_ptr<SphericalModelTable> halo, halo2;
+  std::shared_ptr<ExponentialDisk> disk;
   double scaleheight, hmass, dmass;
   double center_pos[3], center_vel[3];
 
-  SphericalSL* expandh;
-  EmpCylSL* expandd;
+  std::shared_ptr<SphericalSL> expandh;
+  std::shared_ptr<EmpCylSL>    expandd;
 
-  Matrix *disktableP, *disktableN, epitable;
+  std::vector<Matrix> disktableP, disktableN;
+  Matrix epitable;
   double dP, dR, dZ, epiRmin;
 
   Matrix halotable;
   double dr, dc;
 
-  LegeQuad *lwz;
-  Uniform *rndU;
-  Normal *rndN;
-  ACG *gen;
+  std::shared_ptr<LegeQuad> lwz;
+  std::shared_ptr<Uniform>  rndU;
+  std::shared_ptr<Normal>   rndN;
+  std::shared_ptr<ACG>      gen;
 
   bool DF;
   bool com_cov;
@@ -104,8 +106,8 @@ class DiskHalo
   static int SEED;		// Initial seed
 
   //! Constructor
-  DiskHalo(SphericalSL* expandh, EmpCylSL* expandd,
-	   double dz0, double dh, double dMh, double dMd, string& filename,
+  DiskHalo(std::shared_ptr<SphericalSL> expandh, std::shared_ptr<EmpCylSL> expandd,
+	   double dz0, double dh, double dMh, double dMd, std::string& filename,
 	   int DF=0, int DIVERGE=0, double DIVERGE_RFAC=1.0);
 
   //! Destructor

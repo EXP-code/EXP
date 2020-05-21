@@ -91,7 +91,7 @@ namespace po = boost::program_options;
 #include <hernquist.h>
 #include <model3d.h>
 #include <biorth.h>
-#include <SphericalSL.h>
+#include <SphericalSL.H>
 #include <interp.h>
 #include <EmpCylSL.h>
 #include <DiskModels.H>
@@ -220,9 +220,9 @@ void set_fpu_gdb_handler(void)
 #endif
 
                                 // Local headers
-#include "SphericalSL.h"
-#include "DiskHalo2.h" 
-#include "localmpi.h"
+#include <SphericalSL.H>
+#include <DiskHalo2.H>
+#include <localmpi.h>
 
 
 // Hydrogen fraction

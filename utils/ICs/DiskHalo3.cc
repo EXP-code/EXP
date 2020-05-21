@@ -13,10 +13,10 @@
 #include <Vector.h>
 #include <interp.h>
 				// Local
-#include "AddDisk.h"
-#include "CylDisk.h"
+#include <AddDisk.H>
+#include <CylDisk.H>
 #include "DiskWithHalo.h"
-#include "DiskHalo3.h"
+#include <DiskHalo3.H>
 
 				// Grid parameters and Toomre Q
 double DiskHalo::RHMIN = 1.0e-4;
@@ -52,7 +52,7 @@ unsigned DiskHalo::NBUF = 8192;
 
 string DiskHalo::RUNTAG = "debug";
 
-static AxiSymModel *model;
+static std::shared_ptr<AxiSymModel> model;
 double targetmass;
 				// Determine radius with given enclosed mass
 double mass_func(double r)
@@ -63,28 +63,20 @@ double mass_func(double r)
 DiskHalo::
 DiskHalo()
 {
-  gen        = NULL;
-  rndU       = NULL;
-  rndN       = NULL;
   com        = false;
   cov        = false;
   DF         = false;
   MULTI      = false;
-  halo       = NULL;
-  halo2      = NULL;
-  disk       = NULL;
-  qp         = NULL;
-}
+ }
 
 DiskHalo::
-DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
+DiskHalo(std::shared_ptr<SphericalSL> haloexp, std::shared_ptr<EmpCylSL> diskexp,
 	 double H, double A, double DMass, 
 	 string& filename, int DF1, int DIVERGE, double DIVERGE_RFAC)
 {
-  qp         = NULL;
-  gen        = new ACG(SEED+myid, 20);
-  rndU       = new Uniform(0.0, 1.0, gen);
-  rndN       = new Normal (0.0, 1.0, gen);
+  gen        = std::make_shared<ACG>    (SEED+myid, 20);
+  rndU       = std::make_shared<Uniform>(0.0, 1.0, gen.get());
+  rndN       = std::make_shared<Normal> (0.0, 1.0, gen.get());
   com        = false;
   cov        = false;
 
@@ -105,9 +97,9 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
   SphericalModelTable::even = 0;
   SphericalModelTable::logscale = LOGSCALE;
 
-  halo = new SphericalModelTable(filename, DIVERGE, DIVERGE_RFAC);
+  halo = std::make_shared<SphericalModelTable>(filename, DIVERGE, DIVERGE_RFAC);
 
-  disk = new ExponentialDisk(A, RDMAX, DMass);
+  disk = std::make_shared<ExponentialDisk>(A, RDMAX, DMass);
 
   if (myid==0 && VFLAG & 1) {
     cerr << "DiskHalo: DIVERGE=" << DIVERGE
@@ -125,7 +117,7 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
     AxiSymModel::gen_N = 800;
     AxiSymModel::gen_itmax = 400000;
     AxiSymModel::gen_rmin = RHMIN;
-    newmod = new AddDisk(halo, disk, COMPRESSION); 
+    newmod = std::make_shared<AddDisk>(halo, disk, COMPRESSION); 
     halo2 = newmod->get_model();
     halo2->setup_df(NUMDF, RA);
     if (myid==0 && VFLAG & 2) {
@@ -138,15 +130,14 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
 }
 
 DiskHalo::
-DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
+DiskHalo(std::shared_ptr<SphericalSL> haloexp, std::shared_ptr<EmpCylSL> diskexp,
 	 double H, double A, double DMass, 
-	 string& filename1, int DIVERGE, double DIVERGE_RFAC,
-	 string& filename2, int DIVERGE2, double DIVERGE_RFAC2)
+	 std::string& filename1, int DIVERGE, double DIVERGE_RFAC,
+	 std::string& filename2, int DIVERGE2, double DIVERGE_RFAC2)
 {
-  qp          = NULL;
-  gen         = new ACG(SEED+myid, 20);
-  rndU        = new Uniform(0.0, 1.0, gen);
-  rndN        = new Normal(0.0, 1.0, gen);
+  gen         = std::make_shared<ACG>    (SEED+myid, 20);
+  rndU        = std::make_shared<Uniform>(0.0, 1.0, gen.get());
+  rndN        = std::make_shared<Normal> (0.0, 1.0, gen.get());
   com         = false;
   cov         = false;
 
@@ -164,9 +155,9 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
   SphericalModelTable::even = 0;
   SphericalModelTable::logscale = LOGSCALE;
 
-  halo = new SphericalModelTable(filename1, DIVERGE, DIVERGE_RFAC);
+  halo = std::make_shared<SphericalModelTable>(filename1, DIVERGE, DIVERGE_RFAC);
 
-  disk = new ExponentialDisk(A, RDMAX, DMass);
+  disk = std::make_shared<ExponentialDisk>(A, RDMAX, DMass);
 
   if (myid==0 && VFLAG & 1) {
     cerr << "DiskHalo: DIVERGE=" << DIVERGE
@@ -185,7 +176,7 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
   AxiSymModel::gen_N = 800;
   AxiSymModel::gen_itmax = 4000000;
   AxiSymModel::gen_rmin = RHMIN;
-  newmod = new AddDisk(halo, disk, COMPRESSION); 
+  newmod = std::make_shared<AddDisk>(halo, disk, COMPRESSION); 
   halo2 = newmod->get_model();
   halo2->setup_df(NUMDF, RA);
   if (myid==0 && VFLAG & 2) {
@@ -200,7 +191,7 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
   SphericalModelTable::logscale = LOGSCALE;
   SphericalModelTable::linear = 0;
   
-  halo3 = new SphericalModelTable(filename2, DIVERGE2, DIVERGE_RFAC2);
+  halo3 = std::make_shared<SphericalModelTable>(filename2, DIVERGE2, DIVERGE_RFAC2);
 
   //
   // Packs fake density and mass model with target (real) potential
@@ -230,10 +221,8 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
     p2[i] = halo2 -> get_pot(r);
   }
   
-  delete halo3;
-
-  halo3 = new SphericalModelTable(RNUM, r2-1, d2-1, m2-1, p2-1, 
-				  DIVERGE2, DIVERGE_RFAC2);
+  halo3 = std::make_shared<SphericalModelTable>(RNUM, r2-1, d2-1, m2-1, p2-1, 
+						DIVERGE2, DIVERGE_RFAC2);
   halo3->setup_df(NUMDF, RA);
   if (VFLAG & 2) {
     halo3->print_model("diskhalo2_model.multi");
@@ -248,7 +237,7 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
   //
   // Generate the multimass model
   //
-  multi = new SphericalModelMulti(halo2, halo3);
+  multi = std::make_shared<SphericalModelMulti>(halo2.get(), halo3.get());
   multi -> gen_tolE = TOLE;
 
 }
@@ -256,20 +245,7 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
 
 DiskHalo::~DiskHalo()
 {
-  delete qp;
-  delete rndU;
-  delete rndN;
-  delete gen;
-  delete halo;
-  delete disk;
-  if (DF) {
-    delete newmod;
-  }
-  if (MULTI) {
-    delete newmod;
-    delete halo3;
-    delete multi;
-  }
+  // Nothing
 }
 
 DiskHalo::DiskHalo(const DiskHalo &p)
@@ -300,15 +276,14 @@ DiskHalo::DiskHalo(const DiskHalo &p)
   dr = p.dr;
   dc = p.dc;
 
-  gen  = new ACG(SEED+myid, 20);
-  rndU = new Uniform(0.0, 1.0, gen);
-  rndN = new Normal(0.0, 1.0, gen);
+  gen  = std::make_shared<ACG>    (SEED+myid, 20);
+  rndU = std::make_shared<Uniform>(0.0, 1.0, gen.get());
+  rndN = std::make_shared<Normal> (0.0, 1.0, gen.get());
 
-  DF = p.DF;
+  DF    = p.DF;
   MULTI = p.MULTI;
-  com = p.com;
-  cov = p.cov;
-  qp  = 0;
+  com   = p.com;
+  cov   = p.cov;
 }
 
 
@@ -691,13 +666,12 @@ void DiskHalo::make_disk_DF(bool diag)
   // Compute QPDISTF
   //
 
-  dmodel = DiskWithHalo(disk, halo);
+  dmodel = DiskWithHalo(disk.get(), halo.get());
 
-  delete qp;
-  qp = new QPDistF(disk, halo, rmax0, rmax0, 
-		   QPnumE, QPnumK, QPnumR, QPsigma, QPlambda, QPalpha, QPbeta,
-		   1.0, 0.01, 0.05, 0.5,
-		   QPkmin, QPkmax);
+  qp = std::make_shared<QPDistF>(disk.get(), halo.get(), rmax0, rmax0, 
+				 QPnumE, QPnumK, QPnumR, QPsigma, QPlambda, QPalpha, QPbeta,
+				 1.0, 0.01, 0.05, 0.5,
+				 QPkmin, QPkmax);
 
   if (diag && myid==0) qp->set_verbose();
 

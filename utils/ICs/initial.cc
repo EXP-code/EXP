@@ -77,7 +77,6 @@
 #include <hernquist.h>
 #include <model3d.h>
 #include <biorth.h>
-#include <SphericalSL.h>
 #include <interp.h>
 #include <EmpCylSL.h>
 
@@ -87,9 +86,8 @@
 #endif
 
                                 // Local headers
-#include "SphericalSL.h"
-#include "DiskHalo.h" 
-#include "localmpi.h"
+#include <DiskHalo.H> 
+#include <localmpi.h>
 void local_init_mpi(int argc, char **argv);
 
                                 // Parameters
@@ -399,9 +397,9 @@ main(int argc, char **argv)
   SphericalSL::RMAX = RSPHSL;
   SphericalSL::NUMR = NUMR;
                                 // Create expansion only if needed . . .
-  SphericalSL *expandh = NULL;
+  std::shared_ptr<SphericalSL> expandh;
   if (n_particlesH) {
-    expandh = new SphericalSL(nthrds, LMAX, NMAX, SCSPH);
+    expandh = std::make_shared<SphericalSL>(nthrds, LMAX, NMAX, SCSPH);
 #ifdef DEBUG
     string dumpname("debug");
     expandh->dump_basis(dumpname);
@@ -423,9 +421,9 @@ main(int argc, char **argv)
     EmpCylSL::DENS = false;
 
                                 // Create expansion only if needed . . .
-  EmpCylSL* expandd = NULL;
+  std::shared_ptr<EmpCylSL> expandd;
   if (n_particlesD) 
-    expandd = new EmpCylSL(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE);
+    expandd = std::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE);
   cout << "Proccess " << myid << ": "
        << " rmin=" << EmpCylSL::RMIN
        << " rmax=" << EmpCylSL::RMAX
@@ -710,8 +708,6 @@ main(int argc, char **argv)
 
   //===========================================================================
 
-  delete expandh;
-  delete expandd;
 
   MPI_Barrier(MPI_COMM_WORLD);
   MPI_Finalize();

@@ -33,6 +33,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <memory>
 
                                 // MDW classes
 #include <numerical.h>
@@ -41,7 +42,6 @@
 #include <hernquist.h>
 #include <model3d.h>
 #include <biorth.h>
-#include <SphericalSL.h>
 #include <interp.h>
 #include <EmpCylSL.h>
 
@@ -59,9 +59,8 @@ namespace po = boost::program_options;
 #endif
 
                                 // Local headers
-#include "SphericalSL.h"
-#include "DiskHalo3.h" 
-#include "localmpi.h"
+#include <DiskHalo3.H>
+#include <localmpi.h>
 
 //
 // Global variables
@@ -493,11 +492,11 @@ main(int argc, char **argv)
   SphericalSL::RMAX = RSPHSL;
   SphericalSL::NUMR = NUMR;
                                 // Create expansion only if needed . . .
-  SphericalSL *expandh = NULL;
+  std::shared_ptr<SphericalSL> expandh;
   if (n_particlesH) {
-    expandh = new SphericalSL(nthrds, LMAX, NMAX, SCMAP, SCSPH);
+    expandh = std::make_shared<SphericalSL>(nthrds, LMAX, NMAX, SCMAP, SCSPH);
 #ifdef DEBUG
-    string dumpname("debug");
+    std::string dumpname("debug");
     expandh->dump_basis(dumpname);
 #endif
   }
@@ -518,9 +517,9 @@ main(int argc, char **argv)
   if (basis) EmpCylSL::DENS = true;
 
                                 // Create expansion only if needed . . .
-  EmpCylSL* expandd = NULL;
+  std::shared_ptr<EmpCylSL> expandd;
   if (n_particlesD) {
-    expandd = new EmpCylSL(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE);
+    expandd = std::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE);
 #ifdef DEBUG
     cout << "Process " << myid << ": "
 	 << " rmin=" << EmpCylSL::RMIN
@@ -544,23 +543,23 @@ main(int argc, char **argv)
 
   //====================Create the disk & halo model===========================
 
-  DiskHalo *diskhalo;
+  std::shared_ptr<DiskHalo> diskhalo;
 
   if (multi) {
     if (myid==0) cout << "Initializing a MULTIMASS halo . . . " << flush;
-    diskhalo = new DiskHalo (expandh, expandd,
-			     scale_height, scale_length, disk_mass, 
-			     halofile1, DIVERGE,  DIVERGE_RFAC,
-			     halofile2, DIVERGE2, DIVERGE_RFAC2);
+    diskhalo = std::make_shared<DiskHalo> (expandh, expandd,
+					   scale_height, scale_length, disk_mass, 
+					   halofile1, DIVERGE,  DIVERGE_RFAC,
+					   halofile2, DIVERGE2, DIVERGE_RFAC2);
     if (myid==0) cout << "done" << endl;
 
   } else {
 
     if (myid==0) cout << "Initializing a SINGLE halo . . . " << flush;
-    diskhalo = new DiskHalo (expandh, expandd,
-			     scale_height, scale_length, 
-			     disk_mass, halofile1,
-			     DF, DIVERGE, DIVERGE_RFAC);
+    diskhalo = std::make_shared<DiskHalo> (expandh, expandd,
+					   scale_height, scale_length, 
+					   disk_mass, halofile1,
+					   DF, DIVERGE, DIVERGE_RFAC);
     if (myid==0) cout << "done" << endl;
   }
   
@@ -1208,10 +1207,6 @@ main(int argc, char **argv)
   //===========================================================================
 
   MPI_Barrier(MPI_COMM_WORLD);
-
-  delete expandh;
-  delete expandd;
-
   MPI_Finalize();
 
   return 0;

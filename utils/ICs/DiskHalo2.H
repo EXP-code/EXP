@@ -23,8 +23,8 @@
 #include <localmpi.h>
 #include <Vector.h>
 
-#include "AddDisk.h"
-#include "SphericalSL.h"
+#include <AddDisk.H>
+#include <SphericalSL.H>
 #include "EmpCylSL.h"
 #include "SParticle.H"
 
@@ -44,26 +44,27 @@ public:
 class DiskHalo
 {
  private:
-  AddDisk *newmod;
-  SphericalModelTable *halo, *halo2, *halo3;
-  SphericalModelMulti *multi;
+  std::shared_ptr<AddDisk> newmod;
+  std::shared_ptr<SphericalModelTable> halo, halo2, halo3;
+  std::shared_ptr<SphericalModelMulti> multi;
 
-  ExponentialDisk *disk;
+  std::shared_ptr<ExponentialDisk> disk;
   double scalelength, scaleheight, dmass;
   double center_pos[3], center_vel[3];
 
   SphericalSLptr expandh;
   EmpCylSLptr    expandd;
 
-  Matrix *disktableP, *disktableN, epitable, dv2table, asytable;
+  std::vector<Matrix> disktableP, disktableN;
+  Matrix epitable, dv2table, asytable;
   double dP, dR, dZ;
 
   Matrix halotable;
   double dr, dc;
 
-  Uniform *rndU;
-  Normal *rndN;
-  ACG *gen;
+  std::shared_ptr<Uniform> rndU;
+  std::shared_ptr<Normal>  rndN;
+  std::shared_ptr<ACG>     gen;
 
   bool DF;
   bool MULTI;
