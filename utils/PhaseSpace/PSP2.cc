@@ -83,13 +83,15 @@ PSPout::PSPout(const std::string& infile, bool verbose) : PSP(verbose, "")
     YAML::Node conf, cconf, fconf;
     bool yaml_ok = true;
       
+    std::ostringstream errors;
+
     try {
       conf = YAML::Load(sin);
     }
     catch (YAML::Exception & error) {
-      std::cout << "Error parsing component config.  Trying old-style PSP"
-		<< std::endl
-		<< error.what() << std::endl;
+      errors << "Error parsing component config.  Trying old-style PSP"
+	     << std::endl
+	     << error.what() << std::endl;
       yaml_ok = false;
     }
 
@@ -179,15 +181,18 @@ PSPout::PSPout(const std::string& infile, bool verbose) : PSP(verbose, "")
 				  ), ios::cur);
     } 
     catch(...) {
-      std::ostringstream sout;
-      sout << "IO error: can't find next header for time="
-	   << header.time << " . . . quit reading <" << infile << ">";
+      std::cout << "IO error: can't find next header for time="
+		<< header.time << " . . . quit reading <" << infile << ">";
       break;
     }
       
     stanzas.push_back(stanza);
+
+    if (verbose) {
+      std::cout << errors.str();
+    }
   }
-  
+
   spos = stanzas.begin();
 }
 
