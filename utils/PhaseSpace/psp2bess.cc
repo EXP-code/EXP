@@ -27,36 +27,47 @@
 
 namespace po = boost::program_options;
 
+//! Generate orthonormal Bessel functions of integral order
 class Bess
 {
 private:
 
   unsigned int nroots;
-  double order, norm;
-  std::vector<double> roots;
+  double order;
+  std::vector<double> roots, norm;
 
 public:
 
+  //! Constructor: set the order and number of radial functions
   Bess(double order, unsigned int nroots) : order(order), nroots(nroots)
   {
     boost::math::cyl_bessel_j_zero(order, 1, nroots, std::back_inserter(roots));
+    norm.resize(nroots);
+    for (unsigned int m=0; m<nroots; m++) {
+      double val = boost::math::cyl_bessel_j(order+1.0, roots[m]);
+      norm[m] = 0.5*val*val;
+    }
   }
   
+  //! Get the norm for radial order m
   double getNorm(int m)
   {
-    norm = boost::math::cyl_bessel_j(order+1.0, roots[m]);
-    norm = 0.5*norm*norm;
-    return norm;
+    if (m>=nroots) return 0.0;
+    else           return norm[m];
   }
   
+  //! Evaluate the Bessel for x in [0, 1] for radial order m
   double operator()(double& x, const unsigned& m)
   {
     if (m>=nroots) return 0.0;
     return boost::math::cyl_bessel_j<double, double>(order, x*roots[m]);
   } 
 
+  //! Evaluate the Bessel for x in [0, 1] for radial order m
   double eval(double& x, unsigned& m)
   {
+    if (m>=nroots) return 0.0;
+    return boost::math::cyl_bessel_j<double, double>(order, x*roots[m]);
     if (m>=nroots) return 0.0;
     return boost::math::cyl_bessel_j<double, double>(order, x*roots[m]);
   } 
@@ -104,8 +115,10 @@ public:
     maccum = 0.0;
   }
 
+  //! Add a particle to coefficient
   void add(double mass, double R, double phi, double vr, double vt, double vz);
 
+  //! Normalize by total mass
   void normalize()
   {
     if (maccum>0.0) {
@@ -120,6 +133,7 @@ public:
     }
   }
 
+  //! Write binary file
   void write(std::ostream& out);
 };
 
@@ -350,7 +364,7 @@ main(int ac, char **av)
 	// uvec vt: -sin(phi), cos(phi)
 	double vt = -sinp*part->vel(0) + cosp*part->vel(1);
 	
-	// vertical
+	// uvec vz
 	double vz = part->vel(2);
 
 	// Add to grid
