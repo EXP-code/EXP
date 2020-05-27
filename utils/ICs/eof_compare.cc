@@ -53,7 +53,7 @@ main(int argc, char **argv)
   //====================
 
   std::string eof1, eof2;
-  int nmax, lmax, mmax, norder;
+  int nmax, lmax, mmax, norder, nodd;
   double acyl, hcyl;
 
   po::options_description desc("Allowed options");
@@ -70,6 +70,8 @@ main(int argc, char **argv)
      "maximum spherical radial order")
     ("norder,N",   po::value<int>(&norder)->default_value(18), 
      "maximum cylindrical radial order")
+    ("nodd,d",     po::value<int>(&nodd)->default_value(-1), 
+     "number of vertically antisymmetric functions per M-order")
     ("ascale,a",   po::value<double>(&acyl)->default_value(0.01), 
      "disk scale length")
     ("hscale,h",   po::value<double>(&hcyl)->default_value(0.001), 
@@ -130,7 +132,7 @@ main(int argc, char **argv)
 
   EmpCylSL::CACHEFILE = eof1;
 
-  EmpCylSL test1(nmax, lmax, mmax, norder, acyl, hcyl);
+  EmpCylSL test1(nmax, lmax, mmax, norder, acyl, hcyl, nodd);
 
   bool cache_ok = test1.read_cache();
 

@@ -333,6 +333,7 @@ main(int ac, char **av)
   int          NOUT;
   int          NFRC;
   int          NORDER;
+  int          NODD;
   double       scale_height;
   double       scale_length;
   double       ppower;
@@ -377,6 +378,7 @@ main(int ac, char **av)
     ("NUMX",            po::value<int>(&NUMX)->default_value(256),                      "Radial grid size for disk basis table")
     ("NUMY",            po::value<int>(&NUMY)->default_value(128),                      "Vertical grid size for disk basis table")
     ("NORDER",          po::value<int>(&NORDER)->default_value(16),                     "Number of disk basis functions per M-order")
+    ("NODD",            po::value<int>(&NODD)->default_value(-1),                       "Number of antisymmetric vertical functions per M-order")
     ("NOUT",            po::value<int>(&NOUT)->default_value(1000),                     "Number of radial basis functions to output for each harmonic order")
     ("NFRC",            po::value<int>(&NFRC)->default_value(100),                     "Number of radial knots for force check")
     ("DENS",            po::value<bool>(&DENS)->default_value(true),                    "Compute the density basis functions")

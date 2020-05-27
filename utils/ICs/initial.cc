@@ -122,6 +122,7 @@ int MMAX=4;
 int NUMX=128;
 int NUMY=64;
 int NORDER=16;
+int NODD=-1;
 
 int DIVERGE=0;
 double DIVERGE_RFAC=1.0;
@@ -214,6 +215,7 @@ main(int argc, char **argv)
 	  if (!optname.compare("hscale"))  HSCALE  = atof(optarg);
 	  if (!optname.compare("numr"))    NUMR    = atoi(optarg);
 	  if (!optname.compare("norder"))  NORDER  = atoi(optarg);
+	  if (!optname.compare("nodd"))    NODD    = atoi(optarg);
 	  if (!optname.compare("seed"))    SEED    = atoi(optarg);
 	  if (!optname.compare("cfile"))   centerfile = string(optarg);
 	  break;
@@ -423,7 +425,7 @@ main(int argc, char **argv)
                                 // Create expansion only if needed . . .
   std::shared_ptr<EmpCylSL> expandd;
   if (n_particlesD) 
-    expandd = std::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE);
+    expandd = std::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE, NODD);
   cout << "Proccess " << myid << ": "
        << " rmin=" << EmpCylSL::RMIN
        << " rmax=" << EmpCylSL::RMAX
@@ -433,6 +435,7 @@ main(int argc, char **argv)
        << " lmax2=" << LMAX2
        << " mmax=" << MMAX
        << " nordz=" << NORDER
+       << " noddz=" << NODD
        << endl << flush;
 
   //====================Create the disk & halo model===========================

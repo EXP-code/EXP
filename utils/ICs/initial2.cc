@@ -386,6 +386,7 @@ main(int ac, char **av)
   int          NOUT;
   int          NORDER;
   int          NORDER1;
+  int          NODD;
   bool         SELECT;
   bool         DUMPCOEF;
   int          DIVERGE;
@@ -487,6 +488,7 @@ main(int ac, char **av)
     ("NUMY",            po::value<int>(&NUMY)->default_value(128),                      "Vertical grid size for disk basis table")
     ("NORDER",          po::value<int>(&NORDER)->default_value(16),                     "Number of disk basis functions per M-order")
     ("NORDER1",         po::value<int>(&NORDER1)->default_value(1000),                  "Restricts disk basis function to NORDER1<NORDER after basis construction for testing")
+    ("NODD",            po::value<int>(&NODD)->default_value(-1),                       "Number of vertically antisymmetric disk basis functions per M-order")
     ("NOUT",            po::value<int>(&NOUT)->default_value(1000),                     "Number of radial basis functions to output for each harmonic order")
     ("SELECT",          po::value<bool>(&SELECT)->default_value(false),                 "Enable significance selection in coefficient computation")
     ("DUMPCOEF",        po::value<bool>(&DUMPCOEF)->default_value(false),               "Dump coefficients")
@@ -823,7 +825,7 @@ main(int ac, char **av)
 
   if (n_particlesD) {
 
-    expandd = boost::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE);
+    expandd = boost::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE, NODD);
 
 #ifdef DEBUG
    std::cout << "Process " << myid << ": "
@@ -835,6 +837,7 @@ main(int ac, char **av)
 	     << " lmax2="  << LMAX2
 	     << " mmax="   << MMAX
 	     << " nordz="  << NORDER
+	     << " noddz="  << NODD
 	     << std::endl  << std::flush;
 #endif
 

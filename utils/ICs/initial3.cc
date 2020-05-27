@@ -108,6 +108,7 @@ int          MMAX;
 int          NUMX;
 int          NUMY;
 int          NORDER;
+int          NODD;
 int          DIVERGE;
 double       DIVERGE_RFAC;
 int          DIVERGE2;
@@ -304,6 +305,8 @@ main(int argc, char **argv)
      "Vertical grid size for disk basis table")
     ("NORDER",              po::value<int>(&NORDER)->default_value(16),
      "Number of disk basis functions per M-order")
+    ("NODD",                po::value<int>(&NODD)->default_value(-1),
+     "Number of vertically antisymmtric disk basis functions per M-order")
     ("DIVERGE",             po::value<int>(&DIVERGE)->default_value(0),
      "Cusp extrapolation for primary halo model")
     ("DIVERGE_RFAC",        po::value<double>(&DIVERGE_RFAC)->default_value(1.0),
@@ -519,7 +522,7 @@ main(int argc, char **argv)
                                 // Create expansion only if needed . . .
   std::shared_ptr<EmpCylSL> expandd;
   if (n_particlesD) {
-    expandd = std::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE);
+    expandd = std::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE, NODD);
 #ifdef DEBUG
     cout << "Process " << myid << ": "
 	 << " rmin=" << EmpCylSL::RMIN
@@ -530,6 +533,7 @@ main(int argc, char **argv)
 	 << " lmax2=" << LMAX2
 	 << " mmax=" << MMAX
 	 << " nordz=" << NORDER
+	 << " noddz=" << NODD
 	 << endl << flush;
 #endif
 
