@@ -78,6 +78,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   mlim            = -1;
   hcyl            = 1.0;
   ncylorder       = 10;
+  ncylodd         = -1;
   ncylrecomp      = -1;
 
   rnum            = 100;
@@ -135,7 +136,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 
   // Make the empirical orthogonal basis instance
   //
-  ortho = new EmpCylSL(nmax, lmax, mmax, ncylorder, acyl, hcyl);
+  ortho = new EmpCylSL(nmax, lmax, mmax, ncylorder, acyl, hcyl, ncylodd);
   
   // Set azimuthal harmonic order restriction?
   //
@@ -244,6 +245,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	   << " mmax="        << mmax
 	   << " mlim="        << mlim
 	   << " ncylorder="   << ncylorder
+	   << " ncylodd="     << ncylodd
 	   << " rcylmin="     << rcylmin
 	   << " rcylmax="     << rcylmax
 	   << " acyl="        << acyl
@@ -271,6 +273,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	 << " mmax="        << mmax
 	 << " mlim="        << mlim
 	 << " ncylorder="   << ncylorder
+	 << " ncylodd="     << ncylodd
 	 << " rcylmin="     << rcylmin
 	 << " rcylmax="     << rcylmax
 	 << " acyl="        << acyl
@@ -330,6 +333,7 @@ void Cylinder::initialize()
     if (conf["ncylny"    ])     ncylny  = conf["ncylny"    ].as<int>();
     if (conf["ncylr"     ])      ncylr  = conf["ncylr"     ].as<int>();
     if (conf["ncylorder" ])  ncylorder  = conf["ncylorder" ].as<int>();
+    if (conf["ncylodd"   ])    ncylodd  = conf["ncylodd"   ].as<int>();
     if (conf["ncylrecomp"]) ncylrecomp  = conf["ncylrecomp"].as<int>();
     if (conf["npca"      ])       npca  = conf["npca"      ].as<int>();
     if (conf["npca0"     ])      npca0  = conf["npca0"     ].as<int>();

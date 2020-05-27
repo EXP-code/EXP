@@ -46,7 +46,7 @@ private:
   int nmax, lmax, mmax, mlim;
   int ncylnx, ncylny, ncylr;
   double hcyl;
-  int ncylorder, ncylrecomp, npca, npca0, nvtk, cmaptype;
+  int ncylorder, ncylodd, ncylrecomp, npca, npca0, nvtk, cmaptype;
   string eof_file;
   bool self_consistent, logarithmic, density, pcavar, pcainit, pcavtk, pcadiag, pcaeof, eof_over, cmap;
   bool try_cache, firstime, dump_basis, compute, firstime_coef;
@@ -215,6 +215,8 @@ public:
   //! \param ncylnx is the radial grid in the basis function table
   //! \param ncylny is the vertical grid in the basis function table
   //! \param ncylr is the size of the spherical radial grid used to construct the cylindrical basis
+  //! \param ncylorder is the order of the radial expansion
+  //! \param ncylodd is the number of terms with vertically antisymmetric parity out of ncylorder.  If unspecified, you will get the original variance order.
   //! \param ncylrecomp is the number of steps between basis recomputation (default: -1 which means NEVER)
   //! \param npca is the number of steps between Hall coefficient recomputaton 
   //! \param npca0 is the first step for Hall coefficient computaton 

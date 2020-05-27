@@ -95,14 +95,14 @@ private:
 
   //@{
   //! EOF variance computation
-  std::vector< std::vector< std::vector< std::vector<double> > > > SC;
-  std::vector< std::vector< std::vector< std::vector<double> > > > SS;
+  using VarMat = std::vector< std::vector< std::vector< std::vector<double> > > >;
+  VarMat SC, SS, SCe, SCo, SSe, SSo;
   //@}
 
-  std::vector<Matrix> var;
+  std::vector<Matrix> var, varE, varO;
 
-  Vector ev;
-  Matrix ef;
+  std::vector< std::vector<int> > lE, lO;
+  Matrix ef, efE, efO;
   Matrix potd, dpot, dend;
   std::vector<Vector> cosm, sinm;
   std::vector<Matrix> legs, dlegs;
@@ -202,6 +202,7 @@ private:
   void send_eof_grid();
   void receive_eof     (int request_id, int m);
   void compute_eof_grid(int request_id, int m);
+  void compute_even_odd(int request_id, int m);
   void setup_eof_grid(void);
   void parityCheck(const std::string& prefix);
 
@@ -290,6 +291,12 @@ private:
 
   //! Suppress odd modes
   bool EVEN_M;
+
+  //! Use EvenOdd partition
+  bool EvenOdd;
+
+  //! Number of even and odd terms per subspace
+  int Neven, Nodd;
 
 public:
 
@@ -409,16 +416,35 @@ public:
   //! Constructor (reset must called later)
   EmpCylSL(void);
 
-  //! Constructor with parameters
+  /** Constructor with parameters
+
+      \par Parameters:
+
+      @param numr is the spherical radial order of the input basis
+
+      @param lmax is the spherical angular order of the input basis
+
+      @param mmax is the output aximuthal order for the EOF basis
+
+      @param nord is the output radial order for the EOF basis
+
+      @param ascale is the target disk scale LENGTH
+
+      @param hscale is the target disk scale HEIGHT
+
+      @param nodd is the number of vertically odd parity basis
+      functions.  If unspecified, you get eigenvalue order.
+      
+   */
   EmpCylSL(int numr, int lmax, int mmax, int nord,
-	   double ascale, double hscale);
+	   double ascale, double hscale, int Nodd=-1);
 
   //! Destructor
   ~EmpCylSL(void);
 
   //! Reconstruct basis with new parameters
   void reset(int numr, int lmax, int mmax, int nord,
-	     double ascale, double hscale);
+	     double ascale, double hscale, int Nodd=-1);
 
   //! Read EOF basis header from saved file
   int read_eof_header(const string& eof_file);
