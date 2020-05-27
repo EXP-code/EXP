@@ -42,7 +42,14 @@ extern pthread_mutex_t coef_lock;
 
 #endif
 
-//! Encapsulatates a SLGridSph (Sturm-Liouville basis) for use as force method
+/** Encapsulatates a SLGridSph (Sturm-Liouville basis) for use as
+    force method
+    
+    This version breaks the spherical basis computation into even and
+    odd subspaces if Nodd is selected.  This gives the user more
+    control over the vertical parity, is numerically more accurate,
+    and more efficient.
+ */
 class EmpCylSL
 {
 public:

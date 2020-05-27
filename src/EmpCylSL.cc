@@ -124,7 +124,8 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
     Nodd     = nodd;
   }
 
-				// Enable MPI code for more than one node
+  // Enable MPI code for more than one node
+  //
   if (numprocs>1) SLGridSph::mpi = 1;
 
   if (DENS)
@@ -729,12 +730,14 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
     const int one  = 1;
     const int zero = 0;
 
+    // One might want to include Nodd in this header . . .
+
     out.write((const char *)&MMAX,    sizeof(int));
     out.write((const char *)&NUMX,    sizeof(int));
     out.write((const char *)&NUMY,    sizeof(int));
     out.write((const char *)&NMAX,    sizeof(int));
     out.write((const char *)&NORDER,  sizeof(int));
-    if (DENS) out.write((const char *)&one, sizeof(int));
+    if (DENS) out.write((const char *)&one,  sizeof(int));
     else      out.write((const char *)&zero, sizeof(int));
     out.write((const char *)&CMAP,    sizeof(int));
     out.write((const char *)&RMIN,    sizeof(double));
@@ -744,8 +747,8 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
     out.write((const char *)&cylmass, sizeof(double));
     out.write((const char *)&tnow,    sizeof(double));
 
-				// Write table
-
+    // Write table
+    //
     for (int m=0; m<=MMAX; m++) {
 
       for (int v=0; v<rank3; v++) {
