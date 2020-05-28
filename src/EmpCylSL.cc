@@ -2804,7 +2804,6 @@ void EmpCylSL::make_eof(void)
 	//==========================
     
 	if (VFLAG & 16) {
-
 	  int nancount = 0;
 
 	  if (EvenOdd) {
@@ -2967,8 +2966,9 @@ void EmpCylSL::make_eof(void)
     
 	if (VFLAG & 16) {
 
+	  int nancount = 0;
+
 	  if (EvenOdd) {
-	    int nancount = 0;
 
 	    for (int i=1; i<=varE[M].getnrows(); i++) {
 	      for (int j=1; j<=varE[M].getncols(); j++) {
@@ -2983,7 +2983,6 @@ void EmpCylSL::make_eof(void)
 		 << ", found " << nancount << " NaN values" << endl;
 
 	    nancount = 0;
-
 	    for (int i=1; i<=varO[M].getnrows(); i++) {
 	      for (int j=1; j<=varO[M].getncols(); j++) {
 		if (std::isnan(varO[M][i][j])) nancount++;
@@ -2997,7 +2996,6 @@ void EmpCylSL::make_eof(void)
 		 << ", found " << nancount << " NaN values" << endl;
 
 	  } else {
-	    int nancount = 0;
 
 	    for (int i=1; i<=var[M].getnrows(); i++) {
 	      for (int j=1; j<=var[M].getncols(); j++) {
