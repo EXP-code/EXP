@@ -106,7 +106,9 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
     if (myid==0) {
       std::cout << "EmpCylSL: lmax must be greater than mmax for consistency"
 		<< std::endl
-		<< "EmpCylSL: setting lmax=" << mmax + 1 << std::endl;
+		<< "EmpCylSL: setting lmax=" << mmax + 1
+		<< " but you probably want lmax >> mmax"
+		<< std::endl;
     }
     lmax = mmax + 1;
   }
@@ -165,7 +167,9 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
     if (myid==0) {
       std::cout << "EmpCylSL: lmax must be greater than mmax for consistency"
 		<< std::endl
-		<< "EmpCylSL: setting lmax=" << mmax + 1 << std::endl;
+		<< "EmpCylSL: setting lmax=" << mmax + 1
+		<< " but you probably want lmax >> mmax"
+		<< std::endl;
     }
     lmax = mmax + 1;
   }
