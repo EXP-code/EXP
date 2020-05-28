@@ -2966,18 +2966,51 @@ void EmpCylSL::make_eof(void)
 	//==========================
     
 	if (VFLAG & 16) {
-	  int nancount = 0;
-	  for (int i=1; i<=var[M].getnrows(); i++) {
-	    for (int j=1; j<=var[M].getncols(); j++) {
-	      if (std::isnan(var[M][i][j])) nancount++;
-	    }
-	  }
 
-	  cout << "Process " << setw(4) << myid 
-	       << ": in eigenvalue problem with "
-	       << "rank=[" << var[M].getncols() << ", " 
-	       << var[M].getnrows() << "]"
-	       << ", found " << nancount << " NaN values" << endl;
+	  if (EvenOdd) {
+	    int nancount = 0;
+
+	    for (int i=1; i<=varE[M].getnrows(); i++) {
+	      for (int j=1; j<=varE[M].getncols(); j++) {
+		if (std::isnan(varE[M][i][j])) nancount++;
+	      }
+	    }
+	    
+	    cout << "Process " << setw(4) << myid 
+		 << ": in eigenvalue problem [even] with "
+		 << "rank=[" << varE[M].getncols() << ", " 
+		 << varE[M].getnrows() << "]"
+		 << ", found " << nancount << " NaN values" << endl;
+
+	    nancount = 0;
+
+	    for (int i=1; i<=varO[M].getnrows(); i++) {
+	      for (int j=1; j<=varO[M].getncols(); j++) {
+		if (std::isnan(varO[M][i][j])) nancount++;
+	      }
+	    }
+	    
+	    cout << "Process " << setw(4) << myid 
+		 << ": in eigenvalue problem [odd] with "
+		 << "rank=[" << varO[M].getncols() << ", " 
+		 << varO[M].getnrows() << "]"
+		 << ", found " << nancount << " NaN values" << endl;
+
+	  } else {
+	    int nancount = 0;
+
+	    for (int i=1; i<=var[M].getnrows(); i++) {
+	      for (int j=1; j<=var[M].getncols(); j++) {
+		if (std::isnan(var[M][i][j])) nancount++;
+	      }
+	    }
+	    
+	    cout << "Process " << setw(4) << myid 
+		 << ": in eigenvalue problem with "
+		 << "rank=[" << var[M].getncols() << ", " 
+		 << var[M].getnrows() << "]"
+		 << ", found " << nancount << " NaN values" << endl;
+	  }
 
 	  timer.reset();
 	  timer.start();
