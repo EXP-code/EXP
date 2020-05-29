@@ -417,7 +417,7 @@ public:
   static bool NewCoefs;
 
   //! Convert EmpModel to ascii label
-  static std::map<EmpCylSL::EmpModel, std::string> EmpCylSL::EmpModelLabs;
+  static std::map<EmpModel, std::string> EmpModelLabs;
 
   //! Fraction of table range for basis images (for debug)
   static double HFAC;
