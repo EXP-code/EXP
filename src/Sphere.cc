@@ -42,7 +42,8 @@ Sphere::Sphere(const YAML::Node& conf, MixtureBasis* m) : SphericalBasis(conf, m
 
   SLGridSph::model_file_name = homedir + model_file;
   SLGridSph::sph_cache_name  = outdir  + cache_file + "." + runtag;
-  
+
+  id += ", model=" + SLGridSph::model_file_name;
 
 				// Generate Sturm-Liouville grid
   ortho = boost::make_shared<SLGridSph>(Lmax, nmax, numr, rmin, rmax, true,
