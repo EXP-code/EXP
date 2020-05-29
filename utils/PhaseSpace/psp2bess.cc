@@ -55,7 +55,7 @@ public:
     norm.resize(nroots);
     for (unsigned int m=0; m<nroots; m++) {
       double val = boost::math::cyl_bessel_j(order+1.0, roots[m]);
-      norm[m] = 0.5*val*val;
+      norm[m] = sqrt(0.5*val*val);
     }
   }
   
@@ -70,16 +70,14 @@ public:
   double operator()(double& x, const unsigned& m)
   {
     if (m>=nroots) return 0.0;
-    return boost::math::cyl_bessel_j<double, double>(order, x*roots[m]);
+    return boost::math::cyl_bessel_j<double, double>(order, x*roots[m]) / norm[m];
   } 
 
   //! Evaluate the Bessel for x in [0, 1] for radial order m
   double eval(double& x, unsigned& m)
   {
     if (m>=nroots) return 0.0;
-    return boost::math::cyl_bessel_j<double, double>(order, x*roots[m]);
-    if (m>=nroots) return 0.0;
-    return boost::math::cyl_bessel_j<double, double>(order, x*roots[m]);
+    return boost::math::cyl_bessel_j<double, double>(order, x*roots[m]) / norm[m];
   } 
 
 }; 
@@ -200,9 +198,8 @@ BessCoefs::add(double mass, double R, double phi, double vr, double vt, double v
     for (unsigned int n=0; n<nmax; n++) {
 
       double x     = R/rmax;
-      double value = bess[m]->eval(x, n);
-      double norm  = bess[m]->getNorm(n)*rmax*rmax;
-      double fact  = mass * value / norm;
+      double value = bess[m]->eval(x, n)/rmax;
+      double fact  = mass * value;
       if (m==0) fact *= 0.5;
     
       cos_c[m][0][n] += fact*vr*cosm;
