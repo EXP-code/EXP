@@ -192,6 +192,7 @@ void
 BessCoefs::add(double mass, double R, double phi, double vr, double vt, double vz)
 {
   // Add to grid
+  maccum += mass;
   for (int m=mmin; m<=mmax; m++) {
     double cosm  = std::cos(phi*m), sinm = std::sin(phi*m);
 
@@ -199,8 +200,8 @@ BessCoefs::add(double mass, double R, double phi, double vr, double vt, double v
 
       double x     = R/rmax;
       double value = bess[m]->eval(x, n)/rmax;
-      double fact  = mass * value;
-      if (m==0) fact *= 0.5;
+      double fact  = mass * value * 0.5*M_2_SQRTPI;
+      if (m==0) fact *= M_SQRT1_2;
     
       cos_c[m][0][n] += fact*vr*cosm;
       cos_c[m][1][n] += fact*vt*cosm;
