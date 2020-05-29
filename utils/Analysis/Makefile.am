@@ -89,11 +89,11 @@ diskprof3_LDADD   = $(EXPLIBS) $(YAML) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldl
 
 readcoefs_SOURCES = readcoefs.cc
 readcoefs_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
-readcoefs_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB)
+readcoefs_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB) $(YAML)
 
 readcoefs2_SOURCES = readcoefs2.cc
 readcoefs2_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
-readcoefs2_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB)
+readcoefs2_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB) $(YAML)
 
 diskprof4_SOURCES = PSP2.cc header.cc diskprof4.cc EmpCylSL.cc localmpi.cc Particle.cc
 diskprof4_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
