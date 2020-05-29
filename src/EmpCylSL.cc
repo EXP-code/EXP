@@ -811,7 +811,7 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
       node["mmax"  ] = MMAX;
       node["numx"  ] = NUMX;
       node["numy"  ] = NUMY;
-      node["nmax"  ] = NUMX;
+      node["nmax"  ] = NMAX;
       node["norder"] = NORDER;
       node["neven" ] = Neven;
       node["nodd"  ] = Nodd;
