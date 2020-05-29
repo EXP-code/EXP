@@ -2,11 +2,14 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <memory>
 #include <limits>
 #include <string>
 
+
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
+#include <boost/make_unique.hpp>
 #include <boost/multi_array.hpp>
 #include <boost/progress.hpp>	// Progress bar
 
@@ -20,7 +23,9 @@
 #include "global.H"
 #include <VtkPCA.H>
 #else  
+#include <yaml-cpp/yaml.h>	// YAML support
 #include "EXPException.H"
+
 				// Constants from expand.h & global.H
 extern int nthrds;
 extern double tnow;
@@ -63,6 +68,8 @@ double   EmpCylSL::RMAX            = 20.0;
 double   EmpCylSL::HFAC            = 0.2;
 double   EmpCylSL::PPOW            = 4.0;
 string   EmpCylSL::CACHEFILE       = ".eof.cache.file";
+bool     EmpCylSL::NewCache        = false;
+bool     EmpCylSL::NewCoefs        = false;
  
 
 EmpCylSL::EmpModel EmpCylSL::mtype = Exponential;
@@ -721,31 +728,76 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 
   if (readwrite) {
 
-    ofstream out(cachefile.c_str());
+    std::ofstream out(cachefile.c_str());
     if (!out) {
-      cerr << "EmpCylSL::cache_grid: error writing file" << endl;
+      std::cerr << "EmpCylSL::cache_grid: error writing file" << std::endl;
       return 0;
     }
 
-    const int one  = 1;
-    const int zero = 0;
+    if (NewCache) {
 
-    // One might want to include Nodd in this header . . .
+      // This is a node of simple {key: value} pairs.  More general
+      // content can be added as needed.
+      YAML::Node node;
 
-    out.write((const char *)&MMAX,    sizeof(int));
-    out.write((const char *)&NUMX,    sizeof(int));
-    out.write((const char *)&NUMY,    sizeof(int));
-    out.write((const char *)&NMAX,    sizeof(int));
-    out.write((const char *)&NORDER,  sizeof(int));
-    if (DENS) out.write((const char *)&one,  sizeof(int));
-    else      out.write((const char *)&zero, sizeof(int));
-    out.write((const char *)&CMAP,    sizeof(int));
-    out.write((const char *)&RMIN,    sizeof(double));
-    out.write((const char *)&RMAX,    sizeof(double));
-    out.write((const char *)&ASCALE,  sizeof(double));
-    out.write((const char *)&HSCALE,  sizeof(double));
-    out.write((const char *)&cylmass, sizeof(double));
-    out.write((const char *)&tnow,    sizeof(double));
+      node["mmax"  ] = MMAX;
+      node["numx"  ] = NUMX;
+      node["numy"  ] = NUMY;
+      node["nmax"  ] = NUMX;
+      node["norder"] = NORDER;
+      node["neven" ] = Neven;
+      node["nodd"  ] = Nodd;
+      node["dens"  ] = DENS;
+      node["cmap"  ] = CMAP;
+      node["rmin"  ] = RMIN;
+      node["rmax"  ] = RMAX;
+      node["ascl"  ] = ASCALE;
+      node["hscl"  ] = HSCALE;
+      node["cmass" ] = cylmass;
+      node["time"  ] = tnow;
+
+      // Serialize the node
+      //
+      YAML::Emitter y; y << node;
+
+      // Get the size of the string
+      //
+      unsigned int hsize = strlen(y.c_str());
+
+      // Write magic #
+      //
+      out.write(reinterpret_cast<const char *>(&hmagic),   sizeof(unsigned int));
+
+      // Write YAML string size
+      //
+      out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
+
+      // Write YAML string
+      //
+      out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
+
+    } else {
+
+      // Old-style header
+      //
+      const int one  = 1;
+      const int zero = 0;
+
+      out.write((const char *)&MMAX,    sizeof(int));
+      out.write((const char *)&NUMX,    sizeof(int));
+      out.write((const char *)&NUMY,    sizeof(int));
+      out.write((const char *)&NMAX,    sizeof(int));
+      out.write((const char *)&NORDER,  sizeof(int));
+      if (DENS) out.write((const char *)&one,  sizeof(int));
+      else      out.write((const char *)&zero, sizeof(int));
+      out.write((const char *)&CMAP,    sizeof(int));
+      out.write((const char *)&RMIN,    sizeof(double));
+      out.write((const char *)&RMAX,    sizeof(double));
+      out.write((const char *)&ASCALE,  sizeof(double));
+      out.write((const char *)&HSCALE,  sizeof(double));
+      out.write((const char *)&cylmass, sizeof(double));
+      out.write((const char *)&tnow,    sizeof(double));
+    }
 
     // Write table
     //
@@ -805,7 +857,7 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
   }
   else {
 
-    ifstream in(cachefile.c_str());
+    std::ifstream in(cachefile.c_str());
     if (!in) {
       cerr << "EmpCylSL::cache_grid: error opening file" << endl;
       return 0;
@@ -815,17 +867,55 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
     bool dens=false;
     double rmin, rmax, ascl, hscl;
 
-    in.read((char *)&mmax,   sizeof(int));
-    in.read((char *)&numx,   sizeof(int));
-    in.read((char *)&numy,   sizeof(int));
-    in.read((char *)&nmax,   sizeof(int));
-    in.read((char *)&norder, sizeof(int));
-    in.read((char *)&tmp,    sizeof(int));    if (tmp) dens = true;
-    in.read((char *)&cmap,   sizeof(int));
-    in.read((char *)&rmin,   sizeof(double));
-    in.read((char *)&rmax,   sizeof(double));
-    in.read((char *)&ascl,   sizeof(double));
-    in.read((char *)&hscl,   sizeof(double));
+    // Attempt to read magic number
+    //
+    unsigned int tmagic;
+    in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
+
+    if (tmagic == hmagic) {
+      // YAML size
+      //
+      unsigned ssize;
+      in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
+
+      // Make and read char buffer
+      //
+      auto buf = boost::make_unique<char[]>(ssize);
+      in.read(buf.get(), ssize);
+
+      YAML::Node node = YAML::Load(buf.get());
+      
+      // Get parameters
+      //
+      mmax   = node["mmax"  ].as<int>();
+      numx   = node["numx"  ].as<int>();
+      numy   = node["numy"  ].as<int>();
+      nmax   = node["nmax"  ].as<int>();
+      norder = node["norder"].as<int>();
+      dens   = node["dens"  ].as<bool>();
+      cmap   = node["cmap"  ].as<int>();
+      rmin   = node["rmin"  ].as<double>();
+      rmax   = node["rmax"  ].as<double>();
+      ascl   = node["ascl"  ].as<double>();
+      hscl   = node["hscl"  ].as<double>();
+
+    } else {
+				// Rewind file
+      in.clear();
+      in.seekg(0);
+
+      in.read((char *)&mmax,   sizeof(int));
+      in.read((char *)&numx,   sizeof(int));
+      in.read((char *)&numy,   sizeof(int));
+      in.read((char *)&nmax,   sizeof(int));
+      in.read((char *)&norder, sizeof(int));
+      in.read((char *)&tmp,    sizeof(int));    if (tmp) dens = true;
+      in.read((char *)&cmap,   sizeof(int));
+      in.read((char *)&rmin,   sizeof(double));
+      in.read((char *)&rmax,   sizeof(double));
+      in.read((char *)&ascl,   sizeof(double));
+      in.read((char *)&hscl,   sizeof(double));
+    }
 
 				// Spot check compatibility
     if ( (MMAX    != mmax   ) |
@@ -4582,11 +4672,43 @@ static CylCoefHeader coefheadercyl;
 
 void EmpCylSL::dump_coefs_binary(ostream& out, double time)
 {
-  coefheadercyl.time = time;
-  coefheadercyl.mmax = MMAX;
-  coefheadercyl.nmax = rank3;
+  if (NewCoefs) {
+    // This is a node of simple {key: value} pairs.  More general
+    // content can be added as needed.
+    //
+    YAML::Node node;
 
-  out.write((const char *)&coefheadercyl, sizeof(CylCoefHeader));
+    node["time"  ] = tnow;
+    node["mmax"  ] = MMAX;
+    node["nmax"  ] = rank3;
+
+    // Serialize the node
+    //
+    YAML::Emitter y; y << node;
+
+    // Get the size of the string
+    //
+    unsigned int hsize = strlen(y.c_str());
+    
+    // Write magic #
+    //
+    out.write(reinterpret_cast<const char *>(&cmagic),   sizeof(unsigned int));
+
+    // Write YAML string size
+    //
+    out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
+
+    // Write YAML string
+    //
+    out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
+
+  } else {
+    coefheadercyl.time = time;
+    coefheadercyl.mmax = MMAX;
+    coefheadercyl.nmax = rank3;
+
+    out.write((const char *)&coefheadercyl, sizeof(CylCoefHeader));
+  }
 
   for (int mm=0; mm<=MMAX; mm++) {
 
