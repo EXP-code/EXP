@@ -628,29 +628,70 @@ void EmpCylSL::send_eof_grid()
 }
 
 
-int EmpCylSL::read_eof_header(const string& eof_file)
+int EmpCylSL::read_eof_header(const std::string& eof_file)
 {
-  ifstream in(eof_file.c_str());
+  std::ifstream in(eof_file.c_str());
   if (!in) {
-    cerr << "EmpCylSL::cache_grid: error opening file named <" 
-	 << eof_file << ">" << endl;
+    std::cerr << "EmpCylSL::cache_grid: error opening file named <" 
+	      << eof_file << ">" << std::endl;
     return 0;
   }
 
-  int tmp;
+  // Attempt to read magic number
+  //
+  unsigned int tmagic;
+  in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
 
-  in.read((char *)&MMAX,   sizeof(int));
-  in.read((char *)&NUMX,   sizeof(int));
-  in.read((char *)&NUMY,   sizeof(int));
-  in.read((char *)&NMAX,   sizeof(int));
-  in.read((char *)&NORDER, sizeof(int));
-  in.read((char *)&tmp,    sizeof(int)); 
-  if (tmp) DENS = true; else DENS = false;
-  in.read((char *)&CMAP,   sizeof(int)); 
-  in.read((char *)&RMIN,   sizeof(double));
-  in.read((char *)&RMAX,   sizeof(double));
-  in.read((char *)&ASCALE, sizeof(double));
-  in.read((char *)&HSCALE, sizeof(double));
+  if (tmagic == hmagic) {
+
+      // YAML size
+      //
+      unsigned ssize;
+      in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
+
+      // Make and read char buffer
+      //
+      auto buf = boost::make_unique<char[]>(ssize);
+      in.read(buf.get(), ssize);
+
+      YAML::Node node = YAML::Load(buf.get());
+      
+      // Get parameters
+      //
+      MMAX   = node["mmax"  ].as<int>();
+      NUMX   = node["numx"  ].as<int>();
+      NUMY   = node["numy"  ].as<int>();
+      NMAX   = node["nmax"  ].as<int>();
+      NORDER = node["norder"].as<int>();
+      DENS   = node["dens"  ].as<bool>();
+      CMAP   = node["cmap"  ].as<int>();
+      RMIN   = node["rmin"  ].as<double>();
+      RMAX   = node["rmax"  ].as<double>();
+      ASCALE = node["ascl"  ].as<double>();
+      HSCALE = node["hscl"  ].as<double>();
+
+  } else {
+
+    // Rewind file
+    //
+    in.clear();
+    in.seekg(0);
+
+    int tmp;
+
+    in.read((char *)&MMAX,   sizeof(int));
+    in.read((char *)&NUMX,   sizeof(int));
+    in.read((char *)&NUMY,   sizeof(int));
+    in.read((char *)&NMAX,   sizeof(int));
+    in.read((char *)&NORDER, sizeof(int));
+    in.read((char *)&tmp,    sizeof(int)); 
+    if (tmp) DENS = true; else DENS = false;
+    in.read((char *)&CMAP,   sizeof(int)); 
+    in.read((char *)&RMIN,   sizeof(double));
+    in.read((char *)&RMAX,   sizeof(double));
+    in.read((char *)&ASCALE, sizeof(double));
+    in.read((char *)&HSCALE, sizeof(double));
+  }
   
   if (myid==0) {
     cout << setfill('-') << setw(70) << '-' << endl;
