@@ -327,8 +327,6 @@ main(int ac, char **av)
     exit(-1);
   }
 
-  boost::progress_display progress(iend - ibeg + 1);
-
   for (int n=ibeg; n<=iend; n++) {
 
     std::ostringstream fname;
@@ -344,7 +342,6 @@ main(int ac, char **av)
 
     if (myid==0) {
       if (verbose) cerr << "Using filename: " << file << endl;
-      else ++progress;
     }
 
 				// Parse the PSP file
@@ -385,9 +382,16 @@ main(int ac, char **av)
       if (stanza->name != cname) continue;
 
       unsigned int icnt = 0;
+
+      std::shared_ptr<boost::progress_display> progress;
+      if (myid==0) {
+	std::cout << "Using filename: " << file << std::endl;
+	progress = std::make_shared<boost::progress_display>(stanza->comp.nbod/numprocs);
+      }
+
       for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
 	
-	if (icnt % numprocs) continue;
+	if (icnt++ % numprocs) continue;
 
 	// Cylindrical radius
 	//
@@ -414,6 +418,8 @@ main(int ac, char **av)
 
 	// Add to grid
 	bess.add(mass, val, phi, vr, vt, vz);
+
+	if (myid==0)  ++(*progress);
       }
     }
 
