@@ -416,6 +416,9 @@ public:
   //! Use YAML header in coefficient file
   static bool NewCoefs;
 
+  //! Convert EmpModel to ascii label
+  static std::map<EmpCylSL::EmpModel, std::string> EmpCylSL::EmpModelLabs;
+
   //! Fraction of table range for basis images (for debug)
   static double HFAC;
 

@@ -74,6 +74,15 @@ bool     EmpCylSL::NewCoefs        = false;
 
 EmpCylSL::EmpModel EmpCylSL::mtype = Exponential;
 
+std::map<EmpCylSL::EmpModel, std::string> EmpCylSL::EmpModelLabs =
+  { {Exponential, "Exponential"},
+    {Gaussian,    "Gaussian"   },
+    {Plummer,     "Plummer"    },
+    {Power,       "Power"      },
+    {Deproject,   "Deproject"  }
+  };
+
+
 EmpCylSL::EmpCylSL(void)
 {
   NORDER     = 0;
@@ -405,15 +414,8 @@ SphModTblPtr EmpCylSL::make_sl()
 				// Debug sanity check
 				// ------------------------------------------
   if (myid==0) {
-    std::map<EmpModel, std::string> labs =
-      { {Exponential, "Exponential"},
-	{Gaussian,    "Gaussian"   },
-	{Plummer,     "Plummer"    },
-	{Power,       "Power"      },
-	{Deproject,   "Deproject"  }
-      };
     std::cout << "EmpCylSL::make_sl(): making SLGridSph with <"
-	      << labs[mtype] << "> model" << std::endl;
+	      << EmpModelLabs[mtype] << "> model" << std::endl;
   }
 
 				// ------------------------------------------
@@ -805,6 +807,7 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
       // content can be added as needed.
       YAML::Node node;
 
+      node["model" ] = EmpModelLabs[mtype];
       node["mmax"  ] = MMAX;
       node["numx"  ] = NUMX;
       node["numy"  ] = NUMY;
