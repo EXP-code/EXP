@@ -447,8 +447,7 @@ main(int ac, char **av)
     ("RMIN",            po::value<double>(&RMIN)->default_value(0.005),                 "Minimum halo radius")
     ("RCYLMIN",         po::value<double>(&RCYLMIN)->default_value(0.001),              "Minimum disk radius")
     ("RCYLMAX",         po::value<double>(&RCYLMAX)->default_value(20.0),               "Maximum disk radius")
-    ("SCMAP",           po::value<int>(&SCMAP)->default_value(1),
-        "Turn on Spherical SL coordinate mapping (1, 2, 0=off")
+    ("SCMAP",           po::value<int>(&SCMAP)->default_value(1),                       "Turn on Spherical SL coordinate mapping (1, 2, 0=off")
     ("SCSPH",           po::value<double>(&SCSPH)->default_value(1.0),                  "Scale for Spherical SL coordinate mapping")
     ("ECUT",            po::value<double>(&ECUT)->default_value(1.0),                   "Energy cutoff for multimass ratio grid")
     ("RSPHSL",          po::value<double>(&RSPHSL)->default_value(47.5),                "Maximum halo expansion radius")
@@ -537,8 +536,9 @@ main(int ac, char **av)
     ("mtype",           po::value<string>(&mtype),                                              "Spherical deprojection model for EmpCylSL (one of: Exponential, Gaussian, Plummer, Power)")
     ("condition",       po::value<string>(&dtype)->default_value("exponential"),                "Disk type for condition (one of: constant, gaussian, mn, exponential)")
     ("report",          po::value<bool>(&report)->default_value(true),                  "Report particle progress in EOF computation")
-    ("evolved",         po::value<bool>(&evolved)->default_value(false),           "Use existing halo body file given by <hbods> and do not create a new halo")
+    ("evolved",         po::value<bool>(&evolved)->default_value(false),                "Use existing halo body file given by <hbods> and do not create a new halo")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
+    ("newcache",                                                                        "Use new YAML header version for EOF cache file")
     ;
         
   po::variables_map vm;
@@ -652,6 +652,12 @@ main(int ac, char **av)
     }
   }
   
+  // Enable new YAML cache header
+  //
+  if (vm.count("newcache")) {
+    EmpCylSL::NewCache = true;
+  }
+
   // Set EmpCylSL mtype.  This is the spherical function used to
   // generate the EOF basis.  If "deproject" is set, this will be
   // overriden in EmpCylSL.
