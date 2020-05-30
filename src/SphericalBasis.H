@@ -267,6 +267,9 @@ protected:
   */
   void dump_coefs_all(ostream &);
 
+  //! Coefficient magic number
+  const unsigned int cmagic = 0xc0a57a2;
+
   //! For massive satellite simulations
   MixtureBasis *mix;
 
@@ -287,6 +290,9 @@ protected:
   double lastPlayTime;
 
 public:
+
+  //! Use YAML header in coefficient file
+  static bool NewCoefs;
 
   //! Constructor (<code>line</code> contains the paramter list)
   SphericalBasis(const YAML::Node& conf, MixtureBasis *m=0);

@@ -200,6 +200,12 @@ private:
 
   Matrix tabp, tabf, tabd;
 
+  //! Basis magic number
+  const unsigned int hmagic = 0xc0a57a1;
+
+  //! Coefficient magic number
+  const unsigned int cmagic = 0xc0a57a3;
+
   std::vector<short> coefs_made;
   bool eof_made;
 
@@ -403,6 +409,15 @@ public:
 
   //! Name of cache file
   static string CACHEFILE;
+
+  //! Use YAML header in cache file
+  static bool NewCache;
+
+  //! Use YAML header in coefficient file
+  static bool NewCoefs;
+
+  //! Convert EmpModel to ascii label
+  static std::map<EmpModel, std::string> EmpModelLabs;
 
   //! Fraction of table range for basis images (for debug)
   static double HFAC;
