@@ -191,8 +191,11 @@ void BessCoefs::write(std::ostream& out)
 void
 BessCoefs::add(double mass, double R, double phi, double vr, double vt, double vz)
 {
+  if (R>rmax) return;
+
   // Add to grid
   maccum += mass;
+
   for (int m=mmin; m<=mmax; m++) {
     double cosm  = std::cos(phi*m), sinm = std::sin(phi*m);
 
