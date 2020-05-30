@@ -237,7 +237,7 @@ main(int ac, char **av)
   MPI_Get_processor_name(processor_name, &proc_namelen);
 
   char *prog = av[0];
-  bool verbose = false;
+  bool verbose = false, finegrain= false;
   std::string cname, tname, new_dir, suffix, work_dir;
   int axis, nmax, comp, mmin, mmax, ibeg, iend;
   double rmax;
@@ -248,6 +248,7 @@ main(int ac, char **av)
   desc.add_options()
     ("help,h",		"produce help message")
     ("verbose,v",       "verbose output")
+    ("finegrain",       "fine-grained progress report")
     ("beg,i",	        po::value<int>(&ibeg)->default_value(0),
      "initial snapshot index")
     ("end,e",	        po::value<int>(&iend)->default_value(std::numeric_limits<int>::max()),
@@ -298,6 +299,10 @@ main(int ac, char **av)
     verbose = true;
   }
 
+  if (vm.count("finegrain")) {
+    finegrain = true;
+  }
+
   int n;
   for (n=ibeg; n<=iend; n++) {
 
@@ -329,6 +334,11 @@ main(int ac, char **av)
 		<< std::endl;
     }
     exit(-1);
+  }
+
+  std::shared_ptr<boost::progress_display> progress;
+  if (myid==0 and not verbose and not finegrain) {
+    progress = std::make_shared<boost::progress_display>(iend - ibeg + 1);
   }
 
   for (int n=ibeg; n<=iend; n++) {
@@ -387,8 +397,7 @@ main(int ac, char **av)
 
       unsigned int icnt = 0;
 
-      std::shared_ptr<boost::progress_display> progress;
-      if (myid==0) {
+      if (myid==0 and finegrain) {
 	std::cout << "Using filename: " << file << std::endl;
 	progress = std::make_shared<boost::progress_display>(stanza->comp.nbod/numprocs);
       }
@@ -423,7 +432,7 @@ main(int ac, char **av)
 	// Add to grid
 	bess.add(mass, val, phi, vr, vt, vz);
 
-	if (myid==0)  ++(*progress);
+	if (myid==0 and finegrain) ++(*progress);
       }
     }
 
@@ -433,6 +442,10 @@ main(int ac, char **av)
     if (myid==0) {
       bess.normalize();
       bess.write(out);
+    }
+
+    if (myid==0 and not verbose and not finegrain) {
+      ++(*progress);
     }
   }
   if (myid==0) std::cout << std::endl;
