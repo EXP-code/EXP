@@ -113,6 +113,8 @@ public:
   BessCoefs(double time, double rmax, int mmin, int mmax, unsigned nmax) :
     time(time), rmax(rmax), mmin(mmin), mmax(mmax), nmax(nmax)
   {
+    // Zero all accumulators
+    //
     for (int m=mmin; m<=mmax; m++) {
       bess[m] = std::make_shared<Bess>(static_cast<double>(m), nmax);
       for (size_t k=0; k<3; k++) {
@@ -123,7 +125,7 @@ public:
     maccum = 0.0;
   }
 
-  //! Add a particle to coefficient
+  //! Add a particle contribution to coefficient
   void add(double mass, double R, double phi, double vr, double vt, double vz);
 
   //! MPI synchronize
@@ -131,6 +133,7 @@ public:
   {
     MPI_Allreduce(MPI_IN_PLACE, &maccum, 1, MPI_DOUBLE, MPI_SUM,
 		  MPI_COMM_WORLD);
+
     for (int m=mmin; m<=mmax; m++) {
       for (size_t k=0; k<3; k++) {
 	MPI_Allreduce(MPI_IN_PLACE, cos_c[m][k].data(), nmax, MPI_DOUBLE,
@@ -171,7 +174,7 @@ void BessCoefs::write(std::ostream& out)
   header.time   = time;
   header.rmax   = rmax;
   header.nmax   = nmax;
-  header.mnum   = cos_c.size();;
+  header.mnum   = cos_c.size();
   
   out.write((const char *)&header, sizeof(BessCoefHeader));
 
@@ -203,6 +206,11 @@ BessCoefs::add(double mass, double R, double phi, double vr, double vt, double v
 
       double x     = R/rmax;
       double value = bess[m]->eval(x, n)/rmax;
+      //                                 ^
+      // Scale factor in normalization---+
+
+      // Angular normalization and mass weighting
+      //
       double fact  = mass * value * 0.5*M_2_SQRTPI;
       if (m==0) fact *= M_SQRT1_2;
     
