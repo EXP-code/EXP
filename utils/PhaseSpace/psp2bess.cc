@@ -416,9 +416,9 @@ main(int ac, char **av)
 
 	// Cylindrical radius
 	//
-	double val = 0.0;
-	for (int k=0; k<2; k++) val += part->pos(k) * part->pos(k);
-	val = sqrt(val);
+	double R = 0.0;
+	for (int k=0; k<2; k++) R += part->pos(k) * part->pos(k);
+	R = sqrt(R);
 
 	double mass = part->mass();
 	
@@ -438,7 +438,7 @@ main(int ac, char **av)
 	double vz = part->vel(2);
 
 	// Add to grid
-	bess.add(mass, val, phi, vr, vt, vz);
+	bess.add(mass, R, phi, vr, vt, vz);
 
 	if (myid==0 and finegrain) ++(*progress);
       }
