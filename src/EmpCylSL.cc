@@ -656,8 +656,19 @@ int EmpCylSL::read_eof_header(const std::string& eof_file)
       auto buf = boost::make_unique<char[]>(ssize);
       in.read(buf.get(), ssize);
 
-      YAML::Node node = YAML::Load(buf.get());
+      YAML::Node node;
       
+      try {
+	node = YAML::Load(buf.get());
+      }
+      catch (YAML::Exception& error) {
+	if (myid==0)
+	  std::cerr << "YAML: error parsing <" << buf.get() << "> "
+		    << "in " << __FILE__ << ":" << __LINE__ << std::endl
+		    << "YAML error: " << error.what() << std::endl;
+	throw error;
+      }
+
       // Get parameters
       //
       MMAX   = node["mmax"  ].as<int>();
@@ -951,8 +962,19 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
       auto buf = boost::make_unique<char[]>(ssize);
       in.read(buf.get(), ssize);
 
-      YAML::Node node = YAML::Load(buf.get());
+      YAML::Node node;
       
+      try {
+	node = YAML::Load(buf.get());
+      }
+      catch (YAML::Exception& error) {
+	if (myid)
+	  std::cerr << "YAML: error parsing <" << buf.get() << "> "
+		    << "in " << __FILE__ << ":" << __LINE__ << std::endl
+		    << "YAML error: " << error.what() << std::endl;
+	throw error;
+      }
+
       // Get parameters
       //
       mmax   = node["mmax"  ].as<int>();
