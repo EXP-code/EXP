@@ -40,8 +40,9 @@ bool Coefs::read(std::istream& in)
 
     // Make and read char buffer
     //
-    auto buf = boost::make_unique<char[]>(ssize);
+    auto buf = boost::make_unique<char[]>(ssize+1);
     in.read(buf.get(), ssize);
+    buf[ssize] = 0;		// Null terminate
 
     YAML::Node node = YAML::Load(buf.get());
       
