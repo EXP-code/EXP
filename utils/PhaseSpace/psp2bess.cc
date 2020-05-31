@@ -439,5 +439,7 @@ main(int ac, char **av)
   }
   if (myid==0) std::cout << std::endl;
 
+  MPI_Finalize();
+
   return 0;
 }
