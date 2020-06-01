@@ -48,7 +48,7 @@ bool SphCoefs::read(std::istream& in, bool exp_type)
     // Read YAML string
     //
     in.read(buf.get(), hsize);
-    buff[hsize] = 0;		// Null terminate
+    buf[hsize] = 0;		// Null terminate
 
     YAML::Node node = YAML::Load(buf.get());
       
