@@ -39,9 +39,12 @@
 
 				// BOOST stuff
 #include <boost/shared_ptr.hpp>
+#include <boost/make_unique.hpp>
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp> 
+
+#include <yaml-cpp/yaml.h>	// YAML support
 
 namespace po = boost::program_options;
 namespace pt = boost::property_tree;
@@ -1287,26 +1290,79 @@ main(int argc, char **argv)
 		<< std::endl;
     } else {
 
-      int tmp;
-    
-      in.read((char *)&mmax,    sizeof(int));
-      in.read((char *)&numx,    sizeof(int));
-      in.read((char *)&numy,    sizeof(int));
-      in.read((char *)&nmax,    sizeof(int));
-      in.read((char *)&norder,  sizeof(int));
-      
-      in.read((char *)&tmp,     sizeof(int)); 
-      if (tmp) DENS = true;
-      else     DENS = false;
-      
-      in.read((char *)&tmp,     sizeof(int)); 
-      if (tmp) cmap = true;
-      else     cmap = false;
+      // Attempt to read magic number
+      //
+      unsigned int tmagic;
+      in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
 
-      in.read((char *)&rcylmin, sizeof(double));
-      in.read((char *)&rcylmax, sizeof(double));
-      in.read((char *)&rscale,  sizeof(double));
-      in.read((char *)&vscale,  sizeof(double));
+      //! Basis magic number
+      const unsigned int hmagic = 0xc0a57a1;
+      
+      if (tmagic == hmagic) {
+	// YAML size
+	//
+	unsigned ssize;
+	in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
+	
+	// Make and read char buffer
+	//
+	auto buf = boost::make_unique<char[]>(ssize+1);
+	in.read(buf.get(), ssize);
+	buf[ssize] = 0;		// Null terminate
+
+	YAML::Node node;
+      
+	try {
+	  node = YAML::Load(buf.get());
+	}
+	catch (YAML::Exception& error) {
+	  if (myid)
+	    std::cerr << "YAML: error parsing <" << buf.get() << "> "
+		      << "in " << __FILE__ << ":" << __LINE__ << std::endl
+		      << "YAML error: " << error.what() << std::endl;
+	  throw error;
+	}
+
+	// Get parameters
+	//
+	mmax    = node["mmax"  ].as<int>();
+	numx    = node["numx"  ].as<int>();
+	numy    = node["numy"  ].as<int>();
+	nmax    = node["nmax"  ].as<int>();
+	norder  = node["norder"].as<int>();
+	DENS    = node["dens"  ].as<bool>();
+	cmap    = node["cmap"  ].as<int>();
+	rcylmin = node["rmin"  ].as<double>();
+	rcylmax = node["rmax"  ].as<double>();
+	rscale  = node["ascl"  ].as<double>();
+	vscale  = node["hscl"  ].as<double>();
+	
+      } else {
+				// Rewind file
+	in.clear();
+	in.seekg(0);
+
+	int tmp;
+    
+	in.read((char *)&mmax,    sizeof(int));
+	in.read((char *)&numx,    sizeof(int));
+	in.read((char *)&numy,    sizeof(int));
+	in.read((char *)&nmax,    sizeof(int));
+	in.read((char *)&norder,  sizeof(int));
+      
+	in.read((char *)&tmp,     sizeof(int)); 
+	if (tmp) DENS = true;
+	else     DENS = false;
+	
+	in.read((char *)&tmp,     sizeof(int)); 
+	if (tmp) cmap = true;
+	else     cmap = false;
+	
+	in.read((char *)&rcylmin, sizeof(double));
+	in.read((char *)&rcylmax, sizeof(double));
+	in.read((char *)&rscale,  sizeof(double));
+	in.read((char *)&vscale,  sizeof(double));
+      }
     }
   }
 
