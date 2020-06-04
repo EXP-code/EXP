@@ -43,11 +43,12 @@ bool SphCoefs::read(std::istream& in, bool exp_type)
     
     // Create buffer
     //
-    auto buf = boost::make_unique<char[]>(hsize);
+    auto buf = boost::make_unique<char[]>(hsize+1);
 
     // Read YAML string
     //
     in.read(buf.get(), hsize);
+    buf[hsize] = 0;		// Null terminate
 
     YAML::Node node = YAML::Load(buf.get());
       

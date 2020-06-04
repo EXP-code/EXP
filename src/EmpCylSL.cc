@@ -653,8 +653,9 @@ int EmpCylSL::read_eof_header(const std::string& eof_file)
 
       // Make and read char buffer
       //
-      auto buf = boost::make_unique<char[]>(ssize);
+      auto buf = boost::make_unique<char[]>(ssize+1);
       in.read(buf.get(), ssize);
+      buf[ssize] = 0;		// Null terminate
 
       YAML::Node node;
       
@@ -959,8 +960,9 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 
       // Make and read char buffer
       //
-      auto buf = boost::make_unique<char[]>(ssize);
+      auto buf = boost::make_unique<char[]>(ssize+1);
       in.read(buf.get(), ssize);
+      buf[ssize] = 0;		// Null terminate
 
       YAML::Node node;
       
