@@ -110,14 +110,13 @@ public:
   std::vector<double> dataXY;
   std::vector<std::vector<double>> dataZ;
   int N;
-  double R, dR, rmax;
+  double R, dR;
   
   Histogram(int N, double R) : N(N), R(R)
   {
-    dR = 2.0*R/(N+1);
+    dR = 2.0*R/N;
     dataXY.resize(N*N, 0.0);
     dataZ .resize(N*N);
-    rmax = R + 0.5*dR;
   }
 
   void Reset() {
@@ -160,17 +159,16 @@ public:
 
   void Add(double x, double y, double z, double m)
   {
-    if (x < -rmax or x >= rmax or
-	y < -rmax or y >= rmax  ) return;
+    if (x < -R or x >= R or
+	y < -R or y >= R  ) return;
 
-    int indX = static_cast<int>(floor((x + rmax)/dR));
-    int indY = static_cast<int>(floor((y + rmax)/dR));
+    int indX = static_cast<int>(floor((x + R)/dR));
+    int indY = static_cast<int>(floor((y + R)/dR));
 
-    indX = std::min<int>(indX, N-1);
-    indY = std::min<int>(indY, N-1);
-
-    dataXY[indY*N + indX] += m;
-    dataZ [indY*N + indX].push_back(z);
+    if (indx>=0 and indx<N and indy>=0 and indy<N) {
+      dataXY[indY*N + indX] += m;
+      dataZ [indY*N + indX].push_back(z);
+    }
   }
 };
 
