@@ -387,8 +387,7 @@ const unsigned int magic_word = 0x5ecede5;
 
 struct CoefElem
 {
-  int m;
-  std::vector<double> cos, sin;
+  std::map<int, std::vector<double>> cos, sin;
 };
 
 typedef std::vector<std::map<double, CoefElem>> CoefData;
@@ -414,11 +413,13 @@ CoefData get_coefficients(const std::string& coefs)
 
     // Read rest of file
     //
-    int MM, numT, nmax, npairs;
-    in.read((char *)&MM,         sizeof(int));
+    int numM, numT, nmax, npairs;
+    in.read((char *)&numM,       sizeof(int));
     in.read((char *)&numT,       sizeof(int));
     in.read((char *)&nmax,       sizeof(int));
     in.read((char *)&npairs,     sizeof(int));
+    std::vector<int> MM(numM);
+    in.read((char *)&MM[0],      sizeof(int)*numM);
     std::vector<double> times(numT);
     in.read((char *)&times[0],   sizeof(double)*numT);
       
@@ -427,17 +428,20 @@ CoefData get_coefficients(const std::string& coefs)
     ret.resize(npairs);
     for (int p=0; p<npairs; p++) {
       for (auto t : times) {
-	ret[p][t].m = MM;
-	ret[p][t].cos.resize(nmax, 0);
-	ret[p][t].sin.resize(nmax, 0);
+	for (auto M : MM) {
+	  ret[p][t].cos[M].resize(nmax, 0);
+	  ret[p][t].sin[M].resize(nmax, 0);
+	}
       }
     }
 
     for (int p=0; p<npairs; p++) {
       for (auto t : times) {
-	for (int n=0; n<nmax; n++) {
-	  in.read((char *)&ret[p][t].cos[n], sizeof(double));
-	  in.read((char *)&ret[p][t].sin[n], sizeof(double));
+	for (auto M : MM) {
+	  for (int n=0; n<nmax; n++) {
+	    in.read((char *)&ret[p][t].cos[M][n], sizeof(double));
+	    in.read((char *)&ret[p][t].sin[M][n], sizeof(double));
+	  }
 	}
       }
     }
@@ -685,7 +689,12 @@ main(int argc, char **argv)
 
       if (count++ % stride) continue;
 
-      ortho.set_coefs(u.second.m, u.second.cos, u.second.sin, true);
+      bool zero = true;
+      for (auto v : u.second.cos) {
+	int M = v.first;
+	ortho.set_coefs(M, u.second.cos[M], u.second.sin[M], zero);
+	zero = false;
+      }
 
       std::string file1, file2, file3;
     
