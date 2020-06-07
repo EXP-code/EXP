@@ -18,17 +18,22 @@ struct Coefs
   int nmax, mmax;
   std::vector< std::vector<double> > cos_c, sin_c;
 
-  bool read(std::istream& in);
+  bool read(std::istream& in, bool verbose=false);
 };
 
 typedef std::shared_ptr<Coefs> CoefPtr;
 
-bool Coefs::read(std::istream& in)
+bool Coefs::read(std::istream& in, bool verbose)
 {
+  // Save initial stream position
+  //
+  auto curpos = in.tellg();
+
   // Attempt to read coefficient magic number
   //
   const unsigned int cmagic = 0xc0a57a3;
   unsigned int tmagic;
+
   in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
 
   if (tmagic == cmagic) {
@@ -52,12 +57,15 @@ bool Coefs::read(std::istream& in)
     nmax = node["nmax"].as<int>();
     mmax = node["mmax"].as<int>();
 
+    if (verbose)
+      std::cerr << "New header: T=" << time << " nmax=" << nmax
+		<< " mmax=" << mmax << std::endl;
   } else {
 
     // Rewind file
     //
     in.clear();
-    in.seekg(0);
+    in.seekg(curpos);
 
     CylCoefHeader header;
     in.read((char *)&header, sizeof(CylCoefHeader));
@@ -65,6 +73,10 @@ bool Coefs::read(std::istream& in)
     time = header.time;
     nmax = header.nmax;
     mmax = header.mmax;
+
+    if (verbose)
+      std::cerr << "Old header: T=" << time << " nmax=" << nmax
+		<< " mmax=" << mmax << std::endl;
   }
 
   if (not in) return false;
@@ -81,6 +93,13 @@ bool Coefs::read(std::istream& in)
       sin_c[mm].resize(nmax);
       in.read((char *)&sin_c[mm][0], sizeof(double)*nmax);
     }
+  }
+
+  if (verbose) {
+    if (in)
+      std::cerr << "Coefficients successfully read at T=" << time << std::endl;
+    else
+      std::cerr << "Coefficient read FAILED at T=" << time << std::endl;
   }
 
   return true;
@@ -157,7 +176,7 @@ int main(int argc, char **argv)
 
   while (in) {
     CoefPtr c = std::make_shared<Coefs>();
-    if (not c->read(in)) break;
+    if (not c->read(in, verbose)) break;
 
     coefs[c->time] = c;
   }

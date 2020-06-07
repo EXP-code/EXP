@@ -904,7 +904,7 @@ main(int argc, char **argv)
   int initc, partc, beg, end, stride, init, cmap;
   double rcylmin, rcylmax, rscale, vscale;
   bool DENS, PCA, PVD, verbose = false, mask = false, ignore, logl;
-  std::string CACHEFILE;
+  std::string CACHEFILE, COEFFILE;
 
   //
   // Parse Command line
@@ -1010,6 +1010,9 @@ main(int argc, char **argv)
     ("cachefile",
      po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),
      "cachefile name")
+    ("coeffile",
+     po::value<std::string>(&COEFFILE)->default_value("diskprof2.coefs"),
+     "coefficient output file name")
     ("cmap",
      po::value<int>(&cmap)->default_value(0),
      "map radius into semi-infinite interval in cylindrical grid computation")
@@ -1266,7 +1269,21 @@ main(int argc, char **argv)
     
     //------------------------------------------------------------ 
   }
+  
 
+  // ==================================================
+  // Open output coefficient file
+  // ==================================================
+  
+  std::ofstream coefs;
+  if (myid==0 and COEFFILE.size()>0) {
+    coefs.open(COEFFILE);
+    if (not coefs) {
+      std::cerr << "Could not open coefficient file <" << COEFFILE << "> . . . quitting"
+		<< std::endl;
+      MPI_Abort(MPI_COMM_WORLD, 10);
+    }
+  }
 
   for (int indx=beg; indx<=end; indx+=stride) {
 
@@ -1340,6 +1357,15 @@ main(int argc, char **argv)
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
       
+    //------------------------------------------------------------ 
+
+    if (myid==0) {
+      std::cout << "Writing disk coefficients . . . " << flush;
+      ortho.dump_coefs_binary(coefs, tnow);
+      cout << "done" << endl;
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+
     //------------------------------------------------------------ 
       
     if (myid==0) cout << "Writing output . . . " << flush;

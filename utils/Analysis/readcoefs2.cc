@@ -24,7 +24,12 @@ typedef std::shared_ptr<SphCoefs> SphCoefsPtr;
 
 bool SphCoefs::read(std::istream& in, bool exp_type)
 {
-  //! Coefficient magic number
+  // Save initial stream position
+  //
+  auto curpos = in.tellg();
+
+  // Coefficient magic number
+  //
   const unsigned int cmagic = 0xc0a57a2;
 
   // Try to read magic #
@@ -68,7 +73,7 @@ bool SphCoefs::read(std::istream& in, bool exp_type)
     // Rewind file
     //
     in.clear();
-    in.seekg(0);
+    in.seekg(curpos);
 
     in.read((char *)&header, sizeof(SphCoefHeader));
   }
