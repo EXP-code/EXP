@@ -46,12 +46,12 @@ OutAscii::OutAscii(const YAML::Node& conf) : Output(conf)
 void OutAscii::initialize()
 {
   try {
-    if (Output::conf["nint"])    nint  = Output::conf["nint"].as<int>();
-    if (Output::conf["nintsub"])    nintsub  = Output::conf["nintsub"].as<int>();
-    if (Output::conf["nbeg"])    nbeg  = Output::conf["nbeg"].as<int>();
-    if (Output::conf["name"])    name  = Output::conf["name"].as<std::string>();
-    if (Output::conf["accel"])   accel = Output::conf["name"].as<bool>();
-    
+    if (Output::conf["nint"])    nint     = Output::conf["nint"].as<int>();
+    if (Output::conf["nintsub"]) nintsub  = Output::conf["nintsub"].as<int>();
+    if (Output::conf["nbeg"])    nbeg     = Output::conf["nbeg"].as<int>();
+    if (Output::conf["name"])    name     = Output::conf["name"].as<std::string>();
+    if (Output::conf["accel"])   accel    = Output::conf["accel"].as<bool>();
+
     if (Output::conf["filename"])
       filename = Output::conf["filename"].as<std::string>();
     else {
