@@ -4,6 +4,9 @@
 #include <memory>
 
 #include <boost/program_options.hpp>
+#include <boost/make_unique.hpp>
+
+#include <yaml-cpp/yaml.h>	// YAML support
 
 namespace po = boost::program_options;
 
@@ -22,13 +25,49 @@ typedef std::shared_ptr<Coefs> CoefPtr;
 
 bool Coefs::read(std::istream& in)
 {
-  CylCoefHeader header;
-  in.read((char *)&header, sizeof(CylCoefHeader));
-  if (not in) return false;
+  // Attempt to read coefficient magic number
+  //
+  const unsigned int cmagic = 0xc0a57a3;
+  unsigned int tmagic;
+  in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
 
-  time = header.time;
-  nmax = header.nmax;
-  mmax = header.mmax;
+  if (tmagic == cmagic) {
+
+    // YAML size
+    //
+    unsigned ssize;
+    in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
+
+    // Make and read char buffer
+    //
+    auto buf = boost::make_unique<char[]>(ssize+1);
+    in.read(buf.get(), ssize);
+    buf[ssize] = 0;		// Null terminate
+
+    YAML::Node node = YAML::Load(buf.get());
+      
+    // Get parameters
+    //
+    time = node["time"].as<double>();
+    nmax = node["nmax"].as<int>();
+    mmax = node["mmax"].as<int>();
+
+  } else {
+
+    // Rewind file
+    //
+    in.clear();
+    in.seekg(0);
+
+    CylCoefHeader header;
+    in.read((char *)&header, sizeof(CylCoefHeader));
+
+    time = header.time;
+    nmax = header.nmax;
+    mmax = header.mmax;
+  }
+
+  if (not in) return false;
 
   cos_c.resize(mmax+1);
   sin_c.resize(mmax+1);

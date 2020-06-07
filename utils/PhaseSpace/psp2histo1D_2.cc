@@ -150,7 +150,7 @@ main(int ac, char **av)
 				// Dump ascii for each component
 				// -----------------------------
   
-    double rtmp, mass, fac, dp=(pmax - pmin)/numb;
+    double rtmp, mass, dp=(pmax - pmin)/numb;
     vector<double> pos(3), vel(3);
     int itmp, icnt, iv;
 
@@ -174,39 +174,36 @@ main(int ac, char **av)
 	    val += part->pos(k) * part->pos(k);
 	  }
 	  val = sqrt(val);
+	  iv = static_cast<int>( floor( (val - pmin)/dp ) );
 	}
 	else if (use_cyl) {
 	  for (int k=0; k<2; k++) {
 	    val += part->pos(k) * part->pos(k);
 	  }
 	  val = sqrt(val);
+	  iv = static_cast<int>( floor( (val - pmin)/dp ) );
 	}
 	else {
 	  val = part->pos(axis-1);
+	  iv = static_cast<int>( floor( (part->pos(axis-1) - pmin)/dp ) );
 	}
-
-	iv = static_cast<int>( floor( (part->pos(axis-1) - pmin)/dp ) );
 
 	if (iv < 0 || iv >= numb) continue;
 
-	
-	double mass = part->mass();
-	
 	bmass[iv] += 1.0;
-	fac = 1.0;
 
 	if (comp == 0)
-	  value[iv] += fac*mass;
+	  value[iv] += part->mass();
 	else if (comp <= 3)
-	  value[iv] += fac*part->pos(comp-1);
+	  value[iv] += part->pos(comp-1);
 	else if (comp <= 6)
-	  value[iv] += fac*part->vel(comp-4);
+	  value[iv] += part->vel(comp-4);
 	else if (comp == 7)
-	  value[iv] += fac*part->phi();
+	  value[iv] += part->phi();
 	else if (part->niatr() && comp <= 7 + part->niatr())
-	  value[iv] += fac*part->iatr(comp-8);
+	  value[iv] += part->iatr(comp-8);
 	else if (part->ndatr())
-	  value[iv] += fac*part->datr(comp-8-part->niatr());
+	  value[iv] += part->datr(comp-8-part->niatr());
       }
     
     }

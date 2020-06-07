@@ -39,9 +39,12 @@
 
 				// BOOST stuff
 #include <boost/shared_ptr.hpp>
+#include <boost/make_unique.hpp>
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp> 
+
+#include <yaml-cpp/yaml.h>	// YAML support
 
 namespace po = boost::program_options;
 namespace pt = boost::property_tree;
@@ -384,8 +387,7 @@ const unsigned int magic_word = 0x5ecede5;
 
 struct CoefElem
 {
-  int m;
-  std::vector<double> cos, sin;
+  std::map<int, std::vector<double>> cos, sin;
 };
 
 typedef std::vector<std::map<double, CoefElem>> CoefData;
@@ -411,11 +413,13 @@ CoefData get_coefficients(const std::string& coefs)
 
     // Read rest of file
     //
-    int MM, numT, nmax, npairs;
-    in.read((char *)&MM,         sizeof(int));
+    int numM, numT, nmax, npairs;
+    in.read((char *)&numM,       sizeof(int));
     in.read((char *)&numT,       sizeof(int));
     in.read((char *)&nmax,       sizeof(int));
     in.read((char *)&npairs,     sizeof(int));
+    std::vector<int> MM(numM);
+    in.read((char *)&MM[0],      sizeof(int)*numM);
     std::vector<double> times(numT);
     in.read((char *)&times[0],   sizeof(double)*numT);
       
@@ -424,17 +428,20 @@ CoefData get_coefficients(const std::string& coefs)
     ret.resize(npairs);
     for (int p=0; p<npairs; p++) {
       for (auto t : times) {
-	ret[p][t].m = MM;
-	ret[p][t].cos.resize(nmax, 0);
-	ret[p][t].sin.resize(nmax, 0);
+	for (auto M : MM) {
+	  ret[p][t].cos[M].resize(nmax, 0);
+	  ret[p][t].sin[M].resize(nmax, 0);
+	}
       }
     }
 
     for (int p=0; p<npairs; p++) {
       for (auto t : times) {
-	for (int n=0; n<nmax; n++) {
-	  in.read((char *)&ret[p][t].cos[n], sizeof(double));
-	  in.read((char *)&ret[p][t].sin[n], sizeof(double));
+	for (auto M : MM) {
+	  for (int n=0; n<nmax; n++) {
+	    in.read((char *)&ret[p][t].cos[M][n], sizeof(double));
+	    in.read((char *)&ret[p][t].sin[M][n], sizeof(double));
+	  }
 	}
       }
     }
@@ -566,23 +573,80 @@ main(int argc, char **argv)
   bool cmap=false, dens=false;
   double rmin, rmax, ascl, hscl;
 
+  // Open EOF cachefile
+  //
   std::ifstream in(CACHEFILE);
-  if (in) {
+
+  if (not in) {
+    std::cerr << "mssaprof: error opening cache file <"
+	      << CACHEFILE << ">" << std::endl;
+    return 0;
+  }
+
+  // Attempt to read magic number
+  //
+  unsigned int tmagic;
+  in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
+
+  // EOF basis magic number
+  //
+  const unsigned int hmagic = 0xc0a57a1;
+
+  if (tmagic == hmagic) {
+    // YAML size
+    //
+    unsigned ssize;
+    in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
+	
+    // Make and read char buffer
+    //
+    auto buf = boost::make_unique<char[]>(ssize+1);
+    in.read(buf.get(), ssize);
+    buf[ssize] = 0;		// Null terminate
+    
+    YAML::Node node;
+    
+    try {
+      node = YAML::Load(buf.get());
+    }
+    catch (YAML::Exception& error) {
+      if (myid)
+	std::cerr << "YAML: error parsing <" << buf.get() << "> "
+		  << "in " << __FILE__ << ":" << __LINE__ << std::endl
+		  << "YAML error: " << error.what() << std::endl;
+      throw error;
+    }
+    
+    // Get parameters
+    //
+    mmax   = node["mmax"  ].as<int>();
+    numx   = node["numx"  ].as<int>();
+    numy   = node["numy"  ].as<int>();
+    nmax   = node["nmax"  ].as<int>();
+    norder = node["norder"].as<int>();
+    DENS   = node["dens"  ].as<bool>();
+    cmap   = node["cmap"  ].as<int>();
+    rmin   = node["rmin"  ].as<double>();
+    rmax   = node["rmax"  ].as<double>();
+    ascl   = node["ascl"  ].as<double>();
+    hscl   = node["hscl"  ].as<double>();
+
+  } else {
+				// Rewind file
+    in.clear();
+    in.seekg(0);
+
     in.read((char *)&mmax,   sizeof(int));
     in.read((char *)&numx,   sizeof(int));
     in.read((char *)&numy,   sizeof(int));
     in.read((char *)&nmax,   sizeof(int));
     in.read((char *)&norder, sizeof(int));
-    in.read((char *)&tmp,    sizeof(int));    if (tmp) dens = true;
+    in.read((char *)&dens,   sizeof(int));    if (tmp) dens = true;
     in.read((char *)&tmp,    sizeof(int));    if (tmp) cmap = true;
     in.read((char *)&rmin,   sizeof(double));
     in.read((char *)&rmax,   sizeof(double));
     in.read((char *)&ascl,   sizeof(double));
     in.read((char *)&hscl,   sizeof(double));
-  } else {
-    cerr << "mssaprof: error opening cache file <"
-	 << CACHEFILE << ">" << std::endl;
-    return 0;
   }
 
   EmpCylSL::RMIN        = rmin;
@@ -625,7 +689,12 @@ main(int argc, char **argv)
 
       if (count++ % stride) continue;
 
-      ortho.set_coefs(u.second.m, u.second.cos, u.second.sin, true);
+      bool zero = true;
+      for (auto v : u.second.cos) {
+	int M = v.first;
+	ortho.set_coefs(M, u.second.cos[M], u.second.sin[M], zero);
+	zero = false;
+      }
 
       std::string file1, file2, file3;
     

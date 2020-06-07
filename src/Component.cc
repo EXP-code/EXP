@@ -70,7 +70,7 @@ Component::Component(YAML::Node& CONF)
 			   << std::string(60, '-') << std::endl;
 
     MPI_Finalize();
-    exit(-1);
+    exit(-2);
   }
   
   pfile = conf["bodyfile"].as<std::string>();
@@ -90,7 +90,7 @@ Component::Component(YAML::Node& CONF)
 			   << std::string(60, '-') << std::endl;
 
     MPI_Finalize();
-    exit(-1);
+    exit(-3);
   }
 
   id = force["id"].as<std::string>();
@@ -109,7 +109,7 @@ Component::Component(YAML::Node& CONF)
 			   << std::string(60, '-') << std::endl;
 
     MPI_Finalize();
-    exit(-1);
+    exit(-4);
   }
 
   EJ          = 0;
@@ -510,7 +510,7 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
 			   << std::string(60, '-') << std::endl;
 
     MPI_Finalize();
-    exit(-1);
+    exit(-5);
   }
 
   try {
@@ -527,7 +527,7 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
 			   << std::string(60, '-') << std::endl;
 
     MPI_Finalize();
-    exit(-1);
+    exit(-6);
   }
   
   pfile = conf["bodyfile"].as<std::string>();
@@ -547,7 +547,7 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
 			   << std::string(60, '-') << std::endl;
 
     MPI_Finalize();
-    exit(-1);
+    exit(-7);
   }
 
   id = cforce["id"].as<std::string>();
@@ -566,7 +566,7 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
 			   << std::string(60, '-') << std::endl;
 
     MPI_Finalize();
-    exit(-1);
+    exit(-8);
   }
 
   // Defaults
@@ -728,7 +728,7 @@ void Component::configure(void)
 			   << std::string(60, '-') << std::endl;
 
     MPI_Finalize();
-    exit(-1);
+    exit(-9);
   }
 
 
@@ -1390,7 +1390,17 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
     config = conf;
   } else {			// Use parameter info
     std::istringstream sin(info.get());
-    config = YAML::Load(sin);
+    try {
+      config = YAML::Load(sin);
+    }
+    catch (YAML::Exception& error) {
+      if (myid==0)
+	std::cerr << "YAML: error parsing <" << info.get() << "> "
+		  << "in " << __FILE__ << ":" << __LINE__ << std::endl
+		  << "YAML error: " << error.what() << std::endl;
+      MPI_Finalize();
+      exit(-10);
+    }
 
     try {
       name  = config["name"].as<std::string>();
@@ -1406,7 +1416,7 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
 			     << config               << std::endl
 			     << std::string(60, '-') << std::endl;
       MPI_Finalize();
-      exit(-1);
+      exit(-11);
     }
 
     YAML::Node force;
@@ -1426,7 +1436,7 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
 			     << std::string(60, '-') << std::endl;
       
       MPI_Finalize();
-      exit(-1);
+      exit(-12);
     }
 
     // Assign local conf
@@ -1688,7 +1698,15 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
     config = conf;
   } else {			// Use parameter info
     std::istringstream sin(info.get());
-    config = YAML::Load(sin);
+    try {
+      config = YAML::Load(sin);
+    }
+    catch (YAML::Exception& error) {
+      std::cerr << "YAML: error parsing <" << info.get() << "> "
+		<< "in " << __FILE__ << ":" << __LINE__ << std::endl
+		<< "YAML error: " << error.what() << std::endl;
+      throw error;
+    }
 
     try {
       name  = config["name"].as<std::string>();
@@ -1704,7 +1722,7 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
 			     << config               << std::endl
 			     << std::string(60, '-') << std::endl;
       MPI_Finalize();
-      exit(-1);
+      exit(-13);
     }
 
     YAML::Node force;
@@ -1724,7 +1742,7 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
 			     << std::string(60, '-') << std::endl;
       
       MPI_Finalize();
-      exit(-1);
+      exit(-14);
     }
 
     // Assign local conf

@@ -55,7 +55,7 @@ public:
     norm.resize(nroots);
     for (unsigned int m=0; m<nroots; m++) {
       double val = boost::math::cyl_bessel_j(order+1.0, roots[m]);
-      norm[m] = 0.5*val*val;
+      norm[m] = sqrt(0.5*val*val);
     }
   }
   
@@ -70,16 +70,14 @@ public:
   double operator()(double& x, const unsigned& m)
   {
     if (m>=nroots) return 0.0;
-    return boost::math::cyl_bessel_j<double, double>(order, x*roots[m]);
+    return boost::math::cyl_bessel_j<double, double>(order, x*roots[m]) / norm[m];
   } 
 
   //! Evaluate the Bessel for x in [0, 1] for radial order m
   double eval(double& x, unsigned& m)
   {
     if (m>=nroots) return 0.0;
-    return boost::math::cyl_bessel_j<double, double>(order, x*roots[m]);
-    if (m>=nroots) return 0.0;
-    return boost::math::cyl_bessel_j<double, double>(order, x*roots[m]);
+    return boost::math::cyl_bessel_j<double, double>(order, x*roots[m]) / norm[m];
   } 
 
 }; 
@@ -100,7 +98,7 @@ class BessCoefs
  private:
 
   double time, rmax, maccum;
-  int nmax, mmin, mmax;
+  int nmax, mmax;
 
   using BessPtr = std::shared_ptr<Bess>;
 
@@ -109,23 +107,24 @@ class BessCoefs
 public:
 
   //! Coefficient data
-  std::map<int, std::array<std::vector<double>, 3>> cos_c, sin_c;
+  std::map<int, std::array<std::vector<double>, 4>> cos_c, sin_c;
 
   //! Constructor
-  BessCoefs(double time, double rmax, int mmin, int mmax, unsigned nmax) :
-    time(time), rmax(rmax), mmin(mmin), mmax(mmax), nmax(nmax)
+  BessCoefs(double time, double rmax, int mmax, unsigned nmax) :
+    time(time), rmax(rmax), mmax(mmax), nmax(nmax)
   {
-    for (int m=mmin; m<=mmax; m++) {
+    // Zero all accumulators
+    //
+    for (int m=0; m<=mmax; m++) {
       bess[m] = std::make_shared<Bess>(static_cast<double>(m), nmax);
-      for (size_t k=0; k<3; k++) {
+      for (size_t k=0; k<4; k++) {
 	cos_c[m][k].resize(nmax, 0);
 	if (m) sin_c[m][k].resize(nmax, 0);
       }
     }
-    maccum = 0.0;
   }
 
-  //! Add a particle to coefficient
+  //! Add a particle contribution to coefficient
   void add(double mass, double R, double phi, double vr, double vt, double vz);
 
   //! MPI synchronize
@@ -133,8 +132,9 @@ public:
   {
     MPI_Allreduce(MPI_IN_PLACE, &maccum, 1, MPI_DOUBLE, MPI_SUM,
 		  MPI_COMM_WORLD);
-    for (int m=mmin; m<=mmax; m++) {
-      for (size_t k=0; k<3; k++) {
+
+    for (int m=0; m<=mmax; m++) {
+      for (size_t k=0; k<4; k++) {
 	MPI_Allreduce(MPI_IN_PLACE, cos_c[m][k].data(), nmax, MPI_DOUBLE,
 		      MPI_SUM, MPI_COMM_WORLD);
 	if (m)
@@ -143,22 +143,6 @@ public:
       } // END: k=0,...,2
     } // END: m loop
   }
-
-  //! Normalize by total mass
-  void normalize()
-  {
-    if (maccum>0.0) {
-      for (int m=mmin; m<=mmax; m++) {
-	for (size_t k=0; k<3; k++) {
-	  for (int n=0; n<nmax; n++) {
-	    cos_c[m][k][n] /= maccum;
-	    if (m) sin_c[m][k][n] /= maccum;
-	  }
-	}
-      }
-    }
-  }
-
 
   //! Write binary file
   void write(std::ostream& out);
@@ -173,19 +157,18 @@ void BessCoefs::write(std::ostream& out)
   header.time   = time;
   header.rmax   = rmax;
   header.nmax   = nmax;
-  header.mnum   = cos_c.size();;
+  header.mnum   = cos_c.size();
   
   out.write((const char *)&header, sizeof(BessCoefHeader));
 
   for (auto d : cos_c) {
     out.write((const char *)&d.first, sizeof(int));
-    out.write((const char *)d.second[0].data(), sizeof(double)*nmax);
-    out.write((const char *)d.second[1].data(), sizeof(double)*nmax);
-    out.write((const char *)d.second[2].data(), sizeof(double)*nmax);
+    for (int k=0; k<4; k++)
+      out.write((const char *)d.second[k].data(), sizeof(double)*nmax);
+
     if (d.first) {
-      out.write((const char *)sin_c[d.first][0].data(), sizeof(double)*nmax);
-      out.write((const char *)sin_c[d.first][1].data(), sizeof(double)*nmax);
-      out.write((const char *)sin_c[d.first][2].data(), sizeof(double)*nmax);
+      for (int k=0; k<4; k++)
+	out.write((const char *)sin_c[d.first][k].data(), sizeof(double)*nmax);
     }
   }
 }
@@ -193,25 +176,35 @@ void BessCoefs::write(std::ostream& out)
 void
 BessCoefs::add(double mass, double R, double phi, double vr, double vt, double vz)
 {
+  if (R>rmax) return;
+
   // Add to grid
-  for (int m=mmin; m<=mmax; m++) {
+  maccum += mass;
+
+  for (int m=0; m<=mmax; m++) {
     double cosm  = std::cos(phi*m), sinm = std::sin(phi*m);
 
     for (unsigned int n=0; n<nmax; n++) {
 
       double x     = R/rmax;
-      double value = bess[m]->eval(x, n);
-      double norm  = bess[m]->getNorm(n)*rmax*rmax;
-      double fact  = mass * value / norm;
-      if (m==0) fact *= 0.5;
+      double value = bess[m]->eval(x, n)/rmax;
+      //                                 ^
+      // Scale factor in normalization---+
+
+      // Angular normalization and mass weighting
+      //
+      double fact  = mass * value * 0.5*M_2_SQRTPI;
+      if (m==0) fact *= M_SQRT1_2;
     
-      cos_c[m][0][n] += fact*vr*cosm;
-      cos_c[m][1][n] += fact*vt*cosm;
-      cos_c[m][2][n] += fact*vz*cosm;
+      cos_c[m][0][n] += fact*cosm;
+      cos_c[m][1][n] += fact*vr*cosm;
+      cos_c[m][2][n] += fact*vt*cosm;
+      cos_c[m][3][n] += fact*vz*cosm;
       if (m) {
-	sin_c[m][0][n] += fact*vr*sinm;
-	sin_c[m][1][n] += fact*vt*sinm;
-	sin_c[m][2][n] += fact*vz*sinm;
+	sin_c[m][0][n] += fact*sinm;
+	sin_c[m][1][n] += fact*vr*sinm;
+	sin_c[m][2][n] += fact*vt*sinm;
+	sin_c[m][3][n] += fact*vz*sinm;
       }
     }
   }
@@ -236,9 +229,9 @@ main(int ac, char **av)
   MPI_Get_processor_name(processor_name, &proc_namelen);
 
   char *prog = av[0];
-  bool verbose = false;
+  bool verbose = false, finegrain= false;
   std::string cname, tname, new_dir, suffix, work_dir;
-  int axis, nmax, comp, mmin, mmax, ibeg, iend;
+  int axis, nmax, comp, mmax, ibeg, iend;
   double rmax;
 
   // Parse command line
@@ -247,12 +240,11 @@ main(int ac, char **av)
   desc.add_options()
     ("help,h",		"produce help message")
     ("verbose,v",       "verbose output")
+    ("finegrain",       "fine-grained progress report")
     ("beg,i",	        po::value<int>(&ibeg)->default_value(0),
      "initial snapshot index")
     ("end,e",	        po::value<int>(&iend)->default_value(std::numeric_limits<int>::max()),
      "final snapshot index")
-    ("mmin,m",	        po::value<int>(&mmin)->default_value(1),
-     "minimum Fourier component in bin")
     ("mmax,M",	        po::value<int>(&mmax)->default_value(4),
      "maximum Fourier component in bin")
     ("rmax,R",	        po::value<double>(&rmax)->default_value(0.04),
@@ -297,6 +289,10 @@ main(int ac, char **av)
     verbose = true;
   }
 
+  if (vm.count("finegrain")) {
+    finegrain = true;
+  }
+
   int n;
   for (n=ibeg; n<=iend; n++) {
 
@@ -330,7 +326,10 @@ main(int ac, char **av)
     exit(-1);
   }
 
-  boost::progress_display progress(iend - ibeg + 1);
+  std::shared_ptr<boost::progress_display> progress;
+  if (myid==0 and not verbose and not finegrain) {
+    progress = std::make_shared<boost::progress_display>(iend - ibeg + 1);
+  }
 
   for (int n=ibeg; n<=iend; n++) {
 
@@ -347,7 +346,6 @@ main(int ac, char **av)
 
     if (myid==0) {
       if (verbose) cerr << "Using filename: " << file << endl;
-      else ++progress;
     }
 
 				// Parse the PSP file
@@ -376,7 +374,7 @@ main(int ac, char **av)
 				// Make the arrays
 				// ---------------
 
-    BessCoefs bess(psp->CurrentTime(), rmax, mmin, mmax, nmax);
+    BessCoefs bess(psp->CurrentTime(), rmax, mmax, nmax);
 
     std::array<std::map<int, std::vector<float>>, 3> vel_c, vel_s;
 
@@ -388,15 +386,21 @@ main(int ac, char **av)
       if (stanza->name != cname) continue;
 
       unsigned int icnt = 0;
+
+      if (myid==0 and finegrain) {
+	std::cout << "Using filename: " << file << std::endl;
+	progress = std::make_shared<boost::progress_display>(stanza->comp.nbod/numprocs);
+      }
+
       for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
 	
-	if (icnt % numprocs) continue;
+	if (icnt++ % numprocs) continue;
 
 	// Cylindrical radius
 	//
-	double val = 0.0;
-	for (int k=0; k<2; k++) val += part->pos(k) * part->pos(k);
-	val = sqrt(val);
+	double R = 0.0;
+	for (int k=0; k<2; k++) R += part->pos(k) * part->pos(k);
+	R = sqrt(R);
 
 	double mass = part->mass();
 	
@@ -416,7 +420,9 @@ main(int ac, char **av)
 	double vz = part->vel(2);
 
 	// Add to grid
-	bess.add(mass, val, phi, vr, vt, vz);
+	bess.add(mass, R, phi, vr, vt, vz);
+
+	if (myid==0 and finegrain) ++(*progress);
       }
     }
 
@@ -424,11 +430,16 @@ main(int ac, char **av)
     //
     bess.synchronize();
     if (myid==0) {
-      bess.normalize();
       bess.write(out);
+    }
+
+    if (myid==0 and not verbose and not finegrain) {
+      ++(*progress);
     }
   }
   if (myid==0) std::cout << std::endl;
+
+  MPI_Finalize();
 
   return 0;
 }

@@ -12,6 +12,8 @@
 static pthread_mutex_t io_lock;
 #endif
 
+bool SphericalBasis::NewCoefs = false;
+
 SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) : 
   AxisymmetricBasis(conf)
 {
@@ -1388,20 +1390,56 @@ void SphericalBasis::get_dens_coefs(int l, Vector& coef, double *p)
 
 void SphericalBasis::dump_coefs(ostream& out)
 {
-  ostringstream sout;
-  sout << id;
+  if (NewCoefs) {
 
-  char buf[64];
-  for (int i=0; i<64; i++) {
-    if (i<sout.str().length())  buf[i] = sout.str().c_str()[i];
-    else                        buf[i] = '\0';
+    // This is a node of simple {key: value} pairs.  More general
+    // content can be added as needed.
+    //
+    YAML::Node node;
+
+    node["id"    ] = id;
+    node["time"  ] = tnow;
+    node["scale" ] = scale;
+    node["nmax"  ] = nmax;
+    node["lmax"  ] = Lmax;
+
+    // Serialize the node
+    //
+    YAML::Emitter y; y << node;
+    
+    // Get the size of the string
+    //
+    unsigned int hsize = strlen(y.c_str());
+    
+    // Write magic #
+    //
+    out.write(reinterpret_cast<const char *>(&cmagic),   sizeof(unsigned int));
+
+    // Write YAML string size
+    //
+    out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
+    
+    // Write YAML string
+    //
+    out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
+
+  } else {
+
+    std::ostringstream sout;
+    sout << id;
+
+    char buf[64];
+    for (int i=0; i<64; i++) {
+      if (i<sout.str().length())  buf[i] = sout.str().c_str()[i];
+      else                        buf[i] = '\0';
   }
 
-  out.write((char *)&buf, 64*sizeof(char));
-  out.write((char *)&tnow, sizeof(double));
-  out.write((char *)&scale, sizeof(double));
-  out.write((char *)&nmax, sizeof(int));
-  out.write((char *)&Lmax, sizeof(int));
+    out.write((char *)&buf, 64*sizeof(char));
+    out.write((char *)&tnow, sizeof(double));
+    out.write((char *)&scale, sizeof(double));
+    out.write((char *)&nmax, sizeof(int));
+    out.write((char *)&Lmax, sizeof(int));
+  }
 
   for (int ir=1; ir<=nmax; ir++) {
     for (int l=0; l<=Lmax*(Lmax+2); l++)

@@ -4,6 +4,9 @@
 #include <memory>
 
 #include <boost/program_options.hpp>
+#include <boost/make_unique.hpp>
+
+#include <yaml-cpp/yaml.h>	// YAML support
 
 namespace po = boost::program_options;
 
@@ -21,7 +24,55 @@ typedef std::shared_ptr<SphCoefs> SphCoefsPtr;
 
 bool SphCoefs::read(std::istream& in, bool exp_type)
 {
-  in.read((char *)&header, sizeof(SphCoefHeader));
+  //! Coefficient magic number
+  const unsigned int cmagic = 0xc0a57a2;
+
+  // Try to read magic #
+  //
+  unsigned int tmagic;
+  in.read(reinterpret_cast<char *>(&tmagic), sizeof(unsigned int));
+
+  // Found new-style coefficient file
+  //
+  if (cmagic == tmagic) {
+
+    // Read YAML string size
+    //
+    unsigned int hsize;
+    in.read(reinterpret_cast<char *>(&hsize), sizeof(unsigned int));
+    
+    // Create buffer
+    //
+    auto buf = boost::make_unique<char[]>(hsize+1);
+
+    // Read YAML string
+    //
+    in.read(buf.get(), hsize);
+    buf[hsize] = 0;		// Null terminate
+
+    YAML::Node node = YAML::Load(buf.get());
+      
+    // Get parameters
+    //
+    header.Lmax  = node["lmax"  ].as<int>();
+    header.nmax  = node["nmax"  ].as<int>();
+    header.tnow  = node["time"  ].as<double>();
+    header.scale = node["scale" ].as<double>();
+
+    std::fill(header.id, header.id+64, 0);
+    std::string ID = node["id"].as<std::string>();
+    strncpy(header.id, ID.c_str(), std::min<int>(64, ID.size()));
+
+  } else {
+
+    // Rewind file
+    //
+    in.clear();
+    in.seekg(0);
+
+    in.read((char *)&header, sizeof(SphCoefHeader));
+  }
+
   if (not in) return false;
 
   coefs.resize((header.Lmax+1)*(header.Lmax+1));
