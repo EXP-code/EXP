@@ -84,11 +84,11 @@ unsigned multistep = 0;
 unsigned maxlev = 100;
 int mstep = 1;
 int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
+std::vector<int> stepL(1, 0), stepN(1, 1);
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 pthread_mutex_t coef_lock;
-string outdir, runtag;
+std::string outdir, runtag;
 double tpos = 0.0;
 double tnow = 0.0;
   
@@ -517,7 +517,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
     
     if (myid==0) {
 
-      std::string OUTF = runtag + "_" + outid + "_profile" + sstr.str();
+      std::string OUTF = outdir + "/" + runtag + "_" + outid + "_profile" + sstr.str();
       std::ofstream out(OUTF.c_str(), ios::out | ios::app);
       if (!out) {
 	cerr << "Error opening <" << OUTF << "> for output\n";
@@ -1004,6 +1004,9 @@ main(int argc, char **argv)
     ("stride",
      po::value<int>(&stride)->default_value(1),
      "PSP index stride")
+    ("outdir",
+     po::value<std::string>(&outid)->default_value("."),
+     "Output directory path")
     ("outfile",
      po::value<std::string>(&outid)->default_value("diskprof2"),
      "Filename prefix")
@@ -1277,6 +1280,7 @@ main(int argc, char **argv)
   
   std::ofstream coefs;
   if (myid==0 and COEFFILE.size()>0) {
+    COEFFILE = outdir + "/" + COEFFILE;
     coefs.open(COEFFILE);
     if (not coefs) {
       std::cerr << "Could not open coefficient file <" << COEFFILE << "> . . . quitting"
