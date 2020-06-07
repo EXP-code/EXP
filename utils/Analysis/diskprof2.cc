@@ -1005,7 +1005,7 @@ main(int argc, char **argv)
      po::value<int>(&stride)->default_value(1),
      "PSP index stride")
     ("outdir",
-     po::value<std::string>(&outid)->default_value("."),
+     po::value<std::string>(&outdir)->default_value("."),
      "Output directory path")
     ("outfile",
      po::value<std::string>(&outid)->default_value("diskprof2"),
