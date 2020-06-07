@@ -167,7 +167,7 @@ public:
     int indX = static_cast<int>(floor((x + R)/dR));
     int indY = static_cast<int>(floor((y + R)/dR));
 
-    if (indx>=0 and indx<N and indy>=0 and indy<N) {
+    if (indX>=0 and indX<N and indY>=0 and indY<N) {
       dataXY[indY*N + indX] += m;
       dataZ [indY*N + indX].push_back(z);
     }
