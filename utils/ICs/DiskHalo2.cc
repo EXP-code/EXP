@@ -1203,7 +1203,7 @@ table_disk(vector<Particle>& part)
       y = R*sin(phi);
       workR[j] = log(RDMIN) + dR*j;
 
-				// For epicylic frequency
+				// For epicyclic frequency
 				// 
       disk_eval(R, 0.0, phi, pot, fr, fz, fp);
 				// Use monopole part of expansion here, only
