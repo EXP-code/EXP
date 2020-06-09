@@ -604,7 +604,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
       }
 
       std::ostringstream sout;
-      sout << runtag + "_" + outid + "_posn" + sstr.str();
+      sout << outdir + "/" + runtag + "_" + outid + "_posn" + sstr.str();
       vtk.Write(sout.str());
     }
   }
@@ -683,7 +683,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
       }
 
       std::ostringstream sout;
-      sout << runtag +"_" + outid + "_volume" + sstr.str();
+      sout << outdir + "/" + runtag +"_" + outid + "_volume" + sstr.str();
       vtk.Write(sout.str());
     }
 
@@ -771,7 +771,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
       vtk.Add(histo.dataXY, "histo");
 
       std::ostringstream sout;
-      sout << runtag + "_" + outid + "_surface" + sstr.str();
+      sout << outdir + "/" + runtag + "_" + outid + "_surface" + sstr.str();
       vtk.Write(sout.str());
     }
   } // END: SURFACE
@@ -840,7 +840,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
       }
 
       std::ostringstream sout;
-      sout << runtag + "_" + outid + "_vslice" + sstr.str();
+      sout << outdir + "/" + runtag + "_" + outid + "_vslice" + sstr.str();
       vtk.Write(sout.str());
     }
   } // END: VSLICE
@@ -1014,7 +1014,7 @@ main(int argc, char **argv)
      po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),
      "cachefile name")
     ("coeffile",
-     po::value<std::string>(&COEFFILE)->default_value("diskprof2.coefs"),
+     po::value<std::string>(&COEFFILE),
      "coefficient output file name")
     ("cmap",
      po::value<int>(&cmap)->default_value(0),
@@ -1197,7 +1197,7 @@ main(int argc, char **argv)
     
   if (PCA) {
     EmpCylSL::PCAVAR = true;
-      ortho.setHall(runtag + "_" + outid + ".pca", 1);
+      ortho.setHall(outdir + "/" + runtag + "_" + outid + ".pca", 1);
   }
 
   vector<Particle> particles;
@@ -1332,7 +1332,7 @@ main(int argc, char **argv)
 	   << ", index=" << indx << "] . . . "  << flush;
       times.push_back(tnow);
       ostringstream filen;
-      filen << runtag << "_" << outid << "_surface."
+      filen << outdir << "/" << runtag << "_" << outid << "_surface."
 	    << std::setfill('0') << std::setw(5) << indx << ".vtr";
       outfiles.push_back(filen.str());
     }
@@ -1384,7 +1384,7 @@ main(int argc, char **argv)
   // Create PVD file
   //
   if (myid==0 and PVD) {
-    writePVD(runtag+".pvd", times, outfiles);
+    writePVD(outdir + "/" + runtag + ".pvd", times, outfiles);
   }
 
   // Shutdown MPI

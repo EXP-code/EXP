@@ -75,13 +75,13 @@ vector<int> stepL(1, 0), stepN(1, 1);
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 pthread_mutex_t coef_lock;
-string outdir, runtag;
+std::string outdir, runtag;
 double tpos = 0.0;
 double tnow = 0.0;
   
 // Globals
 //
-string OUTFILE;
+std::string OUTFILE;
 double RMIN, RMAX;
 int OUTR, LMAX, NMAX, MMAX, L1, L2;
 bool VOLUME, SURFACE, PROBE;
@@ -415,7 +415,7 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
       }
 
       std::ostringstream sout;
-      sout << OUTFILE + "_volume";
+      sout << outdir + "/" + OUTFILE + "_volume";
       vtk.Write(sout.str());
     }
 
@@ -497,7 +497,7 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
       vtkXY.Add(histo.dataYZ, suffix[10]);
 
       std::ostringstream sout;
-      sout << runtag + "_" + OUTFILE + "_surface" + sstr.str();
+      sout << outdir + "/" + runtag + "_" + OUTFILE + "_surface" + sstr.str();
       vtkXY.Write(sout.str());
 
     }
@@ -601,7 +601,7 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
       
       vector<string> names(nout1);
       for (int i=0; i<nout1; i++) {
-	names[i] = OUTFILE + "." + suffix[i] + ".cut" + sstr.str();
+	names[i] = outdir + "/" + OUTFILE + "." + suffix[i] + ".cut" + sstr.str();
       }
 
       foarray out(names, true);
@@ -687,6 +687,8 @@ main(int argc, char **argv)
      "Filename prefix")
     ("runtag",              po::value<string>(&runtag)->default_value("run1"),
      "Phase space file")
+    ("outdir",              po::value<string>(&outdir)->default_value("."),
+     "Output directory path")
     ("MODFILE",             po::value<string>(&MODFILE)->default_value("SLGridSph.model"),
      "Halo model file")
     ("init",                po::value<int>(&init)->default_value(0),
@@ -761,7 +763,7 @@ main(int argc, char **argv)
   std::ofstream outcoef;	// Coefficient file
 
   if (vm.count("coefs")) {
-    std::string coeffile = OUTFILE + ".coefs";
+    std::string coeffile = outdir + "/" + OUTFILE + ".coefs";
 				// Set exceptions to be thrown on failure
     outcoef.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 
