@@ -1,6 +1,7 @@
 #include "expand.h"
 
 #include <Direct.H>
+#include <GravKernel.H>
 
 #ifdef DEBUG
 static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
@@ -52,6 +53,14 @@ void Direct::initialize(void)
       soft = conf["soft"].as<double>();
       fixed_soft = true;
       ndim = 4;
+    }
+
+    if (conf["type"]) {
+      std::string type = conf["type"].as<std::string>();
+      if (type.compare("Spline") == 0) sfct = SplineSoft();
+      else                             sfct = PlummerSoft();
+    } else {
+      sfct = SplineSoft();
     }
 
     if (conf["pm_model"])         pm_model     = conf["pm_model"].as<bool>();
@@ -206,22 +215,23 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
 
 				// Compute interparticle squared distance
       rr0 = 0.0;
-      for (int k=0; k<3; k++)
-	rr0 += 
-	  (cC->Pos(j, k) - pos[k]) *
-	  (cC->Pos(j, k) - pos[k]) ;
-      
-				// Compute softened distance
-      rr = sqrt(rr0+eps*eps);
-
-                                // Extended model for point masses
+      for (int k=0; k<3; k++) rr0 +=
+				(cC->Pos(j, k) - pos[k]) *
+				(cC->Pos(j, k) - pos[k]) ;
+      rr = sqrt(rr0);
+				// Extended model for point masses
                                 // Given model provides normalized mass distrbution
-      if(pm_model && pmmodel->get_max_radius() > rr) 
-	{
-	  double mass_frac;
-	  mass_frac = pmmodel->get_mass(rr) / pmmodel->get_mass(pmmodel->get_max_radius());
-	  mass *= mass_frac;
-	}
+      double pot = 0.0;
+
+      if (pm_model && pmmodel->get_max_radius() > rr) {
+	double mass_frac = pmmodel->get_mass(rr) / pmmodel->get_mass(pmmodel->get_max_radius());
+	pot = pmmodel->get_pot(rr)/pmmodel->get_mass(pmmodel->get_max_radius());
+	mass *= mass_frac;
+      } else {
+	auto y = sfct(rr, eps);
+	pot = mass * y.second;
+	mass *= y.first;
+      }
 				// Acceleration
       rfac = 1.0/(rr*rr*rr);
 	
@@ -230,7 +240,7 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
       
 				// Potential
       if (use_external) {
-	cC->AddPotExt(j, -mass/rr );
+	cC->AddPotExt(j, -pot );
 #ifdef DEBUG
 	ncnt++;
 	for (int k=0; k<3; k++)
@@ -238,8 +248,7 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
 	    (cC->Pos(j, k) - pos[k]) * cC->Pos(j, k) * rfac;
 #endif
       }
-      else if (rr0 > 1.0e-16)	// Ignore "self" potential
-	cC->AddPot(j, -mass/rr );
+      else cC->AddPot(j, pot );
     }
   }
   

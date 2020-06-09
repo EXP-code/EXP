@@ -16,9 +16,15 @@
    @param soft is a fixed softening value for all particles.  This can be 
    used even if a value is specified in the particle attribute array.
 
+   @param type is the softening type (current Plummer or Spline)
+
 */
 
 /* provide an extended spherical model for point mass */
+
+#include <functional>
+#include <utility>
+
 #include <AxisymmetricBasis.H>
 #include <massmodel.h>
 
@@ -51,6 +57,8 @@ private:
 
   void * determine_coefficients_thread(void * arg);
   void * determine_acceleration_and_potential_thread(void * arg);
+
+  std::function<std::pair<double, double>(double, double)> sfct;
 
 public:
 
