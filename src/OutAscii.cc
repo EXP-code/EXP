@@ -116,22 +116,35 @@ void OutAscii::Run(int n, int mstep, bool last)
       nOK = 1;
     }
     
-    if (nOK == 0) {
-      out << "# Time=" << tnow << "\n";
-      out << setw(10) << c0->NewTotal()
-	  << setw(10) << c0->niattrib
-	  << setw(10) << c0->ndattrib << "\n";
-    }
   }
 
+  // Check that root has a good stream
+  //
   MPI_Bcast(&nOK, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (nOK) {
     MPI_Finalize();
     exit(33);
   }
 
+  // Update total particle number
+  //
+  c0->NewTotal();
+
+  // Write the header
+  //
+  if (nOK == 0) {
+      out << "# Time=" << tnow << "\n";
+      out << setw(10) << c0->CurTotal()
+	  << setw(10) << c0->niattrib
+	  << setw(10) << c0->ndattrib << "\n";
+  }
+  
+  // Dump the phase-space info into the file
+  //
   c0->write_ascii(&out, accel);
 
+  // Close file and done
+  //
   if (myid==0) {
     try {
       out.close();

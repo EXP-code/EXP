@@ -1751,7 +1751,9 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
     conf["parameters"] = cconf;
     conf["bodyfile"]   = pfile;
     conf["force"]      = force;
-				// Informational output
+
+    // Informational output
+    //
     if (myid==0)  {
       cconf.SetStyle(YAML::EmitterStyle::Flow);
       fconf.SetStyle(YAML::EmitterStyle::Flow);
