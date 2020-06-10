@@ -35,7 +35,7 @@ private:
   double eps, fac0, fac1, fac2;
 
   //@{
-  //! Spline functions
+  //! Spline kernel integrals
   
   double m1(double x)
   { return 32.*x*x*x*(1./3. - 6./5.*x*x + x*x*x); }
