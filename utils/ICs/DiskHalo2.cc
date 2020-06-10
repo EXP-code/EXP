@@ -120,11 +120,11 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
   disk = std::make_shared<ExponentialDisk>(A, RDMAX);
 
   if (myid==0 && VFLAG & 1) {
-    cerr << "DiskHalo: DIVERGE=" << DIVERGE
+    std::cerr << "DiskHalo: DIVERGE=" << DIVERGE
 	 << " A=" << A
 	 << " RDMAX=" << RDMAX
 	 << " filename=" << filename
-	 << endl;
+	 << std::endl;
   }
 
   if (DF) {
@@ -198,7 +198,7 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
   disk = std::make_shared<ExponentialDisk>(A, RDMAX);
 
   if (myid==0 && VFLAG & 1) {
-    cerr << "DiskHalo: DIVERGE=" << DIVERGE
+    std::cerr << "DiskHalo: DIVERGE=" << DIVERGE
 	 << " DIVERGE2=" << DIVERGE2
 	 << " A=" << A
 	 << " RDMAX=" << RDMAX
@@ -223,7 +223,7 @@ DiskHalo(SphericalSLptr haloexp, EmpCylSLptr diskexp,
     halo2->print_df(debugname);
   }
 
-  if (myid==0) cout << "DF MADE" << endl;
+  if (myid==0) std::cout << "DF MADE" << std::endl;
 
   MPI_Barrier(MPI_COMM_WORLD);
 
@@ -372,13 +372,13 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
   vector<double>   DD(nh+1, 0.0), DD0(nh+1);
   vector<unsigned> NN(nh+1, 0),   NN0(nh+1);
 
-  if (myid==0) cout << endl 
-		    << "     *****"
-		    << "  rmin=" << rmin
-		    << "  rmax=" << rmax
-		    << "  mmin=" << mmin
-		    << "  mtot=" << mtot
-		    << endl;
+  if (myid==0) std::cout << std::endl 
+			 << "     *****"
+			 << "  rmin=" << rmin
+			 << "  rmax=" << rmax
+			 << "  mmin=" << mmin
+			 << "  mtot=" << mtot
+			 << std::endl;
 
   for (int k=0; k<3; k++) {
     pos[k] = pos1[k] = 0.0;
@@ -462,14 +462,14 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
   }
   
   if (myid==0) {
-    cout << "     *****";
-    cout << " (x, y, z)=(" << pos[0] 
+    std::cout << "     *****";
+    std::cout << " (x, y, z)=(" << pos[0] 
 	 << ", " << pos[1]
-	 << ", " << pos[2] << ")" << endl;
-    cout << "     *****";
-    cout << " (u, v, w)=(" << vel[0]
+	 << ", " << pos[2] << ")" << std::endl;
+    std::cout << "     *****";
+    std::cout << " (u, v, w)=(" << vel[0]
 	 << ", " << vel[1]
-	 << ", " << vel[2] << ")" << endl;
+	 << ", " << vel[2] << ")" << std::endl;
   }
 
 
@@ -483,19 +483,19 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
   MPI_Reduce(&massn1, &massn, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   
 
-  if (myid==0) cout << "     *****"
-		    << "  M(comp)=" << massp
-		    << "  M(modl)=" << mtot - mmin
-		    << "  M(meas)=" << massn
-		    << endl;
+  if (myid==0) std::cout << "     *****"
+			 << "  M(comp)=" << massp
+			 << "  M(modl)=" << mtot - mmin
+			 << "  M(meas)=" << massn
+			 << std::endl;
   
   // Make dispersion vector
   //
   table_halo_disp();
 
   if (VFLAG & 1)
-    cout << "Process " << myid << ": made " << phalo.size() << " particles"
-	 << endl;
+    std::cout << "Process " << myid << ": made " << phalo.size() << " particles"
+	      << std::endl;
 
   MPI_Allreduce(&NN[0], &NN0[0], nh+1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(&DD[0], &DD0[0], nh+1, MPI_DOUBLE,   MPI_SUM, MPI_COMM_WORLD);
@@ -556,8 +556,8 @@ void DiskHalo::set_halo_table_multi(vector<Particle>& phalo)
   table_halo_disp();
 
   if (VFLAG & 1)
-    cout << "Process " << myid << ": made " << phalo.size() << " particles"
-	 << endl;
+    std::cout << "Process " << myid << ": made " << phalo.size() << " particles"
+	 << std::endl;
 
   MPI_Allreduce(&NN[0], &NN0[0], nh+1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(&DD[0], &DD0[0], nh+1, MPI_DOUBLE,   MPI_SUM, MPI_COMM_WORLD);
@@ -583,10 +583,10 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
   vector<double>   DD(nh+1, 0.0), DD0(nh+1);
   vector<unsigned> NN(nh+1, 0),   NN0(nh+1);
 
-  if (myid==0 && VFLAG & 1) cout << "  rmin=" << rmin
-				 << "  rmax=" << rmax
-				 << "  mmin=" << mmin
-				 << "  mtot=" << mtot;
+  if (myid==0 && VFLAG & 1) std::cout << "  rmin=" << rmin
+				      << "  rmax=" << rmax
+				      << "  mmin=" << mmin
+				      << "  mtot=" << mtot;
 
   for (int k=0; k<3; k++) pos[k] = pos1[k] = 0.0;
   massp = massp1 = 0.0;
@@ -637,8 +637,8 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
   MPI_Reduce(&radmin1, &radmin, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
   MPI_Reduce(&radmax1, &radmax, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
   
-  if (myid==0) cout << "  min(r)=" << radmin 
-		    << "  max(r)=" << radmax;
+  if (myid==0) std::cout << "  min(r)=" << radmin 
+			 << "  max(r)=" << radmax;
 
   MPI_Allreduce(&massp1, &massp, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(pos1, pos, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -648,9 +648,9 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
   }
 
   if (myid==0) {
-    cout << " (x, y, z)=(" << pos[0] 
-	 << ", " << pos[1]
-	 << ", " << pos[2] << ")" << endl;
+    std::cout << " (x, y, z)=(" << pos[0] 
+	      << ", " << pos[1]
+	      << ", " << pos[2] << ")" << std::endl;
   }
   
 
@@ -661,8 +661,8 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
   }
 
   if (VFLAG & 1)
-    cout << "Process " << myid << ": made " << phalo.size() << " particles"
-	 << endl;
+    std::cout << "Process " << myid << ": made " << phalo.size() << " particles"
+	 << std::endl;
 
   MPI_Allreduce(&NN[0], &NN0[0], nh+1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(&DD[0], &DD0[0], nh+1, MPI_DOUBLE,   MPI_SUM, MPI_COMM_WORLD);
@@ -686,10 +686,10 @@ set_halo_table_single(vector<Particle>& phalo)
   vector<double>   DD(nh+1, 0.0), DD0(nh+1);
   vector<unsigned> NN(nh+1, 0),   NN0(nh+1);
 
-  if (myid==0 && VFLAG & 1) cout << "  rmin=" << rmin
-				 << "  rmax=" << rmax
-				 << "  mmin=" << mmin
-				 << "  mtot=" << mtot;
+  if (myid==0 && VFLAG & 1) std::cout << "  rmin=" << rmin
+				      << "  rmax=" << rmax
+				      << "  mmin=" << mmin
+				      << "  mtot=" << mtot;
 
   for (auto p : phalo) {
 
@@ -713,8 +713,8 @@ set_halo_table_single(vector<Particle>& phalo)
   MPI_Reduce(&radmin1, &radmin, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
   MPI_Reduce(&radmax1, &radmax, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
   
-  if (myid==0) cout << "  min(r)=" << radmin 
-		    << "  max(r)=" << radmax;
+  if (myid==0) std::cout << "  min(r)=" << radmin 
+			 << "  max(r)=" << radmax;
 
   MPI_Allreduce(&NN[0], &NN0[0], nh+1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(&DD[0], &DD0[0], nh+1, MPI_DOUBLE,   MPI_SUM, MPI_COMM_WORLD);
@@ -742,13 +742,13 @@ set_disk_coordinates(vector<Particle>& pdisk, int ndisk, int npart)
   vector<double>   DD(nh+1, 0.0), DD0(nh+1);
   vector<unsigned> NN(nh+1, 0),   NN0(nh+1);
 
-  if (myid==0) cout << endl
-		    << "     *****"
-		    << "  rmin=" << rmin
-		    << "  rmax=" << rmax
-		    << "  mmin=" << mmin
-		    << "  mtot=" << mtot
-		    << endl;
+  if (myid==0) std::cout << std::endl
+			 << "     *****"
+			 << "  rmin=" << rmin
+			 << "  rmax=" << rmax
+			 << "  mmin=" << mmin
+			 << "  mtot=" << mtot
+			 << std::endl;
 
   for (int k=0; k<3; k++) pos[k] = pos1[k] = 0.0;
   massp = massp1 = 0.0;
@@ -794,10 +794,10 @@ set_disk_coordinates(vector<Particle>& pdisk, int ndisk, int npart)
   MPI_Reduce(&radmin1, &radmin, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
   MPI_Reduce(&radmax1, &radmax, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
-  if (myid==0) cout << "     *****"
-		    << "  min(r)=" << radmin 
-		    << "  max(r)=" << radmax 
-		    << endl;
+  if (myid==0) std::cout << "     *****"
+			 << "  min(r)=" << radmin 
+			 << "  max(r)=" << radmax 
+			 << std::endl;
 
   MPI_Allreduce(&massp1, &massp, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(pos1, pos, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -807,10 +807,10 @@ set_disk_coordinates(vector<Particle>& pdisk, int ndisk, int npart)
   }
 
   if (myid==0) {
-    cout << "     *****";
-    cout << " (x, y, z)=(" << pos[0] 
-	 << ", " << pos[1]
-	 << ", " << pos[2] << ")" << endl;
+    std::cout << "     *****";
+    std::cout << " (x, y, z)=(" << pos[0] 
+	      << ", " << pos[1]
+	      << ", " << pos[2] << ")" << std::endl;
   }
   
   if (com) {
@@ -920,8 +920,8 @@ deri_pot(double xp, double yp, double zp, int n)
     dP = deri_pot_disk(xp,yp,zp,1) + deri_pot_halo(xp,yp,zp,1);
     break;
   default:
-    cout << "deri_pot: derivative of order " << n 
-	 << " can't be calculated" << endl;
+    std::cout << "deri_pot: derivative of order " << n 
+	      << " can't be calculated" << std::endl;
     break;
   }
   return dP;
@@ -941,8 +941,8 @@ deri_pot_disk(double xp, double yp, double zp, int n)
     dP = get_ddpot(xp,yp,zp);
     break;
   default:
-    cout<< "deri_pot_disk: derivative of order " << n 
-	<< " can't be calculated" << endl;
+    std::cout << "deri_pot_disk: derivative of order " << n 
+	      << " can't be calculated" << std::endl;
     break;
   }
   return dP;
@@ -961,8 +961,8 @@ deri_pot_halo(double xp, double yp, double zp, int n)
     dP = get_hdpot(xp,yp,zp);
     break;
   default:
-    cout<<"deri_pot_halo: derivative of order " << n 
-	<< " can't be calculated" << endl;
+    std::cout <<"deri_pot_halo: derivative of order " << n 
+	      << " can't be calculated" << std::endl;
     break;
   }
   return dP;
@@ -972,7 +972,7 @@ double DiskHalo::
 epi(double xp, double yp, double zp)
 {
   if (disktableP.size()==0) {
-    cerr << "epi: must call table_disk first\n";
+    std::cerr << "epi: must call table_disk first\n";
     MPI_Abort(MPI_COMM_WORLD, 100);
     exit(0);
   }
@@ -1040,40 +1040,40 @@ epi(double xp, double yp, double zp)
 
     if (ok) {
 
-      out << "Process " << myid << " epi range error [forward]" << endl
-	  << "     R="  << sqrt(xp*xp + yp*yp)    << endl
-	  << "   Phi="  << phi                    << endl
-	  << "   ir1="  << ir1 << "/" << NDR      << endl
-	  << "   ir2="  << ir2 << "/" << NDR      << endl
-	  << "    ans=" << ans                    << endl
-	  << "    ep1=" << epitable[iphi1][ir1]   << endl
-	  << "    ep2=" << epitable[iphi1][ir2]   << endl
-	  << "    ep3=" << epitable[iphi2][ir1]   << endl
-	  << "    ep4=" << epitable[iphi2][ir2]   << endl
+      out << "Process " << myid << " epi range error [forward]" << std::endl
+	  << "     R="  << sqrt(xp*xp + yp*yp)    << std::endl
+	  << "   Phi="  << phi                    << std::endl
+	  << "   ir1="  << ir1 << "/" << NDR      << std::endl
+	  << "   ir2="  << ir2 << "/" << NDR      << std::endl
+	  << "    ans=" << ans                    << std::endl
+	  << "    ep1=" << epitable[iphi1][ir1]   << std::endl
+	  << "    ep2=" << epitable[iphi1][ir2]   << std::endl
+	  << "    ep3=" << epitable[iphi2][ir1]   << std::endl
+	  << "    ep4=" << epitable[iphi2][ir2]   << std::endl
 	  << "      j=" << j
-	  << "    ep5=" << epitable[iphi1][j]     << endl
-	  << "    ep6=" << epitable[iphi2][j]     << endl
-	  << endl;
+	  << "    ep5=" << epitable[iphi1][j]     << std::endl
+	  << "    ep6=" << epitable[iphi2][j]     << std::endl
+	  << std::endl;
 
       return sqrt(ans);
 
     } else {
 
-      out << "Process " << myid << " epi range error [unresolved]" << endl
-	  << "     R="  << sqrt(xp*xp + yp*yp)    << endl
-	  << "  Rmax="  << RDMIN*exp(dR*NDR)      << endl
-	  << "   del="  << (lR - log(RDMIN))/dR   << endl
-	  << "   ir1="  << ir1 << "/" << NDR      << endl
-	  << "   ir2="  << ir2 << "/" << NDR      << endl
-	  << "    cr="  << cr[0] << ", " << cr[1] << endl
-	  << "   Phi="  << phi                    << endl
-	  << "    cp="  << cp[0] << ", " << cp[1] << endl
-	  << "    ans=" << ans                    << endl
-	  << "    ep1=" << epitable[iphi1][ir1]   << endl
-	  << "    ep2=" << epitable[iphi1][ir2]   << endl
-	  << "    ep3=" << epitable[iphi2][ir1]   << endl
-	  << "    ep4=" << epitable[iphi2][ir2]   << endl
-	  << endl;
+      out << "Process " << myid << " epi range error [unresolved]" << std::endl
+	  << "     R="  << sqrt(xp*xp + yp*yp)    << std::endl
+	  << "  Rmax="  << RDMIN*exp(dR*NDR)      << std::endl
+	  << "   del="  << (lR - log(RDMIN))/dR   << std::endl
+	  << "   ir1="  << ir1 << "/" << NDR      << std::endl
+	  << "   ir2="  << ir2 << "/" << NDR      << std::endl
+	  << "    cr="  << cr[0] << ", " << cr[1] << std::endl
+	  << "   Phi="  << phi                    << std::endl
+	  << "    cp="  << cp[0] << ", " << cp[1] << std::endl
+	  << "    ans=" << ans                    << std::endl
+	  << "    ep1=" << epitable[iphi1][ir1]   << std::endl
+	  << "    ep2=" << epitable[iphi1][ir2]   << std::endl
+	  << "    ep3=" << epitable[iphi2][ir1]   << std::endl
+	  << "    ep4=" << epitable[iphi2][ir2]   << std::endl
+	  << std::endl;
 
       return 1.0e-8;
 
@@ -1119,14 +1119,14 @@ table_disk(vector<Particle>& part)
   dZ = maxz/(NDZ-1);
 
   if (myid==0) {
-    cout << endl
-	 << "Table disk epi parameters:" << endl
-	 << "  RDMIN=" << RDMIN           << endl
-	 << "   maxr=" << maxr            << endl
-	 << "   maxz=" << maxz            << endl
-	 << "   dR=" << dR                << endl
-	 << "   dZ=" << dZ                << endl
-	 << endl;
+    std::cout << std::endl
+	      << "Table disk epi parameters:"  << std::endl
+	      << "  RDMIN=" << RDMIN           << std::endl
+	      << "   maxr=" << maxr            << std::endl
+	      << "   maxz=" << maxz            << std::endl
+	      << "   dR=" << dR                << std::endl
+	      << "   dZ=" << dZ                << std::endl
+	      << std::endl;
   }
 
   double dZ1 = maxz/(NDZ-1);
@@ -1164,10 +1164,10 @@ table_disk(vector<Particle>& part)
   for (nzero=0; nzero<=nh; nzero++) if (nhN[nzero] >= mh) break;
 
   if (nzero>nh) nzero=0;	// Not enough particles . . . 
-  if (myid==0) cout << "Nzero=" << nzero << "/" << nh << endl;
+  if (myid==0) std::cout << "Nzero=" << nzero << "/" << nh << std::endl;
 
   nzero = floor( (hDmin + nzero*dRh - log(RDMIN))/dR ) + 1;
-  if (myid==0) cout << "Nzero=" << nzero << "/" << NDR << endl;
+  if (myid==0) std::cout << "Nzero=" << nzero << "/" << NDR << std::endl;
 
   for (int n=0; n<=nh; n++) nrD[n] = hDmin + dRh*n;
   for (int n=1; n<=nh; n++) nhD[n] += nhD[n-1];
@@ -1181,11 +1181,11 @@ table_disk(vector<Particle>& part)
     iend[i] = (i+1)*NDP/numprocs;
     if (curid<0 && iend[i]-ibeg[i]>0) curid = i;
     if (myid==0) {
-      if (i==0) cout << endl << " *** Processor phi angles *** " << endl;
-      cout << "# " << setw(3) << i << ": " 
-	   << setw(10) << ibeg[i]
-	   << setw(10) << iend[i]
-	   << endl;
+      if (i==0) std::cout << std::endl << " *** Processor phi angles *** " << std::endl;
+      std::cout << "# " << setw(3) << i << ": " 
+		<< setw(10) << ibeg[i]
+		<< setw(10) << iend[i]
+		<< std::endl;
     }
   }
 
@@ -1291,7 +1291,7 @@ table_disk(vector<Particle>& part)
 	       << setw(15) << workP[k] 
 	       << setw(15) << workA[k];
 	  for (int q=0; q<7; q++) dout << setw(15) << workDZ[q][k];
-	  dout << endl;
+	  dout << std::endl;
 	}
 	dout.close();
       }
@@ -1451,7 +1451,7 @@ table_disk(vector<Particle>& part)
 	  << setw(14) << lhs - rhs		// #20
 	  << setw(14) << odd2(log(r), nrD, nhD) // #21  Enclosed mass
 	  << setw(14) << epi(r, 0.0, 0.0)	// #22  Epi routine
-	  << endl;
+	  << std::endl;
     }
 
     ostringstream sout2;
@@ -1463,8 +1463,8 @@ table_disk(vector<Particle>& part)
 	dump << setw(18) << phi 
 	     << setw(18) << RDMIN*exp(dR*j)
 	     << setw(18) << epitable[i][j]
-	     << endl;
-      dump << endl;
+	     << std::endl;
+      dump << std::endl;
     }
     dump.close();
 
@@ -1485,9 +1485,9 @@ table_disk(vector<Particle>& part)
 	     << setw(18) << vr				// 7 vr^2
 	     << setw(18) << vc*vc;			// 8 vc^2
 	if (CHEBY) dump << setw(18) << cheb2->eval(workV[0][j]);
-	dump << endl;
+	dump << std::endl;
       }
-      dump << endl;
+      dump << std::endl;
     }
     dump.close();
   }
@@ -1501,18 +1501,18 @@ table_disk(vector<Particle>& part)
 
     for (int i=0; i<=NDP; i++) {
       phi = dP*i;
-      out << "# i=" << " phi=" << phi << ", " << phi*180.0/M_PI << endl;
+      out << "# i=" << " phi=" << phi << ", " << phi*180.0/M_PI << std::endl;
       for (int j=0; j<NDR; j++) {
 	R = RDMIN*exp(dR*j);
 	x = R*cos(phi);
 	y = R*sin(phi);
 	out << setw(18) << x
 	    << setw(18) << y
-	    << setw(18) << epitable[i%NDP][j] << endl;
+	    << setw(18) << epitable[i%NDP][j] << std::endl;
       }
-      out << endl;
+      out << std::endl;
     }
-    out << flush;
+    out << std::flush;
     out.close();
   }
 
@@ -1530,13 +1530,13 @@ table_disk(vector<Particle>& part)
 	    << setw(18) << disktableP[0][j][k]
 	    << setw(18) << disktableN[0][j][k] 
 	    << setw(18) << disk_density(RDMIN*exp(dR*j), dZ*k)
-	    << endl;
+	    << std::endl;
       }
-      out << endl;
+      out << std::endl;
     }
   }
 
-  if (myid==0) cout << "[table] " << flush;
+  if (myid==0) std::cout << "[table] " << std::flush;
 
   delete cheb;
   delete cheb2;
@@ -1568,7 +1568,7 @@ double DiskHalo::vp_disp2(double xp, double yp, double zp)
 double DiskHalo::vz_disp2(double xp,double yp, double zp)
 {
   if (disktableP.size()==0) {
-    cerr << "DiskHalo::vz_disp2: must call table_disk first\n";
+    std::cerr << "DiskHalo::vz_disp2: must call table_disk first\n";
     MPI_Abort(MPI_COMM_WORLD, 100);
     exit(0);
   }
@@ -1689,12 +1689,12 @@ double DiskHalo::a_drift(double xp, double yp, double zp)
   if (1) {
     if (cp[1]>1.0 || cp[1] < 0.0 ||
 	cp[0]>1.0 || cp[0] < 0.0 )
-      cerr << "DiskHalo::a_drift: phi=" << phi
-	   << ", cp=(" << cp[0] << ", " << cp[1] << ")" << endl;
+      std::cerr << "DiskHalo::a_drift: phi=" << phi
+	   << ", cp=(" << cp[0] << ", " << cp[1] << ")" << std::endl;
     if (cr[1]>1.0 || cr[1] < 0.0 ||
 	cr[0]>1.0 || cr[0] < 0.0 )
-      cerr << "DiskHalo::a_drift: R=" << R
-	   << ", cr=(" << cr[0] << ", " << cr[1] << ")" << endl;
+      std::cerr << "DiskHalo::a_drift: R=" << R
+	   << ", cr=(" << cr[0] << ", " << cr[1] << ")" << std::endl;
   }
   // END DEBUG
   
@@ -1718,8 +1718,8 @@ double DiskHalo::v_circ(double xp, double yp, double zp)
 
 				// Sanity check
   if (vcirc2<=0.0) {
-    cout << "DiskHalo::v_circ: circular velocity out of bounds, R="
-	 << R << "  v_circ2=" << vcirc2 << endl;
+    std::cout << "DiskHalo::v_circ: circular velocity out of bounds, R="
+	      << R << "  v_circ2=" << vcirc2 << std::endl;
     vcirc2 = 1.0e-20;
   }
 
@@ -1731,7 +1731,7 @@ void DiskHalo::
 set_vel_disk(vector<Particle>& part)
 {
   if (!expandd) {
-    if (myid==0) cout << "[no disk particles] ";
+    if (myid==0) std::cout << "[no disk particles] ";
     return;
   }
 
@@ -1752,18 +1752,21 @@ set_vel_disk(vector<Particle>& part)
 				// Debugging
   ofstream out;
   if (VFLAG & 4) {
-    ostringstream sout;
+    std::ostringstream sout;
     sout << "test_vel." << RUNTAG << "." << myid;
     out.open(sout.str().c_str());
-    out << "# " << right
-        << setw(12) << "R "    << setw(14) << "z"   << setw(14) << "v_circ"
-        << setw(14) << "v_T" << setw(14) << "drift" << setw(14) << "kappa"
-	<< setw(14) << "v_R" << setw(14) << "v_phi" << setw(14) << "v_z";
     if (type==DiskHalo::Epicyclic) 
-      out << setw(14) << "R1" <<  setw(14) << "X";
+      out << "# " << std::right
+	  << std::setw(12) << "R |"    << std::setw(14) << "z |"   << std::setw(14) << "v_circ |"
+	  << std::setw(14) << "v_R |" << std::setw(14) << "v_phi |" << std::setw(14) << "v_z |"
+	  << std::setw(14) << "R1 |" <<  std::setw(14) << "X |" << std::setw(14) << "kappa |";
     else
-      out << setw(14) << "vv_R" << setw(14) << "vv_phi" << setw(14) << "vv_z";
-    out << endl;
+      out << "# " << std::right
+	  << std::setw(12) << "R |"    << std::setw(14) << "z |"   << std::setw(14) << "v_circ |"
+	  << std::setw(14) << "v_T |" << std::setw(14) << "drift |" << std::setw(14) << "kappa |"
+	  << std::setw(14) << "v_R |" << std::setw(14) << "v_phi |" << std::setw(14) << "v_z |"
+	  << std::setw(14) << "vv_R |" << std::setw(14) << "vv_phi |" << std::setw(14) << "vv_z |";
+    out << std::endl;
   }
 
 
@@ -1781,9 +1784,9 @@ set_vel_disk(vector<Particle>& part)
     vvP = vp_disp2(x, y, z);
 				 // For safety; should only be a problem
 				 // on extrapolating the range
-    vvZ = max<double>(vvZ, MINDOUBLE);
-    vvR = max<double>(vvR, MINDOUBLE);
-    vvP = max<double>(vvP, MINDOUBLE);
+    vvZ = std::max<double>(vvZ, MINDOUBLE);
+    vvR = std::max<double>(vvR, MINDOUBLE);
+    vvP = std::max<double>(vvP, MINDOUBLE);
     
     if (maxVZ < vvZ) {
       maxVZ = vvZ;
@@ -1792,6 +1795,8 @@ set_vel_disk(vector<Particle>& part)
     if (maxVR < vvR) {
       maxVR = vvR;
       RVR   = R;
+      std::cout << "maxVR: vvR = " << vvR
+		<< " x=" << x << " y=" << y << std::endl;
     }
     if (maxVP < vvP) {
       maxVP = vvP;
@@ -1814,31 +1819,31 @@ set_vel_disk(vector<Particle>& part)
 	ac = vc*(1.0-sqrt(as));
       else {
 	if (as<0.0) ac = vc;
-	int op = cout.precision(3);
-	cout << "ac oab:"
-	     << " as="   << setw(10) << as 
-	     << ", R="   << setw(10) << R
-	     << ", ac="  << setw(10) << ac
-	     << ", ad="  << setw(10) << ad
-	     << ", vc="  << setw(10) << vc
-	     << ", vvR=" << setw(10) << vvR
-	     << endl;
-	cout.precision(op);
+	int op = std::cout.precision(3);
+	std::cout << "ac oab:"
+		  << " as="   << std::setw(10) << as 
+		  << ", R="   << std::setw(10) << R
+		  << ", ac="  << std::setw(10) << ac
+		  << ", ad="  << std::setw(10) << ad
+		  << ", vc="  << std::setw(10) << vc
+		  << ", vvR=" << std::setw(10) << vvR
+		  << std::endl;
+	std::cout.precision(op);
       }
 
     case Jeans:
       va = max<double>(vc - ac, MINDOUBLE);
      
-      vz   = rn()*sqrt(max<double>(vvZ, MINDOUBLE));
-      vr   = rn()*sqrt(max<double>(vvR, MINDOUBLE));
-      vp   = rn()*sqrt(max<double>(vvP, MINDOUBLE)) + va;
+      vz   = rn()*sqrt(std::max<double>(vvZ, MINDOUBLE));
+      vr   = rn()*sqrt(std::max<double>(vvR, MINDOUBLE));
+      vp   = rn()*sqrt(std::max<double>(vvP, MINDOUBLE)) + va;
       
       if (out) 
-	out << setw(14) << R   << setw(14) << z   << setw(14) << vc
-	    << setw(14) << va  << setw(14) << ac  << setw(14) << epi(x, y, z)
-	    << setw(14) << vr  << setw(14) << vp  << setw(14) << vz
-	    << setw(14) << vvR << setw(14) << vvP << setw(14) << vvZ
-	    << endl;
+	out << std::setw(14) << R   << std::setw(14) << z   << std::setw(14) << vc
+	    << std::setw(14) << va  << std::setw(14) << ac  << std::setw(14) << epi(x, y, z)
+	    << std::setw(14) << vr  << std::setw(14) << vp  << std::setw(14) << vz
+	    << std::setw(14) << vvR << std::setw(14) << vvP << std::setw(14) << vvZ
+	    << std::endl;
       break;
       
     case Epicyclic:
@@ -1897,21 +1902,21 @@ set_vel_disk(vector<Particle>& part)
 	  cnt++;
 	}
 	if (cnt>=100) {
-	  cerr << "OOPS" << endl;
+	  std::cerr << "OOPS" << std::endl;
 	}
 				// Aximuthal freq at guiding center
 	Omg  = v_circ(x1, y1, z)/R1;
 
 				// Compute the final velocities
-	vz   = rn()*sqrt(max<double>(vvZ, MINDOUBLE));
+	vz   = rn()*sqrt(std::max<double>(vvZ, MINDOUBLE));
 	vr   = -kappa*X*sin(alpha);
 	vp   = Omg*R1 - 2.0*Omg*X*cos(alpha);
     
 	if (out) 
-	  out << setw(14) << R   << setw(14) << z   << setw(14) << Omg*R1
-	      << setw(14) << vr  << setw(14) << vp  << setw(14) << vz
-	      << setw(14) << R1  << setw(14) << X
-	      << endl;
+	  out << std::setw(14) << R   << std::setw(14) << z   << std::setw(14) << Omg*R1
+	      << std::setw(14) << vr  << std::setw(14) << vp  << std::setw(14) << vz
+	      << std::setw(14) << R1  << std::setw(14) << X   << std::setw(14) << kappa
+	      << std::endl;
       }
       break;
     }
@@ -1954,14 +1959,14 @@ set_vel_disk(vector<Particle>& part)
 	RVP   = v2;
       }
     }
-    cout << "     *****";
-    cout << " (u, v, w)=(" << vel[0] 
-	 << ", " << vel[1]
-	 << ", " << vel[2] << ")" << endl;
-    cout <<   "maxVZ=" << maxVZ << " (" << RVZ << ")"
-	 << ", maxVR=" << maxVR << " (" << RVR << ")"
-	 << ", maxVP=" << maxVP << " (" << RVP << ")"
-	 << endl;
+    std::cout << "     *****";
+    std::cout << " (u, v, w)=(" << vel[0] 
+	      << ", " << vel[1]
+	      << ", " << vel[2] << ")" << std::endl;
+    std::cout <<   "maxVZ=" << maxVZ << " (" << RVZ << ")"
+	      << ", maxVR=" << maxVR << " (" << RVR << ")"
+	      << ", maxVP=" << maxVP << " (" << RVP << ")"
+	      << std::endl;
   } else {
     MPI_Send(&maxVZ, 1, MPI_DOUBLE, 0, 224, MPI_COMM_WORLD);
     MPI_Send(&RVZ,   1, MPI_DOUBLE, 0, 225, MPI_COMM_WORLD);
@@ -2061,10 +2066,10 @@ void DiskHalo::table_halo_disp()
     out.precision(2);
     
     for (int k=0; k<NHR; k++)
-      out << setw(18) << halotable[0][k]
-	  << setw(18) << halotable[1][k]
-	  << setw(18) << 4.0*M_PI*halotable[2][k]
-	  << setw(18) << halo->get_density(halotable[0][k]) << endl;
+      out << std::setw(18) << halotable[0][k]
+	  << std::setw(18) << halotable[1][k]
+	  << std::setw(18) << 4.0*M_PI*halotable[2][k]
+	  << std::setw(18) << halo->get_density(halotable[0][k]) << std::endl;
   }
 
 }
@@ -2089,12 +2094,12 @@ table_halo(vector<Particle>& part)
   dr = (log(max<double>(RHMAX, maxr)) - log(RHMIN))/(NHR-1);
   
   if (myid==0) {
-    cout << endl
-	 << "Table halo: RHMIN=" << RHMIN 
-	 << " RHMAX=" << RHMAX
-	 << " maxr=" << maxr
-	 << " dr=" << dr
-	 << endl;
+    std::cout << std::endl
+	      << "Table halo: RHMIN=" << RHMIN 
+	      << " RHMAX=" << RHMAX
+	      << " maxr=" << maxr
+	      << " dr=" << dr
+	      << std::endl;
   }
 
   double x, y, z, theta, r, fr, fz, fp, pot, costh, sinth;
@@ -2145,7 +2150,7 @@ table_halo(vector<Particle>& part)
     for (int j=0; j<NHR; j++) {
       halotable[i][j] = max<double>(workA[NHR-1] - workA[j], MINDOUBLE);
       if (fabs(halotable[i][j])>1.0e8) {
-	cerr << "Oops, val=" << halotable[i][j] << endl;
+	std::cerr << "Oops, val=" << halotable[i][j] << std::endl;
       }
     }
   }
@@ -2170,11 +2175,11 @@ table_halo(vector<Particle>& part)
     
     for (int j=0; j<NHT; j++) {
       for (int k=0; k<NHR; k++) {
-	out << setw(18) << -1.0 + dc*j
-	    << setw(18) << RHMIN*exp(dr*k)
-	    << setw(18) << halotable[j][k] << endl;
+	out << std::setw(18) << -1.0 + dc*j
+	    << std::setw(18) << RHMIN*exp(dr*k)
+	    << std::setw(18) << halotable[j][k] << std::endl;
       }
-      out << endl;
+      out << std::endl;
     }
     
     ostringstream sout2;
@@ -2189,11 +2194,11 @@ table_halo(vector<Particle>& part)
       expandh->determine_fields_at_point(rr, 0.5*M_PI, 0.0,
 					 &t, &p, &dp, &t, &t);
       out2
-	<< setw(14) << rr
-	<< setw(14) << p
-	<< setw(14) << dp
-	<< setw(14) << get_disp(rr, 0.0, 0.0)
-	<< endl;
+	<< std::setw(14) << rr
+	<< std::setw(14) << p
+	<< std::setw(14) << dp
+	<< std::setw(14) << get_disp(rr, 0.0, 0.0)
+	<< std::endl;
     }
     
     
@@ -2204,20 +2209,20 @@ table_halo(vector<Particle>& part)
     
     for (int j=0; j<NHT; j++) {
       costh = -1.0 + dc*j;
-      out3 << setw(14) << costh;
+      out3 << std::setw(14) << costh;
       for (int k=0; k<NHR; k++) {
 	rr = RHMIN*exp(dr*k);
 	xx = rr*sqrt(1.0 - costh*costh);
 	zz = rr*costh;
 	out3 
-	  << setw(14) << halotable[j][k] -  
+	  << std::setw(14) << halotable[j][k] -  
 	  get_disp(xx, 0.0, zz) * halo->get_density(rr);
       }
-      out3 << endl;
+      out3 << std::endl;
     }
   }
   
-  if (myid==0) cout << "[table] " << flush;
+  if (myid==0) std::cout << "[table] " << std::flush;
 }
 
 double DiskHalo::get_disp(double xp,double yp, double zp)
@@ -2230,7 +2235,7 @@ double DiskHalo::get_disp(double xp,double yp, double zp)
   }
 
   if (halotable.getchigh() != NHR-1) {
-    cerr << "DiskHalo::get_disp: must call table_halo first\n";
+    std::cerr << "DiskHalo::get_disp: must call table_halo first\n";
     MPI_Abort(MPI_COMM_WORLD, 100);
     exit(0);
   }
@@ -2272,7 +2277,7 @@ double DiskHalo::get_disp(double xp,double yp, double zp)
 void DiskHalo::set_vel_halo(vector<Particle>& part)
 {
   if (!expandh) {
-    if (myid==0) cout << "[no halo particles] ";
+    if (myid==0) std::cout << "[no halo particles] ";
     return;
   }
   
@@ -2300,10 +2305,10 @@ void DiskHalo::set_vel_halo(vector<Particle>& part)
       halo2->gen_velocity(&p.pos[0], &p.vel[0], nok);
       
       if (nok) {
-	cout << "gen_velocity failed: "
-	     << p.pos[0] << " "
-	     << p.pos[1] << " "
-	     << p.pos[2] << "\n";
+	std::cout << "gen_velocity failed: "
+		  << p.pos[0] << " "
+		  << p.pos[1] << " "
+		  << p.pos[2] << "\n";
       }
     }
 				// Use Jeans
@@ -2326,9 +2331,9 @@ void DiskHalo::set_vel_halo(vector<Particle>& part)
   }
     
   if (myid==0) {
-    cout << " (u, v, w)=(" << vel[0] 
-	 << ", " << vel[1]
-	 << ", " << vel[2] << ")" << endl;
+    std::cout << " (u, v, w)=(" << vel[0] 
+	      << ", " << vel[1]
+	      << ", " << vel[2] << ")" << std::endl;
   }
 
   if (cov) {
@@ -2341,15 +2346,15 @@ void DiskHalo::set_vel_halo(vector<Particle>& part)
 
 void DiskHalo::write_record(ostream &out, SParticle &p)
 {
-  out << " " << setw(16) << setprecision(8) << p.mass;
+  out << " " << std::setw(16) << setprecision(8) << p.mass;
   
   for (int k=0; k<3; k++)
-    out << setw(24) << setprecision(15) << p.pos[k] + center_pos[k];
+    out << std::setw(24) << setprecision(15) << p.pos[k] + center_pos[k];
   
   for (int k=0; k<3; k++)
-    out << setw(24) << setprecision(15) << p.vel[k] + center_vel[k];
+    out << std::setw(24) << setprecision(15) << p.vel[k] + center_vel[k];
   
-  out << endl;
+  out << std::endl;
 }
 
 void DiskHalo::write_file(ostream &fou, vector<Particle>& part)
@@ -2383,8 +2388,8 @@ void DiskHalo::write_file(ostream &fou, vector<Particle>& part)
     fou << npart << " " << 0 << " " << 0 << std::endl;
     
     if (VFLAG & 1) {
-      cout << "Particle stream is ";
-      if (fou.good()) cout << "GOOD" << std::endl;
+      std::cout << "Particle stream is ";
+      if (fou.good()) std::cout << "GOOD" << std::endl;
       else std::cout << "BAD" << std::endl;
     }
 
@@ -2392,7 +2397,7 @@ void DiskHalo::write_file(ostream &fou, vector<Particle>& part)
       write_record(fou, part[i]);
     
     if (VFLAG & 1) {
-      cout << "Wrote " << l  << " particles from Node 0" << endl;
+      std::cout << "Wrote " << l  << " particles from Node 0" << std::endl;
     }
 
     int imany, icur, ccnt;
@@ -2409,7 +2414,7 @@ void DiskHalo::write_file(ostream &fou, vector<Particle>& part)
       }
       
       if (VFLAG & 1)
-	cout << "Wrote " << ccnt << " particles from Node " << n << endl;
+	std::cout << "Wrote " << ccnt << " particles from Node " << n << std::endl;
 
       MPI_Barrier(MPI_COMM_WORLD);
     }
@@ -2433,7 +2438,7 @@ void DiskHalo::write_file(ostream &fou, vector<Particle>& part)
 	}
 
 	if (VFLAG & 1)
-	  cout << "Sent " << icur << " particles from Node " << n << endl;
+	  std::cout << "Sent " << icur << " particles from Node " << n << std::endl;
       }
 
       MPI_Barrier(MPI_COMM_WORLD);
@@ -2578,30 +2583,30 @@ void DiskHalo::virial_ratio(vector<Particle>& hpart, vector<Particle>& dpart)
     double PE_halo = PE_halo_halo + PE_halo_disk;
     double PE_disk = PE_disk_disk + PE_disk_halo;
     
-    cout << endl
-	 << "****************************" << endl
-	 <<"  KE_halo  = " << KE_halo << endl
-	 <<"  KE_disk  = " << KE_disk << endl << endl
-	 <<"  PE_halo(halo)  = " << PE_halo_halo << endl
-	 <<"  PE_halo(disk)  = " << PE_halo_disk << endl
-	 <<"  PE_disk(disk)  = " << PE_disk_disk << endl
-	 <<"  PE_disk(halo)  = " << PE_disk_halo << endl << endl;
+    std::cout << std::endl
+	      << "****************************" << std::endl
+	      <<"  KE_halo  = " << KE_halo << std::endl
+	      <<"  KE_disk  = " << KE_disk << std::endl << std::endl
+	      <<"  PE_halo(halo)  = " << PE_halo_halo << std::endl
+	      <<"  PE_halo(disk)  = " << PE_halo_disk << std::endl
+	      <<"  PE_disk(disk)  = " << PE_disk_disk << std::endl
+	      <<"  PE_disk(halo)  = " << PE_disk_halo << std::endl << std::endl;
     if (PE_halo < 0.0)
-      cout <<"-2T/W_halo = " << -2.0*KE_halo/PE_halo << endl;
+      std::cout <<"-2T/W_halo = " << -2.0*KE_halo/PE_halo << std::endl;
     if (PE_disk < 0.0)
-      cout <<"-2T/W_disk = " << -2.0*KE_disk/PE_disk << endl;
-    cout << endl;
+      std::cout <<"-2T/W_disk = " << -2.0*KE_disk/PE_disk << std::endl;
+    std::cout << std::endl;
     
-    cout << " Halo mass=" << massh << "  Disk mass=" << massd << endl << endl;
+    std::cout << " Halo mass=" << massh << "  Disk mass=" << massd << std::endl << std::endl;
     
     double KE = KE_halo + KE_disk;
     double PE = PE_halo + PE_disk;
     
-    cout << "  KE       = " << KE << endl
-	 << "  PE       = " << PE << endl;
+    std::cout << "  KE       = " << KE << std::endl
+	      << "  PE       = " << PE << std::endl;
     if (PE<0.0)
-      cout << " -2T/W     = " << -2.0*KE/PE << endl;
-    cout << "****************************" << endl;
+      std::cout << " -2T/W     = " << -2.0*KE/PE << std::endl;
+    std::cout << "****************************" << std::endl;
     
   } 
 }
@@ -2615,12 +2620,12 @@ void DiskHalo::virial_ratio(const char *hfile, const char *dfile)
   in[1].open(dfile);
 
   if (!in[0]) {
-    cout << "virial_ratio: can't open " << hfile << endl;
+    std::cout << "virial_ratio: can't open " << hfile << std::endl;
     return;
   }
   
   if (!in[1]) {
-    cout << "virial_ratio: can't open " << dfile << endl;
+    std::cout << "virial_ratio: can't open " << dfile << std::endl;
     return;
   }
   
@@ -2735,32 +2740,32 @@ void DiskHalo::virial_ratio(const char *hfile, const char *dfile)
 
   if (myid==0) {
 
-    cout << endl
-	 << "****************************" << endl
-	 <<"  Total #  = " << count0 << endl
-	 <<"  Expect # = " << expected << endl << endl
-	 <<"  KE_halo  = " << KE_halo0 << endl
-	 <<"  KE_disk  = " << KE_disk0 << endl << endl
-	 <<"  PE_halo  = " << PE_halo0 << endl
-	 <<"  PE_disk  = " << PE_disk0 << endl << endl;
+    std::cout << std::endl
+	      << "****************************" << std::endl
+	      <<"  Total #  = " << count0 << std::endl
+	      <<"  Expect # = " << expected << std::endl << std::endl
+	      <<"  KE_halo  = " << KE_halo0 << std::endl
+	      <<"  KE_disk  = " << KE_disk0 << std::endl << std::endl
+	      <<"  PE_halo  = " << PE_halo0 << std::endl
+	      <<"  PE_disk  = " << PE_disk0 << std::endl << std::endl;
 
     if (PE_halo0 < 0.0)
-      cout <<"-2T/W_halo = " << -2.0*KE_halo0/PE_halo0 << endl;
+      std::cout <<"-2T/W_halo = " << -2.0*KE_halo0/PE_halo0 << std::endl;
     if (PE_disk < 0.0)
-      cout <<"-2T/W_disk = " << -2.0*KE_disk0/PE_disk0 << endl;
-    cout << endl;
+      std::cout <<"-2T/W_disk = " << -2.0*KE_disk0/PE_disk0 << std::endl;
+    std::cout << std::endl;
 
-    cout << " Halo mass=" << massh0 << "  Disk mass=" << massd0 
-	 << endl << endl;
+    std::cout << " Halo mass=" << massh0 << "  Disk mass=" << massd0 
+	 << std::endl << std::endl;
 
     double KE = KE_halo0 + KE_disk0;
     double PE = PE_halo0 + PE_disk0;
 
-    cout << "  KE       = " << KE << endl
-	 << "  PE       = " << PE << endl;
+    std::cout << "  KE       = " << KE << std::endl
+	 << "  PE       = " << PE << std::endl;
     if (PE<0.0)
-      cout << " -2T/W     = " << -2.0*KE/PE << endl;
-    cout << "****************************" << endl;
+      std::cout << " -2T/W     = " << -2.0*KE/PE << std::endl;
+    std::cout << "****************************" << std::endl;
     
   }
 
@@ -2829,18 +2834,18 @@ void DiskHalo::profile(ostream &out, vector<Particle>& dpart,
   
   if (myid==0) {
     out << "#"      << right 
-	<< setw(14) << "Radius"	 // #1
-	<< setw(15) << "Mass"	 // #2
-	<< setw(15) << "S(mass)" // #3
-	<< setw(15) << "Density" // #4
-	<< setw(15) << "V_c"	 // #5
-	<< setw(15) << "kappa"	 // #6
-	<< setw(15) << "Omega"	 // #7
-	<< setw(15) << "V_R"	 // #8
-	<< setw(15) << "V_T"	 // #9
-	<< setw(15) << "Sig_R"	 // #10
-	<< setw(15) << "Sig_T"	 // #11
-	<< endl;
+	<< std::setw(14) << "Radius"	 // #1
+	<< std::setw(15) << "Mass"	 // #2
+	<< std::setw(15) << "S(mass)" // #3
+	<< std::setw(15) << "Density" // #4
+	<< std::setw(15) << "V_c"	 // #5
+	<< std::setw(15) << "kappa"	 // #6
+	<< std::setw(15) << "Omega"	 // #7
+	<< std::setw(15) << "V_R"	 // #8
+	<< std::setw(15) << "V_T"	 // #9
+	<< std::setw(15) << "Sig_R"	 // #10
+	<< std::setw(15) << "Sig_T"	 // #11
+	<< std::endl;
 
     double smass = 0.0, rin, rout, ravg;
     for (int i=0; i<numr; i++) {
@@ -2853,28 +2858,28 @@ void DiskHalo::profile(ostream &out, vector<Particle>& dpart,
       }
       ravg = 0.5*(rin + rout);
 
-      out << setw(15) << ravg
-	  << setw(15) << mass[i]
-	  << setw(15) << (smass += mass[i])
-	  << setw(15) << mass[i]/(M_PI*(rout*rout - rin*rin))
-	  << setw(15) << v_circ(ravg, 0, 0)
-	  << setw(15) << epi(ravg, 0, 0)
-	  << setw(15) << v_circ(ravg, 0, 0)/ravg;
+      out << std::setw(15) << ravg
+	  << std::setw(15) << mass[i]
+	  << std::setw(15) << (smass += mass[i])
+	  << std::setw(15) << mass[i]/(M_PI*(rout*rout - rin*rin))
+	  << std::setw(15) << v_circ(ravg, 0, 0)
+	  << std::setw(15) << epi(ravg, 0, 0)
+	  << std::setw(15) << v_circ(ravg, 0, 0)/ravg;
 
       if (mass[i]>0.0) {
 	double vr = velR[i]/mass[i];
 	double vt = velT[i]/mass[i];
-	out << setw(15) << vr
-	    << setw(15) << vt
-	    << setw(15) << sqrt(fabs(sigR[i]/mass[i] - vr*vr))
-	    << setw(15) << sqrt(fabs(sigT[i]/mass[i] - vt*vt))
-	    << endl;
+	out << std::setw(15) << vr
+	    << std::setw(15) << vt
+	    << std::setw(15) << sqrt(fabs(sigR[i]/mass[i] - vr*vr))
+	    << std::setw(15) << sqrt(fabs(sigT[i]/mass[i] - vt*vt))
+	    << std::endl;
       } else {
-	out << setw(15) << 0.0
-	    << setw(15) << 0.0
-	    << setw(15) << 0.0
-	    << setw(15) << 0.0
-	    << endl;
+	out << std::setw(15) << 0.0
+	    << std::setw(15) << 0.0
+	    << std::setw(15) << 0.0
+	    << std::setw(15) << 0.0
+	    << std::endl;
       }
     }
   } 
