@@ -16,8 +16,14 @@
    @param soft is a fixed softening value for all particles.  This can be 
    used even if a value is specified in the particle attribute array.
 
-   @param type is the softening type (current Plummer or Spline)
+   @param pm_model uses a spherical model for the distributed gravity.
+   E.g. a substructure halo profile.  Default: false.
 
+   @param pmmodel_file is the file containing the substructure halo
+   profile (default: SLGridSph.model)
+
+   @param type is the softening type. Current types: Plummer or
+   Spline.  Default type is Spline.
 */
 
 /* provide an extended spherical model for point mass */
