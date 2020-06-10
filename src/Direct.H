@@ -22,11 +22,13 @@
 
 /* provide an extended spherical model for point mass */
 
-#include <functional>
 #include <utility>
+#include <memory>
 
 #include <AxisymmetricBasis.H>
+#include <GravKernel.H>
 #include <massmodel.h>
+
 
 class Direct : public PotAccel
 {
@@ -58,7 +60,11 @@ private:
   void * determine_coefficients_thread(void * arg);
   void * determine_acceleration_and_potential_thread(void * arg);
 
-  std::function<std::pair<double, double>(double, double)> sfct;
+  //! Smoothing kernel isntance
+  std::shared_ptr<SoftKernel> kernel;
+
+  //! Separations smaller than this are assumed to be zero (same particle)
+  const double rtol = 1.0e-16;
 
 public:
 

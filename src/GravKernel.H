@@ -3,17 +3,30 @@
 
 #include <utility>
 
-class PlummerSoft
+//! Abstract class for smoothing kernel
+class SoftKernel
+{
+public:
+  const double tol = 1.0e-8;
+
+  virtual std::pair<double, double> operator()(double r, double eps) = 0;
+
+};
+
+
+//! Plummer softened gravity (infinite support)
+class PlummerSoft :  public SoftKernel
 {
 public:
   std::pair<double, double> operator()(double r, double eps);
 
 };
 
-class SplineSoft
+//! Cubic-spline softened gravity (compact support)
+class SplineSoft : public SoftKernel
 {
 private:
-  double eps, fac1, fac2;
+  double eps, fac0, fac1, fac2;
 
   double m1(double x)
   { return 32.*x*x*x*(1./3. - 6./5.*x*x + x*x*x); }
@@ -30,6 +43,7 @@ private:
 public:
   SplineSoft()
   {
+    fac0 = m1(0.5) - m2(0.5);
     fac1 = p2(1.0) - p2(0.5) + p1(0.5);
     fac2 = p2(1.0);
   }
