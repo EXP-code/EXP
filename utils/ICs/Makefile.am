@@ -122,7 +122,7 @@ empinfo.cc:		Particle.H Particle.h
 
 empdump.cc:		Particle.H Particle.h
 
-makeIonIC.cc:		atomic_constants.H
+makeIonIC.cc:		Particle.H Particle.h atomic_constants.H
 
 CylindricalDisk.cc:	$(top_srcdir)/utils/SL/CylindricalDisk.cc
 			cp $(top_srcdir)/utils/SL/$@ .
