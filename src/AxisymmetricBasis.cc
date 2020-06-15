@@ -233,15 +233,11 @@ void AxisymmetricBasis::pca_hall(bool compute)
     Vector eofvec;
     double Tmass = 0.0;
     
-    std::vector<double> meanJK1, meanJK2;
-
     if (pcavar) {
       covrJK.setsize(1, nmax, 1, nmax);
       meanJK.setsize(1, nmax);
       evecJK.setsize(1, nmax, 1, nmax);
       eofvec.setsize(1, nmax);
-      meanJK1.resize(nmax);
-      meanJK2.resize(nmax);
 
       for (auto v : massT) Tmass += v;
     }
@@ -264,9 +260,6 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	  covrJK.zero();
 	  meanJK.zero();
 	  
-	  std::fill(meanJK1.begin(), meanJK1.end(), 0.0);
-	  std::fill(meanJK2.begin(), meanJK2.end(), 0.0);
-
 	  // Compute mean and variance
 	  //
 	  for (unsigned T=0; T<sampT; T++) {
@@ -281,9 +274,6 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	    
 	      meanJK[i] += modi;
 
-	      meanJK1[i-1] += (*expcoefT[T])[indx][i];
-	      if (m) meanJK2[i-1] += (*expcoefT[T])[indx+1][i];
-
 	      for (int j=1; j<=nmax; j++) {
 		double modj =
 		  (*expcoefT[T])[indx][j] * (*expcoefT[T])[indx][j];
@@ -292,6 +282,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 		
 		modj = sqrt(modj);
 	      
+				// Upscale to value for full sample
 		covrJK[i][j] += modi * modj * sampT;
 	      }
 	    }

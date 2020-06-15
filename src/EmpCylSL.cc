@@ -3919,13 +3919,7 @@ void EmpCylSL::pca_hall(bool compute)
       }
     }
     
-    std::vector<double> meanJK1, meanJK2;
     Vector eofvec;
-
-    if (PCAVAR) {
-      meanJK1.resize(rank3);
-      meanJK2.resize(rank3);
-    }
 
     if (PCAEOF) {
       eofvec.setsize(1, rank3);
@@ -3936,9 +3930,6 @@ void EmpCylSL::pca_hall(bool compute)
     for (int mm=0; mm<=MMAX; mm++) {
       
       if (PCAVAR) {
-
-	std::fill(meanJK1.begin(), meanJK1.end(), 0.0);
-	std::fill(meanJK2.begin(), meanJK2.end(), 0.0);
 
 	// Data partitions for variance
 	//
@@ -3955,9 +3946,6 @@ void EmpCylSL::pca_hall(bool compute)
 	    
 	    (*pb)[mm]->meanJK[nn+1] += modn;
 	    
-	    meanJK1[nn] += cos2(0, T)[mm][nn];
-	    if (mm) meanJK2[nn] += sin2(0, T)[mm][nn];
-	    
 	    for (int oo=0; oo<rank3; oo++) { // Order
 	    
 	      double modo = cos2(0, T)[mm][oo] * cos2(0, T)[mm][oo];
@@ -3965,6 +3953,7 @@ void EmpCylSL::pca_hall(bool compute)
 		modo += sin2(0, T)[mm][oo] * sin2(0, T)[mm][oo];
 	      modo = sqrt(modo);
 	    
+				// Upscale to value for full sample
 	      (*pb)[mm]->covrJK[nn+1][oo+1] +=  modn * modo * sampT;
 	    }
 	  }
@@ -3975,6 +3964,7 @@ void EmpCylSL::pca_hall(bool compute)
 	    (*pb)[mm]->covrJK[nn+1][oo+1] -= (*pb)[mm]->meanJK[nn+1] * (*pb)[mm]->meanJK[oo+1];
 	  }
 	}
+	
 #ifdef GHQL
 	(*pb)[mm]->evalJK = (*pb)[mm]->covrJK.Symmetric_Eigenvalues_GHQL((*pb)[mm]->evecJK);
 #else
