@@ -134,6 +134,7 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   LMAX     = lmax;
   NORDER   = nord;
   MLIM     = std::numeric_limits<int>::max();
+  EvenOdd  = false;
 
 
   ASCALE   = ascale;
@@ -195,6 +196,7 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   LMAX     = lmax;
   NORDER   = nord;
   MLIM     = std::numeric_limits<int>::max();
+  EvenOdd  = false;
 
   // Set number of even and odd terms
   //
@@ -2014,7 +2016,7 @@ void EmpCylSL::setup_eof()
 
   for (int nth=0; nth<nthrds; nth++) {
     for (int m=0; m<=MMAX; m++)  {
-
+      
       if (EvenOdd) {
 	int Esiz = lE[m].size();
 	int Osiz = lO[m].size();
@@ -2235,7 +2237,8 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	      } // *** Odd l loop
 	      
 
-	    } else {
+	    } // *** END: EvenOdd==true block
+	    else {
 
 	      for (int l1=m; l1<=LMAX; l1++) {
 
