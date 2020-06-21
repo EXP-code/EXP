@@ -184,7 +184,7 @@ int main(int argc, char **argv)
   for (auto c : coefs) {
     for (int mm=mmin; mm<=std::min<int>(mmax, c.second->mmax); mm++) {
       std::cout << std::setw(18) << c.first << std::setw(5) << mm;
-      for (int nn=std::max<int>(nmin, 0); nn<=std::min<int>(nmax, c.second->nmax); nn++) {
+      for (int nn=std::max<int>(nmin, 0); nn<std::min<int>(nmax, c.second->nmax); nn++) {
 	if (mm==0) {
 	  if (angle)
 	    std::cout << std::setw(18) << 0.0;
