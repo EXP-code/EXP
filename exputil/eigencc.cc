@@ -177,6 +177,8 @@ Output Parameters
 
 Vector Symmetric_Eigenvalues_SYEVD(Matrix& a, Matrix& ef, int M)
 {
+  if (M<=0) return Vector(1, 1);
+
   int lo = a.getrlow();
   int hi = a.getrhigh();
   int N = hi - lo + 1;
@@ -223,6 +225,8 @@ Vector Symmetric_Eigenvalues_SYEVD(Matrix& a, Matrix& ef, int M)
 
 Vector Symmetric_Eigenvalues_SVD(Matrix& a, Matrix& ef, int M, bool Large)
 {
+  if (M<=0) return Vector(1, 1);
+
   int lo = a.getrlow();
   int hi = a.getrhigh();
   int n = hi - lo + 1;
