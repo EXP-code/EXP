@@ -947,7 +947,8 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 
     int mmax, numx, numy, nmax, norder, tmp, cmap;
     bool dens=false;
-    double rmin, rmax, ascl, hscl;
+    double rmin, rmax, ascl, hscl, time;
+
 
     // Attempt to read magic number
     //
@@ -981,34 +982,38 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 
       // Get parameters
       //
-      mmax   = node["mmax"  ].as<int>();
-      numx   = node["numx"  ].as<int>();
-      numy   = node["numy"  ].as<int>();
-      nmax   = node["nmax"  ].as<int>();
-      norder = node["norder"].as<int>();
-      dens   = node["dens"  ].as<bool>();
-      cmap   = node["cmap"  ].as<int>();
-      rmin   = node["rmin"  ].as<double>();
-      rmax   = node["rmax"  ].as<double>();
-      ascl   = node["ascl"  ].as<double>();
-      hscl   = node["hscl"  ].as<double>();
+      mmax    = node["mmax"  ].as<int>();
+      numx    = node["numx"  ].as<int>();
+      numy    = node["numy"  ].as<int>();
+      nmax    = node["nmax"  ].as<int>();
+      norder  = node["norder"].as<int>();
+      dens    = node["dens"  ].as<bool>();
+      cmap    = node["cmap"  ].as<int>();
+      rmin    = node["rmin"  ].as<double>();
+      rmax    = node["rmax"  ].as<double>();
+      ascl    = node["ascl"  ].as<double>();
+      hscl    = node["hscl"  ].as<double>();
+      cylmass = node["cmass" ].as<double>();
+      time    = node["time"  ].as<double>();
 
     } else {
 				// Rewind file
       in.clear();
       in.seekg(0);
 
-      in.read((char *)&mmax,   sizeof(int));
-      in.read((char *)&numx,   sizeof(int));
-      in.read((char *)&numy,   sizeof(int));
-      in.read((char *)&nmax,   sizeof(int));
-      in.read((char *)&norder, sizeof(int));
-      in.read((char *)&tmp,    sizeof(int));    if (tmp) dens = true;
-      in.read((char *)&cmap,   sizeof(int));
-      in.read((char *)&rmin,   sizeof(double));
-      in.read((char *)&rmax,   sizeof(double));
-      in.read((char *)&ascl,   sizeof(double));
-      in.read((char *)&hscl,   sizeof(double));
+      in.read((char *)&mmax,    sizeof(int));
+      in.read((char *)&numx,    sizeof(int));
+      in.read((char *)&numy,    sizeof(int));
+      in.read((char *)&nmax,    sizeof(int));
+      in.read((char *)&norder,  sizeof(int));
+      in.read((char *)&tmp,     sizeof(int));    if (tmp) dens = true;
+      in.read((char *)&cmap,    sizeof(int));
+      in.read((char *)&rmin,    sizeof(double));
+      in.read((char *)&rmax,    sizeof(double));
+      in.read((char *)&ascl,    sizeof(double));
+      in.read((char *)&hscl,    sizeof(double));
+      in.read((char *)&cylmass, sizeof(double));
+      in.read((char *)&time,    sizeof(double));
     }
 
 				// Spot check compatibility
@@ -1049,9 +1054,6 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 	return 0;
       }
     
-    double time;
-    in.read((char *)&cylmass, sizeof(double));
-    in.read((char *)&time,    sizeof(double));
 
 				// Read table
 
