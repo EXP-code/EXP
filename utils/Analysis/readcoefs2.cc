@@ -200,7 +200,7 @@ int main(int argc, char **argv)
     for (int ll=lmin; ll<=std::min<int>(lmax, c.second->header.Lmax); ll++) {
       for (int mm=0; mm<=ll; mm++) {
 	std::cout << std::setw(18) << c.first << std::setw(5) << ll << std::setw(5) << mm;
-	for (int nn=std::max<int>(nmin, 0); nn<=std::min<int>(nmax, c.second->header.nmax); nn++) {
+	for (int nn=std::max<int>(nmin, 0); nn<std::min<int>(nmax, c.second->header.nmax); nn++) {
 	  if (mm==0) {
 	    if (angle)
 	      std::cout << std::setw(18) << 0.0;

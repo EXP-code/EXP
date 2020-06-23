@@ -134,6 +134,7 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   LMAX     = lmax;
   NORDER   = nord;
   MLIM     = std::numeric_limits<int>::max();
+  EvenOdd  = false;
 
 
   ASCALE   = ascale;
@@ -195,6 +196,7 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   LMAX     = lmax;
   NORDER   = nord;
   MLIM     = std::numeric_limits<int>::max();
+  EvenOdd  = false;
 
   // Set number of even and odd terms
   //
@@ -945,7 +947,8 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 
     int mmax, numx, numy, nmax, norder, tmp, cmap;
     bool dens=false;
-    double rmin, rmax, ascl, hscl;
+    double rmin, rmax, ascl, hscl, time;
+
 
     // Attempt to read magic number
     //
@@ -979,34 +982,38 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 
       // Get parameters
       //
-      mmax   = node["mmax"  ].as<int>();
-      numx   = node["numx"  ].as<int>();
-      numy   = node["numy"  ].as<int>();
-      nmax   = node["nmax"  ].as<int>();
-      norder = node["norder"].as<int>();
-      dens   = node["dens"  ].as<bool>();
-      cmap   = node["cmap"  ].as<int>();
-      rmin   = node["rmin"  ].as<double>();
-      rmax   = node["rmax"  ].as<double>();
-      ascl   = node["ascl"  ].as<double>();
-      hscl   = node["hscl"  ].as<double>();
+      mmax    = node["mmax"  ].as<int>();
+      numx    = node["numx"  ].as<int>();
+      numy    = node["numy"  ].as<int>();
+      nmax    = node["nmax"  ].as<int>();
+      norder  = node["norder"].as<int>();
+      dens    = node["dens"  ].as<bool>();
+      cmap    = node["cmap"  ].as<int>();
+      rmin    = node["rmin"  ].as<double>();
+      rmax    = node["rmax"  ].as<double>();
+      ascl    = node["ascl"  ].as<double>();
+      hscl    = node["hscl"  ].as<double>();
+      cylmass = node["cmass" ].as<double>();
+      time    = node["time"  ].as<double>();
 
     } else {
 				// Rewind file
       in.clear();
       in.seekg(0);
 
-      in.read((char *)&mmax,   sizeof(int));
-      in.read((char *)&numx,   sizeof(int));
-      in.read((char *)&numy,   sizeof(int));
-      in.read((char *)&nmax,   sizeof(int));
-      in.read((char *)&norder, sizeof(int));
-      in.read((char *)&tmp,    sizeof(int));    if (tmp) dens = true;
-      in.read((char *)&cmap,   sizeof(int));
-      in.read((char *)&rmin,   sizeof(double));
-      in.read((char *)&rmax,   sizeof(double));
-      in.read((char *)&ascl,   sizeof(double));
-      in.read((char *)&hscl,   sizeof(double));
+      in.read((char *)&mmax,    sizeof(int));
+      in.read((char *)&numx,    sizeof(int));
+      in.read((char *)&numy,    sizeof(int));
+      in.read((char *)&nmax,    sizeof(int));
+      in.read((char *)&norder,  sizeof(int));
+      in.read((char *)&tmp,     sizeof(int));    if (tmp) dens = true;
+      in.read((char *)&cmap,    sizeof(int));
+      in.read((char *)&rmin,    sizeof(double));
+      in.read((char *)&rmax,    sizeof(double));
+      in.read((char *)&ascl,    sizeof(double));
+      in.read((char *)&hscl,    sizeof(double));
+      in.read((char *)&cylmass, sizeof(double));
+      in.read((char *)&time,    sizeof(double));
     }
 
 				// Spot check compatibility
@@ -1047,9 +1054,6 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 	return 0;
       }
     
-    double time;
-    in.read((char *)&cylmass, sizeof(double));
-    in.read((char *)&time,    sizeof(double));
 
 				// Read table
 
@@ -2014,7 +2018,7 @@ void EmpCylSL::setup_eof()
 
   for (int nth=0; nth<nthrds; nth++) {
     for (int m=0; m<=MMAX; m++)  {
-
+      
       if (EvenOdd) {
 	int Esiz = lE[m].size();
 	int Osiz = lO[m].size();
@@ -2235,7 +2239,8 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	      } // *** Odd l loop
 	      
 
-	    } else {
+	    } // *** END: EvenOdd==true block
+	    else {
 
 	      for (int l1=m; l1<=LMAX; l1++) {
 
@@ -3919,13 +3924,7 @@ void EmpCylSL::pca_hall(bool compute)
       }
     }
     
-    std::vector<double> meanJK1, meanJK2;
     Vector eofvec;
-
-    if (PCAVAR) {
-      meanJK1.resize(rank3);
-      meanJK2.resize(rank3);
-    }
 
     if (PCAEOF) {
       eofvec.setsize(1, rank3);
@@ -3936,9 +3935,6 @@ void EmpCylSL::pca_hall(bool compute)
     for (int mm=0; mm<=MMAX; mm++) {
       
       if (PCAVAR) {
-
-	std::fill(meanJK1.begin(), meanJK1.end(), 0.0);
-	std::fill(meanJK2.begin(), meanJK2.end(), 0.0);
 
 	// Data partitions for variance
 	//
@@ -3955,9 +3951,6 @@ void EmpCylSL::pca_hall(bool compute)
 	    
 	    (*pb)[mm]->meanJK[nn+1] += modn;
 	    
-	    meanJK1[nn] += cos2(0, T)[mm][nn];
-	    if (mm) meanJK2[nn] += sin2(0, T)[mm][nn];
-	    
 	    for (int oo=0; oo<rank3; oo++) { // Order
 	    
 	      double modo = cos2(0, T)[mm][oo] * cos2(0, T)[mm][oo];
@@ -3965,6 +3958,7 @@ void EmpCylSL::pca_hall(bool compute)
 		modo += sin2(0, T)[mm][oo] * sin2(0, T)[mm][oo];
 	      modo = sqrt(modo);
 	    
+				// Upscale to value for full sample
 	      (*pb)[mm]->covrJK[nn+1][oo+1] +=  modn * modo * sampT;
 	    }
 	  }
@@ -3975,6 +3969,7 @@ void EmpCylSL::pca_hall(bool compute)
 	    (*pb)[mm]->covrJK[nn+1][oo+1] -= (*pb)[mm]->meanJK[nn+1] * (*pb)[mm]->meanJK[oo+1];
 	  }
 	}
+	
 #ifdef GHQL
 	(*pb)[mm]->evalJK = (*pb)[mm]->covrJK.Symmetric_Eigenvalues_GHQL((*pb)[mm]->evecJK);
 #else
