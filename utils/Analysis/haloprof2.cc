@@ -102,7 +102,7 @@ public:
   
   Histogram(int N, double R) : N(N), R(R)
   {
-    dR = 2.0*R/N;
+    dR = 2.0*R/(N+1);		// Want grid points to be on bin centers
 
     dataXY.resize(N*N);
     dataXZ.resize(N*N);
@@ -133,13 +133,13 @@ public:
 
   void Add(double x, double y, double z, double m)
   {
-    if (x < -R or x >= R or
-	y < -R or y >= R or
-	z < -R or z >= R) return;
+    if (x < -R-0.5*dR or x >= R+0.5*dR or
+	y < -R-0.5*dR or y >= R+0.5*dR or
+	z < -R-0.5*dR or z >= R+0.5*dR) return;
 
-    int indX = static_cast<int>(floor((x + R)/dR));
-    int indY = static_cast<int>(floor((y + R)/dR));
-    int indZ = static_cast<int>(floor((z + R)/dR));
+    int indX = static_cast<int>(floor((x + R + 0.5*dR)/dR));
+    int indY = static_cast<int>(floor((y + R + 0.5*dR)/dR));
+    int indZ = static_cast<int>(floor((z + R + 0.5*dR)/dR));
 
     indX = std::max<int>(indX, 0);
     indY = std::max<int>(indY, 0);
@@ -149,9 +149,9 @@ public:
     indY = std::min<int>(indY, N-1);
     indZ = std::min<int>(indZ, N-1);
 
-    dataXY[indY*N + indX] += m;
-    dataXZ[indZ*N + indX] += m;
-    dataYZ[indZ*N + indY] += m;
+    dataXY[indX*N + indY] += m;
+    dataXZ[indX*N + indZ] += m;
+    dataYZ[indY*N + indZ] += m;
   }
 
 };

@@ -116,7 +116,7 @@ public:
   
   Histogram(int N, double R) : N(N), R(R)
   {
-    dR = 2.0*R/N;
+    dR = 2.0*R/(N+1);		// Want grid points to be on bin centers
     dataXY.resize(N*N, 0.0);
     dataZ .resize(N*N);
   }
@@ -161,15 +161,15 @@ public:
 
   void Add(double x, double y, double z, double m)
   {
-    if (x < -R or x >= R or
-	y < -R or y >= R  ) return;
+    if (x < -R-0.5*dR or x >= R+0.5*dR or
+	y < -R-0.5*dR or y >= R+0.5*dR  ) return;
 
-    int indX = static_cast<int>(floor((x + R)/dR));
-    int indY = static_cast<int>(floor((y + R)/dR));
+    int indX = static_cast<int>(floor((x + R + 0.5*dR)/dR));
+    int indY = static_cast<int>(floor((y + R + 0.5*dR)/dR));
 
     if (indX>=0 and indX<N and indY>=0 and indY<N) {
-      dataXY[indY*N + indX] += m;
-      dataZ [indY*N + indX].push_back(z);
+      dataXY[indX*N + indY] += m;
+      dataZ [indX*N + indY].push_back(z);
     }
   }
 };
@@ -475,7 +475,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
   ostringstream sstr;
   sstr << "." << std::setfill('0') << std::setw(5) << icnt;
 
-  string suffix[10] = {"p0", "p", "fr", "fz", "fp", "d0", "d",
+  string suffix[12] = {"p0", "p1", "pp", "fr", "fz", "fp", "d0", "d1", "dd",
 		       "z10", "z50", "z90"};
 
   // ==================================================
@@ -622,7 +622,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
     double dR = 2.0*RMAX/(OUTR-1);
     double dz = 2.0*ZMAX/(OUTZ-1);
     double x, y, z, r, phi;
-    double p0, d0, p, fr, fz, fp;
+    double p0, d0, p1, fr, fz, fp;
     
     size_t blSiz = OUTZ*OUTR*OUTR;
     vector<double> indat(noutV*blSiz, 0.0), otdat(noutV*blSiz);
@@ -642,18 +642,20 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 	  r = sqrt(x*x + y*y);
 	  phi = atan2(y, x);
 	  
-	  ortho.accumulated_eval(r, z, phi, p0, p, fr, fz, fp);
+	  ortho.accumulated_eval(r, z, phi, p0, p1, fr, fz, fp);
 	  v = ortho.accumulated_dens_eval(r, z, phi, d0);
 	  
 	  size_t indx = (OUTR*j + l)*OUTR + k;
 
 	  indat[0*blSiz + indx] = p0;
-	  indat[1*blSiz + indx] = p;
-	  indat[2*blSiz + indx] = fr;
-	  indat[3*blSiz + indx] = fz;
-	  indat[4*blSiz + indx] = fp;
-	  indat[5*blSiz + indx] = d0;
-	  indat[6*blSiz + indx] = v;
+	  indat[1*blSiz + indx] = p1;
+	  indat[2*blSiz + indx] = p0 + p1;
+	  indat[3*blSiz + indx] = fr;
+	  indat[4*blSiz + indx] = fz;
+	  indat[5*blSiz + indx] = fp;
+	  indat[6*blSiz + indx] = d0;
+	  indat[7*blSiz + indx] = v;
+	  indat[8*blSiz + indx] = d0 + v;
 	}
       }
     }
@@ -701,7 +703,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
     
     double dR = 2.0*RMAX/(OUTR-1);
     double x, y, z=0.0, r, phi;
-    double p0, d0, p, fr, fz, fp;
+    double p0, d0, p1, fr, fz, fp;
     
     vector<double> indat(noutS*OUTR*OUTR, 0.0), otdat(noutS*OUTR*OUTR);
     
@@ -718,16 +720,18 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 	  r = sqrt(x*x + y*y);
 	  phi = atan2(y, x);
 	  
-	  ortho.accumulated_eval(r, z, phi, p0, p, fr, fz, fp);
+	  ortho.accumulated_eval(r, z, phi, p0, p1, fr, fz, fp);
 	  v = ortho.accumulated_dens_eval(r, z, phi, d0);
 	  
 	  indat[(0*OUTR+j)*OUTR+l] = p0;
-	  indat[(1*OUTR+j)*OUTR+l] = p;
-	  indat[(2*OUTR+j)*OUTR+l] = fr;
-	  indat[(3*OUTR+j)*OUTR+l] = fz;
-	  indat[(4*OUTR+j)*OUTR+l] = fp;
-	  indat[(5*OUTR+j)*OUTR+l] = d0;
-	  indat[(6*OUTR+j)*OUTR+l] = v;
+	  indat[(1*OUTR+j)*OUTR+l] = p1;
+	  indat[(2*OUTR+j)*OUTR+l] = p0 + p1;
+	  indat[(3*OUTR+j)*OUTR+l] = fr;
+	  indat[(4*OUTR+j)*OUTR+l] = fz;
+	  indat[(5*OUTR+j)*OUTR+l] = fp;
+	  indat[(6*OUTR+j)*OUTR+l] = d0;
+	  indat[(7*OUTR+j)*OUTR+l] = v;
+	  indat[(8*OUTR+j)*OUTR+l] = d0 + v;
 	}
       }
     }
@@ -740,9 +744,9 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
       
       for (int j=0; j<OUTR; j++) {
 	for (int l=0; l<OUTR; l++) {
-	  otdat[(7*OUTR+j)*OUTR+l] = 0.0;
-	  otdat[(8*OUTR+j)*OUTR+l] = 0.0;
-	  otdat[(9*OUTR+j)*OUTR+l] = 0.0;
+	  otdat[(9 *OUTR+j)*OUTR+l] = 0.0;
+	  otdat[(10*OUTR+j)*OUTR+l] = 0.0;
+	  otdat[(11*OUTR+j)*OUTR+l] = 0.0;
 	  
 	  // Check for number in the histogram bin
 	  //
@@ -789,7 +793,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
     double dR = 2.0*RMAX/(OUTR-1);
     double dZ = 2.0*ZMAX/(OUTZ-1);
     double x, y=0, z, r, phi;
-    double p0, d0, p, fr, fz, fp;
+    double p0, d0, p1, fr, fz, fp;
     
     std::vector<double> indat(noutV*OUTR*OUTR, 0.0), otdat(noutV*OUTR*OUTR);
     
@@ -806,16 +810,18 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 	  r   = sqrt(x*x + y*y);
 	  phi = atan2(y, x);
 
-	  ortho.accumulated_eval(r, z, phi, p0, p, fr, fz, fp);
+	  ortho.accumulated_eval(r, z, phi, p0, p1, fr, fz, fp);
 	  v = ortho.accumulated_dens_eval(r, z, phi, d0);
 	  
 	  indat[(0*OUTR+j)*OUTZ+l] = p0;
-	  indat[(1*OUTR+j)*OUTZ+l] = p;
-	  indat[(2*OUTR+j)*OUTZ+l] = fr;
-	  indat[(3*OUTR+j)*OUTZ+l] = fz;
-	  indat[(4*OUTR+j)*OUTZ+l] = fp;
-	  indat[(5*OUTR+j)*OUTZ+l] = d0;
-	  indat[(6*OUTR+j)*OUTZ+l] = v;
+	  indat[(1*OUTR+j)*OUTZ+l] = p1;
+	  indat[(2*OUTR+j)*OUTZ+l] = p0 + p1;
+	  indat[(3*OUTR+j)*OUTZ+l] = fr;
+	  indat[(4*OUTR+j)*OUTZ+l] = fz;
+	  indat[(5*OUTR+j)*OUTZ+l] = fp;
+	  indat[(6*OUTR+j)*OUTZ+l] = d0;
+	  indat[(7*OUTR+j)*OUTZ+l] = v;
+	  indat[(8*OUTR+j)*OUTZ+l] = d0 + v;
 	}
       }
     }
