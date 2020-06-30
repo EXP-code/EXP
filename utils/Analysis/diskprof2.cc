@@ -116,7 +116,8 @@ public:
   
   Histogram(int N, double R) : N(N), R(R)
   {
-    dR = 2.0*R/(N+1);		// Want grid points to be on bin centers
+    N = std::max<int>(N, 2);
+    dR = 2.0*R/(N-1);		// Want grid points to be on bin centers
     dataXY.resize(N*N, 0.0);
     dataZ .resize(N*N);
   }
@@ -466,7 +467,7 @@ Vector get_quart_truncated(Vector& vv, double dz)
 void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 {
   unsigned ncnt = 0;
-  int noutV = 7, noutS = 10;
+  int noutV = 9, noutS = 12;
   
   // ==================================================
   // Setup for output files
@@ -475,7 +476,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
   ostringstream sstr;
   sstr << "." << std::setfill('0') << std::setw(5) << icnt;
 
-  string suffix[12] = {"p0", "p1", "pp", "fr", "fz", "fp", "d0", "d1", "dd",
+  string suffix[12] = {"p0", "p1", "p", "fr", "fz", "fp", "d0", "d1", "d",
 		       "z10", "z50", "z90"};
 
   // ==================================================
@@ -752,9 +753,9 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 	  //
 	  int numZ = histo.dataZ[l*OUTR+j].size();
 	  if (numZ>0) {
-	    otdat[(7*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.1*numZ)];
-	    otdat[(8*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.5*numZ)];
-	    otdat[(9*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.9*numZ)];
+	    otdat[(9 *OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.1*numZ)];
+	    otdat[(10*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.5*numZ)];
+	    otdat[(11*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.9*numZ)];
 	  }
 	}
       }

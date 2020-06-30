@@ -102,7 +102,8 @@ public:
   
   Histogram(int N, double R) : N(N), R(R)
   {
-    dR = 2.0*R/(N+1);		// Want grid points to be on bin centers
+    N = std::max<int>(N, 2);
+    dR = 2.0*R/(N-1);		// Want grid points to be on bin centers
 
     dataXY.resize(N*N);
     dataXZ.resize(N*N);
@@ -336,9 +337,9 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
   ostringstream sstr;
   sstr << "." << std::setw(4) << std::setfill('0') << std::right << icnt;
 
-  const int nout1 = 8;
-  const int nout2 = 11;
-  string suffix[11] = {"p0", "p", "fr", "ft", "fp", "d0", "d", "dd",
+  const int nout1 = 10;
+  const int nout2 = 13;
+  string suffix[13] = {"p0", "p1", "p", "fr", "ft", "fp", "d0", "d1", "d", "dd",
 		       "histoXY", "histoXZ", "histoYZ"};
 
   if (VOLUME) {
@@ -455,16 +456,18 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
 	  
 	  data[(0*OUTR+l)*OUTR+j] = p0;
 	  data[(1*OUTR+l)*OUTR+j] = p1;
-	  data[(2*OUTR+l)*OUTR+j] = fr;
-	  data[(3*OUTR+l)*OUTR+j] = ft;
-	  data[(4*OUTR+l)*OUTR+j] = fp;
-	  data[(5*OUTR+l)*OUTR+j] = d0;
-	  data[(6*OUTR+l)*OUTR+j] = d1;
+	  data[(2*OUTR+l)*OUTR+j] = p0 + p1;
+	  data[(3*OUTR+l)*OUTR+j] = fr;
+	  data[(4*OUTR+l)*OUTR+j] = ft;
+	  data[(5*OUTR+l)*OUTR+j] = fp;
+	  data[(6*OUTR+l)*OUTR+j] = d0;
+	  data[(7*OUTR+l)*OUTR+j] = d1;
+	  data[(8*OUTR+l)*OUTR+j] = d0 + d1;
 
 	  if (d0>0.0)
-	    data[(7*OUTR+l)*OUTR+j] = d1/d0;
+	    data[(9*OUTR+l)*OUTR+j] = d1/d0;
 	  else
-	    data[(7*OUTR+l)*OUTR+j] = 0.0;
+	    data[(9*OUTR+l)*OUTR+j] = 0.0;
 	}
       }
     }
@@ -492,9 +495,9 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
 	vtkXY.Add(dataXY, suffix[n]);
       }
 
-      vtkXY.Add(histo.dataXY, suffix[ 8]);
-      vtkXY.Add(histo.dataXZ, suffix[ 9]);
-      vtkXY.Add(histo.dataYZ, suffix[10]);
+      vtkXY.Add(histo.dataXY, suffix[10]);
+      vtkXY.Add(histo.dataXZ, suffix[11]);
+      vtkXY.Add(histo.dataYZ, suffix[12]);
 
       std::ostringstream sout;
       sout << outdir + "/" + runtag + "_" + OUTFILE + "_surface" + sstr.str();
@@ -543,15 +546,17 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
 	  
 	data[indx + 0] = p0;
 	data[indx + 1] = p1;
-	data[indx + 2] = fr;
-	data[indx + 3] = ft;
-	data[indx + 4] = fp;
-	data[indx + 5] = d0;
-	data[indx + 6] = d1;
+	data[indx + 2] = p0 + p1;
+	data[indx + 3] = fr;
+	data[indx + 4] = ft;
+	data[indx + 5] = fp;
+	data[indx + 6] = d0;
+	data[indx + 7] = d1;
+	data[indx + 8] = d0 + d1;
 	if (d0>0.0)
-	  data[indx + 7] = d1/d0;
+	  data[indx + 9] = d1/d0;
 	else
-	  data[indx + 7] = 0.0;
+	  data[indx + 9] = 0.0;
 
 	costh = 0.0;
 	phi   = 0.5*M_PI;
@@ -560,15 +565,17 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
 	indx += nout1;
 	data[indx + 0] = p0;
 	data[indx + 1] = p1;
-	data[indx + 2] = fr;
-	data[indx + 3] = ft;
-	data[indx + 4] = fp;
-	data[indx + 5] = d0;
-	data[indx + 6] = d1;
+	data[indx + 2] = p0 + p1;
+	data[indx + 3] = fr;
+	data[indx + 4] = ft;
+	data[indx + 5] = fp;
+	data[indx + 6] = d0;
+	data[indx + 7] = d1;
+	data[indx + 8] = d0 + d1;
 	if (d0>0.0)
-	  data[indx + 7] = d1/d0;
+	  data[indx + 9] = d1/d0;
 	else
-	  data[indx + 7] = 0.0;
+	  data[indx + 9] = 0.0;
 
 	costh = 1.0;
 	phi   = 0.0;
@@ -577,15 +584,16 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
 	indx += nout1;
 	data[indx + 0] = p0;
 	data[indx + 1] = p1;
-	data[indx + 2] = fr;
-	data[indx + 3] = ft;
-	data[indx + 4] = fp;
-	data[indx + 5] = d0;
-	data[indx + 6] = d1;
+	data[indx + 2] = p0 + p1;
+	data[indx + 3] = fr;
+	data[indx + 4] = ft;
+	data[indx + 5] = fp;
+	data[indx + 6] = d0;
+	data[indx + 7] = d1;
 	if (d0>0.0)
-	  data[indx + 7] = d1/d0;
+	  data[indx + 8] = d1/d0;
 	else
-	  data[indx + 7] = 0.0;
+	  data[indx + 8] = 0.0;
 
       }
     }

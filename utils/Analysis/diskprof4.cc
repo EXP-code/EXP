@@ -122,8 +122,10 @@ public:
   
   Histogram(int N, int M, double R, double Z) : N(N), M(M)
   {
-    dR = 2.0*R/(N+1);
-    dZ = 2.0*Z/(M+1);
+    N = std::max<int>(N, 2);
+    M = std::max<int>(M, 2);
+    dR = 2.0*R/(N-1);
+    dZ = 2.0*Z/(M-1);
 
     rmax = R + 0.5*dR;
     zmax = Z + 0.5*dZ;
