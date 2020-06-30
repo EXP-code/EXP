@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
+#include <cstring>
 #include <string>
 #include <vector>
 #include <cmath>
