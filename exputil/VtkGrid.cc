@@ -61,9 +61,9 @@ void VtkGrid::Add(const std::vector<double>& data, const std::string& name)
   if (nz<2) {
 
     for (int i=0; i<nx; i++) {
-      float x = xmin + (xmax - xmin)*i/(nx-1);
+      double x = xmin + (xmax - xmin)*i/(nx-1);
       for (int j=0; j<ny; j++) {
-	float y = ymin + (ymax - ymin)*j/(ny-1);
+	double y = ymin + (ymax - ymin)*j/(ny-1);
 	vtkIdType n = dataSet->FindPoint(x, y, 0);
 
 	if (n>=0) {
@@ -79,11 +79,11 @@ void VtkGrid::Add(const std::vector<double>& data, const std::string& name)
   } else {
 
     for (int i=0; i<nx; i++) {
-      float x = xmin + (xmax - xmin)*i/(nx-1);
+      double x = xmin + (xmax - xmin)*i/(nx-1);
       for (int j=0; j<ny; j++) {
-	float y = ymin + (ymax - ymin)*j/(ny-1);
+	double y = ymin + (ymax - ymin)*j/(ny-1);
 	for (int k=0; k<nz; k++) {
-	  float z = zmin + (zmax - zmin)*k/(nz-1);
+	  double z = zmin + (zmax - zmin)*k/(nz-1);
 
 	  vtkIdType n = dataSet->FindPoint(x, y, z);
 
