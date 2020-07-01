@@ -411,11 +411,12 @@ main(int argc, char **argv)
   //===========================Cylindrical expansion===========================
 
 
-  EmpCylSL::RMIN = RCYLMIN;
-  EmpCylSL::RMAX = RCYLMAX;
-  EmpCylSL::NUMX = NUMX;
-  EmpCylSL::NUMY = NUMY;
-  EmpCylSL::CMAP = 1;
+  EmpCylSL::RMIN  = RCYLMIN;
+  EmpCylSL::RMAX  = RCYLMAX;
+  EmpCylSL::NUMX  = NUMX;
+  EmpCylSL::NUMY  = NUMY;
+  EmpCylSL::CMAPR = 1;
+  EmpCylSL::CMAPZ = 1;
 
   if (basis)
     EmpCylSL::DENS = true;

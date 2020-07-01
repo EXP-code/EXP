@@ -370,7 +370,8 @@ main(int ac, char **av)
   bool         expcond;
   bool         LOGR;
   bool         CHEBY;
-  bool         CMAP;
+  int          CMAPR;
+  int          CMAPZ;
   int          NCHEB;
   int          CMTYPE;
   int          NDR;
@@ -467,8 +468,8 @@ main(int ac, char **av)
     ("RNUM",            po::value<int>(&RNUM)->default_value(200),                      "Number of radial knots for EmpCylSL basis construction quadrature")
     ("PNUM",            po::value<int>(&PNUM)->default_value(80),                       "Number of azimthal knots for EmpCylSL basis construction quadrature")
     ("TNUM",            po::value<int>(&TNUM)->default_value(80),                       "Number of cos(theta) knots for EmpCylSL basis construction quadrature")
-    ("CMAP",            po::value<bool>(&CMAP)->default_value(true),                     "Map coordinates from radius to tabled grid")
-    ("CMTYPE",          po::value<int>(&CMTYPE)->default_value(1),                       "Coordinate mapping type (0=none, 1=original, 2=power in R and z")
+    ("CMAPR",           po::value<int>(&CMAPR)->default_value(1),                     "Radial coordinate mapping type for cylindrical grid (0=none, 1=rational fct)")
+    ("CMAPZ",           po::value<int>(&CMAPZ)->default_value(1),                     "Vertical coordinate mapping type for cylindrical grid (0=none, 1=sech, 2=power in z")
     ("SVD",             po::value<bool>(&SVD)->default_value(false),                    "Use svd for symmetric eigenvalue problesm")
     ("LOGR",            po::value<bool>(&LOGR)->default_value(false),                   "Make a logarithmic coordinate mapping")
     ("CHEBY",           po::value<bool>(&CHEBY)->default_value(false),                  "Use Chebyshev smoothing for epicyclic and asymmetric drift")
@@ -706,10 +707,6 @@ main(int ac, char **av)
     return 0;
   }
 
-  // Set mapping type for EOF table
-  //
-  if (not CMAP) CMTYPE = 0;
-
   //====================
   // Okay, now begin ...
   //====================
@@ -815,7 +812,8 @@ main(int ac, char **av)
   EmpCylSL::NUMY        = NUMY;
   EmpCylSL::NUMR        = NUMR;
   EmpCylSL::NOUT        = NOUT;
-  EmpCylSL::CMAP        = CMTYPE;
+  EmpCylSL::CMAPR       = CMAPR;
+  EmpCylSL::CMAPZ       = CMAPZ;
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
   EmpCylSL::DENS        = DENS;

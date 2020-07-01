@@ -56,7 +56,8 @@ bool     EmpCylSL::PCAEOF          = false;
 bool     EmpCylSL::USESVD          = false;
 bool     EmpCylSL::logarithmic     = false;
 bool     EmpCylSL::enforce_limits  = false;
-int      EmpCylSL::CMAP            = 0;
+int      EmpCylSL::CMAPR           = 1;
+int      EmpCylSL::CMAPZ           = 1;
 int      EmpCylSL::NUMX            = 256;
 int      EmpCylSL::NUMY            = 128;
 int      EmpCylSL::NOUT            = 12;
@@ -680,11 +681,19 @@ int EmpCylSL::read_eof_header(const std::string& eof_file)
       NMAX   = node["nmax"  ].as<int>();
       NORDER = node["norder"].as<int>();
       DENS   = node["dens"  ].as<bool>();
-      CMAP   = node["cmap"  ].as<int>();
       RMIN   = node["rmin"  ].as<double>();
       RMAX   = node["rmax"  ].as<double>();
       ASCALE = node["ascl"  ].as<double>();
       HSCALE = node["hscl"  ].as<double>();
+
+      if (node["cmap"])		// Backwards compatibility
+	CMAPR  = node["cmap"  ].as<int>();
+      else
+	CMAPR  = node["cmapr" ].as<int>();
+
+      if (node["cmapz"])	// Backwards compatibility
+	CMAPZ  = node["cmapz" ].as<int>();
+
 
   } else {
 
@@ -702,7 +711,7 @@ int EmpCylSL::read_eof_header(const std::string& eof_file)
     in.read((char *)&NORDER, sizeof(int));
     in.read((char *)&tmp,    sizeof(int)); 
     if (tmp) DENS = true; else DENS = false;
-    in.read((char *)&CMAP,   sizeof(int)); 
+    in.read((char *)&CMAPR,  sizeof(int)); 
     in.read((char *)&RMIN,   sizeof(double));
     in.read((char *)&RMAX,   sizeof(double));
     in.read((char *)&ASCALE, sizeof(double));
@@ -713,15 +722,16 @@ int EmpCylSL::read_eof_header(const std::string& eof_file)
     cout << setfill('-') << setw(70) << '-' << endl;
     cout << " Cylindrical parameters read from <" << eof_file << ">" << endl;
     cout << setw(70) << '-' << endl;
-    cout << "MMAX="   << MMAX << endl;
-    cout << "NUMX="   << NUMX << endl;
-    cout << "NUMY="   << NUMY << endl;
-    cout << "NMAX="   << NMAX << endl;
+    cout << "MMAX="   << MMAX   << endl;
+    cout << "NUMX="   << NUMX   << endl;
+    cout << "NUMY="   << NUMY   << endl;
+    cout << "NMAX="   << NMAX   << endl;
     cout << "NORDER=" << NORDER << endl;
-    cout << "DENS="   << DENS << endl;
-    cout << "CMAP="   << CMAP << endl;
-    cout << "RMIN="   << RMIN << endl;
-    cout << "RMAX="   << RMAX << endl;
+    cout << "DENS="   << DENS   << endl;
+    cout << "CMAPR="  << CMAPR  << endl;
+    cout << "CMAPZ="  << CMAPZ  << endl;
+    cout << "RMIN="   << RMIN   << endl;
+    cout << "RMAX="   << RMAX   << endl;
     cout << "ASCALE=" << ASCALE << endl;
     cout << "HSCALE=" << HSCALE << endl;
     cout << setw(70) << '-' << endl << setfill(' ');
@@ -830,7 +840,8 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
       node["neven" ] = Neven;
       node["nodd"  ] = Nodd;
       node["dens"  ] = DENS;
-      node["cmap"  ] = CMAP;
+      node["cmapr" ] = CMAPR;
+      node["cmapz" ] = CMAPZ;
       node["rmin"  ] = RMIN;
       node["rmax"  ] = RMAX;
       node["ascl"  ] = ASCALE;
@@ -872,7 +883,7 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
       out.write((const char *)&NORDER,  sizeof(int));
       if (DENS) out.write((const char *)&one,  sizeof(int));
       else      out.write((const char *)&zero, sizeof(int));
-      out.write((const char *)&CMAP,    sizeof(int));
+      out.write((const char *)&CMAPR,   sizeof(int));
       out.write((const char *)&RMIN,    sizeof(double));
       out.write((const char *)&RMAX,    sizeof(double));
       out.write((const char *)&ASCALE,  sizeof(double));
@@ -945,7 +956,7 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
       return 0;
     }
 
-    int mmax, numx, numy, nmax, norder, tmp, cmap;
+    int mmax, numx, numy, nmax, norder, tmp, cmapr, cmapz;
     bool dens=false;
     double rmin, rmax, ascl, hscl, time;
 
@@ -988,13 +999,22 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
       nmax    = node["nmax"  ].as<int>();
       norder  = node["norder"].as<int>();
       dens    = node["dens"  ].as<bool>();
-      cmap    = node["cmap"  ].as<int>();
       rmin    = node["rmin"  ].as<double>();
       rmax    = node["rmax"  ].as<double>();
       ascl    = node["ascl"  ].as<double>();
       hscl    = node["hscl"  ].as<double>();
       cylmass = node["cmass" ].as<double>();
       time    = node["time"  ].as<double>();
+
+      if (node["cmap"]) 	// Backwards compatibility
+	cmapr   = node["cmap" ].as<int>();
+      else
+	cmapr   = node["cmapr"].as<int>();
+
+      if (node["cmapz"])	// Backwards compatibility
+	cmapz = node["cmapz"].as<int>();
+      else
+	cmapz = CMAPZ;
 
     } else {
 				// Rewind file
@@ -1007,7 +1027,7 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
       in.read((char *)&nmax,    sizeof(int));
       in.read((char *)&norder,  sizeof(int));
       in.read((char *)&tmp,     sizeof(int));    if (tmp) dens = true;
-      in.read((char *)&cmap,    sizeof(int));
+      in.read((char *)&cmapr,   sizeof(int));
       in.read((char *)&rmin,    sizeof(double));
       in.read((char *)&rmax,    sizeof(double));
       in.read((char *)&ascl,    sizeof(double));
@@ -1023,7 +1043,7 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 	 (NMAX    != nmax   ) |
 	 (NORDER  != norder ) |
 	 (DENS    != dens   ) |
-	 (CMAP    != cmap   ) |
+	 (CMAPR   != cmapr  ) |
 	 (fabs(rmin-RMIN)>1.0e-12 ) |
 	 (fabs(rmax-RMAX)>1.0e-12 ) |
 	 (fabs(ascl-ASCALE)>1.0e-12 ) |
@@ -1045,7 +1065,8 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 	cout << compare_out("nmax",   NMAX,   nmax);
 	cout << compare_out("norder", NORDER, norder);
 	cout << compare_out("dens",   DENS,   dens);
-	cout << compare_out("cmap",   CMAP,   cmap);
+	cout << compare_out("cmapr",  CMAPR,  cmapr);
+	cout << compare_out("cmapz",  CMAPZ,  cmapz);
 	cout << compare_out("rmin",   RMIN,   rmin);
 	cout << compare_out("rmax",   RMAX,   rmax);
 	cout << compare_out("ascale", ASCALE, ascl);
@@ -5340,7 +5361,7 @@ void EmpCylSL::dump_images_basis(const string& OUTFILE,
 
 double EmpCylSL::r_to_xi(double r)
 {
-  if (CMAP>0) {
+  if (CMAPR>0) {
     if (r<0.0) {
       ostringstream msg;
       msg << "radius=" << r << " < 0! [mapped]";
@@ -5359,7 +5380,7 @@ double EmpCylSL::r_to_xi(double r)
     
 double EmpCylSL::xi_to_r(double xi)
 {
-  if (CMAP>0) {
+  if (CMAPR>0) {
     if (xi<-1.0) throw GenericError("xi < -1!", __FILE__, __LINE__);
     if (xi>=1.0) throw GenericError("xi >= 1!", __FILE__, __LINE__);
 
@@ -5372,7 +5393,7 @@ double EmpCylSL::xi_to_r(double xi)
 
 double EmpCylSL::d_xi_to_r(double xi)
 {
-  if (CMAP>0) {
+  if (CMAPR>0) {
     if (xi<-1.0) throw GenericError("xi < -1!", __FILE__, __LINE__);
     if (xi>=1.0) throw GenericError("xi >= 1!", __FILE__, __LINE__);
 
@@ -5720,17 +5741,17 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
   bool dens=false;
   double rmin, rmax, ascl, hscl;
 
-  in.read((char *)&mmax, sizeof(int));
-  in.read((char *)&numx, sizeof(int));
-  in.read((char *)&numy, sizeof(int));
-  in.read((char *)&nmax, sizeof(int));
+  in.read((char *)&mmax,   sizeof(int));
+  in.read((char *)&numx,   sizeof(int));
+  in.read((char *)&numy,   sizeof(int));
+  in.read((char *)&nmax,   sizeof(int));
   in.read((char *)&norder, sizeof(int));
-  in.read((char *)&tmp,  sizeof(int)); if (tmp) dens = true;
-  in.read((char *)&cmap, sizeof(int));
-  in.read((char *)&rmin, sizeof(double));
-  in.read((char *)&rmax, sizeof(double));
-  in.read((char *)&ascl, sizeof(double));
-  in.read((char *)&hscl, sizeof(double));
+  in.read((char *)&tmp,    sizeof(int)); if (tmp) dens = true;
+  in.read((char *)&cmap,   sizeof(int));
+  in.read((char *)&rmin,   sizeof(double));
+  in.read((char *)&rmax,   sizeof(double));
+  in.read((char *)&ascl,   sizeof(double));
+  in.read((char *)&hscl,   sizeof(double));
   
   out << setw(70) << setfill('-') << '-' << setfill(' ') << endl;
   out << setw(20) << left << "MMAX"   << " : " << mmax << endl;
@@ -5739,7 +5760,7 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
   out << setw(20) << left << "NMAX"   << " : " << nmax << endl;
   out << setw(20) << left << "NORDER" << " : " << norder << endl;
   out << setw(20) << left << "DENS"   << " : " << std::boolalpha << dens << endl;
-  out << setw(20) << left << "CMAP"   << " : " << cmap << endl;
+  out << setw(20) << left << "CMAPR"  << " : " << cmap << endl;
   out << setw(20) << left << "RMIN"   << " : " << rmin << endl;
   out << setw(20) << left << "RMAX"   << " : " << rmax << endl;
   out << setw(20) << left << "ASCALE" << " : " << ascl << endl;
@@ -6177,9 +6198,9 @@ void EmpCylSL::compare_basis(const EmpCylSL *p)
 // Compute non-dimensional vertical coordinate from Z
 double EmpCylSL::z_to_y(double z)
 {
-  if (CMAP==1)
+  if (CMAPZ==1)
     return z/(fabs(z)+DBL_MIN)*asinh(fabs(z/HSCALE));
-  else if (CMAP==2)
+  else if (CMAPZ==2)
     return z/sqrt(z*z + HSCALE*HSCALE);
   else
     return z;
@@ -6188,9 +6209,9 @@ double EmpCylSL::z_to_y(double z)
 // Compute Z from non-dimensional vertical coordinate
 double EmpCylSL::y_to_z(double y)
 {
-  if (CMAP==1)
+  if (CMAPZ==1)
     return HSCALE*sinh(y);
-  else if (CMAP==2) {
+  else if (CMAPZ==2) {
     if (y<-1.0) throw GenericError("y < -1!", __FILE__, __LINE__);
     if (y>=1.0) throw GenericError("y >= 1!", __FILE__, __LINE__);
     return y * HSCALE/sqrt(1.0 - y*y);
@@ -6202,9 +6223,9 @@ double EmpCylSL::y_to_z(double y)
 // For measure transformation in vertical coordinate
 double EmpCylSL::d_y_to_z(double y)
 {
-  if (CMAP==1)
+  if (CMAPZ==1)
     return HSCALE*cosh(y);
-  else if (CMAP==2) {
+  else if (CMAPZ==2) {
     if (y<-1.0) throw GenericError("y < -1!", __FILE__, __LINE__);
     if (y>=1.0) throw GenericError("y >= 1!", __FILE__, __LINE__);
     return HSCALE*pow(1.0-y*y, -1.5);

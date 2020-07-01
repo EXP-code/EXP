@@ -569,8 +569,8 @@ main(int argc, char **argv)
   // *****Using MPI****
   // ==================================================
 
-  int mmax, numx, numy, nmax, norder, tmp;
-  bool cmap=false, dens=false;
+  int mmax, numx, numy, nmax, norder, cmapr=1, cmapz=1, tmp;
+  bool dens=false;
   double rmin, rmax, ascl, hscl;
 
   // Open EOF cachefile
@@ -619,17 +619,22 @@ main(int argc, char **argv)
     
     // Get parameters
     //
-    mmax   = node["mmax"  ].as<int>();
-    numx   = node["numx"  ].as<int>();
-    numy   = node["numy"  ].as<int>();
-    nmax   = node["nmax"  ].as<int>();
-    norder = node["norder"].as<int>();
-    DENS   = node["dens"  ].as<bool>();
-    cmap   = node["cmap"  ].as<int>();
-    rmin   = node["rmin"  ].as<double>();
-    rmax   = node["rmax"  ].as<double>();
-    ascl   = node["ascl"  ].as<double>();
-    hscl   = node["hscl"  ].as<double>();
+    mmax    = node["mmax"  ].as<int>();
+    numx    = node["numx"  ].as<int>();
+    numy    = node["numy"  ].as<int>();
+    nmax    = node["nmax"  ].as<int>();
+    norder  = node["norder"].as<int>();
+    DENS    = node["dens"  ].as<bool>();
+    if (node["cmap"])
+      cmapr = node["cmap"  ].as<int>();
+    else 
+      cmapr = node["cmapr" ].as<int>();
+    if (node["cmapz"])
+      cmapz = node["cmapz" ].as<int>();
+    rmin    = node["rmin"  ].as<double>();
+    rmax    = node["rmax"  ].as<double>();
+    ascl    = node["ascl"  ].as<double>();
+    hscl    = node["hscl"  ].as<double>();
 
   } else {
 				// Rewind file
@@ -642,7 +647,7 @@ main(int argc, char **argv)
     in.read((char *)&nmax,   sizeof(int));
     in.read((char *)&norder, sizeof(int));
     in.read((char *)&dens,   sizeof(int));    if (tmp) dens = true;
-    in.read((char *)&tmp,    sizeof(int));    if (tmp) cmap = true;
+    in.read((char *)&cmapr,  sizeof(int));
     in.read((char *)&rmin,   sizeof(double));
     in.read((char *)&rmax,   sizeof(double));
     in.read((char *)&ascl,   sizeof(double));
@@ -653,7 +658,8 @@ main(int argc, char **argv)
   EmpCylSL::RMAX        = rmax;
   EmpCylSL::NUMX        = numx;
   EmpCylSL::NUMY        = numy;
-  EmpCylSL::CMAP        = cmap;
+  EmpCylSL::CMAPR       = cmapr;
+  EmpCylSL::CMAPZ       = cmapz;
   EmpCylSL::logarithmic = true;
   EmpCylSL::DENS        = dens;
   EmpCylSL::CACHEFILE   = CACHEFILE;

@@ -126,7 +126,8 @@ main(int argc, char **argv)
   EmpCylSL::RMAX        = 20.0;
   EmpCylSL::NUMX        = 128;
   EmpCylSL::NUMY        = 64;
-  EmpCylSL::CMAP        = true;
+  EmpCylSL::CMAPR       = 1;
+  EmpCylSL::CMAPZ       = 1;
   EmpCylSL::DENS        = true;
   EmpCylSL::VFLAG       = 26;
 

@@ -908,7 +908,7 @@ int
 main(int argc, char **argv)
 {
   int nice, numx, numy, lmax, mmax, nmax, norder;
-  int initc, partc, beg, end, stride, init, cmap;
+  int initc, partc, beg, end, stride, init, cmapr, cmapz;
   double rcylmin, rcylmax, rscale, vscale;
   bool DENS, PCA, PVD, verbose = false, mask = false, ignore, logl;
   std::string CACHEFILE, COEFFILE;
@@ -1023,9 +1023,12 @@ main(int argc, char **argv)
     ("coeffile",
      po::value<std::string>(&COEFFILE),
      "coefficient output file name")
-    ("cmap",
-     po::value<int>(&cmap)->default_value(0),
-     "map radius into semi-infinite interval in cylindrical grid computation")
+    ("cmapr",
+     po::value<int>(&cmapr)->default_value(1),
+     "Radial coordinate mapping type for cylindrical grid (0=none, 1=rational fct)")
+    ("cmapz",
+     po::value<int>(&cmapz)->default_value(1),
+     "Vertical coordinate mapping type for cylindrical grid (0=none, 1=sech, 2=power in z")
     ("logl",
      po::value<bool>(&logl)->default_value(true),
      "use logarithmic radius scale in cylindrical grid computation")
@@ -1161,7 +1164,12 @@ main(int argc, char **argv)
 	nmax    = node["nmax"  ].as<int>();
 	norder  = node["norder"].as<int>();
 	DENS    = node["dens"  ].as<bool>();
-	cmap    = node["cmap"  ].as<int>();
+	if (node["cmap"])
+	  cmapr = node["cmap"  ].as<int>();
+	else
+	  cmapr = node["cmapr" ].as<int>();
+	if (node["cmapz"])
+	  cmapz = node["cmapz"  ].as<int>();
 	rcylmin = node["rmin"  ].as<double>();
 	rcylmax = node["rmax"  ].as<double>();
 	rscale  = node["ascl"  ].as<double>();
@@ -1180,7 +1188,7 @@ main(int argc, char **argv)
 	in.read((char *)&nmax,    sizeof(int));
 	in.read((char *)&norder,  sizeof(int));
 	in.read((char *)&DENS,    sizeof(int)); 
-	in.read((char *)&cmap,    sizeof(int)); 
+	in.read((char *)&cmapr,   sizeof(int)); 
 	in.read((char *)&rcylmin, sizeof(double));
 	in.read((char *)&rcylmax, sizeof(double));
 	in.read((char *)&rscale,  sizeof(double));
@@ -1193,7 +1201,8 @@ main(int argc, char **argv)
   EmpCylSL::RMAX        = rcylmax;
   EmpCylSL::NUMX        = numx;
   EmpCylSL::NUMY        = numy;
-  EmpCylSL::CMAP        = cmap;
+  EmpCylSL::CMAPR       = cmapr;
+  EmpCylSL::CMAPZ       = cmapz;
   EmpCylSL::logarithmic = logl;
   EmpCylSL::DENS        = DENS;
   EmpCylSL::CACHEFILE   = CACHEFILE;

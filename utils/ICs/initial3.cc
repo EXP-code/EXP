@@ -93,7 +93,8 @@ bool         expcond;
 bool         CONSTANT;
 bool         GAUSSIAN;
 bool         PLUMMER;
-bool         CMAP;
+int          CMAPR;
+int          CMAPZ;
 bool         LOGR;
 bool         CHEBY;
 int          CMTYPE;
@@ -276,9 +277,8 @@ main(int argc, char **argv)
      "Number of azimthal knots for EmpCylSL basis construction quadrature")
     ("TNUM",                po::value<int>(&TNUM)->default_value(80),
      "Number of cos(theta) knots for EmpCylSL basis construction quadrature")
-    ("CMAP",                po::value<bool>(&CMAP)->default_value(false),
-     "Map coordinates from radius to tabled grid")
-    ("CMAPTYPE",        po::value<int>(&CMTYPE)->default_value(1),                    "Coordinate mapping type (0=none, 1=original, 2=power in R and z")
+    ("CMAPR",           po::value<int>(&CMAPR)->default_value(1),                     "Radial coordinate mapping type for cylindrical grid (0=none, 1=rational fct)")
+    ("CMAPZ",           po::value<int>(&CMAPZ)->default_value(1),                     "Vertical coordinate mapping type for cylindrical grid (0=none, 1=sech, 2=power in z")
     ("LOGR",                po::value<bool>(&LOGR)->default_value(false),
      "Make a logarithmic coordinate mapping")
     ("CHEBY",               po::value<bool>(&CHEBY)->default_value(false),
@@ -413,10 +413,6 @@ main(int argc, char **argv)
     return 1;
   }
 
-  // Set mapping type
-  //
-  if (not CMAP) CMTYPE = 0;
-
 
 #ifdef DEBUG                    // For gdb . . . 
   sleep(20);
@@ -512,7 +508,8 @@ main(int argc, char **argv)
   EmpCylSL::NUMX        = NUMX;
   EmpCylSL::NUMY        = NUMY;
   EmpCylSL::NUMR        = NUMR;
-  EmpCylSL::CMAP        = CMTYPE;
+  EmpCylSL::CMAPR       = CMAPR;
+  EmpCylSL::CMAPZ       = CMAPZ;
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
   EmpCylSL::DENS        = DENS;

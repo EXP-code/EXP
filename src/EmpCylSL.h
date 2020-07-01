@@ -369,9 +369,13 @@ public:
   //! VTK diagnostic frequency (default: false)
   static unsigned VTKFRQ;
 
-  //! TRUE if we are using coordinate mapping (default: 0=no, 1 for
-  //! vertical hyberbolic mapping, 2 for power mampping)
-  static int CMAP;
+  //! TRUE if we are using coordinate mapping (0=no, 1
+  //! rational-function mapping (default)
+  static int CMAPR;
+
+  //! TRUE if we are using coordinate mapping (0=no, 1 for
+  //! vertical hyberbolic mapping (default), 2 for power mampping)
+  static int CMAPZ;
 
   //! TRUE if mapping is logarithmic (default: false)
   static bool logarithmic;

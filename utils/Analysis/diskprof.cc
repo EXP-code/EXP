@@ -863,7 +863,8 @@ main(int argc, char **argv)
   EmpCylSL::RMAX        = RCYLMAX;
   EmpCylSL::NUMX        = NUMX;
   EmpCylSL::NUMY        = NUMY;
-  EmpCylSL::CMAP        = true;
+  EmpCylSL::CMAPR       = 1;
+  EmpCylSL::CMAPZ       = 1;
   EmpCylSL::logarithmic = true;
   EmpCylSL::DENS        = DENS;
   EmpCylSL::CACHEFILE   = CACHEFILE;
