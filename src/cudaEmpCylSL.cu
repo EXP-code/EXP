@@ -244,7 +244,8 @@ cudaMappingConstants EmpCylSL::getCudaMappingConstants()
   ret.numy   = NUMY;
   ret.dxi    = dX;
   ret.dyi    = dY;
-  ret.cmap   = (CMAP ? 1 : 0);
+  ret.cmapR  = CMAPR;
+  ret.cmapZ  = CMAPZ;
 
   return ret;
 }

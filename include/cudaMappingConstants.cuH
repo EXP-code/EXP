@@ -18,7 +18,8 @@ struct cudaMappingConstants
   int    numr;
   int    numx;
   int    numy;
-  int    cmap;
+  int    cmapR;
+  int    cmapZ;
 };
 
 #endif

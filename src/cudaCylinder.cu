@@ -19,7 +19,7 @@ __device__ __constant__
 cuFP_t cylRscale, cylHscale, cylXmin, cylXmax, cylYmin, cylYmax, cylDxi, cylDyi, cylCen[3], cylBody[9], cylOrig[9];
 
 __device__ __constant__
-int   cylNumx, cylNumy, cylCmap;
+int   cylNumx, cylNumy, cylCmapR, cylCmapZ;
 
 __device__ __constant__
 bool  cylOrient;
@@ -71,7 +71,8 @@ void testConstantsCyl()
   printf("** Dyi    = %f\n", cylDyi);
   printf("** Numx   = %d\n", cylNumx);
   printf("** Numy   = %d\n", cylNumy);
-  printf("** Cmap   = %d\n", cylCmap);
+  printf("** CmapR  = %d\n", cylCmapR);
+  printf("** CmapZ  = %d\n", cylCmapZ);
 }
 
 				// R coordinate transformation
@@ -80,7 +81,7 @@ cuFP_t cu_r_to_xi_cyl(cuFP_t r)
 {
   cuFP_t ret;
 
-  if (cylCmap==1) {
+  if (cylCmapR==1) {
     ret = (r/cylRscale - 1.0)/(r/cylRscale + 1.0);
   } else {
     ret = r;
@@ -94,7 +95,7 @@ cuFP_t cu_xi_to_r_cyl(cuFP_t xi)
 {
   cuFP_t ret;
 
-  if (cylCmap==1) {
+  if (cylCmapR==1) {
     ret = (1.0 + xi)/(1.0 - xi) * cylRscale;
   } else {
     ret = xi;
@@ -108,7 +109,7 @@ cuFP_t cu_d_xi_to_r_cyl(cuFP_t xi)
 {
   cuFP_t ret;
 
-  if (cylCmap==1) {
+  if (cylCmapR==1) {
     ret = 0.5*(1.0 - xi)*(1.0 - xi) / cylRscale;
   } else {
     ret = 1.0;
@@ -120,15 +121,49 @@ cuFP_t cu_d_xi_to_r_cyl(cuFP_t xi)
 				// Z coordinate transformation
 __device__
 cuFP_t cu_z_to_y_cyl(cuFP_t z)
-{ return z/(fabs(z)+FLT_MIN)*asinh(fabs(z/cylHscale)); }
+{
+  cuFP_t ret;
+
+  if (cylCmapZ==1)
+    ret = z/(fabs(z)+FLT_MIN)*asinh(fabs(z/cylHscale));
+  else if (cylCmapZ==2)
+    return z/sqrt(z*z + cylHscale*cylHscale);
+  else
+    ret = z;
+
+  return ret;
+}
 
 __device__
 cuFP_t cu_y_to_z_cyl(cuFP_t y)
-{ return cylHscale*sinh(y); }
+{
+  cuFP_t ret;
+
+  if (cylCmapZ==1)
+    ret = cylHscale*sinh(y);
+  else if (cylCmapZ==2)
+    ret = y * CylHscale/sqrt(1.0 - y*y);
+  else
+    ret = y;
+
+  return ret;
+}
+
 
 __device__
 cuFP_t cu_d_y_to_z_cyl(cuFP_t y)
-{ return cylHscale*cosh(y); }
+{
+  cuFP_t ret;
+
+  if (cylCmapZ==1)
+    ret = cylHscale*cosh(y);
+  else if (cylCmapZ==2)
+    return cylHscale*pow(1.0-y*y, -1.5);
+  else
+    ret = 1.0;
+
+  return ret;
+}
 
 
 void Cylinder::cuda_initialize()
@@ -176,8 +211,11 @@ void Cylinder::initialize_mapping_constants()
   cuda_safe_call(cudaMemcpyToSymbol(cylNumy,   &f.numy,   sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying cylNumy");
 
-  cuda_safe_call(cudaMemcpyToSymbol(cylCmap,   &f.cmap,   sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cylCmap");
+  cuda_safe_call(cudaMemcpyToSymbol(cylCmapR,  &f.cmapR,  sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cylCmapR");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cylCmapZ,  &f.cmapZ,  sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cylCmapZ");
 
 }
 
