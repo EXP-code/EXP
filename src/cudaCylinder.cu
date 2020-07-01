@@ -142,7 +142,7 @@ cuFP_t cu_y_to_z_cyl(cuFP_t y)
   if (cylCmapZ==1)
     ret = cylHscale*sinh(y);
   else if (cylCmapZ==2)
-    ret = y * CylHscale/sqrt(1.0 - y*y);
+    ret = y * cylHscale/sqrt(1.0 - y*y);
   else
     ret = y;
 
