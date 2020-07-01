@@ -130,7 +130,7 @@ protected:
     ret.numy   = 0;
     ret.dxi    = 1.0/(ret.numr-1);
     ret.dxi    = 0.0;
-    ret.cmap   = 2;
+    ret.cmapR  = 1;
 
     return ret;
   }

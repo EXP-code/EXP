@@ -250,7 +250,7 @@ public:
     ret.numy   = 0;
     ret.dxi    = dxi;
     ret.dyi    = 0.0;
-    ret.cmap   = cmap;
+    ret.cmapR  = cmap;
 
     return ret;
   }

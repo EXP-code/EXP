@@ -219,7 +219,7 @@ void SphericalBasis::initialize_mapping_constants()
   cuda_safe_call(cudaMemcpyToSymbol(sphNumr,   &f.numr,   sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying sphuNumr");
 
-  cuda_safe_call(cudaMemcpyToSymbol(sphCmap,   &f.cmap,   sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
+  cuda_safe_call(cudaMemcpyToSymbol(sphCmap,   &f.cmapR,  sizeof(int),   size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying sphCmap");
 }
 
