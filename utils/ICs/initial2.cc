@@ -863,13 +863,6 @@ main(int ac, char **av)
       }
     }
 
-    // Basis orthgonality check
-    //
-    if (vm.count("ortho")) {
-      std::ofstream out("ortho.check");
-      expandd->ortho_check(out);
-    }
-
     // Use these user models to deproject for the EOF spherical basis
     //
     if (vm.count("deproject")) {
@@ -907,8 +900,13 @@ main(int ac, char **av)
       save_eof = true;
     }
 
+    // Basis orthgonality check
+    //
+    if (vm.count("ortho")) {
+      std::ofstream out("ortho.check");
+      expandd->ortho_check(out);
+    }
   }
-
 
   //====================Create the disk & halo model===========================
 
