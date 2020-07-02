@@ -3067,6 +3067,43 @@ void EmpCylSL::make_eof(void)
 	  timer.start();
 	}
 
+	if (myid==0 and VFLAG & 32) {
+	  std::ofstream dout;
+	  if (M==0) dout.open("variance.test");
+	  else      dout.open("variance.test", ios::app);
+
+	  dout << std:string(60, '-') << std::endl
+	       << " M=" << M          << std::endl
+	       << std:string(60, '-') << std::endl;
+
+	  if (EvenOdd) {
+
+	    for (int i=1; i<=varE[M].getnrows(); i++) {
+	      for (int j=1; j<=varE[M].getncols(); j++) {
+		dout << std::setw(16) << varE[M][i][j];
+	      }
+	      dout << std::endl;
+	    }
+
+	    dout << std::endl;
+	    for (int i=1; i<=varO[M].getnrows(); i++) {
+	      for (int j=1; j<=varO[M].getncols(); j++) {
+		dout << std::setw(16) << varO[M][i][j];
+	      }
+	      dout << std::endl;
+	    }
+
+	  } else {
+
+	    for (int i=1; i<=var[M].getnrows(); i++) {
+	      for (int j=1; j<=var[M].getncols(); j++) {
+		dout << std::setw(16) << var[M][i][j];
+	      }
+	      dout << std::endl;
+	    }
+	  }
+	}
+
 	if (EvenOdd) {
 
 	  if (USESVD) {
