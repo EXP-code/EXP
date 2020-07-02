@@ -903,7 +903,7 @@ main(int ac, char **av)
     // Basis orthgonality check
     //
     if (vm.count("ortho")) {
-      std::ofstream out("ortho.check");
+      std::ofstream out(runtag + ".ortho_check");
       expandd->ortho_check(out);
     }
   }
