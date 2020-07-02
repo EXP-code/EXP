@@ -6244,9 +6244,16 @@ void EmpCylSL::ortho_check(std::ostream& out)
       out << std::string(60, '-') << std::endl
 	  << " M=" << mm << std::endl
 	  << std::string(60, '-') << std::endl;
+
+      // Normalization
+      double fac = dX * dY;
+      if (mm) fac *= 0.5;
+
+      // Compute matrix
       for (int n1=0; n1<NORDER; n1++) {
 
 	for (int n2=0; n2<NORDER; n2++) {
+
 	  double sumC = 0.0, sumS = 0.0;
 
 	  for (int ix=0; ix<=NUMX; ix++) {
@@ -6257,20 +6264,23 @@ void EmpCylSL::ortho_check(std::ostream& out)
 
 	      double y = YMIN + dY*iy;
 
-	      sumC += M_PI*r / (d_xi_to_r(x) * d_y_to_z(y)) *
+	      sumC += fac * r/(d_xi_to_r(x) * d_y_to_z(y)) *
 		potC[mm][n1][ix][iy] * densC[mm][n2][ix][iy];
 
-	      sumS += M_PI*r / (d_xi_to_r(x) * d_y_to_z(y)) *
-		potS[mm][n1][ix][iy] * densS[mm][n2][ix][iy];
+	      if (mm)
+		sumS += fac * r/(d_xi_to_r(x) * d_y_to_z(y)) *
+		  potS[mm][n1][ix][iy] * densS[mm][n2][ix][iy];
 	    }
 	  }
 
-	  out << std::setw(16) << sumC << std::setw(16) << sumC;
+	  out << std::setw(16) << sumC << std::setw(16) << sumS;
 	}
 	out << std::endl;
       }
     }
   } else {
-    out << "Can not check orthogonality without density computation" << std::endl;
+    out << "EmpCylSL::ortho_check: "
+	<< "can not check orthogonality without density computation"
+	<< std::endl;
   }
 }
