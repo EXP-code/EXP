@@ -6233,3 +6233,44 @@ double EmpCylSL::d_y_to_z(double y)
     return 1.0;
 }
 
+// Check orthogonality for basis
+//
+void EmpCylSL::ortho_check(std::ostream& out)
+{
+  if (DENS) {
+
+    for (int mm=0; mm<=MMAX; mm++) {
+      // Header
+      out << std::string(60, '-') << std::endl
+	  << " M=" << mm << std::endl
+	  << std::string(60, '-') << std::endl;
+      for (int n1=0; n1<NORDER; n1++) {
+
+	for (int n2=0; n2<NORDER; n2++) {
+	  double sumC = 0.0, sumS = 0.0;
+
+	  for (int ix=0; ix<=NUMX; ix++) {
+	    double x = XMIN + dX*ix;
+	    double r = xi_to_r(x);
+
+	    for (int iy=0; iy<=NUMY; iy++) {
+
+	      double y = YMIN + dY*iy;
+
+	      sumC += M_PI*r / (d_xi_to_r(x) * d_y_to_z(y)) *
+		potC[mm][n1][ix][iy] * densC[mm][n2][ix][iy];
+
+	      sumS += M_PI*r / (d_xi_to_r(x) * d_y_to_z(y)) *
+		potS[mm][n1][ix][iy] * densS[mm][n2][ix][iy];
+	    }
+	  }
+
+	  out << std::setw(16) << sumC << std::setw(16) << sumC;
+	}
+	out << std::endl;
+      }
+    }
+  } else {
+    out << "Can not check orthogonality without density computation" << std::endl;
+  }
+}

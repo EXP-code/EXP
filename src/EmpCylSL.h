@@ -747,6 +747,9 @@ public:
     return ret;
   }
 
+  //! Check orthogonality for basis (debugging)
+  void ortho_check(std::ostream& out);
+
 #ifndef STANDALONE
 #if HAVE_LIBCUDA==1
   cudaMappingConstants getCudaMappingConstants();

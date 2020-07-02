@@ -540,6 +540,7 @@ main(int ac, char **av)
     ("evolved",         po::value<bool>(&evolved)->default_value(false),                "Use existing halo body file given by <hbods> and do not create a new halo")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
     ("newcache",                                                                        "Use new YAML header version for EOF cache file")
+    ("ortho",                                                                           "Perform orthogonality check for basis")
     ;
         
   po::variables_map vm;
@@ -860,6 +861,13 @@ main(int ac, char **av)
 	MPI_Finalize();
 	return 0;
       }
+    }
+
+    // Basis orthgonality check
+    //
+    if (vm.count("ortho")) {
+      std::ofstream out("ortho.check");
+      expandd->ortho_check(out);
     }
 
     // Use these user models to deproject for the EOF spherical basis
