@@ -739,7 +739,7 @@ main(int ac, char **av)
   }
 
   double totM = 0.0;
-  int nomp = 1;
+  int nomp = 1, tid = 0;
 
 #ifdef HAVE_OPENMP
   omp_set_dynamic(0);		// Explicitly disable dynamic teams
@@ -767,7 +767,9 @@ main(int ac, char **av)
 
 #pragma omp parallel for
     for (int i=1; i<=NINT; i++) {	// Radial
-      int tid = omp_get_thread_num();
+#ifdef HAVE_OPENMP
+      tid = omp_get_thread_num();
+#endif
 
       double x = Rmin + (Rmax - Rmin) * lq.knot(i);
       double R = exp(x);
@@ -827,7 +829,9 @@ main(int ac, char **av)
 
 #pragma omp parallel for
     for (int i=1; i<=NINT; i++) {	// Radial
-      int tid = omp_get_thread_num();
+#ifdef HAVE_OPENMP
+      tid = omp_get_thread_num();
+#endif
 
       double x = xmin + (xmax - xmin) * lq.knot(i);
       double R = x_to_r(x, AA);
