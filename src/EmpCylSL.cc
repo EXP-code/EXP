@@ -1254,7 +1254,7 @@ void EmpCylSL::receive_eof(int request_id, int MM)
 
 void EmpCylSL::compute_eof_grid(int request_id, int m)
 {
-  // check for ortho
+  // Check for existence of ortho and create if necessary
   //
   if (not ortho)
     ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
@@ -1263,10 +1263,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 
   //  Read in coefficient matrix or
   //  make grid if needed
-
-				// Sin/cos normalization
-  double x, y, r, z;
-  double costh, fac1, fac2, dens, potl, potr, pott, fac3, fac4;
+  double fac1, fac2, dens, potl, potr, pott, fac3, fac4;
   
   int icnt, off;
   
@@ -1279,13 +1276,13 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 
   for (int ix=0; ix<=NUMX; ix++) {
 
-    x = XMIN + dX*ix;
-    r = xi_to_r(x);
+    double x = XMIN + dX*ix;
+    double r = xi_to_r(x);
 
     for (int iy=0; iy<=NUMY; iy++) {
 
-      y = YMIN + dY*iy;
-      z = y_to_z(y);
+      double y = YMIN + dY*iy;
+      double z = y_to_z(y);
 
       double rr = sqrt(r*r + z*z) + 1.0e-18;
 
@@ -1293,7 +1290,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
       ortho->get_force(dpot, rr/ASCALE);
       if (DENS) ortho->get_dens(dend, rr/ASCALE);
 
-      costh = z/rr;
+      double costh = z/rr;
       dlegendre_R(LMAX, costh, legs[0], dlegs[0]);
       
       for (int v=0; v<NORDER; v++) {
@@ -1431,12 +1428,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
     ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
 					  make_sl(), false, 1, 1.0);
 
-  //  Read in coefficient matrix or
-  //  make grid if needed
-
-				// Sin/cos normalization
-  double x, y, r, z;
-  double costh, fac1, fac2, dens, potl, potr, pott, fac3, fac4;
+  double fac1, fac2, dens, potl, potr, pott, fac3, fac4;
   
   int icnt, off;
   
@@ -1449,13 +1441,13 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 
   for (int ix=0; ix<=NUMX; ix++) {
 
-    x = XMIN + dX*ix;
-    r = xi_to_r(x);
+    double x = XMIN + dX*ix;
+    double r = xi_to_r(x);
 
     for (int iy=0; iy<=NUMY; iy++) {
 
-      y = YMIN + dY*iy;
-      z = y_to_z(y);
+      double y = YMIN + dY*iy;
+      double z = y_to_z(y);
 
       double rr = sqrt(r*r + z*z) + 1.0e-18;
 
@@ -1463,7 +1455,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
       ortho->get_force(dpot, rr/ASCALE);
       if (DENS) ortho->get_dens(dend, rr/ASCALE);
 
-      costh = z/rr;
+      double costh = z/rr;
       dlegendre_R(LMAX, costh, legs[0], dlegs[0]);
       
       // Do the even eigenfunction first
@@ -2073,6 +2065,8 @@ void EmpCylSL::setup_eof()
 }
 
 
+// Create EOF from target density and spherical basis
+//
 void EmpCylSL::generate_eof(int numr, int nump, int numt, 
 			    double (*func)
 			    (double R, double z, double phi, int M) )
@@ -2080,9 +2074,13 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   Timer timer;
   if (VFLAG & 16) timer.start();
 
+  // Create spherical orthogonal basis if necessary
+  //
   if (not ortho)
     ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
 					  make_sl(), false, 1, 1.0);
+  // Initialize fixed variables and storage
+  //
   setup_eof();
 
   LegeQuad lr(numr);
@@ -2118,8 +2116,8 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
       if (cntr++ % numprocs != myid) continue;
 
       double costh = -1.0 + 2.0*lt.knot(qt);
-      double R = rr * sqrt(1.0 - costh*costh);
-      double z = rr * costh;
+      double R     = rr * sqrt(1.0 - costh*costh);
+      double z     = rr * costh;
       
       legendre_R(LMAX, costh, legs[0]);
 
@@ -2143,6 +2141,8 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	//
 	for (int m=0; m<=MMAX; m++) {
 
+	  // Get the target density for this position and azimuthal index
+	  //
 	  double dens = (*func)(R, z, phi, m) * jfac;
 
 	  // *** ir loop
@@ -3072,9 +3072,9 @@ void EmpCylSL::make_eof(void)
 	  if (M==0) dout.open("variance.test");
 	  else      dout.open("variance.test", ios::app);
 
-	  dout << std:string(60, '-') << std::endl
-	       << " M=" << M          << std::endl
-	       << std:string(60, '-') << std::endl;
+	  dout << std::string(60, '-') << std::endl
+	       << " M=" << M           << std::endl
+	       << std::string(60, '-') << std::endl;
 
 	  if (EvenOdd) {
 
