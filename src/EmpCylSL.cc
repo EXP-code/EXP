@@ -3067,14 +3067,15 @@ void EmpCylSL::make_eof(void)
 	  timer.start();
 	}
 
-	if (myid==0 and VFLAG & 32) {
-	  std::ofstream dout;
-	  if (M==0) dout.open("variance.test");
-	  else      dout.open("variance.test", ios::app);
+	if (VFLAG & 32) {
 
-	  dout << std:string(60, '-') << std::endl
-	       << " M=" << M          << std::endl
-	       << std:string(60, '-') << std::endl;
+	  std::ostringstream sout;
+	  sout << "variance_test." << M << "." << request_id;
+	  std::ofstream dout(sout.str());
+	  
+	  dout << std::string(60, '-') << std::endl
+	       << " M=" << M           << std::endl
+	       << std::string(60, '-') << std::endl;
 
 	  if (EvenOdd) {
 
