@@ -2163,9 +2163,13 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	      }
 	      else {
 		
-		facC[id][ir][l-m] = ylm*table[0][l][ir]*cosm[id][m];
-		facS[id][ir][l-m] = ylm*table[0][l][ir]*sinm[id][m];
-		
+		if (nump==1) {
+		  facC[id][ir][l-m] = ylm*table[0][l][ir]*0.5;
+		  facS[id][ir][l-m] = ylm*table[0][l][ir]*0.5;
+		} else {
+		  facC[id][ir][l-m] = ylm*table[0][l][ir]*cosm[id][m];
+		  facS[id][ir][l-m] = ylm*table[0][l][ir]*sinm[id][m];
+		}
 	      }
 	      
 	    } // *** l loop
@@ -3115,12 +3119,59 @@ void EmpCylSL::make_eof(void)
 	    Vector evO = Symmetric_Eigenvalues_SYEVD(varO[M], efO, Nodd );
 	  }
 
+	  if (VFLAG & 32) {
+
+	    std::ostringstream sout;
+	    sout << "ev_test." << M << "." << request_id;
+	    std::ofstream dout(sout.str());
+	  
+	    for (int i=efE.getrlow(); i<=efE.getrhigh(); i++) {
+	      for (int j=efE.getrlow(); j<=efE.getrhigh(); j++) {
+		double sum = 0.0;
+		for (int k=efE.getclow(); k<=efE.getchigh(); k++)
+		  sum += efE[i][k] * efE[j][k];
+		dout << std::setw(4) << i << std::setw(4) << j
+		     << std::setw(18) << sum << std::endl;
+	      }
+	    }
+
+	    dout << std::endl;
+	  
+	    for (int i=efO.getrlow(); i<=efO.getrhigh(); i++) {
+	      for (int j=efO.getrlow(); j<=efO.getrhigh(); j++) {
+		double sum = 0.0;
+		for (int k=efO.getclow(); k<=efO.getchigh(); k++)
+		  sum += efO[i][k] * efO[j][k];
+		dout << std::setw(4) << i << std::setw(4) << j
+		     << std::setw(18) << sum << std::endl;
+	      }
+	    }
+	  }
+
 	} else {
 
 	  if (USESVD)
 	    Vector ev = Symmetric_Eigenvalues_SVD  (var[M], ef, NORDER);
 	  else
 	    Vector ev = Symmetric_Eigenvalues_SYEVD(var[M], ef, NORDER);
+
+	  
+	  if (VFLAG & 32) {
+
+	    std::ostringstream sout;
+	    sout << "ev_test." << M << "." << request_id;
+	    std::ofstream dout(sout.str());
+	  
+	    for (int i=ef.getrlow(); i<=ef.getrhigh(); i++) {
+	      for (int j=ef.getrlow(); j<=ef.getrhigh(); j++) {
+		double sum = 0.0;
+		for (int k=ef.getclow(); k<=ef.getchigh(); k++)
+		  sum += ef[i][k] * ef[j][k];
+		dout << std::setw(4) << i << std::setw(4) << j
+		     << std::setw(18) << sum << std::endl;
+	      }
+	    }
+	  }
 	}
 
 	if (VFLAG & 16) {
@@ -3270,12 +3321,58 @@ void EmpCylSL::make_eof(void)
 	    Vector evO = Symmetric_Eigenvalues_SYEVD(varO[M], efO, Nodd );
 	  }
 	  
+	  if (VFLAG & 32) {
+
+	    std::ostringstream sout;
+	    sout << "ev_test." << M << "." << request_id;
+	    std::ofstream dout(sout.str());
+	  
+	    for (int i=efE.getrlow(); i<=efE.getrhigh(); i++) {
+	      for (int j=efE.getrlow(); j<=efE.getrhigh(); j++) {
+		double sum = 0.0;
+		for (int k=efE.getclow(); k<=efE.getchigh(); k++)
+		  sum += efE[i][k] * efE[j][k];
+		dout << std::setw(4) << i << std::setw(4) << j
+		     << std::setw(18) << sum << std::endl;
+	      }
+	    }
+
+	    dout << std::endl;
+	  
+	    for (int i=efO.getrlow(); i<=efO.getrhigh(); i++) {
+	      for (int j=efO.getrlow(); j<=efO.getrhigh(); j++) {
+		double sum = 0.0;
+		for (int k=efO.getclow(); k<=efO.getchigh(); k++)
+		  sum += efO[i][k] * efO[j][k];
+		dout << std::setw(4) << i << std::setw(4) << j
+		     << std::setw(18) << sum << std::endl;
+	      }
+	    }
+	  }
+
 	} else {
 
 	  if (USESVD)
 	    Vector ev = Symmetric_Eigenvalues_SVD  (var[M], ef, NORDER);
 	  else
 	    Vector ev = Symmetric_Eigenvalues_SYEVD(var[M], ef, NORDER);
+
+	  if (VFLAG & 32) {
+
+	    std::ostringstream sout;
+	    sout << "ev_test." << M << "." << request_id;
+	    std::ofstream dout(sout.str());
+	  
+	    for (int i=ef.getrlow(); i<=ef.getrhigh(); i++) {
+	      for (int j=ef.getrlow(); j<=ef.getrhigh(); j++) {
+		double sum = 0.0;
+		for (int k=ef.getclow(); k<=ef.getchigh(); k++)
+		  sum += ef[i][k] * ef[j][k];
+		dout << std::setw(4) << i << std::setw(4) << j
+		     << std::setw(18) << sum << std::endl;
+	      }
+	    }
+	  }
 	}
 
 	if (VFLAG & 16) {
@@ -6302,11 +6399,11 @@ void EmpCylSL::ortho_check(std::ostream& out)
 
 	      double y = YMIN + dY*iy;
 
-	      sumC += fac * r/(d_xi_to_r(x) * d_y_to_z(y)) *
+	      sumC += fac * r/d_xi_to_r(x) * d_y_to_z(y) *
 		potC[mm][n1][ix][iy] * densC[mm][n2][ix][iy];
 
 	      if (mm)
-		sumS += fac * r/(d_xi_to_r(x) * d_y_to_z(y)) *
+		sumS += fac * r/d_xi_to_r(x) * d_y_to_z(y) *
 		  potS[mm][n1][ix][iy] * densS[mm][n2][ix][iy];
 	    }
 	  }
