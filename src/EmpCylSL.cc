@@ -2099,11 +2099,13 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
     progress = boost::make_shared<boost::progress_display>(numr*numt/numprocs);
   }
 
-  int cntr = 0;			// Loop counter for load balancing
+  int cntr = 0;			// Loop counter for spreading load to nodes
   
   // *** Radial quadrature loop
   //
   for (int qr=1; qr<=numr; qr++) { 
+
+    if (cntr++ % numprocs != myid) continue;
 
     double xi = XMIN + (XMAX - XMIN) * lr.knot(qr);
     double rr = xi_to_r(xi);
@@ -2111,29 +2113,27 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
     // *** cos(theta) quadrature loop
     //
+#pragma omp parallel for
     for (int qt=1; qt<=numt; qt++) {
-
-      if (cntr++ % numprocs != myid) continue;
-
+#ifdef HAVE_OPENMP
+      int id = omp_get_thread_num();
+#else
+      int id = 0;
+#endif
+	
       double costh = -1.0 + 2.0*lt.knot(qt);
       double R     = rr * sqrt(1.0 - costh*costh);
       double z     = rr * costh;
       
-      legendre_R(LMAX, costh, legs[0]);
+      legendre_R(LMAX, costh, legs[id]);
 
       double jfac = dphi*2.0*lt.weight(qt)*(XMAX - XMIN)*lr.weight(qr) 
 	* rr*rr / d_xi_to_r(xi);
       
       // *** Phi quadrature loop
       //
-#pragma omp parallel for
       for (int qp=0; qp<nump; qp++) {
 
-#ifdef HAVE_OPENMP
-	int id = omp_get_thread_num();
-#else
-	int id = 0;
-#endif
 	double phi = dphi*qp;
 	sinecosine_R(LMAX, phi, cosm[id], sinm[id]);
 
@@ -2154,7 +2154,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	    for (int l=m; l<=LMAX; l++) {
 		
 	      double ylm = sqrt((2.0*l+1.0)/(4.0*M_PI)) * pfac *
-		exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[0][l][m];
+		exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[id][l][m];
 
 	      if (m==0) {
 
