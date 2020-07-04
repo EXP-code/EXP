@@ -6376,15 +6376,21 @@ void EmpCylSL::ortho_check(std::ostream& out)
 
     for (int mm=0; mm<=MMAX; mm++) {
       // Header
+      //
       out << std::string(60, '-') << std::endl
 	  << " M=" << mm << std::endl
 	  << std::string(60, '-') << std::endl;
 
-      // Normalization
-      double fac = dX * dY;
+      // Normalization:
+      //            +--- Gravitational energy kernel
+      //            |           +--- Aximuthal
+      //            |           |
+      //            v           v
+      double fac = -4.0*M_PI * (2.0*M_PI) * dX * dY;
       if (mm) fac *= 0.5;
 
-      // Compute matrix
+      // Compute orthogonality matrix
+      //
       for (int n1=0; n1<NORDER; n1++) {
 
 	for (int n2=0; n2<NORDER; n2++) {
