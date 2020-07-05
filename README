@@ -23,23 +23,14 @@ libsrnd		Utility library 3 (random number classes, GNU string class,
 src		Source for nbody code
 
 
-git configuration:
+Version reporting:
 ------------------
 
-EXP includes functionality for including the git commit info in the
-executable.  E.g. the command "exp -v" will print out the git branch,
-commit and compile time.  In order to automatate this, you need to
-enable a git post commit hook.
-
-To do this manually, copy the contents of .githooks/post-commit into
-your own .git/hooks/post-commit file.
-
-Alternatively, you may run the command
-
-git config --local core.hooksPath .githooks/
-
-which will point the git hooks directory to the default repository version
-
+EXP automatically stashes its compile time, git branch, and git commit
+hash when 'make' is invoked in the src directory.  You can see this
+info using the -v flag, i.e. 'mpirun -np 1 exp -v' or 'exp -v'.  Note:
+some MPI implementations require the MPI-aware executable to be run
+using 'mpirun'.
 
 Compile hints:
 --------------

@@ -1,3 +1,0 @@
-#!/bin/sh
-
-touch -c ./src/parse.cc

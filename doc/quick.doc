@@ -30,6 +30,25 @@ In this example, the executable and its utilities will be installed in
 <code>/home/user/lib</code>.  The default prefix is 
 <code>/usr/local</code> is probably not what you want in most cases.
 
+\section version Checking the EXP version
+
+As you know by now, EXP is currently maintained in a git repository.
+There are three main branches:
+<ol>
+<li> *release* is the current public release
+<li> *master* is the current stable repo used for staging the *release*
+<li> *devel* is the current development branch where new features are
+staged for testing.
+</ol>
+
+EXP automatically stashes its compile time, git branch, and git commit
+hash when 'make' is invoked in the src directory.
+
+EXP will report this info when invoked with the <code>-v</code> flag,
+i.e. <code>mpirun -np 1 exp -v</code> or <code>exp -v</code>.  Note:
+some MPI implementations require the MPI-aware executable to be run
+using <code>mpirun</code>.
+
 \section running Running a simulation
 
 Here are the basic steps you need to start a simulation:

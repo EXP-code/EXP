@@ -94,6 +94,13 @@ noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H Cylinder.H     \
         version.h pHOT.H pCell.H pHOT_types.H ParticleFerry.H                \
 	pHOT.H pHOT_types.H
 
+# always assume that parse.o is out of date to force compile time and
+# git commit stamps
+
+parse.o:   .FORCE
+
+.FORCE:
+
 # the rule that can recognize *.cu files and compile the *.cu files to
 # *.lo and *.o files
 .cu.lo:
