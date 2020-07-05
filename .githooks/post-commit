@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Add this command to your .git/hooks/post-commit file or run the command
+#    git config --local core.hooksPath .githooks/
+# to use the repository version
+
+touch -c ./src/parse.cc

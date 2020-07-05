@@ -5,6 +5,13 @@ VPATH = $(top_srcdir)/src:.
 CC = mpicc
 CXX = mpiCC
 
+## Stuff for verbose output in parse.cc
+GIT_COMMIT=`git rev-parse HEAD`
+GIT_BRANCH=`git rev-parse --abbrev-ref HEAD`
+COMPILE_TIME=`date -u +'%Y-%m-%d %H:%M:%S UTC'`
+VERSION_FLAGS=-DGIT_COMMIT="\"$(GIT_COMMIT)\"" -DGIT_BRANCH="\"$(GIT_BRANCH)\"" -DCOMPILE_TIME="\"$(COMPILE_TIME)\""
+## 
+
 if ENABLE_SEQCHECK
 ADD_CFLAGS1  = -DSEQCHECK
 endif
@@ -30,7 +37,7 @@ AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/include			\
 -I$(top_srcdir)/exputil -I$(top_srcdir)/expgnu -I$(top_srcdir)/src	\
  $(INCLUDE_DSMC) -I/usr/include/mpi
 
-AM_CXXFLAGS  = -std=c++11 -D_REENTRANT $(OPENMP_CXXFLAGS) $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4) @exp_vtk_include@  $(CUDA_CFLAGS)
+AM_CXXFLAGS  = -std=c++11 -D_REENTRANT $(OPENMP_CXXFLAGS) $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4) @exp_vtk_include@  $(CUDA_CFLAGS) $(VERSION_FLAGS)
 
 bin_PROGRAMS = exp
 

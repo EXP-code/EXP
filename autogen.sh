@@ -15,6 +15,11 @@ else
 echo Found GNU Make at $MAKE ... good.
 fi
 
+echo Updating your git config to get the default post-commit hook
+
+git config --local core.hooksPath .githooks/
+
+
 echo This script runs configure and make...
 echo You did remember necessary arguments for configure, right?
 

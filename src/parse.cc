@@ -33,14 +33,15 @@ void exp_version()
 {
   std::cout << std::setw(25) << std::left << "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" << std::endl
 	    << std::setw(25) << std::left << "%%%%% GIT repository info %%%%%" << std::endl
-	    << std::setw(25) << std::left << "%%%%% from last configure %%%%%" << std::endl
 	    << std::setw(25) << std::left << "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" << std::endl << std::endl
 	    << std::setw(25) << std::left << "Repository URL"
-	    << " | " << PACKAGE_URL << std::endl
+	    << " | " << PACKAGE_URL  << std::endl
 	    << std::setw(25) << std::left << "Current branch"
-	    << " | " << GIT_BRANCH << std::endl
+	    << " | " << GIT_BRANCH   << std::endl
 	    << std::setw(25) << std::left << "Current commit"
-	    << " | " << GIT_COMMIT << std::endl;
+	    << " | " << GIT_COMMIT   << std::endl
+	    << std::setw(25) << std::left << "Compile time"
+	    << " | " << COMPILE_TIME << std::endl;
 
 }
 
