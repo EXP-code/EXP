@@ -1,7 +1,7 @@
 dnl ==========================================================================
 dnl Process this file with autoconf to produce a configure script.
 dnl ==========================================================================
-AC_INIT(EXP, 7.623, [mdw@umass.edu], [], [https://mdweinberg@bitbucket.org/mdweinberg/exp.git])
+AC_INIT(EXP, 7.624, [mdw@umass.edu], [], [https://mdweinberg@bitbucket.org/mdweinberg/exp.git])
 
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SRCDIR(src/expand.cc)
@@ -12,17 +12,6 @@ AC_DEFINE([NEED_MAIN], 1, [Define if a function `main' is needed.])
 dnl ==========================================================================
 dnl Add info from git repo
 dnl ==========================================================================
-
-m4_append([git_commit], ["])
-m4_append([git_commit], [m4_esyscmd_s([git describe --always])])
-m4_append([git_commit], ["])
-
-m4_append([git_branch], ["])
-m4_append([git_branch], [m4_esyscmd_s([git branch | grep \* | cut -d ' ' -f2])])
-m4_append([git_branch], ["])
-
-AC_DEFINE([GIT_COMMIT], [ git_commit ], [current git commit hash for verbose option])
-AC_DEFINE([GIT_BRANCH], [ git_branch ], [current git branch for verbose option])
 
 AC_REVISION([m4_esyscmd_s([git describe --always])])
 

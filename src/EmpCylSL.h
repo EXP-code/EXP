@@ -511,11 +511,18 @@ public:
 
   /** Generate EOF by direct integration conditioned on a user
       supplied function
+
+      @param numr is the number of radial knots
+      @param nump is the number of azimuthal knots
+      @param numt is the number of inclination knots
+      @param func is the user-supplied density target function
+
+      If func is axisymmetric, you may use nump=1 to save computation time.
    */
   void generate_eof(int numr, int nump, int numt, 
 		    double (*func)(double R, double z, double phi, int M) );
 
-  //! Get basis function value
+  //! Get a single basis function values for a phase-space point
   void get_all(int m, int n, double r, double z, double phi,
 	       double& p, double& d, double& fr, double& fz, double& fp);
 
