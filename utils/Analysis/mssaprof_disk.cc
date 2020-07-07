@@ -625,7 +625,7 @@ main(int argc, char **argv)
     numy    = node["numy"  ].as<int>();
     nmax    = node["nmax"  ].as<int>();
     norder  = node["norder"].as<int>();
-    DENS    = node["dens"  ].as<bool>();
+    dens    = node["dens"  ].as<bool>();
     if (node["cmap"])
       cmapr = node["cmap"  ].as<int>();
     else 
