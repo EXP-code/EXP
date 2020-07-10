@@ -415,7 +415,6 @@ CoefData get_coefficients(const std::string& coefs)
     //
     int numM, numT, nmin, nmax, ngroups;
     in.read((char *)&numT,       sizeof(int));
-    in.read((char *)&nmin,       sizeof(int));
     in.read((char *)&nmax,       sizeof(int));
     in.read((char *)&numM,       sizeof(int));
     in.read((char *)&ngroups,    sizeof(int));
@@ -439,7 +438,7 @@ CoefData get_coefficients(const std::string& coefs)
     for (int p=0; p<ngroups; p++) {
       for (auto t : times) {
 	for (auto M : MM) {
-	  for (int n=nmin; n<nmax; n++) {
+	  for (int n=0; n<nmax; n++) {
 	    in.read((char *)&ret[p][t].cos[M][n], sizeof(double));
 	    in.read((char *)&ret[p][t].sin[M][n], sizeof(double));
 	  }
