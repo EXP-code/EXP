@@ -317,7 +317,7 @@ main(int ac, char **av)
   }
 
   std::string outcoefs = work_dir + "/" + runtag + "." + suffix;
-  std::ofstream out(outcoefs);
+  std::ofstream out(outcoefs, ios::app | ios::out);
   if (!out) {
     if (myid==0) {
       std::cerr << "Error opening file <" << outcoefs << "> for output"
