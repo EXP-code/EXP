@@ -1,6 +1,5 @@
 #include <iostream>
 #include <iomanip>
-#include <cstring>
 
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
@@ -16,9 +15,17 @@ const std::string DiskEval::cachefile = ".DiskEval.cache";
 
 DiskEval::DiskEval
 (EmpCylSL::AxiDiskPtr model, double rmin, double rmax, double ascl,
- int lmax, int numr, int nint, bool use_progress) :
+ int lmax, int numr, int nint, bool use_progress, int mmax, int nump) :
   model(model), ascl(ascl), lmax(lmax), numr(numr)
 {
+
+
+  cout << "MMAX=" << mmax << "  NUMP=" << nump << "  ascl=" << ascl << endl;
+
+  // choose a maximum m order. pass this in later.
+  //int mmax = 16;
+
+  
   if (ascl>0.0) xscl = true;
   else          xscl = false;
 
@@ -47,11 +54,15 @@ DiskEval::DiskEval
   // First: compute the disk density components
   //
   rho.resize(lmax+1);
-  for (auto & v : rho) v.resize(numr, 0.0);
-  
+  //for (auto & v : rho) v.resize(numr, 0.0);
+    for (int m=0;m<=lmax;m++) {
+    rho[m].resize(lmax+1);
+      for (auto & v : rho[m]) v.resize(numr, 0.0);
+  }
+    
   // Gauss-Legendre
   //
-  boost::shared_ptr<LegeQuad> lq = boost::make_shared<LegeQuad>(nint);
+  boost::shared_ptr<LegeQuad> lr = boost::make_shared<LegeQuad>(nint);
 
   int numthrd = 1, tid = 0;
 #ifdef HAVE_OPENMP
@@ -92,23 +103,51 @@ DiskEval::DiskEval
       else      r = x;
     }
 
-    for (int n=1; n<=nint; n++) {
-      double cosx = lq->knot(n); // Assume rho(R, z) = rho(R, -z);
-      double R = sqrt(1.0 - cosx*cosx) * r;
-      double z = cosx * r;
+    // where does the phi loop go in here?
+    
+    // hardwire in the number of phi wedges for integration --
+    //
+    double dphi = 2.*M_PI/nump;
+    
+    for (int p=0; p<nump; p++) {
+      double phi = p*dphi;
+    
+      for (int n=1; n<=nint; n++) {
+        double cosx = lr->knot(n); // Assume rho(R, phi, z) = rho(R,phi, -z);
+        double R = sqrt(1.0 - cosx*cosx) * r;
+        double z = cosx * r;
 
-      double dens = (*model)(R, z);
+        double dens = (*model)(R, z, phi);
+        // override the density function here with function defined above
+        //double dens = return_density(R, phi, z);
 
-      double fac = 2.0*M_PI * 2.0*lq->weight(n);
+        double fac = 2.0*lr->weight(n) * dphi;
 
-      // Even terms only--------+
-      //                        |
-      //                        v
-      for (int l=0; l<=lmax; l+=2) {
-	int ll = l/2;
-	rho[ll][i] += Ylm(l, 0, cosx) * dens * fac;
-      }
-    }
+	// rho[l][m][r] += Ylm(l, m, cosx) * dens(R,z) * 2.0*M_PI * 2.0*lr->weight(n)
+	
+        // Even terms only--------+
+        //                        |
+        //                        v
+        for (int l=0; l<=lmax; l+=2) {
+	  int ll = l/2;
+
+	  // set up a limit on mmax
+	  int maxm = std::min<int>(mmax, l);
+	  
+	  // Only integrate positive m
+	  //             | 
+	  //             | 
+	  //             v
+	  for (int m=0; m<=maxm; m++) {
+	
+	    //if ((p==0) && (n<10)) std::cout << setw(14) << p << setw(14) << n << setw(14) << dens << endl;
+
+	    rho[ll][m][i] += Ylm(l, m, cosx) * dens * fac * cos(m*phi);
+
+	  } // end m loop for Ylm
+        } // end l loop for Ylm
+      } // end radial quadrature loop
+    } // end phi quadrature loop
 
     // Progress bar
     //
@@ -118,11 +157,16 @@ DiskEval::DiskEval
   // Compute Term1 and Term2 by quadrature
   //
   T1.resize(lmax+1);
-  for (auto & v : T1) v.resize(numr);
-
+    for (int m=0;m<=lmax;m++) {
+    T1[m].resize(lmax+1);
+      for (auto & v : T1[m]) v.resize(numr, 0.0);
+  }
+    
   T2.resize(lmax+1);
-  for (auto & v : T2) v.resize(numr);
-  
+   for (int m=0;m<=lmax;m++) {
+    T2[m].resize(lmax+1);
+      for (auto & v : T2[m]) v.resize(numr, 0.0);
+  }
 
   int numrads = 0;
   for (int l=0; l<=lmax; l+=2) numrads++;
@@ -139,6 +183,11 @@ DiskEval::DiskEval
   //
   for (int l=0; l<=lmax; l+=2) {
     int ll = l/2;
+
+    // m loop
+    int maxm = std::min<int>(mmax, l);
+    for (int m=0; m<=maxm; m+=1) {
+      
 
     // Outer r loop
     //
@@ -182,15 +231,15 @@ DiskEval::DiskEval
 	  // Trapezoidal rule for Term 1
 	  //
 	  if (xscl) {
-	    sum1 += 0.5*(rho[ll][j-1]*pow(rl/rr, l+2)*dr_to_dx(xl) +
-			 rho[ll][j  ]*pow(rp/rr, l+2)*dr_to_dx(xp)) * dx;
+	    sum1 += 0.5*(rho[ll][m][j-1]*pow(rl/rr, l+2)*dr_to_dx(xl) +
+			 rho[ll][m][j  ]*pow(rp/rr, l+2)*dr_to_dx(xp)) * dx;
 	  } else {
 	    if (logr) {
-	      sum1 += 0.5*(rho[ll][j-1]*pow(rl/rr, l+3) +
-			   rho[ll][j  ]*pow(rp/rr, l+3)) * rr * dx;
+	      sum1 += 0.5*(rho[ll][m][j-1]*pow(rl/rr, l+3) +
+			   rho[ll][m][j  ]*pow(rp/rr, l+3)) * rr * dx;
 	    } else {
-	      sum1 += 0.5*(rho[ll][j-1]*pow(rl/rr, l+2) +
-			   rho[ll][j  ]*pow(rp/rr, l+2)) * dx;
+	      sum1 += 0.5*(rho[ll][m][j-1]*pow(rl/rr, l+2) +
+			   rho[ll][m][j  ]*pow(rp/rr, l+2)) * dx;
 	    }
 	  }
 	}
@@ -218,23 +267,23 @@ DiskEval::DiskEval
 	// Trapezoidal rule
 	//
 	if (xscl) {
-	  sum2 += 0.5*(rho[ll][j  ]*pow(rl/rr, 1-l) * dr_to_dx(xl) +
-		       rho[ll][j+1]*pow(rp/rr, 1-l) * dr_to_dx(xp)) * dx;
+	  sum2 += 0.5*(rho[ll][m][j  ]*pow(rl/rr, 1-l) * dr_to_dx(xl) +
+		       rho[ll][m][j+1]*pow(rp/rr, 1-l) * dr_to_dx(xp)) * dx;
 	} else {
 	  if (logr) {
-	    sum2 += 0.5*(rho[ll][j  ]*pow(rl/rr, 2-l) +
-			 rho[ll][j+1]*pow(rp/rr, 2-l)) * rr * dx;
+	    sum2 += 0.5*(rho[ll][m][j  ]*pow(rl/rr, 2-l) +
+			 rho[ll][m][j+1]*pow(rp/rr, 2-l)) * rr * dx;
 	  } else {
-	    sum2 += 0.5*(rho[ll][j  ]*pow(rl/rr, 1-l) +
-			 rho[ll][j+1]*pow(rp/rr, 1-l)) * dx;
+	    sum2 += 0.5*(rho[ll][m][j  ]*pow(rl/rr, 1-l) +
+			 rho[ll][m][j+1]*pow(rp/rr, 1-l)) * dx;
 	  }
 	}
       }
 
       // Save integral values
       //
-      T1[ll][i] = sum1;
-      T2[ll][i] = sum2;
+      T1[ll][m][i] = sum1;
+      T2[ll][m][i] = sum2;
 
       // Progress bar
       //
@@ -242,6 +291,9 @@ DiskEval::DiskEval
     }
     // END: outer loop over r
 
+    }
+    // END: loop over m
+    
   }
   // END: loop over l
   
@@ -267,7 +319,8 @@ DiskEval::DiskEval
       test << std::setw(18) << r;
       for (int l=0; l<=lmax; l+=2) {
 	int ll = l/2;
-	test << std::setw(18) << rho[ll][i];
+	for (int m=0; m<=l; m++) 
+	test << std::setw(18) << rho[ll][m][i];
       }
       test << std::endl;
     }
@@ -290,7 +343,8 @@ DiskEval::DiskEval
       test << std::setw(18) << r;
       for (int l=0; l<=lmax; l+=2) {
 	int ll = l/2;
-	test << std::setw(18) << T1[ll][i];
+	for (int m=0;m<=l;m++) 
+	test << std::setw(18) << T1[ll][m][i];
       }
       test << std::endl;
     }
@@ -311,7 +365,8 @@ DiskEval::DiskEval
       test << std::setw(18) << r;
       for (int l=0; l<=lmax; l+=2) {
 	int ll = l/2;
-	test << std::setw(18) << T2[ll][i];
+	for (int m=0; m<=l; m++)
+	test << std::setw(18) << T2[ll][m][i];
       }
       test << std::endl;
     }
@@ -321,7 +376,8 @@ DiskEval::DiskEval
 }
 
 
-std::tuple<double, double, double> DiskEval::operator()(double R, double z)
+std::tuple<double, double, double, double> DiskEval::operator()(double R,
+double z, double phi)
 {
   // Get spherical coordinates
   //
@@ -351,7 +407,7 @@ std::tuple<double, double, double> DiskEval::operator()(double R, double z)
     i2 = i1 + 1;
   }
 
-  i1 = std::max<int>(i1, 0);	// Sanity checks
+  i1 = std::max<int>(i1, 0);	// Confidence checks
   i2 = std::min<int>(i2, numr-1);
 
   double A = (xmin + dx*i2 - x)/dx;
@@ -359,27 +415,33 @@ std::tuple<double, double, double> DiskEval::operator()(double R, double z)
 
   // Evaluation
   //
-  double pot = 0.0, fr = 0.0, ft = 0.0;
+  double pot = 0.0, fr = 0.0, ft = 0.0, fp = 0.0;
   for (int l=0; l<=lmax; l+=2) {
     int ll = l/2;
-    double Term1 = T1[ll][i1]*A + T1[ll][i2]*B;
-    double Term2 = T2[ll][i1]*A + T2[ll][i2]*B;
-    double yfac  = Ylm(l, 0, cosx)/(2.0*l + 1.0);
-    double dfac  = Zlm(l, 0, cosx)/(2.0*l + 1.0);
 
-    pot += yfac * r * (Term1 + Term2);
-    fr  += yfac * (-Term1*(l+1) + Term2*l);
-    ft  += dfac * r * (Term1 + Term2);
+    // integrate positive m values
+    for (int m=0; m<=l; m++) {
+      double Term1 = T1[ll][m][i1]*A + T1[ll][m][i2]*B;
+      double Term2 = T2[ll][m][i1]*A + T2[ll][m][i2]*B;
+      double yfac  = Ylm(l, m, cosx)/(2.0*l + 1.0);
+      double dfac  = Zlm(l, m, cosx)/(2.0*l + 1.0);
+
+      pot += yfac *      cos(m*phi) * r * (Term1 + Term2);
+      fr  += yfac *      cos(m*phi)     * (-Term1*(l+1) + Term2*l);
+      fp  += yfac * m * -sin(m*phi) * r * (Term1 + Term2);
+      ft  += dfac *      cos(m*phi) * r * (Term1 + Term2);
+    }
   }
 
   pot *= -4.0*M_PI;
   fr  *=  4.0*M_PI;
   ft  *=  4.0*M_PI;
+  fp  *=  4.0*M_PI;
 
   double FR = fr * R/r + ft * z/(r*r);
   double Fz = fr * z/r - ft * R/(r*r);
 
-  return std::tuple<double, double, double>(pot, FR, Fz);
+  return std::tuple<double, double, double, double>(pot, FR, Fz, fp);
 }
 
 void DiskEval::write_cache()
@@ -409,13 +471,22 @@ void DiskEval::write_cache()
 
     // Cache Term1 and Term2 from the multipole expansion
     //
-    for (auto v : T1) {
-      cache.write((const char *)v.data(), sizeof(double)*numr);
-    }
-    for (auto v : T2) {
-      cache.write((const char *)v.data(), sizeof(double)*numr);
-    }
 
+    // write all m terms (even if not specified)
+    //   should record somewhere what mmax is?
+    //
+    for (int ll=0; ll<=lmax; ll++) {
+      for (int mm=0; mm<=lmax; mm++) {
+	for (int rr=0; rr<numr; rr++) cache.write((const char *)&T1[ll][mm][rr], sizeof(double));
+      }
+    }
+	
+    for (int ll=0; ll<=lmax; ll++) {
+      for (int mm=0; mm<=lmax; mm++) {
+	for (int rr=0; rr<numr; rr++) cache.write((const char *)&T2[ll][mm][rr], sizeof(double));
+      }
+    }
+    
   } else {
     std::cerr << "DiskEval: could not open cache file <"
 	      << cachefile << "> for writing" << std::endl;
@@ -517,15 +588,26 @@ bool DiskEval::read_cache()
     //
     T1.resize(lmax+1);
     T2.resize(lmax+1);
-    
-    for (auto & v : T1) {
-      v.resize(numr);
-      cache.read((char *)v.data(), sizeof(double)*numr);
+
+    for (int ll=0; ll<=lmax; ll++) {
+      T1[ll].resize(lmax+1);
+      T2[ll].resize(lmax+1);
+      for (int mm=0; mm<=lmax; mm++) {
+	T1[ll][mm].resize(numr);
+	T2[ll][mm].resize(numr);
+      }
+    }
+
+    for (int ll=0; ll<=lmax; ll++) {
+      for (int mm=0; mm<=lmax; mm++) {
+	for (int rr=0; rr<numr; rr++) cache.read((char *)&T1[ll][mm][rr], sizeof(double));
+      }
     }
     
-    for (auto & v : T2) {
-      v.resize(numr);
-      cache.read((char *)v.data(), sizeof(double)*numr);
+    for (int ll=0; ll<=lmax; ll++) {
+      for (int mm=0; mm<=lmax; mm++) {
+	for (int rr=0; rr<numr; rr++) cache.read((char *)&T2[ll][mm][rr], sizeof(double));
+      }
     }
     
   } else {
@@ -537,3 +619,4 @@ bool DiskEval::read_cache()
 
   return true;
 }
+

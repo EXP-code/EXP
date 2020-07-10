@@ -30,7 +30,7 @@ noinst_HEADERS =
 
 bin_PROGRAMS = gendisk shrinkics gendisk2 gsphere pstmod gendisk3	\
 	empinfo empdump eofbasis makeIon phIon phConv eofcomp testcoefs \
-	testcoefs2 testdeval forcetest hdf52accel
+	testcoefs2 testdeval forcetest hdf52accel forcetest2
 
 shrinkics_SOURCES = shrinkics.cc
 shrinkics_LDADD = $(EXPLIBS)
@@ -106,6 +106,10 @@ testdeval_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) @exp_omp_lib@
 forcetest_SOURCES = force_test.cc DiskEval.cc
 forcetest_LDFLAGS = $(COMMON_LIBS) $(EXPFLAGS) $(BOOST_LDFLAGS)
 forcetest_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) @exp_omp_lib@
+
+forcetest2_SOURCES = force_test2.cc DiskEval.cc
+forcetest2_LDFLAGS = $(COMMON_LIBS) $(EXPFLAGS) $(BOOST_LDFLAGS)
+forcetest2_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) @exp_omp_lib@
 
 hdf52accel_SOURCES = hdf52accel.cc
 hdf52accel_CXXFLAGS = $(AM_CXXFLAGS) $(HDF5_CPPFLAGS)

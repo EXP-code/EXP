@@ -343,7 +343,7 @@ public:
     AxiDisk(double M=1, std::string id="AxiDisk") : M(M), ID(id) {}
 
     //! Density function
-    virtual double operator()(double R, double z) = 0;
+    virtual double operator()(double R, double z, double phi=0.) = 0;
 
     //! Get ID
     std::string getID() { return ID; }
