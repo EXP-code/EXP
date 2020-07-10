@@ -794,6 +794,7 @@ main(int ac, char **av)
   
   // SLGridSph::diverge = DIVERGE;
   // SLGridSph::divergexp = DIVERGE_RFAC;
+  SLGridSph::model_file_name = halofile1;
   
   SphericalSL::RMIN = RMIN;
   SphericalSL::RMAX = RSPHSL;
