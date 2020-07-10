@@ -355,6 +355,7 @@ void Cylinder::initialize()
     if (conf["pcadiag"   ])    pcadiag  = conf["pcadiag"   ].as<bool>();
     if (conf["try_cache" ])  try_cache  = conf["try_cache" ].as<bool>();
     if (conf["density"   ])    density  = conf["density"   ].as<bool>();
+    if (conf["cmap"      ])      cmapR  = conf["cmap"      ].as<int>();
     if (conf["cmapr"     ])      cmapR  = conf["cmapr"     ].as<int>();
     if (conf["cmapz"     ])      cmapZ  = conf["cmapz"     ].as<int>();
     
