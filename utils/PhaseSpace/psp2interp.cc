@@ -17,10 +17,12 @@ using namespace std;
 #include <list>
 
 #include <boost/program_options.hpp>
+#include <boost/progress.hpp>
 
 namespace po = boost::program_options;
 
 #include <StringTok.H>
+#include <FileUtils.H>
 #include <header.H>
 #include <Grid2D.H>
 #include <PSP2.H>
@@ -138,12 +140,43 @@ main(int ac, char **av)
     exit(-1);
   }
 
+  // Input file range check
+  //
+  int n;
+  for (n=ibeg; n<=iend; n++) {
+
+    std::ostringstream fname;
+    fname << fpre << "." << runtag << "."
+	  << std::setw(5) << std::setfill('0') << n;
+
+    std::string file = fname.str();
+
+    if (!FileExists(file)) {
+      if (myid==0) {
+	std::cerr << "Error opening file <" << file << "> for input"
+		  << std::endl;
+      }
+      break;
+    }
+  }
+  iend = n-1;
+  if (myid==0) {
+    std::cerr << "Assuming last file has index <" << iend << ">"
+	      << std::endl;
+  }
+
+  std::shared_ptr<boost::progress_display> progress;
+  if (myid==0) {
+    progress = std::make_shared<boost::progress_display>(iend - ibeg + 1);
+  }
+
   // Snapshot loop
   //
-  for (int n=ibeg; n<iend; n++) {
+  for (int n=ibeg; n<=iend; n++) {
     
     std::ostringstream file;
-    file << fpre << "." << runtag << std::setw(5) << std::setfill('0') << n;
+    file << fpre << "." << runtag << "."
+	 << std::setw(5) << std::setfill('0') << n;
 
     // Parse the PSP file
     //
@@ -167,7 +200,7 @@ main(int ac, char **av)
 
     Grid2D grid(rmax, numr, psp->CurrentTime());
 
-    PSPstanza *stanza;
+    PSPstanza* stanza;
     SParticle* part;
 
     for (stanza=psp->GetStanza(); stanza!=0; stanza=psp->NextStanza()) {
@@ -181,7 +214,12 @@ main(int ac, char **av)
     }
 
     grid.sync();
-    if (myid==0) grid.write(out);
+
+    if (myid==0) {
+      grid.write(out);
+      ++(*progress);
+    }
+
   }
     
   MPI_Finalize();
