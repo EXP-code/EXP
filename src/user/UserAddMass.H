@@ -30,6 +30,7 @@
     @param numr is the number of radial bins
     @param logr true means use logarithmic bining
     @param seed for the pseudorandom number generator
+    @param debug is the time interval between profile outputs (<=0 for off)
 **/
 
 class UserAddMass : public ExternalForce
@@ -41,7 +42,7 @@ private:
 
   bool logr;
   unsigned number, numr;
-  double mass, rmin, rmax, lrmin, lrmax, dr, tnext, dtime;
+  double mass, rmin, rmax, lrmin, lrmax, dr, tnext, dtime, debug, dnext;
   long int seed;
 
   std::vector< std::vector<double> > mas_bins;

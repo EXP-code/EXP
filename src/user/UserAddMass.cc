@@ -72,6 +72,8 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
   seed   = 11;                  // Random number seed
   dtime  = 0.012;               // Time interval between particle additions
   tnext  = dtime;               // Time to begin adding particles
+  debug  = -1.0;		// Time interval between diagnostic output
+  dnext  = tnext;		// Time for next debug output
 
   initialize();
 
@@ -178,6 +180,7 @@ void UserAddMass::initialize()
     if (conf["number"])     number    = conf["number"].as<unsigned>();
     if (conf["tstart"])     tnext     = conf["tstart"].as<double>();
     if (conf["dtime"])      dtime     = conf["dtime"].as<double>();
+    if (conf["debug"])      debug     = conf["debug"].as<double>();
     if (conf["algorithm"])  alg       = AlgMap[conf["algorithm"].as<std::string>()];
   }
   catch (YAML::Exception & error) {
@@ -296,6 +299,104 @@ void UserAddMass::determine_acceleration_and_potential(void)
   //
   std::vector<double> wght(mas);
   for (unsigned i=1; i<numr; i++) wght[i] += wght[i-1];
+
+
+  // BEG: diagnostic output
+  //
+  //  +------ Only root node writes diag output
+  //  |
+  //  |           +------ Write interval >0 flag
+  //  |           |
+  //  |           |               +------ Passed target time
+  //  |           |               |
+  //  v           v               v
+  if (myid==0 and debug > 0.0 and tnow >= dnext) {
+    // Create file name
+    //
+    static unsigned counter = 0;
+    std::ostringstream sout;
+    sout << comp_name << ".addmass." << runtag << "."
+	 << std::setw(5) << std::setfill('0') << std::right << counter++;
+
+    std::ofstream out(sout.str());
+
+    if (out) {
+      // File header
+      //
+      out << "# Time=" << tnow << std::endl;
+      const std::vector<std::string> labels =
+	{
+	 "Radius", "Mass", "Cum mass", "Velocity"
+	};
+      for (size_t i=0; i<labels.size(); i++) {
+	if (i) out << std::setw(18) << std::right << "|";
+	else   out << "# " << std::setw(16) << "|";
+      }
+      out << std::endl;
+      for (size_t i=0; i<labels.size(); i++) {
+	std::ostringstream lout; lout << labels[i] << " |";
+	if (i) out << std::setw(18) << std::right << lout.str();
+	else   out << "# " << std::setw(16) << lout.str();
+      }
+      out << std::endl;
+      for (size_t i=0; i<labels.size(); i++) {
+	std::ostringstream lout; lout << i+1 << " |";
+	if (i) out << std::setw(18) << std::right << lout.str();
+	else   out << "# " << std::setw(16) << lout.str();
+      }
+      out << std::endl << std::setfill('-');
+      for (size_t i=0; i<labels.size(); i++) {
+	std::ostringstream lout; lout << " |";
+	if (i) out << std::setw(18) << std::right << lout.str();
+	else   out << "# " << std::setw(16) << lout.str();
+      }
+      out << std::endl << std::setfill(' ');
+      //
+      // END: file header
+
+      for (unsigned i=0; i<numr; i++) {
+	double rr = lrmin + dr*i;
+	if (logr) rr = exp(rr);
+
+	out << std::setw(18) << rr	 // radius
+	    << std::setw(18) << mas[i]	 // mass
+	    << std::setw(18) << wght[i]; // cum mass
+    
+	double vv = 0.0;	// velocity
+	if (mas[i]>0.0) {
+	  switch (alg) {
+	  case Algorithm::Halo:
+	    {
+	      for (int k=0; k<3; k++) {
+		double v1 = vl_bins[0][i][k]/mas[i];
+		double v2 = v2_bins[0][i][k]/mas[i];
+		vv += v2 - v1*v1;
+	      }
+	      vv = sqrt(fabs(vv));
+	    }
+	    break;
+	  case Algorithm::Disk:
+	  default:
+	    if (rr>0.0) {	// Prevent 0/0
+	      for (int k=0; k<3; k++) vv += L3_bins[0][i][k]*L3_bins[0][i][k];
+	      vv = sqrt(vv)/mas[i]/rr;
+	    }
+	    break;
+	  }
+	}
+	out << std::setw(18) << vv << std::endl;
+      }
+
+    } else {
+      std::cerr << "UserAddMass: could not open diagnostic file <"
+		<< sout.str() << ">" << std::endl;
+    }
+    
+    // Increment the target time
+    //
+    dnext += debug;
+  }
+  // END: diagnostic output
 
 
   // Compute total angular momentum
