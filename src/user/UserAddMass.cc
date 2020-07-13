@@ -1,5 +1,6 @@
 #include <math.h>
 #include <sstream>
+#include <numeric>
 
 #include "expand.h"
 #include <localmpi.h>
@@ -293,8 +294,9 @@ void UserAddMass::determine_acceleration_and_potential(void)
 
   // Compute cumulative mass
   //
-  std::vector<double> wght(mas_bins[0]);
+  std::vector<double> wght(mas);
   for (unsigned i=1; i<numr; i++) wght[i] += wght[i-1];
+
 
   // Compute total angular momentum
   //
@@ -344,11 +346,14 @@ void UserAddMass::determine_acceleration_and_potential(void)
     if (indx>0) indx--;
 
 				// Do not use zero mass bin
-    if (mas_bins[0][indx] == 0.0) {
-      while (mas_bins[0][indx] == 0.0 and indx < numr) indx++;
+    if (mas[indx] == 0.0) {
+      while (mas[indx] == 0.0 and indx < numr) indx++;
     }
+				// Sanity check
+    indx = std::min<unsigned>(indx, numr-2);
 
     double rr = lrmin + dr*((*urand)() + indx);
+    
     if (logr) rr = exp(rr);
 
     Particle *P =  c0->GetNewPart();
@@ -386,8 +391,8 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	//
 	double sig = 0.0;
 	for (int k=0; k<3; k++) {
-	  double v1 = vl_bins[0][indx][k]/mas_bins[0][indx];
-	  double v2 = v2_bins[0][indx][k]/mas_bins[0][indx];
+	  double v1 = vl_bins[0][indx][k]/mas[indx];
+	  double v2 = v2_bins[0][indx][k]/mas[indx];
 	  sig += v2 - v1*v1;
 	}
 	sig = sqrt(fabs(sig));
@@ -416,7 +421,7 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	// E.g. L X r/r^2 = (r X v) X r/r^2 = v - r/|r| * (v.r/|r|) = v_t
 	//
 	auto rv = L3_bins[0][indx];
-	for (auto & v : rv) v /= mas_bins[0][indx];
+	for (auto & v : rv) v /= mas[indx];
 
 	std::array<double, 3> xyz = {P->pos[0], P->pos[1], P->pos[2]};
 	auto v3 = xprod(rv, xyz);
