@@ -29,7 +29,7 @@ public:
   }
 
   //! Constructor from istream (restore from cache file)
-  Grid2d(std::istream& in)
+  void Grid2d(std::istream& in)
   {
     read(in);
   }
