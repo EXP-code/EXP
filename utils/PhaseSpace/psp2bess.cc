@@ -115,6 +115,7 @@ public:
   {
     // Zero all accumulators
     //
+    maccum = 0.0;
     for (int m=0; m<=mmax; m++) {
       bess[m] = std::make_shared<Bess>(static_cast<double>(m), nmax);
       for (size_t k=0; k<4; k++) {
@@ -190,6 +191,7 @@ BessCoefs::add(double mass, double R, double phi, double vr, double vt, double v
       double x     = R/rmax;
       double value = bess[m]->eval(x, n)/rmax;
       //                                 ^
+      //                                 |
       // Scale factor in normalization---+
 
       // Angular normalization and mass weighting

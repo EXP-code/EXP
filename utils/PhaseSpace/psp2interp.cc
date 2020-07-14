@@ -203,12 +203,14 @@ main(int ac, char **av)
     PSPstanza* stanza;
     SParticle* part;
 
+    unsigned count = 0;
+
     for (stanza=psp->GetStanza(); stanza!=0; stanza=psp->NextStanza()) {
     
       if (stanza->name != cname) continue;
       
       for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
-	
+	if (count++ % numprocs != myid) continue;
 	grid.addPoint(part->mass(), part->pos(0), part->pos(1));
       }
     }
