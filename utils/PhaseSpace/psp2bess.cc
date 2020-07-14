@@ -130,8 +130,7 @@ public:
   //! MPI synchronize
   void synchronize()
   {
-    MPI_Allreduce(MPI_IN_PLACE, &maccum, 1, MPI_DOUBLE, MPI_SUM,
-		  MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &maccum, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
     for (int m=0; m<=mmax; m++) {
       for (size_t k=0; k<4; k++) {
@@ -140,8 +139,10 @@ public:
 	if (m)
 	  MPI_Allreduce(MPI_IN_PLACE, sin_c[m][k].data(), nmax, MPI_DOUBLE,
 			MPI_SUM, MPI_COMM_WORLD);
-      } // END: k=0,...,2
-    } // END: m loop
+      }
+      // END: k=0,...,4
+    }
+    // END: m loop
   }
 
   //! Write binary file
@@ -378,7 +379,7 @@ main(int ac, char **av)
 
     std::array<std::map<int, std::vector<float>>, 3> vel_c, vel_s;
 
-    PSPstanza *stanza;
+    PSPstanza* stanza;
     SParticle* part;
 
     for (stanza=psp->GetStanza(); stanza!=0; stanza=psp->NextStanza()) {
@@ -424,7 +425,9 @@ main(int ac, char **av)
 
 	if (myid==0 and finegrain) ++(*progress);
       }
+      // END: particle loop
     }
+    // END: stanza loop
 
     // Prepare for output
     //
@@ -437,6 +440,8 @@ main(int ac, char **av)
       ++(*progress);
     }
   }
+  // END: OUT file loop
+  
   if (myid==0) std::cout << std::endl;
 
   MPI_Finalize();
