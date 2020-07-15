@@ -75,7 +75,7 @@ double Ion::HandM_expon = -0.5;
 // Energy grids (in eV)
 //
 bool   Ion::useFreeFreeGrid  = true;
-bool   Ion::useRadRecombGrid = false;
+bool   Ion::useRadRecombGrid = true;
 bool   Ion::useExciteGrid    = true;
 bool   Ion::useIonizeGrid    = true;
 bool   Ion::GridDebug        = false; // Set to true for debugging

@@ -23,6 +23,7 @@
 #include "EnumBitset.H"
 #include "StatsMPI.H"
 #include "BN.H"
+#include "Species.H"
 
 // For debugging xc species: set XC_DEEP
 //
@@ -543,6 +544,22 @@ private:
 
   std::vector< recombRatioMap >                      recombR;
 
+  // Create map type that holds a temperature and the fudge factor at that temperature
+  typedef std::map<double, double>
+  tempFactMap;
+
+  // Create a map type that maps between an specieskey (Z and C pair) map
+  // between temperatures and fudge factors for that species.
+  typedef std::map<speciesKey, tempFactMap>
+  fudgeFactMap;
+
+  // Create a vector of maps that hold fudge factors. Each map will be used for a different thread
+  std::vector< fudgeFactMap >                                fudgeFacs;
+
+  // Create a vector of doubles that hold the temperatures of the cell handled by each thread
+  std::vector< double >                                    cellTemps;
+
+
   //@{
 
   //! Trace-species velocity factors including reduced mass for a
@@ -837,8 +854,9 @@ private:
   uint32_t acg_seed;
 
   //@{
-  //! Use recombination ratio tables
+  //! Use recombination ratio tables/fudge factor to make our recombination rates match chianti
   static bool use_ratio;
+  static bool use_fudge;
 
   //! Recombination ratio class for maintaining table
   class RecombRatio
