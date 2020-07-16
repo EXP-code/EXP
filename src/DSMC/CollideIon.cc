@@ -4317,7 +4317,6 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
         // cross sections match
 	//
 	if (use_ratio) {
-	  crs *= recombR[id][Z1][C1-2];
 	  if (use_fudge) 
 	    crs *= fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]];
         }
@@ -4350,7 +4349,6 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	// sections match CHIANTI
 	//
 	if (use_ratio) {
-	  crs *= recombR[id][Z2][C2-2];
 	  if (use_fudge)
 	    crs *= fudgeFacs[id][KeyConvert(K2).getKey()][cellTemps[id]];
 	}
@@ -4388,7 +4386,6 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
         // cross sections match CHIANTI
 	//
 	if (use_ratio) {
-	  crs *= recombR[id][Z1][C1-2];
 	  if (use_fudge)
 	    crs *= fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]];
 	}
@@ -4439,7 +4436,6 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	// cross sections match CHIANTI
 	//
         if (use_ratio) {
-	  crs *= recombR[id][Z2][C2-2];
 	  if (use_fudge)
 	    crs *= fudgeFacs[id][KeyConvert(K2).getKey()][cellTemps[id]];
 	}
