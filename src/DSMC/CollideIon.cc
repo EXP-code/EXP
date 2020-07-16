@@ -22,7 +22,7 @@
 #include "localmpi.h"
 #include "Species.H"
 #include "InitContainer.H"
-#include "correction_factors.h"
+#include "correction_factors.cxx" // Constant static data
 
 // Version info
 //
@@ -1024,55 +1024,66 @@ void CollideIon::cellMinMax(pCell* const cell, int id)
   return;
 }
 
-// This function takes a cell temperature and looks up the fudge factor
-// to make our recombinartion rates consisten with Chanit's. Does this by looking
-// up the factor for this element and ionisation level for the closest temperature
-// a factor's been recorded for
-double radRecombCrossFudgeFactor(double cellTemp, speciesKey recomb_ion)  {
-  // Z is element, C is ionisation level. Remember when doing the lookup the first row is row$
+// This function takes a cell temperature and looks up the fudge
+// factor to make our recombinartion rates consistent with
+// CHIANTI's. Does this by looking up the factor for this element and
+// ionisation level for the closest temperature a factor's been
+// recorded for
+double CollideIon::radRecombCrossFudgeFactor(double cellTemp, speciesKey recomb_ion)
+{
+  // Z is element, C is ionisation level. Remember when doing the
+  // lookup the first row is row$
+  //
   int Z, C, Z_index, C_index;
   std::vector<double>::iterator low;
   int T_below_index, T_above_index, T_index;
   double T_diff_below, T_diff_above;
   double fudge_factor;
 
-  // Get the element Z and ionisation level C and the indecies they're held at in arrays
+  // Get the element Z and ionisation level C and the indecies they're
+  // held at in arrays
   Z = recomb_ion.first;
   C = recomb_ion.second;
   Z_index = Z - 1;
-  C_index = C - 2; //C is - 2 because a full shell can't recombine, so e.g. no
-                                                                        // recombination for $
+  C_index = C - 2; //C is - 2 because a full shell can't recombine, so
+		   //e.g. no recombination for $
 
-        // Because a full shell can't recombine no alteration necessary if C == 1, so
-        // if that that's the case just return 1.
-        if (C == 1){
-                fudge_factor = 1;
-        } else {
+  // Because a full shell can't recombine no alteration necessary if C == 1, so
+  // if that that's the case just return 1.
+  if (C == 1) {
 
-        // Covert the array into a vector so I can use the lower_bound function
-        int n = sizeof(correct_temps) / sizeof(correct_temps[0]);
-        std::vector<double> v(correct_temps,correct_temps+n);
+    fudge_factor = 1;
 
-        // Get the indexes of the temperatures above and below the cell temperature
-        low = std::lower_bound(v.begin(), v.end(), cellTemp);
-        T_below_index = (low - v.begin()) - 1;
-        T_above_index = (low - v.begin());
+  } else {
 
-        // Find which temperature is the closest match to the cell temperature
-        T_diff_below = abs(cellTemp - correct_temps[T_below_index]);
-        T_diff_above = abs(cellTemp - correct_temps[T_above_index]);
-        if (T_diff_below < T_diff_above){
-        T_index = T_below_index;
-        } else {
-        T_index = T_above_index;
-        }
-
-        // Look up the correction factor needed to bring our recombination cefficient
-        // in line with CHanit's for this Z, ionisation level and closest temperature in the $
-        fudge_factor = correct_facts[Z_index][T_index][C_index];
-        }
+    // Convert the array into a vector so I can use the lower_bound
+    // function
+    //
+    int n = sizeof(correct_temps) / sizeof(correct_temps[0]);
+    std::vector<double> v(correct_temps,correct_temps+n);
+    
+    // Get the indexes of the temperatures above and below the cell
+    // temperature
+    //
+    low = std::lower_bound(v.begin(), v.end(), cellTemp);
+    T_below_index = (low - v.begin()) - 1;
+    T_above_index = (low - v.begin());
+    
+    // Find which temperature is the closest match to the cell temperature
+    T_diff_below = abs(cellTemp - correct_temps[T_below_index]);
+    T_diff_above = abs(cellTemp - correct_temps[T_above_index]);
+    if (T_diff_below < T_diff_above) {
+      T_index = T_below_index;
+    } else {
+      T_index = T_above_index;
+    }
+    
+    // Look up the correction factor needed to bring our recombination
+    // cefficient in line with CHANITI's for this Z, ionisation level
+    // and closest temperature in the $
+    fudge_factor = correct_facts[Z_index][T_index][C_index];
+  }
   return fudge_factor;
-
 }
 
 

@@ -898,7 +898,6 @@ private:
   std::map<unsigned short, boost::shared_ptr<RecombRatio>> recombRatio;
   //@}
 
-
 public:
 
   typedef std::set<unsigned short> ZLtype;
@@ -1621,6 +1620,14 @@ protected:
   //! Return 3d Colombic scattering vector
   std::vector<double>& coulomb_vector(std::vector<double>& rel, double W1, double W2, double Tau);
 
+  //@}
+
+  //@{
+  //! Recombination rate correction factors
+  static const double correct_facts[16][200][16];
+  static const double correct_temps[200];
+
+  double radRecombCrossFudgeFactor(double cellTemp, speciesKey recomb_ion);
   //@}
 
 public:
