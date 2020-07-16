@@ -137,7 +137,7 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
 
   // Random number generation
 
-  gen   = boost::make_shared<ACG>    (seed);
+  gen   = boost::make_shared<ACG>    (seed+myid);
   urand = boost::make_shared<Uniform>(0.0, 1.0, gen.get());
   nrand = boost::make_shared<Normal> (0.0, 1.0, gen.get());
 
