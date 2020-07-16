@@ -790,8 +790,11 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   accumIExc.resize(nthrds);	     // Trace
   photoStat.resize(nthrds);	     // Photoionize
   recombR  .resize(nthrds);	     // Trace (so far . . .)
-        fudgeFacs.resize(nthrds);      // Trace. The factors needed to make our recombination rates match Chiantis
-        cellTemps.resize(nthrds);      // Trace. The temperature in the cell handled by each thread
+  fudgeFacs.resize(nthrds);          // Trace. The factors needed to
+				     // make our recombination rates
+				     // match CHIANTI's
+  cellTemps.resize(nthrds);          // Trace. The temperature in the
+				     // cell handled by each thread
 
   for (auto &v : tauD) {
     v.resize(4);
@@ -1032,10 +1035,11 @@ void CollideIon::cellMinMax(pCell* const cell, int id)
 // CHIANTI's. Does this by looking up the factor for this element and
 // ionisation level for the closest temperature a factor's been
 // recorded for
-double CollideIon::radRecombCrossFudgeFactor(double cellTemp, speciesKey recomb_ion)
+double CollideIon::radRecombCrossFudgeFactor
+(double cellTemp, speciesKey recomb_ion)
 {
   // Z is element, C is ionisation level. Remember when doing the
-  // lookup the first row is row$
+  // lookup the first row is row neutral atom
   //
   int Z, C, Z_index, C_index;
   std::vector<double>::iterator low;
@@ -1043,13 +1047,14 @@ double CollideIon::radRecombCrossFudgeFactor(double cellTemp, speciesKey recomb_
   double T_diff_below, T_diff_above;
   double fudge_factor;
 
-  // Get the element Z and ionisation level C and the indecies they're
+  // Get the element Z and ionisation level C and the indices they're
   // held at in arrays
+  //
   Z = recomb_ion.first;
   C = recomb_ion.second;
   Z_index = Z - 1;
-  C_index = C - 2; //C is - 2 because a full shell can't recombine, so
-		   //e.g. no recombination for $
+  C_index = C - 2; // C is - 2 because a full shell can't recombine, so
+		   // e.g. no recombination for neutral
 
   // Because a full shell can't recombine no alteration necessary if C == 1, so
   // if that that's the case just return 1.
@@ -1296,9 +1301,8 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
 
   // Mean temperature for recombination ratio and mean temp of the cell and
   // fudge factor to make our recombination match chianti's
-  double meanTemp = 0.0;
-        double cellTemp = 0.0;
-        double fudgeFactor = 0.0;
+  double meanTemp    = 0.0;
+  double cellTemp    = 0.0;
 
   if (aType == Direct or aType == Weight or aType == Hybrid) {
 
@@ -1698,7 +1702,6 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
     double Ne   = massE*TreeDSMC::Munit/amu;
     double KEi  = 0.0;
     double KEe  = 0.0;
-                double fudgeFactor; // The factor needed to make out recombination coeffiecients match Chianti's
     
     if (Ni>0.0) KEi = 0.5*ivel2*TreeDSMC::Eunit / Ni;
     if (Ne>0.0) KEe = 0.5*evel2*TreeDSMC::Eunit * atomic_weights[0] / Ne;
@@ -1862,23 +1865,27 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
   //
   coulombicScatter(id, cell, tau);
 
+  // Compute and stre the factor needed to make out recombination
+  // coeffiecients match CHIANTI's
 
-        //Compute and stre the factor needed to make out recombination coeffiecients match Chianti's
-        // Only do this is the use_fudge boolean is true
-        if (use_fudge and use_ratio and aType == Trace) {
-                // Loop through element list and ionisation levels
-                for (auto Z : ZList) {
-                        for (unsigned short C=1; C<=Z+1; C++){
-                                        // Define a species key for this Z and C
-                                        speciesKey recomb_ion = make_pair(Z, C);
-                                        // Look up the factor needed to make out recombination coeffiecients match Chianti's
-                                        fudgeFactor = radRecombCrossFudgeFactor(cellTemps[id], recomb_ion);
-                                        fudgeFacs[id][recomb_ion][cellTemps[id]] = fudgeFactor;
-                                }
-                }
-        }
+  // Only do this is the use_fudge boolean is true
+  if (use_fudge and use_ratio and aType == Trace) {
 
-
+    // Loop through element list and ionisation levels
+    //
+    for (auto Z : ZList) {
+      for (unsigned short C=1; C<=Z+1; C++){
+	// Define a species key for this Z and C
+	//
+	speciesKey recomb_ion = make_pair(Z, C);
+	// Look up the factor needed to make out recombination
+	// coeffiecients match CHIANTI's
+	//
+	fudgeFacs[id][recomb_ion][cellTemps[id]] =
+	  radRecombCrossFudgeFactor(cellTemps[id], recomb_ion);
+      }
+    }
+  }
 
   // Recombination ratio
   //
@@ -4296,11 +4303,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
 	xcross[id] = crs;
 	
-        //Multiply by the fudge factor to make our recombination cross sections match$
-        if (use_ratio and use_fudge){
-
-                crs *= fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]];
-
+        // Multiply by the fudge factor to make our recombination
+        // cross sections match
+	//
+        if (use_ratio and use_fudge) {
+	  crs *= fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]];
         }
 
         if (scatter_check and recomb_check) {
@@ -4330,13 +4337,12 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
 	xcross[id] = crs;
 
-       //Multiply by the fudge factor to make our recombination cross sections match $
-        if (use_ratio and use_fudge){
-
-                crs *= fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]];
-
-         }
-
+	// Multiply by the fudge factor to make our recombination cross
+	// sections match CHIANTI
+	//
+        if (use_ratio and use_fudge) {
+	  crs *= fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]];
+	}
 
         if (scatter_check and recomb_check) {
           double val = cr * TreeDSMC::Vunit * 1.0e-14 * crs;
@@ -4369,12 +4375,12 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
 	xcross[id] = crs;
 
-        //Multiply by the fudge factor to make our recombination cross sections match$
-        if (use_ratio and use_fudge){
-
-                crs *= fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]];
-
-         }
+        // Multiply by the fudge factor to make our recombination
+        // cross sections match CHIANTI
+	//
+        if (use_ratio and use_fudge) {
+	  crs *= fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]];
+	}
 
         if (scatter_check and recomb_check) {
           double val = cr * TreeDSMC::Vunit * 1.0e-14 * crs;
@@ -4418,13 +4424,12 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	  
 	xcross[id] = crs;
 
-       //Multiply by the fudge factor to make our recombination cross sections match $
-        if (use_ratio and use_fudge){
-
-                crs *= fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]];
-
-         }
-
+	// Multiply by the fudge factor to make our recombination
+	// cross sections match CHIANTI
+	//
+        if (use_ratio and use_fudge) {
+	  crs *= fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]];
+	}
 
         if (scatter_check and recomb_check) {
           double val = cr * TreeDSMC::Vunit * 1.0e-14 * crs;
