@@ -22,12 +22,15 @@
 #include "localmpi.h"
 #include "Species.H"
 #include "InitContainer.H"
-#include "correction_factors.cxx" // Constant static data
+
+// Constant static data
+//
+#include "correction_factors.cxx"
 
 // Version info
 //
 #define NAME_ID    "CollideIon"
-#define VERSION_ID "0.42 [11/10/19 trace ratio]"
+#define VERSION_ID "0.43 [07/16/20 recomb factor]"
 
 using namespace std;
 using namespace NTC;
