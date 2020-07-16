@@ -70,9 +70,15 @@ double   CollideIon::scatFac1   = 1.0; // Hybrid algorithm
 double   CollideIon::scatFac2   = 1.0; // Hybrid algorithm
 double   CollideIon::tolE       = 1.0e-05;
 double   CollideIon::tolCS      = 1.0;
+
+// Upscale radiative cross-section by ratio of Ion radiative
+// coefficient to CHAINTI radiative coefficeint
+//
 bool     CollideIon::use_ratio  = false;
-bool     CollideIon::use_fudge  = true; // Whether to use the fudge factor to
-                                        // make our recombination rates match chaianti
+
+// Use the fudge factor to make our recombination rates match CHIANTI
+//
+bool     CollideIon::use_fudge  = true; 
 
 
 // The recommended value for qCrit is now -1 (that is, turn it off).
@@ -1078,6 +1084,7 @@ double CollideIon::radRecombCrossFudgeFactor
     T_above_index = (low - v.begin());
     
     // Find which temperature is the closest match to the cell temperature
+    //
     T_diff_below = abs(cellTemp - correct_temps[T_below_index]);
     T_diff_above = abs(cellTemp - correct_temps[T_above_index]);
     if (T_diff_below < T_diff_above) {
@@ -1088,7 +1095,8 @@ double CollideIon::radRecombCrossFudgeFactor
     
     // Look up the correction factor needed to bring our recombination
     // cefficient in line with CHANITI's for this Z, ionisation level
-    // and closest temperature in the $
+    // and closest temperature in the array
+    //
     fudge_factor = correct_facts[Z_index][T_index][C_index];
   }
   return fudge_factor;
@@ -1301,6 +1309,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
 
   // Mean temperature for recombination ratio and mean temp of the cell and
   // fudge factor to make our recombination match chianti's
+  //
   double meanTemp    = 0.0;
   double cellTemp    = 0.0;
 
@@ -1869,6 +1878,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
   // coeffiecients match CHIANTI's
 
   // Only do this is the use_fudge boolean is true
+  //
   if (use_fudge and use_ratio and aType == Trace) {
 
     // Loop through element list and ionisation levels
@@ -4306,8 +4316,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
         // Multiply by the fudge factor to make our recombination
         // cross sections match
 	//
-        if (use_ratio and use_fudge) {
-	  crs *= fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]];
+	if (use_ratio) {
+	  crs *= recombR[id][Z1][C1-2];
+	  if (use_fudge) 
+	    crs *= fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]];
         }
 
         if (scatter_check and recomb_check) {
@@ -4315,10 +4327,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
           recombA[id].add(K1, etaP1[id], val);
         }
 
-
 	if (DEBUG_CRS) trap_crs(crs, recomb);
-
-	if (use_ratio) crs *= recombR[id][Z1][C1-2];
 
 	return crs;
       }
@@ -4340,8 +4349,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	// Multiply by the fudge factor to make our recombination cross
 	// sections match CHIANTI
 	//
-        if (use_ratio and use_fudge) {
-	  crs *= fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]];
+	if (use_ratio) {
+	  crs *= recombR[id][Z2][C2-2];
+	  if (use_fudge)
+	    crs *= fudgeFacs[id][KeyConvert(K2).getKey()][cellTemps[id]];
 	}
 
         if (scatter_check and recomb_check) {
@@ -4351,8 +4362,6 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
 	if (DEBUG_CRS) trap_crs(crs, recomb);
 	  
-	if (use_ratio) crs *= recombR[id][Z1][C1-2];
-
 	return crs;
       }
       
@@ -4378,8 +4387,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
         // Multiply by the fudge factor to make our recombination
         // cross sections match CHIANTI
 	//
-        if (use_ratio and use_fudge) {
-	  crs *= fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]];
+	if (use_ratio) {
+	  crs *= recombR[id][Z1][C1-2];
+	  if (use_fudge)
+	    crs *= fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]];
 	}
 
         if (scatter_check and recomb_check) {
@@ -4427,8 +4438,10 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	// Multiply by the fudge factor to make our recombination
 	// cross sections match CHIANTI
 	//
-        if (use_ratio and use_fudge) {
-	  crs *= fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]];
+        if (use_ratio) {
+	  crs *= recombR[id][Z2][C2-2];
+	  if (use_fudge)
+	    crs *= fudgeFacs[id][KeyConvert(K2).getKey()][cellTemps[id]];
 	}
 
         if (scatter_check and recomb_check) {
@@ -18353,7 +18366,7 @@ void CollideIon::processConfig()
     if (config["FUDGE_CHIANTI"])
       use_fudge = config["FUDGE_CHIANTI"]["value"].as<bool>();
     else {
-      config["FUDGE_CHIANTI"]["desc"] = "Use fudge factors to make our radiative recombination rates match Chiantis";
+      config["FUDGE_CHIANTI"]["desc"] = "Use fudge factors to make our radiative recombination rates match CHAINTI";
       config["FUDGE_CHIANTI"]["value"] = use_fudge = false;
     }
 
