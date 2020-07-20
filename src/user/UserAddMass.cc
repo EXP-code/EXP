@@ -458,7 +458,8 @@ void UserAddMass::determine_acceleration_and_potential(void)
     if (logr) rr = exp(rr);
 
     Particle *P =  c0->GetNewPart();
-    P->mass = mass;
+    P->mass  = mass;
+    P->level = multistep;
 
     switch (alg) {
     case Algorithm::Halo:
