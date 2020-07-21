@@ -1093,8 +1093,8 @@ double CollideIon::radRecombCrossFudgeFactor
       T_below_index = 0;
       T_above_index = 1;
     } else {
-      T_below_index = std::distance(low, v.begin()) - 1;
-      T_above_index = std::distance(low, v.begin());
+      T_below_index = (low - v.begin()) - 1;
+      T_above_index = (low - v.begin());
     }
     
     // Find which temperature is the closest match to the cell temperature
