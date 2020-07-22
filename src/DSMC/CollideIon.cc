@@ -1044,11 +1044,11 @@ void CollideIon::cellMinMax(pCell* const cell, int id)
   return;
 }
 
-// This function takes a cell temperature and looks up the fudge
+// This function takes a cell temperature and returns the fudge
 // factor to make our recombinartion rates consistent with the CHIANTI
-// value. Does this by looking up the factor for this element and
-// ionisation level for the closest temperature a factor's been
-// computed.
+// value. Does this by looking up the factors at the closest temperatures
+// that have have had it computed for this element and ionisation level and
+// performing a linear interpolation.
 //
 double CollideIon::radRecombCrossFudgeFactor
 (double cellTemp, speciesKey recomb_ion)
@@ -1058,8 +1058,9 @@ double CollideIon::radRecombCrossFudgeFactor
   //
   int Z, C, Z_index, C_index;
   std::vector<double>::iterator low;
-  int T_below_index, T_above_index, T_index;
-  double T_diff_below, T_diff_above;
+  int T_below_index, T_above_index;
+  double T_below, T_above;
+  double fudge_factor_below, fudge_factor_above;
   double fudge_factor;
 
   // Get the element Z and ionisation level C and the indices they're
@@ -1097,21 +1098,20 @@ double CollideIon::radRecombCrossFudgeFactor
       T_above_index = (low - v.begin());
     }
     
-    // Find which temperature is the closest match to the cell temperature
-    //
-    T_diff_below = abs(cellTemp - correct_temps[T_below_index]);
-    T_diff_above = abs(cellTemp - correct_temps[T_above_index]);
-    if (T_diff_below < T_diff_above) {
-      T_index = T_below_index;
-    } else {
-      T_index = T_above_index;
-    }
-    
-    // Look up the correction factor needed to bring our recombination
-    // cefficient in line with CHANITI's for this Z, ionisation level
-    // and closest temperature in the array
-    //
-    fudge_factor = correct_facts[Z_index][T_index][C_index];
+    // Use linear interpolation to get the fudge factor from the known fudge
+    // factors for the two closest temperatures. First get the info needed
+    // for the interpolation
+    T_below = correct_temps[T_below_index];
+    T_above = correct_temps[T_above_index];
+    fudge_factor_below = correct_facts[Z_index][T_below_index][C_index];
+    fudge_factor_above = correct_facts[Z_index][T_above_index][C_index];
+
+    // Do the linear interpolation
+    fudge_factor = cellTemp - T_below;
+    fudge_factor /= (T_above - T_below);
+    fudge_factor *= (fudge_factor_above - fudge_factor_below);
+    fudge_factor += fudge_factor_below;
+
   }
   return fudge_factor;
 }
