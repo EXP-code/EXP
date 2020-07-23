@@ -1090,11 +1090,11 @@ double CollideIon::radRecombCrossFudgeFactor
     // for which there are calcualated fudge factors. If not then use
     // higherst/lowest as relevent. Otherwise interpolate beween the
     // the closest factors.
-    if (cellTemp < 1000.) {
+    if (cellTemp < correct_temps[0]) {
 
       fudge_factor = correct_facts[Z_index][0][C_index];
 
-    } else if (cellTemp > 1000000) {
+    } else if (cellTemp > correct_temps[n - 1]) {
 
       fudge_factor = correct_facts[Z_index][n - 1][C_index];
 
