@@ -1086,31 +1086,47 @@ double CollideIon::radRecombCrossFudgeFactor
     int n = sizeof(correct_temps) / sizeof(correct_temps[0]);
     std::vector<double> v(correct_temps,correct_temps+n);
     
-    // Get the indexes of the temperatures above and below the cell
-    // temperature
-    //
-    low = std::lower_bound(v.begin(), v.end(), cellTemp);
-    if (low == v.begin()) {	// Check array bounds
-      T_below_index = 0;
-      T_above_index = 1;
-    } else {
-      T_below_index = (low - v.begin()) - 1;
-      T_above_index = (low - v.begin());
-    }
-    
-    // Use linear interpolation to get the fudge factor from the known fudge
-    // factors for the two closest temperatures. First get the info needed
-    // for the interpolation
-    T_below = correct_temps[T_below_index];
-    T_above = correct_temps[T_above_index];
-    fudge_factor_below = correct_facts[Z_index][T_below_index][C_index];
-    fudge_factor_above = correct_facts[Z_index][T_above_index][C_index];
+    // Check whether the cell temperature is within the bounds of those
+    // for which there are calcualated fudge factors. If not then use
+    // higherst/lowest as relevent. Otherwise interpolate beween the
+    // the closest factors.
+    if (cellTemp < 1000.) {
 
-    // Do the linear interpolation
-    fudge_factor = cellTemp - T_below;
-    fudge_factor /= (T_above - T_below);
-    fudge_factor *= (fudge_factor_above - fudge_factor_below);
-    fudge_factor += fudge_factor_below;
+      fudge_factor = correct_facts[Z_index][0][C_index];
+
+    } else if (cellTemp > 1000000) {
+
+      fudge_factor = correct_facts[Z_index][n - 1][C_index];
+
+    } else {
+
+      // Get the indexes of the temperatures above and below the cell
+      // temperature
+      //
+      low = std::lower_bound(v.begin(), v.end(), cellTemp);
+      if (low == v.begin()) {     // Check array bounds
+        T_below_index = 0;
+        T_above_index = 1;
+      } else {
+        T_below_index = (low - v.begin()) - 1;
+        T_above_index = (low - v.begin());
+      }
+
+      // Use linear interpolation to get the fudge factor from the known fudge
+      // factors for the two closest temperatures. First get the info needed
+      // for the interpolation
+      T_below = correct_temps[T_below_index];
+      T_above = correct_temps[T_above_index];
+      fudge_factor_below = correct_facts[Z_index][T_below_index][C_index];
+      fudge_factor_above = correct_facts[Z_index][T_above_index][C_index];
+
+      // Do the linear interpolation
+      fudge_factor = cellTemp - T_below;
+      fudge_factor /= (T_above - T_below);
+      fudge_factor *= (fudge_factor_above - fudge_factor_below);
+      fudge_factor += fudge_factor_below;
+
+    }
 
   }
   return fudge_factor;
