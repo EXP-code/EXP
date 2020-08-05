@@ -114,7 +114,7 @@ forcetest2_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) @exp_omp_lib@
 hdf52accel_SOURCES = hdf52accel.cc
 hdf52accel_CXXFLAGS = $(AM_CXXFLAGS) $(HDF5_CPPFLAGS)
 hdf52accel_LDFLAGS = $(HDF5_LDFLAGS) $(BOOST_LDFLAGS)
-hdf52accel_LDADD = $(HDF5_LIBS) -lhdf5_cpp $(BOOST_LIBS) $(LIBS) @exp_omp_lib@
+hdf52accel_LDADD = $(BOOST_LIBS) $(LIBS) @exp_omp_lib@ $(HDF5_LDFLAGS) -lhdf5_cpp -lhdf5
 
 initial.cc:		Particle.H Particle.h
 
