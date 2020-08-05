@@ -79,8 +79,10 @@ AX_YAML([], [AC_MSG_ERROR([Could not find the yaml-cpp library!  Install the lib
 dnl ==========================================================================
 dnl Check for HDF5
 dnl ==========================================================================
-AX_LIB_HDF5([serial])
-
+dnl AX_LIB_HDF5([serial])
+ 
+dnl Allow for more general case of both serial and parallel HDF5
+AX_LIB_HDF5()
 
 dnl ==========================================================================
 dnl Look for lapack and blas
