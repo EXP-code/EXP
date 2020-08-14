@@ -20,7 +20,7 @@ bin_PROGRAMS = pspinfo pspstat psp2tipsy pspsplit psp2ascii ascii2psp	\
 		psp2histo1D2 psp2histoE psp2histoH pspreal pspstatS	\
 		psp2range psp2eHisto psp2histoT psp2histoTC pspstatT	\
 		spl2psp pspinfo2 ascii2psp2 psp2vtu psp2rings		\
-		psp2bess psp2interp
+		psp2bess psp2lagu psp2interp
 
 COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ $(YAML)
 
@@ -139,6 +139,11 @@ psp2bess_SOURCES  = psp2bess.cc PSP2.cc header.cc header.H
 psp2bess_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
 psp2bess_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
 psp2bess_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS) $(EXPLIBS)
+
+psp2lagu_SOURCES  = psp2lagu.cc PSP2.cc header.cc header.H
+psp2lagu_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
+psp2lagu_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
+psp2lagu_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS) $(EXPLIBS)
 
 psp2interp_SOURCES  = psp2interp.cc PSP2.cc header.cc header.H
 psp2interp_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
