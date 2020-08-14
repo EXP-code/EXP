@@ -52,28 +52,51 @@ public:
   Laguerre(double rscl, unsigned int nmax) : rscl(rscl), nmax(nmax)
   {
     norm.resize(nmax);
-    for (unsigned int m=0; m<nmax; m++) norm[m] = rscl*(m+1);
+    for (unsigned int n=0; n<nmax; n++) norm[n] = 0.5*rscl*sqrt(1.0+n);
   }
   
   //! Get the norm for radial order m
-  double getNorm(int m)
+  double getNorm(int n)
   {
-    if (m>=nmax) return 0.0;
-    else         return norm[m];
+    if (n>=nmax) return 0.0;
+    else         return norm[n];
   }
   
   //! Evaluate the orthogonal Laguerre polynomial
-  double operator()(double& r, const unsigned& m)
+  double operator()(double& r, const unsigned& n)
   {
-    if (m>=nmax) return 0.0;
-    return boost::math::laguerre(m, 1, r/rscl) / norm[m];
+    if (n>=nmax) return 0.0;
+    return boost::math::laguerre(n, 1, 2.0*r/rscl) / norm[n];
   } 
 
   //! Evaluate the the orthogonal Laguerre polynomial
-  double eval(double& r, unsigned& m)
+  double eval(double& r, unsigned& n)
   {
-    if (m>=nmax) return 0.0;
-    return boost::math::laguerre(m, 1, r/rscl) / norm[m];
+    if (n>=nmax) return 0.0;
+    return boost::math::laguerre(n, 1, 2.0*r/rscl) / norm[n];
+  } 
+
+  //! Evaluate the the orthogonal Laguerre polynomial
+  std::vector<double> eval(double& r)
+  {
+    std::vector<double> ret(nmax);
+
+    // Initialization
+    //
+    double x = 2.0*r/rscl;
+    ret[0] = boost::math::laguerre(0, 1, x);
+    if (nmax>1) ret[1] = boost::math::laguerre(1, 1, x);
+
+    // Recursion
+    //
+    for (int n=2; n<nmax; n++) 
+      ret[n] = boost::math::laguerre_next(n-1, 1, x, ret[n-1], ret[n-2]);
+
+    // Normalization
+    //
+    for (int n=0; n<nmax; n++) ret[n] /= norm[n];
+
+    return ret;
   } 
 
 }; 
@@ -178,15 +201,16 @@ LaguCoefs::add(double mass, double R, double phi, double vr, double vt, double v
   maccum += mass;
 
   for (int m=0; m<=mmax; m++) {
+
     double cosm  = std::cos(phi*m), sinm = std::sin(phi*m);
+
+    std::vector<double> val = lagu[m]->eval(R);
 
     for (unsigned int n=0; n<nmax; n++) {
 
-      double value = lagu[m]->eval(R, n);
-
       // Angular normalization and mass weighting
       //
-      double fact  = mass * value * 0.5*M_2_SQRTPI;
+      double fact  = mass * val[n] * 0.5*M_2_SQRTPI;
       if (m==0) fact *= M_SQRT1_2;
     
       cos_c[m][0][n] += fact*cosm;
@@ -234,6 +258,7 @@ main(int ac, char **av)
     ("help,h",		"produce help message")
     ("verbose,v",       "verbose output")
     ("finegrain",       "fine-grained progress report")
+    ("append",          "append to existing output file")
     ("beg,i",	        po::value<int>(&ibeg)->default_value(0),
      "initial snapshot index")
     ("end,e",	        po::value<int>(&iend)->default_value(std::numeric_limits<int>::max()),
@@ -309,8 +334,11 @@ main(int ac, char **av)
 	      << std::endl;
   }
 
+  auto iosflags = ios::out;
+  if (vm.count("append")) iosflags |= ios::app;
+
   std::string outcoefs = work_dir + "/" + runtag + "." + suffix;
-  std::ofstream out(outcoefs, ios::app | ios::out);
+  std::ofstream out(outcoefs, iosflags);
   if (!out) {
     if (myid==0) {
       std::cerr << "Error opening file <" << outcoefs << "> for output"
