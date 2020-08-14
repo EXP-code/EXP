@@ -1748,12 +1748,16 @@ void CollideIon::initialize_cell
 
     // Compute mean temperature
     //
-    meanTemp = (ivel2 + evel2*atomic_weights[0])*TreeDSMC::Eunit / (Ni + Ne) / (3.0*boltz);
+    if (Ni+Ne>0.0)
+      meanTemp = (ivel2 + evel2*atomic_weights[0])*TreeDSMC::Eunit / (Ni + Ne) / (3.0*boltz);
 
-                // Get the mean teperature of the cell and store in in the cellTemps vector
-                cellTemp = (evel2*atomic_weights[0])*TreeDSMC::Eunit / (Ne) / (3.0*boltz);
-                cellTemps[id] = cellTemp;
-
+    // Get the mean electron teperature of the cell and store in in
+    // the cellTemps vector
+    //
+    if (Ne>0.0)
+      cellTemp = (evel2*atomic_weights[0])*TreeDSMC::Eunit / (Ne) / (3.0*boltz);
+    
+    cellTemps[id] = cellTemp;
 
     double dbyfac = std::numeric_limits<double>::max();
     if ((ne>0.0 and KEe>0.0) or (ni>0.0 and KEi>0.0)) {
