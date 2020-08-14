@@ -66,14 +66,14 @@ public:
   double operator()(double& r, const unsigned& n)
   {
     if (n>=nmax) return 0.0;
-    return boost::math::laguerre(n, 1, 2.0*r/rscl) / norm[n];
+    return boost::math::laguerre(n, 1, 2.0*r/rscl) * exp(-r/rscl) / norm[n];
   } 
 
   //! Evaluate the the orthogonal Laguerre polynomial
   double eval(double& r, unsigned& n)
   {
     if (n>=nmax) return 0.0;
-    return boost::math::laguerre(n, 1, 2.0*r/rscl) / norm[n];
+    return boost::math::laguerre(n, 1, 2.0*r/rscl) * exp(-r/rscl) / norm[n];
   } 
 
   //! Evaluate the the orthogonal Laguerre polynomial
@@ -94,7 +94,8 @@ public:
 
     // Normalization
     //
-    for (int n=0; n<nmax; n++) ret[n] /= norm[n];
+    double w = exp(-r/rscl);
+    for (int n=0; n<nmax; n++) ret[n] *= w / norm[n];
 
     return ret;
   } 
