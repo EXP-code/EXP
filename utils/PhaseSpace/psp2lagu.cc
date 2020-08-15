@@ -21,8 +21,8 @@
 #include <PSP2.H>
 #include <FileUtils.H>
 
-#include <boost/program_options.hpp>
 #include <boost/progress.hpp>
+#include <boost/program_options.hpp>
 #include <boost/math/special_functions/laguerre.hpp>
 
 #include <mpi.h>
@@ -152,7 +152,7 @@ public:
   void synchronize()
   {
     MPI_Allreduce(MPI_IN_PLACE, &maccum, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
+    
     for (int m=0; m<=mmax; m++) {
       for (size_t k=0; k<4; k++) {
 	MPI_Allreduce(MPI_IN_PLACE, cos_c[m][k].data(), nmax, MPI_DOUBLE,
@@ -206,7 +206,7 @@ LaguCoefs::add(double mass, double R, double phi, double vr, double vt, double v
     double cosm  = std::cos(phi*m), sinm = std::sin(phi*m);
 
     std::vector<double> val = lagu[m]->eval(R);
-
+    
     for (unsigned int n=0; n<nmax; n++) {
 
       // Angular normalization and mass weighting
