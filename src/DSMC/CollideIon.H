@@ -857,6 +857,7 @@ private:
   //! Use recombination ratio tables/fudge factor to make our recombination rates match chianti
   static bool use_ratio;
   static bool use_fudge;
+  static bool ratfink;
 
   //! Recombination ratio class for maintaining table
   class RecombRatio

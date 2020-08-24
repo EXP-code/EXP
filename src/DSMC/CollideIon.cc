@@ -12,6 +12,7 @@
 #include <map>
 
 #include <boost/filesystem.hpp>
+#include <boost/make_unique.hpp>
 
 #include <errno.h>
 #include <sys/stat.h>
@@ -79,6 +80,10 @@ bool     CollideIon::use_ratio  = false;
 // Use the fudge factor to make our recombination rates match CHIANTI
 //
 bool     CollideIon::use_fudge  = true; 
+
+// Ratio/fudge comparsion ('secret' debug invocation)
+//
+bool     CollideIon::ratfink    = false; 
 
 // The recommended value for qCrit is now -1 (that is, turn it off).
 // It appears to be unstable based on the TestEquil tests.
@@ -899,10 +904,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
     use_ratio = false;
   }
 
-
   // Recombination ratio
   //
-  if (use_ratio and aType == Trace) {
+  if ( (use_ratio or ratfink) and aType == Trace) {
 				// Loop through element list
     for (auto Z : ZList) {	// and make ratio tables
       recombRatio[Z] = boost::make_shared<RecombRatio>(Z, ch, Tmin, Tmax, numT);
@@ -1757,7 +1761,9 @@ void CollideIon::initialize_cell
     if (Ne>0.0)
       cellTemp = (evel2*atomic_weights[0])*TreeDSMC::Eunit / (Ne) / (3.0*boltz);
     
+    // Test for RJA
     cellTemps[id] = cellTemp;
+    cellTemps[id] = meanTemp;
 
     double dbyfac = std::numeric_limits<double>::max();
     if ((ne>0.0 and KEe>0.0) or (ni>0.0 and KEi>0.0)) {
@@ -1914,7 +1920,7 @@ void CollideIon::initialize_cell
 
   // Only do this is the use_fudge boolean is true
   //
-  if (use_fudge and aType == Trace) {
+  if ( (use_fudge or ratfink) and aType == Trace) {
 
     // Loop through element list and ionisation levels
     //
@@ -1934,7 +1940,7 @@ void CollideIon::initialize_cell
 
   // Recombination ratio
   //
-  if (use_ratio and aType == Trace) {
+  if ( (use_ratio or ratfink) and aType == Trace) {
 				// Loop through element list
     for (auto Z : ZList) {
       recombR[id][Z].resize(Z);	// Enforce storage size
@@ -1950,7 +1956,7 @@ void CollideIon::initialize_cell
       }
 				// Compute the ratios for this temperature
       for (unsigned short C=2; C<=Z+1; C++)
-	recombR[id][Z][C-2] = (*p->second)(C, meanTemp);
+	recombR[id][Z][C-2] = (*p->second)(C, cellTemps[id]);
     }
   }
 
@@ -4357,6 +4363,21 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	if (use_fudge) 
 	  crs *= fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]];
 
+	if (ratfink) {
+	  std::ostringstream ostr;
+	  ostr << outdir << runtag << ".fudge." << myid;
+	  std::ofstream out(ostr.str(), ios::out | ios::app);
+	  if (out) {
+	    out << std::setw( 4) << Z1 << std::setw(4) << C1
+		<< std::setw(16) << recombR[id][Z1][C1-2]
+		<< std::setw(16) << fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]]
+		<< std::endl;
+	  } else {
+	    std::cout << "CollideIon::cross_section_trace: could not open <"
+		      << ostr.str() << ">" <<std::endl;
+	  }
+	}
+
         if (scatter_check and recomb_check) {
           double val = cr * TreeDSMC::Vunit * 1.0e-14 * crs;
           recombA[id].add(K1, etaP1[id], val);
@@ -4389,6 +4410,21 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
 	if (use_fudge)
 	  crs *= fudgeFacs[id][KeyConvert(K2).getKey()][cellTemps[id]];
+
+	if (ratfink) {
+	  std::ostringstream ostr;
+	  ostr << outdir << runtag << ".fudge." << myid;
+	  std::ofstream out(ostr.str(), ios::out | ios::app);
+	  if (out) {
+	    out << std::setw( 4) << Z1 << std::setw(4) << C2
+		<< std::setw(16) << recombR[id][Z2][C2-2]
+		<< std::setw(16) << fudgeFacs[id][KeyConvert(K2).getKey()][cellTemps[id]]
+		<< std::endl;
+	  } else {
+	    std::cout << "CollideIon::cross_section_trace: could not open <"
+		      << ostr.str() << ">" <<std::endl;
+	  }
+	}
 
         if (scatter_check and recomb_check) {
           double val = cr * TreeDSMC::Vunit * 1.0e-14 * crs;
@@ -4427,6 +4463,21 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
 	if (use_fudge)
 	  crs *= fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]];
+
+	if (ratfink) {
+	  std::ostringstream ostr;
+	  ostr << outdir << runtag << ".fudge." << myid;
+	  std::ofstream out(ostr.str(), ios::out | ios::app);
+	  if (out) {
+	    out << std::setw( 4) << Z1 << std::setw(4) << C1
+		<< std::setw(16) << recombR[id][Z1][C1-2]
+		<< std::setw(16) << fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]]
+		<< std::endl;
+	  } else {
+	    std::cout << "CollideIon::cross_section_trace: could not open <"
+		      << ostr.str() << ">" <<std::endl;
+	  }
+	}
 
         if (scatter_check and recomb_check) {
           double val = cr * TreeDSMC::Vunit * 1.0e-14 * crs;
@@ -4476,6 +4527,21 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
 	if (use_fudge)
 	  crs *= fudgeFacs[id][KeyConvert(K2).getKey()][cellTemps[id]];
+
+	if (ratfink) {
+	  std::ostringstream ostr;
+	  ostr << outdir << runtag << ".fudge." << myid;
+	  std::ofstream out(ostr.str(), ios::out | ios::app);
+	  if (out) {
+	    out << std::setw( 4) << Z2 << std::setw(4) << C2
+		<< std::setw(16) << recombR[id][Z2][C2-2]
+		<< std::setw(16) << fudgeFacs[id][KeyConvert(K2).getKey()][cellTemps[id]]
+		<< std::endl;
+	  } else {
+	    std::cout << "CollideIon::cross_section_trace: could not open <"
+		      << ostr.str() << ">" <<std::endl;
+	  }
+	}
 
         if (scatter_check and recomb_check) {
           double val = cr * TreeDSMC::Vunit * 1.0e-14 * crs;
@@ -18401,6 +18467,9 @@ void CollideIon::processConfig()
       config["FUDGE_CHIANTI"]["value"] = use_fudge = false;
     }
 
+    if (config["ratfink"])
+      ratfink = config["ratfink"]["value"].as<bool>();
+
     if (config["RECOMB_RATIO"])
       use_ratio = config["RECOMB_RATIO"]["value"].as<bool>();
     else {
@@ -19651,119 +19720,248 @@ std::vector<double>& CollideIon::coulomb_vector(std::vector<double>& rel,
 
 CollideIon::RecombRatio::RecombRatio(unsigned short Z, chdata& ch,
 				     double Tmin, double Tmax, int numT) :
-Z(Z), Tmn(Tmin), Tmx(Tmax), numT(numT)
+  Z(Z), Tmn(Tmin), Tmx(Tmax), numT(numT)
 {
+  // Temporary data store
+  //
   std::vector<std::vector<double>> rdata;
-
-  // Get recombination rates from ChiantiPy
+  
+  // Try open cache file
   //
-  const char *inFile = std::tmpnam(0);
+  std::ostringstream fout;
+  fout << ".chianti_recomb_cache_" << Z;
 
-  // Check for existence of script and write file if needed
+  std::ifstream in(fout.str());
+  bool reject = false;
+
+  // Try to read cache file
   //
-  writeScript();
+  if (in) {
 
-  std::ostringstream sout;
-
-  sout << "python3 ./recomb.py"
-       << " -Z " << Z
-       << " -t " << Tmn
-       << " -T " << Tmx
-       << " -n " << numT
-       << " -o " << inFile;
-
-  // Print out command for debugging
-  //
-  // std::cout << sout.str() << std::endl;
-
-  int sret = system(&sout.str()[0]);
-
-  std::ifstream in(inFile);
-
-  // For temperature data
-  //
-  std::vector<double> temp(numT);
-
-  // For recombination rate data
-  //
-  rdata.resize(Z);
-  cdata.resize(Z);
-  for (int C=2; C<=Z+1; C++) {
-    rdata[C-2].resize(numT);
-    cdata[C-2].resize(numT);
-  }
-
-  // Get data from generated file
-  //
-  for (int nt=0; nt<numT; nt++) {
-    std::string line;
-    if (std::getline(in, line)) {
-      std::istringstream ins(line);
-      ins >> temp[nt];
-      for (int C=2; C<=Z+1; C++) ins >> rdata[C-2][nt];
-    }
-  }
-
-  // Close and remove temporary file
-  //
-  in.close();
-  remove(inFile);
-
-  // Log ranges for temperature/ratio grid
-  //
-  Tmn = log(Tmn);
-  Tmx = log(Tmx);
-  dT  = (Tmx - Tmn)/(numT-1);
-
-  // Log ranges for energy integration with a minimum interval
-  //
-  double Emin = log(Emin0);
-  double Emax = log(Emax0);
-  int    numE = std::max<int>(numE0, 10);
-
-  typedef std::map<unsigned short, std::vector<double> > rateMap;
-
-  double dE = (Emax - Emin)/numE;
-
-  for (int nt=0; nt<numT; nt++) {
-
-    double T = temp[nt];
-
-    rateMap val0;
-    std::vector<rateMap> val1(numE);
+    // Read YAML string size
+    //
+    unsigned int hsize;
+    in.read(reinterpret_cast<char *>(&hsize), sizeof(unsigned int));
     
-    for (int ne=0; ne<numE; ne++) {
-      
-      double Eb = Emin + dE*ne;
-      double Ef = Emin + dE*(ne+1);
+    // Create buffer
+    //
+    auto buf = boost::make_unique<char[]>(hsize+1);
 
-      Eb = exp(Eb);
-      Ef = exp(Ef);
+    // Read YAML string
+    //
+    in.read(buf.get(), hsize);
+    buf[hsize] = 0;		// Null terminate
+
+    YAML::Node node = YAML::Load(buf.get());
       
-      if (val0.size()) {
-	std::map<unsigned short, std::vector<double> >
-	  valT = ch.recombEquil(Z, T, Eb, Ef, norder);
-	for (auto v : val0) {
-	  unsigned short C = v.first;
-	  size_t        sz = v.second.size();
-	  for (size_t j=0; j<sz; j++) val0[C][j] += valT[C][j];
-	}
-      } else {
-	val0 = ch.recombEquil(Z, T, Ef, Eb, norder);
-      }
-      val1[ne] = val0;
+    // Get parameters
+    //
+    unsigned short Z1 = node["Z"   ].as<unsigned short>();
+    double      Tmin1 = node["Tmin"].as<double>();
+    double      Tmax1 = node["Tmax"].as<double>();
+    int         numT1 = node["numT"].as<int>();
+
+    if (Z != Z1)                          reject = true;
+    if (fabs(Tmin - Tmin1) > 1.0e-8*Tmin) reject = true;
+    if (fabs(Tmax - Tmax1) > 1.0e-8*Tmax) reject = true;
+    if (numT != numT1)                    reject = true;
+
+    // For recombination rate data
+    //
+    cdata.resize(Z);
+    for (int C=2; C<=Z+1; C++) {
+      cdata[C-2].resize(numT);
     }
-      
-    for (auto v : val1.back()) {
-      unsigned short C = v.first;
-      if (C>1) {
-	if (v.second[2]>0.0)
-	  cdata[C-2][nt] = rdata[C-2][nt]/(v.second[2]*1.0e-14);
-	else
-	  cdata[C-2][nt] = 0.0;
-      }
+    
+    // Get cached data
+    //
+    for (int nt=0; nt<numT; nt++) {
+      for (int C=2; C<=Z+1; C++)
+	in.read(reinterpret_cast<char *>(&cdata[C-2][nt]), sizeof(double));
+    }
+    
+    // Check that all data has been read, just in case root node is
+    // still writing and the cache file is incomplete
+    //
+    if (in.good()) {
+      std::cout << "CollideIon::RecombRatio::RecombRatio [" << myid
+		<< "]: successfully read <" << fout.str() << ">" << std::endl;
+
+      // Set log ranges for temperature/ratio grid
+      //
+      Tmn = log(Tmin);
+      Tmx = log(Tmax);
+      dT  = (Tmx - Tmn)/(numT-1);
+    } else {
+      reject = true;
     }
   }
+  // Cache file read
+  else {
+    reject = true;
+  }
+
+  // Cache file unavailable, incomplete, inconsistent, etc.
+  //
+  if (reject) {
+    // Get recombination rates from ChiantiPy
+    //
+    const char *inFile = std::tmpnam(0);
+    
+    // Check for existence of script and write file if needed
+    //
+    writeScript();
+
+    std::ostringstream sout;
+
+    sout << "python3 ./recomb.py"
+	 << " -Z " << Z
+	 << " -t " << Tmin
+	 << " -T " << Tmax
+	 << " -n " << numT
+	 << " -o " << inFile;
+    
+    // Print out command for debugging
+    //
+    std::cout << sout.str() << std::endl;
+    
+    int sret = system(&sout.str()[0]);
+    
+    std::ifstream in(inFile);
+    
+    // For temperature data
+    //
+    std::vector<double> temp(numT);
+    
+    // For recombination rate data
+    //
+    rdata.resize(Z);
+    cdata.resize(Z);
+    for (int C=2; C<=Z+1; C++) {
+      rdata[C-2].resize(numT);
+      cdata[C-2].resize(numT);
+    }
+    
+    // Get data from generated file
+    //
+    for (int nt=0; nt<numT; nt++) {
+      std::string line;
+      if (std::getline(in, line)) {
+	std::istringstream ins(line);
+	ins >> temp[nt];
+	for (int C=2; C<=Z+1; C++) ins >> rdata[C-2][nt];
+      }
+    }
+    
+    // Close and remove temporary file
+    //
+    in.close();
+    remove(inFile);
+
+    // Log ranges for temperature/ratio grid
+    //
+    Tmn = log(Tmin);
+    Tmx = log(Tmax);
+    dT  = (Tmx - Tmn)/(numT-1);
+
+    // Log ranges for energy integration with a minimum interval
+    //
+    double Emin = log(Emin0);
+    double Emax = log(Emax0);
+    int    numE = std::max<int>(numE0, 10);
+    
+    typedef std::map<unsigned short, std::vector<double> > rateMap;
+
+    double dE = (Emax - Emin)/numE;
+
+    for (int nt=0; nt<numT; nt++) {
+
+      double T = temp[nt];
+
+      rateMap val0;
+      std::vector<rateMap> val1(numE);
+    
+      for (int ne=0; ne<numE; ne++) {
+      
+	double Eb = Emin + dE*ne;
+	double Ef = Emin + dE*(ne+1);
+
+	Eb = exp(Eb);
+	Ef = exp(Ef);
+      
+	if (val0.size()) {
+	  std::map<unsigned short, std::vector<double> >
+	    valT = ch.recombEquil(Z, T, Eb, Ef, norder);
+	  for (auto v : val0) {
+	    unsigned short C = v.first;
+	    size_t        sz = v.second.size();
+	    for (size_t j=0; j<sz; j++) val0[C][j] += valT[C][j];
+	  }
+	} else {
+	  val0 = ch.recombEquil(Z, T, Ef, Eb, norder);
+	}
+	val1[ne] = val0;
+      }
+      
+      for (auto v : val1.back()) {
+	unsigned short C = v.first;
+	if (C>1) {
+	  if (v.second[2]>0.0)
+	    cdata[C-2][nt] = rdata[C-2][nt]/(v.second[2]*1.0e-14);
+	  else
+	    cdata[C-2][nt] = 0.0;
+	}
+      }
+    }
+
+    if (myid==0) {
+	
+      // Write cache file
+      //
+      YAML::Node node;
+    
+      node["Z"   ] = Z;
+      node["Tmin"] = Tmin;
+      node["Tmax"] = Tmax;
+      node["numT"] = numT;
+      
+      // Serialize the node
+      //
+      YAML::Emitter y; y << node;
+      
+      // Get the size of the string
+      //
+      unsigned int hsize = strlen(y.c_str());
+  
+      std::ofstream out(fout.str());
+
+      if (out) {
+	// Write YAML string size
+	//
+	out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
+    
+	// Write YAML string
+	//
+	out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
+	
+	// Write data base of values
+	//
+	for (int nt=0; nt<numT; nt++) {
+	  for (int C=2; C<=Z+1; C++)
+	    out.write(reinterpret_cast<const char *>(&cdata[C-2][nt]), sizeof(double));
+	}
+	//
+	// Cache written!
+      } else {
+	std::cout << "CollideIon::RecombRatio: could not open cache file <"
+		  << fout.str() << ">" << std::endl;
+      }
+
+    }
+    // Only root node writes the cache
+  }
+  // No cache file found
+
 }
 
 double CollideIon::RecombRatio::operator()(unsigned short C, double T)
