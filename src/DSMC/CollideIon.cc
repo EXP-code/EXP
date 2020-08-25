@@ -19722,10 +19722,6 @@ CollideIon::RecombRatio::RecombRatio(unsigned short Z, chdata& ch,
 				     double Tmin, double Tmax, int numT) :
   Z(Z), Tmn(Tmin), Tmx(Tmax), numT(numT)
 {
-  // Temporary data store
-  //
-  std::vector<std::vector<double>> rdata;
-  
   // Try open cache file
   //
   std::ostringstream fout;
@@ -19835,10 +19831,8 @@ CollideIon::RecombRatio::RecombRatio(unsigned short Z, chdata& ch,
     
     // For recombination rate data
     //
-    rdata.resize(Z);
     cdata.resize(Z);
     for (int C=2; C<=Z+1; C++) {
-      rdata[C-2].resize(numT);
       cdata[C-2].resize(numT);
     }
     
@@ -19849,7 +19843,7 @@ CollideIon::RecombRatio::RecombRatio(unsigned short Z, chdata& ch,
       if (std::getline(in, line)) {
 	std::istringstream ins(line);
 	ins >> temp[nt];
-	for (int C=2; C<=Z+1; C++) ins >> rdata[C-2][nt];
+	for (int C=2; C<=Z+1; C++) ins >> cdata[C-2][nt];
       }
     }
     
@@ -19869,7 +19863,7 @@ CollideIon::RecombRatio::RecombRatio(unsigned short Z, chdata& ch,
     double Emin = log(Emin0);
     double Emax = log(Emax0);
     int    numE = std::max<int>(numE0, 10);
-    
+
     typedef std::map<unsigned short, std::vector<double> > rateMap;
 
     double dE = (Emax - Emin)/numE;
@@ -19907,7 +19901,7 @@ CollideIon::RecombRatio::RecombRatio(unsigned short Z, chdata& ch,
 	unsigned short C = v.first;
 	if (C>1) {
 	  if (v.second[2]>0.0)
-	    cdata[C-2][nt] = rdata[C-2][nt]/(v.second[2]*1.0e-14);
+	    cdata[C-2][nt] = cdata[C-2][nt]/(v.second[2]*1.0e-14);
 	  else
 	    cdata[C-2][nt] = 0.0;
 	}
