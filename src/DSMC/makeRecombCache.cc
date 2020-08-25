@@ -194,10 +194,11 @@ int main (int ac, char **av)
 
   PeriodicTable pt;
 
+  Ion::setRRtype(RRtype);
+
   chdata ch;
 
   ch.createIonList(ZList);
-
 
   // Log ranges for temperature/ratio grid
   //
@@ -253,41 +254,41 @@ int main (int ac, char **av)
 	  cdata[C-2][nt] = 0.0;
       }
     }
-
-    // Write cache file
-    //
-    YAML::Node node;
-    
-    node["Z"   ] = Z;
-    node["Tmin"] = Tmin;
-    node["Tmax"] = Tmax;
-    node["numT"] = numT;
-    
-    // Serialize the node
-    //
-    YAML::Emitter y; y << node;
-    
-    // Get the size of the string
-    //
-    unsigned int hsize = strlen(y.c_str());
-    
-    // Write YAML string size
-    //
-    out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
-    
-    // Write YAML string
-    //
-    out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
-	
-    // Write data base of values
-    //
-    for (int nt=0; nt<numT; nt++) {
-      for (int C=2; C<=Z+1; C++)
-	out.write(reinterpret_cast<const char *>(&cdata[C-2][nt]), sizeof(double));
-    }
-    //
-    // Cache written!
   }
+
+  // Write cache file
+  //
+  YAML::Node node;
+    
+  node["Z"   ] = Z;
+  node["Tmin"] = Tmin;
+  node["Tmax"] = Tmax;
+  node["numT"] = numT;
+    
+  // Serialize the node
+  //
+  YAML::Emitter y; y << node;
+  
+  // Get the size of the string
+  //
+  unsigned int hsize = strlen(y.c_str());
+  
+  // Write YAML string size
+  //
+  out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
+  
+  // Write YAML string
+  //
+  out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
+  
+  // Write data base of values
+  //
+  for (int nt=0; nt<numT; nt++) {
+    for (int C=2; C<=Z+1; C++)
+      out.write(reinterpret_cast<const char *>(&cdata[C-2][nt]), sizeof(double));
+  }
+  //
+  // Cache written!
 
   return 0;
 }
