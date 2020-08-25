@@ -298,14 +298,6 @@ void InitializeUniform(std::vector<Particle>& p, std::vector<double>& mass, doub
     3/2*N_e*k_B*T = 3/2*m*eta*k_B*T/mu(Z) = 3/2*m/mu(Z)*eta*m_e*v_e^2 
     
     v_e^2 = k_B*T/m_e
-
-    For mean-mass trace-species algorithm:
-
-    3/2*N_e*k_B*T = 3/2*m*k_B*T/mu(Z) = 3/2*m/mu(Z)*eta*m_e*v_e^2
-
-    or 
-    
-    v_e^2 = k_B*T/(m_e*eta)
   */
 
   std::map<unsigned char, double> varI, varE;
@@ -1351,7 +1343,7 @@ void InitializeSpeciesTrace
  std::vector<double>& M,
  std::vector< std::map<unsigned char, double> >& T,
  std::vector<double>& L,
- Mtype model, int sp, int ne, bool mm)
+ Mtype model, int sp, int ne)
 {
   size_t Ncomp = T.size();
 
@@ -1570,32 +1562,6 @@ void InitializeSpeciesTrace
   
   std::vector<double> eta(Ncomp, 1.0);
 
-  // Setup for mean-mass correction
-  //
-  if (mm) {
-    std::cout << std::string(70, '-') << std::endl;
-
-    for (size_t nc=0; nc<Ncomp; nc++) {
-      eta[nc] = 0.0;
-      double nrm = 0.0;
-      for (int indx=0; indx<NS; indx++) { 
-	int C = 0;
-	for (auto v : frac[nc][indx])  {
-	  double wgt = sF[indx]/PT[sZ[indx]]->weight() * v;
-	  eta[nc] += wgt * C++;
-	  nrm     += wgt;
-	}
-      }
-      if (nrm>0.0) eta[nc] /= nrm;
-      std::ostringstream lab; lab << "Eta (" << nc << "):";
-      std::cout << std::left << std::setw(13) << lab.str()
-		<< eta[0] << std::endl;
-      lab.str(""); lab << "Mol (" << nc << "):";
-      std::cout << std::left << std::setw(13) << lab.str()
-		<< 1.0/nrm << std::endl;
-    }
-  }
-  
   double tKEi = 0.0, tKEe = 0.0, numb = 0.0;
 
   for (int i=0; i<N; i++) {
@@ -1802,11 +1768,6 @@ main (int ac, char **av)
     return 1;
   }
   
-  bool mm = false;
-  if (vm.count("meanmass")) {
-    mm = true;
-  }
-
   if (vm.count("yaml")) {
     use_yaml = true;
   }
@@ -2066,7 +2027,7 @@ main (int ac, char **av)
     InitializeSpeciesWeight(particles, sZ, sF, sI, Mass, T, sp, ne);
     break;
   case Trace:
-    InitializeSpeciesTrace (particles, sZ, sF, sC, Mass, T, LL, model, sp, ne, mm);
+    InitializeSpeciesTrace (particles, sZ, sF, sC, Mass, T, LL, model, sp, ne);
     // Compute molecular weight
     molW = 0.0;
     for (size_t k=0; k<sZ.size(); k++) molW += sF[k]/PT[sZ[k]]->weight();
