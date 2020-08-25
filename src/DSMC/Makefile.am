@@ -24,7 +24,7 @@ AM_CFLAGS   = -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
 AM_CXXFLAGS = -std=c++11 -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) @exp_vtk_include@ $(CUDA_FLAGS)
 
 bin_PROGRAMS = testCrossSection testIonRecomb genIonRecomb	\
-testQuantile testExciteRate testRatio
+testQuantile testExciteRate testRatio makeRecombCache
 
 if ENABLE_CUDA
   ADD_CUDA0  = cudaCollideIon.cu
@@ -92,6 +92,11 @@ testRatio_SOURCES = testRatio.cc
 testRatio_DEPENDENCIES = libtestdsmc.a
 testRatio_LDFLAGS = $(EXPFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@ $(CUDA_LDFLAGS)
 testRatio_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) libtestdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS)
+
+makeRecombCache_SOURCES = makeRecombCache.cc
+makeRecombCache_DEPENDENCIES = libtestdsmc.a
+makeRecombCache_LDFLAGS = $(EXPFLAGS) $(BUILD_FLAGS) @exp_vtk_lib@ $(CUDA_LDFLAGS)
+makeRecombCache_LDADD   = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) $(BOOST_SYSTEM_LIB) libtestdsmc.a -lexputil -lexpgnu @exp_vtk_ldlib@ $(LAPACK_LIBS) $(BLAS_LIBS) $(CUDA_LIBFLAGS) $(YAML)
 
 # the rule that can recognize *.cu files and compile the *.cu files to
 # *.lo and *.o files
