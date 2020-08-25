@@ -90,6 +90,7 @@ int main (int ac, char **av)
   desc.add_options()
     ("help,h",		"produce help message")
     ("long,l",          "long output: print each rate and ratio")
+    ("nogrid",          "turn off recombination cross section cache")
     ("Z,Z",		po::value<unsigned short>(&Z)->default_value(2),
      "atomic number")
     ("Tmin,t",		po::value<double>(&Tmin)->default_value(1000.0),
@@ -119,9 +120,8 @@ int main (int ac, char **av)
 
   if (vm.count("help")) {
     std::cout << desc << std::endl;
-    std::cout << "Example: Helium ionization fractions at T=40,000 K" << std::endl;
     std::cout << "\t" << av[0]
-	      << " -Z 2 -T 40000" << std::endl;
+	      << " -Z 1" << std::endl;
     MPI_Finalize();
     return 1;
   }
@@ -194,11 +194,14 @@ int main (int ac, char **av)
 
   PeriodicTable pt;
 
+  if (vm.count("nogrid")) Ion::useRadRecombGrid = false;
   Ion::setRRtype(RRtype);
 
   chdata ch;
 
   ch.createIonList(ZList);
+
+  std::cout << "RRtype: " << Ion::getRRtype() << std::endl;
 
   // Log ranges for temperature/ratio grid
   //
