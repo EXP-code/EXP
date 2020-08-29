@@ -1539,6 +1539,14 @@ double Ion::directIonCrossGrid(double E, int id)
   }
 
   size_t indx = std::floor( (E - eMin)/DeltaEGrid );
+
+  // Sanity checking
+  //
+  if (E <= eMin) indx = 0;
+  if (indx >= NionizeGrid-2) indx = NionizeGrid - 2;
+
+  // Now compute linear interpolation coefficients
+  //
   double eA   = eMin + DeltaEGrid*indx, eB = eMin + DeltaEGrid*(indx+1);
 
   double A = (eB - E)/DeltaEGrid;
@@ -1820,6 +1828,14 @@ std::pair<double, double> Ion::freeFreeCrossEvGrid(double E, int id)
   //
   double lE   = log10(E);
   size_t indx = std::floor( (lE - EminGrid)/DeltaEGrid );
+
+  // Sanity checking
+  //
+  if (lE <= EminGrid) indx = 0;
+  if (indx >= NfreeFreeGrid-2) indx = NfreeFreeGrid - 2;
+
+  // Now compute linear interpolation coefficients
+  //
   double eA   = EminGrid + DeltaEGrid*indx, eB = EminGrid + DeltaEGrid*(indx+1);
 
   double A = (eB - lE)/DeltaEGrid;
@@ -1954,6 +1970,14 @@ std::pair<double, double> Ion::freeFreeCrossEvGridTest(double E, double rn, int 
   //
   double lE   = log10(E);
   size_t indx = std::floor( (lE - EminGrid)/DeltaEGrid );
+
+  // Sanity checking
+  //
+  if (lE <= EminGrid) indx = 0;
+  if (indx >= NfreeFreeGrid-2) indx = NfreeFreeGrid - 2;
+
+  // Now compute linear interpolation coefficients
+  //
   double eA   = EminGrid + DeltaEGrid*indx, eB = EminGrid + DeltaEGrid*(indx+1);
 
   double A = (eB - lE)/DeltaEGrid;
@@ -2106,6 +2130,14 @@ std::vector<double> Ion::radRecombCrossEvGrid(double E, int id)
   //
   double lE   = log10(E);
   size_t indx = std::floor( (lE - EminGrid)/DeltaEGrid );
+
+  // Sanity checking
+  //
+  if (lE <= EminGrid) indx = 0;
+  if (indx >= NradRecombGrid-2) indx = NradRecombGrid - 2;
+
+  // Now compute linear interpolation coefficients
+  //
   double eA   = EminGrid + DeltaEGrid*indx, eB = EminGrid + DeltaEGrid*(indx+1);
 
   double A = (eB - lE)/DeltaEGrid;
