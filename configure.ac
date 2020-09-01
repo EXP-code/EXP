@@ -1,17 +1,29 @@
 dnl ==========================================================================
 dnl Process this file with autoconf to produce a configure script.
 dnl ==========================================================================
-AC_INIT(EXP, 7.624, [mdw@umass.edu], [], [https://mdweinberg@bitbucket.org/mdweinberg/exp.git])
+AC_INIT(EXP, 7.607, [mdw@umass.edu], [], [https://mdweinberg@bitbucket.org/mdweinberg/exp.git])
 
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SRCDIR(src/expand.cc)
 AM_INIT_AUTOMAKE
+LT_INIT
 
 AC_DEFINE([NEED_MAIN], 1, [Define if a function `main' is needed.])
 
 dnl ==========================================================================
 dnl Add info from git repo
 dnl ==========================================================================
+
+m4_append([git_commit], ["])
+m4_append([git_commit], [m4_esyscmd_s([git describe --always])])
+m4_append([git_commit], ["])
+
+m4_append([git_branch], ["])
+m4_append([git_branch], [m4_esyscmd_s([git branch | grep \* | cut -d ' ' -f2])])
+m4_append([git_branch], ["])
+
+AC_DEFINE([GIT_COMMIT], [ git_commit ], [current git commit hash for verbose option])
+AC_DEFINE([GIT_BRANCH], [ git_branch ], [current git branch for verbose option])
 
 AC_REVISION([m4_esyscmd_s([git describe --always])])
 
@@ -47,7 +59,7 @@ dnl ==========================================================================
 dnl Check for OpenMP
 dnl ==========================================================================
 
-AX_OPENMP
+AC_OPENMP
 
 haveomp = no
 AC_CHECK_HEADERS(omp.h,[haveomp=[yes]])
@@ -77,14 +89,6 @@ AX_YAML([], [AC_MSG_ERROR([Could not find the yaml-cpp library!  Install the lib
 
 
 dnl ==========================================================================
-dnl Check for HDF5
-dnl ==========================================================================
-dnl AX_LIB_HDF5([serial])
- 
-dnl Allow for more general case of both serial and parallel HDF5
-AX_LIB_HDF5()
-
-dnl ==========================================================================
 dnl Look for lapack and blas
 dnl ==========================================================================
 
@@ -102,7 +106,7 @@ dnl ==========================================================================
 dnl Added macro to allow list of CUDA compute capabilities
 dnl ==========================================================================
 
-sm_vers="35 37 60 61 70"
+sm_vers="35 60 61 70"
 
 AC_ARG_WITH([cuda-capabilities],
 	[AC_HELP_STRING([--with-cuda-capabilities=LIST],
@@ -201,21 +205,11 @@ if test x$havevtk = xyes; then
       	 exp_vtk_ldlib="$exp_vtk_ldlib -lfreetype"
       fi
 
-      dnl if test x$ac_cv_lib_ftgl_main = xyes; then
-      dnl 	 exp_vtk_ldlib="$exp_vtk_ldlib -lftgl"
-      dnl else
-      dnl 	 exp_vtk_ldlib="$exp_vtk_ldlib -lvtkftgl$vtk_libval"
-      dnl fi
-   fi
-
-   dnl Compare supplied version to check whether >=8.0 libraries are needed
-   CMPV="8.0"
-   AS_VERSION_COMPARE(${vtk_version}, ${CMPV}, [VTK_POST_8_0=-1], [VTK_POST_8_0=0],[VTK_POST_8_0=1])
-
-   AS_IF([test "${VTK_POST_8_0}" != "-1"], AC_MSG_RESULT([VTK post 8.0: yes]), AC_MSG_RESULT([VTK post 8.0: no]))
-
-   if test "${VTK_POST_8_0}" != "-1"; then
-      exp_vtk_ldlib="-lvtkCommonCore$vtk_libval -lvtkCommonDataModel$vtk_libval -lvtkIOXML$vtk_libval"
+      if test x$ac_cv_lib_ftgl_main = xyes; then
+      	 exp_vtk_ldlib="$exp_vtk_ldlib -lftgl"
+      else
+	 exp_vtk_ldlib="$exp_vtk_ldlib -lvtkftgl$vtk_libval"
+      fi
    fi
 
    CFLAGS=$OLD_CFLAGS
@@ -229,33 +223,30 @@ dnl ==========================================================================
 dnl Use pkg-config to check for eigen3
 dnl ==========================================================================
 
-AC_CHECK_FILE([/usr/include/eigen3/Eigen],
-	[eigen3_include=[-I/usr/include/eigen3]])
+# Look in some standard places . . .
 
-AC_CHECK_FILE([/usr/local/include/eigen3/Eigen],
-	[eigen3_include=[-I/usr/local/include/eigen3]])
+AC_CHECK_FILE([/usr/include/eigen3/Eigen/Eigen],
+	[haveeigen3=[yes]; EIGEN3_LOCATION=[/usr/include/eigen3]])
 
-EIGEN3_LOCATION=""
-EIGEN3_NO_BDC=""
+AC_CHECK_FILE([/usr/local/include/eigen3/Eigen/Eigen],
+	[haveeigen3=[yes]; EIGEN3_LOCATION=[/usr/local/include/eigen3]])
 
-AC_ARG_WITH(eigen3,
-	[  --with-eigen3=DIR       location of Eigen3 library],
-    	[   EIGEN3_LOCATION="$withval"])
+AC_ARG_WITH([eigen3],
+	[AC_HELP_STRING([--with-eigen3=DIR],
+	[location of Eigen3 headers is DIR (default: not set)])],
+	[EIGEN3_LOCATION="$withval"; haveeigen3=yes])
 
-AC_ARG_WITH(no-bdc,
-	[  --with-no-bdc           do not use BDCSVD in Eigen3],
-	[   EIGEN3_NO_BDC="true"])
+AC_MSG_CHECKING([for Eigen3])
+if test x$haveeigen3 = xyes; then
 
-if test "$EIGEN3_LOCATION" != ""; then
-   eigen3_include="-I$EIGEN3_LOCATION"
-fi
+   AC_DEFINE(HAVE_EIGEN3,,[define if EIGEN3 is available])
 
-if test "$EIGEN3_NO_BDC" == ""; then
-   AC_DEFINE([HAVE_EIGEN3_BDCSVD], [1], [Compile code for Eigen::BDCSVD])
-fi
+   if test "$EIGEN3_LOCATION" != ""; then
+      exp_eigen3_include="-I$EIGEN3_LOCATION"
+   fi
+fi					
 
-AC_SUBST(eigen3_include) 
-
+AC_SUBST(exp_eigen3_include)
 
 dnl ==========================================================================
 dnl Arguments
@@ -351,7 +342,6 @@ doxygen_make=""
 if test x$DOXYGEN != xnotfound; then
    SUBDIR_DOXY="doc"
    doxygen_make="doc/Makefile"
-   AC_CONFIG_FILES([doc/Makefile])
 fi
 
 dnl ==========================================================================

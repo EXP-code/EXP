@@ -25,9 +25,10 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
-bin_PROGRAMS = diskprof haloprof haloprof2 slabprof psphisto gas2d    \
-gas2dcyl makegrid pspbox eofpeek diskprof2 pcatest diskprof3 mssaprofD \
-mssaprofH readcoefs readcoefs2 pcatest diskprof4 sphprof yaml_diff
+bin_PROGRAMS = diskprof haloprof haloprof2 slabprof psphisto gas2d	\
+gas2dcyl makegrid pspbox eofpeek diskprof2 pcatest diskprof3		\
+mssaprofD mssaprofH readcoefs readcoefs2 pcatest diskprof4 sphprof	\
+yaml_diff diskfreqs
 
 diskprof_SOURCES = PSP.cc header.cc diskprof.cc EmpCylSL.cc localmpi.cc Particle.cc
 diskprof_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
@@ -71,6 +72,10 @@ diskprof2_SOURCES = PSP.cc header.cc diskprof2.cc EmpCylSL.cc localmpi.cc Partic
 diskprof2_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
 diskprof2_LDADD   = $(EXPLIBS) $(YAML) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
 
+diskfreqs_SOURCES = PSP.cc header.cc diskfreqs.cc EmpCylSL.cc localmpi.cc Particle.cc Coefs.cc SphereSL.cc
+diskfreqs_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
+diskfreqs_LDADD   = $(EXPLIBS) $(YAML) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
+
 mssaprofD_SOURCES  = PSP.cc header.cc mssaprof_disk.cc EmpCylSL.cc localmpi.cc Particle.cc
 mssaprofD_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS) 
 mssaprofD_LDADD    = $(EXPLIBS) $(YAML) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
@@ -87,11 +92,11 @@ diskprof3_SOURCES = diskprof3.cc EmpCylSL.cc localmpi.cc
 diskprof3_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
 diskprof3_LDADD   = $(EXPLIBS) $(YAML) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
 
-readcoefs_SOURCES = readcoefs.cc
+readcoefs_SOURCES = readcoefs.cc Coefs.cc
 readcoefs_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
 readcoefs_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB) $(YAML)
 
-readcoefs2_SOURCES = readcoefs2.cc
+readcoefs2_SOURCES = readcoefs2.cc Coefs.cc
 readcoefs2_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
 readcoefs2_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB) $(YAML)
 
