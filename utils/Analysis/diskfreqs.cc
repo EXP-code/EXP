@@ -27,6 +27,7 @@
  ***************************************************************************/
 
 				// C++/STL headers
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <iomanip>
@@ -81,15 +82,13 @@ pthread_mutex_t coef_lock;
 std::string outdir, runtag;
 double tpos = 0.0;
 double tnow = 0.0;
-  
 
 int
 main(int argc, char **argv)
 {
-  int nice, numx, numy, lmax, mmax, nmax, norder, LMAX, NMAX;
-  int initc, partc, beg, end, stride, init, cmapr, cmapz;
-  double rcylmin, rcylmax, rscale, vscale, RMAX;
-  bool DENS, PCA, PVD, verbose = false, mask = false, ignore, logl;
+  int numx, numy, lmax, mmax, nmax, norder, LMAX, NMAX, cmapr, cmapz, numr;
+  double rcylmin, rcylmax, rscale, vscale, RMAX, Tmin, Tmax, dT;
+  bool DENS, verbose = false, mask = false, ignore, logl;
   std::string CACHEFILE, COEFFILE, COEFFILE2, MODEL;
 
   //
@@ -101,26 +100,21 @@ main(int argc, char **argv)
      "produce this help message")
     ("verbose,v",
      "verbose output")
-    ("mask,b",
-     "blank empty cells")
-    ("nice",
-     po::value<int>(&nice)->default_value(0), 
-     "number of bins in x direction")
+    ("Tmin,t",
+     po::value<double>(&Tmin)->default_value(0.0),
+     "Minimum time point for freq evaluation")
+    ("Tmax,T",
+     po::value<double>(&Tmax)->default_value(6.0),
+     "Maximum time point for freq evaluation")
+    ("dT,d",
+     po::value<double>(&Tmax)->default_value(0.1),
+     "Delta time point for freq evaluation")
     ("RMAX,R",
      po::value<double>(&RMAX)->default_value(0.1),
      "maximum radius for output")
-    ("rcylmin",
-     po::value<double>(&rcylmin)->default_value(0.001),
-     "minimum radius for cylindrical basis table")
-    ("rcylmax",
-     po::value<double>(&rcylmax)->default_value(20.0),
-     "maximum radius for cylindrical basis table")
-    ("NUMX",
-     po::value<int>(&numx)->default_value(128), 
-     "number of radial table entries")
-    ("NUMY",
-     po::value<int>(&numy)->default_value(64), 
-     "number of vertical table entries")
+    ("numr,N",
+     po::value<int>(&numr)->default_value(40),
+     "number of output radial grid points")
     ("rscale",
      po::value<double>(&rscale)->default_value(0.01), 
      "radial scale length for basis expansion")
@@ -133,18 +127,6 @@ main(int argc, char **argv)
     ("NMAX",
      po::value<int>(&NMAX)->default_value(8),
      "maximum radial order for spherical basis expansion")
-    ("lmax",
-     po::value<int>(&lmax)->default_value(36), 
-     "maximum harmonic order for spherical expansion for disk basis")
-    ("nmax",
-     po::value<int>(&nmax)->default_value(8),
-     "maximum radial order for spherical expansion for disk basis")
-    ("mmax",
-     po::value<int>(&mmax)->default_value(4), 
-     "maximum azimuthal harmonic order for cylindrical expansion")
-    ("norder",
-     po::value<int>(&norder)->default_value(4), 
-     "maximum radial order for each harmonic subspace")
     ("cachefile",
      po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),
      "cachefile name")
@@ -154,12 +136,6 @@ main(int argc, char **argv)
     ("coeffile2",
      po::value<std::string>(&COEFFILE2),
      "Halo coefficient file name")
-    ("cmapr",
-     po::value<int>(&cmapr)->default_value(1),
-     "Radial coordinate mapping type for cylindrical grid (0=none, 1=rational fct)")
-    ("cmapz",
-     po::value<int>(&cmapz)->default_value(1),
-     "Vertical coordinate mapping type for cylindrical grid (0=none, 1=sech, 2=power in z")
     ("model",
      po::value<std::string>(&MODEL),
      "Spherical basis model file")
@@ -169,9 +145,6 @@ main(int argc, char **argv)
     ("ignore",
      po::value<bool>(&ignore)->default_value(false),
      "rebuild EOF grid if input parameters do not match the cachefile")
-    ("runtag",
-     po::value<std::string>(&runtag)->default_value("run1"),
-     "runtag for phase space files")
     ;
   
   po::variables_map vm;
@@ -335,10 +308,6 @@ main(int argc, char **argv)
   }
   
   // ==================================================
-  // Initialize halo basis
-  // ==================================================
-  
-  // ==================================================
   // Make SL expansion
   // ==================================================
 
@@ -367,6 +336,32 @@ main(int argc, char **argv)
     coefsH[c->header.tnow] = c;
   }
     
+  // Begin grid creation
+  //
+  std::vector<double> times, rgrid(numr);
+
+  for (int i=0; i<numr; i++) rgrid[i] = RMAX*(0.5+i)/numr;
+
+  // Create time grid
+  //
+  double tcur = Tmin;
+  while (tcur < Tmax) {
+    auto itD = coefsD.lower_bound(tcur);
+    auto itH = coefsH.lower_bound(tcur);
+    if (fabs(itD->first - itH->first) > 1.0e-8) {
+      std::cerr << "Time mismatch for T=" << tcur
+		<< ", Disk=" << itD->first << ", Halo=" << itH->first
+		<< std::endl;
+    } else {
+      if (itD->first - times.back() > 1.0e-8)
+	times.push_back(itD->first);
+    }
+    tcur += dT;
+  }
+
+  std::cout << "First debug" << std::endl;
+  for (auto v : times) std::cout << v << std::endl;
+
   // DONE
   //
   return 0;
