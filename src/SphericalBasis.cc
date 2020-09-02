@@ -35,6 +35,7 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
   NO_L0            = false;
   NO_L1            = false;
   EVEN_L           = false;
+  EVEN_M           = false;
   NOISE            = false;
   noiseN           = 1.0e-6;
   noise_model_file = "SLGridSph.model";
@@ -65,6 +66,7 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
     if (conf["NO_L0"])   NO_L0   = conf["NO_L0"].as<bool>();
     if (conf["NO_L1"])   NO_L1   = conf["NO_L1"].as<bool>();
     if (conf["EVEN_L"])  EVEN_L  = conf["EVEN_L"].as<bool>();
+    if (conf["EVEN_M"])  EVEN_M  = conf["EVEN_M"].as<bool>();
     
     if (conf["NOISE"]) {
       if (conf["NOISE"].as<bool>()) {
@@ -1187,6 +1189,10 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 	//		m loop
 	//		------
 	for (m=0, moffset=0; m<=l; m++) {
+	  
+				// Suppress odd M terms?
+	  if (EVEN_M && (m/2)*2 != m) continue;
+
 	  fac1 = (2.0*l+1.0)/(4.0*M_PI) * mfactor;
 	  if (m==0) {
 	    fac2 = fac1*legs[id][l][m];
