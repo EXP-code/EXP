@@ -86,10 +86,10 @@ double tnow = 0.0;
 int
 main(int argc, char **argv)
 {
-  int numx, numy, lmax, mmax, nmax, norder, LMAX, NMAX, cmapr, cmapz, numr;
-  double rcylmin, rcylmax, rscale, vscale, RMAX, Tmin, Tmax, dT;
+  int numx, numy, lmax=36, mmax, nmax, norder, cmapr, cmapz, numr;
+  double rcylmin, rcylmax, rscale, vscale, RMAX, Tmin, Tmax, dT, H, eps;
   bool DENS, verbose = false, mask = false, ignore, logl;
-  std::string CACHEFILE, COEFFILE, COEFFILE2, MODEL;
+  std::string CACHEFILE, COEFFILE, COEFFILE2, MODEL, OUTFILE;
 
   //
   // Parse Command line
@@ -107,7 +107,7 @@ main(int argc, char **argv)
      po::value<double>(&Tmax)->default_value(6.0),
      "Maximum time point for freq evaluation")
     ("dT,d",
-     po::value<double>(&Tmax)->default_value(0.1),
+     po::value<double>(&dT)->default_value(0.1),
      "Delta time point for freq evaluation")
     ("RMAX,R",
      po::value<double>(&RMAX)->default_value(0.1),
@@ -121,12 +121,12 @@ main(int argc, char **argv)
     ("vscale",
      po::value<double>(&vscale)->default_value(0.001), 
      "vertical scale length for basis expansion")
-    ("LMAX",
-     po::value<int>(&LMAX)->default_value(1), 
-     "maximum harmonic order for spherical basis expansion")
-    ("NMAX",
-     po::value<int>(&NMAX)->default_value(8),
-     "maximum radial order for spherical basis expansion")
+    ("H,H",
+     po::value<double>(&H)->default_value(0.002), 
+     "disk scale height for computing numerical derivative of fz")
+    ("eps",
+     po::value<double>(&eps)->default_value(0.1), 
+     "disk scale height fraction for computing numerical derivative of fz")
     ("cachefile",
      po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),
      "cachefile name")
@@ -145,6 +145,9 @@ main(int argc, char **argv)
     ("ignore",
      po::value<bool>(&ignore)->default_value(false),
      "rebuild EOF grid if input parameters do not match the cachefile")
+    ("output,o",
+     po::value<std::string>(&OUTFILE)->default_value("diskfreqs"),
+     "output data table")
     ;
   
   po::variables_map vm;
@@ -174,6 +177,12 @@ main(int argc, char **argv)
   sleep(20);
 #endif  
 
+  // ==================================================
+  // MPI preliminaries
+  // ==================================================
+
+  local_init_mpi(argc, argv);
+  
   // Okay here is the plan
   // ---------------------
   // (1) Read in and initialize the disk coefficients and basis
@@ -283,6 +292,7 @@ main(int argc, char **argv)
   if (ortho_disk.read_cache()==0) {
     std::cerr << "Error eading cache file <" << CACHEFILE << ">"
 	      << std::endl;
+    MPI_Finalize();
     exit(-3);
   }
   
@@ -295,6 +305,7 @@ main(int argc, char **argv)
   if (not coefs_disk) {
     std::cerr << "Could not open coefficient file <" << COEFFILE
 	      << "> . . . quitting" << std::endl;
+    MPI_Finalize();
     exit(-4);
   }
 
@@ -308,15 +319,6 @@ main(int argc, char **argv)
   }
   
   // ==================================================
-  // Make SL expansion
-  // ==================================================
-
-  SphericalModelTable halo(MODEL);
-  SphereSL::NUMR = 4000;
-  SphereSL ortho_halo(&halo, LMAX, NMAX);
-
-
-  // ==================================================
   // Open disk input coefficient file
   // ==================================================
   
@@ -324,6 +326,7 @@ main(int argc, char **argv)
   if (not coefs_halo) {
     std::cerr << "Could not open coefficient file <" << COEFFILE
 	      << "> . . . quitting" << std::endl;
+    MPI_Finalize();
     exit(-5);
   }
 
@@ -335,6 +338,16 @@ main(int argc, char **argv)
 
     coefsH[c->header.tnow] = c;
   }
+
+  // ==================================================
+  // Make SL expansion
+  // ==================================================
+
+  SphericalModelTable halo(MODEL);
+  SphereSL::NUMR = 4000;
+  int LMAX = 1, NMAX = coefsH.begin()->second->coefs[0].size();
+  SphereSL ortho_halo(&halo, LMAX, NMAX);
+
     
   // Begin grid creation
   //
@@ -353,14 +366,87 @@ main(int argc, char **argv)
 		<< ", Disk=" << itD->first << ", Halo=" << itH->first
 		<< std::endl;
     } else {
-      if (itD->first - times.back() > 1.0e-8)
+      if (times.size()==0 or (itD->first - times.back() > 1.0e-8))
 	times.push_back(itD->first);
     }
     tcur += dT;
   }
 
-  std::cout << "First debug" << std::endl;
-  for (auto v : times) std::cout << v << std::endl;
+  // Open output file
+  //
+  std::ofstream outR(OUTFILE + ".omp");
+  std::ofstream outZ(OUTFILE + ".omz");
+
+  if (outR and outZ) {
+
+    Matrix sphcoef(0, LMAX*(LMAX+2), 1, NMAX);
+    sphcoef.zero();		// Need this?
+
+    // Radial grid points
+    //
+    for (auto r : rgrid) {
+      outR << std::setw(16) << r;
+      outZ << std::setw(16) << r;
+    }
+    outR << std::endl;
+    outZ << std::endl;
+
+    // Compute values
+    //
+    for (auto t : times) {
+
+      outR << std::setw(16) << t;
+      outZ << std::setw(16) << t;
+
+      // Set disk coefficients for m=0 only
+      //
+      auto itD = coefsD.find(t)->second;
+      
+      ortho_disk.set_coefs(0, itD->cos_c[0], itD->sin_c[0], true);
+
+      // Set halo coefficients for l=m=0 only
+      //
+      auto itH = coefsH.find(t)->second;
+      for (int n=0; n<NMAX; n++) sphcoef[0][n+1] = itH->coefs[0][n];
+      ortho_halo.install_coefs(sphcoef);
+
+      for (auto r : rgrid) {
+	// Now compute forces
+	double z = 0.0, phi = 0.0, rforce = 0.0, costh = 0.0;
+
+	double p0, p1, fr, fz, fp, d0, d1, ft;
+	ortho_disk.accumulated_eval(r, z, phi, p0, p1, fr, fz, fp);
+
+	rforce += fr;
+
+	ortho_halo.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp);
+
+	rforce -= fr;
+
+	if (rforce<0.0) rforce = sqrt(-rforce/r);
+	else rforce = 0.0;
+
+	outR << std::setw(16) << rforce;
+
+	double dfz = 0.0;
+	ortho_disk.accumulated_eval(r, z+eps*H, phi, p0, p1, fr, fz, fp);
+	dfz += fz;
+	ortho_disk.accumulated_eval(r, z-eps*H, phi, p0, p1, fr, fz, fp);
+	dfz -= fz;
+	dfz /= 2.0*eps*H;
+	
+	if (dfz<0.0) dfz = sqrt(-dfz);
+	else dfz = 0.0;
+
+	outZ << std::setw(16) << dfz;
+
+      }
+      outR << std::endl;
+      outZ << std::endl;
+    }
+  }
+
+  MPI_Finalize();
 
   // DONE
   //
