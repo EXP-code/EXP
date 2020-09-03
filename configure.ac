@@ -220,7 +220,7 @@ fi
 AC_MSG_RESULT([$havevtk])
 
 dnl ==========================================================================
-dnl Use pkg-config to check for eigen3
+dnl Check for eigen3
 dnl ==========================================================================
 
 # Look in some standard places . . .
