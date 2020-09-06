@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 
+#include <yaml-cpp/yaml.h>	// YAML support
+
 #include <fenv.h>
 
 #include <config.h>
@@ -25,6 +27,9 @@
 #include <boost/math/special_functions/bessel.hpp>
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/make_shared.hpp>
+#include <boost/make_unique.hpp>
+
 #include <boost/progress.hpp>	// Progress bar
 
 namespace po = boost::program_options;
@@ -360,7 +365,7 @@ main(int ac, char **av)
     ("conf,c",          po::value<string>(&config),                                     "Write template options file with current and all default values")
     ("input,f",         po::value<string>(&config),                                     "Parameter configuration file")
     ("condition",       po::value<string>(&dmodel),                                     "Condition EmpCylSL deprojection from specified disk model (EXP or MN)")
-    ("NINT",            po::value<int>(&NINT)->default_value(40),                       "Number of Gauss-Legendre knots")
+    ("NINT",            po::value<int>(&NINT)->default_value(100),                       "Number of Gauss-Legendre knots")
     ("NUMR",            po::value<int>(&NUMR)->default_value(2000),                     "Size of radial grid for Spherical SL")
     ("RCYLMIN",         po::value<double>(&RCYLMIN)->default_value(0.001),              "Minimum disk radius")
     ("RCYLMAX",         po::value<double>(&RCYLMAX)->default_value(20.0),               "Maximum disk radius")
@@ -609,23 +614,84 @@ main(int ac, char **av)
 		<< std::endl;
     } else {
 
-      int tmp;
-    
-      in.read((char *)&MMAX,    sizeof(int));
-      in.read((char *)&NUMX,    sizeof(int));
-      in.read((char *)&NUMY,    sizeof(int));
-      in.read((char *)&NMAX,    sizeof(int));
-      in.read((char *)&NORDER,  sizeof(int));
+      // Attempt to read magic number
+      //
+      const unsigned int hmagic = 0xc0a57a1; // Basis magic #
+      unsigned int tmagic;
+      in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
+
+      if (tmagic == hmagic) {
+
+	// YAML size
+	//
+	unsigned ssize;
+	in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
+
+	// Make and read char buffer
+	//
+	auto buf = boost::make_unique<char[]>(ssize+1);
+	in.read(buf.get(), ssize);
+	buf[ssize] = 0;		// Null terminate
+
+	YAML::Node node;
       
-      in.read((char *)&tmp,     sizeof(int)); 
-      if (tmp) DENS = true;
-      else     DENS = false;
+	try {
+	  node = YAML::Load(buf.get());
+	}
+	catch (YAML::Exception& error) {
+	  if (myid==0)
+	    std::cerr << "YAML: error parsing <" << buf.get() << "> "
+		      << "in " << __FILE__ << ":" << __LINE__ << std::endl
+		      << "YAML error: " << error.what() << std::endl;
+	  throw error;
+	}
+	
+	// Get parameters
+	//
+	MMAX   = node["mmax"  ].as<int>();
+	NUMX   = node["numx"  ].as<int>();
+	NUMY   = node["numy"  ].as<int>();
+	NMAX   = node["nmax"  ].as<int>();
+	NORDER = node["norder"].as<int>();
+	DENS   = node["dens"  ].as<bool>();
+	// RMIN   = node["rmin"  ].as<double>();
+	// RMAX   = node["rmax"  ].as<double>();
+	ASCALE = node["ascl"  ].as<double>();
+	HSCALE = node["hscl"  ].as<double>();
+
+	if (node["cmap"])		// Backwards compatibility
+	  CMAPR  = node["cmap"  ].as<int>();
+	else
+	  CMAPR  = node["cmapr" ].as<int>();
+	
+	if (node["cmapz"])	// Backwards compatibility
+	  CMAPZ  = node["cmapz" ].as<int>();
+
+      } else {
+	
+	// Rewind file
+	//
+	in.clear();
+	in.seekg(0);
+
+	int tmp;
       
-      in.read((char *)&CMTYPE,  sizeof(int)); 
-      in.read((char *)&RCYLMIN, sizeof(double));
-      in.read((char *)&RCYLMAX, sizeof(double));
-      in.read((char *)&ASCALE,  sizeof(double));
-      in.read((char *)&HSCALE,  sizeof(double));
+	in.read((char *)&MMAX,    sizeof(int));
+	in.read((char *)&NUMX,    sizeof(int));
+	in.read((char *)&NUMY,    sizeof(int));
+	in.read((char *)&NMAX,    sizeof(int));
+	in.read((char *)&NORDER,  sizeof(int));
+	
+	in.read((char *)&tmp,     sizeof(int)); 
+	if (tmp) DENS = true;
+	else     DENS = false;
+	
+	in.read((char *)&CMTYPE,  sizeof(int)); 
+	in.read((char *)&RCYLMIN, sizeof(double));
+	in.read((char *)&RCYLMAX, sizeof(double));
+	in.read((char *)&ASCALE,  sizeof(double));
+	in.read((char *)&HSCALE,  sizeof(double));
+      }
     }
   }
 
