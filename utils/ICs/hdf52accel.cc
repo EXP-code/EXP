@@ -1,11 +1,15 @@
-// Compile: g++ -I/usr/include/hdf5/serial -O3 -o hdf52accel hdf52accel.cc -lhdf5_serial -lhdf5_cpp
+1// Compile: g++ -I/usr/include/hdf5/serial -O3 -o hdf52accel hdf52accel.cc -lhdf5_serial -lhdf5_cpp
 
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <vector>
 #include <string>
+
+#include <config.h>
+#ifdef HAVE_HDF5
 #include <H5Cpp.h>
+#endif
 
 #include <boost/program_options.hpp>
 
@@ -49,6 +53,8 @@ main(int ac, char **av)
 	      << desc << std::endl << std::endl;
     return 1;
   }
+
+#ifdef HAVE_HDF5
 
   // The H5 input file name
   //
@@ -192,6 +198,10 @@ main(int ac, char **av)
       error.printErrorStack();
       return -1;
     }
+
+#else
+  std::cout << "No HDF5 support in your environment . . . sorry" << std::endl;
+#endif
 
   return 0;
 }
