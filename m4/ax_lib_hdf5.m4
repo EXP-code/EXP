@@ -259,6 +259,9 @@ HDF5 support is being disabled (equivalent to --with-hdf5=no).
         dnl Look for HDF5's high level library
         AC_HAVE_LIBRARY([hdf5_hl], [HDF5_LIBS="-lhdf5_hl $HDF5_LIBS"], [], [])
 
+        dnl Look for HDF5's cpp library
+        AC_HAVE_LIBRARY([hdf5_cpp], [HDF5_LIBS="-lhdf5_cpp $HDF5_LIBS"], [], [])
+
         CC=$ax_lib_hdf5_save_CC
         CPPFLAGS=$ax_lib_hdf5_save_CPPFLAGS
         LIBS=$ax_lib_hdf5_save_LIBS
