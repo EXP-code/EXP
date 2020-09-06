@@ -1,4 +1,4 @@
-1// Compile: g++ -I/usr/include/hdf5/serial -O3 -o hdf52accel hdf52accel.cc -lhdf5_serial -lhdf5_cpp
+// Compile: g++ -I/usr/include/hdf5/serial -O3 -o hdf52accel hdf52accel.cc -lhdf5_serial -lhdf5_cpp
 
 #include <iostream>
 #include <iomanip>
