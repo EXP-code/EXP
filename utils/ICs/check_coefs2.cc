@@ -16,7 +16,7 @@
 #include <fenv.h>
 
 #include <config.h>
-#ifdef HAVE_OPENMP
+#ifdef HAVE_OMP_H
 #include <omp.h>
 #endif
 
@@ -565,6 +565,21 @@ main(int ac, char **av)
     std::cout << "DiskType is <" << disktype << ">" << std::endl;
 
   //====================
+  // OpenMP control
+  //====================
+
+#ifdef HAVE_OMP_H
+  omp_set_num_threads(nthrds);
+#pragma omp parallel
+  {
+    int numthrd = omp_get_num_threads();
+    int myid = omp_get_thread_num();
+    if (myid==0)
+      std::cout << "Number of threads=" << numthrd << std::endl;
+  }
+#endif
+
+  //====================
   // Okay, now begin ...
   //====================
 
@@ -741,7 +756,7 @@ main(int ac, char **av)
   double totM = 0.0;
   int nomp = 1, tid = 0;
 
-#ifdef HAVE_OPENMP
+#ifdef HAVE_OMP_H
   omp_set_dynamic(0);		// Explicitly disable dynamic teams
   omp_set_num_threads(nthrds);	// OpenMP set up
 #pragma omp parallel
@@ -767,7 +782,7 @@ main(int ac, char **av)
 
 #pragma omp parallel for
     for (int i=1; i<=NINT; i++) {	// Radial
-#ifdef HAVE_OPENMP
+#ifdef HAVE_OMP_H
       tid = omp_get_thread_num();
 #endif
 
@@ -829,7 +844,7 @@ main(int ac, char **av)
 
 #pragma omp parallel for
     for (int i=1; i<=NINT; i++) {	// Radial
-#ifdef HAVE_OPENMP
+#ifdef HAVE_OMP_H
       tid = omp_get_thread_num();
 #endif
 

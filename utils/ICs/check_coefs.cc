@@ -21,6 +21,11 @@
 
 namespace po = boost::program_options;
 
+#include <config.h>
+#ifdef HAVE_OMP_H
+#include <omp.h>
+#endif
+
 // MDW classes
 //
 #include <numerical.h>
@@ -551,6 +556,21 @@ main(int ac, char **av)
   //
   if (myid==0)
     std::cout << "DiskType is <" << disktype << ">" << std::endl;
+
+  //====================
+  // OpenMP control
+  //====================
+
+#ifdef HAVE_OMP_H
+  omp_set_num_threads(nthrds);
+#pragma omp parallel
+  {
+    int numthrd = omp_get_num_threads();
+    int myid = omp_get_thread_num();
+    if (myid==0)
+      std::cout << "Number of threads=" << numthrd << std::endl;
+  }
+#endif
 
   //====================
   // Okay, now begin ...

@@ -7,7 +7,7 @@
 
 #include <DiskEval.H>
 
-#ifdef HAVE_OPENMP
+#ifdef HAVE_OMP_H
 #include <omp.h>
 #endif
 
@@ -65,7 +65,7 @@ DiskEval::DiskEval
   boost::shared_ptr<LegeQuad> lr = boost::make_shared<LegeQuad>(nint);
 
   int numthrd = 1, tid = 0;
-#ifdef HAVE_OPENMP
+#ifdef HAVE_OMP_H
 #pragma omp parallel
   {
     numthrd = omp_get_num_threads();
@@ -90,7 +90,7 @@ DiskEval::DiskEval
   //
 #pragma omp parallel for
   for (int i=0; i<numr; i++) {
-#ifdef HAVE_OPENMP
+#ifdef HAVE_OMP_H
     tid = omp_get_thread_num();
 #endif
 
@@ -193,7 +193,7 @@ DiskEval::DiskEval
     //
 #pragma omp parallel for
     for (int i=0; i<numr; i++) {
-#ifdef HAVE_OPENMP
+#ifdef HAVE_OMP_H
       tid = omp_get_thread_num();
 #endif
 

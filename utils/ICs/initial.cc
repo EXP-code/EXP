@@ -70,6 +70,11 @@
 #include <string>
 #include <vector>
 
+#include <config.h>
+#ifdef HAVE_OMP_H
+#include <omp.h>
+#endif
+
                                 // MDW classes
 #include <numerical.h>
 #include <gaussQ.h>
@@ -340,6 +345,21 @@ main(int argc, char **argv)
 #endif
 
   local_init_mpi(argc, argv);   // Inialize MPI stuff
+
+  //====================
+  // OpenMP control
+  //====================
+
+#ifdef HAVE_OMP_H
+  omp_set_num_threads(nthrds);
+#pragma omp parallel
+  {
+    int numthrd = omp_get_num_threads();
+    int myid = omp_get_thread_num();
+    if (myid==0)
+      std::cout << "Number of threads=" << numthrd << std::endl;
+  }
+#endif
 
   int n_particlesH, n_particlesD;
 

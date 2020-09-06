@@ -36,7 +36,7 @@ extern int VERBOSE;
 
 #endif
 
-#ifdef HAVE_OPENMP
+#ifdef HAVE_OMP_H
 #include <omp.h>		// For multithreading basis construction
 #endif
 
@@ -2088,7 +2088,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   double dphi = 2.0*M_PI/nump;
 
 
-#ifdef HAVE_OPENMP
+#ifdef HAVE_OMP_H
   omp_set_dynamic(0);		// Explicitly disable dynamic teams
   omp_set_num_threads(nthrds);	// OpenMP set up
 #endif
@@ -2121,7 +2121,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
     //
 #pragma omp parallel for
     for (int qt=1; qt<=numt; qt++) {
-#ifdef HAVE_OPENMP
+#ifdef HAVE_OMP_H
       int id = omp_get_thread_num();
 #else
       int id = 0;
