@@ -915,6 +915,9 @@ public:
   //! Coulombic log Lambda value
   static double logL;
 
+  //! Internal Coulombic log Lambda scale factor
+  static double logLfac;
+
   //! Relative error tolerance for warnings (default: 1.0e-5)
   static double tolE;
 

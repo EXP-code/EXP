@@ -62,6 +62,7 @@ double   CollideIon::coulPow    = 2.0;
 unsigned CollideIon::NoDelC     = 0;
 unsigned CollideIon::maxCoul    = UINT_MAX;
 double   CollideIon::logL       = 20.0; // Coulombic logarithm
+double   CollideIon::logLfac    = 0.0;	// Scale intrinsic log L computation
 bool     CollideIon::TSESUM     = true;
 bool     CollideIon::coulInter  = true;
 bool     CollideIon::stateXS    = false;
@@ -698,7 +699,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   meanR    .resize(nthrds);	     // Trace
   meanM    .resize(nthrds);	     // Trace
   debye    .resize(nthrds);	     // Currently Trace, needs updating
-  plasma   .resize(nthrds);	     // Currently Trace, needs updating
+  plasma   .resize(nthrds, logL);    // Currently Trace, needs updating
   cellM    .resize(nthrds);	     // Trace
   neutF    .resize(nthrds);	     // Trace
   numIf    .resize(nthrds);	     // Direct, Weight, Hybrid, Trace
@@ -1847,6 +1848,8 @@ void CollideIon::initialize_cell
       << std::endl;
 #endif
 
+    if (logLfac>0.0) plasma[id] *= logLfac;
+
 				// Ion-Ion
     PiProb[id][0] = densQtot;
     if (densEtot>0.0)
@@ -1895,14 +1898,17 @@ void CollideIon::initialize_cell
       if (fabs(test2-1.0) > 1.0e-4) { std::cout << "test2 error" << std::endl; }
     }
 
+    double Lbda = logL;
+    if (logLfac>0.0) Lbda = plasma[id];
+
 				// Rate coefficients
-    ABrate[id][0] = 2.0*M_PI * PiProb[id][0] * logL * pow(numQ2[id]*numQ2[id], 2.0);
+    ABrate[id][0] = 2.0*M_PI * PiProb[id][0] * Lbda * pow(numQ2[id]*numQ2[id], 2.0);
 
-    ABrate[id][1] = 2.0*M_PI * PiProb[id][1] * logL * pow(numQ2[id], 2.0);
+    ABrate[id][1] = 2.0*M_PI * PiProb[id][1] * Lbda * pow(numQ2[id], 2.0);
 
-    ABrate[id][2] = 2.0*M_PI * PiProb[id][2] * logL * pow(numQ2[id], 2.0);
+    ABrate[id][2] = 2.0*M_PI * PiProb[id][2] * Lbda * pow(numQ2[id], 2.0);
 
-    ABrate[id][3] = 2.0*M_PI * PiProb[id][3] * logL ;
+    ABrate[id][3] = 2.0*M_PI * PiProb[id][3] * Lbda ;
 
 #ifdef XC_DEEP10
     std::cout << "coul2: "
@@ -2658,7 +2664,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 	std::min<double>(b, b_max);
       }
 
-      double mfac = 4.0 * logL;
+      double mfac = 4.0 * plasma[id];
       cross12 = M_PI*b*b * eVel2 * ne2 * crossfac * cscl_[Z1] * mfac;
       dCross[id].push_back(cross12);
       dInter[id].push_back(ion_elec_1);
@@ -2684,7 +2690,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 	std::min<double>(b, b_max);
       }
 
-      double mfac = 4.0 * logL;
+      double mfac = 4.0 * plasma[id];
       cross21 = M_PI*b*b * eVel2 * ne2 * crossfac * cscl_[Z2] * mfac;
       dCross[id].push_back(cross21);
       dInter[id].push_back(ion_elec_2);
@@ -2729,7 +2735,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 	std::min<double>(b, b_max);
       }
 
-      double mfac = 4.0 * logL;
+      double mfac = 4.0 * plasma[id];
       cross21 = M_PI*b*b * eVel2 * ne2 * crossfac * cscl_[Z2] * mfac;
       dCross[id].push_back(cross21);
       dInter[id].push_back(ion_elec_2);
@@ -2750,7 +2756,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
       std::min<double>(b, b_max);
     }
 
-    double mfac = 4.0 * logL;
+    double mfac = 4.0 * plasma[id];
     double crossS = M_PI*b*b * crossfac * cscl_[Z1] * cscl_[Z2] * mfac;
     dCross[id].push_back(crossS);
     dInter[id].push_back(ion_ion_1);
@@ -18212,7 +18218,14 @@ void CollideIon::processConfig()
       logL = config["logL"]["value"].as<double>();
     else {
       config["logL"]["desc"] = "Coulombic log(Lambda) value";
-      config["logL"]["value"] = logL = 24.0;
+      config["logL"]["value"] = logL = 20.0;
+    }
+
+    if (config["logLfac"])
+      logL = config["logLfac"]["value"].as<double>();
+    else {
+      config["logLfac"]["desc"] = "Scale internal Coulombic log(Lambda) value";
+      config["logLfac"]["value"] = 0.0;
     }
 
     if (config["coulInter"])
