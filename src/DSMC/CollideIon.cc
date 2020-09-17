@@ -61,7 +61,7 @@ bool     CollideIon::coulScale  = false;
 double   CollideIon::coulPow    = 2.0;
 unsigned CollideIon::NoDelC     = 0;
 unsigned CollideIon::maxCoul    = UINT_MAX;
-double   CollideIon::logL       = 5.0/(16.0*M_PI); // energy transfer factor
+double   CollideIon::logL       = 20.0; // Coulombic logarithm
 bool     CollideIon::TSESUM     = true;
 bool     CollideIon::coulInter  = true;
 bool     CollideIon::stateXS    = false;
@@ -698,6 +698,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   meanR    .resize(nthrds);	     // Trace
   meanM    .resize(nthrds);	     // Trace
   debye    .resize(nthrds);	     // Currently Trace, needs updating
+  plasma   .resize(nthrds);	     // Currently Trace, needs updating
   cellM    .resize(nthrds);	     // Trace
   neutF    .resize(nthrds);	     // Trace
   numIf    .resize(nthrds);	     // Direct, Weight, Hybrid, Trace
@@ -1766,15 +1767,12 @@ void CollideIon::initialize_cell
     cellTemps[id] = meanTemp;
 
     double dbyfac = std::numeric_limits<double>::max();
-    if ((ne>0.0 and KEe>0.0) or (ni>0.0 and KEi>0.0)) {
+    if (KEe>0.0 and KEi>0.0) {
       dbyfac = 0.0;
       if (KEe>0.0) dbyfac += ne/KEe;
       if (KEi>0.0) dbyfac += cj/KEi;
     }
 
-    debye[id]  = 1.0/sqrt(6.0*M_PI*esu*esu*dbyfac);
-    debye[id] /= TreeDSMC::Lunit;
-    
     if (numbP>0.0) meanM[id] = massP/numbP;
     if (numbP>0.0) Ivel2[id] = ivel2/numbP;
     if (numbP>0.0) Evel2[id] = evel2/numbP;
@@ -1823,6 +1821,12 @@ void CollideIon::initialize_cell
     double muee = atomic_weights[0]/2.0;
     double muie = atomic_weights[0] * meanM[id]/(atomic_weights[0] + meanM[id]);
 
+
+    debye [id]  = 1.0/sqrt(6.0*M_PI*esu*esu*dbyfac);
+    plasma[id]  = log((muie*2.0*Eion[id] + muee*2.0*Eelc[id])*eV*debye[id] /
+		      (esu*esu*numQ2[id]));
+    debye [id] /= TreeDSMC::Lunit;
+    
 #ifdef XC_DEEP7
     std::cout << "coulombic:"
       << " MUii=" << muii
@@ -1838,6 +1842,8 @@ void CollideIon::initialize_cell
       << " nbod=" << nbods
       << " numQ=" << tmp1
       << " numE=" << tmp2
+      << " DbyL=" << debye[id]
+      << " logL=" << plasma[id]
       << std::endl;
 #endif
 
@@ -11608,7 +11614,7 @@ void CollideIon::coulombicScatterDirect(int id, pCell* const c, double dT)
       //
       double pVel = sqrt(2.0*KE/mu);
       double afac = esu*esu*Q1*Q2/std::max<double>(2.0*KE, FloorEv*eV);
-      double tau = ABrate[id][l]*afac*afac*pVel * dT;
+      double tau  = ABrate[id][l]*afac*afac*pVel * dT;
       
 #ifdef XC_DEEP11
 	printf("coul5: l=%d pVel=%e afac=%e dt=%e tau=%e mu=%e m1=%e m2=%e\n",

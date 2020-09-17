@@ -514,7 +514,7 @@ private:
   std::vector< CFreturn >                            FF1, FF2;
   std::vector< double >                              xcross;
 
-  std::vector< double >                              meanE, neutF, meanR, meanM, cellM, debye;
+  std::vector< double >                              meanE, neutF, meanR, meanM, cellM, debye, plasma;
  std::vector< double >                               numIf, numEf, numQ2, colSc, elecDen, elecDn2, numIf0, numEf0, colCf;
   std::vector< double >                              kEi, kEe1, kEe2, kEee, clrE, misE, dfrE, updE, spEdel, spEmax, spTau;
   std::vector< double >                              kE1s, kE2s, Ein1, Ein2, Evel, Evel2, Ivel2, Eelc, Eion;
