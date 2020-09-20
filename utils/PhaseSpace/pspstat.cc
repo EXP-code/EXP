@@ -134,6 +134,12 @@ main(int argc, char **argv)
     double com1[3] = {0.0, 0.0, 0.0};
     double cov1[3] = {0.0, 0.0, 0.0};
     double ang1[3] = {0.0, 0.0, 0.0};
+    double pmn1[3] = { std::numeric_limits<double>::max(),
+		       std::numeric_limits<double>::max(),
+		       std::numeric_limits<double>::max()};
+    double pmx1[3] = {-std::numeric_limits<double>::max(),
+		      -std::numeric_limits<double>::max(),
+		      -std::numeric_limits<double>::max()};
     double KE1     = 0.0;
     double PE1     = 0.0;
     double mass1   = 0.0;
@@ -172,8 +178,19 @@ main(int argc, char **argv)
       for (int i=0; i<3; i++) rtmp += part->vel(i)*part->vel(i);
       KE1 += 0.5*ms*rtmp;
       PE1 += 0.5*ms*part->phi();
+
+      for (int i=0; i<3; i++) {
+	pmn1[i] = std::min<double>(pmn1[i], part->pos(i));
+	pmx1[i] = std::max<double>(pmx1[i], part->pos(i));
+      }
     }
     
+    cout  << "     MIN:\t\t";
+    for (int i=0; i<3; i++) cout << setw(15) << pmn1[i];
+    cout << endl;
+    cout  << "     MAX:\t\t";
+    for (int i=0; i<3; i++) cout << setw(15) << pmx1[i];
+    cout << endl;
     cout  << "     COM:\t\t";
     for (int i=0; i<3; i++) cout << setw(15) << com1[i]/mass1;
     cout << endl;
