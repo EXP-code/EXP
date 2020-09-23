@@ -933,7 +933,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
   // For debugging (set to false to disable)
   //
-  static bool firstime = false;
+  static bool firstime = true;
 
   if (firstime) {
     testConstantsCyl<<<1, 1, 0, cr->stream>>>();

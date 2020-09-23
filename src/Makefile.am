@@ -37,7 +37,7 @@ AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/include			\
 -I$(top_srcdir)/exputil -I$(top_srcdir)/expgnu -I$(top_srcdir)/src	\
  $(INCLUDE_DSMC) -I/usr/include/mpi
 
-AM_CXXFLAGS  = -std=c++11 -D_REENTRANT $(OPENMP_CXXFLAGS) $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4) @exp_vtk_include@  $(CUDA_CFLAGS) $(VERSION_FLAGS)
+AM_CXXFLAGS  = -D_REENTRANT $(OPENMP_CXXFLAGS) $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4) @exp_vtk_include@  $(CUDA_CFLAGS) $(VERSION_FLAGS)
 
 bin_PROGRAMS = exp
 
