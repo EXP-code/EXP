@@ -851,6 +851,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
     for (auto &v : elecEVsub) v.set_capacity(bufCap);
     elecRC.resize(nthrds);
     for (auto &v : elecRC)    v.set_capacity(bufCap);
+    plasmaP.resize(nthrds);
+    for (auto &v : plasmaP)   v.set_capacity(bufCap);
 
     setupRcmbTotl();
   }
@@ -1828,6 +1830,12 @@ void CollideIon::initialize_cell
 		      (esu*esu*numQ2[id]));
     debye [id] /= TreeDSMC::Lunit;
     
+    // For verbose diagnostic output only
+    //
+    if (elecDist) {
+      plasmaP[id].push_back(plasma[id]);
+    }
+
 #ifdef XC_DEEP7
     std::cout << "coulombic:"
       << " MUii=" << muii
@@ -16230,7 +16238,7 @@ void CollideIon::electronGather()
     }
 
     if (elecDist and (aType==Hybrid or aType==Trace)) {
-      std::vector<double> eEV, eRC, eEVmin, eEVavg, eEVmax, eEVsub;
+      std::vector<double> eEV, eRC, eEVmin, eEVavg, eEVmax, eEVsub, logLE;
       for (int t=0; t<nthrds; t++) {
 	eEV.insert(eEV.end(),
 		   elecEV[t].begin(), elecEV[t].end());
@@ -16244,6 +16252,8 @@ void CollideIon::electronGather()
 		      elecEVmax[t].begin(), elecEVmax[t].end());
 	eEVsub.insert(eEVsub.end(),
 		      elecEVsub[t].begin(), elecEVsub[t].end());
+	logLE.insert(logLE.end(),
+		      plasmaP[t].begin(), plasmaP[t].end());
       }
 
       // All processes send to root
@@ -16285,6 +16295,11 @@ void CollideIon::electronGather()
 	  MPI_Send(&tauIon[0][0],  4, MPI_DOUBLE,   0, 332, MPI_COMM_WORLD);
 	  MPI_Send(&tauElc[0][0],  4, MPI_DOUBLE,   0, 335, MPI_COMM_WORLD);
 	  MPI_Send(&colUps[0][0],  4, MPI_DOUBLE,   0, 338, MPI_COMM_WORLD);
+
+	  num = logLE.size();
+	  MPI_Send(&num,           1, MPI_UNSIGNED, 0, 339, MPI_COMM_WORLD);
+	  if (num)
+	    MPI_Send(&logLE[0],  num, MPI_DOUBLE,   0, 340, MPI_COMM_WORLD);
 
 	} // END: process send to root
 
@@ -16362,6 +16377,14 @@ void CollideIon::electronGather()
 
 	  for (int k=0; k<4; k++) colUps[0][k] += tmpR[k];
 
+	  MPI_Recv(&num,      1, MPI_UNSIGNED, n, 339, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	  if (num) {
+	    v.resize(num);
+	    MPI_Recv(&v[0], num, MPI_DOUBLE,   n, 340, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    logLE.insert(logLE.end(), v.begin(), v.end());
+	  }
+
 	} // Root receive loop
 
 	MPI_Barrier(MPI_COMM_WORLD);
@@ -16380,7 +16403,9 @@ void CollideIon::electronGather()
 	if (eEVavg.size()) elecEVHavg = ahistoDPtr(new AsciiHisto<double>(eEVavg, 20,  0.01 ));
 	if (eEVmax.size()) elecEVHmax = ahistoDPtr(new AsciiHisto<double>(eEVmax, 20,  0.01 ));
 	if (eEVsub.size()) elecEVHsub = ahistoDPtr(new AsciiHisto<double>(eEVsub, 20,  0.01 ));
+	if (logLE.size())  logLH      = ahistoDPtr(new AsciiHisto<double>(logLE,  20,  0.01 ));
 	if (eRC.size())    elecRCH    = ahistoDPtr(new AsciiHisto<double>(eRC,    100, 0.005));
+	
 	if (rcmbTotlSum>0) {
 	  std::vector<unsigned> rcmbT;
 	  rcmbScale = 1.0e9/rcmbTotlSum;
@@ -17209,6 +17234,14 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< "-----Electron momentum difference ratio -------------" << std::endl
 	<< std::string(53, '-')  << std::endl;
     (*momH)(out);
+  }
+
+  if (logLH.get()) {
+    out << std::endl
+	<< std::string(53, '-')  << std::endl
+	<< "-----Coulombic logarithm distribution ---------------" << std::endl
+	<< std::string(53, '-')  << std::endl;
+    (*logLH)(out);
   }
 
   if (crsH.get()) {

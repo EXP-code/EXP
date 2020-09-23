@@ -667,8 +667,9 @@ private:
   std::vector< boost::circular_buffer<double> > elecEVavg;
   std::vector< boost::circular_buffer<double> > elecEVmax;
   std::vector< boost::circular_buffer<double> > elecEVsub;
+  std::vector< boost::circular_buffer<double> > plasmaP;
   ahistoDPtr elecEVH, elecEVHmin, elecEVHavg, elecEVHmax;
-  ahistoDPtr elecEVHsub, elecRCH, elecRCN;
+  ahistoDPtr elecEVHsub, elecRCH, elecRCN, logLH;
 
   std::vector< std::vector<double> > rcmbTotl;
   std::vector<double>                rcmbLH;
