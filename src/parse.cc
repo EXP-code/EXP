@@ -125,6 +125,7 @@ void initialize(void)
     if (_G["barrier_quiet"])   barrier_quiet = _G["barrier_quiet"].as<bool>();
     if (_G["barrier_verbose"]) barrier_quiet = not _G["barrier_quiet"].as<bool>();
 
+    if (_G["gdb_trace"])       gdb_trace  = _G["gdb_trace"].as<bool>();
     if (_G["main_wait"])       main_wait  = _G["main_wait"].as<bool>();
     if (_G["debug_wait"]) {
       debug_wait = _G["debug_wait"].as<bool>();
@@ -182,7 +183,9 @@ void initialize(void)
       } else fpe_trace = false;
       if (myid==0) {
 	std::cout << "Found <fpe_trace=" << std::boolalpha
-		  << fpe_trace << ">" << std::endl;
+		  << fpe_trace << ">" << std::endl
+		  << "Found <gdb_trace=" << std::boolalpha
+		  << gdb_trace << ">" << std::endl;
 	if (fpe_trace) std::cout << "----" << std::endl
 				 << "---- Print a backtrace to stderr on detecting an FP error" << std::endl
 				 << "----" << std::endl;
