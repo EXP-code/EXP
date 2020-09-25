@@ -11357,6 +11357,16 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
       }
     }
 
+    // Sanity check
+    //
+    if (P.size()==0) {
+      std::cout << "accumTraceScatter: value size(P)=0,"
+		<< " II=" << accumIIxc[id].size()
+		<< " IE=" << accumIExc[id].size()
+		<< std::endl;
+      return;
+    }
+
     // Normalize accum
     //
     for (int i=1; i<P.size(); i++) P[i] += P[i-1];
@@ -14480,7 +14490,7 @@ NTC::InteractD CollideIon::generateSelectionTrace
 
   // Compute collision rates in system units
   //
-  double crossM = (*Fn)[key] * dens * crossRat / crm;
+  double crossM = (*Fn)[key] * dens * crossRat;
   double collPM = crossM * crm * tau;
 
   // Cache time step for estimating "over" cooling timestep is use_delt>=0
