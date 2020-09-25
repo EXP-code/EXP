@@ -41,23 +41,6 @@ int Imn(int m, char cs, int n, int nmax)
   return ret;
 }
 
-template<typename Iterator, typename Pointer1, typename Pointer2>
-__global__
-void reduceUseCyl(Iterator first, Iterator last, Pointer1 res1, Pointer2 res2)
-{
-  // Sort used masses
-  thrust::sort(thrust::cuda::par, first, last);
-
-  // Iterator will point to first non-zero element
-  auto it = thrust::upper_bound(thrust::cuda::par, first, last, 0.0);
-
-  // Number of non-zero elements
-  *res1 = thrust::distance(it, last);
-
-  // Sum of mass
-  *res2 = thrust::reduce(thrust::cuda::par, it, last);
-}
-
 __global__
 void testConstantsCyl()
 {
@@ -1186,7 +1169,8 @@ void Cylinder::determine_coefficients_cuda(bool compute)
       // Compute number and total mass of particles used in coefficient
       // determination
       //
-      thrust::sort(thrust::cuda::par.on(cr->stream), ar->m_d.begin(), ar->m_d.end());
+      thrust::sort(thrust::cuda::par.on(cr->stream),
+		   ar->m_d.begin(), ar->m_d.end());
 
       // Asynchronously cache result for host side to prevent stream block
       //
@@ -1197,10 +1181,28 @@ void Cylinder::determine_coefficients_cuda(bool compute)
       size_t fsz = f_s.size();	// Augment the data vectors
       f_use. resize(fsz);
       f_mass.resize(fsz);
-				// Call the kernel on a single thread
+
+      auto exec  = thrust::cuda::par.on(s1);
+      auto first = ar->u_d.begin();
+      auto last  = ar->u_d.end();
+
+				// Sort used masses
+				//
+      thrust::sort(exec, first, last);
+
+				// Iterator will point to first
+				// non-zero element
+				//
+      auto it = thrust::upper_bound(exec, first, last, 0.0);
+      
+				// Number of non-zero elements
+				//
+      f_use[fsz-1] = thrust::distance(it, last);
+
+				// Sum of mass
 				// 
-      reduceUseCyl<<<1, 1, 0, s1>>>(ar->u_d.begin(), ar->u_d.end(),
-				    &f_use[fsz-1], &f_mass[fsz-1]);
+      f_mass[fsz-1] = thrust::reduce(exec, it, last);
+
 
       Ntot += N;
     }
@@ -1224,7 +1226,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
   // Accumulate the coefficients from the device to the host
   //
-  for (auto r : cuRingData) {
+  for (auto & r : cuRingData) {
     thrust::host_vector<cuFP_t> ret = r.df_coef;
     int offst = 0;
     for (int m=0; m<=mmax; m++) {

@@ -16,6 +16,7 @@ Component::cudaStreamData::cudaStreamData()
 		 __FILE__, __LINE__,
 		 "Component::cudaStreamData: error creating stream");
   */
+
   // Need blocking until thrust bug in binary search is fixed
   cuda_safe_call(cudaStreamCreate(&stream),
 		 __FILE__, __LINE__,
@@ -48,22 +49,6 @@ struct LevelFunctor
 };
 
 
-template<typename Iterator, typename Pointer>
-__global__
-void getLower(Iterator first, Iterator last, int val, Pointer result)
-{
-  auto it  = thrust::lower_bound(thrust::cuda::par, first, last, val);
-  *result  = thrust::distance(first, it);
-}
-
-template<typename Iterator, typename Pointer>
-__global__
-void getUpper(Iterator first, Iterator last, int val, Pointer result)
-{
-  auto it  = thrust::upper_bound(thrust::cuda::par, first, last, val);
-  *result  = thrust::distance(first, it);
-}
-
 std::pair<unsigned int, unsigned int>
 Component::CudaSortByLevel(Component::cuRingType cr, int minlev, int maxlev)
 {
@@ -88,15 +73,18 @@ Component::CudaSortByLevel(Component::cuRingType cr, int minlev, int maxlev)
     // Perform in the sort on the int vector of levels on the GPU
     thrust::device_vector<unsigned> retV(1);
 
-    // Use this single thread call to maintain synchronization with cr->stream
-    //
-    getLower<<<1, 1, 0, cr->stream>>>(lev.begin(), lev.end(), minlev, &retV[0]);
+    auto it  = thrust::lower_bound(exec, lev.begin(), lev.end(), minlev);
+    retV[0] = thrust::distance(lev.begin(), it);
+
 				// Wait for completion before memcpy
     cudaStreamSynchronize(cr->stream); ret.first = retV[0];
 				// If maxlev==multistep: upper bound
 				// is at end, so skip explicit computation
     if (maxlev < multistep) {
-      getUpper<<<1, 1, 0, cr->stream>>>(lev.begin(), lev.end(), maxlev, &retV[0]);
+
+      it  = thrust::upper_bound(exec, lev.begin(), lev.end(), maxlev);
+      retV[0] = thrust::distance(lev.begin(), it);
+
       cudaStreamSynchronize(cr->stream); ret.second = retV[0];
     } else {
       ret.second = thrust::distance(pbeg, pend);
@@ -188,69 +176,69 @@ struct cudaZeroAcc : public thrust::unary_function<cudaParticle, cudaParticle>
 
 void Component::ZeroPotAccel(int minlev)
 {
-  #pragma message "Please ignore the 'statement unreachable' warning here"
-  
-  return;			// Don't need this now, since this
+  if (false) {
+				// Don't need this now, since this
 				// duplicates zeroing performed on
 				// host
-  // Loop over bunches
-  //
-  size_t psize  = particles.size();
+    // Loop over bunches
+    //
+    size_t psize  = particles.size();
 
-  PartMap::iterator begin = particles.begin();
-  PartMap::iterator first = begin;
-  PartMap::iterator last  = begin;
-  PartMap::iterator end   = particles.end();
+    PartMap::iterator begin = particles.begin();
+    PartMap::iterator first = begin;
+    PartMap::iterator last  = begin;
+    PartMap::iterator end   = particles.end();
 
-  if (psize <= bunchSize) last = end;
-  else std::advance(last, bunchSize);
+    if (psize <= bunchSize) last = end;
+    else std::advance(last, bunchSize);
 
-  Component::cuRingType cr = *cuRing.get();
+    Component::cuRingType cr = *cuRing.get();
 
-  while (thrust::distance(first, last)) {
+    while (thrust::distance(first, last)) {
     
-    // Copy particles to host vector
-    //
-    ParticlesToCuda(first, last);
-
-    cr->first = host_particles.begin();
-    cr->last  = host_particles.end();
-
-    // Copy bunch to device
-    //
-    HostToDev(cr);
-
-    if (multistep) {
-      std::pair<unsigned int, unsigned int>
-	ret = CudaSortByLevel(cr, minlev, multistep);
+      // Copy particles to host vector
+      //
+      ParticlesToCuda(first, last);
       
-      thrust::transform(thrust::cuda::par.on(cr->stream),
-			cr->cuda_particles.begin()+ret.first, cr->cuda_particles.end(),
-			cr->cuda_particles.begin()+ret.first, cudaZeroAcc());
-    } else {
-      thrust::transform(thrust::cuda::par.on(cr->stream),
-			cr->cuda_particles.begin(), cr->cuda_particles.end(),
-			cr->cuda_particles.begin(), cudaZeroAcc());
+      cr->first = host_particles.begin();
+      cr->last  = host_particles.end();
+      
+      // Copy bunch to device
+      //
+      HostToDev(cr);
+      
+      if (multistep) {
+	std::pair<unsigned int, unsigned int>
+	  ret = CudaSortByLevel(cr, minlev, multistep);
+	
+	thrust::transform(thrust::cuda::par.on(cr->stream),
+			  cr->cuda_particles.begin()+ret.first, cr->cuda_particles.end(),
+			  cr->cuda_particles.begin()+ret.first, cudaZeroAcc());
+      } else {
+	thrust::transform(thrust::cuda::par.on(cr->stream),
+			  cr->cuda_particles.begin(), cr->cuda_particles.end(),
+			  cr->cuda_particles.begin(), cudaZeroAcc());
+      }
+
+      // Copy device to host
+      //
+      DevToHost(cr);
+
+      // Do copy from host to component
+      //
+      CudaToParticles(cr->first, cr->last);
+      
+      // Advance iterators
+      //
+      first = last;
+      size_t nadv = thrust::distance(first, end);
+      if (nadv <= bunchSize) last = end;
+      else thrust::advance(last, bunchSize);
+      
+      // Advance stream iterators
+      //
+      cr++;
     }
-
-    // Copy device to host
-    //
-    DevToHost(cr);
-
-    // Do copy from host to component
-    //
-    CudaToParticles(cr->first, cr->last);
-
-    // Advance iterators
-    //
-    first = last;
-    size_t nadv = thrust::distance(first, end);
-    if (nadv <= bunchSize) last = end;
-    else thrust::advance(last, bunchSize);
-
-    // Advance stream iterators
-    //
-    cr++;
   }
 
 }
