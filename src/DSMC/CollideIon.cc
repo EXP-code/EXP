@@ -12745,7 +12745,10 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	  photoW[id][s.first] += ww;
 	  photoN[id][s.first] += ww * p->mass * Gm;
 
-	  scatterPhotoTrace(p, Q, ww, Ep);
+	  //    +---Sanity check
+	  //    |
+	  //    v
+	  if (ww>0.0) scatterPhotoTrace(p, Q, ww, Ep);
 	}
       }
     }
