@@ -191,4 +191,8 @@ typedef float  cuFP_t;
 typedef double cuFP_t;
 #endif
 
+// Work around for https://github.com/NVIDIA/thrust/pull/1104
+//
+const bool thrust_binary_search_workaround = true;
+
 #endif

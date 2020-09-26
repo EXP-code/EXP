@@ -66,26 +66,41 @@ Component::CudaSortByLevel(Component::cuRingType cr, int minlev, int maxlev)
     // Convert from cudaParticle to a flat vector to prevent copying
     // the whole particle structure in getBound.  Perhaps this
     // temporary should be part of the data storage structure?
+    //
     thrust::device_vector<unsigned> lev(cr->cuda_particles.size());
 
     thrust::transform(exec, pbeg, pend, lev.begin(), cuPartToLevel());
 
     // Perform in the sort on the int vector of levels on the GPU
-    thrust::device_vector<unsigned> retV(1);
-
-    auto it  = thrust::lower_bound(exec, lev.begin(), lev.end(), minlev);
-    retV[0] = thrust::distance(lev.begin(), it);
+    //
+    thrust::device_vector<unsigned>::iterator it;
+    if (binary_search_workaround) {
+      cudaStreamSynchronize(cr->stream);
+      it  = thrust::lower_bound(lev.begin(), lev.end(), minlev);
+    } else {
+      // This should work but doesn't.  See:
+      // https://github.com/NVIDIA/thrust/pull/1104
+      //
+      it  = thrust::lower_bound(exec, lev.begin(), lev.end(), minlev);
+    }
+      
+    ret.first = thrust::distance(lev.begin(), it);
 
 				// Wait for completion before memcpy
-    cudaStreamSynchronize(cr->stream); ret.first = retV[0];
+    cudaStreamSynchronize(cr->stream);
 				// If maxlev==multistep: upper bound
 				// is at end, so skip explicit computation
     if (maxlev < multistep) {
 
-      it  = thrust::upper_bound(exec, lev.begin(), lev.end(), maxlev);
-      retV[0] = thrust::distance(lev.begin(), it);
+      if (binary_search_workaround) {
+	it  = thrust::upper_bound(lev.begin(), lev.end(), maxlev);
+      } else {
+	it  = thrust::upper_bound(exec, lev.begin(), lev.end(), maxlev);
+      }
 
-      cudaStreamSynchronize(cr->stream); ret.second = retV[0];
+      ret.second = thrust::distance(lev.begin(), it);
+
+      cudaStreamSynchronize(cr->stream);
     } else {
       ret.second = thrust::distance(pbeg, pend);
     }

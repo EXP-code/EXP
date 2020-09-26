@@ -1194,8 +1194,16 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
       f_use.resize(fsz);
 				// Call the kernel on a single thread
 				// 
-      auto it = thrust::lower_bound(thrust::cuda::par.on(cr->stream),
-				    ar->m_d.begin(), ar->m_d.end(), 0.0);
+      thrust::<thrust::device_vector<double>::iterator it;
+      // Workaround for: https://github.com/NVIDIA/thrust/pull/1104
+      if (binary_search_workaround) {
+	cudaStreamSynchronize(cr->stream);
+	it = thrust::lower_bound(ar->m_d.begin(), ar->m_d.end(), 0.0);
+      } else {
+	it = thrust::lower_bound(thrust::cuda::par.on(cr->stream),
+				 ar->m_d.begin(), ar->m_d.end(), 0.0);
+      }
+      
       f_use[fsz-1] = thrust::distance(it, ar->m_d.end());
 
       Ntot += N;
