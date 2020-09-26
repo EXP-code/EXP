@@ -74,7 +74,8 @@ Component::CudaSortByLevel(Component::cuRingType cr, int minlev, int maxlev)
     // Perform in the sort on the int vector of levels on the GPU
     //
     thrust::device_vector<unsigned>::iterator it;
-    if (binary_search_workaround) {
+
+    if (thrust_binary_search_workaround) {
       cudaStreamSynchronize(cr->stream);
       it  = thrust::lower_bound(lev.begin(), lev.end(), minlev);
     } else {
@@ -92,7 +93,7 @@ Component::CudaSortByLevel(Component::cuRingType cr, int minlev, int maxlev)
 				// is at end, so skip explicit computation
     if (maxlev < multistep) {
 
-      if (binary_search_workaround) {
+      if (thrust_binary_search_workaround) {
 	it  = thrust::upper_bound(lev.begin(), lev.end(), maxlev);
       } else {
 	it  = thrust::upper_bound(exec, lev.begin(), lev.end(), maxlev);
