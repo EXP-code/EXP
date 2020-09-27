@@ -1113,7 +1113,7 @@ void Component::initialize_cuda()
 	std::cout << "Component <" << name << ">: "
 		  << "could not set CUDA device on Rank [" << myid
 		  << "] on [" << processor_name << "] . . . "
-		  << "this cause a failure" << std::endl;
+		  << "this will cause a failure" << std::endl;
 	
       }
 
