@@ -30,9 +30,9 @@ public:
   //! Constructor
   InteractSelect();
 
-  //! Return excitation energy, randomly selected from all possible
-  //! excitations by cross section
-  double selectCEInteract
+  //! Return cross section and excitation energy, randomly selected
+  //! from all possible excitations by total cross section
+  std::pair<double, double> selectCEInteract
   (const boost::shared_ptr<Ion> a, const Ion::collType& cumCross);
 
   //! Compute the free-free radiated energy based on the electron velocity

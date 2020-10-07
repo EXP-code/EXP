@@ -23,7 +23,7 @@ InteractSelect::InteractSelect()
 }
 
 
-double InteractSelect::selectCEInteract
+std::pair<double, double> InteractSelect::selectCEInteract
 (const boost::shared_ptr<Ion> a, const Ion::collType& cumCross) 
 {
 				// Location in the cumulative distribution
@@ -34,10 +34,10 @@ double InteractSelect::selectCEInteract
 				// Find the energy
 				//
   for (auto i : cumCross) {
-    if (rn <= i.first) return i.second;
+    if (rn <= i.first) return i;
   }
 
-  return 0.0;
+  return {0.0, 0.0};
 }
 
 

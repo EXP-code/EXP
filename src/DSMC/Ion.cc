@@ -1037,6 +1037,7 @@ Ion::collExciteCrossSingle(double E, int id)
   // computing Omega
 
   double totalCross = 0.0, mult0 = 2*elvlc[1].J + 1;
+  int tcnt = 0;
 
   for (size_t i=0; i<splups.size(); i++) {
 
@@ -1044,6 +1045,8 @@ Ion::collExciteCrossSingle(double E, int id)
     double Const = splups[i].Const;
 
     if (splups[i].i==1 and E >= EijEv) {
+
+      tcnt++;
 
       assert(splups[i].i == 1);
       assert(splups[i].spline.size() != 0);
@@ -1324,28 +1327,8 @@ Ion::collExciteCrossGrid(double E, int id)
   double A = (eB - E)/delCollideE;
   double B = (E - eA)/delCollideE;
 
-  typedef std::pair<double, double> Elem;
-  std::array<Elem, 2> v { collideDataGrid[indx+0].back(), collideDataGrid[indx+1].back()};
-  
-  std::vector<Elem> ret(1);
-  ret[0] = {A*v[0].first  + B*v[1].first, A*v[0].second + B*v[1].second};
-
-  // Test
-  if (false) {
-    collType tst = collExciteCrossSingle(E, id);
-    double diffXS = fabs(tst.back().first  - ret[0].first );
-    double diffCM = fabs(tst.back().second - ret[0].second);
-    if (tst.back().first >0.0) diffXS /= tst.back().first;
-    if (tst.back().second>0.0) diffCM /= tst.back().second;
-    if (diffXS > 0.01 or diffCM > 0.01) {
-      std::cout << "Diff [collide]: XS expected=" << tst.back().first  << ", got "
-		<< ret[0].first  << std::endl
-		<< "                CM expected=" << tst.back().second << ", got "
-		<< ret[0].second << std::endl;
-    }
-  }
-
-  return ret;
+  if (A>=B) return collideDataGrid[indx+0];
+  else      return collideDataGrid[indx+1];
 }
 
 

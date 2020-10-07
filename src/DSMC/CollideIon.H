@@ -510,7 +510,7 @@ private:
   std::vector< std::vector<double> >                 dCross;
   std::vector< std::vector<int>    >                 dInter;
   std::vector< keyWghts >                            meanF, densE, photoW, photoN;
-  std::vector< CEvector >                            CE1, CE2;
+  std::vector< CFreturn >                            CE1, CE2;
   std::vector< CFreturn >                            FF1, FF2;
   std::vector< double >                              xcross;
 
