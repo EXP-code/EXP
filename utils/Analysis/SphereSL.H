@@ -55,7 +55,8 @@ public:
       \param NMAX is the maximum radial order
       \param COVAR true will evaluate the covariance matrix for coeffficients
   */
-  SphereSL(SphericalModelTable* mod, int LMAX, int NMAX, bool COVAR=false);
+  SphereSL(SphericalModelTable* mod, int LMAX, int NMAX,
+	   int CMAP=0, bool COVAR=false);
   
   //! Destructor
   ~SphereSL(void);

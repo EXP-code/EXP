@@ -17,7 +17,7 @@ if ENABLE_CUDA
 CUDA_LIBFLAGS  = -lcudart
 endif
 
-bin_PROGRAMS = slcheck slshift orthochk diskpot
+bin_PROGRAMS = slcheck slshift orthochk diskpot qtest
 
 COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS)	\
 $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@  $(CUDA_LDFLAGS)
@@ -44,7 +44,11 @@ orthochk_SOURCES = orthochk.cc biorth1d.cc localmpi.cc
 orthochk_LDADD = $(EXPLIBS) $(CUDA_LIBFLAGS)
 
 diskpot_SOURCES = diskpot.cc CylindricalDisk.cc SLSphere.cc localmpi.cc
-diskpot_LDADD = $(EXPLIBS) $(CUDA_LIBFLAGS)
+diskpot_LDADD   = $(EXPLIBS) $(CUDA_LIBFLAGS)
+
+qtest_SOURCES   = qtest.cc localmpi.cc
+qtest_LDFLAGS   = $(EXPFLAGS) $(BOOST_LDFLAGS)
+qtest_LDADD     = $(EXPLIBS) $(CUDA_LIBFLAGS) $(BOOST_LIBS)
 
 biorth1d.h:	$(top_srcdir)/src/biorth1d.h
 	cp $(top_srcdir)/src/$@ .
