@@ -53,10 +53,12 @@ public:
       \param mod instance of SphericalModelTable to condition eigenfunctions
       \param LMAX is the maximum harmonic order
       \param NMAX is the maximum radial order
+      \param CMAP is the SLGridSph coordindate mapping type
+      \param SCALE is the SLGridSph coordindate scale length
       \param COVAR true will evaluate the covariance matrix for coeffficients
   */
   SphereSL(SphericalModelTable* mod, int LMAX, int NMAX,
-	   int CMAP=0, bool COVAR=false);
+	   int CMAP=0, double SCALE=0.067, bool COVAR=false);
   
   //! Destructor
   ~SphereSL(void);

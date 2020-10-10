@@ -95,7 +95,7 @@ main(int argc, char **argv)
   sleep(20);
 #endif  
   
-  double RMIN, RMAX;
+  double RMIN, RMAX, rscale;
   int NICE, LMAX, NMAX, L1, L2;
   int beg, end, stride, init, knots, num;
   std::string modelf, dir("./"), cname, prefix;
@@ -121,6 +121,8 @@ main(int argc, char **argv)
      "system priority")
     ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
      "minimum radius for output")
+    ("RSCALE",              po::value<double>(&rscale)->default_value(0.067),
+     "coordinate mapping scale factor")
     ("RMAX",                po::value<double>(&RMAX)->default_value(2.0),
      "maximum radius for output")
     ("LMAX",                po::value<int>(&LMAX)->default_value(4),
@@ -212,7 +214,7 @@ main(int argc, char **argv)
   SphericalModelTable halo(modelf);
   SphereSL::mpi  = true;
   SphereSL::NUMR = 4000;
-  SphereSL ortho(&halo, LMAX, NMAX, 1);
+  SphereSL ortho(&halo, LMAX, NMAX, 1, rscale);
 
   auto sl = ortho.basis();
 

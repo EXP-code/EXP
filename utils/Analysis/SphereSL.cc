@@ -13,7 +13,7 @@ bool SphereSL::mpi=false;	// Initially off
 
 
 SphereSL::SphereSL(SphericalModelTable* mod, int LMAX, int NMAX,
-		   int CMAP, bool COVAR)
+		   int CMAP, double Scale, bool COVAR)
 {
   SphericalModelTable *model = mod;
   
@@ -23,8 +23,6 @@ SphereSL::SphereSL(SphericalModelTable* mod, int LMAX, int NMAX,
 			    mod->get_max_radius()*1.0e-4);
   double rmax = mod->get_max_radius()*0.99;
 
-
-  double Scale = 1.0;
   sl = new SLGridSph(LMAX, NMAX, NUMR, rmin, rmax, model, CMAP, Scale);
 
   lmax = LMAX;
