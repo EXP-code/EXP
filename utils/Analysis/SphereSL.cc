@@ -12,6 +12,7 @@ int SphereSL::NUMR=800;
 bool SphereSL::mpi=false;	// Initially off
 
 
+//! Constructor
 SphereSL::SphereSL(SphericalModelTable* mod, int LMAX, int NMAX,
 		   int CMAP, double Scale, bool COVAR)
 {
@@ -57,7 +58,16 @@ void SphereSL::bomb(char *s)
 void SphereSL::reset_coefs(void)
 {
   if (expcoef.getnrows()>0 && expcoef.getncols()>0) expcoef.zero();
-  if (compute_covar && cc.getnrows()>0 && cc.getncols()>0) cc.zero();
+  if (compute_covar) {
+    maxSNR = 0.0;
+    covar.resize(lmax+1);
+    mean.resize(lmax+1);
+    for (int L=0; L<=lmax; L++) {
+      int size = (2*L+1)*nmax;
+      covar[L] = Eigen::MatrixXd::Zero(size, size);
+      mean [L] = Eigen::VectorXd::Zero(size);
+    }
+  }
 }
 
 
@@ -74,15 +84,17 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
     expcoef.setsize(0, lmax*(lmax+2), 1, nmax);
     expcoef.zero();		// Need this?
 
-    work1.setsize(1, nmax);
+    work.setsize(1, nmax);
 
     if (compute_covar) {
-      nmat = (lmax*(lmax+2)+1)*nmax;
-      cc.setsize(1, nmat, 1, nmat);
-      cw.setsize(1, nmat);
-      cc.zero();
-
-      work2.setsize(1, nmat);
+      maxSNR = 0.0;
+      covar.resize(lmax+1);
+      mean.resize(lmax+1);
+      for (int L=0; L<=lmax; L++) {
+	int size = (2*lmax+1)*nmax;
+	covar[L] = Eigen::MatrixXd::Zero(size, size);
+	mean [L] = Eigen::VectorXd::Zero(size);
+      }
     }
 
     factorial.setsize(0, lmax, 0, lmax);
@@ -117,6 +129,11 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
   // L loop
   for (int l=0, loffset=0; l<=lmax; loffset+=(2*l+1), l++) {
 
+    Eigen::VectorXd workE;
+    int esize = (2*l+1)*nmax;
+
+    if (compute_covar) workE = Eigen::VectorXd::Zero(esize);
+
     // M loop
     for (int m=0, moffset=0; m<=l; m++) {
 
@@ -126,7 +143,7 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
 	  fac4 = potd[l][n]*fac*fac0;
 	  expcoef[loffset+moffset][n] += fac4 * mass;
 	  if (compute_covar) {
-	    cw[(loffset+moffset)*nmax + n] = fac4;
+	    workE[moffset*nmax + n - 1] = fac4;
 	  }
 	}
 
@@ -141,19 +158,38 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
 	  expcoef[loffset+moffset  ][n] += fac1 * fac4 * mass;
 	  expcoef[loffset+moffset+1][n] += fac2 * fac4 * mass;
 	  if (compute_covar) {
-	    cw[(loffset+moffset  )*nmax + n] = fac1 * fac4;
-	    cw[(loffset+moffset+1)*nmax + n] = fac2 * fac4;
+	    workE[moffset*(nmax+0) + n - 1] = fac1 * fac4;
+	    workE[moffset*(nmax+1) + n - 1] = fac2 * fac4;
 	  }
 	}
+
 	moffset+=2;
       }
     }
-  }
 
-  if (compute_covar) {
-    for (int n=1; n<=nmat; n++) {
-      for (int nn=n; nn<=nmat; nn++) {
-	cc[n][nn] += cw[n] * cw[nn] * mass;
+    if (compute_covar) {
+      for (int m=0, moffset=0; m<=l; m++) {
+	for (int n1=0; n1<nmax; n1++) {
+	  mean[l][moffset*(nmax+0)+n1] += workE[moffset*(nmax+0) + n1] * mass;
+	  if (m)
+	    mean[l][moffset*(nmax+1)+n1] += workE[moffset*(nmax+1) + n1] * mass;
+
+	  for (int n2=0; n2<nmax; n2++) {
+	    covar[l](moffset*(nmax+0)+n1, moffset*(nmax+0)+n2) +=
+	      workE[moffset*(nmax+0) + n1] * workE[moffset*(nmax+0) + n2] * mass;
+	    if (m) {
+	      covar[l](moffset*(nmax+0)+n1, moffset*(nmax+1)+n2) +=
+		workE[moffset*(nmax+0) + n1] * workE[moffset*(nmax+1) + n2] * mass;
+	      covar[l](moffset*(nmax+1)+n1, moffset*(nmax+0)+n2) +=
+		workE[moffset*(nmax+1) + n1] * workE[moffset*(nmax+0) + n2] * mass;
+	      covar[l](moffset*(nmax+1)+n1, moffset*(nmax+1)+n2) +=
+		workE[moffset*(nmax+1) + n1] * workE[moffset*(nmax+1) + n2] * mass;
+	    }
+	  }
+	}
+
+	if (m==0) moffset += 1;
+	else      moffset += 2;
       }
     }
   }
@@ -165,21 +201,141 @@ void SphereSL::make_coefs()
   if (mpi) {
 
     for (int l=0; l<=lmax*(lmax+2); l++) {
-      MPI_Allreduce(&expcoef[l][1], &work1[1], nmax, MPI_DOUBLE,
+      MPI_Allreduce(&expcoef[l][1], &work[1], nmax, MPI_DOUBLE,
 		    MPI_SUM, MPI_COMM_WORLD);
 
-      expcoef[l] = work1;
+      expcoef[l] = work;
     }
 
     if (compute_covar) {
-      for (int n=1; n<=nmat; n++) {
-	MPI_Allreduce(&cc[n][1], &work2[1], nmat, MPI_DOUBLE,
+      for (int l=0; l<=lmax; l++) {
+	int esize = (2*l + 1)*nmax;
+	Eigen::MatrixXd mtemp(esize, esize);
+	Eigen::VectorXd vtemp(esize);
+	MPI_Allreduce(covar[l].data(), mtemp.data(), esize*esize, MPI_DOUBLE,
+		      MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(mean[l].data(), vtemp.data(), esize, MPI_DOUBLE,
 		      MPI_SUM, MPI_COMM_WORLD);
 	
-	cc[n] = work2;
+	covar[l] = mtemp;
+	mean [l] = vtemp;
       }
     }
   }
+
+  if (compute_covar) {
+
+    for (int l=0; l<=lmax; l++) {
+      int esize = (2*l + 1)*nmax;
+
+      for (int i=0; i<esize; i++) {
+	for (int j=0; j<esize; j++) {
+	  covar[l](i, j) -= mean[l](i) * mean[l](j);
+	}
+      }
+    }
+  }
+}
+
+void SphereSL::make_covar(bool verbose)
+{
+  if (compute_covar) {
+
+    if (verbose and myid==0) std::cout << std::endl;
+
+    svar.resize(lmax+1);
+    uvec.resize(lmax+1);
+
+    for (int l=0; l<=lmax; l++) {
+      int esize = (2*l + 1)*nmax;
+      
+#ifdef LARGE
+      Eigen::BDCSVD<Eigen::MatrixXd>
+	svd(covar[l], Eigen::ComputeThinU | Eigen::ComputeThinV);
+#else
+      Eigen::JacobiSVD<Eigen::MatrixXd>
+	svd(covar[l], Eigen::ComputeThinU | Eigen::ComputeThinV);
+#endif
+
+      // Get solution
+      // ------------
+      svar[l] = svd.singularValues();
+      uvec[l] = svd.matrixU();
+
+      // Get value in rotated space
+      //
+      // 
+      Eigen::VectorXd R = uvec[l].transpose() * mean[l];
+
+      // Compute SNR
+      //
+      for (int j=0; j<svar[l].size(); j++) {
+	if (verbose and verbose) std::cout << std::setw(4) << l
+					   << std::setw(4) << j
+					   << std::setw(18) << svar[l][j]
+					   << std::setw(18) << R[j]*R[j];
+	if (svar[l][j]>0.0) {
+	  double snr = sqrt(R[j]*R[j]/svar[l][j]);
+	  maxSNR = std::max<double>(maxSNR, snr);
+	  if (verbose and myid==0) std::cout << std::setw(18) << snr;
+	} else {
+	  if (verbose and myid==0) std::cout << std::setw(18) << 0.0;
+	}
+	if (verbose and myid==0) std::cout << std::endl;
+      }
+    }
+  }
+}
+
+Matrix SphereSL::get_trimmed(double snr)
+{
+  Matrix ret(0, lmax*(lmax+2), 1, nmax);
+  ret.zero();
+
+  if (compute_covar) {
+    
+    // L loop
+    for (int l=0, loffset=0; l<=lmax; loffset+=(2*l+1), l++) {
+
+      int esize = (2*l+1)*nmax;
+      
+      // Assign nulity
+      //
+      Eigen::VectorXd R = uvec[l].transpose() * mean[l];
+      for (int j=0; j<svar[l].size(); j++) {
+	if (svar[l][j]>0.0) {
+	  if (sqrt(R[j]*R[j]/svar[l][j]) < snr) R[j] = 1.0;
+	} else {
+	  R[j] = 0.0;
+	}
+      }
+
+      // Rotate back to original space
+      //
+      Eigen::VectorXd Q = uvec[l] * R;
+
+      // M loop
+      //
+      for (int m=0, moffset=0; m<=l; m++) {
+	if (m==0) {
+	  for (int n=1; n<=nmax; n++) {
+	    ret[loffset+moffset][n] += Q[moffset*nmax + n - 1];
+	  }
+	  moffset++;
+
+	} else {
+	  for (int n=1; n<=nmax; n++) {
+	    expcoef[loffset+moffset  ][n] += Q[(moffset+0)*nmax + n - 1];
+	    expcoef[loffset+moffset+1][n] += Q[(moffset+1)*nmax + n - 1];
+	  }
+
+	  moffset+=2;
+	}
+      }
+    }
+  }
+
+  return ret;
 }
 
 
@@ -527,15 +683,16 @@ void SphereSL::install_coefs(Matrix& newcoef)
     expcoef.setsize(0, lmax*(lmax+2), 1, nmax);
     expcoef.zero();		// Need this?
 
-    work1.setsize(1, nmax);
+    work.setsize(1, nmax);
 
     if (compute_covar) {
-      nmat = (lmax*(lmax+2)+1)*nmax;
-      cc.setsize(1, nmat, 1, nmat);
-      cw.setsize(1, nmat);
-      cc.zero();
-
-      work2.setsize(1, nmat);
+      covar.resize(lmax+1);
+      mean.resize(lmax+1);
+      for (int L=0; L<=lmax; L++) {
+	int size = (2*L+1)*nmax;
+	covar[L] = Eigen::MatrixXd::Zero(size, size);
+	mean[L]  = Eigen::VectorXd::Zero(size);
+      }
     }
 
     factorial.setsize(0, lmax, 0, lmax);

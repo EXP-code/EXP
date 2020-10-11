@@ -6,6 +6,7 @@
 
 #include <SLGridMP2.h>
 #include <localmpi.h>
+#include <eigen3/Eigen/Eigen>
 
 /**
    Uses SLGridSph basis to evaluate expansion coeffients and provide
@@ -22,10 +23,6 @@ private:
   Matrix potd, dpot, dpt2, dend;
   Matrix legs, dlegs, d2legs;
 
-  Matrix cc;			// Will hold covariance matrix
-  Vector cw;			// Work vector
-  int nmat;
-
   bool coefs_defined;
   Matrix factorial;
   Matrix expcoef;
@@ -34,10 +31,15 @@ private:
 
   bool compute_covar;
 
-  Matrix covar;
-  Matrix var;
+  std::vector<Eigen::MatrixXd> covar;
+  std::vector<Eigen::VectorXd> mean;
+  std::vector<Eigen::VectorXd> svar;
+  std::vector<Eigen::MatrixXd> uvec;
 
-  Vector work1, work2;
+
+  double maxSNR;
+
+  Vector work;
 
   void bomb(char *s);
 
@@ -72,11 +74,23 @@ public:
   //! Make coefficients after accumulation
   void make_coefs(void);
 
+  //! Covariance analysis
+  void make_covar(bool verbose=false);
+
   //! Install coefficients
   void install_coefs(Matrix& newcoef);
 
   //! Retrieve coefficients
   Matrix retrieve_coefs(void) { return expcoef; }
+
+  //! Maximum SNR coefficient value
+  double getMaxSNR(void) { return maxSNR; }
+
+  //! Retrieve coefficients with SNR trim
+  Matrix get_trimmed(double snr);
+
+  //! Retrieve coefficients
+  std::vector<Eigen::MatrixXd> retrieve_covar(void) { return covar; }
 
   //! Accumulate new coefficients
   void accumulate(double x, double y, double z, double mass);

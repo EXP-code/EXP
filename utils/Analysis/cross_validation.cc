@@ -96,7 +96,7 @@ main(int argc, char **argv)
 #endif  
   
   double RMIN, RMAX, rscale;
-  int NICE, LMAX, NMAX, L1, L2;
+  int NICE, LMAX, NMAX, NSNR;
   int beg, end, stride, init, knots, num;
   std::string modelf, dir("./"), cname, prefix;
 
@@ -129,10 +129,8 @@ main(int argc, char **argv)
      "Maximum harmonic order for spherical expansion")
     ("NMAX",                po::value<int>(&NMAX)->default_value(12),
      "Maximum radial order for spherical expansion")
-    ("L1",                  po::value<int>(&L1)->default_value(0),
-     "minimum l harmonic")
-    ("L2",                  po::value<int>(&L2)->default_value(100),
-     "maximum l harmonic")
+    ("NSNR, N",             po::value<int>(&NSNR)->default_value(20),
+     "Number of SNR evaluations")
     ("prefix",              po::value<string>(&prefix)->default_value("crossval"),
      "Filename prefix")
     ("runtag",              po::value<string>(&runtag)->default_value("run1"),
@@ -195,14 +193,8 @@ main(int argc, char **argv)
   if (NICE>0)
     setpriority(PRIO_PROCESS, 0, NICE);
 
-  std::ofstream out1(prefix+".full");
-  if (not out1) {
-    std::cerr << "Error opening output file <" << prefix+".full" << ">" << std::endl;
-    exit(-2);
-  }
-
-  std::ofstream out2(prefix+".summary");
-  if (not out2) {
+  std::ofstream out(prefix+".summary");
+  if (not out) {
     std::cerr << "Error opening output file <" << prefix+".summary" << ">" << std::endl;
     exit(-2);
   }
@@ -214,17 +206,9 @@ main(int argc, char **argv)
   SphericalModelTable halo(modelf);
   SphereSL::mpi  = true;
   SphereSL::NUMR = 4000;
-  SphereSL ortho(&halo, LMAX, NMAX, 1, rscale);
+  SphereSL ortho(&halo, LMAX, NMAX, 1, rscale, true);
 
   auto sl = ortho.basis();
-
-  L2 = std::min<int>(LMAX, L2);
-  if (L1>L2) {
-    if (myid==0)
-      std::cout << "L1=" << L1 << " > L2=" << L2 << " [out of range]"
-		<< std::endl;
-    exit(-3);
-  }
 
   // ==================================================
   // Compute and table Q values
@@ -241,7 +225,7 @@ main(int argc, char **argv)
 
   std::map< std::pair<int, int>, std::shared_ptr<std::vector<double>> > Q;
 
-  for (int L=L1; L<=L2; L++) {
+  for (int L=0; L<=LMAX; L++) {
 
     for (int n=1; n<=NMAX; n++) {
 
@@ -351,7 +335,9 @@ main(int argc, char **argv)
       
     if (myid==0) cout << "Making coefficients . . . " << flush;
     ortho.make_coefs();
-
+    if (myid==0) std::cout << "done" << endl;
+    if (myid==0) cout << "Making covariance . . . " << flush;
+    ortho.make_covar(true);
     if (myid==0) std::cout << "done" << endl;
 
     //------------------------------------------------------------ 
@@ -360,96 +346,119 @@ main(int argc, char **argv)
     std::vector<double> term1;
     std::vector<double> term2, work2;
     std::vector<double> term3, work3;
-    std::vector<int>    termL;
     
-    for (int L=L1; L<=L2; L++) {
+    for (int L=0; L<=LMAX; L++) {
       if (myid==0) {
 	term1.push_back(0.0);
 	term2.push_back(0.0);
 	term3.push_back(0.0);
-	termL.push_back(L);
       }
       work2.push_back(0.0);
       work3.push_back(0.0);
     }
       
       
-    auto coefs = ortho.retrieve_coefs();
+    double maxSNR = ortho.getMaxSNR();
+    double minSNR = 0.0001;
+				// Sanity check
     double dx = (ximax - ximin)/(num - 1);
-    double term4tot = 0.0;
+
+    if (maxSNR < minSNR) minSNR = maxSNR / 100.0;
     
-    for (int n=1; n<=NMAX; n++) {
+    double lSNR = (log(maxSNR) - log(minSNR))/(NSNR - 1);
+    
+    std::cout << "[" << myid << "] maxSNR=" << maxSNR << " dSNR=" << lSNR << std::endl;
 
-      if (myid==0) {		// Only root process needs this one
-
-	// Term 1
-	//
-	double t1 = 0.0;
-	for (int L=L1; L<=L2; L++) {
-	  int lbeg = L*L;	// Offset into coefficient array
-	  for (int M=0; M<=L; M++) {
-	    if (M==0)
-	      term1[L-L1] += coefs[lbeg][n]*coefs[lbeg][n];
-	    else {
-	      int ll = lbeg + 2*(M-1) + 1;
-	      term1[L-L1] +=
-		coefs[ll+0][n]*coefs[ll+0][n] +
-		coefs[ll+1][n]*coefs[ll+1][n];
-	    }
-	  }
-	}
-      }
-
-      // Term 2 and Term 3
+    for (int nsnr=0; nsnr<NSNR; nsnr++) {
+      // Assign the snr value
       //
-      for (int L=L1; L<=L2; L++) {
-	int lbeg = L*L;		// Offset into coefficient array
-	
-	// Particle loop
-	//
-	p = psp->GetParticle();
-	int icnt = 0;
-	do {
-	  if (icnt++ % numprocs == myid) {
-	    double r = 0.0, costh = 0.0, phi = 0.0;
-	    for (int k=0; k<3; k++) r += p->pos(k)*p->pos(k);
-	    r = sqrt(r);
-	    if (r>0.0) costh = p->pos(2)/r;
-	    phi = atan2(p->pos(1), p->pos(0));
-	    double mass = p->mass();
-	    
-	    double x = sl->r_to_xi(r);
-	    x = std::max<double>(ximin, x);
-	    x = std::min<double>(ximax, x);
-	    
-	    double potl = sl->get_pot(x, L, n, 0);
-	    
-	    int indx = floor( (x - ximin)/dx );
-	    if (indx<0) indx = 0;
-	    if (indx>=num-1) indx = num-2;
-	    
-	    double A = (ximin + dx*(indx+1) - x)/dx;
-	    double B = (x - ximin - dx*(indx+0))/dx;
+      double snr = minSNR*exp(lSNR*nsnr);
 
-	    std::pair<int, int> I(L, n);
-	    double Qval = A*(*Q[I])[indx] + B*(*Q[I])[indx+1];
+      std::cout << "[" << myid << "] Computing SNR=" << snr << " . . . " << flush;
+    
+      // Get the snr trimmed coefficients
+      //
+      auto coefs = ortho.get_trimmed(snr);
 
+      double term4tot = 0.0;
+
+      for (int n=1; n<=NMAX; n++) {
+
+	if (myid==0) {		// Only root process needs this one
+	  
+	  // Term 1
+	  //
+	  double t1 = 0.0;
+	  for (int L=0; L<=LMAX; L++) {
+	    int lbeg = L*L;	// Offset into coefficient array
 	    for (int M=0; M<=L; M++) {
-	      double ylm = Ylm01(L, M) * plgndr(L, M, costh);
-
-	      if (M==0) {
-		work2[L-L1] += mass*coefs[lbeg+0][n]*ylm*potl;
-		work3[L-L1] += mass*coefs[lbeg+0][n]*ylm*Qval;
-	      } else {
+	      if (M==0)
+		term1[L] += coefs[lbeg][n]*coefs[lbeg][n];
+	      else {
 		int ll = lbeg + 2*(M-1) + 1;
-		double fac = (coefs[ll][n]*cos(phi*M) + coefs[ll+1][n]*sin(phi*M))*ylm;
-		work2[L-L1] += mass*potl * fac;
-		work3[L-L1] += mass*Qval * fac;
+		term1[L] +=
+		  coefs[ll+0][n]*coefs[ll+0][n] +
+		  coefs[ll+1][n]*coefs[ll+1][n];
 	      }
 	    }
 	  }
-	  p = psp->NextParticle();
-	} while (p);
+	}
+
+	// Term 2 and Term 3
+	//
+	for (int L=0; L<=LMAX; L++) {
+
+	  int lbeg = L*L;	// Offset into coefficient array
+	
+	  // Particle loop
+	  //
+	  p = psp->GetParticle();
+	  int icnt = 0;
+	  do {
+	    if (icnt++ % numprocs == myid) {
+	      double r = 0.0, costh = 0.0, phi = 0.0;
+	      for (int k=0; k<3; k++) r += p->pos(k)*p->pos(k);
+	      r = sqrt(r);
+	      if (r>0.0) costh = p->pos(2)/r;
+	      phi = atan2(p->pos(1), p->pos(0));
+	      double mass = p->mass();
+	    
+	      double x = sl->r_to_xi(r);
+	      x = std::max<double>(ximin, x);
+	      x = std::min<double>(ximax, x);
+	    
+	      double potl = sl->get_pot(x, L, n, 0);
+	    
+	      int indx = floor( (x - ximin)/dx );
+	      if (indx<0) indx = 0;
+	      if (indx>=num-1) indx = num-2;
+	      
+	      double A = (ximin + dx*(indx+1) - x)/dx;
+	      double B = (x - ximin - dx*(indx+0))/dx;
+
+	      std::pair<int, int> I(L, n);
+	      double Qval = A*(*Q[I])[indx] + B*(*Q[I])[indx+1];
+
+	      for (int M=0; M<=L; M++) {
+		double ylm = Ylm01(L, M) * plgndr(L, M, costh);
+
+		if (M==0) {
+		  work2[L] += mass*coefs[lbeg+0][n]*ylm*potl;
+		  work3[L] += mass*coefs[lbeg+0][n]*ylm*Qval;
+		} else {
+		  int ll = lbeg + 2*(M-1) + 1;
+		  double fac = (coefs[ll][n]*cos(phi*M) + coefs[ll+1][n]*sin(phi*M))*ylm;
+		  work2[L] += mass*potl * fac;
+		  work3[L] += mass*Qval * fac;
+		}
+	      }
+	    } // END: add particle data
+	    
+	    // Queue up next particle
+	    //
+	    p = psp->NextParticle();
+	  } while (p);
+	}
       }
 	
       MPI_Reduce(work2.data(), term2.data(), work2.size(), MPI_DOUBLE,
@@ -459,42 +468,28 @@ main(int argc, char **argv)
 		 MPI_SUM, 0, MPI_COMM_WORLD);
 
       if (myid==0) {
-
-	out1 << std::setw( 5) << ipsp
-	     << std::setw( 5) << n;
-	out2 << std::setw( 5) << ipsp
-	     << std::setw( 5) << n;
-	for (int L=L1; L<=L2; L++) {
-	  out1 << std::setw(18) << term1[L-L1]/(4.0*M_PI)
-	       << std::setw(18) << term2[L-L1]
-	       << std::setw(18) << term3[L-L1];
-	}
+	  
+	out << std::setw( 5) << ipsp
+	    << std::setw(18) << snr;
 
 	double term1tot = std::accumulate(term1.begin(), term1.end(), 0.0) / (4.0*M_PI);
-	double term2tot = std::accumulate(term2.begin(), term2.end(), 0.0);
-	double term3tot = std::accumulate(term3.begin(), term3.end(), 0.0);
+	  double term2tot = std::accumulate(term2.begin(), term2.end(), 0.0);
+	  double term3tot = std::accumulate(term3.begin(), term3.end(), 0.0);
 
-	if (n==1) term4tot = term1tot;
-      
-	out1 << std::setw(18) << term1tot
-	     << std::setw(18) << term2tot
-	     << std::setw(18) << term3tot
-	     << std::endl;
-
-	out2 << std::setw(18) << term1tot
-	     << std::setw(18) << term2tot
-	     << std::setw(18) << term3tot
-	     << std::setw(18) << term4tot
-	     << std::setw(18) << term1tot + term2tot - term3tot + term4tot
-	     << std::endl;
-
+	  if (nsnr==0) term4tot = term1tot;
+	  
+	  out << std::setw(18) << term1tot
+	      << std::setw(18) << term2tot
+	      << std::setw(18) << term3tot
+	      << std::setw(18) << term1tot + term2tot - term3tot + term4tot
+	      << std::endl;
       } // Root process
-	
-    } // Gamma loop
+      
+      std::cout << "done" << endl;
+    } // SNR loop
       
     if (myid==0) {		// Blank line between stanzas
-      out1 << std::endl;
-      out2 << std::endl;
+      out << std::endl;
     }
 
   } // Dump loop
