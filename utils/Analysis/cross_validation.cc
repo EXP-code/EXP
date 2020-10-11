@@ -367,14 +367,15 @@ main(int argc, char **argv)
     
     double lSNR = (log(maxSNR) - log(minSNR))/(NSNR - 1);
     
-    std::cout << "[" << myid << "] maxSNR=" << maxSNR << " dSNR=" << lSNR << std::endl;
+    if (myid==0)
+      std::cout << "maxSNR=" << maxSNR << " dSNR=" << lSNR << std::endl;
 
     for (int nsnr=0; nsnr<NSNR; nsnr++) {
       // Assign the snr value
       //
       double snr = minSNR*exp(lSNR*nsnr);
 
-      std::cout << "[" << myid << "] Computing SNR=" << snr << " . . . " << flush;
+      if (myid==0) std::cout << "Computing SNR=" << snr << " . . . " << flush;
     
       // Get the snr trimmed coefficients
       //
@@ -485,12 +486,13 @@ main(int argc, char **argv)
 	      << std::endl;
       } // Root process
       
-      std::cout << "done" << endl;
+      if (myid==0) std::cout << "done" << endl;
+
     } // SNR loop
       
-    if (myid==0) {		// Blank line between stanzas
-      out << std::endl;
-    }
+    // Blank line between stanzas
+    //
+    if (myid==0) out << std::endl;
 
   } // Dump loop
 
