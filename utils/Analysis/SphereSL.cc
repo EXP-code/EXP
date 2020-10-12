@@ -270,7 +270,7 @@ void SphereSL::make_covar(bool verbose)
       // Compute SNR
       //
       for (int j=0; j<svar[l].size(); j++) {
-	if (verbose and verbose) std::cout << std::setw(4) << l
+	if (verbose and myid==0) std::cout << std::setw(4) << l
 					   << std::setw(4) << j
 					   << std::setw(18) << svar[l][j]
 					   << std::setw(18) << R[j]*R[j];
