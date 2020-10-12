@@ -142,9 +142,7 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
 	for (int n=1; n<=nmax; n++) {
 	  fac4 = potd[l][n]*fac*fac0;
 	  expcoef[loffset+moffset][n] += fac4 * mass;
-	  if (compute_covar) {
-	    workE[moffset*nmax + n - 1] = fac4;
-	  }
+	  if (compute_covar) workE[moffset*nmax + n - 1] = fac4;
 	}
 
 	moffset++;
@@ -175,14 +173,14 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
 	    mean[l][moffset*(nmax+1)+n1] += workE[moffset*(nmax+1) + n1] * mass;
 
 	  for (int n2=0; n2<nmax; n2++) {
-	    covar[l](moffset*(nmax+0)+n1, moffset*(nmax+0)+n2) +=
+	    covar[l](moffset*(nmax+0) + n1, moffset*(nmax+0) + n2) +=
 	      workE[moffset*(nmax+0) + n1] * workE[moffset*(nmax+0) + n2] * mass;
 	    if (m) {
-	      covar[l](moffset*(nmax+0)+n1, moffset*(nmax+1)+n2) +=
+	      covar[l](moffset*(nmax+0) + n1, moffset*(nmax+1) + n2) +=
 		workE[moffset*(nmax+0) + n1] * workE[moffset*(nmax+1) + n2] * mass;
-	      covar[l](moffset*(nmax+1)+n1, moffset*(nmax+0)+n2) +=
+	      covar[l](moffset*(nmax+1) + n1, moffset*(nmax+0) + n2) +=
 		workE[moffset*(nmax+1) + n1] * workE[moffset*(nmax+0) + n2] * mass;
-	      covar[l](moffset*(nmax+1)+n1, moffset*(nmax+1)+n2) +=
+	      covar[l](moffset*(nmax+1) + n1, moffset*(nmax+1) + n2) +=
 		workE[moffset*(nmax+1) + n1] * workE[moffset*(nmax+1) + n2] * mass;
 	    }
 	  }
@@ -212,8 +210,10 @@ void SphereSL::make_coefs()
 	int esize = (2*l + 1)*nmax;
 	Eigen::MatrixXd mtemp(esize, esize);
 	Eigen::VectorXd vtemp(esize);
+
 	MPI_Allreduce(covar[l].data(), mtemp.data(), esize*esize, MPI_DOUBLE,
 		      MPI_SUM, MPI_COMM_WORLD);
+
 	MPI_Allreduce(mean[l].data(), vtemp.data(), esize, MPI_DOUBLE,
 		      MPI_SUM, MPI_COMM_WORLD);
 	
@@ -299,12 +299,12 @@ Matrix SphereSL::get_trimmed(double snr)
 
       int esize = (2*l+1)*nmax;
       
-      // Assign nulity
+      // Assign nullity
       //
       Eigen::VectorXd R = uvec[l].transpose() * mean[l];
       for (int j=0; j<svar[l].size(); j++) {
 	if (svar[l][j]>0.0) {
-	  if (sqrt(R[j]*R[j]/svar[l][j]) < snr) R[j] = 1.0;
+	  if (sqrt(R[j]*R[j]/svar[l][j]) < snr) R[j] = 0.0;
 	} else {
 	  R[j] = 0.0;
 	}
