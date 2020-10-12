@@ -35,6 +35,7 @@ private:
   std::vector<Eigen::VectorXd> mean;
   std::vector<Eigen::VectorXd> svar;
   std::vector<Eigen::MatrixXd> uvec;
+  double totalMass;
 
 
   double maxSNR;

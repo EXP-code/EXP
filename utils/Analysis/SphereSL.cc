@@ -60,6 +60,7 @@ void SphereSL::reset_coefs(void)
   if (expcoef.getnrows()>0 && expcoef.getncols()>0) expcoef.zero();
   if (compute_covar) {
     maxSNR = 0.0;
+    totalMass = 0.0;
     covar.resize(lmax+1);
     mean.resize(lmax+1);
     for (int L=0; L<=lmax; L++) {
@@ -88,6 +89,7 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
 
     if (compute_covar) {
       maxSNR = 0.0;
+      totalMass = 0.0;
       covar.resize(lmax+1);
       mean.resize(lmax+1);
       for (int L=0; L<=lmax; L++) {
@@ -121,6 +123,7 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
   double rs = r/rscl;
 	
   used++;
+  totalMass += mass;
 
   sl->get_pot(potd, rs);
 
@@ -198,6 +201,10 @@ void SphereSL::make_coefs()
 {
   if (mpi) {
 
+    if (compute_covar)
+      MPI_Allreduce(MPI_IN_PLACE, &totalMass, 1, MPI_DOUBLE,
+		    MPI_SUM, MPI_COMM_WORLD);
+
     for (int l=0; l<=lmax*(lmax+2); l++) {
       MPI_Allreduce(&expcoef[l][1], &work[1], nmax, MPI_DOUBLE,
 		    MPI_SUM, MPI_COMM_WORLD);
@@ -230,7 +237,8 @@ void SphereSL::make_coefs()
 
       for (int i=0; i<esize; i++) {
 	for (int j=0; j<esize; j++) {
-	  covar[l](i, j) -= mean[l](i) * mean[l](j);
+	  if (totalMass>0.0)
+	    covar[l](i, j) -= mean[l](i) * mean[l](j)/totalMass;
 	}
       }
     }
