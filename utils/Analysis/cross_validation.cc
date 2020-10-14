@@ -96,7 +96,7 @@ main(int argc, char **argv)
 #endif  
   
   double RMIN, RMAX, rscale;
-  int NICE, LMAX, NMAX, NSNR;
+  int NICE, LMAX, NMAX, NSNR, NPART;
   int beg, end, stride, init, knots, num;
   std::string modelf, dir("./"), cname, prefix;
 
@@ -117,6 +117,8 @@ main(int argc, char **argv)
      "assume original, single binary PSP files as input")
     ("SPL",
      "assume new split binary PSP files as input")
+    ("LOG",
+     "log scaling for SNR")
     ("NICE",                po::value<int>(&NICE)->default_value(0),
      "system priority")
     ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
@@ -129,6 +131,8 @@ main(int argc, char **argv)
      "Maximum harmonic order for spherical expansion")
     ("NMAX",                po::value<int>(&NMAX)->default_value(12),
      "Maximum radial order for spherical expansion")
+    ("NPART",               po::value<int>(&NPART)->default_value(0),
+     "Jackknife partition number")
     ("NSNR, N",             po::value<int>(&NSNR)->default_value(20),
      "Number of SNR evaluations")
     ("prefix",              po::value<string>(&prefix)->default_value("crossval"),
@@ -186,6 +190,9 @@ main(int argc, char **argv)
   if (vm.count("SPL")) SPL = true;
   if (vm.count("OUT")) SPL = false;
 
+  bool LOG = false;
+  if (vm.count("LOG")) LOG = true;
+
   // ==================================================
   // Nice process
   // ==================================================
@@ -206,7 +213,7 @@ main(int argc, char **argv)
   SphericalModelTable halo(modelf);
   SphereSL::mpi  = true;
   SphereSL::NUMR = 4000;
-  SphereSL ortho(&halo, LMAX, NMAX, 1, rscale, true);
+  SphereSL ortho(&halo, LMAX, NMAX, 1, rscale, true, NPART);
 
   auto sl = ortho.basis();
 
@@ -343,43 +350,62 @@ main(int argc, char **argv)
     //------------------------------------------------------------ 
     
 
-    std::vector<double> term1;
-    std::vector<double> term2, work2;
-    std::vector<double> term3, work3;
+    std::vector<double> term1(LMAX+1);
+    std::vector<double> term2(LMAX+1), work2(LMAX+1);
+    std::vector<double> term3(LMAX+1), work3(LMAX+1);
     
-    for (int L=0; L<=LMAX; L++) {
-      if (myid==0) {
-	term1.push_back(0.0);
-	term2.push_back(0.0);
-	term3.push_back(0.0);
-      }
-      work2.push_back(0.0);
-      work3.push_back(0.0);
-    }
-      
-      
     double maxSNR = ortho.getMaxSNR();
-    double minSNR = 0.0001;
+    double minSNR = 0.000001;
 				// Sanity check
     double dx = (ximax - ximin)/(num - 1);
 
     if (maxSNR < minSNR) minSNR = maxSNR / 100.0;
     
-    double lSNR = (log(maxSNR) - log(minSNR))/(NSNR - 1);
-    
-    if (myid==0)
-      std::cout << "maxSNR=" << maxSNR << " dSNR=" << lSNR << std::endl;
+    if (LOG) {
+      minSNR = log(minSNR);
+      maxSNR = log(maxSNR);
+    }
+
+    double dSNR = (maxSNR - minSNR)/(NSNR - 1);
+
+    if (myid==0) {
+      std::cout << "maxSNR=" << maxSNR << " dSNR=" << dSNR << std::endl;
+    }
+
+    {
+      auto coefs0 = ortho.retrieve_coefs();
+      auto coefs1 = ortho.get_trimmed(0.0);
+      auto delta = coefs0 - coefs1;
+      double maxdif = 0.0;
+      for (int i=delta.getrlow(); i<=delta.getrhigh(); i++) {
+	for (int j=delta.getclow(); j<=delta.getchigh(); j++) {
+	  maxdif = std::max<double>(maxdif, delta[i][j]*delta[i][j]);
+	}
+      }
+      std::cout << "Max diff=" << maxdif << std::endl;
+    }
+
 
     for (int nsnr=0; nsnr<NSNR; nsnr++) {
+
       // Assign the snr value
       //
-      double snr = minSNR*exp(lSNR*nsnr);
+      double snr = minSNR + dSNR*nsnr;
+      if (LOG) snr = exp(snr);
 
       if (myid==0) std::cout << "Computing SNR=" << snr << " . . . " << flush;
     
       // Get the snr trimmed coefficients
       //
       auto coefs = ortho.get_trimmed(snr);
+
+      // Zero accumulators
+      //
+      std::fill(term1.begin(), term1.end(), 0.0);
+      std::fill(term2.begin(), term2.end(), 0.0);
+      std::fill(term3.begin(), term3.end(), 0.0);
+      std::fill(work2.begin(), work2.end(), 0.0);
+      std::fill(work3.begin(), work3.end(), 0.0);
 
       double term4tot = 0.0;
 
@@ -472,23 +498,25 @@ main(int argc, char **argv)
 	  
 	out << std::setw( 5) << ipsp
 	    << std::setw(18) << snr;
-
+	
 	double term1tot = std::accumulate(term1.begin(), term1.end(), 0.0) / (4.0*M_PI);
-	  double term2tot = std::accumulate(term2.begin(), term2.end(), 0.0);
-	  double term3tot = std::accumulate(term3.begin(), term3.end(), 0.0);
+	double term2tot = std::accumulate(term2.begin(), term2.end(), 0.0);
+	double term3tot = std::accumulate(term3.begin(), term3.end(), 0.0);
 
-	  if (nsnr==0) term4tot = term1tot;
+	if (nsnr==0) term4tot = term1tot;
 	  
-	  out << std::setw(18) << term1tot
-	      << std::setw(18) << term2tot
-	      << std::setw(18) << term3tot
-	      << std::setw(18) << term1tot + term2tot - term3tot + term4tot
-	      << std::endl;
-      } // Root process
+	out << std::setw(18) << term1tot
+	    << std::setw(18) << term2tot
+	    << std::setw(18) << term3tot
+	    << std::setw(18) << term1tot + term2tot - term3tot + term4tot
+	    << std::endl;
+      }
+      // Root process
       
       if (myid==0) std::cout << "done" << endl;
 
-    } // SNR loop
+    }
+    // SNR loop
       
     // Blank line between stanzas
     //

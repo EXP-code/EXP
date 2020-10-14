@@ -9,9 +9,9 @@ ADD_CXXFLAGS3 = -DUSE_DMALLOC -g
 ADD_LIBS3     = -ldmallocth -ldmallocthcxx
 endif
 
-AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src $(CUDA_CFLAGS)
+AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src $(CUDA_CFLAGS) `libpng-config --cflags`
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS3)
-AM_CXXFLAGS = -D_REENTRANT -DSTANDALONE $(INCLUDES) $(ADD_CXXFLAGS3) $(BOOST_CPPFLAGS) @exp_vtk_include@
+AM_CXXFLAGS = -D_REENTRANT -DSTANDALONE $(INCLUDES) $(ADD_CXXFLAGS3) $(BOOST_CPPFLAGS) @exp_vtk_include@ `libpng-config --ldflags`
 
 if ENABLE_CUDA
 CUDA_LIBFLAGS  = -lcudart

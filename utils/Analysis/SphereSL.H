@@ -31,12 +31,18 @@ private:
 
   bool compute_covar;
 
-  std::vector<Eigen::MatrixXd> covar;
-  std::vector<Eigen::VectorXd> mean;
-  std::vector<Eigen::VectorXd> svar;
-  std::vector<Eigen::MatrixXd> uvec;
+  using matT = std::vector<Eigen::MatrixXd>;
+  using vecT = std::vector<Eigen::VectorXd>;
+
+  matT covar;
+  vecT mean;
+  vecT svar;
+  matT uvec;
   double totalMass;
 
+  std::vector<vecT> meanB;
+  std::vector<double> massB;
+  int npart, curbin;
 
   double maxSNR;
 
@@ -45,6 +51,9 @@ private:
   void bomb(char *s);
 
 public:
+
+  //! Number of eigenfunctions for each subspace for PNG figure
+  static int NEV;
 
   //! Number of radial points in table (default: 800)
   static int NUMR;
@@ -59,9 +68,10 @@ public:
       \param CMAP is the SLGridSph coordindate mapping type
       \param SCALE is the SLGridSph coordindate scale length
       \param COVAR true will evaluate the covariance matrix for coeffficients
+      \param JACK >0 will evaluate the covariance matrix using a jackknife partition with number given
   */
   SphereSL(SphericalModelTable* mod, int LMAX, int NMAX,
-	   int CMAP=0, double SCALE=0.067, bool COVAR=false);
+	   int CMAP=0, double SCALE=0.067, bool COVAR=false, int NPART=0);
   
   //! Destructor
   ~SphereSL(void);
