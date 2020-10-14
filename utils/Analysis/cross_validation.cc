@@ -95,7 +95,7 @@ main(int argc, char **argv)
   sleep(20);
 #endif  
   
-  double RMIN, RMAX, rscale;
+  double RMIN, RMAX, rscale, minSNR;
   int NICE, LMAX, NMAX, NSNR, NPART;
   int beg, end, stride, init, knots, num;
   std::string modelf, dir("./"), cname, prefix;
@@ -113,6 +113,7 @@ main(int argc, char **argv)
   po::options_description desc(sout.str());
   desc.add_options()
     ("help,h",                                                                          "Print this help message")
+    ("verbose,v",                                                                       "Verbose and diagnostic output for covariance computation")
     ("OUT",
      "assume original, single binary PSP files as input")
     ("SPL",
@@ -132,9 +133,11 @@ main(int argc, char **argv)
     ("NMAX",                po::value<int>(&NMAX)->default_value(12),
      "Maximum radial order for spherical expansion")
     ("NPART",               po::value<int>(&NPART)->default_value(0),
-     "Jackknife partition number")
+     "Jackknife partition number for testing (0 means off, use standard eval)")
     ("NSNR, N",             po::value<int>(&NSNR)->default_value(20),
      "Number of SNR evaluations")
+    ("minSNR",              po::value<double>(&minSNR)->default_value(0.01),
+     "minimum SNR value for loop output")
     ("prefix",              po::value<string>(&prefix)->default_value("crossval"),
      "Filename prefix")
     ("runtag",              po::value<string>(&runtag)->default_value("run1"),
@@ -344,7 +347,10 @@ main(int argc, char **argv)
     ortho.make_coefs();
     if (myid==0) std::cout << "done" << endl;
     if (myid==0) cout << "Making covariance . . . " << flush;
-    ortho.make_covar(true);
+    if (vm.count("verbose"))
+      ortho.make_covar(true);
+    else
+      ortho.make_covar(false);
     if (myid==0) std::cout << "done" << endl;
 
     //------------------------------------------------------------ 
@@ -355,7 +361,6 @@ main(int argc, char **argv)
     std::vector<double> term3(LMAX+1), work3(LMAX+1);
     
     double maxSNR = ortho.getMaxSNR();
-    double minSNR = 0.000001;
 				// Sanity check
     double dx = (ximax - ximin)/(num - 1);
 
@@ -371,20 +376,6 @@ main(int argc, char **argv)
     if (myid==0) {
       std::cout << "maxSNR=" << maxSNR << " dSNR=" << dSNR << std::endl;
     }
-
-    {
-      auto coefs0 = ortho.retrieve_coefs();
-      auto coefs1 = ortho.get_trimmed(0.0);
-      auto delta = coefs0 - coefs1;
-      double maxdif = 0.0;
-      for (int i=delta.getrlow(); i<=delta.getrhigh(); i++) {
-	for (int j=delta.getclow(); j<=delta.getchigh(); j++) {
-	  maxdif = std::max<double>(maxdif, delta[i][j]*delta[i][j]);
-	}
-      }
-      std::cout << "Max diff=" << maxdif << std::endl;
-    }
-
 
     for (int nsnr=0; nsnr<NSNR; nsnr++) {
 
