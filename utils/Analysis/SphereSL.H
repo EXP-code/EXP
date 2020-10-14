@@ -98,7 +98,7 @@ public:
   double getMaxSNR(void) { return maxSNR; }
 
   //! Retrieve coefficients with SNR trim
-  Matrix get_trimmed(double snr);
+  Matrix get_trimmed(double snr, bool Hall=false);
 
   //! Retrieve coefficients
   std::vector<Eigen::MatrixXd> retrieve_covar(void) { return covar; }

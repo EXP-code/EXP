@@ -120,6 +120,8 @@ main(int argc, char **argv)
      "assume new split binary PSP files as input")
     ("LOG",
      "log scaling for SNR")
+    ("Hall",
+     "use Hall smoothing for SNR trim")
     ("NICE",                po::value<int>(&NICE)->default_value(0),
      "system priority")
     ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
@@ -195,6 +197,12 @@ main(int argc, char **argv)
 
   bool LOG = false;
   if (vm.count("LOG")) LOG = true;
+
+  bool Hall = false;
+  if (vm.count("Hall")) Hall = true;
+
+  bool verbose = false;
+  if (vm.count("verbose")) verbose = true;
 
   // ==================================================
   // Nice process
@@ -347,10 +355,7 @@ main(int argc, char **argv)
     ortho.make_coefs();
     if (myid==0) std::cout << "done" << endl;
     if (myid==0) cout << "Making covariance . . . " << flush;
-    if (vm.count("verbose"))
-      ortho.make_covar(true);
-    else
-      ortho.make_covar(false);
+    ortho.make_covar(verbose);
     if (myid==0) std::cout << "done" << endl;
 
     //------------------------------------------------------------ 
@@ -377,6 +382,8 @@ main(int argc, char **argv)
       std::cout << "maxSNR=" << maxSNR << " dSNR=" << dSNR << std::endl;
     }
 
+    double term4tot = 0.0;
+
     for (int nsnr=0; nsnr<NSNR; nsnr++) {
 
       // Assign the snr value
@@ -384,13 +391,17 @@ main(int argc, char **argv)
       double snr = minSNR + dSNR*nsnr;
       if (LOG) snr = exp(snr);
 
-      if (myid==0) std::cout << "Computing SNR=" << snr << " . . . " << flush;
+      if (myid==0) {
+	std::cout << "Computing SNR=" << snr;
+	if (Hall) std::cout << " using Hall smoothing . . . " << flush;
+	else      std::cout << " using truncation . . . " << flush;
+      }
     
       // Get the snr trimmed coefficients
       //
-      auto coefs = ortho.get_trimmed(snr);
+      auto coefs = ortho.get_trimmed(snr, Hall);
 
-      // Zero accumulators
+      // Zero out the accumulators
       //
       std::fill(term1.begin(), term1.end(), 0.0);
       std::fill(term2.begin(), term2.end(), 0.0);
@@ -398,18 +409,15 @@ main(int argc, char **argv)
       std::fill(work2.begin(), work2.end(), 0.0);
       std::fill(work3.begin(), work3.end(), 0.0);
 
-      double term4tot = 0.0;
-
-      for (int n=1; n<=NMAX; n++) {
-
-	if (myid==0) {		// Only root process needs this one
+      if (myid==0) {		// Only root process needs this one
 	  
-	  // Term 1
-	  //
-	  double t1 = 0.0;
-	  for (int L=0; L<=LMAX; L++) {
-	    int lbeg = L*L;	// Offset into coefficient array
-	    for (int M=0; M<=L; M++) {
+	// Term 1
+	//
+	double t1 = 0.0;
+	for (int L=0; L<=LMAX; L++) {
+	  int lbeg = L*L;	// Offset into coefficient array
+	  for (int M=0; M<=L; M++) {
+	    for (int n=1; n<=NMAX; n++) {
 	      if (M==0)
 		term1[L] += coefs[lbeg][n]*coefs[lbeg][n];
 	      else {
@@ -421,45 +429,48 @@ main(int argc, char **argv)
 	    }
 	  }
 	}
+      }
 
-	// Term 2 and Term 3
-	//
-	for (int L=0; L<=LMAX; L++) {
+      // Term 2 and Term 3
+      //
+      for (int L=0; L<=LMAX; L++) {
 
-	  int lbeg = L*L;	// Offset into coefficient array
+	int lbeg = L*L;	// Offset into coefficient array
 	
-	  // Particle loop
-	  //
-	  p = psp->GetParticle();
-	  int icnt = 0;
-	  do {
-	    if (icnt++ % numprocs == myid) {
-	      double r = 0.0, costh = 0.0, phi = 0.0;
-	      for (int k=0; k<3; k++) r += p->pos(k)*p->pos(k);
-	      r = sqrt(r);
-	      if (r>0.0) costh = p->pos(2)/r;
-	      phi = atan2(p->pos(1), p->pos(0));
-	      double mass = p->mass();
+	// Particle loop
+	//
+	p = psp->GetParticle();
+	int icnt = 0;
+	do {
+	  if (icnt++ % numprocs == myid) {
+	    double r = 0.0, costh = 0.0, phi = 0.0;
+	    for (int k=0; k<3; k++) r += p->pos(k)*p->pos(k);
+	    r = sqrt(r);
+	    if (r>0.0) costh = p->pos(2)/r;
+	    phi = atan2(p->pos(1), p->pos(0));
+	    double mass = p->mass();
 	    
-	      double x = sl->r_to_xi(r);
-	      x = std::max<double>(ximin, x);
-	      x = std::min<double>(ximax, x);
+	    double x = sl->r_to_xi(r);
+	    x = std::max<double>(ximin, x);
+	    x = std::min<double>(ximax, x);
 	    
-	      double potl = sl->get_pot(x, L, n, 0);
+	    int indx = floor( (x - ximin)/dx );
+	    if (indx<0) indx = 0;
+	    if (indx>=num-1) indx = num-2;
 	    
-	      int indx = floor( (x - ximin)/dx );
-	      if (indx<0) indx = 0;
-	      if (indx>=num-1) indx = num-2;
-	      
-	      double A = (ximin + dx*(indx+1) - x)/dx;
-	      double B = (x - ximin - dx*(indx+0))/dx;
+	    double A = (ximin + dx*(indx+1) - x)/dx;
+	    double B = (x - ximin - dx*(indx+0))/dx;
+	    
+	    for (int M=0; M<=L; M++) {
 
-	      std::pair<int, int> I(L, n);
-	      double Qval = A*(*Q[I])[indx] + B*(*Q[I])[indx+1];
+	      double ylm = Ylm01(L, M) * plgndr(L, M, costh);
 
-	      for (int M=0; M<=L; M++) {
-		double ylm = Ylm01(L, M) * plgndr(L, M, costh);
+	      for (int n=1; n<=NMAX; n++) {
 
+		std::pair<int, int> I(L, n);
+		double Qval = A*(*Q[I])[indx] + B*(*Q[I])[indx+1];
+		double potl = sl->get_pot(x, L, n, 0);
+		  
 		if (M==0) {
 		  work2[L] += mass*coefs[lbeg+0][n]*ylm*potl;
 		  work3[L] += mass*coefs[lbeg+0][n]*ylm*Qval;
@@ -470,14 +481,21 @@ main(int argc, char **argv)
 		  work3[L] += mass*Qval * fac;
 		}
 	      }
-	    } // END: add particle data
+	      // END: radial index loop
+	    }
+	    // END: M loop
+	  }
+	  // END: add particle data
 	    
-	    // Queue up next particle
-	    //
-	    p = psp->NextParticle();
-	  } while (p);
-	}
+	  // Queue up next particle
+	  //
+	  p = psp->NextParticle();
+	} while (p);
+	//
+	// END: particle loop
       }
+      // END: L loop
+
 	
       MPI_Reduce(work2.data(), term2.data(), work2.size(), MPI_DOUBLE,
 		 MPI_SUM, 0, MPI_COMM_WORLD);

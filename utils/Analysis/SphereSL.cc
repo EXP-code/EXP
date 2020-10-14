@@ -368,7 +368,7 @@ void SphereSL::make_covar(bool verbose)
   }
 }
 
-Matrix SphereSL::get_trimmed(double snr)
+Matrix SphereSL::get_trimmed(double snr, bool Hall)
 {
   Matrix ret(0, lmax*(lmax+2), 1, nmax);
   ret.zero();
@@ -407,9 +407,12 @@ Matrix SphereSL::get_trimmed(double snr)
       Eigen::VectorXd R = uvec[l].transpose() * W;
       for (int j=0; j<svar[l].size(); j++) {
 	if (svar[l][j]>0.0) {
-	  if (R[j]*R[j]/svar[l][j] < snr) R[j] = 0.0;
+	  if (Hall)
+	    R[j] *= 1.0/(snr*svar[l][j]/(R[j]*R[j]) + 1.0);
+	  else if (R[j]*R[j]/svar[l][j] < snr)
+	    R[j] = 0.0;
 	} else {
-	  R[j] = 0.0;
+	  R[j] = 0.0;		// Sanity
 	}
       }
 
