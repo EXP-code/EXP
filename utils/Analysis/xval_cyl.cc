@@ -95,7 +95,7 @@ main(int argc, char **argv)
   sleep(20);
 #endif  
   
-  double rcylmin, rcylmax, rscale, vscale, minSNR;
+  double rcylmin, rcylmax, rscale, vscale, minSNR0;
   int NICE, NSNR, NPART, mmax, norder, lmax;
   int beg, end, stride, init, knots, num;
   std::string modelf, dir("./"), cname, prefix;
@@ -155,7 +155,7 @@ main(int argc, char **argv)
      "Jackknife partition number for testing (0 means off, use standard eval)")
     ("NSNR, N",             po::value<int>(&NSNR)->default_value(20),
      "Number of SNR evaluations")
-    ("minSNR",              po::value<double>(&minSNR)->default_value(0.01),
+    ("minSNR",              po::value<double>(&minSNR0)->default_value(0.01),
      "minimum SNR value for loop output")
     ("prefix",              po::value<string>(&prefix)->default_value("crossval"),
      "Filename prefix")
@@ -390,12 +390,15 @@ main(int argc, char **argv)
     std::vector<double> term2(LMAX+1), work2(LMAX+1);
     std::vector<double> term3(LMAX+1), work3(LMAX+1);
     
+				// Default SNR limits
+    double minSNR = minSNR0;
     double maxSNR = ortho.getMaxSNR();
 				// Sanity check
     double dx = (ximax - ximin)/(num - 1);
 
     if (maxSNR < minSNR) minSNR = maxSNR / 100.0;
     
+				// Space SNR logarithmically?
     if (LOG) {
       minSNR = log(minSNR);
       maxSNR = log(maxSNR);
@@ -404,7 +407,7 @@ main(int argc, char **argv)
     double dSNR = (maxSNR - minSNR)/(NSNR - 1);
 
     if (myid==0) {
-      std::cout << "maxSNR=" << maxSNR << " dSNR=" << dSNR << std::endl;
+      std::cout << "minSNR=" << minSNR << " maxSNR=" << maxSNR << " dSNR=" << dSNR << std::endl;
     }
 
     double term4tot = 0.0;
