@@ -6,8 +6,10 @@
 
 #include <Vector.h>
 #include <SphereSL.H>
-#include <ColorGradient.H>	// For PNG images
 
+#ifdef HAVE_LIBPNGPP
+#include <ColorGradient.H>	// For PNG images
+#endif
 
 int SphereSL::NUMR = 800;
 int SphereSL::NEV  = 10;	// None by default
@@ -445,6 +447,8 @@ Matrix SphereSL::get_trimmed(double snr, bool Hall)
   }
 
 
+
+#ifdef HAVE_LIBPNGPP
   if (NEV) {
 
     const int minSize = 600;
@@ -490,6 +494,7 @@ Matrix SphereSL::get_trimmed(double snr, bool Hall)
 
     }
   }
+#endif
 
   return ret;
 }
