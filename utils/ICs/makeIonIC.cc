@@ -18,6 +18,7 @@
 #include <iostream>
 #include <iomanip>
 #include <numeric>
+#include <limits>
 #include <tuple>
 
 #include <boost/random.hpp>
@@ -252,7 +253,7 @@ std::map<std::string, Mtype> Models
 /**
    Make Uniform temperature box of gas
 */
-void InitializeUniform(std::vector<Particle>& p, std::vector<double>& mass, double molW,
+void InitializeUniform(std::vector<Particle>& p, std::vector<double>& mass, double molW, double Ecut,
                        std::vector< std::map<unsigned char, double> >& T, std::vector<double> &L,
 		       Itype type, int sp, int ne, int ni, int nd)
 {
@@ -329,9 +330,15 @@ void InitializeUniform(std::vector<Particle>& p, std::vector<double>& mass, doub
       }
       
       if (ne>=0) {
-	for (int l=0; l<3; l++) {
-	  p[i].dattrib[ne+l] = varE[0] * (*Norm)();
-	}
+	double totE;
+	do {
+	  totE = 0.0;
+	  for (int l=0; l<3; l++) {
+	    double v = (*Norm)();
+	    totE += v*v;
+	    p[i].dattrib[ne+l] = varE[0] * v;
+	  }
+	} while (totE > Ecut);
       }
 
     } else {
@@ -1694,7 +1701,7 @@ main (int ac, char **av)
 {
   Itype type  = Direct;
   Mtype model = Uniform;
-  double D, L, R, Temp, Telec;
+  double D, L, R, Temp, Telec, Ecut;
   std::string config;
   std::string oname;
   unsigned seed;
@@ -1738,6 +1745,8 @@ main (int ac, char **av)
      "time scale in years")
     ("Munit,m",		po::value<double>(&Munit)->default_value(1.0),
      "mass scale in solar masses")
+    ("Ecut,E",		po::value<double>(&Ecut)->default_value(std::numeric_limits<double>::max()),
+     "truncation of electron tail in kT")
     ("num-int,i",	po::value<int>(&ni)->default_value(2),
      "number of integer attributes")
     ("num-double,d",	po::value<int>(&nd)->default_value(6),
@@ -2013,7 +2022,7 @@ main (int ac, char **av)
   case Uniform:
   default:
     Mass.push_back(mp*D*vol/Munit);
-    InitializeUniform(particles, Mass, molW, T, LL, type, sp, ne, ni, nd);
+    InitializeUniform(particles, Mass, molW, Ecut, T, LL, type, sp, ne, ni, nd);
     break;
   }
 
