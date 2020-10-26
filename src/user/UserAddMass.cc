@@ -486,23 +486,6 @@ void UserAddMass::determine_acceleration_and_potential(void)
       if (interp) {
 	a = (lrmin + dr*(indx+1) - lrr)/dr;
 	b = (lrr - lrmin - dr*(indx+0))/dr;
-	m = a*mas[indx] + b*mas[indx+1];
-
-	// Verbose error reporting for debugging (should not be invoked)
-	//
-	if (m<=0.0) {
-	  std::cout << "UserAddMass: *impossible* interp oob ERROR: "
-		    << std::setprecision(5) << std::fixed
-		    << std::setw(10) << a
-		    << std::setw(10) << b
-		    << std::setw(10) << m
-		    << std::setw(10) << mas[indx+0]
-		    << std::setw(10) << mas[indx+1]
-		    << std::setw( 8) << indx
-		    << std::endl;
-	  notfound = true;
-	  break;
-	}
       }
 
       Particle *P =  c0->GetNewPart();
@@ -542,10 +525,10 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	  double sig = 0.0;
 	  for (int k=0; k<3; k++) {
 	    if (interp) {
-	      double v1a = vl_bins[0][indx  ][k];
-	      double v2a = v2_bins[0][indx  ][k];
-	      double v1b = vl_bins[0][indx+1][k];
-	      double v2b = v2_bins[0][indx+1][k];
+	      double v1a = vl_bins[0][indx  ][k]/mas[indx  ];
+	      double v2a = v2_bins[0][indx  ][k]/mas[indx  ];
+	      double v1b = vl_bins[0][indx+1][k]/mas[indx+1];
+	      double v2b = v2_bins[0][indx+1][k]/mas[indx+1];
 	      sig += a*(v2a - v1a*v1a) + b*(v2b - v1b*v1b);
 	    } else {
 	      double v1 = vl_bins[0][indx][k]/mas[indx];
@@ -580,8 +563,9 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	  //
 	  vec3 rv;
 	  if (interp) {
-	    for (int k=0; k<3; k++)
-	      rv[k] = (a*L3_bins[0][indx][k] + b*L3_bins[0][indx+1][k])/m;
+	    for (int k=0; k<3; k++) rv[k] =
+				      a*L3_bins[0][indx+0][k]/mas[indx+0] +
+				      b*L3_bins[0][indx+1][k]/mas[indx+1] ;
 	  } else {
 	    rv = L3_bins[0][indx];
 	    for (auto & v : rv) v /= mas[indx];
