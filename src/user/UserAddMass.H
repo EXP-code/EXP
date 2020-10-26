@@ -31,6 +31,7 @@
     @param logr true means use logarithmic bining
     @param seed for the pseudorandom number generator
     @param debug is the time interval between profile outputs (<=0 for off)
+    @param interp set to true for interpolation in angular momentum bins
 **/
 
 class UserAddMass : public ExternalForce
@@ -40,14 +41,17 @@ private:
   std::string comp_name;
   Component *c0;
 
-  bool logr;
+  bool logr, interp;
   unsigned number, numr;
   double mass, rmin, rmax, lrmin, lrmax, dr, tnext, dtime, debug, dnext;
   long int seed;
 
+  using vec3 = std::array<double, 3>;
+
   std::vector< std::vector<double> > mas_bins;
-  std::vector< std::vector<std::array<double, 3>> > vl_bins, v2_bins;
-  std::vector< std::vector<std::array<double, 3>> > L3_bins;
+
+  std::vector< std::vector<vec3> > vl_bins, v2_bins;
+  std::vector< std::vector<vec3> > L3_bins;
 
   void clear_bins();
   void determine_acceleration_and_potential(void);
