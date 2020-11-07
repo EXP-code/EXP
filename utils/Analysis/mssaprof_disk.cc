@@ -414,9 +414,9 @@ CoefData get_coefficients(const std::string& coefs)
     // Read rest of file
     //
     int numM, numT, nmin, nmax, ngroups;
-    in.read((char *)&numM,       sizeof(int));
     in.read((char *)&numT,       sizeof(int));
     in.read((char *)&nmax,       sizeof(int));
+    in.read((char *)&numM,       sizeof(int));
     in.read((char *)&ngroups,    sizeof(int));
     std::vector<int> MM(numM);
     in.read((char *)&MM[0],      sizeof(int)*numM);
