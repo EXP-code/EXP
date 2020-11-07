@@ -131,6 +131,7 @@ bool main_wait     = false;
 bool mpi_wait      = false;
 bool fpe_trap      = false;
 bool fpe_trace     = false;
+bool gdb_trace     = true;
 bool fpe_wait      = false;
 
 bool ignore_info   = false;

@@ -33,6 +33,9 @@ extern bool fpe_trap;
 //! Install error handler for fpe backtrace
 extern bool fpe_trace;
 
+//! Use gdb or native trace handling
+extern bool gdb_trace;
+
 //! Install error handler for fpe wait
 extern bool fpe_wait;
 

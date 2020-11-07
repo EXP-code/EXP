@@ -25,6 +25,9 @@ extern std::string outdir;
 //! Used for labeling report files
 extern std::string runtag;
 
+//! Traceback type
+extern bool gdb_trace;
+
 void print_trace(std::ostream& out, const char *file, int line)
 {
   const size_t max_depth = 100;
@@ -213,9 +216,15 @@ void mpi_gdb_print_trace(int sig)
     if (numprocs>1) std::cerr << " [mpi_id=" << myid << "]";
     std::cerr << ": see <" << ostr.str() << "> for more info" << std::endl;
     tb << sout.str() << std::endl;
-    print_gdb_backtrace(tb       );
+    if (gdb_trace)
+      print_gdb_backtrace(tb       );
+    else
+      print_trace(tb, 0, 0);
   } else {
-    print_gdb_backtrace(std::cerr);
+    if (gdb_trace)
+      print_gdb_backtrace(std::cerr);
+    else
+      print_trace(std::cerr, 0, 0);
   }
 
   tb.close();
