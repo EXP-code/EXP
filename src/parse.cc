@@ -183,7 +183,9 @@ void initialize(void)
       } else fpe_trace = false;
       if (myid==0) {
 	std::cout << "Found <fpe_trace=" << std::boolalpha
-		  << fpe_trace << ">" << std::endl;
+		  << fpe_trace << ">" << std::endl
+		  << "Found <gdb_trace=" << std::boolalpha
+		  << gdb_trace << ">" << std::endl;
 	if (fpe_trace) std::cout << "----" << std::endl
 				 << "---- Print a backtrace to stderr on detecting an FP error" << std::endl
 				 << "----" << std::endl;

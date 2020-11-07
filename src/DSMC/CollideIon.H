@@ -510,11 +510,11 @@ private:
   std::vector< std::vector<double> >                 dCross;
   std::vector< std::vector<int>    >                 dInter;
   std::vector< keyWghts >                            meanF, densE, photoW, photoN;
-  std::vector< CEvector >                            CE1, CE2;
+  std::vector< CFreturn >                            CE1, CE2;
   std::vector< CFreturn >                            FF1, FF2;
   std::vector< double >                              xcross;
 
-  std::vector< double >                              meanE, neutF, meanR, meanM, cellM, debye;
+  std::vector< double >                              meanE, neutF, meanR, meanM, cellM, debye, plasma;
  std::vector< double >                               numIf, numEf, numQ2, colSc, elecDen, elecDn2, numIf0, numEf0, colCf;
   std::vector< double >                              kEi, kEe1, kEe2, kEee, clrE, misE, dfrE, updE, spEdel, spEmax, spTau;
   std::vector< double >                              kE1s, kE2s, Ein1, Ein2, Evel, Evel2, Ivel2, Eelc, Eion;
@@ -667,8 +667,9 @@ private:
   std::vector< boost::circular_buffer<double> > elecEVavg;
   std::vector< boost::circular_buffer<double> > elecEVmax;
   std::vector< boost::circular_buffer<double> > elecEVsub;
+  std::vector< boost::circular_buffer<double> > plasmaP;
   ahistoDPtr elecEVH, elecEVHmin, elecEVHavg, elecEVHmax;
-  ahistoDPtr elecEVHsub, elecRCH, elecRCN;
+  ahistoDPtr elecEVHsub, elecRCH, elecRCN, logLH;
 
   std::vector< std::vector<double> > rcmbTotl;
   std::vector<double>                rcmbLH;
@@ -914,6 +915,9 @@ public:
 
   //! Coulombic log Lambda value
   static double logL;
+
+  //! Internal Coulombic log Lambda scale factor
+  static double logLfac;
 
   //! Relative error tolerance for warnings (default: 1.0e-5)
   static double tolE;

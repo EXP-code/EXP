@@ -191,4 +191,15 @@ typedef float  cuFP_t;
 typedef double cuFP_t;
 #endif
 
+// Work around for long-standing Thrust bug that is finally being
+// addressed.  See https://github.com/NVIDIA/thrust/pull/1104
+//
+#ifndef CUDART_VERSION
+#error CUDART_VERSION Undefined!
+#elif (CUDART_VERSION >= 11000)
+const bool thrust_binary_search_workaround = false;
+#else
+const bool thrust_binary_search_workaround = true;
+#endif
+
 #endif

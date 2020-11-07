@@ -1,7 +1,7 @@
 dnl ==========================================================================
 dnl Process this file with autoconf to produce a configure script.
 dnl ==========================================================================
-AC_INIT(EXP, 7.608, [mdw@umass.edu], [], [https://mdweinberg@bitbucket.org/mdweinberg/exp.git])
+AC_INIT(EXP, 7.610, [mdw@umass.edu], [], [https://mdweinberg@bitbucket.org/mdweinberg/exp.git])
 
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SRCDIR(src/expand.cc)
@@ -35,14 +35,20 @@ AC_CONFIG_MACRO_DIR([m4])
 
 AC_LANG_PUSH(C++)
 
-AX_CXX_COMPILE_STDCXX_11([noext],[mandatory])
+AX_CXX_COMPILE_STDCXX_14([noext],[mandatory])
 
 dnl ==========================================================================
 dnl Check for hash
 dnl ==========================================================================
-AC_CHECK_HEADER(tr1/unordered_map,[AC_DEFINE([HAVE_TR1],[],["Have tr1"])],[])
-AC_CHECK_HEADER(unordered_map,[AC_DEFINE([HAVE_CXX0X],[],["Have C++0x"])],[])
-AC_CHECK_HEADER(hash_map,[AC_DEFINE([HAVE_HASH],[],["Have GNU C++"])],[])
+AC_CHECK_HEADER(tr1/unordered_map,[AC_DEFINE([HAVE_TR1],[],[Have tr1])],[])
+AC_CHECK_HEADER(unordered_map,[AC_DEFINE([HAVE_CXX0X],[],["Have C++0x])],[])
+AC_CHECK_HEADER(hash_map,[AC_DEFINE([HAVE_HASH],[],[Have GNU C++])],[])
+
+dnl ==========================================================================
+dnl Check for libpng++
+dnl ==========================================================================
+AC_CHECK_HEADER(png++/png.hpp,[AC_DEFINE([HAVE_LIBPNGPP],[],[Defined if you have the have the png++ wrapper])],
+[AC_MSG_RESULT([Couldn't find or include png++/png.hpp.  Please install the png++ package if you want png support. This is optional.])])
 
 dnl ==========================================================================
 dnl Check for OpenMP

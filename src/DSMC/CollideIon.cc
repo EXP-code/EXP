@@ -61,7 +61,8 @@ bool     CollideIon::coulScale  = false;
 double   CollideIon::coulPow    = 2.0;
 unsigned CollideIon::NoDelC     = 0;
 unsigned CollideIon::maxCoul    = UINT_MAX;
-double   CollideIon::logL       = 5.0/(16.0*M_PI); // energy transfer factor
+double   CollideIon::logL       = 20.0; // Coulombic logarithm
+double   CollideIon::logLfac    = 0.0;	// Scale intrinsic log L computation
 bool     CollideIon::TSESUM     = true;
 bool     CollideIon::coulInter  = true;
 bool     CollideIon::stateXS    = false;
@@ -698,6 +699,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   meanR    .resize(nthrds);	     // Trace
   meanM    .resize(nthrds);	     // Trace
   debye    .resize(nthrds);	     // Currently Trace, needs updating
+  plasma   .resize(nthrds, logL);    // Currently Trace, needs updating
   cellM    .resize(nthrds);	     // Trace
   neutF    .resize(nthrds);	     // Trace
   numIf    .resize(nthrds);	     // Direct, Weight, Hybrid, Trace
@@ -849,6 +851,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
     for (auto &v : elecEVsub) v.set_capacity(bufCap);
     elecRC.resize(nthrds);
     for (auto &v : elecRC)    v.set_capacity(bufCap);
+    plasmaP.resize(nthrds);
+    for (auto &v : plasmaP)   v.set_capacity(bufCap);
 
     setupRcmbTotl();
   }
@@ -1766,15 +1770,12 @@ void CollideIon::initialize_cell
     cellTemps[id] = meanTemp;
 
     double dbyfac = std::numeric_limits<double>::max();
-    if ((ne>0.0 and KEe>0.0) or (ni>0.0 and KEi>0.0)) {
+    if (KEe>0.0 and KEi>0.0) {
       dbyfac = 0.0;
       if (KEe>0.0) dbyfac += ne/KEe;
       if (KEi>0.0) dbyfac += cj/KEi;
     }
 
-    debye[id]  = 1.0/sqrt(6.0*M_PI*esu*esu*dbyfac);
-    debye[id] /= TreeDSMC::Lunit;
-    
     if (numbP>0.0) meanM[id] = massP/numbP;
     if (numbP>0.0) Ivel2[id] = ivel2/numbP;
     if (numbP>0.0) Evel2[id] = evel2/numbP;
@@ -1823,6 +1824,18 @@ void CollideIon::initialize_cell
     double muee = atomic_weights[0]/2.0;
     double muie = atomic_weights[0] * meanM[id]/(atomic_weights[0] + meanM[id]);
 
+
+    debye [id]  = 1.0/sqrt(6.0*M_PI*esu*esu*dbyfac);
+    plasma[id]  = log((muie*2.0*Eion[id] + muee*2.0*Eelc[id])*eV*debye[id] /
+		      (esu*esu*numQ2[id]));
+    debye [id] /= TreeDSMC::Lunit;
+    
+    // For verbose diagnostic output only
+    //
+    if (elecDist) {
+      plasmaP[id].push_back(plasma[id]);
+    }
+
 #ifdef XC_DEEP7
     std::cout << "coulombic:"
       << " MUii=" << muii
@@ -1838,8 +1851,12 @@ void CollideIon::initialize_cell
       << " nbod=" << nbods
       << " numQ=" << tmp1
       << " numE=" << tmp2
+      << " DbyL=" << debye[id]
+      << " logL=" << plasma[id]
       << std::endl;
 #endif
+
+    if (logLfac>0.0) plasma[id] *= logLfac;
 
 				// Ion-Ion
     PiProb[id][0] = densQtot;
@@ -1889,14 +1906,17 @@ void CollideIon::initialize_cell
       if (fabs(test2-1.0) > 1.0e-4) { std::cout << "test2 error" << std::endl; }
     }
 
+    double Lbda = logL;
+    if (logLfac>0.0) Lbda = plasma[id];
+
 				// Rate coefficients
-    ABrate[id][0] = 2.0*M_PI * PiProb[id][0] * logL * pow(numQ2[id]*numQ2[id], 2.0);
+    ABrate[id][0] = 2.0*M_PI * PiProb[id][0] * Lbda * pow(numQ2[id]*numQ2[id], 2.0);
 
-    ABrate[id][1] = 2.0*M_PI * PiProb[id][1] * logL * pow(numQ2[id], 2.0);
+    ABrate[id][1] = 2.0*M_PI * PiProb[id][1] * Lbda * pow(numQ2[id], 2.0);
 
-    ABrate[id][2] = 2.0*M_PI * PiProb[id][2] * logL * pow(numQ2[id], 2.0);
+    ABrate[id][2] = 2.0*M_PI * PiProb[id][2] * Lbda * pow(numQ2[id], 2.0);
 
-    ABrate[id][3] = 2.0*M_PI * PiProb[id][3] * logL ;
+    ABrate[id][3] = 2.0*M_PI * PiProb[id][3] * Lbda ;
 
 #ifdef XC_DEEP10
     std::cout << "coul2: "
@@ -2652,7 +2672,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 	std::min<double>(b, b_max);
       }
 
-      double mfac = 4.0 * logL;
+      double mfac = 4.0 * plasma[id];
       cross12 = M_PI*b*b * eVel2 * ne2 * crossfac * cscl_[Z1] * mfac;
       dCross[id].push_back(cross12);
       dInter[id].push_back(ion_elec_1);
@@ -2678,7 +2698,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 	std::min<double>(b, b_max);
       }
 
-      double mfac = 4.0 * logL;
+      double mfac = 4.0 * plasma[id];
       cross21 = M_PI*b*b * eVel2 * ne2 * crossfac * cscl_[Z2] * mfac;
       dCross[id].push_back(cross21);
       dInter[id].push_back(ion_elec_2);
@@ -2723,7 +2743,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 	std::min<double>(b, b_max);
       }
 
-      double mfac = 4.0 * logL;
+      double mfac = 4.0 * plasma[id];
       cross21 = M_PI*b*b * eVel2 * ne2 * crossfac * cscl_[Z2] * mfac;
       dCross[id].push_back(cross21);
       dInter[id].push_back(ion_elec_2);
@@ -2744,7 +2764,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
       std::min<double>(b, b_max);
     }
 
-    double mfac = 4.0 * logL;
+    double mfac = 4.0 * plasma[id];
     double crossS = M_PI*b*b * crossfac * cscl_[Z1] * cscl_[Z2] * mfac;
     dCross[id].push_back(crossS);
     dInter[id].push_back(ion_ion_1);
@@ -2796,9 +2816,10 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 				//-------------------------------
   if (ne2 > 0 and C1 <= Z1) {	// Particle 1 must be bound
 
-    CE1[id] = ch.IonList[Q1]->collExciteCross(kEe1[id], id);
+    auto cumCross = ch.IonList[Q1]->collExciteCross(kEe1[id], id);
+    CE1[id] = IS.selectCEInteract(ch.IonList[Q1], cumCross);
 
-    double crs = eVel2 * ne2 * CE1[id].back().first;
+    double crs = eVel2 * ne2 * CE1[id].first;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -2863,8 +2884,10 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 				//-------------------------------
   if (ne1 > 0 and C2 <= Z2) {
 
-    CE2[id] = ch.IonList[Q2]->collExciteCross(kEe2[id], id);
-    double crs = eVel1 * ne1 * CE2[id].back().first;
+    auto cumCross = ch.IonList[Q2]->collExciteCross(kEe2[id], id);
+    CE2[id] = IS.selectCEInteract(ch.IonList[Q2], cumCross);
+
+    double crs = eVel1 * ne1 * CE2[id].first;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -3136,16 +3159,17 @@ double CollideIon::crossSectionWeight
 				//-------------------------------
   if (ne2 > 0 and C1 <= Z1) {	// Particle 1 must be bound
 
-      CE1[id] = ch.IonList[Q1]->collExciteCross(kEe1[id], id);
+    auto cumCross = ch.IonList[Q1]->collExciteCross(kEe1[id], id);
+    CE1[id] = IS.selectCEInteract(ch.IonList[Q1], cumCross);
 
-      double crs = eVel2 * ne2 * CE1[id].back().first;
+    double crs = eVel2 * ne2 * CE1[id].first;
 
-      if (crs>0.0) {
-	dCross[id].push_back(crs);
-	dInter[id].push_back(colexcite_1);
-	sum12 += crs;
-      }
-
+    if (crs>0.0) {
+      dCross[id].push_back(crs);
+      dInter[id].push_back(colexcite_1);
+      sum12 += crs;
+    }
+    
   }
 				//-------------------------------
 				// *** Ionization cross section
@@ -3201,8 +3225,10 @@ double CollideIon::crossSectionWeight
 				//-------------------------------
   if (ne1 > 0 and C2 <= Z2) {
 
-    CE2[id] = ch.IonList[Q2]->collExciteCross(kEe2[id], id);
-    double crs = eVel1 * ne1 * CE2[id].back().first;
+    auto cumCross = ch.IonList[Q2]->collExciteCross(kEe2[id], id);
+    CE2[id] = IS.selectCEInteract(ch.IonList[Q2], cumCross);
+
+    double crs = eVel1 * ne1 * CE2[id].first;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -3569,9 +3595,11 @@ double CollideIon::crossSectionHybrid
     if (P1<Z1 and P2>0) {
       
       double ke   = std::max<double>(kEe1[id], FloorEv);
-      CE1[id] = ch.IonList[Q1]->collExciteCross(ke, id);
+
+      auto cumCross = ch.IonList[Q1]->collExciteCross(ke, id);
+      CE1[id] = IS.selectCEInteract(ch.IonList[Q1], cumCross);
       
-      crs  = eVel2 * C2 * CE1[id].back().first * cfac;
+      crs  = eVel2 * C2 * CE1[id].first * cfac;
       
       if (DEBUG_CRS) trap_crs(crs, colexcite);
     }
@@ -3580,9 +3608,11 @@ double CollideIon::crossSectionHybrid
     if (P2<Z2 and P1>0) {
       
       double ke   = std::max<double>(kEe2[id], FloorEv);
-      CE2[id] = ch.IonList[Q2]->collExciteCross(ke, id);
+
+      auto cumCross = ch.IonList[Q2]->collExciteCross(ke, id);
+      CE2[id] = IS.selectCEInteract(ch.IonList[Q2], cumCross);
       
-      crs  = eVel1 * C1 * CE2[id].back().first * cfac;
+      crs  = eVel1 * C1 * CE2[id].first * cfac;
       
       if (DEBUG_CRS) trap_crs(crs, colexcite);
     }
@@ -4199,9 +4229,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     if (K2==NTC::electron and P1<Z1 and etaP2[id]>0.0) {
 
       double ke = std::max<double>(kEe1[id], FloorEv);
-      CE1[id] = ch.IonList[Q1]->collExciteCross(ke, id);
 
-      double crs = eVelP2[id] * CE1[id].back().first;
+      auto cumCross = ch.IonList[Q1]->collExciteCross(ke, id);
+      CE1[id] = IS.selectCEInteract(ch.IonList[Q1], cumCross);
+
+      double crs = eVelP2[id] * CE1[id].first;
       
       if (DEBUG_CRS) trap_crs(crs, colexcite);
       
@@ -4213,8 +4245,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	std::cout << "xsc: kEe=" << kEe1[id]
 		  << " (Z, P)=(" << Z1 << ", " << C1 << ")"
 		  << " gVel=" << eVelP2[id] << " eta=" << etaP2[id]
-		  << " xc=" << CE1[id].back().first
-		  << " dE=" << IS.selectCEInteract(ch.IonList[Q1], CE1[id])
+		  << " xc=" << CE1[id].first
+		  << " dE=" << CE1[id].second
 		  << std::endl;
 #endif
 	// }
@@ -4226,9 +4258,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     if (K1==NTC::electron and P2<Z2 and etaP1[id]>0.0) {
 
       double ke = std::max<double>(kEe2[id], FloorEv);
-      CE2[id] = ch.IonList[Q2]->collExciteCross(ke, id);
 
-      double crs = eVelP1[id] * CE2[id].back().first;
+      auto cumCross = ch.IonList[Q2]->collExciteCross(ke, id);
+      CE2[id] = IS.selectCEInteract(ch.IonList[Q2], cumCross);
+
+      double crs = eVelP1[id] * CE2[id].first;
       
       if (DEBUG_CRS) trap_crs(crs, colexcite);
       
@@ -4240,8 +4274,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	std::cout << "xsc: kEe=" << kEe2[id]
 		  << " (Z, P)=(" << Z2 << ", " << C2 << ")"
 		  << " gVel=" << eVelP1[id] << " eta=" << etaP1[id]
-		  << " xc=" << CE2[id].back().first
-		  << " dE=" << IS.selectCEInteract(ch.IonList[Q2], CE2[id])
+		  << " xc=" << CE2[id].first
+		  << " dE=" << CE2[id].second
 		  << std::endl;
 #endif
 	// }
@@ -4784,7 +4818,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
     }
 
     if (interFlag == colexcite_1) {
-      delE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]);
+      delE = CE1[id].second;
       partflag      = 1;
       ctd1->CE[id][0] += 1;
       ctd1->CE[id][1] += NN;
@@ -4846,7 +4880,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
     }
 
     if (interFlag == colexcite_2) {
-      delE         = IS.selectCEInteract(ch.IonList[Q2], CE2[id]);
+      delE         = CE2[id].second;
       partflag     = 2;
       ctd2->CE[id][0] += 1;
       ctd2->CE[id][1] += NN;
@@ -5612,7 +5646,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
   }
 
   if (interFlag == colexcite_1) {
-    delE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]);
+    delE = CE1[id].second;
     partflag      = 1;
     ctd1->CE[id][0] += 1;
     ctd1->CE[id][1] += Wb;
@@ -5696,7 +5730,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
   }
 
   if (interFlag == colexcite_2) {
-    delE         = IS.selectCEInteract(ch.IonList[Q2], CE2[id]);
+    delE         = CE2[id].second;
     partflag     = 2;
     ctd2->CE[id][0] += 1;
     ctd2->CE[id][1] += Wb;
@@ -7547,7 +7581,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	//
 	// Ion is p2
 	//
-	double tmpE = IS.selectCEInteract(ch.IonList[Q2], CE2[id]);
+	double tmpE = CE2[id].second;
 
 	dE = tmpE * Prob;
 
@@ -7563,7 +7597,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	//
 	// Ion is p1
 	//
-	double tmpE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]);
+	double tmpE = CE1[id].second;
 	
 	dE = tmpE * Prob;
 
@@ -9932,7 +9966,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  // Ion is p2
 	  //
-	  double tmpE = IS.selectCEInteract(ch.IonList[Q2], CE2[id]);
+	  double tmpE = CE2[id].second;
 
 	  dE = tmpE * Prob/atomic_weights[Z2] * etaP1[id];
 
@@ -9969,7 +10003,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  // Ion is p1
 	  //
-	  double tmpE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]);
+	  double tmpE = CE1[id].second;
 
 	  dE = tmpE * Prob/atomic_weights[Z1] * etaP2[id];
 
@@ -11337,6 +11371,16 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
       }
     }
 
+    // Sanity check
+    //
+    if (P.size()==0) {
+      std::cout << "accumTraceScatter: value size(P)=0,"
+		<< " II=" << accumIIxc[id].size()
+		<< " IE=" << accumIExc[id].size()
+		<< std::endl;
+      return;
+    }
+
     // Normalize accum
     //
     for (int i=1; i<P.size(); i++) P[i] += P[i-1];
@@ -11608,7 +11652,7 @@ void CollideIon::coulombicScatterDirect(int id, pCell* const c, double dT)
       //
       double pVel = sqrt(2.0*KE/mu);
       double afac = esu*esu*Q1*Q2/std::max<double>(2.0*KE, FloorEv*eV);
-      double tau = ABrate[id][l]*afac*afac*pVel * dT;
+      double tau  = ABrate[id][l]*afac*afac*pVel * dT;
       
 #ifdef XC_DEEP11
 	printf("coul5: l=%d pVel=%e afac=%e dt=%e tau=%e mu=%e m1=%e m2=%e\n",
@@ -12715,7 +12759,10 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	  photoW[id][s.first] += ww;
 	  photoN[id][s.first] += ww * p->mass * Gm;
 
-	  scatterPhotoTrace(p, Q, ww, Ep);
+	  //    +---Sanity check
+	  //    |
+	  //    v
+	  if (ww>0.0) scatterPhotoTrace(p, Q, ww, Ep);
 	}
       }
     }
@@ -14460,7 +14507,7 @@ NTC::InteractD CollideIon::generateSelectionTrace
 
   // Compute collision rates in system units
   //
-  double crossM = (*Fn)[key] * dens * crossRat / crm;
+  double crossM = (*Fn)[key] * dens * crossRat;
   double collPM = crossM * crm * tau;
 
   // Cache time step for estimating "over" cooling timestep is use_delt>=0
@@ -16051,6 +16098,7 @@ void CollideIon::photoWPrint()
 	sout3 << "-----Q2 = " << frcQ2[Q];
 	sout4 << "-----Q3 = " << frcQ3[Q];
 
+	/*
 	if (photoStat[0][Q][0]>0) {
 	  sout5 << "-----" << std::endl
 		<< "-----Stats (" << Q.first << ", " << Q.second << "):"
@@ -16061,6 +16109,7 @@ void CollideIon::photoWPrint()
 		  << " rat=" << photoStat[0][Q][1]/photoStat[0][Q][0]
 		  << " avg=" << photoStat[0][Q][2]/photoStat[0][Q][1];
 	}
+	*/
 
 				// Print header
 	out << std::endl << std::left
@@ -16218,7 +16267,7 @@ void CollideIon::electronGather()
     }
 
     if (elecDist and (aType==Hybrid or aType==Trace)) {
-      std::vector<double> eEV, eRC, eEVmin, eEVavg, eEVmax, eEVsub;
+      std::vector<double> eEV, eRC, eEVmin, eEVavg, eEVmax, eEVsub, logLE;
       for (int t=0; t<nthrds; t++) {
 	eEV.insert(eEV.end(),
 		   elecEV[t].begin(), elecEV[t].end());
@@ -16232,6 +16281,8 @@ void CollideIon::electronGather()
 		      elecEVmax[t].begin(), elecEVmax[t].end());
 	eEVsub.insert(eEVsub.end(),
 		      elecEVsub[t].begin(), elecEVsub[t].end());
+	logLE.insert(logLE.end(),
+		      plasmaP[t].begin(), plasmaP[t].end());
       }
 
       // All processes send to root
@@ -16273,6 +16324,11 @@ void CollideIon::electronGather()
 	  MPI_Send(&tauIon[0][0],  4, MPI_DOUBLE,   0, 332, MPI_COMM_WORLD);
 	  MPI_Send(&tauElc[0][0],  4, MPI_DOUBLE,   0, 335, MPI_COMM_WORLD);
 	  MPI_Send(&colUps[0][0],  4, MPI_DOUBLE,   0, 338, MPI_COMM_WORLD);
+
+	  num = logLE.size();
+	  MPI_Send(&num,           1, MPI_UNSIGNED, 0, 339, MPI_COMM_WORLD);
+	  if (num)
+	    MPI_Send(&logLE[0],  num, MPI_DOUBLE,   0, 340, MPI_COMM_WORLD);
 
 	} // END: process send to root
 
@@ -16350,6 +16406,14 @@ void CollideIon::electronGather()
 
 	  for (int k=0; k<4; k++) colUps[0][k] += tmpR[k];
 
+	  MPI_Recv(&num,      1, MPI_UNSIGNED, n, 339, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	  if (num) {
+	    v.resize(num);
+	    MPI_Recv(&v[0], num, MPI_DOUBLE,   n, 340, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    logLE.insert(logLE.end(), v.begin(), v.end());
+	  }
+
 	} // Root receive loop
 
 	MPI_Barrier(MPI_COMM_WORLD);
@@ -16368,7 +16432,9 @@ void CollideIon::electronGather()
 	if (eEVavg.size()) elecEVHavg = ahistoDPtr(new AsciiHisto<double>(eEVavg, 20,  0.01 ));
 	if (eEVmax.size()) elecEVHmax = ahistoDPtr(new AsciiHisto<double>(eEVmax, 20,  0.01 ));
 	if (eEVsub.size()) elecEVHsub = ahistoDPtr(new AsciiHisto<double>(eEVsub, 20,  0.01 ));
+	if (logLE.size())  logLH      = ahistoDPtr(new AsciiHisto<double>(logLE,  20,  0.01 ));
 	if (eRC.size())    elecRCH    = ahistoDPtr(new AsciiHisto<double>(eRC,    100, 0.005));
+	
 	if (rcmbTotlSum>0) {
 	  std::vector<unsigned> rcmbT;
 	  rcmbScale = 1.0e9/rcmbTotlSum;
@@ -17197,6 +17263,14 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< "-----Electron momentum difference ratio -------------" << std::endl
 	<< std::string(53, '-')  << std::endl;
     (*momH)(out);
+  }
+
+  if (logLH.get()) {
+    out << std::endl
+	<< std::string(53, '-')  << std::endl
+	<< "-----Coulombic logarithm distribution ---------------" << std::endl
+	<< std::string(53, '-')  << std::endl;
+    (*logLH)(out);
   }
 
   if (crsH.get()) {
@@ -18206,7 +18280,14 @@ void CollideIon::processConfig()
       logL = config["logL"]["value"].as<double>();
     else {
       config["logL"]["desc"] = "Coulombic log(Lambda) value";
-      config["logL"]["value"] = logL = 24.0;
+      config["logL"]["value"] = logL = 20.0;
+    }
+
+    if (config["logLfac"])
+      logL = config["logLfac"]["value"].as<double>();
+    else {
+      config["logLfac"]["desc"] = "Scale internal Coulombic log(Lambda) value";
+      config["logLfac"]["value"] = 0.0;
     }
 
     if (config["coulInter"])

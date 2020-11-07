@@ -74,6 +74,7 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
   tnext  = dtime;               // Time to begin adding particles
   debug  = -1.0;		// Time interval between diagnostic output
   dnext  = tnext;		// Time for next debug output
+  interp = true;		// Interpolate by default
 
   initialize();
 
@@ -181,6 +182,7 @@ void UserAddMass::initialize()
     if (conf["tstart"])     tnext     = conf["tstart"].as<double>();
     if (conf["dtime"])      dtime     = conf["dtime"].as<double>();
     if (conf["debug"])      debug     = conf["debug"].as<double>();
+    if (conf["interp"])     interp    = conf["interp"].as<bool>();
     if (conf["algorithm"])  alg       = AlgMap[conf["algorithm"].as<std::string>()];
   }
   catch (YAML::Exception & error) {
@@ -439,108 +441,155 @@ void UserAddMass::determine_acceleration_and_potential(void)
 
   for (int n=0; n<numgen; n++) {
 
-    // Get radius
-    //
-    auto it = std::lower_bound(wght.begin(), wght.end(), wght.back()*(*urand)());
-    unsigned indx = numr-1;
-    if (it != wght.end()) indx = std::distance(wght.begin(), it);
-    if (indx>0) indx--;
+    bool notfound = true;
 
-				// Do not use zero mass bin
-    if (mas[indx] == 0.0) {
-      while (mas[indx] == 0.0 and indx < numr) indx++;
-    }
-				// Sanity check
-    indx = std::min<unsigned>(indx, numr-2);
+    while (notfound) {
 
-    double rr = lrmin + dr*((*urand)() + indx);
+      // Get radius
+      //
+      auto it = std::lower_bound(wght.begin(), wght.end(), wght.back()*(*urand)());
+      unsigned indx = numr-1;
+      if (it != wght.end()) indx = std::distance(wght.begin(), it);
+      if (indx>0) indx--;
+      
+      // Decrease index to find non-zero bins(s)
+      //
+      std::function<bool(std::vector<double>&, int)> mfind;
+
+      if (interp) {		// Interpolation predicate
+	mfind = [](auto &mas, auto indx)
+		{ return (mas[indx]==0.0 or mas[indx+1]==0.0); };
+	indx = std::min<unsigned>(indx, numr-2);
+      } else {			// Nearest bin predicate
+	mfind = [](auto &mas, auto indx)
+		{ return mas[indx]==0.0; };
+	indx = std::min<unsigned>(indx, numr-1);
+      }
+
+      while (mfind(mas, indx) and indx>0) indx--;
+
+      // Skip this one
+      //
+      if (mfind(mas, indx)) break; 
+
+      // Found good bin(s)
+      //
+      notfound = false;
+      
+      // Radius selection
+      //
+      double lrr = lrmin + dr*((*urand)() + indx);
+      double rr  = lrr, a, b, m;
     
-    if (logr) rr = exp(rr);
+      if (logr) rr = exp(lrr);	// Using log scaling for bins
+      
+      if (interp) {
+	a = (lrmin + dr*(indx+1) - lrr)/dr;
+	b = (lrr - lrmin - dr*(indx+0))/dr;
+      }
 
-    Particle *P =  c0->GetNewPart();
-    P->mass  = mass;
-    P->level = multistep;
-
-    switch (alg) {
-    case Algorithm::Halo:
-      {
-	// Positions
-	//
-	double cosx = 2.0*(*urand)() - 1.0;
-	double sinx = sqrt(fabs(1.0 - cosx*cosx));
-	double phi  = 2.0*M_PI*(*urand)();
-	double cosp = cos(phi), sinp = sin(phi);
+      Particle *P =  c0->GetNewPart();
+      P->mass  = mass;
+      P->level = multistep;
+      
+      switch (alg) {
+      case Algorithm::Halo:
+	{
+	  // Positions
+	  //
+	  double cosx = 2.0*(*urand)() - 1.0;
+	  double sinx = sqrt(fabs(1.0 - cosx*cosx));
+	  double phi  = 2.0*M_PI*(*urand)();
+	  double cosp = cos(phi), sinp = sin(phi);
+	  
+	  std::array<std::array<double, 3>, 3> ev;
 	
-	std::array<std::array<double, 3>, 3> ev;
-	
-	ev[0][0] =  sinx * cosp;
-	ev[0][1] =  sinx * sinp;
-	ev[0][2] =  cosx ;
-	
-	ev[1][0] =  cosx * cosp;
-	ev[1][1] =  cosx * sinp;
-	ev[1][2] = -sinx ;
-	
-	ev[2][0] = -sinp;
-	ev[2][1] =  cosp;
-	ev[2][2] =  0.0;
-
-	// Positions
-	//
-	for (int k=0; k<3; k++) P->pos[k] = rr*ev[0][k];
-	
-	// Velocities
-	//
-	double sig = 0.0;
-	for (int k=0; k<3; k++) {
-	  double v1 = vl_bins[0][indx][k]/mas[indx];
-	  double v2 = v2_bins[0][indx][k]/mas[indx];
-	  sig += v2 - v1*v1;
+	  ev[0][0] =  sinx * cosp;
+	  ev[0][1] =  sinx * sinp;
+	  ev[0][2] =  cosx ;
+	  
+	  ev[1][0] =  cosx * cosp;
+	  ev[1][1] =  cosx * sinp;
+	  ev[1][2] = -sinx ;
+	  
+	  ev[2][0] = -sinp;
+	  ev[2][1] =  cosp;
+	  ev[2][2] =  0.0;
+	  
+	  // Positions
+	  //
+	  for (int k=0; k<3; k++) P->pos[k] = rr*ev[0][k];
+	  
+	  // Velocities
+	  //
+	  double sig = 0.0;
+	  for (int k=0; k<3; k++) {
+	    if (interp) {
+	      double v1a = vl_bins[0][indx  ][k]/mas[indx  ];
+	      double v2a = v2_bins[0][indx  ][k]/mas[indx  ];
+	      double v1b = vl_bins[0][indx+1][k]/mas[indx+1];
+	      double v2b = v2_bins[0][indx+1][k]/mas[indx+1];
+	      sig += a*(v2a - v1a*v1a) + b*(v2b - v1b*v1b);
+	    } else {
+	      double v1 = vl_bins[0][indx][k]/mas[indx];
+	      double v2 = v2_bins[0][indx][k]/mas[indx];
+	      sig += v2 - v1*v1;
+	    }
+	  } 
+	  sig = sqrt(fabs(sig));
+	  
+	  std::array<double, 3> vv = {(*nrand)(), (*nrand)(), (*nrand)()};
+	  double vnorm = xnorm(vv);
+	  for (auto & v : vv) v /= vnorm;
+	  
+	  for (int k=0; k<3; k++) P->vel[k] = sig * vv[k];
 	}
-	sig = sqrt(fabs(sig));
 	
-	std::array<double, 3> vv = {(*nrand)(), (*nrand)(), (*nrand)()};
-	double vnorm = xnorm(vv);
-	for (auto & v : vv) v /= vnorm;
+	break;
+      case Algorithm::Disk:
+      default:
+	{
+	  // Positions
+	  //
+	  double phi = 2.0*M_PI*(*urand)();
+	  double cosp = cos(phi), sinp = sin(phi);
+	  for (int k=0; k<3; k++) P->pos[k] = rr*(ee[1][k]*cosp + ee[2][k]*sinp);
+	  //                                      ^               ^
+	  // These are perpendicular to the       |               |
+	  // mean angular momemtnum vector -------+---------------+
 	
-	for (int k=0; k<3; k++) P->vel[k] = sig * vv[k];
+	  // Use angular momentum to get tangential velocity.
+	  // E.g. L X r/r^2 = (r X v) X r/r^2 = v - r/|r| * (v.r/|r|) = v_t
+	  //
+	  vec3 rv;
+	  if (interp) {
+	    for (int k=0; k<3; k++) rv[k] =
+				      a*L3_bins[0][indx+0][k]/mas[indx+0] +
+				      b*L3_bins[0][indx+1][k]/mas[indx+1] ;
+	  } else {
+	    rv = L3_bins[0][indx];
+	    for (auto & v : rv) v /= mas[indx];
+	  }
+
+	  std::array<double, 3> xyz = {P->pos[0], P->pos[1], P->pos[2]};
+	  auto v3 = xprod(rv, xyz);
+	  for (auto & v : v3) v /= rr*rr;
+	  
+	  // v3 is now the mean tangential velocity perpendicular to
+	  // radius
+	  
+	  // Velocities
+	  //
+	  for (int k=0; k<3; k++) P->vel[k] = v3[k];
+	}
+
+	break;
       }
-
-      break;
-    case Algorithm::Disk:
-    default:
-      {
-	// Positions
-	//
-	double phi = 2.0*M_PI*(*urand)();
-	double cosp = cos(phi), sinp = sin(phi);
-	for (int k=0; k<3; k++) P->pos[k] = rr*(ee[1][k]*cosp + ee[2][k]*sinp);
-	//                                      ^               ^
-	// These are perpendicular to the       |               |
-	// mean angular momemtnum vector -------+---------------+
-	
-	// Use angular momentum to get tangential velocity.
-	// E.g. L X r/r^2 = (r X v) X r/r^2 = v - r/|r| * (v.r/|r|) = v_t
-	//
-	auto rv = L3_bins[0][indx];
-	for (auto & v : rv) v /= mas[indx];
-
-	std::array<double, 3> xyz = {P->pos[0], P->pos[1], P->pos[2]};
-	auto v3 = xprod(rv, xyz);
-	for (auto & v : v3) v /= rr*rr;
-
-	// v3 is now the mean tangential velocity perpendicular to
-	// radius
-
-	// Velocities
-	//
-	for (int k=0; k<3; k++) P->vel[k] = v3[k];
-      }
-
-      break;
+      // Which algorithm
     }
-
+    // Search for good particle
   }
+  // END: particle generation loop
 
 }
 

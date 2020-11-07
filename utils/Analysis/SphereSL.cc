@@ -7,12 +7,18 @@
 #include <Vector.h>
 #include <SphereSL.H>
 
+#ifdef HAVE_LIBPNGPP
+#include <ColorGradient.H>	// For PNG images
+#endif
 
-int SphereSL::NUMR=800;
-bool SphereSL::mpi=false;	// Initially off
+int SphereSL::NUMR = 800;
+int SphereSL::NEV  = 10;	// None by default
+bool SphereSL::mpi = false;	// Initially off
 
 
-SphereSL::SphereSL(SphericalModelTable* mod, int LMAX, int NMAX, bool COVAR)
+//! Constructor
+SphereSL::SphereSL(SphericalModelTable* mod, int LMAX, int NMAX,
+		   int CMAP, double Scale, bool COVAR, int NPART)
 {
   SphericalModelTable *model = mod;
   
@@ -22,10 +28,7 @@ SphereSL::SphereSL(SphericalModelTable* mod, int LMAX, int NMAX, bool COVAR)
 			    mod->get_max_radius()*1.0e-4);
   double rmax = mod->get_max_radius()*0.99;
 
-
-  int    Cmap  = 0;
-  double Scale = 1.0;
-  sl = new SLGridSph(LMAX, NMAX, NUMR, rmin, rmax, model, Cmap, Scale);
+  sl = new SLGridSph(LMAX, NMAX, NUMR, rmin, rmax, model, CMAP, Scale);
 
   lmax = LMAX;
   nmax = NMAX;
@@ -43,6 +46,7 @@ SphereSL::SphereSL(SphericalModelTable* mod, int LMAX, int NMAX, bool COVAR)
   dlegs.setsize(0, LMAX, 0, LMAX);
   d2legs.setsize(0, LMAX, 0, LMAX);
 
+  npart = NPART;
 }
 
 SphereSL::~SphereSL(void)
@@ -59,7 +63,30 @@ void SphereSL::bomb(char *s)
 void SphereSL::reset_coefs(void)
 {
   if (expcoef.getnrows()>0 && expcoef.getncols()>0) expcoef.zero();
-  if (compute_covar && cc.getnrows()>0 && cc.getncols()>0) cc.zero();
+  if (compute_covar) {
+    maxSNR = 0.0;
+    totalMass = 0.0;
+    covar.resize(lmax+1);
+    mean.resize(lmax+1);
+    for (int L=0; L<=lmax; L++) {
+      int size = (L+1)*nmax;
+      covar[L] = Eigen::MatrixXd::Zero(size, size);
+      mean [L] = Eigen::VectorXd::Zero(size);
+    }
+    if (npart) {
+      curbin = 0;
+      meanB.resize(npart);
+      massB.resize(npart);
+      for (int n=0; n<npart; n++) {
+	meanB[n].resize(lmax+1);
+	for (int L=0; L<=lmax; L++) {
+	  int size = (L+1)*nmax;
+	  meanB[n][L] = Eigen::VectorXd::Zero(size);
+	}
+	massB[n] = 0.0;
+      }
+    }
+  }
 }
 
 
@@ -76,15 +103,31 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
     expcoef.setsize(0, lmax*(lmax+2), 1, nmax);
     expcoef.zero();		// Need this?
 
-    work1.setsize(1, nmax);
+    work.setsize(1, nmax);
 
     if (compute_covar) {
-      nmat = (lmax*(lmax+2)+1)*nmax;
-      cc.setsize(1, nmat, 1, nmat);
-      cw.setsize(1, nmat);
-      cc.zero();
-
-      work2.setsize(1, nmat);
+      maxSNR = 0.0;
+      totalMass = 0.0;
+      covar.resize(lmax+1);
+      mean.resize(lmax+1);
+      for (int L=0; L<=lmax; L++) {
+	int size = (L+1)*nmax;
+	covar[L] = Eigen::MatrixXd::Zero(size, size);
+	mean [L] = Eigen::VectorXd::Zero(size);
+      }
+      if (npart) {
+	curbin = 0;
+	meanB.resize(npart);
+	massB.resize(npart);
+	for (int n=0; n<npart; n++) {
+	  meanB[n].resize(lmax+1);
+	  for (int L=0; L<=lmax; L++) {
+	    int size = (L+1)*nmax;
+	    meanB[n][L] = Eigen::VectorXd::Zero(size);
+	  }
+	  massB[n] = 0.0;
+	}
+      }
     }
 
     factorial.setsize(0, lmax, 0, lmax);
@@ -111,6 +154,7 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
   double rs = r/rscl;
 	
   used++;
+  totalMass += mass;
 
   sl->get_pot(potd, rs);
 
@@ -119,17 +163,20 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
   // L loop
   for (int l=0, loffset=0; l<=lmax; loffset+=(2*l+1), l++) {
 
+    Eigen::VectorXd workE;
+    int esize = (l+1)*nmax;
+
+    if (compute_covar) workE = Eigen::VectorXd::Zero(esize);
+
     // M loop
-    for (int m=0, moffset=0; m<=l; m++) {
+    for (int m=0, moffset=0, moffE=0; m<=l; m++) {
 
       if (m==0) {
 	fac = factorial[l][m] * legs[l][m];
 	for (int n=1; n<=nmax; n++) {
 	  fac4 = potd[l][n]*fac*fac0;
 	  expcoef[loffset+moffset][n] += fac4 * mass;
-	  if (compute_covar) {
-	    cw[(loffset+moffset)*nmax + n] = fac4;
-	  }
+	  if (compute_covar) workE[m*nmax + n - 1] = fac4;
 	}
 
 	moffset++;
@@ -142,22 +189,37 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
 	  fac4 = potd[l][n]*fac0;
 	  expcoef[loffset+moffset  ][n] += fac1 * fac4 * mass;
 	  expcoef[loffset+moffset+1][n] += fac2 * fac4 * mass;
-	  if (compute_covar) {
-	    cw[(loffset+moffset  )*nmax + n] = fac1 * fac4;
-	    cw[(loffset+moffset+1)*nmax + n] = fac2 * fac4;
-	  }
+	  if (compute_covar) workE[m*nmax + n - 1] = fac * fac4;
 	}
+
 	moffset+=2;
       }
     }
+
+    if (compute_covar) {
+      for (int m=0; m<=l; m++) {
+	for (int n1=0; n1<nmax; n1++) {
+	  mean[l][m*nmax+n1] += workE[m*nmax + n1] * mass;
+	  if (npart)
+	    meanB[curbin % npart][l][m*nmax + n1] += workE[m*nmax + n1] * mass;
+	  
+	  if (npart==0) {
+	    for (int n2=0; n2<nmax; n2++) {
+	      covar[l](m*nmax + n1, m*nmax + n2) +=
+		workE[m*nmax + n1] * workE[m*nmax + n2] * mass;
+	    }
+	  }
+	}
+      }
+
+    }
+    // END: compute_covar
+
   }
 
-  if (compute_covar) {
-    for (int n=1; n<=nmat; n++) {
-      for (int nn=n; nn<=nmat; nn++) {
-	cc[n][nn] += cw[n] * cw[nn] * mass;
-      }
-    }
+  if (compute_covar and npart) {
+    massB[curbin % npart] += mass;
+    curbin++;
   }
 
 }
@@ -166,22 +228,275 @@ void SphereSL::make_coefs()
 {
   if (mpi) {
 
-    for (int l=0; l<=lmax*(lmax+2); l++) {
-      MPI_Allreduce(&expcoef[l][1], &work1[1], nmax, MPI_DOUBLE,
+    if (compute_covar)
+      MPI_Allreduce(MPI_IN_PLACE, &totalMass, 1, MPI_DOUBLE,
 		    MPI_SUM, MPI_COMM_WORLD);
 
-      expcoef[l] = work1;
+    for (int l=0; l<=lmax*(lmax+2); l++) {
+      MPI_Allreduce(&expcoef[l][1], &work[1], nmax, MPI_DOUBLE,
+		    MPI_SUM, MPI_COMM_WORLD);
+
+      expcoef[l] = work;
     }
 
     if (compute_covar) {
-      for (int n=1; n<=nmat; n++) {
-	MPI_Allreduce(&cc[n][1], &work2[1], nmat, MPI_DOUBLE,
+      for (int l=0; l<=lmax; l++) {
+	int esize = (l + 1)*nmax;
+
+	if (npart==0)
+	  MPI_Allreduce(MPI_IN_PLACE, covar[l].data(), esize*esize, MPI_DOUBLE,
+			MPI_SUM, MPI_COMM_WORLD);
+
+	MPI_Allreduce(MPI_IN_PLACE, mean[l].data(), esize, MPI_DOUBLE,
 		      MPI_SUM, MPI_COMM_WORLD);
 	
-	cc[n] = work2;
+	if (npart) {
+	  for (int n=0; n<npart; n++) {
+	    MPI_Allreduce(MPI_IN_PLACE, meanB[n][l].data(), esize, MPI_DOUBLE,
+			  MPI_SUM, MPI_COMM_WORLD);
+	  }
+	}
+      }
+      
+      if (npart) {
+	MPI_Allreduce(MPI_IN_PLACE, &curbin, 1, MPI_INT,
+		      MPI_SUM, MPI_COMM_WORLD);
+	  
+	MPI_Allreduce(MPI_IN_PLACE, massB.data(), massB.size(), MPI_DOUBLE,
+		      MPI_SUM, MPI_COMM_WORLD);
       }
     }
   }
+
+  if (compute_covar) {
+
+    for (int l=0; l<=lmax; l++) {
+      int esize = (l + 1)*nmax;
+
+      if (npart) {
+
+	// Zero mean and covariance matrix
+	//
+	mean [l] *= 0.0;
+	covar[l] *= 0.0;
+	
+
+	// Normalize by mass and zero covar
+	//
+	for (int n=0; n<npart; n++) {
+	  if (massB[n]>0.0) meanB[n][l] /= massB[n];
+	}
+
+	for (int n=0; n<npart; n++) {
+	  for (int i=0; i<esize; i++) mean[l][i] += meanB[n][l][i];
+	}
+	mean[l] /= npart;
+
+	for (int n=0; n<npart; n++) {
+	  for (int i=0; i<esize; i++) {
+	    for (int j=0; j<esize; j++) {
+	      covar[l](i, j) +=
+		(meanB[n][l](i)  - mean[l](i)) *
+		(meanB[n][l](j)  - mean[l](j)) * curbin/(npart*npart);
+	    }
+	  }
+	}
+
+      } else {
+
+	if (totalMass>0.0) {
+	  mean[l]  /= totalMass;
+	  covar[l] /= totalMass;
+
+	  for (int i=0; i<esize; i++) {
+	    for (int j=0; j<esize; j++) {
+	      covar[l](i, j) -=	mean[l](i) * mean[l](j);
+	    }
+	  }
+	}
+	// END: totalMass>0.0
+      }
+    }
+  }
+}
+
+void SphereSL::make_covar(bool verbose)
+{
+  if (compute_covar) {
+
+    if (verbose and myid==0) std::cout << std::endl;
+
+    svar.resize(lmax+1);
+    uvec.resize(lmax+1);
+
+    for (int l=0; l<=lmax; l++) {
+      int esize = (l + 1)*nmax;
+      
+#ifdef LARGE
+      Eigen::BDCSVD<Eigen::MatrixXd>
+	svd(covar[l], Eigen::ComputeThinU | Eigen::ComputeThinV);
+#else
+      Eigen::JacobiSVD<Eigen::MatrixXd>
+	svd(covar[l], Eigen::ComputeThinU | Eigen::ComputeThinV);
+#endif
+
+      // Get solution
+      // ------------
+      svar[l] = svd.singularValues();
+      uvec[l] = svd.matrixU();
+
+      // Get value in rotated space
+      //
+      // 
+      Eigen::VectorXd R = uvec[l].transpose() * mean[l];
+
+      // Compute SNR
+      //
+      for (int j=0; j<svar[l].size(); j++) {
+	if (verbose and myid==0) std::cout << std::setw(4) << l
+					   << std::setw(4) << j
+					   << std::setw(18) << svar[l][j]
+					   << std::setw(18) << R[j]*R[j];
+	if (svar[l][j]>0.0) {
+	  double snr = R[j]*R[j]/svar[l][j];
+	  maxSNR = std::max<double>(maxSNR, snr);
+	  if (verbose and myid==0) std::cout << std::setw(18) << snr;
+	} else {
+	  if (verbose and myid==0) std::cout << std::setw(18) << 0.0;
+	}
+	if (verbose and myid==0) std::cout << std::endl;
+      }
+    }
+  }
+}
+
+Matrix SphereSL::get_trimmed(double snr, bool Hall)
+{
+  Matrix ret(0, lmax*(lmax+2), 1, nmax);
+  ret.zero();
+
+  if (compute_covar) {
+    
+    // L loop
+    for (int l=0, loffset=0; l<=lmax; loffset+=(2*l+1), l++) {
+
+      int esize = (l+1)*nmax;
+      
+      // Test create new vector
+      //
+      Eigen::VectorXd W(esize);
+      for (int m=0, moffset=0; m<=l; m++) {
+	if (m==0) {
+	  for (int n=1; n<=nmax; n++) {
+	    W[m*nmax + n - 1] = fabs(expcoef[loffset+moffset+0][n]);
+	  }
+	  moffset++;
+
+	} else {
+	  for (int n=1; n<=nmax; n++) {
+	    W[m*nmax + n - 1] =
+	      sqrt(expcoef[loffset+moffset+0][n]*expcoef[loffset+moffset+0][n]
+		   +
+		   expcoef[loffset+moffset+1][n]*expcoef[loffset+moffset+1][n]);
+	  }
+
+	  moffset+=2;
+	}
+      }
+
+      // Assign nullity
+      //
+      Eigen::VectorXd R = uvec[l].transpose() * W;
+      for (int j=0; j<svar[l].size(); j++) {
+	if (svar[l][j]>0.0) {
+	  if (Hall)
+	    R[j] *= 1.0/(snr*svar[l][j]/(R[j]*R[j]) + 1.0);
+	  else if (R[j]*R[j]/svar[l][j] < snr)
+	    R[j] = 0.0;
+	} else {
+	  R[j] = 0.0;		// Sanity
+	}
+      }
+
+      // Rotate back to original space
+      //
+      Eigen::VectorXd Q = uvec[l] * R;
+
+      // M loop
+      //
+      for (int m=0, moffset=0; m<=l; m++) {
+	if (m==0) {
+	  for (int n=1; n<=nmax; n++) {
+	    ret[loffset+moffset][n] = Q[m*nmax + n - 1];
+	    if (expcoef[loffset+moffset][n] < 0.0)
+	      ret[loffset+moffset][n] *= -1.0 ;
+	  }
+	  moffset++;
+
+	} else {
+	  for (int n=1; n<=nmax; n++) {
+	    double phi = atan2(expcoef[loffset+moffset+1][n], expcoef[loffset+moffset+0][n]);
+	    ret[loffset+moffset+0][n] = cos(phi) * Q[m*nmax + n - 1];
+	    ret[loffset+moffset+1][n] = sin(phi) * Q[m*nmax + n - 1];
+	  }
+
+	  moffset+=2;
+	}
+      }
+    }
+  }
+
+
+
+#ifdef HAVE_LIBPNGPP
+  if (NEV) {
+
+    const int minSize = 600;
+    int ndupX = 1, ndupY = 1;
+
+    for (int L=0; L<=lmax; L++) {
+
+      int esize = (L+1)*nmax;
+      
+      if (NEV < minSize)   ndupX = minSize/NEV   + 1;
+      if (esize < minSize) ndupY = minSize/esize + 1;
+
+
+      png::image< png::rgb_pixel > image(NEV*ndupX, esize*ndupY);
+      ColorGradient color;
+      color.createFiveColorHeatMapGradient();
+
+      std::ostringstream sout;
+      sout << "SphereSL_EV." << L;
+
+      double minV = std::numeric_limits<double>::max();
+      double maxV = std::numeric_limits<double>::min();
+
+      for (int ev=0; ev<NEV; ev++) {
+	for (int n=0; n<esize; n++) {
+	  minV = std::min<double>(minV, uvec[L](ev, n));
+	  maxV = std::max<double>(maxV, uvec[L](ev, n));
+	}
+      }
+
+      for (int i=0; i<esize; i++) {
+	for (int j=0; j<NEV; j++) {
+	  png::rgb_pixel cval = color( (uvec[L](i, j) - minV)/(maxV - minV) );
+	  for (size_t yy = i*ndupY; yy < (i+1)*ndupY; yy++) {
+	    for (size_t xx = j*ndupX; xx < (j+1)*ndupX; xx++) {
+	      image[yy][xx] = cval;
+	    }
+	  }
+	}
+      }
+
+      image.write(sout.str() + ".png");
+
+    }
+  }
+#endif
+
+  return ret;
 }
 
 
@@ -529,15 +844,16 @@ void SphereSL::install_coefs(Matrix& newcoef)
     expcoef.setsize(0, lmax*(lmax+2), 1, nmax);
     expcoef.zero();		// Need this?
 
-    work1.setsize(1, nmax);
+    work.setsize(1, nmax);
 
     if (compute_covar) {
-      nmat = (lmax*(lmax+2)+1)*nmax;
-      cc.setsize(1, nmat, 1, nmat);
-      cw.setsize(1, nmat);
-      cc.zero();
-
-      work2.setsize(1, nmat);
+      covar.resize(lmax+1);
+      mean.resize(lmax+1);
+      for (int L=0; L<=lmax; L++) {
+	int size = (L+1)*nmax;
+	covar[L] = Eigen::MatrixXd::Zero(size, size);
+	mean[L]  = Eigen::VectorXd::Zero(size);
+      }
     }
 
     factorial.setsize(0, lmax, 0, lmax);

@@ -117,13 +117,6 @@ void legendre_v2(int lmax, cuFP_t x, cuFP_t* p, cuFP_t* dp)
   }
 }
 
-template<typename Iterator, typename Pointer>
-__global__
-void reduceUseSph(Iterator first, Iterator last, Pointer result)
-{
-  auto it = thrust::lower_bound(thrust::cuda::par, first, last, 0.0);
-  *result = thrust::distance(it, last);
-}
 
 __global__
 void testConstants()
@@ -1201,8 +1194,19 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
       f_use.resize(fsz);
 				// Call the kernel on a single thread
 				// 
-      reduceUseSph<<<1, 1, 0, s1>>>(ar->m_d.begin(), ar->m_d.end(),
-				    &f_use[fsz-1]);
+      thrust::device_vector<double>::iterator it;
+
+      // Workaround for: https://github.com/NVIDIA/thrust/pull/1104
+      //
+      if (thrust_binary_search_workaround) {
+	cudaStreamSynchronize(cr->stream);
+	it = thrust::lower_bound(ar->m_d.begin(), ar->m_d.end(), 0.0);
+      } else {
+	it = thrust::lower_bound(thrust::cuda::par.on(cr->stream),
+				 ar->m_d.begin(), ar->m_d.end(), 0.0);
+      }
+      
+      f_use[fsz-1] = thrust::distance(it, ar->m_d.end());
 
       Ntot += N;
     }
@@ -1224,7 +1228,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
   // Copy back coefficient data from device and load the host
   //
-  for (auto r : cuRingData) {
+  for (auto & r : cuRingData) {
     thrust::host_vector<cuFP_t> ret = r.df_coef;
     int offst = 0;
     for (int l=0; l<=Lmax; l++) {

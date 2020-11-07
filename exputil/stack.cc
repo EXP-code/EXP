@@ -28,6 +28,7 @@ extern std::string runtag;
 //! Traceback type
 extern bool gdb_trace;
 
+//! Use native Linux backtrace functions to get stack info
 void print_trace(std::ostream& out, const char *file, int line)
 {
   const size_t max_depth = 100;
