@@ -26,7 +26,8 @@ extern std::string outdir;
 extern std::string runtag;
 
 //! Traceback type
-bool gdb_trace;
+bool gdb_trace     = true;
+
 
 //! Use native Linux backtrace functions to get stack info
 void print_trace(std::ostream& out, const char *file, int line)
