@@ -11,7 +11,7 @@ endif
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src $(CUDA_CFLAGS) `libpng-config --cflags`
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS3)
-AM_CXXFLAGS = -D_REENTRANT -DSTANDALONE $(INCLUDES) $(ADD_CXXFLAGS3) $(BOOST_CPPFLAGS) @exp_vtk_include@ `libpng-config --ldflags`
+AM_CXXFLAGS = -D_REENTRANT -DSTANDALONE $(INCLUDES) $(ADD_CXXFLAGS3) $(BOOST_CPPFLAGS) @exp_vtk_include@ @exp_eigen3_include@ `libpng-config --ldflags`
 
 if ENABLE_CUDA
 CUDA_LIBFLAGS  = -lcudart
@@ -28,7 +28,7 @@ noinst_HEADERS =
 bin_PROGRAMS = diskprof haloprof haloprof2 slabprof psphisto gas2d	\
 gas2dcyl makegrid pspbox eofpeek diskprof2 pcatest diskprof3		\
 mssaprofD mssaprofH readcoefs readcoefs2 pcatest diskprof4 sphprof	\
-yaml_diff diskfreqs pspxval
+yaml_diff diskfreqs pspxval_sph pspxval_cyl
 
 diskprof_SOURCES = PSP.cc header.cc diskprof.cc EmpCylSL.cc localmpi.cc Particle.cc
 diskprof_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
@@ -109,10 +109,15 @@ sphprof_SOURCES = PSP2.cc header.cc sphprof.cc SphereSL.cc	\
 sphprof_LDFLAGS   = $(EXPFLAGS) $(BOOST_LDFLAGS)
 sphprof_LDADD     = $(EXPLIBS)
 
-pspxval_SOURCES = cross_validation.cc SphereSL.cc localmpi.cc	\
+pspxval_sph_SOURCES = cross_validation.cc SphereSL.cc localmpi.cc	\
 			PSP2.cc Particle.cc header.cc
-pspxval_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS)
-pspxval_LDADD    = $(EXPLIBS)
+pspxval_sph_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS)
+pspxval_sph_LDADD    = $(EXPLIBS)
+
+pspxval_cyl_SOURCES = cross_validation_cyl.cc EmpCylSL.cc localmpi.cc	\
+			PSP2.cc Particle.cc header.cc dtorh1.f rout.f
+pspxval_cyl_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS)
+pspxval_cyl_LDADD    = $(EXPLIBS)
 
 yaml_diff_SOURCES = yaml_diff.cc
 yaml_diff_LDFLAGS   = $(BOOST_LDFLAGS)

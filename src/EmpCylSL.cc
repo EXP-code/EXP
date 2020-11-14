@@ -96,6 +96,7 @@ EmpCylSL::EmpCylSL(void)
   EvenOdd    = false;
   Neven      = 0;
   Nodd       = 0;
+  maxSNR     = 0.0;
   
   if (DENS)
     MPItable = 4;
@@ -173,7 +174,8 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   cylmass1     = vector<double>(nthrds);
   cylmass_made = false;
 
-  hallfile  = "";
+  hallfile     = "";
+  maxSNR       = 0.0;
 }
 
 
@@ -230,6 +232,8 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   cylmass = 0.0;
   cylmass1.resize(nthrds);
   cylmass_made = false;
+
+  maxSNR  = 0.0;
 }
 
 void EmpCylSL::create_deprojection(double H, double Rf, int NUMR, int NINT,
@@ -1738,6 +1742,7 @@ void EmpCylSL::setup_accumulation(int mlevel)
       }
 
       if (PCAVAR) {
+	maxSNR = 0.0;
 
 	for (unsigned T=0; T<sampT; T++) {
 	  massT1[nth][T] = 0.0;
@@ -1807,6 +1812,7 @@ void EmpCylSL::init_pca()
       }
 
       if (PCAVAR) {
+	maxSNR = 0.0;
 
 	massT1[nth].resize(sampT, 0);
 
@@ -4247,6 +4253,7 @@ void EmpCylSL::pca_hall(bool compute)
 	  double      b = var/sqr;
 	  
 	  (*pb)[mm]->b_Hall[nn+1]  = 1.0/(1.0 + b);
+	  maxSNR = std::max<double>(maxSNR, 1.0/b);
 	  snrval[nn+1] = sqrt(sqr/var);
 	}
 	
@@ -4367,6 +4374,79 @@ void EmpCylSL::pca_hall(bool compute)
 
   if (VFLAG & 4)
     cerr << "Process " << setw(4) << myid << ": exiting to pca_hall" << endl;
+}
+
+
+void EmpCylSL::get_trimmed(double snr, std::vector<Vector>& ac_cos, std::vector<Vector>& ac_sin)
+{
+  if (PCAVAR and tk_type != None) {
+
+    if (pb==0) return;
+
+    ac_cos.resize(MMAX+1);
+    ac_sin.resize(MMAX+1);
+
+    // Loop through each harmonic subspace [EVEN cosines]
+    //
+    
+    Vector wrk(1, rank3);
+    
+    for (int mm=0; mm<=MMAX; mm++) {
+      
+      ac_cos[mm].setsize(0, NORDER-1);
+      if (mm) ac_sin[mm].setsize(0, NORDER-1);
+
+      auto it = pb->find(mm);
+      
+      if (it != pb->end()) {
+	
+	auto & I = it->second;
+	
+	// COSINES
+	
+	// Project coefficients
+	for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_cos[mm][nn];
+	Vector dd = I->evecJK.Transpose() * wrk;
+	
+	// Smooth coefficients
+	//
+	auto smth = I->b_Hall;
+	for (int i=smth.getlow(); i<=smth.gethigh(); i++)
+	  smth[i] = (1.0 - smth[i])/smth[i];
+
+	if (tk_type == Hall) {
+	for (int i=smth.getlow(); i<=smth.gethigh(); i++)
+	  smth[i] = 1.0/(1.0 + snr*smth[i]);
+	}
+	if (tk_type == Truncate) {
+	  for (int i=smth.getlow(); i<=smth.gethigh(); i++) {
+	    if (smth[i]>snr) smth[i] = 1.0;
+	    else             smth[i] = 0.0;
+	  }
+	}
+
+	wrk = dd & smth;
+
+	// Deproject coefficients
+	dd = I->evecJK * wrk;
+	for (int nn=0; nn<rank3; nn++) ac_cos[mm][nn] = dd[nn+1];
+
+	if (mm) {
+	  // Project coefficients
+	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_sin[mm][nn];
+	  Vector dd = I->evecJK.Transpose() * wrk;
+	  
+	  // Smooth coefficients
+	  wrk = dd & smth;
+	  
+	  // Deproject coefficients
+	  dd = I->evecJK * wrk;
+	  for (int nn=0; nn<rank3; nn++) ac_sin[mm][nn] = dd[nn+1];
+	}
+      }
+    }
+  }
+
 }
 
 

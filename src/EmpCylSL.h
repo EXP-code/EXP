@@ -79,6 +79,7 @@ private:
   vector<double> cylmass1;
   bool cylmass_made;
   double cylmass;
+  double maxSNR;
 
   vector<double> r, d, m, p;
 
@@ -316,7 +317,8 @@ public:
   /*! Enum listing the possible selection algorithms for coefficient
     selection */
   enum TKType {
-    Hall,             /*!< Tapered signal-to-noise power defined by Hall   */
+    Hall,             /*!< Tapered signal-to-noise as defined by Hall      */
+    Truncate,         /*!< Truncated signal-to-noise                       */
     None              /*!< Compute the S/N but do not modify coefficients  */
   };
 
@@ -550,6 +552,9 @@ public:
   //! Compute PCA
   void pca_hall(bool compute);
 
+  //! Maximum SNR coefficient value
+  double getMaxSNR(void) { return maxSNR; }
+
   //! True if coefficients are made at all levels
   bool coefs_made_all() 
   {
@@ -731,6 +736,19 @@ public:
     }
   }
 
+  //@{
+  //! Return density and potential matrices (no checking)
+  Matrix getDensC(int m, int n) { return densC[m][n]; }
+  Matrix getDensS(int m, int n) { return densS[m][n]; }
+  Matrix getPotlC(int m, int n) { return potC[m][n]; }
+  Matrix getPotlS(int m, int n) { return potS[m][n]; }
+  //@}
+
+
+  //! Get the coefficients trimmed by a SNR value using the defined algorithm
+  void get_trimmed(double snr,
+		   std::vector<Vector>& ac_cos, std::vector<Vector>& ac_sin);
+
   //! Set frequency and file name for selector output
   inline void setTotal(unsigned tot) {
     nbodstot = tot;
@@ -738,8 +756,9 @@ public:
 
   void setTK(const std::string& tk)
   {
-    if      (tk == "Hall") tk_type = Hall;
-    else if (tk == "None") tk_type = None;
+    if      (tk == "Hall")     tk_type = Hall;
+    else if (tk == "Truncate") tk_type = Truncate;
+    else if (tk == "None")     tk_type = None;
     else {
       if (myid==0) {
 	cout << "EmpCylSL: no such TK type <" << tk << ">"
