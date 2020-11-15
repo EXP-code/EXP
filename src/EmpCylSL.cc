@@ -11,7 +11,8 @@
 #include <boost/make_shared.hpp>
 #include <boost/make_unique.hpp>
 #include <boost/multi_array.hpp>
-#include <boost/progress.hpp>	// Progress bar
+
+#include <Progress.H>		// Progress bar
 
 #include <interp.h>
 #include <Timer.h>

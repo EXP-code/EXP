@@ -516,7 +516,15 @@ main(int argc, char **argv)
   }
   
 
+  // Get data from EmpCylSL
+  //
+  auto densC = ortho.getDensC();
+  auto densS = ortho.getDensS();
+  auto potlC = ortho.getPotlC();
+  auto potlS = ortho.getPotlS();
+
   if (MakeCache) {
+
 
     // Storage temp
     //
@@ -566,9 +574,9 @@ main(int argc, char **argv)
 		for (int M=0; M<=mmax; M++) {
 		  for (int n=0; n<norder; n++) {
 		    std::pair<int, int> id(M, n);
-		    Ec[id](i, j) += -2.0*sqrt(Rp/R)*QL[M]*ortho.getDensC(M, n)[k][l];
+		    Ec[id](i, j) += -2.0*sqrt(Rp/R)*QL[M]*densC[id](k, l);
 		    if (M)
-		      Es[id](i, j) += -2.0*sqrt(Rp/R)*QL[M]*ortho.getDensS(M, n)[k][l];
+		      Es[id](i, j) += -2.0*sqrt(Rp/R)*QL[M]*densS[id](k, l);
 		  }
 		}
 	      }
@@ -843,40 +851,32 @@ main(int argc, char **argv)
 	      for (int n=0; n<norder; n++) {
 
 		std::pair<int, int> id(M, n);
-		double potlS = 0.0, densS = 0.0;
+		double PotlS = 0.0, DensS = 0.0;
 
-		double potlC =
-		  A*(C*ortho.getPotlC(M, n)[iX+0][iY+0] +
-		     D*ortho.getPotlC(M, n)[iX+0][iY+1] ) +
-		  B*(C*ortho.getPotlC(M, n)[iX+1][iY+0] +
-		     D*ortho.getPotlC(M, n)[iX+1][iY+1] ) ;
+		double PotlC =
+		  A*(C*potlC[id](iX+0, iY+0) + D*potlC[id](iX+0, iY+1) ) +
+		  B*(C*potlC[id](iX+1, iY+0) + D*potlC[id](iX+1, iY+1) ) ;
 
-		double densC =
-		  A*(C*Ec[id](iX+0, iY+0) +
-		     D*Ec[id](iX+0, iY+1) ) +
-		  B*(C*Ec[id](iX+1, iY+0) +
-		     D*Ec[id](iX+1, iY+1) ) ;
+		double DensC =
+		  A*(C*densC[id](iX+0, iY+0) + D*densC[id](iX+0, iY+1) ) +
+		  B*(C*densC[id](iX+1, iY+0) + D*densC[id](iX+1, iY+1) ) ;
 
 		if (M) {
-		  potlS =
-		    A*(C*ortho.getPotlS(M, n)[iX+0][iY+0] +
-		       D*ortho.getPotlS(M, n)[iX+0][iY+1] ) +
-		    B*(C*ortho.getPotlS(M, n)[iX+1][iY+0] +
-		       D*ortho.getPotlS(M, n)[iX+1][iY+1] ) ;
+		  PotlS =
+		    A*(C*potlS[id](iX+0, iY+0) + D*potlS[id](iX+0, iY+1) ) +
+		    B*(C*potlS[id](iX+1, iY+0) + D*potlS[id](iX+1, iY+1) ) ;
 
-		  densS =
-		    A*(C*Es[id](iX+0, iY+0) +
-		       D*Es[id](iX+0, iY+1) ) +
-		    B*(C*Es[id](iX+1, iY+0) +
-		       D*Es[id](iX+1, iY+1) ) ;
+		  DensS =
+		    A*(C*densS[id](iX+0, iY+0) + D*densS[id](iX+0, iY+1) ) +
+		    B*(C*densS[id](iX+1, iY+0) + D*densS[id](iX+1, iY+1) ) ;
 		}
 
 		if (M==0) {
-		  work2[M] += mass*ac_cos[M][n]*potlC;
-		  work3[M] += mass*ac_cos[M][n]*densC;
+		  work2[M] += mass*ac_cos[M][n]*PotlC;
+		  work3[M] += mass*ac_cos[M][n]*DensC;
 		} else {
-		  work2[M] += mass*(ac_cos[M][n]*potlC*cos(phi*M) + ac_sin[M][n]*potlS*sin(phi*M));
-		  work3[M] += mass*(ac_cos[M][n]*densC*cos(phi*M) + ac_sin[M][n]*densS*sin(phi*M));
+		  work2[M] += mass*(ac_cos[M][n]*PotlC*cos(phi*M) + ac_sin[M][n]*PotlS*sin(phi*M));
+		  work3[M] += mass*(ac_cos[M][n]*DensC*cos(phi*M) + ac_sin[M][n]*DensS*sin(phi*M));
 		}
 	      }
 	      // END: radial index loop

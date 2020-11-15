@@ -479,7 +479,7 @@ void UserAddMass::determine_acceleration_and_potential(void)
       // Radius selection
       //
       double lrr = lrmin + dr*((*urand)() + indx);
-      double rr  = lrr, a, b, m;
+      double rr  = lrr, a, b;
     
       if (logr) rr = exp(lrr);	// Using log scaling for bins
       

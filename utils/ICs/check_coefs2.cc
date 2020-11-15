@@ -30,7 +30,7 @@
 #include <boost/make_shared.hpp>
 #include <boost/make_unique.hpp>
 
-#include <boost/progress.hpp>	// Progress bar
+#include <Progress.H>		// Progress bar
 
 namespace po = boost::program_options;
 

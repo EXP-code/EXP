@@ -19,7 +19,8 @@
 //
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/progress.hpp>	// Progress bar
+
+#include <Progress.H>		// Progress bar
 
 // Globals for exp libraries
 //

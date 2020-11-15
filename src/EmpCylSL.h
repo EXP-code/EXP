@@ -7,6 +7,8 @@
 
 #include <boost/make_shared.hpp>
 
+#include <Eigen/Eigen>
+
 #include <gaussQ.h>
 #include <interp.h>
 #include <math.h>
@@ -136,22 +138,6 @@ private:
   std::vector<Matrix> trforce;
   std::vector<Matrix> tzforce;
   
-  bool tbounds(std::vector< std::vector<Matrix> >& mat, int m, int n)
-  {
-    if (m>=mat.size()) {
-      std::cout << "Index m=" << m << " out of bounds" << std::endl;
-      return false;
-    }
-
-    if (n>=mat[m].size()) {
-      std::cout << "Index n=" << n << " out of bounds" << std::endl;
-      return false;
-    }
-
-    return true;
-  }
-
-
   typedef std::vector<std::vector<Vector>> VectorD2;
   typedef boost::shared_ptr<VectorD2> VectorD2ptr;
 
@@ -753,39 +739,69 @@ public:
   }
 
   //@{
+  using TableArray = std::map<std::pair<int, int>, Eigen::MatrixXd>;
+
   //! Return density and potential matrices
-  Matrix getDensC(int m, int n)
-#ifndef BCHECK
-  { return densC[m][n]; }
-#else
-  { if (tbounds(densC, m, n)) return densC[m][n];
-    else return Matrix(); }
-#endif
+  TableArray getDensC()
+  {
+    TableArray ret;
+    for (int M=0; M<=MMAX; M++) {
+      for (int n=0; n<NORDER; n++) {
+	std::pair<int, int> id(M, n);
+	ret[id].resize(NUMX+1, NUMY+1);
+	for (int i=0; i<=NUMX; i++)
+	  for (int j=0; j<=NUMY; j++)
+	    ret[id](i, j) = densC[M][n][i][j];
+      }
+    }
+    return ret;
+  }
 
-  Matrix getDensS(int m, int n)
-#ifndef BCHECK
-  { return densS[m][n]; }
-#else
-  { if (tbounds(densS, m, n)) return densS[m][n];
-    else return Matrix(); }
-#endif
+  TableArray getDensS()
+  {
+    TableArray ret;
+    for (int M=1; M<=MMAX; M++) {
+      for (int n=0; n<NORDER; n++) {
+	std::pair<int, int> id(M, n);
+	ret[id].resize(NUMX+1, NUMY+1);
+	for (int i=0; i<=NUMX; i++)
+	  for (int j=0; j<=NUMY; j++)
+	    ret[id](i, j) = densS[M][n][i][j];
+      }
+    }
+    return ret;
+  }
 
-  Matrix getPotlC(int m, int n)
-#ifndef BCHECK
-  { return potC[m][n]; }
-#else
-  { if (tbounds(potC,  m, n)) return potC [m][n];
-    else return Matrix(); }
-#endif
+  //! Return density and potential matrices
+  TableArray getPotlC()
+  {
+    TableArray ret;
+    for (int M=0; M<=MMAX; M++) {
+      for (int n=0; n<NORDER; n++) {
+	std::pair<int, int> id(M, n);
+	ret[id].resize(NUMX+1, NUMY+1);
+	for (int i=0; i<=NUMX; i++)
+	  for (int j=0; j<=NUMY; j++)
+	    ret[id](i, j) = potC[M][n][i][j];
+      }
+    }
+    return ret;
+  }
 
-  Matrix getPotlS(int m, int n)
-#ifndef BCHECK
-  { return potS[m][n]; }
-#else
-  { if (tbounds(potS,  m, n)) return potS [m][n];
-    else return Matrix(); }
-#endif
-  //@}
+  TableArray getPotlS()
+  {
+    TableArray ret;
+    for (int M=1; M<=MMAX; M++) {
+      for (int n=0; n<NORDER; n++) {
+	std::pair<int, int> id(M, n);
+	ret[id].resize(NUMX+1, NUMY+1);
+	for (int i=0; i<=NUMX; i++)
+	  for (int j=0; j<=NUMY; j++)
+	    ret[id](i, j) = potS[M][n][i][j];
+      }
+    }
+    return ret;
+  }
 
 
   //! Get the coefficients trimmed by a SNR value using the defined algorithm

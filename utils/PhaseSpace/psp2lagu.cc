@@ -21,7 +21,8 @@
 #include <PSP2.H>
 #include <FileUtils.H>
 
-#include <boost/progress.hpp>
+#include <Progress.H>
+
 #include <boost/program_options.hpp>
 #include <boost/math/special_functions/laguerre.hpp>
 

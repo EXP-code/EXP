@@ -22,8 +22,9 @@
 #include <FileUtils.H>
 
 #include <boost/program_options.hpp>
-#include <boost/progress.hpp>
 #include <boost/math/special_functions/bessel.hpp>
+
+#include <Progress.H>
 
 #include <mpi.h>
 
