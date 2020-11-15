@@ -739,15 +739,16 @@ public:
   }
 
   //@{
-  using TableArray = std::map<std::pair<int, int>, Eigen::MatrixXd>;
+  using TableArray = std::vector<Eigen::MatrixXd>;
 
   //! Return density and potential matrices
+  //! Indexed (M, n) pair as id = M*NORDER + n
   TableArray getDensC()
   {
-    TableArray ret;
+    TableArray ret((MMAX+1)*NORDER);
     for (int M=0; M<=MMAX; M++) {
       for (int n=0; n<NORDER; n++) {
-	std::pair<int, int> id(M, n);
+	int id = M*NORDER+n;
 	ret[id].resize(NUMX+1, NUMY+1);
 	for (int i=0; i<=NUMX; i++)
 	  for (int j=0; j<=NUMY; j++)
@@ -759,10 +760,10 @@ public:
 
   TableArray getDensS()
   {
-    TableArray ret;
+    TableArray ret((MMAX+1)*NORDER);
     for (int M=1; M<=MMAX; M++) {
       for (int n=0; n<NORDER; n++) {
-	std::pair<int, int> id(M, n);
+	int id = M*NORDER+n;
 	ret[id].resize(NUMX+1, NUMY+1);
 	for (int i=0; i<=NUMX; i++)
 	  for (int j=0; j<=NUMY; j++)
@@ -775,10 +776,10 @@ public:
   //! Return density and potential matrices
   TableArray getPotlC()
   {
-    TableArray ret;
+    TableArray ret((MMAX+1)*NORDER);
     for (int M=0; M<=MMAX; M++) {
       for (int n=0; n<NORDER; n++) {
-	std::pair<int, int> id(M, n);
+	int id = M*NORDER + n;
 	ret[id].resize(NUMX+1, NUMY+1);
 	for (int i=0; i<=NUMX; i++)
 	  for (int j=0; j<=NUMY; j++)
@@ -790,10 +791,10 @@ public:
 
   TableArray getPotlS()
   {
-    TableArray ret;
+    TableArray ret((MMAX+1)*NORDER);
     for (int M=1; M<=MMAX; M++) {
       for (int n=0; n<NORDER; n++) {
-	std::pair<int, int> id(M, n);
+	int id = M*NORDER + n;
 	ret[id].resize(NUMX+1, NUMY+1);
 	for (int i=0; i<=NUMX; i++)
 	  for (int j=0; j<=NUMY; j++)

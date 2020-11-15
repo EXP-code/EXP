@@ -429,13 +429,12 @@ main(int argc, char **argv)
   // Begin array integration loop
   // ============================
 
-  std::map< std::pair<int, int>, Eigen::MatrixXd > Ec, Es;
+  std::vector<Eigen::MatrixXd> Ec((mmax+1)*norder), Es((mmax+1)*norder);
 
   for (int M=0; M<=mmax; M++) {
     for (int n=0; n<norder; n++) {
-      std::pair<int, int> id(M, n);
-      Ec[id].resize(EmpCylSL::NUMX, EmpCylSL::NUMY+1);
-      if (M) Es[id].resize(EmpCylSL::NUMX, EmpCylSL::NUMY+1);
+      Ec[M*norder+n].resize(EmpCylSL::NUMX, EmpCylSL::NUMY+1);
+      if (M) Es[M*norder+n].resize(EmpCylSL::NUMX, EmpCylSL::NUMY+1);
     }
   }
 
@@ -505,7 +504,7 @@ main(int argc, char **argv)
 
 	for (int M=0; M<=mmax; M++) {
 	  for (int n=0; n<norder; n++) {
-	    std::pair<int, int> id(M, n);
+	    int id = M*norder + n;
 	    in.read(reinterpret_cast<char *>(Es[id].data()), Es[id].size()*sizeof(double));
 	    if (M)
 	      in.read(reinterpret_cast<char *>(Es[id].data()), Es[id].size()*sizeof(double));
@@ -573,7 +572,7 @@ main(int argc, char **argv)
 		
 		for (int M=0; M<=mmax; M++) {
 		  for (int n=0; n<norder; n++) {
-		    std::pair<int, int> id(M, n);
+		    int id = M*norder + n;
 		    Ec[id](i, j) += -2.0*sqrt(Rp/R)*QL[M]*densC[id](k, l);
 		    if (M)
 		      Es[id](i, j) += -2.0*sqrt(Rp/R)*QL[M]*densS[id](k, l);
@@ -593,7 +592,7 @@ main(int argc, char **argv)
   //
   for (int M=0; M<=mmax; M++) {
     for (int n=0; n<norder; n++) {
-      std::pair<int, int> id(M, n);
+      int id = M*norder + n;
       MPI_Allreduce(MPI_IN_PLACE, Ec[id].data(), Ec[id].size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
       if (M)
 	MPI_Allreduce(MPI_IN_PLACE, Es[id].data(), Es[id].size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -647,7 +646,7 @@ main(int argc, char **argv)
       //
       for (int M=0; M<=mmax; M++) {
 	for (int n=0; n<norder; n++) {
-	  std::pair<int, int> id(M, n);
+	  int id = M*norder + n;
 	  out.write(reinterpret_cast<const char *>(Es[id].data()), Es[id].size()*sizeof(double));
 	  if (M)
 	    out.write(reinterpret_cast<const char *>(Es[id].data()), Es[id].size()*sizeof(double));
@@ -764,6 +763,7 @@ main(int argc, char **argv)
     }
 
     double term4tot = 0.0;
+    std::vector<Vector> ac_cos, ac_sin;
 
     for (int nsnr=0; nsnr<NSNR; nsnr++) {
 
@@ -780,7 +780,6 @@ main(int argc, char **argv)
     
       // Get the snr trimmed coefficients
       //
-      std::vector<Vector> ac_cos, ac_sin;
       ortho.get_trimmed(snr, ac_cos, ac_sin);
 	
       // Zero out the accumulators
@@ -840,6 +839,19 @@ main(int argc, char **argv)
 	    if (iY<0) iY = 0;
 	    if (iY>=EmpCylSL::NUMY) iY = EmpCylSL::NUMY-1;
 	    
+           if (iX<0 or iX>=EmpCylSL::NUMX-1) {
+              std::cout << "X out of bounds: x=" << x << " iX=" << iX
+                        << " XMIN=" << XMIN
+                        << " XMAX=" << XMAX
+                        << std::endl;
+            }
+            if (iY<0 or iY>=EmpCylSL::NUMY) {
+              std::cout << "Y out of bounds: y=" << y << " iY=" << iY
+                        << " YMIN=" << YMIN
+                        << " YMAX=" << YMAX
+                        << std::endl;
+            }
+
 	    double A = (XMIN + dX*(iX+1.5) - x)/dX;
 	    double B = (x - XMIN - dX*(iX+0.5))/dX;
 	    
@@ -850,7 +862,7 @@ main(int argc, char **argv)
 
 	      for (int n=0; n<norder; n++) {
 
-		std::pair<int, int> id(M, n);
+		int id = M*norder + n;
 		double PotlS = 0.0, DensS = 0.0;
 
 		double PotlC =
