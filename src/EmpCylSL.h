@@ -136,6 +136,22 @@ private:
   std::vector<Matrix> trforce;
   std::vector<Matrix> tzforce;
   
+  bool tbounds(std::vector< std::vector<Matrix> >& mat, int m, int n)
+  {
+    if (m>=mat.size()) {
+      std::cout << "Index m=" << m << " out of bounds" << std::endl;
+      return false;
+    }
+
+    if (n>=mat[m].size()) {
+      std::cout << "Index n=" << n << " out of bounds" << std::endl;
+      return false;
+    }
+
+    return true;
+  }
+
+
   typedef std::vector<std::vector<Vector>> VectorD2;
   typedef boost::shared_ptr<VectorD2> VectorD2ptr;
 
@@ -737,11 +753,38 @@ public:
   }
 
   //@{
-  //! Return density and potential matrices (no checking)
-  Matrix getDensC(int m, int n) { return densC[m][n]; }
-  Matrix getDensS(int m, int n) { return densS[m][n]; }
-  Matrix getPotlC(int m, int n) { return potC[m][n]; }
-  Matrix getPotlS(int m, int n) { return potS[m][n]; }
+  //! Return density and potential matrices
+  Matrix getDensC(int m, int n)
+#ifndef BCHECK
+  { return densC[m][n]; }
+#else
+  { if (tbounds(densC, m, n)) return densC[m][n];
+    else return Matrix(); }
+#endif
+
+  Matrix getDensS(int m, int n)
+#ifndef BCHECK
+  { return densS[m][n]; }
+#else
+  { if (tbounds(densS, m, n)) return densS[m][n];
+    else return Matrix(); }
+#endif
+
+  Matrix getPotlC(int m, int n)
+#ifndef BCHECK
+  { return potC[m][n]; }
+#else
+  { if (tbounds(potC,  m, n)) return potC [m][n];
+    else return Matrix(); }
+#endif
+
+  Matrix getPotlS(int m, int n)
+#ifndef BCHECK
+  { return potS[m][n]; }
+#else
+  { if (tbounds(potS,  m, n)) return potS [m][n];
+    else return Matrix(); }
+#endif
   //@}
 
 

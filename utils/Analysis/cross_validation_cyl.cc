@@ -97,8 +97,13 @@ extern double plgndr(int, int, double);
 double Xi(double R, double Rp, double z, double zp)
 {
   const double tol = 1.0e-18;
+  if (R < 1.0e-18 or Rp < 1.0e-18)
+    return std::numeric_limits<double>::infinity();
+
   double q = R/Rp;
-  if (q < 1.0e-18 or 1.0/q < 1.0e-18) return 1.0/tol;
+  if (q < 1.0e-18 or 1.0/q < 1.0e-18)
+    return std::numeric_limits<double>::infinity();
+
   return 0.5*(q + 1.0/q + (z - zp)*(z - zp)/(R*Rp));
 }
 
@@ -121,7 +126,7 @@ main(int argc, char **argv)
   double RMIN, RMAX, rscale, minSNR;
   int NICE, LMAX, NMAX, NSNR, NPART;
   int beg, end, stride, init, knots, num;
-  std::string CACHEFILE, modelf, dir("./"), cname, prefix;
+  std::string CACHEFILE, modelf, dir("./"), cname, prefix, table_cache;
   bool ignore;
 
   // ==================================================
@@ -194,6 +199,9 @@ main(int argc, char **argv)
     ("cachefile",
      po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),
      "cachefile name")
+    ("tablefile",
+     po::value<std::string>(&table_cache)->default_value(".cross_val_cyl"),
+     "table file name")
     ;
   
   // ==================================================
@@ -426,38 +434,144 @@ main(int argc, char **argv)
   for (int M=0; M<=mmax; M++) {
     for (int n=0; n<norder; n++) {
       std::pair<int, int> id(M, n);
-      Ec[id].resize(EmpCylSL::NUMX+1, EmpCylSL::NUMY+1);
-      if (M) Es[id].resize(EmpCylSL::NUMX+1, EmpCylSL::NUMY+1);
+      Ec[id].resize(EmpCylSL::NUMX, EmpCylSL::NUMY+1);
+      if (M) Es[id].resize(EmpCylSL::NUMX, EmpCylSL::NUMY+1);
     }
   }
 
-  // Double sum on grid
-  //
-  for (int i=0; i<=EmpCylSL::NUMX; i++) {
-    for (int j=0; j<=EmpCylSL::NUMY; j++) {
+
+  std::ifstream in(table_cache);
+  bool MakeCache = true;
+    
+  if (in) {
+
+    const unsigned int cmagic = 0xf00ba;
+
+    // Attempt to read magic number
+    //
+    unsigned int tmagic;
+    in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
+
+
+    if (tmagic == cmagic) {
+
+      // YAML size
+      //
+      unsigned ssize;
+      in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
+
+      // Make and read char buffer
+      //
+      auto buf = boost::make_unique<char[]>(ssize+1);
+      in.read(buf.get(), ssize);
+      buf[ssize] = 0;		// Null terminate
+
+      YAML::Node node;
+      
+      try {
+	node = YAML::Load(buf.get());
+      }
+      catch (YAML::Exception& error) {
+	if (myid==0)
+	  std::cerr << "YAML: error parsing <" << buf.get() << "> "
+		    << "in " << __FILE__ << ":" << __LINE__ << std::endl
+		    << "YAML error: " << error.what() << std::endl;
+	throw error;
+      }
+      
+      // Get parameters
+      //
+      int    MMAX   = node["mmax"  ].as<int>();
+      int    NORDER = node["norder"].as<int>();
+      int    numx   = node["numx"  ].as<int>();
+      int    numy   = node["numy"  ].as<int>();
+      double rmin   = node["rmin"  ].as<double>();
+      double rmax   = node["rmax"  ].as<double>();
+      double ascl   = node["ascl"  ].as<double>();
+
+      bool okay = true;
+      if (MMAX   != mmax          )   okay = false;
+      if (NORDER != norder        )   okay = false;
+      if (numx   != EmpCylSL::NUMX)   okay = false;
+      if (numy   != EmpCylSL::NUMY)   okay = false;
+      if (fabs(rmin-RMIN)   > 1.0e-8) okay = false;
+      if (fabs(rmax-RMAX)   > 1.0e-8) okay = false;
+      if (fabs(ascl-Ascale) > 1.0e-8) okay = false;
+
+      // Read table
+      //
+      if (okay) {
+	MakeCache = false;
+
+	for (int M=0; M<=mmax; M++) {
+	  for (int n=0; n<norder; n++) {
+	    std::pair<int, int> id(M, n);
+	    in.read(reinterpret_cast<char *>(Es[id].data()), Es[id].size()*sizeof(double));
+	    if (M)
+	      in.read(reinterpret_cast<char *>(Es[id].data()), Es[id].size()*sizeof(double));
+	  }
+	}
+      } 
+    }
+  }
+  
+
+  if (MakeCache) {
+
+    // Storage temp
+    //
+    std::vector<double> PL(mmax+1), QL(mmax+1);
+
+    // Double sum on grid
+    //
+    int icnt = 0;
+    for (int i=0; i<EmpCylSL::NUMX; i++) {
+      for (int j=0; j<=EmpCylSL::NUMY; j++) {
+	
+	if (icnt++ % numprocs == myid) {
 	  
-      double R = ortho.xi_to_r(XMIN + dX*i);
-      double z = ortho. y_to_z(YMIN + dY*j);
+	  double R = ortho.xi_to_r(XMIN + dX*(0.5+i));
+	  double z = ortho. y_to_z(YMIN + dY*j);
+	  
+	  std::cout << std::setw(4)  << myid
+		    << std::setw(4)  << i
+		    << std::setw(4)  << j
+		    << std::setw(16) << R
+		    << std::setw(16) << z
+		    << std::endl;
+	  
+	  for (int k=0; k<=EmpCylSL::NUMX; k++) {
+	    for (int l=0; l<=EmpCylSL::NUMY; l++) {
+	      
+	      double Rp = ortho.xi_to_r(XMIN + dX*k);
+	      double zp = ortho. y_to_z(YMIN + dY*l);
+	      
+	      /*
+	      std::cout << std::setw(44) << "***"
+			<< std::setw(4)  << myid
+			<< std::setw(4)  << l
+			<< std::setw(4)  << k
+			<< std::setw(16) << Rp
+			<< std::setw(16) << zp
+			<< std::endl;
+	      */
 
-      for (int k=0; k<=EmpCylSL::NUMX; k++) {
-	for (int l=0; l<=EmpCylSL::NUMY; l++) {
+	      double xi = Xi(R, Rp, z, zp);
 
-	  double Rp = ortho.xi_to_r(XMIN + dX*k);
-	  double zp = ortho. y_to_z(YMIN + dY*l);
+	      if (not std::isinf(xi)) {
 
-	  std::vector<double> PL(mmax+1), QL(mmax+1);
-	  int newn;
-
-	  double xi = Xi(R, Rp, z, zp);
-	  int zero = 0, nord = mmax+1;
-	  dtorh1_(&xi, &zero, &nord, &PL[0], &QL[0], &newn);
-
-	  for (int M=0; M<=mmax; M++) {
-	    for (int n=0; n<norder; n++) {
-	      std::pair<int, int> id(M, n);
-	      Ec[id](i, j) += -2.0*sqrt(Rp/R)*QL[M]*ortho.getDensC(M, n)[k][l];
-	      if (M)
-		Es[id](i, j) += -2.0*sqrt(Rp/R)*QL[M]*ortho.getDensS(M, n)[k][l];
+		int zero = 0, nord = mmax+1, newn;
+		dtorh1_(&xi, &zero, &nord, &PL[0], &QL[0], &newn);
+		
+		for (int M=0; M<=mmax; M++) {
+		  for (int n=0; n<norder; n++) {
+		    std::pair<int, int> id(M, n);
+		    Ec[id](i, j) += -2.0*sqrt(Rp/R)*QL[M]*ortho.getDensC(M, n)[k][l];
+		    if (M)
+		      Es[id](i, j) += -2.0*sqrt(Rp/R)*QL[M]*ortho.getDensS(M, n)[k][l];
+		  }
+		}
+	      }
 	    }
 	  }
 	}
@@ -465,12 +579,88 @@ main(int argc, char **argv)
     }
   }
 
+  std::cout << "[" << myid << "] Before synchronization" << std::endl;
+
+  // MPI share data
+  //
+  for (int M=0; M<=mmax; M++) {
+    for (int n=0; n<norder; n++) {
+      std::pair<int, int> id(M, n);
+      MPI_Allreduce(MPI_IN_PLACE, Ec[id].data(), Ec[id].size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      if (M)
+	MPI_Allreduce(MPI_IN_PLACE, Es[id].data(), Es[id].size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    }
+  }
+  
+  std::cout << "[" << myid << "] After synchronization" << std::endl;
+
+  if (myid==0 and MakeCache) {
+
+    std::ofstream out(table_cache);
+    
+    if (out) {
+
+      const unsigned int cmagic = 0xf00ba;
+
+      // This is a node of simple {key: value} pairs.  More general
+      // content can be added as needed.
+      YAML::Node node;
+    
+      node["mmax"  ] = mmax;
+      node["norder"] = norder;
+      node["numx"  ] = EmpCylSL::NUMX;
+      node["numy"  ] = EmpCylSL::NUMY;
+      node["rmin"  ] = RMIN;
+      node["rmax"  ] = RMAX;
+      node["ascl"  ] = Ascale;
+    
+      // Serialize the node
+      //
+      YAML::Emitter y; y << node;
+      
+      // Get the size of the string
+      //
+      unsigned int hsize = strlen(y.c_str());
+      
+      // Write magic #
+      //
+      out.write(reinterpret_cast<const char *>(cmagic),   sizeof(unsigned int));
+      
+      // Write YAML string size
+      //
+      out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
+      
+      // Write YAML string
+      //
+      out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
+      
+      
+      // Write table
+      //
+      for (int M=0; M<=mmax; M++) {
+	for (int n=0; n<norder; n++) {
+	  std::pair<int, int> id(M, n);
+	  out.write(reinterpret_cast<const char *>(Es[id].data()), Es[id].size()*sizeof(double));
+	  if (M)
+	    out.write(reinterpret_cast<const char *>(Es[id].data()), Es[id].size()*sizeof(double));
+	}
+      }
+
+      std::cout << "[" << myid << "] Wrote cache file" << std::endl;
+
+    } else {
+      std::cout << "Could not open table cache <" << table_cache << ">" << std::endl;
+    }
+  }
 
   // ==================================================
   // Phase space output loop
   // ==================================================
 
   std::string file;
+
+  std::cout << "[" << myid << "] Begin phase-space loop" << std::endl;
+
 
   for (int ipsp=beg; ipsp<=end; ipsp+=stride) {
 
@@ -630,9 +820,9 @@ main(int argc, char **argv)
 	    x = std::max<double>(XMIN, x);
 	    x = std::min<double>(XMAX, x);
 	    
-	    int iX = floor( (x - XMIN)/dX );
+	    int iX = floor( (x - XMIN - 0.5*dX)/dX );
 	    if (iX<0) iX = 0;
-	    if (iX>=EmpCylSL::NUMX) iX = EmpCylSL::NUMX-1;
+	    if (iX>=EmpCylSL::NUMX-1) iX = EmpCylSL::NUMX-2;
 	    
 	    double y = ortho.z_to_y(z);
 	    y = std::max<double>(YMIN, y);
@@ -642,8 +832,8 @@ main(int argc, char **argv)
 	    if (iY<0) iY = 0;
 	    if (iY>=EmpCylSL::NUMY) iY = EmpCylSL::NUMY-1;
 	    
-	    double A = (XMIN + dX*(iX+1) - x)/dX;
-	    double B = (x - XMIN - dX*(iX+0))/dX;
+	    double A = (XMIN + dX*(iX+1.5) - x)/dX;
+	    double B = (x - XMIN - dX*(iX+0.5))/dX;
 	    
 	    double C = (YMIN + dY*(iY+1) - y)/dY;
 	    double D = (y - YMIN - dY*(iY+0))/dY;
