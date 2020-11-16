@@ -540,29 +540,20 @@ main(int argc, char **argv)
 	  double R = ortho.xi_to_r(XMIN + dX*(0.5+i));
 	  double z = ortho. y_to_z(YMIN + dY*j);
 	  
+#ifdef DEBUG
 	  std::cout << std::setw(4)  << myid
 		    << std::setw(4)  << i
 		    << std::setw(4)  << j
 		    << std::setw(16) << R
 		    << std::setw(16) << z
 		    << std::endl;
+#endif
 	  
 	  for (int k=0; k<=EmpCylSL::NUMX; k++) {
 	    for (int l=0; l<=EmpCylSL::NUMY; l++) {
 	      
 	      double Rp = ortho.xi_to_r(XMIN + dX*k);
 	      double zp = ortho. y_to_z(YMIN + dY*l);
-	      
-	      /*
-	      std::cout << std::setw(44) << "***"
-			<< std::setw(4)  << myid
-			<< std::setw(4)  << l
-			<< std::setw(4)  << k
-			<< std::setw(16) << Rp
-			<< std::setw(16) << zp
-			<< std::endl;
-	      */
-
 	      double xi = Xi(R, Rp, z, zp);
 
 	      if (not std::isinf(xi)) {
@@ -579,16 +570,26 @@ main(int argc, char **argv)
 		  }
 		}
 	      }
+	      // END: is not inf
 	    }
+	    // END: inner y loop
 	  }
+	  // END: inner x loop
 	}
+	// END: MPI node selection
       }
+      // END: outer y loop
     }
+    // END: outer x loop
   }
+  // END: MakeCache
 
+#ifdef DEBUG
   std::cout << "[" << myid << "] Before synchronization" << std::endl;
+  MPI_Barrier(MPI_COMM_WORLD);
+#endif
 
-  // MPI share data
+  // MPI: share data
   //
   for (int M=0; M<=mmax; M++) {
     for (int n=0; n<norder; n++) {
@@ -599,13 +600,20 @@ main(int argc, char **argv)
     }
   }
   
+#ifdef DEBUG
   std::cout << "[" << myid << "] After synchronization" << std::endl;
+  MPI_Barrier(MPI_COMM_WORLD);
+#endif
 
   if (myid==0 and MakeCache) {
 
     std::ofstream out(table_cache);
     
     if (out) {
+      
+#ifdef DEBUG
+      std::cout << "[" << myid << "] Begin to write table cache" << std::endl;
+#endif
 
       const unsigned int cmagic = 0xf00ba;
 
@@ -653,11 +661,17 @@ main(int argc, char **argv)
 	}
       }
 
+#ifdef DEBUG
       std::cout << "[" << myid << "] Wrote cache file" << std::endl;
+#endif
 
     } else {
       std::cout << "Could not open table cache <" << table_cache << ">" << std::endl;
     }
+
+#ifdef DEBUG
+    std::cout << "[" << myid << "] Finished writing table cache" << std::endl;
+#endif
   }
 
   // ==================================================
@@ -666,8 +680,10 @@ main(int argc, char **argv)
 
   std::string file;
 
+#ifdef DEBUG
   std::cout << "[" << myid << "] Begin phase-space loop" << std::endl;
-
+  MPI_Barrier(MPI_COMM_WORLD);
+#endif	      
 
   for (int ipsp=beg; ipsp<=end; ipsp+=stride) {
 
@@ -839,22 +855,25 @@ main(int argc, char **argv)
 	    if (iY<0) iY = 0;
 	    if (iY>=EmpCylSL::NUMY) iY = EmpCylSL::NUMY-1;
 	    
+#ifdef DEBUG
            if (iX<0 or iX>=EmpCylSL::NUMX-1) {
               std::cout << "X out of bounds: x=" << x << " iX=" << iX
                         << " XMIN=" << XMIN
                         << " XMAX=" << XMAX
                         << std::endl;
             }
+	   
             if (iY<0 or iY>=EmpCylSL::NUMY) {
               std::cout << "Y out of bounds: y=" << y << " iY=" << iY
                         << " YMIN=" << YMIN
                         << " YMAX=" << YMAX
                         << std::endl;
             }
-
+#endif
+				// X dimension
 	    double A = (XMIN + dX*(iX+1.5) - x)/dX;
 	    double B = (x - XMIN - dX*(iX+0.5))/dX;
-	    
+				// Y dimension
 	    double C = (YMIN + dY*(iY+1) - y)/dY;
 	    double D = (y - YMIN - dY*(iY+0))/dY;
 	    
@@ -933,7 +952,6 @@ main(int argc, char **argv)
       // Root process
       
       if (myid==0) std::cout << "done" << endl;
-
     }
     // SNR loop
       
