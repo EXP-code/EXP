@@ -527,7 +527,7 @@ main(int argc, char **argv)
 
     // Storage temp
     //
-    std::vector<double> PL(mmax+1), QL(mmax+1);
+    std::vector<double> PL(mmax+2), QL(mmax+2);
 
     // Double sum on grid
     //
@@ -639,7 +639,7 @@ main(int argc, char **argv)
       
       // Write magic #
       //
-      out.write(reinterpret_cast<const char *>(cmagic),   sizeof(unsigned int));
+      out.write(reinterpret_cast<const char *>(&cmagic),   sizeof(unsigned int));
       
       // Write YAML string size
       //
@@ -736,14 +736,21 @@ main(int argc, char **argv)
 			   << std::flush;
 
     ortho.setup_accumulation();
+    ortho.setTotal(psp->GetNamed(cname)->comp.nbod); // Set particle number
+    ortho.init_pca();
 
     SParticle *p = psp->GetParticle();
     int icnt = 0;
     do {
       if (icnt++ % numprocs == myid) {
-	double R   = sqrt(p->pos(0)*p->pos(0) + p->pos(0)*p->pos(1));
+	double R   = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
 	double phi = atan2(p->pos(1), p->pos(0));
-	ortho.accumulate(R, p->pos(2), phi, p->mass(), p->indx(), 0);
+	ortho.accumulate(R, p->pos(2), phi, p->mass(), p->indx(), 0, 0, true);
+	//                                                        ^  ^  ^
+	//                                                        |  |  |
+	// Thread id ---------------------------------------------+  |  |
+	// Level ----------------------------------------------------+  |
+	// Compute covariance ------------------------------------------+
       }
       p = psp->NextParticle();
     } while (p);
@@ -753,7 +760,8 @@ main(int argc, char **argv)
     //------------------------------------------------------------ 
       
     if (myid==0) cout << "Making coefficients . . . " << flush;
-    ortho.make_coefficients();
+    ortho.make_coefficients(true);
+    ortho.pca_hall(true);
     if (myid==0) std::cout << "done" << endl;
 
     //------------------------------------------------------------ 
@@ -764,6 +772,8 @@ main(int argc, char **argv)
     std::vector<double> term3(mmax+1), work3(mmax+1);
     
     double maxSNR = ortho.getMaxSNR();
+
+    maxSNR = 5.0;
 
     if (maxSNR < minSNR) minSNR = maxSNR / 100.0;
     
@@ -889,8 +899,8 @@ main(int argc, char **argv)
 		  B*(C*potlC[id](iX+1, iY+0) + D*potlC[id](iX+1, iY+1) ) ;
 
 		double DensC =
-		  A*(C*densC[id](iX+0, iY+0) + D*densC[id](iX+0, iY+1) ) +
-		  B*(C*densC[id](iX+1, iY+0) + D*densC[id](iX+1, iY+1) ) ;
+		  A*(C*Ec[id](iX+0, iY+0) + D*Ec[id](iX+0, iY+1) ) +
+		  B*(C*Ec[id](iX+1, iY+0) + D*Ec[id](iX+1, iY+1) ) ;
 
 		if (M) {
 		  PotlS =
@@ -898,8 +908,8 @@ main(int argc, char **argv)
 		    B*(C*potlS[id](iX+1, iY+0) + D*potlS[id](iX+1, iY+1) ) ;
 
 		  DensS =
-		    A*(C*densS[id](iX+0, iY+0) + D*densS[id](iX+0, iY+1) ) +
-		    B*(C*densS[id](iX+1, iY+0) + D*densS[id](iX+1, iY+1) ) ;
+		    A*(C*Es[id](iX+0, iY+0) + D*Es[id](iX+0, iY+1) ) +
+		    B*(C*Es[id](iX+1, iY+0) + D*Es[id](iX+1, iY+1) ) ;
 		}
 
 		if (M==0) {

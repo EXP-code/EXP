@@ -110,6 +110,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   firstime_coef   = true;
   coefMaster      = true;
   lastPlayTime    = -std::numeric_limits<double>::max();
+  EVEN_M          = false;
   eof_over        = false;
   eof_file        = "";
 
@@ -142,6 +143,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   // Set azimuthal harmonic order restriction?
   //
   if (mlim>=0) ortho->set_mlim(mlim);
+  if (EVEN_M)  ortho->setEven(EVEN_M);
 
   try {
     if (conf["tk_type"]) ortho->setTK(conf["tk_type"].as<std::string>());
@@ -355,6 +357,7 @@ void Cylinder::initialize()
     if (conf["pcadiag"   ])    pcadiag  = conf["pcadiag"   ].as<bool>();
     if (conf["try_cache" ])  try_cache  = conf["try_cache" ].as<bool>();
     if (conf["density"   ])    density  = conf["density"   ].as<bool>();
+    if (conf["EVEN_M"    ])     EVEN_M  = conf["EVEN_M"    ].as<bool>();
     if (conf["cmap"      ])      cmapR  = conf["cmap"      ].as<int>();
     if (conf["cmapr"     ])      cmapR  = conf["cmapr"     ].as<int>();
     if (conf["cmapz"     ])      cmapZ  = conf["cmapz"     ].as<int>();
