@@ -739,6 +739,9 @@ public:
   }
 
   //@{
+  //! Get density grid interpolated entries
+  void getDensSC(int m, int j, double R, double z, double& dC, double& dS);
+
   using TableArray = std::vector<Eigen::MatrixXd>;
 
   //! Return density and potential matrices
