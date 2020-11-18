@@ -552,7 +552,14 @@ main(int argc, char **argv)
 	  for (int i=0; i<=numr; i++) {
       
 	    if (icnt++ % numprocs == myid) {
-	  
+	  #ifdef DEBUG
+	      std::cout << std::setw(5) << myid
+			<< std::setw(5) << L
+			<< std::setw(5) << M
+			<< std::setw(5) << n
+			<< std::setw(5) << i
+			<< std::endl;
+#endif
 	      double xi = XMIN + dX*i;
 	      double ri = ortho.xi_to_r(xi);
 
@@ -597,7 +604,9 @@ main(int argc, char **argv)
 		  outerC += dC * fac;
 		  outerS += dS * fac;
 		}
+		// END: radial integration
 	      }
+	      // END: theta integration
 
 	      Ec[id][i] += innerC + outerC;
 	      if (M) Es[id][i] += innerS + outerS;
@@ -802,6 +811,10 @@ main(int argc, char **argv)
     
     double maxSNR = ortho.getMaxSNR();
 
+    if (myid==0) {
+      std::cout << "Found maxSNR=" << maxSNR << std::endl;
+    }
+
     maxSNR = 5.0;
 
     if (maxSNR < minSNR) minSNR = maxSNR / 100.0;
@@ -814,11 +827,27 @@ main(int argc, char **argv)
     double dSNR = (maxSNR - minSNR)/(NSNR - 1);
 
     if (myid==0) {
-      std::cout << "maxSNR=" << maxSNR << " dSNR=" << dSNR << std::endl;
+      std::cout << "Using maxSNR=" << maxSNR << " dSNR=" << dSNR << std::endl;
     }
 
     double term4tot = 0.0;
     std::vector<Vector> ac_cos, ac_sin;
+
+    for (int n=0; n<numprocs; n++) {
+      if (n==myid) {
+	ortho.get_trimmed(0.0, ac_cos, ac_sin);
+	std::cout << "myid=" << myid << std::endl;
+	for (int i=0; i<norder; i++)
+	  std::cout << std::setw(4) << i << std::setw(18) << ac_cos[0][i] << std::endl;
+	std::cout << std::endl;
+
+	ortho.get_trimmed(0.01, ac_cos, ac_sin);
+	for (int i=0; i<norder; i++)
+	  std::cout << std::setw(4) << i << std::setw(18) << ac_cos[0][i] << std::endl;
+	std::cout << std::endl << std::endl;
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
 
     for (int nsnr=0; nsnr<NSNR; nsnr++) {
 
@@ -882,7 +911,7 @@ main(int argc, char **argv)
 	    
 	  int iX = floor( (x - XMIN)/dX0 );
 	  if (iX<0) iX = 0;
-	  if (iX>=EmpCylSL::NUMX) iX = EmpCylSL::NUMX;
+	  if (iX>=EmpCylSL::NUMX) iX = EmpCylSL::NUMX-1;
 	    
 	  double y = ortho.z_to_y(z);
 	  y = std::max<double>(YMIN, y);
@@ -893,7 +922,7 @@ main(int argc, char **argv)
 	  if (iY>=EmpCylSL::NUMY) iY = EmpCylSL::NUMY-1;
 	  
 #ifdef DEBUG
-	  if (iX<0 or iX>=EmpCylSL::NUMX-1) {
+	  if (iX<0 or iX>=EmpCylSL::NUMX) {
 	    std::cout << "X out of bounds: x=" << x << " iX=" << iX
 		      << " XMIN=" << XMIN
 		      << " XMAX=" << XMAX
