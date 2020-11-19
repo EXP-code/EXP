@@ -116,7 +116,7 @@ main(int argc, char **argv)
 {
   
 #ifdef DEBUG
-  // sleep(20);
+  sleep(20);
 #endif  
   
   double RMIN, RMAX, rscale, minSNR;
@@ -540,9 +540,7 @@ main(int argc, char **argv)
       for (int L=0; L<=LMAX; L++) {
 	for (int M=0; M<=std::min<int>(L, mmax); M++) cnt++;
       }
-
       cnt *= numr + 1;
-      cnt /= numprocs;
 
       progress = boost::make_shared<boost::progress_display>(cnt);
     }
