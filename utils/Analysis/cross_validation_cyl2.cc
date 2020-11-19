@@ -120,7 +120,7 @@ main(int argc, char **argv)
 #endif  
   
   double RMIN, RMAX, rscale, minSNR;
-  int NICE, LMAX, NMAX, NSNR, NPART, NINTR, NINTT;
+  int NICE, LMAX, NMAX, NSNR, NPART, NINTR, NINTT, MLIM;
   int beg, end, stride, init, numr;
   std::string CACHEFILE, modelf, dir("./"), cname, prefix, table_cache;
   bool ignore;
@@ -159,6 +159,8 @@ main(int argc, char **argv)
      "Maximum harmonic order for spherical expansion")
     ("NMAX",                po::value<int>(&NMAX)->default_value(12),
      "Maximum radial order for spherical expansion")
+    ("MLIM",                po::value<int>(&MLIM)->default_value(std::numeric_limits<int>::max()),
+     "Limit on azimuthal order for testing")
     ("NPART",               po::value<int>(&NPART)->default_value(0),
      "Jackknife partition number for testing (0 means off, use standard eval)")
     ("NSNR, N",             po::value<int>(&NSNR)->default_value(20),
@@ -540,7 +542,7 @@ main(int argc, char **argv)
       for (int L=0; L<=LMAX; L++) {
 	for (int M=0; M<=std::min<int>(L, mmax); M++) cnt++;
       }
-      cnt *= numr + 1;
+      cnt *= (numr + 1)*norder;
 
       progress = boost::make_shared<boost::progress_display>(cnt);
     }
@@ -1035,7 +1037,7 @@ main(int argc, char **argv)
 	    
 	  for (int L=0; L<=LMAX; L++) {
 
-	    for (int M=0; M<=std::min<int>(L, mmax); M++) {
+	    for (int M=0; M<=std::min({L, mmax, MLIM}); M++) {
 
 	      double Ylm  = Ylm01(L, M) * plgndr(L, M, cosx);
 	      double cosp = cos(phi*M), sinp = sin(phi*M);
