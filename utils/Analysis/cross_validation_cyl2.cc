@@ -53,6 +53,8 @@ using namespace std;
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 
+#include <Progress.H>
+
 namespace po = boost::program_options;
 
                                 // System libs
@@ -109,25 +111,17 @@ double Xi(double R, double Rp, double z, double zp)
   return 0.5*(q + 1.0/q + (z - zp)*(z - zp)/(R*Rp));
 }
 
-// Fortran binding for the half-integral Legendre functions of the
-// second kind
-//
-extern "C" {
-  int dtorh1_(double* z, int* m, int* nmax,
-	      double* pl, double* ql, int* newn);
-}
-
 int
 main(int argc, char **argv)
 {
   
 #ifdef DEBUG
-  sleep(20);
+  // sleep(20);
 #endif  
   
   double RMIN, RMAX, rscale, minSNR;
-  int NICE, LMAX, NMAX, NSNR, NPART;
-  int beg, end, stride, init, knots, numr;
+  int NICE, LMAX, NMAX, NSNR, NPART, NINTR, NINTT;
+  int beg, end, stride, init, numr;
   std::string CACHEFILE, modelf, dir("./"), cname, prefix, table_cache;
   bool ignore;
 
@@ -189,8 +183,10 @@ main(int argc, char **argv)
      "PSP index stride")
     ("numr",                po::value<int>(&numr)->default_value(256),
      "Number of entries in R table")
-    ("knots",               po::value<int>(&knots)->default_value(40),
-     "Number of Legendre integration knots")
+    ("Rknots",              po::value<int>(&NINTR)->default_value(40),
+     "Number of Legendre integration knots for radial integral")
+    ("Tknots",              po::value<int>(&NINTT)->default_value(400),
+     "Number of Legendre integration knots for radial integral")
     ("compname",            po::value<std::string>(&cname)->default_value("stars"),
      "train on Component (default=stars)")
     ("dir,d",               po::value<std::string>(&dir),
@@ -236,7 +232,9 @@ main(int argc, char **argv)
   if (vm.count("OUT")) SPL = false;
 
   bool LOG = false;
-  if (vm.count("LOG")) LOG = true;
+  if (vm.count("LOG")) {
+    LOG = true;
+  }
 
   bool Hall = false;
   if (vm.count("Hall")) Hall = true;
@@ -361,19 +359,21 @@ main(int argc, char **argv)
 	in.clear();
 	in.seekg(0);
 
-	int tmp;
+	int idens;
     
 	in.read((char *)&mmax,    sizeof(int));
 	in.read((char *)&numx,    sizeof(int));
 	in.read((char *)&numy,    sizeof(int));
 	in.read((char *)&NMAX,    sizeof(int));
 	in.read((char *)&norder,  sizeof(int));
-	in.read((char *)&DENS,    sizeof(int)); 
+	in.read((char *)&idens,   sizeof(int)); 
 	in.read((char *)&cmapr,   sizeof(int)); 
 	in.read((char *)&rcylmin, sizeof(double));
 	in.read((char *)&rcylmax, sizeof(double));
 	in.read((char *)&rscale,  sizeof(double));
 	in.read((char *)&vscale,  sizeof(double));
+
+	if (idens) DENS = true;
       }
     }
   }
@@ -396,7 +396,6 @@ main(int argc, char **argv)
 				// Set smoothing type to truncate
 				//
   ortho.setTK("Truncate");
-
 
   vector<Particle> particles;
   PSPptr psp;
@@ -491,6 +490,8 @@ main(int argc, char **argv)
       int    MMAX   = node["mmax"  ].as<int>();
       int    NORDER = node["norder"].as<int>();
       int    NUMR   = node["numr"  ].as<int>();
+      int    nintr  = node["nintr" ].as<int>();
+      int    nintt  = node["nintt" ].as<int>();
       double rmin   = node["rmin"  ].as<double>();
       double rmax   = node["rmax"  ].as<double>();
       double ascl   = node["ascl"  ].as<double>();
@@ -500,6 +501,8 @@ main(int argc, char **argv)
       if (MMAX   != mmax          )   okay = false;
       if (NORDER != norder        )   okay = false;
       if (NUMR   != numr          )   okay = false;
+      if (NINTR  != nintr         )   okay = false;
+      if (NINTT  != nintt         )   okay = false;
       if (fabs(rmin-RMIN)   > 1.0e-8) okay = false;
       if (fabs(rmax-RMAX)   > 1.0e-8) okay = false;
       if (fabs(ascl-Ascale) > 1.0e-8) okay = false;
@@ -513,7 +516,7 @@ main(int argc, char **argv)
 	  for (int M=0; M<=std::min<int>(L, mmax); M++) {
 	    for (int n=0; n<norder; n++) {
 	      int id = (L*(mmax+1) + M)*norder + n;
-	      in.read(reinterpret_cast<char *>(Es[id].data()), Es[id].size()*sizeof(double));
+	      in.read(reinterpret_cast<char *>(Ec[id].data()), Ec[id].size()*sizeof(double));
 	      if (M) 
 		in.read(reinterpret_cast<char *>(Es[id].data()), Es[id].size()*sizeof(double));
 	    }
@@ -531,8 +534,18 @@ main(int argc, char **argv)
 
   if (MakeCache) {
 
-    const int NINTR = 40;
-    const int NINTT = 40;
+    boost::shared_ptr<boost::progress_display> progress;
+    if (myid==0) {
+      int cnt = 0;
+      for (int L=0; L<=LMAX; L++) {
+	for (int M=0; M<=std::min<int>(L, mmax); M++) cnt++;
+      }
+
+      cnt *= numr + 1;
+      cnt /= numprocs;
+
+      progress = boost::make_shared<boost::progress_display>(cnt);
+    }
 
     LegeQuad lr(NINTR);
     LegeQuad lt(NINTT);
@@ -551,8 +564,10 @@ main(int argc, char **argv)
 
 	  for (int i=0; i<=numr; i++) {
       
+	    if (myid==0) ++(*progress);
+
 	    if (icnt++ % numprocs == myid) {
-	  #ifdef DEBUG
+#ifdef DEBUG
 	      std::cout << std::setw(5) << myid
 			<< std::setw(5) << L
 			<< std::setw(5) << M
@@ -565,6 +580,8 @@ main(int argc, char **argv)
 
 	      double innerC = 0.0, outerC = 0.0;
 	      double innerS = 0.0, outerS = 0.0;
+
+	      if (xi <= XMIN) continue;
 
 	      for (int t=1; t<=NINTT; t++) {
 
@@ -599,7 +616,7 @@ main(int argc, char **argv)
 		  ortho.getDensSC(M, n, r*sinx, r*cosx, dC, dS);
 
 		  fac = pow(ri/r, L)*r * ylm *
-		    (xi - XMIN)*lr.weight(k) / ortho.d_xi_to_r(x);
+		    (XMAX - xi)*lr.weight(k) / ortho.d_xi_to_r(x);
 		
 		  outerC += dC * fac;
 		  outerS += dS * fac;
@@ -622,6 +639,8 @@ main(int argc, char **argv)
     // END: L value
   }
   // END: MakeCache
+
+  if (myid==0) std::cout << std::endl;
 
 #ifdef DEBUG
   std::cout << "[" << myid << "] Before synchronization" << std::endl;
@@ -668,6 +687,8 @@ main(int argc, char **argv)
       node["mmax"  ] = mmax;
       node["norder"] = norder;
       node["numr"  ] = numr;
+      node["nintr" ] = NINTR;
+      node["nintt" ] = NINTT;
       node["rmin"  ] = RMIN;
       node["rmax"  ] = RMAX;
       node["ascl"  ] = Ascale;
@@ -699,7 +720,7 @@ main(int argc, char **argv)
 	for (int M=0; M<=std::min<int>(L, mmax); M++) {
 	  for (int n=0; n<norder; n++) {
 	    int id = (L*(mmax+1) + M)*norder + n;
-	    out.write(reinterpret_cast<const char *>(Es[id].data()), Es[id].size()*sizeof(double));
+	    out.write(reinterpret_cast<const char *>(Ec[id].data()), Ec[id].size()*sizeof(double));
 	      if (M) 
 		out.write(reinterpret_cast<const char *>(Es[id].data()), Es[id].size()*sizeof(double));
 	  }
@@ -710,6 +731,27 @@ main(int argc, char **argv)
 #ifdef DEBUG
     std::cout << "[" << myid << "] Finished writing table cache" << std::endl;
 #endif
+  }
+
+  // ==================================================
+  // Debug output
+  // ==================================================
+  {
+    std::ofstream out("test.Ec");
+    if (out) {
+      int M = 0;
+      for (int i=0; i<=numr; i++) {
+	double r = ortho.xi_to_r(XMIN + dX*i);
+	out << std::setw(16) << r;
+	for (int L=0; L<=4; L++) {
+	  for (int n=0; n<norder; n++) {
+	    int id = (L*(mmax+1) + M)*norder + n;
+	    out << std::setw(16) << Ec[id][i];
+	  }
+	}
+	out << std::endl;
+      }
+    }
   }
 
   // ==================================================
@@ -774,8 +816,7 @@ main(int argc, char **argv)
 			   << std::flush;
 
     ortho.setup_accumulation();
-    ortho.setTotal(psp->GetNamed(cname)->comp.nbod); // Set particle number
-    ortho.init_pca();
+    ortho.setHall("test", psp->GetNamed(cname)->comp.nbod);
 
     SParticle *p = psp->GetParticle();
     int icnt = 0;
@@ -809,13 +850,13 @@ main(int argc, char **argv)
     std::vector<double> term2(mmax+1), work2(mmax+1);
     std::vector<double> term3(mmax+1), work3(mmax+1);
     
+    double minSNR = ortho.getMinSNR();
     double maxSNR = ortho.getMaxSNR();
 
     if (myid==0) {
-      std::cout << "Found maxSNR=" << maxSNR << std::endl;
+      std::cout << "Found minSNR=" << minSNR
+		<< " maxSNR=" << maxSNR << std::endl;
     }
-
-    maxSNR = 5.0;
 
     if (maxSNR < minSNR) minSNR = maxSNR / 100.0;
     
@@ -827,27 +868,13 @@ main(int argc, char **argv)
     double dSNR = (maxSNR - minSNR)/(NSNR - 1);
 
     if (myid==0) {
-      std::cout << "Using maxSNR=" << maxSNR << " dSNR=" << dSNR << std::endl;
+      std::cout << "Using minSNR=" << minSNR
+		<< " maxSNR=" << maxSNR
+		<< " dSNR=" << dSNR << std::endl;
     }
 
     double term4tot = 0.0;
     std::vector<Vector> ac_cos, ac_sin;
-
-    for (int n=0; n<numprocs; n++) {
-      if (n==myid) {
-	ortho.get_trimmed(0.0, ac_cos, ac_sin);
-	std::cout << "myid=" << myid << std::endl;
-	for (int i=0; i<norder; i++)
-	  std::cout << std::setw(4) << i << std::setw(18) << ac_cos[0][i] << std::endl;
-	std::cout << std::endl;
-
-	ortho.get_trimmed(0.01, ac_cos, ac_sin);
-	for (int i=0; i<norder; i++)
-	  std::cout << std::setw(4) << i << std::setw(18) << ac_cos[0][i] << std::endl;
-	std::cout << std::endl << std::endl;
-      }
-      MPI_Barrier(MPI_COMM_WORLD);
-    }
 
     for (int nsnr=0; nsnr<NSNR; nsnr++) {
 
@@ -858,14 +885,25 @@ main(int argc, char **argv)
 
       if (myid==0) {
 	std::cout << "Computing SNR=" << snr;
-	if (Hall) std::cout << " using Hall smoothing . . . " << flush;
-	else      std::cout << " using truncation . . . " << flush;
+	if (Hall) std::cout << " using Hall smoothing . . . " << std::endl;
+	else      std::cout << " using truncation . . . " << std::endl;
       }
     
       // Get the snr trimmed coefficients
       //
       ortho.get_trimmed(snr, ac_cos, ac_sin);
 	
+      if (myid==0) {
+	std::cout << "*** SNR: " << snr << std::endl;
+	for (int M=0; M<=mmax; M++) {
+	  for (int i=0; i<norder; i++)
+	    std::cout << std::setw(4)  << M
+		      << std::setw(4)  << i
+		      << std::setw(18) << ac_cos[M][i] << std::endl;
+	  std::cout << std::endl;
+	}
+      }
+
       // Zero out the accumulators
       //
       std::fill(term1.begin(), term1.end(), 0.0);
@@ -898,9 +936,22 @@ main(int argc, char **argv)
       int icnt = 0;
       do {
 	if (icnt++ % numprocs == myid) {
-	  double R = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
-	  double z = p->pos(2);
-	  double phi = atan2(p->pos(1), p->pos(0));
+	  // Cylindrical particle radius
+	  double R    = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
+
+	  // Height above disk
+	  double z    = p->pos(2);
+
+	  // Azimuthal angle
+	  double phi  = atan2(p->pos(1), p->pos(0));
+
+	  // Spherical radius
+	  double r    = sqrt(R*R + z*z);
+
+	  // Polar angle
+	  double cosx = z/r;
+
+	  // Particle mass
 	  double mass = p->mass();
 	    
 	  // Term 2
@@ -973,8 +1024,6 @@ main(int argc, char **argv)
 
 	  // Term 3
 	  //
-	  double r = sqrt(R*R + z*z);
-	  double cosx = z/r;
 	  x = ortho.r_to_xi(r);
 	  x = std::max<double>(XMIN, x);
 	  x = std::min<double>(XMAX, x);
@@ -1039,7 +1088,7 @@ main(int argc, char **argv)
 	out << std::setw(18) << term1tot
 	    << std::setw(18) << term2tot
 	    << std::setw(18) << term3tot
-	    << std::setw(18) << term1tot + term2tot - term3tot + term4tot
+	    << std::setw(18) << term1tot + term2tot + term3tot + term4tot
 	    << std::endl;
       }
       // Root process

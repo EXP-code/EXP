@@ -81,7 +81,7 @@ private:
   vector<double> cylmass1;
   bool cylmass_made;
   double cylmass;
-  double maxSNR;
+  double minSNR, maxSNR;
 
   vector<double> r, d, m, p;
 
@@ -553,6 +553,9 @@ public:
 
   //! Compute PCA
   void pca_hall(bool compute);
+
+  //! Minimum SNR coefficient value
+  double getMinSNR(void) { return minSNR; }
 
   //! Maximum SNR coefficient value
   double getMaxSNR(void) { return maxSNR; }

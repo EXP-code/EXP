@@ -120,7 +120,7 @@ pspxval_cyl_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS)
 pspxval_cyl_LDADD    = $(EXPLIBS)
 
 pspxval_cyl2_SOURCES = cross_validation_cyl2.cc EmpCylSL.cc localmpi.cc	\
-			PSP2.cc Particle.cc header.cc dtorh1.f rout.f
+			PSP2.cc Particle.cc header.cc
 pspxval_cyl2_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS)
 pspxval_cyl2_LDADD    = $(EXPLIBS)
 

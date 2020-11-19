@@ -97,6 +97,7 @@ EmpCylSL::EmpCylSL(void)
   EvenOdd    = false;
   Neven      = 0;
   Nodd       = 0;
+  minSNR     = std::numeric_limits<double>::max();
   maxSNR     = 0.0;
   
   if (DENS)
@@ -176,6 +177,7 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   cylmass_made = false;
 
   hallfile     = "";
+  minSNR       = std::numeric_limits<double>::max();
   maxSNR       = 0.0;
 }
 
@@ -234,6 +236,7 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   cylmass1.resize(nthrds);
   cylmass_made = false;
 
+  minSNR  = std::numeric_limits<double>::max();
   maxSNR  = 0.0;
 }
 
@@ -1743,6 +1746,7 @@ void EmpCylSL::setup_accumulation(int mlevel)
       }
 
       if (PCAVAR) {
+	minSNR = std::numeric_limits<double>::max();
 	maxSNR = 0.0;
 
 	for (unsigned T=0; T<sampT; T++) {
@@ -1813,6 +1817,7 @@ void EmpCylSL::init_pca()
       }
 
       if (PCAVAR) {
+	minSNR = std::numeric_limits<double>::max();
 	maxSNR = 0.0;
 
 	massT1[nth].resize(sampT, 0);
@@ -4254,6 +4259,7 @@ void EmpCylSL::pca_hall(bool compute)
 	  double      b = var/sqr;
 	  
 	  (*pb)[mm]->b_Hall[nn+1]  = 1.0/(1.0 + b);
+	  minSNR = std::min<double>(minSNR, 1.0/b);
 	  maxSNR = std::max<double>(maxSNR, 1.0/b);
 	  snrval[nn+1] = sqrt(sqr/var);
 	}
@@ -4421,8 +4427,8 @@ void EmpCylSL::get_trimmed(double snr, std::vector<Vector>& ac_cos, std::vector<
 	}
 	if (tk_type == Truncate) {
 	  for (int i=smth.getlow(); i<=smth.gethigh(); i++) {
-	    if (smth[i]>snr) smth[i] = 1.0;
-	    else             smth[i] = 0.0;
+	    if (1.0/smth[i]>snr) smth[i] = 1.0;
+	    else                 smth[i] = 0.0;
 	  }
 	}
 
