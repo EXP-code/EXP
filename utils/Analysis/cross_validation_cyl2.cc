@@ -1088,7 +1088,7 @@ main(int argc, char **argv)
 	out << std::setw(18) << term1tot
 	    << std::setw(18) << term2tot
 	    << std::setw(18) << term3tot
-	    << std::setw(18) << term1tot + term2tot + term3tot + term4tot
+	    << std::setw(18) << term1tot + term2tot - term3tot + term4tot
 	    << std::endl;
       }
       // Root process
