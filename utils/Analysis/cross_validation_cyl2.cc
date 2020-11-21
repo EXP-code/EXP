@@ -39,9 +39,8 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <queue>
 #include <map>
-
-using namespace std;
 
 				// Eigen3
 #include <Eigen/Eigen>
@@ -75,6 +74,8 @@ namespace po = boost::program_options;
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
+#include "largest.H"
+
 // Variables not used but needed for linking
 //
 int VERBOSE = 4;
@@ -94,9 +95,8 @@ double tnow = 0.0;
   
 // Globals
 //
-
-extern double Ylm01(int ll, int mm);
-extern double plgndr(int, int, double);
+extern double Ylm01 (int ll, int mm);
+extern double plgndr(int ll, int mm, double x);
 
 double Xi(double R, double Rp, double z, double zp)
 {
@@ -110,6 +110,50 @@ double Xi(double R, double Rp, double z, double zp)
 
   return 0.5*(q + 1.0/q + (z - zp)*(z - zp)/(R*Rp));
 }
+
+// Data for maximum value list
+struct Element
+{
+  double val, data;
+  int L, M, n;
+  
+  Element(double val, double data, int L, int M, int n) :
+    val(val), data(data), L(L), M(M), n(n) {}
+  
+};
+
+// Define priority queue for Element from template
+//
+using largestElem = largestValues<Element>;
+
+// Comparison function for maximum value list
+//
+template<>
+struct std::greater<Element>
+{
+  bool operator()(const Element& k1, const Element& k2) const
+  {
+    return k1.val > k2.val;
+  }
+};
+
+
+// Print largest values from priority queue
+//
+std::ostream& operator<< (std::ostream& stream, largestElem& e)
+{
+  for (auto v : e.getValues()) {
+    stream << std::setw(16) << v.val
+	   << " R=" << std::setw(16) << v.data
+	   << " L=" << std::setw( 4) << v.L
+	   << " M=" << std::setw( 4) << v.M
+	   << " n=" << std::setw( 4) << v.n
+	   << std::endl;
+  }
+    
+  return stream;
+}
+  
 
 int
 main(int argc, char **argv)
@@ -536,6 +580,11 @@ main(int argc, char **argv)
 
   if (MakeCache) {
 
+    largestElem DcInn(10);
+    largestElem DsInn(10);
+    largestElem DcOut(10);
+    largestElem DsOut(10);
+
     boost::shared_ptr<boost::progress_display> progress;
     if (myid==0) {
       int cnt = 0;
@@ -578,52 +627,81 @@ main(int argc, char **argv)
 	      double xi = XMIN + dX*i;
 	      double ri = ortho.xi_to_r(xi);
 
-	      double innerC = 0.0, outerC = 0.0;
-	      double innerS = 0.0, outerS = 0.0;
+	      double innerC = 0.0, outerC = 0.0, dC;
+	      double innerS = 0.0, outerS = 0.0, dS;
 
 	      if (xi <= XMIN) continue;
 
-	      for (int t=1; t<=NINTT; t++) {
+	      // Inner range [0, r_i]
+	      //
+	      for (int k=1; k<=NINTR; k++) {
+		double x = XMIN + (xi - XMIN)*lr.knot(k);
+		double r = ortho.xi_to_r(x);
+		double wgtr = 2.0*M_PI/(2.0*L+1.0) *
+		  (xi - XMIN)*lr.weight(k) / ortho.d_xi_to_r(x);
 
-		double cosx = -1.0 + 2.0*lt.knot(t);
-		double sinx = sqrt(1.0 - cosx*cosx);
-		double ylm  = Ylm01(L, M) * plgndr(L, M, cosx) *
-		  4.0*M_PI/(2.0*L+1.0) * lt.weight(t);
+		double ylim = ortho.z_to_y(r);
 
-		for (int k=1; k<=NINTR; k++) {
-		  // Inner
-		  //
-		  double x = XMIN + (xi - XMIN)*lr.knot(k);
-		  double r = ortho.xi_to_r(x);
-		  double R = r*sinx, z = r*cosx;
+		for (int t=1; t<=NINTT; t++) {
 
-		  double dC, dS;
-		  ortho.getDensSC(M, n, r*sinx, r*cosx, dC, dS);
+		  double y    = -ylim + 2.0*ylim*lt.knot(t);
+		  double z    = ortho.y_to_z(y);
+		  double cosx = z/r;
+		  double sinx = sqrt(1.0 - cosx*cosx);
+		  double R    = r*sinx;
 
-		  double fac = pow(r/ri, 1.0+L)*r * ylm *
-		    (xi - XMIN)*lr.weight(k) / ortho.d_xi_to_r(x);
-		
+		  double ylm  = Ylm01(L, M) * plgndr(L, M, cosx);
+		  double wgt  = ylm * wgtr * 2.0*ylim*lt.weight(t) * ortho.d_y_to_z(y);
+
+		  ortho.getDensSC(M, n, R, z, dC, dS);
+
+		  DcInn(Element(dC, r, L, M, n));
+		  DsInn(Element(dS, r, L, M, n));
+
+		  double fac = pow(r/ri, 1.0+L) * wgt;
+		  
 		  innerC += dC * fac;
 		  innerS += dS * fac;
+		}
+		// END: z integration
+	      }
+	      // END: r integration
 
-		  // Outer
-		  //
-		  x = xi + (XMAX - xi)*lr.knot(k);
-		  r = ortho.xi_to_r(x);
-		  R = r*sinx;
-		  z = r*cosx;
 
-		  ortho.getDensSC(M, n, r*sinx, r*cosx, dC, dS);
+	      for (int k=1; k<=NINTR; k++) {
+		// Outer range [ri, inf)
+		//
+		double x = xi + (XMAX - xi)*lr.knot(k);
+		double r = ortho.xi_to_r(x);
+		double wgtr = 2.0*M_PI/(2.0*L+1.0) *
+		  (XMAX - xi)*lr.weight(k) / ortho.d_xi_to_r(x);
 
-		  fac = pow(ri/r, L)*r * ylm *
-		    (XMAX - xi)*lr.weight(k) / ortho.d_xi_to_r(x);
+		double ylim = ortho.z_to_y(r);
+
+		for (int t=1; t<=NINTT; t++) {
+
+		  double y    = -ylim + 2.0*ylim*lt.knot(t);
+		  double z    = ortho.y_to_z(y);
+		  double cosx = z/r;
+		  double sinx = sqrt(1.0 - cosx*cosx);
+		  double R    = r*sinx;
+
+		  double ylm  = Ylm01(L, M) * plgndr(L, M, cosx);
+		  double wgt  = ylm * wgtr * 2.0*ylim*lt.weight(t) * ortho.d_y_to_z(y);
+
+		  ortho.getDensSC(M, n, R, z, dC, dS);
+
+		  DcOut(Element(dC, r, L, M, n));
+		  DsOut(Element(dS, r, L, M, n));
+
+		  double fac = pow(ri/r, L) * wgt;
 		
 		  outerC += dC * fac;
 		  outerS += dS * fac;
 		}
-		// END: radial integration
+		// END: z integration
 	      }
-	      // END: theta integration
+	      // END: r integration
 
 	      Ec[id][i] += innerC + outerC;
 	      if (M) Es[id][i] += innerS + outerS;
@@ -637,6 +715,17 @@ main(int argc, char **argv)
       // END: M value
     }
     // END: L value
+
+    for (int n=0; n<numprocs; n++) {
+      if (myid==n) {
+	std::cout << "max(Dc) [inner]" << std::endl << DcInn << std::endl;
+	std::cout << "max(Ds) [inner]" << std::endl << DsInn << std::endl;
+	std::cout << "max(Dc) [outer]" << std::endl << DcOut << std::endl;
+	std::cout << "max(Ds) [outer]" << std::endl << DsOut << std::endl;
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+
   }
   // END: MakeCache
 
@@ -736,20 +825,26 @@ main(int argc, char **argv)
   // ==================================================
   // Debug output
   // ==================================================
-  {
-    std::ofstream out("test.Ec");
-    if (out) {
-      int M = 0;
-      for (int i=0; i<=numr; i++) {
-	double r = ortho.xi_to_r(XMIN + dX*i);
-	out << std::setw(16) << r;
-	for (int L=0; L<=4; L++) {
-	  for (int n=0; n<norder; n++) {
-	    int id = (L*(mmax+1) + M)*norder + n;
-	    out << std::setw(16) << Ec[id][i];
+  //    +--- set to false for production
+  //   /
+  //  v
+  if (true) {
+    for (int M=0; M<=mmax; M++) {
+      std::ostringstream sout;
+      sout << "test.Ec." << M;
+      std::ofstream out(sout.str());
+      if (out) {
+	for (int i=0; i<=numr; i++) {
+	  double r = ortho.xi_to_r(XMIN + dX*i);
+	  out << std::setw(16) << r;
+	  for (int L=M; L<=LMAX; L++) {
+	    for (int n=0; n<norder; n++) {
+	      int id = (L*(mmax+1) + M)*norder + n;
+	      out << std::setw(16) << Ec[id][i];
+	    }
 	  }
+	  out << std::endl;
 	}
-	out << std::endl;
       }
     }
   }
@@ -761,11 +856,18 @@ main(int argc, char **argv)
   std::string file;
 
 #ifdef DEBUG
-  std::cout << "[" << myid << "] Begin phase-space loop" << std::endl;
+  std::cout << "[" << myid << "] Begin phase -space loop" << std::endl;
   MPI_Barrier(MPI_COMM_WORLD);
 #endif	      
 
   for (int ipsp=beg; ipsp<=end; ipsp+=stride) {
+
+    // ==================================================
+    // Debug: largest table values
+    // ==================================================
+
+    largestElem Ecmax(10);
+    largestElem Esmax(10);
 
     // ==================================================
     // PSP input stream
@@ -1046,11 +1148,18 @@ main(int argc, char **argv)
 
 		int id = (L*(mmax+1) + M)*norder + n;
 		
-		work3[M] += mass * Ylm * ac_cos[M][n] * cosp * 
-		  (A*Ec[id][iX+0] + B*Ec[id][iX+1]);
-		if (M)
-		  work3[M] += mass * Ylm * ac_sin[M][n] * sinp * 
-		    (A*Es[id][iX+0] + B*Es[id][iX+1]);
+		double Ecval = A*Ec[id][iX+0] + B*Ec[id][iX+1];
+		work3[M] += mass * Ylm * ac_cos[M][n] * cosp * Ecval;
+
+		Ecmax(Element(Ecval, r, L, M, n));
+
+		if (M) {
+		  double Esval = A*Es[id][iX+0] + B*Es[id][iX+1];
+
+		  work3[M] += mass * Ylm * ac_sin[M][n] * sinp * Esval;
+
+		  Esmax(Element(Esval, r, L, M, n));
+		}
 	      }
 	      // END: n order loop
 	    }
@@ -1074,8 +1183,16 @@ main(int argc, char **argv)
       MPI_Reduce(work3.data(), term3.data(), work3.size(), MPI_DOUBLE,
 		 MPI_SUM, 0, MPI_COMM_WORLD);
 
+      for (int n=0; n<numprocs; n++) {
+	if (myid==n) {
+	  std::cout << "max(Ec)" << std::endl << Ecmax << std::endl;
+	  std::cout << "max(Es)" << std::endl << Esmax << std::endl;
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+      }
+
       if (myid==0) {
-	  
+
 	out << std::setw( 5) << ipsp
 	    << std::setw(18) << snr;
 	
@@ -1083,13 +1200,17 @@ main(int argc, char **argv)
 	double term2tot = std::accumulate(term2.begin(), term2.end(), 0.0);
 	double term3tot = std::accumulate(term3.begin(), term3.end(), 0.0);
 
-	if (nsnr==0) term4tot = term1tot;
+	// if (nsnr==0) term4tot = term1tot;
 	  
 	out << std::setw(18) << term1tot
 	    << std::setw(18) << term2tot
 	    << std::setw(18) << term3tot
-	    << std::setw(18) << term1tot + term2tot - term3tot + term4tot
-	    << std::endl;
+	    << std::setw(18) << term1tot + term2tot - term3tot + term4tot;
+	for (int m1=0; m1<=mmax; m1++)
+	  out << std::setw(18) << term1[m1]
+	      << std::setw(18) << term2[m1]
+	      << std::setw(18) << term3[m1];
+	out << std::endl;
       }
       // Root process
       
