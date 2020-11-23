@@ -1723,6 +1723,7 @@ void EmpCylSL::setup_accumulation(int mlevel)
     if (PCAVAR and sampT>0) {
       for (int nth=0; nth<nthrds; nth++) {
 	for (unsigned T=0; T<sampT; T++) {
+	  numbT1[nth][T] = 0;
 	  massT1[nth][T] = 0.0;
 	  cos2[nth][T]->setsize(0, MMAX, 0, NORDER-1);
 	  sin2[nth][T]->setsize(0, MMAX, 0, NORDER-1);
@@ -1750,6 +1751,7 @@ void EmpCylSL::setup_accumulation(int mlevel)
 	maxSNR = 0.0;
 
 	for (unsigned T=0; T<sampT; T++) {
+	  numbT1[nth][T] = 0;
 	  massT1[nth][T] = 0.0;
 	  cos2[nth][T]->zero();
 	  sin2[nth][T]->zero();
@@ -1805,7 +1807,9 @@ void EmpCylSL::init_pca()
     if (PCAVAR) {
       cos2  .resize(nthrds);
       sin2  .resize(nthrds);
+      numbT1.resize(nthrds);
       massT1.resize(nthrds);
+      numbT .resize(sampT, 0);
       massT .resize(sampT, 0);
     }
 
@@ -1820,6 +1824,7 @@ void EmpCylSL::init_pca()
 	minSNR = std::numeric_limits<double>::max();
 	maxSNR = 0.0;
 
+	numbT1[nth].resize(sampT, 0);
 	massT1[nth].resize(sampT, 0);
 
 	cos2[nth].resize(sampT);
@@ -3640,6 +3645,7 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
   if (compute and PCAVAR) {
     whch = seq % sampT;
     pthread_mutex_lock(&used_lock);
+    numbT1[id][whch] += 1;
     massT1[id][whch] += mass;
     pthread_mutex_unlock(&used_lock);
   }
@@ -3760,6 +3766,7 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
       }
 	
       for (unsigned T=0; T<sampT; T++) {
+	numbT1[0][T] += numbT1[nth][T];
 	massT1[0][T] += massT1[nth][T];
 
 	for (int mm=0; mm<=MMAX; mm++)
@@ -3778,6 +3785,8 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
     // Mass used to compute variance in each partition
     //
     if (PCAVAR) {
+      MPI_Allreduce ( &numbT1[0][0], &numbT[0], sampT,
+		      MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
       MPI_Allreduce ( &massT1[0][0], &massT[0], sampT,
 		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     }
@@ -3871,7 +3880,10 @@ void EmpCylSL::make_coefficients(bool compute)
       howmany1[M][0] += howmany1[M][nth];
 
       if (compute and PCAVAR) {
-	for (unsigned T=0; T<sampT; T++) massT1[0][T] += massT1[nth][T];
+	for (unsigned T=0; T<sampT; T++) {
+	  numbT1[0][T] += numbT1[nth][T];
+	  massT1[0][T] += massT1[nth][T];
+	}
       }
       
       for (int mm=0; mm<=MMAX; mm++) {
@@ -3987,6 +3999,9 @@ void EmpCylSL::make_coefficients(bool compute)
 				// Mass used to compute variance in
 				// each partition
 
+    MPI_Allreduce ( &numbT1[0][0], &numbT[0], sampT,
+		    MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+
     MPI_Allreduce ( &massT1[0][0], &massT[0], sampT,
 		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     
@@ -4040,6 +4055,7 @@ void EmpCylSL::pca_hall(bool compute)
 #endif
 
     if (PCAVAR) {
+      for (auto v : numbT) pb->Tnumb += v;
       for (auto v : massT) pb->Tmass += v;
     }
     
@@ -4250,10 +4266,13 @@ void EmpCylSL::pca_hall(bool compute)
 	//
 	for (int nn=0; nn<rank3; nn++) {
 	  
+	  unsigned scaleT = pb->Tnumb/sampT;
+	  std::cout << mm << " scaleT = " << scaleT << std::endl;
+
 	  // Boostrap variance estimate for popl variance------------+
 	  //                                                         |
 	  //                                                         v
-	  double    var = std::max<double>((*pb)[mm]->evalJK[nn+1]/sampT,
+	  double    var = std::max<double>((*pb)[mm]->evalJK[nn+1]/scaleT,
 					   std::numeric_limits<double>::min());
 	  double    sqr = dd[nn+1]*dd[nn+1];
 	  double      b = var/sqr;
@@ -4282,8 +4301,14 @@ void EmpCylSL::pca_hall(bool compute)
 	  hout << setw( 4) << mm << setw(4) << nn;
 
 	  if (PCAVAR) {
-	    double var = std::max<double>((*pb)[mm]->evalJK[nn+1]/sampT,
-				   std::numeric_limits<double>::min());
+	    unsigned scaleT = pb->Tnumb/sampT;
+	    std::cout << mm << " scaleT = " << scaleT << std::endl;
+	  
+	    // Boostrap variance estimate for popl variance------------+
+	    //                                                         |
+	    //                                                         v
+	    double    var = std::max<double>((*pb)[mm]->evalJK[nn+1]/scaleT,
+					     std::numeric_limits<double>::min());
 	    double sqr = dd[nn+1]*dd[nn+1];
 
 	    hout << setw(18) << dd[nn+1]
@@ -4321,6 +4346,7 @@ void EmpCylSL::pca_hall(bool compute)
 
       if (PCAVAR) {
 	for (unsigned T=0; T<sampT; T++) {
+	  numbT1[nth][T] = 0;
 	  massT1[nth][T] = 0.0;
 	  cos2[nth][T]->zero();
 	  sin2[nth][T]->zero();

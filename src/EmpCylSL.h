@@ -194,7 +194,9 @@ private:
   MatrixArray tvar;		// Test for eof trim
   MatrixArray cos2, sin2;
 
+  std::vector< std::vector<unsigned>  > numbT1;
   std::vector< std::vector<double>  > massT1;
+  std::vector<unsigned> numbT;
   std::vector<double> massT;
   unsigned sampT;
 
@@ -270,6 +272,9 @@ private:
   {
   public:
 
+    //! Total number in accumulation
+    unsigned Tnumb;
+
     //! Mass in the accumulation
     double Tmass;
 
@@ -286,6 +291,7 @@ private:
     void reset()
     {
       for (auto v : *this) v.second->reset();
+      Tnumb = 0;
       Tmass = 0.0;
     }
 
