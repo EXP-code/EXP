@@ -283,14 +283,14 @@ void AxisymmetricBasis::pca_hall(bool compute)
 		modj = sqrt(modj);
 	      
 				// Upscale to value for full sample
-		covrJK[i][j] += modi * modj * sampT;
+		covrJK[i][j] += modi * modj;
 	      }
 	    }
 	  }
 	  
 	  for (int i=1; i<=nmax; i++) {
 	    for (int j=1; j<=nmax; j++) {
-	      covrJK[i][j] -= meanJK[i]*meanJK[j];
+	      covrJK[i][j] -= meanJK[i]/sampT*meanJK[j]/sampT;
 	    }
 	  }
 #ifdef GHQL
@@ -379,7 +379,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	  
 	  if (out) out << endl;
 	  
-	  tt = Tevec[indxC] * meanJK;
+	  tt = Tevec[indxC] * meanJK/sampT;
 
 	  for (int n=1; n<=nmax; n++) {
 	    

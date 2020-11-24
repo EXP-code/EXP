@@ -4143,14 +4143,14 @@ void EmpCylSL::pca_hall(bool compute)
 	      modo = sqrt(modo);
 	    
 				// Upscale to value for full sample
-	      (*pb)[mm]->covrJK[nn+1][oo+1] +=  modn * modo * sampT;
+	      (*pb)[mm]->covrJK[nn+1][oo+1] +=  modn * modo;
 	    }
 	  }
 	}
 	
 	for (int nn=0; nn<rank3; nn++) {
 	  for (int oo=0; oo<rank3; oo++) {
-	    (*pb)[mm]->covrJK[nn+1][oo+1] -= (*pb)[mm]->meanJK[nn+1] * (*pb)[mm]->meanJK[oo+1];
+	    (*pb)[mm]->covrJK[nn+1][oo+1] -= (*pb)[mm]->meanJK[nn+1]/sampT * (*pb)[mm]->meanJK[oo+1]/sampT;
 	  }
 	}
 	
@@ -4250,7 +4250,7 @@ void EmpCylSL::pca_hall(bool compute)
 
 	// Projected coefficients
 	//
-	dd = (*pb)[mm]->evecJK.Transpose() * (*pb)[mm]->meanJK;
+	dd = (*pb)[mm]->evecJK.Transpose() * (*pb)[mm]->meanJK / sampT;
       
 	// Cumulative distribution
 	//
@@ -4266,13 +4266,10 @@ void EmpCylSL::pca_hall(bool compute)
 	//
 	for (int nn=0; nn<rank3; nn++) {
 	  
-	  unsigned scaleT = pb->Tnumb/sampT;
-	  std::cout << mm << " scaleT = " << scaleT << std::endl;
-
 	  // Boostrap variance estimate for popl variance------------+
 	  //                                                         |
 	  //                                                         v
-	  double    var = std::max<double>((*pb)[mm]->evalJK[nn+1]/scaleT,
+	  double    var = std::max<double>((*pb)[mm]->evalJK[nn+1]/sampT,
 					   std::numeric_limits<double>::min());
 	  double    sqr = dd[nn+1]*dd[nn+1];
 	  double      b = var/sqr;
@@ -4301,21 +4298,19 @@ void EmpCylSL::pca_hall(bool compute)
 	  hout << setw( 4) << mm << setw(4) << nn;
 
 	  if (PCAVAR) {
-	    unsigned scaleT = pb->Tnumb/sampT;
-	    std::cout << mm << " scaleT = " << scaleT << std::endl;
 	  
-	    // Boostrap variance estimate for popl variance------------+
-	    //                                                         |
-	    //                                                         v
-	    double    var = std::max<double>((*pb)[mm]->evalJK[nn+1]/scaleT,
-					     std::numeric_limits<double>::min());
+	    // Boostrap variance estimate for pop variance----------+
+	    //                                                      |
+	    //                                                      v
+	    double var = std::max<double>((*pb)[mm]->evalJK[nn+1]/sampT,
+					  std::numeric_limits<double>::min());
 	    double sqr = dd[nn+1]*dd[nn+1];
 
 	    hout << setw(18) << dd[nn+1]
 		 << setw(18) << sqr
 		 << setw(18) << var
 		 << setw(18) << cumlJK[nn+1]
-		 << setw(18) << snrval[nn+1]
+		 << setw(18) << snrval[nn+1]*snrval[nn+1]
 		 << setw(18) << (*pb)[mm]->b_Hall[nn+1];
 	  } else {
 	    double cof = accum_cos[mm][nn] * accum_cos[mm][nn];
