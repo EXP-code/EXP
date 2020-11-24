@@ -183,6 +183,8 @@ main(int argc, char **argv)
   desc.add_options()
     ("help,h",                                                                          "Print this help message")
     ("verbose,v",                                                                       "Verbose and diagnostic output for covariance computation")
+    ("truncate,t",                                                                      "Use Truncate method for SNR trimming rather than the default Hall")
+    ("debug,",                                                                          "Debug max values")
     ("OUT",
      "assume original, single binary PSP files as input")
     ("SPL",
@@ -287,6 +289,9 @@ main(int argc, char **argv)
 
   bool verbose = false;
   if (vm.count("verbose")) verbose = true;
+
+  bool debug = false;
+  if (vm.count("debug")) debug = true;
 
   // ==================================================
   // Nice process
@@ -439,9 +444,12 @@ main(int argc, char **argv)
 				//
   EmpCylSL ortho(NMAX, LMAX, mmax, norder, rscale, vscale);
     
-				// Set smoothing type to truncate
-				//
-  ortho.setTK("Truncate");
+				// Set smoothing type to Truncate or
+				// Hall (default)
+  if (vm.count("truncate"))
+    ortho.setTK("Truncate");
+  else
+    ortho.setTK("Hall");
 
   vector<Particle> particles;
   PSPptr psp;
@@ -655,8 +663,10 @@ main(int argc, char **argv)
 
 		  ortho.getDensSC(M, n, R, z, dC, dS);
 
-		  DcInn(Element(dC, r, L, M, n));
-		  DsInn(Element(dS, r, L, M, n));
+		  if (debug) {
+		    DcInn(Element(dC, r, L, M, n));
+		    DsInn(Element(dS, r, L, M, n));
+		  }
 
 		  double fac = pow(r/ri, 1.0+L) * wgt;
 		  
@@ -691,8 +701,10 @@ main(int argc, char **argv)
 
 		  ortho.getDensSC(M, n, R, z, dC, dS);
 
-		  DcOut(Element(dC, r, L, M, n));
-		  DsOut(Element(dS, r, L, M, n));
+		  if (debug) {
+		    DcOut(Element(dC, r, L, M, n));
+		    DsOut(Element(dS, r, L, M, n));
+		  }
 
 		  double fac = pow(ri/r, L) * wgt;
 		
@@ -716,14 +728,16 @@ main(int argc, char **argv)
     }
     // END: L value
 
-    for (int n=0; n<numprocs; n++) {
-      if (myid==n) {
-	std::cout << "max(Dc) [inner]" << std::endl << DcInn << std::endl;
-	std::cout << "max(Ds) [inner]" << std::endl << DsInn << std::endl;
-	std::cout << "max(Dc) [outer]" << std::endl << DcOut << std::endl;
-	std::cout << "max(Ds) [outer]" << std::endl << DsOut << std::endl;
+    if (debug) {
+      for (int n=0; n<numprocs; n++) {
+	if (myid==n) {
+	  std::cout << "max(Dc) [inner]" << std::endl << DcInn << std::endl;
+	  std::cout << "max(Ds) [inner]" << std::endl << DsInn << std::endl;
+	  std::cout << "max(Dc) [outer]" << std::endl << DcOut << std::endl;
+	  std::cout << "max(Ds) [outer]" << std::endl << DsOut << std::endl;
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
       }
-      MPI_Barrier(MPI_COMM_WORLD);
     }
 
   }
@@ -960,7 +974,8 @@ main(int argc, char **argv)
 		<< " maxSNR=" << maxSNR << std::endl;
     }
 
-    if (maxSNR < minSNR) minSNR = maxSNR / 100.0;
+    if (maxSNR < minSNR)        minSNR = maxSNR * 1.0e-2;
+    if (minSNR < maxSNR*1.0e-6) minSNR = maxSNR * 1.0e-6;
     
     if (LOG) {
       minSNR = log(minSNR);
@@ -1151,14 +1166,14 @@ main(int argc, char **argv)
 		double Ecval = A*Ec[id][iX+0] + B*Ec[id][iX+1];
 		work3[M] += mass * Ylm * ac_cos[M][n] * cosp * Ecval;
 
-		Ecmax(Element(Ecval, r, L, M, n));
+		if (debug) Ecmax(Element(Ecval, r, L, M, n));
 
 		if (M) {
 		  double Esval = A*Es[id][iX+0] + B*Es[id][iX+1];
 
 		  work3[M] += mass * Ylm * ac_sin[M][n] * sinp * Esval;
 
-		  Esmax(Element(Esval, r, L, M, n));
+		  if (debug) Esmax(Element(Esval, r, L, M, n));
 		}
 	      }
 	      // END: n order loop
@@ -1183,12 +1198,14 @@ main(int argc, char **argv)
       MPI_Reduce(work3.data(), term3.data(), work3.size(), MPI_DOUBLE,
 		 MPI_SUM, 0, MPI_COMM_WORLD);
 
-      for (int n=0; n<numprocs; n++) {
-	if (myid==n) {
-	  std::cout << "max(Ec)" << std::endl << Ecmax << std::endl;
-	  std::cout << "max(Es)" << std::endl << Esmax << std::endl;
+      if (debug) {
+	for (int n=0; n<numprocs; n++) {
+	  if (myid==n) {
+	    std::cout << "max(Ec)" << std::endl << Ecmax << std::endl;
+	    std::cout << "max(Es)" << std::endl << Esmax << std::endl;
+	  }
+	  MPI_Barrier(MPI_COMM_WORLD);
 	}
-	MPI_Barrier(MPI_COMM_WORLD);
       }
 
       if (myid==0) {
