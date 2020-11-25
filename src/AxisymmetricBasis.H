@@ -46,16 +46,22 @@ protected:
      efficiency.
   */
   //@{
-  Matrix expcoef, expcoef1;
-  vector<Matrix*> expcoefN;
-  vector<Matrix*> expcoefL;
-
+  typedef boost::shared_ptr<Vector> VectorP;
   typedef boost::shared_ptr<Matrix> MatrixP;
-  vector<MatrixP> expcoefT, expcoefT1;
-  vector<double>  massT, massT1;
-  unsigned        sampT;
 
-  vector<MatrixP> tvar;		// Test for eof trim
+  std::vector<VectorP> expcoef, expcoef1;
+
+  std::vector<std::vector<VectorP>> expcoefN;
+  std::vector<std::vector<VectorP>> expcoefL;
+
+  std::vector<std::vector<VectorP>> expcoefT, expcoefT1;
+  std::vector<std::vector<MatrixP>> covT, covT1;
+
+  std::vector<double>               massT, massT1;
+  unsigned                          sampT;
+
+  //! Test for eof trim
+  std::vector<MatrixP>              tvar;
   //@}
 
   //! Normalization for covariance matrix based on the biorthogonal basis norm

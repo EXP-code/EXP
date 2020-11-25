@@ -84,8 +84,14 @@ double tnow = 0.0;
 // Globals
 //
 
-extern double Ylm01(int ll, int mm);
 extern double plgndr(int, int, double);
+
+double Ylm_fac(int ll, int mm)
+{
+  mm = abs(mm);
+  return sqrt( (2.0*ll+1)/(4.0*M_PI*M_PI) ) *
+    exp(0.5*(lgamma(1.0+ll-mm) - lgamma(1.0+ll+mm)));
+}
 
 int
 main(int argc, char **argv)
@@ -463,7 +469,7 @@ main(int argc, char **argv)
 	    
 	    for (int M=0; M<=L; M++) {
 
-	      double ylm = Ylm01(L, M) * plgndr(L, M, costh);
+	      double ylm = Ylm_fac(L, M) * plgndr(L, M, costh);
 
 	      for (int n=1; n<=NMAX; n++) {
 

@@ -58,8 +58,8 @@ public:
 
   typedef boost::shared_ptr<SphericalModelTable> SphModTblPtr;
   typedef boost::shared_ptr<SLGridSph>           SLGridSphPtr;
-  typedef boost::shared_ptr<Vector>              VectorP;
-  typedef boost::shared_ptr<Matrix>              MatrixP;
+  typedef std::vector<Vector>                    VectorM;
+  typedef std::vector<Matrix>                    MatrixM;
 
 private:
 
@@ -95,7 +95,7 @@ private:
 
   //@{
   //! Storage buffers for MPI
-  std::vector<double> MPIin, MPIout;
+  std::vector<double> MPIin, MPIout, MPIin2, MPIout2;
   std::vector<double> MPIin_eof, MPIout_eof;
 
   std::vector<double> mpi_double_buf2, mpi_double_buf3;
@@ -169,8 +169,9 @@ private:
   std::vector<Vector> accum_cos;
   std::vector<Vector> accum_sin;
 
-  /** More syntactic sugar for array of shared pointers: define an
-      operator to the object of the shared pointer.  That is, for:
+  //@{
+  /** More syntactic sugar for arrays of arrays: define an operator to
+      the object of the main nested arrays.  That is, for:
 
       MatrixArray arr(N);
       for (auto & v : arr) v.resize(M);
@@ -185,14 +186,24 @@ private:
 
       to access elements.
   */
-  struct MatrixArray : public std::vector<std::vector<MatrixP>>
+  struct CoefVector : public std::vector<std::vector<VectorM>>
   {
-    Matrix & operator()(int i, unsigned j) { return (*(*this)[i][j]); }
+    Vector & operator()(int i, unsigned j, int m) { return ((*this)[i][j][m]); }
   };
 
+  struct CoefMatrix : public std::vector<std::vector<MatrixM>>
+  {
+    Matrix & operator()(int i, unsigned j, int m) { return ((*this)[i][j][m]); }
+  };
+  //@}
 
-  MatrixArray tvar;		// Test for eof trim
-  MatrixArray cos2, sin2;
+
+  // Test for eof trim
+  std::vector<std::vector<Matrix>> tvar;
+
+  // Error analysis
+  CoefVector  cov2;
+  CoefMatrix  covM;
 
   std::vector< std::vector<unsigned>  > numbT1;
   std::vector< std::vector<double>  > massT1;
@@ -883,7 +894,7 @@ public:
       return sinN(mlevel)[0][m][n];
   }
 
-  double& set_coefT(int T, int m, int n, char c)
+  double& set_coefT(int T, int m, int n)
   {
     if (m >  MMAX)
       throw std::runtime_error("m>mmax");
@@ -894,10 +905,7 @@ public:
     if (T >= sampT)
       throw std::runtime_error("T>=sampT");
 
-    if (c == 'c')
-      return cos2(0, T)[m][n];
-    else
-      return sin2(0, T)[m][n];
+    return cov2(0, T, m)[n];
   }
 
   double& set_tvar(int m, int i, int j)
@@ -908,7 +916,7 @@ public:
     if (i >= rank3 or j >= rank3)
       throw std::runtime_error("n>norder");
 
-    return (*tvar[0][m])[i+1][j+1];
+    return tvar[0][m][i+1][j+1];
   }
 
   double& set_massT(int T)

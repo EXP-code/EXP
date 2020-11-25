@@ -41,6 +41,12 @@ int Imn(int m, char cs, int n, int nmax)
   return ret;
 }
 
+__host__ __device__
+int Jmn(int m, int n, int nmax)
+{
+  return m*nmax + n;
+}
+
 __global__
 void testConstantsCyl()
 {
@@ -778,7 +784,8 @@ void Cylinder::cudaStorage::resize_coefs
   if (pcavar) {
     T_coef.resize(sampT);
     for (int T=0; T<sampT; T++) {
-      T_coef[T].resize((mmax+1)*2*ncylorder);
+      T_coef[T].resize((mmax+1)*ncylorder);
+      T_covr[T].resize((mmax+1)*ncylorder*ncylorder);
     }
   }
 
@@ -828,13 +835,17 @@ void Cylinder::zero_coefs()
       if (ar->T_coef.size() != sampT) {
 	ar->T_coef.resize(sampT);
 	for (int T=0; T<sampT; T++) {
-	  ar->T_coef[T].resize((mmax+1)*2*ncylorder);
+	  ar->T_coef[T].resize((mmax+1)*ncylorder);
+	  ar->T_covr[T].resize((mmax+1)*ncylorder*ncylorder);
 	}
       }
     
-      for (int T=0; T<sampT; T++)
+      for (int T=0; T<sampT; T++) {
 	thrust::fill(thrust::cuda::par.on(cr->stream),
 		     ar->T_coef[T].begin(), ar->T_coef[T].end(), 0.0);
+	thrust::fill(thrust::cuda::par.on(cr->stream),
+		     ar->T_covr[T].begin(), ar->T_covr[T].end(), 0.0);
+      }
     }
 
     if (pcaeof) {
@@ -879,12 +890,17 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
   // This will stay fixed for the entire run
   //
-  host_coefs.resize((2*mmax+1)*ncylorder);
+  host_coefs.resize((mmax+1)*ncylorder);
+  host_covar.resize((mmax+1)*ncylorder*ncylorder);
 
   if (pcavar) {
     sampT = floor(sqrt(component->CurTotal()));
     host_coefsT.resize(sampT);
-    for (int T=0; T<sampT; T++) host_coefsT[T].resize((2*mmax+1)*ncylorder);
+    host_covarT.resize(sampT);
+    for (int T=0; T<sampT; T++) {
+      host_coefsT[T].resize((mmax+1)*ncylorder);
+      host_covarT[T].resize((mmax+1)*ncylorder*ncylorder);
+    }
     host_massT.resize(sampT);
   }
 
@@ -930,7 +946,10 @@ void Cylinder::determine_coefficients_cuda(bool compute)
   thrust::fill(host_coefs.begin(), host_coefs.end(), 0.0);
 
   if (pcavar) {
-    for (int T=0; T<sampT; T++) thrust::fill(host_coefsT[T].begin(), host_coefsT[T].end(), 0.0);
+    for (int T=0; T<sampT; T++) {
+      thrust::fill(host_coefsT[T].begin(), host_coefsT[T].end(), 0.0);
+      thrust::fill(host_covarT[T].begin(), host_covarT[T].end(), 0.0);
+    }
     thrust::fill(host_massT.begin(), host_massT.end(), 0.0);
   }
 
@@ -1032,10 +1051,13 @@ void Cylinder::determine_coefficients_cuda(bool compute)
       int vsize = ncylorder*(ncylorder+1)/2;
       auto beg  = ar->df_coef.begin();
       auto begV = ar->df_tvar.begin();
-      std::vector<thrust::device_vector<cuFP_t>::iterator> bg;
+      std::vector<thrust::device_vector<cuFP_t>::iterator> bg, bh;
 
       if (pcavar) {
-	for (int T=0; T<sampT; T++) bg.push_back(ar->T_coef[T].begin());
+	for (int T=0; T<sampT; T++) {
+	  bg.push_back(ar->T_coef[T].begin());
+	  bh.push_back(ar->T_covr[T].begin());
+	}
       }
 
       thrust::fill(ar->u_d.begin(), ar->u_d.end(), 0.0);
@@ -1800,8 +1822,7 @@ void Cylinder::DtoH_coefs(int M)
 	// n loop
 	//
 	for (int n=0; n<ncylorder; n++) {
-	  ortho->set_coefT(T, m, n, 'c') += host_coefsT[T][Imn(m, 'c', n, ncylorder)];
-	  if (m>0) ortho->set_coefT(T, m, n, 's') += host_coefsT[T][Imn(m, 's', n, ncylorder)];
+	  ortho->set_coefT(T, m, n) += host_coefsT[T][Jmn(m, n, ncylorder)];
 	}
       }
     }

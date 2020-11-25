@@ -93,9 +93,9 @@ protected:
   virtual void determine_coefficients_cuda(bool compute_pca);
   virtual void determine_acceleration_cuda();
 
-  thrust::host_vector  <cuFP_t> host_coefs, host_massT;
+  thrust::host_vector  <cuFP_t> host_coefs, host_covar, host_massT;
   thrust::device_vector<cuFP_t> dev_coefs;
-  std::vector<thrust::host_vector<cuFP_t>> host_coefsT;
+  std::vector<thrust::host_vector<cuFP_t>> host_coefsT, host_covarT;
 
   int sampT;
 
@@ -139,7 +139,7 @@ protected:
     thrust::device_vector<cuFP_t> X_d, Y_d, m_d, u_d, p_d;
     thrust::device_vector<int   > iX_d, iY_d;
 
-    std::vector<thrust::device_vector<cuFP_t>> T_coef;
+    std::vector<thrust::device_vector<cuFP_t>> T_coef, T_covr;
 
     thrust::device_vector<cuFP_t> dN_tvar;
     thrust::device_vector<cuFP_t> dc_tvar;

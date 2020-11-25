@@ -865,15 +865,21 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
       massT1   .resize(sampT, 0);
 
       expcoefT .resize(sampT);
-      for (auto & t : expcoefT ) t = MatrixP(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
+      for (auto & t : expcoefT ) {
+	t.resize((Lmax+1)*(Lmax+2)/2);
+	for (auto & u : t) u = boost::make_shared<Vector>(1, nmax);
+      }
 	
       expcoefT1.resize(sampT);
-      for (auto & t : expcoefT1) t = MatrixP(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
+      for (auto & t : expcoefT1 ) {
+	t.resize((Lmax+1)*(Lmax+2)/2);
+	for (auto & u : t) u = boost::make_shared<Vector>(1, nmax);
+      }
     }
   }
 
   if (compute && mlevel==0) {	// Zero arrays
-    for (auto & t : expcoefT1) t->zero();
+    for (auto & t : expcoefT1) { for (auto & u : t) u->zero(); }
     for (auto & v : massT1)    v = 0;
   }
 
@@ -1295,7 +1301,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
     for (size_t n=0; n<nmax; n++) {
       cuFP_t a = host_coefs[i+n];
-      cuFP_t b = expcoef[0][n+1];
+      cuFP_t b = (*expcoef[0])[n+1];
       if (compareC) {
 	std::cout << std::setw(4)  << n
 		  << std::setw(4)  << i
@@ -1319,7 +1325,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
     for (size_t n=0; n<nmax; n++) {
       cuFP_t a = host_coefs[i+n];
-      cuFP_t b = expcoef[1][n+1];
+      cuFP_t b = (*expcoef[1])[n+1];
       if (compareC) {
 	std::cout << std::setw(4)  << n
 		  << std::setw(4)  << i
@@ -1343,7 +1349,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
     for (size_t n=0; n<nmax; n++) {
       cuFP_t a = host_coefs[i+n];
-      cuFP_t b = expcoef[2][n+1];
+      cuFP_t b = (*expcoef[2])[n+1];
       if (compareC) {
 	std::cout << std::setw(4)  << n
 		  << std::setw(4)  << i
@@ -1367,7 +1373,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
     for (size_t n=0; n<nmax; n++) {
       cuFP_t a = host_coefs[i+n];
-      cuFP_t b = expcoef[3][n+1];
+      cuFP_t b = (*expcoef[3])[n+1];
       if (compareC) {
 	std::cout << std::setw(4)  << n
 		  << std::setw(4)  << i
@@ -1391,7 +1397,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
     for (size_t n=0; n<nmax; n++) {
       cuFP_t a = host_coefs[i+n];
-      cuFP_t b = expcoef[4][n+1];
+      cuFP_t b = (*expcoef[4])[n+1];
       if (compareC) {
 	std::cout << std::setw(4)  << n
 		  << std::setw(4)  << i
@@ -1415,7 +1421,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
     for (size_t n=0; n<nmax; n++) {
       cuFP_t a = host_coefs[i+n];
-      cuFP_t b = expcoef[5][n+1];
+      cuFP_t b = (*expcoef[5])[n+1];
       if (compareC) {
 	std::cout << std::setw(4)  << n
 		  << std::setw(4)  << i
@@ -1439,7 +1445,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
     for (size_t n=0; n<nmax; n++) {
       cuFP_t a = host_coefs[i+n];
-      cuFP_t b = expcoef[6][n+1];
+      cuFP_t b = (*expcoef[6])[n+1];
       if (compareC) {
 	std::cout << std::setw(4)  << n
 		  << std::setw(4)  << i
@@ -1492,7 +1498,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 	    elem.m = m;
 	    elem.n = n;
 	    elem.cs = 'c';
-	    elem.d = expcoef[loffset+moffset][n];
+	    elem.d = (*expcoef[loffset+moffset])[n];
 	    elem.f = host_coefs[Ilmn(l, m, 'c', n-1, nmax)];
 	    
 	    double test = fabs(elem.d - elem.f);
@@ -1518,7 +1524,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 	    elem.m = m;
 	    elem.n = n;
 	    elem.cs = 'c';
-	    elem.d = expcoef[loffset+moffset][n];
+	    elem.d = (*expcoef[loffset+moffset])[n];
 	    elem.f = host_coefs[Ilmn(l, m, 'c', n-1, nmax)];
 
 	    out << std::setw( 5) << l
@@ -1540,7 +1546,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 	    elem.m = m;
 	    elem.n = n;
 	    elem.cs = 's';
-	    elem.d = expcoef[loffset+moffset+1][n];
+	    elem.d = (*expcoef[loffset+moffset+1])[n];
 	    elem.f = host_coefs[Ilmn(l, m, 's', n-1, nmax)];
 
 	    out << std::setw( 5) << l
@@ -1740,7 +1746,7 @@ void SphericalBasis::determine_acceleration_cuda()
   }
 }
 
-void SphericalBasis::HtoD_coefs(const Matrix& expcoef)
+void SphericalBasis::HtoD_coefs(const std::vector<VectorP>& expcoef)
 {
   host_coefs.resize((Lmax+1)*(Lmax+1)*nmax); // Should stay fixed, no reserve
 
@@ -1754,8 +1760,8 @@ void SphericalBasis::HtoD_coefs(const Matrix& expcoef)
       // n loop
       //
       for (int n=1; n<=nmax; n++) {
-	host_coefs[Ilmn(l, m, 'c', n-1, nmax)] = expcoef[loffset+moffset][n];
-	if (m>0) host_coefs[Ilmn(l, m, 's', n-1, nmax)] = expcoef[loffset+moffset+1][n];
+	host_coefs[Ilmn(l, m, 'c', n-1, nmax)] = (*expcoef[loffset+moffset])[n];
+	if (m>0) host_coefs[Ilmn(l, m, 's', n-1, nmax)] = (*expcoef[loffset+moffset+1])[n];
       }
 
       if (m>0) moffset += 2;
@@ -1767,7 +1773,7 @@ void SphericalBasis::HtoD_coefs(const Matrix& expcoef)
 }
 
 
-void SphericalBasis::DtoH_coefs(Matrix& expcoef)
+void SphericalBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
 {
   // l loop
   //
@@ -1780,8 +1786,8 @@ void SphericalBasis::DtoH_coefs(Matrix& expcoef)
       // n loop
       //
       for (int n=1; n<=nmax; n++) {
-	expcoef0[0][loffset+moffset][n] = host_coefs[Ilmn(l, m, 'c', n-1, nmax)];
-	if (m>0) expcoef0[0][loffset+moffset+1][n] = host_coefs[Ilmn(l, m, 's', n-1, nmax)];
+	(*expcoef0[0][loffset+moffset])[n] = host_coefs[Ilmn(l, m, 'c', n-1, nmax)];
+	if (m>0) (*expcoef0[0][loffset+moffset+1])[n] = host_coefs[Ilmn(l, m, 's', n-1, nmax)];
       }
 
       if (m>0) moffset += 2;
@@ -1825,8 +1831,8 @@ void SphericalBasis::DtoH_coefs(Matrix& expcoef)
 	      // n loop
 	      //
 	      for (int n=1; n<=nmax; n++) {
-		(*expcoefT1[T])[loffset+moffset][n] += ret[2*(n-1) + offst];
-		if (m>0) (*expcoefT1[T])[loffset+moffset+1][n] += ret[2*(n-1) + 1 + offst];
+		(*expcoefT1[T][loffset+moffset])[n] += ret[2*(n-1) + offst];
+		if (m>0) (*expcoefT1[T][loffset+moffset+1])[n] += ret[2*(n-1) + 1 + offst];
 	      }
 
 	      offst += osize;

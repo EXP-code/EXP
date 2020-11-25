@@ -95,8 +95,14 @@ double tnow = 0.0;
   
 // Globals
 //
-extern double Ylm01 (int ll, int mm);
 extern double plgndr(int ll, int mm, double x);
+
+double Ylm_fac(int ll, int mm)
+{
+  mm = abs(mm);
+  return sqrt( (2.0*ll+1)/(4.0*M_PI) ) *
+    exp(0.5*(lgamma(1.0+ll-mm) - lgamma(1.0+ll+mm)));
+}
 
 double Xi(double R, double Rp, double z, double zp)
 {
@@ -246,7 +252,7 @@ main(int argc, char **argv)
      po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),
      "cachefile name")
     ("tablefile",
-     po::value<std::string>(&table_cache)->default_value(".cross_val_cyl"),
+     po::value<std::string>(&table_cache)->default_value(".cross_val_cyl2"),
      "table file name")
     ;
   
@@ -488,13 +494,23 @@ main(int argc, char **argv)
 
   std::vector<std::vector<double>> Ec((LMAX+1)*(mmax+1)*norder);
   std::vector<std::vector<double>> Es((LMAX+1)*(mmax+1)*norder);
+  std::vector<std::vector<double>> Ec_inn((LMAX+1)*(mmax+1)*norder);
+  std::vector<std::vector<double>> Es_inn((LMAX+1)*(mmax+1)*norder);
+  std::vector<std::vector<double>> Ec_out((LMAX+1)*(mmax+1)*norder);
+  std::vector<std::vector<double>> Es_out((LMAX+1)*(mmax+1)*norder);
 
   for (int L=0; L<=LMAX; L++) {
     for (int M=0; M<=std::min<int>(L, mmax); M++) {
       for (int n=0; n<norder; n++) {
 	int id = (L*(mmax+1) + M)*norder + n;
 	Ec[id].resize(numr+1);
-	if (M) Es[id].resize(numr+1);
+	Ec_inn[id].resize(numr+1);
+	Ec_out[id].resize(numr+1);
+	if (M) {
+	  Es[id].resize(numr+1);
+	  Es_inn[id].resize(numr+1);
+	  Es_out[id].resize(numr+1);
+	}
       }
     }
   }
@@ -658,7 +674,7 @@ main(int argc, char **argv)
 		  double sinx = sqrt(1.0 - cosx*cosx);
 		  double R    = r*sinx;
 
-		  double ylm  = Ylm01(L, M) * plgndr(L, M, cosx);
+		  double ylm  = Ylm_fac(L, M) * plgndr(L, M, cosx);
 		  double wgt  = ylm * wgtr * 2.0*ylim*lt.weight(t) * ortho.d_y_to_z(y);
 
 		  ortho.getDensSC(M, n, R, z, dC, dS);
@@ -696,7 +712,7 @@ main(int argc, char **argv)
 		  double sinx = sqrt(1.0 - cosx*cosx);
 		  double R    = r*sinx;
 
-		  double ylm  = Ylm01(L, M) * plgndr(L, M, cosx);
+		  double ylm  = Ylm_fac(L, M) * plgndr(L, M, cosx);
 		  double wgt  = ylm * wgtr * 2.0*ylim*lt.weight(t) * ortho.d_y_to_z(y);
 
 		  ortho.getDensSC(M, n, R, z, dC, dS);
@@ -716,7 +732,13 @@ main(int argc, char **argv)
 	      // END: r integration
 
 	      Ec[id][i] += innerC + outerC;
-	      if (M) Es[id][i] += innerS + outerS;
+	      Ec_inn[id][i] += innerC;
+	      Ec_out[id][i] += outerC;
+	      if (M) {
+		Es[id][i] += innerS + outerS;
+		Es_inn[id][i] += innerS;
+		Es_out[id][i] += outerS;
+	      }
 	    }
 	    // END: MPI node selection
 	  }
@@ -839,13 +861,11 @@ main(int argc, char **argv)
   // ==================================================
   // Debug output
   // ==================================================
-  //    +--- set to false for production
-  //   /
-  //  v
-  if (true) {
+  
+  if (vm.count("debug")) {
     for (int M=0; M<=mmax; M++) {
       std::ostringstream sout;
-      sout << "test.Ec." << M;
+      sout << prefix << ".Ec." << M;
       std::ofstream out(sout.str());
       if (out) {
 	for (int i=0; i<=numr; i++) {
@@ -854,7 +874,28 @@ main(int argc, char **argv)
 	  for (int L=M; L<=LMAX; L++) {
 	    for (int n=0; n<norder; n++) {
 	      int id = (L*(mmax+1) + M)*norder + n;
-	      out << std::setw(16) << Ec[id][i];
+	      out << std::setw(16) << Ec_inn[id][i]
+		  << std::setw(16) << Ec_out[id][i];
+	    }
+	  }
+	  out << std::endl;
+	}
+      }
+    }
+
+    for (int M=0; M<=mmax; M++) {
+      std::ostringstream sout;
+      sout << prefix << ".Es." << M;
+      std::ofstream out(sout.str());
+      if (out) {
+	for (int i=0; i<=numr; i++) {
+	  double r = ortho.xi_to_r(XMIN + dX*i);
+	  out << std::setw(16) << r;
+	  for (int L=M; L<=LMAX; L++) {
+	    for (int n=0; n<norder; n++) {
+	      int id = (L*(mmax+1) + M)*norder + n;
+	      out << std::setw(16) << Es_inn[id][i]
+		  << std::setw(16) << Es_out[id][i];
 	    }
 	  }
 	  out << std::endl;
@@ -1156,7 +1197,7 @@ main(int argc, char **argv)
 
 	    for (int M=0; M<=std::min({L, mmax, MLIM}); M++) {
 
-	      double Ylm  = Ylm01(L, M) * plgndr(L, M, cosx);
+	      double Ylm  = Ylm_fac(L, M) * plgndr(L, M, cosx);
 	      double cosp = cos(phi*M), sinp = sin(phi*M);
 
 	      for (int n=0; n<norder; n++) {

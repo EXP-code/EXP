@@ -37,6 +37,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <queue>
 #include <map>
 
 using namespace std;
@@ -50,6 +51,8 @@ using namespace std;
 #include <boost/make_unique.hpp>
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
+
+#include <Progress.H>
 
 namespace po = boost::program_options;
 
@@ -90,9 +93,14 @@ double tnow = 0.0;
   
 // Globals
 //
+extern double plgndr(int ll, int mm, double x);
 
-extern double Ylm01(int ll, int mm);
-extern double plgndr(int, int, double);
+double Ylm_fac(int ll, int mm)
+{
+  mm = abs(mm);
+  return sqrt( (2.0*ll+1)/(4.0*M_PI) ) *
+    exp(0.5*(lgamma(1.0+ll-mm) - lgamma(1.0+ll+mm)));
+}
 
 double Xi(double R, double Rp, double z, double zp)
 {
@@ -114,6 +122,7 @@ extern "C" {
   int dtorh1_(double* z, int* m, int* nmax,
 	      double* pl, double* ql, int* newn);
 }
+  
 
 int
 main(int argc, char **argv)
@@ -359,19 +368,21 @@ main(int argc, char **argv)
 	in.clear();
 	in.seekg(0);
 
-	int tmp;
+	int idens;
     
 	in.read((char *)&mmax,    sizeof(int));
 	in.read((char *)&numx,    sizeof(int));
 	in.read((char *)&numy,    sizeof(int));
 	in.read((char *)&NMAX,    sizeof(int));
 	in.read((char *)&norder,  sizeof(int));
-	in.read((char *)&DENS,    sizeof(int)); 
+	in.read((char *)&idens,   sizeof(int)); 
 	in.read((char *)&cmapr,   sizeof(int)); 
 	in.read((char *)&rcylmin, sizeof(double));
 	in.read((char *)&rcylmax, sizeof(double));
 	in.read((char *)&rscale,  sizeof(double));
 	in.read((char *)&vscale,  sizeof(double));
+
+	if (idens) DENS = true;
       }
     }
   }
@@ -391,10 +402,12 @@ main(int argc, char **argv)
 				//
   EmpCylSL ortho(NMAX, LMAX, mmax, norder, rscale, vscale);
     
-				// Set smoothing type to truncate
-				//
-  ortho.setTK("Truncate");
-
+				// Set smoothing type to Truncate or
+				// Hall (default)
+  if (vm.count("truncate"))
+    ortho.setTK("Truncate");
+  else
+    ortho.setTK("Hall");
 
   vector<Particle> particles;
   PSPptr psp;
@@ -736,8 +749,7 @@ main(int argc, char **argv)
 			   << std::flush;
 
     ortho.setup_accumulation();
-    ortho.setTotal(psp->GetNamed(cname)->comp.nbod); // Set particle number
-    ortho.init_pca();
+    ortho.setHall("test", psp->GetNamed(cname)->comp.nbod);
 
     SParticle *p = psp->GetParticle();
     int icnt = 0;
@@ -771,11 +783,16 @@ main(int argc, char **argv)
     std::vector<double> term2(mmax+1), work2(mmax+1);
     std::vector<double> term3(mmax+1), work3(mmax+1);
     
+    double minSNR = ortho.getMinSNR();
     double maxSNR = ortho.getMaxSNR();
 
-    maxSNR = 5.0;
+    if (myid==0) {
+      std::cout << "Found minSNR=" << minSNR
+		<< " maxSNR=" << maxSNR << std::endl;
+    }
 
-    if (maxSNR < minSNR) minSNR = maxSNR / 100.0;
+    if (maxSNR < minSNR)        minSNR = maxSNR * 1.0e-2;
+    if (minSNR < maxSNR*1.0e-6) minSNR = maxSNR * 1.0e-6;
     
     if (LOG) {
       minSNR = log(minSNR);
@@ -785,7 +802,9 @@ main(int argc, char **argv)
     double dSNR = (maxSNR - minSNR)/(NSNR - 1);
 
     if (myid==0) {
-      std::cout << "maxSNR=" << maxSNR << " dSNR=" << dSNR << std::endl;
+      std::cout << "Using minSNR=" << minSNR
+		<< " maxSNR=" << maxSNR
+		<< " dSNR=" << dSNR << std::endl;
     }
 
     double term4tot = 0.0;
@@ -800,14 +819,25 @@ main(int argc, char **argv)
 
       if (myid==0) {
 	std::cout << "Computing SNR=" << snr;
-	if (Hall) std::cout << " using Hall smoothing . . . " << flush;
-	else      std::cout << " using truncation . . . " << flush;
+	if (Hall) std::cout << " using Hall smoothing . . . " << std::endl;
+	else      std::cout << " using truncation . . . " << std::endl;
       }
     
       // Get the snr trimmed coefficients
       //
       ortho.get_trimmed(snr, ac_cos, ac_sin);
 	
+      if (myid==0) {
+	std::cout << "*** SNR: " << snr << std::endl;
+	for (int M=0; M<=mmax; M++) {
+	  for (int i=0; i<norder; i++)
+	    std::cout << std::setw(4)  << M
+		      << std::setw(4)  << i
+		      << std::setw(18) << ac_cos[M][i] << std::endl;
+	  std::cout << std::endl;
+	}
+      }
+
       // Zero out the accumulators
       //
       std::fill(term1.begin(), term1.end(), 0.0);

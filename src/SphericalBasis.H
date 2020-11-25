@@ -44,8 +44,12 @@ protected:
   //! Matrices per thread for obtaining derivatives legendre coefficients
   Matrix *dlegs;
 
+
+  //@{
   //! Matrices per thread for obtaining expansion coefficients
-  Matrix *expcoef0;
+  typedef boost::shared_ptr<Vector> VectorP;
+  std::vector<std::vector<VectorP>> expcoef0;
+  //@}
 
   //@{
   //! Mass accumulation for PCA
@@ -105,8 +109,8 @@ protected:
   thrust::device_vector<cuFP_t> dev_coefs;
   cuFP_t host_mass_tot;
 
-  virtual void HtoD_coefs(const Matrix& coef);
-  virtual void DtoH_coefs(Matrix& coef);
+  virtual void HtoD_coefs(const std::vector<VectorP>& coef);
+  virtual void DtoH_coefs(std::vector<VectorP>& coef);
 
   std::vector<cudaArray_t> cuInterpArray;
   thrust::host_vector<cudaTextureObject_t> tex;
