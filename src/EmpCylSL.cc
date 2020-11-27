@@ -4469,8 +4469,8 @@ void EmpCylSL::get_trimmed(double snr, std::vector<Vector>& ac_cos, std::vector<
 	  smth[i] = (1.0 - smth[i])/smth[i];
 
 	if (tk_type == Hall) {
-	for (int i=smth.getlow(); i<=smth.gethigh(); i++)
-	  smth[i] = 1.0/(1.0 + snr*smth[i]);
+	  for (int i=smth.getlow(); i<=smth.gethigh(); i++)
+	    smth[i] = 1.0/(1.0 + snr*smth[i]);
 	}
 	if (tk_type == Truncate) {
 	  for (int i=smth.getlow(); i<=smth.gethigh(); i++) {
