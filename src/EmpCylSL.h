@@ -423,6 +423,9 @@ public:
   //! Current default is to perform Hall on every step when selected
   static int HALLFREQ;
 
+  //! Hall smoothing exponent (default: 1.0)
+  static double HEXP;
+
   //! Minimum radial value for basis
   static double RMIN;
 

@@ -169,7 +169,7 @@ main(int argc, char **argv)
   sleep(20);
 #endif  
   
-  double RMIN, RMAX, rscale, minSNR;
+  double RMIN, RMAX, rscale, minSNR, Hexp;
   int NICE, LMAX, NMAX, NSNR, NPART, NINTR, NINTT, MLIM;
   int beg, end, stride, init, numr;
   std::string CACHEFILE, modelf, dir("./"), cname, prefix, table_cache;
@@ -219,6 +219,7 @@ main(int argc, char **argv)
      "Number of SNR evaluations")
     ("minSNR",              po::value<double>(&minSNR)->default_value(0.01),
      "minimum SNR value for loop output")
+    ("Hexp",                po::value<double>(&Hexp)->default_value(1.0),           "default Hall smoothing exponent")
     ("prefix",              po::value<string>(&prefix)->default_value("crossval"),
      "Filename prefix")
     ("runtag",              po::value<string>(&runtag)->default_value("run1"),
@@ -452,6 +453,7 @@ main(int argc, char **argv)
     
 				// Set smoothing type to Truncate or
 				// Hall (default)
+  EmpCylSL::HEXP = Hexp;
   if (vm.count("truncate"))
     ortho.setTK("Truncate");
   else

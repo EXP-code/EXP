@@ -65,6 +65,7 @@ int      EmpCylSL::NOUT            = 12;
 int      EmpCylSL::NUMR            = 2000;
 unsigned EmpCylSL::VFLAG           = 0;
 unsigned EmpCylSL::VTKFRQ          = 1;
+double   EmpCylSL::HEXP            = 1.0;
 double   EmpCylSL::RMIN            = 0.001;
 double   EmpCylSL::RMAX            = 20.0;
 double   EmpCylSL::HFAC            = 0.2;
@@ -4470,7 +4471,7 @@ void EmpCylSL::get_trimmed(double snr, std::vector<Vector>& ac_cos, std::vector<
 
 	if (tk_type == Hall) {
 	  for (int i=smth.getlow(); i<=smth.gethigh(); i++)
-	    smth[i] = 1.0/(1.0 + snr*smth[i]);
+	    smth[i] = 1.0/(1.0 + pow(snr*smth[i], HEXP));
 	}
 	if (tk_type == Truncate) {
 	  for (int i=smth.getlow(); i<=smth.gethigh(); i++) {
