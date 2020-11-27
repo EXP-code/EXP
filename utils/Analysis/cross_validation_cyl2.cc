@@ -494,22 +494,14 @@ main(int argc, char **argv)
 
   std::vector<std::vector<double>> Ec((LMAX+1)*(mmax+1)*norder);
   std::vector<std::vector<double>> Es((LMAX+1)*(mmax+1)*norder);
-  std::vector<std::vector<double>> Ec_inn((LMAX+1)*(mmax+1)*norder);
-  std::vector<std::vector<double>> Es_inn((LMAX+1)*(mmax+1)*norder);
-  std::vector<std::vector<double>> Ec_out((LMAX+1)*(mmax+1)*norder);
-  std::vector<std::vector<double>> Es_out((LMAX+1)*(mmax+1)*norder);
 
   for (int L=0; L<=LMAX; L++) {
     for (int M=0; M<=std::min<int>(L, mmax); M++) {
       for (int n=0; n<norder; n++) {
 	int id = (L*(mmax+1) + M)*norder + n;
 	Ec[id].resize(numr+1);
-	Ec_inn[id].resize(numr+1);
-	Ec_out[id].resize(numr+1);
 	if (M) {
 	  Es[id].resize(numr+1);
-	  Es_inn[id].resize(numr+1);
-	  Es_out[id].resize(numr+1);
 	}
       }
     }
@@ -587,27 +579,37 @@ main(int argc, char **argv)
 	    for (int n=0; n<norder; n++) {
 	      int id = (L*(mmax+1) + M)*norder + n;
 	      in.read(reinterpret_cast<char *>(Ec[id].data()), Ec[id].size()*sizeof(double));
-	      if (M) 
-		in.read(reinterpret_cast<char *>(Es[id].data()), Es[id].size()*sizeof(double));
+	      if (M) in.read(reinterpret_cast<char *>(Es[id].data()), Es[id].size()*sizeof(double));
 	    }
 	  }
 	}
-      } 
+      }
+
+      // Ascii check
+      //
+      std::ofstream ofc("ascii_read.check");
+      if (ofc) {
+	for (int L=0; L<=LMAX; L++) {
+	  for (int M=0; M<=std::min<int>(L, mmax); M++) {
+	    ofc << std::setw(4) << L << std::setw(4) << M;
+	    for (int n=0; n<norder; n++) {
+	      int id = (L*(mmax+1) + M)*norder + n;
+	      for (auto v : Ec[id]) ofc << std::setw(18) << v;
+	      if (M) for (auto v : Es[id]) ofc << std::setw(18) << v;
+	    }
+	  }
+	}
+      }
     }
   }
   
 
-  // Get data from EmpCylSL
+  // Get basis data from EmpCylSL
   //
   auto potlC = ortho.getPotlC();
   auto potlS = ortho.getPotlS();
 
   if (MakeCache) {
-
-    largestElem DcInn(10);
-    largestElem DsInn(10);
-    largestElem DcOut(10);
-    largestElem DsOut(10);
 
     boost::shared_ptr<boost::progress_display> progress;
     if (myid==0) {
@@ -676,13 +678,8 @@ main(int argc, char **argv)
 
 		  double ylm  = Ylm_fac(L, M) * plgndr(L, M, cosx);
 		  double wgt  = ylm * wgtr * 2.0*ylim*lt.weight(t) * ortho.d_y_to_z(y);
-
+		  
 		  ortho.getDensSC(M, n, R, z, dC, dS);
-
-		  if (debug) {
-		    DcInn(Element(dC, r, L, M, n));
-		    DsInn(Element(dS, r, L, M, n));
-		  }
 
 		  double fac = pow(r/ri, 1.0+L) * wgt;
 		  
@@ -717,11 +714,6 @@ main(int argc, char **argv)
 
 		  ortho.getDensSC(M, n, R, z, dC, dS);
 
-		  if (debug) {
-		    DcOut(Element(dC, r, L, M, n));
-		    DsOut(Element(dS, r, L, M, n));
-		  }
-
 		  double fac = pow(ri/r, L) * wgt;
 		
 		  outerC += dC * fac;
@@ -732,13 +724,7 @@ main(int argc, char **argv)
 	      // END: r integration
 
 	      Ec[id][i] += innerC + outerC;
-	      Ec_inn[id][i] += innerC;
-	      Ec_out[id][i] += outerC;
-	      if (M) {
-		Es[id][i] += innerS + outerS;
-		Es_inn[id][i] += innerS;
-		Es_out[id][i] += outerS;
-	      }
+	      if (M) Es[id][i] += innerS + outerS;
 	    }
 	    // END: MPI node selection
 	  }
@@ -750,159 +736,118 @@ main(int argc, char **argv)
     }
     // END: L value
 
-    if (debug) {
-      for (int n=0; n<numprocs; n++) {
-	if (myid==n) {
-	  std::cout << "max(Dc) [inner]" << std::endl << DcInn << std::endl;
-	  std::cout << "max(Ds) [inner]" << std::endl << DsInn << std::endl;
-	  std::cout << "max(Dc) [outer]" << std::endl << DcOut << std::endl;
-	  std::cout << "max(Ds) [outer]" << std::endl << DsOut << std::endl;
+    if (myid==0) std::cout << std::endl;
+
+#ifdef DEBUG
+    std::cout << "[" << myid << "] Before synchronization" << std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif
+
+    // MPI: share data
+    //
+    for (int L=0; L<=LMAX; L++) {
+      for (int M=0; M<=std::min<int>(L, mmax); M++) {
+	for (int n=0; n<norder; n++) {
+	  int id = (L*(mmax+1) + M)*norder + n;
+	  MPI_Allreduce(MPI_IN_PLACE, Ec[id].data(), Ec[id].size(), MPI_DOUBLE,
+			MPI_SUM, MPI_COMM_WORLD);
+	  if (M)
+	    MPI_Allreduce(MPI_IN_PLACE, Es[id].data(), Es[id].size(), MPI_DOUBLE,
+			  MPI_SUM, MPI_COMM_WORLD);
 	}
-	MPI_Barrier(MPI_COMM_WORLD);
       }
     }
+    
+#ifdef DEBUG
+    std::cout << "[" << myid << "] After synchronization" << std::endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif
 
+    if (myid==0) {
+
+      std::ofstream out(table_cache);
+    
+      if (out) {
+      
+#ifdef DEBUG
+	std::cout << "[" << myid << "] Begin to write table cache" << std::endl;
+#endif
+
+	const unsigned int cmagic = 0xf00bb;
+
+	// This is a node of simple {key: value} pairs.  More general
+	// content can be added as needed.
+	YAML::Node node;
+    
+	node["lmax"  ] = LMAX;
+	node["mmax"  ] = mmax;
+	node["norder"] = norder;
+	node["numr"  ] = numr;
+	node["nintr" ] = NINTR;
+	node["nintt" ] = NINTT;
+	node["rmin"  ] = RMIN;
+	node["rmax"  ] = RMAX;
+	node["ascl"  ] = Ascale;
+	
+	// Serialize the node
+	//
+	YAML::Emitter y; y << node;
+	
+	// Get the size of the string
+	//
+	unsigned int hsize = strlen(y.c_str());
+	
+	// Write magic #
+	//
+	out.write(reinterpret_cast<const char *>(&cmagic),   sizeof(unsigned int));
+	
+	// Write YAML string size
+	//
+	out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
+	
+	// Write YAML string
+	//
+	out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
+      
+      
+	// Write table
+	//
+	for (int L=0; L<=LMAX; L++) {
+	  for (int M=0; M<=std::min<int>(L, mmax); M++) {
+	    for (int n=0; n<norder; n++) {
+	      int id = (L*(mmax+1) + M)*norder + n;
+	      out.write(reinterpret_cast<const char *>(Ec[id].data()), Ec[id].size()*sizeof(double));
+	      if (M) 
+		out.write(reinterpret_cast<const char *>(Es[id].data()), Es[id].size()*sizeof(double));
+	    }
+	  }
+	}
+	
+	// Ascii check
+	//
+	std::ofstream ofc("ascii_write.check");
+	if (ofc) {
+	  for (int L=0; L<=LMAX; L++) {
+	    for (int M=0; M<=std::min<int>(L, mmax); M++) {
+	      ofc << std::setw(4) << L << std::setw(4) << M;
+	      for (int n=0; n<norder; n++) {
+		int id = (L*(mmax+1) + M)*norder + n;
+		for (auto v : Ec[id]) ofc << std::setw(18) << v;
+		if (M) for (auto v : Es[id]) ofc << std::setw(18) << v;
+	      }
+	    }
+	  }
+	}
+      }
+#ifdef DEBUG
+      std::cout << "[" << myid << "] Finished writing table cache" << std::endl;
+#endif
+    }
+    // END: myid=0 write cache
+    
   }
   // END: MakeCache
 
-  if (myid==0) std::cout << std::endl;
-
-#ifdef DEBUG
-  std::cout << "[" << myid << "] Before synchronization" << std::endl;
-  MPI_Barrier(MPI_COMM_WORLD);
-#endif
-
-  // MPI: share data
-  //
-  for (int L=0; L<=LMAX; L++) {
-    for (int M=0; M<=std::min<int>(L, mmax); M++) {
-      for (int n=0; n<norder; n++) {
-	int id = (L*(mmax+1) + M)*norder + n;
-	MPI_Allreduce(MPI_IN_PLACE, Ec[id].data(), Ec[id].size(), MPI_DOUBLE,
-		      MPI_SUM, MPI_COMM_WORLD);
-	if (M)
-	  MPI_Allreduce(MPI_IN_PLACE, Es[id].data(), Es[id].size(), MPI_DOUBLE,
-			MPI_SUM, MPI_COMM_WORLD);
-      }
-    }
-  }
-  
-#ifdef DEBUG
-  std::cout << "[" << myid << "] After synchronization" << std::endl;
-  MPI_Barrier(MPI_COMM_WORLD);
-#endif
-
-  if (myid==0 and MakeCache) {
-
-    std::ofstream out(table_cache);
-    
-    if (out) {
-      
-#ifdef DEBUG
-      std::cout << "[" << myid << "] Begin to write table cache" << std::endl;
-#endif
-
-      const unsigned int cmagic = 0xf00bb;
-
-      // This is a node of simple {key: value} pairs.  More general
-      // content can be added as needed.
-      YAML::Node node;
-    
-      node["lmax"  ] = LMAX;
-      node["mmax"  ] = mmax;
-      node["norder"] = norder;
-      node["numr"  ] = numr;
-      node["nintr" ] = NINTR;
-      node["nintt" ] = NINTT;
-      node["rmin"  ] = RMIN;
-      node["rmax"  ] = RMAX;
-      node["ascl"  ] = Ascale;
-    
-      // Serialize the node
-      //
-      YAML::Emitter y; y << node;
-      
-      // Get the size of the string
-      //
-      unsigned int hsize = strlen(y.c_str());
-      
-      // Write magic #
-      //
-      out.write(reinterpret_cast<const char *>(&cmagic),   sizeof(unsigned int));
-      
-      // Write YAML string size
-      //
-      out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
-      
-      // Write YAML string
-      //
-      out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
-      
-      
-      // Write table
-      //
-      for (int L=0; L<=LMAX; L++) {
-	for (int M=0; M<=std::min<int>(L, mmax); M++) {
-	  for (int n=0; n<norder; n++) {
-	    int id = (L*(mmax+1) + M)*norder + n;
-	    out.write(reinterpret_cast<const char *>(Ec[id].data()), Ec[id].size()*sizeof(double));
-	      if (M) 
-		out.write(reinterpret_cast<const char *>(Es[id].data()), Es[id].size()*sizeof(double));
-	  }
-	}
-      }
-    } 
-
-#ifdef DEBUG
-    std::cout << "[" << myid << "] Finished writing table cache" << std::endl;
-#endif
-  }
-
-  // ==================================================
-  // Debug output
-  // ==================================================
-  
-  if (vm.count("debug")) {
-    for (int M=0; M<=mmax; M++) {
-      std::ostringstream sout;
-      sout << prefix << ".Ec." << M;
-      std::ofstream out(sout.str());
-      if (out) {
-	for (int i=0; i<=numr; i++) {
-	  double r = ortho.xi_to_r(XMIN + dX*i);
-	  out << std::setw(16) << r;
-	  for (int L=M; L<=LMAX; L++) {
-	    for (int n=0; n<norder; n++) {
-	      int id = (L*(mmax+1) + M)*norder + n;
-	      out << std::setw(16) << Ec_inn[id][i]
-		  << std::setw(16) << Ec_out[id][i];
-	    }
-	  }
-	  out << std::endl;
-	}
-      }
-    }
-
-    for (int M=0; M<=mmax; M++) {
-      std::ostringstream sout;
-      sout << prefix << ".Es." << M;
-      std::ofstream out(sout.str());
-      if (out) {
-	for (int i=0; i<=numr; i++) {
-	  double r = ortho.xi_to_r(XMIN + dX*i);
-	  out << std::setw(16) << r;
-	  for (int L=M; L<=LMAX; L++) {
-	    for (int n=0; n<norder; n++) {
-	      int id = (L*(mmax+1) + M)*norder + n;
-	      out << std::setw(16) << Es_inn[id][i]
-		  << std::setw(16) << Es_out[id][i];
-	    }
-	  }
-	  out << std::endl;
-	}
-      }
-    }
-  }
 
   // ==================================================
   // Phase space output loop
