@@ -406,7 +406,7 @@ main(int argc, char **argv)
 	else
 	  cmapr = node["cmapr" ].as<int>();
 	if (node["cmapz"])
-	  cmapz = node["cmapz"  ].as<int>();
+	  cmapz = node["cmapz" ].as<int>();
 	rcylmin = node["rmin"  ].as<double>();
 	rcylmax = node["rmax"  ].as<double>();
 	rscale  = node["ascl"  ].as<double>();

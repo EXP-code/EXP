@@ -63,20 +63,50 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
   id = "AddMass";
 
   comp_name = "";               // Default component for com
-  rmin   = 1.0e-4;              // Default inner radius
-  rmax   = 1.0;                 // Default outer radius
-  numr   = 100;                 // Default number of radial bins
-  number = 10;                  // Default number of particles added
-  mass   = 1.0e-10;             // Default mass of new particles
-  logr   = true;                // Logaritmic binning
-  seed   = 11;                  // Random number seed
-  dtime  = 0.012;               // Time interval between particle additions
-  tnext  = dtime;               // Time to begin adding particles
-  debug  = -1.0;		// Time interval between diagnostic output
-  dnext  = tnext;		// Time for next debug output
-  interp = true;		// Interpolate by default
+  rmin      = 1.0e-4;           // Default inner radius
+  rmax      = 1.0;              // Default outer radius
+  numr      = 100;              // Default number of radial bins
+  number    = 10;               // Default number of particles added
+  mass      = 1.0e-10;          // Default mass of new particles
+  logr      = true;             // Logaritmic binning
+  seed      = 11;               // Random number seed
+  dtime     = 0.012;            // Time interval between particle additions
+  tnext     = dtime;            // Time to begin adding particles
+  debug     = -1.0;		// Time interval between diagnostic output
+  scale     =  1.0;             // Radius scale of mass adding
+  vdisp     = 0.0;              // Velocity dispersion value
+  interp    = true;		// Interpolate by default
+  cforce    = false;		// Explicit force evalution for orbit IC
+  planar    = false;		// Force disk to be in x-y plane
+  alg       = AlgMap["Disk"];	// Assign the disk algorithm by default
+  
 
-  initialize();
+  initialize();			// Read and set parameters
+
+  dnext  = tnext;		// Time for next debug output
+  tstart = tnext;
+
+  if (comp_list.size()>0) {
+				// Components for force evaluation
+    for (auto name : comp_list) {
+      bool found = false; 
+      for (auto c : comp->components) { // Look for each specified component
+	if ( !name.compare(c->name) ) {
+	  comp_vec.push_back(c);
+	  found = true;
+	  break;
+	}
+      }
+
+      if (!found) {
+	cerr << "Process " << myid << ": can't find desired list component <"
+	     << name << ">" << endl;
+	MPI_Abort(MPI_COMM_WORLD, 34);
+      }
+    }
+    cforce = true;
+  }
+
 
   if (comp_name.size()>0) {
 				// Look for the fiducial component
@@ -103,27 +133,29 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
     }
   }
 
-  // Make bins
+  // Make bins parameters
 				// Sanity
   if (rmin == 0.0 and logr) logr = false;
 
   lrmin = rmin;
   lrmax = rmax;
 
-  if (logr) {
+  if (logr) {			// Log binning?
     lrmin = log(rmin);
     lrmax = log(rmax);
   }
 
   dr = (lrmax - lrmin)/(numr - 1);
 
-  mas_bins.resize(nthrds);
+  mas_bins_current.resize(nthrds);
+  mas_bins_adding.resize(numr);
   vl_bins.resize(nthrds);
   v2_bins.resize(nthrds);
   L3_bins.resize(nthrds);
 
   // Making binning for each algorithm
-  for (auto & v : mas_bins) v.resize(numr);
+  //
+  for (auto & v : mas_bins_current) v.resize(numr);
 
   switch (alg) {
   case Algorithm::Halo:
@@ -137,7 +169,7 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
   };
 
   // Random number generation
-
+  //
   gen   = boost::make_shared<ACG>    (seed+myid);
   urand = boost::make_shared<Uniform>(0.0, 1.0, gen.get());
   nrand = boost::make_shared<Normal> (0.0, 1.0, gen.get());
@@ -163,8 +195,17 @@ void UserAddMass::userinfo()
        << " logr="      << std::boolalpha << logr
        << " number="    << number
        << " mass="      << mass
+       << " scale="     << scale
        << " algorithm=" << AlgMapInv[alg]
+       << " planar="    << std::boolalpha << planar
        << std::endl;
+
+  if (comp_list.size()>0) {
+    cout << " force evaluation from components [";
+    for (auto s : comp_list) cout << " \"" << s << "\"";
+    cout << " ]";
+  }
+  cout << std::endl;
 
   print_divider();
 }
@@ -172,18 +213,24 @@ void UserAddMass::userinfo()
 void UserAddMass::initialize()
 {
   try {
-    if (conf["compname"])   comp_name = conf["compname"].as<std::string>();
-    if (conf["rmin"])       rmin      = conf["rmin"].as<double>();
-    if (conf["rmax"])       rmax      = conf["rmax"].as<double>();
-    if (conf["numr"])       numr      = conf["numr"].as<unsigned>();
-    if (conf["logr"])       logr      = conf["logr"].as<bool>();
-    if (conf["seed"])       seed      = conf["logr"].as<long int>();
-    if (conf["number"])     number    = conf["number"].as<unsigned>();
-    if (conf["tstart"])     tnext     = conf["tstart"].as<double>();
-    if (conf["dtime"])      dtime     = conf["dtime"].as<double>();
-    if (conf["debug"])      debug     = conf["debug"].as<double>();
-    if (conf["interp"])     interp    = conf["interp"].as<bool>();
-    if (conf["algorithm"])  alg       = AlgMap[conf["algorithm"].as<std::string>()];
+    if (conf["complist"]) {	// Check for optional force components
+      comp_list = conf["complist"].as<std::vector<std::string>>();
+    }
+    if (conf["compname"])   comp_name   = conf["compname"].as<std::string>();
+    if (conf["rmin"])       rmin        = conf["rmin"].as<double>();
+    if (conf["rmax"])       rmax        = conf["rmax"].as<double>();
+    if (conf["mass"])       mass        = conf["mass"].as<double>();
+    if (conf["numr"])       numr        = conf["numr"].as<unsigned>();
+    if (conf["interp"])     interp      = conf["interp"].as<bool>();
+    if (conf["logr"])       logr        = conf["logr"].as<bool>();
+    if (conf["seed"])       seed        = conf["seed"].as<long int>();
+    if (conf["number"])     number      = conf["number"].as<unsigned>();
+    if (conf["tstart"])     tnext       = conf["tstart"].as<double>();
+    if (conf["scale"])      scale       = conf["scale"].as<double>();
+    if (conf["dtime"])      dtime       = conf["dtime"].as<double>();
+    if (conf["debug"])      debug       = conf["debug"].as<double>();
+    if (conf["vdisp"])      vdisp       = conf["vdisp"].as<double>();
+    if (conf["algorithm"])  alg         = AlgMap[conf["algorithm"].as<std::string>()];
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in UserAddMass: "
@@ -203,9 +250,11 @@ void UserAddMass::clear_bins()
 {
   // Mass bins
   //
-  for (auto & v : mas_bins) {
+
+  for (auto & v : mas_bins_current) {
     std::fill(v.begin(), v.end(), 0.0);
   }
+  
 
   std::array<double, 3> zero = {0.0, 0.0, 0.0};
 
@@ -244,16 +293,17 @@ void UserAddMass::determine_acceleration_and_potential(void)
   for (int n=1; n<nthrds; n++) {
 
     for (unsigned i=0; i<numr; i++) {
-      mas_bins[0][i] += mas_bins[n][i];
+
+      mas_bins_current[0][i] += mas_bins_current[n][i];
 
       switch (alg) {
       case Algorithm::Halo:
-	for (int k=0; k<3; k++) vl_bins[0][i][k] += vl_bins[n][i][k];
-	for (int k=0; k<3; k++) v2_bins[0][i][k] += v2_bins[n][i][k];
-	break;
+	      for (int k=0; k<3; k++) vl_bins[0][i][k] += vl_bins[n][i][k];
+	      for (int k=0; k<3; k++) v2_bins[0][i][k] += v2_bins[n][i][k];
+	    break;
       case Algorithm::Disk:
-      default:
-	for (int k=0; k<3; k++) L3_bins[0][i][k] += L3_bins[n][i][k];
+        default:
+	    for (int k=0; k<3; k++) L3_bins[0][i][k] += L3_bins[n][i][k];
       }
       break;
     }
@@ -263,9 +313,11 @@ void UserAddMass::determine_acceleration_and_potential(void)
   //
   std::vector<double> mas(numr), pack(numr*3);
 
-  MPI_Allreduce(mas_bins[0].data(), mas.data(), numr, MPI_DOUBLE, MPI_SUM,
+  MPI_Allreduce(mas_bins_current[0].data(), mas.data(), numr, MPI_DOUBLE, MPI_SUM,
 		MPI_COMM_WORLD);
-
+  if ( fabs( tnow - tstart)<3E-4 ){
+    for (unsigned i=0; i<numr; i++) mas_bins_adding[i] = mas[i];
+  }
   switch (alg) {
   case Algorithm::Halo:
     for (unsigned i=0; i<numr; i++) {
@@ -299,7 +351,7 @@ void UserAddMass::determine_acceleration_and_potential(void)
 
   // Compute cumulative mass
   //
-  std::vector<double> wght(mas);
+  std::vector<double> wght(mas_bins_adding);
   for (unsigned i=1; i<numr; i++) wght[i] += wght[i-1];
 
 
@@ -328,7 +380,7 @@ void UserAddMass::determine_acceleration_and_potential(void)
       out << "# Time=" << tnow << std::endl;
       const std::vector<std::string> labels =
 	{
-	 "Radius", "Mass", "Cum mass", "Velocity"
+	 "Radius", "Mass(current)", "Cum mass(adding)", "Velocity"
 	};
       for (size_t i=0; i<labels.size(); i++) {
 	if (i) out << std::setw(18) << std::right << "|";
@@ -361,8 +413,8 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	if (logr) rr = exp(rr);
 
 	out << std::setw(18) << rr	 // radius
-	    << std::setw(18) << mas[i]	 // mass
-	    << std::setw(18) << wght[i]; // cum mass
+	    << std::setw(18) << mas[i]	 // mass(current)
+	    << std::setw(18) << wght[i]; // cum mas(adding)
     
 	double vv = 0.0;	// velocity
 	if (mas[i]>0.0) {
@@ -386,7 +438,7 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	    break;
 	  }
 	}
-	out << std::setw(18) << vv << std::endl;
+	out << std::setw(18) << vv << std::setw(18) << L3_bins[0][i][0] << std::setw(18) << L3_bins[0][i][1] << std::setw(18) << L3_bins[0][i][2] << std::endl;
       }
 
     } else {
@@ -404,11 +456,29 @@ void UserAddMass::determine_acceleration_and_potential(void)
   // Compute total angular momentum
   //
   std::array<std::array<double, 3>, 3> ee;
+  for (int k=0; k<3; k++) ee[0][k] = 0.0;
+
+
 
   if (alg == Algorithm::Disk) {
+
     for (unsigned i=0; i<numr; i++) {
       for (int k=0; k<3; k++) ee[0][k] += L3_bins[0][i][k];
     }
+
+    if (planar) {		// FOR TESTING
+
+      if (ee[0][2]>0.0) {	// Right-handed spin
+	      ee[0] = { 0.0,  0.0,  1.0}; // +z
+	      ee[1] = { 1.0,  0.0,  0.0}; // +x
+	      ee[2] = { 0.0,  1.0,  0.0}; // +y
+      }  else {			// Left-handed spin
+	      ee[0] = { 0.0,  0.0, -1.0}; // -z
+	      ee[1] = { 1.0,  0.0,  0.0}; // +x
+	      ee[2] = { 0.0, -1.0,  0.0}; // -y
+      }
+
+    } else {			// Use angular momentum axes
 
     // First orthogonal vector
     //
@@ -426,7 +496,11 @@ void UserAddMass::determine_acceleration_and_potential(void)
     ee[2] = xprod(ee[0], ee[1]);
     norm = xnorm(ee[2]);
     for (auto & v : ee[2]) v /= norm;
+
+    }
   }
+
+  if (fabs(tnow - tstart) < 3E-4) return;
 
   // Finally, we are ready to generate the new particles
   //
@@ -440,112 +514,106 @@ void UserAddMass::determine_acceleration_and_potential(void)
   }
 
   for (int n=0; n<numgen; n++) {
-
     bool notfound = true;
-
     while (notfound) {
-
       // Get radius
       //
       auto it = std::lower_bound(wght.begin(), wght.end(), wght.back()*(*urand)());
       unsigned indx = numr-1;
       if (it != wght.end()) indx = std::distance(wght.begin(), it);
       if (indx>0) indx--;
-      
+
       // Decrease index to find non-zero bins(s)
       //
+
       std::function<bool(std::vector<double>&, int)> mfind;
-
       if (interp) {		// Interpolation predicate
-	mfind = [](auto &mas, auto indx)
-		{ return (mas[indx]==0.0 or mas[indx+1]==0.0); };
-	indx = std::min<unsigned>(indx, numr-2);
-      } else {			// Nearest bin predicate
-	mfind = [](auto &mas, auto indx)
-		{ return mas[indx]==0.0; };
-	indx = std::min<unsigned>(indx, numr-1);
-      }
+        mfind = [](auto &mas, auto indx)
+          { return (mas[indx]==0.0 or mas[indx+1]==0.0); };
 
+        indx = std::min<unsigned>(indx, numr-2);
+        } else {			// Nearest bin predicate
+          mfind = [](auto &mas, auto indx)
+		      { return mas[indx]==0.0; };
+          indx = std::min<unsigned>(indx, numr-1);
+        }
       while (mfind(mas, indx) and indx>0) indx--;
-
       // Skip this one
       //
       if (mfind(mas, indx)) break; 
-
       // Found good bin(s)
       //
-      notfound = false;
-      
+      notfound = false;      
       // Radius selection
       //
       double lrr = lrmin + dr*((*urand)() + indx);
-      double rr  = lrr, a=0.5, b=0.5;
-    
-      if (logr) rr = exp(lrr);	// Using log scaling for bins
-      
+      double rr  = lrr, a, b;
+      if (logr) rr = exp(lrr);	// Using log scaling for bins      
       if (interp) {
-	a = (lrmin + dr*(indx+1) - lrr)/dr;
-	b = (lrr - lrmin - dr*(indx+0))/dr;
-      }
 
+      	a = (lrmin + dr*(indx+1) - lrr)/dr;
+      	b = (lrr - lrmin - dr*(indx+0))/dr;
+
+      }
+      
       Particle *P =  c0->GetNewPart();
       P->mass  = mass;
       P->level = multistep;
-      
+
       switch (alg) {
-      case Algorithm::Halo:
-	{
-	  // Positions
-	  //
-	  double cosx = 2.0*(*urand)() - 1.0;
-	  double sinx = sqrt(fabs(1.0 - cosx*cosx));
-	  double phi  = 2.0*M_PI*(*urand)();
-	  double cosp = cos(phi), sinp = sin(phi);
-	  
-	  std::array<std::array<double, 3>, 3> ev;
+      case Algorithm::Halo:{
+	      // Positions
+	      //
+	      double cosx = 2.0*(*urand)() - 1.0;
+	      double sinx = sqrt(fabs(1.0 - cosx*cosx));
+	      double phi  = 2.0*M_PI*(*urand)();
+	      double cosp = cos(phi), sinp = sin(phi);
 	
-	  ev[0][0] =  sinx * cosp;
-	  ev[0][1] =  sinx * sinp;
-	  ev[0][2] =  cosx ;
-	  
-	  ev[1][0] =  cosx * cosp;
-	  ev[1][1] =  cosx * sinp;
-	  ev[1][2] = -sinx ;
-	  
-	  ev[2][0] = -sinp;
-	  ev[2][1] =  cosp;
-	  ev[2][2] =  0.0;
-	  
-	  // Positions
-	  //
-	  for (int k=0; k<3; k++) P->pos[k] = rr*ev[0][k];
-	  
-	  // Velocities
-	  //
-	  double sig = 0.0;
-	  for (int k=0; k<3; k++) {
-	    if (interp) {
-	      double v1a = vl_bins[0][indx  ][k]/mas[indx  ];
-	      double v2a = v2_bins[0][indx  ][k]/mas[indx  ];
-	      double v1b = vl_bins[0][indx+1][k]/mas[indx+1];
-	      double v2b = v2_bins[0][indx+1][k]/mas[indx+1];
-	      sig += a*(v2a - v1a*v1a) + b*(v2b - v1b*v1b);
-	    } else {
-	      double v1 = vl_bins[0][indx][k]/mas[indx];
-	      double v2 = v2_bins[0][indx][k]/mas[indx];
-	      sig += v2 - v1*v1;
-	    }
-	  } 
-	  sig = sqrt(fabs(sig));
-	  
-	  std::array<double, 3> vv = {(*nrand)(), (*nrand)(), (*nrand)()};
-	  double vnorm = xnorm(vv);
-	  for (auto & v : vv) v /= vnorm;
-	  
-	  for (int k=0; k<3; k++) P->vel[k] = sig * vv[k];
-	}
+	      std::array<std::array<double, 3>, 3> ev;
 	
-	break;
+	      ev[0][0] =  sinx * cosp;
+	      ev[0][1] =  sinx * sinp;
+	      ev[0][2] =  cosx ;
+	
+	      ev[1][0] =  cosx * cosp;
+	      ev[1][1] =  cosx * sinp;
+	      ev[1][2] = -sinx ;
+	
+	      ev[2][0] = -sinp;
+	      ev[2][1] =  cosp;
+	      ev[2][2] =  0.0;
+
+	      // Positions
+	      //
+	      for (int k=0; k<3; k++) P->pos[k] = rr*ev[0][k];
+	
+	      // Velocities
+	      //
+	      double sig = 0.0;
+	      for (int k=0; k<3; k++) {
+          if (interp) {
+	          double v1a = vl_bins[0][indx  ][k]/mas[indx  ];
+	          double v2a = v2_bins[0][indx  ][k]/mas[indx  ];
+	          double v1b = vl_bins[0][indx+1][k]/mas[indx+1];
+	          double v2b = v2_bins[0][indx+1][k]/mas[indx+1];
+  	        sig += a*(v2a - v1a*v1a) + b*(v2b - v1b*v1b);
+	        }
+          else{
+	          double v1 = vl_bins[0][indx][k]/mas[indx];
+	          double v2 = v2_bins[0][indx][k]/mas[indx];
+	          sig += v2 - v1*v1;
+          } 
+	      }
+	      sig = sqrt(fabs(sig));
+	
+	      std::array<double, 3> vv = {(*nrand)(), (*nrand)(), (*nrand)()};
+	      double vnorm = xnorm(vv);
+	      for (auto & v : vv) v /= vnorm;
+	
+	      for (int k=0; k<3; k++) P->vel[k] = sig * vv[k];
+      }
+
+      break;
       case Algorithm::Disk:
       default:
 	{
@@ -557,39 +625,69 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	  //                                      ^               ^
 	  // These are perpendicular to the       |               |
 	  // mean angular momemtnum vector -------+---------------+
-	
-	  // Use angular momentum to get tangential velocity.
-	  // E.g. L X r/r^2 = (r X v) X r/r^2 = v - r/|r| * (v.r/|r|) = v_t
-	  //
-	  vec3 rv;
-	  if (interp) {
-	    for (int k=0; k<3; k++) rv[k] =
-				      a*L3_bins[0][indx+0][k]/mas[indx+0] +
-				      b*L3_bins[0][indx+1][k]/mas[indx+1] ;
-	  } else {
-	    rv = L3_bins[0][indx];
-	    for (auto & v : rv) v /= mas[indx];
-	  }
+	  
+	  if (cforce) {		// Use force evaluation to get
+				// tangential veocity
+	    double tdens0, dpotl0, tdens, tpotl, tpotr, tpotz, tpotp;
+	    double z = P->pos[2], dPdR = 0.0;
 
-	  std::array<double, 3> xyz = {P->pos[0], P->pos[1], P->pos[2]};
-	  auto v3 = xprod(rv, xyz);
-	  for (auto & v : v3) v /= rr*rr;
-	  
-	  // v3 is now the mean tangential velocity perpendicular to
-	  // radius
-	  
-	  // Velocities
-	  //
-	  for (int k=0; k<3; k++) P->vel[k] = v3[k];
+	    for (auto c : comp_vec) {
+
+	      reinterpret_cast<Basis*>(c->force)->determine_fields_at_point_cyl
+		(rr, z, phi, &tdens0, &dpotl0, &tdens, &tpotl,
+		 &tpotr, &tpotz, &tpotp);
+	      
+	      dPdR += tpotr;
+	    }
+
+	    double vt = sqrt(rr*dPdR);
+	    if (L3_bins[0][indx][2] <= 0.0) vt *= -1.0;
+	    
+	    // Velocities
+	    //
+	    for (int k=0; k<3; k++) P->vel[k] = vt*(ee[2][k]*cosp - ee[1][k]*sinp);
+	    //                                      ^               ^
+	    // These are perpendicular to the       |               |
+	    // mean angular momemtnum vector -------+---------------+
+
+	    // TEST
+	    double perp = 0.0;
+	    for (int k=0; k<3; k++) perp += P->pos[k]*P->vel[k];
+	    if (fabs(perp)>1.0e-8) {
+	      std::cout << "Perp=" << perp << std::endl;
+	    }
+	    
+	  } else {
+	    // Use angular momentum to get tangential velocity.
+	    // E.g. L X r/r^2 = (r X v) X r/r^2 = v - r/|r| * (v.r/|r|) = v_t
+	    //
+	    vec3 rv;
+	    if (interp) {
+  	      for (int k=0; k<3; k++)
+		rv[k] = a*L3_bins[0][indx][k]/mas[indx+0] + b*L3_bins[0][indx+1][k]/mas[indx+1];
+	    } else {
+	      rv = L3_bins[0][indx];
+	      for (auto & v : rv) v /= mas[indx];
+	    }
+
+	    std::array<double, 3> xyz = {P->pos[0], P->pos[1], P->pos[2]};
+	    auto v3 = xprod(rv, xyz);
+	    for (auto & v : v3) v /= rr*rr;
+	    
+	    // v3 is now the mean tangential velocity perpendicular to
+	    // radius
+	    
+	    // Velocities
+	    //
+	    for (int k=0; k<3; k++) P->vel[k] = v3[k] *( (*nrand)() * 1/1.732 * vdisp + 1.0);
+	  }
 	}
 
 	break;
       }
-      // Which algorithm
     }
-    // Search for good particle
+
   }
-  // END: particle generation loop
 
 }
 
@@ -630,20 +728,25 @@ void * UserAddMass::determine_acceleration_and_potential_thread(void * arg)
     // Compute bin number
     //
     int indx = -1;		// Off grid, by default
-
+    double s;
+    if ( fabs( tnow - tstart)<3E-4 )
+      s=scale;
+    else
+      s=1;
     if (logr) {			// Log binning:
       if (r>0.0) {		// ignore if r==0.0 in
-	r = log(r);
+	r = log(r*s);
 	if (r >= lrmin) indx = floor( (r - lrmin)/dr );
       }
     } else {			// Linear binning
-      if (r >= lrmin) indx = floor( (r - lrmin)/dr );
+      if (r >= lrmin) indx = floor( (r*s - lrmin)/dr );
     }
 
     // Add value to bin
     //
     if (indx >= 0 and indx < static_cast<int>(numr)) {
-      mas_bins[id][indx] += P->mass;
+      
+      mas_bins_current[id][indx] += P->mass;
 
       switch (alg) {
       case Algorithm::Halo:

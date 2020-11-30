@@ -20,6 +20,7 @@
     mean velocity dispersion in spherical shells.
 
     @param compname is the component and must be specified
+    @param complist is the list of components for force evaluation, if specified
     @param tstart is the first time when particles are added
     @param dtime is the time interval between particle additions
     @param number is the number of particles to add per addition
@@ -32,26 +33,29 @@
     @param seed for the pseudorandom number generator
     @param debug is the time interval between profile outputs (<=0 for off)
     @param interp set to true for interpolation in angular momentum bins
+    @param planar set to true enforces particles added in the x-y plane for testing
 **/
-
 class UserAddMass : public ExternalForce
 {
 private:
-  
+
+  std::vector<std::string> comp_list;
   std::string comp_name;
+  std::vector<Component*> comp_vec;
   Component *c0;
 
-  bool logr, interp;
+  bool logr, interp, cforce, planar;
   unsigned number, numr;
   double mass, rmin, rmax, lrmin, lrmax, dr, tnext, dtime, debug, dnext;
+  double tstart, scale, vdisp;
   long int seed;
 
+  std::vector< std::vector<double> > mas_bins_current;
+  std::vector< double > mas_bins_adding;
   using vec3 = std::array<double, 3>;
-
-  std::vector< std::vector<double> > mas_bins;
-
   std::vector< std::vector<vec3> > vl_bins, v2_bins;
   std::vector< std::vector<vec3> > L3_bins;
+
 
   void clear_bins();
   void determine_acceleration_and_potential(void);
@@ -64,7 +68,6 @@ private:
 
   static std::map<std::string, Algorithm> AlgMap;
   static std::map<Algorithm, std::string> AlgMapInv;
-
   boost::shared_ptr<ACG>     gen;
   boost::shared_ptr<Uniform> urand;
   boost::shared_ptr<Normal>  nrand;
