@@ -980,6 +980,8 @@ main(int argc, char **argv)
 
     double term4tot = 0.0;
     std::vector<Vector> ac_cos, ac_sin;
+    std::vector<Vector> rt_cos, rt_sin;
+    std::vector<Vector> sn_cos, sn_sin;
 
     for (int nsnr=0; nsnr<NSNR; nsnr++) {
 
@@ -996,16 +998,39 @@ main(int argc, char **argv)
     
       // Get the snr trimmed coefficients
       //
-      ortho.get_trimmed(snr, ac_cos, ac_sin);
+      ortho.get_trimmed(snr, ac_cos, ac_sin,
+			&rt_cos, &rt_sin, &sn_cos, &sn_sin);
 	
       if (myid==0) {
-	std::cout << "*** SNR: " << snr << std::endl;
+	// Header
+	std::cout << "*** SNR: " << snr << std::endl << std::right
+		  << std::setw( 4) << "M |"
+		  << std::setw( 4) << "n |"
+		  << std::setw(16) << " coef(cos) |"
+		  << std::setw(16) << "ratio(cos) |"
+		  << std::setw(16) << "  S/N(cos) |"
+		  << std::setw(16) << " coef(sin) |"
+		  << std::setw(16) << "ratio(sin) |"
+		  << std::setw(16) << "  S/N(sin) |"
+		  << std::endl << std::setfill('-');
+	for (int i=0; i<2; i++) std::cout << std::setw( 4) << "-+";
+	for (int i=0; i<6; i++) std::cout << std::setw(16) << "-+";
+	std::cout << std::endl << std::setfill(' ');
+	  
+	// Data
 	for (int M=0; M<=mmax; M++) {
-	  for (int i=0; i<norder; i++)
-	    std::cout << std::setw(4)  << M
-		      << std::setw(4)  << i
-		      << std::setw(18) << ac_cos[M][i] << std::endl;
-	  std::cout << std::endl;
+	  for (int i=0; i<norder; i++) {
+	    std::cout << std::setw( 4) << M
+		      << std::setw( 4) << i
+		      << std::setw(16) << ac_cos[M][i]
+		      << std::setw(16) << rt_cos[M][i]
+		      << std::setw(16) << sn_cos[M][i];
+	    if (M)
+	    std::cout << std::setw(16) << ac_sin[M][i]
+		      << std::setw(16) << rt_sin[M][i]
+		      << std::setw(16) << sn_sin[M][i];
+	    std::cout << std::endl;
+	  }
 	}
       }
 

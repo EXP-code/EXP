@@ -473,16 +473,6 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	      }
 	    }
 
-	    if (compute and pcavar) {
-	      pthread_mutex_lock(&cc_lock);
-	      for (int n1=1; n1<=nmax; n1++) {
-		for (int n2=1; n2<=nmax; n2++) {
-		  (*covT1[whch][iC])[n1][n2] += wk[n1-1]*wk[n2-1];
-		}
-	      }
-	      pthread_mutex_unlock(&cc_lock);
-	    }
-
 	    if (compute and pcaeof) {
 	      pthread_mutex_lock(&cc_lock);
 	      for (int n=1; n<=nmax; n++) {
@@ -514,16 +504,6 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 		pthread_mutex_unlock(&cc_lock);
 	      }
 	      
-	    }
-
-	    if (compute and pcavar) {
-	      pthread_mutex_lock(&cc_lock);
-	      for (int n1=1; n1<=nmax; n1++) {
-		for (int n2=1; n2<=nmax; n2++) {
-		  (*covT1[whch][iC])[n1][n2] += wk[n1-1]*facL * wk[n2-1]*facL;
-		}
-	      }
-	      pthread_mutex_unlock(&cc_lock);
 	    }
 
 	    if (compute and pcaeof) {
@@ -630,18 +610,6 @@ void SphericalBasis::determine_coefficients(void)
 	for (auto v : t) v = boost::make_shared<Vector>(1, nmax);
       }
 
-      covT.resize(sampT);
-      for (auto & t : covT ) {
-	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto v : t) v = boost::make_shared<Matrix>(1, nmax, 1, nmax);
-      }
-      
-      covT1.resize(sampT);
-      for (auto & t : covT1 ) {
-	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto v : t) v = boost::make_shared<Matrix>(1, nmax, 1, nmax);
-      }
-
     }
 
     // Zero arrays?
@@ -652,7 +620,6 @@ void SphericalBasis::determine_coefficients(void)
       
       if (pcavar) {
 	for (auto & t : expcoefT1) { for (auto & v : t) v->zero(); }
-	for (auto & t : covT1)     { for (auto & v : t) v->zero(); }
 	for (auto & v : massT1)    v = 0;
       }
 

@@ -53,9 +53,7 @@ protected:
 
   std::vector<std::vector<VectorP>> expcoefN;
   std::vector<std::vector<VectorP>> expcoefL;
-
   std::vector<std::vector<VectorP>> expcoefT, expcoefT1;
-  std::vector<std::vector<MatrixP>> covT, covT1;
 
   std::vector<double>               massT, massT1;
   unsigned                          sampT;

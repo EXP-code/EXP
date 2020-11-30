@@ -265,16 +265,18 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	      meanJK[i] += (*expcoefT[T][indxC])[i];
 
 	      for (int j=1; j<=nmax; j++) {
-		covrJK[i][j] += (*covT[T][indxC])[i][j];
+		covrJK[i][j] +=
+		  (*expcoefT[T][indxC])[i] * (*expcoefT[T][indxC])[j] / sampT;
 	      }
 	    }
 	  }
 	  
 	  for (int i=1; i<=nmax; i++) {
 	    for (int j=1; j<=nmax; j++) {
-	      covrJK[i][j] -= meanJK[i]/sampT*meanJK[j]/sampT / sampT;
+	      covrJK[i][j] -= meanJK[i]/sampT * meanJK[j]/sampT;
 	    }
 	  }
+
 #ifdef GHQL
 	  evalJK = covrJK.Symmetric_Eigenvalues_GHQL(evecJK);
 #else
@@ -365,7 +367,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 
 	  for (int n=1; n<=nmax; n++) {
 	    
-	    var = evalJK[n] * sampT*sampT*sampT;
+	    var = evalJK[n] * sampT;
 	    //                ^
 	    //                |
 	    //                +--------- bootstrap variance estimate for
@@ -421,7 +423,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	    
 	    if (pcavar) {
 	  
-	      var = evalJK[n] * sampT*sampT*sampT;
+	      var = evalJK[n] * sampT;
 	      //                ^
 	      //                |
 	      //                +--------- bootstrap variance estimate for
@@ -615,12 +617,6 @@ void AxisymmetricBasis::parallel_gather_coef2(void)
 	MPI_Allreduce(&(*expcoefT1[T][l])[1],
 		      &(*expcoefT [T][l])[1], nmax,
 		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      }
-      for (int l=0; l<(Lmax+1)*(Lmax+2)/2; l++) {
-	for (int n=1; n<=nmax; n++)
-	  MPI_Allreduce(&(*covT1[T][l])[n],
-			&(*covT [T][l])[n], nmax,
-			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
       }
     }
   }

@@ -95,7 +95,7 @@ private:
 
   //@{
   //! Storage buffers for MPI
-  std::vector<double> MPIin, MPIout, MPIin2, MPIout2;
+  std::vector<double> MPIin, MPIout;
   std::vector<double> MPIin_eof, MPIout_eof;
 
   std::vector<double> mpi_double_buf2, mpi_double_buf3;
@@ -203,7 +203,6 @@ private:
 
   // Error analysis
   CoefVector  cov2;
-  CoefMatrix  covM;
 
   std::vector< std::vector<unsigned>  > numbT1;
   std::vector< std::vector<double>  > massT1;
@@ -832,9 +831,12 @@ public:
 
 
   //! Get the coefficients trimmed by a SNR value using the defined algorithm
-  void get_trimmed(double snr,
-		   std::vector<Vector>& ac_cos, std::vector<Vector>& ac_sin);
-
+  void get_trimmed
+  (double snr,
+   std::vector<Vector>& ac_cos,   std::vector<Vector>& ac_sin,
+   std::vector<Vector>* rt_cos=0, std::vector<Vector>* rt_sin=0,
+   std::vector<Vector>* sn_cos=0, std::vector<Vector>* sn_sin=0);
+  
   //! Set frequency and file name for selector output
   inline void setTotal(unsigned tot) {
     nbodstot = tot;
