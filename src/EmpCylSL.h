@@ -835,7 +835,7 @@ public:
   (double snr,
    std::vector<Vector>& ac_cos,   std::vector<Vector>& ac_sin,
    std::vector<Vector>* rt_cos=0, std::vector<Vector>* rt_sin=0,
-   std::vector<Vector>* sn_cos=0, std::vector<Vector>* sn_sin=0);
+   std::vector<Vector>* sn_rat=0);
   
   //! Set frequency and file name for selector output
   inline void setTotal(unsigned tot) {

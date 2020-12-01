@@ -169,7 +169,7 @@ main(int argc, char **argv)
   sleep(20);
 #endif  
   
-  double RMIN, RMAX, rscale, minSNR, Hexp;
+  double RMIN, RMAX, rscale, minSNR0, Hexp;
   int NICE, LMAX, NMAX, NSNR, NPART, NINTR, NINTT, MLIM;
   int beg, end, stride, init, numr;
   std::string CACHEFILE, modelf, dir("./"), cname, prefix, table_cache;
@@ -217,7 +217,7 @@ main(int argc, char **argv)
      "Jackknife partition number for testing (0 means off, use standard eval)")
     ("NSNR, N",             po::value<int>(&NSNR)->default_value(20),
      "Number of SNR evaluations")
-    ("minSNR",              po::value<double>(&minSNR)->default_value(0.01),
+    ("minSNR",              po::value<double>(&minSNR0),
      "minimum SNR value for loop output")
     ("Hexp",                po::value<double>(&Hexp)->default_value(1.0),           "default Hall smoothing exponent")
     ("prefix",              po::value<string>(&prefix)->default_value("crossval"),
@@ -962,8 +962,11 @@ main(int argc, char **argv)
 		<< " maxSNR=" << maxSNR << std::endl;
     }
 
-    if (maxSNR < minSNR)        minSNR = maxSNR * 1.0e-2;
-    if (minSNR < maxSNR*1.0e-6) minSNR = maxSNR * 1.0e-6;
+    if (maxSNR < minSNR )  minSNR = maxSNR * 1.0e-2;
+
+    if (vm.count("minSNR")) {
+      if (minSNR > minSNR0)  minSNR = minSNR0;
+    }
     
     if (LOG) {
       minSNR = log(minSNR);
@@ -981,7 +984,7 @@ main(int argc, char **argv)
     double term4tot = 0.0;
     std::vector<Vector> ac_cos, ac_sin;
     std::vector<Vector> rt_cos, rt_sin;
-    std::vector<Vector> sn_cos, sn_sin;
+    std::vector<Vector> sn_rat;
 
     for (int nsnr=0; nsnr<NSNR; nsnr++) {
 
@@ -999,7 +1002,7 @@ main(int argc, char **argv)
       // Get the snr trimmed coefficients
       //
       ortho.get_trimmed(snr, ac_cos, ac_sin,
-			&rt_cos, &rt_sin, &sn_cos, &sn_sin);
+			&rt_cos, &rt_sin, &sn_rat);
 	
       if (myid==0) {
 	// Header
@@ -1007,14 +1010,13 @@ main(int argc, char **argv)
 		  << std::setw( 4) << "M |"
 		  << std::setw( 4) << "n |"
 		  << std::setw(16) << " coef(cos) |"
-		  << std::setw(16) << "ratio(cos) |"
-		  << std::setw(16) << "  S/N(cos) |"
 		  << std::setw(16) << " coef(sin) |"
+		  << std::setw(16) << "ratio(cos) |"
 		  << std::setw(16) << "ratio(sin) |"
-		  << std::setw(16) << "  S/N(sin) |"
+		  << std::setw(16) << "       S/N |"
 		  << std::endl << std::setfill('-');
 	for (int i=0; i<2; i++) std::cout << std::setw( 4) << "-+";
-	for (int i=0; i<6; i++) std::cout << std::setw(16) << "-+";
+	for (int i=0; i<5; i++) std::cout << std::setw(16) << "-+";
 	std::cout << std::endl << std::setfill(' ');
 	  
 	// Data
@@ -1023,13 +1025,11 @@ main(int argc, char **argv)
 	    std::cout << std::setw( 4) << M
 		      << std::setw( 4) << i
 		      << std::setw(16) << ac_cos[M][i]
+		      << std::setw(16) << (M ? ac_sin[M][i] : 0.0)
 		      << std::setw(16) << rt_cos[M][i]
-		      << std::setw(16) << sn_cos[M][i];
-	    if (M)
-	    std::cout << std::setw(16) << ac_sin[M][i]
-		      << std::setw(16) << rt_sin[M][i]
-		      << std::setw(16) << sn_sin[M][i];
-	    std::cout << std::endl;
+		      << std::setw(16) << (M ? rt_sin[M][i] : 0.0)
+		      << std::setw(16) << sn_rat[M][i]
+		      << std::endl;
 	  }
 	}
       }

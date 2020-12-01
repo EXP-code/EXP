@@ -262,7 +262,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	    
 	    for (int i=1; i<=nmax; i++) {
 	    
-	      meanJK[i] += (*expcoefT[T][indxC])[i];
+	      meanJK[i] += (*expcoefT[T][indxC])[i] / sampT;
 
 	      for (int j=1; j<=nmax; j++) {
 		covrJK[i][j] +=
@@ -273,7 +273,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	  
 	  for (int i=1; i<=nmax; i++) {
 	    for (int j=1; j<=nmax; j++) {
-	      covrJK[i][j] -= meanJK[i]/sampT * meanJK[j]/sampT;
+	      covrJK[i][j] -= meanJK[i] * meanJK[j];
 	    }
 	  }
 
@@ -363,11 +363,11 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	  
 	  if (out) out << endl;
 	  
-	  tt = Tevec[indxC] * meanJK/sampT;
+	  tt = Tevec[indxC] * meanJK;
 
 	  for (int n=1; n<=nmax; n++) {
 	    
-	    var = evalJK[n] * sampT;
+	    var = evalJK[n] / sampT;
 	    //                ^
 	    //                |
 	    //                +--------- bootstrap variance estimate for
@@ -423,7 +423,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	    
 	    if (pcavar) {
 	  
-	      var = evalJK[n] * sampT;
+	      var = evalJK[n] / sampT;
 	      //                ^
 	      //                |
 	      //                +--------- bootstrap variance estimate for

@@ -1802,6 +1802,7 @@ void EmpCylSL::init_pca()
   if (PCAVAR or PCAEOF) {
     if (PCAVAR)
       sampT = floor(sqrt(nbodstot));
+    // sampT = 10000;
 
     pthread_mutex_init(&used_lock, NULL);
 
@@ -4103,7 +4104,7 @@ void EmpCylSL::pca_hall(bool compute)
 	  for (int nn=0; nn<rank3; nn++) {
 	    // Compute mean coef from subsample
 	    //
-	    (*pb)[mm]->meanJK[nn+1] += cov2(0, T, mm)[nn];
+	    (*pb)[mm]->meanJK[nn+1] += cov2(0, T, mm)[nn] / sampT;
 	    
 	    for (int oo=0; oo<rank3; oo++) {
 	      // Compute mean squared coefs from subsample
@@ -4118,7 +4119,7 @@ void EmpCylSL::pca_hall(bool compute)
 	for (int nn=0; nn<rank3; nn++) { 
 	  for (int oo=0; oo<rank3; oo++) {
 	    (*pb)[mm]->covrJK[nn+1][oo+1] -=
-	      (*pb)[mm]->meanJK[nn+1]/sampT * (*pb)[mm]->meanJK[oo+1]/sampT;
+	      (*pb)[mm]->meanJK[nn+1] * (*pb)[mm]->meanJK[oo+1];
 	  }
 	}
 	
@@ -4243,7 +4244,7 @@ void EmpCylSL::pca_hall(bool compute)
 	  // Boostrap variance estimate for full variance------------+
 	  // combined with scaling                                   |
 	  //                                                         v
-	  double    var = std::max<double>((*pb)[mm]->evalJK[nn+1] * sampT,
+	  double    var = std::max<double>((*pb)[mm]->evalJK[nn+1] / sampT,
 					   std::numeric_limits<double>::min());
 	  double    sqr = dd[nn+1]*dd[nn+1];
 	  double      b = var/sqr;
@@ -4276,7 +4277,7 @@ void EmpCylSL::pca_hall(bool compute)
 	    // Boostrap variance estimate for pop variance----------+
 	    // combined with magnitude scaling                      |
 	    //                                                      v
-	    double var = std::max<double>((*pb)[mm]->evalJK[nn+1] * sampT,
+	    double var = std::max<double>((*pb)[mm]->evalJK[nn+1] / sampT,
 					  std::numeric_limits<double>::min());
 	    double sqr = dd[nn+1]*dd[nn+1];
 
@@ -4382,7 +4383,7 @@ void EmpCylSL::get_trimmed
 (double snr,
  std::vector<Vector>& ac_cos, std::vector<Vector>& ac_sin,
  std::vector<Vector>* rt_cos, std::vector<Vector>* rt_sin,
- std::vector<Vector>* sn_cos, std::vector<Vector>* sn_sin)
+ std::vector<Vector>* sn_rat)
 {
   if (PCAVAR and tk_type != None) {
 
@@ -4394,30 +4395,27 @@ void EmpCylSL::get_trimmed
     if (rt_cos) {
       rt_cos->resize(MMAX+1);
       rt_sin->resize(MMAX+1);
-
-      sn_cos->resize(MMAX+1);
-      sn_sin->resize(MMAX+1);
+      sn_rat->resize(MMAX+1);
     }
 
     // Loop through each harmonic subspace [EVEN cosines]
     //
     
-    Vector wrk(1, rank3);
+    Vector ddc(1, rank3), dds(1, rank3), wrk(1, rank3), sig(1, rank3);
     
     for (int mm=0; mm<=MMAX; mm++) {
       
       ac_cos[mm].setsize(0, NORDER-1);
       if (rt_cos) {
 	(*rt_cos)[mm].setsize(0, NORDER-1);
-	(*sn_cos)[mm].setsize(0, NORDER-1);
+	(*rt_sin)[mm].setsize(0, NORDER-1);
+	(*sn_rat)[mm].setsize(0, NORDER-1);
       }
       if (mm) {
 	ac_sin[mm].setsize(0, NORDER-1);
-	if (rt_sin) {
-	  (*rt_sin)[mm].setsize(0, NORDER-1);
-	  (*sn_sin)[mm].setsize(0, NORDER-1);
-	}
       }
+
+      sig.zero();
 
       auto it = pb->find(mm);
       
@@ -4425,11 +4423,6 @@ void EmpCylSL::get_trimmed
 	
 	auto & I = it->second;
 	
-	// COSINES
-	
-	// Project coefficients
-	for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_cos[mm][nn];
-	Vector dd = I->evecJK.Transpose() * wrk;
 	
 	// Smooth coefficients
 	//
@@ -4448,54 +4441,77 @@ void EmpCylSL::get_trimmed
 	  }
 	}
 
-	wrk = dd & smth;
 
-	// Deproject coefficients
-	dd = I->evecJK * wrk;
-	for (int nn=0; nn<rank3; nn++) ac_cos[mm][nn] = dd[nn+1];
+	// Cosine coefficients
+	{
+	  // Project to decorrelated basis
+	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_cos[mm][nn];
+	  ddc = I->evecJK.Transpose() * wrk;
 
-	// Diagnostics
-	if (rt_cos) {
-	  for (int nn=0; nn<rank3; nn++) {
-	    if (accum_cos[mm][nn] != 0.0)
-	      (*rt_cos)[mm][nn] = dd[nn+1] / accum_cos[mm][nn];
-	    else
-	      (*rt_cos)[mm][nn] = 0.0;
-	    if (I->evecJK[nn+1][nn+1] != 0.0)
-	      (*sn_cos)[mm][nn] = accum_cos[mm][nn] * accum_cos[mm][nn] / I->covrJK[nn+1][nn+1] / sampT;
-	    else
-	      (*sn_cos)[mm][nn] = 0.0;
-	  }
-	}
+	  // Smooth
+	  wrk = ddc & smth;
 
-	if (mm) {
-	  // Project coefficients
-	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_sin[mm][nn];
-	  Vector dd = I->evecJK.Transpose() * wrk;
-	  
-	  // Smooth coefficients
-	  wrk = dd & smth;
-	  
 	  // Deproject coefficients
-	  dd = I->evecJK * wrk;
-	  for (int nn=0; nn<rank3; nn++) ac_sin[mm][nn] = dd[nn+1];
+	  ddc = I->evecJK * wrk;
+	  for (int nn=0; nn<rank3; nn++) ac_cos[mm][nn] = ddc[nn+1];
 
-	  // Diagnostics
-	  if (rt_sin) {
-	    for (int nn=0; nn<rank3; nn++) {
-	      if (accum_sin[mm][nn] != 0.0)
-		(*rt_sin)[mm][nn] = dd[nn+1] / accum_sin[mm][nn];
-	      else
-		(*rt_sin)[mm][nn] = 0.0;
-	      if (I->evecJK[nn+1][nn+1] != 0.0)
-		(*sn_sin)[mm][nn] = accum_sin[mm][nn] * accum_sin[mm][nn] / I->covrJK[nn+1][nn+1] / sampT;
-	      else
-		(*sn_sin)[mm][nn] = 0.0;
+	  // Accumulate variance for modulus by error propagation
+	  for (int nn=0; nn<rank3; nn++) {
+	    for (int oo=0; oo<rank3; oo++) {
+	      // Columns are eigenvectors
+	      double val = I->evecJK[oo+1][nn+1];
+	      sig[oo+1] += val*val*I->evalJK[nn+1];
 	    }
 	  }
 	}
+
+	// Sine coefficients
+	if (mm) {
+	  // Project to decorrelated basis
+	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_sin[mm][nn];
+	  dds = I->evecJK.Transpose() * wrk;
+
+	  // Smooth
+	  wrk = dds & smth;
+
+	  // Deproject coefficients
+	  dds = I->evecJK * wrk;
+	  for (int nn=0; nn<rank3; nn++) ac_sin[mm][nn] = dds[nn+1];
+
+	} else {
+	  dds.zero();
+	}
+
+	// BEG: diagnostics
+	if (rt_cos) {
+	  for (int nn=0; nn<rank3; nn++) {
+	    if (accum_cos[mm][nn] != 0.0)
+	      (*rt_cos)[mm][nn] = ddc[nn+1] / accum_cos[mm][nn];
+	    else
+	      (*rt_cos)[mm][nn] = 0.0;
+	  }
+
+	  if (mm) {
+	    for (int nn=0; nn<rank3; nn++) {
+	      if (accum_sin[mm][nn] != 0.0)
+		(*rt_sin)[mm][nn] = dds[nn+1] / accum_sin[mm][nn];
+	      else
+		(*rt_sin)[mm][nn] = 0.0;
+	    }
+	  }
+
+	  for (int nn=0; nn<rank3; nn++) {
+	    double val = ddc[nn+1]*ddc[nn+1] + dds[nn+1]*dds[nn+1];
+	    if (sig[nn+1]>0.0) 
+	      (*sn_rat)[mm][nn] = val/sig[nn+1];
+	    else
+	      (*sn_rat)[mm][nn] = 0.0;
+	  }
+	}
+	// END: diagnostics
       }
     }
+    // M loop
   }
       
 }
