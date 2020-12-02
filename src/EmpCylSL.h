@@ -95,7 +95,7 @@ private:
 
   //@{
   //! Storage buffers for MPI
-  std::vector<double> MPIin, MPIout;
+  std::vector<double> MPIin, MPIout, MPIin2, MPIout2;
   std::vector<double> MPIin_eof, MPIout_eof;
 
   std::vector<double> mpi_double_buf2, mpi_double_buf3;
@@ -203,6 +203,7 @@ private:
 
   // Error analysis
   CoefVector  cov2;
+  CoefMatrix  covM;
 
   std::vector< std::vector<unsigned>  > numbT1;
   std::vector< std::vector<double>  > massT1;
