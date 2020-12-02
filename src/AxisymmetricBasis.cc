@@ -265,8 +265,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	      meanJK[i] += (*expcoefT[T][indxC])[i] / sampT;
 
 	      for (int j=1; j<=nmax; j++) {
-		covrJK[i][j] +=
-		  (*expcoefT[T][indxC])[i] * (*expcoefT[T][indxC])[j] / sampT;
+		covrJK[i][j] += massT[T] * (*expcoefM[T][indxC])[i][j] / sampT;
 	      }
 	    }
 	  }
@@ -617,6 +616,11 @@ void AxisymmetricBasis::parallel_gather_coef2(void)
 	MPI_Allreduce(&(*expcoefT1[T][l])[1],
 		      &(*expcoefT [T][l])[1], nmax,
 		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	for (int nn=1; nn<=nmax; nn++) {
+	  MPI_Allreduce(&(*expcoefM1[T][l])[nn][1],
+			&(*expcoefM [T][l])[nn][1], nmax,
+			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	}
       }
     }
   }

@@ -29,7 +29,7 @@ protected:
   //! Compute eof decomposition
   bool pcaeof;
 
-  //! vtk diagnostic frequency
+  //! VTK diagnostic frequency
   unsigned vtkfreq;
 
   //! Frequency of PCA computation
@@ -51,12 +51,23 @@ protected:
 
   std::vector<VectorP> expcoef, expcoef1;
 
+  //@{
+  //! Interpolation arrays
   std::vector<std::vector<VectorP>> expcoefN;
   std::vector<std::vector<VectorP>> expcoefL;
-  std::vector<std::vector<VectorP>> expcoefT, expcoefT1;
+  //@}
 
+  //@{
+  //! Covariance arrays
+  std::vector<std::vector<VectorP>> expcoefT, expcoefT1;
+  std::vector<std::vector<MatrixP>> expcoefM, expcoefM1;
+  //@}
+
+  //@{
+  //! Mass and counts for subsample covariance
   std::vector<double>               massT, massT1;
   unsigned                          sampT;
+  //@}
 
   //! Test for eof trim
   std::vector<MatrixP>              tvar;

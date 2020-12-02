@@ -202,7 +202,7 @@ private:
   std::vector<std::vector<Matrix>> tvar;
 
   // Error analysis
-  CoefVector  cov2;
+  CoefVector  covV;
   CoefMatrix  covM;
 
   std::vector< std::vector<unsigned>  > numbT1;
@@ -911,7 +911,7 @@ public:
     if (T >= sampT)
       throw std::runtime_error("T>=sampT");
 
-    return cov2(0, T, m)[n];
+    return covV(0, T, m)[n];
   }
 
   double& set_tvar(int m, int i, int j)

@@ -202,7 +202,7 @@ void UserAddMass::userinfo()
 
   if (comp_list.size()>0) {
     cout << " force evaluation from components [";
-    for (auto s : comp_list) cout << " \"" << s << "\"";
+    for (auto s : comp_list) cout << " <" << s << ">";
     cout << " ]";
   }
   cout << std::endl;
@@ -222,6 +222,7 @@ void UserAddMass::initialize()
     if (conf["mass"])       mass        = conf["mass"].as<double>();
     if (conf["numr"])       numr        = conf["numr"].as<unsigned>();
     if (conf["interp"])     interp      = conf["interp"].as<bool>();
+    if (conf["planar"])     planar      = conf["planar"].as<bool>();
     if (conf["logr"])       logr        = conf["logr"].as<bool>();
     if (conf["seed"])       seed        = conf["seed"].as<long int>();
     if (conf["number"])     number      = conf["number"].as<unsigned>();
@@ -640,7 +641,7 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	      dPdR += tpotr;
 	    }
 
-	    double vt = sqrt(rr*dPdR);
+	    double vt = sqrt(rr*fabs(dPdR));
 	    if (L3_bins[0][indx][2] <= 0.0) vt *= -1.0;
 	    
 	    // Velocities
@@ -649,6 +650,17 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	    //                                      ^               ^
 	    // These are perpendicular to the       |               |
 	    // mean angular momemtnum vector -------+---------------+
+
+	    // Test for NaN
+	    //
+	    for (int k=0; k<3; k++) {
+	      if (std::isnan(P->pos[k])) {
+		std::cout << "UserAddMass [" << k << "] NaN position" << std::endl;
+	      }
+	      if (std::isnan(P->vel[k])) {
+		std::cout << "UserAddMass [" << k << "] NaN velocity" << std::endl;
+	      }
+	    }
 
 	    // TEST
 	    double perp = 0.0;

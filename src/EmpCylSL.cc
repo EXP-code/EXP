@@ -1726,10 +1726,10 @@ void EmpCylSL::setup_accumulation(int mlevel)
 	for (unsigned T=0; T<sampT; T++) {
 	  numbT1[nth][T] = 0;
 	  massT1[nth][T] = 0.0;
-	  cov2[nth][T].resize(MMAX+1);
+	  covV[nth][T].resize(MMAX+1);
 	  covM[nth][T].resize(MMAX+1);
 	  for (int mm=0; mm<=MMAX; mm++) {
-	    cov2[nth][T][mm].setsize(0, NORDER-1);
+	    covV[nth][T][mm].setsize(0, NORDER-1);
 	    covM[nth][T][mm].setsize(0, NORDER-1, 0, NORDER-1);
 	  }
 	}
@@ -1759,7 +1759,7 @@ void EmpCylSL::setup_accumulation(int mlevel)
 	  numbT1[nth][T] = 0;
 	  massT1[nth][T] = 0.0;
 	  for (int mm=0; mm<=MMAX; mm++) {
-	    cov2[nth][T][mm].zero();
+	    covV[nth][T][mm].zero();
 	    covM[nth][T][mm].zero();
 	  }
 	}
@@ -1813,7 +1813,7 @@ void EmpCylSL::init_pca()
       tvar.resize(nthrds);
 
     if (PCAVAR) {
-      cov2  .resize(nthrds);
+      covV  .resize(nthrds);
       covM  .resize(nthrds);
       numbT1.resize(nthrds);
       massT1.resize(nthrds);
@@ -1834,13 +1834,13 @@ void EmpCylSL::init_pca()
 	numbT1[nth].resize(sampT, 0);
 	massT1[nth].resize(sampT, 0);
 
-	cov2[nth].resize(sampT);
+	covV[nth].resize(sampT);
 	covM[nth].resize(sampT);
 	for (unsigned T=0; T<sampT; T++) {
-	  cov2[nth][T].resize(MMAX+1);
+	  covV[nth][T].resize(MMAX+1);
 	  covM[nth][T].resize(MMAX+1);
 	  for (int mm=0; mm<=MMAX; mm++) {
-	    cov2[nth][T][mm].setsize(0, rank3-1);
+	    covV[nth][T][mm].setsize(0, rank3-1);
 	    covM[nth][T][mm].setsize(0, rank3-1, 0, rank3-1);
 	  }
 	}
@@ -3678,7 +3678,7 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 	if (mm) hs1 = vs[id][mm][nn];
 	double modu1 = sqrt(hc1*hc1 + hs1*hs1) * norm;
 
-	cov2(id, whch, mm)[nn] += mass * modu1;
+	covV(id, whch, mm)[nn] += mass * modu1;
 
 	for (int oo=0; oo<rank3; oo++) {
 	  double hc2 = vc[id][mm][oo], hs2 = 0.0;
@@ -3799,7 +3799,7 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 
 	for (int mm=0; mm<=MMAX; mm++) {
 	  for (int nn=0; nn<rank3; nn++) {
-	    cov2(0, T, mm)[nn] += cov2(nth, T, mm)[nn];
+	    covV(0, T, mm)[nn] += covV(nth, T, mm)[nn];
 	    for (int oo=0; oo<rank3; oo++) {
 	      covM(0, T, mm)[nn][oo] += covM(nth, T, mm)[nn][oo];
 	    }
@@ -3847,7 +3847,7 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
       
       for (int mm=0; mm<=MMAX; mm++) {
 	for (int nn=0; nn<rank3; nn++) {
-	  MPIin[mm*rank3 + nn] = cov2(0, T, mm)[nn];
+	  MPIin[mm*rank3 + nn] = covV(0, T, mm)[nn];
 	  for (int oo=0; oo<rank3; oo++) {
 	    MPIin2[mm*rank3*rank3 + nn*rank3 + oo] = covM(0, T, mm)[nn][oo];
 	  }
@@ -3862,7 +3862,7 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 
       for (int mm=0; mm<=MMAX; mm++) {
 	for (int nn=0; nn<rank3; nn++) {
-	  cov2(0, T, mm)[nn] = MPIout[mm*rank3 + nn];
+	  covV(0, T, mm)[nn] = MPIout[mm*rank3 + nn];
 	  for (int oo=0; oo<rank3; oo++) {
 	    covM(0, T, mm)[nn][oo] = MPIout2[mm*rank3*rank3 + nn*rank3 + oo];
 	  }
@@ -3899,6 +3899,9 @@ void EmpCylSL::make_coefficients(bool compute)
   if (MPIin.size()==0) {	// Vector reduction
     MPIin  .resize(rank3*(MMAX+1));
     MPIout .resize(rank3*(MMAX+1));
+				// Matrix reduction
+    MPIin2 .resize(rank3*rank3*(MMAX+1));
+    MPIout2.resize(rank3*rank3*(MMAX+1));
   }
 				// Sum up over threads
 				// 
@@ -3922,7 +3925,7 @@ void EmpCylSL::make_coefficients(bool compute)
 	  cosN(M)[0][mm][nn] += cosN(M)[nth][mm][nn];
 	  if (compute and PCAVAR) {
 	    for (unsigned T=0; T<sampT; T++) {
-	      cov2(0, T, mm)[nn] += cov2(nth, T, mm)[nn];
+	      covV(0, T, mm)[nn] += covV(nth, T, mm)[nn];
 	      for (int oo=0; oo<rank3; oo++) {
 		covM(0, T, mm)[nn][oo] += covM(nth, T, mm)[nn][oo];
 	      }
@@ -3978,7 +3981,7 @@ void EmpCylSL::make_coefficients(bool compute)
     for (unsigned T=0; T<sampT; T++) {
       for (int mm=0; mm<=MMAX; mm++) {
 	for (int nn=0; nn<rank3; nn++) {
-	  MPIin[mm*rank3 + nn] = cov2(0, T, mm)[nn];
+	  MPIin[mm*rank3 + nn] = covV(0, T, mm)[nn];
 	  for (int oo=0; oo<rank3; oo++) {
 	    MPIin2[mm*rank3*rank3 + nn*rank3 + oo] = covM(0, T, mm)[nn][oo];
 	  }
@@ -3993,9 +3996,9 @@ void EmpCylSL::make_coefficients(bool compute)
 
       for (int mm=0; mm<=MMAX; mm++) {
 	for (int nn=0; nn<rank3; nn++) {
-	  cov2(0, T, mm)[nn] = MPIout[mm*rank3 + nn];
+	  covV(0, T, mm)[nn] = MPIout[mm*rank3 + nn];
 	  for (int oo=0; oo<rank3; oo++) {
-	    covM(0, T, mm)[nn][oo] = MPIout[mm*rank3*rank3 + nn*rank3 + oo];
+	    covM(0, T, mm)[nn][oo] = MPIout2[mm*rank3*rank3 + nn*rank3 + oo];
 	  }
 	}
       }
@@ -4159,12 +4162,12 @@ void EmpCylSL::pca_hall(bool compute)
 	  for (int nn=0; nn<rank3; nn++) {
 	    // Compute mean coef from subsample
 	    //
-	    (*pb)[mm]->meanJK[nn+1] += cov2(0, T, mm)[nn] / sampT;
+	    (*pb)[mm]->meanJK[nn+1] += covV(0, T, mm)[nn] / sampT;
 	    
 	    for (int oo=0; oo<rank3; oo++) {
 	      // Compute mean squared coefs from subsample
 	      //
-	      (*pb)[mm]->covrJK[nn+1][oo+1] += covM(0, T, mm)[nn][oo] / sampT;
+	      (*pb)[mm]->covrJK[nn+1][oo+1] += massT[T] * covM(0, T, mm)[nn][oo] / sampT;
 	    }
 	  }
 	}
@@ -4309,6 +4312,7 @@ void EmpCylSL::pca_hall(bool compute)
 	  maxSNR = std::max<double>(maxSNR, 1.0/b);
 	  snrval[nn+1] = sqrt(sqr/var);
 	}
+	std::cout << "M=" << mm << " MinSNR=" << minSNR << " MaxSNR=" << maxSNR << std::endl;
 	
 #ifndef STANDALONE
 	if (vtkpca) vtkpca->Add((*pb)[mm]->meanJK,
@@ -4373,7 +4377,7 @@ void EmpCylSL::pca_hall(bool compute)
 	for (unsigned T=0; T<sampT; T++) {
 	  numbT1[nth][T] = 0;
 	  massT1[nth][T] = 0.0;
-	  for (auto & v : cov2[nth][T]) v.zero();
+	  for (auto & v : covV[nth][T]) v.zero();
 	  for (auto & v : covM[nth][T]) v.zero();
 	}
       }
