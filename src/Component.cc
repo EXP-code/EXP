@@ -629,6 +629,7 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
 
   keyPos      = -1;
   nlevel      = -1;
+  top_seq     = 0;
 
   pBufSiz     = 100000;
   blocking    = false;
