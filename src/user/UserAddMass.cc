@@ -14,14 +14,16 @@
 // For parsing parameters: Algorithm type
 //
 std::map<std::string, UserAddMass::Algorithm> UserAddMass::AlgMap
-{ {"Disk", UserAddMass::Algorithm::Disk},
-  {"Halo", UserAddMass::Algorithm::Halo} };
+{ {"Disk",     UserAddMass::Algorithm::Disk},
+  {"Halo",     UserAddMass::Algorithm::Halo},
+  {"Mono",     UserAddMass::Algorithm::Mono} };
 
 // For printing parameters: Algorithm type
 //
 std::map<UserAddMass::Algorithm, std::string> UserAddMass::AlgMapInv
 { {UserAddMass::Algorithm::Disk, "Disk"},
-  {UserAddMass::Algorithm::Halo, "Halo"} };
+  {UserAddMass::Algorithm::Halo, "Halo"},
+  {UserAddMass::Algorithm::Mono, "Mono"} };
 
 
 // Compute cross product for two 3 std::arrays
@@ -63,6 +65,7 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
   id = "AddMass";
 
   comp_name = "";               // Default component for com
+  modl_name = "";		// Default name for monopole spherical file
   rmin      = 1.0e-4;           // Default inner radius
   rmax      = 1.0;              // Default outer radius
   numr      = 100;              // Default number of radial bins
@@ -162,6 +165,10 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
     for (auto & v : vl_bins) v.resize(numr);
     for (auto & v : v2_bins) v.resize(numr);
     break;
+  case Algorithm::Mono:
+    model = boost::make_shared<SphericalModelTable>(modl_name);
+    for (auto & v : L3_bins) v.resize(numr);
+    break;
   case Algorithm::Disk:
   default:
     for (auto & v : L3_bins) v.resize(numr);
@@ -216,22 +223,23 @@ void UserAddMass::initialize()
     if (conf["complist"]) {	// Check for optional force components
       comp_list = conf["complist"].as<std::vector<std::string>>();
     }
-    if (conf["compname"])   comp_name   = conf["compname"].as<std::string>();
-    if (conf["rmin"])       rmin        = conf["rmin"].as<double>();
-    if (conf["rmax"])       rmax        = conf["rmax"].as<double>();
-    if (conf["mass"])       mass        = conf["mass"].as<double>();
-    if (conf["numr"])       numr        = conf["numr"].as<unsigned>();
-    if (conf["interp"])     interp      = conf["interp"].as<bool>();
-    if (conf["planar"])     planar      = conf["planar"].as<bool>();
-    if (conf["logr"])       logr        = conf["logr"].as<bool>();
-    if (conf["seed"])       seed        = conf["seed"].as<long int>();
-    if (conf["number"])     number      = conf["number"].as<unsigned>();
-    if (conf["tstart"])     tnext       = conf["tstart"].as<double>();
-    if (conf["scale"])      scale       = conf["scale"].as<double>();
-    if (conf["dtime"])      dtime       = conf["dtime"].as<double>();
-    if (conf["debug"])      debug       = conf["debug"].as<double>();
-    if (conf["vdisp"])      vdisp       = conf["vdisp"].as<double>();
-    if (conf["algorithm"])  alg         = AlgMap[conf["algorithm"].as<std::string>()];
+    if (conf["compname"])         comp_name   = conf["compname"].as<std::string>();	      
+    if (conf["modelfile"])        modl_name   = conf["modelfile"].as<std::string>();	      
+    if (conf["rmin"])       	  rmin        = conf["rmin"].as<double>();		      
+    if (conf["rmax"])       	  rmax        = conf["rmax"].as<double>();		      
+    if (conf["mass"])       	  mass        = conf["mass"].as<double>();		      
+    if (conf["numr"])       	  numr        = conf["numr"].as<unsigned>();		      
+    if (conf["interp"])     	  interp      = conf["interp"].as<bool>();		      
+    if (conf["planar"])     	  planar      = conf["planar"].as<bool>();		      
+    if (conf["logr"])       	  logr        = conf["logr"].as<bool>();		      
+    if (conf["seed"])       	  seed        = conf["seed"].as<long int>();		      
+    if (conf["number"])     	  number      = conf["number"].as<unsigned>();	      
+    if (conf["tstart"])     	  tnext       = conf["tstart"].as<double>();		      
+    if (conf["scale"])      	  scale       = conf["scale"].as<double>();		      
+    if (conf["dtime"])      	  dtime       = conf["dtime"].as<double>();		      
+    if (conf["debug"])      	  debug       = conf["debug"].as<double>();		      
+    if (conf["vdispersion"])      vdisp       = conf["vdispersion"].as<double>();		      
+    if (conf["algorithm"])  	  alg         = AlgMap[conf["algorithm"].as<std::string>()];
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in UserAddMass: "
@@ -299,12 +307,12 @@ void UserAddMass::determine_acceleration_and_potential(void)
 
       switch (alg) {
       case Algorithm::Halo:
-	      for (int k=0; k<3; k++) vl_bins[0][i][k] += vl_bins[n][i][k];
-	      for (int k=0; k<3; k++) v2_bins[0][i][k] += v2_bins[n][i][k];
-	    break;
+	for (int k=0; k<3; k++) vl_bins[0][i][k] += vl_bins[n][i][k];
+	for (int k=0; k<3; k++) v2_bins[0][i][k] += v2_bins[n][i][k];
+	break;
       case Algorithm::Disk:
-        default:
-	    for (int k=0; k<3; k++) L3_bins[0][i][k] += L3_bins[n][i][k];
+      default:
+	for (int k=0; k<3; k++) L3_bins[0][i][k] += L3_bins[n][i][k];
       }
       break;
     }
@@ -562,59 +570,103 @@ void UserAddMass::determine_acceleration_and_potential(void)
       P->level = multistep;
 
       switch (alg) {
-      case Algorithm::Halo:{
-	      // Positions
-	      //
-	      double cosx = 2.0*(*urand)() - 1.0;
-	      double sinx = sqrt(fabs(1.0 - cosx*cosx));
-	      double phi  = 2.0*M_PI*(*urand)();
-	      double cosp = cos(phi), sinp = sin(phi);
+      case Algorithm::Halo:
+	{
+	  // Positions
+	  //
+	  double cosx = 2.0*(*urand)() - 1.0;
+	  double sinx = sqrt(fabs(1.0 - cosx*cosx));
+	  double phi  = 2.0*M_PI*(*urand)();
+	  double cosp = cos(phi), sinp = sin(phi);
+	  
+	  std::array<std::array<double, 3>, 3> ev;
+	  
+	  ev[0][0] =  sinx * cosp;
+	  ev[0][1] =  sinx * sinp;
+	  ev[0][2] =  cosx ;
+	  
+	  ev[1][0] =  cosx * cosp;
+	  ev[1][1] =  cosx * sinp;
+	  ev[1][2] = -sinx ;
+	  
+	  ev[2][0] = -sinp;
+	  ev[2][1] =  cosp;
+	  ev[2][2] =  0.0;
+	  
+	  // Positions
+	  //
+	  for (int k=0; k<3; k++) P->pos[k] = rr*ev[0][k];
+	  
+	  // Velocities
+	  //
+	  double sig = 0.0;
+	  for (int k=0; k<3; k++) {
+	    if (interp) {
+	      double v1a = vl_bins[0][indx  ][k]/mas[indx  ];
+	      double v2a = v2_bins[0][indx  ][k]/mas[indx  ];
+	      double v1b = vl_bins[0][indx+1][k]/mas[indx+1];
+	      double v2b = v2_bins[0][indx+1][k]/mas[indx+1];
+	      sig += a*(v2a - v1a*v1a) + b*(v2b - v1b*v1b);
+	    }
+	    else {
+	      double v1 = vl_bins[0][indx][k]/mas[indx];
+	      double v2 = v2_bins[0][indx][k]/mas[indx];
+	      sig += v2 - v1*v1;
+	    } 
+	  }
+	  sig = sqrt(fabs(sig));
+	  
+	  std::array<double, 3> vv = {(*nrand)(), (*nrand)(), (*nrand)()};
+	  double vnorm = xnorm(vv);
+	  for (auto & v : vv) v /= vnorm;
+	  
+	  for (int k=0; k<3; k++) P->vel[k] = sig * vv[k];
+	}
 	
-	      std::array<std::array<double, 3>, 3> ev;
-	
-	      ev[0][0] =  sinx * cosp;
-	      ev[0][1] =  sinx * sinp;
-	      ev[0][2] =  cosx ;
-	
-	      ev[1][0] =  cosx * cosp;
-	      ev[1][1] =  cosx * sinp;
-	      ev[1][2] = -sinx ;
-	
-	      ev[2][0] = -sinp;
-	      ev[2][1] =  cosp;
-	      ev[2][2] =  0.0;
-
-	      // Positions
-	      //
-	      for (int k=0; k<3; k++) P->pos[k] = rr*ev[0][k];
-	
-	      // Velocities
-	      //
-	      double sig = 0.0;
-	      for (int k=0; k<3; k++) {
-          if (interp) {
-	          double v1a = vl_bins[0][indx  ][k]/mas[indx  ];
-	          double v2a = v2_bins[0][indx  ][k]/mas[indx  ];
-	          double v1b = vl_bins[0][indx+1][k]/mas[indx+1];
-	          double v2b = v2_bins[0][indx+1][k]/mas[indx+1];
-  	        sig += a*(v2a - v1a*v1a) + b*(v2b - v1b*v1b);
-	        }
-          else{
-	          double v1 = vl_bins[0][indx][k]/mas[indx];
-	          double v2 = v2_bins[0][indx][k]/mas[indx];
-	          sig += v2 - v1*v1;
-          } 
-	      }
-	      sig = sqrt(fabs(sig));
-	
-	      std::array<double, 3> vv = {(*nrand)(), (*nrand)(), (*nrand)()};
-	      double vnorm = xnorm(vv);
-	      for (auto & v : vv) v /= vnorm;
-	
-	      for (int k=0; k<3; k++) P->vel[k] = sig * vv[k];
-      }
-
-      break;
+	break;
+      case Algorithm::Mono:
+	{
+	  // Positions
+	  //
+	  double phi = 2.0*M_PI*(*urand)();
+	  double cosp = cos(phi), sinp = sin(phi);
+	  for (int k=0; k<3; k++) P->pos[k] = rr*(ee[1][k]*cosp + ee[2][k]*sinp);
+	  //                                      ^               ^
+	  // These are perpendicular to the       |               |
+	  // mean angular momemtnum vector -------+---------------+
+	  
+	  double z = P->pos[2];
+	  double R = sqrt(rr*rr + z*z);
+	  double dPdR = model->get_dpot(R);
+	  double vt = sqrt(rr*fabs(dPdR));
+	  if (L3_bins[0][indx][2] <= 0.0) vt *= -1.0;
+	    
+	  // Velocities
+	  //
+	  for (int k=0; k<3; k++) P->vel[k] = vt*(ee[2][k]*cosp - ee[1][k]*sinp);
+	  //                                      ^               ^
+	  // These are perpendicular to the       |               |
+	  // mean angular momemtnum vector -------+---------------+
+	  
+	  // Test for NaN
+	  //
+	  for (int k=0; k<3; k++) {
+	    if (std::isnan(P->pos[k])) {
+	      std::cout << "UserAddMass [" << k << "] NaN position" << std::endl;
+	    }
+	    if (std::isnan(P->vel[k])) {
+	      std::cout << "UserAddMass [" << k << "] NaN velocity" << std::endl;
+	    }
+	  }
+	  
+	  // TEST
+	  double perp = 0.0;
+	  for (int k=0; k<3; k++) perp += P->pos[k]*P->vel[k];
+	  if (fabs(perp)>1.0e-8) {
+	    std::cout << "Perp=" << perp << std::endl;
+	  }
+	}	    
+	break;
       case Algorithm::Disk:
       default:
 	{

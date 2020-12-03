@@ -4,6 +4,7 @@
 #include <Particle.H>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
+#include <massmodel.h>
 
 #include <vector>
 #include <array>
@@ -40,7 +41,7 @@ class UserAddMass : public ExternalForce
 private:
 
   std::vector<std::string> comp_list;
-  std::string comp_name;
+  std::string comp_name, modl_name;
   std::vector<Component*> comp_vec;
   Component *c0;
 
@@ -50,6 +51,7 @@ private:
   double tstart, scale, vdisp;
   long int seed;
 
+  boost::shared_ptr<SphericalModelTable> model;
   std::vector< std::vector<double> > mas_bins_current;
   std::vector< double > mas_bins_adding;
   using vec3 = std::array<double, 3>;
@@ -64,7 +66,7 @@ private:
 
   void userinfo();
 
-  enum class Algorithm { Disk, Halo } alg;
+  enum class Algorithm { Disk, Halo, Mono } alg;
 
   static std::map<std::string, Algorithm> AlgMap;
   static std::map<Algorithm, std::string> AlgMapInv;
