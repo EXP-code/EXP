@@ -723,8 +723,8 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	    determine_fields_at_point(P->pos[0], P->pos[1], P->pos[2],
 				      &tt, &tt, &tt, &tt, &tX, &tY, &tZ);
 	  P->acc[0] = -tX;
-	  P->acc[0] = -tY;
-	  P->acc[0] = -tZ;
+	  P->acc[1] = -tY;
+	  P->acc[2] = -tZ;
 	}
       }
     }
