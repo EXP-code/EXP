@@ -197,33 +197,35 @@ void UserAddMass::userinfo()
 
   print_divider();
 
-  cout << "** User routine ADD MASS initialized "
-       << "using component <" << comp_name << "> with"
-       << " rmin="      << rmin
-       << " rmax="      << rmax
-       << " numr="      << numr
-       << " logr="      << std::boolalpha << logr
-       << " number="    << number
-       << " mass="      << mass
-       << " scale="     << scale
-       << " algorithm=" << AlgMapInv[alg]
-       << " planar="    << std::boolalpha << planar
-       << std::endl;
+  std::cout << "** User routine ADD MASS initialized "
+	    << "using component <" << comp_name << "> with"
+	    << " rmin="      << rmin
+	    << " rmax="      << rmax
+	    << " numr="      << numr
+	    << " logr="      << std::boolalpha << logr
+	    << " number="    << number
+	    << " mass="      << mass
+	    << " scale="     << scale
+	    << " algorithm=" << AlgMapInv[alg]
+	    << " planar="    << std::boolalpha << planar
+	    << " accel="     << std::boolalpha << accel;
 
   if (comp_list.size()>0) {
-    cout << " force evaluation from components [";
+    std::cout << " [vel eval components: ";
     for (auto s : comp_list) cout << " <" << s << ">";
-    cout << " ]";
+    std::cout << " ]";
+  } else {
+    std::cout << " [NO vel eval]";
   }
 
   if (comp_acc.size()) {
-    cout << " accel components=[ ";
-    for (auto cc : comp_acc) cout << cc->name << " ";
-    cout << "]";
+    std::cout << " [accel init components: ";
+    for (auto cc : comp_acc) cout << " <" << cc->name << ">";
+    std::cout << "]";
   } else {
-    cout << " NO accel components";
+    std::cout << " [NO accel init]";
   }
-  cout << std::endl;
+  std::cout << std::endl;
 
   print_divider();
 }
@@ -241,6 +243,7 @@ void UserAddMass::initialize()
     if (conf["numr"])       	  numr        = conf["numr"].as<unsigned>();		      
     if (conf["interp"])     	  interp      = conf["interp"].as<bool>();		      
     if (conf["planar"])     	  planar      = conf["planar"].as<bool>();		      
+    if (conf["accel"])     	  accel       = conf["accel"].as<bool>();		      
     if (conf["logr"])       	  logr        = conf["logr"].as<bool>();		      
     if (conf["seed"])       	  seed        = conf["seed"].as<long int>();		      
     if (conf["number"])     	  number      = conf["number"].as<unsigned>();	      
@@ -678,7 +681,7 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	      }
 	    }
 
-	    // TEST
+	    // DEBUG TEST
 	    double perp = 0.0;
 	    for (int k=0; k<3; k++) perp += P->pos[k]*P->vel[k];
 	    if (fabs(perp)>1.0e-8) {
@@ -714,7 +717,7 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	break;
       }
       
-      // Add acceleration
+      // Add initial acceleration from each basis component
       //
       if (accel) {
 	for (auto cc : comp_acc) {
@@ -722,9 +725,9 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	  dynamic_cast<Basis*>(cc->force)->
 	    determine_fields_at_point(P->pos[0], P->pos[1], P->pos[2],
 				      &tt, &tt, &tt, &tt, &tX, &tY, &tZ);
-	  P->acc[0] += -tX;
-	  P->acc[1] += -tY;
-	  P->acc[2] += -tZ;
+	  P->acc[0] += tX;
+	  P->acc[1] += tY;
+	  P->acc[2] += tZ;
 	}
       }
     }
