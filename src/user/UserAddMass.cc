@@ -15,15 +15,13 @@
 //
 std::map<std::string, UserAddMass::Algorithm> UserAddMass::AlgMap
 { {"Disk",     UserAddMass::Algorithm::Disk},
-  {"Halo",     UserAddMass::Algorithm::Halo},
-  {"Mono",     UserAddMass::Algorithm::Mono} };
+  {"Halo",     UserAddMass::Algorithm::Halo} };
 
 // For printing parameters: Algorithm type
 //
 std::map<UserAddMass::Algorithm, std::string> UserAddMass::AlgMapInv
 { {UserAddMass::Algorithm::Disk, "Disk"},
-  {UserAddMass::Algorithm::Halo, "Halo"},
-  {UserAddMass::Algorithm::Mono, "Mono"} };
+  {UserAddMass::Algorithm::Halo, "Halo"} };
 
 
 // Compute cross product for two 3 std::arrays
@@ -65,7 +63,6 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
   id = "AddMass";
 
   comp_name = "";               // Default component for com
-  modl_name = "";		// Default name for monopole spherical file
   rmin      = 1.0e-4;           // Default inner radius
   rmax      = 1.0;              // Default outer radius
   numr      = 100;              // Default number of radial bins
@@ -81,6 +78,7 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
   interp    = true;		// Interpolate by default
   cforce    = false;		// Explicit force evalution for orbit IC
   planar    = false;		// Force disk to be in x-y plane
+  accel     = true;             // Assign acceleration from basis
   alg       = AlgMap["Disk"];	// Assign the disk algorithm by default
   
 
@@ -136,6 +134,16 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
     }
   }
 
+  // Reflection to find components that provide forces from a basis
+  // (which field forces at field points)
+  for (auto cc : comp->components) {
+    Basis* b = dynamic_cast<Basis*>(cc->force);
+    if (b != NULL) {
+      comp_acc.push_back(cc);
+      std::cout << "Found <" << cc->name << ", " << cc->id << ">" << std::endl;
+    }
+  }
+
   // Make bins parameters
 				// Sanity
   if (rmin == 0.0 and logr) logr = false;
@@ -164,10 +172,6 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
   case Algorithm::Halo:
     for (auto & v : vl_bins) v.resize(numr);
     for (auto & v : v2_bins) v.resize(numr);
-    break;
-  case Algorithm::Mono:
-    model = boost::make_shared<SphericalModelTable>(modl_name);
-    for (auto & v : L3_bins) v.resize(numr);
     break;
   case Algorithm::Disk:
   default:
@@ -224,7 +228,6 @@ void UserAddMass::initialize()
       comp_list = conf["complist"].as<std::vector<std::string>>();
     }
     if (conf["compname"])         comp_name   = conf["compname"].as<std::string>();	      
-    if (conf["modelfile"])        modl_name   = conf["modelfile"].as<std::string>();	      
     if (conf["rmin"])       	  rmin        = conf["rmin"].as<double>();		      
     if (conf["rmax"])       	  rmax        = conf["rmax"].as<double>();		      
     if (conf["mass"])       	  mass        = conf["mass"].as<double>();		      
@@ -447,7 +450,6 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	    break;
 	  }
 	}
-	out << std::setw(18) << vv << std::setw(18) << L3_bins[0][i][0] << std::setw(18) << L3_bins[0][i][1] << std::setw(18) << L3_bins[0][i][2] << std::endl;
       }
 
     } else {
@@ -556,13 +558,11 @@ void UserAddMass::determine_acceleration_and_potential(void)
       // Radius selection
       //
       double lrr = lrmin + dr*((*urand)() + indx);
-      double rr  = lrr, a, b;
+      double rr  = lrr, a=1.0, b=0.0;
       if (logr) rr = exp(lrr);	// Using log scaling for bins      
       if (interp) {
-
       	a = (lrmin + dr*(indx+1) - lrr)/dr;
       	b = (lrr - lrmin - dr*(indx+0))/dr;
-
       }
       
       Particle *P =  c0->GetNewPart();
@@ -623,49 +623,6 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	  for (int k=0; k<3; k++) P->vel[k] = sig * vv[k];
 	}
 	
-	break;
-      case Algorithm::Mono:
-	{
-	  // Positions
-	  //
-	  double phi = 2.0*M_PI*(*urand)();
-	  double cosp = cos(phi), sinp = sin(phi);
-	  for (int k=0; k<3; k++) P->pos[k] = rr*(ee[1][k]*cosp + ee[2][k]*sinp);
-	  //                                      ^               ^
-	  // These are perpendicular to the       |               |
-	  // mean angular momemtnum vector -------+---------------+
-	  
-	  double z = P->pos[2];
-	  double R = sqrt(rr*rr + z*z);
-	  double dPdR = model->get_dpot(R);
-	  double vt = sqrt(rr*fabs(dPdR));
-	  if (L3_bins[0][indx][2] <= 0.0) vt *= -1.0;
-	    
-	  // Velocities
-	  //
-	  for (int k=0; k<3; k++) P->vel[k] = vt*(ee[2][k]*cosp - ee[1][k]*sinp);
-	  //                                      ^               ^
-	  // These are perpendicular to the       |               |
-	  // mean angular momemtnum vector -------+---------------+
-	  
-	  // Test for NaN
-	  //
-	  for (int k=0; k<3; k++) {
-	    if (std::isnan(P->pos[k])) {
-	      std::cout << "UserAddMass [" << k << "] NaN position" << std::endl;
-	    }
-	    if (std::isnan(P->vel[k])) {
-	      std::cout << "UserAddMass [" << k << "] NaN velocity" << std::endl;
-	    }
-	  }
-	  
-	  // TEST
-	  double perp = 0.0;
-	  for (int k=0; k<3; k++) perp += P->pos[k]*P->vel[k];
-	  if (fabs(perp)>1.0e-8) {
-	    std::cout << "Perp=" << perp << std::endl;
-	  }
-	}	    
 	break;
       case Algorithm::Disk:
       default:
@@ -748,6 +705,20 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	}
 
 	break;
+      }
+      
+      // Add acceleration
+      //
+      if (accel) {
+	for (auto cc : comp_acc) {
+	  double tt, tX, tY, tZ;
+	  dynamic_cast<Basis*>(cc->force)->
+	    determine_fields_at_point(P->pos[0], P->pos[1], P->pos[2],
+				      &tt, &tt, &tt, &tt, &tX, &tY, &tZ);
+	  P->acc[0] = -tX;
+	  P->acc[0] = -tY;
+	  P->acc[0] = -tZ;
+	}
       }
     }
 

@@ -1490,6 +1490,30 @@ void SphericalBasis::dump_coefs(ostream& out)
 }
 
 
+void SphericalBasis::determine_fields_at_point
+(double x, double y, double z, 
+ double *tdens0, double *tpotl0, 
+ double *tdens,  double *tpotl, 
+ double *tpotX,  double *tpotY, double *tpotZ)
+{
+  double r = sqrt(x*x + y*y + z*z) + 1.0e-18;
+  double theta = acos(z/r);
+  double phi   = atan2(y, x);
+  double cth   = cos(theta), sth = sin(theta);
+  double cph   = cos(phi),   sph = sin(phi);
+  double tpotr, tpott, tpotp;
+
+  determine_fields_at_point_sph(r, theta, phi,
+				tdens0, tpotl0, 
+				tdens, tpotl, 
+				&tpotr,	&tpott, &tpotp);
+
+  *tpotX = tpotr*sth*cph + tpott*cth*cph - tpotp*sph;
+  *tpotY = tpotr*sth*sph + tpott*cth*sph + tpotp*cph;
+  *tpotZ = tpotr*cth     - tpott*sth;
+}
+
+
 void SphericalBasis::determine_fields_at_point_cyl
 (double R, double z, double phi, 
  double *tdens0, double *tpotl0, 
@@ -1497,7 +1521,7 @@ void SphericalBasis::determine_fields_at_point_cyl
  double *tpotR, double *tpotz, double *tpotp)
 {
   double r = sqrt(R*R + z*z) + 1.0e-18;
-  double theta = acos(z/R);
+  double theta = acos(z/r);
   double tpotr, tpott;
 
   determine_fields_at_point_sph(r, theta, phi, 

@@ -4,10 +4,10 @@
 #include <Particle.H>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
-#include <massmodel.h>
 
 #include <vector>
 #include <array>
+#include <list>
 
 /** Add mass to component
 
@@ -41,17 +41,17 @@ class UserAddMass : public ExternalForce
 private:
 
   std::vector<std::string> comp_list;
-  std::string comp_name, modl_name;
+  std::string comp_name;
   std::vector<Component*> comp_vec;
+  list<Component*> comp_acc;
   Component *c0;
 
-  bool logr, interp, cforce, planar;
+  bool logr, interp, cforce, planar, accel;
   unsigned number, numr;
   double mass, rmin, rmax, lrmin, lrmax, dr, tnext, dtime, debug, dnext;
   double tstart, scale, vdisp;
   long int seed;
 
-  boost::shared_ptr<SphericalModelTable> model;
   std::vector< std::vector<double> > mas_bins_current;
   std::vector< double > mas_bins_adding;
   using vec3 = std::array<double, 3>;
@@ -66,7 +66,7 @@ private:
 
   void userinfo();
 
-  enum class Algorithm { Disk, Halo, Mono } alg;
+  enum class Algorithm { Disk, Halo } alg;
 
   static std::map<std::string, Algorithm> AlgMap;
   static std::map<Algorithm, std::string> AlgMapInv;

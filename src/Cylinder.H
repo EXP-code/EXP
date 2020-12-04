@@ -247,7 +247,7 @@ public:
   //! The main force call
   void get_acceleration_and_potential(Component*);
 
-  //! Return the value for the fields at a spherical polar coordinate
+  //! Return the value for the fields in spherical polar coordinates
   void 
   determine_fields_at_point_sph(double r, double theta, double phi,
 				double *tdens0, double *tpotl0, 
@@ -255,13 +255,21 @@ public:
 				double *tpotr, double *tpott, 
 				double *tpotp);
 
-  //! Return the value for the fields at a cylindrical coordinate
+  //! Return the value for the fields in cylindrical coordinates
   void 
   determine_fields_at_point_cyl(double r, double z, double phi,
 				double *tdens0, double *tpotl0, 
 				double *tdens, double *tpotl, 
 				double *tpotr, double *tpotz, 
 				double *tpotp);
+
+  //! Return the value for the fields in Cartesian coordinates
+  void 
+  determine_fields_at_point(double x, double y, double z,
+			    double *tdens0, double *tpotl0, 
+			    double *tdens, double *tpotl, 
+			    double *tpotx, double *tpoty, 
+			    double *tpotz);
 
   /** Update the multi time step coefficient table when moving particle 
       <code>i</code> from level <code>cur</code> to level 

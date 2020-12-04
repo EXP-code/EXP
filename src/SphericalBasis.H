@@ -390,6 +390,13 @@ public:
   void get_potl_dens(int lmax, int nmax, double r, Matrix& p, Matrix& d,
 		     int tid) = 0;
 
+  //! Return the value for the fields in Cartesian coordinates
+  void  determine_fields_at_point(double x, double y, double z,
+				  double *tdens0, double *tpotl0, 
+				  double *tdens, double *tpotl, 
+				  double *tpotx, double *tpoty, 
+				  double *tpotz);
+
   //! Returns the potential, its derivatives & density in spherical coords
   void determine_fields_at_point_sph(double r, double theta, double phi,
 				     double *tdens0, double *tpotl0, 
