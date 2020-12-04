@@ -140,7 +140,6 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
     Basis* b = dynamic_cast<Basis*>(cc->force);
     if (b != NULL) {
       comp_acc.push_back(cc);
-      std::cout << "Found <" << cc->name << ", " << cc->id << ">" << std::endl;
     }
   }
 
@@ -215,6 +214,14 @@ void UserAddMass::userinfo()
     cout << " force evaluation from components [";
     for (auto s : comp_list) cout << " <" << s << ">";
     cout << " ]";
+  }
+
+  if (comp_acc.size()) {
+    cout << " accel components=[ ";
+    for (auto cc : comp_acc) cout << cc->name << " ";
+    cout << "]";
+  } else {
+    cout << " NO accel components";
   }
   cout << std::endl;
 
