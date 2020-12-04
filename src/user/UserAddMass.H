@@ -20,6 +20,9 @@
     Halo algorithm, the velocity is chosen isotropically based on the
     mean velocity dispersion in spherical shells.
 
+    This routine should occur in the [External] sequence before any
+    true force evalaution to include the external force.
+
     @param compname is the component and must be specified
     @param complist is the list of components for force evaluation, if specified
     @param tstart is the first time when particles are added
@@ -34,7 +37,8 @@
     @param seed for the pseudorandom number generator
     @param debug is the time interval between profile outputs (<=0 for off)
     @param interp set to true for interpolation in angular momentum bins
-    @param planar set to true enforces particles added in the x-y plane for testing
+    @param accel set to true initialized acceleration from basis forces (default: true)
+    @param planar set to true enforces particles added in the x-y plane for testing (default: false)
 **/
 class UserAddMass : public ExternalForce
 {
