@@ -176,6 +176,12 @@ void * adjust_multistep_level_thread(void *ptr)
       mindt1[id] = min<double>(dt, mindt1[id]);
       offlo++;
     }
+
+    // Case with ZERO acceleration (possibly leading to bad assignment)
+    if (atot==0) {
+      lev = multistep;
+      // probably don't want offlo++ here?
+    }
     
     unsigned plev = p->level;
     unsigned nlev = lev;
