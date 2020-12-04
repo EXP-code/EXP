@@ -90,7 +90,7 @@ void * adjust_multistep_level_thread(void *ptr)
       rtot = 0.0;
       vtot = 0.0;
       atot = 0.0;
-      
+
       for (int k=0; k<c->dim; k++) {
 	rtot += 
 	  c->Pos(n, k, Component::Local | Component::Centered) *
@@ -99,16 +99,19 @@ void * adjust_multistep_level_thread(void *ptr)
 	atot += p->acc[k]*p->acc[k];
       }
       rtot = sqrt(rtot);
-      vtot = sqrt(vtot) + 1.0e-18;
-      atot = sqrt(atot) + 1.0e-18;
+      vtot = sqrt(vtot);
+      atot = sqrt(atot);
+
+      double vflr = vtot + 1.0e-18;
+      double aflr = atot + 1.0e-18;
 
       dsr = p->scale;
-      if (dsr>0) dts = dynfracS*dsr/vtot;
+      if (dsr>0) dts = dynfracS*dsr/vflr;
       else       dts = 1.0/eps;
 
-      dtv = dynfracV*rtot/vtot;
-      dta = dynfracA*vtot/atot;
-      dtA = dynfracP*sqrt(rtot/atot);
+      dtv = dynfracV*rtot/vflr;
+      dta = dynfracA*vtot/aflr;
+      dtA = dynfracP*sqrt(rtot/aflr);
 
     } else {
 
@@ -180,7 +183,8 @@ void * adjust_multistep_level_thread(void *ptr)
     // Case with ZERO acceleration (possibly leading to bad assignment)
     if (atot==0) {
       lev = multistep;
-      // probably don't want offlo++ here?
+      // MP: probably don't want offlo++ here? MDW: Nope, but offlo is
+      // diagnostic only.
     }
     
     unsigned plev = p->level;
