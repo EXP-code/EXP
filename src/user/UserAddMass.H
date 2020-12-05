@@ -18,7 +18,10 @@
     For the Disk algorithm, the particles are added to the mean disk
     midplane based on a real-time rotation curve estimate.  For the
     Halo algorithm, the velocity is chosen isotropically based on the
-    mean velocity dispersion in spherical shells.
+    mean velocity dispersion in spherical shells.  
+
+    If the accel parameter is true, we assign the initial acceleration
+    for created particles from the basis force fields.
 
     @param compname is the component and must be specified
     @param complist is the list of components for force evaluation, if specified
@@ -34,7 +37,8 @@
     @param seed for the pseudorandom number generator
     @param debug is the time interval between profile outputs (<=0 for off)
     @param interp set to true for interpolation in angular momentum bins
-    @param planar set to true enforces particles added in the x-y plane for testing
+    @param planar set to true enforces particles added in the x-y plane for testing (default: false)
+    @param accel set to true assigns the acceration by evaluating the basis force (default: true)
 **/
 class UserAddMass : public ExternalForce
 {
