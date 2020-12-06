@@ -136,12 +136,15 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
 
   // Reflection to find components that provide forces from a basis
   // (which field forces at field points)
-  for (auto cc : comp->components) {
-    Basis* b = dynamic_cast<Basis*>(cc->force);
-    if (b != NULL) {
-      comp_acc.push_back(cc);
+  if (accel) {
+    for (auto cc : comp->components) {
+      Basis* b = dynamic_cast<Basis*>(cc->force);
+      if (b != NULL) {
+	comp_acc.push_back(cc);
+      }
     }
   }
+  if (comp_acc.size()==0) accel = false;
 
   // Make bins parameters
 				// Sanity
@@ -211,15 +214,15 @@ void UserAddMass::userinfo()
 	    << " accel="     << std::boolalpha << accel;
 
   if (comp_list.size()>0) {
-    std::cout << " [vel eval components: ";
+    std::cout << " [vel eval components:";
     for (auto s : comp_list) cout << " <" << s << ">";
     std::cout << " ]";
   } else {
     std::cout << " [NO vel eval]";
   }
 
-  if (comp_acc.size()) {
-    std::cout << " [accel init components: ";
+  if (comp_acc.size() and accel) {
+    std::cout << " [accel init components:";
     for (auto cc : comp_acc) cout << " <" << cc->name << ">";
     std::cout << "]";
   } else {
@@ -725,9 +728,9 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	  dynamic_cast<Basis*>(cc->force)->
 	    determine_fields_at_point(P->pos[0], P->pos[1], P->pos[2],
 				      &tt, &tt, &tt, &tt, &tX, &tY, &tZ);
-	  P->acc[0] += tX;
-	  P->acc[1] += tY;
-	  P->acc[2] += tZ;
+	  P->acc[0] -= tX;
+	  P->acc[1] -= tY;
+	  P->acc[2] -= tZ;
 	}
       }
     }
