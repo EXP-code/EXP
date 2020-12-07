@@ -719,8 +719,11 @@ void UserAddMass::determine_acceleration_and_potential(void)
 
 	break;
       }
-      
-      // Add initial acceleration from each basis component
+
+
+      // Add initial acceleration from each basis component.  Inputs
+      // positions for determine_fiels_at_point are in centered reference
+      // frame.
       //
       if (accel) {
 	for (auto cc : comp_acc) {
@@ -733,6 +736,11 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	  P->acc[2] -= tZ;
 	}
       }
+
+      // Convert to from local to system reference frame
+      //
+      cC->PosConvert(P->pos);
+      cC->VelConvert(P->vel);
     }
 
   }
@@ -764,7 +772,7 @@ void * UserAddMass::determine_acceleration_and_potential_thread(void * arg)
       vel[k] = P->vel[k];
     }
 	
-    // Convert to center reference frame
+    // Convert to local reference frame
     //
     cC->ConvertPos(pos.data());
     cC->ConvertVel(vel.data());

@@ -711,6 +711,22 @@ public:
       if (com_system and flags & Local) vel[k] -= cov0[k]; 
     }
   }
+  //! Convert coordinates from local to inertial
+  inline void PosConvert(double* pos, unsigned flags=Local | Centered) {
+    if (flags & Inertial) return;
+    for (int k=0; k<3; k++) {
+      if (com_system and flags & Local) pos[k] += com0[k]; 
+      if (flags & Centered) pos[k] += center[k];
+    }
+  }
+  
+  //! Convert velocities from local inertial
+  inline void VelConvert(double* vel, unsigned flags=Local | Centered) {
+    if (flags & Inertial) return;
+    for (int k=0; k<3; k++) {
+      if (com_system and flags & Local) vel[k] += cov0[k]; 
+    }
+  }
 
   //! Access to acceleration
   inline double Acc(int i, int j, unsigned flags=Inertial) {
