@@ -605,25 +605,25 @@ void SphericalBasis::determine_coefficients(void)
       expcoefT .resize(sampT);
       for (auto & t : expcoefT ) {
 	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto v : t) v = boost::make_shared<Vector>(1, nmax);
+	for (auto & v : t) v = boost::make_shared<Vector>(1, nmax);
       }
       
       expcoefT1.resize(sampT);
       for (auto & t : expcoefT1) {
 	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto v : t) v = boost::make_shared<Vector>(1, nmax);
+	for (auto & v : t) v = boost::make_shared<Vector>(1, nmax);
       }
 
       expcoefM .resize(sampT);
       for (auto & t : expcoefM ) {
 	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto v : t) v = boost::make_shared<Matrix>(1, nmax, 1, nmax);
+	for (auto & v : t) v = boost::make_shared<Matrix>(1, nmax, 1, nmax);
       }
       
       expcoefM1.resize(sampT);
       for (auto & t : expcoefM1) {
 	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto v : t) v = boost::make_shared<Matrix>(1, nmax, 1, nmax);
+	for (auto & v : t) v = boost::make_shared<Matrix>(1, nmax, 1, nmax);
       }
 
     }
