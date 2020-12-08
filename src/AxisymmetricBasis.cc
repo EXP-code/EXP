@@ -612,7 +612,7 @@ void AxisymmetricBasis::parallel_gather_coef2(void)
 		  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
     for (unsigned T=0; T<sampT; T++) {
-      for (int l=0; l<=Lmax*(Lmax+2); l++) {
+      for (int l=0; l<(Lmax+1)*(Lmax+2)/2; l++) {
 	MPI_Allreduce(&(*expcoefT1[T][l])[1],
 		      &(*expcoefT [T][l])[1], nmax,
 		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
