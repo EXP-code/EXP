@@ -70,15 +70,16 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
   mass      = 1.0e-10;          // Default mass of new particles
   logr      = true;             // Logaritmic binning
   seed      = 11;               // Random number seed
-  dtime     = 0.012;            // Time interval between particle additions
-  tnext     = dtime;            // Time to begin adding particles
+  dt        = 0.012;            // Time interval between particle additions
+  tnext     = dt;               // Time to begin adding particles
   debug     = -1.0;		// Time interval between diagnostic output
   scale     =  1.0;             // Radius scale of mass adding
   vdisp     = 0.0;              // Velocity dispersion value
   interp    = true;		// Interpolate by default
-  cforce    = false;		// Explicit force evalution for orbit IC
+  cforce    = false;		// Explicit force evalution for orbit IC (internal parameter)
   planar    = false;		// Force disk to be in x-y plane
   accel     = true;             // Assign acceleration from basis
+  mas_init  = true;		// Store mass array on first call (internal parameter)
   alg       = AlgMap["Disk"];	// Assign the disk algorithm by default
   
 
@@ -209,6 +210,9 @@ void UserAddMass::userinfo()
 	    << " number="    << number
 	    << " mass="      << mass
 	    << " scale="     << scale
+	    << " tstart="    << tstart
+	    << " dt="        << dt
+	    << " tnow="      << tnow
 	    << " algorithm=" << AlgMapInv[alg]
 	    << " planar="    << std::boolalpha << planar
 	    << " accel="     << std::boolalpha << accel;
@@ -252,7 +256,7 @@ void UserAddMass::initialize()
     if (conf["number"])     	  number      = conf["number"].as<unsigned>();	      
     if (conf["tstart"])     	  tnext       = conf["tstart"].as<double>();		      
     if (conf["scale"])      	  scale       = conf["scale"].as<double>();		      
-    if (conf["dtime"])      	  dtime       = conf["dtime"].as<double>();		      
+    if (conf["dt"])               dt          = conf["dt"].as<double>();		      
     if (conf["debug"])      	  debug       = conf["debug"].as<double>();		      
     if (conf["vdispersion"])      vdisp       = conf["vdispersion"].as<double>();		      
     if (conf["algorithm"])  	  alg         = AlgMap[conf["algorithm"].as<std::string>()];
@@ -275,11 +279,9 @@ void UserAddMass::clear_bins()
 {
   // Mass bins
   //
-
   for (auto & v : mas_bins_current) {
     std::fill(v.begin(), v.end(), 0.0);
   }
-  
 
   std::array<double, 3> zero = {0.0, 0.0, 0.0};
 
@@ -307,7 +309,9 @@ void UserAddMass::determine_acceleration_and_potential(void)
 				// Have we completed the interval?
   if (tnow < tnext) return;
 
-  tnext += dtime;		// Increment the target time
+  if (myid==0) std::cout << "UserAddMass: T=" << tnow << std::endl;
+
+  tnext += dt;			// Increment the target time
 
   clear_bins();			// Clean for tabulation
 
@@ -340,9 +344,14 @@ void UserAddMass::determine_acceleration_and_potential(void)
 
   MPI_Allreduce(mas_bins_current[0].data(), mas.data(), numr, MPI_DOUBLE, MPI_SUM,
 		MPI_COMM_WORLD);
-  if ( fabs( tnow - tstart)<3E-4 ){
+
+  // Initialize mass distribution
+  //
+  if ( mas_init and tnow  >= tstart ) {
     for (unsigned i=0; i<numr; i++) mas_bins_adding[i] = mas[i];
+    mas_init = false;
   }
+
   switch (alg) {
   case Algorithm::Halo:
     for (unsigned i=0; i<numr; i++) {
@@ -524,7 +533,7 @@ void UserAddMass::determine_acceleration_and_potential(void)
     }
   }
 
-  if (fabs(tnow - tstart) < 3E-4) return;
+  if (fabs(tnow - tstart) < dtime*ttol) return;
 
   // Finally, we are ready to generate the new particles
   //
@@ -785,7 +794,7 @@ void * UserAddMass::determine_acceleration_and_potential_thread(void * arg)
     //
     int indx = -1;		// Off grid, by default
     double s;
-    if ( fabs( tnow - tstart)<3E-4 )
+    if ( fabs(tnow - tstart) < dtime*ttol )
       s=scale;
     else
       s=1;
