@@ -23,6 +23,9 @@
     If the accel parameter is true, we assign the initial acceleration
     for created particles from the basis force fields.
 
+    This routine should occur in the [External] sequence before any
+    true force evalaution to include the external force.
+
     @param compname is the component and must be specified
     @param complist is the list of components for force evaluation, if specified
     @param tstart is the first time when particles are added
