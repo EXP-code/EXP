@@ -44,6 +44,7 @@ extern pthread_mutex_t coef_lock;
 
 #endif
 
+
 /** Encapsulatates a SLGridSph (Sturm-Liouville basis) for use as
     force method
     
@@ -56,10 +57,11 @@ class EmpCylSL
 {
 public:
 
-  typedef boost::shared_ptr<SphericalModelTable> SphModTblPtr;
-  typedef boost::shared_ptr<SLGridSph>           SLGridSphPtr;
-  typedef std::vector<Vector>                    VectorM;
-  typedef std::vector<Matrix>                    MatrixM;
+  using SphModTblPtr = boost::shared_ptr<SphericalModelTable>;
+  using SLGridSphPtr = boost::shared_ptr<SLGridSph>;
+  using VectorM      = std::vector<Vector>;
+  using MatrixM      = std::vector<Matrix>;
+  using ContribArray = std::vector<Eigen::VectorXd>;
 
 private:
 
@@ -90,7 +92,7 @@ private:
   double pfac, dfac, ffac;
 
   std::vector<Matrix> facC, facS;
-  
+
   int rank2, rank3;
 
   //@{
@@ -331,6 +333,9 @@ private:
   //! Number of even and odd terms per subspace
   int Neven, Nodd;
 
+  //! Vector of arrays for returning per particle contribution to coefficients
+  ContribArray storeP;
+  
 public:
 
   /*! Enum listing the possible selection algorithms for coefficient
@@ -830,6 +835,8 @@ public:
     return ret;
   }
 
+
+  ContribArray& getPotParticle(double r, double z);
 
   //! Get the coefficients trimmed by a SNR value using the defined algorithm
   void get_trimmed
