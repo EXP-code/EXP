@@ -394,6 +394,19 @@ main(int argc, char **argv)
 
   } // Dump loop
 
+  // Full reduction
+  //
+  for (auto & mat : D) {
+    MPI_Allreduce(MPI_IN_PLACE, mat.data(), mat.size(), MPI_DOUBLE, MPI_SUM,
+		  MPI_COMM_WORLD);
+  }
+
+  for (auto & coef : coefs) {
+    for (auto & d : coef) 
+      MPI_Allreduce(MPI_IN_PLACE, d.data(), d.size(), MPI_DOUBLE, MPI_SUM,
+		    MPI_COMM_WORLD);
+  }
+
   // Okay, now compute SVD
   //
   std::vector<Eigen::VectorXd> S;
