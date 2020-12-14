@@ -26,7 +26,7 @@
     @param compname is the component and must be specified
     @param complist is the list of components for force evaluation, if specified
     @param tstart is the first time when particles are added
-    @param dtime is the time interval between particle additions
+    @param dt is the time interval between particle additions
     @param number is the number of particles to add per addition
     @param mass is the particle mass to add
     @param algorithm specifies the particle selection method
@@ -50,14 +50,17 @@ private:
   list<Component*> comp_acc;
   Component *c0;
 
-  bool logr, interp, cforce, planar, accel;
+  bool logr, interp, cforce, planar, accel, mas_init;
   unsigned number, numr;
-  double mass, rmin, rmax, lrmin, lrmax, dr, tnext, dtime, debug, dnext;
+  double mass, rmin, rmax, lrmin, lrmax, dr, tnext, dt, debug, dnext;
   double tstart, scale, vdisp;
   long int seed;
 
-  std::vector< std::vector<double> > mas_bins_current;
+  const double ttol = 1.0e-8;
+
   std::vector< double > mas_bins_adding;
+  std::vector< std::vector<double> > mas_bins_current;
+
   using vec3 = std::array<double, 3>;
   std::vector< std::vector<vec3> > vl_bins, v2_bins;
   std::vector< std::vector<vec3> > L3_bins;
