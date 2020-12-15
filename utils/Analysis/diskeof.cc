@@ -303,11 +303,10 @@ main(int argc, char **argv)
   //
   DvarArray D(mmax+1);
   for (auto & mat : D) {
-    mat.resize(norder, norder);	// Resize and zero the data
-    std::fill(mat.data(), mat.data() + mat.size(), 0.0);
+    mat = Eigen::MatrixXd::Zero(norder, norder);
   }
 
-  std::vector<CoefArray> coefs;
+  std::vector<CoefArray> coefsC, coefsS;
   std::vector<double>    times;
   std::vector<int>       indices;
 
@@ -357,30 +356,50 @@ main(int argc, char **argv)
     times.push_back(tnow);
     indices.push_back(indx);
     
-    unsigned count = 0;
-    
     SParticle *p = psp->GetParticle();
 
-    CoefArray coef(mmax + 1);
-    for (auto & v : coef) v.resize(norder);
+    CoefArray coefC(mmax + 1);	// Per snapshot storage for
+    CoefArray coefS(mmax + 1);	// coefficients
+
+    for (auto & v : coefC) v = Eigen::VectorXd::Zero(norder);
+    for (auto & v : coefS) v = Eigen::VectorXd::Zero(norder);
+    
+    unsigned count = 0;
+    
+    EmpCylSL::ContribArray retC, retS;
 
     while (p) {
       if (count++ % numprocs == myid) {
+	// Only need mass and position
+	//
 	double m = p->mass();
 	double x = p->pos(0);
 	double y = p->pos(1);
 	double z = p->pos(2);
+	double p = atan2(y, x);
 
-	auto array = ortho.getPotParticle(sqrt(x*x + y*y), z);
-
+	// Get coefficient contribution for this particle
+	//
+	ortho.getPotParticle(x, y, z, retC, retS);
+	
+	// Accumulate coefficients and D matrix
+	//
 	for (int mm=0; mm<=mmax; mm++) {
 	  for (int n1=0; n1<norder; n1++) {
-	    coef[mm](n1) += m * array[mm](n1);
-	    if (fabs(array[mm](n1))>1.0e3) {
-	      std::cout << "Big [" << mm << "][" << n1 << "]=" << array[mm](n1) << std::endl;
-	    }
+	    // Coefficient contribution
+	    coefC[mm](n1) += m * retC[mm](n1);
+	    if (mm) coefS[mm](n1) += m * retS[mm](n1);
+
+	    // Modulus for index n1
+	    double mod1 = retC[mm](n1) * retC[mm](n1);
+	    if (mm) mod1 += retS[mm](n1) * retS[mm](n1);
+
 	    for (int n2=0; n2<norder; n2++) {
-	      D[mm](n1, n2) += m * array[mm](n1) * array[mm](n2);
+	      // Modulus for index n2
+	      double mod2 = retC[mm](n2) * retC[mm](n2);
+	      if (mm) mod2 += retS[mm](n2) * retS[mm](n2);
+
+	      D[mm](n1, n2) += m * sqrt(mod1 * mod2);
 	    }
 	  }
 	}
@@ -388,11 +407,12 @@ main(int argc, char **argv)
       p = psp->NextParticle();
     }
 
-    coefs.push_back(coef);
+    coefsC.push_back(coefC);
+    coefsS.push_back(coefS);
 
     if (myid==0) std::cout << "done" << std::endl;
 
-  } // Dump loop
+  } // PSP loop
 
   // Full reduction
   //
@@ -401,7 +421,13 @@ main(int argc, char **argv)
 		  MPI_COMM_WORLD);
   }
 
-  for (auto & coef : coefs) {
+  for (auto & coef : coefsC) {
+    for (auto & d : coef) 
+      MPI_Allreduce(MPI_IN_PLACE, d.data(), d.size(), MPI_DOUBLE, MPI_SUM,
+		    MPI_COMM_WORLD);
+  }
+
+  for (auto & coef : coefsS) {
     for (auto & d : coef) 
       MPI_Allreduce(MPI_IN_PLACE, d.data(), d.size(), MPI_DOUBLE, MPI_SUM,
 		    MPI_COMM_WORLD);
@@ -417,8 +443,9 @@ main(int argc, char **argv)
     Eigen::JacobiSVD<Eigen::MatrixXd>
       svd(D[mm], Eigen::ComputeThinU | Eigen::ComputeThinV);
 
-    std::cout << "Singular values for m=" << mm << std::endl
-	      << svd.singularValues() << std::endl;
+    if (myid==0)
+      std::cout << "Singular values for m=" << mm << std::endl
+		<< svd.singularValues() << std::endl;
 
     S.push_back(svd.singularValues());
     auto u = svd.matrixU();
@@ -426,7 +453,7 @@ main(int argc, char **argv)
 
 
 #ifdef HAVE_LIBPNGPP
-    if (PNG) {
+    if (PNG and myid==0) {
 
       const int minSize = 600;
       int ndup = 1;
@@ -486,17 +513,34 @@ main(int argc, char **argv)
 #endif
   }
 
-      
-  std::ofstream out("diskeofs.coefs");
-  for (int t=0; t<times.size(); t++) {
-    for (int mm=0; mm<=mmax; mm++) {
-      out << std::setw(18) << times[t] << std::setw(5) << mm;
+  // Make a coefficient file for rotating coefficients in the same
+  // format as readcoefs
+  //
+  if (myid==0) {
+    std::ofstream out("diskeofs.coefs");
+    std::ofstream org("diskeofs.coefs_orig");
+    int ntimes = times.size();
+    for (int t=0; t<ntimes; t++) {
+      for (int mm=0; mm<=mmax; mm++) {
+	out << std::setw(18) << times[t] << std::setw(5) << mm;
+	org << std::setw(18) << times[t] << std::setw(5) << mm;
 
-      auto newcoef = U[mm].transpose() * coefs[t][mm];
-      for (int nn=0; nn<norder; nn++) {
-	out << std::setw(18) << newcoef[nn];
+	auto newC = U[mm].transpose() * coefsC[t][mm];
+	Eigen::VectorXd newS = Eigen::VectorXd::Zero(norder);
+	if (mm) newS = U[mm].transpose() * coefsS[t][mm];
+
+	for (int nn=0; nn<norder; nn++) {
+	  out << std::setw(18) << sqrt(newC[nn]*newC[nn] + newS[nn]*newS[nn]) / ntimes;
+	}
+	out << std::endl;
+
+	for (int nn=0; nn<norder; nn++) {
+	  double res = coefsC[t][mm][nn] * coefsC[t][mm][nn] / ntimes;
+	  if (mm) res += coefsS[t][mm][nn] * coefsS[t][mm][nn] / ntimes;
+	  org << std::setw(18) << sqrt(res);
+	}
+	org << std::endl;
       }
-      out << std::endl;
     }
   }
 

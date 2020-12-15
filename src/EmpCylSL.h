@@ -333,9 +333,6 @@ private:
   //! Number of even and odd terms per subspace
   int Neven, Nodd;
 
-  //! Vector of arrays for returning per particle contribution to coefficients
-  ContribArray storeP;
-  
 public:
 
   /*! Enum listing the possible selection algorithms for coefficient
@@ -836,7 +833,8 @@ public:
   }
 
 
-  ContribArray& getPotParticle(double r, double z);
+  void getPotParticle(double x, double y, double z,
+		      ContribArray& vc, ContribArray& vs);
 
   //! Get the coefficients trimmed by a SNR value using the defined algorithm
   void get_trimmed

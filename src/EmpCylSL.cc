@@ -3631,25 +3631,29 @@ void EmpCylSL::accumulate_thread_call(int id, std::vector<Particle>* p, int mlev
 }
   
 
-EmpCylSL::ContribArray& EmpCylSL::getPotParticle(double r, double z)
+void EmpCylSL::getPotParticle(double x, double y, double z,
+			      EmpCylSL::ContribArray &retC,
+			      EmpCylSL::ContribArray &retS)
 {
   constexpr double norm = -4.0*M_PI;
 
-  if (storeP.size()==0) {
-    storeP.resize(MMAX+1);
-    for (auto & v : storeP) v.resize(rank3);
+  if (retC.size()==0) {
+    retC.resize(MMAX+1);
+    retS.resize(MMAX+1);
+    for (auto & v : retC) v.resize(rank3);
+    for (auto & v : retS) v.resize(rank3);
   }
 
-  get_pot(vc[0], vs[0], r, z);
+  double R = sqrt(x*x + y*y);
+  double phi = atan2(y, x);
+  
+  get_pot(vc[0], vs[0], R, z);
   for (int mm=0; mm<=MMAX; mm++) {
     for (int nn=0; nn<rank3; nn++) {
-      double hold1 = vc[0][mm][nn], hold2 = 0.0;
-      if (mm>0) hold2 = vs[0][mm][nn];
-      storeP[mm][nn] = sqrt(hold1*hold1 + hold2*hold2)*norm;
+      retC[mm][nn] = vc[0][mm][nn]*cos(phi*mm);
+      if (mm>0) retS[mm][nn] = vs[0][mm][nn]*sin(phi*mm);
     }
   }
-
-  return storeP;
 }
 
 
