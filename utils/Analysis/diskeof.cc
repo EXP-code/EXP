@@ -2,7 +2,8 @@
  *  Description:
  *  -----------
  *
- *  Create EOF from a sequence of PSP files
+ *  Create EOF from a sequence of PSP files.  Compute per component
+ *  VTK rendering for insight.
  *
  *
  *  Call sequence:
@@ -53,6 +54,8 @@
 
 #include <Eigen/Eigen>		// Eigen 3
 
+#include <VtkGrid.H>		// For VTK output
+
 namespace po = boost::program_options;
 namespace pt = boost::property_tree;
 
@@ -100,13 +103,102 @@ std::string outdir, runtag;
 double tpos = 0.0;
 double tnow = 0.0;
   
+void write_output(EmpCylSL& ortho, int t, int m, int nmax, double RMAX, int OUTR,
+		  std::vector<CoefArray>& cc, std::vector<CoefArray>& ss)
+{
+  unsigned ncnt = 0;
+  
+  // ==================================================
+  // Write surface profile
+  //   --- in plane ---
+  // ==================================================
+    
+  double v;
+  float f;
+    
+  double dR = 2.0*RMAX/(OUTR-1);
+  double x, y, z=0.0, r, phi;
+  double p0, d0, p, fr, fz, fp;
+  
+  vector<double> indat(2*nmax*OUTR*OUTR, 0.0), otdat(2*nmax*OUTR*OUTR);
+  
+  for (int j=0; j<OUTR; j++) {
+	
+    x = -RMAX + dR*j;
+    
+    for (int l=0; l<OUTR; l++) {
+      
+      y = -RMAX + dR*l;
+      
+      if ((ncnt++)%numprocs == myid) {
+	  
+	r = sqrt(x*x + y*y);
+	phi = atan2(y, x);
+
+	double cosp = cos(phi*m);
+	double sinp = sin(phi*m);
+	  
+	for (int n=0; n<nmax; n++) {
+
+	  double sumP = 0.0, sumD = 0.0;
+	  
+	  for (int k=0; k<nmax; k++) {
+	    double dC, dS;
+
+	    ortho.getDensSC(m, n, r, z, dC, dS);
+	    sumD += dC*cc[t][m][n]*cosp + dS*ss[t][m][n]*sinp;
+
+	    ortho.getPotSC(m, n, r, z, dC, dS);
+	    sumP += dC*cc[t][m][n]*cosp + dS*ss[t][m][n]*sinp;
+	  }
+
+	  indat[nmax*((0*OUTR+j)*OUTR+l) + n] = sumD;
+	  indat[nmax*((1*OUTR+j)*OUTR+l) + n] = sumP;
+	}
+      }
+    }
+  }
+    
+  MPI_Reduce(&indat[0], &otdat[0], 2*nmax*OUTR*OUTR,
+	     MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    
+    
+  if (myid==0) {
+      
+    for (int n=0; n<nmax; n++) {
+
+      VtkGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
+
+      std::vector<double> dataD(OUTR*OUTR), dataP(OUTR*OUTR);
+
+      for (int j=0; j<OUTR; j++) {
+	for (int l=0; l<OUTR; l++) {
+	  dataD[j*OUTR + l] = otdat[nmax*((0*OUTR+j)*OUTR+l) + n];
+	  dataP[j*OUTR + l] = otdat[nmax*((1*OUTR+j)*OUTR+l) + n];
+	}
+      }
+      vtk.Add(dataD, "d");
+      vtk.Add(dataP, "p");
+
+      std::ostringstream sout;
+      sout << runtag + "_rotated"
+	   << "." << std::setfill('0') << std::setw(5) << m
+	   << "." << std::setfill('0') << std::setw(5) << n
+	   << "." << std::setfill('0') << std::setw(3) << t;
+      
+      vtk.Write(sout.str());
+    }
+  }
+
+}
+
 int
 main(int argc, char **argv)
 {
   int lmax=64, mmax, nmax, norder, numx, numy, cmapr=1, cmapz=1;
-  double rcylmin, rcylmax, rscale, vscale;
+  double rcylmin, rcylmax, rscale, vscale, RMAX;
   std::string CACHEFILE, COEFFILE, cname;
-  int beg, end, stride;
+  int beg, end, stride, mbeg, mend, OUTR;
 
   //
   // Parse Command line
@@ -119,6 +211,18 @@ main(int argc, char **argv)
      "verbose output")
     ("PNG",
      "PNG matrix output")
+    ("rmax,r",
+     po::value<double>(&RMAX)->default_value(0.03),
+     "maximum output radius")
+    ("nout,n",
+     po::value<int>(&OUTR)->default_value(50),
+     "number of points on a side for VTK output")
+    ("mbeg",
+     po::value<int>(&mbeg)->default_value(2),
+     "minimum azimuthal order for VTK; output off if m<0")
+    ("mend",
+     po::value<int>(&mend)->default_value(2),
+     "maximum azimuthal order for VTK")
     ("beg",
      po::value<int>(&beg)->default_value(0),
      "initial PSP index")
@@ -306,7 +410,7 @@ main(int argc, char **argv)
     mat = Eigen::MatrixXd::Zero(norder, norder);
   }
 
-  std::vector<CoefArray> coefsC, coefsS;
+  std::vector<CoefArray> coefsC, coefsS, coefsT, coefRC, coefRS;
   std::vector<double>    times;
   std::vector<int>       indices;
 
@@ -513,6 +617,38 @@ main(int argc, char **argv)
 #endif
   }
 
+  // Rotate coefficients
+  //
+
+  for (int t=0; t<times.size(); t++) {
+
+    CoefArray totT(mmax + 1);	// Per snapshot storage for
+    CoefArray totC(mmax + 1);	// coefficients
+    CoefArray totS(mmax + 1);
+
+    for (auto & v : totT) v.resize(norder);
+    for (auto & v : totC) v.resize(norder);
+    for (auto & v : totS) v.resize(norder);
+
+
+    for (int mm=0; mm<=mmax; mm++) {
+      totC[mm] = U[mm].transpose() * coefsC[t][mm];
+      totS[mm] = Eigen::VectorXd::Zero(norder);
+      if (mm) totS[mm] = U[mm].transpose() * coefsS[t][mm];
+
+      Eigen::VectorXd coefT(norder), coefR(norder);
+      for (int nn=0; nn<norder; nn++) {
+	totT[mm][nn] = coefsC[t][mm][nn]*coefsC[t][mm][nn];
+	if (mm) totT[mm][nn] += coefsS[t][mm][nn]*coefsS[t][mm][nn];
+      }
+    }
+
+    coefsT.push_back(totT);
+    coefRC.push_back(totC);
+    coefRS.push_back(totS);
+  }
+
+
   // Make a coefficient file for rotating coefficients in the same
   // format as readcoefs
   //
@@ -525,22 +661,23 @@ main(int argc, char **argv)
 	out << std::setw(18) << times[t] << std::setw(5) << mm;
 	org << std::setw(18) << times[t] << std::setw(5) << mm;
 
-	auto newC = U[mm].transpose() * coefsC[t][mm];
-	Eigen::VectorXd newS = Eigen::VectorXd::Zero(norder);
-	if (mm) newS = U[mm].transpose() * coefsS[t][mm];
-
 	for (int nn=0; nn<norder; nn++) {
-	  out << std::setw(18) << sqrt(newC[nn]*newC[nn] + newS[nn]*newS[nn]) / ntimes;
+	  out << std::setw(18) << sqrt( coefRC[t][mm][nn]*coefRC[t][mm][nn] +
+					coefRS[t][mm][nn]*coefRS[t][mm][nn] );
+	  org << std::setw(18) << coefsT[t][mm][nn];
 	}
 	out << std::endl;
-
-	for (int nn=0; nn<norder; nn++) {
-	  double res = coefsC[t][mm][nn] * coefsC[t][mm][nn] / ntimes;
-	  if (mm) res += coefsS[t][mm][nn] * coefsS[t][mm][nn] / ntimes;
-	  org << std::setw(18) << sqrt(res);
-	}
 	org << std::endl;
       }
+    }
+  }
+
+  // Snapshot loop
+  //
+  if (mbeg>=0) {
+    for (int m=mbeg; m<=std::min<int>(mend, mmax); m++) {
+      for (int t=0; t<times.size(); t++)
+	write_output(ortho, t, m, norder, RMAX, OUTR, coefRC, coefRS);
     }
   }
 

@@ -764,6 +764,9 @@ public:
   }
 
   //@{
+  //! Get potential grid interpolated entries
+  void getPotSC(int m, int j, double R, double z, double& pC, double& pS);
+
   //! Get density grid interpolated entries
   void getDensSC(int m, int j, double R, double z, double& dC, double& dS);
 

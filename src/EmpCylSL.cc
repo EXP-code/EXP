@@ -1,4 +1,4 @@
-#include <algorithm>
+ #include <algorithm>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -1043,6 +1043,8 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
       in.read((char *)&hscl,    sizeof(double));
       in.read((char *)&cylmass, sizeof(double));
       in.read((char *)&time,    sizeof(double));
+
+      cmapz = 1;
     }
 
 				// Spot check compatibility
@@ -6667,6 +6669,8 @@ void EmpCylSL::getDensSC(int mm, int n, double R, double z,
   dC = 0.0;
   dS = 0.0;
 
+  if (not DENS) return;
+
   if (R/ASCALE>Rtable or mm>MMAX or n>=rank3) return;
 
   double X = (r_to_xi(R) - XMIN)/dX;
@@ -6715,4 +6719,62 @@ void EmpCylSL::getDensSC(int mm, int n, double R, double z,
       densS[mm][n][ix+1][iy  ] * c10 +
       densS[mm][n][ix  ][iy+1] * c01 +
       densS[mm][n][ix+1][iy+1] * c11 ;
+}
+
+
+void EmpCylSL::getPotSC(int mm, int n, double R, double z,
+			double& pC, double& pS)
+{
+
+  pC = 0.0;
+  pS = 0.0;
+
+  if (R/ASCALE>Rtable or mm>MMAX or n>=rank3) return;
+
+  double X = (r_to_xi(R) - XMIN)/dX;
+  double Y = (z_to_y(z)  - YMIN)/dY;
+
+  int ix = (int)X;
+  int iy = (int)Y;
+  
+  if (ix < 0) {
+    ix = 0;
+    if (enforce_limits) X = 0.0;
+  }
+  if (iy < 0) {
+    iy = 0;
+    if (enforce_limits) Y = 0.0;
+  }
+  
+  if (ix >= NUMX) {
+    ix = NUMX-1;
+    if (enforce_limits) X = NUMX;
+  }
+  if (iy >= NUMY) {
+    iy = NUMY-1;
+    if (enforce_limits) Y = NUMY;
+  }
+
+  double delx0 = (double)ix + 1.0 - X;
+  double dely0 = (double)iy + 1.0 - Y;
+  double delx1 = X - (double)ix;
+  double dely1 = Y - (double)iy;
+  
+  double c00 = delx0*dely0;
+  double c10 = delx1*dely0;
+  double c01 = delx0*dely1;
+  double c11 = delx1*dely1;
+  
+  pC = 
+    potC[mm][n][ix  ][iy  ] * c00 +
+    potC[mm][n][ix+1][iy  ] * c10 +
+    potC[mm][n][ix  ][iy+1] * c01 +
+    potC[mm][n][ix+1][iy+1] * c11 ;
+
+  if (mm)
+    pS = 
+      potS[mm][n][ix  ][iy  ] * c00 +
+      potS[mm][n][ix+1][iy  ] * c10 +
+      potS[mm][n][ix  ][iy+1] * c01 +
+      potS[mm][n][ix+1][iy+1] * c11 ;
 }
