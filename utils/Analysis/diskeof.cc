@@ -676,18 +676,18 @@ main(int argc, char **argv)
   // format as readcoefs
   //
   if (myid==0) {
-    std::ofstream out(prefix + ".coefs");
-    std::ofstream org(prefix + ".coefs_orig");
+    std::ofstream out(runtag + "_" + prefix + ".coefs");
+    std::ofstream org(runtag + "_" + prefix + ".coefs_orig");
     int ntimes = times.size();
     for (int t=0; t<ntimes; t++) {
       for (int mm=0; mm<=mmax; mm++) {
 	out << std::setw(18) << times[t] << std::setw(5) << mm;
 	org << std::setw(18) << times[t] << std::setw(5) << mm;
-
+	
 	for (int nn=0; nn<Nord; nn++) {
 	  out << std::setw(18) << sqrt( coefRC[t][mm][nn]*coefRC[t][mm][nn] +
 					coefRS[t][mm][nn]*coefRS[t][mm][nn] );
-	  org << std::setw(18) << coefsT[t][mm][nn];
+	  org << std::setw(18) << sqrt( coefsT[t][mm][nn] );
 	}
 	out << std::endl;
 	org << std::endl;
