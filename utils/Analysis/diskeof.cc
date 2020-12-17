@@ -211,6 +211,10 @@ main(int argc, char **argv)
      "verbose output")
     ("PNG",
      "PNG matrix output")
+    ("gray",
+     "use gray map for PNG matrix output")
+    ("5col",
+     "use five color heat map for PNG matrix output")
     ("rmax,r",
      po::value<double>(&RMAX)->default_value(0.03),
      "maximum output radius")
@@ -566,9 +570,13 @@ main(int argc, char **argv)
 
       png::image< png::rgb_pixel > image(norder*ndup, norder*ndup);
       ColorGradient color;
-      // color.createFiveColorHeatMapGradient();
-      color.createGrayGradient();
-      
+      if (vm.count("gray"))
+	color.createGrayGradient();
+      else if (vm.count("5col"))
+	color.createFiveColorHeatMapGradient();
+      else
+      	color.createSevenColorHeatMapGradient();
+
       std::ostringstream sout;
       sout << "diskeof_disp." << mm;
 
