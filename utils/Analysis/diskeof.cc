@@ -103,7 +103,8 @@ std::string outdir, runtag;
 double tpos = 0.0;
 double tnow = 0.0;
   
-void write_output(EmpCylSL& ortho, int t, int m, int nmax, double RMAX, int OUTR,
+void write_output(EmpCylSL& ortho, int t, int m, int nmin, int nord,
+		  double RMAX, int OUTR, std::string& prefix,
 		  std::vector<CoefArray>& cc, std::vector<CoefArray>& ss)
 {
   unsigned ncnt = 0;
@@ -119,8 +120,9 @@ void write_output(EmpCylSL& ortho, int t, int m, int nmax, double RMAX, int OUTR
   double dR = 2.0*RMAX/(OUTR-1);
   double x, y, z=0.0, r, phi;
   double p0, d0, p, fr, fz, fp;
-  
-  vector<double> indat(2*nmax*OUTR*OUTR, 0.0), otdat(2*nmax*OUTR*OUTR);
+
+  std::vector<double> indat(2*nord*OUTR*OUTR, 0.0);
+  std::vector<double> otdat(2*nord*OUTR*OUTR);
   
   for (int j=0; j<OUTR; j++) {
 	
@@ -138,34 +140,34 @@ void write_output(EmpCylSL& ortho, int t, int m, int nmax, double RMAX, int OUTR
 	double cosp = cos(phi*m);
 	double sinp = sin(phi*m);
 	  
-	for (int n=0; n<nmax; n++) {
+	for (int n=0; n<nord; n++) {
 
 	  double sumP = 0.0, sumD = 0.0;
 	  
-	  for (int k=0; k<nmax; k++) {
+	  for (int k=0; k<nord; k++) {
 	    double dC, dS;
 
-	    ortho.getDensSC(m, n, r, z, dC, dS);
+	    ortho.getDensSC(m, n+nmin, r, z, dC, dS);
 	    sumD += dC*cc[t][m][n]*cosp + dS*ss[t][m][n]*sinp;
 
-	    ortho.getPotSC(m, n, r, z, dC, dS);
+	    ortho.getPotSC(m, n+nmin, r, z, dC, dS);
 	    sumP += dC*cc[t][m][n]*cosp + dS*ss[t][m][n]*sinp;
 	  }
 
-	  indat[nmax*((0*OUTR+j)*OUTR+l) + n] = sumD;
-	  indat[nmax*((1*OUTR+j)*OUTR+l) + n] = sumP;
+	  indat[nord*((0*OUTR+j)*OUTR+l) + n] = sumD;
+	  indat[nord*((1*OUTR+j)*OUTR+l) + n] = sumP;
 	}
       }
     }
   }
     
-  MPI_Reduce(&indat[0], &otdat[0], 2*nmax*OUTR*OUTR,
+  MPI_Reduce(&indat[0], &otdat[0], 2*nord*OUTR*OUTR,
 	     MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     
     
   if (myid==0) {
       
-    for (int n=0; n<nmax; n++) {
+    for (int n=0; n<nord; n++) {
 
       VtkGrid vtk(OUTR, OUTR, 1, -RMAX, RMAX, -RMAX, RMAX, 0, 0);
 
@@ -173,17 +175,17 @@ void write_output(EmpCylSL& ortho, int t, int m, int nmax, double RMAX, int OUTR
 
       for (int j=0; j<OUTR; j++) {
 	for (int l=0; l<OUTR; l++) {
-	  dataD[j*OUTR + l] = otdat[nmax*((0*OUTR+j)*OUTR+l) + n];
-	  dataP[j*OUTR + l] = otdat[nmax*((1*OUTR+j)*OUTR+l) + n];
+	  dataD[j*OUTR + l] = otdat[nord*((0*OUTR+j)*OUTR+l) + n];
+	  dataP[j*OUTR + l] = otdat[nord*((1*OUTR+j)*OUTR+l) + n];
 	}
       }
       vtk.Add(dataD, "d");
       vtk.Add(dataP, "p");
 
       std::ostringstream sout;
-      sout << runtag + "_rotated"
+      sout << prefix << "_rotated_" << runtag 
 	   << "." << std::setfill('0') << std::setw(5) << m
-	   << "." << std::setfill('0') << std::setw(5) << n
+	   << "." << std::setfill('0') << std::setw(5) << n+nmin
 	   << "." << std::setfill('0') << std::setw(3) << t;
       
       vtk.Write(sout.str());
@@ -195,9 +197,9 @@ void write_output(EmpCylSL& ortho, int t, int m, int nmax, double RMAX, int OUTR
 int
 main(int argc, char **argv)
 {
-  int lmax=64, mmax, nmax, norder, numx, numy, cmapr=1, cmapz=1;
+  int lmax=64, mmax, Nmin, Nmax, nmax, norder, numx, numy, cmapr=1, cmapz=1;
   double rcylmin, rcylmax, rscale, vscale, RMAX;
-  std::string CACHEFILE, COEFFILE, cname;
+  std::string CACHEFILE, COEFFILE, cname, prefix;
   int beg, end, stride, mbeg, mend, OUTR;
 
   //
@@ -236,6 +238,12 @@ main(int argc, char **argv)
     ("stride",
      po::value<int>(&stride)->default_value(1),
      "PSP index stride")
+    ("nmin",
+     po::value<int>(&Nmin)->default_value(0),
+     "minimum order in EOF")
+    ("nmax",
+     po::value<int>(&Nmax)->default_value(std::numeric_limits<int>::max()),
+     "maximum order in EOF")
     ("outdir",
      po::value<std::string>(&outdir)->default_value("."),
      "Output directory path")
@@ -251,6 +259,9 @@ main(int argc, char **argv)
     ("runtag",
      po::value<std::string>(&runtag)->default_value("run1"),
      "runtag for phase space files")
+    ("prefix",
+     po::value<std::string>(&prefix)->default_value("even"),
+     "output prefix for distinguishing parameters")
     ;
   
   po::variables_map vm;
@@ -409,9 +420,13 @@ main(int argc, char **argv)
   
   // First create storage
   //
+  Nmin = std::max<int>(Nmin, 0);
+  Nmax = std::min<int>(Nmax, norder);
+  int Nord = Nmax - Nmin;
+
   DvarArray D(mmax+1);
   for (auto & mat : D) {
-    mat = Eigen::MatrixXd::Zero(norder, norder);
+    mat = Eigen::MatrixXd::Zero(Nord, Nord);
   }
 
   std::vector<CoefArray> coefsC, coefsS, coefsT, coefRC, coefRS;
@@ -469,8 +484,8 @@ main(int argc, char **argv)
     CoefArray coefC(mmax + 1);	// Per snapshot storage for
     CoefArray coefS(mmax + 1);	// coefficients
 
-    for (auto & v : coefC) v = Eigen::VectorXd::Zero(norder);
-    for (auto & v : coefS) v = Eigen::VectorXd::Zero(norder);
+    for (auto & v : coefC) v = Eigen::VectorXd::Zero(Nord);
+    for (auto & v : coefS) v = Eigen::VectorXd::Zero(Nord);
     
     unsigned count = 0;
     
@@ -493,19 +508,19 @@ main(int argc, char **argv)
 	// Accumulate coefficients and D matrix
 	//
 	for (int mm=0; mm<=mmax; mm++) {
-	  for (int n1=0; n1<norder; n1++) {
+	  for (int n1=0; n1<Nord; n1++) {
 	    // Coefficient contribution
-	    coefC[mm](n1) += m * retC[mm](n1);
-	    if (mm) coefS[mm](n1) += m * retS[mm](n1);
+	    coefC[mm](n1) += m * retC[mm](n1+Nmin);
+	    if (mm) coefS[mm](n1) += m * retS[mm](n1+Nmin);
 
 	    // Modulus for index n1
-	    double mod1 = retC[mm](n1) * retC[mm](n1);
-	    if (mm) mod1 += retS[mm](n1) * retS[mm](n1);
+	    double mod1 = retC[mm](n1+Nmin) * retC[mm](n1+Nmin);
+	    if (mm) mod1 += retS[mm](n1+Nmin) * retS[mm](n1+Nmin);
 
-	    for (int n2=0; n2<norder; n2++) {
+	    for (int n2=0; n2<Nord; n2++) {
 	      // Modulus for index n2
-	      double mod2 = retC[mm](n2) * retC[mm](n2);
-	      if (mm) mod2 += retS[mm](n2) * retS[mm](n2);
+	      double mod2 = retC[mm](n2+Nmin) * retC[mm](n2+Nmin);
+	      if (mm) mod2 += retS[mm](n2+Nmin) * retS[mm](n2+Nmin);
 
 	      D[mm](n1, n2) += m * sqrt(mod1 * mod2);
 	    }
@@ -566,9 +581,9 @@ main(int argc, char **argv)
       const int minSize = 600;
       int ndup = 1;
 
-      if (norder < minSize) ndup = minSize/norder   + 1;
+      if (Nord < minSize) ndup = minSize/Nord   + 1;
 
-      png::image< png::rgb_pixel > image(norder*ndup, norder*ndup);
+      png::image< png::rgb_pixel > image(Nord*ndup, Nord*ndup);
       ColorGradient color;
       if (vm.count("gray"))
 	color.createGrayGradient();
@@ -578,20 +593,20 @@ main(int argc, char **argv)
       	color.createSevenColorHeatMapGradient();
 
       std::ostringstream sout;
-      sout << "diskeof_disp." << mm;
+      sout << runtag << "_" << prefix << "_disp." << mm;
 
       double minV = std::numeric_limits<double>::max();
       double maxV = std::numeric_limits<double>::min();
 
-      for (int n1=0; n1<norder; n1++) {
-	for (int n2=0; n2<norder; n2++) {
+      for (int n1=0; n1<Nord; n1++) {
+	for (int n2=0; n2<Nord; n2++) {
 	  minV = std::min<double>(minV, D[mm](n1, n2));
 	  maxV = std::max<double>(maxV, D[mm](n1, n2));
 	}
       }
 
-      for (int n1=0; n1<norder; n1++) {
-	for (int n2=0; n2<norder; n2++) {
+      for (int n1=0; n1<Nord; n1++) {
+	for (int n2=0; n2<Nord; n2++) {
 	  png::rgb_pixel cval = color( (D[mm](n1, n2) - minV)/(maxV - minV) );
 	  for (size_t xx = n1*ndup; xx < (n1+1)*ndup; xx++) {
 	    for (size_t yy = n2*ndup; yy < (n2+1)*ndup; yy++) {
@@ -604,13 +619,13 @@ main(int argc, char **argv)
       image.write(sout.str() + ".png");
       
       sout.str("");
-      sout << "diskeof_ev." << mm;
+      sout << runtag << "_" << prefix << "_ev." << mm;
 
       minV = -1.0;
       maxV =  1.0;
 
-      for (int n1=0; n1<norder; n1++) {
-	for (int n2=0; n2<norder; n2++) {
+      for (int n1=0; n1<Nord; n1++) {
+	for (int n2=0; n2<Nord; n2++) {
 	  png::rgb_pixel cval = color( (u(n1, n2) - minV)/(maxV - minV) );
 	    for (size_t xx = n1*ndup; xx < (n1+1)*ndup; xx++) {
 	      for (size_t yy = n2*ndup; yy < (n2+1)*ndup; yy++) {
@@ -634,18 +649,18 @@ main(int argc, char **argv)
     CoefArray totC(mmax + 1);	// coefficients
     CoefArray totS(mmax + 1);
 
-    for (auto & v : totT) v.resize(norder);
-    for (auto & v : totC) v.resize(norder);
-    for (auto & v : totS) v.resize(norder);
+    for (auto & v : totT) v.resize(Nord);
+    for (auto & v : totC) v.resize(Nord);
+    for (auto & v : totS) v.resize(Nord);
 
 
     for (int mm=0; mm<=mmax; mm++) {
       totC[mm] = U[mm].transpose() * coefsC[t][mm];
-      totS[mm] = Eigen::VectorXd::Zero(norder);
+      totS[mm] = Eigen::VectorXd::Zero(Nord);
       if (mm) totS[mm] = U[mm].transpose() * coefsS[t][mm];
 
-      Eigen::VectorXd coefT(norder), coefR(norder);
-      for (int nn=0; nn<norder; nn++) {
+      Eigen::VectorXd coefT(Nord), coefR(Nord);
+      for (int nn=0; nn<Nord; nn++) {
 	totT[mm][nn] = coefsC[t][mm][nn]*coefsC[t][mm][nn];
 	if (mm) totT[mm][nn] += coefsS[t][mm][nn]*coefsS[t][mm][nn];
       }
@@ -661,15 +676,15 @@ main(int argc, char **argv)
   // format as readcoefs
   //
   if (myid==0) {
-    std::ofstream out("diskeofs.coefs");
-    std::ofstream org("diskeofs.coefs_orig");
+    std::ofstream out(prefix + ".coefs");
+    std::ofstream org(prefix + ".coefs_orig");
     int ntimes = times.size();
     for (int t=0; t<ntimes; t++) {
       for (int mm=0; mm<=mmax; mm++) {
 	out << std::setw(18) << times[t] << std::setw(5) << mm;
 	org << std::setw(18) << times[t] << std::setw(5) << mm;
 
-	for (int nn=0; nn<norder; nn++) {
+	for (int nn=0; nn<Nord; nn++) {
 	  out << std::setw(18) << sqrt( coefRC[t][mm][nn]*coefRC[t][mm][nn] +
 					coefRS[t][mm][nn]*coefRS[t][mm][nn] );
 	  org << std::setw(18) << coefsT[t][mm][nn];
@@ -682,10 +697,11 @@ main(int argc, char **argv)
 
   // Snapshot loop
   //
-  if (mbeg>=0) {
+  if (mbeg>=0) {	     // Print out profiles for every desired m
     for (int m=mbeg; m<=std::min<int>(mend, mmax); m++) {
-      for (int t=0; t<times.size(); t++)
-	write_output(ortho, t, m, norder, RMAX, OUTR, coefRC, coefRS);
+      for (int t=0; t<times.size(); t++) // and every snapshot:
+	write_output(ortho, t, m, Nmin, Nord, RMAX, OUTR, prefix,
+		     coefRC, coefRS);
     }
   }
 
