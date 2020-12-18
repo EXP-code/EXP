@@ -41,12 +41,12 @@ noinst_LIBRARIES = libexpdsmc.a libtestdsmc.a
 
 DSMC_SRC = TreeDSMC.cc Collide.cc CollideLTE.cc HeatCool.cc		\
 	CollideIon.cc Ion.cc interactSelect.cc Elastic.cc TopBase.cc	\
-	NTC.cc Quantile.cc QuantileBag.cc phfit2.f			\
+	NTC.cc Quantile.cc QuantileBag.cc phfit2.f Badnell.cc		\
 	atomic_constants.cc spline.cc $(ADD_CUDA0)
 
 TESTDSMC_SRC = Ion.cc interactSelect.cc Elastic.cc TopBase.cc	\
 	Quantile.cc QuantileBag.cc phfit2.f atomic_constants.cc	\
-	spline.cc $(ADD_CUDA1)
+	Badnell.cc spline.cc $(ADD_CUDA1)
 
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs -L$(top_srcdir)/src/DSMC $(BOOST_LDFLAGS)
 

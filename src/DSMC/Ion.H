@@ -16,6 +16,7 @@
 #include <TopBase.H>
 #include <Cspline.H>
 #include <Verner.H>
+#include <Badnell.H>
 #include <KarzasLatter.H>
 
 #include <gaussQ.h>
@@ -289,6 +290,9 @@ public:
   //! Verner-Yakovlev cross-section data
   VernerData VernerXC;
   
+  //! Badnell recombination cross sections
+  BadnellData BadnellXC;
+  
   //! Gaunt factor data
   KLGFdata radGF;
   
@@ -316,6 +320,9 @@ public:
 
   //! Read the radiative cross section data
   void readVerner();
+
+  //! Read the radiative cross section data
+  void readBadnell();
 
   //! Read the radiative recombination Gaunt factor data
   void readRadGF();
@@ -448,7 +455,7 @@ public:
 
   //@{
   //! Structures for user-friendly specification of recombination types
-  enum    RR_Type { mewe, topbase, kramers, spitzer, verner };
+  enum    RR_Type { mewe, topbase, kramers, spitzer, verner, badnell };
   typedef std::map<std::string, RR_Type> RR_Map;
   typedef std::map<RR_Type, std::string> RR_Lab;
   //@}
@@ -737,13 +744,15 @@ public:
       as a function of incoming electron impact energy, and returns the
       vector cumulative cross section array. */
 
-  std::vector<double> radRecombCrossMewe   (double E, int id);
-  std::vector<double> radRecombCrossSpitzer(double E, int id);
-  std::vector<double> radRecombCrossKramers(double E, int id);
-  std::vector<double> radRecombCrossTopBase(double E, int id);
-  std::vector<double> radRecombCrossVerner (double E, int id);
+  std::vector<double> radRecombCrossMewe    (double E, int id);
+  std::vector<double> radRecombCrossSpitzer (double E, int id);
+  std::vector<double> radRecombCrossKramers (double E, int id);
+  std::vector<double> radRecombCrossTopBase (double E, int id);
+  std::vector<double> radRecombCrossVerner  (double E, int id);
+  std::vector<double> radRecombCrossBadnell (double E, int id);
+  std::vector<double> radRecombCrossHydrogn (double E, int id);
 
-  std::vector<double> radRecombCross       (double E, int id)
+  std::vector<double> radRecombCross        (double E, int id)
   {
     if (useRadRecombGrid)
       return radRecombCrossEvGrid(E, id);

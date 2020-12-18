@@ -13,7 +13,7 @@ extern "C" void phfit2_(int* nz, int* ne, int* is, float* e, float* s);
 class VernerData
 {
   //! Pair of unsigned shorts for indexing (Z, C) index pairs
-  typedef std::pair<unsigned short, unsigned short> lQ;
+  using lQ = std::pair<unsigned short, unsigned short>;
 
 private:
 
@@ -29,8 +29,8 @@ public:
     void sync(int myid=0);
   };
   
-  typedef boost::shared_ptr<VernerRec> vrPtr;
-  typedef std::vector<vrPtr> vrVec;
+  using vrPtr = boost::shared_ptr<VernerRec>;
+  using vrVec = std::vector<vrPtr>;
 
   std::map<lQ, vrVec> data;
 
