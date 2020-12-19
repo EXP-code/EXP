@@ -2,7 +2,10 @@
 #include <fstream>
 #include <sstream>
 
+#include <mpi.h>
+
 #include <Badnell.H>
+#include <scandir.H>
 
 #include <boost/make_shared.hpp>
 
@@ -11,10 +14,10 @@ std::string BadnellData::DRdir = "./DR";
 
 BadnellData::BadnellData()
 {
-  // Ion registry
+  // Ion registry (just He so far)
   //
   ions = { {2, "he"} };		// map of mnemonics
-  ionQ = { {2, 2} };		// vector of ions
+  ionQ = { {2, 2}, {2, 3} };	// vector of ions
 }
 
 void BadnellData::initialize(chdata* ch)
@@ -34,16 +37,32 @@ void BadnellData::initialize(chdata* ch)
       coeffs.
   */
 
-  const std::string user("nrb"), year("20"), seq("#h_"), coupling("ic"), core("12");
+  const std::string user("nrb"), year("20");
 
   for (auto ZC : ionQ) {
 
-    // First read RR
-    std::ostringstream file;
-    file << RRdir << "/" << user << year << seq << ions[ZC.first] << ZC.second - 1 << coupling << ".dat";
-    std::cout << "File=" << file.str() << std::endl;
-    std::ifstream in(file.str());
+    // File filters
+    std::ostringstream m1, m2;
+    m1 << user << year;
+    m2 << ions[ZC.first] << ZC.second - 1;
 
+    auto filter = [&m1, &m2](const std::string& name) {
+		    return (name.find(m1.str()) != std::string::npos &&
+			    name.find(m2.str()) != std::string::npos );
+		  };
+
+    auto names = scandirpp::get_names(RRdir, filter);
+
+    if (names.size() != 1) {
+      std::cout << "Unexpected RR matches: " << names.size() << std::endl;
+      MPI_Finalize();
+      exit(33);
+    }
+
+    std::cout << "[RR] Filter=" << m1.str() << ", " << m2.str()
+	      << " :: " << RRdir + "/" + names[0] << std::endl;
+    std::ifstream in(RRdir + "/" + names[0]);
+    
     std::string line;
     std::getline(in, line);
 
@@ -78,38 +97,49 @@ void BadnellData::initialize(chdata* ch)
     }
     
     // Now read DR
-    file.str("");
-    file << DRdir << "/" << user << year << seq << ions[ZC.first] << ZC.second - 1 << coupling << core << ".dat";
-    std::cout << "File=" << file.str() << std::endl;
-    in.close();
-    in.open(file.str());
 
-    std::getline(in, line);
-    
-    looking = true;
-    while (in) {
-      if (looking) {
-	// Keep reading lines until we reach the totals
-	if (line.find("E(RYD)") != std::string::npos) {
-	  looking = false;
-	  std::getline(in, line); // Read header
-	}
-      } else {
-	// We are done!
-	if (line[0] == 'C') break;
-	
-	// Read the line
-	std::istringstream ins(line);
-	
-	// Values
-	ins >> E >> X;
-	d->E_dr.push_back(E);
-	d->X_dr.push_back(X);
+    names = scandirpp::get_names(DRdir, filter);
+
+    if (names.size()) {
+
+      if (names.size() != 1) {
+	std::cout << "Unexpected DR matches: " << names.size() << std::endl;
+	MPI_Finalize();
+	exit(34);
       }
+
+      std::cout << "[DR] Filter=" << m1.str() << ", " << m2.str()
+		<< " :: " << DRdir + "/" + names[0] << std::endl;
+      in.close();
+      in.open(DRdir + "/" + names[0]);
       
-      // Read next line
       std::getline(in, line);
-    }
+    
+      looking = true;
+      while (in) {
+	if (looking) {
+	  // Keep reading lines until we reach the totals
+	  if (line.find("E(RYD)") != std::string::npos) {
+	    looking = false;
+	    std::getline(in, line); // Read header
+	  }
+	} else {
+	  // We are done!
+	  if (line[0] == 'C') break;
+	  
+	  // Read the line
+	  std::istringstream ins(line);
+	  
+	  // Values
+	  ins >> E >> X;
+	  d->E_dr.push_back(E);
+	  d->X_dr.push_back(X);
+	}
+	
+	// Read next line
+	std::getline(in, line);
+      }
+    } // END: DR will not exist for hydrogenic case
 
     data[ZC] = d;
   }

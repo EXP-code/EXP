@@ -455,7 +455,7 @@ public:
 
   //@{
   //! Structures for user-friendly specification of recombination types
-  enum    RR_Type { mewe, topbase, kramers, spitzer, verner, badnell };
+  enum    RR_Type { mewe, topbase, kramers, spitzer, verner, badnell, hydrogn };
   typedef std::map<std::string, RR_Type> RR_Map;
   typedef std::map<RR_Type, std::string> RR_Lab;
   //@}

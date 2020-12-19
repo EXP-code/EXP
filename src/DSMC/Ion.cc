@@ -23,7 +23,8 @@ Ion::RR_Map Ion::rr_map = {
   { "Kramers", Ion::kramers },
   { "Spitzer", Ion::spitzer },
   { "Verner",  Ion::verner  },
-  { "Badnell", Ion::badnell }
+  { "Badnell", Ion::badnell },
+  { "Hydrogn", Ion::hydrogn }
 };
 
 // For printing cross-section type (c++-11 initialization style)
@@ -34,7 +35,8 @@ Ion::RR_Lab Ion::rr_lab = {
     { Ion::kramers, "Kramers" },
     { Ion::spitzer, "Spitzer" },
     { Ion::verner,  "Verner"  },
-    { Ion::badnell, "Badnell" }
+    { Ion::badnell, "Badnell" },
+    { Ion::hydrogn, "Hydrogn" }
 };
 
 Ion::RR_Type Ion::rr_type = Ion::verner;
@@ -2145,6 +2147,7 @@ std::vector<double> Ion::radRecombCrossSingle(double E, int id)
     std::vector<double> v4 = radRecombCrossSpitzer(E, id);
     std::vector<double> v5 = radRecombCrossVerner (E, id);
     std::vector<double> v6 = radRecombCrossBadnell(E, id);
+    std::vector<double> v7 = radRecombCrossHydrogn(E, id);
 
     std::cout << "  [Z, C] = [" << Z << ", " << C << "]"     << std::endl;
     std::cout << "  E (eV) = " << std::setw(16) << E         << std::endl;
@@ -2154,6 +2157,7 @@ std::vector<double> Ion::radRecombCrossSingle(double E, int id)
     std::cout << " Spitzer = " << std::setw(16) << v4.back() << std::endl;
     std::cout << "  Verner = " << std::setw(16) << v5.back() << std::endl;
     std::cout << " Badnell = " << std::setw(16) << v6.back() << std::endl;
+    std::cout << " Hydrogn = " << std::setw(16) << v7.back() << std::endl;
 
     std::cout << std::string(60, '-')                        << std::endl;
     
@@ -2163,6 +2167,7 @@ std::vector<double> Ion::radRecombCrossSingle(double E, int id)
     else if (rr_type == spitzer) return v4;
     else if (rr_type == verner)  return v5;
     else if (rr_type == badnell) return v6;
+    else if (rr_type == hydrogn) return v7;
     else                         return v5;
 
   } else {
@@ -2173,6 +2178,7 @@ std::vector<double> Ion::radRecombCrossSingle(double E, int id)
     else if (rr_type == spitzer) return radRecombCrossSpitzer(E, id);
     else if (rr_type == verner)  return radRecombCrossVerner (E, id);
     else if (rr_type == badnell) return radRecombCrossBadnell(E, id);
+    else if (rr_type == hydrogn) return radRecombCrossHydrogn(E, id);
     else                         return radRecombCrossVerner (E, id);
 
   }
@@ -2186,11 +2192,12 @@ std::vector<double> Ion::radRecombCrossSingle(double E, int id)
 */
 std::vector<double> Ion::radRecombCrossBadnell(double E, int id) 
 {
-  auto K = lQ(Z, C);
-  auto d = ch->BadnellXC.data[K];
+  auto dd = ch->BadnellXC.data.find(lQ(Z, C));
 
-  if (d->E_rr.size() == 0)
+  if (dd == ch->BadnellXC.data.end())
     return Ion::radRecombCrossHydrogn(E, id);
+
+  auto d = dd->second;
 
   // Return vector
   //
@@ -2208,7 +2215,7 @@ std::vector<double> Ion::radRecombCrossBadnell(double E, int id)
     if (E>=Ebeg and E<=Eend) {
       auto x1 = std::lower_bound(d->E_rr.begin(), d->E_rr.end(), E);
       auto x2 = x1;
-      if (std::distance(d->E_rr.begin(), x1) < d->E_rr.size() - 1)
+      if (x1 == d->E_rr.begin())
 	x2++;
       else
 	x1--;
@@ -2231,7 +2238,7 @@ std::vector<double> Ion::radRecombCrossBadnell(double E, int id)
     if (E>=Ebeg and E<=Eend) {
       auto x1 = std::lower_bound(d->E_dr.begin(), d->E_dr.end(), E);
       auto x2 = x1;
-      if (std::distance(d->E_dr.begin(), x1) < d->E_dr.size() - 1)
+      if (x1 == d->E_dr.begin())
 	x2++;
       else
 	x1--;
@@ -2249,7 +2256,7 @@ std::vector<double> Ion::radRecombCrossBadnell(double E, int id)
   // Convert Mb to nm^2 -------+
   //                           |
   //                           v
-  radRecCum.push_back(cross*1.0e-04);
+  radRecCum.push_back(cross*1.0e-4);
 
   return radRecCum;
 }
@@ -2264,16 +2271,20 @@ std::vector<double> Ion::radRecombCrossBadnell(double E, int id)
 */
 std::vector<double> Ion::radRecombCrossHydrogn(double E, int id) 
 {
-  // Numerical factor from Stobbe formula
+  // Numerical factor from Stobbe formula (Bohr radius in nm^2)
   //
-  const double nfac = 256.0*M_PI*M_PI/3.0 * afs*afs*a0*a0;
+  const double nfac = 256.0*M_PI*M_PI/3.0 * afs*afs*afs*a0*a0;
 
   // Compute the effective charge
   //
   double zz   = Z;
   double ii   = C - 1;
 
-  double eta = sqrt(ii*ii/E);
+  // Rydberg in eV
+  //
+  constexpr double ryd = 27.2113845/2.0;
+
+  double eta = sqrt(ii*ii*ryd/E);
 
   // Return vector
   //
@@ -2282,17 +2293,15 @@ std::vector<double> Ion::radRecombCrossHydrogn(double E, int id)
   // Ground state
   //
   double e21 = eta*eta + 1.0;
-  double cross = nfac * pow(eta, 6.0) * exp(-4.0*eta*atan(1.0/eta)) / (1.0 - exp(-4.0*eta)) / (e21*e21);
+  double cross = nfac * pow(eta, 6.0) * exp(-4.0*eta*atan(1.0/eta)) / (1.0 - exp(-2.0*M_PI*eta)) / (e21*e21);
 
   // Fitting formula
   //
   double lfc = log(e21);
   cross *= (1.202 + 0.5782*lfc + 0.2148*lfc*lfc)/(1.0 + 0.3425*lfc);
 
-  // Convert cm^2 to nm^2 -----+
-  //                           |
-  //                           v
-  radRecCum.push_back(cross*1.0e14);
+  // In nm^2
+  radRecCum.push_back(cross);
 
   return radRecCum;
 }
@@ -3392,7 +3401,7 @@ double VernerData::crossPhotoIon(vrPtr vdata, double Eph)
     pow(y, -5.5 - vdata->l + 0.5*vdata->p) * 
     pow(1.0 + sqrt(y/vdata->ya), -vdata->p);
   
-  // Convert from Mbarnes to nm^2
+  // Convert from Mbarns to nm^2
   //
   return fy * 1.0e-4;
 }
