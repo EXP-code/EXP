@@ -11,6 +11,7 @@
 
 std::string BadnellData::RRdir = "./RR";
 std::string BadnellData::DRdir = "./DR";
+bool BadnellData::reweight = true;
 
 BadnellData::BadnellData()
 {
@@ -51,7 +52,12 @@ void BadnellData::initialize(chdata* ch)
 			    name.find(m2.str()) != std::string::npos );
 		  };
 
-    auto names = scandirpp::get_names(RRdir, filter);
+    std::cout << "[before] Filter=" << m1.str() << ", " << m2.str() << std::endl;
+
+    std::vector<std::string> names = scandirpp::get_names(RRdir, filter);
+
+    std::cout << "[RR] Filter=" << m1.str() << ", " << m2.str()
+	      << " :: " << RRdir + "/" + names[0] << std::endl;
 
     if (names.size() != 1) {
       std::cout << "Unexpected RR matches: " << names.size() << std::endl;
@@ -59,8 +65,6 @@ void BadnellData::initialize(chdata* ch)
       exit(33);
     }
 
-    std::cout << "[RR] Filter=" << m1.str() << ", " << m2.str()
-	      << " :: " << RRdir + "/" + names[0] << std::endl;
     std::ifstream in(RRdir + "/" + names[0]);
     
     std::string line;
@@ -96,6 +100,19 @@ void BadnellData::initialize(chdata* ch)
       std::getline(in, line);
     }
     
+    // Reweight energies
+    //
+    if (reweight) {
+      for (int i=0; i<d->E_rr.size()-1; i++) {
+	if (i<d->X_rr.size())
+	  d->X_rr[i] *= 2.0/(1.0 + d->E_rr[i]/d->E_rr[i+1]);
+	else {
+	  std::cout << "RR error for [" << ZC.first << ", " << ZC.second
+		    << "]: i=" << i << " !< " << d->X_rr.size() << std::endl;
+	}
+      }
+    }
+
     // Now read DR
 
     names = scandirpp::get_names(DRdir, filter);
@@ -139,6 +156,17 @@ void BadnellData::initialize(chdata* ch)
 	// Read next line
 	std::getline(in, line);
       }
+
+      if (reweight) {
+	for (int i=0; i<d->E_dr.size()-1; i++) {
+	  if (i<d->X_dr.size())
+	    d->X_dr[i] *= 2.0/(1.0 + d->E_dr[i]/d->E_dr[i+1]);
+	  else
+	    std::cout << "DR error for [" << ZC.first << ", " << ZC.second
+		      << "]: i=" << i << " !< " << d->X_dr.size() << std::endl;
+	}
+      }
+
     } // END: DR will not exist for hydrogenic case
 
     data[ZC] = d;

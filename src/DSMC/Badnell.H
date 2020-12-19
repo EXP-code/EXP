@@ -37,6 +37,9 @@ public:
   //! Location of DR data files
   static std::string DRdir;
 
+  //! Reweight cross section by mean energy
+  static bool reweight;
+  
   struct BadnellRec 
   {
     std::vector<double> E_rr, X_rr, E_dr, X_dr;
