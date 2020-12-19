@@ -1,3 +1,4 @@
+#include <iostream>
 #include <fstream>
 #include <sstream>
 
@@ -39,13 +40,13 @@ void BadnellData::initialize(chdata* ch)
 
     // First read RR
     std::ostringstream file;
-    file << RRdir << "/" << user << year << seq << ions[ZC.first] << ZC.second - 1 << coupling;
+    file << RRdir << "/" << user << year << seq << ions[ZC.first] << ZC.second - 1 << coupling << ".dat";
+    std::cout << "File=" << file.str() << std::endl;
     std::ifstream in(file.str());
 
     std::string line;
     std::getline(in, line);
 
-    std::istringstream ins;
     double E, X;
     
     // Create a data record
@@ -53,25 +54,23 @@ void BadnellData::initialize(chdata* ch)
 
     bool looking = true;
     while (in) {
-      // We are reading data
       if (looking) {
+	// Keep reading lines until we reach the totals
+	if (line.find("E(RYD)") != std::string::npos) {
+	  looking = false;
+	  std::getline(in, line); // Read header
+	}
+      } else {
 	// We are done!
 	if (line[0] == 'C') break;
 	
 	// Read the line
-	ins.str(line);
+	std::istringstream ins(line);
 	
-	// Energy value
-	ins >> E;
-	if (ins.good()) d->E_rr.push_back(E);
-
-	// Cross section value
-	ins >> X;
-	if (ins.good()) d->X_rr.push_back(X);
-      } else {
-	// Keep reading lines until we reach the totals
-	if (line.find("E(RYD)") != std::string::npos)
-	  looking = true;
+	// Values
+	ins >> E >> X;
+	d->E_rr.push_back(E);
+	d->X_rr.push_back(X);
       }
       
       // Read next line
@@ -80,7 +79,8 @@ void BadnellData::initialize(chdata* ch)
     
     // Now read DR
     file.str("");
-    file << DRdir << "/" << user << year << seq << ions[ZC.first] << ZC.second - 1 << coupling << core;
+    file << DRdir << "/" << user << year << seq << ions[ZC.first] << ZC.second - 1 << coupling << core << ".dat";
+    std::cout << "File=" << file.str() << std::endl;
     in.close();
     in.open(file.str());
 
@@ -88,26 +88,23 @@ void BadnellData::initialize(chdata* ch)
     
     looking = true;
     while (in) {
-      // We are reading data
       if (looking) {
+	// Keep reading lines until we reach the totals
+	if (line.find("E(RYD)") != std::string::npos) {
+	  looking = false;
+	  std::getline(in, line); // Read header
+	}
+      } else {
 	// We are done!
 	if (line[0] == 'C') break;
 	
 	// Read the line
-	ins.str(line);
+	std::istringstream ins(line);
 	
-	// Energy value
-	ins >> E;
-	if (ins.good()) d->E_dr.push_back(E);
-	
-	// Cross section value
-	ins >> X;
-	if (ins.good()) d->X_dr.push_back(X);
-
-      } else {
-	// Keep reading lines until we reach the totals
-	if (line.find("E(RYD)") != std::string::npos)
-	  looking = true;
+	// Values
+	ins >> E >> X;
+	d->E_dr.push_back(E);
+	d->X_dr.push_back(X);
       }
       
       // Read next line

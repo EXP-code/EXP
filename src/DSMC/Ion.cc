@@ -2186,7 +2186,8 @@ std::vector<double> Ion::radRecombCrossSingle(double E, int id)
 */
 std::vector<double> Ion::radRecombCrossBadnell(double E, int id) 
 {
-  auto d = ch->BadnellXC.data[getK()];
+  auto K = lQ(Z, C);
+  auto d = ch->BadnellXC.data[K];
 
   if (d->E_rr.size() == 0)
     return Ion::radRecombCrossHydrogn(E, id);
@@ -2854,8 +2855,9 @@ chdata::chdata()
   // std::cout << "Reading abundance file\n";
   readAbundanceAll();
   
-  // std::cout << "Reading radiative cross section file\n";
+  // std::cout << "Reading radiative cross section files\n";
   readVerner();
+  readBadnell();
 
   // std::cout << "Reading radiative recombination Gaunt factor file\n";
   readRadGF();
