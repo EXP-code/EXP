@@ -2223,10 +2223,10 @@ std::vector<double> Ion::radRecombCrossBadnell(double E, int id)
       int lo = std::distance(d->E_rr.begin(), x1);
       int hi = std::distance(d->E_rr.begin(), x2);
 
-      // Interpolate
+      // Interpolate (sigma*E is tabled)
       double Elo = d->E_rr[lo];
       double Ehi = d->E_rr[hi];
-      cross += ( d->X_rr[lo]*(Ehi - E) + d->X_rr[hi]*(E - Elo) ) / (Ehi - Elo);
+      cross += ( d->X_rr[lo]*(Ehi - E) + d->X_rr[hi]*(E - Elo) ) / (Ehi - Elo) / E;
     }
   }
 
@@ -2246,7 +2246,7 @@ std::vector<double> Ion::radRecombCrossBadnell(double E, int id)
       int lo = std::distance(d->E_dr.begin(), x1);
       int hi = std::distance(d->E_dr.begin(), x2);
 
-      // Interpolate
+      // Interpolate (sigma is tabled)
       double Elo = d->E_dr[lo];
       double Ehi = d->E_dr[hi];
       cross += ( d->X_dr[lo]*(Ehi - E) + d->X_dr[hi]*(E - Elo) ) / (Ehi - Elo);

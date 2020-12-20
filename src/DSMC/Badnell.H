@@ -19,6 +19,9 @@ class BadnellData
   //! Pair of unsigned shorts for indexing (Z, C) index pairs
   using lQ = std::pair<unsigned short, unsigned short>;
 
+  //! Rydberg energy in eV
+  static constexpr double RydtoeV = 13.60569253;
+
 private:
 
   chdata *ch;
@@ -37,7 +40,8 @@ public:
   //! Location of DR data files
   static std::string DRdir;
 
-  //! Reweight cross section by mean energy
+  //! Reweight cross section by mean energy (default: false).  Doesn't
+  //! matter much for small bins.
   static bool reweight;
   
   struct BadnellRec 

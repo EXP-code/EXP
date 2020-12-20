@@ -802,8 +802,8 @@ public:
       return 1;			// Failure
     } else { 			// Set request
       rr_type = rr_map[rr];
-      if (myid==0 and rr_type != Ion::verner) {
-	std::cout << "WARNING: you probably really want the Verner cross section not " << rr_lab[rr_type] << std::endl;
+      if (myid==0 and rr_type != Ion::verner and rr_type != Ion::badnell) {
+	std::cout << "WARNING: you probably really want the Verner or Badnell cross sections not " << rr_lab[rr_type] << std::endl;
       }
       return 0;			// Success
     }

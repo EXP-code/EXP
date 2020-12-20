@@ -9,9 +9,9 @@
 
 #include <boost/make_shared.hpp>
 
-std::string BadnellData::RRdir = "./RR";
-std::string BadnellData::DRdir = "./DR";
-bool BadnellData::reweight = true;
+std::string BadnellData::RRdir    = "./RR";
+std::string BadnellData::DRdir    = "./DR";
+bool        BadnellData::reweight = false;
 
 BadnellData::BadnellData()
 {
@@ -90,29 +90,16 @@ void BadnellData::initialize(chdata* ch)
 	// Read the line
 	std::istringstream ins(line);
 	
-	// Values
+	// Values (Energy in Rydbergs and Energy*Sigma in Mbarn*Rydberg)
 	ins >> E >> X;
-	d->E_rr.push_back(E);
-	d->X_rr.push_back(X);
+	d->E_rr.push_back(E*RydtoeV);
+	d->X_rr.push_back(X*RydtoeV);
       }
       
       // Read next line
       std::getline(in, line);
     }
     
-    // Reweight energies
-    //
-    if (reweight) {
-      for (int i=0; i<d->E_rr.size()-1; i++) {
-	if (i<d->X_rr.size())
-	  d->X_rr[i] *= 2.0/(1.0 + d->E_rr[i]/d->E_rr[i+1]);
-	else {
-	  std::cout << "RR error for [" << ZC.first << ", " << ZC.second
-		    << "]: i=" << i << " !< " << d->X_rr.size() << std::endl;
-	}
-      }
-    }
-
     // Now read DR
 
     names = scandirpp::get_names(DRdir, filter);
@@ -147,9 +134,10 @@ void BadnellData::initialize(chdata* ch)
 	  // Read the line
 	  std::istringstream ins(line);
 	  
-	  // Values
+	  // Values (Energy in Rydberg and energy averaged cross
+	  // section in Mbarn)
 	  ins >> E >> X;
-	  d->E_dr.push_back(E);
+	  d->E_dr.push_back(E*RydtoeV);
 	  d->X_dr.push_back(X);
 	}
 	
@@ -157,6 +145,8 @@ void BadnellData::initialize(chdata* ch)
 	std::getline(in, line);
       }
 
+      // Reweight energy average
+      //
       if (reweight) {
 	for (int i=0; i<d->E_dr.size()-1; i++) {
 	  if (i<d->X_dr.size())
