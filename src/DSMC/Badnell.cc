@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <cstdlib>
 
 #include <mpi.h>
 
@@ -9,8 +10,7 @@
 
 #include <boost/make_shared.hpp>
 
-std::string BadnellData::RRdir    = "./RR";
-std::string BadnellData::DRdir    = "./DR";
+std::string BadnellData::datapath = "./";
 bool        BadnellData::reweight = false;
 
 BadnellData::BadnellData()
@@ -40,6 +40,14 @@ void BadnellData::initialize(chdata* ch)
 
   const std::string user("nrb"), year("20");
 
+
+  // Look for ADF data path
+  //
+  if (const char* env_p = std::getenv("ADF_DATA_PATH")) {
+    datapath = env_p;
+    datapath += "/";
+  }
+  
   for (auto ZC : ionQ) {
 
     // File filters
@@ -52,20 +60,28 @@ void BadnellData::initialize(chdata* ch)
 			    name.find(m2.str()) != std::string::npos );
 		  };
 
-    std::cout << "[before] Filter=" << m1.str() << ", " << m2.str() << std::endl;
+    std::vector<std::string> names;
 
-    std::vector<std::string> names = scandirpp::get_names(RRdir, filter);
-
-    std::cout << "[RR] Filter=" << m1.str() << ", " << m2.str()
-	      << " :: " << RRdir + "/" + names[0] << std::endl;
+    try {
+      names = scandirpp::get_names(datapath + "RR", filter);
+    }
+    catch (scandirpp::ScandirException& error) {
+      std::cout << "Scandir error: " << error.what() << std::endl;
+      std::cout << "[RR] file not found: "
+		<< datapath + "RR/" + names[0] << std::endl;
+      MPI_Finalize();
+      exit(32);
+    }
 
     if (names.size() != 1) {
       std::cout << "Unexpected RR matches: " << names.size() << std::endl;
+      for (auto s : names) std::cout << s << " ";
+      std::cout << std::endl;
       MPI_Finalize();
       exit(33);
     }
 
-    std::ifstream in(RRdir + "/" + names[0]);
+    std::ifstream in(datapath + "RR/" + names[0]);
     
     std::string line;
     std::getline(in, line);
@@ -101,21 +117,30 @@ void BadnellData::initialize(chdata* ch)
     }
     
     // Now read DR
-
-    names = scandirpp::get_names(DRdir, filter);
+    //
+    try {
+      names = scandirpp::get_names(datapath + "DR", filter);
+    }
+    catch (scandirpp::ScandirException& error) {
+      std::cout << "Scandir error: " << error.what() << std::endl;
+      std::cout << "[DR] file not found: "
+		<< datapath + "DR/" + names[0] << std::endl;
+      MPI_Finalize();
+      exit(32);
+    }
 
     if (names.size()) {
 
       if (names.size() != 1) {
 	std::cout << "Unexpected DR matches: " << names.size() << std::endl;
+	for (auto s : names) std::cout << s << " ";
+	std::cout << std::endl;
 	MPI_Finalize();
 	exit(34);
       }
 
-      std::cout << "[DR] Filter=" << m1.str() << ", " << m2.str()
-		<< " :: " << DRdir + "/" + names[0] << std::endl;
       in.close();
-      in.open(DRdir + "/" + names[0]);
+      in.open(datapath + "DR/" + names[0]);
       
       std::getline(in, line);
     

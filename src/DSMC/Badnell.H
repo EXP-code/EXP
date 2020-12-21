@@ -34,11 +34,11 @@ private:
 
 public:
 
-  //! Location of RR data files
-  static std::string RRdir;
-
-  //! Location of DR data files
-  static std::string DRdir;
+  //! Location of Nigel Badnell's adf files in RR and DR
+  //! subdirectories for the radiative and dielectronic recombination
+  //! cross sections.  Environment variable ADF_DATA_PATH can be used
+  //! to set this variable.
+  static std::string datapath;
 
   //! Reweight cross section by mean energy (default: false).  Doesn't
   //! matter much for small bins.
