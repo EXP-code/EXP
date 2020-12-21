@@ -18554,7 +18554,7 @@ void CollideIon::processConfig()
     if (config["RECOMB_RATIO"])
       use_ratio = config["RECOMB_RATIO"]["value"].as<bool>();
     else {
-      config["RECOMB_RATIO"]["desc"] = "Upscale Verner recombintation cross sections by thermal rate coefficient ratio";
+      config["RECOMB_RATIO"]["desc"] = "Upscale recombination cross sections by thermal rate coefficient ratio";
       config["RECOMB_RATIO"]["value"] = use_ratio = false;
     }
 
@@ -19806,7 +19806,8 @@ CollideIon::RecombRatio::RecombRatio(unsigned short Z, chdata& ch,
   // Try open cache file
   //
   std::ostringstream fout;
-  fout << ".chianti_recomb_cache_" << Z;
+  fout << ".chianti_recomb_cache_" << Ion::rr_lab[Ion::rr_type]
+       << Z;
 
   std::ifstream in(fout.str());
   bool reject = false;
@@ -19833,15 +19834,17 @@ CollideIon::RecombRatio::RecombRatio(unsigned short Z, chdata& ch,
       
     // Get parameters
     //
+    std::string type1 = node["type"].as<std::string>();
     unsigned short Z1 = node["Z"   ].as<unsigned short>();
     double      Tmin1 = node["Tmin"].as<double>();
     double      Tmax1 = node["Tmax"].as<double>();
     int         numT1 = node["numT"].as<int>();
 
-    if (Z != Z1)                          reject = true;
-    if (fabs(Tmin - Tmin1) > 1.0e-8*Tmin) reject = true;
-    if (fabs(Tmax - Tmax1) > 1.0e-8*Tmax) reject = true;
-    if (numT != numT1)                    reject = true;
+    if (Ion::rr_type != Ion::rr_map[type1]) reject = true;
+    if (Z != Z1)                            reject = true;
+    if (fabs(Tmin - Tmin1) > 1.0e-8*Tmin)   reject = true;
+    if (fabs(Tmax - Tmax1) > 1.0e-8*Tmax)   reject = true;
+    if (numT != numT1)                      reject = true;
 
     // For recombination rate data
     //
@@ -19891,7 +19894,7 @@ CollideIon::RecombRatio::RecombRatio(unsigned short Z, chdata& ch,
 
     std::ostringstream sout;
 
-    sout << "python3 ./recomb.py"
+    sout << "$PYTHON ./recomb.py"
 	 << " -Z " << Z
 	 << " -t " << Tmin
 	 << " -T " << Tmax

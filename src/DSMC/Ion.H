@@ -480,8 +480,6 @@ public:
   //! Return type for collisional excitation cross-section data
   typedef std::vector< std::pair<double, double> > collType;
 
-protected:
-
   //@{
   //! Static varibles for setting radiative recombination cross-section type
   static RR_Map  rr_map;
@@ -495,6 +493,8 @@ protected:
   static IB_Lab  ib_lab;
   static IB_Type ib_type;
   //@}
+
+protected:
 
   //@{
   //! For photoionizing background

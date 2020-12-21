@@ -39,7 +39,7 @@ Ion::RR_Lab Ion::rr_lab = {
     { Ion::hydrogn, "Hydrogn" }
 };
 
-Ion::RR_Type Ion::rr_type = Ion::verner;
+Ion::RR_Type Ion::rr_type = Ion::badnell;
 
 // For setting ionization background type (c++-11 initialization style)
 //

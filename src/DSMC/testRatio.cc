@@ -141,7 +141,7 @@ int main (int ac, char **av)
   //
   std::string inFile("testRatio.in");
   std::ostringstream sout;
-  sout << "python3 ./recomb.py"
+  sout << "$PYTHON ./recomb.py"
        << " -Z " << Z
        << " -t " << Tmin
        << " -T " << Tmax

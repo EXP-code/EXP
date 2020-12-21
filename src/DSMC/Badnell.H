@@ -16,6 +16,8 @@ class Ion;
 */
 class BadnellData
 {
+public:
+
   //! Pair of unsigned shorts for indexing (Z, C) index pairs
   using lQ = std::pair<unsigned short, unsigned short>;
 

@@ -544,12 +544,13 @@ private:
 
   std::vector< recombRatioMap >                      recombR;
 
-  // Create map type that holds a temperature and the fudge factor at that temperature
+  // Create map type that holds a temperature and the fudge factor at
+  // that temperature
   typedef std::map<double, double>
   tempFactMap;
 
-  // Create a map type that maps between an specieskey (Z and C pair) map
-  // between temperatures and fudge factors for that species.
+  // Create a map type that maps between an specieskey (Z and C pair)
+  // map between temperatures and fudge factors for that species.
   typedef std::map<speciesKey, tempFactMap>
   fudgeFactMap;
 
@@ -864,6 +865,7 @@ private:
   class RecombRatio
   {
   private:
+    std::string type;
     unsigned short Z;
     double Tmn, Tmx, dT;
     int numT;
@@ -890,7 +892,7 @@ private:
 	@param Tmin is the minimum temperature in the table (degrees K)
 	@param Tmax is the maximum temperature in the table (degrees K)
 	@param numT is the number of temperature knots in the table
-    */
+  */
     RecombRatio(unsigned short Z, chdata& ch, double Tmin, double Tmax, int numT);
 
     //! Interpolate the ratio from the table
