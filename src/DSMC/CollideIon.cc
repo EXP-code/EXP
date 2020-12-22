@@ -31,7 +31,7 @@
 // Version info
 //
 #define NAME_ID    "CollideIon"
-#define VERSION_ID "0.43 [07/16/20 recomb factor]"
+#define VERSION_ID "0.44 [07/16/20 recomb exact]"
 
 using namespace std;
 using namespace NTC;
