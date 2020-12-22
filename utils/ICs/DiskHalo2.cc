@@ -1978,7 +1978,7 @@ set_vel_disk(vector<Particle>& part)
 	      << ", maxVP=" << maxVP << " (" << RVP << ")"
 	      << std::endl
 	      << "     *****"
-	      << " # adrift failures=" << num_oob << std::endl;
+	      << " # adrift overrides=" << num_oob << std::endl;
   } else {
     MPI_Send(&maxVZ, 1, MPI_DOUBLE, 0, 224, MPI_COMM_WORLD);
     MPI_Send(&RVZ,   1, MPI_DOUBLE, 0, 225, MPI_COMM_WORLD);
