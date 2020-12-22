@@ -1969,15 +1969,16 @@ set_vel_disk(vector<Particle>& part)
 
     MPI_Reduce(MPI_IN_PLACE, &num_oob, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
 
-    std::cout << "     *****";
-    std::cout << " (u, v, w)=(" << vel[0] 
+    std::cout << "     *****"
+	      << " (u, v, w)=(" << vel[0] 
 	      << ", " << vel[1]
-	      << ", " << vel[2] << ")" << std::endl;
-    std::cout <<   "maxVZ=" << maxVZ << " (" << RVZ << ")"
+	      << ", " << vel[2] << ")" << std::endl
+	      <<   "maxVZ=" << maxVZ << " (" << RVZ << ")"
 	      << ", maxVR=" << maxVR << " (" << RVR << ")"
 	      << ", maxVP=" << maxVP << " (" << RVP << ")"
-	      << std::endl;
-    std::cout << " number adrift failures=" << num_oob << std::endl;
+	      << std::endl
+	      << "     *****"
+	      << " # adrift failures=" << num_oob << std::endl;
   } else {
     MPI_Send(&maxVZ, 1, MPI_DOUBLE, 0, 224, MPI_COMM_WORLD);
     MPI_Send(&RVZ,   1, MPI_DOUBLE, 0, 225, MPI_COMM_WORLD);
