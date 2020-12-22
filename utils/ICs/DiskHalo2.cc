@@ -1795,8 +1795,9 @@ set_vel_disk(vector<Particle>& part)
     if (maxVR < vvR) {
       maxVR = vvR;
       RVR   = R;
-      std::cout << "maxVR: vvR = " << vvR
-		<< " x=" << x << " y=" << y << std::endl;
+      if (VFLAG & 8)
+	std::cout << "maxVR: vvR = " << vvR
+		  << " x=" << x << " y=" << y << std::endl;
     }
     if (maxVP < vvP) {
       maxVP = vvP;
