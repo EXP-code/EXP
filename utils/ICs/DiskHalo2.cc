@@ -1741,6 +1741,7 @@ set_vel_disk(vector<Particle>& part)
   double maxVZ=-1.0e20, RVZ=1e20;
   double vz, vr, vp, R, x, y, z, ac, vc, va, as, ad;
   double vel[3], vel1[3], massp, massp1;
+  unsigned num_oob = 0;
 
   for (int k=0; k<3; k++) vel[k] = vel1[k] = 0.0;
   massp = massp1 = 0.0;
@@ -1816,20 +1817,25 @@ set_vel_disk(vector<Particle>& part)
       ad = a_drift(x, y, z);
       as = 1 + vvR*ad/(vc*vc);
 
-      if (as > 0.0)
+      if (as > 0.0 and not std::isnan(as))
 	ac = vc*(1.0-sqrt(as));
       else {
-	if (as<0.0) ac = vc;
-	int op = std::cout.precision(3);
-	std::cout << "ac oab:"
-		  << " as="   << std::setw(10) << as 
-		  << ", R="   << std::setw(10) << R
-		  << ", ac="  << std::setw(10) << ac
-		  << ", ad="  << std::setw(10) << ad
-		  << ", vc="  << std::setw(10) << vc
-		  << ", vvR=" << std::setw(10) << vvR
-		  << std::endl;
-	std::cout.precision(op);
+	if (as<0.0 or std::isnan(as)) {
+	  ac = vc;
+	  num_oob++;
+	}
+	if (VFLAG & 8) {
+	  int op = std::cout.precision(3);
+	  std::cout << "ac oob:"
+		    << " as="   << std::setw(10) << as 
+		    << ", R="   << std::setw(10) << R
+		    << ", ac="  << std::setw(10) << ac
+		    << ", ad="  << std::setw(10) << ad
+		    << ", vc="  << std::setw(10) << vc
+		    << ", vvR=" << std::setw(10) << vvR
+		    << std::endl;
+	  std::cout.precision(op);
+	}
       }
 
     case Jeans:
@@ -1960,6 +1966,9 @@ set_vel_disk(vector<Particle>& part)
 	RVP   = v2;
       }
     }
+
+    MPI_Reduce(MPI_IN_PLACE, &num_oob, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+
     std::cout << "     *****";
     std::cout << " (u, v, w)=(" << vel[0] 
 	      << ", " << vel[1]
@@ -1968,6 +1977,7 @@ set_vel_disk(vector<Particle>& part)
 	      << ", maxVR=" << maxVR << " (" << RVR << ")"
 	      << ", maxVP=" << maxVP << " (" << RVP << ")"
 	      << std::endl;
+    std::cout << " number adrift failures=" << num_oob << std::endl;
   } else {
     MPI_Send(&maxVZ, 1, MPI_DOUBLE, 0, 224, MPI_COMM_WORLD);
     MPI_Send(&RVZ,   1, MPI_DOUBLE, 0, 225, MPI_COMM_WORLD);
@@ -1976,6 +1986,8 @@ set_vel_disk(vector<Particle>& part)
     MPI_Send(&maxVP, 1, MPI_DOUBLE, 0, 228, MPI_COMM_WORLD);
     MPI_Send(&RVP,   1, MPI_DOUBLE, 0, 229, MPI_COMM_WORLD);
   }
+
+  MPI_Reduce(&num_oob, 0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
 
   if (cov) {
     for (auto &p : part) {
