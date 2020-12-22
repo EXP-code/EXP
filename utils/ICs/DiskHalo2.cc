@@ -1986,9 +1986,9 @@ set_vel_disk(vector<Particle>& part)
     MPI_Send(&RVR,   1, MPI_DOUBLE, 0, 227, MPI_COMM_WORLD);
     MPI_Send(&maxVP, 1, MPI_DOUBLE, 0, 228, MPI_COMM_WORLD);
     MPI_Send(&RVP,   1, MPI_DOUBLE, 0, 229, MPI_COMM_WORLD);
-  }
 
-  MPI_Reduce(&num_oob, 0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&num_oob, 0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+  }
 
   if (cov) {
     for (auto &p : part) {
