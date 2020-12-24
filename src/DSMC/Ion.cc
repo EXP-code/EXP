@@ -2064,9 +2064,10 @@ void Ion::radRecombMakeEvGrid(int id)
   //
   radRecombGrid.resize(NradRecombGrid);
 
-  // Quadrature over bins
+  // Quadrature over bins necessary to resolve DR.  Value norder=200
+  // is converged for He+.
   //
-  const int norder = 100;
+  const int norder = 200;
   LegeQuad lq(norder);
 
   // Compute grid

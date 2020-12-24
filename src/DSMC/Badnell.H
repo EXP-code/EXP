@@ -13,6 +13,17 @@ class Ion;
 
 /** 
    Reads Nigel Badnell's cross-section data files
+
+   Enter the (Z, C) pairs in ionQ database (see constructor
+   implementation) and put the files in the RR and DR directories.
+   The data directory is ./ by default and can be set by the
+   environment variable ADF_DATA_PATH.
+
+   For ions not in the database, it will use the hydrogenic RR cross
+   section.  This method can be used with RECOMB_RATIO in CollideIon.
+   In this case, the ADF cross sections will be used where they exist
+   and the hydrogenic cross section with the fudge factor will be used
+   for others.
 */
 class BadnellData
 {
@@ -28,10 +39,10 @@ private:
 
   chdata *ch;
 
-  // Ion mnemonics for file names
+  //! Ion mnemonics for file names
   std::map<int, std::string> ions;
 
-  // Members
+  //! Ions with file data in the RR and DR directories in the datpath
   std::vector<lQ> ionQ;
 
 public:
@@ -46,6 +57,7 @@ public:
   //! matter much for small bins.
   static bool reweight;
   
+  //! Store the cross-section data table for each ion
   struct BadnellRec 
   {
     std::vector<double> E_rr, X_rr, E_dr, X_dr;
@@ -63,7 +75,7 @@ public:
   //! Initialize the data from the data file
   void initialize(chdata* ch);
 
-  //! Calculates the summed recombination cross section
+  //! Calculates the summed RR and DR recombination cross section
   double cross(const lQ& Q, double EeV);
 
 };

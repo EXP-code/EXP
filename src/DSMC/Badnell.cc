@@ -23,7 +23,7 @@ BadnellData::BadnellData()
 
 void BadnellData::initialize(chdata* ch)
 {
-  // Attempt to open files for existing
+  // Attempt to open files for ions in ionQ
   //
 
   /** From Nigel
@@ -38,8 +38,9 @@ void BadnellData::initialize(chdata* ch)
       coeffs.
   */
 
+  // Filter strings
+  //
   const std::string user("nrb"), year("20");
-
 
   // Look for ADAS data path
   //
@@ -191,4 +192,5 @@ void BadnellData::initialize(chdata* ch)
     data[ZC] = d;
   }
 
+  // DONE
 }
