@@ -48,6 +48,8 @@ void BadnellData::initialize(chdata* ch)
     datapath += "/";
   }
   
+  // Loop through ion list and read data
+  //
   for (auto ZC : ionQ) {
 
     // File filters
@@ -115,6 +117,7 @@ void BadnellData::initialize(chdata* ch)
       // Read next line
       std::getline(in, line);
     }
+    // END: RR file read
     
     // Now read DR
     //
@@ -162,13 +165,14 @@ void BadnellData::initialize(chdata* ch)
 	  // Values (Energy in Rydberg and energy averaged cross
 	  // section in Mbarn)
 	  ins >> E >> X;
-	  d->E_dr.push_back(E*RydtoeV);
-	  d->X_dr.push_back(X/RydtoeV);
+	  d->E_dr.push_back(E*RydtoeV); // Energy is now in eV
+	  d->X_dr.push_back(X);
 	}
 	
 	// Read next line
 	std::getline(in, line);
       }
+      // END: DR file read
 
       // Reweight energy average
       //
@@ -180,8 +184,8 @@ void BadnellData::initialize(chdata* ch)
 	    std::cout << "DR error for [" << ZC.first << ", " << ZC.second
 		      << "]: i=" << i << " !< " << d->X_dr.size() << std::endl;
 	}
-      }
-
+      } // END: reweight
+      
     } // END: DR will not exist for hydrogenic case
 
     data[ZC] = d;
