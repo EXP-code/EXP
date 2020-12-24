@@ -353,6 +353,7 @@ main(int ac, char **av)
   int          NMAX;
   int          NUMR;
   int          SCMAP;
+  int          NUMDF;
   double       RMIN;
   double       RCYLMIN;
   double       RCYLMAX;
@@ -479,6 +480,7 @@ main(int ac, char **av)
     ("LOGR",            po::value<bool>(&LOGR)->default_value(false),                   "Make a logarithmic coordinate mapping")
     ("CHEBY",           po::value<bool>(&CHEBY)->default_value(false),                  "Use Chebyshev smoothing for epicyclic and asymmetric drift")
     ("NCHEB",           po::value<int>(&NCHEB)->default_value(16),                      "Chebyshev order for smoothing")
+    ("NUMDF",           po::value<int>(&NUMDF)->default_value(4000),                    "Number of grid points for Eddington inversion")
     ("NDR",             po::value<int>(&NDR)->default_value(1600),                      "Number of points in DiskHalo radial table for disk")
     ("NDZ",             po::value<int>(&NDZ)->default_value(400),                       "Number of points in DiskHalo vertical table for disk")
     ("NHR",             po::value<int>(&NHR)->default_value(1600),                      "Number of points in DiskHalo radial table for halo")
@@ -793,7 +795,7 @@ main(int ac, char **av)
   DiskHalo::SHFACTOR    = SHFAC;
   DiskHalo::COMPRESSION = DMFAC;
   DiskHalo::LOGSCALE    = 1;
-  DiskHalo::NUMDF       = 4000;
+  DiskHalo::NUMDF       = NUMDF;
   DiskHalo::Q           = ToomreQ;
   DiskHalo::R_DF        = R_DF;
   DiskHalo::DR_DF       = DR_DF;
