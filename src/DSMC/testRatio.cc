@@ -78,6 +78,7 @@ int main (int ac, char **av)
   double Tmin, Tmax, Emin, Emax;
   std::string RRtype;
   int numT, norder, numE;
+  bool use_grid;
 
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -99,8 +100,10 @@ int main (int ac, char **av)
      "number of incremental energy points")
     ("norder,n",	po::value<int>(&norder)->default_value(20),
      "Laguerre order")
-    ("RRtype,R",	po::value<std::string>(&RRtype)->default_value("Verner"),
+    ("RRtype,R",	po::value<std::string>(&RRtype)->default_value("Badnell"),
      "cross-section type")
+    ("grid,g",		po::value<bool>(&use_grid)->default_value(true),
+     "use radiative recombination grid")
     ;
 
 
@@ -221,6 +224,8 @@ int main (int ac, char **av)
 
   numE = std::max<int>(numE, 10);
   
+  Ion::useRadRecombGrid = use_grid;
+
   double dE = (Emax - Emin)/numE;
 
   for (int nt=0; nt<numT; nt++) {
