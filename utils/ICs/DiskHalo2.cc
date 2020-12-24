@@ -1718,8 +1718,9 @@ double DiskHalo::v_circ(double xp, double yp, double zp)
 
 				// Sanity check
   if (vcirc2<=0.0) {
-    std::cout << "DiskHalo::v_circ: circular velocity out of bounds, R="
-	      << R << "  v_circ2=" << vcirc2 << std::endl;
+    if (VFLAG & 8)
+      std::cout << "DiskHalo::v_circ: circular velocity out of bounds, R="
+		<< R << "  v_circ2=" << vcirc2 << std::endl;
     vcirc2 = 1.0e-20;
   }
 
