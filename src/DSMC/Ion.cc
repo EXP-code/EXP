@@ -2064,11 +2064,24 @@ void Ion::radRecombMakeEvGrid(int id)
   //
   radRecombGrid.resize(NradRecombGrid);
 
+  // Quadrature over bins
+  //
+  const int norder = 100;
+  LegeQuad lq(norder);
+
   // Compute grid
   //
   for (size_t n = 0; n < NradRecombGrid; n++) {
+    double Ebeg = exp10(EminGrid + DeltaEGrid*(-0.5 + n));
+    double Eend = exp10(EminGrid + DeltaEGrid*( 0.5 + n));
+    double dE   = Eend - Ebeg;
     double Ei = exp10(EminGrid + DeltaEGrid*n);
-    radRecombGrid[n] = radRecombCrossSingle(Ei, id).back();
+
+    radRecombGrid[n] = 0.0;
+    for (int i=1; i<=norder; i++) {
+      double E = Ebeg + dE * lq.knot(i);
+      radRecombGrid[n] += lq.weight(i) * radRecombCrossSingle(E, id).back();
+    }
   }
 }
 
@@ -2224,6 +2237,7 @@ std::vector<double> Ion::radRecombCrossBadnell(double E, int id)
       int hi = std::distance(d->E_rr.begin(), x2);
 
       // Interpolate (sigma*E is tabled)
+      //
       double Elo = d->E_rr[lo];
       double Ehi = d->E_rr[hi];
       cross += ( d->X_rr[lo]*(Ehi - E) + d->X_rr[hi]*(E - Elo) ) / (Ehi - Elo) / E;
@@ -2247,6 +2261,7 @@ std::vector<double> Ion::radRecombCrossBadnell(double E, int id)
       int hi = std::distance(d->E_dr.begin(), x2);
 
       // Interpolate (sigma is tabled)
+      //
       double Elo = d->E_dr[lo];
       double Ehi = d->E_dr[hi];
       cross += ( d->X_dr[lo]*(Ehi - E) + d->X_dr[hi]*(E - Elo) ) / (Ehi - Elo);
