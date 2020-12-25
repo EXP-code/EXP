@@ -1603,7 +1603,7 @@ std::pair<double, double> Ion::freeFreeCrossSingleOld(double Ei, int id)
   // Integration variables
   //
   double cum      = 0;
-  double dk       = (kgrid[1] - kgrid[0])*log(10.0);
+  double dk       = (kgrid[1] - kgrid[0])*log(10.0); // dlnk
 
   std::vector<double> diff, cuml;
 
@@ -1636,11 +1636,13 @@ std::pair<double, double> Ion::freeFreeCrossSingleOld(double Ei, int id)
     //
     // Differential cross section contribution (logarithmic integral)
     //
-    double dsig   = r0*r0*Z*Z*afs/(pi*pi) * 16.0/3.0 * log((pi + pf)/(pi - pf))/k * corr * dk;
+    double sig   = r0*r0*Z*Z*afs/(pi*pi) * 16.0/3.0 * log((pi + pf)/(pi - pf))/k * corr;
 
-    cum = cum + dsig;
+    // dE(eV) = dk*hbc = dk/k * k*hbc = dlnk * E(eV)
 
-    diff.push_back(dsig/dk);
+    cum = cum + sig * dk * k;
+
+    diff.push_back(sig);
     cuml.push_back(cum);
   }
 
@@ -1780,11 +1782,13 @@ std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id)
     //
     // Differential cross section contribution (logarithmic integral)
     //
-    double dsig   = r0*r0*Z*Z*afs/(k*k*k) * 32.0/(3.0*sqrt3) * corr * dk * gff;
+    double sig   = r0*r0*Z*Z*afs/(k*k*k) * 32.0/(3.0*sqrt3) * corr * gff; // dsigma/dE(Ryd)
 
-    cum = cum + dsig;
+    // dE(Ryd) = dk*hbc/(Ryd/Ev) = dk/k * k*hbc/(Ryd/eV) = dlnk * E(eV)/(Ryd/eV)
 
-    diff.push_back(dsig/dk);
+    cum = cum + sig * dk * k/RydtoeV;
+
+    diff.push_back(sig);
     cuml.push_back(cum);
   }
 
