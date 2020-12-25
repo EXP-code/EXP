@@ -471,6 +471,9 @@ public:
   //! Use Verner et al. fortran subroutine (default: true)
   static bool use_VFKY;
 
+  //! Use free-free Gaunt factor from van Hoof et al. 2004.
+  static bool use_VAN_HOOF;
+
   //! Ionization background parameters
   //@{
   static double HandM_coef;
@@ -523,8 +526,10 @@ protected:
   
   //@{
   //! Free-free cross section implementations
-  std::pair<double, double> freeFreeCrossSingle(double E, int id);
-  std::pair<double, double> freeFreeCrossEvGrid(double E, int id);
+  std::pair<double, double> freeFreeCrossSingle    (double E, int id);
+  std::pair<double, double> freeFreeCrossSingleOld (double E, int id);
+  std::pair<double, double> freeFreeCrossSingleNew (double E, int id);
+  std::pair<double, double> freeFreeCrossEvGrid    (double E, int id);
   std::pair<double, double> freeFreeCrossEvGridTest(double E, double rn, int id);
   void                      freeFreeMakeEvGrid(int id);
   unsigned long             freeFreeGridMiss, freeFreeGridTry;

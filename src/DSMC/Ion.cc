@@ -58,6 +58,7 @@ Ion::IB_Lab Ion::ib_lab = {
 Ion::IB_Type Ion::ib_type = Ion::none;
 
 bool Ion::use_VFKY  = false;
+bool Ion::use_VAN_HOOF = true;
 
 // Free-free grid
 //
@@ -1574,13 +1575,22 @@ void Ion::directIonMakeGrid(int id)
 }
 
 
+std::pair<double, double> Ion::freeFreeCrossSingle(double Ei, int id)
+{
+  if (use_VAN_HOOF)
+    return Ion::freeFreeCrossSingleNew(Ei, id);
+  else
+    return Ion::freeFreeCrossSingleOld(Ei, id);
+}
+
+
 /** 
     Cross section is 3BN(a) from Koch & Motz 1959, with the low-energy
     Elwert factor (see Koch & Motz eq. II-6), nonrelativistic limit
 
     Using the parametrization by Greene (1959)
  */
-std::pair<double, double> Ion::freeFreeCrossSingle(double Ei, int id) 
+std::pair<double, double> Ion::freeFreeCrossSingleOld(double Ei, int id) 
 {
   // No free-free with a neutral
   //
@@ -1627,6 +1637,150 @@ std::pair<double, double> Ion::freeFreeCrossSingle(double Ei, int id)
     // Differential cross section contribution (logarithmic integral)
     //
     double dsig   = r0*r0*Z*Z*afs/(pi*pi) * 16.0/3.0 * log((pi + pf)/(pi - pf))/k * corr * dk;
+
+    cum = cum + dsig;
+
+    diff.push_back(dsig/dk);
+    cuml.push_back(cum);
+  }
+
+
+  double phi = 0.0, ffWaveCross = 0.0;
+
+  // If cross section is offgrid, set values to zero
+  //
+  if (cum > 0.0) {
+
+    // Location in cumulative cross section grid
+    //
+    double rn = cum * static_cast<double>(rand())/RAND_MAX;
+  
+    // Interpolate the cross section array
+    //
+    
+    // Points to first element that is not < rn
+    // but may be equal
+    std::vector<double>::iterator lb = 
+      std::lower_bound(cuml.begin(), cuml.end(), rn);
+    
+    // Assign upper end of range to the
+    // found element
+    //
+    std::vector<double>::iterator ub = lb;
+    //
+    // If is the first element, increment
+    // the upper boundary
+    //
+    if (lb == cuml.begin()) { if (cuml.size()>1) ub++; }
+    //
+    // Otherwise, decrement the lower boundary
+    //
+    else { lb--; }
+    
+    // Compute the associated indices
+    //
+    size_t ii = lb - cuml.begin();
+    size_t jj = ub - cuml.begin();
+    double  k = kgrid[ii];
+	  
+    // Linear interpolation
+    //
+    if (*ub > *lb) {
+      double d = *ub - *lb;
+      double a = (rn - *lb) / d;
+      double b = (*ub - rn) / d;
+      k  = a * kgrid[ii] + b * kgrid[jj];
+    }
+    
+    // Assign the photon energy
+    //
+    ffWaveCross = pow(10, k) * hbc;
+
+    // Use the integrated cross section from the differential grid
+    //
+    phi = cuml.back();
+  }
+
+  return std::pair<double, double>(phi, ffWaveCross);
+}
+
+
+/** 
+    Karzas-Latter Cross section with the Gaunt factor fit from 
+
+    van Hoof P. A. M., Williams R. J. R., Volk K., Chatzikos M.,
+    Ferland G. J., Lykins M., Porter R. L., Wang Y., 2014, MNRAS, 444,
+    420
+    
+    with the low-energy Elwert factor.
+ */
+std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id) 
+{
+  const double sqrt3 = 1.7320508075688772935;
+
+  // No free-free with a neutral
+  //
+  if (C==1) return std::pair<double, double>(0.0, 0.0);
+
+  // Initial scaled momentum
+  //
+  double pi       = sqrt(Ei*1.0e-6/mec2*(Ei*1.0e-6/mec2 + 2.0));
+
+  // Integration variables
+  //
+  double cum      = 0;
+  double dk       = (kgrid[1] - kgrid[0])*log(10.0);
+
+  std::vector<double> diff, cuml;
+
+  for (int j = 0; j < kffsteps; j++) {
+    //
+    // Photon energy in eV
+    //
+    double k      = kgr10[j];
+
+    //
+    // Final kinetic energy
+    //
+    double Ef     = Ei - k;
+
+    //
+    // Can't emit a photon if not enough KE!
+    //
+    if (Ef <= 0.0) break;
+
+    //
+    // Final scaled momentum
+    //
+    double pf     = sqrt(Ef*1.0e-6/mec2*(Ef*1.0e-6/mec2 + 2.0));
+
+    //
+    // Elwert factor
+    //
+    double corr   = pi/pf*(1.0 - exp(-2.0*M_PI*Z*afs/pi))/(1.0 - exp(-2.0*M_PI*Z*afs/pf));
+
+    //
+    // Gaunt factor
+    //
+    double eta_i = 1.0/sqrt(Ei/(RydtoeV*Z*Z));
+    double eta_f = 1.0/sqrt(Ef/(RydtoeV*Z*Z));
+    const double c1 = 0.1728260369;
+    const double c2 = 0.04959570168;
+    const double c3 = 0.01714285714;
+
+    double nfr  = eta_f/eta_i;
+    double nfr2 = nfr*nfr;
+
+    double gff = 1.0 +
+      c1*(1.0 + nfr2)*pow((1.0 - nfr2)*eta_f, -2.0/3.0) -
+      c2*(1.0 - 4.0/3.0*nfr2 + nfr2*nfr2)*pow((1.0 - nfr2)*eta_f, -4.0/3.0) -
+      c3*(1.0 - 1.0/3.0*nfr2 - 1.0/3.0*nfr2*nfr2 + nfr2*nfr2*nfr2)*pow((1.0 - nfr2)*eta_f, -6.0/3.0) +
+      0.0025*pow((1.0 - nfr2)*eta_f, -8.0/3.0);
+
+    //
+    // Differential cross section contribution (logarithmic integral)
+    //
+    double dsig   = r0*r0*Z*Z*afs/(k*k*k) * 32.0/(3.0*sqrt3) * corr * dk * gff;
 
     cum = cum + dsig;
 
