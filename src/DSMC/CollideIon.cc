@@ -18730,6 +18730,13 @@ void CollideIon::processConfig()
       config["VFKY"]["value"] = Ion::use_VFKY;
     }
 
+    if (config["VAN_HOOF"])
+      Ion::use_VAN_HOOF = config["VAN_HOOF"]["value"].as<bool>();
+    else {
+      config["VAN_HOOF"]["desc"] = "Use van Hoof et al. 2015 Gaunt factor fit for free-fee cross section";
+      config["VAN_HOOF"]["value"] = Ion::use_VAN_HOOF;
+    }
+
     if (config["MFP"]) 
       {
 	std::string name = config["MFP"]["value"].as<std::string>();
