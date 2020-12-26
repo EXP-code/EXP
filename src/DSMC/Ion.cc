@@ -1718,8 +1718,6 @@ std::pair<double, double> Ion::freeFreeCrossSingleOld(double Ei, int id)
  */
 std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id) 
 {
-  const double sqrt3 = 1.7320508075688772935;
-
   // No free-free with a neutral
   //
   if (C==1) return std::pair<double, double>(0.0, 0.0);
@@ -1736,9 +1734,10 @@ std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id)
   std::vector<double> diff, cuml;
 
   for (int j = 0; j < kffsteps; j++) {
-    // Photon energy in Rydbergs
+
+    // Photon energy in eV
     //
-    double k    = kgr10[j]/RydtoeV;
+    double k    = kgr10[j];
 
     // Final kinetic energy
     //
@@ -1763,26 +1762,38 @@ std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id)
 
     double nfr      = eta_f/eta_i;
     double nfr2     = nfr*nfr;
-    double fac1     = pow((1.0 - nfr2)*eta_f, -2.0/3.0);
-    double fac2     = fac1*fac1;
+    double crit     = (1.0 - nfr2)*eta_f;
 
-    const double c1 = 0.1728260369;
-    const double c2 = 0.04959570168;
-    const double c3 = 0.01714285714;
+    double gff = 1.0;
 
-    double gff = 1.0 +
-      c1*(1.0 + nfr2)*fac1 -
-      c2*(1.0 - 4.0/3.0*nfr2 + nfr2*nfr2)*fac2 -
-      c3*(1.0 - 1.0/3.0*nfr2 - 1.0/3.0*nfr2*nfr2 + nfr2*nfr2*nfr2)*fac1*fac2 +
-      0.0025*fac2*fac2;
+    if (crit > 1.0e-4) {
 
-    std::cout << "Gaunt [" << Z << ", " << k << "]=" << gff << std::endl;
+      double fac1     = pow(crit, -2.0/3.0);
+      double fac2     = fac1*fac1;
+      
+      constexpr double c1 = 0.1728260369;
+      constexpr double c2 = 0.04959570168;
+      constexpr double c3 = 0.01714285714;
+
+      gff = 1.0 +
+	c1*(1.0 + nfr2)*fac1 -
+	c2*(1.0 - 4.0/3.0*nfr2 + nfr2*nfr2)*fac2 -
+	c3*(1.0 - 1.0/3.0*nfr2 - 1.0/3.0*nfr2*nfr2 + nfr2*nfr2*nfr2)*fac1*fac2 +
+	0.0025*fac2*fac2;
+
+    } else {
+
+      gff = gauntFF(Ei/(RydtoeV*Z*Z), k/(RydtoeV*Z*Z));
+
+    }
 
     // Differential cross section contribution
     //
     // dE(Ryd) = dk*hbc/(Ryd/Ev) = dk/k * (k*hbc)/(Ryd/eV) = dlnk * E(Ryd)
     //
-    double sig = r0*r0*Z*Z*afs/(k*k*k) * 32.0*M_PI/(3.0*sqrt3) * corr * gff;
+    constexpr double nfac = 32.0*M_PI/(3.0*sqrt(3.0)) * r0*r0 * afs*afs*afs;
+
+    double sig = nfac*Z*Z * sqrt(Ei/Ef)/k * corr * gff;
 
     cum = cum + sig * dk * k;
 
@@ -2052,8 +2063,6 @@ void Ion::freeFreeMakeEvGrid(int id)
 
 	}
 	
-	std::cout << "Gaunt [" << Z << ", " << (k/(RydtoeV*Z*Z)) << "]=" << gff << ", corr=" << corr << ", crit=" << crit << std::endl;
-
 	// Differential cross section contribution
 	//
 	// dE(Ryd) = dk*hbc/(Ryd/Ev) = dk/k * (k*hbc)/(Ryd/eV) = dlnk * E(Ryd)
