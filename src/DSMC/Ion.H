@@ -12,6 +12,8 @@
 #include <boost/make_shared.hpp>
 #include <boost/multi_array.hpp>
 
+#include <Eigen/Eigen>
+
 #include <atomic_constants.H>
 #include <TopBase.H>
 #include <Cspline.H>
@@ -638,6 +640,28 @@ public:
   //! include in other variables here as needed from the files
   //! could include variables for the elvlc and wgfa files
   // double fbcross, fbloss, ffcross, ffloss, bbcross, bbloss;
+
+  class GauntFF
+  {
+  private:
+    unsigned magic, neps, nw;
+    double eps_min, w_min, step;
+    bool initialized;
+    Eigen::MatrixXd data;
+
+  public:
+
+    //! Constructor
+    GauntFF() : magic(0), initialized(false) {}
+
+    //! Interpolator
+    double operator()(double E, double w);
+
+    //! Initialize data
+    void initialize();
+
+  } gauntFF;
+
 
   //! Free-free cross section
   double ffcross;

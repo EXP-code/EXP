@@ -42,9 +42,9 @@ void BadnellData::initialize(chdata* ch)
   //
   const std::string user("nrb"), year("20");
 
-  // Look for ADAS data path
+  // Look for atomic data path
   //
-  if (const char* env_p = std::getenv("ADAS_DATA_PATH")) {
+  if (const char* env_p = std::getenv("ATOMIC_DATA_PATH")) {
     datapath = env_p;
     datapath += "/";
   }
