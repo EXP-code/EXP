@@ -1793,7 +1793,7 @@ std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id)
     //
     constexpr double nfac = 32.0*M_PI/(3.0*sqrt(3.0)) * r0*r0 * afs*afs*afs;
 
-    double sig = nfac*Z*Z * sqrt(Ei/Ef)/k * corr * gff;
+    double sig = nfac*Z*Z * sqrt(Ef/Ei)/k * corr * gff;
 
     cum = cum + sig * dk * k;
 
@@ -2069,7 +2069,7 @@ void Ion::freeFreeMakeEvGrid(int id)
 	//
 	constexpr double nfac = 32.0*M_PI/(3.0*sqrt(3.0)) * r0*r0 * afs*afs*afs;
 
-	double sig = nfac*Z*Z * sqrt(Ei/Ef)/k * corr * gff;
+	double sig = nfac*Z*Z * sqrt(Ef/Ei)/k * corr * gff;
 	
 	cum = cum + sig * dk * k;
 	
