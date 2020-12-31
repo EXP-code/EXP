@@ -1712,31 +1712,30 @@ std::pair<double, double> Ion::freeFreeCrossSingleOld(double Ei, int id)
  */
 std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id) 
 {
-  const double sqrt3 = 1.7320508075688772935;
-
   // No free-free with a neutral
   //
   if (C==1) return std::pair<double, double>(0.0, 0.0);
 
   // Initial scaled momentum
   //
-  double pi       = sqrt(Ei*1.0e-6/mec2*(Ei*1.0e-6/mec2 + 2.0));
+  double pi     = sqrt(Ei*1.0e-6/mec2*(Ei*1.0e-6/mec2 + 2.0));
 
   // Integration variables
   //
-  double cum      = 0;
-  double dk       = (kgrid[1] - kgrid[0])*log(10.0);
+  double cum    = 0;
+  double dk     = (kgrid[1] - kgrid[0])*log(10.0);
 
   std::vector<double> diff, cuml;
 
   for (int j = 0; j < kffsteps; j++) {
+
     // Photon energy in eV
     //
-    double k      = kgr10[j];
+    double k    = kgr10[j];
 
     // Final kinetic energy
     //
-    double Ef     = Ei - k;
+    double Ef   = Ei - k;
 
     // Can't emit a photon if not enough KE!
     //
@@ -1744,36 +1743,53 @@ std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id)
 
     // Final scaled momentum
     //
-    double pf     = sqrt(Ef*1.0e-6/mec2*(Ef*1.0e-6/mec2 + 2.0));
+    double pf   = sqrt(Ef*1.0e-6/mec2*(Ef*1.0e-6/mec2 + 2.0));
 
     // Elwert factor
     //
-    double corr   = pi/pf*(1.0 - exp(-2.0*M_PI*Z*afs/pi))/(1.0 - exp(-2.0*M_PI*Z*afs/pf));
+    double corr = pi/pf*(1.0 - exp(-2.0*M_PI*Z*afs/pi))/(1.0 - exp(-2.0*M_PI*Z*afs/pf));
 
     // Gaunt factor from van Hoof et al.
     //
-    double eta_i = 1.0/sqrt(Ei/(RydtoeV*Z*Z));
-    double eta_f = 1.0/sqrt(Ef/(RydtoeV*Z*Z));
-    const double c1 = 0.1728260369;
-    const double c2 = 0.04959570168;
-    const double c3 = 0.01714285714;
+    double eta_i    = 1.0/sqrt(Ei/(RydtoeV*Z*Z));
+    double eta_f    = 1.0/sqrt(Ef/(RydtoeV*Z*Z));
 
-    double nfr  = eta_f/eta_i;
-    double nfr2 = nfr*nfr;
+    double nfr      = eta_f/eta_i;
+    double nfr2     = nfr*nfr;
+    double crit     = (1.0 - nfr2)*eta_f;
 
-    double gff = 1.0 +
-      c1*(1.0 + nfr2)*pow((1.0 - nfr2)*eta_f, -2.0/3.0) -
-      c2*(1.0 - 4.0/3.0*nfr2 + nfr2*nfr2)*pow((1.0 - nfr2)*eta_f, -4.0/3.0) -
-      c3*(1.0 - 1.0/3.0*nfr2 - 1.0/3.0*nfr2*nfr2 + nfr2*nfr2*nfr2)*pow((1.0 - nfr2)*eta_f, -6.0/3.0) +
-      0.0025*pow((1.0 - nfr2)*eta_f, -8.0/3.0);
+    double gff = 1.0;
 
-    // Differential cross section contribution; dsigma/dE(Ryd)
+    if (crit > 1.0e-4) {
+
+      double fac1     = pow(crit, -2.0/3.0);
+      double fac2     = fac1*fac1;
+      
+      constexpr double c1 = 0.1728260369;
+      constexpr double c2 = 0.04959570168;
+      constexpr double c3 = 0.01714285714;
+
+      gff = 1.0 +
+	c1*(1.0 + nfr2)*fac1 -
+	c2*(1.0 - 4.0/3.0*nfr2 + nfr2*nfr2)*fac2 -
+	c3*(1.0 - 1.0/3.0*nfr2 - 1.0/3.0*nfr2*nfr2 + nfr2*nfr2*nfr2)*fac1*fac2 +
+	0.0025*fac2*fac2;
+
+    } else {
+
+      gff = gauntFF(Ei/(RydtoeV*Z*Z), k/(RydtoeV*Z*Z));
+
+    }
+
+    // Differential cross section contribution
     //
-    double sig   = r0*r0*Z*Z*afs/(k*k*k) * 32.0/(3.0*sqrt3) * corr * gff; 
-
-    // dE(Ryd) = dk*hbc/(Ryd/Ev) = dk/k * k*hbc/(Ryd/eV) = dlnk * E(eV)/(Ryd/eV)
+    // dE(Ryd) = dk*hbc/(Ryd/Ev) = dk/k * (k*hbc)/(Ryd/eV) = dlnk * E(Ryd)
     //
-    cum = cum + sig * dk * k/RydtoeV;
+    constexpr double nfac = 32.0*M_PI/(3.0*sqrt(3.0)) * r0*r0 * afs*afs*afs;
+
+    double sig = nfac*Z*Z * sqrt(Ef/Ei)/k * corr * gff;
+
+    cum = cum + sig * dk * k;
 
     diff.push_back(sig);
     cuml.push_back(cum);
@@ -1840,6 +1856,115 @@ std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id)
 }
 
 
+double Ion::GauntFF::operator()(double E, double w)
+{
+  initialize();
+
+  if (E<=0.0 or w<=0.0) return 0.0;
+
+  E = log10(E);
+  w = log10(w);
+
+  if (E < eps_min or w < w_min) return 1.0;
+
+  unsigned i = (w - w_min)/step;
+  unsigned j = (E - eps_min)/step;
+
+  if (i>=nw or j>=neps) return 1.0;
+
+  i = std::min<unsigned>(i, nw-2);
+  j = std::min<unsigned>(j, neps-2);
+
+  double A = (w_min + step*(i+1) - w)/step;
+  double B = (w - w_min - step*(i+0))/step;
+
+  double C = (eps_min + step*(j+1) - E)/step;
+  double D = (E - eps_min - step*(j+0))/step;
+
+  double val =
+    A*(C*data(i+0, j+0) + D*data(i+0, j+1)) +
+    B*(C*data(i+1, j+0) + D*data(i+1, j+1));
+
+  return val;
+}
+
+void Ion::GauntFF::initialize()
+{
+  if (initialized) return;
+
+  initialized = true;
+
+  // Look for ATOMIC data path
+  //
+  std::string datapath("./");
+  if (const char* env_p = std::getenv("ATOMIC_DATA_PATH")) {
+    datapath = env_p;
+    datapath += "/";
+  }
+  
+  std::ifstream in(datapath + "gauntff_nonav.dat");
+  unsigned row=0;
+  while (in and row < nw) {
+    std::string line;
+    // Read header
+    std::getline(in, line);
+
+    if (line.find('#') != std::string::npos) {
+
+      if (line[0] != '#') {
+	{
+	  std::istringstream sin(line);
+	  sin >> magic;
+	}
+	{
+	  std::getline(in, line);
+	  std::istringstream sin(line);
+	  sin >> neps >> nw;
+	}
+	{
+	  std::getline(in, line);
+	  std::istringstream sin(line);
+	  sin >> eps_min;
+	}
+	{
+	  std::getline(in, line);
+	  std::istringstream sin(line);
+	  sin >> w_min;
+	}
+	{
+	  std::getline(in, line);
+	  std::istringstream sin(line);
+	  sin >> step;
+	}
+      }
+    } else {
+      std::istringstream sin(line);
+      data.resize(nw, neps);
+      unsigned col=0;
+      double x;
+      while (sin) {
+	sin >> x;
+	if (sin and col<neps) {
+	  data(row, col++) = x;
+	}
+      }
+      row++;			// Row completed
+    }
+  }
+
+  if (myid == 0) {
+    std::cout << std::string(60, '-') << std::endl
+	      << "**** Gaunt FF data check ****" << std::endl
+	      << std::string(60, '-') << std::endl
+	      << "Rows: " << data.rows() << " cols: " << data.cols() << std::endl
+	      << "Min(E): " << eps_min << " Max(E): " << eps_min + step*(data.cols()-1) << std::endl
+	      << "Min(w): " << w_min << " Max(w): " << w_min + step*(data.rows()-1) << std::endl
+	      << "Step: " << step << std::endl
+	      << std::string(60, '-') << std::endl;
+  }
+}
+
+
 void Ion::freeFreeMakeEvGrid(int id)
 {
   if (C==1) return;
@@ -1858,6 +1983,10 @@ void Ion::freeFreeMakeEvGrid(int id)
   //
   freeFreeGrid.resize(NfreeFreeGrid);
 
+  // Attempt to initialize gauntFF data
+  //
+  gauntFF.initialize();
+
   for (size_t n = 0; n < NfreeFreeGrid; n++) {
 
     // Energy in eV
@@ -1873,41 +2002,82 @@ void Ion::freeFreeMakeEvGrid(int id)
     double cum = 0;
 
     for (int j = 0; j < kffsteps; j++) {
-      //
+
       // Photon energy in eV
       //
       double k  = kgr10[j];
 
-      //
       // Final kinetic energy
       //
       double Ef = Ei - k;
-      
-      //
+	
       // Can't emit a photon if not enough KE!
       //
       if (Ef <= 0.0) break;
-
-      //
+      
       // Scaled inverse energy (final)
       //
       double nf     = sqrt( RydtoeV*(C-1)*(C-1)/Ef );
       
-      //
       // Elwert factor
       //
       double corr   = (1.0 - exp(-2.0*M_PI*ni))/(1.0 - exp(-2.0*M_PI*nf));
-      
-      //
-      // Differential cross section contribution
-      //
-      double dsig   = A * ni*nf * log((nf + ni)/(nf - ni)) * corr * dk;
-      
-      cum = cum + dsig;
-      
+	
+      if (use_VAN_HOOF) {
+
+	double gff = 1.0;
+
+	// Gaunt factor
+	//
+	double eta_f    = 1.0/sqrt(Ei/(RydtoeV*Z*Z));
+	double eta_i    = 1.0/sqrt(Ef/(RydtoeV*Z*Z));
+	
+	double nfr      = eta_f/eta_i;
+	double nfr2     = nfr*nfr;
+	double crit     = (1.0 - nfr2)*eta_f;
+
+	if (crit > 1.0e4) {
+
+	  double fac1     = pow(crit, -2.0/3.0);
+	  double fac2     = fac1*fac1;
+	
+	  constexpr double c1 = 0.1728260369;
+	  constexpr double c2 = 0.04959570168;
+	  constexpr double c3 = 0.01714285714;
+	  
+	  gff = 1.0 +
+	    c1*(1.0 + nfr2)*fac1 -
+	    c2*(1.0 - 4.0/3.0*nfr2 + nfr2*nfr2)*fac2 -
+	    c3*(1.0 - 1.0/3.0*nfr2 - 1.0/3.0*nfr2*nfr2 + nfr2*nfr2*nfr2)*fac1*fac2 +
+	    0.0025*fac2*fac2;
+
+	} else {
+
+	  gff = gauntFF(Ei/(RydtoeV*Z*Z), k/(RydtoeV*Z*Z));
+
+	}
+	
+	// Differential cross section contribution
+	//
+	// dE(Ryd) = dk*hbc/(Ryd/Ev) = dk/k * (k*hbc)/(Ryd/eV) = dlnk * E(Ryd)
+	//
+	constexpr double nfac = 32.0*M_PI/(3.0*sqrt(3.0)) * r0*r0 * afs*afs*afs;
+
+	double sig = nfac*Z*Z * sqrt(Ef/Ei)/k * corr * gff;
+	
+	cum = cum + sig * dk * k;
+	
+      } else {
+
+	// Differential cross section contribution
+	//
+	double dsig   = A * ni*nf * log((nf + ni)/(nf - ni)) * corr * dk;
+	
+	cum = cum + dsig;
+      }
+	
       freeFreeGrid[n].push_back(cum);
     }
-
   }
 
 }

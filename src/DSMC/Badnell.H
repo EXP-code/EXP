@@ -17,11 +17,11 @@ class Ion;
    Enter the (Z, C) pairs in ionQ database (see constructor
    implementation) and put the files in the RR and DR directories.
    The data directory is ./ by default and can be set by the
-   environment variable ADF_DATA_PATH.
+   environment variable ATOMIC_DATA_PATH.
 
    For ions not in the database, it will use the hydrogenic RR cross
    section.  This method can be used with RECOMB_RATIO in CollideIon.
-   In this case, the ADF cross sections will be used where they exist
+   In this case, the ADAS cross sections will be used where they exist
    and the hydrogenic cross section with the fudge factor will be used
    for others.
 */
@@ -49,8 +49,8 @@ public:
 
   //! Location of Nigel Badnell's adf files in RR and DR
   //! subdirectories for the radiative and dielectronic recombination
-  //! cross sections.  Environment variable ADF_DATA_PATH can be used
-  //! to set this variable.
+  //! cross sections.  Environment variable ATOMIC_DATA_PATH can be
+  //! used to set this variable.
   static std::string datapath;
 
   //! Reweight cross section by mean energy (default: false).  Doesn't

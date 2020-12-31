@@ -668,7 +668,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "Coll excite cache"
 	      << (Ion::useExciteGrid ? "on" : "off") << std::endl
 	      <<  " " << std::setw(20) << std::left << "Coll ionize cache"
-	      << (Ion::useIonizeGrid ? "on" : "off") << std::endl;
+	      << (Ion::useIonizeGrid ? "on" : "off") << std::endl
+	      <<  " " << std::setw(20) << std::left << "new Gaunt factor"
+	      << (Ion::use_VAN_HOOF ? "on" : "off") << std::endl;
     if (aType == Trace)
     std::cout <<  " " << std::setw(20) << std::left << "stateXS"
 	      << (stateXS ? "on" : "off")           << std::endl;
@@ -19814,7 +19816,7 @@ CollideIon::RecombRatio::RecombRatio(unsigned short Z, chdata& ch,
   //
   std::ostringstream fout;
   fout << ".chianti_recomb_cache_" << Ion::rr_lab[Ion::rr_type]
-       << Z;
+       << "_" << Z;
 
   std::ifstream in(fout.str());
   bool reject = false;
@@ -20005,6 +20007,7 @@ CollideIon::RecombRatio::RecombRatio(unsigned short Z, chdata& ch,
       //
       YAML::Node node;
     
+      node["type"] = Ion::rr_lab[Ion::rr_type];
       node["Z"   ] = Z;
       node["Tmin"] = Tmin;
       node["Tmax"] = Tmax;
