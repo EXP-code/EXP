@@ -1237,8 +1237,8 @@ protected:
     speciesKey     k1, k2;
     unsigned short Z1, Z2;
     double         q, m1, m2, m10, m20;
-    double         eta1, Q1;
-    double         eta2, Q2;
+    double         eta1, Q1, frc1;
+    double         eta2, Q2, frc2;
 
     std::array<double, 2>  E1, E2, KE1, KE2;
 
@@ -1625,7 +1625,7 @@ protected:
   void normTest(Particle* const p, const std::string& lab);
 
   //! Return 3d Colombic scattering vector
-  std::vector<double>& coulomb_vector(std::vector<double>& rel, double W1, double W2, double Tau);
+  std::vector<double>& coulomb_vector(std::vector<double>& rel, double Tau);
 
   //@}
 

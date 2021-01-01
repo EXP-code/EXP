@@ -1323,7 +1323,7 @@ void CollideIon::initialize_cell
   double tmp1 = densQtot, tmp2 = densEtot;
 
   for (auto & v : densE[id]) v.second *= dfac;
-  densItot *= dfac;
+
   densEtot *= dfac;
   densQtot *= dfac;
 
@@ -11689,7 +11689,9 @@ void CollideIon::coulombicScatterDirect(int id, pCell* const c, double dT)
 
 	// Assign interaction energy variables
 	//
-	vrel = coulomb_vector(vrel, W1, W2, tau);
+	double fac = std::max<double>(W1, W2)/std::min<double>(W1, W2);
+
+	vrel = coulomb_vector(vrel, fac*tau);
 	
 	vi   = sqrt(vi);
 	for (auto & v : vrel) v *= vi;
@@ -11814,7 +11816,7 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 
       auto pp = PP[l];
 
-      double KE = 0.0;
+      double KE = 0.0, frac = 1.0;
 
       if (l==0) {
 	for (int k=0; k<3; k++) {
@@ -11825,6 +11827,9 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 
 	  KE += (v1[k] - v2[k]) * (v1[k] - v2[k]);
 	}
+
+	frac = pp->frc1;
+
       } else if (l==1) {
 	for (int k=0; k<3; k++) {
 				// Particle 1 is the ion
@@ -11834,6 +11839,8 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 
 	  KE += (v1[k] - v2[k]) * (v1[k] - v2[k]);
 	}
+
+	frac = pp->frc1;
       } else if (l==2) {
 	for (int k=0; k<3; k++) {
 				// Particle 2 is the ion
@@ -11843,6 +11850,8 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 
 	  KE += (v1[k] - v2[k]) * (v1[k] - v2[k]);
 	}
+
+	frac = pp->frc2;
       } else {
 	for (int k=0; k<3; k++) {
 				// Both particles are electrons
@@ -11851,6 +11860,8 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 
 	  KE += (v1[k] - v2[k]) * (v1[k] - v2[k]);
 	}
+
+	frac = pp->frc2;
       }
 
       if (pp->swap) zswap(v1, v2);
@@ -11915,7 +11926,7 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
       if (kE>0.0) {
 	// Assign interaction energy variables
 	//
-	vrel = coulomb_vector(vrel, W1,  W2,  tau);
+	vrel = coulomb_vector(vrel, frac*tau);
 	
 	vi   = sqrt(vi);
 	for (auto & v : vrel) v *= vi;
@@ -19172,6 +19183,8 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
       eta2 += p2->dattrib[s.second]*P/atomic_weights[s.first.first];
 				// Mean charge
       if (P) {
+	frc1 += p1->dattrib[s.second];
+	frc2 += p2->dattrib[s.second];
 	chg1 += p1->dattrib[s.second]/atomic_weights[s.first.first];
 	chg2 += p2->dattrib[s.second]/atomic_weights[s.first.first];
 	Q1   += p1->dattrib[s.second]*P/atomic_weights[s.first.first];
@@ -19209,23 +19222,22 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
     // Compute electron fractions
     //
 
-    double chg1 = 0.0, chg2 = 0.0;
-
+    frc1 = frc2 = 0.0;
     eta1 = eta2 = 0.0;
     Q1 = Q2 = 0.0;
 
     if (caller->use_elec>=0) {
       for (unsigned short C=2; C<=Z1; C++) {
-	chg1 += p1->dattrib[caller->spc_pos+C];
+	frc1 += p1->dattrib[caller->spc_pos+C];
 	eta1 += p1->dattrib[caller->spc_pos+C]*(C-1);
       }
       for (unsigned short C=2; C<=Z2; C++) {
-	chg2 += p2->dattrib[caller->spc_pos+C];
+	frc2 += p2->dattrib[caller->spc_pos+C];
 	eta2 += p2->dattrib[caller->spc_pos+C]*(C-1);
       }
 
-      if (chg1) Q1 = eta1/chg1;
-      if (chg2) Q2 = eta2/chg2;
+      if (frc1) Q1 = eta1/frc1;
+      if (frc2) Q2 = eta2/frc2;
     }
 
   } else {
@@ -19316,6 +19328,10 @@ void CollideIon::Pord::swapPs()
   // Swap electron number fraction
   //
   zswap(eta1, eta2);
+
+  // Swap charge fraction
+  //
+  zswap(frc1, frc2);
     
   // Swap mean charge
   //
@@ -19381,6 +19397,7 @@ CollideIon::Pord::Epair CollideIon::Pord::compE()
     double mol1 = 0.0, mol2 = 0.0;
     double chg1 = 0.0, chg2 = 0.0;
 
+    frc1 = frc2 = 0.0;
     eta1 = eta2 = 0.0;
     Q1 = Q2 = 0.0;
 
@@ -19394,6 +19411,8 @@ CollideIon::Pord::Epair CollideIon::Pord::compE()
       eta2 += p2->dattrib[s.second]*P/atomic_weights[s.first.first];
 				// Mean charge
       if (P) {
+	frc1 += p1->dattrib[s.second];
+	frc2 += p2->dattrib[s.second];
 	chg1 += p1->dattrib[s.second]/atomic_weights[s.first.first];
 	chg2 += p2->dattrib[s.second]/atomic_weights[s.first.first];
 	Q1   += p1->dattrib[s.second]*P/atomic_weights[s.first.first];
@@ -19410,13 +19429,17 @@ CollideIon::Pord::Epair CollideIon::Pord::compE()
   } // END: Trace method
   else {
 
-    eta1 = 0.0;
-    for (unsigned short C=1; C<=Z1; C++)
+    frc1 = eta1 = 0.0;
+    for (unsigned short C=1; C<=Z1; C++) {
+      frc1 += p1->dattrib[caller->spc_pos+C];
       eta1 += p1->dattrib[caller->spc_pos+C]*C;
+    }
 
-    eta2 = 0.0;
-    for (unsigned short C=1; C<=Z2; C++)
+    frc2 = eta2 = 0.0;
+    for (unsigned short C=1; C<=Z2; C++) {
+      frc2 += p2->dattrib[caller->spc_pos+C];
       eta2 += p2->dattrib[caller->spc_pos+C]*C;
+    }
 
   } // END: All methods besides Trace
 
@@ -19821,8 +19844,8 @@ void CollideIon::Fspc::normTest(unsigned short n, const std::string& lab)
 
 // Return 3d Colombic scattering vector
 //
-std::vector<double>& CollideIon::coulomb_vector(std::vector<double>& rel,
-						double W1, double W2, double Tau)
+std::vector<double>& CollideIon::coulomb_vector
+(std::vector<double>& rel, double tau)
 {
   if (not coulombSel.get()) coulombSel = boost::make_shared<coulombSelect>();
 
@@ -19832,8 +19855,6 @@ std::vector<double>& CollideIon::coulomb_vector(std::vector<double>& rel,
   double vfac = sqrt(rel2);
   if (vfac>0.0) for (auto & v : rel) v /= vfac;
 
-  double fac    = std::max<double>(W1, W2)/std::min<double>(W1, W2);
-  double tau    = fac * Tau;
   double cosx   = (*coulombSel)(tau, (*unit)());
   double sinx   = sqrt(fabs(1.0 - cosx*cosx));
   double phi    = 2.0*M_PI*(*unit)();
