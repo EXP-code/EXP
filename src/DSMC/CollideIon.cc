@@ -706,7 +706,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   neutF    .resize(nthrds);	     // Trace
   numIf    .resize(nthrds);	     // Direct, Weight, Hybrid, Trace
   numEf    .resize(nthrds);	     // Direct, Weight, Hybrid, Trace
-  numQ2    .resize(nthrds);	     // Hybrid, Trace
   densE    .resize(nthrds);	     // Direct, Weight, Trace
   photoW   .resize(nthrds);	     // Photoionization
   photoN   .resize(nthrds);	     // Photoionization
@@ -1185,7 +1184,6 @@ void CollideIon::initialize_cell
   //
   numIf[id] = 0.0;		// Charged particles
   numEf[id] = 0.0;		// Ions and electrons
-  numQ2[id] = 0.0;		// For Coulombic scattering
 
   // Electron density per species in cell
   //
@@ -1251,7 +1249,6 @@ void CollideIon::initialize_cell
 
       numIf[id]    += p->mass * (ie  + ee) / atomic_weights[Z];
       numEf[id]    += p->mass * (1.0 + ee) / atomic_weights[Z];
-      numQ2[id]    += p->mass * qq / atomic_weights[Z];
       densE[id][K] += p->mass * ee / atomic_weights[Z];
       densEtot     += p->mass * ee / atomic_weights[Z];
       densItot     += p->mass / atomic_weights[Z];
@@ -1301,8 +1298,6 @@ void CollideIon::initialize_cell
 				// Number fraction of particles
 	double ww     = p->dattrib[s.second]/atomic_weights[k.first];
 
-	numQ2[id]    += p->mass * ww * ee*ee;
-	numEf[id]    += p->mass * ww * (1.0 + ee);
 	densE[id][k] += p->mass * ww * ee;
 	densEtot     += p->mass * ww * ee;
 	densItot     += p->mass * ww;
@@ -1315,9 +1310,6 @@ void CollideIon::initialize_cell
     } // END: Trace
     
   } // END: body loop
-
-  // Compute mean charge-squared
-  if (densQtot>0.0) numQ2[id] /= densQtot;
 
   // Physical number of particles
   //
@@ -1702,7 +1694,7 @@ void CollideIon::initialize_cell
 	meanF[id][s.first] += p->mass * ww;
 
 	// Mean electron number
-	meanE[id]          += p->mass * ww * ee;
+	meanE[id]          += p->mass * ww * q;
 
 	// For neutrals only
 	if (ee==0) {
@@ -1827,9 +1819,18 @@ void CollideIon::initialize_cell
     double muie = atomic_weights[0] * meanM[id]/(atomic_weights[0] + meanM[id]);
 
 
+    // Ion charge
+    double Qi  = densEtot/densQtot;
+    double Qi2 = Qi*Qi;
+
+    // Electron charge
+    double Qe  = 1.0;
+    double Qe2 = Qe*Qe;
+
+
     debye [id]  = 1.0/sqrt(6.0*M_PI*esu*esu*dbyfac);
     plasma[id]  = log((muie*2.0*Eion[id] + muee*2.0*Eelc[id])*eV*debye[id] /
-		      (esu*esu*numQ2[id]));
+		      (esu*esu));
     debye [id] /= TreeDSMC::Lunit;
     
     // For verbose diagnostic output only
@@ -1840,56 +1841,53 @@ void CollideIon::initialize_cell
 
 #ifdef XC_DEEP7
     std::cout << "coulombic:"
-      << " MUii=" << muii
-      << " MUee=" << muee
-      << " MUie=" << muie
-      << " denQ=" << densQtot
-      << " denE=" << densEtot
-      << " numQ=" << numQ2[id]
+      << " MUii="  << muii
+      << " MUee="  << muee
+      << " MUie="  << muie
+      << " denQ="  << densQtot
+      << " denE="  << densEtot
       << " Ivel2=" << Ivel2[id]
       << " Evel2=" << Evel2[id]
-      << " volC=" << volc
-      << " masC=" << massP
-      << " nbod=" << nbods
-      << " numQ=" << tmp1
-      << " numE=" << tmp2
-      << " DbyL=" << debye[id]
-      << " logL=" << plasma[id]
+      << " volC="  << volc
+      << " masC="  << massP
+      << " nbod="  << nbods
+      << " numQ="  << tmp1
+      << " numE="  << tmp2
+      << " DbyL="  << debye[id]
+      << " logL="  << plasma[id]
       << std::endl;
 #endif
 
     if (logLfac>0.0) plasma[id] *= logLfac;
 
-				// Ion-Ion
+				// Ion-Ion: densQtot is ion density
+				//          densEtot is electron density
     PiProb[id][0] = densQtot;
     if (densEtot>0.0)
       PiProb[id][0] += 
-	densEtot * pow(2.0*Ivel2[id], 1.5) * muii*muii /
-	(pow(Ivel2[id] + Evel2[id], 1.5) * muie*muie * numQ2[id]);
-    //                                               ^
-    //                                               |
-    // The density is weighted by q^2 for each species
-
+	densEtot * pow(2.0*Ivel2[id], 1.5) * muii*muii * Qe2 /
+	(pow(Ivel2[id] + Evel2[id], 1.5) * muie*muie * Qi2);
+    
 				// Ion-Electron
     PiProb[id][1] = densEtot;
     if (Ivel2[id]>0.0)
       PiProb[id][1] += 
-	densQtot * pow(Ivel2[id] + Evel2[id], 1.5) * muie*muie * numQ2[id] /
-	(pow(2.0*Ivel2[id], 1.5) * muii*muii);
+	densQtot * pow(Ivel2[id] + Evel2[id], 1.5) * muie*muie * Qi2 /
+	(pow(2.0*Ivel2[id], 1.5) * muii*muii * Qe2);
 
 				// Electron-Ion
     PiProb[id][2] = densQtot;
     if (Evel2[id]>0.0)
       PiProb[id][2] += 
-	densEtot * pow(Ivel2[id] + Evel2[id], 1.5) * muie*muie /
-	(pow(2.0*Evel2[id], 1.5) * muee*muee * numQ2[id]);
+	densEtot * pow(Ivel2[id] + Evel2[id], 1.5) * muie*muie * Qe2 /
+	(pow(2.0*Evel2[id], 1.5) * muee*muee * Qi2);
 
 				// Electron-Electron
     PiProb[id][3] = densEtot;
     if (densQtot>0.0)
       PiProb[id][3] += 
-	densQtot * pow(2.0*Evel2[id], 1.5) * muee*muee * numQ2[id] /
-	(pow(Ivel2[id] + Evel2[id], 1.5) * muie*muie);
+	densQtot * pow(2.0*Evel2[id], 1.5) * muee*muee * Qi2 /
+	(pow(Ivel2[id] + Evel2[id], 1.5) * muie*muie * Qe2);
 
 #ifdef XC_DEEP10
       std::cout << "coul2: "
@@ -1900,7 +1898,7 @@ void CollideIon::initialize_cell
 		<< std::endl;
 #endif
 				// Sanity check
-    if (false) {
+      if (false) {
       double test1 = densQtot/PiProb[id][0] + densEtot/PiProb[id][1];
       double test2 = densQtot/PiProb[id][2] + densEtot/PiProb[id][3];
 
@@ -1912,11 +1910,11 @@ void CollideIon::initialize_cell
     if (logLfac>0.0) Lbda = plasma[id];
 
 				// Rate coefficients
-    ABrate[id][0] = 2.0*M_PI * PiProb[id][0] * Lbda * pow(numQ2[id]*numQ2[id], 2.0);
+    ABrate[id][0] = 2.0*M_PI * PiProb[id][0] * Lbda ;
 
-    ABrate[id][1] = 2.0*M_PI * PiProb[id][1] * Lbda * pow(numQ2[id], 2.0);
+    ABrate[id][1] = 2.0*M_PI * PiProb[id][1] * Lbda ;
 
-    ABrate[id][2] = 2.0*M_PI * PiProb[id][2] * Lbda * pow(numQ2[id], 2.0);
+    ABrate[id][2] = 2.0*M_PI * PiProb[id][2] * Lbda ;
 
     ABrate[id][3] = 2.0*M_PI * PiProb[id][3] * Lbda ;
 
@@ -11650,7 +11648,7 @@ void CollideIon::coulombicScatterDirect(int id, pCell* const c, double dT)
       //
       KE *= 0.5 * mu * TreeDSMC::Vunit * TreeDSMC::Vunit;
 
-      // Coulombic rate
+      // Coulombic rate (physical units)
       //
       double pVel = sqrt(2.0*KE/mu);
       double afac = esu*esu*Q1*Q2/std::max<double>(2.0*KE, FloorEv*eV);
@@ -11862,8 +11860,8 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
       double m1 = pp->m1;
       double m2 = pp->m2;
 
-      double Q1 = pp->eta1;
-      double Q2 = pp->eta2;
+      double Q1 = pp->Q1;
+      double Q2 = pp->Q2;
 	
       m1 = std::max<double>(m1, 1.0e-12); 
       m2 = std::max<double>(m2, 1.0e-12); 
@@ -11885,7 +11883,7 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
       //
       KE *= 0.5 * mu * TreeDSMC::Vunit * TreeDSMC::Vunit;
 
-      // Coulombic rate
+      // Coulombic rate (physical units)
       //
       double pVel = sqrt(2.0*KE/mu);
       double afac = esu*esu*Q1*Q2/std::max<double>(2.0*KE, FloorEv*eV);
@@ -19157,7 +19155,13 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
     // Get molecular weights and electron fractions
     //
     double mol1 = 0.0, mol2 = 0.0;
+    double chg1 = 0.0, chg2 = 0.0;
+
+    // Zero values for accumulation
+    //
     eta1 = eta2 = 0.0;
+    Q1 = Q2 = 0.0;
+
     for (auto s : c->SpList) {
 				// Molecular weight
       mol1 += p1->dattrib[s.second]/atomic_weights[s.first.first];
@@ -19166,7 +19170,13 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
       unsigned P =  s.first.second - 1;
       eta1 += p1->dattrib[s.second]*P/atomic_weights[s.first.first];
       eta2 += p2->dattrib[s.second]*P/atomic_weights[s.first.first];
-
+				// Mean charge
+      if (P) {
+	chg1 += p1->dattrib[s.second]/atomic_weights[s.first.first];
+	chg2 += p2->dattrib[s.second]/atomic_weights[s.first.first];
+	Q1   += p1->dattrib[s.second]*P/atomic_weights[s.first.first];
+	Q2   += p2->dattrib[s.second]*P/atomic_weights[s.first.first];
+      }
     }
     eta1 /= mol1;		// Electrons per particle
     eta2 /= mol2;
@@ -19174,22 +19184,12 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
     m1 = m10 = 1.0/mol1;	// Molecular weight
     m2 = m20 = 1.0/mol2;
     
-    // Get kinetic energies
-    //
-    for (size_t k=0; k<3; k++) {
-      KE1[0] += p1->vel[k] * p1->vel[k];
-      KE2[0] += p2->vel[k] * p2->vel[k];
-      KE1[1] += p1->dattrib[c->use_elec+k] * p1->dattrib[c->use_elec+k];
-      KE2[1] += p2->dattrib[c->use_elec+k] * p2->dattrib[c->use_elec+k];
-    }
-
-    KE1[0] *= 0.5*p1->mass;
-    KE2[0] *= 0.5*p2->mass;
-    KE1[1] *= 0.5*p1->mass * eta1 * atomic_weights[0]/m1;
-    KE2[1] *= 0.5*p2->mass * eta2 * atomic_weights[0]/m2;
+				// Mean charge
+    if (chg1>0.0) Q1 /= chg1;
+    if (chg2>0.0) Q2 /= chg2;
 
   } // END: Trace method
-  else {
+  else if (c->aType == Hybrid) {
 
     // Cache species keys
     //
@@ -19208,15 +19208,66 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
     
     // Compute electron fractions
     //
+
+    double chg1 = 0.0, chg2 = 0.0;
+
     eta1 = eta2 = 0.0;
+    Q1 = Q2 = 0.0;
+
     if (caller->use_elec>=0) {
-      for (unsigned short C=1; C<=Z1; C++)
-	eta1 += p1->dattrib[caller->spc_pos+C]*C;
-      for (unsigned short C=1; C<=Z2; C++)
-	eta2 += p2->dattrib[caller->spc_pos+C]*C;
+      for (unsigned short C=2; C<=Z1; C++) {
+	chg1 += p1->dattrib[caller->spc_pos+C];
+	eta1 += p1->dattrib[caller->spc_pos+C]*(C-1);
+      }
+      for (unsigned short C=2; C<=Z2; C++) {
+	chg2 += p2->dattrib[caller->spc_pos+C];
+	eta2 += p2->dattrib[caller->spc_pos+C]*(C-1);
+      }
+
+      if (chg1) Q1 = eta1/chg1;
+      if (chg2) Q2 = eta2/chg2;
     }
+
+  } else {
+
+    // Cache species keys
+    //
+    k1 = KeyConvert(p1->iattrib[c->use_key]).getKey();
+    k2 = KeyConvert(p2->iattrib[c->use_key]).getKey();
+  
+    // Get atomic numbers
+    //
+    Z1 = k1.first;
+    Z2 = k2.first;
+  
+    // Get atomic masses
+    //
+    m1 = m10 = atomic_weights[Z1];
+    m2 = m20 = atomic_weights[Z2];
     
-  } // END: all methods method besides Trace
+    // Compute electron fractions
+    //
+    Q1   = k1.second - 1;
+    Q2   = k2.second - 1;
+    eta1 = p1->dattrib[caller->spc_pos] * Q1;
+    eta2 = p2->dattrib[caller->spc_pos] * Q2;
+  }
+  // END: all methods method besides Hybrid and Trace
+
+
+  // Get kinetic energies
+  //
+  for (size_t k=0; k<3; k++) {
+    KE1[0] += p1->vel[k] * p1->vel[k];
+    KE2[0] += p2->vel[k] * p2->vel[k];
+    KE1[1] += p1->dattrib[c->use_elec+k] * p1->dattrib[c->use_elec+k];
+    KE2[1] += p2->dattrib[c->use_elec+k] * p2->dattrib[c->use_elec+k];
+  }
+  
+  KE1[0] *= 0.5*p1->mass;
+  KE2[0] *= 0.5*p2->mass;
+  KE1[1] *= 0.5*p1->mass * eta1 * atomic_weights[0]/m1;
+  KE2[1] *= 0.5*p2->mass * eta2 * atomic_weights[0]/m2;
 
   switch (P) {
   case ion_electron:
@@ -19266,6 +19317,10 @@ void CollideIon::Pord::swapPs()
   //
   zswap(eta1, eta2);
     
+  // Swap mean charge
+  //
+  zswap(Q1, Q2);
+
   // Swap true particle numbers
   //
   zswap(w1, w2);
@@ -19324,7 +19379,11 @@ CollideIon::Pord::Epair CollideIon::Pord::compE()
 				// Compute electron fractions
   if (caller->aType == Trace) {
     double mol1 = 0.0, mol2 = 0.0;
+    double chg1 = 0.0, chg2 = 0.0;
+
     eta1 = eta2 = 0.0;
+    Q1 = Q2 = 0.0;
+
     for (auto s : caller->SpList) {
 				// Molecular weight
       mol1 += p1->dattrib[s.second]/atomic_weights[s.first.first];
@@ -19333,10 +19392,20 @@ CollideIon::Pord::Epair CollideIon::Pord::compE()
       unsigned P = s.first.second - 1;
       eta1 += p1->dattrib[s.second]*P/atomic_weights[s.first.first];
       eta2 += p2->dattrib[s.second]*P/atomic_weights[s.first.first];
+				// Mean charge
+      if (P) {
+	chg1 += p1->dattrib[s.second]/atomic_weights[s.first.first];
+	chg2 += p2->dattrib[s.second]/atomic_weights[s.first.first];
+	Q1   += p1->dattrib[s.second]*P/atomic_weights[s.first.first];
+	Q2   += p2->dattrib[s.second]*P/atomic_weights[s.first.first];
+      }
     }
 
     eta1 /= mol1;
     eta2 /= mol2;
+
+    if (chg1>0.0) Q1 /= chg1;
+    if (chg2>0.0) Q2 /= chg2;
 
   } // END: Trace method
   else {
