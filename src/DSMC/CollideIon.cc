@@ -11780,6 +11780,65 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
   //
   dT *= TreeDSMC::Tunit;
 
+  // Compute particle interactions weights
+  //
+  std::array<double, 4> na, nab;
+  
+  for (auto p : cpair) {
+    Particle* const p1 = tree->Body(c->bods[p.first]);
+    Particle* const p2 = tree->Body(c->bods[p.second]);
+
+    // Mean molecular weight for each particle
+    //
+    double Mu1=0.0, Mu2=0.0;
+    for (auto s : SpList) {
+				// Number fraction of ions
+      double one = p1->dattrib[s.second] / atomic_weights[s.first.first];
+      double two = p2->dattrib[s.second] / atomic_weights[s.first.first];
+
+      Mu1 += one;
+      Mu2 += two;
+    }
+				// The molecular weight
+    Mu1 = 1.0/Mu1;
+    Mu2 = 1.0/Mu1;
+
+    // Proportional to number of true particles in each superparticle
+    //
+    double W1 = p1->mass/Mu1, ww1;
+    double W2 = p2->mass/Mu2, ww2;
+
+    std::array<PordPtr, 4> PP =
+      { PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_ion,           DBL_MAX) ),
+	PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_electron,      DBL_MAX) ),
+	PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_ion,      DBL_MAX) ),
+	PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_electron, DBL_MAX) ) };
+
+    ww1     = PP[0]->frc1 * PP[0]->W1;
+    ww2     = PP[0]->frc2 * PP[0]->W2;
+    na[0]  += ww1;
+    if (std::max<double>(ww1,ww2)>0.0) 
+      nab[0] += ww1*ww2/std::max<double>(ww1,ww2);
+
+    ww1     = PP[1]->frc1 * PP[1]->W1;
+    ww2     = PP[1]->eta2 * PP[1]->W2;
+    na[1]  += ww1;
+    if (std::max<double>(ww1,ww2)>0.0)
+      nab[1] += ww1*ww2/std::max<double>(ww1,ww2);
+
+    ww1     = PP[2]->eta1 * PP[2]->W1;
+    ww2     = PP[2]->frc2 * PP[2]->W2;
+    na[2]  += ww1;
+    if (std::max<double>(ww1,ww2)>0.0)
+      nab[2] += ww1*ww2/std::max<double>(ww1,ww2);
+
+    ww1     = PP[3]->eta1 * PP[3]->W1;
+    ww2     = PP[3]->eta2 * PP[3]->W2;
+    na[3]  += ww1;
+    if (std::max<double>(ww1,ww2)>0.0)
+      nab[3] += ww1*ww2/std::max<double>(ww1,ww2);
+  }
+
   // Do all pairs
   //
   for (auto p : cpair) {
@@ -11816,9 +11875,29 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 
       auto pp = PP[l];
 
-      double KE = 0.0, frac = 1.0;
+      double KE = 0.0, Pa = 1.0, Pb = 1.0;
+
+      // Neutrality rejection
+      //
+      if (l==0 or l==1) {
+	if ( (*unit)() > pp->frc1 ) continue;
+      }
+
+      if (l==2) {
+	if ( (*unit)() > pp->frc2 ) continue;
+      }
 
       if (l==0) {
+
+	double ww1 = PP[0]->frc1 * PP[0]->W1;
+	double ww2 = PP[0]->frc2 * PP[0]->W2;
+	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
+	if (ww1 > ww2) {
+	  if ( (*unit)() > ww2/ww1 ) Pb = 0.0;
+	} else {
+	  if ( (*unit)() > ww1/ww2 ) Pa = 0.0;
+	}
+
 	for (int k=0; k<3; k++) {
 				// Particle 1 is an ion
 	  v1[k]  = p1->vel[k];
@@ -11828,9 +11907,17 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 	  KE += (v1[k] - v2[k]) * (v1[k] - v2[k]);
 	}
 
-	frac = pp->frc1;
-
       } else if (l==1) {
+
+	double ww1 = PP[1]->frc1 * PP[1]->W1;
+	double ww2 = PP[1]->eta2 * PP[1]->W2;
+	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
+	if (ww1 > ww2) {
+	  if ( (*unit)() > ww2/ww1 ) Pb = 0.0;
+	} else {
+	  if ( (*unit)() > ww1/ww2 ) Pa = 0.0;
+	}
+
 	for (int k=0; k<3; k++) {
 				// Particle 1 is the ion
 	  v1[k]  = p1->vel[k];
@@ -11840,8 +11927,17 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 	  KE += (v1[k] - v2[k]) * (v1[k] - v2[k]);
 	}
 
-	frac = pp->frc1;
       } else if (l==2) {
+
+	double ww1 = PP[2]->eta1 * PP[2]->W1;
+	double ww2 = PP[2]->frc2 * PP[2]->W2;
+	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
+	if (ww1 > ww2) {
+	  if ( (*unit)() > ww2/ww1 ) Pb = 0.0;
+	} else {
+	  if ( (*unit)() > ww1/ww2 ) Pa = 0.0;
+	}
+
 	for (int k=0; k<3; k++) {
 				// Particle 2 is the ion
 	  v2[k]  = p2->vel[k];
@@ -11851,8 +11947,17 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 	  KE += (v1[k] - v2[k]) * (v1[k] - v2[k]);
 	}
 
-	frac = pp->frc2;
       } else {
+
+	double ww1 = PP[3]->eta1 * PP[3]->W1;
+	double ww2 = PP[3]->eta2 * PP[3]->W2;
+	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
+	if (ww1 > ww2) {
+	  if ( (*unit)() > ww2/ww1 ) Pb = 0.0;
+	} else {
+	  if ( (*unit)() > ww1/ww2 ) Pa = 0.0;
+	}
+
 	for (int k=0; k<3; k++) {
 				// Both particles are electrons
 	  v1[k]  = p1->dattrib[use_elec+k];
@@ -11861,7 +11966,6 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 	  KE += (v1[k] - v2[k]) * (v1[k] - v2[k]);
 	}
 
-	frac = pp->frc2;
       }
 
       if (pp->swap) zswap(v1, v2);
@@ -11926,7 +12030,7 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
       if (kE>0.0) {
 	// Assign interaction energy variables
 	//
-	vrel = coulomb_vector(vrel, frac*tau);
+	vrel = coulomb_vector(vrel, nab[l]/na[l]*tau);
 	
 	vi   = sqrt(vi);
 	for (auto & v : vrel) v *= vi;
@@ -11937,8 +12041,8 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 	//
 
 	for (size_t k=0; k<3; k++) {
-	  v1[k] = vcom[k] + m2/mt*vrel[k];
-	  v2[k] = vcom[k] - m1/mt*vrel[k];
+	  v1[k] = (1.0 - Pa)*v1[k] + Pa*(vcom[k] + m2/mt*vrel[k]);
+	  v2[k] = (1.0 - Pb)*v2[k] + Pb*(vcom[k] - m1/mt*vrel[k]);
 	}
     
 	if (pp->swap) zswap(v1, v2);
