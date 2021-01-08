@@ -8,6 +8,11 @@
     Previously written checkpoint file will be rename to
     \<filename\>.bak
 
+    Sending the root process a SIGHUP will cause the first of OutPS,
+    OutPSP, OutPSN, OutPSQ, or OutCHKPT in the Output list to execute.
+    This may not always be possible to signal for batch scheduled
+    jobs.
+
     @param filename is the name of the output file
     @param nint is the number of steps between dumps
     @param mpio set to true uses MPI-IO output with arbitrarily 

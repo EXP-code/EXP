@@ -202,9 +202,9 @@ int main (int ac, char **av)
 
   PeriodicTable pt;
 
-  chdata ch;
+  atomicData ad;
 
-  ch.createIonList(ZList);
+  ad.createIonList(ZList);
 
   if (myid) {
     MPI_Finalize();
@@ -246,14 +246,14 @@ int main (int ac, char **av)
       
       if (val0.size()) {
 	std::map<unsigned short, std::vector<double> >
-	  valT = ch.recombEquil(Z, T, Eb, Ef, norder);
+	  valT = ad.recombEquil(Z, T, Eb, Ef, norder);
 	for (auto v : val0) {
 	  unsigned short C = v.first;
 	  size_t        sz = v.second.size();
 	  for (size_t j=0; j<sz; j++) val0[C][j] += valT[C][j];
 	}
       } else {
-	val0 = ch.recombEquil(Z, T, Ef, Eb, norder);
+	val0 = ad.recombEquil(Z, T, Ef, Eb, norder);
       }
       val1[ne] = val0;
     }

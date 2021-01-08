@@ -69,14 +69,15 @@ void OutCHKPT::initialize()
 
 void OutCHKPT::Run(int n, int mstep, bool last)
 {
-  if (n % nint && !last) return;
+  if (!dump_signal and !last) {
+    if (n % nint           ) return;
+    if (mstep % nintsub !=0) return;
+  }
+
   if (VERBOSE>5 && myid==0) {
     cout << " OutCHKPT::Run(): n=" << n << " psdump=" << psdump << endl;
   }
   
-  if (mstep % nintsub !=0) return;
-
-
   int returnStatus = 1;
 
   if (n == psdump) {       
@@ -288,6 +289,8 @@ void OutCHKPT::Run(int n, int mstep, bool last)
   }
 
   chktimer.mark();
+
+  dump_signal = 0;
 
   if (timer) {
     end = std::chrono::high_resolution_clock::now();

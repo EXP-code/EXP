@@ -452,7 +452,7 @@ class CollideIon : public Collide
 
 private:
 
-  chdata ch;
+  atomicData ad;
 
   //! Neutral atom--electron cross-section for hydrogen and helium
   //! interpolated from experimentally calibrated theortical data (see
@@ -893,7 +893,7 @@ private:
 	@param Tmax is the maximum temperature in the table (degrees K)
 	@param numT is the number of temperature knots in the table
   */
-    RecombRatio(unsigned short Z, chdata& ch, double Tmin, double Tmax, int numT);
+    RecombRatio(unsigned short Z, atomicData& ad, double Tmin, double Tmax, int numT);
 
     //! Interpolate the ratio from the table
     double operator()(unsigned short C, double T);

@@ -17,6 +17,11 @@
     before writing.  This is the newest version for PSP output and has
     not be extensively tested as of 10/2018.
 
+    Sending the root process a SIGHUP will cause the first of OutPS,
+    OutPSP, OutPSN, OutPSQ, OutCHKPT, or OutCHKPTQ in the output list
+    to execute.  This may not always be possible to signal for batch
+    scheduled jobs.
+
     @param filename is the name of the output file
     @param nint is the number of steps between dumps
     @param nbeg is suffix of the first phase space %dump

@@ -217,7 +217,7 @@ struct cuIonElement
 /**
    Store database of atomic data
 */
-class chdata 
+class atomicData 
 {
 protected:
 
@@ -262,10 +262,10 @@ protected:
 public:
 
   //! Constructor
-  chdata();
+  atomicData();
   
   //! Destructor
-  virtual ~chdata()
+  virtual ~atomicData()
   {
 #if HAVE_LIBCUDA==1
     destroy_cuda();
@@ -298,6 +298,28 @@ public:
   //! Gaunt factor data
   KLGFdata radGF;
   
+  //! Exact tabled Gaunt factor for free-free cross section
+  class GauntFF
+  {
+  private:
+    unsigned magic, neps, nw;
+    double eps_min, w_min, step;
+    bool initialized;
+    Eigen::MatrixXd data;
+
+  public:
+
+    //! Constructor
+    GauntFF() : magic(0), initialized(false) {}
+
+    //! Interpolator
+    double operator()(double E, double w);
+
+    //! Initialize data
+    void initialize();
+
+  } gauntFF;
+
   /** Read in the master list to store to be able to check if elements
       are in it */
   void readMaster();
@@ -390,11 +412,11 @@ public:
 */
 class Ion 
 {
-  friend chdata;
+  friend atomicData;
 
 private:
 
-  chdata* ch;
+  atomicData* ad;
 
   //@{
   //! Cache the spline abscissas and instances for efficiency
@@ -580,8 +602,8 @@ public:
 
   //@{
   //! Constructors
-  Ion (std::string name, chdata* ch);
-  Ion (unsigned short Z1, unsigned short C1, chdata* ch);
+  Ion (std::string name, atomicData* ad);
+  Ion (unsigned short Z1, unsigned short C1, atomicData* ad);
   //@}
 
   //@{
@@ -640,27 +662,6 @@ public:
   //! include in other variables here as needed from the files
   //! could include variables for the elvlc and wgfa files
   // double fbcross, fbloss, ffcross, ffloss, bbcross, bbloss;
-
-  class GauntFF
-  {
-  private:
-    unsigned magic, neps, nw;
-    double eps_min, w_min, step;
-    bool initialized;
-    Eigen::MatrixXd data;
-
-  public:
-
-    //! Constructor
-    GauntFF() : magic(0), initialized(false) {}
-
-    //! Interpolator
-    double operator()(double E, double w);
-
-    //! Initialize data
-    void initialize();
-
-  } gauntFF;
 
 
   //! Free-free cross section
@@ -724,7 +725,7 @@ public:
   //! Is a species is in the database?
   bool isInMasterList(const std::string name) 
   { 
-    return ch->masterNames.find(name) != ch->masterNames.end();
+    return ad->masterNames.find(name) != ad->masterNames.end();
   }
 
   /** Calculate the differential free-free cross section and return
@@ -818,7 +819,7 @@ public:
   speciesKey     getK()             const { return {Z, C}; }
   unsigned short getZ()             const { return Z; }
   unsigned short getC()             const { return C; }
-  double         getIP(const lQ& Q) const { return ch->ipdata[Q]; }
+  double         getIP(const lQ& Q) const { return ad->ipdata[Q]; }
   //@}
 
   //! Set cross-section type for all instances. This is left in case

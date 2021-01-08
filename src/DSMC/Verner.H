@@ -1,7 +1,7 @@
 #ifndef _VERNER_H
 #define _VERNER_H
 
-class chdata;
+class atomicData;
 class Ion;
 
 extern "C" void phfit2_(int* nz, int* ne, int* is, float* e, float* s);
@@ -17,7 +17,7 @@ class VernerData
 
 private:
 
-  chdata *ch;
+  atomicData *ad;
 
 public:
 
@@ -38,7 +38,7 @@ public:
   VernerData() {}
 
   //! Initialize the data from the CHIANTI data file
-  void initialize(chdata* ch);
+  void initialize(atomicData* ad);
 
   //! Calculates the summed recombination cross section
   double cross(const lQ& Q, double EeV);
