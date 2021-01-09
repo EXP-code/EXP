@@ -612,7 +612,7 @@ void testConstantsIon()
   printf("** Rgrid(num) = %d\n", ionRadRecombNumber);
 }
 
-void chdata::cuda_initialize_textures()
+void atomicData::cuda_initialize_textures()
 {
   size_t ionSize = IonList.size();
 
@@ -1067,7 +1067,7 @@ void chdata::cuda_initialize_textures()
 
 }
 
-void chdata::cuda_initialize_grid_constants()
+void atomicData::cuda_initialize_grid_constants()
 {
   double Emin, Emax, delE;
   int NE, NR;
@@ -1437,12 +1437,12 @@ void testRadRecomb
 
 // This is the production version
 //
-void chdata::testCross(int Nenergy,
-		       thrust::device_vector<cuIonElement>& cuElems,
-		       thrust::device_vector<cuFP_t>& x1,
-		       thrust::device_vector<cuFP_t>& x2) {}
+void atomicData::testCross(int Nenergy,
+			   thrust::device_vector<cuIonElement>& cuElems,
+			   thrust::device_vector<cuFP_t>& x1,
+			   thrust::device_vector<cuFP_t>& x2) {}
 
-void chdata::testCross(int Nenergy)
+void atomicData::testCross(int Nenergy)
 {
   // Timers
   //
