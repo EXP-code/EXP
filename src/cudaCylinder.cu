@@ -50,6 +50,8 @@ int Jmn(int m, int n, int nmax)
 __global__
 void testConstantsCyl()
 {
+  printf("** Cylindrical constants\n");
+  printf("** ---------------------\n");
   printf("** Rscale = %f\n", cylRscale);
   printf("** Hscale = %f\n", cylHscale);
   printf("** Xmin   = %f\n", cylXmin);
@@ -1313,7 +1315,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
     cudaStreamDestroy(s);
   }
 				// Copy the data from the device
-  thrust::host_vector<unsigned int> f_ret1(f_use);
+  thrust::host_vector<unsigned int> f_ret1(f_use );
   thrust::host_vector<cuFP_t>       f_ret2(f_mass);
 
 				// Sum counts and mass
