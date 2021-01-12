@@ -25,6 +25,7 @@ __device__ __constant__
 bool  cylOrient;
 
 // Index function for sine and cosine coefficients
+//
 __host__ __device__
 int Imn(int m, char cs, int n, int nmax)
 {
@@ -43,6 +44,7 @@ int Imn(int m, char cs, int n, int nmax)
 }
 
 // Index function for modulus coefficients
+//
 __host__ __device__
 int Jmn(int m, int n, int nmax)
 {
@@ -69,7 +71,8 @@ void testConstantsCyl()
   printf("** ---------------------\n");
 }
 
-				// R coordinate transformation
+// R coordinate transformation
+//
 __device__
 cuFP_t cu_r_to_xi_cyl(cuFP_t r)
 {
@@ -112,7 +115,8 @@ cuFP_t cu_d_xi_to_r_cyl(cuFP_t xi)
   return ret;
 }
 
-				// Z coordinate transformation
+// Z coordinate transformation
+//
 __device__
 cuFP_t cu_z_to_y_cyl(cuFP_t z)
 {
@@ -160,19 +164,18 @@ cuFP_t cu_d_y_to_z_cyl(cuFP_t y)
 }
 
 
+// Initialize for streams
+//
 void Cylinder::cuda_initialize()
 {
-  // Initialize for streams
-  //
   cuRingData.resize(cuStreams);
   cuRing = boost::make_shared<cuRingType>(cuRingData);
 }
 
+// Copy constants to device
+//
 void Cylinder::initialize_mapping_constants()
 {
-  // Copy constants to device
-  //
-  
   cudaMappingConstants f = getCudaMappingConstants();
 
   cuda_safe_call(cudaMemcpyToSymbol(cylRscale, &f.rscale, sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),

@@ -196,7 +196,7 @@ typedef double cuFP_t;
 //
 #ifndef CUDART_VERSION
 #error CUDART_VERSION Undefined!
-#elif (CUDART_VERSION >= 11000)
+#elif (CUDART_VERSION >= 11010)
 const bool thrust_binary_search_workaround = false;
 #else
 const bool thrust_binary_search_workaround = true;
