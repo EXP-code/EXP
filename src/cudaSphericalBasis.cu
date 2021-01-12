@@ -130,6 +130,7 @@ void testConstantsSph()
   printf("** Dxi    = %f\n", sphDxi);
   printf("** Numr   = %d\n", sphNumr);
   printf("** Cmap   = %d\n", sphCmap);
+  printf("** -------------------\n");
 }
 
 __device__
@@ -932,7 +933,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
   //
   static bool firstime = false;
   
-  if (firstime) {
+  if (firstime and myid==0) {
     testConstantsSph<<<1, 1, 0, cr->stream>>>();
     cudaDeviceSynchronize();
     firstime = false;
