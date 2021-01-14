@@ -94,6 +94,7 @@ void initialize(void)
     if (_G["runtime"])       runtime    = _G["runtime"].as<double>();
     
     if (_G["multistep"])     multistep  = _G["multistep"].as<int>();
+    if (_G["shiftlevl"])     shiftlevl  = _G["shiftlevl"].as<int>();
     if (_G["centerlevl"])    centerlevl = _G["centerlevl"].as<int>();
 
     if (_G["dynfracS"])	     dynfracS   = _G["dynfracS"].as<double>();

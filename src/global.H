@@ -96,6 +96,9 @@ extern bool eqmotion;
 //! Multistep levels (default: 0 means no multistepping)
 extern unsigned multistep;
 
+//! Constrain level changes per step (default: 0 means no constraint)
+extern unsigned shiftlevl;
+
 //! Lowest level for centering recomputation (default: multistep/2)
 extern int centerlevl;
 

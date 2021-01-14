@@ -57,6 +57,7 @@ unsigned char dump_signal = 0;
 unsigned char quit_signal = 0;
 				// Multistep variables
 unsigned multistep = 0;
+unsigned shiftlevl = 0;
 int centerlevl = -1;
 bool DTold = false;
 double dynfracS = 1.00;

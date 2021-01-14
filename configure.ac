@@ -1,7 +1,7 @@
 dnl ==========================================================================
 dnl Process this file with autoconf to produce a configure script.
 dnl ==========================================================================
-AC_INIT(EXP, 7.612, [mdw@umass.edu], [], [https://mdweinberg@bitbucket.org/mdweinberg/exp.git])
+AC_INIT(EXP, 7.613, [mdw@umass.edu], [], [https://mdweinberg@bitbucket.org/mdweinberg/exp.git])
 
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SRCDIR(src/expand.cc)
@@ -343,6 +343,7 @@ doxygen_make=""
 if test x$DOXYGEN != xnotfound; then
    SUBDIR_DOXY="doc"
    doxygen_make="doc/Makefile"
+   AC_CONFIG_FILES([doc/Makefile])
 fi
 
 dnl ==========================================================================

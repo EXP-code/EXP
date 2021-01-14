@@ -174,6 +174,7 @@ void * adjust_multistep_level_thread(void *ptr)
     else lev = (int)floor(log(dtime/dt)/log(2.0));
     
     // Time step wants to be SMALLER than the maximum
+    //
     if (lev>multistep) {
       lev = multistep;
       mindt1[id] = min<double>(dt, mindt1[id]);
@@ -181,6 +182,7 @@ void * adjust_multistep_level_thread(void *ptr)
     }
 
     // Case with ZERO acceleration (possibly leading to bad assignment)
+    //
     if (atot==0) {
       lev = multistep;
       // MP: probably don't want offlo++ here? MDW: Nope, but offlo is
@@ -189,6 +191,13 @@ void * adjust_multistep_level_thread(void *ptr)
     
     unsigned plev = p->level;
     unsigned nlev = lev;
+
+    // Enforce n-level shifts at a time
+    //
+    if (shiftlevl) {
+      if (lev > plev + shiftlevl) lev = plev + shiftlevl;
+      if (lev < plev - shiftlevl) lev = plev - shiftlevl;
+    }
 
     // Sanity check
     //
@@ -336,7 +345,6 @@ void adjust_multistep_level(bool all)
 
 	} else {
 	  
-
 	  //
 	  // Make the <nthrds> threads
 	  //

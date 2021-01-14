@@ -1702,7 +1702,7 @@ void CollideIon::initialize_cell
 	meanF[id][s.first] += p->mass * ww;
 
 	// Mean electron number
-	meanE[id]          += p->mass * ww * ee;
+	meanE[id]          += p->mass * ww * q;
 
 	// For neutrals only
 	if (ee==0) {
