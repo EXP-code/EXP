@@ -21,7 +21,7 @@ BadnellData::BadnellData()
   ionQ = { {2, 2}, {2, 3} };	// vector of ions
 }
 
-void BadnellData::initialize(chdata* ch)
+void BadnellData::initialize(atomicData* ad)
 {
   // Attempt to open files for ions in ionQ
   //

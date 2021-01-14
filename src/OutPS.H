@@ -5,6 +5,11 @@
 
 /** Append phase space dumps to specified file at regular intervals
 
+    Sending the root process a SIGHUP will cause the first of OutPS,
+    OutPSP, OutPSN, OutPSQ, OutCHKPT, or OutCHKPTQ in the Output list
+    to execute.  This may not always be possible to signal for batch
+    scheduled jobs.
+
     @param filename is the name of the output file
     @param nint is the number of steps between dumps
     @param timer set to true turns on wall-clock timer for PS output

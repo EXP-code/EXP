@@ -8,6 +8,11 @@
     where is begins at <code>nbeg</code> and incremented by 1 after each
     file is written.
 
+    Sending the root process a SIGHUP will cause the first of OutPS,
+    OutPSP, OutPSN, OutPSQ, OutCHKPT, or OutCHKPTQ in the Output list
+    to execute.  This may not always be possible to signal for batch
+    scheduled jobs.
+
     @param filename is the name of the output file
     @param nint is the number of steps between dumps
     @param nbeg is suffix of the first phase space %dump

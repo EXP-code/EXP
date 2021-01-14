@@ -643,7 +643,7 @@ int ionEgridNumber, ionRadRecombNumber;
 // The grid energy ranges are set in Ion.cc as Ion class static
 // variables
 //
-void chdata::cuda_initialize_textures()
+void atomicData::cuda_initialize_textures()
 {
   size_t ionSize = IonList.size();
 
@@ -1080,7 +1080,7 @@ void chdata::cuda_initialize_textures()
 
 
 
-void chdata::cuda_initialize_grid_constants()
+void atomicData::cuda_initialize_grid_constants()
 {
   double Emin, Emax, delE;
   int NE, NR;
@@ -1480,14 +1480,14 @@ void testRadRecomb
 }
 
 
-// Defined in chdata for standalone version
-void chdata::testCross(int Nenergy) {}
+// Defined in atomicData for standalone version
+void atomicData::testCross(int Nenergy) {}
 
-// Defined in chdata for production version
-void chdata::testCross(int Nenergy,
-		       thrust::device_vector<cuIonElement> & cuElems,
-		       thrust::device_vector<cuFP_t> & xsc_H,
-		       thrust::device_vector<cuFP_t> & xsc_He)
+// Defined in atomicData for production version
+void atomicData::testCross(int Nenergy,
+			   thrust::device_vector<cuIonElement> & cuElems,
+			   thrust::device_vector<cuFP_t> & xsc_H,
+			   thrust::device_vector<cuFP_t> & xsc_He)
 {
   // Timers
   //
@@ -1913,7 +1913,7 @@ void CollideIon::cuda_initialize()
     // Scan
     bool found = false;
 
-    for (auto & E : ch.cuIonElem) {
+    for (auto & E : ad.cuIonElem) {
       if (E.Z == Z and E.C == C) {
 	E.I   = s.second;
 	minSp = std::min<int>(minSp, s.second);
@@ -5114,8 +5114,8 @@ void * CollideIon::collide_thread_cuda(void * arg)
     cuSpeciesKey cuk(k);
 
     int kpos = 0;
-    for (kpos=0; kpos<ch.cuIonElem.size(); kpos++)
-      if (ch.cuIonElem[kpos].I == s.second) break;
+    for (kpos=0; kpos<ad.cuIonElem.size(); kpos++)
+      if (ad.cuIonElem[kpos].I == s.second) break;
 
     cuSpeciesDef def1 {cuk, kpos, s.second-minSp0};
 
@@ -5123,8 +5123,8 @@ void * CollideIon::collide_thread_cuda(void * arg)
       speciesKey kk = ss.first;
       cuSpeciesKey cukk(kk);
 
-      for (kpos=0; kpos<ch.cuIonElem.size(); kpos++)
-	if (ch.cuIonElem[kpos].I == ss.second) break;
+      for (kpos=0; kpos<ad.cuIonElem.size(); kpos++)
+	if (ad.cuIonElem[kpos].I == ss.second) break;
 
       cuSpeciesDef def2 {cukk, kpos, ss.second-minSp0};
 

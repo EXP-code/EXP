@@ -751,7 +751,7 @@ void Ion::readDi()
 //
 // Initialization function when the master name is given
 //
-Ion::Ion(std::string name, chdata* ch) : ch(ch)
+Ion::Ion(std::string name, atomicData* ad) : ad(ad)
 {
   MasterName = name;
 
@@ -760,7 +760,7 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
   eleName = v[0];
 
   convertName();		// Sets Z and C . . . 
-  ip = ch->ipdata[lQ(Z, C)];
+  ip = ad->ipdata[lQ(Z, C)];
 
   freeFreeGridComputed  = false;
   radRecombGridComputed = false;
@@ -829,7 +829,7 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
 //
 // Constructor when the Z, C pair is given
 //
-Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
+Ion::Ion(unsigned short Z, unsigned short C, atomicData* ad) : ad(ad), Z(Z), C(C)
 {
   d = false;
   MasterName = ZCtoName(Z, C);
@@ -847,7 +847,7 @@ Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
 
   if (Z>=C) {
 
-    ip = ch->ipdata[lQ(Z, C)];
+    ip = ad->ipdata[lQ(Z, C)];
 
     if (isInMasterList(MasterName)) {
       readfblvl();
@@ -1603,38 +1603,32 @@ std::pair<double, double> Ion::freeFreeCrossSingleOld(double Ei, int id)
   // Integration variables
   //
   double cum      = 0;
-  double dk       = (kgrid[1] - kgrid[0])*log(10.0); // dlnk
+  double dk       = (kgrid[1] - kgrid[0])*log(10.0); // dln(k)
 
   std::vector<double> diff, cuml;
 
   for (int j = 0; j < kffsteps; j++) {
-    //
     // Photon energy in eV
     //
     double k      = kgr10[j];
 
-    //
     // Final kinetic energy
     //
     double Ef     = Ei - k;
 
-    //
     // Can't emit a photon if not enough KE!
     //
     if (Ef <= 0.0) break;
 
-    //
     // Final scaled momentum
     //
     double pf     = sqrt(Ef*1.0e-6/mec2*(Ef*1.0e-6/mec2 + 2.0));
 
-    //
     // Elwert factor
     //
     double corr   = pi/pf*(1.0 - exp(-2.0*M_PI*Z*afs/pi))/(1.0 - exp(-2.0*M_PI*Z*afs/pf));
 
-    //
-    // Differential cross section contribution (logarithmic integral)
+    // Differential cross section contribution
     //
     double sig   = r0*r0*Z*Z*afs/(pi*pi) * 16.0/3.0 * log((pi + pf)/(pi - pf))/k * corr;
 
@@ -1669,12 +1663,12 @@ std::pair<double, double> Ion::freeFreeCrossSingleOld(double Ei, int id)
     // found element
     //
     std::vector<double>::iterator ub = lb;
-    //
+
     // If is the first element, increment
     // the upper boundary
     //
     if (lb == cuml.begin()) { if (cuml.size()>1) ub++; }
-    //
+
     // Otherwise, decrement the lower boundary
     //
     else { lb--; }
@@ -1755,7 +1749,7 @@ std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id)
     //
     double corr = pi/pf*(1.0 - exp(-2.0*M_PI*Z*afs/pi))/(1.0 - exp(-2.0*M_PI*Z*afs/pf));
 
-    // Gaunt factor
+    // Gaunt factor from van Hoof et al.
     //
     double eta_i    = 1.0/sqrt(Ei/(RydtoeV*Z*Z));
     double eta_f    = 1.0/sqrt(Ef/(RydtoeV*Z*Z));
@@ -1783,7 +1777,7 @@ std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id)
 
     } else {
 
-      gff = gauntFF(Ei/(RydtoeV*Z*Z), k/(RydtoeV*Z*Z));
+      gff = ad->gauntFF(Ei/(RydtoeV*Z*Z), k/(RydtoeV*Z*Z));
 
     }
 
@@ -1824,12 +1818,12 @@ std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id)
     // found element
     //
     std::vector<double>::iterator ub = lb;
-    //
+
     // If is the first element, increment
     // the upper boundary
     //
     if (lb == cuml.begin()) { if (cuml.size()>1) ub++; }
-    //
+
     // Otherwise, decrement the lower boundary
     //
     else { lb--; }
@@ -1862,7 +1856,7 @@ std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id)
 }
 
 
-double Ion::GauntFF::operator()(double E, double w)
+double atomicData::GauntFF::operator()(double E, double w)
 {
   initialize();
 
@@ -1894,7 +1888,7 @@ double Ion::GauntFF::operator()(double E, double w)
   return val;
 }
 
-void Ion::GauntFF::initialize()
+void atomicData::GauntFF::initialize()
 {
   if (initialized) return;
 
@@ -1991,7 +1985,7 @@ void Ion::freeFreeMakeEvGrid(int id)
 
   // Attempt to initialize gauntFF data
   //
-  gauntFF.initialize();
+  ad->gauntFF.initialize();
 
   for (size_t n = 0; n < NfreeFreeGrid; n++) {
 
@@ -2059,7 +2053,7 @@ void Ion::freeFreeMakeEvGrid(int id)
 
 	} else {
 
-	  gff = gauntFF(Ei/(RydtoeV*Z*Z), k/(RydtoeV*Z*Z));
+	  gff = ad->gauntFF(Ei/(RydtoeV*Z*Z), k/(RydtoeV*Z*Z));
 
 	}
 	
@@ -2527,9 +2521,9 @@ std::vector<double> Ion::radRecombCrossSingle(double E, int id)
 */
 std::vector<double> Ion::radRecombCrossBadnell(double E, int id) 
 {
-  auto dd = ch->BadnellXC.data.find(lQ(Z, C));
+  auto dd = ad->BadnellXC.data.find(lQ(Z, C));
 
-  if (dd == ch->BadnellXC.data.end())
+  if (dd == ad->BadnellXC.data.end())
     return Ion::radRecombCrossHydrogn(E, id);
 
   auto d = dd->second;
@@ -2671,7 +2665,7 @@ std::vector<double> Ion::radRecombCrossKramers(double E, int id)
 
   // This is the target neutral
   //
-  Ion* N = ch->IonList[lQ(Z, C-1)].get();
+  Ion* N = ad->IonList[lQ(Z, C-1)].get();
 
   // Ionization threshold (eV)
   //
@@ -2765,8 +2759,8 @@ std::vector<double> Ion::radRecombCrossMewe(double E, int id)
 
   // Get pointers to Ion data
   //
-  double IP = ch->ipdata[Q];
-  Ion* N    = ch->IonList[Q].get();
+  double IP = ad->ipdata[Q];
+  Ion* N    = ad->IonList[Q].get();
 
   // Convert kinetic energy to keV
   //
@@ -2856,10 +2850,10 @@ std::vector<double> Ion::radRecombCrossSpitzer(double E, int id)
   const double coef   = 2.105310889751809e-08;
 
 				// This is the target neutral
-  Ion* N = ch->IonList[lQ(Z, C-1)].get();
+  Ion* N = ad->IonList[lQ(Z, C-1)].get();
 
 				// Ionization energy in eV
-  double ionE         = ch->ipdata[lQ(Z, 1)];
+  double ionE         = ad->ipdata[lQ(Z, 1)];
 
   std::vector<double> radRecCum;
   double cross = 0.0;
@@ -2908,22 +2902,22 @@ std::vector<double> Ion::radRecombCrossTopBase(double E, int id)
 {
   // Initialize TopBase data (once) if needed
   //
-  if (ch->tb.get() == 0) {
+  if (ad->tb.get() == 0) {
     if (myid==0) {
       std::cerr << "Ion: creating new TopBase instance"
 		<< std::endl;
     }
-    ch->tb = boost::shared_ptr<TopBase>(new TopBase);
+    ad->tb = boost::shared_ptr<TopBase>(new TopBase);
     // For debugging (set to 'false' for production)
     //  |
     //  v
-    if (false && myid==0) ch->tb->printInfo();
+    if (false && myid==0) ad->tb->printInfo();
   }
 
   // Call for the cross section
   //
   TopBase::iKey k(Z, C);
-  std::vector<double> ret(1, ch->tb->sigmaFB(k, E));
+  std::vector<double> ret(1, ad->tb->sigmaFB(k, E));
 
   return ret;
 }
@@ -2936,7 +2930,7 @@ std::vector<double> Ion::radRecombCrossVerner(double E, int id)
   // Call for the cross section
   //
   lQ Q(Z, C);
-  std::vector<double> ret(1, ch->VernerXC.cross(Q, E));
+  std::vector<double> ret(1, ad->VernerXC.cross(Q, E));
 
   return ret;
 }
@@ -2985,18 +2979,18 @@ void Ion::printfblvl()
 
 
 //------------------------------------------------------------
-// chdata functions
+// atomicData functions
 //------------------------------------------------------------
 
 //
 // Read in the master list
 // 
-void chdata::readMaster() 
+void atomicData::readMaster() 
 {
   char * val;
   if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
     if (myid==0)
-      std::cout << "chdata::readMaster: "
+      std::cout << "atomicData::readMaster: "
 		<< "could not find CHIANTI_DATA environment variable"
 		<< " . . . exiting" << std::endl;
     MPI_Finalize();
@@ -3019,7 +3013,7 @@ void chdata::readMaster()
     masterFile.close();
   }
   else {
-    if (myid==0) std::cout << "chdata:readMaster: master list file <"
+    if (myid==0) std::cout << "atomicData:readMaster: master list file <"
 			   << fileName << "> not found" << std::endl;
     MPI_Finalize();
     exit(46);
@@ -3031,12 +3025,12 @@ void chdata::readMaster()
 // Get the ipdata set so that if you want to get the ip of any Z, C,
 // you call it as ipdata[lQ(Z, C-(int)die)]
 //
-void chdata::readIp() 
+void atomicData::readIp() 
 {
   char * val;
   if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
     if (myid==0)
-      std::cout << "chdata::readIp: "
+      std::cout << "atomicData::readIp: "
 		<< "could not find CHIANTI_DATA environment variable"
 		<< " . . . exiting" << std::endl;
     MPI_Finalize();
@@ -3074,7 +3068,7 @@ void chdata::readIp()
     ipFile.close();
   }
   else {
-    if (myid==0) std::cout << "chdata:readIp: file <" 
+    if (myid==0) std::cout << "atomicData:readIp: file <" 
 			   << fileName << "> not found" << std::endl;
     MPI_Finalize();
     exit(47);
@@ -3086,12 +3080,12 @@ void chdata::readIp()
 // the cosmic.abund file. Can later put in a multidimensional array to
 // allow for all the abundance files
 //
-void chdata::readAbundanceAll() 
+void atomicData::readAbundanceAll() 
 {
   char * val;
   if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
     if (myid==0)
-      std::cout << "chdata::readAbundanceAll: "
+      std::cout << "atomicData::readAbundanceAll: "
 		<< "could not find CHIANTI_DATA environment variable"
 		<< " . . . exiting" << std::endl;
     MPI_Finalize();
@@ -3117,7 +3111,7 @@ void chdata::readAbundanceAll()
     abFile.close();
   }
   else {
-    if (myid==0) std::cout << "chdata::readAbundanceAll: "
+    if (myid==0) std::cout << "atomicData::readAbundanceAll: "
 			   << "abundance file <" 
 			   << fileName << "> not found! " << std::endl;
     MPI_Finalize();
@@ -3130,7 +3124,7 @@ void chdata::readAbundanceAll()
 // Read in the Verner-Yakovlev data for radiative cross section
 // determination using the short table provided by CHIANTI
 //
-void chdata::readVerner() 
+void atomicData::readVerner() 
 {
   VernerXC.initialize(this);
 }
@@ -3138,7 +3132,7 @@ void chdata::readVerner()
 //
 // Read in the Badnell data
 //
-void chdata::readBadnell() 
+void atomicData::readBadnell() 
 {
   BadnellXC.initialize(this);
 }
@@ -3147,7 +3141,7 @@ void chdata::readBadnell()
 // Read in the Karzas-Latter gaunt factor data table provided by
 // CHIANTI
 //
-void chdata::readRadGF() 
+void atomicData::readRadGF() 
 {
   radGF.initialize(this);
 }
@@ -3155,7 +3149,7 @@ void chdata::readRadGF()
 //
 // list names of all species to stdout
 //
-void chdata::printMaster() 
+void atomicData::printMaster() 
 {
   if (myid==0) {
     std::cout << "Elements in the master list: " << std::endl;
@@ -3166,7 +3160,7 @@ void chdata::printMaster()
   }
 }
 
-void chdata::printIp() 
+void atomicData::printIp() 
 {
   std::cout << std::string(60, '-') << std::endl
 	    << std::setw( 3) << "Z" << std::setw( 3) << "C"
@@ -3186,9 +3180,9 @@ void chdata::printIp()
 }
 
 //
-// chdata constructor
+// atomicData constructor
 //
-chdata::chdata() 
+atomicData::atomicData() 
 {
   for (int i = 0; i < numEle; i++) abundanceAll[i] = 0;
   
@@ -3211,7 +3205,7 @@ chdata::chdata()
   // Done
 }
 
-void chdata::createIonList(const std::set<unsigned short>& ZList)
+void atomicData::createIonList(const std::set<unsigned short>& ZList)
 {
   // Fill the Chianti data base
   //
@@ -3370,9 +3364,9 @@ void VernerData::VernerRec::sync(int nid)
   MPI_Bcast(&yw,   1, MPI_DOUBLE, nid, MPI_COMM_WORLD);
 }
 
-void VernerData::initialize(chdata* ch)
+void VernerData::initialize(atomicData* ad)
 {
-  this->ch = ch;
+  this->ad = ad;
   int nOK = 0;
   
   // Only used by root process
@@ -3588,7 +3582,7 @@ double VernerData::cross(const lQ& Q, double EeV)
 
 				// Gaunt factor
 	double scaledE = log(Eph/Eiz);
-	double gf = ch->radGF(scaledE, n, l);
+	double gf = ad->radGF(scaledE, n, l);
 				// Cross section x Gaunt factor
 	double cross = crossPh * gf * Milne;
 	
@@ -3623,9 +3617,9 @@ std::vector<double> Ion::photoIonizationCross(double E, int id)
   // Call for the cross section
   //
   lQ Q(Z, C);
-  auto ion = ch->VernerXC.data.find(Q);
-  if (ion != ch->VernerXC.data.end()) {
-    val = ch->VernerXC.crossPhotoIon(*(ion->second.begin()), E);
+  auto ion = ad->VernerXC.data.find(Q);
+  if (ion != ad->VernerXC.data.end()) {
+    val = ad->VernerXC.crossPhotoIon(*(ion->second.begin()), E);
   }
   
   std::vector<double> ret(1, val);
@@ -3749,9 +3743,9 @@ double VernerData::crossPhotoIon(vrPtr vdata, double Eph)
 // n=1-6 from Karzas and Latter, 1961, ApJSS, 6, 167, the photon
 // energy and the free-bound gaunt factors
 //
-void KLGFdata::initialize(chdata* ch)
+void KLGFdata::initialize(atomicData* ad)
 {
-  this->ch = ch;
+  this->ad = ad;
 
   int nOK = 0;
 
@@ -3886,7 +3880,7 @@ void KLGFdata::initialize(chdata* ch)
 }
 
 std::map<unsigned short, double> 
-chdata::fraction(unsigned short Z, double T, int norder)
+atomicData::fraction(unsigned short Z, double T, int norder)
 {
   if (Lagu.get() == 0) 
     Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
@@ -3946,7 +3940,7 @@ chdata::fraction(unsigned short Z, double T, int norder)
 
 
 std::map<unsigned short, double> 
-chdata::fraction(unsigned short Z, double T, 
+atomicData::fraction(unsigned short Z, double T, 
 		 double Emin, double Emax, int norder)
 {
   if (Lege.get() == 0) 
@@ -4020,7 +4014,7 @@ chdata::fraction(unsigned short Z, double T,
 }
 
 std::map<unsigned short, std::vector<double> > 
-chdata::recombEquil(unsigned short Z, double T, int norder)
+atomicData::recombEquil(unsigned short Z, double T, int norder)
 {
   if (Lagu.get() == 0) 
     Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
@@ -4084,7 +4078,7 @@ chdata::recombEquil(unsigned short Z, double T, int norder)
 
 
 std::map<unsigned short, std::vector<double> >
-chdata::recombEquil(unsigned short Z, double T, 
+atomicData::recombEquil(unsigned short Z, double T, 
 		    double Emin, double Emax, int norder, bool use_log)
 {
   if (Lege.get() == 0) 
@@ -4175,7 +4169,7 @@ chdata::recombEquil(unsigned short Z, double T,
 }
 
 double
-chdata::collEmiss(unsigned short Z, unsigned short C, double T, 
+atomicData::collEmiss(unsigned short Z, unsigned short C, double T, 
 		  double Emax, int norder)
 {
   // Laguerre weights and knots
@@ -4246,7 +4240,7 @@ chdata::collEmiss(unsigned short Z, unsigned short C, double T,
 }
 
 double
-chdata::freeFreeEmiss(unsigned short Z, unsigned short C, double T)
+atomicData::freeFreeEmiss(unsigned short Z, unsigned short C, double T)
 {
   // No free free from neutral
   //
@@ -4279,7 +4273,7 @@ __device__ functions for each desired cross section
 
 #if HAVE_LIBCUDA==1
 
-void chdata::cuda_initialize()
+void atomicData::cuda_initialize()
 {
   // Remove any previous initialization data
   //
@@ -4318,7 +4312,7 @@ void chdata::cuda_initialize()
   cuda_initialize_textures();
 }
 
-void chdata::destroy_cuda()
+void atomicData::destroy_cuda()
 {
   int i = 0;
   for (auto & u : cuIonElem) {

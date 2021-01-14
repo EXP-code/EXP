@@ -452,7 +452,7 @@ class CollideIon : public Collide
 
 private:
 
-  chdata ch;
+  atomicData ad;
 
   //! Neutral atom--electron cross-section for hydrogen and helium
   //! interpolated from experimentally calibrated theortical data (see
@@ -515,7 +515,7 @@ private:
   std::vector< double >                              xcross;
 
   std::vector< double >                              meanE, neutF, meanR, meanM, cellM, debye, plasma;
- std::vector< double >                               numIf, numEf, numQ2, colSc, elecDen, elecDn2, numIf0, numEf0, colCf;
+ std::vector< double >                               numIf, numEf, colSc, elecDen, elecDn2, numIf0, numEf0, colCf;
   std::vector< double >                              kEi, kEe1, kEe2, kEee, clrE, misE, dfrE, updE, spEdel, spEmax, spTau;
   std::vector< double >                              kE1s, kE2s, Ein1, Ein2, Evel, Evel2, Ivel2, Eelc, Eion;
   std::vector< double >                              molP1, molP2, etaP1, etaP2, sumP1, sumP2, eVelP1, eVelP2, sVelP1, sVelP2, maxP1, maxP2;
@@ -893,7 +893,7 @@ private:
 	@param Tmax is the maximum temperature in the table (degrees K)
 	@param numT is the number of temperature knots in the table
   */
-    RecombRatio(unsigned short Z, chdata& ch, double Tmin, double Tmax, int numT);
+    RecombRatio(unsigned short Z, atomicData& ad, double Tmin, double Tmax, int numT);
 
     //! Interpolate the ratio from the table
     double operator()(unsigned short C, double T);
@@ -1237,8 +1237,8 @@ protected:
     speciesKey     k1, k2;
     unsigned short Z1, Z2;
     double         q, m1, m2, m10, m20;
-    double         eta1;
-    double         eta2;
+    double         eta1, Q1, frc1;
+    double         eta2, Q2, frc2;
 
     std::array<double, 2>  E1, E2, KE1, KE2;
 
@@ -1625,7 +1625,7 @@ protected:
   void normTest(Particle* const p, const std::string& lab);
 
   //! Return 3d Colombic scattering vector
-  std::vector<double>& coulomb_vector(std::vector<double>& rel, double W1, double W2, double Tau);
+  std::vector<double>& coulomb_vector(std::vector<double>& rel, double Tau);
 
   //@}
 

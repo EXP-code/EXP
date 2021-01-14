@@ -24,6 +24,8 @@ int   cylNumx, cylNumy, cylCmapR, cylCmapZ;
 __device__ __constant__
 bool  cylOrient;
 
+// Index function for sine and cosine coefficients
+//
 __host__ __device__
 int Imn(int m, char cs, int n, int nmax)
 {
@@ -41,6 +43,8 @@ int Imn(int m, char cs, int n, int nmax)
   return ret;
 }
 
+// Index function for modulus coefficients
+//
 __host__ __device__
 int Jmn(int m, int n, int nmax)
 {
@@ -50,6 +54,8 @@ int Jmn(int m, int n, int nmax)
 __global__
 void testConstantsCyl()
 {
+  printf("** Cylindrical constants\n");
+  printf("** ---------------------\n");
   printf("** Rscale = %f\n", cylRscale);
   printf("** Hscale = %f\n", cylHscale);
   printf("** Xmin   = %f\n", cylXmin);
@@ -62,9 +68,11 @@ void testConstantsCyl()
   printf("** Numy   = %d\n", cylNumy);
   printf("** CmapR  = %d\n", cylCmapR);
   printf("** CmapZ  = %d\n", cylCmapZ);
+  printf("** ---------------------\n");
 }
 
-				// R coordinate transformation
+// R coordinate transformation
+//
 __device__
 cuFP_t cu_r_to_xi_cyl(cuFP_t r)
 {
@@ -107,7 +115,8 @@ cuFP_t cu_d_xi_to_r_cyl(cuFP_t xi)
   return ret;
 }
 
-				// Z coordinate transformation
+// Z coordinate transformation
+//
 __device__
 cuFP_t cu_z_to_y_cyl(cuFP_t z)
 {
@@ -155,19 +164,18 @@ cuFP_t cu_d_y_to_z_cyl(cuFP_t y)
 }
 
 
+// Initialize for streams
+//
 void Cylinder::cuda_initialize()
 {
-  // Initialize for streams
-  //
   cuRingData.resize(cuStreams);
   cuRing = boost::make_shared<cuRingType>(cuRingData);
 }
 
+// Copy constants to device
+//
 void Cylinder::initialize_mapping_constants()
 {
-  // Copy constants to device
-  //
-  
   cudaMappingConstants f = getCudaMappingConstants();
 
   cuda_safe_call(cudaMemcpyToSymbol(cylRscale, &f.rscale, sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
@@ -890,16 +898,16 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
   // This will stay fixed for the entire run
   //
-  host_coefs.resize((mmax+1)*ncylorder);
-  host_covar.resize((mmax+1)*ncylorder*ncylorder);
+  host_coefs.resize((2*mmax+1)*ncylorder); // Sine and cosine components
+  host_covar.resize((mmax+1)*ncylorder*ncylorder); // Modulus components
 
   if (pcavar) {
     sampT = floor(sqrt(component->CurTotal()));
     host_coefsT.resize(sampT);
     host_covarT.resize(sampT);
     for (int T=0; T<sampT; T++) {
-      host_coefsT[T].resize((mmax+1)*ncylorder);
-      host_covarT[T].resize((mmax+1)*ncylorder*ncylorder);
+      host_coefsT[T].resize((mmax+1)*ncylorder); // Modulus components
+      host_covarT[T].resize((mmax+1)*ncylorder*ncylorder); // Modulus covariance
     }
     host_massT.resize(sampT);
   }
@@ -934,7 +942,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
   //
   static bool firstime = true;
 
-  if (firstime) {
+  if (firstime and myid==0) {
     testConstantsCyl<<<1, 1, 0, cr->stream>>>();
     cudaDeviceSynchronize();
     firstime = false;
@@ -1277,8 +1285,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	  int offst = 0;
 	  for (int m=0; m<=mmax; m++) {
 	    for (size_t j=0; j<ncylorder; j++) {
-	      host_coefsT[T][Imn(m, 'c', j, ncylorder)] += retT[2*j + offst];
-	      if (m>0) host_coefsT[T][Imn(m, 's', j, ncylorder)] += retT[2*j+1 + offst];
+	      host_coefsT[T][Jmn(m, j, ncylorder)] += retT[j + offst];
 	    }
 	    offst += 2*ncylorder;
 	  }
@@ -1313,7 +1320,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
     cudaStreamDestroy(s);
   }
 				// Copy the data from the device
-  thrust::host_vector<unsigned int> f_ret1(f_use);
+  thrust::host_vector<unsigned int> f_ret1(f_use );
   thrust::host_vector<cuFP_t>       f_ret2(f_mass);
 
 				// Sum counts and mass

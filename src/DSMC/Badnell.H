@@ -8,7 +8,7 @@
 
 #include <boost/shared_ptr.hpp>
 
-class chdata;
+class atomicData;
 class Ion;
 
 /** 
@@ -37,7 +37,7 @@ public:
 
 private:
 
-  chdata *ch;
+  atomicData *ad;
 
   //! Ion mnemonics for file names
   std::map<int, std::string> ions;
@@ -73,7 +73,7 @@ public:
   BadnellData();
 
   //! Initialize the data from the data file
-  void initialize(chdata* ch);
+  void initialize(atomicData* ad);
 
   //! Calculates the summed RR and DR recombination cross section
   double cross(const lQ& Q, double EeV);

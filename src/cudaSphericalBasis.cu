@@ -119,8 +119,10 @@ void legendre_v2(int lmax, cuFP_t x, cuFP_t* p, cuFP_t* dp)
 
 
 __global__
-void testConstants()
+void testConstantsSph()
 {
+  printf("** Spherical constants\n");
+  printf("** -------------------\n");
   printf("** Scale  = %f\n", sphScale);
   printf("** Rscale = %f\n", sphRscale);
   printf("** Xmin   = %f\n", sphXmin);
@@ -128,6 +130,7 @@ void testConstants()
   printf("** Dxi    = %f\n", sphDxi);
   printf("** Numr   = %d\n", sphNumr);
   printf("** Cmap   = %d\n", sphCmap);
+  printf("** -------------------\n");
 }
 
 __device__
@@ -844,12 +847,13 @@ void SphericalBasis::cudaStorage::resize_acc(int Lmax, int Nthread)
 {
   // Space for Legendre coefficients 
   //
+  /*
   if (plm1_d.capacity() < (Lmax+1)*(Lmax+2)/2*Nthread)
     plm1_d.reserve((Lmax+1)*(Lmax+2)/2*Nthread);
   
   if (plm2_d.capacity() < (Lmax+1)*(Lmax+2)/2*Nthread)
     plm2_d.reserve((Lmax+1)*(Lmax+2)/2*Nthread);
-  
+  */
   plm1_d.resize((Lmax+1)*(Lmax+2)/2*Nthread);
   plm2_d.resize((Lmax+1)*(Lmax+2)/2*Nthread);
 }
@@ -929,8 +933,8 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
   //
   static bool firstime = false;
   
-  if (firstime) {
-    testConstants<<<1, 1, 0, cr->stream>>>();
+  if (firstime and myid==0) {
+    testConstantsSph<<<1, 1, 0, cr->stream>>>();
     cudaDeviceSynchronize();
     firstime = false;
   }
