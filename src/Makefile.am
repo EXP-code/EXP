@@ -49,7 +49,7 @@ if ENABLE_CUDA
     $(foreach sm,@sm_vers@,$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
   endif
   CUDA_LIBFLAGS  = -lcudart -lnvToolsExt
-  NVCC_CXXFLAGS  = -I. $(GENCODE_FLAGS) $(NVCC_EXTRA) -Xcompiler $(AM_CPPFLAGS)
+  NVCC_CXXFLAGS  = -I. $(GENCODE_FLAGS) $(NVCC_EXTRA) @exp_eigen3_include@ -Xcompiler $(AM_CPPFLAGS)
 endif
 
 CXXLINK = mpiCC -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
