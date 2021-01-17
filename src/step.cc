@@ -196,6 +196,12 @@ void do_step(int n)
     
 				// Print the level lists
 	comp->print_level_lists(tnow);
+      } else {
+				// Do particles at lower levels
+	if (timing) timer_adj.start();
+	adjust_multistep_level(false);
+	if (timing) timer_adj.stop();
+
       }
 
                                 // Write multistep output
