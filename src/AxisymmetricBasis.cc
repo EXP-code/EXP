@@ -88,22 +88,26 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
 
       if (myid==0) {
 
-	const string types[] = {
-	  "Hall", 
-	  "VarianceCut", 
-	  "CumulativeCut",
-	  "VarianceWeighted", 
-	  "None"};
+	const string types[] =
+	  {
+	   "Hall", 
+	   "VarianceCut", 
+	   "CumulativeCut",
+	   "VarianceWeighted", 
+	   "None"
+	  };
 
-	const string desc[] = {
-	  "Tapered signal-to-noise power defined by Hall",
-	  "Cut all coefficients below some S/N level",
-	  "Cut coefficients below some cumulative fraction",
-	  "Weight coefficients be S/N for S/N<1",
-	  "Compute the S/N but do not modify coefficients"};
-
-	cout << "AxisymmetricBasis: using PCA type: " << types[tk_type] 
-	     << "====>" << desc[tk_type] << endl;
+	const string desc[] =
+	  {
+	   "Tapered signal-to-noise power defined by Hall",
+	   "Cut all coefficients below some S/N level",
+	   "Cut coefficients below some cumulative fraction",
+	   "Weight coefficients be S/N for S/N<1\0",
+	   "Compute the S/N but do not modify coefficients"
+	  };
+	
+	std::cout << "AxisymmetricBasis: using PCA type: " << types[tk_type] 
+		  << "====>" << desc[tk_type] << std::endl;
       }
       
     }
