@@ -931,7 +931,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
   
   // For debugging
   //
-  static bool firstime = false;
+  static bool firstime = true;
   
   if (firstime and myid==0) {
     testConstantsSph<<<1, 1, 0, cr->stream>>>();
