@@ -4340,7 +4340,8 @@ void EmpCylSL::pca_hall(bool compute)
 	  maxSNR = std::max<double>(maxSNR, 1.0/b);
 	  snrval[nn+1] = sqrt(sqr/var);
 	}
-	std::cout << "M=" << mm << " MinSNR=" << minSNR << " MaxSNR=" << maxSNR << std::endl;
+
+	std::cout << "DEBUG: M=" << mm << " MinSNR=" << minSNR << " MaxSNR=" << maxSNR << std::endl;
 	
 #ifndef STANDALONE
 	if (vtkpca) vtkpca->Add((*pb)[mm]->meanJK,
