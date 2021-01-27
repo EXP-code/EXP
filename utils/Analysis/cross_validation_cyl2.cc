@@ -187,10 +187,14 @@ main(int argc, char **argv)
   
   po::options_description desc(sout.str());
   desc.add_options()
-    ("help,h",                                                                          "Print this help message")
-    ("verbose,v",                                                                       "Verbose and diagnostic output for covariance computation")
-    ("truncate,t",                                                                      "Use Truncate method for SNR trimming rather than the default Hall")
-    ("debug,",                                                                          "Debug max values")
+    ("help,h",
+     "Print this help message")
+    ("verbose,v",
+     "Verbose and diagnostic output for covariance computation")
+    ("truncate,t",
+     "Use Truncate method for SNR trimming rather than the default Hall")
+    ("debug,",
+     "Debug max values")
     ("OUT",
      "assume original, single binary PSP files as input")
     ("SPL",
@@ -219,7 +223,8 @@ main(int argc, char **argv)
      "Number of SNR evaluations")
     ("minSNR",              po::value<double>(&minSNR0),
      "minimum SNR value for loop output")
-    ("Hexp",                po::value<double>(&Hexp)->default_value(1.0),           "default Hall smoothing exponent")
+    ("Hexp",                po::value<double>(&Hexp)->default_value(1.0),
+     "default Hall smoothing exponent")
     ("prefix",              po::value<string>(&prefix)->default_value("crossval"),
      "Filename prefix")
     ("runtag",              po::value<string>(&runtag)->default_value("run1"),
@@ -1223,23 +1228,25 @@ main(int argc, char **argv)
 
       if (myid==0) {
 
+	constexpr double pi4 = 4.0*M_PI;
+
 	out << std::setw( 5) << ipsp
 	    << std::setw(18) << snr;
 	
-	double term1tot = std::accumulate(term1.begin(), term1.end(), 0.0) / (4.0*M_PI);
-	double term2tot = std::accumulate(term2.begin(), term2.end(), 0.0);
-	double term3tot = std::accumulate(term3.begin(), term3.end(), 0.0);
+	double term1tot = std::accumulate(term1.begin(), term1.end(), 0.0) / pi4;
+	double term2tot = std::accumulate(term2.begin(), term2.end(), 0.0) * (-1);
+	double term3tot = std::accumulate(term3.begin(), term3.end(), 0.0) * pi4;
 
 	// if (nsnr==0) term4tot = term1tot;
 	  
 	out << std::setw(18) << term1tot
 	    << std::setw(18) << term2tot
 	    << std::setw(18) << term3tot
-	    << std::setw(18) << term1tot + term2tot - term3tot + term4tot;
+	    << std::setw(18) << term1tot - term2tot - term3tot + term4tot;
 	for (int m1=0; m1<=mmax; m1++)
-	  out << std::setw(18) << term1[m1]
-	      << std::setw(18) << term2[m1]
-	      << std::setw(18) << term3[m1];
+	  out << std::setw(18) << term1[m1] / pi4
+	      << std::setw(18) << term2[m1] * (-1)
+	      << std::setw(18) << term3[m1] * pi4;
 	out << std::endl;
       }
       // Root process

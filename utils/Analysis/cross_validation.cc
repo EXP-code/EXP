@@ -118,8 +118,10 @@ main(int argc, char **argv)
   
   po::options_description desc(sout.str());
   desc.add_options()
-    ("help,h",                                                                          "Print this help message")
-    ("verbose,v",                                                                       "Verbose and diagnostic output for covariance computation")
+    ("help,h",
+     "Print this help message")
+    ("verbose,v",
+     "Verbose and diagnostic output for covariance computation")
     ("OUT",
      "assume original, single binary PSP files as input")
     ("SPL",

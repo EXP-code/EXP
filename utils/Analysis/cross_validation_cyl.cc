@@ -150,8 +150,10 @@ main(int argc, char **argv)
   
   po::options_description desc(sout.str());
   desc.add_options()
-    ("help,h",                                                                          "Print this help message")
-    ("verbose,v",                                                                       "Verbose and diagnostic output for covariance computation")
+    ("help,h",
+     "Print this help message")
+    ("verbose,v",
+     "Verbose and diagnostic output for covariance computation")
     ("OUT",
      "assume original, single binary PSP files as input")
     ("SPL",
@@ -357,7 +359,7 @@ main(int argc, char **argv)
 	else
 	  cmapr = node["cmapr" ].as<int>();
 	if (node["cmapz"])
-	  cmapz = node["cmapz"  ].as<int>();
+	  cmapz = node["cmapz" ].as<int>();
 	rcylmin = node["rmin"  ].as<double>();
 	rcylmax = node["rmax"  ].as<double>();
 	rscale  = node["ascl"  ].as<double>();
@@ -974,19 +976,21 @@ main(int argc, char **argv)
 
       if (myid==0) {
 	  
+	constexpr double pi4 = 4.0*M_PI;
+
 	out << std::setw( 5) << ipsp
 	    << std::setw(18) << snr;
 	
-	double term1tot = std::accumulate(term1.begin(), term1.end(), 0.0) / (4.0*M_PI);
-	double term2tot = std::accumulate(term2.begin(), term2.end(), 0.0);
-	double term3tot = std::accumulate(term3.begin(), term3.end(), 0.0);
+	double term1tot = std::accumulate(term1.begin(), term1.end(), 0.0) / pi4;
+	double term2tot = std::accumulate(term2.begin(), term2.end(), 0.0) * (-1);
+	double term3tot = std::accumulate(term3.begin(), term3.end(), 0.0) * pi4;
 
 	if (nsnr==0) term4tot = term1tot;
 	  
 	out << std::setw(18) << term1tot
 	    << std::setw(18) << term2tot
 	    << std::setw(18) << term3tot
-	    << std::setw(18) << term1tot + term2tot - term3tot + term4tot
+	    << std::setw(18) << term1tot - term2tot - term3tot + term4tot
 	    << std::endl;
       }
       // Root process
