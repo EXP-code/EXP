@@ -931,7 +931,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
   
   // For debugging
   //
-  static bool firstime = false;
+  static bool firstime = true;
   
   if (firstime and myid==0) {
     testConstantsSph<<<1, 1, 0, cr->stream>>>();
@@ -1117,6 +1117,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 		
 		unsigned int gridSize1 = s/BLOCK_SIZE;
 		if (s > gridSize1*BLOCK_SIZE) gridSize1++;
+
 		reduceSumS<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
 		  (toKernel(ar->dc_coef), toKernel(ar->dN_coef), osize, N, k, k+s);
 		
@@ -1826,23 +1827,19 @@ void SphericalBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
 	  
 	  // l loop
 	  //
-	  for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
+	  for (int l=0, loffset=0; l<=Lmax; loffset+=(l+1), l++) {
 	    
 	    // m loop
 	    //
-	    for (int m=0, moffset=0; m<=l; m++) {
+	    for (int m=0; m<=l; m++) {
 	      
 	      // n loop
 	      //
 	      for (int n=1; n<=nmax; n++) {
-		(*expcoefT1[T][loffset+moffset])[n] += ret[2*(n-1) + offst];
-		if (m>0) (*expcoefT1[T][loffset+moffset+1])[n] += ret[2*(n-1) + 1 + offst];
+		(*expcoefT1[T][loffset+m])[n] += ret[2*(n-1) + offst];
 	      }
 
 	      offst += osize;
-	      
-	      if (m>0) moffset += 2;
-	      else     moffset += 1;
 	    }
 	  }
 	}

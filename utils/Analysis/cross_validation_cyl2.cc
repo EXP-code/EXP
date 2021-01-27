@@ -275,6 +275,7 @@ main(int argc, char **argv)
     po::notify(vm);    
   } catch (po::error& e) {
     if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
     exit(-1);
   }
 
@@ -284,6 +285,7 @@ main(int argc, char **argv)
 
   if (vm.count("help")) {
     if (myid==0) std::cout << std::endl << desc << std::endl;
+    MPI_Finalize();
     return 0;
   }
 
@@ -315,6 +317,7 @@ main(int argc, char **argv)
   std::ofstream out(prefix+".summary");
   if (not out) {
     std::cerr << "Error opening output file <" << prefix+".summary" << ">" << std::endl;
+    MPI_Finalize();
     exit(-2);
   }
 
@@ -915,6 +918,7 @@ main(int argc, char **argv)
 	std::cout << "Error finding component named <" << cname << ">" << std::endl;
 	psp->PrintSummary(std::cout);
       }
+      MPI_Finalize();
       exit(-1);
     }
       

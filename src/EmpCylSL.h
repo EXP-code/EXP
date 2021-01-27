@@ -746,19 +746,26 @@ public:
 
     if (myid==0) {
       if (PCAVAR) {
-	const string types[] = {
-	  "Hall", 
-	  "None"};
 
-	const string desc[] = {
-	  "Tapered signal-to-noise power defined by Hall",
-	  "Compute the S/N but do not modify coefficients"};
+	const string types[] =
+	  {
+	   "Hall",
+	   "Truncate",
+	   "None"
+	  };
 	
-	cout << "EmpCylSL: using PCA type: " << types[tk_type]
-	     << "====>" << desc[tk_type] << endl;
+	const string desc[] =
+	  {
+	   "Compute the S/N but do not modify coefficients",
+	   "Tapered signal-to-noise power defined by Hall",
+	   "Compute the S/N but do not modify coefficients"
+	  };
+      
+	std::cout << "EmpCylSL: using PCA type: " << types[tk_type]
+		  << "====>" << desc[tk_type] << std::endl;
       }
       if (PCAEOF) {
-	cout << "EmpCylSL: using PCA EOF" << endl;
+	std::cout << "EmpCylSL: using PCA EOF" << std::endl;
       }
     }
   }

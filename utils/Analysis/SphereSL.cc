@@ -11,10 +11,10 @@
 #include <ColorGradient.H>	// For PNG images
 #endif
 
-int SphereSL::NUMR = 800;
-int SphereSL::NEV  = 10;	// None by default
-bool SphereSL::mpi = false;	// Initially off
-
+int    SphereSL::NUMR = 800;
+int    SphereSL::NEV  = 10;	// None by default
+bool   SphereSL::mpi = false;	// Initially off
+double SphereSL::HEXP = 1.0;	// Hall exponent
 
 //! Constructor
 SphereSL::SphereSL(SphericalModelTable* mod, int LMAX, int NMAX,
@@ -410,7 +410,7 @@ Matrix SphereSL::get_trimmed(double snr, bool Hall)
       for (int j=0; j<svar[l].size(); j++) {
 	if (svar[l][j]>0.0) {
 	  if (Hall)
-	    R[j] *= 1.0/(snr*svar[l][j]/(R[j]*R[j]) + 1.0);
+	    R[j] *= 1.0/(pow(snr*svar[l][j]/(R[j]*R[j]), HEXP) + 1.0);
 	  else if (R[j]*R[j]/svar[l][j] < snr)
 	    R[j] = 0.0;
 	} else {

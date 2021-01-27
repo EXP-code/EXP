@@ -423,7 +423,7 @@ __global__ void coefKernelCyl
 
 	} // norder loop
 
-	if (compute) {
+	if (compute and tvar._s>0) {
 	  cuFP_t x, y;
 	  for (int r=0, c=0; r<nmax; r++) {
 	    x = coef._v[(2*r+0)*N + i] * coef._v[(2*r+0)*N + i];
@@ -448,7 +448,7 @@ __global__ void coefKernelCyl
 	  if (m) coef._v[(2*n+1)*N + i] = 0.0;
 	}
 
-	if (compute) {
+	if (compute and tvar._s>0) {
 	  for (int r=0, c=0; r<nmax; r++) {
 	    for (int s=r; s<nmax; s++) {
 	      tvar._v[N*c + i] = 0.0;
@@ -842,6 +842,7 @@ void Cylinder::zero_coefs()
 				// (Re)initialize?
       if (ar->T_coef.size() != sampT) {
 	ar->T_coef.resize(sampT);
+	ar->T_covr.resize(sampT);
 	for (int T=0; T<sampT; T++) {
 	  ar->T_coef[T].resize((mmax+1)*ncylorder);
 	  ar->T_covr[T].resize((mmax+1)*ncylorder*ncylorder);
