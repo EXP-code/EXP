@@ -61,6 +61,9 @@ public:
   //! Use MPI?  (default: false)
   static bool mpi;
 
+  //! Hall exponent (default: 1)
+  static double HEXP;
+
   /** Constructor
       \param mod instance of SphericalModelTable to condition eigenfunctions
       \param LMAX is the maximum harmonic order
