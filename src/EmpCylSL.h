@@ -737,7 +737,8 @@ public:
   //! Set even modes only
   void setEven(bool even=true) { EVEN_M = even; }
 
-  //! Set frequency and file name for selector output
+  //! Set file name for EOF analysis and sample size for subsample
+  //! computation
   inline void setHall(string file, unsigned tot)
   {
     hallfile = file;
@@ -853,7 +854,7 @@ public:
    std::vector<Vector>* rt_cos=0, std::vector<Vector>* rt_sin=0,
    std::vector<Vector>* sn_rat=0);
   
-  //! Set frequency and file name for selector output
+  //! Set number of bodies for subsample computation
   inline void setTotal(unsigned tot) {
     nbodstot = tot;
   }

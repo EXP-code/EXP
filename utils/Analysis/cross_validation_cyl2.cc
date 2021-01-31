@@ -4,7 +4,7 @@
  *
  *  Cross validation analysis for cylinder
  *
- *  Monopole expansion version
+ *  Multipole expansion version
  *
  *  Call sequence:
  *  -------------
