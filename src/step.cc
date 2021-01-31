@@ -74,6 +74,7 @@ void do_step(int n)
   nvTracerPtr tPtr;
 
 
+  // BEG: multistep>0 block
   if (multistep) {
     
     double dt = dtime/Mstep;	// Smallest time step
@@ -96,7 +97,7 @@ void do_step(int n)
 				// Write multistep output
       if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
       output->Run(n, mstep);
-      
+
 				// Compute next coefficients for
 				// particles that move on this step
 				// (the "active" particles)
@@ -212,8 +213,13 @@ void do_step(int n)
       }
 
       tnow += dt;		// Next substep
+
     }
     // END: mstep loop
+
+    // Write output
+    if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
+    output->Run(n);
 
     if (cuda_prof) {
       tPtr = nvTracerPtr(new nvTracer("Adjust multistep"));
@@ -245,12 +251,10 @@ void do_step(int n)
     }
 #endif
 
-  } else {
-                                 // Write output
-    nvTracerPtr tPtr;
-    if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
-    output->Run(n);
-
+  }
+  // END: multistep>0 block
+  // BEG: multistep=0 block
+  else {
 				// Time at the end of the step
     tnow += dtime;
 				// Velocity by 1/2 step
@@ -292,7 +296,14 @@ void do_step(int n)
     incr_velocity(0.5*dtime);
     incr_com_velocity(0.5*dtime);
     if (timing) timer_vel.stop();
+
+                                 // Write output
+    nvTracerPtr tPtr;
+    if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
+    output->Run(n);
+
   }
+  // END: multistep=0 block
 
   if (timing) timer_tot.stop();
 
