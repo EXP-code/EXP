@@ -145,9 +145,6 @@ void do_step(int n)
 	if (timing) timer_coef.stop();
       }
       
-      double tlast = tnow;	// Time before current step
-      tnow += dt;		// Time at the end of the current step
-
 				// COM update:
 				// Position drift
       if (timing) timer_drift.start();
@@ -156,11 +153,15 @@ void do_step(int n)
 
 				// Compute potential for all the
 				// particles active at this step
-
       nvTracerPtr tPtr1;
       if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Potential"));
       if (timing) timer_pot.start();
+      double tlast = tnow;	// Time before current step
+				// Time at the end of the drift
+      tnow += dt*mintvl[mfirst[mstep]];
+				// Compute potential at drifted time
       comp->compute_potential(mfirst[mstep]);
+      tnow  = tlast;		// Restore time to beginning of step
       if (timing) timer_pot.stop();
 
       check_bad("after compute_potential");
@@ -193,7 +194,7 @@ void do_step(int n)
 	if (timing) timer_adj.start();
 	adjust_multistep_level(true);
 	if (timing) timer_adj.stop();
-    
+	
 				// Print the level lists
 	comp->print_level_lists(tnow);
       } else {
@@ -205,11 +206,12 @@ void do_step(int n)
       }
 
                                 // Write multistep output
-    if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
-    output->Run(n, mstep);
-
-
+      if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
+      output->Run(n, mstep);
+      
+      tnow += dt;		// Next substep
     }
+    // END: mstep loop
 
     if (cuda_prof) {
       tPtr = nvTracerPtr(new nvTracer("Adjust multistep"));
