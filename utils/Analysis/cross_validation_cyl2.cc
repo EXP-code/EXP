@@ -1151,7 +1151,7 @@ main(int argc, char **argv)
 		  A*(C*potlS[id](iX+0, iY+0) + D*potlS[id](iX+0, iY+1) ) +
 		  B*(C*potlS[id](iX+1, iY+0) + D*potlS[id](iX+1, iY+1) ) ;
 		
-			if (M==0) 
+	      if (M==0) 
 		  work2[M] += mass*ac_cos[M][n]*PotlC;
 		else 
 		  work2[M] += mass*(ac_cos[M][n]*PotlC*cos(phi*M) + ac_sin[M][n]*PotlS*sin(phi*M));
