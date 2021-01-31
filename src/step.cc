@@ -156,12 +156,14 @@ void do_step(int n)
       nvTracerPtr tPtr1;
       if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Potential"));
       if (timing) timer_pot.start();
-      double tlast = tnow;	// Time before current step
+      {
+	double tlast = tnow;	// Time before current step
 				// Time at the end of the drift
-      tnow += dt*mintvl[mfirst[mstep]];
+	tnow += dt*mintvl[mfirst[mstep]];
 				// Compute potential at drifted time
-      comp->compute_potential(mfirst[mstep]);
-      tnow  = tlast;		// Restore time to beginning of step
+	comp->compute_potential(mfirst[mstep]);
+	tnow  = tlast;		// Restore time to beginning of step
+      }
       if (timing) timer_pot.stop();
 
       check_bad("after compute_potential");
