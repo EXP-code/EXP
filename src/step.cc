@@ -93,6 +93,10 @@ void do_step(int n)
 				// of the hierarchy
     for (mstep=0; mstep<Mstep; mstep++) {
 
+				// Write multistep output
+      if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
+      output->Run(n, mstep);
+      
 				// Compute next coefficients for
 				// particles that move on this step
 				// (the "active" particles)
@@ -207,10 +211,6 @@ void do_step(int n)
 
       }
 
-                                // Write multistep output
-      if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
-      output->Run(n, mstep);
-      
       tnow += dt;		// Next substep
     }
     // END: mstep loop
@@ -246,6 +246,11 @@ void do_step(int n)
 #endif
 
   } else {
+                                 // Write output
+    nvTracerPtr tPtr;
+    if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
+    output->Run(n);
+
 				// Time at the end of the step
     tnow += dtime;
 				// Velocity by 1/2 step
@@ -287,11 +292,6 @@ void do_step(int n)
     incr_velocity(0.5*dtime);
     incr_com_velocity(0.5*dtime);
     if (timing) timer_vel.stop();
-                                 // Write output
-    nvTracerPtr tPtr;
-    if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
-    output->Run(n);
-
   }
 
   if (timing) timer_tot.stop();
