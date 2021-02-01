@@ -54,6 +54,7 @@ bool     EmpCylSL::DENS            = false;
 bool     EmpCylSL::PCAVAR          = false;
 bool     EmpCylSL::PCAVTK          = false;
 bool     EmpCylSL::PCAEOF          = false;
+bool     EmpCylSL::PCADRY          = true;
 bool     EmpCylSL::USESVD          = false;
 bool     EmpCylSL::logarithmic     = false;
 bool     EmpCylSL::enforce_limits  = false;
@@ -1807,7 +1808,6 @@ void EmpCylSL::init_pca()
   if (PCAVAR or PCAEOF) {
     if (PCAVAR)
       sampT = floor(sqrt(nbodstot));
-    // sampT = 10000;
 
     pthread_mutex_init(&used_lock, NULL);
 
@@ -4417,7 +4417,7 @@ void EmpCylSL::pca_hall(bool compute)
 #endif
   }
     
-  if (PCAVAR and tk_type != None) {
+  if (!PCADRY and PCAVAR and tk_type != None) {
 
     if (pb==0) return;
 
@@ -4598,6 +4598,89 @@ void EmpCylSL::get_trimmed
 	  }
 	}
 	// END: diagnostics
+      }
+    }
+    // M loop
+  }
+      
+}
+
+void EmpCylSL::set_trimmed(double snr)
+{
+  if (PCAVAR and tk_type != None) {
+
+    if (pb==0) return;
+
+    ac_cos.resize(MMAX+1);
+    ac_sin.resize(MMAX+1);
+
+    // Loop through each harmonic subspace [EVEN cosines]
+    //
+    
+    Vector ddc(1, rank3), dds(1, rank3), wrk(1, rank3);
+    
+    for (int mm=0; mm<=MMAX; mm++) {
+      
+      ac_cos[mm].setsize(0, NORDER-1);
+      if (mm) {
+	ac_sin[mm].setsize(0, NORDER-1);
+      }
+
+      auto it = pb->find(mm);
+      
+      if (it != pb->end()) {
+	
+	auto & I = it->second;
+	
+	// Smooth coefficients
+	//
+	auto smth = I->b_Hall;
+	for (int i=smth.getlow(); i<=smth.gethigh(); i++)
+	  smth[i] = (1.0 - smth[i])/smth[i];
+
+	if (tk_type == Hall) {
+	  for (int i=smth.getlow(); i<=smth.gethigh(); i++)
+	    smth[i] = 1.0/(1.0 + pow(snr*smth[i], HEXP));
+	}
+	if (tk_type == Truncate) {
+	  for (int i=smth.getlow(); i<=smth.gethigh(); i++) {
+	    if (1.0/smth[i]>snr) smth[i] = 1.0;
+	    else                 smth[i] = 0.0;
+	  }
+	}
+
+	// Cosine coefficients
+	//
+	{
+	  // Project to decorrelated basis
+	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_cos[mm][nn];
+	  ddc = I->evecJK.Transpose() * wrk;
+
+	  // Smooth
+	  wrk = ddc & smth;
+
+	  // Deproject coefficients
+	  ddc = I->evecJK * wrk;
+	  for (int nn=0; nn<rank3; nn++) accum_cos[mm][nn] = ddc[nn+1];
+	}
+
+	// Sine coefficients
+	//
+	if (mm) {
+	  // Project to decorrelated basis
+	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_sin[mm][nn];
+	  dds = I->evecJK.Transpose() * wrk;
+
+	  // Smooth
+	  wrk = dds & smth;
+
+	  // Deproject coefficients
+	  dds = I->evecJK * wrk;
+	  for (int nn=0; nn<rank3; nn++) accum_sin[mm][nn] = dds[nn+1];
+
+	} else {
+	  dds.zero();
+	}
       }
     }
     // M loop

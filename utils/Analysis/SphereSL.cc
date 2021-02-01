@@ -37,13 +37,13 @@ SphereSL::SphereSL(SphericalModelTable* mod, int LMAX, int NMAX,
   coefs_defined = false;
   rscl = 1.0;
 
-  potd.setsize(0, LMAX, 1, NMAX);
-  dpot.setsize(0, LMAX, 1, NMAX);
-  dpt2.setsize(0, LMAX, 1, NMAX);
-  dend.setsize(0, LMAX, 1, NMAX);
+  potd.setsize  (0, LMAX, 1, NMAX);
+  dpot.setsize  (0, LMAX, 1, NMAX);
+  dpt2.setsize  (0, LMAX, 1, NMAX);
+  dend.setsize  (0, LMAX, 1, NMAX);
     
-  legs.setsize(0, LMAX, 0, LMAX);
-  dlegs.setsize(0, LMAX, 0, LMAX);
+  legs.setsize  (0, LMAX, 0, LMAX);
+  dlegs.setsize (0, LMAX, 0, LMAX);
   d2legs.setsize(0, LMAX, 0, LMAX);
 
   npart = NPART;

@@ -454,6 +454,7 @@ main(int argc, char **argv)
   EmpCylSL::DENS        = DENS;
   EmpCylSL::CACHEFILE   = CACHEFILE;
   EmpCylSL::PCAVAR      = true;
+  EmpCylSL::PCADRY      = true;
 
 				// Create expansion
 				//

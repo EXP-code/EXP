@@ -389,6 +389,9 @@ public:
   //! TRUE if EOF diagnostics are on (default: false)
   static bool PCAEOF;
 
+  //! Compute taper but to not apply to coefficients (default: true)
+  static bool PCADRY;
+
   //! VTK diagnostic frequency (default: false)
   static unsigned VTKFRQ;
 
@@ -854,6 +857,9 @@ public:
    std::vector<Vector>* rt_cos=0, std::vector<Vector>* rt_sin=0,
    std::vector<Vector>* sn_rat=0);
   
+  //! Set the coefficients trimmed by a SNR value using the defined algorithm
+  void EmpCylSL::set_trimmed(double snr);
+
   //! Set number of bodies for subsample computation
   inline void setTotal(unsigned tot) {
     nbodstot = tot;
