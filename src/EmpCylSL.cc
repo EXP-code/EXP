@@ -4611,9 +4611,6 @@ void EmpCylSL::set_trimmed(double snr)
 
     if (pb==0) return;
 
-    ac_cos.resize(MMAX+1);
-    ac_sin.resize(MMAX+1);
-
     // Loop through each harmonic subspace [EVEN cosines]
     //
     
@@ -4621,11 +4618,6 @@ void EmpCylSL::set_trimmed(double snr)
     
     for (int mm=0; mm<=MMAX; mm++) {
       
-      ac_cos[mm].setsize(0, NORDER-1);
-      if (mm) {
-	ac_sin[mm].setsize(0, NORDER-1);
-      }
-
       auto it = pb->find(mm);
       
       if (it != pb->end()) {
