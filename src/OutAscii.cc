@@ -47,7 +47,11 @@ void OutAscii::initialize()
 {
   try {
     if (Output::conf["nint"])    nint     = Output::conf["nint"].as<int>();
+#ifdef ALLOW_NINTSUB
     if (Output::conf["nintsub"]) nintsub  = Output::conf["nintsub"].as<int>();
+#else
+    nintsub_warning("OutAscii");
+#endif
     if (Output::conf["nbeg"])    nbeg     = Output::conf["nbeg"].as<int>();
     if (Output::conf["name"])    name     = Output::conf["name"].as<std::string>();
     if (Output::conf["accel"])   accel    = Output::conf["accel"].as<bool>();

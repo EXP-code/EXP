@@ -31,9 +31,14 @@ void OutPSN::initialize()
     else
       nint = 100;
 
-    if (Output::conf["nintsub"])
+    if (Output::conf["nintsub"]) {
+#ifdef ALLOW_NINTSUB
       nintsub = Output::conf["nintsub"].as<int>();
-    else
+#else
+      nintsub_warning("OutPSN");
+      nintsub = std::numeric_limits<int>::max();
+#endif
+    } else
       nintsub = std::numeric_limits<int>::max();
 
     if (Output::conf["nbeg"])

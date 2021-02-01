@@ -38,9 +38,14 @@ void OutCHKPTQ::initialize()
     else
       nint = 100;
 
- if (Output::conf["nintsub"])    
-      nintsub  = Output::conf["nintsub"].as<int>();
-    else
+    if (Output::conf["nintsub"]) {
+#ifdef ALLOW_NINTSUB
+      nintsub = Output::conf["nintsub"].as<int>();
+#else
+      nintsub_warning("OutCHKPTQ");
+      nintsub = std::numeric_limits<int>::max();
+#endif
+    } else
       nintsub  = std::numeric_limits<int>::max();
 
     if (Output::conf["timer"])
