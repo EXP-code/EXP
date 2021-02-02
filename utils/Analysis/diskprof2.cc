@@ -1415,7 +1415,6 @@ main(int argc, char **argv)
     if (PCA and snr>=0.0) {
       std::vector<Vector> ac_cos, ac_sin;
       std::vector<Vector> rt_cos, rt_sin, sn_rat;
-      std::cout << "Before get_trimmed" << std::endl;
       ortho.pca_hall(true);
       ortho.get_trimmed(snr, ac_cos, ac_sin,
 			&rt_cos, &rt_sin, &sn_rat);
