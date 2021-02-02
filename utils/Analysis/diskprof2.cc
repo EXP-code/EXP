@@ -909,8 +909,8 @@ main(int argc, char **argv)
 {
   int nice, numx, numy, lmax, mmax, nmax, norder;
   int initc, partc, beg, end, stride, init, cmapr, cmapz;
-  double rcylmin, rcylmax, rscale, vscale;
-  bool DENS, PCA, PVD, verbose = false, mask = false, ignore, logl;
+  double rcylmin, rcylmax, rscale, vscale, snr, Hexp=4.0;
+  bool DENS, PCA, PVD, DIFF, verbose = false, mask = false, ignore, logl;
   std::string CACHEFILE, COEFFILE;
 
   //
@@ -987,6 +987,11 @@ main(int argc, char **argv)
     ("pca",
      po::value<bool>(&PCA)->default_value(false),
      "perform the PCA analysis for the disk")
+    ("snr,S",
+     po::value<double>(&snr)->default_value(-1.0),
+     "if not negative: do a SNR cut on the PCA basis")
+    ("diff",
+     "render the difference between the trimmed and untrimmed basis")
     ("density",
      po::value<bool>(&DENS)->default_value(true),
      "compute density")
@@ -1211,17 +1216,25 @@ main(int argc, char **argv)
 				//
   EmpCylSL ortho(nmax, lmax, mmax, norder, rscale, vscale);
     
-  if (PCA) {
-    EmpCylSL::PCAVAR = true;
-      ortho.setHall(outdir + "/" + runtag + "_" + outid + ".pca", 1);
-  }
-
   vector<Particle> particles;
   PSPDumpPtr psp;
   Histogram histo(OUTR, RMAX);
   
   std::vector<double> times;
   std::vector<std::string> outfiles;
+
+  bool compute = false;
+  if (PCA) {
+    EmpCylSL::PCAVAR = true;
+    EmpCylSL::HEXP   = Hexp;
+    if (vm.count("truncate"))
+      ortho.setTK("Truncate");
+    else
+      ortho.setTK("Hall");
+    
+    compute = true;
+    ortho.setup_accumulation();
+  }
 
   // ==================================================
   // Initialize and/or create basis
@@ -1282,7 +1295,7 @@ main(int argc, char **argv)
     //------------------------------------------------------------ 
     
     if (myid==0) cout << "Making disk coefficients . . . " << flush;
-    ortho.make_coefficients();
+    ortho.make_coefficients(compute);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
     
@@ -1363,17 +1376,24 @@ main(int argc, char **argv)
     partition(&in1, psp, partc, particles, histo);
     if (myid==0) cout << "done" << endl;
     
-    //------------------------------------------------------------ 
+    ortho.setup_accumulation();
+    if (PCA)
+      ortho.setHall(outdir + "/" + runtag + "_" + outid + ".pca", particles.size());
 
     if (myid==0) cout << "Accumulating particle positions . . . " << flush;
-    ortho.accumulate(particles, 0, true);
+    ortho.accumulate(particles, 0, true, compute);
+    //                             ^     ^
+    //                             |     |
+    // Verbose --------------------+     |
+    // Compute covariance ---------------+
+    
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
       
     //------------------------------------------------------------ 
       
     if (myid==0) cout << "Making disk coefficients . . . " << flush;
-    ortho.make_coefficients();
+    ortho.make_coefficients(compute);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
       
@@ -1389,6 +1409,26 @@ main(int argc, char **argv)
     //------------------------------------------------------------ 
       
     if (myid==0) cout << "Writing output . . . " << flush;
+    //
+    // Coefficient trimming
+    //
+    if (PCA and snr>=0.0) {
+      std::vector<Vector> ac_cos, ac_sin;
+      std::vector<Vector> rt_cos, rt_sin, sn_rat;
+      std::cout << "Before get_trimmed" << std::endl;
+      ortho.pca_hall(true);
+      ortho.get_trimmed(snr, ac_cos, ac_sin,
+			&rt_cos, &rt_sin, &sn_rat);
+      for (int mm=0; mm<=mmax; mm++) {
+	if (vm.count("diff")) {
+	  ac_cos[mm] = ac_cos[mm] - rt_cos[mm];
+	  if (mm) 
+	    ac_sin[mm] = ac_sin[mm] - rt_sin[mm];
+	}
+	ortho.set_coefs(mm, ac_cos[mm], ac_sin[mm], true);
+      }
+      // END: M loop
+    }
     write_output(ortho, indx, dump->header.time, histo);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;

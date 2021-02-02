@@ -3556,7 +3556,8 @@ void EmpCylSL::accumulate_eof_thread_call(int id, std::vector<Particle>* p, bool
 }
   
 
-void EmpCylSL::accumulate(vector<Particle>& part, int mlevel, bool verbose)
+void EmpCylSL::accumulate(vector<Particle>& part, int mlevel,
+			  bool verbose, bool compute)
 {
    double r, phi, z, mass;
 
@@ -3572,7 +3573,7 @@ void EmpCylSL::accumulate(vector<Particle>& part, int mlevel, bool verbose)
     double phi  = atan2(p->pos[1], p->pos[0]);
     double z    = p->pos[2];
     
-    accumulate(r, z, phi, mass, p->indx, 0, mlevel);
+    accumulate(r, z, phi, mass, p->indx, 0, mlevel, compute);
 
     if (myid==0 && verbose) {
       if ( (ncnt % 100) == 0) cout << "\r>> " << ncnt << " <<" << flush;
@@ -4341,7 +4342,7 @@ void EmpCylSL::pca_hall(bool compute)
 	  snrval[nn+1] = sqrt(sqr/var);
 	}
 
-	std::cout << "DEBUG: M=" << mm << " MinSNR=" << minSNR << " MaxSNR=" << maxSNR << std::endl;
+	// std::cout << "DEBUG: M=" << mm << " MinSNR=" << minSNR << " MaxSNR=" << maxSNR << std::endl;
 	
 #ifndef STANDALONE
 	if (vtkpca) vtkpca->Add((*pb)[mm]->meanJK,
@@ -4573,22 +4574,10 @@ void EmpCylSL::get_trimmed
 
 	// BEG: diagnostics
 	if (rt_cos) {
-	  for (int nn=0; nn<rank3; nn++) {
-	    if (accum_cos[mm][nn] != 0.0)
-	      (*rt_cos)[mm][nn] = ddc[nn+1] / accum_cos[mm][nn];
-	    else
-	      (*rt_cos)[mm][nn] = 0.0;
-	  }
 
-	  if (mm) {
-	    for (int nn=0; nn<rank3; nn++) {
-	      if (accum_sin[mm][nn] != 0.0)
-		(*rt_sin)[mm][nn] = dds[nn+1] / accum_sin[mm][nn];
-	      else
-		(*rt_sin)[mm][nn] = 0.0;
-	    }
-	  }
-
+	  (*rt_cos)[mm] = accum_cos[mm];
+	  if (mm) (*rt_sin)[mm] = accum_sin[mm];
+	  
 	  for (int nn=0; nn<rank3; nn++) {
 	    double val = ddc[nn+1]*ddc[nn+1] + dds[nn+1]*dds[nn+1];
 	    if (sig[nn+1]>0.0) 
