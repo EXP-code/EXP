@@ -1021,8 +1021,8 @@ main(int argc, char **argv)
 		  << std::setw( 4) << "n |"
 		  << std::setw(16) << " coef(cos) |"
 		  << std::setw(16) << " coef(sin) |"
-		  << std::setw(16) << "ratio(cos) |"
-		  << std::setw(16) << "ratio(sin) |"
+		  << std::setw(16) << "delta(cos) |"
+		  << std::setw(16) << "delta(sin) |"
 		  << std::setw(16) << "       S/N |"
 		  << std::endl << std::setfill('-');
 	for (int i=0; i<2; i++) std::cout << std::setw( 4) << "-+";
@@ -1032,12 +1032,15 @@ main(int argc, char **argv)
 	// Data
 	for (int M=0; M<=mmax; M++) {
 	  for (int i=0; i<norder; i++) {
+	    double ratC = 0.0, ratS = 0.0;
+	    if (rt_cos[M][i]!=0.0) ratC = ac_cos[M][i]/rt_cos[M][i] - 1.0;
+	    if (M and rt_cos[M][i]!=0.0) ratS = ac_sin[M][i]/rt_sin[M][i] - 1.0;
 	    std::cout << std::setw( 4) << M
 		      << std::setw( 4) << i
 		      << std::setw(16) << ac_cos[M][i]
 		      << std::setw(16) << (M ? ac_sin[M][i] : 0.0)
-		      << std::setw(16) << rt_cos[M][i]
-		      << std::setw(16) << (M ? rt_sin[M][i] : 0.0)
+		      << std::setw(16) << ratC
+		      << std::setw(16) << ratS
 		      << std::setw(16) << sn_rat[M][i]
 		      << std::endl;
 	  }

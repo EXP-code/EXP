@@ -604,10 +604,11 @@ public:
   void determine_acceleration_and_potential() {};
 
   //! Accumulate coefficients from particle distribution
-  void accumulate(vector<Particle>& p, int mlev=0, bool verbose=false);
+  void accumulate(vector<Particle>& p, int mlev=0,
+		  bool verbose=false, bool compute=false);
 
   //! Accumulate coefficients from particle distribution by thread.
-  //! Used by external appliations.
+  //! Used by external applications.
   void accumulate_thread(vector<Particle>& p, int mlev=0, bool verbose=false);
 
   //! Make EOF from particle distribution
