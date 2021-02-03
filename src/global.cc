@@ -43,7 +43,7 @@ string outdir = "./";
 string runtag = "newrun";
 string ldlibdir = ".";
 
-double tnow;			// Per step variables
+double tnow, tstp;		// Per step variables
 int this_step;
 int psdump = -1;
 				// Global center of mass

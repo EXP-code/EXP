@@ -195,8 +195,10 @@ void * adjust_multistep_level_thread(void *ptr)
     // Enforce n-level shifts at a time
     //
     if (shiftlevl) {
-      if (lev > plev + shiftlevl) lev = plev + shiftlevl;
-      if (lev < plev - shiftlevl) lev = plev - shiftlevl;
+      if (plev + shiftlevl > multistep)	lev = multistep;
+      else                              lev = plev + shiftlevl;
+      if (shiftlevl > plev)             lev = 0;
+      else                              lev = plev - shiftlevl;
     }
 
     // Sanity check

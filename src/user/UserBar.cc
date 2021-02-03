@@ -346,7 +346,7 @@ void UserBar::determine_acceleration_and_potential(void)
     else
       omega = lastomega;
     
-    if ( fabs(tnow-lasttime) > 2.0*DBL_EPSILON) {
+    if ( mlevel==0 and fabs(tnow-lasttime) > 2.0*DBL_EPSILON) {
       posang += 0.5*(omega + lastomega)*dtime;
       lastomega = omega;
       lasttime = tnow;
@@ -392,8 +392,8 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
   thread_timing_beg(id);
 
   double fac, ffac, amp = afac * amplitude/fabs(amplitude) 
-    * 0.5*(1.0 + erf( (tnow - Ton )/DeltaT ))
-    * 0.5*(1.0 - erf( (tnow - Toff)/DeltaT )) ;
+    * 0.5*(1.0 + erf( (tstp - Ton )/DeltaT ))
+    * 0.5*(1.0 - erf( (tstp - Toff)/DeltaT )) ;
   double xx, yy, zz, rr, nn,pp;
   vector<double> pos(3); 
   double cos2p = cos(2.0*posang);

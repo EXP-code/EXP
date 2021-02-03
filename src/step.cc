@@ -164,10 +164,10 @@ void do_step(int n)
       {
 	double tlast = tnow;	// Time before current step
 				// Time at the end of the drift
-	tnow += dt*mintvl[mfirst[mstep]];
+	tstp = tnow + dt*mintvl[mfirst[mstep]];
 				// Compute potential at drifted time
 	comp->compute_potential(mfirst[mstep]);
-	tnow  = tlast;		// Restore time to beginning of step
+	tstp  = tlast;		// Restore time to beginning of step
       }
       if (timing) timer_pot.stop();
 
@@ -213,7 +213,7 @@ void do_step(int n)
       }
 
       tnow += dt;		// Next substep
-
+      tstp  = tnow;		// Sync force time
     }
     // END: mstep loop
 
@@ -257,6 +257,7 @@ void do_step(int n)
   else {
 				// Time at the end of the step
     tnow += dtime;
+    tstp  = tnow;
 				// Velocity by 1/2 step
     nvTracerPtr tPtr1;
     if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [1]"));

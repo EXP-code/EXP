@@ -248,7 +248,7 @@ void UserRotF::determine_acceleration_and_potential(void)
 
 
   // Computing tidal radius
-  if(this_step % Nint == 0  && TidalON) {
+  if(this_step % Nint == 0 && mlevel==0 && TidalON) {
     vector<double> Mtotable;
 
     // Gethering the mass profile

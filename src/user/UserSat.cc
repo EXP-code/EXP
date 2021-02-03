@@ -292,15 +292,15 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
     rs[2] = 0.0;
   }
   else
-    traj->get_satellite_orbit(tnow - toffset, &rs[0]);
+    traj->get_satellite_orbit(tstp - toffset, &rs[0]);
 
   satmass = mass * 
-    0.5*(1.0 + erf( (tnow - ton) /delta )) *
-    0.5*(1.0 + erf( (toff - tnow)/delta )) ;
+    0.5*(1.0 + erf( (tstp - ton) /delta )) *
+    0.5*(1.0 + erf( (toff - tstp)/delta )) ;
     
   if (shadow) satmass *= 0.5;
 
-  if (orbit && myid==0 && id==0 && tnow>tlast) {
+  if (orbit && myid==0 && id==0 && mlevel==0 && tnow>tlast) {
     ofstream out (orbfile.c_str(), ios::app);
     if (out) {
       out << setw(15) << tnow;

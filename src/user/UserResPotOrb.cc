@@ -358,6 +358,8 @@ double UserResPotOrb::get_omega(double t)
 void UserResPotOrb::determine_acceleration_and_potential(void)
 {
 
+  if (multistep and mlevel>0) return;
+
   if (first) {
 
     if (restart) {

@@ -305,7 +305,7 @@ void * UserRPtest::determine_acceleration_and_potential_thread(void * arg)
 
     halo_model->get_pot_dpot(R, pot, dpot);
 
-    if (myid==0 && id==0 && i<npart) {
+    if (myid==0 && id==0 && mlevel==0 && i<npart) {
       if (i==0) out << setw(15) << tnow;
       respot->coord(pos, vel, E, K, I1, J, O1, O2, w1, w2, w3, f, beta, psi);
       out << setw(15) << E

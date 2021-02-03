@@ -139,8 +139,12 @@ extern int NICE;
 //! Output logging level
 extern int VERBOSE;
 
-//! Times for each phase space slice (for Leap-Frog)
+//! Times for each phase-space time slice (for Leap-Frog)
 extern double tnow;
+
+//! Times for acceleration evaluation (for multistep).  Equal to tnow
+//! if multistep = 0
+extern double tstp;
 
 //! Current step number
 extern int this_step;

@@ -171,13 +171,13 @@ void SatFixOrb::enforce()
 
   for (int n=0; n<c0->particle_count(myid); n++) {
     if (tag == c0->Part(n)->iattrib[0]) {
-      orb->get_satellite_orbit(tnow - toffset, &rs[0]);
+      orb->get_satellite_orbit(tstp - toffset, &rs[0]);
       for (int k=0; k<3; k++) c0->Part(n)->pos[k] = rs[k];
 #if 1				// For debugging orbit fixing
       ostringstream sout;
       sout << outdir << "SatFixOrb.test." << myid;
       ofstream out(sout.str().c_str(), ios::app);
-      out << setw(15) << tnow;
+      out << setw(15) << tstp;
       for (int k=0; k<3; k++) out << setw(15) << c0->Part(n)->pos[k];
       out << endl;
 #endif      

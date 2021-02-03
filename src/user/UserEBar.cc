@@ -586,12 +586,12 @@ void UserEBar::determine_acceleration_and_potential(void)
     }
     else {
       if (dtom>0.0)
-	omega = omega0*(1.0 + DOmega*0.5*(1.0 + erf( (tnow - T0)/dtom )));
+	omega = omega0*(1.0 + DOmega*0.5*(1.0 + erf( (tstp - T0)/dtom )));
       else
-	omega = omega0*(1.0 + DOmega*(tnow - T0*0.5));
+	omega = omega0*(1.0 + DOmega*(tstp - T0*0.5));
     }
     
-    if ( fabs(tnow-lasttime) > 2.0*DBL_EPSILON) {
+    if ( mlevel==0 and fabs(tnow-lasttime) > 2.0*DBL_EPSILON) {
       posang += 0.5*(omega + lastomega)*(tnow - lasttime);
       lastomega = omega;
       lasttime = tnow;
@@ -618,7 +618,7 @@ void UserEBar::determine_acceleration_and_potential(void)
   MPI_Allreduce(&acc1[0], &acc[0], 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 				// Backward Euler
-  if (monopole && monopole_follow) {
+  if (mlevel== 0 && monopole && monopole_follow) {
     for (int k=0; k<3; k++) {
       bps[k] += vel[k] * (tnow - teval[mlevel]);
       vel[k] += acc[k] * (tnow - teval[mlevel]);
@@ -681,29 +681,29 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
 
   thread_timing_beg(id);
 
-  double fraction_on =   0.5*(1.0 + erf( (tnow - Ton )/DeltaT )) ;
-  double fraction_off =  0.5*(1.0 - erf( (tnow - Toff)/DeltaT )) ;
+  double fraction_on =   0.5*(1.0 + erf( (tstp - Ton )/DeltaT )) ;
+  double fraction_off =  0.5*(1.0 - erf( (tstp - Toff)/DeltaT )) ;
 
   double quad_onoff = 
     fraction_on*( (1.0 - quadrupole_frac) + quadrupole_frac * fraction_off );
 
   double mono_fraction = 
-    0.5*(1.0 + erf( (tnow - TmonoOn )/DeltaMonoT )) *
-    0.5*(1.0 - erf( (tnow - TmonoOff)/DeltaMonoT )) ;
+    0.5*(1.0 + erf( (tstp - TmonoOn )/DeltaMonoT )) *
+    0.5*(1.0 - erf( (tstp - TmonoOff)/DeltaMonoT )) ;
 
   double mono_onoff = 
     (1.0 - monopole_frac) + monopole_frac*mono_fraction;
 
   if (table) {
-    if (tnow<timeq[0]) {
+    if (tstp<timeq[0]) {
       afac = ampq[0];
       b5 = b5q[0];
-    } else if (tnow>timeq[qlast]) {
+    } else if (tstp>timeq[qlast]) {
       afac = ampq[qlast];
       b5 = b5q[qlast];
     } else {
-      afac = odd2(tnow, timeq, ampq, 0);
-      b5 = odd2(tnow, timeq, b5q, 0);
+      afac = odd2(tstp, timeq, ampq, 0);
+      b5 = odd2(tstp, timeq, b5q, 0);
     }
   }
 
@@ -713,7 +713,7 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
     amp = afac * amplitude/fabs(amplitude) * quad_onoff;
 
   if (oscil)
-    amp *= (1.0 + Oamp*sin(Ofreq*(tnow - Ton)))/(1.0 + fabs(Oamp));
+    amp *= (1.0 + Oamp*sin(Ofreq*(tstp - Ton)))/(1.0 + fabs(Oamp));
 
   for (unsigned lev=mlevel; lev<=multistep; lev++) {
 

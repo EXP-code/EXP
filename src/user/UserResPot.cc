@@ -320,6 +320,7 @@ double UserResPot::get_omega(double t)
 
 void UserResPot::determine_acceleration_and_potential(void)
 {
+  if (multistep and mlevel>0) return;
 
   if (first) {
 
