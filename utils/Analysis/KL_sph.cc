@@ -2,7 +2,7 @@
  *  Description:
  *  -----------
  *
- *  Kullback-Liebler analysis for cylinder
+ *  Kullback-Liebler analysis for sphere
  *
  *  Call sequence:
  *  -------------
@@ -46,6 +46,7 @@
 				// Boost stuff
 
 #include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 #include <boost/make_unique.hpp>
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
@@ -65,7 +66,7 @@ namespace po = boost::program_options;
 #include <PSP2.H>
 #include <interp.h>
 #include <massmodel.h>
-#include <EmpCylSL.h>
+#include <SphereSL.H>
 #include <foarray.H>
 
 #include <localmpi.h>
@@ -94,30 +95,24 @@ double tnow = 0.0;
 
 class CoefStruct
 {
-
 private:
-  int mmax, nmax;
+  int lmax, nmax;
 
 public:
-  std::vector<std::vector<double>> coefC, coefS;
 
-  CoefStruct(int mmax, int nmax) : mmax(mmax), nmax(nmax)
+  Matrix coefs;
+
+  CoefStruct(int lmax, int nmax) : lmax(lmax), nmax(nmax)
   {
-    coefC.resize(mmax+1);
-    coefS.resize(mmax+1);
-    for (int m=0; m<=mmax; m++) {
-      coefC[m].resize(nmax);
-      if (m) coefS[m].resize(nmax);
-    }
+    Matrix ret(0, lmax*(lmax+2), 1, nmax);
+    ret.zero();
   }
 
   void sync()
   {
-    for (int m=0; m<=mmax; m++) {
-      MPI_Allreduce(MPI_IN_PLACE, coefC[m].data(), nmax,
+    for (int l=0; l<(lmax+1)*(lmax+1); l++) {
+      MPI_Allreduce(MPI_IN_PLACE, &coefs[l][1], nmax,
 		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      if (m) MPI_Allreduce(MPI_IN_PLACE, coefS[m].data(), nmax,
-			   MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     }
   }
 
@@ -134,7 +129,7 @@ main(int argc, char **argv)
   
   double RMIN, rscale, minSNR0, Hexp;
   int NICE, LMAX, NMAX, NSNR, indx, nbunch;
-  std::string CACHEFILE, dir("./"), cname, prefix;
+  std::string modelf, dir("./"), cname, prefix;
   bool ignore;
 
   // ==================================================
@@ -143,7 +138,7 @@ main(int argc, char **argv)
   
   std::ostringstream sout;
   sout << std::string(60, '-') << std::endl
-       << "Kullback-Liebler analysis for cylindrical models" << std::endl
+       << "Kullback-Liebler analysis for spherical models" << std::endl
        << std::string(60, '-') << std::endl << std::endl
        << "Allowed options";
   
@@ -167,12 +162,16 @@ main(int argc, char **argv)
      "use Hall smoothing for SNR trim")
     ("NICE",                po::value<int>(&NICE)->default_value(0),
      "system priority")
-    ("LMAX",                po::value<int>(&LMAX)->default_value(36),
+    ("LMAX",                po::value<int>(&LMAX)->default_value(8),
+     "Maximum harmonic order for spherical expansion")
+    ("NMAX",                po::value<int>(&NMAX)->default_value(18),
      "Maximum harmonic order for spherical expansion")
     ("NSNR, N",             po::value<int>(&NSNR)->default_value(20),
      "Number of SNR evaluations")
     ("minSNR",              po::value<double>(&minSNR0),
      "minimum SNR value for loop output")
+    ("rscale",              po::value<double>(&rscale)->default_value(0.067),
+     "Radial scale for coordinate mapping (cmap)")
     ("Hexp",                po::value<double>(&Hexp)->default_value(1.0),
      "default Hall smoothing exponent")
     ("prefix",              po::value<string>(&prefix)->default_value("crossval"),
@@ -187,14 +186,11 @@ main(int argc, char **argv)
      "Desired bunch size (default: sqrt(nbod) if value is < 0)")
     ("dir,d",               po::value<std::string>(&dir),
      "directory for SPL files")
-    ("ignore",
-     po::value<bool>(&ignore)->default_value(false),
-     "rebuild EOF grid if input parameters do not match the cachefile")
-    ("cachefile",
-     po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),
-     "cachefile name")
+    ("modelfile",
+     po::value<std::string>(&modelf)->default_value("SLGridSph.model"),
+     "halo model file name")
     ("cname",
-     po::value<std::string>(&cname)->default_value("star disk"),
+     po::value<std::string>(&cname)->default_value("dark halo"),
      "component name")
     ;
   
@@ -250,154 +246,7 @@ main(int argc, char **argv)
   if (NICE>0)
     setpriority(PRIO_PROCESS, 0, NICE);
 
-  // ==================================================
-  // All processes will now compute the basis functions
-  // *****Using MPI****
-  // ==================================================
-
-  int mmax, numx, numy, norder, cmapr, cmapz;
-  double rcylmin, rcylmax, vscale;
-  bool DENS;
-
-  if (not ignore) {
-
-    std::ifstream in(CACHEFILE);
-    if (!in) {
-      std::cerr << "Error opening cachefile named <" 
-		<< CACHEFILE << "> . . ."
-		<< std::endl
-		<< "I will build <" << CACHEFILE
-		<< "> but it will take some time."
-		<< std::endl
-		<< "If this is NOT what you want, "
-		<< "stop this routine and specify the correct file."
-		<< std::endl;
-    } else {
-
-      // Attempt to read magic number
-      //
-      unsigned int tmagic;
-      in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
-
-      //! Basis magic number
-      const unsigned int hmagic = 0xc0a57a1;
-
-      if (tmagic == hmagic) {
-	// YAML size
-	//
-	unsigned ssize;
-	in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
-	
-	// Make and read char buffer
-	//
-	auto buf = boost::make_unique<char[]>(ssize+1);
-	in.read(buf.get(), ssize);
-	buf[ssize] = 0;		// Null terminate
-
-	YAML::Node node;
-      
-	try {
-	  node = YAML::Load(buf.get());
-	}
-	catch (YAML::Exception& error) {
-	  if (myid)
-	    std::cerr << "YAML: error parsing <" << buf.get() << "> "
-		      << "in " << __FILE__ << ":" << __LINE__ << std::endl
-		      << "YAML error: " << error.what() << std::endl;
-	  throw error;
-	}
-
-	// Get parameters
-	//
-	mmax    = node["mmax"  ].as<int>();
-	numx    = node["numx"  ].as<int>();
-	numy    = node["numy"  ].as<int>();
-	NMAX    = node["nmax"  ].as<int>();
-	norder  = node["norder"].as<int>();
-	DENS    = node["dens"  ].as<bool>();
-	if (node["cmap"])
-	  cmapr = node["cmap"  ].as<int>();
-	else
-	  cmapr = node["cmapr" ].as<int>();
-	if (node["cmapz"])
-	  cmapz = node["cmapz" ].as<int>();
-	rcylmin = node["rmin"  ].as<double>();
-	rcylmax = node["rmax"  ].as<double>();
-	rscale  = node["ascl"  ].as<double>();
-	vscale  = node["hscl"  ].as<double>();
-	
-      } else {
-				// Rewind file
-	in.clear();
-	in.seekg(0);
-
-	int idens;
-    
-	in.read((char *)&mmax,    sizeof(int));
-	in.read((char *)&numx,    sizeof(int));
-	in.read((char *)&numy,    sizeof(int));
-	in.read((char *)&NMAX,    sizeof(int));
-	in.read((char *)&norder,  sizeof(int));
-	in.read((char *)&idens,   sizeof(int)); 
-	in.read((char *)&cmapr,   sizeof(int)); 
-	in.read((char *)&rcylmin, sizeof(double));
-	in.read((char *)&rcylmax, sizeof(double));
-	in.read((char *)&rscale,  sizeof(double));
-	in.read((char *)&vscale,  sizeof(double));
-
-	if (idens) DENS = true;
-      }
-    }
-  }
-
-  EmpCylSL::RMIN        = rcylmin;
-  EmpCylSL::RMAX        = rcylmax;
-  EmpCylSL::NUMX        = numx;
-  EmpCylSL::NUMY        = numy;
-  EmpCylSL::CMAPR       = cmapr;
-  EmpCylSL::CMAPZ       = cmapz;
-  EmpCylSL::logarithmic = logl;
-  EmpCylSL::DENS        = DENS;
-  EmpCylSL::CACHEFILE   = CACHEFILE;
-  EmpCylSL::PCAVAR      = true;
-  EmpCylSL::PCADRY      = true;
-
-				// Create expansion
-				//
-  EmpCylSL ortho0(NMAX, LMAX, mmax, norder, rscale, vscale);
-  EmpCylSL ortho1(NMAX, LMAX, mmax, norder, rscale, vscale);
-    
-				// Set smoothing type to Truncate or
-				// Hall (default)
-  EmpCylSL::HEXP = Hexp;
-  if (vm.count("truncate")) {
-    ortho0.setTK("Truncate");
-    ortho1.setTK("Truncate");
-  } else {
-    ortho0.setTK("Hall");
-    ortho1.setTK("Hall");
-  }
-
-  PSPptr psp;
   
-  if (ortho0.read_cache()==0 or ortho1.read_cache()==0) {
-    std::cout << "Could not read cache file <" << CACHEFILE << ">"
-	      << " . . . quitting" << std::endl;
-    MPI_Finalize();
-    exit(0);
-  }
-  
-  // ==================================================
-  // Phase space
-  // ==================================================
-
-  std::string file;
-
-#ifdef DEBUG
-  std::cout << "[" << myid << "] Begin phase -space loop" << std::endl;
-  MPI_Barrier(MPI_COMM_WORLD);
-#endif	      
-
   // ==================================================
   // PSP input stream
   // ==================================================
@@ -411,7 +260,7 @@ main(int argc, char **argv)
   s1 << runtag << "."<< std::setw(5) << std::setfill('0') << indx;
       
 				// Check for existence of next file
-  file = dir + s1.str();
+  std:string file = dir + s1.str();
   std::ifstream in(file);
   if (!in) {
     std::cerr << "Error opening <" << file << ">" << endl;
@@ -450,6 +299,8 @@ main(int argc, char **argv)
   // Open PSP file
   // ==================================================
 
+  PSPptr psp;
+
   if (SPL) psp = std::make_shared<PSPspl>(s1.str(), dir, true);
   else     psp = std::make_shared<PSPout>(file, true);
   
@@ -466,18 +317,33 @@ main(int argc, char **argv)
     exit(-1);
   }
       
+  // ==================================================
+  // Make SL expansion
+  // ==================================================
+
+  SphericalModelTable halo(modelf);
+  SphereSL::mpi  = true;
+  SphereSL::NUMR = 4000;
+  SphereSL::HEXP = Hexp;
+
   int nbod = psp->GetNamed(cname)->comp.nbod;
+  int nprt = std::floor(sqrt(nbod));
+
+  SphereSL ortho0(&halo, LMAX, NMAX, 1, rscale, true, nprt);
+  SphereSL ortho1(&halo, LMAX, NMAX, 1, rscale);
+
+  if (myid==0) std::cout << std::endl
+			 << "Accumulating particle positions . . . "
+			 << std::endl;
+
+  // Zero out coefficients to prepare for a new expansion
+  //
+  ortho0.reset_coefs();
 
   boost::shared_ptr<boost::progress_display> progress;
   if (myid==0) {
     progress = boost::make_shared<boost::progress_display>(nbod);
-    std::cout << std::endl
-	      << "Accumulating particle positions . . . "
-	      << std::endl;
   }
-
-  ortho0.setup_accumulation();
-  ortho0.setHall("test", nbod);
 
   SParticle *p = psp->GetParticle();
   int icnt = 0;
@@ -485,34 +351,27 @@ main(int argc, char **argv)
     if (myid==0) ++(*progress);
 
     if (icnt++ % numprocs == myid) {
-      double R   = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
-      double phi = atan2(p->pos(1), p->pos(0));
-      ortho0.accumulate(R, p->pos(2), phi, p->mass(), p->indx(), 0, 0, true);
-      //                                                        ^  ^  ^
-      //                                                        |  |  |
-      // Thread id ---------------------------------------------+  |  |
-      // Level ----------------------------------------------------+  |
-      // Compute covariance ------------------------------------------+
+      ortho0.accumulate(p->pos(0), p->pos(1), p->pos(2), p->mass());
     }
     p = psp->NextParticle();
   } while (p);
   
-  if (myid==0) std::cout << "done" << endl;
     
   //------------------------------------------------------------ 
       
   if (myid==0) cout << "Making coefficients for total . . . " << flush;
-  ortho0.make_coefficients(true);
-  ortho0.pca_hall(true);
+  ortho0.make_coefs();
+  ortho0.make_covar();
+
   if (myid==0) std::cout << "done" << endl;
   
   if (myid==0) std::cout << std::endl
 			 << "Accumulating particle positions for subsamples . . . "
-			 << std::flush;
+			 << std::endl;
 
 				// Size of bunch
   int nbunch1 = std::floor(sqrt(nbod));
-  if (nbunch>0) nbunch1 = nbod/nbunch; 
+  if (nbunch>0) nbunch1 = nbod/nbunch;
 				// Number of bunches
   int nbunch0 = nbod/nbunch1;
 
@@ -530,37 +389,25 @@ main(int argc, char **argv)
 				// Done processing
     if (icnt >= nbunch0*nbunch1) {
       if (myid==0)
-	std::cout << "Finished processing subsamples with n=" << icnt
-		  << " N=" << nbod << std::endl;
+	std::cout << "Finished processing subsamples with " << icnt
+		  << "/" << nbod << std::endl;
       break;
     }
       
 				// Start a new bunch?
     if (icnt % nbunch1 == 0) {
       if (coefs.size()) {
-	ortho1.make_coefficients();
-	for (int mm=0; mm<=mmax; mm++) {
-	  ortho1.get_coefs(mm,
-			   coefs.back()->coefC[mm],
-			   coefs.back()->coefS[mm]);
-	  coefs.back()->sync();
-	}
+	ortho1.make_coefs();
+	coefs.back()->coefs = ortho1.retrieve_coefs();
+	coefs.back()->sync();
       }
-      coefs.push_back(boost::make_shared<CoefStruct>(mmax, norder));
-      ortho1.setup_accumulation();
+      coefs.push_back(boost::make_shared<CoefStruct>(LMAX, NMAX));
+      ortho1.reset_coefs();
     }
     
 				// Particle accumulation
     if (icnt++ % numprocs == myid) {
-      
-      double R   = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
-      double phi = atan2(p->pos(1), p->pos(0));
-      ortho1.accumulate(R, p->pos(2), phi, p->mass(), p->indx(), 0, 0, false);
-      //                                                          ^  ^  ^
-      //                                                          |  |  |
-      // Thread id -----------------------------------------------+  |  |
-      // Level ------------------------------------------------------+  |
-      // Compute covariance --------------------------------------------+
+      ortho1.accumulate(p->pos(0), p->pos(1), p->pos(2), p->mass());
     }
     p = psp->NextParticle();
   } while (p);
@@ -569,21 +416,17 @@ main(int argc, char **argv)
       
   if (myid==0) cout << std::endl
 		    << "Making coefficients for bunch ["
-		    << coefs.size() << "/" << nbunch0 << "]" << flush;
+		    << coefs.size() << "/" << nbunch0 << "] " << flush;
 
-  ortho1.make_coefficients();
-  for (int mm=0; mm<=mmax; mm++) {
-    ortho1.get_coefs(mm,
-		     coefs.back()->coefC[mm],
-		     coefs.back()->coefS[mm]);
-    coefs.back()->sync();
-  }
-  
+  ortho1.make_coefs();
+  coefs.back()->coefs = ortho1.retrieve_coefs();
+  coefs.back()->sync();
+
   if (myid==0) std::cout << "done" << endl;
   
   //------------------------------------------------------------ 
     
-  if (myid==0) cout << "Beginning SNR loop . . ." << flush;
+  if (myid==0) cout << "Beginning SNR loop . . ." << std::endl;
 
 
   double minSNR = ortho0.getMinSNR();
@@ -613,17 +456,6 @@ main(int argc, char **argv)
 	      << " dSNR=" << dSNR << std::endl;
   }
 
-
-  using OrthoCoefs = std::vector<Vector>;
-  std::vector<OrthoCoefs> ac_cos(coefs.size()), ac_sin(coefs.size());
-  for (int j=0; j<coefs.size(); j++) {
-    ac_cos[j].resize(mmax+1), ac_sin[j].resize(mmax+1);
-    for (int mm=0; mm<=mmax; mm++) {
-      ac_cos[j][mm].setsize(0, norder-1);
-      ac_sin[j][mm].setsize(0, norder-1);
-    }
-  }
-
   for (int nsnr=0; nsnr<NSNR; nsnr++) {
 
     // Assign the snr value
@@ -633,24 +465,23 @@ main(int argc, char **argv)
     
     if (myid==0) {
       std::cout << "Computing SNR=" << snr;
-      if (Hall) std::cout << " using Hall smoothing . . . " << std::endl;
-      else      std::cout << " using truncation . . . " << std::endl;
+      if (Hall) std::cout << " using Hall smoothing." << std::endl;
+      else      std::cout << " using truncation." << std::endl;
     }
     
     // Get the snr trimmed coefficients
     //
+    std::vector<Matrix> coefs1(coefs.size());
+
     if (myid==0) {
       progress = boost::make_shared<boost::progress_display>(coefs.size());
       std::cout << "Trimming coefficients . . ." << std::endl;
     }
 
     for (int j=0; j<coefs.size(); j++) {
-   
-      for (int mm=0; mm<=mmax; mm++) {
-	ortho0.set_coefs(mm, coefs[j]->coefC[mm], coefs[j]->coefS[mm]);
-      }
-
-      ortho0.get_trimmed(snr, ac_cos[j], ac_sin[j]);
+      ortho0.install_coefs(coefs[j]->coefs);
+      ortho0.get_trimmed(snr);
+      coefs1[j] = ortho0.retrieve_coefs();
       if (myid==0) ++(*progress);
     }
     
@@ -660,7 +491,7 @@ main(int argc, char **argv)
     int icnt = 0, ibnch = 0;
 
     if (myid==0) std::cout << std::endl
-			   << "Computing KL for subsamples . . . "
+			   << "Computing KL for subsamples . . ."
 			   << std::endl;
 
 				// KL values, density workspace
@@ -677,8 +508,8 @@ main(int argc, char **argv)
 				// Done processing
       if (icnt >= nbunch0*nbunch1) {
 	if (myid==0)
-	  std::cout << "Finished KL subsamples with n=" << icnt
-		    << " N=" << nbod << std::endl;
+	  std::cout << "Finished KL subsamples with " << icnt
+		    << "/" << nbod << std::endl;
 	break;
       }
 				// Start a new bunch?
@@ -687,23 +518,16 @@ main(int argc, char **argv)
 				// Particle accumulation
       if (icnt++ % numprocs == myid) {
 
-				// Compute density basis for each particle
-	double R   = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
-	double phi = atan2(p->pos(1), p->pos(0));
-	double z   = p->pos(2);
+				// Compute density for each particle
+	double r     = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1) + p->pos(2)*p->pos(2));
+	double costh = p->pos(2)/(r + 1.0e-18);
+	double phi   = atan2(p->pos(1), p->pos(1));
 
-				// Get density grid interpolated entries
-	std::fill(DD.begin(), DD.end(), 0.0);
-	for (int mm=0; mm<=mmax; mm++) {
-	  for (int nn=0; nn<norder; nn++) {
-	    double dC, dS;
-	    ortho0.getDensSC(mm, nn, R, z, dC, dS);
-				// Sum over all subsamples
-	    for (int j=0; j<coefs.size(); j++) {
-	      DD[j] += ac_cos[j][mm][nn]*dC*cos(phi*mm);
-	      if (mm) DD[j] += ac_sin[j][mm][nn]*dS*sin(phi*mm);
-	    }
-	  }
+	for (int j=0; j<coefs.size(); j++) {
+	  double t0, t1, t2, t3;
+	  ortho1.install_coefs(coefs[j]->coefs);
+	  ortho1.dens_pot_eval(r, costh, phi, t0, t1, t2, t3);
+	  DD[j] = t0 + t1;
 	}
 
 	for (int j=0; j<coefs.size(); j++) {
@@ -736,7 +560,7 @@ main(int argc, char **argv)
 	      MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (myid==0) {
-      std::cout << "Good/bad density counts ["
+      std::cout << std::endl << "Good/bad density counts ["
 		<< good << "/" << bad << "]" << std::endl;
 
       MPI_Reduce(MPI_IN_PLACE, KL.data(), coefs.size(),
@@ -747,7 +571,6 @@ main(int argc, char **argv)
 	  << std::endl;
     }
 
-    if (myid==0) std::cout << "done" << endl;
   }
   // END: SNR loop
       

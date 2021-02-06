@@ -44,7 +44,7 @@ private:
   std::vector<double> massB;
   int npart, curbin;
 
-  double maxSNR;
+  double minSNR, maxSNR;
 
   Vector work;
 
@@ -96,6 +96,9 @@ public:
 
   //! Retrieve coefficients
   Matrix retrieve_coefs(void) { return expcoef; }
+
+  //! Minimum SNR coefficient value
+  double getMinSNR(void) { return minSNR; }
 
   //! Maximum SNR coefficient value
   double getMaxSNR(void) { return maxSNR; }

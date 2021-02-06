@@ -64,6 +64,7 @@ void SphereSL::reset_coefs(void)
 {
   if (expcoef.getnrows()>0 && expcoef.getncols()>0) expcoef.zero();
   if (compute_covar) {
+    minSNR = std::numeric_limits<double>::max();
     maxSNR = 0.0;
     totalMass = 0.0;
     covar.resize(lmax+1);
@@ -106,6 +107,7 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
     work.setsize(1, nmax);
 
     if (compute_covar) {
+      minSNR = std::numeric_limits<double>::max();
       maxSNR = 0.0;
       totalMass = 0.0;
       covar.resize(lmax+1);
@@ -359,6 +361,7 @@ void SphereSL::make_covar(bool verbose)
 					   << std::setw(18) << R[j]*R[j];
 	if (svar[l][j]>0.0) {
 	  double snr = R[j]*R[j]/svar[l][j];
+	  minSNR = std::min<double>(minSNR, snr);
 	  maxSNR = std::max<double>(maxSNR, snr);
 	  if (verbose and myid==0) std::cout << std::setw(18) << snr;
 	} else {
