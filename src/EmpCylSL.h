@@ -660,12 +660,21 @@ public:
   void multistep_debug();
 
   //! Set coefficients from Vectors
-  void set_coefs(int mm, const Vector& cos1, const Vector& sin1, bool zero);
+  void set_coefs(int mm, const Vector& cos1, const Vector& sin1,
+		 bool zero=true);
 
   //! Set coefficients from std::vectors
   void set_coefs(int mm,
 		 const std::vector<double>& cos1,
-		 const std::vector<double>& sin1, bool zero);
+		 const std::vector<double>& sin1, bool zero=true);
+
+  //! Set coefficients from Vectors
+  void get_coefs(int mm, Vector& cos1, Vector& sin1);
+
+  //! Set coefficients from std::vectors
+  void get_coefs(int mm,
+		 std::vector<double>& cos1,
+		 std::vector<double>& sin1);
 
   //! Set cylmass manually
   void set_mass(double mass) {
