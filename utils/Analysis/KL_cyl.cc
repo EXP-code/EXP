@@ -470,10 +470,10 @@ main(int argc, char **argv)
 
   boost::shared_ptr<boost::progress_display> progress;
   if (myid==0) {
-    progress = boost::make_shared<boost::progress_display>(nbod);
     std::cout << std::endl
 	      << "Accumulating particle positions . . . "
 	      << std::endl;
+    progress = boost::make_shared<boost::progress_display>(nbod);
   }
 
   ortho0.setup_accumulation();
@@ -640,8 +640,8 @@ main(int argc, char **argv)
     // Get the snr trimmed coefficients
     //
     if (myid==0) {
-      progress = boost::make_shared<boost::progress_display>(coefs.size());
       std::cout << "Trimming coefficients . . ." << std::endl;
+      progress = boost::make_shared<boost::progress_display>(coefs.size());
     }
 
     for (int j=0; j<coefs.size(); j++) {

@@ -474,8 +474,8 @@ main(int argc, char **argv)
     std::vector<Matrix> coefs1(coefs.size());
 
     if (myid==0) {
-      progress = boost::make_shared<boost::progress_display>(coefs.size());
       std::cout << "Trimming coefficients . . ." << std::endl;
+      progress = boost::make_shared<boost::progress_display>(coefs.size());
     }
 
     for (int j=0; j<coefs.size(); j++) {
