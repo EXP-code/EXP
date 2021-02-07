@@ -597,7 +597,7 @@ main(int argc, char **argv)
   if (maxSNR < minSNR )  minSNR = maxSNR * 1.0e-2;
 
   if (vm.count("minSNR")) {
-    if (minSNR > minSNR0)  minSNR = minSNR0;
+    if (minSNR < minSNR0)  minSNR = minSNR0;
   }
   
   if (LOG) {
@@ -634,13 +634,13 @@ main(int argc, char **argv)
     if (myid==0) {
       std::cout << "Computing SNR=" << snr;
       if (Hall) std::cout << " using Hall smoothing . . . " << std::endl;
-      else      std::cout << " using truncation . . . " << std::endl;
+      else      std::cout << " using truncation . . . "     << std::endl;
     }
     
     // Get the snr trimmed coefficients
     //
     if (myid==0) {
-      std::cout << "Trimming coefficients . . ." << std::endl;
+      std::cout << std::endl << "Trimming coefficients . . ." << std::endl;
       progress = boost::make_shared<boost::progress_display>(coefs.size());
     }
 
@@ -682,7 +682,7 @@ main(int argc, char **argv)
 	break;
       }
 				// Start a new bunch?
-      if (icnt % nbunch1 == 0) ibnch++;
+      if (icnt > 0 and icnt % nbunch1 == 0) ibnch++;
       
 				// Particle accumulation
       if (icnt++ % numprocs == myid) {
@@ -708,7 +708,7 @@ main(int argc, char **argv)
 
 	for (int j=0; j<coefs.size(); j++) {
 	  if (DD[ibnch]>0.0 and DD[j]>0.0) {
-	    KL[j] += p->mass() * log(DD[ibnch]/DD[j]);
+	    KL[ibnch] += p->mass() * log(DD[ibnch]/DD[j]);
 	    good++;
 	  } else {
 	    bad++;

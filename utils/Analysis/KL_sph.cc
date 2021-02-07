@@ -359,7 +359,9 @@ main(int argc, char **argv)
     
   //------------------------------------------------------------ 
       
-  if (myid==0) cout << "Making coefficients for total . . . " << flush;
+  if (myid==0) std::cout << std::endl
+			 << "Making coefficients for total . . . "
+			 << std::flush;
   ortho0.make_coefs();
   ortho0.make_covar();
 
@@ -440,7 +442,7 @@ main(int argc, char **argv)
   if (maxSNR < minSNR )  minSNR = maxSNR * 1.0e-2;
 
   if (vm.count("minSNR")) {
-    if (minSNR > minSNR0)  minSNR = minSNR0;
+    if (minSNR < minSNR0)  minSNR = minSNR0;
   }
   
   if (LOG) {
@@ -474,14 +476,13 @@ main(int argc, char **argv)
     std::vector<Matrix> coefs1(coefs.size());
 
     if (myid==0) {
-      std::cout << "Trimming coefficients . . ." << std::endl;
+      std::cout << std::endl << "Trimming coefficients . . ." << std::endl;
       progress = boost::make_shared<boost::progress_display>(coefs.size());
     }
 
     for (int j=0; j<coefs.size(); j++) {
       ortho0.install_coefs(coefs[j]->coefs);
-      ortho0.get_trimmed(snr);
-      coefs1[j] = ortho0.retrieve_coefs();
+      coefs1[j] = ortho0.get_trimmed(snr, Hall);
       if (myid==0) ++(*progress);
     }
     
@@ -513,7 +514,7 @@ main(int argc, char **argv)
 	break;
       }
 				// Start a new bunch?
-      if (icnt % nbunch1 == 0) ibnch++;
+      if (icnt > 0 and icnt % nbunch1 == 0) ibnch++;
       
 				// Particle accumulation
       if (icnt++ % numprocs == myid) {
@@ -525,14 +526,14 @@ main(int argc, char **argv)
 
 	for (int j=0; j<coefs.size(); j++) {
 	  double t0, t1, t2, t3;
-	  ortho1.install_coefs(coefs[j]->coefs);
+	  ortho1.install_coefs(coefs1[j]);
 	  ortho1.dens_pot_eval(r, costh, phi, t0, t1, t2, t3);
 	  DD[j] = t0 + t1;
 	}
 
 	for (int j=0; j<coefs.size(); j++) {
 	  if (DD[ibnch]>0.0 and DD[j]>0.0) {
-	    KL[j] += p->mass() * log(DD[ibnch]/DD[j]);
+	    KL[ibnch] += p->mass() * log(DD[ibnch]/DD[j]);
 	    good++;
 	  } else {
 	    bad++;
@@ -560,8 +561,9 @@ main(int argc, char **argv)
 	      MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (myid==0) {
-      std::cout << std::endl << "Good/bad density counts ["
-		<< good << "/" << bad << "]" << std::endl;
+      std::cout << std::endl << "Bad/good density counts ["
+		<< bad << "/" << good << "="
+		<< static_cast<double>(bad)/good << "]" << std::endl;
 
       MPI_Reduce(MPI_IN_PLACE, KL.data(), coefs.size(),
 		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
