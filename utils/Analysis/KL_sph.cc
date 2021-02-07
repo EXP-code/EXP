@@ -561,15 +561,16 @@ main(int argc, char **argv)
 	      MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (myid==0) {
+      double ratio = static_cast<double>(bad)/good;
       std::cout << std::endl << "Bad/good density counts ["
-		<< bad << "/" << good << "="
-		<< static_cast<double>(bad)/good << "]" << std::endl;
+		<< bad << "/" << good << "=" << ratio << "]" << std::endl;
 
       MPI_Reduce(MPI_IN_PLACE, KL.data(), coefs.size(),
 		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
       out << std::setw(18) << snr << std::setw(18)
 	  << std::accumulate(KL.begin(), KL.end(), 0.0)
+	  << std::setw(18) << ratio
 	  << std::endl;
     }
 
