@@ -46,6 +46,7 @@
 				// Boost stuff
 
 #include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 #include <boost/make_unique.hpp>
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
@@ -497,7 +498,6 @@ main(int argc, char **argv)
     p = psp->NextParticle();
   } while (p);
   
-  if (myid==0) std::cout << "done" << endl;
     
   //------------------------------------------------------------ 
       
@@ -508,7 +508,7 @@ main(int argc, char **argv)
   
   if (myid==0) std::cout << std::endl
 			 << "Accumulating particle positions for subsamples . . . "
-			 << std::flush;
+			 << std::endl;
 
 				// Size of bunch
   int nbunch1 = std::floor(sqrt(nbod));
@@ -583,7 +583,7 @@ main(int argc, char **argv)
   
   //------------------------------------------------------------ 
     
-  if (myid==0) cout << "Beginning SNR loop . . ." << flush;
+  if (myid==0) cout << "Beginning SNR loop . . ." << std::endl;
 
 
   double minSNR = ortho0.getMinSNR();
@@ -682,7 +682,7 @@ main(int argc, char **argv)
 	break;
       }
 				// Start a new bunch?
-      if (icnt % nbunch1 == 0) ibnch++;
+      if (icnt > 0 and icnt % nbunch1 == 0) ibnch++;
       
 				// Particle accumulation
       if (icnt++ % numprocs == myid) {
@@ -708,7 +708,7 @@ main(int argc, char **argv)
 
 	for (int j=0; j<coefs.size(); j++) {
 	  if (DD[ibnch]>0.0 and DD[j]>0.0) {
-	    KL[j] += p->mass() * log(DD[ibnch]/DD[j]);
+	    KL[ibnch] += p->mass() * log(DD[ibnch]/DD[j]);
 	    good++;
 	  } else {
 	    bad++;
@@ -736,18 +736,19 @@ main(int argc, char **argv)
 	      MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (myid==0) {
-      std::cout << "Good/bad density counts ["
-		<< good << "/" << bad << "]" << std::endl;
+      double ratio = static_cast<double>(bad)/good;
+      std::cout << std::endl << "Bad/good density counts ["
+		<< bad << "/" << good << "=" << ratio << "]" << std::endl;
 
       MPI_Reduce(MPI_IN_PLACE, KL.data(), coefs.size(),
 		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
       out << std::setw(18) << snr << std::setw(18)
 	  << std::accumulate(KL.begin(), KL.end(), 0.0)
+	  << std::setw(18) << ratio
 	  << std::endl;
     }
 
-    if (myid==0) std::cout << "done" << endl;
   }
   // END: SNR loop
       
