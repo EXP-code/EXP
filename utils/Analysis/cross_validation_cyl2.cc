@@ -975,7 +975,7 @@ main(int argc, char **argv)
     if (maxSNR < minSNR )  minSNR = maxSNR * 1.0e-2;
 
     if (vm.count("minSNR")) {
-      if (minSNR > minSNR0)  minSNR = minSNR0;
+      if (minSNR < minSNR0)  minSNR = minSNR0;
     }
     
     if (LOG) {
