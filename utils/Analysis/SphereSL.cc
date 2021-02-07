@@ -456,7 +456,9 @@ Matrix SphereSL::get_trimmed(double snr, bool Hall)
 
     const int minSize = 600;
     int ndupX = 1, ndupY = 1;
-
+				// Sanity check
+    NEV = std::min<int>(NEV, nmax);
+    
     for (int L=0; L<=lmax; L++) {
 
       int esize = (L+1)*nmax;
