@@ -597,7 +597,7 @@ main(int argc, char **argv)
   if (maxSNR < minSNR )  minSNR = maxSNR * 1.0e-2;
 
   if (vm.count("minSNR")) {
-    if (minSNR > minSNR0)  minSNR = minSNR0;
+    if (minSNR < minSNR0)  minSNR = minSNR0;
   }
   
   if (LOG) {
@@ -634,13 +634,13 @@ main(int argc, char **argv)
     if (myid==0) {
       std::cout << "Computing SNR=" << snr;
       if (Hall) std::cout << " using Hall smoothing . . . " << std::endl;
-      else      std::cout << " using truncation . . . " << std::endl;
+      else      std::cout << " using truncation . . . "     << std::endl;
     }
     
     // Get the snr trimmed coefficients
     //
     if (myid==0) {
-      std::cout << "Trimming coefficients . . ." << std::endl;
+      std::cout << std::endl << "Trimming coefficients . . ." << std::endl;
       progress = boost::make_shared<boost::progress_display>(coefs.size());
     }
 
