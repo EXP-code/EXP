@@ -70,8 +70,13 @@ void BadnellData::initialize(atomicData* ad)
     }
     catch (scandirpp::ScandirException& error) {
       std::cout << "Scandir error: " << error.what() << std::endl;
-      std::cout << "[RR] file not found: "
-		<< datapath + "RR/" + names[0] << std::endl;
+      if (names.size()) {
+	std::cout << "[RR] file not found: "
+		  << datapath + "RR/" + names[0] << std::endl;
+      } else {
+	std::cout << "No [RR] files found: "
+		  << datapath + "RR/"<< std::endl;
+      }
       MPI_Finalize();
       exit(32);
     }
