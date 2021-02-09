@@ -10297,7 +10297,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // radiative loss from the incoming electron and the loss
 	  // from changing the state of the ion
 	  //
-	  double Edel = (iE1 - iE2) * wEta;
+	  double Edel = 0.0;
+
+	  if (!newRecombAlg) Edel = (iE1 - iE2) * wEta;
 
 	  // This is the negative KE energy in change in the ion's
 	  // electron
@@ -10311,8 +10313,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  printf("Recombine[2]: W=%e E=%e eV=%e sys=%e\n", wEta, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
 #endif
 	  // Electron KE radiated in recombination
-
-	  Echg = iE1 * wEta;
+	  //
+	  if (newRecombAlg) Echg = iE2 * wEta;
+	  else              Echg = iE1 * wEta;
 
 	  double eE = Echg / eV;
 
@@ -10426,7 +10429,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // radiative loss from the incoming electron and the loss
 	  // from changing the state of the ion
 	  //
-	  double Edel = (iE2 - iE1) * wEta;
+	  double Edel = 0.0;
+
+	  if (!newRecombAlg) Edel = (iE2 - iE1) * wEta;
 
 	  // This is the negative KE energy in change in the ion's
 	  // electron
@@ -10441,7 +10446,8 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 #endif
 	  // Electron KE fraction in recombination
 	  //
-	  Echg = iE2 * wEta;
+	  if (newRecombAlg) Echg = iE1 * wEta;
+	  else              Echg = iE2 * wEta;
 	  
 	  double eE = Echg / eV;
 
