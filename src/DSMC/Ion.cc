@@ -1903,10 +1903,16 @@ void atomicData::GauntFF::initialize()
   }
   
   std::ifstream in(datapath + "gauntff_nonav.dat");
-  unsigned row=0;
-  while (in and row < nw) {
-    std::string line;
+  unsigned row=0; nw = 0;
+
+  while (in) {
+    // Skip first time
+    //
+    if (row>0 and row >= nw) break;
+
     // Read header
+    //
+    std::string line;
     std::getline(in, line);
 
     if (line.find('#') != std::string::npos) {
