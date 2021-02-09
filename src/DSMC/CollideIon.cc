@@ -1820,7 +1820,7 @@ void CollideIon::initialize_cell
 
 
     // Ion charge
-    double Qi  = densEtot/densQtot;
+    double Qi  = densQtot>0 ? densEtot/densQtot : 0.0;
     double Qi2 = Qi*Qi;
 
     // Electron charge
