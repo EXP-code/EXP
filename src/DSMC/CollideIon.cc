@@ -2300,7 +2300,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
       // END: Hybrid
       else if (aType==Trace) {
 	
-	PairXC IIxc(p1, p2, 0.0);
+	PairXC IIxc  (p1, p2, 0.0);
 	PairXC IExc12(p1, p2, 0.0);
 	PairXC IExc21(p2, p1, 0.0);
 
@@ -4379,7 +4379,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       //  +--- Ion is charged
       //  |
       //  v
-      if (P1>0 and K2==NTC::electron and etaP2[id]>0.0) {
+      if (P1>0 and K2==NTC::electron and etaP1[id]>0.0) {
 
 	double              ke = std::max<double>(kE1s[id], FloorEv);
 	std::vector<double> RE = ad.IonList[Q1]->radRecombCross(ke, id);
@@ -4427,7 +4427,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       //  +--- Ion is charged
       //  |
       //  v
-      if (P2>0 and K1==NTC::electron and etaP1[id]>0.0) {
+      if (P2>0 and K1==NTC::electron and etaP2[id]>0.0) {
       
 	double              ke = std::max<double>(kE2s[id], FloorEv);
 	std::vector<double> RE = ad.IonList[Q2]->radRecombCross(ke, id);
@@ -11316,7 +11316,10 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
   // Compute mean number of particles
   //
   double meanW  = 0.0;
-  double deferE = 0.0;		// Accmulated deferred energy change
+
+  // Accmulated deferred energy change for all interactions
+  //
+  double deferE = 0.0;		
 
   for (auto b : c->bods) {
 
@@ -11348,7 +11351,7 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
     // Select for fractional scatter at random, if we can defer
     // inelastic energy change.  Otherwise, stick with n_p rounded up.
     //
-    if (use_cons>=0 and (*unit)() > dn_p - n_p) {
+    if (use_cons>=0 and (*unit)() < static_cast<double>(n_p) - dn_p) {
       deferE += std::get<1>(v.second);
       n_p--;
     }
@@ -11455,8 +11458,11 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
       }
 
       // Energy in COM
+      //
       double kE = 0.5*WW*mu*vi;
-				// Energy reduced by loss
+
+      // Energy reduced by loss
+      //
       double totE = kE - dE;
       double vfac = 0.0;
       
@@ -11523,6 +11529,10 @@ void CollideIon::scatterTrace
   if (NO_HSCAT) return;
 
   if (pp->W2 == 0.0) return;
+
+  // pp->W1 is ion number
+  // pp->q  is the ratio of the number fraction in the two ions
+  // W      is the probability of interaction
 
   if (pp->P == Pord::ion_ion)
     {
