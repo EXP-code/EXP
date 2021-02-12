@@ -40,7 +40,7 @@ private:
     return x;
   }
 
-  const double tau_i = 0.0001, tau_f = 4.0, tau_z = 40.0;
+  const double tau_i = 0.0001, tau_m = 1.0e-8, tau_f = 4.0, tau_z = 40.0;
   const int numT = 2000;
   std::vector<double> cT, cA;
 
@@ -63,9 +63,10 @@ public:
   //! Evaluate A given tau
   double eval(double tau)
   {
-    if      (tau <= tau_i) return 1.0/(2.0*tau);
-    else if (tau >= tau_z) return 0.0;
+    if      (tau >= tau_z) return 0.0;
     else if (tau >= tau_f) return 3.0*exp(-2.0*tau);
+    else if (tau <= tau_m) return 1.0/(2.0*tau_m);
+    else if (tau <= tau_i) return 1.0/(2.0*tau);
     else {
       auto it    = std::lower_bound(cT.begin(), cT.end(), tau);
       int indx   = std::distance(cT.begin(), it);
