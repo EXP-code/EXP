@@ -11348,7 +11348,7 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
     // Select for fractional scatter at random, if we can defer
     // inelastic energy change.  Otherwise, stick with n_p rounded up.
     //
-    if (use_cons>=0 and (*unit)() > dn_p - n_p) {
+    if (use_cons>=0 and (*unit)() < static_cast<double>(n_p) - dn_p) {
       deferE += std::get<1>(v.second);
       n_p--;
     }

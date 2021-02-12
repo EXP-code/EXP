@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/modules/apps/miniconda/4.8.3/bin/python
 
 # libtoolish hack: compile a .cu file like libtool does
 
