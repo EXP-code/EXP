@@ -11891,7 +11891,7 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 
       auto pp = PP[l];
 
-      double KE = 0.0, Pa = 1.0, Pb = 1.0;
+      double KE = 0.0;
 
       // Neutrality rejection
       //
@@ -11909,9 +11909,9 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 	double ww2 = PP[0]->frc2 * PP[0]->W2;
 	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
 	if (ww1 > ww2) {
-	  if ( (*unit)() > ww2/ww1 ) Pb = 0.0;
+	  if ( (*unit)() > ww2/ww1 ) continue;
 	} else {
-	  if ( (*unit)() > ww1/ww2 ) Pa = 0.0;
+	  if ( (*unit)() > ww1/ww2 ) continue;
 	}
 
 	for (int k=0; k<3; k++) {
@@ -11929,9 +11929,9 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 	double ww2 = PP[1]->eta2 * PP[1]->W2;
 	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
 	if (ww1 > ww2) {
-	  if ( (*unit)() > ww2/ww1 ) Pb = 0.0;
+	  if ( (*unit)() > ww2/ww1 ) continue;
 	} else {
-	  if ( (*unit)() > ww1/ww2 ) Pa = 0.0;
+	  if ( (*unit)() > ww1/ww2 ) continue;
 	}
 
 	for (int k=0; k<3; k++) {
@@ -11949,9 +11949,9 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 	double ww2 = PP[2]->frc2 * PP[2]->W2;
 	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
 	if (ww1 > ww2) {
-	  if ( (*unit)() > ww2/ww1 ) Pb = 0.0;
+	  if ( (*unit)() > ww2/ww1 ) continue;
 	} else {
-	  if ( (*unit)() > ww1/ww2 ) Pa = 0.0;
+	  if ( (*unit)() > ww1/ww2 ) continue;
 	}
 
 	for (int k=0; k<3; k++) {
@@ -11969,9 +11969,9 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 	double ww2 = PP[3]->eta2 * PP[3]->W2;
 	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
 	if (ww1 > ww2) {
-	  if ( (*unit)() > ww2/ww1 ) Pb = 0.0;
+	  if ( (*unit)() > ww2/ww1 ) continue;
 	} else {
-	  if ( (*unit)() > ww1/ww2 ) Pa = 0.0;
+	  if ( (*unit)() > ww1/ww2 ) continue;
 	}
 
 	for (int k=0; k<3; k++) {
@@ -11994,6 +11994,12 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
       double Q1 = pp->Q1;
       double Q2 = pp->Q2;
 	
+      // Check for electron and scale by charge to preserve total
+      // energy
+      //
+      if (m1 < 0.5) m1 *= pp->eta1;
+      if (m2 < 0.5) m2 *= pp->eta2;
+
       m1 = std::max<double>(m1, 1.0e-12); 
       m2 = std::max<double>(m2, 1.0e-12); 
 
@@ -12057,8 +12063,8 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 	//
 
 	for (size_t k=0; k<3; k++) {
-	  v1[k] = (1.0 - Pa)*v1[k] + Pa*(vcom[k] + m2/mt*vrel[k]);
-	  v2[k] = (1.0 - Pb)*v2[k] + Pb*(vcom[k] - m1/mt*vrel[k]);
+	  v1[k] = vcom[k] + m2/mt*vrel[k];
+	  v2[k] = vcom[k] - m1/mt*vrel[k];
 	}
     
 	if (pp->swap) zswap(v1, v2);
