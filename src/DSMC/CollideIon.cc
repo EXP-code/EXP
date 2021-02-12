@@ -31,7 +31,7 @@
 // Version info
 //
 #define NAME_ID    "CollideIon"
-#define VERSION_ID "0.44 [07/16/20 recomb exact]"
+#define VERSION_ID "0.45 [12/16/20 Badnell xc]"
 
 using namespace std;
 using namespace NTC;
@@ -11432,7 +11432,7 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
       if (v.first == AccumType::ion_ion) {
 	for (int k=0; k<3; k++) v2[k] = p2->vel[k];
       }
-      // Particle  is Electron
+      // Particle 2 is Electron
       else {			
 	m2 = atomic_weights[0];
 	for (int k=0; k<3; k++) v2[k] = p2->dattrib[use_elec+k];
@@ -11503,7 +11503,7 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
       if (v.first == AccumType::ion_ion) {
 	for (int k=0; k<3; k++) p2->vel[k] = v2[k];
       }
-      // Particle 1 is Electron
+      // Particle 2 is Electron
       else {
 	for (int k=0; k<3; k++) p2->dattrib[use_elec+k] = v2[k];
       }
