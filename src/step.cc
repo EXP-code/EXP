@@ -25,9 +25,9 @@
 
 static Timer timer_coef, timer_drift, timer_vel;
 static Timer timer_pot , timer_adj  , timer_tot;
+static Timer timer_cuda;
 
 static unsigned tskip = 1;
-static bool timing = false;
 
 inline void check_bad(const char *msg)
 {
@@ -55,7 +55,7 @@ void do_step(int n)
 
   // Turn on step timers or VERBOSE level 4 or greater
   //
-  if (VERBOSE>3) timing = true;
+  if (VERBOSE>3) step_timing = true;
 
   //========================
   // Advance using leapfrog 
@@ -68,7 +68,7 @@ void do_step(int n)
 
   check_bad("before multistep");
 
-  if (timing) timer_tot.start();
+  if (step_timing) timer_tot.start();
 
   // set up CUDA tracer
   nvTracerPtr tPtr;
@@ -81,9 +81,9 @@ void do_step(int n)
 
 				// COM update:
 				// First velocity half-kick
-    if (timing) timer_vel.start();
+    if (step_timing) timer_vel.start();
     incr_com_velocity(0.5*dtime); 
-    if (timing) timer_vel.stop();
+    if (step_timing) timer_vel.stop();
 
 #ifdef CHK_STEP
     vector<double> pos_check(multistep+1);
@@ -112,12 +112,12 @@ void do_step(int n)
 	if (cuda_prof) {
 	  tPtr2 = nvTracerPtr(new nvTracer("Velocity kick [1]"));
 	}
-	if (timing) timer_vel.start();
+	if (step_timing) timer_vel.start();
 	incr_velocity(0.5*DT, M);
 #ifdef CHK_STEP
 	vel_check[M] += 0.5*DT;
 #endif
-	if (timing) timer_vel.stop();
+	if (step_timing) timer_vel.stop();
 
 	check_bad("after incr_vel", M);
 
@@ -128,12 +128,12 @@ void do_step(int n)
 	  tPtr2.reset();
 	  tPtr2 = nvTracerPtr(new nvTracer("Drift"));
 	}
-	if (timing) timer_drift.start();
+	if (step_timing) timer_drift.start();
 	incr_position(DT, M);
 #ifdef CHK_STEP
 	pos_check[M] += DT;
 #endif
-	if (timing) timer_drift.stop();
+	if (step_timing) timer_drift.stop();
 
 	check_bad("after incr_pos", M);
 
@@ -145,22 +145,22 @@ void do_step(int n)
 	  tPtr2.reset();
 	  tPtr2 = nvTracerPtr(new nvTracer("Expansion"));
 	}
-	if (timing) timer_coef.start();
+	if (step_timing) timer_coef.start();
 	comp->compute_expansion(M);
-	if (timing) timer_coef.stop();
+	if (step_timing) timer_coef.stop();
       }
       
 				// COM update:
 				// Position drift
-      if (timing) timer_drift.start();
+      if (step_timing) timer_drift.start();
       incr_com_position(dt);
-      if (timing) timer_drift.stop();
+      if (step_timing) timer_drift.stop();
 
 				// Compute potential for all the
 				// particles active at this step
       nvTracerPtr tPtr1;
       if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Potential"));
-      if (timing) timer_pot.start();
+      if (step_timing) timer_pot.start();
       {
 	double tlast = tnow;	// Time before current step
 				// Time at the end of the drift
@@ -169,7 +169,7 @@ void do_step(int n)
 	comp->compute_potential(mfirst[mstep]);
 	tstp  = tlast;		// Restore time to beginning of step
       }
-      if (timing) timer_pot.stop();
+      if (step_timing) timer_pot.stop();
 
       check_bad("after compute_potential");
 
@@ -182,14 +182,14 @@ void do_step(int n)
 	tPtr1.reset();
 	tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [2]"));
       }
-      if (timing) timer_vel.start();
+      if (step_timing) timer_vel.start();
       for (int M=mfirst[mstep]; M<=multistep; M++) {
 	incr_velocity(0.5*dt*mintvl[M], M);
 #ifdef CHK_STEP
 	vel_check[M] += 0.5*dt*mintvl[M];
 #endif
       }
-      if (timing) timer_vel.stop();
+      if (step_timing) timer_vel.stop();
 
       check_bad("after multistep advance");
 				// DEBUG
@@ -198,17 +198,17 @@ void do_step(int n)
 #endif
       if (mstep==0) {
 				// Do particles at top level
-	if (timing) timer_adj.start();
+	if (step_timing) timer_adj.start();
 	adjust_multistep_level(true);
-	if (timing) timer_adj.stop();
+	if (step_timing) timer_adj.stop();
 	
 				// Print the level lists
 	comp->print_level_lists(tnow);
       } else {
 				// Do particles at lower levels
-	if (timing) timer_adj.start();
+	if (step_timing) timer_adj.start();
 	adjust_multistep_level(false);
-	if (timing) timer_adj.stop();
+	if (step_timing) timer_adj.stop();
 
       }
 
@@ -227,9 +227,9 @@ void do_step(int n)
 
 				// COM update:
 				// Second velocity half-kick
-    if (timing) timer_vel.start();
+    if (step_timing) timer_vel.start();
     incr_com_velocity(0.5*dtime);
-    if (timing) timer_vel.stop();
+    if (step_timing) timer_vel.stop();
 
 #ifdef CHK_STEP
 				// Check steps
@@ -261,42 +261,42 @@ void do_step(int n)
 				// Velocity by 1/2 step
     nvTracerPtr tPtr1;
     if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [1]"));
-    if (timing) timer_vel.start();
+    if (step_timing) timer_vel.start();
     incr_velocity(0.5*dtime);
     incr_com_velocity(0.5*dtime);
-    if (timing) timer_vel.stop();
+    if (step_timing) timer_vel.stop();
 				// Position by whole step
     if (cuda_prof) {
       tPtr1.reset();
       tPtr1 = nvTracerPtr(new nvTracer("Drift"));
     }
-    if (timing) timer_drift.start();
+    if (step_timing) timer_drift.start();
     incr_position(dtime);
     incr_com_position(dtime);
-    if (timing) timer_drift.stop();
+    if (step_timing) timer_drift.stop();
 
 				// Compute coefficients
-    if (timing) timer_coef.start();
+    if (step_timing) timer_coef.start();
     comp->compute_expansion(0);
-    if (timing) timer_coef.stop();
+    if (step_timing) timer_coef.stop();
 
 				// Compute acceleration
     if (cuda_prof) {
       tPtr1.reset();
       tPtr1 = nvTracerPtr(new nvTracer("Potential"));
     }
-    if (timing) timer_pot.start();
+    if (step_timing) timer_pot.start();
     comp->compute_potential();
-    if (timing) timer_pot.stop();
+    if (step_timing) timer_pot.stop();
 				// Velocity by 1/2 step
     if (cuda_prof) {
       tPtr1.reset();
       tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [2]"));
     }
-    if (timing) timer_vel.start();
+    if (step_timing) timer_vel.start();
     incr_velocity(0.5*dtime);
     incr_com_velocity(0.5*dtime);
-    if (timing) timer_vel.stop();
+    if (step_timing) timer_vel.stop();
 
                                  // Write output
     nvTracerPtr tPtr;
@@ -306,7 +306,7 @@ void do_step(int n)
   }
   // END: multistep=0 block
 
-  if (timing) timer_tot.stop();
+  if (step_timing) timer_tot.stop();
 
 				// Write output
   //nvTracerPtr tPtr;
@@ -324,7 +324,7 @@ void do_step(int n)
   comp->load_balance();
 
 				// Timer output
-  if (timing && this_step!=0 && (this_step % tskip) == 0) {
+  if (step_timing && this_step!=0 && (this_step % tskip) == 0) {
     if (myid==0) {
       std::cout << std::endl
 		<< std::setw(70) << std::setfill('-') << '-' << std::endl
@@ -342,6 +342,9 @@ void do_step(int n)
 		  << std::setw(18) << timer_coef.getTime() << std::endl
 		  << std::setw(20) << "Adjust: "
 		  << std::setw(18) << timer_adj.getTime() << std::endl;
+      if (use_cuda)
+	std::cout << std::setw(20) << "Cuda copy: "
+		  << std::setw(18) << comp->timer_cuda.getTime() << std::endl;
       std::cout << std::setw(20) << "Total: "
 		<< std::setw(18) << timer_tot.getTime() << std::endl
 		<< std::setw(70) << std::setfill('-') << '-' << std::endl
@@ -396,6 +399,7 @@ void do_step(int n)
     timer_pot  .reset();
     timer_adj  .reset();
     timer_tot  .reset();
+    if (use_cuda) comp->timer_cuda.reset();
   }
 
 #ifdef USE_GPTL

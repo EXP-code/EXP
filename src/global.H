@@ -139,6 +139,9 @@ extern int NICE;
 //! Output logging level
 extern int VERBOSE;
 
+//! Step timing
+extern bool step_timing;
+
 //! Times for each phase-space time slice (for Leap-Frog)
 extern double tnow;
 

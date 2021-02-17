@@ -28,6 +28,8 @@ bool restart = false;		// Restart from a checkpoint
 bool use_cwd = false;		// Use Node 0's current working directory on all nodes
 int NICE = 0;			// Niceness level (default: 0)
 int VERBOSE = 1;		// Chattiness for standard output
+bool step_timing = false;	// Time parts of the step (set true by
+				// DEFAULT>3)
 bool initializing = false;	// Used by force methods to do "private things"
 				// before the first step (e.g. run through
 				// coefficient evaluations even when
