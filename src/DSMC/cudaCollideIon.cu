@@ -1964,7 +1964,7 @@ void CollideIon::cuda_initialize()
 
   // Coulombic velocity selection
   //
-  cuFP_t tau_i = 0.0001, tau_f = 4.0, tau_z = 40.0;
+  cuFP_t tau_i = 0.0001, tau_m = 1.0e-8, tau_f = 4.0, tau_z = 40.0;
   std::vector<cuFP_t> hA(coulSelNumT);
 
   cuFP_t del = (log(tau_f) - log(tau_i))/(coulSelNumT-1);
@@ -2156,26 +2156,6 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
     cuFP_t crm1[3], crm2[3];
     for (int k=0; k<3; k++) crm1[k] = crm2[k] = 0.0;
 
-    // Compute mean number of particles
-    //
-    double meanW  = 0.0;
-    
-    double Imu=0.0;
-    for (auto s : SpList) {
-      Imu += p->dattrib[s.second] / atomic_weights[s.first.first];
-    }
-    meanW += p->mass*Imu;
-    
-    if (use_cons>=0) {
-      deferE += p->dattrib[use_cons];
-      p->dattrib[use_cons] = 0.0;
-    }
-  }
-
-  meanW /= nbods;
-
-
-
     for (size_t i=0; i<nbods; i++) {
 	
       // Sanity check
@@ -2192,7 +2172,8 @@ __global__ void cellInitKernel(dArray<cudaParticle> in,    // Particles (all act
       
       // Mass-weighted trace fraction
       // [Iterate through all Trace ionization states]
-      cuFP_t ee = 0.0, Imu = 0.0;
+      cuFP_t ee = 0.0;
+
       for (int k=0; k<elems._s; k++) {
 	cuIonElement* E = &elems._v[k];
 	
@@ -2471,8 +2452,8 @@ void setupCrossSection(dArray<cudaParticle>   in,      // Particle array
     Einfo->kEi   = kEi;
     Einfo->kEe1  = kEe1;
     Einfo->kEe2  = kEe2;
-    Einfo->kEs1  = kEs1;
-    Einfo->kEs2  = kEs2;
+    Einfo->kE1s  = kE1s;
+    Einfo->kE2s  = kE2s;
 
     cuFP_t kfac  = 0.5 * cuda_atomic_weights[0] * cuVunit*cuVunit*amu/eV;
     Einfo->iE1   = eKE1 * kfac;
@@ -3443,7 +3424,7 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
     cudaParticle* p2 = &in._v[i2];
 
     cuFP_t Eta1 = 0.0, Eta2 = 0.0, Sum1 = 0.0, Sum2 = 0.0;
-    cuFP_t Frc1 = 0.0, Frc2 = 0.0, nab[4];
+    cuFP_t Frc1 = 0.0, Frc2 = 0.0;
 
     for (int k=0; k<Nsp; k++) {
       cuIonElement& E = elems._v[k];
@@ -3532,13 +3513,10 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
     cudaParticle* p1 = &in._v[i1];
     cudaParticle* p2 = &in._v[i2];
 
-    // Particle masses
+    // Particle quantities
     //
-    cuFP_t m1 = cuda_atomic_weights[E.Z] * amu;
-    cuFP_t m2 = cuda_atomic_weights[E.Z] * amu;
-
     cuFP_t Eta1 = 0.0, Eta2 = 0.0, Sum1 = 0.0, Sum2 = 0.0;
-    cuFP_t Frc1 = 0.0, Frc2 = 0.0, nab[4];
+    cuFP_t Frc1 = 0.0, Frc2 = 0.0;
 
     for (int k=0; k<Nsp; k++) {
       cuIonElement& E = elems._v[k];
@@ -3550,7 +3528,7 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
       // Charged fraction
       if (E.C>1) {
 	Frc1 += p1->datr[E.I+cuSp0];
-	Frc2 += p2->datr[E.I+cuSp0]
+	Frc2 += p2->datr[E.I+cuSp0];
       }
 
       // Electron number fraction
@@ -3593,7 +3571,7 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
 
     for (int l=0; l<4; l++) {
 
-      cuFP_t ww1, ww2;
+      cuFP_t ww1, ww2, KE = 0.0;
       cuFP_t m1 = Mu1, m2 = Mu2;
 
       // Neutrality rejection
@@ -3631,10 +3609,16 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
 	ww1 = Frc1 * W1;
 	ww2 = Frc2 * W2;
 	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
+
+#if cuREAL == 4
+	cuFP_t rn = curand_uniform(state);
+#else
+	cuFP_t rn = curand_uniform_double(state);
+#endif
 	if (ww1 > ww2) {
-	  if ( (*unit)() > ww2/ww1 ) continue;
+	  if ( rn > ww2/ww1 ) continue;
 	} else {
-	  if ( (*unit)() > ww1/ww2 ) continue;
+	  if ( rn > ww1/ww2 ) continue;
 	}
 
 	for (int k=0; k<3; k++) {
@@ -3653,10 +3637,15 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
 	ww1 = Eta1 * W1;
 	ww2 = Frc2 * W2;
 	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
+#if cuREAL == 4
+	cuFP_t rn = curand_uniform(state);
+#else
+	cuFP_t rn = curand_uniform_double(state);
+#endif
 	if (ww1 > ww2) {
-	  if ( curand_uniform(state) > ww2/ww1 ) continue;
+	  if ( rn > ww2/ww1 ) continue;
 	} else {
-	  if ( curand_uniform(state) > ww1/ww2 ) continue;
+	  if ( rn > ww1/ww2 ) continue;
 	}
 
 	for (int k=0; k<3; k++) {
@@ -3675,10 +3664,15 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
 	ww1 = Eta1 * W1;
 	ww2 = Eta2 * W2;
 	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
+#if cuREAL == 4
+	cuFP_t rn = curand_uniform(state);
+#else
+	cuFP_t rn = curand_uniform_double(state);
+#endif
 	if (ww1 > ww2) {
-	  if ( (*unit)() > ww2/ww1 ) continue;
+	  if ( rn > ww2/ww1 ) continue;
 	} else {
-	  if ( (*unit)() > ww1/ww2 ) continue;
+	  if ( rn > ww1/ww2 ) continue;
 	}
 
 	for (int k=0; k<3; k++) {
@@ -3856,15 +3850,15 @@ void computeEta(cuFP_t*                F,
   *Eta /= Sum;
 }
 
-__device__
 template <class T>
+__device__
 int xc_lower_bound (int first, int last, int c, dArray<cudaPairIntr> pairs,
 		    const T& val)
 {
   int count = last - first, step, cur;
   while (count>0)
   {
-    cur  = *first;
+    cur  = first;
     step = count/2;
     cur += step;
     if (pairs._v[cur].xcvp[c]<val) {
@@ -3919,7 +3913,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
   // Energy return info
   //
   cuEnergyInfo EI;
-  cuFP_t Mue = cuda_atomic_weights[0];
+  // cuFP_t Mue = cuda_atomic_weights[0];
   
   // Cell loop with grid stride
   //
@@ -3965,8 +3959,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
     
     enum AccumType {ion_ion, ion_electron};
     enum AccumValu {count, energy};
-
-    cuFP_t double accum[2][2] = {0.0, 0.0, 0.0, 0.0};
+    
+    cuFP_t accum[2][2] = {0.0, 0.0, 0.0, 0.0};
 
     // Zero the pair data
     //
@@ -3977,14 +3971,21 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       pairs._v[n0+i].xcvp[1] = 0.0;
     }
 
-    double IEadjust = 0.0;
+    double IEadjust = 0.0, numbP = 0.0;
 
     // Pair-wise cross-section loop
     //
     for (size_t i=0; i<nbods; i++) {
       
-      mtotal += in._v[n0+i].mass;
+      cuFP_t mass = in._v[n0+i].mass;
+      mtotal += mass;
       
+      for (int k=0; k<elems._s; k++) {
+	cuIonElement* E = &elems._v[k];
+	cuFP_t ww       = in._v[n0+i].datr[E->I + cuSp0]/cuda_atomic_weights[E->Z];
+	numbP += mass * ww;
+      }
+
       for (size_t j=i+1; j<nbods; j++) {
 	
 	setupCrossSection(in, elems, cid, n0+i, n0+j, state, &EI);
@@ -4214,21 +4215,16 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  if (W1>W2) N0 *= W2;
 	  else       N0 *= W1;
 
-	  int cid = -1;
-
 	  if (J2.sp == cuElectron and
 	      J1.sp != cuElectron) {
-	    cid = 1;
 	    Prob = p1->datr[J1.I+cuSp0] * EI.Eta2;
 	  }
 	  else if (J1.sp == cuElectron and
 		   J2.sp != cuElectron) {
-	    cid = 2;
 	    Prob = p2->datr[J2.I+cuSp0] * EI.Eta1;
 	  }
 	  else if (J1.sp != cuElectron and
 		   J2.sp != cuElectron) {
-	    cid = 0;
 	    Prob = p1->datr[J1.I+cuSp0] * p2->datr[J2.I+cuSp0];
 	  }
 	  else if (J1.sp == cuElectron and
@@ -4333,7 +4329,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 		pairs._v[n1].Mu2 [0] = EI.Mu2;
 		pairs._v[n1].Eta2[0] = EI.Eta2;
 	      }
-	      pairs._v[n1].xc[0] += weight;
+	      pairs._v[n1].xcvp[0] += weight;
 	    }
 	  }
 	  
@@ -4684,10 +4680,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 		pairs._v[n1].pair[1] = n2;
 		pairs._v[n1].xcvp[1] = weight;
 		pairs._v[n1].xcmx[1] = weight;
-		pairs._v[n1].Mu1 [1]  = EI.Mu1;
-		pairs._v[n1].Mu2 [1]  = EI.Mu2;
-		pairs._v[n1].Eta1[1]  = EI.Eta1;
-		pairs._v[n1].Eta2[1]  = EI.Eta2;
+		pairs._v[n1].Mu1     = EI.Mu1;
+		pairs._v[n1].Mu2 [1] = EI.Mu2;
+		pairs._v[n1].Eta1    = EI.Eta1;
+		pairs._v[n1].Eta2[1] = EI.Eta2;
 	      } else {
 		if (weight > pairs._v[n1].xcmx[1]) {
 		  pairs._v[n1].pair[1] = n2;
@@ -4802,12 +4798,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  //
 	  IEadjust += (elecAdj[1] - elecAdj[0]) * N0;
 	  
-	  // Deferred energy
-	  //
-	  cuFP_t E1[2] = {0.0, 0.0};
-	  cuFP_t E2[2] = {0.0, 0.0};
-	  cuFP_t totE  = 0.0;
-	  
 	  // Recompute electron fraction from possibly new weights
 	  //
 	  {
@@ -4918,7 +4908,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
       // Number of pairs
       //
-      cuFP_t dn_p = v[0]/meanM;
+      cuFP_t dn_p = v[0]/numbP;
       int     n_p = std::ceil(dn_p);
 
       // Select for fractional scatter at random, if we can defer
@@ -4928,7 +4918,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       if (cuCons>=0 and curand_uniform(state) < static_cast<cuFP_t>(n_p) - dn_p) {
 #else
       if (cuCons>=0 and curand_uniform_double(state) < static_cast<double>(n_p) - dn_p) {
-#end
+#endif
 	deferE += v[1];
 	n_p--;
       }
@@ -4960,8 +4950,10 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	cudaParticle* p1 = &in._v[n1];
 	cudaParticle* p2 = &in._v[n2];
 
-	cuFP_t w1  = p1->mass/pairs._v[n1].Mu1;
-	cuFP_t w2  = p2->mass/pairs._v[n2].Mu2;
+	cuFP_t m1  = pairs._v[n1].Mu1;
+	cuFP_t m2  = pairs._v[n2].Mu2[itype];
+	cuFP_t w1  = p1->mass/m1;
+	cuFP_t w2  = p2->mass/m2;
 	cuFP_t W1  = w1;
 	cuFP_t W2  = w2;
 
@@ -4972,7 +4964,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	for (int k=0; k<3; k++) v1[k] = p1->vel[k];
 	
 	// Particle 2 is Ion
-	if (v.first == AccumType::ion_ion) {
+	if (itype == AccumType::ion_ion) {
 	  for (int k=0; k<3; k++) v2[k] = p2->vel[k];
 	}
 	// Particle 2 is Electron
@@ -4991,7 +4983,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       
 	// Set COM frame
 	//
-	std::vector<double> vcom(3), vrel(3);
+	cuFP_t vcom[] = {0.0, 0.0, 0.0};
+	cuFP_t vrel[] = {0.0, 0.0, 0.0};
 	double vi = 0.0;
 	
 	for (size_t k=0; k<3; k++) {
@@ -5043,12 +5036,12 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	for (int k=0; k<3; k++) p1->vel[k] = v1[k];
 				
 	// Particle 2 is Ion
-	if (v.first == AccumType::ion_ion) {
+	if (itype == AccumType::ion_ion) {
 	  for (int k=0; k<3; k++) p2->vel[k] = v2[k];
 	}
 	// Particle 2 is Electron
 	else {
-	  for (int k=0; k<3; k++) p2->dattrib[use_elec+k] = v2[k];
+	  for (int k=0; k<3; k++) p2->datr[cuElec+k] = v2[k];
 	}
       }
 
@@ -5395,7 +5388,7 @@ void * CollideIon::collide_thread_cuda(void * arg)
   
   thrust::device_vector<cuFP_t>       d_tauP(h_tauP);
   thrust::device_vector<cudaParticle> d_part(c0->host_particles);
-  thrust::device_vector<cudaPairIntr> d_pair(c0->host_particles);
+  thrust::device_vector<cudaPairIntr> d_pair(c0->host_particles.size());
   
   // Copy cell boundaries and counts to DEVICE
   //
