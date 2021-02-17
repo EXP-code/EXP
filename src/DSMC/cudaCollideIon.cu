@@ -4269,6 +4269,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      }
 	      pairs._v[n1].xcvp[0] += weight;
 	    }
+
 	  }
 	  
 	  if (T == neut_elec) {
@@ -4301,6 +4302,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      }
 	      pairs._v[n1].xcvp[0] += weight;
 	    }
+
 	  }
 	  
 	  if (T == neut_prot) {
@@ -4377,7 +4379,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      }
 	      pairs._v[n1].xcvp[1] += weight;
 	    }
-
 	  }
 	  
 	  if (T == col_excite) {
@@ -4421,7 +4422,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      }
 	      pairs._v[n1].xcvp[1] += weight;
 	    }
-
 	  } // END: col_excite
 	  
 	  if (T == col_ionize) {

@@ -130,6 +130,8 @@ void Component::CudaSortBySequence(Component::cuRingType cr)
 
 void Component::ParticlesToCuda(PartMap::iterator beg, PartMap::iterator fin)
 {
+  if (step_timing and use_cuda) comp->timer_cuda.start();
+
   auto npart = std::distance(beg, fin);
   
   if (host_particles.capacity()<npart) host_particles.reserve(npart);
@@ -139,6 +141,8 @@ void Component::ParticlesToCuda(PartMap::iterator beg, PartMap::iterator fin)
   for (auto pit=beg; pit!=fin; pit++) {
     ParticleHtoD(pit->second, *(hit++));
   }
+
+  if (step_timing and use_cuda) comp->timer_cuda.stop();
 }
 
 void Component::HostToDev(Component::cuRingType cr)
@@ -173,10 +177,14 @@ void Component::DevToHost(Component::cuRingType cr)
 
 void Component::CudaToParticles(hostPartItr beg, hostPartItr end)
 {
+  if (step_timing and use_cuda) comp->timer_cuda.start();
+
   for (hostPartItr v=beg; v!=end; v++) {
     cudaParticle & p = *v;
     ParticleDtoH(p, particles[p.indx]);
   }
+
+  if (step_timing and use_cuda) comp->timer_cuda.stop();
 }
 
 struct cudaZeroAcc : public thrust::unary_function<cudaParticle, cudaParticle>
