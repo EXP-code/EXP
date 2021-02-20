@@ -38,8 +38,7 @@ struct cudaPairIntr
   int    pair[2];
   cuFP_t xcvp[2];
   cuFP_t xcmx[2];
-  cuFP_t Mu1, Eta1;
-  cuFP_t Mu2[2], Eta2[2];
+  cuFP_t Mu1, Mu2[2], Eta2;
 };
 
 
@@ -2424,11 +2423,17 @@ void setupCrossSection(dArray<cudaParticle>   in,      // Particle array
   // Available COM energy
 
   cuFP_t kEi  = 0.5  * mu0 * vel * vel / eV;
+  cuFP_t kEe1 = 0.5  * mu1 * eVel2*eVel2 * vel*vel / eV;
+  cuFP_t kEe2 = 0.5  * mu2 * eVel1*eVel1 * vel*vel / eV;
+  cuFP_t kE1s = 0.5  * mu1 * sVel1*sVel1 * vel*vel / eV;
+  cuFP_t kE2s = 0.5  * mu2 * sVel2*sVel2 * vel*vel / eV;
+
+  /*
   cuFP_t kEe1 = 0.5  * mu1 * Eta2 * eVel2*eVel2 * vel*vel / eV;
   cuFP_t kEe2 = 0.5  * mu2 * Eta1 * eVel1*eVel1 * vel*vel / eV;
   cuFP_t kE1s = 0.5  * mu1 * Eta2 * sVel1*sVel1 * vel*vel / eV;
   cuFP_t kE2s = 0.5  * mu2 * Eta1 * sVel2*sVel2 * vel*vel / eV;
-
+  */
 	
   // Assign energy info for return
   //
@@ -2523,7 +2528,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
       printf("xsc: xnn=%e cv=%e\n", crs, crs*Einfo->vel);
 #endif
 #ifdef XC_DEEP4
-      printf("xsc: (Z, P)=(%d, %d) xnn=%e\n", J1->Z, J1->P, crs);
+      printf("xsc: (Z, P)=(%d, %d) xnn=%e\n", Z1, P1, crs);
 #endif
       // Double counting
       if (Z1 == Z2) crs *= 0.5;
@@ -2687,8 +2692,8 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	printf("xsc: xf=%e cv=%e\n", crs, crs*Einfo->vel);
 #endif
 #ifdef XC_DEEP4
-	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xf=%e dE=%e i=%d\n",
-	       Einfo->kEe1, Z1, C1, Einfo->eVel2, Einfo->Eta2, ff, ph, p1->indx);
+	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xf=%e dE=%e\n",
+	       Einfo->kEe1, Z1, C1, Einfo->eVel2, Einfo->Eta2, ff, ph);
 #endif
       }
     }
@@ -2714,8 +2719,8 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 	printf("xsc: xf=%e cv=%e\n", crs, crs*Einfo->vel);
 #endif
 #ifdef XC_DEEP4
-	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xf=%e dE=%e i=%d\n",
-	       Einfo->kEe2, Z1, C2, Einfo->eVel1, Einfo->Eta1, ff, ph, p2->indx);
+	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xf=%e dE=%e\n",
+	       Einfo->kEe2, Z1, C2, Einfo->eVel1, Einfo->Eta1, ff, ph);
 #endif
       }
     }
@@ -2744,6 +2749,8 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 
       computeColExcite(ke, ph, xc, elems, J1->k);
 	    
+      // printf("TEST: ke=%e xc=%e ph=%e\n", ke, xc, ph);
+
       crs = Einfo->eVel2 * xc;
 	    
       if (crs > 0.0) {
@@ -2753,7 +2760,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 #endif
 #ifdef XC_DEEP4
 	printf("xsc: kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e xc=%e dE=%e\n",
-	       ke, J1->Z, J1->C, Einfo->eVel2, Einfo->Eta2, xc, ph);
+	       ke, Z1, C1, Einfo->eVel2, Einfo->Eta2, xc, ph);
 #endif
       }
     }
@@ -2772,6 +2779,8 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 
       computeColExcite(ke, ph, xc, elems, J2->k);
 	    
+      // printf("TEST: ke=%e xc=%e ph=%e\n", ke, xc, ph);
+
       crs = Einfo->eVel1 * xc;
 	    
       if (crs > 0.0) {
@@ -2820,7 +2829,7 @@ cuFP_t singleCrossSection(dArray<cudaParticle>   in,      // Particle array
 #endif
 #ifdef XC_DEEP4
 	printf("xsc: [ie] kEe=%e (Z, P)=(%d, %d) gVel=%e eta=%e io=%e dE=%e\n",
-	       Einfo->kEe1, J1->Z, J1->C, Einfo->eVel2, Einfo->Eta2, xc, 0.0);
+	       Einfo->kEe1, Z1, C1, Einfo->eVel2, Einfo->Eta2, xc, 0.0);
 #endif
       }
     }
@@ -3468,7 +3477,7 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
 
 	na[0] += ww1;
 	if ((ww1>ww2 ? ww1 : ww2) > 0.0)
-	  nab[0] += ww2/(ww1>ww2 ? ww1 : ww2);
+	  nab[0] += ww1*ww2/(ww1>ww2 ? ww1 : ww2);
 
       } else if (l==1) {
 	ww1 = W1 * Frc1;
@@ -3476,7 +3485,7 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
 
 	na[1] += ww1;
 	if ((ww1>ww2 ? ww1 : ww2) > 0.0)
-	  nab[1] += ww2/(ww1>ww2 ? ww1 : ww2);
+	  nab[1] += ww1*ww2/(ww1>ww2 ? ww1 : ww2);
 
       } else if (l==2) {
 	ww1 = W1 * Eta1;
@@ -3484,7 +3493,7 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
 
 	na[2] += ww1;
 	if ((ww1>ww2 ? ww1 : ww2) > 0.0)
-	  nab[2] += ww2/(ww1>ww2 ? ww1 : ww2);
+	  nab[2] += ww1*ww2/(ww1>ww2 ? ww1 : ww2);
 
       } else {
 	ww1 = W1 * Eta1;
@@ -3492,7 +3501,7 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
 
 	na[3] += ww1;
 	if ((ww1>ww2 ? ww1 : ww2) > 0.0)
-	  nab[3] += ww2/(ww1>ww2 ? ww1 : ww2);
+	  nab[3] += ww1*ww2/(ww1>ww2 ? ww1 : ww2);
       }
     }
   }
@@ -3743,8 +3752,17 @@ void computeCoulombicScatter(dArray<cudaParticle>   in,
       if (kE>0.0) {
 	// Assign interaction energy variables
 	//
+	// printf("nab[%d]=%e na[%d]=%e rat=%f\n", l, nab[l], l, na[l], nab[l]/na[l]);
 	cudaCoulombVector(vrel, tau*nab[l]/na[l], state);
 	
+	// Sanity check
+	//
+	cuFP_t ncheck = 0.0;
+	for (int k=0; k<3; k++) ncheck += vrel[k]*vrel[k];
+	if ( fabs(ncheck-1.0) > 1.0e-14) {
+	  printf("Norm check error=%e\n", ncheck - 1.0);
+	}
+
 	vi   = sqrt(vi);
 	for (size_t k=0; k<3; k++) vrel[k] *= vi;
 	//                                    ^
@@ -4075,10 +4093,12 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
       if (xcvelmax <= 0.0) continue;
 
       // Interaction probability
+      //
       cuFP_t Prob  = mtotal/vol * cuMunit/amu *
 	spTau._v[cid] * xcvelmax * 1e-14 / (cuLunit*cuLunit);
 
       // Number of interaction candidate pairs
+      //
       cuFP_t nsel = Prob * (nbods-1);
       
       if (J1.sp == J2.sp) nsel *= 0.5;
@@ -4254,14 +4274,11 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      pairs._v[n1].xcmx[0] = weight;
 	      pairs._v[n1].Mu1     = EI.Mu1;
 	      pairs._v[n1].Mu2 [0] = EI.Mu2;
-	      pairs._v[n1].Eta1    = EI.Eta1;
-	      pairs._v[n1].Eta2[0] = EI.Eta2;
 	    } else {
 	      if (weight > pairs._v[n1].xcmx[0]) {
 		pairs._v[n1].pair[0] = n2;
 		pairs._v[n1].xcmx[0] = weight;
 		pairs._v[n1].Mu2 [0] = EI.Mu2;
-		pairs._v[n1].Eta2[0] = EI.Eta2;
 	      }
 	      pairs._v[n1].xcvp[0] += weight;
 	    }
@@ -4287,14 +4304,11 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      pairs._v[n1].xcmx[0] = weight;
 	      pairs._v[n1].Mu1     = EI.Mu1;
 	      pairs._v[n1].Mu2 [0] = EI.Mu2;
-	      pairs._v[n1].Eta1    = EI.Eta1;
-	      pairs._v[n1].Eta2[0] = EI.Eta2;
 	    } else {
 	      if (weight > pairs._v[n1].xcmx[0]) {
 		pairs._v[n1].pair[0] = n2;
 		pairs._v[n1].xcmx[0] = weight;
 		pairs._v[n1].Mu2 [0] = EI.Mu2;
-		pairs._v[n1].Eta2[0] = EI.Eta2;
 	      }
 	      pairs._v[n1].xcvp[0] += weight;
 	    }
@@ -4320,14 +4334,11 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      pairs._v[n1].xcmx[0] = weight;
 	      pairs._v[n1].Mu1     = EI.Mu1;
 	      pairs._v[n1].Mu2 [0] = EI.Mu2;
-	      pairs._v[n1].Eta1    = EI.Eta1;
-	      pairs._v[n1].Eta2[0] = EI.Eta2;
 	    } else {
 	      if (weight > pairs._v[n1].xcmx[0]) {
 		pairs._v[n1].pair[0] = n2;
 		pairs._v[n1].xcmx[0] = weight;
 		pairs._v[n1].Mu2 [0] = EI.Mu2;
-		pairs._v[n1].Eta2[0] = EI.Eta2;
 	      }
 	      pairs._v[n1].xcvp[0] += weight;
 	    }
@@ -4364,14 +4375,13 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      pairs._v[n1].xcmx[1] = weight;
 	      pairs._v[n1].Mu1     = EI.Mu1;
 	      pairs._v[n1].Mu2 [1] = EI.Mu2;
-	      pairs._v[n1].Eta1    = EI.Eta1;
-	      pairs._v[n1].Eta2[1] = EI.Eta2;
+	      pairs._v[n1].Eta2    = EI.Eta2;
 	    } else {
 	      if (weight > pairs._v[n1].xcmx[1]) {
 		pairs._v[n1].pair[1] = n2;
 		pairs._v[n1].xcmx[1] = weight;
 		pairs._v[n1].Mu2 [1] = EI.Mu2;
-		pairs._v[n1].Eta2[1] = EI.Eta2;
+		pairs._v[n1].Eta2    = EI.Eta2;
 	      }
 	      pairs._v[n1].xcvp[1] += weight;
 	    }
@@ -4406,15 +4416,14 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	      pairs._v[n1].xcvp[1] = weight;
 	      pairs._v[n1].xcmx[1] = weight;
 	      pairs._v[n1].Mu1     = EI.Mu1;
-	      pairs._v[n1].Mu2 [1]  = EI.Mu2;
-	      pairs._v[n1].Eta1     = EI.Eta1;
-	      pairs._v[n1].Eta2[1]  = EI.Eta2;
+	      pairs._v[n1].Mu2 [1] = EI.Mu2;
+	      pairs._v[n1].Eta2    = EI.Eta2;
 	    } else {
 	      if (weight > pairs._v[n1].xcmx[1]) {
 		pairs._v[n1].pair[1] = n2;
 		pairs._v[n1].xcmx[1] = weight;
 		pairs._v[n1].Mu2 [1] = EI.Mu2;
-		pairs._v[n1].Eta2[1] = EI.Eta2;
+		pairs._v[n1].Eta2    = EI.Eta2;
 	      }
 	      pairs._v[n1].xcvp[1] += weight;
 	    }
@@ -4492,14 +4501,12 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 		pairs._v[n1].xcmx[1] = weight;
 		pairs._v[n1].Mu1     = EI.Mu1;
 		pairs._v[n1].Mu2 [1] = EI.Mu2;
-		pairs._v[n1].Eta1    = EI.Eta1;
-		pairs._v[n1].Eta2[1] = EI.Eta2;
+		pairs._v[n1].Eta2    = EI.Eta2;
 	      } else {
 		if (weight > pairs._v[n1].xcmx[1]) {
 		  pairs._v[n1].pair[1] = n2;
 		  pairs._v[n1].xcmx[1] = weight;
-		  pairs._v[n1].Mu2 [1] = EI.Mu2;
-		  pairs._v[n1].Eta2[1] = EI.Eta2;
+		  pairs._v[n1].Eta2    = EI.Eta2;
 		}
 		pairs._v[n1].xcvp[1] += weight;
 	      }
@@ -4578,14 +4585,13 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 		pairs._v[n2].xcmx[1] = weight;
 		pairs._v[n2].Mu1     = EI.Mu2;
 		pairs._v[n2].Mu2 [1] = EI.Mu1;
-		pairs._v[n2].Eta1    = EI.Eta2;
-		pairs._v[n2].Eta2[1] = EI.Eta1;
+		pairs._v[n2].Eta2    = EI.Eta1;
 	      } else {
 		if (weight > pairs._v[n2].xcmx[1]) {
 		  pairs._v[n2].pair[1] = n1;
 		  pairs._v[n2].xcmx[1] = weight;
 		  pairs._v[n2].Mu2 [1] = EI.Mu1;
-		  pairs._v[n2].Eta2[1] = EI.Eta1;
+		  pairs._v[n2].Eta2    = EI.Eta1;
 		}
 		pairs._v[n2].xcvp[1] += weight;
 	      }
@@ -4682,14 +4688,13 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 		pairs._v[n1].xcmx[1] = weight;
 		pairs._v[n1].Mu1     = EI.Mu1;
 		pairs._v[n1].Mu2 [1] = EI.Mu2;
-		pairs._v[n1].Eta1    = EI.Eta1;
-		pairs._v[n1].Eta2[1] = EI.Eta2;
+		pairs._v[n1].Eta2    = EI.Eta2;
 	      } else {
 		if (weight > pairs._v[n1].xcmx[1]) {
 		  pairs._v[n1].pair[1] = n2;
 		  pairs._v[n1].xcmx[1] = weight;
 		  pairs._v[n1].Mu2 [1] = EI.Mu2;
-		  pairs._v[n1].Eta2[1] = EI.Eta2;
+		  pairs._v[n1].Eta2    = EI.Eta2;
 		}
 		pairs._v[n1].xcvp[1] += weight;
 	      }
@@ -4767,14 +4772,13 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 		pairs._v[n2].xcmx[1] = weight;
 		pairs._v[n2].Mu1     = EI.Mu2;
 		pairs._v[n2].Mu2 [1] = EI.Mu1;
-		pairs._v[n2].Eta1    = EI.Eta2;
-		pairs._v[n2].Eta2[1] = EI.Eta1;
+		pairs._v[n2].Eta2    = EI.Eta1;
 	      } else {
 		if (weight > pairs._v[n2].xcmx[1]) {
 		  pairs._v[n2].pair[1] = n1;
 		  pairs._v[n2].xcmx[1] = weight;
 		  pairs._v[n2].Mu2 [1] = EI.Mu1;
-		  pairs._v[n2].Eta2[1] = EI.Eta1;
+		  pairs._v[n2].Eta2    = EI.Eta1;
 		}
 		pairs._v[n2].xcvp[1] += weight;
 	      }
@@ -4901,15 +4905,21 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 
     cuFP_t deferE = 0.0;
 
-    // Loop over all interaction types
-    //
-    int itype = 0;
-    for (auto v : accum) {
+    for (auto & v : accum) v[1] *= eV/cuEunit;
 
+    // Loop over all interaction types to apply energy changes while
+    // conserving energy
+    //
+    for (int it : {ion_ion, ion_electron}) {
+      
       // Number of pairs
       //
-      cuFP_t dn_p = v[0]/numbP;
+      cuFP_t dn_p = accum[it][count]/numbP;
       int     n_p = std::ceil(dn_p);
+
+      // Add accumulated energy loss
+      //
+      deferE += accum[it][energy];
 
       // Select for fractional scatter at random, if we can defer
       // inelastic energy change.  Otherwise, stick with n_p rounded up.
@@ -4919,57 +4929,66 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 #else
       if (cuCons>=0 and curand_uniform_double(state) < static_cast<double>(n_p) - dn_p) {
 #endif
-	deferE += v[1];
 	n_p--;
       }
       
       if (n_p<=0) continue;
       
-      // Mean inelastic energy change
-      //
-      cuFP_t dE = v[1];
-      if (itype == AccumType::ion_electron) {
-	dE += deferE;
-	deferE = 0.0;
-      }
-      dE /= n_p;
-      
       // Normalize accum
       //
-      for (int n=n0+1; n<n0+nbods; n++) pairs._v[n].xcvp[itype] += pairs._v[n-1].xcvp[itype];
-      for (int n=n0+0; n<n0+nbods; n++) pairs._v[n].xcvp[itype] /= pairs._v[n0+nbods-1].xcvp[itype];
+      int nonZero = 0;
+      for (int n=n0; n<n0+nbods; n++) if (pairs._v[n].xcvp[it]>0) nonZero++;
 
+      if (nonZero==0) continue;
+
+      for (int n=n0+1; n<n0+nbods; n++)
+	pairs._v[n].xcvp[it] += pairs._v[n-1].xcvp[it];
+
+      cuFP_t maxVal = pairs._v[n0+nbods-1].xcvp[it];
+      for (int n=n0+0; n<n0+nbods; n++) pairs._v[n].xcvp[it] /= maxVal;
+
+
+      // Mean inelastic energy change
+      //
+      cuFP_t dE = deferE/n_p;
+      deferE = 0.0;
+      
       // Loop over number of pairs
       //
       for (int n=0; n<n_p; n++) {
 	
 	double Ptry = curand_uniform(state);
-	int n1 = xc_lower_bound(n0, n0+nbods, itype, pairs, Ptry);
-	int n2 = pairs._v[n1].pair[itype];
+	int n1 = xc_lower_bound(n0, n0+nbods, it, pairs, Ptry);
+	int n2 = pairs._v[n1].pair[it];
+
+	// This is for deep sanity debugging only
+	//
+	if (n1<0 or n2<0) {
+	  printf("Crazy value for Ptry=%f max=%f n1=%d, n2=%d\n", Ptry, maxVal, n1-n0, n2-n0);
+	}
+
+	// printf("Ptry=%f lo=%f hi=%f max=%f nz=%d n1=%d n2=%d nbods=%d np=%d\n", Ptry, pairs._v[n1].xcvp[it], pairs._v[n1+1].xcvp[it], maxVal, nonZero, n1-n0, n2-n0, nbods, n_p);
 	
 	cudaParticle* p1 = &in._v[n1];
 	cudaParticle* p2 = &in._v[n2];
 
 	cuFP_t m1  = pairs._v[n1].Mu1;
-	cuFP_t m2  = pairs._v[n2].Mu2[itype];
-	cuFP_t w1  = p1->mass/m1;
-	cuFP_t w2  = p2->mass/m2;
-	cuFP_t W1  = w1;
-	cuFP_t W2  = w2;
-
+	cuFP_t m2  = pairs._v[n2].Mu2[it];
+	cuFP_t W1  = p1->mass/m1;
+	cuFP_t W2  = p2->mass/m2;
+	cuFP_t WW  = W1>W2 ? W2 : W1;
 	cuFP_t v1[3], v2[3];
-	cuFP_t WW = W1>W2 ? W2 : W1;
 	
 	// Particle 1 is always Ion
 	for (int k=0; k<3; k++) v1[k] = p1->vel[k];
 	
 	// Particle 2 is Ion
-	if (itype == AccumType::ion_ion) {
+	if (it == AccumType::ion_ion) {
 	  for (int k=0; k<3; k++) v2[k] = p2->vel[k];
 	}
 	// Particle 2 is Electron
 	else {			
-	  m2 = cuda_atomic_weights[0];
+	  m2 = cuda_atomic_weights[0] * pairs._v[n2].Eta2;
 	  for (int k=0; k<3; k++) v2[k] = p2->datr[cuElec+k];
 	}
 
@@ -5018,6 +5037,8 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  vfac = sqrt(totE/kE);
 	}
 	
+	if (dE != 0.0) printf("CHECK: dE=%e kE=%e vfac=%e vi=%e n1=%d n2=%d np=%d m1=%e m2=%e\n", dE, kE, vfac, vi, n1-n0, n2-n0, n_p, m1, m2);
+
 	cudaUnitVector(vrel, state);
 	
 	vi   = sqrt(vi);
@@ -5036,7 +5057,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	for (int k=0; k<3; k++) p1->vel[k] = v1[k];
 				
 	// Particle 2 is Ion
-	if (itype == AccumType::ion_ion) {
+	if (it == AccumType::ion_ion) {
 	  for (int k=0; k<3; k++) p2->vel[k] = v2[k];
 	}
 	// Particle 2 is Electron
@@ -5044,8 +5065,6 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	  for (int k=0; k<3; k++) p2->datr[cuElec+k] = v2[k];
 	}
       }
-
-      itype++;
     }
     // END: accum
     

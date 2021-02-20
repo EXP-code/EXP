@@ -3045,7 +3045,10 @@ void atomicData::readIp()
 
   std::string fileName(val);
   fileName.append("/ip/chianti.ip");
-  ifstream ipFile(fileName.c_str());
+  if (myid==0) std::cout << "Attempting to open <" << fileName
+			 << "> . . ." << std::endl;
+
+  std::ifstream ipFile(fileName);
   
   int count = 0;
   unsigned char Z, C;
@@ -3075,7 +3078,10 @@ void atomicData::readIp()
   }
   else {
     if (myid==0) std::cout << "atomicData:readIp: file <" 
-			   << fileName << "> not found" << std::endl;
+			   << fileName << "> not found or could not be opened"
+			   << std::endl
+			   << "Error code: " << strerror(errno)
+			   << std::endl;
     MPI_Finalize();
     exit(47);
   }

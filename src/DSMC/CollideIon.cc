@@ -4237,6 +4237,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       
       if (DEBUG_CRS) trap_crs(crs, colexcite);
       
+      /*
+      std::cout << "TEST: ke=" << ke << " xc=" << CE1[id].first
+		<< " ph=" << CE1[id].second << std::endl;
+      */
+
       // if (crs > 0.0) {
 #ifdef XC_DEEP1
 	std::cout << "xsc: xc=" << crs << " cv=" << crs*cr << std::endl;
@@ -4261,6 +4266,11 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
       auto cumCross = ad.IonList[Q2]->collExciteCross(ke, id);
       CE2[id] = IS.selectCEInteract(ad.IonList[Q2], cumCross);
+
+      /*
+      std::cout << "TEST: ke=" << ke << " xc=" << CE2[id].first
+		<< " ph=" << CE2[id].second << std::endl;
+      */
 
       double crs = eVelP1[id] * CE2[id].first;
       
@@ -11352,7 +11362,6 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
     // inelastic energy change.  Otherwise, stick with n_p rounded up.
     //
     if (use_cons>=0 and (*unit)() < static_cast<double>(n_p) - dn_p) {
-      deferE += std::get<1>(v.second);
       n_p--;
     }
 
@@ -11414,13 +11423,14 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
 	p2 = std::get<1>(accumIExc[id][ii]);
       }
 
-      double m1 = 0.0, m2 = 0.0;
+      double m1 = 0.0, m2 = 0.0, e2 = 0.0;
       for (auto s : SpList) {
 	m1 += p1->dattrib[s.second] / atomic_weights[s.first.first];
 	m2 += p2->dattrib[s.second] / atomic_weights[s.first.first];
+	e2 += p2->dattrib[s.second] / atomic_weights[s.first.first] * (s.first.second - 1);
       }
-      m1 = 1.0/m1;
-      m2 = 1.0/m2;
+      m1  = 1.0/m1;
+      m2  = 1.0/m2;
 
       double v1[3], v2[3], W1=p1->mass/m1, W2=p2->mass/m2;
       double WW = W1>W2 ? W2 : W1;
@@ -11434,7 +11444,7 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
       }
       // Particle 2 is Electron
       else {			
-	m2 = atomic_weights[0];
+	m2 *= atomic_weights[0] * e2;
 	for (int k=0; k<3; k++) v2[k] = p2->dattrib[use_elec+k];
       }
 
@@ -11481,6 +11491,16 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
 
 	vfac = sqrt(totE/kE);
       }
+
+      if (dE!=0.0) std::cout << "CHECK: dE=" << dE << " kE=" << kE
+			     << " vfac=" << vfac
+			     << " vi="   << vi
+			     << " dn_p=" << dn_p
+			     << " np="   << n_p
+			     << " m1="   << m1
+			     << " m2="   << m2
+			     << std::endl;
+    
 
       vrel = unit_vector();
   
