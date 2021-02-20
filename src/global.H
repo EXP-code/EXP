@@ -346,9 +346,6 @@ extern bool use_cuda;
 //! For toggling CUDA profiling
 extern bool cuda_prof;
 
-//! Number of concurrent CUDA streams
-extern int  cuStreams;
-
 #include "Species.H"
 
 #endif

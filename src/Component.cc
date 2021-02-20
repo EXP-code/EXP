@@ -143,10 +143,6 @@ Component::Component(YAML::Node& CONF)
 
   com_system  = false;
   com_log     = false;
-
-#if HAVE_LIBCUDA==1
-  bunchSize   = 500000;
-#endif
   timers      = false;
 				// Null out pointers
   orient      = 0;
@@ -231,9 +227,6 @@ void Component::set_default_values()
   if (!cconf["consp"])           cconf["consp"]       = consp;
   if (!cconf["tidal"])           cconf["tidal"]       = tidal;
   if (!cconf["comlog"])          cconf["comlog"]      = com_log;
-#if HAVE_LIBCUDA==1
-  if (!cconf["bunch"])           cconf["bunch"]       = bunchSize;
-#endif
   if (!cconf["timers"])          cconf["timers"]      = timers;
   if (!cconf["com_system"])      cconf["com_system"]  = com_system;
   if (!cconf["com"])             cconf["com"]         = com_system;
@@ -604,9 +597,6 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
   com_log     = false;
   com_restart = 0;
 
-#if HAVE_LIBCUDA==1
-  bunchSize   = 500000;
-#endif
   timers      = false;
 
   force       = 0;		// Null out pointers
@@ -665,10 +655,6 @@ void Component::configure(void)
     if (cconf["comlog"  ])     com_log = cconf["comlog"  ].as<bool>();
     if (cconf["timers"  ])      timers = cconf["timers"  ].as<bool>();
   
-#if HAVE_LIBCUDA==1
-    if (cconf["bunch"   ])   bunchSize = cconf["bunch"   ].as<int>();
-#endif
-
     if (cconf["tidal"]) {
       tidal = cconf["tidal"].as<int>();
       consp = true;

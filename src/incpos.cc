@@ -75,6 +75,12 @@ void incr_position(double dt, int mlevel)
     GPTLstart("incr_position");
 #endif
 
+#ifdef HAVE_LIBCUDA==1
+    if (use_cuda) {
+      incr_position_cuda(dt, mlevel);
+      return;
+    }
+#endif
 
   if (nthrds==1) {
 

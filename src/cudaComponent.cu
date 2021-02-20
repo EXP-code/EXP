@@ -33,10 +33,7 @@ Component::cudaStreamData::~cudaStreamData()
 
 void Component::cuda_initialize()
 {
-  // Initialize streams
-  //
-  cuRingData.resize(cuStreams);
-  cuRing = boost::make_shared<cuRingType>(cuRingData);
+  cuStream = boost:make_shared<cudaSharedStream>();
 }
 
 struct LevelFunctor
@@ -50,7 +47,7 @@ struct LevelFunctor
 
 
 std::pair<unsigned int, unsigned int>
-Component::CudaSortByLevel(Component::cuRingType cr, int minlev, int maxlev)
+Component::CudaSortByLevel(Component::cuSharedStream cr, int minlev, int maxlev)
 {
   std::pair<unsigned, unsigned> ret;
 
@@ -119,7 +116,7 @@ Component::CudaSortByLevel(Component::cuRingType cr, int minlev, int maxlev)
   return ret;
 }
 
-void Component::CudaSortBySequence(Component::cuRingType cr)
+void Component::CudaSortBySequence(Component::cuSharedStream cr)
 {
   thrust::device_vector<cudaParticle>::iterator
     pbeg = cr->cuda_particles.begin(),
@@ -145,7 +142,7 @@ void Component::ParticlesToCuda(PartMap::iterator beg, PartMap::iterator fin)
   if (step_timing and use_cuda) comp->timer_cuda.stop();
 }
 
-void Component::HostToDev(Component::cuRingType cr)
+void Component::HostToDev(Component::cuSharedStream cr)
 {
   auto npart = thrust::distance(cr->first, cr->last);
   
@@ -161,7 +158,7 @@ void Component::HostToDev(Component::cuRingType cr)
   }
 }
 
-void Component::DevToHost(Component::cuRingType cr)
+void Component::DevToHost(Component::cuSharedStream cr)
 {
   auto npart = thrust::distance(cr->first, cr->last);
   
@@ -216,20 +213,18 @@ void Component::ZeroPotAccel(int minlev)
     if (psize <= bunchSize) last = end;
     else std::advance(last, bunchSize);
 
-    Component::cuRingType cr = *cuRing.get();
-
     while (thrust::distance(first, last)) {
     
       // Copy particles to host vector
       //
       ParticlesToCuda(first, last);
       
-      cr->first = host_particles.begin();
-      cr->last  = host_particles.end();
+      cuStream->first = host_particles.begin();
+      cuStream->last  = host_particles.end();
       
       // Copy bunch to device
       //
-      HostToDev(cr);
+      HostToDev(cuStream);
       
       if (multistep) {
 	std::pair<unsigned int, unsigned int>
@@ -246,7 +241,7 @@ void Component::ZeroPotAccel(int minlev)
 
       // Copy device to host
       //
-      DevToHost(cr);
+      DevToHost(cuStream);
 
       // Do copy from host to component
       //

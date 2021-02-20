@@ -907,37 +907,31 @@ public:
   //! Initialize the streams
   void cuda_initialize();
 
-  typedef std::vector<cudaStreamData> cuContainer;
-  typedef cuContainer::iterator       cuIterator;
-  typedef RingIterator <cudaStreamData, cuContainer, cuIterator> cuRingType;
-
-  cuContainer cuRingData;
-  boost::shared_ptr<cuRingType> cuRing;
+  typedef boost::shared_ptr<cudaStreamData> cuSharedStream;
+  cuSharedStream  cuStream;
   //@}
 
   //! Copy particles from Component C to the cuda structure for this component
   void ParticlesToCuda(PartMap::iterator beg, PartMap::iterator fin);
 
   //! Copy particles host to device for ring entry
-  void HostToDev(cuRingType cr);
+  void HostToDev(cuSharedStream cr);
   
   //! Copy particles device to host for ring entry
-  void DevToHost(cuRingType cr);
+  void DevToHost(cuSharedStream cr);
   
   //! Copy cuda device particles for this component back Component C
   void CudaToParticles(hostPartItr beg, hostPartItr end);
 
   //! Sort the device vector by sequence
-  void CudaSortBySequence(cuRingType cr);
+  void CudaSortBySequence(cuSharedStream cr);
 
   //! Sort the device vector by level and return level boundaries
-  std::pair<unsigned, unsigned> CudaSortByLevel(cuRingType cr, int lo, int hi);
+  std::pair<unsigned, unsigned> CudaSortByLevel(cuSharedStream cr,
+						int lo, int hi);
 
   //! Zero the acceleration
   void ZeroPotAccel(int mlevel);
-
-  //! Default bunch size for CUDA
-  size_t bunchSize;
 
   //@}
 #endif

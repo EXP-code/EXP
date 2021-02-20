@@ -81,6 +81,13 @@ void incr_velocity(double dt, int mlevel)
 #endif
 
 
+#ifdef HAVE_LIBCUDA==1
+    if (use_cuda) {
+      incr_velocity_cuda(dt, mlevel);
+      return;
+    }
+#endif
+
   if (nthrds==1) {
 
     posvel_data[0].dt = dt;
