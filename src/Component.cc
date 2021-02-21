@@ -145,7 +145,7 @@ Component::Component(YAML::Node& CONF)
   com_log     = false;
 
 #if HAVE_LIBCUDA==1
-  bunchSize   = 500000;
+  bunchSize   = 100000;
 #endif
   timers      = false;
 				// Null out pointers
@@ -605,7 +605,7 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
   com_restart = 0;
 
 #if HAVE_LIBCUDA==1
-  bunchSize   = 500000;
+  bunchSize   = 100000;
 #endif
   timers      = false;
 

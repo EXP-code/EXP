@@ -36,10 +36,14 @@ void Component::cuda_initialize()
 
 struct LevelFunctor
 {
+  int _t;
+
+  LevelFunctor(int t=0) : _t(t) {}
+
   __host__ __device__
-  unsigned operator()(const cudaParticle &p) const
+  unsigned char operator()(const cudaParticle &p) const
   {
-    return p.level;
+    return p.lev[_t];
   }
 };
 

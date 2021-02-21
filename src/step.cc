@@ -336,11 +336,11 @@ void do_step(int n)
 		<< std::setw(20) << "Velocity: "
 		<< std::setw(18) << timer_vel.getTime() << std::endl
 		<< std::setw(20) << "Force: "
-		<< std::setw(18) << timer_pot.getTime() << std::endl;
+		<< std::setw(18) << timer_pot.getTime() << std::endl
+		<< std::setw(20) << "Coefs: "
+		<< std::setw(18) << timer_coef.getTime() << std::endl;
       if (multistep)
-	std::cout << std::setw(20) << "Coefs: "
-		  << std::setw(18) << timer_coef.getTime() << std::endl
-		  << std::setw(20) << "Adjust: "
+	std::cout << std::setw(20) << "Adjust: "
 		  << std::setw(18) << timer_adj.getTime() << std::endl;
       if (use_cuda)
 	std::cout << std::setw(20) << "Cuda copy: "

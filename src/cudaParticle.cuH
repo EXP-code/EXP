@@ -28,12 +28,13 @@ struct cudaParticle
   cuFP_t acc[3];
   cuFP_t pot;
   cuFP_t potext;
+  float  scale;
 #if DATTRIB_CUDA>0
   cuFP_t datr[DATTRIB_CUDA];
 #endif
   cuFP_t dtreq;
-  unsigned level;
   unsigned indx;
+  char lev[2];
 } __attribute__((aligned));
 
 
@@ -50,10 +51,14 @@ struct LessCudaSeq
 //! For thrust sorts on on level
 struct LessCudaLev
 {
+  int _t;
+
+  LessCudaLev(int t=0) : _t(t) { }
+
   __host__ __device__
   bool operator()(const cudaParticle& p1, const cudaParticle& p2) const
   {
-    return p1.level < p2.level;
+    return p1.lev[_t] < p2.lev[_t];
   }
 };
 
@@ -75,9 +80,9 @@ struct cuPartToLevel :
   public thrust::unary_function<cudaParticle, unsigned>
 {
   __host__ __device__
-  unsigned operator()(const cudaParticle& p) const
+  char operator()(const cudaParticle& p) const
   {
-    return p.level;
+    return p.lev[0];
   }
 };
 

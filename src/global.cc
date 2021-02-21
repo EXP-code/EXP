@@ -73,6 +73,10 @@ vector<int> mfirst, mintvl, stepL, stepN;
 vector< vector<bool> > mactive;
 vector< vector<int> > dstepL, dstepN;
 
+#if HAVE_LIBCUDA==1
+thrust::device_vector<int> cuDstepL, cuDstepN;
+#endif
+
 
 				// Multithreading data structures for
 				// incr_position and incr_velocity
