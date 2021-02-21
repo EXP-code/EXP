@@ -1194,7 +1194,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
       
 				// Number of non-zero elements
 				//
-    use[0] += thrust::distance(it, last);
+    used += thrust::distance(it, last);
 
 				// Sum of mass
 				// 
