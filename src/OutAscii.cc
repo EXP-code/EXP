@@ -102,6 +102,15 @@ void OutAscii::Run(int n, int mstep, bool last)
   if (mstep % nintsub !=0) return;
   if (!c0) return;
 
+#ifdef HAVE_LIBCUDA
+  if (use_cuda) {
+    if (not comp->fetched[c0]) {
+      comp->fetched[c0] = true;
+      c0->CudaToParticles();
+    }
+  }
+#endif
+
   std::ofstream out;
 
   int nOK = 0;

@@ -95,6 +95,11 @@ public:
   //! List of components
   list<Component*> components;
 
+#ifdef HAVE_LIBCUDA
+  //! Cuda particle fetch map
+  map<Component*, bool> fetched;
+#endif
+
   //! List of interactions
   list<Interaction*> interaction;
 

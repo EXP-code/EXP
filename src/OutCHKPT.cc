@@ -205,6 +205,14 @@ void OutCHKPT::Run(int n, int mstep, bool last)
 	std::cout << "OutCHKPT::run: component <" << c->name
 		  << "> has not set 'indexing' so PSP particle sequence will be lost." << std::endl
 		  << "If this is NOT what you want, set the component flag 'indexing=1'." << std::endl;
+#ifdef HAVE_LIBCUDA
+    if (use_cuda) {
+      if (not comp->fetched[c]) {
+	comp->fetched[c] = true;
+	c->CudaToParticles();
+      }
+    }
+#endif
       c->write_binary_mpi(file, offset); 
     }
     

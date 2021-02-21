@@ -150,23 +150,8 @@ protected:
   };
 
   //! Cyclical ring interator for storage
-  //@{
-  //! An STL container
-  typedef std::vector<cudaStorage> cuContainer;
+  cudaStorage cuS;
 
-  //! An iterator for the container
-  typedef cuContainer::iterator    cuIterator;
-
-  //! Convert to a ring iterator
-  typedef RingIterator <cudaStorage, cuContainer, cuIterator> cuRingType;
-
-  //! The storage instance
-  cuContainer cuRingData;
-
-  //! The cyclic iterator instance
-  boost::shared_ptr<cuRingType> cuRing;
-  //@}
-  
   //! Initialize the container
   void cuda_initialize();
 

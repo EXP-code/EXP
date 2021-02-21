@@ -168,25 +168,9 @@ protected:
     void resize_acc  (int Lmax, int Nthread);
   };
 
+  //! A storage instance
+  cudaStorage cuS;
 
-  //! Cyclical ring iterator for storage
-  //@{
-  //! An STL container
-  typedef std::vector<cudaStorage> cuContainer;
-
-  //! An iterator for the container
-  typedef cuContainer::iterator    cuIterator;
-
-  //! Convert to a ring iterator
-  typedef RingIterator <cudaStorage, cuContainer, cuIterator> cuRingType;
-
-  //! The storage instance
-  cuContainer cuRingData;
-
-  //! The cyclic iterator instance
-  boost::shared_ptr<cuRingType> cuRing;
-  //@}
-  
   //! Only initialize once
   bool initialize_cuda_sph;
 

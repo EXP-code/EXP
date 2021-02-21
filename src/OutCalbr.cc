@@ -31,6 +31,16 @@ OutCalbr::OutCalbr(const YAML::Node& conf) : Output(conf)
 void OutCalbr::set_energies()
 {
   if (!restart) {
+
+#ifdef HAVE_LIBCUDA
+				// Get particles from device on first call
+    if (use_cuda) {
+      if (not comp->fetched[tcomp]) {
+	comp->fetched[tcomp] = true;
+	tcomp->CudaToParticles();
+      }
+    }
+#endif
 				// Compute energies and angular momentum
     
     double Emin1=1e30, Emax1=-1e30, v2, E;
@@ -160,6 +170,15 @@ void OutCalbr::Run(int ns, int mstep, bool last)
 
   if (ns % nint != 0 && !last) return;
   if (mstep % nintsub !=0) return;
+
+#ifdef HAVE_LIBCUDA
+    if (use_cuda) {		// Get particles from device
+      if (not comp->fetched[tcomp]) {
+	comp->fetched[tcomp] = true;
+	tcomp->CudaToParticles();
+      }
+    }
+#endif
 
   MPI_Status status;
 

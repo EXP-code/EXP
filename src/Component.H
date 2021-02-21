@@ -904,24 +904,41 @@ public:
     ~cudaStreamData();
   };
 
-  //! Initialize the streams
+  //! Initialize the stream(s)
   void cuda_initialize();
 
   typedef boost::shared_ptr<cudaStreamData> cuSharedStream;
-  cuSharedStream  cuStream;
+  cuSharedStream cuStream;
   //@}
 
-  //! Copy particles from Component C to the cuda structure for this component
-  void ParticlesToCuda(PartMap::iterator beg, PartMap::iterator fin);
-
-  //! Copy particles host to device for ring entry
+  //! Copy particles host to device for stream entry
   void HostToDev(cuSharedStream cr);
   
-  //! Copy particles device to host for ring entry
+  //! Copy particles device to host for stream entry
   void DevToHost(cuSharedStream cr);
   
+
+  //! Copy particles from Component C to the cuda device structure
+  void ParticlesToCuda(PartMap::iterator beg, PartMap::iterator fin);
+
+  //! Convert all to device particles and copy to device
+  void ParticlesToCuda()
+  {
+    ParticlesToCuda(particles.begin(), particles.end());
+    cuStream->first = host_particles.begin();
+    cuStream->last  = host_particles.end();
+    HostToDev(cuStream);	// Push to device
+  }
+
   //! Copy cuda device particles for this component back Component C
   void CudaToParticles(hostPartItr beg, hostPartItr end);
+
+  //! Copy from device and convert to host particles
+  void CudaToParticles()
+  {
+    DevToHost(cuStream);	// Pull from device
+    CudaToParticles(cuStream->first, cuStream->last);
+  }
 
   //! Sort the device vector by sequence
   void CudaSortBySequence(cuSharedStream cr);

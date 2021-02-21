@@ -230,6 +230,11 @@ void ComponentContainer::initialize(void)
     cout << "\n";
   }
 
+#ifdef HAVE_LIBCUDA
+  // Move all particles to cuda devices
+  for (auto c : components) c->ParticlesToCuda();
+#endif
+
   (*barrier)("ComponentContainer::initialize: FINISH", __FILE__, __LINE__);
 }
 
@@ -316,26 +321,30 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       timer_wait.stop();
       timer_zero.start();
     }
-				// Look for particles at this and
-				// successive levels
-    for (int lev=mlevel; lev<=multistep; lev++) {
-      
-      ntot = c->levlist[lev].size();
-      
-      for (unsigned n=0; n<ntot; n++) {
-				// Particle index
-	indx = c->levlist[lev][n];
-				// Zero-out external potential
-	c->Part(indx)->potext = 0.0;
-				// Zero-out potential and acceleration
-	c->Part(indx)->pot = 0.0;
-	for (int k=0; k<c->dim; k++) c->Part(indx)->acc[k] = 0.0;
-      }
 
 #ifdef HAVE_LIBCUDA
+    if (use_cuda) {
       c->ZeroPotAccel(mlevel);
+    } else
 #endif
-    }
+      {
+				// Look for particles at this and
+				// successive levels
+	for (int lev=mlevel; lev<=multistep; lev++) {
+      
+	  ntot = c->levlist[lev].size();
+      
+	  for (unsigned n=0; n<ntot; n++) {
+				// Particle index
+	    indx = c->levlist[lev][n];
+				// Zero-out external potential
+	    c->Part(indx)->potext = 0.0;
+				// Zero-out potential and acceleration
+	    c->Part(indx)->pot = 0.0;
+	    for (int k=0; k<c->dim; k++) c->Part(indx)->acc[k] = 0.0;
+	  }
+	}
+      }
 
     if (timing) {
       timer_zero.stop();
@@ -367,7 +376,14 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
     }
 
-    c->force->get_acceleration_and_potential(c);
+    if (use_cuda and not c->force->cudaAware()) {
+      c->CudaToParticles();
+      c->force->get_acceleration_and_potential(c);
+      c->ParticlesToCuda();
+    } else {
+      c->force->get_acceleration_and_potential(c);
+    }
+
     c->time_so_far.stop();
     if (timing) {
       timer_accel.stop();
@@ -443,7 +459,13 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       other->time_so_far.start();
       inter->c->force->SetExternal();
       inter->c->force->set_multistep_level(mlevel);
-      inter->c->force->get_acceleration_and_potential(other);
+      if (use_cuda and not inter->c->force->cudaAware()) {
+	inter->c->CudaToParticles();
+	inter->c->force->get_acceleration_and_potential(other);
+	inter->c->ParticlesToCuda();
+      } else {
+	inter->c->force->get_acceleration_and_potential(other);
+      }
       inter->c->force->ClearExternal();
       other->time_so_far.stop();
 
@@ -521,7 +543,13 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       for (auto ext : external->force_list) {
 	if (timing) itmr->second.start();
 	ext->set_multistep_level(mlevel);
-	ext->get_acceleration_and_potential(c);
+	if (use_cuda and not c->force->cudaAware()) {
+	  c->CudaToParticles();
+	  ext->get_acceleration_and_potential(c);
+	  c->ParticlesToCuda();
+	} else {
+	  ext->get_acceleration_and_potential(c);
+	}
 	if (timing) (itmr++)->second.stop();
       }
       c->time_so_far.stop();
@@ -795,7 +823,13 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
 #endif
 				// Compute coefficients
     c->force->set_multistep_level(mlevel);
-    c->force->determine_coefficients(c);
+    if (use_cuda and not c->force->cudaAware()) {
+      c->CudaToParticles();
+      c->force->determine_coefficients(c);
+      c->ParticlesToCuda();
+    } else {
+      c->force->determine_coefficients(c);
+    }
 #ifdef DEBUG
     cout << "Process " << myid << ": coefficients <"
 	 << c->id << "> for mlevel=" << mlevel << " done" << endl;

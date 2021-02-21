@@ -178,6 +178,14 @@ void OutFrac::Run(int n, int mstep, bool last)
 
   if (myid==0) timer.start();
 
+#ifdef HAVE_LIBCUDA
+  if (use_cuda) {
+    if (not comp->fetched[tcomp]) {
+      comp->fetched[tcomp] = true;
+      tcomp->CudaToParticles();
+    }
+  }
+#endif
 				// Open output file
   ofstream out;
   if (myid==0) {

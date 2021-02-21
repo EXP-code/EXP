@@ -235,6 +235,15 @@ void OrbTrace::Run(int n, int mstep, bool last)
 
   MPI_Status status;
 
+#ifdef HAVE_LIBCUDA
+  if (use_cuda) {
+    if (not comp->fetched[tcomp]) {
+      comp->fetched[tcomp] = true;
+      tcomp->CudaToParticles();
+    }
+  }
+#endif
+
 				// Open output file
   ofstream out;
   if (myid==0) {

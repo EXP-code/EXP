@@ -33,7 +33,7 @@ Component::cudaStreamData::~cudaStreamData()
 
 void Component::cuda_initialize()
 {
-  cuStream = boost:make_shared<cudaSharedStream>();
+  cuStream = boost::make_shared<cudaStreamData>();
 }
 
 struct LevelFunctor
@@ -58,7 +58,12 @@ Component::CudaSortByLevel(Component::cuSharedStream cr, int minlev, int maxlev)
       pbeg = cr->cuda_particles.begin(),
       pend = cr->cuda_particles.end();
     
-    thrust::sort(exec, pbeg, pend, LessCudaLev());
+    if (thrust_binary_search_workaround) {
+      cudaStreamSynchronize(cr->stream);
+      thrust::sort(pbeg, pend, LessCudaLev());
+    } else {
+      thrust::sort(exec, pbeg, pend, LessCudaLev());
+    }
     
     // Convert from cudaParticle to a flat vector to prevent copying
     // the whole particle structure in getBound.  Perhaps this
@@ -66,7 +71,12 @@ Component::CudaSortByLevel(Component::cuSharedStream cr, int minlev, int maxlev)
     //
     thrust::device_vector<unsigned> lev(cr->cuda_particles.size());
 
-    thrust::transform(exec, pbeg, pend, lev.begin(), cuPartToLevel());
+    if (thrust_binary_search_workaround) {
+      cudaStreamSynchronize(cr->stream);
+      thrust::transform(pbeg, pend, lev.begin(), cuPartToLevel());
+    } else {
+      thrust::transform(exec, pbeg, pend, lev.begin(), cuPartToLevel());
+    }
 
     // Perform in the sort on the int vector of levels on the GPU
     //
@@ -197,67 +207,21 @@ struct cudaZeroAcc : public thrust::unary_function<cudaParticle, cudaParticle>
 
 void Component::ZeroPotAccel(int minlev)
 {
-  if (false) {
-				// Don't need this now, since this
-				// duplicates zeroing performed on
-				// host
-    // Loop over bunches
-    //
-    size_t psize  = particles.size();
-
-    PartMap::iterator begin = particles.begin();
-    PartMap::iterator first = begin;
-    PartMap::iterator last  = begin;
-    PartMap::iterator end   = particles.end();
-
-    if (psize <= bunchSize) last = end;
-    else std::advance(last, bunchSize);
-
-    while (thrust::distance(first, last)) {
+  size_t psize  = particles.size();
+  
+  if (multistep) {
+    std::pair<unsigned int, unsigned int>
+      ret = CudaSortByLevel(cuStream, minlev, multistep);
     
-      // Copy particles to host vector
-      //
-      ParticlesToCuda(first, last);
-      
-      cuStream->first = host_particles.begin();
-      cuStream->last  = host_particles.end();
-      
-      // Copy bunch to device
-      //
-      HostToDev(cuStream);
-      
-      if (multistep) {
-	std::pair<unsigned int, unsigned int>
-	  ret = CudaSortByLevel(cr, minlev, multistep);
-	
-	thrust::transform(thrust::cuda::par.on(cr->stream),
-			  cr->cuda_particles.begin()+ret.first, cr->cuda_particles.end(),
-			  cr->cuda_particles.begin()+ret.first, cudaZeroAcc());
-      } else {
-	thrust::transform(thrust::cuda::par.on(cr->stream),
-			  cr->cuda_particles.begin(), cr->cuda_particles.end(),
-			  cr->cuda_particles.begin(), cudaZeroAcc());
-      }
-
-      // Copy device to host
-      //
-      DevToHost(cuStream);
-
-      // Do copy from host to component
-      //
-      CudaToParticles(cr->first, cr->last);
-      
-      // Advance iterators
-      //
-      first = last;
-      size_t nadv = thrust::distance(first, end);
-      if (nadv <= bunchSize) last = end;
-      else thrust::advance(last, bunchSize);
-      
-      // Advance stream iterators
-      //
-      cr++;
-    }
+    thrust::transform(// thrust::cuda::par.on(cuStream->stream),
+		      thrust::cuda::par,
+		      cuStream->cuda_particles.begin()+ret.first, cuStream->cuda_particles.end(),
+		      cuStream->cuda_particles.begin()+ret.first, cudaZeroAcc());
+  } else {
+    thrust::transform(// thrust::cuda::par.on(cuStream->stream),
+		      thrust::cuda::par,
+		      cuStream->cuda_particles.begin(), cuStream->cuda_particles.end(),
+		      cuStream->cuda_particles.begin(), cudaZeroAcc());
   }
-
+  
 }

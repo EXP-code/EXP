@@ -176,6 +176,16 @@ void OutPSP::Run(int n, int mstep, bool last)
   offset += sizeof(MasterHeader);
 
   for (auto c : comp->components) {
+
+#ifdef HAVE_LIBCUDA
+    if (use_cuda) {
+      if (not comp->fetched[c]) {
+	comp->fetched[c] = true;
+	c->CudaToParticles();
+      }
+    }
+#endif
+
     if (firsttime and myid==0 and not c->Indexing())
       std::cout << "OutPSP::run: component <" << c->name
 		<< "> has not set 'indexing' so PSP particle sequence will be lost." << std::endl

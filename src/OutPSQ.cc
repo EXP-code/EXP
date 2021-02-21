@@ -155,6 +155,15 @@ void OutPSQ::Run(int n, int mstep, bool last)
 
   int count = 0;
   for (auto c : comp->components) {
+
+#ifdef HAVE_LIBCUDA
+    if (use_cuda) {
+      if (not comp->fetched[c]) {
+	comp->fetched[c] = true;
+	c->CudaToParticles();
+      }
+    }
+#endif
 				// Check for open failures
     nOK = 0;
 

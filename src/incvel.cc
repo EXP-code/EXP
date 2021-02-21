@@ -8,6 +8,10 @@
 #include <gptl.h>
 #endif
 
+#ifdef HAVE_LIBCUDA
+void incr_velocity_cuda(cuFP_t dt, int mlevel);
+#endif
+
 void * incr_velocity_thread(void *ptr)
 {
   // Current time step
@@ -80,8 +84,7 @@ void incr_velocity(double dt, int mlevel)
     GPTLstart("incr_velocity");
 #endif
 
-
-#ifdef HAVE_LIBCUDA==1
+#ifdef HAVE_LIBCUDA
     if (use_cuda) {
       incr_velocity_cuda(dt, mlevel);
       return;

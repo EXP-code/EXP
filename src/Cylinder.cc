@@ -55,7 +55,6 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   // Initialize the circular storage container 
   cuda_initialize();
   initialize_cuda_cyl = true;
-
 #endif
 
   id              = "Cylinder";
@@ -113,6 +112,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   EVEN_M          = false;
   eof_over        = false;
   eof_file        = "";
+  cuda_aware      = true;
 
   initialize();
 
