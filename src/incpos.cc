@@ -80,7 +80,7 @@ void incr_position(double dt, int mlevel)
 
 #ifdef HAVE_LIBCUDA
     if (use_cuda) {
-      incr_position_cuda(dt, mlevel);
+      incr_position_cuda(static_cast<cuFP_t>(dt), mlevel);
       return;
     }
 #endif

@@ -1154,7 +1154,7 @@ void computeFreeFree
   if (E>ionEmaxGrid) E = ionEmaxGrid;
 
 #if cuREAL == 4
-  size_t indx = std::floorf( (E - ionEminGrid)/ionDeltaEGrid );
+  size_t indx = std::floor ( (E - ionEminGrid)/ionDeltaEGrid );
 #else
   size_t indx = std::floor ( (E - ionEminGrid)/ionDeltaEGrid );
 #endif
@@ -1204,7 +1204,7 @@ void computeFreeFree
 
   xc = 
 #if cuREAL == 4
-    A*tex1D<float>(elem->nff_0, indx  ) +
+    A*tex1D<float>(elem->ff_0, indx  ) +
     B*tex1D<float>(elem->ff_0, indx+1) ;
 #else
     A*int2_as_double(tex1D<int2>(elem->ff_0, indx  )) +
@@ -1286,7 +1286,7 @@ void computeColExcite
     // Interpolate the values
     //
 #if cuREAL == 4
-    int indx = std::floorf( (E - elem->ceEmin)/elem->ceDelE );
+    int indx = std::floor ( (E - elem->ceEmin)/elem->ceDelE );
 #else
     int indx = std::floor ( (E - elem->ceEmin)/elem->ceDelE );
 #endif
@@ -1355,7 +1355,7 @@ void computeColIonize
     // Interpolate the values
     //
 #if cuREAL == 4
-    int indx = std::floorf( (E - elem->ciEmin)/elem->ciDelE );
+    int indx = std::floor ( (E - elem->ciEmin)/elem->ciDelE );
 #else
     int indx = std::floor ( (E - elem->ciEmin)/elem->ciDelE );
 #endif
@@ -1439,7 +1439,7 @@ void computeRadRecomb
     // Interpolate the values
     //
 #if cuREAL == 4
-    int indx = std::floorf( (E - ionEminGrid)/ionDeltaEGrid );
+    int indx = std::floor ( (E - ionEminGrid)/ionDeltaEGrid );
 #else
     int indx = std::floor ( (E - ionEminGrid)/ionDeltaEGrid );
 #endif
@@ -3331,8 +3331,11 @@ void cudaScatterTrace
       
       if (v1i2 > 0.0 and b1f2 > 0.0) qT *= q/v1i2;
       
+      cuFP_t csign = 1.0;
+      if (qT<0.0) csign = -1.0;
+
       vrat = 
-	( -qT + std::copysign(1.0, qT)*sqrt(qT*qT + cq*(q*b1f2/v1i2 + 1.0)) )/cq;
+	( -qT + csign*sqrt(qT*qT + cq*(q*b1f2/v1i2 + 1.0)) )/cq;
     }
 
     // Assign new velocities

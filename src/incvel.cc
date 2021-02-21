@@ -86,7 +86,7 @@ void incr_velocity(double dt, int mlevel)
 
 #ifdef HAVE_LIBCUDA
     if (use_cuda) {
-      incr_velocity_cuda(dt, mlevel);
+      incr_velocity_cuda(static_cast<cuFP_t>(dt), mlevel);
       return;
     }
 #endif

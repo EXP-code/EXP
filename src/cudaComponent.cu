@@ -1,5 +1,3 @@
-// -*- C++ -*-
-
 #include <Component.H>
 #include "expand.h"
 #include "cudaParticle.cuH"
@@ -225,3 +223,5 @@ void Component::ZeroPotAccel(int minlev)
   }
   
 }
+
+// -*- C++ -*-

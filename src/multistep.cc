@@ -256,6 +256,8 @@ void adjust_multistep_level(bool all)
   if (!multistep) return;
 
   // FOR DEBUGGING
+  std::cout << "ENTERING adjust multistep level" << std::endl;
+  auto dbg_start = std::chrono::high_resolution_clock::now();
   // if (mstep!=0) return;
   // END DEBUGGING
 
@@ -523,6 +525,12 @@ void adjust_multistep_level(bool all)
       }
     }
   }
+
+  auto dbg_finish = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double, std::micro> dbg_adjust = dbg_finish - dbg_start;
+
+  std::cout << "LEAVING adjust multistep level ["
+	    << dbg_adjust.count()*1.0e-6 << "]" << std::endl;
 }
 
 

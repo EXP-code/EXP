@@ -1,5 +1,3 @@
-// -*- C++ -*-
-
 #include <Component.H>
 #include <Cylinder.H>
 #include <cudaReduce.cuH>
@@ -11,7 +9,7 @@
 //
 // #define OFF_GRID_ALERT
 // #define BOUNDS_CHECK
-// #define VERBOSE
+// #define VERBOSE_CTR
 
 // Global symbols for coordinate transformation
 //
@@ -959,42 +957,52 @@ void Cylinder::determine_coefficients_cuda(bool compute)
   //
   cuFP_t rmax = rcylmax * acyl * M_SQRT1_2;
 
-  // Loop over bunches
-  //
-  size_t psize  = cC->Particles().size();
-
   // Sort particles and get coefficient size
   //
-  PII lohi = cC->CudaSortByLevel(cr, mlevel, mlevel);
+  PII lohi = cC->CudaSortByLevel(cr, mlevel, mlevel), cur;
   
-  // Compute grid
-  //
-  unsigned int N         = lohi.second - lohi.first;
-  unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
-  unsigned int gridSize  = N/BLOCK_SIZE/stride;
-  
-  if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
+  unsigned int Ntotal = lohi.second - lohi.first;
+  unsigned int Npacks = Ntotal/cC->bunchSize + 1;
 
-#ifdef VERBOSE
-  static debug_max_count = 10;
-  static debug_cur_count = 0;
-  if (debug_cur_count++ < debug_max_count) {
-    std::cout << std::endl << "**" << std::endl
-	      << "** N      = " << N           << std::endl
-	      << "** I low  = " << lohi.first  << std::endl
-	      << "** I high = " << lohi.second << std::endl
-	      << "** Stride = " << stride      << std::endl
-	      << "** Block  = " << BLOCK_SIZE  << std::endl
-	      << "** Grid   = " << gridSize    << std::endl
-	      << "** Xcen   = " << ctr[0]     << std::endl
-	      << "** Ycen   = " << ctr[1]     << std::endl
-	      << "** Zcen   = " << ctr[2]     << std::endl
-	      << "**" << std::endl;
+  // Loop over bunches
+  //
+  for (int n=0; n<Npacks; n++) {
+
+    // Current bunch
+    //
+    cur. first = lohi.first + cC->bunchSize*n;
+    cur.second = lohi.first + cC->bunchSize*(n+1);
+    cur.second = std::min<unsigned int>(cur.second, lohi.second);
+
+    if (cur.second <= cur.first) break;
+    
+    // Compute grid
+    //
+    unsigned int N         = cur.second - cur.first;
+    unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+    unsigned int gridSize  = N/BLOCK_SIZE/stride;
+  
+    if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
+
+#ifdef VERBOSE_CTR
+    static unsigned debug_max_count = 10;
+    static unsigned debug_cur_count = 0;
+    if (debug_cur_count++ < debug_max_count) {
+      std::cout << std::endl << "** cudaCylinder coefficients" << std::endl
+		<< "** N      = " << N          << std::endl
+		<< "** Npacks = " << Npacks     << std::endl
+		<< "** I low  = " << cur.first  << std::endl
+		<< "** I high = " << cur.second << std::endl
+		<< "** Stride = " << stride     << std::endl
+		<< "** Block  = " << BLOCK_SIZE << std::endl
+		<< "** Grid   = " << gridSize   << std::endl
+		<< "** Xcen   = " << ctr[0]     << std::endl
+		<< "** Ycen   = " << ctr[1]     << std::endl
+		<< "** Zcen   = " << ctr[2]     << std::endl
+		<< "**" << std::endl;
   }
 #endif
   
-  if (N) {
-
     // Adjust cached storage, if necessary
     //
     cuS.resize_coefs(ncylorder, mmax, N, gridSize, sampT, pcavar, pcaeof);
@@ -1011,7 +1019,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
     coordKernelCyl<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
       (toKernel(cr->cuda_particles), toKernel(cuS.m_d), toKernel(cuS.p_d),
        toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d),
-       toKernel(cuS.iY_d), stride, lohi, rmax);
+       toKernel(cuS.iY_d), stride, cur, rmax);
       
 				// Compute the coefficient
 				// contribution for each order
@@ -1036,7 +1044,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	(toKernel(cuS.dN_coef), toKernel(cuS.dN_tvar), toKernel(cuS.u_d),
 	 toKernel(t_d), toKernel(cuS.m_d), toKernel(cuS.p_d),
 	 toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d), toKernel(cuS.iY_d),
-	 stride, m, ncylorder, lohi, compute);
+	 stride, m, ncylorder, cur, compute);
       
 				// Begin the reduction per grid block
 				// [perhaps this should use a stride?]
@@ -1181,7 +1189,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 				// Iterator will point to first
 				// non-zero element
 				//
-    thrust::device_vector<double>::iterator it;
+    thrust::device_vector<cuFP_t>::iterator it;
 
     // Workaround for: https://github.com/NVIDIA/thrust/pull/1104
     //
@@ -1201,7 +1209,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
     cylmass0[0] += thrust::reduce(exec, it, last);
   }
 
-  if (N == 0) {
+  if (Ntotal == 0) {
     return;
   }
 
@@ -1600,11 +1608,6 @@ void Cylinder::determine_acceleration_cuda()
 		   __FILE__, __LINE__, "Error copying cylOrig");
   }
 
-  // Loop over bunches
-  //
-  size_t psize  = cC->Particles().size();
-
-
   // Sort particles and get coefficient size
   //
   PII lohi = cC->CudaSortByLevel(cr, mlevel, multistep);
@@ -1619,11 +1622,11 @@ void Cylinder::determine_acceleration_cuda()
 
     if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
-#ifdef VERBOSE
-    static debug_max_count = 10;
-    static debug_cur_count = 0;
+#ifdef VERBOSE_CTR
+    static unsigned debug_max_count = 10;
+    static unsigned debug_cur_count = 0;
     if (debug_cur_count++ < debug_max_count) {
-      std::cout << std::endl << "**" << std::endl
+      std::cout << std::endl << "** cudaCylinder acceleration" << std::endl
 		<< "** N      = " << N          << std::endl
 		<< "** Stride = " << stride     << std::endl
 		<< "** Block  = " << BLOCK_SIZE << std::endl
@@ -1733,3 +1736,5 @@ void Cylinder::destroy_cuda()
 		     __FILE__, __LINE__, sout.str());
   }
 }
+
+// -*- C++ -*-

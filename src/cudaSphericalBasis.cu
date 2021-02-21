@@ -1,5 +1,3 @@
-// -*- C++ -*-
-
 #include <tuple>
 #include <list>
 
@@ -945,39 +943,50 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
   //
   zero_coefs();
 
-  // All particles are assumed to be on the device
-  //
-  size_t psize  = cC->Particles().size();
-
   // Sort particles and get coefficient size
   //
-  PII lohi = cC->CudaSortByLevel(cr, mlevel, mlevel);
+  PII lohi = cC->CudaSortByLevel(cr, mlevel, mlevel), cur;
   
-  // Compute grid
+  unsigned int Ntotal = lohi.second - lohi.first;
+  unsigned int Npacks = Ntotal/cC->bunchSize + 1;
+
+  // Loop over bunches
   //
-  unsigned int N         = lohi.second - lohi.first;
-  unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
-  unsigned int gridSize  = N/BLOCK_SIZE/stride;
-  
-  if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
+  for (int n=0; n<Npacks; n++) {
+
+    // Current bunch
+    //
+    cur. first = lohi.first + cC->bunchSize*n;
+    cur.second = lohi.first + cC->bunchSize*(n+1);
+    cur.second = std::min<unsigned int>(cur.second, lohi.second);
+
+    if (cur.second <= cur.first) break;
+    
+    // Compute grid
+    //
+    unsigned int N         = cur.second - cur.first;
+    unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+    unsigned int gridSize  = N/BLOCK_SIZE/stride;
+    
+    if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
 #ifdef VERBOSE_CTR
-  static int debug_max_count = 10;
-  static int debug_cur_count = 0;
-  if (debug_cur_count++ < debug_max_count) {
-    std::cout << std::endl << "**" << std::endl
-	      << "** N      = " << N          << std::endl
-	      << "** Stride = " << stride     << std::endl
-	      << "** Block  = " << BLOCK_SIZE << std::endl
-	      << "** Grid   = " << gridSize   << std::endl
-	      << "** Xcen   = " << ctr[0]     << std::endl
-	      << "** Ycen   = " << ctr[1]     << std::endl
-	      << "** Zcen   = " << ctr[2]     << std::endl
-	      << "**" << std::endl;
-  }
+    static int debug_max_count = 10;
+    static int debug_cur_count = 0;
+    if (debug_cur_count++ < debug_max_count) {
+      std::cout << std::endl
+		<< "** cudaSphericalBasis coefficients" << std::endl
+		<< "** N      = " << N          << std::endl
+		<< "** Npacks = " << Npacks     << std::endl
+		<< "** Stride = " << stride     << std::endl
+		<< "** Block  = " << BLOCK_SIZE << std::endl
+		<< "** Grid   = " << gridSize   << std::endl
+		<< "** Xcen   = " << ctr[0]     << std::endl
+		<< "** Ycen   = " << ctr[1]     << std::endl
+		<< "** Zcen   = " << ctr[2]     << std::endl
+		<< "**" << std::endl;
+    }
 #endif
-
-  if (N) {
     
     // Resize storage as needed
     //
@@ -996,7 +1005,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
       (toKernel(cr->cuda_particles),
        toKernel(cuS.m_d), toKernel(cuS.a_d), toKernel(cuS.p_d),
        toKernel(cuS.plm1_d), toKernel(cuS.i_d),
-       Lmax, stride, lohi, rmax);
+       Lmax, stride, cur, rmax);
     
 				// Compute the coefficient
 				// contribution for each order
@@ -1020,7 +1029,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 	  (toKernel(cuS.dN_coef), toKernel(cuS.dN_tvar), toKernel(cuS.u_d),
 	   toKernel(t_d), toKernel(cuS.m_d),
 	   toKernel(cuS.a_d), toKernel(cuS.p_d), toKernel(cuS.plm1_d),
-	   toKernel(cuS.i_d), stride, l, m, Lmax, nmax, lohi, compute);
+	   toKernel(cuS.i_d), stride, l, m, Lmax, nmax, cur, compute);
 	
 	// Begin the reduction per grid block
 	// [perhaps this should use a stride?]
@@ -1166,7 +1175,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
       
     // Call the kernel on a single thread
     // 
-    thrust::device_vector<double>::iterator it;
+    thrust::device_vector<cuFP_t>::iterator it;
 
     // Workaround for: https://github.com/NVIDIA/thrust/pull/1104
     //
@@ -1195,7 +1204,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
     }
   }
   
-  if (N == 0) {
+  if (Ntotal == 0) {
     return;
   }
 
@@ -1582,10 +1591,6 @@ void SphericalBasis::determine_acceleration_cuda()
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying sphCen");
   
-  // Loop over bunches
-  //
-  size_t psize  = cC->Particles().size();
-
   // Sort particles and get size
   //
   PII lohi = cC->CudaSortByLevel(cr, mlevel, multistep);
@@ -1606,7 +1611,8 @@ void SphericalBasis::determine_acceleration_cuda()
     static int debug_max_count = 10;
     static int debug_cur_count = 0;
     if (debug_cur_count++ < debug_max_count) {
-      std::cout << std::endl << "**" << std::endl
+      std::cout << std::endl
+		<< "** cudaSphericalBasis acceleration" << std::endl
 		<< "** N      = " << N          << std::endl
 		<< "** Stride = " << stride     << std::endl
 		<< "** Block  = " << BLOCK_SIZE << std::endl
@@ -1763,3 +1769,5 @@ void SphericalBasis::destroy_cuda()
 		     __FILE__, __LINE__, sout.str());
   }
 }
+
+// -*- C++ -*-
