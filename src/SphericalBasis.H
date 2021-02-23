@@ -104,6 +104,7 @@ protected:
 #if HAVE_LIBCUDA==1
   virtual void determine_coefficients_cuda(bool compute_pca);
   virtual void determine_acceleration_cuda();
+  virtual void multistep_update_cuda();
 
   thrust::host_vector<cuFP_t> host_coefs, host_massT;
   thrust::device_vector<cuFP_t> dev_coefs;

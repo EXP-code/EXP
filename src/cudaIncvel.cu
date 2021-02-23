@@ -57,7 +57,8 @@ void incr_velocity_cuda(cuFP_t dt, int mlevel)
 
       auto ret = c->CudaSortByLevel(cr, mlevel, multistep);
       
-      thrust::transform(thrust::cuda::par.on(cr->stream),
+      thrust::transform(// thrust::cuda::par.on(cr->stream),
+			thrust::cuda::par,
 			cr->cuda_particles.begin()+ret.first, cr->cuda_particles.end(),
 			cr->cuda_particles.begin()+ret.first, cudaIncVel(dt, c->dim));
     } else {

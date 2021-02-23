@@ -59,13 +59,31 @@ void incr_position_cuda(cuFP_t dt, int mlevel)
 
       auto ret = c->CudaSortByLevel(cr, mlevel, multistep);
       
-      thrust::transform(thrust::cuda::par.on(cr->stream),
-			cr->cuda_particles.begin()+ret.first, cr->cuda_particles.end(),
-			cr->cuda_particles.begin()+ret.first, cudaIncPos(dt, c->dim));
-    } else {
-      thrust::transform(thrust::cuda::par.on(cr->stream),
-			cr->cuda_particles.begin(), cr->cuda_particles.end(),
-			cr->cuda_particles.begin(), cudaIncPos(dt, c->dim));
+      // DEBUG
+      {
+	std::vector<unsigned> tlev(multistep+1);
+	std::cout << "Name <" << c->name << "> at level=" << mlevel
+		  << " [" << ret.first << ", " << ret.second
+		  << "]: ";
+	for (int m=0; m<=multistep; m++) {
+	  auto ret1 = c->CudaSortByLevel(cr, m, m);
+	  std::cout << ret1.second - ret1.first;
+	  if (m == multistep) std::cout << "**";
+	  else                std::cout << ", ";
+	}
+	std::cout << std::endl;
+      }
+
+      if (ret.second > ret.first) {
+	thrust::transform(// thrust::cuda::par.on(cr->stream),
+			  thrust::cuda::par,
+			  cr->cuda_particles.begin()+ret.first, cr->cuda_particles.end(),
+			  cr->cuda_particles.begin()+ret.first, cudaIncPos(dt, c->dim));
+      } else {
+	thrust::transform(thrust::cuda::par.on(cr->stream),
+			  cr->cuda_particles.begin(), cr->cuda_particles.end(),
+			  cr->cuda_particles.begin(), cudaIncPos(dt, c->dim));
+      }
     }
   }
 

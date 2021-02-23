@@ -35,7 +35,7 @@ int ParticleHtoD(PartPtr h, cudaParticle & d, int beg, int end)
 #endif
   d.dtreq    = h->dtreq;
   d.lev[0]   = h->level;
-  d.lev[1]   = 0;
+  d.lev[1]   = h->level;
   d.indx     = h->indx;
 
   return 0;
@@ -51,7 +51,7 @@ void ParticleDtoH(const cudaParticle & d, PartPtr h, int beg, int end)
   }
   h->pot    = d.pot;
   h->potext = d.potext;
-  h->scale = d.scale;
+  h->scale  = d.scale;
 #if DATTRIB_CUDA>0
   if (end) {
     if (end - beg < DATTRIB_CUDA) {

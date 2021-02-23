@@ -115,7 +115,9 @@ void initialize(void)
     if (_G["cuda_prof"])       cuda_prof     = _G["cuda_prof"].as<bool>();
     if (_G["cuda"])            use_cuda      = _G["cuda"].as<bool>();
     if (_G["use_cuda"])        use_cuda      = _G["use_cuda"].as<bool>();
-
+#if HAVE_LIBCUDA != 1
+    use_cuda = false;
+#endif
     if (_G["barrier_check"])   barrier_check = _G["barrier_check"].as<bool>();
     if (_G["barrier_debug"])   barrier_debug = _G["barrier_debug"].as<bool>();
     if (_G["barrier_extra"])   barrier_extra = _G["barrier_extra"].as<bool>();

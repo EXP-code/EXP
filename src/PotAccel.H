@@ -185,6 +185,11 @@ public:
   //! Execute to finish level shifts for particles
   virtual void multistep_update_finish() {}
 
+#if HAVE_LIBCUDA==1
+  //! Cuda implementation of level shifts
+  virtual void multistep_update_cuda() {}
+#endif
+
   //! Set the level for evaluating acceleration at level n
   virtual void set_multistep_level(unsigned n) { mlevel=n; }
 

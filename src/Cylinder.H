@@ -92,6 +92,7 @@ protected:
 #if HAVE_LIBCUDA==1
   virtual void determine_coefficients_cuda(bool compute_pca);
   virtual void determine_acceleration_cuda();
+  virtual void multistep_update_cuda();
 
   thrust::host_vector  <cuFP_t> host_coefs, host_covar, host_massT;
   thrust::device_vector<cuFP_t> dev_coefs;
@@ -263,13 +264,13 @@ public:
   //@{
   virtual void multistep_update_begin() { 
     if (play_back) return;
-    if (self_consistent) ortho->multistep_update_begin();
+    if (self_consistent and not use_cuda) ortho->multistep_update_begin();
   }
 
   virtual void multistep_update(int cur, int next, Component* c, int i, int id);
   virtual void multistep_update_finish() { 
     if (play_back) return;
-    if (self_consistent) ortho->multistep_update_finish();
+    if (self_consistent and not use_cuda) ortho->multistep_update_finish();
   }
   //@}
 

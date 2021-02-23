@@ -28,13 +28,13 @@ struct cudaParticle
   cuFP_t acc[3];
   cuFP_t pot;
   cuFP_t potext;
-  float  scale;
+  cuFP_t  scale;
 #if DATTRIB_CUDA>0
   cuFP_t datr[DATTRIB_CUDA];
 #endif
   cuFP_t dtreq;
   unsigned indx;
-  char lev[2];
+  int lev[2];
 } __attribute__((aligned));
 
 
@@ -62,6 +62,16 @@ struct LessCudaLev
   }
 };
 
+//! For thrust sorts on on level and update
+struct LessCudaLev2
+{
+  __host__ __device__
+  bool operator()(const cudaParticle& p1, const cudaParticle& p2) const
+  {
+    return (p1.lev[0] < p2.lev[0]) or (p1.lev[0] == p2.lev[0] and p1.lev[1] < p2.lev[1]);
+  }
+};
+
 
 //! Copy EXP particle to CUDA particle structure.  Attributes will not
 //! be loaded if end==0.
@@ -77,12 +87,15 @@ std::ostream& operator<< (std::ostream& os, const cudaParticle& p);
 
 //! Functor for extracting level info from cudaParticle structures
 struct cuPartToLevel :
-  public thrust::unary_function<cudaParticle, unsigned>
+  public thrust::unary_function<cudaParticle, unsigned int>
 {
+  int _t;
+  cuPartToLevel(int t=0) : _t(t) {}
+
   __host__ __device__
-  char operator()(const cudaParticle& p) const
+  unsigned operator()(const cudaParticle& p) const
   {
-    return p.lev[0];
+    return p.lev[_t];
   }
 };
 

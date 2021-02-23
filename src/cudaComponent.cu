@@ -2,6 +2,9 @@
 #include "expand.h"
 #include "cudaParticle.cuH"
 
+#include <thrust/transform_reduce.h>
+#include <thrust/functional.h>
+
 #include <boost/make_shared.hpp>
 
 unsigned Component::cudaStreamData::totalInstances=0;
@@ -41,15 +44,114 @@ struct LevelFunctor
   LevelFunctor(int t=0) : _t(t) {}
 
   __host__ __device__
-  unsigned char operator()(const cudaParticle &p) const
+  int operator()(const cudaParticle &p) const
   {
     return p.lev[_t];
   }
 };
 
 
+Component::I2vec Component::CudaSortLevelChanges(Component::cuSharedStream cr)
+{
+  // The plan: for the current active level search above and below for
+  // particles for correction to coefficient matrix
+  //
+  // 1. Sort all particles by current level
+  // 2. Get indices to range for each level L
+  // 3. Within each level L, compute the ranges for changes,
+  //    delta L = [-L, multistep-L]
+  // 4. For each (L, delta L), compute the coefficient changes and
+  //    apply to the appropriate coefficient matrices
+
+  I2vec ret(multistep+1);
+  for (auto & v : ret) v.resize(multistep+1);
+
+  try {
+    auto exec = thrust::cuda::par.on(cuStream->stream);
+    
+    thrust::device_vector<cudaParticle>::iterator
+      pbeg = cuStream->cuda_particles.begin(),
+      pend = cuStream->cuda_particles.end();
+    
+    if (thrust_binary_search_workaround) {
+      cudaStreamSynchronize(cuStream->stream);
+      thrust::sort(pbeg, pend, LessCudaLev2());
+    } else {
+      thrust::sort(exec, pbeg, pend, LessCudaLev2());
+    }
+    
+    pbeg = cuStream->cuda_particles.begin();
+    pend = cuStream->cuda_particles.end();
+
+    cudaParticle trg;
+
+    for (int target=0; target<=multistep; target++) {
+
+      trg.lev[0] = target;
+
+      for (int del=0; del<=multistep; del++) {
+
+	if (del==target) {
+	  ret[target][del] = {0, 0};
+	  continue;
+	}
+	
+	trg.lev[1] = del;
+
+	thrust::device_vector<cudaParticle>::iterator lo, hi;
+
+	if (thrust_binary_search_workaround) {
+	  cudaStreamSynchronize(cuStream->stream);
+	  lo  = thrust::lower_bound(pbeg, pend, trg, LessCudaLev2());
+	} else {
+	  lo = thrust::lower_bound(exec, pbeg, pend, trg, LessCudaLev2());
+	}
+	
+	cudaStreamSynchronize(cuStream->stream);
+
+	if (thrust_binary_search_workaround) {
+	  hi = thrust::upper_bound(pbeg, pend, trg, LessCudaLev2());
+	} else {
+	  hi = thrust::upper_bound(exec, pbeg, pend, trg, LessCudaLev2());
+	}
+
+	cudaStreamSynchronize(cuStream->stream);
+
+	ret[target][del] = {thrust::distance(pbeg, lo), 
+			    thrust::distance(pbeg, hi)};
+      }
+    }
+
+  }
+  catch(std::bad_alloc &e) {
+    std::cerr << "Ran out of memory while sorting" << std::endl;
+    exit(-1);
+  }
+  catch(thrust::system_error &e) {
+    std::cerr << "Some other error happened during sort, lower_bound, or upper_bound:" << e.what() << std::endl;
+    exit(-1);
+  }
+ 
+  std::cout << std::string(15*(multistep+1), '-') << std::endl;
+  std::cout << "--- " << name << std::endl;
+  std::cout << std::string(15*(multistep+1), '-') << std::endl;
+  for (int m1=0; m1<=multistep; m1++) {
+    for (int m2=0; m2<=multistep; m2++) {
+      std::ostringstream sout;
+      sout << "(" << ret[m1][m2].first << ", " << ret[m1][m2].second << ")";
+      std::cout << std::setw(15) << sout.str();
+    }
+    std::cout << std::endl;
+  }
+  std::cout << std::string(15*(multistep+1), '-') << std::endl;
+
+  return ret;
+}
+
+
 std::pair<unsigned int, unsigned int>
-Component::CudaSortByLevel(Component::cuSharedStream cr, int minlev, int maxlev)
+Component::CudaSortByLevel(Component::cuSharedStream cr,
+				int minlev, int maxlev)
 {
   std::pair<unsigned, unsigned> ret;
 
@@ -71,7 +173,7 @@ Component::CudaSortByLevel(Component::cuSharedStream cr, int minlev, int maxlev)
     // the whole particle structure in getBound.  Perhaps this
     // temporary should be part of the data storage structure?
     //
-    thrust::device_vector<unsigned> lev(cr->cuda_particles.size());
+    thrust::device_vector<int> lev(cr->cuda_particles.size());
 
     if (thrust_binary_search_workaround) {
       cudaStreamSynchronize(cr->stream);
@@ -80,45 +182,29 @@ Component::CudaSortByLevel(Component::cuSharedStream cr, int minlev, int maxlev)
       thrust::transform(exec, pbeg, pend, lev.begin(), cuPartToLevel());
     }
 
-    // Perform in the sort on the int vector of levels on the GPU
+    // Get unsigned from input
     //
-    thrust::device_vector<unsigned>::iterator it;
+    unsigned int minl = static_cast<unsigned>(minlev);
+    unsigned int maxl = static_cast<unsigned>(maxlev);
+
+    thrust::device_vector<int>::iterator lo, hi;
 
     if (thrust_binary_search_workaround) {
-      cudaStreamSynchronize(cr->stream);
-      it  = thrust::lower_bound(lev.begin(), lev.end(), minlev);
+      cudaStreamSynchronize(cuStream->stream);
+      lo  = thrust::lower_bound(lev.begin(), lev.end(), minl);
     } else {
-      // This should work but doesn't.  See:
-      // https://github.com/NVIDIA/thrust/pull/1104
-      //
-      it  = thrust::lower_bound(exec, lev.begin(), lev.end(), minlev);
+      lo = thrust::lower_bound(exec, lev.begin(), lev.end(), minl);
     }
-      
-    ret.first = thrust::distance(lev.begin(), it);
-
-				// Wait for completion before memcpy
-    cudaStreamSynchronize(cr->stream);
-				// If maxlev==multistep: upper bound
-				// is at end, so skip explicit computation
-    if (maxlev < multistep) {
-
-      if (thrust_binary_search_workaround) {
-	it  = thrust::upper_bound(lev.begin(), lev.end(), maxlev);
-      } else {
-	it  = thrust::upper_bound(exec, lev.begin(), lev.end(), maxlev);
-      }
-
-      ret.second = thrust::distance(lev.begin(), it);
-
-      cudaStreamSynchronize(cr->stream);
+	
+    if (thrust_binary_search_workaround) {
+      cudaStreamSynchronize(cuStream->stream);
+      hi = thrust::upper_bound(lev.begin(), lev.end(), maxl);
     } else {
-      ret.second = thrust::distance(pbeg, pend);
+      hi = thrust::upper_bound(exec, lev.begin(), lev.end(), maxl);
     }
-    
-  }
-  catch(std::bad_alloc &e) {
-    std::cerr << "Ran out of memory while sorting" << std::endl;
-    exit(-1);
+
+    ret.first  = thrust::distance(lev.begin(), lo);
+    ret.second = thrust::distance(lev.begin(), hi);
   }
   catch(thrust::system_error &e) {
     std::cerr << "Some other error happened during sort, lower_bound, or upper_bound:" << e.what() << std::endl;
@@ -227,5 +313,175 @@ void Component::ZeroPotAccel(int minlev)
   }
   
 }
+
+struct getMass : public thrust::unary_function<cudaParticle, cuFP_t>
+
+{
+ __host__ __device__
+ cuFP_t operator()(const cudaParticle& p) const
+  {
+    return p.mass;
+  }
+};
+
+struct getPos : public thrust::unary_function<cudaParticle, cuFP_t>
+{
+  int _t;
+  getPos(int t) : _t(t) {}
+
+ __host__ __device__
+ cuFP_t operator()(const cudaParticle& p) const
+  {
+    return p.mass * p.pos[_t];
+  }
+};
+
+struct getVel : public thrust::unary_function<cudaParticle, cuFP_t>
+{
+  int _t;
+  getVel(int t) : _t(t) {}
+
+ __host__ __device__
+ cuFP_t operator()(const cudaParticle& p) const
+  {
+    return p.mass * p.vel[_t];
+  }
+};
+
+struct getAcc : public thrust::unary_function<cudaParticle, cuFP_t>
+{
+  int _t;
+  getAcc(int t) : _t(t) {}
+
+ __host__ __device__
+ cuFP_t operator()(const cudaParticle& p) const
+  {
+    return p.mass * p.acc[_t];
+  }
+};
+
+void Component::fix_positions_cuda(unsigned mlevel)
+{
+				// Zero center
+  for (int i=0; i<3; i++) center[i] = 0.0;
+
+  				// Zero variables
+  mtot = 0.0;
+  for (int k=0; k<dim; k++) com[k] = cov[k] = coa[k] = 0.0;
+
+				// Zero multistep counters at and
+				// above this level
+  try {
+    auto exec = thrust::cuda::par.on(cuStream->stream);
+    
+    for (unsigned mm=mlevel; mm<=multistep; mm++) {
+
+      cudaParticle trg;
+      trg.lev[0] = mm;
+      
+      thrust::device_vector<cudaParticle>::iterator
+	pbeg = cuStream->cuda_particles.begin(),
+	pend = cuStream->cuda_particles.end();
+    
+      thrust::device_vector<cudaParticle>::iterator lo, hi;
+
+      cudaStreamSynchronize(cuStream->stream);
+
+      if (thrust_binary_search_workaround) {
+	cudaStreamSynchronize(cuStream->stream);
+	lo  = thrust::lower_bound(pbeg, pend, trg, LessCudaLev());
+      } else {
+	lo = thrust::lower_bound(exec, pbeg, pend, trg, LessCudaLev());
+      }
+      
+      cudaStreamSynchronize(cuStream->stream);
+
+      if (thrust_binary_search_workaround) {
+	hi = thrust::upper_bound(pbeg, pend, trg, LessCudaLev());
+      } else {
+	hi = thrust::upper_bound(exec, pbeg, pend, trg, LessCudaLev());
+      }
+      
+      com_mas[mm] = thrust::transform_reduce(lo, hi, getMass(), 0.0, thrust::plus<cuFP_t>());
+      for (unsigned k=0; k<3; k++)  {
+	com_lev[3*mm+k] = thrust::transform_reduce(lo, hi, getPos(k), 0.0, thrust::plus<cuFP_t>());
+	cov_lev[3*mm+k] = thrust::transform_reduce(lo, hi, getVel(k), 0.0, thrust::plus<cuFP_t>());
+	coa_lev[3*mm+k] = thrust::transform_reduce(lo, hi, getAcc(k), 0.0, thrust::plus<cuFP_t>());
+      }
+    }
+  }
+  catch(thrust::system_error &e) {
+    std::cerr << "Some other error happened during sort, lower_bound, or upper_bound:" << e.what() << std::endl;
+    exit(-1);
+  }
+ 
+  std::vector<double> com1(3, 0.0), cov1(3, 0.0), coa1(3, 0.0);
+  double              mtot1 = 0.0;
+
+  for (unsigned mm=0; mm<=multistep; mm++) {
+    for (int k=0; k<3; k++) {
+      com1[k] += com_lev[3*mm + k];
+      cov1[k] += cov_lev[3*mm + k];
+      coa1[k] += coa_lev[3*mm + k];
+    }
+    mtot1 += com_mas[mm];
+  }
+
+  MPI_Allreduce(&mtot1, &mtot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&com1[0], com, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&cov1[0], cov, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&coa1[0], coa, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    
+  if (VERBOSE>5) {
+				// Check for NaN
+    bool com_nan = false, cov_nan = false, coa_nan = false;
+    for (int k=0; k<3; k++)
+      if (std::isnan(com[k])) com_nan = true;
+    for (int k=0; k<3; k++)
+      if (std::isnan(cov[k])) cov_nan = true;
+    for (int k=0; k<3; k++)
+      if (std::isnan(coa[k])) coa_nan = true;
+    if (com_nan && myid==0)
+      cerr << "Component [" << name << "] com has a NaN" << endl;
+    if (cov_nan && myid==0)
+      cerr << "Component [" << name << "] cov has a NaN" << endl;
+    if (coa_nan && myid==0)
+      cerr << "Component [" << name << "] coa has a NaN" << endl;
+  }
+				// Compute component center of mass and
+				// center of velocity, and center of accel
+
+  if (mtot > 0.0) {
+    for (int k=0; k<dim; k++) com[k]  /= mtot;
+    for (int k=0; k<dim; k++) cov[k]  /= mtot;
+    for (int k=0; k<dim; k++) coa[k]  /= mtot;
+  }
+
+  if (com_system and not consp) {
+    for (int k=0; k<dim; k++) com0[k] = com[k];
+    for (int k=0; k<dim; k++) cov0[k] = cov[k];
+  }
+
+  if (com_system) {	   // Use local center of accel for com update
+    for (int k=0; k<dim; k++) acc0[k]  = coa[k];
+  } else {			// No mass, no acceleration?
+    for (int k=0; k<dim; k++) acc0[k]  = 0.0;
+  }
+
+  if ((EJ & Orient::CENTER) && !EJdryrun) {
+    Vector ctr = orient->currentCenter();
+    bool ok    = true;
+    for (int i=0; i<3; i++) {
+      if (std::isnan(ctr[i+1])) ok = false;
+    } 
+    if (ok) {
+      for (int i=0; i<3; i++) center[i] += ctr[i+1];
+    } else if (myid==0) {
+      cout << "Orient: center failure, T=" << tnow 
+	   << ", adjustment skipped" << endl;
+    }
+  }
+}
+
 
 // -*- C++ -*-

@@ -947,11 +947,21 @@ public:
   std::pair<unsigned, unsigned> CudaSortByLevel(cuSharedStream cr,
 						int lo, int hi);
 
+  using PII  =std::pair<unsigned int, unsigned int>;
+  using I1vec=std::vector<PII>;
+  using I2vec=std::vector<I1vec>;
+
+  //! Sort the device vector by level changes
+  I2vec CudaSortLevelChanges(cuSharedStream cr);
+
   //! Zero the acceleration
   void ZeroPotAccel(int mlevel);
 
   //! Default bunch size for CUDA
   size_t bunchSize;
+
+  //! Compute center of mass and center of velocity
+  void fix_positions_cuda(unsigned mlevel=0);
 
   //@}
 #endif

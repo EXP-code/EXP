@@ -13,6 +13,8 @@
 // #define BOUNDS_CHECK
 // #define VERBOSE_CTR
 // #define NAN_CHECK
+// #define VERBOSE_TIMING
+// #define VERBOSE_DBG
 
 // Global symbols for coordinate transformation in SphericalBasis
 //
@@ -790,7 +792,7 @@ void SphericalBasis::cudaStorage::resize_coefs
 
 void SphericalBasis::zero_coefs()
 {
-  auto cr = cC->cuStream;
+  auto cr = component->cuStream;
   
   // Resize output array
   //
@@ -853,7 +855,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
   if (pcavar) {
 
     if (sampT == 0) {		// Allocate storage
-      sampT = floor(sqrt(cC->CurTotal()));
+      sampT = floor(sqrt(component->CurTotal()));
       massT    .resize(sampT, 0);
       massT1   .resize(sampT, 0);
 
@@ -897,7 +899,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
 
-  auto cr = cC->cuStream;
+  auto cr = component->cuStream;
 
   // This will stay fixed for the entire run
   //
@@ -910,7 +912,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
   // Center assignment to symbol data
   //
   std::vector<cuFP_t> ctr;
-  for (auto v : cC->getCenter(Component::Local | Component::Centered))
+  for (auto v : component->getCenter(Component::Local | Component::Centered))
     ctr.push_back(v);
 
   cuda_safe_call(cudaMemcpyToSymbol(sphCen, &ctr[0], sizeof(cuFP_t)*3,
@@ -945,10 +947,10 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
   // Sort particles and get coefficient size
   //
-  PII lohi = cC->CudaSortByLevel(cr, mlevel, mlevel), cur;
+  PII lohi = component->CudaSortByLevel(cr, mlevel, mlevel), cur;
   
   unsigned int Ntotal = lohi.second - lohi.first;
-  unsigned int Npacks = Ntotal/cC->bunchSize + 1;
+  unsigned int Npacks = Ntotal/component->bunchSize + 1;
 
   // Loop over bunches
   //
@@ -956,8 +958,8 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
     // Current bunch
     //
-    cur. first = lohi.first + cC->bunchSize*n;
-    cur.second = lohi.first + cC->bunchSize*(n+1);
+    cur. first = lohi.first + component->bunchSize*n;
+    cur.second = lohi.first + component->bunchSize*(n+1);
     cur.second = std::min<unsigned int>(cur.second, lohi.second);
 
     if (cur.second <= cur.first) break;
@@ -1576,7 +1578,7 @@ void SphericalBasis::determine_acceleration_cuda()
   std::cout << std::scientific;
 
   cudaDeviceProp deviceProp;
-  cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
+  cudaGetDeviceProperties(&deviceProp, cC->cudaDevice);
 
   // Stream structure iterators
   //
@@ -1753,10 +1755,214 @@ void SphericalBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
   }
 }
 
+void SphericalBasis::multistep_update_cuda()
+{
+  // The plan: for the current active level search above and below for
+  // particles for correction to coefficient matrix
+  //
+
+  //! Sort the device vector by level changes
+#ifdef VERBOSE_TIMING
+  auto start0 = std::chrono::high_resolution_clock::now();
+  auto start  = std::chrono::high_resolution_clock::now();
+#endif
+  auto ret = component->CudaSortLevelChanges(component->cuStream);
+#ifdef VERBOSE_TIMING
+  auto finish = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double, std::micro> duration = finish - start;
+  std::cout << "Time in level sort=" << duration.count()*1.0e-6 << std::endl;
+#endif
+  cudaDeviceProp deviceProp;
+  cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
+  auto cs = component->cuStream;
+
+#ifdef VERBOSE_TIMING
+  double coord = 0.0, coefs = 0.0, reduc = 0.0;
+#endif
+  // Step through all levels
+  //
+  for (int mlev=0; mlev<=multistep; mlev++) {
+
+    for (int del=0; del<=multistep; del++) {
+
+      if (mlev == del) continue;
+
+      unsigned int Ntotal = ret[mlev][del].second - ret[mlev][del].first;
+
+      if (Ntotal==0) continue;
+
+      unsigned int Npacks = Ntotal/component->bunchSize + 1;
+
+#ifdef VERBOSE_DBG
+      std::cout << "[" << myid << ", " << tnow
+		<< "] Adjust sphere: Ntotal=" << Ntotal << " Npacks=" << Npacks
+		<< " for (m, d)=(" << mlev << ", " << del << ")" << std::endl;
+#endif
+      // Loop over bunches
+      //
+      for (int n=0; n<Npacks; n++) {
+
+	PII cur;
+
+	// Current bunch
+	//
+	cur. first = ret[mlev][del].first + component->bunchSize*n;
+	cur.second = ret[mlev][del].first + component->bunchSize*(n+1);
+	cur.second = std::min<unsigned int>(cur.second, ret[mlev][del].second);
+
+	if (cur.second <= cur.first) break;
+    
+	// Compute grid
+	//
+	unsigned int N         = cur.second - cur.first;
+	unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+	unsigned int gridSize  = N/BLOCK_SIZE/stride;
+	
+	if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
+
+	// Resize storage as needed
+	//
+	cuS.resize_coefs(nmax, Lmax, N, gridSize, sampT, pcavar, pcaeof);
+	
+	// Shared memory size for the reduction
+	//
+	int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
+	
+	// Compute the coordinate transformation
+	// 
+#ifdef VERBOSE_TIMING
+	start = std::chrono::high_resolution_clock::now();
+#endif
+	coordKernel<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
+	  (toKernel(cs->cuda_particles),
+	   toKernel(cuS.m_d), toKernel(cuS.a_d), toKernel(cuS.p_d),
+	   toKernel(cuS.plm1_d), toKernel(cuS.i_d),
+	   Lmax, stride, cur, rmax);
+
+#ifdef VERBOSE_TIMING
+	finish = std::chrono::high_resolution_clock::now();
+	duration = finish - start;
+	coord += duration.count()*1.0e-6;
+#endif    
+	// Compute the coefficient contribution for each order
+	//
+	int osize = nmax*2;
+	auto beg  = cuS.df_coef.begin();
+	auto begV = cuS.df_tvar.begin();
+      
+	thrust::fill(cuS.u_d.begin(), cuS.u_d.end(), 0.0);
+
+	for (int l=0; l<=Lmax; l++) {
+	  for (int m=0; m<=l; m++) {
+	    // Compute the contribution to the
+	    // coefficients from each particle
+	    //
+#ifdef VERBOSE_TIMING
+	    start = std::chrono::high_resolution_clock::now();
+#endif
+	    coefKernel<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
+	      (toKernel(cuS.dN_coef), toKernel(cuS.dN_tvar), toKernel(cuS.u_d),
+	       toKernel(t_d), toKernel(cuS.m_d),
+	       toKernel(cuS.a_d), toKernel(cuS.p_d), toKernel(cuS.plm1_d),
+	       toKernel(cuS.i_d), stride, l, m, Lmax, nmax, cur, compute);
+
+#ifdef VERBOSE_TIMING
+	    finish = std::chrono::high_resolution_clock::now();
+	    duration = finish - start;
+	    coefs += duration.count()*1.0e-6;
+	    start = std::chrono::high_resolution_clock::now();
+#endif	  
+	    // Begin the reduction per grid block
+	    // [perhaps this should use a stride?]
+	    //
+	    unsigned int gridSize1 = N/BLOCK_SIZE;
+	    if (N > gridSize1*BLOCK_SIZE) gridSize1++;
+	    reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
+	      (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), osize, N);
+	    
+	    // Finish the reduction for this order
+	    // in parallel
+	
+	    thrust::counting_iterator<int> index_begin(0);
+	    thrust::counting_iterator<int> index_end(gridSize1*osize);
+
+	    thrust::reduce_by_key
+	      (
+	       // thrust::cuda::par.on(cr->stream),
+	       thrust::cuda::par,
+	       thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
+	       thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
+	       cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
+	       );
+	    
+	    thrust::transform(// thrust::cuda::par.on(cr->stream),
+			      thrust::cuda::par,
+			      cuS.dw_coef.begin(), cuS.dw_coef.end(),
+			      beg, beg, thrust::plus<cuFP_t>());
+
+#ifdef VERBOSE_TIMING
+	    finish = std::chrono::high_resolution_clock::now();
+	    duration = finish - start;
+	    reduc += duration.count()*1.0e-6;
+#endif	    
+	    thrust::advance(beg, osize);
+	  }
+	  // END: m-loop
+	}
+	// END: l-loop
+      }
+      // END: bunches
+
+      // Copy back coefficient data from device and load the host
+      //
+      thrust::host_vector<cuFP_t> ret = cuS.df_coef;
+      int offst = 0;
+      for (int l=0; l<=Lmax; l++) {
+	for (int m=0; m<=l; m++) {
+	  for (size_t j=0; j<nmax; j++) {
+	    host_coefs[Ilmn(l, m, 'c', j, nmax)] += ret[2*j+offst];
+	    if (m>0) host_coefs[Ilmn(l, m, 's', j, nmax)] += ret[2*j+1+offst];
+	  }
+	  offst += nmax*2;
+	}
+      }
+      
+      // Decrement current level and increment new level
+      //
+      for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
+	for (int m=0, moffset=0; m<=l; m++) {
+	  for (size_t n=0; n<nmax; n++) {
+	    (*expcoefN[mlev][loffset+moffset])[n+1] -= host_coefs[Ilmn(l, m, 'c', n, nmax)];
+	    (*expcoefN[del ][loffset+moffset])[n+1] += host_coefs[Ilmn(l, m, 'c', n, nmax)];
+	    if (m>0) {
+	      (*expcoefN[mlev][loffset+moffset+1])[n+1] -= host_coefs[Ilmn(l, m, 's', n, nmax)];
+	      (*expcoefN[del ][loffset+moffset+1])[n+1] += host_coefs[Ilmn(l, m, 's', n, nmax)];
+	    }
+	  }
+
+	  if (m>0) moffset += 2;
+	  else     moffset += 1;
+	}
+      }
+    }
+  }
+
+#ifdef VERBOSE_TIMING
+  std::cout << "Time in coord=" << coord << std::endl;
+  std::cout << "Time in coefs=" << coefs << std::endl;
+  std::cout << "Time in reduc=" << reduc << std::endl;
+  auto finish0 = std::chrono::high_resolution_clock::now();
+  duration = finish0 - start0;
+  std::cout << "Total adjust =" << duration.count()*1.0e-6 << std::endl;
+#endif
+  // DONE
+}
+
 void SphericalBasis::destroy_cuda()
 {
   for (size_t i=0; i<tex.size(); i++) {
     std::ostringstream sout;
+
     sout << "trying to free TextureObject [" << i << "]";
     cuda_safe_call(cudaDestroyTextureObject(tex[i]),
 		   __FILE__, __LINE__, sout.str());

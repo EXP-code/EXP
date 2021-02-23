@@ -7,6 +7,15 @@
 #include <chrono>
 #include <map>
 
+// #define VERBOSE_TIMING
+
+// Cuda routines
+//
+#if HAVE_LIBCUDA==1
+extern void cuda_initialize_multistep();
+extern void cuda_compute_levels();
+#endif
+
 //
 // Helper class to pass info to threaded multistep update routine
 //
@@ -195,10 +204,11 @@ void * adjust_multistep_level_thread(void *ptr)
     // Enforce n-level shifts at a time
     //
     if (shiftlevl) {
-      if (plev + shiftlevl > multistep)	lev = multistep;
-      else                              lev = plev + shiftlevl;
-      if (shiftlevl > plev)             lev = 0;
-      else                              lev = plev - shiftlevl;
+      if (nlev > plev) {
+	if (nlev - plev > shiftlevl) nlev = plev + shiftlevl;
+      } else if (plev > nlev) {
+	if (plev - nlev > shiftlevl) nlev = plev - shiftlevl;
+      }
     }
 
     // Sanity check
@@ -255,11 +265,26 @@ void adjust_multistep_level(bool all)
 {
   if (!multistep) return;
 
-  // FOR DEBUGGING
-  std::cout << "ENTERING adjust multistep level" << std::endl;
+#ifdef VERBOSE_TIMING
+  std::cout << "[" << myid << "] ENTERING adjust multistep level"
+	    << std::endl;
   auto dbg_start = std::chrono::high_resolution_clock::now();
-  // if (mstep!=0) return;
-  // END DEBUGGING
+#endif
+
+#if HAVE_LIBCUDA==1
+  if (use_cuda) {
+    cuda_compute_levels();
+
+#ifdef VERBOSE_TIMING
+    auto dbg_finish = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::micro> dbg_adjust = dbg_finish - dbg_start;
+
+    std::cout << "[" << myid << "] LEAVING adjust multistep level: "
+	      << dbg_adjust.count()*1.0e-6 << std::endl;
+#endif    
+    return;
+  }
+#endif
 
   // Begin diagnostic timing
   std::chrono::high_resolution_clock::time_point start, finish;
@@ -526,11 +551,13 @@ void adjust_multistep_level(bool all)
     }
   }
 
+#ifdef VERBOSE_TIMING
   auto dbg_finish = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double, std::micro> dbg_adjust = dbg_finish - dbg_start;
 
   std::cout << "LEAVING adjust multistep level ["
 	    << dbg_adjust.count()*1.0e-6 << "]" << std::endl;
+#endif
 }
 
 
@@ -619,5 +646,9 @@ void initialize_multistep()
     }
     cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
   }
+
+#if HAVE_LIBCUDA==1
+  if (use_cuda) cuda_initialize_multistep();
+#endif
 
 }
