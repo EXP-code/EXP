@@ -121,16 +121,17 @@ void legendre_v2(int lmax, cuFP_t x, cuFP_t* p, cuFP_t* dp)
 __global__
 void testConstantsSph()
 {
-  printf("** Spherical constants\n");
-  printf("** -------------------\n");
-  printf("** Scale  = %f\n", sphScale);
+  printf("** -------------------\n"   );
+  printf("** Spherical constants\n"   );
+  printf("** -------------------\n"   );
+  printf("** Scale  = %f\n", sphScale );
   printf("** Rscale = %f\n", sphRscale);
-  printf("** Xmin   = %f\n", sphXmin);
-  printf("** Xmax   = %f\n", sphXmax);
-  printf("** Dxi    = %f\n", sphDxi);
-  printf("** Numr   = %d\n", sphNumr);
-  printf("** Cmap   = %d\n", sphCmap);
-  printf("** -------------------\n");
+  printf("** Xmin   = %f\n", sphXmin  );
+  printf("** Xmax   = %f\n", sphXmax  );
+  printf("** Dxi    = %f\n", sphDxi   );
+  printf("** Numr   = %d\n", sphNumr  );
+  printf("** Cmap   = %d\n", sphCmap  );
+  printf("** -------------------\n"   );
 }
 
 __device__
@@ -947,7 +948,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
   // Sort particles and get coefficient size
   //
-  PII lohi = component->CudaSortByLevel(cr, mlevel, mlevel), cur;
+  PII lohi = component->CudaGetLevelRange(cr, mlevel, mlevel), cur;
   
   unsigned int Ntotal = lohi.second - lohi.first;
   unsigned int Npacks = Ntotal/component->bunchSize + 1;
@@ -1595,7 +1596,7 @@ void SphericalBasis::determine_acceleration_cuda()
   
   // Sort particles and get size
   //
-  PII lohi = cC->CudaSortByLevel(cr, mlevel, multistep);
+  PII lohi = cC->CudaGetLevelRange(cr, mlevel, multistep);
 
   // Compute grid
   //

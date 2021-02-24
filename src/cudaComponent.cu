@@ -132,38 +132,38 @@ Component::I2vec Component::CudaSortLevelChanges(Component::cuSharedStream cr)
     exit(-1);
   }
  
-  std::cout << std::string(15*(multistep+1), '-') << std::endl;
-  std::cout << "--- " << name << std::endl;
-  std::cout << std::string(15*(multistep+1), '-') << std::endl;
-  for (int m1=0; m1<=multistep; m1++) {
-    for (int m2=0; m2<=multistep; m2++) {
-      std::ostringstream sout;
-      sout << "(" << ret[m1][m2].first << ", " << ret[m1][m2].second << ")";
-      std::cout << std::setw(15) << sout.str();
+  if (false) {
+    std::cout << std::string(15*(multistep+1), '-') << std::endl;
+    std::cout << "--- " << name << " [" << myid << "]" << std::endl;
+    std::cout << std::string(15*(multistep+1), '-') << std::endl;
+    for (int m1=0; m1<=multistep; m1++) {
+      for (int m2=0; m2<=multistep; m2++) {
+	std::ostringstream sout;
+	sout << "(" << ret[m1][m2].first << ", " << ret[m1][m2].second << ")";
+	std::cout << std::setw(15) << sout.str();
+      }
+      std::cout << std::endl;
     }
-    std::cout << std::endl;
+    std::cout << std::string(15*(multistep+1), '-') << std::endl;
   }
-  std::cout << std::string(15*(multistep+1), '-') << std::endl;
 
   return ret;
 }
 
 
-std::pair<unsigned int, unsigned int>
-Component::CudaSortByLevel(Component::cuSharedStream cr,
-				int minlev, int maxlev)
+void Component::CudaSortByLevel()
 {
   std::pair<unsigned, unsigned> ret;
 
   try {
-    auto exec = thrust::cuda::par.on(cr->stream);
+    auto exec = thrust::cuda::par.on(cuStream->stream);
     
     thrust::device_vector<cudaParticle>::iterator
-      pbeg = cr->cuda_particles.begin(),
-      pend = cr->cuda_particles.end();
+      pbeg = cuStream->cuda_particles.begin(),
+      pend = cuStream->cuda_particles.end();
     
     if (thrust_binary_search_workaround) {
-      cudaStreamSynchronize(cr->stream);
+      cudaStreamSynchronize(cuStream->stream);
       thrust::sort(pbeg, pend, LessCudaLev());
     } else {
       thrust::sort(exec, pbeg, pend, LessCudaLev());
@@ -173,38 +173,50 @@ Component::CudaSortByLevel(Component::cuSharedStream cr,
     // the whole particle structure in getBound.  Perhaps this
     // temporary should be part of the data storage structure?
     //
-    thrust::device_vector<int> lev(cr->cuda_particles.size());
+    cuStream->levList.resize(cuStream->cuda_particles.size());
 
     if (thrust_binary_search_workaround) {
-      cudaStreamSynchronize(cr->stream);
-      thrust::transform(pbeg, pend, lev.begin(), cuPartToLevel());
+      cudaStreamSynchronize(cuStream->stream);
+      thrust::transform(pbeg, pend, cuStream->lev.begin(), cuPartToLevel());
     } else {
-      thrust::transform(exec, pbeg, pend, lev.begin(), cuPartToLevel());
+      thrust::transform(exec, pbeg, pend, cuStream->lev.begin(), cuPartToLevel());
     }
+  }
+}
+
+std::pair<unsigned int, unsigned int>
+Component::CudaGetLevelRange(int minlev, int maxlev)
+{
+  std::pair<unsigned, unsigned> ret;
+
+  try {
+    auto exec = thrust::cuda::par.on(cuStream->stream);
 
     // Get unsigned from input
     //
     unsigned int minl = static_cast<unsigned>(minlev);
     unsigned int maxl = static_cast<unsigned>(maxlev);
 
+    thrust::device_vector<int>::iterator lbeg = cuStreamlevList.begin();
+    thrust::device_vector<int>::iterator lend = cuStreamlevList.end();
     thrust::device_vector<int>::iterator lo, hi;
 
     if (thrust_binary_search_workaround) {
       cudaStreamSynchronize(cuStream->stream);
-      lo  = thrust::lower_bound(lev.begin(), lev.end(), minl);
+      lo  = thrust::lower_bound(lbeg, lend, minl);
     } else {
-      lo = thrust::lower_bound(exec, lev.begin(), lev.end(), minl);
+      lo = thrust::lower_bound(exec, lbeg, lend, minl);
     }
 	
     if (thrust_binary_search_workaround) {
       cudaStreamSynchronize(cuStream->stream);
-      hi = thrust::upper_bound(lev.begin(), lev.end(), maxl);
+      hi = thrust::upper_bound(lbeg, lend, maxl);
     } else {
-      hi = thrust::upper_bound(exec, lev.begin(), lev.end(), maxl);
+      hi = thrust::upper_bound(exec, lbeg, lend, maxl);
     }
 
-    ret.first  = thrust::distance(lev.begin(), lo);
-    ret.second = thrust::distance(lev.begin(), hi);
+    ret.first  = thrust::distance(lbeg, lo);
+    ret.second = thrust::distance(lbeg, hi);
   }
   catch(thrust::system_error &e) {
     std::cerr << "Some other error happened during sort, lower_bound, or upper_bound:" << e.what() << std::endl;
@@ -299,7 +311,7 @@ void Component::ZeroPotAccel(int minlev)
   
   if (multistep) {
     std::pair<unsigned int, unsigned int>
-      ret = CudaSortByLevel(cuStream, minlev, multistep);
+      ret = CudaGetLevelRange(cuStream, minlev, multistep);
     
     thrust::transform(// thrust::cuda::par.on(cuStream->stream),
 		      thrust::cuda::par,
@@ -482,6 +494,5 @@ void Component::fix_positions_cuda(unsigned mlevel)
     }
   }
 }
-
 
 // -*- C++ -*-

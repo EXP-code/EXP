@@ -1,0 +1,395 @@
+#include "expand.h"
+#include <Component.H>
+#include <cudaReduce.cuH>
+
+// #define VERBOSE_TIMING
+
+// Global symbols for time step selection
+//
+__device__ __constant__
+cuFP_t cuDynfracS, cuDynfracD, cuDynfracV, cuDynfracA, cuDynfracP, cuDtime;
+
+__device__ __constant__
+int cuMultistep, cuShiftlev, cuDTold;
+
+void cuda_initialize_multistep_constants()
+{
+  // Copy constants to device
+  //
+  cuFP_t z;
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuDynfracS, &(z=dynfracS), sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuDynfracS");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuDynfracD, &(z=dynfracD), sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuDynfracD");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuDynfracV, &(z=dynfracV), sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuDynfracV");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuDynfracA, &(z=dynfracA), sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuDynfracA");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuDynfracP, &(z=dynfracP), sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuDynfracP");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuDtime, &(z=dtime), sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuDtime");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuMultistep, &multistep, sizeof(int), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuMultistep");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuShiftlev, &shiftlevl, sizeof(int), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying cuShiftlev");
+
+  int tmp = DTold ? 1 : 0;
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuDTold, &(tmp), sizeof(int), size_t(0), cudaMemcpyHostToDevice),
+		   __FILE__, __LINE__, "Error copying cuDTold");
+}
+
+
+__global__
+void testConstantsMultistep()
+{
+  printf("** -------------------\n"     );
+  printf("** Multistep constants\n"     );
+  printf("** -------------------\n"     );
+  printf("** DynS   = %e\n", cuDynfracS );
+  printf("** DynD   = %e\n", cuDynfracD );
+  printf("** DynV   = %e\n", cuDynfracV );
+  printf("** DynA   = %e\n", cuDynfracA );
+  printf("** DynP   = %e\n", cuDynfracP );
+  printf("** Dtime  = %f\n", cuDtime    );
+  printf("** Multi  = %d\n", cuMultistep);
+  printf("** Shift  = %d\n", cuShiftlev );
+  if (cuDTold)
+    printf("** DTold  = true\n"         );
+  else
+    printf("** DTold  = false\n"        );
+  printf("** -------------------\n"     );
+}
+
+//! Thrust counts of delta level for debugging
+struct testCountDelta :  public thrust::unary_function<cudaParticle, int>
+{
+  __host__ __device__
+  int operator()(const cudaParticle& p) const
+  {
+    return abs(p.lev[0] - p.lev[1]);
+  }
+};
+
+struct testCountLevel :  public thrust::unary_function<cudaParticle, int>
+{
+  int _l;
+
+  testCountLevel(int l) : _l(l) {}
+
+  __host__ __device__
+  int operator()(const cudaParticle& p) const
+  {
+    if (p.lev[0] == _l) return 1;
+    return 0;
+  }
+};
+
+
+__global__ void
+timestepKernel(dArray<cudaParticle> in, cuFP_t cx, cuFP_t cy, cuFP_t cz,
+	       int dim, int stride, PII lohi)
+{
+  const int tid    = blockDim.x * blockIdx.x + threadIdx.x;
+  const cuFP_t eps = 1.0e-20;
+
+  for (int n=0; n<stride; n++) {
+    int i     = tid*stride + n;	// Index in the stride
+    int npart = i + lohi.first;	// Particle index
+
+    if (npart < lohi.second) {
+      
+#ifdef BOUNDS_CHECK
+      if (npart>=in._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+#endif
+      cudaParticle* p = &in._v[npart];
+      
+      cuFP_t xx = p->pos[0] - cx;
+      cuFP_t yy = p->pos[1] - cy;
+      cuFP_t zz = p->pos[2] - cz;
+      
+      cuFP_t dtd=1.0/eps, dtv=1.0/eps, dta=1.0/eps, dtA=1.0/eps, dts=1.0/eps;
+
+      if (cuDTold) {
+
+	// dtv = eps* r/v         -- roughly, crossing time
+	// dta = eps* v/a         -- force scale
+	// dtA = eps* sqrt(r/a)   -- acceleration time
+	
+	cuFP_t rtot = sqrt(xx*xx + yy*yy + zz*zz);
+	cuFP_t vtot = 0.0;
+	cuFP_t atot = 0.0;
+
+	for (int k=0; k<dim; k++) {
+	  vtot += p->vel[k]*p->vel[k];
+	  atot += p->acc[k]*p->acc[k];
+	}
+	vtot = sqrt(vtot) + 1.0e-18;
+	atot = sqrt(atot) + 1.0e-18;
+	
+	if (p->scale>0.0) dts = cuDynfracS*p->scale/vtot;
+
+	dtv = cuDynfracV*rtot/vtot;
+	dta = cuDynfracA*vtot/atot;
+	dtA = cuDynfracP*sqrt(rtot/atot);
+
+      } else {
+
+	// dtd = eps* rscale/v_i    -- char. drift time scale
+	// dtv = eps* min(v_i/a_i)  -- char. force time scale
+	// dta = eps* phi/(v * a)   -- char. work time scale
+	// dtA = eps* sqrt(phi/a^2) -- char. "escape" time scale
+
+	cuFP_t dtr  = 0.0;
+	cuFP_t vtot = 0.0;
+	cuFP_t atot = 0.0;
+	
+	for (int k=0; k<dim; k++) {
+	  dtr  += p->vel[k]*p->acc[k];
+	  vtot += p->vel[k]*p->vel[k];
+	  atot += p->acc[k]*p->acc[k];
+	}
+
+	cuFP_t ptot = fabs(p->pot + p->potext);
+	
+	if (p->scale>0) dts = cuDynfracS*p->scale/fabs(sqrt(vtot)+eps);
+	
+	dtd = cuDynfracD * 1.0/sqrt(vtot+eps);
+	dtv = cuDynfracV * sqrt(vtot/(atot+eps));
+	dta = cuDynfracA * ptot/(fabs(dtr)+eps);
+	dtA = cuDynfracP * sqrt(ptot/(atot*atot+eps));
+
+	/*
+	if (i<5) {
+	  printf("i=%d dtr=%e vtot=%e atot=%e ptot=%e dts=%e dtd=%e dtv=%e dta=%e dtA=%e DynV=%e DynA=%e\n", i, dtr, vtot, atot, ptot, dts, dtd, dtv, dta, dtA, cuDynfracV, cuDynfracA);
+	}
+	*/
+      }
+      
+      // Smallest time step
+      //
+
+      cuFP_t dt = dts;
+      if (dt > dtd) dt = dtd;
+      if (dt > dtv) dt = dtv;
+      if (dt > dta) dt = dta;
+      if (dt > dtA) dt = dtA;
+      
+      // Time step wants to be LARGER than the maximum
+      p->lev[1] = 0;
+      if (dt<cuDtime)
+	p->lev[1] = (int)floor(log(cuDtime/dt)/log(2.0));
+    
+      // Time step wants to be SMALLER than the maximum
+      if (p->lev[1]>cuMultistep) p->lev[1] = cuMultistep;
+      
+      // Enforce n-level shifts at a time
+      //
+      if (cuShiftlev) {
+	if (p->lev[1] > p->lev[0]) {
+	  if (p->lev[1] - p->lev[0] > cuShiftlev)
+	    p->lev[1] = p->lev[0] + cuShiftlev;
+	} else if (p->lev[0] > p->lev[1]) {
+	  if (p->lev[0] - p->lev[1] > cuShiftlev)
+	    p->lev[1] = p->lev[0] - cuShiftlev;
+	}
+      }
+
+    } // Particle index block
+    
+  } // END: stride loop
+
+}
+
+__global__ void
+timestepFinalizeKernel(dArray<cudaParticle> in, int stride)
+{
+  const int tid = blockDim.x * blockIdx.x + threadIdx.x;
+
+  for (int n=0; n<stride; n++) {
+    int i     = tid*stride + n;	// Index in the stride
+
+    if (i < in._s) {
+
+      cudaParticle* p = &in._v[i];
+      
+      if (p->lev[0] != p->lev[1]) p->lev[0] = p->lev[1];
+
+    } // Particle index block
+    
+  } // END: stride loop
+
+}
+
+void cuda_initialize_multistep()
+{
+  // Constants to device once only
+  //
+  cuda_initialize_multistep_constants();
+
+  if (myid==0) testConstantsMultistep<<<1, 1>>>();
+
+  // Initialize host interpolation arrays
+  //
+  thrust::host_vector<int> host_dstepL((multistep+1)*Mstep);
+  thrust::host_vector<int> host_dstepN((multistep+1)*Mstep);
+
+  for (int ms=0; ms<=multistep; ms++) {
+    int rev = multistep - ms;
+    for (int n=0; n<Mstep; n++) {
+      host_dstepL[rev*Mstep + n] = dstepL[rev][n];
+      host_dstepN[rev*Mstep + n] = dstepN[rev][n];
+    }
+  }
+
+  cuDstepL = host_dstepL;
+  cuDstepN = host_dstepN;
+}
+
+void cuda_compute_levels()
+{
+  cudaDeviceProp deviceProp;
+
+  cuda_initialize_multistep_constants();
+
+#ifdef VERBOSE_TIMING
+  double time1 = 0.0, time2 = 0.0, timeADJ = 0.0, timeCOM = 0.0;
+  auto start0 = std::chrono::high_resolution_clock::now();
+  auto start  = std::chrono::high_resolution_clock::now();
+#endif
+
+  for (auto c : comp->components) {
+    
+    cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
+
+    PII lohi = {0, c->cuStream->cuda_particles.size()};
+    if (!all) lohi = c->CudaGetLevelRange(c->cuStream, mfirst[mstep], multistep);
+      
+    // Compute grid
+    //
+    unsigned int N         = lohi.second - lohi.first;
+    unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+    unsigned int gridSize  = N/BLOCK_SIZE/stride;
+    
+    if (N>0) {
+
+      if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
+
+      // Do the work
+      //
+      auto ctr = c->getCenter(Component::Local | Component::Centered);
+      
+      timestepKernel<<<gridSize, BLOCK_SIZE>>>
+	(toKernel(c->cuStream->cuda_particles), ctr[0], ctr[1], ctr[2], 
+	 c->dim, stride, lohi);
+    }
+  }
+
+#ifdef VERBOSE_TIMING
+  auto finish = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double, std::micro> duration = finish - start;
+  time1 += duration.count()*1.0e-6;
+#endif
+  
+  //
+  // Finish the update
+  //
+  for (auto c : comp->components) {
+#ifdef VERBOSE_TIMING
+    start = std::chrono::high_resolution_clock::now();
+#endif
+    cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
+
+    c->force->multistep_update_cuda();
+
+#ifdef VERBOSE_TIMING
+    finish = std::chrono::high_resolution_clock::now();
+    duration = finish - start;
+    timeADJ += duration.count()*1.0e-6;
+    start = std::chrono::high_resolution_clock::now();
+#endif
+
+    // Compute grid
+    //
+    unsigned int N         = c->cuStream->cuda_particles.size();
+    unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+    unsigned int gridSize  = N/BLOCK_SIZE/stride;
+    
+    if (N>0) {
+
+      if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
+
+      // Do the work
+      //
+      auto ctr = c->getCenter(Component::Local | Component::Centered);
+      
+      timestepFinalizeKernel<<<gridSize, BLOCK_SIZE>>>
+	(toKernel(c->cuStream->cuda_particles), stride);
+
+      c->CudaSortByLevel();
+    }
+
+    //  +---- True for deep level debugging
+    //  |
+    //  v
+    if (true) {
+      /*
+      int testme =
+	thrust::transform_reduce(c->cuStream->cuda_particles.begin(),
+				 c->cuStream->cuda_particles.end(),
+				 testCountDelta(), 0, thrust::plus<int>());
+      */
+      std::cout << "Component "<< c->name << "[" << myid << "]: [";
+      for (int m=0; m<=multistep; m++) {
+	int testme =
+	  thrust::transform_reduce(c->cuStream->cuda_particles.begin(),
+				   c->cuStream->cuda_particles.end(),
+				   testCountLevel(m), 0, thrust::plus<int>());
+	std::cout << std::setw(8) << testme << " ";
+      }
+      std::cout << "]" << std::endl;
+    }
+
+
+#ifdef VERBOSE_TIMING
+    c->force->multistep_update_cuda();
+    finish = std::chrono::high_resolution_clock::now();
+    duration = finish - start;
+    time2 += duration.count()*1.0e-6;
+    start = std::chrono::high_resolution_clock::now();
+#endif
+
+    c->fix_positions_cuda();
+
+#ifdef VERBOSE_TIMING
+    c->force->multistep_update_cuda();
+    finish = std::chrono::high_resolution_clock::now();
+    duration = finish - start;
+    timeCOM += duration.count()*1.0e-6;
+#endif
+
+    c->force->multistep_update_finish();
+  }
+
+#ifdef VERBOSE_TIMING
+  auto finish0 = std::chrono::high_resolution_clock::now();
+  duration = finish - start;
+  auto timeTOT = 1.0e-6*duration.count();
+
+  std::cout << "Time in timestep  =" << time1   << std::endl
+	    << "Time in timelevl  =" << time2   << std::endl
+	    << "Time in adjust    =" << timeADJ << std::endl
+	    << "Time in COM       =" << timeCOM << std::endl
+	    << "Total time in adj =" << timeTOT << std::endl;
+#endif
+}
+

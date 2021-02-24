@@ -19,10 +19,7 @@ __device__ __constant__
 cuFP_t cylRscale, cylHscale, cylXmin, cylXmax, cylYmin, cylYmax, cylDxi, cylDyi, cylCen[3], cylBody[9], cylOrig[9];
 
 __device__ __constant__
-int   cylNumx, cylNumy, cylCmapR, cylCmapZ;
-
-__device__ __constant__
-bool  cylOrient;
+int   cylNumx, cylNumy, cylCmapR, cylCmapZ, cylOrient;
 
 // Index function for sine and cosine coefficients
 //
@@ -54,21 +51,22 @@ int Jmn(int m, int n, int nmax)
 __global__
 void testConstantsCyl()
 {
-  printf("** Cylindrical constants\n");
-  printf("** ---------------------\n");
+  printf("** ---------------------\n" );
+  printf("** Cylindrical constants\n" );
+  printf("** ---------------------\n" );
   printf("** Rscale = %f\n", cylRscale);
   printf("** Hscale = %f\n", cylHscale);
-  printf("** Xmin   = %f\n", cylXmin);
-  printf("** Xmax   = %f\n", cylXmax);
-  printf("** Ymin   = %f\n", cylYmin);
-  printf("** Ymax   = %f\n", cylYmax);
-  printf("** Dxi    = %f\n", cylDxi);
-  printf("** Dyi    = %f\n", cylDyi);
-  printf("** Numx   = %d\n", cylNumx);
-  printf("** Numy   = %d\n", cylNumy);
-  printf("** CmapR  = %d\n", cylCmapR);
-  printf("** CmapZ  = %d\n", cylCmapZ);
-  printf("** ---------------------\n");
+  printf("** Xmin   = %f\n", cylXmin  );
+  printf("** Xmax   = %f\n", cylXmax  );
+  printf("** Ymin   = %f\n", cylYmin  );
+  printf("** Ymax   = %f\n", cylYmax  );
+  printf("** Dxi    = %f\n", cylDxi   );
+  printf("** Dyi    = %f\n", cylDyi   );
+  printf("** Numx   = %d\n", cylNumx  );
+  printf("** Numy   = %d\n", cylNumy  );
+  printf("** CmapR  = %d\n", cylCmapR );
+  printf("** CmapZ  = %d\n", cylCmapZ );
+  printf("** ---------------------\n" );
 }
 
 // R coordinate transformation
@@ -230,7 +228,7 @@ __global__ void coordKernelCyl
     int i     = tid*stride + n;	// Particle counter
     int npart = i + lohi.first;	// Particle index
 
-    if (npart < lohi.second) {
+    if (npart < lohi.second) {	// Is particle index in range?
 
 #ifdef BOUNDS_CHECK
       if (npart>=in._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
@@ -325,16 +323,17 @@ __global__ void coefKernelCyl
     int i     = tid*stride + n;
     int npart = i + lohi.first;
 
-    if (npart < lohi.second) {	// Allow for grid padding
-
-      cuFP_t mass = Mass._v[npart];
+    if (npart < lohi.second) {	// Check that particle index is in
+				// range for consistency with other
+				// kernels
+      cuFP_t mass = Mass._v[i];
       
 #ifdef BOUNDS_CHECK
       if (i>=Mass._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif      
       if (mass>0.0) {
 				// For accumulating mass of used particles
-	if (m==0) used._v[npart] = mass;
+	if (m==0) used._v[i] = mass;
 
 #ifdef BOUNDS_CHECK
 	if (i>=Phi._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
@@ -483,7 +482,8 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<cuFP_t> coef,
     int i     = tid*stride + n;	// Index in the stride
     int npart = i + lohi.first;	// Particle index
 
-    if (npart < lohi.second) {
+    if (npart < lohi.second) {	// Check that particle index is in
+				// range
       
       int muse = mmax > mlim ? mlim : mmax;
 
@@ -913,7 +913,9 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
   bool orient = (component->EJ & Orient::AXIS) && !component->EJdryrun;
 
-  cuda_safe_call(cudaMemcpyToSymbol(cylOrient, &orient,   sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
+  int tmp = orient ? 1 : 0;
+  cuda_safe_call(cudaMemcpyToSymbol(cylOrient, &tmp, sizeof(int),
+				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying cylOrient");
 
   if (orient) {
@@ -927,14 +929,14 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
   // Get the stream for this component
   //
-  auto cr = component->cuStream;
+  auto cs = component->cuStream;
 
   // For debugging (set to false to disable)
   //
   static bool firstime = true;
 
   if (firstime and myid==0) {
-    testConstantsCyl<<<1, 1, 0, cr->stream>>>();
+    testConstantsCyl<<<1, 1, 0, cs->stream>>>();
     cudaDeviceSynchronize();
     firstime = false;
   }
@@ -961,10 +963,10 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
   // Sort particles and get coefficient size
   //
-  PII lohi = component->CudaSortByLevel(cr, mlevel, mlevel), cur;
+  PII lohi = component->CudaGetLevelRange(cs, mlevel, mlevel), cur;
   
   unsigned int Ntotal = lohi.second - lohi.first;
-  unsigned int Npacks = Ntotal/cC->bunchSize + 1;
+  unsigned int Npacks = Ntotal/component->bunchSize + 1;
 
   // Loop over bunches
   //
@@ -1015,8 +1017,8 @@ void Cylinder::determine_coefficients_cuda(bool compute)
     
     // Compute the coordinate transformation
     // 
-    coordKernelCyl<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
-      (toKernel(cr->cuda_particles), toKernel(cuS.m_d), toKernel(cuS.p_d),
+    coordKernelCyl<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
+      (toKernel(cs->cuda_particles), toKernel(cuS.m_d), toKernel(cuS.p_d),
        toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d),
        toKernel(cuS.iY_d), stride, cur, rmax);
       
@@ -1039,7 +1041,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
     for (int m=0; m<=mmax; m++) {
 
-      coefKernelCyl<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
+      coefKernelCyl<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
 	(toKernel(cuS.dN_coef), toKernel(cuS.dN_tvar), toKernel(cuS.u_d),
 	 toKernel(t_d), toKernel(cuS.m_d), toKernel(cuS.p_d),
 	 toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d), toKernel(cuS.iY_d),
@@ -1050,7 +1052,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
       //
       unsigned int gridSize1 = N/BLOCK_SIZE;
       if (N > gridSize1*BLOCK_SIZE) gridSize1++;
-      reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
+      reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
 	(toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), osize, N);
       
 				// Finish the reduction for this order
@@ -1060,14 +1062,14 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
       thrust::reduce_by_key
 	(
-	 // thrust::cuda::par.on(cr->stream),
+	 // thrust::cuda::par.on(cs->stream),
 	 thrust::cuda::par,
 	 thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 	 thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 	 cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
 	 );
 
-      thrust::transform(// thrust::cuda::par.on(cr->stream),
+      thrust::transform(// thrust::cuda::par.on(cs->stream),
 			thrust::cuda::par,
 			cuS.dw_coef.begin(), cuS.dw_coef.end(),
 			beg, beg, thrust::plus<cuFP_t>());
@@ -1102,7 +1104,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
 	    unsigned int gridSize1 = s/BLOCK_SIZE;
 	    if (s > gridSize1*BLOCK_SIZE) gridSize1++;
-	    reduceSumS<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
+	    reduceSumS<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
 	      (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), osize, N, k, k+s);
       
 				// Finish the reduction for this order
@@ -1112,7 +1114,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	      
 	    thrust::reduce_by_key
 	      (
-	       // thrust::cuda::par.on(cr->stream),
+	       // thrust::cuda::par.on(cs->stream),
 	       thrust::cuda::par,
 	       thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 	       thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
@@ -1120,7 +1122,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	       );
 
 
-	    thrust::transform(// thrust::cuda::par.on(cr->stream),
+	    thrust::transform(// thrust::cuda::par.on(cs->stream),
 			      thrust::cuda::par,
 			      cuS.dw_coef.begin(), cuS.dw_coef.end(),
 			      bg[T], bg[T], thrust::plus<cuFP_t>());
@@ -1143,7 +1145,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	//
 	if (pcaeof) {
 
-	  reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
+	  reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
 	    (toKernel(cuS.dc_tvar), toKernel(cuS.dN_tvar), vsize, N);
       
 				// Finish the reduction for this order
@@ -1153,14 +1155,14 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	  
 	  thrust::reduce_by_key
 	    (
-	     // thrust::cuda::par.on(cr->stream),
+	     // thrust::cuda::par.on(cs->stream),
 	     thrust::cuda::par,
 	     thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 	     thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 	       cuS.dc_tvar.begin(), thrust::make_discard_iterator(), cuS.dw_tvar.begin()
 	     );
 
-	  thrust::transform(// thrust::cuda::par.on(cr->stream),
+	  thrust::transform(// thrust::cuda::par.on(cs->stream),
 			    thrust::cuda::par,
 			    cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
 			    begV, begV, thrust::plus<cuFP_t>());
@@ -1173,11 +1175,11 @@ void Cylinder::determine_coefficients_cuda(bool compute)
     // Compute number and total mass of particles used in coefficient
     // determination
     //
-    thrust::sort(//thrust::cuda::par.on(cr->stream),
+    thrust::sort(//thrust::cuda::par.on(cs->stream),
 		 thrust::cuda::par,
 		 cuS.m_d.begin(), cuS.m_d.end());
     
-    // auto exec  = thrust::cuda::par.on(cr->stream);
+    // auto exec  = thrust::cuda::par.on(cs->stream);
     auto exec  = thrust::cuda::par;
     auto first = cuS.u_d.begin();
     auto last  = cuS.u_d.end();
@@ -1194,7 +1196,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
     // Workaround for: https://github.com/NVIDIA/thrust/pull/1104
     //
     if (thrust_binary_search_workaround) {
-      cudaStreamSynchronize(cr->stream);
+      cudaStreamSynchronize(cs->stream);
       it = thrust::upper_bound(first, last, 0.0);
     } else {
       it = thrust::upper_bound(exec, first, last, 0.0);
@@ -1575,7 +1577,7 @@ void Cylinder::determine_acceleration_cuda()
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, cC->cudaDevice);
 
-  auto cr = cC->cuStream;
+  auto cs = cC->cuStream;
 
   // Assign component center and orientation
   //
@@ -1610,7 +1612,7 @@ void Cylinder::determine_acceleration_cuda()
 
   // Sort particles and get coefficient size
   //
-  PII lohi = cC->CudaSortByLevel(cr, mlevel, multistep);
+  PII lohi = cC->CudaGetLevelRange(cs, mlevel, multistep);
 
   // Compute grid
   //
@@ -1648,8 +1650,8 @@ void Cylinder::determine_acceleration_cuda()
       
     // Do the work
     //
-    forceKernelCyl<<<gridSize, BLOCK_SIZE, sMemSize, cr->stream>>>
-      (toKernel(cr->cuda_particles), toKernel(dev_coefs), toKernel(t_d),
+    forceKernelCyl<<<gridSize, BLOCK_SIZE, sMemSize, cs->stream>>>
+      (toKernel(cs->cuda_particles), toKernel(dev_coefs), toKernel(t_d),
        stride, mmax, mlim, ncylorder, lohi, rmax, cylmass, use_external);
     
   }
@@ -1833,7 +1835,7 @@ void Cylinder::multistep_update_cuda()
 	     cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
 	     );
 
-	  thrust::transform(// thrust::cuda::par.on(cr->stream),
+	  thrust::transform(// thrust::cuda::par.on(cs->stream),
 			    thrust::cuda::par,
 			    cuS.dw_coef.begin(), cuS.dw_coef.end(),
 			    beg, beg, thrust::plus<cuFP_t>());
