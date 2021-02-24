@@ -19,10 +19,7 @@ __device__ __constant__
 cuFP_t cylRscale, cylHscale, cylXmin, cylXmax, cylYmin, cylYmax, cylDxi, cylDyi, cylCen[3], cylBody[9], cylOrig[9];
 
 __device__ __constant__
-int   cylNumx, cylNumy, cylCmapR, cylCmapZ;
-
-__device__ __constant__
-bool  cylOrient;
+int   cylNumx, cylNumy, cylCmapR, cylCmapZ, cylOrient;
 
 // Index function for sine and cosine coefficients
 //
@@ -916,7 +913,9 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
   bool orient = (component->EJ & Orient::AXIS) && !component->EJdryrun;
 
-  cuda_safe_call(cudaMemcpyToSymbol(cylOrient, &orient,   sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
+  int tmp = orient ? 1 : 0;
+  cuda_safe_call(cudaMemcpyToSymbol(cylOrient, &tmp, sizeof(int),
+				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying cylOrient");
 
   if (orient) {
@@ -964,7 +963,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
   // Sort particles and get coefficient size
   //
-  PII lohi = component->CudaSortByLevel(cs, mlevel, mlevel), cur;
+  PII lohi = component->CudaGetLevelRange(cs, mlevel, mlevel), cur;
   
   unsigned int Ntotal = lohi.second - lohi.first;
   unsigned int Npacks = Ntotal/component->bunchSize + 1;
@@ -1613,7 +1612,7 @@ void Cylinder::determine_acceleration_cuda()
 
   // Sort particles and get coefficient size
   //
-  PII lohi = cC->CudaSortByLevel(cs, mlevel, multistep);
+  PII lohi = cC->CudaGetLevelRange(cs, mlevel, multistep);
 
   // Compute grid
   //

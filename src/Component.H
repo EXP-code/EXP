@@ -180,8 +180,6 @@ struct loadb_datum
   specifying alternative parameters, using an old-style PSP file, or
   starting a new job with a previous output from another simulation)
   </ol>
-  
-
 */
 class Component
 {
@@ -894,6 +892,9 @@ public:
     //! Device particles
     thrust::device_vector<cudaParticle> cuda_particles;
 
+    //! Level list
+    thrust::device_vector<int> levList;
+
     //! My stream
     cudaStream_t stream;
 
@@ -916,7 +917,6 @@ public:
   
   //! Copy particles device to host for stream entry
   void DevToHost(cuSharedStream cr);
-  
 
   //! Copy particles from Component C to the cuda device structure
   void ParticlesToCuda(PartMap::iterator beg, PartMap::iterator fin);
@@ -943,9 +943,11 @@ public:
   //! Sort the device vector by sequence
   void CudaSortBySequence(cuSharedStream cr);
 
+  //! Sort the device vector by level
+  void CudaSortByLevel();
+
   //! Sort the device vector by level and return level boundaries
-  std::pair<unsigned, unsigned> CudaSortByLevel(cuSharedStream cr,
-						int lo, int hi);
+  std::pair<unsigned, unsigned> CudaGetLevelRange(int lo, int hi);
 
   using PII  =std::pair<unsigned int, unsigned int>;
   using I1vec=std::vector<PII>;

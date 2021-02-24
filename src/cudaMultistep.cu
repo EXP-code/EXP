@@ -10,10 +10,7 @@ __device__ __constant__
 cuFP_t cuDynfracS, cuDynfracD, cuDynfracV, cuDynfracA, cuDynfracP, cuDtime;
 
 __device__ __constant__
-int cuMultistep, cuShiftlev;
-
-__device__ __constant__
-bool cuDTold;
+int cuMultistep, cuShiftlev, cuDTold;
 
 void cuda_initialize_multistep_constants()
 {
@@ -45,8 +42,10 @@ void cuda_initialize_multistep_constants()
   cuda_safe_call(cudaMemcpyToSymbol(cuShiftlev, &shiftlevl, sizeof(int), size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying cuShiftlev");
 
-  cuda_safe_call(cudaMemcpyToSymbol(cuDTold, &DTold, sizeof(bool), size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cuDTold");
+  int tmp = DTold ? 1 : 0;
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuDTold, &(tmp), sizeof(int), size_t(0), cudaMemcpyHostToDevice),
+		   __FILE__, __LINE__, "Error copying cuDTold");
 }
 
 
@@ -169,9 +168,11 @@ timestepKernel(dArray<cudaParticle> in, cuFP_t cx, cuFP_t cy, cuFP_t cz,
 	dta = cuDynfracA * ptot/(fabs(dtr)+eps);
 	dtA = cuDynfracP * sqrt(ptot/(atot*atot+eps));
 
+	/*
 	if (i<5) {
-	  printf("i=%d dtr=%e vtot=%e atot=%e dts=%e dtd=%e dtv=%e dta=%e dtA=%e\n", i, dtr, vtot, atot, dts, dtd, dtv, dta, dtA);
+	  printf("i=%d dtr=%e vtot=%e atot=%e ptot=%e dts=%e dtd=%e dtv=%e dta=%e dtA=%e DynV=%e DynA=%e\n", i, dtr, vtot, atot, ptot, dts, dtd, dtv, dta, dtA, cuDynfracV, cuDynfracA);
 	}
+	*/
       }
       
       // Smallest time step
@@ -258,6 +259,8 @@ void cuda_compute_levels()
 {
   cudaDeviceProp deviceProp;
 
+  cuda_initialize_multistep_constants();
+
 #ifdef VERBOSE_TIMING
   double time1 = 0.0, time2 = 0.0, timeADJ = 0.0, timeCOM = 0.0;
   auto start0 = std::chrono::high_resolution_clock::now();
@@ -269,7 +272,7 @@ void cuda_compute_levels()
     cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
 
     PII lohi = {0, c->cuStream->cuda_particles.size()};
-    if (!all) lohi = c->CudaSortByLevel(c->cuStream, mfirst[mstep], multistep);
+    if (!all) lohi = c->CudaGetLevelRange(c->cuStream, mfirst[mstep], multistep);
       
     // Compute grid
     //
@@ -331,26 +334,29 @@ void cuda_compute_levels()
       
       timestepFinalizeKernel<<<gridSize, BLOCK_SIZE>>>
 	(toKernel(c->cuStream->cuda_particles), stride);
+
+      c->CudaSortByLevel();
     }
 
     //  +---- True for deep level debugging
     //  |
     //  v
     if (true) {
+      /*
       int testme =
 	thrust::transform_reduce(c->cuStream->cuda_particles.begin(),
 				 c->cuStream->cuda_particles.end(),
 				 testCountDelta(), 0, thrust::plus<int>());
-
-      std::cout << "Component "<< c->name << ": delta count=" << testme << " [";
+      */
+      std::cout << "Component "<< c->name << "[" << myid << "]: [";
       for (int m=0; m<=multistep; m++) {
-	testme =
+	int testme =
 	  thrust::transform_reduce(c->cuStream->cuda_particles.begin(),
 				   c->cuStream->cuda_particles.end(),
 				   testCountLevel(m), 0, thrust::plus<int>());
-	std::cout << testme << " ";
+	std::cout << std::setw(8) << testme << " ";
       }
-      std::cout << std::endl;
+      std::cout << "]" << std::endl;
     }
 
 

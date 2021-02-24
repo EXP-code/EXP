@@ -55,8 +55,11 @@ void incr_velocity_cuda(cuFP_t dt, int mlevel)
 
     if (multistep) {
 
-      auto ret = c->CudaSortByLevel(cr, mlevel, multistep);
+      auto ret = c->CudaGetLevelRange(cr, mlevel, multistep);
       
+      std::cout << "[" << myid << ", " << mlevel << "]: #="
+		<< ret.second - ret.first << std::endl;
+
       thrust::transform(// thrust::cuda::par.on(cr->stream),
 			thrust::cuda::par,
 			cr->cuda_particles.begin()+ret.first, cr->cuda_particles.end(),
@@ -72,7 +75,7 @@ void incr_velocity_cuda(cuFP_t dt, int mlevel)
 
     // Sort particles and get size
     //
-    PII lohi = c->CudaSortByLevel(cr, mlevel, multistep);
+    PII lohi = c->CudaGetLevelRange(cr, mlevel, multistep);
 
     // Compute grid
     //
