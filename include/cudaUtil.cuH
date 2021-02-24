@@ -18,31 +18,69 @@
 #include <thrust/device_vector.h>
 #include <thrust/system/cuda/experimental/pinned_allocator.h>
 
+//! Wrapper function for a cuda call that processes error
 inline void
 cuda_safe_call(cudaError_t code, const char *file, int line,
 	       const std::string& message = "")
 {
   if (code != cudaSuccess) {
+    const char * errorMessage = cudaGetErrorString(code);
     std::stringstream ss;
-    ss << file << "(" << line << ")";
-    if (message.size()>0) ss << " : " << message;
-
+    ss << "CUDA error returned from " << file << ":" << line
+       << " Error code: " << code << "(" << errorMessage << ")";
+    if (message.size()>0) ss << " [" << message << "]";
+    
     throw thrust::system_error(code, thrust::cuda_category(), ss.str());
   }
 }
 
+//! Wrapper function for a cuda call that processes error [MPI version]
 inline void
 cuda_safe_call_mpi(cudaError_t code, const char *file, int line, int myid,
 		   const std::string& message = "")
 {
   if (code != cudaSuccess) {
+    const char * errorMessage = cudaGetErrorString(code);
     std::stringstream ss;
-    ss << file << "(" << line << ") mpi rank=" << myid;
-    if (message.size()>0) ss << " : " << message;
+    ss << "CUDA error returned from " << file << ":" << line
+       << ", mpi rank=" << myid
+       << " Error code: " << code << "(" << errorMessage << ")";
+    if (message.size()>0) ss << " [" << message << "]";
     
     MPI_Abort(MPI_COMM_WORLD, 18);
 
     throw thrust::system_error(code, thrust::cuda_category(), ss.str());
+  }
+}
+
+// For error reporting with error code
+//
+inline void
+cuda_check_error(cudaError_t code,
+		 char const * func, const char *FILE, const int LINE)
+{
+  if (code != cudaSuccess) {
+    const char * errorMessage = cudaGetErrorString(code);
+    std::cerr << "CUDA error returned from \"" << func << "\" at "
+	      << FILE << ":" << LINE
+	      << " Error code: " << code << "(" << errorMessage << ")"
+	      << std::endl;
+  }
+}
+ 
+// For error reporting without error code
+//
+inline void
+cuda_check_last_error(char const * func, const char *FILE, const int LINE)
+
+{
+  cudaError_t code = cudaGetLastError();
+  if (code != cudaSuccess) {
+    const char * errorMessage = cudaGetErrorString(code);
+    std::cerr << "CUDA error returned from \"" << func << "\" at "
+	      << FILE << ":" << LINE
+	      << " Error code: " << code << "(" << errorMessage << ")"
+	      << std::endl;
   }
 }
 

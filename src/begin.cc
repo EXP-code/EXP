@@ -7,12 +7,20 @@
   4) write parameter file
 */
 
+#include <sys/types.h>
+#include <unistd.h>		// For getpid
+
 #include <expand.h>
 #include <ExternalCollection.H>
 #include <OutputContainer.H>
 
 void begin_run(void)
 {
+  //===================================
+  // Initialize cuda device(s)
+  //===================================
+
+  initialize_cuda();
 
   //===================================
   // Make the instance containers
@@ -132,4 +140,71 @@ void begin_run(void)
 
   write_parm();
 
+}
+
+
+void initialize_cuda()
+{
+#if HAVE_LIBCUDA==1
+  int deviceCount = 0;
+
+  cudaGlobalDevice = -1;
+
+  if (use_cuda) {
+
+    pid_t pid = getpid();
+
+    // Get device count; exit on failure
+    //
+    cuda_safe_call_mpi(cudaGetDeviceCount(&deviceCount), __FILE__, __LINE__,
+		       myid, "cudaGetDevicecCount failure");
+
+    // Query and assign my CUDA device
+    //
+    if (deviceCount>0) {
+
+      int totalCount = std::max<int>(deviceCount, ngpus);
+
+      // Get my local rank in sibling processes
+      //
+      int myCount = 0, curCount = 0;
+      for (auto v : siblingList) {
+	if (myid==v) myCount = curCount;
+	curCount++;
+      }
+	
+      // Allow GPU to be used by multiple MPI processes
+      //
+      if (myCount < totalCount) cudaGlobalDevice = myCount % deviceCount;
+      
+      // Set device; exit on failure
+      //
+      if (cudaGlobalDevice>=0) {
+
+	cuda_safe_call_mpi(cudaSetDevice(cudaGlobalDevice), __FILE__, __LINE__,
+			   myid, "cudaSetDevice failure");
+
+	std::cout << "Process <" << pid << ">: "
+		  << "setting CUDA device on Rank [" << myid
+		  << "] on [" << processor_name << "] to ["
+		  << cudaGlobalDevice << "/" << deviceCount << "]"
+		  << std::endl;
+
+      } else {
+	
+	std::cout << "Component <" << pid << ">: "
+		  << "could not set CUDA device on Rank [" << myid
+		  << "] on [" << processor_name << "] . . . "
+		  << "this will cause a failure" << std::endl;
+	
+      }
+
+    } else {
+      std::ostringstream sout;
+      sout << "[#" << myid << "] CUDA detected but deviceCount<=0!";
+      throw GenericError(sout.str(), __FILE__, __LINE__);
+    }
+
+  }
+#endif
 }

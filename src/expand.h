@@ -97,6 +97,8 @@ void write_parm(void);
 void initialize_multistep();
 void sync_eval_multistep();
 void adjust_multistep_level(bool all=true);
+void initialize_cuda(void);
+
 
 
 #ifndef MAX

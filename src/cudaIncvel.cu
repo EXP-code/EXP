@@ -55,8 +55,8 @@ void incr_velocity_cuda(cuFP_t dt, int mlevel)
 
       auto ret = c->CudaGetLevelRange(mlevel, multistep);
       
-      std::cout << "[" << myid << ", " << mlevel << "]: #="
-		<< ret.second - ret.first << std::endl;
+      std::cout << "incVel load on myid=" << myid << " at level=" << mlevel
+		<< ": " << ret.second - ret.first << std::endl;
 
       thrust::transform(// thrust::cuda::par.on(cr->stream),
 			thrust::cuda::par,

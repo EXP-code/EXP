@@ -1060,66 +1060,32 @@ void Component::initialize(void)
 
 void Component::initialize_cuda()
 {
-
 #if HAVE_LIBCUDA==1
-  int deviceCount = 0;
-
   cudaDevice = -1;
 
   if (use_cuda) {
 
     // Get device count; exit on failure
     //
-    cuda_safe_call_mpi(cudaGetDeviceCount(&deviceCount), __FILE__, __LINE__,
-		       myid, "cudaGetDevicecCount failure");
-
-    // Query and assign my CUDA device
-    //
-    if (deviceCount>0) {
-
-      int totalCount = std::max<int>(deviceCount, ngpus);
-
-      // Get my local rank in sibling processes
-      //
-      int myCount = 0, curCount = 0;
-      for (auto v : siblingList) {
-	if (myid==v) myCount = curCount;
-	curCount++;
-      }
-	
-      // Allow GPU to be used by multiple MPI processes
-      //
-      if (myCount < totalCount) cudaDevice = myCount % deviceCount;
+    cuda_safe_call_mpi(cudaGetDevice(&cudaDevice), __FILE__, __LINE__,
+		       myid, "cudaGetDevice failure");
       
-      // Set device; exit on failure
-      //
-      if (cudaDevice>=0) {
+    // Check device context
+    //
+    if (cudaDevice>=0) {
 
-	cuda_safe_call_mpi(cudaSetDevice(cudaDevice), __FILE__, __LINE__,
-			   myid, "cudaSetDevice failure");
+      std::cout << "Component <" << name << ">: "
+		<< "on CUDA device on Rank [" << myid
+		<< "] on [" << processor_name << "]"
+		<< std::endl;
 
-	std::cout << "Component <" << name << ">: "
-		  << "setting CUDA device on Rank [" << myid
-		  << "] on [" << processor_name << "] to ["
-		  << cudaDevice << "/" << deviceCount << "]"
-		  << std::endl;
-
-	cuda_initialize();
-      } else {
-	
-	std::cout << "Component <" << name << ">: "
-		  << "could not set CUDA device on Rank [" << myid
-		  << "] on [" << processor_name << "] . . . "
-		  << "this will cause a failure" << std::endl;
-	
-      }
-
+      cuda_initialize();
     } else {
-      std::ostringstream sout;
-      sout << "[#" << myid << "] CUDA detected but deviceCount<=0!";
-      throw GenericError(sout.str(), __FILE__, __LINE__);
+      std::cout << "Component <" << name << ">: "
+		<< "could not find an initialized CUDA device on Rank ["
+		<< myid	<< "] on [" << processor_name << "] . . . "
+		  << "this will cause a failure" << std::endl;
     }
-
   }
 #endif
 
