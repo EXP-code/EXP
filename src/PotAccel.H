@@ -81,12 +81,10 @@ protected:
   //! Length scaling (not used for all methods)
   double scale;
 
-#if HAVE_LIBCUDA==1
   //! Cuda implementation is available for this source method.
   //! Otherwise, particle structures will be copied between the GPU
   //! and CPU at significant expanse
   bool cuda_aware;
-#endif
 
 public:
 
@@ -219,10 +217,9 @@ public:
   //! For parameter parsing
   bool atol(string& val) { return atoi(val.c_str()) ? true : false; }
 
-#ifdef HAVE_LIBCUDA
   //! Cuda aware
   bool cudaAware() { return cuda_aware; }
-#endif
+
 };
 
 //! Helper class to pass info to threaded member

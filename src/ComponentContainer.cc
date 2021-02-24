@@ -377,9 +377,13 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     }
 
     if (use_cuda and not c->force->cudaAware()) {
+#if HAVE_LIBCUDA==1
       c->CudaToParticles();
+#endif
       c->force->get_acceleration_and_potential(c);
+#if HAVE_LIBCUDA==1
       c->ParticlesToCuda();
+#endif
     } else {
       c->force->get_acceleration_and_potential(c);
     }
@@ -460,9 +464,13 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       inter->c->force->SetExternal();
       inter->c->force->set_multistep_level(mlevel);
       if (use_cuda and not inter->c->force->cudaAware()) {
+#if HAVE_LIBCUDA==1
 	inter->c->CudaToParticles();
+#endif
 	inter->c->force->get_acceleration_and_potential(other);
+#if HAVE_LIBCUDA==1
 	inter->c->ParticlesToCuda();
+#endif
       } else {
 	inter->c->force->get_acceleration_and_potential(other);
       }
@@ -544,9 +552,13 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	if (timing) itmr->second.start();
 	ext->set_multistep_level(mlevel);
 	if (use_cuda and not c->force->cudaAware()) {
+#if HAVE_LIBCUDA==1
 	  c->CudaToParticles();
+#endif
 	  ext->get_acceleration_and_potential(c);
+#if HAVE_LIBCUDA==1
 	  c->ParticlesToCuda();
+#endif
 	} else {
 	  ext->get_acceleration_and_potential(c);
 	}
@@ -824,9 +836,13 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
 				// Compute coefficients
     c->force->set_multistep_level(mlevel);
     if (use_cuda and not c->force->cudaAware()) {
+#if HAVE_LIBCUDA==1
       c->CudaToParticles();
+#endif
       c->force->determine_coefficients(c);
+#if HAVE_LIBCUDA==1
       c->ParticlesToCuda();
+#endif
     } else {
       c->force->determine_coefficients(c);
     }
