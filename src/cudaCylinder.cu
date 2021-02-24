@@ -963,7 +963,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
   // Sort particles and get coefficient size
   //
-  PII lohi = component->CudaGetLevelRange(cs, mlevel, mlevel), cur;
+  PII lohi = component->CudaGetLevelRange(mlevel, mlevel), cur;
   
   unsigned int Ntotal = lohi.second - lohi.first;
   unsigned int Npacks = Ntotal/component->bunchSize + 1;
@@ -1612,7 +1612,7 @@ void Cylinder::determine_acceleration_cuda()
 
   // Sort particles and get coefficient size
   //
-  PII lohi = cC->CudaGetLevelRange(cs, mlevel, multistep);
+  PII lohi = cC->CudaGetLevelRange(mlevel, multistep);
 
   // Compute grid
   //

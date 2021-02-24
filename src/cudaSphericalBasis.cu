@@ -948,7 +948,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
   // Sort particles and get coefficient size
   //
-  PII lohi = component->CudaGetLevelRange(cr, mlevel, mlevel), cur;
+  PII lohi = component->CudaGetLevelRange(mlevel, mlevel), cur;
   
   unsigned int Ntotal = lohi.second - lohi.first;
   unsigned int Npacks = Ntotal/component->bunchSize + 1;
@@ -1596,7 +1596,7 @@ void SphericalBasis::determine_acceleration_cuda()
   
   // Sort particles and get size
   //
-  PII lohi = cC->CudaGetLevelRange(cr, mlevel, multistep);
+  PII lohi = cC->CudaGetLevelRange(mlevel, multistep);
 
   // Compute grid
   //

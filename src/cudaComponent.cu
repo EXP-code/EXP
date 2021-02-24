@@ -153,8 +153,6 @@ Component::I2vec Component::CudaSortLevelChanges(Component::cuSharedStream cr)
 
 void Component::CudaSortByLevel()
 {
-  std::pair<unsigned, unsigned> ret;
-
   try {
     auto exec = thrust::cuda::par.on(cuStream->stream);
     
@@ -177,11 +175,16 @@ void Component::CudaSortByLevel()
 
     if (thrust_binary_search_workaround) {
       cudaStreamSynchronize(cuStream->stream);
-      thrust::transform(pbeg, pend, cuStream->lev.begin(), cuPartToLevel());
+      thrust::transform(pbeg, pend, cuStream->levList.begin(), cuPartToLevel());
     } else {
-      thrust::transform(exec, pbeg, pend, cuStream->lev.begin(), cuPartToLevel());
+      thrust::transform(exec, pbeg, pend, cuStream->levList.begin(), cuPartToLevel());
     }
   }
+  catch(thrust::system_error &e) {
+    std::cerr << "Some other error happened during sort, lower_bound, or upper_bound:" << e.what() << std::endl;
+    exit(-1);
+  }
+
 }
 
 std::pair<unsigned int, unsigned int>
@@ -197,8 +200,8 @@ Component::CudaGetLevelRange(int minlev, int maxlev)
     unsigned int minl = static_cast<unsigned>(minlev);
     unsigned int maxl = static_cast<unsigned>(maxlev);
 
-    thrust::device_vector<int>::iterator lbeg = cuStreamlevList.begin();
-    thrust::device_vector<int>::iterator lend = cuStreamlevList.end();
+    thrust::device_vector<int>::iterator lbeg = cuStream->levList.begin();
+    thrust::device_vector<int>::iterator lend = cuStream->levList.end();
     thrust::device_vector<int>::iterator lo, hi;
 
     if (thrust_binary_search_workaround) {
@@ -311,7 +314,7 @@ void Component::ZeroPotAccel(int minlev)
   
   if (multistep) {
     std::pair<unsigned int, unsigned int>
-      ret = CudaGetLevelRange(cuStream, minlev, multistep);
+      ret = CudaGetLevelRange(minlev, multistep);
     
     thrust::transform(// thrust::cuda::par.on(cuStream->stream),
 		      thrust::cuda::par,

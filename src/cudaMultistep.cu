@@ -272,7 +272,7 @@ void cuda_compute_levels()
     cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
 
     PII lohi = {0, c->cuStream->cuda_particles.size()};
-    if (!all) lohi = c->CudaGetLevelRange(c->cuStream, mfirst[mstep], multistep);
+    if (!all) lohi = c->CudaGetLevelRange(mfirst[mstep], multistep);
       
     // Compute grid
     //

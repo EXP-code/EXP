@@ -1,5 +1,3 @@
-// -*- C++ -*-
-
 #include <Component.H>
 #include "expand.h"
 #include <cudaUtil.cuH>
@@ -55,7 +53,7 @@ void incr_velocity_cuda(cuFP_t dt, int mlevel)
 
     if (multistep) {
 
-      auto ret = c->CudaGetLevelRange(cr, mlevel, multistep);
+      auto ret = c->CudaGetLevelRange(mlevel, multistep);
       
       std::cout << "[" << myid << ", " << mlevel << "]: #="
 		<< ret.second - ret.first << std::endl;
@@ -75,7 +73,7 @@ void incr_velocity_cuda(cuFP_t dt, int mlevel)
 
     // Sort particles and get size
     //
-    PII lohi = c->CudaGetLevelRange(cr, mlevel, multistep);
+    PII lohi = c->CudaGetLevelRange(mlevel, multistep);
 
     // Compute grid
     //
@@ -97,3 +95,6 @@ void incr_velocity_cuda(cuFP_t dt, int mlevel)
   }
   */
 }
+
+// -*- C++ -*-
+

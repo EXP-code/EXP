@@ -219,7 +219,7 @@ public:
   //! For parameter parsing
   bool atol(string& val) { return atoi(val.c_str()) ? true : false; }
 
-#ifdef HAVE_LIBCUDA
+#if HAVE_LIBCUDA==1
   //! Cuda aware
   bool cudaAware() { return cuda_aware; }
 #endif

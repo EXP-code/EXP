@@ -797,7 +797,7 @@ void SphericalBasis::determine_coefficients(void)
 
   print_timings("SphericalBasis: coefficient timings");
 
-# if HAVE_LIBCUDA
+#if HAVE_LIBCUDA==1
   if (component->timers) {
     auto finish0 = std::chrono::high_resolution_clock::now();
   

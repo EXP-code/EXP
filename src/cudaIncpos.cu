@@ -1,5 +1,3 @@
-// -*- C++ -*-
-
 #include <Component.H>
 #include "expand.h"
 #include <cudaUtil.cuH>
@@ -57,7 +55,7 @@ void incr_position_cuda(cuFP_t dt, int mlevel)
 
     if (multistep) {
 
-      auto ret = c->CudaGetLevelRange(cr, mlevel, multistep);
+      auto ret = c->CudaGetLevelRange(mlevel, multistep);
       
       // DEBUG
       if (false) {
@@ -66,7 +64,7 @@ void incr_position_cuda(cuFP_t dt, int mlevel)
 		  << " [" << ret.first << ", " << ret.second
 		  << "]: ";
 	for (int m=0; m<=multistep; m++) {
-	  auto ret1 = c->CudaGetLevelRange(cr, m, m);
+	  auto ret1 = c->CudaGetLevelRange(m, m);
 	  std::cout << ret1.second - ret1.first;
 	  if (m == multistep) std::cout << "**";
 	  else                std::cout << ", ";
@@ -113,3 +111,5 @@ void incr_position_cuda(cuFP_t dt, int mlevel)
   */
 
 }
+
+// -*- C++ -*-
