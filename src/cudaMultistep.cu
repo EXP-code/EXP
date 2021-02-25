@@ -80,20 +80,6 @@ struct testCountDelta :  public thrust::unary_function<cudaParticle, int>
   }
 };
 
-struct testCountLevel :  public thrust::unary_function<cudaParticle, int>
-{
-  int _l;
-
-  testCountLevel(int l) : _l(l) {}
-
-  __host__ __device__
-  int operator()(const cudaParticle& p) const
-  {
-    if (p.lev[0] == _l) return 1;
-    return 0;
-  }
-};
-
 
 __global__ void
 timestepKernel(dArray<cudaParticle> in, cuFP_t cx, cuFP_t cy, cuFP_t cz,
@@ -259,7 +245,13 @@ void cuda_compute_levels()
 {
   cudaDeviceProp deviceProp;
 
-  cuda_initialize_multistep_constants();
+  // DEBUGGING
+  if (false) {
+    std::cout << "** -------------------" << std::endl
+	      << "** ID " << myid         << std::endl;
+    testConstantsMultistep<<<1, 1>>>();
+  }
+  // END DEBUGGING
 
 #ifdef VERBOSE_TIMING
   double time1 = 0.0, time2 = 0.0, timeADJ = 0.0, timeCOM = 0.0;
@@ -337,28 +329,6 @@ void cuda_compute_levels()
 
       c->CudaSortByLevel();
     }
-
-    //  +---- True for deep level debugging
-    //  |
-    //  v
-    if (true) {
-      /*
-      int testme =
-	thrust::transform_reduce(c->cuStream->cuda_particles.begin(),
-				 c->cuStream->cuda_particles.end(),
-				 testCountDelta(), 0, thrust::plus<int>());
-      */
-      std::cout << "Component "<< c->name << "[" << myid << "]: [";
-      for (int m=0; m<=multistep; m++) {
-	int testme =
-	  thrust::transform_reduce(c->cuStream->cuda_particles.begin(),
-				   c->cuStream->cuda_particles.end(),
-				   testCountLevel(m), 0, thrust::plus<int>());
-	std::cout << std::setw(8) << testme << " ";
-      }
-      std::cout << "]" << std::endl;
-    }
-
 
 #ifdef VERBOSE_TIMING
     c->force->multistep_update_cuda();

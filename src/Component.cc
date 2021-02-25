@@ -419,9 +419,15 @@ void Component::print_level_lists(double T)
 
   if (nlevel>0 && (this_step % nlevel == 0)) {
 
-    vector< vector<unsigned> > cntr(multistep+1);
+#if HAVE_LIBCUDA==1
+    if (use_cuda) {
+      print_level_lists_cuda(T);
+    }
+#endif
+
+    std::vector< std::vector<unsigned> > cntr(multistep+1);
     for (unsigned n=0; n<=multistep; n++) {
-      cntr[n] = vector<unsigned>(mdtDim, 0);
+      cntr[n] = std::vector<unsigned>(mdtDim, 0);
       MPI_Reduce(&mdt_ctr[n][0], &cntr[n][0], mdtDim, MPI_UNSIGNED,
 		 MPI_SUM, 0, MPI_COMM_WORLD);
       
@@ -433,59 +439,62 @@ void Component::print_level_lists(double T)
       unsigned tot=0;
       for (unsigned n=0; n<=multistep; n++) tot += cntr[n][mdtDim-1];
 
-      if (!tot && myid==0) cout << "print_level_lists [" << name 
-				<< ", T=" << tnow << "]: tot=" << tot << endl;
+      if (!tot && myid==0)
+	std::cout << "print_level_lists [" << name 
+		  << ", T=" << tnow << "]: tot=" << tot << std::endl;
       
       if (tot) {
 
-	ostringstream ofil;
+	std::ostringstream ofil;
 	ofil << runtag << ".levels";
-	ofstream out(ofil.str().c_str(), ios::app);
+	std::ofstream out(ofil.str().c_str(), ios::app);
 
 	unsigned curn, dtcnt, sum=0;
-	out << setw(90) << setfill('-') << '-' << endl;
-	ostringstream sout;
+	out << setw(90) << std::setfill('-') << '-' << std::endl;
+	std::ostringstream sout;
 	sout << "--- Component <" << name 
 	     << ", " << id  << ">, T=" << T;
-	out << setw(90) << left << sout.str().c_str() << endl;
-	out << setw(90) << '-' << endl << setfill(' ');
-	out << setw(3)  << "L" 
-	    << setw(10) << "Number" 
-	    << setw(10) << "dN/dL" 
-	    << setw(10) << "N(<=L)";
+	out << std::setw(90) << std::left << sout.str().c_str() << std::endl;
+	out << std::setw(90) << '-' << std::endl << std::setfill(' ');
+	out << std::setw(3)  << "L" 
+	    << std::setw(10) << "Number" 
+	    << std::setw(10) << "dN/dL" 
+	    << std::setw(10) << "N(<=L)";
 	if (DTold) {
-	  out << setw(10) << "f(r/v)"
-	      << setw(10) << "f(s/v)"
-	      << setw(10) << "f(v/a)"
-	      << setw(10) << "f(r/a)";
+	  out << std::setw(10) << "f(r/v)"
+	      << std::setw(10) << "f(s/v)"
+	      << std::setw(10) << "f(v/a)"
+	      << std::setw(10) << "f(r/a)";
 	  dtcnt = 5;
 	} else {
-	  out << setw(10) << "f(q/v)"
-	      << setw(10) << "f(v/a)"
-	      << setw(10) << "f(s/v)"
-	      << setw(10) << "f(r/v)" 
-	      << setw(10) << "f(r/a)";
+	  out << std::setw(10) << "f(q/v)"
+	      << std::setw(10) << "f(v/a)"
+	      << std::setw(10) << "f(s/v)"
+	      << std::setw(10) << "f(r/v)" 
+	      << std::setw(10) << "f(r/a)";
 	  dtcnt = 6;
 	}
-	out << setw(10) << "f(int)" << endl;
-	out << setw(90) << setfill('-') << '-' << endl << setfill(' ');
+	out << std::setw(10) << "f(int)" << std::endl;
+	out << std::setw(90) << std::setfill('-') << '-' << std::endl
+	    << std::setfill(' ');
 	for (unsigned n=0; n<=multistep; n++) {
 	  curn = cntr[n][mdtDim-1];
 	  sum += curn;
-	  out << setw(3)  << n 
-	      << setw(10) << curn << setprecision(3) << fixed
-	      << setw(10) << static_cast<double>(curn)/tot
-	      << setw(10) << static_cast<double>(sum) /tot;
+	  out << std::setw(3)  << n 
+	      << std::setw(10) << curn << setprecision(3) << std::fixed
+	      << std::setw(10) << static_cast<double>(curn)/tot
+	      << std::setw(10) << static_cast<double>(sum) /tot;
 	  for (unsigned k=0; k<dtcnt; k++) {
 				// If there are counts at this level:
-	    if (curn) out << setw(10) << static_cast<double>(cntr[n][k])/curn;
+	    if (curn) out << std::setw(10)
+			  << static_cast<double>(cntr[n][k])/curn;
 				// No counts at this level:
-	    else	out << setw(10) << "*";
+	    else      out << std::setw(10) << "*";
 	  }
-	  out << endl;
+	  out << std::endl;
 	}
-	out << endl << setw(3) << "T" << setw(10) << tot << endl << endl 
-	    << right;
+	out << std::endl << std::setw(3) << "T" << std::setw(10) << tot
+	    << std::endl << std::endl << std::right;
       }
     }
   }
@@ -3203,8 +3212,8 @@ void Component::load_balance(void)
 
   if (myid==0 && log.good()) 
     {
-      log << setw(72) << setfill('.') << ".\n" << setfill(' ');
-      log << "Time=" << tnow << " Component=" << name << endl;
+      log << std::setw(72) << std::setfill('.') << ".\n" << std::setfill(' ');
+      log << "Time=" << tnow << " Component=" << name << std::endl;
       log << endl;
       log << "List:\n";
       log.setf(ios::left);

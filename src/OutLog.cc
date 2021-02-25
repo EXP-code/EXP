@@ -395,7 +395,6 @@ void OutLog::Run(int n, int mstep, bool last)
     angmG[j] = angm0[j] = 0.0;
   }
 
-
 				// Collect info
   unsigned ntot;
   int indx = 0;

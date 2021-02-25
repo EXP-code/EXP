@@ -289,8 +289,15 @@ void Component::CudaToParticles(hostPartItr beg, hostPartItr end)
 {
   if (step_timing and use_cuda) comp->timer_cuda.start();
 
+  // DEBUG PRINTING
+  const int imax = 0;
+  int icnt = 0;
+
   for (hostPartItr v=beg; v!=end; v++) {
     cudaParticle & p = *v;
+    if (icnt < imax) {
+      std::cout << "[" << icnt++ << ", " << myid << "] " << p << std::endl;
+    }
     ParticleDtoH(p, particles[p.indx]);
   }
 
@@ -496,6 +503,83 @@ void Component::fix_positions_cuda(unsigned mlevel)
 	   << ", adjustment skipped" << endl;
     }
   }
+}
+
+struct testCountLevel :  public thrust::unary_function<cudaParticle, int>
+{
+  int _l;
+
+  testCountLevel(int l) : _l(l) {}
+
+  __host__ __device__
+  int operator()(const cudaParticle& p) const
+  {
+    if (p.lev[0] == _l) return 1;
+    return 0;
+  }
+};
+
+
+void Component::print_level_lists_cuda(double T)
+{
+				// Retrieve counts per level
+  std::vector<int> cntr(multistep+1);
+  for (int m=0; m<=multistep; m++) {
+    cntr[m] = thrust::transform_reduce(cuStream->cuda_particles.begin(),
+				       cuStream->cuda_particles.end(),
+				       testCountLevel(m),
+				       0, thrust::plus<int>());
+  }
+
+  if (myid==0) {
+				// Sum reduce to root
+    MPI_Reduce(MPI_IN_PLACE, &cntr[0], multistep+1, MPI_INT, MPI_SUM,
+	       0, MPI_COMM_WORLD);
+
+    int tot=0;
+    for (int n=0; n<=multistep; n++) tot += cntr[n];
+
+    if (tot) {
+
+      std::ostringstream ofil;
+      ofil << runtag << ".levels";
+      std::ofstream out(ofil.str().c_str(), ios::app);
+
+      int sum=0;
+      out << setw(60) << setfill('-') << '-' << endl;
+      std::ostringstream sout;
+      sout << "--- Component <" << name 
+	   << ", " << id  << ">, T=" << T;
+      out << std::setw(60) << std::left << sout.str().c_str() << std::endl;
+      out << std::setw(60) << '-' << std::endl << std::setfill(' ');
+      out << std::setw(3)  << "L" 
+	  << std::setw(10) << "Number" 
+	  << std::setw(10) << "dN/dL" 
+	  << std::setw(10) << "N(<=L)"
+	  << std::endl
+	  << std::setw(60) << std::setfill('-') << '-'
+	  << std::endl << std::setfill(' ');
+      for (int n=0; n<=multistep; n++) {
+	sum += cntr[n];
+	out << std::setw(3)  << n 
+	    << std::setw(10) << cntr[n] << std::setprecision(3) << std::fixed
+	    << std::setw(10) << static_cast<double>(cntr[n])/tot
+	    << std::setw(10) << static_cast<double>(sum)    /tot;
+	out << std::endl;
+      }
+      out << std::endl << std::setw(3) << "T" << std::setw(10) << tot
+	  << std::endl << std::endl << std::right;
+    } else {
+      std::cout << "print_level_lists [" << name 
+		<< ", T=" << tnow << "]: tot=" << tot << std::endl;
+    }
+
+  } else {
+				// Sum reduce counts to root
+    MPI_Reduce(&cntr[0], 0, multistep+1, MPI_INT, MPI_SUM,
+	       0, MPI_COMM_WORLD);
+  }
+
 }
 
 // -*- C++ -*-

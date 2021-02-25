@@ -73,7 +73,6 @@ void do_step(int n)
   // set up CUDA tracer
   nvTracerPtr tPtr;
 
-
   // BEG: multistep>0 block
   if (multistep) {
     

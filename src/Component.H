@@ -965,6 +965,9 @@ public:
   //! Compute center of mass and center of velocity
   void fix_positions_cuda(unsigned mlevel=0);
 
+  //! Print out the level lists to stdout for diagnostic purposes
+  void print_level_lists_cuda(double T);
+
   //@}
 #endif
 
