@@ -907,7 +907,7 @@ void SphericalBasis::multistep_update_finish()
     offset0 = (M - mfirst[mstep])*(Lmax+1)*(Lmax+1)*nmax;
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
       offset1 = l*nmax;
-      for (int n=1; n<nthrds; n++) 
+      for (int n=0; n<nthrds; n++) 
 	for (int ir=1; ir<=nmax; ir++) 
 	  pack[offset0+offset1+ir-1] += differ1[n][M][l][ir];
     }
@@ -916,6 +916,27 @@ void SphericalBasis::multistep_update_finish()
   MPI_Allreduce (&pack[0], &unpack[0], sz, 
 		 MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   
+  if (myid==0) {
+    std::ofstream out("test_differ.sph", ios::app);
+    if (out) {
+      out << std::string(10+16*nmax, '-') << std::endl;
+      out << "# T=" << tnow << " mstep=" << mstep << std::endl;
+      for (int M=mfirst[mstep]; M<=multistep; M++) {
+	offset0 = (M - mfirst[mstep])*(Lmax+1)*(Lmax+1)*nmax;
+	for (int l=0; l<=Lmax*(Lmax+2); l++) {
+	  offset1 = l*nmax;
+	  out << std::setw(5) << M << std::setw(5) << l;
+	  for (int ir=1; ir<=nmax; ir++)
+	    out << std::setw(16) << unpack[offset0+offset1+ir-1];
+	  out << std::endl;
+	}
+      }
+      out << std::string(10+16*nmax, '-') << std::endl;
+    } else {
+      std::cout << "Error opening test file <test_differ.sph> at T=" << tnow
+		<< std::endl;
+    }
+  }
 				// Update the local coefficients
 				//
   for (int M=mfirst[mstep]; M<=multistep; M++) {

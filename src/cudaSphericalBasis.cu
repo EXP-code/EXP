@@ -1767,12 +1767,15 @@ void SphericalBasis::multistep_update_cuda()
   auto start0 = std::chrono::high_resolution_clock::now();
   auto start  = std::chrono::high_resolution_clock::now();
 #endif
+
   auto ret = component->CudaSortLevelChanges(component->cuStream);
+
 #ifdef VERBOSE_TIMING
   auto finish = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double, std::micro> duration = finish - start;
   std::cout << "Time in level sort=" << duration.count()*1.0e-6 << std::endl;
 #endif
+
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
   auto cs = component->cuStream;
@@ -1782,22 +1785,26 @@ void SphericalBasis::multistep_update_cuda()
 #endif
   // Step through all levels
   //
-  for (int mlev=0; mlev<=multistep; mlev++) {
+  for (int olev=0; olev<=multistep; olev++) {
 
-    for (int del=0; del<=multistep; del++) {
+    for (int nlev=0; nlev<=multistep; nlev++) {
 
-      if (mlev == del) continue;
+      if (olev == nlev) continue;
 
-      unsigned int Ntotal = ret[mlev][del].second - ret[mlev][del].first;
+      unsigned int Ntotal = ret[olev][nlev].second - ret[olev][nlev].first;
 
       if (Ntotal==0) continue;
 
       unsigned int Npacks = Ntotal/component->bunchSize + 1;
 
+      // Zero out coefficient storage
+      //
+      zero_coefs();
+
 #ifdef VERBOSE_DBG
       std::cout << "[" << myid << ", " << tnow
 		<< "] Adjust sphere: Ntotal=" << Ntotal << " Npacks=" << Npacks
-		<< " for (m, d)=(" << mlev << ", " << del << ")" << std::endl;
+		<< " for (m, d)=(" << olev << ", " << nlev << ")" << std::endl;
 #endif
       // Loop over bunches
       //
@@ -1807,9 +1814,9 @@ void SphericalBasis::multistep_update_cuda()
 
 	// Current bunch
 	//
-	cur. first = ret[mlev][del].first + component->bunchSize*n;
-	cur.second = ret[mlev][del].first + component->bunchSize*(n+1);
-	cur.second = std::min<unsigned int>(cur.second, ret[mlev][del].second);
+	cur. first = ret[olev][nlev].first + component->bunchSize*n;
+	cur.second = ret[olev][nlev].first + component->bunchSize*(n+1);
+	cur.second = std::min<unsigned int>(cur.second, ret[olev][nlev].second);
 
 	if (cur.second <= cur.first) break;
     
@@ -1917,30 +1924,25 @@ void SphericalBasis::multistep_update_cuda()
       // Copy back coefficient data from device and load the host
       //
       thrust::host_vector<cuFP_t> ret = cuS.df_coef;
-      int offst = 0;
-      for (int l=0; l<=Lmax; l++) {
-	for (int m=0; m<=l; m++) {
-	  for (size_t j=0; j<nmax; j++) {
-	    host_coefs[Ilmn(l, m, 'c', j, nmax)] += ret[2*j+offst];
-	    if (m>0) host_coefs[Ilmn(l, m, 's', j, nmax)] += ret[2*j+1+offst];
-	  }
-	  offst += nmax*2;
-	}
-      }
-      
-      // Decrement current level and increment new level
+
+      // Decrement current level and increment new level using the
+      // update matrices
       //
-      for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
+      for (int l=0, loffset=0, offst=0; l<=Lmax; loffset+=(2*l+1), l++) {
 	for (int m=0, moffset=0; m<=l; m++) {
 	  for (size_t n=0; n<nmax; n++) {
-	    (*expcoefN[mlev][loffset+moffset])[n+1] -= host_coefs[Ilmn(l, m, 'c', n, nmax)];
-	    (*expcoefN[del ][loffset+moffset])[n+1] += host_coefs[Ilmn(l, m, 'c', n, nmax)];
+	    differ1[0][olev][loffset+moffset][n+1] -= ret[2*n+offst];
+	    differ1[0][nlev][loffset+moffset][n+1] += ret[2*n+offst];
 	    if (m>0) {
-	      (*expcoefN[mlev][loffset+moffset+1])[n+1] -= host_coefs[Ilmn(l, m, 's', n, nmax)];
-	      (*expcoefN[del ][loffset+moffset+1])[n+1] += host_coefs[Ilmn(l, m, 's', n, nmax)];
+	      differ1[0][olev][loffset+moffset+1][n+1] -= ret[2*n+1+offst];
+	      differ1[0][nlev][loffset+moffset+1][n+1] += ret[2*n+1+offst];
 	    }
 	  }
 
+	  // Update the offset into the device coefficient array
+	  offst += nmax*2;
+
+	  // Update the offset into the host coefficient matrix
 	  if (m>0) moffset += 2;
 	  else     moffset += 1;
 	}

@@ -9,6 +9,34 @@
 
 unsigned Component::cudaStreamData::totalInstances=0;
 
+struct testCountLevel :  public thrust::unary_function<cudaParticle, int>
+{
+  int _l;
+
+  testCountLevel(int l) : _l(l) {}
+
+  __host__ __device__
+  int operator()(const cudaParticle& p) const
+  {
+    if (p.lev[0] == _l) return 1;
+    return 0;
+  }
+};
+
+struct testCountLevel2 :  public thrust::unary_function<int, int>
+{
+  int _l;
+
+  testCountLevel2(int l) : _l(l) {}
+
+  __host__ __device__
+  int operator()(const int p) const
+  {
+    if (p == _l) return 1;
+    return 0;
+  }
+};
+
 Component::cudaStreamData::cudaStreamData()
 {
   // Not sure why this breaks thrust, but it does . . .
@@ -66,6 +94,8 @@ Component::I2vec Component::CudaSortLevelChanges(Component::cuSharedStream cr)
   I2vec ret(multistep+1);
   for (auto & v : ret) v.resize(multistep+1);
 
+  Timer timer_sort;
+
   try {
     auto exec = thrust::cuda::par.on(cuStream->stream);
     
@@ -100,12 +130,14 @@ Component::I2vec Component::CudaSortLevelChanges(Component::cuSharedStream cr)
 
 	thrust::device_vector<cudaParticle>::iterator lo, hi;
 
+	timer_sort.start();
 	if (thrust_binary_search_workaround) {
 	  cudaStreamSynchronize(cuStream->stream);
 	  lo  = thrust::lower_bound(pbeg, pend, trg, LessCudaLev2());
 	} else {
 	  lo = thrust::lower_bound(exec, pbeg, pend, trg, LessCudaLev2());
 	}
+	timer_sort.stop();
 	
 	cudaStreamSynchronize(cuStream->stream);
 
@@ -132,20 +164,28 @@ Component::I2vec Component::CudaSortLevelChanges(Component::cuSharedStream cr)
     exit(-1);
   }
  
+  // Debugging output for level changes
+  //
   if (false) {
     std::cout << std::string(15*(multistep+1), '-') << std::endl;
     std::cout << "--- " << name << " [" << myid << "]" << std::endl;
     std::cout << std::string(15*(multistep+1), '-') << std::endl;
     for (int m1=0; m1<=multistep; m1++) {
       for (int m2=0; m2<=multistep; m2++) {
+	/*
 	std::ostringstream sout;
 	sout << "(" << ret[m1][m2].first << ", " << ret[m1][m2].second << ")";
 	std::cout << std::setw(15) << sout.str();
+	*/
+	std::cout << std::setw(15) << ret[m1][m2].second - ret[m1][m2].first;
       }
       std::cout << std::endl;
     }
     std::cout << std::string(15*(multistep+1), '-') << std::endl;
   }
+
+  std::cout << "[" << name << ", " << myid << "]: "
+	    << std::setw(18) << timer_sort.getTime() << std::endl;
 
   return ret;
 }
@@ -184,7 +224,6 @@ void Component::CudaSortByLevel()
     std::cerr << "Some other error happened during sort, lower_bound, or upper_bound:" << e.what() << std::endl;
     exit(-1);
   }
-
 }
 
 std::pair<unsigned int, unsigned int>
@@ -220,6 +259,25 @@ Component::CudaGetLevelRange(int minlev, int maxlev)
 
     ret.first  = thrust::distance(lbeg, lo);
     ret.second = thrust::distance(lbeg, hi);
+
+    /*
+    thrust::host_vector<int> testH(cuStream->levList);
+    for (int n=0; n<10; n++) std::cout << " " << testH[n];
+    std::cout << std::endl;
+
+    std::cout << "Number of zeros="
+	      << thrust::transform_reduce(cuStream->cuda_particles.begin(),
+					  cuStream->cuda_particles.end(),
+					  testCountLevel(0),
+					  0, thrust::plus<int>())
+	      << ", "
+	      << thrust::transform_reduce(cuStream->levList.begin(),
+					  cuStream->levList.end(),
+					  testCountLevel2(0),
+					  0, thrust::plus<int>())
+	      << " lower=" << ret.first << " upper=" << ret.second
+	      << std::endl;
+    */
   }
   catch(thrust::system_error &e) {
     std::cerr << "Some other error happened during sort, lower_bound, or upper_bound:" << e.what() << std::endl;
@@ -252,6 +310,8 @@ void Component::ParticlesToCuda(PartMap::iterator beg, PartMap::iterator fin)
     ParticleHtoD(pit->second, *(hit++));
   }
 
+  DevToHost(cuStream);
+
   if (step_timing and use_cuda) comp->timer_cuda.stop();
 }
 
@@ -269,6 +329,8 @@ void Component::HostToDev(Component::cuSharedStream cr)
 		    npart*sizeof(cudaParticle),
 		    cudaMemcpyHostToDevice, cr->stream);
   }
+
+  CudaSortByLevel();
 }
 
 void Component::DevToHost(Component::cuSharedStream cr)
@@ -300,6 +362,8 @@ void Component::CudaToParticles(hostPartItr beg, hostPartItr end)
     }
     ParticleDtoH(p, particles[p.indx]);
   }
+
+  HostToDev(cuStream);
 
   if (step_timing and use_cuda) comp->timer_cuda.stop();
 }
@@ -505,20 +569,6 @@ void Component::fix_positions_cuda(unsigned mlevel)
   }
 }
 
-struct testCountLevel :  public thrust::unary_function<cudaParticle, int>
-{
-  int _l;
-
-  testCountLevel(int l) : _l(l) {}
-
-  __host__ __device__
-  int operator()(const cudaParticle& p) const
-  {
-    if (p.lev[0] == _l) return 1;
-    return 0;
-  }
-};
-
 
 void Component::print_level_lists_cuda(double T)
 {
@@ -537,7 +587,7 @@ void Component::print_level_lists_cuda(double T)
 	       0, MPI_COMM_WORLD);
 
     int tot=0;
-    for (int n=0; n<=multistep; n++) tot += cntr[n];
+    for (int m=0; m<=multistep; m++) tot += cntr[m];
 
     if (tot) {
 
@@ -570,7 +620,7 @@ void Component::print_level_lists_cuda(double T)
       out << std::endl << std::setw(3) << "T" << std::setw(10) << tot
 	  << std::endl << std::endl << std::right;
     } else {
-      std::cout << "print_level_lists [" << name 
+      std::cout << "print_level_lists_cuda [" << name 
 		<< ", T=" << tnow << "]: tot=" << tot << std::endl;
     }
 

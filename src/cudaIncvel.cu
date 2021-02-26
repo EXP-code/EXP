@@ -6,7 +6,7 @@
 
 #include <boost/make_shared.hpp>
 
-#define USE_KERNEL
+// #define USE_KERNEL
 
 __global__ void velocityKick
 (dArray<cudaParticle> in, cuFP_t dt, int dim, int stride, PII lohi)
@@ -123,8 +123,9 @@ void incr_velocity_cuda(cuFP_t dt, int mlevel)
 #endif
 
     // DEBUGGING output
+    //
     if (false) {
-      PII lohi(0, std::min<int>(5, cr->cuda_particles.size()));
+      PII lohi(0, std::min<int>(3, cr->cuda_particles.size()));
 
       cudaDeviceProp deviceProp;
       cudaGetDeviceProperties(&deviceProp, c->cudaDevice);

@@ -420,8 +420,9 @@ void Component::print_level_lists(double T)
   if (nlevel>0 && (this_step % nlevel == 0)) {
 
 #if HAVE_LIBCUDA==1
-    if (use_cuda) {
+    if (use_cuda) {		// Call the CUDA version
       print_level_lists_cuda(T);
+      return;
     }
 #endif
 

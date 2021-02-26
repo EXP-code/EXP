@@ -6,7 +6,7 @@
 
 #include <boost/make_shared.hpp>
 
-#define USE_KERNEL
+// #define USE_KERNEL
 
 __global__ void coordDrift
 (dArray<cudaParticle> in, cuFP_t dt, int dim, int stride, PII lohi)
@@ -46,8 +46,17 @@ __global__ void positionDebug
     if (npart < lohi.second and npart < in._s) {
 
       cudaParticle p = in._v[npart];
+      cuFP_t sumP = 0.0, sumV = 0.0, sumA = 0.0;
+      for (int k=0; k<3; k++) {
+	sumP += p.pos[k]*p.pos[k];
+	sumV += p.vel[k]*p.vel[k];
+	sumA += p.acc[k]*p.acc[k];
+      }
+      sumP = sqrt(sumP);
+      sumV = sqrt(sumV);
+      sumA = sqrt(sumA);
     
-      printf("%d pos a=(%13.6e %13.6e %13.6e) p=%13.6e\n", i, p.acc[0], p.acc[1], p.acc[2], p.pot);
+      printf("%d pos r=%13.6e v=%13.6e a=%13.6e\n", i, sumP, sumV, sumA);
     }
   }
 }
@@ -133,8 +142,9 @@ void incr_position_cuda(cuFP_t dt, int mlevel)
 #endif
 
     // DEBUGGING output
+    //
     if (false) {
-      PII lohi(0, std::min<int>(5, cr->cuda_particles.size()));
+      PII lohi(0, std::min<int>(3, cr->cuda_particles.size()));
 
       cudaDeviceProp deviceProp;
       cudaGetDeviceProperties(&deviceProp, c->cudaDevice);

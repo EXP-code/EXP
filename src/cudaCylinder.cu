@@ -10,7 +10,6 @@
 // #define OFF_GRID_ALERT
 // #define BOUNDS_CHECK
 // #define VERBOSE_CTR
-// #define VERBOSE_TIMING
 // #define VERBOSE_DBG
 
 // Global symbols for coordinate transformation
@@ -1741,22 +1740,27 @@ void Cylinder::multistep_update_cuda()
 
   // Step through all levels
   //
-  for (int mlev=0; mlev<=multistep; mlev++) {
+  for (int olev=0; olev<=multistep; olev++) {
 
-    for (int del=0; del<=multistep; del++) {
+    for (int nlev=0; nlev<=multistep; nlev++) {
 
-      if (mlev == del) continue;
+      if (olev == nlev) continue;
 
-      unsigned int Ntotal = ret[mlev][del].second - ret[mlev][del].first;
+      unsigned int Ntotal = ret[olev][nlev].second - ret[olev][nlev].first;
 
       if (Ntotal==0) continue;
+
+
+      // Zero out coefficient storage
+      //
+      zero_coefs();
 
       unsigned int Npacks = Ntotal/component->bunchSize + 1;
 
 #ifdef VERBOSE_DBG
       std::cout << "[" << myid << ", " << tnow
 		<< "] Adjust cylinder: Ntotal=" << Ntotal << " Npacks=" << Npacks
-		<< " for (m, d)=(" << mlev << ", " << del << ")" << std::endl;
+		<< " for (m, d)=(" << olev << ", " << nlev << ")" << std::endl;
 #endif
 
       // Loop over bunches
@@ -1767,9 +1771,9 @@ void Cylinder::multistep_update_cuda()
 	
 	// Current bunch
 	//
-	cur. first = ret[mlev][del].first + component->bunchSize*n;
-	cur.second = ret[mlev][del].first + component->bunchSize*(n+1);
-	cur.second = std::min<unsigned int>(cur.second, ret[mlev][del].second);
+	cur. first = ret[olev][nlev].first + component->bunchSize*n;
+	cur.second = ret[olev][nlev].first + component->bunchSize*(n+1);
+	cur.second = std::min<unsigned int>(cur.second, ret[olev][nlev].second);
 
 	if (cur.second <= cur.first) break;
     
@@ -1785,7 +1789,7 @@ void Cylinder::multistep_update_cuda()
 	// Adjust cached storage, if necessary
 	//
 	cuS.resize_coefs(ncylorder, mmax, N, gridSize, sampT, pcavar, pcaeof);
-    
+	
 	// Shared memory size for the reduction
 	//
 	int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
@@ -1849,32 +1853,27 @@ void Cylinder::multistep_update_cuda()
       // Accumulate the coefficients from the device to the host
       //
       thrust::host_vector<cuFP_t> ret = cuS.df_coef;
-      int offst = 0;
-      for (int m=0; m<=mmax; m++) {
-	for (size_t j=0; j<ncylorder; j++) {
-	  host_coefs[Imn(m, 'c', j, ncylorder)] += ret[2*j+offst];
-	  if (m>0) host_coefs[Imn(m, 's', j, ncylorder)] += ret[2*j+1+offst];
-	}
-	offst += 2*ncylorder;
-      }
-      
-      // Decrement current level and increment new level
+
+      // Decrement current level and increment new level using the
+      // EmpCylSL update matricies
       //
       // m loop
       //
-      for (int m=0; m<=mmax; m++) {
-	
+      for (int m=0, offst=0; m<=mmax; m++) {
 	// n loop
 	//
 	for (int n=0; n<ncylorder; n++) {
-	  ortho->set_coef(mlev, m, n, 'c') -= host_coefs[Imn(m, 'c', n, ncylorder)];
-	  ortho->set_coef(del,  m, n, 'c') += host_coefs[Imn(m, 'c', n, ncylorder)];
+	  ortho->differC1[0][olev][m][n] -= ret[2*n+offst];
+	  ortho->differC1[0][nlev][m][n] += ret[2*n+offst];
 	  if (m>0) {
-	    ortho->set_coef(mlev, m, n, 's') -= host_coefs[Imn(m, 's', n, ncylorder)];
-	    ortho->set_coef(del,  m, n, 's') += host_coefs[Imn(m, 's', n, ncylorder)];
+	    ortho->differS1[0][olev][m][n] -= ret[2*n+1+offst];
+	    ortho->differS1[0][nlev][m][n] += ret[2*n+1+offst];
 	  }
 	}
 	// n loop
+
+	// Increment update in coefficient array
+	offst += 2*ncylorder;
       }
       // m loop
     }

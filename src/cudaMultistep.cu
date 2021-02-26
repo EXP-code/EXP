@@ -243,6 +243,11 @@ void cuda_initialize_multistep()
 
 void cuda_compute_levels()
 {
+  //
+  // Begin the update
+  //
+  for (auto c : comp->components) c->force->multistep_update_begin();
+
   cudaDeviceProp deviceProp;
 
   // DEBUGGING

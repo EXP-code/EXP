@@ -232,7 +232,9 @@ void ComponentContainer::initialize(void)
 
 #ifdef HAVE_LIBCUDA
   // Move all particles to cuda devices
-  for (auto c : components) c->ParticlesToCuda();
+  for (auto c : components) {
+    c->ParticlesToCuda();
+  }
 #endif
 
   (*barrier)("ComponentContainer::initialize: FINISH", __FILE__, __LINE__);

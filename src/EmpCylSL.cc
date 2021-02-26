@@ -6021,6 +6021,35 @@ void EmpCylSL::multistep_update_finish()
   MPI_Allreduce (&workS1[0], &workS[0], sz, 
 		 MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
+  if (myid==0) {
+    std::ofstream out("test_differ.cyl", ios::app);
+    if (out) {
+      out << std::string(13+16*rank3, '-') << std::endl;
+      out << "# T=" << tnow << " mstep=" << mstep << std::endl;
+      for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
+	offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
+	for (int mm=0; mm<=MMAX; mm++) {
+	  offset1 = mm*rank3;
+	  out << std::setw(5) << M << " C " << std::setw(5) << mm;
+	  for (int nn=0; nn<rank3; nn++) 
+	    out << std::setw(16) << workC[offset0+offset1+nn];
+	  out << std::endl;
+	  if (mm) {
+	    out << " S " << std::setw(5) << mm;
+	    for (int nn=0; nn<rank3; nn++) 
+	      out << std::setw(16) << workS[offset0+offset1+nn];
+	    out << std::endl;
+	  }
+	}
+      }
+      out << std::string(13+16*rank3, '-') << std::endl;
+    } else {
+      std::cout << "Error opening test file <test_differ.sph> at T=" << tnow
+		<< std::endl;
+    }
+  }
+
+
   for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
 
     offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
