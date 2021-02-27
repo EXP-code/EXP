@@ -3,6 +3,7 @@
 #include <cudaReduce.cuH>
 
 // #define VERBOSE_TIMING
+// #define USE_THRUST
 
 // Global symbols for time step selection
 //
@@ -222,6 +223,17 @@ timestepFinalizeKernel(dArray<cudaParticle> in, int stride)
 
 }
 
+struct cudaClearStep : public thrust::unary_function<cudaParticle, cudaParticle>
+{
+  __host__ __device__
+  cudaParticle operator()(cudaParticle& p)
+  {
+    p.lev[0] = p.lev[1];
+    return p;
+  }
+};
+
+
 void cuda_initialize_multistep()
 {
   // Constants to device once only
@@ -265,7 +277,7 @@ void cuda_compute_levels()
   // END DEBUGGING
 
 #ifdef VERBOSE_TIMING
-  double time1 = 0.0, time2 = 0.0, timeADJ = 0.0, timeCOM = 0.0;
+  double time1 = 0.0, time2 = 0.0, timeSRT = 0.0, timeADJ = 0.0, timeCOM = 0.0;
   auto start0 = std::chrono::high_resolution_clock::now();
   auto start  = std::chrono::high_resolution_clock::now();
 #endif
@@ -321,6 +333,21 @@ void cuda_compute_levels()
     start = std::chrono::high_resolution_clock::now();
 #endif
 
+#ifdef USE_THRUST
+    auto pbeg = c->cuStream->cuda_particles.begin();
+    auto pend = c->cuStream->cuda_particles.end();
+    thrust::transform(thrust::cuda::par.on(c->cuStream->stream),
+		      pbeg, pend, pbeg, cudaClearStep());
+
+#ifdef VERBOSE_TIMING
+    finish = std::chrono::high_resolution_clock::now();
+    duration = finish - start;
+    time2 += duration.count()*1.0e-6;
+    start = std::chrono::high_resolution_clock::now();
+#endif
+
+    c->CudaSortByLevel();
+#else
     // Compute grid
     //
     unsigned int N         = c->cuStream->cuda_particles.size();
@@ -338,21 +365,27 @@ void cuda_compute_levels()
       timestepFinalizeKernel<<<gridSize, BLOCK_SIZE>>>
 	(toKernel(c->cuStream->cuda_particles), stride);
 
+#ifdef VERBOSE_TIMING
+      finish = std::chrono::high_resolution_clock::now();
+      duration = finish - start;
+      time2 += duration.count()*1.0e-6;
+      start = std::chrono::high_resolution_clock::now();
+#endif
+
       c->CudaSortByLevel();
     }
+#endif
 
 #ifdef VERBOSE_TIMING
-    c->force->multistep_update_cuda();
     finish = std::chrono::high_resolution_clock::now();
     duration = finish - start;
-    time2 += duration.count()*1.0e-6;
+    timeSRT += duration.count()*1.0e-6;
     start = std::chrono::high_resolution_clock::now();
 #endif
 
     c->fix_positions_cuda();
 
 #ifdef VERBOSE_TIMING
-    c->force->multistep_update_cuda();
     finish = std::chrono::high_resolution_clock::now();
     duration = finish - start;
     timeCOM += duration.count()*1.0e-6;
@@ -363,14 +396,23 @@ void cuda_compute_levels()
 
 #ifdef VERBOSE_TIMING
   auto finish0 = std::chrono::high_resolution_clock::now();
-  duration = finish - start;
+  duration = finish0 - start0;
   auto timeTOT = 1.0e-6*duration.count();
 
-  std::cout << "Time in timestep  =" << time1   << std::endl
-	    << "Time in timelevl  =" << time2   << std::endl
-	    << "Time in adjust    =" << timeADJ << std::endl
-	    << "Time in COM       =" << timeCOM << std::endl
-	    << "Total time in adj =" << timeTOT << std::endl;
+  std::cout << std::string(60, '-') << std::endl
+	    << "Time in timestep  =" << std::setw(16) << time1
+	    << std::setw(16) << time1/timeTOT   << std::endl
+	    << "Time in timelevl  =" << std::setw(16) << time2
+	    << std::setw(16) << time2/timeTOT << std::endl
+	    << "Time in sort      =" << std::setw(16) << timeSRT
+	    << std::setw(16) << timeSRT/timeTOT << std::endl
+	    << "Time in adjust    =" << std::setw(16) << timeADJ
+	    << std::setw(16) << timeADJ/timeTOT << std::endl
+	    << "Time in COM       =" << std::setw(16) << timeCOM
+	    << std::setw(16) << timeCOM/timeTOT << std::endl
+	    << "Total time in adj =" << std::setw(16) << timeTOT
+	    << std::setw(16) << 1.0 << std::endl
+	    << std::string(60, '-') << std::endl;
 #endif
 }
 
