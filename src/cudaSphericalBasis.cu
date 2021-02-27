@@ -801,8 +801,7 @@ void SphericalBasis::zero_coefs()
     
   // Zero output array
   //
-  thrust::fill(// thrust::cuda::par.on(cr.stream),
-	       thrust::cuda::par,
+  thrust::fill(thrust::cuda::par.on(cr->stream),
 	       cuS.df_coef.begin(), cuS.df_coef.end(), 0.0);
 
   // Resize and zero PCA arrays
@@ -817,8 +816,7 @@ void SphericalBasis::zero_coefs()
     }
     
     for (int T=0; T<sampT; T++)
-      thrust::fill(// thrust::cuda::par.on(cr.stream),
-		   thrust::cuda::par,
+      thrust::fill(thrust::cuda::par.on(cr->stream),
 		   cuS.T_coef[T].begin(), cuS.T_coef[T].end(), 0.0);
     
     thrust::fill(host_massT.begin(), host_massT.end(), 0.0);
@@ -827,8 +825,7 @@ void SphericalBasis::zero_coefs()
   if (pcaeof) {
     cuS.df_tvar.resize((Lmax+1)*(Lmax+2)/2*nmax*(nmax+1)/2);
     
-    thrust::fill(// thrust::cuda::par.on(cr.stream),
-		 thrust::cuda::par,
+    thrust::fill(thrust::cuda::par.on(cr->stream),
 		 cuS.df_tvar.begin(), cuS.df_tvar.end(), 0.0);
 
     if (not pcavar) host_mass_tot = 0.0;
@@ -1050,15 +1047,13 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
 	thrust::reduce_by_key
 	  (
-	   // thrust::cuda::par.on(cr->stream),
-	   thrust::cuda::par,
+	   thrust::cuda::par.on(cr->stream),
 	   thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 	   thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 	   cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
 	   );
 
-	thrust::transform(// thrust::cuda::par.on(cr->stream),
-			  thrust::cuda::par,
+	thrust::transform(thrust::cuda::par.on(cr->stream),
 			  cuS.dw_coef.begin(), cuS.dw_coef.end(),
 			  beg, beg, thrust::plus<cuFP_t>());
 	
@@ -1104,16 +1099,14 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
 	      thrust::reduce_by_key
 		(
-		 // thrust::cuda::par.on(cr->stream),
-		 thrust::cuda::par,
+		 thrust::cuda::par.on(cr->stream),
 		 thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 		 thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 		 cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
 		 );
 		
 	      
-	      thrust::transform(// thrust::cuda::par.on(cr->stream),
-				thrust::cuda::par,
+	      thrust::transform(thrust::cuda::par.on(cr->stream),
 				cuS.dw_coef.begin(), cuS.dw_coef.end(),
 				bg[T], bg[T], thrust::plus<cuFP_t>());
 	      
@@ -1145,15 +1138,13 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 	    
 	    thrust::reduce_by_key
 	      (
-	       // thrust::cuda::par.on(cr->stream),
-	       thrust::cuda::par,
+	       thrust::cuda::par.on(cr->stream),
 	       thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 	       thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 	       cuS.dc_tvar.begin(), thrust::make_discard_iterator(), cuS.dw_tvar.begin()
 	       );
 	    
-	    thrust::transform(// thrust::cuda::par.on(cr->stream),
-			      thrust::cuda::par,
+	    thrust::transform(thrust::cuda::par.on(cr->stream),
 			      cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
 			      begV, begV, thrust::plus<cuFP_t>());
 	    
@@ -1173,9 +1164,8 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
     // Compute number and total mass of particles used in coefficient
     // determination
     //
-    // thrust::sort(thrust::cuda::par.on(cr->stream), cuS.m_d.begin(), cuS.m_d.end());
-    thrust::sort(thrust::cuda::par, cuS.m_d.begin(), cuS.m_d.end());
-      
+    thrust::sort(thrust::cuda::par.on(cr->stream), cuS.m_d.begin(), cuS.m_d.end());
+
     // Call the kernel on a single thread
     // 
     thrust::device_vector<cuFP_t>::iterator it;
@@ -1896,15 +1886,13 @@ void SphericalBasis::multistep_update_cuda()
 
 	    thrust::reduce_by_key
 	      (
-	       // thrust::cuda::par.on(cr->stream),
-	       thrust::cuda::par,
+	       thrust::cuda::par.on(cs->stream),
 	       thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 	       thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 	       cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
 	       );
 	    
-	    thrust::transform(// thrust::cuda::par.on(cr->stream),
-			      thrust::cuda::par,
+	    thrust::transform(thrust::cuda::par.on(cs->stream),
 			      cuS.dw_coef.begin(), cuS.dw_coef.end(),
 			      beg, beg, thrust::plus<cuFP_t>());
 
@@ -1947,8 +1935,11 @@ void SphericalBasis::multistep_update_cuda()
 	  else     moffset += 1;
 	}
       }
+      // END: assign differences
     }
+    // END: to new level loop
   }
+  // END: from prev level loop
 
 #ifdef VERBOSE_TIMING
   std::cout << "Time in coord=" << coord << std::endl;

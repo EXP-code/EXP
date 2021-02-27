@@ -1061,15 +1061,13 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
       thrust::reduce_by_key
 	(
-	 // thrust::cuda::par.on(cs->stream),
-	 thrust::cuda::par,
+	 thrust::cuda::par.on(cs->stream),
 	 thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 	 thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 	 cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
 	 );
 
-      thrust::transform(// thrust::cuda::par.on(cs->stream),
-			thrust::cuda::par,
+      thrust::transform(thrust::cuda::par.on(cs->stream),
 			cuS.dw_coef.begin(), cuS.dw_coef.end(),
 			beg, beg, thrust::plus<cuFP_t>());
 
@@ -1113,16 +1111,14 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	      
 	    thrust::reduce_by_key
 	      (
-	       // thrust::cuda::par.on(cs->stream),
-	       thrust::cuda::par,
+	       thrust::cuda::par.on(cs->stream),
 	       thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 	       thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 	       cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
 	       );
 
 
-	    thrust::transform(// thrust::cuda::par.on(cs->stream),
-			      thrust::cuda::par,
+	    thrust::transform(thrust::cuda::par.on(cs->stream),
 			      cuS.dw_coef.begin(), cuS.dw_coef.end(),
 			      bg[T], bg[T], thrust::plus<cuFP_t>());
 	    
@@ -1154,15 +1150,13 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	  
 	  thrust::reduce_by_key
 	    (
-	     // thrust::cuda::par.on(cs->stream),
-	     thrust::cuda::par,
+	     thrust::cuda::par.on(cs->stream),
 	     thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 	     thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 	       cuS.dc_tvar.begin(), thrust::make_discard_iterator(), cuS.dw_tvar.begin()
 	     );
 
-	  thrust::transform(// thrust::cuda::par.on(cs->stream),
-			    thrust::cuda::par,
+	  thrust::transform(thrust::cuda::par.on(cs->stream),
 			    cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
 			    begV, begV, thrust::plus<cuFP_t>());
 
@@ -1174,12 +1168,10 @@ void Cylinder::determine_coefficients_cuda(bool compute)
     // Compute number and total mass of particles used in coefficient
     // determination
     //
-    thrust::sort(//thrust::cuda::par.on(cs->stream),
-		 thrust::cuda::par,
+    thrust::sort(thrust::cuda::par.on(cs->stream),
 		 cuS.m_d.begin(), cuS.m_d.end());
     
-    // auto exec  = thrust::cuda::par.on(cs->stream);
-    auto exec  = thrust::cuda::par;
+    auto exec  = thrust::cuda::par.on(cs->stream);
     auto first = cuS.u_d.begin();
     auto last  = cuS.u_d.end();
 
@@ -1832,15 +1824,13 @@ void Cylinder::multistep_update_cuda()
 
 	  thrust::reduce_by_key
 	    (
-	     // thrust::cuda::par.on(cs->stream),
-	     thrust::cuda::par,
+	     thrust::cuda::par.on(cs->stream),
 	     thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 	     thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 	     cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
 	     );
 
-	  thrust::transform(// thrust::cuda::par.on(cs->stream),
-			    thrust::cuda::par,
+	  thrust::transform(thrust::cuda::par.on(cs->stream),
 			    cuS.dw_coef.begin(), cuS.dw_coef.end(),
 			    beg, beg, thrust::plus<cuFP_t>());
 	  
