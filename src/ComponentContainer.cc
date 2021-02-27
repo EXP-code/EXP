@@ -288,7 +288,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     if (levcnt.size()==0) levcnt = vector<unsigned>(multistep+1, 0);
     levcnt[mlevel]++;
   }
-
+  
   // Potential/force clock
   //
   for (auto c : components) c->time_so_far.reset();
@@ -378,14 +378,8 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
     }
 
-    if (use_cuda and not c->force->cudaAware()) {
-      c->CudaToParticles();
-      c->force->get_acceleration_and_potential(c);
-      c->ParticlesToCuda();
-    } else {
-      c->force->get_acceleration_and_potential(c);
-    }
-
+    c->force->get_acceleration_and_potential(c);
+      
     c->time_so_far.stop();
     if (timing) {
       timer_accel.stop();
@@ -461,13 +455,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       other->time_so_far.start();
       inter->c->force->SetExternal();
       inter->c->force->set_multistep_level(mlevel);
-      if (use_cuda and not inter->c->force->cudaAware()) {
-	inter->c->CudaToParticles();
-	inter->c->force->get_acceleration_and_potential(other);
-	inter->c->ParticlesToCuda();
-      } else {
-	inter->c->force->get_acceleration_and_potential(other);
-      }
+      inter->c->force->get_acceleration_and_potential(other);
       inter->c->force->ClearExternal();
       other->time_so_far.stop();
 
@@ -545,13 +533,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       for (auto ext : external->force_list) {
 	if (timing) itmr->second.start();
 	ext->set_multistep_level(mlevel);
-	if (use_cuda and not c->force->cudaAware()) {
-	  c->CudaToParticles();
-	  ext->get_acceleration_and_potential(c);
-	  c->ParticlesToCuda();
-	} else {
-	  ext->get_acceleration_and_potential(c);
-	}
+	ext->get_acceleration_and_potential(c);
 	if (timing) (itmr++)->second.stop();
       }
       c->time_so_far.stop();
@@ -825,13 +807,7 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
 #endif
 				// Compute coefficients
     c->force->set_multistep_level(mlevel);
-    if (use_cuda and not c->force->cudaAware()) {
-      c->CudaToParticles();
-      c->force->determine_coefficients(c);
-      c->ParticlesToCuda();
-    } else {
-      c->force->determine_coefficients(c);
-    }
+    c->force->determine_coefficients(c);
 #ifdef DEBUG
     cout << "Process " << myid << ": coefficients <"
 	 << c->id << "> for mlevel=" << mlevel << " done" << endl;
