@@ -97,11 +97,11 @@ timestepKernel(dArray<cudaParticle> in, cuFP_t cx, cuFP_t cy, cuFP_t cz,
 #ifdef BOUNDS_CHECK
       if (npart>=in._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-      cudaParticle* p = &in._v[npart];
+      cudaParticle & p = in._v[npart];
       
-      cuFP_t xx = p->pos[0] - cx;
-      cuFP_t yy = p->pos[1] - cy;
-      cuFP_t zz = p->pos[2] - cz;
+      cuFP_t xx = p.pos[0] - cx;
+      cuFP_t yy = p.pos[1] - cy;
+      cuFP_t zz = p.pos[2] - cz;
       
       cuFP_t dtd=1.0/eps, dtv=1.0/eps, dta=1.0/eps, dtA=1.0/eps, dts=1.0/eps;
 
@@ -116,13 +116,13 @@ timestepKernel(dArray<cudaParticle> in, cuFP_t cx, cuFP_t cy, cuFP_t cz,
 	cuFP_t atot = 0.0;
 
 	for (int k=0; k<dim; k++) {
-	  vtot += p->vel[k]*p->vel[k];
-	  atot += p->acc[k]*p->acc[k];
+	  vtot += p.vel[k]*p.vel[k];
+	  atot += p.acc[k]*p.acc[k];
 	}
 	vtot = sqrt(vtot) + 1.0e-18;
 	atot = sqrt(atot) + 1.0e-18;
 	
-	if (p->scale>0.0) dts = cuDynfracS*p->scale/vtot;
+	if (p.scale>0.0) dts = cuDynfracS*p.scale/vtot;
 
 	dtv = cuDynfracV*rtot/vtot;
 	dta = cuDynfracA*vtot/atot;
@@ -140,14 +140,14 @@ timestepKernel(dArray<cudaParticle> in, cuFP_t cx, cuFP_t cy, cuFP_t cz,
 	cuFP_t atot = 0.0;
 	
 	for (int k=0; k<dim; k++) {
-	  dtr  += p->vel[k]*p->acc[k];
-	  vtot += p->vel[k]*p->vel[k];
-	  atot += p->acc[k]*p->acc[k];
+	  dtr  += p.vel[k]*p.acc[k];
+	  vtot += p.vel[k]*p.vel[k];
+	  atot += p.acc[k]*p.acc[k];
 	}
 
-	cuFP_t ptot = fabs(p->pot + p->potext);
+	cuFP_t ptot = fabs(p.pot + p.potext);
 	
-	if (p->scale>0) dts = cuDynfracS*p->scale/fabs(sqrt(vtot)+eps);
+	if (p.scale>0) dts = cuDynfracS*p.scale/fabs(sqrt(vtot)+eps);
 	
 	dtd = cuDynfracD * 1.0/sqrt(vtot+eps);
 	dtv = cuDynfracV * sqrt(vtot/(atot+eps));
@@ -171,22 +171,28 @@ timestepKernel(dArray<cudaParticle> in, cuFP_t cx, cuFP_t cy, cuFP_t cz,
       if (dt > dtA) dt = dtA;
       
       // Time step wants to be LARGER than the maximum
-      p->lev[1] = 0;
+      p.lev[1] = 0;
       if (dt<cuDtime)
-	p->lev[1] = (int)floor(log(cuDtime/dt)/log(2.0));
+	p.lev[1] = (int)floor(log(cuDtime/dt)/log(2.0));
     
       // Time step wants to be SMALLER than the maximum
-      if (p->lev[1]>cuMultistep) p->lev[1] = cuMultistep;
+      if (p.lev[1]>cuMultistep) p.lev[1] = cuMultistep;
       
+      /*
+      if (i<5) {
+	printf("i=%d dtd=%e dtv=%e dta=%e dtA=%e o=%d n=%d\n", i, dtd, dtv, dta, dtA, p.lev[0], p.lev[1]);
+      }
+      */
+
       // Enforce n-level shifts at a time
       //
       if (cuShiftlev) {
-	if (p->lev[1] > p->lev[0]) {
-	  if (p->lev[1] - p->lev[0] > cuShiftlev)
-	    p->lev[1] = p->lev[0] + cuShiftlev;
-	} else if (p->lev[0] > p->lev[1]) {
-	  if (p->lev[0] - p->lev[1] > cuShiftlev)
-	    p->lev[1] = p->lev[0] - cuShiftlev;
+	if (p.lev[1] > p.lev[0]) {
+	  if (p.lev[1] - p.lev[0] > cuShiftlev)
+	    p.lev[1] = p.lev[0] + cuShiftlev;
+	} else if (p.lev[0] > p.lev[1]) {
+	  if (p.lev[0] - p.lev[1] > cuShiftlev)
+	    p.lev[1] = p.lev[0] - cuShiftlev;
 	}
       }
 
@@ -206,9 +212,9 @@ timestepFinalizeKernel(dArray<cudaParticle> in, int stride)
 
     if (i < in._s) {
 
-      cudaParticle* p = &in._v[i];
+      cudaParticle & p = in._v[i];
       
-      if (p->lev[0] != p->lev[1]) p->lev[0] = p->lev[1];
+      if (p.lev[0] != p.lev[1]) p.lev[0] = p.lev[1];
 
     } // Particle index block
     
