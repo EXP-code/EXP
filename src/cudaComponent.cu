@@ -94,8 +94,6 @@ Component::I2vec Component::CudaSortLevelChanges(Component::cuSharedStream cr)
   I2vec ret(multistep+1);
   for (auto & v : ret) v.resize(multistep+1);
 
-  Timer timer_sort;
-
   try {
     auto exec = thrust::cuda::par.on(cuStream->stream);
     
@@ -130,14 +128,12 @@ Component::I2vec Component::CudaSortLevelChanges(Component::cuSharedStream cr)
 
 	thrust::device_vector<cudaParticle>::iterator lo, hi;
 
-	timer_sort.start();
 	if (thrust_binary_search_workaround) {
 	  cudaStreamSynchronize(cuStream->stream);
 	  lo  = thrust::lower_bound(pbeg, pend, trg, LessCudaLev2());
 	} else {
 	  lo = thrust::lower_bound(exec, pbeg, pend, trg, LessCudaLev2());
 	}
-	timer_sort.stop();
 	
 	cudaStreamSynchronize(cuStream->stream);
 
@@ -183,9 +179,6 @@ Component::I2vec Component::CudaSortLevelChanges(Component::cuSharedStream cr)
     }
     std::cout << std::string(15*(multistep+1), '-') << std::endl;
   }
-
-  std::cout << "[" << name << ", " << myid << "]: "
-	    << std::setw(18) << timer_sort.getTime() << std::endl;
 
   return ret;
 }
