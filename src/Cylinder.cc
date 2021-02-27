@@ -808,17 +808,12 @@ void Cylinder::determine_coefficients(void)
 #if HAVE_LIBCUDA==1
   if (component->cudaDevice>=0) {
     start1 = std::chrono::high_resolution_clock::now();
-    
     if (mstep==0) {
       std::fill(use.begin(), use.end(), 0.0);
       std::fill(cylmass0.begin(), cylmass0.end(), 0.0);
     }
-
-    if (cC->levlist[mlevel].size()) {
-      determine_coefficients_cuda(compute);
-      DtoH_coefs(mlevel);
-    }
-
+    determine_coefficients_cuda(compute);
+    DtoH_coefs(mlevel);
     finish1 = std::chrono::high_resolution_clock::now();
   } else {    
     exp_thread_fork(true);
