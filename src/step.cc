@@ -325,27 +325,35 @@ void do_step(int n)
 				// Timer output
   if (step_timing && this_step!=0 && (this_step % tskip) == 0) {
     if (myid==0) {
+      auto totalT = timer_tot.getTime();
       std::cout << std::endl
 		<< std::setw(70) << std::setfill('-') << '-' << std::endl
 		<< std::setw(70) << left << "--- Timer info" << std::endl
 		<< std::setw(70) << std::setfill('-') << '-' << std::endl
 		<< std::setfill(' ') << std::right
 		<< std::setw(20) << "Drift: "
-		<< std::setw(18) << timer_drift.getTime() << std::endl
+		<< std::setw(18) << timer_drift.getTime()
+		<< std::setw(18) << timer_drift.getTime()/totalT << std::endl
 		<< std::setw(20) << "Velocity: "
-		<< std::setw(18) << timer_vel.getTime() << std::endl
+		<< std::setw(18) << timer_vel.getTime()
+		<< std::setw(18) << timer_vel.getTime()/totalT << std::endl
 		<< std::setw(20) << "Force: "
-		<< std::setw(18) << timer_pot.getTime() << std::endl
+		<< std::setw(18) << timer_pot.getTime()
+		<< std::setw(18) << timer_pot.getTime()/totalT << std::endl
 		<< std::setw(20) << "Coefs: "
-		<< std::setw(18) << timer_coef.getTime() << std::endl;
+		<< std::setw(18) << timer_coef.getTime()
+		<< std::setw(18) << timer_coef.getTime()/totalT << std::endl;
       if (multistep)
 	std::cout << std::setw(20) << "Adjust: "
-		  << std::setw(18) << timer_adj.getTime() << std::endl;
+		  << std::setw(18) << timer_adj.getTime()
+		  << std::setw(18) << timer_adj.getTime()/totalT << std::endl;
       if (use_cuda)
 	std::cout << std::setw(20) << "Cuda copy: "
-		  << std::setw(18) << comp->timer_cuda.getTime() << std::endl;
+		  << std::setw(18) << comp->timer_cuda.getTime()
+		  << std::setw(18) << comp->timer_cuda.getTime()/totalT << std::endl;
       std::cout << std::setw(20) << "Total: "
-		<< std::setw(18) << timer_tot.getTime() << std::endl
+		<< std::setw(18) << timer_tot.getTime()
+		<< std::setw(18) << 1.0 << std::endl
 		<< std::setw(70) << std::setfill('-') << '-' << std::endl
 		<< std::setfill(' ');
     }
