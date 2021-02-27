@@ -153,7 +153,7 @@ timestepKernel(dArray<cudaParticle> in, cuFP_t cx, cuFP_t cy, cuFP_t cz,
 	dtd = cuDynfracD * 1.0/sqrt(vtot+eps);
 	dtv = cuDynfracV * sqrt(vtot/(atot+eps));
 	dta = cuDynfracA * ptot/(fabs(dtr)+eps);
-	dtA = cuDynfracP * sqrt(ptot/(atot*atot+eps));
+	dtA = cuDynfracP * sqrt(ptot/(atot+eps));
 
 	/*
 	if (i<5) {
