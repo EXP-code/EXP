@@ -2,8 +2,7 @@
 #include <Component.H>
 #include <cudaReduce.cuH>
 
-// #define VERBOSE_TIMING
-// #define USE_THRUST
+#define VERBOSE_TIMING
 
 // Global symbols for time step selection
 //
@@ -83,7 +82,8 @@ struct testCountDelta :  public thrust::unary_function<cudaParticle, int>
 
 
 __global__ void
-timestepKernel(dArray<cudaParticle> in, cuFP_t cx, cuFP_t cy, cuFP_t cz,
+timestepKernel(dArray<cudaParticle> P, dArray<int> I,
+	       cuFP_t cx, cuFP_t cy, cuFP_t cz,
 	       int dim, int stride, PII lohi)
 {
   const int tid    = blockDim.x * blockIdx.x + threadIdx.x;
@@ -96,9 +96,9 @@ timestepKernel(dArray<cudaParticle> in, cuFP_t cx, cuFP_t cy, cuFP_t cz,
     if (npart < lohi.second) {
       
 #ifdef BOUNDS_CHECK
-      if (npart>=in._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+      if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-      cudaParticle & p = in._v[npart];
+      cudaParticle & p = P._v[I._v[npart]];
       
       cuFP_t xx = p.pos[0] - cx;
       cuFP_t yy = p.pos[1] - cy;
@@ -204,16 +204,16 @@ timestepKernel(dArray<cudaParticle> in, cuFP_t cx, cuFP_t cy, cuFP_t cz,
 }
 
 __global__ void
-timestepFinalizeKernel(dArray<cudaParticle> in, int stride)
+timestepFinalizeKernel(dArray<cudaParticle> P, dArray<int> I, int stride)
 {
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
   for (int n=0; n<stride; n++) {
     int i     = tid*stride + n;	// Index in the stride
 
-    if (i < in._s) {
+    if (i < P._s) {
 
-      cudaParticle & p = in._v[i];
+      cudaParticle & p = P._v[I._v[i]];
       
       if (p.lev[0] != p.lev[1]) p.lev[0] = p.lev[1];
 
@@ -304,8 +304,9 @@ void cuda_compute_levels()
       auto ctr = c->getCenter(Component::Local | Component::Centered);
       
       timestepKernel<<<gridSize, BLOCK_SIZE>>>
-	(toKernel(c->cuStream->cuda_particles), ctr[0], ctr[1], ctr[2], 
-	 c->dim, stride, lohi);
+	(toKernel(c->cuStream->cuda_particles),
+	 toKernel(c->cuStream->indx1),
+	 ctr[0], ctr[1], ctr[2], c->dim, stride, lohi);
     }
   }
 
@@ -333,21 +334,6 @@ void cuda_compute_levels()
     start = std::chrono::high_resolution_clock::now();
 #endif
 
-#ifdef USE_THRUST
-    auto pbeg = c->cuStream->cuda_particles.begin();
-    auto pend = c->cuStream->cuda_particles.end();
-    thrust::transform(thrust::cuda::par.on(c->cuStream->stream),
-		      pbeg, pend, pbeg, cudaClearStep());
-
-#ifdef VERBOSE_TIMING
-    finish = std::chrono::high_resolution_clock::now();
-    duration = finish - start;
-    time2 += duration.count()*1.0e-6;
-    start = std::chrono::high_resolution_clock::now();
-#endif
-
-    c->CudaSortByLevel();
-#else
     // Compute grid
     //
     unsigned int N         = c->cuStream->cuda_particles.size();
@@ -363,7 +349,8 @@ void cuda_compute_levels()
       auto ctr = c->getCenter(Component::Local | Component::Centered);
       
       timestepFinalizeKernel<<<gridSize, BLOCK_SIZE>>>
-	(toKernel(c->cuStream->cuda_particles), stride);
+	(toKernel(c->cuStream->cuda_particles),
+	 toKernel(c->cuStream->indx1), stride);
 
 #ifdef VERBOSE_TIMING
       finish = std::chrono::high_resolution_clock::now();
@@ -374,7 +361,6 @@ void cuda_compute_levels()
 
       c->CudaSortByLevel();
     }
-#endif
 
 #ifdef VERBOSE_TIMING
     finish = std::chrono::high_resolution_clock::now();
