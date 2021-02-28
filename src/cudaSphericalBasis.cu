@@ -1696,7 +1696,7 @@ void SphericalBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
 
 
     if (pcavar) {
-
+      
       // T loop
       //
       for (int T=0; T<sampT; T++) {
@@ -1718,10 +1718,10 @@ void SphericalBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
 	    //
 	    for (int n=1; n<=nmax; n++) {
 	      (*expcoefT1[T][loffset+m])[n] += ret[2*(n-1) + offst];
-	      }
-
-	    offst += osize;
 	    }
+	    
+	    offst += osize;
+	  }
 	}
       }
       
@@ -1760,7 +1760,7 @@ void SphericalBasis::multistep_update_cuda()
   auto start  = std::chrono::high_resolution_clock::now();
 #endif
 
-  auto ret = component->CudaSortLevelChanges();
+  auto chg = component->CudaSortLevelChanges();
 
 #ifdef VERBOSE_TIMING
   auto finish = std::chrono::high_resolution_clock::now();
@@ -1778,12 +1778,12 @@ void SphericalBasis::multistep_update_cuda()
   // Step through all levels
   //
   for (int olev=0; olev<=multistep; olev++) {
-
+    
     for (int nlev=0; nlev<=multistep; nlev++) {
 
       if (olev == nlev) continue;
 
-      unsigned int Ntotal = ret[olev][nlev].second - ret[olev][nlev].first;
+      unsigned int Ntotal = chg[olev][nlev].second - chg[olev][nlev].first;
 
       if (Ntotal==0) continue;
 
@@ -1806,9 +1806,9 @@ void SphericalBasis::multistep_update_cuda()
 
 	// Current bunch
 	//
-	cur. first = ret[olev][nlev].first + component->bunchSize*n;
-	cur.second = ret[olev][nlev].first + component->bunchSize*(n+1);
-	cur.second = std::min<unsigned int>(cur.second, ret[olev][nlev].second);
+	cur. first = chg[olev][nlev].first + component->bunchSize*n;
+	cur.second = chg[olev][nlev].first + component->bunchSize*(n+1);
+	cur.second = std::min<unsigned int>(cur.second, chg[olev][nlev].second);
 
 	if (cur.second <= cur.first) break;
     
