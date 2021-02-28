@@ -1,6 +1,6 @@
-#include <Component.H>
-#include <expand.h>
-#include <cudaParticle.cuH>
+#include "expand.h"
+#include "Component.H"
+#include "cudaParticle.cuH"
 
 #include <thrust/transform_reduce.h>
 #include <thrust/functional.h>
