@@ -2,6 +2,8 @@
 #include <Component.H>
 #include <cudaReduce.cuH>
 
+// Define this to see per operation sub timings
+//
 // #define VERBOSE_TIMING
 
 // Global symbols for time step selection
