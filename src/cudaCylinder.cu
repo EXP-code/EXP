@@ -1724,7 +1724,7 @@ void Cylinder::multistep_update_cuda()
   //
 
   //! Sort the device vector by level changes
-  auto ret = component->CudaSortLevelChanges();
+  auto chg = component->CudaSortLevelChanges();
 
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
@@ -1742,7 +1742,7 @@ void Cylinder::multistep_update_cuda()
 
       if (olev == nlev) continue;
 
-      unsigned int Ntotal = ret[olev][nlev].second - ret[olev][nlev].first;
+      unsigned int Ntotal = chg[olev][nlev].second - chg[olev][nlev].first;
 
       if (Ntotal==0) continue;
 
@@ -1767,9 +1767,9 @@ void Cylinder::multistep_update_cuda()
 	
 	// Current bunch
 	//
-	cur. first = ret[olev][nlev].first + component->bunchSize*n;
-	cur.second = ret[olev][nlev].first + component->bunchSize*(n+1);
-	cur.second = std::min<unsigned int>(cur.second, ret[olev][nlev].second);
+	cur. first = chg[olev][nlev].first + component->bunchSize*n;
+	cur.second = chg[olev][nlev].first + component->bunchSize*(n+1);
+	cur.second = std::min<unsigned int>(cur.second, chg[olev][nlev].second);
 
 	if (cur.second <= cur.first) break;
     
