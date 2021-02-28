@@ -14,12 +14,17 @@ UserTestCuda::UserTestCuda(const YAML::Node& conf) : ExternalForce(conf)
   instance = total;
   maxcall = -1;
   callno  = 0;
+
+  initialize();
+
   if (myid==0) 
-    cout << "Just made a UserTestCuda Instance=" << instance << endl;
+    std::cout << "** Just made a UserTestCuda Instance=" << instance
+	      <<  std::endl;
 }
 
 UserTestCuda::~UserTestCuda()
 {
+  total--;
 }
 
 void UserTestCuda::initialize()
@@ -45,9 +50,14 @@ void * UserTestCuda::determine_acceleration_and_potential_thread(void * arg)
 {
   int id = *((int*)arg);
 
-  if (maxcall>0 and callno++ < maxcall) {
+  // Only chat on the master step
+  //
+  if (multistep and mstep) return(NULL); 
 
-#if HAVE_CUDALIB == 1
+  // Should we say something now?
+  //
+  if (maxcall>0 and callno++ < maxcall) {
+#if HAVE_LIBCUDA == 1
     cuda_user_test(myid, id, tnow, instance);
 #else
     std::cout << "Process " << myid 
