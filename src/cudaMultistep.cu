@@ -2,7 +2,7 @@
 #include <Component.H>
 #include <cudaReduce.cuH>
 
-#define VERBOSE_TIMING
+// #define VERBOSE_TIMING
 
 // Global symbols for time step selection
 //
@@ -155,6 +155,7 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 	dta = cuDynfracA * ptot/(fabs(dtr)+eps);
 	dtA = cuDynfracP * sqrt(ptot/(atot+eps));
 
+	// Only use this for deep sanity check
 	/*
 	if (i<5) {
 	  printf("i=%d dtr=%e vtot=%e atot=%e ptot=%e dts=%e dtd=%e dtv=%e dta=%e dtA=%e DynV=%e DynA=%e\n", i, dtr, vtot, atot, ptot, dts, dtd, dtv, dta, dtA, cuDynfracV, cuDynfracA);
@@ -179,6 +180,7 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
       // Time step wants to be SMALLER than the maximum
       if (p.lev[1]>cuMultistep) p.lev[1] = cuMultistep;
       
+      // Only use this for deep sanity check
       /*
       if (i<5) {
 	printf("i=%d dtd=%e dtv=%e dta=%e dtA=%e o=%d n=%d\n", i, dtd, dtv, dta, dtA, p.lev[0], p.lev[1]);
@@ -203,6 +205,8 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 
 }
 
+// Reset target level to current level
+//
 __global__ void
 timestepFinalizeKernel(dArray<cudaParticle> P, dArray<int> I, int stride)
 {
@@ -223,6 +227,9 @@ timestepFinalizeKernel(dArray<cudaParticle> P, dArray<int> I, int stride)
 
 }
 
+// Reset target level to current level; no longer used because of need
+// for indirect indexing
+//
 struct cudaClearStep : public thrust::unary_function<cudaParticle, cudaParticle>
 {
   __host__ __device__
