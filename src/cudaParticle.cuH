@@ -53,6 +53,7 @@ struct LessCudaLev
 {
   int _t;
 
+  __host__ __device__
   LessCudaLev(int t=0) : _t(t) { }
 
   __host__ __device__
@@ -90,6 +91,8 @@ struct cuPartToLevel :
   public thrust::unary_function<cudaParticle, unsigned int>
 {
   int _t;
+
+  __host__ __device__
   cuPartToLevel(int t=0) : _t(t) {}
 
   __host__ __device__
