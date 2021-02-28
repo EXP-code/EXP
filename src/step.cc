@@ -331,29 +331,29 @@ void do_step(int n)
 		<< std::setw(70) << left << "--- Timer info" << std::endl
 		<< std::setw(70) << std::setfill('-') << '-' << std::endl
 		<< std::setfill(' ') << std::right
-		<< std::setw(20) << "Drift: "
-		<< std::setw(18) << timer_drift.getTime()
+		<< std::setw(20) << "Drift: " << std::scientific
+		<< std::setw(18) << timer_drift.getTime() << std::fixed
 		<< std::setw(18) << timer_drift.getTime()/totalT << std::endl
-		<< std::setw(20) << "Velocity: "
-		<< std::setw(18) << timer_vel.getTime()
+		<< std::setw(20) << "Velocity: " << std::scientific
+		<< std::setw(18) << timer_vel.getTime() << std::fixed
 		<< std::setw(18) << timer_vel.getTime()/totalT << std::endl
-		<< std::setw(20) << "Force: "
-		<< std::setw(18) << timer_pot.getTime()
+		<< std::setw(20) << "Force: " << std::scientific
+		<< std::setw(18) << timer_pot.getTime() << std::fixed
 		<< std::setw(18) << timer_pot.getTime()/totalT << std::endl
-		<< std::setw(20) << "Coefs: "
-		<< std::setw(18) << timer_coef.getTime()
+		<< std::setw(20) << "Coefs: " << std::scientific
+		<< std::setw(18) << timer_coef.getTime() << std::fixed
 		<< std::setw(18) << timer_coef.getTime()/totalT << std::endl;
       if (multistep)
-	std::cout << std::setw(20) << "Adjust: "
-		  << std::setw(18) << timer_adj.getTime()
+	std::cout << std::setw(20) << "Adjust: " << std::scientific
+		  << std::setw(18) << timer_adj.getTime() << std::fixed
 		  << std::setw(18) << timer_adj.getTime()/totalT << std::endl;
       if (use_cuda)
-	std::cout << std::setw(20) << "Cuda copy: "
-		  << std::setw(18) << comp->timer_cuda.getTime()
+	std::cout << std::setw(20) << "Cuda copy: " << std::scientific
+		  << std::setw(18) << comp->timer_cuda.getTime() << std::fixed
 		  << std::setw(18) << comp->timer_cuda.getTime()/totalT << std::endl;
-      std::cout << std::setw(20) << "Total: "
-		<< std::setw(18) << timer_tot.getTime()
-		<< std::setw(18) << 1.0 << std::endl
+      std::cout << std::setw(20) << "Total: " << std::scientific
+		<< std::setw(18) << timer_tot.getTime() << std::fixed
+		<< std::setw(18) << 1.0 << std::endl << std::scientific
 		<< std::setw(70) << std::setfill('-') << '-' << std::endl
 		<< std::setfill(' ');
     }
