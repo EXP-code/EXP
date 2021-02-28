@@ -214,7 +214,8 @@ void Cylinder::initialize_mapping_constants()
 
 
 __global__ void coordKernelCyl
-(dArray<cudaParticle> in, dArray<cuFP_t> mass, dArray<cuFP_t> phi,
+(dArray<cudaParticle> P, dArray<int> I,
+ dArray<cuFP_t> mass, dArray<cuFP_t> phi,
  dArray<cuFP_t> Xfac, dArray<cuFP_t> Yfac,
  dArray<int> IndX, dArray<int> IndY,
  unsigned int stride, PII lohi, cuFP_t rmax)
@@ -230,9 +231,9 @@ __global__ void coordKernelCyl
     if (npart < lohi.second) {	// Is particle index in range?
 
 #ifdef BOUNDS_CHECK
-      if (npart>=in._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+      if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-      cudaParticle p = in._v[npart];
+      cudaParticle p = P._v[I._v[npart]];
     
       cuFP_t xx=0.0, yy=0.0, zz=0.0;
 
@@ -463,7 +464,8 @@ __global__ void coefKernelCyl
 }
 
 __global__ void
-forceKernelCyl(dArray<cudaParticle> in, dArray<cuFP_t> coef,
+forceKernelCyl(dArray<cudaParticle> P, dArray<int> I,
+	       dArray<cuFP_t> coef,
 	       dArray<cudaTextureObject_t> tex,
 	       int stride, unsigned int mmax, unsigned int mlim,
 	       unsigned int nmax, PII lohi,
@@ -487,9 +489,9 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<cuFP_t> coef,
       int muse = mmax > mlim ? mlim : mmax;
 
 #ifdef BOUNDS_CHECK
-      if (npart>=in._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+      if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-      cudaParticle p = in._v[npart];
+      cudaParticle & p = P._v[I._v[npart]];
       
       cuFP_t acc[3] = {0.0, 0.0, 0.0};
       cuFP_t xx=0.0, yy=0.0, zz=0.0;
@@ -734,16 +736,16 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<cuFP_t> coef,
 
       if (cylOrient) {
 	for (int j=0; j<3; j++) {
-	  for (int k=0; k<3; k++) in._v[npart].acc[j] += cylOrig[3*j+k]*acc[k];
+	  for (int k=0; k<3; k++) p.acc[j] += cylOrig[3*j+k]*acc[k];
 	}
       } else {
-	for (int j=0; j<3; j++) in._v[npart].acc[j] += acc[j];
+	for (int j=0; j<3; j++) p.acc[j] += acc[j];
       }
 
       if (external)
-	in._v[npart].potext += pp;
+	p.potext += pp;
       else
-	in._v[npart].pot    += pp;
+	p.pot    += pp;
 
     } // Particle index block
 
@@ -1017,7 +1019,8 @@ void Cylinder::determine_coefficients_cuda(bool compute)
     // Compute the coordinate transformation
     // 
     coordKernelCyl<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
-      (toKernel(cs->cuda_particles), toKernel(cuS.m_d), toKernel(cuS.p_d),
+      (toKernel(cs->cuda_particles), toKernel(cs->indx1),
+       toKernel(cuS.m_d), toKernel(cuS.p_d),
        toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d),
        toKernel(cuS.iY_d), stride, cur, rmax);
       
@@ -1642,7 +1645,8 @@ void Cylinder::determine_acceleration_cuda()
     // Do the work
     //
     forceKernelCyl<<<gridSize, BLOCK_SIZE, sMemSize, cs->stream>>>
-      (toKernel(cs->cuda_particles), toKernel(dev_coefs), toKernel(t_d),
+      (toKernel(cs->cuda_particles), toKernel(cs->indx1),
+       toKernel(dev_coefs), toKernel(t_d),
        stride, mmax, mlim, ncylorder, lohi, rmax, cylmass, use_external);
     
   }
@@ -1720,7 +1724,7 @@ void Cylinder::multistep_update_cuda()
   //
 
   //! Sort the device vector by level changes
-  auto ret = component->CudaSortLevelChanges(component->cuStream);
+  auto ret = component->CudaSortLevelChanges();
 
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
@@ -1789,7 +1793,8 @@ void Cylinder::multistep_update_cuda()
 	// Compute the coordinate transformation
 	// 
 	coordKernelCyl<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
-	  (toKernel(cs->cuda_particles), toKernel(cuS.m_d), toKernel(cuS.p_d),
+	  (toKernel(cs->cuda_particles), toKernel(cs->indx2),
+	   toKernel(cuS.m_d), toKernel(cuS.p_d),
 	   toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d),
 	   toKernel(cuS.iY_d), stride, cur, rmax);
       

@@ -895,6 +895,12 @@ public:
     //! Level list
     thrust::device_vector<int> levList;
 
+    //! Level list pairs
+    thrust::device_vector<thrust::pair<int, int>> levPair;
+
+    //! Sorted indices
+    thrust::device_vector<int> indx1, indx2;
+
     //! My stream
     cudaStream_t stream;
 
@@ -943,9 +949,6 @@ public:
   //! Sort the device vector by sequence
   void CudaSortBySequence(cuSharedStream cr);
 
-  //! Sort the device vector by level
-  void CudaSortByLevel();
-
   //! Sort the device vector by level and return level boundaries
   std::pair<unsigned, unsigned> CudaGetLevelRange(int lo, int hi);
 
@@ -953,8 +956,11 @@ public:
   using I1vec=std::vector<PII>;
   using I2vec=std::vector<I1vec>;
 
+  //! Sort the device vector by level
+  void CudaSortByLevel();
+
   //! Sort the device vector by level changes
-  I2vec CudaSortLevelChanges(cuSharedStream cr);
+  I2vec CudaSortLevelChanges();
 
   //! Zero the acceleration
   void ZeroPotAccel(int mlevel);

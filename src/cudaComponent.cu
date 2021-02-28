@@ -9,6 +9,8 @@
 
 unsigned Component::cudaStreamData::totalInstances=0;
 
+using PII=std::pair<int, int>;
+
 struct testCountLevel :  public thrust::unary_function<cudaParticle, int>
 {
   int _l;
@@ -79,7 +81,18 @@ struct LevelFunctor
 };
 
 
-Component::I2vec Component::CudaSortLevelChanges(Component::cuSharedStream cr)
+struct pairLess
+{
+  __host__ __device__
+  bool operator()(const thrust::pair<int, int>& lhs,
+		  const thrust::pair<int, int>& rhs) const
+  {
+    return lhs.first < rhs.first or (lhs.first == rhs.first and lhs.second < rhs.second);
+  }
+};
+
+
+Component::I2vec Component::CudaSortLevelChanges()
 {
   // The plan: for the current active level search above and below for
   // particles for correction to coefficient matrix
@@ -94,6 +107,9 @@ Component::I2vec Component::CudaSortLevelChanges(Component::cuSharedStream cr)
   I2vec ret(multistep+1);
   for (auto & v : ret) v.resize(multistep+1);
 
+  auto N = cuStream->cuda_particles.size();
+  cuStream->indx2.resize(N);
+
   try {
     auto exec = thrust::cuda::par.on(cuStream->stream);
     
@@ -101,21 +117,35 @@ Component::I2vec Component::CudaSortLevelChanges(Component::cuSharedStream cr)
       pbeg = cuStream->cuda_particles.begin(),
       pend = cuStream->cuda_particles.end();
     
+    // Resize the pair list
+    //
+    cuStream->levPair.resize(N);
+
     if (thrust_binary_search_workaround) {
       cudaStreamSynchronize(cuStream->stream);
-      thrust::sort(pbeg, pend, LessCudaLev2());
+      thrust::transform(pbeg, pend, cuStream->levPair.begin(), cuPartToChange());
     } else {
-      thrust::sort(exec, pbeg, pend, LessCudaLev2());
+      thrust::transform(exec, pbeg, pend, cuStream->levPair.begin(), cuPartToChange());
     }
     
-    pbeg = cuStream->cuda_particles.begin();
-    pend = cuStream->cuda_particles.end();
+    // Make an index
+    //
+    cuStream->indx2.resize(N);
 
-    cudaParticle trg;
+    // Make the initial index
+    //
+    thrust::sequence(cuStream->indx2.begin(), cuStream->indx2.end(), 0, 1);
+  
+    // Sort the keys and make the index
+    //
+    thrust::sort_by_key(cuStream->levPair.begin(), cuStream->levPair.end(),
+			cuStream->indx2.begin());
+
+    thrust::pair<int, int> tr2;
 
     for (int target=0; target<=multistep; target++) {
 
-      trg.lev[0] = target;
+      tr2.first = target;
 
       for (int del=0; del<=multistep; del++) {
 
@@ -124,29 +154,33 @@ Component::I2vec Component::CudaSortLevelChanges(Component::cuSharedStream cr)
 	  continue;
 	}
 	
-	trg.lev[1] = del;
+	tr2.second = del;
 
-	thrust::device_vector<cudaParticle>::iterator lo, hi;
+	thrust::device_vector<thrust::pair<int, int>>::iterator
+	  lbeg = cuStream->levPair.begin(), lo;
+
+	thrust::device_vector<thrust::pair<int, int>>::iterator
+	  lend = cuStream->levPair.begin(), hi;
 
 	if (thrust_binary_search_workaround) {
 	  cudaStreamSynchronize(cuStream->stream);
-	  lo  = thrust::lower_bound(pbeg, pend, trg, LessCudaLev2());
+	  lo  = thrust::lower_bound(lbeg, lend, tr2, pairLess());
 	} else {
-	  lo = thrust::lower_bound(exec, pbeg, pend, trg, LessCudaLev2());
+	  lo = thrust::lower_bound(exec, lbeg, lend, tr2, pairLess());
 	}
 	
 	cudaStreamSynchronize(cuStream->stream);
 
 	if (thrust_binary_search_workaround) {
-	  hi = thrust::upper_bound(pbeg, pend, trg, LessCudaLev2());
+	  hi = thrust::upper_bound(lbeg, lend, tr2);
 	} else {
-	  hi = thrust::upper_bound(exec, pbeg, pend, trg, LessCudaLev2());
+	  hi = thrust::upper_bound(exec, lbeg, lend, tr2);
 	}
 
 	cudaStreamSynchronize(cuStream->stream);
 
-	ret[target][del] = {thrust::distance(pbeg, lo), 
-			    thrust::distance(pbeg, hi)};
+	ret[target][del] = {thrust::distance(lbeg, lo), 
+			    thrust::distance(lbeg, hi)};
       }
     }
 
@@ -183,28 +217,18 @@ Component::I2vec Component::CudaSortLevelChanges(Component::cuSharedStream cr)
   return ret;
 }
 
-
 void Component::CudaSortByLevel()
 {
   try {
     auto exec = thrust::cuda::par.on(cuStream->stream);
     
+    // Convert from cudaParticle to a flat vector
+    //
+    cuStream->levList.resize(cuStream->cuda_particles.size());
+
     thrust::device_vector<cudaParticle>::iterator
       pbeg = cuStream->cuda_particles.begin(),
       pend = cuStream->cuda_particles.end();
-    
-    if (thrust_binary_search_workaround) {
-      cudaStreamSynchronize(cuStream->stream);
-      thrust::sort(pbeg, pend, LessCudaLev());
-    } else {
-      thrust::sort(exec, pbeg, pend, LessCudaLev());
-    }
-    
-    // Convert from cudaParticle to a flat vector to prevent copying
-    // the whole particle structure in getBound.  Perhaps this
-    // temporary should be part of the data storage structure?
-    //
-    cuStream->levList.resize(cuStream->cuda_particles.size());
 
     if (thrust_binary_search_workaround) {
       cudaStreamSynchronize(cuStream->stream);
@@ -212,6 +236,19 @@ void Component::CudaSortByLevel()
     } else {
       thrust::transform(exec, pbeg, pend, cuStream->levList.begin(), cuPartToLevel());
     }
+
+    // Make an index
+    //
+    cuStream->indx1.resize(cuStream->cuda_particles.size());
+
+    // Make the initial index
+    //
+    thrust::sequence(cuStream->indx1.begin(), cuStream->indx1.end(), 0, 1);
+  
+    // first sort the keys and indices by the keys
+    //
+    thrust::sort_by_key(cuStream->levList.begin(), cuStream->levList.end(),
+			cuStream->indx1.begin());
   }
   catch(thrust::system_error &e) {
     std::cerr << "Some other error happened during sort, lower_bound, or upper_bound:" << e.what() << std::endl;
@@ -393,51 +430,82 @@ void Component::ZeroPotAccel(int minlev)
   
 }
 
-struct getMass : public thrust::unary_function<cudaParticle, cuFP_t>
 
+__global__ void massKernel
+(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> mass,
+ int stride, PII lohi)
 {
- __host__ __device__
- cuFP_t operator()(const cudaParticle& p) const
-  {
-    return p.mass;
-  }
-};
+  const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
 
-struct getPos : public thrust::unary_function<cudaParticle, cuFP_t>
+  for (int n=0; n<stride; n++) {
+    int i     = tid*stride + n;
+    int npart = i + lohi.first;
+
+    if (npart < lohi.second) {
+
+      cudaParticle p = P._v[I._v[npart]];
+    
+      mass._v[i] = p.mass;
+    }
+  }
+}
+
+__global__ void posKernel
+(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> pos, int k,
+ int stride, PII lohi)
 {
-  int _t;
-  getPos(int t) : _t(t) {}
+  const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
 
- __host__ __device__
- cuFP_t operator()(const cudaParticle& p) const
-  {
-    return p.mass * p.pos[_t];
+  for (int n=0; n<stride; n++) {
+    int i     = tid*stride + n;
+    int npart = i + lohi.first;
+
+    if (npart < lohi.second) {
+
+      cudaParticle p = P._v[I._v[npart]];
+    
+      pos._v[i] = p.pos[k];
+    }
   }
-};
+}
 
-struct getVel : public thrust::unary_function<cudaParticle, cuFP_t>
+__global__ void velKernel
+(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> vel, int k,
+ int stride, PII lohi)
 {
-  int _t;
-  getVel(int t) : _t(t) {}
+  const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
 
- __host__ __device__
- cuFP_t operator()(const cudaParticle& p) const
-  {
-    return p.mass * p.vel[_t];
+  for (int n=0; n<stride; n++) {
+    int i     = tid*stride + n;
+    int npart = i + lohi.first;
+
+    if (npart < lohi.second) {
+
+      cudaParticle p = P._v[I._v[npart]];
+    
+      vel._v[i] = p.vel[k];
+    }
   }
-};
+}
 
-struct getAcc : public thrust::unary_function<cudaParticle, cuFP_t>
+__global__ void accKernel
+(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> acc, int k,
+ int stride, PII lohi)
 {
-  int _t;
-  getAcc(int t) : _t(t) {}
+  const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
 
- __host__ __device__
- cuFP_t operator()(const cudaParticle& p) const
-  {
-    return p.mass * p.acc[_t];
+  for (int n=0; n<stride; n++) {
+    int i     = tid*stride + n;
+    int npart = i + lohi.first;
+
+    if (npart < lohi.second) {
+
+      cudaParticle p = P._v[I._v[npart]];
+    
+      acc._v[i] = p.acc[k];
+    }
   }
-};
+}
 
 void Component::fix_positions_cuda(unsigned mlevel)
 {
@@ -453,39 +521,100 @@ void Component::fix_positions_cuda(unsigned mlevel)
   try {
     auto exec = thrust::cuda::par.on(cuStream->stream);
     
-    for (unsigned mm=mlevel; mm<=multistep; mm++) {
-
-      cudaParticle trg;
-      trg.lev[0] = mm;
-      
-      thrust::device_vector<cudaParticle>::iterator
-	pbeg = cuStream->cuda_particles.begin(),
-	pend = cuStream->cuda_particles.end();
-    
-      thrust::device_vector<cudaParticle>::iterator lo, hi;
+    for (int mm=mlevel; mm<=multistep; mm++) {
 
       cudaStreamSynchronize(cuStream->stream);
+
+      thrust::device_vector<int>::iterator
+	lbeg = cuStream->levList.begin(), lo,
+	lend = cuStream->levList.end(),   hi;
 
       if (thrust_binary_search_workaround) {
 	cudaStreamSynchronize(cuStream->stream);
-	lo  = thrust::lower_bound(pbeg, pend, trg, LessCudaLev());
+	lo  = thrust::lower_bound(lbeg, lend, mm);
       } else {
-	lo = thrust::lower_bound(exec, pbeg, pend, trg, LessCudaLev());
+	lo = thrust::lower_bound(exec, lbeg, lend, mm);
       }
       
       cudaStreamSynchronize(cuStream->stream);
 
       if (thrust_binary_search_workaround) {
-	hi = thrust::upper_bound(pbeg, pend, trg, LessCudaLev());
+	hi = thrust::upper_bound(lbeg, lend, mm);
       } else {
-	hi = thrust::upper_bound(exec, pbeg, pend, trg, LessCudaLev());
+	hi = thrust::upper_bound(exec, lbeg, lend, mm);
       }
       
-      com_mas[mm] = thrust::transform_reduce(lo, hi, getMass(), 0.0, thrust::plus<cuFP_t>());
+      // Sort particles and get coefficient size
+      //
+      PII lohi = {thrust::distance(lbeg, lo), thrust::distance(lbeg, hi)};
+      PII cur;
+  
+      unsigned int Ntotal = thrust::distance(lo, hi);
+      unsigned int Npacks = Ntotal/bunchSize + 1;
+
+      com_mas[mm] = 0.0;
       for (unsigned k=0; k<3; k++)  {
-	com_lev[3*mm+k] = thrust::transform_reduce(lo, hi, getPos(k), 0.0, thrust::plus<cuFP_t>());
-	cov_lev[3*mm+k] = thrust::transform_reduce(lo, hi, getVel(k), 0.0, thrust::plus<cuFP_t>());
-	coa_lev[3*mm+k] = thrust::transform_reduce(lo, hi, getAcc(k), 0.0, thrust::plus<cuFP_t>());
+	com_lev[3*mm+k] = 0.0;
+	cov_lev[3*mm+k] = 0.0;
+	coa_lev[3*mm+k] = 0.0;
+      }
+
+      cudaDeviceProp deviceProp;
+      cudaGetDeviceProperties(&deviceProp, cudaDevice);
+
+      // Loop over bunches
+      //
+      for (int n=0; n<Npacks; n++) {
+
+	// Current bunch
+	//
+	cur. first = lohi.first + bunchSize*n;
+	cur.second = lohi.first + bunchSize*(n+1);
+	cur.second = std::min<unsigned int>(cur.second, lohi.second);
+	
+	if (cur.second <= cur.first) break;
+    
+	// Compute grid
+	//
+	unsigned int N         = cur.second - cur.first;
+	unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+	unsigned int gridSize  = N/BLOCK_SIZE/stride;
+    
+	if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
+
+	// Resize storage as needed
+	//
+	thrust::device_vector<cuFP_t> ret(N);
+	
+				// Compute the coordinate
+				// transformation
+				// 
+	massKernel<<<gridSize, BLOCK_SIZE, 0, cuStream->stream>>>
+	  (toKernel(cuStream->cuda_particles), toKernel(cuStream->indx1),
+	   toKernel(ret), stride, cur);
+
+	com_mas[mm] += thrust::reduce(ret.begin(), ret.end());
+
+	for (unsigned k=0; k<3; k++)  {
+
+	  posKernel<<<gridSize, BLOCK_SIZE, 0, cuStream->stream>>>
+	    (toKernel(cuStream->cuda_particles), toKernel(cuStream->indx1),
+	     toKernel(ret), k, stride, cur);
+
+	  com_lev[3*mm+k] += thrust::reduce(ret.begin(), ret.end());
+
+	  velKernel<<<gridSize, BLOCK_SIZE, 0, cuStream->stream>>>
+	    (toKernel(cuStream->cuda_particles), toKernel(cuStream->indx1),
+	     toKernel(ret), k, stride, cur);
+
+	  cov_lev[3*mm+k] += thrust::reduce(ret.begin(), ret.end());
+
+	  accKernel<<<gridSize, BLOCK_SIZE, 0, cuStream->stream>>>
+	    (toKernel(cuStream->cuda_particles), toKernel(cuStream->indx1),
+	     toKernel(ret), k, stride, cur);
+
+	  coa_lev[3*mm+k] += thrust::reduce(ret.begin(), ret.end());
+	}
       }
     }
   }

@@ -219,8 +219,8 @@ void SphericalBasis::initialize_mapping_constants()
 
 
 __global__ void coordKernel
-(dArray<cudaParticle> in, dArray<cuFP_t> mass, dArray<cuFP_t> Afac,
- dArray<cuFP_t> phi, dArray<cuFP_t> Plm, dArray<int> Indx, 
+(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> mass,
+ dArray<cuFP_t> Afac, dArray<cuFP_t> phi, dArray<cuFP_t> Plm, dArray<int> Indx, 
  unsigned int Lmax, unsigned int stride, PII lohi, cuFP_t rmax)
 {
   const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
@@ -233,9 +233,9 @@ __global__ void coordKernel
     if (npart < lohi.second) {
 
 #ifdef BOUNDS_CHECK
-      if (npart>=in._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+      if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-      cudaParticle p = in._v[npart];
+      cudaParticle p = P._v[I._v[npart]];
     
       cuFP_t xx = p.pos[0] - sphCen[0];
       cuFP_t yy = p.pos[1] - sphCen[1];
@@ -412,7 +412,7 @@ __global__ void coefKernel
 }
 
 __global__ void
-forceKernel(dArray<cudaParticle> in, dArray<cuFP_t> coef,
+forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
 	    dArray<cudaTextureObject_t> tex, dArray<cuFP_t> L1, dArray<cuFP_t> L2,
 	    int stride, unsigned Lmax, unsigned int nmax, PII lohi, cuFP_t rmax,
 	    bool external)
@@ -427,9 +427,9 @@ forceKernel(dArray<cudaParticle> in, dArray<cuFP_t> coef,
     if (npart < lohi.second) {
       
 #ifdef BOUNDS_CHECK
-      if (npart>=in._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+      if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-      cudaParticle p = in._v[npart];
+      cudaParticle & p = P._v[I._v[npart]];
       
       cuFP_t xx = p.pos[0] - sphCen[0];
       cuFP_t yy = p.pos[1] - sphCen[1];
@@ -676,36 +676,37 @@ forceKernel(dArray<cudaParticle> in, dArray<cuFP_t> coef,
 	} // END: m loop
 
       } // END: l loop
-				// Rescale
+
+      // Rescale
       potr /= sphScale*sphScale;
       potl /= sphScale;
       pott /= sphScale;
       potp /= sphScale;
 
-      in._v[npart].acc[0] += -(potr*xx/r - pott*xx*zz/(r*r*r));
-      in._v[npart].acc[1] += -(potr*yy/r - pott*yy*zz/(r*r*r));
-      in._v[npart].acc[2] += -(potr*zz/r + pott*RR/(r*r*r));
+      p.acc[0] += -(potr*xx/r - pott*xx*zz/(r*r*r));
+      p.acc[1] += -(potr*yy/r - pott*yy*zz/(r*r*r));
+      p.acc[2] += -(potr*zz/r + pott*RR/(r*r*r));
       if (RR > FSMALL) {
-	in._v[npart].acc[0] +=  potp*yy/RR;
-	in._v[npart].acc[1] += -potp*xx/RR;
+	p.acc[0] +=  potp*yy/RR;
+	p.acc[1] += -potp*xx/RR;
       }
       if (external)
-	in._v[npart].potext += potl;
+	p.potext += potl;
       else
-	in._v[npart].pot    += potl;
+	p.pot    += potl;
 
 #ifdef NAN_CHECK
       // Sanity check
       bool bad = false;
       for (int k=0; k<3; k++) {
-	if (std::isnan(in._v[npart].acc[k])) bad = true;
+	if (std::isnan(p.acc[k])) bad = true;
       }
 
       if (bad)  {
-	printf("Force nan value: [%d] x=%f X=%f Y=%f Z=%f r=%f R=%f P=%f dP/dr=%f dP/dx=%f dP/dp=%f\n", in._v[npart].indx, x, xx, yy, zz, r, RR, potl, potr, pott, potp);
+	printf("Force nan value: [%d] x=%f X=%f Y=%f Z=%f r=%f R=%f P=%f dP/dr=%f dP/dx=%f dP/dp=%f\n", p.indx, x, xx, yy, zz, r, RR, potl, potr, pott, potp);
 	if (a<0.0 or a>1.0)  {
 	  printf("Force nan value, no ioff: [%d] x=%f xi=%f dxi=%f a=%f i=%d\n",
-		 in._v[npart].indx, x, xi, dx, a, ind);
+		 p.indx, x, xi, dx, a, ind);
 	}
       }
 #endif
@@ -1002,7 +1003,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 				// transformation
 				// 
     coordKernel<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
-      (toKernel(cr->cuda_particles),
+      (toKernel(cr->cuda_particles), toKernel(cr->indx1),
        toKernel(cuS.m_d), toKernel(cuS.a_d), toKernel(cuS.p_d),
        toKernel(cuS.plm1_d), toKernel(cuS.i_d),
        Lmax, stride, cur, rmax);
@@ -1626,7 +1627,8 @@ void SphericalBasis::determine_acceleration_cuda()
     // Do the work
     //
     forceKernel<<<gridSize, BLOCK_SIZE, sMemSize, cr->stream>>>
-      (toKernel(cr->cuda_particles), toKernel(dev_coefs), toKernel(t_d),
+      (toKernel(cr->cuda_particles), toKernel(cr->indx1),
+       toKernel(dev_coefs), toKernel(t_d),
        toKernel(cuS.plm1_d), toKernel(cuS.plm2_d),
        stride, Lmax, nmax, lohi, rmax, use_external);
   }
@@ -1758,7 +1760,7 @@ void SphericalBasis::multistep_update_cuda()
   auto start  = std::chrono::high_resolution_clock::now();
 #endif
 
-  auto ret = component->CudaSortLevelChanges(component->cuStream);
+  auto ret = component->CudaSortLevelChanges();
 
 #ifdef VERBOSE_TIMING
   auto finish = std::chrono::high_resolution_clock::now();
@@ -1832,7 +1834,7 @@ void SphericalBasis::multistep_update_cuda()
 	start = std::chrono::high_resolution_clock::now();
 #endif
 	coordKernel<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
-	  (toKernel(cs->cuda_particles),
+	  (toKernel(cs->cuda_particles), toKernel(cs->indx2),
 	   toKernel(cuS.m_d), toKernel(cuS.a_d), toKernel(cuS.p_d),
 	   toKernel(cuS.plm1_d), toKernel(cuS.i_d),
 	   Lmax, stride, cur, rmax);

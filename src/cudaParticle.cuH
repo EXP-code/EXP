@@ -99,4 +99,15 @@ struct cuPartToLevel :
   }
 };
 
+//! Functor for extracting change level info from cudaParticle structures
+struct cuPartToChange :
+  public thrust::unary_function<cudaParticle, thrust::pair<int, int>>
+{
+  __host__ __device__
+  thrust::pair<int, int> operator()(const cudaParticle& p) const
+  {
+    return {p.lev[0], p.lev[1]};
+  }
+};
+
 #endif
