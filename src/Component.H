@@ -946,15 +946,12 @@ public:
     CudaToParticles(cuStream->first, cuStream->last);
   }
 
-  //! Sort the device vector by sequence
-  void CudaSortBySequence(cuSharedStream cr);
-
   //! Sort the device vector by level and return level boundaries
   std::pair<unsigned, unsigned> CudaGetLevelRange(int lo, int hi);
 
-  using PII  =std::pair<unsigned int, unsigned int>;
-  using I1vec=std::vector<PII>;
-  using I2vec=std::vector<I1vec>;
+  using PII   = std::pair<unsigned int, unsigned int>;
+  using I1vec = std::vector<PII>;
+  using I2vec = std::vector<I1vec>;
 
   //! Sort the device vector by level
   void CudaSortByLevel();
