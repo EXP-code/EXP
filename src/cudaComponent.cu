@@ -322,15 +322,24 @@ void Component::ParticlesToCuda(PartMap::iterator beg, PartMap::iterator fin)
 
   auto npart = std::distance(beg, fin);
   
+  // Allocate particle memory and iterators
+  //
   if (host_particles.capacity()<npart) host_particles.reserve(npart);
   host_particles.resize(npart);
 
+  cuStream->first = host_particles.begin();
+  cuStream->last  = host_particles.end();
+
+  // Translate the EXP particle to Cuda particle structures
+  //
   hostPartItr hit = host_particles.begin();
   for (auto pit=beg; pit!=fin; pit++) {
     ParticleHtoD(pit->second, *(hit++));
   }
 
-  DevToHost(cuStream);
+  // Copy the particles to the GPU
+  //
+  HostToDev(cuStream);
 
   if (step_timing and use_cuda) comp->timer_cuda.stop();
 }
@@ -350,6 +359,8 @@ void Component::HostToDev(Component::cuSharedStream cr)
 		    cudaMemcpyHostToDevice, cr->stream);
   }
 
+  // Make the level index after a copy
+  //
   CudaSortByLevel();
 }
 
@@ -371,10 +382,17 @@ void Component::CudaToParticles(hostPartItr beg, hostPartItr end)
 {
   if (step_timing and use_cuda) comp->timer_cuda.start();
 
-  // DEBUG PRINTING
+  // Get the particles from the GPU
+  //
+  DevToHost(cuStream);
+  
+  // DEBUG PRINTING (enable by setting imax>0)
+  //
   const int imax = 0;
   int icnt = 0;
 
+  // Translate the Cuda particle to the EXP particle structures
+  //
   for (hostPartItr v=beg; v!=end; v++) {
     cudaParticle & p = *v;
     if (icnt < imax) {
@@ -382,8 +400,6 @@ void Component::CudaToParticles(hostPartItr beg, hostPartItr end)
     }
     ParticleDtoH(p, particles[p.indx]);
   }
-
-  HostToDev(cuStream);
 
   if (step_timing and use_cuda) comp->timer_cuda.stop();
 }
