@@ -350,9 +350,13 @@ void Component::HostToDev(Component::cuSharedStream cr)
   
   if (npart) {		  // Don't bother trying to copy zero particles
 
+    // Resize the device array, if necessary
+    //
     if (cr->cuda_particles.capacity()<npart) cr->cuda_particles.reserve(npart);
     cr->cuda_particles.resize(npart);
   
+    // Copy the cuda particle structures to the device
+    //
     cudaMemcpyAsync(thrust::raw_pointer_cast(&cr->cuda_particles[0]),
 		    thrust::raw_pointer_cast(&(*cr->first)),
 		    npart*sizeof(cudaParticle),
