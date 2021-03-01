@@ -337,10 +337,6 @@ void Component::ParticlesToCuda(PartMap::iterator beg, PartMap::iterator fin)
     ParticleHtoD(pit->second, *(hit++));
   }
 
-  // Copy the particles to the GPU
-  //
-  HostToDev(cuStream);
-
   if (step_timing and use_cuda) comp->timer_cuda.stop();
 }
 
@@ -386,10 +382,6 @@ void Component::CudaToParticles(hostPartItr beg, hostPartItr end)
 {
   if (step_timing and use_cuda) comp->timer_cuda.start();
 
-  // Get the particles from the GPU
-  //
-  DevToHost(cuStream);
-  
   // DEBUG PRINTING (enable by setting imax>0)
   //
   const int imax = 0;
@@ -432,10 +424,10 @@ zeroPotAccKernel(dArray<cudaParticle> P, dArray<int> I, int stride, PII lohi)
 
     if (npart < lohi.second) {
 
-      cudaParticle & p = P._v[I._v[npart]];
+      cudaParticle * p = &P._v[I._v[npart]];
       
-      for (int k=0; k<3; k++) p.acc[k] = 0.0;
-      p.pot = p.potext = 0.0;
+      for (int k=0; k<3; k++) p->acc[k] = 0.0;
+      p->pot = p->potext = 0.0;
 
     } // Particle index block
     
@@ -503,7 +495,7 @@ __global__ void comKernel
 
     if (npart < lohi.second) {
 
-      cudaParticle p = P._v[I._v[npart]];
+      cudaParticle & p = P._v[I._v[npart]];
     
       com._v[i*10+0] = p.mass;
       for (int k=0; k<3; k++) {

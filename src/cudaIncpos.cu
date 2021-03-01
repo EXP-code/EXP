@@ -22,9 +22,9 @@ __global__ void coordDrift
 #ifdef BOUNDS_CHECK
       if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-      cudaParticle & p = P._v[I._v[npart]];
+      cudaParticle * p = &P._v[I._v[npart]];
     
-      for (int k=0; k<dim; k++) p.pos[k] += p.vel[k]*dt;
+      for (int k=0; k<dim; k++) p->pos[k] += p->vel[k]*dt;
     }
   }
 }
@@ -42,7 +42,7 @@ __global__ void positionDebug
 
     if (npart < lohi.second and npart < P._s) {
 
-      cudaParticle p = P._v[I._v[npart]];
+      cudaParticle & p = P._v[I._v[npart]];
       cuFP_t sumP = 0.0, sumV = 0.0, sumA = 0.0;
       for (int k=0; k<3; k++) {
 	sumP += p.pos[k]*p.pos[k];

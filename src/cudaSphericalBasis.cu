@@ -235,7 +235,7 @@ __global__ void coordKernel
 #ifdef BOUNDS_CHECK
       if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-      cudaParticle p = P._v[I._v[npart]];
+      cudaParticle & p = P._v[I._v[npart]];
     
       cuFP_t xx = p.pos[0] - sphCen[0];
       cuFP_t yy = p.pos[1] - sphCen[1];
@@ -429,11 +429,11 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
 #ifdef BOUNDS_CHECK
       if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-      cudaParticle & p = P._v[I._v[npart]];
+      cudaParticle * p = &P._v[I._v[npart]];
       
-      cuFP_t xx = p.pos[0] - sphCen[0];
-      cuFP_t yy = p.pos[1] - sphCen[1];
-      cuFP_t zz = p.pos[2] - sphCen[2];
+      cuFP_t xx = p->pos[0] - sphCen[0];
+      cuFP_t yy = p->pos[1] - sphCen[1];
+      cuFP_t zz = p->pos[2] - sphCen[2];
       
       cuFP_t r2 = (xx*xx + yy*yy + zz*zz);
       cuFP_t r  = sqrt(r2) + FSMALL;
@@ -683,30 +683,30 @@ forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
       pott /= sphScale;
       potp /= sphScale;
 
-      p.acc[0] += -(potr*xx/r - pott*xx*zz/(r*r*r));
-      p.acc[1] += -(potr*yy/r - pott*yy*zz/(r*r*r));
-      p.acc[2] += -(potr*zz/r + pott*RR/(r*r*r));
+      p->acc[0] += -(potr*xx/r - pott*xx*zz/(r*r*r));
+      p->acc[1] += -(potr*yy/r - pott*yy*zz/(r*r*r));
+      p->acc[2] += -(potr*zz/r + pott*RR/(r*r*r));
       if (RR > FSMALL) {
-	p.acc[0] +=  potp*yy/RR;
-	p.acc[1] += -potp*xx/RR;
+	p->acc[0] +=  potp*yy/RR;
+	p->acc[1] += -potp*xx/RR;
       }
       if (external)
-	p.potext += potl;
+	p->potext += potl;
       else
-	p.pot    += potl;
+	p->pot    += potl;
 
 #ifdef NAN_CHECK
       // Sanity check
       bool bad = false;
       for (int k=0; k<3; k++) {
-	if (std::isnan(p.acc[k])) bad = true;
+	if (std::isnan(p->acc[k])) bad = true;
       }
 
       if (bad)  {
-	printf("Force nan value: [%d] x=%f X=%f Y=%f Z=%f r=%f R=%f P=%f dP/dr=%f dP/dx=%f dP/dp=%f\n", p.indx, x, xx, yy, zz, r, RR, potl, potr, pott, potp);
+	printf("Force nan value: [%d] x=%f X=%f Y=%f Z=%f r=%f R=%f P=%f dP/dr=%f dP/dx=%f dP/dp=%f\n", p->indx, x, xx, yy, zz, r, RR, potl, potr, pott, potp);
 	if (a<0.0 or a>1.0)  {
 	  printf("Force nan value, no ioff: [%d] x=%f xi=%f dxi=%f a=%f i=%d\n",
-		 p.indx, x, xi, dx, a, ind);
+		 p->indx, x, xi, dx, a, ind);
 	}
       }
 #endif

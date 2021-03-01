@@ -22,9 +22,9 @@ __global__ void velocityKick
 #ifdef BOUNDS_CHECK
       if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-      cudaParticle & p = P._v[I._v[npart]];
+      cudaParticle * p = &P._v[I._v[npart]];
     
-      for (int k=0; k<dim; k++) p.vel[k] += p.acc[k]*dt;
+      for (int k=0; k<dim; k++) p->vel[k] += p->acc[k]*dt;
     }
   }
 }
@@ -42,7 +42,7 @@ __global__ void velocityDebug
 
     if (npart < lohi.second and npart < I._s) {
 
-      cudaParticle p = P._v[I._v[npart]];
+      cudaParticle & p = P._v[I._v[npart]];
     
       printf("%d vel a=(%13.6e %13.6e %13.6e) p=%13.6e\n", i, p.acc[0], p.acc[1], p.acc[2], p.pot);
     }
