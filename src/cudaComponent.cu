@@ -427,43 +427,45 @@ void Component::ZeroPotAccel(int minlev)
 {
   size_t psize  = particles.size();
   
-  if (multistep) {
-    std::pair<unsigned int, unsigned int>
-      lohi = CudaGetLevelRange(minlev, multistep), cur;
+  std::pair<unsigned int, unsigned int> lohi, cur;
+
+  if (multistep)
+    lohi = CudaGetLevelRange(minlev, multistep);
+  else
+    lohi = {0, cuStream->cuda_particles.size()};
     
-    unsigned int Ntotal = lohi.second - lohi.first;
-    unsigned int Npacks = Ntotal/bunchSize + 1;
+  unsigned int Ntotal = lohi.second - lohi.first;
+  unsigned int Npacks = Ntotal/bunchSize + 1;
 
-    cudaDeviceProp deviceProp;
-    cudaGetDeviceProperties(&deviceProp, cudaDevice);
+  cudaDeviceProp deviceProp;
+  cudaGetDeviceProperties(&deviceProp, cudaDevice);
 
-    // Loop over bunches
+  // Loop over bunches
+  //
+  for (int n=0; n<Npacks; n++) {
+
+    // Current bunch
     //
-    for (int n=0; n<Npacks; n++) {
-
-      // Current bunch
-      //
-      cur. first = lohi.first + bunchSize*n;
-      cur.second = lohi.first + bunchSize*(n+1);
-      cur.second = std::min<unsigned int>(cur.second, lohi.second);
-      
-      if (cur.second <= cur.first) break;
+    cur. first = lohi.first + bunchSize*n;
+    cur.second = lohi.first + bunchSize*(n+1);
+    cur.second = std::min<unsigned int>(cur.second, lohi.second);
     
-      // Compute grid
-      //
-      unsigned int N         = cur.second - cur.first;
-      unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
-      unsigned int gridSize  = N/BLOCK_SIZE/stride;
+    if (cur.second <= cur.first) break;
+    
+    // Compute grid
+    //
+    unsigned int N         = cur.second - cur.first;
+    unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
+    unsigned int gridSize  = N/BLOCK_SIZE/stride;
       
-      if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
+    if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
       
 
-      // Pack the com values into a matrix, one particle per row
-      // 
-      zeroPotAccKernel<<<gridSize, BLOCK_SIZE, 0, cuStream->stream>>>
-	(toKernel(cuStream->cuda_particles), toKernel(cuStream->indx1),
-	 stride, cur);
-    }
+    // Pack the com values into a matrix, one particle per row
+    // 
+    zeroPotAccKernel<<<gridSize, BLOCK_SIZE, 0, cuStream->stream>>>
+      (toKernel(cuStream->cuda_particles), toKernel(cuStream->indx1),
+       stride, cur);
   }
   
 }
