@@ -13,7 +13,7 @@ private:
   static int total;
 
 #if HAVE_LIBCUDA == 1
-  void cuda_user_test(int myid, int id, double time, int count);
+  void cuda_user_test(int myid, int id, double time, int count, int num);
 #endif
 
 public:
