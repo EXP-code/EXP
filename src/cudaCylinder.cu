@@ -1736,7 +1736,7 @@ void Cylinder::multistep_update_cuda()
 
   // Step through all levels
   //
-  for (int olev=0; olev<=multistep; olev++) {
+  for (int olev=mfirst[mstep]; olev<=multistep; olev++) {
 
     for (int nlev=0; nlev<=multistep; nlev++) {
 

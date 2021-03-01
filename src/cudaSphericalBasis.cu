@@ -997,19 +997,16 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
     //
     int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
     
-    // Do the work
-    //
-				// Compute the coordinate
-				// transformation
-				// 
+    // Compute the coordinate transformation
+    // 
     coordKernel<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
       (toKernel(cr->cuda_particles), toKernel(cr->indx1),
        toKernel(cuS.m_d), toKernel(cuS.a_d), toKernel(cuS.p_d),
        toKernel(cuS.plm1_d), toKernel(cuS.i_d),
        Lmax, stride, cur, rmax);
     
-				// Compute the coefficient
-				// contribution for each order
+    // Compute the coefficient contribution for each order
+    //
     int osize = nmax*2;	//
     int vsize = nmax*(nmax+1)/2;
     auto beg  = cuS.df_coef.begin();
@@ -1777,7 +1774,7 @@ void SphericalBasis::multistep_update_cuda()
 #endif
   // Step through all levels
   //
-  for (int olev=0; olev<=multistep; olev++) {
+  for (int olev=mfirst[mstep]; olev<=multistep; olev++) {
     
     for (int nlev=0; nlev<=multistep; nlev++) {
 
