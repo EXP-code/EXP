@@ -210,16 +210,21 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 // Reset target level to current level
 //
 __global__ void
-timestepFinalizeKernel(dArray<cudaParticle> P, dArray<int> I, int stride)
+timestepFinalizeKernel(dArray<cudaParticle> P, dArray<int> I,
+		       int stride, PII lohi)
 {
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
   for (int n=0; n<stride; n++) {
     int i     = tid*stride + n;	// Index in the stride
+    int npart = i + lohi.first;	// Particle index
 
-    if (i < P._s) {
-
-      cudaParticle & p = P._v[I._v[i]];
+    if (npart < lohi.second) {
+      
+#ifdef BOUNDS_CHECK
+      if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+#endif
+      cudaParticle & p = P._v[I._v[npart]];
       
       if (p.lev[0] != p.lev[1]) p.lev[0] = p.lev[1];
 
@@ -345,7 +350,10 @@ void cuda_compute_levels()
 
     // Compute grid
     //
-    unsigned int N         = c->cuStream->cuda_particles.size();
+    PII lohi = {0, c->cuStream->cuda_particles.size()};
+    if (!all) lohi = c->CudaGetLevelRange(mfirst[mstep], multistep);
+      
+    unsigned int N         = lohi.second - lohi.first;
     unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
     unsigned int gridSize  = N/BLOCK_SIZE/stride;
     
@@ -353,13 +361,9 @@ void cuda_compute_levels()
 
       if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
-      // Do the work
-      //
-      auto ctr = c->getCenter(Component::Local | Component::Centered);
-      
       timestepFinalizeKernel<<<gridSize, BLOCK_SIZE>>>
 	(toKernel(c->cuStream->cuda_particles),
-	 toKernel(c->cuStream->indx1), stride);
+	 toKernel(c->cuStream->indx1), stride, lohi);
 
 #ifdef VERBOSE_TIMING
       finish = std::chrono::high_resolution_clock::now();
@@ -368,6 +372,8 @@ void cuda_compute_levels()
       start = std::chrono::high_resolution_clock::now();
 #endif
 
+      // Resort for next substep
+      //
       c->CudaSortByLevel();
     }
 
