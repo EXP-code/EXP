@@ -5965,7 +5965,7 @@ void EmpCylSL::multistep_update_begin()
 #ifndef STANDALONE
 				// Clear the update matricies
   for (int nth=0; nth<nthrds; nth++) {
-    for (unsigned M=0; M<=multistep; M++) {
+    for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
       differC1[nth][M].setsize(0, MMAX, 0, rank3-1);
       differS1[nth][M].setsize(0, MMAX, 0, rank3-1);
 
@@ -5985,15 +5985,14 @@ void EmpCylSL::multistep_update_finish()
 #ifndef STANDALONE
 
   unsigned offset0, offset1;
-  // unsigned sz = (multistep - mfirst[mstep]+1)*(MMAX+1)*rank3;
-  unsigned sz = (multistep+1)*(MMAX+1)*rank3;
+  unsigned sz = (multistep - mfirst[mstep]+1)*(MMAX+1)*rank3;
   for (unsigned j=0; j<sz; j++) 
     workC1[j] = workC[j] = workS1[j] = workS[j] = 0.0;
 
 				// Combine the update matricies
-  for (unsigned M=0; M<=multistep; M++) {
+  for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
 
-    offset0 = M*(MMAX+1)*rank3;
+    offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
 
     for (int mm=0; mm<=MMAX; mm++) {
       
@@ -6030,8 +6029,8 @@ void EmpCylSL::multistep_update_finish()
     if (out) {
       out << std::string(13+16*rank3, '-') << std::endl;
       out << "# T=" << tnow << " mstep=" << mstep << std::endl;
-      for (unsigned M=0; M<=multistep; M++) {
-	offset0 = M*(MMAX+1)*rank3;
+      for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
+	offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
 	for (int mm=0; mm<=MMAX; mm++) {
 	  offset1 = mm*rank3;
 	  out << std::setw(5) << M << " C " << std::setw(5) << mm;
@@ -6071,9 +6070,9 @@ void EmpCylSL::multistep_update_finish()
   }
 
 
-  for (unsigned M=0; M<=multistep; M++) {
+  for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
 
-    offset0 = M*(MMAX+1)*rank3;
+    offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
 
     for (int mm=0; mm<=MMAX; mm++) {
       

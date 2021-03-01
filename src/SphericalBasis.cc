@@ -877,7 +877,7 @@ void SphericalBasis::multistep_update_begin()
   if (play_back) return;
 				// Clear the update matricies
   for (int n=0; n<nthrds; n++) {
-    for (int M=0; M<=multistep; M++) {
+    for (int M=mfirst[mstep]; M<=multistep; M++) {
       for (int l=0; l<=Lmax*(Lmax+2); l++) {
 	for (int ir=1; ir<=nmax; ir++) {
 	  differ1[n][M][l][ir] = 0.0;
@@ -894,7 +894,7 @@ void SphericalBasis::multistep_update_finish()
 
 				// Combine the update matricies
 				// from all nodes
-  unsigned sz = multistep*(Lmax+1)*(Lmax+1)*nmax;
+  unsigned sz = (multistep -mfirst[mstep]+1)*(Lmax+1)*(Lmax+1)*nmax;
   unsigned offset0, offset1;
 
 				// Zero the buffer space
@@ -903,8 +903,8 @@ void SphericalBasis::multistep_update_finish()
 
   // Pack the difference matrices
   //
-  for (int M=0; M<=multistep; M++) {
-    offset0 = M*(Lmax+1)*(Lmax+1)*nmax;
+  for (int M=mfirst[mstep]; M<=multistep; M++) {
+    offset0 = (M - mfirst[mstep])*(Lmax+1)*(Lmax+1)*nmax;
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
       offset1 = l*nmax;
       for (int n=0; n<nthrds; n++) 
@@ -924,8 +924,8 @@ void SphericalBasis::multistep_update_finish()
     if (out) {
       out << std::string(10+16*nmax, '-') << std::endl;
       out << "# T=" << tnow << " mstep=" << mstep << std::endl;
-      for (int M=0; M<=multistep; M++) {
-	offset0 = M*(Lmax+1)*(Lmax+1)*nmax;
+      for (int M=mfirst[mstep]; M<=multistep; M++) {
+	offset0 = (M - mfirst[mstep])*(Lmax+1)*(Lmax+1)*nmax;
 	for (int l=0; l<=Lmax*(Lmax+2); l++) {
 	  offset1 = l*nmax;
 	  out << std::setw(5) << M << std::setw(5) << l;
@@ -952,8 +952,8 @@ void SphericalBasis::multistep_update_finish()
   }
 				// Update the local coefficients
 				//
-  for (int M=0; M<=multistep; M++) {
-    offset0 = M*(Lmax+1)*(Lmax+1)*nmax;
+  for (int M=mfirst[mstep]; M<=multistep; M++) {
+    offset0 = (M - mfirst[mstep])*(Lmax+1)*(Lmax+1)*nmax;
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
       offset1 = l*nmax;
       for (int ir=1; ir<=nmax; ir++)
