@@ -96,7 +96,8 @@ public:
   list<Component*> components;
 
 #ifdef HAVE_LIBCUDA
-  //! Cuda particle fetch map
+  //! Cuda particle fetch map; keep track of device particles that
+  //! have been copied to host to prevent cudaMemcpy duplication
   map<Component*, bool> fetched;
 #endif
 
