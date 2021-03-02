@@ -332,6 +332,14 @@ protected:
   //! Particle number update is needed
   unsigned modified;
 
+  //! Compute center of mass and center of velocity (CPU version)
+  void fix_positions_cpu(unsigned mlevel=0);
+
+#ifdef HAVE_LIBCUDA
+  //! Compute center of mass and center of velocity (GPU version)
+  void fix_positions_cuda(unsigned mlevel=0);
+#endif
+
 public:
 
   //! Describe the phase space coordinates
@@ -544,9 +552,16 @@ public:
   void redistribute_particles(void);
 
   //! Compute center of mass and center of velocity
-  void fix_positions(unsigned mlevel=0);
+  void fix_positions(unsigned mlevel=0)
+  {
+#ifdef HAVE_LIBCUDA
+    if (use_cuda) fix_positions_cuda(mlevel);
+    else
+#endif
+      fix_positions_cpu(mlevel);
+  }
 
-  /** Redistribute particle by list
+  /** Redistribute particle by list (deprecated?)
 
       Serialize redistribution list into an integer array
       of numprocs stanzas, each with the format
@@ -964,9 +979,6 @@ public:
 
   //! Default bunch size for CUDA
   size_t bunchSize;
-
-  //! Compute center of mass and center of velocity
-  void fix_positions_cuda(unsigned mlevel=0);
 
   //! Print out the level lists to stdout for diagnostic purposes
   void print_level_lists_cuda(double T);

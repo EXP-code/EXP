@@ -2609,7 +2609,7 @@ void * fix_positions_thread(void *ptr)
 }
   
 
-void Component::fix_positions(unsigned mlevel)
+void Component::fix_positions_cpu(unsigned mlevel)
 {
 				// Zero center
   for (int i=0; i<3; i++) center[i] = 0.0;
