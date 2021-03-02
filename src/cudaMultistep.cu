@@ -255,22 +255,6 @@ void cuda_initialize_multistep()
   cuda_initialize_multistep_constants();
 
   if (myid==0) testConstantsMultistep<<<1, 1>>>();
-
-  // Initialize host interpolation arrays
-  //
-  thrust::host_vector<int> host_dstepL((multistep+1)*Mstep);
-  thrust::host_vector<int> host_dstepN((multistep+1)*Mstep);
-
-  for (int ms=0; ms<=multistep; ms++) {
-    int rev = multistep - ms;
-    for (int n=0; n<Mstep; n++) {
-      host_dstepL[rev*Mstep + n] = dstepL[rev][n];
-      host_dstepN[rev*Mstep + n] = dstepN[rev][n];
-    }
-  }
-
-  cuDstepL = host_dstepL;
-  cuDstepN = host_dstepN;
 }
 
 void cuda_compute_levels()
@@ -283,7 +267,7 @@ void cuda_compute_levels()
   cudaDeviceProp deviceProp;
 
   // DEBUGGING
-  if (false) {
+  if (true) {
     std::cout << "** -------------------" << std::endl
 	      << "** ID " << myid         << std::endl;
     testConstantsMultistep<<<1, 1>>>();
@@ -417,3 +401,4 @@ void cuda_compute_levels()
 #endif
 }
 
+// -*- C++ -*-

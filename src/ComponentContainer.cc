@@ -580,7 +580,8 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   if (mactive[mstep][centerlevl]) {
 
     if (timing) timer_posn.start();
-    fix_positions();
+    // Not yet implemented in cuda . . . 
+    if (not use_cuda) fix_positions();
     if (timing) timer_posn.stop();
 
 #ifdef DEBUG

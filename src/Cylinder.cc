@@ -1180,7 +1180,7 @@ void Cylinder::determine_acceleration_and_potential(void)
 #endif
 
 #if HAVE_LIBCUDA==1
-  if (cC->cudaDevice>=0) {
+  if (cC->cudaDevice>=0 and use_cuda) {
     start1 = std::chrono::high_resolution_clock::now();
     //
     // Copy coeficients from this component to device

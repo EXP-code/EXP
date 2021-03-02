@@ -200,7 +200,7 @@ Component::I2vec Component::CudaSortLevelChanges()
  
   // Debugging output for level changes
   //
-  if (false) {
+  if (true) {
     std::cout << std::string(15*(multistep+1), '-') << std::endl;
     std::cout << "--- " << name << " [" << myid << "]" << std::endl;
     std::cout << std::string(15*(multistep+1), '-') << std::endl;
@@ -215,6 +215,7 @@ Component::I2vec Component::CudaSortLevelChanges()
 
   return ret;
 }
+
 
 void Component::CudaSortByLevel()
 {
@@ -254,6 +255,8 @@ void Component::CudaSortByLevel()
     exit(-1);
   }
 }
+
+
 
 std::pair<unsigned int, unsigned int>
 Component::CudaGetLevelRange(int minlev, int maxlev)

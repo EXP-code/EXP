@@ -700,7 +700,7 @@ void SphericalBasis::determine_coefficients(void)
 #endif
     
 #if HAVE_LIBCUDA==1
-  if (component->cudaDevice>=0) {
+  if (component->cudaDevice>=0 and use_cuda) {
     start1  = std::chrono::high_resolution_clock::now();
     determine_coefficients_cuda(compute);
     DtoH_coefs(expcoef0[0]);
@@ -807,7 +807,7 @@ void SphericalBasis::determine_coefficients(void)
 	      << mlevel << std::endl;
     std::cout << std::string(60, '=') << std::endl;
     std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
-    if (cC->cudaDevice>=0) {
+    if (cC->cudaDevice>=0 and use_cuda) {
       std::cout << "Time in GPU: " << duration1.count() << std::endl;
     }
     std::cout << std::string(60, '=') << std::endl;
@@ -892,7 +892,7 @@ void SphericalBasis::multistep_update_finish()
 
 				// Combine the update matricies
 				// from all nodes
-  unsigned sz = (multistep -mfirst[mstep]+1)*(Lmax+1)*(Lmax+1)*nmax;
+  unsigned sz = (multistep - mfirst[mstep]+1)*(Lmax+1)*(Lmax+1)*nmax;
   unsigned offset0, offset1;
 
 				// Zero the buffer space
@@ -1342,7 +1342,7 @@ void SphericalBasis::determine_acceleration_and_potential(void)
 #endif
 
 #if HAVE_LIBCUDA==1
-  if (component->cudaDevice>=0) {
+  if (component->cudaDevice>=0 and use_cuda) {
     start1 = std::chrono::high_resolution_clock::now();
     //
     // Copy coefficients from this component to device
@@ -1366,27 +1366,29 @@ void SphericalBasis::determine_acceleration_and_potential(void)
 #endif
 
 #ifdef DEBUG
-  cout << "SphericalBasis: process " << myid << " returned from fork" << endl;
-  cout << "SphericalBasis: process " << myid << " name=<" << cC->name << ">";
+  if (not use_cuda) {
+    cout << "SphericalBasis: process " << myid << " returned from fork" << endl;
+    cout << "SphericalBasis: process " << myid << " name=<" << cC->name << ">";
 
-  if (cC->Particles().size()) {
+    if (cC->Particles().size()) {
 
-    unsigned long imin = std::numeric_limits<unsigned long>::max();
-    unsigned long imax = 0, kmin = kmin, kmax = 0;
-    for (auto p : cC->Particles()) {
-      imin = std::min<unsigned long>(imin, p.first);
-      imax = std::max<unsigned long>(imax, p.first);
-      kmin = std::min<unsigned long>(kmin, p.second->indx);
-      kmax = std::max<unsigned long>(kmax, p.second->indx);
-    }
-
-    cout << " bodies ["
-	 << kmin << ", " << kmax << "], ["
-	 << imin << ", " << imax << "]"
-	 << " #=" << cC->Particles().size() << endl;
-
-  } else
-    cout << " zero bodies!" << endl;
+      unsigned long imin = std::numeric_limits<unsigned long>::max();
+      unsigned long imax = 0, kmin = kmin, kmax = 0;
+      for (auto p : cC->Particles()) {
+	imin = std::min<unsigned long>(imin, p.first);
+	imax = std::max<unsigned long>(imax, p.first);
+	kmin = std::min<unsigned long>(kmin, p.second->indx);
+	kmax = std::max<unsigned long>(kmax, p.second->indx);
+      }
+      
+      cout << " bodies ["
+	   << kmin << ", " << kmax << "], ["
+	   << imin << ", " << imax << "]"
+	   << " #=" << cC->Particles().size() << endl;
+      
+    } else
+      cout << " zero bodies!" << endl;
+  }
 #endif
 
   print_timings("SphericalBasis: acceleration timings");
