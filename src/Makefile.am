@@ -109,11 +109,6 @@ parse.o:   .FORCE
 .cu.o :
 	$(NVCC) $(CUDA_CFLAGS) $(NVCC_CXXFLAGS) -c -o $@ $<
 
-# special case for f77 for now
-
-sledge.o:	sledge.f
-		f77 -g -o sledge.o -c sledge.f
-
 SUBDIRS = user $(SUBDIR_DSMC)
 DIST_SUBDIRS = user DSMC
 
