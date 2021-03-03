@@ -902,6 +902,10 @@ void * UserEBarN::determine_acceleration_and_potential_thread(void * arg)
     amp = amplitude * quad_onoff;
 
 
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
+
   for (unsigned lev=mlevel; lev<=multistep; lev++) {
 
     nbodies = cC->levlist[lev].size();

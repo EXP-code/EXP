@@ -370,6 +370,13 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
     }
 
+#if HAVE_LIBCUDA==1
+    if (use_cuda and not c->force->cudaAware() and not fetched[c]) {
+      c->CudaToParticles();
+      fetched[c] = true;
+    }
+#endif
+
     c->force->set_multistep_level(mlevel);
 
     if (cuda_prof) {
@@ -434,6 +441,13 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   for (auto inter : interaction) {
     for (auto other : inter->l) {
+
+#if HAVE_LIBCUDA==1
+      if (use_cuda and not inter->c->force->cudaAware() and not fetched[other]) {
+	other->CudaToParticles();
+	fetched[other] = true;
+      }
+#endif
 
 #ifdef USE_GPTL
       ostringstream sout;
@@ -777,6 +791,16 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   }
 
+#if HAVE_LIBCUDA==1
+  if (use_cuda) {
+    for (auto c : components) {
+      if (fetched[c]) {
+	c->ParticlesToCuda();
+      }
+    }
+  }
+#endif
+
 #ifdef USE_GPTL
   GPTLstop("ComponentContainer::timing");
   GPTLstop("ComponentContainer::compute_potential");
@@ -798,7 +822,21 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
   cout << "Process " << myid << ": entered <compute_expansion>\n";
 #endif
 
+#if HAVE_LIBCUDA==1
+  // List of components for cuda fetching
   //
+  if (use_cuda) {
+    for (auto c : comp->components) {
+      if (use_cuda and not c->force->cudaAware() and not fetched[c]) {
+	c->CudaToParticles();
+	fetched[c] = true;
+      } else {
+	fetched[c] = false;
+      }
+    }
+  }
+#endif
+
   // Compute expansion for each component
   //
   for (auto c : components) {

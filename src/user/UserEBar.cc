@@ -715,6 +715,10 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
   if (oscil)
     amp *= (1.0 + Oamp*sin(Ofreq*(tstp - Ton)))/(1.0 + fabs(Oamp));
 
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
+
   for (unsigned lev=mlevel; lev<=multistep; lev++) {
 
     nbodies = cC->levlist[lev].size();

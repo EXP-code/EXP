@@ -141,6 +141,9 @@ void UserDiffRot::determine_acceleration_and_potential(void)
 {
   if (!c0) return;
 
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(c0);
+#endif
 				// Get particles to avoid
   if (c1) {
 

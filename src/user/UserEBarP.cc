@@ -494,6 +494,10 @@ void UserEBarP::determine_acceleration_and_potential(void)
     for (int k=0; k<3; k++) tacc[n][k] = 0.0;
   }
 
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
+
   exp_thread_fork(false);
 
 				// Get full contribution from all threads

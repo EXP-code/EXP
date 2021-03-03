@@ -145,6 +145,10 @@ void UserBar::determine_acceleration_and_potential(void)
 				// Write to bar state file, if true
   bool update = false;
 
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
+
   if (c1) {
     c1->get_angmom();	// Tell component to compute angular momentum
     // cout << "Lz=" << c1->angmom[2] << endl; // debug

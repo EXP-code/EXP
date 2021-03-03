@@ -97,6 +97,10 @@ void UserMNdisk::initialize()
 
 void UserMNdisk::determine_acceleration_and_potential(void)
 {
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
+
   exp_thread_fork(false);
 }
 
