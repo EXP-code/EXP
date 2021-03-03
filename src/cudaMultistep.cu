@@ -259,20 +259,22 @@ void cuda_initialize_multistep()
 
 void cuda_compute_levels()
 {
+  // DEBUGGING
+  if (false) {
+    for (int n=0; n<numprocs; n++) {
+      if (n==myid) testConstantsMultistep<<<1, 1>>>();
+      std::cout << std::endl;
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+  }
+  // END DEBUGGING
+
   //
   // Begin the update
   //
   for (auto c : comp->components) c->force->multistep_update_begin();
 
   cudaDeviceProp deviceProp;
-
-  // DEBUGGING
-  if (true) {
-    std::cout << "** -------------------" << std::endl
-	      << "** ID " << myid         << std::endl;
-    testConstantsMultistep<<<1, 1>>>();
-  }
-  // END DEBUGGING
 
 #ifdef VERBOSE_TIMING
   double time1 = 0.0, time2 = 0.0, timeSRT = 0.0, timeADJ = 0.0, timeCOM = 0.0;
@@ -285,8 +287,22 @@ void cuda_compute_levels()
     cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
 
     PII lohi = {0, c->cuStream->cuda_particles.size()};
-    if (!all) lohi = c->CudaGetLevelRange(mfirst[mstep], multistep);
+    if (multistep) lohi = c->CudaGetLevelRange(mfirst[mstep], multistep);
       
+    // DEBUGGING
+    if (false and multistep>0) {
+      for (int n=0; n<numprocs; n++) {
+	if (n==myid) testConstantsMultistep<<<1, 1>>>();
+	std::cout << std::string(60, '-') << std::endl
+		  << "[" << myid << ", " << c->name
+		  << "]: mlevel=" << mfirst[mstep] << " mstep=" << mstep
+		  << " (lo, hi) = (" << lohi.first << ", " << lohi.second << ")"
+		  << std::endl << std::string(60, '-') << std::endl;
+	MPI_Barrier(MPI_COMM_WORLD);
+      }
+    }
+    // END DEBUGGING
+
     // Compute grid
     //
     unsigned int N         = lohi.second - lohi.first;
@@ -335,7 +351,7 @@ void cuda_compute_levels()
     // Compute grid
     //
     PII lohi = {0, c->cuStream->cuda_particles.size()};
-    if (!all) lohi = c->CudaGetLevelRange(mfirst[mstep], multistep);
+    if (multistep) lohi = c->CudaGetLevelRange(mfirst[mstep], multistep);
       
     unsigned int N         = lohi.second - lohi.first;
     unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
