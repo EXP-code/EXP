@@ -156,8 +156,8 @@ protected:
   //! Initialize the container
   void cuda_initialize();
 
-  //! Zero the coefficient output vectors
-  void zero_coefs();
+  //! Zero the coefficient gpu vectors
+  void cuda_zero_coefs();
 
   //@}
 

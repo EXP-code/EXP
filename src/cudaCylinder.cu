@@ -821,7 +821,7 @@ void Cylinder::cudaStorage::resize_coefs
   iY_d.resize(N);
 }
 
-void Cylinder::zero_coefs()
+void Cylinder::cuda_zero_coefs()
 {
   auto cr = component->cuStream;
   
@@ -956,7 +956,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
   // Zero out coefficient storage
   //
-  zero_coefs();
+  cuda_zero_coefs();
 
   // Maximum radius on grid
   //
@@ -965,6 +965,16 @@ void Cylinder::determine_coefficients_cuda(bool compute)
   // Sort particles and get coefficient size
   //
   PII lohi = component->CudaGetLevelRange(mlevel, mlevel), cur;
+
+  if (false) {
+    for (int n=0; n<numprocs; n++) {
+      if (myid==n) std::cout << "[" << myid << "] mlevel=" << mlevel
+			     << " coef check (lo, hi) = (" << lohi.first << ", "
+			     << lohi.second << ")" << std::endl
+			     << std::string(60, '-') << std::endl;
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+  }
   
   unsigned int Ntotal = lohi.second - lohi.first;
   unsigned int Npacks = Ntotal/component->bunchSize + 1;
@@ -990,20 +1000,26 @@ void Cylinder::determine_coefficients_cuda(bool compute)
     if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
 #ifdef VERBOSE_CTR
-    static unsigned debug_max_count = 10;
+    static unsigned debug_max_count = 100;
     static unsigned debug_cur_count = 0;
     if (debug_cur_count++ < debug_max_count) {
-      std::cout << std::endl << "** cudaCylinder coefficients" << std::endl
-		<< "** N      = " << N          << std::endl
-		<< "** Npacks = " << Npacks     << std::endl
-		<< "** I low  = " << cur.first  << std::endl
-		<< "** I high = " << cur.second << std::endl
-		<< "** Stride = " << stride     << std::endl
-		<< "** Block  = " << BLOCK_SIZE << std::endl
-		<< "** Grid   = " << gridSize   << std::endl
-		<< "** Xcen   = " << ctr[0]     << std::endl
-		<< "** Ycen   = " << ctr[1]     << std::endl
-		<< "** Zcen   = " << ctr[2]     << std::endl
+      std::cout << std::endl
+		<< "** -------------------------" << std::endl
+		<< "** cudaCylinder coefficients" << std::endl
+		<< "** -------------------------" << std::endl
+		<< "** N      = " << N            << std::endl
+		<< "** Npacks = " << Npacks       << std::endl
+		<< "** I low  = " << cur.first    << std::endl
+		<< "** I high = " << cur.second   << std::endl
+		<< "** Stride = " << stride       << std::endl
+		<< "** Block  = " << BLOCK_SIZE   << std::endl
+		<< "** Grid   = " << gridSize     << std::endl
+		<< "** Xcen   = " << ctr[0]       << std::endl
+		<< "** Ycen   = " << ctr[1]       << std::endl
+		<< "** Zcen   = " << ctr[2]       << std::endl
+		<< "** Level  = " << mlevel       << std::endl
+		<< "** lo     = " << lohi.first   << std::endl
+		<< "** hi     = " << lohi.second  << std::endl
 		<< "**" << std::endl;
   }
 #endif
@@ -1619,17 +1635,23 @@ void Cylinder::determine_acceleration_cuda()
     if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
 #ifdef VERBOSE_CTR
-    static unsigned debug_max_count = 10;
+    static unsigned debug_max_count = 100;
     static unsigned debug_cur_count = 0;
     if (debug_cur_count++ < debug_max_count) {
-      std::cout << std::endl << "** cudaCylinder acceleration" << std::endl
-		<< "** N      = " << N          << std::endl
-		<< "** Stride = " << stride     << std::endl
-		<< "** Block  = " << BLOCK_SIZE << std::endl
-		<< "** Grid   = " << gridSize   << std::endl
-		<< "** Xcen   = " << ctr[0]     << std::endl
-		<< "** Ycen   = " << ctr[1]     << std::endl
-		<< "** Zcen   = " << ctr[2]     << std::endl
+      std::cout << std::endl
+		<< "** -------------------------" << std::endl
+		<< "** cudaCylinder acceleration" << std::endl
+		<< "** -------------------------" << std::endl
+		<< "** N      = " << N            << std::endl
+		<< "** Stride = " << stride       << std::endl
+		<< "** Block  = " << BLOCK_SIZE   << std::endl
+		<< "** Grid   = " << gridSize     << std::endl
+		<< "** Xcen   = " << ctr[0]       << std::endl
+		<< "** Ycen   = " << ctr[1]       << std::endl
+		<< "** Zcen   = " << ctr[2]       << std::endl
+		<< "** Level  = " << mlevel       << std::endl
+		<< "** lo     = " << lohi.first   << std::endl
+		<< "** hi     = " << lohi.second  << std::endl
 		<< "**" << std::endl;
     }
 #endif
@@ -1746,10 +1768,9 @@ void Cylinder::multistep_update_cuda()
 
       if (Ntotal==0) continue;
 
-
       // Zero out coefficient storage
       //
-      zero_coefs();
+      cuda_zero_coefs();
 
       unsigned int Npacks = Ntotal/component->bunchSize + 1;
 
