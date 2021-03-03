@@ -1,3 +1,5 @@
+// -*- C++ -*-
+
 #include <Component.H>
 #include <expand.h>
 #include <cudaUtil.cuH>
@@ -121,5 +123,3 @@ void incr_position_cuda(cuFP_t dt, int mlevel)
   }
   // END: component loop
 }
-
-// -*- C++ -*-

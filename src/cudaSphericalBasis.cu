@@ -1,3 +1,5 @@
+// -*- C++ -*-
+
 #include <tuple>
 #include <list>
 
@@ -1968,5 +1970,3 @@ void SphericalBasis::destroy_cuda()
 		     __FILE__, __LINE__, sout.str());
   }
 }
-
-// -*- C++ -*-

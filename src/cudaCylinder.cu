@@ -1,3 +1,5 @@
+// -*- C++ -*-
+
 #include <Component.H>
 #include <Cylinder.H>
 #include <cudaReduce.cuH>
@@ -1915,5 +1917,3 @@ void Cylinder::destroy_cuda()
 		     __FILE__, __LINE__, sout.str());
   }
 }
-
-// -*- C++ -*-

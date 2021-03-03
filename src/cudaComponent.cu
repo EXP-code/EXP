@@ -1,3 +1,5 @@
+// -*- C++ -*-
+
 #include "expand.h"
 #include "Component.H"
 #include "cudaParticle.cuH"
@@ -775,5 +777,3 @@ void Component::print_level_lists_cuda(double T)
   }
 
 }
-
-// -*- C++ -*-
