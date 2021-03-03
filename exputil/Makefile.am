@@ -89,8 +89,8 @@ $(CUDA_LIBFLAGS) @exp_vtk_ldlib@ @exp_vtk_lib@ $(LIBS) $(FLIBS)
 
 # special case for f77 for now
 
-sledge.o:       sledge.f
-                f77 -g -o sledge.o -c sledge.f
+sledge.o:	sledge.f
+		f77 -O2 -g -o sledge.o -c sledge.f
 
 ## libexputil/Makefile.am ends here
 
