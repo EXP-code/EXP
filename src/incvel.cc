@@ -8,7 +8,7 @@
 #include <gptl.h>
 #endif
 
-#ifdef HAVE_LIBCUDA
+#if HAVE_LIBCUDA==1
 void incr_velocity_cuda(cuFP_t dt, int mlevel);
 #endif
 
