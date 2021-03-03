@@ -332,14 +332,6 @@ protected:
   //! Particle number update is needed
   unsigned modified;
 
-  //! Compute center of mass and center of velocity (CPU version)
-  void fix_positions_cpu(unsigned mlevel=0);
-
-#ifdef HAVE_LIBCUDA
-  //! Compute center of mass and center of velocity (GPU version)
-  void fix_positions_cuda(unsigned mlevel=0);
-#endif
-
 public:
 
   //! Describe the phase space coordinates
@@ -551,10 +543,18 @@ public:
   //! Redestribute this component
   void redistribute_particles(void);
 
+  //! Compute center of mass and center of velocity (CPU version)
+  void fix_positions_cpu(unsigned mlevel=0);
+
+#if HAVE_LIBCUDA==1
+  //! Compute center of mass and center of velocity (GPU version)
+  void fix_positions_cuda(unsigned mlevel=0);
+#endif
+
   //! Compute center of mass and center of velocity
   void fix_positions(unsigned mlevel=0)
   {
-#ifdef HAVE_LIBCUDA
+#if HAVE_LIBCUDA==1
     if (use_cuda) fix_positions_cuda(mlevel);
     else
 #endif
