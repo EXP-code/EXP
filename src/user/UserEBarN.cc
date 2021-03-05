@@ -782,7 +782,7 @@ void UserEBarN::determine_acceleration_and_potential(void)
     firstime = false;
     update = true;
 
-  } else {
+  } else if (mlevel==0) {
 
     if (!fixed) {
       if (c1)
@@ -824,7 +824,7 @@ void UserEBarN::determine_acceleration_and_potential(void)
   MPI_Allreduce(&acc1[0], &acc[0], 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 				// Backward Euler
-  if (monopole && monopole_follow) {
+  if (mlevel==0 && monopole && monopole_follow) {
     for (int k=0; k<3; k++) {
       bps[k] += vel[k] * (tnow - teval[mlevel]);
       vel[k] += acc[k] * (tnow - teval[mlevel]);
@@ -883,15 +883,15 @@ void * UserEBarN::determine_acceleration_and_potential_thread(void * arg)
   double cos2p = cos(2.0*posang);
   double sin2p = sin(2.0*posang);
 
-  double fraction_on =   0.5*(1.0 + erf( (tnow - Ton )/DeltaT )) ;
-  double fraction_off =  0.5*(1.0 - erf( (tnow - Toff)/DeltaT )) ;
+  double fraction_on =   0.5*(1.0 + erf( (tstp - Ton )/DeltaT )) ;
+  double fraction_off =  0.5*(1.0 - erf( (tstp - Toff)/DeltaT )) ;
 
   double quad_onoff = 
     fraction_on*( (1.0 - quadrupole_frac) + quadrupole_frac * fraction_off );
 
   double mono_fraction = 
-    0.5*(1.0 + erf( (tnow - TmonoOn )/DeltaMonoT )) *
-    0.5*(1.0 - erf( (tnow - TmonoOff)/DeltaMonoT )) ;
+    0.5*(1.0 + erf( (tstp - TmonoOn )/DeltaMonoT )) *
+    0.5*(1.0 - erf( (tstp - TmonoOff)/DeltaMonoT )) ;
 
   double mono_onoff = 
     (1.0 - monopole_frac) + monopole_frac*mono_fraction;
@@ -901,6 +901,10 @@ void * UserEBarN::determine_acceleration_and_potential_thread(void * arg)
   else
     amp = amplitude * quad_onoff;
 
+
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
 
   for (unsigned lev=mlevel; lev<=multistep; lev++) {
 

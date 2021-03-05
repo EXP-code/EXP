@@ -19,7 +19,8 @@
 //
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/progress.hpp>	// Progress bar
+
+#include <Progress.H>		// Progress bar
 
 // Globals for exp libraries
 //
@@ -53,6 +54,7 @@ main(int ac, char **av)
   double       zout;
   string       dmodel;
   string       fdata;
+  string       outfile;
   
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -60,6 +62,7 @@ main(int ac, char **av)
     ("logr,L",                                                                          "Use log grid for DiskEval")
     ("dmodel",          po::value<std::string>(&dmodel)->default_value("exponential"),  "Target model type (MN or exponential)")
     ("force",           po::value<std::string>(&fdata)->default_value("force.data"),  "Force data from N-body evluation")
+    ("out",             po::value<std::string>(&outfile)->default_value("testforce.dat"),  "Output force test grid data")
     ("dmass",           po::value<double>(&dmass)->default_value(0.025),  "Total disk mass")
     ("nint",            po::value<int>(&nint)->default_value(40),                       "Number of Gauss-Legendre knots for theta integration")
     ("numr",            po::value<int>(&numr)->default_value(1000),                     "Size of radial grid")
@@ -121,7 +124,13 @@ main(int ac, char **av)
     std::cout << "Error opening <" << fdata << ">" << std::endl;
     exit(-2);
   }
+  int nbods = 0;
+  in.read((char *)&nbods, sizeof(int));
     
+  // Make sure that nout is even to prevent divide by zero
+  //
+  if (2*(nout/2) != nout) nout++;
+
   double dR = (rout - rinn)/(nout-1);
   double dZ = 2.0*zout/(nout-1);
 
@@ -137,21 +146,19 @@ main(int ac, char **av)
 	    << std::endl << "-----------------------------"
 	    << std::endl;
   
-  boost::progress_display progress(1000000);
+  boost::progress_display progress(nbods);
 
   while (true) {
 
     ++progress;
 
-    std::string line;
-    std::getline(in, line);
-
     if (in.good()) {
-      std::istringstream sin(line);
-      double m, pos[3], acc[3];
-      sin >> m;
-      for (int k=0; k<3; k++) sin >> pos[k];
-      for (int k=0; k<3; k++) sin >> acc[k];
+      float m, pos[3], acc[3];
+
+      in.read((char *)&m, sizeof(float));
+      in.read((char *)&pos[0], sizeof(float)*3);
+      in.read((char *)&acc[0], sizeof(float)*3);
+      if (not in.good()) break;
 
       double R  = std::sqrt(pos[0]*pos[0] + pos[1]*pos[1]);
       double z  = pos[2];
@@ -184,10 +191,36 @@ main(int ac, char **av)
 
   // Plot potential and force plane evaluation in gnuplot format
   //
-  std::ofstream out("testforce.dat");
+  std::ofstream out(outfile);
 
   if (out) {
     
+    // Headers
+    out << "#"
+	<< std::setw(15) << std::right << "R |"
+	<< std::setw(16) << std::right << "z |"
+	<< std::setw(16) << std::right << "D(f_R)/f_R |"
+	<< std::setw(16) << std::right << "D(f_z)/f_z |"
+	<< std::setw(16) << std::right << "D(f_R)/scl |"
+	<< std::setw(16) << std::right << "D(f_z)/scl |"
+	<< std::endl
+	<< "#"
+	<< std::setw(15) << std::right << "[1] |"
+	<< std::setw(16) << std::right << "[2] |"
+	<< std::setw(16) << std::right << "[3] |"
+	<< std::setw(16) << std::right << "[4] |"
+	<< std::setw(16) << std::right << "[5] |"
+	<< std::setw(16) << std::right << "[6] |"
+	<< std::endl
+	<< "#" << std::setfill('-')
+	<< std::setw(15) << std::right << "+"
+	<< std::setw(16) << std::right << "+"
+	<< std::setw(16) << std::right << "+"
+	<< std::setw(16) << std::right << "+"
+	<< std::setw(16) << std::right << "+"
+	<< std::setw(16) << std::right << "+"
+	<< std::endl << std::setfill(' ');
+
     std::cout << std::endl << "Begin: force bin evaluation  "
 	      << std::endl << "-----------------------------"
 	      << std::endl;
@@ -199,22 +232,25 @@ main(int ac, char **av)
     double fR_0 = std::fabs(std::get<1>(ret)) * dmass;
 
     for (int i=0; i<nout; i++) {
-      double R = rinn + dR*i;
+      double R = rinn + dR*(0.5+i);
 
       auto ret = test(R, H);
 
       double fz_0 = std::fabs(std::get<2>(ret)) * dmass;
 
       for (int j=0; j<nout; j++) {
-	double z = -zout + dZ*j;
+	double z = -zout + dZ*(0.5+j);
 
 	double ms = mass[i][j] + 1.0e-18;
 	double stdFR = std::sqrt(meanFR2[i][j]/ms);
 	double stdFZ = std::sqrt(meanFz2[i][j]/ms);
+
+	auto ret1 = test(R, z);
+
 	out << std::setw(16) << R
 	    << std::setw(16) << z
-	    << std::setw(16) << stdFR
-	    << std::setw(16) << stdFZ
+	    << std::setw(16) << stdFR/fabs(std::get<1>(ret1)*dmass)
+	    << std::setw(16) << stdFZ/fabs(std::get<2>(ret1)*dmass)
 	    << std::setw(16) << stdFR/fR_0
 	    << std::setw(16) << stdFZ/fz_0
 	    << std::endl;

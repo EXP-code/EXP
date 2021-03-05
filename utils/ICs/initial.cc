@@ -70,6 +70,11 @@
 #include <string>
 #include <vector>
 
+#include <config.h>
+#ifdef HAVE_OMP_H
+#include <omp.h>
+#endif
+
                                 // MDW classes
 #include <numerical.h>
 #include <gaussQ.h>
@@ -77,7 +82,6 @@
 #include <hernquist.h>
 #include <model3d.h>
 #include <biorth.h>
-#include <SphericalSL.h>
 #include <interp.h>
 #include <EmpCylSL.h>
 
@@ -87,9 +91,8 @@
 #endif
 
                                 // Local headers
-#include "SphericalSL.h"
-#include "DiskHalo.h" 
-#include "localmpi.h"
+#include <DiskHalo.H> 
+#include <localmpi.h>
 void local_init_mpi(int argc, char **argv);
 
                                 // Parameters
@@ -124,6 +127,7 @@ int MMAX=4;
 int NUMX=128;
 int NUMY=64;
 int NORDER=16;
+int NODD=-1;
 
 int DIVERGE=0;
 double DIVERGE_RFAC=1.0;
@@ -216,6 +220,7 @@ main(int argc, char **argv)
 	  if (!optname.compare("hscale"))  HSCALE  = atof(optarg);
 	  if (!optname.compare("numr"))    NUMR    = atoi(optarg);
 	  if (!optname.compare("norder"))  NORDER  = atoi(optarg);
+	  if (!optname.compare("nodd"))    NODD    = atoi(optarg);
 	  if (!optname.compare("seed"))    SEED    = atoi(optarg);
 	  if (!optname.compare("cfile"))   centerfile = string(optarg);
 	  break;
@@ -341,6 +346,21 @@ main(int argc, char **argv)
 
   local_init_mpi(argc, argv);   // Inialize MPI stuff
 
+  //====================
+  // OpenMP control
+  //====================
+
+#ifdef HAVE_OMP_H
+  omp_set_num_threads(nthrds);
+#pragma omp parallel
+  {
+    int numthrd = omp_get_num_threads();
+    int myid = omp_get_thread_num();
+    if (myid==0)
+      std::cout << "Number of threads=" << numthrd << std::endl;
+  }
+#endif
+
   int n_particlesH, n_particlesD;
 
   MPI_Bcast(&nhalo,  1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -399,9 +419,9 @@ main(int argc, char **argv)
   SphericalSL::RMAX = RSPHSL;
   SphericalSL::NUMR = NUMR;
                                 // Create expansion only if needed . . .
-  SphericalSL *expandh = NULL;
+  std::shared_ptr<SphericalSL> expandh;
   if (n_particlesH) {
-    expandh = new SphericalSL(nthrds, LMAX, NMAX, SCSPH);
+    expandh = std::make_shared<SphericalSL>(nthrds, LMAX, NMAX, SCSPH);
 #ifdef DEBUG
     string dumpname("debug");
     expandh->dump_basis(dumpname);
@@ -411,11 +431,12 @@ main(int argc, char **argv)
   //===========================Cylindrical expansion===========================
 
 
-  EmpCylSL::RMIN = RCYLMIN;
-  EmpCylSL::RMAX = RCYLMAX;
-  EmpCylSL::NUMX = NUMX;
-  EmpCylSL::NUMY = NUMY;
-  EmpCylSL::CMAP = 1;
+  EmpCylSL::RMIN  = RCYLMIN;
+  EmpCylSL::RMAX  = RCYLMAX;
+  EmpCylSL::NUMX  = NUMX;
+  EmpCylSL::NUMY  = NUMY;
+  EmpCylSL::CMAPR = 1;
+  EmpCylSL::CMAPZ = 1;
 
   if (basis)
     EmpCylSL::DENS = true;
@@ -423,9 +444,9 @@ main(int argc, char **argv)
     EmpCylSL::DENS = false;
 
                                 // Create expansion only if needed . . .
-  EmpCylSL* expandd = NULL;
+  std::shared_ptr<EmpCylSL> expandd;
   if (n_particlesD) 
-    expandd = new EmpCylSL(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE);
+    expandd = std::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE, NODD);
   cout << "Proccess " << myid << ": "
        << " rmin=" << EmpCylSL::RMIN
        << " rmax=" << EmpCylSL::RMAX
@@ -435,6 +456,7 @@ main(int argc, char **argv)
        << " lmax2=" << LMAX2
        << " mmax=" << MMAX
        << " nordz=" << NORDER
+       << " noddz=" << NODD
        << endl << flush;
 
   //====================Create the disk & halo model===========================
@@ -710,8 +732,6 @@ main(int argc, char **argv)
 
   //===========================================================================
 
-  delete expandh;
-  delete expandd;
 
   MPI_Barrier(MPI_COMM_WORLD);
   MPI_Finalize();

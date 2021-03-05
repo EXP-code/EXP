@@ -141,9 +141,9 @@ int main (int ac, char **av)
 
   PeriodicTable pt;
 
-  chdata ch;
+  atomicData ad;
 
-  ch.createIonList(ZList);
+  ad.createIonList(ZList);
 
   if (myid) {
     MPI_Finalize();
@@ -214,17 +214,17 @@ int main (int ac, char **av)
       coul = M_PI*b90*b90 * 4.0*mrat/pt[Z]->weight() * logL;
     }
 
-    std::pair<double, double> ffre = ch.IonList[Q]->freeFreeCross(EeV, 0);
+    std::pair<double, double> ffre = ad.IonList[Q]->freeFreeCross(EeV, 0);
 
-    double ionz = ch.IonList[Q]->directIonCross(EeV, 0);
+    double ionz = ad.IonList[Q]->directIonCross(EeV, 0);
 
-    Ion::collType       CE1 = ch.IonList[Q]->collExciteCross(EeV, 0);
+    Ion::collType       CE1 = ad.IonList[Q]->collExciteCross(EeV, 0);
     
-    std::vector<double> RE1 = ch.IonList[Q]->radRecombCross(EeV, 0);
+    std::vector<double> RE1 = ad.IonList[Q]->radRecombCross(EeV, 0);
 
-    std::vector<double> PI1 = ch.IonList[Q]->photoIonizationCross(EeV, 0);
+    std::vector<double> PI1 = ad.IonList[Q]->photoIonizationCross(EeV, 0);
 
-    double sum = ch.VernerXC.cross(Q, EeV);
+    double sum = ad.VernerXC.cross(Q, EeV);
 
     int ZZ  = Z;
     int Nel = Z - C + 1;

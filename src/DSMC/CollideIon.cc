@@ -12,6 +12,7 @@
 #include <map>
 
 #include <boost/filesystem.hpp>
+#include <boost/make_unique.hpp>
 
 #include <errno.h>
 #include <sys/stat.h>
@@ -23,10 +24,14 @@
 #include "Species.H"
 #include "InitContainer.H"
 
+// Constant static data
+//
+#include "correction_factors.cxx"
+
 // Version info
 //
 #define NAME_ID    "CollideIon"
-#define VERSION_ID "0.42 [11/10/19 trace ratio]"
+#define VERSION_ID "0.45 [12/16/20 Badnell xc]"
 
 using namespace std;
 using namespace NTC;
@@ -56,7 +61,8 @@ bool     CollideIon::coulScale  = false;
 double   CollideIon::coulPow    = 2.0;
 unsigned CollideIon::NoDelC     = 0;
 unsigned CollideIon::maxCoul    = UINT_MAX;
-double   CollideIon::logL       = 5.0/(16.0*M_PI); // energy transfer factor
+double   CollideIon::logL       = 20.0; // Coulombic logarithm
+double   CollideIon::logLfac    = 0.0;	// Scale intrinsic log L computation
 bool     CollideIon::TSESUM     = true;
 bool     CollideIon::coulInter  = true;
 bool     CollideIon::stateXS    = false;
@@ -66,8 +72,19 @@ double   CollideIon::scatFac1   = 1.0; // Hybrid algorithm
 double   CollideIon::scatFac2   = 1.0; // Hybrid algorithm
 double   CollideIon::tolE       = 1.0e-05;
 double   CollideIon::tolCS      = 1.0;
+
+// Upscale radiative cross-section by ratio of Ion radiative
+// coefficient to CHAINTI radiative coefficeint
+//
 bool     CollideIon::use_ratio  = false;
 
+// Use the fudge factor to make our recombination rates match CHIANTI
+//
+bool     CollideIon::use_fudge  = true; 
+
+// Ratio/fudge comparsion ('secret' debug invocation)
+//
+bool     CollideIon::ratfink    = false; 
 
 // The recommended value for qCrit is now -1 (that is, turn it off).
 // It appears to be unstable based on the TestEquil tests.
@@ -451,7 +468,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 
   // Fill the Chianti data base
   //
-  ch.createIonList(ZList);
+  ad.createIonList(ZList);
 
   // Cross-section storage
   //
@@ -651,7 +668,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "Coll excite cache"
 	      << (Ion::useExciteGrid ? "on" : "off") << std::endl
 	      <<  " " << std::setw(20) << std::left << "Coll ionize cache"
-	      << (Ion::useIonizeGrid ? "on" : "off") << std::endl;
+	      << (Ion::useIonizeGrid ? "on" : "off") << std::endl
+	      <<  " " << std::setw(20) << std::left << "new Gaunt factor"
+	      << (Ion::use_VAN_HOOF ? "on" : "off") << std::endl;
     if (aType == Trace)
     std::cout <<  " " << std::setw(20) << std::left << "stateXS"
 	      << (stateXS ? "on" : "off")           << std::endl;
@@ -682,11 +701,11 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   meanR    .resize(nthrds);	     // Trace
   meanM    .resize(nthrds);	     // Trace
   debye    .resize(nthrds);	     // Currently Trace, needs updating
+  plasma   .resize(nthrds, logL);    // Currently Trace, needs updating
   cellM    .resize(nthrds);	     // Trace
   neutF    .resize(nthrds);	     // Trace
   numIf    .resize(nthrds);	     // Direct, Weight, Hybrid, Trace
   numEf    .resize(nthrds);	     // Direct, Weight, Hybrid, Trace
-  numQ2    .resize(nthrds);	     // Hybrid, Trace
   densE    .resize(nthrds);	     // Direct, Weight, Trace
   photoW   .resize(nthrds);	     // Photoionization
   photoN   .resize(nthrds);	     // Photoionization
@@ -784,6 +803,11 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   accumIExc.resize(nthrds);	     // Trace
   photoStat.resize(nthrds);	     // Photoionize
   recombR  .resize(nthrds);	     // Trace (so far . . .)
+  fudgeFacs.resize(nthrds);          // Trace. The factors needed to
+				     // make our recombination rates
+				     // match CHIANTI's
+  cellTemps.resize(nthrds);          // Trace. The temperature in the
+				     // cell handled by each thread
 
   for (auto &v : tauD) {
     v.resize(4);
@@ -828,6 +852,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
     for (auto &v : elecEVsub) v.set_capacity(bufCap);
     elecRC.resize(nthrds);
     for (auto &v : elecRC)    v.set_capacity(bufCap);
+    plasmaP.resize(nthrds);
+    for (auto &v : plasmaP)   v.set_capacity(bufCap);
 
     setupRcmbTotl();
   }
@@ -875,12 +901,20 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   spectrumSetup();
 
 
+  // Check for use_ratio and use_fudge set together
+  //
+  if (use_ratio and use_fudge and myid==0) {
+    std::cout << "CollideIon: both RECOMB_RATIO and FUDGE_CHIANTI are set.  "
+	      << "We will use FUDGE_CHIANTI by default" << std::endl;
+    use_ratio = false;
+  }
+
   // Recombination ratio
   //
-  if (use_ratio and aType == Trace) {
+  if ( (use_ratio or ratfink) and aType == Trace) {
 				// Loop through element list
     for (auto Z : ZList) {	// and make ratio tables
-      recombRatio[Z] = boost::make_shared<RecombRatio>(Z, ch, Tmin, Tmax, numT);
+      recombRatio[Z] = boost::make_shared<RecombRatio>(Z, ad, Tmin, Tmax, numT);
     }
   }
 
@@ -1019,10 +1053,100 @@ void CollideIon::cellMinMax(pCell* const cell, int id)
   return;
 }
 
+// This function takes a cell temperature and returns the fudge
+// factor to make our recombinartion rates consistent with the CHIANTI
+// value. Does this by looking up the factors at the closest temperatures
+// that have have had it computed for this element and ionisation level and
+// performing a linear interpolation.
+//
+double CollideIon::radRecombCrossFudgeFactor
+(double cellTemp, speciesKey recomb_ion)
+{
+  // Z is element, C is ionisation level. Remember when doing the
+  // lookup the first row is the first ionized state
+  //
+  int Z, C, Z_index, C_index;
+  std::vector<double>::iterator low;
+  int T_below_index, T_above_index;
+  double T_below, T_above;
+  double fudge_factor_below, fudge_factor_above;
+  double fudge_factor;
+
+  // Get the element Z and ionisation level C and the indices they're
+  // held at in arrays
+  //
+  Z = recomb_ion.first;
+  C = recomb_ion.second;
+  Z_index = Z - 1;
+  C_index = C - 2; // C is - 2 because a full shell can't recombine, so
+		   // e.g. no recombination for neutral
+
+  // Because a full shell can't recombine no alteration necessary if C
+  // == 1, so if that that's the case just return 1.
+  if (C == 1) {
+
+    fudge_factor = 1;
+
+  } else {
+
+    // Convert the array into a vector so I can use the lower_bound
+    // function
+    //
+    int n = sizeof(correct_temps) / sizeof(correct_temps[0]);
+    std::vector<double> v(correct_temps,correct_temps+n);
+    
+    // Check whether the cell temperature is within the bounds of those
+    // for which there are calcualated fudge factors. If not then use
+    // higherst/lowest as relevent. Otherwise interpolate beween the
+    // the closest factors.
+    if (cellTemp < correct_temps[0]) {
+
+      fudge_factor = correct_facts[Z_index][0][C_index];
+
+    } else if (cellTemp > correct_temps[n - 1]) {
+
+      fudge_factor = correct_facts[Z_index][n - 1][C_index];
+
+    } else {
+
+      // Get the indexes of the temperatures above and below the cell
+      // temperature
+      //
+      low = std::lower_bound(v.begin(), v.end(), cellTemp);
+      if (low == v.begin()) {     // Check array bounds
+        T_below_index = 0;
+        T_above_index = 1;
+      } else {
+        T_below_index = (low - v.begin()) - 1;
+        T_above_index = (low - v.begin());
+      }
+
+      // Use linear interpolation to get the fudge factor from the known fudge
+      // factors for the two closest temperatures. First get the info needed
+      // for the interpolation
+      T_below = correct_temps[T_below_index];
+      T_above = correct_temps[T_above_index];
+      fudge_factor_below = correct_facts[Z_index][T_below_index][C_index];
+      fudge_factor_above = correct_facts[Z_index][T_above_index][C_index];
+
+      // Do the linear interpolation
+      fudge_factor = cellTemp - T_below;
+      fudge_factor /= (T_above - T_below);
+      fudge_factor *= (fudge_factor_above - fudge_factor_below);
+      fudge_factor += fudge_factor_below;
+
+    }
+
+  }
+  return fudge_factor;
+}
+
+
 /**
    Precompute all the necessary mean quantities for cross sections
 */
-void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, int id)
+void CollideIon::initialize_cell
+(pCell* const cell, double rvmax, double tau, int id)
 {
   // Representative avg cell velocity in cgs
   //
@@ -1060,7 +1184,6 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
   //
   numIf[id] = 0.0;		// Charged particles
   numEf[id] = 0.0;		// Ions and electrons
-  numQ2[id] = 0.0;		// For Coulombic scattering
 
   // Electron density per species in cell
   //
@@ -1126,7 +1249,6 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
 
       numIf[id]    += p->mass * (ie  + ee) / atomic_weights[Z];
       numEf[id]    += p->mass * (1.0 + ee) / atomic_weights[Z];
-      numQ2[id]    += p->mass * qq / atomic_weights[Z];
       densE[id][K] += p->mass * ee / atomic_weights[Z];
       densEtot     += p->mass * ee / atomic_weights[Z];
       densItot     += p->mass / atomic_weights[Z];
@@ -1176,8 +1298,6 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
 				// Number fraction of particles
 	double ww     = p->dattrib[s.second]/atomic_weights[k.first];
 
-	numQ2[id]    += p->mass * ww * ee*ee;
-	numEf[id]    += p->mass * ww * (1.0 + ee);
 	densE[id][k] += p->mass * ww * ee;
 	densEtot     += p->mass * ww * ee;
 	densItot     += p->mass * ww;
@@ -1191,9 +1311,6 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
     
   } // END: body loop
 
-  // Compute mean charge-squared
-  if (densQtot>0.0) numQ2[id] /= densQtot;
-
   // Physical number of particles
   //
   numIf[id] *= TreeDSMC::Munit/amu;
@@ -1206,7 +1323,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
   double tmp1 = densQtot, tmp2 = densEtot;
 
   for (auto & v : densE[id]) v.second *= dfac;
-  densItot *= dfac;
+
   densEtot *= dfac;
   densQtot *= dfac;
 
@@ -1223,9 +1340,11 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
   //
   double crs_units = 1e-14 / (TreeDSMC::Lunit*TreeDSMC::Lunit);
 
-  // Mean temperature for recombination ratio
+  // Mean temperature for recombination ratio and mean temp of the cell and
+  // fudge factor to make our recombination match chianti's
   //
-  double meanTemp = 0.0;
+  double meanTemp    = 0.0;
+  double cellTemp    = 0.0;
 
   if (aType == Direct or aType == Weight or aType == Hybrid) {
 
@@ -1575,7 +1694,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
 	meanF[id][s.first] += p->mass * ww;
 
 	// Mean electron number
-	meanE[id]          += p->mass * ww * ee;
+	meanE[id]          += p->mass * ww * q;
 
 	// For neutrals only
 	if (ee==0) {
@@ -1631,18 +1750,26 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
 
     // Compute mean temperature
     //
-    meanTemp = (ivel2 + evel2*atomic_weights[0])*TreeDSMC::Eunit / (Ni + Ne) / (3.0*boltz);
+    if (Ni+Ne>0.0)
+      meanTemp = (ivel2 + evel2*atomic_weights[0])*TreeDSMC::Eunit / (Ni + Ne) / (3.0*boltz);
+
+    // Get the mean electron teperature of the cell and store in in
+    // the cellTemps vector
+    //
+    if (Ne>0.0)
+      cellTemp = (evel2*atomic_weights[0])*TreeDSMC::Eunit / (Ne) / (3.0*boltz);
+    
+    // Test for RJA
+    cellTemps[id] = cellTemp;
+    cellTemps[id] = meanTemp;
 
     double dbyfac = std::numeric_limits<double>::max();
-    if ((ne>0.0 and KEe>0.0) or (ni>0.0 and KEi>0.0)) {
+    if (KEe>0.0 and KEi>0.0) {
       dbyfac = 0.0;
       if (KEe>0.0) dbyfac += ne/KEe;
       if (KEi>0.0) dbyfac += cj/KEi;
     }
 
-    debye[id]  = 1.0/sqrt(6.0*M_PI*esu*esu*dbyfac);
-    debye[id] /= TreeDSMC::Lunit;
-    
     if (numbP>0.0) meanM[id] = massP/numbP;
     if (numbP>0.0) Ivel2[id] = ivel2/numbP;
     if (numbP>0.0) Evel2[id] = evel2/numbP;
@@ -1691,54 +1818,76 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
     double muee = atomic_weights[0]/2.0;
     double muie = atomic_weights[0] * meanM[id]/(atomic_weights[0] + meanM[id]);
 
+
+    // Ion charge
+    double Qi  = densQtot>0 ? densEtot/densQtot : 0.0;
+    double Qi2 = Qi*Qi;
+
+    // Electron charge
+    double Qe  = 1.0;
+    double Qe2 = Qe*Qe;
+
+
+    debye [id]  = 1.0/sqrt(6.0*M_PI*esu*esu*dbyfac);
+    plasma[id]  = log((muie*2.0*Eion[id] + muee*2.0*Eelc[id])*eV*debye[id] /
+		      (esu*esu));
+    debye [id] /= TreeDSMC::Lunit;
+    
+    // For verbose diagnostic output only
+    //
+    if (elecDist) {
+      plasmaP[id].push_back(plasma[id]);
+    }
+
 #ifdef XC_DEEP7
     std::cout << "coulombic:"
-      << " MUii=" << muii
-      << " MUee=" << muee
-      << " MUie=" << muie
-      << " denQ=" << densQtot
-      << " denE=" << densEtot
-      << " numQ=" << numQ2[id]
+      << " MUii="  << muii
+      << " MUee="  << muee
+      << " MUie="  << muie
+      << " denQ="  << densQtot
+      << " denE="  << densEtot
       << " Ivel2=" << Ivel2[id]
       << " Evel2=" << Evel2[id]
-      << " volC=" << volc
-      << " masC=" << massP
-      << " nbod=" << nbods
-      << " numQ=" << tmp1
-      << " numE=" << tmp2
+      << " volC="  << volc
+      << " masC="  << massP
+      << " nbod="  << nbods
+      << " numQ="  << tmp1
+      << " numE="  << tmp2
+      << " DbyL="  << debye[id]
+      << " logL="  << plasma[id]
       << std::endl;
 #endif
 
-				// Ion-Ion
+    if (logLfac>0.0) plasma[id] *= logLfac;
+
+				// Ion-Ion: densQtot is ion density
+				//          densEtot is electron density
     PiProb[id][0] = densQtot;
     if (densEtot>0.0)
       PiProb[id][0] += 
-	densEtot * pow(2.0*Ivel2[id], 1.5) * muii*muii /
-	(pow(Ivel2[id] + Evel2[id], 1.5) * muie*muie * numQ2[id]);
-    //                                               ^
-    //                                               |
-    // The density is weighted by q^2 for each species
-
+	densEtot * pow(2.0*Ivel2[id], 1.5) * muii*muii * Qe2 /
+	(pow(Ivel2[id] + Evel2[id], 1.5) * muie*muie * Qi2);
+    
 				// Ion-Electron
     PiProb[id][1] = densEtot;
     if (Ivel2[id]>0.0)
       PiProb[id][1] += 
-	densQtot * pow(Ivel2[id] + Evel2[id], 1.5) * muie*muie * numQ2[id] /
-	(pow(2.0*Ivel2[id], 1.5) * muii*muii);
+	densQtot * pow(Ivel2[id] + Evel2[id], 1.5) * muie*muie * Qi2 /
+	(pow(2.0*Ivel2[id], 1.5) * muii*muii * Qe2);
 
 				// Electron-Ion
     PiProb[id][2] = densQtot;
     if (Evel2[id]>0.0)
       PiProb[id][2] += 
-	densEtot * pow(Ivel2[id] + Evel2[id], 1.5) * muie*muie /
-	(pow(2.0*Evel2[id], 1.5) * muee*muee * numQ2[id]);
+	densEtot * pow(Ivel2[id] + Evel2[id], 1.5) * muie*muie * Qe2 /
+	(pow(2.0*Evel2[id], 1.5) * muee*muee * Qi2);
 
 				// Electron-Electron
     PiProb[id][3] = densEtot;
     if (densQtot>0.0)
       PiProb[id][3] += 
-	densQtot * pow(2.0*Evel2[id], 1.5) * muee*muee * numQ2[id] /
-	(pow(Ivel2[id] + Evel2[id], 1.5) * muie*muie);
+	densQtot * pow(2.0*Evel2[id], 1.5) * muee*muee * Qi2 /
+	(pow(Ivel2[id] + Evel2[id], 1.5) * muie*muie * Qe2);
 
 #ifdef XC_DEEP10
       std::cout << "coul2: "
@@ -1749,7 +1898,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
 		<< std::endl;
 #endif
 				// Sanity check
-    if (false) {
+      if (false) {
       double test1 = densQtot/PiProb[id][0] + densEtot/PiProb[id][1];
       double test2 = densQtot/PiProb[id][2] + densEtot/PiProb[id][3];
 
@@ -1757,14 +1906,17 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
       if (fabs(test2-1.0) > 1.0e-4) { std::cout << "test2 error" << std::endl; }
     }
 
+    double Lbda = logL;
+    if (logLfac>0.0) Lbda = plasma[id];
+
 				// Rate coefficients
-    ABrate[id][0] = 2.0*M_PI * PiProb[id][0] * logL * pow(numQ2[id]*numQ2[id], 2.0);
+    ABrate[id][0] = 2.0*M_PI * PiProb[id][0] * Lbda ;
 
-    ABrate[id][1] = 2.0*M_PI * PiProb[id][1] * logL * pow(numQ2[id], 2.0);
+    ABrate[id][1] = 2.0*M_PI * PiProb[id][1] * Lbda ;
 
-    ABrate[id][2] = 2.0*M_PI * PiProb[id][2] * logL * pow(numQ2[id], 2.0);
+    ABrate[id][2] = 2.0*M_PI * PiProb[id][2] * Lbda ;
 
-    ABrate[id][3] = 2.0*M_PI * PiProb[id][3] * logL ;
+    ABrate[id][3] = 2.0*M_PI * PiProb[id][3] * Lbda ;
 
 #ifdef XC_DEEP10
     std::cout << "coul2: "
@@ -1783,9 +1935,32 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
   //
   coulombicScatter(id, cell, tau);
 
+  // Compute and stre the factor needed to make out recombination
+  // coeffiecients match CHIANTI's
+
+  // Only do this is the use_fudge boolean is true
+  //
+  if ( (use_fudge or ratfink) and aType == Trace) {
+
+    // Loop through element list and ionisation levels
+    //
+    for (auto Z : ZList) {
+      for (unsigned short C=1; C<=Z+1; C++){
+	// Define a species key for this Z and C
+	//
+	speciesKey recomb_ion = make_pair(Z, C);
+	// Look up the factor needed to make out recombination
+	// coeffiecients match CHIANTI's
+	//
+	fudgeFacs[id][recomb_ion][cellTemps[id]] =
+	  radRecombCrossFudgeFactor(cellTemps[id], recomb_ion);
+      }
+    }
+  }
+
   // Recombination ratio
   //
-  if (use_ratio and aType == Trace) {
+  if ( (use_ratio or ratfink) and aType == Trace) {
 				// Loop through element list
     for (auto Z : ZList) {
       recombR[id][Z].resize(Z);	// Enforce storage size
@@ -1801,7 +1976,7 @@ void CollideIon::initialize_cell(pCell* const cell, double rvmax, double tau, in
       }
 				// Compute the ratios for this temperature
       for (unsigned short C=2; C<=Z+1; C++)
-	recombR[id][Z][C-2] = (*p->second)(C, meanTemp);
+	recombR[id][Z][C-2] = (*p->second)(C, cellTemps[id]);
     }
   }
 
@@ -2125,7 +2300,7 @@ CollideIon::totalCrossSections(pCell* const c, double cr, int id)
       // END: Hybrid
       else if (aType==Trace) {
 	
-	PairXC IIxc(p1, p2, 0.0);
+	PairXC IIxc  (p1, p2, 0.0);
 	PairXC IExc12(p1, p2, 0.0);
 	PairXC IExc21(p2, p1, 0.0);
 
@@ -2497,7 +2672,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 	std::min<double>(b, b_max);
       }
 
-      double mfac = 4.0 * logL;
+      double mfac = 4.0 * plasma[id];
       cross12 = M_PI*b*b * eVel2 * ne2 * crossfac * cscl_[Z1] * mfac;
       dCross[id].push_back(cross12);
       dInter[id].push_back(ion_elec_1);
@@ -2523,7 +2698,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 	std::min<double>(b, b_max);
       }
 
-      double mfac = 4.0 * logL;
+      double mfac = 4.0 * plasma[id];
       cross21 = M_PI*b*b * eVel2 * ne2 * crossfac * cscl_[Z2] * mfac;
       dCross[id].push_back(cross21);
       dInter[id].push_back(ion_elec_2);
@@ -2568,7 +2743,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 	std::min<double>(b, b_max);
       }
 
-      double mfac = 4.0 * logL;
+      double mfac = 4.0 * plasma[id];
       cross21 = M_PI*b*b * eVel2 * ne2 * crossfac * cscl_[Z2] * mfac;
       dCross[id].push_back(cross21);
       dInter[id].push_back(ion_elec_2);
@@ -2589,7 +2764,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
       std::min<double>(b, b_max);
     }
 
-    double mfac = 4.0 * logL;
+    double mfac = 4.0 * plasma[id];
     double crossS = M_PI*b*b * crossfac * cscl_[Z1] * cscl_[Z2] * mfac;
     dCross[id].push_back(crossS);
     dInter[id].push_back(ion_ion_1);
@@ -2626,7 +2801,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 				//-------------------------------
   if (C1 > 1 and ne2 > 0) {	// Ion and Ion only
 
-    FF1[id] = ch.IonList[Q1]->freeFreeCross(kEe1[id], id);
+    FF1[id] = ad.IonList[Q1]->freeFreeCross(kEe1[id], id);
 
     double crs = eVel2 * ne2 * FF1[id].first;
 
@@ -2641,9 +2816,10 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 				//-------------------------------
   if (ne2 > 0 and C1 <= Z1) {	// Particle 1 must be bound
 
-    CE1[id] = ch.IonList[Q1]->collExciteCross(kEe1[id], id);
+    auto cumCross = ad.IonList[Q1]->collExciteCross(kEe1[id], id);
+    CE1[id] = IS.selectCEInteract(ad.IonList[Q1], cumCross);
 
-    double crs = eVel2 * ne2 * CE1[id].back().first;
+    double crs = eVel2 * ne2 * CE1[id].first;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -2656,7 +2832,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 				//-------------------------------
   if (ne2 > 0 and C1 <= Z1) {	// Particle 1 must be bound
 
-    double DI1 = ch.IonList[Q1]->directIonCross(kEe1[id], id);
+    double DI1 = ad.IonList[Q1]->directIonCross(kEe1[id], id);
     double crs = eVel2 * ne2 * DI1;
 
     xcross[id] = crs;
@@ -2672,7 +2848,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 				//-------------------------------
   if (C1 > 1 and ne2 > 0) {	// Particle 1 must be an ion
 
-    std::vector<double> RE1 = ch.IonList[Q1]->radRecombCross(kEe1[id], id);
+    std::vector<double> RE1 = ad.IonList[Q1]->radRecombCross(kEe1[id], id);
     double crs = eVel2 * ne2 * RE1.back();
 
     xcross[id] = crs;
@@ -2693,7 +2869,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 				// *** Free-free
 				//-------------------------------
   if (C2 > 1 and ne1 > 0) {
-    FF2[id] = ch.IonList[Q2]->freeFreeCross(kEe2[id], id);
+    FF2[id] = ad.IonList[Q2]->freeFreeCross(kEe2[id], id);
 
     double crs = eVel1 * ne1 * FF2[id].first;
 
@@ -2708,8 +2884,10 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 				//-------------------------------
   if (ne1 > 0 and C2 <= Z2) {
 
-    CE2[id] = ch.IonList[Q2]->collExciteCross(kEe2[id], id);
-    double crs = eVel1 * ne1 * CE2[id].back().first;
+    auto cumCross = ad.IonList[Q2]->collExciteCross(kEe2[id], id);
+    CE2[id] = IS.selectCEInteract(ad.IonList[Q2], cumCross);
+
+    double crs = eVel1 * ne1 * CE2[id].first;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -2721,7 +2899,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 				// *** Ionization cross section
 				//-------------------------------
   if (ne1 > 0 and C2 <= Z2) {
-    double DI2 = ch.IonList[Q2]->directIonCross(kEe2[id], id);
+    double DI2 = ad.IonList[Q2]->directIonCross(kEe2[id], id);
     double crs = eVel1 * ne1 * DI2;
 
     if (crs>0.0) {
@@ -2734,7 +2912,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 				// *** Radiative recombination
 				//-------------------------------
   if (C2 > 1 and ne1 > 0) {
-    std::vector<double> RE2 = ch.IonList[Q2]->radRecombCross(kEe2[id], id);
+    std::vector<double> RE2 = ad.IonList[Q2]->radRecombCross(kEe2[id], id);
     double crs = eVel1 * ne1 * RE2.back();
 
     if (crs>0.0) {
@@ -2966,7 +3144,7 @@ double CollideIon::crossSectionWeight
 				//-------------------------------
   if (C1 > 1 and ne2 > 0) {	// Ion and Ion only
 
-    FF1[id] = ch.IonList[Q1]->freeFreeCross(kEe1[id], id);
+    FF1[id] = ad.IonList[Q1]->freeFreeCross(kEe1[id], id);
 
     double crs = eVel2 * ne2 * FF1[id].first;
 
@@ -2981,23 +3159,24 @@ double CollideIon::crossSectionWeight
 				//-------------------------------
   if (ne2 > 0 and C1 <= Z1) {	// Particle 1 must be bound
 
-      CE1[id] = ch.IonList[Q1]->collExciteCross(kEe1[id], id);
+    auto cumCross = ad.IonList[Q1]->collExciteCross(kEe1[id], id);
+    CE1[id] = IS.selectCEInteract(ad.IonList[Q1], cumCross);
 
-      double crs = eVel2 * ne2 * CE1[id].back().first;
+    double crs = eVel2 * ne2 * CE1[id].first;
 
-      if (crs>0.0) {
-	dCross[id].push_back(crs);
-	dInter[id].push_back(colexcite_1);
-	sum12 += crs;
-      }
-
+    if (crs>0.0) {
+      dCross[id].push_back(crs);
+      dInter[id].push_back(colexcite_1);
+      sum12 += crs;
+    }
+    
   }
 				//-------------------------------
 				// *** Ionization cross section
 				//-------------------------------
   if (ne2 > 0 and C1 <= Z1) {	// Particle 1 must be bound
 
-    double DI1 = ch.IonList[Q1]->directIonCross(kEe1[id], id);
+    double DI1 = ad.IonList[Q1]->directIonCross(kEe1[id], id);
     double crs = eVel2 * ne2 * DI1;
 
     if (crs>0.0) {
@@ -3011,7 +3190,7 @@ double CollideIon::crossSectionWeight
 				//-------------------------------
   if (C1 > 1 and ne2 > 0) {	// Particle 1 must be an ion
 
-    std::vector<double> RE1 = ch.IonList[Q1]->radRecombCross(kEe1[id], id);
+    std::vector<double> RE1 = ad.IonList[Q1]->radRecombCross(kEe1[id], id);
     double crs = eVel2 * ne2 * RE1.back();
 
     if (crs>0.0) {
@@ -3031,7 +3210,7 @@ double CollideIon::crossSectionWeight
 				//-------------------------------
   if (C2 > 1 and ne1 > 0) {
 
-    FF2[id] = ch.IonList[Q2]->freeFreeCross(kEe2[id], id);
+    FF2[id] = ad.IonList[Q2]->freeFreeCross(kEe2[id], id);
 
     double crs = eVel1 * ne1 * FF2[id].first;
 
@@ -3046,8 +3225,10 @@ double CollideIon::crossSectionWeight
 				//-------------------------------
   if (ne1 > 0 and C2 <= Z2) {
 
-    CE2[id] = ch.IonList[Q2]->collExciteCross(kEe2[id], id);
-    double crs = eVel1 * ne1 * CE2[id].back().first;
+    auto cumCross = ad.IonList[Q2]->collExciteCross(kEe2[id], id);
+    CE2[id] = IS.selectCEInteract(ad.IonList[Q2], cumCross);
+
+    double crs = eVel1 * ne1 * CE2[id].first;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -3060,7 +3241,7 @@ double CollideIon::crossSectionWeight
 				//-------------------------------
   if (ne1 > 0 and C2 <= Z2) {
 
-    double DI2 = ch.IonList[Q2]->directIonCross(kEe2[id], id);
+    double DI2 = ad.IonList[Q2]->directIonCross(kEe2[id], id);
     double crs = eVel1 * ne1 * DI2;
 
     if (crs>0.0) {
@@ -3074,7 +3255,7 @@ double CollideIon::crossSectionWeight
 				//-------------------------------
   if (C2 > 1 and ne1 > 0) {
 
-    std::vector<double> RE2 = ch.IonList[Q2]->radRecombCross(kEe2[id], id);
+    std::vector<double> RE2 = ad.IonList[Q2]->radRecombCross(kEe2[id], id);
     double crs = eVel1 * ne1 * RE2.back();
 
     if (crs>0.0) {
@@ -3382,7 +3563,7 @@ double CollideIon::crossSectionHybrid
     if (k2==NTC::electron and P1>0 and P2>0) {
       
       double ke   = std::max<double>(kEe1[id], FloorEv);
-      FF1[id] = ch.IonList[Q1]->freeFreeCross(ke, id);
+      FF1[id] = ad.IonList[Q1]->freeFreeCross(ke, id);
 
       crs  = eVel2 * P2 * FF1[id].first * cfac;
       
@@ -3392,7 +3573,7 @@ double CollideIon::crossSectionHybrid
     // p2 ion, p1 electron
     if (k1==NTC::electron and P1>0 and P2>0) {
       double ke   = std::max<double>(kEe2[id], FloorEv);
-      FF2[id] = ch.IonList[Q2]->freeFreeCross(ke, id);
+      FF2[id] = ad.IonList[Q2]->freeFreeCross(ke, id);
       
       crs  = eVel1 * C1 * FF2[id].first * cfac;
       
@@ -3414,9 +3595,11 @@ double CollideIon::crossSectionHybrid
     if (P1<Z1 and P2>0) {
       
       double ke   = std::max<double>(kEe1[id], FloorEv);
-      CE1[id] = ch.IonList[Q1]->collExciteCross(ke, id);
+
+      auto cumCross = ad.IonList[Q1]->collExciteCross(ke, id);
+      CE1[id] = IS.selectCEInteract(ad.IonList[Q1], cumCross);
       
-      crs  = eVel2 * C2 * CE1[id].back().first * cfac;
+      crs  = eVel2 * C2 * CE1[id].first * cfac;
       
       if (DEBUG_CRS) trap_crs(crs, colexcite);
     }
@@ -3425,9 +3608,11 @@ double CollideIon::crossSectionHybrid
     if (P2<Z2 and P1>0) {
       
       double ke   = std::max<double>(kEe2[id], FloorEv);
-      CE2[id] = ch.IonList[Q2]->collExciteCross(ke, id);
+
+      auto cumCross = ad.IonList[Q2]->collExciteCross(ke, id);
+      CE2[id] = IS.selectCEInteract(ad.IonList[Q2], cumCross);
       
-      crs  = eVel1 * C1 * CE2[id].back().first * cfac;
+      crs  = eVel1 * C1 * CE2[id].first * cfac;
       
       if (DEBUG_CRS) trap_crs(crs, colexcite);
     }
@@ -3449,7 +3634,7 @@ double CollideIon::crossSectionHybrid
     if (P1<Z1 and P2>0) {
       
       double ke  = std::max<double>(kEe1[id], FloorEv);
-      double DI  = ch.IonList[Q1]->directIonCross(ke, id);
+      double DI  = ad.IonList[Q1]->directIonCross(ke, id);
       
       crs = eVel2 * C2 * DI * cfac;
       
@@ -3460,7 +3645,7 @@ double CollideIon::crossSectionHybrid
     if (P2<Z2 and P1>0) {
       
       double ke  = std::max<double>(kEe2[id], FloorEv);
-      double DI  = ch.IonList[Q2]->directIonCross(ke, id);
+      double DI  = ad.IonList[Q2]->directIonCross(ke, id);
       
       crs = eVel1 * C1 * DI * cfac;
       
@@ -3486,7 +3671,7 @@ double CollideIon::crossSectionHybrid
       // p1 ion and p1 electron
       if (P1>0) {
 	double ke              = std::max<double>(kE1s[id], FloorEv);
-	std::vector<double> RE = ch.IonList[Q1]->radRecombCross(ke, id);
+	std::vector<double> RE = ad.IonList[Q1]->radRecombCross(ke, id);
 	
 	crs = sVel1 * C1 * RE.back() * cfac;
 	
@@ -3496,7 +3681,7 @@ double CollideIon::crossSectionHybrid
       // p2 ion and p1 electron
       if (P2>0) {
 	double ke              = std::max<double>(kE2s[id], FloorEv);
-	std::vector<double> RE = ch.IonList[Q2]->radRecombCross(ke, id);
+	std::vector<double> RE = ad.IonList[Q2]->radRecombCross(ke, id);
 	crs = sVel2 * C2 * RE.back() * cfac;
 	
 	if (DEBUG_CRS) trap_crs(crs, recomb);
@@ -3510,7 +3695,7 @@ double CollideIon::crossSectionHybrid
 	// p1 ion and p2 electron
 	if (k2==NTC::electron) {
 	  double ke              = std::max<double>(kEe1[id], FloorEv);
-	  std::vector<double> RE = ch.IonList[Q1]->radRecombCross(ke, id);
+	  std::vector<double> RE = ad.IonList[Q1]->radRecombCross(ke, id);
 	  
 	  crs = eVel2 * C2 * RE.back() * cfac;
 	  
@@ -3520,7 +3705,7 @@ double CollideIon::crossSectionHybrid
 	// p2 ion and p1 electron
 	if (k1==NTC::electron) {
 	  double ke              = std::max<double>(kEe2[id], FloorEv);
-	  std::vector<double> RE = ch.IonList[Q2]->radRecombCross(ke, id);
+	  std::vector<double> RE = ad.IonList[Q2]->radRecombCross(ke, id);
 	  
 	  crs = eVel1 * C1 * RE.back() * cfac;
 	  
@@ -3978,7 +4163,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     if (K2 == NTC::electron and etaP2[id]>0.0) {
 
       double ke  = std::max<double>(kEe1[id], FloorEv);
-      FF1[id]    = ch.IonList[Q1]->freeFreeCross(ke, id);
+      FF1[id]    = ad.IonList[Q1]->freeFreeCross(ke, id);
 
       crs = eVelP2[id] * FF1[id].first;
 	
@@ -4001,7 +4186,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       if (K1 == NTC::electron and etaP1[id]>0.0) {
 
 	double ke = std::max<double>(kEe2[id], FloorEv);
-	FF2[id] = ch.IonList[Q2]->freeFreeCross(ke, id);
+	FF2[id] = ad.IonList[Q2]->freeFreeCross(ke, id);
 	
 	crs  = eVelP1[id] * FF2[id].first;
 	
@@ -4044,12 +4229,19 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     if (K2==NTC::electron and P1<Z1 and etaP2[id]>0.0) {
 
       double ke = std::max<double>(kEe1[id], FloorEv);
-      CE1[id] = ch.IonList[Q1]->collExciteCross(ke, id);
 
-      double crs = eVelP2[id] * CE1[id].back().first;
+      auto cumCross = ad.IonList[Q1]->collExciteCross(ke, id);
+      CE1[id] = IS.selectCEInteract(ad.IonList[Q1], cumCross);
+
+      double crs = eVelP2[id] * CE1[id].first;
       
       if (DEBUG_CRS) trap_crs(crs, colexcite);
       
+      /*
+      std::cout << "TEST: ke=" << ke << " xc=" << CE1[id].first
+		<< " ph=" << CE1[id].second << std::endl;
+      */
+
       // if (crs > 0.0) {
 #ifdef XC_DEEP1
 	std::cout << "xsc: xc=" << crs << " cv=" << crs*cr << std::endl;
@@ -4058,8 +4250,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	std::cout << "xsc: kEe=" << kEe1[id]
 		  << " (Z, P)=(" << Z1 << ", " << C1 << ")"
 		  << " gVel=" << eVelP2[id] << " eta=" << etaP2[id]
-		  << " xc=" << CE1[id].back().first
-		  << " dE=" << IS.selectCEInteract(ch.IonList[Q1], CE1[id])
+		  << " xc=" << CE1[id].first
+		  << " dE=" << CE1[id].second
 		  << std::endl;
 #endif
 	// }
@@ -4071,9 +4263,16 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     if (K1==NTC::electron and P2<Z2 and etaP1[id]>0.0) {
 
       double ke = std::max<double>(kEe2[id], FloorEv);
-      CE2[id] = ch.IonList[Q2]->collExciteCross(ke, id);
 
-      double crs = eVelP1[id] * CE2[id].back().first;
+      auto cumCross = ad.IonList[Q2]->collExciteCross(ke, id);
+      CE2[id] = IS.selectCEInteract(ad.IonList[Q2], cumCross);
+
+      /*
+      std::cout << "TEST: ke=" << ke << " xc=" << CE2[id].first
+		<< " ph=" << CE2[id].second << std::endl;
+      */
+
+      double crs = eVelP1[id] * CE2[id].first;
       
       if (DEBUG_CRS) trap_crs(crs, colexcite);
       
@@ -4085,8 +4284,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 	std::cout << "xsc: kEe=" << kEe2[id]
 		  << " (Z, P)=(" << Z2 << ", " << C2 << ")"
 		  << " gVel=" << eVelP1[id] << " eta=" << etaP1[id]
-		  << " xc=" << CE2[id].back().first
-		  << " dE=" << IS.selectCEInteract(ch.IonList[Q2], CE2[id])
+		  << " xc=" << CE2[id].first
+		  << " dE=" << CE2[id].second
 		  << std::endl;
 #endif
 	// }
@@ -4113,7 +4312,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     if (K2==NTC::electron and P1<Z1 and etaP2[id]>0.0) {
 
       double    ke = std::max<double>(kEe1[id], FloorEv);
-      double    DI = ch.IonList[Q1]->directIonCross(ke, id);
+      double    DI = ad.IonList[Q1]->directIonCross(ke, id);
       double   crs = eVelP2[id] * DI;
 
       xcross[id]   = crs;	// Cache cross-section value
@@ -4144,7 +4343,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
     if (K1==NTC::electron and P2<Z2 and etaP1[id]>0.0) {
 
       double ke    = std::max<double>(kEe2[id], FloorEv);
-      double DI    = ch.IonList[Q2]->directIonCross(ke, id);
+      double DI    = ad.IonList[Q2]->directIonCross(ke, id);
       double crs   = eVelP1[id] * DI;
 
       xcross[id]   = crs;	// Cache cross-section value
@@ -4190,23 +4389,45 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       //  +--- Ion is charged
       //  |
       //  v
-      if (P1>0 and K2==NTC::electron and etaP2[id]>0.0) {
+      if (P1>0 and K2==NTC::electron and etaP1[id]>0.0) {
 
 	double              ke = std::max<double>(kE1s[id], FloorEv);
-	std::vector<double> RE = ch.IonList[Q1]->radRecombCross(ke, id);
+	std::vector<double> RE = ad.IonList[Q1]->radRecombCross(ke, id);
 
 	double crs = sVelP1[id] * RE.back();
 
 	xcross[id] = crs;
 	
-	if (scatter_check and recomb_check) {
-	  double val = sVelP1[id] * cr * TreeDSMC::Vunit * 1.0e-14 * RE.back();
-	  recombA[id].add(K1, etaP1[id], val);
+        // Multiply by the fudge factor to make our recombination
+        // cross sections match
+	//
+	if (use_ratio)
+	  crs *= recombR[id][Z1][C1-2];
+
+	if (use_fudge) 
+	  crs *= fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]];
+
+	if (ratfink) {
+	  std::ostringstream ostr;
+	  ostr << outdir << runtag << ".fudge." << myid;
+	  std::ofstream out(ostr.str(), ios::out | ios::app);
+	  if (out) {
+	    out << std::setw( 4) << Z1 << std::setw(4) << C1
+		<< std::setw(16) << recombR[id][Z1][C1-2]
+		<< std::setw(16) << fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]]
+		<< std::endl;
+	  } else {
+	    std::cout << "CollideIon::cross_section_trace: could not open <"
+		      << ostr.str() << ">" <<std::endl;
+	  }
 	}
 
-	if (DEBUG_CRS) trap_crs(crs, recomb);
+        if (scatter_check and recomb_check) {
+          double val = cr * TreeDSMC::Vunit * 1.0e-14 * crs;
+          recombA[id].add(K1, etaP1[id], val);
+        }
 
-	if (use_ratio) crs *= recombR[id][Z1][C1-2];
+	if (DEBUG_CRS) trap_crs(crs, recomb);
 
 	return crs;
       }
@@ -4216,24 +4437,46 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       //  +--- Ion is charged
       //  |
       //  v
-      if (P2>0 and K1==NTC::electron and etaP1[id]>0.0) {
+      if (P2>0 and K1==NTC::electron and etaP2[id]>0.0) {
       
 	double              ke = std::max<double>(kE2s[id], FloorEv);
-	std::vector<double> RE = ch.IonList[Q2]->radRecombCross(ke, id);
+	std::vector<double> RE = ad.IonList[Q2]->radRecombCross(ke, id);
 
 	double crs = sVelP2[id] * RE.back();
 
 	xcross[id] = crs;
 
-	if (scatter_check and recomb_check) {
-	  double val = sVelP2[id] * cr * TreeDSMC::Vunit * 1.0e-14 * RE.back();
-	  recombA[id].add(K2, etaP2[id], val);
+	// Multiply by the fudge factor to make our recombination cross
+	// sections match CHIANTI
+	//
+	if (use_ratio)
+	  crs *= recombR[id][Z2][C2-2];
+
+	if (use_fudge)
+	  crs *= fudgeFacs[id][KeyConvert(K2).getKey()][cellTemps[id]];
+
+	if (ratfink) {
+	  std::ostringstream ostr;
+	  ostr << outdir << runtag << ".fudge." << myid;
+	  std::ofstream out(ostr.str(), ios::out | ios::app);
+	  if (out) {
+	    out << std::setw( 4) << Z1 << std::setw(4) << C2
+		<< std::setw(16) << recombR[id][Z2][C2-2]
+		<< std::setw(16) << fudgeFacs[id][KeyConvert(K2).getKey()][cellTemps[id]]
+		<< std::endl;
+	  } else {
+	    std::cout << "CollideIon::cross_section_trace: could not open <"
+		      << ostr.str() << ">" <<std::endl;
+	  }
 	}
+
+        if (scatter_check and recomb_check) {
+          double val = cr * TreeDSMC::Vunit * 1.0e-14 * crs;
+          recombA[id].add(K2, etaP2[id], val);
+        }
 
 	if (DEBUG_CRS) trap_crs(crs, recomb);
 	  
-	if (use_ratio) crs *= recombR[id][Z1][C1-2];
-
 	return crs;
       }
       
@@ -4250,31 +4493,41 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       if (P1>0 and K2==NTC::electron and etaP2[id]>0.0) {
 
 	double              ke = std::max<double>(kEe1[id], FloorEv);
-	std::vector<double> RE = ch.IonList[Q1]->radRecombCross(ke, id);
+	std::vector<double> RE = ad.IonList[Q1]->radRecombCross(ke, id);
 
 	double crs = eVelP2[id] * RE.back();
 
 	xcross[id] = crs;
 
-	if (scatter_check and recomb_check) {
-	  double val = eVelP2[id] * cr * TreeDSMC::Vunit * 1.0e-14 * RE.back();
-	  recombA[id].add(K1, etaP2[id], val);
-#ifdef EBUG_RECOMB_CHECK
-	  if (myid==0) {
-	    std::ofstream tst(runtag + ".recombCheck", std::ios::out | std::ios::app);
-	    if (tst) {
-	      tst << std::setw(16) << etaP2[id]
-		  << std::setw(16) << eVelP2[id]
-		  << std::setw(16) << kEe1[id]
-		  << std::setw(16) << cr * TreeDSMC::Vunit
-		  << std::setw(16) << eVelP2[id] * cr * TreeDSMC::Vunit
-		  << std::setw(16) << 1.0e-14 * RE.back()
-		  << std::setw(16) << eVelP2[id] * cr * TreeDSMC::Vunit * 1.0e-14 * RE.back()
-		  << std::endl;
-	    }
+        // Multiply by the fudge factor to make our recombination
+        // cross sections match CHIANTI
+	//
+	if (use_ratio)
+	  crs *= recombR[id][Z1][C1-2];
+
+	if (use_fudge)
+	  crs *= fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]];
+
+	if (ratfink) {
+	  std::ostringstream ostr;
+	  ostr << outdir << runtag << ".fudge." << myid;
+	  std::ofstream out(ostr.str(), ios::out | ios::app);
+	  if (out) {
+	    out << std::setw( 4) << Z1 << std::setw(4) << C1
+		<< std::setw(16) << recombR[id][Z1][C1-2]
+		<< std::setw(16) << fudgeFacs[id][KeyConvert(K1).getKey()][cellTemps[id]]
+		<< std::endl;
+	  } else {
+	    std::cout << "CollideIon::cross_section_trace: could not open <"
+		      << ostr.str() << ">" <<std::endl;
 	  }
-#endif
 	}
+
+        if (scatter_check and recomb_check) {
+          double val = cr * TreeDSMC::Vunit * 1.0e-14 * crs;
+          recombA[id].add(K1, etaP2[id], val);
+        }
+
 	
 	if (DEBUG_CRS) trap_crs(crs, recomb);
 	  
@@ -4291,8 +4544,6 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 #endif
 	  // }
 
-	if (use_ratio) crs *= recombR[id][Z1][C1-2];
-	
 	return crs;
       }
 
@@ -4306,31 +4557,41 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       if (P2>0 and K1==NTC::electron and etaP1[id]>0.0) {
 
 	double              ke = std::max<double>(kEe2[id], FloorEv);
-	std::vector<double> RE = ch.IonList[Q2]->radRecombCross(ke, id);
+	std::vector<double> RE = ad.IonList[Q2]->radRecombCross(ke, id);
 	  
 	double crs = eVelP1[id] * RE.back();
 	  
 	xcross[id] = crs;
 
-	if (scatter_check and recomb_check) {
-	  double val = eVelP1[id] * cr * TreeDSMC::Vunit * 1.0e-14 * RE.back();
-	  recombA[id].add(K2, etaP1[id], val);
-#ifdef EBUG_RECOMB_CHECK
-	  if (myid==0) {
-	    std::ofstream tst(runtag + ".recombCheck", std::ios::out | std::ios::app);
-	    if (tst) {
-	      tst << std::setw(16) << etaP1[id]
-		  << std::setw(16) << eVelP1[id]
-		  << std::setw(16) << kEe2[id]
-		  << std::setw(16) << cr * TreeDSMC::Vunit
-		  << std::setw(16) << eVelP1[id] * cr * TreeDSMC::Vunit
-		  << std::setw(16) << 1.0e-14 * RE.back()
-		  << std::setw(16) << eVelP1[id] * cr * TreeDSMC::Vunit * 1.0e-14 * RE.back()
-		  << std::endl;
-	    }
+	// Multiply by the fudge factor to make our recombination
+	// cross sections match CHIANTI
+	//
+        if (use_ratio)
+	  crs *= recombR[id][Z2][C2-2];
+
+	if (use_fudge)
+	  crs *= fudgeFacs[id][KeyConvert(K2).getKey()][cellTemps[id]];
+
+	if (ratfink) {
+	  std::ostringstream ostr;
+	  ostr << outdir << runtag << ".fudge." << myid;
+	  std::ofstream out(ostr.str(), ios::out | ios::app);
+	  if (out) {
+	    out << std::setw( 4) << Z2 << std::setw(4) << C2
+		<< std::setw(16) << recombR[id][Z2][C2-2]
+		<< std::setw(16) << fudgeFacs[id][KeyConvert(K2).getKey()][cellTemps[id]]
+		<< std::endl;
+	  } else {
+	    std::cout << "CollideIon::cross_section_trace: could not open <"
+		      << ostr.str() << ">" <<std::endl;
 	  }
-#endif
 	}
+
+        if (scatter_check and recomb_check) {
+          double val = cr * TreeDSMC::Vunit * 1.0e-14 * crs;
+          recombA[id].add(K2, etaP1[id], val);
+        }
+
 	  
 	if (DEBUG_CRS) trap_crs(crs, recomb);
 	  
@@ -4346,8 +4607,6 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 		    << " fac=" << fac2 << std::endl;
 #endif
 	}
-
-	if (use_ratio) crs *= recombR[id][Z1][C1-2];
 
 	return crs;
       }
@@ -4569,7 +4828,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
     }
 
     if (interFlag == colexcite_1) {
-      delE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]);
+      delE = CE1[id].second;
       partflag      = 1;
       ctd1->CE[id][0] += 1;
       ctd1->CE[id][1] += NN;
@@ -4577,7 +4836,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
     }
 
     if (interFlag == ionize_1) {
-      delE          = IS.DIInterLoss(ch.IonList[Q1]);
+      delE          = IS.DIInterLoss(ad.IonList[Q1]);
       p1->iattrib[use_key] = k1.updateC(++C1);
       partflag      = 1;
       ctd1->CI[id][0] += 1;
@@ -4589,7 +4848,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
 
       // if (use_elec<0) delE = kEe1[id];
       delE = kEe1[id];
-      if (Recomb_IP) delE += ch.IonList[lQ(Z2, C2-1)]->ip;
+      if (Recomb_IP) delE += ad.IonList[lQ(Z2, C2-1)]->ip;
 
       p1->iattrib[use_key] = k1.updateC(--C1);
       partflag      = 1;
@@ -4631,7 +4890,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
     }
 
     if (interFlag == colexcite_2) {
-      delE         = IS.selectCEInteract(ch.IonList[Q2], CE2[id]);
+      delE         = CE2[id].second;
       partflag     = 2;
       ctd2->CE[id][0] += 1;
       ctd2->CE[id][1] += NN;
@@ -4639,7 +4898,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
     }
 
     if (interFlag == ionize_2) {
-      delE = IS.DIInterLoss(ch.IonList[Q2]);
+      delE = IS.DIInterLoss(ad.IonList[Q2]);
       p2->iattrib[use_key] = k2.updateC(++C2);
       ctd2->CI[id][0] += 1;
       ctd2->CI[id][1] += NN;
@@ -4651,7 +4910,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
 
       // if (use_elec<0) delE = kEe2[id];
       delE = kEe2[id];
-      if (Recomb_IP) delE += ch.IonList[lQ(Z2, C2-1)]->ip;
+      if (Recomb_IP) delE += ad.IonList[lQ(Z2, C2-1)]->ip;
 
       p2->iattrib[use_key] = k2.updateC(--C2);
       partflag     = 2;
@@ -5397,7 +5656,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
   }
 
   if (interFlag == colexcite_1) {
-    delE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]);
+    delE = CE1[id].second;
     partflag      = 1;
     ctd1->CE[id][0] += 1;
     ctd1->CE[id][1] += Wb;
@@ -5405,7 +5664,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
   }
 
   if (interFlag == ionize_1) {
-    delE          = IS.DIInterLoss(ch.IonList[Q1]);
+    delE          = IS.DIInterLoss(ad.IonList[Q1]);
     p1->iattrib[use_key] = k1.updateC(++C1);
     partflag      = 1;
     if (NO_ION_E) delE = 0.0;
@@ -5421,7 +5680,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
 
     // if (use_elec<0) delE = kEe1[id];
     delE = kEe1[id];
-    if (Recomb_IP) delE += ch.IonList[lQ(Z1, C1)]->ip;
+    if (Recomb_IP) delE += ad.IonList[lQ(Z1, C1)]->ip;
     
     ctd1->RR[id][0] += 1;
     ctd1->RR[id][1] += Wb;
@@ -5481,7 +5740,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
   }
 
   if (interFlag == colexcite_2) {
-    delE         = IS.selectCEInteract(ch.IonList[Q2], CE2[id]);
+    delE         = CE2[id].second;
     partflag     = 2;
     ctd2->CE[id][0] += 1;
     ctd2->CE[id][1] += Wb;
@@ -5489,7 +5748,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
   }
 
   if (interFlag == ionize_2) {
-    delE = IS.DIInterLoss(ch.IonList[Q2]);
+    delE = IS.DIInterLoss(ad.IonList[Q2]);
     p2->iattrib[use_key] = k2.updateC(++C2);
     partflag     = 2;
     if (NO_ION_E) delE = 0.0;
@@ -5505,7 +5764,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
       
     // if (use_elec<0) delE = kEe2[id];
     delE = kEe2[id];
-    if (Recomb_IP) delE += ch.IonList[lQ(Z2, C2)]->ip;
+    if (Recomb_IP) delE += ad.IonList[lQ(Z2, C2)]->ip;
     
     ctd2->RR[id][0] += 1;
     ctd2->RR[id][1] += Wb;
@@ -7332,7 +7591,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	//
 	// Ion is p2
 	//
-	double tmpE = IS.selectCEInteract(ch.IonList[Q2], CE2[id]);
+	double tmpE = CE2[id].second;
 
 	dE = tmpE * Prob;
 
@@ -7348,7 +7607,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	//
 	// Ion is p1
 	//
-	double tmpE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]);
+	double tmpE = CE1[id].second;
 	
 	dE = tmpE * Prob;
 
@@ -7398,7 +7657,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  F.normTest(2, sout.str());
 	}
 	
-	double tmpE = IS.DIInterLoss(ch.IonList[Q2]);
+	double tmpE = IS.DIInterLoss(ad.IonList[Q2]);
 	dE = tmpE * Prob;
 
 	// Queue the added electron KE for removal
@@ -7456,7 +7715,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  F.normTest(2, sout.str());
 	}
 	    
-	double tmpE = IS.DIInterLoss(ch.IonList[Q1]);
+	double tmpE = IS.DIInterLoss(ad.IonList[Q1]);
 	dE = tmpE * Prob;
 	  
 	// Queue the added electron KE for removal
@@ -7526,7 +7785,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	// Electron KE radiated in recombination
 	double eE = iE2 * Prob;
 
-	if (Recomb_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * Prob;
+	if (Recomb_IP) dE += ad.IonList[lQ(Z2, C2)]->ip * Prob;
 	if (energy_scale > 0.0) dE *= energy_scale;
 
 	ctd2->RR[id][0] += Prob;
@@ -7599,7 +7858,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	double eE = 0.0;
 	eE = iE1 * Prob * TreeDSMC::Eunit / (N0*eV);
 
-	if (Recomb_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * Prob;
+	if (Recomb_IP) dE += ad.IonList[lQ(Z1, C1)]->ip * Prob;
 	if (energy_scale > 0.0) dE *= energy_scale;
 
 	ctd1->RR[id][0] += Prob;
@@ -9717,7 +9976,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  // Ion is p2
 	  //
-	  double tmpE = IS.selectCEInteract(ch.IonList[Q2], CE2[id]);
+	  double tmpE = CE2[id].second;
 
 	  dE = tmpE * Prob/atomic_weights[Z2] * etaP1[id];
 
@@ -9754,7 +10013,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  //
 	  // Ion is p1
 	  //
-	  double tmpE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]);
+	  double tmpE = CE1[id].second;
 
 	  dE = tmpE * Prob/atomic_weights[Z1] * etaP2[id];
 
@@ -9840,7 +10099,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  
 	  Prob = WW;
 	  
-	  double tmpE = IS.DIInterLoss(ch.IonList[Q2]);
+	  double tmpE = IS.DIInterLoss(ad.IonList[Q2]);
 	  dE = tmpE * Prob/atomic_weights[Z2] * etaP1[id];
 
 	  // The kinetic energy of the ionized electron is lost
@@ -9931,7 +10190,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	    
 	  Prob = WW;
 
-	  double tmpE = IS.DIInterLoss(ch.IonList[Q1]);
+	  double tmpE = IS.DIInterLoss(ad.IonList[Q1]);
 	  dE = tmpE * Prob/atomic_weights[Z1] * etaP2[id];
 	  
 	  // The kinetic energy of the ionized electron is lost
@@ -10048,7 +10307,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // radiative loss from the incoming electron and the loss
 	  // from changing the state of the ion
 	  //
-	  double Edel = (iE1 - iE2) * wEta;
+	  double Edel = 0.0;
+
+	  if (!newRecombAlg) Edel = (iE1 - iE2) * wEta;
 
 	  // This is the negative KE energy in change in the ion's
 	  // electron
@@ -10062,12 +10323,13 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  printf("Recombine[2]: W=%e E=%e eV=%e sys=%e\n", wEta, iE2, Echg, Echg*eV/TreeDSMC::Eunit);
 #endif
 	  // Electron KE radiated in recombination
-
-	  Echg = iE1 * wEta;
+	  //
+	  if (newRecombAlg) Echg = iE2 * wEta;
+	  else              Echg = iE1 * wEta;
 
 	  double eE = Echg / eV;
 
-	  if (Recomb_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * Prob/atomic_weights[Z1] * etaP1[id];
+	  if (Recomb_IP) dE += ad.IonList[lQ(Z2, C2)]->ip * Prob/atomic_weights[Z1] * etaP1[id];
 	  if (energy_scale > 0.0) dE *= energy_scale;
 
 	  ctd->RR[id][0] += Prob * etaP1[id];
@@ -10177,7 +10439,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	  // radiative loss from the incoming electron and the loss
 	  // from changing the state of the ion
 	  //
-	  double Edel = (iE2 - iE1) * wEta;
+	  double Edel = 0.0;
+
+	  if (!newRecombAlg) Edel = (iE2 - iE1) * wEta;
 
 	  // This is the negative KE energy in change in the ion's
 	  // electron
@@ -10192,11 +10456,12 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 #endif
 	  // Electron KE fraction in recombination
 	  //
-	  Echg = iE2 * wEta;
+	  if (newRecombAlg) Echg = iE1 * wEta;
+	  else              Echg = iE2 * wEta;
 	  
 	  double eE = Echg / eV;
 
-	  if (Recomb_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * Prob/atomic_weights[Z1] * etaP2[id];
+	  if (Recomb_IP) dE += ad.IonList[lQ(Z1, C1)]->ip * Prob/atomic_weights[Z1] * etaP2[id];
 	  if (energy_scale > 0.0) dE *= energy_scale;
 
 	  ctd->RR[id][0] += Prob * etaP2[id];
@@ -10845,7 +11110,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
       std::ostringstream sout;
       for (auto s : SpList) {
-	double Pr = ch.IonList[s.first]->photoIonizationRate().first * 
+	double Pr = ad.IonList[s.first]->photoIonizationRate().first * 
 	  TreeDSMC::Tunit * spTau[id];
 	maxSoFar = std::max<double>(Pr, maxSoFar);
 	if (Pr>maxProb) good = false;
@@ -10903,7 +11168,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 	if (dT[p]<=0.0) continue;
 	
 	// Pick a new photon for each particle
-	CFreturn ff  = ch.IonList[Q]->photoIonizationRate();
+	CFreturn ff  = ad.IonList[Q]->photoIonizationRate();
 	  
 	if (ff.first>0.0) {
 	  // Increment total count
@@ -11061,7 +11326,10 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
   // Compute mean number of particles
   //
   double meanW  = 0.0;
-  double deferE = 0.0;		// Accmulated deferred energy change
+
+  // Accmulated deferred energy change for all interactions
+  //
+  double deferE = 0.0;		
 
   for (auto b : c->bods) {
 
@@ -11093,8 +11361,7 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
     // Select for fractional scatter at random, if we can defer
     // inelastic energy change.  Otherwise, stick with n_p rounded up.
     //
-    if (use_cons>=0 and (*unit)() > dn_p - n_p) {
-      deferE += std::get<1>(v.second);
+    if (use_cons>=0 and (*unit)() < static_cast<double>(n_p) - dn_p) {
       n_p--;
     }
 
@@ -11122,6 +11389,16 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
       }
     }
 
+    // Sanity check
+    //
+    if (P.size()==0) {
+      std::cout << "accumTraceScatter: value size(P)=0,"
+		<< " II=" << accumIIxc[id].size()
+		<< " IE=" << accumIExc[id].size()
+		<< std::endl;
+      return;
+    }
+
     // Normalize accum
     //
     for (int i=1; i<P.size(); i++) P[i] += P[i-1];
@@ -11146,13 +11423,14 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
 	p2 = std::get<1>(accumIExc[id][ii]);
       }
 
-      double m1 = 0.0, m2 = 0.0;
+      double m1 = 0.0, m2 = 0.0, e2 = 0.0;
       for (auto s : SpList) {
 	m1 += p1->dattrib[s.second] / atomic_weights[s.first.first];
 	m2 += p2->dattrib[s.second] / atomic_weights[s.first.first];
+	e2 += p2->dattrib[s.second] / atomic_weights[s.first.first] * (s.first.second - 1);
       }
-      m1 = 1.0/m1;
-      m2 = 1.0/m2;
+      m1  = 1.0/m1;
+      m2  = 1.0/m2;
 
       double v1[3], v2[3], W1=p1->mass/m1, W2=p2->mass/m2;
       double WW = W1>W2 ? W2 : W1;
@@ -11164,9 +11442,9 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
       if (v.first == AccumType::ion_ion) {
 	for (int k=0; k<3; k++) v2[k] = p2->vel[k];
       }
-      // Particle  is Electron
+      // Particle 2 is Electron
       else {			
-	m2 = atomic_weights[0];
+	m2 *= atomic_weights[0] * e2;
 	for (int k=0; k<3; k++) v2[k] = p2->dattrib[use_elec+k];
       }
 
@@ -11190,8 +11468,11 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
       }
 
       // Energy in COM
+      //
       double kE = 0.5*WW*mu*vi;
-				// Energy reduced by loss
+
+      // Energy reduced by loss
+      //
       double totE = kE - dE;
       double vfac = 0.0;
       
@@ -11210,6 +11491,16 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
 
 	vfac = sqrt(totE/kE);
       }
+
+      if (dE!=0.0) std::cout << "CHECK: dE=" << dE << " kE=" << kE
+			     << " vfac=" << vfac
+			     << " vi="   << vi
+			     << " dn_p=" << dn_p
+			     << " np="   << n_p
+			     << " m1="   << m1
+			     << " m2="   << m2
+			     << std::endl;
+    
 
       vrel = unit_vector();
   
@@ -11232,7 +11523,7 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
       if (v.first == AccumType::ion_ion) {
 	for (int k=0; k<3; k++) p2->vel[k] = v2[k];
       }
-      // Particle 1 is Electron
+      // Particle 2 is Electron
       else {
 	for (int k=0; k<3; k++) p2->dattrib[use_elec+k] = v2[k];
       }
@@ -11258,6 +11549,10 @@ void CollideIon::scatterTrace
   if (NO_HSCAT) return;
 
   if (pp->W2 == 0.0) return;
+
+  // pp->W1 is ion number
+  // pp->q  is the ratio of the number fraction in the two ions
+  // W      is the probability of interaction
 
   if (pp->P == Pord::ion_ion)
     {
@@ -11389,11 +11684,11 @@ void CollideIon::coulombicScatterDirect(int id, pCell* const c, double dT)
       //
       KE *= 0.5 * mu * TreeDSMC::Vunit * TreeDSMC::Vunit;
 
-      // Coulombic rate
+      // Coulombic rate (physical units)
       //
       double pVel = sqrt(2.0*KE/mu);
       double afac = esu*esu*Q1*Q2/std::max<double>(2.0*KE, FloorEv*eV);
-      double tau = ABrate[id][l]*afac*afac*pVel * dT;
+      double tau  = ABrate[id][l]*afac*afac*pVel * dT;
       
 #ifdef XC_DEEP11
 	printf("coul5: l=%d pVel=%e afac=%e dt=%e tau=%e mu=%e m1=%e m2=%e\n",
@@ -11430,7 +11725,9 @@ void CollideIon::coulombicScatterDirect(int id, pCell* const c, double dT)
 
 	// Assign interaction energy variables
 	//
-	vrel = coulomb_vector(vrel, W1, W2, tau);
+	double fac = std::max<double>(W1, W2)/std::min<double>(W1, W2);
+
+	vrel = coulomb_vector(vrel, fac*tau);
 	
 	vi   = sqrt(vi);
 	for (auto & v : vrel) v *= vi;
@@ -11519,6 +11816,65 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
   //
   dT *= TreeDSMC::Tunit;
 
+  // Compute particle interactions weights
+  //
+  std::array<double, 4> na, nab;
+  
+  for (auto p : cpair) {
+    Particle* const p1 = tree->Body(c->bods[p.first]);
+    Particle* const p2 = tree->Body(c->bods[p.second]);
+
+    // Mean molecular weight for each particle
+    //
+    double Mu1=0.0, Mu2=0.0;
+    for (auto s : SpList) {
+				// Number fraction of ions
+      double one = p1->dattrib[s.second] / atomic_weights[s.first.first];
+      double two = p2->dattrib[s.second] / atomic_weights[s.first.first];
+
+      Mu1 += one;
+      Mu2 += two;
+    }
+				// The molecular weight
+    Mu1 = 1.0/Mu1;
+    Mu2 = 1.0/Mu1;
+
+    // Proportional to number of true particles in each superparticle
+    //
+    double W1 = p1->mass/Mu1, ww1;
+    double W2 = p2->mass/Mu2, ww2;
+
+    std::array<PordPtr, 4> PP =
+      { PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_ion,           DBL_MAX) ),
+	PordPtr(new Pord(this, p1, p2, W1, W2, Pord::ion_electron,      DBL_MAX) ),
+	PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_ion,      DBL_MAX) ),
+	PordPtr(new Pord(this, p1, p2, W1, W2, Pord::electron_electron, DBL_MAX) ) };
+
+    ww1     = PP[0]->frc1 * PP[0]->W1;
+    ww2     = PP[0]->frc2 * PP[0]->W2;
+    na[0]  += ww1;
+    if (std::max<double>(ww1,ww2)>0.0) 
+      nab[0] += ww1*ww2/std::max<double>(ww1,ww2);
+
+    ww1     = PP[1]->frc1 * PP[1]->W1;
+    ww2     = PP[1]->eta2 * PP[1]->W2;
+    na[1]  += ww1;
+    if (std::max<double>(ww1,ww2)>0.0)
+      nab[1] += ww1*ww2/std::max<double>(ww1,ww2);
+
+    ww1     = PP[2]->eta1 * PP[2]->W1;
+    ww2     = PP[2]->frc2 * PP[2]->W2;
+    na[2]  += ww1;
+    if (std::max<double>(ww1,ww2)>0.0)
+      nab[2] += ww1*ww2/std::max<double>(ww1,ww2);
+
+    ww1     = PP[3]->eta1 * PP[3]->W1;
+    ww2     = PP[3]->eta2 * PP[3]->W2;
+    na[3]  += ww1;
+    if (std::max<double>(ww1,ww2)>0.0)
+      nab[3] += ww1*ww2/std::max<double>(ww1,ww2);
+  }
+
   // Do all pairs
   //
   for (auto p : cpair) {
@@ -11557,7 +11913,27 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 
       double KE = 0.0;
 
+      // Neutrality rejection
+      //
+      if (l==0 or l==1) {
+	if ( (*unit)() > pp->frc1 ) continue;
+      }
+
+      if (l==2) {
+	if ( (*unit)() > pp->frc2 ) continue;
+      }
+
       if (l==0) {
+
+	double ww1 = PP[0]->frc1 * PP[0]->W1;
+	double ww2 = PP[0]->frc2 * PP[0]->W2;
+	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
+	if (ww1 > ww2) {
+	  if ( (*unit)() > ww2/ww1 ) continue;
+	} else {
+	  if ( (*unit)() > ww1/ww2 ) continue;
+	}
+
 	for (int k=0; k<3; k++) {
 				// Particle 1 is an ion
 	  v1[k]  = p1->vel[k];
@@ -11566,7 +11942,18 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 
 	  KE += (v1[k] - v2[k]) * (v1[k] - v2[k]);
 	}
+
       } else if (l==1) {
+
+	double ww1 = PP[1]->frc1 * PP[1]->W1;
+	double ww2 = PP[1]->eta2 * PP[1]->W2;
+	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
+	if (ww1 > ww2) {
+	  if ( (*unit)() > ww2/ww1 ) continue;
+	} else {
+	  if ( (*unit)() > ww1/ww2 ) continue;
+	}
+
 	for (int k=0; k<3; k++) {
 				// Particle 1 is the ion
 	  v1[k]  = p1->vel[k];
@@ -11575,7 +11962,18 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 
 	  KE += (v1[k] - v2[k]) * (v1[k] - v2[k]);
 	}
+
       } else if (l==2) {
+
+	double ww1 = PP[2]->eta1 * PP[2]->W1;
+	double ww2 = PP[2]->frc2 * PP[2]->W2;
+	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
+	if (ww1 > ww2) {
+	  if ( (*unit)() > ww2/ww1 ) continue;
+	} else {
+	  if ( (*unit)() > ww1/ww2 ) continue;
+	}
+
 	for (int k=0; k<3; k++) {
 				// Particle 2 is the ion
 	  v2[k]  = p2->vel[k];
@@ -11584,7 +11982,18 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 
 	  KE += (v1[k] - v2[k]) * (v1[k] - v2[k]);
 	}
+
       } else {
+
+	double ww1 = PP[3]->eta1 * PP[3]->W1;
+	double ww2 = PP[3]->eta2 * PP[3]->W2;
+	if (ww1 <= 0.0 or ww2 <= 0.0) continue;
+	if (ww1 > ww2) {
+	  if ( (*unit)() > ww2/ww1 ) continue;
+	} else {
+	  if ( (*unit)() > ww1/ww2 ) continue;
+	}
+
 	for (int k=0; k<3; k++) {
 				// Both particles are electrons
 	  v1[k]  = p1->dattrib[use_elec+k];
@@ -11592,6 +12001,7 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
 
 	  KE += (v1[k] - v2[k]) * (v1[k] - v2[k]);
 	}
+
       }
 
       if (pp->swap) zswap(v1, v2);
@@ -11601,9 +12011,15 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
       double m1 = pp->m1;
       double m2 = pp->m2;
 
-      double Q1 = pp->eta1;
-      double Q2 = pp->eta2;
+      double Q1 = pp->Q1;
+      double Q2 = pp->Q2;
 	
+      // Check for electron and scale by charge to preserve total
+      // energy
+      //
+      if (m1 < 0.5) m1 *= pp->eta1;
+      if (m2 < 0.5) m2 *= pp->eta2;
+
       m1 = std::max<double>(m1, 1.0e-12); 
       m2 = std::max<double>(m2, 1.0e-12); 
 
@@ -11624,7 +12040,7 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
       //
       KE *= 0.5 * mu * TreeDSMC::Vunit * TreeDSMC::Vunit;
 
-      // Coulombic rate
+      // Coulombic rate (physical units)
       //
       double pVel = sqrt(2.0*KE/mu);
       double afac = esu*esu*Q1*Q2/std::max<double>(2.0*KE, FloorEv*eV);
@@ -11656,7 +12072,7 @@ void CollideIon::coulombicScatterTrace(int id, pCell* const c, double dT)
       if (kE>0.0) {
 	// Assign interaction energy variables
 	//
-	vrel = coulomb_vector(vrel, W1,  W2,  tau);
+	vrel = coulomb_vector(vrel, nab[l]/na[l]*tau);
 	
 	vi   = sqrt(vi);
 	for (auto & v : vrel) v *= vi;
@@ -12473,7 +12889,7 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	Particle *p  = tree->Body(b);
 
 	// Pick a new photon for each body
-	CFreturn ff  = ch.IonList[Q]->photoIonizationRate();
+	CFreturn ff  = ad.IonList[Q]->photoIonizationRate();
 
 	if (ff.first>0.0) {
 	  // Increment total count
@@ -12500,7 +12916,10 @@ void CollideIon::finalize_cell(pCell* const cell, sKeyDmap* const Fn,
 	  photoW[id][s.first] += ww;
 	  photoN[id][s.first] += ww * p->mass * Gm;
 
-	  scatterPhotoTrace(p, Q, ww, Ep);
+	  //    +---Sanity check
+	  //    |
+	  //    v
+	  if (ww>0.0) scatterPhotoTrace(p, Q, ww, Ep);
 	}
       }
     }
@@ -13008,7 +13427,7 @@ void collDiag::addCellPotl(pCell* cell, int id)
 	  unsigned short C = k.second;
 	  if (C <= Z) {
 	    double emfac     = s->mass/Collide::atomic_weights[Z] * cvrt;
-	    double IP        = p->ch.IonList[lQ(Z, C)]->ip;
+	    double IP        = p->ad.IonList[lQ(Z, C)]->ip;
 	    Epot[id]        += emfac * IP * s->dattrib[t.second];
 	  }
 	}
@@ -13018,7 +13437,7 @@ void collDiag::addCellPotl(pCell* cell, int id)
 	unsigned short Z = k.first;
 	double emfac     = s->mass/Collide::atomic_weights[Z] * cvrt;
 	for (unsigned short CC=Z+1; CC>1; CC--) {
-	  double IP = p->ch.IonList[lQ(Z, CC-1)]->ip;
+	  double IP = p->ad.IonList[lQ(Z, CC-1)]->ip;
 	  Epot[id] += emfac * IP * s->dattrib[p->spc_pos+CC-1] ;
 	}
       } else {
@@ -13026,7 +13445,7 @@ void collDiag::addCellPotl(pCell* cell, int id)
 	unsigned short Z = k.first, C = k.second;
 	double emfac     = s->mass/Collide::atomic_weights[Z] * cvrt;
 	for (unsigned short CC=C; CC>1; CC--) {
-	  Epot[id] +=  emfac * p->ch.IonList[lQ(Z, CC-1)]->ip;
+	  Epot[id] +=  emfac * p->ad.IonList[lQ(Z, CC-1)]->ip;
 	}
       }
     } // END: body loop
@@ -14245,7 +14664,7 @@ NTC::InteractD CollideIon::generateSelectionTrace
 
   // Compute collision rates in system units
   //
-  double crossM = (*Fn)[key] * dens * crossRat / crm;
+  double crossM = (*Fn)[key] * dens * crossRat;
   double collPM = crossM * crm * tau;
 
   // Cache time step for estimating "over" cooling timestep is use_delt>=0
@@ -15497,7 +15916,7 @@ void CollideIon::gatherSpecies()
 		    << "---- Photoionization coefficient" << std::endl
 		    << std::string(8+18+10, '-') << std::endl;
 	  for (auto s : SpList) {
-	    double Rate = ch.IonList[s.first]->photoIonizationRate().first;
+	    double Rate = ad.IonList[s.first]->photoIonizationRate().first;
 	    if (Rate>0.0) {
 	      std::ostringstream slab;
 	      slab << s.first.first << ", " << s.first.second;
@@ -15836,6 +16255,7 @@ void CollideIon::photoWPrint()
 	sout3 << "-----Q2 = " << frcQ2[Q];
 	sout4 << "-----Q3 = " << frcQ3[Q];
 
+	/*
 	if (photoStat[0][Q][0]>0) {
 	  sout5 << "-----" << std::endl
 		<< "-----Stats (" << Q.first << ", " << Q.second << "):"
@@ -15846,6 +16266,7 @@ void CollideIon::photoWPrint()
 		  << " rat=" << photoStat[0][Q][1]/photoStat[0][Q][0]
 		  << " avg=" << photoStat[0][Q][2]/photoStat[0][Q][1];
 	}
+	*/
 
 				// Print header
 	out << std::endl << std::left
@@ -16003,7 +16424,7 @@ void CollideIon::electronGather()
     }
 
     if (elecDist and (aType==Hybrid or aType==Trace)) {
-      std::vector<double> eEV, eRC, eEVmin, eEVavg, eEVmax, eEVsub;
+      std::vector<double> eEV, eRC, eEVmin, eEVavg, eEVmax, eEVsub, logLE;
       for (int t=0; t<nthrds; t++) {
 	eEV.insert(eEV.end(),
 		   elecEV[t].begin(), elecEV[t].end());
@@ -16017,6 +16438,8 @@ void CollideIon::electronGather()
 		      elecEVmax[t].begin(), elecEVmax[t].end());
 	eEVsub.insert(eEVsub.end(),
 		      elecEVsub[t].begin(), elecEVsub[t].end());
+	logLE.insert(logLE.end(),
+		      plasmaP[t].begin(), plasmaP[t].end());
       }
 
       // All processes send to root
@@ -16058,6 +16481,11 @@ void CollideIon::electronGather()
 	  MPI_Send(&tauIon[0][0],  4, MPI_DOUBLE,   0, 332, MPI_COMM_WORLD);
 	  MPI_Send(&tauElc[0][0],  4, MPI_DOUBLE,   0, 335, MPI_COMM_WORLD);
 	  MPI_Send(&colUps[0][0],  4, MPI_DOUBLE,   0, 338, MPI_COMM_WORLD);
+
+	  num = logLE.size();
+	  MPI_Send(&num,           1, MPI_UNSIGNED, 0, 339, MPI_COMM_WORLD);
+	  if (num)
+	    MPI_Send(&logLE[0],  num, MPI_DOUBLE,   0, 340, MPI_COMM_WORLD);
 
 	} // END: process send to root
 
@@ -16135,6 +16563,14 @@ void CollideIon::electronGather()
 
 	  for (int k=0; k<4; k++) colUps[0][k] += tmpR[k];
 
+	  MPI_Recv(&num,      1, MPI_UNSIGNED, n, 339, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	  if (num) {
+	    v.resize(num);
+	    MPI_Recv(&v[0], num, MPI_DOUBLE,   n, 340, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    logLE.insert(logLE.end(), v.begin(), v.end());
+	  }
+
 	} // Root receive loop
 
 	MPI_Barrier(MPI_COMM_WORLD);
@@ -16153,7 +16589,9 @@ void CollideIon::electronGather()
 	if (eEVavg.size()) elecEVHavg = ahistoDPtr(new AsciiHisto<double>(eEVavg, 20,  0.01 ));
 	if (eEVmax.size()) elecEVHmax = ahistoDPtr(new AsciiHisto<double>(eEVmax, 20,  0.01 ));
 	if (eEVsub.size()) elecEVHsub = ahistoDPtr(new AsciiHisto<double>(eEVsub, 20,  0.01 ));
+	if (logLE.size())  logLH      = ahistoDPtr(new AsciiHisto<double>(logLE,  20,  0.01 ));
 	if (eRC.size())    elecRCH    = ahistoDPtr(new AsciiHisto<double>(eRC,    100, 0.005));
+	
 	if (rcmbTotlSum>0) {
 	  std::vector<unsigned> rcmbT;
 	  rcmbScale = 1.0e9/rcmbTotlSum;
@@ -16982,6 +17420,14 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< "-----Electron momentum difference ratio -------------" << std::endl
 	<< std::string(53, '-')  << std::endl;
     (*momH)(out);
+  }
+
+  if (logLH.get()) {
+    out << std::endl
+	<< std::string(53, '-')  << std::endl
+	<< "-----Coulombic logarithm distribution ---------------" << std::endl
+	<< std::string(53, '-')  << std::endl;
+    (*logLH)(out);
   }
 
   if (crsH.get()) {
@@ -17991,7 +18437,14 @@ void CollideIon::processConfig()
       logL = config["logL"]["value"].as<double>();
     else {
       config["logL"]["desc"] = "Coulombic log(Lambda) value";
-      config["logL"]["value"] = logL = 24.0;
+      config["logL"]["value"] = logL = 20.0;
+    }
+
+    if (config["logLfac"])
+      logL = config["logLfac"]["value"].as<double>();
+    else {
+      config["logLfac"]["desc"] = "Scale internal Coulombic log(Lambda) value";
+      config["logLfac"]["value"] = 0.0;
     }
 
     if (config["coulInter"])
@@ -18245,10 +18698,20 @@ void CollideIon::processConfig()
       config["KE_WEIGHT"]["value"] = ke_weight = true;
     }
 
+    if (config["FUDGE_CHIANTI"])
+      use_fudge = config["FUDGE_CHIANTI"]["value"].as<bool>();
+    else {
+      config["FUDGE_CHIANTI"]["desc"] = "Use fudge factors to make our radiative recombination rates match CHIANTI";
+      config["FUDGE_CHIANTI"]["value"] = use_fudge = false;
+    }
+
+    if (config["ratfink"])
+      ratfink = config["ratfink"]["value"].as<bool>();
+
     if (config["RECOMB_RATIO"])
       use_ratio = config["RECOMB_RATIO"]["value"].as<bool>();
     else {
-      config["RECOMB_RATIO"]["desc"] = "Upscale Verner recombintation cross sections by thermal rate coefficient ratio";
+      config["RECOMB_RATIO"]["desc"] = "Upscale recombination cross sections by thermal rate coefficient ratio";
       config["RECOMB_RATIO"]["value"] = use_ratio = false;
     }
 
@@ -18422,6 +18885,13 @@ void CollideIon::processConfig()
     else {
       config["VFKY"]["desc"] = "Use Verner's photoionization cross-section code based on Verner, Ferland, Korista, Yakovlev (1996) and Verner and Yakovlev (1995)";
       config["VFKY"]["value"] = Ion::use_VFKY;
+    }
+
+    if (config["VAN_HOOF"])
+      Ion::use_VAN_HOOF = config["VAN_HOOF"]["value"].as<bool>();
+    else {
+      config["VAN_HOOF"]["desc"] = "Use van Hoof et al. 2015 Gaunt factor fit for free-fee cross section";
+      config["VAN_HOOF"]["value"] = Ion::use_VAN_HOOF;
     }
 
     if (config["MFP"]) 
@@ -18842,7 +19312,13 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
     // Get molecular weights and electron fractions
     //
     double mol1 = 0.0, mol2 = 0.0;
+    double chg1 = 0.0, chg2 = 0.0;
+
+    // Zero values for accumulation
+    //
     eta1 = eta2 = 0.0;
+    Q1 = Q2 = 0.0;
+
     for (auto s : c->SpList) {
 				// Molecular weight
       mol1 += p1->dattrib[s.second]/atomic_weights[s.first.first];
@@ -18851,7 +19327,15 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
       unsigned P =  s.first.second - 1;
       eta1 += p1->dattrib[s.second]*P/atomic_weights[s.first.first];
       eta2 += p2->dattrib[s.second]*P/atomic_weights[s.first.first];
-
+				// Mean charge
+      if (P) {
+	frc1 += p1->dattrib[s.second];
+	frc2 += p2->dattrib[s.second];
+	chg1 += p1->dattrib[s.second]/atomic_weights[s.first.first];
+	chg2 += p2->dattrib[s.second]/atomic_weights[s.first.first];
+	Q1   += p1->dattrib[s.second]*P/atomic_weights[s.first.first];
+	Q2   += p2->dattrib[s.second]*P/atomic_weights[s.first.first];
+      }
     }
     eta1 /= mol1;		// Electrons per particle
     eta2 /= mol2;
@@ -18859,22 +19343,12 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
     m1 = m10 = 1.0/mol1;	// Molecular weight
     m2 = m20 = 1.0/mol2;
     
-    // Get kinetic energies
-    //
-    for (size_t k=0; k<3; k++) {
-      KE1[0] += p1->vel[k] * p1->vel[k];
-      KE2[0] += p2->vel[k] * p2->vel[k];
-      KE1[1] += p1->dattrib[c->use_elec+k] * p1->dattrib[c->use_elec+k];
-      KE2[1] += p2->dattrib[c->use_elec+k] * p2->dattrib[c->use_elec+k];
-    }
-
-    KE1[0] *= 0.5*p1->mass;
-    KE2[0] *= 0.5*p2->mass;
-    KE1[1] *= 0.5*p1->mass * eta1 * atomic_weights[0]/m1;
-    KE2[1] *= 0.5*p2->mass * eta2 * atomic_weights[0]/m2;
+				// Mean charge
+    if (chg1>0.0) Q1 /= chg1;
+    if (chg2>0.0) Q2 /= chg2;
 
   } // END: Trace method
-  else {
+  else if (c->aType == Hybrid) {
 
     // Cache species keys
     //
@@ -18893,15 +19367,65 @@ CollideIon::Pord::Pord(CollideIon* c, Particle *P1, Particle *P2,
     
     // Compute electron fractions
     //
+
+    frc1 = frc2 = 0.0;
     eta1 = eta2 = 0.0;
+    Q1 = Q2 = 0.0;
+
     if (caller->use_elec>=0) {
-      for (unsigned short C=1; C<=Z1; C++)
-	eta1 += p1->dattrib[caller->spc_pos+C]*C;
-      for (unsigned short C=1; C<=Z2; C++)
-	eta2 += p2->dattrib[caller->spc_pos+C]*C;
+      for (unsigned short C=2; C<=Z1; C++) {
+	frc1 += p1->dattrib[caller->spc_pos+C];
+	eta1 += p1->dattrib[caller->spc_pos+C]*(C-1);
+      }
+      for (unsigned short C=2; C<=Z2; C++) {
+	frc2 += p2->dattrib[caller->spc_pos+C];
+	eta2 += p2->dattrib[caller->spc_pos+C]*(C-1);
+      }
+
+      if (frc1) Q1 = eta1/frc1;
+      if (frc2) Q2 = eta2/frc2;
     }
+
+  } else {
+
+    // Cache species keys
+    //
+    k1 = KeyConvert(p1->iattrib[c->use_key]).getKey();
+    k2 = KeyConvert(p2->iattrib[c->use_key]).getKey();
+  
+    // Get atomic numbers
+    //
+    Z1 = k1.first;
+    Z2 = k2.first;
+  
+    // Get atomic masses
+    //
+    m1 = m10 = atomic_weights[Z1];
+    m2 = m20 = atomic_weights[Z2];
     
-  } // END: all methods method besides Trace
+    // Compute electron fractions
+    //
+    Q1   = k1.second - 1;
+    Q2   = k2.second - 1;
+    eta1 = p1->dattrib[caller->spc_pos] * Q1;
+    eta2 = p2->dattrib[caller->spc_pos] * Q2;
+  }
+  // END: all methods method besides Hybrid and Trace
+
+
+  // Get kinetic energies
+  //
+  for (size_t k=0; k<3; k++) {
+    KE1[0] += p1->vel[k] * p1->vel[k];
+    KE2[0] += p2->vel[k] * p2->vel[k];
+    KE1[1] += p1->dattrib[c->use_elec+k] * p1->dattrib[c->use_elec+k];
+    KE2[1] += p2->dattrib[c->use_elec+k] * p2->dattrib[c->use_elec+k];
+  }
+  
+  KE1[0] *= 0.5*p1->mass;
+  KE2[0] *= 0.5*p2->mass;
+  KE1[1] *= 0.5*p1->mass * eta1 * atomic_weights[0]/m1;
+  KE2[1] *= 0.5*p2->mass * eta2 * atomic_weights[0]/m2;
 
   switch (P) {
   case ion_electron:
@@ -18950,7 +19474,15 @@ void CollideIon::Pord::swapPs()
   // Swap electron number fraction
   //
   zswap(eta1, eta2);
+
+  // Swap charge fraction
+  //
+  zswap(frc1, frc2);
     
+  // Swap mean charge
+  //
+  zswap(Q1, Q2);
+
   // Swap true particle numbers
   //
   zswap(w1, w2);
@@ -19009,7 +19541,12 @@ CollideIon::Pord::Epair CollideIon::Pord::compE()
 				// Compute electron fractions
   if (caller->aType == Trace) {
     double mol1 = 0.0, mol2 = 0.0;
+    double chg1 = 0.0, chg2 = 0.0;
+
+    frc1 = frc2 = 0.0;
     eta1 = eta2 = 0.0;
+    Q1 = Q2 = 0.0;
+
     for (auto s : caller->SpList) {
 				// Molecular weight
       mol1 += p1->dattrib[s.second]/atomic_weights[s.first.first];
@@ -19018,21 +19555,37 @@ CollideIon::Pord::Epair CollideIon::Pord::compE()
       unsigned P = s.first.second - 1;
       eta1 += p1->dattrib[s.second]*P/atomic_weights[s.first.first];
       eta2 += p2->dattrib[s.second]*P/atomic_weights[s.first.first];
+				// Mean charge
+      if (P) {
+	frc1 += p1->dattrib[s.second];
+	frc2 += p2->dattrib[s.second];
+	chg1 += p1->dattrib[s.second]/atomic_weights[s.first.first];
+	chg2 += p2->dattrib[s.second]/atomic_weights[s.first.first];
+	Q1   += p1->dattrib[s.second]*P/atomic_weights[s.first.first];
+	Q2   += p2->dattrib[s.second]*P/atomic_weights[s.first.first];
+      }
     }
 
     eta1 /= mol1;
     eta2 /= mol2;
 
+    if (chg1>0.0) Q1 /= chg1;
+    if (chg2>0.0) Q2 /= chg2;
+
   } // END: Trace method
   else {
 
-    eta1 = 0.0;
-    for (unsigned short C=1; C<=Z1; C++)
+    frc1 = eta1 = 0.0;
+    for (unsigned short C=1; C<=Z1; C++) {
+      frc1 += p1->dattrib[caller->spc_pos+C];
       eta1 += p1->dattrib[caller->spc_pos+C]*C;
+    }
 
-    eta2 = 0.0;
-    for (unsigned short C=1; C<=Z2; C++)
+    frc2 = eta2 = 0.0;
+    for (unsigned short C=1; C<=Z2; C++) {
+      frc2 += p2->dattrib[caller->spc_pos+C];
       eta2 += p2->dattrib[caller->spc_pos+C]*C;
+    }
 
   } // END: All methods besides Trace
 
@@ -19437,8 +19990,8 @@ void CollideIon::Fspc::normTest(unsigned short n, const std::string& lab)
 
 // Return 3d Colombic scattering vector
 //
-std::vector<double>& CollideIon::coulomb_vector(std::vector<double>& rel,
-						double W1, double W2, double Tau)
+std::vector<double>& CollideIon::coulomb_vector
+(std::vector<double>& rel, double tau)
 {
   if (not coulombSel.get()) coulombSel = boost::make_shared<coulombSelect>();
 
@@ -19448,8 +20001,6 @@ std::vector<double>& CollideIon::coulomb_vector(std::vector<double>& rel,
   double vfac = sqrt(rel2);
   if (vfac>0.0) for (auto & v : rel) v /= vfac;
 
-  double fac    = std::max<double>(W1, W2)/std::min<double>(W1, W2);
-  double tau    = fac * Tau;
   double cosx   = (*coulombSel)(tau, (*unit)());
   double sinx   = sqrt(fabs(1.0 - cosx*cosx));
   double phi    = 2.0*M_PI*(*unit)();
@@ -19493,121 +20044,248 @@ std::vector<double>& CollideIon::coulomb_vector(std::vector<double>& rel,
   return rel;
 }
 
-CollideIon::RecombRatio::RecombRatio(unsigned short Z, chdata& ch,
+CollideIon::RecombRatio::RecombRatio(unsigned short Z, atomicData& ad,
 				     double Tmin, double Tmax, int numT) :
-Z(Z), Tmn(Tmin), Tmx(Tmax), numT(numT)
+  Z(Z), Tmn(Tmin), Tmx(Tmax), numT(numT)
 {
-  std::vector<std::vector<double>> rdata;
-
-  // Get recombination rates from ChiantiPy
+  // Try open cache file
   //
-  const char *inFile = std::tmpnam(0);
+  std::ostringstream fout;
+  fout << ".chianti_recomb_cache_" << Ion::rr_lab[Ion::rr_type]
+       << "_" << Z;
 
-  // Check for existence of script and write file if needed
+  std::ifstream in(fout.str());
+  bool reject = false;
+
+  // Try to read cache file
   //
-  writeScript();
+  if (in) {
 
-  std::ostringstream sout;
-
-  sout << "python3 ./recomb.py"
-       << " -Z " << Z
-       << " -t " << Tmn
-       << " -T " << Tmx
-       << " -n " << numT
-       << " -o " << inFile;
-
-  // Print out command for debugging
-  //
-  // std::cout << sout.str() << std::endl;
-
-  int sret = system(&sout.str()[0]);
-
-  std::ifstream in(inFile);
-
-  // For temperature data
-  //
-  std::vector<double> temp(numT);
-
-  // For recombination rate data
-  //
-  rdata.resize(Z);
-  cdata.resize(Z);
-  for (int C=2; C<=Z+1; C++) {
-    rdata[C-2].resize(numT);
-    cdata[C-2].resize(numT);
-  }
-
-  // Get data from generated file
-  //
-  for (int nt=0; nt<numT; nt++) {
-    std::string line;
-    if (std::getline(in, line)) {
-      std::istringstream ins(line);
-      ins >> temp[nt];
-      for (int C=2; C<=Z+1; C++) ins >> rdata[C-2][nt];
-    }
-  }
-
-  // Close and remove temporary file
-  //
-  in.close();
-  remove(inFile);
-
-  // Log ranges for temperature/ratio grid
-  //
-  Tmn = log(Tmn);
-  Tmx = log(Tmx);
-  dT  = (Tmx - Tmn)/(numT-1);
-
-  // Log ranges for energy integration with a minimum interval
-  //
-  double Emin = log(Emin0);
-  double Emax = log(Emax0);
-  int    numE = std::max<int>(numE0, 10);
-
-  typedef std::map<unsigned short, std::vector<double> > rateMap;
-
-  double dE = (Emax - Emin)/numE;
-
-  for (int nt=0; nt<numT; nt++) {
-
-    double T = temp[nt];
-
-    rateMap val0;
-    std::vector<rateMap> val1(numE);
+    // Read YAML string size
+    //
+    unsigned int hsize;
+    in.read(reinterpret_cast<char *>(&hsize), sizeof(unsigned int));
     
-    for (int ne=0; ne<numE; ne++) {
-      
-      double Eb = Emin + dE*ne;
-      double Ef = Emin + dE*(ne+1);
+    // Create buffer
+    //
+    auto buf = boost::make_unique<char[]>(hsize+1);
 
-      Eb = exp(Eb);
-      Ef = exp(Ef);
+    // Read YAML string
+    //
+    in.read(buf.get(), hsize);
+    buf[hsize] = 0;		// Null terminate
+
+    YAML::Node node = YAML::Load(buf.get());
       
-      if (val0.size()) {
-	std::map<unsigned short, std::vector<double> >
-	  valT = ch.recombEquil(Z, T, Eb, Ef, norder);
-	for (auto v : val0) {
-	  unsigned short C = v.first;
-	  size_t        sz = v.second.size();
-	  for (size_t j=0; j<sz; j++) val0[C][j] += valT[C][j];
-	}
-      } else {
-	val0 = ch.recombEquil(Z, T, Ef, Eb, norder);
-      }
-      val1[ne] = val0;
+    // Get parameters
+    //
+    std::string type1 = node["type"].as<std::string>();
+    unsigned short Z1 = node["Z"   ].as<unsigned short>();
+    double      Tmin1 = node["Tmin"].as<double>();
+    double      Tmax1 = node["Tmax"].as<double>();
+    int         numT1 = node["numT"].as<int>();
+
+    if (Ion::rr_type != Ion::rr_map[type1]) reject = true;
+    if (Z != Z1)                            reject = true;
+    if (fabs(Tmin - Tmin1) > 1.0e-8*Tmin)   reject = true;
+    if (fabs(Tmax - Tmax1) > 1.0e-8*Tmax)   reject = true;
+    if (numT != numT1)                      reject = true;
+
+    // For recombination rate data
+    //
+    cdata.resize(Z);
+    for (int C=2; C<=Z+1; C++) {
+      cdata[C-2].resize(numT);
     }
-      
-    for (auto v : val1.back()) {
-      unsigned short C = v.first;
-      if (C>1) {
-	if (v.second[2]>0.0)
-	  cdata[C-2][nt] = rdata[C-2][nt]/(v.second[2]*1.0e-14);
-	else
-	  cdata[C-2][nt] = 0.0;
-      }
+    
+    // Get cached data
+    //
+    for (int nt=0; nt<numT; nt++) {
+      for (int C=2; C<=Z+1; C++)
+	in.read(reinterpret_cast<char *>(&cdata[C-2][nt]), sizeof(double));
+    }
+    
+    // Check that all data has been read, just in case root node is
+    // still writing and the cache file is incomplete
+    //
+    if (in.good()) {
+      std::cout << "CollideIon::RecombRatio::RecombRatio [" << myid
+		<< "]: successfully read <" << fout.str() << ">" << std::endl;
+
+      // Set log ranges for temperature/ratio grid
+      //
+      Tmn = log(Tmin);
+      Tmx = log(Tmax);
+      dT  = (Tmx - Tmn)/(numT-1);
+    } else {
+      reject = true;
     }
   }
+  // Cache file read
+  else {
+    reject = true;
+  }
+
+  // Cache file unavailable, incomplete, inconsistent, etc.
+  //
+  if (reject) {
+    // Get recombination rates from ChiantiPy
+    //
+    const char *inFile = std::tmpnam(0);
+    
+    // Check for existence of script and write file if needed
+    //
+    writeScript();
+
+    std::ostringstream sout;
+
+    sout << "$PYTHON ./recomb.py"
+	 << " -Z " << Z
+	 << " -t " << Tmin
+	 << " -T " << Tmax
+	 << " -n " << numT
+	 << " -o " << inFile;
+    
+    // Print out command for debugging
+    //
+    std::cout << sout.str() << std::endl;
+    
+    int sret = system(&sout.str()[0]);
+    
+    std::ifstream in(inFile);
+    
+    // For temperature data
+    //
+    std::vector<double> temp(numT);
+    
+    // For recombination rate data
+    //
+    cdata.resize(Z);
+    for (int C=2; C<=Z+1; C++) {
+      cdata[C-2].resize(numT);
+    }
+    
+    // Get data from generated file
+    //
+    for (int nt=0; nt<numT; nt++) {
+      std::string line;
+      if (std::getline(in, line)) {
+	std::istringstream ins(line);
+	ins >> temp[nt];
+	for (int C=2; C<=Z+1; C++) ins >> cdata[C-2][nt];
+      }
+    }
+    
+    // Close and remove temporary file
+    //
+    in.close();
+    remove(inFile);
+
+    // Log ranges for temperature/ratio grid
+    //
+    Tmn = log(Tmin);
+    Tmx = log(Tmax);
+    dT  = (Tmx - Tmn)/(numT-1);
+
+    // Log ranges for energy integration with a minimum interval
+    //
+    double Emin = log(Emin0);
+    double Emax = log(Emax0);
+    int    numE = std::max<int>(numE0, 10);
+
+    typedef std::map<unsigned short, std::vector<double> > rateMap;
+
+    double dE = (Emax - Emin)/numE;
+
+    for (int nt=0; nt<numT; nt++) {
+
+      double T = temp[nt];
+
+      rateMap val0;
+      std::vector<rateMap> val1(numE);
+    
+      for (int ne=0; ne<numE; ne++) {
+      
+	double Eb = Emin + dE*ne;
+	double Ef = Emin + dE*(ne+1);
+
+	Eb = exp(Eb);
+	Ef = exp(Ef);
+      
+	if (val0.size()) {
+	  std::map<unsigned short, std::vector<double> >
+	    valT = ad.recombEquil(Z, T, Eb, Ef, norder);
+	  for (auto v : val0) {
+	    unsigned short C = v.first;
+	    size_t        sz = v.second.size();
+	    for (size_t j=0; j<sz; j++) val0[C][j] += valT[C][j];
+	  }
+	} else {
+	  val0 = ad.recombEquil(Z, T, Ef, Eb, norder);
+	}
+	val1[ne] = val0;
+      }
+      
+      for (auto v : val1.back()) {
+	unsigned short C = v.first;
+	if (C>1) {
+	  if (v.second[2]>0.0)
+	    cdata[C-2][nt] = cdata[C-2][nt]/(v.second[2]*1.0e-14);
+	  else
+	    cdata[C-2][nt] = 0.0;
+	}
+      }
+    }
+
+    if (myid==0) {
+	
+      // Write cache file
+      //
+      YAML::Node node;
+    
+      node["type"] = Ion::rr_lab[Ion::rr_type];
+      node["Z"   ] = Z;
+      node["Tmin"] = Tmin;
+      node["Tmax"] = Tmax;
+      node["numT"] = numT;
+      
+      // Serialize the node
+      //
+      YAML::Emitter y; y << node;
+      
+      // Get the size of the string
+      //
+      unsigned int hsize = strlen(y.c_str());
+  
+      std::ofstream out(fout.str());
+
+      if (out) {
+	// Write YAML string size
+	//
+	out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
+    
+	// Write YAML string
+	//
+	out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
+	
+	// Write data base of values
+	//
+	for (int nt=0; nt<numT; nt++) {
+	  for (int C=2; C<=Z+1; C++)
+	    out.write(reinterpret_cast<const char *>(&cdata[C-2][nt]), sizeof(double));
+	}
+	//
+	// Cache written!
+      } else {
+	std::cout << "CollideIon::RecombRatio: could not open cache file <"
+		  << fout.str() << ">" << std::endl;
+      }
+
+    }
+    // Only root node writes the cache
+  }
+  // No cache file found
+
 }
 
 double CollideIon::RecombRatio::operator()(unsigned short C, double T)
@@ -19824,7 +20502,7 @@ void CollideIon::cuda_part_stats_gather()
 	unsigned short C = k.second;
 	if (C <= Z) {
 	  double emfac     = s->mass/atomic_weights[Z] * cvrt;
-	  double IP        = ch.IonList[lQ(Z, C)]->ip;
+	  double IP        = ad.IonList[lQ(Z, C)]->ip;
 	  cs.Epot         += emfac * IP * s->dattrib[t.second];
 	}
       }
@@ -19834,7 +20512,7 @@ void CollideIon::cuda_part_stats_gather()
       unsigned short Z = k.first;
       double emfac     = s->mass/atomic_weights[Z] * cvrt;
       for (unsigned short CC=Z+1; CC>1; CC--) {
-	double IP = ch.IonList[lQ(Z, CC-1)]->ip;
+	double IP = ad.IonList[lQ(Z, CC-1)]->ip;
 	cs.Epot  += emfac * IP * s->dattrib[spc_pos+CC-1] ;
       }
     } else {
@@ -19842,7 +20520,7 @@ void CollideIon::cuda_part_stats_gather()
       unsigned short Z = k.first, C = k.second;
       double emfac     = s->mass/atomic_weights[Z] * cvrt;
       for (unsigned short CC=C; CC>1; CC--) {
-	cs.Epot += emfac * ch.IonList[lQ(Z, CC-1)]->ip;
+	cs.Epot += emfac * ad.IonList[lQ(Z, CC-1)]->ip;
       }
     }
     

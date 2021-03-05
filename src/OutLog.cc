@@ -395,13 +395,21 @@ void OutLog::Run(int n, int mstep, bool last)
     angmG[j] = angm0[j] = 0.0;
   }
 
-
 				// Collect info
   unsigned ntot;
   int indx = 0;
 
   for (auto c : comp->components) {
   
+#ifdef HAVE_LIBCUDA
+    if (use_cuda) {
+      if (not comp->fetched[c]) {
+	comp->fetched[c] = true;
+	c->CudaToParticles();
+      }
+    }
+#endif
+
     nbodies1[indx] = c->Number();
 
     PartMapItr it = c->Particles().begin();

@@ -457,6 +457,27 @@ CBrockDisk::determine_fields_at_point_cyl(double r, double z, double phi,
   *tpott = 0.0;
 }
 
+void 
+CBrockDisk::determine_fields_at_point(double x, double y, double z,
+				      double *tdens0, double *tpotl0, 
+				      double *tdens, double *tpotl, 
+				      double *tpotX, double *tpotY, 
+				      double *tpotZ)
+
+{
+  double R   = sqrt(x*x + y*y);
+  double phi = atan2(y, x);
+  double cph = cos(phi), sph = sin(phi);
+  double tpotR, tpotP;
+
+  determine_fields_at_point_polar(R, phi, tdens0, tpotl0, tdens, tpotl,
+				  &tpotR, &tpotP);
+
+  *tpotZ = tpotR*cph - tpotP*sph ;
+  *tpotY = tpotR*sph + tpotP*cph ;
+  *tpotZ = 0.0;
+}
+
 
 void CBrockDisk::determine_fields_at_point_polar
 (

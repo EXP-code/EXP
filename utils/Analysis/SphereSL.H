@@ -6,6 +6,7 @@
 
 #include <SLGridMP2.h>
 #include <localmpi.h>
+#include <eigen3/Eigen/Eigen>
 
 /**
    Uses SLGridSph basis to evaluate expansion coeffients and provide
@@ -22,10 +23,6 @@ private:
   Matrix potd, dpot, dpt2, dend;
   Matrix legs, dlegs, d2legs;
 
-  Matrix cc;			// Will hold covariance matrix
-  Vector cw;			// Work vector
-  int nmat;
-
   bool coefs_defined;
   Matrix factorial;
   Matrix expcoef;
@@ -34,14 +31,29 @@ private:
 
   bool compute_covar;
 
-  Matrix covar;
-  Matrix var;
+  using matT = std::vector<Eigen::MatrixXd>;
+  using vecT = std::vector<Eigen::VectorXd>;
 
-  Vector work1, work2;
+  matT covar;
+  vecT mean;
+  vecT svar;
+  matT uvec;
+  double totalMass;
+
+  std::vector<vecT> meanB;
+  std::vector<double> massB;
+  int npart, curbin;
+
+  double minSNR, maxSNR;
+
+  Vector work;
 
   void bomb(char *s);
 
 public:
+
+  //! Number of eigenfunctions for each subspace for PNG figure
+  static int NEV;
 
   //! Number of radial points in table (default: 800)
   static int NUMR;
@@ -49,13 +61,20 @@ public:
   //! Use MPI?  (default: false)
   static bool mpi;
 
+  //! Hall exponent (default: 1)
+  static double HEXP;
+
   /** Constructor
       \param mod instance of SphericalModelTable to condition eigenfunctions
       \param LMAX is the maximum harmonic order
       \param NMAX is the maximum radial order
+      \param CMAP is the SLGridSph coordindate mapping type
+      \param SCALE is the SLGridSph coordindate scale length
       \param COVAR true will evaluate the covariance matrix for coeffficients
+      \param JACK >0 will evaluate the covariance matrix using a jackknife partition with number given
   */
-  SphereSL(SphericalModelTable* mod, int LMAX, int NMAX, bool COVAR=false);
+  SphereSL(SphericalModelTable* mod, int LMAX, int NMAX,
+	   int CMAP=0, double SCALE=0.067, bool COVAR=false, int NPART=0);
   
   //! Destructor
   ~SphereSL(void);
@@ -69,11 +88,26 @@ public:
   //! Make coefficients after accumulation
   void make_coefs(void);
 
+  //! Covariance analysis
+  void make_covar(bool verbose=false);
+
   //! Install coefficients
   void install_coefs(Matrix& newcoef);
 
   //! Retrieve coefficients
   Matrix retrieve_coefs(void) { return expcoef; }
+
+  //! Minimum SNR coefficient value
+  double getMinSNR(void) { return minSNR; }
+
+  //! Maximum SNR coefficient value
+  double getMaxSNR(void) { return maxSNR; }
+
+  //! Retrieve coefficients with SNR trim
+  Matrix get_trimmed(double snr, bool Hall=false);
+
+  //! Retrieve coefficients
+  std::vector<Eigen::MatrixXd> retrieve_covar(void) { return covar; }
 
   //! Accumulate new coefficients
   void accumulate(double x, double y, double z, double mass);

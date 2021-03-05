@@ -7,6 +7,8 @@
 
 #include <boost/make_shared.hpp>
 
+#include <Eigen/Eigen>
+
 #include <gaussQ.h>
 #include <interp.h>
 #include <math.h>
@@ -42,15 +44,24 @@ extern pthread_mutex_t coef_lock;
 
 #endif
 
-//! Encapsulatates a SLGridSph (Sturm-Liouville basis) for use as force method
+
+/** Encapsulatates a SLGridSph (Sturm-Liouville basis) for use as
+    force method
+    
+    This version breaks the spherical basis computation into even and
+    odd subspaces if Nodd is selected.  This gives the user more
+    control over the vertical parity, is numerically more accurate,
+    and more efficient.
+ */
 class EmpCylSL
 {
 public:
 
-  typedef boost::shared_ptr<SphericalModelTable> SphModTblPtr;
-  typedef boost::shared_ptr<SLGridSph>           SLGridSphPtr;
-  typedef boost::shared_ptr<Vector>              VectorP;
-  typedef boost::shared_ptr<Matrix>              MatrixP;
+  using SphModTblPtr = boost::shared_ptr<SphericalModelTable>;
+  using SLGridSphPtr = boost::shared_ptr<SLGridSph>;
+  using VectorM      = std::vector<Vector>;
+  using MatrixM      = std::vector<Matrix>;
+  using ContribArray = std::vector<Eigen::VectorXd>;
 
 private:
 
@@ -72,6 +83,7 @@ private:
   vector<double> cylmass1;
   bool cylmass_made;
   double cylmass;
+  double minSNR, maxSNR;
 
   vector<double> r, d, m, p;
 
@@ -80,12 +92,12 @@ private:
   double pfac, dfac, ffac;
 
   std::vector<Matrix> facC, facS;
-  
+
   int rank2, rank3;
 
   //@{
   //! Storage buffers for MPI
-  std::vector<double> MPIin, MPIout;
+  std::vector<double> MPIin, MPIout, MPIin2, MPIout2;
   std::vector<double> MPIin_eof, MPIout_eof;
 
   std::vector<double> mpi_double_buf2, mpi_double_buf3;
@@ -95,14 +107,14 @@ private:
 
   //@{
   //! EOF variance computation
-  std::vector< std::vector< std::vector< std::vector<double> > > > SC;
-  std::vector< std::vector< std::vector< std::vector<double> > > > SS;
+  using VarMat = std::vector< std::vector< std::vector< std::vector<double> > > >;
+  VarMat SC, SS, SCe, SCo, SSe, SSo;
   //@}
 
-  std::vector<Matrix> var;
+  std::vector<Matrix> var, varE, varO;
 
-  Vector ev;
-  Matrix ef;
+  std::vector< std::vector<int> > lE, lO;
+  Matrix ef, efE, efO;
   Matrix potd, dpot, dend;
   std::vector<Vector> cosm, sinm;
   std::vector<Matrix> legs, dlegs;
@@ -159,8 +171,9 @@ private:
   std::vector<Vector> accum_cos;
   std::vector<Vector> accum_sin;
 
-  /** More syntactic sugar for array of shared pointers: define an
-      operator to the object of the shared pointer.  That is, for:
+  //@{
+  /** More syntactic sugar for arrays of arrays: define an operator to
+      the object of the main nested arrays.  That is, for:
 
       MatrixArray arr(N);
       for (auto & v : arr) v.resize(M);
@@ -175,16 +188,28 @@ private:
 
       to access elements.
   */
-  struct MatrixArray : public std::vector<std::vector<MatrixP>>
+  struct CoefVector : public std::vector<std::vector<VectorM>>
   {
-    Matrix & operator()(int i, unsigned j) { return (*(*this)[i][j]); }
+    Vector & operator()(int i, unsigned j, int m) { return ((*this)[i][j][m]); }
   };
 
+  struct CoefMatrix : public std::vector<std::vector<MatrixM>>
+  {
+    Matrix & operator()(int i, unsigned j, int m) { return ((*this)[i][j][m]); }
+  };
+  //@}
 
-  MatrixArray tvar;		// Test for eof trim
-  MatrixArray cos2, sin2;
 
+  // Test for eof trim
+  std::vector<std::vector<Matrix>> tvar;
+
+  // Error analysis
+  CoefVector  covV;
+  CoefMatrix  covM;
+
+  std::vector< std::vector<unsigned>  > numbT1;
   std::vector< std::vector<double>  > massT1;
+  std::vector<unsigned> numbT;
   std::vector<double> massT;
   unsigned sampT;
 
@@ -192,6 +217,12 @@ private:
   std::vector<Matrix> vc, vs;
 
   Matrix tabp, tabf, tabd;
+
+  //! Basis magic number
+  const unsigned int hmagic = 0xc0a57a1;
+
+  //! Coefficient magic number
+  const unsigned int cmagic = 0xc0a57a3;
 
   std::vector<short> coefs_made;
   bool eof_made;
@@ -202,6 +233,7 @@ private:
   void send_eof_grid();
   void receive_eof     (int request_id, int m);
   void compute_eof_grid(int request_id, int m);
+  void compute_even_odd(int request_id, int m);
   void setup_eof_grid(void);
   void parityCheck(const std::string& prefix);
 
@@ -253,6 +285,9 @@ private:
   {
   public:
 
+    //! Total number in accumulation
+    unsigned Tnumb;
+
     //! Mass in the accumulation
     double Tmass;
 
@@ -269,6 +304,7 @@ private:
     void reset()
     {
       for (auto v : *this) v.second->reset();
+      Tnumb = 0;
       Tmass = 0.0;
     }
 
@@ -291,12 +327,19 @@ private:
   //! Suppress odd modes
   bool EVEN_M;
 
+  //! Use EvenOdd partition
+  bool EvenOdd;
+
+  //! Number of even and odd terms per subspace
+  int Neven, Nodd;
+
 public:
 
   /*! Enum listing the possible selection algorithms for coefficient
     selection */
   enum TKType {
-    Hall,             /*!< Tapered signal-to-noise power defined by Hall   */
+    Hall,             /*!< Tapered signal-to-noise as defined by Hall      */
+    Truncate,         /*!< Truncated signal-to-noise                       */
     None              /*!< Compute the S/N but do not modify coefficients  */
   };
 
@@ -313,16 +356,20 @@ public:
   class AxiDisk
   {
   protected:
+    std::string ID;
 
     double M;
 
   public:
 
     //! Constructor
-    AxiDisk(double M=1) : M(M) {}
+    AxiDisk(double M=1, std::string id="AxiDisk") : M(M), ID(id) {}
 
     //! Density function
-    virtual double operator()(double R, double z) = 0;
+    virtual double operator()(double R, double z, double phi=0.) = 0;
+
+    //! Get ID
+    std::string getID() { return ID; }
   };
   
   typedef boost::shared_ptr<AxiDisk> AxiDiskPtr;
@@ -342,12 +389,19 @@ public:
   //! TRUE if EOF diagnostics are on (default: false)
   static bool PCAEOF;
 
+  //! Compute taper but to not apply to coefficients (default: true)
+  static bool PCADRY;
+
   //! VTK diagnostic frequency (default: false)
   static unsigned VTKFRQ;
 
-  //! TRUE if we are using coordinate mapping (default: 0=no, 1 for
-  //! vertical hyberbolic mapping, 2 for power mampping)
-  static int CMAP;
+  //! TRUE if we are using coordinate mapping (0=no, 1
+  //! rational-function mapping (default)
+  static int CMAPR;
+
+  //! TRUE if we are using coordinate mapping (0=no, 1 for
+  //! vertical hyberbolic mapping (default), 2 for power mampping)
+  static int CMAPZ;
 
   //! TRUE if mapping is logarithmic (default: false)
   static bool logarithmic;
@@ -374,6 +428,9 @@ public:
   //! Current default is to perform Hall on every step when selected
   static int HALLFREQ;
 
+  //! Hall smoothing exponent (default: 1.0)
+  static double HEXP;
+
   //! Minimum radial value for basis
   static double RMIN;
 
@@ -385,6 +442,15 @@ public:
 
   //! Name of cache file
   static string CACHEFILE;
+
+  //! Use YAML header in cache file
+  static bool NewCache;
+
+  //! Use YAML header in coefficient file
+  static bool NewCoefs;
+
+  //! Convert EmpModel to ascii label
+  static std::map<EmpModel, std::string> EmpModelLabs;
 
   //! Fraction of table range for basis images (for debug)
   static double HFAC;
@@ -405,16 +471,35 @@ public:
   //! Constructor (reset must called later)
   EmpCylSL(void);
 
-  //! Constructor with parameters
+  /** Constructor with parameters
+
+      \par Parameters:
+
+      @param numr is the spherical radial order of the input basis
+
+      @param lmax is the spherical angular order of the input basis
+
+      @param mmax is the output aximuthal order for the EOF basis
+
+      @param nord is the output radial order for the EOF basis
+
+      @param ascale is the target disk scale LENGTH
+
+      @param hscale is the target disk scale HEIGHT
+
+      @param nodd is the number of vertically odd parity basis
+      functions.  If unspecified, you get eigenvalue order.
+      
+   */
   EmpCylSL(int numr, int lmax, int mmax, int nord,
-	   double ascale, double hscale);
+	   double ascale, double hscale, int Nodd=-1);
 
   //! Destructor
   ~EmpCylSL(void);
 
   //! Reconstruct basis with new parameters
   void reset(int numr, int lmax, int mmax, int nord,
-	     double ascale, double hscale);
+	     double ascale, double hscale, int Nodd=-1);
 
   //! Read EOF basis header from saved file
   int read_eof_header(const string& eof_file);
@@ -455,11 +540,18 @@ public:
 
   /** Generate EOF by direct integration conditioned on a user
       supplied function
+
+      @param numr is the number of radial knots
+      @param nump is the number of azimuthal knots
+      @param numt is the number of inclination knots
+      @param func is the user-supplied density target function
+
+      If func is axisymmetric, you may use nump=1 to save computation time.
    */
   void generate_eof(int numr, int nump, int numt, 
 		    double (*func)(double R, double z, double phi, int M) );
 
-  //! Get basis function value
+  //! Get a single basis function values for a phase-space point
   void get_all(int m, int n, double r, double z, double phi,
 	       double& p, double& d, double& fr, double& fz, double& fp);
 
@@ -487,6 +579,12 @@ public:
   //! Compute PCA
   void pca_hall(bool compute);
 
+  //! Minimum SNR coefficient value
+  double getMinSNR(void) { return minSNR; }
+
+  //! Maximum SNR coefficient value
+  double getMaxSNR(void) { return maxSNR; }
+
   //! True if coefficients are made at all levels
   bool coefs_made_all() 
   {
@@ -506,10 +604,11 @@ public:
   void determine_acceleration_and_potential() {};
 
   //! Accumulate coefficients from particle distribution
-  void accumulate(vector<Particle>& p, int mlev=0, bool verbose=false);
+  void accumulate(vector<Particle>& p, int mlev=0,
+		  bool verbose=false, bool compute=false);
 
   //! Accumulate coefficients from particle distribution by thread.
-  //! Used by external appliations.
+  //! Used by external applications.
   void accumulate_thread(vector<Particle>& p, int mlev=0, bool verbose=false);
 
   //! Make EOF from particle distribution
@@ -561,12 +660,21 @@ public:
   void multistep_debug();
 
   //! Set coefficients from Vectors
-  void set_coefs(int mm, const Vector& cos1, const Vector& sin1, bool zero);
+  void set_coefs(int mm, const Vector& cos1, const Vector& sin1,
+		 bool zero=true);
 
   //! Set coefficients from std::vectors
   void set_coefs(int mm,
 		 const std::vector<double>& cos1,
-		 const std::vector<double>& sin1, bool zero);
+		 const std::vector<double>& sin1, bool zero=true);
+
+  //! Set coefficients from Vectors
+  void get_coefs(int mm, Vector& cos1, Vector& sin1);
+
+  //! Set coefficients from std::vectors
+  void get_coefs(int mm,
+		 std::vector<double>& cos1,
+		 std::vector<double>& sin1);
 
   //! Set cylmass manually
   void set_mass(double mass) {
@@ -642,7 +750,8 @@ public:
   //! Set even modes only
   void setEven(bool even=true) { EVEN_M = even; }
 
-  //! Set frequency and file name for selector output
+  //! Set file name for EOF analysis and sample size for subsample
+  //! computation
   inline void setHall(string file, unsigned tot)
   {
     hallfile = file;
@@ -651,32 +760,126 @@ public:
 
     if (myid==0) {
       if (PCAVAR) {
-	const string types[] = {
-	  "Hall", 
-	  "None"};
 
-	const string desc[] = {
-	  "Tapered signal-to-noise power defined by Hall",
-	  "Compute the S/N but do not modify coefficients"};
+	const string types[] =
+	  {
+	   "Hall",
+	   "Truncate",
+	   "None"
+	  };
 	
-	cout << "EmpCylSL: using PCA type: " << types[tk_type]
-	     << "====>" << desc[tk_type] << endl;
+	const string desc[] =
+	  {
+	   "Compute the S/N but do not modify coefficients",
+	   "Tapered signal-to-noise power defined by Hall",
+	   "Compute the S/N but do not modify coefficients"
+	  };
+      
+	std::cout << "EmpCylSL: using PCA type: " << types[tk_type]
+		  << "====>" << desc[tk_type] << std::endl;
       }
       if (PCAEOF) {
-	cout << "EmpCylSL: using PCA EOF" << endl;
+	std::cout << "EmpCylSL: using PCA EOF" << std::endl;
       }
     }
   }
 
-  //! Set frequency and file name for selector output
+  //@{
+  //! Get potential grid interpolated entries
+  void getPotSC(int m, int j, double R, double z, double& pC, double& pS);
+
+  //! Get density grid interpolated entries
+  void getDensSC(int m, int j, double R, double z, double& dC, double& dS);
+
+  using TableArray = std::vector<Eigen::MatrixXd>;
+
+  //! Return density and potential matrices
+  //! Indexed (M, n) pair as id = M*NORDER + n
+  TableArray getDensC()
+  {
+    TableArray ret((MMAX+1)*NORDER);
+    for (int M=0; M<=MMAX; M++) {
+      for (int n=0; n<NORDER; n++) {
+	int id = M*NORDER+n;
+	ret[id].resize(NUMX+1, NUMY+1);
+	for (int i=0; i<=NUMX; i++)
+	  for (int j=0; j<=NUMY; j++)
+	    ret[id](i, j) = densC[M][n][i][j];
+      }
+    }
+    return ret;
+  }
+
+  TableArray getDensS()
+  {
+    TableArray ret((MMAX+1)*NORDER);
+    for (int M=1; M<=MMAX; M++) {
+      for (int n=0; n<NORDER; n++) {
+	int id = M*NORDER+n;
+	ret[id].resize(NUMX+1, NUMY+1);
+	for (int i=0; i<=NUMX; i++)
+	  for (int j=0; j<=NUMY; j++)
+	    ret[id](i, j) = densS[M][n][i][j];
+      }
+    }
+    return ret;
+  }
+
+  //! Return density and potential matrices
+  TableArray getPotlC()
+  {
+    TableArray ret((MMAX+1)*NORDER);
+    for (int M=0; M<=MMAX; M++) {
+      for (int n=0; n<NORDER; n++) {
+	int id = M*NORDER + n;
+	ret[id].resize(NUMX+1, NUMY+1);
+	for (int i=0; i<=NUMX; i++)
+	  for (int j=0; j<=NUMY; j++)
+	    ret[id](i, j) = potC[M][n][i][j];
+      }
+    }
+    return ret;
+  }
+
+  TableArray getPotlS()
+  {
+    TableArray ret((MMAX+1)*NORDER);
+    for (int M=1; M<=MMAX; M++) {
+      for (int n=0; n<NORDER; n++) {
+	int id = M*NORDER + n;
+	ret[id].resize(NUMX+1, NUMY+1);
+	for (int i=0; i<=NUMX; i++)
+	  for (int j=0; j<=NUMY; j++)
+	    ret[id](i, j) = potS[M][n][i][j];
+      }
+    }
+    return ret;
+  }
+
+
+  void getPotParticle(double x, double y, double z,
+		      ContribArray& vc, ContribArray& vs);
+
+  //! Get the coefficients trimmed by a SNR value using the defined algorithm
+  void get_trimmed
+  (double snr,
+   std::vector<Vector>& ac_cos,   std::vector<Vector>& ac_sin,
+   std::vector<Vector>* rt_cos=0, std::vector<Vector>* rt_sin=0,
+   std::vector<Vector>* sn_rat=0);
+  
+  //! Set the coefficients trimmed by a SNR value using the defined algorithm
+  void set_trimmed(double snr);
+
+  //! Set number of bodies for subsample computation
   inline void setTotal(unsigned tot) {
     nbodstot = tot;
   }
 
   void setTK(const std::string& tk)
   {
-    if      (tk == "Hall") tk_type = Hall;
-    else if (tk == "None") tk_type = None;
+    if      (tk == "Hall")     tk_type = Hall;
+    else if (tk == "Truncate") tk_type = Truncate;
+    else if (tk == "None")     tk_type = None;
     else {
       if (myid==0) {
 	cout << "EmpCylSL: no such TK type <" << tk << ">"
@@ -690,6 +893,9 @@ public:
     for (int m=0; m<=MMAX; m++) ret.push_back(accum_cos[0][m]);
     return ret;
   }
+
+  //! Check orthogonality for basis (debugging)
+  void ortho_check(std::ostream& out);
 
 #ifndef STANDALONE
 #if HAVE_LIBCUDA==1
@@ -726,7 +932,7 @@ public:
       return sinN(mlevel)[0][m][n];
   }
 
-  double& set_coefT(int T, int m, int n, char c)
+  double& set_coefT(int T, int m, int n)
   {
     if (m >  MMAX)
       throw std::runtime_error("m>mmax");
@@ -737,10 +943,7 @@ public:
     if (T >= sampT)
       throw std::runtime_error("T>=sampT");
 
-    if (c == 'c')
-      return cos2(0, T)[m][n];
-    else
-      return sin2(0, T)[m][n];
+    return covV(0, T, m)[n];
   }
 
   double& set_tvar(int m, int i, int j)
@@ -751,7 +954,7 @@ public:
     if (i >= rank3 or j >= rank3)
       throw std::runtime_error("n>norder");
 
-    return (*tvar[0][m])[i+1][j+1];
+    return tvar[0][m][i+1][j+1];
   }
 
   double& set_massT(int T)

@@ -128,9 +128,9 @@ int main (int ac, char **av)
 
   PeriodicTable pt;
 
-  chdata ch;
+  atomicData ad;
 
-  ch.createIonList(ZList);
+  ad.createIonList(ZList);
 
   if (myid) {
     MPI_Finalize();
@@ -183,7 +183,7 @@ int main (int ac, char **av)
 
     {
       auto timer = std::chrono::high_resolution_clock::now();
-      std::pair<double, double> ffre = ch.IonList[Q]->freeFreeCross(EeV, 0);
+      std::pair<double, double> ffre = ad.IonList[Q]->freeFreeCross(EeV, 0);
       std::chrono::duration<double>  delT =
       (std::chrono::high_resolution_clock::now() - timer);
       data["Free free"] += delT.count();
@@ -191,7 +191,7 @@ int main (int ac, char **av)
 
     {
       auto timer = std::chrono::high_resolution_clock::now();
-      double ionz = ch.IonList[Q]->directIonCross(EeV, 0);
+      double ionz = ad.IonList[Q]->directIonCross(EeV, 0);
       std::chrono::duration<double>  delT =
       (std::chrono::high_resolution_clock::now() - timer);
       data["Coll ionize"] += delT.count();
@@ -199,7 +199,7 @@ int main (int ac, char **av)
 
     {
       auto timer = std::chrono::high_resolution_clock::now();
-      Ion::collType       CE1 = ch.IonList[Q]->collExciteCross(EeV, 0);
+      Ion::collType       CE1 = ad.IonList[Q]->collExciteCross(EeV, 0);
       std::chrono::duration<double>  delT =
       (std::chrono::high_resolution_clock::now() - timer);
       data["Coll excite"] += delT.count();
@@ -207,9 +207,9 @@ int main (int ac, char **av)
     
     {
       auto timer = std::chrono::high_resolution_clock::now();
-      std::vector<double> RE1 = ch.IonList[Q]->radRecombCross(EeV, 0);
+      std::vector<double> RE1 = ad.IonList[Q]->radRecombCross(EeV, 0);
       std::vector< std::tuple<int, double> >
-	REv = ch.IonList[Q]->recombCrossV(EeV, 0);
+	REv = ad.IonList[Q]->recombCrossV(EeV, 0);
       std::chrono::duration<double>  delT =
       (std::chrono::high_resolution_clock::now() - timer);
       data["Rad recomb"] += delT.count();
@@ -217,7 +217,7 @@ int main (int ac, char **av)
 
     {
       auto timer = std::chrono::high_resolution_clock::now();
-      std::vector<double> PI1 = ch.IonList[Q]->photoIonizationCross(EeV, 0);
+      std::vector<double> PI1 = ad.IonList[Q]->photoIonizationCross(EeV, 0);
       std::chrono::duration<double>  delT =
       (std::chrono::high_resolution_clock::now() - timer);
       data["Ph ionize"] += delT.count();

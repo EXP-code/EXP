@@ -38,9 +38,14 @@ void OutCHKPTQ::initialize()
     else
       nint = 100;
 
- if (Output::conf["nintsub"])    
-      nintsub  = Output::conf["nintsub"].as<int>();
-    else
+    if (Output::conf["nintsub"]) {
+#ifdef ALLOW_NINTSUB
+      nintsub = Output::conf["nintsub"].as<int>();
+#else
+      nintsub_warning("OutCHKPTQ");
+      nintsub = std::numeric_limits<int>::max();
+#endif
+    } else
       nintsub  = std::numeric_limits<int>::max();
 
     if (Output::conf["timer"])
@@ -63,12 +68,14 @@ void OutCHKPTQ::initialize()
 
 void OutCHKPTQ::Run(int n, int mstep, bool last)
 {
-  if (n % nint && !last) return;
+  if (!dump_signal and !last) {
+    if (n % nint           ) return;
+    if (mstep % nintsub !=0) return;
+  }
+  
   if (VERBOSE>5 && myid==0) {
     cout << " OutCHKPTQ::Run(): n=" << n << " psdump=" << psdump << endl;
   }
-  if (mstep % nintsub !=0) return;
-
 
   int returnStatus = 1;
   
@@ -225,6 +232,14 @@ void OutCHKPTQ::Run(int n, int mstep, bool last)
 
   int count = 0;
   for (auto c : comp->components) {
+#ifdef HAVE_LIBCUDA
+    if (use_cuda) {
+      if (not comp->fetched[c]) {
+	comp->fetched[c] = true;
+	c->CudaToParticles();
+      }
+    }
+#endif
 				// Check for open failures
     nOK = 0;
 
@@ -281,6 +296,8 @@ void OutCHKPTQ::Run(int n, int mstep, bool last)
   }
 
   chktimer.mark();
+
+  dump_signal = 0;
 
   if (timer) {
     end = std::chrono::high_resolution_clock::now();

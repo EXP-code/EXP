@@ -4,17 +4,17 @@
 #include <sstream>
 #include <vector>
 
-#include "localmpi.h"
+#include <localmpi.h>
 #include <massmodel.h>
 #include <interp.h>
-#include "AddDisk.h"
+#include <AddDisk.H>
 
 int AddDisk::number = 4000;
 double AddDisk::Rmin = 1.0e-3;
 bool AddDisk::use_mpi = false;
 bool AddDisk::logarithmic = false;
 
-AddDisk::AddDisk(AxiSymModel* halo, AxiSymModel* disk, double Dmass)
+AddDisk::AddDisk(std::shared_ptr<AxiSymModel> halo, std::shared_ptr<AxiSymModel> disk, double Dmass)
 {
   dmass = Dmass;
 
@@ -96,7 +96,7 @@ AddDisk::AddDisk(AxiSymModel* halo, AxiSymModel* disk, double Dmass)
  }
 #endif
 
-  mod = new SphericalModelTable(number, &r[0]-1, &d[0]-1, &m[0]-1, &p[0]-1);
+ mod = std::make_shared<SphericalModelTable>(number, &r[0]-1, &d[0]-1, &m[0]-1, &p[0]-1);
 
 #ifdef DEBUG
   {
@@ -122,6 +122,6 @@ AddDisk::AddDisk(AxiSymModel* halo, AxiSymModel* disk, double Dmass)
 
 AddDisk::~AddDisk()
 {
-  delete mod;
+  // Nothing
 }
 

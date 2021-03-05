@@ -22,7 +22,9 @@ Ion::RR_Map Ion::rr_map = {
   { "TopBase", Ion::topbase },
   { "Kramers", Ion::kramers },
   { "Spitzer", Ion::spitzer },
-  { "Verner",  Ion::verner  }
+  { "Verner",  Ion::verner  },
+  { "Badnell", Ion::badnell },
+  { "Hydrogn", Ion::hydrogn }
 };
 
 // For printing cross-section type (c++-11 initialization style)
@@ -32,10 +34,12 @@ Ion::RR_Lab Ion::rr_lab = {
     { Ion::topbase, "TopBase" },
     { Ion::kramers, "Kramers" },
     { Ion::spitzer, "Spitzer" },
-    { Ion::verner,  "Verner"  }
+    { Ion::verner,  "Verner"  },
+    { Ion::badnell, "Badnell" },
+    { Ion::hydrogn, "Hydrogn" }
 };
 
-Ion::RR_Type Ion::rr_type = Ion::verner;
+Ion::RR_Type Ion::rr_type = Ion::badnell;
 
 // For setting ionization background type (c++-11 initialization style)
 //
@@ -54,6 +58,7 @@ Ion::IB_Lab Ion::ib_lab = {
 Ion::IB_Type Ion::ib_type = Ion::none;
 
 bool Ion::use_VFKY  = false;
+bool Ion::use_VAN_HOOF = true;
 
 // Free-free grid
 //
@@ -75,7 +80,7 @@ double Ion::HandM_expon = -0.5;
 // Energy grids (in eV)
 //
 bool   Ion::useFreeFreeGrid  = true;
-bool   Ion::useRadRecombGrid = false;
+bool   Ion::useRadRecombGrid = true;
 bool   Ion::useExciteGrid    = true;
 bool   Ion::useIonizeGrid    = true;
 bool   Ion::GridDebug        = false; // Set to true for debugging
@@ -746,7 +751,7 @@ void Ion::readDi()
 //
 // Initialization function when the master name is given
 //
-Ion::Ion(std::string name, chdata* ch) : ch(ch)
+Ion::Ion(std::string name, atomicData* ad) : ad(ad)
 {
   MasterName = name;
 
@@ -755,7 +760,7 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
   eleName = v[0];
 
   convertName();		// Sets Z and C . . . 
-  ip = ch->ipdata[lQ(Z, C)];
+  ip = ad->ipdata[lQ(Z, C)];
 
   freeFreeGridComputed  = false;
   radRecombGridComputed = false;
@@ -824,7 +829,7 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
 //
 // Constructor when the Z, C pair is given
 //
-Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
+Ion::Ion(unsigned short Z, unsigned short C, atomicData* ad) : ad(ad), Z(Z), C(C)
 {
   d = false;
   MasterName = ZCtoName(Z, C);
@@ -842,7 +847,7 @@ Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
 
   if (Z>=C) {
 
-    ip = ch->ipdata[lQ(Z, C)];
+    ip = ad->ipdata[lQ(Z, C)];
 
     if (isInMasterList(MasterName)) {
       readfblvl();
@@ -1037,6 +1042,7 @@ Ion::collExciteCrossSingle(double E, int id)
   // computing Omega
 
   double totalCross = 0.0, mult0 = 2*elvlc[1].J + 1;
+  int tcnt = 0;
 
   for (size_t i=0; i<splups.size(); i++) {
 
@@ -1044,6 +1050,8 @@ Ion::collExciteCrossSingle(double E, int id)
     double Const = splups[i].Const;
 
     if (splups[i].i==1 and E >= EijEv) {
+
+      tcnt++;
 
       assert(splups[i].i == 1);
       assert(splups[i].spline.size() != 0);
@@ -1324,28 +1332,8 @@ Ion::collExciteCrossGrid(double E, int id)
   double A = (eB - E)/delCollideE;
   double B = (E - eA)/delCollideE;
 
-  typedef std::pair<double, double> Elem;
-  std::array<Elem, 2> v { collideDataGrid[indx+0].back(), collideDataGrid[indx+1].back()};
-  
-  std::vector<Elem> ret(1);
-  ret[0] = {A*v[0].first  + B*v[1].first, A*v[0].second + B*v[1].second};
-
-  // Test
-  if (false) {
-    collType tst = collExciteCrossSingle(E, id);
-    double diffXS = fabs(tst.back().first  - ret[0].first );
-    double diffCM = fabs(tst.back().second - ret[0].second);
-    if (tst.back().first >0.0) diffXS /= tst.back().first;
-    if (tst.back().second>0.0) diffCM /= tst.back().second;
-    if (diffXS > 0.01 or diffCM > 0.01) {
-      std::cout << "Diff [collide]: XS expected=" << tst.back().first  << ", got "
-		<< ret[0].first  << std::endl
-		<< "                CM expected=" << tst.back().second << ", got "
-		<< ret[0].second << std::endl;
-    }
-  }
-
-  return ret;
+  if (A>=B) return collideDataGrid[indx+0];
+  else      return collideDataGrid[indx+1];
 }
 
 
@@ -1539,6 +1527,14 @@ double Ion::directIonCrossGrid(double E, int id)
   }
 
   size_t indx = std::floor( (E - eMin)/DeltaEGrid );
+
+  // Sanity checking
+  //
+  if (E <= eMin) indx = 0;
+  if (indx >= NionizeGrid-2) indx = NionizeGrid - 2;
+
+  // Now compute linear interpolation coefficients
+  //
   double eA   = eMin + DeltaEGrid*indx, eB = eMin + DeltaEGrid*(indx+1);
 
   double A = (eB - E)/DeltaEGrid;
@@ -1579,13 +1575,22 @@ void Ion::directIonMakeGrid(int id)
 }
 
 
+std::pair<double, double> Ion::freeFreeCrossSingle(double Ei, int id)
+{
+  if (use_VAN_HOOF)
+    return Ion::freeFreeCrossSingleNew(Ei, id);
+  else
+    return Ion::freeFreeCrossSingleOld(Ei, id);
+}
+
+
 /** 
     Cross section is 3BN(a) from Koch & Motz 1959, with the low-energy
     Elwert factor (see Koch & Motz eq. II-6), nonrelativistic limit
 
     Using the parametrization by Greene (1959)
  */
-std::pair<double, double> Ion::freeFreeCrossSingle(double Ei, int id) 
+std::pair<double, double> Ion::freeFreeCrossSingleOld(double Ei, int id) 
 {
   // No free-free with a neutral
   //
@@ -1598,44 +1603,40 @@ std::pair<double, double> Ion::freeFreeCrossSingle(double Ei, int id)
   // Integration variables
   //
   double cum      = 0;
-  double dk       = (kgrid[1] - kgrid[0])*log(10.0);
+  double dk       = (kgrid[1] - kgrid[0])*log(10.0); // dln(k)
 
   std::vector<double> diff, cuml;
 
   for (int j = 0; j < kffsteps; j++) {
-    //
     // Photon energy in eV
     //
     double k      = kgr10[j];
 
-    //
     // Final kinetic energy
     //
     double Ef     = Ei - k;
 
-    //
     // Can't emit a photon if not enough KE!
     //
     if (Ef <= 0.0) break;
 
-    //
     // Final scaled momentum
     //
     double pf     = sqrt(Ef*1.0e-6/mec2*(Ef*1.0e-6/mec2 + 2.0));
 
-    //
     // Elwert factor
     //
     double corr   = pi/pf*(1.0 - exp(-2.0*M_PI*Z*afs/pi))/(1.0 - exp(-2.0*M_PI*Z*afs/pf));
 
+    // Differential cross section contribution
     //
-    // Differential cross section contribution (logarithmic integral)
-    //
-    double dsig   = r0*r0*Z*Z*afs/(pi*pi) * 16.0/3.0 * log((pi + pf)/(pi - pf))/k * corr * dk;
+    double sig   = r0*r0*Z*Z*afs/(pi*pi) * 16.0/3.0 * log((pi + pf)/(pi - pf))/k * corr;
 
-    cum = cum + dsig;
+    // dE(eV) = dk*hbc = dk/k * k*hbc = dlnk * E(eV)
 
-    diff.push_back(dsig/dk);
+    cum = cum + sig * dk * k;
+
+    diff.push_back(sig);
     cuml.push_back(cum);
   }
 
@@ -1662,12 +1663,12 @@ std::pair<double, double> Ion::freeFreeCrossSingle(double Ei, int id)
     // found element
     //
     std::vector<double>::iterator ub = lb;
-    //
+
     // If is the first element, increment
     // the upper boundary
     //
     if (lb == cuml.begin()) { if (cuml.size()>1) ub++; }
-    //
+
     // Otherwise, decrement the lower boundary
     //
     else { lb--; }
@@ -1700,6 +1701,276 @@ std::pair<double, double> Ion::freeFreeCrossSingle(double Ei, int id)
 }
 
 
+/** 
+    Karzas-Latter Cross section with the Gaunt factor fit from 
+
+    van Hoof P. A. M., Williams R. J. R., Volk K., Chatzikos M.,
+    Ferland G. J., Lykins M., Porter R. L., Wang Y., 2014, MNRAS, 444,
+    420
+    
+    with the low-energy Elwert factor.
+ */
+std::pair<double, double> Ion::freeFreeCrossSingleNew(double Ei, int id) 
+{
+  // No free-free with a neutral
+  //
+  if (C==1) return std::pair<double, double>(0.0, 0.0);
+
+  // Initial scaled momentum
+  //
+  double pi     = sqrt(Ei*1.0e-6/mec2*(Ei*1.0e-6/mec2 + 2.0));
+
+  // Integration variables
+  //
+  double cum    = 0;
+  double dk     = (kgrid[1] - kgrid[0])*log(10.0);
+
+  std::vector<double> diff, cuml;
+
+  for (int j = 0; j < kffsteps; j++) {
+
+    // Photon energy in eV
+    //
+    double k    = kgr10[j];
+
+    // Final kinetic energy
+    //
+    double Ef   = Ei - k;
+
+    // Can't emit a photon if not enough KE!
+    //
+    if (Ef <= 0.0) break;
+
+    // Final scaled momentum
+    //
+    double pf   = sqrt(Ef*1.0e-6/mec2*(Ef*1.0e-6/mec2 + 2.0));
+
+    // Elwert factor
+    //
+    double corr = pi/pf*(1.0 - exp(-2.0*M_PI*Z*afs/pi))/(1.0 - exp(-2.0*M_PI*Z*afs/pf));
+
+    // Gaunt factor from van Hoof et al.
+    //
+    double eta_i    = 1.0/sqrt(Ei/(RydtoeV*Z*Z));
+    double eta_f    = 1.0/sqrt(Ef/(RydtoeV*Z*Z));
+
+    double nfr      = eta_f/eta_i;
+    double nfr2     = nfr*nfr;
+    double crit     = (1.0 - nfr2)*eta_f;
+
+    double gff = 1.0;
+
+    if (crit > 1.0e-4) {
+
+      double fac1     = pow(crit, -2.0/3.0);
+      double fac2     = fac1*fac1;
+      
+      constexpr double c1 = 0.1728260369;
+      constexpr double c2 = 0.04959570168;
+      constexpr double c3 = 0.01714285714;
+
+      gff = 1.0 +
+	c1*(1.0 + nfr2)*fac1 -
+	c2*(1.0 - 4.0/3.0*nfr2 + nfr2*nfr2)*fac2 -
+	c3*(1.0 - 1.0/3.0*nfr2 - 1.0/3.0*nfr2*nfr2 + nfr2*nfr2*nfr2)*fac1*fac2 +
+	0.0025*fac2*fac2;
+
+    } else {
+
+      gff = ad->gauntFF(Ei/(RydtoeV*Z*Z), k/(RydtoeV*Z*Z));
+
+    }
+
+    // Differential cross section contribution
+    //
+    // dE(Ryd) = dk*hbc/(Ryd/Ev) = dk/k * (k*hbc)/(Ryd/eV) = dlnk * E(Ryd)
+    //
+    constexpr double nfac = 32.0*M_PI/(3.0*sqrt(3.0)) * r0*r0 * afs*afs*afs;
+
+    double sig = nfac*Z*Z * sqrt(Ef/Ei)/k * corr * gff;
+
+    cum = cum + sig * dk * k;
+
+    diff.push_back(sig);
+    cuml.push_back(cum);
+  }
+
+
+  double phi = 0.0, ffWaveCross = 0.0;
+
+  // If cross section is offgrid, set values to zero
+  //
+  if (cum > 0.0) {
+
+    // Location in cumulative cross section grid
+    //
+    double rn = cum * static_cast<double>(rand())/RAND_MAX;
+  
+    // Interpolate the cross section array
+    //
+    
+    // Points to first element that is not < rn
+    // but may be equal
+    std::vector<double>::iterator lb = 
+      std::lower_bound(cuml.begin(), cuml.end(), rn);
+    
+    // Assign upper end of range to the
+    // found element
+    //
+    std::vector<double>::iterator ub = lb;
+
+    // If is the first element, increment
+    // the upper boundary
+    //
+    if (lb == cuml.begin()) { if (cuml.size()>1) ub++; }
+
+    // Otherwise, decrement the lower boundary
+    //
+    else { lb--; }
+    
+    // Compute the associated indices
+    //
+    size_t ii = lb - cuml.begin();
+    size_t jj = ub - cuml.begin();
+    double  k = kgrid[ii];
+	  
+    // Linear interpolation
+    //
+    if (*ub > *lb) {
+      double d = *ub - *lb;
+      double a = (rn - *lb) / d;
+      double b = (*ub - rn) / d;
+      k  = a * kgrid[ii] + b * kgrid[jj];
+    }
+    
+    // Assign the photon energy
+    //
+    ffWaveCross = pow(10, k) * hbc;
+
+    // Use the integrated cross section from the differential grid
+    //
+    phi = cuml.back();
+  }
+
+  return std::pair<double, double>(phi, ffWaveCross);
+}
+
+
+double atomicData::GauntFF::operator()(double E, double w)
+{
+  initialize();
+
+  if (E<=0.0 or w<=0.0) return 0.0;
+
+  E = log10(E);
+  w = log10(w);
+
+  if (E < eps_min or w < w_min) return 1.0;
+
+  unsigned i = (w - w_min)/step;
+  unsigned j = (E - eps_min)/step;
+
+  if (i>=nw or j>=neps) return 1.0;
+
+  i = std::min<unsigned>(i, nw-2);
+  j = std::min<unsigned>(j, neps-2);
+
+  double A = (w_min + step*(i+1) - w)/step;
+  double B = (w - w_min - step*(i+0))/step;
+
+  double C = (eps_min + step*(j+1) - E)/step;
+  double D = (E - eps_min - step*(j+0))/step;
+
+  double val =
+    A*(C*data(i+0, j+0) + D*data(i+0, j+1)) +
+    B*(C*data(i+1, j+0) + D*data(i+1, j+1));
+
+  return val;
+}
+
+void atomicData::GauntFF::initialize()
+{
+  if (initialized) return;
+
+  initialized = true;
+
+  // Look for ATOMIC data path
+  //
+  std::string datapath("./");
+  if (const char* env_p = std::getenv("ATOMIC_DATA_PATH")) {
+    datapath = env_p;
+    datapath += "/";
+  }
+  
+  std::ifstream in(datapath + "gauntff_nonav.dat");
+  unsigned row=0; nw = 0;
+
+  while (in) {
+    // Skip first time
+    //
+    if (row>0 and row >= nw) break;
+
+    // Read header
+    //
+    std::string line;
+    std::getline(in, line);
+
+    if (line.find('#') != std::string::npos) {
+
+      if (line[0] != '#') {
+	{
+	  std::istringstream sin(line);
+	  sin >> magic;
+	}
+	{
+	  std::getline(in, line);
+	  std::istringstream sin(line);
+	  sin >> neps >> nw;
+	}
+	{
+	  std::getline(in, line);
+	  std::istringstream sin(line);
+	  sin >> eps_min;
+	}
+	{
+	  std::getline(in, line);
+	  std::istringstream sin(line);
+	  sin >> w_min;
+	}
+	{
+	  std::getline(in, line);
+	  std::istringstream sin(line);
+	  sin >> step;
+	}
+      }
+    } else {
+      std::istringstream sin(line);
+      data.resize(nw, neps);
+      unsigned col=0;
+      double x;
+      while (sin) {
+	sin >> x;
+	if (sin and col<neps) {
+	  data(row, col++) = x;
+	}
+      }
+      row++;			// Row completed
+    }
+  }
+
+  if (myid == 0) {
+    std::cout << std::string(60, '-') << std::endl
+	      << "**** Gaunt FF data check ****" << std::endl
+	      << std::string(60, '-') << std::endl
+	      << "Rows: " << data.rows() << " cols: " << data.cols() << std::endl
+	      << "Min(E): " << eps_min << " Max(E): " << eps_min + step*(data.cols()-1) << std::endl
+	      << "Min(w): " << w_min << " Max(w): " << w_min + step*(data.rows()-1) << std::endl
+	      << "Step: " << step << std::endl
+	      << std::string(60, '-') << std::endl;
+  }
+}
+
+
 void Ion::freeFreeMakeEvGrid(int id)
 {
   if (C==1) return;
@@ -1718,6 +1989,10 @@ void Ion::freeFreeMakeEvGrid(int id)
   //
   freeFreeGrid.resize(NfreeFreeGrid);
 
+  // Attempt to initialize gauntFF data
+  //
+  ad->gauntFF.initialize();
+
   for (size_t n = 0; n < NfreeFreeGrid; n++) {
 
     // Energy in eV
@@ -1733,41 +2008,82 @@ void Ion::freeFreeMakeEvGrid(int id)
     double cum = 0;
 
     for (int j = 0; j < kffsteps; j++) {
-      //
+
       // Photon energy in eV
       //
       double k  = kgr10[j];
 
-      //
       // Final kinetic energy
       //
       double Ef = Ei - k;
-      
-      //
+	
       // Can't emit a photon if not enough KE!
       //
       if (Ef <= 0.0) break;
-
-      //
+      
       // Scaled inverse energy (final)
       //
       double nf     = sqrt( RydtoeV*(C-1)*(C-1)/Ef );
       
-      //
       // Elwert factor
       //
       double corr   = (1.0 - exp(-2.0*M_PI*ni))/(1.0 - exp(-2.0*M_PI*nf));
-      
-      //
-      // Differential cross section contribution
-      //
-      double dsig   = A * ni*nf * log((nf + ni)/(nf - ni)) * corr * dk;
-      
-      cum = cum + dsig;
-      
+	
+      if (use_VAN_HOOF) {
+
+	double gff = 1.0;
+
+	// Gaunt factor
+	//
+	double eta_f    = 1.0/sqrt(Ei/(RydtoeV*Z*Z));
+	double eta_i    = 1.0/sqrt(Ef/(RydtoeV*Z*Z));
+	
+	double nfr      = eta_f/eta_i;
+	double nfr2     = nfr*nfr;
+	double crit     = (1.0 - nfr2)*eta_f;
+
+	if (crit > 1.0e4) {
+
+	  double fac1     = pow(crit, -2.0/3.0);
+	  double fac2     = fac1*fac1;
+	
+	  constexpr double c1 = 0.1728260369;
+	  constexpr double c2 = 0.04959570168;
+	  constexpr double c3 = 0.01714285714;
+	  
+	  gff = 1.0 +
+	    c1*(1.0 + nfr2)*fac1 -
+	    c2*(1.0 - 4.0/3.0*nfr2 + nfr2*nfr2)*fac2 -
+	    c3*(1.0 - 1.0/3.0*nfr2 - 1.0/3.0*nfr2*nfr2 + nfr2*nfr2*nfr2)*fac1*fac2 +
+	    0.0025*fac2*fac2;
+
+	} else {
+
+	  gff = ad->gauntFF(Ei/(RydtoeV*Z*Z), k/(RydtoeV*Z*Z));
+
+	}
+	
+	// Differential cross section contribution
+	//
+	// dE(Ryd) = dk*hbc/(Ryd/Ev) = dk/k * (k*hbc)/(Ryd/eV) = dlnk * E(Ryd)
+	//
+	constexpr double nfac = 32.0*M_PI/(3.0*sqrt(3.0)) * r0*r0 * afs*afs*afs;
+
+	double sig = nfac*Z*Z * sqrt(Ef/Ei)/k * corr * gff;
+	
+	cum = cum + sig * dk * k;
+	
+      } else {
+
+	// Differential cross section contribution
+	//
+	double dsig   = A * ni*nf * log((nf + ni)/(nf - ni)) * corr * dk;
+	
+	cum = cum + dsig;
+      }
+	
       freeFreeGrid[n].push_back(cum);
     }
-
   }
 
 }
@@ -1820,6 +2136,14 @@ std::pair<double, double> Ion::freeFreeCrossEvGrid(double E, int id)
   //
   double lE   = log10(E);
   size_t indx = std::floor( (lE - EminGrid)/DeltaEGrid );
+
+  // Sanity checking
+  //
+  if (lE <= EminGrid) indx = 0;
+  if (indx >= NfreeFreeGrid-2) indx = NfreeFreeGrid - 2;
+
+  // Now compute linear interpolation coefficients
+  //
   double eA   = EminGrid + DeltaEGrid*indx, eB = EminGrid + DeltaEGrid*(indx+1);
 
   double A = (eB - lE)/DeltaEGrid;
@@ -1954,6 +2278,14 @@ std::pair<double, double> Ion::freeFreeCrossEvGridTest(double E, double rn, int 
   //
   double lE   = log10(E);
   size_t indx = std::floor( (lE - EminGrid)/DeltaEGrid );
+
+  // Sanity checking
+  //
+  if (lE <= EminGrid) indx = 0;
+  if (indx >= NfreeFreeGrid-2) indx = NfreeFreeGrid - 2;
+
+  // Now compute linear interpolation coefficients
+  //
   double eA   = EminGrid + DeltaEGrid*indx, eB = EminGrid + DeltaEGrid*(indx+1);
 
   double A = (eB - lE)/DeltaEGrid;
@@ -2053,11 +2385,25 @@ void Ion::radRecombMakeEvGrid(int id)
   //
   radRecombGrid.resize(NradRecombGrid);
 
+  // Quadrature over bins necessary to resolve DR.  Value norder=200
+  // is converged for He+.
+  //
+  const int norder = 200;
+  LegeQuad lq(norder);
+
   // Compute grid
   //
   for (size_t n = 0; n < NradRecombGrid; n++) {
+    double Ebeg = exp10(EminGrid + DeltaEGrid*(-0.5 + n));
+    double Eend = exp10(EminGrid + DeltaEGrid*( 0.5 + n));
+    double dE   = Eend - Ebeg;
     double Ei = exp10(EminGrid + DeltaEGrid*n);
-    radRecombGrid[n] = radRecombCrossSingle(Ei, id).back();
+
+    radRecombGrid[n] = 0.0;
+    for (int i=1; i<=norder; i++) {
+      double E = Ebeg + dE * lq.knot(i);
+      radRecombGrid[n] += lq.weight(i) * radRecombCrossSingle(E, id).back();
+    }
   }
 }
 
@@ -2106,6 +2452,14 @@ std::vector<double> Ion::radRecombCrossEvGrid(double E, int id)
   //
   double lE   = log10(E);
   size_t indx = std::floor( (lE - EminGrid)/DeltaEGrid );
+
+  // Sanity checking
+  //
+  if (lE <= EminGrid) indx = 0;
+  if (indx >= NradRecombGrid-2) indx = NradRecombGrid - 2;
+
+  // Now compute linear interpolation coefficients
+  //
   double eA   = EminGrid + DeltaEGrid*indx, eB = EminGrid + DeltaEGrid*(indx+1);
 
   double A = (eB - lE)/DeltaEGrid;
@@ -2127,6 +2481,8 @@ std::vector<double> Ion::radRecombCrossSingle(double E, int id)
     std::vector<double> v3 = radRecombCrossKramers(E, id);
     std::vector<double> v4 = radRecombCrossSpitzer(E, id);
     std::vector<double> v5 = radRecombCrossVerner (E, id);
+    std::vector<double> v6 = radRecombCrossBadnell(E, id);
+    std::vector<double> v7 = radRecombCrossHydrogn(E, id);
 
     std::cout << "  [Z, C] = [" << Z << ", " << C << "]"     << std::endl;
     std::cout << "  E (eV) = " << std::setw(16) << E         << std::endl;
@@ -2135,6 +2491,9 @@ std::vector<double> Ion::radRecombCrossSingle(double E, int id)
     std::cout << " Kramers = " << std::setw(16) << v3.back() << std::endl;
     std::cout << " Spitzer = " << std::setw(16) << v4.back() << std::endl;
     std::cout << "  Verner = " << std::setw(16) << v5.back() << std::endl;
+    std::cout << " Badnell = " << std::setw(16) << v6.back() << std::endl;
+    std::cout << " Hydrogn = " << std::setw(16) << v7.back() << std::endl;
+
     std::cout << std::string(60, '-')                        << std::endl;
     
     if      (rr_type == mewe)    return v1;
@@ -2142,6 +2501,8 @@ std::vector<double> Ion::radRecombCrossSingle(double E, int id)
     else if (rr_type == kramers) return v3;
     else if (rr_type == spitzer) return v4;
     else if (rr_type == verner)  return v5;
+    else if (rr_type == badnell) return v6;
+    else if (rr_type == hydrogn) return v7;
     else                         return v5;
 
   } else {
@@ -2151,9 +2512,135 @@ std::vector<double> Ion::radRecombCrossSingle(double E, int id)
     else if (rr_type == kramers) return radRecombCrossKramers(E, id);
     else if (rr_type == spitzer) return radRecombCrossSpitzer(E, id);
     else if (rr_type == verner)  return radRecombCrossVerner (E, id);
+    else if (rr_type == badnell) return radRecombCrossBadnell(E, id);
+    else if (rr_type == hydrogn) return radRecombCrossHydrogn(E, id);
     else                         return radRecombCrossVerner (E, id);
 
   }
+}
+
+
+/**
+   Nigel Badnell's RR and DR total cross sections in Mb
+
+   [Input energy is in eV]
+*/
+std::vector<double> Ion::radRecombCrossBadnell(double E, int id) 
+{
+  auto dd = ad->BadnellXC.data.find(lQ(Z, C));
+
+  if (dd == ad->BadnellXC.data.end())
+    return Ion::radRecombCrossHydrogn(E, id);
+
+  auto d = dd->second;
+
+  // Return vector
+  //
+  std::vector<double> radRecCum;
+
+  // Return value
+  //
+  double cross = 0.0;
+
+  // Check for availibility of RR data
+  //
+  if (d->E_rr.size()) {
+    double Ebeg = d->E_rr.front();
+    double Eend = d->E_rr.back();
+    if (E>=Ebeg and E<=Eend) {
+      auto x1 = std::lower_bound(d->E_rr.begin(), d->E_rr.end(), E);
+      auto x2 = x1;
+      if (x1 == d->E_rr.begin())
+	x2++;
+      else
+	x1--;
+
+      int lo = std::distance(d->E_rr.begin(), x1);
+      int hi = std::distance(d->E_rr.begin(), x2);
+
+      // Interpolate (sigma*E is tabled)
+      //
+      double Elo = d->E_rr[lo];
+      double Ehi = d->E_rr[hi];
+      cross += ( d->X_rr[lo]*(Ehi - E) + d->X_rr[hi]*(E - Elo) ) / (Ehi - Elo) / E;
+    }
+  }
+
+  // Check for availibility of DR data
+  //
+  if (d->E_dr.size()) {
+    double Ebeg = d->E_dr[0];
+    double Eend = d->E_dr[d->E_dr.size()-2];
+    if (E>=Ebeg and E<=Eend) {
+      auto x1 = std::lower_bound(d->E_dr.begin(), d->E_dr.end(), E);
+      auto x2 = x1;
+      if (x1 == d->E_dr.begin())
+	x2++;
+      else
+	x1--;
+
+      int lo = std::distance(d->E_dr.begin(), x1);
+      int hi = std::distance(d->E_dr.begin(), x2);
+
+      // Interpolate (sigma is tabled)
+      //
+      double Elo = d->E_dr[lo];
+      double Ehi = d->E_dr[hi];
+      cross += ( d->X_dr[lo]*(Ehi - E) + d->X_dr[hi]*(E - Elo) ) / (Ehi - Elo);
+    }
+  }
+
+  // Convert Mb to nm^2 -------+
+  //                           |
+  //                           v
+  radRecCum.push_back(cross*1.0e-4);
+
+  return radRecCum;
+}
+
+
+/**
+   Use the hydrogenic fitting formula in Kotelnikov and Milstein
+   (2019), "Electron radiative recombination with a hydrogen-like
+   ion", Phys. Scr. 94 (2019), https://doi.org/10.1088/1402-4896/ab060a
+
+   [Energy input is in eV here]
+*/
+std::vector<double> Ion::radRecombCrossHydrogn(double E, int id) 
+{
+  // Numerical factor from Stobbe formula (Bohr radius in nm^2)
+  //
+  const double nfac = 256.0*M_PI*M_PI/3.0 * afs*afs*afs*a0*a0;
+
+  // Compute the effective charge
+  //
+  double zz   = Z;
+  double ii   = C - 1;
+
+  // Rydberg in eV
+  //
+  constexpr double ryd = 27.2113845/2.0;
+
+  double eta = sqrt(ii*ii*ryd/E);
+
+  // Return vector
+  //
+  std::vector<double> radRecCum;
+
+  // Ground state
+  //
+  double e21 = eta*eta + 1.0;
+  double cross = nfac * pow(eta, 6.0) * exp(-4.0*eta*atan(1.0/eta)) / (1.0 - exp(-2.0*M_PI*eta)) / (e21*e21);
+
+  // Fitting formula
+  //
+  double lfc = log(e21);
+  cross *= (1.202 + 0.5782*lfc + 0.2148*lfc*lfc)/(1.0 + 0.3425*lfc);
+
+  // In nm^2
+  radRecCum.push_back(cross);
+
+  return radRecCum;
 }
 
 
@@ -2184,7 +2671,7 @@ std::vector<double> Ion::radRecombCrossKramers(double E, int id)
 
   // This is the target neutral
   //
-  Ion* N = ch->IonList[lQ(Z, C-1)].get();
+  Ion* N = ad->IonList[lQ(Z, C-1)].get();
 
   // Ionization threshold (eV)
   //
@@ -2278,8 +2765,8 @@ std::vector<double> Ion::radRecombCrossMewe(double E, int id)
 
   // Get pointers to Ion data
   //
-  double IP = ch->ipdata[Q];
-  Ion* N    = ch->IonList[Q].get();
+  double IP = ad->ipdata[Q];
+  Ion* N    = ad->IonList[Q].get();
 
   // Convert kinetic energy to keV
   //
@@ -2369,10 +2856,10 @@ std::vector<double> Ion::radRecombCrossSpitzer(double E, int id)
   const double coef   = 2.105310889751809e-08;
 
 				// This is the target neutral
-  Ion* N = ch->IonList[lQ(Z, C-1)].get();
+  Ion* N = ad->IonList[lQ(Z, C-1)].get();
 
 				// Ionization energy in eV
-  double ionE         = ch->ipdata[lQ(Z, 1)];
+  double ionE         = ad->ipdata[lQ(Z, 1)];
 
   std::vector<double> radRecCum;
   double cross = 0.0;
@@ -2421,22 +2908,22 @@ std::vector<double> Ion::radRecombCrossTopBase(double E, int id)
 {
   // Initialize TopBase data (once) if needed
   //
-  if (ch->tb.get() == 0) {
+  if (ad->tb.get() == 0) {
     if (myid==0) {
       std::cerr << "Ion: creating new TopBase instance"
 		<< std::endl;
     }
-    ch->tb = boost::shared_ptr<TopBase>(new TopBase);
+    ad->tb = boost::shared_ptr<TopBase>(new TopBase);
     // For debugging (set to 'false' for production)
     //  |
     //  v
-    if (false && myid==0) ch->tb->printInfo();
+    if (false && myid==0) ad->tb->printInfo();
   }
 
   // Call for the cross section
   //
   TopBase::iKey k(Z, C);
-  std::vector<double> ret(1, ch->tb->sigmaFB(k, E));
+  std::vector<double> ret(1, ad->tb->sigmaFB(k, E));
 
   return ret;
 }
@@ -2449,7 +2936,7 @@ std::vector<double> Ion::radRecombCrossVerner(double E, int id)
   // Call for the cross section
   //
   lQ Q(Z, C);
-  std::vector<double> ret(1, ch->VernerXC.cross(Q, E));
+  std::vector<double> ret(1, ad->VernerXC.cross(Q, E));
 
   return ret;
 }
@@ -2498,18 +2985,18 @@ void Ion::printfblvl()
 
 
 //------------------------------------------------------------
-// chdata functions
+// atomicData functions
 //------------------------------------------------------------
 
 //
 // Read in the master list
 // 
-void chdata::readMaster() 
+void atomicData::readMaster() 
 {
   char * val;
   if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
     if (myid==0)
-      std::cout << "chdata::readMaster: "
+      std::cout << "atomicData::readMaster: "
 		<< "could not find CHIANTI_DATA environment variable"
 		<< " . . . exiting" << std::endl;
     MPI_Finalize();
@@ -2532,7 +3019,7 @@ void chdata::readMaster()
     masterFile.close();
   }
   else {
-    if (myid==0) std::cout << "chdata:readMaster: master list file <"
+    if (myid==0) std::cout << "atomicData:readMaster: master list file <"
 			   << fileName << "> not found" << std::endl;
     MPI_Finalize();
     exit(46);
@@ -2544,12 +3031,12 @@ void chdata::readMaster()
 // Get the ipdata set so that if you want to get the ip of any Z, C,
 // you call it as ipdata[lQ(Z, C-(int)die)]
 //
-void chdata::readIp() 
+void atomicData::readIp() 
 {
   char * val;
   if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
     if (myid==0)
-      std::cout << "chdata::readIp: "
+      std::cout << "atomicData::readIp: "
 		<< "could not find CHIANTI_DATA environment variable"
 		<< " . . . exiting" << std::endl;
     MPI_Finalize();
@@ -2558,7 +3045,10 @@ void chdata::readIp()
 
   std::string fileName(val);
   fileName.append("/ip/chianti.ip");
-  ifstream ipFile(fileName.c_str());
+  if (myid==0) std::cout << "Attempting to open <" << fileName
+			 << "> . . ." << std::endl;
+
+  std::ifstream ipFile(fileName);
   
   int count = 0;
   unsigned char Z, C;
@@ -2587,8 +3077,11 @@ void chdata::readIp()
     ipFile.close();
   }
   else {
-    if (myid==0) std::cout << "chdata:readIp: file <" 
-			   << fileName << "> not found" << std::endl;
+    if (myid==0) std::cout << "atomicData:readIp: file <" 
+			   << fileName << "> not found or could not be opened"
+			   << std::endl
+			   << "Error code: " << strerror(errno)
+			   << std::endl;
     MPI_Finalize();
     exit(47);
   }
@@ -2599,12 +3092,12 @@ void chdata::readIp()
 // the cosmic.abund file. Can later put in a multidimensional array to
 // allow for all the abundance files
 //
-void chdata::readAbundanceAll() 
+void atomicData::readAbundanceAll() 
 {
   char * val;
   if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
     if (myid==0)
-      std::cout << "chdata::readAbundanceAll: "
+      std::cout << "atomicData::readAbundanceAll: "
 		<< "could not find CHIANTI_DATA environment variable"
 		<< " . . . exiting" << std::endl;
     MPI_Finalize();
@@ -2630,7 +3123,7 @@ void chdata::readAbundanceAll()
     abFile.close();
   }
   else {
-    if (myid==0) std::cout << "chdata::readAbundanceAll: "
+    if (myid==0) std::cout << "atomicData::readAbundanceAll: "
 			   << "abundance file <" 
 			   << fileName << "> not found! " << std::endl;
     MPI_Finalize();
@@ -2643,16 +3136,24 @@ void chdata::readAbundanceAll()
 // Read in the Verner-Yakovlev data for radiative cross section
 // determination using the short table provided by CHIANTI
 //
-void chdata::readVerner() 
+void atomicData::readVerner() 
 {
   VernerXC.initialize(this);
+}
+
+//
+// Read in the Badnell data
+//
+void atomicData::readBadnell() 
+{
+  BadnellXC.initialize(this);
 }
 
 //
 // Read in the Karzas-Latter gaunt factor data table provided by
 // CHIANTI
 //
-void chdata::readRadGF() 
+void atomicData::readRadGF() 
 {
   radGF.initialize(this);
 }
@@ -2660,7 +3161,7 @@ void chdata::readRadGF()
 //
 // list names of all species to stdout
 //
-void chdata::printMaster() 
+void atomicData::printMaster() 
 {
   if (myid==0) {
     std::cout << "Elements in the master list: " << std::endl;
@@ -2671,7 +3172,7 @@ void chdata::printMaster()
   }
 }
 
-void chdata::printIp() 
+void atomicData::printIp() 
 {
   std::cout << std::string(60, '-') << std::endl
 	    << std::setw( 3) << "Z" << std::setw( 3) << "C"
@@ -2691,9 +3192,9 @@ void chdata::printIp()
 }
 
 //
-// chdata constructor
+// atomicData constructor
 //
-chdata::chdata() 
+atomicData::atomicData() 
 {
   for (int i = 0; i < numEle; i++) abundanceAll[i] = 0;
   
@@ -2706,8 +3207,9 @@ chdata::chdata()
   // std::cout << "Reading abundance file\n";
   readAbundanceAll();
   
-  // std::cout << "Reading radiative cross section file\n";
+  // std::cout << "Reading radiative cross section files\n";
   readVerner();
+  readBadnell();
 
   // std::cout << "Reading radiative recombination Gaunt factor file\n";
   readRadGF();
@@ -2715,7 +3217,7 @@ chdata::chdata()
   // Done
 }
 
-void chdata::createIonList(const std::set<unsigned short>& ZList)
+void atomicData::createIonList(const std::set<unsigned short>& ZList)
 {
   // Fill the Chianti data base
   //
@@ -2874,9 +3376,9 @@ void VernerData::VernerRec::sync(int nid)
   MPI_Bcast(&yw,   1, MPI_DOUBLE, nid, MPI_COMM_WORLD);
 }
 
-void VernerData::initialize(chdata* ch)
+void VernerData::initialize(atomicData* ad)
 {
-  this->ch = ch;
+  this->ad = ad;
   int nOK = 0;
   
   // Only used by root process
@@ -3092,7 +3594,7 @@ double VernerData::cross(const lQ& Q, double EeV)
 
 				// Gaunt factor
 	double scaledE = log(Eph/Eiz);
-	double gf = ch->radGF(scaledE, n, l);
+	double gf = ad->radGF(scaledE, n, l);
 				// Cross section x Gaunt factor
 	double cross = crossPh * gf * Milne;
 	
@@ -3127,9 +3629,9 @@ std::vector<double> Ion::photoIonizationCross(double E, int id)
   // Call for the cross section
   //
   lQ Q(Z, C);
-  auto ion = ch->VernerXC.data.find(Q);
-  if (ion != ch->VernerXC.data.end()) {
-    val = ch->VernerXC.crossPhotoIon(*(ion->second.begin()), E);
+  auto ion = ad->VernerXC.data.find(Q);
+  if (ion != ad->VernerXC.data.end()) {
+    val = ad->VernerXC.crossPhotoIon(*(ion->second.begin()), E);
   }
   
   std::vector<double> ret(1, val);
@@ -3242,7 +3744,7 @@ double VernerData::crossPhotoIon(vrPtr vdata, double Eph)
     pow(y, -5.5 - vdata->l + 0.5*vdata->p) * 
     pow(1.0 + sqrt(y/vdata->ya), -vdata->p);
   
-  // Convert from Mbarnes to nm^2
+  // Convert from Mbarns to nm^2
   //
   return fy * 1.0e-4;
 }
@@ -3253,9 +3755,9 @@ double VernerData::crossPhotoIon(vrPtr vdata, double Eph)
 // n=1-6 from Karzas and Latter, 1961, ApJSS, 6, 167, the photon
 // energy and the free-bound gaunt factors
 //
-void KLGFdata::initialize(chdata* ch)
+void KLGFdata::initialize(atomicData* ad)
 {
-  this->ch = ch;
+  this->ad = ad;
 
   int nOK = 0;
 
@@ -3390,7 +3892,7 @@ void KLGFdata::initialize(chdata* ch)
 }
 
 std::map<unsigned short, double> 
-chdata::fraction(unsigned short Z, double T, int norder)
+atomicData::fraction(unsigned short Z, double T, int norder)
 {
   if (Lagu.get() == 0) 
     Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
@@ -3450,7 +3952,7 @@ chdata::fraction(unsigned short Z, double T, int norder)
 
 
 std::map<unsigned short, double> 
-chdata::fraction(unsigned short Z, double T, 
+atomicData::fraction(unsigned short Z, double T, 
 		 double Emin, double Emax, int norder)
 {
   if (Lege.get() == 0) 
@@ -3524,7 +4026,7 @@ chdata::fraction(unsigned short Z, double T,
 }
 
 std::map<unsigned short, std::vector<double> > 
-chdata::recombEquil(unsigned short Z, double T, int norder)
+atomicData::recombEquil(unsigned short Z, double T, int norder)
 {
   if (Lagu.get() == 0) 
     Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
@@ -3588,7 +4090,7 @@ chdata::recombEquil(unsigned short Z, double T, int norder)
 
 
 std::map<unsigned short, std::vector<double> >
-chdata::recombEquil(unsigned short Z, double T, 
+atomicData::recombEquil(unsigned short Z, double T, 
 		    double Emin, double Emax, int norder, bool use_log)
 {
   if (Lege.get() == 0) 
@@ -3679,7 +4181,7 @@ chdata::recombEquil(unsigned short Z, double T,
 }
 
 double
-chdata::collEmiss(unsigned short Z, unsigned short C, double T, 
+atomicData::collEmiss(unsigned short Z, unsigned short C, double T, 
 		  double Emax, int norder)
 {
   // Laguerre weights and knots
@@ -3750,7 +4252,7 @@ chdata::collEmiss(unsigned short Z, unsigned short C, double T,
 }
 
 double
-chdata::freeFreeEmiss(unsigned short Z, unsigned short C, double T)
+atomicData::freeFreeEmiss(unsigned short Z, unsigned short C, double T)
 {
   // No free free from neutral
   //
@@ -3783,7 +4285,7 @@ __device__ functions for each desired cross section
 
 #if HAVE_LIBCUDA==1
 
-void chdata::cuda_initialize()
+void atomicData::cuda_initialize()
 {
   // Remove any previous initialization data
   //
@@ -3822,7 +4324,7 @@ void chdata::cuda_initialize()
   cuda_initialize_textures();
 }
 
-void chdata::destroy_cuda()
+void atomicData::destroy_cuda()
 {
   int i = 0;
   for (auto & u : cuIonElem) {

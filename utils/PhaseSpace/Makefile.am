@@ -18,14 +18,15 @@ if ENABLE_CUDA
 endif
 
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
-AM_CXXFLAGS = -std=c++11 -D_REENTRANT -DSTANDALONE $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) @exp_vtk_include@
+AM_CXXFLAGS = -D_REENTRANT -DSTANDALONE $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) @exp_vtk_include@
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
 
 bin_PROGRAMS = pspinfo pspstat psp2tipsy pspsplit psp2ascii ascii2psp	\
 		tipstd2psp psp2ta pspgas psp2histo psp2histo1d		\
 		psp2histo1D2 psp2histoE psp2histoH pspreal pspstatS	\
 		psp2range psp2eHisto psp2histoT psp2histoTC pspstatT	\
-		spl2psp pspinfo2 ascii2psp2 psp2vtu psp2rings
+		spl2psp pspinfo2 ascii2psp2 psp2vtu psp2rings		\
+		psp2bess psp2lagu psp2interp
 
 COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ $(YAML) $(CUDA_LDFLAGS) $(CUDA_LIBFLAGS)
 
@@ -35,7 +36,7 @@ EXPLIBS = $(MPI_LIBS) $(COMMON_LIBS) $(ADD_LIBS3)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
 CXXLINK = mpiCC -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
 
-noinst_HEADERS =
+noinst_HEADERS  = Grid2D.H
 
 pspinfo_SOURCES = pspinfo.cc PSP.cc header.cc header.H
 pspinfo_LDADD   = $(COMMON_LIBS)
@@ -139,6 +140,21 @@ psp2rings_SOURCES  = psp2rings.cc PSP2.cc header.cc header.H
 psp2rings_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
 psp2rings_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
 psp2rings_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS) $(EXPLIBS)
+
+psp2bess_SOURCES  = psp2bess.cc PSP2.cc header.cc header.H
+psp2bess_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
+psp2bess_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
+psp2bess_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS) $(EXPLIBS)
+
+psp2lagu_SOURCES  = psp2lagu.cc PSP2.cc header.cc header.H
+psp2lagu_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
+psp2lagu_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
+psp2lagu_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS) $(EXPLIBS)
+
+psp2interp_SOURCES  = psp2interp.cc PSP2.cc header.cc header.H
+psp2interp_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
+psp2interp_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
+psp2interp_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS) $(EXPLIBS)
 
 *.cc:		header.H
 

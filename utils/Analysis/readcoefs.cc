@@ -4,49 +4,9 @@
 #include <memory>
 
 #include <boost/program_options.hpp>
-
 namespace po = boost::program_options;
 
-#include "../../src/coef.H"
-
-struct Coefs
-{
-  double time;
-  int nmax, mmax;
-  std::vector< std::vector<double> > cos_c, sin_c;
-
-  bool read(std::istream& in);
-};
-
-typedef std::shared_ptr<Coefs> CoefPtr;
-
-bool Coefs::read(std::istream& in)
-{
-  CylCoefHeader header;
-  in.read((char *)&header, sizeof(CylCoefHeader));
-  if (not in) return false;
-
-  time = header.time;
-  nmax = header.nmax;
-  mmax = header.mmax;
-
-  cos_c.resize(mmax+1);
-  sin_c.resize(mmax+1);
-  
-  for (int mm=0; mm<=mmax; mm++) {
-
-    cos_c[mm].resize(nmax);
-    in.read((char *)&cos_c[mm][0], sizeof(double)*nmax);
-
-    if (mm) {
-      sin_c[mm].resize(nmax);
-      in.read((char *)&sin_c[mm][0], sizeof(double)*nmax);
-    }
-  }
-
-  return true;
-}
-
+#include "Coefs.H"
 
 int main(int argc, char **argv)
 {
@@ -118,7 +78,7 @@ int main(int argc, char **argv)
 
   while (in) {
     CoefPtr c = std::make_shared<Coefs>();
-    if (not c->read(in)) break;
+    if (not c->read(in, verbose)) break;
 
     coefs[c->time] = c;
   }
@@ -126,7 +86,7 @@ int main(int argc, char **argv)
   for (auto c : coefs) {
     for (int mm=mmin; mm<=std::min<int>(mmax, c.second->mmax); mm++) {
       std::cout << std::setw(18) << c.first << std::setw(5) << mm;
-      for (int nn=std::max<int>(nmin, 0); nn<=std::min<int>(nmax, c.second->nmax); nn++) {
+      for (int nn=std::max<int>(nmin, 0); nn<std::min<int>(nmax, c.second->nmax); nn++) {
 	if (mm==0) {
 	  if (angle)
 	    std::cout << std::setw(18) << 0.0;

@@ -98,11 +98,14 @@ void ComponentContainer::initialize(void)
 	   << "  Ncomp=" << master.ncomp << endl;
 
       tnow  = master.time;
+      tstp  = master.time;
       ntot  = master.ntot;
       ncomp = master.ncomp;
     }
 
     MPI_Bcast(&tnow,  1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    MPI_Bcast(&tstp,  1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     
     MPI_Bcast(&ntot,  1, MPI_INT,    0, MPI_COMM_WORLD);
       
@@ -227,6 +230,13 @@ void ComponentContainer::initialize(void)
     cout << "\n";
   }
 
+#ifdef HAVE_LIBCUDA
+  // Move all particles to cuda devices
+  if (use_cuda) {
+    for (auto c : components) c->ParticlesToCuda();
+  }
+#endif
+
   (*barrier)("ComponentContainer::initialize: FINISH", __FILE__, __LINE__);
 }
 
@@ -278,7 +288,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     if (levcnt.size()==0) levcnt = vector<unsigned>(multistep+1, 0);
     levcnt[mlevel]++;
   }
-
+  
   // Potential/force clock
   //
   for (auto c : components) c->time_so_far.reset();
@@ -313,26 +323,30 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       timer_wait.stop();
       timer_zero.start();
     }
-				// Look for particles at this and
-				// successive levels
-    for (int lev=mlevel; lev<=multistep; lev++) {
-      
-      ntot = c->levlist[lev].size();
-      
-      for (unsigned n=0; n<ntot; n++) {
-				// Particle index
-	indx = c->levlist[lev][n];
-				// Zero-out external potential
-	c->Part(indx)->potext = 0.0;
-				// Zero-out potential and acceleration
-	c->Part(indx)->pot = 0.0;
-	for (int k=0; k<c->dim; k++) c->Part(indx)->acc[k] = 0.0;
-      }
 
 #ifdef HAVE_LIBCUDA
+    if (use_cuda) {
       c->ZeroPotAccel(mlevel);
+    } else
 #endif
-    }
+      {
+				// Look for particles at this and
+				// successive levels
+	for (int lev=mlevel; lev<=multistep; lev++) {
+      
+	  ntot = c->levlist[lev].size();
+      
+	  for (unsigned n=0; n<ntot; n++) {
+				// Particle index
+	    indx = c->levlist[lev][n];
+				// Zero-out external potential
+	    c->Part(indx)->potext = 0.0;
+				// Zero-out potential and acceleration
+	    c->Part(indx)->pot = 0.0;
+	    for (int k=0; k<c->dim; k++) c->Part(indx)->acc[k] = 0.0;
+	  }
+	}
+      }
 
     if (timing) {
       timer_zero.stop();
@@ -356,6 +370,13 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
     }
 
+#if HAVE_LIBCUDA==1
+    if (use_cuda and not c->force->cudaAware() and not fetched[c]) {
+      c->CudaToParticles();
+      fetched[c] = true;
+    }
+#endif
+
     c->force->set_multistep_level(mlevel);
 
     if (cuda_prof) {
@@ -365,6 +386,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     }
 
     c->force->get_acceleration_and_potential(c);
+      
     c->time_so_far.stop();
     if (timing) {
       timer_accel.stop();
@@ -420,6 +442,13 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   for (auto inter : interaction) {
     for (auto other : inter->l) {
 
+#if HAVE_LIBCUDA==1
+      if (use_cuda and not inter->c->force->cudaAware() and not fetched[other]) {
+	other->CudaToParticles();
+	fetched[other] = true;
+      }
+#endif
+
 #ifdef USE_GPTL
       ostringstream sout;
       sout <<"ComponentContainer::interation run<"
@@ -443,6 +472,17 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       inter->c->force->get_acceleration_and_potential(other);
       inter->c->force->ClearExternal();
       other->time_so_far.stop();
+
+      if (false) {	     // Some deep debugging for playback . . .
+	std::vector<double> cen1 = inter->c->getCenter(Component::Local);
+	std::vector<double> cen2 = other->getCenter(Component::Local);
+
+	std::cout << "ComponentContainer [" << myid << "], centers for [" << inter->c->name
+		  << "-->" << other->name << "] c1=("
+		  << cen1[0] << ", " << cen1[1] << ", " << cen1[2] << ") c2=("
+		  << cen2[0] << ", " << cen2[1] << ", " << cen2[2] << std::endl;
+      }
+
       if (timing) {
 	timer_accel.stop();
 	itmr->second.stop();
@@ -554,6 +594,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   if (mactive[mstep][centerlevl]) {
 
     if (timing) timer_posn.start();
+    // WARNING: Orient not yet implemented in cuda . . . 
     fix_positions();
     if (timing) timer_posn.stop();
 
@@ -750,6 +791,16 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   }
 
+#if HAVE_LIBCUDA==1
+  if (use_cuda) {
+    for (auto c : components) {
+      if (fetched[c]) {
+	c->ParticlesToCuda();
+      }
+    }
+  }
+#endif
+
 #ifdef USE_GPTL
   GPTLstop("ComponentContainer::timing");
   GPTLstop("ComponentContainer::compute_potential");
@@ -771,7 +822,21 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
   cout << "Process " << myid << ": entered <compute_expansion>\n";
 #endif
 
+#if HAVE_LIBCUDA==1
+  // List of components for cuda fetching
   //
+  if (use_cuda) {
+    for (auto c : comp->components) {
+      if (use_cuda and not c->force->cudaAware() and not fetched[c]) {
+	c->CudaToParticles();
+	fetched[c] = true;
+      } else {
+	fetched[c] = false;
+      }
+    }
+  }
+#endif
+
   // Compute expansion for each component
   //
   for (auto c : components) {
@@ -939,8 +1004,6 @@ void ComponentContainer::fix_acceleration(void)
   }
 
 }
-
-
 
 void ComponentContainer::fix_positions()
 {

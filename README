@@ -23,6 +23,15 @@ libsrnd		Utility library 3 (random number classes, GNU string class,
 src		Source for nbody code
 
 
+Version reporting:
+------------------
+
+EXP automatically stashes its compile time, git branch, and git commit
+hash when 'make' is invoked in the src directory.  You can see this
+info using the -v flag, i.e. 'mpirun -np 1 exp -v' or 'exp -v'.  Note:
+some MPI implementations require the MPI-aware executable to be run
+using 'mpirun'.
+
 Compile hints:
 --------------
 

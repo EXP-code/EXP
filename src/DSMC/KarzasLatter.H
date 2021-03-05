@@ -1,7 +1,7 @@
 #ifndef _KARZAS_LATTER_H
 #define _KARZAS_LATTER_H
 
-class chdata;
+class atomicData;
 class Ion;
 
 #include "spline.H"
@@ -17,7 +17,7 @@ class KLGFdata
 
 private:
 
-  chdata *ch;
+  atomicData *ad;
 
   //! Number of levels
   int ngfb;
@@ -46,7 +46,7 @@ public:
   KLGFdata() {}
 
   //! Initialize the data from the CHIANTI data file
-  void initialize(chdata* ch);
+  void initialize(atomicData* ad);
 
 
   //! Evaluate the Gaunt factor

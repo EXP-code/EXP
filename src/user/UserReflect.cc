@@ -99,9 +99,15 @@ void UserReflect::initialize()
 
 void UserReflect::determine_acceleration_and_potential(void)
 {
+  if (cC != c0) return;
+
   if (debug) {
     for (int n=0; n<nthrds; n++) wrong_dir[n] = too_big[n] = 0;
   }
+
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
 
   exp_thread_fork(false);
 

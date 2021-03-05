@@ -126,10 +126,18 @@ void OutputContainer::Run(int nstep, int mstep, bool final)
   //
   if (fabs(tnow - last) < 0.5*dtime/Mstep) return;
 
+#ifdef HAVE_LIBCUDA
+  // List of components for cuda fetching
+  //
+  if (use_cuda) {
+    for (auto c : comp->components) comp->fetched[c] = false;
+  }
+#endif
+
   // Loop through all instances
   //
   for (auto it : out) it->Run(nstep, mstep, final);
-
+  
   // Root node output
   //
   if (myid==0 and mstep==0) {

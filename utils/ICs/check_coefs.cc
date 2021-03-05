@@ -1,5 +1,5 @@
 /*
-  Check coefficients for cylindrical basis
+  Check orthgonality for cylindrical basis
 */
                                 // C++/STL headers
 #include <cmath>
@@ -18,8 +18,17 @@
 #include <boost/math/special_functions/bessel.hpp>
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/make_shared.hpp>
+#include <boost/make_unique.hpp>
+
+#include <yaml-cpp/yaml.h>	// YAML support
 
 namespace po = boost::program_options;
+
+#include <config.h>
+#ifdef HAVE_OMP_H
+#include <omp.h>
+#endif
 
 // MDW classes
 //
@@ -29,7 +38,7 @@ namespace po = boost::program_options;
 #include <hernquist.h>
 #include <model3d.h>
 #include <biorth.h>
-#include <SphericalSL.h>
+#include <SphericalSL.H>
 #include <interp.h>
 #include <EmpCylSL.h>
 #include <DiskModels.H>
@@ -159,9 +168,7 @@ void set_fpu_gdb_handler(void)
 #endif
 
                                 // Local headers
-#include "SphericalSL.h"
-#include "DiskHalo2.h" 
-#include "localmpi.h"
+#include <localmpi.h>
 
 
 // Hydrogen fraction
@@ -322,7 +329,8 @@ main(int ac, char **av)
   bool         LOGR;
   bool         LOGR2;
   bool         CHEBY;
-  bool         CMAP;
+  int          CMAPR;
+  int          CMAPZ;
   int          CMTYPE;
   int          NCHEB;
   int          NDR;
@@ -335,6 +343,7 @@ main(int ac, char **av)
   int          NOUT;
   int          NFRC;
   int          NORDER;
+  int          NODD;
   double       scale_height;
   double       scale_length;
   double       ppower;
@@ -355,7 +364,7 @@ main(int ac, char **av)
     ("conf,c",          po::value<string>(&config),                                     "Write template options file with current and all default values")
     ("input,f",         po::value<string>(&config),                                     "Parameter configuration file")
     ("condition",       po::value<string>(&dmodel),                                     "Condition EmpCylSL deprojection from specified disk model (EXP or MN)")
-    ("NINT",            po::value<int>(&NINT)->default_value(40),                       "Number of Gauss-Legendre knots")
+    ("NINT",            po::value<int>(&NINT)->default_value(100),                       "Number of Gauss-Legendre knots")
     ("NUMR",            po::value<int>(&NUMR)->default_value(2000),                     "Size of radial grid for Spherical SL")
     ("RCYLMIN",         po::value<double>(&RCYLMIN)->default_value(0.001),              "Minimum disk radius")
     ("RCYLMAX",         po::value<double>(&RCYLMAX)->default_value(20.0),               "Maximum disk radius")
@@ -368,8 +377,8 @@ main(int ac, char **av)
     ("RNUM",            po::value<int>(&RNUM)->default_value(200),                      "Number of radial knots for EmpCylSL basis construction quadrature")
     ("PNUM",            po::value<int>(&PNUM)->default_value(80),                       "Number of azimthal knots for EmpCylSL basis construction quadrature")
     ("TNUM",            po::value<int>(&TNUM)->default_value(80),                       "Number of cos(theta) knots for EmpCylSL basis construction quadrature")
-    ("CMAP",            po::value<bool>(&CMAP)->default_value(true),                    "Map coordinates from radius to tabled grid")
-    ("CMAPTYPE",        po::value<int>(&CMTYPE)->default_value(1),                    "Coordinate mapping type (0=none, 1=original, 2=power in R and z")
+    ("CMAPR",           po::value<int>(&CMAPR)->default_value(1),                     "Radial coordinate mapping type for cylindrical grid (0=none, 1=rational fct)")
+    ("CMAPZ",           po::value<int>(&CMAPZ)->default_value(1),                     "Vertical coordinate mapping type for cylindrical grid (0=none, 1=sech, 2=power in z")
     ("SVD",             po::value<bool>(&SVD)->default_value(false),                    "Use svd for symmetric eigenvalue problesm")
     ("LOGR",            po::value<bool>(&LOGR)->default_value(false),                   "Make a logarithmic coordinate mapping")
     ("LOGR2",           po::value<bool>(&LOGR2)->default_value(false),                   "Make a logarithmic coordinate mapping for coefficient eval")
@@ -379,6 +388,7 @@ main(int ac, char **av)
     ("NUMX",            po::value<int>(&NUMX)->default_value(256),                      "Radial grid size for disk basis table")
     ("NUMY",            po::value<int>(&NUMY)->default_value(128),                      "Vertical grid size for disk basis table")
     ("NORDER",          po::value<int>(&NORDER)->default_value(16),                     "Number of disk basis functions per M-order")
+    ("NODD",            po::value<int>(&NODD)->default_value(-1),                       "Number of antisymmetric vertical functions per M-order")
     ("NOUT",            po::value<int>(&NOUT)->default_value(1000),                     "Number of radial basis functions to output for each harmonic order")
     ("NFRC",            po::value<int>(&NFRC)->default_value(100),                     "Number of radial knots for force check")
     ("DENS",            po::value<bool>(&DENS)->default_value(true),                    "Compute the density basis functions")
@@ -551,9 +561,20 @@ main(int ac, char **av)
   if (myid==0)
     std::cout << "DiskType is <" << disktype << ">" << std::endl;
 
-  // Set mapping type
-  //
-  if (not CMAP) CMTYPE = 0;
+  //====================
+  // OpenMP control
+  //====================
+
+#ifdef HAVE_OMP_H
+  omp_set_num_threads(nthrds);
+#pragma omp parallel
+  {
+    int numthrd = omp_get_num_threads();
+    int myid = omp_get_thread_num();
+    if (myid==0)
+      std::cout << "Number of threads=" << numthrd << std::endl;
+  }
+#endif
 
   //====================
   // Okay, now begin ...
@@ -585,8 +606,68 @@ main(int ac, char **av)
 		<< std::endl;
     } else {
 
+      // Attempt to read magic number
+      //
+      const unsigned int hmagic = 0xc0a57a1; // Basis magic #
+      unsigned int tmagic;
+      in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
+
+      if (tmagic == hmagic) {
+
+	// YAML size
+	//
+	unsigned ssize;
+	in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
+
+	// Make and read char buffer
+	//
+	auto buf = boost::make_unique<char[]>(ssize+1);
+	in.read(buf.get(), ssize);
+	buf[ssize] = 0;		// Null terminate
+
+	YAML::Node node;
+      
+	try {
+	  node = YAML::Load(buf.get());
+	}
+	catch (YAML::Exception& error) {
+	  if (myid==0)
+	    std::cerr << "YAML: error parsing <" << buf.get() << "> "
+		      << "in " << __FILE__ << ":" << __LINE__ << std::endl
+		      << "YAML error: " << error.what() << std::endl;
+	  throw error;
+	}
+	
+	// Get parameters
+	//
+	MMAX   = node["mmax"  ].as<int>();
+	NUMX   = node["numx"  ].as<int>();
+	NUMY   = node["numy"  ].as<int>();
+	NMAX   = node["nmax"  ].as<int>();
+	NORDER = node["norder"].as<int>();
+	DENS   = node["dens"  ].as<bool>();
+	// RMIN   = node["rmin"  ].as<double>();
+	// RMAX   = node["rmax"  ].as<double>();
+	ASCALE = node["ascl"  ].as<double>();
+	HSCALE = node["hscl"  ].as<double>();
+
+	if (node["cmap"])		// Backwards compatibility
+	  CMAPR  = node["cmap"  ].as<int>();
+	else
+	  CMAPR  = node["cmapr" ].as<int>();
+	
+	if (node["cmapz"])	// Backwards compatibility
+	  CMAPZ  = node["cmapz" ].as<int>();
+
+      } else {
+
+	// Rewind file
+	//
+	in.clear();
+	in.seekg(0);
+
       int tmp;
-    
+      
       in.read((char *)&MMAX,    sizeof(int));
       in.read((char *)&NUMX,    sizeof(int));
       in.read((char *)&NUMY,    sizeof(int));
@@ -602,9 +683,10 @@ main(int ac, char **av)
       in.read((char *)&RCYLMAX, sizeof(double));
       in.read((char *)&ASCALE,  sizeof(double));
       in.read((char *)&HSCALE,  sizeof(double));
+      }
     }
   }
-
+    
   // Limit value of NOUT
   //
   NOUT = std::min<int>(NOUT, NORDER);
@@ -618,7 +700,8 @@ main(int ac, char **av)
   EmpCylSL::NUMY        = NUMY;
   EmpCylSL::NUMR        = NUMR;
   EmpCylSL::NOUT        = NOUT;
-  EmpCylSL::CMAP        = CMTYPE;
+  EmpCylSL::CMAPR       = CMAPR;
+  EmpCylSL::CMAPZ       = CMAPZ;
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
   EmpCylSL::DENS        = DENS;

@@ -68,6 +68,13 @@ public:
      ignoring the <code>z</code> coordinate.
   */
   void 
+  determine_fields_at_point(double x, double y, double z,
+			    double *tdens0, double *tpotl0, 
+			    double *tdens, double *tpotl, 
+			    double *tpotX, double *tpotY, 
+			    double *tpotZ);
+
+  void 
   determine_fields_at_point_polar(double r, double phi,
 				  double *tdens0, double *tpotl0, 
 				  double *tdens, double *tpotl, 

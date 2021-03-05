@@ -180,9 +180,9 @@ int main (int ac, char **av)
 
   PeriodicTable pt;
 
-  chdata ch;
+  atomicData ad;
 
-  ch.createIonList(ZList);
+  ad.createIonList(ZList);
 
   if (myid) {
     MPI_Finalize();
@@ -208,7 +208,7 @@ int main (int ac, char **av)
 
     double T = exp(tmin + dT*nt);
 
-    std::map<unsigned short, std::vector<double> > val1 = ch.recombEquil(Z, T, norder);
+    std::map<unsigned short, std::vector<double> > val1 = ad.recombEquil(Z, T, norder);
 
     double emin0 = Emin;
     double emax0 = Emax;
@@ -216,7 +216,7 @@ int main (int ac, char **av)
       emin0 = exp(emin0);
       emax0 = exp(emax0);
     }
-    std::map<unsigned short, std::vector<double> > val2 = ch.recombEquil(Z, T, emin0, emax0, norder, use_log);
+    std::map<unsigned short, std::vector<double> > val2 = ad.recombEquil(Z, T, emin0, emax0, norder, use_log);
 
     std::map<unsigned short, std::vector<double> > val3;
     for (size_t ne=0; ne<NE; ne++) {
@@ -228,14 +228,14 @@ int main (int ac, char **av)
       }
       if (val3.size()) {
 	std::map<unsigned short, std::vector<double> > valT =
-	  ch.recombEquil(Z, T, Eb, Ef, norder, use_log);
+	  ad.recombEquil(Z, T, Eb, Ef, norder, use_log);
 	for (auto v : val3) {
 	  unsigned short C = v.first;
 	  size_t sz = v.second.size();
 	  for (size_t k=0; k<sz; k++) val3[C][k] += valT[C][k];
 	}
       } else {
-	val3 = ch.recombEquil(Z, T, Eb, Ef, norder, use_log);
+	val3 = ad.recombEquil(Z, T, Eb, Ef, norder, use_log);
       }
     }
 
@@ -266,7 +266,7 @@ int main (int ac, char **av)
       rateMap valH, val0;
       std::vector<rateMap> val1(numE);
       
-      if (rates) valH = ch.recombEquil(Z, T, norder);
+      if (rates) valH = ad.recombEquil(Z, T, norder);
 
       for (int ne=0; ne<numE; ne++) {
 	
@@ -279,14 +279,14 @@ int main (int ac, char **av)
 
 	if (val0.size()) {
 	  std::map<unsigned short, std::vector<double> >
-	    valT = ch.recombEquil(Z, T, Eb, Ef, norder);
+	    valT = ad.recombEquil(Z, T, Eb, Ef, norder);
 	  for (auto v : val0) {
 	    unsigned short C = v.first;
 	    size_t        sz = v.second.size();
 	    for (size_t j=0; j<sz; j++) val0[C][j] += valT[C][j];
 	  }
 	} else {
-	  val0 = ch.recombEquil(Z, T, Ef, Eb, norder);
+	  val0 = ad.recombEquil(Z, T, Ef, Eb, norder);
 	}
 	val1[ne] = val0;
       }

@@ -29,7 +29,7 @@ protected:
   //! Compute eof decomposition
   bool pcaeof;
 
-  //! vtk diagnostic frequency
+  //! VTK diagnostic frequency
   unsigned vtkfreq;
 
   //! Frequency of PCA computation
@@ -46,16 +46,31 @@ protected:
      efficiency.
   */
   //@{
-  Matrix expcoef, expcoef1;
-  vector<Matrix*> expcoefN;
-  vector<Matrix*> expcoefL;
-
+  typedef boost::shared_ptr<Vector> VectorP;
   typedef boost::shared_ptr<Matrix> MatrixP;
-  vector<MatrixP> expcoefT, expcoefT1;
-  vector<double>  massT, massT1;
-  unsigned        sampT;
 
-  vector<MatrixP> tvar;		// Test for eof trim
+  std::vector<VectorP> expcoef, expcoef1;
+
+  //@{
+  //! Interpolation arrays
+  std::vector<std::vector<VectorP>> expcoefN;
+  std::vector<std::vector<VectorP>> expcoefL;
+  //@}
+
+  //@{
+  //! Covariance arrays
+  std::vector<std::vector<VectorP>> expcoefT, expcoefT1;
+  std::vector<std::vector<MatrixP>> expcoefM, expcoefM1;
+  //@}
+
+  //@{
+  //! Mass and counts for subsample covariance
+  std::vector<double>               massT, massT1;
+  unsigned                          sampT;
+  //@}
+
+  //! Test for eof trim
+  std::vector<MatrixP>              tvar;
   //@}
 
   //! Normalization for covariance matrix based on the biorthogonal basis norm

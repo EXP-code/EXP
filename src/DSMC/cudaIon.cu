@@ -612,7 +612,7 @@ void testConstantsIon()
   printf("** Rgrid(num) = %d\n", ionRadRecombNumber);
 }
 
-void chdata::cuda_initialize_textures()
+void atomicData::cuda_initialize_textures()
 {
   size_t ionSize = IonList.size();
 
@@ -1067,7 +1067,7 @@ void chdata::cuda_initialize_textures()
 
 }
 
-void chdata::cuda_initialize_grid_constants()
+void atomicData::cuda_initialize_grid_constants()
 {
   double Emin, Emax, delE;
   int NE, NR;
@@ -1149,10 +1149,10 @@ void computeFreeFree
   // Interpolate the cross section array
   //
 #if cuREAL == 4
-  k[0]  = tex3D<float>(elem->ff_d, indx,   lb  , 0);
-  k[1]  = tex3D<float>(elem->ff_d, indx+1, lb  , 0);
-  k[2]  = tex3D<float>(elem->ff_d, indx,   lb+1, 0);
-  k[3]  = tex3D<float>(elem->ff_d, indx+1, lb+1, 0);
+  k[0]  = tex3D<float>(elem.ff_d, indx,   lb  , 0);
+  k[1]  = tex3D<float>(elem.ff_d, indx+1, lb  , 0);
+  k[2]  = tex3D<float>(elem.ff_d, indx,   lb+1, 0);
+  k[3]  = tex3D<float>(elem.ff_d, indx+1, lb+1, 0);
 #else
   k[0] = int2_as_double(tex3D<int2>(elem.ff_d, indx,   lb  , 0));
   k[1] = int2_as_double(tex3D<int2>(elem.ff_d, indx+1, lb  , 0));
@@ -1437,12 +1437,12 @@ void testRadRecomb
 
 // This is the production version
 //
-void chdata::testCross(int Nenergy,
-		       thrust::device_vector<cuIonElement>& cuElems,
-		       thrust::device_vector<cuFP_t>& x1,
-		       thrust::device_vector<cuFP_t>& x2) {}
+void atomicData::testCross(int Nenergy,
+			   thrust::device_vector<cuIonElement>& cuElems,
+			   thrust::device_vector<cuFP_t>& x1,
+			   thrust::device_vector<cuFP_t>& x2) {}
 
-void chdata::testCross(int Nenergy)
+void atomicData::testCross(int Nenergy)
 {
   // Timers
   //

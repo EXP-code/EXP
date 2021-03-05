@@ -1,28 +1,18 @@
 dnl ==========================================================================
 dnl Process this file with autoconf to produce a configure script.
 dnl ==========================================================================
-AC_INIT(EXP, 7.621, [mdw@umass.edu], [], [https://mdweinberg@bitbucket.org/mdweinberg/exp.git])
+AC_INIT(EXP, 7.691, [mdw@umass.edu], [], [https://mdweinberg@bitbucket.org/mdweinberg/exp.git])
 
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SRCDIR(src/expand.cc)
 AM_INIT_AUTOMAKE
+LT_INIT
 
 AC_DEFINE([NEED_MAIN], 1, [Define if a function `main' is needed.])
 
 dnl ==========================================================================
 dnl Add info from git repo
 dnl ==========================================================================
-
-m4_append([git_commit], ["])
-m4_append([git_commit], [m4_esyscmd_s([git describe --always])])
-m4_append([git_commit], ["])
-
-m4_append([git_branch], ["])
-m4_append([git_branch], [m4_esyscmd_s([git branch | grep \* | cut -d ' ' -f2])])
-m4_append([git_branch], ["])
-
-AC_DEFINE([GIT_COMMIT], [ git_commit ], [current git commit hash for verbose option])
-AC_DEFINE([GIT_BRANCH], [ git_branch ], [current git branch for verbose option])
 
 AC_REVISION([m4_esyscmd_s([git describe --always])])
 
@@ -45,20 +35,26 @@ AC_CONFIG_MACRO_DIR([m4])
 
 AC_LANG_PUSH(C++)
 
-AX_CXX_COMPILE_STDCXX_11([noext],[mandatory])
+AX_CXX_COMPILE_STDCXX_14([noext],[mandatory])
 
 dnl ==========================================================================
 dnl Check for hash
 dnl ==========================================================================
-AC_CHECK_HEADER(tr1/unordered_map,[AC_DEFINE([HAVE_TR1],[],["Have tr1"])],[])
-AC_CHECK_HEADER(unordered_map,[AC_DEFINE([HAVE_CXX0X],[],["Have C++0x"])],[])
-AC_CHECK_HEADER(hash_map,[AC_DEFINE([HAVE_HASH],[],["Have GNU C++"])],[])
+AC_CHECK_HEADER(tr1/unordered_map,[AC_DEFINE([HAVE_TR1],[],[Have tr1])],[])
+AC_CHECK_HEADER(unordered_map,[AC_DEFINE([HAVE_CXX0X],[],["Have C++0x])],[])
+AC_CHECK_HEADER(hash_map,[AC_DEFINE([HAVE_HASH],[],[Have GNU C++])],[])
+
+dnl ==========================================================================
+dnl Check for libpng++
+dnl ==========================================================================
+AC_CHECK_HEADER(png++/png.hpp,[AC_DEFINE([HAVE_LIBPNGPP],[],[Defined if you have the have the png++ wrapper])],
+[AC_MSG_RESULT([Couldn't find or include png++/png.hpp.  Please install the png++ package if you want png support. This is optional.])])
 
 dnl ==========================================================================
 dnl Check for OpenMP
 dnl ==========================================================================
 
-AX_OPENMP
+AC_OPENMP
 
 haveomp = no
 AC_CHECK_HEADERS(omp.h,[haveomp=[yes]])
@@ -68,6 +64,12 @@ if test x$haveomp = xyes; then
 fi
 
 AC_SUBST(exp_omp_lib)
+
+dnl ==========================================================================
+dnl Check for HDF support
+dnl ==========================================================================
+
+AX_LIB_HDF5()
 
 dnl ==========================================================================
 dnl Look for BOOST libraries
@@ -105,11 +107,11 @@ dnl ==========================================================================
 dnl Added macro to allow list of CUDA compute capabilities
 dnl ==========================================================================
 
-sm_vers="35 37 60 61 70"
+sm_vers="60 61 70 75"
 
 AC_ARG_WITH([cuda-capabilities],
 	[AC_HELP_STRING([--with-cuda-capabilities=LIST],
-	[desired SM compute capabilities (default: 35 60 61 70)])],
+	[desired SM compute capabilities (default: 60 61 70 75)])],
 	[sm_vers="$withval"])
 
 AC_SUBST(sm_vers)
@@ -204,21 +206,11 @@ if test x$havevtk = xyes; then
       	 exp_vtk_ldlib="$exp_vtk_ldlib -lfreetype"
       fi
 
-      dnl if test x$ac_cv_lib_ftgl_main = xyes; then
-      dnl 	 exp_vtk_ldlib="$exp_vtk_ldlib -lftgl"
-      dnl else
-      dnl 	 exp_vtk_ldlib="$exp_vtk_ldlib -lvtkftgl$vtk_libval"
-      dnl fi
-   fi
-
-   dnl Compare supplied version to check whether >=8.0 libraries are needed
-   CMPV="8.0"
-   AS_VERSION_COMPARE(${vtk_version}, ${CMPV}, [VTK_POST_8_0=-1], [VTK_POST_8_0=0],[VTK_POST_8_0=1])
-
-   AS_IF([test "${VTK_POST_8_0}" != "-1"], AC_MSG_RESULT([VTK post 8.0: yes]), AC_MSG_RESULT([VTK post 8.0: no]))
-
-   if test "${VTK_POST_8_0}" != "-1"; then
-      exp_vtk_ldlib="-lvtkCommonCore$vtk_libval -lvtkCommonDataModel$vtk_libval -lvtkIOXML$vtk_libval"
+      if test x$ac_cv_lib_ftgl_main = xyes; then
+      	 exp_vtk_ldlib="$exp_vtk_ldlib -lftgl"
+      else
+	 exp_vtk_ldlib="$exp_vtk_ldlib -lvtkftgl$vtk_libval"
+      fi
    fi
 
    CFLAGS=$OLD_CFLAGS
@@ -229,36 +221,33 @@ fi
 AC_MSG_RESULT([$havevtk])
 
 dnl ==========================================================================
-dnl Use pkg-config to check for eigen3
+dnl Check for eigen3
 dnl ==========================================================================
 
-AC_CHECK_FILE([/usr/include/eigen3/Eigen],
-	[eigen3_include=[-I/usr/include/eigen3]])
+# Look in some standard places . . .
 
-AC_CHECK_FILE([/usr/local/include/eigen3/Eigen],
-	[eigen3_include=[-I/usr/local/include/eigen3]])
+AC_CHECK_FILE([/usr/include/eigen3/Eigen/Eigen],
+	[haveeigen3=[yes]; EIGEN3_LOCATION=[/usr/include/eigen3]])
 
-EIGEN3_LOCATION=""
-EIGEN3_NO_BDC=""
+AC_CHECK_FILE([/usr/local/include/eigen3/Eigen/Eigen],
+	[haveeigen3=[yes]; EIGEN3_LOCATION=[/usr/local/include/eigen3]])
 
-AC_ARG_WITH(eigen3,
-	[  --with-eigen3=DIR       location of Eigen3 library],
-    	[   EIGEN3_LOCATION="$withval"])
+AC_ARG_WITH([eigen3],
+	[AC_HELP_STRING([--with-eigen3=DIR],
+	[location of Eigen3 headers is DIR (default: not set)])],
+	[EIGEN3_LOCATION="$withval"; haveeigen3=yes])
 
-AC_ARG_WITH(no-bdc,
-	[  --with-no-bdc           do not use BDCSVD in Eigen3],
-	[   EIGEN3_NO_BDC="true"])
+AC_MSG_CHECKING([for Eigen3])
+if test x$haveeigen3 = xyes; then
 
-if test "$EIGEN3_LOCATION" != ""; then
-   eigen3_include="-I$EIGEN3_LOCATION"
-fi
+   AC_DEFINE(HAVE_EIGEN3,,[define if EIGEN3 is available])
 
-if test "$EIGEN3_NO_BDC" == ""; then
-   AC_DEFINE([HAVE_EIGEN3_BDCSVD], [1], [Compile code for Eigen::BDCSVD])
-fi
+   if test "$EIGEN3_LOCATION" != ""; then
+      exp_eigen3_include="-I$EIGEN3_LOCATION"
+   fi
+fi					
 
-AC_SUBST(eigen3_include) 
-
+AC_SUBST(exp_eigen3_include)
 
 dnl ==========================================================================
 dnl Arguments
@@ -440,7 +429,7 @@ echo ""
 echo "    CXX_FLAGS=\"-DO_SINGLE\" ..."
 echo ""
 echo "to compile with single precision.  Double precision is default. "
-echo "The compute capability list is '35 60 61 70' by default and may "
+echo "The compute capability list is '60 61 70 75' by default and may "
 echo "be changed by using --with-cuda-capabilities=LIST flag."
 echo "----------------------------------------------------------------"
 fi

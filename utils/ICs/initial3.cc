@@ -33,6 +33,12 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <memory>
+
+#include <config.h>
+#ifdef HAVE_OMP_H
+#include <omp.h>
+#endif
 
                                 // MDW classes
 #include <numerical.h>
@@ -41,7 +47,6 @@
 #include <hernquist.h>
 #include <model3d.h>
 #include <biorth.h>
-#include <SphericalSL.h>
 #include <interp.h>
 #include <EmpCylSL.h>
 
@@ -59,9 +64,8 @@ namespace po = boost::program_options;
 #endif
 
                                 // Local headers
-#include "SphericalSL.h"
-#include "DiskHalo3.h" 
-#include "localmpi.h"
+#include <DiskHalo3.H>
+#include <localmpi.h>
 
 //
 // Global variables
@@ -94,7 +98,8 @@ bool         expcond;
 bool         CONSTANT;
 bool         GAUSSIAN;
 bool         PLUMMER;
-bool         CMAP;
+int          CMAPR;
+int          CMAPZ;
 bool         LOGR;
 bool         CHEBY;
 int          CMTYPE;
@@ -109,6 +114,7 @@ int          MMAX;
 int          NUMX;
 int          NUMY;
 int          NORDER;
+int          NODD;
 int          DIVERGE;
 double       DIVERGE_RFAC;
 int          DIVERGE2;
@@ -276,9 +282,8 @@ main(int argc, char **argv)
      "Number of azimthal knots for EmpCylSL basis construction quadrature")
     ("TNUM",                po::value<int>(&TNUM)->default_value(80),
      "Number of cos(theta) knots for EmpCylSL basis construction quadrature")
-    ("CMAP",                po::value<bool>(&CMAP)->default_value(false),
-     "Map coordinates from radius to tabled grid")
-    ("CMAPTYPE",        po::value<int>(&CMTYPE)->default_value(1),                    "Coordinate mapping type (0=none, 1=original, 2=power in R and z")
+    ("CMAPR",           po::value<int>(&CMAPR)->default_value(1),                     "Radial coordinate mapping type for cylindrical grid (0=none, 1=rational fct)")
+    ("CMAPZ",           po::value<int>(&CMAPZ)->default_value(1),                     "Vertical coordinate mapping type for cylindrical grid (0=none, 1=sech, 2=power in z")
     ("LOGR",                po::value<bool>(&LOGR)->default_value(false),
      "Make a logarithmic coordinate mapping")
     ("CHEBY",               po::value<bool>(&CHEBY)->default_value(false),
@@ -305,6 +310,8 @@ main(int argc, char **argv)
      "Vertical grid size for disk basis table")
     ("NORDER",              po::value<int>(&NORDER)->default_value(16),
      "Number of disk basis functions per M-order")
+    ("NODD",                po::value<int>(&NODD)->default_value(-1),
+     "Number of vertically antisymmtric disk basis functions per M-order")
     ("DIVERGE",             po::value<int>(&DIVERGE)->default_value(0),
      "Cusp extrapolation for primary halo model")
     ("DIVERGE_RFAC",        po::value<double>(&DIVERGE_RFAC)->default_value(1.0),
@@ -411,10 +418,21 @@ main(int argc, char **argv)
     return 1;
   }
 
-  // Set mapping type
-  //
-  if (not CMAP) CMTYPE = 0;
 
+  //====================
+  // OpenMP control
+  //====================
+
+#ifdef HAVE_OMP_H
+  omp_set_num_threads(nthrds);
+#pragma omp parallel
+  {
+    int numthrd = omp_get_num_threads();
+    int myid    = omp_get_thread_num();
+    if (myid==0)
+      std::cout << "Number of threads=" << numthrd << std::endl;
+  }
+#endif
 
 #ifdef DEBUG                    // For gdb . . . 
   sleep(20);
@@ -493,11 +511,11 @@ main(int argc, char **argv)
   SphericalSL::RMAX = RSPHSL;
   SphericalSL::NUMR = NUMR;
                                 // Create expansion only if needed . . .
-  SphericalSL *expandh = NULL;
+  std::shared_ptr<SphericalSL> expandh;
   if (n_particlesH) {
-    expandh = new SphericalSL(nthrds, LMAX, NMAX, SCMAP, SCSPH);
+    expandh = std::make_shared<SphericalSL>(nthrds, LMAX, NMAX, SCMAP, SCSPH);
 #ifdef DEBUG
-    string dumpname("debug");
+    std::string dumpname("debug");
     expandh->dump_basis(dumpname);
 #endif
   }
@@ -510,7 +528,8 @@ main(int argc, char **argv)
   EmpCylSL::NUMX        = NUMX;
   EmpCylSL::NUMY        = NUMY;
   EmpCylSL::NUMR        = NUMR;
-  EmpCylSL::CMAP        = CMTYPE;
+  EmpCylSL::CMAPR       = CMAPR;
+  EmpCylSL::CMAPZ       = CMAPZ;
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
   EmpCylSL::DENS        = DENS;
@@ -518,9 +537,9 @@ main(int argc, char **argv)
   if (basis) EmpCylSL::DENS = true;
 
                                 // Create expansion only if needed . . .
-  EmpCylSL* expandd = NULL;
+  std::shared_ptr<EmpCylSL> expandd;
   if (n_particlesD) {
-    expandd = new EmpCylSL(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE);
+    expandd = std::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE, NODD);
 #ifdef DEBUG
     cout << "Process " << myid << ": "
 	 << " rmin=" << EmpCylSL::RMIN
@@ -531,6 +550,7 @@ main(int argc, char **argv)
 	 << " lmax2=" << LMAX2
 	 << " mmax=" << MMAX
 	 << " nordz=" << NORDER
+	 << " noddz=" << NODD
 	 << endl << flush;
 #endif
 
@@ -544,23 +564,23 @@ main(int argc, char **argv)
 
   //====================Create the disk & halo model===========================
 
-  DiskHalo *diskhalo;
+  std::shared_ptr<DiskHalo> diskhalo;
 
   if (multi) {
     if (myid==0) cout << "Initializing a MULTIMASS halo . . . " << flush;
-    diskhalo = new DiskHalo (expandh, expandd,
-			     scale_height, scale_length, disk_mass, 
-			     halofile1, DIVERGE,  DIVERGE_RFAC,
-			     halofile2, DIVERGE2, DIVERGE_RFAC2);
+    diskhalo = std::make_shared<DiskHalo> (expandh, expandd,
+					   scale_height, scale_length, disk_mass, 
+					   halofile1, DIVERGE,  DIVERGE_RFAC,
+					   halofile2, DIVERGE2, DIVERGE_RFAC2);
     if (myid==0) cout << "done" << endl;
 
   } else {
 
     if (myid==0) cout << "Initializing a SINGLE halo . . . " << flush;
-    diskhalo = new DiskHalo (expandh, expandd,
-			     scale_height, scale_length, 
-			     disk_mass, halofile1,
-			     DF, DIVERGE, DIVERGE_RFAC);
+    diskhalo = std::make_shared<DiskHalo> (expandh, expandd,
+					   scale_height, scale_length, 
+					   disk_mass, halofile1,
+					   DF, DIVERGE, DIVERGE_RFAC);
     if (myid==0) cout << "done" << endl;
   }
   
@@ -1208,10 +1228,6 @@ main(int argc, char **argv)
   //===========================================================================
 
   MPI_Barrier(MPI_COMM_WORLD);
-
-  delete expandh;
-  delete expandd;
-
   MPI_Finalize();
 
   return 0;

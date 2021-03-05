@@ -48,6 +48,18 @@ protected:
   //! Used to assign additional specific parameters, create storage, etc.
   virtual void initialize(void) = 0;
 
+  //! nintsub warning message
+  void nintsub_warning(const std::string& name)
+  {
+    if (myid==0) std::cout << name << ": substep output is disabled because "
+			   << "the phase space dump may include particles at "
+			   << "later times for low-level particles."
+			   << std::endl
+			   << name << ": please recompile with -DALLOW_NINTSUB "
+			   << "if you want this option anyway."
+			   << std::endl;
+  }
+
 public:
 
   //! Id string

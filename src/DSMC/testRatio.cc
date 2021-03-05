@@ -78,6 +78,7 @@ int main (int ac, char **av)
   double Tmin, Tmax, Emin, Emax;
   std::string RRtype;
   int numT, norder, numE;
+  bool use_grid;
 
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -99,8 +100,10 @@ int main (int ac, char **av)
      "number of incremental energy points")
     ("norder,n",	po::value<int>(&norder)->default_value(20),
      "Laguerre order")
-    ("RRtype,R",	po::value<std::string>(&RRtype)->default_value("Verner"),
+    ("RRtype,R",	po::value<std::string>(&RRtype)->default_value("Badnell"),
      "cross-section type")
+    ("grid,g",		po::value<bool>(&use_grid)->default_value(true),
+     "use radiative recombination grid")
     ;
 
 
@@ -141,7 +144,7 @@ int main (int ac, char **av)
   //
   std::string inFile("testRatio.in");
   std::ostringstream sout;
-  sout << "python3 ./recomb.py"
+  sout << "$PYTHON ./recomb.py"
        << " -Z " << Z
        << " -t " << Tmin
        << " -T " << Tmax
@@ -199,9 +202,9 @@ int main (int ac, char **av)
 
   PeriodicTable pt;
 
-  chdata ch;
+  atomicData ad;
 
-  ch.createIonList(ZList);
+  ad.createIonList(ZList);
 
   if (myid) {
     MPI_Finalize();
@@ -221,6 +224,8 @@ int main (int ac, char **av)
 
   numE = std::max<int>(numE, 10);
   
+  Ion::useRadRecombGrid = use_grid;
+
   double dE = (Emax - Emin)/numE;
 
   for (int nt=0; nt<numT; nt++) {
@@ -241,14 +246,14 @@ int main (int ac, char **av)
       
       if (val0.size()) {
 	std::map<unsigned short, std::vector<double> >
-	  valT = ch.recombEquil(Z, T, Eb, Ef, norder);
+	  valT = ad.recombEquil(Z, T, Eb, Ef, norder);
 	for (auto v : val0) {
 	  unsigned short C = v.first;
 	  size_t        sz = v.second.size();
 	  for (size_t j=0; j<sz; j++) val0[C][j] += valT[C][j];
 	}
       } else {
-	val0 = ch.recombEquil(Z, T, Ef, Eb, norder);
+	val0 = ad.recombEquil(Z, T, Ef, Eb, norder);
       }
       val1[ne] = val0;
     }

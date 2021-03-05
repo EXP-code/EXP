@@ -21,7 +21,8 @@
 #include <FileUtils.H>
 
 #include <boost/program_options.hpp>
-#include <boost/progress.hpp>
+
+#include <Progress.H>
 
 namespace po = boost::program_options;
 

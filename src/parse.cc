@@ -33,14 +33,15 @@ void exp_version()
 {
   std::cout << std::setw(25) << std::left << "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" << std::endl
 	    << std::setw(25) << std::left << "%%%%% GIT repository info %%%%%" << std::endl
-	    << std::setw(25) << std::left << "%%%%% from last configure %%%%%" << std::endl
 	    << std::setw(25) << std::left << "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" << std::endl << std::endl
 	    << std::setw(25) << std::left << "Repository URL"
-	    << " | " << PACKAGE_URL << std::endl
+	    << " | " << PACKAGE_URL  << std::endl
 	    << std::setw(25) << std::left << "Current branch"
-	    << " | " << GIT_BRANCH << std::endl
+	    << " | " << GIT_BRANCH   << std::endl
 	    << std::setw(25) << std::left << "Current commit"
-	    << " | " << GIT_COMMIT << std::endl;
+	    << " | " << GIT_COMMIT   << std::endl
+	    << std::setw(25) << std::left << "Compile time"
+	    << " | " << COMPILE_TIME << std::endl;
 
 }
 
@@ -93,6 +94,7 @@ void initialize(void)
     if (_G["runtime"])       runtime    = _G["runtime"].as<double>();
     
     if (_G["multistep"])     multistep  = _G["multistep"].as<int>();
+    if (_G["shiftlevl"])     shiftlevl  = _G["shiftlevl"].as<int>();
     if (_G["centerlevl"])    centerlevl = _G["centerlevl"].as<int>();
 
     if (_G["dynfracS"])	     dynfracS   = _G["dynfracS"].as<double>();
@@ -100,8 +102,6 @@ void initialize(void)
     if (_G["dynfracV"])	     dynfracV   = _G["dynfracV"].as<double>();
     if (_G["dynfracA"])	     dynfracA   = _G["dynfracA"].as<double>();
     if (_G["dynfracP"])	     dynfracP   = _G["dynfracP"].as<double>();
-
-    if (_G["cuStreams"])     cuStreams  = _G["cuStreams"].as<int>();
 
     if (_G["DTold"]) {
       DTold = _G["DTold"].as<bool>();
@@ -115,7 +115,9 @@ void initialize(void)
     if (_G["cuda_prof"])       cuda_prof     = _G["cuda_prof"].as<bool>();
     if (_G["cuda"])            use_cuda      = _G["cuda"].as<bool>();
     if (_G["use_cuda"])        use_cuda      = _G["use_cuda"].as<bool>();
-
+#if HAVE_LIBCUDA != 1
+    use_cuda = false;
+#endif
     if (_G["barrier_check"])   barrier_check = _G["barrier_check"].as<bool>();
     if (_G["barrier_debug"])   barrier_debug = _G["barrier_debug"].as<bool>();
     if (_G["barrier_extra"])   barrier_extra = _G["barrier_extra"].as<bool>();
@@ -124,6 +126,7 @@ void initialize(void)
     if (_G["barrier_quiet"])   barrier_quiet = _G["barrier_quiet"].as<bool>();
     if (_G["barrier_verbose"]) barrier_quiet = not _G["barrier_quiet"].as<bool>();
 
+    if (_G["gdb_trace"])       gdb_trace  = _G["gdb_trace"].as<bool>();
     if (_G["main_wait"])       main_wait  = _G["main_wait"].as<bool>();
     if (_G["debug_wait"]) {
       debug_wait = _G["debug_wait"].as<bool>();
@@ -181,7 +184,9 @@ void initialize(void)
       } else fpe_trace = false;
       if (myid==0) {
 	std::cout << "Found <fpe_trace=" << std::boolalpha
-		  << fpe_trace << ">" << std::endl;
+		  << fpe_trace << ">" << std::endl
+		  << "Found <gdb_trace=" << std::boolalpha
+		  << gdb_trace << ">" << std::endl;
 	if (fpe_trace) std::cout << "----" << std::endl
 				 << "---- Print a backtrace to stderr on detecting an FP error" << std::endl
 				 << "----" << std::endl;

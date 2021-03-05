@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <array>
+#include <list>
 
 /** Add mass to component
 
@@ -19,9 +20,13 @@
     Halo algorithm, the velocity is chosen isotropically based on the
     mean velocity dispersion in spherical shells.
 
+    This routine should occur in the [External] sequence before any
+    true force evalaution to include the external force.
+
     @param compname is the component and must be specified
+    @param complist is the list of components for force evaluation, if specified
     @param tstart is the first time when particles are added
-    @param dtime is the time interval between particle additions
+    @param dt is the time interval between particle additions
     @param number is the number of particles to add per addition
     @param mass is the particle mass to add
     @param algorithm specifies the particle selection method
@@ -30,23 +35,36 @@
     @param numr is the number of radial bins
     @param logr true means use logarithmic bining
     @param seed for the pseudorandom number generator
+    @param debug is the time interval between profile outputs (<=0 for off)
+    @param interp set to true for interpolation in angular momentum bins
+    @param accel set to true initialized acceleration from basis forces (default: true)
+    @param planar set to true enforces particles added in the x-y plane for testing (default: false)
 **/
-
 class UserAddMass : public ExternalForce
 {
 private:
-  
+
+  std::vector<std::string> comp_list;
   std::string comp_name;
+  std::vector<Component*> comp_vec;
+  list<Component*> comp_acc;
   Component *c0;
 
-  bool logr;
+  bool logr, interp, cforce, planar, accel, mas_init;
   unsigned number, numr;
-  double mass, rmin, rmax, lrmin, lrmax, dr, tnext, dtime;
+  double mass, rmin, rmax, lrmin, lrmax, dr, tnext, dt, debug, dnext;
+  double tstart, scale, vdisp;
   long int seed;
 
-  std::vector< std::vector<double> > mas_bins;
-  std::vector< std::vector<std::array<double, 3>> > vl_bins, v2_bins;
-  std::vector< std::vector<std::array<double, 3>> > L3_bins;
+  const double ttol = 1.0e-8;
+
+  std::vector< double > mas_bins_adding;
+  std::vector< std::vector<double> > mas_bins_current;
+
+  using vec3 = std::array<double, 3>;
+  std::vector< std::vector<vec3> > vl_bins, v2_bins;
+  std::vector< std::vector<vec3> > L3_bins;
+
 
   void clear_bins();
   void determine_acceleration_and_potential(void);
@@ -59,7 +77,6 @@ private:
 
   static std::map<std::string, Algorithm> AlgMap;
   static std::map<Algorithm, std::string> AlgMapInv;
-
   boost::shared_ptr<ACG>     gen;
   boost::shared_ptr<Uniform> urand;
   boost::shared_ptr<Normal>  nrand;

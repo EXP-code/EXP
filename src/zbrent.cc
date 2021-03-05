@@ -68,6 +68,8 @@ double zbrent(double (*func) (double), double x1, double x2, double tol)
     fb=(*func)(b);
   }
   std::cerr << "Maximum number of iterations exceeded in ZBRENT";
+
+  return b;
 }
 
 #undef ITMAX

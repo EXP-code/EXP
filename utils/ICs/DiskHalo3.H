@@ -6,10 +6,11 @@
 #include <math.h>
 #include <stdlib.h>
 
+#include <stdexcept>
 #include <iostream>
 #include <iomanip>
 #include <string>
-#include <stdexcept>
+#include <memory>
 
 #include <ACG.h>
 #include <Uniform.h>
@@ -24,8 +25,8 @@
 #include <Vector.h>
 #include <QPDistF.h>
 
-#include "AddDisk.h"
-#include "SphericalSL.h"
+#include <AddDisk.H>
+#include <SphericalSL.H>
 #include "EmpCylSL.h"
 #include "SParticle.H"
 
@@ -45,26 +46,26 @@ public:
 class DiskHalo
 {
  private:
-  AddDisk *newmod;
-  SphericalModelTable *halo, *halo2, *halo3;
-  SphericalModelMulti *multi;
-  ExponentialDisk *disk;
+  std::shared_ptr<AddDisk> newmod;
+  std::shared_ptr<SphericalModelTable> halo, halo2, halo3;
+  std::shared_ptr<SphericalModelMulti> multi;
+  std::shared_ptr<ExponentialDisk> disk;
   double scalelength, scaleheight, dmass;
   double center_pos[3], center_vel[3];
 
-  SphericalSL* expandh;
-  EmpCylSL* expandd;
+  std::shared_ptr<SphericalSL> expandh;
+  std::shared_ptr<EmpCylSL>    expandd;
 
-  Matrix *disktableP, *disktableN;
+  std::vector<Matrix> disktableP, disktableN;
   double dP, dR, dZ;
 
   Matrix halotable;
   double dr, dc;
 
-  Uniform *rndU;
-  Normal *rndN;
-  ACG *gen;
-  QPDistF *qp;
+  std::shared_ptr<Uniform> rndU;
+  std::shared_ptr<Normal>  rndN;
+  std::shared_ptr<ACG>     gen;
+  std::shared_ptr<QPDistF> qp;
 
   bool DF;
   bool MULTI;
@@ -156,12 +157,12 @@ class DiskHalo
   DiskHalo();
 
   //! Constructor: equal mass
-  DiskHalo(SphericalSL* expandh, EmpCylSL* expandd,
+  DiskHalo(std::shared_ptr<SphericalSL> expandh, std::shared_ptr<EmpCylSL> expandd,
 	   double H, double A, double DMass,
 	   string& filename, int DF=0, int DIVERGE=0, double DIVERGE_RFAC=1.0);
 
   //! Constructor: multi mass
-  DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
+  DiskHalo(std::shared_ptr<SphericalSL> haloexp, std::shared_ptr<EmpCylSL> diskexp,
 	   double H, double A, double DMass, 
 	   string& filename1, int DIVERGE,  double DIVERGE_RFAC,
 	   string& filename2, int DIVERGE2, double DIVERGE_RFAC2);

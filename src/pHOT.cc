@@ -2,7 +2,7 @@
 
 #include "config.h"
 
-#ifdef HAVE_OPENMP
+#ifdef HAVE_OMP_H
 #include <omp.h>
 #endif
 
@@ -158,7 +158,7 @@ pHOT::pHOT(Component *C, sKeySet spec_list)
 {
   qtile_initialize();		// Quantile set up
 
-#ifdef HAVE_OPENMP
+#ifdef HAVE_OMP_H
   omp_set_num_threads(nthrds);	// OpenMP set up
 #endif
 
@@ -3525,7 +3525,7 @@ void pHOT::adjustTree(unsigned mlevel)
       clevlst.erase(c);
       if (DEBUG_CHECK) {
 	if (clevels[m].find(c) == clevels[m].end()) {
-#ifdef HAVE_OPENMP
+#ifdef HAVE_OMP_H
 	  std::cout << "pHOT::adjustTree(REMOVE) [" << omp_get_thread_num()
 		    << "]: cell=" << std::hex << c
 #else

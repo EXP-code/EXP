@@ -9,16 +9,17 @@ static const int MSGTAG=103;
 
 Direct::Direct(const YAML::Node& conf) : PotAccel(conf)
 {
-  soft_indx = 0;
-  soft = 0.01;
+  soft_indx  = 0;
+  soft       = 0.01;
   fixed_soft = true;
-  ndim = 4;
+  ndim       = 4;
 
   // Parameters for extended pm model
+  //
   pm_model = false;
-  pmmodel_file = "SLGridSph.model";   // Table od the Extended pm model
-  diverge = 0;                        // Use analytic divergence (true/false)
-  diverge_rfac = 1.0;                 // Exponent for profile divergence
+  pmmodel_file = "SLGridSph.model"; // Table od the Extended pm model
+  diverge      = 0;	            // Use analytic divergence (true/false)
+  diverge_rfac = 1.0;               // Exponent for profile divergence
 
   initialize();
 
@@ -47,11 +48,20 @@ void Direct::initialize(void)
       fixed_soft = false;
       ndim = 5;
     }
-
+    
     if (conf["soft"]) {
       soft = conf["soft"].as<double>();
       fixed_soft = true;
       ndim = 4;
+    }
+
+    if (conf["type"]) {
+      std::string type = conf["type"].as<std::string>();
+      if (type.compare("Spline") == 0) kernel = std::make_shared<SplineSoft>();
+      else                             kernel = std::make_shared<PlummerSoft>();
+    } else {
+      kernel = std::make_shared<SplineSoft>();
+      if (myid==0) std::cout << "Direct: using SplineSoft" << std::endl;
     }
 
     if (conf["pm_model"])         pm_model     = conf["pm_model"].as<bool>();
@@ -137,7 +147,7 @@ void Direct::determine_acceleration_and_potential(void)
   exp_thread_fork(false);
 
 				// Do the ring . . . 
-  for(int n=1; n<numprocs; n++) {
+  for (int n=1; n<numprocs; n++) {
       
     MPI_Request req1, req2;
     MPI_Status stat;
@@ -206,40 +216,44 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
 
 				// Compute interparticle squared distance
       rr0 = 0.0;
-      for (int k=0; k<3; k++)
-	rr0 += 
-	  (cC->Pos(j, k) - pos[k]) *
-	  (cC->Pos(j, k) - pos[k]) ;
-      
-				// Compute softened distance
-      rr = sqrt(rr0+eps*eps);
+      for (int k=0; k<3; k++) rr0 +=
+				(cC->Pos(j, k) - pos[k]) *
+				(cC->Pos(j, k) - pos[k]) ;
+      rr = sqrt(rr0);
 
-                                // Extended model for point masses
+      if (rr>rtol) {
+				// Extended model for point masses
                                 // Given model provides normalized mass distrbution
-      if(pm_model && pmmodel->get_max_radius() > rr) 
-	{
-	  double mass_frac;
-	  mass_frac = pmmodel->get_mass(rr) / pmmodel->get_mass(pmmodel->get_max_radius());
+	double pot = 0.0;
+
+	if (pm_model && pmmodel->get_max_radius() > rr) {
+	  double mass_frac = pmmodel->get_mass(rr) / pmmodel->get_mass(pmmodel->get_max_radius());
+	  pot = pmmodel->get_pot(rr)/pmmodel->get_mass(pmmodel->get_max_radius());
 	  mass *= mass_frac;
+	} else {
+	  auto y = (*kernel)(rr, eps);
+	  pot = mass * y.second;
+	  mass *= y.first;
 	}
+
 				// Acceleration
-      rfac = 1.0/(rr*rr*rr);
-	
-      for (int k=0; k<3; k++)
-	cC->AddAcc(j, k, -mass *(cC->Pos(j, k) - pos[k]) * rfac );
+	rfac = 1.0/(rr*rr*rr);
+      
+	for (int k=0; k<3; k++)
+	  cC->AddAcc(j, k, -mass *(cC->Pos(j, k) - pos[k]) * rfac );
       
 				// Potential
-      if (use_external) {
-	cC->AddPotExt(j, -mass/rr );
+	if (use_external) {
+	  cC->AddPotExt(j, pot );
 #ifdef DEBUG
-	ncnt++;
-	for (int k=0; k<3; k++)
-	  tclausius[id] += -mass *
-	    (cC->Pos(j, k) - pos[k]) * cC->Pos(j, k) * rfac;
+	  ncnt++;
+	  for (int k=0; k<3; k++)
+	    tclausius[id] += -mass *
+	      (cC->Pos(j, k) - pos[k]) * cC->Pos(j, k) * rfac;
 #endif
+	}
+	else cC->AddPot(j, pot );
       }
-      else if (rr0 > 1.0e-16)	// Ignore "self" potential
-	cC->AddPot(j, -mass/rr );
     }
   }
   
@@ -247,7 +261,7 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
   if (use_external) {
     pthread_mutex_lock(&iolock);
     cout << "Process " << myid << ", id=" << id << ": ninteract=" << ninteract
-	 << "  nexterna=" << ncnt << "  VC=" << tclausius[id] << endl;
+	 << "  nexternal=" << ncnt << "  VC=" << tclausius[id] << endl;
     pthread_mutex_unlock(&iolock);
   }
 #endif

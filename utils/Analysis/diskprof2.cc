@@ -39,13 +39,15 @@
 
 				// BOOST stuff
 #include <boost/shared_ptr.hpp>
+#include <boost/make_unique.hpp>
 #include <boost/program_options.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp> 
 
+#include <yaml-cpp/yaml.h>	// YAML support
+
 namespace po = boost::program_options;
 namespace pt = boost::property_tree;
-
 
                                 // System libs
 #include <sys/time.h>
@@ -82,11 +84,11 @@ unsigned multistep = 0;
 unsigned maxlev = 100;
 int mstep = 1;
 int Mstep = 1;
-vector<int> stepL(1, 0), stepN(1, 1);
+std::vector<int> stepL(1, 0), stepN(1, 1);
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 pthread_mutex_t coef_lock;
-string outdir, runtag;
+std::string outdir, runtag;
 double tpos = 0.0;
 double tnow = 0.0;
   
@@ -110,14 +112,14 @@ public:
   std::vector<double> dataXY;
   std::vector<std::vector<double>> dataZ;
   int N;
-  double R, dR, rmax;
+  double R, dR;
   
   Histogram(int N, double R) : N(N), R(R)
   {
-    dR = 2.0*R/(N+1);
+    N = std::max<int>(N, 2);
+    dR = 2.0*R/(N-1);		// Want grid points to be on bin centers
     dataXY.resize(N*N, 0.0);
     dataZ .resize(N*N);
-    rmax = R + 0.5*dR;
   }
 
   void Reset() {
@@ -160,17 +162,16 @@ public:
 
   void Add(double x, double y, double z, double m)
   {
-    if (x < -rmax or x >= rmax or
-	y < -rmax or y >= rmax  ) return;
+    if (x < -R-0.5*dR or x >= R+0.5*dR or
+	y < -R-0.5*dR or y >= R+0.5*dR  ) return;
 
-    int indX = static_cast<int>(floor((x + rmax)/dR));
-    int indY = static_cast<int>(floor((y + rmax)/dR));
+    int indX = static_cast<int>(floor((x + R + 0.5*dR)/dR));
+    int indY = static_cast<int>(floor((y + R + 0.5*dR)/dR));
 
-    indX = std::min<int>(indX, N-1);
-    indY = std::min<int>(indY, N-1);
-
-    dataXY[indY*N + indX] += m;
-    dataZ [indY*N + indX].push_back(z);
+    if (indX>=0 and indX<N and indY>=0 and indY<N) {
+      dataXY[indX*N + indY] += m;
+      dataZ [indX*N + indY].push_back(z);
+    }
   }
 };
 
@@ -466,7 +467,7 @@ Vector get_quart_truncated(Vector& vv, double dz)
 void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 {
   unsigned ncnt = 0;
-  int noutV = 7, noutS = 10;
+  int noutV = 9, noutS = 12;
   
   // ==================================================
   // Setup for output files
@@ -475,7 +476,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
   ostringstream sstr;
   sstr << "." << std::setfill('0') << std::setw(5) << icnt;
 
-  string suffix[10] = {"p0", "p", "fr", "fz", "fp", "d0", "d",
+  string suffix[12] = {"p0", "p1", "p", "fr", "fz", "fp", "d0", "d1", "d",
 		       "z10", "z50", "z90"};
 
   // ==================================================
@@ -517,7 +518,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
     
     if (myid==0) {
 
-      std::string OUTF = runtag + "_" + outid + "_profile" + sstr.str();
+      std::string OUTF = outdir + "/" + runtag + "_" + outid + "_profile" + sstr.str();
       std::ofstream out(OUTF.c_str(), ios::out | ios::app);
       if (!out) {
 	cerr << "Error opening <" << OUTF << "> for output\n";
@@ -604,7 +605,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
       }
 
       std::ostringstream sout;
-      sout << runtag + "_" + outid + "_posn" + sstr.str();
+      sout << outdir + "/" + runtag + "_" + outid + "_posn" + sstr.str();
       vtk.Write(sout.str());
     }
   }
@@ -622,7 +623,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
     double dR = 2.0*RMAX/(OUTR-1);
     double dz = 2.0*ZMAX/(OUTZ-1);
     double x, y, z, r, phi;
-    double p0, d0, p, fr, fz, fp;
+    double p0, d0, p1, fr, fz, fp;
     
     size_t blSiz = OUTZ*OUTR*OUTR;
     vector<double> indat(noutV*blSiz, 0.0), otdat(noutV*blSiz);
@@ -642,18 +643,20 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 	  r = sqrt(x*x + y*y);
 	  phi = atan2(y, x);
 	  
-	  ortho.accumulated_eval(r, z, phi, p0, p, fr, fz, fp);
+	  ortho.accumulated_eval(r, z, phi, p0, p1, fr, fz, fp);
 	  v = ortho.accumulated_dens_eval(r, z, phi, d0);
 	  
 	  size_t indx = (OUTR*j + l)*OUTR + k;
 
 	  indat[0*blSiz + indx] = p0;
-	  indat[1*blSiz + indx] = p;
-	  indat[2*blSiz + indx] = fr;
-	  indat[3*blSiz + indx] = fz;
-	  indat[4*blSiz + indx] = fp;
-	  indat[5*blSiz + indx] = d0;
-	  indat[6*blSiz + indx] = v;
+	  indat[1*blSiz + indx] = p1;
+	  indat[2*blSiz + indx] = p0 + p1;
+	  indat[3*blSiz + indx] = fr;
+	  indat[4*blSiz + indx] = fz;
+	  indat[5*blSiz + indx] = fp;
+	  indat[6*blSiz + indx] = d0;
+	  indat[7*blSiz + indx] = v;
+	  indat[8*blSiz + indx] = d0 + v;
 	}
       }
     }
@@ -683,7 +686,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
       }
 
       std::ostringstream sout;
-      sout << runtag +"_" + outid + "_volume" + sstr.str();
+      sout << outdir + "/" + runtag +"_" + outid + "_volume" + sstr.str();
       vtk.Write(sout.str());
     }
 
@@ -701,7 +704,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
     
     double dR = 2.0*RMAX/(OUTR-1);
     double x, y, z=0.0, r, phi;
-    double p0, d0, p, fr, fz, fp;
+    double p0, d0, p1, fr, fz, fp;
     
     vector<double> indat(noutS*OUTR*OUTR, 0.0), otdat(noutS*OUTR*OUTR);
     
@@ -718,16 +721,18 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 	  r = sqrt(x*x + y*y);
 	  phi = atan2(y, x);
 	  
-	  ortho.accumulated_eval(r, z, phi, p0, p, fr, fz, fp);
+	  ortho.accumulated_eval(r, z, phi, p0, p1, fr, fz, fp);
 	  v = ortho.accumulated_dens_eval(r, z, phi, d0);
 	  
 	  indat[(0*OUTR+j)*OUTR+l] = p0;
-	  indat[(1*OUTR+j)*OUTR+l] = p;
-	  indat[(2*OUTR+j)*OUTR+l] = fr;
-	  indat[(3*OUTR+j)*OUTR+l] = fz;
-	  indat[(4*OUTR+j)*OUTR+l] = fp;
-	  indat[(5*OUTR+j)*OUTR+l] = d0;
-	  indat[(6*OUTR+j)*OUTR+l] = v;
+	  indat[(1*OUTR+j)*OUTR+l] = p1;
+	  indat[(2*OUTR+j)*OUTR+l] = p0 + p1;
+	  indat[(3*OUTR+j)*OUTR+l] = fr;
+	  indat[(4*OUTR+j)*OUTR+l] = fz;
+	  indat[(5*OUTR+j)*OUTR+l] = fp;
+	  indat[(6*OUTR+j)*OUTR+l] = d0;
+	  indat[(7*OUTR+j)*OUTR+l] = v;
+	  indat[(8*OUTR+j)*OUTR+l] = d0 + v;
 	}
       }
     }
@@ -740,17 +745,17 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
       
       for (int j=0; j<OUTR; j++) {
 	for (int l=0; l<OUTR; l++) {
-	  otdat[(7*OUTR+j)*OUTR+l] = 0.0;
-	  otdat[(8*OUTR+j)*OUTR+l] = 0.0;
-	  otdat[(9*OUTR+j)*OUTR+l] = 0.0;
+	  otdat[(9 *OUTR+j)*OUTR+l] = 0.0;
+	  otdat[(10*OUTR+j)*OUTR+l] = 0.0;
+	  otdat[(11*OUTR+j)*OUTR+l] = 0.0;
 	  
 	  // Check for number in the histogram bin
 	  //
 	  int numZ = histo.dataZ[l*OUTR+j].size();
 	  if (numZ>0) {
-	    otdat[(7*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.1*numZ)];
-	    otdat[(8*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.5*numZ)];
-	    otdat[(9*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.9*numZ)];
+	    otdat[(9 *OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.1*numZ)];
+	    otdat[(10*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.5*numZ)];
+	    otdat[(11*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.9*numZ)];
 	  }
 	}
       }
@@ -771,7 +776,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
       vtk.Add(histo.dataXY, "histo");
 
       std::ostringstream sout;
-      sout << runtag + "_" + outid + "_surface" + sstr.str();
+      sout << outdir + "/" + runtag + "_" + outid + "_surface" + sstr.str();
       vtk.Write(sout.str());
     }
   } // END: SURFACE
@@ -789,7 +794,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
     double dR = 2.0*RMAX/(OUTR-1);
     double dZ = 2.0*ZMAX/(OUTZ-1);
     double x, y=0, z, r, phi;
-    double p0, d0, p, fr, fz, fp;
+    double p0, d0, p1, fr, fz, fp;
     
     std::vector<double> indat(noutV*OUTR*OUTR, 0.0), otdat(noutV*OUTR*OUTR);
     
@@ -806,16 +811,18 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 	  r   = sqrt(x*x + y*y);
 	  phi = atan2(y, x);
 
-	  ortho.accumulated_eval(r, z, phi, p0, p, fr, fz, fp);
+	  ortho.accumulated_eval(r, z, phi, p0, p1, fr, fz, fp);
 	  v = ortho.accumulated_dens_eval(r, z, phi, d0);
 	  
 	  indat[(0*OUTR+j)*OUTZ+l] = p0;
-	  indat[(1*OUTR+j)*OUTZ+l] = p;
-	  indat[(2*OUTR+j)*OUTZ+l] = fr;
-	  indat[(3*OUTR+j)*OUTZ+l] = fz;
-	  indat[(4*OUTR+j)*OUTZ+l] = fp;
-	  indat[(5*OUTR+j)*OUTZ+l] = d0;
-	  indat[(6*OUTR+j)*OUTZ+l] = v;
+	  indat[(1*OUTR+j)*OUTZ+l] = p1;
+	  indat[(2*OUTR+j)*OUTZ+l] = p0 + p1;
+	  indat[(3*OUTR+j)*OUTZ+l] = fr;
+	  indat[(4*OUTR+j)*OUTZ+l] = fz;
+	  indat[(5*OUTR+j)*OUTZ+l] = fp;
+	  indat[(6*OUTR+j)*OUTZ+l] = d0;
+	  indat[(7*OUTR+j)*OUTZ+l] = v;
+	  indat[(8*OUTR+j)*OUTZ+l] = d0 + v;
 	}
       }
     }
@@ -840,7 +847,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
       }
 
       std::ostringstream sout;
-      sout << runtag + "_" + outid + "_vslice" + sstr.str();
+      sout << outdir + "/" + runtag + "_" + outid + "_vslice" + sstr.str();
       vtk.Write(sout.str());
     }
   } // END: VSLICE
@@ -901,10 +908,10 @@ int
 main(int argc, char **argv)
 {
   int nice, numx, numy, lmax, mmax, nmax, norder;
-  int initc, partc, beg, end, stride, init;
-  double rcylmin, rcylmax, rscale, vscale;
-  bool DENS, PCA, PVD, verbose = false, mask = false, ignore, cmap, logl;
-  std::string CACHEFILE;
+  int initc, partc, beg, end, stride, init, cmapr, cmapz;
+  double rcylmin, rcylmax, rscale, vscale, snr, Hexp=4.0;
+  bool DENS, PCA, PVD, DIFF, verbose = false, mask = false, ignore, logl;
+  std::string CACHEFILE, COEFFILE;
 
   //
   // Parse Command line
@@ -980,6 +987,11 @@ main(int argc, char **argv)
     ("pca",
      po::value<bool>(&PCA)->default_value(false),
      "perform the PCA analysis for the disk")
+    ("snr,S",
+     po::value<double>(&snr)->default_value(-1.0),
+     "if not negative: do a SNR cut on the PCA basis")
+    ("diff",
+     "render the difference between the trimmed and untrimmed basis")
     ("density",
      po::value<bool>(&DENS)->default_value(true),
      "compute density")
@@ -1004,15 +1016,24 @@ main(int argc, char **argv)
     ("stride",
      po::value<int>(&stride)->default_value(1),
      "PSP index stride")
+    ("outdir",
+     po::value<std::string>(&outdir)->default_value("."),
+     "Output directory path")
     ("outfile",
      po::value<std::string>(&outid)->default_value("diskprof2"),
      "Filename prefix")
     ("cachefile",
      po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),
      "cachefile name")
-    ("cmap",
-     po::value<bool>(&cmap)->default_value(true),
-     "map radius into semi-infinite interval in cylindrical grid computation")
+    ("coeffile",
+     po::value<std::string>(&COEFFILE),
+     "coefficient output file name")
+    ("cmapr",
+     po::value<int>(&cmapr)->default_value(1),
+     "Radial coordinate mapping type for cylindrical grid (0=none, 1=rational fct)")
+    ("cmapz",
+     po::value<int>(&cmapz)->default_value(1),
+     "Vertical coordinate mapping type for cylindrical grid (0=none, 1=sech, 2=power in z")
     ("logl",
      po::value<bool>(&logl)->default_value(true),
      "use logarithmic radius scale in cylindrical grid computation")
@@ -1107,26 +1128,77 @@ main(int argc, char **argv)
 		<< std::endl;
     } else {
 
-      int tmp;
-    
-      in.read((char *)&mmax,    sizeof(int));
-      in.read((char *)&numx,    sizeof(int));
-      in.read((char *)&numy,    sizeof(int));
-      in.read((char *)&nmax,    sizeof(int));
-      in.read((char *)&norder,  sizeof(int));
+      // Attempt to read magic number
+      //
+      unsigned int tmagic;
+      in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
+
+      //! Basis magic number
+      const unsigned int hmagic = 0xc0a57a1;
+
+      if (tmagic == hmagic) {
+	// YAML size
+	//
+	unsigned ssize;
+	in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
+	
+	// Make and read char buffer
+	//
+	auto buf = boost::make_unique<char[]>(ssize+1);
+	in.read(buf.get(), ssize);
+	buf[ssize] = 0;		// Null terminate
+
+	YAML::Node node;
       
-      in.read((char *)&tmp,     sizeof(int)); 
-      if (tmp) DENS = true;
-      else     DENS = false;
+	try {
+	  node = YAML::Load(buf.get());
+	}
+	catch (YAML::Exception& error) {
+	  if (myid)
+	    std::cerr << "YAML: error parsing <" << buf.get() << "> "
+		      << "in " << __FILE__ << ":" << __LINE__ << std::endl
+		      << "YAML error: " << error.what() << std::endl;
+	  throw error;
+	}
 
-      in.read((char *)&tmp,     sizeof(int)); 
-      if (tmp) cmap = true;
-      else     cmap = false;
+	// Get parameters
+	//
+	mmax    = node["mmax"  ].as<int>();
+	numx    = node["numx"  ].as<int>();
+	numy    = node["numy"  ].as<int>();
+	nmax    = node["nmax"  ].as<int>();
+	norder  = node["norder"].as<int>();
+	DENS    = node["dens"  ].as<bool>();
+	if (node["cmap"])
+	  cmapr = node["cmap"  ].as<int>();
+	else
+	  cmapr = node["cmapr" ].as<int>();
+	if (node["cmapz"])
+	  cmapz = node["cmapz"  ].as<int>();
+	rcylmin = node["rmin"  ].as<double>();
+	rcylmax = node["rmax"  ].as<double>();
+	rscale  = node["ascl"  ].as<double>();
+	vscale  = node["hscl"  ].as<double>();
+	
+      } else {
+				// Rewind file
+	in.clear();
+	in.seekg(0);
 
-      in.read((char *)&rcylmin, sizeof(double));
-      in.read((char *)&rcylmax, sizeof(double));
-      in.read((char *)&rscale,  sizeof(double));
-      in.read((char *)&vscale,  sizeof(double));
+	int tmp;
+    
+	in.read((char *)&mmax,    sizeof(int));
+	in.read((char *)&numx,    sizeof(int));
+	in.read((char *)&numy,    sizeof(int));
+	in.read((char *)&nmax,    sizeof(int));
+	in.read((char *)&norder,  sizeof(int));
+	in.read((char *)&DENS,    sizeof(int)); 
+	in.read((char *)&cmapr,   sizeof(int)); 
+	in.read((char *)&rcylmin, sizeof(double));
+	in.read((char *)&rcylmax, sizeof(double));
+	in.read((char *)&rscale,  sizeof(double));
+	in.read((char *)&vscale,  sizeof(double));
+      }
     }
   }
 
@@ -1134,7 +1206,8 @@ main(int argc, char **argv)
   EmpCylSL::RMAX        = rcylmax;
   EmpCylSL::NUMX        = numx;
   EmpCylSL::NUMY        = numy;
-  EmpCylSL::CMAP        = cmap;
+  EmpCylSL::CMAPR       = cmapr;
+  EmpCylSL::CMAPZ       = cmapz;
   EmpCylSL::logarithmic = logl;
   EmpCylSL::DENS        = DENS;
   EmpCylSL::CACHEFILE   = CACHEFILE;
@@ -1143,17 +1216,25 @@ main(int argc, char **argv)
 				//
   EmpCylSL ortho(nmax, lmax, mmax, norder, rscale, vscale);
     
-  if (PCA) {
-    EmpCylSL::PCAVAR = true;
-      ortho.setHall(runtag + "_" + outid + ".pca", 1);
-  }
-
   vector<Particle> particles;
   PSPDumpPtr psp;
   Histogram histo(OUTR, RMAX);
   
   std::vector<double> times;
   std::vector<std::string> outfiles;
+
+  bool compute = false;
+  if (PCA) {
+    EmpCylSL::PCAVAR = true;
+    EmpCylSL::HEXP   = Hexp;
+    if (vm.count("truncate"))
+      ortho.setTK("Truncate");
+    else
+      ortho.setTK("Hall");
+    
+    compute = true;
+    ortho.setup_accumulation();
+  }
 
   // ==================================================
   // Initialize and/or create basis
@@ -1214,13 +1295,28 @@ main(int argc, char **argv)
     //------------------------------------------------------------ 
     
     if (myid==0) cout << "Making disk coefficients . . . " << flush;
-    ortho.make_coefficients();
+    ortho.make_coefficients(compute);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
     
     //------------------------------------------------------------ 
   }
+  
 
+  // ==================================================
+  // Open output coefficient file
+  // ==================================================
+  
+  std::ofstream coefs;
+  if (myid==0 and COEFFILE.size()>0) {
+    COEFFILE = outdir + "/" + COEFFILE;
+    coefs.open(COEFFILE);
+    if (not coefs) {
+      std::cerr << "Could not open coefficient file <" << COEFFILE << "> . . . quitting"
+		<< std::endl;
+      MPI_Abort(MPI_COMM_WORLD, 10);
+    }
+  }
 
   for (int indx=beg; indx<=end; indx+=stride) {
 
@@ -1265,7 +1361,7 @@ main(int argc, char **argv)
 	   << ", index=" << indx << "] . . . "  << flush;
       times.push_back(tnow);
       ostringstream filen;
-      filen << runtag << "_" << outid << "_surface."
+      filen << outdir << "/" << runtag << "_" << outid << "_surface."
 	    << std::setfill('0') << std::setw(5) << indx << ".vtr";
       outfiles.push_back(filen.str());
     }
@@ -1280,23 +1376,58 @@ main(int argc, char **argv)
     partition(&in1, psp, partc, particles, histo);
     if (myid==0) cout << "done" << endl;
     
-    //------------------------------------------------------------ 
+    ortho.setup_accumulation();
+    if (PCA)
+      ortho.setHall(outdir + "/" + runtag + "_" + outid + ".pca", particles.size());
 
     if (myid==0) cout << "Accumulating particle positions . . . " << flush;
-    ortho.accumulate(particles, 0, true);
+    ortho.accumulate(particles, 0, true, compute);
+    //                             ^     ^
+    //                             |     |
+    // Verbose --------------------+     |
+    // Compute covariance ---------------+
+    
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
       
     //------------------------------------------------------------ 
       
     if (myid==0) cout << "Making disk coefficients . . . " << flush;
-    ortho.make_coefficients();
+    ortho.make_coefficients(compute);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
       
     //------------------------------------------------------------ 
+
+    if (myid==0) {
+      std::cout << "Writing disk coefficients . . . " << flush;
+      ortho.dump_coefs_binary(coefs, tnow);
+      cout << "done" << endl;
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    //------------------------------------------------------------ 
       
     if (myid==0) cout << "Writing output . . . " << flush;
+    //
+    // Coefficient trimming
+    //
+    if (PCA and snr>=0.0) {
+      std::vector<Vector> ac_cos, ac_sin;
+      std::vector<Vector> rt_cos, rt_sin, sn_rat;
+      ortho.pca_hall(true);
+      ortho.get_trimmed(snr, ac_cos, ac_sin,
+			&rt_cos, &rt_sin, &sn_rat);
+      for (int mm=0; mm<=mmax; mm++) {
+	if (vm.count("diff")) {
+	  ac_cos[mm] = ac_cos[mm] - rt_cos[mm];
+	  if (mm) 
+	    ac_sin[mm] = ac_sin[mm] - rt_sin[mm];
+	}
+	ortho.set_coefs(mm, ac_cos[mm], ac_sin[mm], true);
+      }
+      // END: M loop
+    }
     write_output(ortho, indx, dump->header.time, histo);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
@@ -1308,7 +1439,7 @@ main(int argc, char **argv)
   // Create PVD file
   //
   if (myid==0 and PVD) {
-    writePVD(runtag+".pvd", times, outfiles);
+    writePVD(outdir + "/" + runtag + ".pvd", times, outfiles);
   }
 
   // Shutdown MPI

@@ -288,6 +288,9 @@ void UserTidalRad::determine_acceleration_and_potential(void)
 {
   if (cC != c0) return;		// Check that this component is the target
 
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
 				// Only compute for top level
   if (multistep && mlevel>0) return;
 

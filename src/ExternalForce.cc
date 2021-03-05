@@ -39,6 +39,9 @@ void * ExternalForce::determine_coefficients_thread(void * arg)
 
 void ExternalForce::determine_acceleration_and_potential(void)
 {
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
   exp_thread_fork(false);
   print_timings(id + ": acceleration timings");
 }
@@ -51,4 +54,15 @@ void ExternalForce::print_divider(void)
   cout << setw(80) << "-" << endl;
   cout.fill(c);
 }
+
+#if HAVE_LIBCUDA==1
+void ExternalForce::getParticlesCuda(Component *c) {
+  if (use_cuda and not cudaAware()) {
+    if (not comp->fetched[c]) {
+      c->CudaToParticles();
+      comp->fetched[c] = true;
+    }
+  }
+}
+#endif
 

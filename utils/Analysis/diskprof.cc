@@ -94,7 +94,8 @@ public:
   
   Histogram(int N, double R) : N(N), R(R)
   {
-    dR = 2.0*R/(N+1);
+    N = std::max<int>(N, 2);
+    dR = 2.0*R/(N-1);
     data.resize(N*N, 0.0);
     rmax = R + 0.5*dR;
   }
@@ -862,7 +863,8 @@ main(int argc, char **argv)
   EmpCylSL::RMAX        = RCYLMAX;
   EmpCylSL::NUMX        = NUMX;
   EmpCylSL::NUMY        = NUMY;
-  EmpCylSL::CMAP        = true;
+  EmpCylSL::CMAPR       = 1;
+  EmpCylSL::CMAPZ       = 1;
   EmpCylSL::logarithmic = true;
   EmpCylSL::DENS        = DENS;
   EmpCylSL::CACHEFILE   = CACHEFILE;

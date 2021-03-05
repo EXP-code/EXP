@@ -31,9 +31,14 @@ void OutPSQ::initialize()
     else
       nint = 100;
 
-    if (Output::conf["nintsub"])
+    if (Output::conf["nintsub"]) {
+#ifdef ALLOW_NINTSUB
       nintsub = Output::conf["nintsub"].as<int>();
-    else
+#else
+      nintsub_warning("OutPSQ");
+      nintsub = std::numeric_limits<int>::max();
+#endif
+    } else
       nintsub = std::numeric_limits<int>::max();
 
     if (Output::conf["nbeg"])
@@ -98,10 +103,11 @@ void OutPSQ::initialize()
 
 void OutPSQ::Run(int n, int mstep, bool last)
 {
-  if (n % nint && !last && !dump_signal) return;
-  if (restart  && n==0  && !dump_signal) return;
-  if (mstep % nintsub !=0 && !dump_signal) return;
-
+  if (!dump_signal and !last) {
+    if (n % nint            ) return;
+    if (restart  && n==0    ) return;
+    if (mstep % nintsub !=0 ) return;
+  }
 
   std::chrono::high_resolution_clock::time_point beg, end;
   if (timer) beg = std::chrono::high_resolution_clock::now();
@@ -149,6 +155,15 @@ void OutPSQ::Run(int n, int mstep, bool last)
 
   int count = 0;
   for (auto c : comp->components) {
+
+#ifdef HAVE_LIBCUDA
+    if (use_cuda) {
+      if (not comp->fetched[c]) {
+	comp->fetched[c] = true;
+	c->CudaToParticles();
+      }
+    }
+#endif
 				// Check for open failures
     nOK = 0;
 

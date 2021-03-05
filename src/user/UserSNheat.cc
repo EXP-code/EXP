@@ -249,10 +249,15 @@ void UserSNheat::initialize()
 
 void UserSNheat::determine_acceleration_and_potential(void)
 {
-  if (cC != c0)     return;
-  if (tnow < delay) return;
-  if (ncount > N)   return;
+  if (cC != c0)               return;
+  if (multistep and mlevel>0) return;
+  if (tnow < delay)           return;
+  if (ncount > N)             return;
   
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
+
   if (!firstime) {
     
     if (myid==0) {

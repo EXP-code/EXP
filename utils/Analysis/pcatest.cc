@@ -190,7 +190,8 @@ main(int argc, char **argv)
   EmpCylSL::RMAX        = rcylmax;
   EmpCylSL::NUMX        = numx;
   EmpCylSL::NUMY        = numy;
-  EmpCylSL::CMAP        = true;
+  EmpCylSL::CMAPR       = 1;
+  EmpCylSL::CMAPZ       = 1;
   EmpCylSL::logarithmic = true;
   EmpCylSL::DENS        = DENS;
   EmpCylSL::NOUT        = norder;

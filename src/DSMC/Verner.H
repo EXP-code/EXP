@@ -1,7 +1,7 @@
 #ifndef _VERNER_H
 #define _VERNER_H
 
-class chdata;
+class atomicData;
 class Ion;
 
 extern "C" void phfit2_(int* nz, int* ne, int* is, float* e, float* s);
@@ -13,11 +13,11 @@ extern "C" void phfit2_(int* nz, int* ne, int* is, float* e, float* s);
 class VernerData
 {
   //! Pair of unsigned shorts for indexing (Z, C) index pairs
-  typedef std::pair<unsigned short, unsigned short> lQ;
+  using lQ = std::pair<unsigned short, unsigned short>;
 
 private:
 
-  chdata *ch;
+  atomicData *ad;
 
 public:
 
@@ -29,8 +29,8 @@ public:
     void sync(int myid=0);
   };
   
-  typedef boost::shared_ptr<VernerRec> vrPtr;
-  typedef std::vector<vrPtr> vrVec;
+  using vrPtr = boost::shared_ptr<VernerRec>;
+  using vrVec = std::vector<vrPtr>;
 
   std::map<lQ, vrVec> data;
 
@@ -38,7 +38,7 @@ public:
   VernerData() {}
 
   //! Initialize the data from the CHIANTI data file
-  void initialize(chdata* ch);
+  void initialize(atomicData* ad);
 
   //! Calculates the summed recombination cross section
   double cross(const lQ& Q, double EeV);

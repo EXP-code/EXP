@@ -38,7 +38,7 @@
 #include <sstream>
 #include <stdexcept>
 
-#include <SphericalSL.h>
+#include <SphericalSL.H>
 
 #ifdef RCSID
 static char rcsid[] = 

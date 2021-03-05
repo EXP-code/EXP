@@ -1,6 +1,14 @@
+if ENABLE_CUDA
+  ifeq ($(GENCODE_FLAGS),)
+    $(foreach sm,@sm_vers@,$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
+  endif
+  CUDA_LIBFLAGS  = -lcudart -lnvToolsExt
+  NVCC_CXXFLAGS  = -I. -I$(top_srcdir)/src $(GENCODE_FLAGS) $(NVCC_EXTRA) @exp_eigen3_include@ -Xcompiler $(AM_CPPFLAGS)
+endif
+
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu	\
--I$(top_srcdir)/src -I$(top_srcdir)/src/DSMC -I/usr/include/mpi	\
-$(CUDA_CFLAGS)
+-I$(top_srcdir) -I$(top_srcdir)/src -I$(top_srcdir)/src/DSMC	\
+-I/usr/include/mpi $(CUDA_CFLAGS)
 
 BUILD_FLAGS =  -L$(top_srcdir)/expgnu/.libs -L$(top_srcdir)/exputil/.libs
 
@@ -10,7 +18,7 @@ endif
 
 AM_CFLAGS = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) $(OPENMP_CXXFLAGS)
 AM_FFLAGS = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) $(OPENMP_CXXFLAGS)
-AM_CXXFLAGS = -std=c++11 -fPIC -fno-inline-small-functions -Wall	\
+AM_CXXFLAGS = -fPIC -fno-inline-small-functions -Wall	\
 -D_REENTRANT -Wno-non-virtual-dtor $(ADD_CFLAGS4) $(OPENMP_CXXFLAGS)
 AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil @exp_omp_lib@
 
@@ -24,7 +32,7 @@ lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la	\
 	libperiodic.la libatmos.la libreflect.la libsatwake.la	\
 	libpst.la libuserslab.la libtrigger.la libshear.la	\
 	libsnheat.la libprofile.la libmndisk.la libtidalrad.la  \
-	libmassevo.la libaddmass.la
+	libmassevo.la libaddmass.la libcudatest.la
 
 #
 # Convenience library for duplicated source components (static)
@@ -135,6 +143,8 @@ libshear_la_SOURCES = UserShear.cc
 
 libprofile_la_SOURCES = UserProfile.cc
 
+libcudatest_la_SOURCES = UserTestCuda.cc cudaUserTest.cu
+
 
 CylindricalDisk.cc:	$(top_srcdir)/utils/SL/CylindricalDisk.cc
 			cp $(top_srcdir)/utils/SL/$@ .
@@ -144,5 +154,13 @@ SLSphere.cc:		$(top_srcdir)/utils/SL/SLSphere.cc
 
 EllipsoidForce.cc:	$(top_srcdir)/utils/ICs/EllipsoidForce.cc
 			cp $(top_srcdir)/utils/ICs/$@ .
+
+# the rule that can recognize *.cu files and compile the *.cu files to
+# *.lo and *.o files
+.cu.lo:
+	$(top_builddir)/cudalt.py $@ $(NVCC) -c $(NVCC_CXXFLAGS) $<
+
+.cu.o :
+	$(NVCC) -fPIC $(CUDA_CFLAGS) $(NVCC_CXXFLAGS) -c -o $@ $<
 
 CLEANFILES = 	CylindricalDisk.cc EllipsoidForce.cc SLSphere.cc

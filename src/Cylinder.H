@@ -46,9 +46,9 @@ private:
   int nmax, lmax, mmax, mlim;
   int ncylnx, ncylny, ncylr;
   double hcyl;
-  int ncylorder, ncylrecomp, npca, npca0, nvtk, cmaptype;
+  int ncylorder, ncylodd, ncylrecomp, npca, npca0, nvtk, cmapR, cmapZ;
   string eof_file;
-  bool self_consistent, logarithmic, density, pcavar, pcainit, pcavtk, pcadiag, pcaeof, eof_over, cmap;
+  bool self_consistent, logarithmic, density, pcavar, pcainit, pcavtk, pcadiag, pcaeof, eof_over;
   bool try_cache, firstime, dump_basis, compute, firstime_coef;
 
   // These should be ok for all derived classes, hence declared private
@@ -92,10 +92,11 @@ protected:
 #if HAVE_LIBCUDA==1
   virtual void determine_coefficients_cuda(bool compute_pca);
   virtual void determine_acceleration_cuda();
+  virtual void multistep_update_cuda();
 
-  thrust::host_vector  <cuFP_t> host_coefs, host_massT;
+  thrust::host_vector  <cuFP_t> host_coefs, host_covar, host_massT;
   thrust::device_vector<cuFP_t> dev_coefs;
-  std::vector<thrust::host_vector<cuFP_t>> host_coefsT;
+  std::vector<thrust::host_vector<cuFP_t>> host_coefsT, host_covarT;
 
   int sampT;
 
@@ -139,7 +140,7 @@ protected:
     thrust::device_vector<cuFP_t> X_d, Y_d, m_d, u_d, p_d;
     thrust::device_vector<int   > iX_d, iY_d;
 
-    std::vector<thrust::device_vector<cuFP_t>> T_coef;
+    std::vector<thrust::device_vector<cuFP_t>> T_coef, T_covr;
 
     thrust::device_vector<cuFP_t> dN_tvar;
     thrust::device_vector<cuFP_t> dc_tvar;
@@ -150,28 +151,13 @@ protected:
   };
 
   //! Cyclical ring interator for storage
-  //@{
-  //! An STL container
-  typedef std::vector<cudaStorage> cuContainer;
+  cudaStorage cuS;
 
-  //! An iterator for the container
-  typedef cuContainer::iterator    cuIterator;
-
-  //! Convert to a ring iterator
-  typedef RingIterator <cudaStorage, cuContainer, cuIterator> cuRingType;
-
-  //! The storage instance
-  cuContainer cuRingData;
-
-  //! The cyclic iterator instance
-  boost::shared_ptr<cuRingType> cuRing;
-  //@}
-  
   //! Initialize the container
   void cuda_initialize();
 
-  //! Zero the coefficient output vectors
-  void zero_coefs();
+  //! Zero the coefficient gpu vectors
+  void cuda_zero_coefs();
 
   //@}
 
@@ -215,6 +201,8 @@ public:
   //! \param ncylnx is the radial grid in the basis function table
   //! \param ncylny is the vertical grid in the basis function table
   //! \param ncylr is the size of the spherical radial grid used to construct the cylindrical basis
+  //! \param ncylorder is the order of the radial expansion
+  //! \param ncylodd is the number of terms with vertically antisymmetric parity out of ncylorder.  If unspecified, you will get the original variance order.
   //! \param ncylrecomp is the number of steps between basis recomputation (default: -1 which means NEVER)
   //! \param npca is the number of steps between Hall coefficient recomputaton 
   //! \param npca0 is the first step for Hall coefficient computaton 
@@ -234,7 +222,8 @@ public:
   //! \param try_cache set to true means try to read basis from cache (default: true)
   //! \param dump_basis set to true outputs basis into file
   //! \param density set to true means compute density basis in addition to potential (default: false)
-  //! \param cmap selects the coordinate mapping (default: 2, power mapping)
+  //! \param cmapR selects the radial coordinate mapping (default: 2, power mapping)
+  //! \param cmapZ selects the vertical coordinate mapping (default: 1, sinh mapping)
   //!
   Cylinder(const YAML::Node& conf, MixtureBasis *m=0);
 
@@ -244,7 +233,7 @@ public:
   //! The main force call
   void get_acceleration_and_potential(Component*);
 
-  //! Return the value for the fields at a spherical polar coordinate
+  //! Return the value for the fields in spherical polar coordinates
   void 
   determine_fields_at_point_sph(double r, double theta, double phi,
 				double *tdens0, double *tpotl0, 
@@ -252,13 +241,21 @@ public:
 				double *tpotr, double *tpott, 
 				double *tpotp);
 
-  //! Return the value for the fields at a cylindrical coordinate
+  //! Return the value for the fields in cylindrical coordinates
   void 
   determine_fields_at_point_cyl(double r, double z, double phi,
 				double *tdens0, double *tpotl0, 
 				double *tdens, double *tpotl, 
 				double *tpotr, double *tpotz, 
 				double *tpotp);
+
+  //! Return the value for the fields in Cartesian coordinates
+  void 
+  determine_fields_at_point(double x, double y, double z,
+			    double *tdens0, double *tpotl0, 
+			    double *tdens, double *tpotl, 
+			    double *tpotx, double *tpoty, 
+			    double *tpotz);
 
   /** Update the multi time step coefficient table when moving particle 
       <code>i</code> from level <code>cur</code> to level 

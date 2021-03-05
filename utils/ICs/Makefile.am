@@ -16,7 +16,7 @@ if ENABLE_CUDA
 endif
 
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
-AM_CXXFLAGS = -fPIC -std=c++11 -D_REENTRANT -DSTANDALONE $(OPENMP_CXXFLAGS) $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) @exp_vtk_include@ $(BOOST_CPPFLAGS) $(OPENMP_CXXFLAGS)
+AM_CXXFLAGS = -fPIC -D_REENTRANT -DSTANDALONE $(OPENMP_CXXFLAGS) $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) @exp_vtk_include@ @exp_eigen3_include@ $(BOOST_CPPFLAGS) $(OPENMP_CXXFLAGS)
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src -I$(top_srcdir)/utils/SL $(CUDA_CFLAGS)
 
 COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ $(CUDA_LDFLAGS) $(CUDA_LIBFLAGS)
@@ -32,7 +32,7 @@ noinst_HEADERS =
 
 bin_PROGRAMS = gendisk shrinkics gendisk2 gsphere pstmod gendisk3	\
 	empinfo empdump eofbasis makeIon phIon phConv eofcomp testcoefs \
-	testcoefs2 testdeval forcetest
+	testcoefs2 testdeval forcetest hdf52accel forcetest2
 
 shrinkics_SOURCES = shrinkics.cc
 shrinkics_LDADD = $(EXPLIBS)
@@ -40,19 +40,19 @@ shrinkics_LDADD = $(EXPLIBS)
 gendisk_SOURCES = initial.cc DiskHalo.cc EmpCylSL.cc \
 	SphericalSL.cc legendre.cc Particle.cc SParticle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
-gendisk_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+gendisk_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(YAML) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 gendisk2_SOURCES =  initial2.cc DiskHalo2.cc EmpCylSL.cc \
 	SphericalSL.cc legendre.cc Particle.cc SParticle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
 gendisk2_LDFLAGS =  $(EXPFLAGS) $(BOOST_LDFLAGS)
-gendisk2_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(BOOST_LIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+gendisk2_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(YAML) $(BOOST_LIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 gendisk3_SOURCES =  initial3.cc DiskHalo3.cc EmpCylSL.cc \
 	CylDisk.cc SphericalSL.cc legendre.cc Particle.cc SParticle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
 gendisk3_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
-gendisk3_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(BOOST_LIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+gendisk3_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(YAML) $(BOOST_LIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 gsphere_SOURCES = bonnerebert.cc
 gsphere_LDADD = $(COMMON_LIBS) $(EXPLIBS)
@@ -63,19 +63,19 @@ pstmod_LDADD = $(COMMON_LIBS) $(EXPLIBS)
 
 empinfo_SOURCES = empinfo.cc EmpCylSL.cc localmpi.cc
 empinfo_LDFLAGS = $(EXPFLAGS)
-empinfo_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+empinfo_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(YAML) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 empdump_SOURCES = empdump.cc EmpCylSL.cc localmpi.cc
 empdump_LDFLAGS = $(EXPFLAGS)
-empdump_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+empdump_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(YAML) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 eofbasis_SOURCES = eof_basis.cc EmpCylSL.cc localmpi.cc
 eofbasis_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
-eofbasis_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(BOOST_LIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+eofbasis_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(YAML) $(BOOST_LIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 eofcomp_SOURCES = eof_compare.cc EmpCylSL.cc localmpi.cc
 eofcomp_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
-eofcomp_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(BOOST_LIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+eofcomp_LDADD = $(COMMON_LIBS) $(EXPLIBS) $(YAML) $(BOOST_LIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 makeIon_SOURCES = makeIonIC.cc Particle.cc Particle.H Species.H \
 	atomic_constants.H atomic_constants.cc
@@ -94,11 +94,11 @@ phConv_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS)
 testcoefs_SOURCES = check_coefs.cc EmpCylSL.cc SphericalSL.cc	\
 	legendre.cc sinecosine.cc localmpi.cc
 testcoefs_LDFLAGS = $(COMMON_LIBS) $(EXPFLAGS) $(BOOST_LDFLAGS)
-testcoefs_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) @exp_omp_lib@
+testcoefs_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(YAML) $(LIBS) @exp_omp_lib@
 
 testcoefs2_SOURCES = check_coefs2.cc DiskEval.cc EmpCylSL.cc	\
 	SphericalSL.cc legendre.cc sinecosine.cc localmpi.cc
-testcoefs2_LDFLAGS = $(COMMON_LIBS) $(EXPFLAGS) $(BOOST_LDFLAGS)
+testcoefs2_LDFLAGS = $(COMMON_LIBS) $(EXPFLAGS) $(YAML) $(BOOST_LDFLAGS)
 testcoefs2_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) @exp_omp_lib@
 
 testdeval_SOURCES = test_deval.cc DiskEval.cc
@@ -108,6 +108,15 @@ testdeval_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) @exp_omp_lib@
 forcetest_SOURCES = force_test.cc DiskEval.cc
 forcetest_LDFLAGS = $(COMMON_LIBS) $(EXPFLAGS) $(BOOST_LDFLAGS)
 forcetest_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) @exp_omp_lib@
+
+forcetest2_SOURCES = force_test2.cc DiskEval.cc
+forcetest2_LDFLAGS = $(COMMON_LIBS) $(EXPFLAGS) $(BOOST_LDFLAGS)
+forcetest2_LDADD = $(BLAS_LIBS) $(BOOST_LIBS) $(LIBS) @exp_omp_lib@
+
+hdf52accel_SOURCES = hdf52accel.cc
+hdf52accel_CXXFLAGS = $(AM_CXXFLAGS) $(HDF5_CPPFLAGS)
+hdf52accel_LDFLAGS = $(HDF5_LDFLAGS) $(BOOST_LDFLAGS) $(HDF5_LDFLAGS)
+hdf52accel_LDADD = $(BOOST_LIBS) $(LIBS) @exp_omp_lib@ $(HDF5_LIBS)
 
 initial.cc:		Particle.H Particle.h
 
@@ -119,7 +128,7 @@ empinfo.cc:		Particle.H Particle.h
 
 empdump.cc:		Particle.H Particle.h
 
-makeIonIC.cc:		atomic_constants.H
+makeIonIC.cc:		Particle.H Particle.h atomic_constants.H
 
 CylindricalDisk.cc:	$(top_srcdir)/utils/SL/CylindricalDisk.cc
 			cp $(top_srcdir)/utils/SL/$@ .

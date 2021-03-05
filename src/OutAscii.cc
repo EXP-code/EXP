@@ -46,12 +46,16 @@ OutAscii::OutAscii(const YAML::Node& conf) : Output(conf)
 void OutAscii::initialize()
 {
   try {
-    if (Output::conf["nint"])    nint  = Output::conf["nint"].as<int>();
-    if (Output::conf["nintsub"])    nintsub  = Output::conf["nintsub"].as<int>();
-    if (Output::conf["nbeg"])    nbeg  = Output::conf["nbeg"].as<int>();
-    if (Output::conf["name"])    name  = Output::conf["name"].as<std::string>();
-    if (Output::conf["accel"])   accel = Output::conf["name"].as<bool>();
-    
+    if (Output::conf["nint"])    nint     = Output::conf["nint"].as<int>();
+#ifdef ALLOW_NINTSUB
+    if (Output::conf["nintsub"]) nintsub  = Output::conf["nintsub"].as<int>();
+#else
+    nintsub_warning("OutAscii");
+#endif
+    if (Output::conf["nbeg"])    nbeg     = Output::conf["nbeg"].as<int>();
+    if (Output::conf["name"])    name     = Output::conf["name"].as<std::string>();
+    if (Output::conf["accel"])   accel    = Output::conf["accel"].as<bool>();
+
     if (Output::conf["filename"])
       filename = Output::conf["filename"].as<std::string>();
     else {
@@ -98,6 +102,15 @@ void OutAscii::Run(int n, int mstep, bool last)
   if (mstep % nintsub !=0) return;
   if (!c0) return;
 
+#ifdef HAVE_LIBCUDA
+  if (use_cuda) {
+    if (not comp->fetched[c0]) {
+      comp->fetched[c0] = true;
+      c0->CudaToParticles();
+    }
+  }
+#endif
+
   std::ofstream out;
 
   int nOK = 0;
@@ -116,22 +129,35 @@ void OutAscii::Run(int n, int mstep, bool last)
       nOK = 1;
     }
     
-    if (nOK == 0) {
-      out << "# Time=" << tnow << "\n";
-      out << setw(10) << c0->NewTotal()
-	  << setw(10) << c0->niattrib
-	  << setw(10) << c0->ndattrib << "\n";
-    }
   }
 
+  // Check that root has a good stream
+  //
   MPI_Bcast(&nOK, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (nOK) {
     MPI_Finalize();
     exit(33);
   }
 
+  // Update total particle number
+  //
+  c0->NewTotal();
+
+  // Write the header
+  //
+  if (nOK == 0) {
+      out << "# Time=" << tnow << "\n";
+      out << setw(10) << c0->CurTotal()
+	  << setw(10) << c0->niattrib
+	  << setw(10) << c0->ndattrib << "\n";
+  }
+  
+  // Dump the phase-space info into the file
+  //
   c0->write_ascii(&out, accel);
 
+  // Close file and done
+  //
   if (myid==0) {
     try {
       out.close();

@@ -2,13 +2,17 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <memory>
 #include <limits>
 #include <string>
 
+
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
+#include <boost/make_unique.hpp>
 #include <boost/multi_array.hpp>
-#include <boost/progress.hpp>	// Progress bar
+
+#include <Progress.H>		// Progress bar
 
 #include <interp.h>
 #include <Timer.h>
@@ -20,7 +24,9 @@
 #include "global.H"
 #include <VtkPCA.H>
 #else  
+#include <yaml-cpp/yaml.h>	// YAML support
 #include "EXPException.H"
+
 				// Constants from expand.h & global.H
 extern int nthrds;
 extern double tnow;
@@ -31,7 +37,7 @@ extern int VERBOSE;
 
 #endif
 
-#ifdef HAVE_OPENMP
+#ifdef HAVE_OMP_H
 #include <omp.h>		// For multithreading basis construction
 #endif
 
@@ -48,24 +54,38 @@ bool     EmpCylSL::DENS            = false;
 bool     EmpCylSL::PCAVAR          = false;
 bool     EmpCylSL::PCAVTK          = false;
 bool     EmpCylSL::PCAEOF          = false;
+bool     EmpCylSL::PCADRY          = true;
 bool     EmpCylSL::USESVD          = false;
 bool     EmpCylSL::logarithmic     = false;
 bool     EmpCylSL::enforce_limits  = false;
-int      EmpCylSL::CMAP            = 0;
+int      EmpCylSL::CMAPR           = 1;
+int      EmpCylSL::CMAPZ           = 1;
 int      EmpCylSL::NUMX            = 256;
 int      EmpCylSL::NUMY            = 128;
 int      EmpCylSL::NOUT            = 12;
 int      EmpCylSL::NUMR            = 2000;
 unsigned EmpCylSL::VFLAG           = 0;
 unsigned EmpCylSL::VTKFRQ          = 1;
+double   EmpCylSL::HEXP            = 1.0;
 double   EmpCylSL::RMIN            = 0.001;
 double   EmpCylSL::RMAX            = 20.0;
 double   EmpCylSL::HFAC            = 0.2;
 double   EmpCylSL::PPOW            = 4.0;
 string   EmpCylSL::CACHEFILE       = ".eof.cache.file";
+bool     EmpCylSL::NewCache        = false;
+bool     EmpCylSL::NewCoefs        = false;
  
 
 EmpCylSL::EmpModel EmpCylSL::mtype = Exponential;
+
+std::map<EmpCylSL::EmpModel, std::string> EmpCylSL::EmpModelLabs =
+  { {Exponential, "Exponential"},
+    {Gaussian,    "Gaussian"   },
+    {Plummer,     "Plummer"    },
+    {Power,       "Power"      },
+    {Deproject,   "Deproject"  }
+  };
+
 
 EmpCylSL::EmpCylSL(void)
 {
@@ -76,6 +96,11 @@ EmpCylSL::EmpCylSL(void)
   tk_type    = None;
   EVEN_M     = false;
   MLIM       = std::numeric_limits<int>::max();
+  EvenOdd    = false;
+  Neven      = 0;
+  Nodd       = 0;
+  minSNR     = std::numeric_limits<double>::max();
+  maxSNR     = 0.0;
   
   if (DENS)
     MPItable = 4;
@@ -96,24 +121,46 @@ EmpCylSL::~EmpCylSL(void)
 
 
 EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord, 
-		   double ascale, double hscale)
+		   double ascale, double hscale, int nodd)
 {
-  NMAX   = nmax;
-  MMAX   = mmax;
-  LMAX   = lmax;
-  NORDER = nord;
-  MLIM   = std::numeric_limits<int>::max();
+  // Sanity check
+  if (lmax <= mmax) {
+    if (myid==0) {
+      std::cout << "EmpCylSL: lmax must be greater than mmax for consistency"
+		<< std::endl
+		<< "EmpCylSL: setting lmax=" << mmax + 1
+		<< " but you probably want lmax >> mmax"
+		<< std::endl;
+    }
+    lmax = mmax + 1;
+  }
+
+  NMAX     = nmax;
+  MMAX     = mmax;
+  LMAX     = lmax;
+  NORDER   = nord;
+  MLIM     = std::numeric_limits<int>::max();
+  EvenOdd  = false;
 
 
-  ASCALE = ascale;
-  HSCALE = hscale;
-  pfac = 1.0/sqrt(ascale);
-  ffac = pfac/ascale;
-  dfac = ffac/ascale;
+  ASCALE   = ascale;
+  HSCALE   = hscale;
+  pfac     = 1.0/sqrt(ascale);
+  ffac     = pfac/ascale;
+  dfac     = ffac/ascale;
 
-  EVEN_M = false;
+  EVEN_M   = false;
 
-				// Enable MPI code for more than one node
+  // Set number of even and odd terms
+  //
+  if (nodd>=0 and nodd<=NORDER) {
+    EvenOdd  = true;
+    Neven    = NORDER - nodd;
+    Nodd     = nodd;
+  }
+
+  // Enable MPI code for more than one node
+  //
   if (numprocs>1) SLGridSph::mpi = 1;
 
   if (DENS)
@@ -131,24 +178,47 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   cylmass1     = vector<double>(nthrds);
   cylmass_made = false;
 
-  hallfile  = "";
+  hallfile     = "";
+  minSNR       = std::numeric_limits<double>::max();
+  maxSNR       = 0.0;
 }
 
 
 void EmpCylSL::reset(int numr, int lmax, int mmax, int nord, 
-		     double ascale, double hscale)
+		     double ascale, double hscale, int nodd)
 {
-  NMAX   = numr;
-  MMAX   = mmax;
-  LMAX   = lmax;
-  NORDER = nord;
-  MLIM   = std::numeric_limits<int>::max();
+  // Sanity check
+  if (lmax <= mmax) {
+    if (myid==0) {
+      std::cout << "EmpCylSL: lmax must be greater than mmax for consistency"
+		<< std::endl
+		<< "EmpCylSL: setting lmax=" << mmax + 1
+		<< " but you probably want lmax >> mmax"
+		<< std::endl;
+    }
+    lmax = mmax + 1;
+  }
+
+  NMAX     = numr;
+  MMAX     = mmax;
+  LMAX     = lmax;
+  NORDER   = nord;
+  MLIM     = std::numeric_limits<int>::max();
+  EvenOdd  = false;
+
+  // Set number of even and odd terms
+  //
+  if (nodd>=0 and nodd<=NORDER) {
+    EvenOdd  = true;
+    Neven    = NORDER - nodd;
+    Nodd     = nodd;
+  }
 
   ASCALE = ascale;
   HSCALE = hscale;
-  pfac = 1.0/sqrt(ascale);
-  ffac = pfac/ascale;
-  dfac = ffac/ascale;
+  pfac   = 1.0/sqrt(ascale);
+  ffac   = pfac/ascale;
+  dfac   = ffac/ascale;
 
   SLGridSph::mpi = 1;		// Turn on MPI
   ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
@@ -167,6 +237,9 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   cylmass = 0.0;
   cylmass1.resize(nthrds);
   cylmass_made = false;
+
+  minSNR  = std::numeric_limits<double>::max();
+  maxSNR  = 0.0;
 }
 
 void EmpCylSL::create_deprojection(double H, double Rf, int NUMR, int NINT,
@@ -354,15 +427,8 @@ SphModTblPtr EmpCylSL::make_sl()
 				// Debug sanity check
 				// ------------------------------------------
   if (myid==0) {
-    std::map<EmpModel, std::string> labs =
-      { {Exponential, "Exponential"},
-	{Gaussian,    "Gaussian"   },
-	{Plummer,     "Plummer"    },
-	{Power,       "Power"      },
-	{Deproject,   "Deproject"  }
-      };
     std::cout << "EmpCylSL::make_sl(): making SLGridSph with <"
-	      << labs[mtype] << "> model" << std::endl;
+	      << EmpModelLabs[mtype] << "> model" << std::endl;
   }
 
 				// ------------------------------------------
@@ -577,43 +643,105 @@ void EmpCylSL::send_eof_grid()
 }
 
 
-int EmpCylSL::read_eof_header(const string& eof_file)
+int EmpCylSL::read_eof_header(const std::string& eof_file)
 {
-  ifstream in(eof_file.c_str());
+  std::ifstream in(eof_file.c_str());
   if (!in) {
-    cerr << "EmpCylSL::cache_grid: error opening file named <" 
-	 << eof_file << ">" << endl;
+    std::cerr << "EmpCylSL::cache_grid: error opening file named <" 
+	      << eof_file << ">" << std::endl;
     return 0;
   }
 
-  int tmp;
+  // Attempt to read magic number
+  //
+  unsigned int tmagic;
+  in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
 
-  in.read((char *)&MMAX,   sizeof(int));
-  in.read((char *)&NUMX,   sizeof(int));
-  in.read((char *)&NUMY,   sizeof(int));
-  in.read((char *)&NMAX,   sizeof(int));
-  in.read((char *)&NORDER, sizeof(int));
-  in.read((char *)&tmp,    sizeof(int)); 
-  if (tmp) DENS = true; else DENS = false;
-  in.read((char *)&CMAP,   sizeof(int)); 
-  in.read((char *)&RMIN,   sizeof(double));
-  in.read((char *)&RMAX,   sizeof(double));
-  in.read((char *)&ASCALE, sizeof(double));
-  in.read((char *)&HSCALE, sizeof(double));
+  if (tmagic == hmagic) {
+
+      // YAML size
+      //
+      unsigned ssize;
+      in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
+
+      // Make and read char buffer
+      //
+      auto buf = boost::make_unique<char[]>(ssize+1);
+      in.read(buf.get(), ssize);
+      buf[ssize] = 0;		// Null terminate
+
+      YAML::Node node;
+      
+      try {
+	node = YAML::Load(buf.get());
+      }
+      catch (YAML::Exception& error) {
+	if (myid==0)
+	  std::cerr << "YAML: error parsing <" << buf.get() << "> "
+		    << "in " << __FILE__ << ":" << __LINE__ << std::endl
+		    << "YAML error: " << error.what() << std::endl;
+	throw error;
+      }
+
+      // Get parameters
+      //
+      MMAX   = node["mmax"  ].as<int>();
+      NUMX   = node["numx"  ].as<int>();
+      NUMY   = node["numy"  ].as<int>();
+      NMAX   = node["nmax"  ].as<int>();
+      NORDER = node["norder"].as<int>();
+      DENS   = node["dens"  ].as<bool>();
+      RMIN   = node["rmin"  ].as<double>();
+      RMAX   = node["rmax"  ].as<double>();
+      ASCALE = node["ascl"  ].as<double>();
+      HSCALE = node["hscl"  ].as<double>();
+
+      if (node["cmap"])		// Backwards compatibility
+	CMAPR  = node["cmap"  ].as<int>();
+      else
+	CMAPR  = node["cmapr" ].as<int>();
+
+      if (node["cmapz"])	// Backwards compatibility
+	CMAPZ  = node["cmapz" ].as<int>();
+
+
+  } else {
+
+    // Rewind file
+    //
+    in.clear();
+    in.seekg(0);
+
+    int tmp;
+
+    in.read((char *)&MMAX,   sizeof(int));
+    in.read((char *)&NUMX,   sizeof(int));
+    in.read((char *)&NUMY,   sizeof(int));
+    in.read((char *)&NMAX,   sizeof(int));
+    in.read((char *)&NORDER, sizeof(int));
+    in.read((char *)&tmp,    sizeof(int)); 
+    if (tmp) DENS = true; else DENS = false;
+    in.read((char *)&CMAPR,  sizeof(int)); 
+    in.read((char *)&RMIN,   sizeof(double));
+    in.read((char *)&RMAX,   sizeof(double));
+    in.read((char *)&ASCALE, sizeof(double));
+    in.read((char *)&HSCALE, sizeof(double));
+  }
   
   if (myid==0) {
     cout << setfill('-') << setw(70) << '-' << endl;
     cout << " Cylindrical parameters read from <" << eof_file << ">" << endl;
     cout << setw(70) << '-' << endl;
-    cout << "MMAX="   << MMAX << endl;
-    cout << "NUMX="   << NUMX << endl;
-    cout << "NUMY="   << NUMY << endl;
-    cout << "NMAX="   << NMAX << endl;
+    cout << "MMAX="   << MMAX   << endl;
+    cout << "NUMX="   << NUMX   << endl;
+    cout << "NUMY="   << NUMY   << endl;
+    cout << "NMAX="   << NMAX   << endl;
     cout << "NORDER=" << NORDER << endl;
-    cout << "DENS="   << DENS << endl;
-    cout << "CMAP="   << CMAP << endl;
-    cout << "RMIN="   << RMIN << endl;
-    cout << "RMAX="   << RMAX << endl;
+    cout << "DENS="   << DENS   << endl;
+    cout << "CMAPR="  << CMAPR  << endl;
+    cout << "CMAPZ="  << CMAPZ  << endl;
+    cout << "RMIN="   << RMIN   << endl;
+    cout << "RMAX="   << RMAX   << endl;
     cout << "ASCALE=" << ASCALE << endl;
     cout << "HSCALE=" << HSCALE << endl;
     cout << setw(70) << '-' << endl << setfill(' ');
@@ -701,32 +829,81 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 
   if (readwrite) {
 
-    ofstream out(cachefile.c_str());
+    std::ofstream out(cachefile.c_str());
     if (!out) {
-      cerr << "EmpCylSL::cache_grid: error writing file" << endl;
+      std::cerr << "EmpCylSL::cache_grid: error writing file" << std::endl;
       return 0;
     }
 
-    const int one  = 1;
-    const int zero = 0;
+    if (NewCache) {
 
-    out.write((const char *)&MMAX,    sizeof(int));
-    out.write((const char *)&NUMX,    sizeof(int));
-    out.write((const char *)&NUMY,    sizeof(int));
-    out.write((const char *)&NMAX,    sizeof(int));
-    out.write((const char *)&NORDER,  sizeof(int));
-    if (DENS) out.write((const char *)&one, sizeof(int));
-    else      out.write((const char *)&zero, sizeof(int));
-    out.write((const char *)&CMAP,    sizeof(int));
-    out.write((const char *)&RMIN,    sizeof(double));
-    out.write((const char *)&RMAX,    sizeof(double));
-    out.write((const char *)&ASCALE,  sizeof(double));
-    out.write((const char *)&HSCALE,  sizeof(double));
-    out.write((const char *)&cylmass, sizeof(double));
-    out.write((const char *)&tnow,    sizeof(double));
+      // This is a node of simple {key: value} pairs.  More general
+      // content can be added as needed.
+      YAML::Node node;
 
-				// Write table
+      node["model" ] = EmpModelLabs[mtype];
+      node["mmax"  ] = MMAX;
+      node["numx"  ] = NUMX;
+      node["numy"  ] = NUMY;
+      node["nmax"  ] = NMAX;
+      node["norder"] = NORDER;
+      node["neven" ] = Neven;
+      node["nodd"  ] = Nodd;
+      node["dens"  ] = DENS;
+      node["cmapr" ] = CMAPR;
+      node["cmapz" ] = CMAPZ;
+      node["rmin"  ] = RMIN;
+      node["rmax"  ] = RMAX;
+      node["ascl"  ] = ASCALE;
+      node["hscl"  ] = HSCALE;
+      node["cmass" ] = cylmass;
+      node["time"  ] = tnow;
 
+      // Serialize the node
+      //
+      YAML::Emitter y; y << node;
+
+      // Get the size of the string
+      //
+      unsigned int hsize = strlen(y.c_str());
+
+      // Write magic #
+      //
+      out.write(reinterpret_cast<const char *>(&hmagic),   sizeof(unsigned int));
+
+      // Write YAML string size
+      //
+      out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
+
+      // Write YAML string
+      //
+      out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
+
+    } else {
+
+      // Old-style header
+      //
+      const int one  = 1;
+      const int zero = 0;
+
+      out.write((const char *)&MMAX,    sizeof(int));
+      out.write((const char *)&NUMX,    sizeof(int));
+      out.write((const char *)&NUMY,    sizeof(int));
+      out.write((const char *)&NMAX,    sizeof(int));
+      out.write((const char *)&NORDER,  sizeof(int));
+      if (DENS) out.write((const char *)&one,  sizeof(int));
+      else      out.write((const char *)&zero, sizeof(int));
+      out.write((const char *)&CMAPR,   sizeof(int));
+      out.write((const char *)&RMIN,    sizeof(double));
+      out.write((const char *)&RMAX,    sizeof(double));
+      out.write((const char *)&ASCALE,  sizeof(double));
+      out.write((const char *)&HSCALE,  sizeof(double));
+      out.write((const char *)&cylmass, sizeof(double));
+      out.write((const char *)&tnow,    sizeof(double));
+    }
+
+    // Write table
+    //
     for (int m=0; m<=MMAX; m++) {
 
       for (int v=0; v<rank3; v++) {
@@ -783,27 +960,93 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
   }
   else {
 
-    ifstream in(cachefile.c_str());
+    std::ifstream in(cachefile.c_str());
     if (!in) {
       cerr << "EmpCylSL::cache_grid: error opening file" << endl;
       return 0;
     }
 
-    int mmax, numx, numy, nmax, norder, tmp, cmap;
+    int mmax, numx, numy, nmax, norder, tmp, cmapr, cmapz;
     bool dens=false;
-    double rmin, rmax, ascl, hscl;
+    double rmin, rmax, ascl, hscl, time;
 
-    in.read((char *)&mmax,   sizeof(int));
-    in.read((char *)&numx,   sizeof(int));
-    in.read((char *)&numy,   sizeof(int));
-    in.read((char *)&nmax,   sizeof(int));
-    in.read((char *)&norder, sizeof(int));
-    in.read((char *)&tmp,    sizeof(int));    if (tmp) dens = true;
-    in.read((char *)&cmap,   sizeof(int));
-    in.read((char *)&rmin,   sizeof(double));
-    in.read((char *)&rmax,   sizeof(double));
-    in.read((char *)&ascl,   sizeof(double));
-    in.read((char *)&hscl,   sizeof(double));
+
+    // Attempt to read magic number
+    //
+    unsigned int tmagic;
+    in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
+
+    if (tmagic == hmagic) {
+      // YAML size
+      //
+      unsigned ssize;
+      in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
+
+      // Make and read char buffer
+      //
+      auto buf = boost::make_unique<char[]>(ssize+1);
+      in.read(buf.get(), ssize);
+      buf[ssize] = 0;		// Null terminate
+
+      YAML::Node node;
+      
+      try {
+	node = YAML::Load(buf.get());
+      }
+      catch (YAML::Exception& error) {
+	if (myid)
+	  std::cerr << "YAML: error parsing <" << buf.get() << "> "
+		    << "in " << __FILE__ << ":" << __LINE__ << std::endl
+		    << "YAML error: " << error.what() << std::endl;
+	throw error;
+      }
+
+      // Get parameters
+      //
+      mmax    = node["mmax"  ].as<int>();
+      numx    = node["numx"  ].as<int>();
+      numy    = node["numy"  ].as<int>();
+      nmax    = node["nmax"  ].as<int>();
+      norder  = node["norder"].as<int>();
+      dens    = node["dens"  ].as<bool>();
+      rmin    = node["rmin"  ].as<double>();
+      rmax    = node["rmax"  ].as<double>();
+      ascl    = node["ascl"  ].as<double>();
+      hscl    = node["hscl"  ].as<double>();
+      cylmass = node["cmass" ].as<double>();
+      time    = node["time"  ].as<double>();
+
+      if (node["cmap"]) 	// Backwards compatibility
+	cmapr   = node["cmap" ].as<int>();
+      else
+	cmapr   = node["cmapr"].as<int>();
+
+      if (node["cmapz"])	// Backwards compatibility
+	cmapz = node["cmapz"].as<int>();
+      else
+	cmapz = CMAPZ;
+
+    } else {
+				// Rewind file
+      in.clear();
+      in.seekg(0);
+
+      in.read((char *)&mmax,    sizeof(int));
+      in.read((char *)&numx,    sizeof(int));
+      in.read((char *)&numy,    sizeof(int));
+      in.read((char *)&nmax,    sizeof(int));
+      in.read((char *)&norder,  sizeof(int));
+      in.read((char *)&tmp,     sizeof(int));    if (tmp) dens = true;
+      in.read((char *)&cmapr,   sizeof(int));
+      in.read((char *)&rmin,    sizeof(double));
+      in.read((char *)&rmax,    sizeof(double));
+      in.read((char *)&ascl,    sizeof(double));
+      in.read((char *)&hscl,    sizeof(double));
+      in.read((char *)&cylmass, sizeof(double));
+      in.read((char *)&time,    sizeof(double));
+
+      cmapz = 1;
+    }
 
 				// Spot check compatibility
     if ( (MMAX    != mmax   ) |
@@ -812,7 +1055,7 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 	 (NMAX    != nmax   ) |
 	 (NORDER  != norder ) |
 	 (DENS    != dens   ) |
-	 (CMAP    != cmap   ) |
+	 (CMAPR   != cmapr  ) |
 	 (fabs(rmin-RMIN)>1.0e-12 ) |
 	 (fabs(rmax-RMAX)>1.0e-12 ) |
 	 (fabs(ascl-ASCALE)>1.0e-12 ) |
@@ -834,7 +1077,8 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 	cout << compare_out("nmax",   NMAX,   nmax);
 	cout << compare_out("norder", NORDER, norder);
 	cout << compare_out("dens",   DENS,   dens);
-	cout << compare_out("cmap",   CMAP,   cmap);
+	cout << compare_out("cmapr",  CMAPR,  cmapr);
+	cout << compare_out("cmapz",  CMAPZ,  cmapz);
 	cout << compare_out("rmin",   RMIN,   rmin);
 	cout << compare_out("rmax",   RMAX,   rmax);
 	cout << compare_out("ascale", ASCALE, ascl);
@@ -843,9 +1087,6 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 	return 0;
       }
     
-    double time;
-    in.read((char *)&cylmass, sizeof(double));
-    in.read((char *)&time,    sizeof(double));
 
 				// Read table
 
@@ -1025,7 +1266,7 @@ void EmpCylSL::receive_eof(int request_id, int MM)
 
 void EmpCylSL::compute_eof_grid(int request_id, int m)
 {
-  // check for ortho
+  // Check for existence of ortho and create if necessary
   //
   if (not ortho)
     ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
@@ -1034,10 +1275,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 
   //  Read in coefficient matrix or
   //  make grid if needed
-
-				// Sin/cos normalization
-  double x, y, r, z;
-  double costh, fac1, fac2, dens, potl, potr, pott, fac3, fac4;
+  double fac1, fac2, dens, potl, potr, pott, fac3, fac4;
   
   int icnt, off;
   
@@ -1050,13 +1288,13 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 
   for (int ix=0; ix<=NUMX; ix++) {
 
-    x = XMIN + dX*ix;
-    r = xi_to_r(x);
+    double x = XMIN + dX*ix;
+    double r = xi_to_r(x);
 
     for (int iy=0; iy<=NUMY; iy++) {
 
-      y = YMIN + dY*iy;
-      z = y_to_z(y);
+      double y = YMIN + dY*iy;
+      double z = y_to_z(y);
 
       double rr = sqrt(r*r + z*z) + 1.0e-18;
 
@@ -1064,7 +1302,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
       ortho->get_force(dpot, rr/ASCALE);
       if (DENS) ortho->get_dens(dend, rr/ASCALE);
 
-      costh = z/rr;
+      double costh = z/rr;
       dlegendre_R(LMAX, costh, legs[0], dlegs[0]);
       
       for (int v=0; v<NORDER; v++) {
@@ -1113,6 +1351,225 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
     }
   }
 
+				// Send stuff back to master
+      
+  MPI_Send(&request_id, 1, MPI_INT, 0, 12, MPI_COMM_WORLD);
+  MPI_Send(&m, 1, MPI_INT, 0, 12, MPI_COMM_WORLD);
+      
+    
+  for (int n=0; n<NORDER; n++) {
+
+				// normalization factors
+    if (DENS)
+      tdens[n] *= 0.25/M_PI;
+
+				// Potential
+
+    off = MPIbufsz*(MPItable*n+0);
+    icnt = 0;
+    for (int ix=0; ix<=NUMX; ix++)
+      for (int iy=0; iy<=NUMY; iy++)
+	mpi_double_buf2[off + icnt++] = tpot[n][ix][iy];
+    
+    if (VFLAG & 8)
+      cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
+	   << ", M=" << m << " send Potential" << endl;
+
+    MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
+	     13 + MPItable*n+1, MPI_COMM_WORLD);
+
+				// R force
+
+    off = MPIbufsz*(MPItable*n+1);
+    icnt = 0;
+    for (int ix=0; ix<=NUMX; ix++)
+      for (int iy=0; iy<=NUMY; iy++)
+	mpi_double_buf2[off + icnt++] = trforce[n][ix][iy];
+    
+    if (VFLAG & 8)
+      cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
+	   << ", M=" << m << " sending R force" << endl;
+
+    MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
+	     13 + MPItable*n+2, MPI_COMM_WORLD);
+
+				// Z force
+
+    off = MPIbufsz*(MPItable*n+2);
+    icnt = 0;
+    for (int ix=0; ix<=NUMX; ix++)
+      for (int iy=0; iy<=NUMY; iy++)
+	mpi_double_buf2[off + icnt++] = tzforce[n][ix][iy];
+    
+    if (VFLAG & 8)
+      cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
+	   << ", M=" << m << " sending Z force" << endl;
+
+
+    MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
+	     13 + MPItable*n+3, MPI_COMM_WORLD);
+
+				// Density
+
+    if (DENS) {
+      off = MPIbufsz*(MPItable*n+3);
+      icnt = 0;
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++)
+	  mpi_double_buf2[off + icnt++] = tdens[n][ix][iy];
+    
+      if (VFLAG & 8)
+	cerr << "Slave " << setw(4) << myid 
+	     << ": with request_id=" << request_id
+	     << ", M=" << m << " sending Density" << endl;
+
+      MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
+	       13 + MPItable*n+4, MPI_COMM_WORLD);
+
+    }
+
+  }
+
+}
+
+void EmpCylSL::compute_even_odd(int request_id, int m)
+{
+  // check for ortho
+  //
+  if (not ortho)
+    ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
+					  make_sl(), false, 1, 1.0);
+
+  double fac1, fac2, dens, potl, potr, pott, fac3, fac4;
+  
+  int icnt, off;
+  
+  for (int v=0; v<NORDER; v++) {
+    tpot[v].zero();
+    trforce[v].zero();
+    tzforce[v].zero();
+    if (DENS) tdens[v].zero();
+  }
+
+  for (int ix=0; ix<=NUMX; ix++) {
+
+    double x = XMIN + dX*ix;
+    double r = xi_to_r(x);
+
+    for (int iy=0; iy<=NUMY; iy++) {
+
+      double y = YMIN + dY*iy;
+      double z = y_to_z(y);
+
+      double rr = sqrt(r*r + z*z) + 1.0e-18;
+
+      ortho->get_pot(potd, rr/ASCALE);
+      ortho->get_force(dpot, rr/ASCALE);
+      if (DENS) ortho->get_dens(dend, rr/ASCALE);
+
+      double costh = z/rr;
+      dlegendre_R(LMAX, costh, legs[0], dlegs[0]);
+      
+      // Do the even eigenfunction first
+      //
+      for (int v=0; v<Neven; v++) {
+
+	int w = v + 1;
+
+	for (int ir=1; ir<=NMAX; ir++) {
+
+	  for (int il=0; il<lE[m].size(); il++) {
+
+	    int l = lE[m][il];	// Even l values first
+	    
+	    fac1 = sqrt((2.0*l+1.0)/(4.0*M_PI));
+
+	    if (m==0) {
+	      fac2 = fac1*legs[0][l][m];
+
+	      dens = fac2*dend[l][ir] * dfac;
+	      potl = fac2*potd[l][ir] * pfac;
+	      potr = fac2*dpot[l][ir] * ffac;
+	      pott = fac1*dlegs[0][l][m]*potd[l][ir] * pfac;
+
+	    } else {
+
+	      fac2 = M_SQRT2 * fac1 * exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1)));
+	      fac3 = fac2 * legs[0][l][m];
+	      fac4 = fac2 * dlegs[0][l][m];
+	      
+	      dens = fac3*dend[l][ir] * dfac;
+	      potl = fac3*potd[l][ir] * pfac;
+	      potr = fac3*dpot[l][ir] * ffac;
+	      pott = fac4*potd[l][ir] * pfac;
+	    }
+	    
+	    int nn = ir + NMAX*il;
+
+	    tpot[v][ix][iy] +=  efE[w][nn] * potl;
+
+	    trforce[v][ix][iy] += 
+	      -efE[w][nn] * (potr*r/rr - pott*z*r/(rr*rr*rr));
+
+	    tzforce[v][ix][iy] += 
+	      -efE[w][nn] * (potr*z/rr + pott*r*r/(rr*rr*rr));
+
+	    if (DENS) 
+	      tdens[v][ix][iy] +=  efE[w][nn] * dens;
+	  }
+	}
+      }
+
+      for (int v=Neven; v<NORDER; v++) {
+
+	int w = v - Neven + 1;	// Index in odd eigenfunctions
+
+	for (int ir=1; ir<=NMAX; ir++) {
+
+	  for (int il=0; il<lO[m].size(); il++) {
+
+	    int l = lO[m][il];
+
+	    fac1 = sqrt((2.0*l+1.0)/(4.0*M_PI));
+
+	    if (m==0) {
+	      fac2 = fac1*legs[0][l][m];
+
+	      dens = fac2*dend[l][ir] * dfac;
+	      potl = fac2*potd[l][ir] * pfac;
+	      potr = fac2*dpot[l][ir] * ffac;
+	      pott = fac1*dlegs[0][l][m]*potd[l][ir] * pfac;
+
+	    } else {
+
+	      fac2 = M_SQRT2 * fac1 * exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1)));
+	      fac3 = fac2 * legs[0][l][m];
+	      fac4 = fac2 * dlegs[0][l][m];
+	      
+	      dens = fac3*dend[l][ir] * dfac;
+	      potl = fac3*potd[l][ir] * pfac;
+	      potr = fac3*dpot[l][ir] * ffac;
+	      pott = fac4*potd[l][ir] * pfac;
+	    }
+	    
+	    int nn = ir + NMAX*il;
+
+	    tpot[v][ix][iy] +=  efO[w][nn] * potl;
+
+	    trforce[v][ix][iy] += 
+	      -efO[w][nn] * (potr*r/rr - pott*z*r/(rr*rr*rr));
+
+	    tzforce[v][ix][iy] += 
+	      -efO[w][nn] * (potr*z/rr + pott*r*r/(rr*rr*rr));
+
+	    if (DENS) 
+	      tdens[v][ix][iy] +=  efO[w][nn] * dens;
+	  }
+	}
+      }
+    }
+  }
+  
 				// Send stuff back to master
       
   MPI_Send(&request_id, 1, MPI_INT, 0, 12, MPI_COMM_WORLD);
@@ -1270,9 +1727,14 @@ void EmpCylSL::setup_accumulation(int mlevel)
     if (PCAVAR and sampT>0) {
       for (int nth=0; nth<nthrds; nth++) {
 	for (unsigned T=0; T<sampT; T++) {
+	  numbT1[nth][T] = 0;
 	  massT1[nth][T] = 0.0;
-	  cos2[nth][T]->setsize(0, MMAX, 0, NORDER-1);
-	  sin2[nth][T]->setsize(0, MMAX, 0, NORDER-1);
+	  covV[nth][T].resize(MMAX+1);
+	  covM[nth][T].resize(MMAX+1);
+	  for (int mm=0; mm<=MMAX; mm++) {
+	    covV[nth][T][mm].setsize(0, NORDER-1);
+	    covM[nth][T][mm].setsize(0, NORDER-1, 0, NORDER-1);
+	  }
 	}
       }
     }
@@ -1289,15 +1751,20 @@ void EmpCylSL::setup_accumulation(int mlevel)
     for (int nth=0; nth<nthrds; nth++) {
 
       if (PCAEOF) {
-	for (auto & v : tvar[nth]) v->zero();
+	for (auto & v : tvar[nth]) v.zero();
       }
 
       if (PCAVAR) {
+	minSNR = std::numeric_limits<double>::max();
+	maxSNR = 0.0;
 
 	for (unsigned T=0; T<sampT; T++) {
+	  numbT1[nth][T] = 0;
 	  massT1[nth][T] = 0.0;
-	  cos2[nth][T]->zero();
-	  sin2[nth][T]->zero();
+	  for (int mm=0; mm<=MMAX; mm++) {
+	    covV[nth][T][mm].zero();
+	    covM[nth][T][mm].zero();
+	  }
 	}
       }
     }
@@ -1348,28 +1815,36 @@ void EmpCylSL::init_pca()
       tvar.resize(nthrds);
 
     if (PCAVAR) {
-      cos2  .resize(nthrds);
-      sin2  .resize(nthrds);
+      covV  .resize(nthrds);
+      covM  .resize(nthrds);
+      numbT1.resize(nthrds);
       massT1.resize(nthrds);
+      numbT .resize(sampT, 0);
       massT .resize(sampT, 0);
     }
 
     for (int nth=0; nth<nthrds;nth++) {
       if (PCAEOF) {
 	tvar[nth].resize(MMAX + 1);
-	for (auto & v : tvar[nth])
-	  v = boost::make_shared<Matrix>(1, rank3, 1, rank3);
+	for (auto & v : tvar[nth]) v.setsize(1, rank3, 1, rank3);
       }
 
       if (PCAVAR) {
+	minSNR = std::numeric_limits<double>::max();
+	maxSNR = 0.0;
 
+	numbT1[nth].resize(sampT, 0);
 	massT1[nth].resize(sampT, 0);
 
-	cos2[nth].resize(sampT);
-	sin2[nth].resize(sampT);
+	covV[nth].resize(sampT);
+	covM[nth].resize(sampT);
 	for (unsigned T=0; T<sampT; T++) {
-	  cos2[nth][T] = boost::make_shared<Matrix>(0, MMAX, 0, rank3-1);
-	  sin2[nth][T] = boost::make_shared<Matrix>(0, MMAX, 0, rank3-1);
+	  covV[nth][T].resize(MMAX+1);
+	  covM[nth][T].resize(MMAX+1);
+	  for (int mm=0; mm<=MMAX; mm++) {
+	    covV[nth][T][mm].setsize(0, rank3-1);
+	    covM[nth][T][mm].setsize(0, rank3-1, 0, rank3-1);
+	  }
 	}
       }
     }
@@ -1378,7 +1853,7 @@ void EmpCylSL::init_pca()
 
 void EmpCylSL::setup_eof()
 {
-  if (SC.size()==0) {
+  if (SC.size()==0 and SCe.size()==0) {
 
     rank2   = NMAX*(LMAX+1);
     rank3   = NORDER;
@@ -1447,12 +1922,32 @@ void EmpCylSL::setup_eof()
       if (DENS) tdens[n].setsize(0, NUMX, 0, NUMY);
     }
 
-    SC.resize(nthrds);
-    SS.resize(nthrds);
+    if (EvenOdd) {
+      SCe.resize(nthrds);
+      SSe.resize(nthrds);
 
-    for (int nth=0; nth<nthrds; nth++) {
-      SC[nth].resize(MMAX+1);
-      SS[nth].resize(MMAX+1);
+      SCo.resize(nthrds);
+      SSo.resize(nthrds);
+
+      for (int nth=0; nth<nthrds; nth++) {
+	SCe[nth].resize(MMAX+1);
+	SSe[nth].resize(MMAX+1);
+
+	SCo[nth].resize(MMAX+1);
+	SSo[nth].resize(MMAX+1);
+      }
+
+      lE.resize(MMAX+1);
+      lO.resize(MMAX+1);
+
+    } else {
+      SC.resize(nthrds);
+      SS.resize(nthrds);
+
+      for (int nth=0; nth<nthrds; nth++) {
+	SC[nth].resize(MMAX+1);
+	SS[nth].resize(MMAX+1);
+      }
     }
 
     vc.resize(nthrds);
@@ -1462,10 +1957,6 @@ void EmpCylSL::setup_eof()
       vs[i].setsize(0, max<int>(1,MMAX), 0, rank3-1);
     }
 
-    var.resize(MMAX+1);
-    for (int m=0; m<=MMAX; m++)
-      var[m].setsize(1, NMAX*(LMAX-m+1), 1, NMAX*(LMAX-m+1));
-      
     potd.setsize(0, LMAX, 1, NMAX);
     dpot.setsize(0, LMAX, 1, NMAX);
     dend.setsize(0, LMAX, 1, NMAX);
@@ -1481,21 +1972,74 @@ void EmpCylSL::setup_eof()
       dlegs[i].setsize(0, LMAX, 0, LMAX);
     }
 
+    if (EvenOdd) {
+      varE.resize(MMAX+1);
+      varO.resize(MMAX+1);
+
+      for (int m=0; m<=MMAX; m++) {
+
+	lE[m].clear();	// Store even l values
+	lO[m].clear();	// Store odd  l values
+
+	for (int l=m; l<=LMAX; l++) {
+	  // Symmetry for the associated Legendre polynomials
+	  //   |   depends on whether l+m is even or odd
+	  //   v        
+	  if ((l+m) % 2==0) lE[m].push_back(l);
+	  else              lO[m].push_back(l);
+	}
+	
+	int Esiz = lE[m].size();
+	int Osiz = lO[m].size();
+
+	varE[m].setsize(1, NMAX*Esiz, 1, NMAX*Esiz);
+	varO[m].setsize(1, NMAX*Osiz, 1, NMAX*Osiz);
+      }
+
+    } else {
+      var.resize(MMAX+1);
+      for (int m=0; m<=MMAX; m++)
+	var[m].setsize(1, NMAX*(LMAX-m+1), 1, NMAX*(LMAX-m+1));
+    }
 
     for (int nth=0; nth<nthrds; nth++) {
 
       for (int m=0; m<=MMAX; m++) {
 
-	SC[nth][m].resize(NMAX*(LMAX-m+1));
-	if (m) SS[nth][m].resize(NMAX*(LMAX-m+1));
+	if (EvenOdd) {
+	  int Esiz = lE[m].size();
+	  int Osiz = lO[m].size();
 
-	for (int i=0; i<NMAX*(LMAX-m+1); i++) {
+	  SCe[nth][m].resize(NMAX*Esiz);
+	  SCo[nth][m].resize(NMAX*Osiz);
 
-	  SC[nth][m][i].resize(NMAX*(LMAX-m+1));
-	  if (m) SS[nth][m][i].resize(NMAX*(LMAX-m+1));
+	  if (m) {
+	    SSe[nth][m].resize(NMAX*Esiz);
+	    SSo[nth][m].resize(NMAX*Osiz);
+	  }
 
+	  for (int i=0; i<NMAX*Esiz; i++) {
+	    SCe[nth][m][i].resize(NMAX*Esiz);
+	    if (m) SSe[nth][m][i].resize(NMAX*Esiz);
+	  }
+
+	  for (int i=0; i<NMAX*Osiz; i++) {
+	    SCo[nth][m][i].resize(NMAX*Osiz);
+	    if (m) SSo[nth][m][i].resize(NMAX*Osiz);
+	  }
+
+	} else {
+
+	  SC[nth][m].resize(NMAX*(LMAX-m+1));
+	  if (m) SS[nth][m].resize(NMAX*(LMAX-m+1));
+
+	  for (int i=0; i<NMAX*(LMAX-m+1); i++) {
+
+	    SC[nth][m][i].resize(NMAX*(LMAX-m+1));
+	    if (m) SS[nth][m][i].resize(NMAX*(LMAX-m+1));
+	  
+	  }
 	}
-
       }
     
     }
@@ -1517,10 +2061,31 @@ void EmpCylSL::setup_eof()
 
   for (int nth=0; nth<nthrds; nth++) {
     for (int m=0; m<=MMAX; m++)  {
-      for (int i=0; i<NMAX*(LMAX-m+1); i++)  {
-	for (int j=0; j<NMAX*(LMAX-m+1); j++)  {
-	  SC[nth][m][i][j] = 0.0;
-	  if (m>0) SS[nth][m][i][j] = 0.0;
+      
+      if (EvenOdd) {
+	int Esiz = lE[m].size();
+	int Osiz = lO[m].size();
+
+	for (int i=0; i<NMAX*Esiz; i++)  {
+	  for (int j=0; j<NMAX*Esiz; j++)  {
+	    SCe[nth][m][i][j] = 0.0;
+	    if (m>0) SSe[nth][m][i][j] = 0.0;
+	  }
+	}
+
+	for (int i=0; i<NMAX*Osiz; i++)  {
+	  for (int j=0; j<NMAX*Osiz; j++)  {
+	    SCo[nth][m][i][j] = 0.0;
+	    if (m>0) SSo[nth][m][i][j] = 0.0;
+	  }
+	}
+
+      } else {
+	for (int i=0; i<NMAX*(LMAX-m+1); i++)  {
+	  for (int j=0; j<NMAX*(LMAX-m+1); j++)  {
+	    SC[nth][m][i][j] = 0.0;
+	    if (m>0) SS[nth][m][i][j] = 0.0;
+	  }
 	}
       }
     }
@@ -1530,6 +2095,8 @@ void EmpCylSL::setup_eof()
 }
 
 
+// Create EOF from target density and spherical basis
+//
 void EmpCylSL::generate_eof(int numr, int nump, int numt, 
 			    double (*func)
 			    (double R, double z, double phi, int M) )
@@ -1537,9 +2104,13 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   Timer timer;
   if (VFLAG & 16) timer.start();
 
+  // Create spherical orthogonal basis if necessary
+  //
   if (not ortho)
     ortho = boost::make_shared<SLGridSph>(LMAX, NMAX, NUMR, RMIN, RMAX*0.99,
 					  make_sl(), false, 1, 1.0);
+  // Initialize fixed variables and storage
+  //
   setup_eof();
 
   LegeQuad lr(numr);
@@ -1547,7 +2118,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   double dphi = 2.0*M_PI/nump;
 
 
-#ifdef HAVE_OPENMP
+#ifdef HAVE_OMP_H
   omp_set_dynamic(0);		// Explicitly disable dynamic teams
   omp_set_num_threads(nthrds);	// OpenMP set up
 #endif
@@ -1555,14 +2126,22 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   boost::shared_ptr<boost::progress_display> progress;
   if (VFLAG & 16 && myid==0) {
     std::cout << std::endl << "Quadrature loop progress" << std::endl;
-    progress = boost::make_shared<boost::progress_display>(numr*numt/numprocs);
+    progress = boost::make_shared<boost::progress_display>(numr);
   }
 
-  int cntr = 0;			// Loop counter for load balancing
+  int cntr = 0;			// Loop counter for spreading load to nodes
   
   // *** Radial quadrature loop
   //
   for (int qr=1; qr<=numr; qr++) { 
+
+    // Diagnostic timing output for MPI process loop
+    //
+    if (VFLAG & 16 && myid==0) {
+      ++(*progress);
+    }    
+
+    if (cntr++ % numprocs != myid) continue;
 
     double xi = XMIN + (XMAX - XMIN) * lr.knot(qr);
     double rr = xi_to_r(xi);
@@ -1570,29 +2149,27 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
     // *** cos(theta) quadrature loop
     //
+#pragma omp parallel for
     for (int qt=1; qt<=numt; qt++) {
-
-      if (cntr++ % numprocs != myid) continue;
-
+#ifdef HAVE_OMP_H
+      int id = omp_get_thread_num();
+#else
+      int id = 0;
+#endif
+	
       double costh = -1.0 + 2.0*lt.knot(qt);
-      double R = rr * sqrt(1.0 - costh*costh);
-      double z = rr * costh;
+      double R     = rr * sqrt(1.0 - costh*costh);
+      double z     = rr * costh;
       
-      legendre_R(LMAX, costh, legs[0]);
+      legendre_R(LMAX, costh, legs[id]);
 
       double jfac = dphi*2.0*lt.weight(qt)*(XMAX - XMIN)*lr.weight(qr) 
 	* rr*rr / d_xi_to_r(xi);
       
       // *** Phi quadrature loop
       //
-#pragma omp parallel for
       for (int qp=0; qp<nump; qp++) {
 
-#ifdef HAVE_OPENMP
-	int id = omp_get_thread_num();
-#else
-	int id = 0;
-#endif
 	double phi = dphi*qp;
 	sinecosine_R(LMAX, phi, cosm[id], sinm[id]);
 
@@ -1600,6 +2177,8 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	//
 	for (int m=0; m<=MMAX; m++) {
 
+	  // Get the target density for this position and azimuthal index
+	  //
 	  double dens = (*func)(R, z, phi, m) * jfac;
 
 	  // *** ir loop
@@ -1609,9 +2188,9 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	    // *** l loop
 	    //
 	    for (int l=m; l<=LMAX; l++) {
-
+		
 	      double ylm = sqrt((2.0*l+1.0)/(4.0*M_PI)) * pfac *
-		exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[0][l][m];
+		exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[id][l][m];
 
 	      if (m==0) {
 
@@ -1619,63 +2198,152 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 		
 	      }
 	      else {
-	  
-		facC[id][ir][l-m] = ylm*table[0][l][ir]*cosm[id][m];
-		facS[id][ir][l-m] = ylm*table[0][l][ir]*sinm[id][m];
-
-	      }
-
-	    } // *** l loop
-
-	  } // *** ir loop
-
-	  for (int ir1=1; ir1<=NMAX; ir1++) {
-
-	    for (int l1=m; l1<=LMAX; l1++) {
-
-	      int nn1 = ir1 - 1 + NMAX*(l1-m);
-
-	      if (m==0) {
 		
-		for (int ir2=1; ir2<=NMAX; ir2++) {
-		  for (int l2=m; l2<=LMAX; l2++) {
-		    int nn2 = ir2 - 1 + NMAX*(l2-m);
-		    
-		    SC[id][m][nn1][nn2] += 
-		      facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
-		  }
-		}
-		
-	      } else {
-		
-		for (int ir2=1; ir2<=NMAX; ir2++) {
-
-		  for (int l2=m; l2<=LMAX; l2++) {
-		    
-		    int nn2 = ir2 - 1 + NMAX*(l2-m);
-
-		    SC[id][m][nn1][nn2] += 
-		      facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
-		    
-		    SS[id][m][nn1][nn2] += 
-		      facS[id][ir1][l1-m]*facS[id][ir2][l2-m] * dens;
-		  }
+		if (nump==1) {
+		  facC[id][ir][l-m] = ylm*table[0][l][ir]*0.5;
+		  facS[id][ir][l-m] = ylm*table[0][l][ir]*0.5;
+		} else {
+		  facC[id][ir][l-m] = ylm*table[0][l][ir]*cosm[id][m];
+		  facS[id][ir][l-m] = ylm*table[0][l][ir]*sinm[id][m];
 		}
 	      }
 	      
 	    } // *** l loop
 	    
 	  } // *** ir loop
+
+	  for (int ir1=1; ir1<=NMAX; ir1++) {
+	    
+	    if (EvenOdd) {
+	      
+	      // Even l loop
+	      //
+	      for (int il1=0; il1<lE[m].size(); il1++) {
+
+		int l1  = lE[m][il1];
+		int nn1 = ir1 - 1 + NMAX*il1;
+
+		if (m==0) {
+		
+		  for (int ir2=1; ir2<=NMAX; ir2++) {
+
+		    for (int il2=0; il2<lE[m].size(); il2++) {
+
+		      int l2  = lE[m][il2];
+		      int nn2 = ir2 - 1 + NMAX*il2;
+		    
+		      SCe[id][m][nn1][nn2] += 
+			facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
+		    }
+		  }
+		
+		} else {
+		
+		  for (int ir2=1; ir2<=NMAX; ir2++) {
+
+		    for (int il2=0; il2<lE[m].size(); il2++) {
+		      
+		      int l2  = lE[m][il2];
+		      int nn2 = ir2 - 1 + NMAX*il2;
+
+		      SCe[id][m][nn1][nn2] += 
+			facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
+		      
+		      SSe[id][m][nn1][nn2] += 
+			facS[id][ir1][l1-m]*facS[id][ir2][l2-m] * dens;
+		    }
+		  }
+		}
+	      
+	      } // *** Even l loop
+	    
+	      
+	      // Odd l loop
+	      //
+	      for (int il1=0; il1<lO[m].size(); il1++) {
+
+		int l1  = lO[m][il1];
+		int nn1 = ir1 - 1 + NMAX*il1;
+
+		if (m==0) {
+		
+		  for (int ir2=1; ir2<=NMAX; ir2++) {
+
+		    for (int il2=0; il2<lO[m].size(); il2++) {
+
+		      int l2  = lO[m][il2];
+		      int nn2 = ir2 - 1 + NMAX*il2;
+		    
+		      SCo[id][m][nn1][nn2] += 
+			facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
+		    }
+		  }
+		
+		} else {
+		
+		  for (int ir2=1; ir2<=NMAX; ir2++) {
+
+		    for (int il2=0; il2<lO[m].size(); il2++) {
+
+		      int l2  = lO[m][il2];
+		      int nn2 = ir2 - 1 + NMAX*il2;
+		      
+		      SCo[id][m][nn1][nn2] += 
+			facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
+		    
+		      SSo[id][m][nn1][nn2] += 
+			facS[id][ir1][l1-m]*facS[id][ir2][l2-m] * dens;
+		    }
+		  }
+		}
+	      
+	      } // *** Odd l loop
+	      
+
+	    } // *** END: EvenOdd==true block
+	    else {
+
+	      for (int l1=m; l1<=LMAX; l1++) {
+
+		int nn1 = ir1 - 1 + NMAX*(l1-m);
+
+		if (m==0) {
+		
+		  for (int ir2=1; ir2<=NMAX; ir2++) {
+		    for (int l2=m; l2<=LMAX; l2++) {
+		      int nn2 = ir2 - 1 + NMAX*(l2-m);
+		    
+		      SC[id][m][nn1][nn2] += 
+			facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
+		    }
+		  }
+		
+		} else {
+		
+		  for (int ir2=1; ir2<=NMAX; ir2++) {
+
+		    for (int l2=m; l2<=LMAX; l2++) {
+		      
+		      int nn2 = ir2 - 1 + NMAX*(l2-m);
+		      
+		      SC[id][m][nn1][nn2] += 
+			facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
+		      
+		      SS[id][m][nn1][nn2] += 
+			facS[id][ir1][l1-m]*facS[id][ir2][l2-m] * dens;
+		    }
+		  }
+		}
+		
+	      } // *** l loop
+	    
+	    } // *** EvenOdd block
+
+	  } // *** ir loop
 	  
 	} // *** m loop
 
       } // *** phi quadrature loop
-
-      // Diagnostic timing output for MPI process loop
-      //
-      if (VFLAG & 16 && myid==0) {
-	++(*progress);
-      }    
 
     } // *** cos(theta) quadrature loop
 
@@ -1786,36 +2454,123 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
     } // *** ir loop
 
     for (int ir1=1; ir1<=NMAX; ir1++) {
-      for (int l1=m; l1<=LMAX; l1++) {
-	nn1 = ir1 - 1 + NMAX*(l1-m);
 
-	if (m==0) {
+      if (EvenOdd) {
+	int Esiz = lE[m].size();
+	int Osiz = lO[m].size();
+
+	for (int il1=0; il1<Esiz; il1++) {
+
+	  int l1 = lE[m][il1];
+	  nn1 = ir1 - 1 + NMAX*il1;
+
+	  if (m==0) {
 	  
-	  for (int ir2=1; ir2<=NMAX; ir2++) {
-	    for (int l2=m; l2<=LMAX; l2++) {
-	      nn2 = ir2 - 1 + NMAX*(l2-m);
+	    for (int ir2=1; ir2<=NMAX; ir2++) {
 
-	      SC[id][m][nn1][nn2] += 
-		facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * mass;
+	      for (int il2=0; il2<Esiz; il2++) {
+
+		int l2 = lE[m][il2];
+		nn2 = ir2 - 1 + NMAX*il2;
+
+		SCe[id][m][nn1][nn2] += 
+		  facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * mass;
+	      }
+	    }
+
+	  } else {
+
+	    for (int ir2=1; ir2<=NMAX; ir2++) {
+
+	      for (int il2=0; il2<Esiz; il2++) {
+
+		int l2 = lE[m][il2];
+		nn2 = ir2 - 1 + NMAX*il2;
+		
+		SCe[id][m][nn1][nn2] += 
+		  facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * mass;
+		
+		SSe[id][m][nn1][nn2] += 
+		  facS[id][ir1][l1-m]*facS[id][ir2][l2-m] * mass;
+	      }
 	    }
 	  }
 
-	} else {
+	} // *** Even l loop
 
-	  for (int ir2=1; ir2<=NMAX; ir2++) {
-	    for (int l2=m; l2<=LMAX; l2++) {
-	      nn2 = ir2 + NMAX*(l2-m);
-	      
-	      SC[id][m][nn1][nn2] += 
-		facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * mass;
+	for (int il1=0; il1<Osiz; il1++) {
 
-	      SS[id][m][nn1][nn2] += 
-		facS[id][ir1][l1-m]*facS[id][ir2][l2-m] * mass;
+	  int l1 = lO[m][il1];
+	  nn1 = ir1 - 1 + NMAX*il1;
+
+	  if (m==0) {
+	  
+	    for (int ir2=1; ir2<=NMAX; ir2++) {
+
+	      for (int il2=0; il2<Osiz; il2++) {
+
+		int l2 = lO[m][il2];
+		nn2 = ir2 - 1 + NMAX*il2;
+
+		SCo[id][m][nn1][nn2] += 
+		  facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * mass;
+	      }
+	    }
+
+	  } else {
+
+	    for (int ir2=1; ir2<=NMAX; ir2++) {
+
+	      for (int il2=0; il2<Osiz; il2++) {
+
+		int l2 = lO[m][il2];
+		nn2 = ir2 - 1 + NMAX*il2;
+
+		SCo[id][m][nn1][nn2] += 
+		  facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * mass;
+		
+		SSo[id][m][nn1][nn2] += 
+		  facS[id][ir1][l1-m]*facS[id][ir2][l2-m] * mass;
+	      }
 	    }
 	  }
-	}
 
-      } // *** l loop
+	} // *** Odd l loop
+
+      } else {
+      
+	for (int l1=m; l1<=LMAX; l1++) {
+	  nn1 = ir1 - 1 + NMAX*(l1-m);
+
+	  if (m==0) {
+	  
+	    for (int ir2=1; ir2<=NMAX; ir2++) {
+	      for (int l2=m; l2<=LMAX; l2++) {
+		nn2 = ir2 - 1 + NMAX*(l2-m);
+		
+		SC[id][m][nn1][nn2] += 
+		  facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * mass;
+	      }
+	    }
+	    
+	  } else {
+
+	    for (int ir2=1; ir2<=NMAX; ir2++) {
+	      for (int l2=m; l2<=LMAX; l2++) {
+		nn2 = ir2 + NMAX*(l2-m);
+		
+		SC[id][m][nn1][nn2] += 
+		  facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * mass;
+
+		SS[id][m][nn1][nn2] += 
+		  facS[id][ir1][l1-m]*facS[id][ir2][l2-m] * mass;
+	      }
+	    }
+	  }
+	  
+	} // *** l loop
+	
+      } // *** EvenOdd loop
 
     } // *** ir loop
 
@@ -1842,18 +2597,45 @@ void EmpCylSL::make_eof(void)
 
     for (int mm=0; mm<=MMAX; mm++) {
 
-      for (int i=0; i<NMAX*(LMAX-mm+1); i++)
-	for (int j=i; j<NMAX*(LMAX-mm+1); j++)
-	  SC[0][mm][i][j] += SC[nth][mm][i][j];
-  
+      if (EvenOdd) {
+	int Esiz = lE[mm].size();
+	int Osiz = lO[mm].size();
+
+	for (int i=0; i<NMAX*Esiz; i++)
+	  for (int j=i; j<NMAX*Esiz; j++)
+	    SCe[0][mm][i][j] += SCe[nth][mm][i][j];
+
+	for (int i=0; i<NMAX*Osiz; i++)
+	  for (int j=i; j<NMAX*Osiz; j++)
+	    SCo[0][mm][i][j] += SCo[nth][mm][i][j];
+
+      } else {
+	for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+	  for (int j=i; j<NMAX*(LMAX-mm+1); j++)
+	    SC[0][mm][i][j] += SC[nth][mm][i][j];
+      }
+
     }
 
     for (int mm=1; mm<=MMAX; mm++) {
 
-      for (int i=0; i<NMAX*(LMAX-mm+1); i++)
-	for (int j=i; j<NMAX*(LMAX-mm+1); j++)
-	  SS[0][mm][i][j] += SS[nth][mm][i][j];
-  
+      if (EvenOdd) {
+	int Esiz = lE[mm].size();
+	int Osiz = lO[mm].size();
+
+	for (int i=0; i<NMAX*Esiz; i++)
+	  for (int j=i; j<NMAX*Esiz; j++)
+	    SSe[0][mm][i][j] += SSe[nth][mm][i][j];
+
+	for (int i=0; i<NMAX*Osiz; i++)
+	  for (int j=i; j<NMAX*Osiz; j++)
+	    SSo[0][mm][i][j] += SSo[nth][mm][i][j];
+      } else {
+
+	for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+	  for (int j=i; j<NMAX*(LMAX-mm+1); j++)
+	    SS[0][mm][i][j] += SS[nth][mm][i][j];
+      }
     }
 
   }
@@ -1862,9 +2644,24 @@ void EmpCylSL::make_eof(void)
 
     for (int mm=0; mm<=MMAX; mm++) {
       bool bad = false;
-      for (int i=0; i<NMAX*(LMAX-mm+1); i++)
-	for (int j=i; j<NMAX*(LMAX-mm+1); j++)
-	  if (std::isnan(SC[0][mm][i][j])) bad = true;
+
+      if (EvenOdd) {
+	int Esiz = lE[mm].size();
+	int Osiz = lO[mm].size();
+
+	for (int i=0; i<NMAX*Esiz; i++)
+	  for (int j=i; j<NMAX*Esiz; j++)
+	    if (std::isnan(SCe[0][mm][i][j])) bad = true;
+
+	for (int i=0; i<NMAX*Osiz; i++)
+	  for (int j=i; j<NMAX*Osiz; j++)
+	    if (std::isnan(SCo[0][mm][i][j])) bad = true;
+
+      } else {
+	for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+	  for (int j=i; j<NMAX*(LMAX-mm+1); j++)
+	    if (std::isnan(SC[0][mm][i][j])) bad = true;
+      }
       
       if (bad) {
 	cerr << "Process " << myid << ": EmpCylSL has nan in C[" << mm << "]"
@@ -1874,9 +2671,24 @@ void EmpCylSL::make_eof(void)
     
     for (int mm=1; mm<=MMAX; mm++) {
       bool bad = false;
-      for (int i=0; i<NMAX*(LMAX-mm+1); i++)
-	for (int j=i; j<NMAX*(LMAX-mm+1); j++)
-	  if (std::isnan(SS[0][mm][i][j])) bad = true;
+
+      if (EvenOdd) {
+	int Esiz = lE[mm].size();
+	int Osiz = lO[mm].size();
+
+	for (int i=0; i<NMAX*Esiz; i++)
+	  for (int j=i; j<NMAX*Esiz; j++)
+	    if (std::isnan(SSe[0][mm][i][j])) bad = true;
+
+	for (int i=0; i<NMAX*Osiz; i++)
+	  for (int j=i; j<NMAX*Osiz; j++)
+	    if (std::isnan(SSo[0][mm][i][j])) bad = true;
+
+      } else {
+	for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+	  for (int j=i; j<NMAX*(LMAX-mm+1); j++)
+	    if (std::isnan(SS[0][mm][i][j])) bad = true;
+      }
       
       if (bad) {
 	cerr << "Process " << myid << ": EmpCylSL has nan in S[" << mm << "]"
@@ -1891,37 +2703,104 @@ void EmpCylSL::make_eof(void)
   //
   for (int mm=0; mm<=MMAX; mm++) {
 
-    icnt=0;
-    for (int i=0; i<NMAX*(LMAX-mm+1); i++)
-      for (int j=i; j<NMAX*(LMAX-mm+1); j++)
-	MPIin_eof[icnt++] = SC[0][mm][i][j];
+    if (EvenOdd) {
+      int Esiz = lE[mm].size();
+      int Osiz = lO[mm].size();
+
+      icnt=0;
+      for (int i=0; i<NMAX*Esiz; i++)
+	for (int j=i; j<NMAX*Esiz; j++)
+	  MPIin_eof[icnt++] = SCe[0][mm][i][j];
     
-    MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
-		    NMAX*(LMAX-mm+1)*(NMAX*(LMAX-mm+1)+1)/2,
-		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    icnt=0;
-    for (int i=0; i<NMAX*(LMAX-mm+1); i++)
-      for (int j=i; j<NMAX*(LMAX-mm+1); j++)
-	SC[0][mm][i][j] = MPIout_eof[icnt++];
+      MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
+		      NMAX*Esiz*(NMAX*Esiz+1)/2,
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      icnt=0;
+      for (int i=0; i<NMAX*Esiz; i++)
+	for (int j=i; j<NMAX*Esiz; j++)
+	  SCe[0][mm][i][j] = MPIout_eof[icnt++];
+      
+
+      icnt=0;
+      for (int i=0; i<NMAX*Osiz; i++)
+	for (int j=i; j<NMAX*Osiz; j++)
+	  MPIin_eof[icnt++] = SCo[0][mm][i][j];
     
+      MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
+		      NMAX*Osiz*(NMAX*Osiz+1)/2,
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      icnt=0;
+      for (int i=0; i<NMAX*Osiz; i++)
+	for (int j=i; j<NMAX*Osiz; j++)
+	  SCo[0][mm][i][j] = MPIout_eof[icnt++];
+      
+    } else {
+
+      icnt=0;
+      for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+	for (int j=i; j<NMAX*(LMAX-mm+1); j++)
+	  MPIin_eof[icnt++] = SC[0][mm][i][j];
+    
+      MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
+		      NMAX*(LMAX-mm+1)*(NMAX*(LMAX-mm+1)+1)/2,
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      icnt=0;
+      for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+	for (int j=i; j<NMAX*(LMAX-mm+1); j++)
+	  SC[0][mm][i][j] = MPIout_eof[icnt++];
+      
+    }
   }
   
   for (int mm=1; mm<=MMAX; mm++) {
 
-    icnt=0;
-    for (int i=0; i<NMAX*(LMAX-mm+1); i++)
-      for (int j=i; j<NMAX*(LMAX-mm+1); j++)
-	MPIin_eof[icnt++] = SS[0][mm][i][j];
-  
-    MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
-		    NMAX*(LMAX-mm+1)*(NMAX*(LMAX-mm+1)+1)/2,
-		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    icnt=0;
-    for (int i=0; i<NMAX*(LMAX-mm+1); i++)
-      for (int j=i; j<NMAX*(LMAX-mm+1); j++)
-	SS[0][mm][i][j] = MPIout_eof[icnt++];
-  }
+    if (EvenOdd) {
+      int Esiz = lE[mm].size();
+      int Osiz = lO[mm].size();
 
+      icnt=0;
+      for (int i=0; i<NMAX*Esiz; i++)
+	for (int j=i; j<NMAX*Esiz; j++)
+	  MPIin_eof[icnt++] = SSe[0][mm][i][j];
+  
+      MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
+		      NMAX*Esiz*(NMAX*Esiz+1)/2,
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      icnt=0;
+      for (int i=0; i<NMAX*Esiz; i++)
+	for (int j=i; j<NMAX*Esiz; j++)
+	  SSe[0][mm][i][j] = MPIout_eof[icnt++];
+
+      icnt=0;
+      for (int i=0; i<NMAX*Osiz; i++)
+	for (int j=i; j<NMAX*Osiz; j++)
+	  MPIin_eof[icnt++] = SSo[0][mm][i][j];
+  
+      MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
+		      NMAX*Osiz*(NMAX*Osiz+1)/2,
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      icnt=0;
+      for (int i=0; i<NMAX*Osiz; i++)
+	for (int j=i; j<NMAX*Osiz; j++)
+	  SSo[0][mm][i][j] = MPIout_eof[icnt++];
+
+    } else {
+
+      icnt=0;
+      for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+	for (int j=i; j<NMAX*(LMAX-mm+1); j++)
+	  MPIin_eof[icnt++] = SS[0][mm][i][j];
+  
+      MPI_Allreduce ( MPIin_eof.data(), MPIout_eof.data(), 
+		      NMAX*(LMAX-mm+1)*(NMAX*(LMAX-mm+1)+1)/2,
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      icnt=0;
+      for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+	for (int j=i; j<NMAX*(LMAX-mm+1); j++)
+	  SS[0][mm][i][j] = MPIout_eof[icnt++];
+    }
+
+  }
 
   //
   // DEBUG: check for nan
@@ -1933,9 +2812,24 @@ void EmpCylSL::make_eof(void)
       if (myid==n) {
 	for (int mm=0; mm<=MMAX; mm++) {
 	  bool bad = false;
-	  for (int i=0; i<NMAX*(LMAX-mm+1); i++)
-	    for (int j=i; j<NMAX*(LMAX-mm+1); j++)
-	      if (std::isnan(SC[0][mm][i][j])) bad = true;
+
+	  if (EvenOdd) {
+	    int Esiz = lE[mm].size();
+	    int Osiz = lO[mm].size();
+
+	    for (int i=0; i<NMAX*Esiz; i++)
+	      for (int j=i; j<NMAX*Esiz; j++)
+		if (std::isnan(SCe[0][mm][i][j])) bad = true;
+
+	    for (int i=0; i<NMAX*Osiz; i++)
+	      for (int j=i; j<NMAX*Osiz; j++)
+		if (std::isnan(SCo[0][mm][i][j])) bad = true;
+
+	  } else {
+	    for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+	      for (int j=i; j<NMAX*(LMAX-mm+1); j++)
+		if (std::isnan(SC[0][mm][i][j])) bad = true;
+	  }
 	
 	  if (bad) {
 	    cerr << "Process " << myid << ": EmpCylSL has nan in C[" << mm << "]"
@@ -1945,9 +2839,24 @@ void EmpCylSL::make_eof(void)
 	
 	for (int mm=1; mm<=MMAX; mm++) {
 	  bool bad = false;
-	  for (int i=0; i<NMAX*(LMAX-mm+1); i++)
-	    for (int j=i; j<NMAX*(LMAX-mm+1); j++)
-	      if (std::isnan(SS[0][mm][i][j])) bad = true;
+
+	  if (EvenOdd) {
+	    int Esiz = lE[mm].size();
+	    int Osiz = lO[mm].size();
+
+	    for (int i=0; i<NMAX*Esiz; i++)
+	      for (int j=i; j<NMAX*Esiz; j++)
+		if (std::isnan(SSe[0][mm][i][j])) bad = true;
+
+	    for (int i=0; i<NMAX*Osiz; i++)
+	      for (int j=i; j<NMAX*Osiz; j++)
+		if (std::isnan(SSo[0][mm][i][j])) bad = true;
+
+	  } else {
+	    for (int i=0; i<NMAX*(LMAX-mm+1); i++)
+	      for (int j=i; j<NMAX*(LMAX-mm+1); j++)
+		if (std::isnan(SS[0][mm][i][j])) bad = true;
+	  }
 	  
 	  if (bad) {
 	    cerr << "Process " << myid << ": EmpCylSL has nan in S[" << mm << "]"
@@ -2061,26 +2970,76 @@ void EmpCylSL::make_eof(void)
       if (request_id) {
 				// Complete symmetric part
 
-	for (int i=1; i<=NMAX*(LMAX-M+1); i++) {
-	  for (int j=i; j<=NMAX*(LMAX-M+1); j++)
-	    var[M][i][j] = SC[0][M][i-1][j-1];
-	}
+	if (EvenOdd) {
+	  int Esiz = lE[M].size();
+	  int Osiz = lO[M].size();
 
-	for (int i=1; i<NMAX*(LMAX-M+1); i++) {
-	  for (int j=i+1; j<=NMAX*(LMAX-M+1); j++) {
-	    var[M][j][i] = SC[0][M][i-1][j-1];
+	  for (int i=1; i<=NMAX*Esiz; i++) {
+	    for (int j=i; j<=NMAX*Esiz; j++)
+	      varE[M][i][j] = SCe[0][M][i-1][j-1];
 	  }
-	}
+
+	  for (int i=1; i<NMAX*Esiz; i++) {
+	    for (int j=i+1; j<=NMAX*Esiz; j++) {
+	      varE[M][j][i] = SCe[0][M][i-1][j-1];
+	    }
+	  }
     
-	double maxV = 0.0;
-	for (int i=1; i<=NMAX*(LMAX-M+1); i++) {
-	  for (int j=i; j<=NMAX*(LMAX-M+1); j++) {
-	    tmp = fabs(var[M][i][j]);
-	    if (tmp > maxV) maxV = tmp;
+	  double maxV = 0.0;
+	  for (int i=1; i<=NMAX*Esiz; i++) {
+	    for (int j=i; j<=NMAX*Esiz; j++) {
+	      tmp = fabs(varE[M][i][j]);
+	      if (tmp > maxV) maxV = tmp;
+	    }
 	  }
+	  
+	  varE[M] /= maxV;
+
+	  for (int i=1; i<=NMAX*Osiz; i++) {
+	    for (int j=i; j<=NMAX*Osiz; j++)
+	      varO[M][i][j] = SCo[0][M][i-1][j-1];
+	  }
+
+	  for (int i=1; i<NMAX*Osiz; i++) {
+	    for (int j=i+1; j<=NMAX*Osiz; j++) {
+	      varO[M][j][i] = SCo[0][M][i-1][j-1];
+	    }
+	  }
+    
+	  maxV = 0.0;
+	  for (int i=1; i<=NMAX*Osiz; i++) {
+	    for (int j=i; j<=NMAX*Osiz; j++) {
+	      tmp = fabs(varO[M][i][j]);
+	      if (tmp > maxV) maxV = tmp;
+	    }
+	  }
+	  
+	  varO[M] /= maxV;
+
+	} else {
+
+	  for (int i=1; i<=NMAX*(LMAX-M+1); i++) {
+	    for (int j=i; j<=NMAX*(LMAX-M+1); j++)
+	      var[M][i][j] = SC[0][M][i-1][j-1];
+	  }
+
+	  for (int i=1; i<NMAX*(LMAX-M+1); i++) {
+	    for (int j=i+1; j<=NMAX*(LMAX-M+1); j++) {
+	      var[M][j][i] = SC[0][M][i-1][j-1];
+	    }
+	  }
+    
+	  double maxV = 0.0;
+	  for (int i=1; i<=NMAX*(LMAX-M+1); i++) {
+	    for (int j=i; j<=NMAX*(LMAX-M+1); j++) {
+	      tmp = fabs(var[M][i][j]);
+	      if (tmp > maxV) maxV = tmp;
+	    }
+	  }
+	  
+	  var[M] /= maxV;
 	}
 
-	var[M] /= maxV;
     
 	//==========================
 	// Solve eigenvalue problem 
@@ -2088,26 +3047,162 @@ void EmpCylSL::make_eof(void)
     
 	if (VFLAG & 16) {
 	  int nancount = 0;
-	  for (int i=1; i<=var[M].getnrows(); i++) {
-	    for (int j=1; j<=var[M].getncols(); j++) {
-	      if (std::isnan(var[M][i][j])) nancount++;
+
+	  if (EvenOdd) {
+
+	    for (int i=1; i<=varE[M].getnrows(); i++) {
+	      for (int j=1; j<=varE[M].getncols(); j++) {
+		if (std::isnan(varE[M][i][j])) nancount++;
+	      }
+	    }
+
+	    if (nancount) {
+	      std::cout << "Process " << setw(4) << myid 
+			<< ": in eigenvalue problem [even] with "
+			<< "rank=[" << varE[M].getncols() << ", " 
+			<< varE[M].getnrows() << "]"
+			<< ", found " << nancount << " NaN values" << endl;
+	    }
+
+	    nancount = 0;
+	    for (int i=1; i<=varO[M].getnrows(); i++) {
+	      for (int j=1; j<=varO[M].getncols(); j++) {
+		if (std::isnan(varO[M][i][j])) nancount++;
+	      }
+	    }
+
+	    if (nancount) {
+	      std::cout << "Process " << setw(4) << myid 
+			<< ": in eigenvalue problem [odd] with "
+			<< "rank=[" << varO[M].getncols() << ", " 
+			<< varO[M].getnrows() << "]"
+			<< ", found " << nancount << " NaN values" << endl;
+	    }
+
+	  } else {
+
+	    for (int i=1; i<=var[M].getnrows(); i++) {
+	      for (int j=1; j<=var[M].getncols(); j++) {
+		if (std::isnan(var[M][i][j])) nancount++;
+	      }
+	    }
+	  
+	    if (nancount) {
+
+	      std::cout << "Process " << setw(4) << myid 
+			<< ": in eigenvalue problem with "
+			<< "rank=[" << var[M].getncols() << ", " 
+			<< var[M].getnrows() << "]"
+			<< ", found " << nancount << " NaN values" << endl;
 	    }
 	  }
-	  
-	  cout << "Process " << setw(4) << myid 
-	       << ": in eigenvalue problem with "
-	       << "rank=[" << var[M].getncols() << ", " 
-	       << var[M].getnrows() << "]"
-	       << ", found " << nancount << " NaN values" << endl;
 
 	  timer.reset();
 	  timer.start();
 	}
 
-	if (USESVD)
-	  ev = Symmetric_Eigenvalues_SVD  (var[M], ef, NORDER);
-	else
-	  ev = Symmetric_Eigenvalues_SYEVD(var[M], ef, NORDER);
+	if (VFLAG & 32) {
+
+	  std::ostringstream sout;
+	  sout << "variance_test." << M << "." << request_id;
+	  std::ofstream dout(sout.str());
+	  
+	  dout << std::string(60, '-') << std::endl
+	       << " M=" << M           << std::endl
+	       << std::string(60, '-') << std::endl;
+
+	  if (EvenOdd) {
+
+	    for (int i=1; i<=varE[M].getnrows(); i++) {
+	      for (int j=1; j<=varE[M].getncols(); j++) {
+		dout << std::setw(16) << varE[M][i][j];
+	      }
+	      dout << std::endl;
+	    }
+
+	    dout << std::endl;
+	    for (int i=1; i<=varO[M].getnrows(); i++) {
+	      for (int j=1; j<=varO[M].getncols(); j++) {
+		dout << std::setw(16) << varO[M][i][j];
+	      }
+	      dout << std::endl;
+	    }
+
+	  } else {
+
+	    for (int i=1; i<=var[M].getnrows(); i++) {
+	      for (int j=1; j<=var[M].getncols(); j++) {
+		dout << std::setw(16) << var[M][i][j];
+	      }
+	      dout << std::endl;
+	    }
+	  }
+	}
+
+	if (EvenOdd) {
+
+	  if (USESVD) {
+	    Vector evE = Symmetric_Eigenvalues_SVD  (varE[M], efE, Neven);
+	    Vector evO = Symmetric_Eigenvalues_SVD  (varO[M], efO, Nodd );
+	  } else {
+	    Vector evE = Symmetric_Eigenvalues_SYEVD(varE[M], efE, Neven);
+	    Vector evO = Symmetric_Eigenvalues_SYEVD(varO[M], efO, Nodd );
+	  }
+
+	  if (VFLAG & 32) {
+
+	    std::ostringstream sout;
+	    sout << "ev_test." << M << "." << request_id;
+	    std::ofstream dout(sout.str());
+	  
+	    for (int i=efE.getrlow(); i<=efE.getrhigh(); i++) {
+	      for (int j=efE.getrlow(); j<=efE.getrhigh(); j++) {
+		double sum = 0.0;
+		for (int k=efE.getclow(); k<=efE.getchigh(); k++)
+		  sum += efE[i][k] * efE[j][k];
+		dout << std::setw(4) << i << std::setw(4) << j
+		     << std::setw(18) << sum << std::endl;
+	      }
+	    }
+
+	    dout << std::endl;
+	  
+	    for (int i=efO.getrlow(); i<=efO.getrhigh(); i++) {
+	      for (int j=efO.getrlow(); j<=efO.getrhigh(); j++) {
+		double sum = 0.0;
+		for (int k=efO.getclow(); k<=efO.getchigh(); k++)
+		  sum += efO[i][k] * efO[j][k];
+		dout << std::setw(4) << i << std::setw(4) << j
+		     << std::setw(18) << sum << std::endl;
+	      }
+	    }
+	  }
+
+	} else {
+
+	  if (USESVD)
+	    Vector ev = Symmetric_Eigenvalues_SVD  (var[M], ef, NORDER);
+	  else
+	    Vector ev = Symmetric_Eigenvalues_SYEVD(var[M], ef, NORDER);
+
+	  
+	  if (VFLAG & 32) {
+
+	    std::ostringstream sout;
+	    sout << "ev_test." << M << "." << request_id;
+	    std::ofstream dout(sout.str());
+	  
+	    for (int i=ef.getrlow(); i<=ef.getrhigh(); i++) {
+	      for (int j=ef.getrlow(); j<=ef.getrhigh(); j++) {
+		double sum = 0.0;
+		for (int k=ef.getclow(); k<=ef.getchigh(); k++)
+		  sum += ef[i][k] * ef[j][k];
+		dout << std::setw(4) << i << std::setw(4) << j
+		     << std::setw(18) << sum << std::endl;
+	      }
+	    }
+	  }
+	}
 
 	if (VFLAG & 16) {
 	  cout << "Process " << setw(4) << myid 
@@ -2117,58 +3212,198 @@ void EmpCylSL::make_eof(void)
 	}
 
       } else {
-
 				// Complete symmetric part
     
+	if (EvenOdd) {
+	  int Esiz = lE[M].size();
+	  int Osiz = lO[M].size();
 
-	for (int i=1; i<=NMAX*(LMAX-M+1); i++) {
-	  for (int j=i; j<=NMAX*(LMAX-M+1); j++)
-	    var[M][i][j] = SS[0][M][i-1][j-1];
+	  for (int i=1; i<=NMAX*Esiz; i++) {
+	    for (int j=i; j<=NMAX*Esiz; j++)
+	      varE[M][i][j] = SSe[0][M][i-1][j-1];
+	  }
+
+	  for (int i=1; i<NMAX*Esiz; i++) {
+	    for (int j=i+1; j<=NMAX*Esiz; j++) {
+	      varE[M][j][i] = SSe[0][M][i-1][j-1];
+	    }
+	  }
+    
+	  double maxV = 0.0;
+	  for (int i=1; i<=NMAX*Esiz; i++) {
+	    for (int j=i; j<=NMAX*Esiz; j++) {
+	      tmp = fabs(varE[M][i][j]);
+	      if (tmp > maxV) maxV = tmp;
+	    }
+	  }
+	  
+	  if (maxV>1.0e-5)
+	    varE[M] /= maxV;
+    
+	  for (int i=1; i<=NMAX*Osiz; i++) {
+	    for (int j=i; j<=NMAX*Osiz; j++)
+	      varO[M][i][j] = SSo[0][M][i-1][j-1];
+	  }
+
+	  for (int i=1; i<NMAX*Osiz; i++) {
+	    for (int j=i+1; j<=NMAX*Osiz; j++) {
+	      varO[M][j][i] = SSo[0][M][i-1][j-1];
+	    }
+	  }
+    
+	  maxV = 0.0;
+	  for (int i=1; i<=NMAX*Osiz; i++) {
+	    for (int j=i; j<=NMAX*Osiz; j++) {
+	      tmp = fabs(varO[M][i][j]);
+	      if (tmp > maxV) maxV = tmp;
+	    }
+	  }
+	  
+	  if (maxV>1.0e-5)
+	    varO[M] /= maxV;
+    
+	} else {
+
+	  for (int i=1; i<=NMAX*(LMAX-M+1); i++) {
+	    for (int j=i; j<=NMAX*(LMAX-M+1); j++)
+	      var[M][i][j] = SS[0][M][i-1][j-1];
+	  }
+	  
+	  for (int i=1; i<NMAX*(LMAX-M+1); i++) {
+	    for (int j=i+1; j<=NMAX*(LMAX-M+1); j++) {
+	      var[M][j][i] = SS[0][M][i-1][j-1];
+	    }
+	  }
+	  
+	  double maxV = 0.0;
+	  for (int i=1; i<=NMAX*(LMAX-M+1); i++) {
+	    for (int j=i; j<=NMAX*(LMAX-M+1); j++) {
+	      tmp = fabs(var[M][i][j]);
+	      if (tmp > maxV) maxV = tmp;
+	    }
+	  }
+	  
+	  if (maxV>1.0e-5)
+	    var[M] /= maxV;
 	}
 
-	for (int i=1; i<NMAX*(LMAX-M+1); i++) {
-	  for (int j=i+1; j<=NMAX*(LMAX-M+1); j++) {
-	    var[M][j][i] = SS[0][M][i-1][j-1];
-	  }
-	}
-    
-	double maxV = 0.0;
-	for (int i=1; i<=NMAX*(LMAX-M+1); i++) {
-	  for (int j=i; j<=NMAX*(LMAX-M+1); j++) {
-	    tmp = fabs(var[M][i][j]);
-	    if (tmp > maxV) maxV = tmp;
-	  }
-	}
-	
-	if (maxV>1.0e-5)
-	  var[M] /= maxV;
-    
 	//==========================
 	// Solve eigenvalue problem
 	//==========================
     
 	if (VFLAG & 16) {
-	  int nancount = 0;
-	  for (int i=1; i<=var[M].getnrows(); i++) {
-	    for (int j=1; j<=var[M].getncols(); j++) {
-	      if (std::isnan(var[M][i][j])) nancount++;
-	    }
-	  }
 
-	  cout << "Process " << setw(4) << myid 
-	       << ": in eigenvalue problem with "
-	       << "rank=[" << var[M].getncols() << ", " 
-	       << var[M].getnrows() << "]"
-	       << ", found " << nancount << " NaN values" << endl;
+	  int nancount = 0;
+
+	  if (EvenOdd) {
+
+	    for (int i=1; i<=varE[M].getnrows(); i++) {
+	      for (int j=1; j<=varE[M].getncols(); j++) {
+		if (std::isnan(varE[M][i][j])) nancount++;
+	      }
+	    }
+	    
+	    cout << "Process " << setw(4) << myid 
+		 << ": in eigenvalue problem [even] with "
+		 << "rank=[" << varE[M].getncols() << ", " 
+		 << varE[M].getnrows() << "]"
+		 << ", found " << nancount << " NaN values" << endl;
+
+	    nancount = 0;
+	    for (int i=1; i<=varO[M].getnrows(); i++) {
+	      for (int j=1; j<=varO[M].getncols(); j++) {
+		if (std::isnan(varO[M][i][j])) nancount++;
+	      }
+	    }
+	    
+	    cout << "Process " << setw(4) << myid 
+		 << ": in eigenvalue problem [odd] with "
+		 << "rank=[" << varO[M].getncols() << ", " 
+		 << varO[M].getnrows() << "]"
+		 << ", found " << nancount << " NaN values" << endl;
+
+	  } else {
+
+	    for (int i=1; i<=var[M].getnrows(); i++) {
+	      for (int j=1; j<=var[M].getncols(); j++) {
+		if (std::isnan(var[M][i][j])) nancount++;
+	      }
+	    }
+	    
+	    cout << "Process " << setw(4) << myid 
+		 << ": in eigenvalue problem with "
+		 << "rank=[" << var[M].getncols() << ", " 
+		 << var[M].getnrows() << "]"
+		 << ", found " << nancount << " NaN values" << endl;
+	  }
 
 	  timer.reset();
 	  timer.start();
 	}
 
-	if (USESVD)
-	  ev = Symmetric_Eigenvalues_SVD  (var[M], ef, NORDER);
-	else
-	  ev = Symmetric_Eigenvalues_SYEVD(var[M], ef, NORDER);
+	if (EvenOdd) {
+
+	  if (USESVD) {
+	    Vector evE = Symmetric_Eigenvalues_SVD  (varE[M], efE, Neven);
+	    Vector evO = Symmetric_Eigenvalues_SVD  (varO[M], efO, Nodd );
+	  } else {
+	    Vector evE = Symmetric_Eigenvalues_SYEVD(varE[M], efE, Neven);
+	    Vector evO = Symmetric_Eigenvalues_SYEVD(varO[M], efO, Nodd );
+	  }
+	  
+	  if (VFLAG & 32) {
+
+	    std::ostringstream sout;
+	    sout << "ev_test." << M << "." << request_id;
+	    std::ofstream dout(sout.str());
+	  
+	    for (int i=efE.getrlow(); i<=efE.getrhigh(); i++) {
+	      for (int j=efE.getrlow(); j<=efE.getrhigh(); j++) {
+		double sum = 0.0;
+		for (int k=efE.getclow(); k<=efE.getchigh(); k++)
+		  sum += efE[i][k] * efE[j][k];
+		dout << std::setw(4) << i << std::setw(4) << j
+		     << std::setw(18) << sum << std::endl;
+	      }
+	    }
+
+	    dout << std::endl;
+	  
+	    for (int i=efO.getrlow(); i<=efO.getrhigh(); i++) {
+	      for (int j=efO.getrlow(); j<=efO.getrhigh(); j++) {
+		double sum = 0.0;
+		for (int k=efO.getclow(); k<=efO.getchigh(); k++)
+		  sum += efO[i][k] * efO[j][k];
+		dout << std::setw(4) << i << std::setw(4) << j
+		     << std::setw(18) << sum << std::endl;
+	      }
+	    }
+	  }
+
+	} else {
+
+	  if (USESVD)
+	    Vector ev = Symmetric_Eigenvalues_SVD  (var[M], ef, NORDER);
+	  else
+	    Vector ev = Symmetric_Eigenvalues_SYEVD(var[M], ef, NORDER);
+
+	  if (VFLAG & 32) {
+
+	    std::ostringstream sout;
+	    sout << "ev_test." << M << "." << request_id;
+	    std::ofstream dout(sout.str());
+	  
+	    for (int i=ef.getrlow(); i<=ef.getrhigh(); i++) {
+	      for (int j=ef.getrlow(); j<=ef.getrhigh(); j++) {
+		double sum = 0.0;
+		for (int k=ef.getclow(); k<=ef.getchigh(); k++)
+		  sum += ef[i][k] * ef[j][k];
+		dout << std::setw(4) << i << std::setw(4) << j
+		     << std::setw(18) << sum << std::endl;
+	      }
+	    }
+	  }
+	}
 
 	if (VFLAG & 16) {
 	  cout << "Process " << setw(4) << myid 
@@ -2189,7 +3424,10 @@ void EmpCylSL::make_eof(void)
 	timer.start();
       }
 
-      compute_eof_grid(request_id, M);
+      if (EvenOdd)
+	compute_even_odd(request_id, M);
+      else
+	compute_eof_grid(request_id, M);
 
       if (VFLAG & 16) {
 	cout << "Process " << setw(4) << myid << ": completed EOF grid for id="
@@ -2318,7 +3556,8 @@ void EmpCylSL::accumulate_eof_thread_call(int id, std::vector<Particle>* p, bool
 }
   
 
-void EmpCylSL::accumulate(vector<Particle>& part, int mlevel, bool verbose)
+void EmpCylSL::accumulate(vector<Particle>& part, int mlevel,
+			  bool verbose, bool compute)
 {
    double r, phi, z, mass;
 
@@ -2334,7 +3573,7 @@ void EmpCylSL::accumulate(vector<Particle>& part, int mlevel, bool verbose)
     double phi  = atan2(p->pos[1], p->pos[0]);
     double z    = p->pos[2];
     
-    accumulate(r, z, phi, mass, p->indx, 0, mlevel);
+    accumulate(r, z, phi, mass, p->indx, 0, mlevel, compute);
 
     if (myid==0 && verbose) {
       if ( (ncnt % 100) == 0) cout << "\r>> " << ncnt << " <<" << flush;
@@ -2395,6 +3634,32 @@ void EmpCylSL::accumulate_thread_call(int id, std::vector<Particle>* p, int mlev
 }
   
 
+void EmpCylSL::getPotParticle(double x, double y, double z,
+			      EmpCylSL::ContribArray &retC,
+			      EmpCylSL::ContribArray &retS)
+{
+  constexpr double norm = -4.0*M_PI;
+
+  if (retC.size()==0) {
+    retC.resize(MMAX+1);
+    retS.resize(MMAX+1);
+    for (auto & v : retC) v.resize(rank3);
+    for (auto & v : retS) v.resize(rank3);
+  }
+
+  double R = sqrt(x*x + y*y);
+  double phi = atan2(y, x);
+  
+  get_pot(vc[0], vs[0], R, z);
+  for (int mm=0; mm<=MMAX; mm++) {
+    for (int nn=0; nn<rank3; nn++) {
+      retC[mm][nn] = vc[0][mm][nn]*cos(phi*mm);
+      if (mm>0) retS[mm][nn] = vs[0][mm][nn]*sin(phi*mm);
+    }
+  }
+}
+
+
 void EmpCylSL::accumulate(double r, double z, double phi, double mass, 
 			  unsigned long seq, int id, int mlevel, bool compute)
 {
@@ -2420,6 +3685,7 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
   if (compute and PCAVAR) {
     whch = seq % sampT;
     pthread_mutex_lock(&used_lock);
+    numbT1[id][whch] += 1;
     massT1[id][whch] += mass;
     pthread_mutex_unlock(&used_lock);
   }
@@ -2436,12 +3702,25 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 
       cosN(mlevel)[id][mm][nn] += hold;
 
-      if (compute and PCAVAR) cos2(id, whch)[mm][nn] += hold;
+      if (compute and PCAVAR) {
+	double hc1 = vc[id][mm][nn], hs1 = 0.0;
+	if (mm) hs1 = vs[id][mm][nn];
+	double modu1 = sqrt(hc1*hc1 + hs1*hs1) * norm;
+
+	covV(id, whch, mm)[nn] += mass * modu1;
+
+	for (int oo=0; oo<rank3; oo++) {
+	  double hc2 = vc[id][mm][oo], hs2 = 0.0;
+	  if (mm) hs2 = vs[id][mm][oo];
+	  double modu2 = sqrt(hc2*hc2 + hs2*hs2) * norm;
+
+	  covM(id, whch, mm)[nn][oo] += mass * modu1 * modu2;
+	}
+      }
 
       if (mm>0) {
 	hold = norm * mass * msin * vs[id][mm][nn];
 	sinN(mlevel)[id][mm][nn] += hold;
-	if (compute and PCAVAR) sin2(id, whch)[mm][nn] += hold;
       }
 
       if (compute and PCAEOF) {
@@ -2452,7 +3731,7 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 	  hold1 = vc[id][mm][oo], hold2 = 0.0;
 	  if (mm>0) hold2 = vs[id][mm][oo];
 	  double modu2 = sqrt(hold1*hold1 + hold2*hold2)*norm;
-	  (*tvar[id][mm])[nn+1][oo+1] += modu1 * modu2 * mass;
+	  tvar[id][mm][nn+1][oo+1] += modu1 * modu2 * mass;
 	}
       }
     }
@@ -2466,8 +3745,12 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 {
   if (MPIin.size()==0) {
-    MPIin .resize(rank3*(MMAX+1));
-    MPIout.resize(rank3*(MMAX+1));
+				// Vector reduction
+    MPIin  .resize(rank3*(MMAX+1));
+    MPIout .resize(rank3*(MMAX+1));
+				// Matrix reduction
+    MPIin2 .resize(rank3*rank3*(MMAX+1));
+    MPIout2.resize(rank3*rank3*(MMAX+1));
   }
   
 
@@ -2536,19 +3819,21 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 	for (int mm=0; mm<=MMAX; mm++)
 	  for (int nn=0; nn<rank3; nn++)
 	    for (int oo=0; oo<rank3; oo++)
-	      (*tvar[0][mm])[nn+1][oo+1] += (*tvar[nth][mm])[nn+1][oo+1];
+	      tvar[0][mm][nn+1][oo+1] += tvar[nth][mm][nn+1][oo+1];
       }
 	
       for (unsigned T=0; T<sampT; T++) {
+	numbT1[0][T] += numbT1[nth][T];
 	massT1[0][T] += massT1[nth][T];
 
-	for (int mm=0; mm<=MMAX; mm++)
-	  for (int nn=0; nn<rank3; nn++)
-	    cos2(0, T)[mm][nn] += cos2(nth, T)[mm][nn];
-	
-	for (int mm=1; mm<=MMAX; mm++)
-	  for (int nn=0; nn<rank3; nn++)
-	    sin2(0, T)[mm][nn] += sin2(nth, T)[mm][nn];
+	for (int mm=0; mm<=MMAX; mm++) {
+	  for (int nn=0; nn<rank3; nn++) {
+	    covV(0, T, mm)[nn] += covV(nth, T, mm)[nn];
+	    for (int oo=0; oo<rank3; oo++) {
+	      covM(0, T, mm)[nn][oo] += covM(nth, T, mm)[nn][oo];
+	    }
+	  }
+	}
 
       } // T loop
       
@@ -2558,6 +3843,8 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
     // Mass used to compute variance in each partition
     //
     if (PCAVAR) {
+      MPI_Allreduce ( &numbT1[0][0], &numbT[0], sampT,
+		      MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
       MPI_Allreduce ( &massT1[0][0], &massT[0], sampT,
 		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     }
@@ -2572,7 +3859,7 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
       for (int mm=0; mm<=MMAX; mm++)
 	for (int nn=0; nn<rank3; nn++)
 	  for (int oo=0; oo<rank3; oo++)
-	    MPIinT[mm*rank3*rank3 + nn*rank3 + oo] = (*tvar[0][mm])[nn+1][oo+1];
+	    MPIinT[mm*rank3*rank3 + nn*rank3 + oo] = tvar[0][mm][nn+1][oo+1];
   
       MPI_Allreduce ( MPIinT.data(), MPIotT.data(), rank3*rank3*(MMAX+1),
 		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -2580,34 +3867,36 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
       for (int mm=0; mm<=MMAX; mm++)
 	for (int nn=0; nn<rank3; nn++)
 	  for (int oo=0; oo<rank3; oo++)
-	    (*tvar[0][mm])[nn+1][oo+1] = MPIotT[mm*rank3*rank3 + nn*rank3 + oo];
+	    tvar[0][mm][nn+1][oo+1] = MPIotT[mm*rank3*rank3 + nn*rank3 + oo];
     }
       
-      // Begin distribution loop for variance jackknife
-      //
+    // Begin distribution loop for variance jackknife
+    //
     for (unsigned T=0; T<sampT; T++) {
       
-      for (int mm=0; mm<=MMAX; mm++)
-	for (int nn=0; nn<rank3; nn++)
-	  MPIin[mm*rank3 + nn] = cos2(0, T)[mm][nn];
-  
+      for (int mm=0; mm<=MMAX; mm++) {
+	for (int nn=0; nn<rank3; nn++) {
+	  MPIin[mm*rank3 + nn] = covV(0, T, mm)[nn];
+	  for (int oo=0; oo<rank3; oo++) {
+	    MPIin2[mm*rank3*rank3 + nn*rank3 + oo] = covM(0, T, mm)[nn][oo];
+	  }
+	}
+      }
+
       MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
 		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-      for (int mm=0; mm<=MMAX; mm++)
-	for (int nn=0; nn<rank3; nn++)
-	  cos2(0, T)[mm][nn] = MPIout[mm*rank3 + nn];
-      
-      for (int mm=1; mm<=MMAX; mm++)
-	for (int nn=0; nn<rank3; nn++)
-	  MPIin[mm*rank3 + nn] = sin2(0, T)[mm][nn];
-      
-      MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
+      MPI_Allreduce ( MPIin2.data(), MPIout2.data(), rank3*rank3*(MMAX+1),
 		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      
-      for (int mm=1; mm<=MMAX; mm++)
-	for (int nn=0; nn<rank3; nn++)
-	  sin2(0, T)[mm][nn] = MPIout[mm*rank3 + nn];
+
+      for (int mm=0; mm<=MMAX; mm++) {
+	for (int nn=0; nn<rank3; nn++) {
+	  covV(0, T, mm)[nn] = MPIout[mm*rank3 + nn];
+	  for (int oo=0; oo<rank3; oo++) {
+	    covM(0, T, mm)[nn][oo] = MPIout2[mm*rank3*rank3 + nn*rank3 + oo];
+	  }
+	}
+      }
       
     }
     // T loop
@@ -2636,9 +3925,12 @@ void EmpCylSL::make_coefficients(bool compute)
   
   if (coefs_made_all()) return;
 
-  if (MPIin.size()==0) {
-    MPIin .resize(rank3*(MMAX+1));
-    MPIout.resize(rank3*(MMAX+1));
+  if (MPIin.size()==0) {	// Vector reduction
+    MPIin  .resize(rank3*(MMAX+1));
+    MPIout .resize(rank3*(MMAX+1));
+				// Matrix reduction
+    MPIin2 .resize(rank3*rank3*(MMAX+1));
+    MPIout2.resize(rank3*rank3*(MMAX+1));
   }
 				// Sum up over threads
 				// 
@@ -2651,26 +3943,30 @@ void EmpCylSL::make_coefficients(bool compute)
       howmany1[M][0] += howmany1[M][nth];
 
       if (compute and PCAVAR) {
-	for (unsigned T=0; T<sampT; T++) massT1[0][T] += massT1[nth][T];
+	for (unsigned T=0; T<sampT; T++) {
+	  numbT1[0][T] += numbT1[nth][T];
+	  massT1[0][T] += massT1[nth][T];
+	}
       }
       
       for (int mm=0; mm<=MMAX; mm++) {
 	for (int nn=0; nn<rank3; nn++) {
 	  cosN(M)[0][mm][nn] += cosN(M)[nth][mm][nn];
 	  if (compute and PCAVAR) {
-	    for (unsigned T=0; T<sampT; T++) 
-	      cos2(0, T)[mm][nn] += cos2(nth, T)[mm][nn];
+	    for (unsigned T=0; T<sampT; T++) {
+	      covV(0, T, mm)[nn] += covV(nth, T, mm)[nn];
+	      for (int oo=0; oo<rank3; oo++) {
+		covM(0, T, mm)[nn][oo] += covM(nth, T, mm)[nn][oo];
+	      }
+	    }
 	  }
+	  // END: PCAVAR
 	}
       }
 
       for (int mm=1; mm<=MMAX; mm++) {
 	for (int nn=0; nn<rank3; nn++) {
 	  sinN(M)[0][mm][nn] += sinN(M)[nth][mm][nn];
-	  if (compute and PCAVAR) {
-	    for (unsigned T=0; T<sampT; T++) 
-	      sin2(0, T)[mm][nn] += sin2(nth, T)[mm][nn];
-	  }
 	}
       }
 
@@ -2710,17 +4006,31 @@ void EmpCylSL::make_coefficients(bool compute)
   
 
   if (compute and PCAVAR) {
+
     for (unsigned T=0; T<sampT; T++) {
-      for (int mm=0; mm<=MMAX; mm++)
-	for (int nn=0; nn<rank3; nn++)
-	  MPIin[mm*rank3 + nn] = cos2(0, T)[mm][nn];
-  
+      for (int mm=0; mm<=MMAX; mm++) {
+	for (int nn=0; nn<rank3; nn++) {
+	  MPIin[mm*rank3 + nn] = covV(0, T, mm)[nn];
+	  for (int oo=0; oo<rank3; oo++) {
+	    MPIin2[mm*rank3*rank3 + nn*rank3 + oo] = covM(0, T, mm)[nn][oo];
+	  }
+	}
+      }
+
       MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
 		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-      for (int mm=0; mm<=MMAX; mm++)
-	for (int nn=0; nn<rank3; nn++)
-	  cos2(0, T)[mm][nn] = MPIout[mm*rank3 + nn];
+      MPI_Allreduce ( MPIin2.data(), MPIout2.data(), rank3*rank3*(MMAX+1),
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+      for (int mm=0; mm<=MMAX; mm++) {
+	for (int nn=0; nn<rank3; nn++) {
+	  covV(0, T, mm)[nn] = MPIout[mm*rank3 + nn];
+	  for (int oo=0; oo<rank3; oo++) {
+	    covM(0, T, mm)[nn][oo] = MPIout2[mm*rank3*rank3 + nn*rank3 + oo];
+	  }
+	}
+      }
 
     } // T loop
 
@@ -2748,24 +4058,11 @@ void EmpCylSL::make_coefficients(bool compute)
   }
   
   if (compute and PCAVAR) {
-
-    for (unsigned T=0; T<sampT; T++) {
-
-      for (int mm=1; mm<=MMAX; mm++)
-	for (int nn=0; nn<rank3; nn++)
-	  MPIin[mm*rank3 + nn] = sin2(0, T)[mm][nn];
-  
-      MPI_Allreduce ( MPIin.data(), MPIout.data(), rank3*(MMAX+1),
-		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
-      for (int mm=1; mm<=MMAX; mm++)
-	for (int nn=0; nn<rank3; nn++)
-	  sin2(0, T)[mm][nn] = MPIout[mm*rank3 + nn];
-
-    } // T loop
-
 				// Mass used to compute variance in
 				// each partition
+
+    MPI_Allreduce ( &numbT1[0][0], &numbT[0], sampT,
+		    MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
 
     MPI_Allreduce ( &massT1[0][0], &massT[0], sampT,
 		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -2820,6 +4117,7 @@ void EmpCylSL::pca_hall(bool compute)
 #endif
 
     if (PCAVAR) {
+      for (auto v : numbT) pb->Tnumb += v;
       for (auto v : massT) pb->Tmass += v;
     }
     
@@ -2872,13 +4170,7 @@ void EmpCylSL::pca_hall(bool compute)
       }
     }
     
-    std::vector<double> meanJK1, meanJK2;
     Vector eofvec;
-
-    if (PCAVAR) {
-      meanJK1.resize(rank3);
-      meanJK2.resize(rank3);
-    }
 
     if (PCAEOF) {
       eofvec.setsize(1, rank3);
@@ -2890,44 +4182,34 @@ void EmpCylSL::pca_hall(bool compute)
       
       if (PCAVAR) {
 
-	std::fill(meanJK1.begin(), meanJK1.end(), 0.0);
-	std::fill(meanJK2.begin(), meanJK2.end(), 0.0);
-
 	// Data partitions for variance
 	//
 	for (unsigned T=0; T<sampT; T++) {
 	  
 	  if (massT[T] <= 0.0) continue; // Skip empty partition
 	
-	  for (int nn=0; nn<rank3; nn++) { // Order
-	  
-	    double modn = cos2(0, T)[mm][nn] * cos2(0, T)[mm][nn];
-	    if (mm)
-	      modn += sin2(0, T)[mm][nn] * sin2(0, T)[mm][nn];
-	    modn = sqrt(modn);
+	  for (int nn=0; nn<rank3; nn++) {
+	    // Compute mean coef from subsample
+	    //
+	    (*pb)[mm]->meanJK[nn+1] += covV(0, T, mm)[nn] / sampT;
 	    
-	    (*pb)[mm]->meanJK[nn+1] += modn;
-	    
-	    meanJK1[nn] += cos2(0, T)[mm][nn];
-	    if (mm) meanJK2[nn] += sin2(0, T)[mm][nn];
-	    
-	    for (int oo=0; oo<rank3; oo++) { // Order
-	    
-	      double modo = cos2(0, T)[mm][oo] * cos2(0, T)[mm][oo];
-	      if (mm)
-		modo += sin2(0, T)[mm][oo] * sin2(0, T)[mm][oo];
-	      modo = sqrt(modo);
-	    
-	      (*pb)[mm]->covrJK[nn+1][oo+1] +=  modn * modo * sampT;
+	    for (int oo=0; oo<rank3; oo++) {
+	      // Compute mean squared coefs from subsample
+	      //
+	      (*pb)[mm]->covrJK[nn+1][oo+1] += massT[T] * covM(0, T, mm)[nn][oo] / sampT;
 	    }
 	  }
 	}
 	
-	for (int nn=0; nn<rank3; nn++) {
+	// Compute subsample variance
+	//
+	for (int nn=0; nn<rank3; nn++) { 
 	  for (int oo=0; oo<rank3; oo++) {
-	    (*pb)[mm]->covrJK[nn+1][oo+1] -= (*pb)[mm]->meanJK[nn+1] * (*pb)[mm]->meanJK[oo+1];
+	    (*pb)[mm]->covrJK[nn+1][oo+1] -=
+	      (*pb)[mm]->meanJK[nn+1] * (*pb)[mm]->meanJK[oo+1];
 	  }
 	}
+	
 #ifdef GHQL
 	(*pb)[mm]->evalJK = (*pb)[mm]->covrJK.Symmetric_Eigenvalues_GHQL((*pb)[mm]->evecJK);
 #else
@@ -2942,6 +4224,12 @@ void EmpCylSL::pca_hall(bool compute)
 	     << "# m=" << mm << std::endl
 	     << "#" << std::endl;
 	if (PCAVAR) {
+	  mout << "# Eigenvalues"  << std::endl;
+	  for (int nn=0; nn<rank3; nn++) {
+	    mout << std::setw( 4) << nn
+		 << std::setw(12) << (*pb)[mm]->evalJK[nn+1]
+		 << std::endl;
+	  }
 	  mout << "# Eigenvectors" << std::endl;
 	  for (int nn=0; nn<rank3; nn++) {
 	    for (int oo=0; oo<rank3; oo++) {
@@ -2973,7 +4261,7 @@ void EmpCylSL::pca_hall(bool compute)
 
 	if (PCAEOF) {
 	  Matrix evecVar(1, rank3, 1, rank3);
-	  Vector evalVar = tvar[0][mm]->Symmetric_Eigenvalues(evecVar);
+	  Vector evalVar = tvar[0][mm].Symmetric_Eigenvalues(evecVar);
 
 	  mout << "# EOF eigenvalues" << std::endl;
 	  double total = 0.0;
@@ -3040,17 +4328,21 @@ void EmpCylSL::pca_hall(bool compute)
 	//
 	for (int nn=0; nn<rank3; nn++) {
 	  
-	  // Boostrap variance estimate for popl variance------------+
-	  //                                                         |
+	  // Boostrap variance estimate for full variance------------+
+	  // combined with scaling                                   |
 	  //                                                         v
-	  double    var = std::max<double>((*pb)[mm]->evalJK[nn+1]/sampT,
+	  double    var = std::max<double>((*pb)[mm]->evalJK[nn+1] / sampT,
 					   std::numeric_limits<double>::min());
 	  double    sqr = dd[nn+1]*dd[nn+1];
 	  double      b = var/sqr;
 	  
 	  (*pb)[mm]->b_Hall[nn+1]  = 1.0/(1.0 + b);
+	  minSNR = std::min<double>(minSNR, 1.0/b);
+	  maxSNR = std::max<double>(maxSNR, 1.0/b);
 	  snrval[nn+1] = sqrt(sqr/var);
 	}
+
+	// std::cout << "DEBUG: M=" << mm << " MinSNR=" << minSNR << " MaxSNR=" << maxSNR << std::endl;
 	
 #ifndef STANDALONE
 	if (vtkpca) vtkpca->Add((*pb)[mm]->meanJK,
@@ -3070,15 +4362,19 @@ void EmpCylSL::pca_hall(bool compute)
 	  hout << setw( 4) << mm << setw(4) << nn;
 
 	  if (PCAVAR) {
-	    double var = std::max<double>((*pb)[mm]->evalJK[nn+1]/sampT,
-				   std::numeric_limits<double>::min());
+	  
+	    // Boostrap variance estimate for pop variance----------+
+	    // combined with magnitude scaling                      |
+	    //                                                      v
+	    double var = std::max<double>((*pb)[mm]->evalJK[nn+1] / sampT,
+					  std::numeric_limits<double>::min());
 	    double sqr = dd[nn+1]*dd[nn+1];
 
 	    hout << setw(18) << dd[nn+1]
 		 << setw(18) << sqr
 		 << setw(18) << var
 		 << setw(18) << cumlJK[nn+1]
-		 << setw(18) << snrval[nn+1]
+		 << setw(18) << snrval[nn+1]*snrval[nn+1]
 		 << setw(18) << (*pb)[mm]->b_Hall[nn+1];
 	  } else {
 	    double cof = accum_cos[mm][nn] * accum_cos[mm][nn];
@@ -3105,13 +4401,14 @@ void EmpCylSL::pca_hall(bool compute)
     for (int nth=0; nth<nthrds; nth++) {
 
       if (PCAEOF) 
-	for (auto & v : tvar[nth]) v->zero();
+	for (auto & v : tvar[nth]) v.zero();
 
       if (PCAVAR) {
 	for (unsigned T=0; T<sampT; T++) {
+	  numbT1[nth][T] = 0;
 	  massT1[nth][T] = 0.0;
-	  cos2[nth][T]->zero();
-	  sin2[nth][T]->zero();
+	  for (auto & v : covV[nth][T]) v.zero();
+	  for (auto & v : covM[nth][T]) v.zero();
 	}
       }
     }
@@ -3121,7 +4418,7 @@ void EmpCylSL::pca_hall(bool compute)
 #endif
   }
     
-  if (PCAVAR and tk_type != None) {
+  if (!PCADRY and PCAVAR and tk_type != None) {
 
     if (pb==0) return;
 
@@ -3169,6 +4466,207 @@ void EmpCylSL::pca_hall(bool compute)
 
   if (VFLAG & 4)
     cerr << "Process " << setw(4) << myid << ": exiting to pca_hall" << endl;
+}
+
+
+void EmpCylSL::get_trimmed
+(double snr,
+ std::vector<Vector>& ac_cos, std::vector<Vector>& ac_sin,
+ std::vector<Vector>* rt_cos, std::vector<Vector>* rt_sin,
+ std::vector<Vector>* sn_rat)
+{
+  if (PCAVAR and tk_type != None) {
+
+    if (pb==0) return;
+
+    ac_cos.resize(MMAX+1);
+    ac_sin.resize(MMAX+1);
+
+    if (rt_cos) {
+      rt_cos->resize(MMAX+1);
+      rt_sin->resize(MMAX+1);
+      sn_rat->resize(MMAX+1);
+    }
+
+    // Loop through each harmonic subspace [EVEN cosines]
+    //
+    
+    Vector ddc(1, rank3), dds(1, rank3), wrk(1, rank3), sig(1, rank3);
+    
+    for (int mm=0; mm<=MMAX; mm++) {
+      
+      ac_cos[mm].setsize(0, NORDER-1);
+      if (rt_cos) {
+	(*rt_cos)[mm].setsize(0, NORDER-1);
+	(*rt_sin)[mm].setsize(0, NORDER-1);
+	(*sn_rat)[mm].setsize(0, NORDER-1);
+      }
+      if (mm) {
+	ac_sin[mm].setsize(0, NORDER-1);
+      }
+
+      sig.zero();
+
+      auto it = pb->find(mm);
+      
+      if (it != pb->end()) {
+	
+	auto & I = it->second;
+	
+	
+	// Smooth coefficients
+	//
+	auto smth = I->b_Hall;
+	for (int i=smth.getlow(); i<=smth.gethigh(); i++)
+	  smth[i] = (1.0 - smth[i])/smth[i];
+
+	if (tk_type == Hall) {
+	  for (int i=smth.getlow(); i<=smth.gethigh(); i++)
+	    smth[i] = 1.0/(1.0 + pow(snr*smth[i], HEXP));
+	}
+	if (tk_type == Truncate) {
+	  for (int i=smth.getlow(); i<=smth.gethigh(); i++) {
+	    if (1.0/smth[i]>snr) smth[i] = 1.0;
+	    else                 smth[i] = 0.0;
+	  }
+	}
+
+
+	// Cosine coefficients
+	{
+	  // Project to decorrelated basis
+	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_cos[mm][nn];
+	  ddc = I->evecJK.Transpose() * wrk;
+
+	  // Smooth
+	  wrk = ddc & smth;
+
+	  // Deproject coefficients
+	  ddc = I->evecJK * wrk;
+	  for (int nn=0; nn<rank3; nn++) ac_cos[mm][nn] = ddc[nn+1];
+
+	  // Accumulate variance for modulus by error propagation
+	  for (int nn=0; nn<rank3; nn++) {
+	    for (int oo=0; oo<rank3; oo++) {
+	      // Columns are eigenvectors
+	      double val = I->evecJK[oo+1][nn+1];
+	      sig[oo+1] += val*val*I->evalJK[nn+1];
+	    }
+	  }
+	}
+
+	// Sine coefficients
+	if (mm) {
+	  // Project to decorrelated basis
+	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_sin[mm][nn];
+	  dds = I->evecJK.Transpose() * wrk;
+
+	  // Smooth
+	  wrk = dds & smth;
+
+	  // Deproject coefficients
+	  dds = I->evecJK * wrk;
+	  for (int nn=0; nn<rank3; nn++) ac_sin[mm][nn] = dds[nn+1];
+
+	} else {
+	  dds.zero();
+	}
+
+	// BEG: diagnostics
+	if (rt_cos) {
+
+	  (*rt_cos)[mm] = accum_cos[mm];
+	  if (mm) (*rt_sin)[mm] = accum_sin[mm];
+	  
+	  for (int nn=0; nn<rank3; nn++) {
+	    double val = ddc[nn+1]*ddc[nn+1] + dds[nn+1]*dds[nn+1];
+	    if (sig[nn+1]>0.0) 
+	      (*sn_rat)[mm][nn] = val/sig[nn+1];
+	    else
+	      (*sn_rat)[mm][nn] = 0.0;
+	  }
+	}
+	// END: diagnostics
+      }
+    }
+    // M loop
+  }
+      
+}
+
+void EmpCylSL::set_trimmed(double snr)
+{
+  if (PCAVAR and tk_type != None) {
+
+    if (pb==0) return;
+
+    // Loop through each harmonic subspace [EVEN cosines]
+    //
+    
+    Vector ddc(1, rank3), dds(1, rank3), wrk(1, rank3);
+    
+    for (int mm=0; mm<=MMAX; mm++) {
+      
+      auto it = pb->find(mm);
+      
+      if (it != pb->end()) {
+	
+	auto & I = it->second;
+	
+	// Smooth coefficients
+	//
+	auto smth = I->b_Hall;
+	for (int i=smth.getlow(); i<=smth.gethigh(); i++)
+	  smth[i] = (1.0 - smth[i])/smth[i];
+
+	if (tk_type == Hall) {
+	  for (int i=smth.getlow(); i<=smth.gethigh(); i++)
+	    smth[i] = 1.0/(1.0 + pow(snr*smth[i], HEXP));
+	}
+	if (tk_type == Truncate) {
+	  for (int i=smth.getlow(); i<=smth.gethigh(); i++) {
+	    if (1.0/smth[i]>snr) smth[i] = 1.0;
+	    else                 smth[i] = 0.0;
+	  }
+	}
+
+	// Cosine coefficients
+	//
+	{
+	  // Project to decorrelated basis
+	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_cos[mm][nn];
+	  ddc = I->evecJK.Transpose() * wrk;
+
+	  // Smooth
+	  wrk = ddc & smth;
+
+	  // Deproject coefficients
+	  ddc = I->evecJK * wrk;
+	  for (int nn=0; nn<rank3; nn++) accum_cos[mm][nn] = ddc[nn+1];
+	}
+
+	// Sine coefficients
+	//
+	if (mm) {
+	  // Project to decorrelated basis
+	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_sin[mm][nn];
+	  dds = I->evecJK.Transpose() * wrk;
+
+	  // Smooth
+	  wrk = dds & smth;
+
+	  // Deproject coefficients
+	  dds = I->evecJK * wrk;
+	  for (int nn=0; nn<rank3; nn++) accum_sin[mm][nn] = dds[nn+1];
+
+	} else {
+	  dds.zero();
+	}
+      }
+    }
+    // M loop
+  }
+      
 }
 
 
@@ -3699,12 +5197,34 @@ void EmpCylSL::set_coefs(int m1,
     coefs_made = vector<short>(multistep+1, true);
   }
 
-  int nmin = std::min<int>(rank3, cos1.size());
+  int nminC = std::min<int>(rank3, cos1.size());
+  int nminS = std::min<int>(rank3, sin1.size());
   if (m1 <= MMAX) {
-    for (int j=0; j<nmin; j++) accum_cos[m1][j] = cos1[j];
+    for (int j=0; j<nminC; j++) accum_cos[m1][j] = cos1[j];
     if (m1) {
-      nmin = std::min<int>(rank3, sin1.size());
-      for (int j=0; j<nmin; j++) accum_sin[m1][j] = sin1[j];
+      for (int j=0; j<nminS; j++) accum_sin[m1][j] = sin1[j];
+    }
+  }
+}
+
+void EmpCylSL::get_coefs(int m1, Vector& cos1, Vector& sin1)
+{
+  if (m1 <= MMAX) {
+    cos1 = accum_cos[m1];
+    if (m1) sin1 = accum_sin[m1];
+  }
+}
+
+void EmpCylSL::get_coefs(int m1,
+			 std::vector<double>& cos1,
+			 std::vector<double>& sin1)
+{
+  if (m1 <= MMAX) {
+    cos1.resize(rank3);
+    for (int j=0; j<rank3; j++) cos1[j] = accum_cos[m1][j];
+    if (m1) {
+      sin1.resize(rank3);
+      for (int j=0; j<rank3; j++) sin1[j] = accum_sin[m1][j];
     }
   }
 }
@@ -3717,11 +5237,43 @@ static CylCoefHeader coefheadercyl;
 
 void EmpCylSL::dump_coefs_binary(ostream& out, double time)
 {
-  coefheadercyl.time = time;
-  coefheadercyl.mmax = MMAX;
-  coefheadercyl.nmax = rank3;
+  if (NewCoefs) {
+    // This is a node of simple {key: value} pairs.  More general
+    // content can be added as needed.
+    //
+    YAML::Node node;
 
-  out.write((const char *)&coefheadercyl, sizeof(CylCoefHeader));
+    node["time"  ] = tnow;
+    node["mmax"  ] = MMAX;
+    node["nmax"  ] = rank3;
+
+    // Serialize the node
+    //
+    YAML::Emitter y; y << node;
+
+    // Get the size of the string
+    //
+    unsigned int hsize = strlen(y.c_str());
+    
+    // Write magic #
+    //
+    out.write(reinterpret_cast<const char *>(&cmagic),   sizeof(unsigned int));
+
+    // Write YAML string size
+    //
+    out.write(reinterpret_cast<const char *>(&hsize),    sizeof(unsigned int));
+
+    // Write YAML string
+    //
+    out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
+
+  } else {
+    coefheadercyl.time = time;
+    coefheadercyl.mmax = MMAX;
+    coefheadercyl.nmax = rank3;
+
+    out.write((const char *)&coefheadercyl, sizeof(CylCoefHeader));
+  }
 
   for (int mm=0; mm<=MMAX; mm++) {
 
@@ -4266,7 +5818,7 @@ void EmpCylSL::dump_images_basis(const string& OUTFILE,
 
 double EmpCylSL::r_to_xi(double r)
 {
-  if (CMAP>0) {
+  if (CMAPR>0) {
     if (r<0.0) {
       ostringstream msg;
       msg << "radius=" << r << " < 0! [mapped]";
@@ -4285,7 +5837,7 @@ double EmpCylSL::r_to_xi(double r)
     
 double EmpCylSL::xi_to_r(double xi)
 {
-  if (CMAP>0) {
+  if (CMAPR>0) {
     if (xi<-1.0) throw GenericError("xi < -1!", __FILE__, __LINE__);
     if (xi>=1.0) throw GenericError("xi >= 1!", __FILE__, __LINE__);
 
@@ -4298,7 +5850,7 @@ double EmpCylSL::xi_to_r(double xi)
 
 double EmpCylSL::d_xi_to_r(double xi)
 {
-  if (CMAP>0) {
+  if (CMAPR>0) {
     if (xi<-1.0) throw GenericError("xi < -1!", __FILE__, __LINE__);
     if (xi>=1.0) throw GenericError("xi >= 1!", __FILE__, __LINE__);
 
@@ -4468,6 +6020,55 @@ void EmpCylSL::multistep_update_finish()
 
   MPI_Allreduce (&workS1[0], &workS[0], sz, 
 		 MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+  //  +--- Deep debugging
+  //  |
+  //  v
+  if (false and myid==0) {
+    std::ofstream out("test_differ.cyl", ios::app);
+    if (out) {
+      out << std::string(13+16*rank3, '-') << std::endl;
+      out << "# T=" << tnow << " mstep=" << mstep << std::endl;
+      for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
+	offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
+	for (int mm=0; mm<=MMAX; mm++) {
+	  offset1 = mm*rank3;
+	  out << std::setw(5) << M << " C " << std::setw(5) << mm;
+	  for (int nn=0; nn<rank3; nn++) 
+	    out << std::setw(16) << workC[offset0+offset1+nn];
+	  out << std::endl;
+	  if (mm) {
+	    out << std::setw(5) << M << " S " << std::setw(5) << mm;
+	    for (int nn=0; nn<rank3; nn++) 
+	      out << std::setw(16) << workS[offset0+offset1+nn];
+	    out << std::endl;
+	  }
+	  break;
+	}
+      }
+      out << std::string(13+16*rank3, '-') << std::endl;
+      for (int mm=0; mm<=MMAX; mm++) {
+	offset1 = mm*rank3;
+	out << std::setw(5) << " *** " << " C " << std::setw(5) << mm;
+	for (int nn=0; nn<rank3; nn++) 
+	  out << std::setw(16) << accum_cos[mm][nn];
+	out << std::endl;
+	if (mm) {
+	  out << std::setw(5) << " *** " << " S " << std::setw(5) << mm;
+	  for (int nn=0; nn<rank3; nn++) 
+	    out << std::setw(16) << accum_sin[mm][nn];
+	  out << std::endl;
+	}
+	break;
+      }
+      out << std::string(13+16*rank3, '-') << std::endl;
+      out << std::string(13+16*rank3, '-') << std::endl;
+    } else {
+      std::cout << "Error opening test file <test_differ.sph> at T=" << tnow
+		<< std::endl;
+    }
+  }
+
 
   for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
 
@@ -4646,17 +6247,17 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
   bool dens=false;
   double rmin, rmax, ascl, hscl;
 
-  in.read((char *)&mmax, sizeof(int));
-  in.read((char *)&numx, sizeof(int));
-  in.read((char *)&numy, sizeof(int));
-  in.read((char *)&nmax, sizeof(int));
+  in.read((char *)&mmax,   sizeof(int));
+  in.read((char *)&numx,   sizeof(int));
+  in.read((char *)&numy,   sizeof(int));
+  in.read((char *)&nmax,   sizeof(int));
   in.read((char *)&norder, sizeof(int));
-  in.read((char *)&tmp,  sizeof(int)); if (tmp) dens = true;
-  in.read((char *)&cmap, sizeof(int));
-  in.read((char *)&rmin, sizeof(double));
-  in.read((char *)&rmax, sizeof(double));
-  in.read((char *)&ascl, sizeof(double));
-  in.read((char *)&hscl, sizeof(double));
+  in.read((char *)&tmp,    sizeof(int)); if (tmp) dens = true;
+  in.read((char *)&cmap,   sizeof(int));
+  in.read((char *)&rmin,   sizeof(double));
+  in.read((char *)&rmax,   sizeof(double));
+  in.read((char *)&ascl,   sizeof(double));
+  in.read((char *)&hscl,   sizeof(double));
   
   out << setw(70) << setfill('-') << '-' << setfill(' ') << endl;
   out << setw(20) << left << "MMAX"   << " : " << mmax << endl;
@@ -4665,7 +6266,7 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
   out << setw(20) << left << "NMAX"   << " : " << nmax << endl;
   out << setw(20) << left << "NORDER" << " : " << norder << endl;
   out << setw(20) << left << "DENS"   << " : " << std::boolalpha << dens << endl;
-  out << setw(20) << left << "CMAP"   << " : " << cmap << endl;
+  out << setw(20) << left << "CMAPR"  << " : " << cmap << endl;
   out << setw(20) << left << "RMIN"   << " : " << rmin << endl;
   out << setw(20) << left << "RMAX"   << " : " << rmax << endl;
   out << setw(20) << left << "ASCALE" << " : " << ascl << endl;
@@ -5103,9 +6704,9 @@ void EmpCylSL::compare_basis(const EmpCylSL *p)
 // Compute non-dimensional vertical coordinate from Z
 double EmpCylSL::z_to_y(double z)
 {
-  if (CMAP==1)
+  if (CMAPZ==1)
     return z/(fabs(z)+DBL_MIN)*asinh(fabs(z/HSCALE));
-  else if (CMAP==2)
+  else if (CMAPZ==2)
     return z/sqrt(z*z + HSCALE*HSCALE);
   else
     return z;
@@ -5114,9 +6715,9 @@ double EmpCylSL::z_to_y(double z)
 // Compute Z from non-dimensional vertical coordinate
 double EmpCylSL::y_to_z(double y)
 {
-  if (CMAP==1)
+  if (CMAPZ==1)
     return HSCALE*sinh(y);
-  else if (CMAP==2) {
+  else if (CMAPZ==2) {
     if (y<-1.0) throw GenericError("y < -1!", __FILE__, __LINE__);
     if (y>=1.0) throw GenericError("y >= 1!", __FILE__, __LINE__);
     return y * HSCALE/sqrt(1.0 - y*y);
@@ -5128,9 +6729,9 @@ double EmpCylSL::y_to_z(double y)
 // For measure transformation in vertical coordinate
 double EmpCylSL::d_y_to_z(double y)
 {
-  if (CMAP==1)
+  if (CMAPZ==1)
     return HSCALE*cosh(y);
-  else if (CMAP==2) {
+  else if (CMAPZ==2) {
     if (y<-1.0) throw GenericError("y < -1!", __FILE__, __LINE__);
     if (y>=1.0) throw GenericError("y >= 1!", __FILE__, __LINE__);
     return HSCALE*pow(1.0-y*y, -1.5);
@@ -5138,3 +6739,178 @@ double EmpCylSL::d_y_to_z(double y)
     return 1.0;
 }
 
+// Check orthogonality for basis
+//
+void EmpCylSL::ortho_check(std::ostream& out)
+{
+  if (DENS) {
+
+    for (int mm=0; mm<=MMAX; mm++) {
+      // Header
+      //
+      out << std::string(60, '-') << std::endl
+	  << " M=" << mm << std::endl
+	  << std::string(60, '-') << std::endl;
+
+      // Normalization:
+      //            +--- Gravitational energy kernel
+      //            |           +--- Aximuthal
+      //            |           |
+      //            v           v
+      double fac = -4.0*M_PI * (2.0*M_PI) * dX * dY;
+      if (mm) fac *= 0.5;
+
+      // Compute orthogonality matrix
+      //
+      for (int n1=0; n1<NORDER; n1++) {
+
+	for (int n2=0; n2<NORDER; n2++) {
+
+	  double sumC = 0.0, sumS = 0.0;
+
+	  for (int ix=0; ix<=NUMX; ix++) {
+	    double x = XMIN + dX*ix;
+	    double r = xi_to_r(x);
+
+	    for (int iy=0; iy<=NUMY; iy++) {
+
+	      double y = YMIN + dY*iy;
+
+	      sumC += fac * r/d_xi_to_r(x) * d_y_to_z(y) *
+		potC[mm][n1][ix][iy] * densC[mm][n2][ix][iy];
+
+	      if (mm)
+		sumS += fac * r/d_xi_to_r(x) * d_y_to_z(y) *
+		  potS[mm][n1][ix][iy] * densS[mm][n2][ix][iy];
+	    }
+	  }
+
+	  out << std::setw(16) << sumC << std::setw(16) << sumS;
+	}
+	out << std::endl;
+      }
+    }
+  } else {
+    out << "EmpCylSL::ortho_check: "
+	<< "can not check orthogonality without density computation"
+	<< std::endl;
+  }
+}
+
+
+void EmpCylSL::getDensSC(int mm, int n, double R, double z,
+			 double& dC, double& dS)
+{
+
+  dC = 0.0;
+  dS = 0.0;
+
+  if (not DENS) return;
+
+  if (R/ASCALE>Rtable or mm>MMAX or n>=rank3) return;
+
+  double X = (r_to_xi(R) - XMIN)/dX;
+  double Y = (z_to_y(z)  - YMIN)/dY;
+
+  int ix = (int)X;
+  int iy = (int)Y;
+  
+  if (ix < 0) {
+    ix = 0;
+    if (enforce_limits) X = 0.0;
+  }
+  if (iy < 0) {
+    iy = 0;
+    if (enforce_limits) Y = 0.0;
+  }
+  
+  if (ix >= NUMX) {
+    ix = NUMX-1;
+    if (enforce_limits) X = NUMX;
+  }
+  if (iy >= NUMY) {
+    iy = NUMY-1;
+    if (enforce_limits) Y = NUMY;
+  }
+
+  double delx0 = (double)ix + 1.0 - X;
+  double dely0 = (double)iy + 1.0 - Y;
+  double delx1 = X - (double)ix;
+  double dely1 = Y - (double)iy;
+  
+  double c00 = delx0*dely0;
+  double c10 = delx1*dely0;
+  double c01 = delx0*dely1;
+  double c11 = delx1*dely1;
+  
+  dC = 
+    densC[mm][n][ix  ][iy  ] * c00 +
+    densC[mm][n][ix+1][iy  ] * c10 +
+    densC[mm][n][ix  ][iy+1] * c01 +
+    densC[mm][n][ix+1][iy+1] * c11 ;
+
+  if (mm)
+    dS = 
+      densS[mm][n][ix  ][iy  ] * c00 +
+      densS[mm][n][ix+1][iy  ] * c10 +
+      densS[mm][n][ix  ][iy+1] * c01 +
+      densS[mm][n][ix+1][iy+1] * c11 ;
+}
+
+
+void EmpCylSL::getPotSC(int mm, int n, double R, double z,
+			double& pC, double& pS)
+{
+
+  pC = 0.0;
+  pS = 0.0;
+
+  if (R/ASCALE>Rtable or mm>MMAX or n>=rank3) return;
+
+  double X = (r_to_xi(R) - XMIN)/dX;
+  double Y = (z_to_y(z)  - YMIN)/dY;
+
+  int ix = (int)X;
+  int iy = (int)Y;
+  
+  if (ix < 0) {
+    ix = 0;
+    if (enforce_limits) X = 0.0;
+  }
+  if (iy < 0) {
+    iy = 0;
+    if (enforce_limits) Y = 0.0;
+  }
+  
+  if (ix >= NUMX) {
+    ix = NUMX-1;
+    if (enforce_limits) X = NUMX;
+  }
+  if (iy >= NUMY) {
+    iy = NUMY-1;
+    if (enforce_limits) Y = NUMY;
+  }
+
+  double delx0 = (double)ix + 1.0 - X;
+  double dely0 = (double)iy + 1.0 - Y;
+  double delx1 = X - (double)ix;
+  double dely1 = Y - (double)iy;
+  
+  double c00 = delx0*dely0;
+  double c10 = delx1*dely0;
+  double c01 = delx0*dely1;
+  double c11 = delx1*dely1;
+  
+  pC = 
+    potC[mm][n][ix  ][iy  ] * c00 +
+    potC[mm][n][ix+1][iy  ] * c10 +
+    potC[mm][n][ix  ][iy+1] * c01 +
+    potC[mm][n][ix+1][iy+1] * c11 ;
+
+  if (mm)
+    pS = 
+      potS[mm][n][ix  ][iy  ] * c00 +
+      potS[mm][n][ix+1][iy  ] * c10 +
+      potS[mm][n][ix  ][iy+1] * c01 +
+      potS[mm][n][ix+1][iy+1] * c11 ;
+}

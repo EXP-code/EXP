@@ -53,7 +53,7 @@ main(int argc, char **argv)
   //====================
 
   std::string eof1, eof2;
-  int nmax, lmax, mmax, norder;
+  int nmax, lmax, mmax, norder, nodd;
   double acyl, hcyl;
 
   po::options_description desc("Allowed options");
@@ -64,12 +64,16 @@ main(int argc, char **argv)
      "First EOF file")
     ("eof2,2",     po::value<std::string>(&eof2)->default_value(".eof.cache.file2"),
      "Second EOF file")
-    ("mmax,m",     po::value<int>(&mmax)->default_value(64),
+    ("lmax,l",     po::value<int>(&lmax)->default_value(32),
      "maximum spherical azimuthal order")
     ("nmax,n",     po::value<int>(&nmax)->default_value(64),
      "maximum spherical radial order")
+    ("mmax,m",     po::value<int>(&mmax)->default_value(6),
+     "maximum cylindrical azimuthal order")
     ("norder,N",   po::value<int>(&norder)->default_value(18), 
      "maximum cylindrical radial order")
+    ("nodd,d",     po::value<int>(&nodd)->default_value(-1), 
+     "number of vertically antisymmetric functions per M-order")
     ("ascale,a",   po::value<double>(&acyl)->default_value(0.01), 
      "disk scale length")
     ("hscale,h",   po::value<double>(&hcyl)->default_value(0.001), 
@@ -124,13 +128,14 @@ main(int argc, char **argv)
   EmpCylSL::RMAX        = 20.0;
   EmpCylSL::NUMX        = 128;
   EmpCylSL::NUMY        = 64;
-  EmpCylSL::CMAP        = true;
+  EmpCylSL::CMAPR       = 1;
+  EmpCylSL::CMAPZ       = 1;
   EmpCylSL::DENS        = true;
   EmpCylSL::VFLAG       = 26;
 
   EmpCylSL::CACHEFILE = eof1;
 
-  EmpCylSL test1(nmax, lmax, mmax, norder, acyl, hcyl);
+  EmpCylSL test1(nmax, lmax, mmax, norder, acyl, hcyl, nodd);
 
   bool cache_ok = test1.read_cache();
 
@@ -147,7 +152,7 @@ main(int argc, char **argv)
 
   EmpCylSL test2(nmax, lmax, mmax, norder, acyl, hcyl);
 
-  cache_ok = test1.read_cache();
+  cache_ok = test2.read_cache();
 
   if (!cache_ok) {
     if (myid==0) {		// Diagnostic output . . .

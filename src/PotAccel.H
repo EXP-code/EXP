@@ -13,6 +13,8 @@
 #include <Particle.H>
 #include <StringTok.H>
 
+#include "config.h"
+
 class Component;
 struct thrd_pass_PotAccel;
 
@@ -78,6 +80,13 @@ protected:
 
   //! Length scaling (not used for all methods)
   double scale;
+
+#if HAVE_LIBCUDA==1
+  //! Cuda implementation is available for this source method.
+  //! Otherwise, particle structures will be copied between the GPU
+  //! and CPU at significant expanse
+  bool cuda_aware;
+#endif
 
 public:
 
@@ -176,6 +185,11 @@ public:
   //! Execute to finish level shifts for particles
   virtual void multistep_update_finish() {}
 
+#if HAVE_LIBCUDA==1
+  //! Cuda implementation of level shifts
+  virtual void multistep_update_cuda() {}
+#endif
+
   //! Set the level for evaluating acceleration at level n
   virtual void set_multistep_level(unsigned n) { mlevel=n; }
 
@@ -205,6 +219,10 @@ public:
   //! For parameter parsing
   bool atol(string& val) { return atoi(val.c_str()) ? true : false; }
 
+#if HAVE_LIBCUDA==1
+  //! Cuda aware
+  bool cudaAware() { return cuda_aware; }
+#endif
 };
 
 //! Helper class to pass info to threaded member

@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
+#include <cstring>
 #include <string>
 #include <vector>
 #include <cmath>
@@ -77,8 +78,13 @@ private:
   int    lmax, numr;
   bool   logr, xscl;
 
+  static const std::string cachefile;
+
   //! Rho(l, r), Term1(l, r), Term2(l, r)
-  std::vector< std::vector<double> > rho, T1, T2;
+  //std::vector< std::vector<double> > rho, T1, T2;
+
+  //! Rho(l, m, r), Term1(l, m, r), Term2(l, m, r)
+  std::vector< std::vector< std::vector<double> > > rho, T1, T2;
 
   //! Ylm angular factors
   double Nlm(int l, int m)
@@ -127,15 +133,19 @@ private:
     return ascl/(1.0 - x)/(1.0 - x);
   }
 
+  bool read_cache();
+  void write_cache();
+
 public:
 
   //! Constructor
   DiskEval(EmpCylSL::AxiDiskPtr model, double rmin, double rmax,
-	   double ascl, int lmax, int numr, int nint, bool progress=true);
+	   double ascl, int lmax, int numr, int nint, bool progress=true, int mmax=1, int nump=1);
 
-  //! Evaluation where the return tuple is potential, dphi/dR, dphi/dz
-  std::tuple<double, double, double> operator()(double R, double z);
+  //! Evaluation where the return tuple is potential, dPhi/dR, dPhi/dz, dPhi/dphi
+  std::tuple<double, double, double, double> operator()(double R, double z, double phi=0);
 
 };
 
 #endif
+

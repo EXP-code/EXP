@@ -16,11 +16,25 @@
    @param soft is a fixed softening value for all particles.  This can be 
    used even if a value is specified in the particle attribute array.
 
+   @param pm_model uses a spherical model for the distributed gravity.
+   E.g. a substructure halo profile.  Default: false.
+
+   @param pmmodel_file is the file containing the substructure halo
+   profile (default: SLGridSph.model)
+
+   @param type is the softening type. Current types: Plummer or
+   Spline.  Default type is Spline.
 */
 
 /* provide an extended spherical model for point mass */
+
+#include <utility>
+#include <memory>
+
 #include <AxisymmetricBasis.H>
+#include <GravKernel.H>
 #include <massmodel.h>
+
 
 class Direct : public PotAccel
 {
@@ -51,6 +65,12 @@ private:
 
   void * determine_coefficients_thread(void * arg);
   void * determine_acceleration_and_potential_thread(void * arg);
+
+  //! Smoothing kernel isntance
+  std::shared_ptr<SoftKernel> kernel;
+
+  //! Separations smaller than this are assumed to be zero (same particle)
+  const double rtol = 1.0e-16;
 
 public:
 

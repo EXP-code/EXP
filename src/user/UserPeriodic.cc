@@ -202,6 +202,9 @@ void UserPeriodic::initialize()
 void UserPeriodic::determine_acceleration_and_potential(void)
 {
   if (cC != c0) return;
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
   if (nbin && tnow>=Tnext) trace = true;
   exp_thread_fork(false);
   if (trace) write_trace();

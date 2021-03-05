@@ -2,14 +2,15 @@
 #define _AddDisk_H
 
 #include <vector>
+#include <memory>
 
 #include <massmodel.h>
 
 class AddDisk
 {
  private:
-  vector<double> r, d, m, p;
-  SphericalModelTable *mod;
+  std::vector<double> r, d, m, p;
+  std::shared_ptr<SphericalModelTable> mod;
   double dmass;
 
  public:
@@ -18,10 +19,10 @@ class AddDisk
   static bool use_mpi;			// false
   static bool logarithmic;		// false
 
-  AddDisk(AxiSymModel* halo, AxiSymModel* disk, double dmass);
+  AddDisk(std::shared_ptr<AxiSymModel> halo, std::shared_ptr<AxiSymModel> disk, double dmass);
   ~AddDisk();
 
-  SphericalModelTable *get_model() { return mod; }
+  std::shared_ptr<SphericalModelTable> get_model() { return mod; }
 };
 
 

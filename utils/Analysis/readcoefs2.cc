@@ -7,56 +7,7 @@
 
 namespace po = boost::program_options;
 
-#include "../../src/coef.H"
-
-struct SphCoefs
-{
-  SphCoefHeader header;
-  std::vector< std::vector<double> > coefs;
-
-  bool read(std::istream& in, bool exp_type);
-};
-
-typedef std::shared_ptr<SphCoefs> SphCoefsPtr;
-
-bool SphCoefs::read(std::istream& in, bool exp_type)
-{
-  in.read((char *)&header, sizeof(SphCoefHeader));
-  if (not in) return false;
-
-  coefs.resize((header.Lmax+1)*(header.Lmax+1));
-  for (auto & v : coefs) v.resize(header.nmax);
-
-  for (int ir=0; ir<header.nmax; ir++) {
-    for (int l=0; l<(header.Lmax+1)*(header.Lmax+1); l++)
-      in.read((char *)&coefs[l][ir], sizeof(double));
-  }
-
-  if (exp_type) {
-    int k = 0;
-    for (int l=0; l<=header.Lmax; l++) {
-      for (int m=0; m<=l; m++) {
-	double fac = sqrt( (0.5*l+0.25)/M_PI * 
-			   exp(lgamma(1.0+l-m) - lgamma(1.0+l+m)) );
-
-	if (m != 0) fac *= M_SQRT2;
-
-	// Cosine terms
-	for (int ir=0; ir<header.nmax; ir++) coefs[k][ir] *= fac;
-	k++;
-
-	// Sine terms
-	if (m != 0) {
-	  for (int ir=0; ir<header.nmax; ir++) coefs[k][ir] *= fac;
-	  k++;
-	}
-      }
-    }
-  }
-
-  return true;
-}
-
+#include "Coefs.H"
 
 int main(int argc, char **argv)
 {
@@ -144,7 +95,7 @@ int main(int argc, char **argv)
     for (int ll=lmin; ll<=std::min<int>(lmax, c.second->header.Lmax); ll++) {
       for (int mm=0; mm<=ll; mm++) {
 	std::cout << std::setw(18) << c.first << std::setw(5) << ll << std::setw(5) << mm;
-	for (int nn=std::max<int>(nmin, 0); nn<=std::min<int>(nmax, c.second->header.nmax); nn++) {
+	for (int nn=std::max<int>(nmin, 0); nn<std::min<int>(nmax, c.second->header.nmax); nn++) {
 	  if (mm==0) {
 	    if (angle)
 	      std::cout << std::setw(18) << 0.0;

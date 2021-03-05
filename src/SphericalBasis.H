@@ -44,8 +44,12 @@ protected:
   //! Matrices per thread for obtaining derivatives legendre coefficients
   Matrix *dlegs;
 
+
+  //@{
   //! Matrices per thread for obtaining expansion coefficients
-  Matrix *expcoef0;
+  typedef boost::shared_ptr<Vector> VectorP;
+  std::vector<std::vector<VectorP>> expcoef0;
+  //@}
 
   //@{
   //! Mass accumulation for PCA
@@ -100,13 +104,14 @@ protected:
 #if HAVE_LIBCUDA==1
   virtual void determine_coefficients_cuda(bool compute_pca);
   virtual void determine_acceleration_cuda();
+  virtual void multistep_update_cuda();
 
   thrust::host_vector<cuFP_t> host_coefs, host_massT;
   thrust::device_vector<cuFP_t> dev_coefs;
   cuFP_t host_mass_tot;
 
-  virtual void HtoD_coefs(const Matrix& coef);
-  virtual void DtoH_coefs(Matrix& coef);
+  virtual void HtoD_coefs(const std::vector<VectorP>& coef);
+  virtual void DtoH_coefs(std::vector<VectorP>& coef);
 
   std::vector<cudaArray_t> cuInterpArray;
   thrust::host_vector<cudaTextureObject_t> tex;
@@ -130,7 +135,7 @@ protected:
     ret.numy   = 0;
     ret.dxi    = 1.0/(ret.numr-1);
     ret.dxi    = 0.0;
-    ret.cmap   = 2;
+    ret.cmapR  = 1;
 
     return ret;
   }
@@ -164,25 +169,9 @@ protected:
     void resize_acc  (int Lmax, int Nthread);
   };
 
+  //! A storage instance
+  cudaStorage cuS;
 
-  //! Cyclical ring iterator for storage
-  //@{
-  //! An STL container
-  typedef std::vector<cudaStorage> cuContainer;
-
-  //! An iterator for the container
-  typedef cuContainer::iterator    cuIterator;
-
-  //! Convert to a ring iterator
-  typedef RingIterator <cudaStorage, cuContainer, cuIterator> cuRingType;
-
-  //! The storage instance
-  cuContainer cuRingData;
-
-  //! The cyclic iterator instance
-  boost::shared_ptr<cuRingType> cuRing;
-  //@}
-  
   //! Only initialize once
   bool initialize_cuda_sph;
 
@@ -267,6 +256,9 @@ protected:
   */
   void dump_coefs_all(ostream &);
 
+  //! Coefficient magic number
+  const unsigned int cmagic = 0xc0a57a2;
+
   //! For massive satellite simulations
   MixtureBasis *mix;
 
@@ -287,6 +279,9 @@ protected:
   double lastPlayTime;
 
 public:
+
+  //! Use YAML header in coefficient file
+  static bool NewCoefs;
 
   //! Constructor (<code>line</code> contains the paramter list)
   SphericalBasis(const YAML::Node& conf, MixtureBasis *m=0);
@@ -379,6 +374,13 @@ public:
   virtual 
   void get_potl_dens(int lmax, int nmax, double r, Matrix& p, Matrix& d,
 		     int tid) = 0;
+
+  //! Return the value for the fields in Cartesian coordinates
+  void  determine_fields_at_point(double x, double y, double z,
+				  double *tdens0, double *tpotl0, 
+				  double *tdens, double *tpotl, 
+				  double *tpotx, double *tpoty, 
+				  double *tpotz);
 
   //! Returns the potential, its derivatives & density in spherical coords
   void determine_fields_at_point_sph(double r, double theta, double phi,

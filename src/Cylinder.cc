@@ -1,5 +1,3 @@
-using namespace std;
-
 #include <sstream>
 #include <chrono>
 #include <limits>
@@ -10,10 +8,6 @@ using namespace std;
 #include <Cylinder.H>
 #include <MixtureBasis.H>
 #include <Timer.h>
-
-#ifdef HAVE_OPENMP
-#include <omp.h>		// For multithreading playback intialization
-#endif
 
 Timer timer_debug;
 
@@ -61,7 +55,6 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   // Initialize the circular storage container 
   cuda_initialize();
   initialize_cuda_cyl = true;
-
 #endif
 
   id              = "Cylinder";
@@ -84,6 +77,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   mlim            = -1;
   hcyl            = 1.0;
   ncylorder       = 10;
+  ncylodd         = -1;
   ncylrecomp      = -1;
 
   rnum            = 100;
@@ -98,8 +92,8 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   self_consistent = true;
   firstime        = true;
   expcond         = true;
-  cmap            = true;
-  cmaptype        = 1;
+  cmapR           = 1;
+  cmapZ           = 1;
   logarithmic     = false;
   pcavar          = false;
   pcavtk          = false;
@@ -115,8 +109,10 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   firstime_coef   = true;
   coefMaster      = true;
   lastPlayTime    = -std::numeric_limits<double>::max();
+  EVEN_M          = false;
   eof_over        = false;
   eof_file        = "";
+  cuda_aware      = true;
 
   initialize();
 
@@ -125,7 +121,8 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   EmpCylSL::NUMX        = ncylnx;
   EmpCylSL::NUMY        = ncylny;
   EmpCylSL::NUMR        = ncylr;
-  EmpCylSL::CMAP        = cmaptype;
+  EmpCylSL::CMAPR       = cmapR;
+  EmpCylSL::CMAPZ       = cmapZ;
   EmpCylSL::logarithmic = logarithmic;
   EmpCylSL::CACHEFILE   = outdir + ".eof.cache." + runtag;
   EmpCylSL::VFLAG       = vflag;
@@ -141,11 +138,12 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 
   // Make the empirical orthogonal basis instance
   //
-  ortho = new EmpCylSL(nmax, lmax, mmax, ncylorder, acyl, hcyl);
+  ortho = new EmpCylSL(nmax, lmax, mmax, ncylorder, acyl, hcyl, ncylodd);
   
   // Set azimuthal harmonic order restriction?
   //
   if (mlim>=0) ortho->set_mlim(mlim);
+  if (EVEN_M)  ortho->setEven(EVEN_M);
 
   try {
     if (conf["tk_type"]) ortho->setTK(conf["tk_type"].as<std::string>());
@@ -250,6 +248,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	   << " mmax="        << mmax
 	   << " mlim="        << mlim
 	   << " ncylorder="   << ncylorder
+	   << " ncylodd="     << ncylodd
 	   << " rcylmin="     << rcylmin
 	   << " rcylmax="     << rcylmax
 	   << " acyl="        << acyl
@@ -277,6 +276,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 	 << " mmax="        << mmax
 	 << " mlim="        << mlim
 	 << " ncylorder="   << ncylorder
+	 << " ncylodd="     << ncylodd
 	 << " rcylmin="     << rcylmin
 	 << " rcylmax="     << rcylmax
 	 << " acyl="        << acyl
@@ -336,6 +336,7 @@ void Cylinder::initialize()
     if (conf["ncylny"    ])     ncylny  = conf["ncylny"    ].as<int>();
     if (conf["ncylr"     ])      ncylr  = conf["ncylr"     ].as<int>();
     if (conf["ncylorder" ])  ncylorder  = conf["ncylorder" ].as<int>();
+    if (conf["ncylodd"   ])    ncylodd  = conf["ncylodd"   ].as<int>();
     if (conf["ncylrecomp"]) ncylrecomp  = conf["ncylrecomp"].as<int>();
     if (conf["npca"      ])       npca  = conf["npca"      ].as<int>();
     if (conf["npca0"     ])      npca0  = conf["npca0"     ].as<int>();
@@ -356,13 +357,13 @@ void Cylinder::initialize()
     if (conf["pcadiag"   ])    pcadiag  = conf["pcadiag"   ].as<bool>();
     if (conf["try_cache" ])  try_cache  = conf["try_cache" ].as<bool>();
     if (conf["density"   ])    density  = conf["density"   ].as<bool>();
-    if (conf["cmap"      ])       cmap  = conf["cmap"      ].as<bool>();
-    if (conf["cmaptype"  ])    cmaptype = conf["cmaptype"  ].as<int>();
+    if (conf["EVEN_M"    ])     EVEN_M  = conf["EVEN_M"    ].as<bool>();
+    if (conf["cmap"      ])      cmapR  = conf["cmap"      ].as<int>();
+    if (conf["cmapr"     ])      cmapR  = conf["cmapr"     ].as<int>();
+    if (conf["cmapz"     ])      cmapZ  = conf["cmapz"     ].as<int>();
     
     if (conf["self_consistent"])
       self_consistent = conf["self_consistent"].as<bool>();
-
-    if (not cmap) cmaptype = 0;
 
     if (conf["playback"]) {
       std::string file = conf["playback"].as<std::string>();
@@ -668,7 +669,7 @@ void Cylinder::determine_coefficients(void)
 {
   // Playback basis coefficients
   //
-  if (playback and play_back) {
+  if (play_back) {
     compute_grid_mass();	// Only performed once to start
 
 				// Do we need new coefficients?
@@ -678,15 +679,15 @@ void Cylinder::determine_coefficients(void)
     if (coefMaster) {
 
       if (myid==0) {
-	auto ret = playback->interpolate(tnow);
+	auto C = playback->interpolate(tnow);
 
 	for (int m=0; m<=mmax; m++) {
-	  MPI_Bcast(ret->first [m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	  MPI_Bcast(ret->second[m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast(std::get<0>(*C)[m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast(std::get<1>(*C)[m].data(), nmax, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 	  bool zero = false;
 	  if (m==0) zero = true;
-	  ortho->set_coefs(m, ret->first[m], ret->second[m], zero);
+	  ortho->set_coefs(m, std::get<0>(*C)[m], std::get<1>(*C)[m], zero);
 	}
       } else {
 	std::vector<double> cosm(nmax), sinm(nmax);
@@ -702,12 +703,12 @@ void Cylinder::determine_coefficients(void)
       }
 
     } else {
-      auto ret = playback->interpolate(tnow);
+      auto C = playback->interpolate(tnow);
 
       for (int m=0; m<=mmax; m++) {
 	bool zero = false;
 	if (m==0) zero = true;
-	ortho->set_coefs(m, ret->first[m], ret->second[m], zero);
+	ortho->set_coefs(m, std::get<0>(*C)[m], std::get<1>(*C)[m], zero);
       }
     }
 
@@ -807,17 +808,12 @@ void Cylinder::determine_coefficients(void)
 #if HAVE_LIBCUDA==1
   if (component->cudaDevice>=0) {
     start1 = std::chrono::high_resolution_clock::now();
-    
     if (mstep==0) {
       std::fill(use.begin(), use.end(), 0.0);
       std::fill(cylmass0.begin(), cylmass0.end(), 0.0);
     }
-
-    if (cC->levlist[mlevel].size()) {
-      determine_coefficients_cuda(compute);
-      DtoH_coefs(mlevel);
-    }
-
+    determine_coefficients_cuda(compute);
+    DtoH_coefs(mlevel);
     finish1 = std::chrono::high_resolution_clock::now();
   } else {    
     exp_thread_fork(true);
@@ -839,7 +835,7 @@ void Cylinder::determine_coefficients(void)
 				// communication barrier
   MPL_stop_timer();
 
-  if (tnow==resetT) {
+  if (not play_back and tnow==resetT) {
 
     MPI_Allreduce ( &use1, &use0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce ( &cylmassT1, &cylmassT0, 1, MPI_DOUBLE, MPI_SUM, 
@@ -1184,7 +1180,7 @@ void Cylinder::determine_acceleration_and_potential(void)
 #endif
 
 #if HAVE_LIBCUDA==1
-  if (cC->cudaDevice>=0) {
+  if (cC->cudaDevice>=0 and use_cuda) {
     start1 = std::chrono::high_resolution_clock::now();
     //
     // Copy coeficients from this component to device
@@ -1254,6 +1250,26 @@ void Cylinder::determine_acceleration_and_potential(void)
   }
 #endif
 }
+
+void Cylinder::determine_fields_at_point
+(double x, double y, double z, 
+ double *tdens0, double *tpotl0, 
+ double *tdens, double *tpotl, 
+ double *tpotX, double *tpotY, double *tpotZ)
+{
+  double R   = sqrt(x*x + y*y + z*z);
+  double phi = atan2(y, x);
+  double cph = cos(phi), sph = sin(phi);
+
+  double tpotR, tpotP;
+
+  determine_fields_at_point_cyl(R, z, phi, tdens0, tpotl0, tdens, tpotl, 
+				&tpotR, tpotZ, &tpotP);
+  
+  *tpotX = tpotR*cph - tpotP*sph ;
+  *tpotY = tpotR*sph + tpotP*cph ;
+}
+
 
 void Cylinder::
 determine_fields_at_point_sph(double r, double theta, double phi,
@@ -1436,70 +1452,28 @@ void Cylinder::compute_grid_mass()
   // will not be the same as the original simulation but it should be
   // close unless the original grid was inappropriate.
   //
-  std::vector<double> cylms(nthrds, 0.0);
-  std::vector<int>    cylnn(nthrds, 0);
-    
-  double Rmax2 = rcylmax*rcylmax*acyl*acyl;
-  auto   nsize = cC->Particles().size();
-  
-  auto p = cC->Particles();
-
-#pragma omp parallel 
-  {
-#ifdef HAVE_OPENMP
-    int nthrd = omp_get_num_threads();
-    int id    = omp_get_thread_num();
-#else
-    int nthrd = 1;
-    int id    = 0;
-#endif
-
-    size_t chunk_size = p.size() / nthrd;
-    auto begin = p.begin();
-    std::advance(begin, id * chunk_size);
-    auto end = begin;
-
-    // last thread iterates the remaining sequence
-    if (id = nthrd - 1)
-      end = p.end();
-    else
-      std::advance(end, chunk_size);
-    
-#pragma omp barrier
-    for (auto it = begin; it != end; ++it) {
-      auto n = it->first;
-
-    /*
-#pragma omp parallel for
-  for (auto it=p.begin(); it!=p.end(); it++) {
-    auto n = it->first;
-#ifdef HAVE_OPENMP
-    int id = omp_get_thread_num();
-#else
-    int id = 0;
-#endif
-    */
-    
-      double R2 = 0.0;
-      for (int j=0; j<3; j++)  {
-	double pos = cC->Pos(n, j, Component::Local | Component::Centered);
-	R2 += pos*pos;
-      }
-      
-      if ( R2 < Rmax2) {
-	cylms[id] += cC->Mass(n);
-	cylnn[id] += 1;
-      } 
-    } // END: for
-  } // END: parallel
-  
   cylmass = 0.0;
   used    = 0;
-  for (int t=0; t<nthrds; t++) {
-    cylmass += cylms[t];
-    used    += cylnn[t];
-  }
+    
+  double Rmax2 = rcylmax*rcylmax*acyl*acyl;
   
+  auto p = cC->Particles();
+  
+  for (auto it=p.begin(); it!=p.end(); ++it) {
+    auto n = it->first;
+
+    double R2 = 0.0;
+    for (int j=0; j<3; j++)  {
+      double pos = cC->Pos(n, j, Component::Local | Component::Centered);
+      R2 += pos*pos;
+    }
+      
+    if ( R2 < Rmax2) {
+      cylmass += cC->Mass(n);
+      used    += 1;
+    } 
+  } // END: particle loop
+
   MPI_Allreduce(MPI_IN_PLACE, &cylmass, 1, MPI_DOUBLE, MPI_SUM,
 		MPI_COMM_WORLD);
 

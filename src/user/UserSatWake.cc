@@ -874,6 +874,10 @@ void UserSatWake::initialize_coefficients()
 
 void UserSatWake::determine_acceleration_and_potential(void)
 {
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
+
   compute_coefficients();
   exp_thread_fork(false);
 }

@@ -358,6 +358,12 @@ double UserResPotOrb::get_omega(double t)
 void UserResPotOrb::determine_acceleration_and_potential(void)
 {
 
+  if (multistep and mlevel>0) return;
+
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
+
   if (first) {
 
     if (restart) {

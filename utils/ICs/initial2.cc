@@ -83,6 +83,11 @@
 
 namespace po = boost::program_options;
 
+#include <config.h>
+#ifdef HAVE_OMP_H
+#include <omp.h>
+#endif
+
 // MDW classes
 //
 #include <numerical.h>
@@ -91,7 +96,7 @@ namespace po = boost::program_options;
 #include <hernquist.h>
 #include <model3d.h>
 #include <biorth.h>
-#include <SphericalSL.h>
+#include <SphericalSL.H>
 #include <interp.h>
 #include <EmpCylSL.h>
 #include <DiskModels.H>
@@ -220,9 +225,9 @@ void set_fpu_gdb_handler(void)
 #endif
 
                                 // Local headers
-#include "SphericalSL.h"
-#include "DiskHalo2.h" 
-#include "localmpi.h"
+#include <SphericalSL.H>
+#include <DiskHalo2.H>
+#include <localmpi.h>
 
 
 // Hydrogen fraction
@@ -348,6 +353,7 @@ main(int ac, char **av)
   int          NMAX;
   int          NUMR;
   int          SCMAP;
+  int          NUMDF;
   double       RMIN;
   double       RCYLMIN;
   double       RCYLMAX;
@@ -370,7 +376,8 @@ main(int ac, char **av)
   bool         expcond;
   bool         LOGR;
   bool         CHEBY;
-  bool         CMAP;
+  int          CMAPR;
+  int          CMAPZ;
   int          NCHEB;
   int          CMTYPE;
   int          NDR;
@@ -386,6 +393,7 @@ main(int ac, char **av)
   int          NOUT;
   int          NORDER;
   int          NORDER1;
+  int          NODD;
   bool         SELECT;
   bool         DUMPCOEF;
   int          DIVERGE;
@@ -446,8 +454,7 @@ main(int ac, char **av)
     ("RMIN",            po::value<double>(&RMIN)->default_value(0.005),                 "Minimum halo radius")
     ("RCYLMIN",         po::value<double>(&RCYLMIN)->default_value(0.001),              "Minimum disk radius")
     ("RCYLMAX",         po::value<double>(&RCYLMAX)->default_value(20.0),               "Maximum disk radius")
-    ("SCMAP",           po::value<int>(&SCMAP)->default_value(1),
-        "Turn on Spherical SL coordinate mapping (1, 2, 0=off")
+    ("SCMAP",           po::value<int>(&SCMAP)->default_value(1),                       "Turn on Spherical SL coordinate mapping (1, 2, 0=off")
     ("SCSPH",           po::value<double>(&SCSPH)->default_value(1.0),                  "Scale for Spherical SL coordinate mapping")
     ("ECUT",            po::value<double>(&ECUT)->default_value(1.0),                   "Energy cutoff for multimass ratio grid")
     ("RSPHSL",          po::value<double>(&RSPHSL)->default_value(47.5),                "Maximum halo expansion radius")
@@ -467,12 +474,13 @@ main(int ac, char **av)
     ("RNUM",            po::value<int>(&RNUM)->default_value(200),                      "Number of radial knots for EmpCylSL basis construction quadrature")
     ("PNUM",            po::value<int>(&PNUM)->default_value(80),                       "Number of azimthal knots for EmpCylSL basis construction quadrature")
     ("TNUM",            po::value<int>(&TNUM)->default_value(80),                       "Number of cos(theta) knots for EmpCylSL basis construction quadrature")
-    ("CMAP",            po::value<bool>(&CMAP)->default_value(true),                     "Map coordinates from radius to tabled grid")
-    ("CMTYPE",          po::value<int>(&CMTYPE)->default_value(1),                       "Coordinate mapping type (0=none, 1=original, 2=power in R and z")
+    ("CMAPR",           po::value<int>(&CMAPR)->default_value(1),                     "Radial coordinate mapping type for cylindrical grid (0=none, 1=rational fct)")
+    ("CMAPZ",           po::value<int>(&CMAPZ)->default_value(1),                     "Vertical coordinate mapping type for cylindrical grid (0=none, 1=sech, 2=power in z")
     ("SVD",             po::value<bool>(&SVD)->default_value(false),                    "Use svd for symmetric eigenvalue problesm")
     ("LOGR",            po::value<bool>(&LOGR)->default_value(false),                   "Make a logarithmic coordinate mapping")
     ("CHEBY",           po::value<bool>(&CHEBY)->default_value(false),                  "Use Chebyshev smoothing for epicyclic and asymmetric drift")
     ("NCHEB",           po::value<int>(&NCHEB)->default_value(16),                      "Chebyshev order for smoothing")
+    ("NUMDF",           po::value<int>(&NUMDF)->default_value(4000),                    "Number of grid points for Eddington inversion")
     ("NDR",             po::value<int>(&NDR)->default_value(1600),                      "Number of points in DiskHalo radial table for disk")
     ("NDZ",             po::value<int>(&NDZ)->default_value(400),                       "Number of points in DiskHalo vertical table for disk")
     ("NHR",             po::value<int>(&NHR)->default_value(1600),                      "Number of points in DiskHalo radial table for halo")
@@ -487,6 +495,7 @@ main(int ac, char **av)
     ("NUMY",            po::value<int>(&NUMY)->default_value(128),                      "Vertical grid size for disk basis table")
     ("NORDER",          po::value<int>(&NORDER)->default_value(16),                     "Number of disk basis functions per M-order")
     ("NORDER1",         po::value<int>(&NORDER1)->default_value(1000),                  "Restricts disk basis function to NORDER1<NORDER after basis construction for testing")
+    ("NODD",            po::value<int>(&NODD)->default_value(-1),                       "Number of vertically antisymmetric disk basis functions per M-order")
     ("NOUT",            po::value<int>(&NOUT)->default_value(1000),                     "Number of radial basis functions to output for each harmonic order")
     ("SELECT",          po::value<bool>(&SELECT)->default_value(false),                 "Enable significance selection in coefficient computation")
     ("DUMPCOEF",        po::value<bool>(&DUMPCOEF)->default_value(false),               "Dump coefficients")
@@ -535,8 +544,10 @@ main(int ac, char **av)
     ("mtype",           po::value<string>(&mtype),                                              "Spherical deprojection model for EmpCylSL (one of: Exponential, Gaussian, Plummer, Power)")
     ("condition",       po::value<string>(&dtype)->default_value("exponential"),                "Disk type for condition (one of: constant, gaussian, mn, exponential)")
     ("report",          po::value<bool>(&report)->default_value(true),                  "Report particle progress in EOF computation")
-    ("evolved",         po::value<bool>(&evolved)->default_value(false),           "Use existing halo body file given by <hbods> and do not create a new halo")
+    ("evolved",         po::value<bool>(&evolved)->default_value(false),                "Use existing halo body file given by <hbods> and do not create a new halo")
     ("ignore",          po::value<bool>(&ignore)->default_value(false),                 "Ignore any existing cache file and recompute the EOF")
+    ("newcache",                                                                        "Use new YAML header version for EOF cache file")
+    ("ortho",                                                                           "Perform orthogonality check for basis")
     ;
         
   po::variables_map vm;
@@ -650,6 +661,12 @@ main(int ac, char **av)
     }
   }
   
+  // Enable new YAML cache header
+  //
+  if (vm.count("newcache")) {
+    EmpCylSL::NewCache = true;
+  }
+
   // Set EmpCylSL mtype.  This is the spherical function used to
   // generate the EOF basis.  If "deproject" is set, this will be
   // overriden in EmpCylSL.
@@ -698,9 +715,18 @@ main(int ac, char **av)
     return 0;
   }
 
-  // Set mapping type for EOF table
-  //
-  if (not CMAP) CMTYPE = 0;
+  //====================
+  // OpenMP control
+  //====================
+
+#ifdef HAVE_OMP_H
+  omp_set_num_threads(nthrds);
+#pragma omp parallel
+  if (myid==0) {
+    int numthrd = omp_get_num_threads();
+    std::cout << "Number of threads=" << numthrd << std::endl;
+  }
+#endif
 
   //====================
   // Okay, now begin ...
@@ -769,7 +795,7 @@ main(int ac, char **av)
   DiskHalo::SHFACTOR    = SHFAC;
   DiskHalo::COMPRESSION = DMFAC;
   DiskHalo::LOGSCALE    = 1;
-  DiskHalo::NUMDF       = 4000;
+  DiskHalo::NUMDF       = NUMDF;
   DiskHalo::Q           = ToomreQ;
   DiskHalo::R_DF        = R_DF;
   DiskHalo::DR_DF       = DR_DF;
@@ -788,6 +814,7 @@ main(int ac, char **av)
   
   // SLGridSph::diverge = DIVERGE;
   // SLGridSph::divergexp = DIVERGE_RFAC;
+  SLGridSph::model_file_name = halofile1;
   
   SphericalSL::RMIN = RMIN;
   SphericalSL::RMAX = RSPHSL;
@@ -807,7 +834,8 @@ main(int ac, char **av)
   EmpCylSL::NUMY        = NUMY;
   EmpCylSL::NUMR        = NUMR;
   EmpCylSL::NOUT        = NOUT;
-  EmpCylSL::CMAP        = CMTYPE;
+  EmpCylSL::CMAPR       = CMAPR;
+  EmpCylSL::CMAPZ       = CMAPZ;
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
   EmpCylSL::DENS        = DENS;
@@ -823,7 +851,7 @@ main(int ac, char **av)
 
   if (n_particlesD) {
 
-    expandd = boost::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE);
+    expandd = boost::make_shared<EmpCylSL>(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE, NODD);
 
 #ifdef DEBUG
    std::cout << "Process " << myid << ": "
@@ -835,6 +863,7 @@ main(int ac, char **av)
 	     << " lmax2="  << LMAX2
 	     << " mmax="   << MMAX
 	     << " nordz="  << NORDER
+	     << " noddz="  << NODD
 	     << std::endl  << std::flush;
 #endif
 
@@ -892,8 +921,13 @@ main(int ac, char **av)
       save_eof = true;
     }
 
+    // Basis orthgonality check
+    //
+    if (vm.count("ortho")) {
+      std::ofstream out(runtag + ".ortho_check");
+      expandd->ortho_check(out);
+    }
   }
-
 
   //====================Create the disk & halo model===========================
 

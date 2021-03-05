@@ -5,6 +5,13 @@ VPATH = $(top_srcdir)/src:.
 CC = mpicc
 CXX = mpiCC
 
+## Stuff for verbose output in parse.cc
+GIT_COMMIT=`git rev-parse HEAD`
+GIT_BRANCH=`git rev-parse --abbrev-ref HEAD`
+COMPILE_TIME=`date -u +'%Y-%m-%d %H:%M:%S UTC'`
+VERSION_FLAGS=-DGIT_COMMIT="\"$(GIT_COMMIT)\"" -DGIT_BRANCH="\"$(GIT_BRANCH)\"" -DCOMPILE_TIME="\"$(COMPILE_TIME)\""
+## 
+
 if ENABLE_SEQCHECK
 ADD_CFLAGS1  = -DSEQCHECK
 endif
@@ -30,19 +37,19 @@ AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/include			\
 -I$(top_srcdir)/exputil -I$(top_srcdir)/expgnu -I$(top_srcdir)/src	\
  $(INCLUDE_DSMC) -I/usr/include/mpi
 
-AM_CXXFLAGS  = -std=c++11 -D_REENTRANT $(OPENMP_CXXFLAGS) $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4) @exp_vtk_include@  $(CUDA_CFLAGS)
+AM_CXXFLAGS  = -D_REENTRANT $(OPENMP_CXXFLAGS) $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4) @exp_vtk_include@  @exp_eigen3_include@ $(CUDA_CFLAGS) $(VERSION_FLAGS)
 
 bin_PROGRAMS = exp
 
 if ENABLE_CUDA
   ADD_CUDA = cudaParticle.cu cudaSphericalBasis.cu cudaSphere.cu \
 	cudaCylinder.cu cudaEmpCylSL.cu cudaComponent.cu NVTX.cc	 \
-	cudaHOT.cu
+	cudaHOT.cu cudaIncpos.cu cudaIncvel.cu cudaMultistep.cu
   ifeq ($(GENCODE_FLAGS),)
     $(foreach sm,@sm_vers@,$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
   endif
   CUDA_LIBFLAGS  = -lcudart -lnvToolsExt
-  NVCC_CXXFLAGS  = -I. $(GENCODE_FLAGS) $(NVCC_EXTRA) -Xcompiler $(AM_CPPFLAGS)
+  NVCC_CXXFLAGS  = -I. $(GENCODE_FLAGS) $(NVCC_EXTRA) @exp_eigen3_include@ -Xcompiler $(AM_CPPFLAGS)
 endif
 
 CXXLINK = mpiCC -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
@@ -61,7 +68,7 @@ exp_SOURCES = Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc	\
      multistep.cc parse.cc Slab.cc SlabSL.cc step.cc sbessj.cc		\
      sbessz.cc tidalField.cc ultra.cc ultrasphere.cc MPL.cc zbrent.cc	\
      OutFrac.cc OutCalbr.cc ParticleFerry.cc pCell.cc chkSlurm.c	\
-     chkTimer.cc pHOT.cc VtkPCA.cc $(ADD_CUDA)
+     chkTimer.cc pHOT.cc VtkPCA.cc GravKernel.cc $(ADD_CUDA)
 exp_DEPENDENCIES = $(EXPADD_DSMC)
 
 BOOST_LIBS = $(BOOST_FILESYSTEM_LIB) $(BOOST_SERIALIZATION_LIB) $(BOOST_SYSTEM_LIB)
@@ -87,6 +94,13 @@ noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H Cylinder.H     \
         version.h pHOT.H pCell.H pHOT_types.H ParticleFerry.H                \
 	pHOT.H pHOT_types.H
 
+# always assume that parse.o is out of date to force compile time and
+# git commit stamps
+
+parse.o:   .FORCE
+
+.FORCE:
+
 # the rule that can recognize *.cu files and compile the *.cu files to
 # *.lo and *.o files
 .cu.lo:
@@ -94,11 +108,6 @@ noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H Cylinder.H     \
 
 .cu.o :
 	$(NVCC) $(CUDA_CFLAGS) $(NVCC_CXXFLAGS) -c -o $@ $<
-
-# special case for f77 for now
-
-sledge.o:	sledge.f
-		f77 -g -o sledge.o -c sledge.f
 
 SUBDIRS = user $(SUBDIR_DSMC)
 DIST_SUBDIRS = user DSMC

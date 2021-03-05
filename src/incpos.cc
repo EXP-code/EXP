@@ -8,6 +8,9 @@
 #include <gptl.h>
 #endif
 
+#ifdef HAVE_LIBCUDA
+void incr_position_cuda(cuFP_t dt, int mlevel);
+#endif
 
 void * incr_position_thread(void *ptr)
 {
@@ -75,6 +78,12 @@ void incr_position(double dt, int mlevel)
     GPTLstart("incr_position");
 #endif
 
+#ifdef HAVE_LIBCUDA
+    if (use_cuda) {
+      incr_position_cuda(static_cast<cuFP_t>(dt), mlevel);
+      return;
+    }
+#endif
 
   if (nthrds==1) {
 

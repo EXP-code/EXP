@@ -180,6 +180,7 @@ PotAccel::PotAccel(const YAML::Node& CONF) : conf(CONF)
   dof          = 3;
   mlevel       = 0;
   scale        = 1.0;
+  cuda_aware   = false;
 
   // Per thread counter
   try {

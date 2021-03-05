@@ -33,6 +33,9 @@ extern bool fpe_trap;
 //! Install error handler for fpe backtrace
 extern bool fpe_trace;
 
+//! Use gdb or native trace handling
+extern bool gdb_trace;
+
 //! Install error handler for fpe wait
 extern bool fpe_wait;
 
@@ -93,6 +96,9 @@ extern bool eqmotion;
 //! Multistep levels (default: 0 means no multistepping)
 extern unsigned multistep;
 
+//! Constrain level changes per step (default: 0 means no constraint)
+extern unsigned shiftlevl;
+
 //! Lowest level for centering recomputation (default: multistep/2)
 extern int centerlevl;
 
@@ -133,8 +139,15 @@ extern int NICE;
 //! Output logging level
 extern int VERBOSE;
 
-//! Times for each phase space slice (for Leap-Frog)
+//! Step timing
+extern bool step_timing;
+
+//! Times for each phase-space time slice (for Leap-Frog)
 extern double tnow;
+
+//! Times for acceleration evaluation (for multistep).  Equal to tnow
+//! if multistep = 0
+extern double tstp;
 
 //! Current step number
 extern int this_step;
@@ -333,9 +346,12 @@ extern bool use_cuda;
 //! For toggling CUDA profiling
 extern bool cuda_prof;
 
-//! Number of concurrent CUDA streams
-extern int  cuStreams;
-
 #include "Species.H"
+
+#if HAVE_LIBCUDA==1
+#include <cudaUtil.cuH>
+extern thrust::device_vector<int> cuDstepL, cuDstepN;
+extern int cudaGlobalDevice;
+#endif
 
 #endif

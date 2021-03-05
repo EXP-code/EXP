@@ -70,7 +70,7 @@ Component::Component(YAML::Node& CONF)
 			   << std::string(60, '-') << std::endl;
 
     MPI_Finalize();
-    exit(-1);
+    exit(-2);
   }
   
   pfile = conf["bodyfile"].as<std::string>();
@@ -90,7 +90,7 @@ Component::Component(YAML::Node& CONF)
 			   << std::string(60, '-') << std::endl;
 
     MPI_Finalize();
-    exit(-1);
+    exit(-3);
   }
 
   id = force["id"].as<std::string>();
@@ -109,7 +109,7 @@ Component::Component(YAML::Node& CONF)
 			   << std::string(60, '-') << std::endl;
 
     MPI_Finalize();
-    exit(-1);
+    exit(-4);
   }
 
   EJ          = 0;
@@ -145,7 +145,7 @@ Component::Component(YAML::Node& CONF)
   com_log     = false;
 
 #if HAVE_LIBCUDA==1
-  bunchSize   = 500000;
+  bunchSize   = 100000;
 #endif
   timers      = false;
 				// Null out pointers
@@ -419,9 +419,16 @@ void Component::print_level_lists(double T)
 
   if (nlevel>0 && (this_step % nlevel == 0)) {
 
-    vector< vector<unsigned> > cntr(multistep+1);
+#if HAVE_LIBCUDA==1
+    if (use_cuda) {		// Call the CUDA version
+      print_level_lists_cuda(T);
+      return;
+    }
+#endif
+
+    std::vector< std::vector<unsigned> > cntr(multistep+1);
     for (unsigned n=0; n<=multistep; n++) {
-      cntr[n] = vector<unsigned>(mdtDim, 0);
+      cntr[n] = std::vector<unsigned>(mdtDim, 0);
       MPI_Reduce(&mdt_ctr[n][0], &cntr[n][0], mdtDim, MPI_UNSIGNED,
 		 MPI_SUM, 0, MPI_COMM_WORLD);
       
@@ -433,59 +440,62 @@ void Component::print_level_lists(double T)
       unsigned tot=0;
       for (unsigned n=0; n<=multistep; n++) tot += cntr[n][mdtDim-1];
 
-      if (!tot && myid==0) cout << "print_level_lists [" << name 
-				<< ", T=" << tnow << "]: tot=" << tot << endl;
+      if (!tot && myid==0)
+	std::cout << "print_level_lists [" << name 
+		  << ", T=" << tnow << "]: tot=" << tot << std::endl;
       
       if (tot) {
 
-	ostringstream ofil;
+	std::ostringstream ofil;
 	ofil << runtag << ".levels";
-	ofstream out(ofil.str().c_str(), ios::app);
+	std::ofstream out(ofil.str().c_str(), ios::app);
 
 	unsigned curn, dtcnt, sum=0;
-	out << setw(90) << setfill('-') << '-' << endl;
-	ostringstream sout;
+	out << setw(90) << std::setfill('-') << '-' << std::endl;
+	std::ostringstream sout;
 	sout << "--- Component <" << name 
 	     << ", " << id  << ">, T=" << T;
-	out << setw(90) << left << sout.str().c_str() << endl;
-	out << setw(90) << '-' << endl << setfill(' ');
-	out << setw(3)  << "L" 
-	    << setw(10) << "Number" 
-	    << setw(10) << "dN/dL" 
-	    << setw(10) << "N(<=L)";
+	out << std::setw(90) << std::left << sout.str().c_str() << std::endl;
+	out << std::setw(90) << '-' << std::endl << std::setfill(' ');
+	out << std::setw(3)  << "L" 
+	    << std::setw(10) << "Number" 
+	    << std::setw(10) << "dN/dL" 
+	    << std::setw(10) << "N(<=L)";
 	if (DTold) {
-	  out << setw(10) << "f(r/v)"
-	      << setw(10) << "f(s/v)"
-	      << setw(10) << "f(v/a)"
-	      << setw(10) << "f(r/a)";
+	  out << std::setw(10) << "f(r/v)"
+	      << std::setw(10) << "f(s/v)"
+	      << std::setw(10) << "f(v/a)"
+	      << std::setw(10) << "f(r/a)";
 	  dtcnt = 5;
 	} else {
-	  out << setw(10) << "f(q/v)"
-	      << setw(10) << "f(v/a)"
-	      << setw(10) << "f(s/v)"
-	      << setw(10) << "f(r/v)" 
-	      << setw(10) << "f(r/a)";
+	  out << std::setw(10) << "f(q/v)"
+	      << std::setw(10) << "f(v/a)"
+	      << std::setw(10) << "f(s/v)"
+	      << std::setw(10) << "f(r/v)" 
+	      << std::setw(10) << "f(r/a)";
 	  dtcnt = 6;
 	}
-	out << setw(10) << "f(int)" << endl;
-	out << setw(90) << setfill('-') << '-' << endl << setfill(' ');
+	out << std::setw(10) << "f(int)" << std::endl;
+	out << std::setw(90) << std::setfill('-') << '-' << std::endl
+	    << std::setfill(' ');
 	for (unsigned n=0; n<=multistep; n++) {
 	  curn = cntr[n][mdtDim-1];
 	  sum += curn;
-	  out << setw(3)  << n 
-	      << setw(10) << curn << setprecision(3) << fixed
-	      << setw(10) << static_cast<double>(curn)/tot
-	      << setw(10) << static_cast<double>(sum) /tot;
+	  out << std::setw(3)  << n 
+	      << std::setw(10) << curn << setprecision(3) << std::fixed
+	      << std::setw(10) << static_cast<double>(curn)/tot
+	      << std::setw(10) << static_cast<double>(sum) /tot;
 	  for (unsigned k=0; k<dtcnt; k++) {
 				// If there are counts at this level:
-	    if (curn) out << setw(10) << static_cast<double>(cntr[n][k])/curn;
+	    if (curn) out << std::setw(10)
+			  << static_cast<double>(cntr[n][k])/curn;
 				// No counts at this level:
-	    else	out << setw(10) << "*";
+	    else      out << std::setw(10) << "*";
 	  }
-	  out << endl;
+	  out << std::endl;
 	}
-	out << endl << setw(3) << "T" << setw(10) << tot << endl << endl 
-	    << right;
+	out << std::endl << std::setw(3) << "T" << std::setw(10) << tot
+	    << std::endl << std::endl << std::right;
       }
     }
   }
@@ -510,7 +520,7 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
 			   << std::string(60, '-') << std::endl;
 
     MPI_Finalize();
-    exit(-1);
+    exit(-5);
   }
 
   try {
@@ -527,7 +537,7 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
 			   << std::string(60, '-') << std::endl;
 
     MPI_Finalize();
-    exit(-1);
+    exit(-6);
   }
   
   pfile = conf["bodyfile"].as<std::string>();
@@ -547,7 +557,7 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
 			   << std::string(60, '-') << std::endl;
 
     MPI_Finalize();
-    exit(-1);
+    exit(-7);
   }
 
   id = cforce["id"].as<std::string>();
@@ -566,7 +576,7 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
 			   << std::string(60, '-') << std::endl;
 
     MPI_Finalize();
-    exit(-1);
+    exit(-8);
   }
 
   // Defaults
@@ -605,7 +615,7 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
   com_restart = 0;
 
 #if HAVE_LIBCUDA==1
-  bunchSize   = 500000;
+  bunchSize   = 100000;
 #endif
   timers      = false;
 
@@ -629,6 +639,7 @@ Component::Component(YAML::Node& CONF, istream *in, bool SPL) : conf(CONF)
 
   keyPos      = -1;
   nlevel      = -1;
+  top_seq     = 0;
 
   pBufSiz     = 100000;
   blocking    = false;
@@ -664,10 +675,6 @@ void Component::configure(void)
     if (cconf["comlog"  ])     com_log = cconf["comlog"  ].as<bool>();
     if (cconf["timers"  ])      timers = cconf["timers"  ].as<bool>();
   
-#if HAVE_LIBCUDA==1
-    if (cconf["bunch"   ])   bunchSize = cconf["bunch"   ].as<int>();
-#endif
-
     if (cconf["tidal"]) {
       tidal = cconf["tidal"].as<int>();
       consp = true;
@@ -728,7 +735,7 @@ void Component::configure(void)
 			   << std::string(60, '-') << std::endl;
 
     MPI_Finalize();
-    exit(-1);
+    exit(-9);
   }
 
 
@@ -1063,66 +1070,32 @@ void Component::initialize(void)
 
 void Component::initialize_cuda()
 {
-
 #if HAVE_LIBCUDA==1
-  int deviceCount = 0;
-
   cudaDevice = -1;
 
   if (use_cuda) {
 
     // Get device count; exit on failure
     //
-    cuda_safe_call_mpi(cudaGetDeviceCount(&deviceCount), __FILE__, __LINE__,
-		       myid, "cudaGetDevicecCount failure");
-
-    // Query and assign my CUDA device
-    //
-    if (deviceCount>0) {
-
-      int totalCount = std::max<int>(deviceCount, ngpus);
-
-      // Get my local rank in sibling processes
-      //
-      int myCount = 0, curCount = 0;
-      for (auto v : siblingList) {
-	if (myid==v) myCount = curCount;
-	curCount++;
-      }
-	
-      // Allow GPU to be used by multiple MPI processes
-      //
-      if (myCount < totalCount) cudaDevice = myCount % deviceCount;
+    cuda_safe_call_mpi(cudaGetDevice(&cudaDevice), __FILE__, __LINE__,
+		       myid, "cudaGetDevice failure");
       
-      // Set device; exit on failure
-      //
-      if (cudaDevice>=0) {
+    // Check device context
+    //
+    if (cudaDevice>=0) {
 
-	cuda_safe_call_mpi(cudaSetDevice(cudaDevice), __FILE__, __LINE__,
-			   myid, "cudaSetDevice failure");
+      std::cout << "Component <" << name << ">: "
+		<< "on CUDA device on Rank [" << myid
+		<< "] on [" << processor_name << "]"
+		<< std::endl;
 
-	std::cout << "Component <" << name << ">: "
-		  << "setting CUDA device on Rank [" << myid
-		  << "] on [" << processor_name << "] to ["
-		  << cudaDevice << "/" << deviceCount << "]"
-		  << std::endl;
-
-	cuda_initialize();
-      } else {
-	
-	std::cout << "Component <" << name << ">: "
-		  << "could not set CUDA device on Rank [" << myid
-		  << "] on [" << processor_name << "] . . . "
-		  << "this cause a failure" << std::endl;
-	
-      }
-
+      cuda_initialize();
     } else {
-      std::ostringstream sout;
-      sout << "[#" << myid << "] CUDA detected but deviceCount<=0!";
-      throw GenericError(sout.str(), __FILE__, __LINE__);
+      std::cout << "Component <" << name << ">: "
+		<< "could not find an initialized CUDA device on Rank ["
+		<< myid	<< "] on [" << processor_name << "] . . . "
+		  << "this will cause a failure" << std::endl;
     }
-
   }
 #endif
 
@@ -1390,7 +1363,17 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
     config = conf;
   } else {			// Use parameter info
     std::istringstream sin(info.get());
-    config = YAML::Load(sin);
+    try {
+      config = YAML::Load(sin);
+    }
+    catch (YAML::Exception& error) {
+      if (myid==0)
+	std::cerr << "YAML: error parsing <" << info.get() << "> "
+		  << "in " << __FILE__ << ":" << __LINE__ << std::endl
+		  << "YAML error: " << error.what() << std::endl;
+      MPI_Finalize();
+      exit(-10);
+    }
 
     try {
       name  = config["name"].as<std::string>();
@@ -1406,7 +1389,7 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
 			     << config               << std::endl
 			     << std::string(60, '-') << std::endl;
       MPI_Finalize();
-      exit(-1);
+      exit(-11);
     }
 
     YAML::Node force;
@@ -1426,7 +1409,7 @@ void Component::read_bodies_and_distribute_binary_out(istream *in)
 			     << std::string(60, '-') << std::endl;
       
       MPI_Finalize();
-      exit(-1);
+      exit(-12);
     }
 
     // Assign local conf
@@ -1688,7 +1671,15 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
     config = conf;
   } else {			// Use parameter info
     std::istringstream sin(info.get());
-    config = YAML::Load(sin);
+    try {
+      config = YAML::Load(sin);
+    }
+    catch (YAML::Exception& error) {
+      std::cerr << "YAML: error parsing <" << info.get() << "> "
+		<< "in " << __FILE__ << ":" << __LINE__ << std::endl
+		<< "YAML error: " << error.what() << std::endl;
+      throw error;
+    }
 
     try {
       name  = config["name"].as<std::string>();
@@ -1704,7 +1695,7 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
 			     << config               << std::endl
 			     << std::string(60, '-') << std::endl;
       MPI_Finalize();
-      exit(-1);
+      exit(-13);
     }
 
     YAML::Node force;
@@ -1724,7 +1715,7 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
 			     << std::string(60, '-') << std::endl;
       
       MPI_Finalize();
-      exit(-1);
+      exit(-14);
     }
 
     // Assign local conf
@@ -1733,7 +1724,9 @@ void Component::read_bodies_and_distribute_binary_spl(istream *in)
     conf["parameters"] = cconf;
     conf["bodyfile"]   = pfile;
     conf["force"]      = force;
-				// Informational output
+
+    // Informational output
+    //
     if (myid==0)  {
       cconf.SetStyle(YAML::EmitterStyle::Flow);
       fconf.SetStyle(YAML::EmitterStyle::Flow);
@@ -2616,7 +2609,7 @@ void * fix_positions_thread(void *ptr)
 }
   
 
-void Component::fix_positions(unsigned mlevel)
+void Component::fix_positions_cpu(unsigned mlevel)
 {
 				// Zero center
   for (int i=0; i<3; i++) center[i] = 0.0;
@@ -3220,8 +3213,8 @@ void Component::load_balance(void)
 
   if (myid==0 && log.good()) 
     {
-      log << setw(72) << setfill('.') << ".\n" << setfill(' ');
-      log << "Time=" << tnow << " Component=" << name << endl;
+      log << std::setw(72) << std::setfill('.') << ".\n" << std::setfill(' ');
+      log << "Time=" << tnow << " Component=" << name << std::endl;
       log << endl;
       log << "List:\n";
       log.setf(ios::left);
