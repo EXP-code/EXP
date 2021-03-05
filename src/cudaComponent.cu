@@ -74,21 +74,8 @@ void Component::cuda_initialize()
   cuStream = boost::make_shared<cudaStreamData>();
 }
 
-struct LevelFunctor
-{
-  int _t;
 
-__host__ __device__
-  LevelFunctor(int t=0) : _t(t) {}
-
-  __host__ __device__
-  int operator()(const cudaParticle &p) const
-  {
-    return p.lev[_t];
-  }
-};
-
-
+// Comparison operator for [from, to] pairs
 struct pairLess
 {
   __host__ __device__
@@ -131,6 +118,9 @@ Component::I2vec Component::CudaSortLevelChanges()
       pbeg = cuStream->cuda_particles.begin(),
       pend = cuStream->cuda_particles.end();
     
+    // This gets a vector of pairs [current index, desired index],
+    // leaving the order of particle structures unchanged
+    //
     if (thrust_binary_search_workaround) {
       cudaStreamSynchronize(cuStream->stream);
       thrust::transform(pbeg, pend, cuStream->levPair.begin(), cuPartToChange());
@@ -138,7 +128,7 @@ Component::I2vec Component::CudaSortLevelChanges()
       thrust::transform(exec, pbeg, pend, cuStream->levPair.begin(), cuPartToChange());
     }
     
-    // Make the initial index
+    // Make the initial sequential index
     //
     thrust::sequence(cuStream->indx2.begin(), cuStream->indx2.end(), 0, 1);
   
@@ -147,10 +137,14 @@ Component::I2vec Component::CudaSortLevelChanges()
     thrust::sort_by_key(cuStream->levPair.begin(), cuStream->levPair.end(),
 			cuStream->indx2.begin());
 
+    // This will be [from, to] pair for determining the change matrix
+    //
     thrust::pair<int, int> tr2;
 
     for (int target=0; target<=multistep; target++) {
 
+      // From level is 'target'
+      //
       tr2.first = target;
 
       for (int del=0; del<=multistep; del++) {
@@ -160,6 +154,8 @@ Component::I2vec Component::CudaSortLevelChanges()
 	  continue;
 	}
 	
+	// To level is 'del'
+	//
 	tr2.second = del;
 
 	thrust::device_vector<thrust::pair<int, int>>::iterator
@@ -168,6 +164,9 @@ Component::I2vec Component::CudaSortLevelChanges()
 	thrust::device_vector<thrust::pair<int, int>>::iterator
 	  lend = cuStream->levPair.end(),   hi;
 
+	// Determine upper and lower indices into indx2 for the [from,
+	// to] pair
+	//
 	if (thrust_binary_search_workaround) {
 	  cudaStreamSynchronize(cuStream->stream);
 	  lo  = thrust::lower_bound(lbeg, lend, tr2, pairLess());
@@ -224,7 +223,8 @@ void Component::CudaSortByLevel()
   try {
     auto exec = thrust::cuda::par.on(cuStream->stream);
     
-    // Convert from cudaParticle to a flat vector
+    // Convert from cudaParticle to a flat vector of levels.  The
+    // order of the particle structures will remain fixed
     //
     cuStream->levList.resize(cuStream->cuda_particles.size());
 
@@ -239,15 +239,17 @@ void Component::CudaSortByLevel()
       thrust::transform(exec, pbeg, pend, cuStream->levList.begin(), cuPartToLevel());
     }
 
-    // Make an index
+    // Make room for an index
     //
     cuStream->indx1.resize(cuStream->cuda_particles.size());
 
-    // Make the initial index
+    // Make the initial sequential index
     //
     thrust::sequence(cuStream->indx1.begin(), cuStream->indx1.end(), 0, 1);
   
-    // first sort the keys and indices by the keys
+    // First sort the keys and indices by the keys.  This gives a
+    // indirect index back to the particles and a sorted levList for
+    // determining the partition of the indirect index into levels
     //
     thrust::sort_by_key(cuStream->levList.begin(), cuStream->levList.end(),
 			cuStream->indx1.begin());
