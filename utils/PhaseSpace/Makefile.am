@@ -11,6 +11,12 @@ ADD_CXXFLAGS3 = -DUSE_DMALLOC -g
 ADD_LIBS3 = -ldmallocth -ldmallocthcxx
 endif
 
+# Need for lib exputil which contains cuda code
+#
+if ENABLE_CUDA
+  CUDA_LIBFLAGS  = -lcudart -lnvToolsExt
+endif
+
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
 AM_CXXFLAGS = -D_REENTRANT -DSTANDALONE $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) @exp_vtk_include@
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
@@ -22,7 +28,7 @@ bin_PROGRAMS = pspinfo pspstat psp2tipsy pspsplit psp2ascii ascii2psp	\
 		spl2psp pspinfo2 ascii2psp2 psp2vtu psp2rings		\
 		psp2bess psp2lagu psp2interp
 
-COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ $(YAML)
+COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS) @exp_vtk_ldlib@ @exp_vtk_lib@ $(YAML) $(CUDA_LDFLAGS) $(CUDA_LIBFLAGS)
 
 BOOST_LIBS = $(BOOST_SYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)
 
