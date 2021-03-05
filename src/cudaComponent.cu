@@ -1,3 +1,5 @@
+// -*- C++ -*-
+
 #include "expand.h"
 #include "Component.H"
 #include "cudaParticle.cuH"
@@ -427,10 +429,10 @@ zeroPotAccKernel(dArray<cudaParticle> P, dArray<int> I, int stride, PII lohi)
 
     if (npart < lohi.second) {
 
-      cudaParticle * p = &P._v[I._v[npart]];
+      cudaParticle & p = P._v[I._v[npart]];
       
-      for (int k=0; k<3; k++) p->acc[k] = 0.0;
-      p->pot = p->potext = 0.0;
+      for (int k=0; k<3; k++) p.acc[k] = 0.0;
+      p.pot = p.potext = 0.0;
 
     } // Particle index block
     
@@ -784,5 +786,3 @@ void Component::MakeLevlist()
   for (auto & v : levlist) v.clear();
   for (auto & v : particles) levlist[v.second->level].push_back(v.first);
 }
-
-// -*- C++ -*-

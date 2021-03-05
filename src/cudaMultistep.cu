@@ -1,3 +1,5 @@
+// -*- C++ -*-
+
 #include "expand.h"
 #include <Component.H>
 #include <cudaReduce.cuH>
@@ -416,5 +418,3 @@ void cuda_compute_levels()
 	    << std::string(60, '-') << std::endl;
 #endif
 }
-
-// -*- C++ -*-
