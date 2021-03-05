@@ -491,19 +491,19 @@ forceKernelCyl(dArray<cudaParticle> P, dArray<int> I,
 #ifdef BOUNDS_CHECK
       if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-      cudaParticle * p = &P._v[I._v[npart]];
+      cudaParticle & p = P._v[I._v[npart]];
       
       cuFP_t acc[3] = {0.0, 0.0, 0.0};
       cuFP_t xx=0.0, yy=0.0, zz=0.0;
 
       if (cylOrient) {
-	for (int k=0; k<3; k++) xx += cylBody[0+k]*(p->pos[k] - cylCen[k]);
-	for (int k=0; k<3; k++) yy += cylBody[3+k]*(p->pos[k] - cylCen[k]);
-	for (int k=0; k<3; k++) zz += cylBody[6+k]*(p->pos[k] - cylCen[k]);
+	for (int k=0; k<3; k++) xx += cylBody[0+k]*(p.pos[k] - cylCen[k]);
+	for (int k=0; k<3; k++) yy += cylBody[3+k]*(p.pos[k] - cylCen[k]);
+	for (int k=0; k<3; k++) zz += cylBody[6+k]*(p.pos[k] - cylCen[k]);
       } else {
-	xx = p->pos[0] - cylCen[0];
-	yy = p->pos[1] - cylCen[1];
-	zz = p->pos[2] - cylCen[2];
+	xx = p.pos[0] - cylCen[0];
+	yy = p.pos[1] - cylCen[1];
+	zz = p.pos[2] - cylCen[2];
       }
 
       cuFP_t phi = atan2(yy, xx);
@@ -736,16 +736,16 @@ forceKernelCyl(dArray<cudaParticle> P, dArray<int> I,
 
       if (cylOrient) {
 	for (int j=0; j<3; j++) {
-	  for (int k=0; k<3; k++) p->acc[j] += cylOrig[3*j+k]*acc[k];
+	  for (int k=0; k<3; k++) p.acc[j] += cylOrig[3*j+k]*acc[k];
 	}
       } else {
-	for (int j=0; j<3; j++) p->acc[j] += acc[j];
+	for (int j=0; j<3; j++) p.acc[j] += acc[j];
       }
 
       if (external)
-	p->potext += pp;
+	p.potext += pp;
       else
-	p->pot    += pp;
+	p.pot    += pp;
 
     } // Particle index block
 
@@ -962,7 +962,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
   //
   cuFP_t rmax = rcylmax * acyl * M_SQRT1_2;
 
-  // Sort particles and get coefficient size
+  // Get sorted particle range for mlevel
   //
   PII lohi = component->CudaGetLevelRange(mlevel, mlevel), cur;
 
@@ -1620,7 +1620,7 @@ void Cylinder::determine_acceleration_cuda()
 		   __FILE__, __LINE__, "Error copying cylOrig");
   }
 
-  // Sort particles and get coefficient size
+  // Get particle index range for levels [mlevel, multistep]
   //
   PII lohi = cC->CudaGetLevelRange(mlevel, multistep);
 

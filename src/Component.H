@@ -961,6 +961,9 @@ public:
     CudaToParticles(cuStream->first, cuStream->last);
   }
 
+  //! Make a new level list from copied particles
+  void MakeLevlist();
+
   //! Sort the device vector by level and return level boundaries
   std::pair<unsigned, unsigned> CudaGetLevelRange(int lo, int hi);
 

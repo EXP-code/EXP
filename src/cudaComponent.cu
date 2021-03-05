@@ -200,7 +200,7 @@ Component::I2vec Component::CudaSortLevelChanges()
  
   // Debugging output for level changes
   //
-  if (true) {
+  if (false) {
     std::cout << std::string(15*(multistep+1), '-') << std::endl;
     std::cout << "--- " << name << " [" << myid << "]" << std::endl;
     std::cout << std::string(15*(multistep+1), '-') << std::endl;
@@ -362,7 +362,7 @@ void Component::HostToDev(Component::cuSharedStream cr)
 		    cudaMemcpyHostToDevice, cr->stream);
   }
 
-  // Make the level index after a copy
+  // Make the level index after a particle copy to device
   //
   CudaSortByLevel();
 }
@@ -774,6 +774,15 @@ void Component::print_level_lists_cuda(double T)
 	       0, MPI_COMM_WORLD);
   }
 
+}
+
+// No cuda code here but only used after CudaToParticles() call for
+// testing
+void Component::MakeLevlist()
+{
+  levlist.resize(multistep+1);
+  for (auto & v : levlist) v.clear();
+  for (auto & v : particles) levlist[v.second->level].push_back(v.first);
 }
 
 // -*- C++ -*-

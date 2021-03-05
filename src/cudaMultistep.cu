@@ -338,7 +338,7 @@ void cuda_compute_levels()
     start = std::chrono::high_resolution_clock::now();
 #endif
     cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
-
+    
     c->force->multistep_update_cuda();
 
 #ifdef VERBOSE_TIMING

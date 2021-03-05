@@ -25,7 +25,6 @@
 
 static Timer timer_coef, timer_drift, timer_vel;
 static Timer timer_pot , timer_adj  , timer_tot;
-static Timer timer_cuda;
 
 static unsigned tskip = 1;
 
@@ -351,6 +350,9 @@ void do_step(int n)
 	std::cout << std::setw(20) << "Cuda copy: " << std::scientific
 		  << std::setw(18) << comp->timer_cuda.getTime() << std::fixed
 		  << std::setw(18) << comp->timer_cuda.getTime()/totalT << std::endl;
+      std::cout << std::setw(20) << "Orient: " << std::scientific
+		<< std::setw(18) << comp->timer_orient.getTime() << std::fixed
+		<< std::setw(18) << comp->timer_orient.getTime()/totalT << std::endl;
       std::cout << std::setw(20) << "Total: " << std::scientific
 		<< std::setw(18) << timer_tot.getTime() << std::fixed
 		<< std::setw(18) << 1.0 << std::endl << std::scientific
@@ -407,6 +409,7 @@ void do_step(int n)
     timer_adj  .reset();
     timer_tot  .reset();
     if (use_cuda) comp->timer_cuda.reset();
+    comp->timer_orient.reset();
   }
 
 #ifdef USE_GPTL
