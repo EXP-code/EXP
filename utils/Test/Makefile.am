@@ -11,6 +11,12 @@ ADD_CXXFLAGS3 = -DUSE_DMALLOC -g
 ADD_LIBS3 = -ldmallocth -ldmallocthcxx
 endif
 
+# Need for lib exputil which contains cuda code
+#
+if ENABLE_CUDA
+  CUDA_LIBFLAGS  = -lcudart -lnvToolsExt
+endif
+
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
 AM_CXXFLAGS = -std=c++11 -D_REENTRANT $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
@@ -37,12 +43,13 @@ simpleConfig_LDADD    = $(BOOST_LIBS)
 readSL_SOURCES        = read_slsph.cc
 readSL_LDFLAGS        = -L$(top_srcdir)/exputil/.libs	\
 			-L$(top_srcdir)/expgnu/.libs
-readSL_LDADD          = $(COMMON_LIBS)
+readSL_LDADD          = $(COMMON_LIBS) $(CUDA_LDFLAGS) $(CUDA_LIBFLAGS)
 
 testBarrier_SOURCES   = test_barrier.cc
-testBarrier_LDFLAGS   = -L$(top_srcdir)/exputil/.libs	\
-			-L$(top_srcdir)/expgnu/.libs $(BOOST_LDFLAGS)
-testBarrier_LDADD     = $(COMMON_LIBS) $(BOOST_LIBS)
+testBarrier_LDFLAGS = -L$(top_srcdir)/exputil/.libs	\
+-L$(top_srcdir)/expgnu/.libs $(BOOST_LDFLAGS)
+testBarrier_LDADD = $(COMMON_LIBS) $(BOOST_LIBS) $(CUDA_LDFLAGS)	\
+$(CUDA_LIBFLAGS)
 
 CLEANFILES	=
 
