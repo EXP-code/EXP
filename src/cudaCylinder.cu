@@ -823,7 +823,7 @@ void Cylinder::cudaStorage::resize_coefs
   iY_d.resize(N);
 }
 
-void Cylinder::cuda_zero_coefs()
+void Cylinder::cyl_zero_coefs()
 {
   auto cr = component->cuStream;
   
@@ -958,7 +958,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
   // Zero out coefficient storage
   //
-  cuda_zero_coefs();
+  cyl_zero_coefs();
 
   // Maximum radius on grid
   //
@@ -1772,7 +1772,7 @@ void Cylinder::multistep_update_cuda()
 
       // Zero out coefficient storage
       //
-      cuda_zero_coefs();
+      // cyl_zero_coefs();
 
       unsigned int Npacks = Ntotal/component->bunchSize + 1;
 
