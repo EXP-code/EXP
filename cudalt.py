@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 # libtoolish hack: compile a .cu file like libtool does
 
