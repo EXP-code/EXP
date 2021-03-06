@@ -149,6 +149,9 @@ Component::I2vec Component::CudaSortLevelChanges()
 
       for (int del=0; del<=multistep; del++) {
 
+	// Do nothing: equal beg and end results in no level
+	// processing
+	//
 	if (del==target) {
 	  ret[target][del] = {0, 0};
 	  continue;

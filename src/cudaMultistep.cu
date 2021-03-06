@@ -74,17 +74,6 @@ void testConstantsMultistep()
   printf("** -------------------\n"     );
 }
 
-//! Thrust counts of delta level for debugging
-struct testCountDelta :  public thrust::unary_function<cudaParticle, int>
-{
-  __host__ __device__
-  int operator()(const cudaParticle& p) const
-  {
-    return abs(p.lev[0] - p.lev[1]);
-  }
-};
-
-
 __global__ void
 timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 	       cuFP_t cx, cuFP_t cy, cuFP_t cz,
@@ -103,10 +92,10 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
       if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
       cudaParticle & p = P._v[I._v[npart]];
-      //                      ^
-      //                      |
-      // Particle index ------+
-      //
+      //                      ^    ^
+      //                      |    |
+      // Particle index ------+    |
+      // Sort index ---------------+
       
       cuFP_t xx = p.pos[0] - cx;
       cuFP_t yy = p.pos[1] - cy;

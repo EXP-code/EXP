@@ -1,3 +1,5 @@
+// -*- C++ -*-
+
 #include <Orient.H>
 #include <cudaUtil.cuH>
 #include <cudaParticle.cuH>
