@@ -80,8 +80,8 @@ void incr_velocity_cuda(cuFP_t dt, int mlevel)
       // Do the work
       //
       velocityKick<<<gridSize, BLOCK_SIZE>>>
-	(toKernel(c->cuStream->cuda_particles),
-	 toKernel(c->cuStream->indx1), dt, c->dim, stride, lohi);
+	(toKernel(cr->cuda_particles),
+	 toKernel(cr->indx1), dt, c->dim, stride, lohi);
     }
 
     // DEBUGGING output

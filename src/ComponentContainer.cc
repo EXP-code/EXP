@@ -230,7 +230,7 @@ void ComponentContainer::initialize(void)
     cout << "\n";
   }
 
-#ifdef HAVE_LIBCUDA
+#if HAVE_LIBCUDA==1
   // Move all particles to cuda devices
   if (use_cuda) {
     for (auto c : components) c->ParticlesToCuda();
@@ -324,7 +324,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       timer_zero.start();
     }
 
-#ifdef HAVE_LIBCUDA
+#if HAVE_LIBCUDA==1
     if (use_cuda) {
       c->ZeroPotAccel(mlevel);
     } else

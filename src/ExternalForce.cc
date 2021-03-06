@@ -56,7 +56,8 @@ void ExternalForce::print_divider(void)
 }
 
 #if HAVE_LIBCUDA==1
-void ExternalForce::getParticlesCuda(Component *c) {
+void ExternalForce::getParticlesCuda(Component *c)
+{
   if (use_cuda and not cudaAware()) {
     if (not comp->fetched[c]) {
       c->CudaToParticles();
