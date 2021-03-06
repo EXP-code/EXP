@@ -823,7 +823,7 @@ void Cylinder::cudaStorage::resize_coefs
   iY_d.resize(N);
 }
 
-void Cylinder::cyl_zero_coefs()
+void Cylinder::cuda_zero_coefs_cyl()
 {
   auto cr = component->cuStream;
   
@@ -958,7 +958,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
   // Zero out coefficient storage
   //
-  cyl_zero_coefs();
+  cuda_zero_coefs_cyl();
 
   // Maximum radius on grid
   //
@@ -1758,6 +1758,10 @@ void Cylinder::multistep_update_cuda()
   //
   cuFP_t rmax = rcylmax * acyl;
 
+  // Zero out coefficient storage
+  //
+  cuda_zero_coefs_cyl();
+
   // Step through all levels
   //
   for (int olev=mfirst[mstep]; olev<=multistep; olev++) {
@@ -1769,10 +1773,6 @@ void Cylinder::multistep_update_cuda()
       unsigned int Ntotal = chg[olev][nlev].second - chg[olev][nlev].first;
 
       if (Ntotal==0) continue;
-
-      // Zero out coefficient storage
-      //
-      // cyl_zero_coefs();
 
       unsigned int Npacks = Ntotal/component->bunchSize + 1;
 

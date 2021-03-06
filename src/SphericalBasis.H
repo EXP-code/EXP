@@ -179,7 +179,7 @@ protected:
   void cuda_initialize();
 
   //! Zero the coefficient output vectors
-  void zero_coefs();
+  void cuda_zero_coefs_sph();
   //@}
 
 #endif

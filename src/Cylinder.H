@@ -157,7 +157,7 @@ protected:
   void cuda_initialize();
 
   //! Zero the coefficient gpu vectors
-  void cuda_zero_coefs();
+  void cuda_zero_coefs_cyl();
 
   //@}
 

@@ -794,7 +794,7 @@ void SphericalBasis::cudaStorage::resize_coefs
   i_d.resize(N);
 }
 
-void SphericalBasis::sph_zero_coefs()
+void SphericalBasis::cuda_zero_coefs_sph()
 {
   auto cr = component->cuStream;
   
@@ -944,7 +944,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
   // Zero out coefficient storage
   //
-  sph_zero_coefs();
+  cuda_zero_coefs_sph();
 
   // Get sorted particle range for mlevel
   //
@@ -1767,6 +1767,10 @@ void SphericalBasis::multistep_update_cuda()
   std::cout << "Time in level sort=" << duration.count()*1.0e-6 << std::endl;
 #endif
 
+  // Zero out coefficient storage
+  //
+  cuda_zero_coefs_sph();
+
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
   auto cs = component->cuStream;
@@ -1788,9 +1792,6 @@ void SphericalBasis::multistep_update_cuda()
 
       unsigned int Npacks = Ntotal/component->bunchSize + 1;
 
-      // Zero out coefficient storage
-      //
-      // sph_zero_coefs();
 
 #ifdef VERBOSE_DBG
       std::cout << "[" << myid << ", " << tnow
