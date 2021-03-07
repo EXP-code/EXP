@@ -75,6 +75,7 @@ void incr_position_cuda(cuFP_t dt, int mlevel)
 
     cudaDeviceProp deviceProp;
     cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
+    cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
 
     // Compute grid
     //
@@ -100,6 +101,7 @@ void incr_position_cuda(cuFP_t dt, int mlevel)
 
       cudaDeviceProp deviceProp;
       cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
+      cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
 
       // Compute grid
       //

@@ -888,6 +888,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
+  cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
 
   // This will stay fixed for the entire run
   //
@@ -941,6 +942,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
   if (firstime and myid==0) {
     testConstantsCyl<<<1, 1, 0, cs->stream>>>();
     cudaDeviceSynchronize();
+    cuda_check_last_error_mpi("cudaDeviceSynchronize", __FILE__, __LINE__, myid);
     firstime = false;
   }
   
@@ -1209,6 +1211,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
     //
     if (thrust_binary_search_workaround) {
       cudaStreamSynchronize(cs->stream);
+      cuda_check_last_error_mpi("cudaStreamSynchronize", __FILE__, __LINE__, myid);
       it = thrust::upper_bound(first, last, 0.0);
     } else {
       it = thrust::upper_bound(exec, first, last, 0.0);
@@ -1588,6 +1591,7 @@ void Cylinder::determine_acceleration_cuda()
 
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, cC->cudaDevice);
+  cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
 
   auto cs = cC->cuStream;
 
@@ -1752,6 +1756,7 @@ void Cylinder::multistep_update_cuda()
 
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
+  cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
   auto cs = component->cuStream;
 
   // Maximum radius on grid

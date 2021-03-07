@@ -899,6 +899,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
+  cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
 
   auto cr = component->cuStream;
 
@@ -927,6 +928,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
   if (firstime and myid==0) {
     testConstantsSph<<<1, 1, 0, cr->stream>>>();
     cudaDeviceSynchronize();
+    cuda_check_last_error_mpi("cudaDeviceSynchronize", __FILE__, __LINE__, myid);
     firstime = false;
   }
   
@@ -1174,6 +1176,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
     //
     if (thrust_binary_search_workaround) {
       cudaStreamSynchronize(cr->stream);
+      cuda_check_last_error_mpi("cudaStreamSynchronize", __FILE__, __LINE__, myid);
       it = thrust::lower_bound(cuS.m_d.begin(), cuS.m_d.end(), 0.0);
     } else {
       it = thrust::lower_bound(thrust::cuda::par.on(cr->stream),
@@ -1570,6 +1573,7 @@ void SphericalBasis::determine_acceleration_cuda()
 
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, cC->cudaDevice);
+  cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
 
   // Stream structure iterators
   //
@@ -1773,6 +1777,8 @@ void SphericalBasis::multistep_update_cuda()
 
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
+  cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
+
   auto cs = component->cuStream;
 
 #ifdef VERBOSE_TIMING

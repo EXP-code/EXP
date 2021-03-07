@@ -266,6 +266,8 @@ void cuda_compute_levels()
   for (auto c : comp->components) {
     
     cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
+    cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
+
 
     PII lohi = {0, c->cuStream->cuda_particles.size()};
     if (multistep) lohi = c->CudaGetLevelRange(mfirst[mstep], multistep);
@@ -319,6 +321,7 @@ void cuda_compute_levels()
     start = std::chrono::high_resolution_clock::now();
 #endif
     cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
+    cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
     
     c->force->multistep_update_cuda();
 
