@@ -185,7 +185,9 @@ Component::I2vec Component::CudaSortLevelChanges()
 	  hi = thrust::upper_bound(exec, lbeg, lend, tr2);
 	}
 
-	cudaStreamSynchronize(cuStream->stream);
+	cuda_safe_call_mpi(cudaStreamSynchronize(cuStream->stream),
+			   __FILE__, __LINE__, myid,
+			   "Component::SortLevelChanges");
 
 	ret[target][del] = {thrust::distance(lbeg, lo), 
 			    thrust::distance(lbeg, hi)};
@@ -236,7 +238,9 @@ void Component::CudaSortByLevel()
       pend = cuStream->cuda_particles.end();
 
     if (thrust_binary_search_workaround) {
-      cudaStreamSynchronize(cuStream->stream);
+      cuda_safe_call_mpi(cudaStreamSynchronize(cuStream->stream),
+			 __FILE__, __LINE__, myid,
+			 "Component::CudaSortByLevel");
       thrust::transform(pbeg, pend, cuStream->levList.begin(), cuPartToLevel());
     } else {
       thrust::transform(exec, pbeg, pend, cuStream->levList.begin(), cuPartToLevel());
@@ -283,14 +287,18 @@ Component::CudaGetLevelRange(int minlev, int maxlev)
     thrust::device_vector<int>::iterator lo, hi;
 
     if (thrust_binary_search_workaround) {
-      cudaStreamSynchronize(cuStream->stream);
+      cuda_safe_call_mpi(cudaStreamSynchronize(cuStream->stream),
+			 __FILE__, __LINE__, myid,
+			 "Component::GetCudaLeveLRange");
       lo = thrust::lower_bound(lbeg, lend, minl);
     } else {
       lo = thrust::lower_bound(exec, lbeg, lend, minl);
     }
 	
     if (thrust_binary_search_workaround) {
-      cudaStreamSynchronize(cuStream->stream);
+      cuda_safe_call_mpi(cudaStreamSynchronize(cuStream->stream),
+			 __FILE__, __LINE__, myid,
+			 "Component::CudaGetLeveRange");
       hi = thrust::upper_bound(lbeg, lend, maxl);
     } else {
       hi = thrust::upper_bound(exec, lbeg, lend, maxl);
@@ -367,6 +375,9 @@ void Component::HostToDev(Component::cuSharedStream cr)
 		    thrust::raw_pointer_cast(&(*cr->first)),
 		    npart*sizeof(cudaParticle),
 		    cudaMemcpyHostToDevice, cr->stream);
+
+    cuda_check_last_error_mpi("cudaMemcpyAsync", __FILE__, __LINE__, myid);
+
   }
 
   // Make the level index after a particle copy to device
@@ -384,6 +395,12 @@ void Component::DevToHost(Component::cuSharedStream cr)
 		    thrust::raw_pointer_cast(&cr->cuda_particles[0]),
 		    npart*sizeof(cudaParticle),
 		    cudaMemcpyDeviceToHost, cr->stream);
+
+    cuda_check_last_error_mpi("cudaMemcpyAsync", __FILE__, __LINE__, myid);
+
+    cudaStreamSynchronize(cr->stream);
+
+    cuda_check_last_error_mpi("cudaStreamSynchronize", __FILE__, __LINE__, myid);
   }
 }
 
@@ -461,6 +478,7 @@ void Component::ZeroPotAccel(int minlev)
 
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, cudaDevice);
+  cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
 
   // Loop over bunches
   //
@@ -549,6 +567,7 @@ void Component::fix_positions_cuda(unsigned mlevel)
     for (int mm=mlevel; mm<=multistep; mm++) {
 
       cudaStreamSynchronize(cuStream->stream);
+      cuda_check_last_error_mpi("cudaStreamSynchronize", __FILE__, __LINE__, myid);
 
       thrust::device_vector<int>::iterator
 	lbeg = cuStream->levList.begin(), lo,
@@ -562,6 +581,7 @@ void Component::fix_positions_cuda(unsigned mlevel)
       }
       
       cudaStreamSynchronize(cuStream->stream);
+      cuda_check_last_error_mpi("cudaStreamSynchronize", __FILE__, __LINE__, myid);
 
       if (thrust_binary_search_workaround) {
 	hi = thrust::upper_bound(lbeg, lend, mm);
@@ -586,6 +606,7 @@ void Component::fix_positions_cuda(unsigned mlevel)
 
       cudaDeviceProp deviceProp;
       cudaGetDeviceProperties(&deviceProp, cudaDevice);
+      cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
 
       // Loop over bunches
       //

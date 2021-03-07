@@ -945,10 +945,12 @@ public:
   //! Convert all to device particles and copy to device
   void ParticlesToCuda()
   {
+    // Copy from Particle to cudaParticle
+    //
     ParticlesToCuda(particles.begin(), particles.end());
-    cuStream->first = host_particles.begin();
-    cuStream->last  = host_particles.end();
-    HostToDev(cuStream);	// Push to device
+    // Push to device
+    //
+    HostToDev(cuStream);
   }
 
   //! Copy cuda device particles for this component back Component C

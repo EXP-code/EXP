@@ -1,4 +1,5 @@
 if ENABLE_CUDA
+  ADD_CUDA_LIBS = libcudatest.la
   ifeq ($(GENCODE_FLAGS),)
     $(foreach sm,@sm_vers@,$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
   endif
@@ -32,7 +33,7 @@ lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la	\
 	libperiodic.la libatmos.la libreflect.la libsatwake.la	\
 	libpst.la libuserslab.la libtrigger.la libshear.la	\
 	libsnheat.la libprofile.la libmndisk.la libtidalrad.la  \
-	libmassevo.la libaddmass.la libcudatest.la
+	libmassevo.la libaddmass.la $(ADD_CUDA_LIBS)
 
 #
 # Convenience library for duplicated source components (static)

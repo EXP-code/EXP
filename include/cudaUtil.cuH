@@ -84,6 +84,23 @@ cuda_check_last_error(char const * func, const char *FILE, const int LINE)
   }
 }
 
+// For error reporting without error code
+//
+inline void
+cuda_check_last_error_mpi(char const * func, const char *FILE, const int LINE,
+			  const int myid)
+{
+  cudaError_t code = cudaGetLastError();
+  if (code != cudaSuccess) {
+    const char * errorMessage = cudaGetErrorString(code);
+    std::cerr << "CUDA error returned from \"" << func
+	      << ", mpi rank=" << myid
+	      << "\" at " << FILE << ":" << LINE
+	      << " Error code: " << code << "(" << errorMessage << ")"
+	      << std::endl;
+  }
+}
+
 // use CUDA's high-resolution timers when possible
 //
 struct cudaTimer

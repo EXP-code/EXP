@@ -46,7 +46,9 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
   subset           = false;
   coefMaster       = true;
   lastPlayTime     = -std::numeric_limits<double>::max();
+#if HAVE_LIBCUDA==1
   cuda_aware       = true;
+#endif
 
   try {
     if (conf["scale"]) 

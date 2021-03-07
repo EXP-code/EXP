@@ -112,7 +112,9 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   EVEN_M          = false;
   eof_over        = false;
   eof_file        = "";
+#if HAVE_LIBCUDA==1
   cuda_aware      = true;
+#endif
 
   initialize();
 
