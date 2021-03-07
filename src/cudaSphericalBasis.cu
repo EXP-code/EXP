@@ -794,7 +794,7 @@ void SphericalBasis::cudaStorage::resize_coefs
   i_d.resize(N);
 }
 
-void SphericalBasis::cuda_zero_coefs_sph()
+void SphericalBasis::cuda_zero_coefs()
 {
   auto cr = component->cuStream;
   
@@ -946,7 +946,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
   // Zero out coefficient storage
   //
-  cuda_zero_coefs_sph();
+  cuda_zero_coefs();
 
   // Get sorted particle range for mlevel
   //
@@ -1773,7 +1773,7 @@ void SphericalBasis::multistep_update_cuda()
 
   // Zero out coefficient storage
   //
-  cuda_zero_coefs_sph();
+  cuda_zero_coefs();
 
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
