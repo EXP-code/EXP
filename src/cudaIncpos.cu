@@ -42,7 +42,7 @@ __global__ void positionDebug
     int i     = tid*stride + n;	// Particle counter
     int npart = i + lohi.first;	// Particle index
 
-    if (npart < lohi.second and npart < P._s) {
+    if (npart < lohi.second and npart < I._s) {
 
       cudaParticle & p = P._v[I._v[npart]];
       cuFP_t sumP = 0.0, sumV = 0.0, sumA = 0.0;
@@ -59,6 +59,7 @@ __global__ void positionDebug
     }
   }
 }
+
 
 void incr_position_cuda(cuFP_t dt, int mlevel)
 {
@@ -113,12 +114,10 @@ void incr_position_cuda(cuFP_t dt, int mlevel)
 	// Do the work
 	//
 	positionDebug<<<gridSize, BLOCK_SIZE>>>
-	  (toKernel(cr->cuda_particles),
-	   toKernel(cr->indx1),
-	   stride, lohi);
+	  (toKernel(cr->cuda_particles), toKernel(cr->indx1), stride, lohi);
       }
     }
-    // DEBUG
+    // END: DEBUG
   }
   // END: component loop
 }

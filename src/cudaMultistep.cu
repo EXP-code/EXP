@@ -89,7 +89,7 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
     if (npart < lohi.second) {
       
 #ifdef BOUNDS_CHECK
-      if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+      if (npart >= I._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
       cudaParticle & p = P._v[I._v[npart]];
       //                      ^    ^
