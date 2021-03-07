@@ -594,7 +594,6 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   if (mactive[mstep][centerlevl]) {
 
     if (timing) timer_posn.start();
-    // WARNING: Orient not yet implemented in cuda . . . 
     fix_positions();
     if (timing) timer_posn.stop();
 
