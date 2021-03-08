@@ -543,10 +543,25 @@ public:
   //! Redestribute this component
   void redistribute_particles(void);
 
-  //! Compute center of mass and center of velocity
-  void fix_positions(unsigned mlevel=0);
+  //! Compute center of mass and center of velocity (CPU version)
+  void fix_positions_cpu(unsigned mlevel=0);
 
-  /** Redistribute particle by list
+#if HAVE_LIBCUDA==1
+  //! Compute center of mass and center of velocity (GPU version)
+  void fix_positions_cuda(unsigned mlevel=0);
+#endif
+
+  //! Compute center of mass and center of velocity
+  void fix_positions(unsigned mlevel=0)
+  {
+#if HAVE_LIBCUDA==1
+    if (use_cuda) fix_positions_cuda(mlevel);
+    else
+#endif
+      fix_positions_cpu(mlevel);
+  }
+
+  /** Redistribute particle by list (deprecated?)
 
       Serialize redistribution list into an integer array
       of numprocs stanzas, each with the format
@@ -895,6 +910,12 @@ public:
     //! Level list
     thrust::device_vector<int> levList;
 
+    //! Level list pairs
+    thrust::device_vector<thrust::pair<int, int>> levPair;
+
+    //! Sorted indices
+    thrust::device_vector<int> indx1, indx2;
+
     //! My stream
     cudaStream_t stream;
 
@@ -924,10 +945,12 @@ public:
   //! Convert all to device particles and copy to device
   void ParticlesToCuda()
   {
+    // Copy from Particle to cudaParticle
+    //
     ParticlesToCuda(particles.begin(), particles.end());
-    cuStream->first = host_particles.begin();
-    cuStream->last  = host_particles.end();
-    HostToDev(cuStream);	// Push to device
+    // Push to device
+    //
+    HostToDev(cuStream);
   }
 
   //! Copy cuda device particles for this component back Component C
@@ -940,21 +963,21 @@ public:
     CudaToParticles(cuStream->first, cuStream->last);
   }
 
-  //! Sort the device vector by sequence
-  void CudaSortBySequence(cuSharedStream cr);
-
-  //! Sort the device vector by level
-  void CudaSortByLevel();
+  //! Make a new level list from copied particles
+  void MakeLevlist();
 
   //! Sort the device vector by level and return level boundaries
   std::pair<unsigned, unsigned> CudaGetLevelRange(int lo, int hi);
 
-  using PII  =std::pair<unsigned int, unsigned int>;
-  using I1vec=std::vector<PII>;
-  using I2vec=std::vector<I1vec>;
+  using PII   = std::pair<unsigned int, unsigned int>;
+  using I1vec = std::vector<PII>;
+  using I2vec = std::vector<I1vec>;
+
+  //! Sort the device vector by level
+  void CudaSortByLevel();
 
   //! Sort the device vector by level changes
-  I2vec CudaSortLevelChanges(cuSharedStream cr);
+  I2vec CudaSortLevelChanges();
 
   //! Zero the acceleration
   void ZeroPotAccel(int mlevel);
@@ -962,8 +985,8 @@ public:
   //! Default bunch size for CUDA
   size_t bunchSize;
 
-  //! Compute center of mass and center of velocity
-  void fix_positions_cuda(unsigned mlevel=0);
+  //! Print out the level lists to stdout for diagnostic purposes
+  void print_level_lists_cuda(double T);
 
   //@}
 #endif

@@ -510,6 +510,10 @@ void UserEBarS::determine_acceleration_and_potential(void)
 
   okM++;
 
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
+
   exp_thread_fork(false);
 
 				// Get full contribution from all threads

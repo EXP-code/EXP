@@ -196,6 +196,9 @@ void UserWake::initialize()
 
 void UserWake::determine_acceleration_and_potential(void)
 {
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
   
   if (first) {
     

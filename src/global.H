@@ -351,6 +351,7 @@ extern bool cuda_prof;
 #if HAVE_LIBCUDA==1
 #include <cudaUtil.cuH>
 extern thrust::device_vector<int> cuDstepL, cuDstepN;
+extern int cudaGlobalDevice;
 #endif
 
 #endif

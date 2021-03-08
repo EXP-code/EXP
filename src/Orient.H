@@ -15,7 +15,11 @@
 #include <Vector.h>
 #include <Particle.H>
 
+#include <config.h>
+
 class Component;
+
+extern bool use_cuda;
 
 /** Class to hold energy and angular momentum for use in centering
     a component.  Helper class for class Orient. */
@@ -118,6 +122,11 @@ private:
   
   vector<double> pos, psa, vel;
   
+  void accumulate_cpu(double time, Component* c);
+#if HAVE_LIBCUDA==1
+  void accumulate_gpu(double time, Component* c);
+#endif
+
 public:
   //! Mask flags for Orient type
   enum OrientFlags {AXIS=1, CENTER=2};

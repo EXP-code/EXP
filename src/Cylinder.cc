@@ -112,7 +112,9 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   EVEN_M          = false;
   eof_over        = false;
   eof_file        = "";
+#if HAVE_LIBCUDA==1
   cuda_aware      = true;
+#endif
 
   initialize();
 
@@ -808,17 +810,12 @@ void Cylinder::determine_coefficients(void)
 #if HAVE_LIBCUDA==1
   if (component->cudaDevice>=0) {
     start1 = std::chrono::high_resolution_clock::now();
-    
     if (mstep==0) {
       std::fill(use.begin(), use.end(), 0.0);
       std::fill(cylmass0.begin(), cylmass0.end(), 0.0);
     }
-
-    if (cC->levlist[mlevel].size()) {
-      determine_coefficients_cuda(compute);
-      DtoH_coefs(mlevel);
-    }
-
+    determine_coefficients_cuda(compute);
+    DtoH_coefs(mlevel);
     finish1 = std::chrono::high_resolution_clock::now();
   } else {    
     exp_thread_fork(true);
@@ -1185,7 +1182,7 @@ void Cylinder::determine_acceleration_and_potential(void)
 #endif
 
 #if HAVE_LIBCUDA==1
-  if (cC->cudaDevice>=0) {
+  if (cC->cudaDevice>=0 and use_cuda) {
     start1 = std::chrono::high_resolution_clock::now();
     //
     // Copy coeficients from this component to device

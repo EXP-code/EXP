@@ -53,6 +53,12 @@ public:
   //! Finish and clean-up (caching data necessary for restart)
   virtual void finish() {}
 
+#if HAVE_LIBCUDA==1
+  //! Copy particles from device for non-cuda forces
+  void getParticlesCuda(Component *c);
+#endif
+
+
 };
 
 typedef ExternalForce *maker_t(const YAML::Node&);

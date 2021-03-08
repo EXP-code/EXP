@@ -463,6 +463,10 @@ void UserDSMC::makeGrid()
 
 void UserDSMC::determine_acceleration_and_potential(void)
 {
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(c0);
+#endif
+
 #ifdef TIMER
   if (myid==0 && debug) {
     timer->reset();

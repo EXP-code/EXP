@@ -180,8 +180,10 @@ PotAccel::PotAccel(const YAML::Node& CONF) : conf(CONF)
   dof          = 3;
   mlevel       = 0;
   scale        = 1.0;
+#if HAVE_LIBCUDA==1
   cuda_aware   = false;
-
+#endif
+  
   // Per thread counter
   try {
     use.resize(nthrds);

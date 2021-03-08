@@ -5,7 +5,8 @@
 
 // This has to be a fixed value for the Cuda API
 //
-#define DATTRIB_CUDA 12
+// #define DATTRIB_CUDA 12
+#define DATTRIB_CUDA 4
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -53,6 +54,7 @@ struct LessCudaLev
 {
   int _t;
 
+  __host__ __device__
   LessCudaLev(int t=0) : _t(t) { }
 
   __host__ __device__
@@ -90,12 +92,25 @@ struct cuPartToLevel :
   public thrust::unary_function<cudaParticle, unsigned int>
 {
   int _t;
+
+  __host__ __device__
   cuPartToLevel(int t=0) : _t(t) {}
 
   __host__ __device__
   unsigned operator()(const cudaParticle& p) const
   {
     return p.lev[_t];
+  }
+};
+
+//! Functor for extracting change level info from cudaParticle structures
+struct cuPartToChange :
+  public thrust::unary_function<cudaParticle, thrust::pair<int, int>>
+{
+  __host__ __device__
+  thrust::pair<int, int> operator()(const cudaParticle& p) const
+  {
+    return {p.lev[0], p.lev[1]};
   }
 };
 

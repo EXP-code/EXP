@@ -1,7 +1,11 @@
+// -*- C++ -*-
+
 #include "expand.h"
 #include <Component.H>
 #include <cudaReduce.cuH>
 
+// Define this to see per operation sub timings
+//
 // #define VERBOSE_TIMING
 
 // Global symbols for time step selection
@@ -70,33 +74,9 @@ void testConstantsMultistep()
   printf("** -------------------\n"     );
 }
 
-//! Thrust counts of delta level for debugging
-struct testCountDelta :  public thrust::unary_function<cudaParticle, int>
-{
-  __host__ __device__
-  int operator()(const cudaParticle& p) const
-  {
-    return abs(p.lev[0] - p.lev[1]);
-  }
-};
-
-struct testCountLevel :  public thrust::unary_function<cudaParticle, int>
-{
-  int _l;
-
-  testCountLevel(int l) : _l(l) {}
-
-  __host__ __device__
-  int operator()(const cudaParticle& p) const
-  {
-    if (p.lev[0] == _l) return 1;
-    return 0;
-  }
-};
-
-
 __global__ void
-timestepKernel(dArray<cudaParticle> in, cuFP_t cx, cuFP_t cy, cuFP_t cz,
+timestepKernel(dArray<cudaParticle> P, dArray<int> I,
+	       cuFP_t cx, cuFP_t cy, cuFP_t cz,
 	       int dim, int stride, PII lohi)
 {
   const int tid    = blockDim.x * blockIdx.x + threadIdx.x;
@@ -104,18 +84,22 @@ timestepKernel(dArray<cudaParticle> in, cuFP_t cx, cuFP_t cy, cuFP_t cz,
 
   for (int n=0; n<stride; n++) {
     int i     = tid*stride + n;	// Index in the stride
-    int npart = i + lohi.first;	// Particle index
+    int npart = i + lohi.first;	// Index into the sorted array
 
     if (npart < lohi.second) {
       
 #ifdef BOUNDS_CHECK
-      if (npart>=in._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+      if (npart >= I._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-      cudaParticle* p = &in._v[npart];
+      cudaParticle & p = P._v[I._v[npart]];
+      //                      ^    ^
+      //                      |    |
+      // Particle index ------+    |
+      // Sort index ---------------+
       
-      cuFP_t xx = p->pos[0] - cx;
-      cuFP_t yy = p->pos[1] - cy;
-      cuFP_t zz = p->pos[2] - cz;
+      cuFP_t xx = p.pos[0] - cx;
+      cuFP_t yy = p.pos[1] - cy;
+      cuFP_t zz = p.pos[2] - cz;
       
       cuFP_t dtd=1.0/eps, dtv=1.0/eps, dta=1.0/eps, dtA=1.0/eps, dts=1.0/eps;
 
@@ -130,13 +114,13 @@ timestepKernel(dArray<cudaParticle> in, cuFP_t cx, cuFP_t cy, cuFP_t cz,
 	cuFP_t atot = 0.0;
 
 	for (int k=0; k<dim; k++) {
-	  vtot += p->vel[k]*p->vel[k];
-	  atot += p->acc[k]*p->acc[k];
+	  vtot += p.vel[k]*p.vel[k];
+	  atot += p.acc[k]*p.acc[k];
 	}
 	vtot = sqrt(vtot) + 1.0e-18;
 	atot = sqrt(atot) + 1.0e-18;
 	
-	if (p->scale>0.0) dts = cuDynfracS*p->scale/vtot;
+	if (p.scale>0.0) dts = cuDynfracS*p.scale/vtot;
 
 	dtv = cuDynfracV*rtot/vtot;
 	dta = cuDynfracA*vtot/atot;
@@ -154,20 +138,21 @@ timestepKernel(dArray<cudaParticle> in, cuFP_t cx, cuFP_t cy, cuFP_t cz,
 	cuFP_t atot = 0.0;
 	
 	for (int k=0; k<dim; k++) {
-	  dtr  += p->vel[k]*p->acc[k];
-	  vtot += p->vel[k]*p->vel[k];
-	  atot += p->acc[k]*p->acc[k];
+	  dtr  += p.vel[k]*p.acc[k];
+	  vtot += p.vel[k]*p.vel[k];
+	  atot += p.acc[k]*p.acc[k];
 	}
 
-	cuFP_t ptot = fabs(p->pot + p->potext);
+	cuFP_t ptot = fabs(p.pot + p.potext);
 	
-	if (p->scale>0) dts = cuDynfracS*p->scale/fabs(sqrt(vtot)+eps);
+	if (p.scale>0) dts = cuDynfracS*p.scale/fabs(sqrt(vtot)+eps);
 	
 	dtd = cuDynfracD * 1.0/sqrt(vtot+eps);
 	dtv = cuDynfracV * sqrt(vtot/(atot+eps));
 	dta = cuDynfracA * ptot/(fabs(dtr)+eps);
-	dtA = cuDynfracP * sqrt(ptot/(atot*atot+eps));
+	dtA = cuDynfracP * sqrt(ptot/(atot+eps));
 
+	// Only use this for deep sanity check
 	/*
 	if (i<5) {
 	  printf("i=%d dtr=%e vtot=%e atot=%e ptot=%e dts=%e dtd=%e dtv=%e dta=%e dtA=%e DynV=%e DynA=%e\n", i, dtr, vtot, atot, ptot, dts, dtd, dtv, dta, dtA, cuDynfracV, cuDynfracA);
@@ -185,22 +170,29 @@ timestepKernel(dArray<cudaParticle> in, cuFP_t cx, cuFP_t cy, cuFP_t cz,
       if (dt > dtA) dt = dtA;
       
       // Time step wants to be LARGER than the maximum
-      p->lev[1] = 0;
+      p.lev[1] = 0;
       if (dt<cuDtime)
-	p->lev[1] = (int)floor(log(cuDtime/dt)/log(2.0));
+	p.lev[1] = (int)floor(log(cuDtime/dt)/log(2.0));
     
       // Time step wants to be SMALLER than the maximum
-      if (p->lev[1]>cuMultistep) p->lev[1] = cuMultistep;
+      if (p.lev[1]>cuMultistep) p.lev[1] = cuMultistep;
       
+      // Only use this for deep sanity check
+      /*
+      if (i<5) {
+	printf("i=%d dtd=%e dtv=%e dta=%e dtA=%e o=%d n=%d\n", i, dtd, dtv, dta, dtA, p.lev[0], p.lev[1]);
+      }
+      */
+
       // Enforce n-level shifts at a time
       //
       if (cuShiftlev) {
-	if (p->lev[1] > p->lev[0]) {
-	  if (p->lev[1] - p->lev[0] > cuShiftlev)
-	    p->lev[1] = p->lev[0] + cuShiftlev;
-	} else if (p->lev[0] > p->lev[1]) {
-	  if (p->lev[0] - p->lev[1] > cuShiftlev)
-	    p->lev[1] = p->lev[0] - cuShiftlev;
+	if (p.lev[1] > p.lev[0]) {
+	  if (p.lev[1] - p.lev[0] > cuShiftlev)
+	    p.lev[1] = p.lev[0] + cuShiftlev;
+	} else if (p.lev[0] > p.lev[1]) {
+	  if (p.lev[0] - p.lev[1] > cuShiftlev)
+	    p.lev[1] = p.lev[0] - cuShiftlev;
 	}
       }
 
@@ -210,19 +202,26 @@ timestepKernel(dArray<cudaParticle> in, cuFP_t cx, cuFP_t cy, cuFP_t cz,
 
 }
 
+// Reset target level to current level
+//
 __global__ void
-timestepFinalizeKernel(dArray<cudaParticle> in, int stride)
+timestepFinalizeKernel(dArray<cudaParticle> P, dArray<int> I,
+		       int stride, PII lohi)
 {
   const int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
   for (int n=0; n<stride; n++) {
     int i     = tid*stride + n;	// Index in the stride
+    int npart = i + lohi.first;	// Index into the sorted array
 
-    if (i < in._s) {
-
-      cudaParticle* p = &in._v[i];
+    if (npart < lohi.second) {
       
-      if (p->lev[0] != p->lev[1]) p->lev[0] = p->lev[1];
+#ifdef BOUNDS_CHECK
+      if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+#endif
+      cudaParticle & p = P._v[I._v[npart]];
+      
+      if (p.lev[0] != p.lev[1]) p.lev[0] = p.lev[1];
 
     } // Particle index block
     
@@ -237,32 +236,29 @@ void cuda_initialize_multistep()
   cuda_initialize_multistep_constants();
 
   if (myid==0) testConstantsMultistep<<<1, 1>>>();
-
-  // Initialize host interpolation arrays
-  //
-  thrust::host_vector<int> host_dstepL((multistep+1)*Mstep);
-  thrust::host_vector<int> host_dstepN((multistep+1)*Mstep);
-
-  for (int ms=0; ms<=multistep; ms++) {
-    int rev = multistep - ms;
-    for (int n=0; n<Mstep; n++) {
-      host_dstepL[rev*Mstep + n] = dstepL[rev][n];
-      host_dstepN[rev*Mstep + n] = dstepN[rev][n];
-    }
-  }
-
-  cuDstepL = host_dstepL;
-  cuDstepN = host_dstepN;
 }
 
 void cuda_compute_levels()
 {
+  // DEBUGGING
+  if (false) {
+    for (int n=0; n<numprocs; n++) {
+      if (n==myid) testConstantsMultistep<<<1, 1>>>();
+      std::cout << std::endl;
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+  }
+  // END DEBUGGING
+
+  //
+  // Begin the update
+  //
+  for (auto c : comp->components) c->force->multistep_update_begin();
+
   cudaDeviceProp deviceProp;
 
-  cuda_initialize_multistep_constants();
-
 #ifdef VERBOSE_TIMING
-  double time1 = 0.0, time2 = 0.0, timeADJ = 0.0, timeCOM = 0.0;
+  double time1 = 0.0, time2 = 0.0, timeSRT = 0.0, timeADJ = 0.0, timeCOM = 0.0;
   auto start0 = std::chrono::high_resolution_clock::now();
   auto start  = std::chrono::high_resolution_clock::now();
 #endif
@@ -270,10 +266,26 @@ void cuda_compute_levels()
   for (auto c : comp->components) {
     
     cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
+    cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
+
 
     PII lohi = {0, c->cuStream->cuda_particles.size()};
-    if (!all) lohi = c->CudaGetLevelRange(c->cuStream, mfirst[mstep], multistep);
+    if (multistep) lohi = c->CudaGetLevelRange(mfirst[mstep], multistep);
       
+    // DEBUGGING
+    if (false and multistep>0) {
+      for (int n=0; n<numprocs; n++) {
+	if (n==myid) testConstantsMultistep<<<1, 1>>>();
+	std::cout << std::string(60, '-') << std::endl
+		  << "[" << myid << ", " << c->name
+		  << "]: mlevel=" << mfirst[mstep] << " mstep=" << mstep
+		  << " (lo, hi) = (" << lohi.first << ", " << lohi.second << ")"
+		  << std::endl << std::string(60, '-') << std::endl;
+	MPI_Barrier(MPI_COMM_WORLD);
+      }
+    }
+    // END DEBUGGING
+
     // Compute grid
     //
     unsigned int N         = lohi.second - lohi.first;
@@ -289,8 +301,9 @@ void cuda_compute_levels()
       auto ctr = c->getCenter(Component::Local | Component::Centered);
       
       timestepKernel<<<gridSize, BLOCK_SIZE>>>
-	(toKernel(c->cuStream->cuda_particles), ctr[0], ctr[1], ctr[2], 
-	 c->dim, stride, lohi);
+	(toKernel(c->cuStream->cuda_particles),
+	 toKernel(c->cuStream->indx1),
+	 ctr[0], ctr[1], ctr[2], c->dim, stride, lohi);
     }
   }
 
@@ -308,7 +321,8 @@ void cuda_compute_levels()
     start = std::chrono::high_resolution_clock::now();
 #endif
     cudaGetDeviceProperties(&deviceProp, c->cudaDevice);
-
+    cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
+    
     c->force->multistep_update_cuda();
 
 #ifdef VERBOSE_TIMING
@@ -320,7 +334,10 @@ void cuda_compute_levels()
 
     // Compute grid
     //
-    unsigned int N         = c->cuStream->cuda_particles.size();
+    PII lohi = {0, c->cuStream->cuda_particles.size()};
+    if (multistep) lohi = c->CudaGetLevelRange(mfirst[mstep], multistep);
+      
+    unsigned int N         = lohi.second - lohi.first;
     unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
     unsigned int gridSize  = N/BLOCK_SIZE/stride;
     
@@ -328,50 +345,32 @@ void cuda_compute_levels()
 
       if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
-      // Do the work
-      //
-      auto ctr = c->getCenter(Component::Local | Component::Centered);
-      
       timestepFinalizeKernel<<<gridSize, BLOCK_SIZE>>>
-	(toKernel(c->cuStream->cuda_particles), stride);
+	(toKernel(c->cuStream->cuda_particles),
+	 toKernel(c->cuStream->indx1), stride, lohi);
 
+#ifdef VERBOSE_TIMING
+      finish = std::chrono::high_resolution_clock::now();
+      duration = finish - start;
+      time2 += duration.count()*1.0e-6;
+      start = std::chrono::high_resolution_clock::now();
+#endif
+
+      // Resort for next substep; this makes indx1
+      //
       c->CudaSortByLevel();
     }
 
-    //  +---- True for deep level debugging
-    //  |
-    //  v
-    if (true) {
-      /*
-      int testme =
-	thrust::transform_reduce(c->cuStream->cuda_particles.begin(),
-				 c->cuStream->cuda_particles.end(),
-				 testCountDelta(), 0, thrust::plus<int>());
-      */
-      std::cout << "Component "<< c->name << "[" << myid << "]: [";
-      for (int m=0; m<=multistep; m++) {
-	int testme =
-	  thrust::transform_reduce(c->cuStream->cuda_particles.begin(),
-				   c->cuStream->cuda_particles.end(),
-				   testCountLevel(m), 0, thrust::plus<int>());
-	std::cout << std::setw(8) << testme << " ";
-      }
-      std::cout << "]" << std::endl;
-    }
-
-
 #ifdef VERBOSE_TIMING
-    c->force->multistep_update_cuda();
     finish = std::chrono::high_resolution_clock::now();
     duration = finish - start;
-    time2 += duration.count()*1.0e-6;
+    timeSRT += duration.count()*1.0e-6;
     start = std::chrono::high_resolution_clock::now();
 #endif
 
     c->fix_positions_cuda();
 
 #ifdef VERBOSE_TIMING
-    c->force->multistep_update_cuda();
     finish = std::chrono::high_resolution_clock::now();
     duration = finish - start;
     timeCOM += duration.count()*1.0e-6;
@@ -382,14 +381,22 @@ void cuda_compute_levels()
 
 #ifdef VERBOSE_TIMING
   auto finish0 = std::chrono::high_resolution_clock::now();
-  duration = finish - start;
+  duration = finish0 - start0;
   auto timeTOT = 1.0e-6*duration.count();
 
-  std::cout << "Time in timestep  =" << time1   << std::endl
-	    << "Time in timelevl  =" << time2   << std::endl
-	    << "Time in adjust    =" << timeADJ << std::endl
-	    << "Time in COM       =" << timeCOM << std::endl
-	    << "Total time in adj =" << timeTOT << std::endl;
+  std::cout << std::string(60, '-') << std::endl
+	    << "Time in timestep  =" << std::setw(16) << time1
+	    << std::setw(16) << time1/timeTOT   << std::endl
+	    << "Time in timelevl  =" << std::setw(16) << time2
+	    << std::setw(16) << time2/timeTOT << std::endl
+	    << "Time in sort      =" << std::setw(16) << timeSRT
+	    << std::setw(16) << timeSRT/timeTOT << std::endl
+	    << "Time in adjust    =" << std::setw(16) << timeADJ
+	    << std::setw(16) << timeADJ/timeTOT << std::endl
+	    << "Time in COM       =" << std::setw(16) << timeCOM
+	    << std::setw(16) << timeCOM/timeTOT << std::endl
+	    << "Total time in adj =" << std::setw(16) << timeTOT
+	    << std::setw(16) << 1.0 << std::endl
+	    << std::string(60, '-') << std::endl;
 #endif
 }
-

@@ -391,6 +391,10 @@ void UserPST::initialize()
 
 void UserPST::determine_acceleration_and_potential(void)
 {
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
+
   if (timing) timer_tot.start();
   
   if (timing) timer_thrd.start();

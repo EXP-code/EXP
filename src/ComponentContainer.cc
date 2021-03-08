@@ -230,9 +230,11 @@ void ComponentContainer::initialize(void)
     cout << "\n";
   }
 
-#ifdef HAVE_LIBCUDA
+#if HAVE_LIBCUDA==1
   // Move all particles to cuda devices
-  for (auto c : components) c->ParticlesToCuda();
+  if (use_cuda) {
+    for (auto c : components) c->ParticlesToCuda();
+  }
 #endif
 
   (*barrier)("ComponentContainer::initialize: FINISH", __FILE__, __LINE__);
@@ -286,7 +288,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     if (levcnt.size()==0) levcnt = vector<unsigned>(multistep+1, 0);
     levcnt[mlevel]++;
   }
-
+  
   // Potential/force clock
   //
   for (auto c : components) c->time_so_far.reset();
@@ -322,7 +324,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       timer_zero.start();
     }
 
-#ifdef HAVE_LIBCUDA
+#if HAVE_LIBCUDA==1
     if (use_cuda) {
       c->ZeroPotAccel(mlevel);
     } else
@@ -367,6 +369,13 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       tPtr1.reset();
       tPtr1 = nvTracerPtr(new nvTracer(sout.str().c_str()));
     }
+
+#if HAVE_LIBCUDA==1
+    if (use_cuda and not c->force->cudaAware() and not fetched[c]) {
+      c->CudaToParticles();
+      fetched[c] = true;
+    }
+#endif
 
     c->force->set_multistep_level(mlevel);
 
@@ -443,6 +452,13 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   for (auto inter : interaction) {
     for (auto other : inter->l) {
 
+#if HAVE_LIBCUDA==1
+      if (use_cuda and not inter->c->force->cudaAware() and not fetched[other]) {
+	other->CudaToParticles();
+	fetched[other] = true;
+      }
+#endif
+
 #ifdef USE_GPTL
       ostringstream sout;
       sout <<"ComponentContainer::interation run<"
@@ -463,6 +479,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       other->time_so_far.start();
       inter->c->force->SetExternal();
       inter->c->force->set_multistep_level(mlevel);
+
       if (use_cuda and not inter->c->force->cudaAware()) {
 #if HAVE_LIBCUDA==1
 	inter->c->CudaToParticles();
@@ -474,6 +491,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       } else {
 	inter->c->force->get_acceleration_and_potential(other);
       }
+
       inter->c->force->ClearExternal();
       other->time_so_far.stop();
 
@@ -551,6 +569,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       for (auto ext : external->force_list) {
 	if (timing) itmr->second.start();
 	ext->set_multistep_level(mlevel);
+
 	if (use_cuda and not c->force->cudaAware()) {
 #if HAVE_LIBCUDA==1
 	  c->CudaToParticles();
@@ -562,6 +581,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	} else {
 	  ext->get_acceleration_and_potential(c);
 	}
+
 	if (timing) (itmr++)->second.stop();
       }
       c->time_so_far.stop();
@@ -804,6 +824,16 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   }
 
+#if HAVE_LIBCUDA==1
+  if (use_cuda) {
+    for (auto c : components) {
+      if (fetched[c]) {
+	c->ParticlesToCuda();
+      }
+    }
+  }
+#endif
+
 #ifdef USE_GPTL
   GPTLstop("ComponentContainer::timing");
   GPTLstop("ComponentContainer::compute_potential");
@@ -825,7 +855,21 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
   cout << "Process " << myid << ": entered <compute_expansion>\n";
 #endif
 
+#if HAVE_LIBCUDA==1
+  // List of components for cuda fetching
   //
+  if (use_cuda) {
+    for (auto c : comp->components) {
+      if (use_cuda and not c->force->cudaAware() and not fetched[c]) {
+	c->CudaToParticles();
+	fetched[c] = true;
+      } else {
+	fetched[c] = false;
+      }
+    }
+  }
+#endif
+
   // Compute expansion for each component
   //
   for (auto c : components) {
@@ -835,6 +879,7 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
 #endif
 				// Compute coefficients
     c->force->set_multistep_level(mlevel);
+
     if (use_cuda and not c->force->cudaAware()) {
 #if HAVE_LIBCUDA==1
       c->CudaToParticles();
@@ -846,6 +891,7 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
     } else {
       c->force->determine_coefficients(c);
     }
+
 #ifdef DEBUG
     cout << "Process " << myid << ": coefficients <"
 	 << c->id << "> for mlevel=" << mlevel << " done" << endl;
@@ -1003,8 +1049,6 @@ void ComponentContainer::fix_acceleration(void)
   }
 
 }
-
-
 
 void ComponentContainer::fix_positions()
 {

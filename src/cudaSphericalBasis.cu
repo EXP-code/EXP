@@ -1,3 +1,5 @@
+// -*- C++ -*-
+
 #include <tuple>
 #include <list>
 
@@ -219,8 +221,8 @@ void SphericalBasis::initialize_mapping_constants()
 
 
 __global__ void coordKernel
-(dArray<cudaParticle> in, dArray<cuFP_t> mass, dArray<cuFP_t> Afac,
- dArray<cuFP_t> phi, dArray<cuFP_t> Plm, dArray<int> Indx, 
+(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> mass,
+ dArray<cuFP_t> Afac, dArray<cuFP_t> phi, dArray<cuFP_t> Plm, dArray<int> Indx, 
  unsigned int Lmax, unsigned int stride, PII lohi, cuFP_t rmax)
 {
   const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
@@ -233,9 +235,9 @@ __global__ void coordKernel
     if (npart < lohi.second) {
 
 #ifdef BOUNDS_CHECK
-      if (npart>=in._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+      if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-      cudaParticle p = in._v[npart];
+      cudaParticle & p = P._v[I._v[npart]];
     
       cuFP_t xx = p.pos[0] - sphCen[0];
       cuFP_t yy = p.pos[1] - sphCen[1];
@@ -412,7 +414,7 @@ __global__ void coefKernel
 }
 
 __global__ void
-forceKernel(dArray<cudaParticle> in, dArray<cuFP_t> coef,
+forceKernel(dArray<cudaParticle> P, dArray<int> I, dArray<cuFP_t> coef,
 	    dArray<cudaTextureObject_t> tex, dArray<cuFP_t> L1, dArray<cuFP_t> L2,
 	    int stride, unsigned Lmax, unsigned int nmax, PII lohi, cuFP_t rmax,
 	    bool external)
@@ -427,9 +429,9 @@ forceKernel(dArray<cudaParticle> in, dArray<cuFP_t> coef,
     if (npart < lohi.second) {
       
 #ifdef BOUNDS_CHECK
-      if (npart>=in._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+      if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-      cudaParticle p = in._v[npart];
+      cudaParticle & p = P._v[I._v[npart]];
       
       cuFP_t xx = p.pos[0] - sphCen[0];
       cuFP_t yy = p.pos[1] - sphCen[1];
@@ -676,36 +678,37 @@ forceKernel(dArray<cudaParticle> in, dArray<cuFP_t> coef,
 	} // END: m loop
 
       } // END: l loop
-				// Rescale
+
+      // Rescale
       potr /= sphScale*sphScale;
       potl /= sphScale;
       pott /= sphScale;
       potp /= sphScale;
 
-      in._v[npart].acc[0] += -(potr*xx/r - pott*xx*zz/(r*r*r));
-      in._v[npart].acc[1] += -(potr*yy/r - pott*yy*zz/(r*r*r));
-      in._v[npart].acc[2] += -(potr*zz/r + pott*RR/(r*r*r));
+      p.acc[0] += -(potr*xx/r - pott*xx*zz/(r*r*r));
+      p.acc[1] += -(potr*yy/r - pott*yy*zz/(r*r*r));
+      p.acc[2] += -(potr*zz/r + pott*RR/(r*r*r));
       if (RR > FSMALL) {
-	in._v[npart].acc[0] +=  potp*yy/RR;
-	in._v[npart].acc[1] += -potp*xx/RR;
+	p.acc[0] +=  potp*yy/RR;
+	p.acc[1] += -potp*xx/RR;
       }
       if (external)
-	in._v[npart].potext += potl;
+	p.potext += potl;
       else
-	in._v[npart].pot    += potl;
+	p.pot    += potl;
 
 #ifdef NAN_CHECK
       // Sanity check
       bool bad = false;
       for (int k=0; k<3; k++) {
-	if (std::isnan(in._v[npart].acc[k])) bad = true;
+	if (std::isnan(p.acc[k])) bad = true;
       }
 
       if (bad)  {
-	printf("Force nan value: [%d] x=%f X=%f Y=%f Z=%f r=%f R=%f P=%f dP/dr=%f dP/dx=%f dP/dp=%f\n", in._v[npart].indx, x, xx, yy, zz, r, RR, potl, potr, pott, potp);
+	printf("Force nan value: [%d] x=%f X=%f Y=%f Z=%f r=%f R=%f P=%f dP/dr=%f dP/dx=%f dP/dp=%f\n", p.indx, x, xx, yy, zz, r, RR, potl, potr, pott, potp);
 	if (a<0.0 or a>1.0)  {
 	  printf("Force nan value, no ioff: [%d] x=%f xi=%f dxi=%f a=%f i=%d\n",
-		 in._v[npart].indx, x, xi, dx, a, ind);
+		 p.indx, x, xi, dx, a, ind);
 	}
       }
 #endif
@@ -791,7 +794,7 @@ void SphericalBasis::cudaStorage::resize_coefs
   i_d.resize(N);
 }
 
-void SphericalBasis::zero_coefs()
+void SphericalBasis::cuda_zero_coefs()
 {
   auto cr = component->cuStream;
   
@@ -801,8 +804,7 @@ void SphericalBasis::zero_coefs()
     
   // Zero output array
   //
-  thrust::fill(// thrust::cuda::par.on(cr.stream),
-	       thrust::cuda::par,
+  thrust::fill(thrust::cuda::par.on(cr->stream),
 	       cuS.df_coef.begin(), cuS.df_coef.end(), 0.0);
 
   // Resize and zero PCA arrays
@@ -817,8 +819,7 @@ void SphericalBasis::zero_coefs()
     }
     
     for (int T=0; T<sampT; T++)
-      thrust::fill(// thrust::cuda::par.on(cr.stream),
-		   thrust::cuda::par,
+      thrust::fill(thrust::cuda::par.on(cr->stream),
 		   cuS.T_coef[T].begin(), cuS.T_coef[T].end(), 0.0);
     
     thrust::fill(host_massT.begin(), host_massT.end(), 0.0);
@@ -827,8 +828,7 @@ void SphericalBasis::zero_coefs()
   if (pcaeof) {
     cuS.df_tvar.resize((Lmax+1)*(Lmax+2)/2*nmax*(nmax+1)/2);
     
-    thrust::fill(// thrust::cuda::par.on(cr.stream),
-		 thrust::cuda::par,
+    thrust::fill(thrust::cuda::par.on(cr->stream),
 		 cuS.df_tvar.begin(), cuS.df_tvar.end(), 0.0);
 
     if (not pcavar) host_mass_tot = 0.0;
@@ -899,6 +899,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
+  cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
 
   auto cr = component->cuStream;
 
@@ -927,6 +928,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
   if (firstime and myid==0) {
     testConstantsSph<<<1, 1, 0, cr->stream>>>();
     cudaDeviceSynchronize();
+    cuda_check_last_error_mpi("cudaDeviceSynchronize", __FILE__, __LINE__, myid);
     firstime = false;
   }
   
@@ -944,11 +946,11 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
   // Zero out coefficient storage
   //
-  zero_coefs();
+  cuda_zero_coefs();
 
-  // Sort particles and get coefficient size
+  // Get sorted particle range for mlevel
   //
-  PII lohi = component->CudaGetLevelRange(cr, mlevel, mlevel), cur;
+  PII lohi = component->CudaGetLevelRange(mlevel, mlevel), cur;
   
   unsigned int Ntotal = lohi.second - lohi.first;
   unsigned int Npacks = Ntotal/component->bunchSize + 1;
@@ -999,19 +1001,16 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
     //
     int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
     
-    // Do the work
-    //
-				// Compute the coordinate
-				// transformation
-				// 
+    // Compute the coordinate transformation
+    // 
     coordKernel<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
-      (toKernel(cr->cuda_particles),
+      (toKernel(cr->cuda_particles), toKernel(cr->indx1),
        toKernel(cuS.m_d), toKernel(cuS.a_d), toKernel(cuS.p_d),
        toKernel(cuS.plm1_d), toKernel(cuS.i_d),
        Lmax, stride, cur, rmax);
     
-				// Compute the coefficient
-				// contribution for each order
+    // Compute the coefficient contribution for each order
+    //
     int osize = nmax*2;	//
     int vsize = nmax*(nmax+1)/2;
     auto beg  = cuS.df_coef.begin();
@@ -1050,15 +1049,13 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
 	thrust::reduce_by_key
 	  (
-	   // thrust::cuda::par.on(cr->stream),
-	   thrust::cuda::par,
+	   thrust::cuda::par.on(cr->stream),
 	   thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 	   thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 	   cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
 	   );
 
-	thrust::transform(// thrust::cuda::par.on(cr->stream),
-			  thrust::cuda::par,
+	thrust::transform(thrust::cuda::par.on(cr->stream),
 			  cuS.dw_coef.begin(), cuS.dw_coef.end(),
 			  beg, beg, thrust::plus<cuFP_t>());
 	
@@ -1104,16 +1101,14 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
 	      thrust::reduce_by_key
 		(
-		 // thrust::cuda::par.on(cr->stream),
-		 thrust::cuda::par,
+		 thrust::cuda::par.on(cr->stream),
 		 thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 		 thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 		 cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
 		 );
 		
 	      
-	      thrust::transform(// thrust::cuda::par.on(cr->stream),
-				thrust::cuda::par,
+	      thrust::transform(thrust::cuda::par.on(cr->stream),
 				cuS.dw_coef.begin(), cuS.dw_coef.end(),
 				bg[T], bg[T], thrust::plus<cuFP_t>());
 	      
@@ -1145,15 +1140,13 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 	    
 	    thrust::reduce_by_key
 	      (
-	       // thrust::cuda::par.on(cr->stream),
-	       thrust::cuda::par,
+	       thrust::cuda::par.on(cr->stream),
 	       thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 	       thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 	       cuS.dc_tvar.begin(), thrust::make_discard_iterator(), cuS.dw_tvar.begin()
 	       );
 	    
-	    thrust::transform(// thrust::cuda::par.on(cr->stream),
-			      thrust::cuda::par,
+	    thrust::transform(thrust::cuda::par.on(cr->stream),
 			      cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
 			      begV, begV, thrust::plus<cuFP_t>());
 	    
@@ -1173,9 +1166,8 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
     // Compute number and total mass of particles used in coefficient
     // determination
     //
-    // thrust::sort(thrust::cuda::par.on(cr->stream), cuS.m_d.begin(), cuS.m_d.end());
-    thrust::sort(thrust::cuda::par, cuS.m_d.begin(), cuS.m_d.end());
-      
+    thrust::sort(thrust::cuda::par.on(cr->stream), cuS.m_d.begin(), cuS.m_d.end());
+
     // Call the kernel on a single thread
     // 
     thrust::device_vector<cuFP_t>::iterator it;
@@ -1184,6 +1176,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
     //
     if (thrust_binary_search_workaround) {
       cudaStreamSynchronize(cr->stream);
+      cuda_check_last_error_mpi("cudaStreamSynchronize", __FILE__, __LINE__, myid);
       it = thrust::lower_bound(cuS.m_d.begin(), cuS.m_d.end(), 0.0);
     } else {
       it = thrust::lower_bound(thrust::cuda::par.on(cr->stream),
@@ -1580,6 +1573,7 @@ void SphericalBasis::determine_acceleration_cuda()
 
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, cC->cudaDevice);
+  cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
 
   // Stream structure iterators
   //
@@ -1594,9 +1588,9 @@ void SphericalBasis::determine_acceleration_cuda()
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying sphCen");
   
-  // Sort particles and get size
+  // Get particle index range for levels [mlevel, multistep]
   //
-  PII lohi = cC->CudaGetLevelRange(cr, mlevel, multistep);
+  PII lohi = cC->CudaGetLevelRange(mlevel, multistep);
 
   // Compute grid
   //
@@ -1636,7 +1630,8 @@ void SphericalBasis::determine_acceleration_cuda()
     // Do the work
     //
     forceKernel<<<gridSize, BLOCK_SIZE, sMemSize, cr->stream>>>
-      (toKernel(cr->cuda_particles), toKernel(dev_coefs), toKernel(t_d),
+      (toKernel(cr->cuda_particles), toKernel(cr->indx1),
+       toKernel(dev_coefs), toKernel(t_d),
        toKernel(cuS.plm1_d), toKernel(cuS.plm2_d),
        stride, Lmax, nmax, lohi, rmax, use_external);
   }
@@ -1704,7 +1699,7 @@ void SphericalBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
 
 
     if (pcavar) {
-
+      
       // T loop
       //
       for (int T=0; T<sampT; T++) {
@@ -1726,10 +1721,10 @@ void SphericalBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
 	    //
 	    for (int n=1; n<=nmax; n++) {
 	      (*expcoefT1[T][loffset+m])[n] += ret[2*(n-1) + offst];
-	      }
-
-	    offst += osize;
 	    }
+	    
+	    offst += osize;
+	  }
 	}
       }
       
@@ -1767,14 +1762,23 @@ void SphericalBasis::multistep_update_cuda()
   auto start0 = std::chrono::high_resolution_clock::now();
   auto start  = std::chrono::high_resolution_clock::now();
 #endif
-  auto ret = component->CudaSortLevelChanges(component->cuStream);
+
+  auto chg = component->CudaSortLevelChanges();
+
 #ifdef VERBOSE_TIMING
   auto finish = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double, std::micro> duration = finish - start;
   std::cout << "Time in level sort=" << duration.count()*1.0e-6 << std::endl;
 #endif
+
+  // Zero out coefficient storage
+  //
+  cuda_zero_coefs();
+
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
+  cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
+
   auto cs = component->cuStream;
 
 #ifdef VERBOSE_TIMING
@@ -1782,22 +1786,23 @@ void SphericalBasis::multistep_update_cuda()
 #endif
   // Step through all levels
   //
-  for (int mlev=0; mlev<=multistep; mlev++) {
+  for (int olev=mfirst[mstep]; olev<=multistep; olev++) {
+    
+    for (int nlev=0; nlev<=multistep; nlev++) {
 
-    for (int del=0; del<=multistep; del++) {
+      if (olev == nlev) continue;
 
-      if (mlev == del) continue;
+      unsigned int Ntotal = chg[olev][nlev].second - chg[olev][nlev].first;
 
-      unsigned int Ntotal = ret[mlev][del].second - ret[mlev][del].first;
-
-      if (Ntotal==0) continue;
+      if (Ntotal==0) continue;	// No particles [from, to]=[olev, nlev]
 
       unsigned int Npacks = Ntotal/component->bunchSize + 1;
+
 
 #ifdef VERBOSE_DBG
       std::cout << "[" << myid << ", " << tnow
 		<< "] Adjust sphere: Ntotal=" << Ntotal << " Npacks=" << Npacks
-		<< " for (m, d)=(" << mlev << ", " << del << ")" << std::endl;
+		<< " for (m, d)=(" << olev << ", " << nlev << ")" << std::endl;
 #endif
       // Loop over bunches
       //
@@ -1807,9 +1812,9 @@ void SphericalBasis::multistep_update_cuda()
 
 	// Current bunch
 	//
-	cur. first = ret[mlev][del].first + component->bunchSize*n;
-	cur.second = ret[mlev][del].first + component->bunchSize*(n+1);
-	cur.second = std::min<unsigned int>(cur.second, ret[mlev][del].second);
+	cur. first = chg[olev][nlev].first + component->bunchSize*n;
+	cur.second = chg[olev][nlev].first + component->bunchSize*(n+1);
+	cur.second = std::min<unsigned int>(cur.second, chg[olev][nlev].second);
 
 	if (cur.second <= cur.first) break;
     
@@ -1835,7 +1840,7 @@ void SphericalBasis::multistep_update_cuda()
 	start = std::chrono::high_resolution_clock::now();
 #endif
 	coordKernel<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
-	  (toKernel(cs->cuda_particles),
+	  (toKernel(cs->cuda_particles), toKernel(cs->indx2),
 	   toKernel(cuS.m_d), toKernel(cuS.a_d), toKernel(cuS.p_d),
 	   toKernel(cuS.plm1_d), toKernel(cuS.i_d),
 	   Lmax, stride, cur, rmax);
@@ -1889,15 +1894,13 @@ void SphericalBasis::multistep_update_cuda()
 
 	    thrust::reduce_by_key
 	      (
-	       // thrust::cuda::par.on(cr->stream),
-	       thrust::cuda::par,
+	       thrust::cuda::par.on(cs->stream),
 	       thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 	       thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 	       cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
 	       );
 	    
-	    thrust::transform(// thrust::cuda::par.on(cr->stream),
-			      thrust::cuda::par,
+	    thrust::transform(thrust::cuda::par.on(cs->stream),
 			      cuS.dw_coef.begin(), cuS.dw_coef.end(),
 			      beg, beg, thrust::plus<cuFP_t>());
 
@@ -1917,36 +1920,34 @@ void SphericalBasis::multistep_update_cuda()
       // Copy back coefficient data from device and load the host
       //
       thrust::host_vector<cuFP_t> ret = cuS.df_coef;
-      int offst = 0;
-      for (int l=0; l<=Lmax; l++) {
-	for (int m=0; m<=l; m++) {
-	  for (size_t j=0; j<nmax; j++) {
-	    host_coefs[Ilmn(l, m, 'c', j, nmax)] += ret[2*j+offst];
-	    if (m>0) host_coefs[Ilmn(l, m, 's', j, nmax)] += ret[2*j+1+offst];
-	  }
-	  offst += nmax*2;
-	}
-      }
-      
-      // Decrement current level and increment new level
+
+      // Decrement current level and increment new level using the
+      // update matrices
       //
-      for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
+      for (int l=0, loffset=0, offst=0; l<=Lmax; loffset+=(2*l+1), l++) {
 	for (int m=0, moffset=0; m<=l; m++) {
 	  for (size_t n=0; n<nmax; n++) {
-	    (*expcoefN[mlev][loffset+moffset])[n+1] -= host_coefs[Ilmn(l, m, 'c', n, nmax)];
-	    (*expcoefN[del ][loffset+moffset])[n+1] += host_coefs[Ilmn(l, m, 'c', n, nmax)];
+	    differ1[0][olev][loffset+moffset][n+1] -= ret[2*n+offst];
+	    differ1[0][nlev][loffset+moffset][n+1] += ret[2*n+offst];
 	    if (m>0) {
-	      (*expcoefN[mlev][loffset+moffset+1])[n+1] -= host_coefs[Ilmn(l, m, 's', n, nmax)];
-	      (*expcoefN[del ][loffset+moffset+1])[n+1] += host_coefs[Ilmn(l, m, 's', n, nmax)];
+	      differ1[0][olev][loffset+moffset+1][n+1] -= ret[2*n+1+offst];
+	      differ1[0][nlev][loffset+moffset+1][n+1] += ret[2*n+1+offst];
 	    }
 	  }
 
+	  // Update the offset into the device coefficient array
+	  offst += nmax*2;
+
+	  // Update the offset into the host coefficient matrix
 	  if (m>0) moffset += 2;
 	  else     moffset += 1;
 	}
       }
+      // END: assign differences
     }
+    // END: to new level loop
   }
+  // END: from prev level loop
 
 #ifdef VERBOSE_TIMING
   std::cout << "Time in coord=" << coord << std::endl;
@@ -1976,5 +1977,3 @@ void SphericalBasis::destroy_cuda()
 		     __FILE__, __LINE__, sout.str());
   }
 }
-
-// -*- C++ -*-

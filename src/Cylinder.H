@@ -156,8 +156,8 @@ protected:
   //! Initialize the container
   void cuda_initialize();
 
-  //! Zero the coefficient output vectors
-  void zero_coefs();
+  //! Zero the coefficient gpu vectors
+  void cuda_zero_coefs();
 
   //@}
 
@@ -264,13 +264,13 @@ public:
   //@{
   virtual void multistep_update_begin() { 
     if (play_back) return;
-    if (self_consistent and not use_cuda) ortho->multistep_update_begin();
+    if (self_consistent) ortho->multistep_update_begin();
   }
 
   virtual void multistep_update(int cur, int next, Component* c, int i, int id);
   virtual void multistep_update_finish() { 
     if (play_back) return;
-    if (self_consistent and not use_cuda) ortho->multistep_update_finish();
+    if (self_consistent) ortho->multistep_update_finish();
   }
   //@}
 

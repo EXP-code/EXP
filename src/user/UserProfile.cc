@@ -192,6 +192,10 @@ void UserProfile::determine_acceleration_and_potential(void)
 
   if (multistep and mlevel>0) return;
 
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
+
   if (first) {
 
     count = 0;

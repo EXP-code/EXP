@@ -46,7 +46,9 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
   subset           = false;
   coefMaster       = true;
   lastPlayTime     = -std::numeric_limits<double>::max();
+#if HAVE_LIBCUDA==1
   cuda_aware       = true;
+#endif
 
   try {
     if (conf["scale"]) 
@@ -700,12 +702,10 @@ void SphericalBasis::determine_coefficients(void)
 #endif
     
 #if HAVE_LIBCUDA==1
-  if (component->cudaDevice>=0) {
+  if (component->cudaDevice>=0 and use_cuda) {
     start1  = std::chrono::high_resolution_clock::now();
-    if (cC->levlist[mlevel].size()) {
-      determine_coefficients_cuda(compute);
-      DtoH_coefs(expcoef0[0]);
-    }
+    determine_coefficients_cuda(compute);
+    DtoH_coefs(expcoef0[0]);
     finish1 = std::chrono::high_resolution_clock::now();
   } else {
     exp_thread_fork(true);
@@ -714,7 +714,7 @@ void SphericalBasis::determine_coefficients(void)
   exp_thread_fork(true);
 #endif
   
-#ifdef DEBUG
+ #ifdef DEBUG
   cout << "Process " << myid << ": in <determine_coefficients>, thread returned, lev=" << mlevel << endl;
 #endif
 
@@ -797,7 +797,7 @@ void SphericalBasis::determine_coefficients(void)
 
   print_timings("SphericalBasis: coefficient timings");
 
-# if HAVE_LIBCUDA
+#if HAVE_LIBCUDA==1
   if (component->timers) {
     auto finish0 = std::chrono::high_resolution_clock::now();
   
@@ -809,7 +809,7 @@ void SphericalBasis::determine_coefficients(void)
 	      << mlevel << std::endl;
     std::cout << std::string(60, '=') << std::endl;
     std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
-    if (cC->cudaDevice>=0) {
+    if (cC->cudaDevice>=0 and use_cuda) {
       std::cout << "Time in GPU: " << duration1.count() << std::endl;
     }
     std::cout << std::string(60, '=') << std::endl;
@@ -901,13 +901,13 @@ void SphericalBasis::multistep_update_finish()
 				//
   for (unsigned j=0; j<sz; j++) pack[j] = unpack[j] = 0.0;
 
-				// Pack the difference matrices
-				//
+  // Pack the difference matrices
+  //
   for (int M=mfirst[mstep]; M<=multistep; M++) {
     offset0 = (M - mfirst[mstep])*(Lmax+1)*(Lmax+1)*nmax;
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
       offset1 = l*nmax;
-      for (int n=1; n<nthrds; n++) 
+      for (int n=0; n<nthrds; n++) 
 	for (int ir=1; ir<=nmax; ir++) 
 	  pack[offset0+offset1+ir-1] += differ1[n][M][l][ir];
     }
@@ -916,6 +916,40 @@ void SphericalBasis::multistep_update_finish()
   MPI_Allreduce (&pack[0], &unpack[0], sz, 
 		 MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   
+  //  +--- Deep debugging
+  //  |
+  //  v
+  if (false and myid==0) {
+    std::ofstream out("test_differ.sph", ios::app);
+    if (out) {
+      out << std::string(10+16*nmax, '-') << std::endl;
+      out << "# T=" << tnow << " mstep=" << mstep << std::endl;
+      for (int M=mfirst[mstep]; M<=multistep; M++) {
+	offset0 = (M - mfirst[mstep])*(Lmax+1)*(Lmax+1)*nmax;
+	for (int l=0; l<=Lmax*(Lmax+2); l++) {
+	  offset1 = l*nmax;
+	  out << std::setw(5) << M << std::setw(5) << l;
+	  for (int ir=1; ir<=nmax; ir++)
+	    out << std::setw(16) << unpack[offset0+offset1+ir-1];
+	  out << std::endl;
+	  break;
+	}
+      }
+      out << std::string(10+16*nmax, '-') << std::endl;
+      for (int l=0; l<=Lmax*(Lmax+2); l++) {
+	out << std::setw(5) << " *** " << std::setw(5) << l;
+	for (int ir=1; ir<=nmax; ir++)
+	  out << std::setw(16) << (*expcoef[l])[ir];
+	out << std::endl;
+	break;
+      }
+      out << std::string(10+16*nmax, '-') << std::endl;
+      out << std::string(10+16*nmax, '-') << std::endl;
+    } else {
+      std::cout << "Error opening test file <test_differ.sph> at T=" << tnow
+		<< std::endl;
+    }
+  }
 				// Update the local coefficients
 				//
   for (int M=mfirst[mstep]; M<=multistep; M++) {
@@ -1310,7 +1344,7 @@ void SphericalBasis::determine_acceleration_and_potential(void)
 #endif
 
 #if HAVE_LIBCUDA==1
-  if (component->cudaDevice>=0) {
+  if (component->cudaDevice>=0 and use_cuda) {
     start1 = std::chrono::high_resolution_clock::now();
     //
     // Copy coefficients from this component to device
@@ -1334,27 +1368,29 @@ void SphericalBasis::determine_acceleration_and_potential(void)
 #endif
 
 #ifdef DEBUG
-  cout << "SphericalBasis: process " << myid << " returned from fork" << endl;
-  cout << "SphericalBasis: process " << myid << " name=<" << cC->name << ">";
+  if (not use_cuda) {
+    cout << "SphericalBasis: process " << myid << " returned from fork" << endl;
+    cout << "SphericalBasis: process " << myid << " name=<" << cC->name << ">";
 
-  if (cC->Particles().size()) {
+    if (cC->Particles().size()) {
 
-    unsigned long imin = std::numeric_limits<unsigned long>::max();
-    unsigned long imax = 0, kmin = kmin, kmax = 0;
-    for (auto p : cC->Particles()) {
-      imin = std::min<unsigned long>(imin, p.first);
-      imax = std::max<unsigned long>(imax, p.first);
-      kmin = std::min<unsigned long>(kmin, p.second->indx);
-      kmax = std::max<unsigned long>(kmax, p.second->indx);
-    }
-
-    cout << " bodies ["
-	 << kmin << ", " << kmax << "], ["
-	 << imin << ", " << imax << "]"
-	 << " #=" << cC->Particles().size() << endl;
-
-  } else
-    cout << " zero bodies!" << endl;
+      unsigned long imin = std::numeric_limits<unsigned long>::max();
+      unsigned long imax = 0, kmin = kmin, kmax = 0;
+      for (auto p : cC->Particles()) {
+	imin = std::min<unsigned long>(imin, p.first);
+	imax = std::max<unsigned long>(imax, p.first);
+	kmin = std::min<unsigned long>(kmin, p.second->indx);
+	kmax = std::max<unsigned long>(kmax, p.second->indx);
+      }
+      
+      cout << " bodies ["
+	   << kmin << ", " << kmax << "], ["
+	   << imin << ", " << imax << "]"
+	   << " #=" << cC->Particles().size() << endl;
+      
+    } else
+      cout << " zero bodies!" << endl;
+  }
 #endif
 
   print_timings("SphericalBasis: acceleration timings");

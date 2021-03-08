@@ -1,3 +1,5 @@
+// -*- C++ -*-
+
 #include <iostream>
 #include <iomanip>
 #include "cudaParticle.cuH"

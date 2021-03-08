@@ -254,6 +254,10 @@ void UserSNheat::determine_acceleration_and_potential(void)
   if (tnow < delay)           return;
   if (ncount > N)             return;
   
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
+
   if (!firstime) {
     
     if (myid==0) {

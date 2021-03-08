@@ -1,3 +1,5 @@
+// -*- C++ -*-
+
 #include <Component.H>
 #include <Cylinder.H>
 #include <cudaReduce.cuH>
@@ -10,7 +12,6 @@
 // #define OFF_GRID_ALERT
 // #define BOUNDS_CHECK
 // #define VERBOSE_CTR
-// #define VERBOSE_TIMING
 // #define VERBOSE_DBG
 
 // Global symbols for coordinate transformation
@@ -215,7 +216,8 @@ void Cylinder::initialize_mapping_constants()
 
 
 __global__ void coordKernelCyl
-(dArray<cudaParticle> in, dArray<cuFP_t> mass, dArray<cuFP_t> phi,
+(dArray<cudaParticle> P, dArray<int> I,
+ dArray<cuFP_t> mass, dArray<cuFP_t> phi,
  dArray<cuFP_t> Xfac, dArray<cuFP_t> Yfac,
  dArray<int> IndX, dArray<int> IndY,
  unsigned int stride, PII lohi, cuFP_t rmax)
@@ -231,9 +233,9 @@ __global__ void coordKernelCyl
     if (npart < lohi.second) {	// Is particle index in range?
 
 #ifdef BOUNDS_CHECK
-      if (npart>=in._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+      if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-      cudaParticle p = in._v[npart];
+      cudaParticle & p = P._v[I._v[npart]];
     
       cuFP_t xx=0.0, yy=0.0, zz=0.0;
 
@@ -464,7 +466,8 @@ __global__ void coefKernelCyl
 }
 
 __global__ void
-forceKernelCyl(dArray<cudaParticle> in, dArray<cuFP_t> coef,
+forceKernelCyl(dArray<cudaParticle> P, dArray<int> I,
+	       dArray<cuFP_t> coef,
 	       dArray<cudaTextureObject_t> tex,
 	       int stride, unsigned int mmax, unsigned int mlim,
 	       unsigned int nmax, PII lohi,
@@ -488,9 +491,9 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<cuFP_t> coef,
       int muse = mmax > mlim ? mlim : mmax;
 
 #ifdef BOUNDS_CHECK
-      if (npart>=in._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
+      if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
-      cudaParticle p = in._v[npart];
+      cudaParticle & p = P._v[I._v[npart]];
       
       cuFP_t acc[3] = {0.0, 0.0, 0.0};
       cuFP_t xx=0.0, yy=0.0, zz=0.0;
@@ -735,16 +738,16 @@ forceKernelCyl(dArray<cudaParticle> in, dArray<cuFP_t> coef,
 
       if (cylOrient) {
 	for (int j=0; j<3; j++) {
-	  for (int k=0; k<3; k++) in._v[npart].acc[j] += cylOrig[3*j+k]*acc[k];
+	  for (int k=0; k<3; k++) p.acc[j] += cylOrig[3*j+k]*acc[k];
 	}
       } else {
-	for (int j=0; j<3; j++) in._v[npart].acc[j] += acc[j];
+	for (int j=0; j<3; j++) p.acc[j] += acc[j];
       }
 
       if (external)
-	in._v[npart].potext += pp;
+	p.potext += pp;
       else
-	in._v[npart].pot    += pp;
+	p.pot    += pp;
 
     } // Particle index block
 
@@ -820,7 +823,7 @@ void Cylinder::cudaStorage::resize_coefs
   iY_d.resize(N);
 }
 
-void Cylinder::zero_coefs()
+void Cylinder::cuda_zero_coefs()
 {
   auto cr = component->cuStream;
   
@@ -885,6 +888,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
+  cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
 
   // This will stay fixed for the entire run
   //
@@ -938,6 +942,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
   if (firstime and myid==0) {
     testConstantsCyl<<<1, 1, 0, cs->stream>>>();
     cudaDeviceSynchronize();
+    cuda_check_last_error_mpi("cudaDeviceSynchronize", __FILE__, __LINE__, myid);
     firstime = false;
   }
   
@@ -955,15 +960,25 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
   // Zero out coefficient storage
   //
-  zero_coefs();
+  cuda_zero_coefs();
 
   // Maximum radius on grid
   //
   cuFP_t rmax = rcylmax * acyl * M_SQRT1_2;
 
-  // Sort particles and get coefficient size
+  // Get sorted particle range for mlevel
   //
-  PII lohi = component->CudaGetLevelRange(cs, mlevel, mlevel), cur;
+  PII lohi = component->CudaGetLevelRange(mlevel, mlevel), cur;
+
+  if (false) {
+    for (int n=0; n<numprocs; n++) {
+      if (myid==n) std::cout << "[" << myid << "] mlevel=" << mlevel
+			     << " coef check (lo, hi) = (" << lohi.first << ", "
+			     << lohi.second << ")" << std::endl
+			     << std::string(60, '-') << std::endl;
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+  }
   
   unsigned int Ntotal = lohi.second - lohi.first;
   unsigned int Npacks = Ntotal/component->bunchSize + 1;
@@ -989,20 +1004,26 @@ void Cylinder::determine_coefficients_cuda(bool compute)
     if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
 #ifdef VERBOSE_CTR
-    static unsigned debug_max_count = 10;
+    static unsigned debug_max_count = 100;
     static unsigned debug_cur_count = 0;
     if (debug_cur_count++ < debug_max_count) {
-      std::cout << std::endl << "** cudaCylinder coefficients" << std::endl
-		<< "** N      = " << N          << std::endl
-		<< "** Npacks = " << Npacks     << std::endl
-		<< "** I low  = " << cur.first  << std::endl
-		<< "** I high = " << cur.second << std::endl
-		<< "** Stride = " << stride     << std::endl
-		<< "** Block  = " << BLOCK_SIZE << std::endl
-		<< "** Grid   = " << gridSize   << std::endl
-		<< "** Xcen   = " << ctr[0]     << std::endl
-		<< "** Ycen   = " << ctr[1]     << std::endl
-		<< "** Zcen   = " << ctr[2]     << std::endl
+      std::cout << std::endl
+		<< "** -------------------------" << std::endl
+		<< "** cudaCylinder coefficients" << std::endl
+		<< "** -------------------------" << std::endl
+		<< "** N      = " << N            << std::endl
+		<< "** Npacks = " << Npacks       << std::endl
+		<< "** I low  = " << cur.first    << std::endl
+		<< "** I high = " << cur.second   << std::endl
+		<< "** Stride = " << stride       << std::endl
+		<< "** Block  = " << BLOCK_SIZE   << std::endl
+		<< "** Grid   = " << gridSize     << std::endl
+		<< "** Xcen   = " << ctr[0]       << std::endl
+		<< "** Ycen   = " << ctr[1]       << std::endl
+		<< "** Zcen   = " << ctr[2]       << std::endl
+		<< "** Level  = " << mlevel       << std::endl
+		<< "** lo     = " << lohi.first   << std::endl
+		<< "** hi     = " << lohi.second  << std::endl
 		<< "**" << std::endl;
   }
 #endif
@@ -1018,7 +1039,8 @@ void Cylinder::determine_coefficients_cuda(bool compute)
     // Compute the coordinate transformation
     // 
     coordKernelCyl<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
-      (toKernel(cs->cuda_particles), toKernel(cuS.m_d), toKernel(cuS.p_d),
+      (toKernel(cs->cuda_particles), toKernel(cs->indx1),
+       toKernel(cuS.m_d), toKernel(cuS.p_d),
        toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d),
        toKernel(cuS.iY_d), stride, cur, rmax);
       
@@ -1062,15 +1084,13 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
       thrust::reduce_by_key
 	(
-	 // thrust::cuda::par.on(cs->stream),
-	 thrust::cuda::par,
+	 thrust::cuda::par.on(cs->stream),
 	 thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 	 thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 	 cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
 	 );
 
-      thrust::transform(// thrust::cuda::par.on(cs->stream),
-			thrust::cuda::par,
+      thrust::transform(thrust::cuda::par.on(cs->stream),
 			cuS.dw_coef.begin(), cuS.dw_coef.end(),
 			beg, beg, thrust::plus<cuFP_t>());
 
@@ -1114,16 +1134,14 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	      
 	    thrust::reduce_by_key
 	      (
-	       // thrust::cuda::par.on(cs->stream),
-	       thrust::cuda::par,
+	       thrust::cuda::par.on(cs->stream),
 	       thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 	       thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 	       cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
 	       );
 
 
-	    thrust::transform(// thrust::cuda::par.on(cs->stream),
-			      thrust::cuda::par,
+	    thrust::transform(thrust::cuda::par.on(cs->stream),
 			      cuS.dw_coef.begin(), cuS.dw_coef.end(),
 			      bg[T], bg[T], thrust::plus<cuFP_t>());
 	    
@@ -1155,15 +1173,13 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	  
 	  thrust::reduce_by_key
 	    (
-	     // thrust::cuda::par.on(cs->stream),
-	     thrust::cuda::par,
+	     thrust::cuda::par.on(cs->stream),
 	     thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 	     thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 	       cuS.dc_tvar.begin(), thrust::make_discard_iterator(), cuS.dw_tvar.begin()
 	     );
 
-	  thrust::transform(// thrust::cuda::par.on(cs->stream),
-			    thrust::cuda::par,
+	  thrust::transform(thrust::cuda::par.on(cs->stream),
 			    cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
 			    begV, begV, thrust::plus<cuFP_t>());
 
@@ -1175,12 +1191,10 @@ void Cylinder::determine_coefficients_cuda(bool compute)
     // Compute number and total mass of particles used in coefficient
     // determination
     //
-    thrust::sort(//thrust::cuda::par.on(cs->stream),
-		 thrust::cuda::par,
+    thrust::sort(thrust::cuda::par.on(cs->stream),
 		 cuS.m_d.begin(), cuS.m_d.end());
     
-    // auto exec  = thrust::cuda::par.on(cs->stream);
-    auto exec  = thrust::cuda::par;
+    auto exec  = thrust::cuda::par.on(cs->stream);
     auto first = cuS.u_d.begin();
     auto last  = cuS.u_d.end();
 
@@ -1197,6 +1211,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
     //
     if (thrust_binary_search_workaround) {
       cudaStreamSynchronize(cs->stream);
+      cuda_check_last_error_mpi("cudaStreamSynchronize", __FILE__, __LINE__, myid);
       it = thrust::upper_bound(first, last, 0.0);
     } else {
       it = thrust::upper_bound(exec, first, last, 0.0);
@@ -1576,6 +1591,7 @@ void Cylinder::determine_acceleration_cuda()
 
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, cC->cudaDevice);
+  cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
 
   auto cs = cC->cuStream;
 
@@ -1610,9 +1626,9 @@ void Cylinder::determine_acceleration_cuda()
 		   __FILE__, __LINE__, "Error copying cylOrig");
   }
 
-  // Sort particles and get coefficient size
+  // Get particle index range for levels [mlevel, multistep]
   //
-  PII lohi = cC->CudaGetLevelRange(cs, mlevel, multistep);
+  PII lohi = cC->CudaGetLevelRange(mlevel, multistep);
 
   // Compute grid
   //
@@ -1625,17 +1641,23 @@ void Cylinder::determine_acceleration_cuda()
     if (N > gridSize*BLOCK_SIZE*stride) gridSize++;
 
 #ifdef VERBOSE_CTR
-    static unsigned debug_max_count = 10;
+    static unsigned debug_max_count = 100;
     static unsigned debug_cur_count = 0;
     if (debug_cur_count++ < debug_max_count) {
-      std::cout << std::endl << "** cudaCylinder acceleration" << std::endl
-		<< "** N      = " << N          << std::endl
-		<< "** Stride = " << stride     << std::endl
-		<< "** Block  = " << BLOCK_SIZE << std::endl
-		<< "** Grid   = " << gridSize   << std::endl
-		<< "** Xcen   = " << ctr[0]     << std::endl
-		<< "** Ycen   = " << ctr[1]     << std::endl
-		<< "** Zcen   = " << ctr[2]     << std::endl
+      std::cout << std::endl
+		<< "** -------------------------" << std::endl
+		<< "** cudaCylinder acceleration" << std::endl
+		<< "** -------------------------" << std::endl
+		<< "** N      = " << N            << std::endl
+		<< "** Stride = " << stride       << std::endl
+		<< "** Block  = " << BLOCK_SIZE   << std::endl
+		<< "** Grid   = " << gridSize     << std::endl
+		<< "** Xcen   = " << ctr[0]       << std::endl
+		<< "** Ycen   = " << ctr[1]       << std::endl
+		<< "** Zcen   = " << ctr[2]       << std::endl
+		<< "** Level  = " << mlevel       << std::endl
+		<< "** lo     = " << lohi.first   << std::endl
+		<< "** hi     = " << lohi.second  << std::endl
 		<< "**" << std::endl;
     }
 #endif
@@ -1651,7 +1673,8 @@ void Cylinder::determine_acceleration_cuda()
     // Do the work
     //
     forceKernelCyl<<<gridSize, BLOCK_SIZE, sMemSize, cs->stream>>>
-      (toKernel(cs->cuda_particles), toKernel(dev_coefs), toKernel(t_d),
+      (toKernel(cs->cuda_particles), toKernel(cs->indx1),
+       toKernel(dev_coefs), toKernel(t_d),
        stride, mmax, mlim, ncylorder, lohi, rmax, cylmass, use_external);
     
   }
@@ -1729,25 +1752,30 @@ void Cylinder::multistep_update_cuda()
   //
 
   //! Sort the device vector by level changes
-  auto ret = component->CudaSortLevelChanges(component->cuStream);
+  auto chg = component->CudaSortLevelChanges();
 
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, component->cudaDevice);
+  cuda_check_last_error_mpi("cudaGetDeviceProperties", __FILE__, __LINE__, myid);
   auto cs = component->cuStream;
 
   // Maximum radius on grid
   //
   cuFP_t rmax = rcylmax * acyl;
 
+  // Zero out coefficient storage
+  //
+  cuda_zero_coefs();
+
   // Step through all levels
   //
-  for (int mlev=0; mlev<=multistep; mlev++) {
+  for (int olev=mfirst[mstep]; olev<=multistep; olev++) {
 
-    for (int del=0; del<=multistep; del++) {
+    for (int nlev=0; nlev<=multistep; nlev++) {
 
-      if (mlev == del) continue;
+      if (olev == nlev) continue;
 
-      unsigned int Ntotal = ret[mlev][del].second - ret[mlev][del].first;
+      unsigned int Ntotal = chg[olev][nlev].second - chg[olev][nlev].first;
 
       if (Ntotal==0) continue;
 
@@ -1756,7 +1784,7 @@ void Cylinder::multistep_update_cuda()
 #ifdef VERBOSE_DBG
       std::cout << "[" << myid << ", " << tnow
 		<< "] Adjust cylinder: Ntotal=" << Ntotal << " Npacks=" << Npacks
-		<< " for (m, d)=(" << mlev << ", " << del << ")" << std::endl;
+		<< " for (m, d)=(" << olev << ", " << nlev << ")" << std::endl;
 #endif
 
       // Loop over bunches
@@ -1767,9 +1795,9 @@ void Cylinder::multistep_update_cuda()
 	
 	// Current bunch
 	//
-	cur. first = ret[mlev][del].first + component->bunchSize*n;
-	cur.second = ret[mlev][del].first + component->bunchSize*(n+1);
-	cur.second = std::min<unsigned int>(cur.second, ret[mlev][del].second);
+	cur. first = chg[olev][nlev].first + component->bunchSize*n;
+	cur.second = chg[olev][nlev].first + component->bunchSize*(n+1);
+	cur.second = std::min<unsigned int>(cur.second, chg[olev][nlev].second);
 
 	if (cur.second <= cur.first) break;
     
@@ -1785,7 +1813,7 @@ void Cylinder::multistep_update_cuda()
 	// Adjust cached storage, if necessary
 	//
 	cuS.resize_coefs(ncylorder, mmax, N, gridSize, sampT, pcavar, pcaeof);
-    
+	
 	// Shared memory size for the reduction
 	//
 	int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
@@ -1793,7 +1821,8 @@ void Cylinder::multistep_update_cuda()
 	// Compute the coordinate transformation
 	// 
 	coordKernelCyl<<<gridSize, BLOCK_SIZE, 0, cs->stream>>>
-	  (toKernel(cs->cuda_particles), toKernel(cuS.m_d), toKernel(cuS.p_d),
+	  (toKernel(cs->cuda_particles), toKernel(cs->indx2),
+	   toKernel(cuS.m_d), toKernel(cuS.p_d),
 	   toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d),
 	   toKernel(cuS.iY_d), stride, cur, rmax);
       
@@ -1828,15 +1857,13 @@ void Cylinder::multistep_update_cuda()
 
 	  thrust::reduce_by_key
 	    (
-	     // thrust::cuda::par.on(cs->stream),
-	     thrust::cuda::par,
+	     thrust::cuda::par.on(cs->stream),
 	     thrust::make_transform_iterator(index_begin, key_functor(gridSize1)),
 	     thrust::make_transform_iterator(index_end,   key_functor(gridSize1)),
 	     cuS.dc_coef.begin(), thrust::make_discard_iterator(), cuS.dw_coef.begin()
 	     );
 
-	  thrust::transform(// thrust::cuda::par.on(cs->stream),
-			    thrust::cuda::par,
+	  thrust::transform(thrust::cuda::par.on(cs->stream),
 			    cuS.dw_coef.begin(), cuS.dw_coef.end(),
 			    beg, beg, thrust::plus<cuFP_t>());
 	  
@@ -1849,32 +1876,27 @@ void Cylinder::multistep_update_cuda()
       // Accumulate the coefficients from the device to the host
       //
       thrust::host_vector<cuFP_t> ret = cuS.df_coef;
-      int offst = 0;
-      for (int m=0; m<=mmax; m++) {
-	for (size_t j=0; j<ncylorder; j++) {
-	  host_coefs[Imn(m, 'c', j, ncylorder)] += ret[2*j+offst];
-	  if (m>0) host_coefs[Imn(m, 's', j, ncylorder)] += ret[2*j+1+offst];
-	}
-	offst += 2*ncylorder;
-      }
-      
-      // Decrement current level and increment new level
+
+      // Decrement current level and increment new level using the
+      // EmpCylSL update matricies
       //
       // m loop
       //
-      for (int m=0; m<=mmax; m++) {
-	
+      for (int m=0, offst=0; m<=mmax; m++) {
 	// n loop
 	//
 	for (int n=0; n<ncylorder; n++) {
-	  ortho->set_coef(mlev, m, n, 'c') -= host_coefs[Imn(m, 'c', n, ncylorder)];
-	  ortho->set_coef(del,  m, n, 'c') += host_coefs[Imn(m, 'c', n, ncylorder)];
+	  ortho->differC1[0][olev][m][n] -= ret[2*n+offst];
+	  ortho->differC1[0][nlev][m][n] += ret[2*n+offst];
 	  if (m>0) {
-	    ortho->set_coef(mlev, m, n, 's') -= host_coefs[Imn(m, 's', n, ncylorder)];
-	    ortho->set_coef(del,  m, n, 's') += host_coefs[Imn(m, 's', n, ncylorder)];
+	    ortho->differS1[0][olev][m][n] -= ret[2*n+1+offst];
+	    ortho->differS1[0][nlev][m][n] += ret[2*n+1+offst];
 	  }
 	}
 	// n loop
+
+	// Increment update in coefficient array
+	offst += 2*ncylorder;
       }
       // m loop
     }
@@ -1900,5 +1922,3 @@ void Cylinder::destroy_cuda()
 		     __FILE__, __LINE__, sout.str());
   }
 }
-
-// -*- C++ -*-

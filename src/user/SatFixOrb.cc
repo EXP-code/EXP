@@ -103,6 +103,10 @@ void SatFixOrb::get_acceleration_and_potential(Component* C)
 {
   if (C != c0) return;
 
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(c0);
+#endif
+
   compute_list();
 
   MPL_start_timer();
