@@ -75,18 +75,6 @@ void Component::cuda_initialize()
 }
 
 
-// Comparison operator for [from, to] pairs
-struct pairLess
-{
-  __host__ __device__
-  bool operator()(const thrust::pair<int, int>& lhs,
-		  const thrust::pair<int, int>& rhs) const
-  {
-    return lhs.first < rhs.first or (lhs.first == rhs.first and lhs.second < rhs.second);
-  }
-};
-
-
 Component::I2vec Component::CudaSortLevelChanges()
 {
   // The plan: for the current active level search above and below for
@@ -172,9 +160,9 @@ Component::I2vec Component::CudaSortLevelChanges()
 	//
 	if (thrust_binary_search_workaround) {
 	  cudaStreamSynchronize(cuStream->stream);
-	  lo  = thrust::lower_bound(lbeg, lend, tr2, pairLess());
+	  lo  = thrust::lower_bound(lbeg, lend, tr2);
 	} else {
-	  lo = thrust::lower_bound(exec, lbeg, lend, tr2, pairLess());
+	  lo = thrust::lower_bound(exec, lbeg, lend, tr2);
 	}
 	
 	cudaStreamSynchronize(cuStream->stream);
