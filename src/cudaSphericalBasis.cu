@@ -1753,6 +1753,8 @@ void SphericalBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
 
 void SphericalBasis::multistep_update_cuda()
 {
+  if (not self_consistent) return;
+
   // The plan: for the current active level search above and below for
   // particles for correction to coefficient matrix
   //
@@ -1854,7 +1856,6 @@ void SphericalBasis::multistep_update_cuda()
 	//
 	int osize = nmax*2;
 	auto beg  = cuS.df_coef.begin();
-	auto begV = cuS.df_tvar.begin();
       
 	thrust::fill(cuS.u_d.begin(), cuS.u_d.end(), 0.0);
 
@@ -1870,7 +1871,7 @@ void SphericalBasis::multistep_update_cuda()
 	      (toKernel(cuS.dN_coef), toKernel(cuS.dN_tvar), toKernel(cuS.u_d),
 	       toKernel(t_d), toKernel(cuS.m_d),
 	       toKernel(cuS.a_d), toKernel(cuS.p_d), toKernel(cuS.plm1_d),
-	       toKernel(cuS.i_d), stride, l, m, Lmax, nmax, cur, compute);
+	       toKernel(cuS.i_d), stride, l, m, Lmax, nmax, cur, false);
 
 #ifdef VERBOSE_TIMING
 	    finish = std::chrono::high_resolution_clock::now();
