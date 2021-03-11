@@ -20,7 +20,7 @@ __device__ __constant__
 cuFP_t cylRscale, cylHscale, cylXmin, cylXmax, cylYmin, cylYmax, cylDxi, cylDyi, cylCen[3], cylBody[9], cylOrig[9];
 
 __device__ __constant__
-int   cylNumx, cylNumy, cylCmapR, cylCmapZ, cylOrient;
+int cylNumx, cylNumy, cylCmapR, cylCmapZ, cylOrient;
 
 // Index function for sine and cosine coefficients
 //
@@ -1606,8 +1606,10 @@ void Cylinder::determine_acceleration_cuda()
 
   bool orient = (cC->EJ & Orient::AXIS) && !cC->EJdryrun;
 
+  /*
   cuda_safe_call(cudaMemcpyToSymbol(cylOrient, &orient,   sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying cylOrient");
+  */
 
   if (orient) {
     std::vector<cuFP_t> trans(9);
@@ -1747,6 +1749,8 @@ void Cylinder::DtoH_coefs(int M)
 
 void Cylinder::multistep_update_cuda()
 {
+  if (not self_consistent) return;
+
   // The plan: for the current active level search above and below for
   // particles for correction to coefficient matrix
   //
@@ -1830,7 +1834,6 @@ void Cylinder::multistep_update_cuda()
 	//
 	int osize = ncylorder*2;
 	auto beg  = cuS.df_coef.begin();
-	auto begV = cuS.df_tvar.begin();
 
 	thrust::fill(cuS.u_d.begin(), cuS.u_d.end(), 0.0);
 
@@ -1840,13 +1843,14 @@ void Cylinder::multistep_update_cuda()
 	    (toKernel(cuS.dN_coef), toKernel(cuS.dN_tvar), toKernel(cuS.u_d),
 	     toKernel(t_d), toKernel(cuS.m_d), toKernel(cuS.p_d),
 	     toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d), toKernel(cuS.iY_d),
-	     stride, m, ncylorder, cur, compute);
-      
+	     stride, m, ncylorder, cur, false);
+
 	  // Begin the reduction per grid block [perhaps this should
 	  // use a stride?]
 	  //
 	  unsigned int gridSize1 = N/BLOCK_SIZE;
 	  if (N > gridSize1*BLOCK_SIZE) gridSize1++;
+
 	  reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
 	    (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), osize, N);
 	  
