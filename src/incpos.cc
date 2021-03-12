@@ -10,9 +10,9 @@
 
 #ifdef HAVE_LIBCUDA
 void incr_position_cuda(cuFP_t dt, int mlevel);
-bool cuda_bypass = false;     // Use incpos and incvel on CPU, if
-			      // true; for debugging to compare with
-			      // host's leap frog implementation.
+bool cuda_bypass = false;	// Use incpos and incvel on CPU, if
+				// true; for debugging to compare with
+				// host's leap frog implementation.
 #endif
 
 void * incr_position_thread(void *ptr)
