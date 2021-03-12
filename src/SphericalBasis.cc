@@ -8,6 +8,12 @@
 
 // #define TMP_DEBUG
 
+//@{
+//! These are for testing exclusively (should be set false for production)
+static bool cudaAccumOverride = false;
+static bool cudaAccelOverride = false;
+//@}
+
 #ifdef DEBUG
 static pthread_mutex_t io_lock;
 #endif
@@ -703,10 +709,15 @@ void SphericalBasis::determine_coefficients(void)
     
 #if HAVE_LIBCUDA==1
   if (component->cudaDevice>=0 and use_cuda) {
-    start1  = std::chrono::high_resolution_clock::now();
-    determine_coefficients_cuda(compute);
-    DtoH_coefs(expcoef0[0]);
-    finish1 = std::chrono::high_resolution_clock::now();
+    if (cudaAccumOverride) {
+      component->CudaToParticles();
+      exp_thread_fork(true);
+    } else {
+      start1  = std::chrono::high_resolution_clock::now();
+      determine_coefficients_cuda(compute);
+      DtoH_coefs(expcoef0[0]);
+      finish1 = std::chrono::high_resolution_clock::now();
+    }
   } else {
     exp_thread_fork(true);
   }
@@ -1345,17 +1356,23 @@ void SphericalBasis::determine_acceleration_and_potential(void)
 
 #if HAVE_LIBCUDA==1
   if (component->cudaDevice>=0 and use_cuda) {
-    start1 = std::chrono::high_resolution_clock::now();
-    //
-    // Copy coefficients from this component to device
-    //
-    HtoD_coefs(expcoef);
-    //
-    // Do the force computation
-    //
-    determine_acceleration_cuda();
-
-    finish1 = std::chrono::high_resolution_clock::now();
+    if (cudaAccelOverride) {
+      cC->CudaToParticles();
+      exp_thread_fork(false);
+      cC->ParticlesToCuda();
+    } else {
+      start1 = std::chrono::high_resolution_clock::now();
+      //
+      // Copy coefficients from this component to device
+      //
+      HtoD_coefs(expcoef);
+      //
+      // Do the force computation
+      //
+      determine_acceleration_cuda();
+      
+      finish1 = std::chrono::high_resolution_clock::now();
+    }
   } else {
 
     exp_thread_fork(false);

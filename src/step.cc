@@ -307,11 +307,6 @@ void do_step(int n)
 
   if (step_timing) timer_tot.stop();
 
-				// Write output
-  //nvTracerPtr tPtr;
-  //if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
-  //output->Run(n);
-
 				// Summarize processor particle load
   comp->report_numbers();
 
