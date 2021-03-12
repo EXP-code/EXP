@@ -13,6 +13,12 @@ Timer timer_debug;
 
 double EXPSCALE=1.0, HSCALE=1.0, ASHIFT=0.25;
 
+//@{
+//! These are for testing exclusively (should be set false for production)
+static bool cudaAccumOverride = false;
+static bool cudaAccelOverride = false;
+//@}
+
 double DiskDens(double R, double z, double phi)
 {
   double f = cosh(z/HSCALE);
@@ -808,15 +814,20 @@ void Cylinder::determine_coefficients(void)
 #endif
     
 #if HAVE_LIBCUDA==1
-  if (component->cudaDevice>=0) {
-    start1 = std::chrono::high_resolution_clock::now();
-    if (mstep==0) {
-      std::fill(use.begin(), use.end(), 0.0);
-      std::fill(cylmass0.begin(), cylmass0.end(), 0.0);
+  if (component->cudaDevice>=0 and use_cuda) {
+    if (cudaAccumOverride) {
+      component->CudaToParticles();
+      exp_thread_fork(true);
+    } else {
+      start1 = std::chrono::high_resolution_clock::now();
+      if (mstep==0) {
+	std::fill(use.begin(), use.end(), 0.0);
+	std::fill(cylmass0.begin(), cylmass0.end(), 0.0);
+      }
+      determine_coefficients_cuda(compute);
+      DtoH_coefs(mlevel);
+      finish1 = std::chrono::high_resolution_clock::now();
     }
-    determine_coefficients_cuda(compute);
-    DtoH_coefs(mlevel);
-    finish1 = std::chrono::high_resolution_clock::now();
   } else {    
     exp_thread_fork(true);
   }
@@ -1183,16 +1194,22 @@ void Cylinder::determine_acceleration_and_potential(void)
 
 #if HAVE_LIBCUDA==1
   if (cC->cudaDevice>=0 and use_cuda) {
-    start1 = std::chrono::high_resolution_clock::now();
-    //
-    // Copy coeficients from this component to device
-    //
-    HtoD_coefs();
-    //
-    // Do the force computation
-    //
-    determine_acceleration_cuda();
-    finish1 = std::chrono::high_resolution_clock::now();
+    if (cudaAccelOverride) {
+      cC->CudaToParticles();
+      exp_thread_fork(false);
+      cC->ParticlesToCuda();
+    } else {
+      start1 = std::chrono::high_resolution_clock::now();
+      //
+      // Copy coeficients from this component to device
+      //
+      HtoD_coefs();
+      //
+      // Do the force computation
+      //
+      determine_acceleration_cuda();
+      finish1 = std::chrono::high_resolution_clock::now();
+    }
   } else {
     exp_thread_fork(false);
   }
