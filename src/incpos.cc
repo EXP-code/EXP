@@ -10,9 +10,6 @@
 
 #ifdef HAVE_LIBCUDA
 void incr_position_cuda(cuFP_t dt, int mlevel);
-bool cuda_bypass = false;	// Use incpos and incvel on CPU, if
-				// true; for debugging to compare with
-				// host's leap frog implementation.
 #endif
 
 void * incr_position_thread(void *ptr)
@@ -83,15 +80,8 @@ void incr_position(double dt, int mlevel)
 
 #ifdef HAVE_LIBCUDA
   if (use_cuda) {
-    if (cuda_bypass) {
-      for (auto c : comp->components) {
-	c->ParticlesToCuda();
-	c->MakeLevlist();
-      }
-    } else {
-      incr_position_cuda(static_cast<cuFP_t>(dt), mlevel);
-      return;
-    }
+    incr_position_cuda(static_cast<cuFP_t>(dt), mlevel);
+    return;
   }
 #endif
 
@@ -153,12 +143,6 @@ void incr_position(double dt, int mlevel)
     }
   }
   
-#ifdef HAVE_LIBCUDA
-  if (use_cuda and cuda_bypass) {
-    for (auto c : comp->components) c->ParticlesToCuda();
-  }
-#endif
-
 #ifdef USE_GPTL
   GPTLstop("incr_position");
 #endif

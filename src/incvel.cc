@@ -10,8 +10,6 @@
 
 #if HAVE_LIBCUDA==1
 void incr_velocity_cuda(cuFP_t dt, int mlevel);
-extern bool cuda_bypass;	// Use incpos and incvel on CPU, if
-				// true. Defined in incpos.cc.
 #endif
 
 void * incr_velocity_thread(void *ptr)
@@ -88,15 +86,8 @@ void incr_velocity(double dt, int mlevel)
 
 #ifdef HAVE_LIBCUDA
   if (use_cuda) {
-    if (cuda_bypass) {
-      for (auto c : comp->components) {
-	c->ParticlesToCuda();
-	c->MakeLevlist();
-      }
-    } else {
-      incr_velocity_cuda(static_cast<cuFP_t>(dt), mlevel);
-      return;
-    }
+    incr_velocity_cuda(static_cast<cuFP_t>(dt), mlevel);
+    return;
   }
 #endif
 
@@ -157,12 +148,6 @@ void incr_velocity(double dt, int mlevel)
 #endif
     }
   }
-
-#ifdef HAVE_LIBCUDA
-  if (use_cuda and cuda_bypass) {
-    for (auto c : comp->components) c->ParticlesToCuda();
-  }
-#endif
 
 #ifdef USE_GPTL
   GPTLstop("incr_velocity");
