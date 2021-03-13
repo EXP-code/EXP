@@ -138,8 +138,10 @@ void OutFrac::initialize()
       nint     = Output::conf["nint"]    .as<int>();
 
 
-    if (Output::conf["nintsub"])
+    if (Output::conf["nintsub"]) {
       nintsub     = Output::conf["nintsub"]    .as<int>();
+      if (nintsub <= 0) nintsub = 1;
+    }
 
 				// Search for desired component
     if (Output::conf["name"]) {

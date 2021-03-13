@@ -85,9 +85,10 @@ void OutLog::initialize()
     else
       nint = 1;
 
-if (Output::conf["nintsub"])
+    if (Output::conf["nintsub"]) {
       nintsub = Output::conf["nintsub"].as<int>();
-    else
+      if (nintsub <= 0) nintsub = 1;
+    } else
       nintsub = std::numeric_limits<int>::max();
 
   }

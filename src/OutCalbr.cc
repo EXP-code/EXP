@@ -139,9 +139,12 @@ void OutCalbr::initialize()
   try {
     if (conf["filename"])      filename = conf["filename"].as<std::string>();
     if (conf["nint"])          nint     = conf["nint"].as<int>();
-    if (conf["nintsub"])    nintsub  = conf["nintsub"].as<int>();
+    if (conf["nintsub"])       nintsub  = conf["nintsub"].as<int>();
     if (conf["N"])             num      = conf["N"].as<int>();
   
+				// Sanity check
+    if (nintsub <= 0) nintsub = 1;
+
     // Search for desired component
     //
     if (conf["name"]) {

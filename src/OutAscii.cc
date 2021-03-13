@@ -49,6 +49,7 @@ void OutAscii::initialize()
     if (Output::conf["nint"])    nint     = Output::conf["nint"].as<int>();
 #ifdef ALLOW_NINTSUB
     if (Output::conf["nintsub"]) nintsub  = Output::conf["nintsub"].as<int>();
+    if (nintsub <= 0) nintsub = 1; // Sanity check
 #else
     nintsub_warning("OutAscii");
 #endif

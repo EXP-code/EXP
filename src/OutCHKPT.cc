@@ -48,6 +48,9 @@ void OutCHKPT::initialize()
     } else
       nintsub = std::numeric_limits<int>::max();
 
+				// Sanity check
+    if (nintsub <= 0) nintsub = 1;
+
     if (Output::conf["timer"])
       timer = Output::conf["timer"].as<bool>();
     else

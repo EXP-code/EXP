@@ -34,6 +34,7 @@ void OutPSP::initialize()
     if (Output::conf["nintsub"]) {
 #ifdef ALLOW_NINTSUB
       nintsub = Output::conf["nintsub"].as<int>();
+      if (nintsub <= 0) nintsub = 1;
 #else
       nintsub_warning("OutPSN");
       nintsub = std::numeric_limits<int>::max();
