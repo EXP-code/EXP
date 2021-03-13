@@ -324,8 +324,9 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       timer_zero.start();
     }
 
+    // BEG: zero pot and accel loop
 #if HAVE_LIBCUDA==1
-    if (use_cuda) {
+    if (use_cuda) {		// GPU device version
       c->ZeroPotAccel(mlevel);
     } else
 #endif
@@ -347,6 +348,8 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	  }
 	}
       }
+    //
+    // END: zero pot and accel loop
 
     if (timing) {
       timer_zero.stop();
