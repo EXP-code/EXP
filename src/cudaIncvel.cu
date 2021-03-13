@@ -46,7 +46,6 @@ __global__ void velocityDebug
 
       cudaParticle & p = P._v[I._v[npart]];
     
-      printf("%d vel a=(%13.6e %13.6e %13.6e) p=%13.6e\n", i, p.acc[0], p.acc[1], p.acc[2], p.pot);
     }
   }
 }
@@ -61,7 +60,7 @@ void incr_velocity_cuda(cuFP_t dt, int mlevel)
     PII lohi = {0, cr->cuda_particles.size()};
 
     if (multistep) {		// Get particle range
-      lohi = c->CudaGetLevelRange(mlevel, multistep);
+      lohi = c->CudaGetLevelRange(mlevel, mlevel);
     }
 
     cudaDeviceProp deviceProp;

@@ -70,7 +70,7 @@ void incr_position_cuda(cuFP_t dt, int mlevel)
     PII lohi = {0, cr->cuda_particles.size()};
 
     if (multistep) {		// Get particle range
-      lohi = c->CudaGetLevelRange(mlevel, multistep);
+      lohi = c->CudaGetLevelRange(mlevel, mlevel);
     }
 
     cudaDeviceProp deviceProp;
