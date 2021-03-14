@@ -946,6 +946,23 @@ public:
     return covV(0, T, m)[n];
   }
 
+  double& set_covrT(int T, int m, int n, int o)
+  {
+    if (m >  MMAX)
+      throw std::runtime_error("m>mmax");
+
+    if (n >= rank3)
+      throw std::runtime_error("n>=norder");
+
+    if (o >= rank3)
+      throw std::runtime_error("o>=norder");
+
+    if (T >= sampT)
+      throw std::runtime_error("T>=sampT");
+
+    return covM(0, T, m)[n][o];
+  }
+
   double& set_tvar(int m, int i, int j)
   {
     if (m >  MMAX)
