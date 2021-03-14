@@ -55,7 +55,8 @@ __global__ void positionDebug
       sumV = sqrt(sumV);
       sumA = sqrt(sumA);
     
-      printf("%d pos r=%13.6e v=%13.6e a=%13.6e\n", i, sumP, sumV, sumA);
+      printf("[%d, %d] pos r=%13.6e v=%13.6e a=%13.6e\n", i, p.indx,
+	     sumP, sumV, sumA);
     }
   }
 }

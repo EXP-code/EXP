@@ -46,6 +46,8 @@ __global__ void velocityDebug
 
       cudaParticle & p = P._v[I._v[npart]];
     
+      printf("[%d, %d] vel a = (%13.6e %13.6e %13.6e) p=%13.6e\n",
+	     i, p.indx, p.acc[0], p.acc[1], p.acc[2], p.pot);
     }
   }
 }
