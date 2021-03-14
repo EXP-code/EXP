@@ -49,6 +49,14 @@ int Jmn(int m, int n, int nmax)
   return m*nmax + n;
 }
 
+// Index function for covariance matrix elements
+//
+__host__ __device__
+int Kmn(int m, int n, int o, int nmax)
+{
+  return (m*nmax + n)*nmax + o;
+}
+
 __global__
 void testConstantsCyl()
 {
@@ -426,13 +434,15 @@ __global__ void coefKernelCyl
 	if (compute and tvar._s>0) {
 	  cuFP_t x, y;
 	  for (int r=0, c=0; r<nmax; r++) {
+				// Cosine terms
 	    x = coef._v[(2*r+0)*N + i] * coef._v[(2*r+0)*N + i];
-	    if (m>0) 
+	    if (m>0) 		// Add sine terms
 	      x += coef._v[(2*r+1)*N + i] * coef._v[(2*r+1)*N + i];
 
 	    for (int s=r; s<nmax; s++) {
+				// Consine terms
 	      y = coef._v[(2*s+0)*N + i] * coef._v[(2*s+0)*N + i];
-	      if (m>0) 
+	      if (m>0) 		// Add sine terms
 		y += coef._v[(2*s+1)*N + i] * coef._v[(2*s+1)*N + i];
 
 	      tvar._v[N*c + i] = sqrt(x*y) / mass;
@@ -793,13 +803,14 @@ void Cylinder::cudaStorage::resize_coefs
   //
   if (pcavar) {
     T_coef.resize(sampT);
+    T_covr.resize(sampT);
     for (int T=0; T<sampT; T++) {
-      T_coef[T].resize((mmax+1)*ncylorder);
-      T_covr[T].resize((mmax+1)*ncylorder*ncylorder);
+      T_coef[T].resize((mmax+1)*ncylorder*2);
+      T_covr[T].resize((mmax+1)*ncylorder*(ncylorder+1)/2);
     }
   }
 
-  if (pcaeof) {
+  if (pcaeof or pcavar) {
     int csz = ncylorder*(ncylorder+1)/2;
     dN_tvar.resize(csz*N);
     dc_tvar.resize(csz*gridSize);
@@ -844,8 +855,8 @@ void Cylinder::cuda_zero_coefs()
       cuS.T_coef.resize(sampT);
       cuS.T_covr.resize(sampT);
       for (int T=0; T<sampT; T++) {
-	cuS.T_coef[T].resize((mmax+1)*ncylorder);
-	cuS.T_covr[T].resize((mmax+1)*ncylorder*ncylorder);
+	cuS.T_coef[T].resize((mmax+1)*ncylorder*2);
+	cuS.T_covr[T].resize((mmax+1)*ncylorder*(ncylorder+1)/2);
       }
     }
     
@@ -892,16 +903,18 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
   // This will stay fixed for the entire run
   //
-  host_coefs.resize((2*mmax+1)*ncylorder); // Sine and cosine components
-  host_covar.resize((mmax+1)*ncylorder*ncylorder); // Modulus components
+				// Sine and cosine components
+  host_coefs.resize((2*mmax+1)*ncylorder);
+				// Variance components
+  host_covar.resize((mmax+1)*ncylorder*ncylorder);
 
   if (pcavar) {
     sampT = floor(sqrt(component->CurTotal()));
-    host_coefsT.resize(sampT);
-    host_covarT.resize(sampT);
+    host_coefsT.resize(sampT);	// Modulus components
+    host_covarT.resize(sampT);	// Upper diagonal
     for (int T=0; T<sampT; T++) {
-      host_coefsT[T].resize((mmax+1)*ncylorder); // Modulus components
-      host_covarT[T].resize((mmax+1)*ncylorder*ncylorder); // Modulus covariance
+      host_coefsT[T].resize((mmax+1)*ncylorder);
+      host_covarT[T].resize((mmax+1)*ncylorder*ncylorder);
     }
     host_massT.resize(sampT);
   }
@@ -1069,19 +1082,23 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	 toKernel(cuS.X_d), toKernel(cuS.Y_d), toKernel(cuS.iX_d), toKernel(cuS.iY_d),
 	 stride, m, ncylorder, cur, compute);
       
-      // Begin the reduction per grid block [perhaps this should use a
+      // Begin the reduction by blocks [perhaps this should use a
       // stride?]
       //
       unsigned int gridSize1 = N/BLOCK_SIZE;
       if (N > gridSize1*BLOCK_SIZE) gridSize1++;
-      reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
+
+      reduceSum<cuFP_t, BLOCK_SIZE>
+	<<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
 	(toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), osize, N);
       
-				// Finish the reduction for this order
-				// in parallel
+      // Finish the reduction for this order in parallel
+      //
       thrust::counting_iterator<int> index_begin(0);
       thrust::counting_iterator<int> index_end(gridSize1*osize);
 
+      // The key_functor indexes the sum reduced series by array index
+      //
       thrust::reduce_by_key
 	(
 	 thrust::cuda::par.on(cs->stream),
@@ -1098,6 +1115,8 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
       if (compute) {
 
+	// Reuse dN_coef and use dN_tvar to create sampT partitions
+	//
 	if (pcavar) {
 
 	  int sN = N/sampT;
@@ -1110,28 +1129,28 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
 	  for (int T=0; T<nT; T++) {
 	    int k = sN*T;	// Starting position
-	    int s = sN;
+	    int s = sN;		// Size of bunch
 				// Last bunch
 	    if (T==sampT-1) s = N - k;
 	    
-				// Begin the reduction per grid block
-				//
-	    /*
-	      unsigned int stride1   = s/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
-	      unsigned int gridSize1 = s/BLOCK_SIZE/stride1;
-	      if (s > gridSize1*BLOCK_SIZE*stride1) gridSize1++;
-	    */
-
+	    // Begin the reduction per grid block; we need gridsize1
+	    // blocks of the current block size
+	    //
 	    unsigned int gridSize1 = s/BLOCK_SIZE;
 	    if (s > gridSize1*BLOCK_SIZE) gridSize1++;
-	    reduceSumS<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
+
+	    reduceSumS<cuFP_t, BLOCK_SIZE>
+	      <<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
 	      (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), osize, N, k, k+s);
       
-				// Finish the reduction for this order
-				// in parallel
+	    // Finish the reduction for this order in parallel
+	    //
 	    thrust::counting_iterator<int> index_begin(0);
 	    thrust::counting_iterator<int> index_end(gridSize1*osize);
 	      
+	    // The key_functor indexes the sum reduced series by array
+	    // index
+	    //
 	    thrust::reduce_by_key
 	      (
 	       thrust::cuda::par.on(cs->stream),
@@ -1156,21 +1175,54 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	      
 	      host_massT[T] += thrust::reduce(mbeg, mend);
 	    }
+
+	    // Variance
+	    //
+	    reduceSumS<cuFP_t, BLOCK_SIZE>
+	      <<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
+	      (toKernel(cuS.dc_tvar), toKernel(cuS.dN_tvar), vsize, N, k, k+s);
+      
+	    // Finish the reduction for this order in parallel
+	    //
+	    thrust::counting_iterator<int> indx2_begin(0);
+	    thrust::counting_iterator<int> indx2_end(gridSize1*vsize);
+	  
+	    // The key_functor indexes the sum reduced series by array index
+	    //
+	    thrust::reduce_by_key
+	      (
+	       thrust::cuda::par.on(cs->stream),
+	       thrust::make_transform_iterator(indx2_begin, key_functor(gridSize1)),
+	       thrust::make_transform_iterator(indx2_end,   key_functor(gridSize1)),
+	       cuS.dc_tvar.begin(), thrust::make_discard_iterator(), cuS.dw_tvar.begin()
+	       );
+	    
+	    thrust::transform(thrust::cuda::par.on(cs->stream),
+			      cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
+			      bh[T], bh[T], thrust::plus<cuFP_t>());
+	    
+	    thrust::advance(bh[T], vsize);
 	  }
 	}
+	// END: pcavar block
 
-	// Reduce EOF variance
+	// Reduce EOF variance using dN_tvar (which may be reused from
+	// pcavar computation)
 	//
 	if (pcaeof) {
-
-	  reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
+	  
+	  reduceSum<cuFP_t, BLOCK_SIZE>
+	    <<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
 	    (toKernel(cuS.dc_tvar), toKernel(cuS.dN_tvar), vsize, N);
       
-				// Finish the reduction for this order
-				// in parallel
+	  // Finish the reduction for this order in parallel
+	  //
 	  thrust::counting_iterator<int> index_begin(0);
 	  thrust::counting_iterator<int> index_end(gridSize1*vsize);
 	  
+	  // The key_functor indexes the sum reduced series by array
+	  // index
+	  //
 	  thrust::reduce_by_key
 	    (
 	     thrust::cuda::par.on(cs->stream),
@@ -1244,16 +1296,27 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
   if (compute) {
 
+    // Variance computation
+    //
     if (pcavar) {
 
       for (int T=0; T<sampT; T++) {
 	thrust::host_vector<cuFP_t> retT = cuS.T_coef[T];
-	int offst = 0;
+	thrust::host_vector<cuFP_t> retM = cuS.T_covr[T];
+	int offst = 0, vffst = 0;
 	for (int m=0; m<=mmax; m++) {
-	  for (size_t j=0; j<ncylorder; j++) {
-	    host_coefsT[T][Jmn(m, j, ncylorder)] += retT[j + offst];
+	  for (size_t j=0, c=0; j<ncylorder; j++) {
+	    double tcos = retT[2*j + offst], tsin = retT[2*j + offst + 1];
+	    host_coefsT[T][Jmn(m, j, ncylorder)] += sqrt(tcos*tcos+tsin*tsin);
+	    for (size_t k=j; k<ncylorder; k++) {
+	      host_covarT[T][Kmn(m, j, k, ncylorder)] += retM[c + vffst];
+	      if (k!=j)
+		host_covarT[T][Kmn(m, k, j, ncylorder)] += retM[c + vffst];
+	      c++;
+	    }
 	  }
 	  offst += 2*ncylorder;
+	  vffst += ncylorder*(ncylorder+1)/2;
 	}
       }
     }
@@ -1606,11 +1669,6 @@ void Cylinder::determine_acceleration_cuda()
 
   bool orient = (cC->EJ & Orient::AXIS) && !cC->EJdryrun;
 
-  /*
-  cuda_safe_call(cudaMemcpyToSymbol(cylOrient, &orient,   sizeof(bool),  size_t(0), cudaMemcpyHostToDevice),
-		 __FILE__, __LINE__, "Error copying cylOrient");
-  */
-
   if (orient) {
     std::vector<cuFP_t> trans(9);
     for (int i=0; i<3; i++) 
@@ -1740,6 +1798,12 @@ void Cylinder::DtoH_coefs(int M)
 	//
 	for (int n=0; n<ncylorder; n++) {
 	  ortho->set_coefT(T, m, n) += host_coefsT[T][Jmn(m, n, ncylorder)];
+
+	  // o loop
+	  for (int o=0; o<ncylorder; o++) {
+	    ortho->set_covrT(T, m, n, o) += host_covarT[T][Kmn(m, n, o, ncylorder)];
+
+	  }
 	}
       }
     }
@@ -1851,7 +1915,8 @@ void Cylinder::multistep_update_cuda()
 	  unsigned int gridSize1 = N/BLOCK_SIZE;
 	  if (N > gridSize1*BLOCK_SIZE) gridSize1++;
 
-	  reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
+	  reduceSum<cuFP_t, BLOCK_SIZE>
+	    <<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
 	    (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), osize, N);
 	  
 	  // Finish the reduction for this order in parallel
@@ -1859,6 +1924,8 @@ void Cylinder::multistep_update_cuda()
 	  thrust::counting_iterator<int> index_begin(0);
 	  thrust::counting_iterator<int> index_end(gridSize1*osize);
 
+	  // The key_functor indexes the sum reduced series by array index
+	  //
 	  thrust::reduce_by_key
 	    (
 	     thrust::cuda::par.on(cs->stream),
@@ -1897,12 +1964,12 @@ void Cylinder::multistep_update_cuda()
 	    ortho->differS1[0][nlev][m][n] += ret[2*n+1+offst];
 	  }
 	}
-	// n loop
+	// END: n loop
 
 	// Increment update in coefficient array
 	offst += 2*ncylorder;
       }
-      // m loop
+      // END: m loop
     }
     // DONE: Inner loop
   }

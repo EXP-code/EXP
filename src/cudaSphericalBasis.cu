@@ -757,12 +757,14 @@ void SphericalBasis::cudaStorage::resize_coefs
   //
   if (pcavar) {
     T_coef.resize(sampT);
+    T_covr.resize(sampT);
     for (int T=0; T<sampT; T++) {
-      T_coef[T].resize((Lmax+1)*(Lmax+2)*nmax);
+      T_coef[T].resize((Lmax+1)*(Lmax+2)*nmax*2);
+      T_covr[T].resize((Lmax+1)*(Lmax+2)*nmax*(nmax+1)/2);
     }
   }
 
-  if (pcaeof) {
+  if (pcaeof or pcavar) {
     int csz = nmax*(nmax+1)/2;
     dN_tvar.resize(csz*N);
     dc_tvar.resize(csz*gridSize);
@@ -812,15 +814,20 @@ void SphericalBasis::cuda_zero_coefs()
   if (pcavar) {
     if (cuS.T_coef.size() != sampT) {
       cuS.T_coef.resize(sampT);
+      cuS.T_covr.resize(sampT);
       for (int T=0; T<sampT; T++) {
-	cuS.T_coef[T].resize((Lmax+1)*(Lmax+2)*nmax);
+	cuS.T_coef[T].resize((Lmax+1)*(Lmax+2)*nmax*2);
+	cuS.T_covr[T].resize((Lmax+1)*(Lmax+2)*nmax*(nmax+1)/2);
       }
       host_massT.resize(sampT);
     }
     
-    for (int T=0; T<sampT; T++)
+    for (int T=0; T<sampT; T++) {
       thrust::fill(thrust::cuda::par.on(cr->stream),
 		   cuS.T_coef[T].begin(), cuS.T_coef[T].end(), 0.0);
+      thrust::fill(thrust::cuda::par.on(cr->stream),
+		   cuS.T_covr[T].begin(), cuS.T_covr[T].end(), 0.0);
+    }
     
     thrust::fill(host_massT.begin(), host_massT.end(), 0.0);
   }
@@ -1011,21 +1018,24 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
     
     // Compute the coefficient contribution for each order
     //
-    int osize = nmax*2;	//
+    int osize = nmax*2;
     int vsize = nmax*(nmax+1)/2;
     auto beg  = cuS.df_coef.begin();
     auto begV = cuS.df_tvar.begin();
 
-    std::vector<thrust::device_vector<cuFP_t>::iterator> bg;
+    std::vector<thrust::device_vector<cuFP_t>::iterator> bg, bm;
     if (pcavar) {
-      for (int T=0; T<sampT; T++) bg.push_back(cuS.T_coef[T].begin());
+      for (int T=0; T<sampT; T++) {
+	bg.push_back(cuS.T_coef[T].begin());
+	bm.push_back(cuS.T_covr[T].begin());
+      }
     }
     thrust::fill(cuS.u_d.begin(), cuS.u_d.end(), 0.0);
 
     for (int l=0; l<=Lmax; l++) {
       for (int m=0; m<=l; m++) {
-	// Compute the contribution to the
-	// coefficients from each particle
+	// Compute the contribution to the coefficients from each
+	// particle
 	//
 	coefKernel<<<gridSize, BLOCK_SIZE, 0, cr->stream>>>
 	  (toKernel(cuS.dN_coef), toKernel(cuS.dN_tvar), toKernel(cuS.u_d),
@@ -1033,17 +1043,18 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 	   toKernel(cuS.a_d), toKernel(cuS.p_d), toKernel(cuS.plm1_d),
 	   toKernel(cuS.i_d), stride, l, m, Lmax, nmax, cur, compute);
 	
-	// Begin the reduction per grid block
-	// [perhaps this should use a stride?]
+	// Begin the reduction per grid block [perhaps this should use
+	// a stride?]
 	//
 	unsigned int gridSize1 = N/BLOCK_SIZE;
 	if (N > gridSize1*BLOCK_SIZE) gridSize1++;
-	reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
+
+	reduceSum<cuFP_t, BLOCK_SIZE>
+	  <<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
 	  (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), osize, N);
       
-	// Finish the reduction for this order
-	// in parallel
-	
+	// Finish the reduction for this order in parallel
+	//
 	thrust::counting_iterator<int> index_begin(0);
 	thrust::counting_iterator<int> index_end(gridSize1*osize);
 
@@ -1091,11 +1102,15 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 	      unsigned int gridSize1 = s/BLOCK_SIZE;
 	      if (s > gridSize1*BLOCK_SIZE) gridSize1++;
 
-	      reduceSumS<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
+	      // Sum reduce into gridsize1 blocks taking advantage of
+	      // GPU warp structure
+	      //
+	      reduceSumS<cuFP_t, BLOCK_SIZE>
+		<<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
 		(toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), osize, N, k, k+s);
 		
-				// Finish the reduction for this order
-				// in parallel
+	      // Finish the reduction for this order in parallel
+	      //
 	      thrust::counting_iterator<int> index_begin(0);
 	      thrust::counting_iterator<int> index_end(gridSize1*osize);
 
@@ -1123,18 +1138,45 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 		
 		host_massT[T] += thrust::reduce(mbeg, mend);
 	      }
+
+	      // Variance part
+	      //
+	      reduceSumS<cuFP_t, BLOCK_SIZE>
+		<<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
+		(toKernel(cuS.dc_tvar), toKernel(cuS.dN_tvar), vsize, N, k, k+s);
+	      
+	      // Finish the reduction for this order in parallel
+	      //
+	      thrust::counting_iterator<int> indx2_begin(0);
+	      thrust::counting_iterator<int> indx2_end(gridSize1*vsize);
+	      
+	      thrust::reduce_by_key
+		(
+		 thrust::cuda::par.on(cr->stream),
+		 thrust::make_transform_iterator(indx2_begin, key_functor(gridSize1)),
+		 thrust::make_transform_iterator(indx2_end,   key_functor(gridSize1)),
+		 cuS.dc_tvar.begin(), thrust::make_discard_iterator(), cuS.dw_tvar.begin()
+		 );
+	      
+	      thrust::transform(thrust::cuda::par.on(cr->stream),
+				cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
+				bm[T], bm[T], thrust::plus<cuFP_t>());;
+	      
+	      thrust::advance(bm[T], vsize);
 	    }
 	  }
+	  // END: pcavar
 	    
 	  // Reduce EOF variance
 	  //
 	  if (pcaeof) {
 	    
-	    reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
+	    reduceSum<cuFP_t, BLOCK_SIZE>
+	      <<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
 	      (toKernel(cuS.dc_tvar), toKernel(cuS.dN_tvar), vsize, N);
       
-	    // Finish the reduction for this order
-	    // in parallel
+	    // Finish the reduction for this order in parallel
+	    //
 	    thrust::counting_iterator<int> index_begin(0);
 	    thrust::counting_iterator<int> index_end(gridSize1*vsize);
 	    
@@ -1704,10 +1746,12 @@ void SphericalBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
       //
       for (int T=0; T<sampT; T++) {
 	
-	thrust::host_vector<cuFP_t> ret = cuS.T_coef[T];
+	thrust::host_vector<cuFP_t> retV = cuS.T_coef[T];
+	thrust::host_vector<cuFP_t> retM = cuS.T_covr[T];
+	
+	int offst = 0, vffst = 0;
+	int osize = nmax*2, vsize = nmax*(nmax+1)/2;
 
-	int offst = 0;
-	int osize = 2.0*nmax;
 	  
 	// l loop
 	//
@@ -1719,11 +1763,23 @@ void SphericalBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
 	      
 	    // n loop
 	    //
-	    for (int n=1; n<=nmax; n++) {
-	      (*expcoefT1[T][loffset+m])[n] += ret[2*(n-1) + offst];
+	    for (int n=1, c=0; n<=nmax; n++) {
+	      double tcos = retV[2*(n-1) + offst];
+	      double tsin = retV[2*(n-1) + offst + 1];
+	      (*expcoefT1[T][loffset+m])[n] += sqrt(tcos*tcos + tsin*tsin);
+	      
+	      // o loop
+	      //`
+	      for (int o=n; o<=nmax; o++) {
+		(*expcoefM1[T][loffset+m])[n][o] += retM[c + vffst];
+		if (o!=n)
+		  (*expcoefM1[T][loffset+m])[o][n] += retM[c + vffst];
+		c++;
+	      }
 	    }
 	    
 	    offst += osize;
+	    vffst += vsize;
 	  }
 	}
       }
@@ -1884,12 +1940,14 @@ void SphericalBasis::multistep_update_cuda()
 	    //
 	    unsigned int gridSize1 = N/BLOCK_SIZE;
 	    if (N > gridSize1*BLOCK_SIZE) gridSize1++;
-	    reduceSum<cuFP_t, BLOCK_SIZE><<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
+
+	    reduceSum<cuFP_t, BLOCK_SIZE>
+	      <<<gridSize1, BLOCK_SIZE, sMemSize, cs->stream>>>
 	      (toKernel(cuS.dc_coef), toKernel(cuS.dN_coef), osize, N);
 	    
 	    // Finish the reduction for this order
 	    // in parallel
-	
+	    //
 	    thrust::counting_iterator<int> index_begin(0);
 	    thrust::counting_iterator<int> index_end(gridSize1*osize);
 
