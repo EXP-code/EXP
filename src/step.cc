@@ -323,7 +323,8 @@ void do_step(int n)
       auto totalT = timer_tot.getTime();
       std::cout << std::endl
 		<< std::setw(70) << std::setfill('-') << '-' << std::endl
-		<< std::setw(70) << left << "--- Timer info" << std::endl
+		<< std::setw(70) << left << "--- Timer info [T="
+		<< tnow << "]" << std::endl
 		<< std::setw(70) << std::setfill('-') << '-' << std::endl
 		<< std::setfill(' ') << std::right
 		<< std::setw(20) << "Drift: " << std::scientific
