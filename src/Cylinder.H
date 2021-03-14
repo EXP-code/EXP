@@ -19,6 +19,83 @@ class MixtureBasis;
 
 /** This routine computes the potential, acceleration and density 
     using the Cylindrical biorthogonal expansion 
+
+    Configuration parameters:
+
+    @param rcylmin is the minimum cylindrical grid radius in scale-length units
+
+    @param rcylmax is the maximum cylindrical grid radius in scale-length units
+
+    @param acyl is the scale length
+
+    @param hcyl is the scale height
+
+    @param lmax is the maximum spherical harmonic index for EOF construction
+
+    @param mmax is the maximum azimuthal order for the resulting basis
+
+    @param mlim applies a limit <= mmax without basis reconstruction
+
+    @param ncylnx is the grid size for the cylindrical radius axis
+
+    @param ncylny is the grid size for the vertical axis
+
+    @param ncylr radial grid size for basis computation (NUMR in EmpCylSL)
+
+    @param ncylorder is the maximum order in for each harmonic m for the new basis
+
+    @param ncylodd is the number of vertically antisymmetric basis functions out of the total ncylorder
+
+    @param ncylrecomp is the frequency of basis recompution during a running simulation
+
+    @param npca is the number steps between PCA variance/error analyses
+
+    @param npca0 is the number steps to skip before the first PCA variance/error analysis
+
+    @param nvtk is the number steps between vtk visualization output for the PCA variance/error analyses
+
+    @param eof_file is the name of the basis cache file
+
+    @param override boolean ignores the specificed cache file name and performes a recomputation
+
+    @param samplesz is the default particle number in PCA subsampling partitions (default is sqrt(N))
+
+    @param rnum if the size of the radial quadrature grid for analytic EOF computation
+
+    @param pnum if the size of the azimuthal quadrature grid for analytic EOF computation (set to 1 if model is axisymmetric)
+
+    @param tnum is the size of the equitorial quadrature grid for analytic EOF computation
+
+    @param ashift offsets the center of the analytic model for basis function computation
+
+    @param expcond boolean true turns on basis function reconditioning
+
+    @param logr boolean turns on logarithmic radial basis gridding in EmpCylSL
+
+    @param pcavar turns on variance analysis
+
+    @param pcaeof turns on basis conditioning based on variance analysis
+
+    @param pcadiag logs diagnostic output for variance analysis
+
+    @param pcavtk turns on VTK visualization diagnostic output for variance analysis
+    
+    @param try_cache false suppresses cache reading on restart (default: true)
+
+    @param density builds grid with density fields (e.g. for post processing)
+
+    @param EVEN_M true uses even harmonic orders only
+
+    @param cmap is the coordinate mapping type (deprecated but kept for backward consistency)
+
+    @param cmapr is the radial coordinate mapping type
+
+    @param cmapz is the vertical coordinate mapping type
+
+    @param self_consistent set to false turns off potential expansion; only performed the first time
+
+    @param playback file reads a coefficient file and uses it to compute the basis function output for resimiulation
+
 */
 class Cylinder : public Basis
 {

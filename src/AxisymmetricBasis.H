@@ -5,6 +5,36 @@
 #include <Vector.h>
 
 //! Defines a basis-based potential and acceleration class
+/*! Configurable parameters are:
+
+  @param Lmax  is the maximum spherical harmonic order
+
+  @param nmax  is the maximum radial order
+
+  @param dof   is the dimensionality of the basis
+
+  @param npca  is the frequency for pca analyses
+
+  @param npca0 is the number of steps to skip before the first pca analysis
+
+  @param pcavar boolean turns on pca analyses
+
+  @param pcaeof boolean turns on emperical function recomputation
+
+  @param pcadiag boolean turns on diagnostic pca output
+
+  @param pcavtk boolean prints out visualizable representations of pca info
+
+  @param samplesz is the number of subsamples for pca variance analysis (default: 0 means use sqrt number o particles
+
+  @param vtkfreq is the frequency for printing pca variance analysis info
+
+  @param tksmooth is the S/N for Hall truncation for VarianceCut method
+
+  @param tkcum is the cumulative fraction eigenvalue power for truncation for CmululativeCut method
+
+  @param tk_type is the smoothing type, one of: Hall, VarianceCut, CumulativeCut, VarianceWeighted
+*/
 class AxisymmetricBasis : public Basis
 {
 

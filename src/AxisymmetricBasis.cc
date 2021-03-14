@@ -32,7 +32,7 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
     if (conf["pcaeof"])    pcaeof     = conf["pcaeof"].as<bool>();
     if (conf["pcadiag"])   pcadiag    = conf["pcadiag"].as<bool>();
     if (conf["pcavtk"])    pcavtk     = conf["pcavtk"].as<bool>();
-    if (conf["defSampT"])  defSampT   = conf["samplesize"].as<int>();
+    if (conf["samplesz"])  defSampT   = conf["samplesz"].as<int>();
     if (conf["vtkfreq"])   vtkfreq    = conf["vtkfreq"].as<int>();
     if (conf["tksmooth"])  tksmooth   = conf["tksmooth"].as<double>();
     if (conf["tkcum"])     tkcum      = conf["tkcum"].as<double>();
