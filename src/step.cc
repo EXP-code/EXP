@@ -321,10 +321,11 @@ void do_step(int n)
   if (step_timing && this_step!=0 && (this_step % tskip) == 0) {
     if (myid==0) {
       auto totalT = timer_tot.getTime();
+      std::ostringstream sout;
+      sout << "--- Timer info [T=" << tnow << "] ";
       std::cout << std::endl
 		<< std::setw(70) << std::setfill('-') << '-' << std::endl
-		<< std::setw(70) << left << "--- Timer info [T="
-		<< tnow << "]" << std::endl
+		<< std::setw(70) << left << sout.str()       << std::endl
 		<< std::setw(70) << std::setfill('-') << '-' << std::endl
 		<< std::setfill(' ') << std::right
 		<< std::setw(20) << "Drift: " << std::scientific
