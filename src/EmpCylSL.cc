@@ -92,6 +92,7 @@ EmpCylSL::EmpCylSL(void)
   NORDER     = 0;
   coefs_made = vector<short>(multistep+1, false);
   eof_made   = false;
+  defSampT   = 0;
   sampT      = 0;
   tk_type    = None;
   EVEN_M     = false;
@@ -172,6 +173,7 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   eof_made   = false;
 
   sampT        = 0;
+  defSampT     = 0;
   tk_type      = None;
 
   cylmass      = 0.0;
@@ -233,6 +235,7 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
     MPItable = 3;
 
   sampT = 0;
+  defSampT = 0;
 
   cylmass = 0.0;
   cylmass1.resize(nthrds);
@@ -1806,8 +1809,10 @@ void EmpCylSL::setup_accumulation(int mlevel)
 void EmpCylSL::init_pca()
 {
   if (PCAVAR or PCAEOF) {
-    if (PCAVAR)
-      sampT = floor(sqrt(nbodstot));
+    if (PCAVAR) {
+      if (defSampT) sampT = defSampT;
+      else          sampT = floor(sqrt(nbodstot));
+    }
 
     pthread_mutex_init(&used_lock, NULL);
 

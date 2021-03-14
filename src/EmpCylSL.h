@@ -211,7 +211,7 @@ private:
   std::vector< std::vector<double>  > massT1;
   std::vector<unsigned> numbT;
   std::vector<double> massT;
-  unsigned sampT;
+  unsigned sampT, defSampT;
 
 
   std::vector<Matrix> vc, vs;
@@ -557,6 +557,9 @@ public:
 
   //! Setup for accumulated coefficients
   void setup_accumulation(int toplev=0);
+
+  //! For PCAVAR: set subsample size
+  void setSampT(int N) { defSampT = N; }
 
   //! For EOF
   void setup_eof(void);

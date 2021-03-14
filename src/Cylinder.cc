@@ -150,8 +150,9 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   
   // Set azimuthal harmonic order restriction?
   //
-  if (mlim>=0) ortho->set_mlim(mlim);
-  if (EVEN_M)  ortho->setEven(EVEN_M);
+  if (mlim>=0)  ortho->set_mlim(mlim);
+  if (EVEN_M)   ortho->setEven(EVEN_M);
+  if (defSampT) ortho->setSampT(defSampT);
 
   try {
     if (conf["tk_type"]) ortho->setTK(conf["tk_type"].as<std::string>());
@@ -351,7 +352,7 @@ void Cylinder::initialize()
     if (conf["nvtk"      ])       nvtk  = conf["nvtk"      ].as<int>();
     if (conf["eof_file"  ])   eof_file  = conf["eof_file"  ].as<std::string>();
     if (conf["override"  ])   eof_over  = conf["override"  ].as<bool>();
-    if (conf["vflag"     ])      vflag  = conf["vflag"     ].as<int>();
+    if (conf["samplesize"])   defSampT  = conf["samplesize"].as<int>();
     
     if (conf["rnum"      ])       rnum  = conf["rnum"      ].as<int>();
     if (conf["pnum"      ])       pnum  = conf["pnum"      ].as<int>();

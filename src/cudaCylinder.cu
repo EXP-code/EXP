@@ -908,8 +908,9 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 				// Variance components
   host_covar.resize((mmax+1)*ncylorder*ncylorder);
 
-  if (pcavar) {
-    sampT = floor(sqrt(component->CurTotal()));
+  if (pcavar) {			// Set sample size
+    if (defSampT) sampT = defSampT;
+    else          sampT = floor(sqrt(component->CurTotal()));
     host_coefsT.resize(sampT);	// Modulus components
     host_covarT.resize(sampT);	// Upper diagonal
     for (int T=0; T<sampT; T++) {

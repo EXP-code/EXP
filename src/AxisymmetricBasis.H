@@ -66,7 +66,7 @@ protected:
   //@{
   //! Mass and counts for subsample covariance
   std::vector<double>               massT, massT1;
-  unsigned                          sampT;
+  unsigned                          sampT, defSampT;
   //@}
 
   //! Test for eof trim

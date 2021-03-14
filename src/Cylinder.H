@@ -88,6 +88,9 @@ private:
 
 protected:
 
+  //! For variance subsampling
+  int sampT, defSampT;
+
   //! CUDA method for coefficient accumulation
 #if HAVE_LIBCUDA==1
   virtual void determine_coefficients_cuda(bool compute_pca);
@@ -97,8 +100,6 @@ protected:
   thrust::host_vector  <cuFP_t> host_coefs, host_covar, host_massT;
   thrust::device_vector<cuFP_t> dev_coefs;
   std::vector<thrust::host_vector<cuFP_t>> host_coefsT, host_covarT;
-
-  int sampT;
 
   virtual void HtoD_coefs();
   virtual void DtoH_coefs(int mlevel);
