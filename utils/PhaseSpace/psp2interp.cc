@@ -26,7 +26,7 @@ namespace po = boost::program_options;
 #include <FileUtils.H>
 #include <header.H>
 #include <Grid2D.H>
-#include <PSP2.H>
+#include <PSP.H>
 
 				// Globals for exputil library
 				// Unused here

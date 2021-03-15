@@ -86,36 +86,23 @@ int    AXIS;
 double Rmin;
 double Rmax;
 
-void add_particles(ifstream* in, PSPDump* psp,
-		   vector< vector<double> >& ret, int& nhist)
+void add_particles(PSPptr psp, vector< vector<double> >& ret, int& nhist)
 {
   
-  int nbods = 0;
+  int nbods = psp->GetStanza()->comp.nbod;
 
   nhist = 4;
 
-  if (CFLAGS & Star) {
-    nbods = psp->CurrentDump()->nstar;
-    psp->GetStar();
-  }
-
   if (CFLAGS & Gas) {
-    nbods = psp->CurrentDump()->ngas;
-    psp->GetGas();
     if (TEMP>=0) nhist++;
     if (DENS>=0) nhist++;
     if (KNUD>=0) nhist++;
     if (STRL>=0) nhist++;
   }
 
-  if (CFLAGS & Halo) {
-    nbods = psp->CurrentDump()->ndark;
-    psp->GetDark();
-  }
-
   ret = vector< vector<double> >(Nbins);
 
-  SParticle *part = psp->GetParticle(in);
+  SParticle *part = psp->GetParticle();
   double pos;
   int indx;
     
@@ -147,7 +134,7 @@ void add_particles(ifstream* in, PSPDump* psp,
       }
     }
 
-    part = psp->NextParticle(in);
+    part = psp->NextParticle();
   }
 
   return;
@@ -170,7 +157,11 @@ main(int argc, char **argv)
   
   po::options_description desc("Compute 1-dimensional projection of shocktube runs\nAllowed options");
   desc.add_options()
-    ("help,h",                                                                          "Print this help message")
+    ("help,h",                                                                       "Print this help message")
+    ("OUT",
+     "assume that PSP files are in original format")
+    ("SPL",
+     "assume that PSP files are in split format")
     ("CFLAGS",              po::value<int>(&CFLAGS)->default_value(2),
      "component flags (Star=1)")
     ("TEMP",                po::value<int>(&TEMP)->default_value(0),
@@ -237,8 +228,9 @@ main(int argc, char **argv)
   for (int i=IMIN; i<=IMAX; i++) {
 
     ostringstream sout;
-    sout << "OUT." << runtag << "."
-	 << right << setw(5) << setfill('0') << i;
+    if (vm.count("SPL")) sout << "SPL.";
+    else                 sout << "OUT.";
+    sout << runtag << "." << right << setw(5) << setfill('0') << i;
 
     in.close();
     in.open(sout.str().c_str());
@@ -246,42 +238,32 @@ main(int argc, char **argv)
 
     cout << "Reading <" << sout.str() << "> . . ." << flush;
   
-    PSPDump psp(&in, true);
+    PSPptr psp;
+    if (vm.count("SPL")) psp = std::make_shared<PSPspl>(sout.str());
+    else                 psp = std::make_shared<PSPout>(sout.str());
 
-    Dump *dump = psp.GetDump();
-    
-    while (dump) {
+    double time = psp->CurrentTime();
 
-      double time = dump->header.time;
+    vector< vector<double> > ret;
+    int nhist;
+    double dz = (Rmax-Rmin)/Nbins;
 
-      if (in.rdstate() & ios::eofbit) {
-	in.close();
-	in.open(sout.str().c_str());
-      }
-
-      vector< vector<double> > ret;
-      int nhist;
-      double dz = (Rmax-Rmin)/Nbins;
-
-      add_particles(&in, &psp, ret, nhist);
+    add_particles(psp, ret, nhist);
       
-      for (int n=0; n<Nbins; n++) {
-	out << setw(15) << time
-	    << setw(15) << Rmin + dz*(0.5+n);
-	if (ret[n].size()) {
-	  out << setw(15) << ret[n][0]/dz;
-	  for (int j=1; j<nhist; j++) out << setw(15) << ret[n][j]/ret[n][0];
-	}
-	else
-	  for (int j=0; j<nhist; j++) out << setw(15) << 0.0;
-
-	out << endl;
+    for (int n=0; n<Nbins; n++) {
+      out << setw(15) << time
+	  << setw(15) << Rmin + dz*(0.5+n);
+      if (ret[n].size()) {
+	out << setw(15) << ret[n][0]/dz;
+	for (int j=1; j<nhist; j++) out << setw(15) << ret[n][j]/ret[n][0];
       }
+      else
+	for (int j=0; j<nhist; j++) out << setw(15) << 0.0;
+      
       out << endl;
-	
-      dump = psp.NextDump();
     }
-
+    out << endl;
+	
     cout << " done" << endl;
   }
 

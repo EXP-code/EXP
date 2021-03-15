@@ -239,8 +239,8 @@ main(int ac, char **av)
     ("verbose,v",       "verbose output")
     ("logE",		"bin logarithmically in energy")
     ("PVD",		"create a ParaView PVD file")
-    ("time,t",		po::value<double>(&time)->default_value(1.0e20),
-     "find closest time slice to requested value")
+    ("OUT",             "assume that PSP files are in original format")
+    ("SPL",             "assume that PSP files are in split format")
     ("Lunit,L",		po::value<double>(&Lunit)->default_value(3.086e18),
      "System length in physical units (cgs)")
     ("Tunit,T",		po::value<double>(&Tunit)->default_value(3.15569e10),
@@ -395,59 +395,49 @@ main(int ac, char **av)
     std::ostringstream file;
     file << "OUT." << rtag << "." << std::setfill('0') << std::setw(5) << n;
     
-    ifstream *in = new ifstream(file.str());
-    if (!*in) {
+    std::ifstream in(file.str());
+    if (in) {
       cerr << "Error opening file <" << file.str() << "> for input."
 	   << std::endl
 	   << "Assuming end of sequence . . . continuing."
 	   << std::endl;
       break;
     }
+    in.close();
 
     if (verbose) cerr << "Using filename: " << file.str() << endl;
 
 
 				// Parse the PSP file
 				// ------------------
-    PSPDump psp(in);
-
-    in->close();
+    PSPptr psp;
+    if (vm.count("SPL")) psp = std::make_shared<PSPspl>(file.str());
+    else                 psp = std::make_shared<PSPout>(file.str());
 
 				// Now write a summary
 				// -------------------
     if (verbose) {
       
-      psp.PrintSummary(in, cerr);
+      psp->PrintSummary(cerr);
     
       std::cerr << std::endl
 		<< "Best fit dump to <" << time << "> has time <" 
-		<< psp.SetTime(time) << ">" << std::endl;
-    } else 
-      psp.SetTime(time);
+		<< psp->CurrentTime() << ">" << std::endl;
+    }
 
-				// Reopen file for data input
-				// --------------------------
-    delete in;
-    in = new ifstream(file.str());
-    
-  
     vector<double> pos(3), vel(3);
 
     PSPstanza *stanza;
     SParticle* part;
 
-    double T = psp.CurrentTime();
+    double T = psp->CurrentTime();
     if (verbose) {
       std::cerr << std::endl << "PSP time is <" << T << ">" << std::endl;
     }
 
-    for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
+    for (stanza=psp->GetStanza(); stanza!=0; stanza=psp->NextStanza()) {
     
       if (stanza->name != cname) continue;
-
-				// Position to beginning of particles
-				// ----------------------------------
-      in->seekg(stanza->pspos);
 
       unsigned total = 0, gridded = 0, pout = 0, eEout = 0, eIout = 0;
 
@@ -458,7 +448,7 @@ main(int ac, char **av)
 	std::fill(Eelc[n].begin(), Eelc[n].end(), 0);
       }
 
-      for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
+      for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
 
 	total++;
 

@@ -180,8 +180,8 @@ main(int ac, char **av)
   desc.add_options()
     ("help,h",		"produce help message")
     ("verbose,v",       "verbose output")
-    ("time,t",		po::value<double>(&time)->default_value(1.0e20),
-     "find closest time slice to requested value")
+    ("OUT",             "assume that PSP files are in original format")
+    ("SPL",             "assume that PSP files are in split format")
     ("Lunit,L",		po::value<double>(&Lunit)->default_value(3.086e18),
      "System length in physical units (cgs)")
     ("Tunit,T",		po::value<double>(&Tunit)->default_value(3.15569e10),
@@ -330,8 +330,8 @@ main(int ac, char **av)
   
   for (auto file : files ) {
 
-    ifstream *in = new ifstream(file.c_str());
-    if (!*in) {
+    std::ifstream in(file);
+    if (!in) {
       cerr << "Error opening file <" << file << "> for input\n";
       exit(-1);
     }
@@ -341,27 +341,21 @@ main(int ac, char **av)
 
 				// Parse the PSP file
 				// ------------------
-    PSPDump psp(in);
+    PSPptr psp;
+    if (vm.count("SPL")) psp = std::make_shared<PSPspl>(file);
+    else                 psp = std::make_shared<PSPout>(file);
 
-    in->close();
 
 				// Now write a summary
 				// -------------------
     if (verbose) {
       
-      psp.PrintSummary(in, cerr);
+      psp->PrintSummary(cerr);
     
-      cerr << "\nBest fit dump to <" << time << "> has time <" 
-	   << psp.SetTime(time) << ">\n";
-    } else 
-      psp.SetTime(time);
+      std::cerr << std::endl << "Best fit dump to <" << time << "> has time <" 
+		<< psp->CurrentTime() << ">" << std::endl;
+    }
 
-				// Reopen file for data input
-				// --------------------------
-    delete in;
-    in = new ifstream(file);
-    
-  
     vector<double> pos(3), vel(3);
 
     PSPstanza *stanza;
@@ -391,15 +385,11 @@ main(int ac, char **av)
     std::fill(Nion.begin(), Nion.end(), 0);
     std::fill(Nelc.begin(), Nelc.end(), 0);
 
-    for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
+    for (stanza=psp->GetStanza(); stanza!=0; stanza=psp->NextStanza()) {
     
       if (stanza->name != cname) continue;
 
-      // Position to beginning of particles
-      // 
-      in->seekg(stanza->pspos);
-
-      for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
+      for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
 
 	double kEe = 0.0, kEi = 0.0;
 	for (size_t i=0; i<3; i++) {
@@ -486,7 +476,7 @@ main(int ac, char **av)
     //
     const size_t fw = 14;
     const size_t sw =  9;
-    double Time = psp.CurrentTime();
+    double Time = psp->CurrentTime();
 
     if (first) {
       std::cout << "# "

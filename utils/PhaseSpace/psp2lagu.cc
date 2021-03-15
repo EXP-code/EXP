@@ -18,7 +18,7 @@
 #include <map>
 
 #include <header.H>
-#include <PSP2.H>
+#include <PSP.H>
 #include <FileUtils.H>
 
 #include <Progress.H>

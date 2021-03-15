@@ -35,11 +35,11 @@ void Usage(char* prog) {
   cerr << "Synposis: convert PSP file real fields to " << sizeof(float)
        << "-byte (single) or " << sizeof(double) 
        << "-byte (double) float types" << std::endl << std::endl;
-  cerr << "Usage: " << prog << ": [-t time -4 -8 -v -h] filename output\n\n";
-  cerr << "    -t time         use dump closest to <time>\n";
+  cerr << "Usage: " << prog << ": [-4 -8 -v -h] filename output\n\n";
   cerr << "    -4              convert to float (default)\n";
   cerr << "    -8              convert to double\n";
   cerr << "    -h              print this help message\n";
+  cerr << "    -S              use SPL format\n";
   cerr << "    -v              verbose output\n\n";
   exit(0);
 }
@@ -49,8 +49,7 @@ int
 main(int argc, char **argv)
 {
   char *prog = argv[0];
-  double time=1e20;
-  bool real8 = false, verbose = false;
+  bool real8 = false, verbose = false, SPL = false;
 
   // Parse command line
 
@@ -62,16 +61,16 @@ main(int argc, char **argv)
 
     switch (c) {
 
-    case 't':
-      time = atof(optarg);
-      break;
-
     case '4':
       real8 = false;
       break;
 
     case '8':
       real8 = true;
+      break;
+
+    case 'S':
+      SPL = true;
       break;
 
     case 'v':
@@ -86,28 +85,29 @@ main(int argc, char **argv)
 
   }
 
-  boost::shared_ptr<ifstream> in;
-  boost::shared_ptr<ofstream> out;
+  std::string file = argv[optind];
+  std::string ofil = argv[optind+1];
+  std::ofstream out;
 
   if (optind+1 < argc) {
 
-    in = boost::shared_ptr<ifstream>(new ifstream(argv[optind]));
-    if (!in.get()) {
-      cerr << "Error opening file <" << argv[optind] << "> for input\n";
+    std::ifstream in(file);
+    if (!in) {
+      std::cerr << "Error opening file <" << file << "> for input" << std::endl;
       exit(-1);
     }
 
-    if (verbose) cerr << "Using input filename: " << argv[optind] << endl;
+    if (verbose) std::cerr << "Using input filename: " << file << std::endl;
 
     
-    out = boost::shared_ptr<ofstream>(new ofstream(argv[optind+1]));
-    if (!out.get()) {
-      cerr << "Error opening file <" << argv[optind+1] << "> for output\n";
+    out.open(ofil);
+    if (!out) {
+      std::cerr << "Error opening file <" << ofil << "> for output" << std::endl;
       exit(-1);
     }
 
-    if (verbose) cerr << "Using output filename: " << argv[optind+1] << endl;
-
+    if (verbose) cerr << "Using output filename: " << ofil << endl;
+    
   } else {
     Usage(prog);
   }
@@ -115,26 +115,26 @@ main(int argc, char **argv)
 
 				// Parse the PSP file
 				// ------------------
-  PSPDump psp(in.get());
+    PSPptr psp;
+    if (SPL) psp = std::make_shared<PSPspl>(file);
+    else     psp = std::make_shared<PSPout>(file);
+
 
 				// Now write a summary
 				// -------------------
   if (verbose) {
 
-    psp.PrintSummary(in.get(), cerr);
+    psp->PrintSummary(cerr);
     
-    cerr << "\nBest fit dump to <" << time << "> has time <" 
-	 << psp.SetTime(time) << ">\n";
-  } else 
-    psp.SetTime(time);
+    std::cerr << "\nBest fit dump to <" << time << "> has time <" 
+	      << psp->CurrentTime() << ">" << std::endl;
+  }
 
 
 				// Write the PSP
 				// -----------------------------
 
-  in = boost::shared_ptr<ifstream>(new ifstream(argv[optind]));
-
-  psp.writePSP(in.get(), out.get(), !real8);
+  psp->writePSP(out, !real8);
 
   return 0;
 }

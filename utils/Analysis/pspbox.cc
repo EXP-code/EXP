@@ -101,7 +101,11 @@ main(int argc, char **argv)
   
   po::options_description desc("Compute disk potential, force and density profiles\nfrom PSP phase-space output files\n\nAllowed options");
   desc.add_options()
-    ("help,h",                                                                          "Print this help message")
+    ("help,h",                                                                       "Print this help message")
+    ("OUT",
+     "assume that PSP files are in original format")
+    ("SPL",
+     "assume that PSP files are in split format")
     ("RMIN",                po::value<double>(&RMAX)->default_value(0.0),
      "minimum radius for output")
     ("RMAX",                po::value<double>(&RMAX)->default_value(0.1),
@@ -233,12 +237,13 @@ main(int argc, char **argv)
 
     if (n % numprocs == myid) {
 
-      ifstream in(files[n].c_str());
-      PSPDump psp(&in, true);
+      PSPptr psp;
+      if (vm.count("SPL")) psp = std::make_shared<PSPspl>(files[n]);
+      else                 psp = std::make_shared<PSPout>(files[n]);
 
-      if (psp.GetDump()) {
+      if (psp) {
 
-	times[n] = psp.CurrentTime();
+	times[n] = psp->CurrentTime();
 
 	// Do we need to close and reopen?
 	if (in.rdstate() & ios::eofbit) {
@@ -248,13 +253,13 @@ main(int argc, char **argv)
 
 	// Find the component
 	PSPstanza *stanza;
-	for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
+	for (stanza=psp->GetStanza(); stanza!=0; stanza=psp->NextStanza()) {
 	  if (stanza->name == COMP) break;
 	}
 
 	if (stanza==0) {
 	  std::cout << "Could not find Component <" << COMP << "> at time = "
-		    << psp.CurrentTime() << std::endl;
+		    << psp->CurrentTime() << std::endl;
 	} else {
 
 	  in.seekg(stanza->pspos);
@@ -262,7 +267,7 @@ main(int argc, char **argv)
 	  vector<double> L(3);
 	  int icnt = 0;
 	  for (SParticle* 
-		 p=psp.GetParticle(&in); p!=0; p=psp.NextParticle(&in)) {
+		 p=psp->GetParticle(); p!=0; p=psp->NextParticle()) {
 
 	    if (icnt > PBEG) {
 
@@ -326,7 +331,7 @@ main(int argc, char **argv)
 	    }
 	    
 	    if (PEND>0 && icnt>PEND) break;
-	    p = psp.NextParticle(&in);
+	    p = psp->NextParticle();
 	    icnt++;
 	  }
 	}

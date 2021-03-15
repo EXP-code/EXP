@@ -19,7 +19,7 @@ using namespace std;
 
 #include <StringTok.H>
 #include <header.H>
-#include <PSP2.H>
+#include <PSP.H>
 #include <Particle.H>
 
 #include <yaml-cpp/yaml.h>

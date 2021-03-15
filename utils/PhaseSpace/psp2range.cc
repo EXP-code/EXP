@@ -21,7 +21,7 @@ using namespace std;
 #include <Species.H>
 
 #include <header.H>
-#include <PSP2.H>
+#include <PSP.H>
 #include <InitContainer.H>
 
 #include <boost/program_options.hpp>
