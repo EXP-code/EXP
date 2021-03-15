@@ -49,7 +49,6 @@
 namespace po = boost::program_options;
 namespace pt = boost::property_tree;
 
-
                                 // System libs
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -1549,4 +1548,3 @@ main(int argc, char **argv)
   //
   return 0;
 }
-

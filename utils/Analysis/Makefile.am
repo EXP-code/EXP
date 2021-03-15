@@ -69,7 +69,7 @@ pspbox_LDADD   = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB)
 
 eofpeek_SOURCES = eofpeek.cc
 
-diskprof2_SOURCES = PSP.cc header.cc diskprof2.cc EmpCylSL.cc localmpi.cc Particle.cc
+diskprof2_SOURCES = PSP2.cc header.cc diskprof2.cc EmpCylSL.cc localmpi.cc Particle.cc
 diskprof2_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
 diskprof2_LDADD   = $(EXPLIBS) $(YAML) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
 
