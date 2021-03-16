@@ -77,7 +77,7 @@ void testConstantsMultistep()
 __global__ void
 timestepKernel(dArray<cudaParticle> P, dArray<int> I,
 	       cuFP_t cx, cuFP_t cy, cuFP_t cz,
-	       int dim, int stride, PII lohi)
+	       int minactlev, int dim, int stride, PII lohi)
 {
   const int tid    = blockDim.x * blockIdx.x + threadIdx.x;
   const cuFP_t eps = 1.0e-20;
@@ -170,13 +170,19 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
       if (dt > dtA) dt = dtA;
       
       // Time step wants to be LARGER than the maximum
+      //
       p.lev[1] = 0;
       if (dt<cuDtime)
 	p.lev[1] = (int)floor(log(cuDtime/dt)/log(2.0));
     
       // Time step wants to be SMALLER than the maximum
+      //
       if (p.lev[1]>cuMultistep) p.lev[1] = cuMultistep;
       
+      // Limit new level to minimum active level
+      //
+      if (p.lev[1]<minactlev)   p.lev[1] = minactlev;
+
       // Only use this for deep sanity check
       /*
       if (i<5) {
@@ -303,7 +309,7 @@ void cuda_compute_levels()
       timestepKernel<<<gridSize, BLOCK_SIZE>>>
 	(toKernel(c->cuStream->cuda_particles),
 	 toKernel(c->cuStream->indx1),
-	 ctr[0], ctr[1], ctr[2], c->dim, stride, lohi);
+	 ctr[0], ctr[1], ctr[2], mfirst[mstep], c->dim, stride, lohi);
     }
   }
 

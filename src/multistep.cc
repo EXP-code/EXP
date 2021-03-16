@@ -177,7 +177,7 @@ void * adjust_multistep_level_thread(void *ptr)
     // Time step wants to be LARGER than the maximum
     if (dt>dtime) {
       lev = 0;
-      maxdt1[id] = max<double>(dt, maxdt1[id]);
+      maxdt1[id] = std::max<double>(dt, maxdt1[id]);
       offhi++;
     }
     else lev = (int)floor(log(dtime/dt)/log(2.0));
@@ -186,9 +186,13 @@ void * adjust_multistep_level_thread(void *ptr)
     //
     if (lev>multistep) {
       lev = multistep;
-      mindt1[id] = min<double>(dt, mindt1[id]);
+      mindt1[id] = std::min<double>(dt, mindt1[id]);
       offlo++;
     }
+
+    // Limit new level to minimum active level
+    //
+    lev = std::max<int>(lev, mfirst[mstep]);
 
     // Case with ZERO acceleration (possibly leading to bad assignment)
     //
