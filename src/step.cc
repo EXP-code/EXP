@@ -89,24 +89,24 @@ void do_step(int n)
     vector<double> vel_check(multistep+1);
 #endif
     
-				// March through all the substeps
-				// of the hierarchy
+    // March through all the substeps of the hierarchy
+    //
     for (mstep=0; mstep<Mstep; mstep++) {
 
 				// Write multistep output
       if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
       output->Run(n, mstep);
 
-				// Compute next coefficients for
-				// particles that move on this step
-				// (the "active" particles)
-				//
+      // Compute next coefficients for particles that move on this
+      // step (the "active" particles)
+      //
       for (int M=mfirst[mstep]; M<=multistep; M++) {
 				// The timestep at level M
 	double DT = dt*mintvl[M];
 	
-				// Advance velocity by 1/2 step for
-				// active particles: First K_{1/2}
+	// Advance velocity by 1/2 step for active particles: First
+	// K_{1/2}
+	//
 	nvTracerPtr tPtr2;
 	if (cuda_prof) {
 	  tPtr2 = nvTracerPtr(new nvTracer("Velocity kick [1]"));
@@ -120,9 +120,8 @@ void do_step(int n)
 
 	check_bad("after incr_vel", M);
 
-				// Advance position by the whole time
-				// step at this level: D_1
-				//
+	// Advance position by the whole time step at this level: D_1
+	//
 	if (cuda_prof) {
 	  tPtr2.reset();
 	  tPtr2 = nvTracerPtr(new nvTracer("Drift"));
@@ -136,10 +135,8 @@ void do_step(int n)
 
 	check_bad("after incr_pos", M);
 
-				// Now, compute the coefficients for
-				// this level
-				//
-
+	// Now, compute the coefficients for this level
+	//
 	if (cuda_prof) {
 	  tPtr2.reset();
 	  tPtr2 = nvTracerPtr(new nvTracer("Expansion"));
@@ -149,14 +146,15 @@ void do_step(int n)
 	if (step_timing) timer_coef.stop();
       }
       
-				// COM update:
-				// Position drift
+      // COM update: Position drift
+      //
       if (step_timing) timer_drift.start();
       incr_com_position(dt);
       if (step_timing) timer_drift.stop();
 
-				// Compute potential for all the
-				// particles active at this step
+      // Compute potential for all the
+      // particles active at this step
+      //
       nvTracerPtr tPtr1;
       if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Potential"));
       if (step_timing) timer_pot.start();
@@ -172,19 +170,21 @@ void do_step(int n)
 
       check_bad("after compute_potential");
 
-				// Second K_{1/2}
-				// 
-				// Advance velocity by 1/2 step to
-				// bring the velocity in sync for the
-				// *next* active step.  Inactive
-				// particles remain unsynced at the
-				// previous half-step for their level.
-				// Particles at every level will get
-				// their final kick at mstep=Mstep-1
+      // Second K_{1/2}
+      // 
+      // Advance velocity by 1/2 step to bring the velocity in sync
+      // for the *next* active step.  Inactive particles remain
+      // unsynced at the previous half-step for their level.
+      // Particles at every level will get their final kick at
+      // mstep=Mstep-1
+      //
       if (cuda_prof) {
 	tPtr1.reset();
 	tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [2]"));
       }
+
+      // Do K_{1/2} only if level is active at the next substep
+      //
       if (step_timing) timer_vel.start();
       for (int M=mfirst[mstep+1]; M<=multistep; M++) {
 	incr_velocity(0.5*dt*mintvl[M], M);
@@ -228,8 +228,8 @@ void do_step(int n)
       tPtr = nvTracerPtr(new nvTracer("Adjust multistep"));
     }
 
-				// COM update:
-				// Second velocity half-kick
+    // COM update: second velocity half-kick
+    //
     if (step_timing) timer_vel.start();
     incr_com_velocity(0.5*dtime);
     if (step_timing) timer_vel.stop();
