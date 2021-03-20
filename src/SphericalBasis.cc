@@ -832,6 +832,9 @@ void SphericalBasis::determine_coefficients(void)
   // Dump coefficients for debugging
   //================================
 
+  //  +--- Deep debugging
+  //  |
+  //  v
   if (false and myid==0 and mstep==0 and mlevel==multistep) {
 
     std::cout << std::string(60, '-') << std::endl
@@ -1060,8 +1063,20 @@ void SphericalBasis::compute_multistep_coefficients()
   double a, b;			// 
   for (int M=0; M<mfirst[mstep]; M++) {
 
-    b = (double)(mstep - dstepL[M][mstep])/(double)(dstepN[M][mstep] - dstepL[M][mstep]);
+    b = (double)(mstep+1 - dstepL[M][mstep])/(double)(dstepN[M][mstep] - dstepL[M][mstep]);
     a = 1.0 - b;
+
+    //  +--- Deep debugging
+    //  |
+    //  v
+    if (false and myid==0) {
+      std::cout << std::left << std::fixed
+		<< "SPH INTERP M=" << std::setw(2) << M
+		<< " mstep=" << std::setw(3) << mstep
+		<< " a=" << std::setw(16) << a
+		<< " b=" << std::setw(16) << b
+		<< std::endl << std::right;
+    }
 
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
       for (int n=1; n<=nmax; n++) 
@@ -1095,6 +1110,17 @@ void SphericalBasis::compute_multistep_coefficients()
 				// Add coefficients at or below this level
 				// 
   for (int M=mfirst[mstep]; M<=multistep; M++) {
+
+    //  +--- Deep debugging
+    //  |
+    //  v
+    if (false and myid==0) {
+      std::cout << std::left << std::fixed
+		<< "SPH FULVAL M=" << std::setw(2) << M
+		<< " mstep=" << std::setw(3) << mstep
+		<< std::endl << std::right;
+    }
+
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
       for (int n=1; n<=nmax; n++) 
 	(*expcoef[l])[n] += (*expcoefN[M][l])[n];
@@ -1354,6 +1380,14 @@ void SphericalBasis::determine_acceleration_and_potential(void)
 #ifdef DEBUG
   cout << "Process " << myid << ": in determine_acceleration_and_potential\n";
 #endif
+
+  if (use_external == false) {
+
+    if (multistep && (self_consistent || initializing)) {
+      compute_multistep_coefficients();
+    }
+
+  }
 
 #if HAVE_LIBCUDA==1
   if (component->cudaDevice>=0 and use_cuda) {

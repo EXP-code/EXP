@@ -172,21 +172,17 @@ void do_step(int n)
 
       // Second K_{1/2}
       // 
-      // Advance velocity by 1/2 step to bring the velocity in sync
-      // for the *next* active step.  Inactive particles remain
-      // unsynced at the previous half-step for their level.
-      // Particles at every level will get their final kick at
-      // mstep=Mstep-1
+      // Advance velocity by 1/2 step for active particles at current
+      // step.  Inactive particles remain unsynced at the previous
+      // half-step for their level.
       //
       if (cuda_prof) {
 	tPtr1.reset();
 	tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [2]"));
       }
 
-      // Do K_{1/2} only if level is active at the next substep
-      //
       if (step_timing) timer_vel.start();
-      for (int M=mfirst[mstep+1]; M<=multistep; M++) {
+      for (int M=mfirst[mstep]; M<=multistep; M++) {
 	incr_velocity(0.5*dt*mintvl[M], M);
 #ifdef CHK_STEP
 	vel_check[M] += 0.5*dt*mintvl[M];

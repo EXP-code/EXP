@@ -6146,8 +6146,20 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
   double a, b;			// 
   for (unsigned M=0; M<mlevel; M++) {
 
-    b = (double)(mstep - dstepL[M][mstep-1])/(double)(dstepN[M][mstep-1] - dstepL[M][mstep-1]);
+    b = (double)(mstep+1 - dstepL[M][mstep])/(double)(dstepN[M][mstep] - dstepL[M][mstep]);
     a = 1.0 - b;
+
+    //  +--- Deep debugging
+    //  |
+    //  v
+    if (false and myid==0) {
+      std::cout << std::left << std::fixed
+		<< "CYL INTERP M=" << std::setw(2) << M
+		<< " mstep=" << std::setw(3) << mstep
+		<< " a=" << std::setw(16) << a
+		<< " b=" << std::setw(16) << b
+		<< std::endl << std::right;
+    }
 
     for (int mm=0; mm<=MMAX; mm++) {
       for (int nn=0; nn<rank3; nn++) {
@@ -6167,6 +6179,17 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
 				// Add coefficients at or below this level
 				// 
   for (unsigned M=mlevel; M<=multistep; M++) {
+
+    //  +--- Deep debugging
+    //  |
+    //  v
+    if (false and myid==0) {
+      std::cout << std::left << std::fixed
+		<< "CYL FULVAL M=" << std::setw(2) << M
+		<< " mstep=" << std::setw(3) << mstep
+		<< std::endl << std::right;
+    }
+
     for (int mm=0; mm<=MMAX; mm++) {
       for (int nn=0; nn<rank3; nn++) {
 	accum_cos[mm][nn] += cosN(M)[0][mm][nn];
