@@ -135,7 +135,8 @@ void do_step(int n)
 
 	check_bad("after incr_pos", M);
 
-	// Now, compute the coefficients for this level
+	// Now, compute the coefficients for this level at the
+	// advanced position in preparation for the next kick
 	//
 	if (cuda_prof) {
 	  tPtr2.reset();
@@ -173,8 +174,8 @@ void do_step(int n)
       // Second K_{1/2}
       // 
       // Advance velocity by 1/2 step for active particles at current
-      // step.  Inactive particles remain unsynced at the previous
-      // half-step for their level.
+      // step.  Inactive particles' velocities remain unsynced at the
+      // previous half-step for their level.
       //
       if (cuda_prof) {
 	tPtr1.reset();
