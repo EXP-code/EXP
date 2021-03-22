@@ -1659,29 +1659,29 @@ void Cylinder::determine_acceleration_cuda()
 
   auto cs = cC->cuStream;
 
-  // Assign component center and orientation
+  // Assign expansion center and orientation
   //
   std::vector<cuFP_t> ctr;
-  for (auto v : cC->getCenter(Component::Local | Component::Centered)) ctr.push_back(v);
+  for (auto v : component->getCenter(Component::Local | Component::Centered)) ctr.push_back(v);
 
   cuda_safe_call(cudaMemcpyToSymbol(cylCen, &ctr[0], sizeof(cuFP_t)*3,
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying cylCen");
 
-  bool orient = (cC->EJ & Orient::AXIS) && !cC->EJdryrun;
+  bool orient = (component->EJ & Orient::AXIS) && !component->EJdryrun;
 
   if (orient) {
     std::vector<cuFP_t> trans(9);
     for (int i=0; i<3; i++) 
       for (int j=0; j<3; j++)
-	trans[i*3+j] = cC->orient->transformBody()[i][j];
+	trans[i*3+j] = component->orient->transformBody()[i][j];
   
     cuda_safe_call(cudaMemcpyToSymbol(cylBody, &trans[0], sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
 		   __FILE__, __LINE__, "Error copying cylBody");
 
     for (int i=0; i<3; i++) 
       for (int j=0; j<3; j++)
-	trans[i*3+j] = cC->orient->transformOrig()[i][j];
+	trans[i*3+j] = component->orient->transformOrig()[i][j];
   
     cuda_safe_call(cudaMemcpyToSymbol(cylOrig, &trans[0], sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
 		   __FILE__, __LINE__, "Error copying cylOrig");

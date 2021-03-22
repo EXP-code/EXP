@@ -1773,37 +1773,35 @@ void EmpCylSL::setup_accumulation(int mlevel)
     }
   }
 
+  // Reset particle counter
+  //
+  howmany[mlevel] = 0;
 
-  for (int M=mlevel; M<=multistep; M++) {
+  // Swap buffers
+  //
+  auto p  = cosL[mlevel];
+  cosL[mlevel] = cosN[mlevel];
+  cosN[mlevel] = p;
     
-    howmany[M] = 0;
-
-    //
-    // Swap buffers
-    //
-    auto p  = cosL[M];
-    cosL[M] = cosN[M];
-    cosN[M] = p;
+  p       = sinL[mlevel];
+  sinL[mlevel] = sinN[mlevel];
+  sinN[mlevel] = p;
     
-    p       = sinL[M];
-    sinL[M] = sinN[M];
-    sinN[M] = p;
+  // Clean current coefficient files
+  //
+  for (int nth=0; nth<nthrds; nth++) {
     
-    //
-    // Clean current coefficient files
-    //
-    for (int nth=0; nth<nthrds; nth++) {
+    howmany1[mlevel][nth] = 0;
       
-      howmany1[M][nth] = 0;
-      
-      for (int m=0; m<=MMAX; m++) {
-	cosN(M)[nth][m].zero();
-	if (m>0) sinN(M)[nth][m].zero();
-      }
+    for (int m=0; m<=MMAX; m++) {
+      cosN(mlevel)[nth][m].zero();
+      if (m>0) sinN(mlevel)[nth][m].zero();
     }
-    
-    coefs_made[M] = false;
   }
+    
+  coefs_made[mlevel] = false;
+
+  // DONE
 }
 
 void EmpCylSL::init_pca()
@@ -6142,9 +6140,9 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
     }
   }
   
-				// Interpolate to get coefficients above
-  double a, b;			// 
-  for (unsigned M=0; M<mlevel; M++) {
+				// Interpolate to get coefficients above the
+  double a, b;			// current active level
+  for (unsigned M=0; M<mfirst[mstep]; M++) {
 
     b = (double)(mstep+1 - dstepL[M][mstep])/(double)(dstepN[M][mstep] - dstepL[M][mstep]);
     a = 1.0 - b;
@@ -6176,9 +6174,9 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
       cout << "Process " << myid << ": interpolation error in multistep [b]" << endl;
     }
   }
-				// Add coefficients at or below this level
+				// Add coefficients at or above this level
 				// 
-  for (unsigned M=mlevel; M<=multistep; M++) {
+  for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
 
     //  +--- Deep debugging
     //  |

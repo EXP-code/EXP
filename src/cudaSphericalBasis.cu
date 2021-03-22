@@ -1621,10 +1621,11 @@ void SphericalBasis::determine_acceleration_cuda()
   //
   auto cr = cC->cuStream;
 
-  // Assign component center
+  // Assign expansion center
   //
   std::vector<cuFP_t> ctr;
-  for (auto v : cC->getCenter(Component::Local | Component::Centered)) ctr.push_back(v);
+  for (auto v : component->getCenter(Component::Local | Component::Centered))
+    ctr.push_back(v);
 
   cuda_safe_call(cudaMemcpyToSymbol(sphCen, &ctr[0], sizeof(cuFP_t)*3,
 				    size_t(0), cudaMemcpyHostToDevice),

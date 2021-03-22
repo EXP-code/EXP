@@ -387,7 +387,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
   double fac0=4.0*M_PI;
   double xx, yy, zz;
 
-  unsigned nbodies = cC->levlist[mlevel].size();
+  unsigned nbodies = component->levlist[mlevel].size();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -418,23 +418,23 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
-    int indx = cC->levlist[mlevel][i];
+    int indx = component->levlist[mlevel][i];
 
     if (component->freeze(indx)) continue;
 
     
-    mass = cC->Mass(indx) * adb;
+    mass = component->Mass(indx) * adb;
 				// Adjust mass for subset
     if (subset) mass /= ssfrac;
     
     if (mix) {
-      xx = cC->Pos(indx, 0, Component::Local) - ctr[0];
-      yy = cC->Pos(indx, 1, Component::Local) - ctr[1];
-      zz = cC->Pos(indx, 2, Component::Local) - ctr[2];
+      xx = component->Pos(indx, 0, Component::Local) - ctr[0];
+      yy = component->Pos(indx, 1, Component::Local) - ctr[1];
+      zz = component->Pos(indx, 2, Component::Local) - ctr[2];
     } else {
-      xx = cC->Pos(indx, 0, Component::Local | Component::Centered);
-      yy = cC->Pos(indx, 1, Component::Local | Component::Centered);
-      zz = cC->Pos(indx, 2, Component::Local | Component::Centered);
+      xx = component->Pos(indx, 0, Component::Local | Component::Centered);
+      yy = component->Pos(indx, 1, Component::Local | Component::Centered);
+      zz = component->Pos(indx, 2, Component::Local | Component::Centered);
     }
 
     r2 = (xx*xx + yy*yy + zz*zz);
@@ -608,7 +608,7 @@ void SphericalBasis::determine_coefficients(void)
 
     if (sampT == 0) {		// Allocate storage for subsampling
       if (defSampT) sampT = defSampT;
-      else          sampT = floor(sqrt(cC->CurTotal()));
+      else          sampT = floor(sqrt(component->CurTotal()));
       massT    .resize(sampT, 0);
       massT1   .resize(sampT, 0);
       
@@ -692,12 +692,12 @@ void SphericalBasis::determine_coefficients(void)
 			<< "Level check in Spherical Basis:" << endl 
 			<< "-------------------------------" << endl;
       cout << setw(4) << myid << setw(4) << mlevel;
-      if (cC->levlist[mlevel].size())
-	cout << setw(12) << cC->levlist[mlevel].size()
-	     << setw(12) << cC->levlist[mlevel].front()
-	     << setw(12) << cC->levlist[mlevel].back() << endl;
+      if (component->levlist[mlevel].size())
+	cout << setw(12) << component->levlist[mlevel].size()
+	     << setw(12) << component->levlist[mlevel].front()
+	     << setw(12) << component->levlist[mlevel].back() << endl;
       else
-	cout << setw(12) << cC->levlist[mlevel].size()
+	cout << setw(12) << component->levlist[mlevel].size()
 	     << setw(12) << (int)(-1)
 	     << setw(12) << (int)(-1) << endl;
       
@@ -821,7 +821,7 @@ void SphericalBasis::determine_coefficients(void)
 	      << mlevel << std::endl;
     std::cout << std::string(60, '=') << std::endl;
     std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
-    if (cC->cudaDevice>=0 and use_cuda) {
+    if (component->cudaDevice>=0 and use_cuda) {
       std::cout << "Time in GPU: " << duration1.count() << std::endl;
     }
     std::cout << std::string(60, '=') << std::endl;
@@ -1390,7 +1390,7 @@ void SphericalBasis::determine_acceleration_and_potential(void)
   }
 
 #if HAVE_LIBCUDA==1
-  if (component->cudaDevice>=0 and use_cuda) {
+  if (cC->cudaDevice>=0 and use_cuda) {
     if (cudaAccelOverride) {
       cC->CudaToParticles();
       exp_thread_fork(false);
