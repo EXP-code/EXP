@@ -864,9 +864,9 @@ void Cylinder::determine_coefficients(void)
 				// Make the coefficients for this level
   if (multistep==0 || !self_consistent) {
     ortho->make_coefficients(compute);
-  } else if (mlevel==multistep) {
+  } else {
     ortho->make_coefficients(mfirst[mstep], compute);
-    compute_multistep_coefficients();
+    compute_multistep_coefficients(); // I don't think this is necessary . . .
   }
 
   if ((pcavar or pcaeof) and mlevel==multistep) ortho->pca_hall(compute);
