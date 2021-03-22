@@ -153,8 +153,7 @@ void do_step(int n)
       incr_com_position(dt);
       if (step_timing) timer_drift.stop();
 
-      // Compute potential for all the
-      // particles active at this step
+      // Compute potential for all the particles active at this step
       //
       nvTracerPtr tPtr1;
       if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Potential"));
@@ -173,9 +172,11 @@ void do_step(int n)
 
       // Second K_{1/2}
       // 
-      // Advance velocity by 1/2 step for active particles at current
-      // step.  Inactive particles' velocities remain unsynced at the
-      // previous half-step for their level.
+      // Advance velocity by 1/2 step for active particles at the next
+      // sub step.  Inactive particles' velocities remain unsynced
+      // otherwise because the coefficient values will not be
+      // available all levels for their drifted positions until later
+      // mstep.
       //
       if (cuda_prof) {
 	tPtr1.reset();
@@ -183,7 +184,7 @@ void do_step(int n)
       }
 
       if (step_timing) timer_vel.start();
-      for (int M=mfirst[mstep]; M<=multistep; M++) {
+      for (int M=mfirst[mstep+1]; M<=multistep; M++) {
 	incr_velocity(0.5*dt*mintvl[M], M);
 #ifdef CHK_STEP
 	vel_check[M] += 0.5*dt*mintvl[M];
