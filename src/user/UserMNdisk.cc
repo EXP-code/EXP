@@ -115,8 +115,8 @@ void * UserMNdisk::determine_acceleration_and_potential_thread(void * arg)
   vector<double> pos(3);
 
   double amp = 
-      0.5*(1.0 + erf( (tstp - Ton )/DeltaT ))
-    * 0.5*(1.0 - erf( (tstp - Toff)/DeltaT )) ;
+      0.5*(1.0 + erf( (tnow - Ton )/DeltaT ))
+    * 0.5*(1.0 - erf( (tnow - Toff)/DeltaT )) ;
 
 
   PartMapItr it = cC->Particles().begin();

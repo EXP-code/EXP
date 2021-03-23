@@ -20,6 +20,12 @@ void clean_up(void);
 
 
 //===========================================
+// Helper defined in parse.cc
+//===========================================
+
+extern void exp_version();
+
+//===========================================
 // Handlers defined in exputil/stack.cc
 //===========================================
 
@@ -499,11 +505,27 @@ main(int argc, char** argv)
   //================
 
   if (myid==0) {
-    ostringstream sout;
-    cout << endl << setw(50) << setfill('%') << '%' << endl;
+    const int W = 80;		// Full linewidth
+    std::ostringstream sout;	// Get a std::string from the string
+				// literal
     sout << "%%%%% This is " << PACKAGE_STRING << " ";
-    cout << left << setw(50) << sout.str() << endl;
-    cout << setw(50) << "%" << setfill(' ') << endl << endl;
+				// Print the info block
+    std::cout << std::endl
+	      << std::setw(W) << std::setfill('%') << '%' << std::endl
+	      << std::left << setw(W) << sout.str() << std::endl
+	      << std::setw(W) << std::setfill('%') << '%' << std::endl
+	      << std::setfill(' ')
+	      << std::setw(20) << "%%%%% Repository URL" << " | "
+	      << std::setw(W-24) << PACKAGE_URL << '%' << std::endl
+	      << std::setw(20) << "%%%%% Current branch" << " | "
+	      << std::setw(W-24) << GIT_BRANCH << '%' << std::endl
+	      << std::setw(20) << "%%%%% Current commit" << " | "
+	      << std::setw(W-24) << GIT_COMMIT << '%' << std::endl
+	      << std::setw(20) << "%%%%% Compile time"   << " | "
+	      << std::setw(W-24) << COMPILE_TIME << '%' << std::endl
+	      << std::setfill('%')
+	      << std::setw(W) << '%' << std::setfill(' ') << std::endl
+	      << std::endl;
   }
 
   //====================================

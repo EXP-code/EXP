@@ -275,7 +275,7 @@ void * UserDiffRot::determine_acceleration_and_potential_thread(void * arg)
 
       dt = get_dtime(*(cC->Part(i)));
 
-      cC->Part(i)->dattrib.push_back(tstp + dt/rate);
+      cC->Part(i)->dattrib.push_back(tnow + dt/rate);
 
       dtmin = min<double>(dt, dtmin);
       dtmax = max<double>(dt, dtmax);
@@ -325,9 +325,9 @@ void * UserDiffRot::determine_acceleration_and_potential_thread(void * arg)
 	   << "\n";
     }
 
-    if (tstp>cC->Part(i)->dattrib[indx]) {
+    if (tnow>cC->Part(i)->dattrib[indx]) {
 
-      cC->Part(i)->dattrib[indx] = tstp + get_dtime(*(cC->Part(i)))/rate;
+      cC->Part(i)->dattrib[indx] = tnow + get_dtime(*(cC->Part(i)))/rate;
 
 				// Do rotation
       phi =  width * (*normal)();

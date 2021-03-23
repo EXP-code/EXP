@@ -145,10 +145,6 @@ extern bool step_timing;
 //! Times for each phase-space time slice (for Leap-Frog)
 extern double tnow;
 
-//! Times for acceleration evaluation (for multistep).  Equal to tnow
-//! if multistep = 0
-extern double tstp;
-
 //! Current step number
 extern int this_step;
 

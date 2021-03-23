@@ -421,14 +421,14 @@ void * UserPST::determine_acceleration_and_potential_thread(void * arg)
   double xx, yy, zz, rr, bfrc, fr, fz, extpot;
   vector<double> pos(3), pos1(3), acct(3), force(4), acc(3);
   
-  double posang = omega*tstp;
+  double posang = omega*tnow;
   
   double cosp = cos(posang);
   double sinp = sin(posang);
 
   thread_timing_beg(id);
 
-  double elip_frac = 0.5*(1.0 + erf( (tstp - Ton )/DeltaT ));
+  double elip_frac = 0.5*(1.0 + erf( (tnow - Ton )/DeltaT ));
   double disk_frac = 1.0 + (Mscale - 1.0)*(1.0 - elip_frac);
 
   for (unsigned lev=mlevel; lev<=multistep; lev++) {

@@ -98,15 +98,12 @@ void ComponentContainer::initialize(void)
 	   << "  Ncomp=" << master.ncomp << endl;
 
       tnow  = master.time;
-      tstp  = master.time;
       ntot  = master.ntot;
       ncomp = master.ncomp;
     }
 
     MPI_Bcast(&tnow,  1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-    MPI_Bcast(&tstp,  1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    
     MPI_Bcast(&ntot,  1, MPI_INT,    0, MPI_COMM_WORLD);
       
     MPI_Bcast(&ncomp, 1, MPI_INT,    0, MPI_COMM_WORLD);
