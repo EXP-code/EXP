@@ -6166,6 +6166,21 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
 	  accum_sin[mm][nn] += a*sinL(M)[0][mm][nn] + b*sinN(M)[0][mm][nn];
       }
     }
+
+    if (false and myid==0) {
+      std::cout << "CYL interpolate:"
+		<< " M="     << std::setw( 4) << M
+		<< " mstep=" << std::setw( 4) << mstep 
+		<< " minS="  << std::setw( 4) << dstepL[M][mstep]
+		<< " maxS="  << std::setw( 4) << dstepN[M][mstep]
+		<< " a="     << std::setw(14) << a 
+		<< " b="     << std::setw(14) << b 
+		<< " L00="   << std::setw(14) << cosL(M)[0][0][0]
+		<< " N00="   << std::setw(14) << cosN(M)[0][0][0]
+		<< " c00="   << std::setw(14) << accum_cos[0][0]
+		<< std::endl;
+    }
+
     // Sanity debug check
     if (a<0.0 && a>1.0) {
       cout << "Process " << myid << ": interpolation error in multistep [a]" << endl;
@@ -6195,6 +6210,15 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
 	  accum_sin[mm][nn] += sinN(M)[0][mm][nn];
       }
     }
+  }
+
+  if (false and myid==0) {
+    std::cout << "CYL interpolated value:"
+	      << " mlev="  << std::setw( 4) << mlevel
+	      << " mstep=" << std::setw( 4) << mstep
+	      << " T="     << std::setw( 4) << tnow
+	      << " c00="   << std::setw(14) << accum_cos[0][0]
+	      << std::endl;
   }
 
   coefs_made = vector<short>(multistep+1, true);

@@ -1060,12 +1060,17 @@ void SphericalBasis::compute_multistep_coefficients()
     for (int n=1; n<=nmax; n++) (*expcoef[l])[n] = 0.0;
 
 				// Interpolate to get coefficients above
-  double a, b;			// 
+				// 
   for (int M=0; M<mfirst[mstep]; M++) {
 
-    b = (double)(mstep+1 - dstepL[M][mstep])/(double)(dstepN[M][mstep] - dstepL[M][mstep]);
-    a = 1.0 - b;
+    double b = (double)(mstep+1 - dstepL[M][mstep])/(double)(dstepN[M][mstep] - dstepL[M][mstep]);
+    double a = 1.0 - b;
 
+    for (int l=0; l<=Lmax*(Lmax+2); l++) {
+      for (int n=1; n<=nmax; n++) 
+	(*expcoef[l])[n] += a*(*expcoefL[M][l])[n] + b*(*expcoefN[M][l])[n];
+    }
+    
     //  +--- Deep debugging
     //  |
     //  v
@@ -1075,36 +1080,36 @@ void SphericalBasis::compute_multistep_coefficients()
 		<< " mstep=" << std::setw(3) << mstep
 		<< " a=" << std::setw(16) << a
 		<< " b=" << std::setw(16) << b
+		<< " L=" << std::setw(16) << (*expcoefL[M][0])[1]
+		<< " N=" << std::setw(16) << (*expcoefN[M][0])[1]
+		<< " d=" << std::setw(16) << a*(*expcoefL[M][0])[1] + b*(*expcoefN[M][0])[1]
+		<< " f=" << std::setw(16) << (*expcoef[0])[1]
 		<< std::endl << std::right;
     }
 
-    for (int l=0; l<=Lmax*(Lmax+2); l++) {
-      for (int n=1; n<=nmax; n++) 
-	(*expcoef[l])[n] += a*(*expcoefL[M][l])[n] + b*(*expcoefN[M][l])[n];
+    if (false and myid==0) {
+      std::cout << "SPH interpolate:"
+		<< " M="     << std::setw( 4) << M
+		<< " mstep=" << std::setw( 4) << mstep 
+		<< " minS="  << std::setw( 4) << dstepL[M][mstep]
+		<< " maxS="  << std::setw( 4) << dstepN[M][mstep]
+		<< " a="     << std::setw(14) << a 
+		<< " b="     << std::setw(14) << b 
+		<< " L01="   << std::setw(14) << (*expcoefL[M][0])[1]
+		<< " N01="   << std::setw(14) << (*expcoefN[M][0])[1]
+		<< " c01="   << std::setw(14) << (*expcoef[0])[1]
+		<< std::endl;
     }
-    
-    if (0) {
-      if (myid==0) {
-	cerr << "Interpolate:"
-	     << " M="     << setw(4) << M
-	     << " mstep=" << setw(4) << mstep 
-	     << " minS="  << setw(4) << dstepL[M][mstep]
-	     << " maxS="  << setw(4) << dstepN[M][mstep]
-	     << " a="     << setw(8) << a 
-	     << " b="     << setw(8) << b 
-	     << " c01="   << setw(8) << (*expcoef[0])[1]
-	     << endl;
-      }
+
 				// Sanity debug check
 				// 
-      if (a<0.0 && a>1.0) {
-	cout << "Process " << myid << ": interpolation error in multistep [a]" 
-	     << endl;
-      }
-      if (b<0.0 && b>1.0) {
-	cout << "Process " << myid << ": interpolation error in multistep [b]" 
-	     << endl;
-      }
+    if (a<0.0 && a>1.0) {
+      cout << "Process " << myid << ": interpolation error in multistep [a]" 
+	   << endl;
+    }
+    if (b<0.0 && b>1.0) {
+      cout << "Process " << myid << ": interpolation error in multistep [b]" 
+	   << endl;
     }
   }
 				// Add coefficients at or below this level
@@ -1127,14 +1132,23 @@ void SphericalBasis::compute_multistep_coefficients()
     }
   }
 
-  if (0) {
-    if (myid==0) {
-      cerr << "Interpolated value:"
-	   << " mlev="  << setw(4) << mlevel
-	   << " T="     << setw(4) << tnow
-	   << " c01="   << setw(8) << (*expcoef[0])[1]
-	   << endl;
-    }
+  //  +--- Deep debugging
+  //  |
+  //  v
+  if (false and myid==0) {
+    std::cout << std::left << std::fixed
+	      << "SPH FULVAL mstep=" << std::setw(3) << mstep
+	      << " f=" << std::setw(16) << (*expcoef[0])[1]
+	      << std::endl << std::right;
+  }
+
+  if (false and myid==0) {
+    std::cout << "SPH interpolated value:"
+	      << " mlev="  << std::setw( 4) << mlevel
+	      << " mstep=" << std::setw( 4) << mstep
+	      << " T="     << std::setw( 4) << tnow
+	      << " c01="   << std::setw(14) << (*expcoef[0])[1]
+	      << std::endl;
   }
 
 #ifdef TMP_DEBUG
