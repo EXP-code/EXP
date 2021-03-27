@@ -1063,7 +1063,7 @@ void SphericalBasis::compute_multistep_coefficients()
 				// 
   for (int M=0; M<mfirst[mstep]; M++) {
 
-    double b = (double)(mstep+1 - dstepL[M][mstep])/(double)(dstepN[M][mstep] - dstepL[M][mstep]);
+    double b = (double)(mstep - dstepL[M][mstep])/(double)(dstepN[M][mstep] - dstepL[M][mstep]);
     double a = 1.0 - b;
 
     for (int l=0; l<=Lmax*(Lmax+2); l++) {

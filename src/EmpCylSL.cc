@@ -6144,7 +6144,7 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
   double a, b;			// current active level
   for (unsigned M=0; M<mfirst[mstep]; M++) {
 
-    b = (double)(mstep+1 - dstepL[M][mstep])/(double)(dstepN[M][mstep] - dstepL[M][mstep]);
+    b = (double)(mstep - dstepL[M][mstep])/(double)(dstepN[M][mstep] - dstepL[M][mstep]);
     a = 1.0 - b;
 
     //  +--- Deep debugging
