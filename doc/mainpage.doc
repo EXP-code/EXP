@@ -1,11 +1,10 @@
 /*! \mainpage
 
-<p> I wrote the EXP code over about 18 years, incorporating published
+<p> I wrote the EXP code over about 20 years, incorporating published
 biorthogonal expansions and my own published and unpublished work on
 n-body methodology.  This version has been rewritten to exploit the
-similarity in overall structure of all biorthogonal expansions and
-C++ object-oriented style.
-</p>
+similarity in overall structure of all biorthogonal expansions and C++
+object-oriented style. </p>
 
 <p>
 The project has two primary goals: 
