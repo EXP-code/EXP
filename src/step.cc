@@ -2,6 +2,10 @@
   Call necessary routines to advance phase-space one step
 */
 
+// For string formatting
+//
+#include <boost/format.hpp>
+
 // Uncomment for time step debugging
 //
 // #define CHK_STEP
@@ -313,6 +317,8 @@ void do_step(int n)
 				// Timer output
   if (step_timing && this_step!=0 && (this_step % tskip) == 0) {
     if (myid==0) {
+      // Use boost::format to remove all of the manipulators; until C++20
+      boost::format F("%|1$-20|: %|2$-18.6e|[%|3$5.1f|]\n");
       auto totalT = timer_tot.getTime();
       std::ostringstream sout;
       sout << "--- Timer info [T=" << tnow << "] ";
@@ -321,33 +327,17 @@ void do_step(int n)
 		<< std::setw(70) << left << sout.str()       << std::endl
 		<< std::setw(70) << std::setfill('-') << '-' << std::endl
 		<< std::setfill(' ') << std::right
-		<< std::setw(20) << "Drift: " << std::scientific
-		<< std::setw(18) << timer_drift.getTime() << std::fixed
-		<< std::setw(18) << timer_drift.getTime()/totalT << std::endl
-		<< std::setw(20) << "Velocity: " << std::scientific
-		<< std::setw(18) << timer_vel.getTime() << std::fixed
-		<< std::setw(18) << timer_vel.getTime()/totalT << std::endl
-		<< std::setw(20) << "Force: " << std::scientific
-		<< std::setw(18) << timer_pot.getTime() << std::fixed
-		<< std::setw(18) << timer_pot.getTime()/totalT << std::endl
-		<< std::setw(20) << "Coefs: " << std::scientific
-		<< std::setw(18) << timer_coef.getTime() << std::fixed
-		<< std::setw(18) << timer_coef.getTime()/totalT << std::endl;
+		<< F % "Drift"    % timer_drift.getTime() % (timer_drift.getTime()/totalT*1e2)
+		<< F % "Velocity" % timer_vel.getTime()   % (timer_vel.getTime()  /totalT*1e2)
+		<< F % "Force"    % timer_pot.getTime()   % (timer_pot.getTime()  /totalT*1e2)
+		<< F % "Coefs"    % timer_coef.getTime()  % (timer_coef.getTime() /totalT*1e2);
       if (multistep)
-	std::cout << std::setw(20) << "Adjust: " << std::scientific
-		  << std::setw(18) << timer_adj.getTime() << std::fixed
-		  << std::setw(18) << timer_adj.getTime()/totalT << std::endl;
+	std::cout << F % "Adjust" % timer_adj.getTime()   % (timer_adj.getTime()  /totalT*1e2);
       if (use_cuda) {
-	std::cout << std::setw(20) << "Cuda copy: " << std::scientific
-		  << std::setw(18) << comp->timer_cuda.getTime() << std::fixed
-		  << std::setw(18) << comp->timer_cuda.getTime()/totalT << std::endl;
-	std::cout << std::setw(20) << "Orient: " << std::scientific
-		  << std::setw(18) << comp->timer_orient.getTime() << std::fixed
-		  << std::setw(18) << comp->timer_orient.getTime()/totalT << std::endl;
+	std::cout << F % "Cuda copy" % comp->timer_cuda.getTime()   % (comp->timer_cuda.getTime()  /totalT*1e2)
+		  << F % "Orient"    % comp->timer_orient.getTime() % (comp->timer_orient.getTime()/totalT*1e2);
       }
-      std::cout << std::setw(20) << "Total: " << std::scientific
-		<< std::setw(18) << timer_tot.getTime() << std::fixed
-		<< std::setw(18) << 1.0 << std::endl << std::scientific
+      std::cout << F % "Total" % timer_tot.getTime() % 1e2
 		<< std::setw(70) << std::setfill('-') << '-' << std::endl
 		<< std::setfill(' ');
     }
