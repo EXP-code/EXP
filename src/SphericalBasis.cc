@@ -1054,6 +1054,11 @@ void SphericalBasis::compute_multistep_coefficients()
 #ifdef TMP_DEBUG
   Matrix tmpcoef = expcoef;
 #endif
+
+				// Coefficient evaluation takes place
+				// on drifted step
+  int p1 = mstep + 1;
+  
 				// Clean coefficient matrix
 				// 
   for (int l=0; l<(Lmax+1)*(Lmax+1); l++)
@@ -1061,9 +1066,12 @@ void SphericalBasis::compute_multistep_coefficients()
 
 				// Interpolate to get coefficients above
 				// 
-  for (int M=0; M<mfirst[mstep]; M++) {
+  for (int M=0; M<mfirst[p1]; M++) {
 
-    double b = (double)(mstep - dstepL[M][mstep])/(double)(dstepN[M][mstep] - dstepL[M][mstep]);
+    double numer = static_cast<double>(p1            - dstepL[M][p1]);
+    double denom = static_cast<double>(dstepN[M][p1] - dstepL[M][p1]);
+
+    double b = numer/denom;	// Interpolation weights
     double a = 1.0 - b;
 
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
@@ -1114,7 +1122,7 @@ void SphericalBasis::compute_multistep_coefficients()
   }
 				// Add coefficients at or below this level
 				// 
-  for (int M=mfirst[mstep]; M<=multistep; M++) {
+  for (int M=mfirst[p1]; M<=multistep; M++) {
 
     //  +--- Deep debugging
     //  |

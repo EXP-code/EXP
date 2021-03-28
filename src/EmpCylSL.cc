@@ -6131,6 +6131,10 @@ void EmpCylSL::multistep_update(int from, int to, double r, double z, double phi
 void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
 {
 #ifndef STANDALONE
+				// Coefficient evaluation takes place
+				// on drifted step
+  int p1 = mstep + 1;
+
 				// Clean coefficient matrix
 				// 
   for (int mm=0; mm<=MMAX; mm++) {
@@ -6141,11 +6145,14 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
   }
   
 				// Interpolate to get coefficients above the
-  double a, b;			// current active level
-  for (unsigned M=0; M<mfirst[mstep]; M++) {
+				// current active level
+  for (unsigned M=0; M<mfirst[p1]; M++) {
 
-    b = (double)(mstep - dstepL[M][mstep])/(double)(dstepN[M][mstep] - dstepL[M][mstep]);
-    a = 1.0 - b;
+    double numer = static_cast<double>(p1            - dstepL[M][p1]);
+    double denom = static_cast<double>(dstepN[M][p1] - dstepL[M][p1]);
+
+    double b = numer/denom;	// Interpolation weights
+    double a = 1.0 - b;
 
     //  +--- Deep debugging
     //  |
@@ -6191,7 +6198,7 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
   }
 				// Add coefficients at or above this level
 				// 
-  for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
+  for (unsigned M=mfirst[p1]; M<=multistep; M++) {
 
     //  +--- Deep debugging
     //  |
