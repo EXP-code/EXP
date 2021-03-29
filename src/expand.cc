@@ -500,6 +500,19 @@ main(int argc, char** argv)
   }
 #endif
 
+  //====================================
+  // Make node PID list
+  //====================================
+
+  make_node_list(argc, argv);
+
+  //============================
+  // Parse command line:        
+  // broadcast to all processes 
+  //============================
+
+  YAML_parse_args(argc, argv);
+
   //================
   // Print welcome  
   //================
@@ -527,19 +540,6 @@ main(int argc, char** argv)
 	      << std::setw(W) << '%' << std::setfill(' ') << std::endl
 	      << std::endl;
   }
-
-  //====================================
-  // Make node PID list
-  //====================================
-
-  make_node_list(argc, argv);
-
-  //============================
-  // Parse command line:        
-  // broadcast to all processes 
-  //============================
-
-  YAML_parse_args(argc, argv);
 
   //============================
   // Trap floating point errors
