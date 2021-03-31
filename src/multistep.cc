@@ -238,7 +238,10 @@ void * adjust_multistep_level_thread(void *ptr)
     }
     numtt[id]++;
 
-    // For reporting level populations
+    // For reporting level populations: evaluating at the final sub
+    // step guarantees that every particle is active.  Also note:
+    // mdrft equals Mstep for multistep=0; so multistep=0 gives the
+    // desired evaluation at every step.
     //
     if (mdrft == Mstep) {
       //
@@ -352,14 +355,21 @@ void adjust_multistep_level(bool all)
 
   for (auto c : comp->components) {
     
+    // For reporting level populations: evaluating at the final sub
+    // step guarantees that every particle is active.  Also note:
+    // mdrft equals Mstep for multistep=0; so multistep=0 gives the
+    // desired evaluation at every step.
+    //
     if (mdrft == Mstep) {
       for (int n=0; n<nthrds; n++)
 	for (int k=0; k<=multistep; k++) 
 	  for (int j=0; j<mdtDim; j++) tmdt[n][k][j] = 0;
     }
     
-    int first = mfirst[mdrft];
-    if (all) first = 0;
+    int first = mfirst[mdrft];	// First active level at drifted
+				// subgrid position
+
+    if (all) first = 0;		// Do all levels by request
 
     for (int level=first; level<=multistep; level++) {
       
@@ -420,6 +430,8 @@ void adjust_multistep_level(bool all)
       }
     }
 
+    // Accumulate counters for all threads at the master step boundary
+    //
     if (mdrft == Mstep) {
       for (int n=0; n<nthrds; n++)
 	for (int k=0; k<=multistep; k++) 
