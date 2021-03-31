@@ -6131,10 +6131,6 @@ void EmpCylSL::multistep_update(int from, int to, double r, double z, double phi
 void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
 {
 #ifndef STANDALONE
-				// Coefficient evaluation takes place
-				// on drifted step
-  int p1 = mstep + 1;
-
 				// Clean coefficient matrix
 				// 
   for (int mm=0; mm<=MMAX; mm++) {
@@ -6146,10 +6142,10 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
   
 				// Interpolate to get coefficients above the
 				// current active level
-  for (unsigned M=0; M<mfirst[p1]; M++) {
+  for (unsigned M=0; M<mfirst[mdrft]; M++) {
 
-    double numer = static_cast<double>(p1            - dstepL[M][p1]);
-    double denom = static_cast<double>(dstepN[M][p1] - dstepL[M][p1]);
+    double numer = static_cast<double>(mdrft            - dstepL[M][mdrft]);
+    double denom = static_cast<double>(dstepN[M][mdrft] - dstepL[M][mdrft]);
 
     double b = numer/denom;	// Interpolation weights
     double a = 1.0 - b;
@@ -6161,6 +6157,7 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
       std::cout << std::left << std::fixed
 		<< "CYL INTERP M=" << std::setw(2) << M
 		<< " mstep=" << std::setw(3) << mstep
+		<< " mdrft=" << std::setw(3) << mdrft
 		<< " a=" << std::setw(16) << a
 		<< " b=" << std::setw(16) << b
 		<< std::endl << std::right;
@@ -6178,8 +6175,9 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
       std::cout << "CYL interpolate:"
 		<< " M="     << std::setw( 4) << M
 		<< " mstep=" << std::setw( 4) << mstep 
-		<< " minS="  << std::setw( 4) << dstepL[M][mstep]
-		<< " maxS="  << std::setw( 4) << dstepN[M][mstep]
+		<< " mdrft=" << std::setw( 4) << mdrft 
+		<< " minS="  << std::setw( 4) << dstepL[M][mdrft]
+		<< " maxS="  << std::setw( 4) << dstepN[M][mdrft]
 		<< " a="     << std::setw(14) << a 
 		<< " b="     << std::setw(14) << b 
 		<< " L00="   << std::setw(14) << cosL(M)[0][0][0]
@@ -6198,7 +6196,7 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
   }
 				// Add coefficients at or above this level
 				// 
-  for (unsigned M=mfirst[p1]; M<=multistep; M++) {
+  for (unsigned M=mfirst[mdrft]; M<=multistep; M++) {
 
     //  +--- Deep debugging
     //  |
@@ -6207,6 +6205,7 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
       std::cout << std::left << std::fixed
 		<< "CYL FULVAL M=" << std::setw(2) << M
 		<< " mstep=" << std::setw(3) << mstep
+		<< " mdrft=" << std::setw(3) << mdrft
 		<< std::endl << std::right;
     }
 
@@ -6223,6 +6222,7 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
     std::cout << "CYL interpolated value:"
 	      << " mlev="  << std::setw( 4) << mlevel
 	      << " mstep=" << std::setw( 4) << mstep
+	      << " mdrft=" << std::setw( 4) << mdrft
 	      << " T="     << std::setw( 4) << tnow
 	      << " c00="   << std::setw(14) << accum_cos[0][0]
 	      << std::endl;

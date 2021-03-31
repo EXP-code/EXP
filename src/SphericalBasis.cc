@@ -1055,10 +1055,6 @@ void SphericalBasis::compute_multistep_coefficients()
   Matrix tmpcoef = expcoef;
 #endif
 
-				// Coefficient evaluation takes place
-				// on drifted step
-  int p1 = mstep + 1;
-  
 				// Clean coefficient matrix
 				// 
   for (int l=0; l<(Lmax+1)*(Lmax+1); l++)
@@ -1066,10 +1062,10 @@ void SphericalBasis::compute_multistep_coefficients()
 
 				// Interpolate to get coefficients above
 				// 
-  for (int M=0; M<mfirst[p1]; M++) {
+  for (int M=0; M<mfirst[mdrft]; M++) {
 
-    double numer = static_cast<double>(p1            - dstepL[M][p1]);
-    double denom = static_cast<double>(dstepN[M][p1] - dstepL[M][p1]);
+    double numer = static_cast<double>(mdrft            - dstepL[M][mdrft]);
+    double denom = static_cast<double>(dstepN[M][mdrft] - dstepL[M][mdrft]);
 
     double b = numer/denom;	// Interpolation weights
     double a = 1.0 - b;
@@ -1086,6 +1082,7 @@ void SphericalBasis::compute_multistep_coefficients()
       std::cout << std::left << std::fixed
 		<< "SPH INTERP M=" << std::setw(2) << M
 		<< " mstep=" << std::setw(3) << mstep
+		<< " mdrft=" << std::setw(3) << mdrft
 		<< " a=" << std::setw(16) << a
 		<< " b=" << std::setw(16) << b
 		<< " L=" << std::setw(16) << (*expcoefL[M][0])[1]
@@ -1099,8 +1096,9 @@ void SphericalBasis::compute_multistep_coefficients()
       std::cout << "SPH interpolate:"
 		<< " M="     << std::setw( 4) << M
 		<< " mstep=" << std::setw( 4) << mstep 
-		<< " minS="  << std::setw( 4) << dstepL[M][mstep]
-		<< " maxS="  << std::setw( 4) << dstepN[M][mstep]
+		<< " mstep=" << std::setw( 4) << mdrft
+		<< " minS="  << std::setw( 4) << dstepL[M][mdrft]
+		<< " maxS="  << std::setw( 4) << dstepN[M][mdrft]
 		<< " a="     << std::setw(14) << a 
 		<< " b="     << std::setw(14) << b 
 		<< " L01="   << std::setw(14) << (*expcoefL[M][0])[1]
@@ -1122,7 +1120,7 @@ void SphericalBasis::compute_multistep_coefficients()
   }
 				// Add coefficients at or below this level
 				// 
-  for (int M=mfirst[p1]; M<=multistep; M++) {
+  for (int M=mfirst[mdrft]; M<=multistep; M++) {
 
     //  +--- Deep debugging
     //  |
@@ -1131,6 +1129,7 @@ void SphericalBasis::compute_multistep_coefficients()
       std::cout << std::left << std::fixed
 		<< "SPH FULVAL M=" << std::setw(2) << M
 		<< " mstep=" << std::setw(3) << mstep
+		<< " mdrft=" << std::setw(3) << mdrft
 		<< std::endl << std::right;
     }
 
@@ -1146,6 +1145,7 @@ void SphericalBasis::compute_multistep_coefficients()
   if (false and myid==0) {
     std::cout << std::left << std::fixed
 	      << "SPH FULVAL mstep=" << std::setw(3) << mstep
+	      << "  mdrft=" << std::setw(3) << mdrft
 	      << " f=" << std::setw(16) << (*expcoef[0])[1]
 	      << std::endl << std::right;
   }
@@ -1154,6 +1154,7 @@ void SphericalBasis::compute_multistep_coefficients()
     std::cout << "SPH interpolated value:"
 	      << " mlev="  << std::setw( 4) << mlevel
 	      << " mstep=" << std::setw( 4) << mstep
+	      << " mdrft=" << std::setw( 4) << mdrft
 	      << " T="     << std::setw( 4) << tnow
 	      << " c01="   << std::setw(14) << (*expcoef[0])[1]
 	      << std::endl;
@@ -1190,6 +1191,7 @@ void SphericalBasis::compute_multistep_coefficients()
     ofstream out("coefs.diag", ios::app);
     out << setw(15) << tnow
 	<< setw(10) << mstep
+	<< setw(10) << mdrft
 	<< setw(18) << maxval
 	<< setw(8)  << lmax
 	<< setw(8)  << irmax

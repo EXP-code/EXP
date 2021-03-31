@@ -169,8 +169,11 @@ extern int Mstep;
 //! True when initializing before first time step
 extern bool initializing;
 
-//! Current point in multistepping
+//! Current point in multistepping for velocity step
 extern int mstep;
+
+//! Current point in multistepping for drift step
+extern int mdrft;
 
 //! Multistep time step spacing
 extern vector<int> mintvl;
