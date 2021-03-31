@@ -192,7 +192,7 @@ void * adjust_multistep_level_thread(void *ptr)
 
     // Limit new level to minimum active level
     //
-    lev = std::max<int>(lev, mfirst[mstep]);
+    lev = std::max<int>(lev, mfirst[mdrft]);
 
     // Case with ZERO acceleration (possibly leading to bad assignment)
     //
@@ -240,7 +240,7 @@ void * adjust_multistep_level_thread(void *ptr)
 
     // For reporting level populations
     //
-    if (mstep == 0) {
+    if (mdrft == Mstep) {
       //
       // Tally smallest (e.g. controlling) timestep
       //
@@ -312,7 +312,7 @@ void adjust_multistep_level(bool all)
 
   if (VERBOSE>0) {
 
-    if (offhi1.size()==0 || mstep==0) {
+    if (offhi1.size()==0 || mdrft==Mstep) {
 
       for (auto c : comp->components) {
 	for (int n=0; n<nthrds; n++) {
@@ -352,76 +352,75 @@ void adjust_multistep_level(bool all)
 
   for (auto c : comp->components) {
     
-    if (mstep == 0) {
+    if (mdrft == Mstep) {
       for (int n=0; n<nthrds; n++)
 	for (int k=0; k<=multistep; k++) 
 	  for (int j=0; j<mdtDim; j++) tmdt[n][k][j] = 0;
     }
     
-    for (int level=0; level<=multistep; level++) {
+    int first = mfirst[mdrft];
+    if (all) first = 0;
+
+    for (int level=first; level<=multistep; level++) {
       
-      if (all || mactive[mstep][level]) {
+      if (nthrds==1) {
 
-	if (nthrds==1) {
-
-	  td[0].level = level;
-	  td[0].id = 0;
-	  td[0].c = c;
-
-	  adjust_multistep_level_thread(&td[0]);
-
-	} else {
-	  
-	  //
-	  // Make the <nthrds> threads
-	  //
-	  int errcode;
-	  void *retval;
-  
-	  for (int i=0; i<nthrds; i++) {
-	    
-	    td[i].level = level;
-	    td[i].id = i;
-	    td[i].c = c;
-	    
-	    errcode =  pthread_create(&t[i], 0, adjust_multistep_level_thread, &td[i]);
-	    
-	    if (errcode) {
-	      std::ostringstream sout;
-	      sout << "Process " << myid
-		   << " adjust_multistep_level: cannot make thread " << i
-		   << ", errcode=" << errcode;
-	      throw GenericError(sout.str(), __FILE__, __LINE__);
-	    }
-#ifdef DEBUG
-	    else {
-	      cout << "Process " << myid << ": thread <" << i << "> created\n";
-	    }
-#endif
-	  }
-	  
-	  //
-	  // Collapse the threads
-	  //
-	  for (int i=0; i<nthrds; i++) {
-	    if ((errcode=pthread_join(t[i], &retval))) {
-	      std::ostringstream sout;
-	      sout << "Process " << myid
-		   << " adjust_multistep_level: thread join " << i
-		   << " failed, errcode=" << errcode;
-	      throw GenericError(sout.str(), __FILE__, __LINE__);
-	    }
-#ifdef DEBUG    
-	    cout << "Process " << myid 
-		 << ": multistep thread <" << i << "> thread exited\n";
-#endif
-	  }
-	}
+	td[0].level = level;
+	td[0].id = 0;
+	td[0].c = c;
 	
+	adjust_multistep_level_thread(&td[0]);
+	
+      } else {
+	  
+	//
+	// Make the <nthrds> threads
+	//
+	int errcode;
+	void *retval;
+	
+	for (int i=0; i<nthrds; i++) {
+	  
+	  td[i].level = level;
+	  td[i].id = i;
+	  td[i].c = c;
+	  
+	  errcode =  pthread_create(&t[i], 0, adjust_multistep_level_thread, &td[i]);
+	    
+	  if (errcode) {
+	    std::ostringstream sout;
+	    sout << "Process " << myid
+		 << " adjust_multistep_level: cannot make thread " << i
+		 << ", errcode=" << errcode;
+	    throw GenericError(sout.str(), __FILE__, __LINE__);
+	  }
+#ifdef DEBUG
+	  else {
+	    cout << "Process " << myid << ": thread <" << i << "> created\n";
+	  }
+#endif
+	}
+	  
+	//
+	// Collapse the threads
+	//
+	for (int i=0; i<nthrds; i++) {
+	  if ((errcode=pthread_join(t[i], &retval))) {
+	    std::ostringstream sout;
+	    sout << "Process " << myid
+		 << " adjust_multistep_level: thread join " << i
+		 << " failed, errcode=" << errcode;
+	    throw GenericError(sout.str(), __FILE__, __LINE__);
+	  }
+#ifdef DEBUG    
+	  cout << "Process " << myid 
+	       << ": multistep thread <" << i << "> thread exited\n";
+#endif
+	}
       }
     }
 
-    if (mstep == 0) {
+    if (mdrft == Mstep) {
       for (int n=0; n<nthrds; n++)
 	for (int k=0; k<=multistep; k++) 
 	  for (int j=0; j<mdtDim; j++) 
@@ -449,7 +448,7 @@ void adjust_multistep_level(bool all)
   //
   // Diagnostic output
   //
-  if (VERBOSE>0 && mstep==0) {
+  if (VERBOSE>0 && mdrft==Mstep) {
 
     //
     // Count offgrid particles in the threads

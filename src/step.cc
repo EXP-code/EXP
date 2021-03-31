@@ -97,6 +97,8 @@ void do_step(int n)
     //
     for (mstep=0; mstep<Mstep; mstep++) {
 
+      mdrft = mstep;		// Assign velocity position
+
 				// Write multistep output
       if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
       output->Run(n, mstep);
@@ -164,6 +166,7 @@ void do_step(int n)
       nvTracerPtr tPtr1;
       if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Potential"));
       if (step_timing) timer_pot.start();
+      mdrft = mstep + 1;	// Drifted position in multistep array
       comp->compute_potential(mfirst[mstep]);
       if (step_timing) timer_pot.stop();
 
@@ -183,7 +186,7 @@ void do_step(int n)
       }
 
       if (step_timing) timer_vel.start();
-      for (int M=mfirst[mstep+1]; M<=multistep; M++) {
+      for (int M=mfirst[mdrft]; M<=multistep; M++) {
 	incr_velocity(0.5*dt*mintvl[M], M);
 #ifdef CHK_STEP
 	vel_check[M] += 0.5*dt*mintvl[M];
@@ -196,21 +199,13 @@ void do_step(int n)
 #ifdef DEBUG
       comp->multistep_debug();
 #endif
-      if (mstep==0) {
-				// Do particles at top level
-	if (step_timing) timer_adj.start();
-	adjust_multistep_level(true);
-	if (step_timing) timer_adj.stop();
-	
-				// Print the level lists
-	comp->print_level_lists(tnow);
-      } else {
-				// Do particles at lower levels
-	if (step_timing) timer_adj.start();
-	adjust_multistep_level(false);
-	if (step_timing) timer_adj.stop();
-
-      }
+				// Adjust particle time-step levels
+      if (step_timing) timer_adj.start();
+      adjust_multistep_level(false);
+      if (step_timing) timer_adj.stop();
+      
+      // Print the level lists
+      if (mdrft==Mstep) comp->print_level_lists(tnow);
     }
     // END: mstep loop
 
