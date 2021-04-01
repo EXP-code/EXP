@@ -196,7 +196,8 @@ Component::I2vec Component::CudaSortLevelChanges()
   //
   if (false) {
     std::cout << std::string(15*(multistep+1), '-') << std::endl;
-    std::cout << "--- " << name << " [" << myid << "]" << std::endl;
+    std::cout << "--- " << name << " [" << myid << "] mstep=" << mstep
+	      << " mdrft=" << mdrft << std::endl;
     std::cout << std::string(15*(multistep+1), '-') << std::endl;
     for (int m1=0; m1<=multistep; m1++) {
       for (int m2=0; m2<=multistep; m2++) {
