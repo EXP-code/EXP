@@ -71,9 +71,9 @@ void local_init_mpi(int argc, char **argv)
       
       if (n) {
 	int m; MPI_Group_rank ( slave_group, &m );
-	std:: << " | " << setw(10) << "SLAVE: " << m << endl;
+	std::cout << " | " << setw(10) << "SLAVE: " << m << endl;
       } else {
-	std::<< " | " << setw(10) << "MASTER" << endl;
+	std::cout << " | " << setw(10) << "MASTER" << endl;
       }
     }
     MPI_Barrier(MPI_COMM_WORLD);
