@@ -276,7 +276,7 @@ void cuda_compute_levels()
 
 
     PII lohi = {0, c->cuStream->cuda_particles.size()};
-    if (multistep) lohi = c->CudaGetLevelRange(mfirst[mstep], multistep);
+    if (multistep) lohi = c->CudaGetLevelRange(mfirst[mdrft], multistep);
       
     // DEBUGGING
     if (false and multistep>0) {
@@ -284,7 +284,8 @@ void cuda_compute_levels()
 	if (n==myid) testConstantsMultistep<<<1, 1>>>();
 	std::cout << std::string(60, '-') << std::endl
 		  << "[" << myid << ", " << c->name
-		  << "]: mlevel=" << mfirst[mstep] << " mstep=" << mstep
+		  << "]: mlevel=" << mfirst[mdrft]
+		  << " mstep=" << mstep << " mdrft=" << mdrft
 		  << " (lo, hi) = (" << lohi.first << ", " << lohi.second << ")"
 		  << std::endl << std::string(60, '-') << std::endl;
 	MPI_Barrier(MPI_COMM_WORLD);
@@ -309,7 +310,7 @@ void cuda_compute_levels()
       timestepKernel<<<gridSize, BLOCK_SIZE>>>
 	(toKernel(c->cuStream->cuda_particles),
 	 toKernel(c->cuStream->indx1),
-	 ctr[0], ctr[1], ctr[2], mfirst[mstep], c->dim, stride, lohi);
+	 ctr[0], ctr[1], ctr[2], mfirst[mdrft], c->dim, stride, lohi);
     }
   }
 
@@ -341,7 +342,7 @@ void cuda_compute_levels()
     // Compute grid
     //
     PII lohi = {0, c->cuStream->cuda_particles.size()};
-    if (multistep) lohi = c->CudaGetLevelRange(mfirst[mstep], multistep);
+    if (multistep) lohi = c->CudaGetLevelRange(mfirst[mdrft], multistep);
       
     unsigned int N         = lohi.second - lohi.first;
     unsigned int stride    = N/BLOCK_SIZE/deviceProp.maxGridSize[0] + 1;
