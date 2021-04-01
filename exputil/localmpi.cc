@@ -49,29 +49,31 @@ void local_init_mpi(int argc, char **argv)
   // Print node assignment
   //=========================
 
-  if (myid==0) cerr << string(72, '-') << endl
-		    << " Node, process, and communicator assignment" 
-		    << endl << string(72, '-') << endl 
-		    << right << setw(8)  << "Node #"
-		    << " | " << setw(20) << "Hostname"
-		    << " | " << setw(8)  << "PID"
-		    << " | " << setw(10) << "Status"
-		    << endl
-		    << string(72, '-') << endl;
+  if (myid==0)
+    std::cout << std::string(80, '%') << std::endl
+	      << std::setfill('%') << std::setw(80)
+	      << "%%%%% Node, process, and communicator assignment " 
+	      << std::endl << std::string(80, '%') << std::endl
+	      << std::setfill(' ')
+	      << std::right << std::setw(8)  << "Node #"
+	      << " | " << std::setw(20) << "Hostname"
+	      << " | " << std::setw(8)  << "PID"
+	      << " | " << std::setw(10) << "Status"
+	      << std::endl << std::string(80, '%') << std::endl;
 
   for (int n=0; n<numprocs; n++) {
 
     if (n == myid) {
 
-      cerr << right << setw(8)  << myid 
-	   << " | " << setw(20) << processor_name 
-	   << " | " << setw(8)  << getpid();
+      std::cout << std::right << std::setw(8)  << myid 
+		<< " | " << std::setw(20) << processor_name 
+		<< " | " << std::setw(8)  << getpid();
       
       if (n) {
 	int m; MPI_Group_rank ( slave_group, &m );
-	cerr << " | " << setw(10) << "SLAVE: " << m << endl;
+	std:: << " | " << setw(10) << "SLAVE: " << m << endl;
       } else {
-	cerr << " | " << setw(10) << "MASTER" << endl;
+	std::<< " | " << setw(10) << "MASTER" << endl;
       }
     }
     MPI_Barrier(MPI_COMM_WORLD);

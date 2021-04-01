@@ -506,13 +506,6 @@ main(int argc, char** argv)
 
   make_node_list(argc, argv);
 
-  //============================
-  // Parse command line:        
-  // broadcast to all processes 
-  //============================
-
-  YAML_parse_args(argc, argv);
-
   //================
   // Print welcome  
   //================
@@ -540,6 +533,13 @@ main(int argc, char** argv)
 	      << std::setw(W) << '%' << std::setfill(' ') << std::endl
 	      << std::endl;
   }
+
+  //============================
+  // Parse command line:        
+  // broadcast to all processes 
+  //============================
+
+  YAML_parse_args(argc, argv);
 
   //============================
   // Trap floating point errors
