@@ -255,14 +255,15 @@ void YAML_parse_args(int argc, char** argv);
 //! Print multicomputer process info
 void make_node_list(int argc, char **argv)
 {
-  if (myid==0)  cout << setfill('-') << setw(70) << "-" << endl 
-		     << setfill(' ') << endl
-		     << setw(4) << left << "#" << setw(20) 
-		     << "Node name" << setw(12) << "PID" 
-		     << setw(40) << "Executable" << endl
-		     << setw(4) << left << "-" << setw(20) 
-		     << "---------" << setw(12) << "---" 
-		     << setw(40) << "----------" << endl;
+  if (myid==0)
+    std:: cout << std::setfill('%') << std::setw(80) << "%" << std::endl 
+	       << std::setfill(' ') << std::endl
+	       << std::setw(4) << std::left << "#" <<std::setw(20) 
+	       << "Node name" << std::setw(12) << "PID" 
+	       << std::setw(40) << "Executable" << endl
+	       << std::setw(4) << std::left << "-" << std::setw(20) 
+	       << "---------" << std::setw(12) << "---" 
+	       << setw(40) << "----------" << endl;
 
   MPI_Status stat;
   unsigned nprocn = MPI_MAX_PROCESSOR_NAME, ncmd=40;
@@ -291,8 +292,8 @@ void make_node_list(int argc, char **argv)
     MPI_Send(&pid,       1, MPI_LONG, 0, 63, MPI_COMM_WORLD);
   }
   
-  if (myid==0)  cout << setfill('-') << setw(70) << "-" << endl
-		     << setfill(' ') << endl << endl;
+  if (myid==0) std::cout << std::setfill('%') << std::setw(80) << "%" << endl
+			 << std::setfill(' ') << std::endl << std::endl;
 
   // Make MPI datatype
 
