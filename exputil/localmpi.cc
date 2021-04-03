@@ -51,7 +51,7 @@ void local_init_mpi(int argc, char **argv)
 
   if (myid==0)
     std::cout << std::string(80, '%') << std::endl
-	      << std::setfill('%') << std::setw(80)
+	      << std::setfill('%') << std::setw(80) << std::left
 	      << "%%%%% Node, process, and communicator assignment " 
 	      << std::endl << std::string(80, '%') << std::endl
 	      << std::setfill(' ')
@@ -59,7 +59,7 @@ void local_init_mpi(int argc, char **argv)
 	      << " | " << std::setw(20) << "Hostname"
 	      << " | " << std::setw(8)  << "PID"
 	      << " | " << std::setw(10) << "Status"
-	      << std::endl << std::string(80, '%') << std::endl;
+	      << std::endl << std::string(80, '%') << std::endl << std::left;
 
   for (int n=0; n<numprocs; n++) {
 
