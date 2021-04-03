@@ -747,11 +747,11 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
 	  
 	  // Check for number in the histogram bin
 	  //
-	  int numZ = histo.dataZ[l*OUTR+j].size();
+	  int numZ = histo.dataZ[j*OUTR+l].size();
 	  if (numZ>0) {
-	    otdat[(9 *OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.1*numZ)];
-	    otdat[(10*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.5*numZ)];
-	    otdat[(11*OUTR+j)*OUTR+l] = histo.dataZ[l*OUTR+j][floor(0.9*numZ)];
+	    otdat[(9 *OUTR+j)*OUTR+l] = histo.dataZ[j*OUTR+l][floor(0.1*numZ)];
+	    otdat[(10*OUTR+j)*OUTR+l] = histo.dataZ[j*OUTR+l][floor(0.5*numZ)];
+	    otdat[(11*OUTR+j)*OUTR+l] = histo.dataZ[j*OUTR+l][floor(0.9*numZ)];
 	  }
 	}
       }
