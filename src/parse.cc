@@ -447,11 +447,8 @@ void YAML_parse_args(int argc, char** argv)
 	print_default();
 	done = 1;
 	break;
-      case 'v':
-	exp_version();
-	done = 1;
-	break;
       case '?':
+      case 'v':
       case 'h':
 	exp_usage(prog);
 	done = 1;
