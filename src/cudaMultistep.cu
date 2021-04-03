@@ -56,22 +56,22 @@ void cuda_initialize_multistep_constants()
 __global__
 void testConstantsMultistep()
 {
-  printf("** -------------------\n"     );
-  printf("** Multistep constants\n"     );
-  printf("** -------------------\n"     );
-  printf("** DynS   = %e\n", cuDynfracS );
-  printf("** DynD   = %e\n", cuDynfracD );
-  printf("** DynV   = %e\n", cuDynfracV );
-  printf("** DynA   = %e\n", cuDynfracA );
-  printf("** DynP   = %e\n", cuDynfracP );
-  printf("** Dtime  = %f\n", cuDtime    );
-  printf("** Multi  = %d\n", cuMultistep);
-  printf("** Shift  = %d\n", cuShiftlev );
+  printf("------------------------\n"     );
+  printf("---Multistep constants--\n"   );
+  printf("------------------------\n"   );
+  printf("   DynS   = %e\n", cuDynfracS );
+  printf("   DynD   = %e\n", cuDynfracD );
+  printf("   DynV   = %e\n", cuDynfracV );
+  printf("   DynA   = %e\n", cuDynfracA );
+  printf("   DynP   = %e\n", cuDynfracP );
+  printf("   Dtime  = %f\n", cuDtime    );
+  printf("   Multi  = %d\n", cuMultistep);
+  printf("   Shift  = %d\n", cuShiftlev );
   if (cuDTold)
-    printf("** DTold  = true\n"         );
+    printf("   DTold  = true\n"         );
   else
-    printf("** DTold  = false\n"        );
-  printf("** -------------------\n"     );
+    printf("   DTold  = false\n"        );
+  printf("------------------------\n"   );
 }
 
 __global__ void
@@ -241,7 +241,10 @@ void cuda_initialize_multistep()
   //
   cuda_initialize_multistep_constants();
 
-  if (myid==0) testConstantsMultistep<<<1, 1>>>();
+  // VERBOSE diagnostic output
+  //
+  if (myid==0 and VERBOSE>4)
+    testConstantsMultistep<<<1, 1>>>();
 }
 
 void cuda_compute_levels()

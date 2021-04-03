@@ -60,22 +60,22 @@ int Kmn(int m, int n, int o, int nmax)
 __global__
 void testConstantsCyl()
 {
-  printf("** ---------------------\n" );
-  printf("** Cylindrical constants\n" );
-  printf("** ---------------------\n" );
-  printf("** Rscale = %f\n", cylRscale);
-  printf("** Hscale = %f\n", cylHscale);
-  printf("** Xmin   = %f\n", cylXmin  );
-  printf("** Xmax   = %f\n", cylXmax  );
-  printf("** Ymin   = %f\n", cylYmin  );
-  printf("** Ymax   = %f\n", cylYmax  );
-  printf("** Dxi    = %f\n", cylDxi   );
-  printf("** Dyi    = %f\n", cylDyi   );
-  printf("** Numx   = %d\n", cylNumx  );
-  printf("** Numy   = %d\n", cylNumy  );
-  printf("** CmapR  = %d\n", cylCmapR );
-  printf("** CmapZ  = %d\n", cylCmapZ );
-  printf("** ---------------------\n" );
+  printf("-------------------------\n");
+  printf("---Cylindrical constants-\n");
+  printf("-------------------------\n");
+  printf("   Rscale = %f\n", cylRscale);
+  printf("   Hscale = %f\n", cylHscale);
+  printf("   Xmin   = %f\n", cylXmin  );
+  printf("   Xmax   = %f\n", cylXmax  );
+  printf("   Ymin   = %f\n", cylYmin  );
+  printf("   Ymax   = %f\n", cylYmax  );
+  printf("   Dxi    = %f\n", cylDxi   );
+  printf("   Dyi    = %f\n", cylDyi   );
+  printf("   Numx   = %d\n", cylNumx  );
+  printf("   Numy   = %d\n", cylNumy  );
+  printf("   CmapR  = %d\n", cylCmapR );
+  printf("   CmapZ  = %d\n", cylCmapZ );
+  printf("-------------------------\n");
 }
 
 // R coordinate transformation
@@ -949,11 +949,11 @@ void Cylinder::determine_coefficients_cuda(bool compute)
   //
   auto cs = component->cuStream;
 
-  // For debugging (set to false to disable)
+  // VERBOSE diagnostic output on first call
   //
   static bool firstime = true;
 
-  if (firstime and myid==0) {
+  if (firstime and myid==0 and VERBOSE>4) {
     testConstantsCyl<<<1, 1, 0, cs->stream>>>();
     cudaDeviceSynchronize();
     cuda_check_last_error_mpi("cudaDeviceSynchronize", __FILE__, __LINE__, myid);

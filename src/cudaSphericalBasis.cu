@@ -123,17 +123,17 @@ void legendre_v2(int lmax, cuFP_t x, cuFP_t* p, cuFP_t* dp)
 __global__
 void testConstantsSph()
 {
-  printf("** -------------------\n"   );
-  printf("** Spherical constants\n"   );
-  printf("** -------------------\n"   );
-  printf("** Scale  = %f\n", sphScale );
-  printf("** Rscale = %f\n", sphRscale);
-  printf("** Xmin   = %f\n", sphXmin  );
-  printf("** Xmax   = %f\n", sphXmax  );
-  printf("** Dxi    = %f\n", sphDxi   );
-  printf("** Numr   = %d\n", sphNumr  );
-  printf("** Cmap   = %d\n", sphCmap  );
-  printf("** -------------------\n"   );
+  printf("-------------------------\n");
+  printf("---Spherical constants---\n");
+  printf("-------------------------\n");
+  printf("   Scale  = %f\n", sphScale );
+  printf("   Rscale = %f\n", sphRscale);
+  printf("   Xmin   = %f\n", sphXmin  );
+  printf("   Xmax   = %f\n", sphXmax  );
+  printf("   Dxi    = %f\n", sphDxi   );
+  printf("   Numr   = %d\n", sphNumr  );
+  printf("   Cmap   = %d\n", sphCmap  );
+  printf("-------------------------\n");
 }
 
 __device__
@@ -928,11 +928,11 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 				    size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying sphCen");
   
-  // For debugging
+  // VERBOSE diagnostic output on first call
   //
   static bool firstime = true;
   
-  if (firstime and myid==0) {
+  if (firstime and myid==0 and VERBOSE>4) {
     testConstantsSph<<<1, 1, 0, cr->stream>>>();
     cudaDeviceSynchronize();
     cuda_check_last_error_mpi("cudaDeviceSynchronize", __FILE__, __LINE__, myid);
