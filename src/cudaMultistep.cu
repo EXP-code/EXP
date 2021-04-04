@@ -162,12 +162,12 @@ timestepKernel(dArray<cudaParticle> P, dArray<int> I,
       
       // Smallest time step
       //
-
       cuFP_t dt = dts;
       if (dt > dtd) dt = dtd;
       if (dt > dtv) dt = dtv;
       if (dt > dta) dt = dta;
       if (dt > dtA) dt = dtA;
+      if (dt < eps) dt = eps;
       
       // Time step wants to be LARGER than the maximum
       //
