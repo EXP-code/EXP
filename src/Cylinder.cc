@@ -1006,8 +1006,8 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 
   const double ratmin = 0.75;
   const double maxerf = 3.0;
-  const double midpt = ratmin + 0.5*(1.0 - ratmin);
-  const double rsmth = 0.5*(1.0 - ratmin)/maxerf;
+  const double midpt  = ratmin + 0.5*(1.0 - ratmin);
+  const double rsmth  = 0.5*(1.0 - ratmin)/maxerf;
 
   double R2 = rcylmax*rcylmax*acyl*acyl, ratio, frac, cfrac, mfactor = 1.0;
 
