@@ -1002,7 +1002,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 {
   double r, r2, r3, phi;
   double xx, yy, zz;
-  double p, p0, fr, fz, fp;
+  double p, p0, fr, fz, fp, pa;
 
   const double ratmin = 0.75;
   const double maxerf = 3.0;
@@ -1085,6 +1085,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
       r2    = xx*xx + yy*yy;
       r     = sqrt(r2) + DSMALL;
       phi   = atan2(yy, xx);
+      pa    = 0.0;
 
       ratio = sqrt( (r2 + zz*zz)/R2 );
 
@@ -1109,6 +1110,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 	frc[id][1] = ( fr*xx/r - fp*yy/r2 ) * frac;
 	frc[id][2] = ( fr*yy/r + fp*xx/r2 ) * frac;
 	frc[id][3] = fz * frac;
+	pa         = p  * frac;
 	
 #ifdef DEBUG
 	flg = 1;
@@ -1124,6 +1126,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 	frc[id][1] += xx*fr * cfrac;
 	frc[id][2] += yy*fr * cfrac;
 	frc[id][3] += zz*fr * cfrac;
+	pa         += p     * cfrac;
 
 #ifdef DEBUG
 	offgrid[id]++;
@@ -1132,9 +1135,9 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
       }
     
       if (use_external)
-	cC->AddPotExt(indx, p);
+	cC->AddPotExt(indx, pa);
       else
-	cC->AddPot(indx, p);
+	cC->AddPot(indx, pa);
 
       if ( (component->EJ & Orient::AXIS) && !component->EJdryrun) 
 	frc[id] = component->orient->transformOrig() * frc[id];

@@ -543,6 +543,7 @@ forceKernelCyl(dArray<cudaParticle> P, dArray<int> I,
       cuFP_t fz = 0.0;
       cuFP_t fp = 0.0;
       cuFP_t pp = 0.0;
+      cuFP_t pa = 0.0;
       
       if (ratio < 1.0) {
 
@@ -733,6 +734,7 @@ forceKernelCyl(dArray<cudaParticle> P, dArray<int> I,
 	acc[0] += ( fr*xx/R - fp*yy/R2 ) * frac;
 	acc[1] += ( fr*yy/R + fp*xx/R2 ) * frac;
 	acc[2] += fz * frac;
+	pa     += pp * frac;
       }
 
       if (ratio > ratmin) {
@@ -744,6 +746,7 @@ forceKernelCyl(dArray<cudaParticle> P, dArray<int> I,
 	acc[0] += xx*fr * cfrac;
 	acc[1] += yy*fr * cfrac;
 	acc[2] += zz*fr * cfrac;
+	pa     += pp    * cfrac;
       }
 
       if (cylOrient) {
@@ -755,9 +758,9 @@ forceKernelCyl(dArray<cudaParticle> P, dArray<int> I,
       }
 
       if (external)
-	p.potext += pp;
+	p.potext += pa;
       else
-	p.pot    += pp;
+	p.pot    += pa;
 
     } // Particle index block
 
