@@ -462,7 +462,8 @@ void Orient::accumulate(double time, Component *c)
 
   if (myid==0) {
     std::sort(ee.begin(), ee.end());
-    Ecurr = *(ee.begin()+tkeep);
+    if (ee.size()<=many) Ecurr = ee.back();
+    else                 Ecurr = *(ee.begin()+many);
   }
 
   // Propagate minimum energy and current cached low energy particles

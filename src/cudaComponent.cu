@@ -513,12 +513,13 @@ __global__ void comKernel
     if (npart < lohi.second) {
 
       cudaParticle & p = P._v[I._v[npart]];
+      cuFP_t m = p.mass;
     
-      com._v[i*10+0] = p.mass;
+      com._v[i*10+0] = m;
       for (int k=0; k<3; k++) {
-	com._v[i*10+1+k] = p.pos[k];
-	com._v[i*10+4+k] = p.vel[k];
-	com._v[i*10+7+k] = p.acc[k];
+	com._v[i*10+1+k] = m * p.pos[k];
+	com._v[i*10+4+k] = m * p.vel[k];
+	com._v[i*10+7+k] = m * p.acc[k];
       }
     }
   }
