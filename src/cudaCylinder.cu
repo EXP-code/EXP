@@ -284,10 +284,10 @@ __global__ void coordKernelCyl
 	int indY = floor(Y);
 	
 	if (indX<0) indX = 0;
-	if (indX>cylNumx-2) indX = cylNumx - 2;
+	if (indX>cylNumx-1) indX = cylNumx - 1;
 	
 	if (indY<0) indY = 0;
-	if (indY>cylNumy-2) indY = cylNumy - 2;
+	if (indY>cylNumy-1) indY = cylNumy - 1;
 	
 	Xfac._v[i] = cuFP_t(indX+1) - X;
 	IndX._v[i] = indX;
@@ -572,10 +572,11 @@ forceKernelCyl(dArray<cudaParticle> P, dArray<int> I,
 	cuFP_t dely0 = cuFP_t(indY+1) - Y;
 
 #ifdef OFF_GRID_ALERT
-	if (delx0<0.0 or delx0>1.0) printf("X off grid: x=%f [%d, %d]\n", delx0,
-					   indX, indY);
-	if (dely0<0.0 or dely0>1.0) printf("Y off grid: y=%f [%d, %d]\n", dely0,
-					   indX, indY);
+	if (delx0<-0.5 or delx0>1.5) // X value check
+	  printf("X off grid: x=%f [%d, %d]\n", delx0, indX, indY);
+
+	if (dely0<-0.5 or dely0>1.5) // Y value check
+	  printf("Y off grid: y=%f [%d, %d]\n", dely0, indX, indY);
 #endif
 
 	cuFP_t delx1 = 1.0 - delx0;
