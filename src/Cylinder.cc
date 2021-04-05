@@ -1004,12 +1004,17 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
   double xx, yy, zz;
   double p, p0, fr, fz, fp, pa;
 
-  const double ratmin = 0.75;
-  const double maxerf = 3.0;
-  const double midpt  = ratmin + 0.5*(1.0 - ratmin);
-  const double rsmth  = 0.5*(1.0 - ratmin)/maxerf;
+  constexpr double ratmin = 0.75;
+  constexpr double maxerf = 3.0;
+  constexpr double midpt  = ratmin + 0.5*(1.0 - ratmin);
+  constexpr double rsmth  = 0.5*(1.0 - ratmin)/maxerf;
 
-  double R2 = rcylmax*rcylmax*acyl*acyl, ratio, frac, cfrac, mfactor = 1.0;
+  double ratio, frac, cfrac, mfactor = 1.0;
+
+  // Get the grid actual radius from EmpCylSL
+  //
+  double R2 = ortho->get_ascale()*ortho->get_rtable();
+  R2 = R2*R2;			// Compute the square
 
   vector<double> ctr;
   if (mix) mix->getCenter(ctr);
@@ -1062,6 +1067,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 	} else
 	  cC->Pos(&pos[id][1], indx, Component::Local);
 
+	// Only apply this fraction of the force
 	mfactor = mix->Mixture(&pos[id][1]);
 	for (int k=1; k<=3; k++) pos[id][k] -= ctr[k-1];
 
@@ -1090,17 +1096,22 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
       ratio = sqrt( (r2 + zz*zz)/R2 );
 
       if (ratio >= 1.0) {
-	cfrac      = 1.0 - mfactor;
+	frac       = 0.0;
+	cfrac      = 1.0;
 	frc[id][1] = 0.0;
 	frc[id][2] = 0.0;
 	frc[id][3] = 0.0;
       } else if (ratio > ratmin) {
-	frac  = 0.5*(1.0 - erf( (ratio - midpt)/rsmth )) * mfactor;
+	frac  = 0.5*(1.0 - erf( (ratio - midpt)/rsmth ));
 	cfrac = 1.0 - frac;
       } else {
-	frac  = mfactor;
+	cfrac = 0.0;
+	frac  = 1.0;
       }
 	
+      cfrac *= mfactor;
+      frac  *= mfactor;
+
       if (ratio < 1.0) {
 
 	ortho->accumulated_eval(r, zz, phi, p0, p, fr, fz, fp);
