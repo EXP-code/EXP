@@ -491,6 +491,15 @@ forceKernelCyl(dArray<cudaParticle> P, dArray<int> I,
   //
   const cuFP_t rmax2 = rmax*rmax;
 
+  // Algorithm constants
+  //
+  constexpr cuFP_t ratmin = 0.75;
+  constexpr cuFP_t maxerf = 3.0;
+  constexpr cuFP_t midpt  = ratmin + 0.5*(1.0 - ratmin);
+  constexpr cuFP_t rsmth  = 0.5*(1.0 - ratmin)/maxerf;
+
+  int muse = mmax > mlim ? mlim : mmax;
+
   for (int n=0; n<stride; n++) {
     int i     = tid*stride + n;	// Index in the stride
     int npart = i + lohi.first;	// Particle index
@@ -498,8 +507,6 @@ forceKernelCyl(dArray<cudaParticle> P, dArray<int> I,
     if (npart < lohi.second) {	// Check that particle index is in
 				// range
       
-      int muse = mmax > mlim ? mlim : mmax;
-
 #ifdef BOUNDS_CHECK
       if (npart>=P._s) printf("out of bounds: %s:%d\n", __FILE__, __LINE__);
 #endif
@@ -522,23 +529,26 @@ forceKernelCyl(dArray<cudaParticle> P, dArray<int> I,
       cuFP_t R2  = xx*xx + yy*yy;
       cuFP_t  R  = sqrt(R2) + FSMALL;
       
-      const cuFP_t ratmin = 0.75;
-      const cuFP_t maxerf = 3.0;
-      const cuFP_t midpt  = ratmin + 0.5*(1.0 - ratmin);
-      const cuFP_t rsmth  = 0.5*(1.0 - ratmin)/maxerf;
-
       cuFP_t ratio = sqrt( (R2 + zz*zz)/rmax2 );
       cuFP_t mfactor = 1.0, frac = 1.0, cfrac = 0.0;
 
       if (ratio >= 1.0) {
-	cfrac = 1.0 - mfactor;
+	frac  = 0.0;
+	cfrac = 1.0;
       } else if (ratio > ratmin) {
 	frac  = 0.5*(1.0 - erf( (ratio - midpt)/rsmth )) * mfactor;
 	cfrac = 1.0 - frac;
       } else {
-	frac  = mfactor;
+	frac  = 1.0;
       }
 
+      // mfactor will apply this a fraction of this component's force
+      // when mixture models are implemented (see Cylinder.cc)
+      /*
+      cfrac *= mfactor;
+      frac  *= mfactor;
+      */
+	
       cuFP_t fr = 0.0;
       cuFP_t fz = 0.0;
       cuFP_t fp = 0.0;
@@ -562,8 +572,10 @@ forceKernelCyl(dArray<cudaParticle> P, dArray<int> I,
 	cuFP_t dely0 = cuFP_t(indY+1) - Y;
 
 #ifdef OFF_GRID_ALERT
-	if (delx0<0.0 or delx0>1.0) printf("X off grid: x=%f\n", delx0);
-	if (dely0<0.0 or dely0>1.0) printf("Y off grid: y=%f\n", dely0);
+	if (delx0<0.0 or delx0>1.0) printf("X off grid: x=%f [%d, %d]\n", delx0,
+					   indX, indY);
+	if (dely0<0.0 or dely0>1.0) printf("Y off grid: y=%f [%d, %d]\n", dely0,
+					   indX, indY);
 #endif
 
 	cuFP_t delx1 = 1.0 - delx0;
@@ -979,10 +991,9 @@ void Cylinder::determine_coefficients_cuda(bool compute)
   //
   cuda_zero_coefs();
 
-  // Maximum radius on grid
+  // Maximum radius on grid; get actual value from EmpCylSL
   //
-  cuFP_t rmax = rcylmax * acyl * M_SQRT1_2;
-
+  cuFP_t rmax = ortho->get_ascale()*ortho->get_rtable();
   // Get sorted particle range for mlevel
   //
   PII lohi = component->CudaGetLevelRange(mlevel, mlevel), cur;
@@ -1730,9 +1741,9 @@ void Cylinder::determine_acceleration_cuda()
     //
     int sMemSize = BLOCK_SIZE * sizeof(cuFP_t);
       
-    // Maximum radius on grid
+    // Maximum radius on grid; get value from EmpCylSL
     //
-    cuFP_t rmax = rcylmax * acyl;
+    cuFP_t rmax = ortho->get_ascale()*ortho->get_rtable();
       
     // Do the work
     //
