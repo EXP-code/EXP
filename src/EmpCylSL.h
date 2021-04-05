@@ -750,6 +750,9 @@ public:
   //! Return current value of disk scale height
   double get_hscale(void) { return HSCALE; }
 
+  //! Return current table radius
+  double get_rtable(void) { return Rtable; }
+
   //! Set even modes only
   void setEven(bool even=true) { EVEN_M = even; }
 
