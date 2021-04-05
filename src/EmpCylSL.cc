@@ -4690,7 +4690,13 @@ void EmpCylSL::accumulated_eval(double r, double z, double phi,
   p  = 0.0;
 
   double rr = sqrt(r*r + z*z);
-  if (rr/ASCALE>Rtable) return;
+  if (rr/ASCALE>Rtable) {
+#ifdef OFF_GRID_ALERT
+    std::cout << "EmpCylSL::accumulated_eval: off grid with rr=" << rr << " > "
+	      << Rtable*ASCALE << std::endl;
+#endif
+    return;
+  }
 
   double X = (r_to_xi(r) - XMIN)/dX;
   double Y = (z_to_y(z)  - YMIN)/dY;
