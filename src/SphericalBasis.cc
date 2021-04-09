@@ -8,6 +8,12 @@
 
 // #define TMP_DEBUG
 
+//@{
+//! These are for testing exclusively (should be set false for production)
+static bool cudaAccumOverride = false;
+static bool cudaAccelOverride = false;
+//@}
+
 #ifdef DEBUG
 static pthread_mutex_t io_lock;
 #endif
@@ -46,6 +52,9 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
   subset           = false;
   coefMaster       = true;
   lastPlayTime     = -std::numeric_limits<double>::max();
+#if HAVE_LIBCUDA==1
+  cuda_aware       = true;
+#endif
 
   try {
     if (conf["scale"]) 
@@ -378,7 +387,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
   double fac0=4.0*M_PI;
   double xx, yy, zz;
 
-  unsigned nbodies = cC->levlist[mlevel].size();
+  unsigned nbodies = component->levlist[mlevel].size();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -409,23 +418,23 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
-    int indx = cC->levlist[mlevel][i];
+    int indx = component->levlist[mlevel][i];
 
     if (component->freeze(indx)) continue;
 
     
-    mass = cC->Mass(indx) * adb;
+    mass = component->Mass(indx) * adb;
 				// Adjust mass for subset
     if (subset) mass /= ssfrac;
     
     if (mix) {
-      xx = cC->Pos(indx, 0, Component::Local) - ctr[0];
-      yy = cC->Pos(indx, 1, Component::Local) - ctr[1];
-      zz = cC->Pos(indx, 2, Component::Local) - ctr[2];
+      xx = component->Pos(indx, 0, Component::Local) - ctr[0];
+      yy = component->Pos(indx, 1, Component::Local) - ctr[1];
+      zz = component->Pos(indx, 2, Component::Local) - ctr[2];
     } else {
-      xx = cC->Pos(indx, 0, Component::Local | Component::Centered);
-      yy = cC->Pos(indx, 1, Component::Local | Component::Centered);
-      zz = cC->Pos(indx, 2, Component::Local | Component::Centered);
+      xx = component->Pos(indx, 0, Component::Local | Component::Centered);
+      yy = component->Pos(indx, 1, Component::Local | Component::Centered);
+      zz = component->Pos(indx, 2, Component::Local | Component::Centered);
     }
 
     r2 = (xx*xx + yy*yy + zz*zz);
@@ -597,8 +606,9 @@ void SphericalBasis::determine_coefficients(void)
 
   if (compute) {
 
-    if (sampT == 0) {		// Allocate storage
-      sampT = floor(sqrt(cC->CurTotal()));
+    if (sampT == 0) {		// Allocate storage for subsampling
+      if (defSampT) sampT = defSampT;
+      else          sampT = floor(sqrt(component->CurTotal()));
       massT    .resize(sampT, 0);
       massT1   .resize(sampT, 0);
       
@@ -682,12 +692,12 @@ void SphericalBasis::determine_coefficients(void)
 			<< "Level check in Spherical Basis:" << endl 
 			<< "-------------------------------" << endl;
       cout << setw(4) << myid << setw(4) << mlevel;
-      if (cC->levlist[mlevel].size())
-	cout << setw(12) << cC->levlist[mlevel].size()
-	     << setw(12) << cC->levlist[mlevel].front()
-	     << setw(12) << cC->levlist[mlevel].back() << endl;
+      if (component->levlist[mlevel].size())
+	cout << setw(12) << component->levlist[mlevel].size()
+	     << setw(12) << component->levlist[mlevel].front()
+	     << setw(12) << component->levlist[mlevel].back() << endl;
       else
-	cout << setw(12) << cC->levlist[mlevel].size()
+	cout << setw(12) << component->levlist[mlevel].size()
 	     << setw(12) << (int)(-1)
 	     << setw(12) << (int)(-1) << endl;
       
@@ -699,13 +709,16 @@ void SphericalBasis::determine_coefficients(void)
 #endif
     
 #if HAVE_LIBCUDA==1
-  if (component->cudaDevice>=0) {
-    start1  = std::chrono::high_resolution_clock::now();
-    if (cC->levlist[mlevel].size()) {
+  if (component->cudaDevice>=0 and use_cuda) {
+    if (cudaAccumOverride) {
+      component->CudaToParticles();
+      exp_thread_fork(true);
+    } else {
+      start1  = std::chrono::high_resolution_clock::now();
       determine_coefficients_cuda(compute);
       DtoH_coefs(expcoef0[0]);
+      finish1 = std::chrono::high_resolution_clock::now();
     }
-    finish1 = std::chrono::high_resolution_clock::now();
   } else {
     exp_thread_fork(true);
   }
@@ -713,7 +726,7 @@ void SphericalBasis::determine_coefficients(void)
   exp_thread_fork(true);
 #endif
   
-#ifdef DEBUG
+ #ifdef DEBUG
   cout << "Process " << myid << ": in <determine_coefficients>, thread returned, lev=" << mlevel << endl;
 #endif
 
@@ -796,7 +809,7 @@ void SphericalBasis::determine_coefficients(void)
 
   print_timings("SphericalBasis: coefficient timings");
 
-# if HAVE_LIBCUDA
+#if HAVE_LIBCUDA==1
   if (component->timers) {
     auto finish0 = std::chrono::high_resolution_clock::now();
   
@@ -808,7 +821,7 @@ void SphericalBasis::determine_coefficients(void)
 	      << mlevel << std::endl;
     std::cout << std::string(60, '=') << std::endl;
     std::cout << "Time in CPU: " << duration0.count()-duration1.count() << std::endl;
-    if (cC->cudaDevice>=0) {
+    if (component->cudaDevice>=0 and use_cuda) {
       std::cout << "Time in GPU: " << duration1.count() << std::endl;
     }
     std::cout << std::string(60, '=') << std::endl;
@@ -819,6 +832,9 @@ void SphericalBasis::determine_coefficients(void)
   // Dump coefficients for debugging
   //================================
 
+  //  +--- Deep debugging
+  //  |
+  //  v
   if (false and myid==0 and mstep==0 and mlevel==multistep) {
 
     std::cout << std::string(60, '-') << std::endl
@@ -900,13 +916,13 @@ void SphericalBasis::multistep_update_finish()
 				//
   for (unsigned j=0; j<sz; j++) pack[j] = unpack[j] = 0.0;
 
-				// Pack the difference matrices
-				//
+  // Pack the difference matrices
+  //
   for (int M=mfirst[mstep]; M<=multistep; M++) {
     offset0 = (M - mfirst[mstep])*(Lmax+1)*(Lmax+1)*nmax;
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
       offset1 = l*nmax;
-      for (int n=1; n<nthrds; n++) 
+      for (int n=0; n<nthrds; n++) 
 	for (int ir=1; ir<=nmax; ir++) 
 	  pack[offset0+offset1+ir-1] += differ1[n][M][l][ir];
     }
@@ -915,6 +931,40 @@ void SphericalBasis::multistep_update_finish()
   MPI_Allreduce (&pack[0], &unpack[0], sz, 
 		 MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   
+  //  +--- Deep debugging
+  //  |
+  //  v
+  if (false and myid==0) {
+    std::ofstream out("test_differ.sph", ios::app);
+    if (out) {
+      out << std::string(10+16*nmax, '-') << std::endl;
+      out << "# T=" << tnow << " mstep=" << mstep << std::endl;
+      for (int M=mfirst[mstep]; M<=multistep; M++) {
+	offset0 = (M - mfirst[mstep])*(Lmax+1)*(Lmax+1)*nmax;
+	for (int l=0; l<=Lmax*(Lmax+2); l++) {
+	  offset1 = l*nmax;
+	  out << std::setw(5) << M << std::setw(5) << l;
+	  for (int ir=1; ir<=nmax; ir++)
+	    out << std::setw(16) << unpack[offset0+offset1+ir-1];
+	  out << std::endl;
+	  break;
+	}
+      }
+      out << std::string(10+16*nmax, '-') << std::endl;
+      for (int l=0; l<=Lmax*(Lmax+2); l++) {
+	out << std::setw(5) << " *** " << std::setw(5) << l;
+	for (int ir=1; ir<=nmax; ir++)
+	  out << std::setw(16) << (*expcoef[l])[ir];
+	out << std::endl;
+	break;
+      }
+      out << std::string(10+16*nmax, '-') << std::endl;
+      out << std::string(10+16*nmax, '-') << std::endl;
+    } else {
+      std::cout << "Error opening test file <test_differ.sph> at T=" << tnow
+		<< std::endl;
+    }
+  }
 				// Update the local coefficients
 				//
   for (int M=mfirst[mstep]; M<=multistep; M++) {
@@ -1004,64 +1054,110 @@ void SphericalBasis::compute_multistep_coefficients()
 #ifdef TMP_DEBUG
   Matrix tmpcoef = expcoef;
 #endif
+
 				// Clean coefficient matrix
 				// 
   for (int l=0; l<(Lmax+1)*(Lmax+1); l++)
     for (int n=1; n<=nmax; n++) (*expcoef[l])[n] = 0.0;
 
 				// Interpolate to get coefficients above
-  double a, b;			// 
-  for (int M=0; M<mfirst[mstep]; M++) {
+				// 
+  for (int M=0; M<mfirst[mdrft]; M++) {
 
-    b = (double)(mstep - dstepL[M][mstep])/(double)(dstepN[M][mstep] - dstepL[M][mstep]);
-    a = 1.0 - b;
+    double numer = static_cast<double>(mdrft            - dstepL[M][mdrft]);
+    double denom = static_cast<double>(dstepN[M][mdrft] - dstepL[M][mdrft]);
+
+    double b = numer/denom;	// Interpolation weights
+    double a = 1.0 - b;
 
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
       for (int n=1; n<=nmax; n++) 
 	(*expcoef[l])[n] += a*(*expcoefL[M][l])[n] + b*(*expcoefN[M][l])[n];
     }
     
-    if (0) {
-      if (myid==0) {
-	cerr << "Interpolate:"
-	     << " M="     << setw(4) << M
-	     << " mstep=" << setw(4) << mstep 
-	     << " minS="  << setw(4) << dstepL[M][mstep]
-	     << " maxS="  << setw(4) << dstepN[M][mstep]
-	     << " a="     << setw(8) << a 
-	     << " b="     << setw(8) << b 
-	     << " c01="   << setw(8) << (*expcoef[0])[1]
-	     << endl;
-      }
+    //  +--- Deep debugging
+    //  |
+    //  v
+    if (false and myid==0) {
+      std::cout << std::left << std::fixed
+		<< "SPH INTERP M=" << std::setw(2) << M
+		<< " mstep=" << std::setw(3) << mstep
+		<< " mdrft=" << std::setw(3) << mdrft
+		<< " a=" << std::setw(16) << a
+		<< " b=" << std::setw(16) << b
+		<< " L=" << std::setw(16) << (*expcoefL[M][0])[1]
+		<< " N=" << std::setw(16) << (*expcoefN[M][0])[1]
+		<< " d=" << std::setw(16) << a*(*expcoefL[M][0])[1] + b*(*expcoefN[M][0])[1]
+		<< " f=" << std::setw(16) << (*expcoef[0])[1]
+		<< std::endl << std::right;
+    }
+
+    if (false and myid==0) {
+      std::cout << "SPH interpolate:"
+		<< " M="     << std::setw( 4) << M
+		<< " mstep=" << std::setw( 4) << mstep 
+		<< " mstep=" << std::setw( 4) << mdrft
+		<< " minS="  << std::setw( 4) << dstepL[M][mdrft]
+		<< " maxS="  << std::setw( 4) << dstepN[M][mdrft]
+		<< " a="     << std::setw(14) << a 
+		<< " b="     << std::setw(14) << b 
+		<< " L01="   << std::setw(14) << (*expcoefL[M][0])[1]
+		<< " N01="   << std::setw(14) << (*expcoefN[M][0])[1]
+		<< " c01="   << std::setw(14) << (*expcoef[0])[1]
+		<< std::endl;
+    }
+
 				// Sanity debug check
 				// 
-      if (a<0.0 && a>1.0) {
-	cout << "Process " << myid << ": interpolation error in multistep [a]" 
-	     << endl;
-      }
-      if (b<0.0 && b>1.0) {
-	cout << "Process " << myid << ": interpolation error in multistep [b]" 
-	     << endl;
-      }
+    if (a<0.0 && a>1.0) {
+      cout << "Process " << myid << ": interpolation error in multistep [a]" 
+	   << endl;
+    }
+    if (b<0.0 && b>1.0) {
+      cout << "Process " << myid << ": interpolation error in multistep [b]" 
+	   << endl;
     }
   }
 				// Add coefficients at or below this level
 				// 
-  for (int M=mfirst[mstep]; M<=multistep; M++) {
+  for (int M=mfirst[mdrft]; M<=multistep; M++) {
+
+    //  +--- Deep debugging
+    //  |
+    //  v
+    if (false and myid==0) {
+      std::cout << std::left << std::fixed
+		<< "SPH FULVAL M=" << std::setw(2) << M
+		<< " mstep=" << std::setw(3) << mstep
+		<< " mdrft=" << std::setw(3) << mdrft
+		<< std::endl << std::right;
+    }
+
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
       for (int n=1; n<=nmax; n++) 
 	(*expcoef[l])[n] += (*expcoefN[M][l])[n];
     }
   }
 
-  if (0) {
-    if (myid==0) {
-      cerr << "Interpolated value:"
-	   << " mlev="  << setw(4) << mlevel
-	   << " T="     << setw(4) << tnow
-	   << " c01="   << setw(8) << (*expcoef[0])[1]
-	   << endl;
-    }
+  //  +--- Deep debugging
+  //  |
+  //  v
+  if (false and myid==0) {
+    std::cout << std::left << std::fixed
+	      << "SPH FULVAL mstep=" << std::setw(3) << mstep
+	      << "  mdrft=" << std::setw(3) << mdrft
+	      << " f=" << std::setw(16) << (*expcoef[0])[1]
+	      << std::endl << std::right;
+  }
+
+  if (false and myid==0) {
+    std::cout << "SPH interpolated value:"
+	      << " mlev="  << std::setw( 4) << mlevel
+	      << " mstep=" << std::setw( 4) << mstep
+	      << " mdrft=" << std::setw( 4) << mdrft
+	      << " T="     << std::setw( 4) << tnow
+	      << " c01="   << std::setw(14) << (*expcoef[0])[1]
+	      << std::endl;
   }
 
 #ifdef TMP_DEBUG
@@ -1095,6 +1191,7 @@ void SphericalBasis::compute_multistep_coefficients()
     ofstream out("coefs.diag", ios::app);
     out << setw(15) << tnow
 	<< setw(10) << mstep
+	<< setw(10) << mdrft
 	<< setw(18) << maxval
 	<< setw(8)  << lmax
 	<< setw(8)  << irmax
@@ -1308,19 +1405,33 @@ void SphericalBasis::determine_acceleration_and_potential(void)
   cout << "Process " << myid << ": in determine_acceleration_and_potential\n";
 #endif
 
-#if HAVE_LIBCUDA==1
-  if (component->cudaDevice>=0) {
-    start1 = std::chrono::high_resolution_clock::now();
-    //
-    // Copy coefficients from this component to device
-    //
-    HtoD_coefs(expcoef);
-    //
-    // Do the force computation
-    //
-    determine_acceleration_cuda();
+  if (use_external == false) {
 
-    finish1 = std::chrono::high_resolution_clock::now();
+    if (multistep && (self_consistent || initializing)) {
+      compute_multistep_coefficients();
+    }
+
+  }
+
+#if HAVE_LIBCUDA==1
+  if (cC->cudaDevice>=0 and use_cuda) {
+    if (cudaAccelOverride) {
+      cC->CudaToParticles();
+      exp_thread_fork(false);
+      cC->ParticlesToCuda();
+    } else {
+      start1 = std::chrono::high_resolution_clock::now();
+      //
+      // Copy coefficients from this component to device
+      //
+      HtoD_coefs(expcoef);
+      //
+      // Do the force computation
+      //
+      determine_acceleration_cuda();
+      
+      finish1 = std::chrono::high_resolution_clock::now();
+    }
   } else {
 
     exp_thread_fork(false);
@@ -1333,27 +1444,29 @@ void SphericalBasis::determine_acceleration_and_potential(void)
 #endif
 
 #ifdef DEBUG
-  cout << "SphericalBasis: process " << myid << " returned from fork" << endl;
-  cout << "SphericalBasis: process " << myid << " name=<" << cC->name << ">";
+  if (not use_cuda) {
+    cout << "SphericalBasis: process " << myid << " returned from fork" << endl;
+    cout << "SphericalBasis: process " << myid << " name=<" << cC->name << ">";
 
-  if (cC->Particles().size()) {
+    if (cC->Particles().size()) {
 
-    unsigned long imin = std::numeric_limits<unsigned long>::max();
-    unsigned long imax = 0, kmin = kmin, kmax = 0;
-    for (auto p : cC->Particles()) {
-      imin = std::min<unsigned long>(imin, p.first);
-      imax = std::max<unsigned long>(imax, p.first);
-      kmin = std::min<unsigned long>(kmin, p.second->indx);
-      kmax = std::max<unsigned long>(kmax, p.second->indx);
-    }
-
-    cout << " bodies ["
-	 << kmin << ", " << kmax << "], ["
-	 << imin << ", " << imax << "]"
-	 << " #=" << cC->Particles().size() << endl;
-
-  } else
-    cout << " zero bodies!" << endl;
+      unsigned long imin = std::numeric_limits<unsigned long>::max();
+      unsigned long imax = 0, kmin = kmin, kmax = 0;
+      for (auto p : cC->Particles()) {
+	imin = std::min<unsigned long>(imin, p.first);
+	imax = std::max<unsigned long>(imax, p.first);
+	kmin = std::min<unsigned long>(kmin, p.second->indx);
+	kmax = std::max<unsigned long>(kmax, p.second->indx);
+      }
+      
+      cout << " bodies ["
+	   << kmin << ", " << kmax << "], ["
+	   << imin << ", " << imax << "]"
+	   << " #=" << cC->Particles().size() << endl;
+      
+    } else
+      cout << " zero bodies!" << endl;
+  }
 #endif
 
   print_timings("SphericalBasis: acceleration timings");

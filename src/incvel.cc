@@ -8,6 +8,10 @@
 #include <gptl.h>
 #endif
 
+#if HAVE_LIBCUDA==1
+void incr_velocity_cuda(cuFP_t dt, int mlevel);
+#endif
+
 void * incr_velocity_thread(void *ptr)
 {
   // Current time step
@@ -77,9 +81,15 @@ void incr_velocity(double dt, int mlevel)
   if (!eqmotion) return;
 
 #ifdef USE_GPTL
-    GPTLstart("incr_velocity");
+  GPTLstart("incr_velocity");
 #endif
 
+#ifdef HAVE_LIBCUDA
+  if (use_cuda) {
+    incr_velocity_cuda(static_cast<cuFP_t>(dt), mlevel);
+    return;
+  }
+#endif
 
   if (nthrds==1) {
 

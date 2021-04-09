@@ -41,6 +41,7 @@ void OutCHKPTQ::initialize()
     if (Output::conf["nintsub"]) {
 #ifdef ALLOW_NINTSUB
       nintsub = Output::conf["nintsub"].as<int>();
+      if (nintsub <= 0) nintsub = 1;
 #else
       nintsub_warning("OutCHKPTQ");
       nintsub = std::numeric_limits<int>::max();
@@ -232,6 +233,14 @@ void OutCHKPTQ::Run(int n, int mstep, bool last)
 
   int count = 0;
   for (auto c : comp->components) {
+#ifdef HAVE_LIBCUDA
+    if (use_cuda) {
+      if (not comp->fetched[c]) {
+	comp->fetched[c] = true;
+	c->CudaToParticles();
+      }
+    }
+#endif
 				// Check for open failures
     nOK = 0;
 

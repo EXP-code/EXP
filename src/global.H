@@ -145,10 +145,6 @@ extern bool step_timing;
 //! Times for each phase-space time slice (for Leap-Frog)
 extern double tnow;
 
-//! Times for acceleration evaluation (for multistep).  Equal to tnow
-//! if multistep = 0
-extern double tstp;
-
 //! Current step number
 extern int this_step;
 
@@ -173,8 +169,11 @@ extern int Mstep;
 //! True when initializing before first time step
 extern bool initializing;
 
-//! Current point in multistepping
+//! Current point in multistepping for velocity step
 extern int mstep;
+
+//! Current point in multistepping for drift step
+extern int mdrft;
 
 //! Multistep time step spacing
 extern vector<int> mintvl;
@@ -346,9 +345,12 @@ extern bool use_cuda;
 //! For toggling CUDA profiling
 extern bool cuda_prof;
 
-//! Number of concurrent CUDA streams
-extern int  cuStreams;
-
 #include "Species.H"
+
+#if HAVE_LIBCUDA==1
+#include <cudaUtil.cuH>
+extern thrust::device_vector<int> cuDstepL, cuDstepN;
+extern int cudaGlobalDevice;
+#endif
 
 #endif

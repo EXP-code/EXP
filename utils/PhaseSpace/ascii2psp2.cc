@@ -15,7 +15,7 @@
 #include <boost/shared_array.hpp>
 
 #include <yaml-cpp/yaml.h>	      // YAML support
-#include <PSP2.H>
+#include <PSP.H>
 				// Globals for exputil library
 				// Unused here
 int myid = 0;

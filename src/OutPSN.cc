@@ -34,6 +34,7 @@ void OutPSN::initialize()
     if (Output::conf["nintsub"]) {
 #ifdef ALLOW_NINTSUB
       nintsub = Output::conf["nintsub"].as<int>();
+      if (nintsub <= 0) nintsub = 1;
 #else
       nintsub_warning("OutPSN");
       nintsub = std::numeric_limits<int>::max();
@@ -142,6 +143,14 @@ void OutPSN::Run(int n, int mstep, bool last)
   }
 
   for (auto c : comp->components) {
+#ifdef HAVE_LIBCUDA
+    if (use_cuda) {
+      if (not comp->fetched[c]) {
+	comp->fetched[c] = true;
+	c->CudaToParticles();
+      }
+    }
+#endif
 				// Write floats rather than doubles
     c->write_binary(&out, real4);
   }

@@ -211,7 +211,7 @@ private:
   std::vector< std::vector<double>  > massT1;
   std::vector<unsigned> numbT;
   std::vector<double> massT;
-  unsigned sampT;
+  unsigned sampT, defSampT;
 
 
   std::vector<Matrix> vc, vs;
@@ -558,6 +558,9 @@ public:
   //! Setup for accumulated coefficients
   void setup_accumulation(int toplev=0);
 
+  //! For PCAVAR: set subsample size
+  void setSampT(int N) { defSampT = N; }
+
   //! For EOF
   void setup_eof(void);
 
@@ -746,6 +749,9 @@ public:
 
   //! Return current value of disk scale height
   double get_hscale(void) { return HSCALE; }
+
+  //! Return current table radius
+  double get_rtable(void) { return Rtable; }
 
   //! Set even modes only
   void setEven(bool even=true) { EVEN_M = even; }
@@ -944,6 +950,23 @@ public:
       throw std::runtime_error("T>=sampT");
 
     return covV(0, T, m)[n];
+  }
+
+  double& set_covrT(int T, int m, int n, int o)
+  {
+    if (m >  MMAX)
+      throw std::runtime_error("m>mmax");
+
+    if (n >= rank3)
+      throw std::runtime_error("n>=norder");
+
+    if (o >= rank3)
+      throw std::runtime_error("o>=norder");
+
+    if (T >= sampT)
+      throw std::runtime_error("T>=sampT");
+
+    return covM(0, T, m)[n][o];
   }
 
   double& set_tvar(int m, int i, int j)

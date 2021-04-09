@@ -494,6 +494,10 @@ void UserEBarP::determine_acceleration_and_potential(void)
     for (int k=0; k<3; k++) tacc[n][k] = 0.0;
   }
 
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
+
   exp_thread_fork(false);
 
 				// Get full contribution from all threads
@@ -564,30 +568,30 @@ void * UserEBarP::determine_acceleration_and_potential_thread(void * arg)
   double cos2p = cos(2.0*posang);
   double sin2p = sin(2.0*posang);
 
-  double fraction_on =   0.5*(1.0 + erf( (tstp - Ton )/DeltaT )) ;
+  double fraction_on =   0.5*(1.0 + erf( (tnow - Ton )/DeltaT )) ;
 
-  double fraction_off =  0.5*(1.0 - erf( (tstp - Toff)/DeltaT )) ;
+  double fraction_off =  0.5*(1.0 - erf( (tnow - Toff)/DeltaT )) ;
 
   double quad_onoff = fraction_on*( (1.0 - quadrupole_frac) +
 				    quadrupole_frac * fraction_off );
 
   double mono_fraction = 
-    0.5*(1.0 + erf( (tstp - TmonoOn )/DeltaMonoT )) *
-    0.5*(1.0 - erf( (tstp - TmonoOff)/DeltaMonoT )) ;
+    0.5*(1.0 + erf( (tnow - TmonoOn )/DeltaMonoT )) *
+    0.5*(1.0 - erf( (tnow - TmonoOff)/DeltaMonoT )) ;
 
   double mono_onoff = 
     (1.0 - monopole_frac) + monopole_frac*mono_fraction;
 
   if (table) {
-    if (tstp<timeq[0]) {
+    if (tnow<timeq[0]) {
       afac = ampq[0];
       b5 = b5q[0];
-    } else if (tstp>timeq[qlast]) {
+    } else if (tnow>timeq[qlast]) {
       afac = ampq[qlast];
       b5 = b5q[qlast];
     } else {
-      afac = odd2(tstp, timeq, ampq, 0);
-      b5 = odd2(tstp, timeq, b5q, 0);
+      afac = odd2(tnow, timeq, ampq, 0);
+      b5 = odd2(tnow, timeq, b5q, 0);
     }
   }
 

@@ -49,6 +49,7 @@ void OutAscii::initialize()
     if (Output::conf["nint"])    nint     = Output::conf["nint"].as<int>();
 #ifdef ALLOW_NINTSUB
     if (Output::conf["nintsub"]) nintsub  = Output::conf["nintsub"].as<int>();
+    if (nintsub <= 0) nintsub = 1; // Sanity check
 #else
     nintsub_warning("OutAscii");
 #endif
@@ -101,6 +102,15 @@ void OutAscii::Run(int n, int mstep, bool last)
   if (n % nint && !last) return;
   if (mstep % nintsub !=0) return;
   if (!c0) return;
+
+#ifdef HAVE_LIBCUDA
+  if (use_cuda) {
+    if (not comp->fetched[c0]) {
+      comp->fetched[c0] = true;
+      c0->CudaToParticles();
+    }
+  }
+#endif
 
   std::ofstream out;
 

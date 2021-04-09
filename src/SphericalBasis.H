@@ -104,6 +104,7 @@ protected:
 #if HAVE_LIBCUDA==1
   virtual void determine_coefficients_cuda(bool compute_pca);
   virtual void determine_acceleration_cuda();
+  virtual void multistep_update_cuda();
 
   thrust::host_vector<cuFP_t> host_coefs, host_massT;
   thrust::device_vector<cuFP_t> dev_coefs;
@@ -162,31 +163,15 @@ protected:
     thrust::device_vector<cuFP_t> plm1_d, plm2_d, r_d, m_d, u_d, a_d, p_d;
     thrust::device_vector<int   > i_d;
     
-    std::vector<thrust::device_vector<cuFP_t>> T_coef;
+    std::vector<thrust::device_vector<cuFP_t>> T_coef, T_covr;
 
     void resize_coefs(int nmax, int Lmax, int N, int gridSize, int sampT, bool pca, bool pcaeof);
     void resize_acc  (int Lmax, int Nthread);
   };
 
+  //! A storage instance
+  cudaStorage cuS;
 
-  //! Cyclical ring iterator for storage
-  //@{
-  //! An STL container
-  typedef std::vector<cudaStorage> cuContainer;
-
-  //! An iterator for the container
-  typedef cuContainer::iterator    cuIterator;
-
-  //! Convert to a ring iterator
-  typedef RingIterator <cudaStorage, cuContainer, cuIterator> cuRingType;
-
-  //! The storage instance
-  cuContainer cuRingData;
-
-  //! The cyclic iterator instance
-  boost::shared_ptr<cuRingType> cuRing;
-  //@}
-  
   //! Only initialize once
   bool initialize_cuda_sph;
 
@@ -194,7 +179,7 @@ protected:
   void cuda_initialize();
 
   //! Zero the coefficient output vectors
-  void zero_coefs();
+  void cuda_zero_coefs();
   //@}
 
 #endif

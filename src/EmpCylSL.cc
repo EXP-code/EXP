@@ -92,6 +92,7 @@ EmpCylSL::EmpCylSL(void)
   NORDER     = 0;
   coefs_made = vector<short>(multistep+1, false);
   eof_made   = false;
+  defSampT   = 0;
   sampT      = 0;
   tk_type    = None;
   EVEN_M     = false;
@@ -172,6 +173,7 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   eof_made   = false;
 
   sampT        = 0;
+  defSampT     = 0;
   tk_type      = None;
 
   cylmass      = 0.0;
@@ -233,6 +235,7 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
     MPItable = 3;
 
   sampT = 0;
+  defSampT = 0;
 
   cylmass = 0.0;
   cylmass1.resize(nthrds);
@@ -1770,44 +1773,44 @@ void EmpCylSL::setup_accumulation(int mlevel)
     }
   }
 
+  // Reset particle counter
+  //
+  howmany[mlevel] = 0;
 
-  for (int M=mlevel; M<=multistep; M++) {
+  // Swap buffers
+  //
+  auto p  = cosL[mlevel];
+  cosL[mlevel] = cosN[mlevel];
+  cosN[mlevel] = p;
     
-    howmany[M] = 0;
-
-    //
-    // Swap buffers
-    //
-    auto p  = cosL[M];
-    cosL[M] = cosN[M];
-    cosN[M] = p;
+  p       = sinL[mlevel];
+  sinL[mlevel] = sinN[mlevel];
+  sinN[mlevel] = p;
     
-    p       = sinL[M];
-    sinL[M] = sinN[M];
-    sinN[M] = p;
+  // Clean current coefficient files
+  //
+  for (int nth=0; nth<nthrds; nth++) {
     
-    //
-    // Clean current coefficient files
-    //
-    for (int nth=0; nth<nthrds; nth++) {
+    howmany1[mlevel][nth] = 0;
       
-      howmany1[M][nth] = 0;
-      
-      for (int m=0; m<=MMAX; m++) {
-	cosN(M)[nth][m].zero();
-	if (m>0) sinN(M)[nth][m].zero();
-      }
+    for (int m=0; m<=MMAX; m++) {
+      cosN(mlevel)[nth][m].zero();
+      if (m>0) sinN(mlevel)[nth][m].zero();
     }
-    
-    coefs_made[M] = false;
   }
+    
+  coefs_made[mlevel] = false;
+
+  // DONE
 }
 
 void EmpCylSL::init_pca()
 {
   if (PCAVAR or PCAEOF) {
-    if (PCAVAR)
-      sampT = floor(sqrt(nbodstot));
+    if (PCAVAR) {
+      if (defSampT) sampT = defSampT;
+      else          sampT = floor(sqrt(nbodstot));
+    }
 
     pthread_mutex_init(&used_lock, NULL);
 
@@ -4687,7 +4690,13 @@ void EmpCylSL::accumulated_eval(double r, double z, double phi,
   p  = 0.0;
 
   double rr = sqrt(r*r + z*z);
-  if (rr/ASCALE>Rtable) return;
+  if (rr/ASCALE>Rtable) {
+#ifdef OFF_GRID_ALERT
+    std::cout << "EmpCylSL::accumulated_eval: off grid with rr=" << rr << " > "
+	      << Rtable*ASCALE << std::endl;
+#endif
+    return;
+  }
 
   double X = (r_to_xi(r) - XMIN)/dX;
   double Y = (z_to_y(z)  - YMIN)/dY;
@@ -6021,6 +6030,55 @@ void EmpCylSL::multistep_update_finish()
   MPI_Allreduce (&workS1[0], &workS[0], sz, 
 		 MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
+  //  +--- Deep debugging
+  //  |
+  //  v
+  if (false and myid==0) {
+    std::ofstream out("test_differ.cyl", ios::app);
+    if (out) {
+      out << std::string(13+16*rank3, '-') << std::endl;
+      out << "# T=" << tnow << " mstep=" << mstep << std::endl;
+      for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
+	offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
+	for (int mm=0; mm<=MMAX; mm++) {
+	  offset1 = mm*rank3;
+	  out << std::setw(5) << M << " C " << std::setw(5) << mm;
+	  for (int nn=0; nn<rank3; nn++) 
+	    out << std::setw(16) << workC[offset0+offset1+nn];
+	  out << std::endl;
+	  if (mm) {
+	    out << std::setw(5) << M << " S " << std::setw(5) << mm;
+	    for (int nn=0; nn<rank3; nn++) 
+	      out << std::setw(16) << workS[offset0+offset1+nn];
+	    out << std::endl;
+	  }
+	  break;
+	}
+      }
+      out << std::string(13+16*rank3, '-') << std::endl;
+      for (int mm=0; mm<=MMAX; mm++) {
+	offset1 = mm*rank3;
+	out << std::setw(5) << " *** " << " C " << std::setw(5) << mm;
+	for (int nn=0; nn<rank3; nn++) 
+	  out << std::setw(16) << accum_cos[mm][nn];
+	out << std::endl;
+	if (mm) {
+	  out << std::setw(5) << " *** " << " S " << std::setw(5) << mm;
+	  for (int nn=0; nn<rank3; nn++) 
+	    out << std::setw(16) << accum_sin[mm][nn];
+	  out << std::endl;
+	}
+	break;
+      }
+      out << std::string(13+16*rank3, '-') << std::endl;
+      out << std::string(13+16*rank3, '-') << std::endl;
+    } else {
+      std::cout << "Error opening test file <test_differ.sph> at T=" << tnow
+		<< std::endl;
+    }
+  }
+
+
   for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
 
     offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
@@ -6088,12 +6146,28 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
     }
   }
   
-				// Interpolate to get coefficients above
-  double a, b;			// 
-  for (unsigned M=0; M<mlevel; M++) {
+				// Interpolate to get coefficients above the
+				// current active level
+  for (unsigned M=0; M<mfirst[mdrft]; M++) {
 
-    b = (double)(mstep - dstepL[M][mstep-1])/(double)(dstepN[M][mstep-1] - dstepL[M][mstep-1]);
-    a = 1.0 - b;
+    double numer = static_cast<double>(mdrft            - dstepL[M][mdrft]);
+    double denom = static_cast<double>(dstepN[M][mdrft] - dstepL[M][mdrft]);
+
+    double b = numer/denom;	// Interpolation weights
+    double a = 1.0 - b;
+
+    //  +--- Deep debugging
+    //  |
+    //  v
+    if (false and myid==0) {
+      std::cout << std::left << std::fixed
+		<< "CYL INTERP M=" << std::setw(2) << M
+		<< " mstep=" << std::setw(3) << mstep
+		<< " mdrft=" << std::setw(3) << mdrft
+		<< " a=" << std::setw(16) << a
+		<< " b=" << std::setw(16) << b
+		<< std::endl << std::right;
+    }
 
     for (int mm=0; mm<=MMAX; mm++) {
       for (int nn=0; nn<rank3; nn++) {
@@ -6102,6 +6176,22 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
 	  accum_sin[mm][nn] += a*sinL(M)[0][mm][nn] + b*sinN(M)[0][mm][nn];
       }
     }
+
+    if (false and myid==0) {
+      std::cout << "CYL interpolate:"
+		<< " M="     << std::setw( 4) << M
+		<< " mstep=" << std::setw( 4) << mstep 
+		<< " mdrft=" << std::setw( 4) << mdrft 
+		<< " minS="  << std::setw( 4) << dstepL[M][mdrft]
+		<< " maxS="  << std::setw( 4) << dstepN[M][mdrft]
+		<< " a="     << std::setw(14) << a 
+		<< " b="     << std::setw(14) << b 
+		<< " L00="   << std::setw(14) << cosL(M)[0][0][0]
+		<< " N00="   << std::setw(14) << cosN(M)[0][0][0]
+		<< " c00="   << std::setw(14) << accum_cos[0][0]
+		<< std::endl;
+    }
+
     // Sanity debug check
     if (a<0.0 && a>1.0) {
       cout << "Process " << myid << ": interpolation error in multistep [a]" << endl;
@@ -6110,9 +6200,21 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
       cout << "Process " << myid << ": interpolation error in multistep [b]" << endl;
     }
   }
-				// Add coefficients at or below this level
+				// Add coefficients at or above this level
 				// 
-  for (unsigned M=mlevel; M<=multistep; M++) {
+  for (unsigned M=mfirst[mdrft]; M<=multistep; M++) {
+
+    //  +--- Deep debugging
+    //  |
+    //  v
+    if (false and myid==0) {
+      std::cout << std::left << std::fixed
+		<< "CYL FULVAL M=" << std::setw(2) << M
+		<< " mstep=" << std::setw(3) << mstep
+		<< " mdrft=" << std::setw(3) << mdrft
+		<< std::endl << std::right;
+    }
+
     for (int mm=0; mm<=MMAX; mm++) {
       for (int nn=0; nn<rank3; nn++) {
 	accum_cos[mm][nn] += cosN(M)[0][mm][nn];
@@ -6120,6 +6222,16 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
 	  accum_sin[mm][nn] += sinN(M)[0][mm][nn];
       }
     }
+  }
+
+  if (false and myid==0) {
+    std::cout << "CYL interpolated value:"
+	      << " mlev="  << std::setw( 4) << mlevel
+	      << " mstep=" << std::setw( 4) << mstep
+	      << " mdrft=" << std::setw( 4) << mdrft
+	      << " T="     << std::setw( 4) << tnow
+	      << " c00="   << std::setw(14) << accum_cos[0][0]
+	      << std::endl;
   }
 
   coefs_made = vector<short>(multistep+1, true);

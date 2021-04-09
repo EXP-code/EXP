@@ -180,8 +180,6 @@ struct loadb_datum
   specifying alternative parameters, using an old-style PSP file, or
   starting a new job with a previous output from another simulation)
   </ol>
-  
-
 */
 class Component
 {
@@ -545,10 +543,25 @@ public:
   //! Redestribute this component
   void redistribute_particles(void);
 
-  //! Compute center of mass and center of velocity
-  void fix_positions(unsigned mlevel=0);
+  //! Compute center of mass and center of velocity (CPU version)
+  void fix_positions_cpu(unsigned mlevel=0);
 
-  /** Redistribute particle by list
+#if HAVE_LIBCUDA==1
+  //! Compute center of mass and center of velocity (GPU version)
+  void fix_positions_cuda(unsigned mlevel=0);
+#endif
+
+  //! Compute center of mass and center of velocity
+  void fix_positions(unsigned mlevel=0)
+  {
+#if HAVE_LIBCUDA==1
+    if (use_cuda) fix_positions_cuda(mlevel);
+    else
+#endif
+      fix_positions_cpu(mlevel);
+  }
+
+  /** Redistribute particle by list (deprecated?)
 
       Serialize redistribution list into an integer array
       of numprocs stanzas, each with the format
@@ -894,6 +907,15 @@ public:
     //! Device particles
     thrust::device_vector<cudaParticle> cuda_particles;
 
+    //! Level list
+    thrust::device_vector<int> levList;
+
+    //! Level list pairs
+    thrust::device_vector<thrust::pair<int, int>> levPair;
+
+    //! Sorted indices
+    thrust::device_vector<int> indx1, indx2;
+
     //! My stream
     cudaStream_t stream;
 
@@ -904,40 +926,67 @@ public:
     ~cudaStreamData();
   };
 
-  //! Initialize the streams
+  //! Initialize the stream(s)
   void cuda_initialize();
 
-  typedef std::vector<cudaStreamData> cuContainer;
-  typedef cuContainer::iterator       cuIterator;
-  typedef RingIterator <cudaStreamData, cuContainer, cuIterator> cuRingType;
-
-  cuContainer cuRingData;
-  boost::shared_ptr<cuRingType> cuRing;
+  typedef boost::shared_ptr<cudaStreamData> cuSharedStream;
+  cuSharedStream cuStream;
   //@}
 
-  //! Copy particles from Component C to the cuda structure for this component
+  //! Copy particles host to device for stream entry
+  void HostToDev(cuSharedStream cr);
+  
+  //! Copy particles device to host for stream entry
+  void DevToHost(cuSharedStream cr);
+
+  //! Copy particles from Component C to the cuda device structure
   void ParticlesToCuda(PartMap::iterator beg, PartMap::iterator fin);
 
-  //! Copy particles host to device for ring entry
-  void HostToDev(cuRingType cr);
-  
-  //! Copy particles device to host for ring entry
-  void DevToHost(cuRingType cr);
-  
+  //! Convert all to device particles and copy to device
+  void ParticlesToCuda()
+  {
+    // Copy from Particle to cudaParticle
+    //
+    ParticlesToCuda(particles.begin(), particles.end());
+    // Push to device
+    //
+    HostToDev(cuStream);
+  }
+
   //! Copy cuda device particles for this component back Component C
   void CudaToParticles(hostPartItr beg, hostPartItr end);
 
-  //! Sort the device vector by sequence
-  void CudaSortBySequence(cuRingType cr);
+  //! Copy from device and convert to host particles
+  void CudaToParticles()
+  {
+    DevToHost(cuStream);	// Pull from device
+    CudaToParticles(cuStream->first, cuStream->last);
+  }
+
+  //! Make a new level list from copied particles
+  void MakeLevlist();
 
   //! Sort the device vector by level and return level boundaries
-  std::pair<unsigned, unsigned> CudaSortByLevel(cuRingType cr, int lo, int hi);
+  std::pair<unsigned, unsigned> CudaGetLevelRange(int lo, int hi);
+
+  using PII   = std::pair<unsigned int, unsigned int>;
+  using I1vec = std::vector<PII>;
+  using I2vec = std::vector<I1vec>;
+
+  //! Sort the device vector by level
+  void CudaSortByLevel();
+
+  //! Sort the device vector by level changes
+  I2vec CudaSortLevelChanges();
 
   //! Zero the acceleration
   void ZeroPotAccel(int mlevel);
 
   //! Default bunch size for CUDA
   size_t bunchSize;
+
+  //! Print out the level lists to stdout for diagnostic purposes
+  void print_level_lists_cuda(double T);
 
   //@}
 #endif

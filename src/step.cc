@@ -2,6 +2,10 @@
   Call necessary routines to advance phase-space one step
 */
 
+// For string formatting
+//
+#include <boost/format.hpp>
+
 // Uncomment for time step debugging
 //
 // #define CHK_STEP
@@ -25,7 +29,6 @@
 
 static Timer timer_coef, timer_drift, timer_vel;
 static Timer timer_pot , timer_adj  , timer_tot;
-static Timer timer_cuda;
 
 static unsigned tskip = 1;
 
@@ -73,8 +76,8 @@ void do_step(int n)
   // set up CUDA tracer
   nvTracerPtr tPtr;
 
-
   // BEG: multistep>0 block
+  //
   if (multistep) {
     
     double dt = dtime/Mstep;	// Smallest time step
@@ -90,24 +93,26 @@ void do_step(int n)
     vector<double> vel_check(multistep+1);
 #endif
     
-				// March through all the substeps
-				// of the hierarchy
+    // March through all the substeps of the hierarchy
+    //
     for (mstep=0; mstep<Mstep; mstep++) {
+
+      mdrft = mstep;		// Assign velocity position
 
 				// Write multistep output
       if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
       output->Run(n, mstep);
 
-				// Compute next coefficients for
-				// particles that move on this step
-				// (the "active" particles)
-				//
+      // Compute next coefficients for particles that move on this
+      // step (the "active" particles)
+      //
       for (int M=mfirst[mstep]; M<=multistep; M++) {
 				// The timestep at level M
 	double DT = dt*mintvl[M];
 	
-				// Advance velocity by 1/2 step:
-				// First K_{1/2}
+	// Advance velocity by 1/2 step for active particles: First
+	// K_{1/2}
+	//
 	nvTracerPtr tPtr2;
 	if (cuda_prof) {
 	  tPtr2 = nvTracerPtr(new nvTracer("Velocity kick [1]"));
@@ -121,9 +126,8 @@ void do_step(int n)
 
 	check_bad("after incr_vel", M);
 
-				// Advance position by the whole time
-				// step at this level: D_1
-				//
+	// Advance position by the whole time step at this level: D_1
+	//
 	if (cuda_prof) {
 	  tPtr2.reset();
 	  tPtr2 = nvTracerPtr(new nvTracer("Drift"));
@@ -137,10 +141,9 @@ void do_step(int n)
 
 	check_bad("after incr_pos", M);
 
-				// Now, compute the coefficients for
-				// this level
-				//
-
+	// Now, compute the coefficients for this level at the
+	// advanced position in preparation for the next kick
+	//
 	if (cuda_prof) {
 	  tPtr2.reset();
 	  tPtr2 = nvTracerPtr(new nvTracer("Expansion"));
@@ -150,40 +153,40 @@ void do_step(int n)
 	if (step_timing) timer_coef.stop();
       }
       
-				// COM update:
-				// Position drift
+      tnow += dt;		// Time at the end of the current step
+
+      // COM update: Position drift
+      //
       if (step_timing) timer_drift.start();
       incr_com_position(dt);
       if (step_timing) timer_drift.stop();
 
-				// Compute potential for all the
-				// particles active at this step
+      // Compute potential for all the particles active at this step
+      //
       nvTracerPtr tPtr1;
       if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Potential"));
       if (step_timing) timer_pot.start();
-      {
-	double tlast = tnow;	// Time before current step
-				// Time at the end of the drift
-	tstp = tnow + dt*mintvl[mfirst[mstep]];
-				// Compute potential at drifted time
-	comp->compute_potential(mfirst[mstep]);
-	tstp  = tlast;		// Restore time to beginning of step
-      }
+      mdrft = mstep + 1;	// Drifted position in multistep array
+      comp->compute_potential(mfirst[mstep]);
       if (step_timing) timer_pot.stop();
 
       check_bad("after compute_potential");
 
-				// For all active levels . . .
-				// Advance velocity by 1/2 step to
-				// bring the velocity in sync: 
-				// Second K_{1/2}
-
+      // Second K_{1/2}
+      // 
+      // Advance velocity by 1/2 step for active particles at the next
+      // sub step.  Inactive particles' velocities remain unsynced
+      // otherwise because the coefficient values will not be
+      // available all levels for their drifted positions until later
+      // mstep.
+      //
       if (cuda_prof) {
 	tPtr1.reset();
 	tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [2]"));
       }
+
       if (step_timing) timer_vel.start();
-      for (int M=mfirst[mstep]; M<=multistep; M++) {
+      for (int M=mfirst[mdrft]; M<=multistep; M++) {
 	incr_velocity(0.5*dt*mintvl[M], M);
 #ifdef CHK_STEP
 	vel_check[M] += 0.5*dt*mintvl[M];
@@ -196,24 +199,13 @@ void do_step(int n)
 #ifdef DEBUG
       comp->multistep_debug();
 #endif
-      if (mstep==0) {
-				// Do particles at top level
-	if (step_timing) timer_adj.start();
-	adjust_multistep_level(true);
-	if (step_timing) timer_adj.stop();
-	
-				// Print the level lists
-	comp->print_level_lists(tnow);
-      } else {
-				// Do particles at lower levels
-	if (step_timing) timer_adj.start();
-	adjust_multistep_level(false);
-	if (step_timing) timer_adj.stop();
-
-      }
-
-      tnow += dt;		// Next substep
-      tstp  = tnow;		// Sync force time
+				// Adjust particle time-step levels
+      if (step_timing) timer_adj.start();
+      adjust_multistep_level(false);
+      if (step_timing) timer_adj.stop();
+      
+      // Print the level lists
+      if (mdrft==Mstep) comp->print_level_lists(tnow);
     }
     // END: mstep loop
 
@@ -225,8 +217,8 @@ void do_step(int n)
       tPtr = nvTracerPtr(new nvTracer("Adjust multistep"));
     }
 
-				// COM update:
-				// Second velocity half-kick
+    // COM update: second velocity half-kick
+    //
     if (step_timing) timer_vel.start();
     incr_com_velocity(0.5*dtime);
     if (step_timing) timer_vel.stop();
@@ -257,7 +249,6 @@ void do_step(int n)
   else {
 				// Time at the end of the step
     tnow += dtime;
-    tstp  = tnow;
 				// Velocity by 1/2 step
     nvTracerPtr tPtr1;
     if (cuda_prof) tPtr1 = nvTracerPtr(new nvTracer("Velocity kick [1]"));
@@ -308,11 +299,6 @@ void do_step(int n)
 
   if (step_timing) timer_tot.stop();
 
-				// Write output
-  //nvTracerPtr tPtr;
-  //if (cuda_prof) tPtr = nvTracerPtr(new nvTracer("Data output"));
-  //output->Run(n);
-
 				// Summarize processor particle load
   comp->report_numbers();
 
@@ -326,27 +312,27 @@ void do_step(int n)
 				// Timer output
   if (step_timing && this_step!=0 && (this_step % tskip) == 0) {
     if (myid==0) {
+      // Use boost::format to remove all of the manipulators; until C++20
+      boost::format F("%|1$-20|: %|2$-18.6e|[%|3$5.1f|]\n");
+      auto totalT = timer_tot.getTime();
+      std::ostringstream sout;
+      sout << "--- Timer info [T=" << tnow << "] ";
       std::cout << std::endl
 		<< std::setw(70) << std::setfill('-') << '-' << std::endl
-		<< std::setw(70) << left << "--- Timer info" << std::endl
+		<< std::setw(70) << left << sout.str()       << std::endl
 		<< std::setw(70) << std::setfill('-') << '-' << std::endl
 		<< std::setfill(' ') << std::right
-		<< std::setw(20) << "Drift: "
-		<< std::setw(18) << timer_drift.getTime() << std::endl
-		<< std::setw(20) << "Velocity: "
-		<< std::setw(18) << timer_vel.getTime() << std::endl
-		<< std::setw(20) << "Force: "
-		<< std::setw(18) << timer_pot.getTime() << std::endl;
+		<< F % "Drift"    % timer_drift.getTime() % (timer_drift.getTime()/totalT*1e2)
+		<< F % "Velocity" % timer_vel.getTime()   % (timer_vel.getTime()  /totalT*1e2)
+		<< F % "Force"    % timer_pot.getTime()   % (timer_pot.getTime()  /totalT*1e2)
+		<< F % "Coefs"    % timer_coef.getTime()  % (timer_coef.getTime() /totalT*1e2);
       if (multistep)
-	std::cout << std::setw(20) << "Coefs: "
-		  << std::setw(18) << timer_coef.getTime() << std::endl
-		  << std::setw(20) << "Adjust: "
-		  << std::setw(18) << timer_adj.getTime() << std::endl;
-      if (use_cuda)
-	std::cout << std::setw(20) << "Cuda copy: "
-		  << std::setw(18) << comp->timer_cuda.getTime() << std::endl;
-      std::cout << std::setw(20) << "Total: "
-		<< std::setw(18) << timer_tot.getTime() << std::endl
+	std::cout << F % "Adjust" % timer_adj.getTime()   % (timer_adj.getTime()  /totalT*1e2);
+      if (use_cuda) {
+	std::cout << F % "Cuda copy" % comp->timer_cuda.getTime()   % (comp->timer_cuda.getTime()  /totalT*1e2)
+		  << F % "Orient"    % comp->timer_orient.getTime() % (comp->timer_orient.getTime()/totalT*1e2);
+      }
+      std::cout << F % "Total" % timer_tot.getTime() % 1e2
 		<< std::setw(70) << std::setfill('-') << '-' << std::endl
 		<< std::setfill(' ');
     }
@@ -400,6 +386,7 @@ void do_step(int n)
     timer_adj  .reset();
     timer_tot  .reset();
     if (use_cuda) comp->timer_cuda.reset();
+    if (use_cuda) comp->timer_orient.reset();
   }
 
 #ifdef USE_GPTL

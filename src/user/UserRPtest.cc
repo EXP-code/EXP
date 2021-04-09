@@ -144,6 +144,10 @@ void UserRPtest::determine_acceleration_and_potential(void)
 {
   if (first) {
     
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
+
     if (restart) {
       
       if (myid == 0) {

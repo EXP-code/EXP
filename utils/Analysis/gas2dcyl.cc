@@ -88,7 +88,7 @@ main(int argc, char **argv)
   
   double RMAX, ZMIN, ZMAX;
   int RBINS, IBEG, IEND, ISKIP, PBEG, PEND, ZBINS;
-  std::string OUTFILE, INFILE, RUNTAG;
+  std::string OUTFILE, INFILE, RUNTAG, CNAME;
   bool GNUPLOT;
 
   // ==================================================
@@ -97,7 +97,11 @@ main(int argc, char **argv)
   
   po::options_description desc("\nCompute disk potential, force and density profiles\nfrom PSP phase-space output files\n\nAllowed options");
   desc.add_options()
-    ("help,h",                                                                          "Print this help message")
+    ("help,h",                                                                       "Print this help message")
+    ("OUT",
+     "assume that PSP files are in original format")
+    ("SPL",
+     "assume that PSP files are in split format")
     ("RMAX",                po::value<double>(&RMAX)->default_value(0.1),
      "maximum radius for output")
     ("ZMIN",                po::value<double>(&ZMIN)->default_value(-1.0),
@@ -122,6 +126,8 @@ main(int argc, char **argv)
      "filename prefix")
     ("INFILE",              po::value<string>(&INFILE)->default_value("OUT"),
      "phase space file")
+    ("CNAME",               po::value<string>(&CNAME)->default_value("gas"),
+     "Name for gas component")
     ("RUNTAG",              po::value<string>(&RUNTAG)->default_value("run"),
      "file containing desired indices for PSP output")
     ("GNUPLOT",             po::value<bool>(&GNUPLOT)->default_value(false),
@@ -204,14 +210,13 @@ main(int argc, char **argv)
 
     if (n % numprocs == myid) {
 
-      ifstream in(files[n].c_str());
-      PSPDump psp(&in, true);
-      
-      Dump *dump = psp.GetDump();
-      
-      if (dump) {
+      PSPptr psp;
+      if (vm.count("SPL")) psp = std::make_shared<PSPspl>(files[n]);
+      else                 psp = std::make_shared<PSPout>(files[n]);
 
-	times[n] = psp.CurrentTime();
+      if (psp) {
+
+	times[n] = psp->CurrentTime();
 	histo[n] = vector< vector<double> >(nval);
 	for (int k=0; k<nval; k++) 
 	  histo[n][k] = vector<double>(RBINS*ZBINS, 0.0);
@@ -225,8 +230,14 @@ main(int argc, char **argv)
 	int icnt = 0;
 	vector<Particle> particles;
 
-	PSPstanza *gas = psp.GetGas();
-	SParticle *p = psp.GetParticle(&in);
+	PSPstanza *gas = psp->GetNamed(CNAME);
+	if (!gas) {
+	  if (myid==0) std::cerr << "No component named <" << CNAME << ">"
+				 << std::endl;
+	  MPI_Finalize();
+	  exit(-2);
+	}
+	SParticle *p = psp->GetParticle();
 	
 	while (p) {
 
@@ -246,7 +257,7 @@ main(int argc, char **argv)
 	  }
 	    
 	  if (PEND>0 && icnt>PEND) break;
-	  p = psp.NextParticle(&in);
+	  p = psp->NextParticle();
 	  icnt++;
 	}
       }

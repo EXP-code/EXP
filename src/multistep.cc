@@ -2,10 +2,19 @@
   Multi-timestepping support routines
 */
 
-#include "expand.h"
+#include <expand.h>
 #include <sstream>
 #include <chrono>
 #include <map>
+
+// #define VERBOSE_TIMING
+
+// Cuda routines
+//
+#if HAVE_LIBCUDA==1
+extern void cuda_initialize_multistep();
+extern void cuda_compute_levels();
+#endif
 
 //
 // Helper class to pass info to threaded multistep update routine
@@ -168,7 +177,7 @@ void * adjust_multistep_level_thread(void *ptr)
     // Time step wants to be LARGER than the maximum
     if (dt>dtime) {
       lev = 0;
-      maxdt1[id] = max<double>(dt, maxdt1[id]);
+      maxdt1[id] = std::max<double>(dt, maxdt1[id]);
       offhi++;
     }
     else lev = (int)floor(log(dtime/dt)/log(2.0));
@@ -177,9 +186,13 @@ void * adjust_multistep_level_thread(void *ptr)
     //
     if (lev>multistep) {
       lev = multistep;
-      mindt1[id] = min<double>(dt, mindt1[id]);
+      mindt1[id] = std::min<double>(dt, mindt1[id]);
       offlo++;
     }
+
+    // Limit new level to minimum active level
+    //
+    lev = std::max<int>(lev, mfirst[mdrft]);
 
     // Case with ZERO acceleration (possibly leading to bad assignment)
     //
@@ -195,10 +208,11 @@ void * adjust_multistep_level_thread(void *ptr)
     // Enforce n-level shifts at a time
     //
     if (shiftlevl) {
-      if (plev + shiftlevl > multistep)	lev = multistep;
-      else                              lev = plev + shiftlevl;
-      if (shiftlevl > plev)             lev = 0;
-      else                              lev = plev - shiftlevl;
+      if (nlev > plev) {
+	if (nlev - plev > shiftlevl) nlev = plev + shiftlevl;
+      } else if (plev > nlev) {
+	if (plev - nlev > shiftlevl) nlev = plev - shiftlevl;
+      }
     }
 
     // Sanity check
@@ -224,9 +238,12 @@ void * adjust_multistep_level_thread(void *ptr)
     }
     numtt[id]++;
 
-    // For reporting level populations
+    // For reporting level populations: evaluating at the final sub
+    // step guarantees that every particle is active.  Also note:
+    // mdrft equals Mstep for multistep=0; so multistep=0 gives the
+    // desired evaluation at every step.
     //
-    if (mstep == 0) {
+    if (mdrft == Mstep) {
       //
       // Tally smallest (e.g. controlling) timestep
       //
@@ -255,9 +272,26 @@ void adjust_multistep_level(bool all)
 {
   if (!multistep) return;
 
-  // FOR DEBUGGING
-  // if (mstep!=0) return;
-  // END DEBUGGING
+#ifdef VERBOSE_TIMING
+  std::cout << "[" << myid << "] ENTERING adjust multistep level"
+	    << std::endl;
+  auto dbg_start = std::chrono::high_resolution_clock::now();
+#endif
+
+#if HAVE_LIBCUDA==1
+  if (use_cuda) {
+    cuda_compute_levels();
+
+#ifdef VERBOSE_TIMING
+    auto dbg_finish = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::micro> dbg_adjust = dbg_finish - dbg_start;
+
+    std::cout << "[" << myid << "] LEAVING adjust multistep level: "
+	      << dbg_adjust.count()*1.0e-6 << std::endl;
+#endif    
+    return;
+  }
+#endif
 
   // Begin diagnostic timing
   std::chrono::high_resolution_clock::time_point start, finish;
@@ -281,7 +315,7 @@ void adjust_multistep_level(bool all)
 
   if (VERBOSE>0) {
 
-    if (offhi1.size()==0 || mstep==0) {
+    if (offhi1.size()==0 || mdrft==Mstep) {
 
       for (auto c : comp->components) {
 	for (int n=0; n<nthrds; n++) {
@@ -321,76 +355,84 @@ void adjust_multistep_level(bool all)
 
   for (auto c : comp->components) {
     
-    if (mstep == 0) {
+    // For reporting level populations: evaluating at the final sub
+    // step guarantees that every particle is active.  Also note:
+    // mdrft equals Mstep for multistep=0; so multistep=0 gives the
+    // desired evaluation at every step.
+    //
+    if (mdrft == Mstep) {
       for (int n=0; n<nthrds; n++)
 	for (int k=0; k<=multistep; k++) 
 	  for (int j=0; j<mdtDim; j++) tmdt[n][k][j] = 0;
     }
     
-    for (int level=0; level<=multistep; level++) {
+    int first = mfirst[mdrft];	// First active level at drifted
+				// subgrid position
+
+    if (all) first = 0;		// Do all levels by request
+
+    for (int level=first; level<=multistep; level++) {
       
-      if (all || mactive[mstep][level]) {
+      if (nthrds==1) {
 
-	if (nthrds==1) {
-
-	  td[0].level = level;
-	  td[0].id = 0;
-	  td[0].c = c;
-
-	  adjust_multistep_level_thread(&td[0]);
-
-	} else {
-	  
-	  //
-	  // Make the <nthrds> threads
-	  //
-	  int errcode;
-	  void *retval;
-  
-	  for (int i=0; i<nthrds; i++) {
-	    
-	    td[i].level = level;
-	    td[i].id = i;
-	    td[i].c = c;
-	    
-	    errcode =  pthread_create(&t[i], 0, adjust_multistep_level_thread, &td[i]);
-	    
-	    if (errcode) {
-	      std::ostringstream sout;
-	      sout << "Process " << myid
-		   << " adjust_multistep_level: cannot make thread " << i
-		   << ", errcode=" << errcode;
-	      throw GenericError(sout.str(), __FILE__, __LINE__);
-	    }
-#ifdef DEBUG
-	    else {
-	      cout << "Process " << myid << ": thread <" << i << "> created\n";
-	    }
-#endif
-	  }
-	  
-	  //
-	  // Collapse the threads
-	  //
-	  for (int i=0; i<nthrds; i++) {
-	    if ((errcode=pthread_join(t[i], &retval))) {
-	      std::ostringstream sout;
-	      sout << "Process " << myid
-		   << " adjust_multistep_level: thread join " << i
-		   << " failed, errcode=" << errcode;
-	      throw GenericError(sout.str(), __FILE__, __LINE__);
-	    }
-#ifdef DEBUG    
-	    cout << "Process " << myid 
-		 << ": multistep thread <" << i << "> thread exited\n";
-#endif
-	  }
-	}
+	td[0].level = level;
+	td[0].id = 0;
+	td[0].c = c;
 	
+	adjust_multistep_level_thread(&td[0]);
+	
+      } else {
+	  
+	//
+	// Make the <nthrds> threads
+	//
+	int errcode;
+	void *retval;
+	
+	for (int i=0; i<nthrds; i++) {
+	  
+	  td[i].level = level;
+	  td[i].id = i;
+	  td[i].c = c;
+	  
+	  errcode =  pthread_create(&t[i], 0, adjust_multistep_level_thread, &td[i]);
+	    
+	  if (errcode) {
+	    std::ostringstream sout;
+	    sout << "Process " << myid
+		 << " adjust_multistep_level: cannot make thread " << i
+		 << ", errcode=" << errcode;
+	    throw GenericError(sout.str(), __FILE__, __LINE__);
+	  }
+#ifdef DEBUG
+	  else {
+	    cout << "Process " << myid << ": thread <" << i << "> created\n";
+	  }
+#endif
+	}
+	  
+	//
+	// Collapse the threads
+	//
+	for (int i=0; i<nthrds; i++) {
+	  if ((errcode=pthread_join(t[i], &retval))) {
+	    std::ostringstream sout;
+	    sout << "Process " << myid
+		 << " adjust_multistep_level: thread join " << i
+		 << " failed, errcode=" << errcode;
+	    throw GenericError(sout.str(), __FILE__, __LINE__);
+	  }
+#ifdef DEBUG    
+	  cout << "Process " << myid 
+	       << ": multistep thread <" << i << "> thread exited\n";
+#endif
+	}
       }
     }
 
-    if (mstep == 0) {
+    // Accumulate counters for all threads at the master step boundary
+    //
+    if (mdrft == Mstep) {
       for (int n=0; n<nthrds; n++)
 	for (int k=0; k<=multistep; k++) 
 	  for (int j=0; j<mdtDim; j++) 
@@ -418,7 +460,7 @@ void adjust_multistep_level(bool all)
   //
   // Diagnostic output
   //
-  if (VERBOSE>0 && mstep==0) {
+  if (VERBOSE>0 && mdrft==Mstep) {
 
     //
     // Count offgrid particles in the threads
@@ -523,6 +565,14 @@ void adjust_multistep_level(bool all)
       }
     }
   }
+
+#ifdef VERBOSE_TIMING
+  auto dbg_finish = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double, std::micro> dbg_adjust = dbg_finish - dbg_start;
+
+  std::cout << "LEAVING adjust multistep level ["
+	    << dbg_adjust.count()*1.0e-6 << "]" << std::endl;
+#endif
 }
 
 
@@ -611,5 +661,9 @@ void initialize_multistep()
     }
     cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
   }
+
+#if HAVE_LIBCUDA==1
+  if (use_cuda) cuda_initialize_multistep();
+#endif
 
 }

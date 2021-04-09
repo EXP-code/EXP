@@ -19,7 +19,7 @@ using namespace std;
 
 #include <StringTok.H>
 #include <header.H>
-#include <PSP2.H>
+#include <PSP.H>
 
 				// Globals for exputil library
 				// Unused here

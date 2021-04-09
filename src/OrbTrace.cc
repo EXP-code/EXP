@@ -26,6 +26,10 @@ OrbTrace::OrbTrace(const YAML::Node& conf) : Output(conf)
 
   initialize();
 
+  // Sanity check
+  //
+  if (nintsub <= 0) nintsub = 1;
+
   if (!tcomp) {
     if (myid==0) {
       bomb("OrbTrace: no component to trace\n");
@@ -199,13 +203,16 @@ void OrbTrace::initialize()
     if (conf["nbeg"])        nbeg      = conf["nbeg"].as<int>();
     if (conf["nskip"])       nskip     = conf["nskip"].as<int>();
     if (conf["nint"])        nint      = conf["nint"].as<int>();
-    if (conf["nintsub"])    nintsub  = conf["nintsub"].as<int>();
+    if (conf["nintsub"])     nintsub  =  conf["nintsub"].as<int>();
     if (conf["orbitlist"])   orbitlist = conf["orbitlist"].as<std::string>();
     if (conf["use_acc"])     use_acc   = conf["use_acc"].as<bool>();
     if (conf["use_pot"])     use_pot   = conf["use_pot"].as<bool>();
     if (conf["use_lev"])     use_lev   = conf["use_lev"].as<bool>();
     if (conf["local"])       local     = conf["local"].as<bool>();
     
+				// Sanity check
+    if (nintsub <= 0) nintsub = 1;
+
 				// Search for desired component
     if (conf["name"]) {
       std::string tmp = conf["name"].as<std::string>();
@@ -234,6 +241,15 @@ void OrbTrace::Run(int n, int mstep, bool last)
 
 
   MPI_Status status;
+
+#ifdef HAVE_LIBCUDA
+  if (use_cuda) {
+    if (not comp->fetched[tcomp]) {
+      comp->fetched[tcomp] = true;
+      tcomp->CudaToParticles();
+    }
+  }
+#endif
 
 				// Open output file
   ofstream out;

@@ -33,6 +33,7 @@ void OutPS::initialize()
     if (Output::conf["nintsub"]) {
 #ifdef ALLOW_NINTSUB
       nintsub = Output::conf["nintsub"].as<int>();
+      if (nintsub <= 0) nintsub = 1;
 #else
       nintsub_warning("OutPS");
       nintsub = std::numeric_limits<int>::max();
@@ -107,6 +108,14 @@ void OutPS::Run(int n, int mstep, bool last)
   }
 
   for (auto c : comp->components) {
+#ifdef HAVE_LIBCUDA
+    if (use_cuda) {
+      if (not comp->fetched[c]) {
+	comp->fetched[c] = true;
+	c->CudaToParticles();
+      }
+    }
+#endif
     c->write_binary(&out, true);	// Write floats rather than doubles
   }
 

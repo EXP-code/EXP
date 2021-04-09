@@ -36,7 +36,10 @@ void OutCoef::initialize()
   try {
     if (conf["filename"])     filename = conf["filename"].as<std::string>();
     if (conf["nint"])         nint     = conf["nint"].as<int>();
-    if (conf["nintsub"])      nintsub  = conf["nintsub"].as<int>();
+    if (conf["nintsub"]) {
+      nintsub  = conf["nintsub"].as<int>();
+      if (nintsub <= 0) nintsub = 1;
+    }
     if (conf["name"])
       {				// Search for desired component
 	std::string tmp = conf["name"].as<std::string>();

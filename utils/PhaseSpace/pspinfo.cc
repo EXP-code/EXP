@@ -12,6 +12,7 @@
 #include <iomanip>
 #include <vector>
 #include <string>
+#include <memory>
 
 #include <PSP.H>
 
@@ -27,25 +28,27 @@ string outdir, runtag;
 //-------------
 
 void Usage(char* prog) {
-  cerr << prog << ": [-v -t] filename\n";
-  cerr << "        -v    verbose output\n";
-  cerr << "        -s    particle and velocity statistics\n";
-  cerr << "        -t    print tipsy info\n";
-  cerr << "        -T    print time info only\n";
+  cerr << prog << ": [[-v] [-S] [-s] [-T] [-d data_dir]] filename\n";
+  cerr << "        -v      verbose output\n";
+  cerr << "        -S      assume split PSP files\n";
+  cerr << "        -s      particle and velocity statistics\n";
+  cerr << "        -T      print time info only\n";
+  cerr << "        -d dir  data directory\n";
   exit(-1);
 }
 
 int
 main(int argc, char *argv[])
 {
-  bool tipsy = false;
+  bool spl = false;
   bool stats = false;
   bool timeonly = false;
   bool verbose = false;
+  std::string new_dir("./");
   int c;
   
   while (1) {
-    c = getopt(argc, argv, "vstTh");
+    c = getopt(argc, argv, "vsSTd:h");
     if (c == -1) break;
 
     switch (c) {
@@ -54,8 +57,8 @@ main(int argc, char *argv[])
       verbose = true;
       break;
 
-    case 't':
-      tipsy = true;
+    case 'S':
+      spl = true;
       break;
 
     case 's':
@@ -64,6 +67,11 @@ main(int argc, char *argv[])
 
     case 'T':
       timeonly = true;
+      break;
+
+    case 'd':
+      new_dir.erase();
+      new_dir = string(optarg);
       break;
 
     case 'h':
@@ -76,12 +84,27 @@ main(int argc, char *argv[])
 
   if (optind >= argc) Usage(argv[0]);
 
-  cerr << "Filename: " << argv[optind] << endl;
-  ifstream* in = new ifstream(argv[optind]);
+  std::string file(argv[optind]);
 
-  PSPDump psp(in, tipsy, verbose);
-  in->seekg(0, ios::beg);
-  psp.PrintSummary(in, cout, stats, timeonly);
+  if (not spl and file.find("SPL")!=std::string::npos) spl = true;
+
+  std::shared_ptr<PSP> psp;
+  try {
+    if (spl) psp = std::make_shared<PSPspl>(argv[optind], new_dir, verbose);
+    else     psp = std::make_shared<PSPout>(argv[optind], verbose);
+  }
+  catch (const std::exception& e)  {
+    std::cout << "pspinfo runtime error: " << e.what() << std::endl;
+    exit(-1);
+  }
+  catch (...) {
+    std::cout << "pspinfo unknown error" << std::endl;
+    exit(-2);
+  }
+
+  cerr << "Filename: " << file << endl;
+
+  psp->PrintSummary(cout, stats, timeonly);
 
   return 0;
 }

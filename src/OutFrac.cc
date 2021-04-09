@@ -138,8 +138,10 @@ void OutFrac::initialize()
       nint     = Output::conf["nint"]    .as<int>();
 
 
-    if (Output::conf["nintsub"])
+    if (Output::conf["nintsub"]) {
       nintsub     = Output::conf["nintsub"]    .as<int>();
+      if (nintsub <= 0) nintsub = 1;
+    }
 
 				// Search for desired component
     if (Output::conf["name"]) {
@@ -178,6 +180,14 @@ void OutFrac::Run(int n, int mstep, bool last)
 
   if (myid==0) timer.start();
 
+#ifdef HAVE_LIBCUDA
+  if (use_cuda) {
+    if (not comp->fetched[tcomp]) {
+      comp->fetched[tcomp] = true;
+      tcomp->CudaToParticles();
+    }
+  }
+#endif
 				// Open output file
   ofstream out;
   if (myid==0) {

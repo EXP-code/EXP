@@ -18,7 +18,7 @@ using namespace std;
 #include <map>
 
 #include <header.H>
-#include <PSP2.H>
+#include <PSP.H>
 
 #include <boost/program_options.hpp>
 

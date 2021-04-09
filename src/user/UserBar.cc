@@ -145,6 +145,10 @@ void UserBar::determine_acceleration_and_potential(void)
 				// Write to bar state file, if true
   bool update = false;
 
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
+
   if (c1) {
     c1->get_angmom();	// Tell component to compute angular momentum
     // cout << "Lz=" << c1->angmom[2] << endl; // debug
@@ -392,8 +396,8 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
   thread_timing_beg(id);
 
   double fac, ffac, amp = afac * amplitude/fabs(amplitude) 
-    * 0.5*(1.0 + erf( (tstp - Ton )/DeltaT ))
-    * 0.5*(1.0 - erf( (tstp - Toff)/DeltaT )) ;
+    * 0.5*(1.0 + erf( (tnow - Ton )/DeltaT ))
+    * 0.5*(1.0 - erf( (tnow - Toff)/DeltaT )) ;
   double xx, yy, zz, rr, nn,pp;
   vector<double> pos(3); 
   double cos2p = cos(2.0*posang);

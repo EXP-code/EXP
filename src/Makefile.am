@@ -42,9 +42,9 @@ AM_CXXFLAGS  = -D_REENTRANT $(OPENMP_CXXFLAGS) $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(A
 bin_PROGRAMS = exp
 
 if ENABLE_CUDA
-  ADD_CUDA = cudaParticle.cu cudaSphericalBasis.cu cudaSphere.cu \
-	cudaCylinder.cu cudaEmpCylSL.cu cudaComponent.cu NVTX.cc	 \
-	cudaHOT.cu
+  ADD_CUDA = cudaParticle.cu cudaSphericalBasis.cu cudaCylinder.cu	\
+	cudaEmpCylSL.cu cudaComponent.cu NVTX.cc cudaHOT.cu		\
+	cudaIncpos.cu cudaIncvel.cu cudaMultistep.cu cudaOrient.cu
   ifeq ($(GENCODE_FLAGS),)
     $(foreach sm,@sm_vers@,$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
   endif
@@ -108,11 +108,6 @@ parse.o:   .FORCE
 
 .cu.o :
 	$(NVCC) $(CUDA_CFLAGS) $(NVCC_CXXFLAGS) -c -o $@ $<
-
-# special case for f77 for now
-
-sledge.o:	sledge.f
-		f77 -g -o sledge.o -c sledge.f
 
 SUBDIRS = user $(SUBDIR_DSMC)
 DIST_SUBDIRS = user DSMC

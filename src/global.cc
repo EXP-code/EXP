@@ -45,7 +45,7 @@ string outdir = "./";
 string runtag = "newrun";
 string ldlibdir = ".";
 
-double tnow, tstp;		// Per step variables
+double tnow;			// Per step variables
 int this_step;
 int psdump = -1;
 				// Global center of mass
@@ -69,9 +69,14 @@ double dynfracA = 0.03;
 double dynfracP = 0.05;
 int Mstep = 0;
 int mstep = 0;
+int mdrft = 0;
 vector<int> mfirst, mintvl, stepL, stepN;
 vector< vector<bool> > mactive;
 vector< vector<int> > dstepL, dstepN;
+
+#if HAVE_LIBCUDA==1
+int cudaGlobalDevice;
+#endif
 
 
 				// Multithreading data structures for
@@ -139,5 +144,4 @@ bool fpe_wait      = false;
 bool ignore_info   = false;
 
 int  rlimit_val    = 0;
-int  cuStreams     = 1;
 bool use_cuda      = false;

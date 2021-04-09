@@ -5,7 +5,8 @@
 
 // This has to be a fixed value for the Cuda API
 //
-#define DATTRIB_CUDA 12
+// #define DATTRIB_CUDA 12
+#define DATTRIB_CUDA 4
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -28,12 +29,13 @@ struct cudaParticle
   cuFP_t acc[3];
   cuFP_t pot;
   cuFP_t potext;
+  cuFP_t  scale;
 #if DATTRIB_CUDA>0
   cuFP_t datr[DATTRIB_CUDA];
 #endif
   cuFP_t dtreq;
-  unsigned level;
   unsigned indx;
+  int lev[2];
 } __attribute__((aligned));
 
 
@@ -50,10 +52,25 @@ struct LessCudaSeq
 //! For thrust sorts on on level
 struct LessCudaLev
 {
+  int _t;
+
+  __host__ __device__
+  LessCudaLev(int t=0) : _t(t) { }
+
   __host__ __device__
   bool operator()(const cudaParticle& p1, const cudaParticle& p2) const
   {
-    return p1.level < p2.level;
+    return p1.lev[_t] < p2.lev[_t];
+  }
+};
+
+//! For thrust sorts on on level and update
+struct LessCudaLev2
+{
+  __host__ __device__
+  bool operator()(const cudaParticle& p1, const cudaParticle& p2) const
+  {
+    return (p1.lev[0] < p2.lev[0]) or (p1.lev[0] == p2.lev[0] and p1.lev[1] < p2.lev[1]);
   }
 };
 
@@ -72,12 +89,28 @@ std::ostream& operator<< (std::ostream& os, const cudaParticle& p);
 
 //! Functor for extracting level info from cudaParticle structures
 struct cuPartToLevel :
-  public thrust::unary_function<cudaParticle, unsigned>
+  public thrust::unary_function<cudaParticle, unsigned int>
 {
+  int _t;
+
+  __host__ __device__
+  cuPartToLevel(int t=0) : _t(t) {}
+
   __host__ __device__
   unsigned operator()(const cudaParticle& p) const
   {
-    return p.level;
+    return p.lev[_t];
+  }
+};
+
+//! Functor for extracting change level info from cudaParticle structures
+struct cuPartToChange :
+  public thrust::unary_function<cudaParticle, thrust::pair<int, int>>
+{
+  __host__ __device__
+  thrust::pair<int, int> operator()(const cudaParticle& p) const
+  {
+    return {p.lev[0], p.lev[1]};
   }
 };
 

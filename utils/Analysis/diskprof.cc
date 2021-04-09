@@ -126,13 +126,11 @@ public:
   }
 };
 
-enum ComponentType {Star=1, Gas=2};
-
-void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p,
-		   Histogram& h)
+void add_particles(PSPptr psp, vector<Particle>& p, Histogram& h)
 {
   if (myid==0) {
 
+    int nbods = psp->GetStanza()->comp.nbod;
     int nbody = nbods/numprocs;
     int nbody0 = nbods - nbody*(numprocs-1);
 
@@ -144,7 +142,7 @@ void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p,
     vector<double>        val(nbody);
     vector<unsigned long> seq(nbody);
 
-    SParticle *part = psp->GetParticle(in);
+    SParticle *part = psp->GetParticle();
     Particle bod;
     
     //
@@ -164,7 +162,7 @@ void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p,
       bod.indx = part->indx();
       p.push_back(bod);
 
-      part = psp->NextParticle(in);
+      part = psp->NextParticle();
 
       // Add to histogram
       //
@@ -185,7 +183,7 @@ void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p,
 	t[i].mass = part->mass();
 	for (int k=0; k<3; k++) t[i].pos[k] = part->pos(k);
 	for (int k=0; k<3; k++) t[i].vel[k] = part->vel(k);
-	part = psp->NextParticle(in);
+	part = psp->NextParticle();
       }
   
       for (int i=0; i<nbody; i++) val[i] = t[i].mass;
@@ -262,34 +260,16 @@ void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p,
   h.Syncr();
 }
 
-void partition(ifstream* in, PSPDump* psp, int cflag, vector<Particle>& p,
-	       Histogram& h)
+void partition(PSPptr psp, std::string& comp, vector<Particle>& p, Histogram& h)
 {
+  if (not psp->GetNamed(comp)) {
+    if (myid==0) 
+      std::cout << "No component named <" << comp << ">" << std::endl;
+    MPI_Finalize();
+    exit(-2);
+  }
   p.erase(p.begin(), p.end());
-
-  int nbods = 0;
-  if (cflag & Star) {
-    if (myid==0) {
-      nbods = psp->CurrentDump()->nstar;
-      psp->GetStar();
-
-      add_particles(in, psp, nbods, p, h);
-    } else {
-      add_particles(in, psp, nbods, p, h);
-    }      
-  }
-
-  if (cflag & Gas) {
-    if (myid==0) {
-      int nbods = psp->CurrentDump()->ngas;
-      psp->GetGas();
-
-      add_particles(in, psp, nbods, p, h);
-    } else {
-      add_particles(in, psp, nbods, p, h);
-    }      
-  }
-
+  add_particles(psp, p, h);
 }
 
 double ZMAX, RMAX;
@@ -420,7 +400,7 @@ Vector get_quart_truncated(Vector& vv, double dz)
 }
 
 
-void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
+void write_output(EmpCylSL& ortho, double time, Histogram& histo)
 {
   unsigned ncnt = 0;
   int nout;
@@ -430,7 +410,6 @@ void write_output(EmpCylSL& ortho, int icnt, double time, Histogram& histo)
   // ==================================================
   
   ostringstream sstr;
-  sstr << "." << icnt;
 
   nout = 7;
   string suffix[7] = {"p0", "p", "fr", "fz", "fp", "d0", "d"};
@@ -722,9 +701,9 @@ main(int argc, char **argv)
   sleep(20);
 #endif  
   
-  int NICE, NUMX, NUMY, NMAX, LMAX, MMAX, NORDER, OUTR, INITFLAG, PARTFLAG;
+  int NICE, NUMX, NUMY, NMAX, LMAX, MMAX, NORDER, OUTR, PARTFLAG;
   double RCYLMIN, RCYLMAX, RSCALE, VSCALE, RMAX, TINIT;
-  std::string INITIAL, INFILE, CACHEFILE, OUTFILE, INDEX;
+  std::string INITIAL, INFILE, CACHEFILE, OUTFILE, compname;
   bool DENS, PCA;
 
   // ==================================================
@@ -733,7 +712,11 @@ main(int argc, char **argv)
   
   po::options_description desc("Compute disk potential, force and density profiles\nfrom PSP phase-space output files\n\nAllowed options");
   desc.add_options()
-    ("help,h",                                                                          "Print this help message")
+    ("help,h",                                                                       "Print this help message")
+    ("OUT",
+     "assume that PSP files are in original format")
+    ("SPL",
+     "assume that PSP files are in split format")
     ("NICE",                po::value<int>(&NICE)->default_value(0),
      "system priority")
     ("DENS",                po::value<bool>(&DENS)->default_value(true),
@@ -780,8 +763,8 @@ main(int argc, char **argv)
      "Compute output for every time slice")
     ("PCA",                 po::value<bool>(&PCA)->default_value(false),
      "Perform the PCA analysis for the disk")
-    ("INITFLAG",            po::value<int>(&INITFLAG)->default_value(1),
-     "Train set on Component (1=stars)")
+    ("compname",            po::value<std::string>(&compname),
+     "Component name (no default)")
     ("PARTFLAG",            po::value<int>(&PARTFLAG)->default_value(1),
      "Wakes using Component(s) [1=stars | 2=gas]")
     ("OUTFILE",             po::value<string>(&OUTFILE)->default_value("diskprof"),
@@ -792,8 +775,6 @@ main(int argc, char **argv)
      "Initial phase space file")
     ("INFILE",              po::value<string>(&INFILE)->default_value("OUT"),
      "Phase space file")
-    ("INDEX",               po::value<string>(&INDEX)->default_value("frame.indx"),
-     "File containing desired indices for PSP output")
     ;
   
   // ==================================================
@@ -832,20 +813,18 @@ main(int argc, char **argv)
   // ==================================================
 
   int iok = 1;
-  ifstream in0, in1;
   if (myid==0) {
-    in0.open(INITIAL);
-    if (!in0) {
+    std::ifstream in(INITIAL);
+    if (!in) {
       cerr << "Error opening <" << INITIAL << ">" << endl;
       iok = 0;
     }
-
-    in1.open(INFILE);
-    if (!in1) {
+    in.close();
+    in.open(INFILE);
+    if (!in) {
       cerr << "Error opening <" << INFILE << ">" << endl;
       iok = 0;
     }
-    
   }
 
   MPI_Bcast(&iok, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -879,27 +858,24 @@ main(int argc, char **argv)
   }
 
   vector<Particle> particles;
-  PSPDump *psp = 0;
   Histogram histo(OUTR, RMAX);
+  PSPptr psp;
 
   if (ortho.read_cache()==0) {
 
     //------------------------------------------------------------ 
 
     if (myid==0) {
-      psp = new PSPDump (&in0, true);
-      cout << "Beginning disk partition [time="
-	   << psp->SetTime(TINIT)
-	   << "] . . . " << flush;
+
+      if (vm.count("SPL")) psp = std::make_shared<PSPspl>(INITIAL);
+      else                 psp = std::make_shared<PSPout>(INITIAL);
+
+
+      std::cout << "Beginning disk partition [time="
+		<< psp->CurrentTime() << "] . . . " << flush;
     }
 
-    // Do we need to close and reopen?
-    if (in0.rdstate() & ios::eofbit) {
-      in0.close();
-      in0.open(INITIAL);
-    }
-
-    partition(&in0, psp, INITFLAG, particles, histo);
+    partition(psp, compname, particles, histo);
     if (myid==0) cout << "done" << endl;
 
     if (myid==0) {
@@ -950,68 +926,39 @@ main(int argc, char **argv)
   // Open frame list
   // ==================================================
 
-  ofstream indx(INDEX);
-  if (!indx) {
-    cerr << "Error opening <" << INDEX
-	 << "> for output . . . continuing without writing index file" 
-	 << endl;
+  if (vm.count("SPL")) psp = std::make_shared<PSPspl>(INFILE);
+  else                 psp = std::make_shared<PSPout>(INFILE);
+
+  if (myid==0) {
+    tnow = psp->CurrentTime();
+    std::cout << "Beginning disk partition [time=" << tnow << "] . . . ";
   }
 
-  delete psp;
-  psp = new PSPDump (&in1, true);
+  partition(psp, compname, particles, histo);
+  if (myid==0) cout << "done" << endl;
 
-  Dump *dump = psp->GetDump();
-  bool ALL = ALL;
+  //------------------------------------------------------------ 
 
-  if (!ALL) dump = psp->CurrentDump();
-
-  int icnt = 0;
-
-  while (dump) {
-
-    //------------------------------------------------------------ 
-
-    if (myid==0) {
-      tnow = dump->header.time;
-      cout << "Beginning disk partition [time=" << tnow << "] . . . "
-	   << flush;
-      if (ALL) 
-	indx << setw(15) << icnt << setw(15) << tnow << endl;
-    }
-
-    if (in1.rdstate() & ios::eofbit) {
-      in1.close();
-      in1.open(INFILE);
-    }
-
-    partition(&in1, psp, PARTFLAG, particles, histo);
-    if (myid==0) cout << "done" << endl;
-
-    //------------------------------------------------------------ 
-
-    if (myid==0) cout << "Accumulating for basis . . . " << flush;
-    ortho.accumulate(particles, 0, true);
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done" << endl;
+  if (myid==0) cout << "Accumulating for basis . . . " << flush;
+  ortho.accumulate(particles, 0, true);
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (myid==0) cout << "done" << endl;
   
-    //------------------------------------------------------------ 
+  //------------------------------------------------------------ 
 
-    if (myid==0) cout << "Making disk coefficients . . . " << flush;
-    ortho.make_coefficients();
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done" << endl;
+  if (myid==0) cout << "Making disk coefficients . . . " << flush;
+  ortho.make_coefficients();
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (myid==0) cout << "done" << endl;
+  
+  //------------------------------------------------------------ 
 
-    //------------------------------------------------------------ 
-
-    if (myid==0) cout << "Writing output . . . " << flush;
-    write_output(ortho, icnt++, dump->header.time, histo);
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done" << endl;
-
-    //------------------------------------------------------------ 
-
-    dump = psp->NextDump();
-  }
+  if (myid==0) cout << "Writing output . . . " << flush;
+  write_output(ortho, psp->CurrentTime(), histo);
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (myid==0) cout << "done" << endl;
+  
+  //------------------------------------------------------------ 
 
   MPI_Finalize();
 

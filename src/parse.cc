@@ -31,16 +31,24 @@ void exp_usage(char *prog)
 
 void exp_version()
 {
-  std::cout << std::setw(25) << std::left << "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" << std::endl
-	    << std::setw(25) << std::left << "%%%%% GIT repository info %%%%%" << std::endl
-	    << std::setw(25) << std::left << "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" << std::endl << std::endl
-	    << std::setw(25) << std::left << "Repository URL"
+  std::ostringstream sout;	// Get a std::string from the string
+				// literal
+  sout << "%%%%% This is " << PACKAGE_STRING << " ";
+
+  std::cout << std::setfill('%')
+	    << std::setw(50) << std::left << "%" << std::endl
+	    << std::setw(50) << std::left << sout.str() << std::endl
+	    << std::setw(50) << std::left << "%" << std::endl
+	    << std::setw(50) << std::left << "%%%%% GIT repository info " << std::endl
+	    << std::setw(50) << std::left << "%" << std::endl
+	    << std::endl << std::setfill(' ')
+	    << std::setw(18) << std::left << "Repository URL"
 	    << " | " << PACKAGE_URL  << std::endl
-	    << std::setw(25) << std::left << "Current branch"
+	    << std::setw(18) << std::left << "Current branch"
 	    << " | " << GIT_BRANCH   << std::endl
-	    << std::setw(25) << std::left << "Current commit"
+	    << std::setw(18) << std::left << "Current commit"
 	    << " | " << GIT_COMMIT   << std::endl
-	    << std::setw(25) << std::left << "Compile time"
+	    << std::setw(18) << std::left << "Compile time"
 	    << " | " << COMPILE_TIME << std::endl;
 
 }
@@ -103,8 +111,6 @@ void initialize(void)
     if (_G["dynfracA"])	     dynfracA   = _G["dynfracA"].as<double>();
     if (_G["dynfracP"])	     dynfracP   = _G["dynfracP"].as<double>();
 
-    if (_G["cuStreams"])     cuStreams  = _G["cuStreams"].as<int>();
-
     if (_G["DTold"]) {
       DTold = _G["DTold"].as<bool>();
       if (DTold and myid==0)
@@ -117,7 +123,9 @@ void initialize(void)
     if (_G["cuda_prof"])       cuda_prof     = _G["cuda_prof"].as<bool>();
     if (_G["cuda"])            use_cuda      = _G["cuda"].as<bool>();
     if (_G["use_cuda"])        use_cuda      = _G["use_cuda"].as<bool>();
-
+#if HAVE_LIBCUDA != 1
+    use_cuda = false;
+#endif
     if (_G["barrier_check"])   barrier_check = _G["barrier_check"].as<bool>();
     if (_G["barrier_debug"])   barrier_debug = _G["barrier_debug"].as<bool>();
     if (_G["barrier_extra"])   barrier_extra = _G["barrier_extra"].as<bool>();
@@ -439,11 +447,8 @@ void YAML_parse_args(int argc, char** argv)
 	print_default();
 	done = 1;
 	break;
-      case 'v':
-	exp_version();
-	done = 1;
-	break;
       case '?':
+      case 'v':
       case 'h':
 	exp_usage(prog);
 	done = 1;

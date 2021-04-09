@@ -1149,10 +1149,10 @@ void computeFreeFree
   // Interpolate the cross section array
   //
 #if cuREAL == 4
-  k[0]  = tex3D<float>(elem->ff_d, indx,   lb  , 0);
-  k[1]  = tex3D<float>(elem->ff_d, indx+1, lb  , 0);
-  k[2]  = tex3D<float>(elem->ff_d, indx,   lb+1, 0);
-  k[3]  = tex3D<float>(elem->ff_d, indx+1, lb+1, 0);
+  k[0]  = tex3D<float>(elem.ff_d, indx,   lb  , 0);
+  k[1]  = tex3D<float>(elem.ff_d, indx+1, lb  , 0);
+  k[2]  = tex3D<float>(elem.ff_d, indx,   lb+1, 0);
+  k[3]  = tex3D<float>(elem.ff_d, indx+1, lb+1, 0);
 #else
   k[0] = int2_as_double(tex3D<int2>(elem.ff_d, indx,   lb  , 0));
   k[1] = int2_as_double(tex3D<int2>(elem.ff_d, indx+1, lb  , 0));

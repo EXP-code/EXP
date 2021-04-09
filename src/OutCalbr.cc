@@ -31,6 +31,16 @@ OutCalbr::OutCalbr(const YAML::Node& conf) : Output(conf)
 void OutCalbr::set_energies()
 {
   if (!restart) {
+
+#ifdef HAVE_LIBCUDA
+				// Get particles from device on first call
+    if (use_cuda) {
+      if (not comp->fetched[tcomp]) {
+	comp->fetched[tcomp] = true;
+	tcomp->CudaToParticles();
+      }
+    }
+#endif
 				// Compute energies and angular momentum
     
     double Emin1=1e30, Emax1=-1e30, v2, E;
@@ -129,9 +139,12 @@ void OutCalbr::initialize()
   try {
     if (conf["filename"])      filename = conf["filename"].as<std::string>();
     if (conf["nint"])          nint     = conf["nint"].as<int>();
-    if (conf["nintsub"])    nintsub  = conf["nintsub"].as<int>();
+    if (conf["nintsub"])       nintsub  = conf["nintsub"].as<int>();
     if (conf["N"])             num      = conf["N"].as<int>();
   
+				// Sanity check
+    if (nintsub <= 0) nintsub = 1;
+
     // Search for desired component
     //
     if (conf["name"]) {
@@ -160,6 +173,15 @@ void OutCalbr::Run(int ns, int mstep, bool last)
 
   if (ns % nint != 0 && !last) return;
   if (mstep % nintsub !=0) return;
+
+#ifdef HAVE_LIBCUDA
+    if (use_cuda) {		// Get particles from device
+      if (not comp->fetched[tcomp]) {
+	comp->fetched[tcomp] = true;
+	tcomp->CudaToParticles();
+      }
+    }
+#endif
 
   MPI_Status status;
 

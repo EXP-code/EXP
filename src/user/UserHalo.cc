@@ -103,6 +103,10 @@ void UserHalo::determine_acceleration_and_potential(void)
 {
   if (c0 and cC != c0) return; // Check that this component is the target
 
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(c0);
+#endif
+
   exp_thread_fork(false);
 
   print_timings("UserHalo: accleration timings");
