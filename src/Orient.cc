@@ -446,7 +446,7 @@ void Orient::accumulate(double time, Component *c)
     if (n==myid) {
       unsigned nsiz = ee.size();
       // Size trim approximation; 3x the target size
-      nsiz = std::min<unsigned>(nsiz, 3.0*tkeep/numprocs);
+      nsiz = std::min<unsigned>(nsiz, 3.0*tkeep);
       // Send to root node for sorting
       MPI_Send(&nsiz,     1, MPI_UNSIGNED, 0, 331, MPI_COMM_WORLD);
       MPI_Send(&ee[0], nsiz, MPI_DOUBLE,   0, 332, MPI_COMM_WORLD);
