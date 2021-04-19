@@ -8,7 +8,7 @@
 #include "global.H"
 
 __device__ __constant__
-cuFP_t cuCtr[3];
+cuFP_t cuCtr[3], cuCom[3];
 
 __device__ __constant__
 unsigned int cuFlags;
@@ -64,7 +64,7 @@ __global__ void EL3Kernel
 
   // Work array
   //
-  cuFP_t psa[3];
+  cuFP_t pos[3], psa[3];
 
   const int tid   = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -79,6 +79,7 @@ __global__ void EL3Kernel
 
       cuFP_t v2 = 0.0;
       for (int k=0; k<3; k++) {
+	pos[k] = p.pos[k] - cuCom[k];
 	psa[k] = p.pos[k] - cuCtr[k];
 	v2 += p.vel[k]*p.vel[k];
       }
@@ -98,9 +99,9 @@ __global__ void EL3Kernel
       t.L[1] = mass*(psa[2]*p.vel[0] - psa[0]*p.vel[2]);
       t.L[2] = mass*(psa[0]*p.vel[1] - psa[1]*p.vel[0]);
       
-      t.R[0] = mass*p.pos[0];
-      t.R[1] = mass*p.pos[1];
-      t.R[2] = mass*p.pos[2];
+      t.R[0] = mass*pos[0];
+      t.R[1] = mass*pos[1];
+      t.R[2] = mass*pos[2];
     }
   }
 }
@@ -109,11 +110,17 @@ void Orient::accumulate_gpu(double time, Component *c)
 {
   // Copy constants to constant memory
   //
-  cuFP_t cen[3];
-  for (int k=0; k<3; k++) cen[k] = center[k+1];
+  cuFP_t cen[3], com[3];
+  for (int k=0; k<3; k++) {
+    cen[k] = center[k+1];
+    com[k] = c->com0[k];
+  }
   
   cuda_safe_call(cudaMemcpyToSymbol(cuCtr, cen, 3*sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying center");
+
+  cuda_safe_call(cudaMemcpyToSymbol(cuCom, com, 3*sizeof(cuFP_t), size_t(0), cudaMemcpyHostToDevice),
+		 __FILE__, __LINE__, "Error copying com0");
 
   cuda_safe_call(cudaMemcpyToSymbol(cuFlags, &cflags, sizeof(unsigned int), size_t(0), cudaMemcpyHostToDevice),
 		 __FILE__, __LINE__, "Error copying cflags");
