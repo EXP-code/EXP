@@ -329,8 +329,9 @@ main(int argc, char **argv)
   ifstream in0, in1;
   std::ostringstream s0, s1;
   if (myid==0) {
-    s0 << "OUT." << runtag << "."
-       << std::setw(5) << std::setfill('0') << init;
+    if (SPL) s0 << "SPL.";
+    else     s0 << "OUT.";
+    s0 << runtag << "."<< std::setw(5) << std::setfill('0') << init;
     in0.open(s0.str());
     if (!in0) {
       cerr << "Error opening <" << s0.str() << ">" << endl;
