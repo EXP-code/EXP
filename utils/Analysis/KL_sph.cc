@@ -174,7 +174,7 @@ main(int argc, char **argv)
      "Radial scale for coordinate mapping (cmap)")
     ("Hexp",                po::value<double>(&Hexp)->default_value(1.0),
      "default Hall smoothing exponent")
-    ("prefix",              po::value<string>(&prefix)->default_value("crossval"),
+    ("prefix",              po::value<string>(&prefix)->default_value("KLsph"),
      "Filename prefix")
     ("runtag",              po::value<string>(&runtag)->default_value("run1"),
      "Phase space file")
