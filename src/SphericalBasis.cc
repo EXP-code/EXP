@@ -1556,6 +1556,7 @@ void SphericalBasis::dump_coefs(ostream& out)
     node["scale" ] = scale;
     node["nmax"  ] = nmax;
     node["lmax"  ] = Lmax;
+    node["normed"] = true;
 
     // Serialize the node
     //
@@ -1577,6 +1578,25 @@ void SphericalBasis::dump_coefs(ostream& out)
     //
     out.write(reinterpret_cast<const char *>(y.c_str()), hsize);
 
+    double z;
+
+    for (int ir=1; ir<=nmax; ir++) {
+      for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
+	double fac1 = (2.0*l+1.0)/(4.0*M_PI);
+	for (int m=0, moffset=0; m<=l; m++) {
+	  double fac2 = sqrt(fac1*factorial[l][m]);
+	  if (m==0) {
+	    out.write((char *)&(z=fac2*(*expcoef[loffset+moffset+0])[ir]), sizeof(double));
+	    moffset += 1;
+	  } else {
+	    out.write((char *)&(z=fac2*(*expcoef[loffset+moffset+0])[ir]), sizeof(double));
+	    out.write((char *)&(z=fac2*(*expcoef[loffset+moffset+1])[ir]), sizeof(double));
+	    moffset += 2;
+	  }
+	}
+      }
+    }
+
   } else {
 
     std::ostringstream sout;
@@ -1586,18 +1606,18 @@ void SphericalBasis::dump_coefs(ostream& out)
     for (int i=0; i<64; i++) {
       if (i<sout.str().length())  buf[i] = sout.str().c_str()[i];
       else                        buf[i] = '\0';
-  }
+    }
 
     out.write((char *)&buf, 64*sizeof(char));
     out.write((char *)&tnow, sizeof(double));
     out.write((char *)&scale, sizeof(double));
     out.write((char *)&nmax, sizeof(int));
     out.write((char *)&Lmax, sizeof(int));
-  }
 
-  for (int ir=1; ir<=nmax; ir++) {
-    for (int l=0; l<=Lmax*(Lmax+2); l++)
-      out.write((char *)&(*expcoef[l])[ir], sizeof(double));
+    for (int ir=1; ir<=nmax; ir++) {
+      for (int l=0; l<=Lmax*(Lmax+2); l++)
+	out.write((char *)&(*expcoef[l])[ir], sizeof(double));
+    }
   }
 
 }
