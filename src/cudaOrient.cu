@@ -70,11 +70,11 @@ __global__ void EL3Kernel
 
   for (int n=0; n<stride; n++) {
     int i = tid*stride + n;
-    int n = i + lohi.first;
+    int j = i + lohi.first;
 
-    if (n < lohi.second) {
+    if (j < lohi.second) {
 
-      cudaParticle & p = P._v[n];
+      cudaParticle & p = P._v[j];
       cudaEL3 & t = el3._v[i];
 
       cuFP_t v2 = 0.0;
