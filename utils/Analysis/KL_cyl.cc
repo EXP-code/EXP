@@ -362,6 +362,7 @@ main(int argc, char **argv)
   EmpCylSL::CACHEFILE   = CACHEFILE;
   EmpCylSL::PCAVAR      = true;
   EmpCylSL::PCADRY      = true;
+  EmpCylSL::USESVD      = true;
 
 				// Create expansion
 				//
@@ -641,6 +642,9 @@ main(int argc, char **argv)
     }
   }
 
+  double ampfac = 1.0;
+  if (nbunch0>1) ampfac = 1.0/(nbunch0 - 1);
+
   for (int nsnr=0; nsnr<NSNR; nsnr++) {
 
     // Assign the snr value
@@ -782,7 +786,7 @@ main(int argc, char **argv)
 		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
       out << std::setw(18) << snr << std::setw(18)
-	  << std::accumulate(KL.begin(), KL.end(), 0.0)
+	  << std::accumulate(KL.begin(), KL.end(), 0.0) * ampfac
 	  << std::setw(18) << ratio
 	  << std::endl;
     }
