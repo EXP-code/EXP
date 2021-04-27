@@ -2,7 +2,7 @@
  *  Description:
  *  -----------
  *
- *  Kullback-Liebler analysis for cylinder
+ *  Kullback-Leibler analysis for cylinder
  *
  *  Call sequence:
  *  -------------
@@ -176,7 +176,7 @@ main(int argc, char **argv)
      "minimum SNR value for loop output")
     ("Hexp",                po::value<double>(&Hexp)->default_value(1.0),
      "default Hall smoothing exponent")
-    ("prefix",              po::value<string>(&prefix)->default_value("KLcyl"),
+    ("prefix",              po::value<string>(&prefix)->default_value("crossval"),
      "Filename prefix")
     ("runtag",              po::value<string>(&runtag)->default_value("run1"),
      "Phase space file")
@@ -579,6 +579,23 @@ main(int argc, char **argv)
     coefs.back()->sync();
   }
   
+  // BEG TEST
+  if (myid==0 and false) {
+    int cnt = 0;
+    for (auto c : coefs) {
+      for (int mm=0; mm<=mmax; mm++) {
+	std::cout << "Coefficients for mm=" << mm
+		  << " sz=" << cnt++ << std::endl;
+	for (int n=0; n<norder; n++) {
+	  std::cout << std::setw( 4) << n
+		    << std::setw(18) << c->coefC[mm][n]
+		    << std::endl;
+	}
+      }
+    }
+  }
+  // END TEST
+
   if (myid==0) std::cout << "done" << endl;
   
   //------------------------------------------------------------ 
@@ -647,13 +664,29 @@ main(int argc, char **argv)
     for (int j=0; j<coefs.size(); j++) {
    
       for (int mm=0; mm<=mmax; mm++) {
-	ortho0.set_coefs(mm, coefs[j]->coefC[mm], coefs[j]->coefS[mm]);
+	if (mm)
+	  ortho0.set_coefs(mm, coefs[j]->coefC[mm], coefs[j]->coefS[mm], false);
+	else
+	  ortho0.set_coefs(mm, coefs[j]->coefC[mm], coefs[j]->coefS[mm], true);
       }
 
       ortho0.get_trimmed(snr, ac_cos[j], ac_sin[j]);
       if (myid==0) ++(*progress);
+
+      // BEG TEST
+      if (myid==0 and nsnr==0) {
+	std::cout << "Trim test for snr=" << snr << " cnt=" << j << std::endl;
+	for (int n=0; n<norder; n++) {
+	  std::cout << std::setw( 4) << n
+		    << std::setw(18) << coefs[j]->coefC[0][n]
+		    << std::setw(18) << ac_cos[j][0][n]
+		    << std::endl;
+	}
+      }
+      // END TEST
     }
     
+
     // Particle loop again for KL
     //
     p = psp->GetParticle();
@@ -700,8 +733,13 @@ main(int argc, char **argv)
 	    ortho0.getDensSC(mm, nn, R, z, dC, dS);
 				// Sum over all subsamples
 	    for (int j=0; j<coefs.size(); j++) {
-	      DD[j] += ac_cos[j][mm][nn]*dC*cos(phi*mm);
-	      if (mm) DD[j] += ac_sin[j][mm][nn]*dS*sin(phi*mm);
+	      if (j==ibnch) {
+		DD[j] += coefs[j]->coefC[mm][nn]*dC*cos(phi*mm);
+		if (mm) DD[j] += coefs[j]->coefS[mm][nn]*dS*sin(phi*mm);
+	      } else {
+		DD[j] += ac_cos[j][mm][nn]*dC*cos(phi*mm);
+		if (mm) DD[j] += ac_sin[j][mm][nn]*dS*sin(phi*mm);
+	      }
 	    }
 	  }
 	}
@@ -733,7 +771,7 @@ main(int argc, char **argv)
     //
     if (myid) 
       MPI_Reduce(KL.data(), 0, coefs.size(),
-	      MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (myid==0) {
       double ratio = static_cast<double>(bad)/good;

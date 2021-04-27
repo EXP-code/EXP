@@ -526,7 +526,11 @@ main(int argc, char **argv)
 
 	for (int j=0; j<coefs.size(); j++) {
 	  double t0, t1, t2, t3;
-	  ortho1.install_coefs(coefs1[j]);
+	  if (ibnch == j)
+	    ortho1.install_coefs(coefs[j]->coefs);
+	  else
+	    ortho1.install_coefs(coefs1[j]);
+
 	  ortho1.dens_pot_eval(r, costh, phi, t0, t1, t2, t3);
 	  DD[j] = t0 + t1;
 	}
