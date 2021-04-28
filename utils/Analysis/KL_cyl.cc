@@ -68,6 +68,7 @@ namespace po = boost::program_options;
 #include <massmodel.h>
 #include <EmpCylSL.h>
 #include <foarray.H>
+#include <KDtree.H>
 
 #include <localmpi.h>
 
@@ -112,13 +113,24 @@ public:
     }
   }
 
-  void sync()
+  void sync(double norm)
   {
+    MPI_Allreduce(MPI_IN_PLACE, &norm, 1,
+		  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+    if (norm <= 0.0) norm = 1.0; // Sanity check
+
     for (int m=0; m<=mmax; m++) {
       MPI_Allreduce(MPI_IN_PLACE, coefC[m].data(), nmax,
 		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      if (m) MPI_Allreduce(MPI_IN_PLACE, coefS[m].data(), nmax,
-			   MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+      for (auto & v : coefC[m]) v /= norm;
+
+      if (m) {
+	MPI_Allreduce(MPI_IN_PLACE, coefS[m].data(), nmax,
+		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	for (auto & v : coefS[m]) v /= norm;
+      }
     }
   }
 
@@ -134,7 +146,7 @@ main(int argc, char **argv)
 #endif  
   
   double RMIN, rscale, minSNR0, Hexp;
-  int NICE, LMAX, NMAX, NSNR, indx, nbunch;
+  int NICE, LMAX, NMAX, NSNR, indx, nbunch, Ndens;
   std::string CACHEFILE, dir("./"), cname, prefix;
   bool ignore;
 
@@ -166,6 +178,8 @@ main(int argc, char **argv)
      "log scaling for SNR")
     ("Hall",
      "use Hall smoothing for SNR trim")
+    ("Ndens,K",             po::value<int>(&Ndens)->default_value(0),
+     "KD density estimate count")
     ("NICE",                po::value<int>(&NICE)->default_value(0),
      "system priority")
     ("LMAX",                po::value<int>(&LMAX)->default_value(36),
@@ -362,7 +376,6 @@ main(int argc, char **argv)
   EmpCylSL::CACHEFILE   = CACHEFILE;
   EmpCylSL::PCAVAR      = true;
   EmpCylSL::PCADRY      = true;
-  EmpCylSL::USESVD      = true;
 
 				// Create expansion
 				//
@@ -470,6 +483,8 @@ main(int argc, char **argv)
       
   int nbod = psp->GetNamed(cname)->comp.nbod;
 
+  std::vector<double> KDdens;
+
   boost::shared_ptr<boost::progress_display> progress;
   if (myid==0) {
     std::cout << std::endl
@@ -500,6 +515,50 @@ main(int argc, char **argv)
   } while (p);
   
     
+  if (Ndens) {
+    if (myid==0) std::cout << "Computing KD density estimate for " << nbod
+			   << " points" << std::endl;
+
+    typedef point <double, 3> point3;
+    typedef kdtree<double, 3> tree3;
+
+    std::vector<point3> points;
+
+    double KDmass = 0.0;
+    for (auto part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
+      double ms = part->mass();
+      KDmass += ms;
+      points.push_back(point3({part->pos(0), part->pos(1), part->pos(2)}, ms));
+    }
+    
+    tree3 tree(points.begin(), points.end());
+    
+    KDdens.resize(nbod, 0.0);
+
+    int badVol = 0;
+
+    for (int k=0; k<points.size(); k++) {
+      if (k % numprocs == myid) {
+	auto ret = tree.nearestList(points[k], Ndens);
+	double enclosed = 0.0;
+	for (auto pp : std::get<0>(ret)) enclosed += pp.mass();
+	double volume = 4.0*M_PI/3.0*std::pow(std::get<1>(ret), 3.0);
+	if (volume>0.0 and enclosed>0.0) KDdens[k] = enclosed/volume/KDmass;
+	else badVol++;
+      }
+    }
+
+    MPI_Allreduce(MPI_IN_PLACE, KDdens.data(), nbod,
+		  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+    if (myid==0) {
+      std::cout << "Finished KD density estimate with " << badVol
+		<< " undetermined densities" << std::endl;
+      std::cout << "A few densities are: " << KDdens.front()
+		<< ", " << KDdens[nbod/2] << ", " << KDdens.back() << std::endl;
+    }
+  }
+  
   //------------------------------------------------------------ 
       
   if (myid==0) cout << "Making coefficients for total . . . " << flush;
@@ -517,6 +576,9 @@ main(int argc, char **argv)
 				// Number of bunches
   int nbunch0 = nbod/nbunch1;
 
+  double ampfac = 1.0;
+  if (nbunch0 > 1) ampfac = 1.0/(nbunch0 - 1);
+
   p = psp->GetParticle();
   icnt = 0;
     
@@ -525,6 +587,8 @@ main(int argc, char **argv)
   if (myid==0) {
     progress = boost::make_shared<boost::progress_display>(nbunch0*nbunch1);
   }
+
+  double curMass = 0.0;
 
   do {
     if (myid==0) ++(*progress);
@@ -544,11 +608,12 @@ main(int argc, char **argv)
 	  ortho1.get_coefs(mm,
 			   coefs.back()->coefC[mm],
 			   coefs.back()->coefS[mm]);
-	  coefs.back()->sync();
+	  coefs.back()->sync(curMass);
 	}
       }
       coefs.push_back(boost::make_shared<CoefStruct>(mmax, norder));
       ortho1.setup_accumulation();
+      curMass = 0.0;
     }
     
 				// Particle accumulation
@@ -562,6 +627,8 @@ main(int argc, char **argv)
       // Thread id -----------------------------------------------+  |  |
       // Level ------------------------------------------------------+  |
       // Compute covariance --------------------------------------------+
+
+      curMass += p->mass();	// Accumulate mass per bunch
     }
     p = psp->NextParticle();
   } while (p);
@@ -577,26 +644,9 @@ main(int argc, char **argv)
     ortho1.get_coefs(mm,
 		     coefs.back()->coefC[mm],
 		     coefs.back()->coefS[mm]);
-    coefs.back()->sync();
+    coefs.back()->sync(curMass);
   }
   
-  // BEG TEST
-  if (myid==0 and false) {
-    int cnt = 0;
-    for (auto c : coefs) {
-      for (int mm=0; mm<=mmax; mm++) {
-	std::cout << "Coefficients for mm=" << mm
-		  << " sz=" << cnt++ << std::endl;
-	for (int n=0; n<norder; n++) {
-	  std::cout << std::setw( 4) << n
-		    << std::setw(18) << c->coefC[mm][n]
-		    << std::endl;
-	}
-      }
-    }
-  }
-  // END TEST
-
   if (myid==0) std::cout << "done" << endl;
   
   //------------------------------------------------------------ 
@@ -642,9 +692,6 @@ main(int argc, char **argv)
     }
   }
 
-  double ampfac = 1.0;
-  if (nbunch0>1) ampfac = 1.0/(nbunch0 - 1);
-
   for (int nsnr=0; nsnr<NSNR; nsnr++) {
 
     // Assign the snr value
@@ -668,29 +715,13 @@ main(int argc, char **argv)
     for (int j=0; j<coefs.size(); j++) {
    
       for (int mm=0; mm<=mmax; mm++) {
-	if (mm)
-	  ortho0.set_coefs(mm, coefs[j]->coefC[mm], coefs[j]->coefS[mm], false);
-	else
-	  ortho0.set_coefs(mm, coefs[j]->coefC[mm], coefs[j]->coefS[mm], true);
+	ortho0.set_coefs(mm, coefs[j]->coefC[mm], coefs[j]->coefS[mm]);
       }
 
       ortho0.get_trimmed(snr, ac_cos[j], ac_sin[j]);
       if (myid==0) ++(*progress);
-
-      // BEG TEST
-      if (myid==0 and nsnr==0) {
-	std::cout << "Trim test for snr=" << snr << " cnt=" << j << std::endl;
-	for (int n=0; n<norder; n++) {
-	  std::cout << std::setw( 4) << n
-		    << std::setw(18) << coefs[j]->coefC[0][n]
-		    << std::setw(18) << ac_cos[j][0][n]
-		    << std::endl;
-	}
-      }
-      // END TEST
     }
     
-
     // Particle loop again for KL
     //
     p = psp->GetParticle();
@@ -704,6 +735,7 @@ main(int argc, char **argv)
     std::vector<double> KL(coefs.size(), 0.0), DD(coefs.size());
 
     unsigned good = 0, bad = 0;
+    double tmas = 0.0;
 
     if (myid==0) {
       progress = boost::make_shared<boost::progress_display>(nbunch0*nbunch1);
@@ -738,8 +770,8 @@ main(int argc, char **argv)
 				// Sum over all subsamples
 	    for (int j=0; j<coefs.size(); j++) {
 	      if (j==ibnch) {
-		DD[j] += coefs[j]->coefC[mm][nn]*dC*cos(phi*mm);
-		if (mm) DD[j] += coefs[j]->coefS[mm][nn]*dS*sin(phi*mm);
+		DD[j] += ac_cos[j][mm][nn]*dC*cos(phi*mm);
+		if (mm) DD[j] += ac_sin[j][mm][nn]*dS*sin(phi*mm);
 	      } else {
 		DD[j] += ac_cos[j][mm][nn]*dC*cos(phi*mm);
 		if (mm) DD[j] += ac_sin[j][mm][nn]*dS*sin(phi*mm);
@@ -749,14 +781,24 @@ main(int argc, char **argv)
 	}
 
 	for (int j=0; j<coefs.size(); j++) {
-	  if (DD[ibnch]>0.0 and DD[j]>0.0) {
-	    KL[ibnch] += p->mass() * log(DD[ibnch]/DD[j]);
-	    good++;
+	  if (Ndens) {
+	    if (KDdens[j]>0.0 and DD[j]>0.0) {
+	      KL[ibnch] += p->mass() * log(KDdens[j]/DD[j]);
+	      good++;
+	    } else {
+	      bad++;
+	    }
 	  } else {
-	    bad++;
+	    if (DD[ibnch]>0.0 and DD[j]>0.0) {
+	      KL[ibnch] += p->mass() * log(DD[ibnch]/DD[j]);
+	      good++;
+	    } else {
+	      bad++;
+	    }
 	  }
 	}
 
+	tmas += p->mass();
       }
       p = psp->NextParticle();
     } while (p);
@@ -766,28 +808,33 @@ main(int argc, char **argv)
     if (myid) {
       MPI_Reduce(&good, 0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
       MPI_Reduce(&bad , 0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(&tmas, 0, 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
     } else {
       MPI_Reduce(MPI_IN_PLACE, &good, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
       MPI_Reduce(MPI_IN_PLACE, &bad , 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(MPI_IN_PLACE, &tmas, 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
     }
 
     // Sum reduce KL from all processes
     //
-    if (myid) 
+    if (myid) {
       MPI_Reduce(KL.data(), 0, coefs.size(),
 		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    }
 
     if (myid==0) {
       double ratio = static_cast<double>(bad)/good;
       std::cout << std::endl << "Bad/good density counts ["
 		<< bad << "/" << good << "=" << ratio << "]" << std::endl;
+      double corr = log(1.0 + ratio);
 
       MPI_Reduce(MPI_IN_PLACE, KL.data(), coefs.size(),
 		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
       out << std::setw(18) << snr << std::setw(18)
-	  << std::accumulate(KL.begin(), KL.end(), 0.0) * ampfac
+	  << std::accumulate(KL.begin(), KL.end(), 0.0) * ampfac/tmas + corr
 	  << std::setw(18) << ratio
+	  << std::setw(18) << corr
 	  << std::endl;
     }
 

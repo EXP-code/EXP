@@ -2,7 +2,7 @@
  *  Description:
  *  -----------
  *
- *  Kullback-Liebler analysis for sphere
+ *  Kullback-Leibler analysis for sphere
  *
  *  Call sequence:
  *  -------------
@@ -68,6 +68,7 @@ namespace po = boost::program_options;
 #include <massmodel.h>
 #include <SphereSL.H>
 #include <foarray.H>
+#include <KDtree.H>
 
 #include <localmpi.h>
 
@@ -108,11 +109,17 @@ public:
     ret.zero();
   }
 
-  void sync()
+  void sync(double norm)
   {
+    MPI_Allreduce(MPI_IN_PLACE, &norm, 1,
+		  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+    if (norm <= 0.0) norm = 1.0; // Sanity check
+    
     for (int l=0; l<(lmax+1)*(lmax+1); l++) {
       MPI_Allreduce(MPI_IN_PLACE, &coefs[l][1], nmax,
 		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      coefs[l] /= norm;		// Apply the normalization
     }
   }
 
@@ -128,7 +135,7 @@ main(int argc, char **argv)
 #endif  
   
   double RMIN, rscale, minSNR0, Hexp;
-  int NICE, LMAX, NMAX, NSNR, indx, nbunch;
+  int NICE, LMAX, NMAX, NSNR, indx, nbunch, Ndens;
   std::string modelf, dir("./"), cname, prefix;
   bool ignore;
 
@@ -160,6 +167,8 @@ main(int argc, char **argv)
      "log scaling for SNR")
     ("Hall",
      "use Hall smoothing for SNR trim")
+    ("Ndens,K",             po::value<int>(&Ndens)->default_value(0),
+     "KD density estimate count")
     ("NICE",                po::value<int>(&NICE)->default_value(0),
      "system priority")
     ("LMAX",                po::value<int>(&LMAX)->default_value(8),
@@ -340,6 +349,8 @@ main(int argc, char **argv)
   //
   ortho0.reset_coefs();
 
+  std::vector<double> KDdens;
+
   boost::shared_ptr<boost::progress_display> progress;
   if (myid==0) {
     progress = boost::make_shared<boost::progress_display>(nbod);
@@ -357,6 +368,50 @@ main(int argc, char **argv)
   } while (p);
   
     
+  if (Ndens) {
+    if (myid==0) std::cout << "Computing KD density estimate for " << nbod
+			   << " points" << std::endl;
+
+    typedef point <double, 3> point3;
+    typedef kdtree<double, 3> tree3;
+
+    std::vector<point3> points;
+
+    double KDmass = 0.0;
+    for (auto part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
+      double ms = part->mass();
+      KDmass += ms;
+      points.push_back(point3({part->pos(0), part->pos(1), part->pos(2)}, ms));
+    }
+    
+    tree3 tree(points.begin(), points.end());
+    
+    KDdens.resize(nbod, 0.0);
+
+    int badVol = 0;
+
+    for (int k=0; k<points.size(); k++) {
+      if (k % numprocs == myid) {
+	auto ret = tree.nearestList(points[k], Ndens);
+	double enclosed = 0.0;
+	for (auto pp : std::get<0>(ret)) enclosed += pp.mass();
+	double volume = 4.0*M_PI/3.0*std::pow(std::get<1>(ret), 3.0);
+	if (volume>0.0 and enclosed>0.0) KDdens[k] = enclosed/volume/KDmass;
+	else badVol++;
+      }
+    }
+
+    MPI_Allreduce(MPI_IN_PLACE, KDdens.data(), nbod,
+		  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+    if (myid==0) {
+      std::cout << "Finished KD density estimate with " << badVol
+		<< " undetermined densities" << std::endl;
+      std::cout << "A few densities are: " << KDdens.front()
+		<< ", " << KDdens[nbod/2] << ", " << KDdens.back() << std::endl;
+    }
+  }
+
   //------------------------------------------------------------ 
       
   if (myid==0) std::cout << std::endl
@@ -389,6 +444,8 @@ main(int argc, char **argv)
     progress = boost::make_shared<boost::progress_display>(nbunch0*nbunch1);
   }
 
+  double curMass = 0.0;
+
   do {
     if (myid==0) ++(*progress);
 				// Done processing
@@ -404,15 +461,17 @@ main(int argc, char **argv)
       if (coefs.size()) {
 	ortho1.make_coefs();
 	coefs.back()->coefs = ortho1.retrieve_coefs();
-	coefs.back()->sync();
+	coefs.back()->sync(curMass);
       }
       coefs.push_back(boost::make_shared<CoefStruct>(LMAX, NMAX));
       ortho1.reset_coefs();
+      curMass = 0.0;
     }
     
 				// Particle accumulation
     if (icnt++ % numprocs == myid) {
       ortho1.accumulate(p->pos(0), p->pos(1), p->pos(2), p->mass());
+      curMass += p->mass();
     }
     p = psp->NextParticle();
   } while (p);
@@ -425,7 +484,7 @@ main(int argc, char **argv)
 
   ortho1.make_coefs();
   coefs.back()->coefs = ortho1.retrieve_coefs();
-  coefs.back()->sync();
+  coefs.back()->sync(curMass);
 
   if (myid==0) std::cout << "done" << endl;
   
@@ -502,6 +561,7 @@ main(int argc, char **argv)
     std::vector<double> KL(coefs.size(), 0.0), DD(coefs.size());
 
     unsigned good = 0, bad = 0;
+    double tmas = 0.0;
 
     if (myid==0) {
       progress = boost::make_shared<boost::progress_display>(nbunch0*nbunch1);
@@ -539,14 +599,24 @@ main(int argc, char **argv)
 	}
 
 	for (int j=0; j<coefs.size(); j++) {
-	  if (DD[ibnch]>0.0 and DD[j]>0.0) {
-	    KL[ibnch] += p->mass() * log(DD[ibnch]/DD[j]);
-	    good++;
+	  if (Ndens) {
+	    if (KDdens[j]>0.0 and DD[j]>0.0) {
+	      KL[ibnch] += p->mass() * log(KDdens[j]/DD[j]);
+	      good++;
+	    } else {
+	      bad++;
+	    }
 	  } else {
-	    bad++;
+	    if (DD[ibnch]>0.0 and DD[j]>0.0) {
+	      KL[ibnch] += p->mass() * log(DD[ibnch]/DD[j]);
+	      good++;
+	    } else {
+	      bad++;
+	    }
 	  }
 	}
 
+	tmas += p->mass();
       }
       p = psp->NextParticle();
     } while (p);
@@ -556,9 +626,11 @@ main(int argc, char **argv)
     if (myid) {
       MPI_Reduce(&good, 0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
       MPI_Reduce(&bad , 0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(&tmas, 0, 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
     } else {
       MPI_Reduce(MPI_IN_PLACE, &good, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
       MPI_Reduce(MPI_IN_PLACE, &bad , 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(MPI_IN_PLACE, &tmas, 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
     }
 
     // Sum reduce KL from all processes
@@ -571,13 +643,15 @@ main(int argc, char **argv)
       double ratio = static_cast<double>(bad)/good;
       std::cout << std::endl << "Bad/good density counts ["
 		<< bad << "/" << good << "=" << ratio << "]" << std::endl;
+      double corr = log(1.0 + ratio);
 
       MPI_Reduce(MPI_IN_PLACE, KL.data(), coefs.size(),
 		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
       out << std::setw(18) << snr << std::setw(18)
-	  << std::accumulate(KL.begin(), KL.end(), 0.0) * ampfac
+	  << std::accumulate(KL.begin(), KL.end(), 0.0) * ampfac/tmas + corr
 	  << std::setw(18) << ratio
+	  << std::setw(18) << corr
 	  << std::endl;
     }
 

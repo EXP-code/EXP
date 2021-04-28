@@ -6,8 +6,7 @@
 #include <tuple>
 #include <map>
 
-// Wrapper class for std::map to keep a finite size
-//
+//! Wrapper class for std::map to keep a finite size
 template<typename key_t, typename value_t>
 class Cache : public std::map<key_t, value_t>
 {
@@ -29,29 +28,32 @@ private:
 };
 
 
-// Class for representing a point
-// Coordinate_type must be a numeric type
+/** Class for representing a point
+    Coordinate_type must be a numeric type
+    Field (weight) is a double
+*/
 template<typename coordinate_type, size_t dimensions>
 class point
 {
 public:
-  // Null initializer
+  //! Null initializer
   point() {}
   
-  // Main constructor
-  point(std::array<coordinate_type, dimensions> c) : coords_(c) {}
+  //! Constructor
+  point(std::array<coordinate_type, dimensions> c, double m=1) : coords_(c), mass_(m) {}
   
-  // List constructor
-  point(std::initializer_list<coordinate_type> list)
+  //! List constructor
+  point(std::initializer_list<coordinate_type> list, double m=1) : mass_(m)
   {
     size_t n = std::min(dimensions, list.size());
     std::copy_n(list.begin(), n, coords_.begin());
   }
 
-  // Copy constructor
+  //! Copy constructor
   point(const point& p)
   {
     for (size_t n=0; n<dimensions; n++) coords_[n] = p.coords_[n];
+    mass_ = p.mass_;
   }
 
   /**
@@ -82,12 +84,18 @@ public:
       }
     return dist;
   }
+
+  double mass() const
+  {
+    return mass_;
+  }
+
 private:
   std::array<coordinate_type, dimensions> coords_;
+  double mass_;
 };
 
-// For iostream printing of points
-//
+//! For iostream printing of points
 template<typename coordinate_type, size_t dimensions>
 std::ostream& operator<<(std::ostream& out,
 			 const point<coordinate_type, dimensions>& pt)
@@ -101,8 +109,7 @@ std::ostream& operator<<(std::ostream& out,
   return out;
 }
 
-// k-d tree implementation
-//
+//! k-d tree implementation
 template<typename coordinate_type, size_t dimensions>
 class kdtree
 {
@@ -185,7 +192,7 @@ private:
   
 public:
   //@{
-  // Copy constructor2
+  //! Copy constructor2
   kdtree(const kdtree&) = delete;
   kdtree& operator=(const kdtree&) = delete;
   //@}
@@ -254,11 +261,14 @@ public:
   }
   
   /**
-   * Finds the nearest point in the tree to the given point.
-   * It is not valid to call this function if the tree is empty.
+   * Finds the nearest N points in the tree to the given point.  It is
+   * not valid to call this function if the tree is empty.
    *
    * @param pt a point
-   * @param the nearest point in the tree to the given point
+   * @param N is the number of nearest points
+   *
+   * Returns: tuple of the first two points and the radius of the Nth
+   * point
    */
   std::tuple<point_type, point_type, double>
   nearestN(const point_type& pt, int N)
@@ -277,6 +287,38 @@ public:
     std::get<0>(ret) = best_.begin()->second->point_;
     std::get<1>(ret) = (best_.begin()++)->second->point_;
     std::get<2>(ret) = std::sqrt(best_.rbegin()->first);
+    return ret;
+#endif
+  }
+
+  /**
+   * Finds the nearest N points in the tree to the given point.  It is
+   * not valid to call this function if the tree is empty.
+   *
+   * @param pt a point
+   * @param N is the number of nearest points
+
+   * Returns: tuple of the nearest point list and the radius of the
+   * Nth point
+   */
+  std::tuple<std::vector<point_type>, double>
+  nearestList(const point_type& pt, int N)
+  {
+    if (root_ == nullptr) throw std::logic_error("tree is empty");
+    best_.clear();
+    best_.resize(N);
+    visited_ = 0;
+    nearestN(root_, pt, 0, N);
+
+    std::vector<point_type> pts; // The returned point list
+    for (auto b : best_) pts.push_back(b.second->point_);
+
+#if __GNUC__ > 6
+    return {pts, std::sqrt(best_.rbegin()->first)};
+#else
+    std::tuple<std::vector<point_type>, double> ret;
+    std::get<0>(ret) = pts;
+    std::get<1>(ret) = std::sqrt(best_.rbegin()->first);
     return ret;
 #endif
   }
