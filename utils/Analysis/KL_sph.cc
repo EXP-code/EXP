@@ -167,8 +167,8 @@ main(int argc, char **argv)
      "log scaling for SNR")
     ("Hall",
      "use Hall smoothing for SNR trim")
-    ("Ndens,K",             po::value<int>(&Ndens)->default_value(0),
-     "KD density estimate count")
+    ("Ndens,K",             po::value<int>(&Ndens)->default_value(32),
+     "KD density estimate count (use 0 for expansion estimate)")
     ("NICE",                po::value<int>(&NICE)->default_value(0),
      "system priority")
     ("LMAX",                po::value<int>(&LMAX)->default_value(8),
