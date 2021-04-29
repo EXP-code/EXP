@@ -156,7 +156,7 @@ main(int argc, char **argv)
   
   std::ostringstream sout;
   sout << std::string(60, '-') << std::endl
-       << "Kullback-Liebler analysis for cylindrical models" << std::endl
+       << "Kullback-Leibler analysis for cylindrical models" << std::endl
        << std::string(60, '-') << std::endl << std::endl
        << "Allowed options";
   
@@ -539,11 +539,10 @@ main(int argc, char **argv)
 
     for (int k=0; k<points.size(); k++) {
       if (k % numprocs == myid) {
-	auto ret = tree.nearestList(points[k], Ndens);
-	double enclosed = 0.0;
-	for (auto pp : std::get<0>(ret)) enclosed += pp.mass();
-	double volume = 4.0*M_PI/3.0*std::pow(std::get<1>(ret), 3.0);
-	if (volume>0.0 and enclosed>0.0) KDdens[k] = enclosed/volume/KDmass;
+	auto ret = tree.nearestN(points[k], Ndens);
+	double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
+	if (volume>0.0 and KDmass>0.0)
+	  KDdens[k] = std::get<1>(ret)/volume/KDmass;
 	else badVol++;
       }
     }
@@ -754,7 +753,7 @@ main(int argc, char **argv)
       if (icnt > 0 and icnt % nbunch1 == 0) ibnch++;
       
 				// Particle accumulation
-      if (icnt++ % numprocs == myid) {
+      if (icnt % numprocs == myid) {
 
 				// Compute density basis for each particle
 	double R   = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
@@ -781,10 +780,22 @@ main(int argc, char **argv)
 	}
 
 	for (int j=0; j<coefs.size(); j++) {
+	  if (j==ibnch) continue;
 	  if (Ndens) {
-	    if (KDdens[j]>0.0 and DD[j]>0.0) {
-	      KL[ibnch] += p->mass() * log(KDdens[j]/DD[j]);
+	    if (KDdens[icnt]>0.0 and DD[j]>0.0) {
+	      KL[ibnch] += p->mass() * log(KDdens[icnt]/DD[j]);
 	      good++;
+	      {
+		static int jcnt=0;
+		if (myid==0 and j==0) {
+		  if (jcnt++ < 30) {
+		    std::cout << "DENS: "
+			      << std::setw(18) << KDdens[icnt]
+			      << std::setw(18) << DD[j]
+			      << std::endl;
+		  }
+		}
+	      }
 	    } else {
 	      bad++;
 	    }
@@ -801,6 +812,7 @@ main(int argc, char **argv)
 	tmas += p->mass();
       }
       p = psp->NextParticle();
+      icnt++;
     } while (p);
     
     // For diagnostic output
