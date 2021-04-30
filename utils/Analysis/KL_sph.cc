@@ -111,16 +111,19 @@ public:
 
   void sync(double norm)
   {
+    // Sum the norm from all processes
+    //
     MPI_Allreduce(MPI_IN_PLACE, &norm, 1,
 		  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-    if (norm <= 0.0) norm = 1.0; // Sanity check
+    // Sanity check
+    //
+    if (norm <= 0.0) norm = 1.0;
     
-    for (int l=0; l<(lmax+1)*(lmax+1); l++) {
-      MPI_Allreduce(MPI_IN_PLACE, &coefs[l][1], nmax,
-		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      coefs[l] /= norm;		// Apply the normalization
-    }
+    // Apply the normalization
+    //
+    for (int l=0; l<(lmax+1)*(lmax+1); l++) coefs[l] /= norm;
+
   }
 
 };
@@ -145,7 +148,7 @@ main(int argc, char **argv)
   
   std::ostringstream sout;
   sout << std::string(60, '-') << std::endl
-       << "Kullback-Liebler analysis for spherical models" << std::endl
+       << "Kullback-Leibler analysis for spherical models" << std::endl
        << std::string(60, '-') << std::endl << std::endl
        << "Allowed options";
   
@@ -368,6 +371,8 @@ main(int argc, char **argv)
   } while (p);
   
     
+  // This is the kd- NN density estimate; skipped by default for Ndens=0
+  //
   if (Ndens) {
     if (myid==0) std::cout << "Computing KD density estimate for " << nbod
 			   << " points" << std::endl;
@@ -377,6 +382,9 @@ main(int argc, char **argv)
 
     std::vector<point3> points;
 
+    // Every node needs to make the tree (a parallel share could be
+    // implemented in KDtree.H)
+    //
     double KDmass = 0.0;
     for (auto part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
       double ms = part->mass();
@@ -390,13 +398,14 @@ main(int argc, char **argv)
 
     int badVol = 0;
 
+    // Share the density computation among the nodes
+    //
     for (int k=0; k<points.size(); k++) {
       if (k % numprocs == myid) {
-	auto ret = tree.nearestList(points[k], Ndens);
-	double enclosed = 0.0;
-	for (auto pp : std::get<0>(ret)) enclosed += pp.mass();
-	double volume = 4.0*M_PI/3.0*std::pow(std::get<1>(ret), 3.0);
-	if (volume>0.0 and enclosed>0.0) KDdens[k] = enclosed/volume/KDmass;
+	auto ret = tree.nearestN(points[k], Ndens);
+	double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
+	if (volume>0.0 and KDmass>0.0)
+	  KDdens[k] = std::get<1>(ret)/volume/KDmass;
 	else badVol++;
       }
     }
@@ -406,7 +415,7 @@ main(int argc, char **argv)
 
     if (myid==0) {
       std::cout << "Finished KD density estimate with " << badVol
-		<< " undetermined densities" << std::endl;
+		<< " undetermined densities, mass=" << KDmass << std::endl;
       std::cout << "A few densities are: " << KDdens.front()
 		<< ", " << KDdens[nbod/2] << ", " << KDdens.back() << std::endl;
     }
@@ -435,6 +444,7 @@ main(int argc, char **argv)
   double ampfac = 1.0;
   if (nbunch0 > 1) ampfac = 1.0/(nbunch0 - 1);
 
+				// Reset the particle iterator
   p = psp->GetParticle();
   icnt = 0;
     
@@ -468,7 +478,8 @@ main(int argc, char **argv)
       curMass = 0.0;
     }
     
-				// Particle accumulation
+				// Particle accumulation is spread
+				// between nodes
     if (icnt++ % numprocs == myid) {
       ortho1.accumulate(p->pos(0), p->pos(1), p->pos(2), p->mass());
       curMass += p->mass();
@@ -488,6 +499,17 @@ main(int argc, char **argv)
 
   if (myid==0) std::cout << "done" << endl;
   
+  // This is a debug test
+  if (myid==0) {
+    std::ofstream test(prefix + ".coeftest");
+    for (int n=1; n<=NMAX; n++) {
+      test << std::setw(4) << n;
+      for (auto & c : coefs)
+	test << std::setw(18) << c->coefs[0][n];
+      test << std::endl;
+    }
+  }
+
   //------------------------------------------------------------ 
     
   if (myid==0) cout << "Beginning SNR loop . . ." << std::endl;
@@ -580,13 +602,14 @@ main(int argc, char **argv)
       if (icnt > 0 and icnt % nbunch1 == 0) ibnch++;
       
 				// Particle accumulation
-      if (icnt++ % numprocs == myid) {
+      if (icnt % numprocs == myid) {
 
 				// Compute density for each particle
 	double r     = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1) + p->pos(2)*p->pos(2));
 	double costh = p->pos(2)/(r + 1.0e-18);
 	double phi   = atan2(p->pos(1), p->pos(1));
 
+				// Make the density for each bunch
 	for (int j=0; j<coefs.size(); j++) {
 	  double t0, t1, t2, t3;
 	  if (ibnch == j)
@@ -599,10 +622,22 @@ main(int argc, char **argv)
 	}
 
 	for (int j=0; j<coefs.size(); j++) {
+	  if (j==ibnch) continue;
 	  if (Ndens) {
-	    if (KDdens[j]>0.0 and DD[j]>0.0) {
-	      KL[ibnch] += p->mass() * log(KDdens[j]/DD[j]);
+	    if (KDdens[icnt]>0.0 and DD[j]>0.0) {
+	      KL[ibnch] += p->mass() * log(KDdens[icnt]/DD[j]);
 	      good++;
+	      if (false) {
+		static int jcnt=0;
+		if (myid==0 and j==0) {
+		  if (jcnt++ < 30) {
+		    std::cout << "DENS: "
+			      << std::setw(18) << KDdens[icnt]
+			      << std::setw(18) << DD[j]
+			      << std::endl;
+		  }
+		}
+	      }
 	    } else {
 	      bad++;
 	    }
@@ -618,7 +653,10 @@ main(int argc, char **argv)
 
 	tmas += p->mass();
       }
+      // END: parallelized work
+      
       p = psp->NextParticle();
+      icnt++;
     } while (p);
     
     // For diagnostic output
@@ -639,6 +677,8 @@ main(int argc, char **argv)
       MPI_Reduce(KL.data(), 0, coefs.size(),
 	      MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
+    // Root node records results
+    //
     if (myid==0) {
       double ratio = static_cast<double>(bad)/good;
       std::cout << std::endl << "Bad/good density counts ["
@@ -654,6 +694,7 @@ main(int argc, char **argv)
 	  << std::setw(18) << corr
 	  << std::endl;
     }
+    // END: root node records results
 
   }
   // END: SNR loop
