@@ -144,9 +144,10 @@ yaml_diff_SOURCES = yaml_diff.cc
 yaml_diff_LDFLAGS = $(BOOST_LDFLAGS)
 yaml_diff_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB) $(YAML)
 
-kdtest_SOURCES = KDcyltest.cc PSP.cc header.cc
-kdtest_LDFLAGS = $(BOOST_LDFLAGS)
-kdtest_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB) $(YAML)
+kdtest_SOURCES = KDcyltest.cc PSP.cc header.cc EmpCylSL.cc	\
+localmpi.cc Particle.cc
+kdtest_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
+kdtest_LDADD   = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB) $(YAML)
 
 EmpCylSL.cc:	$(top_srcdir)/src/EmpCylSL.cc
 	cp $(top_srcdir)/src/$@ .
