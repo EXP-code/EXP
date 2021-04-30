@@ -288,7 +288,7 @@ main(int ac, char **av)
 
 	  double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
 	  if (volume>0.0)
-	    dens->InsertNextValue(mass[k]*Ndens/volume);
+	    dens->InsertNextValue(std::get<1>(ret)/volume);
 	  else
 	    dens->InsertNextValue(1.0e-18);
 	}

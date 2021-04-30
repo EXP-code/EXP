@@ -29,7 +29,7 @@ bin_PROGRAMS = diskprof haloprof haloprof2 slabprof psphisto gas2d	\
 gas2dcyl makegrid pspbox eofpeek diskprof2 pcatest diskprof3		\
 mssaprofD mssaprofH readcoefs readcoefs2 pcatest diskprof4 sphprof	\
 yaml_diff diskfreqs pspxval_sph pspxval_cyl pspxval_cyl2 diskeof	\
-pspKL_sph pspKL_cyl
+pspKL_sph pspKL_cyl kdtest
 
 diskprof_SOURCES = PSP.cc header.cc diskprof.cc EmpCylSL.cc localmpi.cc Particle.cc
 diskprof_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
@@ -141,8 +141,12 @@ diskeof_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS)
 diskeof_LDADD    = $(EXPLIBS)
 
 yaml_diff_SOURCES = yaml_diff.cc
-yaml_diff_LDFLAGS   = $(BOOST_LDFLAGS)
+yaml_diff_LDFLAGS = $(BOOST_LDFLAGS)
 yaml_diff_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB) $(YAML)
+
+kdtest_SOURCES = KDcyltest.cc PSP.cc header.cc
+kdtest_LDFLAGS = $(BOOST_LDFLAGS)
+kdtest_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB) $(YAML)
 
 EmpCylSL.cc:	$(top_srcdir)/src/EmpCylSL.cc
 	cp $(top_srcdir)/src/$@ .
