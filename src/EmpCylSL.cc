@@ -72,8 +72,8 @@ double   EmpCylSL::RMAX            = 20.0;
 double   EmpCylSL::HFAC            = 0.2;
 double   EmpCylSL::PPOW            = 4.0;
 string   EmpCylSL::CACHEFILE       = ".eof.cache.file";
-bool     EmpCylSL::NewCache        = false;
-bool     EmpCylSL::NewCoefs        = false;
+bool     EmpCylSL::NewCache        = true;
+bool     EmpCylSL::NewCoefs        = true;
  
 
 EmpCylSL::EmpModel EmpCylSL::mtype = Exponential;
