@@ -14,6 +14,7 @@
  *  Returns:
  *  -------
  *
+ *  Output matrix file for Gnuplot
  *
  *  Notes:
  *  -----
@@ -96,7 +97,7 @@ main(int argc, char **argv)
 #endif  
   
   double RMIN, rscale, minSNR0, Hexp, ROUT, ZOUT;
-  int NICE, LMAX, NMAX, NSNR, indx, nbunch, Ndens, NOUT;
+  int NICE, LMAX, NMAX, NSNR, indx, nbunch, Ndens, NOUT, NPHI;
   std::string CACHEFILE, dir("./"), cname, prefix;
   bool ignore;
 
@@ -128,6 +129,8 @@ main(int argc, char **argv)
      "Maximum radius for output")
     ("ZOUT",                po::value<double>(&ZOUT)->default_value(0.01),
      "Maximum height for output")
+    ("NPHI",                po::value<int>(&NPHI)->default_value(16),
+     "Number of azimuthal bins")
     ("prefix",              po::value<string>(&prefix)->default_value("kdtest"),
      "Filename prefix")
     ("runtag",              po::value<string>(&runtag)->default_value("run1"),
@@ -176,20 +179,6 @@ main(int argc, char **argv)
   bool SPL = false;
   if (vm.count("SPL")) SPL = true;
   if (vm.count("OUT")) SPL = false;
-
-  bool LOG = false;
-  if (vm.count("LOG")) {
-    LOG = true;
-  }
-
-  bool Hall = false;
-  if (vm.count("Hall")) Hall = true;
-
-  bool verbose = false;
-  if (vm.count("verbose")) verbose = true;
-
-  bool debug = false;
-  if (vm.count("debug")) debug = true;
 
   // ==================================================
   // Nice process
@@ -293,6 +282,8 @@ main(int argc, char **argv)
 	in.read((char *)&rscale,  sizeof(double));
 	in.read((char *)&vscale,  sizeof(double));
 
+	std::cout << "idens=" << idens << std::endl;
+
 	if (idens) DENS = true;
       }
     }
@@ -307,15 +298,11 @@ main(int argc, char **argv)
   EmpCylSL::logarithmic = logl;
   EmpCylSL::DENS        = DENS;
   EmpCylSL::CACHEFILE   = CACHEFILE;
-  EmpCylSL::PCAVAR      = false;
-  EmpCylSL::PCADRY      = false;
 
 				// Create expansion
 				//
   EmpCylSL ortho(NMAX, LMAX, mmax, norder, rscale, vscale);
     
-				// Set smoothing type to Truncate or
-				// Hall (default)
   PSPptr psp;
   
   if (ortho.read_cache()==0) {
@@ -402,8 +389,6 @@ main(int argc, char **argv)
       
   int nbod = psp->GetNamed(cname)->comp.nbod;
 
-  std::vector<double> KDdens;
-
   boost::shared_ptr<boost::progress_display> progress;
   if (myid==0) {
     std::cout << std::endl
@@ -423,12 +408,7 @@ main(int argc, char **argv)
     if (icnt++ % numprocs == myid) {
       double R   = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
       double phi = atan2(p->pos(1), p->pos(0));
-      ortho.accumulate(R, p->pos(2), phi, p->mass(), p->indx(), 0, 0, false);
-      //                                                        ^  ^  ^
-      //                                                        |  |  |
-      // Thread id ---------------------------------------------+  |  |
-      // Level ----------------------------------------------------+  |
-      // Compute covariance ------------------------------------------+
+      ortho.accumulate(R, p->pos(2), phi, p->mass(), p->indx(), 0);
     }
     p = psp->NextParticle();
   } while (p);
@@ -456,38 +436,94 @@ main(int argc, char **argv)
     points.push_back(point3({part->pos(0), part->pos(1), part->pos(2)}, ms));
   }
     
+  // Make the k-d tree
+  //
   tree3 tree(points.begin(), points.end());
     
-  KDdens.resize(nbod, 0.0);
+  // Field storage for parallel reduction
+  //
+  std::vector<double> kdens(NOUT*NOUT), odens(NOUT*NOUT), opot(NOUT*NOUT);
+  std::fill(kdens.begin(), kdens.end(), 0.0);
+  std::fill(odens.begin(), odens.end(), 0.0);
+  std::fill(opot.begin(),  opot.end(),  0.0);
 
   if (myid==0) {
+    std::cout << std::endl
+	      << "Evaluating field quantities . . . "
+	      << std::endl;
+    progress = boost::make_shared<boost::progress_display>(NOUT*NOUT);
+  }
 
-    double dR = 2.0*ROUT/(NOUT-1);
-    double dZ = 2.0*ZOUT/(NOUT-1);
+  // Evaluate the fields
+  //
+  double dR = 2.0*ROUT/(NOUT-1);
+  double dZ = 2.0*ZOUT/(NOUT-1);
+  icnt = 0;
+
+  for (int j=0; j<NOUT; j++) {
+    double Z = -ZOUT + dZ*j;
+
+    for (int i=0; i<NOUT; i++) {
+      double R = -ROUT + dR*i;
+      
+      if (myid==0) ++(*progress);
+
+      if (icnt++ % numprocs == myid) {
+
+	double dphi = 2.0*M_PI/NPHI;
+	for (int nphi=0; nphi<NPHI; nphi++) {
+	  double phi = dphi*nphi;
+	  auto ret   = tree.nearestN({R*cos(phi), R*sin(phi), Z}, Ndens);
+	  double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
+	  if (volume>0.0) kdens[j*NOUT + i] += std::get<1>(ret)/volume/NPHI;
+	}
+
+	double d, p;
+
+	odens[j*NOUT + i] = ortho.accumulated_dens_eval(fabs(R), Z, atan2(0.0, R), d);
+	ortho.accumulated_eval(fabs(R), Z, atan2(0.0, R), d, p, d, d, d);
+	opot[j*NOUT + i] = p;
+      }
+    }
+  }
+
+  // Reduction and output
+  //
+  if (myid==0) {
+    
+    MPI_Reduce(MPI_IN_PLACE, kdens.data(), kdens.size(), MPI_DOUBLE, MPI_SUM,
+	       0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, odens.data(), odens.size(), MPI_DOUBLE, MPI_SUM,
+	       0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, opot.data(),  opot.size(),  MPI_DOUBLE, MPI_SUM,
+	       0, MPI_COMM_WORLD);
 
     for (int j=0; j<NOUT; j++) {
       double Z = -ZOUT + dZ*j;
-
+      
       for (int i=0; i<NOUT; i++) {
 	double R = -ROUT + dR*i;
-
-	auto ret = tree.nearestN({R, 0.0, Z}, Ndens);
-	double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
-	double densKD = 0.0, d0;
-	if (volume>0.0) densKD = std::get<1>(ret)/volume;
-	
-	double densOrth = ortho.accumulated_dens_eval(R, Z, 0.0, d0);
-	
-	out << std::setw(12) << R
-	    << std::setw(12) << Z
-	    << std::setw(12) << densKD
-	    << std::setw(12) << densOrth
+      
+	out << std::setw(18) << R
+	    << std::setw(18) << Z
+	    << std::setw(18) << kdens[NOUT*j + i]
+	    << std::setw(18) << odens[NOUT*j + i]
+	    << std::setw(18) << opot [NOUT*j + i]
 	    << std::endl;
       }
       out << std::endl;
     }
+    std::cout << "Done" << std::endl;
+  } else {
+    MPI_Reduce(kdens.data(), 0, kdens.size(), MPI_DOUBLE, MPI_SUM,
+	       0, MPI_COMM_WORLD);
+    MPI_Reduce(odens.data(), 0, odens.size(), MPI_DOUBLE, MPI_SUM,
+	       0, MPI_COMM_WORLD);
+    MPI_Reduce(opot.data(),  0, opot.size(),  MPI_DOUBLE, MPI_SUM,
+	       0, MPI_COMM_WORLD);
   }
 
+  MPI_Finalize();
   return 0;
 }
 
