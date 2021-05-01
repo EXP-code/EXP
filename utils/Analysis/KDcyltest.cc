@@ -61,14 +61,19 @@ namespace po = boost::program_options;
 #include <numerical.h>
 #include "Particle.h"
 #include <PSP2.H>
+#include <EmpCylSL.h>
 #include <foarray.H>
 #include <KDtree.H>
+
+#include <localmpi.h>
+
+#include <yaml-cpp/yaml.h>	// YAML support
+
 
 // Variables not used but needed for linking
 //
 int VERBOSE = 4;
 int nthrds = 1;
-int myid = 0;
 int this_step = 0;
 unsigned multistep = 0;
 unsigned maxlev = 100;
@@ -90,9 +95,9 @@ main(int argc, char **argv)
   sleep(20);
 #endif  
   
-  double ROUT, ZOUT;
-  int NICE, indx, Ndens, NOUT;
-  std::string dir("./"), cname, prefix;
+  double RMIN, rscale, minSNR0, Hexp, ROUT, ZOUT;
+  int NICE, LMAX, NMAX, NSNR, indx, nbunch, Ndens, NOUT;
+  std::string CACHEFILE, dir("./"), cname, prefix;
   bool ignore;
 
   // ==================================================
@@ -133,10 +138,19 @@ main(int argc, char **argv)
      "PSP index")
     ("dir,d",               po::value<std::string>(&dir),
      "directory for SPL files")
+    ("cachefile",
+     po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),
+     "cachefile name")
     ("cname",
      po::value<std::string>(&cname)->default_value("star disk"),
      "component name")
     ;
+  
+  // ==================================================
+  // MPI preliminaries
+  // ==================================================
+
+  local_init_mpi(argc, argv);
   
   po::variables_map vm;
 
@@ -185,6 +199,133 @@ main(int argc, char **argv)
     setpriority(PRIO_PROCESS, 0, NICE);
 
   // ==================================================
+  // All processes will now compute the basis functions
+  // *****Using MPI****
+  // ==================================================
+
+  int mmax, numx, numy, norder, cmapr, cmapz;
+  double rcylmin, rcylmax, vscale;
+  bool DENS;
+
+  if (not ignore) {
+
+    std::ifstream in(CACHEFILE);
+    if (!in) {
+      std::cerr << "Error opening cachefile named <" 
+		<< CACHEFILE << "> . . ."
+		<< std::endl
+		<< "I will build <" << CACHEFILE
+		<< "> but it will take some time."
+		<< std::endl
+		<< "If this is NOT what you want, "
+		<< "stop this routine and specify the correct file."
+		<< std::endl;
+    } else {
+
+      // Attempt to read magic number
+      //
+      unsigned int tmagic;
+      in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
+
+      //! Basis magic number
+      const unsigned int hmagic = 0xc0a57a1;
+
+      if (tmagic == hmagic) {
+	// YAML size
+	//
+	unsigned ssize;
+	in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
+	
+	// Make and read char buffer
+	//
+	auto buf = boost::make_unique<char[]>(ssize+1);
+	in.read(buf.get(), ssize);
+	buf[ssize] = 0;		// Null terminate
+
+	YAML::Node node;
+      
+	try {
+	  node = YAML::Load(buf.get());
+	}
+	catch (YAML::Exception& error) {
+	  if (myid)
+	    std::cerr << "YAML: error parsing <" << buf.get() << "> "
+		      << "in " << __FILE__ << ":" << __LINE__ << std::endl
+		      << "YAML error: " << error.what() << std::endl;
+	  throw error;
+	}
+
+	// Get parameters
+	//
+	mmax    = node["mmax"  ].as<int>();
+	numx    = node["numx"  ].as<int>();
+	numy    = node["numy"  ].as<int>();
+	NMAX    = node["nmax"  ].as<int>();
+	norder  = node["norder"].as<int>();
+	DENS    = node["dens"  ].as<bool>();
+	if (node["cmap"])
+	  cmapr = node["cmap"  ].as<int>();
+	else
+	  cmapr = node["cmapr" ].as<int>();
+	if (node["cmapz"])
+	  cmapz = node["cmapz" ].as<int>();
+	rcylmin = node["rmin"  ].as<double>();
+	rcylmax = node["rmax"  ].as<double>();
+	rscale  = node["ascl"  ].as<double>();
+	vscale  = node["hscl"  ].as<double>();
+	
+      } else {
+				// Rewind file
+	in.clear();
+	in.seekg(0);
+
+	int idens;
+    
+	in.read((char *)&mmax,    sizeof(int));
+	in.read((char *)&numx,    sizeof(int));
+	in.read((char *)&numy,    sizeof(int));
+	in.read((char *)&NMAX,    sizeof(int));
+	in.read((char *)&norder,  sizeof(int));
+	in.read((char *)&idens,   sizeof(int)); 
+	in.read((char *)&cmapr,   sizeof(int)); 
+	in.read((char *)&rcylmin, sizeof(double));
+	in.read((char *)&rcylmax, sizeof(double));
+	in.read((char *)&rscale,  sizeof(double));
+	in.read((char *)&vscale,  sizeof(double));
+
+	if (idens) DENS = true;
+      }
+    }
+  }
+
+  EmpCylSL::RMIN        = rcylmin;
+  EmpCylSL::RMAX        = rcylmax;
+  EmpCylSL::NUMX        = numx;
+  EmpCylSL::NUMY        = numy;
+  EmpCylSL::CMAPR       = cmapr;
+  EmpCylSL::CMAPZ       = cmapz;
+  EmpCylSL::logarithmic = logl;
+  EmpCylSL::DENS        = DENS;
+  EmpCylSL::CACHEFILE   = CACHEFILE;
+  EmpCylSL::PCAVAR      = true;
+  EmpCylSL::PCADRY      = true;
+
+				// Create expansion
+				//
+  EmpCylSL ortho(NMAX, LMAX, mmax, norder, rscale, vscale);
+    
+				// Set smoothing type to Truncate or
+				// Hall (default)
+  PSPptr psp;
+  
+  if (ortho.read_cache()==0) {
+    std::cout << "Could not read cache file <" << CACHEFILE << ">"
+	      << " . . . quitting" << std::endl;
+    MPI_Finalize();
+    exit(0);
+  }
+  
+  // ==================================================
   // Phase space
   // ==================================================
 
@@ -192,6 +333,15 @@ main(int argc, char **argv)
 
 #ifdef DEBUG
   std::cout << "[" << myid << "] Begin phase -space loop" << std::endl;
+  MPI_Barrier(MPI_COMM_WORLD);
+#endif	      
+
+  // ==================================================
+  // Phase space
+  // ==================================================
+
+#ifdef DEBUG
+  std::cout << "Begin phase -space loop" << std::endl;
   MPI_Barrier(MPI_COMM_WORLD);
 #endif	      
 
@@ -216,7 +366,6 @@ main(int argc, char **argv)
   }
   
   if (iok==0) {
-    MPI_Finalize();
     exit(-1);
   }
 
@@ -225,29 +374,15 @@ main(int argc, char **argv)
   // ==================================================
 
   std::ofstream out;
-  bool ok = true;
-  if (myid==0) {
-    out.open(prefix + ".out");
-    if (!out) {
-      std::cerr << "Error opening output file <" << prefix + ".out" << ">" << std::endl;
-      ok = false;
-    }
+  out.open(prefix + ".out");
+  if (!out) {
+    std::cerr << "Error opening output file <" << prefix + ".out" << ">" << std::endl;
+    exit(-2);
   }
   
-  {
-    int okay = ok ? 1 : 0;
-    MPI_Bcast(&okay, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    if (okay==0) {
-      MPI_Finalize();
-      exit(-2);
-    }
-  }
-
   // ==================================================
   // Open PSP file
   // ==================================================
-
-  PSPptr psp;
 
   if (SPL) psp = std::make_shared<PSPspl>(s1.str(), dir, true);
   else     psp = std::make_shared<PSPout>(file, true);
@@ -261,7 +396,6 @@ main(int argc, char **argv)
       std::cout << "Error finding component named <" << cname << ">" << std::endl;
       psp->PrintSummary(std::cout);
     }
-    MPI_Finalize();
     exit(-1);
   }
       
@@ -280,12 +414,32 @@ main(int argc, char **argv)
   SParticle *p = psp->GetParticle();
   int icnt = 0;
 
+  ortho.setup_accumulation();
+
+  do {
+    if (myid==0) ++(*progress);
+
+    if (icnt++ % numprocs == myid) {
+      double R   = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
+      double phi = atan2(p->pos(1), p->pos(0));
+      ortho.accumulate(R, p->pos(2), phi, p->mass(), p->indx(), 0, 0, true);
+      //                                                        ^  ^  ^
+      //                                                        |  |  |
+      // Thread id ---------------------------------------------+  |  |
+      // Level ----------------------------------------------------+  |
+      // Compute covariance ------------------------------------------+
+    }
+    p = psp->NextParticle();
+  } while (p);
+  
+
+  if (myid==0) cout << "Making coefficients for total . . . " << flush;
+  ortho.make_coefficients(true);
+  if (myid==0) std::cout << "done" << endl;
+
   // This is the kd- NN density estimate; skipped by default for Ndens=0
   //
   if (Ndens<=0) Ndens = 2;
-  if (myid==0) std::cout << "Computing KD density estimate for " << nbod
-			 << " points" << std::endl;
-
   typedef point <double, 3> point3;
   typedef kdtree<double, 3> tree3;
 
@@ -318,12 +472,15 @@ main(int argc, char **argv)
 
       auto ret = tree.nearestN({R, 0.0, Z}, Ndens);
       double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
-      double densty = 0.0;
-      if (volume>0.0) densty = std::get<1>(ret)/volume;
+      double densKD = 0.0, d0;
+      if (volume>0.0) densKD = std::get<1>(ret)/volume;
+
+      double densOrth = ortho.accumulated_dens_eval(R, Z, 0.0, d0);
 
       out << std::setw(12) << R
 	  << std::setw(12) << Z
-	  << std::setw(12) << densty
+	  << std::setw(12) << densKD
+	  << std::setw(12) << densOrth
 	  << std::endl;
     }
     out << std::endl;
