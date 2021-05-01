@@ -142,6 +142,8 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   NORDER   = nord;
   MLIM     = std::numeric_limits<int>::max();
   EvenOdd  = false;
+  Neven    = 0;
+  Nodd     = 0;
 
 
   ASCALE   = ascale;
