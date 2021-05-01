@@ -124,11 +124,11 @@ main(int argc, char **argv)
      "system priority")
     ("NOUT",                po::value<int>(&NOUT)->default_value(40),
      "Number of grid points for surface output")
-    ("ROUT",                po::value<double>(&ROUT)->default_value(0.1),
+    ("ROUT",                po::value<double>(&ROUT)->default_value(0.05),
      "Maximum radius for output")
-    ("ZOUT",                po::value<double>(&ZOUT)->default_value(0.02),
+    ("ZOUT",                po::value<double>(&ZOUT)->default_value(0.01),
      "Maximum height for output")
-    ("prefix",              po::value<string>(&prefix)->default_value("crossval"),
+    ("prefix",              po::value<string>(&prefix)->default_value("kdtest"),
      "Filename prefix")
     ("runtag",              po::value<string>(&runtag)->default_value("run1"),
      "Phase space file")
@@ -307,8 +307,8 @@ main(int argc, char **argv)
   EmpCylSL::logarithmic = logl;
   EmpCylSL::DENS        = DENS;
   EmpCylSL::CACHEFILE   = CACHEFILE;
-  EmpCylSL::PCAVAR      = true;
-  EmpCylSL::PCADRY      = true;
+  EmpCylSL::PCAVAR      = false;
+  EmpCylSL::PCADRY      = false;
 
 				// Create expansion
 				//
@@ -396,6 +396,7 @@ main(int argc, char **argv)
       std::cout << "Error finding component named <" << cname << ">" << std::endl;
       psp->PrintSummary(std::cout);
     }
+    MPI_Finalize();
     exit(-1);
   }
       
@@ -422,7 +423,7 @@ main(int argc, char **argv)
     if (icnt++ % numprocs == myid) {
       double R   = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
       double phi = atan2(p->pos(1), p->pos(0));
-      ortho.accumulate(R, p->pos(2), phi, p->mass(), p->indx(), 0, 0, true);
+      ortho.accumulate(R, p->pos(2), phi, p->mass(), p->indx(), 0, 0, false);
       //                                                        ^  ^  ^
       //                                                        |  |  |
       // Thread id ---------------------------------------------+  |  |
@@ -459,31 +460,32 @@ main(int argc, char **argv)
     
   KDdens.resize(nbod, 0.0);
 
-  int badVol = 0;
+  if (myid==0) {
 
-  double dR = 2.0*ROUT/(NOUT-1);
-  double dZ = 2.0*ZOUT/(NOUT-1);
+    double dR = 2.0*ROUT/(NOUT-1);
+    double dZ = 2.0*ZOUT/(NOUT-1);
 
-  for (int j=0; j<NOUT; j++) {
-    double Z = -ZOUT + dZ*j;
+    for (int j=0; j<NOUT; j++) {
+      double Z = -ZOUT + dZ*j;
 
-    for (int i=0; i<NOUT; i++) {
-      double R = -ROUT + dR*i;
+      for (int i=0; i<NOUT; i++) {
+	double R = -ROUT + dR*i;
 
-      auto ret = tree.nearestN({R, 0.0, Z}, Ndens);
-      double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
-      double densKD = 0.0, d0;
-      if (volume>0.0) densKD = std::get<1>(ret)/volume;
-
-      double densOrth = ortho.accumulated_dens_eval(R, Z, 0.0, d0);
-
-      out << std::setw(12) << R
-	  << std::setw(12) << Z
-	  << std::setw(12) << densKD
-	  << std::setw(12) << densOrth
-	  << std::endl;
+	auto ret = tree.nearestN({R, 0.0, Z}, Ndens);
+	double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
+	double densKD = 0.0, d0;
+	if (volume>0.0) densKD = std::get<1>(ret)/volume;
+	
+	double densOrth = ortho.accumulated_dens_eval(R, Z, 0.0, d0);
+	
+	out << std::setw(12) << R
+	    << std::setw(12) << Z
+	    << std::setw(12) << densKD
+	    << std::setw(12) << densOrth
+	    << std::endl;
+      }
+      out << std::endl;
     }
-    out << std::endl;
   }
 
   return 0;
