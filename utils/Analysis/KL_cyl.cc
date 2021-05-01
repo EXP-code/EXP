@@ -735,29 +735,32 @@ main(int argc, char **argv)
     for (int j=0; j<coefs.size(); j++) {
    
       for (int mm=0; mm<=mmax; mm++) {
-	ortho0.set_coefs(mm, coefs[j]->coefC[mm], coefs[j]->coefS[mm]);
+	if (mm==0)
+	  ortho0.set_coefs(mm, coefs[j]->coefC[mm], coefs[j]->coefS[mm], true);
+	else
+	  ortho0.set_coefs(mm, coefs[j]->coefC[mm], coefs[j]->coefS[mm], false);
       }
 
       ortho0.get_trimmed(snr, ac_cos[j], ac_sin[j]);
       if (myid==0) ++(*progress);
     }
     
-    // Particle loop again for KL
+    // Reset particle loop again for KL
     //
     p = psp->GetParticle();
     int icnt = 0, ibnch = 0;
 
-    if (myid==0) std::cout << std::endl
-			   << "Computing KL for subsamples . . . "
-			   << std::endl;
-
-				// KL values, density workspace
+    // KL values, density workspace
+    //
     std::vector<double> KL(coefs.size(), 0.0), DD(coefs.size());
 
     unsigned good = 0, bad = 0;
     double tmas = 0.0;
 
     if (myid==0) {
+      std::cout << std::endl
+		<< "Computing KL for subsamples . . . "
+		<< std::endl;
       progress = boost::make_shared<boost::progress_display>(nbunch0*nbunch1);
     }
 
@@ -780,7 +783,7 @@ main(int argc, char **argv)
 	double R   = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
 	double phi = atan2(p->pos(1), p->pos(0));
 	double z   = p->pos(2);
-
+	
 				// Get density grid interpolated entries
 	std::fill(DD.begin(), DD.end(), 0.0);
 	for (int mm=0; mm<=mmax; mm++) {
@@ -789,13 +792,8 @@ main(int argc, char **argv)
 	    ortho0.getDensSC(mm, nn, R, z, dC, dS);
 				// Sum over all subsamples
 	    for (int j=0; j<coefs.size(); j++) {
-	      if (j==ibnch) {
-		DD[j] += coefs[j]->coefC[mm][nn]*dC*cos(phi*mm);
-		if (mm) DD[j] += coefs[j]->coefS[mm][nn]*dS*sin(phi*mm);
-	      } else {
-		DD[j] += ac_cos[j][mm][nn]*dC*cos(phi*mm);
-		if (mm) DD[j] += ac_sin[j][mm][nn]*dS*sin(phi*mm);
-	      }
+	      DD[j] += ac_cos[j][mm][nn]*dC*cos(phi*mm);
+	      if (mm) DD[j] += ac_sin[j][mm][nn]*dS*sin(phi*mm);
 	    }
 	  }
 	}
@@ -808,11 +806,11 @@ main(int argc, char **argv)
 	      good++;
 	      if (false) {
 		static int jcnt = 0;
-		if (myid==0 and j==0 and jcnt<30) {
+		if (myid==0 and j==0 and jcnt<100) {
 		  std::cout << "DENS: "
 			    << std::setw( 6) << p->indx()
 			    << std::setw(18) << KDdens[icnt]
-			    << std::setw(18) << DD[j]
+			    << std::setw(18) << DD[0]
 			    << std::endl;
 		  jcnt++;
 		}
