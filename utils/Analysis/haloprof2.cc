@@ -64,7 +64,7 @@ namespace po = boost::program_options;
 
 // Variables not used but needed for linking
 //
-int VERBOSE = 4;
+int VERBOSE = 0;
 int nthrds = 1;
 int this_step = 0;
 unsigned multistep = 0;
@@ -452,7 +452,7 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
 	  costh = z/r;
 	  phi = atan2(y, x);
 
-	  ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp);
+	  ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp, L1, L2);
 	  
 	  data[(0*OUTR+l)*OUTR+j] = p0;
 	  data[(1*OUTR+l)*OUTR+j] = p1;
