@@ -13,7 +13,7 @@
 
 int    SphereSL::NUMR = 800;
 int    SphereSL::NEV  = 10;	// None by default
-bool   SphereSL::mpi = false;	// Initially off
+bool   SphereSL::mpi  = false;	// Initially off
 double SphereSL::HEXP = 1.0;	// Hall exponent
 
 //! Constructor
@@ -94,7 +94,7 @@ void SphereSL::reset_coefs(void)
 void SphereSL::accumulate(double x, double y, double z, double mass)
 {
   double fac, fac1, fac2, fac4;
-  double fac0=-4.0*M_PI;
+  double norm = -4.0*M_PI;
   const double dsmall = 1.0e-20;
 
   if (!coefs_defined) {
@@ -176,21 +176,21 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
       if (m==0) {
 	fac = factorial[l][m] * legs[l][m];
 	for (int n=1; n<=nmax; n++) {
-	  fac4 = potd[l][n]*fac*fac0;
-	  expcoef[loffset+moffset][n] += fac4 * mass;
+	  fac4 = potd[l][n]*fac;
+	  expcoef[loffset+moffset][n] += fac4 * norm *mass;
 	  if (compute_covar) workE[m*nmax + n - 1] = fac4;
 	}
 
 	moffset++;
       }
       else {
-	fac = factorial[l][m] * legs[l][m];
+	fac  = factorial[l][m] * legs[l][m];
 	fac1 = fac*cos(phi*m);
 	fac2 = fac*sin(phi*m);
 	for (int n=1; n<=nmax; n++) {
-	  fac4 = potd[l][n]*fac0;
-	  expcoef[loffset+moffset  ][n] += fac1 * fac4 * mass;
-	  expcoef[loffset+moffset+1][n] += fac2 * fac4 * mass;
+	  fac4 = potd[l][n];
+	  expcoef[loffset+moffset  ][n] += fac1 * fac4 * norm * mass;
+	  expcoef[loffset+moffset+1][n] += fac2 * fac4 * norm * mass;
 	  if (compute_covar) workE[m*nmax + n - 1] = fac * fac4;
 	}
 
@@ -202,6 +202,7 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
       for (int m=0; m<=l; m++) {
 	for (int n1=0; n1<nmax; n1++) {
 	  mean[l][m*nmax+n1] += workE[m*nmax + n1] * mass;
+
 	  if (npart)
 	    meanB[curbin % npart][l][m*nmax + n1] += workE[m*nmax + n1] * mass;
 	  
@@ -229,6 +230,9 @@ void SphereSL::accumulate(double x, double y, double z, double mass)
 void SphereSL::make_coefs()
 {
   if (mpi) {
+
+    MPI_Allreduce(MPI_IN_PLACE, &used, 1, MPI_INT,
+		  MPI_SUM, MPI_COMM_WORLD);
 
     if (compute_covar)
       MPI_Allreduce(MPI_IN_PLACE, &totalMass, 1, MPI_DOUBLE,
@@ -281,7 +285,6 @@ void SphereSL::make_coefs()
 	//
 	mean [l] *= 0.0;
 	covar[l] *= 0.0;
-	
 
 	// Normalize by mass and zero covar
 	//
@@ -299,7 +302,7 @@ void SphereSL::make_coefs()
 	    for (int j=0; j<esize; j++) {
 	      covar[l](i, j) +=
 		(meanB[n][l](i)  - mean[l](i)) *
-		(meanB[n][l](j)  - mean[l](j)) * curbin/(npart*npart);
+		(meanB[n][l](j)  - mean[l](j)) / npart;
 	    }
 	  }
 	}
@@ -325,6 +328,8 @@ void SphereSL::make_coefs()
 void SphereSL::make_covar(bool verbose)
 {
   if (compute_covar) {
+
+    double ufac = static_cast<double>(used)/static_cast<double>(npart);
 
     if (verbose and myid==0) std::cout << std::endl;
 
@@ -355,12 +360,12 @@ void SphereSL::make_covar(bool verbose)
       // Compute SNR
       //
       for (int j=0; j<svar[l].size(); j++) {
-	if (verbose and myid==0) std::cout << std::setw(4) << l
-					   << std::setw(4) << j
-					   << std::setw(18) << svar[l][j]
+	if (verbose and myid==0) std::cout << std::setw( 4) << l
+					   << std::setw( 4) << j
+					   << std::setw(18) << svar[l][j]/ufac
 					   << std::setw(18) << R[j]*R[j];
 	if (svar[l][j]>0.0) {
-	  double snr = R[j]*R[j]/svar[l][j];
+	  double snr = R[j]*R[j]*ufac/svar[l][j];
 	  minSNR = std::min<double>(minSNR, snr);
 	  maxSNR = std::max<double>(maxSNR, snr);
 	  if (verbose and myid==0) std::cout << std::setw(18) << snr;
@@ -373,13 +378,17 @@ void SphereSL::make_covar(bool verbose)
   }
 }
 
-Matrix SphereSL::get_trimmed(double snr, bool Hall)
+Matrix SphereSL::get_trimmed(double snr, double mass, bool Hall)
 {
+  constexpr double norm = 4.0*M_PI;
+
   Matrix ret(0, lmax*(lmax+2), 1, nmax);
   ret.zero();
 
   if (compute_covar) {
     
+    double ufac = static_cast<double>(used)/static_cast<double>(npart);
+
     // L loop
     for (int l=0, loffset=0; l<=lmax; loffset+=(2*l+1), l++) {
 
@@ -391,7 +400,8 @@ Matrix SphereSL::get_trimmed(double snr, bool Hall)
       for (int m=0, moffset=0; m<=l; m++) {
 	if (m==0) {
 	  for (int n=1; n<=nmax; n++) {
-	    W[m*nmax + n - 1] = fabs(expcoef[loffset+moffset+0][n]);
+	    W[m*nmax + n - 1] = fabs(expcoef[loffset+moffset+0][n])
+	      / (norm*mass);
 	  }
 	  moffset++;
 
@@ -400,7 +410,8 @@ Matrix SphereSL::get_trimmed(double snr, bool Hall)
 	    W[m*nmax + n - 1] =
 	      sqrt(expcoef[loffset+moffset+0][n]*expcoef[loffset+moffset+0][n]
 		   +
-		   expcoef[loffset+moffset+1][n]*expcoef[loffset+moffset+1][n]);
+		   expcoef[loffset+moffset+1][n]*expcoef[loffset+moffset+1][n])
+	      / (norm*mass);
 	  }
 
 	  moffset+=2;
@@ -413,7 +424,7 @@ Matrix SphereSL::get_trimmed(double snr, bool Hall)
       for (int j=0; j<svar[l].size(); j++) {
 	if (svar[l][j]>0.0) {
 	  if (Hall)
-	    R[j] *= 1.0/(pow(snr*svar[l][j]/(R[j]*R[j]), HEXP) + 1.0);
+	    R[j] *= 1.0/(pow(snr*svar[l][j]/(R[j]*R[j]*ufac), HEXP) + 1.0);
 	  else if (R[j]*R[j]/svar[l][j] < snr)
 	    R[j] = 0.0;
 	} else {
@@ -430,7 +441,7 @@ Matrix SphereSL::get_trimmed(double snr, bool Hall)
       for (int m=0, moffset=0; m<=l; m++) {
 	if (m==0) {
 	  for (int n=1; n<=nmax; n++) {
-	    ret[loffset+moffset][n] = Q[m*nmax + n - 1];
+	    ret[loffset+moffset][n] = Q[m*nmax + n - 1] * norm * mass;
 	    if (expcoef[loffset+moffset][n] < 0.0)
 	      ret[loffset+moffset][n] *= -1.0 ;
 	  }
@@ -439,8 +450,8 @@ Matrix SphereSL::get_trimmed(double snr, bool Hall)
 	} else {
 	  for (int n=1; n<=nmax; n++) {
 	    double phi = atan2(expcoef[loffset+moffset+1][n], expcoef[loffset+moffset+0][n]);
-	    ret[loffset+moffset+0][n] = cos(phi) * Q[m*nmax + n - 1];
-	    ret[loffset+moffset+1][n] = sin(phi) * Q[m*nmax + n - 1];
+	    ret[loffset+moffset+0][n] = cos(phi) * Q[m*nmax + n - 1] * norm * mass;
+	    ret[loffset+moffset+1][n] = sin(phi) * Q[m*nmax + n - 1] * norm * mass;
 	  }
 
 	  moffset+=2;
@@ -469,7 +480,8 @@ Matrix SphereSL::get_trimmed(double snr, bool Hall)
 
       png::image< png::rgb_pixel > image(NEV*ndupX, esize*ndupY);
       ColorGradient color;
-      color.createFiveColorHeatMapGradient();
+      // color.createFiveColorHeatMapGradient();
+      color.createGrayGradient();
 
       std::ostringstream sout;
       sout << "SphereSL_EV." << L;
@@ -477,19 +489,41 @@ Matrix SphereSL::get_trimmed(double snr, bool Hall)
       double minV = std::numeric_limits<double>::max();
       double maxV = std::numeric_limits<double>::min();
 
-      for (int ev=0; ev<NEV; ev++) {
-	for (int n=0; n<esize; n++) {
-	  minV = std::min<double>(minV, uvec[L](ev, n));
-	  maxV = std::max<double>(maxV, uvec[L](ev, n));
-	}
-      }
+      if (true) {
 
-      for (int i=0; i<esize; i++) {
-	for (int j=0; j<NEV; j++) {
-	  png::rgb_pixel cval = color( (uvec[L](i, j) - minV)/(maxV - minV) );
-	  for (size_t yy = i*ndupY; yy < (i+1)*ndupY; yy++) {
-	    for (size_t xx = j*ndupX; xx < (j+1)*ndupX; xx++) {
-	      image[yy][xx] = cval;
+	for (int ev=0; ev<NEV; ev++) {
+	  for (int n=0; n<esize; n++) {
+	    maxV = std::max<double>(maxV, uvec[L](ev, n)*uvec[L](ev, n));
+	  }
+	}
+	
+	for (int i=0; i<esize; i++) {
+	  for (int j=0; j<NEV; j++) {
+	    png::rgb_pixel cval = color(uvec[L](i, j)*uvec[L](i, j)/maxV );
+	    for (size_t yy = i*ndupY; yy < (i+1)*ndupY; yy++) {
+	      for (size_t xx = j*ndupX; xx < (j+1)*ndupX; xx++) {
+		image[yy][xx] = cval;
+	      }
+	    }
+	  }
+	}
+
+      } else {
+
+	for (int ev=0; ev<NEV; ev++) {
+	  for (int n=0; n<esize; n++) {
+	    minV = std::min<double>(minV, uvec[L](ev, n));
+	    maxV = std::max<double>(maxV, uvec[L](ev, n));
+	  }
+	}
+	
+	for (int i=0; i<esize; i++) {
+	  for (int j=0; j<NEV; j++) {
+	    png::rgb_pixel cval = color( (uvec[L](i, j) - minV)/(maxV - minV) );
+	    for (size_t yy = i*ndupY; yy < (i+1)*ndupY; yy++) {
+	      for (size_t xx = j*ndupX; xx < (j+1)*ndupX; xx++) {
+		image[yy][xx] = cval;
+	      }
 	    }
 	  }
 	}

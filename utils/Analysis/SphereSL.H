@@ -71,7 +71,7 @@ public:
       \param CMAP is the SLGridSph coordindate mapping type
       \param SCALE is the SLGridSph coordindate scale length
       \param COVAR true will evaluate the covariance matrix for coeffficients
-      \param JACK >0 will evaluate the covariance matrix using a jackknife partition with number given
+      \param NPART >0 will evaluate the covariance matrix using a jackknife partition with number given
   */
   SphereSL(SphericalModelTable* mod, int LMAX, int NMAX,
 	   int CMAP=0, double SCALE=0.067, bool COVAR=false, int NPART=0);
@@ -103,8 +103,11 @@ public:
   //! Maximum SNR coefficient value
   double getMaxSNR(void) { return maxSNR; }
 
+  //! Get mass on grid
+  double getMass(void)   { return totalMass; }
+
   //! Retrieve coefficients with SNR trim
-  Matrix get_trimmed(double snr, bool Hall=false);
+  Matrix get_trimmed(double snr, double mass, bool Hall=false);
 
   //! Retrieve coefficients
   std::vector<Eigen::MatrixXd> retrieve_covar(void) { return covar; }
