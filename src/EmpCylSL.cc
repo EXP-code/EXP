@@ -2421,8 +2421,6 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
 
   if (rr/ASCALE>Rtable) return;
 
-  double fac0 = 4.0*M_PI, ylm;
-
   ortho->get_pot(table[id], rr/ASCALE);
   double costh = z/(rr+1.0e-18);
   legendre_R(LMAX, costh, legs[id]);
@@ -2439,7 +2437,7 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
       // *** l loop
       for (int l=m; l<=LMAX; l++) {
 
-	ylm = sqrt((2.0*l+1.0)/(4.0*M_PI)) * pfac *
+	double ylm = sqrt((2.0*l+1.0)/(4.0*M_PI)) * pfac *
 	  exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[id][l][m];
 
 	if (m==0) {
@@ -3710,14 +3708,14 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
       if (compute and PCAVAR) {
 	double hc1 = vc[id][mm][nn], hs1 = 0.0;
 	if (mm) hs1 = vs[id][mm][nn];
-	double modu1 = sqrt(hc1*hc1 + hs1*hs1) * norm;
+	double modu1 = sqrt(hc1*hc1 + hs1*hs1);
 
 	covV(id, whch, mm)[nn] += mass * modu1;
 
 	for (int oo=0; oo<rank3; oo++) {
 	  double hc2 = vc[id][mm][oo], hs2 = 0.0;
 	  if (mm) hs2 = vs[id][mm][oo];
-	  double modu2 = sqrt(hc2*hc2 + hs2*hs2) * norm;
+	  double modu2 = sqrt(hc2*hc2 + hs2*hs2);
 
 	  covM(id, whch, mm)[nn][oo] += mass * modu1 * modu2;
 	}
@@ -4196,12 +4194,12 @@ void EmpCylSL::pca_hall(bool compute)
 	  for (int nn=0; nn<rank3; nn++) {
 	    // Compute mean coef from subsample
 	    //
-	    (*pb)[mm]->meanJK[nn+1] += covV(0, T, mm)[nn] / sampT;
+	    (*pb)[mm]->meanJK[nn+1] += covV(0, T, mm)[nn] / massT[T] / sampT;
 	    
 	    for (int oo=0; oo<rank3; oo++) {
 	      // Compute mean squared coefs from subsample
 	      //
-	      (*pb)[mm]->covrJK[nn+1][oo+1] += massT[T] * covM(0, T, mm)[nn][oo] / sampT;
+	      (*pb)[mm]->covrJK[nn+1][oo+1] += covM(0, T, mm)[nn][oo] / massT[T] / sampT;
 	    }
 	  }
 	}
@@ -4312,6 +4310,7 @@ void EmpCylSL::pca_hall(bool compute)
       }
 
       Vector dd, cumlJK, snrval;
+      double ufac = static_cast<double>(nbodstot)/static_cast<double>(sampT);
 
       if (PCAVAR) {
 
@@ -4336,7 +4335,7 @@ void EmpCylSL::pca_hall(bool compute)
 	  // Boostrap variance estimate for full variance------------+
 	  // combined with scaling                                   |
 	  //                                                         v
-	  double    var = std::max<double>((*pb)[mm]->evalJK[nn+1] / sampT,
+	  double    var = std::max<double>((*pb)[mm]->evalJK[nn+1] / ufac,
 					   std::numeric_limits<double>::min());
 	  double    sqr = dd[nn+1]*dd[nn+1];
 	  double      b = var/sqr;
@@ -4362,6 +4361,7 @@ void EmpCylSL::pca_hall(bool compute)
       if (hout.good()) {
 
 	double var = 0.0;
+	double ufac = static_cast<double>(nbodstot)/static_cast<double>(sampT);
 
 	for (int nn=0; nn<rank3; nn++) {
 	  hout << setw( 4) << mm << setw(4) << nn;
@@ -4371,7 +4371,7 @@ void EmpCylSL::pca_hall(bool compute)
 	    // Boostrap variance estimate for pop variance----------+
 	    // combined with magnitude scaling                      |
 	    //                                                      v
-	    double var = std::max<double>((*pb)[mm]->evalJK[nn+1] / sampT,
+	    double var = std::max<double>((*pb)[mm]->evalJK[nn+1] / ufac,
 					  std::numeric_limits<double>::min());
 	    double sqr = dd[nn+1]*dd[nn+1];
 
@@ -4480,6 +4480,8 @@ void EmpCylSL::get_trimmed
  std::vector<Vector>* rt_cos, std::vector<Vector>* rt_sin,
  std::vector<Vector>* sn_rat)
 {
+  constexpr double norm = -4.0*M_PI;
+
   if (PCAVAR and tk_type != None) {
 
     if (pb==0) return;
@@ -4541,6 +4543,7 @@ void EmpCylSL::get_trimmed
 	{
 	  // Project to decorrelated basis
 	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_cos[mm][nn];
+	  
 	  ddc = I->evecJK.Transpose() * wrk;
 
 	  // Smooth
@@ -4564,6 +4567,7 @@ void EmpCylSL::get_trimmed
 	if (mm) {
 	  // Project to decorrelated basis
 	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_sin[mm][nn];
+	  
 	  dds = I->evecJK.Transpose() * wrk;
 
 	  // Smooth
@@ -4580,8 +4584,8 @@ void EmpCylSL::get_trimmed
 	// BEG: diagnostics
 	if (rt_cos) {
 
-	  (*rt_cos)[mm] = accum_cos[mm];
-	  if (mm) (*rt_sin)[mm] = accum_sin[mm];
+	  (*rt_cos)[mm] = accum_cos[mm]/(norm*cylmass);
+	  if (mm) (*rt_sin)[mm] = accum_sin[mm]/(norm*cylmass);
 	  
 	  for (int nn=0; nn<rank3; nn++) {
 	    double val = ddc[nn+1]*ddc[nn+1] + dds[nn+1]*dds[nn+1];
