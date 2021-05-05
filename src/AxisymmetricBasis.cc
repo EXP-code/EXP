@@ -144,6 +144,9 @@ void AxisymmetricBasis::pca_hall(bool compute)
 
   if (pcadiag and myid==0 and compute) {
 
+    // Variance scaling
+    double ufac = static_cast<double>(cC->CurTotal())/static_cast<double>(sampT);
+
     // Open the diag file
     ostringstream sout1, sout2;
     sout1 << runtag << ".pcadiag." << cC->id << "." << cC->name << ".pcalog";
@@ -372,7 +375,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 
 	  for (int n=1; n<=nmax; n++) {
 	    
-	    var = evalJK[n] / sampT;
+	    var = evalJK[n] / ufac;
 	    //                ^
 	    //                |
 	    //                +--------- bootstrap variance estimate for
@@ -428,7 +431,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	    
 	    if (pcavar) {
 	  
-	      var = evalJK[n] / sampT;
+	      var = evalJK[n] / ufac;
 	      //                ^
 	      //                |
 	      //                +--------- bootstrap variance estimate for
