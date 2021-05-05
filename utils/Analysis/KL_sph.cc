@@ -427,7 +427,7 @@ main(int argc, char **argv)
 			 << "Making coefficients for total . . . "
 			 << std::flush;
   ortho0.make_coefs();
-  ortho0.make_covar();
+  ortho0.make_covar(verbose);
 
   if (myid==0) std::cout << "done" << endl;
   
@@ -566,7 +566,7 @@ main(int argc, char **argv)
 
     for (int j=0; j<coefs.size(); j++) {
       ortho0.install_coefs(coefs[j]->coefs);
-      coefs1[j] = ortho0.get_trimmed(snr, Hall);
+      coefs1[j] = ortho0.get_trimmed(snr, 1.0, Hall);
       if (myid==0) ++(*progress);
     }
     

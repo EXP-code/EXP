@@ -414,7 +414,7 @@ main(int argc, char **argv)
     
       // Get the snr trimmed coefficients
       //
-      auto coefs = ortho.get_trimmed(snr, Hall);
+      auto coefs = ortho.get_trimmed(snr, ortho.getMass(), Hall);
 
       // Zero out the accumulators
       //
