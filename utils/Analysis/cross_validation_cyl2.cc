@@ -469,6 +469,8 @@ main(int argc, char **argv)
   else
     ortho.setTK("Hall");
 
+  if (NPART) ortho.setSampT(NPART);
+
   vector<Particle> particles;
   PSPptr psp;
   

@@ -415,7 +415,9 @@ main(int argc, char **argv)
   else
     ortho.setTK("Hall");
 
-  vector<Particle> particles;
+  if (NPART) ortho.setSampT(NPART);
+
+  std::vector<Particle> particles;
   PSPptr psp;
   
   std::vector<double> times;
