@@ -329,9 +329,6 @@ void SphereSL::make_covar(bool verbose)
 {
   if (compute_covar) {
 
-    double ufac = static_cast<double>(used);
-    if (npart) ufac /= static_cast<double>(npart);
-
     if (verbose and myid==0) std::cout << std::endl;
 
     svar.resize(lmax+1);
@@ -363,10 +360,10 @@ void SphereSL::make_covar(bool verbose)
       for (int j=0; j<svar[l].size(); j++) {
 	if (verbose and myid==0) std::cout << std::setw( 4) << l
 					   << std::setw( 4) << j
-					   << std::setw(18) << svar[l][j]/ufac
+					   << std::setw(18) << svar[l][j]
 					   << std::setw(18) << R[j]*R[j];
 	if (svar[l][j]>0.0) {
-	  double snr = R[j]*R[j]*ufac/svar[l][j];
+	  double snr = R[j]*R[j]/svar[l][j];
 	  minSNR = std::min<double>(minSNR, snr);
 	  maxSNR = std::max<double>(maxSNR, snr);
 	  if (verbose and myid==0) std::cout << std::setw(18) << snr;
@@ -388,10 +385,8 @@ Matrix SphereSL::get_trimmed(double snr, double mass, bool Hall)
 
   if (compute_covar) {
     
-    double ufac = static_cast<double>(used);
-    if (npart) ufac /= static_cast<double>(npart);
-
     // L loop
+    //
     for (int l=0, loffset=0; l<=lmax; loffset+=(2*l+1), l++) {
 
       int esize = (l+1)*nmax;
@@ -426,7 +421,7 @@ Matrix SphereSL::get_trimmed(double snr, double mass, bool Hall)
       for (int j=0; j<svar[l].size(); j++) {
 	if (svar[l][j]>0.0) {
 	  if (Hall)
-	    R[j] *= 1.0/(pow(snr*svar[l][j]/(R[j]*R[j]*ufac), HEXP) + 1.0);
+	    R[j] *= 1.0/(pow(snr*svar[l][j]/(R[j]*R[j]), HEXP) + 1.0);
 	  else if (R[j]*R[j]/svar[l][j] < snr)
 	    R[j] = 0.0;
 	} else {

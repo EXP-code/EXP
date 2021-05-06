@@ -4310,7 +4310,6 @@ void EmpCylSL::pca_hall(bool compute)
       }
 
       Vector dd, cumlJK, snrval;
-      double ufac = static_cast<double>(nbodstot)/static_cast<double>(sampT);
 
       if (PCAVAR) {
 
@@ -4332,10 +4331,7 @@ void EmpCylSL::pca_hall(bool compute)
 	//
 	for (int nn=0; nn<rank3; nn++) {
 	  
-	  // Boostrap variance estimate for full variance------------+
-	  // combined with scaling                                   |
-	  //                                                         v
-	  double    var = std::max<double>((*pb)[mm]->evalJK[nn+1] / ufac,
+	  double    var = std::max<double>((*pb)[mm]->evalJK[nn+1],
 					   std::numeric_limits<double>::min());
 	  double    sqr = dd[nn+1]*dd[nn+1];
 	  double      b = var/sqr;
@@ -4361,17 +4357,13 @@ void EmpCylSL::pca_hall(bool compute)
       if (hout.good()) {
 
 	double var = 0.0;
-	double ufac = static_cast<double>(nbodstot)/static_cast<double>(sampT);
 
 	for (int nn=0; nn<rank3; nn++) {
 	  hout << setw( 4) << mm << setw(4) << nn;
 
 	  if (PCAVAR) {
 	  
-	    // Boostrap variance estimate for pop variance----------+
-	    // combined with magnitude scaling                      |
-	    //                                                      v
-	    double var = std::max<double>((*pb)[mm]->evalJK[nn+1] / ufac,
+	    double var = std::max<double>((*pb)[mm]->evalJK[nn+1],
 					  std::numeric_limits<double>::min());
 	    double sqr = dd[nn+1]*dd[nn+1];
 
