@@ -329,7 +329,8 @@ void SphereSL::make_covar(bool verbose)
 {
   if (compute_covar) {
 
-    double ufac = static_cast<double>(used)/static_cast<double>(npart);
+    double ufac = static_cast<double>(used);
+    if (npart) ufac /= static_cast<double>(npart);
 
     if (verbose and myid==0) std::cout << std::endl;
 
@@ -387,7 +388,8 @@ Matrix SphereSL::get_trimmed(double snr, double mass, bool Hall)
 
   if (compute_covar) {
     
-    double ufac = static_cast<double>(used)/static_cast<double>(npart);
+    double ufac = static_cast<double>(used);
+    if (npart) ufac /= static_cast<double>(npart);
 
     // L loop
     for (int l=0, loffset=0; l<=lmax; loffset+=(2*l+1), l++) {
