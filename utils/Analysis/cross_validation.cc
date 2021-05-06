@@ -125,7 +125,9 @@ main(int argc, char **argv)
     ("OUT",
      "assume original, single binary PSP files as input")
     ("SPL",
-     "assume new split binary PSP files as input")
+     "assume new split binary PSP files as input") 
+    ("NCUT",
+     "trim coefficient by order rather than SNR")
     ("LOG",
      "log scaling for SNR")
     ("Hall",
@@ -214,6 +216,9 @@ main(int argc, char **argv)
 
   bool verbose = false;
   if (vm.count("verbose")) verbose = true;
+
+  bool NCUT = false;
+  if (vm.count("NCUT")) NCUT = true;
 
   // ==================================================
   // Nice process
@@ -379,174 +384,313 @@ main(int argc, char **argv)
     std::vector<double> term2(LMAX+1), work2(LMAX+1);
     std::vector<double> term3(LMAX+1), work3(LMAX+1);
     
-    double minSNR = minSNR0;
-    double maxSNR = ortho.getMaxSNR();
 				// Sanity check
     double dx = (ximax - ximin)/(num - 1);
 
-    if (maxSNR < minSNR) minSNR = maxSNR / 100.0;
-    
-    if (LOG) {
-      minSNR = log(minSNR);
-      maxSNR = log(maxSNR);
-    }
+    if (NCUT) {
 
-    double dSNR = (maxSNR - minSNR)/(NSNR - 1);
+      double term4tot = 0.0;
 
-    if (myid==0) {
-      std::cout << "minSNR=" << minSNR << " maxSNR=" << maxSNR << " dSNR=" << dSNR << std::endl;
-    }
+      auto coefs = ortho.retrieve_coefs();
 
-    double term4tot = 0.0;
+      for (int ncut=1; ncut<=NMAX; ncut++) {
 
-    for (int nsnr=0; nsnr<NSNR; nsnr++) {
-
-      // Assign the snr value
-      //
-      double snr = minSNR + dSNR*nsnr;
-      if (LOG) snr = exp(snr);
-
-      if (myid==0) {
-	std::cout << "Computing SNR=" << snr;
-	if (Hall) std::cout << " using Hall smoothing . . . " << flush;
-	else      std::cout << " using truncation . . . " << flush;
-      }
-    
-      // Get the snr trimmed coefficients
-      //
-      auto coefs = ortho.get_trimmed(snr, ortho.getMass(), Hall);
-
-      // Zero out the accumulators
-      //
-      std::fill(term1.begin(), term1.end(), 0.0);
-      std::fill(term2.begin(), term2.end(), 0.0);
-      std::fill(term3.begin(), term3.end(), 0.0);
-      std::fill(work2.begin(), work2.end(), 0.0);
-      std::fill(work3.begin(), work3.end(), 0.0);
-
-      if (myid==0) {		// Only root process needs this one
-	  
-	// Term 1
+	// Zero out the accumulators
 	//
-	double t1 = 0.0;
-	for (int L=0; L<=LMAX; L++) {
-	  int lbeg = L*L;	// Offset into coefficient array
-	  for (int M=0; M<=L; M++) {
-	    for (int n=1; n<=NMAX; n++) {
-	      if (M==0)
-		term1[L] += coefs[lbeg][n]*coefs[lbeg][n];
-	      else {
-		int ll = lbeg + 2*(M-1) + 1;
-		term1[L] +=
-		  coefs[ll+0][n]*coefs[ll+0][n] +
-		  coefs[ll+1][n]*coefs[ll+1][n];
+	std::fill(term1.begin(), term1.end(), 0.0);
+	std::fill(term2.begin(), term2.end(), 0.0);
+	std::fill(term3.begin(), term3.end(), 0.0);
+	std::fill(work2.begin(), work2.end(), 0.0);
+	std::fill(work3.begin(), work3.end(), 0.0);
+	
+	if (myid==0) {		// Only root process needs this one
+	  
+	  // Term 1
+	  //
+	  double t1 = 0.0;
+	  for (int L=0; L<=LMAX; L++) {
+	    int lbeg = L*L;	// Offset into coefficient array
+	    for (int M=0; M<=L; M++) {
+	      for (int n=1; n<=ncut; n++) {
+		if (M==0)
+		  term1[L] += coefs[lbeg][n]*coefs[lbeg][n];
+		else {
+		  int ll = lbeg + 2*(M-1) + 1;
+		  term1[L] +=
+		    coefs[ll+0][n]*coefs[ll+0][n] +
+		    coefs[ll+1][n]*coefs[ll+1][n];
+		}
 	      }
 	    }
 	  }
 	}
+	
+	// Term 2 and Term 3
+	//
+	for (int L=0; L<=LMAX; L++) {
+	  
+	  int lbeg = L*L;	// Offset into coefficient array
+	  
+	  // Particle loop
+	  //
+	  p = psp->GetParticle();
+	  int icnt = 0;
+	  do {
+	    if (icnt++ % numprocs == myid) {
+	      double r = 0.0, costh = 0.0, phi = 0.0;
+	      for (int k=0; k<3; k++) r += p->pos(k)*p->pos(k);
+	      r = sqrt(r);
+	      if (r>0.0) costh = p->pos(2)/r;
+	      phi = atan2(p->pos(1), p->pos(0));
+	      double mass = p->mass();
+	      
+	      double x = sl->r_to_xi(r);
+	      x = std::max<double>(ximin, x);
+	      x = std::min<double>(ximax, x);
+	      
+	      int indx = floor( (x - ximin)/dx );
+	      if (indx<0) indx = 0;
+	      if (indx>=num-1) indx = num-2;
+	      
+	      double A = (ximin + dx*(indx+1) - x)/dx;
+	      double B = (x - ximin - dx*(indx+0))/dx;
+	      
+	      for (int M=0; M<=L; M++) {
+
+		double ylm = Ylm_fac(L, M) * plgndr(L, M, costh);
+
+		for (int n=1; n<=ncut; n++) {
+
+		  std::pair<int, int> I(L, n);
+		  double Qval = A*(*Q[I])[indx] + B*(*Q[I])[indx+1];
+		  double potl = sl->get_pot(x, L, n, 0);
+		
+		  if (M==0) {
+		    work2[L] += mass*coefs[lbeg+0][n]*ylm*potl;
+		    work3[L] += mass*coefs[lbeg+0][n]*ylm*Qval;
+		  } else {
+		    int ll = lbeg + 2*(M-1) + 1;
+		    double fac = (coefs[ll][n]*cos(phi*M) + coefs[ll+1][n]*sin(phi*M))*ylm;
+		    work2[L] += mass*potl * fac;
+		    work3[L] += mass*Qval * fac;
+		  }
+		}
+		// END: radial index loop
+	      }
+	      // END: M loop
+	    }
+	    // END: add particle data
+	    
+	    // Queue up next particle
+	    //
+	    p = psp->NextParticle();
+	  } while (p);
+	  //
+	  // END: particle loop
+	}
+	// END: L loop
+
+	
+	MPI_Reduce(work2.data(), term2.data(), work2.size(), MPI_DOUBLE,
+		   MPI_SUM, 0, MPI_COMM_WORLD);
+	
+	MPI_Reduce(work3.data(), term3.data(), work3.size(), MPI_DOUBLE,
+		   MPI_SUM, 0, MPI_COMM_WORLD);
+
+	if (myid==0) {
+	  
+	  out << std::setw( 5) << ipsp
+	      << std::setw( 5) << ncut;
+	
+	  double term1tot = std::accumulate(term1.begin(), term1.end(), 0.0) / (4.0*M_PI);
+	  double term2tot = std::accumulate(term2.begin(), term2.end(), 0.0);
+	  double term3tot = std::accumulate(term3.begin(), term3.end(), 0.0);
+	  
+	  if (ncut==1) term4tot = term1tot;
+	  
+	  out << std::setw(18) << term1tot
+	      << std::setw(18) << term2tot
+	      << std::setw(18) << term3tot
+	      << std::setw(18) << term1tot + term2tot - term3tot + term4tot
+	      << std::endl;
+	}
+	// Root process
+	
+	if (myid==0) std::cout << "done" << endl;
+	
+      }
+      // NCUT loop
+
+    } else {
+
+      double minSNR = minSNR0;
+      double maxSNR = ortho.getMaxSNR();
+
+      if (maxSNR < minSNR) minSNR = maxSNR / 100.0;
+      
+      if (LOG) {
+	minSNR = log(minSNR);
+	maxSNR = log(maxSNR);
+      }
+      
+      double dSNR = (maxSNR - minSNR)/(NSNR - 1);
+      
+      if (myid==0) {
+	std::cout << "minSNR=" << minSNR << " maxSNR=" << maxSNR << " dSNR=" << dSNR << std::endl;
       }
 
-      // Term 2 and Term 3
-      //
-      for (int L=0; L<=LMAX; L++) {
+      double term4tot = 0.0;
 
-	int lbeg = L*L;	// Offset into coefficient array
-	
-	// Particle loop
+      for (int nsnr=0; nsnr<NSNR; nsnr++) {
+
+	// Assign the snr value
 	//
-	p = psp->GetParticle();
-	int icnt = 0;
-	do {
-	  if (icnt++ % numprocs == myid) {
-	    double r = 0.0, costh = 0.0, phi = 0.0;
-	    for (int k=0; k<3; k++) r += p->pos(k)*p->pos(k);
-	    r = sqrt(r);
-	    if (r>0.0) costh = p->pos(2)/r;
-	    phi = atan2(p->pos(1), p->pos(0));
-	    double mass = p->mass();
-	    
-	    double x = sl->r_to_xi(r);
-	    x = std::max<double>(ximin, x);
-	    x = std::min<double>(ximax, x);
-	    
-	    int indx = floor( (x - ximin)/dx );
-	    if (indx<0) indx = 0;
-	    if (indx>=num-1) indx = num-2;
-	    
-	    double A = (ximin + dx*(indx+1) - x)/dx;
-	    double B = (x - ximin - dx*(indx+0))/dx;
-	    
+	double snr = minSNR + dSNR*nsnr;
+	if (LOG) snr = exp(snr);
+	
+	if (myid==0) {
+	  std::cout << "Computing SNR=" << snr;
+	  if (Hall) std::cout << " using Hall smoothing . . . " << flush;
+	  else      std::cout << " using truncation . . . " << flush;
+	}
+    
+	// Get the snr trimmed coefficients
+	//
+	auto coefs = ortho.get_trimmed(snr, ortho.getMass(), Hall);
+	
+	// Zero out the accumulators
+	//
+	std::fill(term1.begin(), term1.end(), 0.0);
+	std::fill(term2.begin(), term2.end(), 0.0);
+	std::fill(term3.begin(), term3.end(), 0.0);
+	std::fill(work2.begin(), work2.end(), 0.0);
+	std::fill(work3.begin(), work3.end(), 0.0);
+	
+	if (myid==0) {		// Only root process needs this one
+	  
+	  // Term 1
+	  //
+	  double t1 = 0.0;
+	  for (int L=0; L<=LMAX; L++) {
+	    int lbeg = L*L;	// Offset into coefficient array
 	    for (int M=0; M<=L; M++) {
-
-	      double ylm = Ylm_fac(L, M) * plgndr(L, M, costh);
-
 	      for (int n=1; n<=NMAX; n++) {
-
-		std::pair<int, int> I(L, n);
-		double Qval = A*(*Q[I])[indx] + B*(*Q[I])[indx+1];
-		double potl = sl->get_pot(x, L, n, 0);
-		  
-		if (M==0) {
-		  work2[L] += mass*coefs[lbeg+0][n]*ylm*potl;
-		  work3[L] += mass*coefs[lbeg+0][n]*ylm*Qval;
-		} else {
+		if (M==0)
+		  term1[L] += coefs[lbeg][n]*coefs[lbeg][n];
+		else {
 		  int ll = lbeg + 2*(M-1) + 1;
-		  double fac = (coefs[ll][n]*cos(phi*M) + coefs[ll+1][n]*sin(phi*M))*ylm;
-		  work2[L] += mass*potl * fac;
-		  work3[L] += mass*Qval * fac;
+		  term1[L] +=
+		    coefs[ll+0][n]*coefs[ll+0][n] +
+		    coefs[ll+1][n]*coefs[ll+1][n];
 		}
 	      }
-	      // END: radial index loop
 	    }
-	    // END: M loop
 	  }
-	  // END: add particle data
-	    
-	  // Queue up next particle
-	  //
-	  p = psp->NextParticle();
-	} while (p);
+	}
+	
+	// Term 2 and Term 3
 	//
-	// END: particle loop
-      }
-      // END: L loop
+	for (int L=0; L<=LMAX; L++) {
+	  
+	  int lbeg = L*L;	// Offset into coefficient array
+	
+	  // Particle loop
+	  //
+	  p = psp->GetParticle();
+	  int icnt = 0;
+	  do {
+	    if (icnt++ % numprocs == myid) {
+	      double r = 0.0, costh = 0.0, phi = 0.0;
+	      for (int k=0; k<3; k++) r += p->pos(k)*p->pos(k);
+	      r = sqrt(r);
+	      if (r>0.0) costh = p->pos(2)/r;
+	      phi = atan2(p->pos(1), p->pos(0));
+	      double mass = p->mass();
+	    
+	      double x = sl->r_to_xi(r);
+	      x = std::max<double>(ximin, x);
+	      x = std::min<double>(ximax, x);
+	    
+	      int indx = floor( (x - ximin)/dx );
+	      if (indx<0) indx = 0;
+	      if (indx>=num-1) indx = num-2;
+	    
+	      double A = (ximin + dx*(indx+1) - x)/dx;
+	      double B = (x - ximin - dx*(indx+0))/dx;
+	    
+	      for (int M=0; M<=L; M++) {
+
+		double ylm = Ylm_fac(L, M) * plgndr(L, M, costh);
+
+		for (int n=1; n<=NMAX; n++) {
+
+		  std::pair<int, int> I(L, n);
+		  double Qval = A*(*Q[I])[indx] + B*(*Q[I])[indx+1];
+		  double potl = sl->get_pot(x, L, n, 0);
+		  
+		  if (M==0) {
+		    work2[L] += mass*coefs[lbeg+0][n]*ylm*potl;
+		    work3[L] += mass*coefs[lbeg+0][n]*ylm*Qval;
+		  } else {
+		    int ll = lbeg + 2*(M-1) + 1;
+		    double fac = (coefs[ll][n]*cos(phi*M) + coefs[ll+1][n]*sin(phi*M))*ylm;
+		    work2[L] += mass*potl * fac;
+		    work3[L] += mass*Qval * fac;
+		  }
+		}
+		// END: radial index loop
+	      }
+	      // END: M loop
+	    }
+	    // END: add particle data
+	    
+	    // Queue up next particle
+	    //
+	    p = psp->NextParticle();
+	  } while (p);
+	  //
+	  // END: particle loop
+	}
+	// END: L loop
 
 	
-      MPI_Reduce(work2.data(), term2.data(), work2.size(), MPI_DOUBLE,
-		 MPI_SUM, 0, MPI_COMM_WORLD);
-
-      MPI_Reduce(work3.data(), term3.data(), work3.size(), MPI_DOUBLE,
-		 MPI_SUM, 0, MPI_COMM_WORLD);
-
-      if (myid==0) {
-	  
-	out << std::setw( 5) << ipsp
-	    << std::setw(18) << snr;
+	MPI_Reduce(work2.data(), term2.data(), work2.size(), MPI_DOUBLE,
+		   MPI_SUM, 0, MPI_COMM_WORLD);
 	
-	double term1tot = std::accumulate(term1.begin(), term1.end(), 0.0) / (4.0*M_PI);
-	double term2tot = std::accumulate(term2.begin(), term2.end(), 0.0);
-	double term3tot = std::accumulate(term3.begin(), term3.end(), 0.0);
+	MPI_Reduce(work3.data(), term3.data(), work3.size(), MPI_DOUBLE,
+		   MPI_SUM, 0, MPI_COMM_WORLD);
 
-	if (nsnr==0) term4tot = term1tot;
+	if (myid==0) {
 	  
-	out << std::setw(18) << term1tot
-	    << std::setw(18) << term2tot
-	    << std::setw(18) << term3tot
-	    << std::setw(18) << term1tot + term2tot - term3tot + term4tot
-	    << std::endl;
+	  out << std::setw( 5) << ipsp
+	      << std::setw(18) << snr;
+	  
+	  double term1tot = std::accumulate(term1.begin(), term1.end(), 0.0) / (4.0*M_PI);
+	  double term2tot = std::accumulate(term2.begin(), term2.end(), 0.0);
+	  double term3tot = std::accumulate(term3.begin(), term3.end(), 0.0);
+	  
+	  if (nsnr==0) term4tot = term1tot;
+	  
+	  out << std::setw(18) << term1tot
+	      << std::setw(18) << term2tot
+	      << std::setw(18) << term3tot
+	      << std::setw(18) << term1tot + term2tot - term3tot + term4tot
+	      << std::endl;
+	}
+	// Root process
       }
-      // Root process
-      
-      if (myid==0) std::cout << "done" << endl;
-
+      // END: snr loop
     }
-    // SNR loop
+    // Method switch
       
+    if (myid==0) std::cout << "done" << endl;
+
     // Blank line between stanzas
     //
     if (myid==0) out << std::endl;
+  }
+  // END: dump loop
 
-  } // Dump loop
 
   MPI_Finalize();
 
