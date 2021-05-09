@@ -300,7 +300,7 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
     
   if (shadow) satmass *= 0.5;
 
-  if (orbit && myid==0 && id==0 && tnow>tlast) {
+  if (orbit && myid==0 && id==0 && mlevel==0 && tnow>tlast) {
     ofstream out (orbfile.c_str(), ios::app);
     if (out) {
       out << setw(15) << tnow;

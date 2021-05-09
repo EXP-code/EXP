@@ -38,10 +38,18 @@ void OutCHKPT::initialize()
     else
       nint = 100;
     
-    if (Output::conf["nintsub"])
-      nintsub  = Output::conf["nintsub"].as<int>();
-    else
+    if (Output::conf["nintsub"]) {
+#ifdef ALLOW_NINTSUB
+      nintsub = Output::conf["nintsub"].as<int>();
+#else
+      nintsub_warning("OutCHKPT");
       nintsub = std::numeric_limits<int>::max();
+#endif
+    } else
+      nintsub = std::numeric_limits<int>::max();
+
+				// Sanity check
+    if (nintsub <= 0) nintsub = 1;
 
     if (Output::conf["timer"])
       timer = Output::conf["timer"].as<bool>();
@@ -69,14 +77,15 @@ void OutCHKPT::initialize()
 
 void OutCHKPT::Run(int n, int mstep, bool last)
 {
-  if (n % nint && !last) return;
+  if (!dump_signal and !last) {
+    if (n % nint           ) return;
+    if (mstep % nintsub !=0) return;
+  }
+
   if (VERBOSE>5 && myid==0) {
     cout << " OutCHKPT::Run(): n=" << n << " psdump=" << psdump << endl;
   }
   
-  if (mstep % nintsub !=0) return;
-
-
   int returnStatus = 1;
 
   if (n == psdump) {       
@@ -199,6 +208,14 @@ void OutCHKPT::Run(int n, int mstep, bool last)
 	std::cout << "OutCHKPT::run: component <" << c->name
 		  << "> has not set 'indexing' so PSP particle sequence will be lost." << std::endl
 		  << "If this is NOT what you want, set the component flag 'indexing=1'." << std::endl;
+#ifdef HAVE_LIBCUDA
+    if (use_cuda) {
+      if (not comp->fetched[c]) {
+	comp->fetched[c] = true;
+	c->CudaToParticles();
+      }
+    }
+#endif
       c->write_binary_mpi(file, offset); 
     }
     
@@ -288,6 +305,8 @@ void OutCHKPT::Run(int n, int mstep, bool last)
   }
 
   chktimer.mark();
+
+  dump_signal = 0;
 
   if (timer) {
     end = std::chrono::high_resolution_clock::now();

@@ -477,7 +477,7 @@ void UserEBarP::determine_acceleration_and_potential(void)
     firstime = false;
     update = true;
     
-  } else {
+  } else if (mlevel==0) {
 
     omega = get_omega(tnow);
 
@@ -494,6 +494,10 @@ void UserEBarP::determine_acceleration_and_potential(void)
     for (int k=0; k<3; k++) tacc[n][k] = 0.0;
   }
 
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
+
   exp_thread_fork(false);
 
 				// Get full contribution from all threads
@@ -506,7 +510,7 @@ void UserEBarP::determine_acceleration_and_potential(void)
   MPI_Allreduce(&acc1[0], &acc[0], 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 				// Backward Euler
-  if (monopole) {
+  if (monopole and mlevel==0) {
     for (int k=0; k<3; k++) {
       bps[k] += vel[k] * (tnow - teval[mlevel]);
       vel[k] += acc[k] * (tnow - teval[mlevel]);

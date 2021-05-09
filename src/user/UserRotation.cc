@@ -58,37 +58,41 @@ void UserRotation::userinfo()
 
   print_divider();
 
-  cout << "** User routine Rotation initialized, " ;
-  cout << "Omega=" << Omega;
-  cout << " , the rotation center is ";
+  std::cout << "** User routine Rotation initialized, " ;
+  std::cout << "Omega=" << Omega;
+  std::cout << " , the rotation center is ";
   if (EJ) 
-    cout << " the EJ center";
+    std::cout << " the EJ center";
   else 
-    cout << " the COM";
-  cout << "and R_rot is";
+    std::cout << " the COM";
+  std::cout << "and R_rot is";
   if (RROT > 0.0)  
-    cout << RROT;
+    std::cout << RROT;
   else 
-    cout << " Infinity";
-  cout << endl;
+    std::cout << " Infinity";
+  std::cout << std::endl;
   
   print_divider();
 }
 
 void UserRotation::initialize()
 {
-  string val;
+  std::string val;
 
   if (get_value("Omega", val))   Omega = atof(val.c_str());
   if (get_value("RROT", val))    RROT = atof(val.c_str());
   if (get_value("EJ",val))       EJ = atol(val);
 
-  if(RROT < 0.0) RROT =0.0;
+  if (RROT < 0.0) RROT =0.0;
 }
 
 
 void UserRotation::determine_acceleration_and_potential(void)
 {
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
+
   exp_thread_fork(false);
 }
 

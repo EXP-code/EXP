@@ -87,10 +87,10 @@ $(CUDA_LIBFLAGS) @exp_vtk_ldlib@ @exp_vtk_lib@ $(LIBS) $(FLIBS)
 	$(NVCC) $(CUDA_CFLAGS) $(NVCC_CXXFLAGS) -c -o $@ $<
 
 
-sledge.f:	$(top_srcdir)/src/sledge.f
-	cp $(top_srcdir)/src/$@ .
+# special case for f77 for now
 
-CLEANFILES =	sledge.f
+sledge.o:	sledge.f
+		f77 -O2 -g -o sledge.o -c sledge.f
 
 ## libexputil/Makefile.am ends here
 

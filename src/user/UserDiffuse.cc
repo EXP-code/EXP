@@ -199,6 +199,12 @@ void UserDiffuse::determine_acceleration_and_potential(void)
 {
   if (!c0) return;
 
+  if (multistep && mlevel>0) return;
+
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(c0);
+#endif
+
   if (!(this_step % nfreq)) {
     compute_model();
     compute_diffuse();

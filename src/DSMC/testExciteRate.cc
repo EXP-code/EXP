@@ -105,9 +105,9 @@ int main (int ac, char **av)
 
   PeriodicTable pt;
 
-  chdata ch;
+  atomicData ad;
 
-  ch.createIonList(ZList);
+  ad.createIonList(ZList);
 
   double Tmin = log(tmin);
   double Tmax = log(tmax);
@@ -175,14 +175,14 @@ int main (int ac, char **av)
 	for (int c=1; c<z+1; c++) {
 	  double nd = abund[z] * frac[z-1][c]/pt[z]->weight();
 	  n_elc += nd*c;
-	  ffE   += nd*ch.freeFreeEmiss(z, c+1, T);
+	  ffE   += nd*ad.freeFreeEmiss(z, c+1, T);
 	}
       }
 	
       out << std::setw(16) << T
 	  << std::setw(16) << n_ion
 	  << std::setw(16) << n_elc
-	  << std::setw(16) << ch.collEmiss(Z, C, T, 100.0, 40)*n_ion*n_elc
+	  << std::setw(16) << ad.collEmiss(Z, C, T, 100.0, 40)*n_ion*n_elc
 	  << std::setw(16) << ffE*n_elc
 	  << std::endl;
     }

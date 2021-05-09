@@ -329,28 +329,12 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
       
 }
 
-
-void Orient::accumulate(double time, Component *c)
+void Orient::accumulate_cpu(double time, Component *c)
 {
-				// Do not register a duplicate entry
-  if (fabs(lasttime - time) < 1.0e-12) return;
-				// Space entries by at least deltaT
-  if (time - deltaT - lasttime < 0.0 ) return;
-
-  lasttime = time;
-
-  if (linear) {
-      center = center0;
-      center0 += cenvel0*dtime;
-      return;
-  }
-
-  angm.clear();
-
   double energy, mass, v2;
   unsigned nbodies = c->Number();
   PartMapItr it = c->Particles().begin();
-  unsigned tkeep = (many+myid)/numprocs;
+  unsigned tkeep = many/numprocs;
   set<EL3, ltEL3>::reverse_iterator el3last = angm.rbegin();
 
   for (unsigned q=0; q<nbodies; q++) {
@@ -422,7 +406,38 @@ void Orient::accumulate(double time, Component *c)
 #endif
     }
   }
+}
 
+
+void Orient::accumulate(double time, Component *c)
+{
+				// Do not register a duplicate entry
+  if (fabs(lasttime - time) < 1.0e-12) return;
+				// Space entries by at least deltaT
+  if (time - deltaT - lasttime < 0.0 ) return;
+
+  lasttime = time;
+
+  if (linear) {
+      center = center0;
+      center0 += cenvel0*dtime;
+      return;
+  }
+
+  comp->timer_orient.start();	// Time the accumulate step
+  
+  angm.clear();
+
+#if HAVE_LIBCUDA
+  if (use_cuda)
+    accumulate_gpu(time, c);
+  else
+#endif
+    accumulate_cpu(time, c);
+
+  comp->timer_orient.stop();
+
+  unsigned tkeep = many/numprocs;
 
   std::vector<double> ee;
   for (auto it = angm.begin(); it != angm.end(); it++) ee.push_back(it->E);
@@ -431,7 +446,7 @@ void Orient::accumulate(double time, Component *c)
     if (n==myid) {
       unsigned nsiz = ee.size();
       // Size trim approximation; 3x the target size
-      nsiz = std::min<unsigned>(nsiz, 3.0*tkeep/numprocs);
+      nsiz = std::min<unsigned>(nsiz, 3.0*tkeep);
       // Send to root node for sorting
       MPI_Send(&nsiz,     1, MPI_UNSIGNED, 0, 331, MPI_COMM_WORLD);
       MPI_Send(&ee[0], nsiz, MPI_DOUBLE,   0, 332, MPI_COMM_WORLD);
@@ -447,11 +462,12 @@ void Orient::accumulate(double time, Component *c)
 
   if (myid==0) {
     std::sort(ee.begin(), ee.end());
-    Ecurr = *(ee.begin()+tkeep);
+    if (ee.size()<=many) Ecurr = ee.back();
+    else                 Ecurr = *(ee.begin()+many);
   }
 
   // Propagate minimum energy and current cached low energy particles
-  // with nodes
+  // within nodes
 
   MPI_Bcast(&Ecurr, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 

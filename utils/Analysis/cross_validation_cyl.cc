@@ -150,8 +150,10 @@ main(int argc, char **argv)
   
   po::options_description desc(sout.str());
   desc.add_options()
-    ("help,h",                                                                          "Print this help message")
-    ("verbose,v",                                                                       "Verbose and diagnostic output for covariance computation")
+    ("help,h",
+     "Print this help message")
+    ("verbose,v",
+     "Verbose and diagnostic output for covariance computation")
     ("OUT",
      "assume original, single binary PSP files as input")
     ("SPL",
@@ -226,6 +228,7 @@ main(int argc, char **argv)
     po::notify(vm);    
   } catch (po::error& e) {
     if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
     exit(-1);
   }
 
@@ -235,6 +238,7 @@ main(int argc, char **argv)
 
   if (vm.count("help")) {
     if (myid==0) std::cout << std::endl << desc << std::endl;
+    MPI_Finalize();
     return 0;
   }
 
@@ -261,6 +265,7 @@ main(int argc, char **argv)
   std::ofstream out(prefix+".summary");
   if (not out) {
     std::cerr << "Error opening output file <" << prefix+".summary" << ">" << std::endl;
+    MPI_Finalize();
     exit(-2);
   }
 
@@ -272,8 +277,9 @@ main(int argc, char **argv)
   ifstream in0, in1;
   std::ostringstream s0, s1;
   if (myid==0) {
-    s0 << "OUT." << runtag << "."
-       << std::setw(5) << std::setfill('0') << init;
+    if (SPL) s0 << "SPL.";
+    else     s0 << "OUT.";
+    s0 << runtag << "." << std::setw(5) << std::setfill('0') << init;
     in0.open(s0.str());
     if (!in0) {
       cerr << "Error opening <" << s0.str() << ">" << endl;
@@ -357,7 +363,7 @@ main(int argc, char **argv)
 	else
 	  cmapr = node["cmapr" ].as<int>();
 	if (node["cmapz"])
-	  cmapz = node["cmapz"  ].as<int>();
+	  cmapz = node["cmapz" ].as<int>();
 	rcylmin = node["rmin"  ].as<double>();
 	rcylmax = node["rmax"  ].as<double>();
 	rscale  = node["ascl"  ].as<double>();
@@ -739,6 +745,7 @@ main(int argc, char **argv)
 	std::cout << "Error finding component named <" << cname << ">" << std::endl;
 	psp->PrintSummary(std::cout);
       }
+      MPI_Finalize();
       exit(-1);
     }
       
@@ -974,19 +981,21 @@ main(int argc, char **argv)
 
       if (myid==0) {
 	  
+	constexpr double pi4 = 4.0*M_PI;
+
 	out << std::setw( 5) << ipsp
 	    << std::setw(18) << snr;
 	
-	double term1tot = std::accumulate(term1.begin(), term1.end(), 0.0) / (4.0*M_PI);
-	double term2tot = std::accumulate(term2.begin(), term2.end(), 0.0);
-	double term3tot = std::accumulate(term3.begin(), term3.end(), 0.0);
+	double term1tot = std::accumulate(term1.begin(), term1.end(), 0.0) / pi4;
+	double term2tot = std::accumulate(term2.begin(), term2.end(), 0.0) * (-1);
+	double term3tot = std::accumulate(term3.begin(), term3.end(), 0.0) * pi4;
 
 	if (nsnr==0) term4tot = term1tot;
 	  
 	out << std::setw(18) << term1tot
 	    << std::setw(18) << term2tot
 	    << std::setw(18) << term3tot
-	    << std::setw(18) << term1tot + term2tot - term3tot + term4tot
+	    << std::setw(18) << term1tot - term2tot - term3tot + term4tot
 	    << std::endl;
       }
       // Root process

@@ -244,11 +244,15 @@ void UserRotF::determine_acceleration_and_potential(void)
   if(this_step % Nint == 0  && TidalON) 
     for(int i=0; i<Ngrid; i++) Mtable[i] = 0.0;
 
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
+
   exp_thread_fork(false);
 
 
   // Computing tidal radius
-  if(this_step % Nint == 0  && TidalON) {
+  if(this_step % Nint == 0 && mlevel==0 && TidalON) {
     vector<double> Mtotable;
 
     // Gethering the mass profile

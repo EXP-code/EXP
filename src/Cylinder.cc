@@ -13,6 +13,12 @@ Timer timer_debug;
 
 double EXPSCALE=1.0, HSCALE=1.0, ASHIFT=0.25;
 
+//@{
+//! These are for testing exclusively (should be set false for production)
+static bool cudaAccumOverride = false;
+static bool cudaAccelOverride = false;
+//@}
+
 double DiskDens(double R, double z, double phi)
 {
   double f = cosh(z/HSCALE);
@@ -55,7 +61,6 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   // Initialize the circular storage container 
   cuda_initialize();
   initialize_cuda_cyl = true;
-
 #endif
 
   id              = "Cylinder";
@@ -113,6 +118,9 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   EVEN_M          = false;
   eof_over        = false;
   eof_file        = "";
+#if HAVE_LIBCUDA==1
+  cuda_aware      = true;
+#endif
 
   initialize();
 
@@ -142,8 +150,9 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   
   // Set azimuthal harmonic order restriction?
   //
-  if (mlim>=0) ortho->set_mlim(mlim);
-  if (EVEN_M)  ortho->setEven(EVEN_M);
+  if (mlim>=0)  ortho->set_mlim(mlim);
+  if (EVEN_M)   ortho->setEven(EVEN_M);
+  if (defSampT) ortho->setSampT(defSampT);
 
   try {
     if (conf["tk_type"]) ortho->setTK(conf["tk_type"].as<std::string>());
@@ -343,7 +352,7 @@ void Cylinder::initialize()
     if (conf["nvtk"      ])       nvtk  = conf["nvtk"      ].as<int>();
     if (conf["eof_file"  ])   eof_file  = conf["eof_file"  ].as<std::string>();
     if (conf["override"  ])   eof_over  = conf["override"  ].as<bool>();
-    if (conf["vflag"     ])      vflag  = conf["vflag"     ].as<int>();
+    if (conf["samplesz"  ])   defSampT  = conf["samplesz"  ].as<int>();
     
     if (conf["rnum"      ])       rnum  = conf["rnum"      ].as<int>();
     if (conf["pnum"      ])       pnum  = conf["pnum"      ].as<int>();
@@ -806,20 +815,20 @@ void Cylinder::determine_coefficients(void)
 #endif
     
 #if HAVE_LIBCUDA==1
-  if (component->cudaDevice>=0) {
-    start1 = std::chrono::high_resolution_clock::now();
-    
-    if (mstep==0) {
-      std::fill(use.begin(), use.end(), 0.0);
-      std::fill(cylmass0.begin(), cylmass0.end(), 0.0);
-    }
-
-    if (cC->levlist[mlevel].size()) {
+  if (component->cudaDevice>=0 and use_cuda) {
+    if (cudaAccumOverride) {
+      component->CudaToParticles();
+      exp_thread_fork(true);
+    } else {
+      start1 = std::chrono::high_resolution_clock::now();
+      if (mstep==0) {
+	std::fill(use.begin(), use.end(), 0.0);
+	std::fill(cylmass0.begin(), cylmass0.end(), 0.0);
+      }
       determine_coefficients_cuda(compute);
       DtoH_coefs(mlevel);
+      finish1 = std::chrono::high_resolution_clock::now();
     }
-
-    finish1 = std::chrono::high_resolution_clock::now();
   } else {    
     exp_thread_fork(true);
   }
@@ -855,9 +864,9 @@ void Cylinder::determine_coefficients(void)
 				// Make the coefficients for this level
   if (multistep==0 || !self_consistent) {
     ortho->make_coefficients(compute);
-  } else if (mlevel==multistep) {
+  } else {
     ortho->make_coefficients(mfirst[mstep], compute);
-    compute_multistep_coefficients();
+    compute_multistep_coefficients(); // I don't think this is necessary . . .
   }
 
   if ((pcavar or pcaeof) and mlevel==multistep) ortho->pca_hall(compute);
@@ -993,14 +1002,19 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 {
   double r, r2, r3, phi;
   double xx, yy, zz;
-  double p, p0, fr, fz, fp;
+  double p, p0, fr, fz, fp, pa;
 
-  const double ratmin = 0.75;
-  const double maxerf = 3.0;
-  const double midpt = ratmin + 0.5*(1.0 - ratmin);
-  const double rsmth = 0.5*(1.0 - ratmin)/maxerf;
+  constexpr double ratmin = 0.75;
+  constexpr double maxerf = 3.0;
+  constexpr double midpt  = ratmin + 0.5*(1.0 - ratmin);
+  constexpr double rsmth  = 0.5*(1.0 - ratmin)/maxerf;
 
-  double R2 = rcylmax*rcylmax*acyl*acyl, ratio, frac, cfrac, mfactor = 1.0;
+  double ratio, frac, cfrac, mfactor = 1.0;
+
+  // Get the grid actual radius from EmpCylSL
+  //
+  double R2 = ortho->get_ascale()*ortho->get_rtable();
+  R2 = R2*R2;			// Compute the square
 
   vector<double> ctr;
   if (mix) mix->getCenter(ctr);
@@ -1053,6 +1067,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 	} else
 	  cC->Pos(&pos[id][1], indx, Component::Local);
 
+	// Only apply this fraction of the force
 	mfactor = mix->Mixture(&pos[id][1]);
 	for (int k=1; k<=3; k++) pos[id][k] -= ctr[k-1];
 
@@ -1076,21 +1091,27 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
       r2    = xx*xx + yy*yy;
       r     = sqrt(r2) + DSMALL;
       phi   = atan2(yy, xx);
+      pa    = 0.0;
 
       ratio = sqrt( (r2 + zz*zz)/R2 );
 
       if (ratio >= 1.0) {
-	cfrac      = 1.0 - mfactor;
+	frac       = 0.0;
+	cfrac      = 1.0;
 	frc[id][1] = 0.0;
 	frc[id][2] = 0.0;
 	frc[id][3] = 0.0;
       } else if (ratio > ratmin) {
-	frac  = 0.5*(1.0 - erf( (ratio - midpt)/rsmth )) * mfactor;
+	frac  = 0.5*(1.0 - erf( (ratio - midpt)/rsmth ));
 	cfrac = 1.0 - frac;
       } else {
-	frac  = mfactor;
+	cfrac = 0.0;
+	frac  = 1.0;
       }
 	
+      cfrac *= mfactor;
+      frac  *= mfactor;
+
       if (ratio < 1.0) {
 
 	ortho->accumulated_eval(r, zz, phi, p0, p, fr, fz, fp);
@@ -1100,6 +1121,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 	frc[id][1] = ( fr*xx/r - fp*yy/r2 ) * frac;
 	frc[id][2] = ( fr*yy/r + fp*xx/r2 ) * frac;
 	frc[id][3] = fz * frac;
+	pa         = p  * frac;
 	
 #ifdef DEBUG
 	flg = 1;
@@ -1115,6 +1137,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 	frc[id][1] += xx*fr * cfrac;
 	frc[id][2] += yy*fr * cfrac;
 	frc[id][3] += zz*fr * cfrac;
+	pa         += p     * cfrac;
 
 #ifdef DEBUG
 	offgrid[id]++;
@@ -1123,9 +1146,9 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
       }
     
       if (use_external)
-	cC->AddPotExt(indx, p);
+	cC->AddPotExt(indx, pa);
       else
-	cC->AddPot(indx, p);
+	cC->AddPot(indx, pa);
 
       if ( (component->EJ & Orient::AXIS) && !component->EJdryrun) 
 	frc[id] = component->orient->transformOrig() * frc[id];
@@ -1185,17 +1208,23 @@ void Cylinder::determine_acceleration_and_potential(void)
 #endif
 
 #if HAVE_LIBCUDA==1
-  if (cC->cudaDevice>=0) {
-    start1 = std::chrono::high_resolution_clock::now();
-    //
-    // Copy coeficients from this component to device
-    //
-    HtoD_coefs();
-    //
-    // Do the force computation
-    //
-    determine_acceleration_cuda();
-    finish1 = std::chrono::high_resolution_clock::now();
+  if (cC->cudaDevice>=0 and use_cuda) {
+    if (cudaAccelOverride) {
+      cC->CudaToParticles();
+      exp_thread_fork(false);
+      cC->ParticlesToCuda();
+    } else {
+      start1 = std::chrono::high_resolution_clock::now();
+      //
+      // Copy coeficients from this component to device
+      //
+      HtoD_coefs();
+      //
+      // Do the force computation
+      //
+      determine_acceleration_cuda();
+      finish1 = std::chrono::high_resolution_clock::now();
+    }
   } else {
     exp_thread_fork(false);
   }

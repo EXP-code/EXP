@@ -128,6 +128,8 @@ main(int ac, char **av)
   desc.add_options()
     ("help,h",		"produce help message")
     ("verbose,v",       "verbose output")
+    ("OUT",             "assume that PSP files are in original format")
+    ("SPL",             "assume that PSP files are in split format")
     ("PVD,P",		"create a ParaView PVD file")
     ("name,c",	        po::value<std::string>(&cname)->default_value("gas"),
      "component name")
@@ -178,14 +180,15 @@ main(int ac, char **av)
     std::ostringstream file;
     file << "OUT." << rtag << "." << std::setfill('0') << std::setw(5) << n;
     
-    ifstream *in = new ifstream(file.str());
-    if (!*in) {
-      cerr << "Error opening file <" << file.str() << "> for input."
-	   << std::endl
-	   << "Assuming end of sequence . . . finalizing."
-	   << std::endl;
+    std::ifstream in(file.str());
+    if (!in) {
+      std::cerr << "Error opening file <" << file.str() << "> for input."
+		<< std::endl
+		<< "Assuming end of sequence . . . finalizing."
+		<< std::endl;
       break;
     }
+    in.close();
 
     if (verbose) std::cerr << "Using filename: " << file.str() << std::endl;
     else         std::cout << "Begin file " << file.str()
@@ -194,41 +197,35 @@ main(int ac, char **av)
 
 				// Parse the PSP file
 				// ------------------
-    PSPDump psp(in);
-
-    in->close();
+    PSPptr psp;
+    if (vm.count("SPL")) psp = std::make_shared<PSPspl>(file.str());
+    else                 psp = std::make_shared<PSPout>(file.str());
 
 				// Now write a summary
 				// -------------------
     if (verbose) {
       
-      psp.PrintSummary(in, cerr);
+      psp->PrintSummary(cerr);
     
       std::cerr << std::endl
 		<< "Best fit dump to <" << time << "> has time <" 
-		<< psp.SetTime(time) << ">" << std::endl;
-    } else 
-      psp.SetTime(time);
+		<< psp->CurrentTime() << ">" << std::endl;
+    }
 
-				// Reopen file for data input
-				// --------------------------
-    delete in;
-    in = new ifstream(file.str());
-    
   
     vector<double> pos(3), vel(3);
 
     PSPstanza *stanza;
     SParticle* part;
 
-    double T = psp.CurrentTime();
+    double T = psp->CurrentTime();
     if (verbose) {
       std::cerr << std::endl << "PSP time is <" << T << ">" << std::endl;
     }
 
     std::ostringstream fileName;
 
-    for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
+    for (stanza=psp->GetStanza(); stanza!=0; stanza=psp->NextStanza()) {
     
       if (stanza->name != cname) continue;
 
@@ -273,15 +270,13 @@ main(int ac, char **av)
       dens->SetName("density");
 
       if (Ndens) {
-	in->seekg(stanza->pspos); // Move to beginning of particles
-
 	typedef point <double, 3> point3;
 	typedef kdtree<double, 3> tree3;
 
 	std::vector<double> mass;
 	std::vector<point3> points;
 
-	for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
+	for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
 	  points.push_back({part->pos(0), part->pos(1), part->pos(2)});
 	  mass.push_back(part->mass());
 	}
@@ -293,16 +288,13 @@ main(int ac, char **av)
 
 	  double volume = 4.0*M_PI/3.0*std::pow(std::get<2>(ret), 3.0);
 	  if (volume>0.0)
-	    dens->InsertNextValue(mass[k]*Ndens/volume);
+	    dens->InsertNextValue(std::get<1>(ret)/volume);
 	  else
 	    dens->InsertNextValue(1.0e-18);
 	}
       }
-				// Position to beginning of particles
-				// ----------------------------------
-      in->seekg(stanza->pspos);
 
-      for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
+      for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
 
 	float m = part->mass();
 	mas->InsertNextValue(m);

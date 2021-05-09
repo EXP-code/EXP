@@ -39,7 +39,7 @@ int
 main(int ac, char **av)
 {
   char *prog = av[0];
-  double time, pmin, pmax;
+  double pmin, pmax;
   bool mweight = true;
   bool nweight = false;
   bool areal   = false;
@@ -56,8 +56,8 @@ main(int ac, char **av)
     ("nweight,n",       "number-weighted values")
     ("areal,A",         "areal average")
     ("verbose,v",       "verbose output")
-    ("time,t",		 po::value<double>(&time)->default_value(1.0e20),
-     "find closest time slice to requested value")
+    ("OUT",             "assume that PSP files are in original format")
+    ("SPL",             "assume that PSP files are in split format")
     ("axis,a",		po::value<int>(&axis)->default_value(3),
      "histogram along desired axis: x=1, y=2, z=3")
     ("pmin,p",	        po::value<double>(&pmin)->default_value(-100.0),
@@ -127,36 +127,35 @@ main(int ac, char **av)
   
   for (auto file : files ) {
 
-    ifstream *in = new ifstream(file.c_str());
-    if (!*in) {
-      cerr << "Error opening file <" << file << "> for input\n";
+    std::ifstream in(file);
+    if (!in) {
+      std::cerr << "Error opening file <" << file << "> for input\n";
       exit(-1);
     }
+    in.close();
 
     if (verbose) cerr << "Using filename: " << file << endl;
 
 
 				// Parse the PSP file
 				// ------------------
-    PSPDump psp(in);
+    PSPptr psp;
+    if (vm.count("SPL")) psp = std::make_shared<PSPspl>(file);
+    else                 psp = std::make_shared<PSPout>(file);
 
-    in->close();
 
 				// Now write a summary
 				// -------------------
     if (verbose) {
       
-      psp.PrintSummary(in, cerr);
+      psp->PrintSummary(cerr);
     
       cerr << "\nBest fit dump to <" << time << "> has time <" 
-	   << psp.SetTime(time) << ">\n";
-    } else 
-      psp.SetTime(time);
+	   << psp->CurrentTime() << ">\n";
+    }
 
 				// Dump ascii for each component
 				// -----------------------------
-    delete in;
-    in = new ifstream(file);
     
   
     double rtmp, mass, fac, dp=(pmax - pmin)/numb;
@@ -173,15 +172,11 @@ main(int ac, char **av)
 
     std::map< speciesKey, std::vector<float> > shist;
 
-    for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
+    for (stanza=psp->GetStanza(); stanza!=0; stanza=psp->NextStanza()) {
     
       if (stanza->name != cname) continue;
 
-
-				// Position to beginning of particles
-      in->seekg(stanza->pspos);
-
-      for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
+      for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
 
 	if (part->pos(axis-1)<pmin || part->pos(axis-1)>=pmax) continue;
 
@@ -226,7 +221,7 @@ main(int ac, char **av)
     //
     const size_t fw = 12;
     const size_t sw =  9;
-    double Time = psp.CurrentTime();
+    double Time = psp->CurrentTime();
     float p, f, m=0.0;
 
     if (first) {

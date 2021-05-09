@@ -101,7 +101,7 @@ main(int argc, char **argv)
   sleep(20);
 #endif  
   
-  double RMIN, RMAX, rscale, minSNR;
+  double RMIN, RMAX, rscale, minSNR0, Hexp;
   int NICE, LMAX, NMAX, NSNR, NPART;
   int beg, end, stride, init, knots, num;
   std::string modelf, dir("./"), cname, prefix;
@@ -118,8 +118,10 @@ main(int argc, char **argv)
   
   po::options_description desc(sout.str());
   desc.add_options()
-    ("help,h",                                                                          "Print this help message")
-    ("verbose,v",                                                                       "Verbose and diagnostic output for covariance computation")
+    ("help,h",
+     "Print this help message")
+    ("verbose,v",
+     "Verbose and diagnostic output for covariance computation")
     ("OUT",
      "assume original, single binary PSP files as input")
     ("SPL",
@@ -144,8 +146,9 @@ main(int argc, char **argv)
      "Jackknife partition number for testing (0 means off, use standard eval)")
     ("NSNR, N",             po::value<int>(&NSNR)->default_value(20),
      "Number of SNR evaluations")
-    ("minSNR",              po::value<double>(&minSNR)->default_value(0.01),
+    ("minSNR",              po::value<double>(&minSNR0)->default_value(0.01),
      "minimum SNR value for loop output")
+    ("Hexp",                po::value<double>(&Hexp)->default_value(1.0),           "default Hall smoothing exponent")
     ("prefix",              po::value<string>(&prefix)->default_value("crossval"),
      "Filename prefix")
     ("runtag",              po::value<string>(&runtag)->default_value("run1"),
@@ -185,6 +188,7 @@ main(int argc, char **argv)
     po::notify(vm);    
   } catch (po::error& e) {
     if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
     exit(-1);
   }
 
@@ -194,6 +198,7 @@ main(int argc, char **argv)
 
   if (vm.count("help")) {
     if (myid==0) std::cout << std::endl << desc << std::endl;
+    MPI_Finalize();
     return 0;
   }
 
@@ -220,6 +225,7 @@ main(int argc, char **argv)
   std::ofstream out(prefix+".summary");
   if (not out) {
     std::cerr << "Error opening output file <" << prefix+".summary" << ">" << std::endl;
+    MPI_Finalize();
     exit(-2);
   }
 
@@ -230,6 +236,7 @@ main(int argc, char **argv)
   SphericalModelTable halo(modelf);
   SphereSL::mpi  = true;
   SphereSL::NUMR = 4000;
+  SphereSL::HEXP = Hexp;
   SphereSL ortho(&halo, LMAX, NMAX, 1, rscale, true, NPART);
 
   auto sl = ortho.basis();
@@ -335,6 +342,7 @@ main(int argc, char **argv)
 	std::cout << "Error finding component named <" << cname << ">" << std::endl;
 	psp->PrintSummary(std::cout);
       }
+      MPI_Finalize();
       exit(-1);
     }
       
@@ -371,6 +379,7 @@ main(int argc, char **argv)
     std::vector<double> term2(LMAX+1), work2(LMAX+1);
     std::vector<double> term3(LMAX+1), work3(LMAX+1);
     
+    double minSNR = minSNR0;
     double maxSNR = ortho.getMaxSNR();
 				// Sanity check
     double dx = (ximax - ximin)/(num - 1);
@@ -385,7 +394,7 @@ main(int argc, char **argv)
     double dSNR = (maxSNR - minSNR)/(NSNR - 1);
 
     if (myid==0) {
-      std::cout << "maxSNR=" << maxSNR << " dSNR=" << dSNR << std::endl;
+      std::cout << "minSNR=" << minSNR << " maxSNR=" << maxSNR << " dSNR=" << dSNR << std::endl;
     }
 
     double term4tot = 0.0;
@@ -405,7 +414,7 @@ main(int argc, char **argv)
     
       // Get the snr trimmed coefficients
       //
-      auto coefs = ortho.get_trimmed(snr, Hall);
+      auto coefs = ortho.get_trimmed(snr, ortho.getMass(), Hall);
 
       // Zero out the accumulators
       //

@@ -7,7 +7,7 @@
 #include <cmath>
 
 /**
-   Cumulative angle scattering from Bobylev and Nanbu 2000
+   Cumulative angle scattering from Bobylev and Nanbu (2000)
 */
 class coulombSelect
 {
@@ -40,8 +40,14 @@ private:
     return x;
   }
 
-  const double tau_i = 0.0001, tau_f = 4.0, tau_z = 40.0;
+  //! Limiting values for tau evaluation for asymptotic and extreme
+  //! values
+  const double tau_i = 0.0001, tau_m = 1.0e-8, tau_f = 4.0, tau_z = 40.0;
+
+  //! Tau evaluation grid
   const int numT = 2000;
+
+  //! Array grids
   std::vector<double> cT, cA;
 
 public:
@@ -63,9 +69,15 @@ public:
   //! Evaluate A given tau
   double eval(double tau)
   {
-    if      (tau <= tau_i) return 1.0/(2.0*tau);
-    else if (tau >= tau_z) return 0.0;
+    // Elastic limit
+    if      (tau >= tau_z) return 0.0;
+    // Large tau asymptotic behavior
     else if (tau >= tau_f) return 3.0*exp(-2.0*tau);
+    // Limiting value tiny tau
+    else if (tau <= tau_m) return 1.0/(2.0*tau_m);
+    // Small tau asumptotic behavior
+    else if (tau <= tau_i) return 1.0/(2.0*tau);
+    // Use the grid for intermediate values
     else {
       auto it    = std::lower_bound(cT.begin(), cT.end(), tau);
       int indx   = std::distance(cT.begin(), it);

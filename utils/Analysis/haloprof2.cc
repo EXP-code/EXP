@@ -64,7 +64,7 @@ namespace po = boost::program_options;
 
 // Variables not used but needed for linking
 //
-int VERBOSE = 4;
+int VERBOSE = 0;
 int nthrds = 1;
 int this_step = 0;
 unsigned multistep = 0;
@@ -452,7 +452,7 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
 	  costh = z/r;
 	  phi = atan2(y, x);
 
-	  ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp);
+	  ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp, L1, L2);
 	  
 	  data[(0*OUTR+l)*OUTR+j] = p0;
 	  data[(1*OUTR+l)*OUTR+j] = p1;
@@ -643,7 +643,8 @@ main(int argc, char **argv)
   sleep(20);
 #endif  
   
-  int NICE, LMAX, NMAX;
+  double snr, rscale, Hexp;
+  int NICE, LMAX, NMAX, NPART;
   int beg, end, stride, init;
   std::string MODFILE, INDEX, dir("./"), cname, coefs;
 
@@ -661,6 +662,8 @@ main(int argc, char **argv)
   po::options_description desc(sout.str());
   desc.add_options()
     ("help,h",                                                                          "Print this help message")
+    ("verbose,v",
+     "Verbose and diagnostic output for covariance computation")
     ("OUT",
      "assume original, single binary PSP files as input")
     ("SPL",
@@ -673,6 +676,8 @@ main(int argc, char **argv)
      "minimum radius for output")
     ("RMAX",                po::value<double>(&RMAX)->default_value(0.1),
      "maximum radius for output")
+    ("RSCALE",              po::value<double>(&rscale)->default_value(0.067),
+     "coordinate mapping scale factor")
     ("LMAX",                po::value<int>(&LMAX)->default_value(4),
      "Maximum harmonic order for spherical expansion")
     ("NMAX",                po::value<int>(&NMAX)->default_value(12),
@@ -683,6 +688,9 @@ main(int argc, char **argv)
      "minimum l harmonic")
     ("L2",                  po::value<int>(&L2)->default_value(100),
      "maximum l harmonic")
+    ("NPART",               po::value<int>(&NPART)->default_value(0),
+     "Jackknife partition number for testing (0 means off, use standard eval)")
+    ("Hexp",                po::value<double>(&Hexp)->default_value(1.0),           "default Hall smoothing exponent")
     ("OUTR",                po::value<int>(&OUTR)->default_value(40),
      "Number of radial points for output")
     ("PROBE",               po::value<bool>(&PROBE)->default_value(false),
@@ -713,6 +721,11 @@ main(int argc, char **argv)
      "directory for SPL files")
     ("coefs,c",               po::value<std::string>(&coefs),
      "file of computed coefficients")
+    ("snr,S",
+     po::value<double>(&snr)->default_value(-1.0),
+     "if not negative: do a SNR cut on the PCA basis")
+    ("diff",
+     "render the difference between the trimmed and untrimmed basis")
     ;
   
   
@@ -750,6 +763,12 @@ main(int argc, char **argv)
   if (vm.count("SPL")) SPL = true;
   if (vm.count("OUT")) SPL = false;
 
+  bool Hall = false;
+  if (vm.count("Hall")) Hall = true;
+
+  bool verbose = false;
+  if (vm.count("verbose")) verbose = true;
+
   // ==================================================
   // Nice process
   // ==================================================
@@ -762,9 +781,10 @@ main(int argc, char **argv)
   // ==================================================
 
   SphericalModelTable halo(MODFILE);
-  SphereSL::mpi = true;
+  SphereSL::mpi  = true;
   SphereSL::NUMR = 4000;
-  SphereSL ortho(&halo, LMAX, NMAX);
+  SphereSL::HEXP = Hexp;
+  SphereSL ortho(&halo, LMAX, NMAX, 1, rscale, true, NPART);
   
   std::string file;
 
@@ -847,6 +867,29 @@ main(int argc, char **argv)
     ortho.make_coefs();
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
+
+    //------------------------------------------------------------ 
+    //
+    // Coefficient trimming
+    //
+    if (snr>=0.0) {
+
+      if (myid==0) {
+	std::cout << "Computing SNR=" << snr;
+	if (Hall) std::cout << " using Hall smoothing . . . " << flush;
+	else      std::cout << " using truncation . . . " << flush;
+      }
+    
+      ortho.make_covar(verbose);
+
+      // Get the snr trimmed coefficients
+      //
+      Matrix origc = ortho.retrieve_coefs();
+      Matrix coefs = ortho.get_trimmed(snr, Hall);
+
+      if (vm.count("diff")) coefs = coefs - origc;
+      ortho.install_coefs(coefs);
+    }
 
     //------------------------------------------------------------ 
 

@@ -180,16 +180,9 @@ void Direct::determine_acceleration_and_potential(void)
 
 void * Direct::determine_acceleration_and_potential_thread(void * arg)
 {
-  double rr, rr0, rfac;
-  double mass, pos[3], eps = soft;
-  double *p;
+  double pos[3], eps = soft;
 
-  unsigned nbodies = cC->levlist[mlevel].size();
   int id = *((int*)arg);
-  int nbeg = nbodies*id/nthrds;
-  int nend = nbodies*(id+1)/nthrds;
-
-  double adb = component->Adiabatic();
 
 #ifdef DEBUG
   double tclausius[nthrds];
@@ -197,65 +190,78 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
   unsigned ncnt=0;
 #endif
 
-  unsigned long j;		// Index of the current local particle
+  // If we are multistepping, compute accel only at or above <mlevel>
+  //
+  for (int lev=mlevel; lev<=multistep; lev++) {
 
-  for (int i=nbeg; i<nend; i++) {
+    unsigned nbodies = cC->levlist[lev].size();
+    int nbeg = nbodies*id/nthrds;
+    int nend = nbodies*(id+1)/nthrds;
+
+    double adb = component->Adiabatic();
+
+    for (int i=nbeg; i<nend; i++) {
     
-    j = cC->levlist[mlevel][i];
+				// Index of the current local particle
+      unsigned long j = cC->levlist[lev][i];
 
 				// Don't need acceleration for frozen particles
-    if (cC->freeze(j)) continue;
+      if (cC->freeze(j)) continue;
     
 				// Loop through the particle list
-    p = bod_buffer;
-    for (int n=0; n<ninteract; n++) {
+      double * p = bod_buffer;
+      for (int n=0; n<ninteract; n++) {
 				// Get current interaction particle
-      mass = *(p++) * adb;
-      for (int k=0; k<3; k++) pos[k] = *(p++);
-      if (!fixed_soft) eps = *(p++);
+	double mass = *(p++) * adb;
+	for (int k=0; k<3; k++) pos[k] = *(p++);
+	if (!fixed_soft) eps = *(p++);
 
 				// Compute interparticle squared distance
-      rr0 = 0.0;
-      for (int k=0; k<3; k++) rr0 +=
-				(cC->Pos(j, k) - pos[k]) *
-				(cC->Pos(j, k) - pos[k]) ;
-      rr = sqrt(rr0);
+	double rr0 = 0.0;
+	for (int k=0; k<3; k++) rr0 +=
+				  (cC->Pos(j, k) - pos[k]) *
+				  (cC->Pos(j, k) - pos[k]) ;
+	double rr = sqrt(rr0);
 
-      if (rr>rtol) {
+	if (rr>rtol) {
 				// Extended model for point masses
                                 // Given model provides normalized mass distrbution
-	double pot = 0.0;
+	  double pot = 0.0;
 
-	if (pm_model && pmmodel->get_max_radius() > rr) {
-	  double mass_frac = pmmodel->get_mass(rr) / pmmodel->get_mass(pmmodel->get_max_radius());
-	  pot = pmmodel->get_pot(rr)/pmmodel->get_mass(pmmodel->get_max_radius());
-	  mass *= mass_frac;
-	} else {
-	  auto y = (*kernel)(rr, eps);
-	  pot = mass * y.second;
-	  mass *= y.first;
-	}
+	  if (pm_model && pmmodel->get_max_radius() > rr) {
+	    double mass_frac = pmmodel->get_mass(rr) / pmmodel->get_mass(pmmodel->get_max_radius());
+	    pot = pmmodel->get_pot(rr)/pmmodel->get_mass(pmmodel->get_max_radius());
+	    mass *= mass_frac;
+	  } else {
+	    auto y = (*kernel)(rr, eps);
+	    pot = mass * y.second;
+	    mass *= y.first;
+	  }
 
 				// Acceleration
-	rfac = 1.0/(rr*rr*rr);
+	  double rfac = 1.0/(rr*rr*rr);
       
-	for (int k=0; k<3; k++)
-	  cC->AddAcc(j, k, -mass *(cC->Pos(j, k) - pos[k]) * rfac );
+	  for (int k=0; k<3; k++)
+	    cC->AddAcc(j, k, -mass *(cC->Pos(j, k) - pos[k]) * rfac );
       
 				// Potential
-	if (use_external) {
-	  cC->AddPotExt(j, pot );
+	  if (use_external) {
+	    cC->AddPotExt(j, pot );
 #ifdef DEBUG
-	  ncnt++;
-	  for (int k=0; k<3; k++)
-	    tclausius[id] += -mass *
-	      (cC->Pos(j, k) - pos[k]) * cC->Pos(j, k) * rfac;
+	    ncnt++;
+	    for (int k=0; k<3; k++)
+	      tclausius[id] += -mass *
+		(cC->Pos(j, k) - pos[k]) * cC->Pos(j, k) * rfac;
 #endif
+	  }
+	  else cC->AddPot(j, pot );
 	}
-	else cC->AddPot(j, pot );
       }
+      // END: buffer interaction loop
     }
+    // END: local particle loop
   }
+  // END: level loop
   
 #ifdef DEBUG
   if (use_external) {

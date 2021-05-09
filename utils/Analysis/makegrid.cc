@@ -172,7 +172,9 @@ int main(int argc, char**argv)
     ("mask,b", "blank empty cells")
     ("monopole,M", "subtract tabulated monopole")
     ("relative,D", "density relative to tabulated monopole")
-    ("COM,C",      "use COM as origin")
+    ("OUT", "assume that PSP files are in original format")
+    ("SPL", "assume that PSP files are in split format")
+    ("COM,C", "use COM as origin")
     ("numx,1", po::value<int>(&numx)->default_value(20), 
      "number of bins in x direction")
     ("numy,2", po::value<int>(&numy)->default_value(20), 
@@ -254,8 +256,8 @@ int main(int argc, char**argv)
   if (vm.count("numr")) { numx = numy = numz = numr; }
 
 
-  ifstream *in = new ifstream(infile.c_str());
-  if (!*in) {
+  std::ifstream in(infile);
+  if (in) {
     cerr << "Error opening file <" << infile << "> for input\n";
     exit(-1);
   }
@@ -264,22 +266,20 @@ int main(int argc, char**argv)
 
 				// Parse the PSP file
 				// ------------------
-  PSPDump psp(in);
-  
+  PSPptr psp;
+  if (vm.count("SPL")) psp = std::make_shared<PSPspl>(infile);
+  else                 psp = std::make_shared<PSPout>(infile);
+
 				// Now write a summary
 				// -------------------
   if (verbose) {
 
-    psp.PrintSummary(in, cerr);
+    psp->PrintSummary(std::cerr);
     
-    cerr << "\nBest fit dump to <" << time << "> has time <" 
-	 << psp.SetTime(time) << ">\n";
-  } else 
-    psp.SetTime(time);
+    std::cerr << std::endl << "Best fit dump to <" << time << "> has time <" 
+	      << psp->CurrentTime() << ">" << std::endl;
+  }
 
-  in->close();
-  delete in;
-  
 				// Make the arrays
 				// -----------------------------
 
@@ -378,8 +378,6 @@ int main(int argc, char**argv)
   }
 				// Reopen file to get component
 				// -----------------------------
-  in = new ifstream(infile.c_str());
-
   double ms, ps[3], vs[3];
   double com[3] = {0.0, 0.0, 0.0};
   size_t indx;
@@ -427,15 +425,10 @@ int main(int argc, char**argv)
 
     double tot_mass = 0.0;
 
-    for (its=psp.GetStanza(); its!=0; its=psp.NextStanza()) {
+    for (its=psp->GetStanza(); its!=0; its=psp->NextStanza()) {
 
-      //
-      // Position to beginning of particles
-      //
-      in->seekg(its->pspos);
-      
       indx = 0;
-      for (prt=psp.GetParticle(in); prt!=0; prt=psp.NextParticle(in)) {
+      for (prt=psp->GetParticle(); prt!=0; prt=psp->NextParticle()) {
 	
 	if (its->index_size) indx = prt->indx();
 	else                 indx++;
@@ -455,7 +448,7 @@ int main(int argc, char**argv)
   }
   
 
-  for (its=psp.GetStanza(); its!=0; its=psp.NextStanza()) {
+  for (its=psp->GetStanza(); its!=0; its=psp->NextStanza()) {
 
     if (dname.compare(its->name) == 0) {
 
@@ -463,13 +456,8 @@ int main(int argc, char**argv)
 
       if (posvel.find("dark") == posvel.end()) posvel["dark"] = fPosVel();
 
-      //
-      // Position to beginning of particles
-      //
-      in->seekg(its->pspos);
-      
       indx = 0;
-      for (prt=psp.GetParticle(in); prt!=0; prt=psp.NextParticle(in)) {
+      for (prt=psp->GetParticle(); prt!=0; prt=psp->NextParticle()) {
 
 	if (its->index_size) indx = prt->indx();
 	else                 indx++;
@@ -509,13 +497,9 @@ int main(int argc, char**argv)
 
       if (posvel.find("star") == posvel.end()) posvel["star"] = fPosVel();
 
-      //
-      // Position to beginning of particles
-      //
-      in->seekg(its->pspos);
       
       indx = 0;
-      for (prt=psp.GetParticle(in); prt!=0; prt=psp.NextParticle(in)) {
+      for (prt=psp->GetParticle(); prt!=0; prt=psp->NextParticle()) {
 
 	if (its->index_size) indx = prt->indx();
 	else                 indx++;
@@ -548,13 +532,8 @@ int main(int argc, char**argv)
 
       if (posvel.find("gas") == posvel.end()) posvel["gas"] = fPosVel();
 
-      //
-      // Position to beginning of particles
-      //
-      in->seekg(its->pspos);
-      
       indx = 0;
-      for (prt=psp.GetParticle(in); prt!=0; prt=psp.NextParticle(in)) {
+      for (prt=psp->GetParticle(); prt!=0; prt=psp->NextParticle()) {
 
 	if (its->index_size) indx = prt->indx();
 	else                 indx++;

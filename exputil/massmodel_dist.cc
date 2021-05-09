@@ -1,7 +1,5 @@
 // This may look like C code, but it is really -*- C++ -*-
 
-const char rcsid_massmodel_dist[] = "$Id$";
-
 /*****************************************************************************
  *  Description:
  *  -----------

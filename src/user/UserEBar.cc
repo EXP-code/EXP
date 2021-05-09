@@ -591,7 +591,7 @@ void UserEBar::determine_acceleration_and_potential(void)
 	omega = omega0*(1.0 + DOmega*(tnow - T0*0.5));
     }
     
-    if ( fabs(tnow-lasttime) > 2.0*DBL_EPSILON) {
+    if ( mlevel==0 and fabs(tnow-lasttime) > 2.0*DBL_EPSILON) {
       posang += 0.5*(omega + lastomega)*(tnow - lasttime);
       lastomega = omega;
       lasttime = tnow;
@@ -618,7 +618,7 @@ void UserEBar::determine_acceleration_and_potential(void)
   MPI_Allreduce(&acc1[0], &acc[0], 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 				// Backward Euler
-  if (monopole && monopole_follow) {
+  if (mlevel== 0 && monopole && monopole_follow) {
     for (int k=0; k<3; k++) {
       bps[k] += vel[k] * (tnow - teval[mlevel]);
       vel[k] += acc[k] * (tnow - teval[mlevel]);
@@ -714,6 +714,10 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
 
   if (oscil)
     amp *= (1.0 + Oamp*sin(Ofreq*(tnow - Ton)))/(1.0 + fabs(Oamp));
+
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
 
   for (unsigned lev=mlevel; lev<=multistep; lev++) {
 

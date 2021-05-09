@@ -21,7 +21,7 @@ AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/src	\
 -I$(top_srcdir)/src/DSMC -I$(top_srcdir)/include	\
 -I$(top_srcdir)/expgnu $(CUDA_CFLAGS)
 AM_CFLAGS   = -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
-AM_CXXFLAGS = -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) @exp_vtk_include@ $(CUDA_FLAGS)
+AM_CXXFLAGS = -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) @exp_vtk_include@ @exp_eigen3_include@ $(CUDA_FLAGS)
 
 bin_PROGRAMS = testCrossSection testIonRecomb genIonRecomb	\
 testQuantile testExciteRate testRatio makeRecombCache
@@ -33,7 +33,7 @@ if ENABLE_CUDA
     $(foreach sm,@sm_vers@,$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
   endif
   CUDA_LIBFLAGS  = -lcudart -lnvToolsExt
-  NVCC_CXXFLAGS  = -I/usr/include/mpi -I. $(GENCODE_FLAGS) $(NVCC_EXTRA) -Xcompiler $(AM_CPPFLAGS)
+  NVCC_CXXFLAGS  = -I/usr/include/mpi -I. $(GENCODE_FLAGS) $(NVCC_EXTRA) @exp_eigen3_include@ -Xcompiler $(AM_CPPFLAGS)
   bin_PROGRAMS += testCrossCuda
 endif
 
@@ -41,12 +41,12 @@ noinst_LIBRARIES = libexpdsmc.a libtestdsmc.a
 
 DSMC_SRC = TreeDSMC.cc Collide.cc CollideLTE.cc HeatCool.cc		\
 	CollideIon.cc Ion.cc interactSelect.cc Elastic.cc TopBase.cc	\
-	NTC.cc Quantile.cc QuantileBag.cc phfit2.f			\
+	NTC.cc Quantile.cc QuantileBag.cc phfit2.f Badnell.cc		\
 	atomic_constants.cc spline.cc $(ADD_CUDA0)
 
 TESTDSMC_SRC = Ion.cc interactSelect.cc Elastic.cc TopBase.cc	\
 	Quantile.cc QuantileBag.cc phfit2.f atomic_constants.cc	\
-	spline.cc $(ADD_CUDA1)
+	Badnell.cc spline.cc $(ADD_CUDA1)
 
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs -L$(top_srcdir)/src/DSMC $(BOOST_LDFLAGS)
 

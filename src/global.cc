@@ -28,6 +28,8 @@ bool restart = false;		// Restart from a checkpoint
 bool use_cwd = false;		// Use Node 0's current working directory on all nodes
 int NICE = 0;			// Niceness level (default: 0)
 int VERBOSE = 1;		// Chattiness for standard output
+bool step_timing = false;	// Time parts of the step (set true by
+				// DEFAULT>3)
 bool initializing = false;	// Used by force methods to do "private things"
 				// before the first step (e.g. run through
 				// coefficient evaluations even when
@@ -57,6 +59,7 @@ unsigned char dump_signal = 0;
 unsigned char quit_signal = 0;
 				// Multistep variables
 unsigned multistep = 0;
+unsigned shiftlevl = 0;
 int centerlevl = -1;
 bool DTold = false;
 double dynfracS = 1.00;
@@ -66,9 +69,14 @@ double dynfracA = 0.03;
 double dynfracP = 0.05;
 int Mstep = 0;
 int mstep = 0;
+int mdrft = 0;
 vector<int> mfirst, mintvl, stepL, stepN;
 vector< vector<bool> > mactive;
 vector< vector<int> > dstepL, dstepN;
+
+#if HAVE_LIBCUDA==1
+int cudaGlobalDevice;
+#endif
 
 
 				// Multithreading data structures for
@@ -136,5 +144,4 @@ bool fpe_wait      = false;
 bool ignore_info   = false;
 
 int  rlimit_val    = 0;
-int  cuStreams     = 3;
 bool use_cuda      = false;

@@ -108,6 +108,10 @@ void UserSlabHalo::initialize()
 
 void UserSlabHalo::determine_acceleration_and_potential(void)
 {
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
+
   exp_thread_fork(false);
   
   print_timings("UserSlabHalo: accleration timings");

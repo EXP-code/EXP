@@ -28,7 +28,8 @@ noinst_HEADERS =
 bin_PROGRAMS = diskprof haloprof haloprof2 slabprof psphisto gas2d	\
 gas2dcyl makegrid pspbox eofpeek diskprof2 pcatest diskprof3		\
 mssaprofD mssaprofH readcoefs readcoefs2 pcatest diskprof4 sphprof	\
-yaml_diff diskfreqs pspxval_sph pspxval_cyl pspxval_cyl2
+yaml_diff diskfreqs pspxval_sph pspxval_cyl pspxval_cyl2 diskeof	\
+pspKL_sph pspKL_cyl kdtest
 
 diskprof_SOURCES = PSP.cc header.cc diskprof.cc EmpCylSL.cc localmpi.cc Particle.cc
 diskprof_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
@@ -38,7 +39,7 @@ haloprof_SOURCES = PSP.cc header.cc haloprof.cc SphereSL.cc localmpi.cc Particle
 haloprof_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
 haloprof_LDADD = $(EXPLIBS)
 
-haloprof2_SOURCES = PSP2.cc header.cc haloprof2.cc SphereSL.cc localmpi.cc Particle.cc
+haloprof2_SOURCES = PSP.cc header.cc haloprof2.cc SphereSL.cc localmpi.cc Particle.cc
 haloprof2_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
 haloprof2_LDADD = $(EXPLIBS)
 
@@ -100,33 +101,53 @@ readcoefs2_SOURCES = readcoefs2.cc Coefs.cc
 readcoefs2_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
 readcoefs2_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB) $(YAML)
 
-diskprof4_SOURCES = PSP2.cc header.cc diskprof4.cc EmpCylSL.cc localmpi.cc Particle.cc
+diskprof4_SOURCES = PSP.cc header.cc diskprof4.cc EmpCylSL.cc localmpi.cc Particle.cc
 diskprof4_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
 diskprof4_LDADD   = $(EXPLIBS) $(YAML) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@
 
-sphprof_SOURCES = PSP2.cc header.cc sphprof.cc SphereSL.cc	\
+sphprof_SOURCES = PSP.cc header.cc sphprof.cc SphereSL.cc	\
 			localmpi.cc Particle.cc
 sphprof_LDFLAGS   = $(EXPFLAGS) $(BOOST_LDFLAGS)
 sphprof_LDADD     = $(EXPLIBS)
 
 pspxval_sph_SOURCES = cross_validation.cc SphereSL.cc localmpi.cc	\
-			PSP2.cc Particle.cc header.cc
+			PSP.cc Particle.cc header.cc
 pspxval_sph_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS)
 pspxval_sph_LDADD    = $(EXPLIBS)
 
 pspxval_cyl_SOURCES = cross_validation_cyl.cc EmpCylSL.cc localmpi.cc	\
-			PSP2.cc Particle.cc header.cc dtorh1.f rout.f
+			PSP.cc Particle.cc header.cc dtorh1.f rout.f
 pspxval_cyl_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS)
 pspxval_cyl_LDADD    = $(EXPLIBS)
 
 pspxval_cyl2_SOURCES = cross_validation_cyl2.cc EmpCylSL.cc localmpi.cc	\
-			PSP2.cc Particle.cc header.cc
+			PSP.cc Particle.cc header.cc
 pspxval_cyl2_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS)
 pspxval_cyl2_LDADD    = $(EXPLIBS)
 
+pspKL_sph_SOURCES = KL_sph.cc SphereSL.cc localmpi.cc PSP.cc	\
+	Particle.cc header.cc
+pspKL_sph_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS)
+pspKL_sph_LDADD    = $(EXPLIBS)
+
+pspKL_cyl_SOURCES = KL_cyl.cc EmpCylSL.cc localmpi.cc PSP.cc	\
+	Particle.cc header.cc
+pspKL_cyl_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS)
+pspKL_cyl_LDADD    = $(EXPLIBS)
+
+diskeof_SOURCES = diskeof.cc EmpCylSL.cc localmpi.cc PSP.cc	\
+			Particle.cc header.cc
+diskeof_LDFLAGS  = $(EXPFLAGS) $(BOOST_LDFLAGS)
+diskeof_LDADD    = $(EXPLIBS)
+
 yaml_diff_SOURCES = yaml_diff.cc
-yaml_diff_LDFLAGS   = $(BOOST_LDFLAGS)
+yaml_diff_LDFLAGS = $(BOOST_LDFLAGS)
 yaml_diff_LDADD   = $(BOOST_PROGRAM_OPTIONS_LIB) $(YAML)
+
+kdtest_SOURCES = KDcyltest.cc PSP.cc header.cc EmpCylSL.cc	\
+localmpi.cc Particle.cc
+kdtest_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
+kdtest_LDADD   = $(EXPLIBS) $(BOOST_PROGRAM_OPTIONS_LIB) $(YAML)
 
 EmpCylSL.cc:	$(top_srcdir)/src/EmpCylSL.cc
 	cp $(top_srcdir)/src/$@ .
@@ -136,12 +157,6 @@ PSP.H:	$(top_srcdir)/utils/PhaseSpace/PSP.H
 
 PSP.cc:	$(top_srcdir)/utils/PhaseSpace/PSP.cc header.cc header.H PSP.H
 	cp $(top_srcdir)/utils/PhaseSpace/PSP.cc .
-
-PSP2.H:	$(top_srcdir)/utils/PhaseSpace/PSP2.H
-	cp $(top_srcdir)/utils/PhaseSpace/PSP2.H .
-
-PSP2.cc:	$(top_srcdir)/utils/PhaseSpace/PSP2.cc header.cc header.H PSP2.H #
-	cp $(top_srcdir)/utils/PhaseSpace/PSP2.cc .
 
 header.cc:	$(top_srcdir)/utils/PhaseSpace/header.cc header.H
 	cp $(top_srcdir)/utils/PhaseSpace/header.cc .

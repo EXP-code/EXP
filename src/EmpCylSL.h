@@ -44,6 +44,7 @@ extern pthread_mutex_t coef_lock;
 
 #endif
 
+
 /** Encapsulatates a SLGridSph (Sturm-Liouville basis) for use as
     force method
     
@@ -56,10 +57,11 @@ class EmpCylSL
 {
 public:
 
-  typedef boost::shared_ptr<SphericalModelTable> SphModTblPtr;
-  typedef boost::shared_ptr<SLGridSph>           SLGridSphPtr;
-  typedef std::vector<Vector>                    VectorM;
-  typedef std::vector<Matrix>                    MatrixM;
+  using SphModTblPtr = boost::shared_ptr<SphericalModelTable>;
+  using SLGridSphPtr = boost::shared_ptr<SLGridSph>;
+  using VectorM      = std::vector<Vector>;
+  using MatrixM      = std::vector<Matrix>;
+  using ContribArray = std::vector<Eigen::VectorXd>;
 
 private:
 
@@ -90,7 +92,7 @@ private:
   double pfac, dfac, ffac;
 
   std::vector<Matrix> facC, facS;
-  
+
   int rank2, rank3;
 
   //@{
@@ -209,7 +211,7 @@ private:
   std::vector< std::vector<double>  > massT1;
   std::vector<unsigned> numbT;
   std::vector<double> massT;
-  unsigned sampT;
+  unsigned sampT, defSampT;
 
 
   std::vector<Matrix> vc, vs;
@@ -387,6 +389,9 @@ public:
   //! TRUE if EOF diagnostics are on (default: false)
   static bool PCAEOF;
 
+  //! Compute taper but to not apply to coefficients (default: true)
+  static bool PCADRY;
+
   //! VTK diagnostic frequency (default: false)
   static unsigned VTKFRQ;
 
@@ -553,6 +558,9 @@ public:
   //! Setup for accumulated coefficients
   void setup_accumulation(int toplev=0);
 
+  //! For PCAVAR: set subsample size
+  void setSampT(int N) { defSampT = N; }
+
   //! For EOF
   void setup_eof(void);
 
@@ -599,10 +607,11 @@ public:
   void determine_acceleration_and_potential() {};
 
   //! Accumulate coefficients from particle distribution
-  void accumulate(vector<Particle>& p, int mlev=0, bool verbose=false);
+  void accumulate(vector<Particle>& p, int mlev=0,
+		  bool verbose=false, bool compute=false);
 
   //! Accumulate coefficients from particle distribution by thread.
-  //! Used by external appliations.
+  //! Used by external applications.
   void accumulate_thread(vector<Particle>& p, int mlev=0, bool verbose=false);
 
   //! Make EOF from particle distribution
@@ -654,12 +663,21 @@ public:
   void multistep_debug();
 
   //! Set coefficients from Vectors
-  void set_coefs(int mm, const Vector& cos1, const Vector& sin1, bool zero);
+  void set_coefs(int mm, const Vector& cos1, const Vector& sin1,
+		 bool zero=true);
 
   //! Set coefficients from std::vectors
   void set_coefs(int mm,
 		 const std::vector<double>& cos1,
-		 const std::vector<double>& sin1, bool zero);
+		 const std::vector<double>& sin1, bool zero=true);
+
+  //! Set coefficients from Vectors
+  void get_coefs(int mm, Vector& cos1, Vector& sin1);
+
+  //! Set coefficients from std::vectors
+  void get_coefs(int mm,
+		 std::vector<double>& cos1,
+		 std::vector<double>& sin1);
 
   //! Set cylmass manually
   void set_mass(double mass) {
@@ -732,10 +750,14 @@ public:
   //! Return current value of disk scale height
   double get_hscale(void) { return HSCALE; }
 
+  //! Return current table radius
+  double get_rtable(void) { return Rtable; }
+
   //! Set even modes only
   void setEven(bool even=true) { EVEN_M = even; }
 
-  //! Set frequency and file name for selector output
+  //! Set file name for EOF analysis and sample size for subsample
+  //! computation
   inline void setHall(string file, unsigned tot)
   {
     hallfile = file;
@@ -744,24 +766,34 @@ public:
 
     if (myid==0) {
       if (PCAVAR) {
-	const string types[] = {
-	  "Hall", 
-	  "None"};
 
-	const string desc[] = {
-	  "Tapered signal-to-noise power defined by Hall",
-	  "Compute the S/N but do not modify coefficients"};
+	const string types[] =
+	  {
+	   "Hall",
+	   "Truncate",
+	   "None"
+	  };
 	
-	cout << "EmpCylSL: using PCA type: " << types[tk_type]
-	     << "====>" << desc[tk_type] << endl;
+	const string desc[] =
+	  {
+	   "Compute the S/N but do not modify coefficients",
+	   "Tapered signal-to-noise power defined by Hall",
+	   "Compute the S/N but do not modify coefficients"
+	  };
+      
+	std::cout << "EmpCylSL: using PCA type: " << types[tk_type]
+		  << "====>" << desc[tk_type] << std::endl;
       }
       if (PCAEOF) {
-	cout << "EmpCylSL: using PCA EOF" << endl;
+	std::cout << "EmpCylSL: using PCA EOF" << std::endl;
       }
     }
   }
 
   //@{
+  //! Get potential grid interpolated entries
+  void getPotSC(int m, int j, double R, double z, double& pC, double& pS);
+
   //! Get density grid interpolated entries
   void getDensSC(int m, int j, double R, double z, double& dC, double& dS);
 
@@ -831,6 +863,9 @@ public:
   }
 
 
+  void getPotParticle(double x, double y, double z,
+		      ContribArray& vc, ContribArray& vs);
+
   //! Get the coefficients trimmed by a SNR value using the defined algorithm
   void get_trimmed
   (double snr,
@@ -838,7 +873,10 @@ public:
    std::vector<Vector>* rt_cos=0, std::vector<Vector>* rt_sin=0,
    std::vector<Vector>* sn_rat=0);
   
-  //! Set frequency and file name for selector output
+  //! Set the coefficients trimmed by a SNR value using the defined algorithm
+  void set_trimmed(double snr);
+
+  //! Set number of bodies for subsample computation
   inline void setTotal(unsigned tot) {
     nbodstot = tot;
   }
@@ -912,6 +950,23 @@ public:
       throw std::runtime_error("T>=sampT");
 
     return covV(0, T, m)[n];
+  }
+
+  double& set_covrT(int T, int m, int n, int o)
+  {
+    if (m >  MMAX)
+      throw std::runtime_error("m>mmax");
+
+    if (n >= rank3)
+      throw std::runtime_error("n>=norder");
+
+    if (o >= rank3)
+      throw std::runtime_error("o>=norder");
+
+    if (T >= sampT)
+      throw std::runtime_error("T>=sampT");
+
+    return covM(0, T, m)[n][o];
   }
 
   double& set_tvar(int m, int i, int j)

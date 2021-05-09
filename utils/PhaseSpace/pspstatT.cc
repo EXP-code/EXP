@@ -21,7 +21,7 @@ using namespace std;
 #include <yaml-cpp/yaml.h>
 
 #include <header.H>
-#include <PSP2.H>
+#include <PSP.H>
 
 #include "atomic_constants.H"
 

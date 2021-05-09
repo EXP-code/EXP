@@ -471,7 +471,7 @@ void UserEBarS::determine_acceleration_and_potential(void)
 
     firstime = false;
 
-  } else {
+  } else if (mlevel==0) {
 
     if (!fixed) {
       omega = Lz/Iz;
@@ -509,6 +509,10 @@ void UserEBarS::determine_acceleration_and_potential(void)
   }
 
   okM++;
+
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
 
   exp_thread_fork(false);
 

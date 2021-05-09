@@ -29,9 +29,10 @@ void OutMulti::initialize()
     else
       nint = 100;
 
-    if (Output::conf["nintsub"])
+    if (Output::conf["nintsub"]) {
       nintsub = Output::conf["nintsub"].as<int>();
-    else
+      if (nintsub <= 0) nintsub = 1;
+    } else
       nintsub = std::numeric_limits<int>::max();
 
   }

@@ -43,7 +43,7 @@ int
 main(int ac, char **av)
 {
   char *prog = av[0];
-  double time, Lunit, Munit, Tunit;
+  double Lunit, Munit, Tunit;
   int sindx, eindx, icons, econs;
   std::string cname;
   bool verbose = false, trace = false;
@@ -55,8 +55,8 @@ main(int ac, char **av)
     ("help,h",		"produce help message")
     ("verbose,v",       "verbose output")
     ("trace",           "trace element method")
-    ("time,t",		po::value<double>(&time)->default_value(1.0e20),
-     "find closest time slice to requested value")
+    ("OUT",             "assume that PSP files are in original format")
+    ("SPL",             "assume that PSP files are in split format")
     ("species,s",	po::value<int>(&sindx)->default_value(-1),
      "position of species index")
     ("electrons,e",	po::value<int>(&eindx)->default_value(10),
@@ -124,39 +124,34 @@ main(int ac, char **av)
   bool first = true;
   
   for (auto file : files ) {
-
-    ifstream *in = new ifstream(file.c_str());
-    if (!*in) {
-      cerr << "Error opening file <" << file << "> for input\n";
+    
+    std::ifstream in(file);
+    if (in) {
+      std::cerr << "Error opening file <" << file << "> for input" << std::endl;
       exit(-1);
     }
+    in.close();
 
     if (verbose) cerr << "Using filename: " << file << endl;
 
 
 				// Parse the PSP file
 				// ------------------
-    PSPDump psp(in);
+    PSPptr psp;
+    if (vm.count("SPL")) psp = std::make_shared<PSPspl>(file);
+    else                 psp = std::make_shared<PSPout>(file);
 
-    in->close();
 
 				// Now write a summary
 				// -------------------
     if (verbose) {
 
-      psp.PrintSummary(in, cerr);
+      psp->PrintSummary(std::cerr);
     
-      cerr << "\nBest fit dump to <" << time << "> has time <" 
-	   << psp.SetTime(time) << ">\n";
-    } else 
-      psp.SetTime(time);
-
-
-				// Reopen file for data input
-				// --------------------------
-    delete in;
-    in = new ifstream(file);
-
+      std::cerr << std::endl << "Best fit dump to <" << time << "> has time <" 
+		<< psp->CurrentTime() << ">" << std::endl;
+    }
+    
 				// Will contain array for each gas species
 				// ---------------------------------------
     typedef std::tuple<double, double, double, double,
@@ -182,7 +177,7 @@ main(int ac, char **av)
     SParticle* part;
     double rtmp;
 
-    for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
+    for (stanza=psp->GetStanza(); stanza!=0; stanza=psp->NextStanza()) {
       
       if (stanza->name != cname) continue;
 
@@ -223,10 +218,7 @@ main(int ac, char **av)
 	   << endl;
 
 
-				// Position to beginning of particles
-      in->seekg(stanza->pspos);
-
-      for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
+      for (part=psp->GetParticle(); part!=0; part=psp->NextParticle()) {
 
 	mom[0] = part->pos(1)*part->vel(2) - part->pos(2)*part->vel(1);
 	mom[1] = part->pos(2)*part->vel(0) - part->pos(0)*part->vel(2);
@@ -309,7 +301,7 @@ main(int ac, char **av)
       
       // Get the system time from the PSP header
       //
-      double systime = psp.CurrentDump()->header.time;
+      double systime = psp->CurrentTime();
 
       cout << "     System time\t\t"        << systime       << std::endl
 	   << "     Kinetic energy\t\t"     << KE1           << std::endl

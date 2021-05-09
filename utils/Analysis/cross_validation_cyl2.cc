@@ -4,7 +4,7 @@
  *
  *  Cross validation analysis for cylinder
  *
- *  Monopole expansion version
+ *  Multipole expansion version
  *
  *  Call sequence:
  *  -------------
@@ -187,10 +187,14 @@ main(int argc, char **argv)
   
   po::options_description desc(sout.str());
   desc.add_options()
-    ("help,h",                                                                          "Print this help message")
-    ("verbose,v",                                                                       "Verbose and diagnostic output for covariance computation")
-    ("truncate,t",                                                                      "Use Truncate method for SNR trimming rather than the default Hall")
-    ("debug,",                                                                          "Debug max values")
+    ("help,h",
+     "Print this help message")
+    ("verbose,v",
+     "Verbose and diagnostic output for covariance computation")
+    ("truncate,t",
+     "Use Truncate method for SNR trimming rather than the default Hall")
+    ("debug,",
+     "Debug max values")
     ("OUT",
      "assume original, single binary PSP files as input")
     ("SPL",
@@ -219,7 +223,8 @@ main(int argc, char **argv)
      "Number of SNR evaluations")
     ("minSNR",              po::value<double>(&minSNR0),
      "minimum SNR value for loop output")
-    ("Hexp",                po::value<double>(&Hexp)->default_value(1.0),           "default Hall smoothing exponent")
+    ("Hexp",                po::value<double>(&Hexp)->default_value(1.0),
+     "default Hall smoothing exponent")
     ("prefix",              po::value<string>(&prefix)->default_value("crossval"),
      "Filename prefix")
     ("runtag",              po::value<string>(&runtag)->default_value("run1"),
@@ -270,6 +275,7 @@ main(int argc, char **argv)
     po::notify(vm);    
   } catch (po::error& e) {
     if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
     exit(-1);
   }
 
@@ -279,6 +285,7 @@ main(int argc, char **argv)
 
   if (vm.count("help")) {
     if (myid==0) std::cout << std::endl << desc << std::endl;
+    MPI_Finalize();
     return 0;
   }
 
@@ -310,6 +317,7 @@ main(int argc, char **argv)
   std::ofstream out(prefix+".summary");
   if (not out) {
     std::cerr << "Error opening output file <" << prefix+".summary" << ">" << std::endl;
+    MPI_Finalize();
     exit(-2);
   }
 
@@ -321,8 +329,9 @@ main(int argc, char **argv)
   ifstream in0, in1;
   std::ostringstream s0, s1;
   if (myid==0) {
-    s0 << "OUT." << runtag << "."
-       << std::setw(5) << std::setfill('0') << init;
+    if (SPL) s0 << "SPL.";
+    else     s0 << "OUT.";
+    s0 << runtag << "."<< std::setw(5) << std::setfill('0') << init;
     in0.open(s0.str());
     if (!in0) {
       cerr << "Error opening <" << s0.str() << ">" << endl;
@@ -446,6 +455,7 @@ main(int argc, char **argv)
   EmpCylSL::DENS        = DENS;
   EmpCylSL::CACHEFILE   = CACHEFILE;
   EmpCylSL::PCAVAR      = true;
+  EmpCylSL::PCADRY      = true;
 
 				// Create expansion
 				//
@@ -910,6 +920,7 @@ main(int argc, char **argv)
 	std::cout << "Error finding component named <" << cname << ">" << std::endl;
 	psp->PrintSummary(std::cout);
       }
+      MPI_Finalize();
       exit(-1);
     }
       
@@ -965,7 +976,7 @@ main(int argc, char **argv)
     if (maxSNR < minSNR )  minSNR = maxSNR * 1.0e-2;
 
     if (vm.count("minSNR")) {
-      if (minSNR > minSNR0)  minSNR = minSNR0;
+      if (minSNR < minSNR0)  minSNR = minSNR0;
     }
     
     if (LOG) {
@@ -1011,8 +1022,8 @@ main(int argc, char **argv)
 		  << std::setw( 4) << "n |"
 		  << std::setw(16) << " coef(cos) |"
 		  << std::setw(16) << " coef(sin) |"
-		  << std::setw(16) << "ratio(cos) |"
-		  << std::setw(16) << "ratio(sin) |"
+		  << std::setw(16) << "delta(cos) |"
+		  << std::setw(16) << "delta(sin) |"
 		  << std::setw(16) << "       S/N |"
 		  << std::endl << std::setfill('-');
 	for (int i=0; i<2; i++) std::cout << std::setw( 4) << "-+";
@@ -1022,12 +1033,15 @@ main(int argc, char **argv)
 	// Data
 	for (int M=0; M<=mmax; M++) {
 	  for (int i=0; i<norder; i++) {
+	    double ratC = 0.0, ratS = 0.0;
+	    if (rt_cos[M][i]!=0.0) ratC = ac_cos[M][i]/rt_cos[M][i] - 1.0;
+	    if (M and rt_cos[M][i]!=0.0) ratS = ac_sin[M][i]/rt_sin[M][i] - 1.0;
 	    std::cout << std::setw( 4) << M
 		      << std::setw( 4) << i
 		      << std::setw(16) << ac_cos[M][i]
 		      << std::setw(16) << (M ? ac_sin[M][i] : 0.0)
-		      << std::setw(16) << rt_cos[M][i]
-		      << std::setw(16) << (M ? rt_sin[M][i] : 0.0)
+		      << std::setw(16) << ratC
+		      << std::setw(16) << ratS
 		      << std::setw(16) << sn_rat[M][i]
 		      << std::endl;
 	  }
@@ -1142,7 +1156,7 @@ main(int argc, char **argv)
 		  A*(C*potlS[id](iX+0, iY+0) + D*potlS[id](iX+0, iY+1) ) +
 		  B*(C*potlS[id](iX+1, iY+0) + D*potlS[id](iX+1, iY+1) ) ;
 		
-			if (M==0) 
+	      if (M==0) 
 		  work2[M] += mass*ac_cos[M][n]*PotlC;
 		else 
 		  work2[M] += mass*(ac_cos[M][n]*PotlC*cos(phi*M) + ac_sin[M][n]*PotlS*sin(phi*M));
@@ -1223,23 +1237,25 @@ main(int argc, char **argv)
 
       if (myid==0) {
 
+	constexpr double pi4 = 4.0*M_PI;
+
 	out << std::setw( 5) << ipsp
 	    << std::setw(18) << snr;
 	
-	double term1tot = std::accumulate(term1.begin(), term1.end(), 0.0) / (4.0*M_PI);
-	double term2tot = std::accumulate(term2.begin(), term2.end(), 0.0);
-	double term3tot = std::accumulate(term3.begin(), term3.end(), 0.0);
+	double term1tot = std::accumulate(term1.begin(), term1.end(), 0.0) / pi4;
+	double term2tot = std::accumulate(term2.begin(), term2.end(), 0.0) * (-1);
+	double term3tot = std::accumulate(term3.begin(), term3.end(), 0.0) * pi4;
 
 	// if (nsnr==0) term4tot = term1tot;
 	  
 	out << std::setw(18) << term1tot
 	    << std::setw(18) << term2tot
 	    << std::setw(18) << term3tot
-	    << std::setw(18) << term1tot + term2tot - term3tot + term4tot;
+	    << std::setw(18) << term1tot - term2tot - term3tot + term4tot;
 	for (int m1=0; m1<=mmax; m1++)
-	  out << std::setw(18) << term1[m1]
-	      << std::setw(18) << term2[m1]
-	      << std::setw(18) << term3[m1];
+	  out << std::setw(18) << term1[m1] / pi4
+	      << std::setw(18) << term2[m1] * (-1)
+	      << std::setw(18) << term3[m1] * pi4;
 	out << std::endl;
       }
       // Root process

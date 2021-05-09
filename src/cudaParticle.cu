@@ -1,3 +1,5 @@
+// -*- C++ -*-
+
 #include <iostream>
 #include <iomanip>
 #include "cudaParticle.cuH"
@@ -13,6 +15,7 @@ int ParticleHtoD(PartPtr h, cudaParticle & d, int beg, int end)
   }
   d.pot    = h->pot;
   d.potext = h->potext;
+  d.scale  = h->scale;
 #if DATTRIB_CUDA>0
   // Skip attributes if end is 0
   //
@@ -32,9 +35,10 @@ int ParticleHtoD(PartPtr h, cudaParticle & d, int beg, int end)
     }
   }
 #endif
-  d.dtreq  = h->dtreq;
-  d.level  = h->level;
-  d.indx   = h->indx;
+  d.dtreq    = h->dtreq;
+  d.lev[0]   = h->level;
+  d.lev[1]   = h->level;
+  d.indx     = h->indx;
 
   return 0;
 }
@@ -49,6 +53,7 @@ void ParticleDtoH(const cudaParticle & d, PartPtr h, int beg, int end)
   }
   h->pot    = d.pot;
   h->potext = d.potext;
+  h->scale  = d.scale;
 #if DATTRIB_CUDA>0
   if (end) {
     if (end - beg < DATTRIB_CUDA) {
@@ -65,7 +70,7 @@ void ParticleDtoH(const cudaParticle & d, PartPtr h, int beg, int end)
   }
 #endif
   h->dtreq  = d.dtreq;
-  h->level  = d.level;
+  h->level  = d.lev[0];
   h->indx   = d.indx;
 }
 
@@ -74,9 +79,10 @@ std::ostream& operator<< (std::ostream& os, const cudaParticle& p)
 {
   std::streamsize sp = os.precision();
   os.precision(6);
-  // Index, level, mass
+  // Index, levels, mass
   os << std::setw(10) << p.indx
-     << std::setw( 4) << p.level
+     << std::setw( 4) << p.lev[0]
+     << std::setw( 4) << p.lev[1]
      << std::setw(16) << p.mass;
 
   // Position

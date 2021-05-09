@@ -100,16 +100,16 @@ int main (int ac, char **av)
 
   Ion::setRRtype(RRtype);
 
-  chdata ch;
+  atomicData ad;
 
-  ch.createIonList(ZList);
+  ad.createIonList(ZList);
 
   if (myid) {
     MPI_Finalize();
     return 0;
   }
 
-  std::map<unsigned short, double> values = ch.fraction(Z, T, norder);
+  std::map<unsigned short, double> values = ad.fraction(Z, T, norder);
     
   for (auto v : values) out << std::setw(20) << std::setprecision(12) << v.second;
   out << std::endl;

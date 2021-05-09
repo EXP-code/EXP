@@ -112,6 +112,10 @@ void UserBarTrigger::userinfo()
 {
   if (myid) return;		// Return if node master node
 
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
+
   print_divider();
 
   cout << "** User routine BAR TRIGGER initialized, " ;

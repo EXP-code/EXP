@@ -96,6 +96,9 @@ extern bool eqmotion;
 //! Multistep levels (default: 0 means no multistepping)
 extern unsigned multistep;
 
+//! Constrain level changes per step (default: 0 means no constraint)
+extern unsigned shiftlevl;
+
 //! Lowest level for centering recomputation (default: multistep/2)
 extern int centerlevl;
 
@@ -136,7 +139,10 @@ extern int NICE;
 //! Output logging level
 extern int VERBOSE;
 
-//! Times for each phase space slice (for Leap-Frog)
+//! Step timing
+extern bool step_timing;
+
+//! Times for each phase-space time slice (for Leap-Frog)
 extern double tnow;
 
 //! Current step number
@@ -163,8 +169,11 @@ extern int Mstep;
 //! True when initializing before first time step
 extern bool initializing;
 
-//! Current point in multistepping
+//! Current point in multistepping for velocity step
 extern int mstep;
+
+//! Current point in multistepping for drift step
+extern int mdrft;
 
 //! Multistep time step spacing
 extern vector<int> mintvl;
@@ -336,9 +345,12 @@ extern bool use_cuda;
 //! For toggling CUDA profiling
 extern bool cuda_prof;
 
-//! Number of concurrent CUDA streams
-extern int  cuStreams;
-
 #include "Species.H"
+
+#if HAVE_LIBCUDA==1
+#include <cudaUtil.cuH>
+extern thrust::device_vector<int> cuDstepL, cuDstepN;
+extern int cudaGlobalDevice;
+#endif
 
 #endif

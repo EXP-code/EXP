@@ -89,7 +89,7 @@ main(int argc, char **argv)
   int IBEG, IEND, NBINS, PBEG, PEND, ISKIP;
   double RMAX, ZCENTER, ZWIDTH;
   bool LOG;
-  std::string OUTFILE, INFILE, RUNTAG;
+  std::string OUTFILE, INFILE, RUNTAG, cname;
 
   // ==================================================
   // Parse command line or input parameter file
@@ -120,6 +120,8 @@ main(int argc, char **argv)
      "use logarithmic scaling for radial axis")
     ("OUTFILE",             po::value<string>(&OUTFILE)->default_value("gashisto"),
      "filename prefix")
+    ("CNAME",               po::value<string>(&cname)->default_value("gas"),
+     "Component name")
     ("INFILE",              po::value<string>(&INFILE)->default_value("OUT"),
      "phase space file")
     ("RUNTAG",              po::value<string>(&RUNTAG)->default_value("run"),
@@ -202,14 +204,13 @@ main(int argc, char **argv)
 
     if (n % numprocs == myid) {
 
-      ifstream in(files[n].c_str());
-      PSPDump psp(&in, true);
+      PSPptr psp;
+      if (vm.count("SPL")) psp = std::make_shared<PSPspl>(files[n]);
+      else                 psp = std::make_shared<PSPout>(files[n]);
 
-      Dump *dump = psp.GetDump();
-      
-      if (dump) {
+      if (psp) {
 
-	times[n] = psp.CurrentTime();
+	times[n] = psp->CurrentTime();
 	histo[n] = vector< vector<double> >(nval);
 	for (int k=0; k<nval; k++) 
 	  histo[n][k] = vector<double>(NBINS*NBINS, 0.0);
@@ -223,8 +224,14 @@ main(int argc, char **argv)
 	int icnt = 0;
 	vector<Particle> particles;
 
-	PSPstanza *gas = psp.GetGas();
-	SParticle *p = psp.GetParticle(&in);
+	PSPstanza *gas = psp->GetNamed(cname);
+	if (!gas) {
+	  if (myid==0) std::cerr << "No component named <" << cname << ">"
+				 << std::endl;
+	  MPI_Finalize();
+	  exit(-2);
+	}
+	SParticle *p = psp->GetParticle();
 	
 	while (p) {
 
@@ -244,7 +251,7 @@ main(int argc, char **argv)
 	  }
 	    
 	  if (PEND>0 && icnt>PEND) break;
-	  p = psp.NextParticle(&in);
+	  p = psp->NextParticle();
 	  icnt++;
 	}
       }

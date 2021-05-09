@@ -54,6 +54,7 @@ bool     EmpCylSL::DENS            = false;
 bool     EmpCylSL::PCAVAR          = false;
 bool     EmpCylSL::PCAVTK          = false;
 bool     EmpCylSL::PCAEOF          = false;
+bool     EmpCylSL::PCADRY          = true;
 bool     EmpCylSL::USESVD          = false;
 bool     EmpCylSL::logarithmic     = false;
 bool     EmpCylSL::enforce_limits  = false;
@@ -71,8 +72,8 @@ double   EmpCylSL::RMAX            = 20.0;
 double   EmpCylSL::HFAC            = 0.2;
 double   EmpCylSL::PPOW            = 4.0;
 string   EmpCylSL::CACHEFILE       = ".eof.cache.file";
-bool     EmpCylSL::NewCache        = false;
-bool     EmpCylSL::NewCoefs        = false;
+bool     EmpCylSL::NewCache        = true;
+bool     EmpCylSL::NewCoefs        = true;
  
 
 EmpCylSL::EmpModel EmpCylSL::mtype = Exponential;
@@ -91,6 +92,7 @@ EmpCylSL::EmpCylSL(void)
   NORDER     = 0;
   coefs_made = vector<short>(multistep+1, false);
   eof_made   = false;
+  defSampT   = 0;
   sampT      = 0;
   tk_type    = None;
   EVEN_M     = false;
@@ -140,6 +142,8 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   NORDER   = nord;
   MLIM     = std::numeric_limits<int>::max();
   EvenOdd  = false;
+  Neven    = 0;
+  Nodd     = 0;
 
 
   ASCALE   = ascale;
@@ -171,6 +175,7 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   eof_made   = false;
 
   sampT        = 0;
+  defSampT     = 0;
   tk_type      = None;
 
   cylmass      = 0.0;
@@ -232,6 +237,7 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
     MPItable = 3;
 
   sampT = 0;
+  defSampT = 0;
 
   cylmass = 0.0;
   cylmass1.resize(nthrds);
@@ -1043,6 +1049,8 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
       in.read((char *)&hscl,    sizeof(double));
       in.read((char *)&cylmass, sizeof(double));
       in.read((char *)&time,    sizeof(double));
+
+      cmapz = 1;
     }
 
 				// Spot check compatibility
@@ -1767,45 +1775,44 @@ void EmpCylSL::setup_accumulation(int mlevel)
     }
   }
 
+  // Reset particle counter
+  //
+  howmany[mlevel] = 0;
 
-  for (int M=mlevel; M<=multistep; M++) {
+  // Swap buffers
+  //
+  auto p  = cosL[mlevel];
+  cosL[mlevel] = cosN[mlevel];
+  cosN[mlevel] = p;
     
-    howmany[M] = 0;
-
-    //
-    // Swap buffers
-    //
-    auto p  = cosL[M];
-    cosL[M] = cosN[M];
-    cosN[M] = p;
+  p       = sinL[mlevel];
+  sinL[mlevel] = sinN[mlevel];
+  sinN[mlevel] = p;
     
-    p       = sinL[M];
-    sinL[M] = sinN[M];
-    sinN[M] = p;
+  // Clean current coefficient files
+  //
+  for (int nth=0; nth<nthrds; nth++) {
     
-    //
-    // Clean current coefficient files
-    //
-    for (int nth=0; nth<nthrds; nth++) {
+    howmany1[mlevel][nth] = 0;
       
-      howmany1[M][nth] = 0;
-      
-      for (int m=0; m<=MMAX; m++) {
-	cosN(M)[nth][m].zero();
-	if (m>0) sinN(M)[nth][m].zero();
-      }
+    for (int m=0; m<=MMAX; m++) {
+      cosN(mlevel)[nth][m].zero();
+      if (m>0) sinN(mlevel)[nth][m].zero();
     }
-    
-    coefs_made[M] = false;
   }
+    
+  coefs_made[mlevel] = false;
+
+  // DONE
 }
 
 void EmpCylSL::init_pca()
 {
   if (PCAVAR or PCAEOF) {
-    if (PCAVAR)
-      sampT = floor(sqrt(nbodstot));
-    // sampT = 10000;
+    if (PCAVAR) {
+      if (defSampT) sampT = defSampT;
+      else          sampT = floor(sqrt(nbodstot));
+    }
 
     pthread_mutex_init(&used_lock, NULL);
 
@@ -2414,8 +2421,6 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
 
   if (rr/ASCALE>Rtable) return;
 
-  double fac0 = 4.0*M_PI, ylm;
-
   ortho->get_pot(table[id], rr/ASCALE);
   double costh = z/(rr+1.0e-18);
   legendre_R(LMAX, costh, legs[id]);
@@ -2432,7 +2437,7 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
       // *** l loop
       for (int l=m; l<=LMAX; l++) {
 
-	ylm = sqrt((2.0*l+1.0)/(4.0*M_PI)) * pfac *
+	double ylm = sqrt((2.0*l+1.0)/(4.0*M_PI)) * pfac *
 	  exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[id][l][m];
 
 	if (m==0) {
@@ -3554,7 +3559,8 @@ void EmpCylSL::accumulate_eof_thread_call(int id, std::vector<Particle>* p, bool
 }
   
 
-void EmpCylSL::accumulate(vector<Particle>& part, int mlevel, bool verbose)
+void EmpCylSL::accumulate(vector<Particle>& part, int mlevel,
+			  bool verbose, bool compute)
 {
    double r, phi, z, mass;
 
@@ -3570,7 +3576,7 @@ void EmpCylSL::accumulate(vector<Particle>& part, int mlevel, bool verbose)
     double phi  = atan2(p->pos[1], p->pos[0]);
     double z    = p->pos[2];
     
-    accumulate(r, z, phi, mass, p->indx, 0, mlevel);
+    accumulate(r, z, phi, mass, p->indx, 0, mlevel, compute);
 
     if (myid==0 && verbose) {
       if ( (ncnt % 100) == 0) cout << "\r>> " << ncnt << " <<" << flush;
@@ -3631,6 +3637,32 @@ void EmpCylSL::accumulate_thread_call(int id, std::vector<Particle>* p, int mlev
 }
   
 
+void EmpCylSL::getPotParticle(double x, double y, double z,
+			      EmpCylSL::ContribArray &retC,
+			      EmpCylSL::ContribArray &retS)
+{
+  constexpr double norm = -4.0*M_PI;
+
+  if (retC.size()==0) {
+    retC.resize(MMAX+1);
+    retS.resize(MMAX+1);
+    for (auto & v : retC) v.resize(rank3);
+    for (auto & v : retS) v.resize(rank3);
+  }
+
+  double R = sqrt(x*x + y*y);
+  double phi = atan2(y, x);
+  
+  get_pot(vc[0], vs[0], R, z);
+  for (int mm=0; mm<=MMAX; mm++) {
+    for (int nn=0; nn<rank3; nn++) {
+      retC[mm][nn] = vc[0][mm][nn]*cos(phi*mm);
+      if (mm>0) retS[mm][nn] = vs[0][mm][nn]*sin(phi*mm);
+    }
+  }
+}
+
+
 void EmpCylSL::accumulate(double r, double z, double phi, double mass, 
 			  unsigned long seq, int id, int mlevel, bool compute)
 {
@@ -3676,14 +3708,14 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
       if (compute and PCAVAR) {
 	double hc1 = vc[id][mm][nn], hs1 = 0.0;
 	if (mm) hs1 = vs[id][mm][nn];
-	double modu1 = sqrt(hc1*hc1 + hs1*hs1) * norm;
+	double modu1 = sqrt(hc1*hc1 + hs1*hs1);
 
 	covV(id, whch, mm)[nn] += mass * modu1;
 
 	for (int oo=0; oo<rank3; oo++) {
 	  double hc2 = vc[id][mm][oo], hs2 = 0.0;
 	  if (mm) hs2 = vs[id][mm][oo];
-	  double modu2 = sqrt(hc2*hc2 + hs2*hs2) * norm;
+	  double modu2 = sqrt(hc2*hc2 + hs2*hs2);
 
 	  covM(id, whch, mm)[nn][oo] += mass * modu1 * modu2;
 	}
@@ -4162,12 +4194,12 @@ void EmpCylSL::pca_hall(bool compute)
 	  for (int nn=0; nn<rank3; nn++) {
 	    // Compute mean coef from subsample
 	    //
-	    (*pb)[mm]->meanJK[nn+1] += covV(0, T, mm)[nn] / sampT;
+	    (*pb)[mm]->meanJK[nn+1] += covV(0, T, mm)[nn] / massT[T] / sampT;
 	    
 	    for (int oo=0; oo<rank3; oo++) {
 	      // Compute mean squared coefs from subsample
 	      //
-	      (*pb)[mm]->covrJK[nn+1][oo+1] += massT[T] * covM(0, T, mm)[nn][oo] / sampT;
+	      (*pb)[mm]->covrJK[nn+1][oo+1] += covM(0, T, mm)[nn][oo] / massT[T] / sampT;
 	    }
 	  }
 	}
@@ -4278,6 +4310,7 @@ void EmpCylSL::pca_hall(bool compute)
       }
 
       Vector dd, cumlJK, snrval;
+      double ufac = static_cast<double>(nbodstot)/static_cast<double>(sampT);
 
       if (PCAVAR) {
 
@@ -4302,7 +4335,7 @@ void EmpCylSL::pca_hall(bool compute)
 	  // Boostrap variance estimate for full variance------------+
 	  // combined with scaling                                   |
 	  //                                                         v
-	  double    var = std::max<double>((*pb)[mm]->evalJK[nn+1] / sampT,
+	  double    var = std::max<double>((*pb)[mm]->evalJK[nn+1] / ufac,
 					   std::numeric_limits<double>::min());
 	  double    sqr = dd[nn+1]*dd[nn+1];
 	  double      b = var/sqr;
@@ -4312,7 +4345,8 @@ void EmpCylSL::pca_hall(bool compute)
 	  maxSNR = std::max<double>(maxSNR, 1.0/b);
 	  snrval[nn+1] = sqrt(sqr/var);
 	}
-	std::cout << "M=" << mm << " MinSNR=" << minSNR << " MaxSNR=" << maxSNR << std::endl;
+
+	// std::cout << "DEBUG: M=" << mm << " MinSNR=" << minSNR << " MaxSNR=" << maxSNR << std::endl;
 	
 #ifndef STANDALONE
 	if (vtkpca) vtkpca->Add((*pb)[mm]->meanJK,
@@ -4327,6 +4361,7 @@ void EmpCylSL::pca_hall(bool compute)
       if (hout.good()) {
 
 	double var = 0.0;
+	double ufac = static_cast<double>(nbodstot)/static_cast<double>(sampT);
 
 	for (int nn=0; nn<rank3; nn++) {
 	  hout << setw( 4) << mm << setw(4) << nn;
@@ -4336,7 +4371,7 @@ void EmpCylSL::pca_hall(bool compute)
 	    // Boostrap variance estimate for pop variance----------+
 	    // combined with magnitude scaling                      |
 	    //                                                      v
-	    double var = std::max<double>((*pb)[mm]->evalJK[nn+1] / sampT,
+	    double var = std::max<double>((*pb)[mm]->evalJK[nn+1] / ufac,
 					  std::numeric_limits<double>::min());
 	    double sqr = dd[nn+1]*dd[nn+1];
 
@@ -4388,7 +4423,7 @@ void EmpCylSL::pca_hall(bool compute)
 #endif
   }
     
-  if (PCAVAR and tk_type != None) {
+  if (!PCADRY and PCAVAR and tk_type != None) {
 
     if (pb==0) return;
 
@@ -4445,6 +4480,8 @@ void EmpCylSL::get_trimmed
  std::vector<Vector>* rt_cos, std::vector<Vector>* rt_sin,
  std::vector<Vector>* sn_rat)
 {
+  constexpr double norm = -4.0*M_PI;
+
   if (PCAVAR and tk_type != None) {
 
     if (pb==0) return;
@@ -4506,6 +4543,7 @@ void EmpCylSL::get_trimmed
 	{
 	  // Project to decorrelated basis
 	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_cos[mm][nn];
+	  
 	  ddc = I->evecJK.Transpose() * wrk;
 
 	  // Smooth
@@ -4529,6 +4567,7 @@ void EmpCylSL::get_trimmed
 	if (mm) {
 	  // Project to decorrelated basis
 	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_sin[mm][nn];
+	  
 	  dds = I->evecJK.Transpose() * wrk;
 
 	  // Smooth
@@ -4544,22 +4583,10 @@ void EmpCylSL::get_trimmed
 
 	// BEG: diagnostics
 	if (rt_cos) {
-	  for (int nn=0; nn<rank3; nn++) {
-	    if (accum_cos[mm][nn] != 0.0)
-	      (*rt_cos)[mm][nn] = ddc[nn+1] / accum_cos[mm][nn];
-	    else
-	      (*rt_cos)[mm][nn] = 0.0;
-	  }
 
-	  if (mm) {
-	    for (int nn=0; nn<rank3; nn++) {
-	      if (accum_sin[mm][nn] != 0.0)
-		(*rt_sin)[mm][nn] = dds[nn+1] / accum_sin[mm][nn];
-	      else
-		(*rt_sin)[mm][nn] = 0.0;
-	    }
-	  }
-
+	  (*rt_cos)[mm] = accum_cos[mm]/(norm*cylmass);
+	  if (mm) (*rt_sin)[mm] = accum_sin[mm]/(norm*cylmass);
+	  
 	  for (int nn=0; nn<rank3; nn++) {
 	    double val = ddc[nn+1]*ddc[nn+1] + dds[nn+1]*dds[nn+1];
 	    if (sig[nn+1]>0.0) 
@@ -4569,6 +4596,81 @@ void EmpCylSL::get_trimmed
 	  }
 	}
 	// END: diagnostics
+      }
+    }
+    // M loop
+  }
+      
+}
+
+void EmpCylSL::set_trimmed(double snr)
+{
+  if (PCAVAR and tk_type != None) {
+
+    if (pb==0) return;
+
+    // Loop through each harmonic subspace [EVEN cosines]
+    //
+    
+    Vector ddc(1, rank3), dds(1, rank3), wrk(1, rank3);
+    
+    for (int mm=0; mm<=MMAX; mm++) {
+      
+      auto it = pb->find(mm);
+      
+      if (it != pb->end()) {
+	
+	auto & I = it->second;
+	
+	// Smooth coefficients
+	//
+	auto smth = I->b_Hall;
+	for (int i=smth.getlow(); i<=smth.gethigh(); i++)
+	  smth[i] = (1.0 - smth[i])/smth[i];
+
+	if (tk_type == Hall) {
+	  for (int i=smth.getlow(); i<=smth.gethigh(); i++)
+	    smth[i] = 1.0/(1.0 + pow(snr*smth[i], HEXP));
+	}
+	if (tk_type == Truncate) {
+	  for (int i=smth.getlow(); i<=smth.gethigh(); i++) {
+	    if (1.0/smth[i]>snr) smth[i] = 1.0;
+	    else                 smth[i] = 0.0;
+	  }
+	}
+
+	// Cosine coefficients
+	//
+	{
+	  // Project to decorrelated basis
+	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_cos[mm][nn];
+	  ddc = I->evecJK.Transpose() * wrk;
+
+	  // Smooth
+	  wrk = ddc & smth;
+
+	  // Deproject coefficients
+	  ddc = I->evecJK * wrk;
+	  for (int nn=0; nn<rank3; nn++) accum_cos[mm][nn] = ddc[nn+1];
+	}
+
+	// Sine coefficients
+	//
+	if (mm) {
+	  // Project to decorrelated basis
+	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_sin[mm][nn];
+	  dds = I->evecJK.Transpose() * wrk;
+
+	  // Smooth
+	  wrk = dds & smth;
+
+	  // Deproject coefficients
+	  dds = I->evecJK * wrk;
+	  for (int nn=0; nn<rank3; nn++) accum_sin[mm][nn] = dds[nn+1];
+
+	} else {
+	  dds.zero();
+	}
       }
     }
     // M loop
@@ -4594,7 +4696,13 @@ void EmpCylSL::accumulated_eval(double r, double z, double phi,
   p  = 0.0;
 
   double rr = sqrt(r*r + z*z);
-  if (rr/ASCALE>Rtable) return;
+  if (rr/ASCALE>Rtable) {
+#ifdef OFF_GRID_ALERT
+    std::cout << "EmpCylSL::accumulated_eval: off grid with rr=" << rr << " > "
+	      << Rtable*ASCALE << std::endl;
+#endif
+    return;
+  }
 
   double X = (r_to_xi(r) - XMIN)/dX;
   double Y = (z_to_y(z)  - YMIN)/dY;
@@ -5110,6 +5218,28 @@ void EmpCylSL::set_coefs(int m1,
     for (int j=0; j<nminC; j++) accum_cos[m1][j] = cos1[j];
     if (m1) {
       for (int j=0; j<nminS; j++) accum_sin[m1][j] = sin1[j];
+    }
+  }
+}
+
+void EmpCylSL::get_coefs(int m1, Vector& cos1, Vector& sin1)
+{
+  if (m1 <= MMAX) {
+    cos1 = accum_cos[m1];
+    if (m1) sin1 = accum_sin[m1];
+  }
+}
+
+void EmpCylSL::get_coefs(int m1,
+			 std::vector<double>& cos1,
+			 std::vector<double>& sin1)
+{
+  if (m1 <= MMAX) {
+    cos1.resize(rank3);
+    for (int j=0; j<rank3; j++) cos1[j] = accum_cos[m1][j];
+    if (m1) {
+      sin1.resize(rank3);
+      for (int j=0; j<rank3; j++) sin1[j] = accum_sin[m1][j];
     }
   }
 }
@@ -5906,6 +6036,55 @@ void EmpCylSL::multistep_update_finish()
   MPI_Allreduce (&workS1[0], &workS[0], sz, 
 		 MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
+  //  +--- Deep debugging
+  //  |
+  //  v
+  if (false and myid==0) {
+    std::ofstream out("test_differ.cyl", ios::app);
+    if (out) {
+      out << std::string(13+16*rank3, '-') << std::endl;
+      out << "# T=" << tnow << " mstep=" << mstep << std::endl;
+      for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
+	offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
+	for (int mm=0; mm<=MMAX; mm++) {
+	  offset1 = mm*rank3;
+	  out << std::setw(5) << M << " C " << std::setw(5) << mm;
+	  for (int nn=0; nn<rank3; nn++) 
+	    out << std::setw(16) << workC[offset0+offset1+nn];
+	  out << std::endl;
+	  if (mm) {
+	    out << std::setw(5) << M << " S " << std::setw(5) << mm;
+	    for (int nn=0; nn<rank3; nn++) 
+	      out << std::setw(16) << workS[offset0+offset1+nn];
+	    out << std::endl;
+	  }
+	  break;
+	}
+      }
+      out << std::string(13+16*rank3, '-') << std::endl;
+      for (int mm=0; mm<=MMAX; mm++) {
+	offset1 = mm*rank3;
+	out << std::setw(5) << " *** " << " C " << std::setw(5) << mm;
+	for (int nn=0; nn<rank3; nn++) 
+	  out << std::setw(16) << accum_cos[mm][nn];
+	out << std::endl;
+	if (mm) {
+	  out << std::setw(5) << " *** " << " S " << std::setw(5) << mm;
+	  for (int nn=0; nn<rank3; nn++) 
+	    out << std::setw(16) << accum_sin[mm][nn];
+	  out << std::endl;
+	}
+	break;
+      }
+      out << std::string(13+16*rank3, '-') << std::endl;
+      out << std::string(13+16*rank3, '-') << std::endl;
+    } else {
+      std::cout << "Error opening test file <test_differ.sph> at T=" << tnow
+		<< std::endl;
+    }
+  }
+
+
   for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
 
     offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
@@ -5973,12 +6152,28 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
     }
   }
   
-				// Interpolate to get coefficients above
-  double a, b;			// 
-  for (unsigned M=0; M<mlevel; M++) {
+				// Interpolate to get coefficients above the
+				// current active level
+  for (unsigned M=0; M<mfirst[mdrft]; M++) {
 
-    b = (double)(mstep - dstepL[M][mstep-1])/(double)(dstepN[M][mstep-1] - dstepL[M][mstep-1]);
-    a = 1.0 - b;
+    double numer = static_cast<double>(mdrft            - dstepL[M][mdrft]);
+    double denom = static_cast<double>(dstepN[M][mdrft] - dstepL[M][mdrft]);
+
+    double b = numer/denom;	// Interpolation weights
+    double a = 1.0 - b;
+
+    //  +--- Deep debugging
+    //  |
+    //  v
+    if (false and myid==0) {
+      std::cout << std::left << std::fixed
+		<< "CYL INTERP M=" << std::setw(2) << M
+		<< " mstep=" << std::setw(3) << mstep
+		<< " mdrft=" << std::setw(3) << mdrft
+		<< " a=" << std::setw(16) << a
+		<< " b=" << std::setw(16) << b
+		<< std::endl << std::right;
+    }
 
     for (int mm=0; mm<=MMAX; mm++) {
       for (int nn=0; nn<rank3; nn++) {
@@ -5987,6 +6182,22 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
 	  accum_sin[mm][nn] += a*sinL(M)[0][mm][nn] + b*sinN(M)[0][mm][nn];
       }
     }
+
+    if (false and myid==0) {
+      std::cout << "CYL interpolate:"
+		<< " M="     << std::setw( 4) << M
+		<< " mstep=" << std::setw( 4) << mstep 
+		<< " mdrft=" << std::setw( 4) << mdrft 
+		<< " minS="  << std::setw( 4) << dstepL[M][mdrft]
+		<< " maxS="  << std::setw( 4) << dstepN[M][mdrft]
+		<< " a="     << std::setw(14) << a 
+		<< " b="     << std::setw(14) << b 
+		<< " L00="   << std::setw(14) << cosL(M)[0][0][0]
+		<< " N00="   << std::setw(14) << cosN(M)[0][0][0]
+		<< " c00="   << std::setw(14) << accum_cos[0][0]
+		<< std::endl;
+    }
+
     // Sanity debug check
     if (a<0.0 && a>1.0) {
       cout << "Process " << myid << ": interpolation error in multistep [a]" << endl;
@@ -5995,9 +6206,21 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
       cout << "Process " << myid << ": interpolation error in multistep [b]" << endl;
     }
   }
-				// Add coefficients at or below this level
+				// Add coefficients at or above this level
 				// 
-  for (unsigned M=mlevel; M<=multistep; M++) {
+  for (unsigned M=mfirst[mdrft]; M<=multistep; M++) {
+
+    //  +--- Deep debugging
+    //  |
+    //  v
+    if (false and myid==0) {
+      std::cout << std::left << std::fixed
+		<< "CYL FULVAL M=" << std::setw(2) << M
+		<< " mstep=" << std::setw(3) << mstep
+		<< " mdrft=" << std::setw(3) << mdrft
+		<< std::endl << std::right;
+    }
+
     for (int mm=0; mm<=MMAX; mm++) {
       for (int nn=0; nn<rank3; nn++) {
 	accum_cos[mm][nn] += cosN(M)[0][mm][nn];
@@ -6005,6 +6228,16 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
 	  accum_sin[mm][nn] += sinN(M)[0][mm][nn];
       }
     }
+  }
+
+  if (false and myid==0) {
+    std::cout << "CYL interpolated value:"
+	      << " mlev="  << std::setw( 4) << mlevel
+	      << " mstep=" << std::setw( 4) << mstep
+	      << " mdrft=" << std::setw( 4) << mdrft
+	      << " T="     << std::setw( 4) << tnow
+	      << " c00="   << std::setw(14) << accum_cos[0][0]
+	      << std::endl;
   }
 
   coefs_made = vector<short>(multistep+1, true);
@@ -6641,6 +6874,8 @@ void EmpCylSL::getDensSC(int mm, int n, double R, double z,
   dC = 0.0;
   dS = 0.0;
 
+  if (not DENS) return;
+
   if (R/ASCALE>Rtable or mm>MMAX or n>=rank3) return;
 
   double X = (r_to_xi(R) - XMIN)/dX;
@@ -6689,4 +6924,62 @@ void EmpCylSL::getDensSC(int mm, int n, double R, double z,
       densS[mm][n][ix+1][iy  ] * c10 +
       densS[mm][n][ix  ][iy+1] * c01 +
       densS[mm][n][ix+1][iy+1] * c11 ;
+}
+
+
+void EmpCylSL::getPotSC(int mm, int n, double R, double z,
+			double& pC, double& pS)
+{
+
+  pC = 0.0;
+  pS = 0.0;
+
+  if (R/ASCALE>Rtable or mm>MMAX or n>=rank3) return;
+
+  double X = (r_to_xi(R) - XMIN)/dX;
+  double Y = (z_to_y(z)  - YMIN)/dY;
+
+  int ix = (int)X;
+  int iy = (int)Y;
+  
+  if (ix < 0) {
+    ix = 0;
+    if (enforce_limits) X = 0.0;
+  }
+  if (iy < 0) {
+    iy = 0;
+    if (enforce_limits) Y = 0.0;
+  }
+  
+  if (ix >= NUMX) {
+    ix = NUMX-1;
+    if (enforce_limits) X = NUMX;
+  }
+  if (iy >= NUMY) {
+    iy = NUMY-1;
+    if (enforce_limits) Y = NUMY;
+  }
+
+  double delx0 = (double)ix + 1.0 - X;
+  double dely0 = (double)iy + 1.0 - Y;
+  double delx1 = X - (double)ix;
+  double dely1 = Y - (double)iy;
+  
+  double c00 = delx0*dely0;
+  double c10 = delx1*dely0;
+  double c01 = delx0*dely1;
+  double c11 = delx1*dely1;
+  
+  pC = 
+    potC[mm][n][ix  ][iy  ] * c00 +
+    potC[mm][n][ix+1][iy  ] * c10 +
+    potC[mm][n][ix  ][iy+1] * c01 +
+    potC[mm][n][ix+1][iy+1] * c11 ;
+
+  if (mm)
+    pS = 
+      potS[mm][n][ix  ][iy  ] * c00 +
+      potS[mm][n][ix+1][iy  ] * c10 +
+      potS[mm][n][ix  ][iy+1] * c01 +
+      potS[mm][n][ix+1][iy+1] * c11 ;
 }

@@ -85,9 +85,10 @@ void OutLog::initialize()
     else
       nint = 1;
 
-if (Output::conf["nintsub"])
+    if (Output::conf["nintsub"]) {
       nintsub = Output::conf["nintsub"].as<int>();
-    else
+      if (nintsub <= 0) nintsub = 1;
+    } else
       nintsub = std::numeric_limits<int>::max();
 
   }
@@ -395,13 +396,21 @@ void OutLog::Run(int n, int mstep, bool last)
     angmG[j] = angm0[j] = 0.0;
   }
 
-
 				// Collect info
   unsigned ntot;
   int indx = 0;
 
   for (auto c : comp->components) {
   
+#ifdef HAVE_LIBCUDA
+    if (use_cuda) {
+      if (not comp->fetched[c]) {
+	comp->fetched[c] = true;
+	c->CudaToParticles();
+      }
+    }
+#endif
+
     nbodies1[indx] = c->Number();
 
     PartMapItr it = c->Particles().begin();

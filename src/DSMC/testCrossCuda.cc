@@ -107,11 +107,11 @@ int main (int ac, char **av)
 
   std::set<unsigned short> ZList = {1, 2};
 
-  chdata ch;
+  atomicData ad;
 
-  ch.createIonList(ZList);
-  std::cout << "# Ions = " << ch.IonList.size() << std::endl;
-  ch.testCross(num);
+  ad.createIonList(ZList);
+  std::cout << "# Ions = " << ad.IonList.size() << std::endl;
+  ad.testCross(num);
   
   MPI_Finalize();
 

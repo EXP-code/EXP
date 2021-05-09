@@ -69,8 +69,6 @@ namespace pt = boost::property_tree;
 #endif
 #endif
 
-typedef boost::shared_ptr<PSPDump> PSPDumpPtr;
-
 const std::string overview = "Compute and print PCA basis for rendering";
 
 				// Variables not used but needed for linking
@@ -109,6 +107,10 @@ main(int argc, char **argv)
      "produce this help message")
     ("verbose,v",
      "verbose output")
+    ("OUT",
+     "assume that PSP files are in original format")
+    ("SPL",
+     "assume that PSP files are in split format")
     ("RMAX,R",
      po::value<double>(&RMAX)->default_value(0.1),
      "maximum radius for output")

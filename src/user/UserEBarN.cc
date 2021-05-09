@@ -782,7 +782,7 @@ void UserEBarN::determine_acceleration_and_potential(void)
     firstime = false;
     update = true;
 
-  } else {
+  } else if (mlevel==0) {
 
     if (!fixed) {
       if (c1)
@@ -824,7 +824,7 @@ void UserEBarN::determine_acceleration_and_potential(void)
   MPI_Allreduce(&acc1[0], &acc[0], 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 				// Backward Euler
-  if (monopole && monopole_follow) {
+  if (mlevel==0 && monopole && monopole_follow) {
     for (int k=0; k<3; k++) {
       bps[k] += vel[k] * (tnow - teval[mlevel]);
       vel[k] += acc[k] * (tnow - teval[mlevel]);
@@ -901,6 +901,10 @@ void * UserEBarN::determine_acceleration_and_potential_thread(void * arg)
   else
     amp = amplitude * quad_onoff;
 
+
+#if HAVE_LIBCUDA==1		// Cuda compatibility
+  getParticlesCuda(cC);
+#endif
 
   for (unsigned lev=mlevel; lev<=multistep; lev++) {
 

@@ -166,6 +166,7 @@ class DiskHalo
 				//  1		Informational
 				//  2		Model diagnostics
 				//  4		Table diagnostics
+				//  8           Velocity diagnostics
 
 				// ID string for debugging output
   static string RUNTAG;		// Default: "debug"

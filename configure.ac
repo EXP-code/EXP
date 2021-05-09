@@ -1,7 +1,7 @@
 dnl ==========================================================================
 dnl Process this file with autoconf to produce a configure script.
 dnl ==========================================================================
-AC_INIT(EXP, 7.612, [mdw@umass.edu], [], [https://mdweinberg@bitbucket.org/mdweinberg/exp.git])
+AC_INIT(EXP, 7.694, [mdw@umass.edu], [], [https://mdweinberg@bitbucket.org/mdweinberg/exp.git])
 
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SRCDIR(src/expand.cc)
@@ -107,11 +107,11 @@ dnl ==========================================================================
 dnl Added macro to allow list of CUDA compute capabilities
 dnl ==========================================================================
 
-sm_vers="35 60 61 70"
+sm_vers="60 61 70 75"
 
 AC_ARG_WITH([cuda-capabilities],
 	[AC_HELP_STRING([--with-cuda-capabilities=LIST],
-	[desired SM compute capabilities (default: 35 60 61 70)])],
+	[desired SM compute capabilities (default: 60 61 70 75)])],
 	[sm_vers="$withval"])
 
 AC_SUBST(sm_vers)
@@ -343,6 +343,7 @@ doxygen_make=""
 if test x$DOXYGEN != xnotfound; then
    SUBDIR_DOXY="doc"
    doxygen_make="doc/Makefile"
+   AC_CONFIG_FILES([doc/Makefile])
 fi
 
 dnl ==========================================================================
@@ -428,7 +429,7 @@ echo ""
 echo "    CXX_FLAGS=\"-DO_SINGLE\" ..."
 echo ""
 echo "to compile with single precision.  Double precision is default. "
-echo "The compute capability list is '35 60 61 70' by default and may "
+echo "The compute capability list is '60 61 70 75' by default and may "
 echo "be changed by using --with-cuda-capabilities=LIST flag."
 echo "----------------------------------------------------------------"
 fi

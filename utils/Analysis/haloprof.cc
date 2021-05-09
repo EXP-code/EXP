@@ -78,14 +78,12 @@ string outdir, runtag;
 double tpos = 0.0;
 double tnow = 0.0;
   
-string OUTFILE, INFILE, INDEX;
+string OUTFILE, INFILE;
 double RMIN, RMAX, TIME;
 int OUTR, NICE, LMAX, NMAX, MMAX, PARTFLAG, L1, L2;
 bool ALL, VOLUME, SURFACE, PROBE;
 
-enum ComponentType {Star=1, Gas=2, Halo=4};
-
-void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p)
+void add_particles(PSPptr psp, int& nbods, vector<Particle>& p)
 {
   if (myid==0) {
 
@@ -99,7 +97,7 @@ void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p)
     vector<Particle> t(nbody);
     vector<double> val(nbody);
 
-    SParticle *part = psp->GetParticle(in);
+    SParticle *part = psp->GetParticle();
     Particle bod;
     
     //
@@ -115,7 +113,7 @@ void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p)
       for (int k=0; k<3; k++) bod.vel[k] = part->vel(k);
       p.push_back(bod);
 
-      part = psp->NextParticle(in);
+      part = psp->NextParticle();
     }
 
 
@@ -134,7 +132,7 @@ void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p)
 	t[i].mass = part->mass();
 	for (int k=0; k<3; k++) t[i].pos[k] = part->pos(k);
 	for (int k=0; k<3; k++) t[i].vel[k] = part->vel(k);
-	part = psp->NextParticle(in);
+	part = psp->NextParticle();
       }
   
       for (int i=0; i<nbody; i++) val[i] = t[i].mass;
@@ -200,50 +198,19 @@ void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p)
 
 }
 
-void partition(ifstream* in, PSPDump* psp, int cflag, vector<Particle>& p)
+void partition(PSPptr psp, std::string cname, vector<Particle>& p)
 {
   p.erase(p.begin(), p.end());
 
-  int nbods = 0;
-  if (cflag & Star) {
-    if (myid==0) {
-      nbods = psp->CurrentDump()->nstar;
-
-      PSPstanza *cur = psp->GetStar();
-      in->seekg(cur->pspos, ios::beg);
-
-      add_particles(in, psp, nbods, p);
-    } else {
-      add_particles(in, psp, nbods, p);
-    }      
+  if (not psp->GetNamed(cname)) {
+    if (myid==0)
+      std::cerr << "No component named <" << cname << ">" << std::endl;
+    MPI_Finalize();
+    exit(-2);
   }
 
-  if (cflag & Gas) {
-    if (myid==0) {
-      int nbods = psp->CurrentDump()->ngas;
-
-      PSPstanza *cur = psp->GetGas();
-      in->seekg(cur->pspos, ios::beg);
-
-      add_particles(in, psp, nbods, p);
-    } else {
-      add_particles(in, psp, nbods, p);
-    }      
-  }
-
-  if (cflag & Halo) {
-    if (myid==0) {
-      int nbods = psp->CurrentDump()->ndark;
-
-      PSPstanza *cur = psp->GetDark();
-      in->seekg(cur->pspos, ios::beg);
-
-      add_particles(in, psp, nbods, p);
-    } else {
-      add_particles(in, psp, nbods, p);
-    }      
-  }
-
+  int nbods = psp->GetStanza()->comp.nbod;
+  add_particles(psp, nbods, p);
 }
 
 
@@ -256,7 +223,7 @@ typedef struct {
 } Node;
 
 
-void write_output(SphereSL& ortho, int icnt, double time)
+void write_output(SphereSL& ortho, double time)
 {
   unsigned ncnt = 0;
   Node node;
@@ -269,7 +236,6 @@ void write_output(SphereSL& ortho, int icnt, double time)
   // ==================================================
   
   ostringstream sstr;
-  sstr << "." << icnt;
 
   nout = 8;
   string suffix[8] = {"p0", "p", "fr", "ft", "fp", "d0", "d", "dd"};
@@ -596,7 +562,7 @@ main(int argc, char **argv)
 #endif  
   
   int NICE, LMAX, NMAX, PARTFLAG;
-  std::string MODFILE, INDEX, INFILE;
+  std::string MODFILE, INFILE, compname;
   bool ALL;
 
   // ==================================================
@@ -612,7 +578,11 @@ main(int argc, char **argv)
   
   po::options_description desc(sout.str());
   desc.add_options()
-    ("help,h",                                                                          "Print this help message")
+    ("help,h",                                                                       "Print this help message")
+    ("OUT",
+     "assume that PSP files are in original format")
+    ("SPL",
+     "assume that PSP files are in split format")
     ("NICE",                po::value<int>(&NICE)->default_value(0),
      "system priority")
     ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
@@ -641,16 +611,14 @@ main(int argc, char **argv)
      "Make volume for VTK")
     ("ALL",                 po::value<bool>(&ALL)->default_value(false),
      "Compute output for every time slice")
-    ("PARTFLAG",            po::value<int>(&PARTFLAG)->default_value(4),
-     "Wakes using Component(s) [1=stars | 2=gas | 4=halo]")
+    ("COMPNAME",            po::value<string>(&compname),
+     "Component name")
     ("OUTFILE",             po::value<string>(&OUTFILE)->default_value("haloprof"),
      "Filename prefix")
     ("INFILE",              po::value<string>(&INFILE)->default_value("OUT"),
      "Phase space file")
     ("MODFILE",             po::value<string>(&MODFILE)->default_value("SLGridSph.model"),
      "Halo model file")
-    ("INDEX",               po::value<string>(&INDEX)->default_value("frame.indx"),
-     "File containing desired indices for PSP output")
     ;
   
   
@@ -699,84 +667,54 @@ main(int argc, char **argv)
   // Open frame list
   // ==================================================
 
-  ofstream indx;
-  ifstream in;
-
   if (myid==0) {
 
-    indx.open(INDEX);
-    if (!indx) {
-      cerr << "Error opening <" << INDEX
-	   << "> for output . . . continuing without writing index file" 
-	   << endl;
-    }
-
-
-    in.open(INFILE);
+    std::ifstream in(INFILE);
     if (!in) {
-      cerr << "Error opening <" << INFILE
-	   << ">" << endl;
+      std::cerr << "Error opening <" << INFILE
+		<< ">" << std::endl;
       exit(-1);
     }
   }
 
-  
-  PSPDump psp(&in, true);
+  PSPptr psp;
+  if (vm.count("SPL")) psp = std::make_shared<PSPspl>(INFILE);
+  else                 psp = std::make_shared<PSPout>(INFILE);
 
-  Dump *dump = psp.GetDump();
-
-  if (!ALL) dump = psp.CurrentDump();
-
-  int icnt = 0;
   vector<Particle> particles;
 
-  while (dump) {
-
-    //------------------------------------------------------------ 
-
-    if (myid==0) {
-      cout << "Beginning particle partition [time="
-	   << dump->header.time << "] . . . " << flush;
-      if (ALL) 
-	indx << setw(15) << icnt << setw(15) << dump->header.time << endl;
-    }
-
-    if (in.rdstate() & ios::eofbit) {
-      in.close();
-      in.open(INFILE);
-    }
-
-    partition(&in, &psp, PARTFLAG, particles);
-    if (myid==0) cout << "done" << endl;
-
-    //------------------------------------------------------------ 
-
-    if (myid==0) cout << "Accumulating for basis . . . " << flush;
-    ortho.reset_coefs();
-    for (auto &i : particles) {
-      ortho.accumulate(i.pos[0], i.pos[1], i.pos[2], i.mass);
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done" << endl;
-  
-    //------------------------------------------------------------ 
-
-    if (myid==0) cout << "Making coefficients . . . " << flush;
-    ortho.make_coefs();
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done" << endl;
-
-    //------------------------------------------------------------ 
-
-    if (myid==0) cout << "Writing output . . . " << flush;
-    write_output(ortho, icnt++, dump->header.time);
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done" << endl;
-
-    //------------------------------------------------------------ 
-
-    dump = psp.NextDump();
+  if (myid==0) {
+    cout << "Beginning particle partition [time="
+	 << psp->CurrentTime() << "] . . . " << flush;
   }
+
+  partition(psp, compname, particles);
+  if (myid==0) cout << "done" << endl;
+
+  //------------------------------------------------------------ 
+
+  if (myid==0) cout << "Accumulating for basis . . . " << flush;
+  ortho.reset_coefs();
+  for (auto &i : particles) {
+    ortho.accumulate(i.pos[0], i.pos[1], i.pos[2], i.mass);
+  }
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (myid==0) cout << "done" << endl;
+  
+  //------------------------------------------------------------ 
+
+  if (myid==0) cout << "Making coefficients . . . " << flush;
+  ortho.make_coefs();
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (myid==0) cout << "done" << endl;
+
+  //------------------------------------------------------------ 
+
+  if (myid==0) cout << "Writing output . . . " << flush;
+  write_output(ortho, psp->CurrentTime());
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (myid==0) cout << "done" << endl;
+
 
   MPI_Finalize();
 

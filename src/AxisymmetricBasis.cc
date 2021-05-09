@@ -17,6 +17,7 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
   tksmooth  = 3.0;
   tkcum     = 0.95;
   tk_type   = None;
+  defSampT  = 0;
   sampT     = 0;
 
   string val;
@@ -31,6 +32,7 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
     if (conf["pcaeof"])    pcaeof     = conf["pcaeof"].as<bool>();
     if (conf["pcadiag"])   pcadiag    = conf["pcadiag"].as<bool>();
     if (conf["pcavtk"])    pcavtk     = conf["pcavtk"].as<bool>();
+    if (conf["samplesz"])  defSampT   = conf["samplesz"].as<int>();
     if (conf["vtkfreq"])   vtkfreq    = conf["vtkfreq"].as<int>();
     if (conf["tksmooth"])  tksmooth   = conf["tksmooth"].as<double>();
     if (conf["tkcum"])     tkcum      = conf["tkcum"].as<double>();
@@ -88,22 +90,26 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
 
       if (myid==0) {
 
-	const string types[] = {
-	  "Hall", 
-	  "VarianceCut", 
-	  "CumulativeCut",
-	  "VarianceWeighted", 
-	  "None"};
+	const string types[] =
+	  {
+	   "Hall", 
+	   "VarianceCut", 
+	   "CumulativeCut",
+	   "VarianceWeighted", 
+	   "None"
+	  };
 
-	const string desc[] = {
-	  "Tapered signal-to-noise power defined by Hall",
-	  "Cut all coefficients below some S/N level",
-	  "Cut coefficients below some cumulative fraction",
-	  "Weight coefficients be S/N for S/N<1",
-	  "Compute the S/N but do not modify coefficients"};
-
-	cout << "AxisymmetricBasis: using PCA type: " << types[tk_type] 
-	     << "====>" << desc[tk_type] << endl;
+	const string desc[] =
+	  {
+	   "Tapered signal-to-noise power defined by Hall",
+	   "Cut all coefficients below some S/N level",
+	   "Cut coefficients below some cumulative fraction",
+	   "Weight coefficients be S/N for S/N<1\0",
+	   "Compute the S/N but do not modify coefficients"
+	  };
+	
+	std::cout << "AxisymmetricBasis: using PCA type: " << types[tk_type] 
+		  << "====>" << desc[tk_type] << std::endl;
       }
       
     }
@@ -139,6 +145,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
   if (pcadiag and myid==0 and compute) {
 
     // Open the diag file
+    //
     ostringstream sout1, sout2;
     sout1 << runtag << ".pcadiag." << cC->id << "." << cC->name << ".pcalog";
     sout2 << runtag << ".pcadiag." << cC->id << "." << cC->name << ".pcamat";
@@ -350,6 +357,10 @@ void AxisymmetricBasis::pca_hall(bool compute)
 
 	if (pcavar) {
 
+	  // Variance scaling
+	  //
+	  double ufac = static_cast<double>(cC->CurTotal())/static_cast<double>(sampT);
+
 	  // Cumulative distribution
 	  //
 	  cumlJK = evalJK;
@@ -366,7 +377,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 
 	  for (int n=1; n<=nmax; n++) {
 	    
-	    var = evalJK[n] / sampT;
+	    var = evalJK[n] / ufac;
 	    //                ^
 	    //                |
 	    //                +--------- bootstrap variance estimate for
@@ -414,6 +425,10 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	
 	if (out) {
 
+	  // Variance scaling
+	  //
+	  double ufac = static_cast<double>(cC->CurTotal())/static_cast<double>(sampT);
+
 	  for (int n=1; n<=nmax; n++) {
 	    
 	    if (dof==3) out << setw(5) << l;
@@ -422,7 +437,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	    
 	    if (pcavar) {
 	  
-	      var = evalJK[n] / sampT;
+	      var = evalJK[n] / ufac;
 	      //                ^
 	      //                |
 	      //                +--------- bootstrap variance estimate for

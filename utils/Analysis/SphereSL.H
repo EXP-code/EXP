@@ -44,7 +44,7 @@ private:
   std::vector<double> massB;
   int npart, curbin;
 
-  double maxSNR;
+  double minSNR, maxSNR;
 
   Vector work;
 
@@ -61,6 +61,9 @@ public:
   //! Use MPI?  (default: false)
   static bool mpi;
 
+  //! Hall exponent (default: 1)
+  static double HEXP;
+
   /** Constructor
       \param mod instance of SphericalModelTable to condition eigenfunctions
       \param LMAX is the maximum harmonic order
@@ -68,7 +71,7 @@ public:
       \param CMAP is the SLGridSph coordindate mapping type
       \param SCALE is the SLGridSph coordindate scale length
       \param COVAR true will evaluate the covariance matrix for coeffficients
-      \param JACK >0 will evaluate the covariance matrix using a jackknife partition with number given
+      \param NPART >0 will evaluate the covariance matrix using a jackknife partition with number given
   */
   SphereSL(SphericalModelTable* mod, int LMAX, int NMAX,
 	   int CMAP=0, double SCALE=0.067, bool COVAR=false, int NPART=0);
@@ -94,11 +97,17 @@ public:
   //! Retrieve coefficients
   Matrix retrieve_coefs(void) { return expcoef; }
 
+  //! Minimum SNR coefficient value
+  double getMinSNR(void) { return minSNR; }
+
   //! Maximum SNR coefficient value
   double getMaxSNR(void) { return maxSNR; }
 
+  //! Get mass on grid
+  double getMass(void)   { return totalMass; }
+
   //! Retrieve coefficients with SNR trim
-  Matrix get_trimmed(double snr, bool Hall=false);
+  Matrix get_trimmed(double snr, double mass, bool Hall=false);
 
   //! Retrieve coefficients
   std::vector<Eigen::MatrixXd> retrieve_covar(void) { return covar; }
