@@ -860,10 +860,12 @@ void SphereSL::legendre_R(int lmax, double x, Matrix &p, Matrix &dp, Matrix& d2p
   
   somx2 = 1.0/(x*x - 1.0);
   dp[0][0] = 0.0;
-  for (l=1; l<=lmax; l++) {
-    for (m=0; m<l; m++)
-      dp[l][m] = somx2*(x*l*p[l][m] - (l+m)*p[l-1][m]);
-    dp[l][l] = somx2*x*l*p[l][l];
+  if (lmax) {
+    for (l=1; l<=lmax; l++) {
+      for (m=0; m<l; m++)
+	dp[l][m] = somx2*(x*l*p[l][m] - (l+m)*p[l-1][m]);
+      dp[l][l] = somx2*x*l*p[l][l];
+    }
   }
   
   for (l=0; l<=lmax; l++) {
