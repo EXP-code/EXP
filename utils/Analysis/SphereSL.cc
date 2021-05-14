@@ -12,7 +12,7 @@
 #endif
 
 int    SphereSL::NUMR = 800;
-int    SphereSL::NEV  = 10;	// None by default
+int    SphereSL::NEV  = 60;	// None by default
 bool   SphereSL::mpi  = false;	// Initially off
 double SphereSL::HEXP = 1.0;	// Hall exponent
 
@@ -334,6 +334,8 @@ void SphereSL::make_covar(bool verbose)
     svar.resize(lmax+1);
     uvec.resize(lmax+1);
 
+    std::vector<double> totpow(lmax+1, 0.0);
+
     for (int l=0; l<=lmax; l++) {
       int esize = (l + 1)*nmax;
       
@@ -358,6 +360,9 @@ void SphereSL::make_covar(bool verbose)
       // Compute SNR
       //
       for (int j=0; j<svar[l].size(); j++) {
+
+	totpow[l] += R[j]*R[j];	// Accumulate total power
+
 	if (verbose and myid==0) std::cout << std::setw( 4) << l
 					   << std::setw( 4) << j
 					   << std::setw(18) << svar[l][j]
@@ -372,6 +377,13 @@ void SphereSL::make_covar(bool verbose)
 	}
 	if (verbose and myid==0) std::cout << std::endl;
       }
+    }
+
+    if (verbose and myid==0) {
+      std::cout << "Total power" << std::endl;
+      for (int l=0; l<=lmax; l++)
+	std::cout << std::setw(4) << l << std::setw(18) << totpow[l]
+		  << std::endl;
     }
   }
 }
