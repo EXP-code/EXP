@@ -784,6 +784,7 @@ main(int argc, char **argv)
   SphereSL::mpi  = true;
   SphereSL::NUMR = 4000;
   SphereSL::HEXP = Hexp;
+
   SphereSL ortho(&halo, LMAX, NMAX, 1, rscale, true, NPART);
   
   std::string file;
@@ -885,7 +886,7 @@ main(int argc, char **argv)
       // Get the snr trimmed coefficients
       //
       Matrix origc = ortho.retrieve_coefs();
-      Matrix coefs = ortho.get_trimmed(snr, Hall);
+      Matrix coefs = ortho.get_trimmed(snr, ortho.getMass(), Hall);
 
       if (vm.count("diff")) coefs = coefs - origc;
       ortho.install_coefs(coefs);
