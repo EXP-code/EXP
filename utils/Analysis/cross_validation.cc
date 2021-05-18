@@ -48,6 +48,10 @@ using namespace std;
 
 namespace po = boost::program_options;
 
+				// Eigen3
+#include <Eigen/Eigen>
+
+
                                 // System libs
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -135,11 +139,11 @@ main(int argc, char **argv)
     ("NICE",                po::value<int>(&NICE)->default_value(0),
      "system priority")
     ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
-     "minimum radius for output")
+     "minimum radius for Q table")
     ("RSCALE",              po::value<double>(&rscale)->default_value(0.067),
      "coordinate mapping scale factor")
     ("RMAX",                po::value<double>(&RMAX)->default_value(2.0),
-     "maximum radius for output")
+     "maximum radius for Q table")
     ("LMAX",                po::value<int>(&LMAX)->default_value(4),
      "Maximum harmonic order for spherical expansion")
     ("NMAX",                po::value<int>(&NMAX)->default_value(12),
@@ -247,7 +251,7 @@ main(int argc, char **argv)
   auto sl = ortho.basis();
 
   // ==================================================
-  // Compute and table Q values
+  // Compute and table M and Q values
   // ==================================================
 
   double ximin = sl->r_to_xi(RMIN);
@@ -258,6 +262,34 @@ main(int argc, char **argv)
   // =================
 
   LegeQuad lw(knots);
+
+  std::map<int, Eigen::MatrixXd> O;
+  for (int L=0; L<=LMAX; L++) {
+    O[L] = Eigen::MatrixXd::Zero(NMAX, NMAX);
+    
+    for (int n1=1; n1<=NMAX; n1++) {
+      for (int n2=1; n2<=NMAX; n2++) {
+	for (int k=1; k<=knots; k++) {
+	  double xx =  ximin + (ximax - ximin)*lw.knot(k);
+	  double rr = sl->xi_to_r(xx);
+	  O[L](n1-1, n2-1) +=
+	    lw.weight(k) * (ximax - ximin) / sl->d_xi_to_r(xx) *
+	    sl->get_dens(xx, L, n1, 0) *sl->get_pot(xx, L, n2, 0) * rr * rr;
+	}
+      }
+    }
+  }
+
+  // Print orthogonality matrix
+  //
+  if (false and myid==0) {
+    std::cout << std::string(60, '-') << std::endl;
+    for (auto v : O) {
+      std::cout << std::setw(4) << v.first << std::endl
+		<< v.second << std::endl;
+      std::cout << std::string(60, '-') << std::endl;
+    }
+  }
 
   std::map< std::pair<int, int>, std::shared_ptr<std::vector<double>> > Q;
 
@@ -411,14 +443,17 @@ main(int argc, char **argv)
 	  for (int L=0; L<=LMAX; L++) {
 	    int lbeg = L*L;	// Offset into coefficient array
 	    for (int M=0; M<=L; M++) {
-	      for (int n=1; n<=ncut; n++) {
-		if (M==0)
-		  term1[L] += coefs[lbeg][n]*coefs[lbeg][n];
-		else {
-		  int ll = lbeg + 2*(M-1) + 1;
-		  term1[L] +=
-		    coefs[ll+0][n]*coefs[ll+0][n] +
-		    coefs[ll+1][n]*coefs[ll+1][n];
+	      for (int n1=1; n1<=ncut; n1++) {
+		for (int n2=1; n2<=ncut; n2++) {
+		  if (M==0)
+		    term1[L] +=
+		      coefs[lbeg][n1]*O[L](n1-1, n2-1)*coefs[lbeg][n2];
+		  else {
+		    int ll = lbeg + 2*(M-1) + 1;
+		    term1[L] +=
+		      coefs[ll+0][n1]*O[L](n1-1, n2-1)*coefs[ll+0][n2] +
+		      coefs[ll+1][n1]*O[L](n1-1, n2-1)*coefs[ll+1][n2];
+		  }
 		}
 	      }
 	    }
@@ -466,13 +501,14 @@ main(int argc, char **argv)
 		  double potl = sl->get_pot(x, L, n, 0);
 		
 		  if (M==0) {
-		    work2[L] += mass*coefs[lbeg+0][n]*ylm*potl;
-		    work3[L] += mass*coefs[lbeg+0][n]*ylm*Qval;
+		    if (r<RMAX)
+		      work2[L] += mass*coefs[lbeg+0][n]*ylm*potl;
+		    work3[L] += -mass*coefs[lbeg+0][n]*ylm*Qval;
 		  } else {
 		    int ll = lbeg + 2*(M-1) + 1;
 		    double fac = (coefs[ll][n]*cos(phi*M) + coefs[ll+1][n]*sin(phi*M))*ylm;
-		    work2[L] += mass*potl * fac;
-		    work3[L] += mass*Qval * fac;
+		    if (r<RMAX) work2[L] += mass*potl * fac;
+		    work3[L] += -mass*Qval * fac;
 		  }
 		}
 		// END: radial index loop
@@ -511,7 +547,7 @@ main(int argc, char **argv)
 	  out << std::setw(18) << term1tot
 	      << std::setw(18) << term2tot
 	      << std::setw(18) << term3tot
-	      << std::setw(18) << term1tot + term2tot - term3tot + term4tot
+	      << std::setw(18) << term1tot - term2tot - term3tot + term4tot
 	      << std::endl;
 	}
 	// Root process
@@ -574,14 +610,17 @@ main(int argc, char **argv)
 	  for (int L=0; L<=LMAX; L++) {
 	    int lbeg = L*L;	// Offset into coefficient array
 	    for (int M=0; M<=L; M++) {
-	      for (int n=1; n<=NMAX; n++) {
-		if (M==0)
-		  term1[L] += coefs[lbeg][n]*coefs[lbeg][n];
-		else {
-		  int ll = lbeg + 2*(M-1) + 1;
-		  term1[L] +=
-		    coefs[ll+0][n]*coefs[ll+0][n] +
-		    coefs[ll+1][n]*coefs[ll+1][n];
+	      for (int n1=1; n1<=NMAX; n1++) {
+		for (int n2=1; n2<=NMAX; n2++) {
+		  if (M==0)
+		    term1[L] +=
+		      coefs[lbeg][n1]*O[L](n1-1, n2-1)*coefs[lbeg][n2];
+		  else {
+		    int ll = lbeg + 2*(M-1) + 1;
+		    term1[L] +=
+		      coefs[ll+0][n1]*O[L](n1-1, n2-1)*coefs[ll+0][n2] +
+		      coefs[ll+1][n1]*O[L](n1-1, n2-1)*coefs[ll+1][n2];
+		  }
 		}
 	      }
 	    }
@@ -629,12 +668,14 @@ main(int argc, char **argv)
 		  double potl = sl->get_pot(x, L, n, 0);
 		  
 		  if (M==0) {
-		    work2[L] += mass*coefs[lbeg+0][n]*ylm*potl;
+		    if (r<RMAX)
+		      work2[L] += mass*coefs[lbeg+0][n]*ylm*potl;
 		    work3[L] += mass*coefs[lbeg+0][n]*ylm*Qval;
 		  } else {
 		    int ll = lbeg + 2*(M-1) + 1;
 		    double fac = (coefs[ll][n]*cos(phi*M) + coefs[ll+1][n]*sin(phi*M))*ylm;
-		    work2[L] += mass*potl * fac;
+		    if (r<RMAX)
+		      work2[L] += mass*potl * fac;
 		    work3[L] += mass*Qval * fac;
 		  }
 		}
