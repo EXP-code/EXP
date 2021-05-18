@@ -87,6 +87,7 @@ DiskHalo(std::shared_ptr<SphericalSL> haloexp, std::shared_ptr<EmpCylSL> diskexp
     AxiSymModel::gen_N = 800;
     AxiSymModel::gen_itmax = 40000;
     AxiSymModel::gen_rmin = RHMIN;
+    AxiSymModel::gen_seed = SEED + myid;
     newmod = std::make_shared<AddDisk>(halo, disk, DMFACTOR*dmass); 
     halo2 = newmod->get_model();
     halo2->setup_df(800, 1.0e10);
