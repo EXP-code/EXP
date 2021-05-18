@@ -223,7 +223,10 @@ typedef struct {
 } Node;
 
 
-void write_output(SphereSL& ortho, double time)
+enum class Slice {xy, xz, yz};
+
+void write_output(SphereSL& ortho, double time,
+		  Slice slice=Slice::xy)
 {
   unsigned ncnt = 0;
   Node node;
@@ -334,14 +337,31 @@ void write_output(SphereSL& ortho, double time)
     
     for (int l=0; l<OUTR; l++) {
       
-      y = -RMAX + dR*l;
+      double y0 = -RMAX + dR*l;
       
       for (int j=0; j<OUTR; j++) {
 	
 	if ((ncnt++)%numprocs == myid) {
 	  
-	  x = -RMAX + dR*j;
+	  double x0 = -RMAX + dR*j;
 	  
+	  switch (slice) {
+	  case Slice::xy:
+	    x = x0;
+	    y = y0;
+	    break;
+	  case Slice::xz:
+	    x = x0;
+	    y = 0.0;
+	    z = y0;
+	    break;
+	  case Slice::yz:
+	    x = 0.0;
+	    y = x0;
+	    z = y0;
+	    break;
+	  }
+
 	  r = sqrt(x*x + y*y + z*z) + 1.0e-18;
 	  costh = z/r;
 	  phi = atan2(y, x);
@@ -583,6 +603,12 @@ main(int argc, char **argv)
      "assume that PSP files are in original format")
     ("SPL",
      "assume that PSP files are in split format")
+    ("xy",
+     "print x-y slice for surface fields (default)")
+    ("xz",
+     "print x-z slice for surface fields")
+    ("yz",
+     "print y-z slice for surface fields")
     ("NICE",                po::value<int>(&NICE)->default_value(0),
      "system priority")
     ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
@@ -646,6 +672,11 @@ main(int argc, char **argv)
     std::cout << std::endl << desc << std::endl;
     return 0;
   }
+
+  Slice slice = Slice::xy;
+  if (vm.count("xy")) slice = Slice::xy;
+  if (vm.count("xz")) slice = Slice::xz;
+  if (vm.count("yz")) slice = Slice::yz;
 
   // ==================================================
   // Nice process
@@ -711,7 +742,7 @@ main(int argc, char **argv)
   //------------------------------------------------------------ 
 
   if (myid==0) cout << "Writing output . . . " << flush;
-  write_output(ortho, psp->CurrentTime());
+  write_output(ortho, psp->CurrentTime(), slice);
   MPI_Barrier(MPI_COMM_WORLD);
   if (myid==0) cout << "done" << endl;
 
