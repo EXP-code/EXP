@@ -35,6 +35,7 @@ Vector::Vector()
   low  = 0;
   high = 0;
   size = 0;
+  setsize(0, 0);
 }
 
 
@@ -132,7 +133,7 @@ void Vector::setsize(int l, int h)
 {
   // do we need to resize at all?
   
-  if (l==low && h==high) return;
+  if (l==low and h==high and size>0) return;
   
   // is the requested size positive?
   
@@ -458,7 +459,8 @@ void Matrix::setsize(int rl, int rh, int cl, int ch)
 {
   // do we need to resize at all?
   
-  if (rl==rlow && cl==clow && rh==rhigh && ch==chigh) return;
+  if (rl==rlow and cl==clow and rh==rhigh and ch==chigh and
+      rsize>0 and csize>0) return;
   
   // is the new size positive?
   

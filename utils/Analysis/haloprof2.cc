@@ -326,7 +326,10 @@ void partition(PSPptr psp, std::string& name, vector<Particle>& p, Histogram& h)
   add_particles(psp, nbods, p, h);
 }
 
-void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
+enum class Slice {xy, xz, yz};
+
+void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo,
+		  Slice slice=Slice::xy)
 {
   unsigned ncnt = 0;
 
@@ -440,14 +443,31 @@ void write_output(SphereSL& ortho, int icnt, double time, Histogram& histo)
     
     for (int l=0; l<OUTR; l++) {
       
-      y = -RMAX + dR*(0.5+l);
+      double y0 = -RMAX + dR*(0.5+l);
       
       for (int j=0; j<OUTR; j++) {
 	
 	if ((ncnt++)%numprocs == myid) {
 	  
-	  x = -RMAX + dR*(0.5+j);
+	  double x0 = -RMAX + dR*(0.5+j);
 	  
+	  switch (slice) {
+	  case Slice::xy:
+	    x = x0;
+	    y = y0;
+	    break;
+	  case Slice::xz:
+	    x = x0;
+	    y = 0.0;
+	    z = y0;
+	    break;
+	  case Slice::yz:
+	    x = 0.0;
+	    y = x0;
+	    z = y0;
+	    break;
+	  }
+
 	  r = sqrt(x*x + y*y + z*z) + 1.0e-18;
 	  costh = z/r;
 	  phi = atan2(y, x);
@@ -670,6 +690,12 @@ main(int argc, char **argv)
      "assume new split binary PSP files as input")
     ("CONLY",
      "make coefficient file only")
+    ("xy",
+     "print x-y slice for surface fields (default)")
+    ("xz",
+     "print x-z slice for surface fields")
+    ("yz",
+     "print y-z slice for surface fields")
     ("NICE",                po::value<int>(&NICE)->default_value(0),
      "system priority")
     ("RMIN",                po::value<double>(&RMIN)->default_value(0.0),
@@ -769,6 +795,11 @@ main(int argc, char **argv)
   bool verbose = false;
   if (vm.count("verbose")) verbose = true;
 
+  Slice slice = Slice::xy;
+  if (vm.count("xy")) slice = Slice::xy;
+  if (vm.count("xz")) slice = Slice::xz;
+  if (vm.count("yz")) slice = Slice::yz;
+
   // ==================================================
   // Nice process
   // ==================================================
@@ -784,6 +815,7 @@ main(int argc, char **argv)
   SphereSL::mpi  = true;
   SphereSL::NUMR = 4000;
   SphereSL::HEXP = Hexp;
+
   SphereSL ortho(&halo, LMAX, NMAX, 1, rscale, true, NPART);
   
   std::string file;
@@ -911,7 +943,7 @@ main(int argc, char **argv)
     }
     if (rendering) {
       if (myid==0) cout << "Writing output . . . " << flush;
-      write_output(ortho, indx, time, histo);
+      write_output(ortho, indx, time, histo, slice);
       if (myid==0) cout << "done" << endl;
     }
     MPI_Barrier(MPI_COMM_WORLD);

@@ -150,14 +150,9 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
     exit(-1);
   }
 
-
-  Lmax = Lmax<1 ? 1 : Lmax;
-
   if (nthrds<1) nthrds=1;
 
-
   initialize();
-
 
   // Allocate coefficient matrix (one for each multistep level)
   // and zero-out contents
