@@ -109,6 +109,9 @@ public:
   //! Retrieve coefficients with SNR trim
   Matrix get_trimmed(double snr, double mass, bool Hall=false);
 
+  //! Get fractional power in trimmed coefficients
+  double get_power(double snr, double mass);
+
   //! Retrieve coefficients
   std::vector<Eigen::MatrixXd> retrieve_covar(void) { return covar; }
 

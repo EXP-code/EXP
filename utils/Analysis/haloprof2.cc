@@ -876,8 +876,8 @@ main(int argc, char **argv)
 
       if (myid==0) {
 	std::cout << "Computing SNR=" << snr;
-	if (Hall) std::cout << " using Hall smoothing . . . " << flush;
-	else      std::cout << " using truncation . . . " << flush;
+	if (Hall) std::cout << " using Hall smoothing, " << flush;
+	else      std::cout << " using truncation, " << flush;
       }
     
       ortho.make_covar(verbose);
@@ -885,7 +885,10 @@ main(int argc, char **argv)
       // Get the snr trimmed coefficients
       //
       Matrix origc = ortho.retrieve_coefs();
-      Matrix coefs = ortho.get_trimmed(snr, Hall);
+      Matrix coefs = ortho.get_trimmed(snr, ortho.getMass(), Hall);
+
+      std::cout << "power in trim=" << ortho.get_power(snr, ortho.getMass())
+		<< " . . . ";
 
       if (vm.count("diff")) coefs = coefs - origc;
       ortho.install_coefs(coefs);

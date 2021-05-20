@@ -538,6 +538,59 @@ Matrix SphereSL::get_trimmed(double snr, double mass, bool Hall)
   return ret;
 }
 
+double SphereSL::get_power(double snr, double mass)
+{
+  constexpr double norm = 4.0*M_PI;
+
+  double total = 0.0, trimmed = 0.0;
+
+  if (compute_covar) {
+    
+    // L loop
+    for (int l=0, loffset=0; l<=lmax; loffset+=(2*l+1), l++) {
+
+      int esize = (l+1)*nmax;
+      
+      // Test create new vector
+      //
+      Eigen::VectorXd W(esize);
+      for (int m=0, moffset=0; m<=l; m++) {
+	if (m==0) {
+	  for (int n=1; n<=nmax; n++) {
+	    W[m*nmax + n - 1] = fabs(expcoef[loffset+moffset+0][n])
+	      / (norm*mass);
+	  }
+	  moffset++;
+
+	} else {
+	  for (int n=1; n<=nmax; n++) {
+	    W[m*nmax + n - 1] =
+	      sqrt(expcoef[loffset+moffset+0][n]*expcoef[loffset+moffset+0][n]
+		   +
+		   expcoef[loffset+moffset+1][n]*expcoef[loffset+moffset+1][n])
+	      / (norm*mass);
+	  }
+
+	  moffset+=2;
+	}
+      }
+
+      // Assign nullity
+      //
+      Eigen::VectorXd R = uvec[l].transpose() * W;
+      for (int j=0; j<svar[l].size(); j++) {
+	total += svar[l][j];
+	if (svar[l][j]>0.0) {
+	  if (R[j]*R[j]/svar[l][j] < snr) trimmed += svar[l][j];
+	}
+      }
+    }
+  }
+
+  if (total>0.0) return trimmed/total;
+  else return 0.0;
+}
+
 
 void SphereSL::dens_pot_eval(double r, double costh, double phi,
 			     double& dens0, double& dens, 
