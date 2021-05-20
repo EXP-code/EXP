@@ -372,7 +372,7 @@ main(int argc, char **argv)
     
 
     std::vector<double> term1(LMAX+1);
-    double term2, work2;
+    double term2, work2, pi42 = 0.0625/M_PI/M_PI;
     
 				// Sanity check
     double dx = (ximax - ximin)/(num - 1);
@@ -457,7 +457,8 @@ main(int argc, char **argv)
 	  out << std::setw( 5) << ipsp
 	      << std::setw( 5) << ncut;
 	  
-	  double term1tot = std::accumulate(term1.begin(), term1.end(), 0.0) / (4.0*M_PI);
+	  double term1tot = std::accumulate(term1.begin(), term1.end(), 0.0) * pi42;
+	  
 	  if (ncut==1) term4tot = term1tot;
 	  
 	  out << std::setw(18) << term1tot
@@ -581,7 +582,7 @@ main(int argc, char **argv)
 	  out << std::setw( 5) << ipsp
 	      << std::setw(18) << snr;
 	  
-	  double term1tot = std::accumulate(term1.begin(), term1.end(), 0.0) / (4.0*M_PI);
+	  double term1tot = std::accumulate(term1.begin(), term1.end(), 0.0) * pi42;
 	  
 	  if (nsnr==0) term4tot = term1tot;
 	  
