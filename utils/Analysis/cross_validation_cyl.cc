@@ -990,7 +990,7 @@ main(int argc, char **argv)
 	
 	double term1tot = std::accumulate(term1.begin(), term1.end(), 0.0) / pi4;
 	double term2tot = std::accumulate(term2.begin(), term2.end(), 0.0) * (-1);
-	double term3tot = std::accumulate(term3.begin(), term3.end(), 0.0) * pi4;
+	double term3tot = std::accumulate(term3.begin(), term3.end(), 0.0) ;
 
 	if (nsnr==0) term4tot = term1tot;
 	  
