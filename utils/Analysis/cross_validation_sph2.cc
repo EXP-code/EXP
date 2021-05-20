@@ -591,6 +591,8 @@ main(int argc, char **argv)
 	      << std::endl;
 	}
 	// Root process
+
+	if (myid==0) std::cout << "done" << endl;
       }
       // END: snr loop
     }
