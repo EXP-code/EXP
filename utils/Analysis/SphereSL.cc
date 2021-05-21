@@ -307,6 +307,10 @@ void SphereSL::make_coefs()
 	  }
 	}
 
+	// Convert to 1-particle covariance using CLT
+	//
+	covar[l] *= static_cast<double>(used)/npart;
+
       } else {
 
 	if (totalMass>0.0) {
