@@ -95,6 +95,8 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   eof             = 1;
   npca            = 50;
   npca0           = 0;
+  hexp            = 1.0;
+  snr             = 1.0;
   self_consistent = true;
   firstime        = true;
   expcond         = true;
@@ -337,6 +339,8 @@ void Cylinder::initialize()
 
     if (conf["acyl"      ])       acyl  = conf["acyl"      ].as<double>();
     if (conf["hcyl"      ])       hcyl  = conf["hcyl"      ].as<double>();
+    if (conf["hexp"      ])       hexp  = conf["hexp"      ].as<double>();
+    if (conf["snr"       ])        snr  = conf["snr"       ].as<double>();
     if (conf["nmax"      ])       nmax  = conf["nmax"      ].as<int>();
     if (conf["lmax"      ])       lmax  = conf["lmax"      ].as<int>();
     if (conf["mmax"      ])       mmax  = conf["mmax"      ].as<int>();
@@ -767,6 +771,7 @@ void Cylinder::determine_coefficients(void)
     EmpCylSL::PCAEOF = pcaeof;
     EmpCylSL::PCAVTK = pcavtk;
     EmpCylSL::VTKFRQ = nvtk;
+    EmpCylSL::HEXP   = hexp;
     std::ostringstream sout;
     if (pcadiag) 
       sout << runtag << ".pcadiag." << cC->id << "." << cC->name;
@@ -861,7 +866,11 @@ void Cylinder::determine_coefficients(void)
 
   MPL_start_timer();
 
-				// Make the coefficients for this level
+  //=========================
+  // Make the coefficients
+  // for this level
+  //=========================
+
   if (multistep==0 || !self_consistent) {
     ortho->make_coefficients(compute);
   } else {
@@ -869,7 +878,17 @@ void Cylinder::determine_coefficients(void)
     compute_multistep_coefficients(); // I don't think this is necessary . . .
   }
 
+  //=========================
+  // Compute Hall smoothing
+  //=========================
+
   if ((pcavar or pcaeof) and mlevel==multistep) ortho->pca_hall(compute);
+
+  //=========================
+  // Apply Hall smoothing
+  //=========================
+
+  if (pcavar and used) ortho->set_trimmed(snr/static_cast<double>(used));
 
   //=========================
   // Dump basis on first call

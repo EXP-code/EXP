@@ -798,8 +798,9 @@ void SphericalBasis::determine_coefficients(void)
       for (int i=0; i<nthrds; i++) muse0 += muse1[i];
       MPI_Allreduce ( &muse0, &muse,  1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
       parallel_gather_coef2();
-      pca_hall(compute);
     }
+
+    pca_hall(compute);
   }
 
   print_timings("SphericalBasis: coefficient timings");
