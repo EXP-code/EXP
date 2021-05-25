@@ -14,6 +14,8 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
   pcadiag   = false;
   pcavtk    = false;
   vtkfreq   = 1;
+  hexp      = 1.0;
+  snr       = 1.0;
   tksmooth  = 3.0;
   tkcum     = 0.95;
   tk_type   = None;
@@ -32,6 +34,8 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
     if (conf["pcaeof"])    pcaeof     = conf["pcaeof"].as<bool>();
     if (conf["pcadiag"])   pcadiag    = conf["pcadiag"].as<bool>();
     if (conf["pcavtk"])    pcavtk     = conf["pcavtk"].as<bool>();
+    if (conf["hexp"])      hexp       = conf["hexp"].as<double>();
+    if (conf["snr"])       snr        = conf["snr"].as<double>();
     if (conf["samplesz"])  defSampT   = conf["samplesz"].as<int>();
     if (conf["vtkfreq"])   vtkfreq    = conf["vtkfreq"].as<int>();
     if (conf["tksmooth"])  tksmooth   = conf["tksmooth"].as<double>();
@@ -383,9 +387,9 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	    //                +--------- bootstrap variance estimate for
 	    //                           population variance
 	    
-	    b = var/(tt[n]*tt[n]);
+	    b = var/(tt[n]*tt[n])/used;
 	    b = std::max<double>(b, std::numeric_limits<double>::min());
-	    b_Hall[indxC][n] = 1.0/(1.0 + b);
+	    b_Hall[indxC][n] = 1.0/(1.0 + pow(snr*b, hexp));
 	    snrval[n] = sqrt(1.0/b);
 	    
 	    if (tk_type == VarianceCut) {

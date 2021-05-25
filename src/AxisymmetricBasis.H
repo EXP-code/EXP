@@ -25,6 +25,8 @@
 
   @param pcavtk boolean prints out visualizable representations of pca info
 
+  @param hexp is the Hall smoothing exponent
+
   @param samplesz is the number of subsamples for pca variance analysis (default: 0 means use sqrt number o particles
 
   @param vtkfreq is the frequency for printing pca variance analysis info
@@ -67,6 +69,12 @@ protected:
 
   //! First step for PCA computation
   int npca0;
+
+  //! Hall smoothing exponent (default: 1.0)
+  double hexp;
+
+  //! Signal-to-noise scaling parameter (default: 1.0)
+  double snr;
 
   /**
      Expansion coefficients (summed over all nodes)

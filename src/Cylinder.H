@@ -79,6 +79,10 @@ class MixtureBasis;
     @param pcadiag logs diagnostic output for variance analysis
 
     @param pcavtk turns on VTK visualization diagnostic output for variance analysis
+
+    @param hexp is the Hall sharpness parameter
+
+    @param snr is the signal-to-noise prefactor for sharpness computation
     
     @param try_cache false suppresses cache reading on restart (default: true)
 
@@ -122,7 +126,7 @@ private:
   double rcylmin, rcylmax, zmax, acyl;
   int nmax, lmax, mmax, mlim;
   int ncylnx, ncylny, ncylr;
-  double hcyl;
+  double hcyl, hexp, snr;
   int ncylorder, ncylodd, ncylrecomp, npca, npca0, nvtk, cmapR, cmapZ;
   string eof_file;
   bool self_consistent, logarithmic, density, pcavar, pcainit, pcavtk, pcadiag, pcaeof, eof_over;
