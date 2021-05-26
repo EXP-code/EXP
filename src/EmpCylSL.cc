@@ -1753,6 +1753,7 @@ void EmpCylSL::setup_accumulation(int mlevel)
   }
 
   if ( (PCAVAR or PCAEOF) and mlevel==0 and sampT>0) {
+
     for (int nth=0; nth<nthrds; nth++) {
 
       if (PCAEOF) {
@@ -3900,10 +3901,8 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 	  }
 	}
       }
-      
     }
-    // T loop
-    
+    // END: T loop
   }
 }
 
@@ -4086,12 +4085,10 @@ void EmpCylSL::pca_hall(bool compute)
 
     // For PCA jack knife
     //
-    if (compute) {
-      if (pb)
-	pb->reset();
-      else
-	pb = PCAbasisPtr(new PCAbasis(MMAX, rank3));
-    }
+    if (pb)
+      pb->reset();
+    else
+      pb = PCAbasisPtr(new PCAbasis(MMAX, rank3));
     
 #ifndef STANDALONE
     VtkPCAptr vtkpca;
@@ -4313,6 +4310,9 @@ void EmpCylSL::pca_hall(bool compute)
 
       if (PCAVAR) {
 
+	if (mm==0) std::cout << "meanJK[0][1]=" << (*pb)[mm]->meanJK[1]
+			     << std::endl;
+
 	// Projected coefficients
 	//
 	dd = (*pb)[mm]->evecJK.Transpose() * (*pb)[mm]->meanJK;
@@ -4334,19 +4334,17 @@ void EmpCylSL::pca_hall(bool compute)
 	  double    var = std::max<double>((*pb)[mm]->evalJK[nn+1],
 					   std::numeric_limits<double>::min());
 	  double    sqr = dd[nn+1]*dd[nn+1];
-	  double      b = var/sqr;
+	  double      b = var/sqr/nbodstot;
 	  
-	  (*pb)[mm]->b_Hall[nn+1]  = 1.0/(1.0 + b);
+	  (*pb)[mm]->ratio[nn+1] = b;
 	  minSNR = std::min<double>(minSNR, 1.0/b);
 	  maxSNR = std::max<double>(maxSNR, 1.0/b);
 	  snrval[nn+1] = sqrt(sqr/var);
 	}
 
-	// std::cout << "DEBUG: M=" << mm << " MinSNR=" << minSNR << " MaxSNR=" << maxSNR << std::endl;
-	
 #ifndef STANDALONE
 	if (vtkpca) vtkpca->Add((*pb)[mm]->meanJK,
-				(*pb)[mm]->b_Hall, snrval,
+				(*pb)[mm]->ratio, snrval,
 				(*pb)[mm]->evalJK,
 				(*pb)[mm]->evecJK.Transpose(),
 				(*pb)[mm]->covrJK,
@@ -4372,7 +4370,7 @@ void EmpCylSL::pca_hall(bool compute)
 		 << setw(18) << var
 		 << setw(18) << cumlJK[nn+1]
 		 << setw(18) << snrval[nn+1]*snrval[nn+1]
-		 << setw(18) << (*pb)[mm]->b_Hall[nn+1];
+		 << setw(18) << (*pb)[mm]->ratio[nn+1];
 	  } else {
 	    double cof = accum_cos[mm][nn] * accum_cos[mm][nn];
 	    if (mm) cof += accum_sin[mm][nn] * accum_sin[mm][nn];
@@ -4415,52 +4413,6 @@ void EmpCylSL::pca_hall(bool compute)
 #endif
   }
     
-  if (!PCADRY and PCAVAR and tk_type != None) {
-
-    if (pb==0) return;
-
-    // Loop through each harmonic subspace [EVEN cosines]
-    //
-    
-    Vector wrk(1, rank3);
-    
-    for (int mm=0; mm<=MMAX; mm++) {
-      
-      auto it = pb->find(mm);
-      
-      if (it != pb->end()) {
-	
-	auto & I = it->second;
-	
-	// COSINES
-	
-	// Project coefficients
-	for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_cos[mm][nn];
-	Vector dd = I->evecJK.Transpose() * wrk;
-	
-	// Smooth coefficients
-	wrk = dd & I->b_Hall;
-
-	// Deproject coefficients
-	dd = I->evecJK * wrk;
-	for (int nn=0; nn<rank3; nn++) accum_cos[mm][nn] = dd[nn+1];
-
-	if (mm) {
-	  // Project coefficients
-	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_sin[mm][nn];
-	  Vector dd = I->evecJK.Transpose() * wrk;
-	  
-	  // Smooth coefficients
-	  wrk = dd & I->b_Hall;
-	  
-	  // Deproject coefficients
-	  dd = I->evecJK * wrk;
-	  for (int nn=0; nn<rank3; nn++) accum_sin[mm][nn] = dd[nn+1];
-	}
-      }
-    }
-  }
-
   if (VFLAG & 4)
     cerr << "Process " << setw(4) << myid << ": exiting to pca_hall" << endl;
 }
@@ -4515,9 +4467,7 @@ void EmpCylSL::get_trimmed
 	
 	// Smooth coefficients
 	//
-	auto smth = I->b_Hall;
-	for (int i=smth.getlow(); i<=smth.gethigh(); i++)
-	  smth[i] = (1.0 - smth[i])/smth[i];
+	auto smth = I->ratio;
 
 	if (tk_type == Hall) {
 	  for (int i=smth.getlow(); i<=smth.gethigh(); i++)
@@ -4616,9 +4566,7 @@ void EmpCylSL::set_trimmed(double snr)
 	
 	// Smooth coefficients
 	//
-	auto smth = I->b_Hall;
-	for (int i=smth.getlow(); i<=smth.gethigh(); i++)
-	  smth[i] = (1.0 - smth[i])/smth[i];
+	auto smth = I->ratio;
 
 	if (tk_type == Hall) {
 	  for (int i=smth.getlow(); i<=smth.gethigh(); i++)

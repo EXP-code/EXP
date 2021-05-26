@@ -255,7 +255,7 @@ private:
     //! All the public data
     Vector evalJK;
     Vector meanJK;
-    Vector b_Hall;
+    Vector ratio;
     Matrix covrJK;
     Matrix evecJK;
     //@}
@@ -263,7 +263,7 @@ private:
     //! Constructor
     PCAelement(int n) {
       meanJK.setsize(1, n);
-      b_Hall.setsize(1, n);
+      ratio .setsize(1, n);
       covrJK.setsize(1, n, 1, n);
       evecJK.setsize(1, n, 1, n);
     }
@@ -271,7 +271,7 @@ private:
     //! Zero all data
     void reset() {
       meanJK.zero();
-      b_Hall.zero();
+      ratio .zero();
       covrJK.zero();
       evecJK.zero();
     }
@@ -762,6 +762,7 @@ public:
   {
     hallfile = file;
     nbodstot = tot;
+    
     init_pca();
 
     if (myid==0) {
