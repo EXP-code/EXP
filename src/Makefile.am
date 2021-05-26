@@ -2,7 +2,7 @@
 
 VPATH = $(top_srcdir)/src:.
 
-CC = mpicc
+CC  = mpicc
 CXX = mpiCC
 
 ## Stuff for verbose output in parse.cc

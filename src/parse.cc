@@ -28,29 +28,30 @@ void exp_usage(char *prog)
        << endl;
 }
 
-
 void exp_version()
 {
+  
+  const int W = 80;		// Full linewidth
   std::ostringstream sout;	// Get a std::string from the string
 				// literal
   sout << "%%%%% This is " << PACKAGE_STRING << " ";
-
-  std::cout << std::setfill('%')
-	    << std::setw(50) << std::left << "%" << std::endl
-	    << std::setw(50) << std::left << sout.str() << std::endl
-	    << std::setw(50) << std::left << "%" << std::endl
-	    << std::setw(50) << std::left << "%%%%% GIT repository info " << std::endl
-	    << std::setw(50) << std::left << "%" << std::endl
-	    << std::endl << std::setfill(' ')
-	    << std::setw(18) << std::left << "Repository URL"
-	    << " | " << PACKAGE_URL  << std::endl
-	    << std::setw(18) << std::left << "Current branch"
-	    << " | " << GIT_BRANCH   << std::endl
-	    << std::setw(18) << std::left << "Current commit"
-	    << " | " << GIT_COMMIT   << std::endl
-	    << std::setw(18) << std::left << "Compile time"
-	    << " | " << COMPILE_TIME << std::endl;
-
+				// Print the info block
+  std::cout << std::endl
+	    << std::setw(W) << std::setfill('%') << '%' << std::endl
+	    << std::left << setw(W) << sout.str() << std::endl
+	    << std::setw(W) << std::setfill('%') << '%' << std::endl
+	    << std::setfill(' ')
+	    << std::setw(20) << "%%%%% Repository URL" << " | "
+	    << std::setw(W-24) << PACKAGE_URL << '%' << std::endl
+	    << std::setw(20) << "%%%%% Current branch" << " | "
+	    << std::setw(W-24) << GIT_BRANCH << '%' << std::endl
+	    << std::setw(20) << "%%%%% Current commit" << " | "
+	    << std::setw(W-24) << GIT_COMMIT << '%' << std::endl
+	    << std::setw(20) << "%%%%% Compile time"   << " | "
+	    << std::setw(W-24) << COMPILE_TIME << '%' << std::endl
+	    << std::setfill('%')
+	    << std::setw(W) << '%' << std::setfill(' ') << std::endl
+	    << std::endl;
 }
 
 void initialize(void)
