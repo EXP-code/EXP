@@ -883,7 +883,7 @@ void Cylinder::determine_coefficients(void)
   // Compute Hall smoothing
   //=========================
 
-  if ((pcavar or pcaeof) and mlevel==multistep) ortho->pca_hall(compute);
+  if ((pcavar or pcaeof) and mlevel==0) ortho->pca_hall(compute);
 
   //=========================
   // Apply Hall smoothing
