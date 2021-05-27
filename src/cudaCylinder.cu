@@ -436,10 +436,10 @@ __global__ void coefKernelCyl
 	  }
 
 	  if (compute and tvar._s>0) {
-	    valC *= cosp * norm;
-	    valS *= sinp * norm;
+	    valC *= cosp;
+	    valS *= sinp;
 	    cuFP_t val = sqrt(valC*valC + valS*valS);
-	    if (cylAcov) tvar._v[n*N + i] = val;
+	    if (cylAcov) tvar._v[n*N + i] = val * mass;
 	    else          wrk._v[n*N + i] = val;
 	  }
 	  

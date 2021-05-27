@@ -4148,7 +4148,7 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 	  hout << setw(18) << "|coef|^2"
 	       << setw(18) << "var(coef)"
 	       << setw(18) << "cum var"
-	       << setw(18) << "S/N"
+	       << setw(18) << "S/N (1p)"
 	       << setw(18) << "b_Hall"
 	       << setw(18) << "s_Hall";
 	}

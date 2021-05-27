@@ -891,7 +891,7 @@ void Cylinder::determine_coefficients(void)
   // Apply Hall smoothing
   //=========================
 
-  if (pcavar and used) ortho->set_trimmed(snr/static_cast<double>(used));
+  if (pcavar and used) ortho->set_trimmed(snr);
 
   //=========================
   // Dump basis on first call

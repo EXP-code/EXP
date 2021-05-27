@@ -173,7 +173,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	out << setw(18) << "|coef|^2"
 	    << setw(18) << "var(coef)"
 	    << setw(18) << "cum var"
-	    << setw(18) << "S/N"
+	    << setw(18) << "S/N (1p)"
 	    << setw(18) << "b_Hall"
 	    << setw(18) << "s_Hall";
       if (pcaeof)
@@ -410,8 +410,12 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	    //                ^
 	    //                |
 	    //                +--------- bootstrap variance estimate for
-	    //                           population variance
+	    //                           1-particle variance
 	    
+	    //  +--------- noise-to-signal ratio using the CLT estimate 
+	    //  |          for N-particle variance
+	    //  |
+	    //  v
 	    b = var/(tt[n]*tt[n])/used;
 	    b = std::max<double>(b, std::numeric_limits<double>::min());
 
@@ -480,7 +484,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 		    << setw(18) << tt[n]*tt[n]
 		    << setw(18) << var
 		    << setw(18) << cumlJK[n]
-		    << setw(18) << fabs(tt[n])/sqrt(var)
+		    << setw(18) << tt[n]*tt[n]/var
 		    << setw(18) << b_Hall[indxC][n]
 		    << setw(18) << s_Hall[indxC][n];
 	      else
