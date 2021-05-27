@@ -19,6 +19,7 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
   tksmooth  = 3.0;
   tkcum     = 0.95;
   tk_type   = None;
+  subsamp   = false;
   defSampT  = 0;
   sampT     = 0;
 
@@ -34,6 +35,7 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
     if (conf["pcaeof"])    pcaeof     = conf["pcaeof"].as<bool>();
     if (conf["pcadiag"])   pcadiag    = conf["pcadiag"].as<bool>();
     if (conf["pcavtk"])    pcavtk     = conf["pcavtk"].as<bool>();
+    if (conf["subsamp"])   subsamp    = conf["subsamp"].as<bool>();
     if (conf["hexp"])      hexp       = conf["hexp"].as<double>();
     if (conf["snr"])       snr        = conf["snr"].as<double>();
     if (conf["samplesz"])  defSampT   = conf["samplesz"].as<int>();
@@ -71,12 +73,14 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
 
       weight = new Vector [Ldim];
       b_Hall = new Vector [Ldim];
+      s_Hall = new Vector [Ldim];
       evec   = new Matrix [Ldim];
       Tevec  = new Matrix [Ldim];
       
       for (int l=0; l<Ldim; l++) {
 	weight[l].setsize(1, nmax);
 	b_Hall[l].setsize(1, nmax);
+	s_Hall[l].setsize(1, nmax);
 	evec  [l].setsize(1, nmax, 1, nmax);
 	Tevec [l].setsize(1, nmax, 1, nmax);
       }
@@ -133,6 +137,7 @@ AxisymmetricBasis::~AxisymmetricBasis()
   if (pcavar) {
     delete [] weight;
     delete [] b_Hall;
+    delete [] s_Hall;
     delete [] evec;
     delete [] Tevec;
   }
@@ -169,7 +174,8 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	    << setw(18) << "var(coef)"
 	    << setw(18) << "cum var"
 	    << setw(18) << "S/N"
-	    << setw(18) << "B_Hall";
+	    << setw(18) << "b_Hall"
+	    << setw(18) << "s_Hall";
       if (pcaeof)
 	out << setw(18) << "EOF";
       out << endl;
@@ -271,12 +277,31 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	  //
 	  for (unsigned T=0; T<sampT; T++) {
 	    
-	    for (int i=1; i<=nmax; i++) {
-	    
-	      meanJK[i] += (*expcoefT[T][indxC])[i] / sampT;
+	    if (subsamp) {
 
-	      for (int j=1; j<=nmax; j++) {
-		covrJK[i][j] += massT[T] * (*expcoefM[T][indxC])[i][j] / sampT;
+	      if (massT[T] > 0.0) {
+
+		for (int i=1; i<=nmax; i++) {
+	    
+		  meanJK[i] += (*expcoefT[T][indxC])[i] / massT[T] / sampT;
+
+		  for (int j=1; j<=nmax; j++) {
+		    covrJK[i][j] +=
+		      (*expcoefT[T][indxC])[i] / massT[T] * 
+		      (*expcoefT[T][indxC])[j] / massT[T] / sampT;
+		  }
+		}
+	      }
+
+	    } else {
+
+	      for (int i=1; i<=nmax; i++) {
+	    
+		meanJK[i] += (*expcoefT[T][indxC])[i] / sampT;
+
+		for (int j=1; j<=nmax; j++) {
+		  covrJK[i][j] += massT[T] * (*expcoefM[T][indxC])[i][j] / sampT;
+		}
 	      }
 	    }
 	  }
@@ -389,7 +414,9 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	    
 	    b = var/(tt[n]*tt[n])/used;
 	    b = std::max<double>(b, std::numeric_limits<double>::min());
-	    b_Hall[indxC][n] = 1.0/(1.0 + pow(snr*b, hexp));
+
+	    b_Hall[indxC][n] = b;
+	    s_Hall[indxC][n] = 1.0/(1.0 + pow(snr*b, hexp));
 	    snrval[n] = sqrt(1.0/b);
 	    
 	    if (tk_type == VarianceCut) {
@@ -420,9 +447,9 @@ void AxisymmetricBasis::pca_hall(bool compute)
 
 	  if (vtkpca and myid==0) {
 	    if (dof==3)
-	      vtkpca->Add(meanJK, b_Hall[indxC], snrval, evalJK, evecJK.Transpose(), covrJK, l, m);
+	      vtkpca->Add(meanJK, s_Hall[indxC], snrval, evalJK, evecJK.Transpose(), covrJK, l, m);
 	    else
-	      vtkpca->Add(meanJK, b_Hall[indxC], snrval, evalJK, evecJK.Transpose(), covrJK, m);
+	      vtkpca->Add(meanJK, s_Hall[indxC], snrval, evalJK, evecJK.Transpose(), covrJK, m);
 	  }
 	  
 	}
@@ -454,14 +481,16 @@ void AxisymmetricBasis::pca_hall(bool compute)
 		    << setw(18) << var
 		    << setw(18) << cumlJK[n]
 		    << setw(18) << fabs(tt[n])/sqrt(var)
-		    << setw(18) << b_Hall[indxC][n];
+		    << setw(18) << b_Hall[indxC][n]
+		    << setw(18) << s_Hall[indxC][n];
 	      else
 		out << setw(18) << tt[n]
 		    << setw(18) << tt[n]*tt[n]
 		    << setw(18) << var
 		    << setw(18) << cumlJK[n]
 		    << setw(18) << "***"
-		    << setw(18) << "***";
+		    << setw(18) << b_Hall[indxC][n]
+		    << setw(18) << s_Hall[indxC][n];
 
 	      if (pcaeof)
 		out << setw(18) << eofvec[n];
@@ -516,7 +545,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	
 	inv = evec[indxC] * smth;
 	for (int n=1; n<=nmax; n++) {
-	  if (tk_type == Hall) (*expcoef[indx])[n] *= b_Hall[indxC][n];
+	  if (tk_type == Hall) (*expcoef[indx])[n] *= s_Hall[indxC][n];
 	  else                 (*expcoef[indx])[n]  = inv[n];
 	}
   
@@ -534,7 +563,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	  
 	  inv = evec[indxC] * smth;
 	  for (int n=1; n<=nmax; n++) {
-	    if (tk_type == Hall) (*expcoef[indx+1])[n] *= b_Hall[indxC][n];
+	    if (tk_type == Hall) (*expcoef[indx+1])[n] *= s_Hall[indxC][n];
 	    else                 (*expcoef[indx+1])[n]  = inv[n];
 	  }
 	  

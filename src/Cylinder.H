@@ -105,7 +105,7 @@ class Cylinder : public Basis
 {
 private:
 
-  bool expcond, EVEN_M;
+  bool expcond, EVEN_M, subsamp;
   int rnum, pnum, tnum;
   double ashift;
   unsigned int vflag;
@@ -225,11 +225,13 @@ protected:
     std::vector<thrust::device_vector<cuFP_t>> T_coef, T_covr;
 
     thrust::device_vector<cuFP_t> dN_tvar;
+    thrust::device_vector<cuFP_t> dW_tvar;
     thrust::device_vector<cuFP_t> dc_tvar;
     thrust::device_vector<cuFP_t> dw_tvar;
     thrust::device_vector<cuFP_t> df_tvar;
 
-    void resize_coefs(int ncylorder, int mmax, int N, int gridSize, int sampT, bool pcavar, bool pcaeof);
+    void resize_coefs(int ncylorder, int mmax, int N, int gridSize, int stride,
+		      int sampT, bool pcavar, bool pcaeof, bool subsamp);
   };
 
   //! Cyclical ring interator for storage

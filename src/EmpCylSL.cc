@@ -4076,7 +4076,7 @@ void EmpCylSL::make_coefficients(bool compute)
 }
 
 
-void EmpCylSL::pca_hall(bool compute)
+void EmpCylSL::pca_hall(bool compute, bool subsamp)
 {
   if (VFLAG & 4)
     cerr << "Process " << setw(4) << myid << ": made it to pca_hall" << endl;
@@ -4149,7 +4149,8 @@ void EmpCylSL::pca_hall(bool compute)
 	       << setw(18) << "var(coef)"
 	       << setw(18) << "cum var"
 	       << setw(18) << "S/N"
-	       << setw(18) << "b_Hall";
+	       << setw(18) << "b_Hall"
+	       << setw(18) << "s_Hall";
 	}
 	if (PCAEOF) hout << setw(18) << "EOF";
 	hout << std::endl << std::endl;
@@ -4189,14 +4190,30 @@ void EmpCylSL::pca_hall(bool compute)
 	  if (massT[T] <= 0.0) continue; // Skip empty partition
 	
 	  for (int nn=0; nn<rank3; nn++) {
+
 	    // Compute mean coef from subsample
 	    //
 	    (*pb)[mm]->meanJK[nn+1] += covV(0, T, mm)[nn] / massT[T] / sampT;
 	    
-	    for (int oo=0; oo<rank3; oo++) {
-	      // Compute mean squared coefs from subsample
-	      //
-	      (*pb)[mm]->covrJK[nn+1][oo+1] += covM(0, T, mm)[nn][oo] / massT[T] / sampT;
+	    if (subsamp) {
+
+	      for (int oo=0; oo<rank3; oo++) {
+
+		// Compute mean squared coefs from subsample
+		//
+		(*pb)[mm]->covrJK[nn+1][oo+1] +=
+		  covV(0, T, mm)[nn] / massT[T] *
+		  covV(0, T, mm)[oo] / massT[T] / sampT;
+	      }
+	      
+	    } else {
+
+	      for (int oo=0; oo<rank3; oo++) {
+
+		// Compute mean squared coefs from subsample
+		//
+		(*pb)[mm]->covrJK[nn+1][oo+1] += covM(0, T, mm)[nn][oo] / massT[T] / sampT;
+	      }
 	    }
 	  }
 	}
@@ -4310,9 +4327,6 @@ void EmpCylSL::pca_hall(bool compute)
 
       if (PCAVAR) {
 
-	if (mm==0) std::cout << "meanJK[0][1]=" << (*pb)[mm]->meanJK[1]
-			     << std::endl;
-
 	// Projected coefficients
 	//
 	dd = (*pb)[mm]->evecJK.Transpose() * (*pb)[mm]->meanJK;
@@ -4364,13 +4378,15 @@ void EmpCylSL::pca_hall(bool compute)
 	    double var = std::max<double>((*pb)[mm]->evalJK[nn+1],
 					  std::numeric_limits<double>::min());
 	    double sqr = dd[nn+1]*dd[nn+1];
+	    double rat = (*pb)[mm]->ratio[nn+1];
 
 	    hout << setw(18) << dd[nn+1]
 		 << setw(18) << sqr
 		 << setw(18) << var
 		 << setw(18) << cumlJK[nn+1]
 		 << setw(18) << snrval[nn+1]*snrval[nn+1]
-		 << setw(18) << (*pb)[mm]->ratio[nn+1];
+		 << setw(18) << (*pb)[mm]->ratio[nn+1]
+		 << setw(18) << 1.0/(1.0 + pow(rat, HEXP));
 	  } else {
 	    double cof = accum_cos[mm][nn] * accum_cos[mm][nn];
 	    if (mm) cof += accum_sin[mm][nn] * accum_sin[mm][nn];

@@ -108,6 +108,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   pcavtk          = false;
   pcadiag         = false;
   pcaeof          = false;
+  subsamp         = false;
   nvtk            = 1;
   pcainit         = true;
   density         = false;
@@ -369,6 +370,7 @@ void Cylinder::initialize()
     if (conf["pcaeof"    ])     pcaeof  = conf["pcaeof"    ].as<bool>();
     if (conf["pcavtk"    ])     pcavtk  = conf["pcavtk"    ].as<bool>();
     if (conf["pcadiag"   ])    pcadiag  = conf["pcadiag"   ].as<bool>();
+    if (conf["subsamp"   ])    subsamp  = conf["subsamp"   ].as<bool>();
     if (conf["try_cache" ])  try_cache  = conf["try_cache" ].as<bool>();
     if (conf["density"   ])    density  = conf["density"   ].as<bool>();
     if (conf["EVEN_M"    ])     EVEN_M  = conf["EVEN_M"    ].as<bool>();
@@ -883,7 +885,7 @@ void Cylinder::determine_coefficients(void)
   // Compute Hall smoothing
   //=========================
 
-  if ((pcavar or pcaeof) and mlevel==0) ortho->pca_hall(compute);
+  if ((pcavar or pcaeof) and mlevel==0) ortho->pca_hall(compute, subsamp);
 
   //=========================
   // Apply Hall smoothing

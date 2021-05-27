@@ -957,7 +957,7 @@ main(int argc, char **argv)
       
     if (myid==0) cout << "Making coefficients . . . " << flush;
     ortho.make_coefficients(true);
-    ortho.pca_hall(true);
+    ortho.pca_hall(true, false);
     if (myid==0) std::cout << "done" << endl;
 
     //------------------------------------------------------------ 

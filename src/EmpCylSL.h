@@ -580,7 +580,7 @@ public:
   void make_eof(void);
 
   //! Compute PCA
-  void pca_hall(bool compute);
+  void pca_hall(bool compute, bool subsamp);
 
   //! Minimum SNR coefficient value
   double getMinSNR(void) { return minSNR; }

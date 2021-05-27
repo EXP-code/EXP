@@ -157,6 +157,7 @@ protected:
     thrust::device_vector<cuFP_t> dw_coef;
     thrust::device_vector<cuFP_t> df_coef;
     thrust::device_vector<cuFP_t> dN_tvar;
+    thrust::device_vector<cuFP_t> dW_tvar;
     thrust::device_vector<cuFP_t> dc_tvar;
     thrust::device_vector<cuFP_t> dw_tvar;
     thrust::device_vector<cuFP_t> df_tvar;
@@ -165,7 +166,8 @@ protected:
     
     std::vector<thrust::device_vector<cuFP_t>> T_coef, T_covr;
 
-    void resize_coefs(int nmax, int Lmax, int N, int gridSize, int sampT, bool pca, bool pcaeof);
+    void resize_coefs(int nmax, int Lmax, int N, int gridSize, int stride,
+		      int sampT, bool pca, bool pcaeof, bool subsamp);
     void resize_acc  (int Lmax, int Nthread);
   };
 

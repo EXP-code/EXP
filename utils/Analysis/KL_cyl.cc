@@ -571,7 +571,7 @@ main(int argc, char **argv)
       
   if (myid==0) cout << "Making coefficients for total . . . " << flush;
   ortho0.make_coefficients(true);
-  ortho0.pca_hall(true);
+  ortho0.pca_hall(true, false);
   if (myid==0) std::cout << "done" << endl;
   
   if (myid==0) std::cout << std::endl

@@ -36,6 +36,8 @@
   @param tkcum is the cumulative fraction eigenvalue power for truncation for CmululativeCut method
 
   @param tk_type is the smoothing type, one of: Hall, VarianceCut, CumulativeCut, VarianceWeighted
+
+  @param subsamp true sets partition variance computation (default: false)
 */
 class AxisymmetricBasis : public Basis
 {
@@ -133,6 +135,9 @@ protected:
       (<code>cc</code>) from all nodes. */
   virtual void parallel_gather_coef2(void);
 
+  //! Partitioned variance computation
+  bool subsamp;
+
 public:
 
   /*! Enum listing the possible selection algorithms for coefficient
@@ -168,6 +173,7 @@ private:
 
   Vector smth;
   Vector *weight;
+  Vector *s_Hall;
   Vector *b_Hall;
   Vector inv;
   Vector eval;
