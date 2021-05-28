@@ -305,13 +305,10 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	    }
 	  }
 
-	  for (int i=1; i<=nmax; i++) {
-	    for (int j=1; j<=nmax; j++) {
-	      if (not subsamp) covrJK[i][j] -= meanJK[i] * meanJK[j];
-	      if (myid==0 and i==j and covrJK[i][i]<0.0) {
-		std::cout << "Neg var at i=" << i << ": " << covrJK[i][j]
-			  << " subsamp=" << std::boolalpha << subsamp
-			  << std::endl;
+	  if (not subsamp) {
+	    for (int i=1; i<=nmax; i++) {
+	      for (int j=1; j<=nmax; j++) {
+		covrJK[i][j] -= meanJK[i] * meanJK[j];
 	      }
 	    }
 	  }
@@ -329,6 +326,8 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	  if (cof.good()) {
 	    cof << "#" << std::endl
 		<< "# l=" << l << " m=" << m << std::endl
+		<< "#" << std::endl
+		<< "# Eigenvectors" << std::endl
 		<< "#" << std::endl;
 	    for (int i=1; i<=nmax; i++) {
 	      for (int j=1; j<=nmax; j++) {
@@ -406,11 +405,17 @@ void AxisymmetricBasis::pca_hall(bool compute)
 
 	  for (int n=1; n<=nmax; n++) {
 	    
-	    //  +--------- noise-to-signal ratio using the CLT estimate 
-	    //  |          for N-particle variance
-	    //  |
-	    //  v
-	    b = evalJK[n]/(tt[n]*tt[n])/used;
+	    //  Noise-to-signal ratio using the CLT estimate for
+	    //  N-particle variance.
+	    //
+	    if (subsamp) {
+	      b = evalJK[n]/(tt[n]*tt[n])/sampT;
+	      var = evalJK[n] * sampT;
+	    } else {
+	      b = evalJK[n]/(tt[n]*tt[n])/used;
+	      var = evalJK[n];
+	    }
+
 	    b = std::max<double>(b, std::numeric_limits<double>::min());
 
 	    b_Hall[indxC][n] = b;
@@ -456,8 +461,6 @@ void AxisymmetricBasis::pca_hall(bool compute)
 
 	  // Variance scaling
 	  //
-	  double ufac = static_cast<double>(cC->CurTotal())/static_cast<double>(sampT);
-
 	  for (int n=1; n<=nmax; n++) {
 	    
 	    if (dof==3) out << setw(5) << l;
@@ -466,13 +469,14 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	    
 	    if (pcavar) {
 	  
-	      var = evalJK[n] / ufac;
+	      var = evalJK[n];
+
+	      if (subsamp) var *= static_cast<double>(used)/sampT;
 	      //                ^
 	      //                |
 	      //                +--------- bootstrap variance estimate for
-	      //                           population variance
+	      //                           population variance from CLT
 	    
-	      
 	      if (var>0.0)
 		out << setw(18) << tt[n]
 		    << setw(18) << tt[n]*tt[n]
@@ -654,9 +658,19 @@ void AxisymmetricBasis::parallel_gather_coef2(void)
 {
   if (pcavar) {
 
+    // Report particles used
+    //
+    for (int n=1; n<nthrds; n++) use[0] += use[n];
+    MPI_Allreduce(&use[0], &used, 1,
+		  MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
+    // Report mass used
+    //
     MPI_Allreduce(&massT1[0], &massT[0], sampT,
 		  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
+    // Reduce covariance and mean
+    //
     for (unsigned T=0; T<sampT; T++) {
       for (int l=0; l<(Lmax+1)*(Lmax+2)/2; l++) {
 	MPI_Allreduce(&(*expcoefT1[T][l])[1],
