@@ -273,42 +273,46 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	  covrJK.zero();
 	  meanJK.zero();
 	  
-	  // Compute mean and variance
+	  // Compute mean
 	  //
 	  for (unsigned T=0; T<sampT; T++) {
-	    
-	    if (subsamp) {
-
-	      if (massT[T] > 0.0) {
-
-		for (int i=1; i<=nmax; i++) {
-	    
-		  meanJK[i] += (*expcoefT[T][indxC])[i] / massT[T] / sampT;
-
-		  for (int j=1; j<=nmax; j++) {
-		    covrJK[i][j] +=
-		      (*expcoefT[T][indxC])[i] / massT[T] * 
-		      (*expcoefT[T][indxC])[j] / massT[T] / sampT;
-		  }
-		}
-	      }
-
-	    } else {
-
+	    if (massT[T] > 0.0) {
 	      for (int i=1; i<=nmax; i++) {
-	    
-		meanJK[i] += (*expcoefT[T][indxC])[i] / sampT;
-
-		for (int j=1; j<=nmax; j++) {
-		  covrJK[i][j] += massT[T] * (*expcoefM[T][indxC])[i][j] / sampT;
-		}
+		meanJK[i] += (*expcoefT[T][indxC])[i] / massT[T] / sampT;
 	      }
 	    }
 	  }
-	  
+
+	  // Compute variance
+	  //
+	  for (unsigned T=0; T<sampT; T++) {
+	    
+	    if (massT[T] > 0.0) {
+	      
+		for (int i=1; i<=nmax; i++) {
+		  for (int j=1; j<=nmax; j++) {
+		    if (subsamp) {
+		      covrJK[i][j] +=
+			( (*expcoefT[T][indxC])[i] / massT[T] - meanJK[i]) * 
+			( (*expcoefT[T][indxC])[j] / massT[T] - meanJK[j])
+			/ sampT;
+		    } else {
+		      covrJK[i][j] +=
+			(*expcoefM[T][indxC])[i][j] / massT[T] / sampT;
+		    }
+		  }
+		}
+	    }
+	  }
+
 	  for (int i=1; i<=nmax; i++) {
 	    for (int j=1; j<=nmax; j++) {
-	      covrJK[i][j] -= meanJK[i] * meanJK[j];
+	      if (not subsamp) covrJK[i][j] -= meanJK[i] * meanJK[j];
+	      if (myid==0 and i==j and covrJK[i][i]<0.0) {
+		std::cout << "Neg var at i=" << i << ": " << covrJK[i][j]
+			  << " subsamp=" << std::boolalpha << subsamp
+			  << std::endl;
+	      }
 	    }
 	  }
 
@@ -386,10 +390,6 @@ void AxisymmetricBasis::pca_hall(bool compute)
 
 	if (pcavar) {
 
-	  // Variance scaling
-	  //
-	  double ufac = static_cast<double>(cC->CurTotal())/static_cast<double>(sampT);
-
 	  // Cumulative distribution
 	  //
 	  cumlJK = evalJK;
@@ -406,17 +406,11 @@ void AxisymmetricBasis::pca_hall(bool compute)
 
 	  for (int n=1; n<=nmax; n++) {
 	    
-	    var = evalJK[n] / ufac;
-	    //                ^
-	    //                |
-	    //                +--------- bootstrap variance estimate for
-	    //                           1-particle variance
-	    
 	    //  +--------- noise-to-signal ratio using the CLT estimate 
 	    //  |          for N-particle variance
 	    //  |
 	    //  v
-	    b = var/(tt[n]*tt[n])/used;
+	    b = evalJK[n]/(tt[n]*tt[n])/used;
 	    b = std::max<double>(b, std::numeric_limits<double>::min());
 
 	    b_Hall[indxC][n] = b;
