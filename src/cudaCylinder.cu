@@ -317,7 +317,7 @@ __global__ void coordKernelCyl
 
 
 __global__ void coefKernelCyl
-(dArray<cuFP_t> coef, dArray<cuFP_t> tvar, dArray<cuFP_t> wrk,
+(dArray<cuFP_t> coef, dArray<cuFP_t> tvar, dArray<cuFP_t> work,
  dArray<cuFP_t> used, dArray<cudaTextureObject_t> tex,
  dArray<cuFP_t> Mass, dArray<cuFP_t> Phi,
  dArray<cuFP_t> Xfac, dArray<cuFP_t> Yfac,
@@ -439,11 +439,12 @@ __global__ void coefKernelCyl
 	    valC *= cosp;
 	    valS *= sinp;
 	    cuFP_t val = sqrt(valC*valC + valS*valS);
-	    if (cylAcov) tvar._v[n*N + i] = val * mass;
-	    else          wrk._v[n*N + i] = val;
+	    if (cylAcov) tvar._v[n*N + i   ] = val * mass;
+	    else         work._v[i*nmax + n] = val;
 	  }
 	  
-	} // norder loop
+	}
+	// END: norder loop
 
 	if (compute and not cylAcov and tvar._s>0) {
 
@@ -451,13 +452,14 @@ __global__ void coefKernelCyl
 	  int c = 0;
 	  for (int r=0; r<nmax; r++) {
 	    for (int s=r; s<nmax; s++) {
-	      tvar._v[N*c + i] = wrk._v[i*nmax + r] * wrk._v[i*nmax + s] * mass;
+	      tvar._v[N*c + i] =
+		work._v[i*nmax + r] * work._v[i*nmax + s] * mass;
 	      c++;
 	    }
 	  }
 	  // Mean
 	  for (int r=0; r<nmax; r++) {
-	    tvar._v[N*c + i] = wrk._v[i*nmax + r] * mass;
+	    tvar._v[N*c + i] = work._v[i*nmax + r] * mass;
 	    c++;
 	  }
 	}
@@ -840,11 +842,12 @@ void Cylinder::cudaStorage::resize_coefs
   // Fixed size arrays
   //
   if (pcavar) {
-    T_coef.resize(sampT);
     T_covr.resize(sampT);
     for (int T=0; T<sampT; T++) {
-      T_coef[T].resize((mmax+1)*ncylorder);
-      T_covr[T].resize((mmax+1)*ncylorder*(ncylorder+1)/2);
+      if (subsamp)
+	T_covr[T].resize((mmax+1)*ncylorder);
+      else
+	T_covr[T].resize((mmax+1)*ncylorder*(ncylorder+3)/2);
     }
   }
 
@@ -854,7 +857,7 @@ void Cylinder::cudaStorage::resize_coefs
       dc_tvar.resize(ncylorder*gridSize);
       dw_tvar.resize(ncylorder);
     } else {
-      int csz = ncylorder*(ncylorder+1)/2 + ncylorder;
+      int csz = ncylorder*(ncylorder+3)/2;
       dN_tvar.resize(csz*N);
       dW_tvar.resize(ncylorder*gridSize*BLOCK_SIZE*stride);
       dc_tvar.resize(csz*gridSize);
@@ -896,18 +899,17 @@ void Cylinder::cuda_zero_coefs()
   //
   if (pcavar) {
 				// (Re)initialize?
-    if (cuS.T_coef.size() != sampT) {
-      cuS.T_coef.resize(sampT);
+    if (cuS.T_covr.size() != sampT) {
       cuS.T_covr.resize(sampT);
       for (int T=0; T<sampT; T++) {
-	cuS.T_coef[T].resize((mmax+1)*ncylorder);
-	cuS.T_covr[T].resize((mmax+1)*ncylorder*(ncylorder+1)/2);
+	if (subsamp)
+	  cuS.T_covr[T].resize((mmax+1)*ncylorder);
+	else
+	  cuS.T_covr[T].resize((mmax+1)*ncylorder*(ncylorder+3)/2);
       }
     }
     
     for (int T=0; T<sampT; T++) {
-      thrust::fill(thrust::cuda::par.on(cr->stream),
-		   cuS.T_coef[T].begin(), cuS.T_coef[T].end(), 0.0);
       thrust::fill(thrust::cuda::par.on(cr->stream),
 		   cuS.T_covr[T].begin(), cuS.T_covr[T].end(), 0.0);
     }
@@ -1114,7 +1116,6 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
     if (pcavar) {
       for (int T=0; T<sampT; T++) {
-	bg.push_back(cuS.T_coef[T].begin());
 	bh.push_back(cuS.T_covr[T].begin());
       }
     }
@@ -1221,9 +1222,9 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	    
 	      thrust::transform(thrust::cuda::par.on(cs->stream),
 				cuS.dw_tvar.begin(), cuS.dw_tvar.end(),
-				bg[T], bg[T], thrust::plus<cuFP_t>());
+				bh[T], bh[T], thrust::plus<cuFP_t>());
 	    
-	      thrust::advance(bg[T], psize);
+	      thrust::advance(bh[T], psize);
 	      
 	    } else {
 
@@ -1356,7 +1357,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 
 	if (subsamp) {
 
-	  thrust::host_vector<cuFP_t> retV = cuS.T_coef[T];
+	  thrust::host_vector<cuFP_t> retV = cuS.T_covr[T];
 
 	  int offst = 0;
 
@@ -1395,7 +1396,8 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	      host_coefsT[T][Jmn(m, j, ncylorder)] += retM[c + vffst];
 	      c++;
 	    }
-	    vffst += ncylorder*(ncylorder+1)/2 + ncylorder;
+
+	    vffst += ncylorder*(ncylorder+3)/2;
 	  }
 	}
 	// END: full pop variance

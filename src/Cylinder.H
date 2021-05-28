@@ -222,7 +222,7 @@ protected:
     thrust::device_vector<cuFP_t> X_d, Y_d, m_d, u_d, p_d;
     thrust::device_vector<int   > iX_d, iY_d;
 
-    std::vector<thrust::device_vector<cuFP_t>> T_coef, T_covr;
+    std::vector<thrust::device_vector<cuFP_t>> T_covr;
 
     thrust::device_vector<cuFP_t> dN_tvar;
     thrust::device_vector<cuFP_t> dW_tvar;
