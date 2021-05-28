@@ -465,13 +465,13 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
 	  if (m==0) {
 	    for (int n=1; n<=nmax; n++) {
-
 	      wk[n-1] = potd[id][l][n]*legs[id][l][m]*mass*fac0/normM[l][n];
-
 	      (*expcoef0[id][loffset+moffset])[n] += wk[n-1];
+	    }
 
-	      if (compute and pcavar) {
-		pthread_mutex_lock(&cc_lock);
+	    if (compute and pcavar) {
+	      pthread_mutex_lock(&cc_lock);
+	      for (int n=1; n<=nmax; n++) {
 		(*expcoefT1[whch][iC])[n] += wk[n-1];
 		for (int o=1; o<=nmax; o++)
 		  (*expcoefM1[whch][iC])[n][o] += wk[n-1]*wk[o-1]/mass;
@@ -503,17 +503,18 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
 	      (*expcoef0[id][loffset+moffset  ])[n] += wk[n-1]*fac1;
 	      (*expcoef0[id][loffset+moffset+1])[n] += wk[n-1]*fac2;
+	    }
 
-	      if (compute and pcavar) {
-		pthread_mutex_lock(&cc_lock);
+	    if (compute and pcavar) {
+	      pthread_mutex_lock(&cc_lock);
+	      for (int n=1; n<=nmax; n++) {
 		(*expcoefT1[whch][iC])[n] += wk[n-1]*facL;
 		for (int o=1; o<=nmax; o++)
 		  (*expcoefM1[whch][iC])[n][o] += wk[n-1]*wk[o-1]*facL*facL/mass;
 		pthread_mutex_unlock(&cc_lock);
 	      }
-	      
 	    }
-
+	    
 	    if (compute and pcaeof) {
 	      pthread_mutex_lock(&cc_lock);
 	      for (int n=1; n<=nmax; n++) {

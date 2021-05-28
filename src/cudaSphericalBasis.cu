@@ -975,7 +975,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
   
   // Zero counter and coefficients
   //
-  use[0] = 0.0;
+  use[0] = 0;
   thrust::fill(host_coefs.begin(), host_coefs.end(), 0.0);
 
   if (compute) {
@@ -1154,6 +1154,8 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 	      //
 	      if (subsamp) {
 		
+		// Mean computation only
+		//
 		reduceSumS<cuFP_t, BLOCK_SIZE>
 		  <<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
 		  (toKernel(cuS.dc_tvar), toKernel(cuS.dN_tvar), psize, N, k, k+s);
@@ -1180,7 +1182,7 @@ void SphericalBasis::determine_coefficients_cuda(bool compute)
 
 	      } else {
 		
-		// Variance part
+		// Variance and mean computation
 		//
 		reduceSumS<cuFP_t, BLOCK_SIZE>
 		  <<<gridSize1, BLOCK_SIZE, sMemSize, cr->stream>>>
@@ -1835,9 +1837,11 @@ void SphericalBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
 	      for (int n=1; n<=nmax; n++) {
 	      
 		for (int o=n; o<=nmax; o++) {
+		  // Diagonal and upper diagonal
 		  (*expcoefM1[T][loffset+m])[n][o] += retM[c + vffst];
-		  if (o!=n)
-		    (*expcoefM1[T][loffset+m])[o][n] += retM[c + vffst];
+
+		  // Below the diagonal
+		  if (o!=n) (*expcoefM1[T][loffset+m])[o][n] += retM[c + vffst];
 		  c++;
 		}
 	      }
