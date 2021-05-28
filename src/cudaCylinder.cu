@@ -1378,7 +1378,7 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	  int vffst = 0;
 	  for (int m=0; m<=mmax; m++) {
 
-	    // Variance part
+	    // Variance assignment
 	    //
 	    int c = 0;
 	    for (size_t j=0; j<ncylorder; j++) {
@@ -1390,12 +1390,16 @@ void Cylinder::determine_coefficients_cuda(bool compute)
 	      }
 	    }
 	    
-	    // Mean part
+	    // Mean assignment
 	    //
-	    for (size_t j=0, c=0; j<ncylorder; j++) {
+	    for (size_t j=0; j<ncylorder; j++) {
 	      host_coefsT[T][Jmn(m, j, ncylorder)] += retM[c + vffst];
 	      c++;
 	    }
+
+	    if (myid==0 and c != ncylorder*(ncylorder+3)/2)
+	      std::cout << "out of bounds: c=" << c << " != "
+			<< ncylorder*(ncylorder+3)/2 << std::endl;
 
 	    vffst += ncylorder*(ncylorder+3)/2;
 	  }

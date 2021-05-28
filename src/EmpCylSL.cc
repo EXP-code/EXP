@@ -3707,15 +3707,15 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
       cosN(mlevel)[id][mm][nn] += hold;
 
       if (compute and PCAVAR) {
-	double hc1 = vc[id][mm][nn], hs1 = 0.0;
-	if (mm) hs1 = vs[id][mm][nn];
+	double hc1 = vc[id][mm][nn]*mcos, hs1 = 0.0;
+	if (mm) hs1 = vs[id][mm][nn]*msin;
 	double modu1 = sqrt(hc1*hc1 + hs1*hs1);
 
 	covV(id, whch, mm)[nn] += mass * modu1;
 
 	for (int oo=0; oo<rank3; oo++) {
-	  double hc2 = vc[id][mm][oo], hs2 = 0.0;
-	  if (mm) hs2 = vs[id][mm][oo];
+	  double hc2 = vc[id][mm][oo]*mcos, hs2 = 0.0;
+	  if (mm) hs2 = vs[id][mm][oo]*msin;
 	  double modu2 = sqrt(hc2*hc2 + hs2*hs2);
 
 	  covM(id, whch, mm)[nn][oo] += mass * modu1 * modu2;
@@ -4345,15 +4345,25 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 	//
 	for (int nn=0; nn<rank3; nn++) {
 	  
-	  double    var = std::max<double>((*pb)[mm]->evalJK[nn+1],
-					   std::numeric_limits<double>::min());
-	  double    sqr = dd[nn+1]*dd[nn+1];
-	  double      b = var/sqr/nbodstot;
+	  double var = std::max<double>((*pb)[mm]->evalJK[nn+1],
+					std::numeric_limits<double>::min());
+
+	  //  Noise-to-signal ratio using the CLT estimate for
+	  //  N-particle variance
+	  //
+	  if (subsamp)
+	    var *= static_cast<double>(nbodstot) / static_cast<double>(sampT);
+
+	  double sqr = dd[nn+1]*dd[nn+1];
+
+	  snrval[nn+1] = sqrt(sqr/var);
+	  
+	  double b = var/sqr/nbodstot;
 	  
 	  (*pb)[mm]->ratio[nn+1] = b;
+
 	  minSNR = std::min<double>(minSNR, 1.0/b);
 	  maxSNR = std::max<double>(maxSNR, 1.0/b);
-	  snrval[nn+1] = sqrt(sqr/var);
 	}
 
 #ifndef STANDALONE
