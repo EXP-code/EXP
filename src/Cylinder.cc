@@ -95,7 +95,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   eof             = 1;
   npca            = 50;
   npca0           = 0;
-  defSampT        = 0;
+  defSampT        = 1;
   hexp            = 1.0;
   snr             = 1.0;
   self_consistent = true;

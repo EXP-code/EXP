@@ -92,7 +92,7 @@ EmpCylSL::EmpCylSL(void)
   NORDER     = 0;
   coefs_made = vector<short>(multistep+1, false);
   eof_made   = false;
-  defSampT   = 0;
+  defSampT   = 1;
   sampT      = 0;
   tk_type    = None;
   EVEN_M     = false;
@@ -175,7 +175,7 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   eof_made   = false;
 
   sampT        = 0;
-  defSampT     = 0;
+  defSampT     = 1;
   tk_type      = None;
 
   cylmass      = 0.0;
@@ -237,7 +237,7 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
     MPItable = 3;
 
   sampT = 0;
-  defSampT = 0;
+  defSampT = 1;
 
   cylmass = 0.0;
   cylmass1.resize(nthrds);

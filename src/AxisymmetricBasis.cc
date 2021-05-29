@@ -20,7 +20,7 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
   tkcum     = 0.95;
   tk_type   = None;
   subsamp   = false;
-  defSampT  = 0;
+  defSampT  = 1;
   sampT     = 0;
 
   string val;
