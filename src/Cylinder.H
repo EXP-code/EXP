@@ -58,7 +58,7 @@ class MixtureBasis;
 
     @param override boolean ignores the specificed cache file name and performes a recomputation
 
-    @param samplesz is the default particle number in PCA subsampling partitions (default is sqrt(N))
+    @param samplesz is the default particle number in PCA subsampling partitions (default is 1).  The value 0 sets the sample size to sqrt(N).
 
     @param rnum if the size of the radial quadrature grid for analytic EOF computation
 
@@ -302,6 +302,7 @@ public:
   //! \param expcond set to true for analytic basis function conditioning (default: true)
   //! \param logr tabulate basis in logarithmic coordinates (default: false)
   //! \param pcavar set to true for real-time Hall analysis (default: false)
+  //! \param samplesz is the default particle number in PCA subsampling partitions (default is 1).  The value 0 sets the sample size to sqrt(N).
   //! \param pcavtk set to true dumps PCA functions in VTK format for diagnostics (default: false)
   //! \param try_cache set to true means try to read basis from cache (default: true)
   //! \param dump_basis set to true outputs basis into file

@@ -27,7 +27,8 @@
 
   @param hexp is the Hall smoothing exponent
 
-  @param samplesz is the number of subsamples for pca variance analysis (default: 0 means use sqrt number o particles
+  @param samplesz is the number of subsamples for pca variance
+  analysis (default: 1). Value 0 means use sqrt number of particles
 
   @param vtkfreq is the frequency for printing pca variance analysis info
 
