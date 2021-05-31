@@ -947,9 +947,12 @@ public:
     if (n >= rank3)
       throw std::runtime_error("n>=norder");
 
-    if (T >= sampT)
-      throw std::runtime_error("T>=sampT");
-
+    if (T >= sampT) {
+      std::ostringstream sout;
+      sout << "(T=" << T << ")>=(sampT=" << sampT << ")";
+      throw std::runtime_error(sout.str());
+    }
+    
     return covV(0, T, m)[n];
   }
 
@@ -964,8 +967,11 @@ public:
     if (o >= rank3)
       throw std::runtime_error("o>=norder");
 
-    if (T >= sampT)
-      throw std::runtime_error("T>=sampT");
+    if (T >= sampT) {
+      std::ostringstream sout;
+      sout << "(T=" << T << ")>=(sampT=" << sampT << ")";
+      throw std::runtime_error(sout.str());
+    }
 
     return covM(0, T, m)[n][o];
   }
@@ -983,8 +989,11 @@ public:
 
   double& set_massT(int T)
   {
-    if (T >= sampT)
-      throw std::runtime_error("T>=sampT");
+    if (T >= sampT) {
+      std::ostringstream sout;
+      sout << "(T=" << T << ")>=(sampT=" << sampT << ")";
+      throw std::runtime_error(sout.str());
+    }
 
     return massT1[0][T];
   }
