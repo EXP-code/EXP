@@ -34,7 +34,7 @@ private:
   vtkFloatArrayP XX, YY, ZZ;
 
   // Fields
-  std::vector<vtkFloatArrayP> coef, hall, eval, snrv, vecs, covr;
+  std::vector<vtkFloatArrayP> coef, hall, eval, snrv, vecs, vec2, covr;
 
   // Labels
   std::vector<std::string>    elab;

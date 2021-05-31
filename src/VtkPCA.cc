@@ -45,6 +45,7 @@ void VtkPCA::Add(const Vector& Coef,
   vtkFloatArrayP S = vtkFloatArrayP::New();
   vtkFloatArrayP V = vtkFloatArrayP::New();
   vtkFloatArrayP T = vtkFloatArrayP::New();
+  vtkFloatArrayP Y = vtkFloatArrayP::New();
   vtkFloatArrayP U = vtkFloatArrayP::New();
 
   // Make reorder map
@@ -68,10 +69,12 @@ void VtkPCA::Add(const Vector& Coef,
       vtkIdType n = dataSet->FindPoint(x, y, 0);
 
       if (n>=0) {
-	f = Evec[R[i]][j+1];
+	f = Evec[R[i]][j+1];	// Evec
 	if (smooth) f *= Hall[R[i]];
 	if (std::isnan(f)) f = 0.0;
 	T->InsertTuple(n, &f);
+	f *= f;
+	Y->InsertTuple(n, &f);  // Evec squared
 	f = Covr[i+1][j+1];	// Covariance
 	U->InsertTuple(n, &f);
       } else {
@@ -115,6 +118,7 @@ void VtkPCA::Add(const Vector& Coef,
   snrv.push_back(S);
   eval.push_back(V);
   vecs.push_back(T);
+  vec2.push_back(Y);
   covr.push_back(U);
 
   // Add label
@@ -136,6 +140,7 @@ void VtkPCA::Add(const Vector& Coef,
   vtkFloatArrayP S = vtkFloatArrayP::New();
   vtkFloatArrayP V = vtkFloatArrayP::New();
   vtkFloatArrayP T = vtkFloatArrayP::New();
+  vtkFloatArrayP Y = vtkFloatArrayP::New();
   vtkFloatArrayP U = vtkFloatArrayP::New();
 
   // Make reorder map
@@ -163,6 +168,8 @@ void VtkPCA::Add(const Vector& Coef,
 	if (smooth) f *= Hall[R[i]];
 	if (std::isnan(f)) f = 0.0;
 	T->InsertTuple(n, &f);
+	f *= f;
+	Y->InsertTuple(n, &f);
 	
 	f = Covr[i+1][j+1];	// Covariance
 	U->InsertTuple(n, &f);
@@ -211,6 +218,7 @@ void VtkPCA::Add(const Vector& Coef,
   snrv.push_back(S);
   eval.push_back(V);
   vecs.push_back(T);
+  vec2.push_back(Y);
   covr.push_back(U);
 
   // Add label
@@ -244,6 +252,8 @@ void VtkPCA::Write(const std::string& name)
     vecs[k] -> SetName(lab4.c_str());
     std::string lab5 = "Covar " + elab[k];
     covr[k] -> SetName(lab5.c_str());
+    std::string lab6 = "Evec2 " + elab[k];
+    vec2[k] -> SetName(lab6.c_str());
 
     // Add fields
     dataSet->GetFieldData()->AddArray(coef[k]);
@@ -252,6 +262,7 @@ void VtkPCA::Write(const std::string& name)
     dataSet->GetFieldData()->AddArray(eval[k]);
     dataSet->GetPointData()->AddArray(vecs[k]);
     dataSet->GetPointData()->AddArray(covr[k]);
+    dataSet->GetPointData()->AddArray(vec2[k]);
   }
 
   // Remove unused memory
