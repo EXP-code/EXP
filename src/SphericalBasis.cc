@@ -475,8 +475,8 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 		(*expcoefT1[whch][iC])[n] += wk[n-1];
 		for (int o=1; o<=nmax; o++)
 		  (*expcoefM1[whch][iC])[n][o] += wk[n-1]*wk[o-1]/mass;
-		pthread_mutex_unlock(&cc_lock);
 	      }
+	      pthread_mutex_unlock(&cc_lock);
 	    }
 
 	    if (compute and pcaeof) {
@@ -511,8 +511,8 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 		(*expcoefT1[whch][iC])[n] += wk[n-1]*facL;
 		for (int o=1; o<=nmax; o++)
 		  (*expcoefM1[whch][iC])[n][o] += wk[n-1]*wk[o-1]*facL*facL/mass;
-		pthread_mutex_unlock(&cc_lock);
 	      }
+	      pthread_mutex_unlock(&cc_lock);
 	    }
 	    
 	    if (compute and pcaeof) {
