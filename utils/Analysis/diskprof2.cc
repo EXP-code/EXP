@@ -1096,12 +1096,22 @@ main(int argc, char **argv)
 
   if (nice>0) setpriority(PRIO_PROCESS, 0, nice);
 
+  // ==================================================
+  // Parse center
+  // ==================================================
+
   if (vm.count("center")) {
     if (c0.size() != 3) {
       if (myid==0) std::cout << "Center vector needs three components"
 			     << std::endl;
       MPI_Finalize();
       exit(-1);
+    }
+
+    if (myid==0) {
+      std::cout << "Using center: ";
+      for (auto v : c0) std::cout << " [" << v << "] ";
+      std::cout << std::endl;
     }
   }
 

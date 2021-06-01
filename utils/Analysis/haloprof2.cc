@@ -808,6 +808,12 @@ main(int argc, char **argv)
       MPI_Finalize();
       exit(-1);
     }
+
+    if (myid==0) {
+      std::cout << "Using center: ";
+      for (auto v : c0) std::cout << " [" << v << "] ";
+      std::cout << std::endl;
+    }
   }
 
   // ==================================================
