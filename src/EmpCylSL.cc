@@ -4450,8 +4450,6 @@ void EmpCylSL::get_trimmed
  std::vector<Vector>* rt_cos, std::vector<Vector>* rt_sin,
  std::vector<Vector>* sn_rat)
 {
-  constexpr double norm = -4.0*M_PI;
-
   if (PCAVAR and tk_type != None) {
 
     if (pb==0) return;
@@ -4552,8 +4550,8 @@ void EmpCylSL::get_trimmed
 	// BEG: diagnostics
 	if (rt_cos) {
 
-	  (*rt_cos)[mm] = accum_cos[mm]/(norm*cylmass);
-	  if (mm) (*rt_sin)[mm] = accum_sin[mm]/(norm*cylmass);
+	  (*rt_cos)[mm] = accum_cos[mm];
+	  if (mm) (*rt_sin)[mm] = accum_sin[mm];
 	  
 	  for (int nn=0; nn<rank3; nn++) {
 	    double val = ddc[nn+1]*ddc[nn+1] + dds[nn+1]*dds[nn+1];
