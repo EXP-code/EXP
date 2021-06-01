@@ -1110,7 +1110,7 @@ main(int argc, char **argv)
 
     if (myid==0) {
       std::cout << "Using center: ";
-      for (auto v : c0) std::cout << " [" << v << "] ";
+      for (auto v : c0) std::cout << " " << v << " ";
       std::cout << std::endl;
     }
   }
