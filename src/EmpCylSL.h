@@ -875,7 +875,7 @@ public:
    std::vector<Vector>* sn_rat=0);
   
   //! Set the coefficients trimmed by a SNR value using the defined algorithm
-  void set_trimmed(double snr);
+  void set_trimmed(double snr, double rem);
 
   //! Set number of bodies for subsample computation
   inline void setTotal(unsigned tot) {

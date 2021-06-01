@@ -4246,9 +4246,14 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 	     << "#" << std::endl;
 	if (PCAVAR) {
 	  mout << "# Eigenvalues"  << std::endl;
+	  double enorm = 0.0, ecum = 0.0;
+	  for (int nn=0; nn<rank3; nn++)
+	    enorm += (*pb)[mm]->evalJK[nn+1];
 	  for (int nn=0; nn<rank3; nn++) {
+	    ecum += (*pb)[mm]->evalJK[nn+1];
 	    mout << std::setw( 4) << nn
 		 << std::setw(12) << (*pb)[mm]->evalJK[nn+1]
+		 << std::setw(12) << ecum / enorm
 		 << std::endl;
 	  }
 	  mout << "# Eigenvectors" << std::endl;
@@ -4573,13 +4578,14 @@ void EmpCylSL::get_trimmed
 	}
 	// END: diagnostics
       }
+      // END: covar exists
     }
     // M loop
   }
       
 }
 
-void EmpCylSL::set_trimmed(double snr)
+void EmpCylSL::set_trimmed(double snr, double rem)
 {
   if (PCAVAR and tk_type != None) {
 
@@ -4646,6 +4652,45 @@ void EmpCylSL::set_trimmed(double snr)
 	  dds.zero();
 	}
       }
+
+      if (rem>0.0) {
+	double sum = 0.0, cum = 0.0;;
+	for (int nn=0; nn<rank3; nn++) sum += (*pb)[mm]->evalJK[nn+1];
+	int nf;
+	for (nf=0; nf<rank3; nf++) {
+	  cum += (*pb)[mm]->evalJK[nf+1];
+	  if (1.0 - cum/sum <= rem) break;
+	}
+	
+	// Project to decorrelated basis
+	for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_cos[mm][nn];
+	
+	dds = (*pb)[mm]->evecJK.Transpose() * wrk;
+
+	// Apply nullity
+	for (int n=nf; n<rank3; n++) dds[n+1] = 0.0;
+
+	// Deproject coefficients
+	wrk = (*pb)[mm]->evecJK * dds;
+	for (int nn=0; nn<rank3; nn++) accum_cos[mm][nn] = dds[nn+1];
+
+	if (mm) {
+	  
+	  // Project to decorrelated basis
+	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_sin[mm][nn];
+	
+	  dds = (*pb)[mm]->evecJK.Transpose() * wrk;
+
+	  // Apply nullity
+	  for (int n=nf; n<rank3; n++) dds[n+1] = 0.0;
+
+	  // Deproject coefficients
+	  wrk = (*pb)[mm]->evecJK * dds;
+	  for (int nn=0; nn<rank3; nn++) accum_sin[mm][nn] = dds[nn+1];
+	}
+      }
+      // END: rem
+      
     }
     // M loop
   }
