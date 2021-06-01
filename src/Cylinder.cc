@@ -98,6 +98,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   defSampT        = 1;
   hexp            = 1.0;
   snr             = 1.0;
+  rem             = -1.0;
   self_consistent = true;
   firstime        = true;
   expcond         = true;
@@ -343,6 +344,7 @@ void Cylinder::initialize()
     if (conf["hcyl"      ])       hcyl  = conf["hcyl"      ].as<double>();
     if (conf["hexp"      ])       hexp  = conf["hexp"      ].as<double>();
     if (conf["snr"       ])        snr  = conf["snr"       ].as<double>();
+    if (conf["evcut"     ])        rem  = conf["evcut"     ].as<double>();
     if (conf["nmax"      ])       nmax  = conf["nmax"      ].as<int>();
     if (conf["lmax"      ])       lmax  = conf["lmax"      ].as<int>();
     if (conf["mmax"      ])       mmax  = conf["mmax"      ].as<int>();
@@ -891,7 +893,7 @@ void Cylinder::determine_coefficients(void)
   // Apply Hall smoothing
   //=========================
 
-  if (pcavar and used) ortho->set_trimmed(snr);
+  if (pcavar and used) ortho->set_trimmed(snr, rem);
 
   //=========================
   // Dump basis on first call

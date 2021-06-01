@@ -83,6 +83,8 @@ class MixtureBasis;
     @param hexp is the Hall sharpness parameter
 
     @param snr is the signal-to-noise prefactor for sharpness computation
+
+    @param evcut is the cumulative trim remainder on the covariance eigenvalues (default: -1, which implies no trimming).  Set to small positive value for trimming.
     
     @param try_cache false suppresses cache reading on restart (default: true)
 
@@ -126,7 +128,7 @@ private:
   double rcylmin, rcylmax, zmax, acyl;
   int nmax, lmax, mmax, mlim;
   int ncylnx, ncylny, ncylr;
-  double hcyl, hexp, snr;
+  double hcyl, hexp, snr, rem;
   int ncylorder, ncylodd, ncylrecomp, npca, npca0, nvtk, cmapR, cmapZ;
   string eof_file;
   bool self_consistent, logarithmic, density, pcavar, pcainit, pcavtk, pcadiag, pcaeof, eof_over;

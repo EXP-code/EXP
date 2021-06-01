@@ -326,7 +326,20 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	  if (cof.good()) {
 	    cof << "#" << std::endl
 		<< "# l=" << l << " m=" << m << std::endl
-		<< "#" << std::endl
+		<< "#" << std::endl;
+
+	    double enorm = 0.0, ecum = 0.0;
+	    for (int i=1; i<=nmax; i++) enorm += evalJK[i];
+	    cof << "# Eigenvalues" << std::endl
+		<< "#" << std::endl;
+	    for (int i=1; i<=nmax; i++) {
+	      ecum += evalJK[i];
+	      cof << std::setw(12) << evalJK[i]
+		  << std::setw(12) << ecum/enorm
+		  << std::endl;
+	    }
+
+	    cof << "#" << std::endl
 		<< "# Eigenvectors" << std::endl
 		<< "#" << std::endl;
 	    for (int i=1; i<=nmax; i++) {
