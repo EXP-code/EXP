@@ -50,7 +50,7 @@ private:
   
 public:
   //! Constructor
-  VtkPCA(int N, bool reorder=true, bool smooth=false);
+  VtkPCA(int N, bool reorder=false, bool smooth=false);
 
   //! Add data for two-dimensional cylindrical basis
   void Add(const Vector& coef,
