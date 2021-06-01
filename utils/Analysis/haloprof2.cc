@@ -86,11 +86,9 @@ double RMIN, RMAX;
 int OUTR, LMAX, NMAX, MMAX, L1, L2;
 bool VOLUME, SURFACE, PROBE;
 
-// Temporary center offset
-// std::vector<double> c0 = {0.0, 0.0, -0.00217};
-
+// Center offset
+//
 std::vector<double> c0 = {0.0, 0.0, 0.0};
-
 
 class Histogram
 {
@@ -750,6 +748,8 @@ main(int argc, char **argv)
     ("snr,S",
      po::value<double>(&snr)->default_value(-1.0),
      "if not negative: do a SNR cut on the PCA basis")
+    ("center,C", po::value<std::vector<double> >(&c0)->multitoken(),
+     "Accumulation center")
     ("diff",
      "render the difference between the trimmed and untrimmed basis")
     ;
@@ -768,6 +768,7 @@ main(int argc, char **argv)
     po::notify(vm);    
   } catch (po::error& e) {
     if (myid==0) std::cout << "Option error: " << e.what() << std::endl;
+    MPI_Finalize();
     exit(-1);
   }
 
@@ -799,6 +800,15 @@ main(int argc, char **argv)
   if (vm.count("xy")) slice = Slice::xy;
   if (vm.count("xz")) slice = Slice::xz;
   if (vm.count("yz")) slice = Slice::yz;
+
+  if (vm.count("center")) {
+    if (c0.size() != 3) {
+      if (myid==0) std::cout << "Center vector needs three components"
+			     << std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
+  }
 
   // ==================================================
   // Nice process

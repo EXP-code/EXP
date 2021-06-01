@@ -103,6 +103,10 @@ static  bool VOLUME;
 static  bool SURFACE;
 static  bool VSLICE;
 
+// Center offset
+//
+std::vector<double> c0 = {0.0, 0.0, 0.0};
+
 class Histogram
 {
 public:
@@ -203,7 +207,7 @@ void add_particles(PSPptr psp, int& nbods, vector<Particle>& p, Histogram& h)
       // Make a Particle
       //
       bod.mass = part->mass();
-      for (int k=0; k<3; k++) bod.pos[k] = part->pos(k);
+      for (int k=0; k<3; k++) bod.pos[k] = part->pos(k) - c0[k];
       for (int k=0; k<3; k++) bod.vel[k] = part->vel(k);
       bod.indx = part->indx();
       p.push_back(bod);
@@ -212,7 +216,10 @@ void add_particles(PSPptr psp, int& nbods, vector<Particle>& p, Histogram& h)
 
       // Add to histogram
       //
-      if (part) h.Add(part->pos(0), part->pos(1), part->pos(2), part->mass());
+      if (part) h.Add(part->pos(0) - c0[0],
+		      part->pos(1) - c0[1],
+		      part->pos(2) - c0[2],
+		      part->mass());
     }
 
     //
@@ -227,7 +234,7 @@ void add_particles(PSPptr psp, int& nbods, vector<Particle>& p, Histogram& h)
 	  exit(-1);
 	}
 	t[i].mass = part->mass();
-	for (int k=0; k<3; k++) t[i].pos[k] = part->pos(k);
+	for (int k=0; k<3; k++) t[i].pos[k] = part->pos(k) - c0[k];
 	for (int k=0; k<3; k++) t[i].vel[k] = part->vel(k);
 	part = psp->NextParticle();
       }
@@ -990,6 +997,8 @@ main(int argc, char **argv)
     ("snr,S",
      po::value<double>(&snr)->default_value(-1.0),
      "if not negative: do a SNR cut on the PCA basis")
+    ("center,C", po::value<std::vector<double> >(&c0)->multitoken(),
+     "Accumulation center")
     ("diff",
      "render the difference between the trimmed and untrimmed basis")
     ("density",
@@ -1087,6 +1096,14 @@ main(int argc, char **argv)
 
   if (nice>0) setpriority(PRIO_PROCESS, 0, nice);
 
+  if (vm.count("center")) {
+    if (c0.size() != 3) {
+      if (myid==0) std::cout << "Center vector needs three components"
+			     << std::endl;
+      MPI_Finalize();
+      exit(-1);
+    }
+  }
 
   // ==================================================
   // PSP input stream
