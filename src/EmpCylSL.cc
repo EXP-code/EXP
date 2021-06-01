@@ -4134,6 +4134,7 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
     // Setup for diagnostic output
     //
     std::ofstream hout, mout;
+    const int fwid = 14;
     if (myid==0 && hallfile.length()>0) {
       std::ostringstream ofile, mfile;
       ofile << hallfile << ".pcalog";
@@ -4143,16 +4144,19 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 	     << "# Time = " << tnow << endl
 	     << "#" << endl
 	     << setw( 4) << "m" << setw(4) << "n"
-	     << setw(18) << "coef";
+	     << setw(fwid) << "coef";
 	if (PCAVAR) {
-	  hout << setw(18) << "|coef|^2"
-	       << setw(18) << "var(coef)"
-	       << setw(18) << "cum var"
-	       << setw(18) << "S/N (1p)"
-	       << setw(18) << "b_Hall"
-	       << setw(18) << "s_Hall";
+	  hout << setw(fwid) << "|coef|^2"
+	       << setw(fwid) << "var(coef)"
+	       << setw(fwid) << "cum var"
+	       << setw(fwid) << "S/N (1p)"
+	       << setw(fwid) << "b_Hall"
+	       << setw(fwid) << "s_Hall"
+	       << setw(fwid) << "|coef|_0^2"
+	       << setw(fwid) << "var_0"
+	       << setw(fwid) << "S/N (Np)";
 	}
-	if (PCAEOF) hout << setw(18) << "EOF";
+	if (PCAEOF) hout << setw(fwid) << "EOF";
 	hout << std::endl << std::endl;
       } else {
 	cerr << "Could not open <" << ofile.str() << "> for appending output" 
@@ -4390,19 +4394,25 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 	    double sqr = dd[nn+1]*dd[nn+1];
 	    double rat = (*pb)[mm]->ratio[nn+1];
 
-	    hout << setw(18) << dd[nn+1]
-		 << setw(18) << sqr
-		 << setw(18) << var
-		 << setw(18) << cumlJK[nn+1]
-		 << setw(18) << snrval[nn+1]*snrval[nn+1]
-		 << setw(18) << (*pb)[mm]->ratio[nn+1]
-		 << setw(18) << 1.0/(1.0 + pow(rat, HEXP));
+	    double cof = accum_cos[mm][nn] * accum_cos[mm][nn];
+	    if (mm) cof += accum_sin[mm][nn] * accum_sin[mm][nn];
+
+	    hout << setw(fwid) << dd[nn+1]
+		 << setw(fwid) << sqr
+		 << setw(fwid) << var
+		 << setw(fwid) << cumlJK[nn+1]
+		 << setw(fwid) << snrval[nn+1]*snrval[nn+1]
+		 << setw(fwid) << (*pb)[mm]->ratio[nn+1]
+		 << setw(fwid) << 1.0/(1.0 + pow(rat, HEXP))
+		 << setw(fwid) << cof
+		 << setw(fwid) << (*pb)[mm]->covrJK[nn+1][nn+1]
+		 << setw(fwid) << cof/(*pb)[mm]->covrJK[nn+1][nn+1]*nbodstot;
 	  } else {
 	    double cof = accum_cos[mm][nn] * accum_cos[mm][nn];
 	    if (mm) cof += accum_sin[mm][nn] * accum_sin[mm][nn];
-	    hout << setw(18) << sqrt(cof);
+	    hout << setw(fwid) << sqrt(cof);
 	  }
-	  if (PCAEOF) hout << std::setw(18) << eofvec[nn+1];
+	  if (PCAEOF) hout << std::setw(fwid) << eofvec[nn+1];
 	  hout << std::endl;
 	}
 	hout << std::endl;
