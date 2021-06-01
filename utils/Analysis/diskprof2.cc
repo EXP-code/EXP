@@ -1415,7 +1415,10 @@ main(int argc, char **argv)
 	  if (mm) 
 	    ac_sin[mm] = ac_sin[mm] - rt_sin[mm];
 	}
-	ortho.set_coefs(mm, ac_cos[mm], ac_sin[mm], true);
+	if (mm==0)
+	  ortho.set_coefs(mm, ac_cos[mm], ac_sin[mm], true);
+	else
+	  ortho.set_coefs(mm, ac_cos[mm], ac_sin[mm], false);
       }
       // END: M loop
     }
