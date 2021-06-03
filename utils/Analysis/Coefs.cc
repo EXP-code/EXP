@@ -3,7 +3,7 @@
 #include <cstring>
 #include <cmath>
 
-bool Coefs::read(std::istream& in, bool verbose)
+bool CylCoefs::read(std::istream& in, bool verbose)
 {
   // Save initial stream position
   //

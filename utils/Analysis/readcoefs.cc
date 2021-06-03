@@ -74,10 +74,10 @@ int main(int argc, char **argv)
   }
 
 
-  std::map<double, CoefPtr> coefs;
+  std::map<double, CylCoefsPtr> coefs;
 
   while (in) {
-    CoefPtr c = std::make_shared<Coefs>();
+    CylCoefsPtr c = std::make_shared<CylCoefs>();
     if (not c->read(in, verbose)) break;
 
     coefs[c->time] = c;

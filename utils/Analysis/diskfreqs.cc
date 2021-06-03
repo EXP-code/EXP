@@ -309,10 +309,10 @@ main(int argc, char **argv)
     exit(-4);
   }
 
-  std::map<double, CoefPtr> coefsD;
+  std::map<double, CylCoefsPtr> coefsD;
 
   while (coefs_disk) {
-    CoefPtr c = std::make_shared<Coefs>();
+    CylCoefsPtr c = std::make_shared<CylCoefs>();
     if (not c->read(coefs_disk, verbose)) break;
 
     coefsD[c->time] = c;

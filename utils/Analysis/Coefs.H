@@ -7,7 +7,7 @@
 
 #include "../../src/coef.H"
 
-struct Coefs
+struct CylCoefs
 {
   double time;
   int nmax, mmax;
@@ -16,7 +16,7 @@ struct Coefs
   bool read(std::istream& in, bool verbose=false);
 };
 
-typedef std::shared_ptr<Coefs> CoefPtr;
+typedef std::shared_ptr<CylCoefs> CylCoefsPtr;
 
 struct SphCoefs
 {
