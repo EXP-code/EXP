@@ -97,7 +97,7 @@ static  bool SURFACE;
 static  bool VSLICE;
 
 
-void write_output(EmpCylSL& ortho, int indx, int icnt, double time,
+void write_output(EmpCylSL& ortho, int indx, double time,
 		  std::string& file1, std::string& file2, std::string& file3)
 {
   unsigned ncnt = 0;
@@ -108,8 +108,7 @@ void write_output(EmpCylSL& ortho, int indx, int icnt, double time,
   // ==================================================
   
   ostringstream sstr;
-  sstr << "." << std::setfill('0') << std::setw(5) << indx
-       << "." << std::setfill('0') << std::setw(5) << icnt;
+  sstr << "." << std::setfill('0') << std::setw(5) << indx;
 
   string suffix[7] = {"p0", "p", "fr", "fz", "fp", "d0", "d"};
 
@@ -646,7 +645,7 @@ main(int argc, char **argv)
     if (myid==0) cout << "Writing output for T=" << d->time
 		      << " . . . " << flush;
 
-    write_output(ortho, indx++, data.size(), d->time, file1, file2, file3);
+    write_output(ortho, indx++, d->time, file1, file2, file3);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
     
