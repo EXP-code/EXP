@@ -29,15 +29,24 @@ bin_PROGRAMS = diskprof haloprof haloprof2 slabprof psphisto gas2d	\
 gas2dcyl makegrid pspbox eofpeek diskprof2 pcatest diskprof3		\
 mssaprofD mssaprofH readcoefs readcoefs2 pcatest diskprof4 sphprof	\
 yaml_diff diskfreqs pspxval_sph pspxval_cyl pspxval_cyl2 diskeof	\
-pspKL_sph pspKL_cyl kdtest readcoefs2F pspxval_sph2
+pspKL_sph pspKL_cyl kdtest readcoefs2F pspxval_sph2 diskcoef halocoef
 
 diskprof_SOURCES = PSP.cc header.cc diskprof.cc EmpCylSL.cc localmpi.cc Particle.cc
 diskprof_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
 diskprof_LDADD   = $(EXPLIBS) $(YAML) @exp_vtk_ldlib@ @exp_vtk_lib@ 
 
+diskcoef_SOURCES = diskprof_coef.cc EmpCylSL.cc localmpi.cc Coefs.cc
+diskcoef_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
+diskcoef_LDADD   = $(EXPLIBS) $(YAML) @exp_vtk_ldlib@ @exp_vtk_lib@ 
+
 haloprof_SOURCES = PSP.cc header.cc haloprof.cc SphereSL.cc localmpi.cc Particle.cc
 haloprof_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
 haloprof_LDADD = $(EXPLIBS)
+
+halocoef_SOURCES = haloprof_coef.cc EmpCylSL.cc localmpi.cc Coefs.cc SphereSL.cc
+halocoef_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS) 
+halocoef_LDADD   = $(EXPLIBS) $(YAML) @exp_vtk_ldlib@ @exp_vtk_lib@ 
+
 
 haloprof2_SOURCES = PSP.cc header.cc haloprof2.cc SphereSL.cc localmpi.cc Particle.cc
 haloprof2_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
