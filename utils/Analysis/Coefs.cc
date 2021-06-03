@@ -5,6 +5,8 @@
 
 bool CylCoefs::read(std::istream& in, bool verbose)
 {
+  in.exceptions ( std::istream::failbit | std::istream::badbit );
+  
   // Save initial stream position
   //
   auto curpos = in.tellg();
@@ -14,52 +16,58 @@ bool CylCoefs::read(std::istream& in, bool verbose)
   const unsigned int cmagic = 0xc0a57a3;
   unsigned int tmagic;
 
-  in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
+  try {
 
-  if (tmagic == cmagic) {
+    in.read(reinterpret_cast<char*>(&tmagic), sizeof(unsigned int));
 
-    // YAML size
-    //
-    unsigned ssize;
-    in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
 
-    // Make and read char buffer
-    //
-    auto buf = boost::make_unique<char[]>(ssize+1);
-    in.read(buf.get(), ssize);
-    buf[ssize] = 0;		// Null terminate
+    if (tmagic == cmagic) {
 
-    YAML::Node node = YAML::Load(buf.get());
+      // YAML size
+      //
+      unsigned ssize;
+      in.read(reinterpret_cast<char*>(&ssize), sizeof(unsigned int));
       
-    // Get parameters
-    //
-    time = node["time"].as<double>();
-    nmax = node["nmax"].as<int>();
-    mmax = node["mmax"].as<int>();
+      // Make and read char buffer
+      //
+      auto buf = boost::make_unique<char[]>(ssize+1);
+      in.read(buf.get(), ssize);
+      buf[ssize] = 0;		// Null terminate
+      
+      YAML::Node node = YAML::Load(buf.get());
+      
+      // Get parameters
+      //
+      time = node["time"].as<double>();
+      nmax = node["nmax"].as<int>();
+      mmax = node["mmax"].as<int>();
 
-    if (verbose)
-      std::cerr << "New header: T=" << time << " nmax=" << nmax
-		<< " mmax=" << mmax << std::endl;
-  } else {
-
-    // Rewind file
-    //
-    in.clear();
-    in.seekg(curpos);
-
-    CylCoefHeader header;
-    in.read((char *)&header, sizeof(CylCoefHeader));
-
-    time = header.time;
-    nmax = header.nmax;
-    mmax = header.mmax;
-
-    if (verbose)
-      std::cerr << "Old header: T=" << time << " nmax=" << nmax
-		<< " mmax=" << mmax << std::endl;
+      if (verbose)
+	std::cerr << "New header: T=" << time << " nmax=" << nmax
+		  << " mmax=" << mmax << std::endl;
+    } else {
+      
+      // Rewind file
+      //
+      in.clear();
+      in.seekg(curpos);
+      
+      CylCoefHeader header;
+      in.read((char *)&header, sizeof(CylCoefHeader));
+      
+      time = header.time;
+      nmax = header.nmax;
+      mmax = header.mmax;
+      
+      if (verbose)
+	std::cerr << "Old header: T=" << time << " nmax=" << nmax
+		  << " mmax=" << mmax << std::endl;
+    }
   }
-
-  if (not in) return false;
+  catch (std::istream::failure e) {
+    if (verbose) std::cerr << "Exception reading coefficient file" << std::endl;
+    return false;
+  }
 
   cos_c.resize(mmax+1);
   sin_c.resize(mmax+1);
@@ -87,6 +95,8 @@ bool CylCoefs::read(std::istream& in, bool verbose)
 
 bool SphCoefs::read(std::istream& in, bool exp_type)
 {
+  in.exceptions ( std::istream::failbit | std::istream::badbit );
+
   // Save initial stream position
   //
   auto curpos = in.tellg();
@@ -98,59 +108,68 @@ bool SphCoefs::read(std::istream& in, bool exp_type)
   // Try to read magic #
   //
   unsigned int tmagic;
-  in.read(reinterpret_cast<char *>(&tmagic), sizeof(unsigned int));
 
-  // Found new-style coefficient file
-  //
-  if (cmagic == tmagic) {
+  try {
+    in.read(reinterpret_cast<char *>(&tmagic), sizeof(unsigned int));
 
-    // Read YAML string size
+    // Found new-style coefficient file
     //
-    unsigned int hsize;
-    in.read(reinterpret_cast<char *>(&hsize), sizeof(unsigned int));
+    if (cmagic == tmagic) {
+
+      // Read YAML string size
+      //
+      unsigned int hsize;
+      in.read(reinterpret_cast<char *>(&hsize), sizeof(unsigned int));
     
-    // Create buffer
-    //
-    auto buf = boost::make_unique<char[]>(hsize+1);
+      // Create buffer
+      //
+      auto buf = boost::make_unique<char[]>(hsize+1);
 
-    // Read YAML string
-    //
-    in.read(buf.get(), hsize);
-    buf[hsize] = 0;		// Null terminate
-
-    YAML::Node node = YAML::Load(buf.get());
+      // Read YAML string
+      //
+      in.read(buf.get(), hsize);
+      buf[hsize] = 0;		// Null terminate
       
-    // Get parameters
-    //
-    header.Lmax  = node["lmax"  ].as<int>();
-    header.nmax  = node["nmax"  ].as<int>();
-    header.tnow  = node["time"  ].as<double>();
-    header.scale = node["scale" ].as<double>();
+      YAML::Node node = YAML::Load(buf.get());
+      
+      // Get parameters
+      //
+      header.Lmax  = node["lmax"  ].as<int>();
+      header.nmax  = node["nmax"  ].as<int>();
+      header.tnow  = node["time"  ].as<double>();
+      header.scale = node["scale" ].as<double>();
+      
+      std::fill(header.id, header.id+64, 0);
+      std::string ID = node["id"].as<std::string>();
+      strncpy(header.id, ID.c_str(), std::min<int>(64, ID.size()));
+      
+    } else {
+      
+      // Rewind file
+      //
+      in.clear();
+      in.seekg(curpos);
+      
+      in.read((char *)&header, sizeof(SphCoefHeader));
+    }
 
-    std::fill(header.id, header.id+64, 0);
-    std::string ID = node["id"].as<std::string>();
-    strncpy(header.id, ID.c_str(), std::min<int>(64, ID.size()));
+    if (not in) return false;
 
-  } else {
-
-    // Rewind file
-    //
-    in.clear();
-    in.seekg(curpos);
-
-    in.read((char *)&header, sizeof(SphCoefHeader));
+    coefs.resize((header.Lmax+1)*(header.Lmax+1));
+    for (auto & v : coefs) v.resize(header.nmax);
+    
+    for (int ir=0; ir<header.nmax; ir++) {
+      for (int l=0; l<(header.Lmax+1)*(header.Lmax+1); l++)
+	in.read((char *)&coefs[l][ir], sizeof(double));
+    }
   }
-
-  if (not in) return false;
-
-  coefs.resize((header.Lmax+1)*(header.Lmax+1));
-  for (auto & v : coefs) v.resize(header.nmax);
-
-  for (int ir=0; ir<header.nmax; ir++) {
-    for (int l=0; l<(header.Lmax+1)*(header.Lmax+1); l++)
-      in.read((char *)&coefs[l][ir], sizeof(double));
+  catch (std::istream::failure e) {
+    // std::cerr << "Exception reading coefficient file" << std::endl;
+    return false;
   }
-
+  
+  // Apply prefactors to make _true_ normed coefficients
+  //
   if (exp_type) {
     int k = 0;
     for (int l=0; l<=header.Lmax; l++) {
