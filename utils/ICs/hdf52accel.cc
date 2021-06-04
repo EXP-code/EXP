@@ -9,6 +9,7 @@
 #include <config.h>
 #ifdef HAVE_HDF5
 #include <H5Cpp.h>
+#include <H5public.h>		// For version info
 #endif
 
 #include <boost/program_options.hpp>
@@ -177,25 +178,41 @@ main(int ac, char **av)
   // catch failure caused by the H5File operations
   catch( H5::FileIException error )
     {
+#if (H5_VERS_MAJOR>1) || ((H5_VERS_MAJOR==1) && ((H5_VERS_MINOR>8)) || ((H5_VERSH5_VERS_MINOR==8)&&(H5_VERS_RELEASE>=20)))
       error.printErrorStack();
+#else
+      error.printError();
+#endif
       return -1;
     }
   // catch failure caused by the DataSet operations
   catch( H5::DataSetIException error )
     {
+#if (H5_VERS_MAJOR>1) || ((H5_VERS_MAJOR==1)&& ((H5_VERS_MINOR>8)) || ((H5_VERSH5_VERS_MINOR==8)&&(H5_VERS_RELEASE>=20)))
       error.printErrorStack();
+#else
+      error.printError();
+#endif
       return -1;
     }
   // catch failure caused by the DataSpace operations
   catch( H5::DataSpaceIException error )
     {
+#if (H5_VERS_MAJOR>1) || ((H5_VERS_MAJOR==1)&& ((H5_VERS_MINOR>8)) || ((H5_VERSH5_VERS_MINOR==8)&&(H5_VERS_RELEASE>=20)))
       error.printErrorStack();
+#else
+      error.printError();
+#endif
       return -1;
     }
   // catch failure caused by the Attribute operations
   catch( H5::AttributeIException error )
     {
+#if (H5_VERS_MAJOR>1) || ((H5_VERS_MAJOR==1)&& ((H5_VERS_MINOR>8)) || ((H5_VERSH5_VERS_MINOR==8)&&(H5_VERS_RELEASE>=20)))
       error.printErrorStack();
+#else
+      error.printError();
+#endif
       return -1;
     }
 
