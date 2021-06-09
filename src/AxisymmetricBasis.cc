@@ -21,7 +21,7 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
   tk_type   = None;
   subsamp   = false;
   defSampT  = 1;
-  sampT     = 0;
+  sampT     = 1;
 
   string val;
 
