@@ -93,7 +93,7 @@ EmpCylSL::EmpCylSL(void)
   coefs_made = vector<short>(multistep+1, false);
   eof_made   = false;
   defSampT   = 1;
-  sampT      = 0;
+  sampT      = 1;
   tk_type    = None;
   EVEN_M     = false;
   MLIM       = std::numeric_limits<int>::max();
@@ -174,7 +174,7 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   coefs_made = vector<short>(multistep+1, false);
   eof_made   = false;
 
-  sampT        = 0;
+  sampT        = 1;
   defSampT     = 1;
   tk_type      = None;
 
@@ -236,7 +236,7 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   else
     MPItable = 3;
 
-  sampT = 0;
+  sampT = 1;
   defSampT = 1;
 
   cylmass = 0.0;
