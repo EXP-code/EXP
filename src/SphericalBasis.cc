@@ -602,7 +602,7 @@ void SphericalBasis::determine_coefficients(void)
 
   if (compute) {
 
-    if (sampT == 0) {		// Allocate storage for subsampling
+    if (massT.size() == 0) {	// Allocate storage for subsampling
       if (defSampT) sampT = defSampT;
       else          sampT = floor(sqrt(component->CurTotal()));
       massT    .resize(sampT, 0);
