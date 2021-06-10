@@ -407,8 +407,6 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 				// subset of particles
   if (subset) nend = (int)floor(ssfrac*nend);
 
-  use[id] = 0;
-
   unsigned whch = 0;		// For PCA jacknife
 
   for (int i=nbeg; i<nend; i++) {
@@ -704,6 +702,8 @@ void SphericalBasis::determine_coefficients(void)
   if (myid==0) cout << endl;
 #endif
     
+  std::fill(use.begin(), use.end(), 0);
+
 #if HAVE_LIBCUDA==1
   if (component->cudaDevice>=0 and use_cuda) {
     if (cudaAccumOverride) {
