@@ -677,22 +677,25 @@ void AxisymmetricBasis::parallel_gather_coef2(void)
     MPI_Allreduce(&use[0], &used, 1,
 		  MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
-    // Report mass used
-    //
-    MPI_Allreduce(&massT1[0], &massT[0], sampT,
-		  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    if (sampT) {
 
-    // Reduce covariance and mean
-    //
-    for (unsigned T=0; T<sampT; T++) {
-      for (int l=0; l<(Lmax+1)*(Lmax+2)/2; l++) {
-	MPI_Allreduce(&(*expcoefT1[T][l])[1],
-		      &(*expcoefT [T][l])[1], nmax,
-		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	for (int nn=1; nn<=nmax; nn++) {
-	  MPI_Allreduce(&(*expcoefM1[T][l])[nn][1],
-			&(*expcoefM [T][l])[nn][1], nmax,
+      // Report mass used
+      //
+      MPI_Allreduce(&massT1[0], &massT[0], sampT,
+		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      
+      // Reduce covariance and mean
+      //
+      for (unsigned T=0; T<sampT; T++) {
+	for (int l=0; l<(Lmax+1)*(Lmax+2)/2; l++) {
+	  MPI_Allreduce(&(*expcoefT1[T][l])[1],
+			&(*expcoefT [T][l])[1], nmax,
 			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	  for (int nn=1; nn<=nmax; nn++) {
+	    MPI_Allreduce(&(*expcoefM1[T][l])[nn][1],
+			  &(*expcoefM [T][l])[nn][1], nmax,
+			  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	  }
 	}
       }
     }
