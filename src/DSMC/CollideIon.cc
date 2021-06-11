@@ -468,7 +468,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 
   // Fill the Chianti data base
   //
-  ad.createIonList(ZList);
+  ad.createIonList(ZList, use_cuda);
 
   // Cross-section storage
   //
@@ -11490,17 +11490,19 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
 	}
 
 	vfac = sqrt(totE/kE);
-      }
 
-      if (dE!=0.0) std::cout << "CHECK: dE=" << dE << " kE=" << kE
-			     << " vfac=" << vfac
-			     << " vi="   << vi
-			     << " dn_p=" << dn_p
-			     << " np="   << n_p
-			     << " m1="   << m1
-			     << " m2="   << m2
-			     << std::endl;
-    
+	// Energy debug/sanity check
+	//
+	if (fabs(dE/kE) > 1.0e-14)
+	  std::cout << "CHECK: dE=" << dE << " kE=" << kE
+		    << " vfac=" << vfac
+		    << " vi="   << vi
+		    << " dn_p=" << dn_p
+		    << " np="   << n_p
+		    << " m1="   << m1
+		    << " m2="   << m2
+		    << std::endl;
+      }
 
       vrel = unit_vector();
   

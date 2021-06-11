@@ -119,6 +119,10 @@ TreeDSMC::TreeDSMC(const YAML::Node& conf) : ExternalForce(conf)
   }
   Collide::seed = seed;
 
+  // Set cuda state
+  //
+  Collide::use_cuda = use_cuda;
+
   // Update derived units from Munit, Lunit, Tunit
   Vunit = Lunit/Tunit;
   Eunit = Munit*Vunit*Vunit;

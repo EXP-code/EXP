@@ -184,6 +184,9 @@ public:
   //! Species selection for deep debugging output
   static constexpr unsigned short init_dbg_Z = 2;
 
+  //! Using cuda (default: false)
+  static bool use_cuda;
+
   //@}
 
   //! Interaction-type labels

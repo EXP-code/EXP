@@ -274,7 +274,7 @@ public:
 
   //! Create database of requested ions
   typedef std::set<unsigned short> ZLtype;
-  void createIonList(const ZLtype& ZList);
+  void createIonList(const ZLtype& ZList, const bool use_cuda=false);
 
   std::map<lQ, double> ipdata;
   std::set<std::string> masterNames;
