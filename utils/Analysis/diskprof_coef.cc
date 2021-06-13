@@ -448,7 +448,7 @@ main(int argc, char **argv)
      po::value<bool>(&VOLUME)->default_value(false),
      "make volume for VTK rendering")
     ("outid,o",
-     po::value<std::string>(&outid)->default_value("mssaprof"),
+     po::value<std::string>(&outid)->default_value("diskcoef"),
      "Analysis id name")
     ("cachefile",
      po::value<std::string>(&CACHEFILE)->default_value(".eof.cache.file"),

@@ -427,7 +427,7 @@ main(int argc, char **argv)
      po::value<bool>(&VOLUME)->default_value(false),
      "make volume for VTK rendering")
     ("outid,o",
-     po::value<std::string>(&outid)->default_value("mssaprof_halo"),
+     po::value<std::string>(&outid)->default_value("halocoef"),
      "Analysis id name")
     ("coeffile",
      po::value<std::string>(&coeffile)->default_value("coef.file"),
