@@ -654,25 +654,27 @@ void UserAddMass::determine_acceleration_and_potential(void)
   }
   
   for (int n=0; n<numgen; n++) {
+
     bool notfound = true;
 
     while (notfound) {
+
       unsigned indx, indxprof=0;
       double rr, lrr;
       double MM;
       double a=1.0, b=0.0;
+
       // Get radius
       //
-      
-
-
       MM=1.0*(*urand)();
-      if (MM<Mprof[0]) break;
-      if (MM>Mprof[numRprof-2]) break;
+      if (MM<Mprof[0]) continue;
+      if (MM>Mprof[numRprof-2]) continue;
       
-      for (int i=0; i<numRprof; i++) if(MM<Mprof[i]){
-        indxprof=i-1;
-        break;
+      for (int i=0; i<numRprof; i++) {
+	if (MM<Mprof[i]) {
+	  indxprof=i-1;
+	  break;
+	}
       }
       
       lrr = Rprof[indxprof] + (Rprof[indxprof+1] - Rprof[indxprof])/(Mprof[indxprof+1] - Mprof[indxprof]) * (MM-Mprof[indxprof]);
@@ -681,33 +683,32 @@ void UserAddMass::determine_acceleration_and_potential(void)
       if (logr) rr=exp(lrr);
       indx = floor( (lrr-lrmin)/dr );  
       
-
-
       // Decrease index to find non-zero bins(s)
       //
-
       std::function<bool(std::vector<double>&, int)> mfind;
       if (interp) {		// Interpolation predicate
         mfind = [](auto &mas, auto indx)
           { return (mas[indx]==0.0 or mas[indx+1]==0.0); };
-
+	
         indx = std::min<unsigned>(indx, numr-2);
-        } else {			// Nearest bin predicate
-          mfind = [](auto &mas, auto indx)
-		      { return mas[indx]==0.0; };
-          indx = std::min<unsigned>(indx, numr-1);
-        }
+      } else {			// Nearest bin predicate
+	mfind = [](auto &mas, auto indx)
+		{ return mas[indx]==0.0; };
+	indx = std::min<unsigned>(indx, numr-1);
+      }
+
       while (mfind(mas, indx) and indx>0) indx--;
+      
       // Skip this one
       //
-      if (mfind(mas, indx)) break; 
+      if (mfind(mas, indx)) continue;
+      
       // Found good bin(s)
       //
       notfound = false;      
+
       // Radius selection
       //      
-      
-      
       if (interp) {
       	a = (lrmin + dr*(indx+1) - lrr)/dr;
       	b = (lrr - lrmin - dr*(indx+0))/dr;
@@ -900,8 +901,8 @@ void UserAddMass::determine_acceleration_and_potential(void)
 
       // Convert to from local to system reference frame
       //
-      //cC->PosConvert(P->pos);
-      //cC->VelConvert(P->vel);
+      cC->PosConvert(P->pos);
+      cC->VelConvert(P->vel);
     }
 
   }
