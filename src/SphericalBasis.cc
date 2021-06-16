@@ -638,6 +638,8 @@ void SphericalBasis::determine_coefficients(void)
       for (int n=0; n<nthrds; n++) muse1[n] = 0.0;
       muse0 = 0.0;
       
+      for (int n=0; n<nthrds; n++) use[n] = 0.0;
+
       if (pcavar) {
 	for (auto & t : expcoefT1) { for (auto & v : t) v->zero(); }
 	for (auto & t : expcoefM1) { for (auto & v : t) v->zero(); }
