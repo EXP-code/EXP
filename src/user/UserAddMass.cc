@@ -93,6 +93,8 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
   dnext  = tnext;		// Time for next debug output
   tstart = tnext;
 
+  numvdisp = 0;
+
   if (comp_list.size()>0) {
 				// Components for force evaluation
     for (auto name : comp_list) {
@@ -242,7 +244,7 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
     break;
   };
 
-  if (-1.==vdisp){
+  if (fvdisp.size() and vdisp<0.0){
     std::fstream in(fvdisp);
     if (in){
       std::string line;
@@ -262,8 +264,8 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
     else {
       std::cerr << "UserAddMass: could not open dispersion file <"
 		<< fvdisp << ">" << std::endl;
+      vdisp = 0.0;
     }
-    // std::cout << vdispR[5] << "|||||||" <<vdispV[5] << std::endl;
   }
 
   userinfo();
@@ -288,7 +290,7 @@ void UserAddMass::userinfo()
 	    << " number="    << number
 	    << " mass="      << mass
 	    << " scale="     << scale
-      << " vdispersion="     << vdisp
+	    << " vdisp="     << vdisp
 	    << " tstart="    << tstart
 	    << " dt="        << dt
 	    << " tnow="      << tnow
@@ -326,30 +328,30 @@ void UserAddMass::userinfo()
 void UserAddMass::initialize()
 {
   try {
-    if (conf["complist"]) {	// Check for optional force components
+    if (conf["complist"]) {     // Check for optional force components
       comp_list = conf["complist"].as<std::vector<std::string>>();
     }
-    if (conf["compname"])         comp_name   = conf["compname"].as<std::string>();	      
-    if (conf["rmin"])       	  rmin        = conf["rmin"].as<double>();		      
-    if (conf["rmax"])       	  rmax        = conf["rmax"].as<double>();		      
-    if (conf["mass"])       	  mass        = conf["mass"].as<double>();		      
-    if (conf["numr"])       	  numr        = conf["numr"].as<unsigned>();		      
-    if (conf["interp"])     	  interp      = conf["interp"].as<bool>();		      
-    if (conf["planar"])     	  planar      = conf["planar"].as<bool>();		      
-    if (conf["accel"])     	  accel       = conf["accel"].as<bool>();		      
-    if (conf["logr"])       	  logr        = conf["logr"].as<bool>();		      
-    if (conf["seed"])       	  seed        = conf["seed"].as<long int>();		      
-    if (conf["number"])     	  number      = conf["number"].as<unsigned>();	      
-    if (conf["tstart"])     	  tnext       = conf["tstart"].as<double>();		      
-    if (conf["scale"])      	  scale       = conf["scale"].as<double>();		      	      
-    if (conf["debug"])      	  debug       = conf["debug"].as<double>();	
-    if (conf["Rd"])      	      Rd          = conf["Rd"].as<double>();		   
-    if (conf["Zd"])      	      Zd          = conf["Zd"].as<double>();		      
-    if (conf["vdispersion"])      vdisp     = conf["vdispersion"].as<double>();		      
-    if (conf["dt"])               dt          = conf["dt"].as<double>();		      		      
-    if (conf["vdispersion"])      vdisp       = conf["vdispersion"].as<double>();		      
-    if (conf["algorithm"])  	  alg         = AlgMap[conf["algorithm"].as<std::string>()];
-    if (conf["vdispFile"])  	   fvdisp     =  conf["vdispFile"].as<std::string>();
+    if (conf["compname"])         comp_name   = conf["compname"].as<std::string>();           
+    if (conf["rmin"])             rmin        = conf["rmin"].as<double>();                    
+    if (conf["rmax"])             rmax        = conf["rmax"].as<double>();                    
+    if (conf["mass"])             mass        = conf["mass"].as<double>();                    
+    if (conf["numr"])             numr        = conf["numr"].as<unsigned>();                  
+    if (conf["interp"])           interp      = conf["interp"].as<bool>();                    
+    if (conf["planar"])           planar      = conf["planar"].as<bool>();                    
+    if (conf["accel"])            accel       = conf["accel"].as<bool>();                     
+    if (conf["logr"])             logr        = conf["logr"].as<bool>();                      
+    if (conf["seed"])             seed        = conf["seed"].as<long int>();                  
+    if (conf["number"])           number      = conf["number"].as<unsigned>();        
+    if (conf["tstart"])           tnext       = conf["tstart"].as<double>();                  
+    if (conf["scale"])            scale       = conf["scale"].as<double>();                           
+    if (conf["debug"])            debug       = conf["debug"].as<double>();     
+    if (conf["Rd"])               Rd          = conf["Rd"].as<double>();                   
+    if (conf["Zd"])               Zd          = conf["Zd"].as<double>();                      
+    if (conf["vdispersion"])      vdisp       = conf["vdispersion"].as<double>();                     
+    if (conf["dt"])               dt          = conf["dt"].as<double>();                                      
+    if (conf["vdispersion"])      vdisp       = conf["vdispersion"].as<double>();                     
+    if (conf["algorithm"])        alg         = AlgMap[conf["algorithm"].as<std::string>()];
+    if (conf["vdispFile"])        fvdisp      = conf["vdispFile"].as<std::string>();
   }
   catch (YAML::Exception & error) {
     if (myid==0) std::cout << "Error parsing parameters in UserAddMass: "
@@ -718,15 +720,18 @@ void UserAddMass::determine_acceleration_and_potential(void)
       P->mass  = mass;
       P->level = multistep;
 
-      double vvdisp=0.;
-      if (vdisp==-1.){
+      double vvdisp=0.0;
+      if (vdisp<0.0 and numvdisp>0) {
         auto it = std::lower_bound(vdispR.begin(), vdispR.end(), rr);
         unsigned inddisp = numvdisp-1;
         if (it != vdispR.end()) inddisp = std::distance(vdispR.begin(), it);
         if (inddisp>0) inddisp--;
         if (inddisp==0) vvdisp=vdispV[0];
         else if (inddisp>=numvdisp-1) vvdisp=0;
-        else vvdisp= (vdispV[inddisp+1]-vdispV[inddisp])/(vdispR[inddisp+1]-vdispR[inddisp])*(rr-vdispR[inddisp]) +  vdispV[inddisp];
+        else
+	  vvdisp = (vdispV[inddisp+1]-vdispV[inddisp]) /
+	    (vdispR[inddisp+1]-vdispR[inddisp]) *
+	    (rr - vdispR[inddisp]) +  vdispV[inddisp];
         
       }
 
@@ -867,21 +872,28 @@ void UserAddMass::determine_acceleration_and_potential(void)
 	    
 	    // Velocities
 	    //
-	    if (vdisp>=0.) for (int k=0; k<3; k++) P->vel[k] = v3[k] *( (*nrand)() * 1/1.732 * vdisp + 1.0);
-      else for (int k=0; k<3; k++) P->vel[k] = v3[k];
-
+	    if (vdisp>=0.0) {
+	      for (int k=0; k<3; k++)
+		P->vel[k] = v3[k] *( (*nrand)() * 1/1.732 * vdisp + 1.0);
+	    } else {
+	      for (int k=0; k<3; k++) P->vel[k] = v3[k];
+	    }
 	  }
 
-    double A;
-    if (logr) A = exp(lrmin + dr*(indx+1)) * exp(lrmin + dr*(indx+1)) -  exp(lrmin + dr*indx) * exp(lrmin + dr*indx);
-    else A = (lrmin + dr*(indx+1)) * (lrmin + dr*(indx+1)) -  (lrmin + dr*indx) * (lrmin + dr*indx);
-    P->vel[2] +=  (*nrand)()  * sqrt( 2* mas[indx] /A *Zd ) + vzmean[indx]/mas[indx] ; // actually sigma_z=pi*G*Sigma * scale_heigh, pi cancels here.
-    for (int k=0; k<2; k++) P->vel[k] +=  vvdisp * ( *nrand)();
-	}
+	  double A;
+	  if (logr) A = exp(lrmin + dr*(indx+1)) * exp(lrmin + dr*(indx+1)) -
+		      exp(lrmin + dr*indx) * exp(lrmin + dr*indx);
+	  else A = (lrmin + dr*(indx+1)) * (lrmin + dr*(indx+1)) -
+		 (lrmin + dr*indx) * (lrmin + dr*indx);
 
+	  // NB: sigma_z=pi*G*Sigma * scale_heigh, pi cancels here.
+	  P->vel[2] +=  (*nrand)() * sqrt( 2* mas[indx] /A *Zd ) + vzmean[indx]/mas[indx];
+
+	  for (int k=0; k<2; k++) P->vel[k] +=  vvdisp * ( *nrand)();
+	}
+	
 	break;
       }
-
 
       // Add initial acceleration from each basis component.  Inputs
       // positions for determine_fiels_at_point are in centered reference
@@ -906,6 +918,7 @@ void UserAddMass::determine_acceleration_and_potential(void)
     }
 
   }
+  // END: particle generation loop
 
 }
 
