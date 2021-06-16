@@ -5,8 +5,8 @@
 
 // This has to be a fixed value for the Cuda API
 //
-// #define DATTRIB_CUDA 12
-#define DATTRIB_CUDA 4
+#define DATTRIB_CUDA 12
+// #define DATTRIB_CUDA 4
 
 #include <cuda.h>
 #include <cuda_runtime.h>
