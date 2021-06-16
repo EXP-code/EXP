@@ -9,11 +9,13 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
   nmax      = 10;
   dof       = 3;
   npca      = 500;
+  npca0     = 0;
   pcavar    = false;
   pcaeof    = false;
   pcadiag   = false;
   pcavtk    = false;
   vtkfreq   = 1;
+  muse      = 0.0;
   hexp      = 1.0;
   snr       = 1.0;
   tksmooth  = 3.0;
