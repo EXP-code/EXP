@@ -9,6 +9,8 @@ static const int MSGTAG=103;
 
 Direct::Direct(const YAML::Node& conf) : PotAccel(conf)
 {
+  // Standard softening
+  //
   soft_indx  = 0;
   soft       = 0.01;
   fixed_soft = true;
