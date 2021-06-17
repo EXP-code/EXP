@@ -945,12 +945,15 @@ public:
   //! Convert all to device particles and copy to device
   void ParticlesToCuda()
   {
-    // Copy from Particle to cudaParticle
-    //
-    ParticlesToCuda(particles.begin(), particles.end());
-    // Push to device
-    //
-    HostToDev(cuStream);
+    if (c->force->cudaAware()) {
+      // Copy from Particle to cudaParticle
+      //
+      ParticlesToCuda(particles.begin(), particles.end());
+
+      // Push to device
+      //
+      HostToDev(cuStream);
+    }
   }
 
   //! Copy cuda device particles for this component back Component C
@@ -959,8 +962,10 @@ public:
   //! Copy from device and convert to host particles
   void CudaToParticles()
   {
-    DevToHost(cuStream);	// Pull from device
-    CudaToParticles(cuStream->first, cuStream->last);
+    if (c->force->cudaAware()) {
+      DevToHost(cuStream);	// Pull from device
+      CudaToParticles(cuStream->first, cuStream->last);
+    }
   }
 
   //! Make a new level list from copied particles
