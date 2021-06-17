@@ -16,6 +16,13 @@
    @param soft is a fixed softening value for all particles.  This can be 
    used even if a value is specified in the particle attribute array.
 
+   @param mn_model uses a Miyamoto-Nagi model for the distributed gravity.
+   E.g. a disk model particle.  Default: false.
+
+   @param a is the scale length of the Miyamoto-Nagai model for the distributed gravity. Default: 0.01
+
+   @param b is the scale height of the Miyamoto-Nagai model for the distributed gravity. Default: 0.002
+
    @param pm_model uses a spherical model for the distributed gravity.
    E.g. a substructure halo profile.  Default: false.
 
@@ -52,7 +59,18 @@ private:
   double soft;
   bool fixed_soft;
 
+  //! Use Miyamoto-Nagai disk
+  bool mn_model;
+  
+  //! MN disk scale length
+  double a;
+  
+  //! MN disk scale height
+  double b;			
+
+  //! Use point-mass profile
   bool pm_model;
+  
   double diverge_rfac;
   int diverge;
   string pmmodel_file;

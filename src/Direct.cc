@@ -14,9 +14,15 @@ Direct::Direct(const YAML::Node& conf) : PotAccel(conf)
   fixed_soft = true;
   ndim       = 4;
 
+  // Miyamoto-Nagai-shape particles
+  //
+  mn_model = false;		// Turn on MN disk (off by default)
+  a        = 0.01;		// Disk scale length
+  b        = 0.002;		// Disk scale height
+  
   // Parameters for extended pm model
   //
-  pm_model = false;
+  pm_model = false;		    // This invokes a spherical model profile
   pmmodel_file = "SLGridSph.model"; // Table od the Extended pm model
   diverge      = 0;	            // Use analytic divergence (true/false)
   diverge_rfac = 1.0;               // Exponent for profile divergence
@@ -63,6 +69,10 @@ void Direct::initialize(void)
       kernel = std::make_shared<SplineSoft>();
       if (myid==0) std::cout << "Direct: using SplineSoft" << std::endl;
     }
+
+    if (conf["mn_model"])         mn_model     = conf["mn_model"].as<bool>();
+    if (conf["a"])                a            = conf["a"].as<double>();
+    if (conf["b"])                b            = conf["b"].as<double>();
 
     if (conf["pm_model"])         pm_model     = conf["pm_model"].as<bool>();
     if (conf["diverge"])          diverge      = conf["diverge"].as<int>();
@@ -211,51 +221,107 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
 				// Loop through the particle list
       double * p = bod_buffer;
       for (int n=0; n<ninteract; n++) {
-				// Get current interaction particle
-	double mass = *(p++) * adb;
-	for (int k=0; k<3; k++) pos[k] = *(p++);
-	if (!fixed_soft) eps = *(p++);
 
-				// Compute interparticle squared distance
+				// Get current interaction particle
+				// mass from ring buffer
+	double mass = *(p++) * adb;
+				// Position
+	for (int k=0; k<3; k++) pos[k] = *(p++);
+	
+	// Compute interparticle squared distance
+	//
 	double rr0 = 0.0;
 	for (int k=0; k<3; k++) rr0 +=
 				  (cC->Pos(j, k) - pos[k]) *
 				  (cC->Pos(j, k) - pos[k]) ;
 	double rr = sqrt(rr0);
-
+	
+	// Reject particle at current location
+	//
 	if (rr>rtol) {
+	  
+	  // BEG: Miyamoto-Nagai (MN) disk-shaped point mass
+	  if (mn_model) {	
+
+	    // Positions relative to point mass center
+	    //
+	    double xx = cC->Pos(j, 0) - pos[0];
+	    double yy = cC->Pos(j, 1) - pos[1];
+	    double zz = cC->Pos(j, 2) - pos[2];
+
+	    // MN intermediate computation
+	    //
+	    double rr = sqrt( xx*xx + yy*yy );
+	    double zb = sqrt( zz*zz + b * b );
+	    double ab = a + zb;
+	    double dn = sqrt( rr*rr + ab*ab );
+	    
+	    // MN potential and cylindrical force
+	    //
+	    double pot = -mass/dn;
+	    double fr  = -mass*rr/(dn*dn*dn);
+	    double fz  = -mass*zz*ab/(zb*dn*dn*dn);
+	  
+	    // Add acceleration by disk particle
+	    //
+	    cC->AddAcc(j, 0, fr*xx/(rr+1.0e-10) );
+	    cC->AddAcc(j, 1, fr*yy/(rr+1.0e-10) );
+	    cC->AddAcc(j, 2, fz );
+	  
+	    // External Potential
+	    //
+	    if (use_external) {
+	      cC->AddPotExt(j, pot );
+#ifdef DEBUG
+	      ncnt++;
+	      tclausius[id] += mass * ( (fr*xx + fr*yy)/(rr+1.0e-10) + fz);
+#endif
+	    }
+	    // Internal potential
+	    else cC->AddPot(j, pot );
+
+	  }
+	  // END: Miyamoto-Nagai point mass
+	  // BEG: Spherical point mass
+	  else {
+	  
+	    if (!fixed_soft) eps = *(p++);
+
 				// Extended model for point masses
                                 // Given model provides normalized mass distrbution
-	  double pot = 0.0;
-
-	  if (pm_model && pmmodel->get_max_radius() > rr) {
-	    double mass_frac = pmmodel->get_mass(rr) / pmmodel->get_mass(pmmodel->get_max_radius());
-	    pot = pmmodel->get_pot(rr)/pmmodel->get_mass(pmmodel->get_max_radius());
-	    mass *= mass_frac;
-	  } else {
-	    auto y = (*kernel)(rr, eps);
-	    pot = mass * y.second;
-	    mass *= y.first;
-	  }
-
-				// Acceleration
-	  double rfac = 1.0/(rr*rr*rr);
-      
-	  for (int k=0; k<3; k++)
-	    cC->AddAcc(j, k, -mass *(cC->Pos(j, k) - pos[k]) * rfac );
-      
-				// Potential
-	  if (use_external) {
-	    cC->AddPotExt(j, pot );
-#ifdef DEBUG
-	    ncnt++;
+	    double pot = 0.0;
+	  
+	    if (pm_model && pmmodel->get_max_radius() > rr) {
+	      double mass_frac =
+		pmmodel->get_mass(rr) / pmmodel->get_mass(pmmodel->get_max_radius());
+	      pot = pmmodel->get_pot(rr)/pmmodel->get_mass(pmmodel->get_max_radius());
+	      mass *= mass_frac;
+	    } else {
+	      auto y = (*kernel)(rr, eps);
+	      pot = mass * y.second;
+	      mass *= y.first;
+	    }
+	    
+	    // Acceleration
+	    double rfac = 1.0/(rr*rr*rr);
+	    
 	    for (int k=0; k<3; k++)
-	      tclausius[id] += -mass *
-		(cC->Pos(j, k) - pos[k]) * cC->Pos(j, k) * rfac;
+	      cC->AddAcc(j, k, -mass *(cC->Pos(j, k) - pos[k]) * rfac );
+	    
+	    // Potential
+	    if (use_external) {
+	      cC->AddPotExt(j, pot );
+#ifdef DEBUG
+	      ncnt++;
+	      for (int k=0; k<3; k++)
+		tclausius[id] += -mass *
+		  (cC->Pos(j, k) - pos[k]) * cC->Pos(j, k) * rfac;
 #endif
+	    }
+	    else cC->AddPot(j, pot );
 	  }
-	  else cC->AddPot(j, pot );
 	}
+	// END: spherical point mass
       }
       // END: buffer interaction loop
     }
