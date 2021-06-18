@@ -182,7 +182,7 @@ void OutFrac::Run(int n, int mstep, bool last)
 
 #ifdef HAVE_LIBCUDA
   if (use_cuda) {
-    if (not comp->fetched[tcomp]) {
+    if (comp->force->cudaAware() and not comp->fetched[tcomp]) {
       comp->fetched[tcomp] = true;
       tcomp->CudaToParticles();
     }

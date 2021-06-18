@@ -35,7 +35,7 @@ void OutCalbr::set_energies()
 #ifdef HAVE_LIBCUDA
 				// Get particles from device on first call
     if (use_cuda) {
-      if (not comp->fetched[tcomp]) {
+      if (comp->force->cudaAware() and not comp->fetched[tcomp]) {
 	comp->fetched[tcomp] = true;
 	tcomp->CudaToParticles();
       }
@@ -176,7 +176,7 @@ void OutCalbr::Run(int ns, int mstep, bool last)
 
 #ifdef HAVE_LIBCUDA
     if (use_cuda) {		// Get particles from device
-      if (not comp->fetched[tcomp]) {
+      if (comp->force->cudaAware() and not comp->fetched[tcomp]) {
 	comp->fetched[tcomp] = true;
 	tcomp->CudaToParticles();
       }
