@@ -460,13 +460,13 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   //
   // o If the named component is cuda aware and then only other
   //   components that are cuda aware can be computed on the GPU.
-  //   Otherwise their force has to be computed on the CPU side with
-  //   the override option.
+  //   Otherwise their force is computed on the CPU side, toggled by a
+  //   check in the cuda-aware force.
   //
 
   for (auto inter : interaction) {
+				// Iterate through the list 
     for (auto other : inter->l) {
-
 #if HAVE_LIBCUDA==1
       if (use_cuda) {
 	if (not inter->c->force->cudaAware() and not fetched[other]) {
@@ -497,8 +497,8 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       }
       other->time_so_far.start();
       inter->c->force->SetExternal();
-      inter->c->force->set_multistep_level(mlevel);
 
+      inter->c->force->set_multistep_level(mlevel);
       inter->c->force->get_acceleration_and_potential(other);
 
       inter->c->force->ClearExternal();
