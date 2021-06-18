@@ -262,7 +262,10 @@ void cuda_compute_levels()
   //
   // Begin the update
   //
-  for (auto c : comp->components) c->force->multistep_update_begin();
+  for (auto c : comp->components) {
+    c->force->multistep_update_begin();
+    if (not c->force->cudaAware()) c->ParticlesToCuda();
+  }
 
   cudaDeviceProp deviceProp;
 
