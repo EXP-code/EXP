@@ -1232,7 +1232,7 @@ void Cylinder::determine_acceleration_and_potential(void)
 #endif
 
 #if HAVE_LIBCUDA==1
-  if (cC->cudaDevice>=0 and use_cuda) {
+  if (use_cuda and cC->cudaDevice>=0 and cC->force->cudaAware()) {
     if (cudaAccelOverride) {
       cC->CudaToParticles();
       exp_thread_fork(false);
