@@ -35,7 +35,7 @@ void OutCalbr::set_energies()
 #ifdef HAVE_LIBCUDA
 				// Get particles from device on first call
     if (use_cuda) {
-      if (comp->force->cudaAware() and not comp->fetched[tcomp]) {
+      if (tcomp->force->cudaAware() and not comp->fetched[tcomp]) {
 	comp->fetched[tcomp] = true;
 	tcomp->CudaToParticles();
       }

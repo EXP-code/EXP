@@ -105,7 +105,7 @@ void OutAscii::Run(int n, int mstep, bool last)
 
 #ifdef HAVE_LIBCUDA
   if (use_cuda) {
-    if (comp->force->cudaAware() and not comp->fetched[c0]) {
+    if (c0->force->cudaAware() and not comp->fetched[c0]) {
       comp->fetched[c0] = true;
       c0->CudaToParticles();
     }

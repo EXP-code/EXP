@@ -211,7 +211,7 @@ void OutCHKPT::Run(int n, int mstep, bool last)
 
 #ifdef HAVE_LIBCUDA
     if (use_cuda) {
-      if (comp->force->cudaAware() and not comp->fetched[c]) {
+      if (c->force->cudaAware() and not comp->fetched[c]) {
 	comp->fetched[c] = true;
 	c->CudaToParticles();
       }
