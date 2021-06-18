@@ -176,7 +176,7 @@ void OutCalbr::Run(int ns, int mstep, bool last)
 
 #ifdef HAVE_LIBCUDA
     if (use_cuda) {		// Get particles from device
-      if (comp->force->cudaAware() and not comp->fetched[tcomp]) {
+      if (tcomp->force->cudaAware() and not comp->fetched[tcomp]) {
 	comp->fetched[tcomp] = true;
 	tcomp->CudaToParticles();
       }
