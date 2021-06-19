@@ -67,8 +67,9 @@ bool CylCoefs::read(std::istream& in, bool verbose)
     }
   }
   catch (std::istream::failure e) {
-    if (verbose) std::cerr << "Exception reading coefficient file at T="
-			   << time << ": " << e.what() << std::endl;
+    if (not in.eof())
+      std::cerr << "Exception reading coefficient file at T="
+		<< time << ": " << e.what() << std::endl;
     return false;
   }
   
@@ -167,8 +168,9 @@ bool SphCoefs::read(std::istream& in, bool exp_type)
     }
   }
   catch (std::istream::failure e) {
-    std::cerr << "Exception reading coefficient file: "
-	      << e.what() << std::endl;
+    if (not in.eof())
+      std::cerr << "Exception reading coefficient file: "
+		<< e.what() << std::endl;
     return false;
   }
   
