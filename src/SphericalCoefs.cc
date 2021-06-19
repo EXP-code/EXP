@@ -1,29 +1,127 @@
 #include <localmpi.h>
 
+#include <boost/make_unique.hpp> // For character buffer
+#include <yaml-cpp/yaml.h>	 // YAML support
+
 #include "SphericalCoefs.H"
 
 bool SphericalCoefs::Coefs::read(std::istream& in)
 {
-  SphCoefHeader header;
-  in.read((char *)&header, sizeof(SphCoefHeader));
-  if (not in) return false;
-  
-  time = header.tnow;
-  nmax = header.nmax;
-  lmax = header.Lmax;
-  
-  data.resize((lmax+1)*(lmax+1));
-  for (auto & v : data) v.resize(nmax);
+  in.exceptions ( std::istream::failbit | std::istream::badbit );
 
-  // These coefficients are written in "fortran order".  Why?
+  // Save initial stream position
   //
-  for (int n=0; n<nmax; n++) {
-    for (int ll=0; ll<(lmax+1)*(lmax+1); ll++) {
-      in.read((char *)&data[ll][n], sizeof(double));
-      if (not in) return false;
+  auto curpos = in.tellg();
+
+  // Coefficient magic number
+  //
+  const unsigned int cmagic = 0xc0a57a2;
+
+  // Try to read magic #
+  //
+  unsigned int tmagic;
+
+  // Normed is false by default
+  //
+  bool normed = false;
+
+  // Header structure
+  //
+  SphCoefHeader header;
+
+  try {
+    in.read(reinterpret_cast<char *>(&tmagic), sizeof(unsigned int));
+
+    // Found new-style coefficient file
+    //
+    if (cmagic == tmagic) {
+
+      // Read YAML string size
+      //
+      unsigned int hsize;
+      in.read(reinterpret_cast<char *>(&hsize), sizeof(unsigned int));
+    
+      // Create buffer
+      //
+      auto buf = boost::make_unique<char[]>(hsize+1);
+
+      // Read YAML string
+      //
+      in.read(buf.get(), hsize);
+      buf[hsize] = 0;		// Null terminate
+      
+      YAML::Node node = YAML::Load(buf.get());
+      
+      // Get parameters
+      //
+      header.Lmax  = node["lmax"  ].as<int>();
+      header.nmax  = node["nmax"  ].as<int>();
+      header.tnow  = node["time"  ].as<double>();
+      header.scale = node["scale" ].as<double>();
+      
+      std::fill(header.id, header.id+64, 0);
+      std::string ID = node["id"].as<std::string>();
+      strncpy(header.id, ID.c_str(), std::min<int>(64, ID.size()));
+      
+      if (node["normed"]) normed = node["normed"].as<bool>();
+
+    } else {
+      
+      // Rewind file
+      //
+      in.clear();
+      in.seekg(curpos);
+      
+      in.read((char *)&header, sizeof(SphCoefHeader));
+
     }
+
+    if (not in) return false;
+
+    data.resize((header.Lmax+1)*(header.Lmax+1));
+    for (auto & v : data) v.resize(header.nmax);
+    
+    for (int ir=0; ir<header.nmax; ir++) {
+      for (int l=0; l<(header.Lmax+1)*(header.Lmax+1); l++)
+	in.read((char *)&data[l][ir], sizeof(double));
+    }
+
+    lmax = header.Lmax;
+    nmax = header.nmax;
+    time = header.tnow;
+    rscl = header.scale;
+  }
+  catch (std::istream::failure e) {
+    if (not in.eof())
+      std::cerr << "Exception reading coefficient file: "
+		<< e.what() << std::endl;
+    return false;
   }
   
+  // Remove prefactors from _true_ normed coefficients
+  //
+  if (normed) {
+    int k = 0;
+    for (int l=0; l<=header.Lmax; l++) {
+      for (int m=0; m<=l; m++) {
+	double fac = sqrt( (0.5*l+0.25)/M_PI * 
+			   exp(lgamma(1.0+l-m) - lgamma(1.0+l+m)) );
+
+	if (m != 0) fac *= M_SQRT2;
+
+	// Cosine terms
+	for (int ir=0; ir<header.nmax; ir++) data[k][ir] /= fac;
+	k++;
+
+	// Sine terms
+	if (m != 0) {
+	  for (int ir=0; ir<header.nmax; ir++) data[k][ir] /= fac;
+	  k++;
+	}
+      }
+    }
+  }
+
   return true;
 }
 
