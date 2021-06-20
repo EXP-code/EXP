@@ -18,7 +18,7 @@ static bool cudaAccelOverride = false;
 static pthread_mutex_t io_lock;
 #endif
 
-bool SphericalBasis::NewCoefs = false;
+bool SphericalBasis::NewCoefs = true;
 
 SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) : 
   AxisymmetricBasis(conf)
