@@ -2,6 +2,7 @@
 
 #include <boost/make_unique.hpp> // For character buffer
 #include <yaml-cpp/yaml.h>	 // YAML support
+#include <cstring>
 
 #include "SphericalCoefs.H"
 
