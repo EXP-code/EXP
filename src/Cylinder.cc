@@ -247,7 +247,7 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
   }
 
   // Make sure that all structures are initialized to start (e.g. for
-  // multi- stepping but this should be done on 1st call to determine
+  // multi-stepping but this should be done on 1st call to determine
   // coefs by default
   //
   ortho->setup_accumulation();
