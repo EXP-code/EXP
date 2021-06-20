@@ -81,8 +81,9 @@ UserAddMass::UserAddMass(const YAML::Node &conf) : ExternalForce(conf)
   planar    = false;		// Force disk to be in x-y plane
   accel     = true;             // Assign acceleration from basis
   alg       = AlgMap["Disk"];	// Assign the disk algorithm by default
-  Rd        = 0.0143 ;           // Sacle radius of disk for added particles
+  Rd        = 0.0143 ;          // Sacle radius of disk for added particles
   Zd        = 0.001 ;           // Sacle height of disk for added particles
+  maxtry    = 1000 ;		// Maximum number of particle selection tries
 
   numRprof  = 10000  ;           // number of radial bins for mass distribution
   numzprof  = 10000  ;           // number of vertical bins for mass distribution
@@ -345,6 +346,9 @@ void UserAddMass::initialize()
     if (conf["tstart"])           tnext       = conf["tstart"].as<double>();                  
     if (conf["scale"])            scale       = conf["scale"].as<double>();                           
     if (conf["debug"])            debug       = conf["debug"].as<double>();     
+
+    if (conf["maxtry"])           maxtry      = conf["maxtry"].as<int>();
+
     if (conf["Rd"])               Rd          = conf["Rd"].as<double>();                   
     if (conf["Zd"])               Zd          = conf["Zd"].as<double>();                      
     if (conf["vdispersion"])      vdisp       = conf["vdispersion"].as<double>();                     
@@ -658,8 +662,9 @@ void UserAddMass::determine_acceleration_and_potential(void)
   for (int n=0; n<numgen; n++) {
 
     bool notfound = true;
+    int  curtry = 0;
 
-    while (notfound) {
+    while (notfound and curtry < maxtry) {
 
       unsigned indx, indxprof=0;
       double rr, lrr;
@@ -701,6 +706,8 @@ void UserAddMass::determine_acceleration_and_potential(void)
 
       while (mfind(mas, indx) and indx>0) indx--;
       
+      curtry++;			// Prevent infinite loops
+
       // Skip this one
       //
       if (mfind(mas, indx)) continue;

@@ -42,6 +42,7 @@
     @param interp set to true for interpolation in angular momentum bins
     @param planar set to true enforces particles added in the x-y plane for testing (default: false)
     @param accel set to true assigns the acceration by evaluating the basis force (default: true)
+    @param maxtry is the maximum number of attempts to select a particle from the mass array
 **/
 class UserAddMass : public ExternalForce
 {
@@ -58,7 +59,8 @@ private:
   double mass, rmin, rmax, lrmin, lrmax, dr, tnext, dt, debug, dnext;
   double tstart, scale, vdisp;
   double Rd, drprof, Zd;
-  long int seed,numRprof,numzprof, numvdisp;
+  long int seed, numRprof, numzprof, numvdisp;
+  int maxtry;
   
   std::vector< std::vector<double> > mas_bins_current;
   std::vector< double > Mprof, Rprof, vdispR, vdispV;
