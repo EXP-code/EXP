@@ -4,6 +4,7 @@
 #include <yaml-cpp/yaml.h>	 // YAML support for header
 
 #include <localmpi.h>
+#include "global.H"
 #include "CylindricalCoefs.H"
 
 bool CylindricalCoefs::Coefs::read(std::istream& in)
@@ -165,6 +166,7 @@ CylindricalCoefs::DataPtr CylindricalCoefs::interpolate(const double T)
   if (time < times.front() or time > times.back()) {
     std::cerr << "Time=" << time << " is offgrid [" << times.front()
 	      << ", " << times.back() << "]" << std::endl;
+    stop_signal = 1;
   }
 
   auto it = std::lower_bound(times.begin(), times.end(), time);

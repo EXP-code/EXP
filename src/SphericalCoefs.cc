@@ -4,6 +4,7 @@
 #include <yaml-cpp/yaml.h>	 // YAML support
 #include <cstring>		 // For strncpy
 
+#include "global.H"
 #include "SphericalCoefs.H"
 
 bool SphericalCoefs::Coefs::read(std::istream& in)
@@ -189,6 +190,7 @@ SphericalCoefs::DataPtr SphericalCoefs::interpolate(const double T)
   if (time < times.front() or time > times.back()) {
     std::cerr << "Time=" << time << " is offgrid [" << times.front()
 	      << ", " << times.back() << "]" << std::endl;
+    stop_signal = 1;
   }
 
   auto it = std::lower_bound(times.begin(), times.end(), time);
