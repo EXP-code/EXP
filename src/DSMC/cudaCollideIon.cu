@@ -4975,6 +4975,9 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	cudaParticle* p1 = &in._v[n1];
 	cudaParticle* p2 = &in._v[n2];
 
+	// The ions have the molecular weight in an interaction. The
+	// elctrons have the true electron weight, assigned below.
+
 	cuFP_t m1  = pairs._v[n1].Mu1;
 	cuFP_t m2  = pairs._v[n2].Mu2[it];
 	cuFP_t W1  = p1->mass/m1;
@@ -4991,7 +4994,7 @@ __global__ void partInteractions(dArray<cudaParticle>   in,
 	}
 	// Particle 2 is Electron
 	else {			
-	  m2 = cuda_atomic_weights[0] * pairs._v[n2].Eta2;
+	  m2 = cuda_atomic_weights[0];
 	  for (int k=0; k<3; k++) v2[k] = p2->datr[cuElec+k];
 	}
 

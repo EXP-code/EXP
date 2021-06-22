@@ -11423,12 +11423,15 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
 	p2 = std::get<1>(accumIExc[id][ii]);
       }
 
-      double m1 = 0.0, m2 = 0.0, e2 = 0.0;
+      double m1 = 0.0, m2 = 0.0;
       for (auto s : SpList) {
 	m1 += p1->dattrib[s.second] / atomic_weights[s.first.first];
 	m2 += p2->dattrib[s.second] / atomic_weights[s.first.first];
-	e2 += p2->dattrib[s.second] / atomic_weights[s.first.first] * (s.first.second - 1);
       }
+      
+      // Ions are assigned their molecular weight.  The electron has
+      // its own weight, assigned below.
+      //
       m1  = 1.0/m1;
       m2  = 1.0/m2;
 
@@ -11436,15 +11439,18 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
       double WW = W1>W2 ? W2 : W1;
       
       // Particle 1 is always Ion
+      //
       for (int k=0; k<3; k++) v1[k] = p1->vel[k];
 				
       // Particle 2 is Ion
+      //
       if (v.first == AccumType::ion_ion) {
 	for (int k=0; k<3; k++) v2[k] = p2->vel[k];
       }
       // Particle 2 is Electron
+      //
       else {			
-	m2 *= atomic_weights[0] * e2;
+	m2 = atomic_weights[0];
 	for (int k=0; k<3; k++) v2[k] = p2->dattrib[use_elec+k];
       }
 
@@ -11532,7 +11538,9 @@ void CollideIon::accumTraceScatter(pCell* const c, int id)
 	for (int k=0; k<3; k++) p2->dattrib[use_elec+k] = v2[k];
       }
     }
+    // END: pair interaction loop
   }
+  // END: interaction type loop
 
   // Redistribute deferred energy
   //
