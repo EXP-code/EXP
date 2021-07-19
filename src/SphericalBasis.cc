@@ -190,13 +190,13 @@ SphericalBasis::SphericalBasis(const YAML::Node& conf, MixtureBasis *m) :
   expcoef .resize((Lmax+1)*(Lmax+1));
   expcoef1.resize((Lmax+1)*(Lmax+1));
   
-  for (auto & v : expcoef ) v = boost::make_shared<Eigen::VectorXd>(1, nmax);
-  for (auto & v : expcoef1) v = boost::make_shared<Eigen::VectorXd>(1, nmax);
+  for (auto & v : expcoef ) v = boost::make_shared<Eigen::VectorXd>(nmax);
+  for (auto & v : expcoef1) v = boost::make_shared<Eigen::VectorXd>(nmax);
   
   expcoef0.resize(nthrds);
   for (auto & t : expcoef0) {
     t.resize((Lmax+1)*(Lmax+1));
-    for (auto & v : t) v = boost::make_shared<Eigen::VectorXd>(1, nmax);
+    for (auto & v : t) v = boost::make_shared<Eigen::VectorXd>(nmax);
   }
 
   // Allocate normalization matrix
@@ -444,9 +444,9 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	    if (compute and pcavar) {
 	      pthread_mutex_lock(&cc_lock);
 	      for (int n=0; n<nmax; n++) {
-		(*expcoefT1[whch][iC])[n] += wk[n-1];
+		(*expcoefT1[whch][iC])[n] += wk[n];
 		for (int o=0; o<nmax; o++)
-		  (*expcoefM1[whch][iC])(n, o) += wk[n-1]*wk[o-1]/mass;
+		  (*expcoefM1[whch][iC])(n, o) += wk[n]*wk[o]/mass;
 	      }
 	      pthread_mutex_unlock(&cc_lock);
 	    }
@@ -583,13 +583,13 @@ void SphericalBasis::determine_coefficients(void)
       expcoefT .resize(sampT);
       for (auto & t : expcoefT ) {
 	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto & v : t) v = boost::make_shared<Eigen::VectorXd>(1, nmax);
+	for (auto & v : t) v = boost::make_shared<Eigen::VectorXd>(nmax);
       }
       
       expcoefT1.resize(sampT);
       for (auto & t : expcoefT1) {
 	t.resize((Lmax+1)*(Lmax+2)/2);
-	for (auto & v : t) v = boost::make_shared<Eigen::VectorXd>(1, nmax);
+	for (auto & v : t) v = boost::make_shared<Eigen::VectorXd>(nmax);
       }
 
       expcoefM .resize(sampT);
@@ -721,12 +721,12 @@ void SphericalBasis::determine_coefficients(void)
       if (m==0) {
 	  
 	if (multistep)
-	  MPI_Allreduce ( &((*expcoef0[0][loffset+moffset])[1]),
-			  &((*expcoefN[mlevel][loffset+moffset])[1]),
+	  MPI_Allreduce ( (*expcoef0[0][loffset+moffset]).data(),
+			  (*expcoefN[mlevel][loffset+moffset]).data(),
 			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	else
-	  MPI_Allreduce ( &((*expcoef0[0][loffset+moffset])[1]),
-			  &((*expcoef[loffset+moffset])[1]),
+	  MPI_Allreduce ( (*expcoef0[0][loffset+moffset]).data(),
+			  (*expcoef[loffset+moffset]).data(),
 			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	
 	moffset++;
@@ -734,20 +734,20 @@ void SphericalBasis::determine_coefficients(void)
       } else {
 	
 	if (multistep) {
-	  MPI_Allreduce ( &((*expcoef0[0][loffset+moffset])[1]),
-			  &((*expcoefN[mlevel][loffset+moffset])[1]),
+	  MPI_Allreduce ( (*expcoef0[0][loffset+moffset]).data(),
+			  (*expcoefN[mlevel][loffset+moffset]).data(),
 			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	  
-	  MPI_Allreduce ( &((*expcoef0[0][loffset+moffset+1])[1]),
-			  &((*expcoefN[mlevel][loffset+moffset+1])[1]),
+	  MPI_Allreduce ( (*expcoef0[0][loffset+moffset+1]).data(),
+			  (*expcoefN[mlevel][loffset+moffset+1]).data(),
 			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	} else {
-	  MPI_Allreduce ( &((*expcoef0[0][loffset+moffset])[1]),
-			  &((*expcoef[loffset+moffset])[1]),
+	  MPI_Allreduce ( (*expcoef0[0][loffset+moffset]).data(),
+			  (*expcoef[loffset+moffset]).data(),
 			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	  
-	  MPI_Allreduce ( &((*expcoef0[0][loffset+moffset+1])[1]),
-			  &((*expcoef[loffset+moffset+1])[1]),
+	  MPI_Allreduce ( (*expcoef0[0][loffset+moffset+1]).data(),
+			  (*expcoef[loffset+moffset+1]).data(),
 			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	}
 	moffset+=2;
@@ -805,7 +805,7 @@ void SphericalBasis::determine_coefficients(void)
   // Dump coefficients for debugging
   //================================
 
-  //  +--- Deep debugging
+  //  +--- Deep debugging. Set to 'false' for production.
   //  |
   //  v
   if (false and myid==0 and mstep==0 and mlevel==multistep) {

@@ -140,21 +140,21 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 
 	line >> Ecurr;
 	line >> tused;
-	line >> axis[1];	// Last computed axis from regression
+	line >> axis[0];	// Last computed axis from regression
+	line >> axis[1];
 	line >> axis[2];
-	line >> axis[3];
-	line >> axis1[1];	// Last axis from particle algorithm
+	line >> axis1[0];	// Last axis from particle algorithm
+	line >> axis1[1];
 	line >> axis1[2];
-	line >> axis1[3];
-	line >> center[1];	// Last computed center from regression
+	line >> center[0];	// Last computed center from regression
+	line >> center[1];
 	line >> center[2];
-	line >> center[3];
-	line >> center0[1];	// Analytic center (from velocity intgration)
+	line >> center0[0];	// Analytic center (from velocity intgration)
+	line >> center0[1];
 	line >> center0[2];
-	line >> center0[3];
-	line >> center1[1];	// Last center from particle algorithm
+	line >> center1[0];	// Last center from particle algorithm
+	line >> center1[1];
 	line >> center1[2];
-	line >> center1[3];
 	  
 	if (oflags & AXIS) {
 	  sumsA.push_back(DV(time, axis1));
@@ -173,19 +173,19 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
       cout << " Orient: cached time=" << time << "  Ecurr= " << Ecurr << endl;
 
       cout << " Orient: axis master (cache size=" << sumsA.size() << "): " 
+	   << axis[0] << ", "
 	   << axis[1] << ", "
-	   << axis[2] << ", "
-	   << axis[3] << endl;
+	   << axis[2] << endl;
       
       cout << " Orient: center master (cache size=" << sumsC.size() << "): " 
+	   << center[0] << ", "
 	   << center[1] << ", "
-	   << center[2] << ", "
-	   << center[3] << endl;
+	   << center[2] << endl;
       
-      MPI_Bcast(&Ecurr,      1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&axis[1],    3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&center[1],  3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&center0[1], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&Ecurr,         1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(axis.data(),    3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(center.data(),  3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(center0.data(), 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
       
       int howmany = max<int>(sumsA.size(), sumsC.size());
       MPI_Bcast(&howmany, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -194,13 +194,13 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 
 	if (oflags & AXIS) {
 	  in1[0] = sumsA[k].first;
-	  for (int j=1; j<=3; j++) in1[j] = sumsA[k].second[j];
+	  for (int j=1; j<=3; j++) in1[j] = sumsA[k].second[j-1];
 	  MPI_Bcast(in1.data(), 4, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	}
 
 	if (oflags & CENTER) {
 	  in2[0] = sumsC[k].first;
-	  for (int j=1; j<=3; j++) in2[j] = sumsC[k].second[j];
+	  for (int j=1; j<=3; j++) in2[j] = sumsC[k].second[j-1];
 	  MPI_Bcast(in2.data(), 4, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	}
       }
@@ -263,10 +263,10 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 
     if (in_ok) {
 
-      MPI_Bcast(&Ecurr,      1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&axis[1],    3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&center[1],  3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast(&center0[1], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&Ecurr,         1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(axis.data(),    3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(center.data(),  3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(center0.data(), 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
       int howmany;
       MPI_Bcast(&howmany, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -275,13 +275,13 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 
 	if (oflags & AXIS) {
 	  MPI_Bcast(in1.data(), 4, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	  for (int j=1; j<=3; j++) axis1[j] = in1[j];
+	  for (int j=0; j<3; j++) axis1[j] = in1[j+1];
 	  sumsA.push_back(DV(in1[0], axis1));
 	}
 
 	if (oflags & CENTER) {
 	  MPI_Bcast(in2.data(), 4, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	  for (int j=1; j<=3; j++) center1[j] = in2[j];
+	  for (int j=0; j<3; j++) center1[j] = in2[j+1];
 	  sumsC.push_back(DV(in2[0], center1));
 	}
 
@@ -295,7 +295,7 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 
     if (oflags & AXIS) {
 
-      double phi = atan2(axis[1], axis[0]);
+      double phi = atan2(axis[0], axis[0]);
       double theta = -acos(axis[2]/sqrt(axis.dot(axis)));
       double psi = 0.0;
 
@@ -335,7 +335,7 @@ void Orient::accumulate_cpu(double time, Component *c)
 	cerr << endl;
       }
       vel[k] = c->Vel(i, k, Component::Local);
-      psa[k] = pos[k] - center[k+1];
+      psa[k] = pos[k] - center[k];
       v2 += vel[k]*vel[k];
     }
 
@@ -359,13 +359,13 @@ void Orient::accumulate_cpu(double time, Component *c)
       t.T = time;
       t.M = mass;
 
-      t.L[1] = mass*(psa[1]*vel[2] - psa[2]*vel[1]);
-      t.L[2] = mass*(psa[2]*vel[0] - psa[0]*vel[2]);
-      t.L[3] = mass*(psa[0]*vel[1] - psa[1]*vel[0]);
+      t.L[0] = mass*(psa[1]*vel[2] - psa[2]*vel[1]);
+      t.L[1] = mass*(psa[2]*vel[0] - psa[0]*vel[2]);
+      t.L[2] = mass*(psa[0]*vel[1] - psa[1]*vel[0]);
 
-      t.R[1] = mass*pos[0];
-      t.R[2] = mass*pos[1];
-      t.R[3] = mass*pos[2];
+      t.R[0] = mass*pos[0];
+      t.R[1] = mass*pos[1];
+      t.R[2] = mass*pos[2];
 
       // Trim the list by removing the element with the largest energy
       //
@@ -527,9 +527,9 @@ void Orient::accumulate(double time, Component *c)
     cout << " Orient info [" << time << ", " << c->name << "]: " 
 	 << used << " particles used, Ecurr=" << Ecurr 
 	 << " Center=" 
+	 << center1[0] << ", "
 	 << center1[1] << ", "
-	 << center1[2] << ", "
-	 << center1[3] << endl;
+	 << center1[2] << endl;
   }
 
   if (static_cast<int>(sumsA.size()) > keep + 1) {
@@ -576,8 +576,8 @@ void Orient::accumulate(double time, Component *c)
     }
     sigA /= i;
     
-    double phi = atan2(axis[2], axis[1]);
-    double theta = -acos(axis[3]/sqrt(axis.dot(axis)));
+    double phi = atan2(axis[2], axis[0]);
+    double theta = -acos(axis[2]/sqrt(axis.dot(axis)));
     double psi = 0.0;
     
     body = return_euler_slater(phi, theta, psi, 0);
@@ -615,9 +615,9 @@ void Orient::accumulate(double time, Component *c)
 	cout << " Orient debug [" << time << ", " << c->name << "] i=" 
 	     << i << ":"
 	     << "      t=" << setw(15) << x
-	     << "      x=" << setw(15) << j->second[1]
-	     << "      y=" << setw(15) << j->second[2]
-	     << "      z=" << setw(15) << j->second[3]
+	     << "      x=" << setw(15) << j->second[0]
+	     << "      y=" << setw(15) << j->second[1]
+	     << "      z=" << setw(15) << j->second[2]
 	     << "   SumX=" << setw(15) << sumX 
 	     << "  SumX2=" << setw(15) << sumX2 
 	     << "  Delta=" << setw(15) << sumX2*i - sumX*sumX 
@@ -637,8 +637,8 @@ void Orient::accumulate(double time, Component *c)
 	(j->second - intercept - slope*j->first).adjoint() *
 	(j->second - intercept - slope*j->first) ;
       sigCz += 
-	( j->second[3] - intercept[3] - slope[3]*j->first ) *
-	( j->second[3] - intercept[3] - slope[3]*j->first ) ;
+	( j->second[2] - intercept[2] - slope[2]*j->first ) *
+	( j->second[2] - intercept[2] - slope[2]*j->first ) ;
       i++;
     }
     sigC  /= i;
@@ -667,25 +667,25 @@ void Orient::accumulate(double time, Component *c)
 	 << " sigCz=" << sigCz << endl
 	 << "  SumX=" << sumX << " SumX2=" << sumX2 << endl
 	 << "  SumY="
+	 << sumY[0] << " "
 	 << sumY[1] << " "
-	 << sumY[2] << " "
-	 << sumY[3] << endl
+	 << sumY[2] << endl
 	 << "  SumXY="
+	 << sumXY[0] << " "
 	 << sumXY[1] << " "
-	 << sumXY[2] << " "
-	 << sumXY[3] << endl
+	 << sumXY[2] << endl
 	 << "  SumY2="
+	 << sumY2[0] << " "
 	 << sumY2[1] << " "
-	 << sumY2[2] << " "
-	 << sumY2[3] << endl
+	 << sumY2[2] << endl
 	 << "  slope="
+	 << slope[0] << " "
 	 << slope[1] << " "
-	 << slope[2] << " "
-	 << slope[3] << endl
+	 << slope[2] << endl
 	 << "  center=" 
+	 << center[0] << " "
 	 << center[1] << " "
-	 << center[2] << " "
-	 << center[3] << endl
+	 << center[2] << endl
 	 << "===================================================" << endl;
   }
   
@@ -708,19 +708,19 @@ void Orient::logEntry(double time, Component *c)
     outl << setw(15) << time << setw(15) << Ecurr << setw(15) << used;
 
     // Columns 4 - 6
-    for (int k=0; k<3; k++) outl << setw(15) << axis[k+1];
+    for (int k=0; k<3; k++) outl << setw(15) << axis[k];
 
     // Columns 7 - 9
-    for (int k=0; k<3; k++) outl << setw(15) << axis1[k+1];
+    for (int k=0; k<3; k++) outl << setw(15) << axis1[k];
 
     // Columns 10 - 12
-    for (int k=0; k<3; k++) outl << setw(15) << center[k+1];
+    for (int k=0; k<3; k++) outl << setw(15) << center[k];
 
     // Columns 13 - 15
-    for (int k=0; k<3; k++) outl << setw(15) << center0[k+1];
+    for (int k=0; k<3; k++) outl << setw(15) << center0[k];
 
     // Columns 16 - 18
-    for (int k=0; k<3; k++) outl << setw(15) << center1[k+1];
+    for (int k=0; k<3; k++) outl << setw(15) << center1[k];
 
     // Columns 19 - 21
     for (int k=0; k<3; k++) outl << setw(15) << c->com[k];

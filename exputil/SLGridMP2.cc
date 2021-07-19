@@ -1158,7 +1158,7 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
 
   for (int i=0; i<numr; i++) {
     for(int j=0; j<N; j++) 
-      table->ef(j+1, i) = ef[j*NUM+i];
+      table->ef(j, i) = ef[j*NUM+i];
   }
 
   table->m = m;
@@ -1383,12 +1383,12 @@ void SLGridCyl::compute_table_slave(void)
 				// Load table
 
     table.ev.resize(N);
-    for (int i=0; i<N; i++) table.ev[i+1] = ev[i];
+    for (int i=0; i<N; i++) table.ev[i] = ev[i];
 
     table.ef.resize(N, numr);
     for (int i=0; i<numr; i++) {
       for (int j=0; j<N; j++) 
-	table.ef(j+1, i) = ef[j*NUM+i];
+	table.ef(j, i) = ef[j*NUM+i];
     }
 
     table.m = M;
@@ -2392,7 +2392,7 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
 
   for (int i=0; i<numr; i++) {
     for(int j=0; j<N; j++) 
-      table->ef(j+1, i) = ef[j*NUM+i];
+      table->ef(j, i) = ef[j*NUM+i];
   }
 
   table->l = l;
@@ -2580,12 +2580,12 @@ void SLGridSph::compute_table_slave(void)
 				// Load table
 
     table.ev.resize(N);
-    for (int i=0; i<N; i++) table.ev[i+1] = ev[i];
+    for (int i=0; i<N; i++) table.ev[i] = ev[i];
 
     table.ef.resize(N, numr);
     for (int i=0; i<numr; i++) {
       for (int j=0; j<N; j++) 
-	table.ef(j+1, i) = ef[j*NUM+i];
+	table.ef(j, i) = ef[j*NUM+i];
     }
 
     table.l = L;
@@ -3567,12 +3567,12 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 				// Load table
 
   table->ev.resize(nmax);
-  for (int i=0; i<N; i++) table->ev[i*2+1] = ev[i];
+  for (int i=0; i<N; i++) table->ev[i*2] = ev[i];
 
   table->ef.resize(nmax, numz);
   for (int i=0; i<numz; i++) {
     for (int j=0; j<N; j++) 
-      table->ef(j*2+1, i) = ef[j*NUM+i];
+      table->ef(j*2, i) = ef[j*NUM+i];
   }
 
 
@@ -3834,12 +3834,12 @@ void SLGridSlab::compute_table_slave(void)
 				// Load table
 
     table.ev.resize(nmax);
-    for (int i=0; i<N; i++) table.ev[i*2+1] = ev[i];
+    for (int i=0; i<N; i++) table.ev[i*2] = ev[i];
 
     table.ef.resize(nmax, numz);
     for (int i=0; i<numz; i++) {
       for (int j=0; j<N; j++) 
-	table.ef(j*2+1, i) = ef[j*NUM+i];
+	table.ef(j*2, i) = ef[j*NUM+i];
     }
 
 

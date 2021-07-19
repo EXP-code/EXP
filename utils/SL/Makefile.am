@@ -40,7 +40,7 @@ slshift_SOURCES = slshift.cc SLSphere.cc localmpi.cc
 slshift_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
 slshift_LDADD = $(EXPLIBS) $(CUDA_LIBFLAGS) $(BOOST_LIBS)
 
-orthochk_SOURCES = orthochk.cc biorth1d.cc localmpi.cc
+orthochk_SOURCES = orthochk.cc localmpi.cc
 orthochk_LDADD = $(EXPLIBS) $(CUDA_LIBFLAGS)
 
 diskpot_SOURCES = diskpot.cc CylindricalDisk.cc SLSphere.cc localmpi.cc
@@ -49,16 +49,5 @@ diskpot_LDADD   = $(EXPLIBS) $(CUDA_LIBFLAGS)
 qtest_SOURCES   = qtest.cc localmpi.cc
 qtest_LDFLAGS   = $(EXPFLAGS) $(BOOST_LDFLAGS)
 qtest_LDADD     = $(EXPLIBS) $(CUDA_LIBFLAGS) $(BOOST_LIBS)
-
-biorth1d.H:	$(top_srcdir)/src/biorth1d.H
-	cp $(top_srcdir)/src/$@ .
-
-biorth1d.cc:	$(top_srcdir)/src/biorth1d.cc
-	cp $(top_srcdir)/src/$@ .
-
-localmpi.cc:	$(top_srcdir)/exputil/localmpi.cc
-	cp $(top_srcdir)/exputil/$@ .
-
-CLEANFILES = 	biorth1d.H biorth1d.cc localmpi.cc
 
 ## utils/SL/Makefile.am ends here

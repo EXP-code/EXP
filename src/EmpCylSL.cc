@@ -980,7 +980,7 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 
 				// Read table
 
-    Eigen::MatrixXd work(NUMY, NUMX);
+    Eigen::MatrixXd work(NUMY+1, NUMX+1);
 
     for (int m=0; m<=MMAX; m++) {
 
@@ -1765,10 +1765,10 @@ void EmpCylSL::setup_eof()
       if (DENS) densC[m].resize(rank3);
 
       for (int v=0; v<rank3; v++) {
-	potC   [m][v].resize(NUMX, NUMY);
-	rforceC[m][v].resize(NUMX, NUMY);
-	zforceC[m][v].resize(NUMX, NUMY);
-	if (DENS) densC[m][v].resize(NUMX, NUMY);
+	potC   [m][v].resize(NUMX+1, NUMY+1);
+	rforceC[m][v].resize(NUMX+1, NUMY+1);
+	zforceC[m][v].resize(NUMX+1, NUMY+1);
+	if (DENS) densC[m][v].resize(NUMX+1, NUMY+1);
       }
 
     }
@@ -1782,10 +1782,10 @@ void EmpCylSL::setup_eof()
       if (DENS) densS[m].resize(rank3);
 
       for (int v=0; v<rank3; v++) {
-	potS   [m][v].resize(NUMX, NUMY);
-	rforceS[m][v].resize(NUMX, NUMY);
-	zforceS[m][v].resize(NUMX, NUMY);
-	if (DENS) densS[m][v].resize(NUMX, NUMY);
+	potS   [m][v].resize(NUMX+1, NUMY+1);
+	rforceS[m][v].resize(NUMX+1, NUMY+1);
+	zforceS[m][v].resize(NUMX+1, NUMY+1);
+	if (DENS) densS[m][v].resize(NUMX+1, NUMY+1);
       }
 
     }
@@ -1796,10 +1796,10 @@ void EmpCylSL::setup_eof()
     if (DENS) tdens.resize(NORDER);
 
     for (int n=0; n<NORDER; n++) {
-      tpot[n].resize(NUMX, NUMY);
-      trforce[n].resize(NUMX, NUMY);
-      tzforce[n].resize(NUMX, NUMY);
-      if (DENS) tdens[n].resize(NUMX, NUMY);
+      tpot[n].resize(NUMX+1, NUMY+1);
+      trforce[n].resize(NUMX+1, NUMY+1);
+      tzforce[n].resize(NUMX+1, NUMY+1);
+      if (DENS) tdens[n].resize(NUMX+1, NUMY+1);
     }
 
     if (EvenOdd) {

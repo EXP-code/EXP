@@ -64,7 +64,7 @@ AxisymmetricBasis:: AxisymmetricBasis(const YAML::Node& conf) : Basis(conf)
 
   sqnorm.resize(Lmax+1, nmax);
   for (int l=0; l<=Lmax; l++)
-    for (int n=1; n<=nmax; n++) sqnorm(l, n) = 1.0;
+    for (int n=0; n<nmax; n++) sqnorm(l, n) = 1.0;
 
   if (pcavar or pcaeof) {
 

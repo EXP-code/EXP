@@ -228,7 +228,7 @@ void OneDTrig::force(int zilch1, int zilch2, double z, Eigen::VectorXd& ret)
 
   int n=0;
 
-  for (int nn=1; nn<=nnmax; nn++) {
+  for (int nn=0; nn<nnmax; nn++) {
 
     if (zz > zmax)
       ret[nn] = cnorm[nn]/sqrt(kstar[n]*kstar[n] + kx*kx) * cos(kstar[n]*zmax)
