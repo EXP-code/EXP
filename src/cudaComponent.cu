@@ -717,13 +717,13 @@ void Component::fix_positions_cuda(unsigned mlevel)
   }
 
   if ((EJ & Orient::CENTER) && !EJdryrun) {
-    Vector ctr = orient->currentCenter();
+    auto ctr = orient->currentCenter();
     bool ok    = true;
     for (int i=0; i<3; i++) {
-      if (std::isnan(ctr[i+1])) ok = false;
+      if (std::isnan(ctr[i])) ok = false;
     } 
     if (ok) {
-      for (int i=0; i<3; i++) center[i] += ctr[i+1];
+      for (int i=0; i<3; i++) center[i] += ctr[i];
     } else if (myid==0) {
       cout << "Orient: center failure, T=" << tnow 
 	   << ", adjustment skipped" << endl;

@@ -1812,10 +1812,10 @@ void SphericalBasis::DtoH_coefs(std::vector<VectorP>& expcoef)
 	      
 		for (int o=n; o<=nmax; o++) {
 		  // Diagonal and upper diagonal
-		  (*expcoefM1[T][loffset+m])[n][o] += retM[c + vffst];
+		  (*expcoefM1[T][loffset+m])(n, o) += retM[c + vffst];
 
 		  // Below the diagonal
-		  if (o!=n) (*expcoefM1[T][loffset+m])[o][n] += retM[c + vffst];
+		  if (o!=n) (*expcoefM1[T][loffset+m])(o, n) += retM[c + vffst];
 		  c++;
 		}
 	      }
