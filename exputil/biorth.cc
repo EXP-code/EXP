@@ -9,8 +9,7 @@
 #include <iostream>
 #include <cmath>
 
-#include <Vector.h>
-#include <biorth.h>
+#include <biorth.H>
 
 double ultra(int n, double l, double x);
 
@@ -34,7 +33,7 @@ double CBSphere::potl(int nn, int l, double x)
 }
 
 
-void CBSphere::potl(int nn, int l, double x, Vector& t)
+void CBSphere::potl(int nn, int l, double x, Eigen::VectorXd& t)
 {
   if (fabs(x) >= 1.0) {
     t *= 0.0;
@@ -84,7 +83,7 @@ double CBSphere::dens(int nn, int l, double x)
     pow(1.0 - x*x,0.5*(double)l) * pow(1.0 - x,2.5) * ultra(n,l,x);
 }
 
-void CBSphere::dens(int nn, int l, double x, Vector& t)
+void CBSphere::dens(int nn, int l, double x, Eigen::VectorXd& t)
 {
   if (fabs(x) >= 1.0) {
     t *= 0.0;
@@ -204,7 +203,7 @@ double HQSphere::potl(int nn, int l, double x)
 }
 
 
-void HQSphere::potl(int nn, int ll, double x, Vector& t)
+void HQSphere::potl(int nn, int ll, double x, Eigen::VectorXd& t)
 {
   if (fabs(x) >= 1.0) {
     t *= 0.0;
@@ -245,18 +244,15 @@ void HQSphere::potl(int nn, int ll, double x, Vector& t)
 
 
 
-double HQSphere::dens(int nn, int l, double x)
+double HQSphere::dens(int n, int l, double x)
 {
-  int n;
-
   if (fabs(x) >= 1.0) return 0.0;
 
-  n = nn-1;
   return krnl(n,l)/pow(2.0,2.0*l + 2.0) *
     pow(1.0 - x*x,(double)l-1.0) * pow(1.0 - x,5.0) * ultra(n,2.0*l+0.5,x);
 }
 
-void HQSphere::dens(int nn, int ll, double x, Vector& t)
+void HQSphere::dens(int nn, int ll, double x, Eigen::VectorXd& t)
 {
   if (fabs(x) >= 1.0) {
     t *= 0.0;
@@ -357,7 +353,7 @@ double HQSphere::r_to_rb(double r)
 //---------------------------------------------------------------------------
 
 
-Vector sbessjz(int, int);
+Eigen::VectorXd sbessjz(int, int);
 double jn_sph(int, double);
 
 BSSphere::BSSphere(double RMAX, int NMAX, int LMAX) : AxiSymBiorth(3) {
@@ -369,7 +365,7 @@ BSSphere::BSSphere(double RMAX, int NMAX, int LMAX) : AxiSymBiorth(3) {
   nmax = NMAX;
   lmax = LMAX;
 
-  a = new Vector[lmax+1];
+  a = new Eigen::VectorXd[lmax+1];
 
   for (int l=0; l<=lmax; l++) {
     a[l] = sbessjz(l-1,nmax);
@@ -398,10 +394,10 @@ double BSSphere::potl(int n, int l, double r)
 void BSSphere::setup_potl_table(void)
 {
   t_n = 40000;
-  t_dr.setsize(0, lmax);
-  t_f.setsize(0, lmax, 1, nmax);
-  t_g.setsize(0, lmax, 1, nmax);
-  t_y.setsize(0, lmax, 0, t_n);
+  t_dr.resize(lmax+1);
+  t_f.resize(lmax+1, nmax);
+  t_g.resize(lmax+1, nmax);
+  t_y.resize(lmax+1, t_n+1);
 
   for (int l=0; l<=lmax; l++) {
 
@@ -409,17 +405,17 @@ void BSSphere::setup_potl_table(void)
 
     int i;
     for (i=0; i<=t_n; i++) 
-      t_y[l][i] = jn_sph(l, t_dr[l]*i);
+      t_y(l, i) = jn_sph(l, t_dr[l]*i);
 
     for (i=1; i<=nmax; i++) {
-      t_f[l][i] = M_SQRT2/fabs(a[l][i]*jn_sph(l,a[l][i])) * pow(rmax,-0.5);
-      t_g[l][i] = M_SQRT2*fabs(a[l][i]/jn_sph(l,a[l][i])) * pow(rmax,-2.5);
+      t_f(l, i) = M_SQRT2/fabs(a[l][i]*jn_sph(l,a[l][i])) * pow(rmax,-0.5);
+      t_g(l, i) = M_SQRT2*fabs(a[l][i]/jn_sph(l,a[l][i])) * pow(rmax,-2.5);
     }
   }
 
 }
 
-void BSSphere::potl(int n, int l, double r, Vector& t)
+void BSSphere::potl(int n, int l, double r, Eigen::VectorXd& t)
 {
   if (l > lmax) bomb("potl: l too large");
   if (n > nmax) bomb("potl: n too large");
@@ -436,8 +432,8 @@ void BSSphere::potl(int n, int l, double r, Vector& t)
 
     r0 = t_dr[l]*indx;
    
-    t[i] = t_f[l][i]*(t_y[l][indx]*(r0 + t_dr[l] - rs) + 
-		      t_y[l][indx+1]*(rs - r0))/t_dr[l];
+    t[i] = t_f(l, i)*(t_y(l, indx)*(r0 + t_dr[l] - rs) + 
+		      t_y(l, indx+1)*(rs - r0))/t_dr[l];
   }
 
 }
@@ -453,7 +449,7 @@ double BSSphere::dens(int n, int l, double r)
 
 }
 
-void BSSphere::dens(int n, int l, double r, Vector& t)
+void BSSphere::dens(int n, int l, double r, Eigen::VectorXd& t)
 {
   if (l > lmax) bomb("dens: l too large");
   if (n > nmax) bomb("dens: n too large");
@@ -470,8 +466,8 @@ void BSSphere::dens(int n, int l, double r, Vector& t)
 
     r0 = t_dr[l]*indx;
    
-    t[i] = t_g[l][i]*(t_y[l][indx]*(r0 + t_dr[l] - rs) + 
-		      t_y[l][indx+1]*(rs - r0))/t_dr[l];
+    t[i] = t_g(l, i)*(t_y(l, indx)*(r0 + t_dr[l] - rs) + 
+		      t_y(l, indx+1)*(rs - r0))/t_dr[l];
   }
 
 }

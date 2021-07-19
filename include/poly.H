@@ -1,12 +1,13 @@
-#ifndef _poly_h
-#define _poly_h 1
+#ifndef _poly_H
+#define _poly_H
 
 using namespace std;
 
 #include <iostream>
 #include <fstream>
+#include <Eigen/Eigen>
 
-class Poly : public Vector
+class Poly : public Eigen::VectorXd
 {
 
 private:
@@ -21,7 +22,7 @@ public:
   Poly(void);
   Poly(int);
   Poly(int, double *);
-  Poly(const Vector &);
+  Poly(const Eigen::VectorXd &);
   Poly(const Poly &);
 		
 

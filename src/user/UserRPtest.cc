@@ -1,13 +1,13 @@
 #include <math.h>
-#include "expand.h"
-#include <localmpi.h>
+#include "expand.H"
+#include <localmpi.H>
 
 #include <SatelliteOrbit.h>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
 #include <ResPot.H>
-#include <biorth.h>
-#include <sphereSL.h>
+#include <biorth.H>
+#include <sphereSL.H>
 #include <UserRPtest.H>
 #include <BarForcing.H>
 

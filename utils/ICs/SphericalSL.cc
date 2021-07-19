@@ -40,14 +40,9 @@
 
 #include <SphericalSL.H>
 
-#ifdef RCSID
-static char rcsid[] = 
-"$Id$";
-#endif
-
-void legendre_R(int lmax, double x, Matrix& p);
-void dlegendre_R(int lmax, double x, Matrix &p, Matrix &dp);
-void sinecosine_R(int mmax, double phi, Vector& c, Vector& s);
+void legendre_R(int lmax, double x, Eigen::MatrixXd& p);
+void dlegendre_R(int lmax, double x, Eigen::MatrixXd &p, Eigen::MatrixXd &dp);
+void sinecosine_R(int mmax, double phi, Eigen::VectorXd& c, Eigen::VectorXd& s);
 double factrl(int n);
 
 double SphericalSL::RMIN     = 0.001;
@@ -79,9 +74,9 @@ void SphericalSL::reset(int Nth, int lmax, int nmax, int CMAP, double SCALE)
   
   use.resize(nthrds);
 				//  Allocate coefficient matrix
-  expcoef  = Matrix(0, LMAX*(LMAX+2), 1, NMAX);
+  expcoef.resize((LMAX+1)*(LMAX+1), NMAX);
   expcoef1.resize(nthrds);
-  for (auto & v : expcoef1) v = Matrix(0, LMAX*(LMAX+2), 1, NMAX);
+  for (auto & v : expcoef1) v.resize((LMAX+1)*(LMAX+1), NMAX);
   
   if (selector) {
 #ifdef DEBUG
@@ -89,68 +84,65 @@ void SphericalSL::reset(int Nth, int lmax, int nmax, int CMAP, double SCALE)
 #endif
 
     try {
-      cc = new Matrix [LMAX*(LMAX+2) + 1];
+      cc.resize((LMAX+1)*(LMAX+1));
+      for (auto & v : cc) v.resize(NMAX, NMAX);
+
       cc1.resize(nthrds);
-      for( auto & v : cc1) v = new Matrix [LMAX*(LMAX+2) + 1];
+      for (auto & v : cc1) {
+	v.resize((LMAX+1)*(LMAX+1));
+	for (auto & u : v) u.resize(NMAX, NMAX);
+      }
     }
     catch(exception const & msg) {
       cerr << "SphericalSL: " << msg.what() << endl;
       return;
     }
-    
-    for (int l=0; l<=LMAX*(LMAX+2); l++)
-      cc[l] = Matrix(1, NMAX, 1, NMAX);
-    
-    for (auto & c : cc1) {
-      for (int l=0; l<=LMAX*(LMAX+2); l++)
-	c[l] = Matrix(1, NMAX, 1, NMAX);
-    }
   }
   
   // Allocate and compute normalization matrix
   
-  normM = Matrix(0, LMAX, 1, NMAX);
-  krnl  = Matrix(0, LMAX, 1, NMAX);
+  normM.resize(LMAX+1, NMAX);
+  krnl .resize(LMAX+1, NMAX);
   
 				// Potential
   potd.resize(nthrds);
-  for (auto & v : potd) v = Matrix(0, LMAX, 1, NMAX);
+  for (auto & v : potd) v.resize(LMAX+1, NMAX);
 
   dpot.resize(nthrds);
-  for (auto & v : dpot) v = Matrix(0, LMAX, 1, NMAX);
+  for (auto & v : dpot) v.resize(LMAX+1, NMAX);
 
 				// Density
   dend.resize(nthrds);
-  for (auto & v : dend) v = Matrix(0, LMAX, 1, NMAX);
+  for (auto & v : dend) v.resize(LMAX+1, NMAX);
 
 				// Sin, cos, legendre
   
   cosm.resize(nthrds);
-  for (auto & v : cosm) v = Vector(0, LMAX);
+  for (auto & v : cosm) v.resize(LMAX+1);
 
   sinm.resize(nthrds);
-  for (auto & v : sinm) v = Vector(0, LMAX);
+  for (auto & v : sinm) v.resize(LMAX+1);
 
   legs.resize(nthrds);
-  for (auto & v : legs) v  = Matrix(0, LMAX, 0, LMAX);
+  for (auto & v : legs) v.resize(LMAX+1, LMAX+1);
 
   dlegs.resize(nthrds);
-  for (auto & v : dlegs) v  = Matrix(0, LMAX, 0, LMAX);
+  for (auto & v : dlegs) v.resize(LMAX+1, LMAX+1);
   
   for (int l=0; l<=LMAX; l++) {
-    for (int n=1; n<=NMAX; n++) {
-      normM[l][n] = 1.0;
-      krnl[l][n] = 1.0;
+    for (int n=0; n<NMAX; n++) {
+      normM(l, n) = 1.0;
+      krnl (l, n) = 1.0;
     }
   }
   
 				// Factorial matrix
   
-  factorial = Matrix(0, LMAX, 0, LMAX);
+  factorial.resize(LMAX+1, LMAX+1);
   
   for (int l=0; l<=LMAX; l++) {
     for (int m=0; m<=l; m++) 
-      factorial[l][m] = factrl(l-m)/factrl(l+m);
+      factorial(l, m) = factrl(l-m)/factrl(l+m);
   }
   
 				// Generate Sturm-Liouville grid
@@ -162,11 +154,6 @@ void SphericalSL::reset(int Nth, int lmax, int nmax, int CMAP, double SCALE)
 
 SphericalSL::~SphericalSL(void)
 {
-  if (selector) {
-    delete [] cc;
-    for (auto & v : cc1) delete [] v;
-  }
-
   delete ortho;
 }
 
@@ -207,40 +194,40 @@ void SphericalSL::compute_coefficients_single(vector<Particle> &part)
 	  if (m==0) {
 	    double facs1 = 0.0;
 	    if (selector && compute)
-	      facs1 = legs[0][l][m]*legs[0][l][m]*mass;
-	    for (int n=1; n<=NMAX; n++) {
-	      expcoef1[0][loffset+moffset][n] += potd[0][l][n]*legs[0][l][m]*mass*
-		fac0/normM[l][n];
+	      facs1 = legs[0](l, m)*legs[0](l, m)*mass;
+	    for (int n=0; n<NMAX; n++) {
+	      expcoef1[0](loffset+moffset, n) += potd[0](l, n)*legs[0](l, m)*mass*
+		fac0/normM(l, n);
 
 	      if (selector && compute) {
-		for (int nn=n; nn<=NMAX; nn++)
-		  cc1[0][loffset+moffset][n][nn] += potd[0][l][n]*potd[0][l][nn]*
-		    facs1/(normM[l][n]*normM[l][nn]);
+		for (int nn=n; nn<NMAX; nn++)
+		  cc1[0][loffset+moffset](n, nn) += potd[0](l, n)*potd[0](l, nn)*
+		    facs1/(normM(l, n)*normM(l, nn));
 	      }
 	    }
 
 	    moffset++;
 	  }
 	  else {
-	    double fac1 = legs[0][l][m]*cosm[0][m], facs1 = 0.0;
-	    double fac2 = legs[0][l][m]*sinm[0][m], facs2 = 0.0;
+	    double fac1 = legs[0](l, m)*cosm[0][m], facs1 = 0.0;
+	    double fac2 = legs[0](l, m)*sinm[0][m], facs2 = 0.0;
 	    if (selector && compute) {
 	      facs1 = fac1*fac1*mass;
 	      facs2 = fac2*fac2*mass;
 	    }
-	    for (int n=1; n<=NMAX; n++) {
-	      expcoef1[0][loffset+moffset][n] += potd[0][l][n]*fac1*mass*
-		fac0/normM[l][n];
+	    for (int n=0; n<NMAX; n++) {
+	      expcoef1[0](loffset+moffset, n) += potd[0](l, n)*fac1*mass*
+		fac0/normM(l, n);
 
-	      expcoef1[0][loffset+moffset+1][n] += potd[0][l][n]*fac2*mass*
-		fac0/normM[l][n];
+	      expcoef1[0](loffset+moffset+1, n) += potd[0](l, n)*fac2*mass*
+		fac0/normM(l, n);
 
 	      if (selector && compute) {
-		for (int nn=n; nn<=NMAX; nn++) {
-		  cc1[0][loffset+moffset][n][nn] += 
-		    potd[0][l][n]*potd[0][l][nn]*facs1/(normM[l][n]*normM[l][nn]);
-		  cc1[0][loffset+moffset+1][n][nn] +=
-		    potd[0][l][n]*potd[0][l][nn]*facs2/(normM[l][n]*normM[l][nn]);
+		for (int nn=n; nn<NMAX; nn++) {
+		  cc1[0][loffset+moffset](n, nn) += 
+		    potd[0](l, n)*potd[0](l, nn)*facs1/(normM(l, n)*normM(l, nn));
+		  cc1[0][loffset+moffset+1](n, nn) +=
+		    potd[0](l, n)*potd[0](l, nn)*facs2/(normM(l, n)*normM(l, nn));
 		}
 	      }
 		
@@ -281,26 +268,26 @@ void SphericalSL::compute_coefficients_thread(vector<Particle>& part)
       for (int m=0, moffset=0; m<=l; m++) {
 
 	if (m==0) {
-	  for (int n=1; n<=NMAX; n++) {
-	    expcoef1[0][loffset+moffset][n] += expcoef1[id][loffset+moffset][n];
+	  for (int n=0; n<NMAX; n++) {
+	    expcoef1[0](loffset+moffset, n) += expcoef1[id](loffset+moffset, n);
 
 	    if (selector && compute) {
-	      for (int nn=n; nn<=NMAX; nn++)
-		cc1[0][loffset+moffset][n][nn] += cc1[id][loffset+moffset][n][nn];
+	      for (int nn=n; nn<NMAX; nn++)
+		cc1[0][loffset+moffset](n, nn) += cc1[id][loffset+moffset](n, nn);
 	    }
 	  }
 
 	  moffset++;
 	} else {
 
-	  for (int n=1; n<=NMAX; n++) {
-	    expcoef1[0][loffset+moffset  ][n] += expcoef1[id][loffset+moffset  ][n];
-	    expcoef1[0][loffset+moffset+1][n] += expcoef1[id][loffset+moffset+1][n];
+	  for (int n=0; n<NMAX; n++) {
+	    expcoef1[0](loffset+moffset  , n) += expcoef1[id](loffset+moffset  , n);
+	    expcoef1[0](loffset+moffset+1, n) += expcoef1[id](loffset+moffset+1, n);
 	    
 	    if (selector && compute) {
-	      for (int nn=n; nn<=NMAX; nn++) {
-		cc1[0][loffset+moffset  ][n][nn] += cc1[id][loffset+moffset  ][n][nn];
-		cc1[0][loffset+moffset+1][n][nn] += cc1[id][loffset+moffset+1][n][nn];
+	      for (int nn=n; nn<NMAX; nn++) {
+		cc1[0][loffset+moffset  ](n, nn) += cc1[id][loffset+moffset  ](n, nn);
+		cc1[0][loffset+moffset+1](n, nn) += cc1[id][loffset+moffset+1](n, nn);
 	      }
 	    }
 	    
@@ -354,39 +341,39 @@ void SphericalSL::compute_coefficients_thread_call(int id, std::vector<Particle>
 	for (int m=0, moffset=0; m<=l; m++) {
 	  if (m==0) {
 	    if (selector && compute)
-	      facs1 = legs[id][l][m]*legs[id][l][m]*mass;
-	    for (int n=1; n<=NMAX; n++) {
-	      expcoef1[id][loffset+moffset][n] += potd[id][l][n]*legs[id][l][m]*mass*
-		fac0/normM[l][n];
+	      facs1 = legs[id](l, m)*legs[id](l, m)*mass;
+	    for (int n=0; n<NMAX; n++) {
+	      expcoef1[id](loffset+moffset, n) += potd[id](l, n)*legs[id](l, m)*mass*
+		fac0/normM(l, n);
 
 	      if (selector && compute) {
-		for (int nn=n; nn<=NMAX; nn++)
-		  cc1[id][loffset+moffset][n][nn] += potd[id][l][n]*potd[id][l][nn]*
-		    facs1/(normM[l][n]*normM[l][nn]);
+		for (int nn=n; nn<NMAX; nn++)
+		  cc1[id][loffset+moffset](n, nn) += potd[id](l, n)*potd[id](l, nn)*
+		    facs1/(normM(l, n)*normM(l, nn));
 	      }
 	    }
 	    moffset++;
 	  }
 	  else {
-	    double fac1 = legs[id][l][m]*cosm[id][m];
-	    double fac2 = legs[id][l][m]*sinm[id][m];
+	    double fac1 = legs[id](l, m)*cosm[id][m];
+	    double fac2 = legs[id](l, m)*sinm[id][m];
 	    if (selector && compute) {
 	      facs1 = fac1*fac1*mass;
 	      facs2 = fac2*fac2*mass;
 	    }
-	    for (int n=1; n<=NMAX; n++) {
-	      expcoef1[id][loffset+moffset][n] += potd[id][l][n]*fac1*mass*
-		fac0/normM[l][n];
+	    for (int n=0; n<NMAX; n++) {
+	      expcoef1[id](loffset+moffset, n) += potd[id](l, n)*fac1*mass*
+		fac0/normM(l, n);
 
-	      expcoef1[id][loffset+moffset+1][n] += potd[id][l][n]*fac2*mass*
-		fac0/normM[l][n];
+	      expcoef1[id](loffset+moffset+1, n) += potd[id](l, n)*fac2*mass*
+		fac0/normM(l, n);
 
 	      if (selector && compute) {
-		for (int nn=n; nn<=NMAX; nn++) {
-		  cc1[id][loffset+moffset][n][nn] += 
-		    potd[id][l][n]*potd[id][l][nn]*facs1/(normM[l][n]*normM[l][nn]);
-		  cc1[id][loffset+moffset+1][n][nn] +=
-		    potd[id][l][n]*potd[id][l][nn]*facs2/(normM[l][n]*normM[l][nn]);
+		for (int nn=n; nn<NMAX; nn++) {
+		  cc1[id][loffset+moffset](n, nn) += 
+		    potd[id](l, n)*potd[id](l, nn)*facs1/(normM(l, n)*normM(l, nn));
+		  cc1[id][loffset+moffset+1](n, nn) +=
+		    potd[id](l, n)*potd[id](l, nn)*facs2/(normM(l, n)*normM(l, nn));
 		}
 	      }
 		
@@ -410,15 +397,15 @@ void SphericalSL::accumulate(vector<Particle> &part)
   if (selector) compute = firstime;
 
   // Clean
-  for (int n=1; n<=NMAX; n++) {
+  for (int n=0; n<NMAX; n++) {
     for (int l=0; l<=LMAX*(LMAX+2); l++) {
-      expcoef[l][n] = 0.0;
+      expcoef(l, n) = 0.0;
     }
   }
 
   for (auto & v : expcoef1) {
     for (int l=0; l<=LMAX*(LMAX+2); l++)
-      for (int n=1; n<=NMAX; n++) v[l][n] = 0.0;
+      for (int n=0; n<NMAX; n++) v(l, n) = 0.0;
   }
   
   for (auto & v : use) v = 0;
@@ -426,8 +413,8 @@ void SphericalSL::accumulate(vector<Particle> &part)
   if (selector && compute) {
     for (auto & v : cc1) {
       for (int l=0; l<=LMAX*(LMAX+2); l++) {
-	for (int n=1; n<=NMAX; n++) {
-	  for (int nn=n; nn<=NMAX; nn++) v[l][n][nn] = 0.0;
+	for (int n=0; n<NMAX; n++) {
+	  for (int nn=0; nn<NMAX; nn++) v[l](n, nn) = 0.0;
 	}
       }
     }
@@ -444,33 +431,10 @@ void SphericalSL::accumulate(vector<Particle> &part)
   if (myid==0) used += use0;
 
   if (!selector) {
-
-    // l loop
-    for (int l=0, loffset=0; l<=LMAX; loffset+=(2*l+1), l++) {
-
-      // m loop
-      for (int m=0, moffset=0; m<=l; m++) {
-	if (m==0) {
-	  
-	  MPI_Allreduce ( &expcoef1[0][loffset+moffset][1],
-			  &expcoef[loffset+moffset][1],
-			  NMAX, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
-	    moffset++;
-	  }
-	  else {
-
-	    MPI_Allreduce ( &expcoef1[0][loffset+moffset][1],
-			    &expcoef[loffset+moffset][1],
-			    NMAX, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	    
-	    MPI_Allreduce ( &expcoef1[0][loffset+moffset+1][1],
-			    &expcoef[loffset+moffset+1][1],
-			    NMAX, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	    moffset+=2;
-	  }
-      }
-    }
+    
+    MPI_Allreduce ( expcoef1[0].data(),
+		    expcoef.data(),
+		    expcoef.size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   }
  
   if (selector) {
@@ -479,7 +443,7 @@ void SphericalSL::accumulate(vector<Particle> &part)
 
     if (myid == 0) pca_hall(compute, expcoef, cc, normM);
     
-    parallel_distribute_coefficients(expcoef, LMAX);
+    parallel_distribute_coefficients(expcoef);
 
     if (firstime) {
       compute = 0;
@@ -491,9 +455,9 @@ void SphericalSL::accumulate(vector<Particle> &part)
 				// Check coefficients
   int iflg = 0;
   
-  for (int n=1; n<=NMAX; n++) {
+  for (int n=0; n<NMAX; n++) {
     for (int l=0; l<=LMAX*(LMAX+2); l++) {
-      if (std::isnan(expcoef[l][n])) {
+      if (std::isnan(expcoef(l, n))) {
 	std::cerr << "expcoef[" << l << "][" << n << "] is NaN"
 		  << std::endl;
 	iflg++;
@@ -543,11 +507,11 @@ void SphericalSL::determine_fields_at_point
   ortho->get_force(dpot[id], r1);
 
   double dens;
-  get_dens_coefs(0, expcoef[0], &dens);
+  get_dens_coefs(0, expcoef.row(0), dens);
   dens *= dfac*dfac;
 
   double p, dp;
-  get_pot_coefs(0, expcoef[0], &p, &dp);
+  get_pot_coefs(0, expcoef.row(0), p, dp);
 
   double potl = fac1*p * pfext2;
   double potr = fac1*dp * pfext2*pfext1;
@@ -561,10 +525,10 @@ void SphericalSL::determine_fields_at_point
     for (int m=0, moffset=0; m<=l; m++) {
       double fac1 = (2.0*l+1.0)/(4.0*M_PI);
       if (m==0) {
-	double fac2 = fac1*legs[0][l][m];
-	get_dens_coefs(l,expcoef[loffset+moffset],&p);
+	double fac2 = fac1*legs[0](l, m);
+	get_dens_coefs(l, expcoef.row(loffset+moffset), p);
 	dens += dfac*fac2*p;
-	get_pot_coefs(l,expcoef[loffset+moffset],&p,&dp);
+	get_pot_coefs(l, expcoef.row(loffset+moffset), p, dp);
 
 				// External solution
 	p *= pfext2;
@@ -572,21 +536,21 @@ void SphericalSL::determine_fields_at_point
 
 	potl += fac2*p;
 	potr += fac2*dp;
-	pott += fac1*dlegs[0][l][m]*p;
+	pott += fac1*dlegs[0](l, m)*p;
 	moffset++;
       }
       else {
-	double fac2 = 2.0 * fac1 * factorial[l][m];
-	double fac3 = fac2 * legs[0][l][m];
-	double fac4 = fac2 * dlegs[0][l][m];
+	double fac2 = 2.0 * fac1 * factorial(l, m);
+	double fac3 = fac2 * legs[0](l, m);
+	double fac4 = fac2 * dlegs[0](l, m);
 	double pc, ps, dpc, dps;
 	
-	get_dens_coefs(l, expcoef[loffset+moffset], &pc);
-	get_dens_coefs(l, expcoef[loffset+moffset+1], &ps);
+	get_dens_coefs(l, expcoef.row(loffset+moffset), pc);
+	get_dens_coefs(l, expcoef.row(loffset+moffset+1), ps);
 	dens += dfac*fac3*(pc*cosm[id][m] + ps*sinm[id][m]);
 	
-	get_pot_coefs(l,expcoef[loffset+moffset], &pc, &dpc);
-	get_pot_coefs(l,expcoef[loffset+moffset+1], &ps, &dps);
+	get_pot_coefs(l,expcoef.row(loffset+moffset), pc, dpc);
+	get_pot_coefs(l,expcoef.row(loffset+moffset+1), ps, dps);
 
 				// External solution
 	pc  *= pfext2;
@@ -613,28 +577,29 @@ void SphericalSL::determine_fields_at_point
 }
 
 
-void SphericalSL::get_pot_coefs(int l, Vector& coef,
-				double *p, double *dp, int id)
+void SphericalSL::get_pot_coefs(int l, const Eigen::VectorXd& coef,
+				double& p, double& dp, int id)
 {
   double pp=0.0, dpp=0.0;
 
-  for (int i=1; i<=NMAX; i++) {
-    pp  += potd[id][l][i] * coef[i];
-    dpp += dpot[id][l][i] * coef[i];
+  for (int i=0; i<NMAX; i++) {
+    pp  += potd[id](l, i) * coef[i];
+    dpp += dpot[id](l, i) * coef[i];
   }
 
-  *p = -pp;
-  *dp = -dpp;
+  p = -pp;
+  dp = -dpp;
 }
 
-void SphericalSL::get_dens_coefs(int l, Vector& coef, double *p, int id)
+void SphericalSL::get_dens_coefs(int l, const Eigen::VectorXd& coef,
+				 double& p, int id)
 {
   double pp = 0.0;
 
-  for (int i=1; i<=NMAX; i++)
-    pp  += dend[id][l][i] * coef[i];
+  for (int i=0; i<NMAX; i++)
+    pp  += dend[id](l, i) * coef[i];
 
-  *p = pp;
+  p = pp;
 }
 				/* Dump coefficients to a file */
 
@@ -646,9 +611,9 @@ void SphericalSL::dump_coefs(ofstream& out, bool binary)
 
     out.write((char *)&tnow, sizeof(double));
 
-    for (int ir=1; ir<=NMAX; ir++) {
+    for (int ir=0; ir<NMAX; ir++) {
       for (int l=0; l<=LMAX*(LMAX+2); l++)
-	out.write((char *)&expcoef[l][ir], sizeof(double));
+	out.write((char *)&expcoef(l, ir), sizeof(double));
     }
   }
   else {
@@ -719,7 +684,7 @@ void SphericalSL::dump_coefs(ofstream& out, bool binary)
 
     // n loop
     //
-    for (int n=1; n<=NMAX; n++) {
+    for (int n=0; n<NMAX; n++) {
       out << std::setw(7) << n;
       // l loop
       //
@@ -728,11 +693,11 @@ void SphericalSL::dump_coefs(ofstream& out, bool binary)
 	//
 	for (int m=0, moffset=0; m<=l; m++) {
 	  if (m==0) {
-	    out << std::setw(18) << expcoef[loffset+moffset][n];
+	    out << std::setw(18) << expcoef(loffset+moffset, n);
 	    moffset++;
 	  } else {
-	    out << std::setw(18) << expcoef[loffset+moffset+0][n]
-		<< std::setw(18) << expcoef[loffset+moffset+1][n];
+	    out << std::setw(18) << expcoef(loffset+moffset+0, n)
+		<< std::setw(18) << expcoef(loffset+moffset+1, n);
 	    moffset += 2;
 	  }
 	}
@@ -744,8 +709,10 @@ void SphericalSL::dump_coefs(ofstream& out, bool binary)
 
 void SphericalSL::parallel_gather_coefficients
 (
- Matrix& expcoef, Matrix& expcoef1,
- Matrix*& cc, Matrix*& cc1,
+ Eigen::MatrixXd& expcoef,
+ Eigen::MatrixXd& expcoef1,
+ std::vector<Eigen::MatrixXd>& cc,
+ std::vector<Eigen::MatrixXd>& cc1,
  int lmax)
 {
   int Ldim = lmax*(lmax + 2) + 1;
@@ -758,22 +725,22 @@ void SphericalSL::parallel_gather_coefficients
       for (int m=0, moffset=0; m<=l; m++) {
 
 	if (m==0) {
-	  for (int n=1; n<=NMAX; ++n) {
-	    expcoef[loffset+moffset][n] = 0.0;
+	  for (int n=0; n<NMAX; ++n) {
+	    expcoef(loffset+moffset, n) = 0.0;
 
-	    for (int nn=n; nn<=NMAX; nn++)
-	      cc[loffset+moffset][n][nn] = 0.0;
+	    for (int nn=n; nn<NMAX; nn++)
+	      cc[loffset+moffset](n, nn) = 0.0;
 	  }
 	  moffset++;
 	}
 	else {
-	  for (int n=1; n<=NMAX; ++n) {
-	    expcoef[loffset+moffset][n] = 0.0;
-	    expcoef[loffset+moffset+1][n] = 0.0;
+	  for (int n=0; n<NMAX; ++n) {
+	    expcoef(loffset+moffset+0, n) = 0.0;
+	    expcoef(loffset+moffset+1, n) = 0.0;
 
-	    for (int nn=n; nn<=NMAX; nn++) {
-	      cc[loffset+moffset][n][nn] = 0.0;
-	      cc[loffset+moffset+1][n][nn] = 0.0;
+	    for (int nn=n; nn<NMAX; nn++) {
+	      cc[loffset+moffset+0](n, nn) = 0.0;
+	      cc[loffset+moffset+1](n, nn) = 0.0;
 	    }
 	  }
 	  moffset+=2;
@@ -782,89 +749,54 @@ void SphericalSL::parallel_gather_coefficients
     }
   }
 
+  
+  MPI_Reduce(expcoef1.data(), expcoef.data(), expcoef.size(),
+	     MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
-  for (int l=L0, loffset=0; l<=lmax; loffset+=(2*l+1), l++) {
+  if (selector) {
 
-    for (int m=0, moffset=0; m<=l; m++) {
+    for (int l=L0, loffset=0; l<=lmax; loffset+=(2*l+1), l++) {
 
-      if (m==0) {
-	MPI_Reduce(&expcoef1[loffset+moffset][1], 
-		   &expcoef[loffset+moffset][1], NMAX, 
-		   MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-
-	for (n=1; n<=NMAX; n++)
-	  MPI_Reduce(&cc1[loffset+moffset][n][n],
-		     &cc[loffset+moffset][n][n], NMAX-n+1, 
-		     MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-	moffset++;
-      }
-      else {
-	MPI_Reduce(&expcoef1[loffset+moffset][1], 
-		   &expcoef[loffset+moffset][1], NMAX, 
-		   MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-
-	MPI_Reduce(&expcoef1[loffset+moffset+1][1],
-		   &expcoef[loffset+moffset+1][1], NMAX, 
-		   MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      for (int m=0, moffset=0; m<=l; m++) {
 	
-	if (selector) {
-	  for (int n=1; n<=NMAX; n++) {
-	    MPI_Reduce(&cc1[loffset+moffset][n][n],
-		       &cc[loffset+moffset][n][n], NMAX-n+1, 
-		       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-	    MPI_Reduce(&cc1[loffset+moffset+1][n][n],
-		       &cc[loffset+moffset+1][n][n], NMAX-n+1, 
-		       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-	  }
-	}
-
-	moffset+=2;
+	MPI_Reduce(cc1[loffset+moffset].data(),
+		   cc[loffset+moffset].data(), cc[loffset+moffset].size(),
+		   MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+	if (m)
+	  MPI_Reduce(cc1[loffset+moffset+1].data(),
+		     cc[loffset+moffset+1].data(), cc[loffset+moffset+1].size(), 
+		     MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+	if (m)
+	  moffset+=2;
+	else
+	  moffset+=1;
       }
     }
   }
 
 }
 
-void SphericalSL::parallel_distribute_coefficients(Matrix& expcoef, int lmax)
+void SphericalSL::parallel_distribute_coefficients(Eigen::MatrixXd& expcoef)
 {
-  int Ldim = lmax*(lmax + 2) + 1;
-  int L0 = 0;
-
-  for (int l=L0, loffset=0; l<=lmax; loffset+=(2*l+1), l++) {
-
-      for (int m=0, moffset=0; m<=l; m++) {
-
-	if (m==0) {
-	  MPI_Bcast(&expcoef[loffset+moffset][1], NMAX, MPI_DOUBLE,
-		    0, MPI_COMM_WORLD);
-	  moffset++;
-	}
-	else {
-	  MPI_Bcast(&expcoef[loffset+moffset][1], NMAX, MPI_DOUBLE,
-		     0, MPI_COMM_WORLD);
-	  MPI_Bcast(&expcoef[loffset+moffset+1][1], NMAX, MPI_DOUBLE,
-		    0, MPI_COMM_WORLD);
-	  moffset+=2;
-	}
-      }
-  }
-
+  MPI_Bcast(expcoef.data(), expcoef.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 }
 
 void SphericalSL::pca_hall
-(int compute, Matrix& expcoef, Matrix*& cc, Matrix& normM)
+(int compute, Eigen::MatrixXd& expcoef,
+ std::vector<Eigen::MatrixXd>& cc,
+ Eigen::MatrixXd& normM)
 {
-  static Vector smth;
-  static Vector *weight;
-  static Vector *b_Hall;
-  static Vector inv;
-  static Vector eval;
-  static Vector cuml;
-  static Matrix *evec;
-  static Matrix Tevec;
-  static Matrix sqnorm;
+  static Eigen::VectorXd smth;
+  static std::vector<Eigen::VectorXd> weight;
+  static std::vector<Eigen::VectorXd> b_Hall;
+  static Eigen::VectorXd inv;
+  static Eigen::VectorXd eval;
+  static Eigen::VectorXd cuml;
+  static std::vector<Eigen::MatrixXd> evec;
+  static Eigen::MatrixXd Tevec;
+  static Eigen::MatrixXd sqnorm;
 
-  static Matrix covar;
+  static Eigen::MatrixXd covar;
 
   static int setup = 0;
   
@@ -872,26 +804,24 @@ void SphericalSL::pca_hall
 
     int Ldim = LMAX*(LMAX + 2) + 1;
     
-    weight = new Vector [Ldim];
-    b_Hall = new Vector [Ldim];
-    evec = new Matrix [Ldim];
+    weight.resize(Ldim);
+    b_Hall.resize(Ldim);
+    evec  .resize(Ldim);
     
-    for (int l=0; l<Ldim; l++) {
-      weight[l].setsize(1, NMAX);
-      b_Hall[l].setsize(1, NMAX);
-      evec[l].setsize(1, NMAX, 1, NMAX);
-    }
+    for (auto & v : weight) v.resize(NMAX);
+    for (auto & v : b_Hall) v.resize(NMAX);
+    for (auto & v : evec)   v.resize(NMAX, NMAX);
 
-    smth.setsize(1, NMAX);
-    inv.setsize(1, NMAX);
-    eval.setsize(1, NMAX);
-    cuml.setsize(1, NMAX);
-    Tevec.setsize(1, NMAX, 1, NMAX);
-    covar.setsize(1, NMAX, 1, NMAX);
-    sqnorm.setsize(0, LMAX, 1, NMAX);
+    smth.resize(NMAX);
+    inv.resize(NMAX);
+    eval.resize(NMAX);
+    cuml.resize(NMAX);
+    Tevec.resize(NMAX, NMAX);
+    covar.resize(NMAX, NMAX);
+    sqnorm.resize(LMAX+1, NMAX);
       
     for (int l=0; l<=LMAX; l++)
-      for (int n=1; n<=NMAX; n++) sqnorm[l][n] = sqrt(normM[l][n]);
+      for (int n=0; n<NMAX; n++) sqnorm(l, n) = sqrt(normM(l, n));
 
     setup = 1;
   }
@@ -911,42 +841,41 @@ void SphericalSL::pca_hall
 
 	if (compute) {
 
-	  for (int n=1; n<=NMAX; n++) {
-	    double b = (cc[indx][n][n]*fac02 - expcoef[indx][n]*expcoef[indx][n]) /
-	      (expcoef[indx][n]*expcoef[indx][n]*used);
+	  for (int n=0; n<NMAX; n++) {
+	    double b = (cc[indx](n, n)*fac02 -
+			expcoef(indx, n)*expcoef(indx, n)) /
+	      (expcoef(indx, n)*expcoef(indx, n)*used);
 	    b_Hall[indx][n] = 1.0/(1.0 + b);
 	  }
     
-	  for (int n=1; n<=NMAX; n++) {
-	    for (int nn=n; nn<=NMAX; nn++) {
-	      double fac = sqnorm[lm][n]*sqnorm[lm][nn];
-	      covar[n][nn] = fac * expcoef[indx][n]*expcoef[indx][nn];
-	      if (n!=nn)
-		covar[nn][n] = covar[n][nn];
+	  for (int n=0; n<NMAX; n++) {
+	    for (int nn=n; nn<NMAX; nn++) {
+	      double fac = sqnorm(lm, n)*sqnorm(lm, nn);
+	      covar(n, nn) = fac * expcoef(indx, n)*expcoef(indx, nn);
+	      if (n!=nn) covar(nn, n) = covar(n, nn);
 	    }    
 	  }
 
 				/* Diagonalize variance */
 
-#ifdef GHQL
-	  eval = covar.Symmetric_Eigenvalues_GHQL(evec[indx]);
-#else
-	  eval = covar.Symmetric_Eigenvalues(evec[indx]);
-#endif
-	  Tevec = evec[indx].Transpose();
+	  Eigen::EigenSolver<Eigen::MatrixXd> es(covar);
+
+	  eval = es.eigenvalues().real();
+	  evec[indx] = es.eigenvectors().real();
+	  Tevec = evec[indx].transpose();
 
 	  if (tk_type == 2) {
 	    cuml = eval;
-	    for (int n=2; n<=NMAX; n++) cuml[n] += cuml[n-1];
+	    for (int n=1; n<NMAX; n++) cuml[n] += cuml[n-1];
 	    double var = cuml[NMAX];
-	    for (int n=1; n<=NMAX; n++) cuml[n] /= var;
+	    for (int n=0; n<NMAX; n++) cuml[n] /= var;
 	  }
 
-	  for (int n=1; n<=NMAX; n++) {
+	  for (int n=0; n<NMAX; n++) {
 
 	    double dd = 0.0;
-	    for (int nn=1; nn<=NMAX; nn++) 
-	      dd += Tevec[n][nn]*expcoef[indx][nn]*sqnorm[lm][nn];
+	    for (int nn=0; nn<NMAX; nn++) 
+	      dd += Tevec(n, nn)*expcoef(indx, nn)*sqnorm(lm, nn);
 
 	    double var = eval[n]/used - dd*dd;
 
@@ -979,19 +908,19 @@ void SphericalSL::pca_hall
 
 	}
 	else {
-	  Tevec = evec[indx].Transpose();
-	  for (n=1; n<=NMAX; n++) {
+	  Tevec = evec[indx].transpose();
+	  for (int n=0; n<NMAX; n++) {
 	    double dd = 0.0;
-	    for (int nn=1; nn<=NMAX; nn++) 
-	      dd += Tevec[n][nn]*expcoef[indx][nn] * sqnorm[lm][nn];
-	    smth[n] = dd * weight[indx][n];
+	    for (int nn=0; nn<NMAX; nn++) 
+	      dd += Tevec(n, nn)*expcoef(indx, nn) * sqnorm(lm, nn);
+	    smth[n] = dd * weight[indx](n);
 	  }
 	}
 	    
 	inv = evec[indx]*smth;
-	for (n=1; n<=NMAX; n++) {
-	  expcoef[indx][n] = inv[n]/sqnorm[lm][n];
-	  if (tk_type == 0) expcoef[indx][n] *= b_Hall[indx][n];
+	for (int n=0; n<NMAX; n++) {
+	  expcoef(indx, n) = inv[n]/sqnorm(lm, n);
+	  if (tk_type == 0) expcoef(indx, n) *= b_Hall[indx][n];
 	}
 	
 	moffset++;
@@ -1000,42 +929,41 @@ void SphericalSL::pca_hall
 
 	if (compute) {
 
-	  for (int n=1; n<=NMAX; n++) {
-	    double b = (cc[indx][n][n]*fac02 - expcoef[indx][n]*expcoef[indx][n]) /
-	      (expcoef[indx][n]*expcoef[indx][n]*used);
+	  for (int n=0; n<NMAX; n++) {
+	    double b = (cc[indx](n, n)*fac02 - expcoef(indx, n)*expcoef(indx, n)) /
+	      (expcoef(indx, n)*expcoef(indx, n)*used);
 	    b_Hall[indx][n] = 1.0/(1.0 + b);
 	  }
     
-	  for (int n=1; n<=NMAX; n++) {
-	    for (int nn=n; nn<=NMAX; nn++) {
-	      double fac = sqnorm[lm][n] * sqnorm[lm][nn];
-	      covar[n][nn] = fac * expcoef[indx][n]*expcoef[indx][nn];
-	      if (n!=nn)
-		covar[nn][n] = covar[n][nn];
+	  for (int n=0; n<NMAX; n++) {
+	    for (int nn=n; nn<NMAX; nn++) {
+	      double fac = sqnorm(lm, n) * sqnorm(lm, nn);
+	      covar(n, nn) = fac * expcoef(indx, n)*expcoef(indx, nn);
+	      if (n!=nn) covar(nn, n) = covar(n, nn);
 	    }
 	  }  
 
 				/* Diagonalize variance */
 
-#ifdef GHQL
-	  eval = covar.Symmetric_Eigenvalues_GHQL(evec[indx]);
-#else
-	  eval = covar.Symmetric_Eigenvalues(evec[indx]);
-#endif
-	  Tevec = evec[indx].Transpose();
+	  
+	  Eigen::EigenSolver<Eigen::MatrixXd> es(covar);
+
+	  eval = es.eigenvalues().real();
+	  evec[indx] = es.eigenvectors().real();
+	  Tevec = evec[indx].transpose();
 
 	  if (tk_type == 2) {
 	    cuml = eval;
-	    for (n=2; n<=NMAX; n++) cuml[n] += cuml[n-1];
+	    for (int n=1; n<NMAX; n++) cuml[n] += cuml[n-1];
 	    double var = cuml[NMAX];
-	    for (n=1; n<=NMAX; n++) cuml[n] /= var;
+	    for (int n=0; n<NMAX; n++) cuml[n] /= var;
 	  }
 
-	  for (int n=1; n<=NMAX; n++) {
+	  for (int n=0; n<NMAX; n++) {
 
 	    double dd = 0.0;
-	    for (int nn=1; nn<=NMAX; nn++) 
-	      dd += Tevec[n][nn]*expcoef[indx][nn]*sqnorm[lm][nn];
+	    for (int nn=0; nn<NMAX; nn++) 
+	      dd += Tevec(n, nn)*expcoef(indx, nn)*sqnorm(lm, nn);
 
 	    double var = eval[n]/used - dd*dd;
 
@@ -1067,61 +995,59 @@ void SphericalSL::pca_hall
 	  }
 	}
 	else {
-	  Tevec = evec[indx].Transpose();
-	  for (int n=1; n<=NMAX; n++) {
+	  Tevec = evec[indx].transpose();
+	  for (int n=0; n<NMAX; n++) {
 	    double dd = 0.0;
-	    for (int nn=1; nn<=NMAX; nn++) 
-	      dd += Tevec[n][nn]*expcoef[indx][nn] * sqnorm[lm][nn];
+	    for (int nn=0; nn<NMAX; nn++) 
+	      dd += Tevec(n, nn)*expcoef(indx, nn) * sqnorm(lm, nn);
 	    smth[n] = dd * weight[indx][n];
 	  }
 	}
 	    
 	inv = evec[indx]*smth;
-	for (n=1; n<=NMAX; n++) {
-	  expcoef[indx][n] = inv[n]/sqnorm[lm][n];
-	  if (tk_type == 0) expcoef[indx][n] *= b_Hall[indx][n];
+	for (int n=0; n<NMAX; n++) {
+	  expcoef(indx, n) = inv[n]/sqnorm(lm, n);
+	  if (tk_type == 0) expcoef(indx, n) *= b_Hall[indx][n];
 	}
 	
 	indx++;
 
 	if (compute) {
 
-	  for (int n=1; n<=NMAX; n++) {
-	    double b = (cc[indx][n][n]*fac02 - expcoef[indx][n]*expcoef[indx][n]) /
-	      (expcoef[indx][n]*expcoef[indx][n]*used);
+	  for (int n=0; n<NMAX; n++) {
+	    double b = (cc[indx](n, n)*fac02 - expcoef(indx, n)*expcoef(indx, n)) /
+	      (expcoef(indx, n)*expcoef(indx, n)*used);
 	    b_Hall[indx][n] = 1.0/(1.0 + b);
 	  }
     
-	  for (int n=1; n<=NMAX; n++) {
-	    for (int nn=n; nn<=NMAX; nn++) {
-	      double fac = sqnorm[lm][n] * sqnorm[lm][nn];
-	      covar[n][nn] = fac * expcoef[indx][n]*expcoef[indx][nn];
-	      if (n!=nn)
-		covar[nn][n] = covar[n][nn];
+	  for (int n=0; n<NMAX; n++) {
+	    for (int nn=n; nn<NMAX; nn++) {
+	      double fac = sqnorm(lm, n) * sqnorm(lm, nn);
+	      covar(n, nn) = fac * expcoef(indx, n)*expcoef(indx, nn);
+	      if (n!=nn) covar(nn, n) = covar(n, nn);
 	    }    
 	  }
 
 				/* Diagonalize variance */
 
-#ifdef GHQL
-	  eval = covar.Symmetric_Eigenvalues_GHQL(evec[indx]);
-#else
-	  eval = covar.Symmetric_Eigenvalues(evec[indx]);
-#endif
-	  Tevec = evec[indx].Transpose();
+	  Eigen::EigenSolver<Eigen::MatrixXd> es(covar);
+
+	  eval = es.eigenvalues().real();
+	  evec[indx] = es.eigenvectors().real();
+	  Tevec = evec[indx].transpose();
 
 	  if (tk_type == 2) {
 	    cuml = eval;
-	    for (int n=2; n<=NMAX; n++) cuml[n] += cuml[n-1];
+	    for (int n=1; n<NMAX; n++) cuml[n] += cuml[n-1];
 	    double var = cuml[NMAX];
-	    for (int n=1; n<=NMAX; n++) cuml[n] /= var;
+	    for (int n=0; n<NMAX; n++) cuml[n] /= var;
 	  }
 
-	  for (int n=1; n<=NMAX; n++) {
+	  for (int n=0; n<NMAX; n++) {
 
 	    double dd = 0.0;
-	    for (int nn=1; nn<=NMAX; nn++) 
-	      dd += Tevec[n][nn]*expcoef[indx][nn]*sqnorm[lm][nn];
+	    for (int nn=0; nn<NMAX; nn++) 
+	      dd += Tevec(n, nn)*expcoef(indx, nn)*sqnorm(lm, nn);
 
 	    double var = eval[n]/used - dd*dd;
 
@@ -1153,19 +1079,19 @@ void SphericalSL::pca_hall
 	  }
 	}
 	else {
-	  Tevec = evec[indx].Transpose();
-	  for (int n=1; n<=NMAX; n++) {
+	  Tevec = evec[indx].transpose();
+	  for (int n=0; n<NMAX; n++) {
 	    double dd = 0.0;
-	    for (int nn=1; nn<=NMAX; nn++) 
-	      dd += Tevec[n][nn]*expcoef[indx][nn] * sqnorm[lm][nn];
+	    for (int nn=0; nn<NMAX; nn++) 
+	      dd += Tevec(n, nn)*expcoef(indx, nn) * sqnorm(lm, nn);
 	    smth[n] = dd * weight[indx][n];
 	  }
 	}
 
 	inv = evec[indx]*smth;
-	for (int n=1; n<=NMAX; n++) {
-	  expcoef[indx][n] = inv[n]/sqnorm[lm][n];
-	  if (tk_type == 0) expcoef[indx][n] *= b_Hall[indx][n];
+	for (int n=0; n<NMAX; n++) {
+	  expcoef(indx, n) = inv[n]/sqnorm(lm, n);
+	  if (tk_type == 0) expcoef(indx, n) *= b_Hall[indx][n];
 	}
 	
 	moffset += 2;

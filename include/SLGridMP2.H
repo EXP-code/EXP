@@ -1,7 +1,5 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 #ifndef _SLGridMP_h
-#define _SLGridMP_h 1
+#define _SLGridMP_h
 
 #include <math.h>
 #include <iostream>
@@ -9,15 +7,12 @@
 #include <string>
 
 #include <mpi.h>
-#include <localmpi.h>
+#include <localmpi.H>
 
 #include <config.h>
 
-#include <Vector.h>
-// #include <Matrix.h>
-
-#include <massmodel.h>
-#include <sltableMP2.h>
+#include <massmodel.H>
+#include <sltableMP2.H>
 
 #if HAVE_LIBCUDA==1
 #include <cudaUtil.cuH>
@@ -40,11 +35,11 @@ private:
 
   double xmin, xmax, dxi;
 
-  Vector kv;
-  Vector r;
-  Vector xi;
-  Vector p0;
-  Vector d0;
+  Eigen::VectorXd kv;
+  Eigen::VectorXd r;
+  Eigen::VectorXd xi;
+  Eigen::VectorXd p0;
+  Eigen::VectorXd d0;
 
   TableCyl** table;
 
@@ -104,30 +99,30 @@ public:
   double get_force(double x, int m, int n, int k, int which=1);
 
   //! Fill vector with desired potential basis 
-  void get_pot(Vector& vec, double x, int m, int k, int which=1);
+  void get_pot(Eigen::VectorXd& vec, double x, int m, int k, int which=1);
   //! Fill vector with desired density basis 
-  void get_dens(Vector& vec, double x, int m, int k, int which=1);
+  void get_dens(Eigen::VectorXd& vec, double x, int m, int k, int which=1);
   //! Fill vector with desired force basis 
-  void get_force(Vector& vec, double x, int m, int k, int which=1);
+  void get_force(Eigen::VectorXd& vec, double x, int m, int k, int which=1);
 
   //! Fill Matrix with desired potential basis 
-  void get_pot(Matrix& tab, double x, int m, int which=1);
+  void get_pot(Eigen::MatrixXd& tab, double x, int m, int which=1);
 
 #if HAVE_LIBCUDA==1
   void get_pot_cuda(float* tab, double x, int m, int which=1);
 #endif
 
   //! Fill Matrix with desired potential basis 
-  void get_dens(Matrix& tab, double x, int m, int which=1);
+  void get_dens(Eigen::MatrixXd& tab, double x, int m, int which=1);
   //! Fill Matrix with desired potential basis 
-  void get_force(Matrix& tab, double x, int m, int which=1);
+  void get_force(Eigen::MatrixXd& tab, double x, int m, int which=1);
 
   //! Fill Matricies with desired potential basis 
-  void get_pot(Matrix* tab, double x, int mMin, int mMax, int which=1);
+  void get_pot(Eigen::MatrixXd* tab, double x, int mMin, int mMax, int which=1);
   //! Fill Matricies with desired density basis 
-  void get_dens(Matrix* tab, double x, int mMin, int mMax, int which=1);
+  void get_dens(Eigen::MatrixXd* tab, double x, int mMin, int mMax, int which=1);
   //! Fill Matricies with desired force basis 
-  void get_force(Matrix* tab, double x, int mMin, int mMax, int which=1);
+  void get_force(Eigen::MatrixXd* tab, double x, int mMin, int mMax, int which=1);
 
 };
 
@@ -146,10 +141,10 @@ private:
 
   double xmin, xmax, dxi;
 
-  Vector r;
-  Vector xi;
-  Vector p0;
-  Vector d0;
+  Eigen::VectorXd r;
+  Eigen::VectorXd xi;
+  Eigen::VectorXd p0;
+  Eigen::VectorXd d0;
 
   TableSph* table;
 
@@ -226,7 +221,7 @@ public:
   /** Get potential for dimensionless coord with harmonic order l and radial orer n
       Return all radial order values in Vector
   */
-  void get_pot(Vector& vec, double x, int l, int which=1);
+  void get_pot(Eigen::VectorXd& vec, double x, int l, int which=1);
   /** Get density for dimensionless coord with harmonic order l and radial orer n
       Return all radial order values in Vector
   */
@@ -257,26 +252,26 @@ public:
 
 #endif
 
-  void get_dens(Vector& vec, double x, int l, int which=1);
+  void get_dens(Eigen::VectorXd& vec, double x, int l, int which=1);
   /** Get force for dimensionless coord with harmonic order l and radial orer n
       Return all radial order values in Vector
   */
-  void get_force(Vector& vec, double x, int l, int which=1);
+  void get_force(Eigen::VectorXd& vec, double x, int l, int which=1);
 
   /** Get potential for dimensionless coord with harmonic order l and radial order n
       Return Matrix with first dim harmonic order and second dim radial order
   */
-  void get_pot(Matrix& tab, double x, int which=1);
+  void get_pot(Eigen::MatrixXd& tab, double x, int which=1);
 
   /** Get density for dimensionless coord with harmonic order l and radial order n
       Return Matrix with first dim harmonic order and second dim radial order
   */
-  void get_dens(Matrix& tab, double x, int which=1);
+  void get_dens(Eigen::MatrixXd& tab, double x, int which=1);
 
   /** Get force for dimensionless coord with harmonic order l and radial order n
       Return Matrix with first dim harmonic order and second dim radial order
   */
-  void get_force(Matrix& tab, double x, int which=1);
+  void get_force(Eigen::MatrixXd& tab, double x, int which=1);
 
 };
 
@@ -292,10 +287,10 @@ private:
 
   double xmin, xmax, dxi;
 
-  Vector z;
-  Vector xi;
-  Vector p0;
-  Vector d0;
+  Eigen::VectorXd z;
+  Eigen::VectorXd xi;
+  Eigen::VectorXd p0;
+  Eigen::VectorXd d0;
 
   TableSlab** table;
 
@@ -372,31 +367,31 @@ public:
   /** Get potential for member for dimensionless coord with given wave numbers
       Return Vector for all indices
   */
-  void get_pot(Vector& vec, double x, int kx, int ky, int which=1);
+  void get_pot(Eigen::VectorXd& vec, double x, int kx, int ky, int which=1);
   /** Get density for dimensionless coord with given wave numbers
       Return Vector for all indices
   */
-  void get_dens(Vector& vec, double x, int kx, int ky, int which=1);
+  void get_dens(Eigen::VectorXd& vec, double x, int kx, int ky, int which=1);
   /** Get force for dimensionless coord with given wave numbers
       Return Vector for all indices
   */
-  void get_force(Vector& vec, double x, int kx, int ky, int which=1);
+  void get_force(Eigen::VectorXd& vec, double x, int kx, int ky, int which=1);
 
   /** Get potential for dimensionless coord with given wave numbers
       Return Matrix with first dimension containing x and y wavenumbers 
       packed with y index varying most quicly, second index is vertical order.
   */
-  void get_pot(Matrix& tab, double x, int which=1);
+  void get_pot(Eigen::MatrixXd& tab, double x, int which=1);
   /** Get density for dimensionless coord with given wave numbers
       Return Matrix with first dimension containing x and y wavenumbers 
       packed with y index varying most quicly, second index is vertical order.
   */
-  void get_dens(Matrix& tab, double x, int which=1);
+  void get_dens(Eigen::MatrixXd& tab, double x, int which=1);
   /** Get force for dimensionless coord with given wave numbers
       Return Matrix with first dimension containing x and y wavenumbers 
       packed with y index varying most quicly, second index is vertical order.
   */
-  void get_force(Matrix& tab, double x, int which=1);
+  void get_force(Eigen::MatrixXd& tab, double x, int which=1);
 
 };
 

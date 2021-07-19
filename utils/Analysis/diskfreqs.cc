@@ -51,18 +51,17 @@ namespace pt = boost::property_tree;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
+#include <numerical.H>
 #include "Particle.h"
 #include <PSP.H>
-#include <interp.h>
-#include <EmpCylSL.h>
+#include <interp.H>
+#include <EmpCylSL.H>
 #include <SphereSL.H>
 
 				// Local coefficient classes
 #include "Coefs.H"
 
-#include <localmpi.h>
+#include <localmpi.H>
 #include <foarray.H>
 
 const std::string overview = "Compute azimuthal and vertical disk frequencies from coefficients";
@@ -379,8 +378,8 @@ main(int argc, char **argv)
 
   if (outR and outZ) {
 
-    Matrix sphcoef(0, LMAX*(LMAX+2), 1, NMAX);
-    sphcoef.zero();		// Need this?
+    Eigen::MatrixXd sphcoef((LMAX+1)*(LMAX+1), NMAX);
+    sphcoef.setZero();		// Need this?
 
     // Radial grid points
     //
@@ -407,7 +406,7 @@ main(int argc, char **argv)
       // Set halo coefficients for l=m=0 only
       //
       auto itH = coefsH.find(t)->second;
-      for (int n=0; n<NMAX; n++) sphcoef[0][n+1] = itH->coefs[0][n];
+      for (int n=0; n<NMAX; n++) sphcoef(0, n) = itH->coefs[0][n];
       ortho_halo.install_coefs(sphcoef);
 
       for (auto r : rgrid) {

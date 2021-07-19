@@ -8,7 +8,7 @@ using namespace std;
 #include <sstream>
 #include <vector>
 
-#include <localmpi.h>
+#include <localmpi.H>
 
 //
 // MPI variables

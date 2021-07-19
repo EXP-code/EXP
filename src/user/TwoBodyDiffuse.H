@@ -8,9 +8,8 @@ using namespace std;
 #include <vector>
 #include <string>
 
-#include <gaussQ.h>
-#include <massmodel.h>
-#include <Vector.h>
+#include <gaussQ.H>
+#include <massmodel.H>
 
 /** Random walk of each orbit on energy surface
 

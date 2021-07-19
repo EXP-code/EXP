@@ -94,17 +94,17 @@ void CylindricalDisk::Initialize(double Rmin, double Rmax, bool logR,
 
   dRR = log(rmax) - log(rmin);
 
-  coefs = vector< Vector >(lmax+1);
+  coefs = vector< Eigen::VectorXd >(lmax+1);
   for (int l=0; l<=lmax; l++) {
-    coefs[l] = Vector(1, nmax);
-    coefs[l].zero();
+    coefs[l].resize(nmax);
+    coefs[l].setZero();
   }
   
   double theta, rho;
   double x, y, z, R;
-  Vector vec(1, nmax);
+  Eigen::VectorXd vec(nmax);
 
-  for (int i=1; i<=numr; i++) {
+  for (int i=0; i<numr; i++) {
 
     R = rmin*exp(dRR*lr.knot(i));
     

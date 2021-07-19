@@ -1,21 +1,12 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 //
 // Hunter's Legendre Models
 // 1964, MN, 129, 321
 //
 
 #ifndef _hunter_h
+#define _hunter_h
 
-#define _hunter_h 1
-
-static const char rcsid_hunter[] = "$Id$";
-
-#ifndef _Logic_
-#include <logic.h>
-#endif
-
-#include <massmodel.h>
+#include <massmodel.H>
 
 class HunterDisk : public AxiSymModel
 {

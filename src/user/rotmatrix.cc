@@ -1,8 +1,4 @@
-#include <stdlib.h>
-#include <math.h>
-
-#include <kevin_complex.h>
-
+#include <cmath>
 
 #define odd(x) ( (int)(x/2)*2 != x )
 #define sign(x) ( copysign(1.0, x) )
@@ -125,7 +121,7 @@ main(int argc, char **argv)
 #include <iostream>
 #include <iomanip>
 
-#include <gaussQ.h>
+#include <gaussQ.H>
 
 main(int argc, char **argv)
 {

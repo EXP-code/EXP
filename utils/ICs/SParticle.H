@@ -2,7 +2,7 @@
 #define _SParticle_H
 
 #include <Particle.H>
-#include <localmpi.h>
+#include <localmpi.H>
 
 /**
    An abbreviated particle class for transferring phase space between

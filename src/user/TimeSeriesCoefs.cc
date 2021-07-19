@@ -1,8 +1,10 @@
-#include <interp.h>
-#include <CVector.h>
-// #include <CMatrix.h>
-#include <massmodel.h>
-#include <biorth.h>
+#include <iostream>
+#include <fstream>
+#include <string>
+
+#include <interp.H>
+#include <massmodel.H>
+#include <biorth.H>
 #include <TimeSeriesCoefs.H>
 
 vector<double> TimeSeriesCoefs::compute_df(double smass, double lnL,
@@ -148,8 +150,8 @@ TimeSeriesCoefs::TimeSeriesCoefs(double Energy, double rperi, double rsoft,
 
   if (OUTFILE.size()) {
 
-    string file = OUTFILE + ".orbit";
-    ofstream out(file.c_str());
+    std::string file = OUTFILE + ".orbit";
+    std::ofstream out(file);
     if (out) {
       for (unsigned i=0; i<PS.size(); i++)
 	out << setw(18) << T[i]
@@ -166,25 +168,26 @@ TimeSeriesCoefs::TimeSeriesCoefs(double Energy, double rperi, double rsoft,
 
 void TimeSeriesCoefs::coefs(int L, int M, int Nmax, int NINT,
 			    AxiSymBiorth *t,
-			    vector<KComplex>& Freqs,
+			    vector<complex<double>>& Freqs,
 			    vector<double>& Times,
-			    vector<CMatrix>& coefs)
+			    vector<Eigen::MatrixXcd>& coefs)
 {
-  KComplex I(0.0, 1.0);
+  constexpr complex<double> I(0.0, 1.0);
 
 // ===================================================================
 // Do integrals: begin at Times[min]
 // ===================================================================
 
-  coefs = vector<CMatrix>(Times.size());
-  for (unsigned it=0; it<Times.size(); it++) {
-    coefs[it] = CMatrix(0, Freqs.size()-1, 1, Nmax);
-    coefs[it].zero();
+  coefs.resize(Times.size());
+  for (auto & v : coefs) {
+    v.resize(Freqs.size(), Nmax);
+    v.setZero();
   }
 
   LegeQuad lq(NINT);
-  Vector pt(1, Nmax);
-  CVector cpt;
+  Eigen::VectorXd pt(Nmax);
+  Eigen::VectorXcd cpt;
+
   double rr, pp, Tmin=Times.front(), Tmax=Times.back();
 
   for (unsigned it=0; it<Times.size(); it++) {
@@ -193,13 +196,13 @@ void TimeSeriesCoefs::coefs(int L, int M, int Nmax, int NINT,
       double Time = Tmin;
       while (Time<Tmax) {
 	double dT = min<double>(2.0*M_PI/fabs(Freqs[iv]), Tmax-Time);
-	for (int jt=1; jt<=NINT; jt++) {
+	for (int jt=0; jt<NINT; jt++) {
 	  double time = Time + dT*lq.knot(jt);
 	  rr = odd2(time, T, R);
 	  pp = odd2(time, T, PHI);
 	  t->potl(Nmax, L, rr, pt);
 	  cpt = pt;
-	  coefs[it][iv] += cpt * exp(I*Freqs[iv]*(tt-time)-I*pp*M) * 
+	  coefs[it].row(iv) += cpt * exp(I*Freqs[iv]*(tt-time)-I*pp*static_cast<double>(M)) * 
 	    dT*lq.weight(jt);
 	}
 	Time += dT;

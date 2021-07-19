@@ -1,17 +1,5 @@
-// This may look like C code, but it is really -*- C++ -*-
-
-const char rcsid_kalnajs[] = "$Id$";
-
-#ifndef _kalnajs_h
-
-#define _kalnajs_h 1
-
-#ifndef _Logic_
-#include <logic.h>
-#endif
-
-// class MassModel;
-// class DiskModel;
+#ifndef _kalnajs.H
+#define _kalnajs.H
 
 class KalnajsDisk : public AxiSymModel
 {

@@ -40,7 +40,7 @@
 
 #include <AxisymmetricBasis.H>
 #include <GravKernel.H>
-#include <massmodel.h>
+#include <massmodel.H>
 
 
 class Direct : public PotAccel

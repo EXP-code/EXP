@@ -2,8 +2,8 @@
 #ifndef _Shells_H
 #define _Shells_H
 
-#include "expand.h"
-#include "interp.h"
+#include "expand.H"
+#include "interp.H"
 
 /**
    Computes the potential, acceleration and density using spherical,
@@ -19,7 +19,7 @@
 
 /* provide an extended spherical model for point mass */
 #include <AxisymmetricBasis.H>
-#include <massmodel.h>
+#include <massmodel.H>
 
 class Shells : public PotAccel
 {

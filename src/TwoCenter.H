@@ -1,7 +1,7 @@
 #ifndef _TwoCenter_H
 #define _TwoCenter_H
 
-#include <SLGridMP2.h>
+#include <SLGridMP2.H>
 
 #include <CBrock.H>
 #include <Sphere.H>

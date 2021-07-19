@@ -1,6 +1,6 @@
-#include <expand.h>
+#include <expand.H>
 #include <global.H>
-#include <localmpi.h>
+#include <localmpi.H>
 #include <ExternalCollection.H>
 
 #include "UserTestCuda.H"

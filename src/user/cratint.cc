@@ -1,4 +1,3 @@
-// This is really C++ code
 /*****************************************************************************
  *  Description:
  *  -----------
@@ -29,30 +28,30 @@
  ***************************************************************************/
 
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <Vector.h>
-#include <kevin_complex.h>
-#include "cpoly.h"
+#include <cstdlib>
+#include <iostream>
+#include <iomanip>
+
+#include "cpoly.H"
 
 extern "C" {
   void fpeinit(int);
 }
 
 int parse_args(int, char **);
-CVector Cget_horner(KComplex z, CPoly &p);
-KComplex compute_rat_integral(double a, double b,CVector& x_data, CVector& y_data);
-KComplex integral_pole_contribution(double a, double b, KComplex root, int mult,
+Eigen::VectorXcd Cget_horner(std::complex<double> z, CPoly &p);
+std::complex<double> compute_rat_integral(double a, double b,Eigen::VectorXcd& x_data, Eigen::VectorXcd& y_data);
+std::complex<double> integral_pole_contribution(double a, double b, std::complex<double> root, int mult,
 				    CPoly &n, CPoly &d);
 void Csyn_poly_div(CPoly &p1, CPoly &p2, CPoly &Quotient, CPoly &Remainder);
-void make_tableau(CVector& x, CVector& y, CMatrix &m);
-void print_tableau(CMatrix& m);
-KComplex get_rat(KComplex x, CVector& numer, CVector& denom);
-void gen_coefs(CPoly& numer, CPoly& denom, CVector& x_data, CMatrix& m);
-void renorm_coef(CVector& x1, CVector& y1, CVector& x2, CVector& y2);
-void strike_entry1(CVector& rrn, int i, int& irn);
-CVector get_multiplicity(CVector &rrn, int &dim, int *nmult);
-void zroots(CVector& a, CVector& roots, int polish);
+void make_tableau(Eigen::VectorXcd& x, Eigen::VectorXcd& y, Eigen::MatrixXcd &m);
+void print_tableau(Eigen::MatrixXcd& m);
+std::complex<double> get_rat(std::complex<double> x, Eigen::VectorXcd& numer, Eigen::VectorXcd& denom);
+void gen_coefs(CPoly& numer, CPoly& denom, Eigen::VectorXcd& x_data, Eigen::MatrixXcd& m);
+void renorm_coef(Eigen::VectorXcd& x1, Eigen::VectorXcd& y1, Eigen::VectorXcd& x2, Eigen::VectorXcd& y2);
+void strike_entry1(Eigen::VectorXcd& rrn, int i, int& irn);
+Eigen::VectorXcd get_multiplicity(Eigen::VectorXcd &rrn, int &dim, std::vector<int>& nmult);
+void zroots(Eigen::VectorXcd& a, Eigen::VectorXcd& roots, int polish);
 
 static double DEPS=0.01;
 const double SMALL=1.0e-12;
@@ -66,25 +65,24 @@ void rat_integral_set_parameters(double eps, int idbg)
 }
 
 
-KComplex compute_rat_integral(double a, double b, CVector& x_data, CVector& y_data)
+std::complex<double> compute_rat_integral(double a, double b,
+					  Eigen::VectorXcd& x_data,
+					  Eigen::VectorXcd& y_data)
 {
-  int i;
-  
-  int min = x_data.getlow();
-  int max = x_data.gethigh();
+  int sz = x_data.size();
   
   // Check for constant (including zero) integrand
   
-  i = min;
-  KComplex val = y_data[i++];
-  while(i<=max) {
+  int i = 0;
+  std::complex<double> val = y_data[i++];
+  while(i<sz) {
     if (fabs(val-y_data[i++]) > SMALL) break;
   }
-  if (i>y_data.gethigh()) {
+  if (i>y_data.size()) {
     return val * (b-a);
   }
   
-  CMatrix m(min-1, max-1, min-1, max-1);
+  Eigen::MatrixXcd m(sz, sz);
   make_tableau(x_data, y_data, m);
   
   // print_tableau(m);
@@ -92,28 +90,36 @@ KComplex compute_rat_integral(double a, double b, CVector& x_data, CVector& y_da
   CPoly Numer, Denom;
   gen_coefs(Numer, Denom, x_data, m);
   
-  CVector rd(1, Denom.gethigh());
+  Eigen::VectorXcd rd(Denom.size());
   zroots(Denom, rd, 0);
   zroots(Denom, rd, 1);
   
   if (IDBG) {
-    printf("\nNumerator coefficients:\n");
-    for (i=Numer.getlow(); i<=Numer.gethigh(); i++)
-      printf("%d  %e  %e\n", i, Numer[i].real(), Numer[i].imag());
+    std::cout << "\nNumerator coefficients:" << std::endl;
+    for (int i=0; i<Numer.size(); i++) 
+      std::cout << std::setw(10) << i
+		<< std::setw(16) << Numer[i].real()
+		<< std::setw(16) << Numer[i].imag()
+		<< std::endl;
     
-    printf("\nDenomator coefficients:\n");
-    for (i=Denom.getlow(); i<=Denom.gethigh(); i++)
-      printf("%d  %e  %e\n", i, Denom[i].real(), Denom[i].imag());
+    std::cout << std::endl << "Denomator coefficients:" << std::endl;
+    for (int i=0; i<Denom.size(); i++)
+      std::cout << std::setw(10) << i
+		<< std::setw(16) << Denom[i].real()
+		<< std::setw(16) << Denom[i].imag()
+		<< std::endl;
     
-    printf("\nRoots:\n");
-    for (i=1; i<=rd.gethigh(); i++)
-      printf("%d  %e  %e\n", i, rd[i].real(), rd[i].imag());
-    
+    std::cout << std::endl << "Roots:" << std::endl;
+    for (int i=0; i<rd.size(); i++)
+      std::cout << std::setw(10) << i
+		<< std::setw(16) << rd[i].real()
+		<< std::setw(16) << rd[i].imag()
+		<< std::endl;
   }
   
-  int *dmult = new int[rd.gethigh()] - 1;
-  int rdmax = rd.gethigh();
-  CVector rrdu = get_multiplicity(rd, rdmax, dmult);
+  int rdsize = rd.size();
+  std::vector<int> dmult(rdsize);
+  Eigen::VectorXcd rrdu = get_multiplicity(rd, rdsize, dmult);
   
   // For principal value evaluation
   
@@ -123,15 +129,16 @@ KComplex compute_rat_integral(double a, double b, CVector& x_data, CVector& y_da
   
   // Evaluate integral
   
-  KComplex ans = 0.0;
-  for (i=1; i<=rrdu.gethigh(); i++) {
+  std::complex<double> ans = 0.0;
+  for (int i=0; i<rrdu.size(); i++) {
     ans += integral_pole_contribution(a, b, rrdu[i], dmult[i], numr, Denom);
     if (IDBG) {
-      printf("%2d** ",i);  
-      ans.print();
+      std::cout << std::setw(4) << i
+		<< std::setw(16) << ans.real()
+		<< std::setw(16) << ans.imag()
+		<< std::endl;
     }
   }
-  delete [] (dmult+1);
   
   monad[0] = 0.0;
   monad[1] = 1.0;
@@ -144,11 +151,11 @@ KComplex compute_rat_integral(double a, double b, CVector& x_data, CVector& y_da
 
 
 
-KComplex integral_pole_contribution(double a, double b, KComplex root, int mult,
+std::complex<double> integral_pole_contribution(double a, double b, std::complex<double> root, int mult,
 				    CPoly &n, CPoly &d)
 {
   int i;
-  KComplex t1, t2, ans=0.0, c1, c2;
+  std::complex<double> t1, t2, ans=0.0, c1, c2;
   CPoly denom = d;
   
   monad[0] = -root;
@@ -168,10 +175,10 @@ KComplex integral_pole_contribution(double a, double b, KComplex root, int mult,
     c1 = pow(t1, -mult);
     c2 = pow(t2, -mult);
     
-    for (i=mult; i>1; i--) {
+    for (int i=mult-1; i>0; i--) {
       c1 *= t1;
       c2 *= t2;
-      ans += q[mult-i]*(c2 - c1)/(1-i);
+      ans += q[mult-i]*(c2 - c1)/static_cast<double>(-i);
     }
   }
   
@@ -181,18 +188,19 @@ KComplex integral_pole_contribution(double a, double b, KComplex root, int mult,
 }
 
 
-CVector get_multiplicity(CVector &rrn, int &dim, int *nmult)
+Eigen::VectorXcd get_multiplicity(Eigen::VectorXcd &rrn, int &dim,
+				  std::vector<int> &nmult)
 {
-  int i, j, icnt;
+  int icnt;
   
-  CVector tmp = rrn;
+  Eigen::VectorXcd tmp = rrn;
   int irn = dim;
   
-  for (i=1; i<=irn; i++) {
+  for (int i=0; i<irn; i++) {
     
     icnt = 1;
     if (i!=irn) {
-      for (j=i+1; j<=irn; j++) {
+      for (int j=i+1; j<irn; j++) {
 	if ( fabs(tmp[i] - tmp[j]) < DEPS*(fabs(tmp[i])+fabs(tmp[j])) ) {
 	  strike_entry1(tmp, j, irn);
 	  icnt++;
@@ -202,80 +210,75 @@ CVector get_multiplicity(CVector &rrn, int &dim, int *nmult)
     nmult[i] = icnt;
   }
   
-  CVector ans(1,irn);
-  for (i=1; i<=irn; i++) ans[i] = tmp[i];
+  Eigen::VectorXcd ans(irn);
+  for (int i=0; i<irn; i++) ans[i] = tmp[i];
   
   return ans;
 }
 
 
-void strike_entry1(CVector& rrn, int i, int& irn)
+void strike_entry1(Eigen::VectorXcd& rrn, int i, int& irn)
 {
-  int k;
-  
-  for (k=i; k<irn; k++) rrn[k] = rrn[k+1];
+  for (int k=i; k<irn; k++) rrn[k] = rrn[k+1];
   irn--;
 }
 
 // Divided differences
 
-void make_tableau(CVector& x, CVector& y, CMatrix &m)
+void make_tableau(Eigen::VectorXcd& x, Eigen::VectorXcd& y, Eigen::MatrixXcd &m)
 {
-  int i,j;
-  int min = x.getlow()-1;
-  int max = x.gethigh()-1;
+  int sz = x.size()-1;
   
-  m.zero();
+  m.setZero();
   
-  for (j=min; j<=max; j++)
-    m[min][j] = y[j+1];
+  for (int j=0; j<sz; j++)
+    m(0, j) = y[j+1];
   
-  for (i=min+1; i<=max; i++) {
-    for (j=i; j<=max; j++)
-      m[i][j] = (x[i] - x[j+1])/(m[i-1][i-1] - m[i-1][j]);
+  for (int i=1; i<sz; i++) {
+    for (int j=i; j<sz; j++)
+      m(i, j) = (x[i] - x[j+1])/(m(i-1, i-1) - m(i-1, j));
   }
   
 }
 
-void print_tableau(CMatrix& m)
+void print_tableau(Eigen::MatrixXcd& m)
 {
-  int i,j;
-  int min = m.getrlow();
-  int max = m.getrhigh();
+  int sz = m.rows();
   
-  for (j=min; j<=max; j++) {
-    for (i=min; i<=j; i++)
-      printf("  (%15.6e, %15.6e)",m[i][j].real(), m[i][j].imag());
-    printf("\n");
+  for (int j=0; j<sz; j++) {
+    for (int i=0; i<=j; i++)
+      std::cout << "(" << std::setw(16) << m(i, j).real()
+		<< "," << std::setw(16) << m(i, j).imag()
+		<< ")";
+    std::cout << std::endl;
   }
 }
 
-KComplex gen_fct(KComplex x, CVector& x_data, CMatrix& m)
+std::complex<double> gen_fct(std::complex<double> x, Eigen::VectorXcd& x_data, Eigen::MatrixXcd& m)
 {
-  int min = x_data.getlow();
-  int max = x_data.gethigh();
+  int sz = x_data.size();
   
   // Recursion
   
-  KComplex q, ql, qll, p, pl, pll;
+  std::complex<double> q, ql, qll, p, pl, pll;
   
-  int cur = min;		// Initialization
+  int cur = 0;		// Initialization
   
-  pll = m[cur][cur];
+  pll = m(cur, cur);
   qll = 1.0;
   cur++;
   
-  pl = pll*m[cur][cur] + x - x_data[cur];
-  ql = m[cur][cur];
+  pl = pll*m(cur, cur) + x - x_data(cur);
+  ql = m(cur, cur);
   cur++;
   
   
-  while (cur<=max) {
+  while (cur<sz) {
     // Get next Q
-    q = m[cur][cur]*ql + (x - x_data[cur])*qll;
+    q = m(cur, cur)*ql + (x - x_data[cur])*qll;
     
     // Get next P
-    p = m[cur][cur]*pl + (x - x_data[cur])*pll;
+    p = m(cur, cur)*pl + (x - x_data[cur])*pll;
     
     qll = ql;
     ql = q;
@@ -287,48 +290,49 @@ KComplex gen_fct(KComplex x, CVector& x_data, CMatrix& m)
   return p/q;
 }
 
-void gen_coefs(CPoly& numer, CPoly& denom, CVector& x_data, CMatrix& m)
+void gen_coefs(CPoly& numer, CPoly& denom,
+	       Eigen::VectorXcd& x_data, Eigen::MatrixXcd& m)
 {
   
   // Initialize coefficient vectors
-  int max = m.getrhigh();
+  int max = m.size();
   int ndim = (max+1)/2;
   int ddim = max/2;
   numer = CPoly(ndim);
   denom = CPoly(ddim);
   
-  CVector numer_l = numer;
-  CVector numer_ll = numer;
-  CVector denom_l = denom;
-  CVector denom_ll = denom;
+  Eigen::VectorXcd numer_l = numer;
+  Eigen::VectorXcd numer_ll = numer;
+  Eigen::VectorXcd denom_l = denom;
+  Eigen::VectorXcd denom_ll = denom;
   
   // Begin recursion
   
   int i;
   int cur = 0;
   
-  numer_ll[0] = m[cur][cur];	
+  numer_ll[0] = m(cur, cur);	
   denom_ll[0] = 1.0;
   cur++;
   
-  numer_l[0] = numer_ll[0]*m[cur][cur] - x_data[cur];
+  numer_l[0] = numer_ll[0]*m(cur, cur) - x_data[cur];
   numer_l[1] = 1.0;
-  denom_l[0] = m[cur][cur];
+  denom_l[0] = m(cur, cur);
   cur++;
   
   while (cur<=max) {
     // Get next Q
     
-    denom[0] = m[cur][cur]*denom_l[0] - x_data[cur]*denom_ll[0];
+    denom[0] = m(cur, cur)*denom_l[0] - x_data[cur]*denom_ll[0];
     for (i=1; i<=cur/2; i++)
-      denom[i] = m[cur][cur]*denom_l[i] + denom_ll[i-1] - 
+      denom[i] = m(cur, cur)*denom_l[i] + denom_ll[i-1] - 
 	x_data[cur]*denom_ll[i];
     
     // Get next P
     
-    numer[0] = m[cur][cur]*numer_l[0] - x_data[cur]*numer_ll[0];
+    numer[0] = m(cur, cur)*numer_l[0] - x_data[cur]*numer_ll[0];
     for (i=1; i<=(cur+1)/2; i++)
-      numer[i] = m[cur][cur]*numer_l[i] + numer_ll[i-1] - 
+      numer[i] = m(cur, cur)*numer_l[i] + numer_ll[i-1] - 
 	x_data[cur]*numer_ll[i];
     
     denom_ll = denom_l;
@@ -342,30 +346,24 @@ void gen_coefs(CPoly& numer, CPoly& denom, CVector& x_data, CMatrix& m)
   
 }
 
-void renorm_coef(CVector& x1, CVector& y1, CVector& x2, CVector& y2)
+void renorm_coef(Eigen::VectorXcd& x1, Eigen::VectorXcd& y1, Eigen::VectorXcd& x2, Eigen::VectorXcd& y2)
 {
-  int minx = x1.getlow();
-  int maxx = x1.gethigh();
-  int miny = y1.getlow();
-  int maxy = y1.gethigh();
+  int sizx = x1.size();
+  int sizy = y1.size();
   
-  int i;
-  
-  double ymax = fabs(y1[miny]);
+  double ymax = fabs(y1[0]);
   double ytmp;
-  for (i=miny+1; i<=maxy; i++) {
+  for (int i=1; i<sizy; i++) {
     ytmp = fabs(y1[i]);
     if (ytmp <= 1.0e-10) continue;
     if (ytmp > ymax) ymax = ytmp;
   }
   
-  //  printf("Ymax=%e\n",ymax);
-  
-  for (i=minx; i<=maxx; i++) {
+  for (int i=0; i<sizx; i++) {
     x1[i] /= ymax;
     x2[i] /= ymax;
   }
-  for (i=miny; i<=maxy; i++) {
+  for (int i=0; i<sizy; i++) {
     y1[i] /= ymax;
     y2[i] /= ymax;
   }

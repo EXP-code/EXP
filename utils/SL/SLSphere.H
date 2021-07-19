@@ -1,11 +1,8 @@
 #ifndef _SLSphere_H
 #define _SLSphere_H
 
-static const char rcsid_SLSphere[] = "$Id$";
-
-
-#include <biorth.h>
-#include <SLGridMP2.h>
+#include <biorth.H>
+#include <SLGridMP2.H>
 
 class SLSphere : public AxiSymBiorth
 {
@@ -43,12 +40,12 @@ public:
   }
 				// Fast for expansion! 
 				// (using recursion relation)
-  void potl(const int nmax, const int l, const double r, Vector& vec)
+  void potl(const int nmax, const int l, const double r, Eigen::VectorXd& vec)
   {
     ortho->get_pot(vec, r, l, 1);
   }
 
-  void dens(const int nmax, const int l, const double r, Vector& vec)
+  void dens(const int nmax, const int l, const double r, Eigen::VectorXd& vec)
   {
     ortho->get_dens(vec, r, l, 1);
 

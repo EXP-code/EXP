@@ -9,9 +9,8 @@
 *                    port to C++ 02/15/94
 **************************************************************************/
 
-#include <math.h>
-#include <Vector.h>
-#include <numerical.h>
+#include <cmath>
+#include <numerical.H>
 
 #define STEPS 40
 #define TOL 1.0e-10
@@ -23,16 +22,15 @@ static double zbess(double z)
   return jn(NN, z)*NN/z - jn(NN+1, z);
 }
 
-Vector bessjz(int n, int m)
+Eigen::VectorXd bessjz(int n, int m)
 {
   double z,dz,zl,f,fl;
-  int i;
 
-  Vector a(1, m);
+  Eigen::VectorXd a(m);
 
   NN = n;
   dz = M_PI/STEPS;
-  for (i=1, zl=z=1.0e-8, fl=zbess(z); i<=m; i++) {
+  for (int i=0, zl=z=1.0e-8, fl=zbess(z); i<m; i++) {
     z += dz;
     f = zbess(z);
     while (f*fl>0) {

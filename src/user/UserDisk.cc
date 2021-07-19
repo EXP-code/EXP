@@ -1,8 +1,8 @@
 #include <math.h>
 #include <sstream>
 
-#include "expand.h"
-#include <gaussQ.h>
+#include "expand.H"
+#include <gaussQ.H>
 
 #include <UserDisk.H>
 

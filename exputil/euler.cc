@@ -6,9 +6,7 @@
  *
  *  Call sequence:
  *  -------------
- *  include <Vector.h>
- *
- *  Matrix return_euler(double PHI, double THETA, double PSI, int BODY);
+ *  Eigen::Matrix3d return_euler(double PHI, double THETA, double PSI, int BODY);
  *
  *  Euler angles: PHI, THETA, PSI
  *
@@ -40,18 +38,18 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <math.h>
-#include <Vector.h>
+#include <Eigen/Eigen>
 
 // #define TEST for test program
 
-Matrix return_euler(double PHI, double THETA, double PSI, int BODY);
+Eigen::MatrixXd return_euler(double PHI, double THETA, double PSI, int BODY);
 
 
-Matrix return_euler(double PHI, double THETA, double PSI, int BODY)
+Eigen::MatrixXd return_euler(double PHI, double THETA, double PSI, int BODY)
 {
   double sph, cph, sth, cth, sps, cps;
 
-  Matrix euler(1, 3, 1, 3);
+  Eigen::MatrixXd euler(3, 3);
 
   sph = sin(PHI);
   cph = cos(PHI);
@@ -62,32 +60,32 @@ Matrix return_euler(double PHI, double THETA, double PSI, int BODY)
   
   if (BODY) {
 
-    euler[1][1] =  cps*cph - cth*sph*sps;
-    euler[2][1] =  cps*sph + cth*cph*sps;
-    euler[3][1] =  sps*sth;
+    euler(0, 0) =  cps*cph - cth*sph*sps;
+    euler(1, 0) =  cps*sph + cth*cph*sps;
+    euler(2, 0) =  sps*sth;
     
-    euler[1][2] = -sps*cph - cth*sph*cps;
-    euler[2][2] = -sps*sph + cth*cph*cps;
-    euler[3][2] =  cps*sth;
+    euler(0, 1) = -sps*cph - cth*sph*cps;
+    euler(1, 1) = -sps*sph + cth*cph*cps;
+    euler(2, 1) =  cps*sth;
   
-    euler[1][3] =  sth*sph;
-    euler[2][3] = -sth*cph;
-    euler[3][3] =  cth;
+    euler(0, 2) =  sth*sph;
+    euler(1, 2) = -sth*cph;
+    euler(2, 2) =  cth;
 
   }
   else {
     
-    euler[1][1] =  cps*cph - cth*sph*sps;
-    euler[1][2] =  cps*sph + cth*cph*sps;
-    euler[1][3] =  sps*sth;
+    euler(0, 0) =  cps*cph - cth*sph*sps;
+    euler(0, 1) =  cps*sph + cth*cph*sps;
+    euler(0, 2) =  sps*sth;
       
-    euler[2][1] = -sps*cph - cth*sph*cps;
-    euler[2][2] = -sps*sph + cth*cph*cps;
-    euler[2][3] =  cps*sth;
+    euler(1, 0) = -sps*cph - cth*sph*cps;
+    euler(1, 1) = -sps*sph + cth*cph*cps;
+    euler(1, 2) =  cps*sth;
       
-    euler[3][1] =  sth*sph;
-    euler[3][2] = -sth*cph;
-    euler[3][3] =  cth;
+    euler(2, 0) =  sth*sph;
+    euler(2, 1) = -sth*cph;
+    euler(2, 2) =  cth;
     
   }
 

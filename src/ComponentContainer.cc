@@ -2,7 +2,7 @@
   Compute accelerations, potential, and density.
 */
 
-#include <expand.h>
+#include <expand.H>
 
 #include <vector>
 

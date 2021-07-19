@@ -1,4 +1,4 @@
-#include <localmpi.h>
+#include <localmpi.H>
 #include <EllipsoidForce.H>
 #include <ZBrent.H>
 

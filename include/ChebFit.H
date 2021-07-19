@@ -1,27 +1,23 @@
-// -*- C++ -*-
-
 //
 // Chebyshev fitting and smoothing class
 //
 
+#ifndef _ChebFit_H
+#define _ChebFit_H
 
-#ifndef _ChebFit_h
-
-#define _ChebFit_h 1
-
-class Vector;
+#include <Eigen/Eigen>
 
 class ChebFit
 {
 private:
   int n;
   double a, b;
-  Vector c;
-  Vector c1;
-  Vector c2;
+  Eigen::VectorXd c;
+  Eigen::VectorXd c1;
+  Eigen::VectorXd c2;
   
-  void chder(Vector& cin, Vector& cder);
-  double chebev(double x, Vector& cin);
+  void chder(Eigen::VectorXd& cin, Eigen::VectorXd& cder);
+  double chebev(double x, Eigen::VectorXd& cin);
 
   bool rcheck;
   bool defined;
@@ -30,8 +26,8 @@ public:
 				// Constructors
   
   ChebFit(void) : rcheck(true), defined(false) {};
-  ChebFit(double A, double B, Vector& X, Vector &Y, int N);
-  ChebFit(Vector &X, Vector &Y, int N);
+  ChebFit(double A, double B, Eigen::VectorXd& X, Eigen::VectorXd &Y, int N);
+  ChebFit(Eigen::VectorXd &X, Eigen::VectorXd &Y, int N);
 
 				// Member functions
 
@@ -39,7 +35,7 @@ public:
   void range_check_off() { rcheck = false; }
   void new_limits(double A, double B);
   void new_func(double (*func)(double), double A, double B, int N);
-  void new_data(Vector &X, Vector &Y, int N);
+  void new_data(Eigen::VectorXd &X, Eigen::VectorXd &Y, int N);
 
   double eval(double x) 
   {if (defined) return chebev(x, c ); else bomb("no data!"); return 0.0;}

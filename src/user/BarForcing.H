@@ -1,8 +1,7 @@
 // This may look like C code, but it is really -*- C++ -*-
 
 #ifndef _BarForcing_H
-
-#define _BarForcing_H 1
+#define _BarForcing_H
 
 #include "Perturbation.H"
 

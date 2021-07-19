@@ -1,6 +1,6 @@
 #include <cstdlib>
 #include <iostream>
-#include <numerical.h>
+#include <numerical.H>
 
 using namespace std;
 

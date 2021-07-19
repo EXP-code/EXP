@@ -1,6 +1,6 @@
 
 #ifndef STANDALONE
-#include "expand.h"
+#include "expand.H"
 #else
 #include <iostream>
 #include <iomanip>

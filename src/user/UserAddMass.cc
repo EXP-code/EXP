@@ -3,8 +3,8 @@
 #include <fstream>
 #include <numeric>
 
-#include "expand.h"
-#include <localmpi.h>
+#include "expand.H"
+#include <localmpi.H>
 
 #include <ACG.h>
 #include <Uniform.h>

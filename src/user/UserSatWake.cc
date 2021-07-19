@@ -9,23 +9,23 @@
 #include <map>
 #include <string>
 
-#include <kevin_complex.h>
-#include <Vector.h>
-#include <orbit.h>
-#include <massmodel.h>
-#include <biorth2d.h>
-#include <clinalg.h>
-#include <interp.h>
+#include <orbit.H>
+#include <massmodel.H>
+#include <biorth2d.H>
+#include <interp.H>
 
-#include <RespMat3.h>
-#include <model3d.h>
-#include <sphereSL.h>
+#include <RespMat3.H>
+#include <model3d.H>
+#include <sphereSL.H>
 #include <TimeSeriesCoefs.H>
 
-#include "expand.h"
+#include "expand.H"
 
 #include <UserSatWake.H>
 
+void VectorXcdSynchronize(Eigen::VectorXcd& mat, int id);
+void MatrixXcdSynchronize(Eigen::MatrixXcd& mat, int id);
+void ComplexSynchronize(std::complex<double>& c, int id);
 
 inline bool isEven (int i)
 {
@@ -114,7 +114,7 @@ UserSatWake::UserSatWake(const YAML::Node& conf) : ExternalForce(conf)
 
   // Constants
   //
-  I 		= KComplex(0.0, 1.0);
+  I 		= std::complex<double>(0.0, 1.0);
   rtol 		= 1.0e-2;
 
   // Default component for center
@@ -228,7 +228,7 @@ void UserSatWake::userinfo()
   cout << setw(9) << "" << setw(15) << "Circ"	<< " = " << Circ	<< endl;
   cout << setw(50) << setfill('-') << '-' << endl << setfill(' ');
 
-  I = KComplex(0.0, 1.0);
+  I = std::complex<double>(0.0, 1.0);
   rtol = 1.0e-2;
 
   ctr_name = "";		// Default component for center
@@ -317,7 +317,7 @@ void UserSatWake::initialize_coefficients()
   //==========================
   
   const int id  = 0x12;
-  KComplex       omp_halo;
+  std::complex<double>       omp_halo;
   
   //=================
   // Sanity checks
@@ -390,10 +390,10 @@ void UserSatWake::initialize_coefficients()
   
   vector< vector<RespMat> > total;
 
-  vector<KComplex> freqs(nfreqs);
+  vector<std::complex<double>> freqs(nfreqs);
   double dOmega = 2.0*MaxOm/(nfreqs-1);
   for (int k=0; k<nfreqs; k++)
-    freqs[k] = KComplex(-MaxOm + dOmega*k, OMPI);
+    freqs[k] = std::complex<double>(-MaxOm + dOmega*k, OMPI);
 
   if (myid==0) {
     cout << "Max(Omega)=" << MaxOm  << endl
@@ -412,8 +412,8 @@ void UserSatWake::initialize_coefficients()
   //
   // This is a map of maps . . . a nice way to make sparse matrix
   //
-  map< int, map<int, vector<CMatrix> > > coefs;
-  CVector tcoefs;
+  std::map< int, std::map<int, std::vector<Eigen::MatrixXcd> > > coefs;
+  Eigen::VectorXcd tcoefs;
   int icnt;
   
   // ===================================================================
@@ -463,10 +463,9 @@ void UserSatWake::initialize_coefficients()
       if (MMAX   != mmax1 ) reading = 0;
 
       if (reading) {
-	KComplex tmp;
+	std::complex<double> tmp;
 	for (int i=0; i<nfreqs; i++) {
-	  from_save.read((char *)&tmp.real(), sizeof(double));
-	  from_save.read((char *)&tmp.imag(), sizeof(double));
+	  from_save.read((char *)&tmp, sizeof(std::complex<double>));
 	  if (fabs(tmp - freqs[i])>1.0e-10) reading = 0;
 	}
       }
@@ -505,10 +504,9 @@ void UserSatWake::initialize_coefficients()
     from_save.read((char *)&mmin1,  sizeof(int));
     from_save.read((char *)&mmax1,  sizeof(int));
 
-    KComplex tmp;
+    std::complex<double> tmp;
     for (int i=0; i<nfreqs; i++) {
-      from_save.read((char *)&tmp.real(), sizeof(double));
-      from_save.read((char *)&tmp.imag(), sizeof(double));
+      from_save.read((char *)&tmp, sizeof(std::complex<double>));
     }
   }
     
@@ -527,8 +525,8 @@ void UserSatWake::initialize_coefficients()
     cout << "ID string: " << stime<< endl;
     
     to_save.write((const char *)&id, sizeof(int));
-    char tbuf[255];
-    strncpy(tbuf, stime.c_str(), 255);
+    char tbuf[255]; tbuf[254] = 0;
+    strncpy(tbuf, stime.c_str(), 254);
     to_save.write(tbuf, 255);
     
     to_save.write((const char *)&nfreqs, sizeof(int));
@@ -538,8 +536,7 @@ void UserSatWake::initialize_coefficients()
     to_save.write((const char *)&MMAX,   sizeof(int));
 
     for (int i=0; i<nfreqs; i++) {
-      to_save.write((const char *)&freqs[i].real(), sizeof(double));
-      to_save.write((const char *)&freqs[i].imag(), sizeof(double));
+      to_save.write((const char *)&freqs[i], sizeof(std::complex<double>));
     }
   }
 
@@ -556,7 +553,7 @@ void UserSatWake::initialize_coefficients()
 
       int id = icnt++ % numprocs;
       if (id == myid) {
-	Coefs.coefs(L, L2, nmax, nint, u, freqs, Times,  coefs[L][L2]);
+	Coefs.coefs(L, L2, nmax, nint, u, freqs, Times, coefs[L][L2]);
       }
     }
   }
@@ -577,18 +574,18 @@ void UserSatWake::initialize_coefficients()
 
       if (id==myid) {
 	for (unsigned j=0; j<sz; j++)
-	  CMatrixSynchronize(coefs[L][L2][j], id);
+	  MatrixXcdSynchronize(coefs[L][L2][j], id);
       } else {
-	CMatrix tmp;
+	Eigen::MatrixXcd tmp;
 	for (unsigned j=0; j<sz; j++) {
-	  CMatrixSynchronize(tmp, id);
+	  MatrixXcdSynchronize(tmp, id);
 	  coefs[L][L2].push_back(tmp);
 	}
       }
       
-      if (myid==0) cout << "    L2=" << L2 << " rows=[" 
-			<< coefs[L][L2][0].getrlow()  << ", " 
-			<< coefs[L][L2][0].getrhigh() << "]" << endl;
+      if (myid==0) cout << "    L2=" << L2 << " [rows, cols]=[" 
+			<< coefs[L][L2][0].rows()  << ", " 
+			<< coefs[L][L2][0].cols() << "]" << endl;
     }
   }
 
@@ -601,7 +598,7 @@ void UserSatWake::initialize_coefficients()
   PSI     *= M_PI/180.0;
   PHIP    *= M_PI/180.0;
   
-  KComplex I(0.0, 1.0);
+  std::complex<double> I(0.0, 1.0);
   
   for (int L=LMIN; L<=LMAX; L++) {
     int mmin;
@@ -711,16 +708,17 @@ void UserSatWake::initialize_coefficients()
   // Compute the time series of response vectors
   // ===================================================================
   
-  ofstream tlog;
+  std::ofstream tlog;
   if (myid==0) tlog.open((outdir + runtag + ".satwake.timelog").c_str());
   
-  CVector tmp(1, nmax); tmp.zero();
+  Eigen::VectorXcd tmp(nmax);
+  tmp.setZero();
 
   //
   // All the time slices for each (L,M) pair
   //
 
-  rcoefs = vector< vector<CVector> >(NUMT+1);
+  rcoefs.resize(NUMT+1);
   for (int nt=0; nt<=NUMT; nt++) {
     for (int ihalo=0; ihalo<Nhalo; ihalo++)
       rcoefs[nt].push_back(tmp);
@@ -730,7 +728,7 @@ void UserSatWake::initialize_coefficients()
   // For interpolation in compute_coefficients()
   //
 
-  curcoefs = vector<CVector>(Nhalo);
+  curcoefs = vector<Eigen::VectorXcd>(Nhalo);
   for (int ihalo=0; ihalo<Nhalo; ihalo++)
     curcoefs.push_back(tmp);
 
@@ -764,7 +762,7 @@ void UserSatWake::initialize_coefficients()
 	  // 
 	  // Truncate satellite coefficients
 	  //
-	  tcoefs = coefs[L][L2][nt][nf];
+	  tcoefs = coefs[L][L2][nt];
 	  if (HALO_TRUNC>0) {
 	    for (int n=HALO_TRUNC+1; n<=nmax; n++) tcoefs[n] = 0.0;
 	  }
@@ -781,10 +779,12 @@ void UserSatWake::initialize_coefficients()
 	  tcoefs *= 4.0*M_PI * dup * sqrt( (0.5*L + 0.25)/M_PI *
             exp(lgamma(1.0+L-abs(L2)) - lgamma(1.0+L+abs(L2))) ) *
             plgndr(L, abs(L2), 0.0) * 
-            rot_matrix(L, M, L2, INCLINE) * exp(I*L2*PSI)*exp(I*M*PHIP) ;
-	  //                  ^                    ^
-	  //                  |                    |
-	  //                  |                    |
+            rot_matrix(L, M, L2, INCLINE) *
+	    exp(I*static_cast<double>(L2)*PSI) *
+	    exp(I*static_cast<double>(M)*PHIP) ;
+	  //  ^
+	  //  |
+	  //  |
 	  //  Rotate component to spherical harmonic in new orientation
 	  //
 	  
@@ -820,7 +820,7 @@ void UserSatWake::initialize_coefficients()
     
     for (int ihalo=0; ihalo<Nhalo; ihalo++) {
       int id = icnt++ % numprocs;
-      CVectorSynchronize(rcoefs[nt][ihalo], id);
+      VectorXcdSynchronize(rcoefs[nt][ihalo], id);
     }
 
   }
@@ -892,7 +892,7 @@ void * UserSatWake::determine_acceleration_and_potential_thread(void * arg)
 
   double pos[3], rr, r, x, y, z, phi, costh, pot0, pot1, dpot;
   double potr, potl, pott, potp, R2, fac, Ylm, dYlm;
-  Vector f, g;
+  Eigen::VectorXd f, g;
   
   PartMapItr it = cC->Particles().begin();
 
@@ -935,8 +935,9 @@ void * UserSatWake::determine_acceleration_and_potential_thread(void * arg)
 	Ylm = fac * plgndr(L, M, costh);
 	dYlm = fac * dplgndr(L, M, costh);
 
-	f = Re( exp(I*phi*M) * curcoefs[ihalo] );
-	g = Re( I*M*exp(I*phi*M) * curcoefs[ihalo] );
+	double dM = M;
+	f = ( exp(I*phi*dM) * curcoefs[ihalo] ).real();
+	g = ( I*dM*exp(I*phi*dM) * curcoefs[ihalo] ).real();
 	  
 	pot0 = u->get_potl(r, L, f);
 	pot1 = u->get_potl(r, L, g);
@@ -1032,19 +1033,19 @@ void UserSatWake::check_response()
 
 }
 
-void UserSatWake::gnuplot_out(vector<CVector>& coefs, 
+void UserSatWake::gnuplot_out(vector<Eigen::VectorXcd>& coefs, 
 			      RespMat::gravity grav, RespMat::response type,
 			      bool relative, string& file)
 {
   double x, dx = 2.0*XYMAX/(NUMXY-1);
   double y, dy = 2.0*XYMAX/(NUMXY-1);
   double r, phi, ans, back;
-  KComplex I(0.0, 1.0);
-  Vector f;
+  constexpr std::complex<double> I(0.0, 1.0);
+  Eigen::VectorXd f;
   
-  ofstream out(file.c_str());
+  std::ofstream out(file.c_str());
   if (!out) {
-    cerr << "Could not open <" << file << "> for output" << endl;
+    std::cerr << "Could not open <" << file << "> for output" << std::endl;
     return;
   }
 
@@ -1073,7 +1074,8 @@ void UserSatWake::gnuplot_out(vector<CVector>& coefs,
 	    sqrt( (0.5*L + 0.25)/M_PI * 
 		  exp(lgamma(1.0+L-M) - lgamma(1.0+L+M)) ) * plgndr(L, M, 0.0);
 
-	  f = Re( exp(I*phi*M) * coefs[ihalo] );
+	  double dM = M;
+	  f = ( exp(I*phi*dM) * coefs[ihalo] ).real();
 	  
 	  switch (type) {
 	  case density:

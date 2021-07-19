@@ -1,13 +1,11 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 //
 // Two dimensional disk with surrounding halo
 //
 
-#ifndef _DiskWithHalo_h
-#define _DiskWithHalo_h
+#ifndef _DiskWithHalo_H
+#define _DiskWithHalo_H
 
-#include "massmodel.h"
+#include <massmodel.H>
 
 class DiskWithHalo : public AxiSymModel
 {

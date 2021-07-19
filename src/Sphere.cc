@@ -3,12 +3,12 @@
 
 #include <boost/make_shared.hpp>
 
-#include "expand.h"
+#include "expand.H"
 
-#include <gaussQ.h>
+#include <gaussQ.H>
 #include <Sphere.H>
-#include <plummer.h>
-#include <interp.h>
+#include <plummer.H>
+#include <interp.H>
 
 
 Sphere::Sphere(const YAML::Node& conf, MixtureBasis* m) : SphericalBasis(conf, m)
@@ -88,25 +88,25 @@ Sphere::~Sphere(void)
 }
 
 
-void Sphere::get_dpotl(int lmax, int nmax, double r, Matrix& p, Matrix& dp,
-		       int tid)
+void Sphere::get_dpotl(int lmax, int nmax, double r, Eigen::MatrixXd& p,
+		       Eigen::MatrixXd& dp, int tid)
 {
   ortho->get_pot(p, r);
   ortho->get_force(dp, r);
 }
 
-void Sphere::get_potl(int lmax, int nmax, double r, Matrix& p, int tid)
+void Sphere::get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 {
   ortho->get_pot(p, r);
 }
 
-void Sphere::get_dens(int lmax, int nmax, double r, Matrix& p, int tid)
+void Sphere::get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid)
 {
   ortho->get_dens(p, r);
 }
 
-void Sphere::get_potl_dens(int lmax, int nmax, double r, Matrix& p, Matrix& d,
-			   int tid)
+void Sphere::get_potl_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p,
+			   Eigen::MatrixXd& d, int tid)
 {
   ortho->get_pot(p, r);
   ortho->get_dens(d, r);

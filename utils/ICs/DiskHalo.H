@@ -14,15 +14,14 @@
 #include <Normal.h>
 #include <Random.h>
 
-#include <exponential.h>
+#include <exponential.H>
 
-#include <gaussQ.h>
-#include <localmpi.h>
-#include <Vector.h>
+#include <gaussQ.H>
+#include <localmpi.H>
 
 #include <AddDisk.H>
 #include <SphericalSL.H>
-#include "EmpCylSL.h"
+#include "EmpCylSL.H"
 #include "SParticle.H"
 
 class DiskHalo
@@ -37,11 +36,11 @@ class DiskHalo
   std::shared_ptr<SphericalSL> expandh;
   std::shared_ptr<EmpCylSL>    expandd;
 
-  std::vector<Matrix> disktableP, disktableN;
-  Matrix epitable;
+  std::vector<Eigen::MatrixXd> disktableP, disktableN;
+  Eigen::MatrixXd epitable;
   double dP, dR, dZ, epiRmin;
 
-  Matrix halotable;
+  Eigen::MatrixXd halotable;
   double dr, dc;
 
   std::shared_ptr<LegeQuad> lwz;

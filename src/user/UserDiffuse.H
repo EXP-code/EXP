@@ -5,8 +5,6 @@
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
 
-#include <Vector.h>
-
 /** Random walk of each orbit on energy surface
 
     @param rate of diffusion
@@ -30,7 +28,7 @@
 class UserDiffuse : public ExternalForce
 {
 
-  typedef vector<double> dvector;
+  typedef std::vector<double> dvector;
 
 private:
   

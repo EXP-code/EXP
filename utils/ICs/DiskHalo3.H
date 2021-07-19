@@ -17,17 +17,16 @@
 #include <Normal.h>
 #include <Random.h>
 
-#include <exponential.h>
-#include <massmodel.h>
+#include <exponential.H>
+#include <massmodel.H>
 
-#include <gaussQ.h>
-#include <localmpi.h>
-#include <Vector.h>
-#include <QPDistF.h>
+#include <gaussQ.H>
+#include <localmpi.H>
+#include <QPDistF.H>
 
 #include <AddDisk.H>
 #include <SphericalSL.H>
-#include "EmpCylSL.h"
+#include "EmpCylSL.H"
 #include "SParticle.H"
 
 class DiskHaloException : public std::runtime_error
@@ -56,10 +55,10 @@ class DiskHalo
   std::shared_ptr<SphericalSL> expandh;
   std::shared_ptr<EmpCylSL>    expandd;
 
-  std::vector<Matrix> disktableP, disktableN;
+  std::vector<Eigen::MatrixXd> disktableP, disktableN;
   double dP, dR, dZ;
 
-  Matrix halotable;
+  Eigen::MatrixXd halotable;
   double dr, dc;
 
   std::shared_ptr<Uniform> rndU;

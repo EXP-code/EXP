@@ -6,7 +6,7 @@
 #include <cmath>
 #include <cstdlib>
 
-#include "expand.h"
+#include "expand.H"
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
@@ -36,7 +36,8 @@ void EL3::debug() const
   }
 }
 
-Matrix return_euler_slater(double PHI, double THETA, double PSI, int BODY);
+Eigen::MatrixXd
+return_euler_slater(double PHI, double THETA, double PSI, int BODY);
 
 Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 	       string Logfile, double dt, double damping)
@@ -52,47 +53,27 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
   damp    = damping;
   linear  = false;
 
-				// Work vectors
-  axis1    .setsize(1, 3);
-  center1  .setsize(1, 3);
-  sumY     .setsize(1, 3);
-  sumXY    .setsize(1, 3);
-  sumY2    .setsize(1, 3);
-  slope    .setsize(1, 3);
-  intercept.setsize(1, 3);
-
-  lasttime = -1.0e+30;
-
   pos = vector<double>(3);
   psa = vector<double>(3);
   vel = vector<double>(3);
 
-				// Center and axis
-  axis   .setsize(1, 3);
-  center .setsize(1, 3);
-  center0.setsize(1, 3);
-  cenvel0.setsize(1, 3);
+  center .setZero();
+  center0.setZero();
+  cenvel0.setZero();
+  axis   .setZero();
 
-  center .zero();
-  center0.zero();
-  cenvel0.zero();
-  axis   .zero();
-
-  axis[3] = 1;
+  axis[2] = 1;
 
   used = 0;
 
 				// Set up identity
-  body.setsize(1, 3, 1, 3);
-  body.zero();
-  body[1][1] = body[2][2] = body[3][3] = 1.0;
+  body.setIdentity();
   orig = body;
 
 				// Check for previous state on
 				// a restart
   int in_ok;
-  double *in1 = new double [4];
-  double *in2 = new double [4];
+  std::vector<double> in1(4), in2(4);
 
   if (myid==0) {		// Master does the reading
 
@@ -214,13 +195,13 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 	if (oflags & AXIS) {
 	  in1[0] = sumsA[k].first;
 	  for (int j=1; j<=3; j++) in1[j] = sumsA[k].second[j];
-	  MPI_Bcast(in1, 4, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast(in1.data(), 4, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	}
 
 	if (oflags & CENTER) {
 	  in2[0] = sumsC[k].first;
 	  for (int j=1; j<=3; j++) in2[j] = sumsC[k].second[j];
-	  MPI_Bcast(in2, 4, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast(in2.data(), 4, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	}
       }
 
@@ -293,13 +274,13 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
       for (int k=0; k<howmany; k++) {
 
 	if (oflags & AXIS) {
-	  MPI_Bcast(in1, 4, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast(in1.data(), 4, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	  for (int j=1; j<=3; j++) axis1[j] = in1[j];
 	  sumsA.push_back(DV(in1[0], axis1));
 	}
 
 	if (oflags & CENTER) {
-	  MPI_Bcast(in2, 4, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast(in2.data(), 4, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	  for (int j=1; j<=3; j++) center1[j] = in2[j];
 	  sumsC.push_back(DV(in2[0], center1));
 	}
@@ -310,15 +291,12 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 
   }
 
-  delete [] in1;
-  delete [] in2;
-
   if (in_ok) {
 
     if (oflags & AXIS) {
 
-      double phi = atan2(axis[2], axis[1]);
-      double theta = -acos(axis[3]/sqrt(axis*axis));
+      double phi = atan2(axis[1], axis[0]);
+      double theta = -acos(axis[2]/sqrt(axis.dot(axis)));
       double psi = 0.0;
 
       body = return_euler_slater(phi, theta, psi, 0);
@@ -472,8 +450,8 @@ void Orient::accumulate(double time, Component *c)
   MPI_Bcast(&Ecurr, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 				// Compute values for this step
-  axis1.zero();
-  center1.zero();
+  axis1  .setZero();
+  center1.setZero();
 
   double mtot=0.0, mtot1=0.0;
   int cnum = 0;
@@ -516,21 +494,21 @@ void Orient::accumulate(double time, Component *c)
     if (myid==0) cout << endl;
   }
 
-  Vector inA = axis1;
-  Vector inC = center1;
+  Eigen::Vector3d inA = axis1;
+  Eigen::Vector3d inC = center1;
 
-  axis1.zero();
-  center1.zero();
+  axis1.setZero();
+  center1.setZero();
 
 				// Share stuff between nodes
   MPI_Allreduce(&cnum, &used, 1, 
 		MPI_INT,    MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(inA.array(0, 2), axis1.array(0, 2), 3, 
+  MPI_Allreduce(inA.data(), axis1.data(), 3, 
 		MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
   MPI_Allreduce(&mtot1, &mtot, 1, 
 		MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(inC.array(0, 2), center1.array(0, 2), 3, 
+  MPI_Allreduce(inC.data(), center1.data(), 3, 
 		MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
   // Push current value onto stack
@@ -563,9 +541,9 @@ void Orient::accumulate(double time, Component *c)
     
     sumX = 0.0;
     sumX2 = 0.0;
-    sumY.zero();
-    sumXY.zero();
-    sumY2.zero();
+    sumY.setZero();
+    sumXY.setZero();
+    sumY2.setZero();
     
     int N = sumsC.size();
     
@@ -576,7 +554,8 @@ void Orient::accumulate(double time, Component *c)
       sumX2 += x * x;
       sumY  += j->second;
       sumXY += j->second * x;
-      sumY2 += j->second & j->second;
+      for (int k=0; k<3; k++) 
+	sumY2[k] += j->second[k] * j->second[k];
       
       i++;
     }
@@ -591,14 +570,14 @@ void Orient::accumulate(double time, Component *c)
     sigA = 0.0;
     for (j = sumsA.begin(); j != sumsA.end(); j++) {
       sigA += 
-	(j->second - intercept - slope*j->first) *
+	(j->second - intercept - slope*j->first).adjoint() *
 	(j->second - intercept - slope*j->first) ;
       i++;
     }
     sigA /= i;
     
     double phi = atan2(axis[2], axis[1]);
-    double theta = -acos(axis[3]/sqrt(axis*axis));
+    double theta = -acos(axis[3]/sqrt(axis.dot(axis)));
     double psi = 0.0;
     
     body = return_euler_slater(phi, theta, psi, 0);
@@ -614,9 +593,9 @@ void Orient::accumulate(double time, Component *c)
     int i = 0;
     sumX  = 0.0;
     sumX2 = 0.0;
-    sumY. zero();
-    sumXY.zero();
-    sumY2.zero();
+    sumY. setZero();
+    sumXY.setZero();
+    sumY2.setZero();
     
     int N = sumsC.size();
       
@@ -627,7 +606,8 @@ void Orient::accumulate(double time, Component *c)
       sumX2 += x * x;
       sumY  += j->second;
       sumXY += j->second * x;
-      sumY2 += j->second & j->second;
+      for (int k=0; k<3; k++)
+	sumY2[k] += j->second[k] * j->second[k];
 
       i++;
 
@@ -654,7 +634,7 @@ void Orient::accumulate(double time, Component *c)
     sigCz = 0.0;
     for (j = sumsC.begin(); j != sumsC.end(); j++) {
       sigC += 
-	(j->second - intercept - slope*j->first) *
+	(j->second - intercept - slope*j->first).adjoint() *
 	(j->second - intercept - slope*j->first) ;
       sigCz += 
 	( j->second[3] - intercept[3] - slope[3]*j->first ) *

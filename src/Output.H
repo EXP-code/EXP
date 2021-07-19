@@ -5,7 +5,7 @@
 #include <vector>
 #include <utility>
 #include <StringTok.H>
-#include <Timer.h>
+#include <Timer.H>
 
 //! Output routines.
 /*! These are designed to be run in a chain at each step.  Each Output

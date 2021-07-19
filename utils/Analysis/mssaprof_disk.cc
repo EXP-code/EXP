@@ -55,13 +55,12 @@ namespace pt = boost::property_tree;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
+#include <numerical.H>
 #include "Particle.h"
-#include <interp.h>
-#include <EmpCylSL.h>
+#include <interp.H>
+#include <EmpCylSL.H>
 
-#include <localmpi.h>
+#include <localmpi.H>
 #include <foarray.H>
 
 #include <VtkGrid.H>

@@ -18,9 +18,9 @@
 
 // MDW classes
 //
-#include <numerical.h>
-#include <gaussQ.h>
-#include <EmpCylSL.h>
+#include <numerical.H>
+#include <gaussQ.H>
+#include <EmpCylSL.H>
 #include <DiskModels.H>
 
 #include "config.h"

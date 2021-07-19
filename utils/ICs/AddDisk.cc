@@ -4,9 +4,9 @@
 #include <sstream>
 #include <vector>
 
-#include <localmpi.h>
-#include <massmodel.h>
-#include <interp.h>
+#include <localmpi.H>
+#include <massmodel.H>
+#include <interp.H>
 #include <AddDisk.H>
 
 int AddDisk::number = 4000;

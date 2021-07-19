@@ -37,7 +37,7 @@ AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/include			\
 -I$(top_srcdir)/exputil -I$(top_srcdir)/expgnu -I$(top_srcdir)/src	\
  $(INCLUDE_DSMC) -I/usr/include/mpi
 
-AM_CXXFLAGS  = -D_REENTRANT $(OPENMP_CXXFLAGS) $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4) @exp_vtk_include@  @exp_eigen3_include@ $(CUDA_CFLAGS) $(VERSION_FLAGS)
+AM_CXXFLAGS  = -D_REENTRANT $(OPENMP_CXXFLAGS) $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4) @exp_vtk_include@ @exp_eigen3_include@ $(CUDA_CFLAGS) $(VERSION_FLAGS)
 
 bin_PROGRAMS = exp
 
@@ -86,13 +86,13 @@ exp_LDADD = $(EXPLIBS) $(ADD_LIBS3) $(ADD_LIBS4) $(LAPACK_LIBS)		\
 	$(CUDA_LDFLAGS) $(CUDA_LIBFLAGS) $(YAML)
 
 
-noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H Cylinder.H     \
-	ExternalCollection.H ExternalForce.H Hernquist.H Particle.H          \
-	Particle.H PotAccel.H ScatterMFP.H SphericalBasis.H externalShock.H  \
-	generateRelaxation.H tidalField.H EmpCylSL.h Orient.H OutPS.H     \
-	OutMulti.H coef.H exp_thread.h expand.h sltableMP2.h tipsydefs.h     \
-        version.h pHOT.H pCell.H pHOT_types.H ParticleFerry.H                \
-	pHOT.H pHOT_types.H
+noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H		\
+	Cylinder.H ExternalCollection.H ExternalForce.H Hernquist.H	\
+	Particle.H Particle.H PotAccel.H ScatterMFP.H			\
+	SphericalBasis.H externalShock.H generateRelaxation.H		\
+	tidalField.H EmpCylSL.H Orient.H OutPS.H OutMulti.H coef.H	\
+	exp_thread.h expand.H tipsydefs.h version.h pHOT.H pCell.H	\
+	pHOT_types.H ParticleFerry.H pHOT.H pHOT_types.H
 
 # always assume that parse.o is out of date to force compile time and
 # git commit stamps

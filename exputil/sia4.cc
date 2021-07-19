@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <math.h>
-#include <numerical.h>
-#include <Vector.h>
+#include <numerical.H>
 
 /*
 4th order sympletic integration algorithm from
@@ -19,11 +18,8 @@ Candy and Rozmus, J, Comp. Phys. 92, 230 (1991)
 #define B3 -1.7024143839193152680951301399452727444042
 
 
-static double  *ql=NULL, *qc, *pl, *pc, *f;
-// static Vector A(1, 4);
-// static Vector B(1, 4);
-static double A[5];
-static double B[5];
+static Eigen::VectorXd ql, qc, pl, pc, f;
+static Eigen::Vector4d A, B;
 static int sia4_first=1;
 
 void sia4_init(void)
@@ -31,72 +27,64 @@ void sia4_init(void)
 
   sia4_first=0;
 
-  ql = nr_vector(1,3);
-  qc = nr_vector(1,3);
-  pl = nr_vector(1,3);
-  pc = nr_vector(1,3);
-  f  = nr_vector(1,3);
+  A[0] = A1;
+  A[1] = A2;
+  A[2] = A3;
+  A[3] = A4;
 
-  A[1] = A1;
-  A[2] = A2;
-  A[3] = A3;
-  A[4] = A4;
+  B[0] = B1;
+  B[1] = B2;
+  B[2] = B3;
+  B[3] = B4;
 
-  B[1] = B1;
-  B[2] = B2;
-  B[3] = B3;
-  B[4] = B4;
-
+  ql.resize(3);
+  qc.resize(3);
+  pl.resize(3);
+  pc.resize(3);
+  f .resize(3);
 }
 
-void sia4(
-	  double *x,
-	  double *v,
-	  double *x1,
-	  double *v1,
+void sia4(Eigen::VectorXd &x,
+	  Eigen::VectorXd &v,
+	  Eigen::VectorXd &x1,
+	  Eigen::VectorXd &v1,
 	  double t,
 	  double h,
 	  symp_derivs derivs)
 {
-  int i, j;
-
   if (sia4_first) sia4_init();
-
 				// zeroth order step
 
-  for (i=1; i<=3; i++) {
+  for (int i=0; i<3; i++) {
     ql[i] = x[i];
     pl[i] = v[i];
   }
 
-  (*derivs)(t, ql, pl,f);
-	
-				// j = 1, ... , 4
+  (*derivs)(t, ql, pl, f);
 
-  for (j=1; j<=4; j++) {
+  for (int j=0; j<4; j++) {
 
 
-    for (i=1; i<=3; i++)
+    for (int i=0; i<3; i++)
       pc[i] = pl[i] + B[j]*h*f[i];
     
-    for (i=1; i<=3; i++)
+    for (int i=0; i<3; i++)
       qc[i] = ql[i] + A[j]*h*pc[i];
     
     t += A[j]*h;
 
     (*derivs)(t, qc, pc, f);
     
-    for (i=1; i<=3; i++) {
+    for (int i=0; i<3; i++) {
       ql[i] = qc[i];
       pl[i] = pc[i];
     }
   }
 
-  for (i=1; i<=3; i++) {
+  for (int i=0; i<3; i++) {
     x1[i] = ql[i];
     v1[i] = pl[i];
   }
   
 }
-
 

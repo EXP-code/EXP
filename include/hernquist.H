@@ -1,13 +1,5 @@
-// This may look like C code, but it is really -*- C++ -*-
-
-const char rcsid_hernquist[] = "$Id$";
-
-#ifndef _Logic_
-#include <logic.h>
-#endif
-
-#include <math.h>
-#include <massmodel.h>
+#include <cmath>
+#include <massmodel.H>
 
 class HernquistSphere : public AxiSymModel
 {

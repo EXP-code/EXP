@@ -58,15 +58,14 @@ namespace po = boost::program_options;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
+#include <numerical.H>
 #include "Particle.h"
 #include <PSP2.H>
-#include <EmpCylSL.h>
+#include <EmpCylSL.H>
 #include <foarray.H>
 #include <KDtree.H>
 
-#include <localmpi.h>
+#include <localmpi.H>
 
 #include <yaml-cpp/yaml.h>	// YAML support
 

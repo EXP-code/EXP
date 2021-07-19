@@ -29,60 +29,56 @@
  *
  ***************************************************************************/
 
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <Vector.h>
-#include <kevin_complex.h>
+#include <cmath>
+#include <cstdlib>
+#include <complex>
+#include <Eigen/Eigen>
 
-//#include "poly.h"
-#include "cpoly.h"
+#include "cpoly.H"
 
-Vector get_horner(double z, Poly &p)
+Eigen::VectorXd get_horner(double z, Poly &p)
 {
-  int i, j;
   int order = p.getorder();
 
-  Matrix b(-1,order,0,order);
-  for (i=0; i<=order; i++) b[-1][i] = p[order-i];
+  Eigen::MatrixXd b(order+2, order+1);
+  for (int i=0; i<=order; i++) b(0, i) = p[order-i];
   
-  for (i=0; i<=order; i++) {
-    b[i][0] = b[-1][0];
-    for (j=1; j<=order-i; j++)
-      b[i][j] = b[i-1][j] + z*b[i][j-1];
+  for (int i=0; i<=order; i++) {
+    b(i+1, 0) = b(0, 0);
+    for (int j=1; j<=order-i; j++)
+      b(i+1, j) = b(i, j) + z*b(i+1, j-1);
   }
 
-  Vector ans(0,order);
-  for (i=0; i<=order; i++) ans[i] = b[i][order-i];
+  Eigen::VectorXd ans(order+1);
+  for (int i=0; i<=order; i++) ans[i] = b(i+1, order-i);
   
   return ans;
 }
 
 
-CVector Cget_horner(KComplex z, CPoly &p)
+Eigen::VectorXcd Cget_horner(std::complex<double> z, CPoly &p)
 {
-  int i, j;
   int order = p.getorder();
-  CVector ans;
+  Eigen::VectorXcd ans;
 
   if (order==0) {
-    ans = CVector(0,1);
+    ans.resize(2);
     ans[0] = p[0];
     ans[1] = 0.0;
     return ans;
   }
 
-  CMatrix b(-1,order,0,order);
-  for (i=0; i<=order; i++) b[-1][i] = p[order-i];
+  Eigen::MatrixXcd b(order+2, order+1);
+  for (int i=0; i<=order; i++) b(0, i) = p[order-i];
   
-  for (i=0; i<=order; i++) {
-    b[i][0] = b[-1][0];
-    for (j=1; j<=order-i; j++)
-      b[i][j] = b[i-1][j] + z*b[i][j-1];
+  for (int i=0; i<=order; i++) {
+    b(i+1, 0) = b(0, 0);
+    for (int j=1; j<=order-i; j++)
+      b(i+1, j) = b(i, j) + z*b(i+1, j-1);
   }
 
-  ans = CVector(0,order);
-  for (i=0; i<=order; i++) ans[i] = b[i][order-i];
+  ans.resize(order+1);
+  for (int i=0; i<=order; i++) ans[i] = b(i+1, order-i);
   
   return ans;
 }

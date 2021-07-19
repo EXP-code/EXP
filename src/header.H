@@ -7,7 +7,7 @@
 
 #include <boost/shared_array.hpp>
 
-#include "localmpi.h"
+#include "localmpi.H"
 
 using namespace std;
 

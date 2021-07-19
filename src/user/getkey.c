@@ -23,7 +23,7 @@
  *  Notes:
  *  -----
  *
- *  There is minor amount of error checking here.  Keywords should be of
+ *  There is minor amount of error checking.Here.  Keywords should be of
  *  the form:
  *                          key=word
  *

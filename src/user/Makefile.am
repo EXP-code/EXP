@@ -20,7 +20,8 @@ endif
 AM_CFLAGS = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) $(OPENMP_CXXFLAGS)
 AM_FFLAGS = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) $(OPENMP_CXXFLAGS)
 AM_CXXFLAGS = -fPIC -fno-inline-small-functions -Wall	\
--D_REENTRANT -Wno-non-virtual-dtor $(ADD_CFLAGS4) $(OPENMP_CXXFLAGS)
+-D_REENTRANT -Wno-non-virtual-dtor $(ADD_CFLAGS4) $(OPENMP_CXXFLAGS) \
+@exp_eigen3_include@ 
 AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil @exp_omp_lib@
 
 libdir = $(prefix)/lib/user
@@ -52,7 +53,7 @@ noinst_HEADERS = BarForcing.H Perturbation.H UserDiffuse.H		\
 libcommon_a_SOURCES = ResPot.cc ResPotOrb.cc BarForcing.cc	\
 	Perturbation.cc EllipForce.cc SatelliteOrbit.cc		\
 	CircularOrbit.cc TwoBodyDiffuse.cc TimeSeriesCoefs.cc	\
-	LinearOrbit.cc UnboundOrbit.cc
+	LinearOrbit.cc UnboundOrbit.cc Synchronize.cc
 
 libswake_a_SOURCES = respmat6.cc cratint.cc rombeveccmp.cc
 
@@ -129,7 +130,7 @@ libatmos_la_LIBADD  = libcommon.a
 
 libreflect_la_SOURCES = UserReflect.cc 
 
-libsatwake_la_SOURCES = UserSatWake.cc invsvd.cc
+libsatwake_la_SOURCES = UserSatWake.cc
 libsatwake_la_LIBADD  = libswake.a libcommon.a $(LAPACK_LIBS) $(BLAS_LIBS)
 
 libpst_la_SOURCES  = UserPST.cc CylindricalDisk.cc EllipsoidForce.cc SLSphere.cc

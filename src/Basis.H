@@ -2,12 +2,11 @@
 #define _Basis_H
 
 #include <PotAccel.H>
-#include <Vector.h>
+#include <Eigen/Eigen>
 
 //! Defines a basis-based potential and acceleration class
 class Basis : public PotAccel
 {
-
 protected:
 
 public:
@@ -44,20 +43,19 @@ public:
   /** @name Utility functions */
   // @{
 
-  //! Compute Associated Legendre Polynomials, return Matrix type
-  void legendre_R(int lmax, double x, Matrix& p);
+  //! Compute Associated Legendre Polynomials, return MatrixXd type
+  void legendre_R(int lmax, double x, Eigen::MatrixXd& p);
 
   /** Compute Associated Legendre Polynomials and derivitives, 
   return Matrix type */
-  void dlegendre_R(int lmax, double x, Matrix &p, Matrix &dp);
+  void dlegendre_R(int lmax, double x, Eigen::MatrixXd &p, Eigen::MatrixXd &dp);
 
   //! Compute vectors of sines and cosines by recursion
-  void sinecosine_R(int mmax, double phi, Vector& c, Vector& s);
+  void sinecosine_R(int mmax, double phi, Eigen::VectorXd& c, Eigen::VectorXd& s);
 
   // @}
 
 };
-
 
 #endif // _Basis_H
 

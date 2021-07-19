@@ -2,7 +2,7 @@
   First part of leap-frog: step in position
 */
 
-#include "expand.h"
+#include "expand.H"
 
 #ifdef USE_GPTL
 #include <gptl.h>

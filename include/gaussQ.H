@@ -1,10 +1,7 @@
-// This may look like C code, but it is really -*- C++ -*-
-
-
 /*
 
 SYNOPSIS
-     #include <gaussQ.h>
+     #include <gaussQ.H>
 
 
 DESCRIPTION
@@ -41,23 +38,25 @@ HISTORY
 
 */
 
-#ifndef _gaussQ_h
-#define _gaussQ_h 1
+#ifndef _gaussQ_H
+#define _gaussQ_H
 
 using namespace std;
 
+#include <iostream>
+#include <iomanip>
 #include <cstdlib>
 #include <string>
-#include <Vector.h>
+#include <vector>
 
 class GaussQuad 
 {
 public:
 
-  string FunctionID;
+  std::string FunctionID;
 
-  Vector w;
-  Vector r;
+  std::vector<double> w;
+  std::vector<double> r;
   double alpha;
   double beta;
   int n;
@@ -70,14 +69,14 @@ public:
   double knot(const int i) { if (i<1 || i>n) return bomb("index out of bounds");
   return r[i]; }
 
-  Vector& wV(void) { return w; }
-  Vector& kV(void) { return r; }
+  std::vector<double>& wV(void) { return w; }
+  std::vector<double>& kV(void) { return r; }
   int get_n(void) { return n; }
   double get_alpha(void) { return alpha; }
   double get_beta(void) { return beta; }
 
   int bomb(const char *s) {
-    cerr << "ERROR from " << FunctionID << ": " << s << '\n';
+    std::cerr << "ERROR from " << FunctionID << ": " << s << std::endl;
     exit(-1);
     return 0;
   }

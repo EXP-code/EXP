@@ -7,10 +7,10 @@
 
 #include <string>
 #include <iostream>
-#include <math.h>
-#include <Vector.h>
-#include <interp.h>
-#include "biorth.h"
+#include <cmath>
+
+#include <interp.H>
+#include <biorth.H>
 
 using namespace std;
 
@@ -34,40 +34,43 @@ BiorthGrid::BiorthGrid(AxiSymBiorth& T, double RMIN, double RMAX,
   xmin = T.r_to_rb(rmin);
   xmax = T.r_to_rb(rmax);
 
-  potl_grid  = new Matrix[lmax+1];
-  potl_grid2 = new Matrix[lmax+1];
-  dens_grid  = new Matrix[lmax+1];
-  dens_grid2 = new Matrix[lmax+1];
+  potl_grid  .resize(lmax+1);
+  potl_grid2 .resize(lmax+1);
+  dens_grid  .resize(lmax+1);
+  dens_grid2 .resize(lmax+1);
 
-  x_grid.setsize(1, rnum);
+  x_grid.resize(rnum);
 
-  krnl_grid.setsize(1, nmax, 0, lmax);
-  norm_grid.setsize(0, nmax-1, 0, lmax);
+  krnl_grid.resize(nmax, lmax);
+  norm_grid.resize(nmax, lmax);
 
   double del = (xmax - xmin)/(double)(rnum-1);
-  for (int ir=0; ir<rnum; ir++) x_grid[ir+1] = xmin + del*ir;
+  for (int ir=0; ir<rnum; ir++) x_grid[ir] = xmin + del*ir;
 
   for (int l=0; l<=lmax; l++) {
 
-    potl_grid[l].setsize(1, nmax, 1, rnum);
-    potl_grid2[l].setsize(1, nmax, 1, rnum);
-    dens_grid[l].setsize(1, nmax, 1, rnum);
-    dens_grid2[l].setsize(1, nmax, 1, rnum);
+    potl_grid[l] .resize(nmax, rnum);
+    potl_grid2[l].resize(nmax, rnum);
+    dens_grid[l] .resize(nmax, rnum);
+    dens_grid2[l].resize(nmax, rnum);
 
-    for (int n=1; n<=nmax; n++) {
+    for (int n=0; n<nmax; n++) {
 
-      krnl_grid[n][l] = T.krnl(n, l);
-//      norm_grid[n-1][l] = T.norm(n-1, l);
-//      MDW 1/18/95: get_dens and get_potl are normalized by 1/sqrt(T.norm)
-      norm_grid[n-1][l] = sqrt(T.norm(n-1, l));
+      krnl_grid(n, l) = T.krnl(n, l);
+      norm_grid(n, l) = sqrt(T.norm(n, l));
 
-      for (int ir=1; ir<=rnum; ir++) {
-	potl_grid[l][n][ir] = T.potl(n, l, x_grid[ir]);
-	dens_grid[l][n][ir] = T.dens(n, l, x_grid[ir]);
+      for (int ir=0; ir<rnum; ir++) {
+	potl_grid[l](n, ir) = T.potl(n, l, x_grid[ir]);
+	dens_grid[l](n, ir) = T.dens(n, l, x_grid[ir]);
       }
 
-      Spline(x_grid, potl_grid[l][n], -1.0e30, -1.0e30, potl_grid2[l][n]);
-      Spline(x_grid, dens_grid[l][n], -1.0e30, -1.0e30, dens_grid2[l][n]);
+      Eigen::VectorXd work(potl_grid2[l].row(n).size());
+
+      Spline(x_grid, potl_grid[l].row(n), -1.0e30, -1.0e30, work);
+      potl_grid2[l].row(n) = work;
+
+      Spline(x_grid, dens_grid[l].row(n), -1.0e30, -1.0e30, work);
+      dens_grid2[l].row(n) = work;
     }
   }
 
@@ -80,7 +83,7 @@ double BiorthGrid::potl(int n, int l, double x)
 
   if (x > xmax || x < xmin) return 0.0;
 
-  Splint1(x_grid, potl_grid[l][n], potl_grid2[l][n], x, ans, 1);
+  Splint1(x_grid, potl_grid[l].row(n), potl_grid2[l].row(n), x, ans, 1);
 
   return ans;
 }
@@ -91,30 +94,30 @@ double BiorthGrid::dens(int n, int l, double x)
 
   if (x > xmax || x < xmin) return 0.0;
 
-  Splint1(x_grid, dens_grid[l][n], dens_grid2[l][n], x, ans, 1);
+  Splint1(x_grid, dens_grid[l].row(n), dens_grid2[l].row(n), x, ans, 1);
 
   return ans;
 }
 
 
 
-double AxiSymBiorth::get_dens(double r, int l, const Vector& coef)
+double AxiSymBiorth::get_dens(double r, int l, const Eigen::VectorXd& coef)
 {
   double accum=0.0;
 
-  for (int n=coef.getlow(); n<=coef.gethigh(); n++)
-    accum += coef[n]*dens(n, l, r_to_rb(r))/sqrt(norm(n-1, l));
+  for (int n=0; n<coef.size(); n++)
+    accum += coef[n]*dens(n, l, r_to_rb(r))/sqrt(norm(n, l));
 
   return accum;
 
 }
 
-double AxiSymBiorth::get_potl(double r, int l, const Vector& coef)
+double AxiSymBiorth::get_potl(double r, int l, const Eigen::VectorXd& coef)
 {
   double accum=0.0;
 
-  for (int n=coef.getlow(); n<=coef.gethigh(); n++)
-    accum += coef[n]*potl(n, l, r_to_rb(r))/sqrt(norm(n-1, l));
+  for (int n=0; n<coef.size(); n++)
+    accum += coef[n]*potl(n, l, r_to_rb(r))/sqrt(norm(n, l));
 
   return -accum;
 

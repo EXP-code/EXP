@@ -1,10 +1,8 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 #include <vector>
 #include <deque>
+#include <complex>
 
-#include <Vector.h>
-#include <CVector.h>
+#include <Eigen/Eigen>
 
 /**
    Compute time series of coefficients for an arbitrary orbit
@@ -16,7 +14,7 @@ private:
 
   double E, Rperi;
   double delT, Tmax, lnL, M;
-  string outfile;
+  std::string outfile;
 
   vector<double> compute_df(double mass, double logL, 
 			    vector<double>& ps, AxiSymModel* model);
@@ -30,9 +28,9 @@ public:
   
   //! Do the calculation
   void coefs(int L, int M, int Nmax, int NINT, AxiSymBiorth *t, 
-	     vector<KComplex>& Freqs,
+	     vector<complex<double>>& Freqs,
 	     vector<double>& Times, 
-	     vector<CMatrix>& cofs);
+	     vector<Eigen::MatrixXcd>& coefs);
 
 };
 

@@ -1,30 +1,26 @@
 
 #include <string>
 #include <iostream>
-#include <math.h>
+#include <cmath>
 
-#include <Vector.h>
-#include <CVector.h>
-#include <biorth.h>
-#include <biorth_wake.h>
+#include <biorth.H>
+#include <biorth_wake.H>
 #include <simann2.h>
 
 double factrl(int n);
 double plgndr(int l, int m, double x);
 double rot_matrix(int l, int m, int n, double beta);
-Matrix return_euler_slater(double, double, double, int);
+Eigen::Matrix3d return_euler_slater(double, double, double, int);
 
 using namespace std;
 
 void BiorthWake::orientation(int L, int M, 
-			     Vector& phi, Vector& theta, Vector& psi,
-			     Vector& cost)
+			     Eigen::VectorXd& phi, Eigen::VectorXd& theta, Eigen::VectorXd& psi,
+			     Eigen::VectorXd& cost)
 
 {
   ll = L;
   mm = M;
-
-  int n, m, l;
 
   if (L>lmax) {
     bomb ("wake_orientation: L out of bounds");
@@ -36,12 +32,12 @@ void BiorthWake::orientation(int L, int M,
     exit(-1);
   }
 
-  phi.setsize(1, nmax);
-  theta.setsize(1, nmax);
-  psi.setsize(1, nmax);
-  cost.setsize(1, nmax);
+  phi.resize(nmax);
+  theta.resize(nmax);
+  psi.resize(nmax);
+  cost.resize(nmax);
 
-  ylm.setsize(-L, L);
+  ylm.resize(2*L+1);
 
 				// For debugging only
 #ifdef DEBUG
@@ -49,26 +45,27 @@ void BiorthWake::orientation(int L, int M,
 #endif // DEBUG
 
   int loffset=0, moffset;
-  for (l=0; l<L; l++) loffset += 2*l+1;
+  int l=0;
+  for (; l<L; l++) loffset += 2*l+1;
 
   double fac1, fac2, signflip=1.0, norm;
 
-  for (n=1; n<=nmax; n++) {
+  for (int n=0; n<nmax; n++) {
 
-    for (m=0, moffset=0; m<=l; m++) {
+    for (int m=0, moffset=0; m<=l; m++) {
 
       fac1 = sqrt( (0.5*l+0.25)/M_PI );
 
       if (m==0) {
-	ylm[0] = fac1 * expcoef[loffset+moffset][n];
+	ylm[0] = fac1 * expcoef(loffset+moffset, n);
 	moffset++;
       }
       else {
 	fac2 = fac1 * sqrt( factrl(l-m)/factrl(l+m) );
 	ylm[-m] = fac2 * signflip *
-	  KComplex(expcoef[loffset+moffset][n], -expcoef[loffset+moffset+1][n]);
+	  std::complex<double>(expcoef(loffset+moffset, n), -expcoef(loffset+moffset+1, n));
 	ylm[ m] = fac2 * 
-	  KComplex(expcoef[loffset+moffset][n],  expcoef[loffset+moffset+1][n]);
+	  std::complex<double>(expcoef(loffset+moffset, n),  expcoef(loffset+moffset+1, n));
 
 	moffset +=2;
       }
@@ -76,7 +73,9 @@ void BiorthWake::orientation(int L, int M,
 
     }
 
-    norm = fabs(sqrt(ylm.Conjg()*ylm)) + 1.0e-10;
+    auto conj = ylm.conjugate();
+
+    norm = sqrt(fabs(conj.dot(ylm))) + 1.0e-10;
 
     ylm /= norm;
 
@@ -120,17 +119,19 @@ public:
 
 double BiorthWake::energy(double *params)
 {
-  KComplex ansp=0.0, ansm=0.0;
+  std::complex<double> ansp=0.0, ansm=0.0;
   int n;
 
   for (n=-ll; n<=ll; n++) {
-    ansp += exp(I*params[2]*n*(-1)) * exp(I*params[0]*mm*(-1)) * ylm[n]
+    std::complex<double> cn = -n, cmm = -mm;
+    ansp += exp(I*params[2]*cn) * exp(I*params[0]*cmm) * ylm[n]
       * rot_matrix(ll, mm, n, params[1]);  
   }
   
   if (mm != 0) {
     for (n=-ll; n<=ll; n++) {
-      ansm += exp(I*params[2]*n*(-1)) * exp(I*params[0]*mm) * ylm[n]
+      std::complex<double> cn = -n, cmm = mm;
+      ansm += exp(I*params[2]*cn) * exp(I*params[0]*cmm) * ylm[n]
 	* rot_matrix(ll, -mm, n, params[1]);  
     }
   }
@@ -298,7 +299,7 @@ void BiorthWake::amoeba(void)
   
 #ifdef DEBUG
 
-#include <gaussQ.h>
+#include <gaussQ.H>
 #include <iomanip>
 
 KComplex BiorthWake::test_fct(double theta, double phi)
@@ -323,10 +324,10 @@ void BiorthWake::test_transform(void)
   THETA *= onedeg;
   PSI *= onedeg;
 
-  Matrix trans = return_euler_slater(PHI, THETA, PSI, 1);
+  Eigen::Matrix3d trans = return_euler_slater(PHI, THETA, PSI, 1);
 
-  Vector x0(1,3), x1(1,3);
-  ylm.zero();
+  Eigen::Vector3d x0, x1;
+  ylm.setZero();
   
 				// 2-d integral over theta and phi
   LegeQuad wk(NINT);

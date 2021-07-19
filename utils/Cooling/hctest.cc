@@ -9,7 +9,7 @@
 
 using namespace std;
 
-#include <Timer.h>
+#include <Timer.H>
 #include "HeatCool.H"
 
 int myid = 0;

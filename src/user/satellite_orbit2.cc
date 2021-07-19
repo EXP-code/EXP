@@ -1,5 +1,3 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 /*****************************************************************************
  *  Description:
  *  -----------
@@ -42,15 +40,13 @@ static char rcsid_satellite_orbit[] = "$Id$";
 #include <dmalloc.h>
 #endif
 
-#include <kevin_complex.h>
-#include <Vector.h>
-#include <orbit.h>
-#include <massmodel.h>
+#include <orbit.H>
+#include <massmodel.H>
 
-#include <model2d.h>
-#include <model3d.h>
-#include <isothermal.h>
-#include <hernquist.h>
+#include <model2d.H>
+#include <model3d.H>
+#include <isothermal.H>
+#include <hernquist.H>
 
 
 void parse_args(void);
@@ -85,9 +81,9 @@ extern "C" void satellite_orbit(double T, double* X, double* Y, double* Z)
   //
 
   static SphericalOrbit orb;
-  static Matrix rotate;
+  static Eigen::Matrix3d rotate;
   static int firstime=1;
-  static Vector v0(1,3), v1(1,3);
+  static Eigen::Vector3d v0, v1;
 
 
   if (firstime) {

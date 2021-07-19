@@ -1,12 +1,7 @@
-// This may look like C code, but it is really -*- C++ -*-
+#ifndef _king_H
+#define _king_H
 
-const char rcsid_king[] = "$Id$";
-
-#define _king_h
-
-#ifndef _massmodel_h
-#include <massmodel.h>
-#endif
+#include <massmodel.H>
 
 class KingSphere : public SphericalModelTable
 {
@@ -31,3 +26,4 @@ public:
   double d2fde2(double E) { return betaK*betaK*kingK*exp(betaK*(E-E0K)); }
 };
 
+#endif

@@ -2,7 +2,7 @@
 #define _AxisymmetricBasis_H
 
 #include <Basis.H>
-#include <Vector.h>
+#include <Eigen/Eigen>
 
 //! Defines a basis-based potential and acceleration class
 /*! Configurable parameters are:
@@ -87,8 +87,8 @@ protected:
      efficiency.
   */
   //@{
-  typedef boost::shared_ptr<Vector> VectorP;
-  typedef boost::shared_ptr<Matrix> MatrixP;
+  typedef boost::shared_ptr<Eigen::VectorXd> VectorP;
+  typedef boost::shared_ptr<Eigen::MatrixXd> MatrixP;
 
   std::vector<VectorP> expcoef, expcoef1;
 
@@ -115,10 +115,10 @@ protected:
   //@}
 
   //! Normalization for covariance matrix based on the biorthogonal basis norm
-  Matrix normM;
+  Eigen::MatrixXd normM;
 
   //! Sqr root of the normalization
-  Matrix sqnorm;
+  Eigen::MatrixXd sqnorm;
 
   //! Accumulated mass for variance computation
   double muse;
@@ -172,16 +172,16 @@ private:
   double fac02, tksmooth, tkcum;
   TKType tk_type;
 
-  Vector smth;
-  Vector *weight;
-  Vector *s_Hall;
-  Vector *b_Hall;
-  Vector inv;
-  Vector eval;
-  Vector cuml;
-  Matrix *evec;
-  Matrix *Tevec;
-  Matrix covar;
+  Eigen::VectorXd smth;
+  std::vector<Eigen::VectorXd> weight;
+  std::vector<Eigen::VectorXd> s_Hall;
+  std::vector<Eigen::VectorXd> b_Hall;
+  Eigen::VectorXd inv;
+  Eigen::VectorXd eval;
+  Eigen::VectorXd cuml;
+  std::vector<Eigen::MatrixXd> evec;
+  std::vector<Eigen::MatrixXd> Tevec;
+  Eigen::MatrixXd covar;
 
 };
 

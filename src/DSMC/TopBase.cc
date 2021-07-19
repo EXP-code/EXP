@@ -6,7 +6,7 @@
 #include <cmath>
 
 #include <TopBase.H>
-#include <localmpi.h>
+#include <localmpi.H>
 
 void TopBase::readData()
 {

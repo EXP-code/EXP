@@ -1,15 +1,12 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 #ifndef _SphericalSL_H
 #define _SphericalSL_H
 
 #include <vector>
 
 #include <Particle.H>
-#include <Vector.h>
 #include <logic.h>
 #include <Particle.H>
-#include <SLGridMP2.h>
+#include <SLGridMP2.H>
 
 class SphericalSL
 {
@@ -21,15 +18,15 @@ private:
 
   SLGridSph *ortho;
 
-  Matrix expcoef, *cc;
+  Eigen::MatrixXd expcoef;
+  std::vector<Eigen::MatrixXd> cc;
+  std::vector<Eigen::MatrixXd> expcoef1;
+  std::vector<std::vector<Eigen::MatrixXd>> cc1;
 
-  std::vector<Matrix> expcoef1;
-  std::vector<Matrix*> cc1;
-
-  Matrix factorial;
-  Matrix normM, krnl;
-  std::vector<Matrix> potd, legs, dpot, dlegs, dend;
-  std::vector<Vector> cosm, sinm;
+  Eigen::MatrixXd factorial;
+  Eigen::MatrixXd normM, krnl;
+  std::vector<Eigen::MatrixXd> potd, legs, dpot, dlegs, dend;
+  std::vector<Eigen::VectorXd> cosm, sinm;
 
   bool coefs_made;
 
@@ -44,13 +41,17 @@ private:
   void compute_coefficients_thread(vector<Particle> &part);
   void compute_coefficients_thread_call(int id, vector<Particle>* p);
 
-  void parallel_gather_coefficients(Matrix& expcoef, Matrix& expcoef1,
-				    Matrix*& cc, Matrix*& cc1,
-				    int lmax);
+  void parallel_gather_coefficients
+  (Eigen::MatrixXd& expcoef,
+   Eigen::MatrixXd& expcoef1,
+   std::vector<Eigen::MatrixXd>& cc,
+   std::vector<Eigen::MatrixXd>& cc1,
+   int lmax);
 
-  void parallel_distribute_coefficients(Matrix& expcoef, int lmax);
+  void parallel_distribute_coefficients(Eigen::MatrixXd& expcoef);
 
-  void pca_hall(int compute, Matrix& expcoef, Matrix*& cc, Matrix& normM);
+  void pca_hall(int compute, Eigen::MatrixXd& expcoef,
+		std::vector<Eigen::MatrixXd>& cc, Eigen::MatrixXd& normM);
 
 				// Error function
 
@@ -104,8 +105,8 @@ public:
     ortho->get_force(dpot[id], r);
   }
 
-  void get_dens_coefs(int l, Vector& coef, double *p, int id=0);
-  void get_pot_coefs (int l, Vector& coef, double *p, double *dp, int id=0);
+  void get_dens_coefs(int l, const Eigen::VectorXd& coef, double& p, int id=0);
+  void get_pot_coefs (int l, const Eigen::VectorXd& coef, double& p, double& dp, int id=0);
 
   void dump_coefs(ofstream& out, bool binary);
   void dump_basis(string& dumpname);

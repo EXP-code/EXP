@@ -1,14 +1,14 @@
 #include <math.h>
 #include <pthread.h>
 
-#include "expand.h"
-#include <localmpi.h>
+#include "expand.H"
+#include <localmpi.H>
 
 #include <ACG.h>
 #include <Uniform.h>
 #include <Normal.h>
-#include <gaussQ.h>
-#include <massmodel.h>
+#include <gaussQ.H>
+#include <massmodel.H>
 
 #include <UserDiffuse.H>
 

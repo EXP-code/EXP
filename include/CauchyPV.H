@@ -1,6 +1,5 @@
-#ifndef _CauchyPV_h
-
-#define _CauchyPV_h 1
+#ifndef _CauchyPV_H
+#define _CauchyPV_H
 
 // 
 // <summary> Header for Cauchy Principal Value integration using 
@@ -60,19 +59,22 @@
 //
 //
 
+#include <vector>
+#include <Eigen/Eigen>
+
 class PVQuad : public Legendre
 {
 private:
   int n;
-  Vector eign;
-  Vector *poly;
-  Vector chrs;
-  Vector nrml;
-  Vector coefs;
+  Eigen::VectorXd eign;
+  std::vector<Eigen::VectorXd> poly;
+  Eigen::VectorXd chrs;
+  Eigen::VectorXd nrml;
+  Eigen::VectorXd coefs;
 
   void get_eigenvalues(void);
   void get_orthopolies(void);
-  Vector& get_coefs(Vector&);
+  Eigen::VectorXd& get_coefs(Eigen::VectorXd&);
   double get_integral(double);
 
   double q0(double x) {return log( (1.0+x)/(1.0-x) );}
@@ -90,11 +92,11 @@ public:
 				// Scalar product norm
   double norm(int i) { return nrml[i];}
 				// Orthogonal polynomial
-  Vector& ovec(int i) {return poly[i];}
+  Eigen::VectorXd& ovec(int i) {return poly[i];}
 
 				// Coefficients for input function
-  Vector& return_coefs(double (*func)(double));
-  Vector& return_coefs(Vector& input) {return get_coefs(input);}
+  Eigen::VectorXd& return_coefs(double (*func)(double));
+  Eigen::VectorXd& return_coefs(Eigen::VectorXd& input) {return get_coefs(input);}
 
 				// Cauchy Principal Value integral
 				// for given pole
@@ -102,7 +104,7 @@ public:
   double return_pv(double lambda, double (*func)(double)) {
     return_coefs(func); return get_integral(lambda);}
     
-  double return_pv(double lambda, Vector& input) {
+  double return_pv(double lambda, Eigen::VectorXd& input) {
     return_coefs(input); return get_integral(lambda);}
 
   double return_pv(double lambda) { return get_integral(lambda);}

@@ -1,5 +1,5 @@
 #include <cmath>
-#include <expand.h>
+#include <expand.H>
 #include <SatelliteOrbit.h>
 
 #include <ExternalCollection.H>

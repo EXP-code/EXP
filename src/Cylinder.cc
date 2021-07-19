@@ -1,13 +1,15 @@
+#include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <chrono>
 #include <limits>
 
-#include "expand.h"
-#include <gaussQ.h>
-#include <EmpCylSL.h>
+#include "expand.H"
+#include <gaussQ.H>
+#include <EmpCylSL.H>
 #include <Cylinder.H>
 #include <MixtureBasis.H>
-#include <Timer.h>
+#include <Timer.H>
 
 Timer timer_debug;
 
@@ -312,12 +314,8 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
       
   ncompcyl = 0;
 
-  pos = new Vector [nthrds];
-  frc = new Vector [nthrds];
-  for (int i=0; i<nthrds; i++) {
-    pos[i].setsize(1, 3);
-    frc[i].setsize(1, 3);
-  }
+  pos.resize(nthrds);
+  frc.resize(nthrds);
 
 #ifdef DEBUG
   offgrid.resize(nthrds);
@@ -328,8 +326,6 @@ Cylinder::Cylinder(const YAML::Node& conf, MixtureBasis *m) : Basis(conf)
 Cylinder::~Cylinder()
 {
   delete ortho;
-  delete [] pos;
-  delete [] frc;
 }
 
 void Cylinder::initialize()
@@ -513,15 +509,15 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   if (VERBOSE>3 && myid==1 && component->EJ) {
     std::string toutfile = homedir + "test.orientation." + runtag;
     std::ofstream debugf(toutfile.c_str(), ios::app);
-    Vector axis = component->orient->currentAxis();
+    auto axis = component->orient->currentAxis();
     debugf << tnow << " "
+	   << component->orient->currentAxis()[0] << " " 
 	   << component->orient->currentAxis()[1] << " " 
 	   << component->orient->currentAxis()[2] << " " 
-	   << component->orient->currentAxis()[3] << " " 
 	   << component->orient->currentAxisVar() << " "
+	   << component->orient->currentCenter()[0] << " " 
 	   << component->orient->currentCenter()[1] << " " 
 	   << component->orient->currentCenter()[2] << " " 
-	   << component->orient->currentCenter()[3] << " " 
 	   << component->orient->currentCenterVar() << " "
 	   << component->orient->currentCenterVarZ() << " "
 	   << component->orient->currentE() << " "
@@ -530,6 +526,16 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   }
 
 }
+
+std::ostream& operator<< (std::ostream& os, const Eigen::Vector3d& p)
+{
+  std::streamsize sp = os.precision();
+  os.precision(6);
+  for (int i=0; i<3; i++) os << std::setw(16) << p[i];
+  os.precision(sp);
+  return os;
+}
+
 
 void * Cylinder::determine_coefficients_thread(void * arg)
 {
@@ -664,11 +670,9 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 	       << endl;
 
 	  if (std::isnan(R2)) {
-	    cout << endl;
-	    cC->orient->transformBody().print(cout);
-	    cout << endl;
-	    cC->orient->currentAxis().print(cout);
-	    cout << endl;
+	    cout << endl
+		 << cC->orient->transformBody() << endl
+		 << cC->orient->currentAxis()   << endl;
 	    MPI_Abort(MPI_COMM_WORLD, -1);
 	  }
 	}

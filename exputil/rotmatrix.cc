@@ -1,7 +1,6 @@
+#include <complex>
 #include <cstdlib>
 #include <cmath>
-
-#include <kevin_complex.h>
 
 
 #define odd(x) ( (int)(x/2)*2 != x )
@@ -55,9 +54,9 @@ double Ylm01(int ll, int mm)
 }
 
 
-KComplex VeeBeta(int l, int l2, int m, double beta)
+std::complex<double> VeeBeta(int l, int l2, int m, double beta)
 {
-  return pow(KComplex(0.0,1.0), (double)(m-l2))*rot_matrix(l,l2,m,beta)* Ylm01(l, l2);
+  return pow(std::complex<double>(0.0,1.0), (double)(m-l2))*rot_matrix(l,l2,m,beta)* Ylm01(l, l2);
 }
     
 
@@ -100,7 +99,7 @@ main(int argc, char **argv)
   double norm = 0.0, element;
   double plgndr(int l, int m, double x);
 
-  KComplex z;
+  std::complex<double> z;
 
   for (m=-L; m<=L; m++) {
     z = VeeBeta(L, m, M, beta);
@@ -125,7 +124,7 @@ main(int argc, char **argv)
 #include <iostream>
 #include <iomanip>
 
-#include <gaussQ.h>
+#include <gaussQ.H>
 
 main(int argc, char **argv)
 {

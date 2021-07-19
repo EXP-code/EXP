@@ -7,8 +7,8 @@
 #include <sstream>
 #include <string>
 
-#include <orbit.h>
-#include <massmodel.h>
+#include <orbit.H>
+#include <massmodel.H>
 
 #include <simann2.h>
 

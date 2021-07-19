@@ -10,7 +10,7 @@ ADD_LIBS3 = -ldmallocth -ldmallocthcxx
 endif
 
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
-AM_CXXFLAGS = -D_REENTRANT $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) $(BOOST_CPPFLAGS)
+AM_CXXFLAGS = -D_REENTRANT $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3) $(BOOST_CPPFLAGS) @exp_eigen3_include@
 AM_CPPFLAGS= -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src $(CUDA_CFLAGS)
 
 if ENABLE_CUDA
@@ -50,7 +50,7 @@ qtest_SOURCES   = qtest.cc localmpi.cc
 qtest_LDFLAGS   = $(EXPFLAGS) $(BOOST_LDFLAGS)
 qtest_LDADD     = $(EXPLIBS) $(CUDA_LIBFLAGS) $(BOOST_LIBS)
 
-biorth1d.h:	$(top_srcdir)/src/biorth1d.h
+biorth1d.H:	$(top_srcdir)/src/biorth1d.H
 	cp $(top_srcdir)/src/$@ .
 
 biorth1d.cc:	$(top_srcdir)/src/biorth1d.cc
@@ -59,6 +59,6 @@ biorth1d.cc:	$(top_srcdir)/src/biorth1d.cc
 localmpi.cc:	$(top_srcdir)/exputil/localmpi.cc
 	cp $(top_srcdir)/exputil/$@ .
 
-CLEANFILES = 	biorth1d.h biorth1d.cc localmpi.cc
+CLEANFILES = 	biorth1d.H biorth1d.cc localmpi.cc
 
 ## utils/SL/Makefile.am ends here

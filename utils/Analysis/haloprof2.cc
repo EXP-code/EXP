@@ -51,15 +51,14 @@ namespace po = boost::program_options;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
+#include <numerical.H>
 #include "Particle.h"
 #include <PSP2.H>
-#include <interp.h>
-#include <massmodel.h>
+#include <interp.H>
+#include <massmodel.H>
 #include <SphereSL.H>
 #include <VtkGrid.H>
-#include <localmpi.h>
+#include <localmpi.H>
 #include <foarray.H>
 
 // Variables not used but needed for linking
@@ -932,8 +931,8 @@ main(int argc, char **argv)
 
       // Get the snr trimmed coefficients
       //
-      Matrix origc = ortho.retrieve_coefs();
-      Matrix coefs = ortho.get_trimmed(snr, ortho.getMass(), Hall);
+      Eigen::MatrixXd origc = ortho.retrieve_coefs();
+      Eigen::MatrixXd coefs = ortho.get_trimmed(snr, ortho.getMass(), Hall);
 
       std::cout << "power in trim=" << ortho.get_power(snr, ortho.getMass())
 		<< " . . . ";

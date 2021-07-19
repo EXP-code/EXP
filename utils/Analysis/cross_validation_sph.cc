@@ -57,16 +57,15 @@ namespace po = boost::program_options;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
+#include <numerical.H>
 #include "Particle.h"
 #include <PSP2.H>
-#include <interp.h>
-#include <massmodel.h>
+#include <interp.H>
+#include <massmodel.H>
 #include <SphereSL.H>
 #include <foarray.H>
 
-#include <localmpi.h>
+#include <localmpi.H>
 
 // Variables not used but needed for linking
 //
@@ -425,7 +424,7 @@ main(int argc, char **argv)
 
       auto coefs = ortho.retrieve_coefs();
 
-      for (int ncut=1; ncut<=NMAX; ncut++) {
+      for (int ncut=0; ncut<NMAX; ncut++) {
 
 	// Zero out the accumulators
 	//
@@ -443,16 +442,16 @@ main(int argc, char **argv)
 	  for (int L=0; L<=LMAX; L++) {
 	    int lbeg = L*L;	// Offset into coefficient array
 	    for (int M=0; M<=L; M++) {
-	      for (int n1=1; n1<=ncut; n1++) {
-		for (int n2=1; n2<=ncut; n2++) {
+	      for (int n1=0; n1<ncut; n1++) {
+		for (int n2=0; n2<ncut; n2++) {
 		  if (M==0)
 		    term1[L] +=
-		      coefs[lbeg][n1]*O[L](n1-1, n2-1)*coefs[lbeg][n2];
+		      coefs(lbeg, n1)*O[L](n1-1, n2-1)*coefs(lbeg, n2);
 		  else {
 		    int ll = lbeg + 2*(M-1) + 1;
 		    term1[L] +=
-		      coefs[ll+0][n1]*O[L](n1-1, n2-1)*coefs[ll+0][n2] +
-		      coefs[ll+1][n1]*O[L](n1-1, n2-1)*coefs[ll+1][n2];
+		      coefs(ll+0, n1)*O[L](n1-1, n2-1)*coefs(ll+0, n2) +
+		      coefs(ll+1, n1)*O[L](n1-1, n2-1)*coefs(ll+1, n2);
 		  }
 		}
 	      }
@@ -494,7 +493,7 @@ main(int argc, char **argv)
 
 		double ylm = Ylm_fac(L, M) * plgndr(L, M, costh);
 
-		for (int n=1; n<=ncut; n++) {
+		for (int n=0; n<ncut; n++) {
 
 		  std::pair<int, int> I(L, n);
 		  double Qval = A*(*Q[I])[indx] + B*(*Q[I])[indx+1];
@@ -502,11 +501,11 @@ main(int argc, char **argv)
 		
 		  if (M==0) {
 		    if (r<RMAX)
-		      work2[L] += mass*coefs[lbeg+0][n]*ylm*potl;
-		    work3[L] += -mass*coefs[lbeg+0][n]*ylm*Qval;
+		      work2[L] += mass*coefs(lbeg+0, n)*ylm*potl;
+		    work3[L] += -mass*coefs(lbeg+0, n)*ylm*Qval;
 		  } else {
 		    int ll = lbeg + 2*(M-1) + 1;
-		    double fac = (coefs[ll][n]*cos(phi*M) + coefs[ll+1][n]*sin(phi*M))*ylm;
+		    double fac = (coefs(ll, n)*cos(phi*M) + coefs(ll+1, n)*sin(phi*M))*ylm;
 		    if (r<RMAX) work2[L] += mass*potl * fac;
 		    work3[L] += -mass*Qval * fac;
 		  }
@@ -542,7 +541,7 @@ main(int argc, char **argv)
 	  double term2tot = std::accumulate(term2.begin(), term2.end(), 0.0);
 	  double term3tot = std::accumulate(term3.begin(), term3.end(), 0.0);
 	  
-	  if (ncut==1) term4tot = term1tot;
+	  if (ncut==0) term4tot = term1tot;
 	  
 	  out << std::setw(18) << term1tot
 	      << std::setw(18) << term2tot
@@ -614,12 +613,12 @@ main(int argc, char **argv)
 		for (int n2=1; n2<=NMAX; n2++) {
 		  if (M==0)
 		    term1[L] +=
-		      coefs[lbeg][n1]*O[L](n1-1, n2-1)*coefs[lbeg][n2];
+		      coefs(lbeg, n1)*O[L](n1-1, n2-1)*coefs(lbeg, n2);
 		  else {
 		    int ll = lbeg + 2*(M-1) + 1;
 		    term1[L] +=
-		      coefs[ll+0][n1]*O[L](n1-1, n2-1)*coefs[ll+0][n2] +
-		      coefs[ll+1][n1]*O[L](n1-1, n2-1)*coefs[ll+1][n2];
+		      coefs(ll+0, n1)*O[L](n1-1, n2-1)*coefs(ll+0, n2) +
+		      coefs(ll+1, n1)*O[L](n1-1, n2-1)*coefs(ll+1, n2);
 		  }
 		}
 	      }
@@ -669,11 +668,11 @@ main(int argc, char **argv)
 		  
 		  if (M==0) {
 		    if (r<RMAX)
-		      work2[L] += mass*coefs[lbeg+0][n]*ylm*potl;
-		    work3[L] += mass*coefs[lbeg+0][n]*ylm*Qval;
+		      work2[L] += mass*coefs(lbeg+0, n)*ylm*potl;
+		    work3[L] += mass*coefs(lbeg+0, n)*ylm*Qval;
 		  } else {
 		    int ll = lbeg + 2*(M-1) + 1;
-		    double fac = (coefs[ll][n]*cos(phi*M) + coefs[ll+1][n]*sin(phi*M))*ylm;
+		    double fac = (coefs(ll, n)*cos(phi*M) + coefs(ll+1, n)*sin(phi*M))*ylm;
 		    if (r<RMAX)
 		      work2[L] += mass*potl * fac;
 		    work3[L] += mass*Qval * fac;

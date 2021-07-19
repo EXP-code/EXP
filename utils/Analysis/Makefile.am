@@ -190,7 +190,7 @@ localmpi.cc:	$(top_srcdir)/exputil/localmpi.cc
 dist_bin_SCRIPTS = parse_outfrac ion_collide.py ion_energy.py	\
 	ion_rate.py ion_frac.py ion_coll_number.py
 
-CLEANFILES = 	EmpCylSL.cc localmpi.cc PSP.cc PSP.H header.cc header.H
+CLEANFILES = EmpCylSL.cc localmpi.cc PSP.cc PSP.H header.cc header.H
 
 ## utils/ICs/Makefile.am ends here
 

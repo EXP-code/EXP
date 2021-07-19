@@ -1,4 +1,4 @@
-#include "expand.h"
+#include "expand.H"
 
 void do_step (int);
 void clean_up(void);

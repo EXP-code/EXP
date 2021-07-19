@@ -1,23 +1,18 @@
 
 #pragma implementation
 
-const char rcsid[] = "$Id$";
-
-#include <math.h>
-#include <stdlib.h>
-
 #include <iostream>
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <cmath>
 
-#include <Vector.h>
-#include <orbit.h>
-#include <massmodel.h>
-#include <interp.h>
+#include <massmodel.H>
+#include <interp.H>
+#include <orbit.H>
 
 void RegularOrbit::bomb(const char *s) {
-  cerr << "ERROR from " << OrbitID << ": " << s << endl;
+  std::cerr << "ERROR from " << OrbitID << ": " << s << std::endl;
 #ifdef DEBUG
   abort();
 #endif
@@ -214,47 +209,59 @@ double SphericalOrbit::get_angle(const int i, const double time)
     w1 = 2.0*M_PI - w1;
   }
 
+  Eigen::VectorXd X(angle_grid.w1.row(0));
+  
   switch (i) {
 
   case 3:
 #ifdef SPLINE
-    Splint1(angle_grid.w1[1], angle_grid.t[1], angle_grid.t[2], w1, ans);
+    Splint1(X,
+	    Eigen::VectorXd(angle_grid.t.row(0)),
+	    Eigen::VectorXd(angle_grid.t.row(1)), w1, ans);
 #else
-    ans = odd2(w1, angle_grid.w1[1], angle_grid.t[1]);
+    ans = odd2(w1, X, Eigen::VectorXd(angle_grid.t.row(0)));
 #endif
     if (branch) ans = M_PI - ans;
     break;
 
   case 4:
 #ifdef SPLINE    
-    Splint1(angle_grid.w1[1], angle_grid.dw1dt[1], angle_grid.dw1dt[2], w1, ans);
+    Splint1(X,
+	    Eigen::VectorXd(angle_grid.dw1dt.row(0)),
+	    Eigen::VectorXd(angle_grid.dw1dt.row(1)), w1, ans);
 #else
-    ans = odd2(w1, angle_grid.w1[1], angle_grid.dw1dt[1]);
+    ans = odd2(w1, X, Eigen::VectorXd(angle_grid.dw1dt.row(0)));
 #endif
     break;
 
   case 5:
 #ifdef SPLINE
-    Splint1(angle_grid.w1[1], angle_grid.f[1], angle_grid.f[2], w1, ans);
+    Splint1(X,
+	    Eigen::VectorXd(angle_grid.f.row(0)),
+	    Eigen::VectorXd(angle_grid.f.row(1)), w1, ans);
 #else
-    ans = odd2(w1, angle_grid.w1[1], angle_grid.f[1]);
+    ans = odd2(w1, X, Eigen::VectorXd(angle_grid.f.row(0)));
 #endif
     if (branch) ans *= -1.0;
     break;
 
   case 6:
 #ifdef SPLINE
-    Splint1(angle_grid.w1[1], angle_grid.r[1], angle_grid.r[2], w1, ans);
+    Splint1(X,
+	    Eigen::VectorXd(angle_grid.r.row(0)),
+	    Eigen::VectorXd(angle_grid.r.row(1)), w1, ans);
 #else
-    ans = odd2(w1, angle_grid.w1[1], angle_grid.r[1]);
+    ans = odd2(w1, X, Eigen::VectorXd(angle_grid.r.row(0)));
 #endif
     break;
 
   case 7:
 #ifdef SPLINE
-    Splint1(angle_grid.w1[1], angle_grid.f[1], angle_grid.f[2], w1, ans);
+    Splint1(X,
+	    Eigen::VectorXd(angle_grid.f.row(0)),
+	    Eigen::VectorXd(angle_grid.f.row(1)), w1, ans);
 #else
-    ans = odd2(w1, angle_grid.w1[1], angle_grid.f[1]);
+    ans = odd2(w1, X, Eigen::VectorXd(angle_grid.f.row(0)));
 #endif
     if (branch) ans *= -1.0;
     ans = w2 - ans;
@@ -263,6 +270,5 @@ double SphericalOrbit::get_angle(const int i, const double time)
   }
 
   return ans;
-
 }
 

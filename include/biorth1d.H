@@ -1,15 +1,11 @@
-// This may look like C code, but it is really -*- C++ -*-
+// Biorthnormal function class defintion for 1-d models
+//
 
-// Biorthnormal function class defintion
+#ifndef _biorth1d_H
+#define _biorth1d_H
 
-
-#ifndef _biorth1d_h
-#define _biorth1d_h 1
-
-static const char rcsid_biorth1d[] = "$Id$";
-
-#include <math.h>
-#include <biorth.h>
+#include <cmath>
+#include <biorth.H>
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
@@ -37,9 +33,9 @@ public:
 				// Fast for expansion! 
 				// (using recursion relation)
   //! Write potential basis into a vetor
-  virtual void potl(const int, const int, const double, Vector&) = 0;
+  virtual void potl(const int, const int, const double, Eigen::VectorXd&) = 0;
   //! Write density basis into a vetor
-  virtual void dens(const int, const int, const double, Vector&) = 0;
+  virtual void dens(const int, const int, const double, Eigen::VectorXd&) = 0;
 
   //! Non-dimensional to dimensional coordinate map
   virtual double rb_to_r(double const) = 0;
@@ -57,10 +53,10 @@ public:
   int get_dof(void) { return dof; }
 
   //! Return value of poential for given coefficient vector
-  virtual double get_potl(double r, int l, Vector& coef) = 0;
+  virtual double get_potl(double r, int l, Eigen::VectorXd& coef) = 0;
 
   //! Return value of density for given coefficient vector
-  virtual double get_dens(double r, int l, Vector& coef) = 0;
+  virtual double get_dens(double r, int l, Eigen::VectorXd& coef) = 0;
 
   //! Reset vertical wave number
   void reset_kx(double KX) { kx = KX; }
@@ -72,9 +68,9 @@ class OneDTrig : public OneDBiorth
 private:
   double zmax;
   int nrmax;
-  Vector kstar;
-  Vector kbstar;
-  Vector cnorm;
+  Eigen::VectorXd kstar;
+  Eigen::VectorXd kbstar;
+  Eigen::VectorXd cnorm;
   void compute_kstar(int n);
   void compute_norm(void);
 
@@ -104,11 +100,11 @@ public:
 				// Fast for expansion! 
 				// (using recursion relation)
   //! Return potential basis in a vector
-  void potl(const int n, const int tmp, const double z, Vector& vec);
+  void potl(const int n, const int tmp, const double z, Eigen::VectorXd& vec);
   //! Return density basis in a vector
-  void dens(const int n, const int tmp, const double z, Vector& vec);
+  void dens(const int n, const int tmp, const double z, Eigen::VectorXd& vec);
   //! Return force basis in a vector
-  void force(const int n, const int tmp, const double z, Vector& vec);
+  void force(const int n, const int tmp, const double z, Eigen::VectorXd& vec);
 
   //! Non-dimensional to dimensional mapping
   double rb_to_r(double const x)    { return x; }
@@ -128,11 +124,11 @@ public:
   double norm(int n, int k=0)         { return  1.0; }
 
   //! Return potential field for given coefficient vector
-  double get_potl(double r, int l, Vector& coef);
+  double get_potl(double r, int l, Eigen::VectorXd& coef);
   //! Return density field for given coefficient vector
-  double get_dens(double r, int l, Vector& coef);
+  double get_dens(double r, int l, Eigen::VectorXd& coef);
   //! Return force field for given coefficient vector
-  double get_force(double r, int l, Vector& coef);
+  double get_force(double r, int l, Eigen::VectorXd& coef);
 
 };
 

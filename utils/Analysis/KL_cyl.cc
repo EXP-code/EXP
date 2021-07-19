@@ -60,17 +60,16 @@ namespace po = boost::program_options;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
+#include <numerical.H>
 #include "Particle.h"
 #include <PSP2.H>
-#include <interp.h>
-#include <massmodel.h>
-#include <EmpCylSL.h>
+#include <interp.H>
+#include <massmodel.H>
+#include <EmpCylSL.H>
 #include <foarray.H>
 #include <KDtree.H>
 
-#include <localmpi.h>
+#include <localmpi.H>
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
@@ -702,13 +701,13 @@ main(int argc, char **argv)
   }
 
 
-  using OrthoCoefs = std::vector<Vector>;
+  using OrthoCoefs = std::vector<Eigen::VectorXd>;
   std::vector<OrthoCoefs> ac_cos(coefs.size()), ac_sin(coefs.size());
   for (int j=0; j<coefs.size(); j++) {
     ac_cos[j].resize(mmax+1), ac_sin[j].resize(mmax+1);
     for (int mm=0; mm<=mmax; mm++) {
-      ac_cos[j][mm].setsize(0, norder-1);
-      ac_sin[j][mm].setsize(0, norder-1);
+      ac_cos[j][mm].resize(norder);
+      ac_sin[j][mm].resize(norder);
     }
   }
 

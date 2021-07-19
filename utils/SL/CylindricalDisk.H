@@ -3,9 +3,7 @@
 
 using namespace std;
 
-#include <Vector.h>
-#include <massmodel.h>
-
+#include <massmodel.H>
 #include <SLSphere.H>
 
 /** 
@@ -45,7 +43,7 @@ protected:
   SphericalModelTable *model;
   SLSphere *ortho;
 
-  vector<Vector> coefs;
+  std::vector<Eigen::VectorXd> coefs;
   double rmin, rmax;
   int lmax, nmax, numr, numt, numg;
 

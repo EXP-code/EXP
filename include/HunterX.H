@@ -1,21 +1,12 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 //
 // Hunter's Legendre Models with Maclauring subtracted
 // as defined in Hunter & Toomre
 //
 
-#ifndef _HunterX_h
+#ifndef _HunterX.H
+#define _HunterX.H
 
-#define _HunterX_h 1
-
-static const char rcsid_HunterX[] = "$Id$";
-
-#ifndef _Logic_
-#include <logic.h>
-#endif
-
-#include <massmodel.h>
+#include <massmodel.H>
 #include <hunter.h>
 
 class HunterDiskX : public AxiSymModel

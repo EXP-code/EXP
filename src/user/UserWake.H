@@ -55,7 +55,7 @@ public:
 
 };
 
-Matrix return_euler_slater(double, double, double, int);
+Eigen::Matrix3d return_euler_slater(double, double, double, int);
 
 
 #endif

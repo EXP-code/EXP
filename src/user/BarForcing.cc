@@ -6,16 +6,15 @@
 #include <sstream>
 #include <math.h>
 
-#include <CVector.h>
-#include <clinalg.h>
+#include <Eigen/Eigen>
 
-#include <biorth.h>
-#include <model3d.h>
-#include <isothermal.h>
-#include <hernquist.h>
-#include <gaussQ.h>
+#include <biorth.H>
+#include <model3d.H>
+#include <isothermal.H>
+#include <hernquist.H>
+#include <gaussQ.H>
 
-#include <localmpi.h>
+#include <localmpi.H>
 #include <BarForcing.H>
 
 

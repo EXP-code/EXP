@@ -3,29 +3,28 @@
 #ifndef _DiskHalo_H
 #define _DiskHalo_H
 
-#include <math.h>
-#include <stdlib.h>
+#include <cmath>
 
 #include <iostream>
 #include <iomanip>
 #include <string>
 #include <stdexcept>
 
+#include <exponential.H>
+#include <massmodel.H>
+
 #include <ACG.h>
 #include <Uniform.h>
 #include <Normal.h>
 #include <Random.h>
 
-#include <exponential.h>
-#include <massmodel.h>
-
-#include <gaussQ.h>
-#include <localmpi.h>
+#include <gaussQ.H>
+#include <localmpi.H>
 #include <Vector.h>
 
 #include <AddDisk.H>
 #include <SphericalSL.H>
-#include "EmpCylSL.h"
+#include "EmpCylSL.H"
 #include "SParticle.H"
 
 class DiskHaloException : public std::runtime_error
@@ -55,11 +54,11 @@ class DiskHalo
   SphericalSLptr expandh;
   EmpCylSLptr    expandd;
 
-  std::vector<Matrix> disktableP, disktableN;
-  Matrix epitable, dv2table, asytable;
+  std::vector<Eigen::MatrixXd> disktableP, disktableN;
+  Eigen::MatrixXd epitable, dv2table, asytable;
   double dP, dR, dZ;
 
-  Matrix halotable;
+  Eigen::MatrixXd halotable;
   double dr, dc;
 
   std::shared_ptr<Uniform> rndU;

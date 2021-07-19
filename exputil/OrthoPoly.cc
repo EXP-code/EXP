@@ -1,5 +1,4 @@
-
-#include <OrthoPoly.h>
+#include <OrthoPoly.H>
 
 double OrthoPoly::f(const double x, const int n)
 {
@@ -21,9 +20,9 @@ double OrthoPoly::f(const double x, const int n)
   return g0;
 }
 
-Vector OrthoPoly::fv(const double x, const int n)
+Eigen::VectorXd OrthoPoly::fv(const double x, const int n)
 {
-  Vector t(0, n);
+  Eigen::VectorXd t(n+1);
 
   t[0] = f0(x);
   t[1] = f1(x);

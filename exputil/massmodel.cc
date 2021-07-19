@@ -13,8 +13,8 @@
 
 #include <limits.h>
 
-#include <massmodel.h>
-#include <interp.h>
+#include <massmodel.H>
+#include <interp.H>
 
 using namespace std;
 
@@ -71,15 +71,15 @@ SphericalModelTable::SphericalModelTable
   istringstream ist(x, istringstream::in);
   ist >> num;
 
-  density.x.setsize(1,num);
-  density.y.setsize(1,num);
-  density.y2.setsize(1,num);
-  mass.x.setsize(1,num);
-  mass.y.setsize(1,num);
-  mass.y2.setsize(1,num);
-  pot.x.setsize(1,num);
-  pot.y.setsize(1,num);
-  pot.y2.setsize(1,num);
+  density.x.resize(num);
+  density.y.resize(num);
+  density.y2.resize(num);
+  mass.x.resize(num);
+  mass.y.resize(num);
+  mass.y2.resize(num);
+  pot.x.resize(num);
+  pot.y.resize(num);
+  pot.y2.resize(num);
   density.num = num;
   mass.num = num;
   pot.num = num;
@@ -140,15 +140,18 @@ SphericalModelTable::SphericalModelTable(int NUM,
 
   double radius = 0.0;
 
-  density.x.setsize(1,num);
-  density.y.setsize(1,num);
-  density.y2.setsize(1,num);
-  mass.x.setsize(1,num);
-  mass.y.setsize(1,num);
-  mass.y2.setsize(1,num);
-  pot.x.setsize(1,num);
-  pot.y.setsize(1,num);
-  pot.y2.setsize(1,num);
+  density.x.resize(num);
+  density.y.resize(num);
+  density.y2.resize(num);
+
+  mass.x.resize(num);
+  mass.y.resize(num);
+  mass.y2.resize(num);
+
+  pot.x.resize(num);
+  pot.y.resize(num);
+  pot.y2.resize(num);
+
   density.num = num;
   mass.num = num;
   pot.num = num;
@@ -357,7 +360,7 @@ void SphericalModelTable::print_df(char const *name)
   }
 
   double g, d;
-  for (int i=df.Q.getlow(); i<=df.Q.gethigh(); i++) {
+  for (int i=0; i<df.Q.size(); i++) {
 
     if (linear) {
       d = odd2(df.Q[i], df.Q, df.fQ);

@@ -12,7 +12,7 @@
 #include <Uniform.h>
 #include <Normal.h>
 
-#include <Vector.h>
+#include <Eigen/Eigen>
 #include <Particle.H>
 
 #include <config.h>
@@ -33,15 +33,12 @@ public:
   /// Binding energy
   double E;			
   /// Angular momentum
-  Vector L;			
+  Eigen::Vector3d L;			
   /// Position
-  Vector R;
+  Eigen::Vector3d R;
   
   //! Constructor
-  EL3() {
-    L.setsize(1, 3);
-    R.setsize(1, 3);
-  }
+  EL3() {}
   
   //! Comparison member for ordering energy
   bool operator<(const EL3& x) const {
@@ -97,7 +94,7 @@ Log file contents:
 */
 class Orient
 {
-  typedef pair<double, Vector> DV;
+  typedef pair<double, Eigen::VectorXd> DV;
   
 private:
   EL3 t;
@@ -105,10 +102,10 @@ private:
   deque<DV> sumsA, sumsC;
   int keep, current;
   double damp;
-  Matrix body, orig;
-  Vector axis, center, axis1, center1, center0, cenvel0;
+  Eigen::Matrix3d body, orig;
+  Eigen::Vector3d axis, center, axis1, center1, center0, cenvel0;
   double sumX, sumX2;
-  Vector sumY, sumY2, sumXY, slope, intercept;
+  Eigen::Vector3d sumY, sumY2, sumXY, slope, intercept;
   double sigA, sigC, sigCz;
   
   int many, used;
@@ -166,16 +163,16 @@ public:
   void accumulate(double time, Component* c);
   
   //! Return transformation to new body axes
-  Matrix& transformBody(void) {return body;};
+  Eigen::Matrix3d& transformBody(void) {return body;};
   
   //! Return transformation to original coordinates
-  Matrix& transformOrig(void) {return orig;};
+  Eigen::Matrix3d& transformOrig(void) {return orig;};
   
   //! Return current axis
-  Vector& currentAxis(void) {return axis;};
+  Eigen::Vector3d& currentAxis(void) {return axis;};
   
   //! Return current center
-  Vector& currentCenter(void) {return center;};
+  Eigen::Vector3d& currentCenter(void) {return center;};
   
   //! Return variance of axis determination (linear least squares solution)
   double currentAxisVar(void) {return sigA;}

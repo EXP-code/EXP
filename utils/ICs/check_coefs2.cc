@@ -36,15 +36,15 @@ namespace po = boost::program_options;
 
 // MDW classes
 //
-#include <numerical.h>
-#include <gaussQ.h>
-#include <isothermal.h>
-#include <hernquist.h>
-#include <model3d.h>
-#include <biorth.h>
+#include <numerical.H>
+#include <gaussQ.H>
+#include <isothermal.H>
+#include <hernquist.H>
+#include <model3d.H>
+#include <biorth.H>
 #include <SphericalSL.H>
-#include <interp.h>
-#include <EmpCylSL.h>
+#include <interp.H>
+#include <EmpCylSL.H>
 #include <DiskModels.H>
 #include <DiskEval.H>
 
@@ -172,7 +172,7 @@ void set_fpu_gdb_handler(void)
 #endif
 
                                 // Local headers
-#include <localmpi.h>
+#include <localmpi.H>
 
 
 // Hydrogen fraction

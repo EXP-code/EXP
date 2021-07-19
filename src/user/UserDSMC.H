@@ -5,7 +5,7 @@
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
 
-#include <Timer.h>
+#include <Timer.H>
 
 /**
    Helper class describing a comparison for sorting particles in radius

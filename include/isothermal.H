@@ -1,18 +1,9 @@
-// This may look like C code, but it is really -*- C++ -*-
+#ifndef _isothermal_H
+#define _isothermal_H
 
-#ifndef _isothermal_h
-#define _isothermal_h 1
-
-const char rcsid_isothermal[] = "$Id$";
-
-#ifndef _Logic_
-#include <logic.h>
-#endif
-
-#include <math.h>
-#include <massmodel.h>
-#include <Vector.h>
-#include <interp.h>
+#include <cmath>
+#include <massmodel.H>
+#include <interp.H>
 
 class SingIsothermalSphere : public AxiSymModel
 {
@@ -24,17 +15,20 @@ private:
 
 public:
 
+  //! Constructor
   SingIsothermalSphere(double VROT = 1.0, 
-		   double RMIN = 1.0e-6, double RMAX = 1.0e6)
-    {
-      rot = VROT*VROT; rmin = RMIN; rmax = RMAX; 
-      dist_defined = true;
-      ModelID = "SingIsothermalSphere"; 
-      dim = 3;
-      F = 1.79587122125166561689e-1/(VROT*VROT*VROT); }
-      
-
-  // Required member functions
+		       double RMIN = 1.0e-6, double RMAX = 1.0e6)
+  {
+    rot = VROT*VROT; rmin = RMIN; rmax = RMAX; 
+    dist_defined = true;
+    ModelID = "SingIsothermalSphere"; 
+    dim = 3;
+    F = 1.79587122125166561689e-1/(VROT*VROT*VROT);
+  }
+  
+  
+  //@{
+  //! Required member functions
 
   double get_mass(const double r) { 
     if (r>0.0) return rot*r; 
@@ -70,8 +64,10 @@ public:
     if (r>0.0) {ur = rot*log(r); dur = rot/r;}
     else bomb("radius cannot be zero!");
   }
+  //@}
   
-  // Addiional member functions
+  //@{
+  //! Addiional member functions
 
   double get_min_radius(void) { return rmin; }
   double get_max_radius(void) { return rmax; }
@@ -91,7 +87,7 @@ public:
   double d2fde2(double E, double L) {
     return 4.0*F*exp(-2.0*E/rot)/(rot*rot);
   }
-
+  //@}
 
 };
 
@@ -107,8 +103,8 @@ private:
   double F;
 
   int num;
-  Vector r, d, m, p;
-  Vector d2, m2, p2;
+  Eigen::VectorXd r, d, m, p;
+  Eigen::VectorXd d2, m2, p2;
 
   double ret1, ret2;
 
@@ -196,8 +192,8 @@ private:
   double F, Fconst, sigma;
 
   int num;
-  Vector u, d, m, p;
-  Vector d2, m2, p2;
+  Eigen::VectorXd u, d, m, p;
+  Eigen::VectorXd d2, m2, p2;
 
   double ret1, ret2;
 

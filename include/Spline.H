@@ -45,13 +45,16 @@
  *
  ***************************************************************************/
 
-#include <math.h>
-#include <stdlib.h>
-#include <stl.h>
+#ifndef Spline_H
+#define Spline_H
+
+#include <cstdlib>
+#include <vector>
+#include <cmath>
 
 template <class T>
-void Spline(const vector<T> &x, const vector<T> &y, T yp1, T ypn, 
-	    vector<T> &y2)
+void Spline(const std::vector<T> &x, const std::vector<T> &y, T yp1, T ypn, 
+	    std::vector<T> &y2)
 {
   int i,k,i1,i2;
   T d1,d2,p,qn,un;
@@ -60,9 +63,9 @@ void Spline(const vector<T> &x, const vector<T> &y, T yp1, T ypn,
   i1 = 0;
   i2 = x.size() - 1;
 
-  vector<T> u(i2);
+  std::vector<T> u(i2);
   y2.erase(y2.begin(), y2.end());
-  y2 = vector<T>(i2);
+  y2 = std::vector<T>(i2);
 
   //     Boundary conditions obtained by fixing third derivative as computed
   //     by divided differences
@@ -114,7 +117,7 @@ void Spline(const vector<T> &x, const vector<T> &y, T yp1, T ypn,
 
 
 template <class T>
-void Splint1(const vector<T> &xa, const vector<T> &ya, const vector<T> &y2a, 
+void Splint1(const std::vector<T> &xa, const std::vector<T> &ya, const std::vector<T> &y2a, 
 	     T x, T &y, int even=0)
 {
   int klo, khi, n1, n2, k;
@@ -151,7 +154,7 @@ void Splint1(const vector<T> &xa, const vector<T> &ya, const vector<T> &y2a,
 }
 
 template <class T>
-void Splint2(const vector<T> &xa, const vector<T> &ya, const vector<T> &y2a, 
+void Splint2(const std::vector<T> &xa, const std::vector<T> &ya, const std::vector<T> &y2a, 
 	     T x, T &y, T &dy, int even=0)
 {
   int klo, khi, n1, n2, k;
@@ -192,7 +195,7 @@ void Splint2(const vector<T> &xa, const vector<T> &ya, const vector<T> &y2a,
 
 
 template <class T>
-void Splint3(const vector<T> &xa, const vector<T> &ya, const vector<T> &y2a, 
+void Splint3(const std::vector<T> &xa, const std::vector<T> &ya, const std::vector<T> &y2a, 
 	     T x, T &y, T &dy, T &ddy, int even=0)
 {
   int klo, khi, n1, n2, k;
@@ -230,3 +233,5 @@ void Splint3(const vector<T> &xa, const vector<T> &ya, const vector<T> &y2a,
       *h/6.0;
   ddy = a*y2a[klo]+b*y2a[khi];
 }
+
+#endif

@@ -1,5 +1,3 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 /*****************************************************************************
  *  Description:
  *  -----------
@@ -46,9 +44,8 @@
 
 #include <math.h>
 #include <string>
-#include <Vector.h>
-#include <massmodel.h>
-#include <interp.h>
+#include <massmodel.H>
+#include <interp.H>
 
 #define OFFSET 1.0e-3
 #define OFFTOL 1.0e-5
@@ -61,14 +58,13 @@ extern double gint_2(double a, double b, double (*f) (double), int NGauss);
 
 static int DIVERGE=0;
 
-Vector rhoQx;
-Vector rhoQy;
-Vector rhoQy2;
+Eigen::VectorXd rhoQx;
+Eigen::VectorXd rhoQy;
+Eigen::VectorXd rhoQy2;
 	     
 void SphericalModelTable::setup_df(int NUM, double RA)
 {
   double x,fac,fint(double p),d,dQ,Q,Qmin,Qmax;
-  int i;
 
   DIVERGE = diverge;
 
@@ -78,11 +74,11 @@ void SphericalModelTable::setup_df(int NUM, double RA)
 
 /* Compute rho_Q(phi) */
 
-  rhoQx.setsize(1, num);
-  rhoQy.setsize(1, num);
-  rhoQy2.setsize(1, num);
+  rhoQx.resize(num);
+  rhoQy.resize(num);
+  rhoQy2.resize(num);
 
-  for (i=1; i<=num; i++) {
+  for (int i=0; i<num; i++) {
     x = density.x[i];
     rhoQx[i] = pot.y[i];
     if (diverge) {
@@ -93,7 +89,7 @@ void SphericalModelTable::setup_df(int NUM, double RA)
       rhoQy[i] = (1.0 + x*x/df.ra2)*density.y[i];
   }
 
-  Spline(rhoQx, rhoQy, -1.0e30,-1.0e30, rhoQy2);
+  Spline(rhoQx, rhoQy, -1.0e30, -1.0e30, rhoQy2);
   
 
 /* Tabulate the integral:
@@ -106,28 +102,28 @@ void SphericalModelTable::setup_df(int NUM, double RA)
 
 */
 
-  df.Q    = Vector(1, NUM);
-  df.fQ   = Vector(1, NUM);
-  df.ffQ  = Vector(1, NUM);
-  df.fQ2  = Vector(1, NUM);
-  df.ffQ2 = Vector(1, NUM);
+  df.Q    = Eigen::VectorXd(NUM);
+  df.fQ   = Eigen::VectorXd(NUM);
+  df.ffQ  = Eigen::VectorXd(NUM);
+  df.fQ2  = Eigen::VectorXd(NUM);
+  df.ffQ2 = Eigen::VectorXd(NUM);
   df.num  = NUM;
 
-  Qmax = pot.y[pot.num];
-  Qmin = pot.y[1];
+  Qmax = pot.y[pot.num-1];
+  Qmin = pot.y[0];
   dQ = (Qmax-Qmin)/(double)(df.num-1);
   
-  df.Q[df.num] = Qmax;
-  df.ffQ[df.num] = 0.0;
+  df.Q[df.num-1] = Qmax;
+  df.ffQ[df.num-1] = 0.0;
   fac = 1.0/(sqrt(8.0)*M_PI*M_PI);
-  for (i=df.num-1; i>0; i--) {
+  for (int i=df.num-2; i>=0; i--) {
     df.Q[i] = df.Q[i+1] - dQ;
     Q = df.Q[i];
     df.ffQ[i] = fac * gint_2(Q, Qmax, fint, NGauss);
   }
 
-  df.off = df.Q[1] * ( 1.0 + OFFSET );
-  for (i=1; i<=df.num; i++) {
+  df.off = df.Q[0] * ( 1.0 + OFFSET );
+  for (int i=0; i<df.num; i++) {
     df.Q[i] = log(df.Q[i] - df.off);
     df.ffQ[i] = log(-df.ffQ[i] + OFFTOL);
   }
@@ -137,7 +133,7 @@ void SphericalModelTable::setup_df(int NUM, double RA)
 
 /* Tabulate the df! */
 
-  for (i=df.num; i>0; i--)
+  for (int i=df.num-1; i>=0; i--)
     Splint2(df.Q, df.ffQ, df.ffQ2, df.Q[i], d, df.fQ[i]);
 
   Spline(df.Q, df.fQ, -1.0e30, -1.0e30, df.fQ2);

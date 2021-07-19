@@ -3,16 +3,13 @@
 // Biorthnormal function class defintion
 
 
-#ifndef _biorth2d_h
-#define _biorth2d_h 1
-
-static const char rcsid_biorth2d_h[] = "$Id$";
+#ifndef _biorth2d_H
+#define _biorth2d_H
 
 #include <string>
-#include <biorth.h>
+#include <biorth.H>
 #include <logic.h>
 
-class Vector;
 class AxiSymBiorth;
 
 class CBDisk : public AxiSymBiorth
@@ -31,8 +28,8 @@ public:
   double dens(const int n, const int m, const double r);
   inline double krnl(const int n, const int m) {return 1.0;}
   double norm(const int n, const int m);
-  void potl(const int n, const int m, const double r, Vector& a);
-  void dens(const int n, const int m, const double r, Vector& a);
+  void potl(const int n, const int m, const double r, Eigen::VectorXd& a);
+  void dens(const int n, const int m, const double r, Eigen::VectorXd& a);
 
 
 				// Supplemental functions
@@ -64,10 +61,10 @@ private:
   int nmax, mmax;
   double rmax;
 
-  Vector *a;
+  std::vector<Eigen::VectorXd> a;
 
-  Matrix t_f, t_y;
-  Vector t_dr;
+  Eigen::MatrixXd t_f, t_y;
+  Eigen::VectorXd t_dr;
   int t_n;
 
   void setup_potl_table(void);
@@ -83,8 +80,8 @@ public:
   double dens(const int n, const int m, const double r);
   inline double krnl(const int n, const int m) {return 1.0;}
   double norm(const int n, const int m);
-  void potl(const int n, const int m, const double r, Vector& a);
-  void dens(const int n, const int m, const double r, Vector& a);
+  void potl(const int n, const int m, const double r, Eigen::VectorXd& a);
+  void dens(const int n, const int m, const double r, Eigen::VectorXd& a);
 
 
 				// Supplemental functions

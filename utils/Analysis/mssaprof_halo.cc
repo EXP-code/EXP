@@ -53,13 +53,12 @@ namespace pt = boost::property_tree;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
+#include <numerical.H>
 #include "Particle.h"
-#include <interp.h>
+#include <interp.H>
 #include <SphereSL.H>
 
-#include <localmpi.h>
+#include <localmpi.H>
 #include <foarray.H>
 
 #include <VtkGrid.H>
@@ -611,7 +610,7 @@ main(int argc, char **argv)
 
       std::vector<std::string> outfiles1, outfiles2, outfiles3;
       std::vector<double> T;
-      Matrix expcoef;
+      Eigen::MatrixXd expcoef;
       
       int count = 0;
       
@@ -619,8 +618,8 @@ main(int argc, char **argv)
 	
 	if (count++ % stride) continue;
 	
-	expcoef.setsize(0, lmax*(lmax+2), 1, nmax);
-	expcoef.zero();
+	expcoef.resize((lmax+1)*(lmax+1), nmax);
+	expcoef.setZero();
 	
 	int lindx = 0;
 	for (int l=0; l<=lmax; l++) {
@@ -628,10 +627,10 @@ main(int argc, char **argv)
 	    LM lm = {l, m};
 	    if (LMset.find(lm) != LMset.end()) {
 	      for (int n=0; n<nmax; n++) 
-		expcoef[lindx][n+1] = u.second[lm].cos[n];
+		expcoef(lindx, n) = u.second[lm].cos[n];
 	      if (m) {
 		for (int n=0; n<nmax; n++)
-		  expcoef[lindx+1][n+1] = u.second[lm].sin[n];
+		  expcoef(lindx+1, n) = u.second[lm].sin[n];
 	      }
 	    }
 	    if (m) lindx += 2;
@@ -676,7 +675,7 @@ main(int argc, char **argv)
   // Sum over all PCs
   if (All) {
     std::vector<std::string> outfiles1, outfiles2, outfiles3;
-    std::map<double, Matrix> expcoef;
+    std::map<double, Eigen::MatrixXd> expcoef;
     
     if (myid==0)
       std::cout << "Number of groups in coefficient array:"
@@ -691,12 +690,12 @@ main(int argc, char **argv)
 
 				// Find the time in the amp
 	double time = u.first;
-	std::map<double, Matrix>::iterator expc = expcoef.find(time);
+	std::map<double, Eigen::MatrixXd>::iterator expc = expcoef.find(time);
 
 				// Create the coefficient array
 	if (expc == expcoef.end()) {
-	  expcoef[time].setsize(0, lmax*(lmax+2), 1, nmax);
-	  expcoef[time].zero();
+	  expcoef[time].resize((lmax+1)*(lmax+1), nmax);
+	  expcoef[time].setZero();
 	  expc = expcoef.find(time);
 	}
 
@@ -706,10 +705,10 @@ main(int argc, char **argv)
 	    LM lm = {l, m};
 	    if (LMset.find(lm) != LMset.end()) {
 	      for (int n=0; n<nmax; n++)
-		expc->second[lindx][n+1] += u.second[lm].cos[n];
+		expc->second(lindx, n) += u.second[lm].cos[n];
 	      if (m) {
 		for (int n=0; n<nmax; n++)
-		  expc->second[lindx+1][n+1] += u.second[lm].sin[n];
+		  expc->second(lindx+1, n) += u.second[lm].sin[n];
 	      }
 	    }
 	    if (m) lindx += 2;

@@ -1,8 +1,8 @@
 #include <math.h>
 #include <sstream>
 
-#include "expand.h"
-#include <localmpi.h>
+#include "expand.H"
+#include <localmpi.H>
 #include <UserEBarS.H>
 
 UserEBarS::UserEBarS(const YAML::Node& conf) : ExternalForce(conf)

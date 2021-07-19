@@ -8,7 +8,7 @@
 
 using namespace std;
 
-#include "Timer.h"
+#include "Timer.H"
 #include "global.H"
 #include "pHOT.H"
 #include "TreeDSMC.H"

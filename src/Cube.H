@@ -1,8 +1,9 @@
 #ifndef _Cube_H
 #define _Cube_H
 
-#include <kevin_complex.h>
-
+#include <complex>
+#include <vector>
+#include <Eigen/Eigen>
 #include <PotAccel.H>
 
 //! Periodic cube basis
@@ -11,13 +12,11 @@ class Cube : public PotAccel
 
 private:
 
-  KComplex **expccof;
-  double *expreal, *expimag;
-  double *expreal1, *expimag1;
+  std::vector<Eigen::VectorXcd> expccof;
 
   int imx, imy, imz, jmax, use1, use0;
   double  dfac;
-  KComplex kfac;
+  std::complex<double> kfac;
 
 protected:
 

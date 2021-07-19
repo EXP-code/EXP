@@ -2,7 +2,7 @@
 #define _RUNNINGTIME_H
 
 #include <deque>
-#include <Timer.h>
+#include <Timer.H>
 
 /*
   A stopwatch that averages over the last N trials

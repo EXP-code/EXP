@@ -1,4 +1,5 @@
-
+#ifndef _Needle_H
+#define _Needle_H
 
 
 class Needle
@@ -44,7 +45,4 @@ public:
 	Vector force(Vector &);
 };
 
-
-
-
-
+#endif

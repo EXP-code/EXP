@@ -45,38 +45,36 @@
  *
  ***************************************************************************/
 
-#include <math.h>
-#include <stdlib.h>
-#include <Vector.h>
+#include <cmath>
+#include <Eigen/Eigen>
 
-void Spline(const Vector &x, const Vector &y, double yp1, double ypn, Vector &y2)
+void Spline(const Eigen::VectorXd &x,
+	    const Eigen::VectorXd &y,
+	    double yp1, double ypn, Eigen::VectorXd &y2)
 {
-  int i,k,i1,i2;
   double d1,d2,p,qn,un;
   double sig;
-  Vector u;
   
-  i1 = x.getlow();
-  i2 = x.gethigh();
-  u = Vector(i1, i2-1);
+  int sz = x.size();
+  Eigen::VectorXd u(sz-1);
 
 /*     Boundary conditions obtained by fixing third derivative as computed
        by divided differences */
   if (yp1 < -0.99e30) {
-    y2[i1+0]=1.0;
-    d2 = ((y[i1+3]-y[i1+2])/(x[i1+3]-x[i1+2]) - (y[i1+2]-y[i1+1])/(x[i1+2]-x[i1+1]))/(x[i1+3]-x[i1+1]);
-    d1 = ((y[i1+2]-y[i1+1])/(x[i1+2]-x[i1+1]) - (y[i1+1]-y[i1+0])/(x[i1+1]-x[i1+0]))/(x[i1+2]-x[i1+0]);
-    u[i1+0] = -6.0*(d2-d1)*(x[i1+1]-x[i1+0])/(x[i1+3]-x[i1+0]);
+    y2[0]=1.0;
+    d2 = ((y[3]-y[2])/(x[3]-x[2]) - (y[2]-y[1])/(x[2]-x[1]))/(x[3]-x[1]);
+    d1 = ((y[2]-y[1])/(x[2]-x[1]) - (y[1]-y[0])/(x[1]-x[0]))/(x[2]-x[0]);
+    u[0] = -6.0*(d2-d1)*(x[1]-x[0])/(x[3]-x[0]);
   }
 /*     "Normal" zero second derivative boundary conditions */
   else if (yp1 > 0.99e30)
-    y2[i1+0]=u[i1+0]=0.0;
+    y2[0]=u[0]=0.0;
 /*      Known first derivative */
   else {
-    y2[i1+0] = -0.5;
-    u[i1+0]=(3.0/(x[i1+1]-x[i1+0]))*((y[i1+1]-y[i1+0])/(x[i1+1]-x[i1+0])-yp1);
+    y2[0] = -0.5;
+    u[0]=(3.0/(x[1]-x[0]))*((y[1]-y[0])/(x[1]-x[0])-yp1);
   }
-  for (i=i1+1;i<i2;i++) {
+  for (int i=1; i<sz-1; i++) {
     sig=(x[i]-x[i-1])/(x[i+1]-x[i-1]);
     p=sig*y2[i-1]+2.0;
     y2[i]=(sig-1.0)/p;
@@ -87,12 +85,12 @@ void Spline(const Vector &x, const Vector &y, double yp1, double ypn, Vector &y2
 /*     Boundary conditions obtained by fixing third derivative as computed
        by divided differences */
   if (ypn < -0.99e30) {
-    d2 = ((y[i2]-y[i2-1])/(x[i2]-x[i2-1]) - 
-	  (y[i2-1]-y[i2-2])/(x[i2-1]-x[i2-2]))/(x[i2]-x[i2-2]);
-    d1 = ((y[i2-1]-y[i2-2])/(x[i2-1]-x[i2-2]) - 
-	  (y[i2-2]-y[i2-3])/(x[i2-2]-x[i2-3]))/(x[i2-1]-x[i2-3]);
+    d2 = ((y[sz-1]-y[sz-2])/(x[sz-1]-x[sz-2]) - 
+	  (y[sz-2]-y[sz-3])/(x[sz-2]-x[sz-3]))/(x[sz-1]-x[sz-3]);
+    d1 = ((y[sz-2]-y[sz-3])/(x[sz-2]-x[sz-3]) - 
+	  (y[sz-3]-y[sz-4])/(x[sz-3]-x[sz-4]))/(x[sz-2]-x[sz-4]);
     qn = -1.0;
-    un = 6.0*(d2-d1)*(x[i2]-x[i2-1])/(x[i2]-x[i2-3]);
+    un = 6.0*(d2-d1)*(x[sz-1]-x[sz-2])/(x[sz-1]-x[sz-4]);
   }
 /*     "Normal" zero second derivative boundary conditions */
   else if (ypn > 0.99e30)
@@ -100,10 +98,10 @@ void Spline(const Vector &x, const Vector &y, double yp1, double ypn, Vector &y2
 /*      Known first derivative */
   else {
     qn=0.5;
-    un=(3.0/(x[i2]-x[i2-1]))*(ypn-(y[i2]-y[i2-1])/(x[i2]-x[i2-1]));
+    un=(3.0/(x[sz-1]-x[sz-2]))*(ypn-(y[sz-1]-y[sz-2])/(x[sz-1]-x[sz-2]));
   }
-  y2[i2]=(un-qn*u[i2-1])/(qn*y2[i2-1]+1.0);
-  for (k=i2-1;k>=i1;k--)
+  y2[sz-1]=(un-qn*u[sz-2])/(qn*y2[sz-2]+1.0);
+  for (int k=sz-2; k>=0; k--)
     y2[k]=y2[k]*y2[k+1]+u[k];
 }
 

@@ -1,10 +1,10 @@
 #include <math.h>
 #include <sstream>
 
-#include "expand.h"
-#include <localmpi.h>
+#include "expand.H"
+#include <localmpi.H>
 #include <UserEBar.H>
-#include <Timer.h>
+#include <Timer.H>
 static Timer timer_tot, timer_thrd;
 static bool timing = false;
 

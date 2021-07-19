@@ -2,7 +2,7 @@
 #ifndef StatsMPI_H
 #define StatsMPI_H
 
-#include "localmpi.h"
+#include "localmpi.H"
 #include "Species.H"
 #include <array>
 #include <map>

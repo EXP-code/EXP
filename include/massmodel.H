@@ -1,17 +1,14 @@
-// This is -*- C++ -*-
-
-#ifndef _massmodel_h
-#define _massmodel_h
+#ifndef _massmodel_H
+#define _massmodel_H
 
 #include <vector>
-
+#include <Eigen/Eigen>
 #include <boost/shared_ptr.hpp>
 
 #include <ACG.h>
 #include <Uniform.h>
 #include <Normal.h>
-#include <Vector.h>
-#include <orbit.h>
+#include <orbit.H>
 
 class QPDistF;
 
@@ -19,9 +16,9 @@ class QPDistF;
 class RUN 
 {
 public:
-  Vector x;
-  Vector y;
-  Vector y2;
+  Eigen::VectorXd x;
+  Eigen::VectorXd y;
+  Eigen::VectorXd y2;
   int num;
 };
 
@@ -29,11 +26,11 @@ public:
 class FDIST 
 {
 public:
-  Vector Q;
-  Vector fQ;
-  Vector ffQ;
-  Vector fQ2;
-  Vector ffQ2;
+  Eigen::VectorXd Q;
+  Eigen::VectorXd fQ;
+  Eigen::VectorXd ffQ;
+  Eigen::VectorXd fQ2;
+  Eigen::VectorXd ffQ2;
   double ra2;
   double off;
   int num;
@@ -86,16 +83,16 @@ protected:
   bool gen_firstime;
   bool gen_firstime_E;
   bool gen_firstime_jeans;
-  Vector gen_rloc, gen_mass, gen_fmax;
+  Eigen::VectorXd gen_rloc, gen_mass, gen_fmax;
   SphericalOrbit gen_orb;
   double gen_fomax, gen_ecut;
   //@}
 
-  Vector gen_point_2d(int& ierr);
-  Vector gen_point_2d(double r, int& ierr);
-  Vector gen_point_3d(int& ierr);
-  Vector gen_point_3d(double Emin, double Emax, double Kmin, double Kmax, int& ierr);
-  Vector gen_point_jeans_3d(int& ierr);
+  Eigen::VectorXd gen_point_2d(int& ierr);
+  Eigen::VectorXd gen_point_2d(double r, int& ierr);
+  Eigen::VectorXd gen_point_3d(int& ierr);
+  Eigen::VectorXd gen_point_3d(double Emin, double Emax, double Kmin, double Kmax, int& ierr);
+  Eigen::VectorXd gen_point_jeans_3d(int& ierr);
   
   double Emin_grid, Emax_grid, dEgrid, dKgrid;
   vector<double> Egrid, Kgrid, EgridMass;
@@ -181,7 +178,7 @@ public:
   void set_Ecut(double cut) { gen_ecut = cut; }
 
   //! Generate a phase-space point
-  virtual Vector gen_point(int& ierr) {
+  virtual Eigen::VectorXd gen_point(int& ierr) {
     if (dof()==2)
       return gen_point_2d(ierr);
     else if (dof()==3)
@@ -189,11 +186,11 @@ public:
     else
       bomb( "dof must be 2 or 3" );
     
-    return Vector();
+    return Eigen::VectorXd();
   }
   
   //! Generate a phase-space point using Jeans' equations
-  virtual Vector gen_point_jeans(int& ierr) {
+  virtual Eigen::VectorXd gen_point_jeans(int& ierr) {
     if (dof()==2)
       bomb( "AxiSymModel: gen_point_jeans_2d(ierr) not implemented!" );
     else if (dof()==3)
@@ -201,11 +198,11 @@ public:
     else
       bomb( "dof must be 2 or 3" );
     
-    return Vector();
+    return Eigen::VectorXd();
   }
   
   //! Generate a phase-space point at a particular radius
-  virtual Vector gen_point(double r, int& ierr) {
+  virtual Eigen::VectorXd gen_point(double r, int& ierr) {
     if (dof()==2)
       return gen_point_2d(r, ierr);
     else if (dof()==3)
@@ -213,11 +210,11 @@ public:
     else
       bomb( "AxiSymModel: dof must be 2 or 3" );
     
-    return Vector();
+    return Eigen::VectorXd();
   }
   
   //! Generate a phase-space point at a particular energy and angular momentum
-  virtual Vector gen_point(double Emin, double Emax, double Kmin, double Kmax, int& ierr) {
+  virtual Eigen::VectorXd gen_point(double Emin, double Emax, double Kmin, double Kmax, int& ierr) {
     if (dof()==2)
       bomb( "AxiSymModel: gen_point(r, ierr) not implemented!" );
     else if (dof()==3)
@@ -225,7 +222,7 @@ public:
     else
       bomb( "AxiSymModel: dof must be 2 or 3" );
     
-    return Vector();
+    return Eigen::VectorXd();
   }
   
   //! Generate a the velocity variate from a position
@@ -440,9 +437,9 @@ public:
 
   //@{
   //! Overloaded to provide mass distribution from Real and Number distribution from Fake
-  Vector gen_point(int& ierr);
-  Vector gen_point(double r, int& ierr);
-  Vector gen_point(double Emin, double Emax, double Kmin, double Kmax, int& ierr);
+  Eigen::VectorXd gen_point(int& ierr);
+  Eigen::VectorXd gen_point(double r, int& ierr);
+  Eigen::VectorXd gen_point(double Emin, double Emax, double Kmin, double Kmax, int& ierr);
   //@}
 
 
@@ -458,6 +455,6 @@ typedef boost::shared_ptr<EmbeddedDiskModel>   EmbDiskModPtr;
 typedef boost::shared_ptr<SphericalModelMulti> SphModMultPtr;
 typedef boost::shared_ptr<SphericalModelTable> SphModTblPtr;
 
-#include <QPDistF.h>
+#include <QPDistF.H>
 
 #endif

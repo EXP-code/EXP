@@ -1,6 +1,6 @@
 #include <math.h>
 
-#include "expand.h"
+#include "expand.H"
 
 #include <ACG.h>
 #include <Normal.h>

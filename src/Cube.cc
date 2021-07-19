@@ -1,4 +1,4 @@
-#include "expand.h"
+#include "expand.H"
 
 #include <stdlib.h>
 #include <math.h>
@@ -14,32 +14,20 @@ Cube::Cube(const YAML::Node& conf) : PotAccel(conf)
 
   initialize();
 
-  imx = 1+2*nmaxx;
-  imy = 1+2*nmaxy;
-  imz = 1+2*nmaxz;
+  imx  = 1+2*nmaxx;
+  imy  = 1+2*nmaxy;
+  imz  = 1+2*nmaxz;
   jmax = imx*imy*imz;
-  expccof = new KComplex* [nthrds];
-  for (int i=0; i<nthrds; i++)
-    expccof[i] = new KComplex[jmax];
 
-  expreal = new double [jmax];
-  expreal1 = new double [jmax];
-  expimag = new double [jmax];
-  expimag1 = new double [jmax];
-  
+  expccof.resize(nthrds);
+  for (auto & v : expccof) v.resize(jmax);
+
   dfac = 2.0*M_PI;
-  kfac = KComplex(0.0,dfac);
+  kfac = std::complex<double>(0.0,dfac);
 }
 
 Cube::~Cube(void)
 {
-  for (int i=0; i<nthrds; i++) delete [] expccof[i];
-  delete [] expccof;
-
-  delete [] expreal;
-  delete [] expreal1;
-  delete [] expimag;
-  delete [] expimag1;
 }
 
 void Cube::initialize(void)
@@ -70,8 +58,8 @@ void * Cube::determine_coefficients_thread(void * arg)
 {
 
   int ix,iy,iz,indx;
-  KComplex startx,starty,startz,facx,facy,facz;
-  KComplex stepx,stepy,stepz;
+  std::complex<double> startx,starty,startz,facx,facy,facz;
+  std::complex<double> stepx,stepy,stepz;
   double mass;
 
   unsigned nbodies = cC->Number();
@@ -118,9 +106,9 @@ void * Cube::determine_coefficients_thread(void * arg)
     stepz = exp(-kfac*cC->Pos(i, 2));
     
 				/* Initial values */
-    startx = exp(nmaxx*kfac*cC->Pos(i, 0));
-    starty = exp(nmaxy*kfac*cC->Pos(i, 1));
-    startz = exp(nmaxz*kfac*cC->Pos(i, 2));
+    startx = exp(static_cast<double>(nmaxx)*kfac*cC->Pos(i, 0));
+    starty = exp(static_cast<double>(nmaxy)*kfac*cC->Pos(i, 1));
+    startz = exp(static_cast<double>(nmaxz)*kfac*cC->Pos(i, 2));
     
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
@@ -144,11 +132,7 @@ void Cube::determine_coefficients(void)
 				//  in a single array for each dimension
 				//  with z dimension changing most rapidly
   // Clean 
-  for (int indx=0; indx<jmax; indx++) {
-    for (int i=0; i<nthrds; i++) expccof[i][indx] = 0.0;
-    expreal[indx] = 0.0;
-    expimag[indx] = 0.0;
-  }
+  for (auto & v : expccof) v.setZero();
 
   exp_thread_fork(true);
 
@@ -157,26 +141,21 @@ void Cube::determine_coefficients(void)
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
   used = use0;
 
-  for (int i=0; i<nthrds; i++) {
+  for (int i=1; i<nthrds; i++) {
     for (int indx=0; indx<jmax; indx++) {
-      expreal1[indx] = expccof[i][indx].real();
-      expimag1[indx] = expccof[i][indx].imag();
+      expccof[0][indx] += expccof[i][indx];
     }
   }
 
-  MPI_Allreduce( expreal1, expreal, jmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce( expimag1, expimag, jmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
-  for (int indx=0; indx<jmax; indx++)
-    expccof[0][indx] = KComplex(expreal[indx], expimag[indx]);
-
+  MPI_Allreduce( MPI_IN_PLACE, expccof[0].data(), jmax,
+		 MPI_CXX_DOUBLE_COMPLEX, MPI_SUM, MPI_COMM_WORLD);
 }
 
 void * Cube::determine_acceleration_and_potential_thread(void * arg)
 {
   int ix,iy,iz,ii,jj,kk,indx;
-  KComplex fac,startx,starty,startz,facx,facy,facz,dens,potl,accx,accy,accz;
-  KComplex stepx,stepy,stepz;
+  std::complex<double> fac,startx,starty,startz,facx,facy,facz,dens,potl,accx,accy,accz;
+  std::complex<double> stepx,stepy,stepz;
   double k2;
 
   unsigned nbodies = cC->Number();
@@ -200,9 +179,9 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
     stepz = exp(kfac*cC->Pos(i, 2));
     
 				/* Initial values (note sign change) */
-    startx = exp(-nmaxx*kfac*cC->Pos(i, 0));
-    starty = exp(-nmaxy*kfac*cC->Pos(i, 1));
-    startz = exp(-nmaxz*kfac*cC->Pos(i, 2));
+    startx = exp(-static_cast<double>(nmaxx)*kfac*cC->Pos(i, 0));
+    starty = exp(-static_cast<double>(nmaxy)*kfac*cC->Pos(i, 1));
+    startz = exp(-static_cast<double>(nmaxz)*kfac*cC->Pos(i, 2));
     
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
@@ -233,21 +212,21 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
 	  k2 = 4.0*M_PI/(dfac*dfac*(ii*ii + jj*jj + kk*kk));
 	  potl -= k2*fac;
 	  
-	  accx -= k2*KComplex(0.0,-dfac*ii)*fac;
-	  accy -= k2*KComplex(0.0,-dfac*jj)*fac;
-	  accz -= k2*KComplex(0.0,-dfac*kk)*fac;
+	  accx -= k2*std::complex<double>(0.0,-dfac*ii)*fac;
+	  accy -= k2*std::complex<double>(0.0,-dfac*jj)*fac;
+	  accz -= k2*std::complex<double>(0.0,-dfac*kk)*fac;
 	  
 	}
       }
     }
     
-    cC->AddAcc(i, 0, Re(accx));
-    cC->AddAcc(i, 1, Re(accy));
-    cC->AddAcc(i, 2, Re(accz));
+    cC->AddAcc(i, 0, accx.real());
+    cC->AddAcc(i, 1, accy.real());
+    cC->AddAcc(i, 2, accz.real());
     if (use_external)
-      cC->AddPotExt(i, Re(potl));
+      cC->AddPotExt(i, potl.real());
     else
-      cC->AddPot(i, Re(potl));
+      cC->AddPot(i, potl.real());
   }
   
   return (NULL);

@@ -53,14 +53,13 @@ namespace pt = boost::property_tree;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
+#include <numerical.H>
 #include "Particle.h"
 #include "Coefs.H"
-#include <interp.h>
+#include <interp.H>
 #include <SphereSL.H>
 
-#include <localmpi.h>
+#include <localmpi.H>
 #include <foarray.H>
 
 #include <VtkGrid.H>
@@ -523,19 +522,20 @@ main(int argc, char **argv)
   int indx = 0;
   for (auto d: data) {
 
-    Matrix expcoef;
+    Eigen::MatrixXd expcoef;
     
-    expcoef.setsize(0, d->header.Lmax*(d->header.Lmax+2), 1, d->header.nmax);
-    expcoef.zero();
+    int LL = d->header.Lmax + 1;
+    expcoef.resize(LL*LL, d->header.nmax);
+    expcoef.setZero();
 	
     int lindx = 0;
-    for (int l=0; l<=d->header.Lmax; l++) {
+    for (int l=0; l<LL; l++) {
       for (int m=0; m<=l; m++) {
 	for (int n=0; n<d->header.nmax; n++) 
-	  expcoef[lindx][n+1] = d->coefs[lindx][n];
+	  expcoef(lindx, n) = d->coefs[lindx][n];
 	if (m) {
 	  for (int n=0; n<d->header.nmax; n++)
-	    expcoef[lindx+1][n+1] = d->coefs[lindx+1][n];
+	    expcoef(lindx+1, n) = d->coefs[lindx+1][n];
 	}
 	if (m) lindx += 2;
 	else   lindx += 1;

@@ -76,14 +76,14 @@
 #endif
 
                                 // MDW classes
-#include <numerical.h>
-#include <gaussQ.h>
-#include <isothermal.h>
-#include <hernquist.h>
-#include <model3d.h>
-#include <biorth.h>
-#include <interp.h>
-#include <EmpCylSL.h>
+#include <numerical.H>
+#include <gaussQ.H>
+#include <isothermal.H>
+#include <hernquist.H>
+#include <model3d.H>
+#include <biorth.H>
+#include <interp.H>
+#include <EmpCylSL.H>
 
                                 // For debugging
 #ifdef DEBUG
@@ -92,7 +92,7 @@
 
                                 // Local headers
 #include <DiskHalo.H> 
-#include <localmpi.h>
+#include <localmpi.H>
 void local_init_mpi(int argc, char **argv);
 
                                 // Parameters

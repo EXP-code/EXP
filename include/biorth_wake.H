@@ -5,10 +5,9 @@
 #ifndef _biorth_wake_h
 #define _biorth_wake_h 1
 
-static const char rcsid_biorth_wake[] = "$Id$";
-
-#include <biorth.h>
-#include <CVector.h>
+#include <Eigen/Eigen>
+#include <complex>
+#include <biorth.H>
 
 class BiorthWake
 {
@@ -18,12 +17,13 @@ private:
   AxiSymBiorth *bio;
   int lmax, nmax;
 
-  Matrix norm_grid;		// Stored as the sqr root of normalization
-				// for efficiency in wake reconstruction
+  Eigen::MatrixXd norm_grid;    // Stored as the sqr root of
+				// normalization for efficiency in
+				// wake reconstruction
 
   bool coefs_defined;
-  Matrix factorial;
-  Matrix expcoef;
+  Eigen::MatrixXd factorial;
+  Eigen::MatrixXd expcoef;
   double rscl;
   int used;
 
@@ -44,8 +44,8 @@ private:
 
 				// Orientation
 
-  KComplex I;
-  CVector ylm;
+  std::complex<double> I;
+  Eigen::VectorXcd ylm;
   bool init_orientation;
   double *param;
   double **ambp, *amby, *ptry, *psum;
@@ -66,7 +66,7 @@ private:
 				// Debugging routines only
   void test_transform(void);
   void check_orientation(double, double, double);
-  KComplex test_fct(double, double);
+  std::complex<double> test_fct(double, double);
 
 public:
 
@@ -87,8 +87,9 @@ public:
 			     double& potl0, double& potl,
 			     int L1=0, int L2=10000);
 
-  void orientation(int L, int M, Vector& phi, Vector& theta, Vector& psi,
-		   Vector& cost);
+  void orientation(int L, int M,
+		   Eigen::VectorXd& phi, Eigen::VectorXd& theta,
+		   Eigen::VectorXd& psi, Eigen::VectorXd& cost);
 
   int get_amoeba_iterations(void) { return nfunk; }
 

@@ -3,7 +3,7 @@
 #include <Component.H>
 #include <Cylinder.H>
 #include <cudaReduce.cuH>
-#include "expand.h"
+#include "expand.H"
 
 #include <boost/make_shared.hpp>
 

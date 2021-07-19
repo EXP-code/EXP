@@ -16,22 +16,24 @@ private:
   pthread_mutex_t used_lock, cos_coef_lock, sin_coef_lock;
   double *cylmass0;
 
-  Matrix expcoef, expcoef1, *expcoef0, *cc, *cc1;
-  Matrix normM, dend, *potd, *dpot, work;
-  Vector *u, *du, *cosm, *sinm;
+  Eigen::MatrixXd expcoef, expcoef1;
+  vector<Eigen::MatrixXd> expcoef0, cc, cc1;
+  Eigen::MatrixXd normM, dend, work;
+  vector<Eigen::MatrixXd> potd, dpot;
+  vector<Eigen::VectorXd> u, du, cosm, sinm;
 
   int use1, use0;
 
-  void get_dpotl(int lmax, int nmax, double r, Matrix& p, Matrix& dp);
-  void get_potl(int lmax, int nmax, double r, Matrix& p);
-  void get_dens(int lmax, int nmax, double r, Matrix& p);
-  void get_potl_dens(int lmax, int nmax, double r, Matrix& p, Matrix& d);
+  void get_dpotl(int lmax, int nmax, double r, Eigen::MatrixXd& p, Eigen::MatrixXd& dp);
+  void get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p);
+  void get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p);
+  void get_potl_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, Eigen::MatrixXd& d);
   double norm(int,int);
 
-  void get_pot_coefs(int, Vector&, double *, double *);
-  void get_dens_coefs(int, Vector&, double *);
+  void get_pot_coefs(int, const Eigen::VectorXd&, double &, double &);
+  void get_dens_coefs(int, const Eigen::VectorXd&, double &);
 
-  void get_pot_coefs_safe(int, Vector&, double *, double *, Matrix& p, Matrix& d);
+  void get_pot_coefs_safe(int, const Eigen::VectorXd&, double &, double &, Eigen::MatrixXd& p, Eigen::MatrixXd& d);
 
   void initialize(void);
 

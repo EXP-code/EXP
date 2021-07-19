@@ -3,14 +3,14 @@
 
 #include <values.h>		// For MAXINT
 
-#include <localmpi.h>
+#include <localmpi.H>
 #include <Particle.H>
 #include <Component.H>
 #include <ParticleFerry.H>
 #include <pHOT_types.H>
 #include <pCell.H>
 
-#include <Timer.h>
+#include <Timer.H>
 
 class CellDiag
 {

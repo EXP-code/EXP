@@ -1,5 +1,5 @@
-#ifndef _localmpi_h
-#define _localmpi_h
+#ifndef _localmpi_H
+#define _localmpi_H
 
 #include <mpi.h>
 

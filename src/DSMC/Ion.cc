@@ -10,7 +10,7 @@
 #include <tuple>
 #include <map>
 
-#include <localmpi.h>
+#include <localmpi.H>
 
 #include "Ion.H"
 #include "interactSelect.H"

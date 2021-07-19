@@ -1,16 +1,11 @@
-/*
+// Class for generating orhogonal polynomials
 
-   Class for generating orhogonal polynomials
-
-*/
+#ifndef _OrthoPoly_H
+#define _OrthoPoly_H
 
 #include <cfloat>
 #include <cmath>
-
-#include <Vector.h>
-
-#ifndef _OrthoPoly_h
-#define _OrthoPoly_h
+#include <Eigen/Eigen>
 
 class OrthoPoly
 {
@@ -41,7 +36,7 @@ class OrthoPoly
   virtual double coef4(const int n) = 0;
 
   double f(const double x, const int n);
-  Vector fv(const double x, const int n);
+  Eigen::VectorXd fv(const double x, const int n);
   double get_a(void) { return a; }
   double get_b(void) { return b; }
 

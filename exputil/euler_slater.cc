@@ -6,9 +6,8 @@
  *
  *  Call sequence:
  *  -------------
- *  include <Vector.h>
  *
- *  Matrix return_euler(double PHI, double THETA, double PSI, int BODY);
+ *  Eigen::Matrix3d return_euler(double PHI, double THETA, double PSI, int BODY);
  *
  *  Euler angles: PHI, THETA, PSI
  *
@@ -39,18 +38,18 @@
 
 #include <cstdlib>
 #include <cmath>
-#include "Vector.h"
+#include <Eigen/Eigen>
 
 // #define TEST for test program
 
-Matrix return_euler_slater(double PHI, double THETA, double PSI, int BODY);
+Eigen::MatrixXd return_euler_slater(double PHI, double THETA, double PSI, int BODY);
 
 
-Matrix return_euler_slater(double PHI, double THETA, double PSI, int BODY)
+Eigen::MatrixXd return_euler_slater(double PHI, double THETA, double PSI, int BODY)
 {
   double sph, cph, sth, cth, sps, cps;
 
-  Matrix euler(1, 3, 1, 3);
+  Eigen::MatrixXd euler(3, 3);
 
   sph = sin(PHI);
   cph = cos(PHI);
@@ -59,27 +58,27 @@ Matrix return_euler_slater(double PHI, double THETA, double PSI, int BODY)
   sps = sin(PSI);
   cps = cos(PSI);
   
-  euler[1][1] = -sps*sph + cth*cph*cps;
-  euler[1][2] =  sps*cph + cth*sph*cps;
-  euler[1][3] =  cps*sth;
+  euler(0, 0) = -sps*sph + cth*cph*cps;
+  euler(0, 1) =  sps*cph + cth*sph*cps;
+  euler(0, 2) =  cps*sth;
       
-  euler[2][1] = -cps*sph - cth*cph*sps;
-  euler[2][2] =  cps*cph - cth*sph*sps;
-  euler[2][3] = -sps*sth;
+  euler(1, 0) = -cps*sph - cth*cph*sps;
+  euler(1, 1) =  cps*cph - cth*sph*sps;
+  euler(1, 2) = -sps*sth;
       
-  euler[3][1] = -sth*cph;
-  euler[3][2] = -sth*sph;
-  euler[3][3] =  cth;
+  euler(2, 0) = -sth*cph;
+  euler(2, 1) = -sth*sph;
+  euler(2, 2) =  cth;
 
   if (BODY)
-    return euler.Transpose();
+    return euler.transpose();
   else
     return euler;
 }
 
 #ifdef TEST
 
-main(int argc, char **argv)
+void main(int argc, char **argv)
 {
   const double onedeg = M_PI/180.0;
   double phi, theta, psi;

@@ -4,10 +4,7 @@
 #include <stdlib.h>
 #include <string>
 
-#include <Vector.h>
-#include <kevin_complex.h>
-
-#include <cpoly.h>
+#include <cpoly.H>
 
 using namespace std;
 
@@ -15,30 +12,30 @@ using namespace std;
 	Default constructor; make a null vector.
 */
 
-CPoly::CPoly(void) : CVector()
+CPoly::CPoly(void) : Eigen::VectorXcd()
 {
   order = 0;
 }
 
 
-CPoly::CPoly(int n): CVector(0, n)
+CPoly::CPoly(int n): Eigen::VectorXcd(n+1)
 {
   order = n;
-  zero();
+  setZero();
 }
 
 
-CPoly::CPoly(int n, double * vec) : CVector(0, n, vec)
+CPoly::CPoly(int n, double * vec) : Eigen::VectorXcd(n+1)
 {
+  for (int i=0; i<=n; i++) (*this)[i] = vec[i];
   order = n;
 }
 
 
 
-CPoly::CPoly(const CVector& vec) : CVector((CVector &)vec)
+CPoly::CPoly(const Eigen::VectorXcd& vec) : Eigen::VectorXcd(vec)
 {
-  if (vec.getlow() != 0) bomb_CPoly("Error constructing CPoly with CVector");
-  order = vec.gethigh();
+  order = vec.size()+1;
 }
 
 
@@ -47,7 +44,7 @@ CPoly::CPoly(const CVector& vec) : CVector((CVector &)vec)
 	Conversion constructor
 */
 
-CPoly::CPoly(const Poly &p) : CVector((CVector &)p)
+CPoly::CPoly(const Poly &p) : Eigen::VectorXcd(static_cast<Eigen::VectorXcd>(p))
 {
   order = p.getorder();
 }
@@ -56,7 +53,7 @@ CPoly::CPoly(const Poly &p) : CVector((CVector &)p)
 	Copy constructor; create a new CPoly which is a copy of another.
 */
 
-CPoly::CPoly(const CPoly &p) : CVector((CVector &)p)
+CPoly::CPoly(const CPoly &p) : Eigen::VectorXcd(static_cast<Eigen::VectorXcd>(p))
 {
   order = p.order;
 }
@@ -93,14 +90,12 @@ the destination vector is allocated if its elements are undefined.
 
 CPoly &CPoly::operator=(const CPoly &v)
 {
-  int i;
-	
-  if (v.getlow()!=0 || v.gethigh()<1) {
+  if (v.size()<1) {
     bomb_CPoly_operation("=");
   }
 
-  setsize(0,v.order);
-  for (i=0; i<=v.order; i++) (*this)[i] = v[i];
+  resize(v.order+1);
+  for (int i=0; i<=v.order; i++) (*this)[i] = v[i];
   order = v.order;
 
   return *this;
@@ -117,18 +112,17 @@ CPoly CPoly::operator-(void)
 
 CPoly &CPoly::operator+=(const CPoly &p2)
 {
-  int i;
   int n2 = p2.order;
-  CVector tmp;
+  Eigen::VectorXcd tmp;
 
   if (order <= n2) {
-    tmp = *this;
-    setsize(0,n2);
-    zero();
-    for (i=0; i<=order; i++) (*this)[i] = tmp[i];
+    tmp = static_cast<Eigen::VectorXcd>(*this);
+    resize(n2+1);
+    setZero();
+    for (int i=0; i<=order; i++) (*this)[i] = tmp[i];
     order = n2;
   }
-  for (i=0; i<=n2; i++) (*this)[i] += p2[i];
+  for (int i=0; i<=n2; i++) (*this)[i] += p2[i];
 
   reduce_order();
   return *this;
@@ -138,16 +132,16 @@ CPoly &CPoly::operator-=(const CPoly &p2)
 {
   int i;
   int n2 = p2.order;
-  CVector tmp;
+  Eigen::VectorXcd tmp;
 
   if (order <= n2) {
-    tmp = *this;
-    setsize(0,n2);
-    zero();
-    for (i=0; i<=order; i++) (*this)[i] = tmp[i];
+    tmp = static_cast<Eigen::VectorXcd>(*this);
+    resize(n2+1);
+    setZero();
+    for (int i=0; i<=order; i++) (*this)[i] = tmp[i];
     order = n2;
   }
-  for (i=0; i<=n2; i++) (*this)[i] -= p2[i];
+  for (int i=0; i<=n2; i++) (*this)[i] -= p2[i];
 
   reduce_order();
   return *this;
@@ -184,7 +178,7 @@ CPoly operator-(const CPoly &p1, const CPoly &p2)
 
   if (n1 <= n2) {
     tmp = CPoly(n2);
-    tmp.zero();
+    tmp.setZero();
     for (i=0; i<=n1; i++) tmp[i] = p1[i] - p2[i];
     for (i=n1+1; i<=n2; i++) tmp[i] = - p2[i];
   }
@@ -218,15 +212,14 @@ CPoly operator&(const CPoly &p1, const CPoly &p2)
 
 CPoly &CPoly::operator&=(const CPoly &p2)
 {
-  int i, j;
   int n2 = p2.order;
   int neworder = order + n2;
   CPoly tmp = *this;
-  setsize(0,neworder);
-  zero();
+  resize(neworder+1);
+  setZero();
 
-  for (i=0; i<=order; i++) {
-    for (j=0; j<=n2; j++) (*this)[i+j] += tmp[i]*p2[j];
+  for (int i=0; i<=order; i++) {
+    for (int j=0; j<=n2; j++) (*this)[i+j] += tmp[i]*p2[j];
   }
 
   order = neworder;
@@ -299,20 +292,20 @@ CPoly &CPoly::operator%=(const CPoly &p2)
 }
 */
 
-KComplex CPoly::eval(KComplex z)
+std::complex<double> CPoly::eval(std::complex<double> z)
 {
   int j;
-  KComplex p = (*this)[j=order];
+  std::complex<double> p = (*this)[j=order];
   while (j>0) p = p*z + (*this)[--j];
 
   return p;
 }
 	
-KComplex CPoly::deriv(KComplex z)
+std::complex<double> CPoly::deriv(std::complex<double> z)
 {
   int j;
-  KComplex p = (*this)[j=order];
-  KComplex dp = 0.0;
+  std::complex<double> p = (*this)[j=order];
+  std::complex<double> dp = 0.0;
 
   while (j>0) {
     dp = dp*z + p;

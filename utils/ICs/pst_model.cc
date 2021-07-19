@@ -17,20 +17,20 @@
 #include <values.h>
 
                                 // MDW classes
-#include <numerical.h>
+#include <numerical.H>
 #include <EllipsoidForce.H>
 #include <CylindricalDisk.H>
-#include <massmodel.h>
-#include <interp.h>
+#include <massmodel.H>
+#include <interp.H>
 #include <ZBrent.H>
-#include "localmpi.h"
+#include "localmpi.H"
 
                                 // For debugging
 #ifdef DEBUG
 #include <fpetrap.h>
 #endif
 
-#include "localmpi.h"
+#include "localmpi.H"
 void local_init_mpi(int argc, char **argv);
 string outdir, runtag;
 

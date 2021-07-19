@@ -11,13 +11,12 @@
 
 #include <limits.h>
 
-#include <numerical.h>
-#include <Vector.h>
-#include <interp.h>
-#include <isothermal.h>
+#include <numerical.H>
+#include <interp.H>
+#include <isothermal.H>
 
 static double sig;
-static void iso_derivs(double x, double *y, double *dy)
+static void iso_derivs(double x, Eigen::VectorXd& y, Eigen::VectorXd& dy)
 {
   dy[1] = y[2];
   double den = 9.0*sig*sig*exp(-y[1]/(sig*sig));
@@ -40,13 +39,13 @@ IsothermalSphere::IsothermalSphere(double RCORE, double RMAX, double VROT,
   ModelID = "IsothermalSphere"; 
   dim = 3;
 
-  r.setsize(1, NUM);
-  d.setsize(1, NUM);
-  m.setsize(1, NUM);
-  p.setsize(1, NUM);
-  d2.setsize(1, NUM);
-  m2.setsize(1, NUM);
-  p2.setsize(1, NUM);
+  r.resize(NUM);
+  d.resize(NUM);
+  m.resize(NUM);
+  p.resize(NUM);
+  d2.resize(NUM);
+  m2.resize(NUM);
+  p2.resize(NUM);
 
 				// Begin integration
 
@@ -54,31 +53,31 @@ IsothermalSphere::IsothermalSphere(double RCORE, double RMAX, double VROT,
   double dr = RMAX/RCORE/NUM;
   double h = dr/dN;
 
-  double *y = new double [3] - 1;
+  Eigen::VectorXd y(3);
 
 				// Initial conditions
-  r[1] = 0.0;
-  d[1] = 9.0*sigma*sigma/(4.0*M_PI);
-  m[1] = 0.0;
-  p[1] = 0.0;
+  r[0] = 0.0;
+  d[0] = 9.0*sigma*sigma/(4.0*M_PI);
+  m[0] = 0.0;
+  p[0] = 0.0;
 
   F = d[1]/(4.0*M_PI*sqrt(M_PI/2.0)/sigma*sigma*sigma);
 
+  y[0] = 0.0;
   y[1] = 0.0;
   y[2] = 0.0;
-  y[3] = 0.0;
 
   sig = sigma;
 
-  for (int i=2; i<=NUM; i++) {
+  for (int i=1; i<NUM; i++) {
     
     r[i] = r[i-1] + dr;
 
-    integrate_ode(y, r[i-1], r[i], &h, tol, 3, iso_derivs, rkqc);
+    integrate_ode(y, r[i-1], r[i], h, tol, 3, iso_derivs, rkqc);
 
-    d[i] = d[1] * exp(-y[1]/(sigma*sigma));
-    p[i] = y[1];
-    m[i] = y[3];
+    d[i] = d[0] * exp(-y[0]/(sigma*sigma));
+    p[i] = y[0];
+    m[i] = y[2];
   }
 
 				// Scaling: vrot at edge
@@ -97,12 +96,7 @@ IsothermalSphere::IsothermalSphere(double RCORE, double RMAX, double VROT,
   Spline(r, d, 0.0, -1.0e30, d2);
   Spline(r, m, 0.0, -1.0e30, m2);
   Spline(r, p, 0.0, -1.0e30, p2);
-
-				// Clean up
-  delete [] (y+1);
-
 }
-
 
 
 //======================================================================
@@ -111,7 +105,7 @@ IsothermalSphere::IsothermalSphere(double RCORE, double RMAX, double VROT,
 static double fconst;
 static double pmax;
 
-static void sl_derivs(double x, double *y, double *dy)
+static void sl_derivs(double x, Eigen::VectorXd& y, Eigen::VectorXd& dy)
 {
   dy[1] = y[2];
 
@@ -135,13 +129,13 @@ LowSingIsothermalSphere::LowSingIsothermalSphere
   ModelID = "LowSingIsothermal"; 
   dim = 3;
 
-  u.setsize(1, NUM);
-  d.setsize(1, NUM);
-  m.setsize(1, NUM);
-  p.setsize(1, NUM);
-  d2.setsize(1, NUM);
-  m2.setsize(1, NUM);
-  p2.setsize(1, NUM);
+  u.resize(NUM);
+  d.resize(NUM);
+  m.resize(NUM);
+  p.resize(NUM);
+  d2.resize(NUM);
+  m2.resize(NUM);
+  p2.resize(NUM);
 
 				// Begin integration
   double tol = 1.0e-10;
@@ -150,13 +144,13 @@ LowSingIsothermalSphere::LowSingIsothermalSphere
   double du = (umax - umin)/NUM;
   double h = du/dN;
 
-  double *y = new double [4] - 1;
+  Eigen::VectorXd y(4);
 
 				// Initial conditions
-  y[1] = 2.0*umin;
-  y[2] = 2.0;
-  y[3] = exp(umin);
-  y[4] = (umin - 1.0)*exp(umin);
+  y[0] = 2.0*umin;
+  y[1] = 2.0;
+  y[2] = exp(umin);
+  y[3] = (umin - 1.0)*exp(umin);
 
   pmax = 2.0*umax;
   fconst = exp(-pmax);
@@ -164,18 +158,18 @@ LowSingIsothermalSphere::LowSingIsothermalSphere
   double ucur, ulast;
 
   ucur = umin;
-  while (y[1] < pmax) {
+  while (y[0] < pmax) {
     ulast = ucur;
     ucur += du;
-    integrate_ode(y, ulast, ucur, &h, tol, 4, sl_derivs, rkqc);
+    integrate_ode(y, ulast, ucur, h, tol, 4, sl_derivs, rkqc);
   }
 
-  while (fabs(pmax - y[1]) > 1.0e-8) {
+  while (fabs(pmax - y[0]) > 1.0e-8) {
     ulast = ucur;
-    du = (pmax - y[1])/y[2];
+    du = (pmax - y[0])/y[1];
     ucur = ulast + du;
     h = du/dN;
-    integrate_ode(y, ulast, ucur, &h, tol, 4, sl_derivs, rkqc);
+    integrate_ode(y, ulast, ucur, h, tol, 4, sl_derivs, rkqc);
   }
 
 				// Regrid solution
@@ -183,53 +177,55 @@ LowSingIsothermalSphere::LowSingIsothermalSphere
   h = du/dN;
   F = 1.0/(4.0*M_PI);
 
-  y[1] = 2.0*umin;
-  y[2] = 2.0;
-  y[3] = exp(umin);
-  y[4] = (umin - 1.0)*exp(umin);
+  y[0] = 2.0*umin;
+  y[1] = 2.0;
+  y[2] = exp(umin);
+  y[3] = (umin - 1.0)*exp(umin);
 
   double vm = sqrt(2.0*fabs(pmax - y[1]));
   double norm1 = 4.0*M_PI*
     ( - vm*exp(-0.5*vm*vm) + sqrt(0.5*M_PI) * erf(vm/sqrt(2.0)) );
   double norm2 = 4.0*M_PI*vm*vm*vm/3.0;
   
-  u[1] = umin;
-  d[1] = F * (norm1*exp(-y[1]) - norm2*fconst);
-  m[1] = exp(umin);
-  p[1] = 2.0*umin;
+  u[0] = umin;
+  d[0] = F * (norm1*exp(-y[1]) - norm2*fconst);
+  m[0] = exp(umin);
+  p[0] = 2.0*umin;
 
-  for (int i=2; i<=NUM; i++) {
+  for (int i=1; i<NUM; i++) {
     
     u[i] = u[i-1] + du;
 
-    integrate_ode(y, u[i-1], u[i], &h, tol, 4, sl_derivs, rkqc);
+    integrate_ode(y, u[i-1], u[i], h, tol, 4, sl_derivs, rkqc);
 
-    vm = sqrt(2.0*fabs(pmax - y[1]));
+    vm = sqrt(2.0*fabs(pmax - y[0]));
     norm1 = 4.0*M_PI*
     ( - vm*exp(-0.5*vm*vm) + sqrt(0.5*M_PI) * erf(vm/sqrt(2.0)) );
     norm2 = 4.0*M_PI*vm*vm*vm/3.0;
 
-    d[i] = F * (norm1*exp(-y[1]) - norm2*fconst);
-    p[i] = y[1];
-    m[i] = y[3];
+    d[i] = F * (norm1*exp(-y[0]) - norm2*fconst);
+    p[i] = y[0];
+    m[i] = y[2];
   }
 
 
-  double pfac = p[num] + m[num]*exp(-u[num]);
-  p -= pfac;
+  double pfac = p[num-2] + m[num-2]*exp(-u[num-2]);
+  for (int n=0; n<num; n++) p[n] -= pfac;
 
-  double M0 = y[3];
-  double W0 = y[4] - 0.5*y[3]*pfac;
+  double M0 = y[1];
+  double W0 = y[2] - 0.5*y[1]*pfac;
 
   double beta = -0.5*M0/W0;
   double gamma = pow(beta, 3.5) * pow(-2.0*W0, 2.0);
   double dfac = gamma * pow(beta, 1.5);
   double rfac = pow(beta, -0.25) * pow(gamma, -0.5);
 
-  u += log(rfac);
-  d *= dfac;
-  m /= y[3];
-  p *= beta;
+  for (int n=0; n<num; n++) {
+    u[n] += log(rfac);
+    d[n] *= dfac;
+    m[n] /= y[2];
+    p[n] *= beta;
+  }
 
   sigma = sqrt(beta);
   rmin = exp(u[1]);
@@ -243,9 +239,6 @@ LowSingIsothermalSphere::LowSingIsothermalSphere
   Spline(u, d, 0.0, -1.0e30, d2);
   Spline(u, m, 0.0, -1.0e30, m2);
   Spline(u, p, 0.0, -1.0e30, p2);
-
-				// Clean up
-  delete [] (y+1);
 
 }
 

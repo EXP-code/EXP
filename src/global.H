@@ -237,7 +237,7 @@ extern unsigned char quit_signal;
 //! Used to flag separate behavior on inintialization (unused)
 extern int is_init;
 
-#ifndef _localmpi_h
+#ifndef _localmpi_H
 //! Maintains number of processes, slaves, MPI id, etc.
 //@{
 extern int numprocs, slaves, myid, proc_namelen;

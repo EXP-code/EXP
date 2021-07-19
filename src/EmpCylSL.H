@@ -1,7 +1,5 @@
-// -*- C++ -*-
-
-#ifndef _EmpCylSL_h
-#define _EmpCylSL_h
+#ifndef _EmpCylSL_H
+#define _EmpCylSL_H
 
 #include <vector>
 
@@ -9,8 +7,8 @@
 
 #include <Eigen/Eigen>
 
-#include <gaussQ.h>
-#include <interp.h>
+#include <gaussQ.H>
+#include <interp.H>
 #include <math.h>
 #include <values.h>
 
@@ -19,13 +17,13 @@
 #endif
 
 
-#include <SLGridMP2.h>
+#include <SLGridMP2.H>
 
 #include "coef.H"
 
 #ifndef STANDALONE
 #include <global.H>
-#include "expand.h"
+#include "expand.H"
 
 #if HAVE_LIBCUDA==1
 #include <cudaParticle.cuH>
@@ -59,8 +57,8 @@ public:
 
   using SphModTblPtr = boost::shared_ptr<SphericalModelTable>;
   using SLGridSphPtr = boost::shared_ptr<SLGridSph>;
-  using VectorM      = std::vector<Vector>;
-  using MatrixM      = std::vector<Matrix>;
+  using VectorM      = std::vector<Eigen::VectorXd>;
+  using MatrixM      = std::vector<Eigen::MatrixXd>;
   using ContribArray = std::vector<Eigen::VectorXd>;
 
 private:
@@ -91,7 +89,7 @@ private:
   double HSCALE;
   double pfac, dfac, ffac;
 
-  std::vector<Matrix> facC, facS;
+  std::vector<Eigen::MatrixXd> facC, facS;
 
   int rank2, rank3;
 
@@ -111,36 +109,37 @@ private:
   VarMat SC, SS, SCe, SCo, SSe, SSo;
   //@}
 
-  std::vector<Matrix> var, varE, varO;
+  std::vector<Eigen::MatrixXd> var, varE, varO;
 
   std::vector< std::vector<int> > lE, lO;
-  Matrix ef, efE, efO;
-  Matrix potd, dpot, dend;
-  std::vector<Vector> cosm, sinm;
-  std::vector<Matrix> legs, dlegs;
+  Eigen::VectorXd ev, evE, evO;
+  Eigen::MatrixXd ef, efE, efO;
+  Eigen::MatrixXd potd, dpot, dend;
+  std::vector<Eigen::VectorXd> cosm, sinm;
+  std::vector<Eigen::MatrixXd> legs, dlegs;
 
   SLGridSphPtr ortho;
 
   double Rtable, XMIN, XMAX;
 
-  std::vector< std::vector<Matrix> > potC;
-  std::vector< std::vector<Matrix> > densC;
-  std::vector< std::vector<Matrix> > rforceC;
-  std::vector< std::vector<Matrix> > zforceC;
+  std::vector< std::vector<Eigen::MatrixXd> > potC;
+  std::vector< std::vector<Eigen::MatrixXd> > densC;
+  std::vector< std::vector<Eigen::MatrixXd> > rforceC;
+  std::vector< std::vector<Eigen::MatrixXd> > zforceC;
 
-  std::vector< std::vector<Matrix> > potS;
-  std::vector< std::vector<Matrix> > densS;
-  std::vector< std::vector<Matrix> > rforceS;
-  std::vector< std::vector<Matrix> > zforceS;
+  std::vector< std::vector<Eigen::MatrixXd> > potS;
+  std::vector< std::vector<Eigen::MatrixXd> > densS;
+  std::vector< std::vector<Eigen::MatrixXd> > rforceS;
+  std::vector< std::vector<Eigen::MatrixXd> > zforceS;
 
-  std::vector<Matrix> table;
+  std::vector<Eigen::MatrixXd> table;
 
-  std::vector<Matrix> tpot;
-  std::vector<Matrix> tdens;
-  std::vector<Matrix> trforce;
-  std::vector<Matrix> tzforce;
+  std::vector<Eigen::MatrixXd> tpot;
+  std::vector<Eigen::MatrixXd> tdens;
+  std::vector<Eigen::MatrixXd> trforce;
+  std::vector<Eigen::MatrixXd> tzforce;
   
-  typedef std::vector<std::vector<Vector>> VectorD2;
+  typedef std::vector<std::vector<Eigen::VectorXd>> VectorD2;
   typedef boost::shared_ptr<VectorD2> VectorD2ptr;
 
   /** Some syntactic sugar for array of shared pointers: define an
@@ -168,8 +167,8 @@ private:
   std::vector<std::vector<unsigned>> howmany1;
   std::vector<unsigned> howmany;
 
-  std::vector<Vector> accum_cos;
-  std::vector<Vector> accum_sin;
+  std::vector<Eigen::VectorXd> accum_cos;
+  std::vector<Eigen::VectorXd> accum_sin;
 
   //@{
   /** More syntactic sugar for arrays of arrays: define an operator to
@@ -190,18 +189,18 @@ private:
   */
   struct CoefVector : public std::vector<std::vector<VectorM>>
   {
-    Vector & operator()(int i, unsigned j, int m) { return ((*this)[i][j][m]); }
+    Eigen::VectorXd & operator()(int i, unsigned j, int m) { return ((*this)[i][j][m]); }
   };
 
   struct CoefMatrix : public std::vector<std::vector<MatrixM>>
   {
-    Matrix & operator()(int i, unsigned j, int m) { return ((*this)[i][j][m]); }
+    Eigen::MatrixXd & operator()(int i, unsigned j, int m) { return ((*this)[i][j][m]); }
   };
   //@}
 
 
   // Test for eof trim
-  std::vector<std::vector<Matrix>> tvar;
+  std::vector<std::vector<Eigen::MatrixXd>> tvar;
 
   // Error analysis
   CoefVector  covV;
@@ -214,9 +213,9 @@ private:
   unsigned sampT, defSampT;
 
 
-  std::vector<Matrix> vc, vs;
+  std::vector<Eigen::MatrixXd> vc, vs;
 
-  Matrix tabp, tabf, tabd;
+  Eigen::MatrixXd tabp, tabf, tabd;
 
   //! Basis magic number
   const unsigned int hmagic = 0xc0a57a1;
@@ -241,7 +240,7 @@ private:
 				// return: 0=failure
   int    cache_grid(int, string file="");		
   double integral(int, int, int, int);
-  void   get_pot(Matrix&, Matrix&, double, double);
+  void   get_pot(Eigen::MatrixXd&, Eigen::MatrixXd&, double, double);
   double massR(double R);
   double densR(double R);
 
@@ -253,27 +252,27 @@ private:
   public:
     //@{
     //! All the public data
-    Vector evalJK;
-    Vector meanJK;
-    Vector ratio;
-    Matrix covrJK;
-    Matrix evecJK;
+    Eigen::VectorXd evalJK;
+    Eigen::VectorXd meanJK;
+    Eigen::VectorXd ratio;
+    Eigen::MatrixXd covrJK;
+    Eigen::MatrixXd evecJK;
     //@}
     
     //! Constructor
     PCAelement(int n) {
-      meanJK.setsize(1, n);
-      ratio .setsize(1, n);
-      covrJK.setsize(1, n, 1, n);
-      evecJK.setsize(1, n, 1, n);
+      meanJK.resize(n);
+      ratio .resize(n);
+      covrJK.resize(n, n);
+      evecJK.resize(n, n);
     }
       
     //! Zero all data
     void reset() {
-      meanJK.zero();
-      ratio .zero();
-      covrJK.zero();
-      evecJK.zero();
+      meanJK.setZero();
+      ratio .setZero();
+      covrJK.setZero();
+      evecJK.setZero();
     }
     
   };
@@ -644,7 +643,7 @@ public:
 
   //! For updating levels
   //@{
-  vector< vector<Matrix> > differS1, differC1;
+  vector< vector<Eigen::MatrixXd> > differS1, differC1;
   vector<double> workC1, workC, workS1, workS;
   //@}
 
@@ -663,7 +662,7 @@ public:
   void multistep_debug();
 
   //! Set coefficients from Vectors
-  void set_coefs(int mm, const Vector& cos1, const Vector& sin1,
+  void set_coefs(int mm, const Eigen::VectorXd& cos1, const Eigen::VectorXd& sin1,
 		 bool zero=true);
 
   //! Set coefficients from std::vectors
@@ -672,7 +671,7 @@ public:
 		 const std::vector<double>& sin1, bool zero=true);
 
   //! Set coefficients from Vectors
-  void get_coefs(int mm, Vector& cos1, Vector& sin1);
+  void get_coefs(int mm, Eigen::VectorXd& cos1, Eigen::VectorXd& sin1);
 
   //! Set coefficients from std::vectors
   void get_coefs(int mm,
@@ -714,7 +713,7 @@ public:
   void dump_images_basis_eof(const string& runtag,
 			     double XYOUT, double ZOUT, 
 			     int OUTR, int OUTZ, int M, int N, int cnt,
-			     Vector& tp);
+			     const Eigen::VectorXd& tp);
 
   //! Compare current basis with another for debugging
   void compare_basis(const EmpCylSL *p);
@@ -726,12 +725,12 @@ public:
   // @{
 
   //! Compute Associated Legendre Polynomials, return Matrix type
-  void legendre_R(int lmax, double x, Matrix& p);
+  void legendre_R(int lmax, double x, Eigen::MatrixXd& p);
   /** Compute Associated Legendre Polynomials and derivitives, 
       return Matrix type */
-  void dlegendre_R(int lmax, double x, Matrix &p, Matrix &dp);
+  void dlegendre_R(int lmax, double x, Eigen::MatrixXd &p, Eigen::MatrixXd &dp);
   //! Compute vectors of sines and cosines by recursion
-  void sinecosine_R(int mmax, double phi, Vector& c, Vector& s);
+  void sinecosine_R(int mmax, double phi, Eigen::VectorXd& c, Eigen::VectorXd& s);
 
   // @}
 
@@ -811,7 +810,7 @@ public:
 	ret[id].resize(NUMX+1, NUMY+1);
 	for (int i=0; i<=NUMX; i++)
 	  for (int j=0; j<=NUMY; j++)
-	    ret[id](i, j) = densC[M][n][i][j];
+	    ret[id](i, j) = densC[M][n](i, j);
       }
     }
     return ret;
@@ -826,7 +825,7 @@ public:
 	ret[id].resize(NUMX+1, NUMY+1);
 	for (int i=0; i<=NUMX; i++)
 	  for (int j=0; j<=NUMY; j++)
-	    ret[id](i, j) = densS[M][n][i][j];
+	    ret[id](i, j) = densS[M][n](i, j);
       }
     }
     return ret;
@@ -842,7 +841,7 @@ public:
 	ret[id].resize(NUMX+1, NUMY+1);
 	for (int i=0; i<=NUMX; i++)
 	  for (int j=0; j<=NUMY; j++)
-	    ret[id](i, j) = potC[M][n][i][j];
+	    ret[id](i, j) = potC[M][n](i, j);
       }
     }
     return ret;
@@ -857,7 +856,7 @@ public:
 	ret[id].resize(NUMX+1, NUMY+1);
 	for (int i=0; i<=NUMX; i++)
 	  for (int j=0; j<=NUMY; j++)
-	    ret[id](i, j) = potS[M][n][i][j];
+	    ret[id](i, j) = potS[M][n](i, j);
       }
     }
     return ret;
@@ -870,9 +869,9 @@ public:
   //! Get the coefficients trimmed by a SNR value using the defined algorithm
   void get_trimmed
   (double snr,
-   std::vector<Vector>& ac_cos,   std::vector<Vector>& ac_sin,
-   std::vector<Vector>* rt_cos=0, std::vector<Vector>* rt_sin=0,
-   std::vector<Vector>* sn_rat=0);
+   std::vector<Eigen::VectorXd>& ac_cos,   std::vector<Eigen::VectorXd>& ac_sin,
+   std::vector<Eigen::VectorXd>* rt_cos=0, std::vector<Eigen::VectorXd>* rt_sin=0,
+   std::vector<Eigen::VectorXd>* sn_rat=0);
   
   //! Set the coefficients trimmed by a SNR value using the defined algorithm
   void set_trimmed(double snr, double rem);
@@ -1006,9 +1005,13 @@ private:
 
 };
 
-extern void legendre_R(int lmax, double x, Matrix& p);
-extern void dlegendre_R(int lmax, double x, Matrix &p, Matrix &dp);
-extern void sinecosine_R(int mmax, double phi, Vector& c, Vector& s);
+extern void legendre_R(int lmax, double x, Eigen::MatrixXd& p);
+
+extern void dlegendre_R(int lmax, double x,
+			Eigen::MatrixXd &p, Eigen::MatrixXd& dp);
+
+extern void sinecosine_R(int mmax, double phi,
+			 Eigen::VectorXd& c, Eigen::VectorXd& s);
 
 typedef boost::shared_ptr<EmpCylSL> EmpCylSLptr;
 

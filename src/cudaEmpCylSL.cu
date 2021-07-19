@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-#include <EmpCylSL.h>
+#include <EmpCylSL.H>
 
 #include <iostream>
 #include <iomanip>

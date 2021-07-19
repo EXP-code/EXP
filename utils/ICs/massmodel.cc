@@ -15,8 +15,8 @@ const char rcsid[] = "$Id$";
 #include <string>
 #include <vector>
 
-#include <massmodel.h>
-#include <interp.h>
+#include <massmodel.H>
+#include <interp.H>
 
 using namespace std;
 

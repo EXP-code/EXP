@@ -14,11 +14,10 @@
 #include <boost/assign/list_of.hpp>
 
 				// MDW
-#include <interp.h>
-#include <numerical.h>
-#include <exponential.h>
-#include <Vector.h>
-#include <interp.h>
+#include <interp.H>
+#include <numerical.H>
+#include <exponential.H>
+#include <interp.H>
 				// Local
 #include <AddDisk.H>
 #include <DiskHalo2.H>
@@ -389,7 +388,7 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
   double meanmass = (mtot - mmin)/nhalo;
 
   Particle p;
-  Vector ps(0, 6);
+  Eigen::VectorXd ps(7);
   int ierr;
 
   unsigned int count1=0, count=0;
@@ -1014,10 +1013,10 @@ epi(double xp, double yp, double zp)
   }
 
   ans = 
-    cp[0]*cr[0]* epitable[iphi1][ir1] +
-    cp[0]*cr[1]* epitable[iphi1][ir2] +
-    cp[1]*cr[0]* epitable[iphi2][ir1] +
-    cp[1]*cr[1]* epitable[iphi2][ir2] ;
+    cp[0]*cr[0]* epitable(iphi1, ir1) +
+    cp[0]*cr[1]* epitable(iphi1, ir2) +
+    cp[1]*cr[0]* epitable(iphi2, ir1) +
+    cp[1]*cr[1]* epitable(iphi2, ir2) ;
     
   if (ans>0.0) return sqrt(ans);
   else {
@@ -1026,12 +1025,12 @@ epi(double xp, double yp, double zp)
     int j;
     bool ok = false;
     for (j=ir2; j<NDR/4; j++) {
-      if (epitable[iphi1][j]<0.0) continue;
-      if (epitable[iphi2][j]<0.0) continue;
+      if (epitable(iphi1, j)<0.0) continue;
+      if (epitable(iphi2, j)<0.0) continue;
       ok = true;
       ans = 
-	cp[0]* epitable[iphi1][j] +
-	cp[1]* epitable[iphi2][j] ;
+	cp[0]* epitable(iphi1, j) +
+	cp[1]* epitable(iphi2, j) ;
     }
 
     ostringstream sout;
@@ -1046,13 +1045,13 @@ epi(double xp, double yp, double zp)
 	  << "   ir1="  << ir1 << "/" << NDR      << std::endl
 	  << "   ir2="  << ir2 << "/" << NDR      << std::endl
 	  << "    ans=" << ans                    << std::endl
-	  << "    ep1=" << epitable[iphi1][ir1]   << std::endl
-	  << "    ep2=" << epitable[iphi1][ir2]   << std::endl
-	  << "    ep3=" << epitable[iphi2][ir1]   << std::endl
-	  << "    ep4=" << epitable[iphi2][ir2]   << std::endl
+	  << "    ep1=" << epitable(iphi1, ir1)   << std::endl
+	  << "    ep2=" << epitable(iphi1, ir2)   << std::endl
+	  << "    ep3=" << epitable(iphi2, ir1)   << std::endl
+	  << "    ep4=" << epitable(iphi2, ir2)   << std::endl
 	  << "      j=" << j
-	  << "    ep5=" << epitable[iphi1][j]     << std::endl
-	  << "    ep6=" << epitable[iphi2][j]     << std::endl
+	  << "    ep5=" << epitable(iphi1, j)     << std::endl
+	  << "    ep6=" << epitable(iphi2, j)     << std::endl
 	  << std::endl;
 
       return sqrt(ans);
@@ -1069,10 +1068,10 @@ epi(double xp, double yp, double zp)
 	  << "   Phi="  << phi                    << std::endl
 	  << "    cp="  << cp[0] << ", " << cp[1] << std::endl
 	  << "    ans=" << ans                    << std::endl
-	  << "    ep1=" << epitable[iphi1][ir1]   << std::endl
-	  << "    ep2=" << epitable[iphi1][ir2]   << std::endl
-	  << "    ep3=" << epitable[iphi2][ir1]   << std::endl
-	  << "    ep4=" << epitable[iphi2][ir2]   << std::endl
+	  << "    ep1=" << epitable(iphi1, ir1)   << std::endl
+	  << "    ep2=" << epitable(iphi1, ir2)   << std::endl
+	  << "    ep3=" << epitable(iphi2, ir1)   << std::endl
+	  << "    ep4=" << epitable(iphi2, ir2)   << std::endl
 	  << std::endl;
 
       return 1.0e-8;
@@ -1093,13 +1092,13 @@ table_disk(vector<Particle>& part)
   disktableP.resize(NDP);
   disktableN.resize(NDP);
   for (int i=0; i<NDP; i++) {
-    disktableP[i].setsize(0, NDR-1, 0, NDZ-1);
-    disktableN[i].setsize(0, NDR-1, 0, NDZ-1);
+    disktableP[i].resize(NDR, NDZ);
+    disktableN[i].resize(NDR, NDZ);
   }
     
-  epitable.setsize(0, NDP-1, 0, NDR-1);
-  dv2table.setsize(0, NDP-1, 0, NDR-1);
-  asytable.setsize(0, NDP-1, 0, NDR-1);
+  epitable.resize(NDP, NDR);
+  dv2table.resize(NDP, NDR);
+  asytable.resize(NDP, NDR);
 
   dP = 2.0*M_PI/NDP;
 
@@ -1137,31 +1136,31 @@ table_disk(vector<Particle>& part)
 				// Add no force if no component exists
   pot = fr = fz = fp = dens = potl = dpr = dpt = dpp = 0.0;
 
-  Vector workP (0, NDZ-1);
-  Vector workN (0, NDZ-1);
-  Vector workA (0, NDZ-1);
-  Vector workZ (0, NDZ-1);
+  Eigen::VectorXd workP (NDZ);
+  Eigen::VectorXd workN (NDZ);
+  Eigen::VectorXd workA (NDZ);
+  Eigen::VectorXd workZ (NDZ);
 
-  Vector workR (0, NDR-1);
-  Vector workE (0, NDR-1);
-  Vector workE2(0, NDR-1);
-  Vector workQ (0, NDR-1);
-  Vector workQ2(0, NDR-1);
+  Eigen::VectorXd workR (NDR);
+  Eigen::VectorXd workE (NDR);
+  Eigen::VectorXd workE2(NDR);
+  Eigen::VectorXd workQ (NDR);
+  Eigen::VectorXd workQ2(NDR);
 #ifdef LOGCHEBY
-  Vector workQ2log   (0, NDR-1);
-  Vector workQ2smooth(0, NDR-1);
+  Eigen::VectorXd workQ2log   (NDR);
+  Eigen::VectorXd workQ2smooth(NDR);
 #endif
 
-  Matrix workV (0, 4, 0, NDR-1);
+  Eigen::MatrixXd workV (5, NDR);
 
 				// For debugging
-  Matrix workD (0, 5, 0, NDR-1);
-  Matrix workDZ(0, 6, 0, NDZ-1);
+  Eigen::MatrixXd workD (6, NDR);
+  Eigen::MatrixXd workDZ(7, NDZ);
 
 				// Sum mass grid and make radial mesh
   unsigned nzcnt=0;
   vector<double> nrD(nh+1);
-  for (nzero=0; nzero<=nh; nzero++) if (nhN[nzero] >= mh) break;
+  for (int nzero=0; nzero<=nh; nzero++) if (nhN[nzero] >= mh) break;
 
   if (nzero>nh) nzero=0;	// Not enough particles . . . 
   if (myid==0) std::cout << "Nzero=" << nzero << "/" << nh << std::endl;
@@ -1212,23 +1211,23 @@ table_disk(vector<Particle>& part)
 					   &dens, &potl, &dpr, &dpt, &dpp);
 
       
-      workV[0][j] = log(RDMIN) + dR*j;
+      workV(0, j) = log(RDMIN) + dR*j;
 				// Use monopole approximation for dPhi/dr
       // workE[j] = odd2(workV[0][j], nrD, nhD, 1)/(R*R);
 				// Use basis evaluation (dPhi/dr)
       workE[j]    = max<double>(-fr + dpr, 1.0e-20);
 
-      workV[1][j] = disk_surface_density(R);
+      workV(1, j) = disk_surface_density(R);
 				// Sigma(R)*dPhi/dr*R
-      workV[2][j] = workV[1][j]*workE[j]*R;
+      workV(2, j) = workV(1, j)*workE[j]*R;
 				// [1/r dPhi/dr]^{1/2} = Omega
       workQ[j]    = sqrt(workE[j]/R);
 				// r^2*[1/r dPhi/dr]^{1/2} = r^2 * Omega
       workQ2[j]   = workQ[j] * R*R;
 
       if (i==0) {
-	workD[4][j] = -fr;
-	workD[5][j] = dpr;
+	workD(4, j) = -fr;
+	workD(5, j) = dpr;
       }
 
       for (int k=0; k<NDZ; k++) {
@@ -1248,10 +1247,10 @@ table_disk(vector<Particle>& part)
 	dpdz = -fz + dpr*z/r + dpt*R*R/(r*r*r);
 
 				// Debugging
-	workDZ[0][k] = disk_density(R, z);
-	workDZ[1][k] = -fz;
-	workDZ[2][k] = dpr*z/r;
-	workDZ[3][k] = dpt*R*R/(r*r*r);
+	workDZ(0, k) = disk_density(R, z);
+	workDZ(1, k) = -fz;
+	workDZ(2, k) = dpr*z/r;
+	workDZ(3, k) = dpt*R*R/(r*r*r);
 
 	workP[k] = disk_density(R, z) * dpdz;
 
@@ -1268,9 +1267,9 @@ table_disk(vector<Particle>& part)
 	dpdz  = -fz + dpr*z/r + dpt*R*R/(r*r*r);
 	dpdz *= -1.0;		// No harm in changing sign
 
-	workDZ[4][k] = -fz;
-	workDZ[5][k] = dpr*z/r;
-	workDZ[6][k] = dpt*R*R/(r*r*r);
+	workDZ(4, k) = -fz;
+	workDZ(5, k) = dpr*z/r;
+	workDZ(6, k) = dpt*R*R/(r*r*r);
 
 	workN[k] = disk_density(R, z) * dpdz;
       }
@@ -1280,7 +1279,7 @@ table_disk(vector<Particle>& part)
       else            Trapsum(workZ, workP, workA);
 
       for (int k=0; k<NDZ; k++)
-	disktableP[i][j][k] = max<double>(workA[NDZ-1] - workA[k], MINDOUBLE);
+	disktableP[i](j, k) = max<double>(workA[NDZ-1] - workA[k], MINDOUBLE);
 
       if (i==ibeg[myid] && j==0 && VFLAG & 4) {
 	ostringstream ofile;
@@ -1290,7 +1289,7 @@ table_disk(vector<Particle>& part)
 	  dout << setw(15) << workZ[k] 
 	       << setw(15) << workP[k] 
 	       << setw(15) << workA[k];
-	  for (int q=0; q<7; q++) dout << setw(15) << workDZ[q][k];
+	  for (int q=0; q<7; q++) dout << setw(15) << workDZ(q, k);
 	  dout << std::endl;
 	}
 	dout.close();
@@ -1300,7 +1299,7 @@ table_disk(vector<Particle>& part)
       else            Trapsum(workZ, workN, workA);
 
       for (int k=0; k<NDZ; k++)
-	disktableN[i][j][k] = max<double>(workA[NDZ-1] - workA[k], MINDOUBLE);
+	disktableN[i](j, k) = max<double>(workA[NDZ-1] - workA[k], MINDOUBLE);
 
       if (i==ibeg[myid] && j==0 && VFLAG & 4) {
 	ostringstream ofile;
@@ -1337,57 +1336,68 @@ table_disk(vector<Particle>& part)
     for (int j=0; j<NDR; j++) {
       if (i==0) {
 	if (CHEBY)
-	  workD[0][j] += cheb->eval(workR[j]);
+	  workD(0, j) += cheb->eval(workR[j]);
 	else
-	  workD[0][j] += workE[j];
+	  workD(0, j) += workE[j];
       }
 
-      if (CHEBY)
+      if (CHEBY) {
 #ifdef LOGCHEBY
-	epitable[i][j] = drv2(workR[j], workV[0], workQ2smooth);
+	Eigen::VectorXd Y(workV.row(0));
+	epitable(i, j) = drv2(workR[j], Y, workQ2smooth);
 #else
-        epitable[i][j] = cheb->deriv(workR[j]);
+        epitable(i, j) = cheb->deriv(workR[j]);
 #endif
-      else
-	epitable[i][j] = drv2(workR[j], workV[0], workQ2);
+      } else {
+	Eigen::VectorXd Y(workV.row(0));
+	epitable(i, j) = drv2(workR[j], Y, workQ2);
+      }
 
-
-      if (i==0) workD[1][j] = epitable[0][j];
-      epitable[i][j] *= 2.0*workQ[j]/exp(2.0*workR[j]);
-      if (i==0) workD[2][j] = epitable[0][j];
-      if (i==0) workD[3][j] = epitable[0][j];
+      if (i==0) workD(1, j) = epitable(0, j);
+      epitable(i, j) *= 2.0*workQ[j]/exp(2.0*workR[j]);
+      if (i==0) workD(2, j) = epitable(0, j);
+      if (i==0) workD(3, j) = epitable(0, j);
     }
 
     
     
 				// Cylindrical Jeans' equations
     for (int j=0; j<NDR; j++) {
-      double vr   = 3.36*workV[1][j]*Q/sqrt(epitable[i][j]);
-      workV[4][j] = log(workV[1][j]*vr*vr);
+      double vr   = 3.36*workV(1, j)*Q/sqrt(epitable(i, j));
+      workV(4, j) = log(workV(1, j)*vr*vr);
     }
 
-    if (CHEBY) cheb2 = new Cheby1d(workV[0], workV[4], NCHEB);
+    if (CHEBY) cheb2 = new Cheby1d(workV.row(0), workV.row(4), NCHEB);
   
 
-    Trapsum(workV[0], workV[2], workV[3]);
+    Eigen::VectorXd X(workV.row(0));
+    Eigen::VectorXd Y(workV.row(2));
+    Eigen::VectorXd Z(X.size());
+
+    Trapsum(X, Y, Z);
+    workV.row(3) = Z;
+
     for (int j=0; j<NDR; j++) {
-      dv2table[i][j] = (workV[3][NDR-1] - workV[3][j])/workV[1][j];
-      if (CHEBY)
-	asytable[i][j] = cheb2->deriv(workV[0][j]);
-      else
-	asytable[i][j] = drv2(workV[0][j], workV[0], workV[4], 1);
+      dv2table(i, j) = (workV(3, NDR-1) - workV(3, j))/workV(1, j);
+      if (CHEBY) {
+	asytable(i, j) = cheb2->deriv(workV(0, j));
+      } else {
+	Eigen::VectorXd X(workV.row(0));
+	Eigen::VectorXd Y(workV.row(4));
+	asytable(i, j) = drv2(workV(0, j), X, Y, 1);
+      }
     }
   }
 
 				// Update tables on all nodes
   for (int k=0; k<numprocs; k++) {
     for (int i=ibeg[k]; i<iend[k]; i++) {
-      MPI_Bcast(&epitable[i][0], NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
-      MPI_Bcast(&dv2table[i][0], NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
-      MPI_Bcast(&asytable[i][0], NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
+      MPI_Bcast(&epitable(i, 0), NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
+      MPI_Bcast(&dv2table(i, 0), NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
+      MPI_Bcast(&asytable(i, 0), NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
       for (int j=0; j<NDR; j++) {
-	MPI_Bcast(&disktableP[i][j][0], NDZ, MPI_DOUBLE, k, MPI_COMM_WORLD);
-	MPI_Bcast(&disktableN[i][j][0], NDZ, MPI_DOUBLE, k, MPI_COMM_WORLD);
+	MPI_Bcast(&disktableP[i](j, 0), NDZ, MPI_DOUBLE, k, MPI_COMM_WORLD);
+	MPI_Bcast(&disktableN[i](j, 0), NDZ, MPI_DOUBLE, k, MPI_COMM_WORLD);
       }
     }
   }
@@ -1417,20 +1427,22 @@ table_disk(vector<Particle>& part)
       lhs = halo->get_mass(r);
       rhs = -r*r*deriv/rho;
 
-      if (CHEBY)
+      if (CHEBY) {
 #ifdef LOGCHEBY
-	deriv2 = drv2(workR[j], workV[0], workQ2smooth);
+	Eigen::VectorXd X(workV.row(0));
+	deriv2 = drv2(workR[j], X, workQ2smooth);
 #else
         deriv2 = cheb->deriv(workQ2[j]);
 #endif
-      else
+      } else {
         deriv2 = drv2(workR[j], workR, workQ2);
-	
+      }	
+
       vrq0 = 3.36*dmass*disk->get_density(r)*Q/epi(r, 0.0, 0.0);
-      vrq1 = 3.36*dmass*disk->get_density(r)*Q/sqrt(epitable[0][j]);
+      vrq1 = 3.36*dmass*disk->get_density(r)*Q/sqrt(epitable(0, j));
 
       out << setw(14) << r			// #1
-	  << setw(14) << epitable[0][j]		// #2
+	  << setw(14) << epitable(0, j)		// #2
 	  << setw(14) << workR[j]		// #3
 	  << setw(14) << workQ[j]		// #4
 	  << setw(14) << workQ2[j]		// #5
@@ -1438,12 +1450,12 @@ table_disk(vector<Particle>& part)
 	  << setw(14) << vrq0                   // #7
 	  << setw(14) << vrq1                   // #8
 	  << setw(14) << v_circ(r, 0.0, 0.0)    // #9
-	  << setw(14) << workD[0][j]		// #10  dV(tot)/dR
-	  << setw(14) << workD[1][j]		// #11  d^2V(tot)/dlnR
-	  << setw(14) << workD[2][j]		// #12  d^2V(tot)/dlnR + 3V(tot)
-	  << setw(14) << workD[3][j]		// #13  kappa^2
-	  << setw(14) << workD[4][j]		// #14  dV(disk)/dR
-	  << setw(14) << workD[5][j]		// #15  dV(halo)/dR
+	  << setw(14) << workD(0, j)		// #10  dV(tot)/dR
+	  << setw(14) << workD(1, j)		// #11  d^2V(tot)/dlnR
+	  << setw(14) << workD(2, j)		// #12  d^2V(tot)/dlnR + 3V(tot)
+	  << setw(14) << workD(3, j)		// #13  kappa^2
+	  << setw(14) << workD(4, j)		// #14  dV(disk)/dR
+	  << setw(14) << workD(5, j)		// #15  dV(halo)/dR
 	  << setw(14) << rho			// #16
 	  << setw(14) << deriv			// #17
 	  << setw(14) << lhs			// #18
@@ -1462,7 +1474,7 @@ table_disk(vector<Particle>& part)
       for (int j=0; j<NDR; j++)
 	dump << setw(18) << phi 
 	     << setw(18) << RDMIN*exp(dR*j)
-	     << setw(18) << epitable[i][j]
+	     << setw(18) << epitable(i, j)
 	     << std::endl;
       dump << std::endl;
     }
@@ -1478,13 +1490,13 @@ table_disk(vector<Particle>& part)
 	double vr = vr_disp2(rr*c, rr*s, 0.0);
 	dump << setw(18) << phi 			// 1 Phi
 	     << setw(18) << rr				// 2 R
-	     << setw(18) << dv2table[i][j]		// 3 
-	     << setw(18) << asytable[i][j]		// 4 d log(rho*vr^2)/ dlog(R)
-	     << setw(18) << asytable[i][j]*vr/(vc*vc)	// 5 ac/vc^2
-	     << setw(18) << workV[4][j]			// 6 log(rho*vr^2)
+	     << setw(18) << dv2table(i, j)		// 3 
+	     << setw(18) << asytable(i, j)		// 4 d log(rho*vr^2)/ dlog(R)
+	     << setw(18) << asytable(i, j)*vr/(vc*vc)	// 5 ac/vc^2
+	     << setw(18) << workV(4, j)			// 6 log(rho*vr^2)
 	     << setw(18) << vr				// 7 vr^2
 	     << setw(18) << vc*vc;			// 8 vc^2
-	if (CHEBY) dump << setw(18) << cheb2->eval(workV[0][j]);
+	if (CHEBY) dump << setw(18) << cheb2->eval(workV(0, j));
 	dump << std::endl;
       }
       dump << std::endl;
@@ -1508,7 +1520,7 @@ table_disk(vector<Particle>& part)
 	y = R*sin(phi);
 	out << setw(18) << x
 	    << setw(18) << y
-	    << setw(18) << epitable[i%NDP][j] << std::endl;
+	    << setw(18) << epitable(i%NDP, j) << std::endl;
       }
       out << std::endl;
     }
@@ -1527,8 +1539,8 @@ table_disk(vector<Particle>& part)
       for (int k=0; k<NDZ; k++) {
 	out << setw(18) << RDMIN*exp(dR*j)
 	    << setw(18) << dZ*k
-	    << setw(18) << disktableP[0][j][k]
-	    << setw(18) << disktableN[0][j][k] 
+	    << setw(18) << disktableP[0](j, k)
+	    << setw(18) << disktableN[0](j, k) 
 	    << setw(18) << disk_density(RDMIN*exp(dR*j), dZ*k)
 	    << std::endl;
       }
@@ -1610,29 +1622,29 @@ double DiskHalo::vz_disp2(double xp,double yp, double zp)
 
     resvd = 
 
-      cp[0]*cr[0]*cz[0] * disktableP[iphi1][ir1][iz1]  +
-      cp[0]*cr[0]*cz[1] * disktableP[iphi1][ir1][iz2]  +
-      cp[0]*cr[1]*cz[0] * disktableP[iphi1][ir2][iz1]  +
-      cp[0]*cr[1]*cz[1] * disktableP[iphi1][ir2][iz2]  +
+      cp[0]*cr[0]*cz[0] * disktableP[iphi1](ir1, iz1)  +
+      cp[0]*cr[0]*cz[1] * disktableP[iphi1](ir1, iz2)  +
+      cp[0]*cr[1]*cz[0] * disktableP[iphi1](ir2, iz1)  +
+      cp[0]*cr[1]*cz[1] * disktableP[iphi1](ir2, iz2)  +
 
-      cp[1]*cr[0]*cz[0] * disktableP[iphi2][ir1][iz1]  +
-      cp[1]*cr[0]*cz[1] * disktableP[iphi2][ir1][iz2]  +
-      cp[1]*cr[1]*cz[0] * disktableP[iphi2][ir2][iz1]  +
-      cp[1]*cr[1]*cz[1] * disktableP[iphi2][ir2][iz2]  ;
+      cp[1]*cr[0]*cz[0] * disktableP[iphi2](ir1, iz1)  +
+      cp[1]*cr[0]*cz[1] * disktableP[iphi2](ir1, iz2)  +
+      cp[1]*cr[1]*cz[0] * disktableP[iphi2](ir2, iz1)  +
+      cp[1]*cr[1]*cz[1] * disktableP[iphi2](ir2, iz2)  ;
 
   } else {
 
     resvd = 
 
-      cp[0]*cr[0]*cz[0] * disktableN[iphi1][ir1][iz1]  +
-      cp[0]*cr[0]*cz[1] * disktableN[iphi1][ir1][iz2]  +
-      cp[0]*cr[1]*cz[0] * disktableN[iphi1][ir2][iz1]  +
-      cp[0]*cr[1]*cz[1] * disktableN[iphi1][ir2][iz2]  +
+      cp[0]*cr[0]*cz[0] * disktableN[iphi1](ir1, iz1)  +
+      cp[0]*cr[0]*cz[1] * disktableN[iphi1](ir1, iz2)  +
+      cp[0]*cr[1]*cz[0] * disktableN[iphi1](ir2, iz1)  +
+      cp[0]*cr[1]*cz[1] * disktableN[iphi1](ir2, iz2)  +
 
-      cp[1]*cr[0]*cz[0] * disktableN[iphi2][ir1][iz1]  +
-      cp[1]*cr[0]*cz[1] * disktableN[iphi2][ir1][iz2]  +
-      cp[1]*cr[1]*cz[0] * disktableN[iphi2][ir2][iz1]  +
-      cp[1]*cr[1]*cz[1] * disktableN[iphi2][ir2][iz2]  ;
+      cp[1]*cr[0]*cz[0] * disktableN[iphi2](ir1, iz1)  +
+      cp[1]*cr[0]*cz[1] * disktableN[iphi2](ir1, iz2)  +
+      cp[1]*cr[1]*cz[0] * disktableN[iphi2](ir2, iz1)  +
+      cp[1]*cr[1]*cz[1] * disktableN[iphi2](ir2, iz2)  ;
   }
 
   double dens = disk_density(R, zp);
@@ -1702,10 +1714,10 @@ double DiskHalo::a_drift(double xp, double yp, double zp)
   if (vr2>0.0) ret = 1.0 - vp2/vr2;
 
   return ret + 
-    cp[0]*cr[0] * asytable[iphi1][ir1] +
-    cp[0]*cr[1] * asytable[iphi1][ir2] +
-    cp[1]*cr[0] * asytable[iphi2][ir1] +
-    cp[1]*cr[1] * asytable[iphi2][ir2] ;
+    cp[0]*cr[0] * asytable(iphi1, ir1) +
+    cp[0]*cr[1] * asytable(iphi1, ir2) +
+    cp[1]*cr[0] * asytable(iphi2, ir1) +
+    cp[1]*cr[1] * asytable(iphi2, ir2) ;
 }
 
 /*
@@ -2006,9 +2018,9 @@ void DiskHalo::table_halo_disp()
     throw DiskHaloException(msg, __FILE__, __LINE__);
   }
 
-  if (halotable.getchigh() == NHR-1 && halotable.getrhigh() == 2) return;
+  if (halotable.cols() == NHR && halotable.rows() == 3) return;
   
-  halotable.setsize(0, 2, 0, NHR-1);
+  halotable.resize(3, NHR);
   
   double rmin = halo2->get_min_radius();
   double rmax = halo2->get_max_radius();
@@ -2025,7 +2037,7 @@ void DiskHalo::table_halo_disp()
   else
     dr = (rmax - rmin)/(NHR - 1);
   
-  halotable.zero();
+  halotable.setZero();
   
   const int nlq = 400;
   LegeQuad lq(nlq);
@@ -2037,9 +2049,9 @@ void DiskHalo::table_halo_disp()
 
   for (int i=ibeg; i<iend; i++) {
     if (LOGR)
-      halotable[0][i] = r = exp(log(rmin) + dr*i);
+      halotable(0, i) = r = exp(log(rmin) + dr*i);
     else
-      halotable[0][i] = r = rmin + dr*i;
+      halotable(0, i) = r = rmin + dr*i;
 
     pot = halo2->get_pot(r);
 
@@ -2050,26 +2062,21 @@ void DiskHalo::table_halo_disp()
       v = sqrt(v2);
       fac = (Emax - pot)*lq.weight(n)*halo2->distf(E, 0.5);
 				// velocity dispersion
-      halotable[1][i] += fac * v * v2;
+      halotable(1, i) += fac * v * v2;
 				// density
-      halotable[2][i] += fac * v;
+      halotable(2, i) += fac * v;
     }
 
-    if (halotable[2][i]>0.0) halotable[1][i] /= halotable[2][i];
-    else halotable[1][i] = 0.0;
+    if (halotable(2, i)>0.0) halotable(1, i) /= halotable(2, i);
+    else halotable(1, i) = 0.0;
   }
 
 
   // Update tables on all nodes
   //
-  MPI_Allreduce(MPI_IN_PLACE, &halotable[0][0], NHR, MPI_DOUBLE, 
+  MPI_Allreduce(MPI_IN_PLACE, halotable.data(), halotable.size(), MPI_DOUBLE, 
 		MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(MPI_IN_PLACE, &halotable[1][0], NHR, MPI_DOUBLE, 
-		MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(MPI_IN_PLACE, &halotable[2][0], NHR, MPI_DOUBLE, 
-		MPI_SUM, MPI_COMM_WORLD);
-  
-  
+
   //
   // DEBUG output
   //
@@ -2081,10 +2088,10 @@ void DiskHalo::table_halo_disp()
     out.precision(2);
     
     for (int k=0; k<NHR; k++)
-      out << std::setw(18) << halotable[0][k]
-	  << std::setw(18) << halotable[1][k]
-	  << std::setw(18) << 4.0*M_PI*halotable[2][k]
-	  << std::setw(18) << halo->get_density(halotable[0][k]) << std::endl;
+      out << std::setw(18) << halotable(0, k)
+	  << std::setw(18) << halotable(1, k)
+	  << std::setw(18) << 4.0*M_PI*halotable(2, k)
+	  << std::setw(18) << halo->get_density(halotable(0, k)) << std::endl;
   }
 
 }
@@ -2092,9 +2099,9 @@ void DiskHalo::table_halo_disp()
 void DiskHalo::
 table_halo(vector<Particle>& part)
 {
-  if (halotable.getchigh() == NHR-1) return;
+  if (halotable.cols() == NHR) return;
   
-  halotable.setsize(0, NHT-1, 0, NHR-1);
+  halotable.resize(NHT, NHR);
   
   dc = 2.0/(NHT-1);
   double r2, maxr = 0.0, maxr1 = 0.0;
@@ -2119,9 +2126,9 @@ table_halo(vector<Particle>& part)
 
   double x, y, z, theta, r, fr, fz, fp, pot, costh, sinth;
   double dens, potl, dpr, dpt, dpp, dpdr;
-  Vector work(0, NHR-1);
-  Vector workR(0, NHR-1);
-  Vector workA(0, NHR-1);
+  Eigen::VectorXd work(NHR);
+  Eigen::VectorXd workR(NHR);
+  Eigen::VectorXd workA(NHR);
   
   // If no disk, add no force
   //
@@ -2163,9 +2170,9 @@ table_halo(vector<Particle>& part)
     // Splsum(workR, work, workA);
     Trapsum(workR, work, workA);
     for (int j=0; j<NHR; j++) {
-      halotable[i][j] = max<double>(workA[NHR-1] - workA[j], MINDOUBLE);
-      if (fabs(halotable[i][j])>1.0e8) {
-	std::cerr << "Oops, val=" << halotable[i][j] << std::endl;
+      halotable(i, j) = max<double>(workA[NHR-1] - workA[j], MINDOUBLE);
+      if (fabs(halotable(i, j))>1.0e8) {
+	std::cerr << "Oops, val=" << halotable(i, j) << std::endl;
       }
     }
   }
@@ -2174,7 +2181,9 @@ table_halo(vector<Particle>& part)
   //
   for (int k=0; k<numprocs; k++) {
     for (int i=ibeg[k]; i<iend[k]; i++) {
-      MPI_Bcast(&halotable[i][0], NHR, MPI_DOUBLE, k, MPI_COMM_WORLD);
+      Eigen::VectorXd Z(halotable.row(i));
+      MPI_Bcast(Z.data(), NHR, MPI_DOUBLE, k, MPI_COMM_WORLD);
+      halotable.row(i) = Z;
     }
   }
   
@@ -2192,7 +2201,7 @@ table_halo(vector<Particle>& part)
       for (int k=0; k<NHR; k++) {
 	out << std::setw(18) << -1.0 + dc*j
 	    << std::setw(18) << RHMIN*exp(dr*k)
-	    << std::setw(18) << halotable[j][k] << std::endl;
+	    << std::setw(18) << halotable(j, k) << std::endl;
       }
       out << std::endl;
     }
@@ -2230,7 +2239,7 @@ table_halo(vector<Particle>& part)
 	xx = rr*sqrt(1.0 - costh*costh);
 	zz = rr*costh;
 	out3 
-	  << std::setw(14) << halotable[j][k] -  
+	  << std::setw(14) << halotable(j, k) -  
 	  get_disp(xx, 0.0, zz) * halo->get_density(rr);
       }
       out3 << std::endl;
@@ -2246,10 +2255,11 @@ double DiskHalo::get_disp(double xp,double yp, double zp)
     double r = sqrt(xp*xp + yp*yp + zp*zp);
     r = max<double>(r, halo2->get_min_radius());
     r = min<double>(r, halo2->get_max_radius());
-    return odd2(r, halotable[0], halotable[1], 0);
+    Eigen::VectorXd X(halotable.row(0)), Y(halotable.row(1));
+    return odd2(r, X, Y, 0);
   }
 
-  if (halotable.getchigh() != NHR-1) {
+  if (halotable.cols() != NHR) {
     std::cerr << "DiskHalo::get_disp: must call table_halo first\n";
     MPI_Abort(MPI_COMM_WORLD, 100);
     exit(0);
@@ -2278,10 +2288,10 @@ double DiskHalo::get_disp(double xp,double yp, double zp)
   
   resv = 
     
-    ct[0]*cr[0] * halotable[it  ][ir  ]  +
-    ct[0]*cr[1] * halotable[it  ][ir+1]  +
-    ct[1]*cr[0] * halotable[it+1][ir  ]  +
-    ct[1]*cr[1] * halotable[it+1][ir+1]  ;
+    ct[0]*cr[0] * halotable(it  , ir  )  +
+    ct[0]*cr[1] * halotable(it  , ir+1)  +
+    ct[1]*cr[0] * halotable(it+1, ir  )  +
+    ct[1]*cr[1] * halotable(it+1, ir+1)  ;
   
   double dens = halo->get_density(r);
   if (dens>0.0) resv /= dens;

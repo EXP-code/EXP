@@ -6,10 +6,10 @@
 
 #include <getopt.h>
 
-#include <biorth1d.h>
-#include <SLGridMP2.h>
-#include <gaussQ.h>
-#include <localmpi.h>
+#include <biorth1d.H>
+#include <SLGridMP2.H>
+#include <gaussQ.H>
+#include <localmpi.H>
 
 char threading_on = 0;
 pthread_mutex_t mem_lock;

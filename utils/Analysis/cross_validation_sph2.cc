@@ -57,16 +57,15 @@ namespace po = boost::program_options;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
+#include <numerical.H>
 #include "Particle.h"
 #include <PSP2.H>
-#include <interp.h>
-#include <massmodel.h>
+#include <interp.H>
+#include <massmodel.H>
 #include <SphereSL.H>
 #include <foarray.H>
 
-#include <localmpi.h>
+#include <localmpi.H>
 
 // Variables not used but needed for linking
 //
@@ -389,8 +388,8 @@ main(int argc, char **argv)
 	term2 = work2 = 0.0;
 	
 	auto coefs = ortho.retrieve_coefs();
-	for (int l=coefs.getrlow(); l<=coefs.getrhigh(); l++) {
-	  for (int n=ncut+1; n<=NMAX; n++) coefs[l][n] = 0.0;
+	for (int l=0; l<=coefs.rows(); l++) {
+	  for (int n=ncut+1; n<NMAX; n++) coefs(l, n) = 0.0;
 	}
 
 	if (myid==0) {		// Only root process needs this one
@@ -405,12 +404,12 @@ main(int argc, char **argv)
 		for (int n2=1; n2<=ncut; n2++) {
 		  if (M==0)
 		    term1[L] +=
-		      coefs[lbeg][n1]*O[L](n1-1, n2-1)*coefs[lbeg][n2];
+		      coefs(lbeg, n1)*O[L](n1-1, n2-1)*coefs(lbeg, n2);
 		  else {
 		    int ll = lbeg + 2*(M-1) + 1;
 		    term1[L] +=
-		      coefs[ll+0][n1]*O[L](n1-1, n2-1)*coefs[ll+0][n2] +
-		      coefs[ll+1][n1]*O[L](n1-1, n2-1)*coefs[ll+1][n2];
+		      coefs(ll+0, n1)*O[L](n1-1, n2-1)*coefs(ll+0, n2) +
+		      coefs(ll+1, n1)*O[L](n1-1, n2-1)*coefs(ll+1, n2);
 		  }
 		}
 	      }
@@ -531,12 +530,12 @@ main(int argc, char **argv)
 		for (int n2=1; n2<=NMAX; n2++) {
 		  if (M==0)
 		    term1[L] +=
-		      coefs[lbeg][n1]*O[L](n1-1, n2-1)*coefs[lbeg][n2];
+		      coefs(lbeg, n1)*O[L](n1-1, n2-1)*coefs(lbeg, n2);
 		  else {
 		    int ll = lbeg + 2*(M-1) + 1;
 		    term1[L] +=
-		      coefs[ll+0][n1]*O[L](n1-1, n2-1)*coefs[ll+0][n2] +
-		      coefs[ll+1][n1]*O[L](n1-1, n2-1)*coefs[ll+1][n2];
+		      coefs(ll+0, n1)*O[L](n1-1, n2-1)*coefs(ll+0, n2) +
+		      coefs(ll+1, n1)*O[L](n1-1, n2-1)*coefs(ll+1, n2);
 		  }
 		}
 	      }

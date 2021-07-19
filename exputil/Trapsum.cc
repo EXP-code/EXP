@@ -6,16 +6,15 @@
 
 #include <limits.h>
 
-#include <interp.h>
+#include <interp.H>
 
 
-double	Trapsum(const Vector& x, const Vector& y)
+double Trapsum(const Eigen::VectorXd& x, const Eigen::VectorXd& y)
 {
-  int lo = x.getlow();
-  int hi = x.gethigh();
+  int sz = x.size();
 
   double h, p=0.0;
-  for(int l=lo; l<hi; l++) {
+  for(int l=0; l<sz-1; l++) {
     h = x[l+1] - x[l];
     p = p + 0.5*(y[l] + y[l+1])*h;
   }
@@ -25,16 +24,13 @@ double	Trapsum(const Vector& x, const Vector& y)
 }
 
 
-void Trapsum(const Vector& x, const Vector& y, Vector& z)
+void Trapsum(const Eigen::VectorXd& x, const Eigen::VectorXd& y, Eigen::VectorXd& z)
 {
-  int lo = x.getlow();
-  int hi = x.gethigh();
+  int sz = x.size();
 
-  double h;
-
-  z[lo] = 0.0;
-  for(int l=lo+1; l<=hi; l++) {
-    h = x[l] - x[l-1];
+  z[0] = 0.0;
+  for(int l=1; l<sz; l++) {
+    double h = x[l] - x[l-1];
     z[l] = z[l-1] + 0.5*(y[l-1] + y[l])*h;
   }
 }

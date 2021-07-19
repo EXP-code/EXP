@@ -42,25 +42,25 @@
  ***************************************************************************/
 
 
-#include <stdlib.h>
-#include <math.h>
+#include <cstdlib>
+#include <cmath>
 
 #include <iostream>
 
-#include <Vector.h>
+#include <Eigen/Eigen>
 
 /******* Function definitions *******/
 
-int level_surface(Matrix& z, double val, Vector& xr, Vector& yr, int& num);
-void level_surface_sort_swap(Matrix& surf,int i1, int i2);
-void level_surface_exch(Matrix& surf, int i);
-void level_surface_add_point(Matrix& surf,
+int level_surface(Eigen::MatrixXd& z, double val, Eigen::VectorXd& xr, Eigen::VectorXd& yr, int& num);
+void level_surface_sort_swap(Eigen::MatrixXd& surf,int i1, int i2);
+void level_surface_exch(Eigen::MatrixXd& surf, int i);
+void level_surface_add_point(Eigen::MatrixXd& surf,
 			     double x0, double y0, double x1, double y1,
 			     int& k);
-void level_surface_dump_raw(Matrix& surf, int k);
-void level_surface_dump_cooked(Matrix& surf, int k);
-int level_surface_sort_find_min(Matrix& surf, int begin, int end);
-int level_surface_sort_loc(Matrix& surf, int begin, int end);
+void level_surface_dump_raw(Eigen::MatrixXd& surf, int k);
+void level_surface_dump_cooked(Eigen::MatrixXd& surf, int k);
+int level_surface_sort_find_min(Eigen::MatrixXd& surf, int begin, int end);
+int level_surface_sort_loc(Eigen::MatrixXd& surf, int begin, int end);
 
 #define TOL 1.0e-8
 
@@ -75,7 +75,7 @@ main(int argc, char** argv)
   double        x,y,dx,dy,level,exact;
   int           m,n,i,j,num,nseg;
   Matrix        z;
-  Vector        xret, yret;
+  Eigen::VectorXd        xret, yret;
 
 
   cout << "Output filename: ";
@@ -155,35 +155,32 @@ main(int argc, char** argv)
 #endif // DEBUG_MAIN
 
 static int DIM=0;
-static Matrix surf;
+static Eigen::MatrixXd surf;
 
-int level_surface(Matrix& z, double val, Vector& xret, Vector& yret, int& num)
+int level_surface(Eigen::MatrixXd& z, double val,
+		  Eigen::VectorXd& xret, Eigen::VectorXd& yret, int& num)
 {
   double deltx,delty,x,y,v1,v2,v3,v4,x0,x1,y0,y1;
   int i,j,k,icase,next,nseg;
 
-
-  int i1 = z.getrlow();
-  int j1 = z.getclow();
-  int m = z.getnrows();
-  int n = z.getncols();
-  
+  int m = z.rows();
+  int n = z.cols();
 				/* Allocate matrix to contain segment list */
 				/* Can't be more than 2(n-1)(m-1) long */
   DIM = 2*(n-1)*(m-1);
-  surf.setsize(1, DIM, 1, 4);
+  surf.resize(DIM, 4);
 
   deltx = 1.0/(double)(m-1);
   delty = 1.0/(double)(n-1);
   y = 0.0;
   k = 0;
-  for (j=j1; j<j1+n-1; j++) {
+  for (int j=0; j<n; j++) {
     x = 0.0;
-    for (i=i1; i<i1+m-1; i++) {
-      v1 = z[i][j];
-      v2 = z[i+1][j];
-      v3 = z[i][j+1];
-      v4 = z[i+1][j+1];
+    for (int i=0; i<m; i++) {
+      v1 = z(i,   j);
+      v2 = z(i+1, j);
+      v3 = z(i,   j+1);
+      v4 = z(i+1, j+1);
 
       icase = 1;
       if (val>v1) icase = icase + 1;
@@ -268,15 +265,15 @@ int level_surface(Matrix& z, double val, Vector& xret, Vector& yret, int& num)
     level_surface_exch(surf,next);
 
   if (k>0) {			// Did we find any points?
-    xret.setsize(1, k+1);
-    yret.setsize(1, k+1);
+    xret.resize(k);
+    yret.resize(k);
     num = k+1;
-    for (i=1; i<=k; i++) {
-      xret[i] = surf[i][1];
-      yret[i] = surf[i][2];
+    for (int i=0; i<k-1; i++) {
+      xret[i] = surf(i, 1);
+      yret[i] = surf(i, 2);
     }
-    xret[k+1] = surf[k][3];
-    yret[k+1] = surf[k][4];
+    xret[k-1] = surf(k-1, 3);
+    yret[k-1] = surf(k-1, 4);
     
 #ifdef DEBUG
   level_surface_dump_cooked(surf, k);
@@ -293,7 +290,7 @@ int level_surface(Matrix& z, double val, Vector& xret, Vector& yret, int& num)
    Add segment to segment list
 */
 
-void level_surface_add_point(Matrix& surf,
+void level_surface_add_point(Eigen::MatrixXd& surf,
 			     double x0, double y0, double x1, double y1,
 			     int& k)
 {
@@ -304,8 +301,8 @@ void level_surface_add_point(Matrix& surf,
   }
 
   k++;				             /* Add */
-  surf[k][1] = x0;	surf[k][2] = y0;
-  surf[k][3] = x1;	surf[k][4] = y1;
+  surf(k, 1) = x0;	surf(k, 2) = y0;
+  surf(k, 3) = x1;	surf(k, 4) = y1;
 
   }
 
@@ -316,48 +313,48 @@ void level_surface_add_point(Matrix& surf,
    has minimum value
 */
 
-int level_surface_sort_find_min(Matrix& surf, int begin, int end)
+int level_surface_sort_find_min(Eigen::MatrixXd& surf, int begin, int end)
 {
   double ymin;
-  int i,indx;
+  int indx;
 				/* Find minimum "head-tail".  Begin with   */
 				/* minimum y and all else equal, minimum x */
   ymin = 1.0e30;		
   indx = 0;
 
-  for (i=begin; i<=end; i++) {
-    if (surf[i][2] <= ymin) {
-      if ( surf[i][2] == ymin ) {
-	if ( surf[i][1] < surf[abs(indx)][1] )
+  for (int i=begin; i<=end; i++) {
+    if (surf(i, 2) <= ymin) {
+      if ( surf(i, 2) == ymin ) {
+	if ( surf(i, 1) < surf(abs(indx), 1) )
 	  indx = i;
       }
       else {
 	indx = i;
-	ymin = surf[i][2];
+	ymin = surf(i, 2);
       }
     }
-    else if (surf[i][4] <= ymin) {
-      if ( surf[i][4] == ymin ) {
-	if ( surf[i][3] < surf[abs(indx)][3] )
+    else if (surf(i, 4) <= ymin) {
+      if ( surf(i, 4) == ymin ) {
+	if ( surf(i, 3) < surf(abs(indx), 3) )
 	  indx = -i;
       }
       else {
 	indx = -i;
-	ymin = surf[i][4];
+	ymin = surf(i, 4);
       }
     }
   }
 
 				// Is it on the x edge?  Exchange . . .
-  if ( fabs(surf[abs(indx)][3] - 1.0) < 1.0e-8 ) {
+  if ( fabs(surf(abs(indx), 3) - 1.0) < 1.0e-8 ) {
     double xtmp,ytmp;
 
-    xtmp = surf[abs(indx)][1];
-    ytmp = surf[abs(indx)][2];
-    surf[abs(indx)][1] = surf[abs(indx)][3];
-    surf[abs(indx)][2] = surf[abs(indx)][4];
-    surf[abs(indx)][3] = xtmp;
-    surf[abs(indx)][4] = ytmp;
+    xtmp = surf(abs(indx), 1);
+    ytmp = surf(abs(indx), 2);
+    surf(abs(indx), 1) = surf(abs(indx), 3);
+    surf(abs(indx), 2) = surf(abs(indx), 4);
+    surf(abs(indx), 3) = xtmp;
+    surf(abs(indx), 4) = ytmp;
   }
 
   return indx;
@@ -372,19 +369,19 @@ int level_surface_sort_find_min(Matrix& surf, int begin, int end)
    negative values mean tail matches tail, 0 if no segment found.
 */
 
-int level_surface_sort_loc(Matrix& surf, int begin, int end)
+int level_surface_sort_loc(Eigen::MatrixXd& surf, int begin, int end)
 {
   double x,y;
   int i;
 				/* Find next fit tail to head */
-  x = surf[begin][3];
-  y = surf[begin][4];
+  x = surf(begin, 3);
+  y = surf(begin, 4);
 
   for (i=begin+1; i<=end; i++) {
-    if (fabs(surf[i][1]-x) < TOL*fabs(x) && 
-	fabs(surf[i][2]-y) < TOL*fabs(y)) return i;
-    if (fabs(surf[i][3]-x) < TOL*fabs(x) && 
-	fabs(surf[i][4]-y) < TOL*fabs(y)) return -i;
+    if (fabs(surf(i, 1)-x) < TOL*fabs(x) && 
+	fabs(surf(i, 2)-y) < TOL*fabs(y)) return i;
+    if (fabs(surf(i, 3)-x) < TOL*fabs(x) && 
+	fabs(surf(i, 4)-y) < TOL*fabs(y)) return -i;
   }
 
   return 0;
@@ -394,19 +391,18 @@ int level_surface_sort_loc(Matrix& surf, int begin, int end)
 
 /* Swap segment i1 with segment i2 */
 
-void level_surface_sort_swap(Matrix& surf,int i1, int i2)
+void level_surface_sort_swap(Eigen::MatrixXd& surf,int i1, int i2)
 {
   double temp[4];
-  int i;
 
-  for (i=0; i<4; i++)
-    temp[i] = surf[abs(i1)][i+1];
+  for (int i=0; i<4; i++)
+    temp[i] = surf(abs(i1), i+1);
 
-  for (i=0; i<4; i++)
-    surf[abs(i1)][i+1] = surf[abs(i2)][i+1];
+  for (int i=0; i<4; i++)
+    surf(abs(i1), i+1) = surf(abs(i2), i+1);
 
-  for (i=0; i<4; i++)
-    surf[abs(i2)][i+1] = temp[i];
+  for (int i=0; i<4; i++)
+    surf(abs(i2), i+1) = temp[i];
 
 }
 
@@ -414,17 +410,17 @@ void level_surface_sort_swap(Matrix& surf,int i1, int i2)
 
 /* Invert direction of line segment at index i */
     
-void level_surface_exch(Matrix& surf, int i)
+void level_surface_exch(Eigen::MatrixXd& surf, int i)
 {
   double xtmp,ytmp;
 
   if (i<0) {
-    xtmp = surf[abs(i)][1];
-    ytmp = surf[abs(i)][2];
-    surf[abs(i)][1] = surf[abs(i)][3];
-    surf[abs(i)][2] = surf[abs(i)][4];
-    surf[abs(i)][3] = xtmp;
-    surf[abs(i)][4] = ytmp;
+    xtmp = surf(abs(i), 1);
+    ytmp = surf(abs(i), 2);
+    surf(abs(i), 1) = surf(abs(i), 3);
+    surf(abs(i), 2) = surf(abs(i), 4);
+    surf(abs(i), 3) = xtmp;
+    surf(abs(i), 4) = ytmp;
   }
 }
 
@@ -432,28 +428,28 @@ void level_surface_exch(Matrix& surf, int i)
 /* Debug dump routines */
 #ifdef DEBUG
 
-void level_surface_dump_raw(Matrix& surf, int k)
+void level_surface_dump_raw(Eigen::MatrixXd& surf, int k)
 {
   int i;
 
   ofstream out("raw.dat");
 
   for (i=1; i<=k; i++)
-    out << surf[i][1] << " " << surf[i][2] << " " 
-	<< surf[i][3] << " " << surf[i][4] << endl;
+    out << surf(i, 1] << " " << surf(i, 2] << " " 
+	<< surf(i, 3] << " " << surf(i, 4] << endl;
 
 }
 
 
-void level_surface_dump_cooked(Matrix& surf, int k)
+void level_surface_dump_cooked(Eigen::MatrixXd& surf, int k)
 {
   int i;
 
   ofstream out("cooked.dat");
 
   for (i=1; i<=k; i++)
-    out << surf[i][1] << " " << surf[i][2] << " " 
-	<< surf[i][3] << " " << surf[i][4] << endl;
+    out << surf(i, 1] << " " << surf(i, 2] << " " 
+	<< surf(i, 3] << " " << surf(i, 4] << endl;
 
 }
 

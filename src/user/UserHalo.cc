@@ -2,8 +2,8 @@
 #include <math.h>
 #include <sstream>
 
-#include "expand.h"
-#include <massmodel.h>
+#include "expand.H"
+#include <massmodel.H>
 #include <UserHalo.H>
 
 

@@ -1,19 +1,16 @@
 // This may look like C code, but it is really -*- C++ -*-
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
-#include <math.h>
+#include <cmath>
 
-#include <CVector.h>
-#include <clinalg.h>
-
-#include <biorth.h>
-#include <model3d.h>
-#include <isothermal.h>
-#include <hernquist.h>
-#include <gaussQ.h>
+#include <biorth.H>
+#include <model3d.H>
+#include <isothermal.H>
+#include <hernquist.H>
+#include <gaussQ.H>
 
 #include <Perturbation.H>
 
@@ -53,31 +50,30 @@ void Perturbation::set_respmat_parameters(int epts, int kpts, int recs)
   Recs = recs;
 }
 
-void Perturbation::compute_perturbation(AxiSymModel *halo_model, 
-				      AxiSymBiorth *halo_ortho,
-				      CVector& total, CVector& pp )
+void Perturbation::compute_perturbation(AxiSymModel  *halo_model, 
+					AxiSymBiorth *halo_ortho,
+					Eigen::VectorXcd& total,
+					Eigen::VectorXcd& pp )
 {
   model = halo_model;
   biorth = halo_ortho;
 
-  CVector Response(1, nmax);
-  CVector Response_total(1, nmax);
+  Eigen::MatrixXcd Response(nmax, nmax);
+  Eigen::MatrixXcd Response_total(nmax, nmax);
 
   compute_coefficients();
 
-  CMatrix ident(1, nmax, 1, nmax);
-  ident.zero();
-  for (int i=1; i<=ident.getnrows(); i++) ident[i][i] = 1.0;
+  Eigen::MatrixXcd ident = Eigen::MatrixXcd::Identity(nmax, nmax);
 
   make_response();
 
   if (selfgrav) {
     total = current * asymp * bcoef;
-    pp = current * Re(asymp) * bcoef;
+    pp = current * asymp.real() * bcoef;
   }
   else {
     total = asymp * bcoef;
-    pp = Re(asymp) * bcoef;
+    pp = asymp.real() * bcoef;
   }
 }
 
@@ -91,9 +87,7 @@ void Perturbation::make_response()
 				// Get frequency
   compute_omega();
   
-  asymp = CMatrix(1, nmax, 1, nmax);
-  asymp.zero();
-  for (int i=1; i<=asymp.getnrows(); i++) asymp[i][i] = 1.0;
+  asymp = Eigen::MatrixXcd::Identity(nmax, nmax);
   working = asymp;
 
   computed = true;

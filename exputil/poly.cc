@@ -3,9 +3,7 @@
 #include <stdlib.h>
 #include <string>
 
-#include <Vector.h>
-
-#include <poly.h>
+#include <poly.H>
 
 using namespace std;
 
@@ -13,31 +11,32 @@ using namespace std;
 	Default constructor; make a null vector.
 */
 
-Poly::Poly(void) : Vector()
+Poly::Poly(void) : Eigen::VectorXd()
 {
   order = 0;
 }
 
 
-Poly::Poly(int n): Vector(0, n)
+Poly::Poly(int n): Eigen::VectorXd(n+1)
 {
   order = n;
-  (*this).zero();
+  (*this).setZero();
 }
 
 
-Poly::Poly(int n, double * vec) : Vector(0, n, vec)
+Poly::Poly(int n, double * vec) : Eigen::VectorXd(n+1)
 {
+  for (int i=0; i<=n; i++) (*this)[i] = vec[i];
   order = n;
   reduce_order();
 }
 
 
 
-Poly::Poly(const Vector& vec) : Vector((Vector&)vec)
+Poly::Poly(const Eigen::VectorXd& vec) : Eigen::VectorXd(vec)
 {
-  if (vec.getlow() != 0) bomb_Poly("Error constructing Poly with Vector");
-  order = vec.gethigh();
+  if (vec.size() != 0) bomb_Poly("Error constructing Poly with Vector");
+  order = vec.size()-1;
   reduce_order();
 }
 
@@ -47,7 +46,7 @@ Poly::Poly(const Vector& vec) : Vector((Vector&)vec)
 	Copy constructor; create a new Poly which is a copy of another.
 */
 
-Poly::Poly(const Poly &p) : Vector((Vector &)p)
+Poly::Poly(const Poly &p) : Eigen::VectorXd(p)
 {
   order = p.order;
 }
@@ -83,14 +82,12 @@ the destination vector is allocated if its elements are undefined.
 
 Poly &Poly::operator=(Poly &v)
 {
-  int i;
-	
-  if (v.getlow()!=0 || v.gethigh()<1) {
+  if (v.size()<1) {
     bomb_Poly_operation("=");
   }
 
-  setsize(0,v.order);
-  for (i=0; i<=v.order; i++) (*this)[i] = v[i];
+  resize(v.order+1);
+  for (int i=0; i<=v.order; i++) (*this)[i] = v[i];
   order = v.order;
 
   (*this).reduce_order();
@@ -101,23 +98,22 @@ Poly &Poly::operator=(Poly &v)
 
 Poly Poly::operator-(void)
 {
-  (Vector)*this *= -1.0;
+  static_cast<Eigen::VectorXd>(*this) *= -1.0;
   return *this;
 }
 
 
 Poly &Poly::operator+=(Poly &p2)
 {
-  int i;
   int n2 = p2.getorder();
 
   if (order <= n2) {
-    Vector p1 = *this;
-    (*this).setsize(0,n2);
-    (*this).zero();
-    for (i=0; i<=order; i++) (*this)[i] = p1[i];
+    Eigen::VectorXd p1 = *this;
+    (*this).resize(n2+1);
+    (*this).setZero();
+    for (int i=0; i<=order; i++) (*this)[i] = p1[i];
   }
-  for (i=0; i<=n2; i++) (*this)[i] += p2[i];
+  for (int i=0; i<=n2; i++) (*this)[i] += p2[i];
 
   (*this).reduce_order();
   return *this;
@@ -125,16 +121,15 @@ Poly &Poly::operator+=(Poly &p2)
 	
 Poly &Poly::operator-=(Poly &p2)
 {
-  int i;
   int n2 = p2.getorder();
 
   if (order <= n2) {
-    Vector p1 = *this;
-    (*this).setsize(0,n2);
-    (*this).zero();
-    for (i=0; i<=order; i++) (*this)[i] = p1[i];
+    Eigen::VectorXd p1 = *this;
+    (*this).resize(n2+1);
+    (*this).setZero();
+    for (int i=0; i<=order; i++) (*this)[i] = p1[i];
   }
-  for (i=0; i<=n2; i++) (*this)[i] -= p2[i];
+  for (int i=0; i<=n2; i++) (*this)[i] -= p2[i];
 
   (*this).reduce_order();
   return *this;
@@ -143,18 +138,17 @@ Poly &Poly::operator-=(Poly &p2)
 
 Poly operator+(Poly &p1, Poly &p2)
 {
-  int i;
-  Vector tmp;
+  Eigen::VectorXd tmp;
   int n1 = p1.getorder();
   int n2 = p2.getorder();
 
   if (n1 <= n2) {
-    tmp = (Vector)p2;
-    for (i=0; i<=n1; i++) tmp[i] += p1[i];
+    tmp = static_cast<Eigen::VectorXd>(p2);
+    for (int i=0; i<=n1; i++) tmp[i] += p1[i];
   }
   else {
-    tmp = (Vector)p1;
-    for (i=0; i<=n2; i++) tmp[i] += p2[i];
+    tmp = static_cast<Eigen::VectorXd>(p1);
+    for (int i=0; i<=n2; i++) tmp[i] += p2[i];
   }
 
   Poly tmp2 = Poly(tmp);
@@ -165,20 +159,19 @@ Poly operator+(Poly &p1, Poly &p2)
 
 Poly operator-(Poly &p1, Poly &p2)
 {
-  int i;
-  Vector tmp;
+  Eigen::VectorXd tmp;
   int n1 = p1.getorder();
   int n2 = p2.getorder();
 
   if (n1 <= n2) {
-    tmp = Vector(0, n2);
-    tmp.zero();
-    for (i=0; i<=n1; i++) tmp[i] = p1[i] - p2[i];
-    for (i=n1+1; i<=n2; i++) tmp[i] = - p2[i];
+    tmp = Eigen::VectorXd(n2+1);
+    tmp.setZero();
+    for (int i=0; i<=n1; i++) tmp[i] = p1[i] - p2[i];
+    for (int i=n1+1; i<=n2; i++) tmp[i] = - p2[i];
   }
   else {
-    tmp = (Vector)p1;
-    for (i=0; i<=n2; i++) tmp[i] -= p2[i];
+    tmp = static_cast<Eigen::VectorXd>(p1);
+    for (int i=0; i<=n2; i++) tmp[i] -= p2[i];
   }
 
   Poly tmp2 = Poly(tmp);
@@ -190,14 +183,13 @@ Poly operator-(Poly &p1, Poly &p2)
 				// Cauchy product
 Poly operator&(Poly &p1, Poly &p2)
 {
-  int i, j;
   int n1 = p1.getorder();
   int n2 = p2.getorder();
   int neworder = n1+n2;
   Poly tmp = Poly(neworder);
 
-  for (i=0; i<=n1; i++) {
-    for (j=0; j<=n2; j++) tmp[i+j] += p1[i]*p2[j];
+  for (int i=0; i<=n1; i++) {
+    for (int j=0; j<=n2; j++) tmp[i+j] += p1[i]*p2[j];
   }
 
   tmp.reduce_order();

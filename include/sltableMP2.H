@@ -1,4 +1,7 @@
-#include <Vector.h>
+#ifndef _sltableMP2_H
+#define _sltableMP2_H
+
+#include <Eigen/Eigen>
 
 class TableCyl 
 {
@@ -6,8 +9,8 @@ class TableCyl
   int m;
   int k;
 
-  Vector ev;
-  Matrix ef;
+  Eigen::VectorXd ev;
+  Eigen::MatrixXd ef;
 };
 
 class TableSph 
@@ -15,8 +18,8 @@ class TableSph
  public:
   int l;
 
-  Vector ev;
-  Matrix ef;
+  Eigen::VectorXd ev;
+  Eigen::MatrixXd ef;
 };
 
 class TableSlab 
@@ -25,7 +28,8 @@ public:
   int kx;
   int ky;
 
-  Vector ev;
-  Matrix ef;
+  Eigen::VectorXd ev;
+  Eigen::MatrixXd ef;
 };
 
+#endif

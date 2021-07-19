@@ -1,11 +1,10 @@
 #ifndef SphereSL_H
 #define SphereSL_H 1
 
-#include <Vector.h>
 #include <string>
 
-#include <SLGridMP2.h>
-#include <localmpi.h>
+#include <SLGridMP2.H>
+#include <localmpi.H>
 #include <eigen3/Eigen/Eigen>
 
 /**
@@ -20,12 +19,12 @@ private:
   SLGridSph *sl;
   int lmax, nmax;
 
-  Matrix potd, dpot, dpt2, dend;
-  Matrix legs, dlegs, d2legs;
+  Eigen::MatrixXd potd, dpot, dpt2, dend;
+  Eigen::MatrixXd legs, dlegs, d2legs;
 
   bool coefs_defined;
-  Matrix factorial;
-  Matrix expcoef;
+  Eigen::MatrixXd factorial;
+  Eigen::MatrixXd expcoef;
   double rscl;
   int used;
 
@@ -46,7 +45,7 @@ private:
 
   double minSNR, maxSNR;
 
-  Vector work;
+  Eigen::VectorXd work;
 
   void bomb(char *s);
 
@@ -92,10 +91,10 @@ public:
   void make_covar(bool verbose=false);
 
   //! Install coefficients
-  void install_coefs(Matrix& newcoef);
+  void install_coefs(Eigen::MatrixXd& newcoef);
 
   //! Retrieve coefficients
-  Matrix retrieve_coefs(void) { return expcoef; }
+  Eigen::MatrixXd retrieve_coefs(void) { return expcoef; }
 
   //! Minimum SNR coefficient value
   double getMinSNR(void) { return minSNR; }
@@ -107,7 +106,7 @@ public:
   double getMass(void)   { return totalMass; }
 
   //! Retrieve coefficients with SNR trim
-  Matrix get_trimmed(double snr, double mass, bool Hall=false);
+  Eigen::MatrixXd get_trimmed(double snr, double mass, bool Hall=false);
 
   //! Get fractional power in trimmed coefficients
   double get_power(double snr, double mass);
@@ -142,9 +141,10 @@ public:
   int getNmax() { return nmax; }
 
   // @{ Evaluate Legendre polynomials and derivatives
-  void legendre_R(int lmax, double x, Matrix &p);
-  void legendre_R(int lmax, double x, Matrix &p, Matrix &dp);
-  void legendre_R(int lmax, double x, Matrix &p, Matrix &dp, Matrix& d2p);
+  void legendre_R(int lmax, double x, Eigen::MatrixXd &p);
+  void legendre_R(int lmax, double x, Eigen::MatrixXd &p, Eigen::MatrixXd &dp);
+  void legendre_R(int lmax, double x, Eigen::MatrixXd &p, Eigen::MatrixXd &dp,
+		  Eigen::MatrixXd& d2p);
   // @}
 
   //! Access to basis

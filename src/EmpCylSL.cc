@@ -14,20 +14,22 @@
 
 #include <Progress.H>		// Progress bar
 
-#include <interp.h>
-#include <Timer.h>
+#include <interp.H>
+#include <Timer.H>
 #include <thread>
 #include "exp_thread.h"
 
+#include <Eigen/Eigenvalues>
+
 #ifndef STANDALONE
-#include "expand.h"
+#include "expand.H"
 #include "global.H"
 #include <VtkPCA.H>
 #else  
 #include <yaml-cpp/yaml.h>	// YAML support
 #include "EXPException.H"
 
-				// Constants from expand.h & global.H
+				// Constants from expand.H & global.H
 extern int nthrds;
 extern double tnow;
 extern unsigned multistep;
@@ -41,9 +43,9 @@ extern int VERBOSE;
 #include <omp.h>		// For multithreading basis construction
 #endif
 
-#include <numerical.h>
-#include <gaussQ.h>
-#include <EmpCylSL.h>
+#include <numerical.H>
+#include <gaussQ.H>
+#include <EmpCylSL.H>
 #include <VtkGrid.H>
 
 #undef  TINY
@@ -489,162 +491,54 @@ SphModTblPtr EmpCylSL::make_sl()
 
 void EmpCylSL::send_eof_grid()
 {
-  double *MPIbuf  = new double [MPIbufsz];
-
-				// Send to slaves
-				// 
-  if (myid==0) {
-
-    for (int m=0; m<=MMAX; m++) {
-				// Grids in X--Y
-				// 
-      for (int v=0; v<rank3; v++) {
-
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    MPIbuf[ix*(NUMY+1) + iy] = potC[m][v][ix][iy];
-
-	MPI_Bcast(MPIbuf, MPIbufsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    MPIbuf[ix*(NUMY+1) + iy] = rforceC[m][v][ix][iy];
-
-	MPI_Bcast(MPIbuf, MPIbufsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    MPIbuf[ix*(NUMY+1) + iy] = zforceC[m][v][ix][iy];
-	
-	MPI_Bcast(MPIbuf, MPIbufsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	
-	if (DENS) {
-	  for (int ix=0; ix<=NUMX; ix++)
-	    for (int iy=0; iy<=NUMY; iy++)
-	      MPIbuf[ix*(NUMY+1) + iy] = densC[m][v][ix][iy];
-
-	  MPI_Bcast(MPIbuf, MPIbufsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	}
-
-      }
-
-    }
-
-    for (int m=1; m<=MMAX; m++) {
-
-				// Grids in X--Y
-
-      for (int v=0; v<rank3; v++) {
-
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    MPIbuf[ix*(NUMY+1) + iy] = potS[m][v][ix][iy];
-
-	MPI_Bcast(MPIbuf, MPIbufsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    MPIbuf[ix*(NUMY+1) + iy] = rforceS[m][v][ix][iy];
-
-	MPI_Bcast(MPIbuf, MPIbufsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    MPIbuf[ix*(NUMY+1) + iy] = zforceS[m][v][ix][iy];
-	
-	MPI_Bcast(MPIbuf, MPIbufsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	
-	if (DENS) {
-	  for (int ix=0; ix<=NUMX; ix++)
-	    for (int iy=0; iy<=NUMY; iy++)
-	      MPIbuf[ix*(NUMY+1) + iy] = densS[m][v][ix][iy];
-
-	  MPI_Bcast(MPIbuf, MPIbufsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	}
-	
-      }
-
-    }
-
-  } else {
-
-				// Get tables from Master
-    for (int m=0; m<=MMAX; m++) {
-
-				// Grids in X--Y
-
-      for (int v=0; v<rank3; v++) {
-
-	MPI_Bcast(MPIbuf, MPIbufsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    potC[m][v][ix][iy] = MPIbuf[ix*(NUMY+1) + iy];
   
-	MPI_Bcast(MPIbuf, MPIbufsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  // Send to slaves
+  // 
+  for (int m=0; m<=MMAX; m++) {
 
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    rforceC[m][v][ix][iy] = MPIbuf[ix*(NUMY+1) + iy];
-  
-	MPI_Bcast(MPIbuf, MPIbufsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    // Grids in X--Y
+    // 
+    for (int v=0; v<rank3; v++) {
 
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    zforceC[m][v][ix][iy] = MPIbuf[ix*(NUMY+1) + iy];
-  
-	if (DENS) {
+      MPI_Bcast(potC[m][v].data(), potC[m][v].size(),
+		MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-	  MPI_Bcast(MPIbuf, MPIbufsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(rforceC[m][v].data(), rforceC[m][v].size(),
+		MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-	  for (int ix=0; ix<=NUMX; ix++)
-	    for (int iy=0; iy<=NUMY; iy++)
-	      densC[m][v][ix][iy] = MPIbuf[ix*(NUMY+1) + iy];
-	}
+      MPI_Bcast(zforceC[m][v].data(), zforceC[m][v].size(),
+		MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
+      if (DENS) {
+	MPI_Bcast(densC[m][v].data(), densC[m][v].size(),
+		  MPI_DOUBLE, 0, MPI_COMM_WORLD);
       }
     }
-
-    for (int m=1; m<=MMAX; m++) {
-
-				// Grids in X--Y
-
-      for (int v=0; v<rank3; v++) {
-
-	MPI_Bcast(MPIbuf, MPIbufsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    potS[m][v][ix][iy] = MPIbuf[ix*(NUMY+1) + iy];
-  
-	MPI_Bcast(MPIbuf, MPIbufsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    rforceS[m][v][ix][iy] = MPIbuf[ix*(NUMY+1) + iy];
-  
-	MPI_Bcast(MPIbuf, MPIbufsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    zforceS[m][v][ix][iy] = MPIbuf[ix*(NUMY+1) + iy];
-  
-	if (DENS) {
-
-	  MPI_Bcast(MPIbuf, MPIbufsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-	  for (int ix=0; ix<=NUMX; ix++)
-	    for (int iy=0; iy<=NUMY; iy++)
-	      densS[m][v][ix][iy] = MPIbuf[ix*(NUMY+1) + iy];
-  
-	}
-      }
-    }
-
   }
 
-  delete [] MPIbuf;
-  
+  for (int m=1; m<=MMAX; m++) {
+    
+    // Grids in X--Y
+    //
+    for (int v=0; v<rank3; v++) {
+
+      MPI_Bcast(potS[m][v].data(), potS[m][v].size(),
+		MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+      MPI_Bcast(rforceS[m][v].data(), rforceS[m][v].size(),
+		MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+      MPI_Bcast(zforceS[m][v].data(), zforceS[m][v].size(),
+		MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+      if (DENS) {
+	MPI_Bcast(densS[m][v].data(), densS[m][v].size(),
+		    MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      }
+      
+    }
+      
+  }
 }
 
 
@@ -913,55 +807,46 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 
       for (int v=0; v<rank3; v++) {
 
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((const char *)&potC[m][v][ix][iy], sizeof(double));
-	
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((const char *)&rforceC[m][v][ix][iy], sizeof(double));
-	  
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((const char *)&zforceC[m][v][ix][iy], sizeof(double));
-	  
+	// Deal with column-major rather the EXP row-major order
+	//                                 |
+	//                                 v
+	out.write((const char *)potC[m][v].transpose().data(),
+		  potC[m][v].size()*sizeof(double));
+
+	out.write((const char *)rforceC[m][v].transpose().data(),
+		  rforceC[m][v].size()*sizeof(double));
+
+	out.write((const char *)zforceC[m][v].transpose().data(),
+		  zforceC[m][v].size()*sizeof(double));
+
 	if (DENS) {
-	  for (int ix=0; ix<=NUMX; ix++)
-	    for (int iy=0; iy<=NUMY; iy++)
-	      out.write((const char *)&densC[m][v][ix][iy], sizeof(double));
-
+	  out.write((const char *)densC[m][v].transpose().data(),
+		    densC[m][v].size()*sizeof(double));
 	}
-	
       }
-
     }
 
     for (int m=1; m<=MMAX; m++) {
 
       for (int v=0; v<rank3; v++) {
 
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((const char *)&potS[m][v][ix][iy], sizeof(double));
-	
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((const char *)&rforceS[m][v][ix][iy], sizeof(double));
-	  
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((const char *)&zforceS[m][v][ix][iy], sizeof(double));
-	
+	out.write((const char *)potS[m][v].transpose().data(),
+		  potS[m][v].size()*sizeof(double));
+
+	out.write((const char *)rforceS[m][v].transpose().data(),
+		  rforceS[m][v].size()*sizeof(double));
+
+	out.write((const char *)zforceS[m][v].transpose().data(),
+		  zforceS[m][v].size()*sizeof(double));
+
 	if (DENS) {
-	  for (int ix=0; ix<=NUMX; ix++)
-	    for (int iy=0; iy<=NUMY; iy++)
-	      out.write((const char *)&densS[m][v][ix][iy], sizeof(double));
+	  out.write((const char *)densS[m][v].transpose().data(),
+		    densS[m][v].size()*sizeof(double));
 	}
-	
       }
 
     }
-
+    
   }
   else {
 
@@ -1095,29 +980,25 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 
 				// Read table
 
+    Eigen::MatrixXd work(NUMY, NUMX);
+
     for (int m=0; m<=MMAX; m++) {
 
       for (int v=0; v<rank3; v++) {
 
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    in.read((char *)&potC[m][v][ix][iy], sizeof(double));
+	in.read((char *)work.data(), work.size()*sizeof(double));
+	potC[m][v] = work.transpose();
 	
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    in.read((char *)&rforceC[m][v][ix][iy], sizeof(double));
-	  
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    in.read((char *)&zforceC[m][v][ix][iy], sizeof(double));
-	  
-	if (DENS) {
-	  for (int ix=0; ix<=NUMX; ix++)
-	    for (int iy=0; iy<=NUMY; iy++)
-	      in.read((char *)&densC[m][v][ix][iy], sizeof(double));
+	in.read((char *)work.data(), work.size()*sizeof(double));
+	rforceC[m][v] = work.transpose();
 
+	in.read((char *)work.data(), work.size()*sizeof(double));
+	zforceC[m][v] = work.transpose();
+
+	if (DENS) {
+	  in.read((char *)work.data(), work.size()*sizeof(double));
+	  densC[m][v] = work.transpose();
 	}
-	
       }
 
     }
@@ -1126,24 +1007,19 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 
       for (int v=0; v<rank3; v++) {
 
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    in.read((char *)&potS[m][v][ix][iy], sizeof(double));
+	in.read((char *)work.data(), work.size()*sizeof(double));
+	potS[m][v] = work.transpose();
 	
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    in.read((char *)&rforceS[m][v][ix][iy], sizeof(double));
-	  
-	for (int ix=0; ix<=NUMX; ix++)
-	  for (int iy=0; iy<=NUMY; iy++)
-	    in.read((char *)&zforceS[m][v][ix][iy], sizeof(double));
-	
+	in.read((char *)work.data(), work.size()*sizeof(double));
+	rforceS[m][v] = work.transpose();
+
+	in.read((char *)work.data(), work.size()*sizeof(double));
+	zforceS[m][v] = work.transpose();
+
 	if (DENS) {
-	  for (int ix=0; ix<=NUMX; ix++)
-	    for (int iy=0; iy<=NUMY; iy++)
-	      in.read((char *)&densS[m][v][ix][iy], sizeof(double));
+	  in.read((char *)work.data(), work.size()*sizeof(double));
+	  densS[m][v] = work.transpose();
 	}
-	
       }
 
     }
@@ -1223,9 +1099,9 @@ void EmpCylSL::receive_eof(int request_id, int MM)
     for (int ix=0; ix<=NUMX; ix++)
       for (int iy=0; iy<=NUMY; iy++)
       if (type)
-	potC[mm][n][ix][iy]  = mpi_double_buf2[off+icnt++];
+	potC[mm][n](ix, iy)  = mpi_double_buf2[off+icnt++];
       else
-	potS[mm][n][ix][iy]  = mpi_double_buf2[off+icnt++];
+	potS[mm][n](ix, iy)  = mpi_double_buf2[off+icnt++];
 	
 
 
@@ -1234,9 +1110,9 @@ void EmpCylSL::receive_eof(int request_id, int MM)
     for (int ix=0; ix<=NUMX; ix++)
       for (int iy=0; iy<=NUMY; iy++)
       if (type)
-	rforceC[mm][n][ix][iy]  = mpi_double_buf2[off+icnt++];
+	rforceC[mm][n](ix, iy)  = mpi_double_buf2[off+icnt++];
       else
-	rforceS[mm][n][ix][iy]  = mpi_double_buf2[off+icnt++];
+	rforceS[mm][n](ix, iy)  = mpi_double_buf2[off+icnt++];
 	
 
     off = MPIbufsz*(MPItable*n+2);
@@ -1244,9 +1120,9 @@ void EmpCylSL::receive_eof(int request_id, int MM)
     for (int ix=0; ix<=NUMX; ix++)
       for (int iy=0; iy<=NUMY; iy++)
       if (type)
-	zforceC[mm][n][ix][iy]  = mpi_double_buf2[off+icnt++];
+	zforceC[mm][n](ix, iy)  = mpi_double_buf2[off+icnt++];
       else
-	zforceS[mm][n][ix][iy]  = mpi_double_buf2[off+icnt++];
+	zforceS[mm][n](ix, iy)  = mpi_double_buf2[off+icnt++];
     
 
     if (DENS) {
@@ -1255,9 +1131,9 @@ void EmpCylSL::receive_eof(int request_id, int MM)
       for (int ix=0; ix<=NUMX; ix++)
 	for (int iy=0; iy<=NUMY; iy++)
 	  if (type)
-	    densC[mm][n][ix][iy]  = mpi_double_buf2[off+icnt++];
+	    densC[mm][n](ix, iy)  = mpi_double_buf2[off+icnt++];
 	  else
-	    densS[mm][n][ix][iy]  = mpi_double_buf2[off+icnt++];
+	    densS[mm][n](ix, iy)  = mpi_double_buf2[off+icnt++];
     }
   }
   
@@ -1285,10 +1161,10 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
   int icnt, off;
   
   for (int v=0; v<NORDER; v++) {
-    tpot[v].zero();
-    trforce[v].zero();
-    tzforce[v].zero();
-    if (DENS) tdens[v].zero();
+    tpot[v].setZero();
+    trforce[v].setZero();
+    tzforce[v].setZero();
+    if (DENS) tdens[v].setZero();
   }
 
   for (int ix=0; ix<=NUMX; ix++) {
@@ -1312,44 +1188,44 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
       
       for (int v=0; v<NORDER; v++) {
 
-	for (int ir=1; ir<=NMAX; ir++) {
+	for (int ir=0; ir<NMAX; ir++) {
 
 	  for (int l=m; l<=LMAX; l++) {
 
 	    fac1 = sqrt((2.0*l+1.0)/(4.0*M_PI));
 
 	    if (m==0) {
-	      fac2 = fac1*legs[0][l][m];
+	      fac2 = fac1*legs[0](l, m);
 
-	      dens = fac2*dend[l][ir] * dfac;
-	      potl = fac2*potd[l][ir] * pfac;
-	      potr = fac2*dpot[l][ir] * ffac;
-	      pott = fac1*dlegs[0][l][m]*potd[l][ir] * pfac;
+	      dens = fac2*dend(l, ir) * dfac;
+	      potl = fac2*potd(l, ir) * pfac;
+	      potr = fac2*dpot(l, ir) * ffac;
+	      pott = fac1*dlegs[0](l, m)*potd(l, ir) * pfac;
 
 	    } else {
 
 	      fac2 = M_SQRT2 * fac1 * exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1)));
-	      fac3 = fac2 * legs[0][l][m];
-	      fac4 = fac2 * dlegs[0][l][m];
+	      fac3 = fac2 * legs[0](l, m);
+	      fac4 = fac2 * dlegs[0](l, m);
 	      
-	      dens = fac3*dend[l][ir] * dfac;
-	      potl = fac3*potd[l][ir] * pfac;
-	      potr = fac3*dpot[l][ir] * ffac;
-	      pott = fac4*potd[l][ir] * pfac;
+	      dens = fac3*dend(l, ir) * dfac;
+	      potl = fac3*potd(l, ir) * pfac;
+	      potr = fac3*dpot(l, ir) * ffac;
+	      pott = fac4*potd(l, ir) * pfac;
 	    }
 	    
 	    int nn = ir + NMAX*(l-m);
 
-	    tpot[v][ix][iy] +=  ef[v+1][nn] * potl;
+	    tpot[v](ix, iy) +=  ef(v+1, nn) * potl;
 
-	    trforce[v][ix][iy] += 
-	      -ef[v+1][nn] * (potr*r/rr - pott*z*r/(rr*rr*rr));
+	    trforce[v](ix, iy) += 
+	      -ef(v+1, nn) * (potr*r/rr - pott*z*r/(rr*rr*rr));
 
-	    tzforce[v][ix][iy] += 
-	      -ef[v+1][nn] * (potr*z/rr + pott*r*r/(rr*rr*rr));
+	    tzforce[v](ix, iy) += 
+	      -ef(v+1, nn) * (potr*z/rr + pott*r*r/(rr*rr*rr));
 
 	    if (DENS) 
-	      tdens[v][ix][iy] +=  ef[v+1][nn] * dens;
+	      tdens[v](ix, iy) +=  ef(v+1, nn) * dens;
 	  }
 	}
       }
@@ -1374,7 +1250,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
     icnt = 0;
     for (int ix=0; ix<=NUMX; ix++)
       for (int iy=0; iy<=NUMY; iy++)
-	mpi_double_buf2[off + icnt++] = tpot[n][ix][iy];
+	mpi_double_buf2[off + icnt++] = tpot[n](ix, iy);
     
     if (VFLAG & 8)
       cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
@@ -1389,7 +1265,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
     icnt = 0;
     for (int ix=0; ix<=NUMX; ix++)
       for (int iy=0; iy<=NUMY; iy++)
-	mpi_double_buf2[off + icnt++] = trforce[n][ix][iy];
+	mpi_double_buf2[off + icnt++] = trforce[n](ix, iy);
     
     if (VFLAG & 8)
       cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
@@ -1404,7 +1280,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
     icnt = 0;
     for (int ix=0; ix<=NUMX; ix++)
       for (int iy=0; iy<=NUMY; iy++)
-	mpi_double_buf2[off + icnt++] = tzforce[n][ix][iy];
+	mpi_double_buf2[off + icnt++] = tzforce[n](ix, iy);
     
     if (VFLAG & 8)
       cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
@@ -1421,7 +1297,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
       icnt = 0;
       for (int ix=0; ix<=NUMX; ix++)
 	for (int iy=0; iy<=NUMY; iy++)
-	  mpi_double_buf2[off + icnt++] = tdens[n][ix][iy];
+	  mpi_double_buf2[off + icnt++] = tdens[n](ix, iy);
     
       if (VFLAG & 8)
 	cerr << "Slave " << setw(4) << myid 
@@ -1450,10 +1326,10 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
   int icnt, off;
   
   for (int v=0; v<NORDER; v++) {
-    tpot[v].zero();
-    trforce[v].zero();
-    tzforce[v].zero();
-    if (DENS) tdens[v].zero();
+    tpot[v].setZero();
+    trforce[v].setZero();
+    tzforce[v].setZero();
+    if (DENS) tdens[v].setZero();
   }
 
   for (int ix=0; ix<=NUMX; ix++) {
@@ -1481,7 +1357,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 
 	int w = v + 1;
 
-	for (int ir=1; ir<=NMAX; ir++) {
+	for (int ir=0; ir<NMAX; ir++) {
 
 	  for (int il=0; il<lE[m].size(); il++) {
 
@@ -1490,37 +1366,37 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 	    fac1 = sqrt((2.0*l+1.0)/(4.0*M_PI));
 
 	    if (m==0) {
-	      fac2 = fac1*legs[0][l][m];
+	      fac2 = fac1*legs[0](l, m);
 
-	      dens = fac2*dend[l][ir] * dfac;
-	      potl = fac2*potd[l][ir] * pfac;
-	      potr = fac2*dpot[l][ir] * ffac;
-	      pott = fac1*dlegs[0][l][m]*potd[l][ir] * pfac;
+	      dens = fac2*dend(l, ir) * dfac;
+	      potl = fac2*potd(l, ir) * pfac;
+	      potr = fac2*dpot(l, ir) * ffac;
+	      pott = fac1*dlegs[0](l, m)*potd(l, ir) * pfac;
 
 	    } else {
 
 	      fac2 = M_SQRT2 * fac1 * exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1)));
-	      fac3 = fac2 * legs[0][l][m];
-	      fac4 = fac2 * dlegs[0][l][m];
+	      fac3 = fac2 * legs[0](l, m);
+	      fac4 = fac2 * dlegs[0](l, m);
 	      
-	      dens = fac3*dend[l][ir] * dfac;
-	      potl = fac3*potd[l][ir] * pfac;
-	      potr = fac3*dpot[l][ir] * ffac;
-	      pott = fac4*potd[l][ir] * pfac;
+	      dens = fac3*dend(l, ir) * dfac;
+	      potl = fac3*potd(l, ir) * pfac;
+	      potr = fac3*dpot(l, ir) * ffac;
+	      pott = fac4*potd(l, ir) * pfac;
 	    }
 	    
 	    int nn = ir + NMAX*il;
 
-	    tpot[v][ix][iy] +=  efE[w][nn] * potl;
+	    tpot[v](ix, iy) +=  efE(w, nn) * potl;
 
-	    trforce[v][ix][iy] += 
-	      -efE[w][nn] * (potr*r/rr - pott*z*r/(rr*rr*rr));
+	    trforce[v](ix, iy) += 
+	      -efE(w, nn) * (potr*r/rr - pott*z*r/(rr*rr*rr));
 
-	    tzforce[v][ix][iy] += 
-	      -efE[w][nn] * (potr*z/rr + pott*r*r/(rr*rr*rr));
+	    tzforce[v](ix, iy) += 
+	      -efE(w, nn) * (potr*z/rr + pott*r*r/(rr*rr*rr));
 
 	    if (DENS) 
-	      tdens[v][ix][iy] +=  efE[w][nn] * dens;
+	      tdens[v](ix, iy) +=  efE(w, nn) * dens;
 	  }
 	}
       }
@@ -1529,7 +1405,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 
 	int w = v - Neven + 1;	// Index in odd eigenfunctions
 
-	for (int ir=1; ir<=NMAX; ir++) {
+	for (int ir=0; ir<NMAX; ir++) {
 
 	  for (int il=0; il<lO[m].size(); il++) {
 
@@ -1538,37 +1414,37 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
 	    fac1 = sqrt((2.0*l+1.0)/(4.0*M_PI));
 
 	    if (m==0) {
-	      fac2 = fac1*legs[0][l][m];
+	      fac2 = fac1*legs[0](l, m);
 
-	      dens = fac2*dend[l][ir] * dfac;
-	      potl = fac2*potd[l][ir] * pfac;
-	      potr = fac2*dpot[l][ir] * ffac;
-	      pott = fac1*dlegs[0][l][m]*potd[l][ir] * pfac;
+	      dens = fac2*dend(l, ir) * dfac;
+	      potl = fac2*potd(l, ir) * pfac;
+	      potr = fac2*dpot(l, ir) * ffac;
+	      pott = fac1*dlegs[0](l, m)*potd(l, ir) * pfac;
 
 	    } else {
 
 	      fac2 = M_SQRT2 * fac1 * exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1)));
-	      fac3 = fac2 * legs[0][l][m];
-	      fac4 = fac2 * dlegs[0][l][m];
+	      fac3 = fac2 * legs[0](l, m);
+	      fac4 = fac2 * dlegs[0](l, m);
 	      
-	      dens = fac3*dend[l][ir] * dfac;
-	      potl = fac3*potd[l][ir] * pfac;
-	      potr = fac3*dpot[l][ir] * ffac;
-	      pott = fac4*potd[l][ir] * pfac;
+	      dens = fac3*dend(l, ir) * dfac;
+	      potl = fac3*potd(l, ir) * pfac;
+	      potr = fac3*dpot(l, ir) * ffac;
+	      pott = fac4*potd(l, ir) * pfac;
 	    }
 	    
 	    int nn = ir + NMAX*il;
 
-	    tpot[v][ix][iy] +=  efO[w][nn] * potl;
+	    tpot[v](ix, iy) +=  efO(w, nn) * potl;
 
-	    trforce[v][ix][iy] += 
-	      -efO[w][nn] * (potr*r/rr - pott*z*r/(rr*rr*rr));
+	    trforce[v](ix, iy) += 
+	      -efO(w, nn) * (potr*r/rr - pott*z*r/(rr*rr*rr));
 
-	    tzforce[v][ix][iy] += 
-	      -efO[w][nn] * (potr*z/rr + pott*r*r/(rr*rr*rr));
+	    tzforce[v](ix, iy) += 
+	      -efO(w, nn) * (potr*z/rr + pott*r*r/(rr*rr*rr));
 
 	    if (DENS) 
-	      tdens[v][ix][iy] +=  efO[w][nn] * dens;
+	      tdens[v](ix, iy) +=  efO(w, nn) * dens;
 	  }
 	}
       }
@@ -1593,7 +1469,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
     icnt = 0;
     for (int ix=0; ix<=NUMX; ix++)
       for (int iy=0; iy<=NUMY; iy++)
-	mpi_double_buf2[off + icnt++] = tpot[n][ix][iy];
+	mpi_double_buf2[off + icnt++] = tpot[n](ix, iy);
     
     if (VFLAG & 8)
       cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
@@ -1608,7 +1484,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
     icnt = 0;
     for (int ix=0; ix<=NUMX; ix++)
       for (int iy=0; iy<=NUMY; iy++)
-	mpi_double_buf2[off + icnt++] = trforce[n][ix][iy];
+	mpi_double_buf2[off + icnt++] = trforce[n](ix, iy);
     
     if (VFLAG & 8)
       cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
@@ -1623,7 +1499,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
     icnt = 0;
     for (int ix=0; ix<=NUMX; ix++)
       for (int iy=0; iy<=NUMY; iy++)
-	mpi_double_buf2[off + icnt++] = tzforce[n][ix][iy];
+	mpi_double_buf2[off + icnt++] = tzforce[n](ix, iy);
     
     if (VFLAG & 8)
       cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
@@ -1640,7 +1516,7 @@ void EmpCylSL::compute_even_odd(int request_id, int m)
       icnt = 0;
       for (int ix=0; ix<=NUMX; ix++)
 	for (int iy=0; iy<=NUMY; iy++)
-	  mpi_double_buf2[off + icnt++] = tdens[n][ix][iy];
+	  mpi_double_buf2[off + icnt++] = tdens[n](ix, iy);
     
       if (VFLAG & 8)
 	cerr << "Slave " << setw(4) << myid 
@@ -1692,18 +1568,16 @@ void EmpCylSL::setup_accumulation(int mlevel)
       cerr << "Slave " << setw(4) << myid 
 	   << ": tables allocated, MMAX=" << MMAX << endl;
 
-    differC1 = vector< vector<Matrix> >(nthrds);
-    differS1 = vector< vector<Matrix> >(nthrds);
-    for (int nth=0; nth<nthrds; nth++) {
-      differC1[nth] = vector<Matrix>(multistep+1);
-      differS1[nth] = vector<Matrix>(multistep+1); 
-    }
+    differC1.resize(nthrds);
+    differS1.resize(nthrds);
+    for (auto & v : differC1) v.resize(multistep+1);
+    for (auto & v : differS1) v.resize(multistep+1);
     
     unsigned sz = (multistep+1)*(MMAX+1)*NORDER;
-    workC1 = vector<double>(sz);
-    workC  = vector<double>(sz);
-    workS1 = vector<double>(sz);
-    workS  = vector<double>(sz);
+    workC1.resize(sz);
+    workC .resize(sz);
+    workS1.resize(sz);
+    workS .resize(sz);
     
     cylmass_made = false;
 
@@ -1713,20 +1587,20 @@ void EmpCylSL::setup_accumulation(int mlevel)
 	
 	for (int m=0; m<=MMAX; m++) {
 	  
-	  cosN(M)[nth][m].setsize(0, NORDER-1);
-	  cosL(M)[nth][m].setsize(0, NORDER-1);
+	  cosN(M)[nth][m].resize(NORDER);
+	  cosL(M)[nth][m].resize(NORDER);
 	  
 	  if (m>0) {
-	    sinN(M)[nth][m].setsize(0, NORDER-1);
-	    sinL(M)[nth][m].setsize(0, NORDER-1);
+	    sinN(M)[nth][m].resize(NORDER);
+	    sinL(M)[nth][m].resize(NORDER);
 	  }
 	}
       }
     }
     
     for (int m=0; m<=MMAX; m++) {
-      accum_cos[m].setsize(0, NORDER-1);
-      if (m>0) accum_sin[m].setsize(0, NORDER-1);
+      accum_cos[m].resize(NORDER);
+      if (m>0) accum_sin[m].resize(NORDER);
     }
     
     if (PCAVAR and sampT>0) {
@@ -1737,8 +1611,8 @@ void EmpCylSL::setup_accumulation(int mlevel)
 	  covV[nth][T].resize(MMAX+1);
 	  covM[nth][T].resize(MMAX+1);
 	  for (int mm=0; mm<=MMAX; mm++) {
-	    covV[nth][T][mm].setsize(0, NORDER-1);
-	    covM[nth][T][mm].setsize(0, NORDER-1, 0, NORDER-1);
+	    covV[nth][T][mm].resize(NORDER);
+	    covM[nth][T][mm].resize(NORDER, NORDER);
 	  }
 	}
       }
@@ -1748,8 +1622,8 @@ void EmpCylSL::setup_accumulation(int mlevel)
   // Zero values on every pass
   //
   for (int m=0; m<=MMAX; m++) {
-    accum_cos[m].zero();
-    if (m>0) accum_sin[m].zero();
+    accum_cos[m].setZero();
+    if (m>0) accum_sin[m].setZero();
   }
 
   if ( (PCAVAR or PCAEOF) and mlevel==0 and sampT>0) {
@@ -1757,7 +1631,7 @@ void EmpCylSL::setup_accumulation(int mlevel)
     for (int nth=0; nth<nthrds; nth++) {
 
       if (PCAEOF) {
-	for (auto & v : tvar[nth]) v.zero();
+	for (auto & v : tvar[nth]) v.setZero();
       }
 
       if (PCAVAR) {
@@ -1768,8 +1642,8 @@ void EmpCylSL::setup_accumulation(int mlevel)
 	  numbT1[nth][T] = 0;
 	  massT1[nth][T] = 0.0;
 	  for (int mm=0; mm<=MMAX; mm++) {
-	    covV[nth][T][mm].zero();
-	    covM[nth][T][mm].zero();
+	    covV[nth][T][mm].setZero();
+	    covM[nth][T][mm].setZero();
 	  }
 	}
       }
@@ -1797,8 +1671,8 @@ void EmpCylSL::setup_accumulation(int mlevel)
     howmany1[mlevel][nth] = 0;
       
     for (int m=0; m<=MMAX; m++) {
-      cosN(mlevel)[nth][m].zero();
-      if (m>0) sinN(mlevel)[nth][m].zero();
+      cosN(mlevel)[nth][m].setZero();
+      if (m>0) sinN(mlevel)[nth][m].setZero();
     }
   }
     
@@ -1832,7 +1706,7 @@ void EmpCylSL::init_pca()
     for (int nth=0; nth<nthrds;nth++) {
       if (PCAEOF) {
 	tvar[nth].resize(MMAX + 1);
-	for (auto & v : tvar[nth]) v.setsize(1, rank3, 1, rank3);
+	for (auto & v : tvar[nth]) v.resize(rank3, rank3);
       }
 
       if (PCAVAR) {
@@ -1848,8 +1722,8 @@ void EmpCylSL::init_pca()
 	  covV[nth][T].resize(MMAX+1);
 	  covM[nth][T].resize(MMAX+1);
 	  for (int mm=0; mm<=MMAX; mm++) {
-	    covV[nth][T][mm].setsize(0, rank3-1);
-	    covM[nth][T][mm].setsize(0, rank3-1, 0, rank3-1);
+	    covV[nth][T][mm].resize(rank3);
+	    covM[nth][T][mm].resize(rank3, rank3);
 	  }
 	}
       }
@@ -1891,10 +1765,10 @@ void EmpCylSL::setup_eof()
       if (DENS) densC[m].resize(rank3);
 
       for (int v=0; v<rank3; v++) {
-	potC   [m][v].setsize(0, NUMX, 0, NUMY);
-	rforceC[m][v].setsize(0, NUMX, 0, NUMY);
-	zforceC[m][v].setsize(0, NUMX, 0, NUMY);
-	if (DENS) densC[m][v].setsize(0, NUMX, 0, NUMY);
+	potC   [m][v].resize(NUMX, NUMY);
+	rforceC[m][v].resize(NUMX, NUMY);
+	zforceC[m][v].resize(NUMX, NUMY);
+	if (DENS) densC[m][v].resize(NUMX, NUMY);
       }
 
     }
@@ -1908,10 +1782,10 @@ void EmpCylSL::setup_eof()
       if (DENS) densS[m].resize(rank3);
 
       for (int v=0; v<rank3; v++) {
-	potS   [m][v].setsize(0, NUMX, 0, NUMY);
-	rforceS[m][v].setsize(0, NUMX, 0, NUMY);
-	zforceS[m][v].setsize(0, NUMX, 0, NUMY);
-	if (DENS) densS[m][v].setsize(0, NUMX, 0, NUMY);
+	potS   [m][v].resize(NUMX, NUMY);
+	rforceS[m][v].resize(NUMX, NUMY);
+	zforceS[m][v].resize(NUMX, NUMY);
+	if (DENS) densS[m][v].resize(NUMX, NUMY);
       }
 
     }
@@ -1922,10 +1796,10 @@ void EmpCylSL::setup_eof()
     if (DENS) tdens.resize(NORDER);
 
     for (int n=0; n<NORDER; n++) {
-      tpot[n].setsize(0, NUMX, 0, NUMY);
-      trforce[n].setsize(0, NUMX, 0, NUMY);
-      tzforce[n].setsize(0, NUMX, 0, NUMY);
-      if (DENS) tdens[n].setsize(0, NUMX, 0, NUMY);
+      tpot[n].resize(NUMX, NUMY);
+      trforce[n].resize(NUMX, NUMY);
+      tzforce[n].resize(NUMX, NUMY);
+      if (DENS) tdens[n].resize(NUMX, NUMY);
     }
 
     if (EvenOdd) {
@@ -1959,23 +1833,23 @@ void EmpCylSL::setup_eof()
     vc.resize(nthrds);
     vs.resize(nthrds);
     for (int i=0; i<nthrds; i++) {
-      vc[i].setsize(0, max<int>(1,MMAX), 0, rank3-1);
-      vs[i].setsize(0, max<int>(1,MMAX), 0, rank3-1);
+      vc[i].resize(max<int>(1,MMAX)+1, rank3);
+      vs[i].resize(max<int>(1,MMAX)+1, rank3);
     }
 
-    potd.setsize(0, LMAX, 1, NMAX);
-    dpot.setsize(0, LMAX, 1, NMAX);
-    dend.setsize(0, LMAX, 1, NMAX);
+    potd.resize(LMAX+1, NMAX);
+    dpot.resize(LMAX+1, NMAX);
+    dend.resize(LMAX+1, NMAX);
 
     cosm .resize(nthrds);
     sinm .resize(nthrds);
     legs .resize(nthrds);
     dlegs.resize(nthrds);
     for (int i=0; i<nthrds; i++) {
-      cosm[i].setsize(0, LMAX);
-      sinm[i].setsize(0, LMAX);
-      legs[i].setsize(0, LMAX, 0, LMAX);
-      dlegs[i].setsize(0, LMAX, 0, LMAX);
+      cosm[i].resize(LMAX+1);
+      sinm[i].resize(LMAX+1);
+      legs[i].resize(LMAX+1, LMAX+1);
+      dlegs[i].resize(LMAX+1, LMAX+1);
     }
 
     if (EvenOdd) {
@@ -1998,14 +1872,14 @@ void EmpCylSL::setup_eof()
 	int Esiz = lE[m].size();
 	int Osiz = lO[m].size();
 
-	varE[m].setsize(1, NMAX*Esiz, 1, NMAX*Esiz);
-	varO[m].setsize(1, NMAX*Osiz, 1, NMAX*Osiz);
+	varE[m].resize(NMAX*Esiz, NMAX*Esiz);
+	varO[m].resize(NMAX*Osiz, NMAX*Osiz);
       }
 
     } else {
       var.resize(MMAX+1);
       for (int m=0; m<=MMAX; m++)
-	var[m].setsize(1, NMAX*(LMAX-m+1), 1, NMAX*(LMAX-m+1));
+	var[m].resize(NMAX*(LMAX-m+1), NMAX*(LMAX-m+1));
     }
 
     for (int nth=0; nth<nthrds; nth++) {
@@ -2054,9 +1928,9 @@ void EmpCylSL::setup_eof()
     facC .resize(nthrds);
     facS .resize(nthrds);
     for (int i=0; i<nthrds; i++) {
-      table[i].setsize(0, LMAX, 1, NMAX);
-      facC [i].setsize(1, NMAX, 0, LMAX);
-      facS [i].setsize(1, NMAX, 0, LMAX);
+      table[i].resize(LMAX+1, NMAX);
+      facC [i].resize(NMAX, LMAX+1);
+      facS [i].resize(NMAX, LMAX+1);
     }
 
     MPIbufsz = (NUMX+1)*(NUMY+1);
@@ -2189,28 +2063,28 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
 	  // *** ir loop
 	  //
-	  for (int ir=1; ir<=NMAX; ir++) {
+	  for (int ir=0; ir<NMAX; ir++) {
 
 	    // *** l loop
 	    //
 	    for (int l=m; l<=LMAX; l++) {
 		
 	      double ylm = sqrt((2.0*l+1.0)/(4.0*M_PI)) * pfac *
-		exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[id][l][m];
+		exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[id](l, m);
 
 	      if (m==0) {
 
-		facC[id][ir][l-m] = ylm*table[0][l][ir];
+		facC[id](ir, l-m) = ylm*table[0](l, ir);
 		
 	      }
 	      else {
 		
 		if (nump==1) {
-		  facC[id][ir][l-m] = ylm*table[0][l][ir]*0.5;
-		  facS[id][ir][l-m] = ylm*table[0][l][ir]*0.5;
+		  facC[id](ir, l-m) = ylm*table[0](l, ir)*0.5;
+		  facS[id](ir, l-m) = ylm*table[0](l, ir)*0.5;
 		} else {
-		  facC[id][ir][l-m] = ylm*table[0][l][ir]*cosm[id][m];
-		  facS[id][ir][l-m] = ylm*table[0][l][ir]*sinm[id][m];
+		  facC[id](ir, l-m) = ylm*table[0](l, ir)*cosm[id][m];
+		  facS[id](ir, l-m) = ylm*table[0](l, ir)*sinm[id][m];
 		}
 	      }
 	      
@@ -2218,7 +2092,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	    
 	  } // *** ir loop
 
-	  for (int ir1=1; ir1<=NMAX; ir1++) {
+	  for (int ir1=0; ir1<NMAX; ir1++) {
 	    
 	    if (EvenOdd) {
 	      
@@ -2227,11 +2101,11 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	      for (int il1=0; il1<lE[m].size(); il1++) {
 
 		int l1  = lE[m][il1];
-		int nn1 = ir1 - 1 + NMAX*il1;
+		int nn1 = ir1 + NMAX*il1;
 
 		if (m==0) {
 		
-		  for (int ir2=1; ir2<=NMAX; ir2++) {
+		  for (int ir2=0; ir2<NMAX; ir2++) {
 
 		    for (int il2=0; il2<lE[m].size(); il2++) {
 
@@ -2239,24 +2113,24 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 		      int nn2 = ir2 - 1 + NMAX*il2;
 		    
 		      SCe[id][m][nn1][nn2] += 
-			facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
+			facC[id](ir1, l1-m)*facC[id](ir2, l2-m) * dens;
 		    }
 		  }
 		
 		} else {
 		
-		  for (int ir2=1; ir2<=NMAX; ir2++) {
+		  for (int ir2=0; ir2<NMAX; ir2++) {
 
 		    for (int il2=0; il2<lE[m].size(); il2++) {
 		      
 		      int l2  = lE[m][il2];
-		      int nn2 = ir2 - 1 + NMAX*il2;
+		      int nn2 = ir2 + NMAX*il2;
 
 		      SCe[id][m][nn1][nn2] += 
-			facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
+			facC[id](ir1, l1-m)*facC[id](ir2, l2-m) * dens;
 		      
 		      SSe[id][m][nn1][nn2] += 
-			facS[id][ir1][l1-m]*facS[id][ir2][l2-m] * dens;
+			facS[id](ir1, l1-m)*facS[id](ir2, l2-m) * dens;
 		    }
 		  }
 		}
@@ -2269,36 +2143,36 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	      for (int il1=0; il1<lO[m].size(); il1++) {
 
 		int l1  = lO[m][il1];
-		int nn1 = ir1 - 1 + NMAX*il1;
+		int nn1 = ir1 + NMAX*il1;
 
 		if (m==0) {
 		
-		  for (int ir2=1; ir2<=NMAX; ir2++) {
+		  for (int ir2=0; ir2<NMAX; ir2++) {
 
 		    for (int il2=0; il2<lO[m].size(); il2++) {
 
 		      int l2  = lO[m][il2];
-		      int nn2 = ir2 - 1 + NMAX*il2;
+		      int nn2 = ir2 + NMAX*il2;
 		    
 		      SCo[id][m][nn1][nn2] += 
-			facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
+			facC[id](ir1, l1-m)*facC[id](ir2, l2-m) * dens;
 		    }
 		  }
 		
 		} else {
 		
-		  for (int ir2=1; ir2<=NMAX; ir2++) {
+		  for (int ir2=0; ir2<NMAX; ir2++) {
 
 		    for (int il2=0; il2<lO[m].size(); il2++) {
 
 		      int l2  = lO[m][il2];
-		      int nn2 = ir2 - 1 + NMAX*il2;
+		      int nn2 = ir2 + NMAX*il2;
 		      
 		      SCo[id][m][nn1][nn2] += 
-			facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
+			facC[id](ir1, l1-m)*facC[id](ir2, l2-m) * dens;
 		    
 		      SSo[id][m][nn1][nn2] += 
-			facS[id][ir1][l1-m]*facS[id][ir2][l2-m] * dens;
+			facS[id](ir1, l1-m)*facS[id](ir2, l2-m) * dens;
 		    }
 		  }
 		}
@@ -2311,32 +2185,32 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
 	      for (int l1=m; l1<=LMAX; l1++) {
 
-		int nn1 = ir1 - 1 + NMAX*(l1-m);
+		int nn1 = ir1 + NMAX*(l1-m);
 
 		if (m==0) {
 		
-		  for (int ir2=1; ir2<=NMAX; ir2++) {
+		  for (int ir2=0; ir2<=NMAX; ir2++) {
 		    for (int l2=m; l2<=LMAX; l2++) {
-		      int nn2 = ir2 - 1 + NMAX*(l2-m);
+		      int nn2 = ir2 + NMAX*(l2-m);
 		    
 		      SC[id][m][nn1][nn2] += 
-			facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
+			facC[id](ir1, l1-m)*facC[id](ir2, l2-m) * dens;
 		    }
 		  }
 		
 		} else {
 		
-		  for (int ir2=1; ir2<=NMAX; ir2++) {
+		  for (int ir2=0; ir2<NMAX; ir2++) {
 
 		    for (int l2=m; l2<=LMAX; l2++) {
 		      
-		      int nn2 = ir2 - 1 + NMAX*(l2-m);
+		      int nn2 = ir2 + NMAX*(l2-m);
 		      
 		      SC[id][m][nn1][nn2] += 
-			facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
+			facC[id](ir1, l1-m)*facC[id](ir2, l2-m) * dens;
 		      
 		      SS[id][m][nn1][nn2] += 
-			facS[id][ir1][l1-m]*facS[id][ir2][l2-m] * dens;
+			facS[id](ir1, l1-m)*facS[id](ir2, l2-m) * dens;
 		    }
 		  }
 		}
@@ -2433,23 +2307,23 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
   for (int m=0; m<=MMAX; m++) {
 
     // *** ir loop
-    for (int ir=1; ir<=NMAX; ir++) {
+    for (int ir=0; ir<NMAX; ir++) {
 
       // *** l loop
       for (int l=m; l<=LMAX; l++) {
 
 	double ylm = sqrt((2.0*l+1.0)/(4.0*M_PI)) * pfac *
-	  exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[id][l][m];
+	  exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[id](l, m);
 
 	if (m==0) {
 
-	  facC[id][ir][l-m] = ylm*table[id][l][ir];
+	  facC[id](ir, l-m) = ylm*table[id](l, ir);
 
 	}
 	else {
 
-	  facC[id][ir][l-m] = ylm*table[id][l][ir]*cosm[id][m];
-	  facS[id][ir][l-m] = ylm*table[id][l][ir]*sinm[id][m];
+	  facC[id](ir, l-m) = ylm*table[id](l, ir)*cosm[id][m];
+	  facS[id](ir, l-m) = ylm*table[id](l, ir)*sinm[id][m];
 
 	}
 
@@ -2457,7 +2331,7 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
 
     } // *** ir loop
 
-    for (int ir1=1; ir1<=NMAX; ir1++) {
+    for (int ir1=0; ir1<NMAX; ir1++) {
 
       if (EvenOdd) {
 	int Esiz = lE[m].size();
@@ -2466,36 +2340,36 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
 	for (int il1=0; il1<Esiz; il1++) {
 
 	  int l1 = lE[m][il1];
-	  nn1 = ir1 - 1 + NMAX*il1;
+	  nn1 = ir1 + NMAX*il1;
 
 	  if (m==0) {
 	  
-	    for (int ir2=1; ir2<=NMAX; ir2++) {
+	    for (int ir2=0; ir2<NMAX; ir2++) {
 
 	      for (int il2=0; il2<Esiz; il2++) {
 
 		int l2 = lE[m][il2];
-		nn2 = ir2 - 1 + NMAX*il2;
+		nn2 = ir2 + NMAX*il2;
 
 		SCe[id][m][nn1][nn2] += 
-		  facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * mass;
+		  facC[id](ir1, l1-m)*facC[id](ir2, l2-m) * mass;
 	      }
 	    }
 
 	  } else {
 
-	    for (int ir2=1; ir2<=NMAX; ir2++) {
+	    for (int ir2=0; ir2<NMAX; ir2++) {
 
 	      for (int il2=0; il2<Esiz; il2++) {
 
 		int l2 = lE[m][il2];
-		nn2 = ir2 - 1 + NMAX*il2;
+		nn2 = ir2 + NMAX*il2;
 		
 		SCe[id][m][nn1][nn2] += 
-		  facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * mass;
+		  facC[id](ir1, l1-m)*facC[id](ir2, l2-m) * mass;
 		
 		SSe[id][m][nn1][nn2] += 
-		  facS[id][ir1][l1-m]*facS[id][ir2][l2-m] * mass;
+		  facS[id](ir1, l1-m)*facS[id](ir2, l2-m) * mass;
 	      }
 	    }
 	  }
@@ -2505,36 +2379,36 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
 	for (int il1=0; il1<Osiz; il1++) {
 
 	  int l1 = lO[m][il1];
-	  nn1 = ir1 - 1 + NMAX*il1;
+	  nn1 = ir1 + NMAX*il1;
 
 	  if (m==0) {
 	  
-	    for (int ir2=1; ir2<=NMAX; ir2++) {
+	    for (int ir2=0; ir2<NMAX; ir2++) {
 
 	      for (int il2=0; il2<Osiz; il2++) {
 
 		int l2 = lO[m][il2];
-		nn2 = ir2 - 1 + NMAX*il2;
+		nn2 = ir2 + NMAX*il2;
 
 		SCo[id][m][nn1][nn2] += 
-		  facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * mass;
+		  facC[id](ir1, l1-m)*facC[id](ir2, l2-m) * mass;
 	      }
 	    }
 
 	  } else {
 
-	    for (int ir2=1; ir2<=NMAX; ir2++) {
+	    for (int ir2=0; ir2<NMAX; ir2++) {
 
 	      for (int il2=0; il2<Osiz; il2++) {
 
 		int l2 = lO[m][il2];
-		nn2 = ir2 - 1 + NMAX*il2;
+		nn2 = ir2 + NMAX*il2;
 
 		SCo[id][m][nn1][nn2] += 
-		  facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * mass;
+		  facC[id](ir1, l1-m)*facC[id](ir2, l2-m) * mass;
 		
 		SSo[id][m][nn1][nn2] += 
-		  facS[id][ir1][l1-m]*facS[id][ir2][l2-m] * mass;
+		  facS[id](ir1, l1-m)*facS[id](ir2, l2-m) * mass;
 	      }
 	    }
 	  }
@@ -2544,30 +2418,30 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
       } else {
       
 	for (int l1=m; l1<=LMAX; l1++) {
-	  nn1 = ir1 - 1 + NMAX*(l1-m);
+	  nn1 = ir1 + NMAX*(l1-m);
 
 	  if (m==0) {
 	  
-	    for (int ir2=1; ir2<=NMAX; ir2++) {
+	    for (int ir2=0; ir2<NMAX; ir2++) {
 	      for (int l2=m; l2<=LMAX; l2++) {
-		nn2 = ir2 - 1 + NMAX*(l2-m);
+		nn2 = ir2 + NMAX*(l2-m);
 		
 		SC[id][m][nn1][nn2] += 
-		  facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * mass;
+		  facC[id](ir1, l1-m)*facC[id](ir2, l2-m) * mass;
 	      }
 	    }
 	    
 	  } else {
 
-	    for (int ir2=1; ir2<=NMAX; ir2++) {
+	    for (int ir2=0; ir2<NMAX; ir2++) {
 	      for (int l2=m; l2<=LMAX; l2++) {
 		nn2 = ir2 + NMAX*(l2-m);
 		
 		SC[id][m][nn1][nn2] += 
-		  facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * mass;
+		  facC[id](ir1, l1-m)*facC[id](ir2, l2-m) * mass;
 
 		SS[id][m][nn1][nn2] += 
-		  facS[id][ir1][l1-m]*facS[id][ir2][l2-m] * mass;
+		  facS[id](ir1, l1-m)*facS[id](ir2, l2-m) * mass;
 	      }
 	    }
 	  }
@@ -2668,7 +2542,7 @@ void EmpCylSL::make_eof(void)
       }
       
       if (bad) {
-	cerr << "Process " << myid << ": EmpCylSL has nan in C[" << mm << "]"
+	cerr << "Process " << myid << ": EmpCylSL.Has nan in C[" << mm << "]"
 	     << endl;
       }
     }
@@ -2695,7 +2569,7 @@ void EmpCylSL::make_eof(void)
       }
       
       if (bad) {
-	cerr << "Process " << myid << ": EmpCylSL has nan in S[" << mm << "]"
+	cerr << "Process " << myid << ": EmpCylSL.Has nan in S[" << mm << "]"
 	     << endl;
       }
     }
@@ -2836,7 +2710,7 @@ void EmpCylSL::make_eof(void)
 	  }
 	
 	  if (bad) {
-	    cerr << "Process " << myid << ": EmpCylSL has nan in C[" << mm << "]"
+	    cerr << "Process " << myid << ": EmpCylSL.Has nan in C[" << mm << "]"
 		 << endl;
 	  }
 	}
@@ -2863,7 +2737,7 @@ void EmpCylSL::make_eof(void)
 	  }
 	  
 	  if (bad) {
-	    cerr << "Process " << myid << ": EmpCylSL has nan in S[" << mm << "]"
+	    cerr << "Process " << myid << ": EmpCylSL.Has nan in S[" << mm << "]"
 		 << endl;
 	  }
 	}
@@ -2978,42 +2852,42 @@ void EmpCylSL::make_eof(void)
 	  int Esiz = lE[M].size();
 	  int Osiz = lO[M].size();
 
-	  for (int i=1; i<=NMAX*Esiz; i++) {
-	    for (int j=i; j<=NMAX*Esiz; j++)
-	      varE[M][i][j] = SCe[0][M][i-1][j-1];
+	  for (int i=0; i<NMAX*Esiz; i++) {
+	    for (int j=i; j<NMAX*Esiz; j++)
+	      varE[M](i, j) = SCe[0][M][i][j];
 	  }
 
-	  for (int i=1; i<NMAX*Esiz; i++) {
-	    for (int j=i+1; j<=NMAX*Esiz; j++) {
-	      varE[M][j][i] = SCe[0][M][i-1][j-1];
+	  for (int i=0; i<NMAX*Esiz; i++) {
+	    for (int j=i; j<NMAX*Esiz; j++) {
+	      varE[M](j, i) = SCe[0][M][i][j];
 	    }
 	  }
     
 	  double maxV = 0.0;
-	  for (int i=1; i<=NMAX*Esiz; i++) {
-	    for (int j=i; j<=NMAX*Esiz; j++) {
-	      tmp = fabs(varE[M][i][j]);
+	  for (int i=0; i<NMAX*Esiz; i++) {
+	    for (int j=0; j<NMAX*Esiz; j++) {
+	      tmp = fabs(varE[M](i, j));
 	      if (tmp > maxV) maxV = tmp;
 	    }
 	  }
 	  
 	  varE[M] /= maxV;
 
-	  for (int i=1; i<=NMAX*Osiz; i++) {
-	    for (int j=i; j<=NMAX*Osiz; j++)
-	      varO[M][i][j] = SCo[0][M][i-1][j-1];
+	  for (int i=0; i<NMAX*Osiz; i++) {
+	    for (int j=i; j<NMAX*Osiz; j++)
+	      varO[M](i, j) = SCo[0][M][i][j];
 	  }
 
 	  for (int i=1; i<NMAX*Osiz; i++) {
-	    for (int j=i+1; j<=NMAX*Osiz; j++) {
-	      varO[M][j][i] = SCo[0][M][i-1][j-1];
+	    for (int j=i; j<=NMAX*Osiz; j++) {
+	      varO[M](j, i) = SCo[0][M][i][j];
 	    }
 	  }
     
 	  maxV = 0.0;
-	  for (int i=1; i<=NMAX*Osiz; i++) {
-	    for (int j=i; j<=NMAX*Osiz; j++) {
-	      tmp = fabs(varO[M][i][j]);
+	  for (int i=0; i<NMAX*Osiz; i++) {
+	    for (int j=i; j<NMAX*Osiz; j++) {
+	      tmp = fabs(varO[M](i, j));
 	      if (tmp > maxV) maxV = tmp;
 	    }
 	  }
@@ -3022,21 +2896,21 @@ void EmpCylSL::make_eof(void)
 
 	} else {
 
-	  for (int i=1; i<=NMAX*(LMAX-M+1); i++) {
-	    for (int j=i; j<=NMAX*(LMAX-M+1); j++)
-	      var[M][i][j] = SC[0][M][i-1][j-1];
+	  for (int i=0; i<NMAX*(LMAX-M+1); i++) {
+	    for (int j=i; j<NMAX*(LMAX-M+1); j++)
+	      var[M](i, j) = SC[0][M][i][j];
 	  }
 
-	  for (int i=1; i<NMAX*(LMAX-M+1); i++) {
-	    for (int j=i+1; j<=NMAX*(LMAX-M+1); j++) {
-	      var[M][j][i] = SC[0][M][i-1][j-1];
+	  for (int i=0; i<NMAX*(LMAX-M+1); i++) {
+	    for (int j=i; j<NMAX*(LMAX-M+1); j++) {
+	      var[M](j, i) = SC[0][M][i][j];
 	    }
 	  }
     
 	  double maxV = 0.0;
-	  for (int i=1; i<=NMAX*(LMAX-M+1); i++) {
-	    for (int j=i; j<=NMAX*(LMAX-M+1); j++) {
-	      tmp = fabs(var[M][i][j]);
+	  for (int i=0; i<NMAX*(LMAX-M+1); i++) {
+	    for (int j=i; j<NMAX*(LMAX-M+1); j++) {
+	      tmp = fabs(var[M](i, j));
 	      if (tmp > maxV) maxV = tmp;
 	    }
 	  }
@@ -3054,40 +2928,40 @@ void EmpCylSL::make_eof(void)
 
 	  if (EvenOdd) {
 
-	    for (int i=1; i<=varE[M].getnrows(); i++) {
-	      for (int j=1; j<=varE[M].getncols(); j++) {
-		if (std::isnan(varE[M][i][j])) nancount++;
+	    for (int i=0; i<varE[M].size(); i++) {
+	      for (int j=0; j<varE[M].size(); j++) {
+		if (std::isnan(varE[M](i, j))) nancount++;
 	      }
 	    }
 
 	    if (nancount) {
 	      std::cout << "Process " << setw(4) << myid 
 			<< ": in eigenvalue problem [even] with "
-			<< "rank=[" << varE[M].getncols() << ", " 
-			<< varE[M].getnrows() << "]"
+			<< "rank=[" << varE[M].cols() << ", " 
+			<< varE[M].rows() << "]"
 			<< ", found " << nancount << " NaN values" << endl;
 	    }
 
 	    nancount = 0;
-	    for (int i=1; i<=varO[M].getnrows(); i++) {
-	      for (int j=1; j<=varO[M].getncols(); j++) {
-		if (std::isnan(varO[M][i][j])) nancount++;
+	    for (int i=0; i<varO[M].rows(); i++) {
+	      for (int j=0; j<varO[M].cols(); j++) {
+		if (std::isnan(varO[M](i, j))) nancount++;
 	      }
 	    }
 
 	    if (nancount) {
 	      std::cout << "Process " << setw(4) << myid 
 			<< ": in eigenvalue problem [odd] with "
-			<< "rank=[" << varO[M].getncols() << ", " 
-			<< varO[M].getnrows() << "]"
+			<< "rank=[" << varO[M].cols() << ", " 
+			<< varO[M].rows() << "]"
 			<< ", found " << nancount << " NaN values" << endl;
 	    }
 
 	  } else {
 
-	    for (int i=1; i<=var[M].getnrows(); i++) {
-	      for (int j=1; j<=var[M].getncols(); j++) {
-		if (std::isnan(var[M][i][j])) nancount++;
+	    for (int i=0; i<=var[M].rows(); i++) {
+	      for (int j=0; j<=var[M].cols(); j++) {
+		if (std::isnan(var[M](i, j))) nancount++;
 	      }
 	    }
 	  
@@ -3095,8 +2969,8 @@ void EmpCylSL::make_eof(void)
 
 	      std::cout << "Process " << setw(4) << myid 
 			<< ": in eigenvalue problem with "
-			<< "rank=[" << var[M].getncols() << ", " 
-			<< var[M].getnrows() << "]"
+			<< "rank=[" << var[M].cols() << ", " 
+			<< var[M].rows() << "]"
 			<< ", found " << nancount << " NaN values" << endl;
 	    }
 	  }
@@ -3117,26 +2991,26 @@ void EmpCylSL::make_eof(void)
 
 	  if (EvenOdd) {
 
-	    for (int i=1; i<=varE[M].getnrows(); i++) {
-	      for (int j=1; j<=varE[M].getncols(); j++) {
-		dout << std::setw(16) << varE[M][i][j];
+	    for (int i=0; i<varE[M].rows(); i++) {
+	      for (int j=0; j<varE[M].cols(); j++) {
+		dout << std::setw(16) << varE[M](i, j);
 	      }
 	      dout << std::endl;
 	    }
 
 	    dout << std::endl;
-	    for (int i=1; i<=varO[M].getnrows(); i++) {
-	      for (int j=1; j<=varO[M].getncols(); j++) {
-		dout << std::setw(16) << varO[M][i][j];
+	    for (int i=0; i<=varO[M].rows(); i++) {
+	      for (int j=0; j<=varO[M].cols(); j++) {
+		dout << std::setw(16) << varO[M](i, j);
 	      }
 	      dout << std::endl;
 	    }
 
 	  } else {
 
-	    for (int i=1; i<=var[M].getnrows(); i++) {
-	      for (int j=1; j<=var[M].getncols(); j++) {
-		dout << std::setw(16) << var[M][i][j];
+	    for (int i=0; i<=var[M].rows(); i++) {
+	      for (int j=0; j<=var[M].cols(); j++) {
+		dout << std::setw(16) << var[M](i, j);
 	      }
 	      dout << std::endl;
 	    }
@@ -3145,13 +3019,14 @@ void EmpCylSL::make_eof(void)
 
 	if (EvenOdd) {
 
-	  if (USESVD) {
-	    Vector evE = Symmetric_Eigenvalues_SVD  (varE[M], efE, Neven);
-	    Vector evO = Symmetric_Eigenvalues_SVD  (varO[M], efO, Nodd );
-	  } else {
-	    Vector evE = Symmetric_Eigenvalues_SYEVD(varE[M], efE, Neven);
-	    Vector evO = Symmetric_Eigenvalues_SYEVD(varO[M], efO, Nodd );
-	  }
+	  Eigen::EigenSolver<Eigen::MatrixXd> esE(varE[M]);
+	  Eigen::EigenSolver<Eigen::MatrixXd> esO(varO[M]);
+
+	  evE = esE.eigenvalues().real();
+	  evO = esO.eigenvalues().real();
+
+	  efE = esE.eigenvectors().real();
+	  efO = esO.eigenvectors().real();
 
 	  if (VFLAG & 32) {
 
@@ -3159,11 +3034,9 @@ void EmpCylSL::make_eof(void)
 	    sout << "ev_test." << M << "." << request_id;
 	    std::ofstream dout(sout.str());
 	  
-	    for (int i=efE.getrlow(); i<=efE.getrhigh(); i++) {
-	      for (int j=efE.getrlow(); j<=efE.getrhigh(); j++) {
-		double sum = 0.0;
-		for (int k=efE.getclow(); k<=efE.getchigh(); k++)
-		  sum += efE[i][k] * efE[j][k];
+	    for (int i=0; i<efE.cols(); i++) {
+	      for (int j=0; j<efE.cols(); j++) {
+		double sum = efE.col(i).adjoint() * efE.col(j);
 		dout << std::setw(4) << i << std::setw(4) << j
 		     << std::setw(18) << sum << std::endl;
 	      }
@@ -3171,11 +3044,9 @@ void EmpCylSL::make_eof(void)
 
 	    dout << std::endl;
 	  
-	    for (int i=efO.getrlow(); i<=efO.getrhigh(); i++) {
-	      for (int j=efO.getrlow(); j<=efO.getrhigh(); j++) {
-		double sum = 0.0;
-		for (int k=efO.getclow(); k<=efO.getchigh(); k++)
-		  sum += efO[i][k] * efO[j][k];
+	    for (int i=0; i<efO.cols(); i++) {
+	      for (int j=0; j<efO.cols(); j++) {
+		double sum = efO.col(i).adjoint() * efO.col(j);
 		dout << std::setw(4) << i << std::setw(4) << j
 		     << std::setw(18) << sum << std::endl;
 	      }
@@ -3184,23 +3055,20 @@ void EmpCylSL::make_eof(void)
 
 	} else {
 
-	  if (USESVD)
-	    Vector ev = Symmetric_Eigenvalues_SVD  (var[M], ef, NORDER);
-	  else
-	    Vector ev = Symmetric_Eigenvalues_SYEVD(var[M], ef, NORDER);
+	  Eigen::EigenSolver<Eigen::MatrixXd> es(var[M]);
 
-	  
+	  ev = es.eigenvalues().real();
+	  ef = es.eigenvectors().real();
+
 	  if (VFLAG & 32) {
 
 	    std::ostringstream sout;
 	    sout << "ev_test." << M << "." << request_id;
 	    std::ofstream dout(sout.str());
 	  
-	    for (int i=ef.getrlow(); i<=ef.getrhigh(); i++) {
-	      for (int j=ef.getrlow(); j<=ef.getrhigh(); j++) {
-		double sum = 0.0;
-		for (int k=ef.getclow(); k<=ef.getchigh(); k++)
-		  sum += ef[i][k] * ef[j][k];
+	    for (int i=0; i<ef.cols(); i++) {
+	      for (int j=0; j<ef.cols(); j++) {
+		double sum = ef.col(i).adjoint() * ef.col(j);
 		dout << std::setw(4) << i << std::setw(4) << j
 		     << std::setw(18) << sum << std::endl;
 	      }
@@ -3222,21 +3090,21 @@ void EmpCylSL::make_eof(void)
 	  int Esiz = lE[M].size();
 	  int Osiz = lO[M].size();
 
-	  for (int i=1; i<=NMAX*Esiz; i++) {
-	    for (int j=i; j<=NMAX*Esiz; j++)
-	      varE[M][i][j] = SSe[0][M][i-1][j-1];
+	  for (int i=0; i<NMAX*Esiz; i++) {
+	    for (int j=i; j<NMAX*Esiz; j++)
+	      varE[M](i, j) = SSe[0][M][i][j];
 	  }
 
-	  for (int i=1; i<NMAX*Esiz; i++) {
-	    for (int j=i+1; j<=NMAX*Esiz; j++) {
-	      varE[M][j][i] = SSe[0][M][i-1][j-1];
+	  for (int i=0; i<NMAX*Esiz; i++) {
+	    for (int j=i; j<=NMAX*Esiz; j++) {
+	      varE[M](j, i) = SSe[0][M][i][j];
 	    }
 	  }
     
 	  double maxV = 0.0;
-	  for (int i=1; i<=NMAX*Esiz; i++) {
-	    for (int j=i; j<=NMAX*Esiz; j++) {
-	      tmp = fabs(varE[M][i][j]);
+	  for (int i=0; i<NMAX*Esiz; i++) {
+	    for (int j=i; j<NMAX*Esiz; j++) {
+	      tmp = fabs(varE[M](i, j));
 	      if (tmp > maxV) maxV = tmp;
 	    }
 	  }
@@ -3244,21 +3112,21 @@ void EmpCylSL::make_eof(void)
 	  if (maxV>1.0e-5)
 	    varE[M] /= maxV;
     
-	  for (int i=1; i<=NMAX*Osiz; i++) {
-	    for (int j=i; j<=NMAX*Osiz; j++)
-	      varO[M][i][j] = SSo[0][M][i-1][j-1];
+	  for (int i=0; i<NMAX*Osiz; i++) {
+	    for (int j=i; j<NMAX*Osiz; j++)
+	      varO[M](i, j) = SSo[0][M][i][j];
 	  }
 
-	  for (int i=1; i<NMAX*Osiz; i++) {
-	    for (int j=i+1; j<=NMAX*Osiz; j++) {
-	      varO[M][j][i] = SSo[0][M][i-1][j-1];
+	  for (int i=0; i<NMAX*Osiz; i++) {
+	    for (int j=i; j<NMAX*Osiz; j++) {
+	      varO[M](j, i) = SSo[0][M][i][j];
 	    }
 	  }
     
 	  maxV = 0.0;
-	  for (int i=1; i<=NMAX*Osiz; i++) {
+	  for (int i=0; i<NMAX*Osiz; i++) {
 	    for (int j=i; j<=NMAX*Osiz; j++) {
-	      tmp = fabs(varO[M][i][j]);
+	      tmp = fabs(varO[M](i, j));
 	      if (tmp > maxV) maxV = tmp;
 	    }
 	  }
@@ -3268,21 +3136,21 @@ void EmpCylSL::make_eof(void)
     
 	} else {
 
-	  for (int i=1; i<=NMAX*(LMAX-M+1); i++) {
-	    for (int j=i; j<=NMAX*(LMAX-M+1); j++)
-	      var[M][i][j] = SS[0][M][i-1][j-1];
+	  for (int i=0; i<NMAX*(LMAX-M+1); i++) {
+	    for (int j=i; j<NMAX*(LMAX-M+1); j++)
+	      var[M](i, j) = SS[0][M][i][j];
 	  }
 	  
-	  for (int i=1; i<NMAX*(LMAX-M+1); i++) {
-	    for (int j=i+1; j<=NMAX*(LMAX-M+1); j++) {
-	      var[M][j][i] = SS[0][M][i-1][j-1];
+	  for (int i=0; i<NMAX*(LMAX-M+1); i++) {
+	    for (int j=i; j<NMAX*(LMAX-M+1); j++) {
+	      var[M](j, i) = SS[0][M][i][j];
 	    }
 	  }
 	  
 	  double maxV = 0.0;
-	  for (int i=1; i<=NMAX*(LMAX-M+1); i++) {
-	    for (int j=i; j<=NMAX*(LMAX-M+1); j++) {
-	      tmp = fabs(var[M][i][j]);
+	  for (int i=0; i<NMAX*(LMAX-M+1); i++) {
+	    for (int j=i; j<NMAX*(LMAX-M+1); j++) {
+	      tmp = fabs(var[M](i, j));
 	      if (tmp > maxV) maxV = tmp;
 	    }
 	  }
@@ -3301,43 +3169,43 @@ void EmpCylSL::make_eof(void)
 
 	  if (EvenOdd) {
 
-	    for (int i=1; i<=varE[M].getnrows(); i++) {
-	      for (int j=1; j<=varE[M].getncols(); j++) {
-		if (std::isnan(varE[M][i][j])) nancount++;
+	    for (int i=0; i<=varE[M].rows(); i++) {
+	      for (int j=0; j<=varE[M].cols(); j++) {
+		if (std::isnan(varE[M](i, j))) nancount++;
 	      }
 	    }
 	    
 	    cout << "Process " << setw(4) << myid 
 		 << ": in eigenvalue problem [even] with "
-		 << "rank=[" << varE[M].getncols() << ", " 
-		 << varE[M].getnrows() << "]"
+		 << "rank=[" << varE[M].cols() << ", " 
+		 << varE[M].rows() << "]"
 		 << ", found " << nancount << " NaN values" << endl;
 
 	    nancount = 0;
-	    for (int i=1; i<=varO[M].getnrows(); i++) {
-	      for (int j=1; j<=varO[M].getncols(); j++) {
-		if (std::isnan(varO[M][i][j])) nancount++;
+	    for (int i=0; i<varO[M].cols(); i++) {
+	      for (int j=0; j<varO[M].cols(); j++) {
+		if (std::isnan(varO[M](i, j))) nancount++;
 	      }
 	    }
 	    
 	    cout << "Process " << setw(4) << myid 
 		 << ": in eigenvalue problem [odd] with "
-		 << "rank=[" << varO[M].getncols() << ", " 
-		 << varO[M].getnrows() << "]"
+		 << "rank=[" << varO[M].cols() << ", " 
+		 << varO[M].rows() << "]"
 		 << ", found " << nancount << " NaN values" << endl;
 
 	  } else {
 
-	    for (int i=1; i<=var[M].getnrows(); i++) {
-	      for (int j=1; j<=var[M].getncols(); j++) {
-		if (std::isnan(var[M][i][j])) nancount++;
+	    for (int i=0; i<var[M].rows(); i++) {
+	      for (int j=0; j<var[M].cols(); j++) {
+		if (std::isnan(var[M](i, j))) nancount++;
 	      }
 	    }
 	    
 	    cout << "Process " << setw(4) << myid 
 		 << ": in eigenvalue problem with "
-		 << "rank=[" << var[M].getncols() << ", " 
-		 << var[M].getnrows() << "]"
+		 << "rank=[" << var[M].cols() << ", " 
+		 << var[M].rows() << "]"
 		 << ", found " << nancount << " NaN values" << endl;
 	  }
 
@@ -3347,25 +3215,24 @@ void EmpCylSL::make_eof(void)
 
 	if (EvenOdd) {
 
-	  if (USESVD) {
-	    Vector evE = Symmetric_Eigenvalues_SVD  (varE[M], efE, Neven);
-	    Vector evO = Symmetric_Eigenvalues_SVD  (varO[M], efO, Nodd );
-	  } else {
-	    Vector evE = Symmetric_Eigenvalues_SYEVD(varE[M], efE, Neven);
-	    Vector evO = Symmetric_Eigenvalues_SYEVD(varO[M], efO, Nodd );
-	  }
-	  
+	  Eigen::EigenSolver<Eigen::MatrixXd> esE(varE[M]);
+	  Eigen::EigenSolver<Eigen::MatrixXd> esO(varO[M]);
+
+	  evE = esE.eigenvalues().real();
+	  evO = esO.eigenvalues().real();
+
+	  efE = esE.eigenvectors().real();
+	  efO = esO.eigenvectors().real();
+
 	  if (VFLAG & 32) {
 
 	    std::ostringstream sout;
 	    sout << "ev_test." << M << "." << request_id;
 	    std::ofstream dout(sout.str());
 	  
-	    for (int i=efE.getrlow(); i<=efE.getrhigh(); i++) {
-	      for (int j=efE.getrlow(); j<=efE.getrhigh(); j++) {
-		double sum = 0.0;
-		for (int k=efE.getclow(); k<=efE.getchigh(); k++)
-		  sum += efE[i][k] * efE[j][k];
+	    for (int i=0; i<efE.cols(); i++) {
+	      for (int j=0; j<efE.cols(); j++) {
+		double sum = efE.col(i).adjoint() * efE.col(j);
 		dout << std::setw(4) << i << std::setw(4) << j
 		     << std::setw(18) << sum << std::endl;
 	      }
@@ -3373,11 +3240,9 @@ void EmpCylSL::make_eof(void)
 
 	    dout << std::endl;
 	  
-	    for (int i=efO.getrlow(); i<=efO.getrhigh(); i++) {
-	      for (int j=efO.getrlow(); j<=efO.getrhigh(); j++) {
-		double sum = 0.0;
-		for (int k=efO.getclow(); k<=efO.getchigh(); k++)
-		  sum += efO[i][k] * efO[j][k];
+	    for (int i=0; i<efO.cols(); i++) {
+	      for (int j=0; j<efO.cols(); j++) {
+		double sum = efO.col(i).adjoint() * efO.col(j);
 		dout << std::setw(4) << i << std::setw(4) << j
 		     << std::setw(18) << sum << std::endl;
 	      }
@@ -3386,10 +3251,10 @@ void EmpCylSL::make_eof(void)
 
 	} else {
 
-	  if (USESVD)
-	    Vector ev = Symmetric_Eigenvalues_SVD  (var[M], ef, NORDER);
-	  else
-	    Vector ev = Symmetric_Eigenvalues_SYEVD(var[M], ef, NORDER);
+	  Eigen::EigenSolver<Eigen::MatrixXd> es(var[M]);
+
+	  ev = es.eigenvalues().real();
+	  ef = es.eigenvectors().real();
 
 	  if (VFLAG & 32) {
 
@@ -3397,11 +3262,9 @@ void EmpCylSL::make_eof(void)
 	    sout << "ev_test." << M << "." << request_id;
 	    std::ofstream dout(sout.str());
 	  
-	    for (int i=ef.getrlow(); i<=ef.getrhigh(); i++) {
-	      for (int j=ef.getrlow(); j<=ef.getrhigh(); j++) {
-		double sum = 0.0;
-		for (int k=ef.getclow(); k<=ef.getchigh(); k++)
-		  sum += ef[i][k] * ef[j][k];
+	    for (int i=0; i<ef.cols(); i++) {
+	      for (int j=0; j<ef.cols(); j++) {
+		double sum = ef.col(i).adjoint() * ef.col(j);
 		dout << std::setw(4) << i << std::setw(4) << j
 		     << std::setw(18) << sum << std::endl;
 	      }
@@ -3657,8 +3520,8 @@ void EmpCylSL::getPotParticle(double x, double y, double z,
   get_pot(vc[0], vs[0], R, z);
   for (int mm=0; mm<=MMAX; mm++) {
     for (int nn=0; nn<rank3; nn++) {
-      retC[mm][nn] = vc[0][mm][nn]*cos(phi*mm);
-      if (mm>0) retS[mm][nn] = vs[0][mm][nn]*sin(phi*mm);
+      retC[mm][nn] = vc[0](mm, nn)*cos(phi*mm);
+      if (mm>0) retS[mm][nn] = vs[0](mm, nn)*sin(phi*mm);
     }
   }
 }
@@ -3702,40 +3565,40 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
     msin = sin(phi*mm);
 
     for (int nn=0; nn<rank3; nn++) {
-      double hold = norm * mass * mcos * vc[id][mm][nn];
+      double hold = norm * mass * mcos * vc[id](mm, nn);
 
       cosN(mlevel)[id][mm][nn] += hold;
 
       if (compute and PCAVAR) {
-	double hc1 = vc[id][mm][nn]*mcos, hs1 = 0.0;
-	if (mm) hs1 = vs[id][mm][nn]*msin;
+	double hc1 = vc[id](mm, nn)*mcos, hs1 = 0.0;
+	if (mm) hs1 = vs[id](mm, nn)*msin;
 	double modu1 = sqrt(hc1*hc1 + hs1*hs1);
 
 	covV(id, whch, mm)[nn] += mass * modu1;
 
 	for (int oo=0; oo<rank3; oo++) {
-	  double hc2 = vc[id][mm][oo]*mcos, hs2 = 0.0;
-	  if (mm) hs2 = vs[id][mm][oo]*msin;
+	  double hc2 = vc[id](mm, oo)*mcos, hs2 = 0.0;
+	  if (mm) hs2 = vs[id](mm, oo)*msin;
 	  double modu2 = sqrt(hc2*hc2 + hs2*hs2);
 
-	  covM(id, whch, mm)[nn][oo] += mass * modu1 * modu2;
+	  covM(id, whch, mm)(nn, oo) += mass * modu1 * modu2;
 	}
       }
 
       if (mm>0) {
-	hold = norm * mass * msin * vs[id][mm][nn];
+	hold = norm * mass * msin * vs[id](mm, nn);
 	sinN(mlevel)[id][mm][nn] += hold;
       }
 
       if (compute and PCAEOF) {
-	double hold1 = vc[id][mm][nn], hold2 = 0.0;
-	if (mm>0) hold2 = vs[id][mm][nn];
+	double hold1 = vc[id](mm, nn), hold2 = 0.0;
+	if (mm>0) hold2 = vs[id](mm, nn);
 	double modu1 = sqrt(hold1*hold1 + hold2*hold2)*norm;
 	for (int oo=0; oo<rank3; oo++) {
-	  hold1 = vc[id][mm][oo], hold2 = 0.0;
-	  if (mm>0) hold2 = vs[id][mm][oo];
+	  hold1 = vc[id](mm, oo), hold2 = 0.0;
+	  if (mm>0) hold2 = vs[id](mm, oo);
 	  double modu2 = sqrt(hold1*hold1 + hold2*hold2)*norm;
-	  tvar[id][mm][nn+1][oo+1] += modu1 * modu2 * mass;
+	  tvar[id][mm](nn, oo) += modu1 * modu2 * mass;
 	}
       }
     }
@@ -3823,7 +3686,7 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 	for (int mm=0; mm<=MMAX; mm++)
 	  for (int nn=0; nn<rank3; nn++)
 	    for (int oo=0; oo<rank3; oo++)
-	      tvar[0][mm][nn+1][oo+1] += tvar[nth][mm][nn+1][oo+1];
+	      tvar[0][mm](nn, oo) += tvar[nth][mm](nn, oo);
       }
 	
       for (unsigned T=0; T<sampT; T++) {
@@ -3834,7 +3697,7 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 	  for (int nn=0; nn<rank3; nn++) {
 	    covV(0, T, mm)[nn] += covV(nth, T, mm)[nn];
 	    for (int oo=0; oo<rank3; oo++) {
-	      covM(0, T, mm)[nn][oo] += covM(nth, T, mm)[nn][oo];
+	      covM(0, T, mm)(nn, oo) += covM(nth, T, mm)(nn, oo);
 	    }
 	  }
 	}
@@ -3863,7 +3726,7 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
       for (int mm=0; mm<=MMAX; mm++)
 	for (int nn=0; nn<rank3; nn++)
 	  for (int oo=0; oo<rank3; oo++)
-	    MPIinT[mm*rank3*rank3 + nn*rank3 + oo] = tvar[0][mm][nn+1][oo+1];
+	    MPIinT[mm*rank3*rank3 + nn*rank3 + oo] = tvar[0][mm](nn, oo);
   
       MPI_Allreduce ( MPIinT.data(), MPIotT.data(), rank3*rank3*(MMAX+1),
 		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -3871,7 +3734,7 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
       for (int mm=0; mm<=MMAX; mm++)
 	for (int nn=0; nn<rank3; nn++)
 	  for (int oo=0; oo<rank3; oo++)
-	    tvar[0][mm][nn+1][oo+1] = MPIotT[mm*rank3*rank3 + nn*rank3 + oo];
+	    tvar[0][mm](nn, oo) = MPIotT[mm*rank3*rank3 + nn*rank3 + oo];
     }
       
     // Begin distribution loop for variance jackknife
@@ -3882,7 +3745,7 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 	for (int nn=0; nn<rank3; nn++) {
 	  MPIin[mm*rank3 + nn] = covV(0, T, mm)[nn];
 	  for (int oo=0; oo<rank3; oo++) {
-	    MPIin2[mm*rank3*rank3 + nn*rank3 + oo] = covM(0, T, mm)[nn][oo];
+	    MPIin2[mm*rank3*rank3 + nn*rank3 + oo] = covM(0, T, mm)(nn, oo);
 	  }
 	}
       }
@@ -3897,7 +3760,7 @@ void EmpCylSL::make_coefficients(unsigned M0, bool compute)
 	for (int nn=0; nn<rank3; nn++) {
 	  covV(0, T, mm)[nn] = MPIout[mm*rank3 + nn];
 	  for (int oo=0; oo<rank3; oo++) {
-	    covM(0, T, mm)[nn][oo] = MPIout2[mm*rank3*rank3 + nn*rank3 + oo];
+	    covM(0, T, mm)(nn, oo) = MPIout2[mm*rank3*rank3 + nn*rank3 + oo];
 	  }
 	}
       }
@@ -3958,7 +3821,7 @@ void EmpCylSL::make_coefficients(bool compute)
 	    for (unsigned T=0; T<sampT; T++) {
 	      covV(0, T, mm)[nn] += covV(nth, T, mm)[nn];
 	      for (int oo=0; oo<rank3; oo++) {
-		covM(0, T, mm)[nn][oo] += covM(nth, T, mm)[nn][oo];
+		covM(0, T, mm)(nn, oo) += covM(nth, T, mm)(nn, oo);
 	      }
 	    }
 	  }
@@ -4014,7 +3877,7 @@ void EmpCylSL::make_coefficients(bool compute)
 	for (int nn=0; nn<rank3; nn++) {
 	  MPIin[mm*rank3 + nn] = covV(0, T, mm)[nn];
 	  for (int oo=0; oo<rank3; oo++) {
-	    MPIin2[mm*rank3*rank3 + nn*rank3 + oo] = covM(0, T, mm)[nn][oo];
+	    MPIin2[mm*rank3*rank3 + nn*rank3 + oo] = covM(0, T, mm)(nn, oo);
 	  }
 	}
       }
@@ -4029,7 +3892,7 @@ void EmpCylSL::make_coefficients(bool compute)
 	for (int nn=0; nn<rank3; nn++) {
 	  covV(0, T, mm)[nn] = MPIout[mm*rank3 + nn];
 	  for (int oo=0; oo<rank3; oo++) {
-	    covM(0, T, mm)[nn][oo] = MPIout2[mm*rank3*rank3 + nn*rank3 + oo];
+	    covM(0, T, mm)(nn, oo) = MPIout2[mm*rank3*rank3 + nn*rank3 + oo];
 	  }
 	}
       }
@@ -4175,11 +4038,9 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
       }
     }
     
-    Vector eofvec;
+    Eigen::VectorXd eofvec;
 
-    if (PCAEOF) {
-      eofvec.setsize(1, rank3);
-    }
+    if (PCAEOF) eofvec.resize(rank3);
 
     // Loop through each harmonic subspace [EVEN cosines]
     //
@@ -4197,7 +4058,7 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 
 	    // Compute mean coef from subsample
 	    //
-	    (*pb)[mm]->meanJK[nn+1] += covV(0, T, mm)[nn] / massT[T] / sampT;
+	    (*pb)[mm]->meanJK[nn] += covV(0, T, mm)[nn] / massT[T] / sampT;
 	    
 	    if (subsamp) {
 
@@ -4205,7 +4066,7 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 
 		// Compute mean squared coefs from subsample
 		//
-		(*pb)[mm]->covrJK[nn+1][oo+1] +=
+		(*pb)[mm]->covrJK(nn, oo) +=
 		  covV(0, T, mm)[nn] / massT[T] *
 		  covV(0, T, mm)[oo] / massT[T] / sampT;
 	      }
@@ -4216,7 +4077,7 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 
 		// Compute mean squared coefs from subsample
 		//
-		(*pb)[mm]->covrJK[nn+1][oo+1] += covM(0, T, mm)[nn][oo] / massT[T] / sampT;
+		(*pb)[mm]->covrJK(nn, oo) += covM(0, T, mm)(nn, oo) / massT[T] / sampT;
 	      }
 	    }
 	  }
@@ -4226,16 +4087,15 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 	//
 	for (int nn=0; nn<rank3; nn++) { 
 	  for (int oo=0; oo<rank3; oo++) {
-	    (*pb)[mm]->covrJK[nn+1][oo+1] -=
-	      (*pb)[mm]->meanJK[nn+1] * (*pb)[mm]->meanJK[oo+1];
+	    (*pb)[mm]->covrJK(nn, oo) -=
+	      (*pb)[mm]->meanJK[nn] * (*pb)[mm]->meanJK[oo];
 	  }
 	}
 	
-#ifdef GHQL
-	(*pb)[mm]->evalJK = (*pb)[mm]->covrJK.Symmetric_Eigenvalues_GHQL((*pb)[mm]->evecJK);
-#else
-	(*pb)[mm]->evalJK = (*pb)[mm]->covrJK.Symmetric_Eigenvalues((*pb)[mm]->evecJK);
-#endif
+	Eigen::EigenSolver<Eigen::MatrixXd> es((*pb)[mm]->covrJK);
+
+	(*pb)[mm]->evalJK = es.eigenvalues().real();
+	(*pb)[mm]->evecJK = es.eigenvectors().real();
       }
     
       // Transformation output
@@ -4248,18 +4108,18 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 	  mout << "# Eigenvalues"  << std::endl;
 	  double enorm = 0.0, ecum = 0.0;
 	  for (int nn=0; nn<rank3; nn++)
-	    enorm += (*pb)[mm]->evalJK[nn+1];
+	    enorm += (*pb)[mm]->evalJK[nn];
 	  for (int nn=0; nn<rank3; nn++) {
-	    ecum += (*pb)[mm]->evalJK[nn+1];
+	    ecum += (*pb)[mm]->evalJK[nn];
 	    mout << std::setw( 4) << nn
-		 << std::setw(12) << (*pb)[mm]->evalJK[nn+1]
+		 << std::setw(12) << (*pb)[mm]->evalJK[nn]
 		 << std::setw(12) << ecum / enorm
 		 << std::endl;
 	  }
 	  mout << "# Eigenvectors" << std::endl;
 	  for (int nn=0; nn<rank3; nn++) {
 	    for (int oo=0; oo<rank3; oo++) {
-	      mout << std::setw(12) << (*pb)[mm]->evecJK.Transpose()[nn+1][oo+1];
+	      mout << std::setw(12) << (*pb)[mm]->evecJK.col(nn)[oo];
 	    }
 	    mout << std::endl;
 	  }
@@ -4267,12 +4127,10 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 	  mout << "# Norms" << std::endl;
 	  for (int nn=0; nn<rank3; nn++) {
 	    for (int oo=0; oo<rank3; oo++) {
-	      double nm = 0.0;
-	      for (int pp=0; pp<rank3; pp++) 
-		nm +=
-		  (*pb)[mm]->evecJK.Transpose()[nn+1][pp+1] *
-		  (*pb)[mm]->evecJK.Transpose()[oo+1][pp+1] ;
-	      mout << std::setw(12) << nm;
+	      mout << std::setw(12) <<
+		(*pb)[mm]->evecJK.row(nn).adjoint() *
+		(*pb)[mm]->evecJK.row(oo);
+
 	    }
 	    mout << std::endl;
 	  }
@@ -4280,27 +4138,31 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 	  mout << "# Covariance matrix" << std::endl;
 	  for (int nn=0; nn<rank3; nn++) {
 	    for (int oo=0; oo<rank3; oo++)
-	      mout << std::setw(12) << (*pb)[mm]->covrJK[nn+1][oo+1];
+	      mout << std::setw(12) << (*pb)[mm]->covrJK(nn, oo);
 	    mout << std::endl;
 	  }
 	}
 
 	if (PCAEOF) {
-	  Matrix evecVar(1, rank3, 1, rank3);
-	  Vector evalVar = tvar[0][mm].Symmetric_Eigenvalues(evecVar);
+	  Eigen::VectorXd evalVar(rank3);
+	  Eigen::MatrixXd evecVar(rank3, rank3);
+	  Eigen::EigenSolver<Eigen::MatrixXd> es(tvar[0][mm]);
+
+	  evalVar = es.eigenvalues().real();
+	  evecVar = es.eigenvectors().real();
 
 	  mout << "# EOF eigenvalues" << std::endl;
 	  double total = 0.0;
 	  for (int nn=0; nn<rank3; nn++) {
-	    total += evalVar[nn+1];
-	    mout << std::setw(12) << evalVar[nn+1];
+	    total += evalVar[nn];
+	    mout << std::setw(12) << evalVar[nn];
 	  }
 	  mout << std::endl;
 	  
 	  mout << "# EOF accumulation" << std::endl;
 	  double cum = 0.0;
 	  for (int nn=0; nn<rank3; nn++) {
-	    cum += evalVar[nn+1];
+	    cum += evalVar[nn];
 	    mout << std::setw(12) << cum/total;
 	  }
 	  mout << std::endl;
@@ -4308,53 +4170,53 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 	  mout << "# EOF eigenvectors" << std::endl;
 	  for (int nn=0; nn<rank3; nn++) {
 	    for (int oo=0; oo<rank3; oo++)
-	      mout << std::setw(12) << evecVar.Transpose()[nn+1][oo+1];
+	      mout << std::setw(12) << evecVar.col(nn)[oo];
 	    mout << std::endl;
 	  }
-
-	  Vector initVar(1, rank3);
+	  
+	  Eigen::VectorXd initVar(rank3);
 	  for (int nn=0; nn<rank3; nn++) {
-	    initVar[nn+1] = accum_cos[mm][nn] * accum_cos[mm][nn];
-	    if (mm) initVar[nn+1] += accum_sin[mm][nn] * accum_sin[mm][nn];
-	    initVar[nn+1] = sqrt(initVar[nn+1]);
+	    initVar[nn] = accum_cos[mm][nn] * accum_cos[mm][nn];
+	    if (mm) initVar[nn] += accum_sin[mm][nn] * accum_sin[mm][nn];
+	    initVar[nn] = sqrt(initVar[nn]);
 	  }
 
-	  eofvec = evecVar.Transpose() * initVar;
+	  eofvec = evecVar.transpose() * initVar;
 
 	  // VTK basis
 	  //
 #ifndef STANDALONE
 	  for (int nn=1; nn<=rank3; nn++) {
 	    dump_images_basis_eof(runtag, 0.1, 0.01, 100, 40, mm, nn, eofcount,
-				  evecVar.Transpose()[nn]);
+				  evecVar.col(nn));
 	  }
 #endif
 	}
       }
 
-      Vector dd, cumlJK, snrval;
+      Eigen::VectorXd dd, cumlJK, snrval;
 
       if (PCAVAR) {
 
 	// Projected coefficients
 	//
-	dd = (*pb)[mm]->evecJK.Transpose() * (*pb)[mm]->meanJK;
+	dd = (*pb)[mm]->evecJK.transpose() * (*pb)[mm]->meanJK;
       
 	// Cumulative distribution
 	//
 	cumlJK = (*pb)[mm]->evalJK;
-	for (int nn=2; nn<=rank3; nn++) cumlJK[nn] += cumlJK[nn-1];
-	for (int nn=1; nn<=rank3; nn++) cumlJK[nn] /= cumlJK[rank3];
+	for (int nn=1; nn<rank3; nn++) cumlJK[nn] += cumlJK[nn-1];
+	for (int nn=0; nn<rank3; nn++) cumlJK[nn] /= cumlJK[rank3-1];
 	
 	// SNR vector
 	//
-	snrval.setsize(cumlJK.getlow(), cumlJK.gethigh());
+	snrval.resize(cumlJK.size());
 	
 	// Compute Hall coefficients
 	//
 	for (int nn=0; nn<rank3; nn++) {
 	  
-	  double var = std::max<double>((*pb)[mm]->evalJK[nn+1],
+	  double var = std::max<double>((*pb)[mm]->evalJK[nn],
 					std::numeric_limits<double>::min());
 
 	  //  Noise-to-signal ratio using the CLT estimate for
@@ -4363,13 +4225,13 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 	  if (subsamp)
 	    var *= static_cast<double>(nbodstot) / static_cast<double>(sampT);
 
-	  double sqr = dd[nn+1]*dd[nn+1];
+	  double sqr = dd[nn]*dd[nn];
 
-	  snrval[nn+1] = sqrt(sqr/var);
+	  snrval[nn] = sqrt(sqr/var);
 	  
 	  double b = var/sqr/nbodstot;
 	  
-	  (*pb)[mm]->ratio[nn+1] = b;
+	  (*pb)[mm]->ratio[nn] = b;
 
 	  minSNR = std::min<double>(minSNR, 1.0/b);
 	  maxSNR = std::max<double>(maxSNR, 1.0/b);
@@ -4379,7 +4241,7 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 	if (vtkpca) vtkpca->Add((*pb)[mm]->meanJK,
 				(*pb)[mm]->ratio, snrval,
 				(*pb)[mm]->evalJK,
-				(*pb)[mm]->evecJK.Transpose(),
+				(*pb)[mm]->evecJK.transpose(),
 				(*pb)[mm]->covrJK,
 				0, mm);
 #endif
@@ -4394,30 +4256,30 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 
 	  if (PCAVAR) {
 	  
-	    double var = std::max<double>((*pb)[mm]->evalJK[nn+1],
+	    double var = std::max<double>((*pb)[mm]->evalJK[nn],
 					  std::numeric_limits<double>::min());
-	    double sqr = dd[nn+1]*dd[nn+1];
-	    double rat = (*pb)[mm]->ratio[nn+1];
+	    double sqr = dd[nn]*dd[nn];
+	    double rat = (*pb)[mm]->ratio[nn];
 
 	    double cof = accum_cos[mm][nn] * accum_cos[mm][nn];
 	    if (mm) cof += accum_sin[mm][nn] * accum_sin[mm][nn];
 
-	    hout << setw(fwid) << dd[nn+1]
+	    hout << setw(fwid) << dd[nn]
 		 << setw(fwid) << sqr
 		 << setw(fwid) << var
-		 << setw(fwid) << cumlJK[nn+1]
-		 << setw(fwid) << snrval[nn+1]*snrval[nn+1]
-		 << setw(fwid) << (*pb)[mm]->ratio[nn+1]
+		 << setw(fwid) << cumlJK[nn]
+		 << setw(fwid) << snrval[nn]*snrval[nn]
+		 << setw(fwid) << (*pb)[mm]->ratio[nn]
 		 << setw(fwid) << 1.0/(1.0 + pow(rat, HEXP))
 		 << setw(fwid) << cof
-		 << setw(fwid) << (*pb)[mm]->covrJK[nn+1][nn+1]
-		 << setw(fwid) << cof/(*pb)[mm]->covrJK[nn+1][nn+1]*nbodstot;
+		 << setw(fwid) << (*pb)[mm]->covrJK(nn, nn)
+		 << setw(fwid) << cof/(*pb)[mm]->covrJK(nn, nn)*nbodstot;
 	  } else {
 	    double cof = accum_cos[mm][nn] * accum_cos[mm][nn];
 	    if (mm) cof += accum_sin[mm][nn] * accum_sin[mm][nn];
 	    hout << setw(fwid) << sqrt(cof);
 	  }
-	  if (PCAEOF) hout << std::setw(fwid) << eofvec[nn+1];
+	  if (PCAEOF) hout << std::setw(fwid) << eofvec[nn];
 	  hout << std::endl;
 	}
 	hout << std::endl;
@@ -4437,14 +4299,14 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
     for (int nth=0; nth<nthrds; nth++) {
 
       if (PCAEOF) 
-	for (auto & v : tvar[nth]) v.zero();
+	for (auto & v : tvar[nth]) v.setZero();
 
       if (PCAVAR) {
 	for (unsigned T=0; T<sampT; T++) {
 	  numbT1[nth][T] = 0;
 	  massT1[nth][T] = 0.0;
-	  for (auto & v : covV[nth][T]) v.zero();
-	  for (auto & v : covM[nth][T]) v.zero();
+	  for (auto & v : covV[nth][T]) v.setZero();
+	  for (auto & v : covM[nth][T]) v.setZero();
 	}
       }
     }
@@ -4461,9 +4323,9 @@ void EmpCylSL::pca_hall(bool compute, bool subsamp)
 
 void EmpCylSL::get_trimmed
 (double snr,
- std::vector<Vector>& ac_cos, std::vector<Vector>& ac_sin,
- std::vector<Vector>* rt_cos, std::vector<Vector>* rt_sin,
- std::vector<Vector>* sn_rat)
+ std::vector<Eigen::VectorXd>& ac_cos, std::vector<Eigen::VectorXd>& ac_sin,
+ std::vector<Eigen::VectorXd>* rt_cos, std::vector<Eigen::VectorXd>* rt_sin,
+ std::vector<Eigen::VectorXd>* sn_rat)
 {
   if (PCAVAR and tk_type != None) {
 
@@ -4481,21 +4343,21 @@ void EmpCylSL::get_trimmed
     // Loop through each harmonic subspace [EVEN cosines]
     //
     
-    Vector ddc(1, rank3), dds(1, rank3), wrk(1, rank3), sig(1, rank3);
+    Eigen::VectorXd ddc(1, rank3), dds(1, rank3), wrk(1, rank3), sig(1, rank3);
     
     for (int mm=0; mm<=MMAX; mm++) {
       
-      ac_cos[mm].setsize(0, NORDER-1);
+      ac_cos[mm].resize(NORDER);
       if (rt_cos) {
-	(*rt_cos)[mm].setsize(0, NORDER-1);
-	(*rt_sin)[mm].setsize(0, NORDER-1);
-	(*sn_rat)[mm].setsize(0, NORDER-1);
+	(*rt_cos)[mm].resize(NORDER);
+	(*rt_sin)[mm].resize(NORDER);
+	(*sn_rat)[mm].resize(NORDER);
       }
       if (mm) {
-	ac_sin[mm].setsize(0, NORDER-1);
+	ac_sin[mm].resize(NORDER);
       }
 
-      sig.zero();
+      sig.setZero();
 
       auto it = pb->find(mm);
       
@@ -4509,11 +4371,11 @@ void EmpCylSL::get_trimmed
 	auto smth = I->ratio;
 
 	if (tk_type == Hall) {
-	  for (int i=smth.getlow(); i<=smth.gethigh(); i++)
+	  for (int i=0; i<smth.size(); i++)
 	    smth[i] = 1.0/(1.0 + pow(snr*smth[i], HEXP));
 	}
 	if (tk_type == Truncate) {
-	  for (int i=smth.getlow(); i<=smth.gethigh(); i++) {
+	  for (int i=0; i<=smth.size(); i++) {
 	    if (1.0/smth[i]>snr) smth[i] = 1.0;
 	    else                 smth[i] = 0.0;
 	  }
@@ -4523,23 +4385,23 @@ void EmpCylSL::get_trimmed
 	// Cosine coefficients
 	{
 	  // Project to decorrelated basis
-	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_cos[mm][nn];
+	  for (int nn=0; nn<rank3; nn++) wrk[nn] = accum_cos[mm][nn];
 	  
-	  ddc = I->evecJK.Transpose() * wrk;
+	  ddc = I->evecJK.transpose() * wrk;
 
 	  // Smooth
-	  wrk = ddc & smth;
+	  for (int nn=0; nn<rank3; nn++) wrk[nn] = ddc[nn] * smth[nn];
 
 	  // Deproject coefficients
 	  ddc = I->evecJK * wrk;
-	  for (int nn=0; nn<rank3; nn++) ac_cos[mm][nn] = ddc[nn+1];
+	  for (int nn=0; nn<rank3; nn++) ac_cos[mm][nn] = ddc[nn];
 
 	  // Accumulate variance for modulus by error propagation
 	  for (int nn=0; nn<rank3; nn++) {
 	    for (int oo=0; oo<rank3; oo++) {
 	      // Columns are eigenvectors
-	      double val = I->evecJK[oo+1][nn+1];
-	      sig[oo+1] += val*val*I->evalJK[nn+1];
+	      double val = I->evecJK(oo, nn);
+	      sig[oo] += val*val*I->evalJK[nn];
 	    }
 	  }
 	}
@@ -4547,19 +4409,19 @@ void EmpCylSL::get_trimmed
 	// Sine coefficients
 	if (mm) {
 	  // Project to decorrelated basis
-	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_sin[mm][nn];
+	  for (int nn=0; nn<rank3; nn++) wrk[nn] = accum_sin[mm][nn];
 	  
-	  dds = I->evecJK.Transpose() * wrk;
+	  dds = I->evecJK.transpose() * wrk;
 
 	  // Smooth
-	  wrk = dds & smth;
+	  for (int nn=0; nn<rank3; nn++) wrk[nn] = dds[nn] * smth[nn];
 
 	  // Deproject coefficients
 	  dds = I->evecJK * wrk;
-	  for (int nn=0; nn<rank3; nn++) ac_sin[mm][nn] = dds[nn+1];
+	  for (int nn=0; nn<rank3; nn++) ac_sin[mm][nn] = dds[nn];
 
 	} else {
-	  dds.zero();
+	  dds.setZero();
 	}
 
 	// BEG: diagnostics
@@ -4569,9 +4431,9 @@ void EmpCylSL::get_trimmed
 	  if (mm) (*rt_sin)[mm] = accum_sin[mm];
 	  
 	  for (int nn=0; nn<rank3; nn++) {
-	    double val = ddc[nn+1]*ddc[nn+1] + dds[nn+1]*dds[nn+1];
-	    if (sig[nn+1]>0.0) 
-	      (*sn_rat)[mm][nn] = val/sig[nn+1];
+	    double val = ddc[nn]*ddc[nn] + dds[nn]*dds[nn];
+	    if (sig[nn]>0.0) 
+	      (*sn_rat)[mm][nn] = val/sig[nn];
 	    else
 	      (*sn_rat)[mm][nn] = 0.0;
 	  }
@@ -4594,7 +4456,7 @@ void EmpCylSL::set_trimmed(double snr, double rem)
     // Loop through each harmonic subspace [EVEN cosines]
     //
     
-    Vector ddc(1, rank3), dds(1, rank3), wrk(1, rank3);
+    Eigen::VectorXd ddc(1, rank3), dds(1, rank3), wrk(1, rank3);
     
     for (int mm=0; mm<=MMAX; mm++) {
       
@@ -4609,11 +4471,11 @@ void EmpCylSL::set_trimmed(double snr, double rem)
 	auto smth = I->ratio;
 
 	if (tk_type == Hall) {
-	  for (int i=smth.getlow(); i<=smth.gethigh(); i++)
+	  for (int i=0; i<smth.size(); i++)
 	    smth[i] = 1.0/(1.0 + pow(snr*smth[i], HEXP));
 	}
 	if (tk_type == Truncate) {
-	  for (int i=smth.getlow(); i<=smth.gethigh(); i++) {
+	  for (int i=0; i<smth.size(); i++) {
 	    if (1.0/smth[i]>snr) smth[i] = 1.0;
 	    else                 smth[i] = 0.0;
 	  }
@@ -4623,70 +4485,70 @@ void EmpCylSL::set_trimmed(double snr, double rem)
 	//
 	{
 	  // Project to decorrelated basis
-	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_cos[mm][nn];
-	  ddc = I->evecJK.Transpose() * wrk;
+	  for (int nn=0; nn<rank3; nn++) wrk[nn] = accum_cos[mm][nn];
+	  ddc = I->evecJK.transpose() * wrk;
 
 	  // Smooth
-	  wrk = ddc & smth;
+	  for (int nn=0; nn<rank3; nn++) wrk[nn] = ddc[nn] * smth[nn];
 
 	  // Deproject coefficients
 	  ddc = I->evecJK * wrk;
-	  for (int nn=0; nn<rank3; nn++) accum_cos[mm][nn] = ddc[nn+1];
+	  for (int nn=0; nn<rank3; nn++) accum_cos[mm][nn] = ddc[nn];
 	}
 
 	// Sine coefficients
 	//
 	if (mm) {
 	  // Project to decorrelated basis
-	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_sin[mm][nn];
-	  dds = I->evecJK.Transpose() * wrk;
+	  for (int nn=0; nn<rank3; nn++) wrk[nn] = accum_sin[mm][nn];
+	  dds = I->evecJK.transpose() * wrk;
 
 	  // Smooth
-	  wrk = dds & smth;
+	  for (int nn=0; nn<rank3; nn++) wrk[nn] = dds[nn] * smth[nn];
 
 	  // Deproject coefficients
 	  dds = I->evecJK * wrk;
-	  for (int nn=0; nn<rank3; nn++) accum_sin[mm][nn] = dds[nn+1];
+	  for (int nn=0; nn<rank3; nn++) accum_sin[mm][nn] = dds[nn];
 
 	} else {
-	  dds.zero();
+	  dds.setZero();
 	}
       }
 
       if (rem>0.0) {
 	double sum = 0.0, cum = 0.0;;
-	for (int nn=0; nn<rank3; nn++) sum += (*pb)[mm]->evalJK[nn+1];
+	for (int nn=0; nn<rank3; nn++) sum += (*pb)[mm]->evalJK[nn];
 	int nf;
 	for (nf=0; nf<rank3; nf++) {
-	  cum += (*pb)[mm]->evalJK[nf+1];
+	  cum += (*pb)[mm]->evalJK[nf];
 	  if (1.0 - cum/sum <= rem) break;
 	}
 	
 	// Project to decorrelated basis
-	for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_cos[mm][nn];
+	for (int nn=0; nn<rank3; nn++) wrk[nn] = accum_cos[mm][nn];
 	
-	dds = (*pb)[mm]->evecJK.Transpose() * wrk;
+	dds = (*pb)[mm]->evecJK.transpose() * wrk;
 
 	// Apply nullity
-	for (int n=nf; n<rank3; n++) dds[n+1] = 0.0;
+	for (int n=nf; n<rank3; n++) dds[n] = 0.0;
 
 	// Deproject coefficients
 	wrk = (*pb)[mm]->evecJK * dds;
-	for (int nn=0; nn<rank3; nn++) accum_cos[mm][nn] = dds[nn+1];
+	for (int nn=0; nn<rank3; nn++) accum_cos[mm][nn] = dds[nn];
 
 	if (mm) {
 	  
 	  // Project to decorrelated basis
-	  for (int nn=0; nn<rank3; nn++) wrk[nn+1] = accum_sin[mm][nn];
+	  for (int nn=0; nn<rank3; nn++) wrk[nn] = accum_sin[mm][nn];
 	
-	  dds = (*pb)[mm]->evecJK.Transpose() * wrk;
+	  dds = (*pb)[mm]->evecJK.transpose() * wrk;
 
 	  // Apply nullity
-	  for (int n=nf; n<rank3; n++) dds[n+1] = 0.0;
+	  for (int n=nf; n<rank3; n++) dds[n] = 0.0;
 
 	  // Deproject coefficients
 	  wrk = (*pb)[mm]->evecJK * dds;
-	  for (int nn=0; nn<rank3; nn++) accum_sin[mm][nn] = dds[nn+1];
+	  for (int nn=0; nn<rank3; nn++) accum_sin[mm][nn] = dds[nn];
 	}
       }
       // END: rem
@@ -4773,36 +4635,36 @@ void EmpCylSL::accumulated_eval(double r, double z, double phi,
       
       p += fac *
 	(
-	 potC[mm][n][ix  ][iy  ] * c00 +
-	 potC[mm][n][ix+1][iy  ] * c10 +
-	 potC[mm][n][ix  ][iy+1] * c01 +
-	 potC[mm][n][ix+1][iy+1] * c11 
+	 potC[mm][n](ix  , iy  ) * c00 +
+	 potC[mm][n](ix+1, iy  ) * c10 +
+	 potC[mm][n](ix  , iy+1) * c01 +
+	 potC[mm][n](ix+1, iy+1) * c11 
 	 );
       
       fr += fac *
 	(
-	 rforceC[mm][n][ix  ][iy  ] * c00 +
-	 rforceC[mm][n][ix+1][iy  ] * c10 +
-	 rforceC[mm][n][ix  ][iy+1] * c01 +
-	 rforceC[mm][n][ix+1][iy+1] * c11
+	 rforceC[mm][n](ix  , iy  ) * c00 +
+	 rforceC[mm][n](ix+1, iy  ) * c10 +
+	 rforceC[mm][n](ix  , iy+1) * c01 +
+	 rforceC[mm][n](ix+1, iy+1) * c11
 	 );
       
       fz += fac *
 	(
-	 zforceC[mm][n][ix  ][iy  ] * c00 +
-	 zforceC[mm][n][ix+1][iy  ] * c10 +
-	 zforceC[mm][n][ix  ][iy+1] * c01 +
-	 zforceC[mm][n][ix+1][iy+1] * c11 
+	 zforceC[mm][n](ix  , iy  ) * c00 +
+	 zforceC[mm][n](ix+1, iy  ) * c10 +
+	 zforceC[mm][n](ix  , iy+1) * c01 +
+	 zforceC[mm][n](ix+1, iy+1) * c11 
 	 );
       
       fac = accum_cos[mm][n] * ssin;
       
       fp += fac * mm *
 	(
-	 potC[mm][n][ix  ][iy  ] * c00 +
-	 potC[mm][n][ix+1][iy  ] * c10 +
-	 potC[mm][n][ix  ][iy+1] * c01 +
-	 potC[mm][n][ix+1][iy+1] * c11 
+	 potC[mm][n](ix  , iy  ) * c00 +
+	 potC[mm][n](ix+1, iy  ) * c10 +
+	 potC[mm][n](ix  , iy+1) * c01 +
+	 potC[mm][n](ix+1, iy+1) * c11 
 	 );
       
       
@@ -4812,36 +4674,36 @@ void EmpCylSL::accumulated_eval(double r, double z, double phi,
 	
 	p += fac *
 	  (
-	   potS[mm][n][ix  ][iy  ] * c00 +
-	   potS[mm][n][ix+1][iy  ] * c10 +
-	   potS[mm][n][ix  ][iy+1] * c01 +
-	   potS[mm][n][ix+1][iy+1] * c11 
+	   potS[mm][n](ix  , iy  ) * c00 +
+	   potS[mm][n](ix+1, iy  ) * c10 +
+	   potS[mm][n](ix  , iy+1) * c01 +
+	   potS[mm][n](ix+1, iy+1) * c11 
 	   );
 	
 	fr += fac *
 	  (
-	   rforceS[mm][n][ix  ][iy  ] * c00 +
-	   rforceS[mm][n][ix+1][iy  ] * c10 +
-	   rforceS[mm][n][ix  ][iy+1] * c01 +
-	   rforceS[mm][n][ix+1][iy+1] * c11
+	   rforceS[mm][n](ix  , iy  ) * c00 +
+	   rforceS[mm][n](ix+1, iy  ) * c10 +
+	   rforceS[mm][n](ix  , iy+1) * c01 +
+	   rforceS[mm][n](ix+1, iy+1) * c11
 	   );
 	
 	fz += fac *
 	  (
-	   zforceS[mm][n][ix  ][iy  ] * c00 +
-	   zforceS[mm][n][ix+1][iy  ] * c10 +
-	   zforceS[mm][n][ix  ][iy+1] * c01 +
-	   zforceS[mm][n][ix+1][iy+1] * c11 
+	   zforceS[mm][n](ix  , iy  ) * c00 +
+	   zforceS[mm][n](ix+1, iy  ) * c10 +
+	   zforceS[mm][n](ix  , iy+1) * c01 +
+	   zforceS[mm][n](ix+1, iy+1) * c11 
 	   );
 	
 	fac = -accum_sin[mm][n] * ccos;
 	
 	fp += fac * mm *
 	  (
-	   potS[mm][n][ix  ][iy  ] * c00 +
-	   potS[mm][n][ix+1][iy  ] * c10 +
-	   potS[mm][n][ix  ][iy+1] * c01 +
-	   potS[mm][n][ix+1][iy+1] * c11 
+	   potS[mm][n](ix  , iy  ) * c00 +
+	   potS[mm][n](ix+1, iy  ) * c10 +
+	   potS[mm][n](ix  , iy+1) * c01 +
+	   potS[mm][n](ix+1, iy+1) * c11 
 	   );
 	
       }
@@ -4920,10 +4782,10 @@ double EmpCylSL::accumulated_dens_eval(double r, double z, double phi,
 
       ans += fac *
 	(
-	 densC[mm][n][ix  ][iy  ] * c00 +
-	 densC[mm][n][ix+1][iy  ] * c10 +
-	 densC[mm][n][ix  ][iy+1] * c01 +
-	 densC[mm][n][ix+1][iy+1] * c11 
+	 densC[mm][n](ix  , iy  ) * c00 +
+	 densC[mm][n](ix+1, iy  ) * c10 +
+	 densC[mm][n](ix  , iy+1) * c01 +
+	 densC[mm][n](ix+1, iy+1) * c11 
 	 );
 
       if (mm) {
@@ -4932,10 +4794,10 @@ double EmpCylSL::accumulated_dens_eval(double r, double z, double phi,
 
 	ans += fac *
 	  (
-	   densS[mm][n][ix  ][iy  ] * c00 +
-	   densS[mm][n][ix+1][iy  ] * c10 +
-	   densS[mm][n][ix  ][iy+1] * c01 +
-	   densS[mm][n][ix+1][iy+1] * c11 
+	   densS[mm][n](ix  , iy  ) * c00 +
+	   densS[mm][n](ix+1, iy  ) * c10 +
+	   densS[mm][n](ix  , iy+1) * c01 +
+	   densS[mm][n](ix+1, iy+1) * c11 
 	   );
       }
 
@@ -4950,10 +4812,11 @@ double EmpCylSL::accumulated_dens_eval(double r, double z, double phi,
 
 
   
-void EmpCylSL::get_pot(Matrix& Vc, Matrix& Vs, double r, double z)
+void EmpCylSL::get_pot(Eigen::MatrixXd& Vc, Eigen::MatrixXd& Vs,
+		       double r, double z)
 {
-  Vc.setsize(0, max(1,MMAX), 0, rank3-1);
-  Vs.setsize(0, max(1,MMAX), 0, rank3-1);
+  Vc.resize(max(1,MMAX)+1, rank3);
+  Vs.resize(max(1,MMAX)+1, rank3);
 
   if (z/ASCALE > Rtable) z =  Rtable*ASCALE;
   if (z/ASCALE <-Rtable) z = -Rtable*ASCALE;
@@ -5001,22 +4864,22 @@ void EmpCylSL::get_pot(Matrix& Vc, Matrix& Vs, double r, double z)
 
     for (int n=0; n<rank3; n++) {
 
-      Vc[mm][n] = fac *
+      Vc(mm, n) = fac *
 	(
-	 potC[mm][n][ix  ][iy  ] * c00 +
-	 potC[mm][n][ix+1][iy  ] * c10 +
-	 potC[mm][n][ix  ][iy+1] * c01 +
-	 potC[mm][n][ix+1][iy+1] * c11 
+	 potC[mm][n](ix  , iy  ) * c00 +
+	 potC[mm][n](ix+1, iy  ) * c10 +
+	 potC[mm][n](ix  , iy+1) * c01 +
+	 potC[mm][n](ix+1, iy+1) * c11 
 	 );
 
       if (mm) {
 
-	Vs[mm][n] = fac *
+	Vs(mm, n) = fac *
 	  (
-	   potS[mm][n][ix  ][iy  ] * c00 +
-	   potS[mm][n][ix+1][iy  ] * c10 +
-	   potS[mm][n][ix  ][iy+1] * c01 +
-	   potS[mm][n][ix+1][iy+1] * c11 
+	   potS[mm][n](ix  , iy  ) * c00 +
+	   potS[mm][n](ix+1, iy  ) * c10 +
+	   potS[mm][n](ix  , iy+1) * c01 +
+	   potS[mm][n](ix+1, iy+1) * c11 
 	   );
       }
 
@@ -5087,43 +4950,43 @@ void EmpCylSL::get_all(int mm, int nn,
 
   p += ccos *
     (
-     potC[mm][nn][ix  ][iy  ] * c00 +
-     potC[mm][nn][ix+1][iy  ] * c10 +
-     potC[mm][nn][ix  ][iy+1] * c01 +
-     potC[mm][nn][ix+1][iy+1] * c11 
-	 );
+     potC[mm][nn](ix  , iy  ) * c00 +
+     potC[mm][nn](ix+1, iy  ) * c10 +
+     potC[mm][nn](ix  , iy+1) * c01 +
+     potC[mm][nn](ix+1, iy+1) * c11 
+     );
 
   fr += ccos *
     (
-     rforceC[mm][nn][ix  ][iy  ] * c00 +
-     rforceC[mm][nn][ix+1][iy  ] * c10 +
-     rforceC[mm][nn][ix  ][iy+1] * c01 +
-     rforceC[mm][nn][ix+1][iy+1] * c11
-	 );
+     rforceC[mm][nn](ix  , iy  ) * c00 +
+     rforceC[mm][nn](ix+1, iy  ) * c10 +
+     rforceC[mm][nn](ix  , iy+1) * c01 +
+     rforceC[mm][nn](ix+1, iy+1) * c11
+     );
   
   fz += ccos *
     (
-     zforceC[mm][nn][ix  ][iy  ] * c00 +
-     zforceC[mm][nn][ix+1][iy  ] * c10 +
-     zforceC[mm][nn][ix  ][iy+1] * c01 +
-     zforceC[mm][nn][ix+1][iy+1] * c11 
+     zforceC[mm][nn](ix  , iy  ) * c00 +
+     zforceC[mm][nn](ix+1, iy  ) * c10 +
+     zforceC[mm][nn](ix  , iy+1) * c01 +
+     zforceC[mm][nn](ix+1, iy+1) * c11 
      );
   
   fp += ssin * mm *
     (
-     potC[mm][nn][ix  ][iy  ] * c00 +
-     potC[mm][nn][ix+1][iy  ] * c10 +
-     potC[mm][nn][ix  ][iy+1] * c01 +
-     potC[mm][nn][ix+1][iy+1] * c11 
+     potC[mm][nn](ix  , iy  ) * c00 +
+     potC[mm][nn](ix+1, iy  ) * c10 +
+     potC[mm][nn](ix  , iy+1) * c01 +
+     potC[mm][nn](ix+1, iy+1) * c11 
      );
   
   if (DENS)
   d += ccos *
     (
-     densC[mm][nn][ix  ][iy  ] * c00 +
-     densC[mm][nn][ix+1][iy  ] * c10 +
-     densC[mm][nn][ix  ][iy+1] * c01 +
-     densC[mm][nn][ix+1][iy+1] * c11 
+     densC[mm][nn](ix  , iy  ) * c00 +
+     densC[mm][nn](ix+1, iy  ) * c10 +
+     densC[mm][nn](ix  , iy+1) * c01 +
+     densC[mm][nn](ix+1, iy+1) * c11 
      );
 
 
@@ -5131,43 +4994,43 @@ void EmpCylSL::get_all(int mm, int nn,
     
     p += ssin *
       (
-       potS[mm][nn][ix  ][iy  ] * c00 +
-       potS[mm][nn][ix+1][iy  ] * c10 +
-       potS[mm][nn][ix  ][iy+1] * c01 +
-       potS[mm][nn][ix+1][iy+1] * c11 
+       potS[mm][nn](ix  , iy  ) * c00 +
+       potS[mm][nn](ix+1, iy  ) * c10 +
+       potS[mm][nn](ix  , iy+1) * c01 +
+       potS[mm][nn](ix+1, iy+1) * c11 
        );
 
     fr += ssin *
       (
-       rforceS[mm][nn][ix  ][iy  ] * c00 +
-       rforceS[mm][nn][ix+1][iy  ] * c10 +
-       rforceS[mm][nn][ix  ][iy+1] * c01 +
-       rforceS[mm][nn][ix+1][iy+1] * c11
+       rforceS[mm][nn](ix  , iy  ) * c00 +
+       rforceS[mm][nn](ix+1, iy  ) * c10 +
+       rforceS[mm][nn](ix  , iy+1) * c01 +
+       rforceS[mm][nn](ix+1, iy+1) * c11
        );
 
     fz += ssin *
       (
-       zforceS[mm][nn][ix  ][iy  ] * c00 +
-       zforceS[mm][nn][ix+1][iy  ] * c10 +
-       zforceS[mm][nn][ix  ][iy+1] * c01 +
-	   zforceS[mm][nn][ix+1][iy+1] * c11 
+       zforceS[mm][nn](ix  , iy  ) * c00 +
+       zforceS[mm][nn](ix+1, iy  ) * c10 +
+       zforceS[mm][nn](ix  , iy+1) * c01 +
+       zforceS[mm][nn](ix+1, iy+1) * c11 
 	   );
 
     fp += -ccos * mm *
 	  (
-	   potS[mm][nn][ix  ][iy  ] * c00 +
-	   potS[mm][nn][ix+1][iy  ] * c10 +
-	   potS[mm][nn][ix  ][iy+1] * c01 +
-	   potS[mm][nn][ix+1][iy+1] * c11 
+	   potS[mm][nn](ix  , iy  ) * c00 +
+	   potS[mm][nn](ix+1, iy  ) * c10 +
+	   potS[mm][nn](ix  , iy+1) * c01 +
+	   potS[mm][nn](ix+1, iy+1) * c11 
 	   );
       
     if (DENS)
     d += ssin *
       (
-       densS[mm][nn][ix  ][iy  ] * c00 +
-       densS[mm][nn][ix+1][iy  ] * c10 +
-       densS[mm][nn][ix  ][iy+1] * c01 +
-       densS[mm][nn][ix+1][iy+1] * c11 
+       densS[mm][nn](ix  , iy  ) * c00 +
+       densS[mm][nn](ix+1, iy  ) * c10 +
+       densS[mm][nn](ix  , iy+1) * c01 +
+       densS[mm][nn](ix+1, iy+1) * c11 
        );
 
   }
@@ -5197,22 +5060,22 @@ void EmpCylSL::dump_coefs(ostream& out)
 }
 
 void EmpCylSL::set_coefs(int m1,
-			 const Vector& cos1, const Vector& sin1, bool zero1)
+			 const Eigen::VectorXd& cos1, const Eigen::VectorXd& sin1, bool zero1)
 {
   // Zero the coefficients
   //
   if (zero1) {
-    for (int mm=0; mm<=MMAX; mm++) accum_cos[mm].zero();
-    for (int mm=1; mm<=MMAX; mm++) accum_sin[mm].zero();
+    for (int mm=0; mm<=MMAX; mm++) accum_cos[mm].setZero();
+    for (int mm=1; mm<=MMAX; mm++) accum_sin[mm].setZero();
 
     coefs_made = vector<short>(multistep+1, true);
   }
 
-  int nmin = std::min<int>(rank3, cos1.getlength());
+  int nmin = std::min<int>(rank3, cos1.size());
   if (m1 <= MMAX) {
     for (int j=0; j<nmin; j++) accum_cos[m1][j] = cos1[j];
     if (m1) {
-      nmin = std::min<int>(rank3, sin1.getlength());
+      nmin = std::min<int>(rank3, sin1.size());
       for (int j=0; j<nmin; j++) accum_sin[m1][j] = sin1[j];
     }
   }
@@ -5225,8 +5088,8 @@ void EmpCylSL::set_coefs(int m1,
   // Zero the coefficients
   //
   if (zero1) {
-    for (int mm=0; mm<=MMAX; mm++) accum_cos[mm].zero();
-    for (int mm=1; mm<=MMAX; mm++) accum_sin[mm].zero();
+    for (int mm=0; mm<=MMAX; mm++) accum_cos[mm].setZero();
+    for (int mm=1; mm<=MMAX; mm++) accum_sin[mm].setZero();
 
     coefs_made = vector<short>(multistep+1, true);
   }
@@ -5241,7 +5104,7 @@ void EmpCylSL::set_coefs(int m1,
   }
 }
 
-void EmpCylSL::get_coefs(int m1, Vector& cos1, Vector& sin1)
+void EmpCylSL::get_coefs(int m1, Eigen::VectorXd& cos1, Eigen::VectorXd& sin1)
 {
   if (m1 <= MMAX) {
     cos1 = accum_cos[m1];
@@ -5409,30 +5272,30 @@ void EmpCylSL::dump_basis(const string& name, int step, double Rmax)
 
 	  outC << setw(15) 
 	       << fac*(
-		       potC[mm][n][ix  ][iy  ] * c00 +
-		       potC[mm][n][ix+1][iy  ] * c10 +
-		       potC[mm][n][ix  ][iy+1] * c01 +
-		       potC[mm][n][ix+1][iy+1] * c11 )
+		       potC[mm][n](ix  , iy  ) * c00 +
+		       potC[mm][n](ix+1, iy  ) * c10 +
+		       potC[mm][n](ix  , iy+1) * c01 +
+		       potC[mm][n](ix+1, iy+1) * c11 )
 	       << setw(15)
 	       << fac*(
-		       rforceC[mm][n][ix  ][iy  ] * c00 +
-		       rforceC[mm][n][ix+1][iy  ] * c10 +
-		       rforceC[mm][n][ix  ][iy+1] * c01 +
-		       rforceC[mm][n][ix+1][iy+1] * c11 )
+		       rforceC[mm][n](ix  , iy  ) * c00 +
+		       rforceC[mm][n](ix+1, iy  ) * c10 +
+		       rforceC[mm][n](ix  , iy+1) * c01 +
+		       rforceC[mm][n](ix+1, iy+1) * c11 )
 	       << setw(15)
 	       << fac*(
-		       zforceC[mm][n][ix  ][iy  ] * c00 +
-		       zforceC[mm][n][ix+1][iy  ] * c10 +
-		       zforceC[mm][n][ix  ][iy+1] * c01 +
-		       zforceC[mm][n][ix+1][iy+1] * c11 );
+		       zforceC[mm][n](ix  , iy  ) * c00 +
+		       zforceC[mm][n](ix+1, iy  ) * c10 +
+		       zforceC[mm][n](ix  , iy+1) * c01 +
+		       zforceC[mm][n](ix+1, iy+1) * c11 );
 	  
 	  if (DENS)
 	    outC << setw(15)
 		 << fac*(
-			 densC[mm][n][ix  ][iy  ] * c00 +
-			 densC[mm][n][ix+1][iy  ] * c10 +
-			 densC[mm][n][ix  ][iy+1] * c01 +
-			 densC[mm][n][ix+1][iy+1] * c11 );
+			 densC[mm][n](ix  , iy  ) * c00 +
+			 densC[mm][n](ix+1, iy  ) * c10 +
+			 densC[mm][n](ix  , iy+1) * c01 +
+			 densC[mm][n](ix+1, iy+1) * c11 );
 
 	  outC << endl;
 
@@ -5441,30 +5304,30 @@ void EmpCylSL::dump_basis(const string& name, int step, double Rmax)
 	    outS << setw(15) << r << setw(15) << z
 		 << setw(15)
 		 << fac*(
-			 potS[mm][n][ix  ][iy  ] * c00 +
-			 potS[mm][n][ix+1][iy  ] * c10 +
-			 potS[mm][n][ix  ][iy+1] * c01 +
-			 potS[mm][n][ix+1][iy+1] * c11 )
+			 potS[mm][n](ix  , iy  ) * c00 +
+			 potS[mm][n](ix+1, iy  ) * c10 +
+			 potS[mm][n](ix  , iy+1) * c01 +
+			 potS[mm][n](ix+1, iy+1) * c11 )
 		 << setw(15)
 		 << fac*(
-			 rforceS[mm][n][ix  ][iy  ] * c00 +
-			 rforceS[mm][n][ix+1][iy  ] * c10 +
-			 rforceS[mm][n][ix  ][iy+1] * c01 +
-			 rforceS[mm][n][ix+1][iy+1] * c11 )
+			 rforceS[mm][n](ix  , iy  ) * c00 +
+			 rforceS[mm][n](ix+1, iy  ) * c10 +
+			 rforceS[mm][n](ix  , iy+1) * c01 +
+			 rforceS[mm][n](ix+1, iy+1) * c11 )
 		 << setw(15)
 		 << fac*(
-			 zforceS[mm][n][ix  ][iy  ] * c00 +
-			 zforceS[mm][n][ix+1][iy  ] * c10 +
-			 zforceS[mm][n][ix  ][iy+1] * c01 +
-			 zforceS[mm][n][ix+1][iy+1] * c11 );
+			 zforceS[mm][n](ix  , iy  ) * c00 +
+			 zforceS[mm][n](ix+1, iy  ) * c10 +
+			 zforceS[mm][n](ix  , iy+1) * c01 +
+			 zforceS[mm][n](ix+1, iy+1) * c11 );
 	    
 	    if (DENS)
 	      outS << setw(15) 
 		   << fac*(
-			   densS[mm][n][ix  ][iy  ] * c00 +
-			   densS[mm][n][ix+1][iy  ] * c10 +
-			   densS[mm][n][ix  ][iy+1] * c01 +
-			   densS[mm][n][ix+1][iy+1] * c11 );
+			   densS[mm][n](ix  , iy  ) * c00 +
+			   densS[mm][n](ix+1, iy  ) * c10 +
+			   densS[mm][n](ix  , iy+1) * c01 +
+			   densS[mm][n](ix+1, iy+1) * c11 );
 	    outS << endl;
 	  }
 
@@ -5896,30 +5759,29 @@ double EmpCylSL::d_xi_to_r(double xi)
 
 #define MINEPS 1.0e-10
 
-void EmpCylSL::legendre_R(int lmax, double x, Matrix& p)
+void EmpCylSL::legendre_R(int lmax, double x, Eigen::MatrixXd& p)
 {
   double fact, somx2, pll, pl1, pl2;
-  int m, l;
 
-  p[0][0] = pll = 1.0;
+  p(0, 0) = pll = 1.0;
   if (lmax > 0) {
     somx2 = sqrt( (1.0 - x)*(1.0 + x) );
     fact = 1.0;
-    for (m=1; m<=lmax; m++) {
+    for (int m=1; m<=lmax; m++) {
       pll *= -fact*somx2;
-      p[m][m] = pll;
-      if (std::isnan(p[m][m]))
+      p(m, m) = pll;
+      if (std::isnan(p(m, m)))
 	cerr << "legendre_R: p[" << m << "][" << m << "]: pll=" << pll << endl;
       fact += 2.0;
     }
   }
 
-  for (m=0; m<lmax; m++) {
-    pl2 = p[m][m];
-    p[m+1][m] = pl1 = x*(2*m+1)*pl2;
-    for (l=m+2; l<=lmax; l++) {
-      p[l][m] = pll = (x*(2*l-1)*pl1-(l+m-1)*pl2)/(l-m);
-      if (std::isnan(p[l][m]))
+  for (int m=0; m<lmax; m++) {
+    pl2 = p(m, m);
+    p(m+1, m) = pl1 = x*(2*m+1)*pl2;
+    for (int l=m+2; l<=lmax; l++) {
+      p(l, m) = pll = (x*(2*l-1)*pl1-(l+m-1)*pl2)/(l-m);
+      if (std::isnan(p(l, m)))
 	cerr << "legendre_R: p[" << l << "][" << m << "]: pll=" << pll << endl;
 
       pl2 = pl1;
@@ -5929,35 +5791,36 @@ void EmpCylSL::legendre_R(int lmax, double x, Matrix& p)
 
   if (std::isnan(x))
     cerr << "legendre_R: x" << endl;
-  for(l=0; l<=lmax; l++)
-    for (m=0; m<=l; m++)
-      if (std::isnan(p[l][m]))
+
+  for(int l=0; l<=lmax; l++)
+    for (int m=0; m<=l; m++)
+      if (std::isnan(p(l, m)))
 	cerr << "legendre_R: p[" << l << "][" << m << "] lmax=" 
 	     << lmax << endl;
 
 }
 
-void EmpCylSL::dlegendre_R(int lmax, double x, Matrix &p, Matrix &dp)
+void EmpCylSL::dlegendre_R(int lmax, double x,
+			   Eigen::MatrixXd &p, Eigen::MatrixXd &dp)
 {
   double fact, somx2, pll, pl1, pl2;
-  int m, l;
 
-  p[0][0] = pll = 1.0;
+  p(0, 0) = pll = 1.0;
   if (lmax > 0) {
     somx2 = sqrt( (1.0 - x)*(1.0 + x) );
     fact = 1.0;
-    for (m=1; m<=lmax; m++) {
+    for (int m=1; m<=lmax; m++) {
       pll *= -fact*somx2;
-      p[m][m] = pll;
+      p(m, m) = pll;
       fact += 2.0;
     }
   }
 
-  for (m=0; m<lmax; m++) {
-    pl2 = p[m][m];
-    p[m+1][m] = pl1 = x*(2*m+1)*pl2;
-    for (l=m+2; l<=lmax; l++) {
-      p[l][m] = pll = (x*(2*l-1)*pl1-(l+m-1)*pl2)/(l-m);
+  for (int m=0; m<lmax; m++) {
+    pl2 = p(m, m);
+    p(m+1, m) = pl1 = x*(2*m+1)*pl2;
+    for (int l=m+2; l<=lmax; l++) {
+      p(l, m) = pll = (x*(2*l-1)*pl1-(l+m-1)*pl2)/(l-m);
       pl2 = pl1;
       pl1 = pll;
     }
@@ -5969,15 +5832,16 @@ void EmpCylSL::dlegendre_R(int lmax, double x, Matrix &p, Matrix &dp)
   }
 
   somx2 = 1.0/(x*x - 1.0);
-  dp[0][0] = 0.0;
-  for (l=1; l<=lmax; l++) {
-    for (m=0; m<l; m++)
-      dp[l][m] = somx2*(x*l*p[l][m] - (l+m)*p[l-1][m]);
-    dp[l][l] = somx2*x*l*p[l][l];
+  dp(0, 0) = 0.0;
+  for (int l=1; l<=lmax; l++) {
+    for (int m=0; m<l; m++)
+      dp(l, m) = somx2*(x*l*p(l, m) - (l+m)*p(l-1, m));
+    dp(l, l) = somx2*x*l*p(l, l);
   }
 }
 
-void EmpCylSL::sinecosine_R(int mmax, double phi, Vector& c, Vector& s)
+void EmpCylSL::sinecosine_R(int mmax, double phi,
+			    Eigen::VectorXd& c, Eigen::VectorXd& s)
 {
   int m;
 
@@ -6000,14 +5864,10 @@ void EmpCylSL::multistep_update_begin()
 				// Clear the update matricies
   for (int nth=0; nth<nthrds; nth++) {
     for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
-      differC1[nth][M].setsize(0, MMAX, 0, rank3-1);
-      differS1[nth][M].setsize(0, MMAX, 0, rank3-1);
-
-      for (int mm=0; mm<=MMAX; mm++) {
-	for (int nn=0; nn<rank3; nn++) {
-	  differC1[nth][M][mm][nn] = differS1[nth][M][mm][nn] = 0.0;
-	}
-      }
+      differC1[nth][M].resize(MMAX+1, rank3);
+      differS1[nth][M].resize(MMAX+1, rank3);
+      differC1[nth][M].setZero();
+      differS1[nth][M].setZero();
     }
   }
 
@@ -6033,17 +5893,17 @@ void EmpCylSL::multistep_update_finish()
       offset1 = mm*rank3;
 
       for (int k=0; k<rank3; k++) 
-	workC1[offset0+offset1+k] = differC1[0][M][mm][k];
+	workC1[offset0+offset1+k] = differC1[0][M](mm, k);
       for (int nth=1; nth<nthrds; nth++)
 	for (int k=0; k<rank3; k++) 
-	  workC1[offset0+offset1+k] += differC1[nth][M][mm][k];
+	  workC1[offset0+offset1+k] += differC1[nth][M](mm, k);
 
       if (mm) {
 	for (int k=0; k<rank3; k++) 
-	  workS1[offset0+offset1+k] = differS1[0][M][mm][k];
+	  workS1[offset0+offset1+k] = differS1[0][M](mm, k);
 	for (int nth=1; nth<nthrds; nth++)
 	  for (int k=0; k<rank3; k++) 
-	    workS1[offset0+offset1+k] += differS1[nth][M][mm][k];
+	    workS1[offset0+offset1+k] += differS1[nth][M](mm, k);
 
       }
     }
@@ -6143,14 +6003,14 @@ void EmpCylSL::multistep_update(int from, int to, double r, double z, double phi
     msin = sin(phi*mm);
 
     for (int nn=0; nn<rank3; nn++) {
-      double hold = norm * mass * mcos * vc[id][mm][nn];
-      differC1[id][from][mm][nn] -= hold;
-      differC1[id][to  ][mm][nn] += hold;
+      double hold = norm * mass * mcos * vc[id](mm, nn);
+      differC1[id][from](mm, nn) -= hold;
+      differC1[id][to  ](mm, nn) += hold;
 
       if (mm>0) {
-	hold = norm * mass * msin * vs[id][mm][nn];
-	differS1[id][from][mm][nn] -= hold;
-	differS1[id][to  ][mm][nn] += hold;
+	hold = norm * mass * msin * vs[id](mm, nn);
+	differS1[id][from](mm, nn) -= hold;
+	differS1[id][to  ](mm, nn) += hold;
       }
     }
   }
@@ -6484,7 +6344,7 @@ void EmpCylSL::dump_images_basis_pca(const string& runtag,
   for (auto & v : dataC) v.resize(OUTR*OUTZ);
   if (M) for (auto & v : dataS) v.resize(OUTR*OUTZ);
 
-  Vector PP(1, NORDER), DD(1, NORDER), RF(1, NORDER), ZF(1, NORDER);
+  Eigen::VectorXd PP(1, NORDER), DD(1, NORDER), RF(1, NORDER), ZF(1, NORDER);
   
   VtkGrid vtk(OUTR, OUTZ, 1, rmin, XYOUT, -ZOUT, ZOUT, 0, 0);
 
@@ -6505,12 +6365,12 @@ void EmpCylSL::dump_images_basis_pca(const string& runtag,
       //                    |
       //                    + selects COSINE only
       
-      Vector tp = (*pb)[M]->evecJK.Transpose()[N];
+      Eigen::VectorXd tp = (*pb)[M]->evecJK.row(N);
 
-      dataC[0][ir*OUTZ + iz] = tp * PP;
-      dataC[1][ir*OUTZ + iz] = tp * DD;
-      dataC[2][ir*OUTZ + iz] = tp * RF;
-      dataC[3][ir*OUTZ + iz] = tp * ZF;
+      dataC[0][ir*OUTZ + iz] = tp.adjoint() * PP;
+      dataC[1][ir*OUTZ + iz] = tp.adjoint() * DD;
+      dataC[2][ir*OUTZ + iz] = tp.adjoint() * RF;
+      dataC[3][ir*OUTZ + iz] = tp.adjoint() * ZF;
 
       //! Sine space: only compute for M>0
       if (M) {
@@ -6518,10 +6378,10 @@ void EmpCylSL::dump_images_basis_pca(const string& runtag,
 	for (int n=0; n<NORDER; n++)
 	  get_all(M, n, r, z, phi, PP[n+1], DD[n+1], RF[n+1], ZF[n+1], tmp);
 
-	dataS[0][ir*OUTZ + iz] = tp * PP;
-	dataS[1][ir*OUTZ + iz] = tp * DD;
-	dataS[2][ir*OUTZ + iz] = tp * RF;
-	dataS[3][ir*OUTZ + iz] = tp * ZF;
+	dataS[0][ir*OUTZ + iz] = tp.adjoint() * PP;
+	dataS[1][ir*OUTZ + iz] = tp.adjoint() * DD;
+	dataS[2][ir*OUTZ + iz] = tp.adjoint() * RF;
+	dataS[3][ir*OUTZ + iz] = tp.adjoint() * ZF;
       }
     }
   }
@@ -6538,7 +6398,7 @@ void EmpCylSL::dump_images_basis_pca(const string& runtag,
 void EmpCylSL::dump_images_basis_eof(const string& runtag,
 				     double XYOUT, double ZOUT, 
 				     int OUTR, int OUTZ, int M, int N, int K,
-				     Vector& tp)
+				     const Eigen::VectorXd& tp)
 {
   if (myid!=0) return;
   if (pb == 0) return;
@@ -6556,7 +6416,7 @@ void EmpCylSL::dump_images_basis_eof(const string& runtag,
   for (auto & v : dataC) v.resize(OUTR*OUTZ);
   if (M) for (auto & v : dataS) v.resize(OUTR*OUTZ);
 
-  Vector PP(1, NORDER), DD(1, NORDER), RF(1, NORDER), ZF(1, NORDER);
+  Eigen::VectorXd PP(1, NORDER), DD(1, NORDER), RF(1, NORDER), ZF(1, NORDER);
   
   VtkGrid vtk(OUTR, OUTZ, 1, rmin, XYOUT, -ZOUT, ZOUT, 0, 0);
 
@@ -6578,10 +6438,10 @@ void EmpCylSL::dump_images_basis_eof(const string& runtag,
       //                    + selects COSINE only
       
 
-      dataC[0][ir*OUTZ + iz] = tp * PP;
-      dataC[1][ir*OUTZ + iz] = tp * DD;
-      dataC[2][ir*OUTZ + iz] = tp * RF;
-      dataC[3][ir*OUTZ + iz] = tp * ZF;
+      dataC[0][ir*OUTZ + iz] = tp.adjoint() * PP;
+      dataC[1][ir*OUTZ + iz] = tp.adjoint() * DD;
+      dataC[2][ir*OUTZ + iz] = tp.adjoint() * RF;
+      dataC[3][ir*OUTZ + iz] = tp.adjoint() * ZF;
 
       //! Sine space: only compute for M>0
       if (M) {
@@ -6589,10 +6449,10 @@ void EmpCylSL::dump_images_basis_eof(const string& runtag,
 	for (int n=0; n<NORDER; n++)
 	  get_all(M, n, r, z, phi, PP[n+1], DD[n+1], RF[n+1], ZF[n+1], tmp);
 
-	dataS[0][ir*OUTZ + iz] = tp * PP;
-	dataS[1][ir*OUTZ + iz] = tp * DD;
-	dataS[2][ir*OUTZ + iz] = tp * RF;
-	dataS[3][ir*OUTZ + iz] = tp * ZF;
+	dataS[0][ir*OUTZ + iz] = tp.adjoint() * PP;
+	dataS[1][ir*OUTZ + iz] = tp.adjoint() * DD;
+	dataS[2][ir*OUTZ + iz] = tp.adjoint() * RF;
+	dataS[3][ir*OUTZ + iz] = tp.adjoint() * ZF;
       }
     }
   }
@@ -6630,8 +6490,8 @@ void EmpCylSL::compare_basis(const EmpCylSL *p)
       for (int ix=0; ix<=NUMX; ix++)
 	for (int iy=0; iy<=NUMY; iy++) {
 
-	  double one = potC[m][v][ix][iy];
-	  double two = p->potC[m][v][ix][iy];
+	  double one = potC[m][v](ix, iy);
+	  double two = p->potC[m][v](ix, iy);
 	  
 	  double cur = DBdif["potC"][m];
 	  double dif = fabs(one-two);
@@ -6645,8 +6505,8 @@ void EmpCylSL::compare_basis(const EmpCylSL *p)
       for (int ix=0; ix<=NUMX; ix++)
 	for (int iy=0; iy<=NUMY; iy++) {
 
-	  double one = rforceC[m][v][ix][iy];
-	  double two = p->rforceC[m][v][ix][iy];
+	  double one = rforceC[m][v](ix, iy);
+	  double two = p->rforceC[m][v](ix, iy);
 	  
 	  double cur = DBdif["rforceC"][m];
 	  double dif = fabs(one-two);
@@ -6660,8 +6520,8 @@ void EmpCylSL::compare_basis(const EmpCylSL *p)
       for (int ix=0; ix<=NUMX; ix++)
 	for (int iy=0; iy<=NUMY; iy++) {
 
-	  double one = zforceC[m][v][ix][iy];
-	  double two = p->zforceC[m][v][ix][iy];
+	  double one = zforceC[m][v](ix, iy);
+	  double two = p->zforceC[m][v](ix, iy);
 	  
 	  double cur = DBdif["zforceC"][m];
 	  double dif = fabs(one-two);
@@ -6676,8 +6536,8 @@ void EmpCylSL::compare_basis(const EmpCylSL *p)
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++) {
 
-	    double one = densC[m][v][ix][iy];
-	    double two = p->densC[m][v][ix][iy];
+	    double one = densC[m][v](ix, iy);
+	    double two = p->densC[m][v](ix, iy);
 	    
 	    double cur = DBdif["densC"][m];
 	    double dif = fabs(one-two);
@@ -6702,8 +6562,8 @@ void EmpCylSL::compare_basis(const EmpCylSL *p)
       for (int ix=0; ix<=NUMX; ix++)
 	for (int iy=0; iy<=NUMY; iy++) {
 	  
-	  double one = potS[m][v][ix][iy];
-	  double two = p->potS[m][v][ix][iy];
+	  double one = potS[m][v](ix, iy);
+	  double two = p->potS[m][v](ix, iy);
 	  
 	  double cur = DBdif["potS"][m];
 	  double dif = fabs(one-two);
@@ -6716,8 +6576,8 @@ void EmpCylSL::compare_basis(const EmpCylSL *p)
       
       for (int ix=0; ix<=NUMX; ix++)
 	for (int iy=0; iy<=NUMY; iy++) {
-	  double one = rforceS[m][v][ix][iy];
-	  double two = p->rforceS[m][v][ix][iy];
+	  double one = rforceS[m][v](ix, iy);
+	  double two = p->rforceS[m][v](ix, iy);
 	  
 	  double cur = DBdif["rforceS"][m];
 	  double dif = fabs(one-two);
@@ -6730,8 +6590,8 @@ void EmpCylSL::compare_basis(const EmpCylSL *p)
       
       for (int ix=0; ix<=NUMX; ix++)
 	for (int iy=0; iy<=NUMY; iy++) {
-	  double one = zforceS[m][v][ix][iy];
-	  double two = p->zforceS[m][v][ix][iy];
+	  double one = zforceS[m][v](ix, iy);
+	  double two = p->zforceS[m][v](ix, iy);
 	  
 	  double cur = DBdif["zforceS"][m];
 	  double dif = fabs(one-two);
@@ -6745,8 +6605,8 @@ void EmpCylSL::compare_basis(const EmpCylSL *p)
       if (DENS) {
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++) {
-	    double one = densS[m][v][ix][iy];
-	    double two = p->densS[m][v][ix][iy];
+	    double one = densS[m][v](ix, iy);
+	    double two = p->densS[m][v](ix, iy);
 	    
 	    double cur = DBdif["densS"][m];
 	    double dif = fabs(one-two);
@@ -6865,11 +6725,11 @@ void EmpCylSL::ortho_check(std::ostream& out)
 	      double y = YMIN + dY*iy;
 
 	      sumC += fac * r/d_xi_to_r(x) * d_y_to_z(y) *
-		potC[mm][n1][ix][iy] * densC[mm][n2][ix][iy];
+		potC[mm][n1](ix, iy) * densC[mm][n2](ix, iy);
 
 	      if (mm)
 		sumS += fac * r/d_xi_to_r(x) * d_y_to_z(y) *
-		  potS[mm][n1][ix][iy] * densS[mm][n2][ix][iy];
+		  potS[mm][n1](ix, iy) * densS[mm][n2](ix, iy);
 	    }
 	  }
 
@@ -6932,17 +6792,17 @@ void EmpCylSL::getDensSC(int mm, int n, double R, double z,
   double c11 = delx1*dely1;
   
   dC = 
-    densC[mm][n][ix  ][iy  ] * c00 +
-    densC[mm][n][ix+1][iy  ] * c10 +
-    densC[mm][n][ix  ][iy+1] * c01 +
-    densC[mm][n][ix+1][iy+1] * c11 ;
+    densC[mm][n](ix  , iy  ) * c00 +
+    densC[mm][n](ix+1, iy  ) * c10 +
+    densC[mm][n](ix  , iy+1) * c01 +
+    densC[mm][n](ix+1, iy+1) * c11 ;
 
   if (mm)
     dS = 
-      densS[mm][n][ix  ][iy  ] * c00 +
-      densS[mm][n][ix+1][iy  ] * c10 +
-      densS[mm][n][ix  ][iy+1] * c01 +
-      densS[mm][n][ix+1][iy+1] * c11 ;
+      densS[mm][n](ix  , iy  ) * c00 +
+      densS[mm][n](ix+1, iy  ) * c10 +
+      densS[mm][n](ix  , iy+1) * c01 +
+      densS[mm][n](ix+1, iy+1) * c11 ;
 }
 
 
@@ -6990,15 +6850,15 @@ void EmpCylSL::getPotSC(int mm, int n, double R, double z,
   double c11 = delx1*dely1;
   
   pC = 
-    potC[mm][n][ix  ][iy  ] * c00 +
-    potC[mm][n][ix+1][iy  ] * c10 +
-    potC[mm][n][ix  ][iy+1] * c01 +
-    potC[mm][n][ix+1][iy+1] * c11 ;
+    potC[mm][n](ix  , iy  ) * c00 +
+    potC[mm][n](ix+1, iy  ) * c10 +
+    potC[mm][n](ix  , iy+1) * c01 +
+    potC[mm][n](ix+1, iy+1) * c11 ;
 
   if (mm)
     pS = 
-      potS[mm][n][ix  ][iy  ] * c00 +
-      potS[mm][n][ix+1][iy  ] * c10 +
-      potS[mm][n][ix  ][iy+1] * c01 +
-      potS[mm][n][ix+1][iy+1] * c11 ;
+      potS[mm][n](ix  , iy  ) * c00 +
+      potS[mm][n](ix+1, iy  ) * c10 +
+      potS[mm][n](ix  , iy+1) * c01 +
+      potS[mm][n](ix+1, iy+1) * c11 ;
 }

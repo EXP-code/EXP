@@ -1,16 +1,14 @@
-// This is really -*- C++ -*-
-
-#ifndef _QPDistF_h
-#define _QPDistF_h
+#ifndef _QPDistF_H
+#define _QPDistF_H
 
 #include <iomanip>
 #include <string>
 #include <map>
 
-// #include <biorth.h>
-#include <massmodel.h>
-#include <DiskWithHalo.h>
-#include <orbit.h>
+// #include <biorth.H>
+#include <massmodel.H>
+#include <DiskWithHalo.H>
+#include <orbit.H>
 
 /**
    Compute distribution function for axisymmetric models 
@@ -36,9 +34,9 @@ private:
 
 				// Class variables
   bool df_computed;
-  Vector sigma_E, sigma_K;	// Kernel parameters
-  Vector Egrid, Kgrid;		// Kernel eval. points
-  Vector X;			// Solution vector
+  Eigen::VectorXd sigma_E, sigma_K;	// Kernel parameters
+  Eigen::VectorXd Egrid, Kgrid;		// Kernel eval. points
+  Eigen::VectorXd X;			// Solution vector
   double obj0;			// Objective function sans anisotropy
 				//      constraint
   double obj;			// Total objective function
@@ -46,9 +44,9 @@ private:
 
   int verbose;			// Print out solution if set;
 
-  int NJMAX;			// Vector grid for JMax
+  int NJMAX;			// Eigen::VectorXd grid for JMax
   double Emin, Emax, TOLE;
-  Vector JMAXE, JMAX, JMAX2;
+  Eigen::VectorXd JMAXE, JMAX, JMAX2;
 				// Cumulative grid
   vector<double> pdf, cdf;
   int NUME, NUMK;
@@ -70,8 +68,6 @@ private:
 		double sx, double sy);
   double kernel_xy(double x, double y, double x0, double y0, 
 		double sx, double sy);
-  double* convert(Matrix& a, int mm=0, int nn=0);
-  double* convert(Vector& a, int nn=0);
 
 				// Error function
 
@@ -167,4 +163,4 @@ public:
 
 };
 
-#endif				// QPDistF.h
+#endif				// QPDistF.H

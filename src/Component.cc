@@ -25,7 +25,7 @@
 #include <Orient.H>
 #include <pHOT.H>
 
-#include "expand.h"
+#include "expand.H"
 
 // For sort algorithm below
 bool less_loadb(const loadb_datum& one, const loadb_datum& two)
@@ -2822,7 +2822,7 @@ void Component::fix_positions_cpu(unsigned mlevel)
   }
 
   if ((EJ & Orient::CENTER) && !EJdryrun) {
-    Vector ctr = orient->currentCenter();
+    auto ctr = orient->currentCenter();
     bool ok    = true;
     for (int i=0; i<3; i++) {
       if (std::isnan(ctr[i+1])) ok = false;

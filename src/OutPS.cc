@@ -3,7 +3,7 @@
 #include <iomanip>
 #include <chrono>
 
-#include "expand.h"
+#include "expand.H"
 #include <global.H>
 
 #include <AxisymmetricBasis.H>

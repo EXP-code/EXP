@@ -10,11 +10,11 @@
 #include <global.H>
 #include <Orient.H>
 #include <header.H>
-#include <localmpi.h>
+#include <localmpi.H>
 #include <ParticleFerry.H>
 #include <PotAccel.H>
 #include <Circular.H>
-#include <Timer.h>
+#include <Timer.H>
 
 #include "config.h"
 

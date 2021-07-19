@@ -1,6 +1,6 @@
 #include <math.h>
-#include "expand.h"
-#include <localmpi.h>
+#include "expand.H"
+#include <localmpi.H>
 #include <UnboundOrbit.H>
 #include <LinearOrbit.H>
 #include <SatelliteOrbit.h>

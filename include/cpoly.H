@@ -1,6 +1,9 @@
-#include "poly.h"
+#ifndef _cpoly_H
+#define _cpoly_H
 
-class CPoly : public CVector
+#include "poly.H"
+
+class CPoly : public Eigen::VectorXcd
 {
 
 private:
@@ -15,7 +18,7 @@ public:
   CPoly(void);
   CPoly(const int);
   CPoly(int, double *);
-  CPoly(const CVector &);
+  CPoly(const Eigen::VectorXcd &);
   CPoly(const CPoly &);
   CPoly(const Poly &);
   
@@ -53,8 +56,8 @@ public:
 
   // Evaluate polynomial
     
-  KComplex eval(KComplex z);
-  KComplex deriv(KComplex z);
+  std::complex<double> eval(std::complex<double> z);
+  std::complex<double> deriv(std::complex<double> z);
 
   /* IO */
 
@@ -64,3 +67,4 @@ public:
 void bomb_CPoly_operation(const char *);
 void bomb_CPoly(const char *);
 
+#endif

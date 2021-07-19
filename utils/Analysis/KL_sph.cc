@@ -60,17 +60,16 @@ namespace po = boost::program_options;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
+#include <numerical.H>
 #include "Particle.h"
 #include <PSP2.H>
-#include <interp.h>
-#include <massmodel.h>
+#include <interp.H>
+#include <massmodel.H>
 #include <SphereSL.H>
 #include <foarray.H>
 #include <KDtree.H>
 
-#include <localmpi.h>
+#include <localmpi.H>
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
@@ -101,12 +100,12 @@ private:
 
 public:
 
-  Matrix coefs;
+  Eigen::MatrixXd coefs;
 
   CoefStruct(int lmax, int nmax) : lmax(lmax), nmax(nmax)
   {
-    Matrix ret(0, lmax*(lmax+2), 1, nmax);
-    ret.zero();
+    Eigen::MatrixXd ret((lmax+1)*(lmax+1), nmax);
+    ret.setZero();
   }
 
   void sync(double norm)
@@ -122,8 +121,7 @@ public:
     
     // Apply the normalization
     //
-    for (int l=0; l<(lmax+1)*(lmax+1); l++) coefs[l] /= norm;
-
+    coefs /= norm;
   }
 
 };
@@ -502,10 +500,10 @@ main(int argc, char **argv)
   // This is a debug test
   if (myid==0) {
     std::ofstream test(prefix + ".coeftest");
-    for (int n=1; n<=NMAX; n++) {
+    for (int n=0; n<NMAX; n++) {
       test << std::setw(4) << n;
       for (auto & c : coefs)
-	test << std::setw(18) << c->coefs[0][n];
+	test << std::setw(18) << c->coefs(0, n);
       test << std::endl;
     }
   }
@@ -557,7 +555,7 @@ main(int argc, char **argv)
     
     // Get the snr trimmed coefficients
     //
-    std::vector<Matrix> coefs1(coefs.size());
+    std::vector<Eigen::MatrixXd> coefs1(coefs.size());
 
     if (myid==0) {
       std::cout << std::endl << "Trimming coefficients . . ." << std::endl;

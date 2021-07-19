@@ -1,5 +1,3 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 /*****************************************************************************
  *  Description:
  *  -----------
@@ -32,15 +30,15 @@
 using namespace std;
 
 #include <math.h>
-#include <Vector.h>
-#include <gaussQ.h>
-#include <biorth2d.h>
-#include <OrthoPoly.h>
+#include <gaussQ.H>
+#include <biorth2d.H>
+#include <OrthoPoly.H>
 
 
-Vector scalar_prod(ScalarType type, double rmin, double rmax, int l, int m,
-		   AxiSymBiorth& s, double (*func)(double, int, int), 
-		   int numc, int numg)
+Eigen::VectorXd
+scalar_prod(ScalarType type, double rmin, double rmax, int l, int m,
+	    AxiSymBiorth& s, double (*func)(double, int, int), 
+	    int numc, int numg)
 {
 
   if ( !(s.get_dof()==2 || s.get_dof()==3) ) {
@@ -50,15 +48,14 @@ Vector scalar_prod(ScalarType type, double rmin, double rmax, int l, int m,
 
   LegeQuad qe(numg);
 
-  Vector coef(1, numc);
+  Eigen::VectorXd coef(numc);
   double r, del = rmax - rmin;
-  coef.zero();
+  coef.setZero();
 
-  int i, n;
-
-  for (i=1; i<=numg; i++) {
+  for (int i=1; i<=numg; i++) {
     r = rmin + del*qe.knot(i);
-    for (n=1; n<=numc; n++) {
+
+    for (int n=0; n<numc; n++) {
       switch (type) {
 
       case density:
@@ -83,9 +80,8 @@ Vector scalar_prod(ScalarType type, double rmin, double rmax, int l, int m,
     }
   }
 
-  for (n=1; n<=numc; n++)
-    coef[n] /= sqrt(s.norm(n-1, l));
+  for (int n=0; n<numc; n++)
+    coef[n] /= sqrt(s.norm(n, l));
 
   return coef;
-
 }

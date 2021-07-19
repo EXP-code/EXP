@@ -9,9 +9,8 @@
 *                    port to C++ 02/15/94
 **************************************************************************/
 
-#include <math.h>
-#include <Vector.h>
-#include <numerical.h>
+#include <cmath>
+#include <numerical.H>
 
 #define STEPS 6
 #define TOL 1.0e-7
@@ -24,29 +23,28 @@ static double zbess(double z)
   return jn_sph(NN,z);
 }
 
-Vector sbessjz(int n, int m)
+Eigen::VectorXd sbessjz(int n, int m)
 {
   double z,dz,zl,f,fl;
   int i;
 
-  Vector a(1, m);
+  Eigen::VectorXd a(m);
 
   NN = n;
   dz = M_PI/STEPS;
-  for (i=1, zl=z=0.5+fabs((double)n), fl=jn_sph(n,z); i<=m; i++) {
+  for (int i=0, zl=z=0.5+fabs((double)n), fl=jn_sph(n,z); i<m; i++) {
     z += dz;
-    f = jn_sph(n,z);
+    f = jn_sph(n, z);
     while (f*fl>0) {
       zl = z;
       fl = f;
       z += dz;
       f = jn_sph(n,z);
     }
-    a[i] = zbrent(zbess,zl,z,TOL);
+    a[i] = zbrent(zbess, zl, z, TOL);
     zl = z;
     fl = f;
   }
 
   return a;
-
 }

@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-#include <SLGridMP2.h>
+#include <SLGridMP2.H>
 
 #include <iostream>
 #include <iomanip>

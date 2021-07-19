@@ -1,13 +1,13 @@
 #include <math.h>
 
-#include "expand.h"
+#include "expand.H"
 
-#include <localmpi.h>
-#include <massmodel.h>
+#include <localmpi.H>
+#include <massmodel.H>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
 
-#include <orbit.h>
+#include <orbit.H>
 
 class UserTorque : public ExternalForce
 {

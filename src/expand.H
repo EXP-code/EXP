@@ -1,5 +1,3 @@
-// -*- C++ -*-
-
 /**
    Description:
    -----------
@@ -50,8 +48,8 @@
   $Id$
 */
 
-#ifndef _expand_h
-#define _expand_h
+#ifndef _expand_H
+#define _expand_H
 
 #include "../config.h"
 
@@ -73,9 +71,9 @@
 #include <vector>
 #include <string>
 
-using namespace std;
+#include <Eigen/Eigen>
 
-#include <Vector.h>
+using namespace std;
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
@@ -145,7 +143,7 @@ double MPL_read_timer(int reset);
 
 // Utilities
 
-void get_ultra(int nmax, double l, double x, Vector& p);
+void get_ultra(int nmax, double l, double x, Eigen::VectorXd& p);
 string trimRight(const string);
 string trimLeft(const string);
 string trimComment(const string);

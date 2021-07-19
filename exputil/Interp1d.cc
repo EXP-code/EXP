@@ -1,9 +1,7 @@
-#include <math.h>
-
+#include <cmath>
 #include <vector>
 
-#include <Vector.h>
-#include <interp.h>
+#include <interp.H>
 
 Interp1d::~Interp1d(void) 
 {
@@ -34,22 +32,22 @@ Linear1d &Linear1d::operator=(const Linear1d &p)
   return *this;
 }
 
-Linear1d::Linear1d(const Vector &X, const Vector &Y)
+Linear1d::Linear1d(const Eigen::VectorXd &X, const Eigen::VectorXd &Y)
 {
   x = X;
   y = Y;
 }
 
 
-Linear1d::Linear1d(const vector<double> &X, const vector<double> &Y)
+Linear1d::Linear1d(const std::vector<double> &X, const std::vector<double> &Y)
 {
   int sz = X.size();
-  x.setsize(1, sz);
-  y.setsize(1, sz);
+  x.resize(sz);
+  y.resize(sz);
 
-  for (int i=1; i<=sz; i++) {
-    x[i] = X[i-1];
-    y[i] = Y[i-1];
+  for (int i=0; i<sz; i++) {
+    x[i] = X[i];
+    y[i] = Y[i];
   }
 }
 
@@ -85,27 +83,27 @@ Spline1d &Spline1d::operator=(const Spline1d &p)
   return *this;
 }
 
-Spline1d::Spline1d(const Vector &X, const Vector &Y, double d1, double d2)
+Spline1d::Spline1d(const Eigen::VectorXd &X, const Eigen::VectorXd &Y, double d1, double d2)
 {
   x = X;
   y = Y;
-  y2.setsize(Y.getlow(), Y.gethigh());
+  y2.resize(Y.size());
 
   Spline(x, y, d1, d2, y2);
 }
 
 
-Spline1d::Spline1d(const vector<double> &X, const vector<double> &Y, 
+Spline1d::Spline1d(const std::vector<double> &X, const std::vector<double> &Y, 
 		   double d1, double d2)
 {
   int sz = X.size();
-  x.setsize(1, sz);
-  y.setsize(1, sz);
-  y2.setsize(1, sz);
+  x .resize(sz);
+  y .resize(sz);
+  y2.resize(sz);
 
-  for (int i=1; i<=sz; i++) {
-    x[i] = X[i-1];
-    y[i] = Y[i-1];
+  for (int i=0; i<sz; i++) {
+    x[i] = X[i];
+    y[i] = Y[i];
   }
 
   Spline(x, y, d1, d2, y2);

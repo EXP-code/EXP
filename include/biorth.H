@@ -1,26 +1,22 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 // Biorthnormal function class defintion
 
-
-#ifndef _biorth_h
-#define _biorth_h 1
+#ifndef _biorth_H
+#define _biorth_H
 
 #undef RNUM
 
-static const char rcsid_biorth[] = "$Id$";
-
+#include <iostream>
+#include <iomanip>
 #include <cstdlib>
 #include <string>
-#include <Vector.h>
-#include <logic.h>
+#include <Eigen/Eigen>
 
 
 class Biorth
 {
 public:
 
-  string BiorthID;
+  std::string BiorthID;
 
   virtual ~Biorth() {}
 
@@ -31,12 +27,12 @@ public:
   
 				// Report ID
 
-  inline const string& id(void) {return BiorthID;}
+  inline const std::string& id(void) {return BiorthID;}
 
 				// Error function
 
   void bomb(const char *s) {
-    cerr << "ERROR from " << BiorthID << ": " << s << '\n';
+    std::cerr << "ERROR from " << BiorthID << ": " << s << std::endl;
     exit(-1);
   }
 
@@ -62,8 +58,8 @@ public:
   virtual double potlRZ(const int, const int, const double, const double) = 0;
 				// Fast for expansion! 
 				// (using recursion relation)
-  virtual void potl(const int, const int, const double, Vector&) = 0;
-  virtual void dens(const int, const int, const double, Vector&) = 0;
+  virtual void potl(const int, const int, const double, Eigen::VectorXd&) = 0;
+  virtual void dens(const int, const int, const double, Eigen::VectorXd&) = 0;
 
   virtual double rb_to_r(double const) = 0;
   virtual double r_to_rb(double const) = 0;
@@ -74,8 +70,8 @@ public:
 
   int get_dof(void) { return dof; }
 
-  double get_potl(double r, int l, const Vector& coef);
-  double get_dens(double r, int l, const Vector& coef);
+  double get_potl(double r, int l, const Eigen::VectorXd& coef);
+  double get_dens(double r, int l, const Eigen::VectorXd& coef);
 
 };
 
@@ -98,15 +94,15 @@ private:
   int nmax;
   int rnum;
 
-  Matrix* potl_grid;		// Grid storage
-  Matrix* potl_grid2;
-  Matrix* dens_grid;
-  Matrix* dens_grid2;
+  std::vector<Eigen::MatrixXd> potl_grid;		// Grid storage
+  std::vector<Eigen::MatrixXd> potl_grid2;
+  std::vector<Eigen::MatrixXd> dens_grid;
+  std::vector<Eigen::MatrixXd> dens_grid2;
 
-  Vector x_grid;
+  Eigen::VectorXd x_grid;
 
-  Matrix krnl_grid;
-  Matrix norm_grid;		// Stored as the sqr root of normalization
+  Eigen::MatrixXd krnl_grid;
+  Eigen::MatrixXd norm_grid; // Stored as the sqr root of normalization
 				// for efficiency in wake reconstruction
 
 public:
@@ -130,9 +126,9 @@ public:
 		      const double z) {
     return t->potlRZ(nn, l, r, z); }
   inline void potl(const int nn, const int l, const double r, 
-		      Vector& a) {t->potl(nn, l, r, a);}
+		   Eigen::VectorXd& a) {t->potl(nn, l, r, a);}
   inline void dens(const int nn, const int l, const double r, 
-		      Vector& a) {t->dens(nn, l, r, a);}
+		   Eigen::VectorXd& a) {t->dens(nn, l, r, a);}
 
   inline double rb_to_r(double const rb) { return t->rb_to_r(rb); }
   inline double r_to_rb(double const r)  { return t->r_to_rb(r); }
@@ -143,9 +139,9 @@ public:
 
 				// Supplemental functions
 
-  inline double krnl(const int nn, const int l) { return krnl_grid[nn][l]; }
-  double norm(const int nn, const int l)
-    { return norm_grid[nn][l]*norm_grid[nn][l]; }
+  inline double krnl(const int n, const int l) { return krnl_grid(n, l); }
+  double norm(const int n, const int l)
+  { return norm_grid(n, l)*norm_grid(n, l); }
 
 
 };
@@ -171,8 +167,8 @@ public:
   double dens(const int nn, const int l, const double rb);
   double krnl(const int nn, const int l);
   double norm(const int nn, const int l);
-  void potl(const int nn, const int l, const double r, Vector& a);
-  void dens(const int nn, const int l, const double r, Vector& a);
+  void potl(const int nn, const int l, const double r, Eigen::VectorXd& a);
+  void dens(const int nn, const int l, const double r, Eigen::VectorXd& a);
 
 				// Supplemental functions
 
@@ -210,8 +206,8 @@ public:
   double dens(const int nn, const int l, const double rb);
   double krnl(const int nn, const int l);
   double norm(const int nn, const int l);
-  void potl(const int nn, const int l, const double r, Vector& a);
-  void dens(const int nn, const int l, const double r, Vector& a);
+  void potl(const int nn, const int l, const double r, Eigen::VectorXd& a);
+  void dens(const int nn, const int l, const double r, Eigen::VectorXd& a);
 
 				// Supplemental functions
 
@@ -241,9 +237,9 @@ private:
   int nmax;
   int lmax;
 
-  Vector *a;
-  Matrix t_f, t_y, t_g;
-  Vector t_dr;
+  Eigen::VectorXd *a;
+  Eigen::MatrixXd t_f, t_y, t_g;
+  Eigen::VectorXd t_dr;
   int t_n;
 
   void setup_potl_table(void);
@@ -259,8 +255,8 @@ public:
   double dens(const int nn, const int l, const double rb);
   inline double krnl(const int nn, const int l) { return 1.0; }
   inline double norm(const int nn, const int l) { return 1.0; }
-  void potl(const int nn, const int l, const double r, Vector& t);
-  void dens(const int nn, const int l, const double r, Vector& t);
+  void potl(const int nn, const int l, const double r, Eigen::VectorXd& t);
+  void dens(const int nn, const int l, const double r, Eigen::VectorXd& t);
 
 				// Supplemental functions
 
@@ -282,14 +278,15 @@ public:
 };
 
 enum ScalarType {density, potential};
-string& ScalarTypeName(ScalarType i);
+std::string& ScalarTypeName(ScalarType i);
 
 enum BiorthFcts3d {bessel, clutton_brock, hernquist, sturm};
 
-Vector scalar_prod(ScalarType type, double rmin, double rmax, int l, int m,
-		   AxiSymBiorth& s, double (*func)(double, int, int), 
-		   int nc, int ng);
+Eigen::VectorXd scalar_prod(ScalarType type, double rmin, double rmax,
+			    int l, int m,
+			    AxiSymBiorth& s, double (*func)(double, int, int), 
+			    int nc, int ng);
 
-static string BiorthFcts3dName[] = {"BSSphere", "CBSphere", "HQSphere", "SphereSL"};
+static std::string BiorthFcts3dName[] = {"BSSphere", "CBSphere", "HQSphere", "SphereSL"};
 		   
 #endif

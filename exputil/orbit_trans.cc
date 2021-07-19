@@ -5,12 +5,11 @@
 #include <sstream>
 #include <cmath>
 
-#include <numerical.h>
-#include <Vector.h>
-#include <interp.h>
-#include <massmodel.h>
-#include <orbit.h>
-#include <biorth.h>
+#include <numerical.H>
+#include <interp.H>
+#include <massmodel.H>
+#include <orbit.H>
+#include <biorth.H>
 
 				// Global variables
 static AxiSymModel *mm;
@@ -221,17 +220,14 @@ void SphericalOrbit::compute_freq(void)
     accum2 += cost/sqrt(2.0*(energy-ur) - (jmax*jmax*kappa*kappa*s*s));
   }
   
-  freq.setsize(1,3);
-  action.setsize(1,3);
-
-  freq[1] = M_PI/(am*accum1*dt);
-  freq[2] = freq[1]*jmax*kappa * sm*accum2*dt/M_PI;
-  freq[3] = 0.0;
+  freq[0] = M_PI/(am*accum1*dt);
+  freq[1] = freq[0]*jmax*kappa * sm*accum2*dt/M_PI;
+  freq[2] = 0.0;
   freq_defined = true;
 
-  action[1] = am*accum0*dt/M_PI;
-  action[2] = jmax*kappa;
-  action[3] = 0.0;
+  action[0] = am*accum0*dt/M_PI;
+  action[1] = jmax*kappa;
+  action[2] = 0.0;
   action_defined = true;
 }
 
@@ -279,24 +275,21 @@ double dtp, dtm;
 void SphericalOrbit::compute_angles(void)
 {
   double accum1,accum2,r, s, t, sl, tl;
-  double fw1(double t),ff(double t);
+  double fw1(double t), ff(double t);
   int i;
 
   l1s = l2s = 0;
 
-  angle_grid.t.setsize(1,2,0,recs-1);
-  angle_grid.w1.setsize(1,2,0,recs-1);
-  angle_grid.dw1dt.setsize(1,2,0,recs-1);
-  angle_grid.f.setsize(1,2,0,recs-1);
-  angle_grid.r.setsize(1,2,0,recs-1);
+  angle_grid.t.    resize(2, recs);
+  angle_grid.w1.   resize(2, recs);
+  angle_grid.dw1dt.resize(2, recs);
+  angle_grid.f.    resize(2, recs);
+  angle_grid.r.    resize(2, recs);
   
   if (Gkn.n == 0) {
     Gkn = LegeQuad(recs);
     dtp = -0.5*M_PI;
     dtm = M_PI;
-#ifdef CRAY_VEC
-    cray_sum = dvector(0,recs-1);
-#endif
   } 
   else if (Gkn.n != recs) {
     Gkn = LegeQuad(recs);
@@ -327,28 +320,30 @@ void SphericalOrbit::compute_angles(void)
     s = asin((1.0/r - sp)/sm);
     accum2 += rombe2(sl,s,ff, nbsct);
 
-    angle_grid.t[1][i] = t;
-    angle_grid.w1[1][i] = freq[1]*accum1;
-    angle_grid.dw1dt[1][i] = freq[1]*fw1(t);
-    angle_grid.f[1][i]  = freq[2]*accum1 + JJ*accum2;
-    angle_grid.r[1][i]  = r;
+    angle_grid.t(0, i) = t;
+    angle_grid.w1(0, i) = freq[0]*accum1;
+    angle_grid.dw1dt(0, i) = freq[0]*fw1(t);
+    angle_grid.f(0, i)  = freq[1]*accum1 + JJ*accum2;
+    angle_grid.r(0, i)  = r;
 
     tl = t;
     sl = s;
   }
 
 
-  Spline(angle_grid.w1[1], angle_grid.t[1], 1.0e30, 1.0e30,
-	 angle_grid.t[2]);
+  Eigen::VectorXd work(angle_grid.t.row(0).size());
+  
+  Spline(angle_grid.w1.row(0), angle_grid.t.row(0), 1.0e30, 1.0e30, work);
+  angle_grid.t.row(1) = work;
 
-  Spline(angle_grid.w1[1], angle_grid.dw1dt[1], 1.0e30, 1.0e30,
-	 angle_grid.dw1dt[2]);
+  Spline(angle_grid.w1.row(0), angle_grid.dw1dt.row(0), 1.0e30, 1.0e30, work);
+  angle_grid.dw1dt.row(1) = work;
 
-  Spline(angle_grid.w1[1], angle_grid.f[1], 1.0e30, 1.0e30,
-	 angle_grid.f[2]);
+  Spline(angle_grid.w1.row(0), angle_grid.f.row(0), 1.0e30, 1.0e30, work);
+  angle_grid.f.row(1) = work;
 
-  Spline(angle_grid.w1[1], angle_grid.r[1], 1.0e30, 1.0e30,
-	 angle_grid.r[2]);
+  Spline(angle_grid.w1.row(0), angle_grid.r.row(0), 1.0e30, 1.0e30, work);
+  angle_grid.r.row(1) = work;
 
   angle_grid.num = recs;
 
@@ -408,19 +403,16 @@ void SphericalOrbit::compute_angles_epi(void)
   double Jcirc(double r);
   int i;
 
-  angle_grid.t.setsize(1,2,0,recs-1);
-  angle_grid.w1.setsize(1,2,0,recs-1);
-  angle_grid.dw1dt.setsize(1,2,0,recs-1);
-  angle_grid.f.setsize(1,2,0,recs-1);
-  angle_grid.r.setsize(1,2,0,recs-1);
+  angle_grid.t.    resize(2, recs);
+  angle_grid.w1.   resize(2, recs);
+  angle_grid.dw1dt.resize(2, recs);
+  angle_grid.f.    resize(2, recs);
+  angle_grid.r.    resize(2, recs);
   
   if (Gkn.n == 0) {
     Gkn = LegeQuad(recs);
     dtp = -0.5*M_PI;
     dtm = M_PI;
-#ifdef CRAY_VEC
-    cray_sum = dvector(0,recs-1);
-#endif
   }
   else if (Gkn.n != recs) {
     Gkn = LegeQuad(recs);
@@ -436,37 +428,37 @@ void SphericalOrbit::compute_angles_epi(void)
 
   JJ = jmax*kappa;
   ur = mm->get_pot(r_circ);
-  a2 = 2.0*(EE-0.5*JJ*JJ/(r_circ*r_circ)-ur)/(freq[1]*freq[1]);
+  a2 = 2.0*(EE-0.5*JJ*JJ/(r_circ*r_circ)-ur)/(freq[0]*freq[0]);
   a = sqrt(a2);
 
   for (i=0; i<recs; i++) {
     t = dtp + dtm*Gkn.knot(i+1);
     r = r_circ - a*cos(t);
     fac = sqrt(fabs(a2 - (r-r_circ)*(r-r_circ)));
-    angle_grid.t[1][i] = t;
-    angle_grid.w1[1][i] = t;
-    angle_grid.dw1dt[1][i] = 1.0;
-    angle_grid.f[1][i]  = -2.0*freq[2]/(freq[1]*r_circ) * fac;
-    angle_grid.r[1][i]  = r;
+    angle_grid.t(0, i) = t;
+    angle_grid.w1(0, i) = t;
+    angle_grid.dw1dt(0, i) = 1.0;
+    angle_grid.f(0, i)  = -2.0*freq[1]/(freq[0]*r_circ) * fac;
+    angle_grid.r(0, i)  = r;
 
   }
 
-  Spline(angle_grid.w1[1], angle_grid.t[1], 1.0e30, 1.0e30,
-	 angle_grid.t[2]);
+  Eigen::VectorXd work(angle_grid.t.row(0).size());
 
-  Spline(angle_grid.w1[1], angle_grid.dw1dt[1], 1.0e30, 1.0e30,
-	 angle_grid.dw1dt[2]);
+  Spline(angle_grid.w1.row(0), angle_grid.t.row(0), 1.0e30, 1.0e30, work);
+  angle_grid.t.row(1) = work;
 
-  Spline(angle_grid.w1[1], angle_grid.f[1], 1.0e30, 1.0e30,
-	 angle_grid.f[2]);
+  Spline(angle_grid.w1.row(0), angle_grid.dw1dt.row(0), 1.0e30, 1.0e30, work);
+  angle_grid.dw1dt.row(1) = work;
 
-  Spline(angle_grid.w1[1], angle_grid.r[1], 1.0e30, 1.0e30,
-	 angle_grid.r[2]);
+  Spline(angle_grid.w1.row(0), angle_grid.f.row(0), 1.0e30, 1.0e30, work);
+  angle_grid.f.row(1) = work;
+
+  Spline(angle_grid.w1.row(0), angle_grid.r.row(0), 1.0e30, 1.0e30, work);
+  angle_grid.r.row(1) = work;
 
   angle_grid.num = recs;
-
-  angle_defined = true;
-
+  angle_defined  = true;
 }
 
 
@@ -484,16 +476,18 @@ void SphericalOrbit::compute_biorth(void)
   
   if (!angle_defined) compute_angles();
 
-  angle_grid.fr.setsize(0, recs-1, 1, nmax);
+  angle_grid.fr.resize(recs, nmax);
+
+  Eigen::VectorXd work(nmax);
 
   for (int j=0; j<recs; j++) {
     if (RECUR) {
-      biorth->potl(nmax, l, biorth->r_to_rb(angle_grid.r[1][j]), 
-		   angle_grid.fr[j]);
+      biorth->potl(nmax, l, biorth->r_to_rb(angle_grid.r(0, j)), work);
+      angle_grid.fr.row(j) = work;
     } else
-      for (int i=1; i<=nmax; i++) {
-	angle_grid.fr[j][i] = 
-	  biorth->potl(i, l, biorth->r_to_rb(angle_grid.r[1][j]));
+      for (int i=0; i<nmax; i++) {
+	angle_grid.fr(j, i) = 
+	  biorth->potl(i, l, biorth->r_to_rb(angle_grid.r(0, j)));
       }
   }
 
@@ -519,15 +513,15 @@ double SphericalOrbit::pot_trans(int l1, int l2, double (*func)(double))
 
   if (kappa < 1.0-TOLEPI) {
     for (int i=0; i<angle_grid.num; i++)
-      accum += Gkn.weight(i+1)*angle_grid.dw1dt[1][i]*
-	cos(angle_grid.w1[1][i]*l1 + angle_grid.f[1][i]*l2)*
-	  func(angle_grid.r[1][i]);
+      accum += Gkn.weight(i+1)*angle_grid.dw1dt(0, i)*
+	cos(angle_grid.w1(0, i)*l1 + angle_grid.f(0, i)*l2)*
+	  func(angle_grid.r(0, i));
 
     accum *= dtm/M_PI;
   }
   else {
     if (l1 == 0)
-      accum = func(angle_grid.r[1][(angle_grid.num-1)/2]);
+      accum = func(angle_grid.r(0, (angle_grid.num-1)/2));
     else
       accum = 0.0;
   }
@@ -547,13 +541,13 @@ double SphericalOrbit::pot_trans(int l1, int l2, int n)
     Gkn = LegeQuad(recs);
   }
 
-  if (!angle_defined) compute_angles();
+  if (!angle_defined)  compute_angles();
   if (!biorth_defined) compute_biorth();
 
-  if (l1s==0 && l2s==0) cosvec.setsize(0, angle_grid.num-1);
+  if (l1s==0 && l2s==0) cosvec.resize(angle_grid.num);
   if (l1 != l1s || l2 != l2s) {
     for (int i=0; i<angle_grid.num; i++)
-      cosvec[i] = cos(angle_grid.w1[1][i]*l1 + angle_grid.f[1][i]*l2);
+      cosvec[i] = cos(angle_grid.w1(0, i)*l1 + angle_grid.f(0, i)*l2);
     l1s = l1;
     l2s = l2;
   }
@@ -562,14 +556,14 @@ double SphericalOrbit::pot_trans(int l1, int l2, int n)
 
   if (kappa < 1.0-TOLEPI) {
     for (int i=0; i<angle_grid.num; i++)
-      accum += Gkn.weight(i+1)*angle_grid.dw1dt[1][i] * cosvec[i] * 
-	angle_grid.fr[i][n];
+      accum += Gkn.weight(i+1)*angle_grid.dw1dt(0, i) * cosvec[i] * 
+	angle_grid.fr(i, n);
 
     accum *= dtm/M_PI;
   }
   else {
     if (l1 == 0)
-      accum = angle_grid.fr[(angle_grid.num-1)/2][n];
+      accum = angle_grid.fr((angle_grid.num-1)/2, n);
     else
       accum = 0.0;
   }
@@ -577,7 +571,7 @@ double SphericalOrbit::pot_trans(int l1, int l2, int n)
   return accum;
 }
 
-void SphericalOrbit::pot_trans(int l1, int l2, Vector& t)
+void SphericalOrbit::pot_trans(int l1, int l2, Eigen::VectorXd& t)
 {
 
   if (Gkn.n == 0) {
@@ -592,33 +586,30 @@ void SphericalOrbit::pot_trans(int l1, int l2, Vector& t)
   if (!angle_defined) compute_angles();
   if (!biorth_defined) compute_biorth();
 
-  if (l1s==0 && l2s==0) cosvec.setsize(0, angle_grid.num-1);
+  if (l1s==0 && l2s==0) cosvec.resize(0, angle_grid.num-1);
   if (l1 != l1s || l2 != l2s) {
     for (int i=0; i<angle_grid.num; i++)
-      cosvec[i] = cos(angle_grid.w1[1][i]*l1 + angle_grid.f[1][i]*l2);
+      cosvec[i] = cos(angle_grid.w1(0, i)*l1 + angle_grid.f(0, i)*l2);
     l1s = l1;
     l2s = l2;
   }
 
-  t.zero();
-  int nm = t.gethigh();
+  t.setZero();
+  int nm = t.size();
   double tmpi;
 
   if (kappa < 1.0-TOLEPI) {
     for (int i=0; i<angle_grid.num; i++) {
-      tmpi = Gkn.weight(i+1)*angle_grid.dw1dt[1][i] * cosvec[i];
-      for (int n=1; n<=nm; n++)
-	t[n] += tmpi * angle_grid.fr[i][n];
+      tmpi = Gkn.weight(i+1)*angle_grid.dw1dt(0, i) * cosvec[i];
+      for (int n=0; n<nm; n++)
+	t[n] += tmpi * angle_grid.fr(i, n);
     }
     t *= dtm/M_PI;
   }
   else {
     if (l1 == 0)
-      for (int n=1; n<=nm; n++)
-	t[n] = angle_grid.fr[(angle_grid.num-1)/2][n];
+      for (int n=0; n<nm; n++)
+	t[n] = angle_grid.fr((angle_grid.num-1)/2, n);
   }
-
 }
-
-
 

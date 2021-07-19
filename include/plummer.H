@@ -1,10 +1,8 @@
-// This may look like C code, but it is really -*- C++ -*-
+#ifndef _plummer_H
+#define _plummer_H
 
-const char rcsid_plummer[] = "$Id$";
-
-
-#include <math.h>
-#include <massmodel.h>
+#include <cmath>
+#include <massmodel.H>
 
 class PlummerSphere : public AxiSymModel
 {
@@ -82,8 +80,8 @@ public:
     return 3.5*2.5*ffac*pow(-E, 1.5);
   }
 
-
 };
 
+#endif
 
 

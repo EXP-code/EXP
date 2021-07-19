@@ -18,7 +18,7 @@
 #include "AsciiHisto.H"
 #include "Particle.H"
 #include "pHOT.H"
-#include "Timer.h"
+#include "Timer.H"
 #include "NTC.H"
 
 class Collide;

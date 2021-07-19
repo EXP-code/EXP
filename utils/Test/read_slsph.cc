@@ -2,9 +2,9 @@
 #include <fstream>
 #include <iomanip>
 #include <cstdlib>
+#include <string>
 
-#include "Vector.h"
-
+#include <Eigen/Eigen>
 
 // Globals for exputil library
 // Unused here
@@ -12,7 +12,7 @@
 int myid = 0;
 char threading_on = 0;
 pthread_mutex_t mem_lock;
-string outdir, runtag;
+std::string outdir, runtag;
 
 // Structure from SLGridSph
 //
@@ -21,8 +21,8 @@ class TableSph
  public:
   int l;
 
-  Vector ev;
-  Matrix ef;
+  Eigen::VectorXd ev;
+  Eigen::MatrixXd ef;
 };
 
 
@@ -44,8 +44,8 @@ int main(int argc, char **argv)
   double rmin, rmax, scl;
 
   if (myid==0) 
-    cerr << "SLGridSph::read_cached_table: trying to read cached table . . ."
-	 << endl;
+    std::cerr << "SLGridSph::read_cached_table: trying to read cached table . . ."
+	      << std::endl;
 
   in.read((char *)&lmax, sizeof(int));
   in.read((char *)&nmax, sizeof(int));
@@ -82,22 +82,23 @@ int main(int argc, char **argv)
 				// Double check
     if (table[l].l != l) {
       if (myid==0)
-	std::cerr << "SLGridSph: error reading <" << argv[1] << ">" << endl
+	std::cerr << "SLGridSph: error reading <" << argv[1] << ">" << std::endl
 		  << "SLGridSph: l: read value (" << table[l].l 
-		  << ") != internal value (" << l << ")" << endl;
+		  << ") != internal value (" << l << ")" << std::endl;
 	return 0;
     }
 
-    table[l].ev.setsize(1, nmax);
-    table[l].ef.setsize(1, nmax, 0, numr-1);
+    table[l].ev.resize(nmax);
+    table[l].ef.resize(nmax, numr);
 
-    for (int j=1; j<=nmax; j++)
-      in.read((char *)&table[l].ev[j], sizeof(double));
-
-    for (int j=1; j<=nmax; j++) {
+    for (int j=0; j<nmax; j++)
       for (int i=0; i<numr; i++)
-	in.read((char *)&table[l].ef[j][i], sizeof(double));
-    }
+	in.read((char *)&table[l].ef(j, i), sizeof(double));
+
+    Eigen::MatrixXd tmp(numr, nmax);
+    in.read((char *)table[l].ev.data(), nmax*sizeof(double));
+    in.read((char *)tmp.data(), numr*nmax*sizeof(double));
+    table[l].ef = tmp.transpose();
   }
 
   std::cerr << "Success reading cache file!!" << std::endl;
@@ -106,11 +107,11 @@ int main(int argc, char **argv)
     std::cout << "# l=" << l << std::endl;
     for (int i=0; i<numr; i++) {
       std::cout << std::setw( 5) << i;
-      for (int j=1; j<=std::min(nmax, 4); j++)
-	std::cout << std::setw(20) << table[l].ef[j][i];
+      for (int j=0; j<=std::min(nmax, 4); j++)
+	std::cout << std::setw(20) << table[l].ef(j, i);
       std::cout << std::endl;
     }
-    std::cout << endl;
+    std::cout << std::endl;
   }
 
   return 0;

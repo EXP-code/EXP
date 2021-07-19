@@ -1,20 +1,11 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 //
 // Exponential disk
 //
 
-#ifndef _Expon_h
-#define _Expon_h
+#ifndef _Expon_H
+#define _Expon_H
 
-const char rcsid_expon[] = "$Id$";
-
-#include <massmodel.h>
-
-extern "C" double i0(double);
-extern "C" double i1(double);
-extern "C" double k0(double);
-extern "C" double k1(double);
+#include <massmodel.H>
 
 class ExponentialDisk : public AxiSymModel
 {
@@ -48,30 +39,14 @@ public:
 
   double get_density(const double r) { return den0*exp(-r/a); }
 
-  double get_pot(const double r) {
-    double y=0.5*r/a;
-    return -M_PI*den0*r*(i0(y)*k1(y) - i1(y)*k0(y));
-  }
-							
+  double get_pot(const double r);
 
-  double get_dpot(const double r) {
-    double y=0.5*r/a;
-    return 2.0*M_PI*den0*y*(i0(y)*k0(y) - i1(y)*k1(y));
-  }
+  double get_dpot(const double r);
 
-  double get_dpot2(const double r) {
-    double y=0.5*r/a;
-    return M_PI*den0/a*(i0(y)*k0(y) + i1(y)*k1(y) - 
-			2.0*y*(i1(y)*k0(y) - i0(y)*k1(y)));
-  }
+  double get_dpot2(const double r);
 
-  void get_pot_dpot(const double r, double &ur, double &dur) {
-    double y=0.5*r/a;
-    double I0=i0(y), I1=i1(y), K0=k0(y), K1=k1(y);
-    ur = -M_PI*den0*r*(I0*K1 - I1*K0);
-    dur = 2.0*M_PI*den0*y*(I0*K0 - I1*K1);
-  }
-  
+  void get_pot_dpot(const double r, double &ur, double &dur);
+
   // Addiional member functions
 
   double get_min_radius(void) { return rmin; }
@@ -98,7 +73,5 @@ public:
   }
 
 };
-
-
 
 #endif

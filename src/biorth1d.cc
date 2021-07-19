@@ -32,8 +32,8 @@
  ***************************************************************************/
 
 #include <math.h>
-#include <numerical.h>
-#include <biorth1d.h>
+#include <numerical.H>
+#include <biorth1d.H>
 
 double OneDTrig::KSTOL=1.0e-6;
 double OneDTrig::KSZTOL=1.0e-10;

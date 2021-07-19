@@ -4,21 +4,19 @@
 #define _RespMat_h
 
 #include <cmath>
+#include <complex>
 #include <iostream>
 #include <sstream>
 #include <fstream>
 #include <iomanip>
 #include <string>
 
-#include <numerical.h>
-#include <kevin_complex.h>
-#include <Vector.h>
-#include <CVector.h>
-#include <massmodel.h>
-#include <biorth.h>
-#include <orbit.h>
-#include <gaussQ.h>
-#include <Timer.h>
+#include <numerical.H>
+#include <massmodel.H>
+#include <biorth.H>
+#include <orbit.H>
+#include <gaussQ.H>
+#include <Timer.H>
 
 enum IntegrationType {ratint, jacoint, rombint};
 // static const char* SIType[] = {"Rational", "Jacobi", "Rombe"};
@@ -38,9 +36,9 @@ class RespMat
 protected:
 
 				// Parameters
-  CMatrix mr;
-  CMatrix mr2;
-  KComplex omp;
+  Eigen::MatrixXcd mr;
+  Eigen::MatrixXcd mr2;
+  std::complex<double> omp;
 
   int l, m, lmax, nmax, nptsK, nptsE;
   AxiSymModel *model;
@@ -57,11 +55,11 @@ protected:
 
   int alpha, beta, ikap, l1, l2;
   double E, kappa, E_r, Emodmin, Emodmax, Emax;
-  CVector **mab, **hold;
-  CMatrix holdR;
+  std::vector<Eigen::VectorXcd> mab, hold;
+  Eigen::MatrixXcd holdR;
   int num_E, num_K;
-  CVector pp_x,  pp_y;
-  Vector pp_x2;
+  Eigen::VectorXcd pp_x, pp_y;
+  Eigen::VectorXd pp_x2;
 
 				// Get previously recorded CHECK POINT set
   bool get_chkpnt();
@@ -94,9 +92,9 @@ protected:
   int PVALUE;
 
   int disp_computed;
-  KComplex disp;
+  std::complex<double> disp;
 
-  OrbitTable *Orb;
+  OrbitTable  *Orb;
   OrbResTable *ORes;
 
   int CPREAD, CHECKPT;
@@ -120,7 +118,7 @@ protected:
 
   RespMat();
 
-  RespMat(KComplex omp0, int ll, int mm,
+  RespMat(std::complex<double> omp0, int ll, int mm,
 	  int llmax, int nnmax, int nnptsK, int nnptsE, 
 	  AxiSymModel *MODEL, AxiSymBiorth *BIORTH,
 	  int old, int cpread, int checkpt, int verbose, 
@@ -173,14 +171,14 @@ protected:
   void MPISynchronize(int id);
 
 				// Access
-  CMatrix& mat() {
+  Eigen::MatrixXcd& mat() {
     if (!matrix_computed) {
       if (pv) make_matrix_pv();
       else make_matrix();
     }
     return mr;}
 
-  CMatrix& mat_asymptotic() {
+  Eigen::MatrixXcd& mat_asymptotic() {
     if (!matrix_computed_pv) make_matrix_pv();
     return mr2;}
 
@@ -189,8 +187,8 @@ protected:
 
   // Utilities
 
-  KComplex disper(void);
-  KComplex omega(void) {return omp;}
+  std::complex<double> disper(void);
+  std::complex<double> omega(void) {return omp;}
   const int& get_lmax(void) {return lmax;}
   const string& id(void) {return ID;}
   const int& L(void) {return l;}
@@ -208,32 +206,32 @@ protected:
 // type of reponse:
   enum response {density, potential};
 
-  CVector get_response (CVector& ext, gravity grav=self);
+  Eigen::VectorXcd get_response (Eigen::VectorXcd& ext, gravity grav=self);
 
-  Matrix get_wake (CVector& ext,
+  Eigen::MatrixXd get_wake (Eigen::VectorXcd& ext,
 		   double xmin, double xmax, double ymin, double ymax,
 		   int numx, int numy,
 		   gravity grav=self, response type=density,
 		   double phi=0, double theta=0);
 
-  void get_wake (Matrix& wake, CVector& ext,
+  void get_wake (Eigen::MatrixXd& wake, Eigen::VectorXcd& ext,
 		   double xmin, double xmax, double ymin, double ymax,
 		   int numx, int numy,
 		   gravity grav=self, response type=density,
 		   double phi=0, double theta=0);
 
-  Matrix get_bkgrnd (
+  Eigen::MatrixXd get_bkgrnd (
 		   double xmin, double xmax, double ymin, double ymax,
 		   int numx, int numy, response type=density,
 		   double phi=0, double theta=0);
 
-  void print_wake (ostream& out, CVector& ext,
+  void print_wake (ostream& out, Eigen::VectorXcd& ext,
 		   double xmin, double xmax, double ymin, double ymax,
 		   int numx, int numy,
 		   gravity grav=self, response type=density,
 		   double phi=0, double theta=0);
 
-  void print_wake_volume (ostream& out, CVector& ext,
+  void print_wake_volume (ostream& out, Eigen::VectorXcd& ext,
 			  double xmin, double xmax, 
 			  double ymin, double ymax,
 			  double zmin, double zmax,
@@ -241,7 +239,8 @@ protected:
 			  bool bkgrnd=true,
 			  gravity grav=self, response type=density);
 
-  void get_wake_volume (Matrix* mat, CVector& ext,
+  void get_wake_volume (std::vector<Eigen::MatrixXd>& mat,
+			Eigen::VectorXcd& ext,
 			double xmin, double xmax, 
 			double ymin, double ymax,
 			double zmin, double zmax,
@@ -250,7 +249,7 @@ protected:
 			gravity grav=self, response type=density);
 
 
-  void print_wake_volume_hips (ostream& out, CVector& ext,
+  void print_wake_volume_hips (ostream& out, Eigen::VectorXcd& ext,
 			       double xmin, double xmax, 
 			       double ymin, double ymax,
 			       double zmin, double zmax,
@@ -259,7 +258,7 @@ protected:
 			       gravity grav=self, response type=density);
 
 
-  void print_wake_volume_cubes (ostream& out, CVector& ext,
+  void print_wake_volume_cubes (ostream& out, Eigen::VectorXcd& ext,
 			       double xmin, double xmax, 
 			       double ymin, double ymax,
 			       double zmin, double zmax,
@@ -286,10 +285,10 @@ public:
     
 				// Data
   SphericalOrbit *orbits;
-  Vector* PotTrans;
-  Vector dfqE, dfqL;
-  Vector norm;
-  CVector EInt;
+  std::vector<Eigen::VectorXd> PotTrans;
+  Eigen::VectorXd dfqE, dfqL;
+  Eigen::VectorXd norm;
+  Eigen::VectorXcd EInt;
       
   void setup(void);
   void setup_p_array(void);
@@ -314,14 +313,14 @@ public:
     
 				// Data
   SphericalOrbit *orbits, torbit;
-  Vector* PotTrans;
-  Vector* PotTrans2;
-  Vector dfqE, dfqL;
-  Vector norm;
-  Vector EInt;
-  Vector ELoc;
-  Vector ERes;
-  Vector EJac;
+  std::vector<Eigen::VectorXd> PotTrans;
+  std::vector<Eigen::VectorXd> PotTrans2;
+  Eigen::VectorXd dfqE, dfqL;
+  Eigen::VectorXd norm;
+  Eigen::VectorXd EInt;
+  Eigen::VectorXd ELoc;
+  Eigen::VectorXd ERes;
+  Eigen::VectorXd EJac;
   int number;
     
   void setup(void);

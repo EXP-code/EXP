@@ -12,11 +12,13 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
 
+#include <Eigen/Eigen>
+
 namespace po = boost::program_options;
 
-#include <localmpi.h>
+#include <localmpi.H>
 #include <SLSphere.H>		// Defines biorthogonal SL class
-#include <gaussQ.h>		// Gauss-Legendre quadrature
+#include <gaussQ.H>		// Gauss-Legendre quadrature
 
 
 //===========================================================================
@@ -53,9 +55,10 @@ string outdir, runtag;
 //===========================================================================
 
 				// Local function defs
-Vector scalar_prod(ScalarType type, double rmin, double rmax, int l, int m,
-		   AxiSymBiorth& s, double (*func)(double, int, int), 
-		   int numc, int numg);
+Eigen::VectorXd
+scalar_prod(ScalarType type, double rmin, double rmax, int l, int m,
+	    AxiSymBiorth& s, double (*func)(double, int, int), 
+	    int numc, int numg);
 
 double plgndr(int l, int m, double costh); 
 
@@ -194,7 +197,7 @@ class Reconstruct
 {
 private:
   AxiSymBiorth *biorth;
-  Vector **coefs;
+  std::vector<std::vector<Eigen::VectorXd>> coefs;
   int lmax, nmax;
 
 public:
@@ -218,8 +221,7 @@ public:
 
 Reconstruct::~Reconstruct()
 {
-  for (int l=0; l<=lmax; l++) delete [] coefs[l];
-  delete [] coefs;
+  // NADA
 }
 
 Reconstruct::Reconstruct(AxiSymBiorth *bio, double rmin, double rmax,
@@ -230,9 +232,9 @@ Reconstruct::Reconstruct(AxiSymBiorth *bio, double rmin, double rmax,
   nmax = Nmax;
 
   biorth = bio;
-  coefs = new Vector*[lmax+1];
+  coefs.resize(lmax+1);
   for (int l=0; l<=lmax; l++) {
-    coefs[l] = new Vector [lmax+1];
+    coefs[l].resize(lmax+1);
     for (int m=0; m<=l; m++)
       coefs[l][m] = scalar_prod(density, rmin, rmax, l, m, *biorth,
 				shift_func, nmax, 400);

@@ -1,22 +1,13 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 //
 // Toomre's Model 1
 // with Kalnajs' m distribution function derived from inverting the
 // defining integral equation with a separable form: e^m g(x)
 //
 
-#ifndef _toomre_h
+#ifndef _toomre_H
+#define _toomre_H
 
-#define _toomre_h 1
-
-static const char rcsid_toomre[] = "$Id$";
-
-#ifndef _Logic_
-#include <logic.h>
-#endif
-
-#include <massmodel.h>
+#include <massmodel.H>
 
 class ToomreDisk : public AxiSymModel
 {

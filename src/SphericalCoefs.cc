@@ -1,4 +1,4 @@
-#include <localmpi.h>
+#include <localmpi.H>
 
 #include <boost/make_unique.hpp> // For character buffer
 #include <yaml-cpp/yaml.h>	 // YAML support

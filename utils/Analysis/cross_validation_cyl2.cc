@@ -61,16 +61,15 @@ namespace po = boost::program_options;
 #include <sys/resource.h>
 
 				// MDW classes
-#include <Vector.h>
-#include <numerical.h>
+#include <numerical.H>
 #include "Particle.h"
 #include <PSP2.H>
-#include <interp.h>
-#include <massmodel.h>
-#include <EmpCylSL.h>
+#include <interp.H>
+#include <massmodel.H>
+#include <EmpCylSL.H>
 #include <foarray.H>
 
-#include <localmpi.h>
+#include <localmpi.H>
 
 #include <yaml-cpp/yaml.h>	// YAML support
 
@@ -995,9 +994,9 @@ main(int argc, char **argv)
     }
 
     double term4tot = 0.0;
-    std::vector<Vector> ac_cos, ac_sin;
-    std::vector<Vector> rt_cos, rt_sin;
-    std::vector<Vector> sn_rat;
+    std::vector<Eigen::VectorXd> ac_cos, ac_sin;
+    std::vector<Eigen::VectorXd> rt_cos, rt_sin;
+    std::vector<Eigen::VectorXd> sn_rat;
 
     for (int nsnr=0; nsnr<NSNR; nsnr++) {
 

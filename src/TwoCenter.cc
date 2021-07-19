@@ -1,8 +1,8 @@
 #include <values.h>
 
-#include "expand.h"
+#include "expand.H"
 
-#include <gaussQ.h>
+#include <gaussQ.H>
 #include <TwoCenter.H>
 #include <MixtureBasis.H>
 

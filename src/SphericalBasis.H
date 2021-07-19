@@ -24,31 +24,31 @@ class SphericalBasis : public AxisymmetricBasis
 protected:
 
   //! Will cache values of the kernel required for recursion relations
-  Matrix krnl;
+  Eigen::MatrixXd krnl;
 
   //! Work vectors to make recursion evaluations thread safe
-  Vector *u;
+  std::vector<Eigen::VectorXd> u;
 
   //! Work vectors to make recursion evaluations thread safe
-  Vector *du;
+  std::vector<Eigen::VectorXd> du;
 
   //! Matrices per thread for obtaining potential field
-  Matrix *potd;
+  std::vector<Eigen::MatrixXd> potd;
 
   //! Matrices per thread for obtaining derivative of potential field
-  Matrix *dpot;
+  std::vector<Eigen::MatrixXd> dpot;
 
   //! Matrices per thread for obtaining legendre coefficients
-  Matrix *legs;
+  std::vector<Eigen::MatrixXd> legs;
 
   //! Matrices per thread for obtaining derivatives legendre coefficients
-  Matrix *dlegs;
+  std::vector<Eigen::MatrixXd> dlegs;
 
 
   //@{
   //! Matrices per thread for obtaining expansion coefficients
-  typedef boost::shared_ptr<Vector> VectorP;
-  std::vector<std::vector<VectorP>> expcoef0;
+  typedef boost::shared_ptr<Eigen::VectorXd> VectorXdP;
+  std::vector<std::vector<VectorXdP>> expcoef0;
   //@}
 
   //@{
@@ -61,16 +61,16 @@ protected:
   double resetT;
 
   //! Work vectors for cosines for all values <code>m</code>
-  Vector *cosm;
+  std::vector<Eigen::VectorXd> cosm;
 
   //! Work vectors for sines for all values <code>m</code>
-  Vector *sinm;
+  std::vector<Eigen::VectorXd> sinm;
 
   //! Work matrix
-  Matrix dend;
+  Eigen::MatrixXd dend;
 
   //! Cache factorial values
-  Matrix factorial;
+  Eigen::MatrixXd factorial;
 
   //! Initialize method
   virtual void initialize();
@@ -81,15 +81,16 @@ protected:
   void setup();
 
   //! Get potential and accel field values from coefficients
-  void get_pot_coefs(int l, Vector& coef, double *p, double *dp);
+  void get_pot_coefs(int l, const Eigen::VectorXd& coef, double& p, double& dp);
 
   /** Get potential and field values from coefficients 
       (provide workspace for thread safety) */
-  void get_pot_coefs_safe(int l, Vector& coef, double *p, double *dp,
-			  Matrix& potd1, Matrix& dpot1);
+  void get_pot_coefs_safe(int l, const Eigen::VectorXd& coef,
+			  double& p, double& dp,
+			  Eigen::MatrixXd& potd1, Eigen::MatrixXd& dpot1);
 
   //! Get density from coefficient vector
-  void get_dens_coefs(int l, Vector& coef, double* p);
+  void get_dens_coefs(int l, Eigen::VectorXd& coef, double& p);
 
   //! Flag whether or not work space has been initialized for coefficients
   bool firstime_coef;
@@ -110,8 +111,8 @@ protected:
   thrust::device_vector<cuFP_t> dev_coefs;
   cuFP_t host_mass_tot;
 
-  virtual void HtoD_coefs(const std::vector<VectorP>& coef);
-  virtual void DtoH_coefs(std::vector<VectorP>& coef);
+  virtual void HtoD_coefs(const std::vector<Eigen::VectorXdP>& coef);
+  virtual void DtoH_coefs(std::vector<Eigen::VectorXdP>& coef);
 
   std::vector<cudaArray_t> cuInterpArray;
   thrust::host_vector<cudaTextureObject_t> tex;
@@ -224,10 +225,10 @@ protected:
   string noise_model_file;
 
   //! Expected coefficient values for RMS noise computation
-  Vector meanC;
+  Eigen::VectorXd meanC;
 
   //! Expected squared coefficient values for RMS noise computation
-  Matrix rmsC;
+  Eigen::MatrixXd rmsC;
   //! Seed for random number generator
   int seedN;
   //! Random number generator
@@ -249,7 +250,7 @@ protected:
 
   //! For updating levels
   //@{
-  vector< vector<Matrix> > differ1;
+  vector< vector<Eigen::MatrixXd> > differ1;
   vector< double > pack, unpack;
   //@}
 
@@ -333,7 +334,7 @@ public:
     provide some thread safety
   */
   virtual 
-  void get_dpotl(int lmax, int nmax, double r, Matrix& p, Matrix& dp, 
+  void get_dpotl(int lmax, int nmax, double r, Eigen::MatrixXd& p, Eigen::MatrixXd& dp, 
 		 int tid) = 0;
 
   /** Get derivative of potential
@@ -346,7 +347,7 @@ public:
     provide some thread safety
   */
   virtual 
-  void get_potl(int lmax, int nmax, double r, Matrix& p,
+  void get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p,
 		int tid) = 0;
 
   /** Get derivative of potential
@@ -359,7 +360,7 @@ public:
     provide some thread safety
   */
   virtual 
-  void get_dens(int lmax, int nmax, double r, Matrix& d,
+  void get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& d,
 		int tid) = 0;
 
   /** Get derivative of potential
@@ -374,7 +375,7 @@ public:
     provide some thread safety
   */
   virtual 
-  void get_potl_dens(int lmax, int nmax, double r, Matrix& p, Matrix& d,
+  void get_potl_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, Eigen::MatrixXd& d,
 		     int tid) = 0;
 
   //! Return the value for the fields in Cartesian coordinates

@@ -4,7 +4,7 @@
 #include <vector>
 #include <memory>
 
-#include <massmodel.h>
+#include <massmodel.H>
 
 class AddDisk
 {

@@ -1,5 +1,3 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 /*****************************************************************************
  *  Description:
  *  -----------
@@ -31,19 +29,18 @@
 
 #include <iostream>
 #include <iomanip>
+#include <fstream>
+#include <cmath>
 
-#include <unistd.h>
-#include <math.h>
 #include <ACG.h>
 #include <Uniform.h>
 #include <Normal.h>
 
-#include <Vector.h>
-#include <massmodel.h>
-#include <interp.h>
+#include <massmodel.H>
+#include <interp.H>
 
 #ifdef DEBUG
-#include <orbit.h>
+#include <orbit.H>
 static SphericalOrbit orb;
 #endif
 
@@ -66,14 +63,13 @@ const bool verbose = true;
 const double ftol = 0.01;
 
 
-Vector AxiSymModel::gen_point_2d(int& ierr)
+Eigen::VectorXd AxiSymModel::gen_point_2d(int& ierr)
 {
   if (!dist_defined) {
     cerr << "AxiSymModel: must define distribution before realizing!\n";
     _exit (-1);
   }
 
-  int it;
   double r=0.0, pot, vmax, xxx, yyy, zzz, vr=0.0, vt=0.0, eee, fmax, vv;
   double phi=0.0, sinp, cosp;
   double T, w1;
@@ -83,6 +79,7 @@ Vector AxiSymModel::gen_point_2d(int& ierr)
   double Emin = get_pot(rmin);
   double Emax = get_pot(get_max_radius());
 
+  int it = 0;
 
   if (gen_EJ) {
 
@@ -164,9 +161,9 @@ Vector AxiSymModel::gen_point_2d(int& ierr)
       gen = new ACG(gen_seed, 20);
       Unit = new Uniform(0.0, 1.0, gen);
       
-      gen_mass.setsize(1, gen_N);
-      gen_rloc.setsize(1, gen_N);
-      gen_fmax.setsize(1, gen_N);
+      gen_mass.resize(gen_N);
+      gen_rloc.resize(gen_N);
+      gen_fmax.resize(gen_N);
 
       cout << "gen_point_2d[" << ModelID << "]: " << get_max_radius() << endl;
 
@@ -177,7 +174,7 @@ Vector AxiSymModel::gen_point_2d(int& ierr)
       else
 	dr = (get_max_radius() - rmin)/(gen_N-1);
 
-      for (int i=1; i<=gen_N; i++) {
+      for (int i=0; i<gen_N; i++) {
 
 	if (gen_logr) {
 	  gen_rloc[i] = log(rmin + dr*(i-1));
@@ -214,7 +211,7 @@ Vector AxiSymModel::gen_point_2d(int& ierr)
       gen_firstime = false;
     }
 
-    r = odd2((*Unit)()*gen_mass[gen_N], gen_mass, gen_rloc, 0);
+    r = odd2((*Unit)()*gen_mass[gen_N-1], gen_mass, gen_rloc, 0);
     fmax = odd2(r, gen_rloc, gen_fmax, 1);
     if (gen_logr) r = exp(r);
 
@@ -244,12 +241,12 @@ Vector AxiSymModel::gen_point_2d(int& ierr)
   }
 
                 
-  Vector out(0, 6);
+  Eigen::VectorXd out(7);
 
   if (it==gen_itmax) {
     cerr << "Velocity selection failed, r=" << r << "\n";
     ierr = 1;
-    out.zero();
+    out.setZero();
     return out;
   }
 
@@ -270,7 +267,7 @@ Vector AxiSymModel::gen_point_2d(int& ierr)
 }
 
 
-Vector AxiSymModel::gen_point_2d(double r, int& ierr)
+Eigen::VectorXd AxiSymModel::gen_point_2d(double r, int& ierr)
 {
   if (!dist_defined) {
     cerr << "AxiSymModel: must define distribution before realizing!\n";
@@ -292,16 +289,16 @@ Vector AxiSymModel::gen_point_2d(double r, int& ierr)
     gen = new ACG(gen_seed, 20);
     Unit = new Uniform(0.0, 1.0, gen);
       
-    gen_mass.setsize(1, gen_N);
-    gen_rloc.setsize(1, gen_N);
-    gen_fmax.setsize(1, gen_N);
+    gen_mass.resize(gen_N);
+    gen_rloc.resize(gen_N);
+    gen_fmax.resize(gen_N);
 
     cout << "gen_point_2d[" << ModelID << "]: " << rmin
 	 << ", " << get_max_radius() << endl;
 
     double dr = (get_max_radius() - rmin)/gen_N;
 
-    for (int i=1; i<=gen_N; i++) {
+    for (int i=0; i<gen_N; i++) {
       gen_rloc[i] = rmin + dr*(i-1);
       gen_mass[i] = get_mass(gen_rloc[i]);
 
@@ -354,12 +351,12 @@ Vector AxiSymModel::gen_point_2d(double r, int& ierr)
   }
 
   
-  Vector out(0, 6);
+  Eigen::VectorXd out(7);
 
   if (it==gen_itmax) {
     cerr << "Velocity selection failed, r=" << r << "\n";
     ierr = 1;
-    out.zero();
+    out.setZero();
     return out;
   }
 
@@ -380,7 +377,7 @@ Vector AxiSymModel::gen_point_2d(double r, int& ierr)
 }
 
 
-Vector AxiSymModel::gen_point_3d(int& ierr)
+Eigen::VectorXd AxiSymModel::gen_point_3d(int& ierr)
 {
   if (!dist_defined) {
     cerr << "AxiSymModel: must define distribution before realizing!\n";
@@ -414,9 +411,9 @@ Vector AxiSymModel::gen_point_3d(int& ierr)
     gen = new ACG(gen_seed, 20);
     Unit = new Uniform(0.0, 1.0, gen);
 
-    gen_mass.setsize(1, gen_N);
-    gen_rloc.setsize(1, gen_N);
-    gen_fmax.setsize(1, gen_N);
+    gen_mass.resize(gen_N);
+    gen_rloc.resize(gen_N);
+    gen_fmax.resize(gen_N);
 
     if (rmin <= 1.0e-16) gen_logr = 0;
     
@@ -426,7 +423,7 @@ Vector AxiSymModel::gen_point_3d(int& ierr)
       dr = (get_max_radius() - rmin)/(gen_N-1);
 
 
-    for (int i=1; i<=gen_N; i++) {
+    for (int i=0; i<gen_N; i++) {
 
       if (gen_logr) {
 	gen_rloc[i] = log(rmin) + dr*(i-1);
@@ -463,7 +460,7 @@ Vector AxiSymModel::gen_point_3d(int& ierr)
 
     // Debug
     
-    ofstream test("test.grid");
+    std::ofstream test("test.grid");
     if (test) {
 
       test << "# Rmin=" << rmin
@@ -523,12 +520,12 @@ Vector AxiSymModel::gen_point_3d(int& ierr)
     break;
   }
                 
-  Vector out(0, 6);
+  Eigen::VectorXd out(7);
 
   if (it==gen_itmax) {
-    cerr << "Velocity selection failed, r=" << r << "\n";
+    std::cerr << "Velocity selection failed, r=" << r << std::endl;
     ierr = 1;
-    out.zero();
+    out.setZero();
     return out;
   }
 
@@ -570,8 +567,8 @@ Vector AxiSymModel::gen_point_3d(int& ierr)
 }
 
 
-Vector AxiSymModel::gen_point_3d(double Emin, double Emax, 
-				 double Kmin, double Kmax, int& ierr)
+Eigen::VectorXd AxiSymModel::gen_point_3d(double Emin, double Emax, 
+					  double Kmin, double Kmax, int& ierr)
 {
   if (!dist_defined) {
     cerr << "AxiSymModel: must define distribution before realizing!\n";
@@ -628,8 +625,8 @@ Vector AxiSymModel::gen_point_3d(double Emin, double Emax,
 	agrid = gen_orb.get_angle_grid();
 
 	for (int n=0; n<agrid->num; n++) {
-	  wr.w1.push_back(agrid->w1[1][n]);
-	  wr.r.push_back(agrid->r[1][n]);
+	  wr.w1.push_back(agrid->w1(1, n));
+	  wr.r.push_back(agrid->r(1, n));
 	}
 	wrvec.push_back(wr);
 
@@ -733,7 +730,7 @@ Vector AxiSymModel::gen_point_3d(double Emin, double Emax,
   vt1 = vt*cos(azi);
   vt2 = vt*sin(azi);
 
-  Vector out(0, 6);
+  Eigen::VectorXd out(7);
 
   phi = 2.0*M_PI*(*Unit)();
   cost = 2.0*((*Unit)() - 0.5);
@@ -776,7 +773,7 @@ Vector AxiSymModel::gen_point_3d(double Emin, double Emax,
 
 
 
-Vector AxiSymModel::gen_point_jeans_3d(int& ierr)
+Eigen::VectorXd AxiSymModel::gen_point_jeans_3d(int& ierr)
 {
   double r, d, xxx, yyy, vr, vt, vt1, vt2, vv, vtot;
   double phi, sint, cost, sinp, cosp, azi;
@@ -785,15 +782,15 @@ Vector AxiSymModel::gen_point_jeans_3d(int& ierr)
   if (gen_firstime_jeans) {
     double dr;
 
-    gen = new ACG(gen_seed, 20);
-    Unit = new Uniform(0.0, 1.0, gen);
+    gen   = new ACG(gen_seed, 20);
+    Unit  = new Uniform(0.0, 1.0, gen);
     Gauss = new Normal(0.0, 1.0, gen);
 
-    gen_mass.setsize(1, gen_N);
-    gen_rloc.setsize(1, gen_N);
-    gen_fmax.setsize(1, gen_N);
-    Vector work(1, gen_N);
-    Vector work2(1, gen_N);
+    gen_mass.resize(gen_N-1);
+    gen_rloc.resize(gen_N-1);
+    gen_fmax.resize(gen_N-1);
+    Eigen::VectorXd work(gen_N-1);
+    Eigen::VectorXd work2(gen_N-1);
 
     if (rmin <= 1.0e-16) gen_logr = 0;
     
@@ -877,7 +874,7 @@ Vector AxiSymModel::gen_point_jeans_3d(int& ierr)
   vt1 = vt*cos(azi);
   vt2 = vt*sin(azi);
 
-  Vector out(0, 6);
+  Eigen::VectorXd out(7);
 
   if ((*Unit)()>=0.5) vr *= -1.0;
 
@@ -929,9 +926,9 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
     gen = new ACG(gen_seed, 20);
     Unit = new Uniform(0.0, 1.0, gen);
 
-    gen_mass.setsize(1, gen_N);
-    gen_rloc.setsize(1, gen_N);
-    gen_fmax.setsize(1, gen_N);
+    gen_mass.resize(gen_N);
+    gen_rloc.resize(gen_N);
+    gen_fmax.resize(gen_N);
 
     if (rmin <= 1.0e-16) gen_logr = 0;
     
@@ -941,7 +938,7 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
       dr = (get_max_radius() - rmin)/(gen_N-1);
 
 
-    for (int i=1; i<=gen_N; i++) {
+    for (int i=0; i<gen_N; i++) {
 
       if (gen_logr) {
 	gen_rloc[i] = log(rmin) + dr*(i-1);
@@ -1042,7 +1039,7 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
   vel[2] = vr * cost      - vt1 * sint;
 }
 
-Vector SphericalModelMulti::gen_point(int& ierr)
+Eigen::VectorXd SphericalModelMulti::gen_point(int& ierr)
 {
   if (!real->dist_defined || !fake->dist_defined) {
     cerr << "SphericalModelMulti: input distribution functions must be defined before realizing!\n";
@@ -1065,9 +1062,9 @@ Vector SphericalModelMulti::gen_point(int& ierr)
     gen = new ACG(gen_seed, 20);
     Unit = new Uniform(0.0, 1.0, gen);
 
-    gen_mass.setsize(1, gen_N);
-    gen_rloc.setsize(1, gen_N);
-    gen_fmax.setsize(1, gen_N);
+    gen_mass.resize(gen_N);
+    gen_rloc.resize(gen_N);
+    gen_fmax.resize(gen_N);
     vector<double> gen_emax, gen_vmax;
 
     if (rmin_gen <= 1.0e-16) gen_logr = 0;
@@ -1234,12 +1231,12 @@ Vector SphericalModelMulti::gen_point(int& ierr)
     break;
   }
                 
-  Vector out(0, 6);
+  Eigen::VectorXd out(7);
 
   if (it==gen_itmax) {
     if (verbose) cerr << "Velocity selection failed, r=" << r << "\n";
     ierr = 1;
-    out.zero();
+    out.setZero();
     return out;
   }
 
@@ -1271,7 +1268,7 @@ Vector SphericalModelMulti::gen_point(int& ierr)
 }
 
 
-Vector SphericalModelMulti::gen_point(double radius, int& ierr)
+Eigen::VectorXd SphericalModelMulti::gen_point(double radius, int& ierr)
 {
   if (!real->dist_defined || !fake->dist_defined) {
     cerr << "SphericalModelMulti: input distribution functions must be defined before realizing!\n";
@@ -1294,9 +1291,9 @@ Vector SphericalModelMulti::gen_point(double radius, int& ierr)
     gen = new ACG(gen_seed, 20);
     Unit = new Uniform(0.0, 1.0, gen);
 
-    gen_mass.setsize(1, gen_N);
-    gen_rloc.setsize(1, gen_N);
-    gen_fmax.setsize(1, gen_N);
+    gen_mass.resize(gen_N);
+    gen_rloc.resize(gen_N);
+    gen_fmax.resize(gen_N);
 
     if (rmin_gen <= 1.0e-16) gen_logr = 0;
     
@@ -1305,7 +1302,7 @@ Vector SphericalModelMulti::gen_point(double radius, int& ierr)
     else
       dr = (rmax_gen - rmin_gen)/(gen_N-1);
 
-    for (int i=1; i<=gen_N; i++) {
+    for (int i=0; i<gen_N; i++) {
 
       if (gen_logr) {
 	gen_rloc[i] = log(rmin_gen) + dr*(i-1);
@@ -1393,12 +1390,12 @@ Vector SphericalModelMulti::gen_point(double radius, int& ierr)
     break;
   }
                 
-  Vector out(0, 6);
+  Eigen::VectorXd out(7);
 
   if (it==gen_itmax) {
     if (verbose) cerr << "Velocity selection failed, r=" << r << "\n";
     ierr = 1;
-    out.zero();
+    out.setZero();
     return out;
   }
 
@@ -1428,7 +1425,9 @@ Vector SphericalModelMulti::gen_point(double radius, int& ierr)
 }
 
 
-Vector SphericalModelMulti::gen_point(double Emin, double Emax, double Kmin, double Kmax, int& ierr)
+Eigen::VectorXd
+  SphericalModelMulti::gen_point(double Emin, double Emax, double Kmin,
+				 double Kmax, int& ierr)
 {
   if (!real->dist_defined || !fake->dist_defined) {
     cerr << "SphericalModelMulti: input distribution functions must be defined before realizing!\n";
@@ -1490,10 +1489,10 @@ Vector SphericalModelMulti::gen_point(double Emin, double Emax, double Kmin, dou
 
 	WRgrid wr;
 	agrid = gen_orb.get_angle_grid();
-
+	
 	for (int n=0; n<agrid->num; n++) {
-	  wr.w1.push_back(agrid->w1[1][n]);
-	  wr.r.push_back(agrid->r[1][n]);
+	  wr.w1.push_back(agrid->w1(1, n));
+	  wr.r.push_back(agrid->r(1, n));
 	}
 	wrvec.push_back(wr);
 
@@ -1590,7 +1589,7 @@ Vector SphericalModelMulti::gen_point(double Emin, double Emax, double Kmin, dou
   vt1 = vt*cos(azi);
   vt2 = vt*sin(azi);
 
-  Vector out(0, 6);
+  Eigen::VectorXd out(7);
 
   phi = 2.0*M_PI*(*Unit)();
   cost = 2.0*((*Unit)() - 0.5);

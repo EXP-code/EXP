@@ -1,19 +1,15 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 #ifndef _sphereSL_h
+#define _sphereSL_h
 
-#define _sphereSL_h 1
-
-#include <math.h>
+#include <cmath>
 #include <iostream>
 #include <fstream>
 #include <string>
 
-#include <numerical.h>
-#include <Vector.h>
-#include <biorth.h>
+#include <numerical.H>
+#include <biorth.H>
 
-#include <SLGridMP2.h>
+#include <SLGridMP2.H>
 
 
 class SphereSL : public AxiSymBiorth
@@ -54,8 +50,8 @@ public:
     return potl(n, l, r_to_rb(sqrt(r*r+z*z)) ); }
 
 
-  void potl(const int n, const int l, const double x, Vector& t);
-  void dens(const int n, const int l, const double x, Vector& t);
+  void potl(const int n, const int l, const double x, Eigen::VectorXd& t);
+  void dens(const int n, const int l, const double x, Eigen::VectorXd& t);
 
   
 
@@ -65,8 +61,8 @@ public:
   double rb_min(void) { return slgrid->r_to_xi(rmin); } 
   double rb_max(void) { return slgrid->r_to_xi(rmax); }
 
-  double get_potl(const double r, const int l, const Vector& coef);
-  double get_dens(const double r, const int l, const Vector& coef);
+  double get_potl(const double r, const int l, const Eigen::VectorXd& coef);
+  double get_dens(const double r, const int l, const Eigen::VectorXd& coef);
 
   inline double krnl(const int n, const int l) { return 1.0; }
   inline double norm(const int n, const int l) { return 1.0; }

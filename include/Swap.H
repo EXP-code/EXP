@@ -1,3 +1,5 @@
+#ifndef _Swap_H
+#define _Swap_H
 
 template <class T>
 class Swap
@@ -37,3 +39,4 @@ public:
 
 };
 
+#endif

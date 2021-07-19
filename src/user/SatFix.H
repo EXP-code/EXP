@@ -1,5 +1,5 @@
 #include <cmath>
-#include <expand.h>
+#include <expand.H>
 #include <ExternalCollection.H>
 
 //! Force dual satellites to be inversion symmetric about the origin

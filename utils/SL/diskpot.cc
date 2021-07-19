@@ -7,12 +7,12 @@
 
 #include <getopt.h>		// For long options
 
-#include <localmpi.h>
+#include <localmpi.H>
 #include <SLSphere.H>		// Defines biorthogonal SL class
 #include <CylindricalDisk.H>	// The axisymmetric potential solver
-#include <gaussQ.h>		// Gauss-Legendre quadrature
-#include <exponential.h>	// Exponential disk
-#include <toomre.h>		// Toomre disk (including Kuzmin)
+#include <gaussQ.H>		// Gauss-Legendre quadrature
+#include <exponential.H>	// Exponential disk
+#include <toomre.H>		// Toomre disk (including Kuzmin)
 
 //===========================================================================
 

@@ -6,7 +6,7 @@
 #include <sstream>
 #include <vector>
 
-#include <expand.h>
+#include <expand.H>
 #include <chkTimer.H>
 
 #include "../config.h"

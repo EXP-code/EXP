@@ -12,9 +12,9 @@
 
 namespace po = boost::program_options;
 
-#include <localmpi.h>
-#include <SLGridMP2.h>
-#include <gaussQ.h>
+#include <localmpi.H>
+#include <SLGridMP2.H>
+#include <gaussQ.H>
 
 char threading_on = 0;
 pthread_mutex_t mem_lock;

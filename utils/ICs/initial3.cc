@@ -41,14 +41,14 @@
 #endif
 
                                 // MDW classes
-#include <numerical.h>
-#include <gaussQ.h>
-#include <isothermal.h>
-#include <hernquist.h>
-#include <model3d.h>
-#include <biorth.h>
-#include <interp.h>
-#include <EmpCylSL.h>
+#include <numerical.H>
+#include <gaussQ.H>
+#include <isothermal.H>
+#include <hernquist.H>
+#include <model3d.H>
+#include <biorth.H>
+#include <interp.H>
+#include <EmpCylSL.H>
 
 #include <boost/program_options.hpp>
 
@@ -65,7 +65,7 @@ namespace po = boost::program_options;
 
                                 // Local headers
 #include <DiskHalo3.H>
-#include <localmpi.h>
+#include <localmpi.H>
 
 //
 // Global variables

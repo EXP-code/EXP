@@ -1,31 +1,29 @@
-#include <math.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <numerical.h>
-#include <Vector.h>
-
+#include <iostream>
+#include <iomanip>
+#include <Eigen/Eigen>
 
 
 int main()
 {
-	Matrix M(1, 3, 1, 3);
-	Vector e(1, 3);
+  Eigen::MatrixXd M(3, 3);
+  Eigen::VectorXd e(3);
+  
+  M(0, 0) = 1.0;
+  M(0, 1) = 0.5;
+  M(0, 2) = 0.1;
+  
+  M(1, 1) = 1.0;
+  M(1, 2) = 0.2;
+  
+  M(2, 2) = 1.0;
 
-	M[1][1] = 1.0;
-	M[1][2] = 0.5;
-	M[1][3] = 0.1;
-
-	M[2][2] = 1.0;
-	M[2][3] = 0.2;
-
-	M[3][3] = 1.0;
-
-	M[2][1] = M[1][2];
-	M[3][1] = M[1][3];
-	M[3][2] = M[2][3];
-
-	e = M.Symmetric_Eigenvalues();
-	e.print(stdout);
+  M(1, 0) = M(0, 1);
+  M(2, 0) = M(0, 2);
+  M(2, 1) = M(1, 2);
+  
+  EigenSolver<MatrixXd> es(M, false);
+  std::cout << "The eigenvalues of the 3x3 matrix of ones are:" 
+	    << std::endl << es.eigenvalues() << std::endl;  
 }
 	
 

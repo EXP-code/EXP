@@ -1,12 +1,8 @@
-// This may look like C code, but it is really -*- C++ -*-
+#ifndef _orbit_H
+#define _orbit_H
 
-#ifndef _orbit_h
-#define _orbit_h 1
-
-const char rcsid_orbit[] = "$Id$";
-
-#include <Vector.h>
-#include <gaussQ.h>
+#include <Eigen/Eigen>
+#include <gaussQ.H>
 
 class AxiSymModel;
 class AxiSymBiorth;
@@ -16,7 +12,7 @@ class RegularOrbit
 public:
 
   int dof;
-  string OrbitID;
+  std::string OrbitID;
 
   bool model_defined;
   bool action_defined;
@@ -24,10 +20,7 @@ public:
   bool angle_defined;
   bool biorth_defined;
 
-//  MassModel *model;
-
-  Vector action;
-  Vector freq;
+  Eigen::Vector3d action, freq;
   
   virtual ~RegularOrbit() {}
 
@@ -42,12 +35,12 @@ public:
 };
   
 struct ANGLE_GRID {
-  Matrix t;  // RECS
-  Matrix w1;
-  Matrix dw1dt;
-  Matrix f;
-  Matrix r;
-  Matrix fr; // NMAX x RECS
+  Eigen::MatrixXd t;  // RECS
+  Eigen::MatrixXd w1;
+  Eigen::MatrixXd dw1dt;
+  Eigen::MatrixXd f;
+  Eigen::MatrixXd r;
+  Eigen::MatrixXd fr; // NMAX x RECS
   int num;
 };
 
@@ -84,7 +77,7 @@ private:
 
   int l;
   int l1s, l2s;
-  Vector cosvec;
+  Eigen::VectorXd cosvec;
 
   GaussQuad Gkn;
 
@@ -160,7 +153,7 @@ public:
 
   double pot_trans(int l1, int l2, double (*func)(double) );
   double pot_trans(int l1, int l2, int n );
-  void pot_trans(int l1, int l2, Vector& t);
+  void   pot_trans(int l1, int l2, Eigen::VectorXd& t);
 
 				// Access to underlying grid for pot_trans
   struct ANGLE_GRID * get_angle_grid(void) { 

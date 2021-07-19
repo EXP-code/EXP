@@ -1,10 +1,9 @@
 #ifndef _SlabSL_H
 #define _SlabSL_H
 
-#include <kevin_complex.h>
-#include <SLGridMP2.h>
-#include <biorth1d.h>
-
+#include <complex>
+#include <SLGridMP2.H>
+#include <biorth1d.H>
 #include <PotAccel.H>
 
 /*! This routine computes the potential, acceleration and density
@@ -27,10 +26,8 @@ private:
 
   SLGridSlab *grid;
 
-  KComplex **expccof;
-  double *expreal, *expimag;
-  double *expreal1, *expimag1;
-  OneDTrig **trig;
+  std::vector<Eigen::VectorXcd> expccof;
+  std::vector<std::vector<OneDTrig>> trig;
 
   int nminx, nminy;
   int nmaxx, nmaxy, nmaxz;
@@ -38,9 +35,9 @@ private:
 
   int imx, imy, imz, jmax, nnmax;
   double  dfac;
-  KComplex kfac;
+  std::complex<double> kfac;
 
-  Vector *zfrc, *zpot;
+  std::vector<Eigen::VectorXd> zfrc, zpot;
 
   SlabSLCoefHeader coefheader;
 

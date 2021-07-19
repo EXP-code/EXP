@@ -1,5 +1,3 @@
-// This may look like C code, but it is really -*- C++ -*-
-
 /*****************************************************************************
  *  Description:
  *  -----------
@@ -30,28 +28,24 @@
  *
  ***************************************************************************/
 
-static char rcsid_satellite_orbit[] = "$Id$";
-
-#include <stdlib.h>
-#include <math.h>
+#include <cstdlib>
+#include <cmath>
 #include <string>
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
 #endif
 
-#include <kevin_complex.h>
-#include <Vector.h>
-#include <orbit.h>
-#include <massmodel.h>
+#include <orbit.H>
+#include <massmodel.H>
 
-#include <model2d.h>
-#include <model3d.h>
-#include <isothermal.h>
-#include <hernquist.h>
-#include <mestel.h>
-#include <toomre.h>
-#include <exponential.h>
+#include <model2d.H>
+#include <model3d.H>
+#include <isothermal.H>
+#include <hernquist.H>
+#include <mestel.H>
+#include <toomre.H>
+#include <exponential.H>
 
 
 static void parse_args(void);
@@ -81,12 +75,12 @@ static string MODFILE="halo.model";
 				// Private global variables
 static AxiSymModel *halo_model;
 static SphericalOrbit orb;
-static Matrix rotate;
+static Eigen::Matrix3d rotate;
 static int firstime=1;
-static Vector v0(1,3);
+static Eigen::Vector3d v0;
 
 
-Vector get_satellite_orbit(double T)
+Eigen::VectorXd get_satellite_orbit(double T)
 {
   //
   // Begin
@@ -158,7 +152,7 @@ Vector get_satellite_orbit(double T)
   return rotate*v0;
 }
 
-Vector get_satellite_force(double T)
+Eigen::Vector3d get_satellite_force(double T)
 {
   //
   // Begin
@@ -233,11 +227,11 @@ Vector get_satellite_force(double T)
 
 extern "C" void satellite_orbit(double T, double* X, double* Y, double* Z)
 {
-  static Vector v(1, 3);
+  static Eigen::Vector3d v;
   v = get_satellite_orbit(T);
-  *X = v[1];
-  *Y = v[2];
-  *Z = v[3];
+  *X = v[0];
+  *Y = v[1];
+  *Z = v[2];
 }
 
 

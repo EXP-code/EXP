@@ -14,12 +14,12 @@
 //
 // #define CHK_BADV
 
-#include <expand.h>
+#include <expand.H>
 #include <OutputContainer.H>
 
 // Substep timing
 //
-#include <Timer.h>
+#include <Timer.H>
 
 #ifdef USE_GPTL
 #include <gptl.h>

@@ -11,11 +11,12 @@ class Hernquist : public SphericalBasis
 
 private:
 
-  void get_dpotl(int lmax, int nmax, double r, Matrix& p, Matrix& dp, int tid);
-  void get_potl(int lmax, int nmax, double r, Matrix& p, int tid);
-  void get_dens(int lmax, int nmax, double r, Matrix& p, int tid);
-  void get_potl_dens(int lmax, int nmax, double r, Matrix& p, Matrix& d,
-		     int tid);
+  void get_dpotl(int lmax, int nmax, double r,
+		 Eigen::MatrixXd& p, Eigen::MatrixXd& dp, int tid);
+  void get_potl(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid);
+  void get_dens(int lmax, int nmax, double r, Eigen::MatrixXd& p, int tid);
+  void get_potl_dens(int lmax, int nmax, double r,
+		     Eigen::MatrixXd& p, Eigen::MatrixXd& d, int tid);
 
   double norm(int, int);
   double knl(int, int);

@@ -4,7 +4,7 @@
 #include <cudaUtil.cuH>
 #include <cudaParticle.cuH>
 
-#include "expand.h"
+#include "expand.H"
 #include "global.H"
 
 __device__ __constant__

@@ -20,7 +20,7 @@
 #include "global.H"
 #include "TreeDSMC.H"
 #include "CollideIon.H"
-#include "localmpi.h"
+#include "localmpi.H"
 #include "Species.H"
 #include "InitContainer.H"
 

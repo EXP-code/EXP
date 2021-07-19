@@ -2,7 +2,7 @@
 //  Parse command line
 //
 
-#include "expand.h"
+#include "expand.H"
 
 #include <stdlib.h>
 #include <errno.h>
